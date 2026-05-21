@@ -53,7 +53,7 @@ UI / post-fix verification only. Business logic → PHPUnit.
 
 ## Baseline invariant（hard rule）
 
-`develop` 與 `master` long-lived branch 的 PHPUnit baseline MUST 為 0 error / 0 failure / 0 skip / 0 risky。任何 PR 進入 develop 前 MUST 維持此 invariant。
+`develop` 與 `main` long-lived branch 的 PHPUnit baseline MUST 為 0 error / 0 failure / 0 skip / 0 risky。任何 PR 進入 develop 前 MUST 維持此 invariant。
 
 | 違反情境 | 處理 |
 |---------|------|

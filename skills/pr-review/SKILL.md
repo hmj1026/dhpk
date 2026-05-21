@@ -39,7 +39,7 @@ description: 'PR self-review workflow — review changes for correctness/securit
 
 ### Step 3 — PR hygiene scan（squash merge 用）
 
-若本次將以 squash merge 進 develop / master，**MUST** 跑 unrelated-changes 掃描：
+若本次將以 squash merge 進 develop / main，**MUST** 跑 unrelated-changes 掃描：
 
 ```bash
 bash .claude/skills/pr-review/scripts/check-unrelated-changes.sh <pr-number>
