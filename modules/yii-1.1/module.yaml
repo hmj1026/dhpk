@@ -1,0 +1,18 @@
+name: yii-1.1
+display_name: "Yii 1.1 Framework"
+version: 0.1.0
+description: "Yii 1.1 framework: namespace autoload, AR/CDbCriteria, controllers, DDD layering (Controller → Service → Repository), CHtml::encode for XSS, PDO::PARAM bindings. Assumes a PHP baseline module (php-5.6 or php-7.x) is also enabled."
+requires: [php-5.6]
+triggers:
+  code:
+    extensions: [".php"]
+    paths: [protected/, infrastructure/, domain/]
+  db:
+    extensions: [".sql"]
+    paths: [infrastructure/Repositories/, protected/migrations/, protected/models/]
+  sec:
+    extensions: []
+    paths: [protected/controllers/, infrastructure/Config/]
+provides:
+  skills: [php56-yii-dev, yii1-security-audit]
+  references: [framework.md, patterns.md, security.md]

@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "dhpk",
+  "displayName": "DHPK Dev Harness",
+  "version": "0.1.0",
+  "description": "Reusable Claude Code harness — generic core + opt-in stack modules (php-5.6, yii-1.1, phpunit-5.7). Sentinel-driven review hooks, parameterised docker/agent names, parallel Codex CLI tree.",
+  "author": {
+    "name": "hmj1026",
+    "url": "https://github.com/hmj1026"
+  },
+  "license": "MIT",
+  "keywords": ["harness", "openspec", "codex", "code-review", "php", "yii", "phpunit"],
+  "hooks": "./hooks/hooks.json",
+  "skills": [
+    "./skills/",
+    "./modules/php-5.6/skills/",
+    "./modules/yii-1.1/skills/",
+    "./modules/phpunit-5.7/skills/"
+  ],
+  "userConfig": {
+    "hook_profile": {
+      "type": "string",
+      "title": "Hook profile",
+      "description": "Verbosity of hook output: minimal | standard | strict",
+      "default": "standard"
+    },
+    "review_agents": {
+      "type": "string",
+      "multiple": true,
+      "title": "Review agent names",
+      "description": "Three agents invoked by sentinel reminders (code, database, security). Override to point at project-specific agents.",
+      "default": ["code-reviewer", "database-reviewer", "security-reviewer"]
+    },
+    "docker_containers": {
+      "type": "string",
+      "multiple": true,
+      "title": "Docker containers",
+      "description": "Container names checked at SessionStart. Empty list disables the check.",
+      "default": []
+    },
+    "modules": {
+      "type": "string",
+      "multiple": true,
+      "title": "Stack modules to enable",
+      "description": "Enable stack modules from modules/. Ships: php-5.6, yii-1.1, phpunit-5.7. Module 'requires' validated at SessionStart (warning only).",
+      "default": []
+    },
+    "review_trigger_extra_paths": {
+      "type": "string",
+      "multiple": true,
+      "title": "Extra review trigger paths",
+      "description": "Extra path prefixes per reviewer slot, formatted '<slot>:<prefix>' where slot ∈ code|db|sec. Example: 'code:protected/'",
+      "default": []
+    }
+  }
+}

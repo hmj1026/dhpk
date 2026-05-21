@@ -1,0 +1,49 @@
+{
+  "skill_name": "multi-ai-sync",
+  "skill_version": "1.0",
+  "description": "Claude-first multi-platform AI config sync (Codex/Gemini/Antigravity)",
+  "evals": [
+    {
+      "id": "full-sync",
+      "name": "Full Synchronization Workflow",
+      "description": "Test complete sync flow with plan -> tasks -> apply -> validate",
+      "prompt": "幫我把 Claude 的 skills 和 commands 同步到 Codex",
+      "expected_output": "執行完整的同步流程（Preflight → Step 1 plan → Step 2 openspec-tasks → Step 3 apply → Step 4 validate）；產生差異計畫與任務；執行乾跑檢查；驗證同步結果",
+      "expectations": [
+        "執行 Preflight 檢查（來源與目標環境驗證）",
+        "Step 1 產生差異計畫（plan 模式）",
+        "Step 2 建立 OpenSpec tasks（含 status、reason、evidence）",
+        "Step 3 執行乾跑（dry-run）後實際套用",
+        "Step 4 驗證 gate（PASS/PARTIAL/FAIL 三態）",
+        "輸出包含完整的同步紀錄"
+      ]
+    },
+    {
+      "id": "plan-only",
+      "name": "Plan-Only Synchronization Mode",
+      "description": "Test plan generation without direct apply",
+      "prompt": "對齊 Claude 和 Gemini 的配置，以 Claude 為準，先給我差異計畫",
+      "expected_output": "僅執行 Step 1（plan）；不執行 apply；輸出結構化的差異報告；為使用者決策提供清晰的資訊",
+      "expectations": [
+        "識別為 plan-only 模式（未自動 apply）",
+        "執行 Preflight 檢查",
+        "產生詳細的差異計畫",
+        "列出各對齊項目的 status、reason、evidence",
+        "停止在 Step 1，不進入 Step 2/3/4"
+      ]
+    },
+    {
+      "id": "english-trigger",
+      "name": "English Language Trigger Test",
+      "description": "Test skill triggering with English prompts",
+      "prompt": "sync claude rules to codex and gemini",
+      "expected_output": "技能被正確觸發（儘管提示是英文）；執行完整的同步流程；驗證多語言支援",
+      "expectations": [
+        "技能被觸發（description 支援英文觸發）",
+        "執行 Preflight 檢查",
+        "產生同步計畫或執行完整流程",
+        "輸出包含英文和原本的目標語言混合"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "version": 1,
+  "description": "Single source of truth for stacks, versions, and module identifiers exposed by the interactive installer (`scripts/install.sh`) and the `/dhpk:setup` slash command. Adding a new module means: (1) add an entry here, (2) create modules/<id>/module.yaml + skills/, (3) register the skills path in .claude-plugin/plugin.json.",
+  "stacks": [
+    {
+      "id": "php",
+      "name": "PHP",
+      "description": "PHP language baseline. The 5.6 module forbids 7.0+ syntax (typed params, ??, match, arrow fn, union types) and provides polyfill guidance.",
+      "versions": [
+        {
+          "id": "5.6",
+          "module": "php-5.6",
+          "status": "shipped"
+        }
+      ]
+    },
+    {
+      "id": "yii",
+      "name": "Yii Framework",
+      "description": "Yii PHP framework. The 1.1 module covers autoload, ActiveRecord / CDbCriteria, DDD layering, XSS/CSRF defaults.",
+      "requires": ["php"],
+      "versions": [
+        {
+          "id": "1.1",
+          "module": "yii-1.1",
+          "status": "shipped",
+          "requires_module": "php-5.6"
+        }
+      ]
+    },
+    {
+      "id": "phpunit",
+      "name": "PHPUnit",
+      "description": "PHPUnit testing framework. The 5.7 module covers the assertion API and idiomatic test patterns for legacy PHP stacks.",
+      "requires": ["php"],
+      "versions": [
+        {
+          "id": "5.7",
+          "module": "phpunit-5.7",
+          "status": "shipped",
+          "requires_module": "php-5.6"
+        }
+      ]
+    }
+  ],
+  "hook_profiles": [
+    {
+      "id": "minimal",
+      "description": "Suppress Stop reminders. Quietest profile."
+    },
+    {
+      "id": "standard",
+      "description": "Default profile. Sentinel-driven review reminders fire on relevant edits."
+    },
+    {
+      "id": "strict",
+      "description": "Standard + extra warnings (missing tools at SessionStart, docker container mismatch, etc.)."
+    }
+  ],
+  "review_slots": [
+    { "id": "code", "default_agent": "code-reviewer" },
+    { "id": "db",   "default_agent": "database-reviewer" },
+    { "id": "sec",  "default_agent": "security-reviewer" }
+  ],
+  "docker": {
+    "container_role_order": ["DHPK_PHP_CONTAINER", "DHPK_MYSQL_CONTAINER"],
+    "notes": "Container names are passed positionally to `--plugin-option docker_containers=<csv>`. The first entry is exported as DHPK_PHP_CONTAINER, the second as DHPK_MYSQL_CONTAINER, etc. Empty list disables the SessionStart docker check entirely."
+  }
+}

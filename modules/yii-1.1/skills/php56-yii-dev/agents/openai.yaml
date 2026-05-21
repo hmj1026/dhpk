@@ -1,0 +1,4 @@
+interface:
+  display_name: "php56-yii-dev"
+  short_description: "Yii 1.x backend workflow with PHP 5.6, TDD, and DDD"
+  default_prompt: "Use $php56-yii-dev to analyze, implement, and verify a Yii 1.x backend task with PHP 5.6 runtime, PHP 7-safe style, DDD boundaries, and TDD."

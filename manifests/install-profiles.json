@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "version": 1,
+  "description": "Curated module bundles for common project shapes. Pass the matching modules list to `claude plugin install dhpk@dhpk --plugin-option modules=<csv>`. The interactive installer (`scripts/install.sh`) exposes these as quick presets. Module identifiers MUST exist in `manifests/module-catalog.json` (the SSOT); profiles here are convenience aliases, not new modules.",
+  "profiles": {
+    "minimal": {
+      "description": "Generic core only — no language/framework modules. Suitable for any project; gets the review hooks, openspec/codex/git workflow skills, and harness scripts.",
+      "modules": []
+    },
+    "legacy-php-yii": {
+      "description": "PHP 5.6 + Yii 1.1 + PHPUnit 5.7 stack. Activates all three modules at once for full Yii-1.1 path-trigger coverage and AR/CDbCriteria guidance.",
+      "modules": ["php-5.6", "yii-1.1", "phpunit-5.7"]
+    },
+    "php-only": {
+      "description": "PHP 5.6 baseline without Yii or PHPUnit. Useful for PHP projects not on Yii.",
+      "modules": ["php-5.6"]
+    },
+    "full": {
+      "description": "Every module shipped in this plugin version enabled.",
+      "modules": ["php-5.6", "yii-1.1", "phpunit-5.7"]
+    }
+  }
+}

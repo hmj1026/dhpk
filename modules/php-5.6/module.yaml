@@ -1,0 +1,18 @@
+name: php-5.6
+display_name: "PHP 5.6 Language Baseline"
+version: 0.1.0
+description: "PHP 5.6 syntax baseline. Forbids 7.0+ features (typed params/returns/properties, ??, ?->, match, arrow fn, named args, group use, multi-catch, short list, union types). Provides polyfill guidance for missing 7+ stdlib (random_bytes, intdiv, str_contains, etc)."
+requires: []
+triggers:
+  code:
+    extensions: [".php"]
+    paths: []
+  db:
+    extensions: []
+    paths: []
+  sec:
+    extensions: []
+    paths: []
+provides:
+  skills: [php-pro]
+  references: [coding-style.md]

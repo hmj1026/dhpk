@@ -1,0 +1,4 @@
+interface:
+  display_name: "Multi AI Sync"
+  short_description: "Sync Claude-first configs across Codex, Gemini, and .agent"
+  default_prompt: "Use $multi-ai-sync to compare `.claude` against Codex, Gemini, and `.agent`, then produce a reviewable sync plan."

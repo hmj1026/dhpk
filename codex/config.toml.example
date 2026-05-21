@@ -1,0 +1,26 @@
+[features]
+multi_agent = true
+
+[agents]
+max_threads = 6
+max_depth = 2
+
+[agents.default]
+description = "General-purpose fallback role for small or ambiguous tasks."
+
+[agents.explorer]
+description = "Read-heavy repository exploration role for evidence gathering before implementation."
+config_file = "agents/explorer.toml"
+
+[agents.worker]
+description = "Execution-focused role for implementing scoped changes."
+config_file = "agents/worker.toml"
+
+[agents.monitor]
+description = "Long-running task monitor role for polling and waiting."
+config_file = "agents/monitor.toml"
+
+[agents."bug-investigator"]
+description = "Systematic root-cause investigator for bugs, regressions, and data flow anomalies."
+config_file = "agents/bug-investigator.toml"
+

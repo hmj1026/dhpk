@@ -1,0 +1,178 @@
+#!/usr/bin/env bash
+# post-edit-remind.sh — PostToolUse (Edit|Write|MultiEdit) hook
+#
+# Writes review sentinels based on:
+#   1. Built-in file-extension defaults (language-agnostic)
+#   2. Active modules' triggers (modules/<name>/module.yaml, set by session-start)
+#   3. userConfig.review_trigger_extra_paths (slot-prefixed: code:, db:, sec:)
+#
+# Sentinels live at $ROOT/.claude/artifacts/sessions/.pending-{review,db-review,security-review}
+# and are cleared by each review agent's Closing hook via clear-sentinel.sh.
+#
+# Self-edits to .claude/artifacts/** are skipped (review agents writing their
+# own reports would otherwise re-trigger themselves).
+
+set -o pipefail
+
+. "$(dirname "$0")/_lib/payload.sh"
+
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+PAYLOAD="$(cat 2>/dev/null || true)"
+FILE_PATH="$(extract_tool_input file_path "$PAYLOAD")"
+[ -z "$FILE_PATH" ] && exit 0
+
+REL="${FILE_PATH#$ROOT/}"
+BASENAME="${REL##*/}"
+
+case "$REL" in
+    .claude/artifacts/*) exit 0 ;;
+esac
+
+ARTIFACTS="$ROOT/.claude/artifacts/sessions"
+mkdir -p "$ARTIFACTS"
+
+# Slot 0=code, 1=db, 2=sec (matches SENTINEL_NAMES order).
+NEEDS=(0 0 0)
+
+# ---- Built-in file-extension defaults (always on) ----
+
+# code-reviewer (slot 0): common source-code extensions + dhpk-relevant .md/.sh/.json
+case "$BASENAME" in
+    *.php|*.js|*.ts|*.tsx|*.jsx|*.py|*.rb|*.go|*.rs|*.java|*.kt|*.swift|*.cs|*.c|*.cpp|*.h|*.hpp)
+        NEEDS[0]=1 ;;
+esac
+case "$REL" in
+    .claude/agents/*|.claude/rules/*|.claude/commands/*|.claude/hooks/*|.claude/scripts/*|.claude/skills/*|.claude/manifests/*)
+        case "$BASENAME" in *.md|*.sh|*.json|*.yml|*.yaml) NEEDS[0]=1 ;; esac ;;
+esac
+[ "$BASENAME" = "CLAUDE.md" ] && NEEDS[0]=1
+
+# database-reviewer (slot 1): SQL + generic migrations
+case "$BASENAME" in
+    *.sql) NEEDS[1]=1 ;;
+esac
+case "$REL" in
+    *migrations/*|*migration/*)
+        case "$BASENAME" in *.php|*.py|*.rb|*.ts|*.js|*.sql) NEEDS[1]=1 ;; esac ;;
+esac
+
+# security-reviewer (slot 2): authn/authz/upload/file keyword in basename
+case "$BASENAME" in
+    *Auth*|*auth*|*Login*|*login*|*Acl*|*acl*|*Upload*|*upload*|*File*|*file*)
+        # Restrict to source-code extensions to avoid noise on auth.md / login.html.
+        case "$BASENAME" in *.php|*.js|*.ts|*.tsx|*.jsx|*.py|*.rb|*.go|*.rs|*.java) NEEDS[2]=1 ;; esac ;;
+esac
+
+# ---- Active-module triggers ----
+# DHPK_ACTIVE_MODULES is set by session-start.sh (csv of module names).
+# Each module's module.yaml triggers contribute extra extensions and paths per slot.
+
+_dhpk_check_module_triggers() {
+    local module_name="$1" module_root="$2"
+    [ -f "$module_root/module.yaml" ] || return 0
+    command -v python3 >/dev/null 2>&1 || return 0
+    # Emit `slot=<0|1|2> kind=<ext|path> value=<v>` lines.
+    python3 - "$module_root/module.yaml" "$REL" "$BASENAME" <<'PY' 2>/dev/null
+import sys, os, re
+def parse_yaml(text):
+    # Minimal YAML parser for our flat module.yaml structure:
+    #   triggers:
+    #     code:
+    #       extensions: [".php"]
+    #       paths: [protected/, infrastructure/]
+    out = {}
+    stack = [(0, out)]
+    cur_key = None
+    for raw in text.splitlines():
+        line = raw.rstrip()
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        indent = len(line) - len(line.lstrip())
+        while stack and indent < stack[-1][0]:
+            stack.pop()
+        parent = stack[-1][1]
+        s = line.strip()
+        if ":" in s:
+            k, _, v = s.partition(":")
+            k = k.strip(); v = v.strip()
+            if v == "":
+                d = {}
+                parent[k] = d
+                stack.append((indent + 2, d))
+            elif v.startswith("[") and v.endswith("]"):
+                inner = v[1:-1].strip()
+                items = [x.strip().strip('"').strip("'") for x in inner.split(",") if x.strip()] if inner else []
+                parent[k] = items
+            else:
+                parent[k] = v.strip('"').strip("'")
+    return out
+
+path = sys.argv[1]; rel = sys.argv[2]; basename = sys.argv[3]
+try:
+    with open(path) as f:
+        cfg = parse_yaml(f.read())
+except Exception:
+    sys.exit(0)
+triggers = cfg.get("triggers") or {}
+slot_map = {"code": 0, "db": 1, "sec": 2}
+for slot_name, slot_idx in slot_map.items():
+    block = triggers.get(slot_name) or {}
+    for ext in (block.get("extensions") or []):
+        if basename.endswith(ext):
+            print(f"{slot_idx}")
+            break
+    for path_prefix in (block.get("paths") or []):
+        if rel.startswith(path_prefix):
+            print(f"{slot_idx}")
+            break
+PY
+}
+
+if [ -n "${DHPK_ACTIVE_MODULES:-}" ]; then
+    if ! command -v python3 >/dev/null 2>&1; then
+        echo "[post-edit] WARN: modules enabled (${DHPK_ACTIVE_MODULES}) but python3 missing — module triggers disabled. Install python3 to enable per-module path triggers." >&2
+    else
+        PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
+        IFS=',' read -r -a _mods <<< "$DHPK_ACTIVE_MODULES"
+        for _m in "${_mods[@]}"; do
+            _m="$(echo "$_m" | xargs)"  # trim
+            [ -z "$_m" ] && continue
+            _mdir="$PLUGIN_ROOT/modules/$_m"
+            [ -d "$_mdir" ] || continue
+            while IFS= read -r _slot; do
+                [ -n "$_slot" ] && NEEDS[$_slot]=1
+            done < <(_dhpk_check_module_triggers "$_m" "$_mdir")
+        done
+    fi
+fi
+
+# ---- User-supplied extra paths (CLAUDE_PLUGIN_OPTION_REVIEW_TRIGGER_EXTRA_PATHS) ----
+# Entries shaped `<slot>:<prefix>` where slot ∈ code|db|sec.
+if [ -n "${CLAUDE_PLUGIN_OPTION_REVIEW_TRIGGER_EXTRA_PATHS:-}" ]; then
+    IFS=',' read -r -a _extras <<< "${CLAUDE_PLUGIN_OPTION_REVIEW_TRIGGER_EXTRA_PATHS}"
+    for _e in "${_extras[@]}"; do
+        _e="$(echo "$_e" | xargs)"
+        case "$_e" in
+            code:*) [[ "$REL" == "${_e#code:}"* ]] && NEEDS[0]=1 ;;
+            db:*)   [[ "$REL" == "${_e#db:}"* ]] && NEEDS[1]=1 ;;
+            sec:*)  [[ "$REL" == "${_e#sec:}"* ]] && NEEDS[2]=1 ;;
+        esac
+    done
+fi
+
+# ---- Write sentinels ----
+msg=""
+for i in "${!NEEDS[@]}"; do
+    if [ "${NEEDS[$i]}" -eq 1 ]; then
+        printf '%s %s\n' "$(date +'%Y-%m-%d %H:%M:%S')" "$REL" >> "$ARTIFACTS/${SENTINEL_NAMES[$i]}"
+        msg+=" ${SENTINEL_LABELS[$i]}"
+    fi
+done
+
+if [ -z "$msg" ]; then
+    echo "[post-edit] skipped (no trigger matched): $REL"
+else
+    echo "[post-edit] marked:$msg ($REL)"
+fi
+
+exit 0

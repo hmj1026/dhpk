@@ -1,0 +1,18 @@
+name: phpunit-5.7
+display_name: "PHPUnit 5.7 Test Framework"
+version: 0.1.0
+description: "PHPUnit 5.7 assertion API and patterns: assertSame/assertEquals usage, createMock vs getMockBuilder, @expectedException, test naming (test[Subject]_[Condition]_[ExpectedOutcome]). Targets legacy PHP 5.6 codebases needing characterization tests. Assumes a PHP baseline module is enabled."
+requires: [php-5.6]
+triggers:
+  code:
+    extensions: []
+    paths: []
+  db:
+    extensions: []
+    paths: []
+  sec:
+    extensions: []
+    paths: []
+provides:
+  skills: [phpunit-batch-refactor, legacy-code-characterization]
+  references: [testing.md]

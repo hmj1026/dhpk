@@ -1,0 +1,125 @@
+# Create Request Template
+
+## Request Document Template
+
+```markdown
+# {Title}
+
+> **Doc class**: Request ticket (date-prefixed non-lifecycle — per `@rules/docs-numbering.md`). Per-task work breakdown unit for progress tracking. **Not** a feature-level requirements doc — for that see `../1-requirements.md` if present (created via `/req-analyze`).
+> **Created**: {YYYY-MM-DD}
+> **Status**: Pending
+> **Priority**: {P0|P1|P2}
+> **Tech Spec**: [Link](../2-tech-spec.md) <- Technical detail (primary source)
+> **Requirements**: [Link](../1-requirements.md) <- Feature-level problem-space rationale (include this line ONLY IF `../1-requirements.md` exists — omit otherwise to avoid dead links)
+
+## Background
+
+{1-2 sentences describing the problem and context}
+
+## Requirements
+
+- {Requirement 1}
+- {Requirement 2}
+
+## Scope
+
+| Scope | Description                        |
+| ----- | ---------------------------------- |
+| In    | {Items handled in this request}    |
+| Out   | {Items not handled, separate request} |
+
+## Related Files
+
+| File                 | Action | Description          |
+| -------------------- | ------ | -------------------- |
+| `skills/xxx/SKILL.md` | Modify | {Brief change description} |
+| `scripts/xxx.sh`      | New    | {Brief purpose}      |
+
+## Acceptance Criteria
+
+- [ ] {Criterion 1}
+- [ ] {Criterion 2}
+- [ ] Unit test coverage > 80%
+- [ ] Pass /codex-review-fast
+
+## Progress
+
+| Phase      | Status | Note |
+| ---------- | ------ | ---- |
+| Analysis   | -      |      |
+| Development | -     |      |
+| Testing    | -      |      |
+| Acceptance | -      |      |
+
+**Status**: Pending / In Progress / Candidate Complete / Completed (canonical lifecycle — see SKILL.md §Phase 4 Auto-Update Items for transition rules)
+
+## References
+
+- Tech Spec: [xxx](../2-tech-spec.md)
+- Related Request: [yyy](./yyy.md)
+```
+
+## Naming Convention
+
+**Format**: `YYYY-MM-DD-kebab-case-title.md`
+
+```
+2026-01-23-api-performance-optimization.md   OK
+2026-01-23-api-cache-ttl.md     OK
+api-optimization.md                         Missing date
+2026-01-23-API_Optimization.md              Wrong case
+```
+
+## File Location
+
+```
+docs/features/{feature}/requests/YYYY-MM-DD-title.md
+```
+
+## Priority & Status
+
+| Priority | Description | Timeline    |
+| -------- | ----------- | ----------- |
+| P0       | Critical    | Immediate   |
+| P1       | High        | This week   |
+| P2       | Medium      | This sprint |
+
+| Status              | Description                                          |
+| ------------------- | ---------------------------------------------------- |
+| Pending             | Not started                                          |
+| In Progress         | Work in progress (variants normalized: `In Development`, `In Dev` → `In Progress`) |
+| Candidate Complete  | All AC checked but not closure-grade verified        |
+| Completed           | All AC verified via `--verify-ac` with High confidence |
+
+See [SKILL.md §Phase 4 Auto-Update Items](../SKILL.md) for transition rules. `Blocked` is an informal manual state for out-of-band escalation and is not part of the auto-lifecycle.
+
+## Writing Guidelines
+
+| Principle           | Description                                          |
+| ------------------- | ---------------------------------------------------- |
+| Concise             | Background 1-2 sentences, requirements as lists      |
+| Reference, don't inline | Pseudocode/spec details go in Tech Spec, request only links |
+| Track progress      | Progress section marks each phase status             |
+| Clear scope         | Scope section defines "what to do" and "what not to do" |
+| Verifiable          | Acceptance Criteria use checkboxes for verification  |
+| Doc class awareness | Request is a date-prefixed non-lifecycle tracking ticket (per `@rules/docs-numbering.md`). Do NOT inline 5-Why, stakeholder analysis, or FR/NFR decomposition here — those belong in `1-requirements.md` via `/req-analyze` |
+
+## Granularity Guide
+
+| Metric | Target | Action if exceeded |
+|--------|--------|--------------------|
+| Acceptance Criteria | ≤ 8 per request | Consider splitting by layer or functional area |
+| Related Files layers | 1 concern layer | Split behavior-layer (.md rules/skills) from code-layer (.sh/.js hooks/scripts) |
+| Estimated effort | ≤ 3 days | Split by deliverable |
+
+Quality-gate ACs matching `Pass /<review-or-precommit-command>` don't count toward the ≤8 target. Canonical list: `/codex-review-fast`, `/codex-review-doc`, `/codex-review`, `/precommit`, `/precommit-fast`, `/pr-review`.
+
+## Dependencies (conditional)
+
+Add to request header metadata when splitting creates dependencies between sibling requests:
+
+```markdown
+> **Depends On**: [Request Title](./YYYY-MM-DD-xxx.md)
+```
+
+Place after `> **Tech Spec**:` line. Only include when this request requires another to complete first.
