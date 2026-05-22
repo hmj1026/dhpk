@@ -1,5 +1,11 @@
 # Platform Mapping (Claude First)
 
+> **Note**: OpenSpec mappings (`commands (opsx)` row below and anything
+> referencing `opsx/<cmd>`) assume the user has installed the
+> [OpenSpec plugin](https://github.com/Fission-AI/OpenSpec) separately.
+> dhpk no longer bundles OpenSpec wrappers as of v0.2.1, so if OpenSpec
+> is not installed, treat those rows as N/A and skip them during sync.
+
 ## Canonical Source
 - Source platform: `claude`
 - Source root: `.claude`

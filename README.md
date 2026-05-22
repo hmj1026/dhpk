@@ -2,7 +2,9 @@
 
 > **Languages**: **English** · [繁體中文](./README.zh-TW.md)
 
-A generic, install-and-go Claude Code harness. Ships **15 role-based agents**, ~75 commands (codex / openspec / gitnexus / git / project workflow), ~60 core skills + the `deploy-list` cross-project deploy file list generator, **5-slot sentinel-driven review hooks** (code / db / sec / frontend / doc), statusline, harness scripts, and **four opt-in stack modules** (`php-5.6`, `yii-1.1`, `phpunit-5.7`, `js`). Modules contribute hooks at runtime via the **wrapper-dispatch** model (see [`docs/hook-extension.md`](./docs/hook-extension.md)). Parallel Codex CLI tree included for dual-assistant projects.
+A generic, install-and-go Claude Code harness. Ships **15 role-based agents**, ~65 commands (codex / gitnexus / git / project workflow), ~50 core skills + the `deploy-list` cross-project deploy file list generator, **5-slot sentinel-driven review hooks** (code / db / sec / frontend / doc), statusline, harness scripts, and **four opt-in stack modules** (`php-5.6`, `yii-1.1`, `phpunit-5.7`, `js`). Modules contribute hooks at runtime via the **wrapper-dispatch** model (see [`docs/hook-extension.md`](./docs/hook-extension.md)). Parallel Codex CLI tree included for dual-assistant projects.
+
+OpenSpec is an **optional external integration** — install the [OpenSpec plugin](https://github.com/Fission-AI/OpenSpec) separately if you want OpenSpec workflow commands. dhpk retains only its own value-add helper `opsx-apply-resume` (long-running OpenSpec session context handoff); the 10 generic OpenSpec wrapper skills/commands were unbundled in v0.2.1 since OpenSpec ships them upstream.
 
 ## Prerequisites
 
@@ -67,8 +69,8 @@ For plugin development, see [§ Development](#development).
 | Component | Count | Notes |
 |-----------|------:|-------|
 | Agents | 15 | 14 invocable + 1 `INDEX.md`. 5 are sentinel-driven reviewers (code / db / sec / **frontend** / **doc**); rest are situational (architect, tdd-guide, refactor-cleaner, ui-ux-verifier, performance-analyzer, doc-updater, docs-lookup, harness-reviser, harness-optimizer) |
-| Commands | ~75 | `dhpk:opsx:*`, `dhpk:codex-*`, `dhpk:review-pending`, `dhpk:smart-commit`, `dhpk:ts-check-status` (JS module), etc. |
-| Core skills | ~60 + extras | openspec-*, codex-*, gitnexus, tool-routing, dhpk-execution-policy, **deploy-list** (cross-project deploy file list generator), **execution-checklist** (end-of-task self-check) |
+| Commands | ~65 | `dhpk:codex-*`, `dhpk:review-pending`, `dhpk:smart-commit`, `dhpk:ts-check-status` (JS module), `dhpk:opsx-apply-resume` (needs OpenSpec), etc. |
+| Core skills | ~50 + extras | codex-*, gitnexus, tool-routing, dhpk-execution-policy, **deploy-list** (cross-project deploy file list generator), **execution-checklist** (end-of-task self-check), `opsx-apply-resume` helpers (need OpenSpec) |
 | Stack modules | 4 | `php-5.6`, `yii-1.1`, `phpunit-5.7`, `js` (opt-in; see "Modules" below) |
 | Hooks | 5 events | PreToolUse (Edit, Bash + dispatcher), PostToolUse (Edit + dispatcher + async crlf-fix), SessionStart, Stop (stop-review-reminder + reap-stale-sentinels) |
 | Hook dispatchers | 2 | `post-edit-dispatch.sh`, `pre-bash-dispatch.sh` — fan out to active modules' hooks |
@@ -228,10 +230,9 @@ dhpk/
 ├── .claude-plugin/
 │   ├── marketplace.json          # one-entry marketplace (plugins[0].source: "./")
 │   └── plugin.json               # plugin manifest with userConfig
-├── agents/                       # 13 role-based agents (INDEX.md is navigation)
-├── commands/                     # ~74 slash commands incl. opsx/
-│   └── opsx/                     # 10 OpenSpec workflow wrappers
-├── skills/                       # ~59 core skills (openspec-*, codex-*, tool-routing, dhpk-execution-policy, ...)
+├── agents/                       # 15 role-based agents (INDEX.md is navigation)
+├── commands/                     # ~65 slash commands (codex-*, smart-commit, opsx-apply-resume, ...)
+├── skills/                       # ~50 core skills (codex-*, tool-routing, dhpk-execution-policy, opsx-apply-resume helpers, ...)
 ├── modules/                      # opt-in stack modules
 │   ├── php-5.6/{module.yaml, skills/, references/}
 │   ├── yii-1.1/...
@@ -252,7 +253,7 @@ dhpk/
 │   ├── README.md                 # how to sync into a project
 │   ├── skills/, agents/, config.toml.example
 ├── manifests/install-profiles.json  # curated module bundles
-├── openspec/                     # this repo's own OpenSpec config + changes
+├── docs/design/bootstrap-dhpk-plugin/  # original design archive (proposal/design/tasks/specs)
 ├── README.md, README.zh-TW.md, CHANGELOG.md, LICENSE, .gitignore
 ```
 

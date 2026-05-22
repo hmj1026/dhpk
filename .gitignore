@@ -25,8 +25,5 @@ node_modules/
 # Local Claude Code overrides
 .claude/settings.local.json
 
-# Internal openspec design docs (kept local, not for public repo)
-openspec/
-
 # Plans
 .claude/plans/

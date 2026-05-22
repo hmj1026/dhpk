@@ -2,7 +2,9 @@
 
 > **語言**: [English](./README.md) · **繁體中文**
 
-通用、安裝即用的 Claude Code harness。內含 **15 個角色導向 agent**、約 75 個指令（codex / openspec / gitnexus / git / 專案工作流）、約 60 個核心 skill 加上跨專案的 `deploy-list` 部署清單產生器、**5-slot sentinel 驅動的 review hook**（code / db / sec / frontend / doc）、statusline、harness 腳本，以及**四個可選用的技術棧模組**（`php-5.6`、`yii-1.1`、`phpunit-5.7`、`js`）。模組可透過 **wrapper-dispatch** 模型在 runtime 提供 hook（詳見 [`docs/hook-extension.md`](./docs/hook-extension.md)）。內附平行的 Codex CLI 樹，適用於雙助理（Claude + Codex）專案。
+通用、安裝即用的 Claude Code harness。內含 **15 個角色導向 agent**、約 65 個指令（codex / gitnexus / git / 專案工作流）、約 50 個核心 skill 加上跨專案的 `deploy-list` 部署清單產生器、**5-slot sentinel 驅動的 review hook**（code / db / sec / frontend / doc）、statusline、harness 腳本，以及**四個可選用的技術棧模組**（`php-5.6`、`yii-1.1`、`phpunit-5.7`、`js`）。模組可透過 **wrapper-dispatch** 模型在 runtime 提供 hook（詳見 [`docs/hook-extension.md`](./docs/hook-extension.md)）。內附平行的 Codex CLI 樹，適用於雙助理（Claude + Codex）專案。
+
+OpenSpec 是**可選的外部整合**——若需要 OpenSpec 工作流指令，請另行安裝 [OpenSpec 插件](https://github.com/Fission-AI/OpenSpec)。dhpk 僅保留自家加值的 `opsx-apply-resume`（長時間 OpenSpec 工作階段的 context handoff）；v0.2.1 起，10 個通用 OpenSpec wrapper skill/command 已從套件中移除，由 OpenSpec 上游提供。
 
 ## 前置需求
 
@@ -67,8 +69,8 @@ claude plugin validate ~/projects/dhpk --strict
 | 元件 | 數量 | 說明 |
 |------|----:|------|
 | Agents | 15 | 14 個可呼叫 + 1 份 `INDEX.md`。其中 5 個為 sentinel 驅動的 reviewer（code / db / sec / **frontend** / **doc**），其餘為情境型（architect、tdd-guide、refactor-cleaner、ui-ux-verifier、performance-analyzer、doc-updater、docs-lookup、harness-reviser、harness-optimizer） |
-| Commands | ~75 | `dhpk:opsx:*`、`dhpk:codex-*`、`dhpk:review-pending`、`dhpk:smart-commit`、`dhpk:ts-check-status`（JS 模組）等 |
-| 核心 skills | ~60 加上 | openspec-*、codex-*、gitnexus、tool-routing、dhpk-execution-policy、**deploy-list**（跨專案部署清單產生器）、**execution-checklist**（任務收尾自檢） |
+| Commands | ~65 | `dhpk:codex-*`、`dhpk:review-pending`、`dhpk:smart-commit`、`dhpk:ts-check-status`（JS 模組）、`dhpk:opsx-apply-resume`（需 OpenSpec）等 |
+| 核心 skills | ~50 加上 | codex-*、gitnexus、tool-routing、dhpk-execution-policy、**deploy-list**（跨專案部署清單產生器）、**execution-checklist**（任務收尾自檢）、`opsx-apply-resume` 配套（需 OpenSpec） |
 | 技術棧模組 | 4 | `php-5.6`、`yii-1.1`、`phpunit-5.7`、`js`（選用；詳見下方「模組」） |
 | Hooks | 5 個事件 | PreToolUse（Edit、Bash + dispatcher）、PostToolUse（Edit + dispatcher + async crlf-fix）、SessionStart、Stop（stop-review-reminder + reap-stale-sentinels） |
 | Hook dispatcher | 2 | `post-edit-dispatch.sh`、`pre-bash-dispatch.sh` — 分派到啟用模組的 hook |
@@ -228,10 +230,9 @@ dhpk/
 ├── .claude-plugin/
 │   ├── marketplace.json          # 單一條目的 marketplace（plugins[0].source: "./"）
 │   └── plugin.json               # 含 userConfig 的插件 manifest
-├── agents/                       # 13 個角色 agent（INDEX.md 為導覽用）
-├── commands/                     # ~74 個 slash 指令，含 opsx/
-│   └── opsx/                     # 10 個 OpenSpec workflow 包裝
-├── skills/                       # ~59 個核心 skill（openspec-*、codex-*、tool-routing、dhpk-execution-policy 等）
+├── agents/                       # 15 個角色 agent（INDEX.md 為導覽用）
+├── commands/                     # ~65 個 slash 指令（codex-*、smart-commit、opsx-apply-resume 等）
+├── skills/                       # ~50 個核心 skill（codex-*、tool-routing、dhpk-execution-policy、opsx-apply-resume 配套等）
 ├── modules/                      # 可選用的技術棧模組
 │   ├── php-5.6/{module.yaml, skills/, references/}
 │   ├── yii-1.1/...
@@ -252,7 +253,7 @@ dhpk/
 │   ├── README.md                 # 如何同步進專案
 │   ├── skills/、agents/、config.toml.example
 ├── manifests/install-profiles.json  # 精選模組組合
-├── openspec/                     # 本 repo 自身的 OpenSpec config + changes
+├── docs/design/bootstrap-dhpk-plugin/  # 原始設計檔案（proposal/design/tasks/specs）
 ├── README.md、README.zh-TW.md、CHANGELOG.md、LICENSE、.gitignore
 ```
 

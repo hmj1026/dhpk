@@ -105,8 +105,11 @@ If the JS module is enabled, the post-edit and pre-commit hooks call
 ```
 
 - `cx` — code-navigation tool referenced throughout the harness.
-- `openspec` — OpenSpec CLI; only enable if the project uses the
-  OpenSpec workflow.
+- `openspec` — OpenSpec CLI. dhpk no longer bundles OpenSpec wrappers
+  (since v0.2.1); only enable this entry if you have installed the
+  separate [OpenSpec plugin](https://github.com/Fission-AI/OpenSpec)
+  or its CLI, and your project uses the OpenSpec workflow. dhpk's own
+  `opsx-apply-resume` helper also requires OpenSpec.
 - `playwright-cli` — Playwright browser automation; only enable if you
   use it.
 - `gh` — GitHub CLI for PR / issue operations.

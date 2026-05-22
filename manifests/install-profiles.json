@@ -4,7 +4,7 @@
   "description": "Curated module bundles for common project shapes. Pass the matching modules list to `claude plugin install dhpk@dhpk --plugin-option modules=<csv>`. The interactive installer (`scripts/install.sh`) exposes these as quick presets. Module identifiers MUST exist in `manifests/module-catalog.json` (the SSOT); profiles here are convenience aliases, not new modules.",
   "profiles": {
     "minimal": {
-      "description": "Generic core only — no language/framework modules. Suitable for any project; gets the review hooks, openspec/codex/git workflow skills, and harness scripts.",
+      "description": "Generic core only — no language/framework modules. Suitable for any project; gets the review hooks, codex/git workflow skills, and harness scripts. (OpenSpec wrappers were unbundled in v0.2.1 — install the OpenSpec plugin separately if you need that workflow.)",
       "modules": []
     },
     "legacy-php-yii": {

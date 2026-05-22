@@ -1,5 +1,68 @@
 # Changelog
 
+## 0.2.1 — 2026-05-22 — Unbundle OpenSpec wrappers
+
+OpenSpec is now treated as an external optional integration. Generic
+OpenSpec wrapper skills/commands are removed from this package — install the
+[OpenSpec plugin](https://github.com/Fission-AI/OpenSpec) separately to get
+them upstream. dhpk's own value-add helper `opsx-apply-resume` (long-running
+OpenSpec session context handoff) is retained and works once OpenSpec is
+installed.
+
+### Removed
+
+- 10 skills under `skills/openspec-*/`: `openspec-apply-change`,
+  `openspec-archive-change`, `openspec-bulk-archive-change`,
+  `openspec-continue-change`, `openspec-explore`, `openspec-ff-change`,
+  `openspec-new-change`, `openspec-onboard`, `openspec-sync-specs`,
+  `openspec-verify-change`. The 10 matching symlinks under `codex/skills/`
+  are removed in parallel.
+- `commands/opsx/` — the 10 OpenSpec slash-command wrappers
+  (`apply`, `archive`, `bulk-archive`, `continue`, `explore`, `ff`, `new`,
+  `onboard`, `sync`, `verify`).
+- `"openspec"` keyword from `.claude-plugin/plugin.json`.
+
+### Retained (dhpk's own value-add)
+
+- `skills/opsx-load-context/`, `skills/opsx-post-obs/` — helper skills used
+  by `opsx-apply-resume`'s save/resume lifecycle. Still mirrored under
+  `codex/skills/`.
+- `commands/opsx-apply-resume.md` — the long-running session context
+  handoff wrapper. References upstream `openspec-continue-change` as an
+  external dependency.
+- `scripts/opsx-apply-resume/` — entire bash helper tree (unchanged).
+
+### Moved
+
+- `openspec/changes/bootstrap-dhpk-plugin/` → `docs/design/bootstrap-dhpk-plugin/`.
+  The package's original design archive (proposal, design, tasks, specs)
+  becomes static reference documentation, no longer OpenSpec-managed. The
+  `.openspec.yaml` marker file is dropped along with the move. The
+  previous `openspec/` `.gitignore` entry is removed.
+
+### Documentation
+
+- `README.md` / `README.zh-TW.md` — intro paragraph rewritten to call out
+  OpenSpec as an external optional integration; counts updated
+  (`~75 → ~65` commands, `~60 → ~50` core skills); repository-layout tree
+  drops `openspec/` and `commands/opsx/`, gains `docs/design/`.
+- `manifests/install-profiles.json` — `minimal` profile description no
+  longer claims to ship "openspec workflow skills".
+- `docs/recommended-permissions.md` — `Bash(openspec:*)` bullet clarified
+  as relevant only when the OpenSpec plugin is installed.
+- `skills/multi-ai-sync/references/platform-mapping.md` — header note
+  added that `opsx/<cmd>` rows are N/A when OpenSpec is not installed.
+
+### Verification
+
+- `claude plugin validate ~/projects/dhpk --strict` passes.
+- `find codex/skills/ -xtype l` returns empty (no dangling symlinks).
+- `grep -rln "openspec-" skills/ commands/ agents/` returns only the
+  intentional residual references (`multi-ai-sync`, `opsx-apply-resume`).
+- `git log --follow docs/design/bootstrap-dhpk-plugin/proposal.md` —
+  history not preserved because `openspec/` was `.gitignore`d in prior
+  versions; the docs enter git history starting at v0.2.1.
+
 ## 0.2.0 — 2026-05-22 — JS module + 5-slot sentinel + deploy-list skill
 
 ### Sentinel infrastructure (5 slots)
