@@ -117,8 +117,10 @@ Restart the WSL distro: `wsl --shutdown` (from PowerShell) then reopen.
 Claude) or `scripts/install.sh` (outside) and explicitly pass the list.
 
 **Want to disable the check temporarily.**
-Set `docker_containers=[]` via `claude plugin reinstall dhpk@dhpk --plugin-option docker_containers=`
-or remove the key from `.claude/settings.local.json`.
+Re-run `/plugin configure dhpk@dhpk` inside Claude Code and clear `docker_containers`,
+or from the terminal: `claude plugin uninstall dhpk@dhpk && claude plugin install dhpk@dhpk --config docker_containers=`
+(empty value disables the check). You can also remove the key from
+`.claude/settings.local.json` directly.
 
 ## Related
 

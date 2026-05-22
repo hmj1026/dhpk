@@ -75,12 +75,12 @@ For v0.1.0:
 
 #### Scenario: empty config disables all modules
 
-- **WHEN** the plugin is installed without `--plugin-option modules=...`
+- **WHEN** the plugin is installed without `--config modules=...`
 - **THEN** SessionStart prints no module activation lines AND `DHPK_ACTIVE_MODULES` is unset for downstream hooks
 
 #### Scenario: subset activation works
 
-- **WHEN** installed with `--plugin-option modules=php-5.6`
+- **WHEN** installed with `--config modules=php-5.6`
 - **THEN** SessionStart prints `[session-start] module enabled: php-5.6 — PHP 5.6 Language Baseline` AND `DHPK_ACTIVE_MODULES=php-5.6` is exported
 
 ### Requirement: SessionStart validates `requires` and emits activation lines

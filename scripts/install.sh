@@ -10,7 +10,7 @@
 #   1. Prerequisite check
 #   2. Quick preset OR custom flow
 #   3. (Custom) stack multi-select → per-stack version → docker → review agents → hook profile
-#   4. Dry-run summary, then runs `claude plugin install dhpk@dhpk --plugin-option ...`
+#   4. Dry-run summary, then runs `claude plugin install dhpk@dhpk --config ...`
 #
 # All knowledge of available modules lives in manifests/module-catalog.json (SSOT).
 # Presets in manifests/install-profiles.json remain as fast paths.
@@ -215,15 +215,15 @@ echo
 
 CMD=(claude plugin install dhpk@dhpk)
 if [[ ${#SELECTED_MODULES[@]} -gt 0 ]]; then
-  IFS=','; CMD+=(--plugin-option "modules=${SELECTED_MODULES[*]}"); IFS=$' \t\n'
+  IFS=','; CMD+=(--config "modules=${SELECTED_MODULES[*]}"); IFS=$' \t\n'
 fi
 if [[ -n "$DOCKER_CONTAINERS" ]]; then
-  CMD+=(--plugin-option "docker_containers=$DOCKER_CONTAINERS")
+  CMD+=(--config "docker_containers=$DOCKER_CONTAINERS")
 fi
 if [[ ${#REVIEW_AGENTS[@]} -gt 0 ]]; then
-  IFS=','; CMD+=(--plugin-option "review_agents=${REVIEW_AGENTS[*]}"); IFS=$' \t\n'
+  IFS=','; CMD+=(--config "review_agents=${REVIEW_AGENTS[*]}"); IFS=$' \t\n'
 fi
-CMD+=(--plugin-option "hook_profile=$HOOK_PROFILE")
+CMD+=(--config "hook_profile=$HOOK_PROFILE")
 
 echo "Command to run:"
 printf '  '

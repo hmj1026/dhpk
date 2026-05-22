@@ -45,13 +45,13 @@ claude plugin install dhpk@dhpk
 /plugin install dhpk@dhpk
 ```
 
-要在安裝時就帶入設定，加 `--plugin-option`（若你想之後用 `/dhpk:setup` 互動回答就跳過）：
+要在安裝時就帶入設定，加 `--config`（若你想之後用 `/dhpk:setup` 互動回答就跳過）：
 
 ```bash
 claude plugin install dhpk@dhpk \
-  --plugin-option modules=php-5.6,yii-1.1,phpunit-5.7 \
-  --plugin-option docker_containers=php-fpm,mysql \
-  --plugin-option hook_profile=standard
+  --config modules=php-5.6,yii-1.1,phpunit-5.7 \
+  --config docker_containers=php-fpm,mysql \
+  --config hook_profile=standard
 ```
 
 要鎖定特定版本，後面接版本號：`claude plugin install dhpk@dhpk@v0.2.1`。可用技術棧／版本列在 `manifests/module-catalog.json`（SSOT）；精選組合在 `manifests/install-profiles.json`。Docker 前置須知請見 [`docs/docker-setup.md`](./docs/docker-setup.md)。
@@ -118,7 +118,7 @@ claude plugin marketplace remove dhpk  # 忘記 marketplace 註冊
 
 ## userConfig
 
-九個旋鈕，全部可在安裝時用 `--plugin-option <key>=<value>` 設定：
+九個旋鈕，全部可在安裝時用 `--config <key>=<value>` 設定：
 
 | Key | 預設值 | 用途 |
 |-----|--------|------|
@@ -140,9 +140,9 @@ claude plugin install dhpk@dhpk
 
 # PHP/Yii + JS 全端專案。
 claude plugin install dhpk@dhpk \
-  --plugin-option modules=php-5.6,yii-1.1,phpunit-5.7,js \
-  --plugin-option docker_containers=php-fpm,mysql \
-  --plugin-option review_agents=code-reviewer-myproj,db-reviewer-myproj,sec-reviewer-myproj,fe-reviewer-myproj,doc-reviewer-myproj
+  --config modules=php-5.6,yii-1.1,phpunit-5.7,js \
+  --config docker_containers=php-fpm,mysql \
+  --config review_agents=code-reviewer-myproj,db-reviewer-myproj,sec-reviewer-myproj,fe-reviewer-myproj,doc-reviewer-myproj
 ```
 
 精選的模組組合請見 `manifests/install-profiles.json`。

@@ -79,6 +79,6 @@
   ],
   "docker": {
     "container_role_order": ["DHPK_PHP_CONTAINER", "DHPK_MYSQL_CONTAINER"],
-    "notes": "Container names are passed positionally to `--plugin-option docker_containers=<csv>`. The first entry is exported as DHPK_PHP_CONTAINER, the second as DHPK_MYSQL_CONTAINER, etc. Empty list disables the SessionStart docker check entirely."
+    "notes": "Container names are passed positionally to `--config docker_containers=<csv>`. The first entry is exported as DHPK_PHP_CONTAINER, the second as DHPK_MYSQL_CONTAINER, etc. Empty list disables the SessionStart docker check entirely."
   }
 }

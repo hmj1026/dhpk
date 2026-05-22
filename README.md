@@ -45,13 +45,13 @@ claude plugin install dhpk@dhpk
 /plugin install dhpk@dhpk
 ```
 
-Add `--plugin-option` flags to pre-seed config (skip if you'd rather answer interactively via `/dhpk:setup` after install):
+Add `--config` flags to pre-seed config (skip if you'd rather answer interactively via `/dhpk:setup` after install):
 
 ```bash
 claude plugin install dhpk@dhpk \
-  --plugin-option modules=php-5.6,yii-1.1,phpunit-5.7 \
-  --plugin-option docker_containers=php-fpm,mysql \
-  --plugin-option hook_profile=standard
+  --config modules=php-5.6,yii-1.1,phpunit-5.7 \
+  --config docker_containers=php-fpm,mysql \
+  --config hook_profile=standard
 ```
 
 Pin a specific release by appending a version: `claude plugin install dhpk@dhpk@v0.2.1`. Available stacks/versions live in `manifests/module-catalog.json` (SSOT); curated bundles in `manifests/install-profiles.json`. Docker prerequisites: see [`docs/docker-setup.md`](./docs/docker-setup.md).
@@ -118,7 +118,7 @@ The same actions are available as `/plugin update dhpk`, `/plugin uninstall dhpk
 
 ## userConfig
 
-Nine knobs, all settable at install time with `--plugin-option <key>=<value>`:
+Nine knobs, all settable at install time with `--config <key>=<value>`:
 
 | Key | Default | Purpose |
 |-----|---------|---------|
@@ -140,9 +140,9 @@ claude plugin install dhpk@dhpk
 
 # PHP/Yii + JS fullstack project.
 claude plugin install dhpk@dhpk \
-  --plugin-option modules=php-5.6,yii-1.1,phpunit-5.7,js \
-  --plugin-option docker_containers=php-fpm,mysql \
-  --plugin-option review_agents=code-reviewer-myproj,db-reviewer-myproj,sec-reviewer-myproj,fe-reviewer-myproj,doc-reviewer-myproj
+  --config modules=php-5.6,yii-1.1,phpunit-5.7,js \
+  --config docker_containers=php-fpm,mysql \
+  --config review_agents=code-reviewer-myproj,db-reviewer-myproj,sec-reviewer-myproj,fe-reviewer-myproj,doc-reviewer-myproj
 ```
 
 See `manifests/install-profiles.json` for curated module bundles.

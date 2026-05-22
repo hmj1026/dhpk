@@ -1,5 +1,46 @@
 # Changelog
 
+## 0.2.2 — 2026-05-22 — Align with current Claude Code plugin CLI
+
+Two regressions surfaced when test-installing v0.2.1 against Claude Code
+v2.1.148: the plugin failed to load because Claude now auto-discovers
+`hooks/hooks.json` (so the explicit `manifest.hooks` ref produced a
+"Duplicate hooks file" load error), and the documented `--plugin-option`
+flag no longer exists — the install CLI takes `--config KEY=VALUE`.
+
+### Fixed
+
+- `.claude-plugin/plugin.json` — drop the `"hooks": "./hooks/hooks.json"`
+  reference. Claude Code v2.1+ auto-loads the standard hooks path, so the
+  explicit reference triggers `Hook load failed: Duplicate hooks file
+  detected`. The hook wiring is unchanged on disk; only the redundant
+  manifest entry was removed.
+- README.md / README.zh-TW.md — replace every `--plugin-option KEY=VALUE`
+  example with `--config KEY=VALUE` (the actual flag accepted by
+  `claude plugin install`). Drops a Troubleshooting row that referenced
+  the obsolete failure mode.
+- `scripts/install.sh` — emit `--config` instead of `--plugin-option` in
+  the resolved command (the shipped wizard had been emitting an unknown
+  CLI flag since the rename).
+- `commands/dhpk-setup.md` — point users at `/plugin configure dhpk@dhpk`
+  for module changes (the current native in-session configurator) and the
+  CLI uninstall+install pair when working from a terminal. The previous
+  text referenced `claude plugin reinstall`, which is not a CLI command.
+- `docs/docker-setup.md` — same fix in the "disable the check
+  temporarily" recipe.
+- `manifests/install-profiles.json` and `manifests/module-catalog.json` —
+  CLI examples in description/notes strings now use `--config`.
+- `docs/design/bootstrap-dhpk-plugin/specs/` — historical design spec
+  scenarios use `--config` for consistency. Behavior unchanged; these
+  files are archived design notes, not live specs.
+
+### Verified
+
+- `claude plugin marketplace add hmj1026/dhpk` + `claude plugin install
+  dhpk@dhpk` on Claude Code v2.1.148 → `Status: ✔ enabled` (previously
+  `✘ failed to load`).
+- `claude plugin validate ~/projects/dhpk --strict` — passes.
+
 ## 0.2.1 — 2026-05-22 — Unbundle OpenSpec wrappers
 
 OpenSpec is now treated as an external optional integration. Generic

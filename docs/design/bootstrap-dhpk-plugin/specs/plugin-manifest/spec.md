@@ -37,12 +37,12 @@ The manifest SHALL define a `userConfig` block with these keys, in this exact sh
 
 #### Scenario: Defaults apply when user provides nothing
 
-- **WHEN** a project installs the plugin without specifying any `--plugin-option`
+- **WHEN** a project installs the plugin without specifying any `--config`
 - **THEN** the three default review agent names are exported into hook scripts and `docker_containers` is empty so the docker check is skipped
 
 #### Scenario: User override propagates to hook subprocesses
 
-- **WHEN** the plugin is installed with `--plugin-option review_agents=code-reviewer-myproj,db-reviewer-myproj,sec-reviewer-myproj`
+- **WHEN** the plugin is installed with `--config review_agents=code-reviewer-myproj,db-reviewer-myproj,sec-reviewer-myproj`
 - **THEN** `CLAUDE_PLUGIN_OPTION_REVIEW_AGENTS=code-reviewer-myproj,db-reviewer-myproj,sec-reviewer-myproj` is exported to hook script subprocesses
 - **AND** the stop-review reminder names those agents in its output
 

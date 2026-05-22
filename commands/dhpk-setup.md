@@ -44,9 +44,13 @@ After collecting answers:
   key path the rest of this project already uses for plugin options — check
   the existing file first; do not invent a new shape).
 - Print a side-by-side diff of "before → after" so the user can confirm.
-- Tell the user that **module changes** (`modules=…`) require
-  `claude plugin reinstall dhpk@dhpk --plugin-option modules=<csv>` to actually
-  load/unload module skills; settings-only overrides apply on next session.
+- Tell the user that **module changes** (`modules=…`) require the plugin to
+  reload its skill list. The cleanest in-session path is
+  `/plugin configure dhpk@dhpk` (Claude Code's native userConfig editor — it
+  re-applies hooks and skill listings on save). From the terminal, the
+  equivalent is `claude plugin uninstall dhpk@dhpk && claude plugin install
+  dhpk@dhpk --config modules=<csv>`. Settings-only overrides apply on next
+  session.
 
 ### Arguments
 
@@ -86,7 +90,10 @@ Updated plugin options:
 
 Next steps:
   • Module changes take effect after:
-      claude plugin reinstall dhpk@dhpk --plugin-option modules=<csv>
+      /plugin configure dhpk@dhpk          (recommended, in-session)
+    or, from the terminal:
+      claude plugin uninstall dhpk@dhpk \
+        && claude plugin install dhpk@dhpk --config modules=<csv>
   • Other changes apply on next session.
   • Docker reference: $CLAUDE_PLUGIN_ROOT/docs/docker-setup.md
 ```
