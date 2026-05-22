@@ -103,8 +103,8 @@ if (!$apiKey) {
 // ❌ 洩露 SQL 詳情
 echo "Error: " . $e->getMessage();
 
-// ✅ 通用訊息
-EILogger::slog(['method' => __METHOD__, 'error' => $e->getMessage()], 'Error');
+// ✅ 通用訊息（細節送結構化日誌；給使用者的 response 只給通用訊息）
+$logger->error('caught exception', ['method' => __METHOD__, 'error' => $e->getMessage()]);
 echo "發生錯誤，請聯絡管理員";
 
 // 密碼 hash

@@ -1,62 +1,17 @@
 ---
-description: '執行 code-reviewer — 審查 .pending-review sentinel 中的檔案，完成後清除 sentinel'
+description: 'Deprecated alias — use /review-pending'
 argument-hint: '"[--files \"<rel-path,...>\"]"'
 allowed-tools: 'Read, Bash(git:*)'
 ---
 
-## Context
+## Renamed
 
-- Pending review files: !`cat .claude/artifacts/sessions/.pending-review 2>/dev/null || echo "(none)"`
-- Git status: !`git status -sb`
-- Changed files: !`git diff --stat HEAD 2>/dev/null | tail -20`
+This command was renamed to `/review-pending` in v0.1.1 for naming clarity
+(it audits **pending** files, not the same thing as the `code-reviewer` agent).
 
-## Task
+Please run `/review-pending` instead. Same arguments, identical behaviour.
 
-### Step 1 — 確認審查範圍
+The alias remains so older muscle-memory and pinned shortcuts keep working;
+it will be removed in v1.0.0.
 
-優先順序如下（取第一個有效來源）：
-
-| 優先順序 | 條件 | 審查範圍 |
-|----------|------|----------|
-| 1 | 有 `--files "<paths>"` 參數 | 參數指定的路徑 |
-| 2 | `.pending-review` sentinel 非空 | sentinel 中每一行的檔案路徑 |
-| 3 | 以上皆無 | `git diff HEAD --name-only` 的修改清單 |
-
-若三者皆無（nothing to review）→ 直接回報「無待審檔案」，不啟動 agent。
-
-### Step 2 — 啟動 code-reviewer
-
-將確認好的檔案清單與 context 傳給 `code-reviewer` agent 執行審查。
-
-Agent prompt 應包含：
-- 待審檔案清單（含相對路徑）
-- sentinel 中記錄的異動時間戳（如有）
-- 當前 git diff --stat（讓 agent 了解變更規模）
-
-### Step 3 — 轉達結果
-
-直接輸出 `code-reviewer` 的審查報告。  
-`code-reviewer` 的 Closing hook 會自動執行以下指令清除 sentinel（非此 command 負責）：
-
-```bash
-bash .claude/hooks/clear-sentinel.sh .pending-review code-reviewer
-```
-
-## Output
-
-轉達 code-reviewer 的輸出（格式由 agent 定義）：
-
-```
-## Code Review
-PASS/WARN/FIX: <items>
-Verdict: APPROVE | WARNING | BLOCK
-```
-
-APPROVE = 無 CRITICAL/HIGH；WARNING = 有 HIGH；BLOCK = 有任何 CRITICAL。
-
-## Examples
-
-```
-/code-review
-/code-review --files "protected/models/Order.php,domain/Orders/Services/OrderService.php"
-```
+Forwarding now → `/review-pending`

@@ -13,24 +13,33 @@ Remove dead code, merge dupes, split files >800 lines.
 
 ## Project Rules
 
-**PHP / Yii**:
-- Move dupes through DDD path: `Controller → $this->app()->{service}->fetchXxx() → Repository->forXxx()`
-- Cleanup must not introduce PHP 7+ syntax (see `.claude/rules/php/coding-style.md`)
-- Watch: stale `relations()`, unused `before/afterSave`, disabled Behaviors, obsolete module aliases in `protected/config/main.php`
-- DB enum literals → `AbstractEnum` subclass or Repository class constants (`.claude/rules/php/coding-style.md` Magic Values)
+**Stack-specific traps** (example shapes — adapt to your codebase):
 
-**JavaScript / zpos.js**:
-- `zpos.js` highly coupled — local removals only, never bulk refactor
-- Removal note: `// Removed [date] - [reason]`
-- Don't edit `*.min.js` (edit source, re-minify)
-- Standardize AJAX through existing wrappers (`POS.list.ajaxPromise`) — see `.claude/rules/frontend.md`
-- Globals on `POS.*`, never bare `window`
+- **Backend MVC / DDD frameworks** — move duplicates through the project's
+  layering (e.g. `Controller → Service → Repository`); don't introduce
+  syntax newer than the project's pinned language version; watch for stale
+  ORM relations, disabled lifecycle hooks, and obsolete module aliases in
+  the framework config file. Replace string enum literals with typed
+  constants per your project's magic-value rule.
+- **Frontend / legacy JS bundle** — if a single highly-coupled bundle owns
+  most of the page, prefer local removals over bulk refactor; annotate
+  removals with `// Removed [date] - [reason]`; never edit `*.min.js`
+  directly (edit source and re-minify); route AJAX through the project's
+  existing wrapper instead of bare `fetch`/`$.ajax`; attach globals to a
+  single project-owned namespace, never `window`.
+
+Stack-specific module overlays (e.g. `modules/php-5.6/`, `modules/yii-1.1/`)
+may provide more detailed checklists per framework — consult them if the
+matching module is enabled.
 
 ## Workflow
 
 1. `cx references --name X` (or `gitnexus_impact upstream`) to find callers
-2. Optional static check: `docker exec -i -w <container-workdir> ${PHP_CONTAINER:-php} phpstan analyse --level 9 <file>`
-3. Remove → verify with PHPUnit + smoke (checkout, query) + clean JS console
+2. Optional static check via the project's lint / type-check tool (e.g. PHPStan,
+   `tsc --noEmit`, `mypy`). When stack modules are active, the corresponding
+   module documents the canonical command.
+3. Remove → verify with the project's test suite + a manual smoke covering the
+   primary user flow + (for frontend changes) a clean browser console.
 4. Use `gitnexus_rename` for any symbol rename
 
 ## Output

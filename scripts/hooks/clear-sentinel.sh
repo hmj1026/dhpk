@@ -12,12 +12,10 @@ NAME="${1:?usage: clear-sentinel.sh <sentinel-name|--all> [agent-label]}"
 LABEL="${2:-agent}"
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 
-# Known sentinel whitelist — keep aligned with _lib/payload.sh SENTINEL_NAMES.
-readonly KNOWN_SENTINELS=(
-    ".pending-review"
-    ".pending-db-review"
-    ".pending-security-review"
-)
+# Known sentinel whitelist derived from _lib/payload.sh (SSOT). Extending
+# SENTINEL_NAMES there is enough; this script needs no change.
+. "$(dirname "$0")/_lib/payload.sh"
+readonly KNOWN_SENTINELS=("${SENTINEL_NAMES[@]}")
 
 if [ "$NAME" = "--all" ]; then
     cleared=0

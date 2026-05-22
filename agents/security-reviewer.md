@@ -25,7 +25,7 @@ Run after any input handling, authn/authz, file upload, or money path.
 | User data into `e​v​a​l` / string-arg `setTimeout` / `Function` ctor | CRITICAL | `JSON.parse` or whitelisted mapper |
 | `unserialize($userData)` | HIGH | `json_decode($userData, true)` + schema |
 | Manual POST form lacks CSRF | HIGH | `CActiveForm` or `CHtml::hiddenField(Yii::app()->request->csrfTokenName, ...)` |
-| Error response leaks SQL / stack | HIGH | Generic msg + `EILogger::slog()` |
+| Error response leaks SQL / stack | HIGH | Generic msg in the response; detail routed to the project's structured logger |
 | Logs hold PAN / passwords / tokens | HIGH | Mask: PAN last-4, mid-mask phone, password `[REDACTED]` |
 | File upload: ext / MIME / size unchecked | HIGH | Whitelist + `finfo_file()` + cap + outside webroot |
 | XML parse without entity loader off | HIGH | `libxml_disable_entity_loader(true)` |

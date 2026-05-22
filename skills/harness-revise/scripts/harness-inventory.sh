@@ -94,7 +94,9 @@ if [[ "$SETTINGS_FILE" == *.json ]]; then
     ALLOW_COUNT=$(jq '.permissions.allow | length' "$SETTINGS_FILE" 2>/dev/null)
     DENY_COUNT=$(jq '.permissions.deny | length' "$SETTINGS_FILE" 2>/dev/null)
     HOOK_COUNT=$(jq '[.hooks | to_entries[] | .value[] | .hooks[]?] | length' "$SETTINGS_FILE" 2>/dev/null)
-    ENV_PROFILE=$(jq -r '.env.ZDPOS_HOOK_PROFILE // "(missing)"' "$SETTINGS_FILE" 2>/dev/null)
+    # dhpk reads hook profile via CLAUDE_PLUGIN_OPTION_HOOK_PROFILE
+    # (Claude Code exports each plugin userConfig key with that prefix).
+    ENV_PROFILE=$(jq -r '.env.CLAUDE_PLUGIN_OPTION_HOOK_PROFILE // "(missing)"' "$SETTINGS_FILE" 2>/dev/null)
     STOP_ECHO_COUNT=$(jq '[.hooks.Stop[]?.hooks[]?.command | select(startswith("echo"))] | length' "$SETTINGS_FILE" 2>/dev/null)
 else
     # TOML basic validation (just check if exists for now)

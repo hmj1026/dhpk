@@ -10,8 +10,8 @@
 #   3. 若非 squash → 印 `[skip] not a squash merge` 並退出 0
 #   4. 退出碼永遠 0（advisory only，不阻擋 merge）
 #
-# Source: openspec/changes/verify-zpos-modular-refactor-followup/specs/squash-merge-hygiene/spec.md
-#         Requirement "pr-review skill MUST provide automated unrelated-changes scanner"
+# Source: project OpenSpec capability spec for squash-merge-hygiene
+#         Requirement: "pr-review skill MUST provide an automated unrelated-changes scanner"
 
 set -uo pipefail
 
@@ -79,7 +79,7 @@ fi
 echo ""
 echo "[warn] SQUASH PR #$PR_NUMBER MISSING '## Unrelated Changes' SECTION"
 echo ""
-echo "    Per spec 'squash-merge-hygiene' (openspec/changes/verify-zpos-modular-refactor-followup/specs/squash-merge-hygiene/spec.md),"
+echo "    Per the project's squash-merge-hygiene capability spec,"
 echo "    squash merge PR descriptions MUST list all functionally unrelated change groups + assigned reviewers."
 echo ""
 echo "    This is ADVISORY ONLY — the warning does NOT block merge. Reviewer judgment determines whether listed changes are truly unrelated."
@@ -101,7 +101,7 @@ fi
 echo ""
 echo "    Reference:"
 echo "      · execution-policy.md \"Git pipeline\" — squash merge hard rule"
-echo "      · docs/refactor-zpos-js/squash-8b31db0d-unrelated-reviews.md — backfill example"
+echo "      · docs/refactor-<area>/squash-<sha>-unrelated-reviews.md — backfill example"
 echo ""
 
 exit 0

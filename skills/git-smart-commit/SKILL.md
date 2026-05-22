@@ -44,16 +44,16 @@ git diff --cached
 
 #### 分群依據（優先順序）
 
-| 優先級 | 維度 | 範例 (符合 <your-project>) |
+| 優先級 | 維度 | 範例（依專案實際路徑調整） |
 |--------|------|------|
-| 1 | **專案設定 / 核心與 AI 規則** | `composer.json`, `protected/config/*`, `.gitignore`, `CLAUDE.md`, `GEMINI.md`, `*.md` 在根目錄 |
-| 2 | **資料表異動 (Migration)** | `protected/migrations/*` |
-| 3 | **領域邏輯 (Domain / Infra)** | `domain/*`, `infrastructure/*` |
-| 4 | **MVC 架構 (Controller/Model)** | `protected/controllers/*`, `protected/models/*`, `protected/views/*` |
-| 5 | **核心工具 / 共用元件** | `protected/components/*` (含 `zdnbase/*`) |
-| 6 | **前端 Legacy POS** | `js/*` (例如 `zpos.js`), `css/*` |
-| 7 | **自動化測試** | `protected/tests/*` |
-| 8 | **文件 / 規格 (OpenSpec)** | `docs/*`, `openspec/*` |
+| 1 | **專案設定 / 核心與 AI 規則** | 依套件管理檔（`composer.json` / `package.json` / `pyproject.toml` 等）、框架設定目錄、`.gitignore`、`CLAUDE.md`、`AGENTS.md`、根目錄 `*.md` |
+| 2 | **資料表異動 (Migration)** | 專案的 migrations 目錄 |
+| 3 | **領域邏輯 (Domain / Infra)** | DDD 風格時的 `domain/*` 與 `infrastructure/*`；其他架構則依專案分層 |
+| 4 | **MVC 架構 (Controller/Model)** | 框架對應的 controllers / models / views 路徑 |
+| 5 | **核心工具 / 共用元件** | 專案自有共用元件或內部基礎庫 |
+| 6 | **前端 / Legacy JS bundle** | 主要 JS bundle（`js/*` 等）、`css/*` |
+| 7 | **自動化測試** | 專案測試目錄（`tests/*` 等） |
+| 8 | **文件 / 規格 (OpenSpec)** | `docs/*`、`openspec/*` |
 
 #### 分群規則
 
@@ -82,8 +82,8 @@ git diff --cached
 3. feat(domain): 實作點數計算核心領域邏輯
    → domain/Point/PointCalculator.php, infrastructure/Point/PointRepository.php
 
-4. refactor(controller): 重構 POS 儲值控制器
-   → protected/controllers/PosController.php, protected/views/pos/index.php
+4. refactor(controller): 重構儲值流程控制器
+   → protected/controllers/PaymentController.php, protected/views/payment/index.php
 
 ...
 
@@ -131,7 +131,7 @@ git commit -m "<type>(<scope>): <subject>"
 - `migration`：資料庫異動
 - `config`：系統設定與全域配置
 - `spec`：OpenSpec 規格與設計文件
-- 元件或功能名稱：如果在特定元件或模組（例如 `zdnbase`, `point` 等）也可以直接寫模組名稱。
+- 元件或功能名稱：如果變更落在特定元件或模組（例如 `<core-lib>`、`<billing>` 等專案內部命名）也可以直接寫模組名稱。
 
 **subject 規則：**
 - 使用繁體中文

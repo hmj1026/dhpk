@@ -9,19 +9,20 @@ Analyze the codebase structure and generate token-lean architecture documentatio
 
 ## Step 1: Scan Project Structure
 
-1. 識別專案架構：Yii 1.1 MVC + DDD 混合架構（單體應用）
-2. 掃描主要目錄：
-   - `protected/controllers/` — Controller 層
-   - `protected/models/` — ActiveRecord Model
-   - `protected/views/` — PHP View 模板
-   - `protected/commands/` — Console Command
-   - `protected/components/` — Yii Component
-   - `protected/controllers/traits/` — Controller Trait（含 `DomainApplicable`、`Response`）
-   - `protected/helpers/` — 跨功能共用 Helper
-   - `domain/` — Domain Service 層（DDD）
-   - `infrastructure/` — Repository / 外部整合層（DDD）
-   - `js/` — 前端 JavaScript（Raw ES6，無 build step）
-3. 標示進入點：`index.php`、`protected/config/main.php`
+1. 偵測專案架構（框架、是否分層、是否單體 / monorepo）。常見模式：
+   - 單體 MVC（Yii / Laravel / Rails / Django 等）
+   - 分層 DDD（Domain / Application / Infrastructure）
+   - Modular monolith / monorepo（每個模組獨立目錄）
+   - Frontend SPA + Backend API
+2. 掃描主要目錄。下列為**典型框架/分層**慣例路徑，依專案實際結構增刪：
+   - `<controllers-dir>` — Controller 層（HTTP 入口）
+   - `<models-dir>` — Domain Model / ORM Entity
+   - `<views-dir>` — View / Template
+   - `<commands-dir>` — Console / Worker 命令
+   - `<services-dir>` — Application / Domain Service
+   - `<repositories-dir>` — Repository / Data Access
+   - `<frontend-dir>` — 前端 JS/CSS（含或不含 build step）
+3. 標示進入點：例如 `index.php`、`public/index.php`、`src/main.ts`、`manage.py`、`config/application.rb` 等專案實際的入口檔。
 
 ## Step 2: Generate Codemaps
 
@@ -31,11 +32,11 @@ Analyze the codebase structure and generate token-lean architecture documentatio
 
 | 文件 | 內容 |
 |------|------|
-| `architecture.md` | 高階系統圖、DDD 分層、Controller → Service → Repository 呼叫路徑 |
-| `backend.md` | Controller actions、Service 方法、Repository 對應、Console Commands |
-| `frontend.md` | `js/` 目錄結構、`POS.*` 全域 API、View 檔案與 JS 的關聯 |
-| `data.md` | MySQL 資料表、ActiveRecord Model 對應、關聯（relations） |
-| `dependencies.md` | 外部 API 整合、第三方服務、Yii extensions、Composer 套件 |
+| `architecture.md` | 高階系統圖、分層結構、Controller → Service → Repository（或專案實際呼叫鏈）路徑 |
+| `backend.md` | Controller actions、Service 方法、Repository 對應、Console / Worker commands |
+| `frontend.md` | 前端目錄結構、全域 API / namespace、View 與 JS 的關聯 |
+| `data.md` | 主要資料表、ORM model 對應、關聯（relations / associations） |
+| `dependencies.md` | 外部 API 整合、第三方服務、framework extensions、套件管理檔依賴 |
 
 ### Codemap Format
 
@@ -45,21 +46,23 @@ Analyze the codebase structure and generate token-lean architecture documentatio
 # 後端架構
 
 ## Controller Actions（路由）
-POST sale/checkout → SaleController::actionCheckout → $this->app()->sale->checkout() → SaleRepository->save()
-GET  maintain/category → MaintainController::actionCategory → $this->app()->category->fetchAll()
+POST checkout       → CheckoutController::actionCreate → $services->checkout->process() → CheckoutRepository->save()
+GET  catalog/list   → CatalogController::actionList   → $services->catalog->fetchAll()
 
 ## 關鍵檔案
-protected/controllers/PosController.php（POS 結帳 作廢流程）
-protected/models/Device.php（設備列印邏輯）
+<controllers-dir>/CheckoutController.php（結帳 / 退款流程入口）
+<models-dir>/Order.php（訂單列印與狀態流轉）
 
-## DDD 呼叫路徑
-Controller → $this->app()->{service}->method() → Repository->forXxx()
-（$this->app() 定義於 protected/controllers/traits/DomainApplicable.php）
+## 呼叫路徑
+Controller → <service-locator>->{service}->method() → Repository->forXxx()
+（<service-locator> 在本專案的定義位置：<file-where-defined>）
 
 ## Dependencies
-- MySQL（主資料庫）
-- EILogger（統一日誌系統）
+- <primary-database>（主資料庫）
+- <project-logger>（結構化日誌）
 ```
+
+> 上表示意值——把所有 `<placeholder>` 換成你專案實際的名字（class / 目錄 / 服務）後，這份 codemap 才會真的有用。
 
 ## Step 3: Diff Detection
 
@@ -92,6 +95,6 @@ Controller → $this->app()->{service}->method() → Repository->forXxx()
 - Keep each codemap under **1000 tokens** for efficient context loading
 - Use ASCII diagrams for data flow instead of verbose descriptions
 - Run after major feature additions or refactoring sessions
-- 用 `$this->app()` 追蹤 DDD 呼叫路徑（定義於 `DomainApplicable.php`）
-- 前端以 `POS.*` 全域物件為核心，無 npm/webpack/babel
-- 注意 `protected/` 目錄下的 Yii 慣例結構（controllers/models/views/components/commands）
+- 若專案有 service-locator pattern（如 `$this->app()->{service}`），先記錄其定義位置作為 codemap 入口
+- 前端若用全域命名空間（如 `MyApp.*`），列出主要 namespace 與所在檔案
+- 若框架有強慣例（Yii `protected/`、Rails `app/`、Django app modules），先標註慣例路徑再列專案自有結構

@@ -52,6 +52,11 @@
           {
             "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/scripts/hooks/stop-review-reminder.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/scripts/hooks/reap-stale-sentinels.sh",
+            "async": true
           }
         ]
       }

@@ -1,77 +1,97 @@
-# PHP Patterns (<your-project>-specific)
+# Yii 1.1 — Patterns & Anti-patterns
 
-> Extends `~/.claude/rules/common/patterns.md`. Yii 1.1 + DDD layering.
+> Extends `~/.claude/rules/common/patterns.md`. Stock-Yii guidance only;
+> project-specific repository wrappers, service locators, query builders,
+> and loggers live in your project's own docs.
 
-## Repository / Service
+## Layered architecture (when used)
 
-- Repository interface: `findById`, `findAll`, `findByCriteria`, `save`, `delete`. Inject `IXxxRepository` into Domain services — never AR model directly.
-- Service Layer handles transaction / validation / external API / rollback.
+If the project layers `Controller → Service → Repository`:
 
-## DB Query Layering (SQL location SSOT)
+- **Controller**: thin HTTP entry. Validate input, dispatch to a service,
+  return a response. No SQL, no business logic.
+- **Service**: orchestrates business rules. Transaction boundary, validation,
+  external API calls, rollback.
+- **Repository**: holds all SQL / `CDbCriteria` / `CDbCommand` for a given
+  aggregate. Returns domain values (entities or DTOs), not raw `CActiveRecord`
+  arrays.
 
-1. **Builder priority**: prefer `Infrastructure\Database\Query\Builder` via `$repo->queryBuilder()->where()->get()/first()/value()/count()/update()`; fall back to Yii `createCommand()` only when the toolkit doesn't fit.
-2. **Location**: all SQL lives in Repository. Controller / Domain service / trait SHALL NOT call `Yii::app()->db->createCommand()` directly or build SQL strings.
-3. **Naming**: business semantics + explicit required columns (`createWeatherContext($storeNo, ...)`). Forbidden: `insertRow($row)` / `updateBy($where, $set)` / `executeRaw($sql)`.
-4. **Migration cadence**: new code follows 1+2 immediately; existing inline SQL only pushed down when its section is being modified.
-5. **No mirror-existing escape hatch**: neighbor using `createCommand()` is not justification — create a **V2 parallel method** with `queryBuilder()` if upgrading is impractical, and annotate the legacy method `@see xxxV2`.
+Yii 1.1 itself does not provide a Repository base class — projects that adopt
+this pattern usually create their own `BaseRepository` and inject it via
+`Yii::app()->getComponent(...)`.
 
-Toolkit prerequisite (unfamiliarity is not a fallback reason): read `docs/query-toolkit-cookbook.md` + `docs/query-toolkit-migration-guide.md`. Date helpers (`BuildsDateWheres` trait): `->whereDate('col', '>=|<=', 'YYYY-MM-DD')`. Spec: `infrastructure/CLAUDE.md` "Database Query Toolkit".
+## SQL location SSOT
 
-## Repository Discovery Gate
+When using a repository pattern, **all SQL lives in repositories**. Controllers
+and Services SHALL NOT call `Yii::app()->db->createCommand()` directly or
+build SQL strings.
 
-Before designing any new DB query:
+- Prefer `$repo->queryBuilder()` chains (project query toolkit, if present) over
+  raw `createCommand()`.
+- `queryRow()` returns `false` on miss (not `null`) — check with `!$result`.
+- IN clauses: `CDbCriteria::addInCondition('col', $ids)` — never string interpolation.
+- Bind parameters: `$cmd->bindParam(':id', $id, PDO::PARAM_INT)`.
 
-```bash
-grep -rl "<target_table>" infrastructure/Repositories/
-# fallback: cx overview infrastructure/Repositories/
-```
+If your project enables a different framework module (not yii-1.1), substitute
+the framework's repository / query convention.
 
-| Result | Action |
-|---|---|
-| Repository found | Add new method via `queryBuilder()`. Never in Controller. |
-| Not found | Create `XxxRepository extends EntityRepository` in `infrastructure/Repositories/`. Never in Controller. |
+## N+1 avoidance
 
-`EntityRepository::queryBuilder()` returns a pre-configured `Builder`. Legacy `createCommand()` in a Controller is debt; presence does NOT permit new violations.
+- Always eager-load relations consumed in loops: `Model::model()->with('rel')->findAll(...)`.
+- Suspicious patterns to grep for inside repositories / domain code:
 
-## Exception Logging (catch convention)
+  ```bash
+  rg -n 'foreach.*\$.*->.*[a-z]' <repository-dir> <domain-dir>
+  rg -n 'queryRow|queryAll|findAll' <repository-dir>
+  ```
 
-> Triggers `catch / ExceptionLogHelper / SalesWeatherLogger / EILogger / application.log` → skill `<your-project>-exception-logging` (rules, examples, anti-patterns).
+  Adjust the paths to your project's actual repository / domain layout.
 
-**Hard rule**: every `catch (\Exception $e)` SHALL call both `ExceptionLogHelper::logCaughtExceptionToApplication()` and a domain logger; never empty / `// ignore`.
+## Exception handling
 
-## IN / NOT IN Queries
+**Hard rule**: every `catch (\Exception $e)` SHALL log to the project's
+structured logger; never empty `catch` blocks and never `// ignore` comments.
 
-> Triggers `addInCondition / addNotInCondition / IN clause / array_values` → skill `<your-project>-in-queries` (compound LIKE+IN, empty-array guard, anti-patterns).
+Yii 1.1 ships `Yii::log($msg, $level, $category)` as the baseline. Most
+projects layer a typed logger on top — consult your project docs for the
+canonical entry point.
 
-**Hard rule**: use `CDbCriteria::addInCondition()` / `addNotInCondition()`; never string interpolation; always `array_values($ids)`; guard empty arrays before `addNotInCondition`.
+## IN / NOT IN queries
+
+- Use `CDbCriteria::addInCondition()` / `addNotInCondition()`. Never string interpolation.
+- Always `array_values($ids)` before passing — Yii 1.1 binds by positional index, so
+  associative arrays misalign placeholders.
+- Guard empty arrays before `addNotInCondition` (it throws on empty).
 
 ## Validator / DI / Controller Response
 
-- Validator: `class XxxValidator extends CValidator`; rules: `['field', 'ext.validators.XxxValidator']`
-- DI: `Yii::app()->getComponent('orderService')`; config `'components' => ['orderService' => ['class' => 'app.services.OrderService']]`
-- AJAX uses the `Response` trait. Legacy `['err' => 0/1]` is deprecated.
+- **Validator**: `class XxxValidator extends CValidator`; rule entry:
+  `['field', 'ext.validators.XxxValidator']`.
+- **DI**: `Yii::app()->getComponent('orderService')`; configure in
+  `'components' => ['orderService' => ['class' => 'app.services.OrderService']]`.
+- **AJAX**: standardise on a single envelope shape (e.g.
+  `['success' => bool, 'data' => mixed, 'message' => string]`). Old
+  Yii-style `['err' => 0|1]` payloads are noise — pick one shape and stick.
 
 | Status | Method |
 |---|---|
-| 200 | `$this->json(['success' => true, 'data' => $r, 'message' => ''])` |
-| 400 | `$this->error('reason')` |
+| 200 | Return JSON envelope: `$this->renderJson(['success' => true, 'data' => $r])` |
+| 400 | Return JSON envelope with `success => false` and a user-safe message |
 | 403 / 404 | `throw new CHttpException(403\|404)` |
 
 ## Raw SQL vs Query Builder
 
 | Case | Approach |
 |---|---|
-| DML, fixed table | Always query builder |
-| DDL (SHOW/TRUNCATE/DESCRIBE) or DML with dynamic table | Raw SQL + `$this->assertValidTableName($name)` |
+| DML, fixed table | Always use `CDbCriteria` / project query builder |
+| DDL (`SHOW` / `TRUNCATE` / `DESCRIBE`) or DML with dynamic table | Raw SQL **only** with table-name whitelisting (assert against a known set) |
 
-`assertValidTableName()` SSOT lives in `EntityRepository` (`protected`). Legacy `private` copies in `SystemRepository` / `CiwebRepository` are debt — when a new Repo needs it, declare `protected` (pending unification).
+Dynamic table names are a SQL injection vector — never interpolate request input
+into the table position. Whitelist against `Yii::app()->db->schema->getTables()`
+or a project-maintained allowlist.
 
-## Repository Class Constants
+## Append-only exemption (when adding new symbols only)
 
-Detail → `php/coding-style.md` "Magic Values". Single-value enums need no `AbstractEnum` subclass.
-
-## PHP 5.6 substitutions (quick ref)
-
-- Named args → `$options` array + `array_merge($defaults, $options)`
-- Chainable: `CDbCommand` native; `CDbCriteria` needs wrapping
-- Full constraint list → `php/coding-style.md` "PHP 5.6 polyfills"
+When adding entirely new methods / classes that do not touch existing call
+sites, the project's "no `createCommand()` in Controller" rule still applies
+to the new code. Don't introduce new debt under the banner of "minor addition".

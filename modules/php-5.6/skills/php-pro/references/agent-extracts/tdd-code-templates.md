@@ -201,9 +201,9 @@ describe('OrderCalculator', () => {
 });
 
 // AJAX 測試
-test('should handle POS.list.ajaxPromise', async () => {
+test('should handle MyApp.list.ajaxPromise', async () => {
     const mockAjax = jest.fn().mockResolvedValue({ success: true, data: { result: 'ok' } });
-    POS.list.ajaxPromise = mockAjax;
+    MyApp.list.ajaxPromise = mockAjax;
     const result = await performAjaxOperation();
     expect(result.success).toBe(true);
 });
@@ -211,7 +211,7 @@ test('should handle POS.list.ajaxPromise', async () => {
 // DOM 測試
 test('should update DOM with message', () => {
     document.body.innerHTML = '<div id="message"></div>';
-    POS.display.message('操作成功');
+    MyApp.display.message('操作成功');
     expect(document.getElementById('message').textContent).toBe('操作成功');
 });
 ```

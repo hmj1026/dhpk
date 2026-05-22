@@ -1,5 +1,54 @@
 # Changelog
 
+## 0.1.1 — 2026-05-22 — Cross-platform lib + sentinel resilience
+
+Low-risk infrastructure additions. No behavioural change in the default
+profile; all new behaviour is opt-in via `userConfig`.
+
+### Added
+
+- **`scripts/hooks/_lib/portable-sed.sh`** — source-only cross-platform `sed -i`
+  wrapper (Linux/WSL GNU sed vs macOS BSD sed). Exposes `sed_inplace`. Reserved
+  for future hooks that need in-place edits; the v0.1.1 hook set does not yet
+  consume it.
+- **`scripts/hooks/reap-stale-sentinels.sh`** — Stop-hook companion that
+  inspects `.claude/artifacts/sessions/.pending-*` files and emits a STALE
+  warning to stderr when any sentinel is older than 24h (likely review-agent
+  crash). By design does not delete; prints the exact `clear-sentinel.sh`
+  command to clear manually. Uses portable `stat` (Linux `-c %Y` / macOS
+  `-f %m`). Wired into the Stop event as a second `async: true` hook.
+- **`reap_stale_mcp_processes` userConfig** (boolean, default `false`) —
+  when enabled, `session-start.sh` reaps older `gitnexus mcp` processes and
+  keeps only the newest. Off by default; only useful for projects using the
+  gitnexus MCP server. Skipped automatically when `pgrep` is missing.
+
+### Changed
+
+- **`scripts/hooks/clear-sentinel.sh`** — now sources `_lib/payload.sh` and
+  derives `KNOWN_SENTINELS` from `SENTINEL_NAMES`. Behaviour identical
+  today (3-slot) but automatically extensible when `SENTINEL_NAMES` grows.
+- **`commands/code-review.md` → `commands/review-pending.md`** — renamed for
+  naming clarity ("review the **pending** files" vs. "the `code-reviewer`
+  agent"). Old name retained as a deprecated forwarding stub; will be
+  removed in v1.0.0. `commands/INDEX.md` updated accordingly.
+- **De-identification sweep** across `agents/refactor-cleaner.md`,
+  `skills/git-smart-commit/SKILL.md`, `skills/pr-review/SKILL.md`,
+  `skills/pr-review/scripts/check-unrelated-changes.sh`,
+  `skills/harness-revise/scripts/harness-inventory.sh`, and
+  `codex/skills/multi-ai-sync/scripts/multi_ai_sync_lib/agent_sync.py`:
+  removed lingering origin-project identifiers and replaced them with
+  generic placeholders / framework-agnostic phrasing.
+
+### Verification
+
+- `bash -n` clean on all modified shell scripts.
+- Repo-wide identifier audit returns no matches for any origin-project name.
+- Stop hook smoke: touched a stub sentinel with mtime > 24h; reap script
+  printed `[reap-sentinels] STALE: ...` and exited 0 without deleting the
+  file.
+- `clear-sentinel.sh --all` still clears all three known sentinels with the
+  refactor in place.
+
 ## 0.1.0 — 2026-05-21 — Initial release
 
 First public release of `dhpk` — a generic, install-and-go Claude Code harness with an opt-in stack-module system and a parallel Codex CLI tree.

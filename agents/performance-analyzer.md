@@ -28,10 +28,10 @@ Audit query performance in the Repository layer. `database-reviewer` owns correc
 Suspicious patterns to grep for:
 
 ```bash
-# AR lazy relation inside loop
-rg -n 'foreach.*\$.*->.*[a-z]' infrastructure/Repositories/ domain/
-# Multiple queryRow/queryAll inside a method body
-rg -n 'queryRow|queryAll|findAll' infrastructure/Repositories/ | awk -F: '{print $1}' | sort | uniq -c | sort -rn | head -20
+# AR / ORM lazy relation access inside a loop (substitute your repository/domain paths)
+rg -n 'foreach.*\$.*->.*[a-z]' <repository-dir> <domain-dir>
+# Repeated row-fetch calls inside a method body
+rg -n 'queryRow|queryAll|findAll|fetchOne|fetchAll' <repository-dir> | awk -F: '{print $1}' | sort | uniq -c | sort -rn | head -20
 ```
 
 Fix: Use AR eager load — `Model::model()->with('relation')->findAll($criteria)` — or a single JOIN query via `queryBuilder()`.

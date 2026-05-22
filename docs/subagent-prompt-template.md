@@ -39,7 +39,7 @@ Conventions:
 - Bind parameters: `$cmd->bindParam(':id', $id, PDO::PARAM_INT)`.
 
 Before designing any new query:
-  grep -rl "<target_table>" infrastructure/Repositories/
+  grep -rl "<target_table>" <repository-dir>   # adjust path to your project's repository layer
 
 If the project enables a different framework module (not yii-1.1), substitute
 the project's repository convention. The above is the dhpk yii-1.1 baseline.

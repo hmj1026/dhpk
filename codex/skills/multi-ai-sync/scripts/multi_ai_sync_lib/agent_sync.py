@@ -18,12 +18,12 @@ except Exception:  # pragma: no cover - py3.10 fallback
 
 
 CLAUDE_PARITY_COVERAGE_KEYWORDS = {
-    "architect-<your-project>": ["Controller", "Domain", "Infrastructure", "Yii 1.1", "PHP 5.6"],
-    "code-reviewer-<your-project>": ["CRITICAL", "HIGH", "Yii 1.1", "PHP 5.6", "SQL injection"],
-    "database-reviewer-<your-project>": ["queryRow", "PDO", "MySQL 5.7", "transaction", "N+1"],
-    "refactor-cleaner-<your-project>": ["dead", "duplicate", "zpos.js", "PHP 5.6"],
-    "security-reviewer-<your-project>": ["CSRF", "XSS", "SQL", "accessRules", "Yii"],
-    "tdd-guide-<your-project>": ["PHPUnit 5.7", "assertInternalType", "strcasecmp", "setExpectedException", "RED"],
+    "architect-<your-project>": ["Controller", "Domain", "Infrastructure"],
+    "code-reviewer-<your-project>": ["CRITICAL", "HIGH", "SQL injection"],
+    "database-reviewer-<your-project>": ["transaction", "N+1"],
+    "refactor-cleaner-<your-project>": ["dead", "duplicate"],
+    "security-reviewer-<your-project>": ["CSRF", "XSS", "SQL"],
+    "tdd-guide-<your-project>": ["RED", "GREEN", "REFACTOR"],
 }
 
 CODEX_NATIVE_AGENTS = ["bug-investigator", "explorer", "monitor", "worker"]

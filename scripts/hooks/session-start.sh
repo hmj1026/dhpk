@@ -21,6 +21,26 @@ mkdir -p "$ARTIFACTS/reviews" "$ARTIFACTS/plans" "$ARTIFACTS/audits" \
          "$ARTIFACTS/refactors" "$ARTIFACTS/codemaps" "$ARTIFACTS/adr" \
          "$ARTIFACTS/sessions"
 
+# ---- Optional: reap stale gitnexus MCP processes ----
+# Each session may spawn a fresh `gitnexus mcp` process; older ones are not
+# auto-reaped. Concurrent writers contending for the same DB lock can corrupt
+# the FTS index. Opt-in via userConfig.reap_stale_mcp_processes — disabled by
+# default so projects that don't use gitnexus see no behaviour change.
+if [ "${CLAUDE_PLUGIN_OPTION_REAP_STALE_MCP_PROCESSES:-false}" = "true" ] \
+   && command -v pgrep >/dev/null 2>&1; then
+    _gn_pids=($(pgrep -f "gitnexus mcp" 2>/dev/null | sort -n))
+    if [ ${#_gn_pids[@]} -gt 1 ]; then
+        _gn_newest="${_gn_pids[$((${#_gn_pids[@]} - 1))]}"
+        for _gn_pid in "${_gn_pids[@]}"; do
+            if [ "$_gn_pid" != "$_gn_newest" ]; then
+                kill "$_gn_pid" 2>/dev/null
+            fi
+        done
+        echo "[session-start] reaped $((${#_gn_pids[@]} - 1)) stale gitnexus mcp processes"
+    fi
+    unset _gn_pids _gn_newest _gn_pid
+fi
+
 TS="$(date +'%Y-%m-%d %H:%M:%S %Z')"
 BRANCH="$(git -C "$ROOT" branch --show-current 2>/dev/null || echo '(detached)')"
 STAGED="$(git -C "$ROOT" diff --cached --name-only 2>/dev/null | wc -l | tr -d ' ')"
