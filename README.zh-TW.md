@@ -2,7 +2,7 @@
 
 > **語言**: [English](./README.md) · **繁體中文**
 
-通用、安裝即用的 Claude Code harness。內含約 13 個角色導向 agent、約 74 個指令（codex / openspec / gitnexus / git / 專案工作流）、約 64 個 skill、由 sentinel 驅動的 review hook、statusline、harness 腳本，以及三個可選用的技術棧模組（`php-5.6`、`yii-1.1`、`phpunit-5.7`）。內附平行的 Codex CLI 樹，適用於雙助理（Claude + Codex）專案。
+通用、安裝即用的 Claude Code harness。內含 **15 個角色導向 agent**、約 75 個指令（codex / openspec / gitnexus / git / 專案工作流）、約 60 個核心 skill 加上跨專案的 `deploy-list` 部署清單產生器、**5-slot sentinel 驅動的 review hook**（code / db / sec / frontend / doc）、statusline、harness 腳本，以及**四個可選用的技術棧模組**（`php-5.6`、`yii-1.1`、`phpunit-5.7`、`js`）。模組可透過 **wrapper-dispatch** 模型在 runtime 提供 hook（詳見 [`docs/hook-extension.md`](./docs/hook-extension.md)）。內附平行的 Codex CLI 樹，適用於雙助理（Claude + Codex）專案。
 
 ## 前置需求
 
@@ -66,37 +66,42 @@ claude plugin validate ~/projects/dhpk --strict
 
 | 元件 | 數量 | 說明 |
 |------|----:|------|
-| Agents | 13 | `dhpk:code-reviewer`、`dhpk:tdd-guide`、`dhpk:architect` 等（1 份 INDEX.md 僅作導覽用） |
-| Commands | ~74 | `dhpk:opsx:*`、`dhpk:codex-*`、`dhpk:create-pr`、`dhpk:smart-commit` 等 |
-| 核心 skills | ~59 | openspec-*、codex-*、gitnexus、tool-routing、dhpk-execution-policy 等 |
-| 技術棧模組 | 3 | `php-5.6`、`yii-1.1`、`phpunit-5.7`（選用；詳見下方「模組」） |
-| Hooks | 5 個事件 | PreToolUse（Edit、Bash）、PostToolUse（Edit + async crlf-fix）、SessionStart、Stop |
+| Agents | 15 | 14 個可呼叫 + 1 份 `INDEX.md`。其中 5 個為 sentinel 驅動的 reviewer（code / db / sec / **frontend** / **doc**），其餘為情境型（architect、tdd-guide、refactor-cleaner、ui-ux-verifier、performance-analyzer、doc-updater、docs-lookup、harness-reviser、harness-optimizer） |
+| Commands | ~75 | `dhpk:opsx:*`、`dhpk:codex-*`、`dhpk:review-pending`、`dhpk:smart-commit`、`dhpk:ts-check-status`（JS 模組）等 |
+| 核心 skills | ~60 加上 | openspec-*、codex-*、gitnexus、tool-routing、dhpk-execution-policy、**deploy-list**（跨專案部署清單產生器）、**execution-checklist**（任務收尾自檢） |
+| 技術棧模組 | 4 | `php-5.6`、`yii-1.1`、`phpunit-5.7`、`js`（選用；詳見下方「模組」） |
+| Hooks | 5 個事件 | PreToolUse（Edit、Bash + dispatcher）、PostToolUse（Edit + dispatcher + async crlf-fix）、SessionStart、Stop（stop-review-reminder + reap-stale-sentinels） |
+| Hook dispatcher | 2 | `post-edit-dispatch.sh`、`pre-bash-dispatch.sh` — 分派到啟用模組的 hook |
 | Harness 腳本 | 5 | precommit-runner、verify-runner、harness-audit、codemap generator、dep-audit |
 | Codex 雙軌 | 24 skills + 5 agents | 由 `install-codex-skills.sh` 同步進專案的 `.codex/` |
 
 ## userConfig
 
-五個旋鈕，全部可在安裝時用 `--plugin-option <key>=<value>` 設定：
+九個旋鈕，全部可在安裝時用 `--plugin-option <key>=<value>` 設定：
 
 | Key | 預設值 | 用途 |
 |-----|--------|------|
 | `hook_profile` | `standard` | `minimal` 抑制 Stop 提醒；`strict` 增加額外警告 |
-| `review_agents` | `["code-reviewer","database-reviewer","security-reviewer"]` | 被 sentinel 提醒呼叫的 agent。可覆寫指向你專案特定的 agent。 |
+| `review_agents` | `["code-reviewer","database-reviewer","security-reviewer","frontend-reviewer","doc-reviewer"]` | 被 sentinel 提醒呼叫的 5 個 agent。可覆寫指向你專案特定的 agent；傳入較短的清單會縮減覆蓋範圍。 |
 | `docker_containers` | `[]` | 在 SessionStart 檢查的 container 名稱。空陣列代表停用該檢查。第一筆會輸出為 `DHPK_PHP_CONTAINER`；第二筆為 `DHPK_MYSQL_CONTAINER`。 |
-| `modules` | `[]` | 要啟用的技術棧模組。內附：`php-5.6`、`yii-1.1`、`phpunit-5.7`。模組的 `requires:` 在 SessionStart 驗證（僅警告、不阻擋）。 |
-| `review_trigger_extra_paths` | `[]` | 每個 reviewer slot 的額外路徑前綴。格式：`<slot>:<prefix>`，slot 屬於 `code|db|sec`。例：`code:protected/`。 |
+| `modules` | `[]` | 要啟用的技術棧模組。內附：`php-5.6`、`yii-1.1`、`phpunit-5.7`、`js`。模組的 `requires:` 在 SessionStart 驗證（僅警告、不阻擋）。 |
+| `review_trigger_extra_paths` | `[]` | 每個 reviewer slot 的額外路徑前綴。格式：`<slot>:<prefix>`，slot 屬於 `code\|db\|sec\|fe\|doc`。例：`code:protected/`、`fe:resources/views/`。 |
+| `reap_stale_mcp_processes` | `false` | 設 `true` 時，SessionStart 會 reap 舊的 `gitnexus mcp` process（只留最新）。僅 gitnexus MCP 使用者需要。 |
+| `js_lint_script` | `"lint"` | `js` 模組 pre-commit gate 執行的 npm script 名稱。 |
+| `js_typecheck_script` | `"typecheck"` | `js` 模組 pre-commit gate 執行的 npm script 名稱。 |
+| `js_check_path` | `"js/"` | `/ts-check-status` 掃描 `// @ts-check` 推進度時的路徑。 |
 
 範例：
 
 ```bash
-# 以預設值純安裝。
+# 以預設值純安裝（5-slot 預設 agent 名稱）。
 claude plugin install dhpk@dhpk
 
-# PHP/Yii 專案設定。
+# PHP/Yii + JS 全端專案。
 claude plugin install dhpk@dhpk \
-  --plugin-option modules=php-5.6,yii-1.1,phpunit-5.7 \
+  --plugin-option modules=php-5.6,yii-1.1,phpunit-5.7,js \
   --plugin-option docker_containers=php-fpm,mysql \
-  --plugin-option review_agents=code-reviewer-myproj,db-reviewer-myproj,sec-reviewer-myproj
+  --plugin-option review_agents=code-reviewer-myproj,db-reviewer-myproj,sec-reviewer-myproj,fe-reviewer-myproj,doc-reviewer-myproj
 ```
 
 精選的模組組合請見 `manifests/install-profiles.json`。
@@ -119,15 +124,17 @@ codex-test-review     codex-test-review
 
 ## 模組
 
-**模組**是有標籤、有版本號的 skill + 參考資料 + trigger 貢獻組合，由 `userConfig.modules` 控管啟用。v0.1.0 內附：
+**模組**是有標籤、有版本號的 skill + 參考資料 + hook + trigger 貢獻組合，由 `userConfig.modules` 控管啟用。v0.2.0 內附：
 
 - **`php-5.6`** — PHP 5.6 語言基線。禁止 7.0+ 語法；提供 polyfill 指引。
-- **`yii-1.1`** — Yii 1.1 框架：autoload、AR/CDbCriteria、DDD 分層、XSS/CSRF 預設。需要 `php-5.6`。
+- **`yii-1.1`** — Yii 1.1 框架：alias autoload、`CActiveRecord` / `CDbCriteria`、`accessRules`、XSS / CSRF 預設。需要 `php-5.6`。
 - **`phpunit-5.7`** — PHPUnit 5.7 assertion API 與用法。需要 `php-5.6`。
+- **`js`** — JS / TS 工具鏈。ESLint flat-config 分層策略（Tier 1 嚴格 / 1.5 core-exempt / 1.7 deferred-migration / globals）、per-leaf `// @ts-check` 漸進啟用、async post-edit ESLint 反饋、pre-commit `npm run <lint> + <typecheck>` gate。框架無關。
 
 啟用後，模組會：
-- 將其 skill 以 `dhpk:<skill-name>` 形式暴露（例如 `dhpk:php-pro`、`dhpk:yii1-security-audit`）。
+- 將其 skill 以 `dhpk:<skill-name>` 形式暴露（例如 `dhpk:php-pro`、`dhpk:yii1-security-audit`、`dhpk:js-lint-config`）。
 - 為 `post-edit-remind` 貢獻路徑觸發規則，讓 reviewer 在框架特定路徑上觸發。
+- 可在 `modules/<m>/hooks/post-edit-*.sh` 與 `modules/<m>/hooks/pre-{bash,commit}-*.sh` 提供 hook，模組啟用時由 dispatcher 分派執行。詳見 [`docs/hook-extension.md`](./docs/hook-extension.md)。
 - 在 SessionStart 印出一行模組啟用訊息，讓 Claude 知道該模組已生效。
 
 ### 新增模組
@@ -157,7 +164,12 @@ EOF
 
 在 manifest 中 bump 插件 `version`。執行 `claude plugin validate ~/projects/dhpk --strict`。並在本 README 中說明新模組。
 
-每模組獨立的 hook（例如 yii-1.1 專屬的 pre-edit guard）在 v0.1.0 尚未支援；架構上已預留，未來版本會加入。
+每模組獨立的 hook 自 v0.2.0 起透過 wrapper-dispatch 模型支援。把腳本放在 `modules/<stack>-<version>/hooks/`：
+
+- `post-edit-*.sh` — 由 `scripts/hooks/post-edit-dispatch.sh` 在模組啟用時（背景）執行。
+- `pre-bash-*.sh` / `pre-commit-*.sh` — 由 `scripts/hooks/pre-bash-dispatch.sh` 同步執行（可阻擋）。
+
+Dispatcher 契約與 `js` 模組的完整範例詳見 [`docs/hook-extension.md`](./docs/hook-extension.md)。
 
 ### 模組參考資料中的外部路徑佔位符
 
@@ -223,14 +235,18 @@ dhpk/
 ├── modules/                      # 可選用的技術棧模組
 │   ├── php-5.6/{module.yaml, skills/, references/}
 │   ├── yii-1.1/...
-│   └── phpunit-5.7/...
+│   ├── phpunit-5.7/...
+│   └── js/{module.yaml, hooks/, skills/, commands/, references/}
 ├── hooks/hooks.json              # PreToolUse / PostToolUse / SessionStart / Stop 連線設定
 ├── scripts/
-│   ├── hooks/                    # 8 個 hook 腳本（含 _lib/payload.sh、install-codex-skills.sh）
+│   ├── hooks/                    # 核心 hook，含 post-edit-dispatch.sh、pre-bash-dispatch.sh、reap-stale-sentinels.sh、_lib/{payload,portable-sed}.sh
 │   ├── statusline/statusline.sh
 │   ├── codemaps/、lib/、opsx-apply-resume/、validate/
 │   └── （harness-audit、precommit-runner、verify-runner、gemini-adapt-agents、dep-audit）
-├── docs/subagent-prompt-template.md
+├── docs/
+│   ├── hook-extension.md         # wrapper-dispatch 契約 + 模組 hook 撰寫指南
+│   ├── recommended-permissions.md
+│   ├── docker-setup.md、subagent-prompt-template.md
 ├── codex/                        # Codex CLI 雙軌（Claude Code 不會自動載入）
 │   ├── AGENTS.md                 # Codex 專屬指引
 │   ├── README.md                 # 如何同步進專案

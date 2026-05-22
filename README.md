@@ -2,7 +2,7 @@
 
 > **Languages**: **English** · [繁體中文](./README.zh-TW.md)
 
-A generic, install-and-go Claude Code harness. Ships ~13 role-based agents, ~74 commands (codex / openspec / gitnexus / git / project workflow), ~64 skills, sentinel-driven review hooks, statusline, harness scripts, and three opt-in stack modules (`php-5.6`, `yii-1.1`, `phpunit-5.7`). Parallel Codex CLI tree included for dual-assistant projects.
+A generic, install-and-go Claude Code harness. Ships **15 role-based agents**, ~75 commands (codex / openspec / gitnexus / git / project workflow), ~60 core skills + the `deploy-list` cross-project deploy file list generator, **5-slot sentinel-driven review hooks** (code / db / sec / frontend / doc), statusline, harness scripts, and **four opt-in stack modules** (`php-5.6`, `yii-1.1`, `phpunit-5.7`, `js`). Modules contribute hooks at runtime via the **wrapper-dispatch** model (see [`docs/hook-extension.md`](./docs/hook-extension.md)). Parallel Codex CLI tree included for dual-assistant projects.
 
 ## Prerequisites
 
@@ -66,37 +66,42 @@ For plugin development, see [§ Development](#development).
 
 | Component | Count | Notes |
 |-----------|------:|-------|
-| Agents | 13 | `dhpk:code-reviewer`, `dhpk:tdd-guide`, `dhpk:architect`, etc. (1 INDEX.md is navigation-only) |
-| Commands | ~74 | `dhpk:opsx:*`, `dhpk:codex-*`, `dhpk:create-pr`, `dhpk:smart-commit`, etc. |
-| Core skills | ~59 | openspec-*, codex-*, gitnexus, tool-routing, dhpk-execution-policy, etc. |
-| Stack modules | 3 | `php-5.6`, `yii-1.1`, `phpunit-5.7` (opt-in; see "Modules" below) |
-| Hooks | 5 events | PreToolUse (Edit, Bash), PostToolUse (Edit + async crlf-fix), SessionStart, Stop |
+| Agents | 15 | 14 invocable + 1 `INDEX.md`. 5 are sentinel-driven reviewers (code / db / sec / **frontend** / **doc**); rest are situational (architect, tdd-guide, refactor-cleaner, ui-ux-verifier, performance-analyzer, doc-updater, docs-lookup, harness-reviser, harness-optimizer) |
+| Commands | ~75 | `dhpk:opsx:*`, `dhpk:codex-*`, `dhpk:review-pending`, `dhpk:smart-commit`, `dhpk:ts-check-status` (JS module), etc. |
+| Core skills | ~60 + extras | openspec-*, codex-*, gitnexus, tool-routing, dhpk-execution-policy, **deploy-list** (cross-project deploy file list generator), **execution-checklist** (end-of-task self-check) |
+| Stack modules | 4 | `php-5.6`, `yii-1.1`, `phpunit-5.7`, `js` (opt-in; see "Modules" below) |
+| Hooks | 5 events | PreToolUse (Edit, Bash + dispatcher), PostToolUse (Edit + dispatcher + async crlf-fix), SessionStart, Stop (stop-review-reminder + reap-stale-sentinels) |
+| Hook dispatchers | 2 | `post-edit-dispatch.sh`, `pre-bash-dispatch.sh` — fan out to active modules' hooks |
 | Harness scripts | 5 | precommit-runner, verify-runner, harness-audit, codemap generator, dep-audit |
 | Codex dual-track | 24 skills + 5 agents | Synced into project `.codex/` by `install-codex-skills.sh` |
 
 ## userConfig
 
-Five knobs, all settable at install time with `--plugin-option <key>=<value>`:
+Nine knobs, all settable at install time with `--plugin-option <key>=<value>`:
 
 | Key | Default | Purpose |
 |-----|---------|---------|
 | `hook_profile` | `standard` | `minimal` suppresses Stop reminders; `strict` adds extra warnings |
-| `review_agents` | `["code-reviewer","database-reviewer","security-reviewer"]` | Agents invoked by sentinel reminders. Override to point at your project-specific agents. |
+| `review_agents` | `["code-reviewer","database-reviewer","security-reviewer","frontend-reviewer","doc-reviewer"]` | Five agents invoked by sentinel reminders. Override to point at your project-specific agents; shorter lists reduce coverage. |
 | `docker_containers` | `[]` | Container names checked at SessionStart. Empty list disables the check. First entry exported as `DHPK_PHP_CONTAINER`; second as `DHPK_MYSQL_CONTAINER`. |
-| `modules` | `[]` | Stack modules to enable. Ships: `php-5.6`, `yii-1.1`, `phpunit-5.7`. Module `requires:` validated at SessionStart (warning, not blocking). |
-| `review_trigger_extra_paths` | `[]` | Extra path prefixes per reviewer slot. Format: `<slot>:<prefix>` where slot ∈ `code|db|sec`. Example: `code:protected/`. |
+| `modules` | `[]` | Stack modules to enable. Ships: `php-5.6`, `yii-1.1`, `phpunit-5.7`, `js`. Module `requires:` validated at SessionStart (warning, not blocking). |
+| `review_trigger_extra_paths` | `[]` | Extra path prefixes per reviewer slot. Format: `<slot>:<prefix>` where slot ∈ `code\|db\|sec\|fe\|doc`. Example: `code:protected/`, `fe:resources/views/`. |
+| `reap_stale_mcp_processes` | `false` | When `true`, SessionStart kills older `gitnexus mcp` processes (keep only newest). Only useful for gitnexus MCP users. |
+| `js_lint_script` | `"lint"` | npm script invoked by the `js` module's pre-commit gate. |
+| `js_typecheck_script` | `"typecheck"` | npm script invoked by the `js` module's pre-commit gate. |
+| `js_check_path` | `"js/"` | Path scanned by `/ts-check-status` for `// @ts-check` rollout progress. |
 
 Examples:
 
 ```bash
-# Plain install with defaults.
+# Plain install with defaults (5-slot review chain on the default agent names).
 claude plugin install dhpk@dhpk
 
-# PHP/Yii project setup.
+# PHP/Yii + JS fullstack project.
 claude plugin install dhpk@dhpk \
-  --plugin-option modules=php-5.6,yii-1.1,phpunit-5.7 \
+  --plugin-option modules=php-5.6,yii-1.1,phpunit-5.7,js \
   --plugin-option docker_containers=php-fpm,mysql \
-  --plugin-option review_agents=code-reviewer-myproj,db-reviewer-myproj,sec-reviewer-myproj
+  --plugin-option review_agents=code-reviewer-myproj,db-reviewer-myproj,sec-reviewer-myproj,fe-reviewer-myproj,doc-reviewer-myproj
 ```
 
 See `manifests/install-profiles.json` for curated module bundles.
@@ -119,15 +124,17 @@ All other skills (~50) have no MCP dependencies.
 
 ## Modules
 
-A **module** is a labeled, version-tagged bundle of skills + references + trigger contributions, gated by `userConfig.modules`. v0.1.0 ships:
+A **module** is a labeled, version-tagged bundle of skills + references + hooks + trigger contributions, gated by `userConfig.modules`. v0.2.0 ships:
 
 - **`php-5.6`** — PHP 5.6 language baseline. Forbids 7.0+ syntax; polyfill guidance.
-- **`yii-1.1`** — Yii 1.1 framework: autoload, AR/CDbCriteria, DDD layering, XSS/CSRF defaults. Requires `php-5.6`.
+- **`yii-1.1`** — Yii 1.1 framework: alias autoload, `CActiveRecord` / `CDbCriteria`, `accessRules`, XSS / CSRF defaults. Requires `php-5.6`.
 - **`phpunit-5.7`** — PHPUnit 5.7 assertion API and patterns. Requires `php-5.6`.
+- **`js`** — JS / TS tooling. ESLint flat-config tier strategy (Tier 1 strict / 1.5 core-exempt / 1.7 deferred-migration / globals), per-leaf `// @ts-check` rollout, async post-edit ESLint feedback, pre-commit `npm run <lint> + <typecheck>` gate. Framework-agnostic.
 
 When enabled, a module:
-- Surfaces its skills under `dhpk:<skill-name>` (e.g. `dhpk:php-pro`, `dhpk:yii1-security-audit`).
+- Surfaces its skills under `dhpk:<skill-name>` (e.g. `dhpk:php-pro`, `dhpk:yii1-security-audit`, `dhpk:js-lint-config`).
 - Contributes path triggers to `post-edit-remind` so reviewers fire on framework-specific paths.
+- May contribute hooks under `modules/<m>/hooks/post-edit-*.sh` and `modules/<m>/hooks/pre-{bash,commit}-*.sh`, fanned out by the dispatcher when the module is active. See [`docs/hook-extension.md`](./docs/hook-extension.md).
 - Prints a SessionStart activation line so Claude knows the module is in scope.
 
 ### Adding a new module
@@ -157,7 +164,12 @@ Add at least one `modules/<stack>-<version>/skills/<name>/SKILL.md`. Then regist
 
 Bump plugin `version` in the manifest. Run `claude plugin validate ~/projects/dhpk --strict`. Document the module in this README.
 
-Per-module hooks (e.g. a yii-1.1-specific pre-edit guard) are not supported in v0.1.0; the design accommodates them in a future release.
+Per-module hooks are supported as of v0.2.0 via the wrapper-dispatch model. Drop scripts under `modules/<stack>-<version>/hooks/`:
+
+- `post-edit-*.sh` — fired (backgrounded) by `scripts/hooks/post-edit-dispatch.sh` whenever the module is active.
+- `pre-bash-*.sh` / `pre-commit-*.sh` — fired (synchronously, can block) by `scripts/hooks/pre-bash-dispatch.sh`.
+
+See [`docs/hook-extension.md`](./docs/hook-extension.md) for the dispatcher contract and the worked `js` module example.
 
 ### External-path placeholders in module references
 
@@ -223,14 +235,18 @@ dhpk/
 ├── modules/                      # opt-in stack modules
 │   ├── php-5.6/{module.yaml, skills/, references/}
 │   ├── yii-1.1/...
-│   └── phpunit-5.7/...
+│   ├── phpunit-5.7/...
+│   └── js/{module.yaml, hooks/, skills/, commands/, references/}
 ├── hooks/hooks.json              # PreToolUse / PostToolUse / SessionStart / Stop wiring
 ├── scripts/
-│   ├── hooks/                    # 8 hook scripts (incl. _lib/payload.sh, install-codex-skills.sh)
+│   ├── hooks/                    # core hooks incl. post-edit-dispatch.sh, pre-bash-dispatch.sh, reap-stale-sentinels.sh, _lib/{payload,portable-sed}.sh
 │   ├── statusline/statusline.sh
 │   ├── codemaps/, lib/, opsx-apply-resume/, validate/
 │   └── (harness-audit, precommit-runner, verify-runner, gemini-adapt-agents, dep-audit)
-├── docs/subagent-prompt-template.md
+├── docs/
+│   ├── hook-extension.md         # wrapper-dispatch contract + module-hook authoring
+│   ├── recommended-permissions.md
+│   ├── docker-setup.md, subagent-prompt-template.md
 ├── codex/                        # Codex CLI dual-track (Claude Code does NOT auto-load)
 │   ├── AGENTS.md                 # Codex-specific guidance
 │   ├── README.md                 # how to sync into a project
