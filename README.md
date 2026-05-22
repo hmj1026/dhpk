@@ -22,47 +22,86 @@ Missing optional tools degrade gracefully (the script no-ops or skips a feature)
 
 ## Install
 
-### Interactive (recommended)
+dhpk follows the standard [Claude Code plugin distribution model](https://docs.claude.com/en/docs/claude-code/plugins): the same marketplace + manifest is reachable from **two surfaces**, pick whichever fits your workflow:
 
-Walks you through stack/version selection, docker prerequisites, review-agent overrides, and hook profile — then runs `claude plugin install` for you.
+- **Terminal** — `claude plugin marketplace add …` / `claude plugin install …`
+- **Inside a Claude Code session** — `/plugin marketplace add …` / `/plugin install …` (or the interactive `/plugin` browser)
 
-```bash
-claude plugin marketplace add ~/projects/dhpk
-bash ~/projects/dhpk/scripts/install.sh
-```
+Both surfaces read the same `.claude-plugin/marketplace.json` shipped in this repo, so the result is identical.
 
-Add `--dry-run` to print the resolved `claude plugin install …` command without executing it.
+### Path A — From GitHub (recommended)
 
-After install, reconfigure any time from inside Claude Code:
-
-```
-/dhpk:setup           # rerun the same questions
-/dhpk:setup --show    # print current effective config
-```
-
-### Manual / non-interactive
-
-If you already know the values:
+No clone needed. Fastest path for end users.
 
 ```bash
-claude plugin marketplace add ~/projects/dhpk
+# Terminal
+claude plugin marketplace add hmj1026/dhpk
 claude plugin install dhpk@dhpk
-# or with options
+```
+
+```text
+# …or inside Claude Code
+/plugin marketplace add hmj1026/dhpk
+/plugin install dhpk@dhpk
+```
+
+Add `--plugin-option` flags to pre-seed config (skip if you'd rather answer interactively via `/dhpk:setup` after install):
+
+```bash
 claude plugin install dhpk@dhpk \
   --plugin-option modules=php-5.6,yii-1.1,phpunit-5.7 \
   --plugin-option docker_containers=php-fpm,mysql \
   --plugin-option hook_profile=standard
 ```
 
-Available stacks/versions are declared in `manifests/module-catalog.json` (SSOT). Curated bundles in `manifests/install-profiles.json`. Docker prerequisites: see [`docs/docker-setup.md`](./docs/docker-setup.md).
+Pin a specific release by appending a version: `claude plugin install dhpk@dhpk@v0.2.1`. Available stacks/versions live in `manifests/module-catalog.json` (SSOT); curated bundles in `manifests/install-profiles.json`. Docker prerequisites: see [`docs/docker-setup.md`](./docs/docker-setup.md).
 
-Validate the manifests at any time:
+After install, reconfigure any time from inside Claude Code:
+
+```text
+/dhpk:setup           # rerun the same questions
+/dhpk:setup --show    # print current effective config
+```
+
+### Path B — Local clone + interactive installer
+
+Use this if you want an out-of-Claude shell wizard, or you'll be hacking on the plugin source. **You must `git clone` first** — the installer lives inside the repo.
+
+```bash
+git clone https://github.com/hmj1026/dhpk ~/projects/dhpk
+claude plugin marketplace add ~/projects/dhpk
+bash ~/projects/dhpk/scripts/install.sh        # interactive (gum / python3 fallback)
+```
+
+The script walks stack/version selection, docker prerequisites, review-agent overrides, and hook profile, then runs `claude plugin install` for you. Append `--dry-run` to print the resolved `claude plugin install …` command without executing it.
+
+Validate the local checkout at any time:
 
 ```bash
 claude plugin validate ~/projects/dhpk --strict
 ```
 
-For plugin development, see [§ Development](#development).
+For live source edits during plugin development (no reinstall loop), see [§ Development](#development).
+
+### Update / Uninstall
+
+```bash
+claude plugin update dhpk              # pull the latest version from the marketplace
+claude plugin uninstall dhpk           # remove the plugin
+claude plugin marketplace remove dhpk  # forget the marketplace entry
+```
+
+The same actions are available as `/plugin update dhpk`, `/plugin uninstall dhpk`, `/plugin marketplace remove dhpk` inside Claude Code.
+
+### Troubleshooting
+
+| Symptom | Likely cause | Fix |
+|---|---|---|
+| `marketplace add` says the path doesn't exist | You followed Path B but skipped the `git clone` step | Run `git clone https://github.com/hmj1026/dhpk ~/projects/dhpk` first — or switch to Path A which needs no clone |
+| `claude plugin install dhpk@dhpk` says marketplace not found | `marketplace add` didn't run, or you removed it earlier | Re-run the `marketplace add` line from your chosen path |
+| `/dhpk:*` commands or hooks don't appear after install | Session loaded its skill list before install finished | Run `/reload-plugins` inside Claude Code, or restart the session |
+| `claude plugin list` shows dhpk but `/dhpk:setup` is missing | Plugin is installed but disabled | `claude plugin enable dhpk` (or `/plugin enable dhpk`) |
+| `install.sh` errors on `gum` / `jq` not found | Optional UI deps missing | The script falls back to plain shell / `python3`; install `gum` and `jq` for the nicer flow, or ignore the warning |
 
 ## What you get
 
@@ -259,9 +298,10 @@ dhpk/
 
 ## Development
 
-For iterating on the plugin itself, use `--plugin-dir` to load in-place:
+For iterating on the plugin source itself (no install/reinstall loop), launch Claude Code against the working tree directly:
 
 ```bash
+git clone https://github.com/hmj1026/dhpk ~/projects/dhpk
 claude --plugin-dir ~/projects/dhpk
 ```
 

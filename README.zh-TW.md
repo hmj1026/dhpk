@@ -22,47 +22,86 @@ OpenSpec 是**可選的外部整合**——若需要 OpenSpec 工作流指令，
 
 ## 安裝
 
-### 互動式（推薦）
+dhpk 遵循 [Claude Code plugin 標準發布模式](https://docs.claude.com/en/docs/claude-code/plugins)：同一份 marketplace + manifest 可從**兩個入口**使用，依你的習慣挑一個即可：
 
-依序帶你選技術棧／版本、設定 docker 前置條件、覆寫 review agent、選 hook profile，最後幫你執行 `claude plugin install`。
+- **Terminal** — `claude plugin marketplace add …` / `claude plugin install …`
+- **Claude Code session 內** — `/plugin marketplace add …` / `/plugin install …`（或 `/plugin` 互動式瀏覽器）
 
-```bash
-claude plugin marketplace add ~/projects/dhpk
-bash ~/projects/dhpk/scripts/install.sh
-```
+兩個入口都讀同一份 `.claude-plugin/marketplace.json`，結果一致。
 
-加 `--dry-run` 只印出組好的 `claude plugin install …` 指令，不實際執行。
+### Path A — 從 GitHub 安裝（推薦）
 
-安裝後，可隨時在 Claude Code 內重新設定：
-
-```
-/dhpk:setup           # 重跑同一份問答
-/dhpk:setup --show    # 印出目前生效設定
-```
-
-### 手動／非互動
-
-如果你已經知道要填什麼：
+不用 clone。一般使用者的最短路徑。
 
 ```bash
-claude plugin marketplace add ~/projects/dhpk
+# Terminal
+claude plugin marketplace add hmj1026/dhpk
 claude plugin install dhpk@dhpk
-# 或帶選項
+```
+
+```text
+# …或在 Claude Code 內
+/plugin marketplace add hmj1026/dhpk
+/plugin install dhpk@dhpk
+```
+
+要在安裝時就帶入設定，加 `--plugin-option`（若你想之後用 `/dhpk:setup` 互動回答就跳過）：
+
+```bash
 claude plugin install dhpk@dhpk \
   --plugin-option modules=php-5.6,yii-1.1,phpunit-5.7 \
   --plugin-option docker_containers=php-fpm,mysql \
   --plugin-option hook_profile=standard
 ```
 
-可用的技術棧／版本列在 `manifests/module-catalog.json`（SSOT）。精選組合在 `manifests/install-profiles.json`。Docker 前置須知請見 [`docs/docker-setup.md`](./docs/docker-setup.md)。
+要鎖定特定版本，後面接版本號：`claude plugin install dhpk@dhpk@v0.2.1`。可用技術棧／版本列在 `manifests/module-catalog.json`（SSOT）；精選組合在 `manifests/install-profiles.json`。Docker 前置須知請見 [`docs/docker-setup.md`](./docs/docker-setup.md)。
 
-任何時候都可以驗證 manifest：
+安裝後，可隨時在 Claude Code 內重新設定：
+
+```text
+/dhpk:setup           # 重跑同一份問答
+/dhpk:setup --show    # 印出目前生效設定
+```
+
+### Path B — 本地 clone + 互動安裝精靈
+
+如果你想要在 Claude 之外有 shell 安裝精靈，或本來就會改 plugin 原始碼，走這條。**必須先 `git clone`**，因為精靈腳本在 repo 裡。
+
+```bash
+git clone https://github.com/hmj1026/dhpk ~/projects/dhpk
+claude plugin marketplace add ~/projects/dhpk
+bash ~/projects/dhpk/scripts/install.sh        # 互動（gum / python3 fallback）
+```
+
+精靈會帶你選技術棧／版本、設定 docker 前置條件、覆寫 review agent、選 hook profile，最後幫你執行 `claude plugin install`。加 `--dry-run` 只印出組好的指令、不實際執行。
+
+任何時候都可以驗證 local checkout：
 
 ```bash
 claude plugin validate ~/projects/dhpk --strict
 ```
 
-插件開發請見 [§ 開發](#開發)。
+要邊改 plugin 原始碼邊看效果（不走 install/reinstall 迴圈），請見 [§ 開發](#開發)。
+
+### 更新／移除
+
+```bash
+claude plugin update dhpk              # 從 marketplace 拉最新版
+claude plugin uninstall dhpk           # 移除 plugin
+claude plugin marketplace remove dhpk  # 忘記 marketplace 註冊
+```
+
+在 Claude Code 內也可以用 `/plugin update dhpk`、`/plugin uninstall dhpk`、`/plugin marketplace remove dhpk`。
+
+### Troubleshooting
+
+| 症狀 | 可能原因 | 解法 |
+|---|---|---|
+| `marketplace add` 說路徑不存在 | 你走 Path B 但沒先 clone | 先跑 `git clone https://github.com/hmj1026/dhpk ~/projects/dhpk`，或直接改用 Path A（不用 clone） |
+| `claude plugin install dhpk@dhpk` 找不到 marketplace | `marketplace add` 沒跑過，或已被移除 | 重跑你那條路徑的 `marketplace add` 指令 |
+| 裝完但 `/dhpk:*` 命令或 hooks 沒出現 | session 在安裝完成前就讀過 skill list | 在 Claude Code 內 `/reload-plugins`，或重啟 session |
+| `claude plugin list` 看到 dhpk 但 `/dhpk:setup` 不存在 | plugin 裝起來但停用了 | `claude plugin enable dhpk`（或 `/plugin enable dhpk`） |
+| `install.sh` 抱怨找不到 `gum` / `jq` | 互動 UI 的選用依賴沒裝 | 腳本會自動 fallback 到純 shell / `python3`，想要更好看可裝 `gum` 與 `jq`，不裝也能用 |
 
 ## 你會得到什麼
 
@@ -259,9 +298,10 @@ dhpk/
 
 ## 開發
 
-要迭代插件本身，請用 `--plugin-dir` 就地載入：
+要迭代插件原始碼本身（不走 install/reinstall 迴圈），用 `--plugin-dir` 直接載入 working tree：
 
 ```bash
+git clone https://github.com/hmj1026/dhpk ~/projects/dhpk
 claude --plugin-dir ~/projects/dhpk
 ```
 
