@@ -1,0 +1,27 @@
+# deploy-list schema=v1
+Update time: 2026/01/01
+Update tag: 2026/01/01 tester [GEN] generic preset fixture
+Update project: synthetic-generic
+Update files: (pinned 1 commit(s), 5 file(s) after filter)
+
+src/main.go
+
+lib/helper.go
+
+config/app.yaml
+
+assets/logo.png
+
+scripts/build.sh
+
+---
+📊 Stats
+- Deployed files: 5
+- Diff range: master...develop (raw 7 files, 2 filtered out)
+- Pinned commits: 1
+
+🚫 Filtered out (not deployed)
+- Docs (docs/, README, CLAUDE.md): 2
+- AI harness (.claude/, .codex/, .gemini/, .agents/): 1
+- CI / IDE meta: 0
+# end deploy-list schema=v1

@@ -1,5 +1,148 @@
 # Changelog
 
+## 0.2.0 — 2026-05-22 — JS module + 5-slot sentinel + deploy-list skill
+
+### Sentinel infrastructure (5 slots)
+
+- `scripts/hooks/_lib/payload.sh` `SENTINEL_NAMES` extends from 3 to 5:
+  `.pending-review`, `.pending-db-review`, `.pending-security-review`,
+  `.pending-frontend-review`, `.pending-doc-review`. `SENTINEL_LABELS`
+  and the default `SENTINEL_AGENTS` extend in parallel. Consumers that
+  iterate the array (`clear-sentinel.sh`, `reap-stale-sentinels.sh`,
+  `stop-review-reminder.sh`, `pre-bash-guard.sh` push-block) extend
+  automatically.
+- `userConfig.review_agents` default now ships 5 entries:
+  `[code-reviewer, database-reviewer, security-reviewer,
+  frontend-reviewer, doc-reviewer]`. Override semantics unchanged.
+- `scripts/hooks/post-edit-remind.sh` slot routing: `.md` files under
+  harness / docs / openspec paths route to slot 4 (doc-reviewer); JS/TS
+  edits still route to slot 0 (code-reviewer) by default; slot 3
+  (frontend-reviewer) is fed by the `js` module's `module.yaml` triggers
+  when active. `userConfig.review_trigger_extra_paths` now accepts the
+  `fe:` and `doc:` slot prefixes in addition to `code:` / `db:` / `sec:`.
+- `scripts/hooks/pre-bash-guard.sh` push-block message lists the
+  matching agent name per pending sentinel (was: bare filename).
+- `scripts/statusline/statusline.sh` `SHORT` labels extend to
+  `code / db / sec / fe / doc`.
+
+### New JS module (`modules/js/`)
+
+Hybrid placement: the generic libs (`scripts/hooks/_lib/portable-sed.sh`
+landed in v0.1.1, `_lib/payload.sh`) stay in core; JS-specific behaviour
+lives in the opt-in module.
+
+- `modules/js/module.yaml` — module manifest. Includes a `js:` block read
+  by `js-tier-detect.sh` for `frontend_roots`, `core_files`,
+  `vendor_globs` (project curates).
+- `modules/js/hooks/_lib/js-tier-detect.sh` — source-only tier detector
+  (`frontend / vendor / non-js`). Reads config from `module.yaml`;
+  defaults to safe behaviour (everything in `js/` or `src/` subdirs is
+  `frontend`).
+- `modules/js/hooks/post-edit-js-lint.sh` — async-friendly per-edit
+  ESLint feedback (always exits 0; stderr surfaces ≤ 5 findings; 10s
+  timeout; silent skip when `npx` / `eslint.config.js` absent).
+- `modules/js/hooks/pre-commit-js-validation.sh` — intercepts
+  `git commit*`, runs `npm run <lint>` + `npm run <typecheck>` on staged
+  JS/TS. Exits 2 to block on failure. `[skip-js-lint]` in the commit
+  message bypasses.
+- `modules/js/skills/js-lint-config/SKILL.md` — ESLint flat-config tier
+  framework (Tier 1 strict / 1.5 core-exempt / 1.6 admin / 1.7
+  deferred-migration / 2 tests / Global ignores), custom
+  `no-restricted-syntax` AST selectors, legacy-globals three-list sync
+  pattern.
+- `modules/js/skills/js-static-check-strategy/SKILL.md` — per-leaf
+  `// @ts-check` rollout playbook, line-anchored grep trap, leaf
+  classification (typedef-widening-fixable vs permanent-exclude),
+  tsconfig `exclude` strategy.
+- `modules/js/commands/ts-check-status.md` — slash command that scans
+  `${CLAUDE_PLUGIN_OPTION_JS_CHECK_PATH:-js/}` and renders the
+  strict / transitional / unmarked split.
+- `modules/js/references/static-checks.md` — always-loaded index.
+- `modules/js/references/frontend-review-patterns.md` —
+  `frontend-reviewer`'s grep templates when the module is active.
+
+### Hook wrapper-dispatch model
+
+- `scripts/hooks/post-edit-dispatch.sh` — wraps the existing
+  `post-edit-remind.sh` and additionally backgrounds any
+  `modules/<m>/hooks/post-edit-*.sh` for active modules.
+- `scripts/hooks/pre-bash-dispatch.sh` — wraps `pre-bash-guard.sh` and
+  synchronously runs any active module's `pre-bash-*.sh` /
+  `pre-commit-*.sh` (non-zero exit blocks the bash call).
+- `hooks/hooks.json` — PostToolUse Edit/Write/MultiEdit and PreToolUse
+  Bash now point at the dispatchers. Stop / SessionStart wiring
+  unchanged.
+- `docs/hook-extension.md` — explains the dispatcher contract and how
+  to author module hooks.
+
+### New / migrated agents
+
+- `agents/frontend-reviewer.md` — JS/TS reviewer, framework-agnostic.
+  Loads `modules/js/references/frontend-review-patterns.md` for
+  JS-module-specific detection when the module is active.
+- `agents/doc-reviewer.md` — harness / policy / docs reviewer
+  (frontmatter check, cross-reference validation, SSOT consistency,
+  jargon discoverability). Haiku model.
+
+### New skills
+
+- `skills/deploy-list/` — cross-project / cross-platform deploy file
+  list generator (schema=v1). Ships generic / node / python / laravel /
+  php-yii presets. `evals/generic/` carries 6 synthetic fixtures (all
+  pass byte-identical). `config.sh.example` documents the per-project
+  template. `references/extended-presets.example/php-yii-acmeshop.sh`
+  is a fully worked DDD-overlay-on-Yii example using a fictional
+  company name.
+- `skills/execution-checklist/SKILL.md` — end-of-task self-check
+  (per-reply / conditional / task-end). Framework-agnostic.
+
+### New userConfig knobs
+
+| Key | Type | Default | Purpose |
+|---|---|---|---|
+| `js_lint_script` | string | `"lint"` | npm script invoked by JS module's pre-commit gate |
+| `js_typecheck_script` | string | `"typecheck"` | npm script invoked by JS module's pre-commit gate |
+| `js_check_path` | string | `"js/"` | path scanned by `/ts-check-status` |
+
+`review_agents` default changed (3 → 5). `modules` description updated
+to list `js`. `review_trigger_extra_paths` description updated to
+mention `fe:` and `doc:` slot prefixes.
+
+### Install profiles
+
+- `manifests/install-profiles.json` adds `js-only` and `js-fullstack`
+  profiles. `full` profile now includes `js`.
+- `manifests/module-catalog.json` registers the `js` stack and the
+  two new review slots (`fe`, `doc`).
+- `scripts/install.sh` interactive flow prompts for all 5 reviewer
+  agent names when the override-defaults branch is taken.
+
+### Documentation
+
+- `docs/hook-extension.md` — wrapper-dispatch contract + module-hook
+  authoring guide.
+- `docs/recommended-permissions.md` — recommended
+  `.claude/settings.local.json` `permissions.allow` catalogue by stack
+  (universal, PHP/Yii, JS/Node, Python, auxiliary). Plugin manifest
+  does **not** ship permissions; this is reference documentation.
+
+### Verification
+
+- Repo-wide identifier audit: zero leaks of origin-project names,
+  project-private class symbols, project-specific JS namespace, or
+  project-specific repository-layer path. Negative-assertion eval files
+  in `codex/skills/legacy-code-characterization/` and
+  `modules/phpunit-5.7/skills/legacy-code-characterization/` are
+  intentional — they assert agent outputs MUST NOT contain a list of
+  enumerated names; those names appear in the eval *as the forbidden
+  list*, not as live content.
+- `bash -n` clean on all new and modified shell scripts.
+- 5-slot sentinel end-to-end: `clear-sentinel.sh` derives whitelist
+  from `SENTINEL_NAMES`; `pre-bash-guard.sh` push-block names all 5
+  pending sentinels with their matching agent name.
+- `skills/deploy-list/scripts/check-golden.sh` — generic suite 6/6
+  PASS after the cross-project genericisation.
+
 ## 0.1.1 — 2026-05-22 — Cross-platform lib + sentinel resilience
 
 Low-risk infrastructure additions. No behavioural change in the default

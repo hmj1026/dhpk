@@ -49,13 +49,18 @@ if printf '%s' "$CMD_STRIPPED" | grep -Eq '(^|[[:space:]])git[[:space:]]+push([[
    ! printf '%s' "$CMD_STRIPPED" | grep -Eq '(--help|[[:space:]]-h([[:space:]]|$)|--dry-run)'; then
     HOOK_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
     SENTINEL_DIR="$HOOK_ROOT/.claude/artifacts/sessions"
-    FOUND=""
-    for _s in "${SENTINEL_NAMES[@]}"; do
-        [ -f "$SENTINEL_DIR/$_s" ] && FOUND="$FOUND $_s"
+    FOUND_NAMES=""
+    FOUND_AGENTS=""
+    for i in "${!SENTINEL_NAMES[@]}"; do
+        _s="${SENTINEL_NAMES[$i]}"
+        if [ -f "$SENTINEL_DIR/$_s" ]; then
+            FOUND_NAMES="$FOUND_NAMES $_s"
+            FOUND_AGENTS="$FOUND_AGENTS ${SENTINEL_AGENTS[$i]}"
+        fi
     done
-    if [ -n "$FOUND" ]; then
-        echo "[bash-guard] blocked: git push while review sentinels pending:$FOUND" >&2
-        echo "[bash-guard] Run the matching review agent(s) first." >&2
+    if [ -n "$FOUND_NAMES" ]; then
+        echo "[bash-guard] blocked: git push while review sentinels pending:$FOUND_NAMES" >&2
+        echo "[bash-guard] Pending reviewer(s):$FOUND_AGENTS — run each before pushing." >&2
         exit 2
     fi
 fi

@@ -4,9 +4,9 @@
 # Writes review sentinels based on:
 #   1. Built-in file-extension defaults (language-agnostic)
 #   2. Active modules' triggers (modules/<name>/module.yaml, set by session-start)
-#   3. userConfig.review_trigger_extra_paths (slot-prefixed: code:, db:, sec:)
+#   3. userConfig.review_trigger_extra_paths (slot-prefixed: code:, db:, sec:, fe:, doc:)
 #
-# Sentinels live at $ROOT/.claude/artifacts/sessions/.pending-{review,db-review,security-review}
+# Sentinels live at $ROOT/.claude/artifacts/sessions/.pending-{review,db-review,security-review,frontend-review,doc-review}
 # and are cleared by each review agent's Closing hook via clear-sentinel.sh.
 #
 # Self-edits to .claude/artifacts/** are skipped (review agents writing their
@@ -31,21 +31,21 @@ esac
 ARTIFACTS="$ROOT/.claude/artifacts/sessions"
 mkdir -p "$ARTIFACTS"
 
-# Slot 0=code, 1=db, 2=sec (matches SENTINEL_NAMES order).
-NEEDS=(0 0 0)
+# Slot 0=code, 1=db, 2=sec, 3=frontend, 4=doc (matches SENTINEL_NAMES order).
+NEEDS=(0 0 0 0 0)
 
 # ---- Built-in file-extension defaults (always on) ----
 
-# code-reviewer (slot 0): common source-code extensions + dhpk-relevant .md/.sh/.json
+# code-reviewer (slot 0): common source-code extensions. Harness config artifacts
+# (.sh/.json/.yml/.yaml) also routed here. Doc files (.md) go to slot 4.
 case "$BASENAME" in
-    *.php|*.js|*.ts|*.tsx|*.jsx|*.py|*.rb|*.go|*.rs|*.java|*.kt|*.swift|*.cs|*.c|*.cpp|*.h|*.hpp)
+    *.php|*.js|*.ts|*.tsx|*.jsx|*.mjs|*.cjs|*.vue|*.svelte|*.py|*.rb|*.go|*.rs|*.java|*.kt|*.swift|*.cs|*.c|*.cpp|*.h|*.hpp)
         NEEDS[0]=1 ;;
 esac
 case "$REL" in
     .claude/agents/*|.claude/rules/*|.claude/commands/*|.claude/hooks/*|.claude/scripts/*|.claude/skills/*|.claude/manifests/*)
-        case "$BASENAME" in *.md|*.sh|*.json|*.yml|*.yaml) NEEDS[0]=1 ;; esac ;;
+        case "$BASENAME" in *.sh|*.json|*.yml|*.yaml) NEEDS[0]=1 ;; esac ;;
 esac
-[ "$BASENAME" = "CLAUDE.md" ] && NEEDS[0]=1
 
 # database-reviewer (slot 1): SQL + generic migrations
 case "$BASENAME" in
@@ -61,6 +61,27 @@ case "$BASENAME" in
     *Auth*|*auth*|*Login*|*login*|*Acl*|*acl*|*Upload*|*upload*|*File*|*file*)
         # Restrict to source-code extensions to avoid noise on auth.md / login.html.
         case "$BASENAME" in *.php|*.js|*.ts|*.tsx|*.jsx|*.py|*.rb|*.go|*.rs|*.java) NEEDS[2]=1 ;; esac ;;
+esac
+
+# frontend-reviewer (slot 3): no built-in default routing — opt in via JS (or
+# other frontend) module.yaml triggers, or via review_trigger_extra_paths fe:.
+# Rationale: code-reviewer (slot 0) already catches JS/TS for general correctness;
+# slot 3 adds JS-specific checks (lint config, SSOT facade) only when the
+# project has opted in.
+
+# doc-reviewer (slot 4): structural / policy docs. Restricted to harness +
+# OpenSpec + repo-level docs/ + top-level CLAUDE.md / AGENTS.md / README*.md
+# to avoid firing on every blog post or vendored doc.
+case "$REL" in
+    .claude/agents/*|.claude/rules/*|.claude/commands/*|.claude/hooks/*|.claude/scripts/*|.claude/skills/*|.claude/manifests/*|openspec/*|docs/*)
+        case "$BASENAME" in *.md) NEEDS[4]=1 ;; esac ;;
+esac
+case "$BASENAME" in
+    CLAUDE.md|AGENTS.md) NEEDS[4]=1 ;;
+esac
+# Top-level README only (skip nested vendored READMEs).
+case "$REL" in
+    README*.md) [[ "$REL" != */* ]] && NEEDS[4]=1 ;;
 esac
 
 # ---- Active-module triggers ----
@@ -114,7 +135,8 @@ try:
 except Exception:
     sys.exit(0)
 triggers = cfg.get("triggers") or {}
-slot_map = {"code": 0, "db": 1, "sec": 2}
+# Aliases: "fe" → 3, "frontend" → 3; "doc" → 4
+slot_map = {"code": 0, "db": 1, "sec": 2, "frontend": 3, "fe": 3, "doc": 4}
 for slot_name, slot_idx in slot_map.items():
     block = triggers.get(slot_name) or {}
     for ext in (block.get("extensions") or []):
@@ -147,7 +169,7 @@ if [ -n "${DHPK_ACTIVE_MODULES:-}" ]; then
 fi
 
 # ---- User-supplied extra paths (CLAUDE_PLUGIN_OPTION_REVIEW_TRIGGER_EXTRA_PATHS) ----
-# Entries shaped `<slot>:<prefix>` where slot ∈ code|db|sec.
+# Entries shaped `<slot>:<prefix>` where slot ∈ code|db|sec|fe|doc.
 if [ -n "${CLAUDE_PLUGIN_OPTION_REVIEW_TRIGGER_EXTRA_PATHS:-}" ]; then
     IFS=',' read -r -a _extras <<< "${CLAUDE_PLUGIN_OPTION_REVIEW_TRIGGER_EXTRA_PATHS}"
     for _e in "${_extras[@]}"; do
@@ -156,6 +178,8 @@ if [ -n "${CLAUDE_PLUGIN_OPTION_REVIEW_TRIGGER_EXTRA_PATHS:-}" ]; then
             code:*) [[ "$REL" == "${_e#code:}"* ]] && NEEDS[0]=1 ;;
             db:*)   [[ "$REL" == "${_e#db:}"* ]] && NEEDS[1]=1 ;;
             sec:*)  [[ "$REL" == "${_e#sec:}"* ]] && NEEDS[2]=1 ;;
+            fe:*)   [[ "$REL" == "${_e#fe:}"* ]] && NEEDS[3]=1 ;;
+            doc:*)  [[ "$REL" == "${_e#doc:}"* ]] && NEEDS[4]=1 ;;
         esac
     done
 fi

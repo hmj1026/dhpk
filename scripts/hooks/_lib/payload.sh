@@ -15,22 +15,25 @@
 #         JSON payload. Prefers jq; falls back to python3 when jq is missing.
 #         Returns empty string on any error (callers MUST handle empty).
 
-# Review sentinel triplet SSOT — order code → db → sec.
-# Adding a fourth reviewer means extending all three arrays together (no runtime
-# guard for length mismatch beyond the statusline's explicit check).
-SENTINEL_NAMES=(".pending-review" ".pending-db-review" ".pending-security-review")
-SENTINEL_LABELS=("code-reviewer" "database-reviewer" "security-reviewer")
+# Review sentinel SSOT — slots in fixed order:
+#   0 code → 1 db → 2 sec → 3 frontend → 4 doc
+# Adding/removing a slot means extending all three arrays together. Hooks that
+# iterate SENTINEL_NAMES (clear-sentinel, reap-stale-sentinels, pre-bash-guard
+# push-block, stop-review-reminder) and statusline.sh (which has its own SHORT
+# label array) extend automatically as long as the arrays stay aligned.
+SENTINEL_NAMES=(".pending-review" ".pending-db-review" ".pending-security-review" ".pending-frontend-review" ".pending-doc-review")
+SENTINEL_LABELS=("code-reviewer" "database-reviewer" "security-reviewer" "frontend-reviewer" "doc-reviewer")
 
 # Default agent names — overridable via userConfig.review_agents (comma-joined).
-_dhpk_default_agents=("code-reviewer" "database-reviewer" "security-reviewer")
+_dhpk_default_agents=("code-reviewer" "database-reviewer" "security-reviewer" "frontend-reviewer" "doc-reviewer")
 if [ -n "${CLAUDE_PLUGIN_OPTION_REVIEW_AGENTS:-}" ]; then
     IFS=',' read -r -a SENTINEL_AGENTS <<< "${CLAUDE_PLUGIN_OPTION_REVIEW_AGENTS}"
 else
     SENTINEL_AGENTS=("${_dhpk_default_agents[@]}")
 fi
 
-# Pad shorter override to length 3 with defaults so downstream array indexing is safe.
-while [ ${#SENTINEL_AGENTS[@]} -lt 3 ]; do
+# Pad shorter override with defaults so downstream array indexing stays safe.
+while [ ${#SENTINEL_AGENTS[@]} -lt ${#_dhpk_default_agents[@]} ]; do
     SENTINEL_AGENTS+=("${_dhpk_default_agents[${#SENTINEL_AGENTS[@]}]}")
 done
 unset _dhpk_default_agents

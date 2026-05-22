@@ -42,6 +42,18 @@
           "requires_module": "php-5.6"
         }
       ]
+    },
+    {
+      "id": "js",
+      "name": "JavaScript / TypeScript",
+      "description": "ESLint 9 flat config tier strategy, per-leaf `// @ts-check` progressive typing, post-edit ESLint feedback (async), pre-commit lint + typecheck gate. Framework-agnostic; works for legacy monolith bundles and modern bundler/SPA projects alike.",
+      "versions": [
+        {
+          "id": "0.1",
+          "module": "js",
+          "status": "shipped"
+        }
+      ]
     }
   ],
   "hook_profiles": [
@@ -61,7 +73,9 @@
   "review_slots": [
     { "id": "code", "default_agent": "code-reviewer" },
     { "id": "db",   "default_agent": "database-reviewer" },
-    { "id": "sec",  "default_agent": "security-reviewer" }
+    { "id": "sec",  "default_agent": "security-reviewer" },
+    { "id": "fe",   "default_agent": "frontend-reviewer" },
+    { "id": "doc",  "default_agent": "doc-reviewer" }
   ],
   "docker": {
     "container_role_order": ["DHPK_PHP_CONTAINER", "DHPK_MYSQL_CONTAINER"],

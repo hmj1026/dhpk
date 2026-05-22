@@ -1,0 +1,31 @@
+name: js
+display_name: "JavaScript / TypeScript"
+version: 0.1.0
+description: "JS / TS tooling. ESLint flat-config tier strategy (strict + core-exempt + deferred-migration + global ignores), per-leaf `// @ts-check` progressive typing, post-edit ESLint feedback, pre-commit lint + typecheck gate. Framework-agnostic — works for legacy monolith JS bundles, modern bundler projects, and SPA codebases alike."
+requires: []
+triggers:
+  frontend:
+    extensions: [".js", ".ts", ".jsx", ".tsx", ".mjs", ".cjs", ".vue", ".svelte"]
+    paths: [js/, src/, app/, public/]
+provides:
+  skills: [js-lint-config, js-static-check-strategy]
+  commands: [ts-check-status]
+  references: [static-checks.md, frontend-review-patterns.md]
+# ---- JS-specific tier configuration (read by hooks/_lib/js-tier-detect.sh) ----
+# All keys are optional. Defaults preserve safe behaviour for projects that
+# haven't curated their tier yet (every JS file → frontend, no vendor list).
+#
+# - frontend_roots: root directories scanned for JS/TS source. Files under
+#   `<root>/<subdir>/...` are treated as `frontend` (lint-applied). Files
+#   directly under `<root>/*.{js,ts}` are treated as `vendor` UNLESS the
+#   basename appears in core_files (the rare hand-curated entry-point bundle
+#   files of a legacy monolith).
+# - core_files: basenames at root of a frontend_root that should still be
+#   linted as `frontend` (legacy entry-point bundles). Default empty.
+# - vendor_globs: path prefixes treated as `vendor` (lint-skipped regardless
+#   of depth). Default empty. Populate this with vendored libraries you don't
+#   own (`js/vendor/`, `js/ckeditor/`, etc.).
+js:
+  frontend_roots: [js, src]
+  core_files: []
+  vendor_globs: []

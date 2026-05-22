@@ -66,10 +66,10 @@ if [ -n "${DHPK_ACTIVE_MODULES:-}" ]; then
     MODULES_STR=" | mod=${DHPK_ACTIVE_MODULES}"
 fi
 
-# Sentinel badge.
+# Sentinel badge — short labels parallel SENTINEL_NAMES.
 SENTINEL_BADGE=""
 SESS="$ROOT/.claude/artifacts/sessions"
-SHORT=("code" "db" "sec")
+SHORT=("code" "db" "sec" "fe" "doc")
 if [ -d "$SESS" ] && [ "${#SHORT[@]}" -eq "${#SENTINEL_NAMES[@]}" ]; then
     PENDING=()
     for i in "${!SENTINEL_NAMES[@]}"; do

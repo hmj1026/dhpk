@@ -2,8 +2,8 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "dhpk",
   "displayName": "DHPK Dev Harness",
-  "version": "0.1.1",
-  "description": "Reusable Claude Code harness — generic core + opt-in stack modules (php-5.6, yii-1.1, phpunit-5.7). Sentinel-driven review hooks, parameterised docker/agent names, parallel Codex CLI tree.",
+  "version": "0.2.0",
+  "description": "Reusable Claude Code harness — generic core + opt-in stack modules (php-5.6, yii-1.1, phpunit-5.7, js). 5-slot sentinel-driven review hooks (code / db / sec / frontend / doc), parameterised docker/agent names, wrapper-dispatch hook extension model, parallel Codex CLI tree.",
   "author": {
     "name": "hmj1026",
     "url": "https://github.com/hmj1026"
@@ -15,7 +15,8 @@
     "./skills/",
     "./modules/php-5.6/skills/",
     "./modules/yii-1.1/skills/",
-    "./modules/phpunit-5.7/skills/"
+    "./modules/phpunit-5.7/skills/",
+    "./modules/js/skills/"
   ],
   "userConfig": {
     "hook_profile": {
@@ -28,8 +29,8 @@
       "type": "string",
       "multiple": true,
       "title": "Review agent names",
-      "description": "Three agents invoked by sentinel reminders (code, database, security). Override to point at project-specific agents.",
-      "default": ["code-reviewer", "database-reviewer", "security-reviewer"]
+      "description": "Five agents invoked by sentinel reminders (code, database, security, frontend, doc). Override to point at project-specific agents. Pad the list with empty strings or drop trailing slots to reduce coverage.",
+      "default": ["code-reviewer", "database-reviewer", "security-reviewer", "frontend-reviewer", "doc-reviewer"]
     },
     "docker_containers": {
       "type": "string",
@@ -42,15 +43,33 @@
       "type": "string",
       "multiple": true,
       "title": "Stack modules to enable",
-      "description": "Enable stack modules from modules/. Ships: php-5.6, yii-1.1, phpunit-5.7. Module 'requires' validated at SessionStart (warning only).",
+      "description": "Enable stack modules from modules/. Ships: php-5.6, yii-1.1, phpunit-5.7, js. Module 'requires' validated at SessionStart (warning only). Enabling 'js' wires the ESLint post-edit hook + pre-commit lint/typecheck gate (see modules/js/references/static-checks.md).",
       "default": []
     },
     "review_trigger_extra_paths": {
       "type": "string",
       "multiple": true,
       "title": "Extra review trigger paths",
-      "description": "Extra path prefixes per reviewer slot, formatted '<slot>:<prefix>' where slot ∈ code|db|sec. Example: 'code:protected/'",
+      "description": "Extra path prefixes per reviewer slot, formatted '<slot>:<prefix>' where slot ∈ code|db|sec|fe|doc. Example: 'code:protected/', 'fe:resources/views/'",
       "default": []
+    },
+    "js_lint_script": {
+      "type": "string",
+      "title": "JS lint npm script name",
+      "description": "npm script invoked by modules/js/hooks/pre-commit-js-validation.sh. Default 'lint'. Override when the project uses a non-standard script name (e.g. 'lint:strict').",
+      "default": "lint"
+    },
+    "js_typecheck_script": {
+      "type": "string",
+      "title": "JS typecheck npm script name",
+      "description": "npm script invoked by modules/js/hooks/pre-commit-js-validation.sh. Default 'typecheck'.",
+      "default": "typecheck"
+    },
+    "js_check_path": {
+      "type": "string",
+      "title": "JS @ts-check scan path",
+      "description": "Path scanned by the /ts-check-status command. Default 'js/'. Override for projects laying out JS under e.g. 'src/' or 'app/javascript/'.",
+      "default": "js/"
     },
     "reap_stale_mcp_processes": {
       "type": "boolean",

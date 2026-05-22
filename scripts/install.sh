@@ -188,11 +188,13 @@ else
   # ────────────────────────────────────────────────────────────────────
   echo
   echo "─── Step 4/4 · Review agents & hook profile ──────────────"
-  if dhpk_yes_no "Override default review agent names (code/database/security)?" n; then
-    code_agent="$(dhpk_input   "code reviewer agent name"     "code-reviewer")"
-    db_agent="$(dhpk_input     "database reviewer agent name" "database-reviewer")"
-    sec_agent="$(dhpk_input    "security reviewer agent name" "security-reviewer")"
-    REVIEW_AGENTS=("$code_agent" "$db_agent" "$sec_agent")
+  if dhpk_yes_no "Override default review agent names (code/database/security/frontend/doc)?" n; then
+    code_agent="$(dhpk_input "code reviewer agent name"     "code-reviewer")"
+    db_agent="$(dhpk_input   "database reviewer agent name" "database-reviewer")"
+    sec_agent="$(dhpk_input  "security reviewer agent name" "security-reviewer")"
+    fe_agent="$(dhpk_input   "frontend reviewer agent name" "frontend-reviewer")"
+    doc_agent="$(dhpk_input  "doc reviewer agent name"      "doc-reviewer")"
+    REVIEW_AGENTS=("$code_agent" "$db_agent" "$sec_agent" "$fe_agent" "$doc_agent")
   fi
 
   PROFILE_IDS=()

@@ -42,6 +42,7 @@ description: 'Navigation index for dhpk plugin commands. Internal documentation;
 |---------|------|
 | `/review-pending` | 審查 `.pending-review` sentinel 中的檔案或指定路徑，完成後 code-reviewer 自動清除 sentinel |
 | `/code-review` | Deprecated alias — forwards to `/review-pending` (removed in v1.0.0) |
+| `/ts-check-status` | (JS module) 報告 `// @ts-check` / `// @ts-nocheck` / unmarked 分佈，衡量 progressive `@ts-check` 推進度 |
 
 ## Codex（第二意見 / 深度 review）
 

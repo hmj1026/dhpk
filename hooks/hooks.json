@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/scripts/hooks/pre-bash-guard.sh"
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/scripts/hooks/pre-bash-dispatch.sh"
           }
         ]
       }
@@ -26,7 +26,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/scripts/hooks/post-edit-remind.sh"
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/scripts/hooks/post-edit-dispatch.sh"
           },
           {
             "type": "command",

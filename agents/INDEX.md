@@ -5,20 +5,22 @@ description: 'Navigation index for dhpk plugin agents. Internal documentation; n
 
 # Agents Index (dhpk plugin)
 
-> 12 agents shipped by the dhpk plugin. Discovered as `dhpk:<name>` after install.
+> 14 agents shipped by the dhpk plugin. Discovered as `dhpk:<name>` after install.
 
-## Sentinel-driven review chain
+## Sentinel-driven review chain (5 slots, v0.2.0+)
 
-Order: `tdd-guide → database-reviewer → security-reviewer → code-reviewer` (only triggered items run; code-reviewer always last). Triggered automatically by `post-edit-remind` hook; reminded at Stop by `stop-review-reminder` hook.
+Order: `tdd-guide → database-reviewer → security-reviewer → frontend-reviewer → code-reviewer → doc-reviewer` (only triggered items run; code-reviewer and doc-reviewer are not mutually exclusive — mixed diffs run both). Triggered automatically by `post-edit-dispatch` → `post-edit-remind` hook; reminded at Stop by `stop-review-reminder` hook.
 
 | Agent | Model | When it fires |
 |-------|-------|----------------|
 | [tdd-guide](tdd-guide.md) | sonnet | New feature, bug fix, test changes (AI-judgment, pre-edit) |
 | [database-reviewer](database-reviewer.md) | sonnet | SQL / schema / migration / Repository edits |
 | [security-reviewer](security-reviewer.md) | sonnet | Auth / authz / crypto / file-upload edits |
+| [frontend-reviewer](frontend-reviewer.md) | sonnet | JS/TS edits when the `js` module is active; template-embedded `<script>` blocks (AI-judgment backfill) |
 | [code-reviewer](code-reviewer.md) | sonnet | **Mandatory after any source-code Edit/Write** |
+| [doc-reviewer](doc-reviewer.md) | haiku | Edits under `.claude/{agents,rules,commands,skills,manifests}/`, `docs/`, `openspec/`, or top-level `CLAUDE.md` / `AGENTS.md` / `README*.md` |
 
-Agent names are overridable via `userConfig.review_agents` — a project can point sentinels at its own `code-reviewer-<project>` and friends instead of the plugin defaults.
+Agent names are overridable via `userConfig.review_agents` — a project can point sentinels at its own `code-reviewer-<project>` and friends instead of the plugin defaults. The default list ships 5 agents (code / db / sec / fe / doc); reduce by passing a shorter override.
 
 ## Situational
 
