@@ -44,22 +44,57 @@ if printf '%s' "$CMD_STRIPPED" | grep -Eq '(^|[[:space:];&|])chmod[[:space:]]+(-
     exit 2
 fi
 
-# Pattern 4: git push with pending review sentinels.
+# Pattern 4: git push with pending review sentinels — only block when at
+# least one sentinel-listed path is actually uncommitted-or-staged. Stale
+# sentinels from already-committed work do NOT block: once HEAD moves past
+# them, `git diff --name-only HEAD` no longer reports those paths.
+#
+# 60-min TTL auto-clear runs first (delegated to reap-stale-sentinels.sh
+# --clear) so leaked sentinels from crashed reviewers don't accumulate.
 if printf '%s' "$CMD_STRIPPED" | grep -Eq '(^|[[:space:]])git[[:space:]]+push([[:space:]]|$)' && \
    ! printf '%s' "$CMD_STRIPPED" | grep -Eq '(--help|[[:space:]]-h([[:space:]]|$)|--dry-run)'; then
     HOOK_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
     SENTINEL_DIR="$HOOK_ROOT/.claude/artifacts/sessions"
+
+    # Auto-clear sentinels older than 60 min (delegated; see reap-stale-sentinels.sh).
+    CLAUDE_PROJECT_DIR="$HOOK_ROOT" bash "$(dirname "$0")/reap-stale-sentinels.sh" \
+        --threshold-minutes 60 --clear 2>/dev/null || true
+
+    # Build the set of paths git considers locally-changed against HEAD.
+    # Includes both unstaged (`diff HEAD`) and staged-not-yet-committed
+    # (`diff --cached`). After commit, files drop out — sentinel intersection
+    # comes up empty, push is allowed.
+    UNCOMMITTED="$(
+        { git -C "$HOOK_ROOT" diff --name-only HEAD 2>/dev/null
+          git -C "$HOOK_ROOT" diff --name-only --cached 2>/dev/null
+        } | sort -u
+    )"
+
     FOUND_NAMES=""
     FOUND_AGENTS=""
     for i in "${!SENTINEL_NAMES[@]}"; do
         _s="${SENTINEL_NAMES[$i]}"
-        if [ -f "$SENTINEL_DIR/$_s" ]; then
+        _sf="$SENTINEL_DIR/$_s"
+        [ -f "$_sf" ] || continue
+        # cut -d' ' -f3- drops the "YYYY-MM-DD HH:MM:SS " prefix; sort -u
+        # dedupes in case of pre-fix legacy sentinels with duplicate lines.
+        _sentinel_paths="$(cut -d' ' -f3- "$_sf" 2>/dev/null | sort -u)"
+        [ -z "$_sentinel_paths" ] && continue
+        _match=0
+        while IFS= read -r _p; do
+            [ -z "$_p" ] && continue
+            if printf '%s\n' "$UNCOMMITTED" | grep -Fxq -- "$_p"; then
+                _match=1
+                break
+            fi
+        done <<< "$_sentinel_paths"
+        if [ "$_match" -eq 1 ]; then
             FOUND_NAMES="$FOUND_NAMES $_s"
             FOUND_AGENTS="$FOUND_AGENTS ${SENTINEL_AGENTS[$i]}"
         fi
     done
     if [ -n "$FOUND_NAMES" ]; then
-        echo "[bash-guard] blocked: git push while review sentinels pending:$FOUND_NAMES" >&2
+        echo "[bash-guard] blocked: git push while uncommitted edits await review:$FOUND_NAMES" >&2
         echo "[bash-guard] Pending reviewer(s):$FOUND_AGENTS — run each before pushing." >&2
         exit 2
     fi
