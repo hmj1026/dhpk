@@ -1,5 +1,61 @@
 # Changelog
 
+## 0.2.3 — 2026-05-23 — Reduce harness friction in long sessions
+
+A long-running session on a sibling project (`hmj1026/devkit`, Wave-0
+closure + Wave-1 implementation, 7 commits) surfaced four high-frequency
+friction points in the review-sentinel pipeline. Each was traced back to
+a specific script or agent body; this release applies the four fixes
+identified in the audit at
+`devkit/.claude/artifacts/audits/harness-audit-2026-05-23.md`
+(findings #3, #4, #5, #6).
+
+### Fixed
+
+- `scripts/hooks/post-edit-remind.sh` — sentinel append is now idempotent.
+  Each `.pending-*` file is checked for the candidate path before write
+  (`cut -d' ' -f3- | grep -Fxq`), so repeated edits to the same file no
+  longer accumulate duplicate lines. Makes `stop-review-reminder`'s
+  `wc -l` count truthful and reduces the work for reviewer agents that
+  iterate the sentinel.
+- `scripts/hooks/pre-bash-guard.sh` — `git push` block now intersects
+  sentinel-listed paths with `git diff --name-only HEAD` (uncommitted)
+  ∪ `git diff --name-only --cached` (staged). Stale sentinels from
+  already-committed work no longer block pushes — once HEAD moves past
+  the edited files, the intersection comes up empty and the push is
+  allowed. Eliminates the "rm sentinel, push, rm sentinel, push" loop
+  that dominated the devkit session.
+- `scripts/hooks/reap-stale-sentinels.sh` — accepts `--threshold-minutes N`
+  (default `1440` = 24h, unchanged for the Stop hook caller) and `--clear`
+  (auto-rm stale files instead of warn-only). `pre-bash-guard.sh` now
+  invokes it with `--threshold-minutes 60 --clear` before its push-block
+  check, so a sentinel leaked by a crashed reviewer can't block pushes
+  for more than 60 minutes.
+- `agents/code-reviewer.md` — stack-aware syntax rules. The agent now
+  detects the project's PHP floor from `composer.json` and applies the
+  matching ruleset: PHP 5.6/7.0 floor keeps the no-return-types rule;
+  PHP 7.1+ floor allows return types, `??`, etc. A new "LSP exceptions"
+  block documents that subclass signatures forced by interfaces
+  (`PHPUnit\Framework\TestCase::setUp(): void`, `ArrayAccess` tentative
+  types, `HttpExceptionInterface` v6+) MUST match the parent — never
+  flagged as style violations. Laravel-specific trap list added
+  alongside the existing Yii 1.1 traps; both activate only when their
+  framework is detected.
+
+### Verified
+
+- `bash scripts/hooks/post-edit-remind.sh` reproducer with two edits to
+  the same path → sentinel now has 1 line (was 2 pre-fix).
+- `pre-bash-guard.sh` push-block reproducer: commit a doc edit then
+  attempt `git push` with sentinel still listing the now-committed file
+  → push proceeds (was blocked pre-fix).
+- `reap-stale-sentinels.sh --threshold-minutes 60 --clear` against a
+  `touch -t 202605220000`-aged sentinel → file removed; subsequent
+  `pre-bash-guard.sh` push attempt proceeds.
+- `dhpk:code-reviewer` re-run against `tests/Ui/Trail/TrailTest.php`
+  (PHPUnit 8+ with `setUp(): void`) → no false positive on the typed
+  return declaration; the new LSP-exceptions section is honoured.
+
 ## 0.2.2 — 2026-05-22 — Align with current Claude Code plugin CLI
 
 Two regressions surfaced when test-installing v0.2.1 against Claude Code

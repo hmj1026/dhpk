@@ -185,10 +185,19 @@ if [ -n "${CLAUDE_PLUGIN_OPTION_REVIEW_TRIGGER_EXTRA_PATHS:-}" ]; then
 fi
 
 # ---- Write sentinels ----
+# Idempotent append: if $REL already appears in the sentinel (any timestamp),
+# skip the write. Stops repeated edits to the same file from accumulating
+# duplicate lines that mislead reviewers and stop-review-reminder's `wc -l`.
 msg=""
 for i in "${!NEEDS[@]}"; do
     if [ "${NEEDS[$i]}" -eq 1 ]; then
-        printf '%s %s\n' "$(date +'%Y-%m-%d %H:%M:%S')" "$REL" >> "$ARTIFACTS/${SENTINEL_NAMES[$i]}"
+        sentinel="$ARTIFACTS/${SENTINEL_NAMES[$i]}"
+        # cut -d' ' -f3- drops the "YYYY-MM-DD HH:MM:SS " timestamp prefix,
+        # leaving only the path part for an exact-line compare against $REL.
+        if [ -f "$sentinel" ] && cut -d' ' -f3- "$sentinel" 2>/dev/null | grep -Fxq -- "$REL"; then
+            continue
+        fi
+        printf '%s %s\n' "$(date +'%Y-%m-%d %H:%M:%S')" "$REL" >> "$sentinel"
         msg+=" ${SENTINEL_LABELS[$i]}"
     fi
 done
