@@ -1,5 +1,50 @@
 # Changelog
 
+## 0.2.4 — 2026-05-25 — Honour project-level pluginConfigs overrides
+
+Claude Code injects `userConfig` into hooks via `CLAUDE_PLUGIN_OPTION_*`
+env vars, but resolves only the **global** `~/.claude/settings.json`
+`pluginConfigs` entry. A developer working on multiple projects with
+different stacks (e.g. a Yii 1.1 monolith + a Laravel package library)
+saw whichever stack their global config named — even when the project
+explicitly declared its own modules in `.claude/settings.local.json`.
+Symptom in the wild: `devkit` (a PHP 7.3–8.2 / Laravel 6–11 library)
+loaded `php-5.6,yii-1.1,phpunit-5.7,js` because the global config
+belonged to a sibling Yii project.
+
+### Added
+
+- `scripts/hooks/_lib/load-project-config.sh` — sourced by every dhpk
+  hook entrypoint; reads the project `.claude/settings.local.json`
+  (fallback `.claude/settings.json`) and overrides
+  `CLAUDE_PLUGIN_OPTION_*` env vars from
+  `pluginConfigs.dhpk@dhpk.options.*`. Keys absent from the project
+  override are left at the global value (least-surprise: project
+  overrides only what it states).
+
+### Fixed
+
+- `scripts/hooks/session-start.sh` — sources the loader before reading
+  any plugin option, so module activation, hook profile, and docker
+  container list all reflect the project's intent.
+- `scripts/hooks/post-edit-dispatch.sh`, `scripts/hooks/pre-bash-dispatch.sh` —
+  source the loader and re-derive `DHPK_ACTIVE_MODULES` from
+  `CLAUDE_PLUGIN_OPTION_MODULES` when env did not propagate from
+  session-start. Module-specific hooks (php-cs-fixer, ESLint, etc.) now
+  fire in projects that override modules locally.
+- `scripts/hooks/stop-review-reminder.sh` — loader sourced **before**
+  `_lib/payload.sh` (which reads `CLAUDE_PLUGIN_OPTION_REVIEW_AGENTS`
+  at source-time), so per-project `review_agents` overrides reach the
+  sentinel reminders.
+- `.claude-plugin/plugin.json` — `userConfig.modules.description`
+  documents the new precedence rule: project overrides global.
+
+### Precedence (new, documented)
+
+```
+project pluginConfigs > global pluginConfigs > userConfig defaults
+```
+
 ## 0.2.3 — 2026-05-23 — Reduce harness friction in long sessions
 
 A long-running session on a sibling project (`hmj1026/devkit`, Wave-0

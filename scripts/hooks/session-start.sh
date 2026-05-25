@@ -11,9 +11,16 @@
 
 set -o pipefail
 
-PROFILE="${CLAUDE_PLUGIN_OPTION_HOOK_PROFILE:-standard}"
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+
+# Overlay project-level pluginConfigs onto CLAUDE_PLUGIN_OPTION_* env vars.
+# Claude Code only injects global pluginConfigs; per-project .claude/settings.local.json
+# overrides are loaded here so dhpk modules / hook_profile / etc. respect the
+# project's intent. See _lib/load-project-config.sh for precedence rules.
+. "$PLUGIN_ROOT/scripts/hooks/_lib/load-project-config.sh"
+
+PROFILE="${CLAUDE_PLUGIN_OPTION_HOOK_PROFILE:-standard}"
 ARTIFACTS="$ROOT/.claude/artifacts"
 SESSION_FILE="$ARTIFACTS/sessions/latest.md"
 

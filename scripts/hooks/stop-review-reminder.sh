@@ -8,9 +8,15 @@
 
 set -o pipefail
 
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+
+# Overlay project pluginConfigs so hook_profile / review_agents respect per-project
+# .claude/settings.local.json (Claude Code only injects global pluginConfigs).
+# MUST precede payload.sh because that lib reads CLAUDE_PLUGIN_OPTION_REVIEW_AGENTS
+# at source-time to populate SENTINEL_AGENTS.
+. "$(dirname "$0")/_lib/load-project-config.sh"
 . "$(dirname "$0")/_lib/payload.sh"
 
-ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 PROFILE="${CLAUDE_PLUGIN_OPTION_HOOK_PROFILE:-standard}"
 
 [ "$PROFILE" = "minimal" ] && exit 0

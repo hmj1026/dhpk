@@ -17,6 +17,11 @@ payload="$(cat 2>/dev/null || true)"
 
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
 
+# Overlay project pluginConfigs so module selection respects per-project
+# .claude/settings.local.json (Claude Code only injects global pluginConfigs).
+. "$PLUGIN_ROOT/scripts/hooks/_lib/load-project-config.sh"
+: "${DHPK_ACTIVE_MODULES:=${CLAUDE_PLUGIN_OPTION_MODULES:-}}"
+
 # Core guard — exit code bubbles up so dangerous-pattern blocks still work.
 printf '%s' "$payload" | bash "$PLUGIN_ROOT/scripts/hooks/pre-bash-guard.sh"
 rc=$?
