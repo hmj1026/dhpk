@@ -1,17 +1,74 @@
 {
   "$schema": "https://json-schema.org/draft-07/schema#",
   "version": 1,
-  "description": "Single source of truth for stacks, versions, and module identifiers exposed by the interactive installer (`scripts/install.sh`) and the `/dhpk:setup` slash command. Adding a new module means: (1) add an entry here, (2) create modules/<id>/module.yaml + skills/, (3) register the skills path in .claude-plugin/plugin.json.",
+  "description": "Single source of truth for stacks, versions, and module identifiers exposed by the interactive installer (`scripts/install.sh`) and the `/dhpk:setup` slash command. Adding a new module means: (1) add an entry here, (2) create modules/<id>/module.yaml + skills/, (3) register the skills path in .claude-plugin/plugin.json. Optional stack field `selection` defaults to `exclusive` (single-version pick); set to `additive` for stacks where library projects need to enable multiple versions cumulatively (e.g. a package spanning PHP 7.4 → 8.x). Optional per-version field `exclusive: true` (only meaningful under `additive`) marks a version that cannot combine with siblings in the same stack — the installer drops the others when an exclusive pick is selected.",
   "stacks": [
     {
       "id": "php",
       "name": "PHP",
-      "description": "PHP language baseline. The 5.6 module forbids 7.0+ syntax (typed params, ??, match, arrow fn, union types) and provides polyfill guidance.",
+      "selection": "additive",
+      "description": "PHP language baseline. Pick 5.6 for legacy monoliths (forbids 7.0+ syntax, polyfill guidance) — note 5.6 is marked exclusive and cannot combine with later versions. Pick 7.4 for the modern baseline (ships post-edit php-cs-fixer hook + pre-commit lint+phpstan+psalm gate). Pick 8.x additively on top of 7.4 for projects whose floor is ≥8.0, or for library packages that span 7.x→8.x and want guidance on conditionally-usable 8.x features (match, nullsafe, named args, attributes, readonly, enums, intersection types). Selection is additive — pick multiple versions to stack cumulative guidance.",
       "versions": [
         {
           "id": "5.6",
           "module": "php-5.6",
+          "status": "shipped",
+          "exclusive": true
+        },
+        {
+          "id": "7.4",
+          "module": "php-7.4",
           "status": "shipped"
+        },
+        {
+          "id": "8.x",
+          "module": "php-8.x",
+          "status": "shipped"
+        }
+      ]
+    },
+    {
+      "id": "laravel",
+      "name": "Laravel Framework",
+      "selection": "additive",
+      "description": "Laravel framework — per-version modules for each major from 6 through 11. Library packages spanning multiple Laravel majors should enable all the versions in their composer constraint to get cumulative version-specific guidance (deprecations, signature additions, BC traps). Applications running a single Laravel major should pick only that version. Pair with skills/laravel-package-author/SKILL.md (cross-cutting, framework-agnostic).",
+      "requires": ["php"],
+      "versions": [
+        {
+          "id": "6",
+          "module": "laravel-6",
+          "status": "shipped",
+          "requires_module": "php-7.4"
+        },
+        {
+          "id": "7",
+          "module": "laravel-7",
+          "status": "shipped",
+          "requires_module": "php-7.4"
+        },
+        {
+          "id": "8",
+          "module": "laravel-8",
+          "status": "shipped",
+          "requires_module": "php-7.4"
+        },
+        {
+          "id": "9",
+          "module": "laravel-9",
+          "status": "shipped",
+          "requires_module": "php-7.4"
+        },
+        {
+          "id": "10",
+          "module": "laravel-10",
+          "status": "shipped",
+          "requires_module": "php-7.4"
+        },
+        {
+          "id": "11",
+          "module": "laravel-11",
+          "status": "shipped",
+          "requires_module": "php-7.4"
         }
       ]
     },
@@ -32,7 +89,8 @@
     {
       "id": "phpunit",
       "name": "PHPUnit",
-      "description": "PHPUnit testing framework. The 5.7 module covers the assertion API and idiomatic test patterns for legacy PHP stacks.",
+      "selection": "additive",
+      "description": "PHPUnit testing framework. Pick 5.7 for legacy PHP 5.6 / pre-PHPUnit-8 stacks. Pick 9 for PHP 7.3+ projects (latest version compatible with that PHP floor). Pick 10 for PHP 8.1+ projects (attribute-style annotations preferred). Pick 11 for PHP 8.2+ projects (doc-comment annotations fully removed; attributes-only). Selection is additive — a project mid-migration can enable two adjacent versions to consult both sets of guidance. The phpunit-10 / phpunit-11 modules document attribute migration paths; project's composer.json PHP constraint must independently satisfy each module's runtime requirement.",
       "requires": ["php"],
       "versions": [
         {
@@ -40,6 +98,24 @@
           "module": "phpunit-5.7",
           "status": "shipped",
           "requires_module": "php-5.6"
+        },
+        {
+          "id": "9",
+          "module": "phpunit-9",
+          "status": "shipped",
+          "requires_module": "php-7.4"
+        },
+        {
+          "id": "10",
+          "module": "phpunit-10",
+          "status": "shipped",
+          "requires_module": "php-7.4"
+        },
+        {
+          "id": "11",
+          "module": "phpunit-11",
+          "status": "shipped",
+          "requires_module": "php-7.4"
         }
       ]
     },
