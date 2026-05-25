@@ -1,0 +1,57 @@
+name: library-author
+display_name: "Multi-version PHP library author"
+version: 0.1.0
+description: |
+  For PHP libraries whose composer constraints span multiple majors of a key
+  dependency (Laravel 6-11, Monolog 2/3, PHPUnit 8/9/10/11, Flysystem 1/2/3).
+  Adds the cross-cutting glue that the per-major php-*/laravel-*/phpunit-*
+  modules don't supply:
+
+    - polyfill-edit sentinel routing (sixth-color reviewer auto-fires when an
+      edited .php file contains a version guard)
+    - OpenSpec workflow guard (specs vs spec-delta naming enforcement,
+      tasks.md vs git log drift detection)
+    - matrix-cell onboarding skill (checklist for adding a new
+      PHP/Laravel/PHPUnit cell to composer.json + CI workflow)
+    - dual-testsuite (Core vs Laravel) review boundary helper
+
+  Pairs with — not duplicates — the polyfill-version-matrix-audit skill at
+  dhpk root (which is the manual-invoke deep audit) and the
+  version-matrix-impact-reviewer agent (which is the blast-radius assessor).
+  This module is the **automatic surface** that wakes those up.
+
+  Activate when ALL of:
+    - composer.json `require` has `||` across majors of a runtime dep
+    - repo has openspec/ directory
+    - tests split into core + laravel (or analogous) testsuites
+requires: []
+triggers:
+  code:
+    extensions: []
+    paths: []
+  db:
+    extensions: []
+    paths: []
+  sec:
+    extensions: []
+    paths: []
+provides:
+  agents: [polyfill-reviewer]
+  skills:
+    - matrix-cell-onboard
+    - openspec-artifact-guard
+    - library-dual-testsuite-map
+  references:
+    - polyfill-patterns.md
+    - openspec-naming-gotchas.md
+# ---- library-author tool wiring (read by hooks/post-edit-polyfill-sentinel.sh) ----
+# All keys optional; defaults match a standard multi-major library layout.
+#
+# - guard_patterns: extended-regex alternation matched against the file
+#   *body* (not name) to decide whether an edit warrants polyfill review.
+#   Override when your codebase uses a different version-detection idiom.
+# - skip_paths: path prefixes (relative to repo root) where guard edits
+#   should NOT trigger the sentinel. vendor/ is always hardcoded skip.
+library_author:
+  guard_patterns: "version_compare|class_exists|interface_exists|method_exists|InstalledVersions::satisfies|PHP_VERSION_ID"
+  skip_paths: []
