@@ -1,0 +1,18 @@
+name: phpunit-10
+display_name: "PHPUnit 10.x"
+version: 0.1.0
+description: "PHPUnit 10.x (February 2023). PHP 8.1+ floor required (PHPUnit 10 will not install on PHP 8.0 or earlier). Signature delta from PHPUnit 9: native PHP 8 attribute-style annotations (#[DataProvider], #[CoversClass], #[Group], #[Test]) — doc-comment annotations still work in 10 but deprecated, removed in 11. Test runner CLI rewrite. TestListener interface removed (use hooks API from PHPUnit 8/9). Requires php-7.4 baseline module + (recommended) php-8.x for the PHP 8.1+ language features. Project's composer.json PHP constraint must declare ^8.1 or higher."
+requires: []
+triggers:
+  code:
+    extensions: [".php"]
+    paths: []
+  db:
+    extensions: []
+    paths: []
+  sec:
+    extensions: []
+    paths: []
+provides:
+  skills: [phpunit-10-notes]
+  references: []

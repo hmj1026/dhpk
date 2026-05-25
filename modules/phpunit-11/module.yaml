@@ -1,0 +1,18 @@
+name: phpunit-11
+display_name: "PHPUnit 11.x"
+version: 0.1.0
+description: "PHPUnit 11.x (February 2024). PHP 8.2+ floor required. Signature delta from PHPUnit 10: doc-comment annotations fully removed (PHP 8 attributes are the only path), assertObjectHasAttribute renamed to assertObjectHasProperty, return type declarations on every public method, test method names must start with `test` OR use #[Test] (test:foo() style requires the attribute). Requires php-7.4 baseline module + (recommended) php-8.x for PHP 8.2+ language features. Project's composer.json PHP constraint must declare ^8.2 or higher."
+requires: []
+triggers:
+  code:
+    extensions: [".php"]
+    paths: []
+  db:
+    extensions: []
+    paths: []
+  sec:
+    extensions: []
+    paths: []
+provides:
+  skills: [phpunit-11-notes]
+  references: []

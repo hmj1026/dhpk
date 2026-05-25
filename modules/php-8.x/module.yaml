@@ -1,0 +1,18 @@
+name: php-8.x
+display_name: "PHP 8.x Language Additions"
+version: 0.1.0
+description: "PHP 8.0 → 8.3 language additions, designed as an additive sibling to php-7.4. Use when the project's PHP floor is ≥8.0 (apps) or when writing a library that uses 8.x features conditionally (libraries spanning 7.x→8.x). Covers: match, nullsafe ?->, named arguments, constructor promotion, attributes #[…], readonly properties (8.1), enums (8.1), intersection types (8.1), new in initializers (8.1), readonly classes (8.2), DNF types (8.2), typed class constants (8.3). No hooks of its own — relies on php-7.4 module's php-cs-fixer / phpstan / psalm pipeline when both are enabled. Pairs naturally with php-7.4 for library packages that span PHP 7.x→8.x and need version-conditional guidance."
+requires: []
+triggers:
+  code:
+    extensions: [".php"]
+    paths: []
+  db:
+    extensions: []
+    paths: []
+  sec:
+    extensions: []
+    paths: []
+provides:
+  skills: [php-8x-features]
+  references: [conditional-features.md]
