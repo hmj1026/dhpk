@@ -91,6 +91,22 @@ def version_requires_module(sid, vid):
                     print(v.get("requires_module", ""))
                     return
 
+def stack_selection(sid):
+    for s in data["stacks"]:
+        if s["id"] == sid:
+            print(s.get("selection", "exclusive"))
+            return
+    print("exclusive")
+
+def version_exclusive(sid, vid):
+    for s in data["stacks"]:
+        if s["id"] == sid:
+            for v in s["versions"]:
+                if v["id"] == vid:
+                    print("true" if v.get("exclusive", False) else "false")
+                    return
+    print("false")
+
 def hook_profiles():
     for p in data["hook_profiles"]:
         print(p["id"])
@@ -116,6 +132,13 @@ elif expr.startswith('.stacks[] | select(.id=="') and '") | .versions[] | select
     parts = expr.split('"')
     sid, vid = parts[1], parts[3]
     version_requires_module(sid, vid)
+elif expr.startswith('.stacks[] | select(.id=="') and expr.endswith('") | .selection // "exclusive"'):
+    sid = expr.split('"')[1]
+    stack_selection(sid)
+elif expr.startswith('.stacks[] | select(.id=="') and '") | .versions[] | select(.id=="' in expr and expr.endswith('") | .exclusive // false'):
+    parts = expr.split('"')
+    sid, vid = parts[1], parts[3]
+    version_exclusive(sid, vid)
 elif expr == '.hook_profiles[].id':
     hook_profiles()
 elif expr == '.review_slots[] | "\(.id)=\(.default_agent)"':

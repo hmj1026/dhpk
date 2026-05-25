@@ -22,9 +22,19 @@ The flow mirrors the wrapper so the user sees the same questions:
 
 1. **Stacks (multi-select)** — read `manifests/module-catalog.json` and ask
    which `.stacks[].id` to enable. Empty = generic core only.
-2. **Per-stack version (single-select)** — for each chosen stack, list
-   `.versions[].id` and capture the user's pick. Resolve `requires_module` and
-   auto-include the dependency, telling the user it was added.
+2. **Per-stack version** — for each chosen stack, read the stack's
+   `.selection` field (default `exclusive`).
+   - If `exclusive`: single-select from `.versions[].id`.
+   - If `additive`: **multi-select** from `.versions[].id` — library packages
+     spanning multiple versions of a stack (e.g. PHP 7.4 → 8.x) enable
+     several at once and get cumulative guidance.
+   - For each picked version, resolve its `module` + `requires_module` and
+     auto-include the dependency, telling the user it was added.
+   - Honour per-version `.exclusive: true` (only meaningful under additive):
+     if any picked version has this flag set AND the user also picked
+     siblings in the same stack, drop the siblings and surface a warning —
+     an exclusive version cannot combine with others in the same stack
+     (e.g. `php-5.6` forbids ≥7.0 syntax so it contradicts `php-7.4`).
 3. **Docker** — first display the prerequisite block from
    `docs/docker-setup.md` (summarise: docker installed? compose? WSL trap?
    container names match `docker ps`?). Then ask if the user wants to enable
