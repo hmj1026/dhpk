@@ -1,5 +1,92 @@
 # Changelog
 
+## 0.3.0 — 2026-05-25 — Ship library-author module (sixth-color polyfill reviewer)
+
+Three previous commits landed the `library-author` module on `main` —
+agent body, module skills, sentinel hook, references — but `plugin.json`
+was never updated to register the new surface. Result: a sibling project
+(`hmj1026/devkit`, multi-major PHP polyfill library) explicitly enabled
+`library-author` in its `.claude/settings.local.json`, expected the
+sixth-color reviewer to fire on guard edits, and got nothing. Symptom
+was silent: `reload-plugins` reported the same skill/agent counts as
+0.2.4 because Claude Code never saw the module declarations. This
+release is the manifest catch-up plus a slash-command alias for the
+matrix-cell onboarding skill.
+
+### Added
+
+- `modules/library-author/` — first shipped via `plugin.json` declarations.
+  - `agents/polyfill-reviewer.md` — sentinel-driven reviewer fired by
+    `.pending-polyfill-review`; sixth color filling the gap left by
+    code/db/sec/frontend/doc reviewers, which don't reason about
+    version-guard trees. Companion to (not replacement for) the
+    manual-invoke `polyfill-version-matrix-audit` skill and the
+    diff-scope `version-matrix-impact-reviewer` agent.
+  - `skills/matrix-cell-onboard/` — checklist + procedure for adding a
+    new PHP/Laravel/PHPUnit/Monolog cell to a multi-major library's CI
+    matrix. Cross-checks composer constraints, workflow rows, Testbench
+    mapping; triggers polyfill-coverage check for the new cell's
+    versions.
+  - `skills/openspec-artifact-guard/` — `specs` vs `spec-delta` naming
+    enforcement and tasks.md ↔ git log drift detection for OpenSpec
+    workflows.
+  - `skills/library-dual-testsuite-map/` — Core vs Laravel (or
+    analogous) testsuite boundary helper.
+  - `hooks/post-edit-polyfill-sentinel.sh` — PostToolUse Edit/Write/
+    MultiEdit hook; writes `.pending-polyfill-review` when an edited
+    `.php` file body matches `guard_patterns`. Fanned out by the core
+    `scripts/hooks/post-edit-dispatch.sh` when `library-author` is in
+    `DHPK_ACTIVE_MODULES`.
+  - `references/polyfill-patterns.md` — severity rubric + catalogued
+    guard shapes (`critical`/`high`/`medium`/`low`).
+  - `references/openspec-naming-gotchas.md` — `specs` vs `spec-delta`
+    artifact gotcha catalogued.
+  - `module.yaml` — `library_author.guard_patterns` (default extended
+    regex) and `library_author.skip_paths` (path prefixes to exclude).
+    Both override-able per project.
+- `commands/matrix-cell-onboard.md` — root-level slash alias so
+  `/dhpk:matrix-cell-onboard` resolves; thin wrapper that invokes the
+  module-scoped skill of the same name when `library-author` is active.
+
+### Fixed (manifest)
+
+- `.claude-plugin/plugin.json` — three latent declaration gaps closed.
+  Before this release the module bodies existed in `main` but Claude
+  Code never loaded them:
+  - `skills[]` did not list `./modules/library-author/skills/` —
+    `matrix-cell-onboard` / `openspec-artifact-guard` /
+    `library-dual-testsuite-map` were unreachable.
+  - No `agents[]` declaration at all — root `./agents/` worked by
+    auto-discovery, but module-scoped agents (`polyfill-reviewer`) did
+    not. Explicit `agents: ["./agents/", "./modules/library-author/agents/"]`
+    closes the gap and future-proofs additional module-scoped agents.
+  - No `commands[]` declaration — added `["./commands/"]` for the same
+    future-proofing reason.
+- `userConfig.modules.description` — adds `library-author` to the ships
+  list and documents the sixth-color sentinel wiring.
+
+### Verified
+
+- `claude plugin validate <repo> --strict` passes against schema.
+- Cache invalidation round-trip: bumping `version` to `0.3.0` triggers
+  Claude Code to re-extract a fresh snapshot into
+  `~/.claude/plugins/cache/dhpk/dhpk/0.3.0/` on next session start;
+  marketplace pulls latest `main` automatically.
+- `polyfill-reviewer` agent visible in `/dhpk:claude-health` agent
+  catalog when `library-author` module is enabled.
+- `/dhpk:matrix-cell-onboard` resolves to the alias command body and
+  delegates to the module skill.
+
+### Upgrade notes
+
+- Existing projects with `library-author` in
+  `pluginConfigs.dhpk@dhpk.options.modules` (e.g. `hmj1026/devkit`)
+  start receiving the sixth-color sentinel automatically on next
+  session — no project-side change required.
+- Projects that do NOT need polyfill review can leave `library-author`
+  out of their modules list; the new declarations are additive and the
+  module ships dormant otherwise.
+
 ## 0.2.4 — 2026-05-25 — Honour project-level pluginConfigs overrides
 
 Claude Code injects `userConfig` into hooks via `CLAUDE_PLUGIN_OPTION_*`
