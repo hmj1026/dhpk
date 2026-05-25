@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "dhpk",
   "displayName": "DHPK Dev Harness",
-  "version": "0.2.2",
+  "version": "0.2.4",
   "description": "Reusable Claude Code harness — generic core + opt-in stack modules (php-5.6, php-7.4, php-8.x, yii-1.1, phpunit-5.7, phpunit-9, phpunit-10, phpunit-11, laravel-6 through laravel-11, js). 5-slot sentinel-driven review hooks (code / db / sec / frontend / doc), parameterised docker/agent names, wrapper-dispatch hook extension model, parallel Codex CLI tree.",
   "author": {
     "name": "hmj1026",
@@ -53,7 +53,7 @@
       "type": "string",
       "multiple": true,
       "title": "Stack modules to enable",
-      "description": "Enable stack modules from modules/. Ships: php-5.6, php-7.4, php-8.x, yii-1.1, phpunit-5.7, phpunit-9, phpunit-10, phpunit-11, laravel-6, laravel-7, laravel-8, laravel-9, laravel-10, laravel-11, js. Module 'requires' validated at SessionStart (warning only). Stack selection is additive for php / laravel / phpunit — library packages spanning versions should enable each version in their composer constraint to get cumulative guidance. Enabling 'js' wires the ESLint post-edit hook + pre-commit lint/typecheck gate; enabling 'php-7.4' wires the php-cs-fixer post-edit hook + pre-commit lint+phpstan+psalm gate (see modules/<name>/references/static-checks.md).",
+      "description": "Enable stack modules from modules/. Ships: php-5.6, php-7.4, php-8.x, yii-1.1, phpunit-5.7, phpunit-9, phpunit-10, phpunit-11, laravel-6, laravel-7, laravel-8, laravel-9, laravel-10, laravel-11, js. Module 'requires' validated at SessionStart (warning only). Stack selection is additive for php / laravel / phpunit — library packages spanning versions should enable each version in their composer constraint to get cumulative guidance. Enabling 'js' wires the ESLint post-edit hook + pre-commit lint/typecheck gate; enabling 'php-7.4' wires the php-cs-fixer post-edit hook + pre-commit lint+phpstan+psalm gate (see modules/<name>/references/static-checks.md). Precedence: a project's .claude/settings.local.json (or settings.json) `pluginConfigs.dhpk@dhpk.options.modules` OVERRIDES the global value — supports a single dev machine working on projects with different stacks.",
       "default": []
     },
     "review_trigger_extra_paths": {

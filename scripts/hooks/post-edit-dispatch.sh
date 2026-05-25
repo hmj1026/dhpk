@@ -15,6 +15,16 @@ payload="$(cat 2>/dev/null || true)"
 
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
 
+# Overlay project pluginConfigs so module selection respects per-project
+# .claude/settings.local.json (Claude Code only injects global pluginConfigs).
+. "$PLUGIN_ROOT/scripts/hooks/_lib/load-project-config.sh"
+
+# session-start.sh exports DHPK_ACTIVE_MODULES after validating module
+# `requires`. Claude Code propagates that env to subsequent hooks in most
+# setups, but fall back to the (now project-overridden) plugin option when it
+# doesn't — keeps the dispatcher correct even when env doesn't carry forward.
+: "${DHPK_ACTIVE_MODULES:=${CLAUDE_PLUGIN_OPTION_MODULES:-}}"
+
 # Core: synchronous (the sentinel-writing logic must complete before any
 # later hook in the same event sees the artifacts/sessions/ state).
 printf '%s' "$payload" | bash "$PLUGIN_ROOT/scripts/hooks/post-edit-remind.sh"
