@@ -1,0 +1,18 @@
+name: laravel-7
+display_name: "Laravel 7.x"
+version: 0.1.0
+description: "Laravel 7.x (March 2020 — 6 month support cycle). PHP 7.2.5+ floor. Signature features: HTTP client wrapper (Http facade), custom Eloquent casts (CastsAttributes interface), Blade component overhaul (x-component syntax), Symfony 5 upgrade. Pair with php-7.4 module for the language baseline."
+requires: []
+triggers:
+  code:
+    extensions: [".php"]
+    paths: []
+  db:
+    extensions: []
+    paths: []
+  sec:
+    extensions: []
+    paths: []
+provides:
+  skills: [laravel-7-notes]
+  references: []
