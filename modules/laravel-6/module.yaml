@@ -1,0 +1,18 @@
+name: laravel-6
+display_name: "Laravel 6.x (LTS)"
+version: 0.1.0
+description: "Laravel 6.x (LTS — September 2019). First Laravel version on strict semver. PHP 7.2+ floor. Signature features: job middleware, lazy collections, eloquent subquery enhancements, extracted Cashier/Nova/Ignition packages. Pair with php-7.4 module for the language baseline."
+requires: []
+triggers:
+  code:
+    extensions: [".php"]
+    paths: []
+  db:
+    extensions: []
+    paths: []
+  sec:
+    extensions: []
+    paths: []
+provides:
+  skills: [laravel-6-notes]
+  references: []

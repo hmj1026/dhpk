@@ -1,0 +1,18 @@
+name: laravel-11
+display_name: "Laravel 11.x"
+version: 0.1.0
+description: "Laravel 11.x (March 2024). PHP 8.2+ floor. Signature features: streamlined app structure (bootstrap/app.php replaces app/Http/Kernel, Console/Kernel, Exceptions/Handler), Model casts() method, per-second rate limiting, health check route at /up, Sanctum 4, SQLite as default. Significant structural change for upgraders. Pair with php-8.x module for language additions."
+requires: []
+triggers:
+  code:
+    extensions: [".php"]
+    paths: []
+  db:
+    extensions: []
+    paths: []
+  sec:
+    extensions: []
+    paths: []
+provides:
+  skills: [laravel-11-notes]
+  references: []
