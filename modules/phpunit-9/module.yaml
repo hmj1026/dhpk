@@ -1,0 +1,18 @@
+name: phpunit-9
+display_name: "PHPUnit 8.5 / 9.x"
+version: 0.1.0
+description: "PHPUnit 8.5 + 9.x modern assertion API and lifecycle. Covers void return types on test methods, the expectException* method API (replacing @expectedException annotations), generator-style data providers, the new assertIsXxx() assertion family (replacing assertInternalType), ProphecyTestCase deprecation, TestListener → hooks API migration, and risky-test handling. Single module covers 8.5 → 9.6 because they share most of the surface; 9.0's main delta is dropping PHPUnit 4-era deprecations. Latest version compatible with PHP 7.3+ floor (PHPUnit 10 requires PHP 8.1+, 11 requires 8.2+). Pair with php-7.4 (and optionally php-8.x) for the language baseline."
+requires: []
+triggers:
+  code:
+    extensions: [".php"]
+    paths: []
+  db:
+    extensions: []
+    paths: []
+  sec:
+    extensions: []
+    paths: []
+provides:
+  skills: [phpunit-9-modern]
+  references: []

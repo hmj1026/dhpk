@@ -1,0 +1,34 @@
+name: php-7.4
+display_name: "PHP 7.4+ Language Baseline"
+version: 0.1.0
+description: "PHP 7.4 baseline for modern apps and library packages spanning PHP 7.3 → 8.x. Prefers 7.4 idioms (typed properties, arrow fns, null-coalesce assignment, spread in arrays, numeric literal separator) and treats 8.x features as conditionally-available (use when caller floor permits). Ships a post-edit php-cs-fixer feedback hook and a pre-commit lint + static-analysis gate, mirroring the JS module's tooling discipline."
+requires: []
+triggers:
+  code:
+    extensions: [".php"]
+    paths: []
+  db:
+    extensions: []
+    paths: []
+  sec:
+    extensions: []
+    paths: []
+provides:
+  skills: [php-modern-pro]
+  references: [static-checks.md]
+# ---- PHP-specific tool wiring (read by hooks/post-edit-php-cs-fixer.sh and
+#      hooks/pre-commit-php-validation.sh) ----
+# All keys are optional; defaults match the standard `composer install` layout.
+#
+# - skip_paths: path prefixes (relative to repo root) treated as off-limits to
+#   lint / analyse. Composer's vendor/ is always skipped regardless of this
+#   list; populate this with project-vendored bundles or generated code dirs.
+# - config_files.cs_fixer: candidate filenames the post-edit hook scans for
+#   before invoking php-cs-fixer. Hook silent-skips when none exist.
+# - config_files.phpstan / psalm: same shape for the static-analysis gate.
+php:
+  skip_paths: []
+  config_files:
+    cs_fixer: [".php-cs-fixer.php", ".php-cs-fixer.dist.php"]
+    phpstan: ["phpstan.neon", "phpstan.neon.dist", "phpstan.dist.neon"]
+    psalm: ["psalm.xml", "psalm.xml.dist"]
