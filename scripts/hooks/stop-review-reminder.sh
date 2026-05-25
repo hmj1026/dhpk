@@ -39,7 +39,15 @@ check_one() {
     [ -n "$extra" ] && echo >&2 "$extra"
     echo >&2 ""
     echo >&2 "   Recommended: invoke '$agent'"
-    echo >&2 "   Manual clear: bash \"\${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh\" $name manual"
+    # Pre-resolve CLAUDE_PLUGIN_ROOT so the printed command is copy-paste-runnable
+    # in a fresh shell where the env var is not set. Fall back to literal + export
+    # hint if the hook itself was invoked without the var (unlikely but safe).
+    if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
+        echo >&2 "   Manual clear: bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh\" $name manual"
+    else
+        echo >&2 "   Manual clear (set CLAUDE_PLUGIN_ROOT to the dhpk plugin root first):"
+        echo >&2 "                 bash \"\${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh\" $name manual"
+    fi
     echo >&2 "-----------------------------------------------------------"
     FOUND=1
 }
