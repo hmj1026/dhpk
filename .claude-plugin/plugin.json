@@ -3,18 +3,29 @@
   "name": "dhpk",
   "displayName": "DHPK Dev Harness",
   "version": "0.2.2",
-  "description": "Reusable Claude Code harness — generic core + opt-in stack modules (php-5.6, yii-1.1, phpunit-5.7, js). 5-slot sentinel-driven review hooks (code / db / sec / frontend / doc), parameterised docker/agent names, wrapper-dispatch hook extension model, parallel Codex CLI tree.",
+  "description": "Reusable Claude Code harness — generic core + opt-in stack modules (php-5.6, php-7.4, php-8.x, yii-1.1, phpunit-5.7, phpunit-9, phpunit-10, phpunit-11, laravel-6 through laravel-11, js). 5-slot sentinel-driven review hooks (code / db / sec / frontend / doc), parameterised docker/agent names, wrapper-dispatch hook extension model, parallel Codex CLI tree.",
   "author": {
     "name": "hmj1026",
     "url": "https://github.com/hmj1026"
   },
   "license": "MIT",
-  "keywords": ["harness", "codex", "code-review", "php", "yii", "phpunit"],
+  "keywords": ["harness", "codex", "code-review", "php", "yii", "phpunit", "laravel"],
   "skills": [
     "./skills/",
     "./modules/php-5.6/skills/",
+    "./modules/php-7.4/skills/",
+    "./modules/php-8.x/skills/",
     "./modules/yii-1.1/skills/",
     "./modules/phpunit-5.7/skills/",
+    "./modules/phpunit-9/skills/",
+    "./modules/phpunit-10/skills/",
+    "./modules/phpunit-11/skills/",
+    "./modules/laravel-6/skills/",
+    "./modules/laravel-7/skills/",
+    "./modules/laravel-8/skills/",
+    "./modules/laravel-9/skills/",
+    "./modules/laravel-10/skills/",
+    "./modules/laravel-11/skills/",
     "./modules/js/skills/"
   ],
   "userConfig": {
@@ -42,7 +53,7 @@
       "type": "string",
       "multiple": true,
       "title": "Stack modules to enable",
-      "description": "Enable stack modules from modules/. Ships: php-5.6, yii-1.1, phpunit-5.7, js. Module 'requires' validated at SessionStart (warning only). Enabling 'js' wires the ESLint post-edit hook + pre-commit lint/typecheck gate (see modules/js/references/static-checks.md).",
+      "description": "Enable stack modules from modules/. Ships: php-5.6, php-7.4, php-8.x, yii-1.1, phpunit-5.7, phpunit-9, phpunit-10, phpunit-11, laravel-6, laravel-7, laravel-8, laravel-9, laravel-10, laravel-11, js. Module 'requires' validated at SessionStart (warning only). Stack selection is additive for php / laravel / phpunit — library packages spanning versions should enable each version in their composer constraint to get cumulative guidance. Enabling 'js' wires the ESLint post-edit hook + pre-commit lint/typecheck gate; enabling 'php-7.4' wires the php-cs-fixer post-edit hook + pre-commit lint+phpstan+psalm gate (see modules/<name>/references/static-checks.md).",
       "default": []
     },
     "review_trigger_extra_paths": {
@@ -69,6 +80,24 @@
       "title": "JS @ts-check scan path",
       "description": "Path scanned by the /ts-check-status command. Default 'js/'. Override for projects laying out JS under e.g. 'src/' or 'app/javascript/'.",
       "default": "js/"
+    },
+    "php_cs_fixer_bin": {
+      "type": "string",
+      "title": "php-cs-fixer binary path",
+      "description": "Binary invoked by modules/php-7.4/hooks/{post-edit-php-cs-fixer.sh,pre-commit-php-validation.sh}. Default 'vendor/bin/php-cs-fixer'. Override for non-standard locations (global install, docker exec wrapper, monorepo shared bin).",
+      "default": "vendor/bin/php-cs-fixer"
+    },
+    "phpstan_bin": {
+      "type": "string",
+      "title": "phpstan binary path",
+      "description": "Binary invoked by modules/php-7.4/hooks/pre-commit-php-validation.sh when phpstan.neon[.dist] is present. Default 'vendor/bin/phpstan'.",
+      "default": "vendor/bin/phpstan"
+    },
+    "psalm_bin": {
+      "type": "string",
+      "title": "psalm binary path",
+      "description": "Binary invoked by modules/php-7.4/hooks/pre-commit-php-validation.sh when psalm.xml[.dist] is present. Default 'vendor/bin/psalm'.",
+      "default": "vendor/bin/psalm"
     },
     "reap_stale_mcp_processes": {
       "type": "boolean",

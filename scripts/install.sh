@@ -140,19 +140,52 @@ else
     for sid in "${SELECTED_STACKS[@]}"; do
       VERSIONS=()
       while IFS= read -r v; do VERSIONS+=("$v"); done < <(dhpk_catalog_query ".stacks[] | select(.id==\"$sid\") | .versions[].id")
-      chosen="$(dhpk_single_select "Version for $sid:" "${VERSIONS[@]}")"
-      module="$(dhpk_catalog_query ".stacks[] | select(.id==\"$sid\") | .versions[] | select(.id==\"$chosen\") | .module")"
-      SELECTED_MODULES+=("$module")
-      # auto-include required module (e.g. yii-1.1 → php-5.6)
-      required_module="$(dhpk_catalog_query ".stacks[] | select(.id==\"$sid\") | .versions[] | select(.id==\"$chosen\") | .requires_module // \"\"")"
-      if [[ -n "$required_module" ]]; then
-        already=0
-        for m in "${SELECTED_MODULES[@]}"; do [[ "$m" == "$required_module" ]] && already=1; done
-        if [[ $already -eq 0 ]]; then
-          echo "  → $module requires $required_module — auto-included."
-          SELECTED_MODULES+=("$required_module")
+
+      # Selection mode: `exclusive` (default — single-version pick) or `additive`
+      # (library packages can stack multiple versions for cumulative guidance,
+      # e.g. php-7.4 + future php-8.x).
+      mode="$(dhpk_catalog_query ".stacks[] | select(.id==\"$sid\") | .selection // \"exclusive\"" 2>/dev/null)"
+      [[ -z "$mode" ]] && mode="exclusive"
+
+      CHOSEN_VERSIONS=()
+      if [[ "$mode" == "additive" ]]; then
+        while IFS= read -r v; do
+          [[ -n "$v" ]] && CHOSEN_VERSIONS+=("$v")
+        done < <(dhpk_multi_select "Version(s) for $sid (additive — pick one or more):" "${VERSIONS[@]}")
+        if [[ ${#CHOSEN_VERSIONS[@]} -eq 0 ]]; then
+          echo "  → ($sid: nothing selected; skipping)" >&2
+          continue
         fi
+        # Enforce per-version `exclusive: true`. An exclusive pick cannot combine
+        # with siblings (e.g. php-5.6 forbids 7.0+ syntax; combining with php-7.4
+        # would produce contradictory guidance). First exclusive wins; warn the user.
+        for cv in "${CHOSEN_VERSIONS[@]}"; do
+          excl="$(dhpk_catalog_query ".stacks[] | select(.id==\"$sid\") | .versions[] | select(.id==\"$cv\") | .exclusive // false" 2>/dev/null)"
+          if [[ "$excl" == "true" ]] && [[ ${#CHOSEN_VERSIONS[@]} -gt 1 ]]; then
+            echo "  → '$sid:$cv' is exclusive; dropping siblings in this stack." >&2
+            CHOSEN_VERSIONS=("$cv")
+            break
+          fi
+        done
+      else
+        chosen="$(dhpk_single_select "Version for $sid:" "${VERSIONS[@]}")"
+        CHOSEN_VERSIONS=("$chosen")
       fi
+
+      for chosen in "${CHOSEN_VERSIONS[@]}"; do
+        module="$(dhpk_catalog_query ".stacks[] | select(.id==\"$sid\") | .versions[] | select(.id==\"$chosen\") | .module")"
+        SELECTED_MODULES+=("$module")
+        # auto-include required module (e.g. yii-1.1 → php-5.6)
+        required_module="$(dhpk_catalog_query ".stacks[] | select(.id==\"$sid\") | .versions[] | select(.id==\"$chosen\") | .requires_module // \"\"")"
+        if [[ -n "$required_module" ]]; then
+          already=0
+          for m in "${SELECTED_MODULES[@]}"; do [[ "$m" == "$required_module" ]] && already=1; done
+          if [[ $already -eq 0 ]]; then
+            echo "  → $module requires $required_module — auto-included."
+            SELECTED_MODULES+=("$required_module")
+          fi
+        fi
+      done
     done
   else
     echo
