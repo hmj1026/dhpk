@@ -69,7 +69,7 @@ fi
 # Sentinel badge — short labels parallel SENTINEL_NAMES.
 SENTINEL_BADGE=""
 SESS="$ROOT/.claude/artifacts/sessions"
-SHORT=("code" "db" "sec" "fe" "doc")
+SHORT=("code" "db" "sec" "fe" "doc" "poly")
 if [ -d "$SESS" ] && [ "${#SHORT[@]}" -eq "${#SENTINEL_NAMES[@]}" ]; then
     PENDING=()
     for i in "${!SENTINEL_NAMES[@]}"; do
