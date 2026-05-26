@@ -29,7 +29,10 @@ jobs:
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NOTES: ${{ steps.notes.outputs.notes }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
+          # Stream notes via stdin so backticks / $(...) in CHANGELOG are not
+          # expanded by the runner shell when notes are interpolated inline.
+          printf '%s' "$NOTES" | gh release create "$GITHUB_REF_NAME" \
             --title "$GITHUB_REF_NAME" \
-            --notes "${{ steps.notes.outputs.notes }}"
+            --notes-file -
