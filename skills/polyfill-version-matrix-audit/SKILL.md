@@ -1,6 +1,21 @@
 ---
 name: polyfill-version-matrix-audit
-description: Audit multi-major-version polyfill code for branch coverage and test-matrix gaps. Use when a library spans multiple major versions of a dependency (Monolog 2/3, Laravel 6 vs 7+, PHPUnit 8/9/10/11, Yii 1.1 vs 2.x), uses `version_compare` / `class_exists` / `method_exists` / `Composer\InstalledVersions` guards to switch behaviour at runtime, and ships a CI matrix that should exercise every branch. Symptoms that trigger this skill: a recent commit named like "fix: polyfill <feature> for <old-version>", asymmetric polyfill (one branch is rich, the fallback branch is a stub), CI matrix has cells that have never failed because no test enters that branch, composer constraint says `^6.0 || ^7.0 || ^8.0` but the polyfill only has 2 branches not 3. Counterpart to `legacy-code-characterization` (single-version legacy code) and `composer-package-hygiene` (semver / public API). Framework-agnostic — applies to any PHP package whose `require.<dep>` spans multiple major versions.
+description: >-
+  Audit multi-major-version polyfill code for branch coverage and test-matrix
+  gaps. Use when a library spans multiple major versions of a dependency
+  (Monolog 2/3, Laravel 6 vs 7+, PHPUnit 8/9/10/11, Yii 1.1 vs 2.x), uses
+  `version_compare` / `class_exists` / `method_exists` /
+  `Composer\InstalledVersions` guards to switch behaviour at runtime, and
+  ships a CI matrix that should exercise every branch. Symptoms that trigger
+  this skill — a recent commit named like "fix - polyfill <feature> for
+  <old-version>", asymmetric polyfill (one branch is rich, the fallback
+  branch is a stub), CI matrix has cells that have never failed because no
+  test enters that branch, composer constraint says `^6.0 || ^7.0 || ^8.0`
+  but the polyfill only has 2 branches not 3. Counterpart to
+  `legacy-code-characterization` (single-version legacy code) and
+  `composer-package-hygiene` (semver / public API). Framework-agnostic —
+  applies to any PHP package whose `require.<dep>` spans multiple major
+  versions.
 ---
 
 # Polyfill version matrix audit

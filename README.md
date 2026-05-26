@@ -2,7 +2,7 @@
 
 > **Languages**: **English** · [繁體中文](./README.zh-TW.md)
 
-A generic, install-and-go Claude Code harness. Ships **15 role-based agents**, ~65 commands (codex / gitnexus / git / project workflow), ~50 core skills + the `deploy-list` cross-project deploy file list generator, **5-slot sentinel-driven review hooks** (code / db / sec / frontend / doc), statusline, harness scripts, and **four opt-in stack modules** (`php-5.6`, `yii-1.1`, `phpunit-5.7`, `js`). Modules contribute hooks at runtime via the **wrapper-dispatch** model (see [`docs/hook-extension.md`](./docs/hook-extension.md)). Parallel Codex CLI tree included for dual-assistant projects.
+A generic, install-and-go Claude Code harness. Ships **15 role-based agents** (+ 1 module-scoped reviewer), ~65 commands (codex / gitnexus / git / project workflow), ~50 core skills + the `deploy-list` cross-project deploy file list generator, **6-slot sentinel-driven review hooks** (code / db / sec / frontend / doc / **polyfill** — the last via `library-author`), statusline, harness scripts, and **17 opt-in stack modules** across PHP (`php-5.6`, `php-7.4`, `php-8.x`), Yii (`yii-1.1`), PHPUnit (`phpunit-5.7`, `phpunit-9`, `phpunit-10`, `phpunit-11`), Laravel (`laravel-6` through `laravel-11`), JS (`js`), plus the cross-cutting `library-author` module. Modules contribute hooks at runtime via the **wrapper-dispatch** model (see [`docs/hook-extension.md`](./docs/hook-extension.md)). Parallel Codex CLI tree included for dual-assistant projects.
 
 OpenSpec is an **optional external integration** — install the [OpenSpec plugin](https://github.com/Fission-AI/OpenSpec) separately if you want OpenSpec workflow commands. dhpk retains only its own value-add helper `opsx-apply-resume` (long-running OpenSpec session context handoff); the 10 generic OpenSpec wrapper skills/commands were unbundled in v0.2.1 since OpenSpec ships them upstream.
 
@@ -49,12 +49,12 @@ Add `--config` flags to pre-seed config (skip if you'd rather answer interactive
 
 ```bash
 claude plugin install dhpk@dhpk \
-  --config modules=php-5.6,yii-1.1,phpunit-5.7 \
+  --config modules=php-8.x,laravel-11,phpunit-11,library-author \
   --config docker_containers=php-fpm,mysql \
   --config hook_profile=standard
 ```
 
-Pin a specific release by appending a version: `claude plugin install dhpk@dhpk@v0.2.1`. Available stacks/versions live in `manifests/module-catalog.json` (SSOT); curated bundles in `manifests/install-profiles.json`. Docker prerequisites: see [`docs/docker-setup.md`](./docs/docker-setup.md).
+Pin a specific release by appending a version: `claude plugin install dhpk@dhpk@v0.3.1`. Available stacks/versions live in `manifests/module-catalog.json` (SSOT); curated bundles in `manifests/install-profiles.json`. Docker prerequisites: see [`docs/docker-setup.md`](./docs/docker-setup.md).
 
 After install, reconfigure any time from inside Claude Code:
 
@@ -107,10 +107,10 @@ The same actions are available as `/plugin update dhpk`, `/plugin uninstall dhpk
 
 | Component | Count | Notes |
 |-----------|------:|-------|
-| Agents | 15 | 14 invocable + 1 `INDEX.md`. 5 are sentinel-driven reviewers (code / db / sec / **frontend** / **doc**); rest are situational (architect, tdd-guide, refactor-cleaner, ui-ux-verifier, performance-analyzer, doc-updater, docs-lookup, harness-reviser, harness-optimizer) |
-| Commands | ~65 | `dhpk:codex-*`, `dhpk:review-pending`, `dhpk:smart-commit`, `dhpk:ts-check-status` (JS module), `dhpk:opsx-apply-resume` (needs OpenSpec), etc. |
+| Agents | 15 root + 1 module | 5 sentinel-driven reviewers (code / db / sec / **frontend** / **doc**) + the 6th `polyfill-reviewer` shipped by `library-author`. Situational: architect, tdd-guide, refactor-cleaner, ui-ux-verifier, performance-analyzer, doc-updater, docs-lookup, harness-reviser, harness-optimizer, version-matrix-impact-reviewer. |
+| Commands | ~65 | `dhpk:codex-*`, `dhpk:review-pending`, `dhpk:smart-commit`, `dhpk:ts-check-status` (JS module), `dhpk:opsx-apply-resume` (needs OpenSpec), `dhpk:matrix-cell-onboard` (library-author), etc. |
 | Core skills | ~50 + extras | codex-*, gitnexus, tool-routing, dhpk-execution-policy, **deploy-list** (cross-project deploy file list generator), **execution-checklist** (end-of-task self-check), `opsx-apply-resume` helpers (need OpenSpec) |
-| Stack modules | 4 | `php-5.6`, `yii-1.1`, `phpunit-5.7`, `js` (opt-in; see "Modules" below) |
+| Stack modules | 17 | PHP: `php-5.6`, `php-7.4`, `php-8.x` · Yii: `yii-1.1` · PHPUnit: `phpunit-5.7`, `phpunit-9`, `phpunit-10`, `phpunit-11` · Laravel: `laravel-6` … `laravel-11` · `js` · `library-author` (opt-in; see "Modules" below) |
 | Hooks | 5 events | PreToolUse (Edit, Bash + dispatcher), PostToolUse (Edit + dispatcher + async crlf-fix), SessionStart, Stop (stop-review-reminder + reap-stale-sentinels) |
 | Hook dispatchers | 2 | `post-edit-dispatch.sh`, `pre-bash-dispatch.sh` — fan out to active modules' hooks |
 | Harness scripts | 5 | precommit-runner, verify-runner, harness-audit, codemap generator, dep-audit |
@@ -123,9 +123,9 @@ Nine knobs, all settable at install time with `--config <key>=<value>`:
 | Key | Default | Purpose |
 |-----|---------|---------|
 | `hook_profile` | `standard` | `minimal` suppresses Stop reminders; `strict` adds extra warnings |
-| `review_agents` | `["code-reviewer","database-reviewer","security-reviewer","frontend-reviewer","doc-reviewer"]` | Five agents invoked by sentinel reminders. Override to point at your project-specific agents; shorter lists reduce coverage. |
+| `review_agents` | `["code-reviewer","database-reviewer","security-reviewer","frontend-reviewer","doc-reviewer"]` | Five agents invoked by sentinel reminders. Override to point at your project-specific agents; shorter lists reduce coverage. (The 6th `polyfill-reviewer` slot is enabled by the `library-author` module, not via this list.) |
 | `docker_containers` | `[]` | Container names checked at SessionStart. Empty list disables the check. First entry exported as `DHPK_PHP_CONTAINER`; second as `DHPK_MYSQL_CONTAINER`. |
-| `modules` | `[]` | Stack modules to enable. Ships: `php-5.6`, `yii-1.1`, `phpunit-5.7`, `js`. Module `requires:` validated at SessionStart (warning, not blocking). |
+| `modules` | `[]` | Stack modules to enable. Ships: `php-5.6`, `php-7.4`, `php-8.x`, `yii-1.1`, `phpunit-5.7`, `phpunit-9`, `phpunit-10`, `phpunit-11`, `laravel-6`, `laravel-7`, `laravel-8`, `laravel-9`, `laravel-10`, `laravel-11`, `js`, `library-author`. Module `requires:` validated at SessionStart (warning, not blocking). Project-level `.claude/settings.local.json` `pluginConfigs.dhpk@dhpk.options.modules` **overrides** the global value — supports a single dev machine working on projects with different stacks. |
 | `review_trigger_extra_paths` | `[]` | Extra path prefixes per reviewer slot. Format: `<slot>:<prefix>` where slot ∈ `code\|db\|sec\|fe\|doc`. Example: `code:protected/`, `fe:resources/views/`. |
 | `reap_stale_mcp_processes` | `false` | When `true`, SessionStart kills older `gitnexus mcp` processes (keep only newest). Only useful for gitnexus MCP users. |
 | `js_lint_script` | `"lint"` | npm script invoked by the `js` module's pre-commit gate. |
@@ -138,11 +138,15 @@ Examples:
 # Plain install with defaults (5-slot review chain on the default agent names).
 claude plugin install dhpk@dhpk
 
-# PHP/Yii + JS fullstack project.
+# Legacy PHP/Yii + JS fullstack project.
 claude plugin install dhpk@dhpk \
   --config modules=php-5.6,yii-1.1,phpunit-5.7,js \
   --config docker_containers=php-fpm,mysql \
   --config review_agents=code-reviewer-myproj,db-reviewer-myproj,sec-reviewer-myproj,fe-reviewer-myproj,doc-reviewer-myproj
+
+# Modern Laravel package library spanning Laravel 6–11 (with polyfill review).
+claude plugin install dhpk@dhpk \
+  --config modules=php-7.4,php-8.x,laravel-6,laravel-11,phpunit-9,library-author
 ```
 
 See `manifests/install-profiles.json` for curated module bundles.
@@ -165,12 +169,24 @@ All other skills (~50) have no MCP dependencies.
 
 ## Modules
 
-A **module** is a labeled, version-tagged bundle of skills + references + hooks + trigger contributions, gated by `userConfig.modules`. v0.2.0 ships:
+A **module** is a labeled, version-tagged bundle of skills + references + hooks + trigger contributions, gated by `userConfig.modules`. Modules across the same axis (PHP / Laravel / PHPUnit) are **additive** — a library spanning Laravel 6–11 should enable each version to get cumulative guidance. Currently shipped:
 
-- **`php-5.6`** — PHP 5.6 language baseline. Forbids 7.0+ syntax; polyfill guidance.
-- **`yii-1.1`** — Yii 1.1 framework: alias autoload, `CActiveRecord` / `CDbCriteria`, `accessRules`, XSS / CSRF defaults. Requires `php-5.6`.
+**PHP language baselines** — pick the version(s) your composer `require.php` constraint spans:
+- **`php-5.6`** — forbids 7.0+ syntax; polyfill guidance.
+- **`php-7.4`** — typed properties, arrow functions, null coalescing assignment. Wires the **php-cs-fixer post-edit hook** + pre-commit lint + phpstan + psalm gate.
+- **`php-8.x`** — readonly, enums, match, named args, attributes, first-class callable syntax.
+
+**Frameworks**:
+- **`yii-1.1`** — Yii 1.1: alias autoload, `CActiveRecord` / `CDbCriteria`, `accessRules`, XSS / CSRF defaults. Requires `php-5.6`.
+- **`laravel-6`** … **`laravel-11`** — one module per major. Per-version: Eloquent / collection / cast / migration / queue / event / mail / notification / package-discovery deltas; Testbench mapping; deprecation walls.
+
+**Testing**:
 - **`phpunit-5.7`** — PHPUnit 5.7 assertion API and patterns. Requires `php-5.6`.
+- **`phpunit-9`** / **`phpunit-10`** / **`phpunit-11`** — per-major API deltas (`createMock` vs `createPartialMock`, attribute-based metadata, deprecation surface).
+
+**Tooling / cross-cutting**:
 - **`js`** — JS / TS tooling. ESLint flat-config tier strategy (Tier 1 strict / 1.5 core-exempt / 1.7 deferred-migration / globals), per-leaf `// @ts-check` rollout, async post-edit ESLint feedback, pre-commit `npm run <lint> + <typecheck>` gate. Framework-agnostic.
+- **`library-author`** — Cross-cutting glue for multi-major-version PHP libraries (Laravel 6–11, Monolog 2/3, PHPUnit 8–11, Flysystem 1/3 etc.). Ships the **sixth-color** `polyfill-reviewer` agent (sentinel-driven via `.pending-polyfill-review`), the `polyfill-version-matrix-audit` skill, the `matrix-cell-onboard` skill (+ root-level `/dhpk:matrix-cell-onboard` alias), an OpenSpec artifact guard, and a dual-testsuite mapping helper. Auto-fires on `.php` edits containing runtime version guards (`version_compare`, `class_exists`, `method_exists`, `Composer\InstalledVersions::*`).
 
 When enabled, a module:
 - Surfaces its skills under `dhpk:<skill-name>` (e.g. `dhpk:php-pro`, `dhpk:yii1-security-audit`, `dhpk:js-lint-config`).
@@ -270,13 +286,15 @@ dhpk/
 │   ├── marketplace.json          # one-entry marketplace (plugins[0].source: "./")
 │   └── plugin.json               # plugin manifest with userConfig
 ├── agents/                       # 15 role-based agents (INDEX.md is navigation)
-├── commands/                     # ~65 slash commands (codex-*, smart-commit, opsx-apply-resume, ...)
+├── commands/                     # ~65 slash commands (codex-*, smart-commit, opsx-apply-resume, matrix-cell-onboard, ...)
 ├── skills/                       # ~50 core skills (codex-*, tool-routing, dhpk-execution-policy, opsx-apply-resume helpers, ...)
-├── modules/                      # opt-in stack modules
-│   ├── php-5.6/{module.yaml, skills/, references/}
-│   ├── yii-1.1/...
-│   ├── phpunit-5.7/...
-│   └── js/{module.yaml, hooks/, skills/, commands/, references/}
+├── modules/                      # 17 opt-in stack modules
+│   ├── php-5.6/, php-7.4/, php-8.x/        # {module.yaml, skills/, references/, hooks/ (php-7.4 only)}
+│   ├── yii-1.1/                            # Yii 1.1 framework
+│   ├── phpunit-5.7/, phpunit-9/, phpunit-10/, phpunit-11/
+│   ├── laravel-6/ … laravel-11/            # one per major
+│   ├── js/{module.yaml, hooks/, skills/, commands/, references/}
+│   └── library-author/{module.yaml, agents/, skills/, hooks/, references/}
 ├── hooks/hooks.json              # PreToolUse / PostToolUse / SessionStart / Stop wiring
 ├── scripts/
 │   ├── hooks/                    # core hooks incl. post-edit-dispatch.sh, pre-bash-dispatch.sh, reap-stale-sentinels.sh, _lib/{payload,portable-sed}.sh

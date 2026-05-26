@@ -1,5 +1,82 @@
 # Changelog
 
+## 0.3.1 — 2026-05-26 — Fix plugin.json agents schema regression + SKILL.md frontmatter
+
+v0.3.0 shipped two latent manifest bugs that turned out to be installation
+blockers in the wild. A consumer (`hmj1026/devkit`) tried to install the
+new `library-author` module and got back:
+
+```
+Plugin dhpk has an invalid manifest file at
+~/.claude/plugins/cache/dhpk/dhpk/8cb34b318356/.claude-plugin/plugin.json.
+Validation errors: agents: Invalid input
+```
+
+The cache had **already fetched** the v0.3.0 commit successfully — the
+manifest validator rejected it post-fetch, so no part of the plugin
+loaded. The promised library-author module wasn't merely missing; the
+entire dhpk plugin was unreachable.
+
+### Fixed
+
+- **`.claude-plugin/plugin.json` — `agents` field schema**: v0.3.0 used
+  directory paths (`["./agents/", "./modules/library-author/agents/"]`),
+  but the Claude Code v2.1.150 plugin manifest schema requires individual
+  `.md` file paths (per
+  [plugins-reference](https://code.claude.com/docs/en/plugins-reference.md),
+  line 384 / 567). Switched to enumerating each agent `.md`:
+  15 root agents + 1 module agent (`polyfill-reviewer.md`).
+  `commands` schema was looser and tolerated `["./commands/"]`, so it
+  stays unchanged this release — only the failing field was touched.
+- **`skills/polyfill-version-matrix-audit/SKILL.md` frontmatter**: the
+  `description` value contained `Symptoms that trigger this skill:` —
+  a mid-line `:` + space + text, which YAML parses as a mapping value
+  inside the already-implicit description mapping. Result: YAML parser
+  emitted `Unexpected token` and Claude Code **silently loaded the skill
+  with empty metadata** (no `name`, no `description`, no matchers). The
+  skill was effectively inert for matching. Rewrote `description` as a
+  folded block scalar (`>-`) and replaced the inner `:` with ` — ` to
+  remove the parse ambiguity. Wording preserved so claude-mem corpora and
+  skill matchers still hit the same keywords.
+- **`.claude-plugin/marketplace.json` description**: still listed
+  `(php-5.6, yii-1.1, phpunit-5.7)` — three of the seventeen modules
+  dhpk ships today. Synced to the v0.3.x surface (PHP 5.6/7.4/8.x,
+  Yii 1.1, PHPUnit 5.7/9/10/11, Laravel 6–11, JS, library-author) and
+  added the 6-slot reviewer note.
+- **`.claude-plugin/plugin.json` `description`**: same drift — updated.
+- **`README.md`** — synced the top-line summary, agents/modules count
+  table, `userConfig.modules` ships list, Modules section bodies, and
+  repository-layout tree to actually describe what v0.3.x contains.
+  Bumped the pinned-version example from `v0.2.1` to `v0.3.1`. Added a
+  modern-Laravel-library install example alongside the legacy PHP/Yii
+  example.
+
+### Verified
+
+- `claude plugin validate /home/paul/projects/dhpk/.claude-plugin/plugin.json`
+  → `✔ Validation passed` (no `agents: Invalid input`, no SKILL frontmatter
+  error in the bundled skill scan).
+- `claude plugin validate /home/paul/projects/dhpk/` (full plugin +
+  marketplace) → both pass.
+- Downstream cache invalidation round-trip on `hmj1026/devkit`:
+  - `rm -rf ~/.claude/plugins/cache/dhpk/`
+  - new Claude Code session
+  - no "Invalid manifest" error
+  - `~/.claude/plugins/cache/dhpk/dhpk/0.3.1/` materialises
+  - `/agents` lists `dhpk:polyfill-reviewer`
+  - editing a `.php` file containing `version_compare` writes
+    `.pending-polyfill-review` and the next prompt fires the reviewer.
+
+### Upgrade notes
+
+- Anyone who tried to install v0.3.0 and saw the "invalid manifest"
+  error: clear `~/.claude/plugins/cache/dhpk/` once, then reinstall;
+  v0.3.1 onwards is the first **actually-installable** release in the
+  0.3.x line.
+- v0.3.0 git tag and GitHub Release remain in place (no force-push) to
+  avoid breaking downstream caches that did manage to extract it before
+  validation. They should be treated as superseded by 0.3.1.
+
 ## 0.3.0 — 2026-05-25 — Ship library-author module (sixth-color polyfill reviewer)
 
 Three previous commits landed the `library-author` module on `main` —

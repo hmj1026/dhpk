@@ -10,7 +10,7 @@
     {
       "name": "dhpk",
       "source": "./",
-      "description": "Generic Claude Code harness — agents, commands, skills, hooks, opt-in stack modules (php-5.6, yii-1.1, phpunit-5.7), Codex dual-track."
+      "description": "Generic Claude Code harness — 15 role-based agents, ~65 commands, ~50 core skills, 6-slot sentinel-driven review hooks (code/db/sec/frontend/doc/polyfill), opt-in stack modules across PHP (5.6, 7.4, 8.x), Yii (1.1), PHPUnit (5.7, 9, 10, 11), Laravel (6–11), JS, plus the library-author cross-cutting module for multi-major-version libraries. Wrapper-dispatch hook extension model, parallel Codex CLI tree."
     }
   ]
 }
