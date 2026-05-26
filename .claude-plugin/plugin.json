@@ -2,8 +2,8 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "dhpk",
   "displayName": "DHPK Dev Harness",
-  "version": "0.3.0",
-  "description": "Reusable Claude Code harness — generic core + opt-in stack modules (php-5.6, php-7.4, php-8.x, yii-1.1, phpunit-5.7, phpunit-9, phpunit-10, phpunit-11, laravel-6 through laravel-11, js, library-author). 5-slot sentinel-driven review hooks (code / db / sec / frontend / doc), parameterised docker/agent names, wrapper-dispatch hook extension model, parallel Codex CLI tree. The library-author module adds a sixth-color polyfill reviewer for multi-major-version PHP libraries.",
+  "version": "0.3.1",
+  "description": "Reusable Claude Code harness — 15 generic role-based agents + ~65 commands + opt-in stack modules across PHP (5.6, 7.4, 8.x), Yii (1.1), PHPUnit (5.7, 9, 10, 11), Laravel (6–11), JS, and the library-author cross-cutting module. 6-slot sentinel-driven review hooks (code / db / sec / frontend / doc / polyfill — polyfill via library-author), parameterised docker/agent names, wrapper-dispatch hook extension model, parallel Codex CLI tree.",
   "author": {
     "name": "hmj1026",
     "url": "https://github.com/hmj1026"
@@ -30,8 +30,22 @@
     "./modules/library-author/skills/"
   ],
   "agents": [
-    "./agents/",
-    "./modules/library-author/agents/"
+    "./agents/architect.md",
+    "./agents/code-reviewer.md",
+    "./agents/database-reviewer.md",
+    "./agents/doc-reviewer.md",
+    "./agents/doc-updater.md",
+    "./agents/docs-lookup.md",
+    "./agents/frontend-reviewer.md",
+    "./agents/harness-optimizer.md",
+    "./agents/harness-reviser.md",
+    "./agents/performance-analyzer.md",
+    "./agents/refactor-cleaner.md",
+    "./agents/security-reviewer.md",
+    "./agents/tdd-guide.md",
+    "./agents/ui-ux-verifier.md",
+    "./agents/version-matrix-impact-reviewer.md",
+    "./modules/library-author/agents/polyfill-reviewer.md"
   ],
   "commands": [
     "./commands/"
