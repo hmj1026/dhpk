@@ -2,7 +2,7 @@
 
 > **語言**: [English](./README.md) · **繁體中文**
 
-通用、安裝即用的 Claude Code harness。內含 **15 個角色導向 agent**、約 65 個指令（codex / gitnexus / git / 專案工作流）、約 50 個核心 skill 加上跨專案的 `deploy-list` 部署清單產生器、**5-slot sentinel 驅動的 review hook**（code / db / sec / frontend / doc）、statusline、harness 腳本，以及**四個可選用的技術棧模組**（`php-5.6`、`yii-1.1`、`phpunit-5.7`、`js`）。模組可透過 **wrapper-dispatch** 模型在 runtime 提供 hook（詳見 [`docs/hook-extension.md`](./docs/hook-extension.md)）。內附平行的 Codex CLI 樹，適用於雙助理（Claude + Codex）專案。
+通用、安裝即用的 Claude Code harness。內含 **15 個角色導向 agent**（+1 個模組範圍的 reviewer）、約 65 個指令（codex / gitnexus / git / 專案工作流）、約 55 個核心 skill 加上跨專案的 `deploy-list` 部署清單產生器、**6-slot sentinel 驅動的 review hook**（code / db / sec / frontend / doc / **polyfill** — 最後一個由 `library-author` 提供）、statusline、harness 腳本，以及 **16 個可選用的技術棧模組**（PHP：`php-5.6`、`php-7.4`、`php-8.x`；Yii：`yii-1.1`；PHPUnit：`phpunit-5.7`、`phpunit-9`、`phpunit-10`、`phpunit-11`；Laravel：`laravel-6` 至 `laravel-11`；`js`；加上跨版本的 `library-author`）。模組可透過 **wrapper-dispatch** 模型在 runtime 提供 hook（詳見 [`docs/hook-extension.md`](./docs/hook-extension.md)）。內附平行的 Codex CLI 樹，適用於雙助理（Claude + Codex）專案。
 
 OpenSpec 是**可選的外部整合**——若需要 OpenSpec 工作流指令，請另行安裝 [OpenSpec 插件](https://github.com/Fission-AI/OpenSpec)。dhpk 僅保留自家加值的 `opsx-apply-resume`（長時間 OpenSpec 工作階段的 context handoff）；v0.2.1 起，10 個通用 OpenSpec wrapper skill/command 已從套件中移除，由 OpenSpec 上游提供。
 
@@ -49,12 +49,12 @@ claude plugin install dhpk@dhpk
 
 ```bash
 claude plugin install dhpk@dhpk \
-  --config modules=php-5.6,yii-1.1,phpunit-5.7 \
+  --config modules=php-8.x,laravel-11,phpunit-11,library-author \
   --config docker_containers=php-fpm,mysql \
   --config hook_profile=standard
 ```
 
-要鎖定特定版本，後面接版本號：`claude plugin install dhpk@dhpk@v0.2.1`。可用技術棧／版本列在 `manifests/module-catalog.json`（SSOT）；精選組合在 `manifests/install-profiles.json`。Docker 前置須知請見 [`docs/docker-setup.md`](./docs/docker-setup.md)。
+要鎖定特定版本，後面接版本號：`claude plugin install dhpk@dhpk@v0.3.2`。可用技術棧／版本列在 `manifests/module-catalog.json`（SSOT）；精選組合在 `manifests/install-profiles.json`。Docker 前置須知請見 [`docs/docker-setup.md`](./docs/docker-setup.md)。
 
 安裝後，可隨時在 Claude Code 內重新設定：
 
@@ -107,14 +107,14 @@ claude plugin marketplace remove dhpk  # 忘記 marketplace 註冊
 
 | 元件 | 數量 | 說明 |
 |------|----:|------|
-| Agents | 15 | 14 個可呼叫 + 1 份 `INDEX.md`。其中 5 個為 sentinel 驅動的 reviewer（code / db / sec / **frontend** / **doc**），其餘為情境型（architect、tdd-guide、refactor-cleaner、ui-ux-verifier、performance-analyzer、doc-updater、docs-lookup、harness-reviser、harness-optimizer） |
-| Commands | ~65 | `dhpk:codex-*`、`dhpk:review-pending`、`dhpk:smart-commit`、`dhpk:ts-check-status`（JS 模組）、`dhpk:opsx-apply-resume`（需 OpenSpec）等 |
-| 核心 skills | ~50 加上 | codex-*、gitnexus、tool-routing、dhpk-execution-policy、**deploy-list**（跨專案部署清單產生器）、**execution-checklist**（任務收尾自檢）、`opsx-apply-resume` 配套（需 OpenSpec） |
-| 技術棧模組 | 4 | `php-5.6`、`yii-1.1`、`phpunit-5.7`、`js`（選用；詳見下方「模組」） |
+| Agents | 15 root + 1 module | 5 個 sentinel 驅動的 reviewer（code / db / sec / **frontend** / **doc**）+ 第 6 個 `polyfill-reviewer` 由 `library-author` 提供。情境型：architect、tdd-guide、refactor-cleaner、ui-ux-verifier、performance-analyzer、doc-updater、docs-lookup、harness-reviser、harness-optimizer、version-matrix-impact-reviewer。 |
+| Commands | ~65 | `dhpk:codex-*`、`dhpk:review-pending`、`dhpk:smart-commit`、`dhpk:ts-check-status`（JS 模組）、`dhpk:opsx-apply-resume`（需 OpenSpec）、`dhpk:matrix-cell-onboard`（library-author）等 |
+| 核心 skills | ~55 加上 | codex-*、gitnexus、tool-routing、dhpk-execution-policy、**deploy-list**（跨專案部署清單產生器）、**execution-checklist**（任務收尾自檢）、`opsx-apply-resume` 配套（需 OpenSpec） |
+| 技術棧模組 | 16 | PHP：`php-5.6`、`php-7.4`、`php-8.x` · Yii：`yii-1.1` · PHPUnit：`phpunit-5.7`、`phpunit-9`、`phpunit-10`、`phpunit-11` · Laravel：`laravel-6` … `laravel-11` · `js` · `library-author`（選用；詳見下方「模組」） |
 | Hooks | 5 個事件 | PreToolUse（Edit、Bash + dispatcher）、PostToolUse（Edit + dispatcher + async crlf-fix）、SessionStart、Stop（stop-review-reminder + reap-stale-sentinels） |
-| Hook dispatcher | 2 | `post-edit-dispatch.sh`、`pre-bash-dispatch.sh` — 分派到啟用模組的 hook |
+| Hook dispatchers | 2 | `post-edit-dispatch.sh`、`pre-bash-dispatch.sh` — 分派到啟用模組的 hook |
 | Harness 腳本 | 5 | precommit-runner、verify-runner、harness-audit、codemap generator、dep-audit |
-| Codex 雙軌 | 24 skills + 5 agents | 由 `install-codex-skills.sh` 同步進專案的 `.codex/` |
+| Codex 雙軌 | 14 skills + 1 agent（5 個 config profile） | 由 `install-codex-skills.sh` 同步進專案的 `.codex/` |
 
 ## userConfig
 
@@ -123,9 +123,9 @@ claude plugin marketplace remove dhpk  # 忘記 marketplace 註冊
 | Key | 預設值 | 用途 |
 |-----|--------|------|
 | `hook_profile` | `standard` | `minimal` 抑制 Stop 提醒；`strict` 增加額外警告 |
-| `review_agents` | `["code-reviewer","database-reviewer","security-reviewer","frontend-reviewer","doc-reviewer"]` | 被 sentinel 提醒呼叫的 5 個 agent。可覆寫指向你專案特定的 agent；傳入較短的清單會縮減覆蓋範圍。 |
+| `review_agents` | `["code-reviewer","database-reviewer","security-reviewer","frontend-reviewer","doc-reviewer"]` | 被 sentinel 提醒呼叫的 5 個 agent。可覆寫指向你專案特定的 agent；傳入較短的清單會縮減覆蓋範圍。（第 6 個 `polyfill-reviewer` slot 由 `library-author` 模組啟用，不在此清單中。） |
 | `docker_containers` | `[]` | 在 SessionStart 檢查的 container 名稱。空陣列代表停用該檢查。第一筆會輸出為 `DHPK_PHP_CONTAINER`；第二筆為 `DHPK_MYSQL_CONTAINER`。 |
-| `modules` | `[]` | 要啟用的技術棧模組。內附：`php-5.6`、`yii-1.1`、`phpunit-5.7`、`js`。模組的 `requires:` 在 SessionStart 驗證（僅警告、不阻擋）。 |
+| `modules` | `[]` | 要啟用的技術棧模組。內附 16 個：`php-5.6`、`php-7.4`、`php-8.x`、`yii-1.1`、`phpunit-5.7`、`phpunit-9`、`phpunit-10`、`phpunit-11`、`laravel-6`、`laravel-7`、`laravel-8`、`laravel-9`、`laravel-10`、`laravel-11`、`js`、`library-author`。模組的 `requires:` 在 SessionStart 驗證（僅警告、不阻擋）。專案層級的 `.claude/settings.local.json` `pluginConfigs.dhpk@dhpk.options.modules` 可**覆寫**全域值——讓單台開發機同時服務不同技術棧的多個專案。 |
 | `review_trigger_extra_paths` | `[]` | 每個 reviewer slot 的額外路徑前綴。格式：`<slot>:<prefix>`，slot 屬於 `code\|db\|sec\|fe\|doc`。例：`code:protected/`、`fe:resources/views/`。 |
 | `reap_stale_mcp_processes` | `false` | 設 `true` 時，SessionStart 會 reap 舊的 `gitnexus mcp` process（只留最新）。僅 gitnexus MCP 使用者需要。 |
 | `js_lint_script` | `"lint"` | `js` 模組 pre-commit gate 執行的 npm script 名稱。 |
@@ -135,42 +135,58 @@ claude plugin marketplace remove dhpk  # 忘記 marketplace 註冊
 範例：
 
 ```bash
-# 以預設值純安裝（5-slot 預設 agent 名稱）。
+# 以預設值純安裝（6-slot 預設 agent 名稱）。
 claude plugin install dhpk@dhpk
 
-# PHP/Yii + JS 全端專案。
+# 舊版 PHP/Yii + JS 全端專案。
 claude plugin install dhpk@dhpk \
   --config modules=php-5.6,yii-1.1,phpunit-5.7,js \
   --config docker_containers=php-fpm,mysql \
   --config review_agents=code-reviewer-myproj,db-reviewer-myproj,sec-reviewer-myproj,fe-reviewer-myproj,doc-reviewer-myproj
+
+# 橫跨 Laravel 6–11 的現代 PHP 套件函式庫（含 polyfill review）。
+claude plugin install dhpk@dhpk \
+  --config modules=php-7.4,php-8.x,laravel-6,laravel-11,phpunit-9,library-author
 ```
 
 精選的模組組合請見 `manifests/install-profiles.json`。
 
 ## 需要 MCP 依賴的 skill
 
-14 個 skill 需要 **Codex MCP server**（`mcp__codex__codex`、`mcp__codex__codex-reply`）：
+13 個 skill 需要 **Codex MCP server**（`mcp__codex__codex`、`mcp__codex__codex-reply`）：
 
 ```
 codex-architect       codex-brainstorm     codex-cli-review
 codex-code-review     codex-explain        codex-implement
 codex-review-doc      codex-review         codex-review-branch
 codex-review-fast     codex-security       codex-test-gen
-codex-test-review     codex-test-review
+codex-test-review
 ```
 
 未安裝 Codex 時，呼叫上述任一 skill 會出現工具權限錯誤。請另行安裝（請參考 Anthropic 的 Codex 文件），安裝後即可使用。
 
-其他 skill（約 50 個）沒有 MCP 依賴。
+其他 skill（約 42 個）沒有 MCP 依賴。
 
 ## 模組
 
-**模組**是有標籤、有版本號的 skill + 參考資料 + hook + trigger 貢獻組合，由 `userConfig.modules` 控管啟用。v0.2.0 內附：
+**模組**是有標籤、有版本號的 skill + 參考資料 + hook + trigger 貢獻組合，由 `userConfig.modules` 控管啟用。同一軸線（PHP / Laravel / PHPUnit）的模組是**加法式**的——橫跨 Laravel 6–11 的函式庫應全數啟用以取得累積指引。目前內附：
 
-- **`php-5.6`** — PHP 5.6 語言基線。禁止 7.0+ 語法；提供 polyfill 指引。
-- **`yii-1.1`** — Yii 1.1 框架：alias autoload、`CActiveRecord` / `CDbCriteria`、`accessRules`、XSS / CSRF 預設。需要 `php-5.6`。
+**PHP 語言基線** — 依你 composer `require.php` 約束涵蓋的版本選擇：
+- **`php-5.6`** — 禁止 7.0+ 語法；提供 polyfill 指引。
+- **`php-7.4`** — typed properties、arrow functions、null coalescing assignment。連線 **php-cs-fixer post-edit hook** + pre-commit lint + phpstan + psalm gate。
+- **`php-8.x`** — readonly、enums、match、named args、attributes、first-class callable syntax。
+
+**框架**：
+- **`yii-1.1`** — Yii 1.1：alias autoload、`CActiveRecord` / `CDbCriteria`、`accessRules`、XSS / CSRF 預設。需要 `php-5.6`。
+- **`laravel-6`** … **`laravel-11`** — 每個主版本一個模組。各版本：Eloquent / collection / cast / migration / queue / event / mail / notification / package-discovery 差異；Testbench 對照；deprecated 牆。
+
+**測試**：
 - **`phpunit-5.7`** — PHPUnit 5.7 assertion API 與用法。需要 `php-5.6`。
+- **`phpunit-9`** / **`phpunit-10`** / **`phpunit-11`** — 各主版本 API 差異（`createMock` vs `createPartialMock`、attribute-based metadata、deprecation surface）。
+
+**工具 / 跨版本**：
 - **`js`** — JS / TS 工具鏈。ESLint flat-config 分層策略（Tier 1 嚴格 / 1.5 core-exempt / 1.7 deferred-migration / globals）、per-leaf `// @ts-check` 漸進啟用、async post-edit ESLint 反饋、pre-commit `npm run <lint> + <typecheck>` gate。框架無關。
+- **`library-author`** — 多主版本 PHP 函式庫（Laravel 6–11、Monolog 2/3、PHPUnit 8–11、Flysystem 1/3 等）的跨版本膠水。附帶**第六色** `polyfill-reviewer` agent（透過 `.pending-polyfill-review` sentinel 驅動）、`polyfill-version-matrix-audit` skill、`matrix-cell-onboard` skill（+ 根目錄 `/dhpk:matrix-cell-onboard` 別名）、OpenSpec artifact guard，以及雙測試套件映射輔助。在包含 runtime 版本 guard（`version_compare`、`class_exists`、`method_exists`、`Composer\InstalledVersions::*`）的 `.php` 編輯時自動觸發。
 
 啟用後，模組會：
 - 將其 skill 以 `dhpk:<skill-name>` 形式暴露（例如 `dhpk:php-pro`、`dhpk:yii1-security-audit`、`dhpk:js-lint-config`）。
@@ -270,13 +286,15 @@ dhpk/
 │   ├── marketplace.json          # 單一條目的 marketplace（plugins[0].source: "./"）
 │   └── plugin.json               # 含 userConfig 的插件 manifest
 ├── agents/                       # 15 個角色 agent（INDEX.md 為導覽用）
-├── commands/                     # ~65 個 slash 指令（codex-*、smart-commit、opsx-apply-resume 等）
-├── skills/                       # ~50 個核心 skill（codex-*、tool-routing、dhpk-execution-policy、opsx-apply-resume 配套等）
-├── modules/                      # 可選用的技術棧模組
-│   ├── php-5.6/{module.yaml, skills/, references/}
-│   ├── yii-1.1/...
-│   ├── phpunit-5.7/...
-│   └── js/{module.yaml, hooks/, skills/, commands/, references/}
+├── commands/                     # ~65 個 slash 指令（codex-*、smart-commit、opsx-apply-resume、matrix-cell-onboard 等）
+├── skills/                       # ~55 個核心 skill（codex-*、tool-routing、dhpk-execution-policy、opsx-apply-resume 配套等）
+├── modules/                      # 16 個可選用的技術棧模組
+│   ├── php-5.6/, php-7.4/, php-8.x/        # {module.yaml, skills/, references/, hooks/（僅 php-7.4）}
+│   ├── yii-1.1/                            # Yii 1.1 框架
+│   ├── phpunit-5.7/, phpunit-9/, phpunit-10/, phpunit-11/
+│   ├── laravel-6/ … laravel-11/            # 每個主版本一個
+│   ├── js/{module.yaml, hooks/, skills/, commands/, references/}
+│   └── library-author/{module.yaml, agents/, skills/, hooks/, references/}
 ├── hooks/hooks.json              # PreToolUse / PostToolUse / SessionStart / Stop 連線設定
 ├── scripts/
 │   ├── hooks/                    # 核心 hook，含 post-edit-dispatch.sh、pre-bash-dispatch.sh、reap-stale-sentinels.sh、_lib/{payload,portable-sed}.sh
