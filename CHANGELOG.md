@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.3.2 — 2026-05-26 — Validate release workflow stdin pipe
+
+Purely a CI-infrastructure release. v0.3.1 tag-push failed at the GitHub
+Release step because the workflow inlined CHANGELOG body directly into a
+gh release create --notes argument; the runner shell then tried to expand
+backticks and dollar-paren in the body as command substitutions, emitting
+a flood of command-not-found errors. The release page for v0.3.1 was
+manually patched in afterwards. The workflow fix was committed to main as
+4689a3f but has not yet been exercised by an actual tag push. This
+release exists solely to drive that exercise on a real CI run.
+
+### Fixed
+
+- .github/workflows/release.yml now passes the extracted notes through
+  an env: variable and streams them via printf piped into
+  gh release create --notes-file -, so CHANGELOG bodies that contain
+  backticks or dollar-paren can no longer be interpreted by the runner
+  shell. Future releases whose CHANGELOG entry uses code spans are now
+  safe to tag-push without manual recovery.
+
+### Verified
+
+- If you can read this release body on the GitHub Releases page with
+  the markdown intact, the fix landed: this body itself is deliberately
+  written WITHOUT backticks or dollar-paren so that a defective workflow
+  would still succeed to publish the page, while the v0.3.1 body further
+  down in CHANGELOG.md (which is full of code spans) exercises the
+  awk-extract step on shell-hostile content during local pre-verify.
+
+### Non-changes
+
+- No agent, skill, command, module, hook, or manifest change beyond the
+  version bump in .claude-plugin/plugin.json and the pinned-version
+  example in README.md. Users on v0.3.1 have no functional reason to
+  upgrade; this is a release-pipeline confidence checkpoint.
+
 ## 0.3.1 — 2026-05-26 — Fix plugin.json agents schema regression + SKILL.md frontmatter
 
 v0.3.0 shipped two latent manifest bugs that turned out to be installation
