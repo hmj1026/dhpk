@@ -2,7 +2,7 @@
 
 > **Languages**: **English** · [繁體中文](./README.zh-TW.md)
 
-A generic, install-and-go Claude Code harness. Ships **15 role-based agents** (+ 1 module-scoped reviewer), ~65 commands (codex / gitnexus / git / project workflow), ~50 core skills + the `deploy-list` cross-project deploy file list generator, **6-slot sentinel-driven review hooks** (code / db / sec / frontend / doc / **polyfill** — the last via `library-author`), statusline, harness scripts, and **17 opt-in stack modules** across PHP (`php-5.6`, `php-7.4`, `php-8.x`), Yii (`yii-1.1`), PHPUnit (`phpunit-5.7`, `phpunit-9`, `phpunit-10`, `phpunit-11`), Laravel (`laravel-6` through `laravel-11`), JS (`js`), plus the cross-cutting `library-author` module. Modules contribute hooks at runtime via the **wrapper-dispatch** model (see [`docs/hook-extension.md`](./docs/hook-extension.md)). Parallel Codex CLI tree included for dual-assistant projects.
+A generic, install-and-go Claude Code harness. Ships **15 role-based agents** (+ 1 module-scoped reviewer), ~65 commands (codex / gitnexus / git / project workflow), ~55 core skills + the `deploy-list` cross-project deploy file list generator, **6-slot sentinel-driven review hooks** (code / db / sec / frontend / doc / **polyfill** — the last via `library-author`), statusline, harness scripts, and **16 opt-in stack modules** across PHP (`php-5.6`, `php-7.4`, `php-8.x`), Yii (`yii-1.1`), PHPUnit (`phpunit-5.7`, `phpunit-9`, `phpunit-10`, `phpunit-11`), Laravel (`laravel-6` through `laravel-11`), JS (`js`), plus the cross-cutting `library-author` module. Modules contribute hooks at runtime via the **wrapper-dispatch** model (see [`docs/hook-extension.md`](./docs/hook-extension.md)). Parallel Codex CLI tree included for dual-assistant projects.
 
 OpenSpec is an **optional external integration** — install the [OpenSpec plugin](https://github.com/Fission-AI/OpenSpec) separately if you want OpenSpec workflow commands. dhpk retains only its own value-add helper `opsx-apply-resume` (long-running OpenSpec session context handoff); the 10 generic OpenSpec wrapper skills/commands were unbundled in v0.2.1 since OpenSpec ships them upstream.
 
@@ -109,12 +109,12 @@ The same actions are available as `/plugin update dhpk`, `/plugin uninstall dhpk
 |-----------|------:|-------|
 | Agents | 15 root + 1 module | 5 sentinel-driven reviewers (code / db / sec / **frontend** / **doc**) + the 6th `polyfill-reviewer` shipped by `library-author`. Situational: architect, tdd-guide, refactor-cleaner, ui-ux-verifier, performance-analyzer, doc-updater, docs-lookup, harness-reviser, harness-optimizer, version-matrix-impact-reviewer. |
 | Commands | ~65 | `dhpk:codex-*`, `dhpk:review-pending`, `dhpk:smart-commit`, `dhpk:ts-check-status` (JS module), `dhpk:opsx-apply-resume` (needs OpenSpec), `dhpk:matrix-cell-onboard` (library-author), etc. |
-| Core skills | ~50 + extras | codex-*, gitnexus, tool-routing, dhpk-execution-policy, **deploy-list** (cross-project deploy file list generator), **execution-checklist** (end-of-task self-check), `opsx-apply-resume` helpers (need OpenSpec) |
-| Stack modules | 17 | PHP: `php-5.6`, `php-7.4`, `php-8.x` · Yii: `yii-1.1` · PHPUnit: `phpunit-5.7`, `phpunit-9`, `phpunit-10`, `phpunit-11` · Laravel: `laravel-6` … `laravel-11` · `js` · `library-author` (opt-in; see "Modules" below) |
+| Core skills | ~55 + extras | codex-*, gitnexus, tool-routing, dhpk-execution-policy, **deploy-list** (cross-project deploy file list generator), **execution-checklist** (end-of-task self-check), `opsx-apply-resume` helpers (need OpenSpec) |
+| Stack modules | 16 | PHP: `php-5.6`, `php-7.4`, `php-8.x` · Yii: `yii-1.1` · PHPUnit: `phpunit-5.7`, `phpunit-9`, `phpunit-10`, `phpunit-11` · Laravel: `laravel-6` … `laravel-11` · `js` · `library-author` (opt-in; see "Modules" below) |
 | Hooks | 5 events | PreToolUse (Edit, Bash + dispatcher), PostToolUse (Edit + dispatcher + async crlf-fix), SessionStart, Stop (stop-review-reminder + reap-stale-sentinels) |
 | Hook dispatchers | 2 | `post-edit-dispatch.sh`, `pre-bash-dispatch.sh` — fan out to active modules' hooks |
 | Harness scripts | 5 | precommit-runner, verify-runner, harness-audit, codemap generator, dep-audit |
-| Codex dual-track | 24 skills + 5 agents | Synced into project `.codex/` by `install-codex-skills.sh` |
+| Codex dual-track | 14 skills + 1 agent (5 config profiles) | Synced into project `.codex/` by `install-codex-skills.sh` |
 
 ## userConfig
 
@@ -125,7 +125,7 @@ Nine knobs, all settable at install time with `--config <key>=<value>`:
 | `hook_profile` | `standard` | `minimal` suppresses Stop reminders; `strict` adds extra warnings |
 | `review_agents` | `["code-reviewer","database-reviewer","security-reviewer","frontend-reviewer","doc-reviewer"]` | Five agents invoked by sentinel reminders. Override to point at your project-specific agents; shorter lists reduce coverage. (The 6th `polyfill-reviewer` slot is enabled by the `library-author` module, not via this list.) |
 | `docker_containers` | `[]` | Container names checked at SessionStart. Empty list disables the check. First entry exported as `DHPK_PHP_CONTAINER`; second as `DHPK_MYSQL_CONTAINER`. |
-| `modules` | `[]` | Stack modules to enable. Ships: `php-5.6`, `php-7.4`, `php-8.x`, `yii-1.1`, `phpunit-5.7`, `phpunit-9`, `phpunit-10`, `phpunit-11`, `laravel-6`, `laravel-7`, `laravel-8`, `laravel-9`, `laravel-10`, `laravel-11`, `js`, `library-author`. Module `requires:` validated at SessionStart (warning, not blocking). Project-level `.claude/settings.local.json` `pluginConfigs.dhpk@dhpk.options.modules` **overrides** the global value — supports a single dev machine working on projects with different stacks. |
+| `modules` | `[]` | Stack modules to enable. Ships 16: `php-5.6`, `php-7.4`, `php-8.x`, `yii-1.1`, `phpunit-5.7`, `phpunit-9`, `phpunit-10`, `phpunit-11`, `laravel-6`, `laravel-7`, `laravel-8`, `laravel-9`, `laravel-10`, `laravel-11`, `js`, `library-author`. Module `requires:` validated at SessionStart (warning, not blocking). Project-level `.claude/settings.local.json` `pluginConfigs.dhpk@dhpk.options.modules` **overrides** the global value — supports a single dev machine working on projects with different stacks. |
 | `review_trigger_extra_paths` | `[]` | Extra path prefixes per reviewer slot. Format: `<slot>:<prefix>` where slot ∈ `code\|db\|sec\|fe\|doc`. Example: `code:protected/`, `fe:resources/views/`. |
 | `reap_stale_mcp_processes` | `false` | When `true`, SessionStart kills older `gitnexus mcp` processes (keep only newest). Only useful for gitnexus MCP users. |
 | `js_lint_script` | `"lint"` | npm script invoked by the `js` module's pre-commit gate. |
@@ -135,7 +135,7 @@ Nine knobs, all settable at install time with `--config <key>=<value>`:
 Examples:
 
 ```bash
-# Plain install with defaults (5-slot review chain on the default agent names).
+# Plain install with defaults (6-slot review chain on the default agent names).
 claude plugin install dhpk@dhpk
 
 # Legacy PHP/Yii + JS fullstack project.
@@ -153,19 +153,19 @@ See `manifests/install-profiles.json` for curated module bundles.
 
 ## Skills with MCP dependencies
 
-14 skills require the **Codex MCP server** (`mcp__codex__codex`, `mcp__codex__codex-reply`):
+13 skills require the **Codex MCP server** (`mcp__codex__codex`, `mcp__codex__codex-reply`):
 
 ```
 codex-architect       codex-brainstorm     codex-cli-review
 codex-code-review     codex-explain        codex-implement
 codex-review-doc      codex-review         codex-review-branch
 codex-review-fast     codex-security       codex-test-gen
-codex-test-review     codex-test-review
+codex-test-review
 ```
 
 Without Codex installed, invoking any of these will surface a tool-permission error. Install separately (see Anthropic's Codex documentation), then these become available.
 
-All other skills (~50) have no MCP dependencies.
+All other skills (~42) have no MCP dependencies.
 
 ## Modules
 
@@ -287,8 +287,8 @@ dhpk/
 │   └── plugin.json               # plugin manifest with userConfig
 ├── agents/                       # 15 role-based agents (INDEX.md is navigation)
 ├── commands/                     # ~65 slash commands (codex-*, smart-commit, opsx-apply-resume, matrix-cell-onboard, ...)
-├── skills/                       # ~50 core skills (codex-*, tool-routing, dhpk-execution-policy, opsx-apply-resume helpers, ...)
-├── modules/                      # 17 opt-in stack modules
+├── skills/                       # ~55 core skills (codex-*, tool-routing, dhpk-execution-policy, opsx-apply-resume helpers, ...)
+├── modules/                      # 16 opt-in stack modules
 │   ├── php-5.6/, php-7.4/, php-8.x/        # {module.yaml, skills/, references/, hooks/ (php-7.4 only)}
 │   ├── yii-1.1/                            # Yii 1.1 framework
 │   ├── phpunit-5.7/, phpunit-9/, phpunit-10/, phpunit-11/
