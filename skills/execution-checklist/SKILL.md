@@ -25,7 +25,7 @@ when triggers fire, task-end book-keeping.
 
 ## Per-reply (always check when the turn included Edit/Write)
 
-Three boxes must clear:
+Four boxes must clear:
 
 1. **TDD pre-run** — Bug fix / feature that touches business logic: did
    `tdd-guide` (or the configured first agent in `review_agents`) run in
@@ -39,6 +39,29 @@ Three boxes must clear:
 3. **Output structure complete** —
    `Conclusion → Changed files → Verification → Risks/Open questions`.
    When blocked: `Blocker → Tried → Next viable option`.
+4. **Edit-before-Read enforced** — every file_path that was Edit/Write'd
+   this turn has been Read in **this session** first. Mass refactor
+   (same string across N files) MUST Read each file independently.
+   Successive Edits on the same file with linter / parallel-edit risk
+   in between: re-Read first. Matching error messages:
+   `File has not been read yet` / `File has been modified since read`.
+
+### Mass refactor preference order (avoid N-deep Edit failure chains)
+
+When mechanically replacing across multiple files, **pick the tool
+before reaching for Edit**:
+
+- Same string, across many files, mechanical replace (e.g. `array()` → `[]`)
+  → **first choice**: `Bash sed -i` or a formatter rule
+  (e.g. `php-cs-fixer fix --rules='{array_syntax:{syntax:short}}'`,
+  `prettier --write`, `ruff format`).
+- Same file, multiple places, needs semantic context preserved →
+  `Edit replace_all: true` + Read the file **once** first.
+- Across files but each spot has different semantic context → only then
+  fall back to multiple Edits (**Read each file independently**).
+
+> Anti-pattern: chain N Edits across N files without Read → 100%
+> failure rate × N, wasting tokens and reviewer trigger cost.
 
 ---
 
@@ -54,6 +77,8 @@ Three boxes must clear:
 | Pure `.claude/{agents,rules,commands,skills,manifests}/**/*.md` edit | The doc-reviewer slot (sentinel `.pending-doc-review`) cleared. Code-reviewer is not required for pure-doc edits; mixed diffs run both. |
 | Controller / HTTP-entry-point edits | Security-reviewer chain runs before code-reviewer (per chain rule). |
 | Edits to a shared `_lib/` hook helper | Run contract tests for ALL hooks that source the helper (e.g. `_lib/js-tier-detect.sh` is consumed by both `post-edit-js-lint.sh` and `pre-commit-js-validation.sh` — verify both still pass). |
+| Bash uses bare glob expansion (`ls .pending-*` / `for f in .pending-*`) in a shell **without** `nullglob` (zsh default, dash, BusyBox) | Switch to `find <dir> -maxdepth N -name '<pattern>' -print 2>/dev/null` or append ` 2>/dev/null \|\| true`. Bare glob with zero matches becomes a literal token in those shells, then often errors as "no such file". Common in sentinel-existence checks. |
+| Hand-constructing `clear-sentinel.sh` path | Use the dhpk SSOT: `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh` (NOT `${CLAUDE_PROJECT_DIR}/.claude/scripts/...`). Reviewer agent bodies shipped in dhpk already use the correct path — compare against them before constructing your own. |
 
 ---
 
