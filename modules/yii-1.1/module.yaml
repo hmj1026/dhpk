@@ -15,4 +15,5 @@ triggers:
     paths: [protected/controllers/]
 provides:
   skills: [php56-yii-dev, yii1-security-audit]
+  commands: [yii1-security-audit]
   references: [framework.md, patterns.md, security.md]
