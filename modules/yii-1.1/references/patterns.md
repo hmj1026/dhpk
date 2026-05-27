@@ -95,3 +95,37 @@ or a project-maintained allowlist.
 When adding entirely new methods / classes that do not touch existing call
 sites, the project's "no `createCommand()` in Controller" rule still applies
 to the new code. Don't introduce new debt under the banner of "minor addition".
+
+## Refactor cleanup checklist (Yii 1.1)
+
+Consult this when invoking the `refactor-cleaner` agent on a Yii 1.1
+project. Cross-reference: `dhpk:refactor-cleaner` agent body covers
+the language-agnostic flow; this list covers the Yii-1.1-specific
+traps that are easy to miss when removing dead code.
+
+- **Stale `relations()`** — when a model column is removed, the
+  corresponding `relations()` entry referencing it (via `FK`/`through`)
+  also becomes dead. `cx references --name <RelationName>` to confirm
+  no live caller uses it before removal.
+- **Disabled `before/afterSave` / `before/afterFind` hooks** — early
+  returns or empty hook bodies are usually leftovers from feature
+  flag rollouts. `git log -p protected/models/<Model>.php` to check
+  the original purpose before removing.
+- **Obsolete module aliases in `protected/config/main.php`** — modules
+  removed long ago often leave behind `'modules' => [...]` entries
+  whose target paths no longer exist. `cx overview protected/modules/`
+  to confirm before pruning.
+- **Behaviors registered on a base controller that all descendants
+  override** — the behavior class still loads on every request but
+  its hooks never fire. Either remove the registration or fix the
+  override pattern.
+- **`CHtml::scriptFile()` / `registerScript()` calls in view partials
+  that nobody renders** — orphan partials accumulate after page
+  redesigns; the JS assets they pull in still ship in the page bundle.
+  `cx references --name <PartialName>` before removing the partial,
+  then audit the script registration.
+- **Rename Yii component / module names** — must go through
+  `gitnexus_rename`. Yii's alias autoload makes string-based search
+  brittle (the same component name appears in `protected/config/*.php`
+  as a config key, in `import` paths, and in `Yii::app()->getComponent()`
+  string lookups). find-and-replace is forbidden.
