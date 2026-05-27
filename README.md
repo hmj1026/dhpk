@@ -287,7 +287,8 @@ dhpk/
 │   └── plugin.json               # plugin manifest with userConfig
 ├── agents/                       # 15 role-based agents (INDEX.md is navigation)
 ├── commands/                     # ~65 slash commands (codex-*, smart-commit, opsx-apply-resume, matrix-cell-onboard, ...)
-├── skills/                       # ~55 core skills (codex-*, tool-routing, dhpk-execution-policy, opsx-apply-resume helpers, ...)
+├── skills/                       # ~55 core skills (codex-*, tool-routing, dhpk-execution-policy, opsx-apply-resume helpers, goal-ex, ...)
+├── rules/                        # plain-markdown governance rules (execution-policy, tool-routing, anti-rationalization) — not in plugin.json; opt-in via ${CLAUDE_PLUGIN_ROOT}/rules/*.md from a consuming project's CLAUDE.md
 ├── modules/                      # 16 opt-in stack modules
 │   ├── php-5.6/, php-7.4/, php-8.x/        # {module.yaml, skills/, references/, hooks/ (php-7.4 only)}
 │   ├── yii-1.1/                            # Yii 1.1 framework
