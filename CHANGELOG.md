@@ -1,5 +1,134 @@
 # Changelog
 
+## 0.4.0 — 2026-05-27 — Absorb zdpos harness improvements + introduce rules/ resource layer
+
+Feature release. Pulls in improvements from the zdpos_dev project after a
+133-pair Phase A diff (15 agents + 65 commands + 53 skills) revealed:
+(1) dhpk's existing role agents and codex commands already dominate the
+overlap — most zdpos copies were stale forks of older dhpk releases plus
+hardcoded project name / container path; (2) a small set of skills /
+commands / agents exist only in zdpos that are framework-generic enough to
+de-identify and ship upstream; (3) zdpos has been maintaining three
+governance rules (execution-policy, tool-routing, anti-rationalization) as
+plain markdown — dhpk did not have a `rules/` layer at all.
+
+### Added
+
+- **`agents/migration-reviewer.md`** — multi-tenant DB migration safety
+  reviewer (up/down symmetry, idempotency, FK / index naming collision
+  across multi-tenant deploy footprints, large-ALTER strategy on
+  high-volume tables). Companion to (not replacement for)
+  `database-reviewer`. Originally a zdpos-specific reviewer for Yii 1.1
+  migrations; de-identified to drop the "22 merchant" wording and the
+  hardcoded `pos_mysql` / `pos_php` container names. Registered in
+  `plugin.json` `agents[]`. Triggered by a project that wires
+  `.pending-migration-review` sentinel in its post-edit hook (zdpos
+  ships this; other projects can adopt the same sentinel name).
+- **`commands/de-ai-flavor.md`** — command shell that invokes the
+  existing `de-ai-flavor` skill. Skill itself already shipped in
+  v0.3.x; only the slash command was missing.
+- **`commands/deploy-list.md`** — command shell for the existing
+  `deploy-list` skill. Adds the `/deploy-list` slash command surface
+  to dhpk; skill body already supports the generic preset matrix
+  (php-yii-zdpos / php-yii / laravel / node / python / generic).
+- **`commands/goal-ex.md`** + **`skills/goal-ex/`** — extended `/goal`
+  meta-workflow that runs ≤3 parallel Explore subagents to inventory a
+  project and propose `.claude/{skills,agents,rules}` + per-layer
+  CLAUDE.md additions. Skill plus command; first true zdpos-only
+  contribution that dhpk did not previously stub.
+- **`commands/ui-ux-verify.md`** — command shell that delegates to the
+  existing `ui-ux-verifier` agent (no `-zdpos_dev` suffix; URL regex
+  parameterised as `<app-host>` instead of the original `posdev.test`).
+  Default mode lists currently-changed OpenSpec specs and prompts for
+  one to verify; URL mode bypasses the spec lookup. Requires the
+  external OpenSpec plugin for the Default Mode flow (URL Mode works
+  standalone).
+- **`modules/yii-1.1/commands/yii1-security-audit.md`** — per-module
+  command (loaded only when `yii-1.1` is in `userConfig.modules`).
+  Slash command for the existing `yii1-security-audit` skill in the
+  same module; routes through the 8-item audit checklist
+  (AUTH / CSRF / XSS / SQL / CFG / LOGIC / FILE) and emits a
+  type-coded report. Module manifest updated:
+  `provides.commands: [yii1-security-audit]`.
+- **`rules/`** — new resource layer. Three plain-markdown files,
+  cross-referenced by existing skills (`dhpk-execution-policy`,
+  `tool-routing`) and consumable from downstream `CLAUDE.md` via the
+  `${CLAUDE_PLUGIN_ROOT}/rules/<file>.md` path. **Not** registered in
+  `plugin.json` — the Claude Code plugin manifest schema has no
+  `rules` key, by design. Downstream projects opt in by referencing
+  them; nothing auto-loads.
+  - `rules/execution-policy.md` — task-mode taxonomy
+    (small change / small bug / medium change / unknown-cause bug /
+    new feature / architecture change), sentinel chain rule when
+    multiple `.pending-*` files coexist, AI-judgment back-stop for
+    triggers that hooks cannot match by path alone.
+  - `rules/tool-routing.md` — decision tree for code-search tools
+    (cx / gitnexus / claude-mem / Read / Grep), tie-breakers, sub-agent
+    prompt boilerplate guidance.
+  - `rules/anti-rationalization.md` — 5 common self-justification
+    patterns when about to skip a reviewer / TDD / sentinel step, plus
+    counter-arguments. On-demand load (not always-on).
+
+### Refactored
+
+- **`modules/yii-1.1/references/patterns.md`** — appended a "Refactor
+  cleanup checklist (Yii 1.1)" section absorbing six Yii-1.1-specific
+  trap knowledge items from zdpos's local `refactor-cleaner` agent
+  prose (stale `relations()`, disabled `before/afterSave` hooks,
+  obsolete module aliases in `protected/config/main.php`, base-
+  controller-registered Behaviors that descendants override, orphan
+  view partials with dead `CHtml::scriptFile()` calls, and the
+  Yii-alias-autoload reason rename MUST go through `gitnexus_rename`).
+  Original zdpos agent body had these mixed into the role description;
+  dhpk splits them into the framework module's reference notes so the
+  language-agnostic `refactor-cleaner` agent itself stays small. The
+  agent body already cross-links to the module overlays, so no agent
+  edit is needed.
+- **`skills/execution-checklist/SKILL.md`** — absorbed three cross-
+  cutting patterns from zdpos's local skill: (a) a fourth Per-reply
+  mandatory box, **Edit-before-Read enforced**, with the matching
+  error message keywords listed; (b) a new sub-section, **Mass refactor
+  preference order** (`sed` / formatter > `Edit replace_all` > N-deep
+  multi-file Edit) — historically the highest-leverage anti-pattern
+  in cross-file mechanical replacements; (c) two new Conditional table
+  rows — bare `glob` expansion in shells without `nullglob` (a sentinel-
+  check trap in zsh / dash / BusyBox), and the `clear-sentinel.sh` path
+  SSOT (`${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh`, NOT
+  `${CLAUDE_PROJECT_DIR}/.claude/scripts/...`). Specific high-volume
+  table names (e.g. `records`, `orders`, `stock`) deliberately kept
+  out — those belong in each consuming project's own rules, not in
+  dhpk's generic skill.
+
+### Verified
+
+- `plugin.json` validates against the Claude Code v2.1.150 plugin
+  manifest schema after the agents[] addition and per-module command
+  registration via `module.yaml.provides.commands`.
+- `modules/yii-1.1/module.yaml` matches the existing `modules/js/`
+  shape (which already ships a per-module command,
+  `ts-check-status`).
+- New `rules/` layer is purely additive — no existing skill / agent
+  body relies on it for hard dependency; cross-refs are advisory.
+
+### Deferred
+
+- **`commands/create-dev.md` not ported** — zdpos's `/create-dev` is
+  the routing command that triggers `adaptive-dev-workflow` skill
+  before implementation. The skill carries deep references to
+  zdpos-suffixed agents (`tdd-guide-zdpos_dev`, `architect-zdpos_dev`,
+  etc.) and a project-specific `references/projects-zdpos.md` knowledge
+  file, plus four `.py` orchestration scripts. Porting requires a
+  proper skill de-identification pass — not a fast win for v0.4.0.
+  Tracked for a future release.
+
+### Non-changes
+
+- Hook architecture untouched. dhpk's 5-slot `userConfig.review_agents`
+  remains unchanged this release. Adding a 6th slot to formally
+  support migration-style reviewers is tracked for v0.5.x.
+- No existing skill / agent / command body was renamed or removed.
+- No userConfig defaults changed.
+
 ## 0.3.2 — 2026-05-26 — Validate release workflow stdin pipe
 
 Purely a CI-infrastructure release. v0.3.1 tag-push failed at the GitHub
