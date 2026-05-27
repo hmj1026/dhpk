@@ -2,7 +2,7 @@
 
 > **語言**: [English](./README.md) · **繁體中文**
 
-通用、安裝即用的 Claude Code harness。內含 **15 個角色導向 agent**（+1 個模組範圍的 reviewer）、約 65 個指令（codex / gitnexus / git / 專案工作流）、約 55 個核心 skill 加上跨專案的 `deploy-list` 部署清單產生器、**6-slot sentinel 驅動的 review hook**（code / db / sec / frontend / doc / **polyfill** — 最後一個由 `library-author` 提供）、statusline、harness 腳本，以及 **16 個可選用的技術棧模組**（PHP：`php-5.6`、`php-7.4`、`php-8.x`；Yii：`yii-1.1`；PHPUnit：`phpunit-5.7`、`phpunit-9`、`phpunit-10`、`phpunit-11`；Laravel：`laravel-6` 至 `laravel-11`；`js`；加上跨版本的 `library-author`）。模組可透過 **wrapper-dispatch** 模型在 runtime 提供 hook（詳見 [`docs/hook-extension.md`](./docs/hook-extension.md)）。內附平行的 Codex CLI 樹，適用於雙助理（Claude + Codex）專案。
+通用、安裝即用的 Claude Code harness。內含 **16 個角色導向 agent**（+1 個模組範圍的 reviewer）、約 70 個指令（codex / gitnexus / git / 專案工作流）、約 55 個核心 skill 加上跨專案的 `deploy-list` 部署清單產生器、**6-slot sentinel 驅動的 review hook**（code / db / sec / frontend / doc / **polyfill** — 最後一個由 `library-author` 提供）、statusline、harness 腳本，以及 **16 個可選用的技術棧模組**（PHP：`php-5.6`、`php-7.4`、`php-8.x`；Yii：`yii-1.1`；PHPUnit：`phpunit-5.7`、`phpunit-9`、`phpunit-10`、`phpunit-11`；Laravel：`laravel-6` 至 `laravel-11`；`js`；加上跨版本的 `library-author`）。模組可透過 **wrapper-dispatch** 模型在 runtime 提供 hook（詳見 [`docs/hook-extension.md`](./docs/hook-extension.md)）。內附平行的 Codex CLI 樹，適用於雙助理（Claude + Codex）專案。
 
 OpenSpec 是**可選的外部整合**——若需要 OpenSpec 工作流指令，請另行安裝 [OpenSpec 插件](https://github.com/Fission-AI/OpenSpec)。dhpk 僅保留自家加值的 `opsx-apply-resume`（長時間 OpenSpec 工作階段的 context handoff）；v0.2.1 起，10 個通用 OpenSpec wrapper skill/command 已從套件中移除，由 OpenSpec 上游提供。
 
@@ -17,8 +17,13 @@ OpenSpec 是**可選的外部整合**——若需要 OpenSpec 工作流指令，
 | `docker` | 選用 | 僅在 `userConfig.docker_containers` 非空時會被使用 |
 | Codex MCP server | 選用 | 僅在你使用 14 個 `codex-*` skill 時才需要（需另行安裝） |
 | Codex CLI 執行檔 | 選用 | 僅在執行 `install-codex-skills.sh` 且希望 Codex 真正載入同步內容時才需要 |
+| `cx` CLI | 選用 | 語意化程式碼導覽。`rules/tool-routing.md` 將 `cx overview` / `cx definition` / `cx references` 列為首選工具；6 個 reviewer agent 與 `goal-ex` skill 會引用。未安裝時 → 降級為 `Grep` / `Read`。 |
+| `gitnexus` MCP server | 選用 | 知識圖譜查詢（`gitnexus_impact`、`gitnexus_rename`、`gitnexus_detect_changes`）。6 個 `gitnexus-*` skill 以及 `rules/execution-policy.md` 的 self-check 會用到。未安裝時 → 降級為 `cx` 或 `Grep`。 |
+| `claude-mem` | 選用 | 跨 session 記憶搜尋（`mem-search`）。`rules/tool-routing.md` 用於查找過往決策。未安裝時 → 直接略過。 |
 
 缺少選用工具會以優雅退化處理（腳本 no-op 或跳過該功能）。缺少必要工具則會在 SessionStart 或第一個 hook 觸發時以單行 `[hook-name] WARN: …` 寫到 stderr，方便你採取行動。
+
+外部 code-navigation 工具（`cx`、`gitnexus`、`claude-mem`）**不由 dhpk 內附**，是否安裝由各 consuming 專案決定。dhpk 內附的 rules 與 agents 寫法已預設它們可能不在，會依 [`rules/tool-routing.md`](./rules/tool-routing.md) 自動降級。
 
 ## 安裝
 
@@ -107,8 +112,8 @@ claude plugin marketplace remove dhpk  # 忘記 marketplace 註冊
 
 | 元件 | 數量 | 說明 |
 |------|----:|------|
-| Agents | 15 root + 1 module | 5 個 sentinel 驅動的 reviewer（code / db / sec / **frontend** / **doc**）+ 第 6 個 `polyfill-reviewer` 由 `library-author` 提供。情境型：architect、tdd-guide、refactor-cleaner、ui-ux-verifier、performance-analyzer、doc-updater、docs-lookup、harness-reviser、harness-optimizer、version-matrix-impact-reviewer。 |
-| Commands | ~65 | `dhpk:codex-*`、`dhpk:review-pending`、`dhpk:smart-commit`、`dhpk:ts-check-status`（JS 模組）、`dhpk:opsx-apply-resume`（需 OpenSpec）、`dhpk:matrix-cell-onboard`（library-author）等 |
+| Agents | 16 root + 1 module | 5 個 sentinel 驅動的 reviewer（code / db / sec / **frontend** / **doc**）+ 第 6 個 `polyfill-reviewer` 由 `library-author` 提供。`migration-reviewer` 為 `database-reviewer` 的 sentinel 驅動同伴（觸發 `.pending-migration-review`）。情境型：architect、tdd-guide、refactor-cleaner、ui-ux-verifier、performance-analyzer、doc-updater、docs-lookup、harness-reviser、harness-optimizer、version-matrix-impact-reviewer。 |
+| Commands | ~70 | `dhpk:codex-*`、`dhpk:review-pending`、`dhpk:smart-commit`、`dhpk:ts-check-status`（JS 模組）、`dhpk:opsx-apply-resume`（需 OpenSpec）、`dhpk:matrix-cell-onboard`（library-author）、`dhpk:de-ai-flavor`、`dhpk:deploy-list`、`dhpk:goal-ex`、`dhpk:ui-ux-verify` 等 |
 | 核心 skills | ~55 加上 | codex-*、gitnexus、tool-routing、dhpk-execution-policy、**deploy-list**（跨專案部署清單產生器）、**execution-checklist**（任務收尾自檢）、`opsx-apply-resume` 配套（需 OpenSpec） |
 | 技術棧模組 | 16 | PHP：`php-5.6`、`php-7.4`、`php-8.x` · Yii：`yii-1.1` · PHPUnit：`phpunit-5.7`、`phpunit-9`、`phpunit-10`、`phpunit-11` · Laravel：`laravel-6` … `laravel-11` · `js` · `library-author`（選用；詳見下方「模組」） |
 | Hooks | 5 個事件 | PreToolUse（Edit、Bash + dispatcher）、PostToolUse（Edit + dispatcher + async crlf-fix）、SessionStart、Stop（stop-review-reminder + reap-stale-sentinels） |
@@ -166,6 +171,26 @@ codex-test-review
 未安裝 Codex 時，呼叫上述任一 skill 會出現工具權限錯誤。請另行安裝（請參考 Anthropic 的 Codex 文件），安裝後即可使用。
 
 其他 skill（約 42 個）沒有 MCP 依賴。
+
+## 外部 code-navigation 工具
+
+`cx`、`gitnexus`、`claude-mem` 是**可選**依賴——不由 dhpk 內附、不自動安裝。內附的 agents / skills / rules 寫法已預設它們可能不存在，並透過 [`rules/tool-routing.md`](./rules/tool-routing.md) 提供確定性的降級路徑。
+
+| 工具 | 主要使用者（節錄） | 缺失時影響 |
+|------|------------------|-----------|
+| `cx` CLI | Agents：`code-reviewer`、`doc-reviewer`、`doc-updater`、`frontend-reviewer`、`migration-reviewer`、`refactor-cleaner`。Skills：`goal-ex`、`tool-routing`、`polyfill-version-matrix-audit`。Rule：`tool-routing.md`（`cx overview` / `cx definition` / `cx references` 為首選）。 | 失去 sub-200 token 的檔案概覽與 AST 等級的符號讀取——降級為 `Grep` + `Read`（耗 token 較多，精度較低）。 |
+| `gitnexus` MCP | 專屬 skills：`gitnexus-cli`、`gitnexus-debugging`、`gitnexus-exploring`、`gitnexus-guide`、`gitnexus-impact-analysis`、`gitnexus-refactoring`。Agents：`architect`、`code-reviewer`、`database-reviewer`、`migration-reviewer`、`performance-analyzer`、`refactor-cleaner`、`security-reviewer`、`ui-ux-verifier`。Rules：`execution-policy.md` self-check（`gitnexus_impact`）、`tool-routing.md`。 | 失去跨檔案 blast-radius 分析（`gitnexus_impact`）、安全 global rename（`gitnexus_rename`）、pre-commit 範圍檢查（`gitnexus_detect_changes`）——降級為 `cx references` / `git diff --stat` / **find-and-replace 禁用**。 |
+| `claude-mem` | Rule：`tool-routing.md` 的「Past decisions (cross-session)」入口。 | 失去跨 session 記憶搜尋；當前 session 仍可從 scrollback 取得脈絡。 |
+
+詳細的路由判斷規則見 [`rules/tool-routing.md`](./rules/tool-routing.md)；prose 與 sub-agent 樣板版本見 `dhpk:tool-routing` skill。
+
+## Rules（資源層）
+
+`rules/` 內附三份 plain-markdown 資源，**不註冊於 `plugin.json`**，由 consuming 專案自行 opt-in。在專案 `CLAUDE.md` 內以 `@${CLAUDE_PLUGIN_ROOT}/rules/<file>.md` 載入。目前提供：
+
+- `execution-policy.md` — pre-plan checklist、anti-loop、self-check gate。
+- `tool-routing.md` — 上述 `cx` / `gitnexus` / `claude-mem` 決策樹。
+- `anti-rationalization.md` — 防止檢查失敗時的事後合理化。
 
 ## 模組
 
@@ -285,8 +310,8 @@ dhpk/
 ├── .claude-plugin/
 │   ├── marketplace.json          # 單一條目的 marketplace（plugins[0].source: "./"）
 │   └── plugin.json               # 含 userConfig 的插件 manifest
-├── agents/                       # 15 個角色 agent（INDEX.md 為導覽用）
-├── commands/                     # ~65 個 slash 指令（codex-*、smart-commit、opsx-apply-resume、matrix-cell-onboard 等）
+├── agents/                       # 16 個角色 agent（INDEX.md 為導覽用）
+├── commands/                     # ~70 個 slash 指令（codex-*、smart-commit、opsx-apply-resume、matrix-cell-onboard 等）
 ├── skills/                       # ~55 個核心 skill（codex-*、tool-routing、dhpk-execution-policy、opsx-apply-resume 配套等）
 ├── modules/                      # 16 個可選用的技術棧模組
 │   ├── php-5.6/, php-7.4/, php-8.x/        # {module.yaml, skills/, references/, hooks/（僅 php-7.4）}

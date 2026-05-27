@@ -2,7 +2,7 @@
 
 > **Languages**: **English** · [繁體中文](./README.zh-TW.md)
 
-A generic, install-and-go Claude Code harness. Ships **15 role-based agents** (+ 1 module-scoped reviewer), ~65 commands (codex / gitnexus / git / project workflow), ~55 core skills + the `deploy-list` cross-project deploy file list generator, **6-slot sentinel-driven review hooks** (code / db / sec / frontend / doc / **polyfill** — the last via `library-author`), statusline, harness scripts, and **16 opt-in stack modules** across PHP (`php-5.6`, `php-7.4`, `php-8.x`), Yii (`yii-1.1`), PHPUnit (`phpunit-5.7`, `phpunit-9`, `phpunit-10`, `phpunit-11`), Laravel (`laravel-6` through `laravel-11`), JS (`js`), plus the cross-cutting `library-author` module. Modules contribute hooks at runtime via the **wrapper-dispatch** model (see [`docs/hook-extension.md`](./docs/hook-extension.md)). Parallel Codex CLI tree included for dual-assistant projects.
+A generic, install-and-go Claude Code harness. Ships **16 role-based agents** (+ 1 module-scoped reviewer), ~70 commands (codex / gitnexus / git / project workflow), ~55 core skills + the `deploy-list` cross-project deploy file list generator, **6-slot sentinel-driven review hooks** (code / db / sec / frontend / doc / **polyfill** — the last via `library-author`), statusline, harness scripts, and **16 opt-in stack modules** across PHP (`php-5.6`, `php-7.4`, `php-8.x`), Yii (`yii-1.1`), PHPUnit (`phpunit-5.7`, `phpunit-9`, `phpunit-10`, `phpunit-11`), Laravel (`laravel-6` through `laravel-11`), JS (`js`), plus the cross-cutting `library-author` module. Modules contribute hooks at runtime via the **wrapper-dispatch** model (see [`docs/hook-extension.md`](./docs/hook-extension.md)). Parallel Codex CLI tree included for dual-assistant projects.
 
 OpenSpec is an **optional external integration** — install the [OpenSpec plugin](https://github.com/Fission-AI/OpenSpec) separately if you want OpenSpec workflow commands. dhpk retains only its own value-add helper `opsx-apply-resume` (long-running OpenSpec session context handoff); the 10 generic OpenSpec wrapper skills/commands were unbundled in v0.2.1 since OpenSpec ships them upstream.
 
@@ -17,8 +17,13 @@ OpenSpec is an **optional external integration** — install the [OpenSpec plugi
 | `docker` | Optional | Only consulted when `userConfig.docker_containers` is non-empty |
 | Codex MCP server | Optional | Required ONLY if you invoke the 14 `codex-*` skills (install separately) |
 | Codex CLI binary | Optional | Required ONLY if you run `install-codex-skills.sh` and want Codex to actually load the synced content |
+| `cx` CLI | Optional | Semantic code navigation. Primary tool in `rules/tool-routing.md` for `cx overview` / `cx definition` / `cx references`. Referenced by 6 reviewer agents and the `goal-ex` skill. Missing → falls back to `Grep` / `Read`. |
+| `gitnexus` MCP server | Optional | Knowledge-graph queries (`gitnexus_impact`, `gitnexus_rename`, `gitnexus_detect_changes`). Required by 6 `gitnexus-*` skills and the `rules/execution-policy.md` self-check. Missing → falls back to `cx` or `Grep`. |
+| `claude-mem` | Optional | Cross-session memory search (`mem-search`). Referenced by `rules/tool-routing.md` for past-decision lookups. Missing → skip. |
 
 Missing optional tools degrade gracefully (the script no-ops or skips a feature). Missing required tools surface as a single-line `[hook-name] WARN: …` to stderr at SessionStart or first hook fire so you can act on them.
+
+External code-navigation tools (`cx`, `gitnexus`, `claude-mem`) are **not bundled** by dhpk. Each consuming project decides whether to install them. The shipped rules and agents are written to degrade gracefully via [`rules/tool-routing.md`](./rules/tool-routing.md).
 
 ## Install
 
@@ -107,8 +112,8 @@ The same actions are available as `/plugin update dhpk`, `/plugin uninstall dhpk
 
 | Component | Count | Notes |
 |-----------|------:|-------|
-| Agents | 15 root + 1 module | 5 sentinel-driven reviewers (code / db / sec / **frontend** / **doc**) + the 6th `polyfill-reviewer` shipped by `library-author`. Situational: architect, tdd-guide, refactor-cleaner, ui-ux-verifier, performance-analyzer, doc-updater, docs-lookup, harness-reviser, harness-optimizer, version-matrix-impact-reviewer. |
-| Commands | ~65 | `dhpk:codex-*`, `dhpk:review-pending`, `dhpk:smart-commit`, `dhpk:ts-check-status` (JS module), `dhpk:opsx-apply-resume` (needs OpenSpec), `dhpk:matrix-cell-onboard` (library-author), etc. |
+| Agents | 16 root + 1 module | 5 sentinel-driven reviewers (code / db / sec / **frontend** / **doc**) + the 6th `polyfill-reviewer` shipped by `library-author`. `migration-reviewer` is a sentinel-driven companion to `database-reviewer` (fires on `.pending-migration-review`). Situational: architect, tdd-guide, refactor-cleaner, ui-ux-verifier, performance-analyzer, doc-updater, docs-lookup, harness-reviser, harness-optimizer, version-matrix-impact-reviewer. |
+| Commands | ~70 | `dhpk:codex-*`, `dhpk:review-pending`, `dhpk:smart-commit`, `dhpk:ts-check-status` (JS module), `dhpk:opsx-apply-resume` (needs OpenSpec), `dhpk:matrix-cell-onboard` (library-author), `dhpk:de-ai-flavor`, `dhpk:deploy-list`, `dhpk:goal-ex`, `dhpk:ui-ux-verify`, etc. |
 | Core skills | ~55 + extras | codex-*, gitnexus, tool-routing, dhpk-execution-policy, **deploy-list** (cross-project deploy file list generator), **execution-checklist** (end-of-task self-check), `opsx-apply-resume` helpers (need OpenSpec) |
 | Stack modules | 16 | PHP: `php-5.6`, `php-7.4`, `php-8.x` · Yii: `yii-1.1` · PHPUnit: `phpunit-5.7`, `phpunit-9`, `phpunit-10`, `phpunit-11` · Laravel: `laravel-6` … `laravel-11` · `js` · `library-author` (opt-in; see "Modules" below) |
 | Hooks | 5 events | PreToolUse (Edit, Bash + dispatcher), PostToolUse (Edit + dispatcher + async crlf-fix), SessionStart, Stop (stop-review-reminder + reap-stale-sentinels) |
@@ -166,6 +171,26 @@ codex-test-review
 Without Codex installed, invoking any of these will surface a tool-permission error. Install separately (see Anthropic's Codex documentation), then these become available.
 
 All other skills (~42) have no MCP dependencies.
+
+## External code-navigation tools
+
+`cx`, `gitnexus`, and `claude-mem` are **optional** dependencies — not bundled, not auto-installed. The shipped agents / skills / rules assume they may be missing and provide deterministic fallbacks via [`rules/tool-routing.md`](./rules/tool-routing.md).
+
+| Tool | Used by (selected) | What you lose if missing |
+|------|-------------------|--------------------------|
+| `cx` CLI | Agents: `code-reviewer`, `doc-reviewer`, `doc-updater`, `frontend-reviewer`, `migration-reviewer`, `refactor-cleaner`. Skills: `goal-ex`, `tool-routing`, `polyfill-version-matrix-audit`. Rule: `tool-routing.md` (primary for `cx overview` / `cx definition` / `cx references`). | Sub-200-token file overviews and AST-precise symbol reads — falls back to `Grep` + `Read` (more tokens, less precision). |
+| `gitnexus` MCP | Dedicated skills: `gitnexus-cli`, `gitnexus-debugging`, `gitnexus-exploring`, `gitnexus-guide`, `gitnexus-impact-analysis`, `gitnexus-refactoring`. Agents: `architect`, `code-reviewer`, `database-reviewer`, `migration-reviewer`, `performance-analyzer`, `refactor-cleaner`, `security-reviewer`, `ui-ux-verifier`. Rules: `execution-policy.md` self-check (`gitnexus_impact`), `tool-routing.md`. | Cross-file blast-radius analysis (`gitnexus_impact`), safe global rename (`gitnexus_rename`), pre-commit scope check (`gitnexus_detect_changes`) — falls back to `cx references` / `git diff --stat` / **find-and-replace forbidden**. |
+| `claude-mem` | Rule: `tool-routing.md` entry "Past decisions (cross-session)". | Cross-session memory recall — current-session context still works via scrollback. |
+
+Detailed routing tie-breakers live in [`rules/tool-routing.md`](./rules/tool-routing.md); the prose / sub-agent boilerplate version lives in the `dhpk:tool-routing` skill.
+
+## Rules (resource layer)
+
+`rules/` ships three plain-markdown files that are **not** registered in `plugin.json` and are opt-in per consuming project. Load them from your project's `CLAUDE.md` with `@${CLAUDE_PLUGIN_ROOT}/rules/<file>.md`. Currently shipped:
+
+- `execution-policy.md` — pre-plan checklist, anti-loop, self-check gates.
+- `tool-routing.md` — the `cx` / `gitnexus` / `claude-mem` decision tree referenced above.
+- `anti-rationalization.md` — guard against post-hoc justification when checks fail.
 
 ## Modules
 
@@ -285,8 +310,8 @@ dhpk/
 ├── .claude-plugin/
 │   ├── marketplace.json          # one-entry marketplace (plugins[0].source: "./")
 │   └── plugin.json               # plugin manifest with userConfig
-├── agents/                       # 15 role-based agents (INDEX.md is navigation)
-├── commands/                     # ~65 slash commands (codex-*, smart-commit, opsx-apply-resume, matrix-cell-onboard, ...)
+├── agents/                       # 16 role-based agents (INDEX.md is navigation)
+├── commands/                     # ~70 slash commands (codex-*, smart-commit, opsx-apply-resume, matrix-cell-onboard, ...)
 ├── skills/                       # ~55 core skills (codex-*, tool-routing, dhpk-execution-policy, opsx-apply-resume helpers, goal-ex, ...)
 ├── rules/                        # plain-markdown governance rules (execution-policy, tool-routing, anti-rationalization) — not in plugin.json; opt-in via ${CLAUDE_PLUGIN_ROOT}/rules/*.md from a consuming project's CLAUDE.md
 ├── modules/                      # 16 opt-in stack modules
