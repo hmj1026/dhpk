@@ -1,7 +1,8 @@
 ---
 name: feature-dev
 description: 'Feature development workflow. Use when: implementing features, writing code, running dev loop. Not for: understanding code (use code-explore), reviewing code (use codex-code-review). Output: implemented feature + tests + review gate.'
-allowed-tools: 'Read, Grep, Glob, Edit, Write, Bash, Skill, AskUserQuestion, mcp__codex__codex, mcp__codex__codex-reply'
+argument-hint: '[--codex] <feature description>'
+allowed-tools: 'Read, Grep, Glob, Edit, Write, Bash, Skill, AskUserQuestion'
 ---
 
 # Feature Development Skill
@@ -26,6 +27,31 @@ allowed-tools: 'Read, Grep, Glob, Edit, Write, Bash, Skill, AskUserQuestion, mcp
 This skill implements features but does **not** commit. `/precommit` is a quality gate only. To commit, the user must invoke `/smart-commit --execute` separately.
 
 <budget:token_budget>200000</budget:token_budget>
+
+## Codex mode (opt-in)
+
+This workflow runs **codex-free by default** — pure Claude + dhpk agents, no
+Codex CLI/MCP required. Pass `--codex` for the Codex-enhanced path (richer
+second opinion on the heavy steps). If `--codex` is given but Codex is
+unavailable, warn once and fall back to codex-free.
+
+**Isolation invariant:** in default mode you MUST NOT call any `mcp__codex__*`
+tool — this skill's `allowed-tools` deliberately omits it. The `--codex` column
+below delegates to dedicated `/codex-*` commands, which own that permission.
+
+Every Codex step below has a codex-free substitute (all already shipped):
+
+| Step | Codex-free (default) | `--codex` |
+|------|----------------------|-----------|
+| Design / architecture | inline design (optionally dispatch `architect` agent) | `/codex-architect` |
+| Implement | write code directly (TDD) | `/codex-implement` |
+| Test adequacy | `/check-coverage` (+ `/post-dev-test` for integration/e2e gaps) | `/codex-test-review` |
+| Test generation | write tests, guided by `tdd-guide` agent | `/codex-test-gen` |
+| Code review | `/review-pending` (→ `code-reviewer` agent) | `/codex-review-fast` |
+| Doc review | `/doc-review --no-codex` | `/codex-review-doc` |
+
+The Workflow / Commands tables below name the `--codex` commands; in the default
+codex-free mode substitute each per this table.
 
 ## Workflow
 
