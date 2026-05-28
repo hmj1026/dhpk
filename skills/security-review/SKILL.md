@@ -1,7 +1,8 @@
 ---
 name: security-review
-description: 'Security review via Codex MCP. Use when: OWASP Top 10 audit, dependency vulnerability check, security-sensitive changes. Not for: code review (use codex-code-review), test review (use test-review). Output: security findings + audit report.'
-allowed-tools: 'mcp__codex__codex, mcp__codex__codex-reply, Bash(git:*), Read, Grep, Glob'
+description: 'Security review (OWASP Top 10), codex-free. Use when: security audit, dependency vulnerability check, security-sensitive changes. For a Codex-driven audit, use /codex-security instead. Not for: code review (use codex-code-review), test review (use test-review). Output: security findings + audit report.'
+argument-hint: '[--scope <path>]'
+allowed-tools: 'Bash(git:*), Read, Grep, Glob'
 context: fork
 agent: Explore
 ---
@@ -18,17 +19,29 @@ agent: Explore
 - Functional testing (use `test-review`)
 - Performance issues (not security-related)
 
+## Codex isolation
+
+This skill is **codex-free**: the OWASP Top 10 audit is performed inline (it runs in
+an isolated read-only fork; apply the OWASP Top 10 checklist below directly against the
+collected changes). It needs no Codex CLI/MCP and MUST NOT call any `mcp__codex__*`
+tool — its `allowed-tools` deliberately omits it.
+
+For a **Codex-driven** audit (independent second opinion), use the dedicated
+**`/codex-security`** command instead — that command owns the `mcp__codex__*` permission
+and drives the Codex review. `/dhpk:do --codex` routes security tasks there.
+
 ## Commands
 
-| Command           | Purpose                  | When                    |
-| ----------------- | ------------------------ | ----------------------- |
-| `/codex-security` | OWASP Top 10 audit       | Security-sensitive code |
-| `/dep-audit`      | Dependency security audit | Periodic / PR          |
+| Command           | Purpose                                   | When                        |
+| ----------------- | ----------------------------------------- | --------------------------- |
+| `/security-review`| OWASP Top 10 audit — codex-free (inline)  | Security-sensitive code     |
+| `/codex-security` | OWASP audit via Codex                     | Want a Codex second opinion |
+| `/dep-audit`      | Dependency security audit                 | Periodic / PR               |
 
-## Workflow: `/codex-security`
+## Workflow
 
 ```
-Determine scope → Collect changes → Codex OWASP review → Findings + Gate → Loop if Must fix
+Determine scope → Collect changes → inline OWASP review → Findings + Gate → Loop if Must fix
 ```
 
 ### Step 1: Determine Scope
@@ -42,15 +55,13 @@ Priority order:
 2. Recent commits: `git diff HEAD~5..HEAD -- <scope> | head -1500`
 3. Key security files: `Glob("**/*{auth,login,password,token,secret,key,credential}*")`
 
-### Step 3: Codex Security Review
+### Step 3: OWASP Security Review (inline)
 
-**First review**: `mcp__codex__codex` with OWASP prompt. See `references/codex-prompt-security.md`.
+Apply the OWASP Top 10 checklist below directly against the collected changes. For each
+category, inspect the relevant code paths (auth, input handling, sensitive data,
+dependencies) and record any finding with severity. No Codex.
 
-Config: `sandbox: 'read-only'`, `approval-policy: 'never'`
-
-**Save the returned `threadId`.**
-
-**Loop review**: `mcp__codex__codex-reply` with re-review template. See `references/codex-prompt-security.md`.
+(For a Codex-driven audit, stop here and use `/codex-security` instead.)
 
 ### Step 4: Consolidate Output
 
@@ -75,7 +86,7 @@ Organize results into findings summary table + detailed findings + gate.
 
 **⚠️ @CLAUDE.md auto-loop: fix → re-review → ... → ✅ PASS ⚠️**
 
-⛔ Must fix → fix P0 issues → `/codex-security --continue <threadId>` → repeat until ✅ Mergeable.
+⛔ Must fix → fix P0 issues → re-audit the fixed code inline → repeat until ✅ Mergeable.
 
 Max 3 rounds. Still failing → report blocker.
 
@@ -85,7 +96,7 @@ Max 3 rounds. Still failing → report blocker.
 - [ ] Gate is explicit (✅ Mergeable / ⛔ Must fix)
 - [ ] Fix recommendations are specific and actionable
 - [ ] Includes verification test method
-- [ ] Codex independently researched auth/input/sensitive code
+- [ ] Auth / input / sensitive-data code paths inspected inline
 
 ## References
 
@@ -96,8 +107,8 @@ Max 3 rounds. Still failing → report blocker.
 ## Examples
 
 ```
-Input: /codex-security --scope src/controller/
-Action: OWASP Top 10 check → output issues + Gate
+Input: /security-review --scope src/controller/
+Action: inline OWASP Top 10 check → output issues + Gate
 
 Input: /dep-audit --level high
 Action: npm audit → filter high/critical → output report

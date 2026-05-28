@@ -4,9 +4,12 @@ argument-hint: '[--scope <dir>] [--continue <threadId>]'
 allowed-tools: 'mcp__codex__codex, mcp__codex__codex-reply, Bash(git:*), Read, Grep, Glob'
 ---
 
-⚠️ **Must read and follow the skill below before executing this command:**
+⚠️ **Must read and follow the reference below before executing this command:**
 
-@skills/security-review/SKILL.md
+This is the **Codex-driven** OWASP audit (it owns the `mcp__codex__*` permission). The
+codex-free counterpart is the `security-review` skill — do **not** `@`-include it here,
+as it forbids `mcp__codex__*` and would contradict this command.
+
 @skills/security-review/references/codex-prompt-security.md
 
 ## Context
