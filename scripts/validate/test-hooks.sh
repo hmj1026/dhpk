@@ -270,6 +270,58 @@ repo="$(make_repo)"
 if ! grep -q 'learned-context' "$repo/_ss2.out"; then ok "SessionStart silent when DB disabled"; else fail "learned-context emitted while disabled"; fi
 
 echo ""
+echo "== 9. stop-graduation-scan.sh (Phase 2.2) =="
+# 9a. enabled: 3 clean citations of an existing entry → count=3, rule candidate.
+repo="$(make_repo)"
+gmem="$(mktemp -d)"; TMP_DIRS+=("$gmem")
+gout="$(mktemp -d)"; TMP_DIRS+=("$gout")
+gtx="$(mktemp)";     TMP_DIRS+=("$gtx")
+printf '# trap example\n' > "$gmem/trap_foo_example.md"
+printf 'see memory/trap_foo_example.md here\n' > "$gtx"
+for _r in 1 2 3; do
+    (
+        cd "$repo" || exit 1
+        export CLAUDE_PROJECT_DIR="$repo" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+               DHPK_GRADUATION_SCAN=1 CLAUDE_HOOK_TEST_MODE=1 CLAUDE_HOOK_TEST_OUTDIR="$gout" \
+               CLAUDE_HOOK_MEMORY_DIR="$gmem" CLAUDE_HOOK_MIN_SPAN_HOURS=0 CLAUDE_HOOK_MIN_DISTINCT_DATES=1
+        printf '{"transcript_path":"%s"}' "$gtx" | bash "$HOOKS/stop-graduation-scan.sh" >/dev/null 2>&1
+    )
+done
+cj="$gout/memory-usage-counts.json"
+if [ -f "$cj" ] && [ "$(jq -r '.entries.trap_foo_example.count' "$cj" 2>/dev/null)" = "3" ]; then ok "3 sessions → count=3"; else fail "count not accumulated ($( [ -f "$cj" ] && jq -c '.entries' "$cj" || echo no-file ))"; fi
+if [ -f "$cj" ] && [ "$(jq -r '.entries.trap_foo_example.confidence' "$cj" 2>/dev/null)" = "0.8" ]; then ok "confidence rose to 0.8 (3 clean sessions)"; else fail "confidence wrong"; fi
+if [ -f "$gout/graduation-candidates.md" ] && grep -q 'trap_foo_example' "$gout/graduation-candidates.md" && grep -q '| rule |' "$gout/graduation-candidates.md"; then ok "promoted to rule candidate + report bootstrapped from template"; else fail "candidate/report missing"; fi
+
+# 9b. existence gate: citing an entry with no memory file → not counted.
+repo="$(make_repo)"
+gmem="$(mktemp -d)"; TMP_DIRS+=("$gmem")
+gout="$(mktemp -d)"; TMP_DIRS+=("$gout")
+gtx="$(mktemp)";     TMP_DIRS+=("$gtx")
+printf 'see memory/ghost_entry_x.md (no such file)\n' > "$gtx"
+(
+    cd "$repo" || exit 1
+    export CLAUDE_PROJECT_DIR="$repo" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+           DHPK_GRADUATION_SCAN=1 CLAUDE_HOOK_TEST_MODE=1 CLAUDE_HOOK_TEST_OUTDIR="$gout" \
+           CLAUDE_HOOK_MEMORY_DIR="$gmem" CLAUDE_HOOK_MIN_SPAN_HOURS=0 CLAUDE_HOOK_MIN_DISTINCT_DATES=1
+    printf '{"transcript_path":"%s"}' "$gtx" | bash "$HOOKS/stop-graduation-scan.sh" >/dev/null 2>&1
+)
+cj="$gout/memory-usage-counts.json"
+if [ ! -f "$cj" ] || [ "$(jq -r '.entries.ghost_entry_x // "absent"' "$cj" 2>/dev/null)" = "absent" ]; then ok "existence gate: missing memory file not counted"; else fail "ghost entry was counted"; fi
+
+# 9c. opt-in gate: disabled → no state written.
+repo="$(make_repo)"
+gout="$(mktemp -d)"; TMP_DIRS+=("$gout")
+gtx="$(mktemp)";     TMP_DIRS+=("$gtx")
+printf 'see memory/trap_foo_example.md\n' > "$gtx"
+(
+    cd "$repo" || exit 1
+    export CLAUDE_PROJECT_DIR="$repo" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
+           DHPK_GRADUATION_SCAN=0 CLAUDE_HOOK_TEST_MODE=1 CLAUDE_HOOK_TEST_OUTDIR="$gout"
+    printf '{"transcript_path":"%s"}' "$gtx" | bash "$HOOKS/stop-graduation-scan.sh" >/dev/null 2>&1
+)
+if [ -z "$(ls -A "$gout" 2>/dev/null)" ]; then ok "graduation disabled → no state written"; else fail "wrote state while disabled"; fi
+
+echo ""
 echo "=========================================="
 if [ "$FAIL" -gt 0 ]; then
     echo "FAIL: $FAIL 個失敗 / $PASS 個通過"

@@ -1,22 +1,26 @@
 # Changelog
 
-## 0.6.0 — Unreleased — Cross-session learning DB foundation (Phase 2.1)
+## 0.6.0 — Unreleased — Cross-session learning DB + knowledge graduation (Phase 2.1 + 2.2)
 
-Feature release. Lands the first half of Phase 2 from the vexjoy-agent
-comparison plan: a dependency-light, opt-in cross-session learning store.
-dhpk hooks now persist a few signals worth remembering across sessions
-(reviewer pass, subagent failure, abnormal stop) to an append-only JSON
-Lines log, and SessionStart surfaces the top recurring signatures so the
-model starts each session aware of what prior sessions learned.
-Everything defaults OFF — existing projects see zero behaviour change
-until `userConfig.learning_db_enabled=true` (or `DHPK_LEARNING_DB=1`).
-The Smart Router (`/dhpk:do`, 2.3) and knowledge-graduation command
-(2.2) build on this foundation and ship separately.
+Feature release. Lands Phase 2's learning track from the vexjoy-agent
+comparison plan along **two complementary axes**, both opt-in and both
+default OFF (existing projects see zero behaviour change):
+
+1. **Learning DB (2.1)** — a dependency-light append-only store of
+   operational signals (reviewer pass, subagent failure, abnormal stop),
+   surfaced at SessionStart as a `[learned-context]` block.
+2. **Knowledge graduation (2.2)** — ported and generalised from
+   zdpos_dev's mature local hook (which turned out to be the real
+   reference the plan's "dhpk 通用化 graduation-candidates.md" intent
+   pointed at). Scans the transcript for cited auto-memory entries and
+   proposes stable ones for promotion to a rule/skill.
+
+The Smart Router (`/dhpk:do`, 2.3) builds on these and ships separately.
 
 ### Added
 
 - **`scripts/hooks/_lib/learning-db.sh`** — sourced library for the
-  learning store. Append-only `.claude/artifacts/learning.jsonl`
+  operational-signal store. Append-only `.claude/artifacts/learning.jsonl`
   (`{ts, epoch, kind, sig, detail, weight}` per line). Confidence is
   derived at read time per signature:
   `clamp(0,1, 0.5 + Σweight − 0.05·floor(days_idle/30))` — success
@@ -27,8 +31,23 @@ The Smart Router (`/dhpk:do`, 2.3) and knowledge-graduation command
   jq-first with a python3 write fallback; degrades to a silent no-op
   when neither is present. Self-rotates past `DHPK_LEARNING_CAP_BYTES`
   (default 50MB) into `learning-archive/`.
-- **`.claude-plugin/plugin.json`** — new `learning_db_enabled`
-  userConfig (boolean, default false).
+- **`scripts/hooks/stop-graduation-scan.sh`** — Stop hook (advisory,
+  python3). Scans the session transcript for cited auto-memory entries
+  (`~/.claude/projects/<slug>/memory/<entry>.md`), maintains cross-session
+  counts + confidence in `.claude/artifacts/memory-usage-counts.json`
+  (Phase A count ≥3; Phase B confidence start 0.5, +0.1 clean / −0.2 trap
+  re-occurrence), and regenerates `.claude/artifacts/graduation-candidates.md`.
+  A time-span gate (≥24h, ≥3 distinct dates) blocks same-day false
+  positives; missing source files decay then tombstone (orphan handling).
+  In OpsX projects, high-confidence entries auto-draft a change skeleton
+  (guarded — skipped in non-OpsX projects). Generalised from zdpos: adds a
+  `CLAUDE_HOOK_MEMORY_DIR` test override and bootstraps the report from the
+  shipped template on first run.
+- **`templates/graduation-candidates.md`** — report template the
+  graduation hook copies into a consumer's `.claude/artifacts/` on first
+  enabled run (a plugin can't assume the user pre-scaffolded it).
+- **`.claude-plugin/plugin.json`** — new `learning_db_enabled` and
+  `graduation_scan_enabled` userConfig (both boolean, default false).
 
 ### Changed
 
@@ -41,16 +60,21 @@ The Smart Router (`/dhpk:do`, 2.3) and knowledge-graduation command
   success-but-uncleared sentinel) alongside the existing log line.
 - **`scripts/hooks/stop-failure-log.sh`** — records a `failure`
   (`abnormal-stop`) event when a session stops with pending sentinels.
-- **`scripts/hooks/session-start.sh`** — when the DB is enabled, prints
-  a `[learned-context]` block with the top 5 signatures (≥2 obs),
+- **`scripts/hooks/session-start.sh`** — when the learning DB is enabled,
+  prints a `[learned-context]` block with the top 5 signatures (≥2 obs),
   capped well under 500 tokens.
+- **`hooks/hooks.json`** — registers `stop-graduation-scan.sh` in the Stop
+  chain (after `stop-review-reminder`, before the async sentinel reaper).
 
 ### Verified
 
-- `scripts/validate/test-hooks.sh` extended to 37 checks (section 8
-  covers the lib, all three producers, the default-off opt-in gate, and
-  SessionStart injection on/off). `bash -n` clean on every changed
-  script; `validate-harness.sh` and `plugin.json` JSON parse green.
+- `scripts/validate/test-hooks.sh` extended to 42 checks: section 8
+  covers the learning DB (lib, all three producers, default-off gate,
+  SessionStart on/off); section 9 covers graduation (count accrual +
+  confidence rise → rule candidate + template bootstrap, the existence
+  gate, and the default-off gate, all via `CLAUDE_HOOK_TEST_MODE` +
+  `CLAUDE_HOOK_MEMORY_DIR` isolation). `bash -n` clean on every changed
+  script; `validate-harness.sh` and both JSON manifests parse green.
 
 
 ## 0.5.0 — 2026-05-28 — Lifecycle hook coverage + anti-rationalization gates + skill-hint router seed
