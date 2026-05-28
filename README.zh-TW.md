@@ -164,19 +164,16 @@ claude plugin install dhpk@dhpk \
 
 ## 需要 MCP 依賴的 skill
 
-13 個 skill 需要 **Codex MCP server**（`mcp__codex__codex`、`mcp__codex__codex-reply`）：
+6 個 skill 需要 **Codex MCP server**（`mcp__codex__codex`、`mcp__codex__codex-reply`）：
 
 ```
 codex-architect       codex-brainstorm     codex-cli-review
 codex-code-review     codex-explain        codex-implement
-codex-review-doc      codex-review         codex-review-branch
-codex-review-fast     codex-security       codex-test-gen
-codex-test-review
 ```
 
 未安裝 Codex 時，呼叫上述任一 skill 會出現工具權限錯誤。請另行安裝（請參考 Anthropic 的 Codex 文件），安裝後即可使用。
 
-其他 skill（約 42 個）沒有 MCP 依賴。
+其他 skill（約 51 個）沒有 MCP 依賴。
 
 ## 外部 code-navigation 工具
 
