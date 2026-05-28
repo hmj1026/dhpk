@@ -1,0 +1,78 @@
+{
+  "skill_name": "adaptive-dev-workflow",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "我準備在服務裡新增第三方支付退款 API。OpenSpec change `refund-api` 已經有 proposal、tasks 與 spec，但目前還沒有 `profile.yaml`、`dev-scope.md`、`legacy-reference.md`，也還沒做 RED。先不要寫程式，直接告訴我 workflow type，還有我現在要跑的具體腳本與 gate 指令。",
+      "expected_output": "選出 Feature Delivery，明確列出 prepare_workflow_profile / prepare_dev_scope / workflow_gate_check --workflow-type feature，並阻止在缺 RED 前進入實作。",
+      "files": [],
+      "expectations": [
+        "The response selects Feature Delivery and blocks implementation until RED proof exists.",
+        "The response explicitly names prepare_workflow_profile.py and prepare_dev_scope.py as the next scripts to run.",
+        "The response explicitly includes workflow_gate_check.py with --workflow-type feature.",
+        "The response treats profile, scope, and gate details as relevant because the prompt explicitly asks for concrete scripts and blockers.",
+        "The response stays codex-free (no /codex-* command, no mcp__codex tool) because --codex was not passed."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "結帳流程偶發重複扣款，根因還沒找到。團隊已經先建立 OpenSpec change `dup-charge` 的 tasks 草稿，也有人手動放了一份 `legacy-reference.md`，但專案目前還沒有 `.workflow/profile.yaml`。先不要修 bug，請判斷 workflow type，並明確回答：缺 profile 會不會單獨擋住 bugfix 流程？現在要先補什麼？",
+      "expected_output": "選出 Bug Investigation & Fix，明確說 profile 對 bugfix 是 optional，不是單獨 blocker；真正 blocker 是 work-item readiness、legacy-reference、證據與 RED。",
+      "files": [],
+      "expectations": [
+        "The response selects Bug Investigation & Fix.",
+        "The response states that missing profile alone does not block bugfix workflow because profile is optional for bugfix.",
+        "The response identifies the bug-investigation skill or workflow_gate_check.py --workflow-type bugfix as the correct next path instead of treating the case like a feature gate.",
+        "The response does not expand into feature-only profile setup as the first blocker."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "我只想把某個前端 helper 模組裡幾個重複字串抽成常數，純整理，不改任何行為。不要給我 full workflow，請直接說明這條路徑要跳過哪些 artifacts / gates，還有最後至少要留下什麼最小驗證。",
+      "expected_output": "選出 Lightweight Maintenance，明確跳過 profile/dev-scope/legacy-reference/heavy gate/RED，並保留 targeted verification 與 dhpk:code-reviewer。",
+      "files": [],
+      "expectations": [
+        "The response selects Lightweight Maintenance.",
+        "The response explicitly says to skip profile.yaml, dev-scope.md, legacy-reference.md, and heavy gate or RED requirements.",
+        "The response requires targeted verification and recommends dhpk:code-reviewer afterward.",
+        "The response avoids dumping a full feature or bugfix checklist when the task is explicitly lightweight."
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "OpenSpec change `refund-api` 的 tasks 已 ready，`profile.yaml`、`dev-scope.md`、`legacy-reference.md`、RED 證據也都補齊了。我現在就是要開始實作，請直接告訴我還要不要繼續走 adaptive-dev-workflow，還是應該切去別的流程。",
+      "expected_output": "明確結束 adaptive-dev-workflow 的前置階段，指向 /opsx:apply，不再要求重複跑前置流程。",
+      "files": [],
+      "expectations": [
+        "The response says adaptive-dev-workflow should not remain the primary workflow once apply-ready conditions are already met.",
+        "The response explicitly recommends proceeding to /opsx:apply.",
+        "The response avoids re-requesting the full profile/scope/gate setup that the prompt says is already complete."
+      ]
+    },
+    {
+      "id": 5,
+      "prompt": "我們在一個 Node 20 / Fastify 服務要新增 CSV 匯入流程。這個 repo 沒有 OpenSpec，只有 docs 目錄下的 `proposal.md` 與 `tasks.md`，目前也還沒建立 `implementation-notes.md`、`profile.yaml`、`legacy-reference.md`，更沒有 RED。先不要實作，請判斷 workflow type，並列出 Generic Docs 模式現在缺哪些 artifacts 與 gates。不要套用任何既有專案的預設。",
+      "expected_output": "選出 Feature Delivery，明確使用 Generic Docs 模式，要求 profile、proposal/tasks/implementation-notes、legacy-reference 與 RED，而不是套用任何既有專案或 OpenSpec 的預設流程。",
+      "files": [],
+      "expectations": [
+        "The response selects Feature Delivery.",
+        "The response treats proposal, tasks, and implementation-notes as the relevant Generic Docs artifacts.",
+        "The response requires profile, legacy-reference, and RED evidence before implementation.",
+        "The response does not inject any project-specific defaults or recommend /opsx:apply for this generic-docs project.",
+        "The response stays on generic project guidance because no project override pack is present."
+      ]
+    },
+    {
+      "id": 6,
+      "prompt": "這個 repo 提供了 `.claude/rules/dev-workflow-project.md` 專案 pack（已宣告 language / runtime / architecture / test-strategy / work-item-system）。我們要新增退款 API，OpenSpec change `refund-api` 已有 proposal、tasks 與 spec，但還沒有 `profile.yaml`、`dev-scope.md`、`legacy-reference.md`，也還沒做 RED。先不要寫程式，請判斷 workflow type，並告訴我可以沿用 project pack 的哪些捷徑，不要展開 generic project 的冗長說明。",
+      "expected_output": "選出 Feature Delivery，並在偵測到 `@rules/dev-workflow-project.md` 時套用該專案 pack，指出 profile 可沿用 pack 已宣告的欄位、只需補缺的欄位，同時仍要求 scope、legacy-reference 與 RED。",
+      "files": [],
+      "expectations": [
+        "The response selects Feature Delivery.",
+        "The response loads and applies the project override pack (@rules/dev-workflow-project.md) rather than staying generic.",
+        "The response states that the project pack already declares some profile fields and only the remaining fields need to be supplemented.",
+        "The response still requires dev-scope, legacy-reference, and RED proof before implementation."
+      ]
+    }
+  ]
+}

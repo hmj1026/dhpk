@@ -1,0 +1,4 @@
+interface:
+  display_name: "Adaptive Dev Workflow"
+  short_description: "Route substantial changes before coding"
+  default_prompt: "Use $adaptive-dev-workflow to classify a non-trivial change, check required gates, and hand off to the next workflow."
