@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "dhpk",
   "displayName": "DHPK Dev Harness",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Reusable Claude Code harness — 16 generic role-based agents + ~70 commands + opt-in stack modules across PHP (5.6, 7.4, 8.x), Yii (1.1), PHPUnit (5.7, 9, 10, 11), Laravel (6–11), JS, and the library-author cross-cutting module. 6-slot sentinel-driven review hooks (code / db / sec / frontend / doc / polyfill — polyfill via library-author), parameterised docker/agent names, wrapper-dispatch hook extension model, parallel Codex CLI tree.",
   "author": {
     "name": "hmj1026",
@@ -127,6 +127,31 @@
       "title": "Reap stale gitnexus MCP processes",
       "description": "When enabled, SessionStart kills older gitnexus mcp processes and keeps only the newest. Off by default — only useful for projects that use the gitnexus MCP server.",
       "default": false
+    },
+    "sentinel_commit_gate": {
+      "type": "string",
+      "title": "Sentinel commit gate mode",
+      "description": "Behaviour when `git commit/merge/rebase/cherry-pick` runs while reviewer sentinels are pending: warn (stderr reminder, exit 0) | block (reject the tool call, exit 2) | off (silent). Default 'warn'. Env DHPK_SENTINEL_COMMIT_GATE overrides this for one-shot toggles. Companion to pre-bash-guard's git-push hard block.",
+      "default": "warn"
+    },
+    "branch_safety": {
+      "type": "string",
+      "title": "Protected branch safety mode",
+      "description": "Behaviour when a history-mutating git verb (commit/merge/rebase/cherry-pick/reset/push) runs on a protected branch: warn | block | off. Default 'warn'. Env DHPK_BRANCH_SAFETY overrides for one-shot toggles.",
+      "default": "warn"
+    },
+    "protected_branches": {
+      "type": "string",
+      "multiple": true,
+      "title": "Protected branch names / globs",
+      "description": "Branches treated as protected by the branch_safety gate. Glob syntax supported via bash case-match (e.g. 'release/*'). Default: main, master, develop, release/*, hotfix/*. Set to empty list to disable per-branch gating without setting branch_safety=off.",
+      "default": ["main", "master", "develop", "release/*", "hotfix/*"]
+    },
+    "skill_hint_enabled": {
+      "type": "boolean",
+      "title": "Enable UserPromptSubmit skill hint",
+      "description": "When true (default), the userpromptsubmit-skill-hint hook prints a one-line suggestion mapping the user prompt to the most likely dhpk command (e.g. 'bug' → /dhpk:bug-fix). Set false to silence. Env DHPK_DISABLE_SKILL_HINT=1 overrides for one-shot disable.",
+      "default": true
     }
   }
 }
