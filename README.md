@@ -2,7 +2,7 @@
 
 > **Languages**: **English** · [繁體中文](./README.zh-TW.md)
 
-A generic, install-and-go Claude Code harness. Ships **16 role-based agents** (+ 1 module-scoped reviewer), ~70 commands (codex / gitnexus / git / project workflow), ~55 core skills + the `deploy-list` cross-project deploy file list generator, **6-slot sentinel-driven review hooks** (code / db / sec / frontend / doc / **polyfill** — the last via `library-author`), statusline, harness scripts, and **16 opt-in stack modules** across PHP (`php-5.6`, `php-7.4`, `php-8.x`), Yii (`yii-1.1`), PHPUnit (`phpunit-5.7`, `phpunit-9`, `phpunit-10`, `phpunit-11`), Laravel (`laravel-6` through `laravel-11`), JS (`js`), plus the cross-cutting `library-author` module. Modules contribute hooks at runtime via the **wrapper-dispatch** model (see [`docs/hook-extension.md`](./docs/hook-extension.md)). Parallel Codex CLI tree included for dual-assistant projects.
+A generic, install-and-go Claude Code harness. Ships **16 role-based agents** (+ 1 module-scoped reviewer), ~73 commands (codex / gitnexus / git / project workflow), ~57 core skills + the `deploy-list` cross-project deploy file list generator + the **`/dhpk:do` Smart Router** (natural-language task routing via 21-pattern route table + LLM fallback) + **cross-session learning DB** (operational signal store with confidence decay, opt-in), **6-slot sentinel-driven review hooks** (code / db / sec / frontend / doc / **polyfill** — the last via `library-author`), statusline, harness scripts, and **16 opt-in stack modules** across PHP (`php-5.6`, `php-7.4`, `php-8.x`), Yii (`yii-1.1`), PHPUnit (`phpunit-5.7`, `phpunit-9`, `phpunit-10`, `phpunit-11`), Laravel (`laravel-6` through `laravel-11`), JS (`js`), plus the cross-cutting `library-author` module. Modules contribute hooks at runtime via the **wrapper-dispatch** model (see [`docs/hook-extension.md`](./docs/hook-extension.md)). Parallel Codex CLI tree included for dual-assistant projects.
 
 OpenSpec is an **optional external integration** — install the [OpenSpec plugin](https://github.com/Fission-AI/OpenSpec) separately if you want OpenSpec workflow commands. dhpk retains only its own value-add helper `opsx-apply-resume` (long-running OpenSpec session context handoff); the 10 generic OpenSpec wrapper skills/commands were unbundled in v0.2.1 since OpenSpec ships them upstream.
 
@@ -59,7 +59,7 @@ claude plugin install dhpk@dhpk \
   --config hook_profile=standard
 ```
 
-Pin a specific release by appending a version: `claude plugin install dhpk@dhpk@v0.3.2`. Available stacks/versions live in `manifests/module-catalog.json` (SSOT); curated bundles in `manifests/install-profiles.json`. Docker prerequisites: see [`docs/docker-setup.md`](./docs/docker-setup.md).
+Pin a specific release by appending a version: `claude plugin install dhpk@dhpk@v0.6.0`. Available stacks/versions live in `manifests/module-catalog.json` (SSOT); curated bundles in `manifests/install-profiles.json`. Docker prerequisites: see [`docs/docker-setup.md`](./docs/docker-setup.md).
 
 After install, reconfigure any time from inside Claude Code:
 
@@ -113,17 +113,17 @@ The same actions are available as `/plugin update dhpk`, `/plugin uninstall dhpk
 | Component | Count | Notes |
 |-----------|------:|-------|
 | Agents | 16 root + 1 module | 5 sentinel-driven reviewers (code / db / sec / **frontend** / **doc**) + the 6th `polyfill-reviewer` shipped by `library-author`. `migration-reviewer` is a sentinel-driven companion to `database-reviewer` (fires on `.pending-migration-review`). Situational: architect, tdd-guide, refactor-cleaner, ui-ux-verifier, performance-analyzer, doc-updater, docs-lookup, harness-reviser, harness-optimizer, version-matrix-impact-reviewer. |
-| Commands | ~70 | `dhpk:codex-*`, `dhpk:review-pending`, `dhpk:smart-commit`, `dhpk:ts-check-status` (JS module), `dhpk:opsx-apply-resume` (needs OpenSpec), `dhpk:matrix-cell-onboard` (library-author), `dhpk:de-ai-flavor`, `dhpk:deploy-list`, `dhpk:goal-ex`, `dhpk:ui-ux-verify`, etc. |
-| Core skills | ~55 + extras | codex-*, gitnexus, tool-routing, dhpk-execution-policy, **deploy-list** (cross-project deploy file list generator), **execution-checklist** (end-of-task self-check), `opsx-apply-resume` helpers (need OpenSpec) |
+| Commands | ~73 | `dhpk:do` (Smart Router), `dhpk:create-dev`, `dhpk:codex-*`, `dhpk:review-pending`, `dhpk:smart-commit`, `dhpk:ts-check-status` (JS module), `dhpk:opsx-apply-resume` (needs OpenSpec), `dhpk:matrix-cell-onboard` (library-author), `dhpk:de-ai-flavor`, `dhpk:deploy-list`, `dhpk:goal-ex`, `dhpk:ui-ux-verify`, etc. |
+| Core skills | ~57 + extras | codex-*, gitnexus, tool-routing, dhpk-execution-policy, **adaptive-dev-workflow** (Feature/Bug/Maintenance classifier), **deploy-list** (cross-project deploy file list generator), **execution-checklist** (end-of-task self-check), `opsx-apply-resume` helpers (need OpenSpec) |
 | Stack modules | 16 | PHP: `php-5.6`, `php-7.4`, `php-8.x` · Yii: `yii-1.1` · PHPUnit: `phpunit-5.7`, `phpunit-9`, `phpunit-10`, `phpunit-11` · Laravel: `laravel-6` … `laravel-11` · `js` · `library-author` (opt-in; see "Modules" below) |
-| Hooks | 5 events | PreToolUse (Edit, Bash + dispatcher), PostToolUse (Edit + dispatcher + async crlf-fix), SessionStart, Stop (stop-review-reminder + reap-stale-sentinels) |
+| Hooks | 9 events | PreToolUse (Edit, Bash + dispatcher + sentinel-gate + branch-safety), PostToolUse (Edit + dispatcher + async crlf-fix), SessionStart, PreCompact (checkpoint archive), PostCompact (sentinel restore), SubagentStop (reviewer verify + failure log), StopFailure (failure log), UserPromptSubmit (skill hint), Stop (review-reminder + graduation-scan + reap-stale-sentinels) |
 | Hook dispatchers | 2 | `post-edit-dispatch.sh`, `pre-bash-dispatch.sh` — fan out to active modules' hooks |
 | Harness scripts | 5 | precommit-runner, verify-runner, harness-audit, codemap generator, dep-audit |
 | Codex dual-track | 14 skills + 1 agent (5 config profiles) | Synced into project `.codex/` by `install-codex-skills.sh` |
 
 ## userConfig
 
-Nine knobs, all settable at install time with `--config <key>=<value>`:
+Fifteen knobs, all settable at install time with `--config <key>=<value>`:
 
 | Key | Default | Purpose |
 |-----|---------|---------|
@@ -136,6 +136,12 @@ Nine knobs, all settable at install time with `--config <key>=<value>`:
 | `js_lint_script` | `"lint"` | npm script invoked by the `js` module's pre-commit gate. |
 | `js_typecheck_script` | `"typecheck"` | npm script invoked by the `js` module's pre-commit gate. |
 | `js_check_path` | `"js/"` | Path scanned by `/ts-check-status` for `// @ts-check` rollout progress. |
+| `sentinel_commit_gate` | `"warn"` | `warn` \| `block` \| `off` — gate on `git commit/merge/rebase/cherry-pick` while reviewer sentinels exist. Override one-shot via `DHPK_SENTINEL_COMMIT_GATE`. |
+| `branch_safety` | `"warn"` | `warn` \| `block` \| `off` — gate on history-mutating git ops (`commit/merge/rebase/cherry-pick/reset/push`) on protected branches. Override one-shot via `DHPK_BRANCH_SAFETY`. |
+| `protected_branches` | `["main","master","develop","release/*","hotfix/*"]` | Branch glob list checked by `branch_safety`. Bash `case` glob syntax. |
+| `skill_hint_enabled` | `true` | Whether the UserPromptSubmit hook prints a one-line route-table skill hint. Silence via `DHPK_DISABLE_SKILL_HINT=1` (one-shot) or set this `false` (persistent). |
+| `learning_db_enabled` | `false` | (v0.6.0) Enable the `.claude/artifacts/learning.jsonl` operational signal store (reviewer pass / subagent failure / abnormal stop). Surfaces as a `[learned-context]` block at SessionStart. |
+| `graduation_scan_enabled` | `false` | (v0.6.0) Enable the Stop hook that scans session transcripts for cited auto-memory entries and drafts `graduation-candidates.md` promotion proposals. |
 
 Examples:
 
@@ -311,8 +317,9 @@ dhpk/
 │   ├── marketplace.json          # one-entry marketplace (plugins[0].source: "./")
 │   └── plugin.json               # plugin manifest with userConfig
 ├── agents/                       # 16 role-based agents (INDEX.md is navigation)
-├── commands/                     # ~70 slash commands (codex-*, smart-commit, opsx-apply-resume, matrix-cell-onboard, ...)
-├── skills/                       # ~55 core skills (codex-*, tool-routing, dhpk-execution-policy, opsx-apply-resume helpers, goal-ex, ...)
+├── commands/                     # ~73 slash commands (do, create-dev, codex-*, smart-commit, opsx-apply-resume, matrix-cell-onboard, ...)
+├── skills/                       # ~57 core skills (adaptive-dev-workflow, codex-*, tool-routing, dhpk-execution-policy, opsx-apply-resume helpers, goal-ex, ...)
+├── templates/                    # hook-bootstrap templates (graduation-candidates.md — copied to .claude/artifacts/ on first graduation run)
 ├── rules/                        # plain-markdown governance rules (execution-policy, tool-routing, anti-rationalization) — not in plugin.json; opt-in via ${CLAUDE_PLUGIN_ROOT}/rules/*.md from a consuming project's CLAUDE.md
 ├── modules/                      # 16 opt-in stack modules
 │   ├── php-5.6/, php-7.4/, php-8.x/        # {module.yaml, skills/, references/, hooks/ (php-7.4 only)}
