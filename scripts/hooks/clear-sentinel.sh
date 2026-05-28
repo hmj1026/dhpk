@@ -14,7 +14,11 @@ ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 
 # Known sentinel whitelist derived from _lib/payload.sh (SSOT). Extending
 # SENTINEL_NAMES there is enough; this script needs no change.
+# load-project-config.sh first so learning-db enablement honours project
+# settings even when invoked as a plain Bash command (not a hook env).
+. "$(dirname "$0")/_lib/load-project-config.sh"
 . "$(dirname "$0")/_lib/payload.sh"
+. "$(dirname "$0")/_lib/learning-db.sh"
 readonly KNOWN_SENTINELS=("${SENTINEL_NAMES[@]}")
 
 if [ "$NAME" = "--all" ]; then
@@ -24,6 +28,7 @@ if [ "$NAME" = "--all" ]; then
         if [ -f "$f" ]; then
             rm -f "$f"
             echo "[$LABEL] sentinel cleared ($s)"
+            ldb_record success "review:$s" "$LABEL"
             cleared=$((cleared + 1))
         fi
     done
@@ -51,6 +56,7 @@ SENTINEL="$ROOT/.claude/artifacts/sessions/$NAME"
 if [ -f "$SENTINEL" ]; then
     rm -f "$SENTINEL"
     echo "[$LABEL] sentinel cleared ($NAME)"
+    ldb_record success "review:$NAME" "$LABEL"
 else
     echo "[$LABEL] sentinel already clean ($NAME)"
 fi

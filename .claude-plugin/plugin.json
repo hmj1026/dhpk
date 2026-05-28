@@ -152,6 +152,12 @@
       "title": "Enable UserPromptSubmit skill hint",
       "description": "When true (default), the userpromptsubmit-skill-hint hook prints a one-line suggestion mapping the user prompt to the most likely dhpk command (e.g. 'bug' → /dhpk:bug-fix). Set false to silence. Env DHPK_DISABLE_SKILL_HINT=1 overrides for one-shot disable.",
       "default": true
+    },
+    "learning_db_enabled": {
+      "type": "boolean",
+      "title": "Enable cross-session learning DB",
+      "description": "When true, hooks append signals (reviewer pass via clear-sentinel, subagent failure, abnormal stop) to an append-only .claude/artifacts/learning.jsonl, and SessionStart surfaces the top recurring signatures as a [learned-context] block (capped at 5 lines). Confidence is derived per signature with recency decay; the log self-rotates past 50MB. Default false (opt-in) — zero behaviour change until a project turns it on. Env DHPK_LEARNING_DB=1/0 overrides for one-shot toggles.",
+      "default": false
     }
   }
 }

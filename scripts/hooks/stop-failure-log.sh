@@ -23,6 +23,7 @@ set -o pipefail
 
 . "$(dirname "$0")/_lib/load-project-config.sh"
 . "$(dirname "$0")/_lib/payload.sh"
+. "$(dirname "$0")/_lib/learning-db.sh"
 
 ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 SESS="$ROOT/.claude/artifacts/sessions"
@@ -71,6 +72,13 @@ if [ -n "$extra" ]; then
     echo "$TIMESTAMP active_sentinels=$csv reason=$extra" >> "$LOG" || true
 else
     echo "$TIMESTAMP active_sentinels=$csv" >> "$LOG" || true
+fi
+
+# Cross-session learning: an abnormal stop with pending reviews is a recurring
+# signal worth tracking. Only records when sentinels were actually active
+# (no-op when the DB is disabled or the chain was clean).
+if [ "${#active[@]}" -gt 0 ]; then
+    ldb_record failure "abnormal-stop" "sentinels=$csv"
 fi
 
 # Visible summary (skipped in minimal profile).

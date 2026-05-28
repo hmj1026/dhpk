@@ -200,6 +200,76 @@ run_hook "$repo" pretool-branch-safety.sh '{"tool_input":{"command":"git commit 
 if [ "$RC" -eq 0 ] && [ ! -s "$STDERR_F" ]; then ok "off mode → silent exit 0"; else fail "off mode not silent (rc=$RC)"; fi
 
 echo ""
+echo "== 8. learning-db.sh (Phase 2.1) =="
+ljson_path() { printf '%s/.claude/artifacts/learning.jsonl' "$1"; }
+
+# 8a. lib: record + aggregate + confidence ordering.
+repo="$(make_repo)"
+(
+    cd "$repo" || exit 1
+    export CLAUDE_PROJECT_DIR="$repo" DHPK_LEARNING_DB=1
+    . "$HOOKS/_lib/learning-db.sh"
+    ldb_record success "review:code-reviewer"
+    ldb_record success "review:code-reviewer"
+    ldb_record success "review:code-reviewer"
+    ldb_record failure "agent:db-reviewer" "exit=1"
+    ldb_top 5 1 > "$repo/_top.txt" 2>/dev/null
+    ldb_graduation_candidates 60 3 > "$repo/_grad.txt" 2>/dev/null
+)
+lj="$(ljson_path "$repo")"
+if [ -f "$lj" ] && [ "$(wc -l < "$lj")" -eq 4 ]; then ok "ldb_record appended 4 events"; else fail "expected 4 events, got $( [ -f "$lj" ] && wc -l < "$lj" || echo 0 )"; fi
+if head -1 "$repo/_top.txt" | grep -q 'review:code-reviewer'; then ok "ldb_top ranks 3x success highest"; else fail "ldb_top ordering wrong ($(cat "$repo/_top.txt"))"; fi
+if grep -q 'review:code-reviewer' "$repo/_grad.txt" && ! grep -q 'db-reviewer' "$repo/_grad.txt"; then ok "graduation filters by confidence+obs"; else fail "graduation filter wrong ($(cat "$repo/_grad.txt"))"; fi
+
+# 8b. producer: clear-sentinel records a success event.
+repo="$(make_repo)"
+mk_sentinel "$repo" ".pending-review"
+( cd "$repo"; export CLAUDE_PROJECT_DIR="$repo" DHPK_LEARNING_DB=1; bash "$HOOKS/clear-sentinel.sh" .pending-review code-reviewer >/dev/null 2>&1 )
+lj="$(ljson_path "$repo")"
+if [ -f "$lj" ] && grep -q '"sig":"review:.pending-review"' "$lj" && grep -q '"kind":"success"' "$lj"; then ok "clear-sentinel → success event"; else fail "clear-sentinel did not record success"; fi
+
+# 8c. producer: subagent failure records a failure event.
+repo="$(make_repo)"
+mk_sentinel "$repo" ".pending-review"
+run_hook "$repo" subagent-stop-verify.sh '{"subagent_type":"code-reviewer","exit_status":1}' DHPK_LEARNING_DB=1
+lj="$(ljson_path "$repo")"
+if [ -f "$lj" ] && grep -q '"sig":"agent:code-reviewer"' "$lj"; then ok "subagent failure → failure event"; else fail "subagent failure not recorded"; fi
+
+# 8d. producer: stop-failure-log records an abnormal-stop event.
+repo="$(make_repo)"
+mk_sentinel "$repo" ".pending-review"
+run_hook "$repo" stop-failure-log.sh '{"reason":"crash"}' DHPK_LEARNING_DB=1
+lj="$(ljson_path "$repo")"
+if [ -f "$lj" ] && grep -q '"sig":"abnormal-stop"' "$lj"; then ok "abnormal stop → failure event"; else fail "abnormal stop not recorded"; fi
+
+# 8e. opt-in gate: default-off → no log written.
+repo="$(make_repo)"
+mk_sentinel "$repo" ".pending-review"
+run_hook "$repo" subagent-stop-verify.sh '{"subagent_type":"code-reviewer","exit_status":1}'
+lj="$(ljson_path "$repo")"
+if [ ! -f "$lj" ]; then ok "learning DB default-off → no log written"; else fail "log written while DB disabled"; fi
+
+# 8f. SessionStart surfaces [learned-context] when enabled.
+repo="$(make_repo)"
+(
+    cd "$repo" || exit 1
+    export CLAUDE_PROJECT_DIR="$repo" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" DHPK_LEARNING_DB=1
+    . "$HOOKS/_lib/learning-db.sh"
+    ldb_record success "review:code-reviewer"
+    ldb_record success "review:code-reviewer"
+    bash "$HOOKS/session-start.sh" > "$repo/_ss.out" 2>/dev/null
+)
+if grep -q 'learned-context' "$repo/_ss.out"; then ok "SessionStart injects [learned-context]"; else fail "no learned-context block emitted"; fi
+# Disabled → no block.
+repo="$(make_repo)"
+(
+    cd "$repo" || exit 1
+    export CLAUDE_PROJECT_DIR="$repo" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT"
+    bash "$HOOKS/session-start.sh" > "$repo/_ss2.out" 2>/dev/null
+)
+if ! grep -q 'learned-context' "$repo/_ss2.out"; then ok "SessionStart silent when DB disabled"; else fail "learned-context emitted while disabled"; fi
+
+echo ""
 echo "=========================================="
 if [ "$FAIL" -gt 0 ]; then
     echo "FAIL: $FAIL 個失敗 / $PASS 個通過"

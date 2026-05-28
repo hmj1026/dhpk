@@ -19,6 +19,7 @@ ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 # overrides are loaded here so dhpk modules / hook_profile / etc. respect the
 # project's intent. See _lib/load-project-config.sh for precedence rules.
 . "$PLUGIN_ROOT/scripts/hooks/_lib/load-project-config.sh"
+. "$PLUGIN_ROOT/scripts/hooks/_lib/learning-db.sh"
 
 PROFILE="${CLAUDE_PLUGIN_OPTION_HOOK_PROFILE:-standard}"
 ARTIFACTS="$ROOT/.claude/artifacts"
@@ -165,5 +166,22 @@ EOF
 echo "[session-start] branch=$BRANCH docker=$DOCKER_STATUS profile=$PROFILE modules=${ACTIVE_MODULES:-none}"
 [ -n "$MODULE_LINES" ] && echo "$MODULE_LINES" | sed '/^$/d'
 [ -n "$DOCKER_WARNS" ] && echo "[session-start] strict-profile warnings:$DOCKER_WARNS"
+
+# ---- Cross-session learned context (opt-in via learning_db_enabled) ----
+# Surface the top recurring signatures so the model starts the session aware of
+# what prior sessions learned. Capped at 5 lines (~well under 500 tokens) to
+# keep the context budget small. No-op unless the learning DB is enabled and
+# has at least one signature with ≥2 observations.
+if ldb_enabled; then
+    _ldb_top="$(ldb_top 5 2 2>/dev/null || true)"
+    if [ -n "$_ldb_top" ]; then
+        echo "[learned-context] cross-session patterns (confidence/observations — higher confidence = more established):"
+        while IFS=$'\t' read -r _conf _obs _days _kind _sig; do
+            [ -z "$_sig" ] && continue
+            echo "  - ${_conf}% (${_obs}x, ${_days}d idle) ${_kind}: ${_sig}"
+        done <<< "$_ldb_top"
+    fi
+    unset _ldb_top
+fi
 
 exit 0
