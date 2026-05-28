@@ -10,7 +10,7 @@ description: 'Navigation index for dhpk plugin commands. Internal documentation;
 
 | Command | 用途 | 對應階段 |
 |---------|------|----------|
-| `/create-dev` | 變更路由分類（決定後續走 OpenSpec 或 brief plan） | 接需求 |
+| `/create-dev` | 變更路由分類 → 驅動 `adaptive-dev-workflow` skill（分類 + planning agent + gate checklist），決定走 OpenSpec / brief plan | 接需求 |
 | `/tech-spec` | 從需求產出技術規格文件 | 設計 |
 | `/feature-dev` | 功能開發完整流程（設計→實作→驗證→review→commit） | 開發主流 |
 | `/bug-fix` | Bug 修復工作流 | 開發 |
@@ -19,6 +19,10 @@ description: 'Navigation index for dhpk plugin commands. Internal documentation;
 | `/feasibility-study` | 可行性評估（first principles） | 研究 |
 
 > 根因分析用 skill `bug-investigation`（非 slash command）：直接描述問題觸發。
+>
+> **Codex 是 opt-in。** `/create-dev`、`/feature-dev`、`/bug-fix` 預設 codex-free（不呼叫 `mcp__codex__*`）；
+> 傳 `--codex` 才委派給 `codex-*` command 走 Codex。`/dhpk:do` 會把實質 bug/feature 任務路由到
+> `adaptive-dev-workflow`（codex-free 預設）。
 
 ## OpenSpec（artifact 工作流）
 
