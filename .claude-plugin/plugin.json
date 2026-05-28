@@ -158,6 +158,12 @@
       "title": "Enable cross-session learning DB",
       "description": "When true, hooks append signals (reviewer pass via clear-sentinel, subagent failure, abnormal stop) to an append-only .claude/artifacts/learning.jsonl, and SessionStart surfaces the top recurring signatures as a [learned-context] block (capped at 5 lines). Confidence is derived per signature with recency decay; the log self-rotates past 50MB. Default false (opt-in) — zero behaviour change until a project turns it on. Env DHPK_LEARNING_DB=1/0 overrides for one-shot toggles.",
       "default": false
+    },
+    "graduation_scan_enabled": {
+      "type": "boolean",
+      "title": "Enable knowledge graduation scan",
+      "description": "When true, a Stop hook scans the session transcript for cited auto-memory entries (~/.claude/projects/<slug>/memory/<entry>.md), maintains cross-session counts + confidence in .claude/artifacts/memory-usage-counts.json, and regenerates .claude/artifacts/graduation-candidates.md (bootstrapped from the plugin template on first run). Entries cited ≥3 times across ≥24h/≥3 dates without trap re-occurrence are proposed for promotion to a rule/skill; in OpsX projects, high-confidence entries also auto-draft a change skeleton. Requires python3. Default false (opt-in). Env DHPK_GRADUATION_SCAN=1/0 overrides for one-shot toggles.",
+      "default": false
     }
   }
 }
