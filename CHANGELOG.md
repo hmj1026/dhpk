@@ -1,5 +1,192 @@
 # Changelog
 
+## 0.5.0 — 2026-05-28 — Lifecycle hook coverage + anti-rationalization gates + skill-hint router seed
+
+Feature release. Closes three lifecycle gaps identified in the
+vexjoy-agent comparison audit
+(`~/.claude/plans/dhpk-plugin-1-functional-swan.md`): (1) the only
+lifecycle events dhpk wired pre-0.5 were `PreToolUse / PostToolUse /
+SessionStart / Stop` — `PreCompact / PostCompact / SubagentStop /
+StopFailure / UserPromptSubmit` were all unwired, so session compaction
+silently dropped sentinel state, subagent failures left no log trail,
+and incoming user prompts never got workflow hints; (2) the
+anti-rationalization rule file (added in 0.4.0) was advisory-only —
+nothing hooked into bash to enforce "don't bypass the reviewer chain"
+or "don't commit to main by accident"; (3) the 70 commands form a flat
+catalog with no discovery surface for users who type natural language.
+This release adds five new hook entrypoints, two new gate hooks, and a
+seed route-table that the planned `/dhpk:do` Smart Router (Phase 2)
+will reuse. Everything is opt-in via `userConfig`; default profile
+behavior on existing projects is unchanged except for the
+UserPromptSubmit hint (which prints a one-line stderr suggestion).
+
+### Added
+
+- **`scripts/hooks/subagent-stop-verify.sh`** — SubagentStop hook
+  (advisory). When a reviewer subagent finishes, cross-checks the
+  corresponding sentinel: warns when the sentinel is uncleared
+  (likely missed `clear-sentinel.sh` call) and logs non-zero exit
+  status to `.claude/artifacts/agent-failures.log`. Ported from
+  zdpos_dev's local hook; de-identified (no `dhpk:` agent prefix
+  assumption — looks up `SENTINEL_AGENTS` from `_lib/payload.sh`).
+  Profile-aware (minimal suppresses stderr but still logs).
+- **`scripts/hooks/stop-failure-log.sh`** — StopFailure hook
+  (advisory). Records active sentinels and optional reason from
+  the payload into `.claude/artifacts/stop-failures.log` so the
+  next SessionStart (or a human) can see what was pending when the
+  previous session abnormally terminated. Ported from zdpos_dev.
+- **`scripts/hooks/precompact-archive.sh`** — PreCompact hook.
+  Snapshots every active sentinel's content into
+  `.claude/artifacts/checkpoints/precompact-<session_id>.json`
+  before Claude Code compresses the conversation. Maintains a
+  `latest.json` symlink for fast lookup. python3 path JSON-encodes
+  sentinel bodies (preserves embedded newlines / quotes from
+  `post-edit-remind`'s file lists); falls back to an empty-sentinels
+  envelope when python3 is missing rather than failing.
+- **`scripts/hooks/postcompact-restore.sh`** — PostCompact hook.
+  After compaction, reads the latest checkpoint and restores any
+  sentinel that is currently missing. Never overwrites an existing
+  sentinel (post-compact user/assistant may have already updated
+  it). Supports python3 (base64-aware) and jq fallback paths.
+- **`scripts/hooks/userpromptsubmit-skill-hint.sh`** — UserPromptSubmit
+  hook (advisory). Matches the incoming prompt against
+  `scripts/lib/route-table.json` (21 patterns: 15 English, 6
+  Traditional Chinese) and prints one stderr line suggesting the
+  relevant dhpk command (e.g. "this prompt looks like a bug fix
+  workflow task — consider running /dhpk:bug-fix"). First match
+  wins. Skipped when:
+  - profile is `minimal`
+  - prompt starts with `/` (user already invoked an explicit command)
+  - prompt is shorter than 8 chars (noise floor)
+  - `DHPK_DISABLE_SKILL_HINT=1` env (one-shot)
+  - `userConfig.skill_hint_enabled=false` (persistent)
+- **`scripts/hooks/pretool-sentinel-gate.sh`** — PreToolUse Bash hook
+  (default warn). Companion to `pre-bash-guard.sh`. While
+  `pre-bash-guard` hard-blocks `git push` when sentinel-listed paths
+  are still uncommitted, this hook warns (or optionally blocks) on
+  `git commit / merge / rebase / cherry-pick` while reviewer
+  sentinels exist. The asymmetry is intentional: commit is local
+  and may legitimately precede review; push is team-visible and
+  warrants the hard block. Mode controlled by
+  `DHPK_SENTINEL_COMMIT_GATE` env (one-shot) or
+  `userConfig.sentinel_commit_gate` (persistent): `warn` (default) |
+  `block` | `off`.
+- **`scripts/hooks/pretool-branch-safety.sh`** — PreToolUse Bash hook
+  (default warn). Warns (or optionally blocks) on history-mutating
+  git verbs (`commit / merge / rebase / cherry-pick / reset / push`)
+  when the current branch matches the protected list. Branch list
+  configurable via `userConfig.protected_branches` (default: `main`,
+  `master`, `develop`, `release/*`, `hotfix/*`; glob syntax via bash
+  case-match). Mode via `DHPK_BRANCH_SAFETY` or
+  `userConfig.branch_safety`: `warn` (default) | `block` | `off`.
+- **`scripts/lib/route-table.json`** — SSOT for prompt → workflow
+  routing. Used today by `userpromptsubmit-skill-hint.sh` (advisory
+  hint); reserved for Phase 2's `/dhpk:do` Smart Router (planned
+  CLASSIFY → ROUTE → ENHANCE → EXECUTE → LEARN flow). 21 patterns
+  covering bug-fix, feature-dev, code-review, security-review,
+  code-explore, project-audit, deploy-list, simplify / refactor,
+  tech-spec, smart-commit, create-pr, feasibility-study,
+  risk-assess, precommit, verify — first match wins, ordered
+  specific → general.
+
+### Changed
+
+- **`hooks/hooks.json`** — registers five new lifecycle event slots
+  (`PreCompact`, `PostCompact`, `SubagentStop`, `StopFailure`,
+  `UserPromptSubmit`) and adds two new PreToolUse Bash hook entries
+  (`pretool-sentinel-gate.sh`, `pretool-branch-safety.sh`) alongside
+  the existing `pre-bash-dispatch.sh`. Order matters: dispatch runs
+  first so module-specific bash guards (e.g. JS pre-commit) gate
+  before the soft sentinel/branch reminders.
+- **`.claude-plugin/plugin.json`** — adds four new `userConfig`
+  knobs (`sentinel_commit_gate`, `branch_safety`,
+  `protected_branches`, `skill_hint_enabled`). All defaults chosen
+  to be warn-only / opt-out for backward compatibility: existing
+  projects gain stderr reminders but no new hard blocks. Version
+  bumped 0.4.0 → 0.5.0.
+- **`scripts/validate/test-hooks.sh`** — automated smoke-test
+  harness for all seven new hooks. Each case runs the real hook
+  against an isolated `mktemp -d` git repo (path-aligned via
+  `git rev-parse` so symlinked `/tmp` cannot cause false
+  negatives), asserting stderr/exit-code/artifact behaviour
+  including the warn/block/off mode matrix and the no-overwrite
+  restore path. 28 checks; exit 1 on any failure.
+- **`scripts/validate/validate-harness.sh`** — new section 7
+  "Route table SSOT": every `route-table.json` rule's
+  `skill: dhpk:<name>` must map to an existing `commands/<name>.md`.
+  Whitelists `do` (Phase 2 Smart Router, not yet built); skips
+  gracefully in consumer projects where the route table is absent.
+
+### Verified
+
+- `bash -n` clean on all seven new shell scripts.
+- `python3 -m json.tool` passes for `hooks/hooks.json`,
+  `.claude-plugin/plugin.json`, and `scripts/lib/route-table.json`.
+- All 21 `route-table.json` patterns compile under `re.IGNORECASE`,
+  and all skill targets resolve to real commands (one stale
+  `dhpk:security-review` → `dhpk:codex-security` typo fixed; now
+  enforced by `validate-harness.sh` section 7).
+- Hook end-to-end smoke tests now automated in
+  `scripts/validate/test-hooks.sh` (28 checks, all green):
+  - `precompact-archive` / `postcompact-restore`: round-trips a
+    sentinel through a checkpoint; verifies the no-overwrite path
+    leaves a live-edited sentinel untouched.
+  - `subagent-stop-verify`: non-reviewer subagent → silent exit 0
+    with no log growth; failed/uncleared reviewer → log entry.
+  - `stop-failure-log`: writes `active_sentinels=` (and `none`
+    when empty) + reason from payload.
+  - `userpromptsubmit-skill-hint`: matches English + Traditional
+    Chinese bug prompts; skips `/` prefix, short prompts, and the
+    `DHPK_DISABLE_SKILL_HINT=1` opt-out.
+  - `pretool-sentinel-gate`: silent when no sentinel / non-git;
+    warns on `git commit` when sentinel present; exit 2 under
+    `DHPK_SENTINEL_COMMIT_GATE=block`; silent under `off`.
+  - `pretool-branch-safety`: warns on protected branch; silent on
+    feature branch; exit 2 under `block`; silent under `off`.
+
+### Non-changes
+
+- Sentinel chain SSOT (`scripts/hooks/_lib/payload.sh`) unchanged.
+- `post-edit-remind.sh`, `stop-review-reminder.sh`,
+  `reap-stale-sentinels.sh`, and `clear-sentinel.sh` unchanged.
+- No existing agent / skill / command body renamed or removed.
+- Library-author module's `.pending-polyfill-review` slot
+  unchanged; new gates honour it transparently via `SENTINEL_NAMES`.
+
+### Deferred to Phase 2
+
+- `/dhpk:do` Smart Router command + `pre-route.sh` fast-path are
+  designed but not implemented this release. `route-table.json`
+  ships now so Phase 2 can reuse it without a schema migration.
+- Learning DB (`.claude/artifacts/learning.jsonl`) and
+  cross-session graduation flow — `stop-failure-log.sh` already
+  writes the failure log Phase 2 will consume.
+- Confidence-weighted instinct auto-graduation.
+
+### Upgrade notes
+
+- Existing projects: on next session, three new stderr lines may
+  appear depending on workflow:
+  - "[skill-hint] this prompt looks like ..." for English /
+    Traditional Chinese prompts matching the route table. Silence
+    via `DHPK_DISABLE_SKILL_HINT=1` or set
+    `userConfig.skill_hint_enabled=false` in
+    `.claude/settings.local.json`.
+  - "⚠ REMINDER: commit attempted while reviewer chain is
+    pending..." when sentinels exist and `git commit` is called.
+    Silence via `DHPK_SENTINEL_COMMIT_GATE=off` or
+    `userConfig.sentinel_commit_gate="off"`.
+  - "⚠ REMINDER: commit on protected branch 'main'..." when
+    committing to a protected branch. Silence via
+    `DHPK_BRANCH_SAFETY=off` or `userConfig.branch_safety="off"`,
+    or narrow the list via `userConfig.protected_branches`.
+- No existing behaviour changes for `pre-bash-guard.sh` (rm -rf,
+  curl|sh, chmod 777, git push w/ active sentinels).
+- The new `.claude/artifacts/{agent-failures,stop-failures}.log`
+  and `.claude/artifacts/checkpoints/` paths are auto-created by
+  the hooks; add to `.gitignore` if not already covered by the
+  existing `.claude/artifacts/**` exclusion.
+
 ## 0.4.0 — 2026-05-27 — Absorb zdpos harness improvements + introduce rules/ resource layer
 
 Feature release. Pulls in improvements from the zdpos_dev project after a
