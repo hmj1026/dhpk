@@ -97,6 +97,30 @@ done
 ok "artifacts 結構檢查完"
 
 echo ""
+echo "== 7. Route table SSOT =="
+# Validate scripts/lib/route-table.json: every rule's skill (dhpk:<name>) must
+# map to an existing commands/<name>.md. Plugin-repo only — in a consumer
+# project the route table is usually absent (scripts not installed), so we skip
+# gracefully rather than warn. Whitelist = commands planned but not yet built.
+ROUTE_TABLE="$ROOT/scripts/lib/route-table.json"
+ROUTE_WHITELIST="do"  # space-delimited; Phase 2 Smart Router entrypoint
+if [[ ! -f "$ROUTE_TABLE" ]]; then
+    ok "route-table.json 不在此 repo（consumer 專案）— 跳過"
+elif ! command -v jq >/dev/null 2>&1; then
+    warn "jq 不存在，無法校驗 route-table.json"
+else
+    RT_TOTAL=0
+    while IFS= read -r skill; do
+        [[ -z "$skill" ]] && continue
+        RT_TOTAL=$((RT_TOTAL+1))
+        name="${skill#dhpk:}"
+        [[ " $ROUTE_WHITELIST " == *" $name "* ]] && continue
+        [[ -f "$ROOT/commands/$name.md" ]] || fail "route-table 指向不存在的 command: $skill (commands/$name.md)"
+    done < <(jq -r '.rules[].skill // empty' "$ROUTE_TABLE" 2>/dev/null)
+    [[ $ERR -eq 0 ]] && ok "route-table $RT_TOTAL 條對映全部存在（whitelist: $ROUTE_WHITELIST）"
+fi
+
+echo ""
 echo "=========================================="
 if [[ $ERR -gt 0 ]]; then
     echo "FAIL: $ERR 個錯誤 / $WARN 個警告"
