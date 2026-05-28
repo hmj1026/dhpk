@@ -103,7 +103,7 @@ echo "== 7. Route table SSOT =="
 # project the route table is usually absent (scripts not installed), so we skip
 # gracefully rather than warn. Whitelist = commands planned but not yet built.
 ROUTE_TABLE="$ROOT/scripts/lib/route-table.json"
-ROUTE_WHITELIST="do"  # space-delimited; Phase 2 Smart Router entrypoint
+ROUTE_WHITELIST=""  # space-delimited; commands planned but not yet built (none — do.md shipped in 2.3)
 if [[ ! -f "$ROUTE_TABLE" ]]; then
     ok "route-table.json 不在此 repo（consumer 專案）— 跳過"
 elif ! command -v jq >/dev/null 2>&1; then

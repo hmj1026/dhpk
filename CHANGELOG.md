@@ -1,10 +1,10 @@
 # Changelog
 
-## 0.6.0 — Unreleased — Cross-session learning DB + knowledge graduation (Phase 2.1 + 2.2)
+## 0.6.0 — Unreleased — Phase 2: learning DB + knowledge graduation + Smart Router
 
-Feature release. Lands Phase 2's learning track from the vexjoy-agent
-comparison plan along **two complementary axes**, both opt-in and both
-default OFF (existing projects see zero behaviour change):
+Feature release. Lands all of Phase 2 from the vexjoy-agent comparison
+plan, all opt-in and (for the hooks) default OFF — existing projects see
+zero behaviour change until they turn a knob on:
 
 1. **Learning DB (2.1)** — a dependency-light append-only store of
    operational signals (reviewer pass, subagent failure, abnormal stop),
@@ -14,8 +14,11 @@ default OFF (existing projects see zero behaviour change):
    reference the plan's "dhpk 通用化 graduation-candidates.md" intent
    pointed at). Scans the transcript for cited auto-memory entries and
    proposes stable ones for promotion to a rule/skill.
-
-The Smart Router (`/dhpk:do`, 2.3) builds on these and ships separately.
+3. **Smart Router `/dhpk:do` (2.3)** — one natural-language entry point
+   that resolves a free-text request to the right workflow via a
+   deterministic route-table fast path, falling back to LLM
+   classification on a miss. Adds an entry point; never replaces the
+   underlying commands.
 
 ### Added
 
@@ -46,6 +49,15 @@ The Smart Router (`/dhpk:do`, 2.3) builds on these and ships separately.
 - **`templates/graduation-candidates.md`** — report template the
   graduation hook copies into a consumer's `.claude/artifacts/` on first
   enabled run (a plugin can't assume the user pre-scaffolded it).
+- **`scripts/lib/pre-route.sh`** — canonical deterministic matcher: maps
+  a free-text request to a `route-table.json` workflow, printing
+  `MATCH<TAB>skill<TAB>label` / `NO_MATCH` / `NO_QUERY`. Reads the query
+  from args or stdin; `DHPK_ROUTE_TABLE` override for tests; degrades to
+  `NO_MATCH` without python3 / table. Always exits 0.
+- **`commands/do.md`** — `/dhpk:do <task>` Smart Router. Runs pre-route
+  first; on `MATCH` invokes the routed skill directly (no re-classify),
+  on `NO_MATCH` classifies and picks the best-fit command, on `NO_QUERY`
+  asks. Optional ENHANCE step folds in any `[learned-context]` block.
 - **`.claude-plugin/plugin.json`** — new `learning_db_enabled` and
   `graduation_scan_enabled` userConfig (both boolean, default false).
 
@@ -63,18 +75,27 @@ The Smart Router (`/dhpk:do`, 2.3) builds on these and ships separately.
 - **`scripts/hooks/session-start.sh`** — when the learning DB is enabled,
   prints a `[learned-context]` block with the top 5 signatures (≥2 obs),
   capped well under 500 tokens.
+- **`scripts/hooks/userpromptsubmit-skill-hint.sh`** — refactored to
+  delegate matching to the new `pre-route.sh` instead of its own embedded
+  regex loop, so the route table has a single matcher. Gating
+  (profile / slash-prefix / length / opt-out) and stderr formatting
+  unchanged; behaviour identical (section 1 tests still green).
 - **`hooks/hooks.json`** — registers `stop-graduation-scan.sh` in the Stop
   chain (after `stop-review-reminder`, before the async sentinel reaper).
+- **`scripts/validate/validate-harness.sh`** — section 7 whitelist emptied
+  now that `commands/do.md` exists (all 21 route-table targets resolve).
 
 ### Verified
 
-- `scripts/validate/test-hooks.sh` extended to 42 checks: section 8
+- `scripts/validate/test-hooks.sh` extended to 49 checks: section 8
   covers the learning DB (lib, all three producers, default-off gate,
   SessionStart on/off); section 9 covers graduation (count accrual +
   confidence rise → rule candidate + template bootstrap, the existence
   gate, and the default-off gate, all via `CLAUDE_HOOK_TEST_MODE` +
-  `CLAUDE_HOOK_MEMORY_DIR` isolation). `bash -n` clean on every changed
-  script; `validate-harness.sh` and both JSON manifests parse green.
+  `CLAUDE_HOOK_MEMORY_DIR` isolation); section 10 covers pre-route
+  (EN/CJK matches, the codex-security typo-fix, NO_MATCH, NO_QUERY,
+  stdin path). `bash -n` clean on every changed script;
+  `validate-harness.sh` and both JSON manifests parse green.
 
 
 ## 0.5.0 — 2026-05-28 — Lifecycle hook coverage + anti-rationalization gates + skill-hint router seed
