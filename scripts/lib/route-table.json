@@ -1,8 +1,8 @@
 {
-  "_comment": "Workflow routing SSOT for dhpk. Used by userpromptsubmit-skill-hint.sh (advisory hint) and by future /dhpk:do Smart Router (Phase 2). Patterns are ERE (extended regex). First match wins. Add specific patterns before general ones.",
+  "_comment": "Workflow routing SSOT for dhpk. Used by userpromptsubmit-skill-hint.sh (advisory hint) and by /dhpk:do Smart Router. Patterns are ERE (extended regex). First match wins. Add specific patterns before general ones.",
   "schema": "dhpk.route-table.v1",
   "rules": [
-    { "pattern": "(^|[^a-z])(bug|crash|broken|stack[ -]?trace|exception|failure|fail(s|ed|ing)?|error[ -]?out|regress(ion|ed)?)([^a-z]|$)", "skill": "dhpk:adaptive-dev-workflow",       "label": "adaptive dev workflow (bug)" },
+    { "pattern": "(^|[^a-z])(bug|bugfix|crash|broken|stack[ -]?trace|exception|failure|fail(s|ed|ing)?|error[ -]?out|regress(ion|ed)?)([^a-z]|$)", "skill": "dhpk:adaptive-dev-workflow",       "label": "adaptive dev workflow (bug)" },
     { "pattern": "(new|add(ing)?|implement(ing)?|build(ing)?|create) +.{0,40}(feature|endpoint|page|action|module|api)",                                                       "skill": "dhpk:adaptive-dev-workflow",    "label": "adaptive dev workflow (feature)" },
     { "pattern": "(code +review|review +(this|the|my)? *(diff|change|patch|pr)|quality +check|lint +everything)",                                                                "skill": "dhpk:code-review",    "label": "manual code review" },
     { "pattern": "(security +(scan|audit|review)|owasp|injection|xss|csrf|auth +bypass)",                                                                                       "skill": "dhpk:security-review","label": "security review" },
@@ -16,12 +16,20 @@
     { "pattern": "(feasibility|first +principles|estimate +effort|estimate +scope)",                                                                                              "skill": "dhpk:feasibility-study","label": "feasibility study" },
     { "pattern": "(risk +(assess|analysis|audit)|blast +radius|impact +analysis)",                                                                                                "skill": "dhpk:risk-assess",    "label": "risk assessment" },
     { "pattern": "(precommit|pre[- ]commit|pre +push)",                                                                                                                          "skill": "dhpk:precommit",      "label": "pre-commit checks" },
-    { "pattern": "(verify|verification|run +all +tests|full +test +run)",                                                                                                        "skill": "dhpk:verify",         "label": "verification loop" },
+    { "pattern": "(verify|verification|run +all +tests?|full +test +run|run +tests?)",                                                                                                        "skill": "dhpk:verify",         "label": "verification loop" },
     { "pattern": "修.{0,8}(bug|錯誤|問題|缺陷|異常)",                                                                                                                              "skill": "dhpk:adaptive-dev-workflow",        "label": "adaptive dev workflow (bug)" },
     { "pattern": "(新增|加上?|寫個?|新做|實作).{0,12}(功能|特性|feature|頁面|端點|api)",                                                                                              "skill": "dhpk:adaptive-dev-workflow",    "label": "adaptive dev workflow (feature)" },
     { "pattern": "(程式碼|代碼)?\\s*(審查|review)",                                                                                                                                  "skill": "dhpk:code-review",    "label": "manual code review" },
     { "pattern": "(重構|簡化|清理|去重)",                                                                                                                                            "skill": "dhpk:simplify",       "label": "refactor / simplify" },
     { "pattern": "(探索|追蹤|理解|釐清).{0,12}(程式|代碼|流程|架構|呼叫|實作)",                                                                                                       "skill": "dhpk:code-explore",   "label": "code exploration" },
-    { "pattern": "(健診|健康檢查|體檢|盤點).{0,12}(專案|代碼|harness|skill|agent)",                                                                                                  "skill": "dhpk:project-audit",  "label": "project audit" }
+    { "pattern": "(健診|健康檢查|體檢|盤點).{0,12}(專案|代碼|harness|skill|agent)",                                                                                                  "skill": "dhpk:project-audit",  "label": "project audit" },
+    { "pattern": "(部署|發版|釋出|上版).{0,12}(清單|manifest|計劃)",                                                                                                                  "skill": "dhpk:deploy-list",    "label": "deploy list" },
+    { "pattern": "(技術規格|需求文件|設計文件|架構文件|tech spec)",                                                                                                                     "skill": "dhpk:tech-spec",      "label": "tech spec authoring" },
+    { "pattern": "(建立?|開|發|draft).{0,8}(pr|pull request|合併請求)",                                                                                                              "skill": "dhpk:create-pr",      "label": "create PR" },
+    { "pattern": "(pre.?commit|提交前|commit 前).{0,8}(檢查|驗證)",                                                                                                                  "skill": "dhpk:precommit",      "label": "pre-commit checks" },
+    { "pattern": "(提交|暫存).{0,8}(修改|變更|差異)?",                                                                                                                               "skill": "dhpk:smart-commit",   "label": "smart commit" },
+    { "pattern": "(可行性|工時評估|範圍估算)",                                                                                                                                          "skill": "dhpk:feasibility-study","label": "feasibility study" },
+    { "pattern": "(風險|影響範圍|blast radius).{0,8}(評估|分析)",                                                                                                                     "skill": "dhpk:risk-assess",    "label": "risk assessment" },
+    { "pattern": "(跑.{0,8}測試|執行.{0,8}測試|跑 phpunit)",                                                                                                                         "skill": "dhpk:verify",         "label": "verification loop" }
   ]
 }

@@ -34,8 +34,8 @@ Run the matcher with the **cleaned query** as a single quoted argument:
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/lib/pre-route.sh" "<cleaned query>"
 ```
 
-If `CLAUDE_PLUGIN_ROOT` is unset (manual install), fall back to
-`~/.claude/scripts/lib/pre-route.sh`.
+If `CLAUDE_PLUGIN_ROOT` is unset, skip the Bash call and proceed directly
+to LLM classification (the NO_MATCH path).
 
 The matcher prints exactly one line:
 
@@ -43,7 +43,14 @@ The matcher prints exactly one line:
 - `NO_MATCH` — nothing matched; you classify.
 - `NO_QUERY` — the user gave no task text.
 
-## Step 2 — act on the result
+## Step 2 — ENHANCE (optional context)
+
+If a `[learned-context]` block was injected at session start (the learning DB
+is enabled), read those recurring signatures now — before classifying.
+Factor them into Step 3's NO_MATCH decision and into the downstream workflow
+(e.g. a repeatedly-failing reviewer or a hot trap that relates to this request).
+
+## Step 3 — act on the result
 
 Pass the **cleaned query** (the full task with only the `--codex` opt-in token
 removed) as the task to the downstream skill, applying the codex-mode rule below
@@ -76,13 +83,6 @@ to decide the codex flag.
   - `dhpk:feasibility-study`: invoke **without** `--no-codex` (its default already uses Codex).
   - An explicit `dhpk:codex-*` skill: route as-is.
   - Any other target: the flag has no effect — route normally.
-
-## Step 3 — ENHANCE (optional context)
-
-If a `[learned-context]` block was injected at session start (the learning DB
-is enabled), factor those recurring signatures into your choice and into the
-downstream workflow — e.g. a repeatedly-failing reviewer or a hot trap that
-relates to this request.
 
 ## Notes
 
