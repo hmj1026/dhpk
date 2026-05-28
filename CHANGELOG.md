@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.6.0 — Unreleased — Phase 2: learning DB + knowledge graduation + Smart Router
+## 0.6.0 — 2026-05-28 — Phase 2: learning DB + knowledge graduation + Smart Router + codex opt-in
 
 Feature release. Lands all of Phase 2 from the vexjoy-agent comparison
 plan, all opt-in and (for the hooks) default OFF — existing projects see
@@ -19,9 +19,25 @@ zero behaviour change until they turn a knob on:
    deterministic route-table fast path, falling back to LLM
    classification on a miss. Adds an entry point; never replaces the
    underlying commands.
+4. **Codex made opt-in + `adaptive-dev-workflow` ported (2.4)** — dev
+   workflows now run **codex-free by default**; `--codex` opts in. The
+   isolation invariant: a default-free skill carries no `mcp__codex__*`
+   in `allowed-tools`, so it cannot reach Codex unless it delegates to a
+   dedicated `codex-*` command. zdpos_dev's `adaptive-dev-workflow`
+   classifier was upstreamed, de-identified into a framework-agnostic
+   skill (project override via `@rules/dev-workflow-project.md`), and
+   `/dhpk:do` now routes substantial bug/feature tasks through it.
 
 ### Added
 
+- **`skills/adaptive-dev-workflow/`** — generic pre-implementation
+  classifier (Feature Delivery / Bug Investigation / Lightweight
+  Maintenance) with planning-agent dispatch + gate checklist, ported and
+  de-identified from zdpos_dev. Project-specific prefills/shortcuts load
+  from the consuming project's `@rules/dev-workflow-project.md`. Codex-aware
+  (default codex-free; `--codex` delegates to `codex-*` commands).
+- **`commands/create-dev.md`** (`/dhpk:create-dev`) — explicit entry point
+  to `adaptive-dev-workflow`. Resolves the v0.4.0 "Deferred" item.
 - **`scripts/hooks/_lib/learning-db.sh`** — sourced library for the
   operational-signal store. Append-only `.claude/artifacts/learning.jsonl`
   (`{ts, epoch, kind, sig, detail, weight}` per line). Confidence is
@@ -63,6 +79,15 @@ zero behaviour change until they turn a knob on:
 
 ### Changed
 
+- **`/dhpk:do` is codex-free by default**, `--codex` opt-in. `do`'s
+  bug/feature route-table rules now target `dhpk:adaptive-dev-workflow`;
+  security defaults to `dhpk:security-review` (codex-free), `--codex` →
+  `dhpk:codex-security`.
+- **`skills/{bug-fix,feature-dev,security-review}`** gained the codex-free
+  default + isolation guard; `mcp__codex__*` removed from their
+  `allowed-tools`. `security-review` is now codex-free only (the Codex audit
+  lives in the `/codex-security` command, which no longer `@`-includes the
+  skill).
 - **`scripts/hooks/clear-sentinel.sh`** — records a `success`
   (`review:<sentinel>`) event each time a reviewer clears its sentinel.
   Now sources `load-project-config.sh` so enablement honours project
