@@ -164,19 +164,16 @@ See `manifests/install-profiles.json` for curated module bundles.
 
 ## Skills with MCP dependencies
 
-13 skills require the **Codex MCP server** (`mcp__codex__codex`, `mcp__codex__codex-reply`):
+6 skills require the **Codex MCP server** (`mcp__codex__codex`, `mcp__codex__codex-reply`):
 
 ```
 codex-architect       codex-brainstorm     codex-cli-review
 codex-code-review     codex-explain        codex-implement
-codex-review-doc      codex-review         codex-review-branch
-codex-review-fast     codex-security       codex-test-gen
-codex-test-review
 ```
 
 Without Codex installed, invoking any of these will surface a tool-permission error. Install separately (see Anthropic's Codex documentation), then these become available.
 
-All other skills (~42) have no MCP dependencies.
+All other skills (~51) have no MCP dependencies.
 
 ## External code-navigation tools
 
