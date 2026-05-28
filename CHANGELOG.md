@@ -1,5 +1,58 @@
 # Changelog
 
+## 0.6.0 — Unreleased — Cross-session learning DB foundation (Phase 2.1)
+
+Feature release. Lands the first half of Phase 2 from the vexjoy-agent
+comparison plan: a dependency-light, opt-in cross-session learning store.
+dhpk hooks now persist a few signals worth remembering across sessions
+(reviewer pass, subagent failure, abnormal stop) to an append-only JSON
+Lines log, and SessionStart surfaces the top recurring signatures so the
+model starts each session aware of what prior sessions learned.
+Everything defaults OFF — existing projects see zero behaviour change
+until `userConfig.learning_db_enabled=true` (or `DHPK_LEARNING_DB=1`).
+The Smart Router (`/dhpk:do`, 2.3) and knowledge-graduation command
+(2.2) build on this foundation and ship separately.
+
+### Added
+
+- **`scripts/hooks/_lib/learning-db.sh`** — sourced library for the
+  learning store. Append-only `.claude/artifacts/learning.jsonl`
+  (`{ts, epoch, kind, sig, detail, weight}` per line). Confidence is
+  derived at read time per signature:
+  `clamp(0,1, 0.5 + Σweight − 0.05·floor(days_idle/30))` — success
+  events default +0.05, failure −0.1, with recency decay so stale
+  signatures sink. Functions: `ldb_enabled`, `ldb_record`,
+  `ldb_aggregate` (TSV: conf%/obs/days/kind/sig), `ldb_top`,
+  `ldb_graduation_candidates` (default ≥90% conf AND ≥10 obs).
+  jq-first with a python3 write fallback; degrades to a silent no-op
+  when neither is present. Self-rotates past `DHPK_LEARNING_CAP_BYTES`
+  (default 50MB) into `learning-archive/`.
+- **`.claude-plugin/plugin.json`** — new `learning_db_enabled`
+  userConfig (boolean, default false).
+
+### Changed
+
+- **`scripts/hooks/clear-sentinel.sh`** — records a `success`
+  (`review:<sentinel>`) event each time a reviewer clears its sentinel.
+  Now sources `load-project-config.sh` so enablement honours project
+  settings even when invoked as a plain Bash command.
+- **`scripts/hooks/subagent-stop-verify.sh`** — records `failure`
+  (`agent:<name>` on non-zero exit, `sentinel-uncleared:<name>` on a
+  success-but-uncleared sentinel) alongside the existing log line.
+- **`scripts/hooks/stop-failure-log.sh`** — records a `failure`
+  (`abnormal-stop`) event when a session stops with pending sentinels.
+- **`scripts/hooks/session-start.sh`** — when the DB is enabled, prints
+  a `[learned-context]` block with the top 5 signatures (≥2 obs),
+  capped well under 500 tokens.
+
+### Verified
+
+- `scripts/validate/test-hooks.sh` extended to 37 checks (section 8
+  covers the lib, all three producers, the default-off opt-in gate, and
+  SessionStart injection on/off). `bash -n` clean on every changed
+  script; `validate-harness.sh` and `plugin.json` JSON parse green.
+
+
 ## 0.5.0 — 2026-05-28 — Lifecycle hook coverage + anti-rationalization gates + skill-hint router seed
 
 Feature release. Closes three lifecycle gaps identified in the
