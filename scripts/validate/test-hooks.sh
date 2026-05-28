@@ -322,6 +322,31 @@ printf 'see memory/trap_foo_example.md\n' > "$gtx"
 if [ -z "$(ls -A "$gout" 2>/dev/null)" ]; then ok "graduation disabled → no state written"; else fail "wrote state while disabled"; fi
 
 echo ""
+echo "== 10. pre-route.sh (Phase 2.3 Smart Router) =="
+PR="$PLUGIN_ROOT/scripts/lib/pre-route.sh"
+
+out="$(bash "$PR" "please fix this login bug")"
+if [ "$(printf '%s' "$out" | cut -f1)" = "MATCH" ] && [ "$(printf '%s' "$out" | cut -f2)" = "dhpk:bug-fix" ]; then ok "english bug → MATCH dhpk:bug-fix"; else fail "english bug route wrong ($out)"; fi
+
+out="$(bash "$PR" "幫我修一個 bug")"
+if [ "$(printf '%s' "$out" | cut -f2)" = "dhpk:bug-fix" ]; then ok "CJK bug → MATCH dhpk:bug-fix"; else fail "CJK bug route wrong ($out)"; fi
+
+out="$(bash "$PR" "review my diff please")"
+if [ "$(printf '%s' "$out" | cut -f2)" = "dhpk:code-review" ]; then ok "review → MATCH dhpk:code-review"; else fail "review route wrong ($out)"; fi
+
+out="$(bash "$PR" "run a security audit for owasp issues")"
+if [ "$(printf '%s' "$out" | cut -f2)" = "dhpk:codex-security" ]; then ok "security → MATCH dhpk:codex-security (typo-fix verified)"; else fail "security route wrong ($out)"; fi
+
+out="$(bash "$PR" "make me a sandwich")"
+if [ "$out" = "NO_MATCH" ]; then ok "unmatched request → NO_MATCH"; else fail "expected NO_MATCH ($out)"; fi
+
+out="$(bash "$PR" "")"
+if [ "$out" = "NO_QUERY" ]; then ok "empty request → NO_QUERY"; else fail "expected NO_QUERY ($out)"; fi
+
+out="$(printf 'add a new feature endpoint' | bash "$PR")"
+if [ "$(printf '%s' "$out" | cut -f2)" = "dhpk:feature-dev" ]; then ok "stdin path → MATCH dhpk:feature-dev"; else fail "stdin route wrong ($out)"; fi
+
+echo ""
 echo "=========================================="
 if [ "$FAIL" -gt 0 ]; then
     echo "FAIL: $FAIL 個失敗 / $PASS 個通過"
