@@ -30,7 +30,12 @@ if [[ "$file_path" =~ [\;\&\|\`] ]] || [[ "$file_path" =~ \$\( ]]; then
 fi
 
 # Block sensitive paths.
-if echo "$file_path" | grep -Eq '(\.env(\..*)?$|\.git/)'; then
+# Exception: .env.example / .env.sample / .env.dist / .env.template are
+# version-controlled templates carrying NO secrets — allow editing them.
+# (POSIX ERE has no negative lookahead, so carve the exception explicitly.)
+if echo "$file_path" | grep -Eq '\.env\.(example|sample|dist|template)$'; then
+    :  # allow version-controlled env templates
+elif echo "$file_path" | grep -Eq '(\.env(\..*)?$|\.git/)'; then
     echo "[edit-guard] blocked sensitive file: $file_path" >&2
     exit 2
 fi
