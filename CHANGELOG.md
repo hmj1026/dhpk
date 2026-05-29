@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.6.2 — 2026-05-29 — Fix: pre-edit-guard .env template false positive
+
+Bugfix release.
+
+- **`pre-edit-guard` no longer blocks version-controlled `.env` templates.**
+  The sensitive-path regex `(\.env(\..*)?$|\.git/)` matched `.env.example`,
+  `.env.sample`, `.env.dist`, and `.env.template` — committed, secret-free
+  templates that projects legitimately edit. These suffixes are now carved
+  out via an explicit allow-list (POSIX ERE has no negative lookahead, so the
+  exception is a separate match rather than baked into the block regex).
+  Real secret files (`.env`, `.env.local`, `.env.production`, …), `.git/`
+  internals, and lock files remain blocked.
+
 ## 0.6.0 — 2026-05-28 — Phase 2: learning DB + knowledge graduation + Smart Router + codex opt-in
 
 Feature release. Lands all of Phase 2 from the vexjoy-agent comparison
