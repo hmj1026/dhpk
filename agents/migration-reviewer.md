@@ -23,6 +23,8 @@ Audits migration files only — typically `**/migrations/**/*.{php,sql}` (Yii / 
 
 The framework examples below default to **Yii 1.1 `CDbMigration`** (the original donor project) because that is the most opinionated case; the same checklist items apply to Laravel `Schema` migrations, Doctrine migrations, or hand-rolled SQL. Substitute API calls accordingly.
 
+When the `ios-platform` module is active, **Core Data model migrations** (`.xcdatamodeld` version bump + mapping model) are also in scope: read up/down-symmetry as "lightweight vs heavyweight migration mapping completeness" and idempotency/reversibility as "no silent data loss on store recreation" — flag any model-version change lacking an inferred or explicit mapping model, and any destructive store deletion that could run against real user data.
+
 ## Naming Convention
 
 Recommended filename pattern (Yii-flavoured example — adapt for your framework):

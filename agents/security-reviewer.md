@@ -1,6 +1,6 @@
 ---
 name: security-reviewer
-description: 'Security review specialist (web app, framework-agnostic). Use PROACTIVELY after writing any controller action, form handler, SQL query, authentication logic, or file upload. Checks OWASP Top 10 patterns. Module-specific traps available via active stack modules (e.g. yii-1.1 module adds Yii CSRF/AR guidance).'
+description: 'Security review specialist (web app + iOS, framework-agnostic). Use PROACTIVELY after writing any controller action, form handler, SQL query, authentication logic, file upload, or (iOS) Keychain / encryption / privacy-manifest / biometric code. Checks OWASP Top 10 patterns. Module-specific traps available via active stack modules (e.g. yii-1.1 adds Yii CSRF/AR guidance; ios-platform/swift add iOS Keychain / at-rest-encryption / PHI-privacy traps).'
 tools: ["Read", "Grep", "Glob", "Bash"]
 model: sonnet
 ---
@@ -34,6 +34,29 @@ Run after any input handling, authn/authz, file upload, or money path.
 
 JSON output uses `CJSON::encode()` / `json_encode()`, **not** `CHtml::encode()`. Headers / cookie flags / Strict-Transport-Security — see `.claude/rules/php/security.md`.
 
+## iOS / Swift Fix Map (when `ios-platform` or `swift` module active OR *.xcodeproj present)
+
+Encodes a health/PHI app's at-rest-encryption + PDPA Art. 6 + App Review duties. Detail: ios-platform module `references/{cryptokit-keychain,coredata-encryption,privacy-compliance,local-authentication}.md`.
+
+| Pattern | Severity | Fix |
+|---------|----------|-----|
+| Keychain item weaker than `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` for PHI keys | CRITICAL | set that accessibility class; never `...AfterFirstUnlock` for the most sensitive keys |
+| `kSecAttrSynchronizable = true` on a PHI / encryption key | CRITICAL | drop it — syncs to iCloud Keychain (prohibited for health data) |
+| Prescription / medication data or images sent to iCloud / CloudKit, or not excluded from backup | CRITICAL | no CloudKit on the store; `isExcludedFromBackup = true`; File Protection. (App Review 5.1.3(ii) + PDPA §6) |
+| Core Data store with PHI and no SQLCipher and no `NSFileProtectionComplete` | CRITICAL | encrypt at rest (SQLCipher) or at minimum `NSPersistentStoreFileProtectionKey = .complete` |
+| Hardcoded encryption key, or key derived from a device constant | CRITICAL | generate `SymmetricKey(size: .bits256)`, store in Keychain |
+| `AES.GCM` nonce reuse, or `open` result used without the auth-tag throw | CRITICAL | fresh random nonce per `seal`; never bypass the `open` throw (it is the integrity check) |
+| SQLCipher silently falling back to plaintext SQLite (store type not registered / build flags missing) | CRITICAL | verify the encrypted store type loaded; on-disk header must not be a readable SQLite header |
+| Missing / incomplete Privacy Manifest (`NSPrivacyAccessedAPITypes` reason codes, Health & Fitness in `NSPrivacyCollectedDataTypes`, `NSPrivacyTracking`) | HIGH | add `PrivacyInfo.xcprivacy` with correct reason codes |
+| Missing usage strings (`NSCameraUsageDescription`, `NSFaceIDUsageDescription`, HealthKit, photos) | HIGH | add honest purpose strings (app crashes / is rejected otherwise) |
+| `LAContext` result trusted without re-eval, no `LAError` handling, no passcode fallback policy | HIGH | re-evaluate per gated foreground; map `LAError`; allow `.deviceOwnerAuthentication` fallback |
+| ATS disabled (`NSAllowsArbitraryLoads = true`) | HIGH | remove; keep ATS at defaults |
+| PHI processed before the version-stamped consent gate | HIGH | gate all PHI processing behind recorded consent (version + timestamp) |
+| PHI in `print` / `os_log` without redaction | HIGH | `os_log("\(x, privacy: .private)")`; never log keys / drug data |
+| Data deletion that purges the store but leaves the Keychain key or encrypted image files | HIGH | deletion must purge store + Keychain key + encrypted files (PDPA §15/§16) |
+
+**Gate** (same verdict vocabulary as the rest of this review): any **CRITICAL** row present → `FAIL`; **HIGH**-only → `WARNING`; none → `PASS`. A `FAIL` on a PHI path blocks the commit.
+
 ## False Positives (skip)
 
 - `echo $var` of server-side constant — no XSS path
@@ -42,6 +65,8 @@ JSON output uses `CJSON::encode()` / `json_encode()`, **not** `CHtml::encode()`.
 - `unserialize()` on framework session
 - `md5()` for cache key / filename
 - Logging `user_id` / `order_id` (not PII)
+- (iOS) `kSecAttrAccessibleAfterFirstUnlock` on a **non-PHI** key that genuinely needs background read — note the File-Protection trade-off, don't flag as CRITICAL
+- (iOS) force-unwrap inside a test target, or an `@IBOutlet` / lifecycle-guaranteed property
 
 Before reporting: *what attack does this enable?* No path → don't report.
 

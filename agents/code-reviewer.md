@@ -1,6 +1,6 @@
 ---
 name: code-reviewer
-description: 'Expert code review specialist. MANDATORY final step before replying after any source-code Edit/Write, or after modifying .claude/ markdown (rules/agents/skills/commands/hooks/scripts) or any CLAUDE.md file. Reviews quality, security, and maintainability. Do NOT skip when: user approved a plan, change seems small, manual verification was done, task feels complete. Stack-aware: detects the project''s language/framework from manifests and applies the matching ruleset; when a dhpk language module is enabled (e.g. yii-1.1, php-5.6), also consults that module skill for stack-specific traps.'
+description: 'Expert code review specialist. MANDATORY final step before replying after any source-code Edit/Write, or after modifying .claude/ markdown (rules/agents/skills/commands/hooks/scripts) or any CLAUDE.md file. Reviews quality, security, and maintainability. Do NOT skip when: user approved a plan, change seems small, manual verification was done, task feels complete. Stack-aware: detects the project''s language/framework from manifests and applies the matching ruleset; when a dhpk language module is enabled (e.g. yii-1.1, php-5.6, swift), also consults that module skill for stack-specific traps.'
 tools: ["Read", "Grep", "Glob", "Bash"]
 model: sonnet
 ---
@@ -17,6 +17,7 @@ Final quality gate after every Edit/Write. Stack-aware: the syntax / framework r
    - PHP: `cat composer.json 2>/dev/null | grep -oE '"php":[[:space:]]*"[^"]+"'` — captures the floor.
    - JS/TS: `cat package.json 2>/dev/null | grep -oE '"engines":[[:space:]]*\{[^}]*\}'`.
    - Frameworks: presence of `require.laravel/*`, `require.yiisoft/*`, `dependencies.next`, `dependencies.react`, etc.
+   - Swift/iOS: `ls *.xcodeproj *.xcworkspace **/Package.swift 2>/dev/null` — presence ⇒ apply the Swift traps below.
    - Active dhpk modules: `printf '%s' "${DHPK_ACTIVE_MODULES:-}"`.
 2. `git diff --staged` + `git diff` (or `git log --oneline -5` if empty).
 3. Read full files; trace callers via `cx references --name X`.
@@ -54,14 +55,29 @@ Final quality gate after every Edit/Write. Stack-aware: the syntax / framework r
 - Mass assignment: confirm `$fillable` / `$guarded` is set on every model touched.
 - Migrations: every `up()` has a matching `down()` (irreversible migrations need explicit comment).
 
-**Surface security flags** (deep audit → `security-reviewer`): hardcoded secrets, SQL concat, unescaped `echo`, missing authn / CSRF, path traversal.
+### Swift traps (when `swift` module active OR *.xcodeproj / Package.swift present)
+
+Severities feed the same `Verdict` gate as the rest of this review (BLOCK on any
+CRITICAL, WARNING on HIGH-only):
+
+- **HIGH — Force operators in non-test code** — `!` force-unwrap (`dict[k]!`, `array.first!`, `URL(string:)!` on dynamic input), `try!`, `as!`, implicitly-unwrapped `var x: T!` (outside `@IBOutlet`/lifecycle) → `guard let`/`if let`/`??`/`try?`/`as?`. A crash here is a DoS. (CRITICAL when the unwrapped value is attacker-controlled external input.)
+- **HIGH — Data-race / Sendable** — shared mutable state crossing an isolation boundary without `Sendable`; non-`@MainActor` mutation of UI / `@Observable` / `@Published` state; `@unchecked Sendable` without a comment naming the lock. (Warnings under Swift 5.10 `complete`, **errors** under Swift 6 — so HIGH on the Swift 6 language mode.)
+- **HIGH — Concurrency smells** — blocking calls inside `async` (`DispatchSemaphore.wait`, `Thread.sleep`, sync I/O); `DispatchQueue.main.async` used to paper over an isolation error instead of `await MainActor.run` / `@MainActor`; resuming a `CheckedContinuation` zero or >1 times (a double-resume traps at runtime).
+- **MEDIUM — Retain cycles** — `delegate` not `weak`; missing `[weak self]` on long-lived closures (`Task {}`, Combine `sink`, `NotificationCenter`, stored closures); strong `self` capture in `@Sendable` closures.
+- **MEDIUM — Observation (also gated on `swiftui`)** — prefer `@Observable` over `ObservableObject`/`@Published` on the iOS 17 floor; don't mix paradigms in one type; don't construct a view model inside `body`.
+- **LOW — Optionals style** — comparing optionals to `nil` where `guard let` is clearer; IUO misuse.
+- Detail: swift module `references/concurrency.md` (+ `approachable-concurrency.md` on Xcode 26+); swiftui module `references/observation-state.md`. A failing **build** from any of these → hand off to the `swift-build-resolver` agent before re-reviewing.
+
+**Surface security flags** (deep audit → `security-reviewer`): hardcoded secrets, SQL concat, unescaped `echo`, missing authn / CSRF, path traversal; (Swift) Keychain accessibility, hardcoded keys, PHI to iCloud.
 
 ## Delegate
 
 | Trigger | Agent |
 |---------|-------|
 | SQL / schema / migration | `database-reviewer` |
+| Core Data / `.xcdatamodeld` / SQLCipher | `database-reviewer` |
 | Auth / authz / crypto / money | `security-reviewer` |
+| Keychain / CryptoKit / privacy manifest / LocalAuthentication | `security-reviewer` |
 
 ## Output
 
