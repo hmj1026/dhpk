@@ -130,6 +130,74 @@
           "status": "shipped"
         }
       ]
+    },
+    {
+      "id": "swift",
+      "name": "Swift",
+      "description": "Swift 6 language baseline with Swift 5.10 / iOS 17 compatibility notes AND Swift 6.2+ (Xcode 26+) approachable-concurrency defaults (async stays on the caller, @concurrent opt-in offload, isolated conformances, MainActor default inference). Strict concurrency (Sendable/actors, async-await), optionals discipline, value-vs-reference, error handling. The foundation module the rest of the iOS suite (swiftui / ios-platform / swift-testing / xcode-tooling) requires.",
+      "versions": [
+        {
+          "id": "6",
+          "module": "swift",
+          "status": "shipped"
+        }
+      ]
+    },
+    {
+      "id": "swiftui",
+      "name": "SwiftUI",
+      "description": "SwiftUI app architecture: MVVM + Coordinator, Observation framework (@Observable / @Bindable), NavigationStack + type-safe routing, state-ownership rules, Combine + UIKit interop.",
+      "requires": ["swift"],
+      "versions": [
+        {
+          "id": "ios17",
+          "module": "swiftui",
+          "status": "shipped",
+          "requires_module": "swift"
+        }
+      ]
+    },
+    {
+      "id": "ios-platform",
+      "name": "iOS Platform SDK",
+      "description": "iOS SDK frameworks for a health/PHI app: Core Data at-rest encryption (SQLCipher / File Protection), CryptoKit + Keychain, an actor-based offline local-store pattern (in-memory cache + atomic file write), Vision OCR (with handwriting limits + manual fallback), AVFoundation, LocalAuthentication, UserNotifications (Time Sensitive / 64-pending / rollover), HealthKit read-only, privacy-manifest / no-iCloud compliance.",
+      "requires": ["swift"],
+      "versions": [
+        {
+          "id": "ios17",
+          "module": "ios-platform",
+          "status": "shipped",
+          "requires_module": "swift"
+        }
+      ]
+    },
+    {
+      "id": "swift-testing",
+      "name": "Swift Testing",
+      "description": "iOS test strategy across XCTest and Swift Testing (@Test / #expect / #require / parameterized), XCUITest, and swift-snapshot-testing, with a 3-layer unit/integration/UI taxonomy plus protocol-based DI for host-testable (`swift test`) file/Keychain/network code.",
+      "requires": ["swift"],
+      "versions": [
+        {
+          "id": "0.1",
+          "module": "swift-testing",
+          "status": "shipped",
+          "requires_module": "swift"
+        }
+      ]
+    },
+    {
+      "id": "xcode-tooling",
+      "name": "Xcode Tooling",
+      "description": "SwiftLint config strategy + post-edit SwiftLint hook (async, self-skip) and a pre-commit xcodebuild/SPM build+test gate (self-skip when toolchain absent; build uses a device-name-free generic destination and tests auto-fall back to an available simulator, so a stale named default never breaks the gate); scheme/signing notes; an ios-icon-gen skill (SF Symbols / Iconify → asset-catalog imageset). Tooling binary / scheme / destination overridable via userConfig.",
+      "requires": ["swift"],
+      "versions": [
+        {
+          "id": "0.1",
+          "module": "xcode-tooling",
+          "status": "shipped",
+          "requires_module": "swift"
+        }
+      ]
     }
   ],
   "hook_profiles": [

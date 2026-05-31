@@ -2,14 +2,14 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "dhpk",
   "displayName": "DHPK Dev Harness",
-  "version": "0.6.2",
-  "description": "Reusable Claude Code harness — 16 generic role-based agents + ~70 commands + opt-in stack modules across PHP (5.6, 7.4, 8.x), Yii (1.1), PHPUnit (5.7, 9, 10, 11), Laravel (6–11), JS, and the library-author cross-cutting module. 6-slot sentinel-driven review hooks (code / db / sec / frontend / doc / polyfill — polyfill via library-author), parameterised docker/agent names, wrapper-dispatch hook extension model, parallel Codex CLI tree.",
+  "version": "0.7.0",
+  "description": "Reusable Claude Code harness — 17 role-based agents (16 generic + the Swift/Xcode build-resolver) + ~70 commands + opt-in stack modules across PHP (5.6, 7.4, 8.x), Yii (1.1), PHPUnit (5.7, 9, 10, 11), Laravel (6–11), JS, the library-author cross-cutting module, and an iOS/Swift suite (swift, swiftui, ios-platform, swift-testing, xcode-tooling) with SwiftLint post-edit + xcodebuild/SPM pre-commit hooks, a Swift 6.2 approachable-concurrency reference, and an ios-icon-gen skill. 6-slot sentinel-driven review hooks (code / db / sec / frontend / doc / polyfill — polyfill via library-author), parameterised docker/agent names, wrapper-dispatch hook extension model, parallel Codex CLI tree.",
   "author": {
     "name": "hmj1026",
     "url": "https://github.com/hmj1026"
   },
   "license": "MIT",
-  "keywords": ["harness", "codex", "code-review", "php", "yii", "phpunit", "laravel"],
+  "keywords": ["harness", "codex", "code-review", "php", "yii", "phpunit", "laravel", "swift", "ios", "swiftui"],
   "skills": [
     "./skills/",
     "./modules/php-5.6/skills/",
@@ -27,7 +27,12 @@
     "./modules/laravel-10/skills/",
     "./modules/laravel-11/skills/",
     "./modules/js/skills/",
-    "./modules/library-author/skills/"
+    "./modules/library-author/skills/",
+    "./modules/swift/skills/",
+    "./modules/swiftui/skills/",
+    "./modules/ios-platform/skills/",
+    "./modules/swift-testing/skills/",
+    "./modules/xcode-tooling/skills/"
   ],
   "agents": [
     "./agents/architect.md",
@@ -43,6 +48,7 @@
     "./agents/performance-analyzer.md",
     "./agents/refactor-cleaner.md",
     "./agents/security-reviewer.md",
+    "./agents/swift-build-resolver.md",
     "./agents/tdd-guide.md",
     "./agents/ui-ux-verifier.md",
     "./agents/version-matrix-impact-reviewer.md",
@@ -76,7 +82,7 @@
       "type": "string",
       "multiple": true,
       "title": "Stack modules to enable",
-      "description": "Enable stack modules from modules/. Ships: php-5.6, php-7.4, php-8.x, yii-1.1, phpunit-5.7, phpunit-9, phpunit-10, phpunit-11, laravel-6, laravel-7, laravel-8, laravel-9, laravel-10, laravel-11, js, library-author. Module 'requires' validated at SessionStart (warning only). Stack selection is additive for php / laravel / phpunit — library packages spanning versions should enable each version in their composer constraint to get cumulative guidance. Enabling 'js' wires the ESLint post-edit hook + pre-commit lint/typecheck gate; enabling 'php-7.4' wires the php-cs-fixer post-edit hook + pre-commit lint+phpstan+psalm gate; enabling 'library-author' wires the sixth-color `polyfill-reviewer` sentinel for multi-major PHP libraries spanning Laravel 6-11 / Monolog 2-3 / PHPUnit 8-11 / Flysystem 1-3 (see modules/library-author/module.yaml for guard_patterns / skip_paths config). Precedence: a project's .claude/settings.local.json (or settings.json) `pluginConfigs.dhpk@dhpk.options.modules` OVERRIDES the global value — supports a single dev machine working on projects with different stacks.",
+      "description": "Enable stack modules from modules/. Ships: php-5.6, php-7.4, php-8.x, yii-1.1, phpunit-5.7, phpunit-9, phpunit-10, phpunit-11, laravel-6, laravel-7, laravel-8, laravel-9, laravel-10, laravel-11, js, library-author, swift, swiftui, ios-platform, swift-testing, xcode-tooling. Module 'requires' validated at SessionStart (warning only). Stack selection is additive for php / laravel / phpunit — library packages spanning versions should enable each version in their composer constraint to get cumulative guidance. Enabling 'js' wires the ESLint post-edit hook + pre-commit lint/typecheck gate; enabling 'php-7.4' wires the php-cs-fixer post-edit hook + pre-commit lint+phpstan+psalm gate; enabling 'library-author' wires the sixth-color `polyfill-reviewer` sentinel for multi-major PHP libraries spanning Laravel 6-11 / Monolog 2-3 / PHPUnit 8-11 / Flysystem 1-3 (see modules/library-author/module.yaml for guard_patterns / skip_paths config). iOS suite: enabling 'xcode-tooling' wires the SwiftLint post-edit hook + pre-commit xcodebuild/SPM build+test gate (both self-skip when swiftlint/xcodebuild are absent); swift / swiftui / ios-platform / swift-testing are skills+references only (no hooks). The iOS suite is dependency-chained — swiftui / ios-platform / swift-testing / xcode-tooling each `requires: swift`. Precedence: a project's .claude/settings.local.json (or settings.json) `pluginConfigs.dhpk@dhpk.options.modules` OVERRIDES the global value — supports a single dev machine working on projects with different stacks.",
       "default": []
     },
     "review_trigger_extra_paths": {
@@ -103,6 +109,30 @@
       "title": "JS @ts-check scan path",
       "description": "Path scanned by the /ts-check-status command. Default 'js/'. Override for projects laying out JS under e.g. 'src/' or 'app/javascript/'.",
       "default": "js/"
+    },
+    "swiftlint_bin": {
+      "type": "string",
+      "title": "SwiftLint binary path",
+      "description": "Binary invoked by modules/xcode-tooling/hooks/post-edit-swiftlint.sh. Default 'swiftlint' (resolved on PATH). Override for a non-standard location or a wrapper. The hook self-skips when the binary is absent.",
+      "default": "swiftlint"
+    },
+    "xcode_scheme": {
+      "type": "string",
+      "title": "Xcode scheme",
+      "description": "Scheme used by modules/xcode-tooling/hooks/pre-commit-swift-build.sh for `xcodebuild build`/`test`. Default empty — when empty and an Xcode project is present, the build gate is skipped (no scheme guessing). Set to the app scheme (e.g. 'babylon') to enable the gate.",
+      "default": ""
+    },
+    "xcode_destination": {
+      "type": "string",
+      "title": "Xcode test destination",
+      "description": "`-destination` for the *test* step of the pre-commit gate (modules/xcode-tooling/hooks/pre-commit-swift-build.sh). The *build* step always uses a device-name-free `generic/platform=iOS Simulator`, so it never goes stale. Default empty — the test step then auto-picks the first available iOS simulator, so a stale named default never breaks the gate. Set e.g. 'platform=iOS Simulator,name=iPhone 17' to pin a specific simulator (must be installed — see `xcrun simctl list devices available`).",
+      "default": ""
+    },
+    "swift_build_skip_tests": {
+      "type": "boolean",
+      "title": "Skip tests in the Swift pre-commit gate",
+      "description": "When true, modules/xcode-tooling/hooks/pre-commit-swift-build.sh runs build only (no `xcodebuild test` / `swift test`). Default false (build + test).",
+      "default": false
     },
     "php_cs_fixer_bin": {
       "type": "string",
