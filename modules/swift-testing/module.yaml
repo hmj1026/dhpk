@@ -1,0 +1,14 @@
+name: swift-testing
+display_name: "Swift Testing + XCTest + XCUITest"
+version: 0.2.0
+description: "iOS test strategy across XCTest and Swift Testing (@Test / #expect / #require / parameterized tests / traits), XCUITest UI automation, and swift-snapshot-testing. Defines a 3-layer taxonomy (unit / integration / UI) mapped to iOS test target directories, plus protocol-based DI for making file/Keychain/network code run under host `swift test`. Requires the swift language module."
+requires: [swift]
+triggers:
+  code:
+    extensions: [".swift"]
+    paths: [babylonTests/, babylonUITests/, Tests/]
+provides:
+  skills: [swift-test-strategy]
+  references: [swift-testing-api.md, xctest-bridging.md, xcuitest.md, snapshot-testing.md, test-taxonomy.md, protocol-di-host-testing.md]
+  commands: []
+  agents: []
