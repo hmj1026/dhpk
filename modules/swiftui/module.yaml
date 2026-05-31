@@ -1,0 +1,14 @@
+name: swiftui
+display_name: "SwiftUI + MVVM + Coordinator"
+version: 0.1.0
+description: "SwiftUI app architecture: MVVM + Coordinator, Observation framework (@Observable / @Bindable, replacing ObservableObject/@Published on iOS 17), NavigationStack + type-safe routing, state management (@State/@Binding/@Environment ownership rules), Combine interop and UIKit interop (UIViewRepresentable / UIHostingController). Requires the swift language module."
+requires: [swift]
+triggers:
+  code:
+    extensions: [".swift"]
+    paths: [RxScanUI/, RxScanFeatures/, babylon/]
+provides:
+  skills: [swiftui-architecture]
+  references: [mvvm-coordinator.md, observation-state.md, navigation.md, interop.md]
+  commands: []
+  agents: []
