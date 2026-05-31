@@ -1,0 +1,14 @@
+name: swift
+display_name: "Swift 6 Language (iOS 17 / Swift 5.10 compat)"
+version: 0.2.0
+description: "Swift 6 language baseline with explicit Swift 5.10 / iOS 17 compatibility notes AND Swift 6.2+ (Xcode 26+) approachable-concurrency defaults (async stays on the caller, @concurrent opt-in offload, isolated conformances, MainActor default inference). Strict concurrency (Sendable, actors, @MainActor, data-race safety), async/await + structured concurrency, optionals discipline, value vs reference semantics, property wrappers, error handling + typed throws, Result. The shared language floor that swiftui / ios-platform / swift-testing / xcode-tooling all require."
+requires: []
+triggers:
+  code:
+    extensions: [".swift"]
+    paths: [Sources/, babylon/, RxScanCore/, RxScanData/, RxScanFeatures/, RxScanUI/, RxScanApp/]
+provides:
+  skills: [swift-language]
+  references: [concurrency.md, approachable-concurrency.md, value-vs-reference.md, error-handling.md, swift5-compat-notes.md]
+  commands: []
+  agents: []
