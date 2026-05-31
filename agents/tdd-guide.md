@@ -1,6 +1,6 @@
 ---
 name: tdd-guide
-description: 'TDD specialist (framework-agnostic). Use PROACTIVELY when writing new features or bug fixes. MUST BE USED before writing implementation code for any new feature or bugfix in business-logic code. Enforces write-tests-first. Module-specific test-framework conventions: enable dhpk:phpunit-5.7 for PHPUnit 5.7, etc.'
+description: 'TDD specialist (framework-agnostic). Use PROACTIVELY when writing new features or bug fixes. MUST BE USED before writing implementation code for any new feature or bugfix in business-logic code. Enforces write-tests-first. Module-specific test-framework conventions: enable dhpk:phpunit-5.7 for PHPUnit 5.7, dhpk:swift-testing for XCTest / Swift Testing, etc.'
 tools: ["Read", "Write", "Edit", "Bash", "Grep"]
 model: sonnet
 ---
@@ -39,13 +39,34 @@ RED → GREEN → REFACTOR. Coverage ≥80%.
 - Money: `bcadd/bcmul`; rounding via custom bcround (`memory/bcmath-rounding-trap.md`)
 - CJK length: `mb_strlen`, not `strlen`
 
+## iOS test layout (when `swift-testing` module active OR *.xcodeproj present)
+
+Detail: swift-testing module `references/{test-taxonomy,swift-testing-api,xcuitest}.md`.
+
+| Layer | Home | Framework | Mocks |
+|-------|------|-----------|-------|
+| Unit | SPM package `Tests/` + `babylonTests/` | Swift Testing (`@Test`/`#expect`/`#require`) | full (in-memory Keychain / Core Data, fake services) |
+| Integration | SPM `Tests/` + `babylonTests/` | Swift Testing, `async throws` | only externals; isolated/in-memory store |
+| UI / E2E | `babylonUITests/` | XCTest + `XCUIApplication` | none — seed via launch arguments |
+
+- **Framework choice**: Swift Testing for unit/integration; XCTest for UI (`XCUIApplication`) and performance (`measure`). Both coexist; don't mix `@Test` and `XCTestCase` in one type.
+- **Async/actor**: tests are `async throws`; `await` the service; `try #require` to unwrap-or-fail before asserting.
+- **Never** let a unit test touch the real Keychain / disk / encrypted store — inject protocol fakes.
+- **babylon RED-first targets** (`app-foundation-compliance`): Keychain store→load round-trip + missing-key behavior + idempotent generation; encrypt→decrypt round-trip; tampered ciphertext fails GCM auth; no plaintext on disk; consent gate blocks features until version-stamped consent recorded.
+
 ## Run
 
 ```bash
+# PHP
 docker exec -i -w <container-workdir> ${PHP_CONTAINER:-php} phpunit -c protected/tests/phpunit.xml
+
+# iOS — SPM package (fast, no simulator)
+swift test --filter <SuiteName>
+# iOS — app / UI tests (simulator name must match `xcrun simctl list devices available`)
+xcodebuild test -scheme <scheme> -destination 'platform=iOS Simulator,name=<installed-iPhone-sim>'
 ```
 
-Variants: `.claude/rules/php/testing.md`.
+Variants: `.claude/rules/php/testing.md`; iOS run detail: xcode-tooling module `references/xcodebuild-spm.md`.
 
 ## Output
 
