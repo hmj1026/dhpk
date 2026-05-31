@@ -1,0 +1,14 @@
+name: xcode-tooling
+display_name: "Xcode / SwiftLint / xcodebuild tooling"
+version: 0.2.0
+description: "SwiftLint config strategy, xcodebuild + Swift Package Manager build/test invocation patterns, scheme & code-signing notes, and an ios-icon-gen skill (SF Symbols / Iconify → asset-catalog imageset). Wires a post-edit SwiftLint hook (backgrounded, self-skips when swiftlint is absent) and a pre-commit build/test gate (xcodebuild or swift build/test; self-skips when xcodebuild is absent). The build step uses a device-name-free generic destination and the test step auto-falls back to the first available iOS simulator, so the gate never breaks on a stale named-simulator default. Requires the swift language module. Tooling binary / scheme / destination overridable via userConfig (swiftlint_bin, xcode_scheme, xcode_destination, swift_build_skip_tests)."
+requires: [swift]
+triggers:
+  code:
+    extensions: [".swift"]
+    paths: [babylon/, RxScanCore/, RxScanData/, RxScanFeatures/, RxScanUI/, RxScanApp/]
+provides:
+  skills: [xcode-build-tooling, ios-icon-gen]
+  references: [swiftlint-config.md, xcodebuild-spm.md, scheme-signing.md]
+  commands: []
+  agents: []
