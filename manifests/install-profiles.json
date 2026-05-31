@@ -23,9 +23,13 @@
       "description": "Legacy PHP/Yii stack + JS tooling. Suitable for monolith projects with both a Yii backend and a non-trivial JS/TS frontend.",
       "modules": ["php-5.6", "yii-1.1", "phpunit-5.7", "js"]
     },
+    "ios-app": {
+      "description": "Full iOS/SwiftUI app stack: Swift 6 language, SwiftUI + MVVM + Coordinator, iOS platform SDK (Core Data encryption / CryptoKit-Keychain / Vision OCR / LocalAuthentication / UserNotifications / HealthKit / privacy), Swift Testing, and Xcode tooling (SwiftLint post-edit + xcodebuild/SPM pre-commit gate). Suitable for an iOS 17+ SwiftUI app like babylon/RxScan.",
+      "modules": ["swift", "swiftui", "ios-platform", "swift-testing", "xcode-tooling"]
+    },
     "full": {
       "description": "Every module shipped in this plugin version enabled.",
-      "modules": ["php-5.6", "yii-1.1", "phpunit-5.7", "js"]
+      "modules": ["php-5.6", "yii-1.1", "phpunit-5.7", "js", "swift", "swiftui", "ios-platform", "swift-testing", "xcode-tooling"]
     }
   }
 }
