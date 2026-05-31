@@ -2,7 +2,7 @@
 
 > **語言**: [English](./README.md) · **繁體中文**
 
-通用、安裝即用的 Claude Code harness。內含 **16 個角色導向 agent**（+1 個模組範圍的 reviewer）、約 73 個指令（codex / gitnexus / git / 專案工作流）、約 57 個核心 skill 加上跨專案的 `deploy-list` 部署清單產生器 + **`/dhpk:do` Smart Router**（透過 21 條 route-table 規則 + LLM fallback 進行自然語言任務路由）+ **跨 session 學習 DB**（作業訊號儲存庫，附信心衰退機制，預設關閉）、**6-slot sentinel 驅動的 review hook**（code / db / sec / frontend / doc / **polyfill** — 最後一個由 `library-author` 提供）、statusline、harness 腳本，以及 **16 個可選用的技術棧模組**（PHP：`php-5.6`、`php-7.4`、`php-8.x`；Yii：`yii-1.1`；PHPUnit：`phpunit-5.7`、`phpunit-9`、`phpunit-10`、`phpunit-11`；Laravel：`laravel-6` 至 `laravel-11`；`js`；加上跨版本的 `library-author`）。模組可透過 **wrapper-dispatch** 模型在 runtime 提供 hook（詳見 [`docs/hook-extension.md`](./docs/hook-extension.md)）。內附平行的 Codex CLI 樹，適用於雙助理（Claude + Codex）專案。
+通用、安裝即用的 Claude Code harness。內含 **17 個角色導向 agent**（+1 個模組範圍的 reviewer）、約 73 個指令（codex / gitnexus / git / 專案工作流）、約 57 個核心 skill 加上跨專案的 `deploy-list` 部署清單產生器 + **`/dhpk:do` Smart Router**（透過 21 條 route-table 規則 + LLM fallback 進行自然語言任務路由）+ **跨 session 學習 DB**（作業訊號儲存庫，附信心衰退機制，預設關閉）、**6-slot sentinel 驅動的 review hook**（code / db / sec / frontend / doc / **polyfill** — 最後一個由 `library-author` 提供）、statusline、harness 腳本，以及 **21 個可選用的技術棧模組**（PHP：`php-5.6`、`php-7.4`、`php-8.x`；Yii：`yii-1.1`；PHPUnit：`phpunit-5.7`、`phpunit-9`、`phpunit-10`、`phpunit-11`；Laravel：`laravel-6` 至 `laravel-11`；`js`；跨版本的 `library-author`；以及 **iOS/Swift 套件**（`swift`、`swiftui`、`ios-platform`、`swift-testing`、`xcode-tooling`））。模組可透過 **wrapper-dispatch** 模型在 runtime 提供 hook（詳見 [`docs/hook-extension.md`](./docs/hook-extension.md)）。內附平行的 Codex CLI 樹，適用於雙助理（Claude + Codex）專案。
 
 OpenSpec 是**可選的外部整合**——若需要 OpenSpec 工作流指令，請另行安裝 [OpenSpec 插件](https://github.com/Fission-AI/OpenSpec)。dhpk 僅保留自家加值的 `opsx-apply-resume`（長時間 OpenSpec 工作階段的 context handoff）；v0.2.1 起，10 個通用 OpenSpec wrapper skill/command 已從套件中移除，由 OpenSpec 上游提供。
 
@@ -112,10 +112,10 @@ claude plugin marketplace remove dhpk  # 忘記 marketplace 註冊
 
 | 元件 | 數量 | 說明 |
 |------|----:|------|
-| Agents | 16 root + 1 module | 5 個 sentinel 驅動的 reviewer（code / db / sec / **frontend** / **doc**）+ 第 6 個 `polyfill-reviewer` 由 `library-author` 提供。`migration-reviewer` 為 `database-reviewer` 的 sentinel 驅動同伴（觸發 `.pending-migration-review`）。情境型：architect、tdd-guide、refactor-cleaner、ui-ux-verifier、performance-analyzer、doc-updater、docs-lookup、harness-reviser、harness-optimizer、version-matrix-impact-reviewer。 |
+| Agents | 17 root + 1 module | 5 個 sentinel 驅動的 reviewer（code / db / sec / **frontend** / **doc**）+ 第 6 個 `polyfill-reviewer` 由 `library-author` 提供。`migration-reviewer` 為 `database-reviewer` 的 sentinel 驅動同伴（觸發 `.pending-migration-review`）。情境型：architect、tdd-guide、refactor-cleaner、ui-ux-verifier、performance-analyzer、doc-updater、docs-lookup、harness-reviser、harness-optimizer、version-matrix-impact-reviewer、**swift-build-resolver**（iOS 套件）。 |
 | Commands | ~73 | `dhpk:do`（Smart Router）、`dhpk:create-dev`、`dhpk:codex-*`、`dhpk:review-pending`、`dhpk:smart-commit`、`dhpk:ts-check-status`（JS 模組）、`dhpk:opsx-apply-resume`（需 OpenSpec）、`dhpk:matrix-cell-onboard`（library-author）、`dhpk:de-ai-flavor`、`dhpk:deploy-list`、`dhpk:goal-ex`、`dhpk:ui-ux-verify` 等 |
 | 核心 skills | ~57 加上 | codex-*、gitnexus、tool-routing、dhpk-execution-policy、**adaptive-dev-workflow**（Feature/Bug/Maintenance 分類器）、**deploy-list**（跨專案部署清單產生器）、**execution-checklist**（任務收尾自檢）、`opsx-apply-resume` 配套（需 OpenSpec） |
-| 技術棧模組 | 16 | PHP：`php-5.6`、`php-7.4`、`php-8.x` · Yii：`yii-1.1` · PHPUnit：`phpunit-5.7`、`phpunit-9`、`phpunit-10`、`phpunit-11` · Laravel：`laravel-6` … `laravel-11` · `js` · `library-author`（選用；詳見下方「模組」） |
+| 技術棧模組 | 21 | PHP：`php-5.6`、`php-7.4`、`php-8.x` · Yii：`yii-1.1` · PHPUnit：`phpunit-5.7`、`phpunit-9`、`phpunit-10`、`phpunit-11` · Laravel：`laravel-6` … `laravel-11` · `js` · `library-author` · **iOS**：`swift`、`swiftui`、`ios-platform`、`swift-testing`、`xcode-tooling`（選用；詳見下方「模組」） |
 | Hooks | 9 個事件 | PreToolUse（Edit、Bash + dispatcher + sentinel-gate + branch-safety）、PostToolUse（Edit + dispatcher + async crlf-fix）、SessionStart、PreCompact（checkpoint 存檔）、PostCompact（sentinel 還原）、SubagentStop（reviewer 驗證 + 失敗記錄）、StopFailure（失敗記錄）、UserPromptSubmit（skill 提示）、Stop（review-reminder + graduation-scan + reap-stale-sentinels） |
 | Hook dispatchers | 2 | `post-edit-dispatch.sh`、`pre-bash-dispatch.sh` — 分派到啟用模組的 hook |
 | Harness 腳本 | 5 | precommit-runner、verify-runner、harness-audit、codemap generator、dep-audit |
@@ -123,14 +123,14 @@ claude plugin marketplace remove dhpk  # 忘記 marketplace 註冊
 
 ## userConfig
 
-十五個旋鈕，全部可在安裝時用 `--config <key>=<value>` 設定：
+二十二個旋鈕，全部可在安裝時用 `--config <key>=<value>` 設定：
 
 | Key | 預設值 | 用途 |
 |-----|--------|------|
 | `hook_profile` | `standard` | `minimal` 抑制 Stop 提醒；`strict` 增加額外警告 |
 | `review_agents` | `["code-reviewer","database-reviewer","security-reviewer","frontend-reviewer","doc-reviewer"]` | 被 sentinel 提醒呼叫的 5 個 agent。可覆寫指向你專案特定的 agent；傳入較短的清單會縮減覆蓋範圍。（第 6 個 `polyfill-reviewer` slot 由 `library-author` 模組啟用，不在此清單中。） |
 | `docker_containers` | `[]` | 在 SessionStart 檢查的 container 名稱。空陣列代表停用該檢查。第一筆會輸出為 `DHPK_PHP_CONTAINER`；第二筆為 `DHPK_MYSQL_CONTAINER`。 |
-| `modules` | `[]` | 要啟用的技術棧模組。內附 16 個：`php-5.6`、`php-7.4`、`php-8.x`、`yii-1.1`、`phpunit-5.7`、`phpunit-9`、`phpunit-10`、`phpunit-11`、`laravel-6`、`laravel-7`、`laravel-8`、`laravel-9`、`laravel-10`、`laravel-11`、`js`、`library-author`。模組的 `requires:` 在 SessionStart 驗證（僅警告、不阻擋）。專案層級的 `.claude/settings.local.json` `pluginConfigs.dhpk@dhpk.options.modules` 可**覆寫**全域值——讓單台開發機同時服務不同技術棧的多個專案。 |
+| `modules` | `[]` | 要啟用的技術棧模組。內附 21 個：`php-5.6`、`php-7.4`、`php-8.x`、`yii-1.1`、`phpunit-5.7`、`phpunit-9`、`phpunit-10`、`phpunit-11`、`laravel-6`、`laravel-7`、`laravel-8`、`laravel-9`、`laravel-10`、`laravel-11`、`js`、`library-author`、`swift`、`swiftui`、`ios-platform`、`swift-testing`、`xcode-tooling`。模組的 `requires:` 在 SessionStart 驗證（僅警告、不阻擋）。專案層級的 `.claude/settings.local.json` `pluginConfigs.dhpk@dhpk.options.modules` 可**覆寫**全域值——讓單台開發機同時服務不同技術棧的多個專案。 |
 | `review_trigger_extra_paths` | `[]` | 每個 reviewer slot 的額外路徑前綴。格式：`<slot>:<prefix>`，slot 屬於 `code\|db\|sec\|fe\|doc`。例：`code:protected/`、`fe:resources/views/`。 |
 | `reap_stale_mcp_processes` | `false` | 設 `true` 時，SessionStart 會 reap 舊的 `gitnexus mcp` process（只留最新）。僅 gitnexus MCP 使用者需要。 |
 | `js_lint_script` | `"lint"` | `js` 模組 pre-commit gate 執行的 npm script 名稱。 |
@@ -142,6 +142,13 @@ claude plugin marketplace remove dhpk  # 忘記 marketplace 註冊
 | `skill_hint_enabled` | `true` | 是否由 UserPromptSubmit hook 印出一行 route-table skill 提示。可用 `DHPK_DISABLE_SKILL_HINT=1`（單次）或設此值為 `false`（持久）關閉。 |
 | `learning_db_enabled` | `false` | （v0.6.0）啟用 `.claude/artifacts/learning.jsonl` 作業訊號儲存庫（reviewer 通過 / subagent 失敗 / 異常停止）。在 SessionStart 以 `[learned-context]` 區塊呈現。 |
 | `graduation_scan_enabled` | `false` | （v0.6.0）啟用 Stop hook，掃描 session transcript 中被引用的 auto-memory 條目，並起草 `graduation-candidates.md` 升階提案。 |
+| `swiftlint_bin` | `"swiftlint"` | （v0.7.0）`xcode-tooling` post-edit SwiftLint hook 使用的執行檔；不存在時自動跳過。 |
+| `xcode_scheme` | `""` | （v0.7.0）`xcode-tooling` pre-commit build gate 使用的 scheme；留空則跳過 gate（不猜測 scheme）。 |
+| `xcode_destination` | `""` | （v0.7.0）pre-commit gate 測試步驟的 `-destination`；留空則自動挑選第一個可用模擬器（build 步驟一律使用不含裝置名稱的 generic destination）。 |
+| `swift_build_skip_tests` | `false` | （v0.7.0）設 `true` 時，Swift pre-commit gate 只 build、不跑測試（無 `xcodebuild test` / `swift test`）。 |
+| `php_cs_fixer_bin` | `"vendor/bin/php-cs-fixer"` | `php-7.4` 模組 post-edit php-cs-fixer hook 與 pre-commit gate 使用的執行檔。 |
+| `phpstan_bin` | `"vendor/bin/phpstan"` | `php-7.4` 模組 pre-commit gate 使用的 PHPStan 執行檔。 |
+| `psalm_bin` | `"vendor/bin/psalm"` | `php-7.4` 模組 pre-commit gate 使用的 Psalm 執行檔。 |
 
 範例：
 
@@ -215,6 +222,13 @@ codex-code-review     codex-explain        codex-implement
 **工具 / 跨版本**：
 - **`js`** — JS / TS 工具鏈。ESLint flat-config 分層策略（Tier 1 嚴格 / 1.5 core-exempt / 1.7 deferred-migration / globals）、per-leaf `// @ts-check` 漸進啟用、async post-edit ESLint 反饋、pre-commit `npm run <lint> + <typecheck>` gate。框架無關。
 - **`library-author`** — 多主版本 PHP 函式庫（Laravel 6–11、Monolog 2/3、PHPUnit 8–11、Flysystem 1/3 等）的跨版本膠水。附帶**第六色** `polyfill-reviewer` agent（透過 `.pending-polyfill-review` sentinel 驅動）、`polyfill-version-matrix-audit` skill、`matrix-cell-onboard` skill（+ 根目錄 `/dhpk:matrix-cell-onboard` 別名）、OpenSpec artifact guard，以及雙測試套件映射輔助。在包含 runtime 版本 guard（`version_compare`、`class_exists`、`method_exists`、`Composer\InstalledVersions::*`）的 `.php` 編輯時自動觸發。
+
+**iOS / Swift**（依賴鏈式——每個都 `requires: swift`；可用 `ios-app` 安裝 profile 一次啟用整套）：
+- **`swift`** — Swift 6 strict-concurrency 基線 + Swift 5.10 / iOS 17 相容性 + Swift 6.2 approachable-concurrency。整套套件的基礎。
+- **`swiftui`** — MVVM + Coordinator、Observation（`@Observable` / `@Bindable`）、`NavigationStack` 路由、Combine / UIKit 互通。需要 `swift`。
+- **`ios-platform`** — health/PHI iOS SDK：Core Data 加密、CryptoKit + Keychain、actor 離線儲存、Vision OCR、LocalAuthentication、UserNotifications、HealthKit、隱私合規。需要 `swift`。
+- **`swift-testing`** — XCTest + Swift Testing、XCUITest、snapshot 測試、3 層測試分類、protocol-DI host testing。需要 `swift`。
+- **`xcode-tooling`** — SwiftLint post-edit hook + xcodebuild/SPM pre-commit build+test gate（generic build destination、模擬器自動回退、工具鏈不存在時自動跳過）+ `ios-icon-gen` skill。需要 `swift`。
 
 啟用後，模組會：
 - 將其 skill 以 `dhpk:<skill-name>` 形式暴露（例如 `dhpk:php-pro`、`dhpk:yii1-security-audit`、`dhpk:js-lint-config`）。
@@ -313,17 +327,18 @@ dhpk/
 ├── .claude-plugin/
 │   ├── marketplace.json          # 單一條目的 marketplace（plugins[0].source: "./"）
 │   └── plugin.json               # 含 userConfig 的插件 manifest
-├── agents/                       # 16 個角色 agent（INDEX.md 為導覽用）
+├── agents/                       # 17 個角色 agent（INDEX.md 為導覽用）
 ├── commands/                     # ~73 個 slash 指令（do、create-dev、codex-*、smart-commit、opsx-apply-resume、matrix-cell-onboard 等）
 ├── skills/                       # ~57 個核心 skill（adaptive-dev-workflow、codex-*、tool-routing、dhpk-execution-policy、opsx-apply-resume 配套等）
 ├── templates/                    # hook 引導用範本（graduation-candidates.md — 首次 graduation 執行時複製到 .claude/artifacts/）
-├── modules/                      # 16 個可選用的技術棧模組
+├── modules/                      # 21 個可選用的技術棧模組
 │   ├── php-5.6/, php-7.4/, php-8.x/        # {module.yaml, skills/, references/, hooks/（僅 php-7.4）}
 │   ├── yii-1.1/                            # Yii 1.1 框架
 │   ├── phpunit-5.7/, phpunit-9/, phpunit-10/, phpunit-11/
 │   ├── laravel-6/ … laravel-11/            # 每個主版本一個
 │   ├── js/{module.yaml, hooks/, skills/, commands/, references/}
-│   └── library-author/{module.yaml, agents/, skills/, hooks/, references/}
+│   ├── library-author/{module.yaml, agents/, skills/, hooks/, references/}
+│   └── swift/, swiftui/, ios-platform/, swift-testing/, xcode-tooling/  # iOS/Swift 套件（xcode-tooling 另含 hooks/ 與 skill 腳本）
 ├── hooks/hooks.json              # PreToolUse / PostToolUse / SessionStart / Stop 連線設定
 ├── scripts/
 │   ├── hooks/                    # 核心 hook，含 post-edit-dispatch.sh、pre-bash-dispatch.sh、reap-stale-sentinels.sh、_lib/{payload,portable-sed}.sh

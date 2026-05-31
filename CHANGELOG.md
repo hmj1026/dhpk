@@ -1,5 +1,56 @@
 # Changelog
 
+## 0.7.0 — 2026-05-31 — iOS / Swift module suite
+
+Feature release. Adds a five-module iOS/Swift stack, a Swift build-resolver
+agent, and Swift-gated reviewer coverage. All opt-in via `userConfig.modules`;
+PHP/JS projects see zero behaviour change. The suite is dependency-chained —
+`swiftui` / `ios-platform` / `swift-testing` / `xcode-tooling` each
+`requires: swift`.
+
+### Added
+
+- **`modules/swift/`** (Swift 6) — strict-concurrency baseline (Sendable /
+  actors, async-await), Swift 5.10 / iOS 17 compatibility notes, and Swift 6.2+
+  (Xcode 26+) approachable-concurrency defaults (async stays on the caller,
+  `@concurrent` opt-in offload, isolated conformances, MainActor default
+  inference). Optionals discipline, value-vs-reference, error handling. The
+  foundation the rest of the suite requires.
+- **`modules/swiftui/`** — MVVM + Coordinator, Observation framework
+  (`@Observable` / `@Bindable`), `NavigationStack` + type-safe routing,
+  state-ownership rules, Combine + UIKit interop.
+- **`modules/ios-platform/`** — iOS SDK for a health/PHI app: Core Data at-rest
+  encryption (SQLCipher / File Protection), CryptoKit + Keychain, an actor-based
+  offline local store, Vision OCR (handwriting limits + manual fallback),
+  AVFoundation, LocalAuthentication, UserNotifications, HealthKit read-only,
+  privacy-manifest / no-iCloud compliance.
+- **`modules/swift-testing/`** — XCTest + Swift Testing
+  (`@Test` / `#expect` / `#require` / parameterized), XCUITest,
+  swift-snapshot-testing, a 3-layer unit/integration/UI taxonomy, and
+  protocol-based DI for host-testable (`swift test`) file/Keychain/network code.
+- **`modules/xcode-tooling/`** — post-edit SwiftLint hook (async, self-skip) +
+  pre-commit xcodebuild/SPM build+test gate (build uses a device-name-free
+  generic destination; tests auto-fall back to an available simulator; both
+  self-skip when the toolchain is absent), scheme/signing notes, and an
+  `ios-icon-gen` skill (SF Symbols / Iconify → asset-catalog imageset).
+- **`agents/swift-build-resolver.md`** — surgical Swift / Xcode / SPM
+  build-error resolver: error→cause→fix table, generic-destination retry,
+  3-attempt stop conditions, hand-off to `code-reviewer`. (17th root agent.)
+- **Swift-gated reviewer coverage** — `code-reviewer` (force-unwrap / Sendable /
+  concurrency / retain-cycle traps), `security-reviewer` (iOS Keychain /
+  at-rest-encryption / PHI-privacy fix map), `database-reviewer` +
+  `migration-reviewer` (Core Data threading / encryption / model migration),
+  `tdd-guide` (iOS test layout + run commands).
+- **`ios-app` install profile** + four userConfig knobs (`swiftlint_bin`,
+  `xcode_scheme`, `xcode_destination`, `swift_build_skip_tests`).
+
+### Changed
+
+- `xcode_destination` defaults to empty: the pre-commit test step then
+  auto-picks the first available iOS simulator and the build step always uses a
+  device-name-free generic destination, so a stale named-simulator default
+  (e.g. the `iPhone 16` that Xcode 26 no longer ships) can never break the gate.
+
 ## 0.6.2 — 2026-05-29 — Fix: pre-edit-guard .env template false positive
 
 Bugfix release.
