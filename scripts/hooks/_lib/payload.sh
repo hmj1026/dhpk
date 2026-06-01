@@ -59,3 +59,33 @@ except Exception:
     printf '%s' "$out"
     return 0
 }
+
+# extract_top_field <field> "<payload>"
+#   Pulls a TOP-LEVEL <field> from a Claude Code hook JSON payload (e.g. the
+#   Stop hook's stop_hook_active flag). Same error-swallowing contract as
+#   extract_tool_input: returns empty string on any error (callers MUST handle
+#   empty). Prefers jq; falls back to python3 when jq is missing.
+#   NOTE: boolean false collapses to "" (same as absent/null), because both the
+#         jq `// empty` operator and the python3 fallback treat false as empty.
+#         Only use for fields where false and absent are equivalent (e.g.
+#         stop_hook_active); do NOT use where false is a meaningful value.
+extract_top_field() {
+    local field="$1" payload="$2" out=""
+    [ -z "$payload" ] && return 0
+    if command -v jq >/dev/null 2>&1; then
+        out="$(printf '%s' "$payload" | jq -r ".${field} // empty" 2>/dev/null || true)"
+    fi
+    if [ -z "$out" ] && command -v python3 >/dev/null 2>&1; then
+        out="$(printf '%s' "$payload" | FIELD="$field" python3 -c '
+import sys, os, json
+try:
+    d = json.load(sys.stdin)
+    v = d.get(os.environ.get("FIELD", ""), "")
+    print("true" if v is True else ("" if v is False or v is None else v))
+except Exception:
+    pass
+' 2>/dev/null || true)"
+    fi
+    printf '%s' "$out"
+    return 0
+}
