@@ -1,0 +1,21 @@
+name: laravel-mix
+display_name: "Laravel Mix 5 (webpack)"
+version: 0.1.0
+description: "Laravel Mix 5 (^5.0.9) — the webpack 4 wrapper that maps webpack.mix.js (at project root) entries to public/ outputs, runs mix() versioning + manifest, and drives the npm dev/watch/watch-poll/hot/prod scripts. Targets the Vue 2 / Laravel 5.4 era. Pair with the vue-2 and js modules for SFC compilation and lint/TS tiers."
+requires: []
+triggers:
+  code:
+    extensions: []
+    paths: []
+  db:
+    extensions: []
+    paths: []
+  sec:
+    extensions: []
+    paths: []
+  frontend:
+    extensions: [".js"]
+    paths: [resources/assets/]
+provides:
+  skills: [laravel-mix-notes]
+  references: []

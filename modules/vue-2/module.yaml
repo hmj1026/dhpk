@@ -1,0 +1,21 @@
+name: vue-2
+display_name: "Vue 2 (Options API)"
+version: 0.1.0
+description: "Vue 2 (^2.5.17, Options API only — no Composition API). Single-file components compiled by vue-loader via Laravel Mix. Covers the data()/computed/methods/watch + lifecycle structure, props-down + $emit events-up, the Vue 2 reactivity caveats (Vue.set / $set for new object keys and array index/length), and @vue/test-utils 1.x + vue-jest 3 SFC mounting. Pair with the laravel-mix and js modules."
+requires: []
+triggers:
+  code:
+    extensions: []
+    paths: []
+  db:
+    extensions: []
+    paths: []
+  sec:
+    extensions: []
+    paths: []
+  frontend:
+    extensions: [".vue", ".js"]
+    paths: [resources/assets/js/]
+provides:
+  skills: [vue-2-notes]
+  references: []
