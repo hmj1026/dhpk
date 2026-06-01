@@ -347,6 +347,31 @@ out="$(printf 'add a new feature endpoint' | bash "$PR")"
 if [ "$(printf '%s' "$out" | cut -f2)" = "dhpk:adaptive-dev-workflow" ]; then ok "stdin path → MATCH dhpk:adaptive-dev-workflow"; else fail "stdin route wrong ($out)"; fi
 
 echo ""
+echo "== 11. stop-review-reminder.sh (stop_hook_active yield) =="
+repo="$(make_repo)"
+mk_sentinel "$repo" ".pending-review" "$(printf '2026-06-01 00:00:00 path/to/file.php\n')"
+
+run_hook "$repo" stop-review-reminder.sh '{"stop_hook_active": false}'
+if [ "$RC" -eq 2 ] && grep -q 'PENDING' "$STDERR_F"; then ok "first stop (stop_hook_active=false) → exit 2 + PENDING reminder"; else fail "first stop did not block/remind (rc=$RC, $(cat "$STDERR_F"))"; fi
+
+run_hook "$repo" stop-review-reminder.sh '{}'
+if [ "$RC" -eq 2 ] && grep -q 'PENDING' "$STDERR_F"; then ok "first stop (no flag) → exit 2 + PENDING reminder"; else fail "no-flag stop did not block/remind (rc=$RC, $(cat "$STDERR_F"))"; fi
+
+run_hook "$repo" stop-review-reminder.sh '{"stop_hook_active": true}'
+if [ "$RC" -eq 0 ] && [ ! -s "$STDERR_F" ]; then ok "re-entry (stop_hook_active=true) → exit 0, silent yield"; else fail "re-entry did not yield (rc=$RC, $(cat "$STDERR_F"))"; fi
+
+run_hook "$repo" stop-review-reminder.sh '{"stop_hook_active": true}' CLAUDE_PLUGIN_OPTION_HOOK_PROFILE=minimal
+if [ "$RC" -eq 0 ] && [ ! -s "$STDERR_F" ]; then ok "minimal profile → exit 0, silent"; else fail "minimal profile not silent (rc=$RC, $(cat "$STDERR_F"))"; fi
+
+run_hook "$repo" stop-review-reminder.sh '{"stop_hook_active": false}' CLAUDE_PLUGIN_OPTION_HOOK_PROFILE=minimal
+if [ "$RC" -eq 0 ] && [ ! -s "$STDERR_F" ]; then ok "minimal beats stop_hook_active=false → exit 0, silent"; else fail "minimal+false not silent (rc=$RC, $(cat "$STDERR_F"))"; fi
+
+# No sentinel → clean stop regardless of flag.
+repo2="$(make_repo)"
+run_hook "$repo2" stop-review-reminder.sh '{"stop_hook_active": false}'
+if [ "$RC" -eq 0 ] && [ ! -s "$STDERR_F" ]; then ok "no sentinel → exit 0, silent"; else fail "no-sentinel stop not clean (rc=$RC, $(cat "$STDERR_F"))"; fi
+
+echo ""
 echo "=========================================="
 if [ "$FAIL" -gt 0 ]; then
     echo "FAIL: $FAIL 個失敗 / $PASS 個通過"

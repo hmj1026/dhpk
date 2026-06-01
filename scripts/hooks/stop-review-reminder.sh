@@ -1,12 +1,22 @@
 #!/usr/bin/env bash
 # stop-review-reminder.sh — Stop hook
-# Scans the three sentinels; if any exists, prints a reminder naming the
-# configured review agent and exits 2 (Claude Code "block stop, feed stderr
-# back as next-turn input" semantic).
+# Scans the sentinels; if any exists, prints a reminder naming the configured
+# review agent and exits 2 (Claude Code "block stop, feed stderr back as
+# next-turn input" semantic).
+#
+# Remind-once-then-yield: Claude Code sets stop_hook_active=true on the stdin
+# payload when it re-enters Stop after a prior block. Honoring it converts a
+# hard multi-block loop (which only ends when the harness block cap force-
+# overrides, printing a "blocked N consecutive times" warning) into a single
+# reminder that then lets the turn end.
 #
 # Profile: when hook_profile=minimal, suppresses all output and exits 0.
 
 set -o pipefail
+
+# Read the Stop hook payload first — before sourcing libs or anything that
+# could consume stdin.
+payload="$(cat 2>/dev/null || true)"
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 
@@ -20,6 +30,10 @@ ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 PROFILE="${CLAUDE_PLUGIN_OPTION_HOOK_PROFILE:-standard}"
 
 [ "$PROFILE" = "minimal" ] && exit 0
+
+# Already reminded once this Stop cycle — yield so the turn can end instead of
+# re-blocking until the harness block cap.
+[ "$(extract_top_field stop_hook_active "$payload")" = "true" ] && exit 0
 
 SESS="$ROOT/.claude/artifacts/sessions"
 FOUND=0
