@@ -2,7 +2,7 @@
 
 > **Languages**: **English** · [繁體中文](./README.zh-TW.md)
 
-A generic, install-and-go Claude Code harness. Ships **17 role-based agents** (+ 1 module-scoped reviewer), ~73 commands (codex / gitnexus / git / project workflow), ~57 core skills + the `deploy-list` cross-project deploy file list generator + the **`/dhpk:do` Smart Router** (natural-language task routing via 21-pattern route table + LLM fallback) + **cross-session learning DB** (operational signal store with confidence decay, opt-in), **6-slot sentinel-driven review hooks** (code / db / sec / frontend / doc / **polyfill** — the last via `library-author`), statusline, harness scripts, and **21 opt-in stack modules** across PHP (`php-5.6`, `php-7.4`, `php-8.x`), Yii (`yii-1.1`), PHPUnit (`phpunit-5.7`, `phpunit-9`, `phpunit-10`, `phpunit-11`), Laravel (`laravel-6` through `laravel-11`), JS (`js`), the cross-cutting `library-author` module, and an **iOS/Swift suite** (`swift`, `swiftui`, `ios-platform`, `swift-testing`, `xcode-tooling`). Modules contribute hooks at runtime via the **wrapper-dispatch** model (see [`docs/hook-extension.md`](./docs/hook-extension.md)). Parallel Codex CLI tree included for dual-assistant projects.
+A generic, install-and-go Claude Code harness. Ships **17 role-based agents** (+ 1 module-scoped reviewer), ~73 commands (codex / gitnexus / git / project workflow), ~57 core skills + the `deploy-list` cross-project deploy file list generator + the **`/dhpk:do` Smart Router** (natural-language task routing via 21-pattern route table + LLM fallback) + **cross-session learning DB** (operational signal store with confidence decay, opt-in), **6-slot sentinel-driven review hooks** (code / db / sec / frontend / doc / **polyfill** — the last via `library-author`), statusline, harness scripts, and **24 opt-in stack modules** across PHP (`php-5.6`, `php-7.4`, `php-8.x`), Yii (`yii-1.1`), PHPUnit (`phpunit-5.7`, `phpunit-9`, `phpunit-10`, `phpunit-11`), Laravel (`laravel-5.4`, `laravel-6` through `laravel-11`), JS (`js`), Vue (`vue-2`), Laravel Mix (`laravel-mix`), the cross-cutting `library-author` module, and an **iOS/Swift suite** (`swift`, `swiftui`, `ios-platform`, `swift-testing`, `xcode-tooling`). Modules contribute hooks at runtime via the **wrapper-dispatch** model (see [`docs/hook-extension.md`](./docs/hook-extension.md)). Parallel Codex CLI tree included for dual-assistant projects.
 
 OpenSpec is an **optional external integration** — install the [OpenSpec plugin](https://github.com/Fission-AI/OpenSpec) separately if you want OpenSpec workflow commands. dhpk retains only its own value-add helper `opsx-apply-resume` (long-running OpenSpec session context handoff); the 10 generic OpenSpec wrapper skills/commands were unbundled in v0.2.1 since OpenSpec ships them upstream.
 
@@ -115,7 +115,7 @@ The same actions are available as `/plugin update dhpk`, `/plugin uninstall dhpk
 | Agents | 17 root + 1 module | 5 sentinel-driven reviewers (code / db / sec / **frontend** / **doc**) + the 6th `polyfill-reviewer` shipped by `library-author`. `migration-reviewer` is a sentinel-driven companion to `database-reviewer` (fires on `.pending-migration-review`). Situational: architect, tdd-guide, refactor-cleaner, ui-ux-verifier, performance-analyzer, doc-updater, docs-lookup, harness-reviser, harness-optimizer, version-matrix-impact-reviewer, **swift-build-resolver** (iOS suite). |
 | Commands | ~73 | `dhpk:do` (Smart Router), `dhpk:create-dev`, `dhpk:codex-*`, `dhpk:review-pending`, `dhpk:smart-commit`, `dhpk:ts-check-status` (JS module), `dhpk:opsx-apply-resume` (needs OpenSpec), `dhpk:matrix-cell-onboard` (library-author), `dhpk:de-ai-flavor`, `dhpk:deploy-list`, `dhpk:goal-ex`, `dhpk:ui-ux-verify`, etc. |
 | Core skills | ~57 + extras | codex-*, gitnexus, tool-routing, dhpk-execution-policy, **adaptive-dev-workflow** (Feature/Bug/Maintenance classifier), **deploy-list** (cross-project deploy file list generator), **execution-checklist** (end-of-task self-check), `opsx-apply-resume` helpers (need OpenSpec) |
-| Stack modules | 21 | PHP: `php-5.6`, `php-7.4`, `php-8.x` · Yii: `yii-1.1` · PHPUnit: `phpunit-5.7`, `phpunit-9`, `phpunit-10`, `phpunit-11` · Laravel: `laravel-6` … `laravel-11` · `js` · `library-author` · **iOS**: `swift`, `swiftui`, `ios-platform`, `swift-testing`, `xcode-tooling` (opt-in; see "Modules" below) |
+| Stack modules | 24 | PHP: `php-5.6`, `php-7.4`, `php-8.x` · Yii: `yii-1.1` · PHPUnit: `phpunit-5.7`, `phpunit-9`, `phpunit-10`, `phpunit-11` · Laravel: `laravel-5.4`, `laravel-6` … `laravel-11` · Frontend: `js`, `vue-2`, `laravel-mix` · `library-author` · **iOS**: `swift`, `swiftui`, `ios-platform`, `swift-testing`, `xcode-tooling` (opt-in; see "Modules" below) |
 | Hooks | 9 events | PreToolUse (Edit, Bash + dispatcher + sentinel-gate + branch-safety), PostToolUse (Edit + dispatcher + async crlf-fix), SessionStart, PreCompact (checkpoint archive), PostCompact (sentinel restore), SubagentStop (reviewer verify + failure log), StopFailure (failure log), UserPromptSubmit (skill hint), Stop (review-reminder + graduation-scan + reap-stale-sentinels) |
 | Hook dispatchers | 2 | `post-edit-dispatch.sh`, `pre-bash-dispatch.sh` — fan out to active modules' hooks |
 | Harness scripts | 5 | precommit-runner, verify-runner, harness-audit, codemap generator, dep-audit |
@@ -130,7 +130,7 @@ Twenty-two knobs, all settable at install time with `--config <key>=<value>`:
 | `hook_profile` | `standard` | `minimal` suppresses Stop reminders; `strict` adds extra warnings |
 | `review_agents` | `["code-reviewer","database-reviewer","security-reviewer","frontend-reviewer","doc-reviewer"]` | Five agents invoked by sentinel reminders. Override to point at your project-specific agents; shorter lists reduce coverage. (The 6th `polyfill-reviewer` slot is enabled by the `library-author` module, not via this list.) |
 | `docker_containers` | `[]` | Container names checked at SessionStart. Empty list disables the check. First entry exported as `DHPK_PHP_CONTAINER`; second as `DHPK_MYSQL_CONTAINER`. |
-| `modules` | `[]` | Stack modules to enable. Ships 21: `php-5.6`, `php-7.4`, `php-8.x`, `yii-1.1`, `phpunit-5.7`, `phpunit-9`, `phpunit-10`, `phpunit-11`, `laravel-6`, `laravel-7`, `laravel-8`, `laravel-9`, `laravel-10`, `laravel-11`, `js`, `library-author`, `swift`, `swiftui`, `ios-platform`, `swift-testing`, `xcode-tooling`. Module `requires:` validated at SessionStart (warning, not blocking). Project-level `.claude/settings.local.json` `pluginConfigs.dhpk@dhpk.options.modules` **overrides** the global value — supports a single dev machine working on projects with different stacks. |
+| `modules` | `[]` | Stack modules to enable. Ships 24: `php-5.6`, `php-7.4`, `php-8.x`, `yii-1.1`, `phpunit-5.7`, `phpunit-9`, `phpunit-10`, `phpunit-11`, `laravel-5.4`, `laravel-6`, `laravel-7`, `laravel-8`, `laravel-9`, `laravel-10`, `laravel-11`, `js`, `vue-2`, `laravel-mix`, `library-author`, `swift`, `swiftui`, `ios-platform`, `swift-testing`, `xcode-tooling`. Module `requires:` validated at SessionStart (warning, not blocking). Project-level `.claude/settings.local.json` `pluginConfigs.dhpk@dhpk.options.modules` **overrides** the global value — supports a single dev machine working on projects with different stacks. |
 | `review_trigger_extra_paths` | `[]` | Extra path prefixes per reviewer slot. Format: `<slot>:<prefix>` where slot ∈ `code\|db\|sec\|fe\|doc`. Example: `code:protected/`, `fe:resources/views/`. |
 | `reap_stale_mcp_processes` | `false` | When `true`, SessionStart kills older `gitnexus mcp` processes (keep only newest). Only useful for gitnexus MCP users. |
 | `js_lint_script` | `"lint"` | npm script invoked by the `js` module's pre-commit gate. |
@@ -213,14 +213,19 @@ A **module** is a labeled, version-tagged bundle of skills + references + hooks 
 
 **Frameworks**:
 - **`yii-1.1`** — Yii 1.1: alias autoload, `CActiveRecord` / `CDbCriteria`, `accessRules`, XSS / CSRF defaults. Requires `php-5.6`.
+- **`laravel-5.4`** — Laravel 5.4 (LTS, Feb 2017): Blade components & slots, route model binding, middleware groups, realtime facades, markdown mailables, the Elixir → Mix transition; 5.3 → 5.4 traps. Requires `php-5.6`.
 - **`laravel-6`** … **`laravel-11`** — one module per major. Per-version: Eloquent / collection / cast / migration / queue / event / mail / notification / package-discovery deltas; Testbench mapping; deprecation walls.
 
 **Testing**:
 - **`phpunit-5.7`** — PHPUnit 5.7 assertion API and patterns. Requires `php-5.6`.
 - **`phpunit-9`** / **`phpunit-10`** / **`phpunit-11`** — per-major API deltas (`createMock` vs `createPartialMock`, attribute-based metadata, deprecation surface).
 
-**Tooling / cross-cutting**:
+**Frontend**:
 - **`js`** — JS / TS tooling. ESLint flat-config tier strategy (Tier 1 strict / 1.5 core-exempt / 1.7 deferred-migration / globals), per-leaf `// @ts-check` rollout, async post-edit ESLint feedback, pre-commit `npm run <lint> + <typecheck>` gate. Framework-agnostic.
+- **`vue-2`** — Vue 2 (Options API era, `^2.5`): `data()` / `computed` / `methods` / `watch` + lifecycle shape, props-down + `$emit` events-up, the Vue 2 reactivity traps (`Vue.set` / array index & length), `@vue/test-utils` 1.x + `vue-jest` 3 SFC testing. Predates the Composition API.
+- **`laravel-mix`** — Laravel Mix 5 (`^5.0.9`, webpack 4): `webpack.mix.js` entry/output mapping, `mix()` versioning + manifest, the `dev` / `watch` / `hot` / `prod` script ladder, and the legacy-OpenSSL prod-build flag on newer Node.
+
+**Cross-cutting**:
 - **`library-author`** — Cross-cutting glue for multi-major-version PHP libraries (Laravel 6–11, Monolog 2/3, PHPUnit 8–11, Flysystem 1/3 etc.). Ships the **sixth-color** `polyfill-reviewer` agent (sentinel-driven via `.pending-polyfill-review`), the `polyfill-version-matrix-audit` skill, the `matrix-cell-onboard` skill (+ root-level `/dhpk:matrix-cell-onboard` alias), an OpenSpec artifact guard, and a dual-testsuite mapping helper. Auto-fires on `.php` edits containing runtime version guards (`version_compare`, `class_exists`, `method_exists`, `Composer\InstalledVersions::*`).
 
 **iOS / Swift** (dependency-chained — each `requires: swift`; enable the whole set via the `ios-app` install profile):
@@ -332,12 +337,13 @@ dhpk/
 ├── skills/                       # ~57 core skills (adaptive-dev-workflow, codex-*, tool-routing, dhpk-execution-policy, opsx-apply-resume helpers, goal-ex, ...)
 ├── templates/                    # hook-bootstrap templates (graduation-candidates.md — copied to .claude/artifacts/ on first graduation run)
 ├── rules/                        # plain-markdown governance rules (execution-policy, tool-routing, anti-rationalization) — not in plugin.json; opt-in via ${CLAUDE_PLUGIN_ROOT}/rules/*.md from a consuming project's CLAUDE.md
-├── modules/                      # 21 opt-in stack modules
+├── modules/                      # 24 opt-in stack modules
 │   ├── php-5.6/, php-7.4/, php-8.x/        # {module.yaml, skills/, references/, hooks/ (php-7.4 only)}
 │   ├── yii-1.1/                            # Yii 1.1 framework
 │   ├── phpunit-5.7/, phpunit-9/, phpunit-10/, phpunit-11/
-│   ├── laravel-6/ … laravel-11/            # one per major
+│   ├── laravel-5.4/, laravel-6/ … laravel-11/  # one per major (5.4 requires php-5.6)
 │   ├── js/{module.yaml, hooks/, skills/, commands/, references/}
+│   ├── vue-2/, laravel-mix/                # frontend: Vue 2 SFC + Laravel Mix 5 asset pipeline
 │   ├── library-author/{module.yaml, agents/, skills/, hooks/, references/}
 │   └── swift/, swiftui/, ios-platform/, swift-testing/, xcode-tooling/  # iOS/Swift suite (xcode-tooling adds hooks/ + skill scripts)
 ├── hooks/hooks.json              # PreToolUse / PostToolUse / SessionStart / Stop wiring

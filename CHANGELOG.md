@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.8.0 — 2026-06-01 — Laravel 5.4 + Vue 2 + Laravel Mix modules
+
+Feature release. Adds three opt-in stack modules covering the legacy
+Laravel-5.4 / Vue-2 / Laravel-Mix-5 era (PHP 5.6 floor), bringing the shipped
+module count to 24. All opt-in via `userConfig.modules`; existing projects see
+zero behaviour change. `laravel-5.4` joins the additive `laravel` stack;
+`vue-2` and `laravel-mix` are new single-version frontend stacks.
+
+### Added
+
+- **`modules/laravel-5.4/`** — Laravel 5.4 (LTS, Feb 2017; PHP 5.6.4 floor).
+  Blade components & slots (introduced here), implicit/explicit route model
+  binding, web/api middleware groups, realtime facades, markdown mailables,
+  `Collection` higher-order messages, Laravel Dusk, resource routes; the
+  Elixir → Mix frontend transition and the 5.3 → 5.4 breaking-change traps;
+  what's missing vs 5.5+ (package auto-discovery, `apiResource`). Joins the
+  `laravel` stack with `requires_module: php-5.6`.
+- **`modules/vue-2/`** — Vue 2 (`^2.5`, Options API only — predates the
+  Composition API). The `data()` / `computed` / `methods` / `watch` + lifecycle
+  shape, props-down + `$emit` events-up, vue-loader SFC compilation, the Vue 2
+  reactivity caveats (`Vue.set` / `$set` for new object keys and array
+  index/length), and `@vue/test-utils` 1.x + `vue-jest` 3 SFC testing. New
+  exclusive `vue` stack.
+- **`modules/laravel-mix/`** — Laravel Mix 5 (`^5.0.9`, webpack 4 wrapper).
+  `webpack.mix.js` entry/output mapping, `mix()` versioning + manifest, the
+  `dev` / `watch` / `watch-poll` / `hot` / `prod` npm-script ladder, the Elixir
+  heritage, and the legacy-OpenSSL prod-build flag on newer Node; Mix 5 → 6
+  upgrade notes. New exclusive `laravel-mix` stack.
+
+### Changed
+
+- `manifests/module-catalog.json` — `laravel-5.4` prepended to the `laravel`
+  stack versions; new `vue` and `laravel-mix` stacks appended.
+- `.claude-plugin/plugin.json` — three skills paths registered; `version` →
+  0.8.0; description, keywords, and `userConfig.modules` "Ships" list updated.
+- `README.md` / `README.zh-TW.md` — module count 21 → 24; new Frontend grouping
+  (`js`, `vue-2`, `laravel-mix`); Laravel row includes `laravel-5.4`.
+
 ## 0.7.0 — 2026-05-31 — iOS / Swift module suite
 
 Feature release. Adds a five-module iOS/Swift stack, a Swift build-resolver
