@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.8.1 — 2026-06-01 — Stop-review-reminder honors `stop_hook_active`
+
+Bugfix release. The `stop-review-reminder` Stop hook never read its stdin
+payload, so it ignored Claude Code's `stop_hook_active` flag and re-blocked
+on every consecutive Stop attempt while a review sentinel existed — ending
+only when the harness block cap force-overrode it (the alarming "blocked N
+consecutive times" message). It now reminds once, then yields. No behaviour
+change for projects on `hook_profile=minimal` (still fully silent). Existing
+sentinel-clearing flows (run the reviewer / `clear-sentinel.sh`) are unchanged.
+
+### Fixed
+
+- **`scripts/hooks/stop-review-reminder.sh`** — reads the Stop hook stdin
+  payload and exits 0 (yields) when `stop_hook_active=true`, after the
+  `hook_profile=minimal` early-exit. First Stop still emits the `exit 2`
+  reminder once; the forced re-entry no longer re-blocks. Empty stdin / missing
+  `jq`+`python3` degrade safely to the prior single-block behaviour.
+
+### Added
+
+- **`scripts/hooks/_lib/payload.sh`** — `extract_top_field <field> <payload>`
+  helper for top-level JSON fields (jq with python3 fallback), mirroring
+  `extract_tool_input`'s error-swallowing contract. Documents the
+  boolean-false-collapses-to-empty caveat.
+- **`scripts/validate/test-hooks.sh`** — section 11 smoke tests for the
+  remind-once-then-yield behaviour (55 checks total, all green).
+
 ## 0.8.0 — 2026-06-01 — Laravel 5.4 + Vue 2 + Laravel Mix modules
 
 Feature release. Adds three opt-in stack modules covering the legacy
