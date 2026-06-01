@@ -2,14 +2,14 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "dhpk",
   "displayName": "DHPK Dev Harness",
-  "version": "0.7.0",
-  "description": "Reusable Claude Code harness — 17 role-based agents (16 generic + the Swift/Xcode build-resolver) + ~70 commands + opt-in stack modules across PHP (5.6, 7.4, 8.x), Yii (1.1), PHPUnit (5.7, 9, 10, 11), Laravel (6–11), JS, the library-author cross-cutting module, and an iOS/Swift suite (swift, swiftui, ios-platform, swift-testing, xcode-tooling) with SwiftLint post-edit + xcodebuild/SPM pre-commit hooks, a Swift 6.2 approachable-concurrency reference, and an ios-icon-gen skill. 6-slot sentinel-driven review hooks (code / db / sec / frontend / doc / polyfill — polyfill via library-author), parameterised docker/agent names, wrapper-dispatch hook extension model, parallel Codex CLI tree.",
+  "version": "0.8.0",
+  "description": "Reusable Claude Code harness — 17 role-based agents (16 generic + the Swift/Xcode build-resolver) + ~70 commands + opt-in stack modules across PHP (5.6, 7.4, 8.x), Yii (1.1), PHPUnit (5.7, 9, 10, 11), Laravel (5.4, 6–11), JS, Vue 2, Laravel Mix 5, the library-author cross-cutting module, and an iOS/Swift suite (swift, swiftui, ios-platform, swift-testing, xcode-tooling) with SwiftLint post-edit + xcodebuild/SPM pre-commit hooks, a Swift 6.2 approachable-concurrency reference, and an ios-icon-gen skill. 6-slot sentinel-driven review hooks (code / db / sec / frontend / doc / polyfill — polyfill via library-author), parameterised docker/agent names, wrapper-dispatch hook extension model, parallel Codex CLI tree.",
   "author": {
     "name": "hmj1026",
     "url": "https://github.com/hmj1026"
   },
   "license": "MIT",
-  "keywords": ["harness", "codex", "code-review", "php", "yii", "phpunit", "laravel", "swift", "ios", "swiftui"],
+  "keywords": ["harness", "codex", "code-review", "php", "yii", "phpunit", "laravel", "vue", "swift", "ios", "swiftui"],
   "skills": [
     "./skills/",
     "./modules/php-5.6/skills/",
@@ -20,6 +20,7 @@
     "./modules/phpunit-9/skills/",
     "./modules/phpunit-10/skills/",
     "./modules/phpunit-11/skills/",
+    "./modules/laravel-5.4/skills/",
     "./modules/laravel-6/skills/",
     "./modules/laravel-7/skills/",
     "./modules/laravel-8/skills/",
@@ -27,6 +28,8 @@
     "./modules/laravel-10/skills/",
     "./modules/laravel-11/skills/",
     "./modules/js/skills/",
+    "./modules/vue-2/skills/",
+    "./modules/laravel-mix/skills/",
     "./modules/library-author/skills/",
     "./modules/swift/skills/",
     "./modules/swiftui/skills/",
@@ -82,7 +85,7 @@
       "type": "string",
       "multiple": true,
       "title": "Stack modules to enable",
-      "description": "Enable stack modules from modules/. Ships: php-5.6, php-7.4, php-8.x, yii-1.1, phpunit-5.7, phpunit-9, phpunit-10, phpunit-11, laravel-6, laravel-7, laravel-8, laravel-9, laravel-10, laravel-11, js, library-author, swift, swiftui, ios-platform, swift-testing, xcode-tooling. Module 'requires' validated at SessionStart (warning only). Stack selection is additive for php / laravel / phpunit — library packages spanning versions should enable each version in their composer constraint to get cumulative guidance. Enabling 'js' wires the ESLint post-edit hook + pre-commit lint/typecheck gate; enabling 'php-7.4' wires the php-cs-fixer post-edit hook + pre-commit lint+phpstan+psalm gate; enabling 'library-author' wires the sixth-color `polyfill-reviewer` sentinel for multi-major PHP libraries spanning Laravel 6-11 / Monolog 2-3 / PHPUnit 8-11 / Flysystem 1-3 (see modules/library-author/module.yaml for guard_patterns / skip_paths config). iOS suite: enabling 'xcode-tooling' wires the SwiftLint post-edit hook + pre-commit xcodebuild/SPM build+test gate (both self-skip when swiftlint/xcodebuild are absent); swift / swiftui / ios-platform / swift-testing are skills+references only (no hooks). The iOS suite is dependency-chained — swiftui / ios-platform / swift-testing / xcode-tooling each `requires: swift`. Precedence: a project's .claude/settings.local.json (or settings.json) `pluginConfigs.dhpk@dhpk.options.modules` OVERRIDES the global value — supports a single dev machine working on projects with different stacks.",
+      "description": "Enable stack modules from modules/. Ships: php-5.6, php-7.4, php-8.x, yii-1.1, phpunit-5.7, phpunit-9, phpunit-10, phpunit-11, laravel-5.4, laravel-6, laravel-7, laravel-8, laravel-9, laravel-10, laravel-11, js, vue-2, laravel-mix, library-author, swift, swiftui, ios-platform, swift-testing, xcode-tooling. Module 'requires' validated at SessionStart (warning only). Stack selection is additive for php / laravel / phpunit — library packages spanning versions should enable each version in their composer constraint to get cumulative guidance. Enabling 'js' wires the ESLint post-edit hook + pre-commit lint/typecheck gate; enabling 'php-7.4' wires the php-cs-fixer post-edit hook + pre-commit lint+phpstan+psalm gate; enabling 'library-author' wires the sixth-color `polyfill-reviewer` sentinel for multi-major PHP libraries spanning Laravel 6-11 / Monolog 2-3 / PHPUnit 8-11 / Flysystem 1-3 (see modules/library-author/module.yaml for guard_patterns / skip_paths config). iOS suite: enabling 'xcode-tooling' wires the SwiftLint post-edit hook + pre-commit xcodebuild/SPM build+test gate (both self-skip when swiftlint/xcodebuild are absent); swift / swiftui / ios-platform / swift-testing are skills+references only (no hooks). The iOS suite is dependency-chained — swiftui / ios-platform / swift-testing / xcode-tooling each `requires: swift`. Precedence: a project's .claude/settings.local.json (or settings.json) `pluginConfigs.dhpk@dhpk.options.modules` OVERRIDES the global value — supports a single dev machine working on projects with different stacks.",
       "default": []
     },
     "review_trigger_extra_paths": {

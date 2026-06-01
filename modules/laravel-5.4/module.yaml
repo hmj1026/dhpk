@@ -1,0 +1,18 @@
+name: laravel-5.4
+display_name: "Laravel 5.4 (LTS)"
+version: 0.1.0
+description: "Laravel 5.4 (February 2017). PHP 5.6.4+ floor. Signature features: Blade components & slots (first introduced here), implicit/explicit route model binding, web/api middleware groups, realtime facades, markdown mailables, Collection higher-order messages, Laravel Dusk, resource routes. Frontend scaffolding moved from Elixir to Laravel Mix (webpack). Pair with php-5.6 module for the language baseline."
+requires: []
+triggers:
+  code:
+    extensions: [".php"]
+    paths: []
+  db:
+    extensions: []
+    paths: []
+  sec:
+    extensions: []
+    paths: []
+provides:
+  skills: [laravel-5.4-notes]
+  references: []

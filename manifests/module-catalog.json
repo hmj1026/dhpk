@@ -35,6 +35,12 @@
       "requires": ["php"],
       "versions": [
         {
+          "id": "5.4",
+          "module": "laravel-5.4",
+          "status": "shipped",
+          "requires_module": "php-5.6"
+        },
+        {
           "id": "6",
           "module": "laravel-6",
           "status": "shipped",
@@ -196,6 +202,32 @@
           "module": "xcode-tooling",
           "status": "shipped",
           "requires_module": "swift"
+        }
+      ]
+    },
+    {
+      "id": "vue",
+      "name": "Vue.js",
+      "selection": "exclusive",
+      "description": "Vue.js framework — per-version modules. The 2 module covers the Options API, Vue 2 reactivity caveats (Vue.set / array index), and @vue/test-utils 1.x + vue-jest SFC testing. Single-version pick.",
+      "versions": [
+        {
+          "id": "2",
+          "module": "vue-2",
+          "status": "shipped"
+        }
+      ]
+    },
+    {
+      "id": "laravel-mix",
+      "name": "Laravel Mix",
+      "selection": "exclusive",
+      "description": "Laravel Mix asset pipeline (webpack wrapper). The 5 module covers webpack.mix.js entry/output mapping, mix() versioning, the npm dev/watch/hot/prod scripts, and the legacy-OpenSSL prod-build flag on newer Node.",
+      "versions": [
+        {
+          "id": "5",
+          "module": "laravel-mix",
+          "status": "shipped"
         }
       ]
     }
