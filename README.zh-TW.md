@@ -2,7 +2,7 @@
 
 > **語言**: [English](./README.md) · **繁體中文**
 
-通用、安裝即用的 Claude Code harness。內含 **17 個角色導向 agent**（+1 個模組範圍的 reviewer）、約 73 個指令（codex / gitnexus / git / 專案工作流）、約 57 個核心 skill 加上跨專案的 `deploy-list` 部署清單產生器 + **`/dhpk:do` Smart Router**（透過 21 條 route-table 規則 + LLM fallback 進行自然語言任務路由）+ **跨 session 學習 DB**（作業訊號儲存庫，附信心衰退機制，預設關閉）、**6-slot sentinel 驅動的 review hook**（code / db / sec / frontend / doc / **polyfill** — 最後一個由 `library-author` 提供）、statusline、harness 腳本，以及 **24 個可選用的技術棧模組**（PHP：`php-5.6`、`php-7.4`、`php-8.x`；Yii：`yii-1.1`；PHPUnit：`phpunit-5.7`、`phpunit-9`、`phpunit-10`、`phpunit-11`；Laravel：`laravel-5.4`、`laravel-6` 至 `laravel-11`；前端：`js`、`vue-2`、`laravel-mix`；跨版本的 `library-author`；以及 **iOS/Swift 套件**（`swift`、`swiftui`、`ios-platform`、`swift-testing`、`xcode-tooling`））。模組可透過 **wrapper-dispatch** 模型在 runtime 提供 hook（詳見 [`docs/hook-extension.md`](./docs/hook-extension.md)）。內附平行的 Codex CLI 樹，適用於雙助理（Claude + Codex）專案。
+通用、安裝即用的 Claude Code harness。內含 **18 個角色導向 agent**（+1 個模組範圍的 reviewer）、約 73 個指令（codex / gitnexus / git / 專案工作流）、約 57 個核心 skill 加上跨專案的 `deploy-list` 部署清單產生器 + **`/dhpk:do` Smart Router**（透過 21 條 route-table 規則 + LLM fallback 進行自然語言任務路由）+ **跨 session 學習 DB**（作業訊號儲存庫，附信心衰退機制，預設關閉）、**6-slot sentinel 驅動的 review hook**（code / db / sec / frontend / doc / **polyfill** — 最後一個由 `library-author` 提供）、statusline、harness 腳本，以及 **24 個可選用的技術棧模組**（PHP：`php-5.6`、`php-7.4`、`php-8.x`；Yii：`yii-1.1`；PHPUnit：`phpunit-5.7`、`phpunit-9`、`phpunit-10`、`phpunit-11`；Laravel：`laravel-5.4`、`laravel-6` 至 `laravel-11`；前端：`js`、`vue-2`、`laravel-mix`；跨版本的 `library-author`；以及 **iOS/Swift 套件**（`swift`、`swiftui`、`ios-platform`、`swift-testing`、`xcode-tooling`））。模組可透過 **wrapper-dispatch** 模型在 runtime 提供 hook（詳見 [`docs/hook-extension.md`](./docs/hook-extension.md)）。內附平行的 Codex CLI 樹，適用於雙助理（Claude + Codex）專案。
 
 OpenSpec 是**可選的外部整合**——若需要 OpenSpec 工作流指令，請另行安裝 [OpenSpec 插件](https://github.com/Fission-AI/OpenSpec)。dhpk 僅保留自家加值的 `opsx-apply-resume`（長時間 OpenSpec 工作階段的 context handoff）；v0.2.1 起，10 個通用 OpenSpec wrapper skill/command 已從套件中移除，由 OpenSpec 上游提供。
 
@@ -112,7 +112,7 @@ claude plugin marketplace remove dhpk  # 忘記 marketplace 註冊
 
 | 元件 | 數量 | 說明 |
 |------|----:|------|
-| Agents | 17 root + 1 module | 5 個 sentinel 驅動的 reviewer（code / db / sec / **frontend** / **doc**）+ 第 6 個 `polyfill-reviewer` 由 `library-author` 提供。`migration-reviewer` 為 `database-reviewer` 的 sentinel 驅動同伴（觸發 `.pending-migration-review`）。情境型：architect、tdd-guide、refactor-cleaner、ui-ux-verifier、performance-analyzer、doc-updater、docs-lookup、harness-reviser、harness-optimizer、version-matrix-impact-reviewer、**swift-build-resolver**（iOS 套件）。 |
+| Agents | 18 root + 1 module | 5 個 sentinel 驅動的 reviewer（code / db / sec / **frontend** / **doc**）+ 第 6 個 `polyfill-reviewer` 由 `library-author` 提供。`migration-reviewer` 為 `database-reviewer` 的 sentinel 驅動同伴（觸發 `.pending-migration-review`）。情境型：architect、tdd-guide、refactor-cleaner、ui-ux-verifier、performance-analyzer、doc-updater、docs-lookup、harness-reviser、harness-optimizer、version-matrix-impact-reviewer、**swift-build-resolver**（iOS 套件）、**silent-failure-hunter**（錯誤處理稽核）。 |
 | Commands | ~73 | `dhpk:do`（Smart Router）、`dhpk:create-dev`、`dhpk:codex-*`、`dhpk:review-pending`、`dhpk:smart-commit`、`dhpk:ts-check-status`（JS 模組）、`dhpk:opsx-apply-resume`（需 OpenSpec）、`dhpk:matrix-cell-onboard`（library-author）、`dhpk:de-ai-flavor`、`dhpk:deploy-list`、`dhpk:goal-ex`、`dhpk:ui-ux-verify` 等 |
 | 核心 skills | ~57 加上 | codex-*、gitnexus、tool-routing、dhpk-execution-policy、**adaptive-dev-workflow**（Feature/Bug/Maintenance 分類器）、**deploy-list**（跨專案部署清單產生器）、**execution-checklist**（任務收尾自檢）、`opsx-apply-resume` 配套（需 OpenSpec） |
 | 技術棧模組 | 24 | PHP：`php-5.6`、`php-7.4`、`php-8.x` · Yii：`yii-1.1` · PHPUnit：`phpunit-5.7`、`phpunit-9`、`phpunit-10`、`phpunit-11` · Laravel：`laravel-5.4`、`laravel-6` … `laravel-11` · 前端：`js`、`vue-2`、`laravel-mix` · `library-author` · **iOS**：`swift`、`swiftui`、`ios-platform`、`swift-testing`、`xcode-tooling`（選用；詳見下方「模組」） |
@@ -332,7 +332,7 @@ dhpk/
 ├── .claude-plugin/
 │   ├── marketplace.json          # 單一條目的 marketplace（plugins[0].source: "./"）
 │   └── plugin.json               # 含 userConfig 的插件 manifest
-├── agents/                       # 17 個角色 agent（INDEX.md 為導覽用）
+├── agents/                       # 18 個角色 agent（INDEX.md 為導覽用）
 ├── commands/                     # ~73 個 slash 指令（do、create-dev、codex-*、smart-commit、opsx-apply-resume、matrix-cell-onboard 等）
 ├── skills/                       # ~57 個核心 skill（adaptive-dev-workflow、codex-*、tool-routing、dhpk-execution-policy、opsx-apply-resume 配套等）
 ├── templates/                    # hook 引導用範本（graduation-candidates.md — 首次 graduation 執行時複製到 .claude/artifacts/）
