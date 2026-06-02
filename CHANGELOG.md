@@ -1,5 +1,80 @@
 # Changelog
 
+## 0.9.0 — 2026-06-02 — De-couple from origin project + harness hardening (hooks, agents)
+
+Genericization + hook/agent hardening release, benchmarked against the ecc /
+everything-claude-code marketplaces. Additive by default — the only behaviour
+change is the js module's lint timing (now batched at Stop; opt back to per-edit
+with `DHPK_JS_LINT_MODE=per-edit`).
+
+**De-coupling (plugin must be project-agnostic):**
+- **New `hot_tables` userConfig key** — projects declare their high-volume tables
+  for `performance-analyzer` / `migration-reviewer` instead of relying on
+  hard-coded example names. Defaults `[]` (fall back to generic heuristics +
+  CLAUDE.md).
+- Removed single-project / identity leaks from generic content: migration-reviewer
+  example author/site (`217_Neil` → `<site_id>` / `<author>` placeholders);
+  performance-analyzer hard-coded POS table names → labelled examples + `hot_tables`
+  pointer; INDEX.md migration-slot example de-named; deploy-list dropped the phantom
+  `php-yii-zdpos` preset (the script only ships `php-yii`); renamed
+  `phpunit57-zdpos.md` → `phpunit57-php56-legacy.md` (php-5.6 + codex skill copies,
+  references updated). Design-doc history and CHANGELOG references retained as
+  historical context.
+
+**Reviewer quality guardrails (benchmarked vs everything-claude-code):**
+- `code-reviewer` — added a **Confidence gate (emit stage)** (4-question pre-report
+  filter, HIGH/CRITICAL proof requirement, "zero findings is valid") and a
+  **Common false positives** skip-list. Complements (does not replace) the existing
+  "Do NOT skip when…" anti-rationalization rule — that governs *running* the review,
+  these govern *not emitting low-confidence noise*.
+- `refactor-cleaner` — workflow now has a `rg` fallback when gitnexus/cx is absent
+  (portability) and explicit small-batch verify-then-commit discipline.
+
+**New guard hooks (ecc-benchmarked):**
+- `pre-edit-guard` — **config-protection**: blocks edits that *weaken an existing*
+  linter / formatter / static-analysis config (eslint/prettier/biome/php-cs-fixer/
+  phpcs/phpstan/psalm/ruff/flake8/pylint/mypy) to make a failing gate pass. First-time
+  creation is allowed; multi-purpose files (tsconfig.json, package.json) are
+  intentionally excluded. Opt out: `DHPK_PROTECT_LINT_CONFIGS=0`.
+- `pre-bash-guard` — blocks `git commit/push --no-verify` (bypasses the
+  pre-commit/pre-push gates). Short `-n` is left alone (overloaded: push `-n`
+  = --dry-run). Opt out: `DHPK_ALLOW_NO_VERIFY=1`.
+
+**js module — batched lint at Stop:**
+- post-edit-js-lint now *accumulates* edited frontend paths and runs ESLint **once at
+  Stop** (new `stop-js-batch-check.sh`) instead of once per edit. New generic
+  `stop-dispatch.sh` fires module `stop-*.sh` hooks (mirrors post-edit-dispatch).
+  `DHPK_JS_LINT_MODE=per-edit` restores the legacy immediate behaviour;
+  `DHPK_JS_STOP_TYPECHECK=1` adds a whole-project typecheck at Stop.
+
+**New agent + planning/loop discipline:**
+- **`silent-failure-hunter`** (situational, read-only, 19th agent) — deep
+  error-handling audit (empty catch / swallowed exceptions / error-hiding fallbacks /
+  lost stack traces / missing rollback). Wired as a `code-reviewer` delegate; not a
+  sentinel.
+- `architect` — added a **Phased Plan** section (independently-deliverable phases +
+  per-step Action/Why/Deps/Risk + risks & success criteria), distilled from ecc's
+  planner without adding a redundant agent.
+- `rules/execution-policy.md` Anti-loop — broadened stop/escalation conditions
+  (no-progress-across-2-checkpoints, identical repeated failure, cost/context drift,
+  recurring blocking conflict) + a pre-loop safety-floor checklist (gate active /
+  baseline / rollback / isolation), distilled from ecc's loop-operator.
+
+**Distilled rules (`/rules-distill` over dhpk's own 62 skills):** cross-cutting
+principles that recurred across ≥2 skills, promoted into the three opt-in rule files:
+- `rules/execution-policy.md` — three new sections: *Classification-first context
+  loading* (classify workflow type before loading heavy references), *Multi-AI /
+  dual-perspective independence* (each AI forms its own conclusion; never feed Claude's
+  analysis into the secondary prompt), *Deterministic first, judgment second*
+  (collect via scripts → gate → judge; tool output is immutable). Plus a *Review output
+  gate* (✅/⚠️/⛔ + status word + one-line justification) and a Codex-only *Review-loop
+  ceiling* (3 rounds/sentinel) distinct from the general anti-loop stop.
+- `rules/tool-routing.md` — new *Investigation order & perspective depth* section
+  (path-first tracing, single→dual escalation by uncertainty, parallel exploration
+  capped at ≤3 non-overlapping agents).
+- `rules/anti-rationalization.md` — added a Not-Invented-Here counter-row
+  (library evaluation is the prerequisite, not the conclusion).
+
 ## 0.8.1 — 2026-06-01 — Stop-review-reminder honors `stop_hook_active`
 
 Bugfix release. The `stop-review-reminder` Stop hook never read its stdin
