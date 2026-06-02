@@ -1,7 +1,7 @@
 name: js
 display_name: "JavaScript / TypeScript"
 version: 0.1.0
-description: "JS / TS tooling. ESLint flat-config tier strategy (strict + core-exempt + deferred-migration + global ignores), per-leaf `// @ts-check` progressive typing, post-edit ESLint feedback, pre-commit lint + typecheck gate. Framework-agnostic — works for legacy monolith JS bundles, modern bundler projects, and SPA codebases alike."
+description: "JS / TS tooling. ESLint flat-config tier strategy (strict + core-exempt + deferred-migration + global ignores), per-leaf `// @ts-check` progressive typing, post-edit ESLint feedback (batched once at Stop by default — set DHPK_JS_LINT_MODE=per-edit for legacy immediate-per-file lint; DHPK_JS_STOP_TYPECHECK=1 adds a whole-project typecheck at Stop), pre-commit lint + typecheck gate. Framework-agnostic — works for legacy monolith JS bundles, modern bundler projects, and SPA codebases alike."
 requires: []
 triggers:
   frontend:

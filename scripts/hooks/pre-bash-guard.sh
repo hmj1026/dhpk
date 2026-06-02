@@ -100,4 +100,21 @@ if printf '%s' "$CMD_STRIPPED" | grep -Eq '(^|[[:space:]])git[[:space:]]+push([[
     fi
 fi
 
+# Pattern 5: git commit / push with --no-verify — bypasses the pre-commit /
+# pre-push hook gates (lint, type-check, test baseline, etc.) the harness and
+# projects install. Block the explicit long form (unambiguous for both commit
+# and push; short `-n` is overloaded — push's `-n` means --dry-run — so it is
+# intentionally NOT matched). Fix the failing gate instead of skipping it.
+# Opt out for a session: DHPK_ALLOW_NO_VERIFY=1
+# Strip quoted runs (commit messages, etc.) before matching the flag — a real
+# `--no-verify` flag is never inside quotes, so this avoids false-positives like
+# `git commit -m "do not skip --no-verify"`.
+CMD_FLAGS="$(printf '%s' "$CMD_STRIPPED" | sed "s/'[^']*'//g; s/\"[^\"]*\"//g")"
+if [ "${DHPK_ALLOW_NO_VERIFY:-0}" = "0" ] && \
+   printf '%s' "$CMD_FLAGS" | grep -Eq '(^|[[:space:]])git[[:space:]]+(commit|push)([[:space:]]|$)' && \
+   printf '%s' "$CMD_FLAGS" | grep -Eq '(^|[[:space:]])--no-verify([[:space:]]|=|$)'; then
+    echo "[bash-guard] blocked: '--no-verify' bypasses the pre-commit/pre-push gates. Fix the failing check; if you must bypass, set DHPK_ALLOW_NO_VERIFY=1 or run outside Claude." >&2
+    exit 2
+fi
+
 exit 0

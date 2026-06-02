@@ -15,13 +15,17 @@ Audit query performance in the Repository layer. `database-reviewer` owns correc
 
 ## High-Risk Tables
 
-| Table | Risk | Common Anti-Pattern |
+Declare your project's actual high-volume tables via the `hot_tables` userConfig key
+(or list them in CLAUDE.md / `.claude/rules/`). The table below is **illustrative only**
+(shapes drawn from a POS system) — substitute your own table/column names.
+
+| Table (example) | Risk | Common Anti-Pattern |
 |-------|------|---------------------|
-| `records` / `record_detail` | HIGH | Date-range scan without `(store_no, date)` composite index |
-| `orders` / `order_detail` | HIGH | N+1 via lazy AR relation inside `foreach` |
-| `stock` / `stock_adjustment` | MEDIUM | Missing index on `(store_no, product_code)` |
-| `inventory` | MEDIUM | Unindexed JOIN on `product_code` |
-| `pay_actions` | MEDIUM | Full scan on unbounded `findAll()` |
+| transaction header / detail | HIGH | Date-range scan without `(tenant_key, date)` composite index |
+| order header / line | HIGH | N+1 via lazy AR relation inside `foreach` |
+| stock / stock_adjustment | MEDIUM | Missing index on `(tenant_key, product_code)` |
+| inventory | MEDIUM | Unindexed JOIN on `product_code` |
+| payment actions | MEDIUM | Full scan on unbounded `findAll()` |
 
 ## N+1 Detection
 
@@ -50,9 +54,9 @@ Fix: Use AR eager load — `Model::model()->with('relation')->findAll($criteria)
 
 ```bash
 docker exec -i ${MYSQL_CONTAINER:-mysql} mysql -u root -proot <your-db-name> -e \
-  "EXPLAIN SELECT r.*, rd.* FROM records r
-   JOIN record_detail rd ON rd.record_no = r.record_no
-   WHERE r.store_no = '116' AND r.date BETWEEN '2026-01-01' AND '2026-01-31';"
+  "EXPLAIN SELECT h.*, d.* FROM <hot_table> h
+   JOIN <detail_table> d ON d.parent_no = h.parent_no
+   WHERE h.<tenant_key> = '<key>' AND h.date BETWEEN '2026-01-01' AND '2026-01-31';"
 ```
 
 Watch for: `type=ALL`, `rows` > 50k, `Extra=Using filesort` on unbounded result sets.
@@ -61,7 +65,7 @@ Watch for: `type=ALL`, `rows` > 50k, `Extra=Using filesort` on unbounded result 
 
 ```bash
 docker exec -i ${MYSQL_CONTAINER:-mysql} mysql -u root -proot <your-db-name> -e \
-  "SHOW INDEX FROM records; SHOW INDEX FROM orders;"
+  "SHOW INDEX FROM <hot_table>; SHOW INDEX FROM <another_hot_table>;"
 ```
 
 ## Environment

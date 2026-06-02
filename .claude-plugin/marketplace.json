@@ -10,7 +10,7 @@
     {
       "name": "dhpk",
       "source": "./",
-      "description": "Reusable Claude Code harness — 17 role-based agents (incl. the Swift/Xcode build-resolver), ~70 commands, ~50 core skills, 6-slot sentinel-driven review hooks (code/db/sec/frontend/doc/polyfill), opt-in stack modules across PHP (5.6, 7.4, 8.x), Yii (1.1), PHPUnit (5.7, 9, 10, 11), Laravel (6–11), JS, the library-author cross-cutting module, and an iOS/Swift suite (swift, swiftui, ios-platform, swift-testing, xcode-tooling) with SwiftLint post-edit + xcodebuild/SPM pre-commit hooks. Wrapper-dispatch hook extension model, parallel Codex CLI tree."
+      "description": "Reusable Claude Code harness — 18 role-based agents (incl. the Swift/Xcode build-resolver and the silent-failure-hunter error-handling auditor), ~70 commands, ~50 core skills, 6-slot sentinel-driven review hooks (code/db/sec/frontend/doc/polyfill), opt-in stack modules across PHP (5.6, 7.4, 8.x), Yii (1.1), PHPUnit (5.7, 9, 10, 11), Laravel (6–11), JS, the library-author cross-cutting module, and an iOS/Swift suite (swift, swiftui, ios-platform, swift-testing, xcode-tooling) with SwiftLint post-edit + xcodebuild/SPM pre-commit hooks. Wrapper-dispatch hook extension model, parallel Codex CLI tree."
     }
   ]
 }

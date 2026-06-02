@@ -117,6 +117,10 @@
           },
           {
             "type": "command",
+            "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/scripts/hooks/stop-dispatch.sh"
+          },
+          {
+            "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/scripts/hooks/reap-stale-sentinels.sh",
             "async": true
           }

@@ -26,6 +26,12 @@ SSOT for code exploration in dhpk-using projects. Cross-references the existing 
 3. `claude-mem` skips current session (already in scrollback); only for past-session decisions
 4. `Read` is the floor — only when nothing else fits
 
+## Investigation order & perspective depth
+
+- **Path-first**: before reading code detail, locate the entry point, trace the call chain (A→B→C), and map data flow (input→transform→output). Analysing logic without its execution context produces local-reasoning misdiagnosis. (code-explore, code-investigate, bug-investigation, gitnexus-exploring)
+- **Single vs dual perspective**: default to single-perspective (cx / gitnexus_query / code-explore) for clear errors with a stack trace. Escalate to dual-perspective (code-investigate, issue-analyze + Codex, gitnexus_context) only when findings are uncertain, contradictory, or intermittent, or the decision spans multiple modules. (code-explore, code-investigate, issue-analyze, gitnexus-debugging)
+- **Parallel exploration**: for ≥3 independent directions (e.g. frontend + backend + data, or several module boundaries) dispatch ≤3 Explore agents in one turn, each with explicit non-overlapping scope and the cx tool-priority block. Max 3 per round; consolidate before the next round. Not for single-file patches or symbol lookup. (goal-ex, adaptive-dev-workflow)
+
 ## gitnexus_impact timing
 
 Run **at planning time** (once the target symbol is identified) **and** immediately before Edit/Write. Planning catches blast radius early; pre-edit is the final gate. Append-only exemption → `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` Self-check §0.

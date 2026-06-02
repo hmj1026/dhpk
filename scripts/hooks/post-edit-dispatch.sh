@@ -17,7 +17,7 @@ PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
 
 # Overlay project pluginConfigs so module selection respects per-project
 # .claude/settings.local.json (Claude Code only injects global pluginConfigs).
-. "$PLUGIN_ROOT/scripts/hooks/_lib/load-project-config.sh"
+. "$PLUGIN_ROOT/scripts/hooks/_lib/load-project-config.sh" 2>/dev/null || true
 
 # session-start.sh exports DHPK_ACTIVE_MODULES after validating module
 # `requires`. Claude Code propagates that env to subsequent hooks in most

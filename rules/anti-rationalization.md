@@ -12,7 +12,7 @@ The most dangerous moment for a rationalization phrase is the instant it **genui
 
 ---
 
-## 5 common phrasings → counter-arguments
+## Common phrasings → counter-arguments
 
 | Self-persuasion phrasing | Counter-argument / fact to return to |
 |---|---|
@@ -21,6 +21,7 @@ The most dangerous moment for a rationalization phrase is the instant it **genui
 | "Bug is obvious, skip tdd-guide and just fix" | "Obvious" is **the single largest source of known bias**. RED test forces the symptom into a reproducible failure, which is the only guarantee that you fix the root cause and not just the symptom. Historical record: bug fixes that skip RED have an average regression rate > 30%. |
 | "Append-only exemption should apply here" | The execution-policy §0 exemption **only applies to pure additions (not modifying existing symbol body / signature / docblock)**. Any line entering an existing method body, parameter reorder, or docblock edit — exemption does NOT apply. When invoking §0, first check the diff is actually 100% inside "new file / new method appended to end". |
 | "Commit first, write tests after" | The TDD workflow is **RED → GREEN → REFACTOR**, not `GREEN → commit → RED`. Tests written after the implementation naturally hug the implementation, not the requirement — and cannot detect "what was fixed wrong". Once committed, the psychological priority of writing those follow-up tests drops, every time. |
+| "This is unique to us, we need custom logic" | Library/service evaluation is the **prerequisite, not the conclusion**. Before building custom, answer: (1) what existing library did you rule out and why? (2) would its edge cases matter? (3) is custom actually simpler than integrate + maintain? Can't answer all → premature. Existing solutions ship battle-hardened edge cases. |
 
 ---
 

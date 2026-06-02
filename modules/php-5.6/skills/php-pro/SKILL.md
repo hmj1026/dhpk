@@ -44,14 +44,14 @@ Load detailed guidance based on project type:
 | Laravel 11-12 default skeleton | `references/laravel-v11-v12.md` | `laravel-version-checks.md` routes the task to Laravel 11 or 12 |
 | PHP 5.6 language/runtime | `references/php56-legacy.md` | PHP 5.6 compatibility, migration-safe changes, or modern syntax filtering |
 | Yii 1.1 framework | `references/yii1-1.md` | Yii 1.1 controllers, models, routing, validation, AR/DAO patterns, or upgrade-ready legacy work |
-| Legacy testing (PHPUnit 5.7) | `references/phpunit57-<your-project>.md` | PHP 5.6 + PHPUnit 5.7 unit/integration test work |
+| Legacy testing (PHPUnit 5.7) | `references/phpunit57-php56-legacy.md` | PHP 5.6 + PHPUnit 5.7 unit/integration test work |
 | Testing quality | `references/testing-quality.md` | Modern PHPUnit/Laravel/Pest testing structure and coverage work |
 | Modern PHP 8.3+ | `references/modern-php-features.md` | Generic modern PHP, library, or framework-agnostic PHP 8.3+ tasks |
 | Symfony patterns | `references/symfony-patterns.md` | Symfony controllers, DI, Messenger, security, or console patterns |
 | Async / event-loop PHP | `references/async-patterns.md` | Swoole, ReactPHP, fibers, or async architecture questions |
 | Laravel patterns | `references/laravel-patterns.md` | Need framework-native examples after Laravel version routing is complete |
 
-For Yii 1.1 work, load `references/php56-legacy.md` and `references/yii1-1.md` together. Add `references/phpunit57-<your-project>.md` whenever the task includes tests or test review.
+For Yii 1.1 work, load `references/php56-legacy.md` and `references/yii1-1.md` together. Add `references/phpunit57-php56-legacy.md` whenever the task includes tests or test review.
 For Symfony or generic modern PHP, use the core workflow plus `references/testing-quality.md`, then inspect the repository's native structure directly.
 
 ## Modern PHP Expectations

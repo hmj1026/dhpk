@@ -1,8 +1,15 @@
 #!/usr/bin/env bash
 # post-edit-js-lint.sh — JS module PostToolUse (Edit/Write/MultiEdit) hook.
 #
-# Goal: surface ESLint findings right after a JS/TS edit instead of waiting
-# for commit / CI.
+# Goal: surface ESLint findings for JS/TS edits without waiting for commit / CI.
+#
+# Two modes (DHPK_JS_LINT_MODE, default "batch"):
+#   - batch (default): record the edited frontend path into a per-session
+#     accumulator and return immediately. The actual ESLint (+ optional
+#     typecheck) runs ONCE at Stop via stop-js-batch-check.sh — so editing N
+#     files in one response lints once at the end instead of N times mid-stream.
+#   - per-edit: lint this single file right now (the legacy behaviour). Use when
+#     you want immediate per-file feedback and don't mind redundant runs.
 #
 # Design:
 #   - async-friendly: always exit 0; never blocks the edit pipeline.
@@ -33,6 +40,19 @@ detect_js_tier "$REL"
 
 [ -f "$FILE_PATH" ] || exit 0
 
+# Batch mode (default): accumulate the path and defer the lint to Stop.
+if [ "${DHPK_JS_LINT_MODE:-batch}" != "per-edit" ]; then
+    ACC_DIR="$ROOT/.claude/artifacts/sessions"
+    ACC_FILE="$ACC_DIR/.js-pending-check"
+    mkdir -p "$ACC_DIR" 2>/dev/null || exit 0
+    # Dedup: only append if not already queued this session.
+    if [ ! -f "$ACC_FILE" ] || ! grep -Fxq -- "$REL" "$ACC_FILE" 2>/dev/null; then
+        printf '%s\n' "$REL" >> "$ACC_FILE" 2>/dev/null || true
+    fi
+    exit 0
+fi
+
+# per-edit mode: lint this single file immediately (legacy behaviour).
 command -v npx >/dev/null 2>&1 || exit 0
 [ -f "$ROOT/eslint.config.js" ] || [ -f "$ROOT/eslint.config.mjs" ] || [ -f "$ROOT/eslint.config.cjs" ] || exit 0
 
