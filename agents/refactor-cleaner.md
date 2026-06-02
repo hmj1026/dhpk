@@ -34,13 +34,19 @@ matching module is enabled.
 
 ## Workflow
 
-1. `cx references --name X` (or `gitnexus_impact upstream`) to find callers
+1. `cx references --name X` (or `gitnexus_impact upstream`) to find callers.
+   **Fallback when neither is available** (keeps this agent portable across
+   projects): `rg -n '\b<SymbolName>\b' <src-dirs>` — but a grep miss is weaker
+   proof than a call graph (misses dynamic dispatch, reflection, string-built
+   calls). If unsure whether a symbol is truly unused, keep it and flag for
+   human confirmation rather than delete.
 2. Optional static check via the project's lint / type-check tool (e.g. PHPStan,
    `tsc --noEmit`, `mypy`). When stack modules are active, the corresponding
    module documents the canonical command.
-3. Remove → verify with the project's test suite + a manual smoke covering the
-   primary user flow + (for frontend changes) a clean browser console.
-4. Use `gitnexus_rename` for any symbol rename
+3. Remove in **small batches**; after each batch verify (build/lint clean +
+   test suite + a manual smoke of the primary user flow + (frontend) a clean
+   browser console) and commit, so a bad removal stays isolated and revertible.
+4. Use `gitnexus_rename` for any symbol rename (never find-and-replace).
 
 ## Output
 

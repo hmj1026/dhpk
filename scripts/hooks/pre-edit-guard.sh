@@ -48,6 +48,29 @@ if echo "$file_path" | grep -Eq '(^|/)(composer\.lock|package-lock\.json|yarn\.l
     exit 2
 fi
 
+# Config-protection: block edits that WEAKEN an existing linter / formatter /
+# static-analysis config to make a failing gate pass. First-time creation is
+# allowed (file does not exist yet); modifying an existing one is blocked to
+# steer the agent toward fixing the code, not relaxing the rule.
+# Scope is deliberately narrow (pure lint/format/static-analysis configs) to
+# avoid false-positives — multi-purpose files like tsconfig.json / package.json
+# are intentionally NOT listed (legitimate edits are common).
+# Opt out for a session: DHPK_PROTECT_LINT_CONFIGS=0
+if [ "${DHPK_PROTECT_LINT_CONFIGS:-1}" != "0" ] && [ -f "$file_path" ]; then
+    # basename match — applies at all depths (monorepo sub-package configs included).
+    case "$(basename "$file_path")" in
+        .eslintrc|.eslintrc.js|.eslintrc.cjs|.eslintrc.json|.eslintrc.yml|.eslintrc.yaml|\
+        eslint.config.js|eslint.config.mjs|eslint.config.cjs|eslint.config.ts|eslint.config.mts|eslint.config.cts|\
+        .prettierrc|.prettierrc.js|.prettierrc.cjs|.prettierrc.json|.prettierrc.yml|.prettierrc.yaml|prettier.config.js|prettier.config.cjs|prettier.config.mjs|\
+        biome.json|biome.jsonc|\
+        .php-cs-fixer.php|.php-cs-fixer.dist.php|phpcs.xml|phpcs.xml.dist|phpstan.neon|phpstan.neon.dist|psalm.xml|psalm.xml.dist|\
+        .ruff.toml|ruff.toml|.flake8|.pylintrc|mypy.ini|.mypy.ini)
+            echo "[edit-guard] blocked lint/formatter config edit: $file_path" >&2
+            echo "[edit-guard] Fix the code to satisfy the rule — don't weaken the gate. To change policy intentionally, edit outside Claude or set DHPK_PROTECT_LINT_CONFIGS=0 for this session." >&2
+            exit 2 ;;
+    esac
+fi
+
 # Project-supplied extra patterns.
 if [ -n "${GUARD_EXTRA_PATTERNS:-}" ]; then
     # Validate the regex before applying — avoid grep's exit 2 on bad regex blowing up the hook.

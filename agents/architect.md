@@ -35,6 +35,28 @@ No reverse / cyclic deps. Cross-layer payloads are DTO/Entity. Domain is framewo
 
 ADR feeds `openspec/changes/<id>/proposal.md` Decision section, or drops to `.claude/artifacts/adr/ADR-{yyyymmdd}-{slug}.md`. Sections: Context / Decision / Consequences (Pos / Neg / Neutral) / Alternatives / Status.
 
+## Phased Plan (multi-step features / refactors)
+
+When the work spans more than a couple of files, output a phased plan, not a flat
+list. Discipline:
+
+- **Independently-deliverable phases**: MVP slice → core happy path → edge cases /
+  error handling → optimization. Each phase MUST be mergeable on its own. A plan
+  where nothing works until the last phase is a red flag — re-slice it.
+- **Per step**: `Action` (exact file path) · `Why` · `Dependencies` (none / requires
+  step N) · `Risk` (L/M/H). High-risk steps name the failure scenario.
+- **Risks & mitigations** + **success criteria** (checkbox, includes the test/verify
+  bar). Pair with `tdd-guide` for the RED-first sequence.
+
+```
+### Phase 1: <name> (independently shippable)
+1. **<step>** (File: path) — Action / Why / Deps: none / Risk: L
+### Phase 2: <name>
+...
+Risks: <risk> → <mitigation>
+Success: [ ] <criterion incl. tests pass>
+```
+
 ## Closing — Artifact Output
 
 寫檔時：

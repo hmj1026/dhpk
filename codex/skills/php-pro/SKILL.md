@@ -48,7 +48,7 @@ Load only the smallest matching set. Record both what you load and what you inte
 |-------|-----------|--------------------|-------------|
 | Laravel ordinary app code | `references/laravel-projects.md` | `references/laravel-patterns.md` for framework-native examples | Skip `references/laravel-version-checks.md`, `references/laravel-v10.md`, and `references/laravel-v11-v12.md` unless the task is version-sensitive |
 | Laravel version-sensitive code | `references/laravel-version-checks.md` first | Then exactly one of `references/laravel-v10.md` or `references/laravel-v11-v12.md`; add `references/laravel-projects.md` if app structure matters | Never load both version files together |
-| Yii 1.1 + PHP 5.6 | `references/php56-legacy.md` and `references/yii1-1.md` together | `references/phpunit57-<your-project>.md` when tests or test review are in scope | Skip `references/modern-php-features.md`, `references/laravel-projects.md`, `references/laravel-patterns.md`, `references/laravel-version-checks.md`, `references/laravel-v10.md`, `references/laravel-v11-v12.md`, and `references/symfony-patterns.md` |
+| Yii 1.1 + PHP 5.6 | `references/php56-legacy.md` and `references/yii1-1.md` together | `references/phpunit57-php56-legacy.md` when tests or test review are in scope | Skip `references/modern-php-features.md`, `references/laravel-projects.md`, `references/laravel-patterns.md`, `references/laravel-version-checks.md`, `references/laravel-v10.md`, `references/laravel-v11-v12.md`, and `references/symfony-patterns.md` |
 | Symfony application | `references/symfony-patterns.md` | `references/testing-quality.md` when testing strategy or quality gates matter | Skip Laravel and Yii references unless the repository proves a mixed-runtime boundary |
 | Generic modern PHP or library code | `references/modern-php-features.md` | `references/testing-quality.md` when tests, static analysis, or coverage are part of the task | Skip framework references until the repository proves framework coupling |
 | Async or event-loop PHP | `references/async-patterns.md` plus the stack base reference above | none by default | Do not treat async patterns as defaults for normal FPM or CLI code |
@@ -111,6 +111,6 @@ Always report:
 - [ ] Only the matching reference set is loaded for the detected stack
 - [ ] At least one intentional skip decision is recorded to prevent over-loading
 - [ ] Laravel version-sensitive tasks route through `references/laravel-version-checks.md` and then exactly one version file
-- [ ] Yii 1.1 tasks load both `references/php56-legacy.md` and `references/yii1-1.md`, and add `references/phpunit57-<your-project>.md` only when tests matter
+- [ ] Yii 1.1 tasks load both `references/php56-legacy.md` and `references/yii1-1.md`, and add `references/phpunit57-php56-legacy.md` only when tests matter
 - [ ] Recommended approach matches target PHP version, framework, and repository conventions
 - [ ] Security, input-validation, and testing expectations are covered at the correct runtime layer

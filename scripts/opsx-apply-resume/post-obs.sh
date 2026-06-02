@@ -28,6 +28,28 @@ if [[ -z "$HEALTH" ]]; then
   exit 0
 fi
 
+# Dedup — skip POST if this observation is byte-identical to the last one posted
+# under the same change_id. Long opsx-apply-resume sessions Save many times with the
+# same L0 headline, which would otherwise spam claude-mem recall with near-duplicate
+# rows. Fingerprint = sha256(title + NUL + content); cache keyed by concepts[0].
+# Fail-open: any jq/payload issue falls through to a normal POST.
+OBS_TITLE=$(jq -r '.title // ""' "$PAYLOAD_FILE" 2>/dev/null)
+OBS_CONTENT=$(jq -r '.content // ""' "$PAYLOAD_FILE" 2>/dev/null)
+OBS_CONCEPT=$(jq -r '.concepts[0] // "global"' "$PAYLOAD_FILE" 2>/dev/null)
+OBS_FP=$(printf '%s\0%s' "$OBS_TITLE" "$OBS_CONTENT" | sha256sum 2>/dev/null | cut -d' ' -f1)
+CONCEPT_KEY=$(printf '%s' "$OBS_CONCEPT" | sha256sum 2>/dev/null | cut -c1-12)
+FP_FILE="${TMPDIR:-/tmp}/claude-mem-obs-fp-${CONCEPT_KEY}"
+
+if [[ -n "$OBS_FP" && -f "$FP_FILE" ]]; then
+  PREV_FP=$(sed -n '1p' "$FP_FILE" 2>/dev/null)
+  if [[ "$PREV_FP" == "$OBS_FP" ]]; then
+    PREV_ID=$(sed -n '2p' "$FP_FILE" 2>/dev/null)
+    echo "[post-obs] dedup: identical to last observation for ${OBS_CONCEPT}, skipped" >&2
+    echo "${PREV_ID:-null}"
+    exit 0
+  fi
+fi
+
 RESULT_FILE=$(mktemp /tmp/claude-mem-obs-result-XXXXXX.json)
 trap 'rm -f "$RESULT_FILE"' EXIT
 
@@ -38,5 +60,10 @@ curl -s -m 5 -X POST "http://127.0.0.1:${PORT}/api/observations" \
 
 OBS_ID=$(jq -r '.id // empty' "$RESULT_FILE" 2>/dev/null)
 rm -f "$RESULT_FILE"
+
+# Record fingerprint for next-call dedup (best-effort; ignore write failures)
+if [[ -n "$OBS_FP" ]]; then
+  printf '%s\n%s\n' "$OBS_FP" "${OBS_ID:-null}" > "$FP_FILE" 2>/dev/null || true
+fi
 
 echo "${OBS_ID:-null}"

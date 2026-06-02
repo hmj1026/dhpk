@@ -33,10 +33,10 @@ Recommended filename pattern (Yii-flavoured example — adapt for your framework
 m<YYMMDD>_<HHMMSS>_<env-prefix>_<Author>_<TaskSlug>.php
 ```
 
-Example: `m220621_093429_217_Neil_AddColumn_OrderPaidAt.php`
+Example: `m220621_093429_42_dev_AddColumn_OrderPaidAt.php`
 
 - `m220621_093429` — framework-native timestamp (Yii `yiic migrate` compatible; substitute for your framework's expected format)
-- `<env-prefix>` — deployment footprint marker (e.g. `217` = customer site 217). Use per project deploy footprint; in single-tenant projects this can be omitted.
+- `<env-prefix>` — deployment footprint marker (e.g. `42` = customer site 42). Use per project deploy footprint; in single-tenant projects this can be omitted.
 - `<Author>` — author tag for PR provenance
 - `<TaskSlug>` — UpperCamelCase descriptive slug
 
@@ -45,7 +45,7 @@ Migrations not matching the project's convention → fail.
 ## Required Form (Yii 1.1 example)
 
 ```php
-class m220621_093429_217_Neil_AddColumn_OrderPaidAt extends CDbMigration
+class m220621_093429_42_dev_AddColumn_OrderPaidAt extends CDbMigration
 {
     public function safeUp()    { /* DDL via $this->addColumn() / $this->createIndex() */ }
     public function safeDown()  { /* truly reversible — dropColumn / dropIndex fully restoring */ }
@@ -83,7 +83,7 @@ For Laravel, the equivalent contract is `Migration::up()` / `Migration::down()`,
 
 ### 4. Large ALTER strategy (HIGH — production downtime risk)
 
-For high-volume tables (the project's hot tables — typical candidates include `orders` / `records` / `stock` / `inventory` / `pay_actions`, but the actual list is project-specific):
+For high-volume tables (declared per project via the `hot_tables` userConfig key or CLAUDE.md; the names below are POS-system examples only):
 
 - [ ] Estimate row count: `SELECT COUNT(*) FROM <table>` — if > 1M rows, flag a warning
 - [ ] Confirm ALTER classification (MySQL 5.7 InnoDB online DDL matrix; consult your DB's online-DDL docs for other engines):

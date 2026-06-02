@@ -22,7 +22,27 @@ Final quality gate after every Edit/Write. Stack-aware: the syntax / framework r
 2. `git diff --staged` + `git diff` (or `git log --oneline -5` if empty).
 3. Read full files; trace callers via `cx references --name X`.
 4. Three perspectives: **Reuse → Quality → Efficiency**.
-5. Report only >80% confidence; merge similar; skip style nits.
+5. Report only >80%-confidence findings (apply the **Confidence gate** below); merge similar; skip style nits. A zero-finding review is valid.
+
+## Confidence gate (emit stage)
+
+Step 5 is a hard filter, not advice. A clean review with **zero findings is valid** — do not manufacture findings to justify the invocation; filler nits and speculative "consider using X" are the primary failure mode of LLM reviewers. (This is the emit-stage twin of the "Do NOT skip" rule in the description: that one says *always run* the review; this one says *don't emit low-confidence noise*.) Before writing any finding, all four must hold — if any fails, downgrade or drop:
+
+1. **Cite the exact `file:line`** — "somewhere in the auth layer" is not actionable.
+2. **Name the concrete failure** — input + state + bad outcome. No trigger ⇒ pattern-matching, not reviewing.
+3. **Read the surrounding context** — callers, imports, tests; many issues are already guarded one frame up.
+4. **Severity is defensible** — a missing docblock is never HIGH; one `any` / `mixed` in a test fixture is never CRITICAL.
+
+HIGH / CRITICAL additionally require: exact snippet + line, the specific failure scenario (input/state/outcome), and why existing guards (types, validation, framework defaults) don't catch it. Can't produce all three → demote to MEDIUM or drop.
+
+## Common false positives (skip unless codebase-specific evidence)
+
+- **"Add error handling"** where the error path is already handled by a caller / framework (top-level `try/catch`, Promise `.catch` upstream, Express error middleware, Yii exception handler).
+- **"Missing input validation"** on an internal function whose callers already validate — trace one caller first.
+- **"Magic number"** for well-known constants (HTTP `200` / `404`, `1000` ms, `60`).
+- **"Hardcoded value"** in a test fixture / example / config default that is not a secret.
+- **Style nits** (naming, ordering, formatting) not codified in the project's own rules.
+- **Re-flagging unchanged code** unless it is a CRITICAL security issue inside the diff's blast radius.
 
 ## Project-Specific Checks
 
@@ -78,6 +98,7 @@ CRITICAL, WARNING on HIGH-only):
 | Core Data / `.xcdatamodeld` / SQLCipher | `database-reviewer` |
 | Auth / authz / crypto / money | `security-reviewer` |
 | Keychain / CryptoKit / privacy manifest / LocalAuthentication | `security-reviewer` |
+| Deep error-handling audit (empty catch / swallowed exceptions / hidden fallbacks / missing rollback) | `silent-failure-hunter` |
 
 ## Output
 

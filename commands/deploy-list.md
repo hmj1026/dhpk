@@ -1,5 +1,5 @@
 ---
-description: Generate a cross-project deploy file list (schema=v1). Preset-driven categorization (php-yii-zdpos / php-yii / laravel / node / python / generic). tag is metadata only; default mode is anchor-grep on source-tree inline markers.
+description: Generate a cross-project deploy file list (schema=v1). Preset-driven categorization (php-yii / laravel / node / python / generic; projects extend with their own preset). tag is metadata only; default mode is anchor-grep on source-tree inline markers.
 argument-hint: <date> <author> <[tag]><description> [--anchor STRING | --deploy-commits SHA1,SHA2,...] [--date YYYY/MM/DD] [--author NAME] [--project NAME] [--base REF] [--head REF] [--preset NAME] [--lang en|zh-TW]
 ---
 
@@ -22,7 +22,7 @@ Positional-then-flag form, in any order after the first two positionals:
    - `--deploy-commits SHA1,SHA2,...` — CSV of commit SHAs to pin as the main group
    - `--date YYYY/MM/DD`, `--author NAME`, `--project NAME`
    - `--base REF`, `--head REF` (ignored in anchor mode)
-   - `--preset NAME` — `php-yii-zdpos` / `php-yii` / `laravel` / `node` / `python` / `generic`
+   - `--preset NAME` — `php-yii` / `laravel` / `node` / `python` / `generic` (or a project-supplied preset; see `skills/deploy-list/scripts/presets/`)
    - `--lang CODE` — `zh-TW` or `en`
    - `--auto-detect-tag` — optional; try `grep -i -F [tag]` on commit messages to auto-fill `--deploy-commits`
 

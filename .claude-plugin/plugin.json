@@ -2,8 +2,8 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "dhpk",
   "displayName": "DHPK Dev Harness",
-  "version": "0.8.1",
-  "description": "Reusable Claude Code harness — 17 role-based agents (16 generic + the Swift/Xcode build-resolver) + ~70 commands + opt-in stack modules across PHP (5.6, 7.4, 8.x), Yii (1.1), PHPUnit (5.7, 9, 10, 11), Laravel (5.4, 6–11), JS, Vue 2, Laravel Mix 5, the library-author cross-cutting module, and an iOS/Swift suite (swift, swiftui, ios-platform, swift-testing, xcode-tooling) with SwiftLint post-edit + xcodebuild/SPM pre-commit hooks, a Swift 6.2 approachable-concurrency reference, and an ios-icon-gen skill. 6-slot sentinel-driven review hooks (code / db / sec / frontend / doc / polyfill — polyfill via library-author), parameterised docker/agent names, wrapper-dispatch hook extension model, parallel Codex CLI tree.",
+  "version": "0.9.0",
+  "description": "Reusable Claude Code harness — 18 role-based agents (incl. the Swift/Xcode build-resolver and the silent-failure-hunter error-handling auditor) + ~70 commands + opt-in stack modules across PHP (5.6, 7.4, 8.x), Yii (1.1), PHPUnit (5.7, 9, 10, 11), Laravel (5.4, 6–11), JS, Vue 2, Laravel Mix 5, the library-author cross-cutting module, and an iOS/Swift suite (swift, swiftui, ios-platform, swift-testing, xcode-tooling) with SwiftLint post-edit + xcodebuild/SPM pre-commit hooks, a Swift 6.2 approachable-concurrency reference, and an ios-icon-gen skill. 6-slot sentinel-driven review hooks (code / db / sec / frontend / doc / polyfill — polyfill via library-author), parameterised docker/agent names, wrapper-dispatch hook extension model, parallel Codex CLI tree.",
   "author": {
     "name": "hmj1026",
     "url": "https://github.com/hmj1026"
@@ -51,6 +51,7 @@
     "./agents/performance-analyzer.md",
     "./agents/refactor-cleaner.md",
     "./agents/security-reviewer.md",
+    "./agents/silent-failure-hunter.md",
     "./agents/swift-build-resolver.md",
     "./agents/tdd-guide.md",
     "./agents/ui-ux-verifier.md",
@@ -93,6 +94,13 @@
       "multiple": true,
       "title": "Extra review trigger paths",
       "description": "Extra path prefixes per reviewer slot, formatted '<slot>:<prefix>' where slot ∈ code|db|sec|fe|doc. Example: 'code:protected/', 'fe:resources/views/'",
+      "default": []
+    },
+    "hot_tables": {
+      "type": "string",
+      "multiple": true,
+      "title": "High-volume table names",
+      "description": "Project-specific high-volume / hot table names that performance-analyzer and migration-reviewer treat as elevated risk (large-ALTER downtime, N+1, missing composite index). The agents ship POS-system examples only; declare your project's real hot tables here (or in CLAUDE.md / .claude/rules/). Example: 'orders', 'order_lines', 'inventory'. Default empty = rely on the agents' generic heuristics + CLAUDE.md.",
       "default": []
     },
     "js_lint_script": {

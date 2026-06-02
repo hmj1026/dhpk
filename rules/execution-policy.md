@@ -22,6 +22,10 @@ dhpk's default execution policy for projects that adopt the harness. Resource-la
 | New feature | tdd-guide → patch |
 | Architecture change | architect → tdd-guide → patch |
 
+## Classification-first context loading
+
+Determine the workflow type (Small change / Bug / Feature / Architecture) from the user request BEFORE loading heavy references (profiles, scope docs, legacy analysis, investigation scaffolding). Load only the references the chosen workflow needs; expand incrementally if the classification changes. Upfront loading burns context budget on paths not taken. (adaptive-dev-workflow, goal-ex)
+
 ## Agent dispatch
 
 Agents run via the `Agent` tool (`subagent_type=<name>`), not via skill names.
@@ -39,6 +43,16 @@ Agents run via the `Agent` tool (`subagent_type=<name>`), not via skill names.
 | `doc-reviewer` | **Doc final gate** — sentinel `.pending-doc-review` |
 
 Agent names above are dhpk defaults; override via `userConfig.review_agents` per slot. Projects with prefixed agents (e.g. `code-reviewer-<project>`) configure the override in their `settings.local.json`.
+
+## Multi-AI / dual-perspective independence
+
+When a step uses a second AI or a second perspective (Codex, Gemini, or a Claude-vs-Codex/dual-view pass), each side MUST form its own conclusion from the source — never feed Claude's findings, verdict, or theory into the secondary prompt.
+
+- Secondary prompt carries only the question + project path + stack — not Claude's analysis.
+- No leading questions ("I think it's the cache, confirm"), no scope pre-filtering, no reused threads.
+- Compare the two independent conclusions; flag divergences explicitly in the report.
+
+Violation: the secondary AI confirms instead of verifying → false consensus that masks the shared blind spot. Applies to codex-architect / -brainstorm / -implement / -code-review, multi-ai-sync, feature-verify, test-review, code-investigate, issue-analyze.
 
 ## Mandatory post-steps
 
@@ -68,13 +82,17 @@ database-reviewer → migration-reviewer → security-reviewer → frontend-revi
 - `security-reviewer` finding CRITICAL → block immediately; upstream-reviewer-covered findings downstream **do not repeat** (code-reviewer does not re-run OWASP; frontend-reviewer does not re-run SQL; doc-reviewer does not audit code quality).
 - Pure research / planning (no Edit/Write) skips all reviewer agents.
 
+### Review output gate
+
+Every quality-gate reply (code / doc / test / security review, audit, risk-assess) ends with an explicit gate: a symbol (✅ pass / ⚠️ conditional / ⛔ block), a status word (Mergeable / Needs revision / Adequate / Insufficient / Inconclusive), and a one-line justification. The gate is the decision — reader sees the symbol first. Example: `✅ Mergeable — all dimensions ≥4/5, no P0 findings.` (pr-review, doc-review, test-review, security-review, project-audit, risk-assess)
+
 ### AI-judgment back-stop (self-trigger)
 
 Semantically matches but path pattern did not trigger a sentinel → self-trigger:
 
 - New feature / bugfix in business layer → `tdd-guide` **before** writing implementation.
 - Money / crypto / cert / token paths not matched by hook patterns → `security-reviewer`.
-- Repository methods on high-volume tables (each project lists its own hot tables in its CLAUDE.md / rules — examples often include `orders`, `records`, `stock`, `inventory`, `pay_actions`, but the actual list is project-specific) → `performance-analyzer`.
+- Repository methods on high-volume tables (each project declares its own hot tables via the `hot_tables` userConfig key or its CLAUDE.md / rules — names like `orders` / `records` / `stock` are POS-system examples only) → `performance-analyzer`.
 - Editing `<script>` blocks inside view-layer template files (PHP / ERB / Twig / Razor) → `frontend-reviewer`.
 
 > **Why view-layer script doesn't go through the hook**: `post-edit-dispatch.sh` uses path-pattern matching (O(1)). Detecting `<script>` blocks would require reading the full PHP file content on every Edit (grep cost asymmetric to the edit cost). Per the trigger taxonomy, view templates don't all contain `<script>`; AI looking at the diff has near-zero recognition cost, so back-stop is sufficient.
@@ -87,6 +105,18 @@ Semantically matches but path pattern did not trigger a sentinel → self-trigge
 2. Spawn Explore agents with `cx` instructions (→ `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`)
 3. `gitnexus_impact({ target, direction:"upstream" })` after the target symbol is identified (if gitnexus is installed)
 4. Database work → verify Repository routing via the project's query builder convention
+
+## Deterministic first, judgment second
+
+For audit / setup / inventory / generation work, separate fact-collection from interpretation:
+
+1. **Collect deterministically** — scripts / Grep / Glob only, no AI judgment. Establish a baseline and surface any pre-existing failure before stacking new changes on it.
+2. **Gate** — present the collected facts; for destructive or multi-file outcomes, wait for user confirmation before the judgment phase.
+3. **Judge** — only then apply AI evaluation, scoring, or proposals.
+
+**Tool output is immutable**: invoke the deterministic tool, forward its stdout verbatim. Never hand-construct or post-process contract output (e.g. `deploy-list` schema=v1); if a tool fails, stop and report — do not simulate its output.
+
+(harness-revise, skill-stocktake, project-setup, project-audit, risk-assess, deploy-list, skill-scout)
 
 ## Self-check (before reply)
 
@@ -116,7 +146,19 @@ The `pr-review` skill includes an optional `check-unrelated-changes.sh` script (
 
 ## Anti-loop & output
 
-Same failure 3× → stop; report (1) what was tried + error, (2) ≥2 alternatives, (3) recommended next step.
+**Stop and escalate** when ANY holds (not just the first): same failure 3×; no
+progress across two consecutive checkpoints (edits/tool-calls produce no change in
+the failing signal); repeated failures with the *identical* error / stack trace;
+cost or context drifting outside the budget window; a blocking merge conflict that
+keeps recurring. On stop, report (1) what was tried + error, (2) ≥2 alternatives,
+(3) recommended next step.
+
+**Before any autonomous / repeated loop**, confirm the safety floor exists: a
+quality gate is active (lint/test), a known-good baseline to diff against, a
+rollback path (clean git state / revert), and branch or worktree isolation. Missing
+any → set it up first or do the work non-autonomously.
+
+**Review-loop ceiling (Codex auto-loop skills only)**: distinct from the general "same failure 3×" stop above — this is a hard per-sentinel counter for skills that auto-loop fix→re-review via Codex (doc-review, test-review, security-review), capped at **3 rounds per sentinel**. On round 4, stop and report the blocker for human review — do not retry the same finding.
 
 Output: `Conclusion → Changed files → Verification → Risks/Open questions`. Blocked: `Blocker → Tried → Next viable option`.
 
