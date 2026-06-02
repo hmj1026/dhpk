@@ -27,8 +27,11 @@ node_modules/
 
 # Plans
 .claude/plans/
+.claude/workflows/
 
 # Externally-installed tooling (not part of the dhpk plugin source)
 openspec/
 .claude/commands/opsx/
 .claude/skills/openspec-*/
+.antigravitycli/
+
