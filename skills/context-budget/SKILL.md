@@ -133,3 +133,41 @@ Skill: Current overhead 33% → adding 5 servers (~50 tools) would add ~25,000 t
 - **Agent descriptions are loaded always**: even if the agent is never invoked, its description field is present in every Task tool context
 - **Verbose mode for debugging**: use when you need to pinpoint the exact files driving overhead, not for regular audits
 - **Audit after changes**: run after adding any agent, skill, or MCP server to catch creep early
+
+## Prompt Caching
+
+Context budget is about *how much* loads; prompt caching is about *how often it gets reprocessed*. The API caches by exact **prefix match** (no per-file/segment caching) across three layers, stablest first:
+
+| Layer | Content | Invalidated by |
+|-------|---------|----------------|
+| System prompt | core instructions, **tool definitions**, output style | tool-set change, CC upgrade |
+| Project context | CLAUDE.md, auto-memory, unscoped rules | session start, `/clear`, `/compact` |
+| Conversation | messages, responses, tool results | every turn (appended at the tail — normal) |
+
+A change anywhere in the prefix reprocesses everything after it. Appending at the tail is free.
+
+### Do (highest-leverage, behavioural)
+
+- **Pin model + effort at the start of a session.** Each model and each effort level has its own cache; switching mid-session reprocesses the whole conversation. **Avoid `opusplan`** — it resolves to Opus in plan mode and Sonnet in execution, so every plan↔execute toggle is a model switch.
+- **Don't toggle fast mode mid-task.** The fast-mode header is part of the cache key; turning it on deep into a long session pays a full re-read at fast-mode rates.
+- **`/compact` at task boundaries, not mid-task.** To abandon a path, prefer `/rewind` (returns to an already-cached prefix) over `/compact` (builds a new one).
+- **Keep MCP servers stable.** On Opus/Sonnet with tool search, MCP tools are *deferred* — a server connecting/disconnecting only appends and is cache-safe. But when tools load into the prefix (Haiku, Vertex, custom `ANTHROPIC_BASE_URL` gateway, or `alwaysLoad`), any server flap busts the cache. A reaper that kills a live parallel session's stdio server is a self-inflicted version of this — reap orphans only (see `reap_stale_mcp_processes`).
+- **TTL is automatic.** Claude subscription → 1h TTL (drops to 5m only over the usage limit). API key/Bedrock/Vertex → 5m default; opt into 1h with `ENABLE_PROMPT_CACHING_1H=1`.
+
+### Does NOT affect the cache (don't "optimize" these)
+
+These never enter the API prompt prefix, so they have zero caching impact:
+
+- **statusline scripts** — terminal-only; they *read* `current_usage` to *observe* cache, they don't change it.
+- **sentinel / marker files written by hooks** — on disk, not in context unless a tool Reads them.
+- **async PostToolUse hooks** (linters, formatters, CRLF fixers) — their output isn't appended to the prefix.
+- **SessionStart / UserPromptSubmit hook output** — injected once at the tail; fixed within a session. Dynamic content (timestamp, git counts, learned-context) only affects *cross-session* prefix sharing, never mid-session cache, and CC's own system prompt already varies by git branch + recent commits.
+
+### Verify
+
+Watch the two token counts the API returns each turn (via a statusline reading `current_usage`):
+
+- `cache_read_input_tokens` — served from cache (~10% of input rate)
+- `cache_creation_input_tokens` — written to cache (full rate)
+
+Healthy = read stays far above creation. Creation high turn-after-turn = something in the prefix is changing; check the model/effort/fast/MCP/compact triggers above.
