@@ -29,24 +29,32 @@ mkdir -p "$ARTIFACTS/reviews" "$ARTIFACTS/plans" "$ARTIFACTS/audits" \
          "$ARTIFACTS/refactors" "$ARTIFACTS/codemaps" "$ARTIFACTS/adr" \
          "$ARTIFACTS/sessions"
 
-# ---- Optional: reap stale gitnexus MCP processes ----
-# Each session may spawn a fresh `gitnexus mcp` process; older ones are not
-# auto-reaped. Concurrent writers contending for the same DB lock can corrupt
-# the FTS index. Opt-in via userConfig.reap_stale_mcp_processes — disabled by
-# default so projects that don't use gitnexus see no behaviour change.
+# ---- Optional: reap ORPHANED gitnexus MCP processes ----
+# Each session may spawn a fresh `gitnexus mcp` process; when a session exits
+# uncleanly the child is reparented to init (ppid 1) and lingers. Concurrent
+# writers contending for the same DB lock can corrupt the FTS index. Opt-in via
+# userConfig.reap_stale_mcp_processes — disabled by default so projects that
+# don't use gitnexus see no behaviour change.
+# CAUTION: only orphans are reaped (parent gone / reparented to pid 1). A
+# process still owned by a live parallel session in the same repo must NOT be
+# killed — that would disconnect THAT session's MCP server ("1 failed" on its
+# next call, and a prompt-cache bust on prefix-loaded tool setups). Reaping
+# cannot safely resolve two live sessions sharing one DB; it only clears orphans.
+# Liveness is probed with `ps -p` (ownership-agnostic) rather than `kill -0`,
+# which returns EPERM for a live cross-user parent (sudo / container root) and
+# would mis-reap it. On systemd-user hosts an orphan may reparent to
+# `systemd --user` (ppid≠1, still alive) and go undetected — a benign miss.
 if [ "${CLAUDE_PLUGIN_OPTION_REAP_STALE_MCP_PROCESSES:-false}" = "true" ] \
-   && command -v pgrep >/dev/null 2>&1; then
-    _gn_pids=($(pgrep -f "gitnexus mcp" 2>/dev/null | sort -n))
-    if [ ${#_gn_pids[@]} -gt 1 ]; then
-        _gn_newest="${_gn_pids[$((${#_gn_pids[@]} - 1))]}"
-        for _gn_pid in "${_gn_pids[@]}"; do
-            if [ "$_gn_pid" != "$_gn_newest" ]; then
-                kill "$_gn_pid" 2>/dev/null
-            fi
-        done
-        echo "[session-start] reaped $((${#_gn_pids[@]} - 1)) stale gitnexus mcp processes"
-    fi
-    unset _gn_pids _gn_newest _gn_pid
+   && command -v pgrep >/dev/null 2>&1 && command -v ps >/dev/null 2>&1; then
+    _gn_reaped=0
+    for _gn_pid in $(pgrep -f "gitnexus mcp" 2>/dev/null); do
+        _gn_ppid="$(ps -o ppid= -p "$_gn_pid" 2>/dev/null | tr -d ' ')"
+        if [ -z "$_gn_ppid" ] || [ "$_gn_ppid" = "1" ] || ! ps -p "$_gn_ppid" >/dev/null 2>&1; then
+            kill "$_gn_pid" 2>/dev/null && _gn_reaped=$((_gn_reaped + 1))
+        fi
+    done
+    [ "$_gn_reaped" -gt 0 ] && echo "[session-start] reaped $_gn_reaped orphaned gitnexus mcp processes"
+    unset _gn_pid _gn_ppid _gn_reaped
 fi
 
 TS="$(date +'%Y-%m-%d %H:%M:%S %Z')"
