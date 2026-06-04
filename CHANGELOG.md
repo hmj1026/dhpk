@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.9.1 — 2026-06-04 — Parallel-session-safe MCP reap + prompt-caching guidance
+
+Bugfix + hardening release. No breaking changes; opt-in reaper behaviour only.
+
+**Fix — `reap_stale_mcp_processes` is now parallel-session safe:**
+- The SessionStart reaper used "kill all but the newest" `gitnexus mcp` process.
+  When more than one Claude session runs concurrently in the same repo, that
+  killed gitnexus servers owned by **live sibling sessions** — surfacing as a
+  spurious "1 failed MCP server" on the other session's next tool call (and, on
+  prefix-loaded tool setups, a prompt-cache bust). It now reaps **only orphans**
+  (parent process gone / reparented to init), never a process with a live parent.
+- Liveness is probed with `ps -p` (ownership-agnostic) instead of `kill -0`,
+  which returns EPERM for a live cross-user parent (`sudo` / container root) and
+  would mis-reap it. The block is additionally guarded on `command -v ps`.
+- Benign known limitation: on systemd-user hosts an orphan reparented to
+  `systemd --user` (ppid≠1, still alive) is not detected — it simply lingers.
+
+**Docs:**
+- `context-budget` skill gains a **Prompt Caching** section: the three-layer
+  prefix model, do/don't behaviours (pin model+effort, avoid `opusplan`, no
+  mid-task fast-mode toggle, `/compact` at task boundaries), a "does NOT affect
+  the cache" list (statusline / sentinel files / async hooks / SessionStart
+  dynamic output), TTL notes, and how to verify via `cache_read` vs
+  `cache_creation`.
+- `reap_stale_mcp_processes` description (plugin.json + README EN/zh-TW) updated
+  to reflect orphan-only behaviour.
+
 ## 0.9.0 — 2026-06-02 — De-couple from origin project + harness hardening (hooks, agents)
 
 Genericization + hook/agent hardening release, benchmarked against the ecc /
