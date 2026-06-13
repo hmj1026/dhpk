@@ -59,6 +59,13 @@ The dispatcher picks up module hooks by filename glob:
 - `pre-bash-dispatch.sh` → globs `modules/<m>/hooks/pre-bash-*.sh` and
   `modules/<m>/hooks/pre-commit-*.sh`.
 
+Dispatch filter: `pre-bash-*.sh` hooks receive **every** Bash call;
+`pre-commit-*.sh` hooks are only dispatched when the command contains
+`git commit` (excluding `git commit-tree`) — the dispatcher pre-filters to
+avoid forking a process tree per module on unrelated commands. A
+`pre-commit-*` hook should still self-skip on non-commit payloads
+(defense in depth), but must not rely on being called for anything else.
+
 If you need a new dispatch direction (e.g. SessionStart per-module
 behaviour), add a new dispatcher in core that follows the same
 template.
@@ -90,6 +97,46 @@ The post-edit hook runs `npx eslint <file>` per frontend-tier edit,
 backgrounded so the edit pipeline doesn't wait. The pre-commit hook
 inspects `git commit` invocations, runs `npm run lint && npm run
 typecheck` on staged JS, and exits 2 on failure to block the commit.
+
+## Review sentinel slots
+
+The reviewer sentinel SSOT lives in `scripts/hooks/_lib/payload.sh`
+(`SENTINEL_NAMES` / `SENTINEL_LABELS` / `SENTINEL_AGENTS` /
+`SENTINEL_SHORT_NAMES`, all index-aligned). Seven slots, fixed order:
+
+| # | id | sentinel | trigger source |
+|---|----|----------|----------------|
+| 0 | code | `.pending-review` | built-in extensions + module triggers + `code:` extra paths |
+| 1 | db | `.pending-db-review` | built-in (`.sql`, `migrations/`) + module triggers + `db:` |
+| 2 | sec | `.pending-security-review` | built-in (auth/upload basenames) + module triggers + `sec:` |
+| 3 | fe | `.pending-frontend-review` | module triggers (js etc.) + `fe:` — no built-in default |
+| 4 | doc | `.pending-doc-review` | built-in (harness/openspec/docs md) + `doc:` |
+| 5 | polyfill | `.pending-polyfill-review` | library-author module hook only |
+| 6 | migration | `.pending-migration-review` | module.yaml `migration:` triggers (yii-1.1 ships `protected/migrations/`) or `mig:` extra paths — no built-in default |
+
+Projects opt into slots 5–6 (and add extra paths to any slot) via
+`review_trigger_extra_paths`, e.g. `["mig:db/migrate/", "db:app/models/"]`.
+Agent names per slot are overridable via `review_agents`; shorter overrides
+are padded with the defaults. Do **not** fork `payload.sh` to add a slot —
+file an upstream slot request instead, so every array consumer stays aligned.
+
+## Worked example — project-local async PostToolUse hook
+
+A project can wire its own hooks alongside the plugin's in
+`.claude/settings.json`. A real-world example: regenerate a skill index
+whenever a `SKILL.md` changes —
+
+```json
+{ "hooks": { "PostToolUse": [ {
+  "matcher": "Edit|Write|MultiEdit",
+  "hooks": [ { "type": "command", "async": true,
+    "command": "bash .claude/hooks/post-edit-skill-index.sh" } ] } ] } }
+```
+
+The hook reads the same stdin payload (parse it with the plugin's
+`_lib/payload.sh` helpers), self-skips unless the edited path matches
+`.claude/skills/*/SKILL.md`, and runs its generator script. Async
+PostToolUse hooks must always exit 0 and keep findings on stderr.
 
 ## Disabling
 
