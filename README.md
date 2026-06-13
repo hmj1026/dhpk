@@ -2,7 +2,7 @@
 
 > **Languages**: **English** · [繁體中文](./README.zh-TW.md)
 
-A generic, install-and-go Claude Code harness. Ships **18 role-based agents** (+ 1 module-scoped reviewer), ~73 commands (codex / gitnexus / git / project workflow), ~57 core skills + the `deploy-list` cross-project deploy file list generator + the **`/dhpk:do` Smart Router** (natural-language task routing via 21-pattern route table + LLM fallback) + **cross-session learning DB** (operational signal store with confidence decay, opt-in), **6-slot sentinel-driven review hooks** (code / db / sec / frontend / doc / **polyfill** — the last via `library-author`), statusline, harness scripts, and **24 opt-in stack modules** across PHP (`php-5.6`, `php-7.4`, `php-8.x`), Yii (`yii-1.1`), PHPUnit (`phpunit-5.7`, `phpunit-9`, `phpunit-10`, `phpunit-11`), Laravel (`laravel-5.4`, `laravel-6` through `laravel-11`), JS (`js`), Vue (`vue-2`), Laravel Mix (`laravel-mix`), the cross-cutting `library-author` module, and an **iOS/Swift suite** (`swift`, `swiftui`, `ios-platform`, `swift-testing`, `xcode-tooling`). Modules contribute hooks at runtime via the **wrapper-dispatch** model (see [`docs/hook-extension.md`](./docs/hook-extension.md)). Parallel Codex CLI tree included for dual-assistant projects.
+A generic, install-and-go Claude Code harness. Ships **18 role-based agents** (+ 1 module-scoped reviewer), ~73 commands (codex / gitnexus / git / project workflow), ~57 core skills + the `deploy-list` cross-project deploy file list generator + the **`/dhpk:do` Smart Router** (natural-language task routing via 21-pattern route table + LLM fallback) + **cross-session learning DB** (operational signal store with confidence decay, opt-in), **7-slot sentinel-driven review hooks** (code / db / sec / frontend / doc / **polyfill** / **migration** — polyfill via `library-author`, migration via module triggers or a `mig:` extra path), statusline, harness scripts, and **24 opt-in stack modules** across PHP (`php-5.6`, `php-7.4`, `php-8.x`), Yii (`yii-1.1`), PHPUnit (`phpunit-5.7`, `phpunit-9`, `phpunit-10`, `phpunit-11`), Laravel (`laravel-5.4`, `laravel-6` through `laravel-11`), JS (`js`), Vue (`vue-2`), Laravel Mix (`laravel-mix`), the cross-cutting `library-author` module, and an **iOS/Swift suite** (`swift`, `swiftui`, `ios-platform`, `swift-testing`, `xcode-tooling`). Modules contribute hooks at runtime via the **wrapper-dispatch** model (see [`docs/hook-extension.md`](./docs/hook-extension.md)). Parallel Codex CLI tree included for dual-assistant projects.
 
 OpenSpec is an **optional external integration** — install the [OpenSpec plugin](https://github.com/Fission-AI/OpenSpec) separately if you want OpenSpec workflow commands. dhpk retains only its own value-add helper `opsx-apply-resume` (long-running OpenSpec session context handoff); the 10 generic OpenSpec wrapper skills/commands were unbundled in v0.2.1 since OpenSpec ships them upstream.
 
@@ -112,26 +112,26 @@ The same actions are available as `/plugin update dhpk`, `/plugin uninstall dhpk
 
 | Component | Count | Notes |
 |-----------|------:|-------|
-| Agents | 18 root + 1 module | 5 sentinel-driven reviewers (code / db / sec / **frontend** / **doc**) + the 6th `polyfill-reviewer` shipped by `library-author`. `migration-reviewer` is a sentinel-driven companion to `database-reviewer` (fires on `.pending-migration-review`). Situational: architect, tdd-guide, refactor-cleaner, ui-ux-verifier, performance-analyzer, doc-updater, docs-lookup, harness-reviser, harness-optimizer, version-matrix-impact-reviewer, **swift-build-resolver** (iOS suite), **silent-failure-hunter** (error-handling audit). |
+| Agents | 18 root | 7 sentinel-driven reviewers across the slots: code / db / sec / **frontend** / **doc** / **polyfill** (slot 5, written by `library-author`) / **migration** (slot 6, opt-in via module triggers or a `mig:` extra path). Situational: architect, tdd-guide, refactor-cleaner, ui-ux-verifier, performance-analyzer, doc-updater, docs-lookup, harness-reviser, harness-optimizer, version-matrix-impact-reviewer, **swift-build-resolver** (iOS suite), **silent-failure-hunter** (error-handling audit). |
 | Commands | ~73 | `dhpk:do` (Smart Router), `dhpk:create-dev`, `dhpk:codex-*`, `dhpk:review-pending`, `dhpk:smart-commit`, `dhpk:ts-check-status` (JS module), `dhpk:opsx-apply-resume` (needs OpenSpec), `dhpk:matrix-cell-onboard` (library-author), `dhpk:de-ai-flavor`, `dhpk:deploy-list`, `dhpk:goal-ex`, `dhpk:ui-ux-verify`, etc. |
 | Core skills | ~57 + extras | codex-*, gitnexus, tool-routing, dhpk-execution-policy, **adaptive-dev-workflow** (Feature/Bug/Maintenance classifier), **deploy-list** (cross-project deploy file list generator), **execution-checklist** (end-of-task self-check), `opsx-apply-resume` helpers (need OpenSpec) |
 | Stack modules | 24 | PHP: `php-5.6`, `php-7.4`, `php-8.x` · Yii: `yii-1.1` · PHPUnit: `phpunit-5.7`, `phpunit-9`, `phpunit-10`, `phpunit-11` · Laravel: `laravel-5.4`, `laravel-6` … `laravel-11` · Frontend: `js`, `vue-2`, `laravel-mix` · `library-author` · **iOS**: `swift`, `swiftui`, `ios-platform`, `swift-testing`, `xcode-tooling` (opt-in; see "Modules" below) |
-| Hooks | 9 events | PreToolUse (Edit, Bash + dispatcher + sentinel-gate + branch-safety), PostToolUse (Edit + dispatcher + async crlf-fix), SessionStart, PreCompact (checkpoint archive), PostCompact (sentinel restore), SubagentStop (reviewer verify + failure log), StopFailure (failure log), UserPromptSubmit (skill hint), Stop (review-reminder + graduation-scan + reap-stale-sentinels) |
+| Hooks | 9 events | PreToolUse (Edit, Bash + dispatcher + sentinel-gate + branch-safety, Task\|Agent warmstart), PostToolUse (Edit + dispatcher + async crlf-fix + async manifest-guard), SessionStart (+ version-pin / cross-CLI-drift / broken-symlink advisories), PreCompact (checkpoint archive), PostCompact (sentinel restore), SubagentStop (reviewer verify + failure log), StopFailure (failure log), UserPromptSubmit (skill hint), Stop (review-reminder + completion-evidence + graduation-scan + reap-stale-sentinels) |
 | Hook dispatchers | 2 | `post-edit-dispatch.sh`, `pre-bash-dispatch.sh` — fan out to active modules' hooks |
 | Harness scripts | 5 | precommit-runner, verify-runner, harness-audit, codemap generator, dep-audit |
 | Codex dual-track | 14 skills + 1 agent (5 config profiles) | Synced into project `.codex/` by `install-codex-skills.sh` |
 
 ## userConfig
 
-Twenty-two knobs, all settable at install time with `--config <key>=<value>`:
+Thirty-one knobs, all settable at install time with `--config <key>=<value>`:
 
 | Key | Default | Purpose |
 |-----|---------|---------|
 | `hook_profile` | `standard` | `minimal` suppresses Stop reminders; `strict` adds extra warnings |
-| `review_agents` | `["code-reviewer","database-reviewer","security-reviewer","frontend-reviewer","doc-reviewer"]` | Five agents invoked by sentinel reminders. Override to point at your project-specific agents; shorter lists reduce coverage. (The 6th `polyfill-reviewer` slot is enabled by the `library-author` module, not via this list.) |
+| `review_agents` | `["code-reviewer","database-reviewer","security-reviewer","frontend-reviewer","doc-reviewer","polyfill-reviewer","migration-reviewer"]` | Seven agents invoked by sentinel reminders (slots: code, db, sec, frontend, doc, polyfill, migration). Override to point at your project-specific agents; shorter overrides are padded with the defaults for the remaining slots. (Slots 5–6 fire only when opted in — polyfill via `library-author`, migration via module triggers or a `mig:` extra path.) |
 | `docker_containers` | `[]` | Container names checked at SessionStart. Empty list disables the check. First entry exported as `DHPK_PHP_CONTAINER`; second as `DHPK_MYSQL_CONTAINER`. |
 | `modules` | `[]` | Stack modules to enable. Ships 24: `php-5.6`, `php-7.4`, `php-8.x`, `yii-1.1`, `phpunit-5.7`, `phpunit-9`, `phpunit-10`, `phpunit-11`, `laravel-5.4`, `laravel-6`, `laravel-7`, `laravel-8`, `laravel-9`, `laravel-10`, `laravel-11`, `js`, `vue-2`, `laravel-mix`, `library-author`, `swift`, `swiftui`, `ios-platform`, `swift-testing`, `xcode-tooling`. Module `requires:` validated at SessionStart (warning, not blocking). Project-level `.claude/settings.local.json` `pluginConfigs.dhpk@dhpk.options.modules` **overrides** the global value — supports a single dev machine working on projects with different stacks. |
-| `review_trigger_extra_paths` | `[]` | Extra path prefixes per reviewer slot. Format: `<slot>:<prefix>` where slot ∈ `code\|db\|sec\|fe\|doc`. Example: `code:protected/`, `fe:resources/views/`. |
+| `review_trigger_extra_paths` | `[]` | Extra path prefixes per reviewer slot. Format: `<slot>:<prefix>` where slot ∈ `code\|db\|sec\|fe\|doc\|mig`. Example: `code:protected/`, `fe:resources/views/`, `mig:db/migrate/`. |
 | `reap_stale_mcp_processes` | `false` | When `true`, SessionStart reaps **orphaned** `gitnexus mcp` processes (parent session dead / reparented to init) — never a process owned by a live parallel session. Only useful for gitnexus MCP users. |
 | `js_lint_script` | `"lint"` | npm script invoked by the `js` module's pre-commit gate. |
 | `js_typecheck_script` | `"typecheck"` | npm script invoked by the `js` module's pre-commit gate. |
@@ -142,6 +142,14 @@ Twenty-two knobs, all settable at install time with `--config <key>=<value>`:
 | `skill_hint_enabled` | `true` | Whether the UserPromptSubmit hook prints a one-line route-table skill hint. Silence via `DHPK_DISABLE_SKILL_HINT=1` (one-shot) or set this `false` (persistent). |
 | `learning_db_enabled` | `false` | (v0.6.0) Enable the `.claude/artifacts/learning.jsonl` operational signal store (reviewer pass / subagent failure / abnormal stop). Surfaces as a `[learned-context]` block at SessionStart. |
 | `graduation_scan_enabled` | `false` | (v0.6.0) Enable the Stop hook that scans session transcripts for cited auto-memory entries and drafts `graduation-candidates.md` promotion proposals. |
+| `lockfile_sync_commands` | `[]` | (v0.10.0) Per-manifest lock-sync commands for the async PostToolUse manifest-guard reminder, `<manifest>:<command>` (e.g. `composer.json:docker exec -i my_php composer update --lock`). Unlisted manifests fall back to a generic default. Commands must not contain commas. |
+| `php_bin` | `"php"` | (v0.10.0) PHP binary / wrapper for the `php-5.6` module's async `php -l` post-edit syntax check (e.g. `docker exec -i my_php php`); self-skips when the first word is not on PATH. |
+| `completion_evidence_enabled` | `false` | (v0.10.0) Stop advisory warning when the assistant claims completion while the tree has code changes but no matching test changes (doc/harness-only exempt; defers to active sentinels). One-shot `DHPK_COMPLETION_EVIDENCE=1/0`. |
+| `agent_warmstart_enabled` | `false` | (v0.10.0) PreToolUse (Task\|Agent) hook injecting parent-session context (active sentinels + reviewer slots, current OpenSpec change + tasks, `.claude/warmstart-context.md`, tool-routing reminder; ≤2000 chars) into subagent prompts. One-shot `DHPK_AGENT_WARMSTART=1/0`. |
+| `harness_restore_hint` | `""` | (v0.10.0) Command line printed by the SessionStart broken-symlink advisory (for harnesses deployed via symlinks from a separate repo). Empty prints the WARN without a hint line. |
+| `js_frontend_roots` | `[]` | (v0.10.0) Project override for the `js` module's tier detection — root dirs scanned for first-party JS/TS. Empty falls back to `modules/js/module.yaml` (default `[js, src]`). |
+| `js_core_files` | `[]` | (v0.10.0) Project override — basenames at a frontend root that are first-party entry bundles (linted) rather than vendor. Empty falls back to `module.yaml`. |
+| `js_vendor_globs` | `[]` | (v0.10.0) Project override — glob path prefixes treated as vendored (lint-skipped at any depth), e.g. `js/ckeditor/`, `js/jquery-*`. Globs must not contain commas. Empty falls back to `module.yaml`. |
 | `swiftlint_bin` | `"swiftlint"` | (v0.7.0) Binary for the `xcode-tooling` post-edit SwiftLint hook; self-skips when absent. |
 | `xcode_scheme` | `""` | (v0.7.0) Scheme for the `xcode-tooling` pre-commit build gate; empty skips the gate (no scheme guessing). |
 | `xcode_destination` | `""` | (v0.7.0) Test-step `-destination` for the pre-commit gate; empty auto-picks the first available simulator (the build step always uses a device-name-free generic destination). |
@@ -153,7 +161,7 @@ Twenty-two knobs, all settable at install time with `--config <key>=<value>`:
 Examples:
 
 ```bash
-# Plain install with defaults (6-slot review chain on the default agent names).
+# Plain install with defaults (7-slot review chain on the default agent names).
 claude plugin install dhpk@dhpk
 
 # Legacy PHP/Yii + JS fullstack project.
