@@ -13,6 +13,9 @@ triggers:
   sec:
     extensions: []
     paths: [protected/controllers/]
+  migration:
+    extensions: []
+    paths: [protected/migrations/]
 provides:
   skills: [php56-yii-dev, yii1-security-audit]
   commands: [yii1-security-audit]
