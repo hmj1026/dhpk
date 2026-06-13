@@ -21,7 +21,10 @@ NOW=$(date +%s)
 if [[ -z "$SAVED_AT" ]]; then
   FILE_TS=0
 else
-  FILE_TS=$(date -d "$SAVED_AT" +%s 2>/dev/null || echo 0)
+  # GNU date uses -d; BSD date (macOS) needs -j -f with an explicit format.
+  FILE_TS=$(date -d "$SAVED_AT" +%s 2>/dev/null \
+    || date -j -f '%Y-%m-%dT%H:%M:%S' "${SAVED_AT%%Z*}" +%s 2>/dev/null \
+    || echo 0)
 fi
 AGE=$(( NOW - FILE_TS ))
 

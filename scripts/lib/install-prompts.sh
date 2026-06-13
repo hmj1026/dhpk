@@ -174,7 +174,9 @@ dhpk_yes_no() {
   printf '%s %s ' "$question" "$hint" >&2
   read -r reply || reply=""
   reply="${reply:-$default}"
-  case "${reply,,}" in
+  # tr instead of ${reply,,} — lowercase expansion is bash 4+ (macOS ships 3.2).
+  reply="$(printf '%s' "$reply" | tr '[:upper:]' '[:lower:]')"
+  case "$reply" in
     y|yes) return 0 ;;
     *)     return 1 ;;
   esac
