@@ -28,6 +28,18 @@ rc=$?
 [ "$rc" -ne 0 ] && exit "$rc"
 
 if [ -n "${DHPK_ACTIVE_MODULES:-}" ]; then
+    # Cheap pre-filter: pre-commit-* hooks only matter for `git commit` calls.
+    # Skipping the fork for every other Bash call saves a full process tree
+    # (bash + payload parse + jq) per active module on every command.
+    # The hooks still self-skip on non-commit payloads, so this is purely perf.
+    . "$PLUGIN_ROOT/scripts/hooks/_lib/payload.sh"
+    _cmd="$(extract_tool_input command "$payload")"
+    _is_commit=0
+    case "$_cmd" in
+        *"git commit-tree"*) _is_commit=0 ;;
+        *"git commit"*)      _is_commit=1 ;;
+    esac
+
     IFS=',' read -r -a _mods <<< "$DHPK_ACTIVE_MODULES"
     for _m in "${_mods[@]}"; do
         _m="$(echo "$_m" | xargs)"
@@ -35,6 +47,9 @@ if [ -n "${DHPK_ACTIVE_MODULES:-}" ]; then
         for hook in "$PLUGIN_ROOT/modules/$_m/hooks/"pre-bash-*.sh \
                     "$PLUGIN_ROOT/modules/$_m/hooks/"pre-commit-*.sh; do
             [ -f "$hook" ] || continue
+            case "$hook" in
+                */pre-commit-*.sh) [ "$_is_commit" -eq 1 ] || continue ;;
+            esac
             printf '%s' "$payload" | bash "$hook"
             rc=$?
             [ "$rc" -ne 0 ] && exit "$rc"

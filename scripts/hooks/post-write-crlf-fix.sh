@@ -10,7 +10,7 @@ PAYLOAD="$(cat 2>/dev/null || true)"
 FILE=""
 if [ -n "$PAYLOAD" ]; then
     if command -v jq >/dev/null 2>&1; then
-        FILE="$(printf '%s' "$PAYLOAD" | jq -r '.tool_input.file_path // .tool_input.path // empty' 2>/dev/null)"
+        FILE="$(printf '%s' "$PAYLOAD" | jq -r '.tool_input.file_path // .tool_input.path // .tool_input.filePath // empty' 2>/dev/null)"
     fi
     if [ -z "$FILE" ] && command -v python3 >/dev/null 2>&1; then
         FILE="$(printf '%s' "$PAYLOAD" | python3 -c '
@@ -18,7 +18,7 @@ import sys, json
 try:
     d = json.load(sys.stdin)
     ti = d.get("tool_input", {})
-    print(ti.get("file_path") or ti.get("path") or "")
+    print(ti.get("file_path") or ti.get("path") or ti.get("filePath") or "")
 except Exception:
     pass
 ' 2>/dev/null)"

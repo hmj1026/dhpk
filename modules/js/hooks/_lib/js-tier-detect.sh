@@ -115,6 +115,20 @@ PY
     [ "${#roots[@]}" -gt 0 ] && DHPK_JS_FRONTEND_ROOTS=("${roots[@]}")
     DHPK_JS_CORE_FILES=("${cores[@]}")
     DHPK_JS_VENDOR_GLOBS=("${vendors[@]}")
+
+    # Project overrides (highest precedence) — userConfig js_frontend_roots /
+    # js_core_files / js_vendor_globs arrive comma-joined via
+    # CLAUDE_PLUGIN_OPTION_* (load-project-config.sh exports them). Lets each
+    # project curate its tier lists without editing the shared module.yaml.
+    if [ -n "${CLAUDE_PLUGIN_OPTION_JS_FRONTEND_ROOTS:-}" ]; then
+        IFS=',' read -r -a DHPK_JS_FRONTEND_ROOTS <<< "${CLAUDE_PLUGIN_OPTION_JS_FRONTEND_ROOTS}"
+    fi
+    if [ -n "${CLAUDE_PLUGIN_OPTION_JS_CORE_FILES:-}" ]; then
+        IFS=',' read -r -a DHPK_JS_CORE_FILES <<< "${CLAUDE_PLUGIN_OPTION_JS_CORE_FILES}"
+    fi
+    if [ -n "${CLAUDE_PLUGIN_OPTION_JS_VENDOR_GLOBS:-}" ]; then
+        IFS=',' read -r -a DHPK_JS_VENDOR_GLOBS <<< "${CLAUDE_PLUGIN_OPTION_JS_VENDOR_GLOBS}"
+    fi
 }
 
 detect_js_tier() {

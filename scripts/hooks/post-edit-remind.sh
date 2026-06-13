@@ -4,9 +4,9 @@
 # Writes review sentinels based on:
 #   1. Built-in file-extension defaults (language-agnostic)
 #   2. Active modules' triggers (modules/<name>/module.yaml, set by session-start)
-#   3. userConfig.review_trigger_extra_paths (slot-prefixed: code:, db:, sec:, fe:, doc:)
+#   3. userConfig.review_trigger_extra_paths (slot-prefixed: code:, db:, sec:, fe:, doc:, mig:)
 #
-# Sentinels live at $ROOT/.claude/artifacts/sessions/.pending-{review,db-review,security-review,frontend-review,doc-review}
+# Sentinels live at $ROOT/.claude/artifacts/sessions/.pending-{review,db-review,security-review,frontend-review,doc-review,polyfill-review,migration-review}
 # and are cleared by each review agent's Closing hook via clear-sentinel.sh.
 #
 # Self-edits to .claude/artifacts/** are skipped (review agents writing their
@@ -19,6 +19,8 @@ set -o pipefail
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 PAYLOAD="$(cat 2>/dev/null || true)"
 FILE_PATH="$(extract_tool_input file_path "$PAYLOAD")"
+# Some tool payload variants carry camelCase keys — fall back before giving up.
+[ -z "$FILE_PATH" ] && FILE_PATH="$(extract_tool_input filePath "$PAYLOAD")"
 [ -z "$FILE_PATH" ] && exit 0
 
 REL="${FILE_PATH#$ROOT/}"
@@ -31,8 +33,11 @@ esac
 ARTIFACTS="$ROOT/.claude/artifacts/sessions"
 mkdir -p "$ARTIFACTS"
 
-# Slot 0=code, 1=db, 2=sec, 3=frontend, 4=doc (matches SENTINEL_NAMES order).
-NEEDS=(0 0 0 0 0)
+# Slot 0=code, 1=db, 2=sec, 3=frontend, 4=doc, 5=polyfill, 6=migration
+# (matches SENTINEL_NAMES order). Slots 5 and 6 have no built-in defaults:
+# polyfill is written by the library-author module hook; migration is opt-in
+# via module.yaml `migration:` triggers or review_trigger_extra_paths `mig:`.
+NEEDS=(0 0 0 0 0 0 0)
 
 # ---- Built-in file-extension defaults (always on) ----
 
@@ -135,8 +140,8 @@ try:
 except Exception:
     sys.exit(0)
 triggers = cfg.get("triggers") or {}
-# Aliases: "fe" → 3, "frontend" → 3; "doc" → 4
-slot_map = {"code": 0, "db": 1, "sec": 2, "frontend": 3, "fe": 3, "doc": 4}
+# Aliases: "fe" → 3, "frontend" → 3; "doc" → 4; "mig" → 6, "migration" → 6
+slot_map = {"code": 0, "db": 1, "sec": 2, "frontend": 3, "fe": 3, "doc": 4, "polyfill": 5, "mig": 6, "migration": 6}
 for slot_name, slot_idx in slot_map.items():
     block = triggers.get(slot_name) or {}
     for ext in (block.get("extensions") or []):
@@ -180,6 +185,7 @@ if [ -n "${CLAUDE_PLUGIN_OPTION_REVIEW_TRIGGER_EXTRA_PATHS:-}" ]; then
             sec:*)  [[ "$REL" == "${_e#sec:}"* ]] && NEEDS[2]=1 ;;
             fe:*)   [[ "$REL" == "${_e#fe:}"* ]] && NEEDS[3]=1 ;;
             doc:*)  [[ "$REL" == "${_e#doc:}"* ]] && NEEDS[4]=1 ;;
+            mig:*)  [[ "$REL" == "${_e#mig:}"* ]] && NEEDS[6]=1 ;;
         esac
     done
 fi
