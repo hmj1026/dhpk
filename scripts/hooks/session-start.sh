@@ -102,13 +102,19 @@ if [ -n "${CLAUDE_PLUGIN_OPTION_MODULES:-}" ]; then
         echo "[session-start] WARN: modules enabled (${CLAUDE_PLUGIN_OPTION_MODULES}) but python3 missing — module metadata not parsed; per-module path triggers will not fire. Install python3 to enable full module support." >&2
     fi
     IFS=',' read -r -a _mods <<< "${CLAUDE_PLUGIN_OPTION_MODULES}"
-    declare -A _enabled
+    # Dedup while preserving declaration order. Space-delimited membership
+    # check instead of `declare -A` — associative arrays are bash 4+ and stock
+    # macOS ships bash 3.2 (module names never contain spaces).
+    _enabled_list=""
     for _m in "${_mods[@]}"; do
         _m="$(echo "$_m" | xargs)"
         [ -z "$_m" ] && continue
-        _enabled["$_m"]=1
+        case " $_enabled_list " in
+            *" $_m "*) ;;
+            *) _enabled_list="$_enabled_list $_m" ;;
+        esac
     done
-    for _m in "${!_enabled[@]}"; do
+    for _m in $_enabled_list; do
         _mdir="$PLUGIN_ROOT/modules/$_m"
         if [ ! -d "$_mdir" ]; then
             echo "[session-start] WARN: module '$_m' not found at $_mdir" >&2
@@ -118,7 +124,9 @@ if [ -n "${CLAUDE_PLUGIN_OPTION_MODULES:-}" ]; then
         _display="$_m"
         _requires=""
         if [ -f "$_yaml" ] && command -v python3 >/dev/null 2>&1; then
-            read -r _display _requires < <(python3 - "$_yaml" <<'PY' 2>/dev/null
+            # Tab-separated: display_name may contain spaces ("Yii 1.1 Framework"),
+            # so a whitespace read would truncate it and corrupt the requires list.
+            IFS=$'\t' read -r _display _requires < <(python3 - "$_yaml" <<'PY' 2>/dev/null
 import sys
 try:
     with open(sys.argv[1]) as f:
@@ -138,7 +146,7 @@ for raw in text.splitlines():
             inner = v[1:-1].strip()
             if inner:
                 reqs = [x.strip().strip('"').strip("'") for x in inner.split(",")]
-print(disp or "", ",".join(reqs))
+print((disp or "") + "\t" + ",".join(reqs))
 PY
 )
         fi
@@ -147,9 +155,10 @@ PY
         if [ -n "$_requires" ]; then
             IFS=',' read -r -a _r <<< "$_requires"
             for _req in "${_r[@]}"; do
-                if [ -z "${_enabled[$_req]:-}" ]; then
-                    echo "[session-start] WARN: module '$_m' requires '$_req' but it is not enabled" >&2
-                fi
+                case " $_enabled_list " in
+                    *" $_req "*) ;;
+                    *) echo "[session-start] WARN: module '$_m' requires '$_req' but it is not enabled" >&2 ;;
+                esac
             done
         fi
         ACTIVE_MODULES="${ACTIVE_MODULES}${ACTIVE_MODULES:+,}$_m"
@@ -190,6 +199,27 @@ if ldb_enabled; then
         done <<< "$_ldb_top"
     fi
     unset _ldb_top
+fi
+
+# ---- Harness health advisories (suppressed on minimal profile) ----
+if [ "$PROFILE" != "minimal" ]; then
+    # Broken symlinks directly under .claude/ — projects that deploy the
+    # harness via symlinks (e.g. from a version-controlled prompts repo) see
+    # this when the link target moved. harness_restore_hint (userConfig)
+    # carries the project's restore command; empty = no hint line.
+    _broken="$(find "$ROOT/.claude" -maxdepth 1 -type l ! -exec test -e {} \; -print 2>/dev/null | tr '\n' ' ')"
+    if [ -n "${_broken// /}" ]; then
+        echo "[session-start] WARN: broken symlink(s) under .claude/: $_broken" >&2
+        [ -n "${CLAUDE_PLUGIN_OPTION_HARNESS_RESTORE_HINT:-}" ] && \
+            echo "[session-start] restore hint: ${CLAUDE_PLUGIN_OPTION_HARNESS_RESTORE_HINT}" >&2
+    fi
+    unset _broken
+
+    # Plugin-version pin advisory (silent unless .claude/dhpk-versions.json exists).
+    bash "$PLUGIN_ROOT/scripts/hooks/check-plugin-version.sh" || true
+
+    # Cross-CLI harness drift (silent unless .codex/ or .gemini/ exists).
+    bash "$PLUGIN_ROOT/scripts/check-cross-cli-drift.sh" || true
 fi
 
 exit 0
