@@ -251,7 +251,9 @@
     { "id": "db",   "default_agent": "database-reviewer" },
     { "id": "sec",  "default_agent": "security-reviewer" },
     { "id": "fe",   "default_agent": "frontend-reviewer" },
-    { "id": "doc",  "default_agent": "doc-reviewer" }
+    { "id": "doc",  "default_agent": "doc-reviewer" },
+    { "id": "polyfill",  "default_agent": "polyfill-reviewer",  "notes": "No built-in trigger — written by the library-author module's post-edit hook." },
+    { "id": "migration", "default_agent": "migration-reviewer", "notes": "No built-in trigger — opt in via a module.yaml `migration:` triggers block (yii-1.1 ships one for protected/migrations/) or review_trigger_extra_paths 'mig:<prefix>'." }
   ],
   "docker": {
     "container_role_order": ["DHPK_PHP_CONTAINER", "DHPK_MYSQL_CONTAINER"],

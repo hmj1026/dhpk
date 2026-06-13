@@ -2,8 +2,8 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "dhpk",
   "displayName": "DHPK Dev Harness",
-  "version": "0.9.1",
-  "description": "Reusable Claude Code harness — 18 role-based agents (incl. the Swift/Xcode build-resolver and the silent-failure-hunter error-handling auditor) + ~70 commands + opt-in stack modules across PHP (5.6, 7.4, 8.x), Yii (1.1), PHPUnit (5.7, 9, 10, 11), Laravel (5.4, 6–11), JS, Vue 2, Laravel Mix 5, the library-author cross-cutting module, and an iOS/Swift suite (swift, swiftui, ios-platform, swift-testing, xcode-tooling) with SwiftLint post-edit + xcodebuild/SPM pre-commit hooks, a Swift 6.2 approachable-concurrency reference, and an ios-icon-gen skill. 6-slot sentinel-driven review hooks (code / db / sec / frontend / doc / polyfill — polyfill via library-author), parameterised docker/agent names, wrapper-dispatch hook extension model, parallel Codex CLI tree.",
+  "version": "0.10.0",
+  "description": "Reusable Claude Code harness — 18 role-based agents (incl. the Swift/Xcode build-resolver and the silent-failure-hunter error-handling auditor) + ~70 commands + opt-in stack modules across PHP (5.6, 7.4, 8.x), Yii (1.1), PHPUnit (5.7, 9, 10, 11), Laravel (5.4, 6–11), JS, Vue 2, Laravel Mix 5, the library-author cross-cutting module, and an iOS/Swift suite (swift, swiftui, ios-platform, swift-testing, xcode-tooling) with SwiftLint post-edit + xcodebuild/SPM pre-commit hooks, a Swift 6.2 approachable-concurrency reference, and an ios-icon-gen skill. 7-slot sentinel-driven review hooks (code / db / sec / frontend / doc / polyfill / migration — polyfill via library-author, migration via module triggers or mig: extra paths), parameterised docker/agent names, wrapper-dispatch hook extension model, parallel Codex CLI tree.",
   "author": {
     "name": "hmj1026",
     "url": "https://github.com/hmj1026"
@@ -72,8 +72,8 @@
       "type": "string",
       "multiple": true,
       "title": "Review agent names",
-      "description": "Five agents invoked by sentinel reminders (code, database, security, frontend, doc). Override to point at project-specific agents. Pad the list with empty strings or drop trailing slots to reduce coverage.",
-      "default": ["code-reviewer", "database-reviewer", "security-reviewer", "frontend-reviewer", "doc-reviewer"]
+      "description": "Seven agents invoked by sentinel reminders (slots: code, database, security, frontend, doc, polyfill, migration). Override to point at project-specific agents. Shorter overrides are padded with the defaults for the remaining slots.",
+      "default": ["code-reviewer", "database-reviewer", "security-reviewer", "frontend-reviewer", "doc-reviewer", "polyfill-reviewer", "migration-reviewer"]
     },
     "docker_containers": {
       "type": "string",
@@ -93,7 +93,7 @@
       "type": "string",
       "multiple": true,
       "title": "Extra review trigger paths",
-      "description": "Extra path prefixes per reviewer slot, formatted '<slot>:<prefix>' where slot ∈ code|db|sec|fe|doc. Example: 'code:protected/', 'fe:resources/views/'",
+      "description": "Extra path prefixes per reviewer slot, formatted '<slot>:<prefix>' where slot ∈ code|db|sec|fe|doc|mig. Example: 'code:protected/', 'fe:resources/views/', 'mig:db/migrate/'",
       "default": []
     },
     "hot_tables": {
@@ -205,6 +205,58 @@
       "title": "Enable knowledge graduation scan",
       "description": "When true, a Stop hook scans the session transcript for cited auto-memory entries (~/.claude/projects/<slug>/memory/<entry>.md), maintains cross-session counts + confidence in .claude/artifacts/memory-usage-counts.json, and regenerates .claude/artifacts/graduation-candidates.md (bootstrapped from the plugin template on first run). Entries cited ≥3 times across ≥24h/≥3 dates without trap re-occurrence are proposed for promotion to a rule/skill; in OpsX projects, high-confidence entries also auto-draft a change skeleton. Requires python3. Default false (opt-in). Env DHPK_GRADUATION_SCAN=1/0 overrides for one-shot toggles.",
       "default": false
+    },
+    "lockfile_sync_commands": {
+      "type": "string",
+      "multiple": true,
+      "title": "Lock-file sync commands",
+      "description": "Per-manifest lock-sync commands for the post-edit manifest-guard reminder, entries shaped '<manifest>:<command>' (e.g. 'composer.json:docker exec -i my_php composer update --lock'). Manifests without an entry fall back to a generic default (composer update --lock / npm install / bundle install / cargo build / poetry lock). Commands must not contain commas.",
+      "default": []
+    },
+    "php_bin": {
+      "type": "string",
+      "title": "PHP binary",
+      "description": "PHP binary or wrapper command used by the php-5.6 module's post-edit syntax check (php -l), e.g. 'docker exec -i my_php php'. The hook silently skips when the command's first word is not on PATH.",
+      "default": "php"
+    },
+    "completion_evidence_enabled": {
+      "type": "boolean",
+      "title": "Enable completion-evidence Stop advisory",
+      "description": "When true, a Stop hook warns when the assistant claims completion while the working tree has source-code changes with no matching test changes (doc-only / harness-only changes are exempt; active review sentinels defer to the sentinel reminder). Advisory only — never blocks Stop. Default false (opt-in). Env DHPK_COMPLETION_EVIDENCE=1/0 overrides for one-shot toggles.",
+      "default": false
+    },
+    "agent_warmstart_enabled": {
+      "type": "boolean",
+      "title": "Enable subagent warmstart context",
+      "description": "When true, a PreToolUse (Task|Agent) hook injects parent-session context into subagent prompts: active review sentinels + reviewer slots, the most recent OpenSpec change + first tasks, the project's .claude/warmstart-context.md (first 800 chars), and a tool-routing reminder — capped at 2000 chars. Costs tokens on every subagent spawn. Default false (opt-in). Env DHPK_AGENT_WARMSTART=1/0 overrides for one-shot toggles.",
+      "default": false
+    },
+    "harness_restore_hint": {
+      "type": "string",
+      "title": "Harness restore hint",
+      "description": "Command line printed by the SessionStart broken-symlink advisory when symlinks directly under .claude/ are dangling (for projects deploying the harness via symlinks from a separate repo). Empty disables the hint line (the WARN itself still prints).",
+      "default": ""
+    },
+    "js_frontend_roots": {
+      "type": "string",
+      "multiple": true,
+      "title": "JS frontend root directories",
+      "description": "Project override for the js module's tier detection: root directories scanned for first-party JS/TS. Empty falls back to modules/js/module.yaml (default [js, src]).",
+      "default": []
+    },
+    "js_core_files": {
+      "type": "string",
+      "multiple": true,
+      "title": "JS core files",
+      "description": "Project override for the js module's tier detection: basenames at the top of a frontend root that are first-party entry bundles (linted/reviewed) rather than vendor. Example: [\"app.js\", \"main.js\"]. Empty falls back to module.yaml.",
+      "default": []
+    },
+    "js_vendor_globs": {
+      "type": "string",
+      "multiple": true,
+      "title": "JS vendor globs",
+      "description": "Project override for the js module's tier detection: glob path prefixes treated as vendored (lint-skipped at any depth), e.g. [\"js/ckeditor/\", \"js/jquery-*\"]. Globs must not contain commas. Empty falls back to module.yaml.",
+      "default": []
     }
   }
 }
