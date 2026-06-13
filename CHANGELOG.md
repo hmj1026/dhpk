@@ -1,5 +1,78 @@
 # Changelog
 
+## 0.10.0 — 2026-06-12 — 7-slot sentinel chain, generic ops hooks, cross-platform fixes
+
+Upstreams generic harness improvements matured in a consuming project
+(zdpos-217). Backward compatible: all new userConfig keys default off/empty,
+so existing consumers see zero behaviour change unless they opt in.
+
+**New — migration-review is an official sentinel slot (slot 6):**
+- `payload.sh` arrays extended to 7 slots (`.pending-migration-review` →
+  `migration-reviewer`, agent already shipped). All array-driven consumers
+  (clear-sentinel, reap, push-block, stop reminder, subagent verify) pick it
+  up automatically; shorter `review_agents` overrides are padded with defaults.
+- No built-in trigger: opt in via a module.yaml `migration:` triggers block
+  (yii-1.1 now ships one for `protected/migrations/`) or
+  `review_trigger_extra_paths` `mig:<prefix>`.
+- New `SENTINEL_SHORT_NAMES` aligned array for statusline-style consumers.
+- Removes the last reason consuming projects had to fork `payload.sh`.
+
+**New hooks / scripts (opt-in or self-skipping):**
+- `post-edit-manifest-guard.sh` (PostToolUse, async): lock-file sync reminder
+  when a root manifest (composer.json / package.json / Gemfile / Cargo.toml /
+  pyproject.toml) is edited. Per-project command via `lockfile_sync_commands`.
+- `stop-completion-evidence.sh` (Stop, advisory): warns on completion claims
+  with code changes but no test changes. Opt-in `completion_evidence_enabled`
+  (env `DHPK_COMPLETION_EVIDENCE=1/0`).
+- `pre-agent-warmstart.sh` (PreToolUse Task|Agent): injects sentinel state,
+  active OpenSpec change, and the project's `.claude/warmstart-context.md`
+  into subagent prompts (≤2000 chars). Opt-in `agent_warmstart_enabled`
+  (env `DHPK_AGENT_WARMSTART=1/0`).
+- `modules/php-5.6/hooks/post-edit-php-syntax.sh`: async `php -l` parse check
+  on PHP edits; binary/wrapper via new `php_bin` (e.g. docker exec wrapper).
+- `check-plugin-version.sh` (SessionStart advisory): flags the running plugin
+  version against the project's `.claude/dhpk-versions.json` pin file
+  (template: `templates/dhpk-versions.json`). Silent without a pin file.
+- `scripts/check-cross-cli-drift.sh` (SessionStart advisory): warns when
+  `.claude/` is newer than `.codex/` / `.gemini/` mirrors (threshold env
+  `DHPK_CROSS_CLI_DRIFT_THRESHOLD`, default 1h). Silent without mirrors.
+- SessionStart also warns on broken symlinks directly under `.claude/`
+  (restore command line via new `harness_restore_hint`).
+- `templates/settings.local.json.example` for project onboarding.
+
+**Improvements:**
+- camelCase `filePath` payload fallback in `post-edit-remind.sh` and
+  `post-write-crlf-fix.sh` (Write-tool payload variants no longer drop
+  sentinels / CRLF fixes).
+- `payload.sh` runtime drift guard: warns and truncates (fail-soft) when the
+  sentinel arrays fall out of alignment.
+- `pre-bash-dispatch.sh` only forks module `pre-commit-*` hooks for actual
+  `git commit` commands (perf; behaviour unchanged — hooks already self-skip).
+- `DHPK_HOOK_PROFILE` env var as one-shot hook-profile override.
+- js module tier detection is now project-configurable: new userConfig keys
+  `js_frontend_roots` / `js_core_files` / `js_vendor_globs` override the
+  module.yaml `js:` block, so projects curate their core/vendor lists without
+  editing the shared plugin.
+- 10s `timeout` guard on the graduation-scan python pass (where coreutils
+  timeout exists).
+- Advisory stderr prefixes normalised to ASCII `[WARN]` (was `⚠`).
+
+**Fixes:**
+- `session-start.sh` used `declare -A` (bash 4+) — broke stock macOS bash 3.2.
+  Replaced with a portable membership check.
+- `session-start.sh` module banner truncated multi-word display names
+  ("Yii 1.1 Framework" → "Yii") and corrupted the `requires:` validation for
+  any module whose display name contains a space (spurious "requires X but it
+  is not enabled" warnings). The python↔bash handoff is now tab-separated.
+- More bash-4/GNU-only idioms removed: `${var,,}` in
+  `scripts/lib/install-prompts.sh`, `date -d` without a BSD fallback in
+  `scripts/opsx-apply-resume/detect-phase.sh`. New CI gate
+  `scripts/check-portability.sh` (bash -n + idiom grep over every shipped
+  script) keeps these out.
+- Security: invalid `GUARD_EXTRA_PATTERNS` regex now fails closed (blocks the
+  edit with exit 2) instead of silently disabling the project guard. If your
+  pattern was broken, fix it or unset it — previously it guarded nothing.
+
 ## 0.9.1 — 2026-06-04 — Parallel-session-safe MCP reap + prompt-caching guidance
 
 Bugfix + hardening release. No breaking changes; opt-in reaper behaviour only.
