@@ -33,6 +33,13 @@ jobs:
         run: |
           # Stream notes via stdin so backticks / $(...) in CHANGELOG are not
           # expanded by the runner shell when notes are interpolated inline.
-          printf '%s' "$NOTES" | gh release create "$GITHUB_REF_NAME" \
-            --title "$GITHUB_REF_NAME" \
-            --notes-file -
+          # Use upsert: create on first push, edit if tag was moved after.
+          if gh release view "$GITHUB_REF_NAME" &>/dev/null; then
+            printf '%s' "$NOTES" | gh release edit "$GITHUB_REF_NAME" \
+              --title "$GITHUB_REF_NAME" \
+              --notes-file -
+          else
+            printf '%s' "$NOTES" | gh release create "$GITHUB_REF_NAME" \
+              --title "$GITHUB_REF_NAME" \
+              --notes-file -
+          fi
