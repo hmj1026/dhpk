@@ -16,16 +16,18 @@
 #         Returns empty string on any error (callers MUST handle empty).
 
 # Review sentinel SSOT — slots in fixed order:
-#   0 code → 1 db → 2 sec → 3 frontend → 4 doc → 5 polyfill
-# Adding/removing a slot means extending all three arrays together. Hooks that
+#   0 code → 1 db → 2 sec → 3 frontend → 4 doc → 5 polyfill → 6 migration
+# Adding/removing a slot means extending all four arrays together. Hooks that
 # iterate SENTINEL_NAMES (clear-sentinel, reap-stale-sentinels, pre-bash-guard
-# push-block, stop-review-reminder) and statusline.sh (which has its own SHORT
-# label array) extend automatically as long as the arrays stay aligned.
-SENTINEL_NAMES=(".pending-review" ".pending-db-review" ".pending-security-review" ".pending-frontend-review" ".pending-doc-review" ".pending-polyfill-review")
-SENTINEL_LABELS=("code-reviewer" "database-reviewer" "security-reviewer" "frontend-reviewer" "doc-reviewer" "polyfill-reviewer")
+# push-block, stop-review-reminder) extend automatically as long as the arrays
+# stay aligned. SENTINEL_SHORT_NAMES carries compact per-slot labels for
+# space-constrained consumers (statuslines etc.).
+SENTINEL_NAMES=(".pending-review" ".pending-db-review" ".pending-security-review" ".pending-frontend-review" ".pending-doc-review" ".pending-polyfill-review" ".pending-migration-review")
+SENTINEL_LABELS=("code-reviewer" "database-reviewer" "security-reviewer" "frontend-reviewer" "doc-reviewer" "polyfill-reviewer" "migration-reviewer")
+SENTINEL_SHORT_NAMES=("code" "db" "sec" "fe" "doc" "poly" "mig")
 
 # Default agent names — overridable via userConfig.review_agents (comma-joined).
-_dhpk_default_agents=("code-reviewer" "database-reviewer" "security-reviewer" "frontend-reviewer" "doc-reviewer" "polyfill-reviewer")
+_dhpk_default_agents=("code-reviewer" "database-reviewer" "security-reviewer" "frontend-reviewer" "doc-reviewer" "polyfill-reviewer" "migration-reviewer")
 if [ -n "${CLAUDE_PLUGIN_OPTION_REVIEW_AGENTS:-}" ]; then
     IFS=',' read -r -a SENTINEL_AGENTS <<< "${CLAUDE_PLUGIN_OPTION_REVIEW_AGENTS}"
 else
@@ -37,6 +39,22 @@ while [ ${#SENTINEL_AGENTS[@]} -lt ${#_dhpk_default_agents[@]} ]; do
     SENTINEL_AGENTS+=("${_dhpk_default_agents[${#SENTINEL_AGENTS[@]}]}")
 done
 unset _dhpk_default_agents
+
+# Runtime drift guard: the four arrays MUST stay aligned (same slot count).
+# payload.sh is sourced (often by Stop hooks that must never die mid-read), so
+# fail soft: warn loudly and truncate to the shortest length instead of exiting.
+_dhpk_min_len=${#SENTINEL_NAMES[@]}
+[ ${#SENTINEL_LABELS[@]} -lt "$_dhpk_min_len" ] && _dhpk_min_len=${#SENTINEL_LABELS[@]}
+[ ${#SENTINEL_AGENTS[@]} -lt "$_dhpk_min_len" ] && _dhpk_min_len=${#SENTINEL_AGENTS[@]}
+[ ${#SENTINEL_SHORT_NAMES[@]} -lt "$_dhpk_min_len" ] && _dhpk_min_len=${#SENTINEL_SHORT_NAMES[@]}
+if [ ${#SENTINEL_NAMES[@]} -ne "$_dhpk_min_len" ] || [ ${#SENTINEL_LABELS[@]} -ne "$_dhpk_min_len" ] || [ ${#SENTINEL_AGENTS[@]} -ne "$_dhpk_min_len" ] || [ ${#SENTINEL_SHORT_NAMES[@]} -ne "$_dhpk_min_len" ]; then
+    echo "[payload] WARN: sentinel array length drift (names=${#SENTINEL_NAMES[@]} labels=${#SENTINEL_LABELS[@]} agents=${#SENTINEL_AGENTS[@]} short=${#SENTINEL_SHORT_NAMES[@]}) — truncating to $_dhpk_min_len. Fix _lib/payload.sh / review_agents override." >&2
+    SENTINEL_NAMES=("${SENTINEL_NAMES[@]:0:$_dhpk_min_len}")
+    SENTINEL_LABELS=("${SENTINEL_LABELS[@]:0:$_dhpk_min_len}")
+    SENTINEL_AGENTS=("${SENTINEL_AGENTS[@]:0:$_dhpk_min_len}")
+    SENTINEL_SHORT_NAMES=("${SENTINEL_SHORT_NAMES[@]:0:$_dhpk_min_len}")
+fi
+unset _dhpk_min_len
 
 extract_tool_input() {
     local field="$1" payload="$2" out=""

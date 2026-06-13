@@ -80,7 +80,10 @@ if [ -n "${GUARD_EXTRA_PATTERNS:-}" ]; then
             exit 2
         fi
     else
-        echo "[edit-guard] WARN: invalid GUARD_EXTRA_PATTERNS regex, skipping" >&2
+        # Fail closed: a broken regex means the guard is silently OFF for every
+        # edit — block instead so the misconfiguration gets fixed, not ignored.
+        echo "[edit-guard] blocked: invalid GUARD_EXTRA_PATTERNS regex — fix the pattern (pipe-separated grep -E) or unset it" >&2
+        exit 2
     fi
 fi
 

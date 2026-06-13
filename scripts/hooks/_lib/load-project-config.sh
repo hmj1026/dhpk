@@ -76,3 +76,10 @@ PY
     unset _dhpk_exports
 fi
 unset _dhpk_settings
+
+# One-shot env override for the hook profile (highest precedence). Lets a
+# single session switch verbosity (DHPK_HOOK_PROFILE=minimal claude ...)
+# without touching any settings file.
+if [ -n "${DHPK_HOOK_PROFILE:-}" ]; then
+    export CLAUDE_PLUGIN_OPTION_HOOK_PROFILE="$DHPK_HOOK_PROFILE"
+fi

@@ -112,11 +112,15 @@ if [ ! -f "$CANDIDATES_MD" ] && [ -f "$TEMPLATE" ]; then
 fi
 
 # === Main logic: scan transcript + maintain counts.json + regenerate md ===
+# Guard the python pass with a 10s timeout where coreutils `timeout` exists
+# (Linux/WSL); macOS lacks it by default — run unguarded there rather than fail.
+TIMEOUT_CMD=""
+command -v timeout >/dev/null 2>&1 && TIMEOUT_CMD="timeout 10"
 TRANSCRIPT="$TRANSCRIPT" \
 COUNTS_JSON="$COUNTS_JSON" \
 CANDIDATES_MD="$CANDIDATES_MD" \
 HOOK_REPO_ROOT="$ROOT" \
-python3 <<'PY' || true
+$TIMEOUT_CMD python3 <<'PY' || true
 import json, os, re, sys, datetime, pathlib
 
 transcript_path = os.environ["TRANSCRIPT"]

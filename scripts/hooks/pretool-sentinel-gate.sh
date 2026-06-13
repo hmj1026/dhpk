@@ -76,7 +76,7 @@ echo >&2 "-----------------------------------------------------------"
 if [ "$MODE" = "block" ]; then
     echo >&2 "✗  BLOCKED: $verb attempted while reviewer chain is pending."
 else
-    echo >&2 "⚠  REMINDER: $verb attempted while reviewer chain is pending."
+    echo >&2 "[WARN] REMINDER: $verb attempted while reviewer chain is pending."
 fi
 echo >&2 "   Active sentinels: $names_csv"
 echo >&2 "   Pending reviewers: $agents_csv"

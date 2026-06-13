@@ -71,7 +71,7 @@ echo >&2 "-----------------------------------------------------------"
 if [ "$MODE" = "block" ]; then
     echo >&2 "✗  BLOCKED: $verb on protected branch '$BRANCH'."
 else
-    echo >&2 "⚠  REMINDER: $verb on protected branch '$BRANCH'."
+    echo >&2 "[WARN] REMINDER: $verb on protected branch '$BRANCH'."
 fi
 echo >&2 "   Protected list: $PROTECTED_RAW"
 echo >&2 "   Suggested: create a feature branch first (\`git checkout -b feat/...\`)"

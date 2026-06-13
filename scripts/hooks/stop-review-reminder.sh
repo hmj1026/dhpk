@@ -53,7 +53,7 @@ check_one() {
     # stderr — Claude Code's Stop hook feeds stderr back to Claude when exit=2.
     echo >&2 ""
     echo >&2 "-----------------------------------------------------------"
-    echo >&2 "⚠  PENDING: $agent ($count file(s) awaiting review)"
+    echo >&2 "[WARN] PENDING: $agent ($count file(s) awaiting review)"
     echo >&2 "   Triggering files:"
     echo >&2 "$file_list"
     [ -n "$extra" ] && echo >&2 "$extra"

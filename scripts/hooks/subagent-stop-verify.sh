@@ -133,7 +133,7 @@ if [ "$EXIT_STATUS" != "0" ]; then
     if [ "$PROFILE" != "minimal" ]; then
         echo >&2 ""
         echo >&2 "-----------------------------------------------------------"
-        echo >&2 "⚠  SUBAGENT FAILURE: $SUBAGENT (exit=$EXIT_STATUS)"
+        echo >&2 "[WARN] SUBAGENT FAILURE: $SUBAGENT (exit=$EXIT_STATUS)"
         if [ -f "$SENTINEL_FILE" ]; then
             echo >&2 "   Sentinel still present: $SENTINEL_NAME"
             echo >&2 "   The next reviewer in the chain may not fire."
@@ -148,7 +148,7 @@ elif [ -f "$SENTINEL_FILE" ]; then
     if [ "$PROFILE" != "minimal" ]; then
         echo >&2 ""
         echo >&2 "-----------------------------------------------------------"
-        echo >&2 "⚠  SENTINEL UNCLEARED: $SUBAGENT finished but $SENTINEL_NAME remains"
+        echo >&2 "[WARN] SENTINEL UNCLEARED: $SUBAGENT finished but $SENTINEL_NAME remains"
         echo >&2 "   Likely cause: agent closing step did not call clear-sentinel.sh"
         echo >&2 "   Manual clear: $CLEAR_CMD"
         echo >&2 "   Logged to: .claude/artifacts/agent-failures.log"
