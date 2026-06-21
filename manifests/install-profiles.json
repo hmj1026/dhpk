@@ -27,9 +27,17 @@
       "description": "Full iOS/SwiftUI app stack: Swift 6 language, SwiftUI + MVVM + Coordinator, iOS platform SDK (Core Data encryption / CryptoKit-Keychain / Vision OCR / LocalAuthentication / UserNotifications / HealthKit / privacy), Swift Testing, and Xcode tooling (SwiftLint post-edit + xcodebuild/SPM pre-commit gate). Suitable for an iOS 17+ SwiftUI app like babylon/RxScan.",
       "modules": ["swift", "swiftui", "ios-platform", "swift-testing", "xcode-tooling"]
     },
+    "python-api": {
+      "description": "Python async web-API backend: Python tooling (ruff post-edit + ruff/type-check pre-commit gate), FastAPI + SQLAlchemy-async + Alembic guidance, and pytest-asyncio test strategy. No frontend module.",
+      "modules": ["python", "fastapi", "pytest"]
+    },
+    "python-fullstack": {
+      "description": "Python async backend + JS/TS frontend: the python-api bundle plus the js module (ESLint tier strategy + pre-commit lint/typecheck gate). Suitable for a FastAPI + React/Vite project like ccas. Set python_project_roots=backend when the pyproject.toml lives under a subdir.",
+      "modules": ["python", "fastapi", "pytest", "js"]
+    },
     "full": {
       "description": "Every module shipped in this plugin version enabled.",
-      "modules": ["php-5.6", "yii-1.1", "phpunit-5.7", "js", "swift", "swiftui", "ios-platform", "swift-testing", "xcode-tooling"]
+      "modules": ["php-5.6", "yii-1.1", "phpunit-5.7", "js", "python", "fastapi", "pytest", "swift", "swiftui", "ios-platform", "swift-testing", "xcode-tooling"]
     }
   }
 }

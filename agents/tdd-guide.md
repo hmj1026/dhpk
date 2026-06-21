@@ -1,6 +1,6 @@
 ---
 name: tdd-guide
-description: 'TDD specialist (framework-agnostic). Use PROACTIVELY when writing new features or bug fixes. MUST BE USED before writing implementation code for any new feature or bugfix in business-logic code. Enforces write-tests-first. Module-specific test-framework conventions: enable dhpk:phpunit-5.7 for PHPUnit 5.7, dhpk:swift-testing for XCTest / Swift Testing, etc.'
+description: 'TDD specialist (framework-agnostic). Use PROACTIVELY when writing new features or bug fixes. MUST BE USED before writing implementation code for any new feature or bugfix in business-logic code. Enforces write-tests-first. Module-specific test-framework conventions: enable dhpk:phpunit-5.7 for PHPUnit 5.7, dhpk:pytest for pytest-asyncio (async FastAPI/SQLAlchemy), dhpk:swift-testing for XCTest / Swift Testing, etc.'
 tools: ["Read", "Write", "Edit", "Bash", "Grep"]
 model: sonnet
 ---
