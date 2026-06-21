@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.12.0 — 2026-06-21 — git flow release process + automated develop back-merge
+
+Codifies the **git flow** branching model and closes the gap that let `develop`
+drift 76 commits behind `main`: the post-release back-merge was manual and got
+skipped. It is now automated and documented.
+
+**New — `sync-develop` CI job (`.github/workflows/release.yml`):**
+- Runs after the existing `release` job on every `v*` tag push.
+- Checks out `develop`, fetches `main`, and back-merges with `--no-ff`
+  (git-flow merge commit), then pushes `develop`.
+- Fails **loudly** on a merge conflict — never silently drops the back-merge.
+  "Already up to date" is a safe no-op, so re-runs are harmless.
+
+**New — `RELEASE.md`:**
+- Documents the full git-flow release flow: branch from `develop` → PR into
+  `main` → tag → CI Release + auto back-merge → `develop`.
+- States the permanent-branch rule (`develop` is never deleted) and the manual
+  fallback if the CI back-merge is blocked (conflict / branch protection).
+
+No runtime/module behavior changes — this release only touches the release
+tooling and process docs.
+
 ## 0.11.0 — 2026-06-21 — Python module family (python / fastapi / pytest)
 
 Adds first-class Python support — the last major stack gap. A consuming
