@@ -1,0 +1,32 @@
+name: python
+display_name: "Python"
+version: 0.1.0
+description: "Python language baseline + tooling. Modern Python (3.10+) idioms (type hints, dataclasses / pydantic, async-await discipline, logging-over-print, exception hierarchy), a post-edit ruff feedback hook (async, non-blocking, batched once at Stop by default — set DHPK_PY_LINT_MODE=per-edit for immediate per-file lint), and a pre-commit ruff-check + ruff-format + type-check (pyright|mypy) gate. Project root is auto-detected by walking up to the nearest pyproject.toml, so monorepo backends (pyproject under a subdir like backend/) work with zero config. Runner / binaries / type-checker overridable via userConfig. Framework-agnostic — pair with the fastapi module for web-API guidance and the pytest module for async test strategy."
+requires: []
+triggers:
+  code:
+    extensions: [".py"]
+provides:
+  skills: [python-pro, python-static-checks]
+# ---- Python tooling configuration (read by hooks/_lib/python-env.sh) ----
+# All keys map to userConfig knobs exported by Claude Code as
+# CLAUDE_PLUGIN_OPTION_<KEY>. All optional; defaults below suit a uv-managed
+# project whose pyproject.toml lives at (or under) the repo root.
+#
+# - python_project_roots: CSV of candidate subdirs that hold a pyproject.toml
+#   (e.g. "backend"). Optional — when empty the hooks walk up from the edited
+#   file to the nearest pyproject.toml, which already handles the monorepo case.
+#   Set it only to *restrict* linting to specific subtrees.
+# - python_runner: command prefix used to invoke tools inside the project env.
+#   Default "uv run". Set "poetry run" for Poetry, or "" to run ruff/pyright
+#   straight off PATH (already-activated venv). When the runner's binary is
+#   absent the hooks fall back to bare PATH tools, then self-skip if those are
+#   missing too — never blocks a project that hasn't adopted the tier.
+# - ruff_bin: ruff executable name. Default "ruff".
+# - python_typechecker: "pyright" | "mypy" | "none". Default "pyright".
+# - pyright_bin / mypy_bin: type-checker executable names.
+python:
+  project_roots: []
+  runner: "uv run"
+  ruff_bin: "ruff"
+  typechecker: "pyright"

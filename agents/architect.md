@@ -1,6 +1,6 @@
 ---
 name: architect
-description: 'DDD architecture specialist (framework-agnostic). Use for cross-module design decisions, DDD layer placement (Controller → Service → Repository or your stack equivalent), refactoring strategy, and technical-debt analysis. Module-specific examples available via active stack modules (e.g. enable dhpk:yii-1.1 for Yii-flavored guidance).'
+description: 'DDD architecture specialist (framework-agnostic). Use for cross-module design decisions, DDD layer placement (Controller → Service → Repository or your stack equivalent), refactoring strategy, and technical-debt analysis. Module-specific examples available via active stack modules (e.g. enable dhpk:yii-1.1 for Yii-flavored guidance, or dhpk:fastapi for FastAPI Router→Service→Repository + SQLAlchemy-async layering).'
 tools: ["Read", "Grep", "Glob"]
 model: opus
 ---
