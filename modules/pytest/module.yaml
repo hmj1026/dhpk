@@ -1,0 +1,7 @@
+name: pytest
+display_name: "pytest (async)"
+version: 0.1.0
+description: "Python test strategy for async services: pytest + pytest-asyncio (asyncio_mode=auto), in-memory SQLite fixtures, httpx.AsyncClient + ASGITransport for FastAPI integration tests, unit/integration taxonomy, coverage-floor strategy (pytest-cov), and opt-in live markers for tests that hit real external services. Skills + references only (no hooks) — pairs with the python module (ruff/type-check hooks) and fastapi module. Test-framework conventions for the tdd-guide agent when this module is active."
+requires: [python]
+provides:
+  skills: [pytest-async]

@@ -1,6 +1,6 @@
 ---
 name: database-reviewer
-description: 'Database review specialist (relational + Core Data, framework-agnostic). Use when writing migrations, SQL queries, Repository methods, or schema changes. Checks prepared statements, index efficiency, N+1 issues, transaction correctness. Default examples assume MySQL + Yii-style Repository pattern; Core Data / SQLCipher traps apply when the ios-platform module is active. Substitute your stack equivalents.'
+description: 'Database review specialist (relational + Core Data, framework-agnostic). Use when writing migrations, SQL queries, Repository methods, or schema changes. Checks prepared statements, index efficiency, N+1 issues, transaction correctness. Default examples assume MySQL + Yii-style Repository pattern; Core Data / SQLCipher traps apply when the ios-platform module is active; SQLAlchemy 2.0 async session/transaction + Alembic migration traps apply when the fastapi module is active. Substitute your stack equivalents.'
 tools: ["Read", "Grep", "Glob", "Bash"]
 model: sonnet
 ---

@@ -1,0 +1,53 @@
+---
+name: pytest-async
+description: Async Python testing with pytest + pytest-asyncio — asyncio_mode=auto, in-memory SQLite fixtures, httpx.AsyncClient + ASGITransport for FastAPI, unit/integration taxonomy, coverage floor, and opt-in live markers. Use when writing or reviewing tests for an async FastAPI/SQLAlchemy service, or enforcing TDD on Python features.
+---
+
+# pytest (async)
+
+Test strategy for async Python services. Pairs with the `python` and `fastapi`
+modules. TDD: write the failing test first (red), implement to green, refactor.
+
+## Configuration
+
+- `pytest-asyncio` with `asyncio_mode = "auto"` (in `[tool.pytest.ini_options]`)
+  — `async def test_*` runs without a per-test `@pytest.mark.asyncio` decorator.
+- `pytest-cov` enforces a coverage floor (ccas: `--cov-fail-under=70`, measured on
+  unit tests). `pytest-timeout` guards hangs.
+- Layout: `tests/unit/` (fast, isolated) and `tests/integration/` (ASGI client +
+  real query paths). Exclude wiring-only modules (`__main__.py`, app factory) from
+  the *unit* coverage measure; cover them in integration instead.
+
+## Fixtures
+
+- **In-memory SQLite** for both unit and integration: create an async engine on
+  `sqlite+aiosqlite:///:memory:`, create tables per test (or per session with a
+  rollback-per-test transaction), yield an `AsyncSession`. Keep it fast and hermetic.
+- Build object factories/builders for domain models rather than hand-rolling rows in
+  every test.
+- Mock external services (Gmail, Telegram, LLM) at the boundary — inject fakes via
+  the same `Depends`/Protocol seams the app uses. Never hit the network in unit tests.
+
+## FastAPI integration tests
+
+- Drive the app with `httpx.AsyncClient(transport=ASGITransport(app=app), ...)` —
+  no live server needed. Override DB/auth dependencies with `app.dependency_overrides`
+  to inject the in-memory session and a test user.
+- Assert on status + response schema, not on internal ORM state. Cover the error
+  paths (422 validation, 401/403 auth, 404) — not just the happy path.
+
+## Markers & opt-in live tests
+
+- Tests that hit a real external service (e.g. `@pytest.mark.live_fubon` in ccas)
+  must be **opt-in** and excluded from the default run / CI. Register markers in
+  config and select with `-m "not live_fubon"` by default.
+- Use `@pytest.mark.parametrize` for table-driven cases (parsers, classifiers,
+  date-boundary logic) instead of copy-pasted test bodies.
+
+## What to test first
+
+- Pure domain logic (parsers, classifiers, calculators) — highest value, cheapest.
+- Boundary/edge cases that bit you before: timeouts, malformed input, rollback
+  paths, pagination limits, regex ReDoS guards. ccas's bug fixes (CTBC due-date,
+  classify rollback, PDF timeout) each landed with a regression test.
+- A bug fix without a failing-first regression test is incomplete.

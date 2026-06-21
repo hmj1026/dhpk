@@ -1,6 +1,6 @@
 ---
 name: security-reviewer
-description: 'Security review specialist (web app + iOS, framework-agnostic). Use PROACTIVELY after writing any controller action, form handler, SQL query, authentication logic, file upload, or (iOS) Keychain / encryption / privacy-manifest / biometric code. Checks OWASP Top 10 patterns. Module-specific traps available via active stack modules (e.g. yii-1.1 adds Yii CSRF/AR guidance; ios-platform/swift add iOS Keychain / at-rest-encryption / PHI-privacy traps).'
+description: 'Security review specialist (web app + iOS, framework-agnostic). Use PROACTIVELY after writing any controller action, form handler, SQL query, authentication logic, file upload, or (iOS) Keychain / encryption / privacy-manifest / biometric code. Checks OWASP Top 10 patterns. Module-specific traps available via active stack modules (e.g. yii-1.1 adds Yii CSRF/AR guidance; fastapi adds FastAPI auth/OAuth-callback + SQLAlchemy-injection / Pydantic-boundary traps; ios-platform/swift add iOS Keychain / at-rest-encryption / PHI-privacy traps).'
 tools: ["Read", "Grep", "Glob", "Bash"]
 model: sonnet
 ---

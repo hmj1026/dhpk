@@ -230,6 +230,46 @@
           "status": "shipped"
         }
       ]
+    },
+    {
+      "id": "python",
+      "name": "Python",
+      "description": "Python language baseline + tooling. Modern Python (3.10+) idioms (type hints, dataclasses / pydantic, async-await discipline, logging-over-print, exception hierarchy), a post-edit ruff feedback hook (async, batched at Stop), and a pre-commit ruff-check + ruff-format + type-check (pyright|mypy) gate. Project root auto-detected by walking up to the nearest pyproject.toml, so monorepo backends (pyproject under backend/) work with zero config. Runner / binaries / type-checker overridable via userConfig (python_runner, ruff_bin, python_typechecker, python_project_roots). Framework-agnostic — pair with fastapi + pytest.",
+      "versions": [
+        {
+          "id": "0.1",
+          "module": "python",
+          "status": "shipped"
+        }
+      ]
+    },
+    {
+      "id": "fastapi",
+      "name": "FastAPI + SQLAlchemy (async)",
+      "description": "Async web-API guidance for FastAPI services: router + dependency-injection patterns, Pydantic schemas, SQLAlchemy 2.0 async session & transaction discipline, Alembic migration safety, CORS/auth/error handling. Skills + references only (no hooks) — the python module provides the lint/type-check hooks. Adds db / sec path triggers so database-reviewer and security-reviewer fire on model, migration, and auth edits.",
+      "requires": ["python"],
+      "versions": [
+        {
+          "id": "0.1",
+          "module": "fastapi",
+          "status": "shipped",
+          "requires_module": "python"
+        }
+      ]
+    },
+    {
+      "id": "pytest",
+      "name": "pytest (async)",
+      "description": "Python test strategy for async services: pytest + pytest-asyncio (asyncio_mode=auto), in-memory SQLite fixtures, httpx.AsyncClient + ASGITransport for FastAPI integration tests, unit/integration taxonomy, coverage-floor strategy, opt-in live markers. Skills + references only (no hooks). Provides test-framework conventions for the tdd-guide agent when active.",
+      "requires": ["python"],
+      "versions": [
+        {
+          "id": "0.1",
+          "module": "pytest",
+          "status": "shipped",
+          "requires_module": "python"
+        }
+      ]
     }
   ],
   "hook_profiles": [
