@@ -1,0 +1,16 @@
+name: fastapi
+display_name: "FastAPI + SQLAlchemy (async)"
+version: 0.1.0
+description: "Async web-API guidance for FastAPI services: router + dependency-injection patterns, Pydantic request/response schemas, SQLAlchemy 2.0 async session & transaction discipline, Alembic migration safety, CORS / auth / error-handling. Skills + references only (no hooks) — pairs with the python module (which provides the ruff/type-check hooks) and the pytest module. Adds db / sec path triggers so database-reviewer and security-reviewer fire on model, migration, and auth edits."
+requires: [python]
+triggers:
+  code:
+    extensions: [".py"]
+  db:
+    extensions: []
+    paths: [models/, migrations/, alembic/, storage/, repositories/, repository/]
+  sec:
+    extensions: []
+    paths: [auth/, oauth/, security/, ingestor/, login/]
+provides:
+  skills: [fastapi-pro]

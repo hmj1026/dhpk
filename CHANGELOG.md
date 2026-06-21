@@ -1,5 +1,57 @@
 # Changelog
 
+## 0.11.0 — 2026-06-21 — Python module family (python / fastapi / pytest)
+
+Adds first-class Python support — the last major stack gap. A consuming
+full-stack project (ccas: FastAPI + SQLAlchemy-async + React/Vite) previously
+had to hand-roll its own `.claude/hooks/*.sh` because dhpk shipped no Python
+module. Backward compatible: the new modules are opt-in; projects that don't
+enable them see zero change.
+
+**New — `python` module (language baseline + tooling hooks):**
+- `module.yaml` triggers code-reviewer on `.py`; provides skills `python-pro`
+  (modern 3.10+ idioms, async-await discipline, logging-over-print, exception
+  hierarchy) and `python-static-checks` (ruff rule selection, pyright-vs-mypy,
+  progressive typing).
+- `post-edit-python-lint.sh` (PostToolUse, async): advisory `ruff check` +
+  `ruff format --check`, batched once at Stop via `stop-py-batch-check.sh`
+  (`DHPK_PY_LINT_MODE=per-edit` for immediate; `DHPK_PY_STOP_TYPECHECK=1` adds a
+  Stop-time type-check). Never blocks.
+- `pre-commit-python-validation.sh` (PreToolUse Bash): the real gate — `ruff
+  check` + `ruff format --check` + type-check (pyright|mypy) on staged `.py`,
+  grouped by owning `pyproject.toml`. Exit 2 blocks; `[skip-python-lint]`
+  bypasses. Mirrors the `php-7.4` pre-commit pattern (resolve-bin ladder,
+  self-skip when toolchain absent — never blocks a project without the tools).
+- **Zero-config monorepo support:** the owning project root is found by walking
+  up to the nearest `pyproject.toml`, so a backend under `backend/` just works.
+  `python_project_roots` optionally *restricts* linting to named subtrees.
+
+**New — `fastapi` module (skills+refs, `requires: python`):**
+- `fastapi-pro` skill: router/DI patterns, Pydantic request/response schemas,
+  SQLAlchemy 2.0 async session & transaction discipline, Alembic migration
+  safety, CORS/auth/error handling. Adds `db` / `sec` path triggers so
+  database-reviewer / security-reviewer fire on model / migration / auth edits.
+
+**New — `pytest` module (skills+refs, `requires: python`):**
+- `pytest-async` skill: pytest-asyncio (`asyncio_mode=auto`), in-memory SQLite
+  fixtures, `httpx.AsyncClient` + `ASGITransport`, unit/integration taxonomy,
+  coverage floor, opt-in live markers. Test conventions for `tdd-guide`.
+
+**New userConfig knobs (all optional, sane defaults):**
+- `python_project_roots` (default `[]` = walk-up), `python_runner`
+  (`uv run`; set `poetry run` or `` for bare PATH), `ruff_bin` (`ruff`),
+  `python_typechecker` (`pyright`|`mypy`|`none`, default `pyright`),
+  `pyright_bin`, `mypy_bin`.
+
+**New install profiles:** `python-api` (`python,fastapi,pytest`) and
+`python-fullstack` (`+ js`). `full` profile extended to include the family.
+
+**Note — stale-cache bash errors (0.9.1):** the `declare -A` / arithmetic-trap
+errors some sessions reported originate from the cached 0.9.1 plugin, not from
+current source — `session-start.sh` has been bash-3.2-clean since 0.10.0
+(`a9490b2`). Resolution: repin/reinstall dhpk to ≥0.10.0 in consuming projects
+(`scripts/verify-claude-plugins.sh --update`). No code change in this release.
+
 ## 0.10.0 — 2026-06-12 — 7-slot sentinel chain, generic ops hooks, cross-platform fixes
 
 Upstreams generic harness improvements matured in a consuming project

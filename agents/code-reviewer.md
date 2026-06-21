@@ -1,6 +1,6 @@
 ---
 name: code-reviewer
-description: 'Expert code review specialist. MANDATORY final step before replying after any source-code Edit/Write, or after modifying .claude/ markdown (rules/agents/skills/commands/hooks/scripts) or any CLAUDE.md file. Reviews quality, security, and maintainability. Do NOT skip when: user approved a plan, change seems small, manual verification was done, task feels complete. Stack-aware: detects the project''s language/framework from manifests and applies the matching ruleset; when a dhpk language module is enabled (e.g. yii-1.1, php-5.6, swift), also consults that module skill for stack-specific traps.'
+description: 'Expert code review specialist. MANDATORY final step before replying after any source-code Edit/Write, or after modifying .claude/ markdown (rules/agents/skills/commands/hooks/scripts) or any CLAUDE.md file. Reviews quality, security, and maintainability. Do NOT skip when: user approved a plan, change seems small, manual verification was done, task feels complete. Stack-aware: detects the project''s language/framework from manifests and applies the matching ruleset; when a dhpk language module is enabled (e.g. yii-1.1, php-5.6, python, fastapi, swift), also consults that module skill for stack-specific traps.'
 tools: ["Read", "Grep", "Glob", "Bash"]
 model: sonnet
 ---
