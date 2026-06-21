@@ -67,3 +67,33 @@ swift test --filter ImageCryptoTests
   scheme/destination from userConfig. Keep the same commands in CI so local and
   CI gates match.
 - Cache `~/Library/Developer/Xcode/DerivedData` / `.build` in CI for speed.
+
+## Multi-package / host-vs-device gotchas (dogfooded on a 5-package iOS workspace)
+
+Hard-won traps from a multi-package SwiftUI workspace (pure-domain + Core
+Data/Keychain + UI/feature + app packages). Apply when a project splits into
+several SPM packages or mixes host-testable and device-only code:
+
+- **Concurrent `xcodebuild test` flakiness → `-308 "Channel disconnected"`.**
+  Running multiple `xcodebuild test` invocations in parallel (e.g. one per
+  package, or test + build at once) against the same simulator intermittently
+  fails with a `-308` channel-disconnect error from the test runner — not a real
+  test failure. **Serialize the runs** (one `xcodebuild test` at a time), or give
+  each its own simulator/clone. The pre-commit gate already runs a single
+  invocation; keep CI matrices from sharing one booted simulator across parallel
+  jobs.
+- **Pick the right test host per package.** Pure-logic packages run fastest with
+  `swift test` on the macOS host. But any target touching **UIKit/SwiftUI
+  rendering or a device/simulator-only API** (Core Data with file protection,
+  Keychain, Vision, AVFoundation, LocalAuthentication) must run under
+  `xcodebuild test -destination 'platform=iOS Simulator,...'` — running it on the
+  macOS host either won't compile or silently exercises the wrong platform code.
+- **Camera / Vision / biometrics need a real device.** The Simulator has no
+  camera and stubs parts of Vision/LocalAuthentication. Tests that exercise live
+  capture or on-device OCR/biometrics belong in a manual / device-only suite
+  (mark them opt-in, exclude from the default simulator CI run) — don't let them
+  block the pre-commit gate or a simulator CI job.
+- **Keep the build step device-name-free.** The pre-commit build uses a generic
+  `generic/platform=iOS Simulator` destination so a renamed/absent simulator never
+  breaks it; only the *test* step pins a concrete simulator (auto-picked when
+  `xcode_destination` is empty). Mirror this in CI.
