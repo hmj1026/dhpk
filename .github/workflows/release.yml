@@ -43,3 +43,30 @@ jobs:
               --title "$GITHUB_REF_NAME" \
               --notes-file -
           fi
+
+  # git flow back-merge: after a release lands on main + tag, sync main into
+  # develop so develop never falls behind. This automates the step that was
+  # previously manual (and skipped — develop had drifted 76 commits behind).
+  sync-develop:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: develop
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Back-merge release into develop
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          # --no-ff keeps a git-flow merge commit; "Already up to date" is a
+          # no-op (safe on re-run). A merge CONFLICT fails the job loudly rather
+          # than silently dropping the back-merge — resolve develop by hand if so.
+          git merge --no-ff origin/main \
+            -m "chore(release): back-merge ${GITHUB_REF_NAME} into develop"
+          git push origin HEAD:develop
