@@ -109,7 +109,7 @@ Illegitimate (**report**):
 ### 4. Jargon discoverability
 
 For every newly introduced abbreviation / domain term / internal name in
-the diff (sentinel, append-only exemption, chain rule, three-list sync,
+the diff (sentinel, append-only exemption, reviewer dispatch, three-list sync,
 tier 1.5, SSOT, etc.):
 
 - The file either explains the term inline, OR

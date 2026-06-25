@@ -201,6 +201,24 @@ if ldb_enabled; then
     unset _ldb_top
 fi
 
+# ---- Resumable work handoff (manual /new resume path) ----
+# precompact-archive.sh (PreCompact hook) writes handoff-latest.md when the
+# context compacts. On a fresh session started soon after, surface a short
+# pointer + summary so a manual /new picks up where the prior session left off.
+# Recency-gated (<=12h) so stale handoffs don't spam every startup.
+if [ "$PROFILE" != "minimal" ]; then
+    _handoff="$ROOT/.claude/artifacts/checkpoints/handoff-latest.md"
+    if [ -f "$_handoff" ]; then
+        _mtime="$(stat -c %Y "$_handoff" 2>/dev/null || stat -f %m "$_handoff" 2>/dev/null || echo 0)"
+        _age_min=$(( ( $(date +%s) - ${_mtime:-0} ) / 60 ))
+        if [ "${_mtime:-0}" -gt 0 ] && [ "$_age_min" -ge 0 ] && [ "$_age_min" -le 720 ]; then
+            echo "[session-start] resumable work handoff (${_age_min}m ago) → .claude/artifacts/checkpoints/handoff-latest.md"
+            sed -n '3,12p' "$_handoff"
+        fi
+    fi
+    unset _handoff _mtime _age_min
+fi
+
 # ---- Harness health advisories (suppressed on minimal profile) ----
 if [ "$PROFILE" != "minimal" ]; then
     # Broken symlinks directly under .claude/ — projects that deploy the

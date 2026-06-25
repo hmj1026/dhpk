@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # subagent-stop-verify.sh — SubagentStop hook (advisory only)
 #
-# Plugs reviewer chain rule gaps: when a reviewer agent stops but its sentinel
+# Plugs reviewer dispatch gaps: when a reviewer agent stops but its sentinel
 # still exists, warn (agent likely skipped clear-sentinel.sh); when exit status
 # is non-zero, log to .claude/artifacts/agent-failures.log for next-session
 # SessionStart / manual review.
