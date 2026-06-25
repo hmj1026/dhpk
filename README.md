@@ -162,7 +162,7 @@ Thirty-one knobs, all settable at install time with `--config <key>=<value>`:
 Examples:
 
 ```bash
-# Plain install with defaults (7-slot review chain on the default agent names).
+# Plain install with defaults (7-slot reviewer dispatch on the default agent names).
 claude plugin install dhpk@dhpk
 
 # Legacy PHP/Yii + JS fullstack project.

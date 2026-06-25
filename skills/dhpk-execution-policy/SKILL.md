@@ -5,7 +5,7 @@ description: 'Default workflow for software engineering tasks: task modes (small
 
 # DHPK Execution Policy
 
-Default: execute directly, plan sparingly. Every code change ends with `→ [dr*] → code-reviewer`. `dr*` = database-reviewer (SQL) / security-reviewer (auth/crypto/money).
+Default: execute directly, plan sparingly. Every code change ends with `[dr*]` + `code-reviewer` **dispatched in parallel** (code-reviewer merges/dedups). `dr*` = database-reviewer (SQL) / security-reviewer (auth/crypto/money).
 
 Agent names above are the plugin defaults; projects override via `userConfig.review_agents`.
 
@@ -53,7 +53,7 @@ Skipped paths by default: `.claude/artifacts/**`, files outside the code-extensi
 - Money/crypto/cert/token paths not matched by hook patterns → `security-reviewer` after Edit.
 - High-volume DB methods → `performance-analyzer` after Edit.
 
-Order: `tdd-guide` (pre-edit) → `database-reviewer` → `security-reviewer` → `code-reviewer`.
+`tdd-guide` is pre-edit. After edits, triggered reviewers (`database-reviewer` / `security-reviewer` / `code-reviewer` / …) **dispatch in parallel**; `code-reviewer` merges/dedups.
 
 Sole exemption: pure research/planning (no Edit/Write) skips all review agents.
 
