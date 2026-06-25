@@ -34,11 +34,14 @@ Before proceeding, identify the active harness directory and its primary rule fi
 2. **Auto-Detect**: If there is no active-environment hint, check for `.claude/`, `.gemini/`, or `.codex/`. If multiple exist, require explicit `--dir` (scripts will error with `[error] Multiple harness dirs found`).
 3. **Set Variables**: Mentally set `[HARNESS_DIR]` (e.g., `.claude`), `[MAIN_RULE]` (e.g., `CLAUDE.md`), and `[SKILL_DIR]`.
 
-Use the skill directory as the source of truth for scripts. In Claude Code, `CLAUDE_SKILL_DIR` may be available; otherwise use the repo-relative cross-LLM location:
+Use the skill directory as the source of truth for scripts. Resolution order: an explicit `CLAUDE_SKILL_DIR` (set when invoked via the Skill tool), then the dhpk plugin install path (`CLAUDE_PLUGIN_ROOT`, set for plugin commands/hooks), then the repo-relative cross-LLM location for Gemini / Codex:
 
 ```bash
-SKILL_DIR="${CLAUDE_SKILL_DIR:-.agents/skills/harness-revise}"
+SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+${CLAUDE_PLUGIN_ROOT}/skills/harness-revise}}"
+SKILL_DIR="${SKILL_DIR:-.agents/skills/harness-revise}"
 ```
+
+> If `SKILL_DIR` resolves to `.agents/skills/harness-revise` but that directory does not exist, you are running outside both the Skill-tool context and the dhpk plugin (neither `CLAUDE_SKILL_DIR` nor `CLAUDE_PLUGIN_ROOT` is set). The scripts ship inside the dhpk plugin — install it, or pass the script paths explicitly. Do not silently proceed as if the harness has no scripts.
 
 ### Phase 1 — Baseline (deterministic, scripts only)
 
