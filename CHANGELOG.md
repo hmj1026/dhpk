@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.12.2 — 2026-06-25 — parallel reviewer dispatch + work-state handoff across compaction
+
+Two harness improvements: reviewers run concurrently instead of in a serial
+chain, and the PreCompact/PostCompact hooks now carry a full work handoff so a
+conversation survives Claude Code's native auto-compaction without losing its
+thread.
+
+**Changed — reviewer dispatch (was a serial chain):**
+- `rules/execution-policy.md`: the `database → security → … → doc` **serial
+  chain** is replaced by **triage → parallel dispatch → merge**. After a turn's
+  edits, triage drops false-positive sentinels (a 2-line CSS tweak or a typo-fix
+  no longer pulls a full reviewer), the survivors dispatch **in parallel** (one
+  message, multiple Agent calls — wall-clock `max`, not sum), and `code-reviewer`
+  is the merge/dedup owner. Per-turn batching, CRITICAL-under-parallel handling,
+  and an opt-in opus escalation note for HIGH-risk security/migration diffs.
+- Stale "chain rule" / serial-order wording updated across `agents/INDEX.md`,
+  `rules/anti-rationalization.md`, `skills/execution-checklist`,
+  `skills/dhpk-execution-policy`, `agents/doc-reviewer.md`, `README.md`.
+
+**Fixed — clear-sentinel path inconsistency:**
+- `code-reviewer`, `database-reviewer`, `security-reviewer` called the
+  project-local `clear-sentinel.sh`; the other three used the plugin path. All
+  six now call `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh`, so a
+  project can drop its local copy.
+
+**Added — work-state handoff across compaction:**
+- `scripts/hooks/precompact-archive.sh` now also writes
+  `.claude/artifacts/checkpoints/handoff-latest.md` — branch, pending review
+  sentinels, the active OpenSpec change + done/open task counts, working tree,
+  and recent commits (pure shell + git, best-effort, never blocks compaction).
+- `scripts/hooks/postcompact-restore.sh` surfaces that handoff on stdout so it
+  folds into post-compact context; `session-start.sh` surfaces it (recency-gated
+  ≤12h) for the manual `/new` resume path.
+
+Consumers: run `claude plugin update` to pick up the new tag.
+
 ## 0.12.1 — 2026-06-25 — harness-revise ships from the plugin (fixes unusable /harness-revise for general users)
 
 Patch release. The `/harness-revise` command referenced a project-local,

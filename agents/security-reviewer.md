@@ -85,7 +85,7 @@ Passed: <items>
 
 - **路徑**：`.claude/artifacts/reviews/security-reviewer-{yyyymmdd-HHMMSS}-{slug}.md`（Asia/Taipei，kebab-case slug）
 - **Frontmatter（必填）**：`agent / generated_at (ISO+08:00) / commit / scope[] / severity_summary { critical/high/medium/low } / verdict (PASS|WARNING|FAIL)`
-- **Hook**：`bash ${CLAUDE_PROJECT_DIR}/.claude/hooks/clear-sentinel.sh .pending-security-review security-reviewer`（清除 stop-review-reminder 的補跑提示）
+- **Hook**：`bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" .pending-security-review security-reviewer`（清除 stop-review-reminder 的補跑提示）
 - 目錄不存在 → stdout-only，不報錯。每類保留 30 件，舊的搬 `archive/`。
 
 完整契約 → `docs/contracts/artifact-contract.md`

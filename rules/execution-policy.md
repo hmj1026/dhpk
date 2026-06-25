@@ -9,7 +9,7 @@ dhpk's default execution policy for projects that adopt the harness. Resource-la
 - **sentinel**: `.claude/artifacts/sessions/.pending-*` marker file (written by a post-edit hook; cleared by the reviewer's Closing hook via `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh`). Existence check: `find -maxdepth 1 -name '.pending-*' -print 2>/dev/null` (avoids shell-specific `nomatch` behaviour with bare globs).
 - **back-stop**: hook pattern did not match but the AI semantically recognises the trigger should fire → AI proactively invokes the matching reviewer (and still clears the sentinel if present).
 - **append-only exemption**: pure additions (not modifying existing symbol body / signature / docblock) may skip `gitnexus_impact` — label the change `append-only — gitnexus_impact skipped`.
-- **chain rule**: order of execution when multiple sentinels coexist (see "Mandatory post-steps").
+- **reviewer dispatch**: when multiple sentinels coexist, triage out false positives → dispatch the rest **in parallel** → `code-reviewer` merges/dedups (see "Reviewer dispatch").
 
 ## Task modes
 
@@ -44,6 +44,8 @@ Agents run via the `Agent` tool (`subagent_type=<name>`), not via skill names.
 
 Agent names above are dhpk defaults; override via `userConfig.review_agents` per slot. Projects with prefixed agents (e.g. `code-reviewer-<project>`) configure the override in their `settings.local.json`.
 
+**Model tier**: reviewers run at their agent-frontmatter default (`doc-reviewer` = haiku, the rest = sonnet). For a **HIGH-risk diff** — `security-reviewer` on auth/crypto/money/upload, or `migration-reviewer` on a multi-tenant schema change against a high-volume table — the orchestrator MAY raise that single dispatch to opus via the `Agent` call's `model` param. Default stays sonnet; escalate by judgment, not by default (cost).
+
 ## Multi-AI / dual-perspective independence
 
 When a step uses a second AI or a second perspective (Codex, Gemini, or a Claude-vs-Codex/dual-view pass), each side MUST form its own conclusion from the source — never feed Claude's findings, verdict, or theory into the secondary prompt.
@@ -71,15 +73,18 @@ Trigger map source-of-truth: dhpk's `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/post-ed
 
 Skipped paths: openspec/**, docs/**, plain .md outside .claude/, .claude/{memory,artifacts,worktrees}/. See your hook source for the exact list.
 
-### Chain rule (when multiple sentinels coexist)
+### Reviewer dispatch (when multiple sentinels coexist)
 
-```
-database-reviewer → migration-reviewer → security-reviewer → frontend-reviewer → code-reviewer → doc-reviewer
-```
+At the end of a turn that produced Edits/Writes, gather ALL pending sentinels, then **triage → dispatch in parallel → merge**:
 
-- Each reviewer **only handles its own sentinel**: if the corresponding sentinel is missing, skip that slot; if it exists, it MUST run (back-stop excepted).
-- `code-reviewer` and `doc-reviewer` **are not mutually exclusive**: mixed diffs (PHP + .sh + plain `.claude/` policy doc) run both, in order. Single-type diffs run only the matching one. Code risk > doc risk, so code-reviewer runs first.
-- `security-reviewer` finding CRITICAL → block immediately; upstream-reviewer-covered findings downstream **do not repeat** (code-reviewer does not re-run OWASP; frontend-reviewer does not re-run SQL; doc-reviewer does not audit code quality).
+1. **Triage first (cheap, no agent).** Look at the diff scope and DROP false-positive sentinels before dispatching — a pure-style CSS tweak, a single-string / comment-only / whitespace-reflow change does not warrant a full reviewer (e.g. a 2-line CSS change must not pull in `security-reviewer`); a typo-fix or pure-formatting `.md` change does not warrant `doc-reviewer` (it fires for substantive policy/SSOT changes, not cosmetics). Clear each dropped sentinel via its Closing hook with a one-line reason. Triage only **drops**; when in doubt, keep the reviewer.
+2. **Dispatch the surviving reviewers IN PARALLEL** — one message, multiple Agent calls. Each reviewer audits only its own concern and is independent, so wall-clock is `max(reviewers)`, not the sum. Do **not** run them as a sequential chain.
+3. **`code-reviewer` is the merge/dedup owner.** When it is in the dispatched set, `code-reviewer` (or the orchestrator on collecting the parallel results) merges all findings and removes cross-reviewer duplicates — this replaces the old "sequential order de-dups" mechanism. Each specialist still owns its lane (code-reviewer does not re-run OWASP / SQL / link-checks; frontend-reviewer does not re-run SQL; doc-reviewer does not audit code quality).
+
+- Each reviewer **only handles its own sentinel**: missing sentinel → skip; present (and not triaged out) → it MUST run (back-stop excepted).
+- **Batched per turn, not per edit**: a turn with N Edits runs each reviewer at most once, after the last edit — never once per Edit.
+- **CRITICAL handling under parallel dispatch**: collect every parallel verdict, then if any reviewer returns CRITICAL → surface it and block the merge/commit. (Parallel means all reviewers run regardless of another's CRITICAL — independent concerns are not short-circuited.)
+- `code-reviewer` and `doc-reviewer` **are not mutually exclusive**: mixed diffs (PHP + .sh + plain `.claude/` policy doc) dispatch both. Single-type diffs dispatch only the matching one.
 - Pure research / planning (no Edit/Write) skips all reviewer agents.
 
 ### Review output gate

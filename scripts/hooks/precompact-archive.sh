@@ -108,8 +108,58 @@ fi
 # knowing the session id. ln -sfn handles existing symlinks atomically.
 ln -sfn "$(basename "$CKPT")" "$CKPT_DIR/latest.json" 2>/dev/null || true
 
+# ── Work-state handoff doc ───────────────────────────────────────────────────
+# Beyond the sentinel JSON, write a readable handoff capturing the deterministic
+# work state a shell hook CAN observe (git, sentinels, OpenSpec change + task
+# progress, recent commits). postcompact-restore.sh / session-start surface this
+# so the conversation continues post-compact without losing the thread. The
+# semantic layer (what we're doing / why) lives in claude-mem. Pure shell + git,
+# so it works even without python3. Best-effort; never blocks compaction.
+HANDOFF="$CKPT_DIR/handoff-latest.md"
+{
+    printf '# Work Handoff — %s\n\n' "$TS"
+    printf '> Auto-written at PreCompact. Deterministic disk/git state only; semantic detail (what/why) lives in claude-mem.\n\n'
+    printf -- '- **branch**: `%s`\n' "${BRANCH:-?}"
+
+    _pending=""
+    for _n in "${SENTINEL_NAMES[@]}"; do
+        [ -f "$SESS/$_n" ] && _pending="$_pending $_n"
+    done
+    printf -- '- **pending reviews**:%s\n' "${_pending:- none}"
+
+    _osc_dir="$ROOT/openspec/changes"
+    if [ -d "$_osc_dir" ]; then
+        # Newest change dir (by mtime) that is an ACTIVE change — exclude the
+        # archive/ subdir and require a tasks.md.
+        # `ls -1dt .../*/` emits trailing-slash dirs newest-first; both the
+        # archive guard (`*/archive/`) and the `${_d}tasks.md` join rely on that
+        # trailing slash (and degrade safely if a future ls strips it).
+        _change=""
+        while IFS= read -r _d; do
+            case "$_d" in */archive/) continue ;; esac
+            [ -f "${_d}tasks.md" ] || continue
+            _change="$_d"; break
+        done < <(ls -1dt "$_osc_dir"/*/ 2>/dev/null)
+        if [ -n "$_change" ]; then
+            printf -- '- **OpenSpec change**: `%s`\n' "$(basename "$_change")"
+            # grep -c already prints "0" on zero matches (exit 1) — use `|| true`,
+            # not `|| echo 0`, which would append a second "0" → "0\n0".
+            _done="$(grep -c '^- \[x\]' "${_change}tasks.md" 2>/dev/null || true)"
+            _todo="$(grep -c '^- \[ \]' "${_change}tasks.md" 2>/dev/null || true)"
+            printf -- '  - tasks: %s done / %s open\n' "${_done:-0}" "${_todo:-0}"
+        fi
+    fi
+
+    printf '\n## Working tree\n\n```\n'
+    git -C "$ROOT" status --short 2>/dev/null | head -40
+    printf '```\n\n## Recent commits\n\n```\n'
+    git -C "$ROOT" log --oneline -8 2>/dev/null
+    printf '```\n'
+} > "$HANDOFF" 2>/dev/null || true
+
 if [ "$PROFILE" != "minimal" ]; then
     echo >&2 "[precompact-archive] saved checkpoint (sentinels=$restored_count) → $CKPT"
+    [ -f "$HANDOFF" ] && echo >&2 "[precompact-archive] wrote work handoff → $HANDOFF"
 fi
 
 exit 0

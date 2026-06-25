@@ -125,7 +125,7 @@ End with severity table + last line `Verdict: APPROVE | WARNING | BLOCK`. APPROV
    ---
    ```
 3. **Body**：上方 issue 清單格式
-4. **Hook**：`bash ${CLAUDE_PROJECT_DIR}/.claude/hooks/clear-sentinel.sh .pending-review code-reviewer`
+4. **Hook**：`bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" .pending-review code-reviewer`
 5. **Retention**：每類最近 30 件，舊的 → `archive/`
 6. **降級**：artifacts 目錄不存在 → stdout-only，不報錯
 

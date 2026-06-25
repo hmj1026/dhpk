@@ -7,9 +7,9 @@ description: 'Navigation index for dhpk plugin agents. Internal documentation; n
 
 > 19 agents shipped by the dhpk plugin (18 root-level + `polyfill-reviewer` under `modules/library-author/agents/`). Discovered as `dhpk:<name>` after install. The full list also appears in `plugin.json`.
 
-## Sentinel-driven review chain (5 slots, v0.2.0+)
+## Sentinel-driven reviewer dispatch (5 slots, v0.2.0+)
 
-Order: `tdd-guide → database-reviewer → security-reviewer → frontend-reviewer → code-reviewer → doc-reviewer` (only triggered items run; code-reviewer and doc-reviewer are not mutually exclusive — mixed diffs run both). Triggered automatically by `post-edit-dispatch` → `post-edit-remind` hook; reminded at Stop by `stop-review-reminder` hook.
+Triggered reviewers — `database-reviewer` / `security-reviewer` / `frontend-reviewer` / `code-reviewer` / `doc-reviewer` — **dispatch in parallel** (one message, multiple Agent calls); `code-reviewer` merges/dedups (only triggered items run; code-reviewer and doc-reviewer are not mutually exclusive — mixed diffs run both). `tdd-guide` is pre-edit, not part of the post-edit dispatch. Triggered automatically by `post-edit-dispatch` → `post-edit-remind` hook; reminded at Stop by `stop-review-reminder` hook.
 
 | Agent | Model | When it fires |
 |-------|-------|----------------|

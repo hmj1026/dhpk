@@ -3,7 +3,7 @@
 #
 # After Claude Code compresses the conversation, the in-memory awareness of
 # active sentinels is lost. Restore them from the latest precompact-archive
-# checkpoint so the reviewer chain rule survives compaction.
+# checkpoint so the reviewer dispatch state survives compaction.
 #
 # Design:
 # - Reads `.claude/artifacts/checkpoints/latest.json` (symlink → newest
@@ -95,6 +95,19 @@ if [ "${#restored[@]}" -gt 0 ] && [ "$PROFILE" != "minimal" ]; then
     if [ "${#skipped_existing[@]}" -gt 0 ]; then
         echo >&2 "[postcompact-restore] skipped (already present): ${skipped_existing[*]}"
     fi
+fi
+
+# ── Surface the work handoff back into the post-compact context ───────────────
+# precompact-archive.sh writes handoff-latest.md (deterministic work state). Emit
+# it on STDOUT — the channel Claude Code folds into context for context-bearing
+# hook events — so the continuing conversation regains its bearings (branch,
+# pending reviews, OpenSpec task progress, recent commits) without re-deriving
+# them. If this Claude Code build does not inject PostCompact stdout, session-
+# start.sh surfaces the same file on the next session (manual /new path).
+HANDOFF="$CKPT_DIR/handoff-latest.md"
+if [ -f "$HANDOFF" ] && [ "$PROFILE" != "minimal" ]; then
+    echo "[postcompact-restore] work handoff (auto-saved at PreCompact):"
+    sed -n '1,60p' "$HANDOFF"
 fi
 
 exit 0
