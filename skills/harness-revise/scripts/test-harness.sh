@@ -368,16 +368,28 @@ echo "=== T9 rule cross-references ==="
 # intentionally excludes `${...}`-prefixed refs (e.g. ${CLAUDE_PLUGIN_ROOT}/rules/…):
 # those resolve into the installed plugin, not the project tree, so a local existence
 # check would false-fail. Do NOT add `$`/`{`/`}` to the character class.
-for ref in $(grep -oE '[a-zA-Z0-9._-]+/rules/[a-zA-Z/_.-]+\.md' "$ROOT/$MAIN_RULE" | sort -u); do
-    if [[ -f "$ROOT/$ref" ]]; then
-        echo "  $(color_pass PASS) T9.1 rule: $ref"
-        PASS=$((PASS + 1))
+# Guard the silent-zero path: an absent main rule (e.g. a dhpk repo with no
+# top-level CLAUDE.md), or one with no rules/*.md refs, must emit an explicit
+# SKIP rather than running the loop zero times with no signal (matches T9.3).
+if [[ ! -f "$ROOT/$MAIN_RULE" ]]; then
+    echo "  SKIP T9.1 main rule absent ($MAIN_RULE)"
+else
+    T91_REFS=$(grep -oE '[a-zA-Z0-9._-]+/rules/[a-zA-Z/_.-]+\.md' "$ROOT/$MAIN_RULE" | sort -u)
+    if [[ -z "$T91_REFS" ]]; then
+        echo "  SKIP T9.1 no rules/*.md refs in $MAIN_RULE"
     else
-        echo "  $(color_fail FAIL) T9.1 missing: $ref"
-        FAIL=$((FAIL + 1))
-        FAILED_CASES+=("T9.1:$ref")
+        for ref in $T91_REFS; do
+            if [[ -f "$ROOT/$ref" ]]; then
+                echo "  $(color_pass PASS) T9.1 rule: $ref"
+                PASS=$((PASS + 1))
+            else
+                echo "  $(color_fail FAIL) T9.1 missing: $ref"
+                FAIL=$((FAIL + 1))
+                FAILED_CASES+=("T9.1:$ref")
+            fi
+        done
     fi
-done
+fi
 
 # T9.2: mandatory reviewer/role agents. Post-2026-06-12 cutover these are dhpk
 # PLUGIN agents (no project-local agent file); the project's agents/INDEX.md is the

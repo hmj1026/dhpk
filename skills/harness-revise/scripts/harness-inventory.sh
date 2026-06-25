@@ -135,10 +135,13 @@ DELETED_REFS=$(grep -rln 'clear-review-sentinel.sh\|clear-db-review-sentinel.sh\
     | wc -l | tr -d ' ')
 
 DANGLING_SKILLS=0
+# Scan both rules/ AND the main rule file (CLAUDE.md / GEMINI.md / codex README):
+# the main rule uses the same `skill `name`` reference pattern, so a skill deleted
+# from skills/ while still referenced there would otherwise go undetected.
 while read -r skill_name; do
     [[ -z "$skill_name" ]] && continue
     [[ -d "$HARNESS_DIR/skills/$skill_name" ]] || DANGLING_SKILLS=$((DANGLING_SKILLS+1))
-done < <(grep -rohE 'skill `[a-z][a-z0-9-]+`' "$HARNESS_DIR/rules/" 2>/dev/null | sed -E 's/^skill `//; s/`$//' | sort -u)
+done < <(grep -rohE 'skill `[a-z][a-z0-9-]+`' "$HARNESS_DIR/rules/" ${MAIN_RULE:+"$MAIN_RULE"} 2>/dev/null | sed -E 's/^skill `//; s/`$//' | sort -u)
 
 # ── Render ────────────────────────────────────────────────────────────────
 if [[ "$FORMAT" == "json" ]]; then

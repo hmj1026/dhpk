@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.12.3 — 2026-06-25 — hook-level triage automation + harness-revise script fixes
+
+0.12.2 shipped triage as an orchestration rule (the assistant drops
+false-positive sentinels at dispatch time). This release adds the **root-cause**
+counterpart: `post-edit-remind.sh` drops mechanically-trivial sentinels at write
+time, so the assistant never sees them in the first place.
+
+**Added — hook-level sentinel triage (`scripts/hooks/post-edit-remind.sh`):**
+- Before writing sentinels, the hook measures the edited file's cumulative diff
+  vs HEAD and drops false positives for the two change classes that are
+  *mechanically* safe to detect: comment-only edits (drops db/security/frontend/
+  polyfill/migration; keeps code + doc — comment detection is language-aware, so
+  a JS `;(function(){…})()` or a PHP `--$counter` is never mistaken for a
+  comment), and small pure-style CSS tweaks (net ≤ 8; drops db/security/frontend;
+  keeps code). Whitespace/reformatting is intentionally NOT triaged here — no git
+  whitespace flag can tell inert reindentation from a meaningful string-literal
+  whitespace change (e.g. `explode('  ')` → `explode(' ')`), so that judgment
+  stays with the execution-policy orchestration triage. Anything ambiguous (new
+  file, binary, untracked, any git uncertainty) KEEPS every sentinel — a missed
+  review is worse than an extra one. The diff is cumulative, so a file that grows
+  substantial across edits re-acquires its sentinel.
+
+**Fixed — harness-revise scripts:**
+- `skills/harness-revise/scripts/test-harness.sh`: T9.1 emitted zero assertions
+  silently when the main rule file (e.g. a repo with no top-level CLAUDE.md) was
+  absent or had no `rules/*.md` refs; it now emits an explicit SKIP.
+- `skills/harness-revise/scripts/harness-inventory.sh`: the dangling-skill scan
+  covered only `rules/`; it now also scans the main rule file (CLAUDE.md /
+  GEMINI.md), so a skill deleted from `skills/` while still referenced there is
+  detected.
+
+Consumers: run `claude plugin update` to pick up the new tag.
+
 ## 0.12.2 — 2026-06-25 — parallel reviewer dispatch + work-state handoff across compaction
 
 Two harness improvements: reviewers run concurrently instead of in a serial
