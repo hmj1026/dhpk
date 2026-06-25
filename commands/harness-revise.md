@@ -12,7 +12,7 @@ Trim and validate the project harness via the deterministic scripts + the `harne
 
 Read and follow the cross-LLM skill before executing this command:
 
-@.agents/skills/harness-revise/SKILL.md
+@skills/harness-revise/SKILL.md
 
 ## Usage
 
@@ -30,14 +30,16 @@ Read and follow the cross-LLM skill before executing this command:
 Three scripts must always run first; output is the source of truth.
 
 ```bash
-bash .agents/skills/harness-revise/scripts/harness-inventory.sh --dir .claude   # counts, JSON validity, cross-refs, mixed-lang
-bash .agents/skills/harness-revise/scripts/harness-scenarios.sh --dir .claude   # trigger/guard/lifecycle scenarios
-bash .agents/skills/harness-revise/scripts/test-harness.sh --dir .claude        # hook contract tests
+bash "${CLAUDE_PLUGIN_ROOT}/skills/harness-revise/scripts/harness-inventory.sh" --dir .claude   # counts, JSON validity, cross-refs, mixed-lang
+bash "${CLAUDE_PLUGIN_ROOT}/skills/harness-revise/scripts/harness-scenarios.sh" --dir .claude   # trigger/guard/lifecycle scenarios
+bash "${CLAUDE_PLUGIN_ROOT}/skills/harness-revise/scripts/test-harness.sh" --dir .claude        # hook contract tests
 ```
+
+> The scripts ship inside the plugin. `${CLAUDE_PLUGIN_ROOT}` is resolved by Claude Code to the plugin install path at runtime, so these run regardless of the project's cwd. For non-Claude environments (Gemini / Codex), the `harness-revise` skill resolves the same scripts via `${CLAUDE_SKILL_DIR:-.agents/skills/harness-revise}`.
 
 Acceptance gate — `--apply` may only proceed when:
 - `harness-scenarios.sh` reports `TOTAL: PASS=N FAIL=0`
-- `test-harness.sh` reports `PASS: 79 / 79` (or current ceiling)
+- `test-harness.sh` reports `PASS: N / N` at the current ceiling (project-specific; e.g. zdpos `.claude` is 101/101)
 
 A failing baseline means a prior regression exists; investigate that first.
 

@@ -59,12 +59,12 @@ count_lines() {
         local n
         n=$(wc -l <"$f" 2>/dev/null | tr -d ' ')
         total=$((total + ${n:-0}))
-    done < <(find "$pattern" -type f 2>/dev/null)
+    done < <(find -L "$pattern" -type f 2>/dev/null)
     echo "$total"
 }
 
 file_count() {
-    find "$1" -type f 2>/dev/null | wc -l | tr -d ' '
+    find -L "$1" -type f 2>/dev/null | wc -l | tr -d ' '
 }
 
 # Always-on rule surface
@@ -80,7 +80,7 @@ AGENTS_FILES=$(file_count "$HARNESS_DIR/agents")
 AGENTS_LINES=$(count_lines "$HARNESS_DIR/agents")
 HOOKS_FILES=$(file_count "$HARNESS_DIR/hooks")
 HOOKS_LINES=$(count_lines "$HARNESS_DIR/hooks")
-SKILLS_DIRS=$(find "$HARNESS_DIR/skills" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
+SKILLS_DIRS=$(find -L "$HARNESS_DIR/skills" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
 COMMANDS_FILES=$(file_count "$HARNESS_DIR/commands")
 SCRIPTS_FILES=$(file_count "$HARNESS_DIR/scripts")
 
@@ -91,12 +91,12 @@ SETTINGS_FILE="$HARNESS_DIR/settings.json"
 SETTINGS_VALID="no"
 if [[ "$SETTINGS_FILE" == *.json ]]; then
     jq . "$SETTINGS_FILE" >/dev/null 2>&1 && SETTINGS_VALID="yes"
-    ALLOW_COUNT=$(jq '.permissions.allow | length' "$SETTINGS_FILE" 2>/dev/null)
-    DENY_COUNT=$(jq '.permissions.deny | length' "$SETTINGS_FILE" 2>/dev/null)
+    ALLOW_COUNT=$(jq '.permissions.allow // [] | length' "$SETTINGS_FILE" 2>/dev/null)
+    DENY_COUNT=$(jq '.permissions.deny // [] | length' "$SETTINGS_FILE" 2>/dev/null)
     HOOK_COUNT=$(jq '[.hooks | to_entries[] | .value[] | .hooks[]?] | length' "$SETTINGS_FILE" 2>/dev/null)
     # dhpk reads hook profile via CLAUDE_PLUGIN_OPTION_HOOK_PROFILE
     # (Claude Code exports each plugin userConfig key with that prefix).
-    ENV_PROFILE=$(jq -r '.env.CLAUDE_PLUGIN_OPTION_HOOK_PROFILE // "(missing)"' "$SETTINGS_FILE" 2>/dev/null)
+    ENV_PROFILE=$(jq -r '.env.CLAUDE_PLUGIN_OPTION_HOOK_PROFILE // .env.HOOK_PROFILE // "(missing)"' "$SETTINGS_FILE" 2>/dev/null)
     STOP_ECHO_COUNT=$(jq '[.hooks.Stop[]?.hooks[]?.command | select(startswith("echo"))] | length' "$SETTINGS_FILE" 2>/dev/null)
 else
     # TOML basic validation (just check if exists for now)
@@ -109,17 +109,23 @@ else
     STOP_ECHO_COUNT="N/A"
 fi
 
-# Hook executability
+# Hook executability — discover the project's own hooks rather than asserting a
+# fixed list. Plugin-owned hooks (dhpk hooks.json) live inside the plugin, not
+# under $HARNESS_DIR/hooks, so a hardcoded set would always report 0. Verify
+# every project-local *.sh hook present is executable.
 HOOK_EXEC_LIST=""
-EXPECTED_HOOKS=(clear-sentinel.sh post-edit-remind.sh pre-edit-guard.sh pre-bash-guard.sh post-write-crlf-fix.sh session-start.sh stop-review-reminder.sh)
 HOOK_EXEC_OK=0
-for h in "${EXPECTED_HOOKS[@]}"; do
-    if [[ -x "$HARNESS_DIR/hooks/$h" ]]; then
-        HOOK_EXEC_LIST+="$h:1 "; HOOK_EXEC_OK=$((HOOK_EXEC_OK+1))
+HOOK_EXEC_TOTAL=0
+while IFS= read -r _hpath; do
+    [[ -z "$_hpath" ]] && continue
+    _h=$(basename "$_hpath")
+    HOOK_EXEC_TOTAL=$((HOOK_EXEC_TOTAL+1))
+    if [[ -x "$_hpath" ]]; then
+        HOOK_EXEC_LIST+="$_h:1 "; HOOK_EXEC_OK=$((HOOK_EXEC_OK+1))
     else
-        HOOK_EXEC_LIST+="$h:0 "
+        HOOK_EXEC_LIST+="$_h:0 "
     fi
-done
+done < <(find -L "$HARNESS_DIR/hooks" -maxdepth 1 -name '*.sh' -type f 2>/dev/null | sort)
 
 # Cross-reference integrity
 DELETED_REFS=$(grep -rln 'clear-review-sentinel.sh\|clear-db-review-sentinel.sh\|clear-security-review-sentinel.sh\|rules/skill-policy.md' "$HARNESS_DIR/" "$MAIN_RULE" 2>/dev/null \
@@ -140,7 +146,7 @@ if [[ "$FORMAT" == "json" ]]; then
         --arg harness_dir "$HARNESS_DIR" \
         --arg main_rule "$MAIN_RULE" \
         --argjson auto_total "$AUTO_TOTAL" \
-        --argjson auto_main_rule "$AUTO_MAIN_RULE" \
+        --argjson auto_main_rule "${AUTO_MAIN_RULE:-0}" \
         --argjson auto_rules "$AUTO_RULES" \
         --argjson auto_memory "$AUTO_MEMORY" \
         --argjson agents_files "$AGENTS_FILES" \
@@ -157,7 +163,7 @@ if [[ "$FORMAT" == "json" ]]; then
         --arg env_profile "$ENV_PROFILE" \
         --argjson stop_echo_count "${STOP_ECHO_COUNT:-0}" \
         --argjson hook_exec_ok "$HOOK_EXEC_OK" \
-        --argjson hook_exec_total "${#EXPECTED_HOOKS[@]}" \
+        --argjson hook_exec_total "${HOOK_EXEC_TOTAL:-0}" \
         --argjson deleted_refs "$DELETED_REFS" \
         --argjson dangling_skills "$DANGLING_SKILLS" \
         '{
@@ -197,7 +203,7 @@ $SETTINGS_FILE:
   env profile         : $ENV_PROFILE
   cosmetic Stop echos : ${STOP_ECHO_COUNT:-?}  (target: 0)
 
-Hook executability  : $HOOK_EXEC_OK / ${#EXPECTED_HOOKS[@]}
+Hook executability  : $HOOK_EXEC_OK / $HOOK_EXEC_TOTAL
   $HOOK_EXEC_LIST
 
 Cross-reference integrity:
