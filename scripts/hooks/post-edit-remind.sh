@@ -190,6 +190,77 @@ if [ -n "${CLAUDE_PLUGIN_OPTION_REVIEW_TRIGGER_EXTRA_PATHS:-}" ]; then
     done
 fi
 
+# ---- Triage: drop mechanically-trivial false-positive sentinels ----
+# The AI-orchestration triage (execution-policy) makes the judgment calls with
+# full diff visibility; this hook-level pass drops sentinels only for the two
+# change classes that are *mechanically* safe to detect at write time:
+# comment-only edits (drops db/sec/fe/poly/mig; KEEPS code + doc) and small
+# pure-style CSS tweaks (net<=8; drops db/sec/fe; keeps code). Whitespace /
+# reformatting is intentionally NOT handled here — no git whitespace flag can
+# tell inert reindentation from a meaningful string-literal whitespace change
+# (e.g. explode('  ') -> explode(' ')), so that judgment is left to the
+# orchestration triage. Anything ambiguous (new file, binary, untracked, any
+# git uncertainty) KEEPS every sentinel — a missed review is worse than an
+# extra one. Diff is measured cumulatively vs HEAD, so a file that grows
+# substantial across edits re-acquires its sentinel.
+_tri_drop() {  # $1=slot $2=reason — clear NEEDS + remove any pending line for $REL
+    local _s="$1"
+    [ "${NEEDS[$_s]:-0}" -eq 1 ] || return 0
+    NEEDS[$_s]=0
+    local _sf="$ARTIFACTS/${SENTINEL_NAMES[$_s]}" _keep
+    if [ -f "$_sf" ]; then
+        _keep="$(REL_FOR_AWK="$REL" awk 'BEGIN{p=ENVIRON["REL_FOR_AWK"]} { n=$0; sub(/^[^ ]+ [^ ]+ /,"",n); if (n != p) print $0 }' "$_sf" 2>/dev/null)"
+        if [ -n "$_keep" ]; then printf '%s\n' "$_keep" > "$_sf"; else rm -f "$_sf"; fi
+    fi
+    echo "[post-edit] triage-drop ${SENTINEL_SHORT_NAMES[$_s]} ($REL): $2"
+}
+_tri_comment_only() {  # 0 iff >=1 changed line seen and every changed non-blank line is a comment in this file's language
+    local _body _ln _t _seen=0 _ext
+    _ext="$(printf '%s' "${BASENAME##*.}" | tr '[:upper:]' '[:lower:]')"
+    _body="$(git -C "$ROOT" diff HEAD -U0 -- "$REL" 2>/dev/null)" || return 1
+    [ -n "$_body" ] || return 1
+    while IFS= read -r _ln; do
+        case "$_ln" in
+            +++*|---*) continue ;;
+            +*|-*) _t="${_ln:1}" ;;
+            *) continue ;;
+        esac
+        _t="${_t#"${_t%%[![:space:]]*}"}"   # ltrim
+        [ -z "$_t" ] && continue
+        _seen=1
+        # Unambiguous C-family / markup comment markers (safe at line start in any language).
+        case "$_t" in
+            '//'*|'/*'*|'* '*|'*/'*|'<!--'*|'-->'*) continue ;;
+        esac
+        # '#': comment in shell/python/ruby/yaml/php, but id-selector / hex colour in CSS.
+        case "$_ext" in
+            css|scss|sass|less) ;;
+            *) case "$_t" in '#'*) continue ;; esac ;;
+        esac
+        # '--': line comment only in SQL/Lua, and only as '-- ' or bare '--'
+        # (NOT '--$var' pre-decrement, NOT '--custom-prop' CSS custom property).
+        case "$_ext" in
+            sql|lua) case "$_t" in '-- '*|'--') continue ;; esac ;;
+        esac
+        return 1   # a non-comment content line → not comment-only
+    done <<< "$_body"
+    [ "$_seen" -eq 1 ]
+}
+_tri_numstat="$(git -C "$ROOT" diff HEAD --numstat -- "$REL" 2>/dev/null | awk 'NR==1{print $1" "$2}')"
+_tri_add="${_tri_numstat%% *}"; _tri_rem="${_tri_numstat##* }"
+if [ -n "$_tri_numstat" ] && [ "$_tri_add" != "-" ] && [ "$_tri_rem" != "-" ] \
+   && printf '%s' "$_tri_add$_tri_rem" | grep -qE '^[0-9]+$'; then
+    _tri_net=$(( _tri_add + _tri_rem ))
+    _tri_ext="$(printf '%s' "${BASENAME##*.}" | tr '[:upper:]' '[:lower:]')"
+    if _tri_comment_only; then
+        for _tri_s in 1 2 3 5 6; do _tri_drop "$_tri_s" "comment-only edit"; done
+    elif [ "$_tri_net" -le 8 ]; then
+        case "$_tri_ext" in
+            css|scss|sass|less) for _tri_s in 1 2 3; do _tri_drop "$_tri_s" "pure-style CSS (net=$_tri_net)"; done ;;
+        esac
+    fi
+fi
+
 # ---- Write sentinels ----
 # Idempotent append: if $REL already appears in the sentinel (any timestamp),
 # skip the write. Stops repeated edits to the same file from accumulating
