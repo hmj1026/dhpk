@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.12.1 — 2026-06-25 — harness-revise ships from the plugin (fixes unusable /harness-revise for general users)
+
+Patch release. The `/harness-revise` command referenced a project-local,
+gitignored path (`.agents/skills/harness-revise/`) for its skill include and its
+three deterministic scripts, so general users who installed dhpk hit
+file-not-found and the skill was effectively unusable via the command. Only
+`harness-inventory.sh` had ever been committed to the plugin; the scenario and
+test-harness scripts existed solely in a downstream project's customized fork.
+
+**Fixed — the command now uses the plugin-bundled skill:**
+- `@skills/harness-revise/SKILL.md` (matches every sibling command).
+- Engine block runs `${CLAUDE_PLUGIN_ROOT}/skills/harness-revise/scripts/...`.
+- `SKILL.md` resolves `SKILL_DIR` as `CLAUDE_SKILL_DIR` → `CLAUDE_PLUGIN_ROOT` →
+  `.agents/` (cross-LLM fallback), with a warning when it falls through.
+
+**Added — the two missing scripts, generalized for any dhpk project:**
+- `harness-scenarios.sh` and `test-harness.sh` now ship inside the plugin.
+- Hooks are discovered via `find -L $HARNESS_DIR/hooks/*.sh` instead of a
+  hardcoded (project-specific / plugin-owned) list; symlinked harness dirs are
+  followed.
+- Project-behavior checks (php-cs-fixer guard, session-start markers,
+  clear-sentinel lifecycle, settings.json schema, dhpk-versions, agents/INDEX.md)
+  are gated behind detection: SKIP when not applicable, assert in full when
+  present. `T9.2` additionally requires a dhpk-adoption signal so a non-dhpk
+  project shipping its own `agents/INDEX.md` does not false-fail.
+- jq `// []` / `:-0` guards against absent keys; the project-local hook-count
+  floor is softened to an informational NOTE.
+
+Consumers: run `claude plugin update` to pick up the new tag.
+
 ## 0.12.0 — 2026-06-21 — git flow release process + automated develop back-merge
 
 Codifies the **git flow** branching model and closes the gap that let `develop`
