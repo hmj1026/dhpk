@@ -45,8 +45,11 @@ Out of scope:
 
 ## Process
 
-1. `git diff --staged -- .claude/ docs/ openspec/` +
-   `git diff -- .claude/ docs/ openspec/` to pin scope.
+1. Pin scope from the UNCOMMITTED working tree, never committed history:
+   `git diff --staged -- .claude/ docs/ openspec/` +
+   `git diff HEAD -- .claude/ docs/ openspec/`.
+   Do NOT use `git diff <base>...HEAD` / merge-base diff — under a no-auto-commit
+   workflow the doc changes sit uncommitted; a base-relative diff reviews the whole branch.
 2. `cat .claude/artifacts/sessions/.pending-doc-review` for the trigger
    file list.
 3. Walk each file through the four-quadrant checklist below.

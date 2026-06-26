@@ -19,7 +19,7 @@ Final quality gate after every Edit/Write. Stack-aware: the syntax / framework r
    - Frameworks: presence of `require.laravel/*`, `require.yiisoft/*`, `dependencies.next`, `dependencies.react`, etc.
    - Swift/iOS: `ls *.xcodeproj *.xcworkspace **/Package.swift 2>/dev/null` — presence ⇒ apply the Swift traps below.
    - Active dhpk modules: `printf '%s' "${DHPK_ACTIVE_MODULES:-}"`.
-2. `git diff --staged` + `git diff` (or `git log --oneline -5` if empty).
+2. **Review the UNCOMMITTED working tree, never committed history:** `git diff --staged` + `git diff HEAD`. Do NOT use `git diff <base>...HEAD`, `git diff main/master/develop...HEAD`, or any merge-base-relative diff — that reviews the whole branch (often hundreds of files) instead of the change at hand, and under a no-auto-commit workflow the actual change sits uncommitted in the working tree. Only if BOTH diffs are empty (clean tree), fall back to `git log --oneline -5` for context — do not review those commits. If a caller's prompt asks for a base-relative diff, prefer the working tree unless they explicitly want a full-branch/PR review.
 3. Read full files; trace callers via `cx references --name X`.
 4. Three perspectives: **Reuse → Quality → Efficiency**.
 5. Report only >80%-confidence findings (apply the **Confidence gate** below); merge similar; skip style nits. A zero-finding review is valid.
