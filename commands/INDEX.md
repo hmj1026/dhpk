@@ -41,6 +41,7 @@ description: 'Navigation index for dhpk plugin commands. Internal documentation;
 | `/opsx:explore` | 探索模式（需求釐清） |
 | `/opsx:onboard` | OpenSpec 新手導覽 |
 | `/opsx-apply-resume` | dhpk wrapper：長時 `opsx:apply` 的 context handoff（/fork 或 /new 前存檔，之後無縫續跑） |
+| `/opsx-goal` | Given a change-id, reads tasks/scope and emits a tailored `/goal` condition + `/opsx:apply` sequence ready to paste into a fresh implementation session |
 
 ## 專案 Review（<your-project> 專屬）
 
