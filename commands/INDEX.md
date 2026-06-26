@@ -79,6 +79,7 @@ description: 'Navigation index for dhpk plugin commands. Internal documentation;
 | `/dep-audit` | 依賴安全風險稽核 |
 | `/project-audit` | 專案健康度多維度評分 |
 | `/harness-audit` | Harness 自我檢視 |
+| `/harness-govern` | Harness 治理迴圈：measure→conform(官方 best-practices)→fix→verify（編排既有 specialists，預設唯讀、可 /loop） |
 | `/risk-assess` | 未提交變更風險評估 |
 | `/review-spec` | 技術 spec 文件 review |
 | `/pr-review` | PR 自我 review |

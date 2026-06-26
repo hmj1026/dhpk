@@ -7,6 +7,8 @@ allowed-tools: 'Read, Grep, Glob, Bash'
 
 Run a deterministic repository harness audit and return a prioritized scorecard.
 
+> See also: `/harness-govern` chains this audit into an end-to-end measure -> conform -> fix -> verify loop.
+
 ## Usage
 
 `/harness-audit [scope] [--format text|json] [--root path]`
