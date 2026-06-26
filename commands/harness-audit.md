@@ -1,5 +1,6 @@
 ---
 description: 'Run a deterministic repository harness audit and return a prioritized scorecard.'
+argument-hint: '[scope] [--format text|json] [--root <path>]'
 allowed-tools: 'Read, Grep, Glob, Bash'
 ---
 

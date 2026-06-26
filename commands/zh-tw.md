@@ -1,6 +1,7 @@
 ---
 description: 'Rewrite the previous reply in Traditional Chinese'
 argument-hint: '"[specify content, e.g. \"the report above\" or \"Codex review results\"]"'
+disable-model-invocation: true
 ---
 
 ## Task

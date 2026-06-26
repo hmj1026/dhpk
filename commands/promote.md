@@ -1,7 +1,7 @@
 ---
 name: promote
 description: 'Promote project-scoped instincts to global scope'
-command: true
+disable-model-invocation: true
 ---
 
 # Promote Command

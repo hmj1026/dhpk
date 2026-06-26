@@ -2,22 +2,6 @@
 description: 'Quick pre-commit checks — lint:fix -> test:unit'
 argument-hint: '[--skip-lint]'
 allowed-tools: 'Bash(node:*), Bash(pnpm:*), Bash(yarn:*), Bash(npm:*), Bash(npx:*), Bash(python*:*), Bash(pytest:*), Bash(ruff:*), Bash(mypy:*), Bash(cargo:*), Bash(go:*), Bash(golangci-lint:*), Bash(./gradlew:*), Bash(mvn:*), Bash(bundle:*), Bash(rubocop:*), Bash(rspec:*), Bash(git:*), Read, Grep, Glob'
-intent:
-  goal: Run quick pre-commit quality checks (no build step)
-  steps:
-    - name: lint-fix
-      goal: Auto-fix code style issues
-      preferred: ["lint:fix"]
-      alternatives: ["lint"]
-      skip-if-missing: true
-      safety: read-write
-    - name: test-unit
-      goal: Run unit test suite
-      preferred: ["test:unit"]
-      alternatives: ["test"]
-      skip-if-missing: true
-      safety: read-only
-  failure-behavior: continue-all
 ---
 
 ## Task

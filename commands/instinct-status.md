@@ -1,7 +1,7 @@
 ---
 name: instinct-status
 description: 'Show learned instincts (project + global) with confidence'
-command: true
+disable-model-invocation: true
 ---
 
 # Instinct Status Command

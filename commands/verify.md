@@ -2,39 +2,6 @@
 description: 'Verification loop — lint -> typecheck -> unit -> integration -> e2e'
 argument-hint: '[fast|full]'
 allowed-tools: 'Bash(node:*), Bash(pnpm:*), Bash(yarn:*), Bash(npm:*), Bash(npx:*), Bash(git:*), Bash(python*:*), Bash(pytest:*), Bash(ruff:*), Bash(mypy:*), Bash(cargo:*), Bash(go:*), Bash(golangci-lint:*), Bash(./gradlew:*), Bash(mvn:*), Bash(bundle:*), Read, Grep, Glob'
-intent:
-  goal: Run full verification loop for code quality
-  steps:
-    - name: lint
-      goal: Check code style (read-only)
-      preferred: ["lint"]
-      skip-if-missing: true
-      safety: read-only
-    - name: typecheck
-      goal: Static type checking
-      preferred: ["typecheck"]
-      skip-if-missing: true
-      safety: read-only
-      mode: full-only
-    - name: test-unit
-      goal: Run unit test suite
-      preferred: ["test:unit"]
-      alternatives: ["test"]
-      skip-if-missing: true
-      safety: read-only
-    - name: test-integration
-      goal: Run integration tests
-      preferred: ["test:integration"]
-      skip-if-missing: true
-      safety: read-only
-      mode: full-only
-    - name: test-e2e
-      goal: Run end-to-end tests
-      preferred: ["test:e2e"]
-      skip-if-missing: true
-      safety: read-only
-      mode: full-only
-  failure-behavior: continue-all
 ---
 
 ## Context

@@ -1,7 +1,7 @@
 ---
 name: instinct-export
 description: 'Export instincts from project/global scope to a file'
-command: /instinct-export
+disable-model-invocation: true
 ---
 
 # Instinct Export Command

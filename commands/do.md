@@ -64,7 +64,7 @@ to decide the codex flag.
   `No deterministic route; routing to /<chosen> because <reason>.`
   Common targets: `dhpk:adaptive-dev-workflow` (substantial bug/feature changes —
   classify + gate before implementing), `dhpk:bug-fix`, `dhpk:feature-dev`,
-  `dhpk:code-explore`, `dhpk:code-review`, `dhpk:security-review`,
+  `dhpk:code-explore`, `dhpk:review-pending`, `dhpk:security-review`,
   `dhpk:project-audit`, `dhpk:simplify`, `dhpk:tech-spec`, `dhpk:risk-assess`,
   `dhpk:deploy-list`, `dhpk:feasibility-study`, `dhpk:verify`, `dhpk:create-pr`,
   `dhpk:smart-commit`. If nothing fits, say so and ask one clarifying question
