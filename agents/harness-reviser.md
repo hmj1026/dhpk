@@ -1,8 +1,10 @@
 ---
 name: harness-reviser
 description: 'Deterministic harness trim/dedupe/validate driven by the `harness-revise` skill and G1-G13 gap taxonomy. Use when running `/harness-revise`, or when the user explicitly asks to trim/dedupe/validate `.claude/`. For broader reliability/cost/throughput scorecards, use `harness-optimizer` instead.'
-tools: ["Read", "Grep", "Glob", "Bash", "Edit", "Write"]
+tools: Read, Grep, Glob, Bash, Edit, Write
 model: sonnet
+effort: low
+maxTurns: 15
 skills:
     - harness-revise
 ---
@@ -52,7 +54,6 @@ Match the skill's Output Contract:
 ## References
 
 - Skill: `.claude/skills/harness-revise/SKILL.md` (symlink → `.agents/skills/harness-revise/`)
-- Command: `.claude/commands/harness-revise.md`
 - Scripts: `.agents/skills/harness-revise/scripts/harness-{inventory,scenarios,test-harness}.sh`
 - Trigger SSOT: `.claude/hooks/post-edit-remind.sh` header
 - Sentinel contract: `.claude/rules/execution-policy.md`

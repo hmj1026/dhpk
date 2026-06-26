@@ -1,8 +1,3 @@
----
-name: agents-index
-description: 'Navigation index for dhpk plugin agents. Internal documentation; not a model-invocable agent.'
----
-
 # Agents Index (dhpk plugin)
 
 > 19 agents shipped by the dhpk plugin (18 root-level + `polyfill-reviewer` under `modules/library-author/agents/`). Discovered as `dhpk:<name>` after install. The full list also appears in `plugin.json`.
@@ -55,4 +50,4 @@ Agent names are overridable via `userConfig.review_agents` — a project can poi
 
 ## Language-module context
 
-Agents in this plugin ship generic role descriptions. When a `dhpk` module is enabled (e.g. `php-5.6`, `yii-1.1`), the matching module's skills under `modules/<name>/skills/` supply stack-specific guidance the agents will consult when relevant. See README's "Module enablement" walkthrough.
+Generic agents (code-reviewer, security-reviewer, database-reviewer, architect, tdd-guide, refactor-cleaner, performance-analyzer, migration-reviewer, silent-failure-hunter) ship a **stack-neutral** description + a language-agnostic baseline, then **load only the matching stack's trap sheet on demand** at runtime from `agent-traps/<agent>/<stack>.md` — the stack is detected from project manifests (`composer.json` / `package.json` / `Package.swift` / `pyproject.toml`) or `$DHPK_ACTIVE_MODULES`, so an iOS project never loads PHP/Yii rules and vice-versa. Enabling a `dhpk` module additionally surfaces that module's deeper skills/references under `modules/<name>/`. See README's "Module enablement" walkthrough.

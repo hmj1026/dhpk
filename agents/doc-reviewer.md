@@ -11,8 +11,10 @@ description: >-
   file in the diff. Do NOT skip when the change seems small, the doc looks
   self-contained, or a manual scan was done — the agent's value is the
   cross-file SSOT and link-validity checks.
-tools: ["Read", "Grep", "Glob", "Bash"]
+tools: Read, Grep, Glob, Bash
 model: haiku
+effort: medium
+maxTurns: 12
 ---
 
 # Doc reviewer

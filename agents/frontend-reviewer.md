@@ -13,8 +13,10 @@ description: >-
   review backend code — that is code-reviewer / security-reviewer. Skip for
   vendored libraries, `*.min.js`, and any file in the project's permanent
   ESLint Global ignores.
-tools: ["Read", "Grep", "Glob", "Bash"]
+tools: Read, Grep, Glob, Bash
 model: sonnet
+effort: medium
+maxTurns: 15
 ---
 
 # Frontend reviewer
