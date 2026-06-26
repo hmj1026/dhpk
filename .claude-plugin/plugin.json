@@ -9,6 +9,7 @@
     "url": "https://github.com/hmj1026"
   },
   "license": "MIT",
+  "homepage": "https://github.com/hmj1026/dhpk",
   "keywords": ["harness", "codex", "code-review", "php", "yii", "phpunit", "laravel", "vue", "swift", "ios", "swiftui"],
   "skills": [
     "./skills/",
@@ -188,7 +189,7 @@
     "php_cs_fixer_bin": {
       "type": "string",
       "title": "php-cs-fixer binary path",
-      "description": "Binary invoked by modules/php-7.4/hooks/{post-edit-php-cs-fixer.sh,pre-commit-php-validation.sh}. Default 'vendor/bin/php-cs-fixer'. Override for non-standard locations (global install, docker exec wrapper, monorepo shared bin).",
+      "description": "Binary invoked by modules/php-7.4/hooks/pre-commit-php-validation.sh. Default 'vendor/bin/php-cs-fixer'. Override for non-standard locations (global install, docker exec wrapper, monorepo shared bin).",
       "default": "vendor/bin/php-cs-fixer"
     },
     "phpstan_bin": {

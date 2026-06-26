@@ -3,6 +3,10 @@
 .claude/worktrees/
 .claude/cache/
 
+# Python bytecode (hook helper scripts under scripts/hooks/_lib/*.py)
+__pycache__/
+*.pyc
+
 # OS / editor
 .DS_Store
 *.swp
