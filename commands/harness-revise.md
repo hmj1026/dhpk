@@ -9,6 +9,8 @@ allowed-tools: 'Read, Grep, Glob, Bash, Task'
 Trim and validate the project harness via the deterministic scripts + the `harness-revise` skill + the `harness-reviser` agent. Reproduces the methodology from the 2026-05-13 harness trim pass so future runs can re-execute the same workflow without re-deriving the gap taxonomy.
 
 > Different from `/harness-audit` (which scores via `scripts/harness-audit.js` against a 7-category rubric). This command focuses on **trim, dedupe, and validate**.
+>
+> See also: `/harness-govern` runs the end-to-end audit -> fix loop and routes its fix step here (`--apply`).
 
 Read and follow the cross-LLM skill before executing this command:
 
