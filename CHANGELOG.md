@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.12.4 — 2026-06-26 — reviewers audit the uncommitted working tree only
+
+A reviewer dispatched with a base-relative diff instruction (`git diff
+master...HEAD`) reviewed the **entire feature branch** (hundreds of files)
+instead of the change at hand, and — because under the no-auto-commit workflow
+the fix sat uncommitted in the working tree — reported already-superseded
+committed code as unfixed. This release makes the working-tree scope explicit so
+the behaviour no longer depends on the caller's prompt phrasing.
+
+**Fixed — reviewer diff scope:**
+- `agents/code-reviewer.md` / `agents/doc-reviewer.md`: the change-discovery step
+  now mandates auditing the UNCOMMITTED working tree (`git diff --staged` +
+  `git diff HEAD`) and forbids `git diff <base>...HEAD` / merge-base diffs.
+  Only when both diffs are empty does it fall back to `git log --oneline -5` for
+  context (not for review). A caller asking for a base-relative diff is treated
+  as the working tree unless an explicit full-branch / PR review is intended.
+- `rules/execution-policy.md`: added a **Diff-scope mandate (all reviewers)**
+  note under the agent dispatch table — reviewers audit the working tree, never
+  committed history; orchestrators must not instruct a base-branch diff unless a
+  full-branch / PR review is the intent.
+
+Consumers: run `claude plugin update` to pick up the new tag.
+
 ## 0.12.3 — 2026-06-25 — hook-level triage automation + harness-revise script fixes
 
 0.12.2 shipped triage as an orchestration rule (the assistant drops
