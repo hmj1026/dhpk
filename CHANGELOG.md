@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.15.0 — 2026-06-26 — new opsx-goal skill: unattended OpenSpec implementation sessions
+
+**feat(skills)** — New `opsx-goal` skill. Given an OpenSpec change-id, it reads the
+change's `tasks.md` + `proposal.md`, detects the test-runner scope, calculates a
+turn budget, and emits a tailored `/goal` condition plus the `/opsx:apply` sequence
+ready to paste into a fresh session — so Claude can drive an OpenSpec change to
+completion unattended. Complements the existing `opsx-archive` / `opsx-verify` /
+`opsx-sync` family. `commands/INDEX.md` updated with the new entry.
+
 ## 0.14.0 — 2026-06-26 — harness structure refactor: agent-traps, hooks _lib, harness-fill skill, create-skill
 
 Structural refactor across agents, hooks, commands, and skills — no new measurement
