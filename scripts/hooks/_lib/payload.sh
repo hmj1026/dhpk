@@ -17,6 +17,16 @@
 
 # Review sentinel SSOT — slots in fixed order:
 #   0 code → 1 db → 2 sec → 3 frontend → 4 doc → 5 polyfill → 6 migration
+#
+# SENTINEL LINE FORMAT (de-facto protocol — writers and readers MUST agree):
+#   "<meta1> <meta2> <relative-path>"   → the path starts at whitespace FIELD 3.
+#   Writers: post-edit-remind.sh emits "YYYY-MM-DD HH:MM:SS <path>" (date+time =
+#   2 tokens); polyfill-sentinel emits "<epoch> <tool> <path>". Both keep exactly
+#   two leading metadata tokens so the path lands on field 3.
+#   Readers: pre-bash-guard.sh uses `cut -d' ' -f3-`; stop-review-reminder.sh uses
+#   `awk 'NF>=3 {print $3}'`. A writer that changes the leading-token count breaks
+#   both readers — keep new writers to two leading tokens.
+#
 # Adding/removing a slot means extending all four arrays together. Hooks that
 # iterate SENTINEL_NAMES (clear-sentinel, reap-stale-sentinels, pre-bash-guard
 # push-block, stop-review-reminder) extend automatically as long as the arrays

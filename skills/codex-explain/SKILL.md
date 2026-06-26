@@ -1,5 +1,6 @@
 ---
 name: codex-explain
+argument-hint: '<file-path> [--lines <start>-<end>] [--depth brief|normal|deep]'
 description: 'Explain complex code via Codex MCP. Use when: understanding complex logic, tracing data flow, onboarding to unfamiliar code. Not for: code review (use codex-code-review), exploration (use code-explore). Output: structured explanation at chosen depth.'
 allowed-tools: 'mcp__codex__codex, mcp__codex__codex-reply, Read, Grep, Glob'
 ---

@@ -19,6 +19,7 @@
 set -o pipefail
 
 . "$(dirname "$0")/_lib/payload.sh"
+. "$(dirname "$0")/_lib/portable-stat.sh"
 
 # ---- Argument parsing (back-compatible: no args = 24h warn-only) ----
 threshold_minutes=$((24 * 60))   # default 1440 min = 24h
@@ -58,12 +59,8 @@ found_stale=0
 for name in "${SENTINEL_NAMES[@]}"; do
     sentinel="$repo_root/.claude/artifacts/sessions/$name"
     [ -f "$sentinel" ] || continue
-    # Portable stat: Linux GNU `stat -c %Y` vs macOS BSD `stat -f %m`.
-    if [ "$(uname)" = "Darwin" ]; then
-        mtime="$(stat -f %m "$sentinel" 2>/dev/null || echo 0)"
-    else
-        mtime="$(stat -c %Y "$sentinel" 2>/dev/null || echo 0)"
-    fi
+    mtime="$(file_mtime_epoch "$sentinel")"   # _lib/portable-stat.sh (GNU/BSD)
+    mtime="${mtime:-0}"
     age=$((now - mtime))
     if [ "$age" -gt "$threshold" ]; then
         # Human-readable age in the unit that matches the threshold.

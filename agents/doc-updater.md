@@ -1,8 +1,10 @@
 ---
 name: doc-updater
 description: 'Documentation and codemap specialist. Use PROACTIVELY for updating codemaps and documentation. Use immediately after structural code changes (new modules, renamed/moved directories, new public services) so docs/CODEMAPS stay in sync. Runs /update-codemaps and /update-docs, generates docs/CODEMAPS/*, updates READMEs and guides.'
-tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob"]
+tools: Read, Write, Edit, Bash, Grep, Glob
 model: haiku
+effort: medium
+maxTurns: 15
 ---
 
 # Doc & Codemap Updater

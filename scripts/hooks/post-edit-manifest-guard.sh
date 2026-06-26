@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # post-edit-manifest-guard.sh — PostToolUse (Edit|Write|MultiEdit) hook (async).
 #
-# When a package manifest at the repo root is edited, print a stderr reminder
-# that the matching lock file must be regenerated before commit. Advisory only
-# (always exit 0); writes no sentinel — lock sync is a manual ops step, not a
+# When a package manifest at the repo root is edited, surface a systemMessage
+# reminder that the matching lock file must be regenerated before commit.
+# Advisory only (always exit 0; exit-0 stderr is inert — see _lib/json-out.sh);
+# writes no sentinel — lock sync is a manual ops step, not a
 # review, so it must not pollute the reviewer sentinel arrays. Pairs with
 # pre-edit-guard.sh, which blocks hand-edits to the lock files themselves.
 #
@@ -17,6 +18,7 @@
 set -o pipefail
 
 . "$(dirname "$0")/_lib/payload.sh"
+. "$(dirname "$0")/_lib/json-out.sh"
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 . "$(dirname "$0")/_lib/load-project-config.sh" 2>/dev/null || true
@@ -62,7 +64,7 @@ if [ -n "${CLAUDE_PLUGIN_OPTION_LOCKFILE_SYNC_COMMANDS:-}" ]; then
     done
 fi
 
-echo "[manifest-guard] $REL modified — sync $LOCK_NAME before commit:" >&2
-echo "    $CMD" >&2
+emit_system_message "[manifest-guard] $REL modified — sync $LOCK_NAME before commit:
+    $CMD"
 
 exit 0

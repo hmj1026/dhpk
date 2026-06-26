@@ -1,8 +1,10 @@
 ---
 name: docs-lookup
 description: 'When the user asks how to use a library, framework, or API or needs up-to-date code examples, use Context7 MCP to fetch current documentation and return answers with examples. MUST BE USED when user asks "how to use X library/API" or requests current/up-to-date docs.'
-tools: ["Read", "Grep", "mcp__context7__resolve-library-id", "mcp__context7__query-docs"]
+tools: Read, Grep, mcp__context7__resolve-library-id, mcp__context7__query-docs
 model: haiku
+effort: low
+maxTurns: 8
 ---
 
 # Docs Lookup (Context7)

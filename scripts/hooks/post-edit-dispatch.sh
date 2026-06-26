@@ -18,6 +18,7 @@ PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
 # Overlay project pluginConfigs so module selection respects per-project
 # .claude/settings.local.json (Claude Code only injects global pluginConfigs).
 . "$PLUGIN_ROOT/scripts/hooks/_lib/load-project-config.sh" 2>/dev/null || true
+. "$PLUGIN_ROOT/scripts/hooks/_lib/modules.sh" 2>/dev/null || true
 
 # session-start.sh exports DHPK_ACTIVE_MODULES after validating module
 # `requires`. Claude Code propagates that env to subsequent hooks in most
@@ -33,16 +34,25 @@ core_exit=$?
 # Module hooks: backgrounded so they don't stall the edit pipeline. Each
 # module hook is responsible for its own self-skip semantics; the dispatcher
 # does not gate by tier / file type.
+#
+# Output handling: a backgrounded child must NOT write to the dispatcher's
+# stdout/stderr — those pipes close the instant we `exit "$core_exit"`, so the
+# child's lint findings were lost (and exit-0 stderr is inert anyway — see
+# _lib/json-out.sh). Instead each child appends to a per-session findings file;
+# stop-dispatch.sh surfaces + clears it via systemMessage at turn end. Findings
+# written after this turn's Stop simply surface at the next Stop (advisory,
+# eventually-consistent). `disown` detaches the child so it survives our exit.
 if [ -n "${DHPK_ACTIVE_MODULES:-}" ]; then
-    IFS=',' read -r -a _mods <<< "$DHPK_ACTIVE_MODULES"
-    for _m in "${_mods[@]}"; do
-        _m="$(echo "$_m" | xargs)"
-        [ -z "$_m" ] && continue
+    SESS="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}/.claude/artifacts/sessions"
+    FINDINGS="$SESS/.module-findings"
+    mkdir -p "$SESS" 2>/dev/null || true
+    while IFS= read -r _m; do
         for hook in "$PLUGIN_ROOT/modules/$_m/hooks/"post-edit-*.sh; do
             [ -f "$hook" ] || continue
-            ( printf '%s' "$payload" | bash "$hook" ) &
+            ( printf '%s' "$payload" | bash "$hook" >>"$FINDINGS" 2>&1 ) &
+            disown 2>/dev/null || true
         done
-    done
+    done < <(active_modules_list)
 fi
 
 exit "$core_exit"

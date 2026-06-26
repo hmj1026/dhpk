@@ -99,7 +99,10 @@ ok "artifacts 結構檢查完"
 echo ""
 echo "== 7. Route table SSOT =="
 # Validate scripts/lib/route-table.json: every rule's skill (dhpk:<name>) must
-# map to an existing commands/<name>.md. Plugin-repo only — in a consumer
+# resolve to an existing commands/<name>.md OR skills/<name>/SKILL.md. Upstream
+# merged custom commands into skills, so a route target may be backed by either
+# (and several — e.g. adaptive-dev-workflow, security-review — are skill-only).
+# Plugin-repo only — in a consumer
 # project the route table is usually absent (scripts not installed), so we skip
 # gracefully rather than warn. Whitelist = commands planned but not yet built.
 ROUTE_TABLE="$ROOT/scripts/lib/route-table.json"
@@ -115,7 +118,7 @@ else
         RT_TOTAL=$((RT_TOTAL+1))
         name="${skill#dhpk:}"
         [[ " $ROUTE_WHITELIST " == *" $name "* ]] && continue
-        [[ -f "$ROOT/commands/$name.md" ]] || fail "route-table 指向不存在的 command: $skill (commands/$name.md)"
+        [[ -f "$ROOT/commands/$name.md" || -f "$ROOT/skills/$name/SKILL.md" ]] || fail "route-table 指向不存在的 command/skill: $skill (commands/$name.md 或 skills/$name/SKILL.md)"
     done < <(jq -r '.rules[].skill // empty' "$ROUTE_TABLE" 2>/dev/null)
     [[ $ERR -eq 0 ]] && ok "route-table $RT_TOTAL 條對映全部存在（whitelist: $ROUTE_WHITELIST）"
 fi

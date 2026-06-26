@@ -2,6 +2,7 @@
 description: 'Interactive (re)configuration of dhpk plugin options — modules, docker, review agents, hook profile.'
 argument-hint: '[--show]'
 allowed-tools: 'Read, Write, Edit, Bash(git rev-parse:*), Bash(ls:*), AskUserQuestion'
+disable-model-invocation: true
 ---
 
 ## Context

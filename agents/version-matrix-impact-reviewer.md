@@ -1,11 +1,15 @@
 ---
 name: version-matrix-impact-reviewer
-description: 'Specialist for libraries that ship a CI matrix across multiple dependency versions (PHP × Laravel, PHP × Symfony, Yii 1 × 2, etc.). Use when editing files under a version-specific source directory (e.g. src/Laravel/, src/Symfony/), when touching composer.json `require` / `require-dev` constraints, when modifying .github/workflows/ test matrices, or before tagging a release. Reads the declared composer constraints + executed CI matrix, identifies which matrix cells could be affected by the diff, and recommends the minimum testsuite subset to run locally before pushing. Does NOT duplicate code-reviewer (quality / security) or database-reviewer (SQL). Pairs with the polyfill-version-matrix-audit skill (which audits per-file branch coverage); this agent zooms out to per-change blast radius.'
-tools: ["Read", "Grep", "Glob", "Bash"]
+description: 'Specialist for libraries shipping a CI matrix across multiple dependency-version cells (e.g. PHP × Laravel/Symfony, Yii 1×2). Use when editing version-specific source dirs (src/Laravel/, src/Symfony/), composer.json require constraints, or .github/workflows/ matrices, or before tagging a release. Identifies which matrix cells a diff could break and recommends the minimum local testsuite subset. Does NOT duplicate code-reviewer or database-reviewer; pairs with the polyfill-version-matrix-audit skill.'
+tools: Read, Grep, Glob, Bash, mcp__gitnexus__impact
 model: sonnet
+effort: medium
+maxTurns: 15
 ---
 
 # Version Matrix Impact Reviewer
+
+> Beyond path matching: confirm the *real* blast radius with `gitnexus_impact({target, direction:"upstream"})` (or `cx references --name X`) — a file in `src/Laravel/` called only from a Core-tier symbol narrows the affected cells. Optional external tools; fall back to `Grep` / path heuristics when absent. See `.claude/rules/tool-routing.md`.
 
 For PHP packages whose composer constraint spans multiple major versions
 of a key dependency (Laravel 6–11, Monolog 2/3, PHPUnit 8–11). The

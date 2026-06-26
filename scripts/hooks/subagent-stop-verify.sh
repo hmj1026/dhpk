@@ -24,6 +24,7 @@ set -o pipefail
 . "$(dirname "$0")/_lib/load-project-config.sh"
 . "$(dirname "$0")/_lib/payload.sh"
 . "$(dirname "$0")/_lib/learning-db.sh"
+. "$(dirname "$0")/_lib/json-out.sh"
 
 ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 SESS="$ROOT/.claude/artifacts/sessions"
@@ -131,28 +132,24 @@ if [ "$EXIT_STATUS" != "0" ]; then
     echo "$TIMESTAMP $SUBAGENT exit=$EXIT_STATUS sentinel=$SENTINEL_STATE" >> "$LOG" || true
     ldb_record failure "agent:$SUBAGENT" "exit=$EXIT_STATUS"
     if [ "$PROFILE" != "minimal" ]; then
-        echo >&2 ""
-        echo >&2 "-----------------------------------------------------------"
-        echo >&2 "[WARN] SUBAGENT FAILURE: $SUBAGENT (exit=$EXIT_STATUS)"
+        msg="[subagent-verify] SUBAGENT FAILURE: $SUBAGENT (exit=$EXIT_STATUS)"
         if [ -f "$SENTINEL_FILE" ]; then
-            echo >&2 "   Sentinel still present: $SENTINEL_NAME"
-            echo >&2 "   The next reviewer in the chain may not fire."
+            msg="$msg
+Sentinel still present: $SENTINEL_NAME — the next reviewer in the chain may not fire."
         fi
-        echo >&2 "   Logged to: .claude/artifacts/agent-failures.log"
-        echo >&2 "-----------------------------------------------------------"
+        msg="$msg
+Logged to: .claude/artifacts/agent-failures.log"
+        emit_system_message "$msg"
     fi
 elif [ -f "$SENTINEL_FILE" ]; then
     # Case B: subagent succeeded but sentinel uncleared — likely missed clear-sentinel.sh.
     echo "$TIMESTAMP $SUBAGENT exit=0 sentinel=$SENTINEL_NAME (uncleared)" >> "$LOG" || true
     ldb_record failure "sentinel-uncleared:$SENTINEL_NAME" "$SUBAGENT"
     if [ "$PROFILE" != "minimal" ]; then
-        echo >&2 ""
-        echo >&2 "-----------------------------------------------------------"
-        echo >&2 "[WARN] SENTINEL UNCLEARED: $SUBAGENT finished but $SENTINEL_NAME remains"
-        echo >&2 "   Likely cause: agent closing step did not call clear-sentinel.sh"
-        echo >&2 "   Manual clear: $CLEAR_CMD"
-        echo >&2 "   Logged to: .claude/artifacts/agent-failures.log"
-        echo >&2 "-----------------------------------------------------------"
+        emit_system_message "[subagent-verify] SENTINEL UNCLEARED: $SUBAGENT finished but $SENTINEL_NAME remains.
+Likely cause: agent closing step did not call clear-sentinel.sh
+Manual clear: $CLEAR_CMD
+Logged to: .claude/artifacts/agent-failures.log"
     fi
 fi
 

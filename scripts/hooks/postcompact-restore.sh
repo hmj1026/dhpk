@@ -12,15 +12,20 @@
 #   the post-compact user/assistant may have already updated it — never
 #   overwrite live state.
 # - Always exits 0; restoration is best-effort.
-# - Profile-aware: minimal profile suppresses stderr summary.
+# - Profile-aware: minimal profile suppresses the additionalContext summary.
 #
 # Trigger: PostCompact event (wired once in hooks/hooks.json).
 # Cost: 1 JSON read + per-sentinel stat, <50ms.
+#
+# Checkpoint schema: reads "dhpk.checkpoint.v1" written by precompact-archive.sh.
+# There is no migration path — a version bump there must land here too, else this
+# restore silently no-ops on the unrecognized shape.
 
 set -o pipefail
 
 . "$(dirname "$0")/_lib/load-project-config.sh"
 . "$(dirname "$0")/_lib/payload.sh"
+. "$(dirname "$0")/_lib/json-out.sh"
 
 ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 SESS="$ROOT/.claude/artifacts/sessions"
@@ -90,24 +95,36 @@ elif command -v jq >/dev/null 2>&1; then
     done < <(jq -r '.sentinels | keys[]' "$CKPT" 2>/dev/null || true)
 fi
 
-if [ "${#restored[@]}" -gt 0 ] && [ "$PROFILE" != "minimal" ]; then
-    echo >&2 "[postcompact-restore] restored ${#restored[@]} sentinel(s): ${restored[*]}"
+# ── Re-inject restore summary + work handoff via additionalContext ────────────
+# Verified channel (see _lib/json-out.sh): a single JSON object with
+# hookSpecificOutput.additionalContext is folded into the post-compact model
+# context, so the continuing conversation regains its bearings (restored
+# sentinels, branch, pending reviews, OpenSpec task progress, recent commits)
+# without re-deriving them. session-start.sh surfaces the same handoff on the
+# next session (manual /new path) as a backstop.
+ctx=""
+if [ "${#restored[@]}" -gt 0 ]; then
+    ctx="[postcompact-restore] restored ${#restored[@]} sentinel(s): ${restored[*]}"
     if [ "${#skipped_existing[@]}" -gt 0 ]; then
-        echo >&2 "[postcompact-restore] skipped (already present): ${skipped_existing[*]}"
+        ctx="$ctx
+[postcompact-restore] skipped (already present): ${skipped_existing[*]}"
     fi
 fi
 
-# ── Surface the work handoff back into the post-compact context ───────────────
-# precompact-archive.sh writes handoff-latest.md (deterministic work state). Emit
-# it on STDOUT — the channel Claude Code folds into context for context-bearing
-# hook events — so the continuing conversation regains its bearings (branch,
-# pending reviews, OpenSpec task progress, recent commits) without re-deriving
-# them. If this Claude Code build does not inject PostCompact stdout, session-
-# start.sh surfaces the same file on the next session (manual /new path).
 HANDOFF="$CKPT_DIR/handoff-latest.md"
-if [ -f "$HANDOFF" ] && [ "$PROFILE" != "minimal" ]; then
-    echo "[postcompact-restore] work handoff (auto-saved at PreCompact):"
-    sed -n '1,60p' "$HANDOFF"
+if [ -f "$HANDOFF" ]; then
+    handoff_body="$(sed -n '1,60p' "$HANDOFF" 2>/dev/null || true)"
+    if [ -n "$handoff_body" ]; then
+        [ -n "$ctx" ] && ctx="$ctx
+
+"
+        ctx="${ctx}[postcompact-restore] work handoff (auto-saved at PreCompact):
+$handoff_body"
+    fi
+fi
+
+if [ -n "$ctx" ] && [ "$PROFILE" != "minimal" ]; then
+    emit_additional_context "PostCompact" "$ctx"
 fi
 
 exit 0

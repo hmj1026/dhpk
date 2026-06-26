@@ -9,8 +9,8 @@
 # already team-visible and warrants hard block.
 #
 # Modes (env DHPK_SENTINEL_COMMIT_GATE):
-#   warn   — print stderr summary, exit 0 (default; safe, non-disruptive)
-#   block  — print stderr summary, exit 2 (rejects the tool call)
+#   warn   — emit systemMessage, exit 0 (default; safe — exit-0 stderr is inert)
+#   block  — stderr summary + exit 2 (documented PreToolUse block path)
 #   off    — silent exit 0 (kill-switch)
 #
 # Trigger: PreToolUse Bash matcher.
@@ -25,6 +25,7 @@ set -o pipefail
 
 . "$(dirname "$0")/_lib/load-project-config.sh"
 . "$(dirname "$0")/_lib/payload.sh"
+. "$(dirname "$0")/_lib/json-out.sh"
 
 # Mode resolution: env override (DHPK_*) wins for one-shot toggles; otherwise
 # read from userConfig via load-project-config.sh-populated env. Default: warn.
@@ -71,17 +72,23 @@ verb="$(printf '%s' "$CMD_STRIPPED" | grep -oE 'git[[:space:]]+(commit|merge|reb
 names_csv="$(IFS=,; printf '%s' "${active_names[*]}")"
 agents_csv="$(IFS=,; printf '%s' "${active_agents[*]}")"
 
-echo >&2 ""
-echo >&2 "-----------------------------------------------------------"
-if [ "$MODE" = "block" ]; then
-    echo >&2 "✗  BLOCKED: $verb attempted while reviewer chain is pending."
-else
-    echo >&2 "[WARN] REMINDER: $verb attempted while reviewer chain is pending."
-fi
-echo >&2 "   Active sentinels: $names_csv"
-echo >&2 "   Pending reviewers: $agents_csv"
-echo >&2 "   Run each reviewer first, or bypass by setting DHPK_SENTINEL_COMMIT_GATE=off"
-echo >&2 "-----------------------------------------------------------"
+DETAIL="Active sentinels: $names_csv
+Pending reviewers: $agents_csv
+Run each reviewer first, or bypass by setting DHPK_SENTINEL_COMMIT_GATE=off"
 
-[ "$MODE" = "block" ] && exit 2
+if [ "$MODE" = "block" ]; then
+    # exit 2 + stderr is the documented PreToolUse block path (stderr → Claude).
+    {
+        echo ""
+        echo "-----------------------------------------------------------"
+        echo "✗  BLOCKED: $verb attempted while reviewer chain is pending."
+        echo "$DETAIL" | sed 's/^/   /'
+        echo "-----------------------------------------------------------"
+    } >&2
+    exit 2
+fi
+
+# warn: user-facing notice via systemMessage.
+emit_system_message "[sentinel-gate] REMINDER: $verb attempted while reviewer chain is pending.
+$DETAIL"
 exit 0

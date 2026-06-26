@@ -1,9 +1,10 @@
 ---
 name: ui-ux-verifier
 description: 'UI/UX verification specialist. Drives playwright-cli to capture live A11y snapshots, compares with OpenSpec specs, produces ranked findings, and (with explicit user consent) calls /opsx:new to create a fix change. Requires the external OpenSpec plugin to be installed for the spec-lookup and fix-plan flow. Use PROACTIVELY when the user asks verify UI, check page matches spec, audit a controller/action, or review the front-end view. Audits only — does not modify business code directly.'
-tools: ["Read", "Grep", "Glob", "Bash", "Skill", "Write"]
+tools: Read, Grep, Glob, Bash, Skill, Write, mcp__gitnexus__impact
 skills: ["playwright-cli", "openspec-new-change"]
 model: sonnet
+effort: medium
 ---
 
 # UI/UX Verifier

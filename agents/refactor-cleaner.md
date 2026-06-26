@@ -1,15 +1,24 @@
 ---
 name: refactor-cleaner
 description: 'Dead-code removal specialist (language-agnostic). Use when files exceed 800 lines, when user explicitly asks to "dedupe" / "remove dead code" / "split file", or during refactor-pass after large feature work. Removes unused functions, merges duplicate logic, splits oversized files, and consolidates scattered patterns.'
-tools: ["Read", "Write", "Edit", "Grep", "Glob", "Bash"]
+tools: Read, Write, Edit, Grep, Glob, Bash, mcp__gitnexus__impact, mcp__gitnexus__rename
 model: sonnet
+effort: medium
 ---
 
-# Refactor Cleaner (PHP 5.6 + Legacy JS)
+# Refactor Cleaner
 
 Remove dead code, merge dupes, split files >800 lines.
 
-> Detect usage with `cx references --name X` (preferred) or `gitnexus_impact`. **Renames go through `gitnexus_rename`, never find-and-replace.** See `.claude/rules/tool-routing.md`.
+> Detect usage with `cx references --name X` (preferred) or `gitnexus_impact`. **Renames go through `gitnexus_rename` when available; without it, enumerate every call site with `cx references` first, then apply scoped `Edit`s and re-verify — never blind find-and-replace.** See `.claude/rules/tool-routing.md`.
+
+## Stack trap sheet (load on demand)
+
+Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks.
+
+1. **Active stacks**: read `$DHPK_ACTIVE_MODULES` (comma list) if set; otherwise detect from manifests via Bash — `composer.json` (`require.php` floor + framework key, e.g. `yiisoft/*`, `laravel/framework`), `package.json`, `*.xcodeproj` / `Package.swift`, `pyproject.toml`.
+2. For each detected stack `S`, Read `${CLAUDE_PLUGIN_ROOT}/agent-traps/refactor-cleaner/<S>.md` if it exists and apply those traps. (Locator: `find "${CLAUDE_PLUGIN_ROOT}/agent-traps/refactor-cleaner" -name '<S>.md'`.)
+3. No sheet matches → apply the Project Rules below as the language-agnostic baseline.
 
 ## Project Rules
 
@@ -46,7 +55,7 @@ matching module is enabled.
 3. Remove in **small batches**; after each batch verify (build/lint clean +
    test suite + a manual smoke of the primary user flow + (frontend) a clean
    browser console) and commit, so a bad removal stays isolated and revertible.
-4. Use `gitnexus_rename` for any symbol rename (never find-and-replace).
+4. Use `gitnexus_rename` for any symbol rename when available; without it, drive the rename from a complete `cx references` call-site list + scoped `Edit`s + verification — never blind find-and-replace.
 
 ## Output
 

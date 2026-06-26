@@ -14,6 +14,11 @@
 #   archive is the whole point of the hook, only the stderr summary is hidden.
 # - Always exits 0; failing to write a checkpoint must never block compaction.
 #
+# Checkpoint schema: "dhpk.checkpoint.v1" — { schema, session_id, ts, sentinels:
+#   { "<name>": "<content>" } }. postcompact-restore.sh reads ONLY this version
+#   (no migration path), so any breaking change to the shape must bump the
+#   version string in BOTH files together, or restore silently no-ops.
+#
 # Trigger: PreCompact event (wired once in hooks/hooks.json).
 # Cost: O(active sentinels) reads + 1 file write, <50ms.
 #

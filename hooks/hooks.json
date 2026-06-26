@@ -6,7 +6,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/scripts/hooks/pre-edit-guard.sh"
+            "command": "bash",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/pre-edit-guard.sh"]
           }
         ]
       },
@@ -15,15 +16,18 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/scripts/hooks/pre-bash-dispatch.sh"
+            "command": "bash",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/pre-bash-dispatch.sh"]
           },
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/scripts/hooks/pretool-sentinel-gate.sh"
+            "command": "bash",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/pretool-sentinel-gate.sh"]
           },
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/scripts/hooks/pretool-branch-safety.sh"
+            "command": "bash",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/pretool-branch-safety.sh"]
           }
         ]
       },
@@ -32,7 +36,9 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/scripts/hooks/pre-agent-warmstart.sh"
+            "command": "bash",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/pre-agent-warmstart.sh"],
+            "timeout": 10
           }
         ]
       }
@@ -43,16 +49,19 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/scripts/hooks/post-edit-dispatch.sh"
+            "command": "bash",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/post-edit-dispatch.sh"]
           },
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/scripts/hooks/post-write-crlf-fix.sh",
+            "command": "bash",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/post-write-crlf-fix.sh"],
             "async": true
           },
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/scripts/hooks/post-edit-manifest-guard.sh",
+            "command": "bash",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/post-edit-manifest-guard.sh"],
             "async": true
           }
         ]
@@ -63,7 +72,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/scripts/hooks/userpromptsubmit-skill-hint.sh"
+            "command": "bash",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/userpromptsubmit-skill-hint.sh"]
           }
         ]
       }
@@ -73,7 +83,20 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/scripts/hooks/session-start.sh"
+            "command": "bash",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/session-start.sh"],
+            "timeout": 20
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/session-end.sh"]
           }
         ]
       }
@@ -83,7 +106,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/scripts/hooks/precompact-archive.sh"
+            "command": "bash",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/precompact-archive.sh"]
           }
         ]
       }
@@ -93,7 +117,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/scripts/hooks/postcompact-restore.sh"
+            "command": "bash",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/postcompact-restore.sh"]
           }
         ]
       }
@@ -103,7 +128,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/scripts/hooks/subagent-stop-verify.sh"
+            "command": "bash",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/subagent-stop-verify.sh"]
           }
         ]
       }
@@ -113,7 +139,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/scripts/hooks/stop-failure-log.sh"
+            "command": "bash",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/stop-failure-log.sh"]
           }
         ]
       }
@@ -123,23 +150,26 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/scripts/hooks/stop-review-reminder.sh"
+            "command": "bash",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/stop-review-reminder.sh"]
           },
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/scripts/hooks/stop-completion-evidence.sh"
+            "command": "bash",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/stop-completion-evidence.sh"],
+            "async": true
           },
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/scripts/hooks/stop-graduation-scan.sh"
+            "command": "bash",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/stop-graduation-scan.sh"],
+            "async": true,
+            "timeout": 15
           },
           {
             "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/scripts/hooks/stop-dispatch.sh"
-          },
-          {
-            "type": "command",
-            "command": "bash \"${CLAUDE_PLUGIN_ROOT}\"/scripts/hooks/reap-stale-sentinels.sh",
+            "command": "bash",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/stop-dispatch.sh"],
             "async": true
           }
         ]

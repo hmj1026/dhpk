@@ -2,6 +2,7 @@
 description: 'Install plugin rules into project .claude/rules/ for persistent use without plugin loaded'
 argument-hint: '[--all] [--list] [--dry-run] [--force] [rule-names...]'
 allowed-tools: 'Read, Grep, Glob, Write, Bash(mkdir:*), Bash(diff:*), Bash(git:*), Bash(ls:*)'
+disable-model-invocation: true
 ---
 
 ## Context

@@ -274,6 +274,7 @@ for i in "${!NEEDS[@]}"; do
         if [ -f "$sentinel" ] && cut -d' ' -f3- "$sentinel" 2>/dev/null | grep -Fxq -- "$REL"; then
             continue
         fi
+        # Line format "<date> <time> <path>" — path at field 3 (see _lib/payload.sh).
         printf '%s %s\n' "$(date +'%Y-%m-%d %H:%M:%S')" "$REL" >> "$sentinel"
         msg+=" ${SENTINEL_LABELS[$i]}"
     fi

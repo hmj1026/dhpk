@@ -1,9 +1,8 @@
 ---
 name: "OPSX: Apply Resume"
 description: 'Context handoff wrapper for long-running opsx:apply sessions — save state before /fork or /new, then resume seamlessly'
-category: Workflow
-tags: [workflow, context, resume, experimental]
 argument-hint: '[change-id]'
+disable-model-invocation: true
 ---
 
 Cross-session handoff for interrupted `/opsx:apply` sessions. Run when context is ~70% full to save state, then run again after `/fork` or `/new` to resume.

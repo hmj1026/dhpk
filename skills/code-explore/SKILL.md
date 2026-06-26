@@ -1,5 +1,6 @@
 ---
 name: code-explore
+argument-hint: '<investigation target or question>'
 description: 'Pure Claude code investigation. Use when: tracing execution paths, understanding architecture, diagnosing issues. Not for: dual-perspective review (use code-investigate), code review (use codex-code-review). Output: analysis report with findings.'
 allowed-tools: 'Read, Grep, Glob, Bash(ls:*), Bash(find:*)'
 context: fork

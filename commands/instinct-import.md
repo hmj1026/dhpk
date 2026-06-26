@@ -1,7 +1,7 @@
 ---
 name: instinct-import
 description: 'Import instincts from file or URL into project/global scope'
-command: true
+disable-model-invocation: true
 ---
 
 # Instinct Import Command
