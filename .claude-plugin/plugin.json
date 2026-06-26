@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "dhpk",
   "displayName": "DHPK Dev Harness",
-  "version": "0.14.0",
+  "version": "0.15.0",
   "description": "Reusable Claude Code harness — 18 role-based agents (incl. the Swift/Xcode build-resolver and the silent-failure-hunter error-handling auditor) + ~70 commands + opt-in stack modules across PHP (5.6, 7.4, 8.x), Yii (1.1), PHPUnit (5.7, 9, 10, 11), Laravel (5.4, 6–11), JS, Vue 2, Laravel Mix 5, Python (python lint/type-check hooks, fastapi, pytest), the library-author cross-cutting module, and an iOS/Swift suite (swift, swiftui, ios-platform, swift-testing, xcode-tooling) with SwiftLint post-edit + xcodebuild/SPM pre-commit hooks, a Swift 6.2 approachable-concurrency reference, and an ios-icon-gen skill. 7-slot sentinel-driven review hooks (code / db / sec / frontend / doc / polyfill / migration — polyfill via library-author, migration via module triggers or mig: extra paths), parameterised docker/agent names, wrapper-dispatch hook extension model, parallel Codex CLI tree.",
   "author": {
     "name": "hmj1026",
