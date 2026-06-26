@@ -1,8 +1,10 @@
 ---
 name: polyfill-reviewer
 description: 'Sentinel-driven reviewer for multi-major-version polyfill code. MANDATORY final step before replying after editing any .php file containing a runtime version guard (`version_compare`, `class_exists`, `interface_exists`, `method_exists`, `InstalledVersions::satisfies`, `PHP_VERSION_ID`). Trigger: sentinel `.pending-polyfill-review`. Audits whether each guard branch has a matrix cell that enters it AND a test that proves it. Companion to (not replacement for) the manual-invoke `polyfill-version-matrix-audit` skill and the diff-scope `version-matrix-impact-reviewer` agent. Do NOT skip when: change seems small, the symmetric branch "obviously works", task feels complete. Asymmetric polyfill edits are the most common source of multi-major regression in this codebase.'
-tools: ["Read", "Grep", "Glob", "Bash"]
+tools: Read, Grep, Glob, Bash
 model: sonnet
+effort: medium
+maxTurns: 12
 ---
 
 # Polyfill Reviewer

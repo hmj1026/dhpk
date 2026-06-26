@@ -1,5 +1,6 @@
 ---
 description: Report the `// @ts-check` / `// @ts-nocheck` / unmarked distribution for the configured frontend root. Measures progressive `// @ts-check` rollout.
+allowed-tools: 'Bash(git rev-parse:*), Bash(find:*), Bash(grep:*), Bash(wc:*)'
 ---
 
 # /ts-check-status

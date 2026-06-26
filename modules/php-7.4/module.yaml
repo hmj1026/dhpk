@@ -16,8 +16,7 @@ triggers:
 provides:
   skills: [php-modern-pro]
   references: [static-checks.md]
-# ---- PHP-specific tool wiring (read by hooks/post-edit-php-cs-fixer.sh and
-#      hooks/pre-commit-php-validation.sh) ----
+# ---- PHP-specific tool wiring (read by hooks/pre-commit-php-validation.sh) ----
 # All keys are optional; defaults match the standard `composer install` layout.
 #
 # - skip_paths: path prefixes (relative to repo root) treated as off-limits to

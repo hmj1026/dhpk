@@ -20,6 +20,7 @@ PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
 # Overlay project pluginConfigs so module selection respects per-project
 # .claude/settings.local.json (Claude Code only injects global pluginConfigs).
 . "$PLUGIN_ROOT/scripts/hooks/_lib/load-project-config.sh"
+. "$PLUGIN_ROOT/scripts/hooks/_lib/modules.sh"
 : "${DHPK_ACTIVE_MODULES:=${CLAUDE_PLUGIN_OPTION_MODULES:-}}"
 
 # Core guard — exit code bubbles up so dangerous-pattern blocks still work.
@@ -40,10 +41,9 @@ if [ -n "${DHPK_ACTIVE_MODULES:-}" ]; then
         *"git commit"*)      _is_commit=1 ;;
     esac
 
-    IFS=',' read -r -a _mods <<< "$DHPK_ACTIVE_MODULES"
-    for _m in "${_mods[@]}"; do
-        _m="$(echo "$_m" | xargs)"
-        [ -z "$_m" ] && continue
+    # Process substitution keeps this loop in the current shell, so the
+    # `exit "$rc"` below still aborts the whole bash call on a gate failure.
+    while IFS= read -r _m; do
         for hook in "$PLUGIN_ROOT/modules/$_m/hooks/"pre-bash-*.sh \
                     "$PLUGIN_ROOT/modules/$_m/hooks/"pre-commit-*.sh; do
             [ -f "$hook" ] || continue
@@ -54,7 +54,7 @@ if [ -n "${DHPK_ACTIVE_MODULES:-}" ]; then
             rc=$?
             [ "$rc" -ne 0 ] && exit "$rc"
         done
-    done
+    done < <(active_modules_list)
 fi
 
 exit 0

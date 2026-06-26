@@ -2,8 +2,9 @@
 # userpromptsubmit-skill-hint.sh — UserPromptSubmit hook (advisory only)
 #
 # Reads the incoming user prompt and, when it strongly matches a known
-# workflow pattern, emits a one-line stderr hint suggesting the relevant dhpk
-# command. Helps users discover workflows without memorising all 70 commands.
+# workflow pattern, injects a one-line additionalContext hint suggesting the
+# relevant dhpk command (exit-0 stderr is inert — see _lib/json-out.sh). Helps
+# Claude surface workflows without the user memorising all 70 commands.
 #
 # Matching is delegated to scripts/lib/pre-route.sh (the same matcher behind
 # the /dhpk:do Smart Router), so route-table.json stays the single source of
@@ -24,6 +25,7 @@
 set -o pipefail
 
 . "$(dirname "$0")/_lib/load-project-config.sh"
+. "$(dirname "$0")/_lib/json-out.sh"
 
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
 PRE_ROUTE="$PLUGIN_ROOT/scripts/lib/pre-route.sh"
@@ -71,7 +73,8 @@ case "$HINT" in
         label="$(printf '%s' "$HINT" | cut -f3)"
         [ -z "$label" ] && label="$skill"
         if [ -n "$skill" ]; then
-            echo >&2 "[skill-hint] this prompt looks like a $label task — consider running /$skill"
+            emit_additional_context "UserPromptSubmit" \
+                "[skill-hint] This prompt looks like a $label task — the /$skill workflow may fit. Suggest it (or run it) if appropriate."
         fi
         ;;
 esac

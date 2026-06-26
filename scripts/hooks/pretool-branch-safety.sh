@@ -6,8 +6,9 @@
 # CLAUDE_PLUGIN_OPTION_PROTECTED_BRANCHES (comma-separated globs).
 #
 # Modes (env DHPK_BRANCH_SAFETY):
-#   warn   — print stderr summary, exit 0 (default)
-#   block  — print stderr summary, exit 2
+#   warn   — emit systemMessage, exit 0 (default; exit-0 stderr is inert)
+#   block  — stderr summary + exit 2 (the documented PreToolUse block path —
+#            stderr is fed back to Claude only when the call is rejected)
 #   off    — silent exit 0 (kill-switch)
 #
 # This is a "trust but verify" rail. Many projects use trunk-based dev and
@@ -22,6 +23,7 @@ set -o pipefail
 
 . "$(dirname "$0")/_lib/load-project-config.sh"
 . "$(dirname "$0")/_lib/payload.sh"
+. "$(dirname "$0")/_lib/json-out.sh"
 
 # Mode resolution: env override (DHPK_*) wins for one-shot toggles; otherwise
 # read from userConfig via load-project-config.sh-populated env. Default: warn.
@@ -66,17 +68,23 @@ done
 
 verb="$(printf '%s' "$CMD_STRIPPED" | grep -oE 'git[[:space:]]+(commit|merge|rebase|cherry-pick|reset|push)' | head -1 | tr -s ' ' | sed 's/^git //')"
 
-echo >&2 ""
-echo >&2 "-----------------------------------------------------------"
-if [ "$MODE" = "block" ]; then
-    echo >&2 "✗  BLOCKED: $verb on protected branch '$BRANCH'."
-else
-    echo >&2 "[WARN] REMINDER: $verb on protected branch '$BRANCH'."
-fi
-echo >&2 "   Protected list: $PROTECTED_RAW"
-echo >&2 "   Suggested: create a feature branch first (\`git checkout -b feat/...\`)"
-echo >&2 "   Override: DHPK_BRANCH_SAFETY=off (one-off) or set userConfig.protected_branches"
-echo >&2 "-----------------------------------------------------------"
+DETAIL="Protected list: $PROTECTED_RAW
+Suggested: create a feature branch first (\`git checkout -b feat/...\`)
+Override: DHPK_BRANCH_SAFETY=off (one-off) or set userConfig.protected_branches"
 
-[ "$MODE" = "block" ] && exit 2
+if [ "$MODE" = "block" ]; then
+    # exit 2 + stderr is the documented PreToolUse block path (stderr → Claude).
+    {
+        echo ""
+        echo "-----------------------------------------------------------"
+        echo "✗  BLOCKED: $verb on protected branch '$BRANCH'."
+        echo "$DETAIL" | sed 's/^/   /'
+        echo "-----------------------------------------------------------"
+    } >&2
+    exit 2
+fi
+
+# warn: user-facing notice via systemMessage.
+emit_system_message "[branch-safety] REMINDER: $verb on protected branch '$BRANCH'.
+$DETAIL"
 exit 0

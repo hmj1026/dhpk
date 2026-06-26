@@ -20,6 +20,22 @@ ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 # project's intent. See _lib/load-project-config.sh for precedence rules.
 . "$PLUGIN_ROOT/scripts/hooks/_lib/load-project-config.sh"
 . "$PLUGIN_ROOT/scripts/hooks/_lib/learning-db.sh"
+. "$PLUGIN_ROOT/scripts/hooks/_lib/payload.sh"
+. "$PLUGIN_ROOT/scripts/hooks/_lib/timestamps.sh"
+. "$PLUGIN_ROOT/scripts/hooks/_lib/portable-stat.sh"
+
+# Branch on the SessionStart `source` (startup|resume|clear|compact). Module
+# activation + dir creation + the snapshot are cheap and always run (downstream
+# hooks need DHPK_ACTIVE_MODULES exported even after compaction). The expensive /
+# duplicative work (docker ps, learned-context, handoff surfacing, health
+# advisories) only runs on a fresh start — on resume/compact it is wasteful, and
+# on compact postcompact-restore.sh already re-injects the handoff.
+PAYLOAD="$(cat 2>/dev/null || true)"
+SOURCE="$(extract_top_field source "$PAYLOAD")"
+case "$SOURCE" in
+    resume|compact) FULL_INIT=0 ;;
+    *)              FULL_INIT=1 ;;
+esac
 
 PROFILE="${CLAUDE_PLUGIN_OPTION_HOOK_PROFILE:-standard}"
 ARTIFACTS="$ROOT/.claude/artifacts"
@@ -29,35 +45,12 @@ mkdir -p "$ARTIFACTS/reviews" "$ARTIFACTS/plans" "$ARTIFACTS/audits" \
          "$ARTIFACTS/refactors" "$ARTIFACTS/codemaps" "$ARTIFACTS/adr" \
          "$ARTIFACTS/sessions"
 
-# ---- Optional: reap ORPHANED gitnexus MCP processes ----
-# Each session may spawn a fresh `gitnexus mcp` process; when a session exits
-# uncleanly the child is reparented to init (ppid 1) and lingers. Concurrent
-# writers contending for the same DB lock can corrupt the FTS index. Opt-in via
-# userConfig.reap_stale_mcp_processes — disabled by default so projects that
-# don't use gitnexus see no behaviour change.
-# CAUTION: only orphans are reaped (parent gone / reparented to pid 1). A
-# process still owned by a live parallel session in the same repo must NOT be
-# killed — that would disconnect THAT session's MCP server ("1 failed" on its
-# next call, and a prompt-cache bust on prefix-loaded tool setups). Reaping
-# cannot safely resolve two live sessions sharing one DB; it only clears orphans.
-# Liveness is probed with `ps -p` (ownership-agnostic) rather than `kill -0`,
-# which returns EPERM for a live cross-user parent (sudo / container root) and
-# would mis-reap it. On systemd-user hosts an orphan may reparent to
-# `systemd --user` (ppid≠1, still alive) and go undetected — a benign miss.
-if [ "${CLAUDE_PLUGIN_OPTION_REAP_STALE_MCP_PROCESSES:-false}" = "true" ] \
-   && command -v pgrep >/dev/null 2>&1 && command -v ps >/dev/null 2>&1; then
-    _gn_reaped=0
-    for _gn_pid in $(pgrep -f "gitnexus mcp" 2>/dev/null); do
-        _gn_ppid="$(ps -o ppid= -p "$_gn_pid" 2>/dev/null | tr -d ' ')"
-        if [ -z "$_gn_ppid" ] || [ "$_gn_ppid" = "1" ] || ! ps -p "$_gn_ppid" >/dev/null 2>&1; then
-            kill "$_gn_pid" 2>/dev/null && _gn_reaped=$((_gn_reaped + 1))
-        fi
-    done
-    [ "$_gn_reaped" -gt 0 ] && echo "[session-start] reaped $_gn_reaped orphaned gitnexus mcp processes"
-    unset _gn_pid _gn_ppid _gn_reaped
-fi
+# NOTE: orphaned `gitnexus mcp` process reaping moved to session-end.sh
+# (SessionEnd event) — the correct lifecycle point. It previously ran on every
+# SessionStart; reaping at session teardown avoids killing a live parallel
+# session's MCP server and removes per-start overhead.
 
-TS="$(date +'%Y-%m-%d %H:%M:%S %Z')"
+TS="$(ts_now)"   # _lib/timestamps.sh
 BRANCH="$(git -C "$ROOT" branch --show-current 2>/dev/null || echo '(detached)')"
 STAGED="$(git -C "$ROOT" diff --cached --name-only 2>/dev/null | wc -l | tr -d ' ')"
 MODIFIED="$(git -C "$ROOT" diff --name-only 2>/dev/null | wc -l | tr -d ' ')"
@@ -67,7 +60,9 @@ UNTRACKED="$(git -C "$ROOT" ls-files --others --exclude-standard 2>/dev/null | w
 DOCKER_STATUS="(no containers configured)"
 DOCKER_WARNS=""
 if [ -n "${CLAUDE_PLUGIN_OPTION_DOCKER_CONTAINERS:-}" ]; then
-    if command -v docker >/dev/null 2>&1; then
+    if [ "$FULL_INIT" = "0" ]; then
+        DOCKER_STATUS="(skipped on $SOURCE)"
+    elif command -v docker >/dev/null 2>&1; then
         NAMES="$(docker ps --format '{{.Names}}' 2>/dev/null || true)"
         IFS=',' read -r -a _containers <<< "${CLAUDE_PLUGIN_OPTION_DOCKER_CONTAINERS}"
         _ok=()
@@ -95,74 +90,45 @@ if [ -n "${CLAUDE_PLUGIN_OPTION_DOCKER_CONTAINERS:-}" ]; then
 fi
 
 # ---- Module activation ----
+# Module-metadata parsing (module.yaml display_name + requires validation) lives
+# in _lib/activate-modules.py — a standalone, unit-testable script invoked once.
+# This shim consumes its tab-separated protocol (WARN / MODULE / ACTIVE) and
+# keeps the DHPK_ACTIVE_MODULES export in the parent shell (a child process can't
+# set it). When python3 is unavailable, a degraded bash fallback still activates
+# modules (no display names / requires validation) so downstream hooks keep firing.
 ACTIVE_MODULES=""
 MODULE_LINES=""
 if [ -n "${CLAUDE_PLUGIN_OPTION_MODULES:-}" ]; then
-    if ! command -v python3 >/dev/null 2>&1; then
+    if command -v python3 >/dev/null 2>&1; then
+        while IFS=$'\t' read -r _tag _f1 _f2; do
+            case "$_tag" in
+                WARN)   echo "[session-start] WARN: $_f1" >&2 ;;
+                MODULE) MODULE_LINES="${MODULE_LINES}"$'\n'"[session-start] module enabled: $_f1 — $_f2" ;;
+                ACTIVE) ACTIVE_MODULES="$_f1" ;;
+            esac
+        done < <(python3 "$PLUGIN_ROOT/scripts/hooks/_lib/activate-modules.py" "$PLUGIN_ROOT" "${CLAUDE_PLUGIN_OPTION_MODULES}" 2>/dev/null)
+    else
         echo "[session-start] WARN: modules enabled (${CLAUDE_PLUGIN_OPTION_MODULES}) but python3 missing — module metadata not parsed; per-module path triggers will not fire. Install python3 to enable full module support." >&2
+        # Degraded fallback: dedup + dir-check + activate (display = name, no requires validation).
+        IFS=',' read -r -a _mods <<< "${CLAUDE_PLUGIN_OPTION_MODULES}"
+        _enabled_list=""
+        for _m in "${_mods[@]}"; do
+            _m="$(echo "$_m" | xargs)"
+            [ -z "$_m" ] && continue
+            case " $_enabled_list " in
+                *" $_m "*) ;;
+                *) _enabled_list="$_enabled_list $_m" ;;
+            esac
+        done
+        for _m in $_enabled_list; do
+            if [ ! -d "$PLUGIN_ROOT/modules/$_m" ]; then
+                echo "[session-start] WARN: module '$_m' not found at $PLUGIN_ROOT/modules/$_m" >&2
+                continue
+            fi
+            MODULE_LINES="${MODULE_LINES}"$'\n'"[session-start] module enabled: $_m — $_m"
+            ACTIVE_MODULES="${ACTIVE_MODULES}${ACTIVE_MODULES:+,}$_m"
+        done
     fi
-    IFS=',' read -r -a _mods <<< "${CLAUDE_PLUGIN_OPTION_MODULES}"
-    # Dedup while preserving declaration order. Space-delimited membership
-    # check instead of `declare -A` — associative arrays are bash 4+ and stock
-    # macOS ships bash 3.2 (module names never contain spaces).
-    _enabled_list=""
-    for _m in "${_mods[@]}"; do
-        _m="$(echo "$_m" | xargs)"
-        [ -z "$_m" ] && continue
-        case " $_enabled_list " in
-            *" $_m "*) ;;
-            *) _enabled_list="$_enabled_list $_m" ;;
-        esac
-    done
-    for _m in $_enabled_list; do
-        _mdir="$PLUGIN_ROOT/modules/$_m"
-        if [ ! -d "$_mdir" ]; then
-            echo "[session-start] WARN: module '$_m' not found at $_mdir" >&2
-            continue
-        fi
-        _yaml="$_mdir/module.yaml"
-        _display="$_m"
-        _requires=""
-        if [ -f "$_yaml" ] && command -v python3 >/dev/null 2>&1; then
-            # Tab-separated: display_name may contain spaces ("Yii 1.1 Framework"),
-            # so a whitespace read would truncate it and corrupt the requires list.
-            IFS=$'\t' read -r _display _requires < <(python3 - "$_yaml" <<'PY' 2>/dev/null
-import sys
-try:
-    with open(sys.argv[1]) as f:
-        text = f.read()
-except Exception:
-    print(""); sys.exit(0)
-disp = ""
-reqs = []
-for raw in text.splitlines():
-    line = raw.strip()
-    if line.startswith("display_name:"):
-        v = line.split(":", 1)[1].strip().strip('"').strip("'")
-        disp = v
-    if line.startswith("requires:"):
-        v = line.split(":", 1)[1].strip()
-        if v.startswith("[") and v.endswith("]"):
-            inner = v[1:-1].strip()
-            if inner:
-                reqs = [x.strip().strip('"').strip("'") for x in inner.split(",")]
-print((disp or "") + "\t" + ",".join(reqs))
-PY
-)
-        fi
-        [ -z "$_display" ] && _display="$_m"
-        MODULE_LINES="${MODULE_LINES}"$'\n'"[session-start] module enabled: $_m — $_display"
-        if [ -n "$_requires" ]; then
-            IFS=',' read -r -a _r <<< "$_requires"
-            for _req in "${_r[@]}"; do
-                case " $_enabled_list " in
-                    *" $_req "*) ;;
-                    *) echo "[session-start] WARN: module '$_m' requires '$_req' but it is not enabled" >&2 ;;
-                esac
-            done
-        fi
-        ACTIVE_MODULES="${ACTIVE_MODULES}${ACTIVE_MODULES:+,}$_m"
-    done
     export DHPK_ACTIVE_MODULES="$ACTIVE_MODULES"
 fi
 
@@ -189,7 +155,7 @@ echo "[session-start] branch=$BRANCH docker=$DOCKER_STATUS profile=$PROFILE modu
 # what prior sessions learned. Capped at 5 lines (~well under 500 tokens) to
 # keep the context budget small. No-op unless the learning DB is enabled and
 # has at least one signature with ≥2 observations.
-if ldb_enabled; then
+if [ "$FULL_INIT" = "1" ] && ldb_enabled; then
     _ldb_top="$(ldb_top 5 2 2>/dev/null || true)"
     if [ -n "$_ldb_top" ]; then
         echo "[learned-context] cross-session patterns (confidence/observations — higher confidence = more established):"
@@ -205,12 +171,13 @@ fi
 # precompact-archive.sh (PreCompact hook) writes handoff-latest.md when the
 # context compacts. On a fresh session started soon after, surface a short
 # pointer + summary so a manual /new picks up where the prior session left off.
-# Recency-gated (<=12h) so stale handoffs don't spam every startup.
-if [ "$PROFILE" != "minimal" ]; then
+# Recency-gated (<=12h) so stale handoffs don't spam every startup. Skipped on
+# compact/resume — postcompact-restore.sh re-injects the handoff after compaction.
+if [ "$FULL_INIT" = "1" ] && [ "$PROFILE" != "minimal" ]; then
     _handoff="$ROOT/.claude/artifacts/checkpoints/handoff-latest.md"
     if [ -f "$_handoff" ]; then
-        _mtime="$(stat -c %Y "$_handoff" 2>/dev/null || stat -f %m "$_handoff" 2>/dev/null || echo 0)"
-        _age_min=$(( ( $(date +%s) - ${_mtime:-0} ) / 60 ))
+        _mtime="$(file_mtime_epoch "$_handoff")"   # _lib/portable-stat.sh
+        _age_min=$(( ( $(ts_epoch) - ${_mtime:-0} ) / 60 ))
         if [ "${_mtime:-0}" -gt 0 ] && [ "$_age_min" -ge 0 ] && [ "$_age_min" -le 720 ]; then
             echo "[session-start] resumable work handoff (${_age_min}m ago) → .claude/artifacts/checkpoints/handoff-latest.md"
             sed -n '3,12p' "$_handoff"
@@ -219,8 +186,8 @@ if [ "$PROFILE" != "minimal" ]; then
     unset _handoff _mtime _age_min
 fi
 
-# ---- Harness health advisories (suppressed on minimal profile) ----
-if [ "$PROFILE" != "minimal" ]; then
+# ---- Harness health advisories (fresh start only; suppressed on minimal) ----
+if [ "$FULL_INIT" = "1" ] && [ "$PROFILE" != "minimal" ]; then
     # Broken symlinks directly under .claude/ — projects that deploy the
     # harness via symlinks (e.g. from a version-controlled prompts repo) see
     # this when the link target moved. harness_restore_hint (userConfig)

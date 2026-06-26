@@ -21,6 +21,8 @@
 set -o pipefail
 
 . "$(dirname "$0")/_lib/payload.sh"
+. "$(dirname "$0")/_lib/transcript.sh"
+. "$(dirname "$0")/_lib/json-out.sh"
 
 ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 . "$(dirname "$0")/_lib/load-project-config.sh" 2>/dev/null || true
@@ -40,27 +42,8 @@ PROFILE="${CLAUDE_PLUGIN_OPTION_HOOK_PROFILE:-standard}"
 SESS="$ROOT/.claude/artifacts/sessions"
 PAYLOAD="$(cat 2>/dev/null || true)"
 
-# Pull transcript_path from the payload (schema variants + env fallback).
-extract_transcript_path() {
-    local payload="$1" out=""
-    [ -z "$payload" ] && return 0
-    if command -v jq >/dev/null 2>&1; then
-        out="$(printf '%s' "$payload" | jq -r '.transcript_path // .transcript // empty' 2>/dev/null || true)"
-    fi
-    if [ -z "$out" ] && command -v python3 >/dev/null 2>&1; then
-        out="$(printf '%s' "$payload" | python3 -c '
-import sys, json
-try:
-    d = json.load(sys.stdin)
-    print(d.get("transcript_path") or d.get("transcript") or "")
-except Exception:
-    pass
-' 2>/dev/null || true)"
-    fi
-    [ -z "$out" ] && out="${CLAUDE_TRANSCRIPT_PATH:-}"
-    printf '%s' "$out"
-}
-
+# transcript path extraction lives in _lib/transcript.sh (shared with
+# stop-graduation-scan.sh).
 TRANSCRIPT="$(extract_transcript_path "$PAYLOAD")"
 [ -z "$TRANSCRIPT" ] && exit 0
 [ -f "$TRANSCRIPT" ] || exit 0
@@ -118,16 +101,17 @@ sample="$(printf '%s\n' "$code_files" | head -3 | sed 's/^/    - /')"
 extra=""
 [ "$code_count" -gt 3 ] && extra="    ... and $((code_count - 3)) more file(s)"
 
-echo >&2 ""
-echo >&2 "-----------------------------------------------------------"
-echo >&2 "[WARN] COMPLETION CLAIM without test evidence"
-echo >&2 "   The assistant claimed completion, but git diff shows $code_count code file(s) changed with no test changes:"
-echo >&2 "$sample"
-[ -n "$extra" ] && echo >&2 "$extra"
-echo >&2 ""
-echo >&2 "   If this was a refactor / dead-code removal / doc-only path, ignore this."
-echo >&2 "   Otherwise: add a failing-first test (tdd-guide) or run /verify."
-echo >&2 "-----------------------------------------------------------"
+msg="[completion-evidence] COMPLETION CLAIM without test evidence.
+The assistant claimed completion, but git diff shows $code_count code file(s) changed with no test changes:
+$sample"
+[ -n "$extra" ] && msg="$msg
+$extra"
+msg="$msg
 
-# Advisory only — never block Stop.
+If this was a refactor / dead-code removal / doc-only path, ignore this.
+Otherwise: add a failing-first test (tdd-guide) or run /verify."
+
+# Advisory only — never block Stop. systemMessage so the user decides (exit-0
+# stderr is inert; see _lib/json-out.sh).
+emit_system_message "$msg"
 exit 0

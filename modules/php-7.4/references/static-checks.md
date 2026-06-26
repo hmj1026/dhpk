@@ -29,10 +29,9 @@ docker exec wrapper, monorepo with shared bin/).
 
 | Stage | Hook | Behaviour |
 |---|---|---|
-| After a `.php` edit | `modules/php-7.4/hooks/post-edit-php-cs-fixer.sh` (async PostToolUse) | Runs `php-cs-fixer fix --dry-run --diff` on the edited file. Stderr surfaces the first 10 diff lines on style issues, or 3 lines on parse errors. Silent skip if binary, config, or `.php` extension is missing. 10s timeout. |
 | Before `git commit` | `modules/php-7.4/hooks/pre-commit-php-validation.sh` (PreToolUse Bash) | Runs php-cs-fixer + (when configured) phpstan + psalm on staged `.php` files. Exit 2 rejects the commit. `[skip-php-lint]` in the commit message bypasses. |
 
-Both hooks skip `vendor/` and `*/vendor/*` paths regardless of project config.
+Style is gated at commit time only — there is no per-edit php-cs-fixer hook (it would re-run what the commit gate already enforces). For an instant parse-error signal while editing, the `php-5.6` module ships `post-edit-php-syntax.sh` (`php -l`). The pre-commit hook skips `vendor/` and `*/vendor/*` paths regardless of project config.
 
 ## Skip / bypass conventions
 

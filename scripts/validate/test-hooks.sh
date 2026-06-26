@@ -50,20 +50,26 @@ make_repo() {
 }
 
 # run_hook <repo> <hook-basename> <stdin-payload> [ENV=val ...]
-# Captures stderr to global STDERR_F and exit code to global RC.
+# Captures stdout to STDOUT_F, stderr to STDERR_F, exit code to RC.
+# NOTE: advisory hooks emit user/model-facing text as JSON on STDOUT
+# (systemMessage / additionalContext) — exit-0 stderr is inert per the hook
+# contract — so content assertions grep STDOUT_F. exit-2 block paths still use
+# stderr (checked via RC).
+STDOUT_F=""
 STDERR_F=""
 RC=0
 run_hook() {
     local repo="$1" hook="$2" payload="$3"
     shift 3
+    STDOUT_F="$(mktemp)"
     STDERR_F="$(mktemp)"
-    TMP_DIRS+=("$STDERR_F")
+    TMP_DIRS+=("$STDOUT_F" "$STDERR_F")
     (
         cd "$repo" || exit 99
         export CLAUDE_PROJECT_DIR="$repo"
         for kv in "$@"; do export "${kv?}"; done
         printf '%s' "$payload" | bash "$HOOKS/$hook"
-    ) 2>"$STDERR_F"
+    ) >"$STDOUT_F" 2>"$STDERR_F"
     RC=$?
 }
 
@@ -80,19 +86,19 @@ echo "== 1. userpromptsubmit-skill-hint.sh =="
 repo="$(make_repo)"
 
 run_hook "$repo" userpromptsubmit-skill-hint.sh '{"prompt":"please fix this bug for me"}'
-if grep -q 'dhpk:adaptive-dev-workflow' "$STDERR_F"; then ok "english bug prompt → /dhpk:adaptive-dev-workflow hint"; else fail "english bug prompt produced no adaptive hint ($(cat "$STDERR_F"))"; fi
+if grep -q 'dhpk:adaptive-dev-workflow' "$STDOUT_F" && grep -q 'additionalContext' "$STDOUT_F"; then ok "english bug prompt → /dhpk:adaptive-dev-workflow additionalContext"; else fail "english bug prompt produced no adaptive hint ($(cat "$STDOUT_F"))"; fi
 
 run_hook "$repo" userpromptsubmit-skill-hint.sh '{"prompt":"幫我修一個 bug 好嗎"}'
-if grep -q 'dhpk:adaptive-dev-workflow' "$STDERR_F"; then ok "CJK bug prompt → /dhpk:adaptive-dev-workflow hint"; else fail "CJK bug prompt produced no hint ($(cat "$STDERR_F"))"; fi
+if grep -q 'dhpk:adaptive-dev-workflow' "$STDOUT_F"; then ok "CJK bug prompt → /dhpk:adaptive-dev-workflow hint"; else fail "CJK bug prompt produced no hint ($(cat "$STDOUT_F"))"; fi
 
 run_hook "$repo" userpromptsubmit-skill-hint.sh '{"prompt":"/dhpk:foo run something"}'
-if [ ! -s "$STDERR_F" ]; then ok "slash-prefixed prompt → no hint"; else fail "slash-prefixed prompt emitted output ($(cat "$STDERR_F"))"; fi
+if [ ! -s "$STDOUT_F" ]; then ok "slash-prefixed prompt → no hint"; else fail "slash-prefixed prompt emitted output ($(cat "$STDOUT_F"))"; fi
 
 run_hook "$repo" userpromptsubmit-skill-hint.sh ''
-if [ "$RC" -eq 0 ] && [ ! -s "$STDERR_F" ]; then ok "empty payload → exit 0, silent"; else fail "empty payload not handled (rc=$RC)"; fi
+if [ "$RC" -eq 0 ] && [ ! -s "$STDOUT_F" ]; then ok "empty payload → exit 0, silent"; else fail "empty payload not handled (rc=$RC)"; fi
 
 run_hook "$repo" userpromptsubmit-skill-hint.sh '{"prompt":"please fix this bug for me"}' DHPK_DISABLE_SKILL_HINT=1
-if [ ! -s "$STDERR_F" ]; then ok "DHPK_DISABLE_SKILL_HINT=1 → silent"; else fail "disable env did not silence hint ($(cat "$STDERR_F"))"; fi
+if [ ! -s "$STDOUT_F" ]; then ok "DHPK_DISABLE_SKILL_HINT=1 → silent"; else fail "disable env did not silence hint ($(cat "$STDOUT_F"))"; fi
 
 echo ""
 echo "== 2. precompact-archive.sh =="
@@ -133,7 +139,7 @@ mk_sentinel "$repo" ".pending-review"
 log="$repo/.claude/artifacts/agent-failures.log"
 run_hook "$repo" subagent-stop-verify.sh '{"subagent_type":"code-reviewer","exit_status":1}'
 if [ -f "$log" ] && grep -q 'exit=1' "$log"; then ok "failed reviewer logged (exit=1)"; else fail "failure not logged"; fi
-if grep -q 'REMINDER\|FAILURE' "$STDERR_F" 2>/dev/null; then ok "failure surfaced on stderr"; else fail "no stderr summary on failure"; fi
+if grep -q 'FAILURE' "$STDOUT_F" 2>/dev/null && grep -q 'systemMessage' "$STDOUT_F"; then ok "failure surfaced via systemMessage"; else fail "no systemMessage on failure ($(cat "$STDOUT_F"))"; fi
 
 # Success but uncleared sentinel.
 run_hook "$repo" subagent-stop-verify.sh '{"subagent_type":"code-reviewer","exit_status":0}'
@@ -164,40 +170,40 @@ echo "== 6. pretool-sentinel-gate.sh =="
 repo="$(make_repo)"
 mk_sentinel "$repo" ".pending-review"
 run_hook "$repo" pretool-sentinel-gate.sh '{"tool_input":{"command":"git commit -m wip"}}'
-if grep -q 'REMINDER' "$STDERR_F"; then ok "commit with pending sentinel → warn"; else fail "no warn on pending commit ($(cat "$STDERR_F"))"; fi
+if grep -q 'REMINDER' "$STDOUT_F"; then ok "commit with pending sentinel → warn (systemMessage)"; else fail "no warn on pending commit ($(cat "$STDOUT_F"))"; fi
 if [ "$RC" -eq 0 ]; then ok "warn mode exits 0 (non-blocking)"; else fail "warn mode returned rc=$RC"; fi
 
 run_hook "$repo" pretool-sentinel-gate.sh '{"tool_input":{"command":"git commit -m wip"}}' DHPK_SENTINEL_COMMIT_GATE=block
-if [ "$RC" -eq 2 ]; then ok "block mode exits 2"; else fail "block mode rc=$RC (expected 2)"; fi
+if [ "$RC" -eq 2 ] && grep -q 'BLOCKED' "$STDERR_F"; then ok "block mode exits 2 + stderr"; else fail "block mode rc=$RC (expected 2)"; fi
 
 run_hook "$repo" pretool-sentinel-gate.sh '{"tool_input":{"command":"git commit -m wip"}}' DHPK_SENTINEL_COMMIT_GATE=off
-if [ "$RC" -eq 0 ] && [ ! -s "$STDERR_F" ]; then ok "off mode → silent exit 0"; else fail "off mode not silent (rc=$RC)"; fi
+if [ "$RC" -eq 0 ] && [ ! -s "$STDOUT_F" ] && [ ! -s "$STDERR_F" ]; then ok "off mode → silent exit 0"; else fail "off mode not silent (rc=$RC)"; fi
 
 # No sentinel → silent even in warn mode.
 rm -f "$(sess_dir "$repo")/.pending-review"
 run_hook "$repo" pretool-sentinel-gate.sh '{"tool_input":{"command":"git commit -m wip"}}'
-if [ ! -s "$STDERR_F" ]; then ok "no pending sentinel → silent"; else fail "warned with no sentinel present"; fi
+if [ ! -s "$STDOUT_F" ]; then ok "no pending sentinel → silent"; else fail "warned with no sentinel present"; fi
 
 # Non-git command → silent.
 mk_sentinel "$repo" ".pending-review"
 run_hook "$repo" pretool-sentinel-gate.sh '{"tool_input":{"command":"ls -la"}}'
-if [ ! -s "$STDERR_F" ]; then ok "non-git command → silent"; else fail "warned on non-git command"; fi
+if [ ! -s "$STDOUT_F" ]; then ok "non-git command → silent"; else fail "warned on non-git command"; fi
 
 echo ""
 echo "== 7. pretool-branch-safety.sh =="
 repo="$(make_repo)"  # default branch = main (protected)
 run_hook "$repo" pretool-branch-safety.sh '{"tool_input":{"command":"git commit -m wip"}}'
-if grep -q 'REMINDER' "$STDERR_F"; then ok "commit on main → warn"; else fail "no warn committing on main ($(cat "$STDERR_F"))"; fi
+if grep -q 'REMINDER' "$STDOUT_F"; then ok "commit on main → warn (systemMessage)"; else fail "no warn committing on main ($(cat "$STDOUT_F"))"; fi
 
 run_hook "$repo" pretool-branch-safety.sh '{"tool_input":{"command":"git commit -m wip"}}' DHPK_BRANCH_SAFETY=block
-if [ "$RC" -eq 2 ]; then ok "block mode on main → exit 2"; else fail "block mode rc=$RC (expected 2)"; fi
+if [ "$RC" -eq 2 ] && grep -q 'BLOCKED' "$STDERR_F"; then ok "block mode on main → exit 2 + stderr"; else fail "block mode rc=$RC (expected 2)"; fi
 
 git -C "$repo" checkout -q -b feature/x
 run_hook "$repo" pretool-branch-safety.sh '{"tool_input":{"command":"git commit -m wip"}}'
-if [ ! -s "$STDERR_F" ]; then ok "commit on feature/x → silent"; else fail "warned on unprotected branch ($(cat "$STDERR_F"))"; fi
+if [ ! -s "$STDOUT_F" ]; then ok "commit on feature/x → silent"; else fail "warned on unprotected branch ($(cat "$STDOUT_F"))"; fi
 
 run_hook "$repo" pretool-branch-safety.sh '{"tool_input":{"command":"git commit -m wip"}}' DHPK_BRANCH_SAFETY=off
-if [ "$RC" -eq 0 ] && [ ! -s "$STDERR_F" ]; then ok "off mode → silent exit 0"; else fail "off mode not silent (rc=$RC)"; fi
+if [ "$RC" -eq 0 ] && [ ! -s "$STDOUT_F" ] && [ ! -s "$STDERR_F" ]; then ok "off mode → silent exit 0"; else fail "off mode not silent (rc=$RC)"; fi
 
 echo ""
 echo "== 8. learning-db.sh (Phase 2.1) =="
@@ -257,7 +263,7 @@ repo="$(make_repo)"
     . "$HOOKS/_lib/learning-db.sh"
     ldb_record success "review:code-reviewer"
     ldb_record success "review:code-reviewer"
-    bash "$HOOKS/session-start.sh" > "$repo/_ss.out" 2>/dev/null
+    printf '{"source":"startup"}' | bash "$HOOKS/session-start.sh" > "$repo/_ss.out" 2>/dev/null
 )
 if grep -q 'learned-context' "$repo/_ss.out"; then ok "SessionStart injects [learned-context]"; else fail "no learned-context block emitted"; fi
 # Disabled → no block.
@@ -265,7 +271,7 @@ repo="$(make_repo)"
 (
     cd "$repo" || exit 1
     export CLAUDE_PROJECT_DIR="$repo" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT"
-    bash "$HOOKS/session-start.sh" > "$repo/_ss2.out" 2>/dev/null
+    printf '{"source":"startup"}' | bash "$HOOKS/session-start.sh" > "$repo/_ss2.out" 2>/dev/null
 )
 if ! grep -q 'learned-context' "$repo/_ss2.out"; then ok "SessionStart silent when DB disabled"; else fail "learned-context emitted while disabled"; fi
 
@@ -332,7 +338,7 @@ out="$(bash "$PR" "幫我修一個 bug")"
 if [ "$(printf '%s' "$out" | cut -f2)" = "dhpk:adaptive-dev-workflow" ]; then ok "CJK bug → MATCH dhpk:adaptive-dev-workflow"; else fail "CJK bug route wrong ($out)"; fi
 
 out="$(bash "$PR" "review my diff please")"
-if [ "$(printf '%s' "$out" | cut -f2)" = "dhpk:code-review" ]; then ok "review → MATCH dhpk:code-review"; else fail "review route wrong ($out)"; fi
+if [ "$(printf '%s' "$out" | cut -f2)" = "dhpk:review-pending" ]; then ok "review → MATCH dhpk:review-pending"; else fail "review route wrong ($out)"; fi
 
 out="$(bash "$PR" "run a security audit for owasp issues")"
 if [ "$(printf '%s' "$out" | cut -f2)" = "dhpk:security-review" ]; then ok "security → MATCH dhpk:security-review (codex-free default)"; else fail "security route wrong ($out)"; fi
@@ -370,6 +376,60 @@ if [ "$RC" -eq 0 ] && [ ! -s "$STDERR_F" ]; then ok "minimal beats stop_hook_act
 repo2="$(make_repo)"
 run_hook "$repo2" stop-review-reminder.sh '{"stop_hook_active": false}'
 if [ "$RC" -eq 0 ] && [ ! -s "$STDERR_F" ]; then ok "no sentinel → exit 0, silent"; else fail "no-sentinel stop not clean (rc=$RC, $(cat "$STDERR_F"))"; fi
+
+echo ""
+echo "== 12. _lib/json-out.sh (advisory output contract) =="
+(
+    . "$HOOKS/_lib/json-out.sh"
+    emit_system_message $'已完成 "x"\nline2' > "$PLUGIN_ROOT/_jo1.txt" 2>/dev/null
+    emit_additional_context "UserPromptSubmit" 'hint /dhpk:foo' > "$PLUGIN_ROOT/_jo2.txt" 2>/dev/null
+    emit_system_message "" > "$PLUGIN_ROOT/_jo3.txt" 2>/dev/null
+)
+if [ -n "$(command -v jq python3 2>/dev/null)" ] || command -v python3 >/dev/null 2>&1; then
+    if python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["systemMessage"].startswith("已完成")' "$PLUGIN_ROOT/_jo1.txt" 2>/dev/null; then ok "emit_system_message → valid JSON, CJK+quote+newline safe"; else fail "system_message JSON invalid"; fi
+    if python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); assert d["hookSpecificOutput"]["additionalContext"]=="hint /dhpk:foo"' "$PLUGIN_ROOT/_jo2.txt" 2>/dev/null; then ok "emit_additional_context → valid JSON"; else fail "additional_context JSON invalid"; fi
+fi
+if [ ! -s "$PLUGIN_ROOT/_jo3.txt" ]; then ok "emit_system_message '' → no-op (empty)"; else fail "empty message emitted output"; fi
+rm -f "$PLUGIN_ROOT/_jo1.txt" "$PLUGIN_ROOT/_jo2.txt" "$PLUGIN_ROOT/_jo3.txt"
+
+echo ""
+echo "== 13. session-start.sh source branching (P1-3) =="
+repo="$(make_repo)"
+run_hook "$repo" session-start.sh '{"source":"startup"}' CLAUDE_PLUGIN_OPTION_DOCKER_CONTAINERS=ghost
+if grep -q 'docker=' "$STDOUT_F" && ! grep -q 'skipped on' "$STDOUT_F"; then ok "startup → docker probed (FULL_INIT)"; else fail "startup did not probe docker ($(cat "$STDOUT_F"))"; fi
+run_hook "$repo" session-start.sh '{"source":"compact"}' CLAUDE_PLUGIN_OPTION_DOCKER_CONTAINERS=ghost
+if grep -q 'skipped on compact' "$STDOUT_F"; then ok "compact → docker probe skipped"; else fail "compact did not skip docker ($(cat "$STDOUT_F"))"; fi
+
+echo ""
+echo "== 14. session-end.sh (P1-2) =="
+repo="$(make_repo)"
+run_hook "$repo" session-end.sh '{"reason":"clear"}'
+if [ "$RC" -eq 0 ]; then ok "session-end exits 0"; else fail "session-end rc=$RC"; fi
+# stale sentinel sweep: a >24h-old sentinel triggers the warn path (does not block).
+s="$(sess_dir "$repo")"; mkdir -p "$s"; printf '2000-01-01 00:00:00 old/file.php\n' > "$s/.pending-review"
+touch -t 200001010000 "$s/.pending-review" 2>/dev/null || true
+run_hook "$repo" session-end.sh '{}'
+if [ "$RC" -eq 0 ]; then ok "session-end with stale sentinel → exit 0 (advisory)"; else fail "session-end blocked on stale sentinel"; fi
+
+echo ""
+echo "== 15. module findings flow (P0-2: post-edit-dispatch → stop-dispatch) =="
+# Throwaway plugin tree with a fake module whose post-edit hook emits a finding.
+fakeroot="$(mktemp -d)"; TMP_DIRS+=("$fakeroot")
+mkdir -p "$fakeroot/scripts/hooks/_lib" "$fakeroot/modules/tmod/hooks"
+cp "$HOOKS"/_lib/*.sh "$fakeroot/scripts/hooks/_lib/"
+cp "$HOOKS/post-edit-dispatch.sh" "$HOOKS/post-edit-remind.sh" "$HOOKS/stop-dispatch.sh" "$fakeroot/scripts/hooks/"
+printf '#!/usr/bin/env bash\ncat >/dev/null 2>&1\necho "[tmod] finding in bar.x" >&2\nexit 0\n' > "$fakeroot/modules/tmod/hooks/post-edit-x.sh"
+chmod +x "$fakeroot/modules/tmod/hooks/post-edit-x.sh"
+repo="$(make_repo)"
+(
+    cd "$repo" || exit 1
+    export CLAUDE_PLUGIN_ROOT="$fakeroot" CLAUDE_PROJECT_DIR="$repo" DHPK_ACTIVE_MODULES="tmod"
+    printf '{"tool_input":{"file_path":"%s/bar.x"}}' "$repo" | bash "$fakeroot/scripts/hooks/post-edit-dispatch.sh" >/dev/null 2>&1
+    for _i in 1 2 3 4 5; do [ -s "$repo/.claude/artifacts/sessions/.module-findings" ] && break; done
+    printf '{}' | bash "$fakeroot/scripts/hooks/stop-dispatch.sh" > "$repo/_sd.out" 2>/dev/null
+)
+if grep -q '\[tmod\] finding in bar.x' "$repo/_sd.out" && grep -q 'systemMessage' "$repo/_sd.out"; then ok "module finding captured + surfaced via systemMessage"; else fail "module finding not surfaced ($(cat "$repo/_sd.out" 2>/dev/null))"; fi
+if [ ! -e "$repo/.claude/artifacts/sessions/.module-findings" ]; then ok "findings file cleared after stop-dispatch"; else fail "findings file not cleared"; fi
 
 echo ""
 echo "=========================================="
