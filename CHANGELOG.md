@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.14.0 — 2026-06-26 — harness structure refactor: agent-traps, hooks _lib, harness-fill skill, create-skill
+
+Structural refactor across agents, hooks, commands, and skills — no new measurement
+or orchestration logic, but all four layers are now cleaner and more maintainable.
+
+**refactor(agent)** — Language- and framework-specific trap tables extracted from
+inline agent descriptions into a dedicated `agent-traps/` directory. Agent `.md`
+files now stay short and stable; trap content can evolve independently.
+
+**refactor(command)** — Standalone per-command description files removed; all
+routing and setup metadata is now consolidated into the unified route table and
+setup config. Reduces the per-command maintenance surface.
+
+**refactor(hooks)** — Shared lifecycle hook utilities extracted into `hooks/_lib/`.
+`lifecycle.sh` and related scripts refactored to source from `_lib/`; test suite
+updated to match. Eliminates duplicated shell fragments across hook scripts.
+
+**refactor(skills) — breaking rename** — `goal-ex` skill renamed to `harness-fill`
+(better reflects that it fills in harness boilerplate rather than running goal
+extraction). Update any `/goal-ex` invocations to `/harness-fill`. New
+`create-skill` skill added: scaffolds a new skill directory with correct
+frontmatter and `SKILL.md` boilerplate.
+
+**chore(config)** — `plugin.json` gains `homepage` field; `php_cs_fixer_bin`
+description tightened. Release workflow and metadata updated.
+
+**chore(rules)** — Rules updated to reference `harness-fill`; tool-routing
+guidance fine-tuned.
+
 ## 0.13.0 — 2026-06-26 — add /harness-govern audit→fix orchestrator
 
 New `/harness-govern` command: a single thin orchestrator for the harness
