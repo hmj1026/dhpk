@@ -1,6 +1,6 @@
 # Frontmatter Templates (skill / agent / rule)
 
-Loaded by `goal-ex` Phase 4. Required frontmatter fields + required-section lists per product type.
+Loaded by `harness-fill` Phase 4. Required frontmatter fields + required-section lists per product type.
 
 ---
 
@@ -29,7 +29,7 @@ disable-model-invocation: true                       # optional; set when explic
 
 ### Exception: meta-skill custom structure
 
-Meta-workflow skills (e.g. `goal-ex` itself, `harness-revise`, `bug-investigation`) may use a phase-based structure instead of the 7 sections. Criteria:
+Meta-workflow skills (e.g. `harness-fill` itself, `harness-revise`, `bug-investigation`) may use a phase-based structure instead of the 7 sections. Criteria:
 
 - The skill itself is a "teach AI to run an N-phase workflow" methodology (not a "describe domain hard rules" reference)
 - Phases have strong sequential dependency

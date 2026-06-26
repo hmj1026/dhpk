@@ -1,5 +1,6 @@
 ---
 name: risk-assess
+argument-hint: '[--mode fast|deep] [--base <ref>]'
 description: 'Uncommitted code risk assessment with breaking change detection, blast radius analysis, and scope metrics. Use when: evaluating PR risk, pre-commit risk check, large refactoring review. Not for: security vulnerabilities (use /codex-security), code correctness (use /codex-review-fast). Output: 3-dimension weighted score + risk level + gate.'
 ---
 

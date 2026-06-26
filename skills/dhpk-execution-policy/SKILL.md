@@ -28,7 +28,7 @@ Agent names above are the plugin defaults; projects override via `userConfig.rev
 2. `bug-investigation` — triggers: investigate / trace / why / root cause
 3. `tdd-guide` — feature/bugfix needing tests (pre-edit)
 4. `architect` — cross-module design
-5. `/code-review` — user-invoked; triggers `code-reviewer` on pending sentinel
+5. `/review-pending` — user-invoked; triggers `code-reviewer` on pending sentinel
 6. Project-local skills win over same-name plugin skills; skip workflow skills for small direct edits.
 
 ## Mandatory post-edit steps

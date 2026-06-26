@@ -1,5 +1,6 @@
 ---
 name: pr-review
+argument-hint: '[--base <branch>]'
 description: 'PR self-review workflow — review changes for correctness/security/perf, produce checklist, scan for unrelated changes in squash merges. Use when reviewing your own branch before opening a PR, after a squash merge needs hygiene check, or when running `/pr-review` command. Includes advisory scan for squash merge unrelated changes per `squash-merge-hygiene` capability.'
 ---
 

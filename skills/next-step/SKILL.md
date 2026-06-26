@@ -1,5 +1,6 @@
 ---
 name: next-step
+argument-hint: '[--go] [--feature <key>]'
 description: 'Change-aware next step advisor. Use when: user asks what to do next, workflow progression is unclear, session just started with dirty worktree. Not for: executing the suggested command (user decides), auto-loop decisions (hooks handle that). Output: findings-based suggestions or session summary with commit seed.'
 ---
 

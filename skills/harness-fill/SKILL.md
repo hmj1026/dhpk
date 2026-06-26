@@ -1,17 +1,20 @@
 ---
-name: goal-ex
-description: 'Explore-driven meta-workflow SSOT: 5-phase parallel inventory → fill in .claude/ infrastructure. Use when: user explicitly invokes /goal-ex to backfill .claude/skills/agents/rules + per-layer CLAUDE.md (one-shot, ≤3 Explore agents in parallel per round). Not for: single-file patches (use Edit), specific symbol lookups (use cx definition / gitnexus_impact), PR review (route through the sentinel chain to the matching reviewer agent). Output: list of created / modified files + conventional commit message draft.'
-allowed-tools: 'Read, Grep, Glob, Bash, Task'
+name: harness-fill
+description: 'Explore-driven meta-workflow SSOT: 5-phase parallel inventory → fill in .claude/ infrastructure. Use when: user explicitly invokes /harness-fill to backfill .claude/skills/agents/rules + per-layer CLAUDE.md (one-shot, ≤3 Explore agents in parallel per round). Not for: single-file patches (use Edit), specific symbol lookups (use cx definition / gitnexus_impact), PR review (route through the sentinel chain to the matching reviewer agent). Output: list of created / modified files + conventional commit message draft.'
+argument-hint: '[--layers <list>] [--dry-run] [<extra task description>]'
+allowed-tools: 'Read, Grep, Glob, Bash, Agent'
+model: opus
+effort: high
 disable-model-invocation: true
 ---
 
-# Goal-Ex — Explore-Driven Project Knowledge Backfill
+# Harness-Fill — Explore-Driven Project Knowledge Backfill
 
-Meta-workflow SSOT. Triggered by the `/goal-ex` command; not auto-loaded by description matching (`disable-model-invocation: true`) — entry MUST be via explicit `/goal-ex`.
+Meta-workflow SSOT. Triggered by the `/harness-fill` command; not auto-loaded by description matching (`disable-model-invocation: true`) — entry MUST be via explicit `/harness-fill`.
 
 ## When to use / When NOT to use
 
-| Scenario | Use goal-ex? | Alternative |
+| Scenario | Use harness-fill? | Alternative |
 |---|---|---|
 | New-team onboard / `.claude/` infrastructure not yet built | ✅ | `/repo-intake` (run project map cache first) |
 | `.claude/` is outdated after a large refactor | ✅ | `/harness-revise` (trim first, then consider backfill) |
