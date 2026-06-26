@@ -8,6 +8,8 @@ origin: ECC
 
 Analyze token overhead across every loaded component in a Claude Code session and surface actionable optimizations to reclaim context space.
 
+> See also: `/harness-govern` chains this token audit into an end-to-end harness governance loop.
+
 ## When to Use
 
 - Session performance feels sluggish or output quality is degrading

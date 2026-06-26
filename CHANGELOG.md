@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.13.0 — 2026-06-26 — add /harness-govern audit→fix orchestrator
+
+New `/harness-govern` command: a single thin orchestrator for the harness
+governance loop — **measure** (delegates to the `context-budget` skill +
+`/harness-audit` script), **conform** (the one net-new layer: judges results
+against the official Claude Code best-practices checklist + known caveats such
+as `skillOverrides` not applying to plugin skills, account-level claude.ai
+connectors, and `skillListingBudgetFraction` as the only file-level truncation
+lever), **fix** (only with `--fix`; routes to `/harness-revise --apply`), and
+**verify**. Read-only by default so it is safe to `/loop`; mutating only on
+`--fix`. Adds **zero** new measurement logic and does **not** merge the existing
+specialists — it sequences them and the specialists stay the SSOT. Cross `See
+also` links added to `/harness-audit`, `/harness-revise`, and the
+`context-budget` skill; indexed in `commands/INDEX.md`.
+
 ## 0.12.4 — 2026-06-26 — reviewers audit the uncommitted working tree only
 
 A reviewer dispatched with a base-relative diff instruction (`git diff
