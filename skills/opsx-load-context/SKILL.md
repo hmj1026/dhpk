@@ -1,6 +1,6 @@
 ---
 name: opsx-load-context
-description: "Load context for opsx-apply-resume Resume Phase via 4-tier fallback chain: Tier 0 = claude-mem pinned observation by ID, Tier 1 = compact JSON at explicit path, Tier 2 = heuristic latest compact scan, Tier 3 = handoff embedded summary only. Optionally fetches cross-session observations. Returns CONTEXT_SOURCE and context fields (session_goal, completed, in_progress, cross_session_observations). Use when opsx-apply-resume enters Resume Phase Steps 1b–1d."
+description: 'Load opsx-apply-resume Resume Phase context via a 4-tier fallback (claude-mem pinned obs → compact JSON path → heuristic latest compact → handoff summary), optionally fetching cross-session observations. Use when: opsx-apply-resume enters Resume Phase Steps 1b–1d. Not for: saving observations (use opsx-post-obs) or goal generation (use opsx-goal). Output: CONTEXT_SOURCE + session_goal/completed/in_progress/cross_session_observations fields.'
 allowed-tools: Bash
 ---
 
@@ -8,6 +8,12 @@ allowed-tools: Bash
 
 Context loading skill for `opsx-apply-resume` Resume Phase.
 Implements a 4-tier fallback so that context is always available even if earlier tiers fail.
+
+## When NOT to Use
+
+- Saving / posting a session observation → use `opsx-post-obs`
+- Generating a `/goal` condition for a fresh session → use `opsx-goal`
+- Any phase other than `opsx-apply-resume` Resume Phase (Steps 1b–1d)
 
 ## Inputs
 
@@ -94,7 +100,7 @@ Cross-session context is always optional — never retry or block on it.
 
 ---
 
-## Returns
+## Output
 
 | Variable | Type | Description |
 |----------|------|-------------|
@@ -105,6 +111,13 @@ Cross-session context is always optional — never retry or block on it.
 | `cross_session_observations` | list | Up to 3 fetched observations, or empty list |
 
 All variables always set — no undefined outputs. The caller (Resume Phase Step 3) uses these fields directly in the restore summary display.
+
+## Verification
+
+- [ ] `CONTEXT_SOURCE` set to exactly one tier label
+- [ ] Stopped at the first successful tier (no redundant lower-tier calls)
+- [ ] All return fields set — no undefined outputs (Tier 3 always succeeds from handoff)
+- [ ] Cross-session search failure handled silently (`cross_session_observations = []`)
 
 ## Guardrails
 

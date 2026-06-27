@@ -36,7 +36,10 @@ First introduced in 5.4. `@component` / `@slot` replace the older
 pattern of `@include` plus a pile of passed variables. Named slots
 become variables inside the component; the body becomes `$slot`.
 
-### Route model binding
+### Route model binding (core since 5.2)
+
+Implicit binding landed in 5.2 and is standard in any 5.4 codebase —
+included here as baseline, not a 5.4-new feature.
 
 ```php
 // Implicit — type-hint the model, Laravel resolves by id
@@ -53,7 +56,10 @@ Route::bind('order', function ($value) {
 Override `getRouteKeyName()` on the model to bind by a column other
 than the primary key.
 
-### Middleware groups (web / api)
+### Middleware groups — web / api (since 5.2)
+
+The `web` / `api` groups date to 5.2 (the `routes/api.php` split to 5.3);
+shown here as the 5.4 baseline, not a 5.4-new feature.
 
 ```php
 // app/Http/Kernel.php
@@ -213,6 +219,27 @@ miss and shim:
 - **No `whenLoaded()` on API resources** (resources themselves
   arrived 5.5) — guard relation access manually with
   `$this->relationLoaded('x')`.
+
+---
+
+## When NOT to Use
+
+Not for application business logic, and not for a project on a different
+Laravel major — use the matching `laravel-N-notes`. Package-authoring
+concerns (service providers, facades, testbench) live in
+`laravel-package-author`.
+
+## Output
+
+Framework-touching code or review notes that match Laravel 5.4's APIs
+(PHP 5.6.4 floor) — flag any call that actually belongs to 5.5+ (see
+"What's *missing*" above).
+
+## Verification
+
+- Confirm the project runs Laravel 5.4 (`php artisan --version`).
+- Check the PHP 5.6.4 floor before using any 7.x syntax.
+- Cross-check cited APIs against the 5.3 → 5.4 upgrade guide.
 
 ---
 

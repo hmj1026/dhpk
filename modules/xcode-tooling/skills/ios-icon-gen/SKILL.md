@@ -45,3 +45,21 @@ Scripts live next to this file in `scripts/`:
 - **Verify visually** — always read the `@2x` PNG; never commit unseen icons.
 - App-icon (`AppIcon`) assets have their own size matrix — this skill targets
   in-app symbol/glyph imagesets, not the marketing app icon.
+
+## When NOT to Use
+
+- App-icon / marketing `AppIcon` assets — different size matrix; this skill is for in-app symbol/glyph imagesets.
+- Non-Xcode icon needs (web / Android assets, raw SVG export).
+- SF Symbols rendering off macOS — `generate_icons.swift` needs macOS; use the Iconify path instead.
+
+## Output
+
+An Xcode `.imageset` written into the target asset catalog: `@1x` / `@2x` / `@3x`
+PNGs plus a `Contents.json`, named to match the project's existing glyph naming.
+
+## Verification
+
+- [ ] Searched the source for an on-style match before generating.
+- [ ] `.imageset` contains `@1x`, `@2x`, `@3x` PNGs and a valid `Contents.json`.
+- [ ] Read the generated `@2x` PNG visually before committing (no unseen icons).
+- [ ] Color / weight / dimensions match the catalog's existing icons.

@@ -7,6 +7,12 @@ description: 'Use when building, debugging, refactoring, testing, or reviewing P
 
 Senior PHP implementation skill for mixed PHP stacks. Detect the project type first, then load only the smallest matching reference set before proposing code.
 
+## When NOT to Use
+
+- Frontend-only work (JS/CSS/Blade/Twig markup with no PHP logic)
+- Non-PHP stacks
+- Pure documentation or configuration edits with no code change
+
 ## Role Definition
 
 You are a senior PHP developer with 10+ years of experience across legacy and modern PHP. Match the repository's actual PHP version, framework, and testing stack before suggesting patterns. Do not let modern PHP examples leak into PHP 5.6 / Yii 1.1 work.

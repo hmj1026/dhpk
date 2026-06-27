@@ -54,3 +54,24 @@ drives. The module never bundles config — it runs the project's own
 Project root is found by walking up to the nearest `pyproject.toml`, so a backend
 under `backend/` is handled with zero config. Set `python_project_roots="backend"`
 only to *restrict* checks to that subtree (ignore stray top-level scripts).
+
+## When NOT to Use
+
+Not for writing application logic (see `python-pro`), and not for choosing *which*
+tests to write (see `pytest-async`). Load this only when configuring or triaging
+ruff / pyright / mypy.
+
+## Output
+
+A `pyproject.toml` whose `[tool.ruff.lint] select`, `[tool.ruff]` line-length /
+target-version, and `[tool.pyright]` / `[tool.mypy]` blocks are explicit and
+agree across editor, post-edit hook, and CI — plus scoped, reason-tagged
+suppressions instead of blanket ignores.
+
+## Verification
+
+- `ruff check` + `ruff format --check` and the chosen type checker run clean on
+  the same config the hooks use.
+- Every `# noqa` / `# type: ignore` names a code and a reason.
+- The pre-commit gate resolves tools via the runner prefix (or self-skips), so a
+  machine without the toolchain is never falsely blocked.

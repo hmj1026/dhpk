@@ -12,7 +12,7 @@ description: 'PR self-review workflow — review changes for correctness/securit
 - 對既有 PR 跑 hygiene scan（特別是 squash merge → unrelated changes）
 - 配合 `/pr-review` slash command 自動觸發（command 本身為 thin wrapper）
 
-## Not for
+## When NOT to Use
 
 - 純看 code 不開 PR 的場景 → 用 `/code-review` / `code-reviewer-<your-project>`
 - DB query 專門審 → 用 `database-reviewer-<your-project>`

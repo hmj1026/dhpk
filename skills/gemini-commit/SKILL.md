@@ -1,12 +1,21 @@
 ---
 name: gemini-commit
-description: "Delegate git smart commit to gemini-cli. Use when: committing changes via gemini-cli's git-smart-commit skill. Not for: single simple commits or when gemini-cli is unavailable."
+description: 'Delegate git smart commit to gemini-cli. Use when: committing changes via gemini-cli''s git-smart-commit skill (offload commit batching to Gemini). Not for: a single simple commit, or when gemini-cli is unavailable. Output: grouped commits created by gemini-cli plus a git log summary.'
 allowed-tools: Bash, Read, Grep, Glob
 ---
 
 # gemini-commit — 委派 gemini-cli 執行智慧拆分提交
 
 透過 gemini-cli headless mode 調用 `.gemini/skills/git-smart-commit`，自動分群並逐批 commit。
+
+---
+
+## When NOT to Use
+
+- 單一、簡單的變更（一個 commit 就夠）→ 直接用 `/smart-commit`。
+- gemini-cli 未安裝或不可用。
+- 有未解決的 merge conflict（先處理衝突再提交）。
+- 目前沒有任何 git 變更。
 
 ---
 
@@ -84,3 +93,18 @@ git log --oneline -10
 | 有 merge conflict | 告知先解決衝突，中止 |
 | gemini-cli 執行失敗（非零退出碼）| 顯示錯誤輸出，建議使用 `/smart-commit` 作為替代方案 |
 | gemini-cli 超時 | 告知超時，建議手動執行 `gemini` 進入互動模式 |
+
+---
+
+## Output
+
+- gemini-cli 智慧拆分後建立的多個 commit。
+- 以 `git log --oneline -10` 顯示提交結果摘要（commit 數量與內容）。
+- 失敗時顯示 gemini-cli 的錯誤輸出，並建議改用 `/smart-commit`。
+
+## Verification
+
+- [ ] gemini-cli 存在（`command -v gemini`）。
+- [ ] 有待提交的變更，且無未解決的 merge conflict。
+- [ ] gemini-cli 以零退出碼結束。
+- [ ] `git log --oneline -10` 確認新 commit 已建立。

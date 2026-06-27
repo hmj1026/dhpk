@@ -20,62 +20,21 @@ allowed-tools: 'Read, Grep, Glob, Edit, Write, Bash(node:*), Bash(git:*), Bash(l
 ## Workflow
 
 ```
-Phase 1: Detect project environment
-    │
-    ├─ Read package.json (dependencies, devDependencies, scripts)
-    ├─ Detect lockfile (pnpm-lock.yaml / yarn.lock / package-lock.json)
-    ├─ Detect entrypoints (glob src/)
-    └─ Compile results
-    │
-Phase 2: Confirm detection results
-    │
-    ├─ Present detection results table
-    └─ Wait for user confirmation or corrections
-    │
-Phase 3: Write to .claude/CLAUDE.md (unless --detect-only)
-    │
-    ├─ Read CLAUDE.template.md, filter ecosystem blocks
-    └─ Replace placeholders, write to .claude/CLAUDE.md
-    │
-Phase 4: Verify CLAUDE.md
-    │
-    ├─ Read .claude/CLAUDE.md to confirm no remaining placeholders
-    └─ Output placeholder summary
-    │
-Phase 5: Install Rules + Backfill CLAUDE.md (unless --no-rules or --lite)
-    │
-    ├─ Locate plugin rules dir (3-level fallback)
-    ├─ mkdir -p .claude/rules/ → copy 11 managed rules + 1 override template
-    ├─ Backfill: ensure .claude/CLAUDE.md has @rules/ references
-    └─ Output rules install report
-    │
-Phase 6: Install Hooks (unless --no-hooks or --lite)
-    │
-    ├─ Locate plugin hooks dir (3-level fallback)
-    ├─ mkdir -p .claude/hooks/ → copy 5 hooks + chmod +x
-    ├─ Merge hook definitions into .claude/settings.json
-    └─ Output hooks install report
-    │
-Phase 6.5: Install Scripts (unless --lite or --detect-only)
-    │
-    ├─ Locate plugin scripts dir (3-level fallback)
-    ├─ mkdir -p .claude/scripts/lib → copy 3 scripts
-    ├─ Update manifest .sd0x/install-state.json
-    └─ Output scripts install report
-    │
-Phase 6.7: Configure Environment Variables (unless --detect-only or --lite)
-    │
-    ├─ Detect model context size (1M → recommend auto-compact window)
-    ├─ Build env var catalog (STOP_GUARD_MODE + model-aware vars)
-    ├─ Present recommendations, wait for user confirmation
-    ├─ Merge into .claude/settings.json env object
-    └─ Output env config report
-    │
-Phase 7: Final Verification Report
-    │
-    ├─ Summarize all phases
-    ├─ Closed-loop check (CLAUDE.md + rules + hooks + env)
-    └─ Output next steps
+Phase 1   Detect project environment (manifest, lockfile, framework, DB, entrypoints, scripts)
+Phase 2   Confirm detection results → wait for user confirmation/corrections
+Phase 2.5 Select ecosystem blocks (map manifest → ecosystem tag)
+Phase 3   Write to .claude/CLAUDE.md (filter blocks, replace placeholders) — unless --detect-only
+Phase 4   Verify CLAUDE.md (no remaining placeholders)
+Phase 5   Install Rules + backfill CLAUDE.md @rules/ refs — unless --no-rules / --lite
+          → references/install-rules-phase.md
+Phase 6   Install Hooks (copy 5 hooks + merge settings.json) — unless --no-hooks / --lite
+          → references/install-hooks-scripts.md
+Phase 6.5 Install Scripts (3 runner scripts + manifest) — unless --lite / --detect-only
+          → references/install-hooks-scripts.md
+Phase 6.7 Configure env vars (STOP_GUARD_MODE + model-aware vars) — unless --detect-only / --lite
+          → references/env-config-phase.md
+Phase 7   Final verification report + closed-loop check
+          → references/final-phase.md
 ```
 
 ### Flag Short-Circuit Semantics
@@ -92,28 +51,22 @@ Phase 7: Final Verification Report
 
 ## Phase 1: Detect Project Environment
 
-Execute the following detections in order; see `references/detection-rules.md` for detailed rules:
+Run detections in order (full rules in `references/detection-rules.md`):
 
-### Detection Steps
-
-1. **Detect Ecosystem** — Glob for manifest files (`package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `build.gradle`, `pom.xml`, `Gemfile`). Priority order in `references/detection-rules.md`.
+1. **Detect Ecosystem** — Glob for manifest files (`package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `build.gradle`, `pom.xml`, `Gemfile`). Priority order in detection-rules.md.
 2. **Read manifest** — Extract project name, dependencies, scripts (Node.js: `package.json`; others: ecosystem manifest)
-3. **Detect Package Manager** — Lockfile detection (Node.js only): `pnpm-lock.yaml` → pnpm, `yarn.lock` → yarn, else npm (priority order per `references/detection-rules.md`)
-4. **Detect Framework** — From dependencies. See `references/detection-rules.md#framework`
-5. **Detect Database** — From dependencies. See `references/detection-rules.md#database`
-6. **Detect Entrypoints** — Glob framework-specific candidates. See `references/detection-rules.md#entrypoints`
-7. **Detect Scripts** — From manifest scripts field. See `references/detection-rules.md#scripts`. Missing scripts → `# N/A (no script found)`
+3. **Detect Package Manager** — Lockfile detection (Node.js): `pnpm-lock.yaml` → pnpm, `yarn.lock` → yarn, else npm
+4. **Detect Framework / Database / Entrypoints / Scripts** — From dependencies + manifest scripts. Missing scripts → `# N/A (no script found)`. See `references/detection-rules.md#framework`, `#database`, `#entrypoints`, `#scripts`
 
 For non-Node.js ecosystems, skip Node-specific steps and use ecosystem-specific detection from `references/detection-rules.md`.
 
 ## Phase 2: Confirm Detection Results
 
-Present a table of all 9 auto-detected placeholders with `| Placeholder | Detected Value | Source |` columns. Additional manual placeholders (`{TICKET_PATTERN}`, `{ISSUE_TRACKER_URL}`, `{TARGET_BRANCH}`) may remain if not auto-detectable — these are acceptable and should be noted as "manual" in Phase 4 verification.
-Wait for user confirmation before proceeding to Phase 3.
+Present a table of all 9 auto-detected placeholders with `| Placeholder | Detected Value | Source |` columns. Additional manual placeholders (`{TICKET_PATTERN}`, `{ISSUE_TRACKER_URL}`, `{TARGET_BRANCH}`) may remain if not auto-detectable — note these as "manual" in Phase 4. **Wait for user confirmation** before Phase 3.
 
 ## Phase 2.5: Select Ecosystem Blocks
 
-Based on detected manifest (from Phase 1.0):
+Based on detected manifest (from Phase 1):
 
 | Manifest | Ecosystem tag |
 |----------|--------------|
@@ -126,376 +79,59 @@ Based on detected manifest (from Phase 1.0):
 
 ## Phase 3: Write to .claude/CLAUDE.md
 
-**Prerequisite**: User has confirmed, and not in `--detect-only` mode.
+**Prerequisite**: User confirmed, and not in `--detect-only` mode.
 
-1. Read `CLAUDE.template.md` (if not found, fallback to `CLAUDE.md`)
-2. Remove `<!-- block:X -->...<!-- /block -->` sections NOT matching detected ecosystem
-3. Remove remaining block markers (`<!-- block:... -->`, `<!-- /block -->`)
-4. Execute `Edit` for each placeholder (using `replace_all: true`)
-5. Write to `.claude/CLAUDE.md` (create directory if needed)
-
-If `.claude/CLAUDE.md` does not exist, create it from the rendered template.
+1. Read `CLAUDE.template.md` (fallback to `CLAUDE.md`)
+2. Remove `<!-- block:X -->...<!-- /block -->` sections NOT matching detected ecosystem, then remove remaining block markers
+3. `Edit` each placeholder (`replace_all: true`)
+4. Write to `.claude/CLAUDE.md` (create directory / file if needed)
 
 ## Phase 4: Verify CLAUDE.md
 
 1. Read `.claude/CLAUDE.md`
-2. `Grep: \{[A-Z_]+\}` — confirm no remaining auto-detected placeholders. Exclude `${...}` shell variable matches (e.g., `${CLAUDE_PLUGIN_ROOT}`) from the count — these are intentional env var references, not unfilled placeholders.
-3. Output summary table with all placeholder values and remaining count
+2. `Grep: \{[A-Z_]+\}` — confirm no remaining auto-detected placeholders. Exclude `${...}` shell variable matches (e.g. `${CLAUDE_PLUGIN_ROOT}`) — these are intentional env refs, not unfilled placeholders.
+3. Output summary table with all placeholder values + remaining count
 
 If `--detect-only` or `--lite`, skip to Phase 7.
 
 ## Phase 5: Install Rules + Backfill CLAUDE.md
 
-**Skip if**: `--no-rules` or `--lite` or `--detect-only`.
+**Skip if**: `--no-rules` / `--lite` / `--detect-only`. Fresh-install semantics (install new / skip identical / warn on conflict; for smart merge run `/install-rules`).
 
-### 5.1 Locate Plugin Rules Directory
-
-Find the plugin's `rules/` directory using this priority (short-circuit on first match):
-
-1. **Glob search** — search known Claude plugin locations:
-
-   ```
-   Glob: ~/.claude/plugins/**/sd0x-dev-flow/rules/auto-loop.md
-   Glob: ${REPO_ROOT}/node_modules/sd0x-dev-flow/rules/auto-loop.md
-   ```
-
-2. **Plugin-relative fallback** — try reading `@rules/auto-loop.md` to confirm accessibility. If readable, derive the rules directory.
-3. **Not found** → **hard error for this phase** (do not silently skip). Output explicit failure with remediation steps:
-
-   ```
-   ⛔ Rule source not found. Auto-loop rules cannot be installed.
-
-   Remediation (choose one):
-   1. Install the plugin: /plugin marketplace add sd0xdev/sd0x-dev-flow && /plugin install sd0x-dev-flow@sd0xdev-marketplace
-   2. Copy rules manually from a machine that has the plugin installed
-   3. Re-run with --no-rules to skip (rules layer will be missing)
-   ```
-
-   Then skip Phase 5 and continue to Phase 6. Phase 7 will report this as `⚠️ Partial`.
-
-### 5.2 Copy Rules
-
-1. `mkdir -p ${REPO_ROOT}/.claude/rules/`
-2. Copy all 11 managed rules:
-
-   | Rule | Purpose |
-   |------|---------|
-   | `auto-loop.md` | Auto review loop enforcement |
-   | `codex-invocation.md` | Codex independent research requirement |
-   | `fix-all-issues.md` | Zero tolerance for unfixed issues |
-   | `framework.md` | Framework conventions |
-   | `testing.md` | Test structure and requirements |
-   | `security.md` | OWASP security checklist |
-   | `git-workflow.md` | Git branch and commit conventions |
-   | `logging.md` | Structured logging standards |
-   | `docs-writing.md` | Documentation writing conventions |
-   | `docs-numbering.md` | Document numbering scheme |
-   | `self-improvement.md` | Self-improvement loop |
-
-3. Create override template (unmanaged, not manifest-tracked):
-   - `auto-loop-project.md` — user-owned override template (see Phase 3.6 in `/install-rules`)
-
-4. Conflict strategy:
-
-   | Scenario | Action |
-   |----------|--------|
-   | File does not exist | **Install** |
-   | File exists, content identical | **Skip** |
-   | File exists, content differs | **Skip** + warn as conflict |
-
-5. After copying, collect hashes and write manifest:
-   - Compute `git hash-object --no-filters` for each managed rule (installed + already-identical skipped)
-   - Read `.sd0x/install-state.json` (create `{}` if not exists)
-   - Update `schema_version: 1`, `installed_at`, `plugin_version` (source priority: `.claude-plugin/plugin.json` → `package.json` → `"unknown"`), `rules` key — hash for each file in managed state (both newly installed and already-identical). Structure: `rules[filename] = { "hash": "<sha1>" }`
-   - Preserve ALL other top-level keys from existing manifest (e.g. `hook_scripts`, `scripts`, `sd0x_version`, `agents_md_hash`, `hooks_installed` — do NOT drop unknown keys)
-   - Write updated manifest via `Write` tool
-
-> **Note**: `/project-setup` uses fresh-install semantics (install new / skip identical / warn on conflict; no smart merge).
-> For smart merge (section merge, legacy migration, `--legacy-strategy`), run `/install-rules` directly.
-> After rule installation, `/install-rules` automatically creates `auto-loop-project.md` (user-owned override template) if it doesn't exist. See `skills/install-rules/SKILL.md`.
-
-### 5.3 Backfill CLAUDE.md (Closed-Loop Guarantee)
-
-Ensure `.claude/CLAUDE.md` contains `@rules/` references so the auto-loop engine can activate:
-
-1. Grep `.claude/CLAUDE.md` for `@rules/auto-loop.md`
-2. **Found** → check if `@rules/auto-loop-project.md` also present:
-   - **Both present** → skip (fully configured)
-   - **`auto-loop.md` present, `auto-loop-project.md` missing** → insert `- @rules/auto-loop-project.md -- Project-specific auto-loop overrides (user-owned)` after `auto-loop.md` line
-3. **Not found but file exists** → append `## Rules` block at end of file (12 `@rules/` references (11 managed + 1 override template) from `CLAUDE.template.md` `## Rules` section)
-4. **File does not exist** (edge case: Phase 3 was skipped) → extract from `CLAUDE.template.md`: `## Required Checks` through `### Auto-Loop Rule` sections + `## Rules` section → create minimal `.claude/CLAUDE.md`
-
-When extracting from template, remove ecosystem block markers and leave unresolved placeholders as `{PLACEHOLDER}`.
-
-### 5.4 Output Rules Report
-
-```markdown
-## Rules Install Report
-
-**Source**: <plugin-rules-path>
-**Target**: <repo-root>/.claude/rules/
-
-| Rule | Status |
-|------|--------|
-| auto-loop.md | ✅ Installed |
-| ... | ... |
-
-**Installed**: N / **Skipped**: M / **Conflicts**: K
-**Manifest**: .sd0x/install-state.json
-**CLAUDE.md backfill**: ✅ @rules/ references present
-```
+- **Locate** plugin `rules/` via 3-level fallback (Glob plugin dirs → `node_modules` → `@rules/` relative); not found → hard error + remediation, skip to Phase 6 (Phase 7 reports `⚠️ Partial`)
+- **Copy** 11 managed rules + 1 user-owned override template (`auto-loop-project.md`), then write hashes to `.sd0x/install-state.json` (preserve unknown keys)
+- **Backfill** `.claude/CLAUDE.md` with `@rules/` references so the auto-loop engine activates (closed-loop guarantee)
+- Full rule list, conflict strategy, manifest schema, backfill branches, and report template → **`references/install-rules-phase.md`**
 
 ## Phase 6: Install Hooks
 
-**Skip if**: `--no-hooks` or `--lite` or `--detect-only`.
+**Skip if**: `--no-hooks` / `--lite` / `--detect-only`.
 
-### 6.1 Locate Plugin Hooks Directory
-
-Same 3-level fallback as Phase 5.1, but search for `hooks/pre-edit-guard.sh`:
-
-1. `Glob: ~/.claude/plugins/**/sd0x-dev-flow/hooks/pre-edit-guard.sh`
-2. `Glob: ${REPO_ROOT}/node_modules/sd0x-dev-flow/hooks/pre-edit-guard.sh`
-3. Plugin-relative fallback: `@hooks/pre-edit-guard.sh`
-4. **Not found** → **hard error for this phase** (do not silently skip). Output explicit failure with remediation steps:
-
-   ```
-   ⛔ Hook source not found. Auto-loop enforcement layer cannot be installed.
-
-   Remediation (choose one):
-   1. Install the plugin: /plugin marketplace add sd0xdev/sd0x-dev-flow && /plugin install sd0x-dev-flow@sd0xdev-marketplace
-   2. Copy hooks manually from a machine that has the plugin installed
-   3. Re-run with --no-hooks to skip (enforcement layer will be missing)
-   ```
-
-   Then skip Phase 6 and continue to Phase 7. Phase 7 will report this as `⚠️ Partial`.
-
-### 6.2 Copy Hook Scripts
-
-1. `mkdir -p ${REPO_ROOT}/.claude/hooks/`
-2. Copy 5 hooks (exclude `namespace-hint.sh` — plugin-only):
-
-   | Hook | Event | Matcher | Purpose |
-   |------|-------|---------|---------|
-   | `pre-edit-guard.sh` | PreToolUse | Edit\|Write | Block editing .env/.git |
-   | `post-edit-format.sh` | PostToolUse | Edit\|Write | Auto-format + track changes |
-   | `post-tool-review-state.sh` | PostToolUse | Bash\|mcp__codex__codex\|mcp__codex__codex-reply | Parse review results |
-   | `stop-guard.sh` | Stop | — | Check review + precommit completed |
-   | `post-compact-auto-loop.sh` | SessionStart | compact | Re-inject auto-loop rules after compaction |
-
-3. `chmod +x` each installed script.
-4. Conflict strategy: same as Phase 5.2.
-
-### 6.3 Merge Hook Definitions into Settings
-
-Target: `${REPO_ROOT}/.claude/settings.json`
-
-Hook definition mapping (uses `$CLAUDE_PROJECT_DIR` for portability):
-
-```json
-{
-  "hooks": {
-    "PreToolUse": [
-      {"matcher": "Edit|Write", "hooks": [{"type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pre-edit-guard.sh"}]}
-    ],
-    "PostToolUse": [
-      {"matcher": "Edit|Write", "hooks": [{"type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/post-edit-format.sh"}]},
-      {"matcher": "Bash|mcp__codex__codex|mcp__codex__codex-reply", "hooks": [{"type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/post-tool-review-state.sh"}]}
-    ],
-    "Stop": [
-      {"matcher": "", "hooks": [{"type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/stop-guard.sh"}]}
-    ],
-    "SessionStart": [
-      {"matcher": "compact", "hooks": [{"type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/post-compact-auto-loop.sh"}]}
-    ]
-  }
-}
-```
-
-> **Note**: Environment variables (including `STOP_GUARD_MODE`) are now configured in **Phase 6.7** (independent of hook installation). Phase 6.3 only handles hook definition merging.
-
-Merge strategy:
-- Read existing settings file (create `{}` if not exists)
-- **Legacy migration**: scan for bare `.claude/hooks/<name>.sh` paths → upgrade to `"$CLAUDE_PROJECT_DIR"/.claude/hooks/<name>.sh`
-- For each event: append-only merge (skip if same command path exists)
-- **Coexistence detection**: if `hooks/hooks.json` exists at repo root (= plugin source repo), warn that plugin hooks and installed hooks may coexist. Runtime arbitration handles dedup automatically
-- Write updated settings back (hook definitions only — env vars deferred to Phase 6.7)
-
-### 6.4 Output Hooks Report
-
-```markdown
-## Hooks Install Report
-
-**Source**: <plugin-hooks-path>
-**Scripts**: <repo-root>/.claude/hooks/
-**Settings**: <repo-root>/.claude/settings.json
-
-| Hook | Script | Settings | Status |
-|------|--------|----------|--------|
-| pre-edit-guard.sh | ✅ Copied | ✅ Added | Installed |
-| ... | ... | ... | ... |
-
-**Installed**: N / **Skipped**: M / **Conflicts**: K
-```
+- **Locate** plugin `hooks/` via same 3-level fallback (search `pre-edit-guard.sh`); not found → hard error + remediation
+- **Copy** 5 hooks + `chmod +x`; exclude plugin-only `namespace-hint.sh`
+- **Merge** hook definitions into `.claude/settings.json` (append-only, `$CLAUDE_PROJECT_DIR` paths, legacy-path migration). Env vars are deferred to Phase 6.7.
+- Hook table, full JSON mapping, merge strategy, and report template → **`references/install-hooks-scripts.md`**
 
 ## Phase 6.5: Install Scripts
 
-**Skip if**: `--lite` or `--detect-only`.
+**Skip if**: `--lite` / `--detect-only`.
 
-### 6.5.1 Locate Plugin Scripts Directory
-
-Same 3-level fallback as Phase 5.1, but search for `scripts/precommit-runner.js`:
-
-1. `Glob: ~/.claude/plugins/**/sd0x-dev-flow/scripts/precommit-runner.js`
-2. `Glob: ${REPO_ROOT}/node_modules/sd0x-dev-flow/scripts/precommit-runner.js`
-3. Plugin-relative fallback: `@scripts/precommit-runner.js`
-
-**Not found** → warn + skip Phase 6.5. Phase 7 will report `⚠️ Partial`.
-
-### 6.5.2 Copy Scripts
-
-1. `mkdir -p ${REPO_ROOT}/.claude/scripts/lib`
-2. Copy 3 scripts:
-
-| Script | Purpose | Dependencies |
-|--------|---------|--------------|
-| `precommit-runner.js` | Precommit runner for `/precommit`, `/precommit-fast` | `lib/utils.js` |
-| `verify-runner.js` | Verify runner for `/verify` | `lib/utils.js` |
-| `lib/utils.js` | Shared utilities | None |
-
-1. Conflict strategy: same as Phase 5.2.
-
-| Scenario | Action |
-|----------|--------|
-| File does not exist | Install |
-| File exists, content identical | Skip |
-| File exists, content differs | Skip + warn as conflict |
-
-### 6.5.3 Update Manifest
-
-1. Read `.sd0x/install-state.json` (create `{}` if not exists)
-2. Read plugin version from `.claude-plugin/plugin.json` or `package.json`
-3. Update: `schema_version: 1`, `installed_at`, `plugin_version`, `scripts` key
-4. Compute hash per file: `git hash-object --no-filters .claude/scripts/<name>`
-5. Preserve all existing top-level keys (e.g. `rules`, `hook_scripts`, and any unknown keys)
-6. Write back to `.sd0x/install-state.json`
-
-### 6.5.4 Output Scripts Report
-
-```markdown
-## Scripts Install Report
-
-**Source**: <plugin-scripts-path>
-**Target**: <repo-root>/.claude/scripts/
-
-| Script | Status |
-|--------|--------|
-| precommit-runner.js | Installed/Skipped/Conflict |
-| verify-runner.js | Installed/Skipped/Conflict |
-| lib/utils.js | Installed/Skipped/Conflict |
-
-**Installed**: N / **Skipped**: M / **Conflicts**: K
-```
+- **Locate** plugin `scripts/` via same fallback (search `precommit-runner.js`); not found → warn + skip (`⚠️ Partial`)
+- **Copy** 3 scripts (`precommit-runner.js`, `verify-runner.js`, `lib/utils.js`), then update `.sd0x/install-state.json` `scripts` key with per-file hashes
+- Script table, conflict strategy, manifest detail, and report template → **`references/install-hooks-scripts.md`**
 
 ## Phase 6.7: Configure Environment Variables
 
-**Skip if**: `--detect-only` or `--lite`.
-**Run exclusively with**: `--env-only` (skip all other phases, jump directly to 6.7 → 7).
+**Skip if**: `--detect-only` / `--lite`. **Runs even with `--no-hooks`** (env config is independent of hook install). **`--env-only`** jumps straight here → Phase 7.
 
-**Purpose**: Write recommended environment variables to `.claude/settings.json` `env` object, **independent of hook installation**. This phase runs even when `--no-hooks` is specified.
-
-### 6.7.1 Env Var Catalog
-
-| Variable | Default | Condition | Description |
-|----------|---------|-----------|-------------|
-| `STOP_GUARD_MODE` | `strict` | Always (override: `--guard-mode warn`) | Stop-guard enforcement mode |
-| `CLAUDE_CODE_AUTO_COMPACT_WINDOW` | `320000` | 1M context model detected | Auto-compact window size (tokens) — delays compaction to preserve more context |
-
-#### Legacy Recommendations (auto-upgrade prompt)
-
-When an existing setting matches a previously recommended value (not the current one), flag it as `Upgrade` in the interactive table so the user can explicitly confirm the change. Never rewrite silently.
-
-| Variable | Legacy value(s) | Current recommended | Retired on |
-|----------|-----------------|---------------------|------------|
-| `CLAUDE_CODE_AUTO_COMPACT_WINDOW` | `456000` | `320000` | 2026-04-17 |
-
-### 6.7.2 Large Context Model Detection
-
-Determine whether `CLAUDE_CODE_AUTO_COMPACT_WINDOW` should be recommended:
-
-1. **Self-awareness check**: Claude can inspect its own system environment description for "1M context" indicators (e.g. model description includes "1M context" or "(with 1M context)")
-2. **Detected** → include `CLAUDE_CODE_AUTO_COMPACT_WINDOW: "320000"` in recommendations with note: "1M context model detected"
-3. **Not detected or uncertain** → ask user: "Are you using a 1M context model? (e.g. Claude Opus 4.6 1M)" — include in recommendations only on confirmation
-4. **User declines** → omit `CLAUDE_CODE_AUTO_COMPACT_WINDOW` from recommendations
-
-### 6.7.3 Interactive Flow
-
-1. Read existing `env` values from **both** `.claude/settings.local.json` and `.claude/settings.json` (create `{}` if not exists). Runtime precedence: `settings.local.json` > `settings.json`
-2. Build recommendations table showing **effective** current value:
-
-   ```markdown
-   ## Environment Variables
-
-   Only one row per variable appears at a time; the examples below are **alternatives** for the same variable, selected by its current state.
-
-   Example A — first-time install (variable not yet set):
-
-   | Variable | Current (effective) | Source | Recommended | Action |
-   |----------|---------------------|--------|-------------|--------|
-   | STOP_GUARD_MODE | warn | settings.json | strict | Update |
-   | CLAUDE_CODE_AUTO_COMPACT_WINDOW | (not set) | — | 320000 | Add (1M model) |
-
-   Example B — upgrade path (variable already set to a legacy value):
-
-   | Variable | Current (effective) | Source | Recommended | Action |
-   |----------|---------------------|--------|-------------|--------|
-   | CLAUDE_CODE_AUTO_COMPACT_WINDOW | 456000 | settings.json | 320000 | **Upgrade** (legacy value, retired 2026-04-17) |
-   ```
-
-3. Present to user for confirmation — user may accept all, modify values, or skip specific vars. For rows marked `Upgrade`, display the retirement date and reason so the user can make an informed decision.
-4. Apply confirmed changes to `.claude/settings.json` (default) or `.claude/settings.local.json` (with `--local`)
-
-### 6.7.4 Merge Strategy
-
-- Read existing settings file (create `{}` if not exists)
-- Merge env vars into `env` object:
-  - If key does not exist → **Add**
-  - If key exists and value matches current recommended → **Skip**
-  - If key exists and value matches a **Legacy value** listed in 6.7.1 → **Upgrade** (surface retirement date + reason; apply only after user confirmation, never silently overwrite)
-  - If key exists and value is user-custom (neither current nor legacy) → **Update** (only after user confirmation; default to preserving)
-- Preserve all existing `env` keys not in the catalog (do not drop unknown keys)
-- Preserve all non-`env` keys in settings (hooks, etc.)
-- Write updated settings back
-
-> **Note**: Runtime mode resolution for `STOP_GUARD_MODE` follows: env var > `settings.local.json` > `settings.json` > default `warn`. See `hooks/stop-guard.sh` for canonical precedence.
-
-### 6.7.5 Interaction with Phase 6.3 and `/install-hooks`
-
-- Phase 6.3 (within `/project-setup`) defers env writes to Phase 6.7
-- `/install-hooks` (standalone command) retains its own `env.STOP_GUARD_MODE` write — it operates independently
-- When both run in the same session, Phase 6.7 runs after Phase 6 and writes to the same target file
-- `--no-hooks` skips Phase 6 but Phase 6.7 still runs → env vars are always configured
-
-### 6.7.6 Output Env Config Report
-
-```markdown
-## Environment Config Report
-
-**Target**: <repo-root>/.claude/settings.json (or settings.local.json with --local)
-
-| Variable | Value | Effective Source | Status |
-|----------|-------|-----------------|--------|
-| STOP_GUARD_MODE | strict | settings.json | ✅ Updated |
-| CLAUDE_CODE_AUTO_COMPACT_WINDOW | 320000 | settings.json | ✅ Added (1M model) — or ✅ Upgraded (456000 → 320000, legacy retired 2026-04-17) when upgrading |
-
-**Model**: Opus 4.6 (1M context) → auto-compact window recommended
-**Precedence note**: Runtime resolves env > settings.local.json > settings.json > default
-```
+- Catalog: `STOP_GUARD_MODE` (default `strict`, override `--guard-mode warn`) + `CLAUDE_CODE_AUTO_COMPACT_WINDOW` (`320000`, only when a 1M context model is detected)
+- Detect 1M model via self-awareness check; if uncertain, ask the user before recommending
+- Interactive: show effective current value + recommended + action (Add / Update / **Upgrade** legacy / Skip); apply only after confirmation, never silently overwrite. Target `.claude/settings.json` (or `settings.local.json` with `--local`)
+- Catalog detail, legacy-value table, detection logic, merge strategy, and report template → **`references/env-config-phase.md`**
 
 ## Phase 7: Final Verification Report
 
-Summarize all phases and perform closed-loop check:
-
-### Closed-Loop Check
+Summarize all phases and perform the closed-loop check:
 
 | Condition | Check | Required |
 |-----------|-------|----------|
@@ -503,37 +139,23 @@ Summarize all phases and perform closed-loop check:
 | `@rules/` references | `@rules/auto-loop.md` in `.claude/CLAUDE.md` | ✅ |
 | Rule files | `.claude/rules/auto-loop.md` exists | ✅ |
 | Hook enforcement | `stop-guard` in `.claude/settings.json` | ✅ |
-| Script runners | `.claude/scripts/precommit-runner.js` exists | ✅ (unless `--lite` or `--detect-only`) |
-| Guard mode | `env.STOP_GUARD_MODE` = `strict` in target settings file | ✅ (unless `--guard-mode warn`) |
-| Auto-compact window | `env.CLAUDE_CODE_AUTO_COMPACT_WINDOW` in target settings file | ✅ (1M model only) |
+| Script runners | `.claude/scripts/precommit-runner.js` exists | ✅ (unless `--lite` / `--detect-only`) |
+| Guard mode | `env.STOP_GUARD_MODE` = `strict` in target settings | ✅ (unless `--guard-mode warn`) |
+| Auto-compact window | `env.CLAUDE_CODE_AUTO_COMPACT_WINDOW` in target settings | ✅ (1M model only) |
 
-### Output
+Full final-output block (per-phase status table, closed-loop status variants, `--detect-only` / `--lite` output shapes, next steps) → **`references/final-phase.md`**
 
-```markdown
-## Project Setup Complete
+## Output
 
-| Phase | Status |
-|-------|--------|
-| Detection | ✅ Framework: X, PM: Y, DB: Z |
-| CLAUDE.md | ✅ Configured (0 remaining placeholders) |
-| Rules | ✅ 11/11 managed rules + 1 override template |
-| Hooks | ✅ 5/5 installed + settings merged |
-| Scripts | ✅ 3/3 runner scripts installed |
-| Env Config | ✅ STOP_GUARD_MODE=strict, AUTO_COMPACT_WINDOW=320000 (1M) |
+A configured project harness plus a final report. Deliverables:
 
-### Closed-Loop Status
-✅ Auto-loop engine fully configured (strict mode)
-(or ⚠️ Auto-loop engine configured (warn mode — stop-guard will not block))
-(or ⚠️ Partial — missing: hooks (enforcement layer inactive))
-(or ⚠️ Partial — missing: rules)
-(or ⚠️ Partial — missing: scripts (runner not installed))
-(or ℹ️ Auto-compact window not set — standard context model detected)
-
-### Next Steps
-- Run `/repo-intake` for a full project scan
-- Use `HOOK_BYPASS=1` as emergency escape hatch
-- Use `/install-rules --force` to upgrade rules later
-```
+- `.claude/CLAUDE.md` — placeholders replaced, ecosystem blocks filtered, `@rules/` references present
+- `.claude/rules/` — 11 managed rules + 1 override template (unless `--no-rules` / `--lite`)
+- `.claude/hooks/` — 5 executable hooks + merged `.claude/settings.json` definitions (unless `--no-hooks` / `--lite`)
+- `.claude/scripts/` — `precommit-runner.js`, `verify-runner.js`, `lib/utils.js` (unless `--lite` / `--detect-only`)
+- `.claude/settings.json` `env` — `STOP_GUARD_MODE` (+ `CLAUDE_CODE_AUTO_COMPACT_WINDOW` for 1M models)
+- `.sd0x/install-state.json` — manifest of installed rule/script hashes
+- A final report ending in a Closed-Loop Status line (✅ fully configured / ⚠️ Partial / ℹ️). Exact format in `references/final-phase.md`.
 
 ## Verification
 
@@ -550,4 +172,8 @@ Summarize all phases and perform closed-loop check:
 
 ## References
 
-See detection rules: [detection-rules.md](./references/detection-rules.md)
+- [detection-rules.md](./references/detection-rules.md) — read when detecting ecosystem, package manager, framework, database, entrypoints, or scripts (Phase 1)
+- [install-rules-phase.md](./references/install-rules-phase.md) — read when installing rules: locate logic, 11-rule list, conflict strategy, manifest schema, CLAUDE.md backfill, report (Phase 5)
+- [install-hooks-scripts.md](./references/install-hooks-scripts.md) — read when installing hooks or scripts: hook/script tables, settings.json JSON mapping, merge strategy, manifest, reports (Phases 6 & 6.5)
+- [env-config-phase.md](./references/env-config-phase.md) — read when configuring env vars: catalog, legacy-value upgrade table, 1M-model detection, interactive flow, merge strategy, report (Phase 6.7)
+- [final-phase.md](./references/final-phase.md) — read when writing the final report: closed-loop check, full output block, status variants, `--detect-only` / `--lite` shapes (Phase 7)

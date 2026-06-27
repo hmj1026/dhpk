@@ -157,3 +157,25 @@ resolves cross-leaf types through the ambient typedef.
 - `modules/js/skills/js-lint-config/SKILL.md` — companion skill with the
   ESLint tier model, custom AST selectors, and the legacy-globals
   three-list sync detail.
+
+## When NOT to Use
+
+Not for day-to-day lint-rule lookups (use the sibling `js-lint-config` and
+`references/static-checks.md`), and not for ESLint tier design itself. Load this
+when actually executing the per-leaf `// @ts-check` rollout.
+
+## Output
+
+A per-leaf cleanup PR: one leaf flipped to `// @ts-check` with its three-list
+globals updated, a correct `tsconfig.json` `exclude` for any permanent-exclude
+leaf, and each stuck leaf classified (typedef-widening-fixable vs
+permanent-exclude) with a tracked exit.
+
+## Verification
+
+- The line-anchored `^\s*//\s*@ts-check\s*$` grep (via `/ts-check-status`)
+  counts the flipped leaf; the `// @ts-nocheck` set trends toward only the
+  permanent-exclude files.
+- `tsc --noEmit` passes after the flip; contract/unit tests show no regression.
+- Any new global appears in all three lists (ESLint globals / ambient `.d.ts` /
+  JSDoc typedef).

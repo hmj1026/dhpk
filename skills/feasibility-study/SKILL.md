@@ -12,7 +12,7 @@ For each solution option, dispatch background exploration:
 
 Agent({
   description: "Explore feasibility of solution option",
-  subagent_type: "feasibility-analyst",
+  subagent_type: "general-purpose",
   prompt: `Research the feasibility of: <solution description>
 Evaluate technical feasibility, effort, risk, extensibility, and maintenance cost.`
 })

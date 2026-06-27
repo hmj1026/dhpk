@@ -1,6 +1,6 @@
 ---
 name: rules-distill
-description: 'Scan skills to extract cross-cutting principles and distill them into rules — append, revise, or create new rule files'
+description: 'Scan installed skills to extract cross-cutting principles and distill them into rules (append, revise, or create rule files). Use when: periodic rules maintenance, after installing new skills, or a skill-stocktake surfaces patterns that should be rules. Not for: creating skills (use create-skill), one-off rule edits, code review. Output: candidate report (principle + evidence + verdict) for user approval.'
 origin: ECC
 ---
 
@@ -15,6 +15,13 @@ Applies the "deterministic collection + LLM judgment" principle: scripts collect
 - Periodic rules maintenance (monthly or after installing new skills)
 - After a skill-stocktake reveals patterns that should be rules
 - When rules feel incomplete relative to the skills being used
+
+## When NOT to Use
+
+- Creating or editing a single skill (use create-skill)
+- One-off manual rule edits where no cross-skill pattern is involved
+- Language- or framework-specific knowledge (keep it in the skill or a language rule)
+- Code review or skill-quality audits (use skill-health-check)
 
 ## How It Works
 
@@ -255,6 +262,14 @@ Approve, modify, or skip each candidate by number:
 
 Results saved to results.json
 ```
+
+## Verification
+
+- [ ] Every candidate cites 2+ skills as evidence (the cross-cutting bar)
+- [ ] Every candidate is actionable ("do X" / "don't Y"), not a vague "X is important"
+- [ ] Every candidate was checked against the full rules text (not already covered, even reworded)
+- [ ] No rule file modified without explicit per-candidate user approval
+- [ ] Results saved to `results.json` with timestamp + status for each candidate
 
 ## Design Principles
 

@@ -1,6 +1,6 @@
 ---
 name: laravel-9-notes
-description: Laravel 9.x (February 2022) signature features and the breaking-change traps from 8 → 9. Use when writing or reviewing code in a Laravel 9 project, or in a package whose composer constraint includes ^9.0. Covers anonymous migrations, the Symfony 6 upgrade, Symfony Mailer replacing Swift Mailer, Flysystem 3 breaking changes (visibility / exception API), PHP 8.0 floor, query builder improvements, enum casts, and the new Ignition error page.
+description: Laravel 9.x (February 2022) signature features and the breaking-change traps from 8 → 9. Use when writing or reviewing code in a Laravel 9 project, or in a package whose composer constraint includes ^9.0. Covers anonymous migrations, the Symfony 6 upgrade, Symfony Mailer replacing Swift Mailer, Flysystem 3 breaking changes (visibility / exception API), PHP 8.0 floor, query builder improvements, enum casts, and the new Ignition error page. Not for application business logic — load when touching migrations, mail, storage, or casts, or planning an 8 → 9 upgrade.
 ---
 
 # Laravel 9 — PHP 8 floor, Symfony 6, Flysystem 3
@@ -139,6 +139,27 @@ Every factory must be a class extending `Factory`.
 - **No invokable validation rules** (added in 10) — use `ValidationRule`
   with `Rule::class` invocation
 - **No Process facade** (added in 10) — use `symfony/process` directly
+
+---
+
+## When NOT to Use
+
+Not for application business logic, and not for a project on a different
+Laravel major — use the matching `laravel-N-notes`. Package-authoring
+concerns (service providers, facades, testbench) live in
+`laravel-package-author`.
+
+## Output
+
+Framework-touching code or review notes that match Laravel 9's APIs
+(PHP 8.0 floor) — flag any direct Flysystem 1 / Swift Mailer call that
+actually belongs to a different major.
+
+## Verification
+
+- Confirm the project runs Laravel 9 (`composer show laravel/framework`).
+- Check the PHP 8.0 floor (8.1 for enum casts) before version-gated syntax.
+- Cross-check cited APIs against the 8 → 9 upgrade guide.
 
 ---
 

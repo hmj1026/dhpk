@@ -263,6 +263,31 @@ composer show <vendor>/<package> --available | grep "$VERSION"
 
 ---
 
+## When NOT to Use
+
+- Application code that is never published — a Laravel app, a Symfony
+  project, a one-off script. The semver / `@api` / discovery discipline
+  here buys nothing when there are no downstream installers.
+- Picking a language idiom (match vs switch, readonly, enums) — that is
+  `php-modern-pro`. This skill governs the *package*, not the code in it.
+- Laravel-specific authoring mechanics (service provider register/boot,
+  facade accessors, testbench cells) — use `laravel-package-author` /
+  `laravel-testbench-matrix`. This skill stays framework-agnostic.
+
+## Output
+
+Consulting this skill should yield one of:
+
+- A **semver verdict** (major / minor / patch), justified against the
+  table above, ready to drive the tag.
+- An **audited `composer.json`** — constraints, autoload sections,
+  `allow-plugins`, `suggest` vs `require`, and the `extra.laravel`
+  discovery block all checked against the traps above.
+- A **release** where tag, CHANGELOG entry, and GitHub release point at
+  the same SHA, with the pre-release checklist run.
+
+---
+
 ## Cross-references
 
 - `modules/php-7.4/skills/php-modern-pro/SKILL.md` — language idioms,

@@ -166,7 +166,7 @@ description: "Systematic 5-phase bug investigation workflow for unexpected behav
 
 - [ ] 建立最小可重現案例或自動化測試
 - [ ] 有測試框架時先寫 failing test
-- [ ] 需要完整測試流程時使用 `test-driven-development` 技能
+- [ ] 需要完整測試流程時使用 `tdd-guide` agent
 - [ ] 若是 flaky/timeout，改用 `references/condition-based-waiting.md` 的條件等待
 
 ### 4.5 建立 OpenSpec（強制，無例外）

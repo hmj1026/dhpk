@@ -1,6 +1,6 @@
 ---
 name: yii1-security-audit
-description: 'Yii 1.1 框架安全審計工具（PHP 5.6）。針對 CAccessControlFilter / accessRules()、Yii::app()->user->checkAccess() 鑑權、CHtml::encode() 輸出編碼、CSRF 設定、CDbCommand / CDbCriteria SQL 注入、CUploadedFile 上傳驗證、Session cookie 安全等進行白盒靜態審計，映射到通用漏洞類型體系（AUTH/CSRF/XSS/SQL/CFG/LOGIC/FILE）。使用時機：用戶要對 Yii 1.1 專案執行安全審計、查找漏洞、驗證安全設定、或進行框架安全複查時，即使用戶沒有明確說「audit」也應觸發，例如「幫我檢查這個 Controller 有沒有安全問題」「這個專案的 CSRF 設定對嗎」「幫我找 SQL injection」。'
+description: 'Yii 1.1（PHP 5.6）框架安全白盒靜態審計。Use when：對 Yii 1.1 專案查找漏洞、驗證 accessRules/checkAccess/CSRF/SQL injection/CUploadedFile/Session 設定，或框架安全複查（即使用戶只說「檢查這個 Controller 有沒有安全問題」也應觸發）。Not for：Yii2 專案、非 PHP 專案、純業務邏輯演算法審查。Output：依 AUTH/CSRF/XSS/SQL/CFG/LOGIC/FILE 分類、含檔名:行號 + 可觀測 PoC + Yii API 修復建議的審計報告。'
 allowed-tools: 'Read, Grep, Glob, Bash(find *), Bash(grep *), Bash(ls *)'
 ---
 
@@ -16,6 +16,13 @@ allowed-tools: 'Read, Grep, Glob, Bash(find *), Bash(grep *), Bash(ls *)'
 - 上傳安全：`CUploadedFile` 的副檔名白名單、MIME 檢查、儲存位置
 - Session 安全：`cookieParams` httponly / secure 設定
 
+## When NOT to Use
+
+- Yii2 專案（類別前綴 `yii\`、`composer.json` 含 `yiisoft/yii2`、有 `web/index.php`）— 本技能僅針對 Yii 1.1。
+- 非 PHP 或非 Yii 框架的專案。
+- 純業務邏輯 / 演算法正確性審查（非框架安全機制）。
+- 需要動態執行 exploit 的滲透測試 — 本技能只做白盒靜態審計，PoC 僅輸出可觀測框架而非可直接執行的 payload。
+
 ## 輸入
 
 用戶提供：
@@ -23,12 +30,14 @@ allowed-tools: 'Read, Grep, Glob, Bash(find *), Bash(grep *), Bash(ls *)'
 可選：
 - `output_path`：輸出目錄（預設 `{source_path}_audit`）
 
-## 輸出目錄
+## Output（輸出目錄與報告格式）
 
 ```
 {output_path}/framework_audit/
   yii1_{timestamp}.md
 ```
+
+報告須逐項輸出 AccessControl / RBAC / CSRF / XSS / SQL / MassAssignment / File / Session 結果，每條發現含：通用類型碼 + 位置（檔名:行號）+ 可觀測 PoC 框架 + 對應 Yii 1.1 API 的修復建議。
 
 ## 框架識別（必做）
 
@@ -182,7 +191,7 @@ PoC 輸出要求：
 
 包含：accessRules 範例、CSRF main.php 設定、CHtml encode 對照、createCommand 綁定、CDbCriteria 綁定、Mass Assignment scenario、CUploadedFile 上傳白名單、Session cookieParams。
 
-## 輸出完整性檢查（強制）
+## Verification（輸出完整性檢查，強制）
 
 - [ ] 包含 Yii 1.1 框架識別證據（至少 3 項）
 - [ ] 逐項輸出：AccessControl / RBAC / CSRF / XSS / SQL / MassAssignment / File / Session 結果

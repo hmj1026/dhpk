@@ -1,6 +1,6 @@
 ---
 name: tool-routing
-description: 'Decide which code-exploration tool to use (gitnexus, cx, claude-mem, Read, Grep). Triggers: where is X defined, what breaks if I change X, find callers, explore unfamiliar module, rename X across codebase, past decisions about Y, file overview, find a function by symbol. Use this skill BEFORE reading large files with Read or using text-only grep on code.'
+description: 'Decide which code-exploration tool to use (gitnexus, cx, claude-mem, Read, Grep). Use when: where is X defined, what breaks if I change X, find callers, explore an unfamiliar module, rename X, recall past decisions, file overview, find a symbol — BEFORE Read-ing large files or grepping code. Not for: plain-text/log/doc search (use Grep), or once the tool is chosen. Output: chosen tool + exact command.'
 ---
 
 # Tool Routing
@@ -28,6 +28,13 @@ SSOT for code-exploration tool selection. Cost anchors live in `~/.claude/CX.md`
 2. `gitnexus` is the hard rule for `impact` / `detect_changes` / `rename`
 3. `claude-mem` skips current session (already in scrollback); only for past decisions
 4. `Read` is floor — only when nothing else fits
+
+## When NOT to Use
+
+- The tool is already chosen — just run it (this skill only routes)
+- Plain-text, log-line, comment, or doc search → use `Grep` directly
+- A single known small file you must read in full → use `Read`
+- Non-code questions (config values, prose) — no AST tool needed
 
 ## gitnexus_impact timing
 
@@ -60,5 +67,16 @@ Sub-agents do NOT inherit these rules. Paste the relevant block from `${CLAUDE_P
 - Find-and-replace for renaming → must use `gitnexus_rename`
 - `gitnexus_query` for plain text (error messages) → use `Grep`
 - `mem-search` for current-session content → already in scrollback
+
+## Output
+
+- The selected tool for the intent, plus the exact command / MCP call to run
+- A named fallback tool to try if the primary returns nothing
+
+## Verification
+
+- [ ] Chose the primary per the decision tree (cx > gitnexus when both apply)
+- [ ] Ran `gitnexus_impact` before any Edit/Write on an existing symbol body/signature
+- [ ] Did not Read a large file or Grep code where `cx` (AST) was the right call
 
 Full decision-tree reference: see `references/decision-tree.md`.
