@@ -176,10 +176,10 @@ Use `getMockBuilder()` only when you need its specific options
 (`->setConstructorArgs()`, `->setMethods()` — the latter is itself
 deprecated in 8 in favor of `onlyMethods()` + `addMethods()`).
 
-### ProphecyTestCase removed (PHPUnit 9.0+)
+### Built-in Prophecy deprecated in 9.x, removed in 10.0
 
-If a test class extends `Prophecy\PhpUnit\ProphecyTestCase` or uses
-`$this->prophesize()`, it stops working in 9.0. Migration:
+The built-in `$this->prophesize()` on `TestCase` is deprecated in
+PHPUnit 9.x and removed in 10.0. Migrate before upgrading to 10:
 
 ```php
 // Old (Prophecy):
@@ -194,7 +194,7 @@ $gateway->method('send')
 ```
 
 Or install `phpspec/prophecy-phpunit` to keep using Prophecy alongside
-PHPUnit 9 (it adds a separate `TestCase` base class).
+PHPUnit 9 (it provides a `ProphecyTrait` you `use` in your test class).
 
 ---
 
@@ -207,7 +207,7 @@ PHPUnit 9 (it adds a separate `TestCase` base class).
 </listeners>
 ```
 
-`TestListener` interface is deprecated in 9 and removed in 10. The
+`TestListener` interface was deprecated in 7.3 (superseded by the hooks API) and removed in 10. The
 replacement is the hooks API in `phpunit.xml`:
 
 ```xml
@@ -282,11 +282,30 @@ Each non-empty result is a TODO before the bump.
 
 ---
 
+## When NOT to Use
+
+- Everyday assertion writing — load only when reviewing test discipline, planning an upgrade, or picking a mock/provider style.
+- A PHPUnit 5/6/7 codebase you can't bump — use the `phpunit-5.7` module instead.
+- A PHPUnit 10 or 11 project — use `phpunit-10-notes` / `phpunit-11-notes` for the attribute system and later removals.
+
+## Output
+
+- Tests using `void` template-method signatures, `expectException*()` methods, the `assertIsXxx()` family, and static named data providers.
+- A pre-bump migration report: every `grep` in the migration section that returns matches is a TODO before tagging 9.0.
+
+## Verification
+
+- [ ] `grep -rn '@expectedException' tests/` is empty
+- [ ] `grep -rn 'assertInternalType\|ProphecyTestCase' tests/` is empty
+- [ ] `setUp()` / `tearDown()` / static lifecycle methods declare `: void`
+- [ ] Data providers are `static` and use named datasets
+- [ ] No `TestListener` in `phpunit.xml` (ported to the hooks API)
+
 ## When to load related material
 
 | When… | Where |
 |---|---|
 | Working on a PHPUnit 5/6/7 codebase you can't bump | `modules/phpunit-5.7/skills/legacy-code-characterization/SKILL.md` |
 | Writing a Laravel package's test suite spanning multiple Laravel versions | `skills/laravel-package-author/SKILL.md` (Orchestra Testbench setup section) |
-| Picking between `assertSame` and `assertEquals` — and why strict-equals matters | sibling skill `modules/phpunit-5.7/skills/phpunit-batch-refactor/SKILL.md` (the strict-comparison guidance is version-agnostic) |
+| Picking between `assertSame` and `assertEquals` — and why strict-equals matters | use `assertSame` for scalars/identity to avoid type-juggling false passes; reserve `assertEquals` for intentional loose value comparison |
 | Coverage requirements + FIRST principles + bad-test patterns | `~/.claude/rules/common/testing.md` (project-level rule shared across stacks) |

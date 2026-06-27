@@ -15,7 +15,7 @@
 
 - OpenSpec apply-ready：`/opsx:apply`
 - bug root cause investigation in progress：`bug-investigation`
-- implementation with failing tests ready：`test-driven-development`
+- implementation with failing tests ready：`tdd-guide` agent
 - tiny localized cleanup after direct edit：`dhpk:code-reviewer`
 
 ## Verification Checklist

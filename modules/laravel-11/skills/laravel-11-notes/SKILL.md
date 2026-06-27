@@ -1,6 +1,6 @@
 ---
 name: laravel-11-notes
-description: Laravel 11.x (March 2024) signature features and the (significant) breaking-change traps from 10 → 11. Use when writing or reviewing code in a Laravel 11 project, or in a package whose composer constraint includes ^11.0. Covers the streamlined app structure (bootstrap/app.php replaces three Kernel/Handler files), the Model casts() method that replaces $casts property, per-second rate limiting, the /up health endpoint, SQLite-as-default, Sanctum 4, and the array-style middleware exception handling.
+description: Laravel 11.x (March 2024) signature features and the (significant) breaking-change traps from 10 → 11. Use when writing or reviewing code in a Laravel 11 project, or in a package whose composer constraint includes ^11.0. Covers the streamlined app structure (bootstrap/app.php replaces three Kernel/Handler files), the Model casts() method that replaces $casts property, per-second rate limiting, the /up health endpoint, SQLite-as-default, Sanctum 4, and the array-style middleware exception handling. Not for application business logic — load when touching bootstrap/app.php, middleware, casts, or rate limiting, or planning a 10 → 11 upgrade.
 ---
 
 # Laravel 11 — streamlined structure, casts() method, /up
@@ -44,8 +44,9 @@ return Application::configure(basePath: dirname(__DIR__))
 ```
 
 **Upgrade trap**: Laravel 10 → 11 upgraders can **keep** the old
-three-file layout. Laravel ships Backport classes that let
-`app/Http/Kernel.php` work in 11. Don't feel pressured to migrate the
+three-file layout — Laravel 11 stays compatible with the existing
+Laravel 10 structure, so `app/Http/Kernel.php` and the other
+Kernel/Handler files keep working. Don't feel pressured to migrate the
 structure on the upgrade PR — feature parity comes first; structural
 move later.
 
@@ -165,6 +166,27 @@ For upgraders coming from 12+ (when it ships):
 - Streamlined structure is the new normal — no further structural
   reorganisation
 - No native enums on most ORM features (still casts-only)
+
+---
+
+## When NOT to Use
+
+Not for application business logic, and not for a project on a different
+Laravel major — use the matching `laravel-N-notes`. Package-authoring
+concerns (service providers, facades, testbench) live in
+`laravel-package-author`.
+
+## Output
+
+Framework-touching code or review notes that match Laravel 11's APIs
+(PHP 8.2 floor) — flag any call that actually belongs to a different
+major.
+
+## Verification
+
+- Confirm the project runs Laravel 11 (`composer show laravel/framework`).
+- Check the PHP 8.2 floor before using version-gated syntax.
+- Cross-check cited APIs against the 10 → 11 upgrade guide.
 
 ---
 

@@ -1,21 +1,6 @@
 ---
 name: polyfill-version-matrix-audit
-description: >-
-  Audit multi-major-version polyfill code for branch coverage and test-matrix
-  gaps. Use when a library spans multiple major versions of a dependency
-  (Monolog 2/3, Laravel 6 vs 7+, PHPUnit 8/9/10/11, Yii 1.1 vs 2.x), uses
-  `version_compare` / `class_exists` / `method_exists` /
-  `Composer\InstalledVersions` guards to switch behaviour at runtime, and
-  ships a CI matrix that should exercise every branch. Symptoms that trigger
-  this skill — a recent commit named like "fix - polyfill <feature> for
-  <old-version>", asymmetric polyfill (one branch is rich, the fallback
-  branch is a stub), CI matrix has cells that have never failed because no
-  test enters that branch, composer constraint says `^6.0 || ^7.0 || ^8.0`
-  but the polyfill only has 2 branches not 3. Counterpart to
-  `legacy-code-characterization` (single-version legacy code) and
-  `composer-package-hygiene` (semver / public API). Framework-agnostic —
-  applies to any PHP package whose `require.<dep>` spans multiple major
-  versions.
+description: 'Audit multi-major-version polyfill code for branch coverage and CI-matrix gaps. Use when: a library spans multiple dep majors (Monolog 2/3, Laravel 6/7+, PHPUnit 8-11) using version_compare / class_exists / method_exists guards, or after a "fix: polyfill ..." commit. Not for: single-version libraries, application code, version-detection-only helpers. Output: branch + matrix-gap audit report.'
 ---
 
 # Polyfill version matrix audit
@@ -164,8 +149,17 @@ the confirmations.
 
 ---
 
+## Verification
+
+- [ ] Every version guard in the target file appears in the Step 1 enumeration table
+- [ ] Each branch is mapped to the matrix cells that can enter it (declared composer constraint as upper bound)
+- [ ] Each branch has a test asserting branch-specific behaviour — smoke tests ("no exception thrown") rejected as evidence
+- [ ] `git log --follow <file>` checked for asymmetric edits that touched one branch only
+- [ ] Gap table marks every uncovered branch ✗ ADD TEST; a fully-covered run says so in one line, no padding
+
+---
+
 ## Related skills
 
 - `composer-package-hygiene` — semver decisions when adding/removing a polyfill branch (raising the floor is a major bump)
 - `legacy-code-characterization` — for the single-version case where the polyfill branch IS the legacy code
-- `phpunit-batch-refactor` — when fixture changes are needed to add the missing tests Step 4 surfaces

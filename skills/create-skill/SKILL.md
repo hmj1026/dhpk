@@ -9,6 +9,12 @@ description: 'Create a new Claude Code skill or refactor an existing one to dhpk
 Author or refactor a skill so it triggers reliably, loads lean, and passes the
 health check. Backs the `/create-skill <skill-name> [docs-path]` command.
 
+## When NOT to Use
+
+- Writing a slash command rather than a skill — use `command-creator`.
+- Auditing skill quality only, with no authoring — use `/check-skill` / `skill-health-check`.
+- Searching for an existing skill to adopt — use `skill-scout` (Step 0 calls it).
+
 ## Step 0 — Search first (avoid duplication)
 
 Before writing anything, run the `skill-scout` skill to check for an existing
@@ -64,6 +70,14 @@ bash scripts/run-skill.sh skill-health-check skill-lint.js --fix-hint
 
 or invoke `/check-skill <name>`. Iterate until routing, progressive-loading, and
 verification criteria pass.
+
+## Output
+
+- A `skills/<name>/` package: `SKILL.md` (frontmatter + lean workflow) plus
+  optional `references/` and `scripts/`.
+- A summary of what was created or changed (refactor mode: surface every diff to
+  existing trigger phrasing or cross-skill links).
+- A clean `skill-health-check` run (routing, progressive-loading, verification).
 
 ## Verification
 

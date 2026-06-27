@@ -1,15 +1,6 @@
 ---
 name: deploy-list
-description: >
-  Cross-project / cross-platform deploy file list generator (schema=v1).
-  Three scope modes: --anchor STRING (rg source-tree grep on in-code markers),
-  --deploy-commits CSV (union of pinned commits' diffs), or fallback
-  (whole base..head). Filters dev-only paths (tests, docs, AI harness, CI
-  configs), groups remaining files by ecosystem preset (php-yii, laravel,
-  node, python, generic — or a custom project preset), and emits a
-  deterministic deploy checklist. `--tag` is metadata only, not used for
-  grouping. The script does all the work; Claude only parses arguments
-  and forwards stdout.
+description: 'Cross-project deploy file-list generator (schema=v1). Use when: building a deploy/release checklist from git history, listing which files to ship for a deploy, 部署清單, deploy list/checklist. Scope via --anchor (in-code markers), --deploy-commits (pinned commits), or whole base..head; filters dev-only paths (tests, docs, CI, AI harness) and groups by ecosystem preset (php-yii, laravel, node, python, generic, or a custom preset). Not for: plain commit lookup (git log), raw diffs (git diff), or actually running the deploy. Output: a deterministic deploy checklist (deploy-list.sh stdout, forwarded verbatim).'
 triggers:
   - /deploy-list
   - deploy list

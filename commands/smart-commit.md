@@ -12,7 +12,7 @@ allowed-tools: 'Bash(git:*), Read, Grep, Glob'
 
 ## Task
 
-Follow the `smart-commit` skill workflow:
+Follow the `git-smart-commit` skill workflow:
 
 1. **Detect mode**: Read CLAUDE.md / execution-policy "Git pipeline" → manual or auto
 2. **Pre-flight**: Verify `/precommit` passed for code changes

@@ -1,37 +1,48 @@
 ---
 name: phpunit-11-notes
-description: PHPUnit 11.x (February 2024) signature features and the breaking-change traps from 10 → 11. Use when writing or reviewing tests in a PHPUnit 11 project, or when migrating a PHPUnit 10 suite to 11. Covers PHP 8.2 floor, the full removal of doc-comment annotations (PHP 8 attributes are now the only path), assertObjectHasProperty replacing assertObjectHasAttribute, the static-data-provider hard requirement, and the test-name discovery changes.
+description: PHPUnit 11.x (February 2024) signature features and the breaking-change traps from 10 → 11. Use when writing or reviewing tests in a PHPUnit 11 project, or when migrating a PHPUnit 10 suite to 11. Covers PHP 8.2 floor, the deprecation of doc-comment annotations (removed in 12; PHP 8 attributes are the recommended path), assertObjectHasProperty replacing assertObjectHasAttribute, the static-data-provider hard requirement, and the test-name discovery changes. Not for everyday assertion writing or PHP < 8.2 projects (stay on phpunit-10-notes). Output: a 10 → 11 migration plan.
 ---
 
-# PHPUnit 11 — attributes only, PHP 8.2 floor
+# PHPUnit 11 — annotations deprecated (removed in 12), PHP 8.2 floor
 
 Released February 2024. **PHP 8.2+ floor**. The big change from 10:
-**doc-comment annotations are fully removed** — every test-metadata
-declaration must use a PHP 8 attribute.
+**doc-comment annotations are deprecated** — they still work in 11 but
+emit a deprecation warning, and support will be **removed in PHPUnit
+12**, where PHP 8 attributes become the only path.
 
-> If you're on PHPUnit 10 with doc-comment annotations, migrate to
-> attributes *before* bumping to 11. The migration is mechanical and
-> can be automated, but skipping it produces silent test loss
-> (annotations are ignored → providers don't run → "0 tests").
+> If you're on PHPUnit 10/11 with doc-comment annotations, migrate to
+> attributes *before* bumping to 12. The migration is mechanical and
+> can be automated; doing it during 11 silences the deprecation
+> warnings. Skipping it until 12 produces silent test loss
+> (annotations are removed → ignored → providers don't run → "0 tests").
 
 ---
 
-## Doc-comment annotations: gone
+## Doc-comment annotations: deprecated in 11, removed in 12
 
 Every annotation listed in the phpunit-10-notes skill's attribute
-table is now **the only option**. The `@dataProvider`, `@covers`,
-`@group`, `@depends`, `@requires` and friends no longer do anything
-in 11.
+table is **deprecated** in 11. The `@dataProvider`, `@covers`,
+`@group`, `@depends`, `@requires` and friends still work in 11 but
+emit a deprecation warning; support is **removed in 12**, after which
+they do nothing.
 
 ```php
 // 10 (deprecated): annotation works
 /** @dataProvider priceCases */
 public function testWithTax($cents, $expected) { /* ... */ }
 
-// 11 (required): attribute or test silently has no provider
+// 11 (still works, emits a deprecation warning)
+/** @dataProvider priceCases */
+public function testWithTax($cents, $expected) { /* ... */ }
+
+// 11+ recommended (12 only): attribute, no deprecation warning
 #[DataProvider('priceCases')]
 public function testWithTax(int $cents, int $expected): void { /* ... */ }
 ```
+
+Migrating to attributes during 11 silences the deprecation warnings;
+do it **before** PHPUnit 12, where the annotations stop working and a
+missing provider means the test silently runs with no data.
 
 ### Migration grep
 
@@ -45,7 +56,7 @@ Each match needs an attribute conversion. PHPUnit's official
 `vendor/bin/phpunit --migrate-configuration` doesn't touch test source
 code — only `phpunit.xml`. For test source migration, use either:
 
-- The `rector/rector` ruleset `PHPUnitCodeQualityLevel::UP_TO_PHPUNIT_100`
+- The `rector/rector` ruleset `PHPUnitLevelSetList::UP_TO_PHPUNIT_100`
   (yes, the rule is named for 10, but it covers the same annotations →
   attribute conversion 11 needs)
 - A hand-edited search-and-replace using the table from
@@ -86,23 +97,25 @@ public static function priceCases(): array { /* ... */ }
 
 ---
 
-## Test discovery: stricter
+## Test discovery: attribute-driven recommended
 
 ```php
-// 11: this is NOT discovered as a test (no `test` prefix, no #[Test])
+// 11: this is NOT discovered as a test (no `test` prefix, no @test, no #[Test])
 public function calculatesWithTax(): void { /* ... */ }   // ❌
 
 // 11: discovered (test* prefix)
 public function testCalculatesWithTax(): void { /* ... */ }   // ✓
 
-// 11: discovered (attribute)
+// 11: discovered (attribute — recommended, no deprecation warning)
 #[Test]
 public function calculatesWithTax(): void { /* ... */ }   // ✓
 ```
 
-The old `@test` annotation no longer triggers discovery. If your
-project preferred annotation-driven naming (`calculatesWithTax()` with
-`/** @test */`), add `#[Test]` everywhere.
+In 11 the `@test` annotation still triggers discovery, but it is
+deprecated and emits a warning; discovery via the `#[Test]` attribute
+is recommended. `@test` stops working in PHPUnit 12. If your project
+preferred annotation-driven naming (`calculatesWithTax()` with
+`/** @test */`), add `#[Test]` everywhere before bumping to 12.
 
 ---
 
@@ -158,6 +171,17 @@ Notable removals in 11:
 - [ ] `phpunit.xml` migrated; review the diff
 
 ---
+
+## When NOT to Use
+
+- PHP 8.0 / 8.1 projects — PHPUnit 11 requires 8.2; use `phpunit-10-notes`.
+- Suites still relying on doc-comment annotations you can't yet convert — finish the attribute migration first.
+- Everyday assertion writing — load only when migrating 10 → 11.
+
+## Output
+
+- A 10 → 11 migration plan: all doc-comment annotations converted to attributes, `assertObjectHasAttribute` → `assertObjectHasProperty`, `#[Test]` added where the `test*` prefix is absent, and `static` data providers.
+- Per the migration checklist above, each unchecked box is a TODO before bumping the PHPUnit constraint to `^11.0`.
 
 ## Cross-references
 

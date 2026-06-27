@@ -206,6 +206,31 @@ relaxing the single-root rule, and converting global API calls
 
 ---
 
+## When NOT to Use
+
+Not for Vue 3 or the 2.7 Composition API — this baseline predates `setup()` /
+`<script setup>`, so `ref` / `reactive` / composables do not exist. Not for the
+build pipeline (see the `laravel-mix` module) or non-`.vue` JS (see
+`js-static-check-strategy`). Load when touching `.vue` SFCs in a `vue ^2.5.x`
+codebase, or planning a 2 → 3 migration.
+
+## Output
+
+Options-API `.vue` components with `data()` as a function, props-down /
+`$emit`-up data flow, reactive mutations via `$set` / `splice` (never index or
+`length` assignment), a single root element, and `@vue/test-utils` 1.x +
+`vue-jest` 3 specs that `await $nextTick()` before asserting.
+
+## Verification
+
+- No prop mutated in place; no `this.obj.newKey =`, `this.arr[i] =`, or
+  `this.arr.length =` on reactive state.
+- Each component template has exactly one root element.
+- Tests use `shallowMount` / `mount` from `@vue/test-utils` 1.x under the `jsdom`
+  env and `await` a tick before reading emitted / rendered output.
+
+---
+
 ## Cross-references
 
 - `modules/laravel-mix/skills/laravel-mix-notes/SKILL.md` — the webpack

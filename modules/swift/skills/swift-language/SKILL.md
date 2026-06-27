@@ -58,6 +58,28 @@ on demand:
 - Never use `DispatchQueue.main.async` to "fix" a data race; it hides the
   isolation problem the compiler is pointing at.
 
+## When NOT to Use
+
+- SwiftUI view composition, state wrappers, navigation → swiftui module.
+- iOS SDK frameworks (Core Data, CryptoKit, Vision, HealthKit) → ios-platform.
+- Test authoring / framework choice → swift-test-strategy.
+- SwiftLint / xcodebuild / SPM build config → xcode-tooling.
+
+## Output
+
+Reviewed or written `.swift` that compiles under the project's `SWIFT_VERSION`
+and `SWIFT_STRICT_CONCURRENCY`: no force operators outside tests, explicit
+isolation (`actor` / `@MainActor` / `Sendable`), optionals modelled with
+`guard`/`if let`, and errors surfaced via `throws`/`Result`.
+
+## Verification
+
+- [ ] No `!` / `try!` / `as!` / `var x: T!` outside tests or lifecycle-guaranteed properties.
+- [ ] Cross-isolation state is `Sendable`, an `actor`, or audited `@unchecked Sendable` with a named lock.
+- [ ] UI / observable mutations happen on `@MainActor`.
+- [ ] Long-lived closures capture `[weak self]`.
+- [ ] Project build is clean with strict concurrency at the project's setting.
+
 ## Reviewer hand-off
 
 This module's traps feed `code-reviewer` (Swift section). Persistence

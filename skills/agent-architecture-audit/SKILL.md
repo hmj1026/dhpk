@@ -1,6 +1,6 @@
 ---
 name: agent-architecture-audit
-description: 'Full-stack diagnostic for agent and LLM applications. Audits the 12-layer agent stack for wrapper regression, memory pollution, tool discipline failures, hidden repair loops, and rendering corruption. Produces severity-ranked findings with code-first fixes. Essential for developers building agent applications, autonomous loops, or any LLM-powered feature.'
+description: 'Full-stack diagnostic for agent and LLM applications — audits the 12-layer agent stack for wrapper regression, memory pollution, tool-discipline failures, hidden repair loops, and rendering corruption. Use when: shipping an agent/LLM feature, an agent degrades after adding wrapper/memory/tool layers, the same model works in the playground but breaks in your wrapper, or debugging agent behavior >15 min with no root cause. Not for: general code debugging, code review, or security scanning (use security-review). Output: severity-ranked findings with code-first fixes.'
 origin: oh-my-agent-check
 tools: Read, Write, Edit, Bash, Grep, Glob
 ---
@@ -25,7 +25,8 @@ A diagnostic workflow for agent systems that hide failures behind wrapper layers
 - The model was fine yesterday but is hallucinating today
 - You suspect hidden repair/retry loops silently mutating responses
 
-**Do not use for:**
+## When NOT to Use
+
 - General code debugging — use `agent-introspection-debugging`
 - Code review — use language-specific reviewer agents
 - Security scanning — use `security-review` or `security-review/scan`
@@ -211,6 +212,16 @@ When auditing an agent system, answer these:
 - Do not treat markdown prose as a trustworthy internal protocol.
 - Do not accept "must use tool" in prompt text when code never enforces it.
 - Keep findings direct, evidence-backed, and severity-ranked.
+
+## Verification
+
+Before delivering the audit, confirm:
+
+- [ ] Each finding cites concrete evidence (`file:line` or `log:row`), not speculation.
+- [ ] Every finding maps to one of the 12 layers and a severity (`critical`/`high`/`medium`/`low`).
+- [ ] Wrapper-layer regressions were falsified before the model was blamed.
+- [ ] The fix plan is code-first (code-gate over prompt-tweak) and ordered by severity.
+- [ ] Findings are presented severity-ranked, with no leading compliments.
 
 ## Report Schema
 

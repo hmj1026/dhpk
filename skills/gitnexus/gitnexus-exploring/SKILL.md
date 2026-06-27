@@ -1,6 +1,6 @@
 ---
 name: gitnexus-exploring
-description: '"Use when the user asks how code works, wants to understand architecture, trace execution flows, or explore unfamiliar parts of the codebase. Examples: \"How does X work?\", \"What calls this function?\", \"Show me the auth flow\""'
+description: 'Explore and understand a codebase via the GitNexus knowledge graph. Use when: asking how code works, understanding architecture, tracing execution flows, or exploring unfamiliar code. Not for: blast-radius of a change (use gitnexus-impact-analysis), bug tracing (use gitnexus-debugging), CLI/index ops (use gitnexus-cli). Output: a code-flow explanation grounded in graph queries + the files to read.'
 ---
 
 # Exploring Codebases with GitNexus
@@ -76,3 +76,13 @@ gitnexus_context({name: "validateUser"})
    → Outgoing: validateCard, chargeStripe, saveTransaction
 4. Read src/payments/processor.ts for implementation details
 ```
+
+## When NOT to Use
+
+- You need the blast radius of a planned change → `gitnexus-impact-analysis`
+- You are chasing a specific bug or error → `gitnexus-debugging`
+- You need to (re)build the index or run CLI ops → `gitnexus-cli`
+
+## Output
+
+A grounded explanation of how the code works — the relevant processes / execution flows, the key symbols and their callers/callees, and the source files to open next.

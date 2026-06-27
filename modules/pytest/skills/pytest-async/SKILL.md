@@ -1,6 +1,6 @@
 ---
 name: pytest-async
-description: Async Python testing with pytest + pytest-asyncio — asyncio_mode=auto, in-memory SQLite fixtures, httpx.AsyncClient + ASGITransport for FastAPI, unit/integration taxonomy, coverage floor, and opt-in live markers. Use when writing or reviewing tests for an async FastAPI/SQLAlchemy service, or enforcing TDD on Python features.
+description: 'Async pytest + pytest-asyncio testing: asyncio_mode=auto, SQLite fixtures, httpx.AsyncClient + ASGITransport, unit/integration split, coverage floor, live markers. Use when writing or reviewing async FastAPI/SQLAlchemy tests, or enforcing TDD. Not for production code. Output: offline-green async tests.'
 ---
 
 # pytest (async)
@@ -51,3 +51,23 @@ modules. TDD: write the failing test first (red), implement to green, refactor.
   paths, pagination limits, regex ReDoS guards. ccas's bug fixes (CTBC due-date,
   classify rollback, PDF timeout) each landed with a regression test.
 - A bug fix without a failing-first regression test is incomplete.
+
+## When NOT to Use
+
+Not for production code (see `python-pro` / `fastapi-pro`) and not for static
+config (see `python-static-checks`). Load when writing or reviewing tests for an
+async FastAPI/SQLAlchemy service.
+
+## Output
+
+A suite with `asyncio_mode = "auto"`, in-memory SQLite fixtures, FastAPI driven
+via `httpx.AsyncClient` + `ASGITransport` (no live server), a unit vs integration
+split, mocked external services, and opt-in markers for live calls — bug fixes
+landing with a failing-first regression test.
+
+## Verification
+
+- `pytest -m "not live_*"` runs green offline with no network access.
+- Coverage meets the floor (`--cov-fail-under`); wiring-only modules are excluded
+  from the unit measure.
+- Each bug fix has a regression test that failed before the fix.

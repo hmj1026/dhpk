@@ -1,6 +1,7 @@
 ---
 name: dhpk-execution-policy
 description: 'Default workflow for software engineering tasks: task modes (small change, bug fix, new feature, architecture change), skill priority order, mandatory post-edit review steps (sentinel-driven), anti-loop guidance, and standard output shape. Triggers: how should I approach this, what is the workflow, do I need a plan, what reviews are required, I am stuck in a loop, what to do after editing. Use this skill at task kickoff to pick the right flow, and after edits to confirm review obligations.'
+allowed-tools: 'Read, Grep, Glob, Bash, Skill, Agent'
 ---
 
 # DHPK Execution Policy
@@ -8,6 +9,13 @@ description: 'Default workflow for software engineering tasks: task modes (small
 Default: execute directly, plan sparingly. Every code change ends with `[dr*]` + `code-reviewer` **dispatched in parallel** (code-reviewer merges/dedups). `dr*` = database-reviewer (SQL) / security-reviewer (auth/crypto/money).
 
 Agent names above are the plugin defaults; projects override via `userConfig.review_agents`.
+
+## When NOT to Use
+
+- Classifying a substantial change into a workflow with required artifacts + gates → use `adaptive-dev-workflow`.
+- A root-cause investigation is already underway → use `bug-investigation`.
+- Pure code understanding / tracing with no workflow decision → use `code-explore` (or `code-investigate` for a dual-perspective pass).
+- Mid-execution of a specific skill's workflow → follow that skill's own steps, not this policy.
 
 ## Task modes
 
@@ -85,7 +93,7 @@ Blocker → Tried → Next viable option
 
 Squash-merge hygiene: see `references/squash-merge-hygiene.md`.
 
-## Self-check before each reply
+## Verification: self-check before each reply
 
 0. Editing an existing symbol → did `gitnexus_impact` run? (Append-only edits exempt; state so in plan/commit.)
 1. Source-code or `.claude/`-markdown Edit/Write → did code-reviewer run (or is sentinel still pending)?
@@ -96,4 +104,9 @@ Squash-merge hygiene: see `references/squash-merge-hygiene.md`.
 
 Any applicable NO → run it before replying.
 
-References: see `references/{task-modes,anti-loop,output-shape,squash-merge-hygiene}.md`.
+## References
+
+- `references/task-modes.md` — detailed task-mode examples; read when unsure which flow a change fits.
+- `references/anti-loop.md` — the 3x rule and what counts as the same approach; read when a retry loop is suspected.
+- `references/output-shape.md` — full reply-shape and tone guidance; read when formatting a summary or a blocked reply.
+- `references/squash-merge-hygiene.md` — spotting unrelated changes after a squash merge; read before reviewing a squash-merged branch.

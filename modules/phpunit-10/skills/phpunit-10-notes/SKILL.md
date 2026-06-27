@@ -1,6 +1,6 @@
 ---
 name: phpunit-10-notes
-description: PHPUnit 10.x (February 2023) signature features and the breaking-change traps from 9 → 10. Use when writing or reviewing tests in a PHPUnit 10 project, or when migrating a PHPUnit 9 suite to 10. Covers PHP 8.1 floor, the attribute-style annotation system (#[DataProvider] / #[CoversClass] / #[Group] / #[Test]) that replaces (but does not yet remove) doc-comment annotations, the test runner CLI rewrite, TestListener removal, and the static-data-provider requirement. Pair with phpunit-9-modern for the API conventions that carry forward unchanged.
+description: 'PHPUnit 10.x (February 2023) signature features and the breaking-change traps from 9 → 10. Use when writing or reviewing tests in a PHPUnit 10 project, or when migrating a PHPUnit 9 suite to 10. Covers PHP 8.1 floor, the attribute-style annotation system (#[DataProvider] / #[CoversClass] / #[Group] / #[Test]) that replaces (but does not yet remove) doc-comment annotations, the test runner CLI rewrite, TestListener removal, and the static-data-provider requirement. Not for everyday assertion writing or PHP < 8.1 projects (stay on phpunit-9-modern). Output: a 9 → 10 migration plan. Pair with phpunit-9-modern for the API conventions that carry forward unchanged.'
 ---
 
 # PHPUnit 10 — attributes, PHP 8.1 floor, test runner rewrite
@@ -66,7 +66,7 @@ final class CalculatorTest extends TestCase
 | `#[Test]` | `@test` (test-method marker without `test*` prefix) |
 | `#[DataProvider('method')]` | `@dataProvider method` |
 | `#[DataProviderExternal(Class::class, 'method')]` | (new — cross-class provider) |
-| `#[CoversClass(Foo::class)]` | `@covers \Foo` (CovesClass enforces class-level only) |
+| `#[CoversClass(Foo::class)]` | `@covers \Foo` (CoversClass enforces class-level only) |
 | `#[CoversNothing]` | `@coversNothing` |
 | `#[UsesClass(Foo::class)]` | `@uses \Foo` |
 | `#[Group('slow')]` | `@group slow` |
@@ -123,7 +123,7 @@ separate package now).
 
 ## TestListener removed
 
-The `TestListener` interface was deprecated in PHPUnit 8, marked for
+The `TestListener` interface was deprecated in PHPUnit 7.3, marked for
 removal in 9, and **fully removed in 10**. The replacement (since
 PHPUnit 8 / 9) is the hooks API:
 
@@ -173,6 +173,17 @@ conservative but not exhaustive.
 - [ ] Optional: start migrating annotations → attributes (mandatory in 11)
 
 ---
+
+## When NOT to Use
+
+- PHP 7.x / 8.0 projects — PHPUnit 10 won't install; use `phpunit-9-modern`.
+- A PHPUnit 11 project — doc-comment annotations are gone there; use `phpunit-11-notes`.
+- Everyday assertion writing — load only when migrating 9 → 10 or adopting attributes.
+
+## Output
+
+- A 9 → 10 migration plan: attribute-converted test metadata, `static` data providers, and a `--migrate-configuration` pass over `phpunit.xml`.
+- Per the migration checklist above, each unchecked box is a TODO before bumping the PHPUnit constraint to `^10.0`.
 
 ## Cross-references
 

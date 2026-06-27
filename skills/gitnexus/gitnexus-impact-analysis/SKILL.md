@@ -1,6 +1,6 @@
 ---
 name: gitnexus-impact-analysis
-description: '"Use when the user wants to know what will break if they change something, or needs safety analysis before editing code. Examples: \"Is it safe to change X?\", \"What depends on this?\", \"What will break?\""'
+description: 'Assess the blast radius of a code change via the GitNexus graph. Use when: asking what breaks if you change X, who depends on a symbol, or for a pre-commit safety check. Not for: understanding how code works (use gitnexus-exploring), bug tracing (use gitnexus-debugging), performing the rename/refactor (use gitnexus-refactoring). Output: a depth-ranked dependents list + risk level.'
 ---
 
 # Impact Analysis with GitNexus
@@ -95,3 +95,9 @@ gitnexus_detect_changes({scope: "staged"})
 
 3. Risk: 2 direct callers, 2 processes = MEDIUM
 ```
+
+## When NOT to Use
+
+- You want to understand how the code works → `gitnexus-exploring`
+- You are tracing a specific bug → `gitnexus-debugging`
+- You are ready to perform the rename / extract / split → `gitnexus-refactoring`

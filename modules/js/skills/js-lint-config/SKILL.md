@@ -186,3 +186,29 @@ Use the `/ts-check-status` command for a one-shot rendered summary.
   at this skill, the strategy skill, and the relevant hooks.
 - `modules/js/references/frontend-review-patterns.md` — patterns the
   `frontend-reviewer` agent consults when this module is active.
+
+---
+
+## When NOT to Use
+
+Not for everyday JS business logic or simple AJAX-wrapper lookups (the
+always-loaded `references/static-checks.md` index covers those). Not for the
+per-leaf `// @ts-check` rollout itself — that is the sibling
+`js-static-check-strategy`. Load this for tier design, AST selectors, and the
+three-list global sync.
+
+## Output
+
+A correctly tiered `eslint.config.js` (Tier 1 / 1.5 / 1.6 / 1.7 / 2 + Global
+ignores) whose Tier 1.5 list and vendor globs stay in sync with `module.yaml`,
+custom `no-restricted-syntax` selectors that point at the canonical AJAX facade,
+and any new global declared in all three lists.
+
+## Verification
+
+- `eslint.config.js` Tier 1.5 files == `module.yaml` `js.core_files`; Global
+  ignores == `js.vendor_globs`.
+- A newly added global exists in the ESLint globals, the ambient `.d.ts`, and
+  (if shaped) the JSDoc typedef — no `no-undef` / TS2304 drift.
+- `tsc --noEmit` passes; bare `$.ajax` / `fetch` / `axios` appear only in exempt
+  tiers.

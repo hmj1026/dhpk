@@ -1,6 +1,6 @@
 ---
 name: adaptive-dev-workflow
-description: "Workflow router for substantial changes — classify feature / bugfix / refactor / security / perf / OpenSpec into Feature Delivery, Bug Investigation, or Lightweight Maintenance; output required artifacts + gates. Not for tiny edits, investigation already underway, code review, or apply-ready OpenSpec tasks."
+description: 'Workflow router for substantial changes — classify feature / bugfix / refactor / security / perf / OpenSpec into Feature Delivery, Bug Investigation, or Lightweight Maintenance; output required artifacts + gates. Not for tiny edits, investigation already underway, code review, or apply-ready OpenSpec tasks.'
 argument-hint: '[--codex] <change description or current state>'
 allowed-tools: 'Read, Grep, Glob, Bash, Skill, Agent'
 ---
@@ -17,7 +17,7 @@ allowed-tools: 'Read, Grep, Glob, Bash, Skill, Agent'
 - 已在進行 root-cause 調查：改用 `bug-investigation`
 - 純架構設計或 module boundary 討論：改用 `software-architecture`
 - OpenSpec change 已 apply-ready：直接切去 `/opsx:apply`
-- 已進入 TDD 實作階段：改用 `test-driven-development`
+- 已進入 TDD 實作階段：改用 `tdd-guide` agent
 
 ## Core Principles
 

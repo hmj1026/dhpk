@@ -1,6 +1,6 @@
 ---
 name: gitnexus-refactoring
-description: '"Use when the user wants to rename, extract, split, move, or restructure code safely. Examples: \"Rename this function\", \"Extract this into a module\", \"Refactor this class\", \"Move this to a separate file\""'
+description: 'Safely rename, extract, split, move, or restructure code using the GitNexus graph + coordinated rename. Use when: renaming a symbol across files, extracting a module, splitting a function/service, moving code. Not for: understanding code (use gitnexus-exploring), pre-change risk only (use gitnexus-impact-analysis), bug tracing (use gitnexus-debugging). Output: an ordered refactor plan + verified multi-file edits.'
 ---
 
 # Refactoring with GitNexus
@@ -119,3 +119,13 @@ RETURN caller.name, caller.filePath ORDER BY caller.filePath
    → Affected: LoginFlow, TokenRefresh
    → Risk: MEDIUM — run tests for these flows
 ```
+
+## When NOT to Use
+
+- You only need to understand the code, not change it → `gitnexus-exploring`
+- You only need the blast radius / risk, not the edit → `gitnexus-impact-analysis`
+- You are chasing a bug → `gitnexus-debugging`
+
+## Output
+
+An ordered refactor plan (interfaces → implementations → callers → tests), the verified multi-file edits (dry-run reviewed before apply), and a post-change `detect_changes` scope confirmation.

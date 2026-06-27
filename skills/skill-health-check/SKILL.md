@@ -1,7 +1,7 @@
 ---
 name: skill-health-check
 description: 'Validate skill quality against routing, progressive loading, and verification criteria. Use when: auditing skills, checking skill health, reviewing skill design. Not for: code review (use codex-code-review) or doc review (use doc-review). Output: health report with per-skill ratings + Gate.'
-allowed-tools: 'Read, Grep, Glob, Bash(node:*)'
+allowed-tools: 'Read, Grep, Glob, Bash(node:*), Agent, Task'
 context: fork
 ---
 

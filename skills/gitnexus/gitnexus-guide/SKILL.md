@@ -1,6 +1,6 @@
 ---
 name: gitnexus-guide
-description: '"Use when the user asks about GitNexus itself — available tools, how to query the knowledge graph, MCP resources, graph schema, or workflow reference. Examples: \"What GitNexus tools are available?\", \"How do I use GitNexus?\""'
+description: 'Reference for GitNexus MCP tools, resources, and graph schema. Use when: asking what GitNexus tools exist, how to query the graph, or for MCP resource / schema reference. Not for: CLI commands (use gitnexus-cli), task flows (use gitnexus-exploring / debugging / impact-analysis / refactoring). Output: the right tool / resource / skill to use next.'
 ---
 
 # GitNexus Guide
@@ -62,3 +62,18 @@ Lightweight reads (~100-500 tokens) for navigation:
 MATCH (caller)-[:CodeRelation {type: 'CALLS'}]->(f:Function {name: "myFunc"})
 RETURN caller.name, caller.filePath
 ```
+
+## When NOT to Use
+
+- You want to run index / wiki CLI commands → `gitnexus-cli`
+- You have a concrete task (understand / impact / debug / refactor) → read that specific gitnexus skill
+- The repo has no GitNexus index yet → run `npx gitnexus analyze` first (see `gitnexus-cli`)
+
+## Output
+
+A pointer to the correct GitNexus tool, resource, or sibling skill for the user's goal — plus the `gitnexus://repo/{name}/...` resource to read first.
+
+## Verification
+
+- [ ] `gitnexus://repo/{name}/context` read first (index fresh)
+- [ ] Task matched to the right tool / skill in the tables above

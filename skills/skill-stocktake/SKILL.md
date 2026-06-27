@@ -1,12 +1,19 @@
 ---
 name: skill-stocktake
-description: 'Use when auditing Claude skills and commands for quality. Supports Quick Scan (changed skills only) and Full Stocktake modes with sequential subagent batch evaluation.'
+description: 'Batch-audit installed Claude skills and commands for quality, overlap, and staleness via subagent evaluation. Use when: auditing many skills at once, periodic stocktake, Quick Scan or Full Stocktake mode. Not for: linting one skill''s structure (use skill-health-check), authoring (use create-skill). Output: per-skill verdict table (Keep/Improve/Retire/Merge) + results.json.'
 origin: ECC
+allowed-tools: 'Read, Grep, Glob, Bash, Agent, WebSearch'
 ---
 
 # skill-stocktake
 
 Slash command (`/skill-stocktake`) that audits all Claude skills and commands using a quality checklist + AI holistic judgment. Supports two modes: Quick Scan for recently changed skills, and Full Stocktake for a complete review.
+
+## When NOT to Use
+
+- Linting a single skill's structure / frontmatter — use `skill-health-check`.
+- Authoring or refactoring a skill — use `create-skill`.
+- Searching for an existing skill to adopt before building — use `skill-scout`.
 
 ## Scope
 
@@ -186,6 +193,20 @@ Obtain via Bash: `date -u +%Y-%m-%dT%H:%M:%SZ`. Never use a date-only approximat
   }
 }
 ```
+
+## Output
+
+- Per-skill verdict table — `Skill | 7d use | Verdict | Reason` (Phase 3).
+- A consolidation plan for any Retire / Merge / Improve / Update items (Phase 4),
+  each with self-contained justification.
+- Updated `results.json` cache (schema above) with real UTC `evaluated_at`.
+
+## Verification
+
+- [ ] Scanned paths listed at the start of Phase 1 (global + project if present).
+- [ ] Every skill has a verdict and a self-contained, decision-enabling reason.
+- [ ] `results.json` written with a real UTC `evaluated_at` and correct status.
+- [ ] Retire / Merge proposed only with justification and explicit user confirmation.
 
 ## Notes
 
