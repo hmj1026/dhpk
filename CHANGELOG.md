@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.16.2 — 2026-06-27 — module skill description trim (issue #12 interim)
+
+**docs/perf(skills)** — Interim mitigation for
+[#12](https://github.com/hmj1026/dhpk/issues/12): module skill `description:`
+fields are statically registered for **every** shipped module regardless of the
+`modules` option (a Claude Code plugin-manifest limitation — `modules` gates
+hooks / path triggers / the SessionStart activation line, **not** the skill
+listing; `skillOverrides` can't hide plugin skills either), so a single-stack
+project still pays the description-token cost of every other stack. Refactored the
+13 over-long module skill descriptions to the `create-skill` / `skill-judge` D4
+convention — stripped redundant prose while preserving every routing trigger
+(framework / version names, `Use when…`, counterpart / `Not for` fences) —
+trimming the module-skill description surface from **18,886 → 18,034 chars
+(−852)**. `/check-skill` per-skill status is byte-identical before/after (no
+routing regression). Also documented `skillListingBudgetFraction` (README Modules
++ Troubleshooting, `harness-govern` caveat) as the file-level lever, and corrected
+the README / `harness-govern` wording that implied module-gating hides skills. The
+architectural fix (per-ecosystem plugin split / installer-driven per-project skill
+provisioning) remains tracked on #12.
+
 ## 0.16.1 — 2026-06-27 — statusline 1M-context usage fix
 
 **fix(statusline)** — The global statusline defaults `context_window_size` to

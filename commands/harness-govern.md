@@ -63,7 +63,7 @@ Then scan the **five leverage areas** (absorbed from the former `harness-optimiz
 | safety | dangerous-command coverage, sentinel gates, protected-branch handling |
 
 **Known caveats (cite when relevant):**
-- `skillOverrides` does **not** apply to plugin skills — cannot hide them via settings. Reduce plugin skill count via `/plugin` or module-gating instead.
+- `skillOverrides` does **not** apply to plugin skills — cannot hide them via settings. The `modules` option gates hooks/triggers, **not** the skill listing (issue #12); reduce the *listed* plugin-skill count via whole-plugin `/plugin` disable or by shipping fewer modules.
 - claude.ai connectors (Canva/Gmail/Drive/...) are **account-level**; disable via `/mcp`, not a file edit. Only `~/.claude.json` `mcpServers` are file-level.
 - `skillListingBudgetFraction` is the **only file-level lever** that stops description truncation across *all* skills (plugin included).
 

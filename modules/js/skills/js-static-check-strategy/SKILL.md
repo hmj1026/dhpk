@@ -1,6 +1,6 @@
 ---
 name: js-static-check-strategy
-description: Progressive `// @ts-check` per-leaf rollout playbook for legacy JS bundles. Covers the three-list legacy-globals sync (ESLint globals / TypeScript ambient .d.ts / JSDoc typedef), tsconfig exclude strategy for files that resist type-check, leaf classification (typedef-widening-fixable vs permanent-exclude), line-anchored progress grep traps, and Phase-2 exit-gate semantics. Use when planning a per-leaf cleanup PR, introducing a new leaf-level global, editing tsconfig's exclude list, interpreting /ts-check-status output, or validating that the strict-checkJs exit gate is met. For day-to-day lint-rule lookups, the sibling skill js-lint-config and the references/static-checks.md index are enough.
+description: Progressive `// @ts-check` per-leaf rollout playbook for legacy JS bundles. Covers the three-list legacy-globals sync (ESLint globals / TypeScript ambient .d.ts / JSDoc typedef), tsconfig exclude strategy for type-check-resistant files, leaf classification (typedef-widening-fixable vs permanent-exclude), line-anchored progress-grep traps, and Phase-2 exit-gate semantics. Use when planning a per-leaf cleanup PR, introducing a new leaf-level global, editing tsconfig's exclude list, interpreting /ts-check-status output, or validating the strict-checkJs exit gate. For day-to-day lint-rule lookups, the sibling js-lint-config and references/static-checks.md are enough.
 ---
 
 # JS static-check strategy — progressive rollout playbook
