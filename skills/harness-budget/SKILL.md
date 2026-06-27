@@ -1,10 +1,10 @@
 ---
-name: context-budget
-description: 'Audits Claude Code context window consumption across agents, skills, MCP servers, and rules. Identifies bloat, redundant components, and produces prioritized token-savings recommendations.'
+name: harness-budget
+description: 'Audits Claude Code context window consumption across agents, skills, MCP servers, and rules. Identifies bloat, redundant components, and produces prioritized token-savings recommendations. The token-accounting member of the harness-* family; backs /harness-govern''s measure step.'
 origin: ECC
 ---
 
-# Context Budget
+# Harness Budget (context-window accounting)
 
 Analyze token overhead across every loaded component in a Claude Code session and surface actionable optimizations to reclaim context space.
 
@@ -16,7 +16,7 @@ Analyze token overhead across every loaded component in a Claude Code session an
 - You've recently added many skills, agents, or MCP servers
 - You want to know how much context headroom you actually have
 - Planning to add more components and need to know if there's room
-- Running `/context-budget` command (this skill backs it)
+- Running `/harness-budget` command (this skill backs it)
 
 ## How It Works
 
@@ -70,6 +70,12 @@ Identify the following problem patterns:
 
 ### Phase 4: Report
 
+**Detect the context window first.** The `Effective available context (XX%)`
+percentage must be computed against the *actual* model window, not a fixed 200K.
+A model id carrying a `[1m]` suffix (e.g. `claude-opus-4-8[1m]`), or a 1M-context
+model (Opus 4.x / Sonnet 4.x / Fable 5), uses **1,000,000**; Haiku and legacy
+models use **200,000**. Using 200K on a 1M session overstates usage ~5×.
+
 Produce the context budget report:
 
 ```
@@ -77,7 +83,7 @@ Context Budget Report
 ═══════════════════════════════════════
 
 Total estimated overhead: ~XX,XXX tokens
-Context model: Claude Sonnet (200K window)
+Context model: <detected model> (<window> window)
 Effective available context: ~XXX,XXX tokens (XX%)
 
 Component Breakdown:
@@ -108,7 +114,7 @@ In verbose mode, additionally output per-file token counts, line-by-line breakdo
 
 **Basic audit**
 ```
-User: /context-budget
+User: /harness-budget
 Skill: Scans setup → 16 agents (12,400 tokens), 28 skills (6,200), 87 MCP tools (43,500), 2 CLAUDE.md (1,200)
        Flags: 3 heavy agents, 14 MCP servers (3 CLI-replaceable)
        Top saving: remove 3 MCP servers → -27,500 tokens (47% overhead reduction)
@@ -116,7 +122,7 @@ Skill: Scans setup → 16 agents (12,400 tokens), 28 skills (6,200), 87 MCP tool
 
 **Verbose mode**
 ```
-User: /context-budget --verbose
+User: /harness-budget --verbose
 Skill: Full report + per-file breakdown showing planner.md (213 lines, 1,840 tokens),
        MCP tool list with per-tool sizes, duplicated rule lines side by side
 ```

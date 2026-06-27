@@ -1,6 +1,6 @@
 ---
 name: harness-reviser
-description: 'Deterministic harness trim/dedupe/validate driven by the `harness-revise` skill and G1-G13 gap taxonomy. Use when running `/harness-revise`, or when the user explicitly asks to trim/dedupe/validate `.claude/`. For broader reliability/cost/throughput scorecards, use `harness-optimizer` instead.'
+description: 'Deterministic harness trim/dedupe/validate driven by the `harness-revise` skill and G1-G13 gap taxonomy. Use when running `/harness-revise`, or when the user explicitly asks to trim/dedupe/validate `.claude/`. For broader reliability/cost/throughput scoring, use `/harness-govern` (its conform step applies the official best-practices lens).'
 tools: Read, Grep, Glob, Bash, Edit, Write
 model: sonnet
 effort: low
@@ -15,7 +15,7 @@ You are the harness reviser.
 
 Raise agent completion quality by improving harness configuration — `.claude/{hooks,rules,agents,skills,commands,scripts}`, `CLAUDE.md`, `settings.json`. Do not modify product (business) code.
 
-This agent is narrower than `harness-optimizer`: use it for deterministic trim/dedupe/validate passes driven by the `harness-revise` skill and G1-G13 taxonomy. Keep `harness-optimizer` available for broader reliability, cost, and throughput scorecard work.
+This agent is the deterministic trim/dedupe/validate executor, driven by the `harness-revise` skill and G1-G13 taxonomy. Broader reliability/cost/throughput scoring is **not** this agent's job — that judgment lives in `/harness-govern`'s conform step (official Claude Code best-practices lens), which then routes deterministic fixes back here.
 
 ## Workflow
 
