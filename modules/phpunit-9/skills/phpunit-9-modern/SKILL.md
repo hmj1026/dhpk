@@ -1,6 +1,6 @@
 ---
 name: phpunit-9-modern
-description: PHPUnit 8.5 → 9.x modern test patterns. Use when writing or reviewing tests in a project on PHPUnit 8.5+ or 9.x, when migrating tests from PHPUnit 5/6/7 conventions, when adding type declarations to existing test methods, when picking between assertSame / assertEquals / assertIsXxx, when designing data providers, or when removing deprecated APIs (ProphecyTestCase, TestListener, @expectedException annotations). Counterpart to the phpunit-5.7 module (which targets the older API). Not for everyday assertion writing — load when reviewing test discipline, planning a PHPUnit upgrade, designing per-test fixtures, or picking between mock styles.
+description: PHPUnit 8.5 → 9.x modern test patterns. Use when writing or reviewing tests on PHPUnit 8.5+ or 9.x, migrating tests from PHPUnit 5/6/7 conventions, adding type declarations to test methods, picking between assertSame / assertEquals / assertIsXxx, designing data providers, or removing deprecated APIs (ProphecyTestCase, TestListener, @expectedException). Counterpart to the phpunit-5.7 module (older API). Not for everyday assertion writing — load when reviewing test discipline, planning a PHPUnit upgrade, designing per-test fixtures, or picking a mock style.
 ---
 
 # PHPUnit 8.5 / 9.x — modern API

@@ -1,6 +1,6 @@
 ---
 name: vue-2-notes
-description: Vue 2 (^2.5.17, Options API era) component structure and the reactivity caveats that bite when mutating reactive state. Use when writing or reviewing .vue single-file components in a Vue 2 project (resources/assets/js), or in a codebase whose package.json pins vue ^2.5.x. Covers the data()/computed/methods/watch + lifecycle shape, props-down + $emit events-up, vue-loader SFC compilation, the Vue.set / array-mutation traps, and @vue/test-utils 1.x + vue-jest 3 SFC testing. Not for Vue 3 or 2.7 Composition API code — this version predates setup() and <script setup>; load when touching components, or planning a Vue 2 → 3 migration.
+description: Vue 2 (^2.5.17, Options API era) component structure and the reactivity caveats that bite when mutating reactive state. Use when writing or reviewing .vue single-file components in a Vue 2 project (resources/assets/js), or a codebase whose package.json pins vue ^2.5.x. Covers the data() / computed / methods / watch + lifecycle shape, props-down + $emit events-up, vue-loader SFC compilation, the Vue.set / array-mutation traps, and @vue/test-utils 1.x + vue-jest 3 testing. Not for Vue 3 or 2.7 Composition API (predates setup() / <script setup>) — load when touching components or planning a Vue 2 → 3 migration.
 ---
 
 # Vue 2 — Options API baseline

@@ -1,6 +1,6 @@
 ---
 name: xcode-build-tooling
-description: Xcode / SwiftLint / xcodebuild / Swift Package Manager tooling — SwiftLint rule-tier strategy and per-package .swiftlint.yml, xcodebuild -scheme/-destination build & test invocation vs swift build/swift test for SPM packages, scheme and code-signing notes for a no-iCloud capability set. Use when configuring SwiftLint, deciding how to build/test an iOS app or SPM package from the CLI, interpreting the module's post-edit SwiftLint hook or pre-commit build gate, or setting up CI build commands. Requires the swift module. This module also wires the post-edit-swiftlint.sh and pre-commit-swift-build.sh hooks.
+description: Xcode / SwiftLint / xcodebuild / Swift Package Manager tooling — SwiftLint rule-tier strategy and per-package .swiftlint.yml, xcodebuild -scheme/-destination build & test vs swift build / swift test for SPM packages, and scheme / code-signing notes for a no-iCloud capability set. Use when configuring SwiftLint, deciding how to build/test an iOS app or SPM package from the CLI, interpreting the module's post-edit SwiftLint hook or pre-commit build gate, or setting up CI build commands. Requires the swift module; wires post-edit-swiftlint.sh and pre-commit-swift-build.sh.
 ---
 
 # Xcode build & lint tooling
