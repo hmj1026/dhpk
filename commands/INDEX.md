@@ -76,6 +76,8 @@ description: 'Navigation index for dhpk plugin commands. Internal documentation;
 
 ## 檢查與驗證
 
+> **Harness 家族（單一前門：`/harness-govern`）** — 建置/onboard → `/harness-fill`；單次評分 → `/harness-audit`（deterministic 7 類 score）或 `/harness-budget`（token 計帳 skill）；單次修剪 → `/harness-revise`（G1-G13）；完整 measure→conform→fix→verify 迴圈（預設、可 /loop）→ `/harness-govern`。廣義 reliability/cost/throughput 評分已併入 `/harness-govern` 的 conform 步驟（原 `harness-optimizer` agent 已移除）。
+
 | Command | 用途 |
 |---------|------|
 | `/precommit` | Pre-commit 檢查（lint:fix + build + test:unit） |
@@ -87,8 +89,8 @@ description: 'Navigation index for dhpk plugin commands. Internal documentation;
 | `/claude-health` | .claude/ 結構健康檢查 |
 | `/dep-audit` | 依賴安全風險稽核 |
 | `/project-audit` | 專案健康度多維度評分 |
-| `/harness-audit` | Harness 自我檢視 |
-| `/harness-govern` | Harness 治理迴圈：measure→conform(官方 best-practices)→fix→verify（編排既有 specialists，預設唯讀、可 /loop） |
+| `/harness-audit` | Harness 自我檢視（deterministic 7 類 score） |
+| `/harness-govern` | **Harness 家族單一前門**：measure→conform(官方 best-practices + 五大槓桿掃描)→fix→verify（編排既有 specialists，預設唯讀、可 /loop） |
 | `/harness-revise` | Harness trim / dedupe / validate（G1-G13 gap taxonomy） |
 | `/matrix-cell-onboard` | 為多 major library CI matrix 新增 PHP/Laravel/PHPUnit/Monolog cell |
 | `/risk-assess` | 未提交變更風險評估 |
@@ -150,7 +152,7 @@ description: 'Navigation index for dhpk plugin commands. Internal documentation;
 | `/next-step` | 變更感知的下一步建議 |
 | `/op-session` | 1Password CLI session 初始化 |
 | `/repo-intake` | 專案首次上手盤點 |
-| `/harness-fill` | Explore 驅動，平行盤點專案 → 填入缺少的 .claude/ skills/agents/rules + 各層 CLAUDE.md（meta-workflow，一次性） |
+| `/harness-fill` | Explore 驅動，平行盤點專案 → 填入缺少的 .claude/ skills/agents/rules + 各層 CLAUDE.md（meta-workflow，一次性；harness 家族的 onboard 入口，詳見「檢查與驗證」段的家族決策樹） |
 | `/project-setup` | 一鍵 onboarding |
 | `/zh-tw` | 將前一則回覆改寫為正體中文 |
 

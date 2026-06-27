@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.16.0 — 2026-06-27 — harness-* family consolidation (BREAKING)
+
+Consolidates the `harness-*` command / skill / agent family into one coherent set
+behind a single front door (`/harness-govern`), removes a redundant scorecard
+path, and brings token accounting under the `harness-*` brand. No behaviour change
+beyond the two renames/removals below.
+
+**BREAKING — agent removed (`harness-optimizer`)** — its broader
+reliability/cost/throughput scorecard overlapped both the deterministic
+`/harness-audit` script and `/harness-govern`'s conform step. That judgment is now
+folded into `/harness-govern`'s conform step as an explicit **five-leverage-area
+scan** (hooks / evals / routing / context / safety) that proposes changes but
+still delegates edits to `/harness-revise`. Anything that invoked
+`harness-optimizer` directly should call `/harness-govern` (read-only) instead.
+
+**BREAKING — skill renamed (`context-budget` → `harness-budget`)** — the token
+audit joins the `harness-*` family as its token-accounting member and backs
+`/harness-govern`'s measure step. Update any `/context-budget` invocations to
+`/harness-budget`. Behaviour is unchanged.
+
+**docs / routing** — `commands/INDEX.md` gains a harness-family decision tree and
+marks `/harness-govern` as the single front door (build → `/harness-fill`,
+score → `/harness-audit` | `/harness-budget`, trim → `/harness-revise`, full loop
+→ `/harness-govern`). `agents/INDEX.md` (19→18 agents), README agent counts
+(18→17 root), the `harness-reviser` cross-references, and the bootstrap design
+spec/tasks are annotated to match. `plugin.json` drops the `harness-optimizer`
+registration and bumps to 0.16.0.
+
 ## 0.15.0 — 2026-06-26 — new opsx-goal skill: unattended OpenSpec implementation sessions
 
 **feat(skills)** — New `opsx-goal` skill. Given an OpenSpec change-id, it reads the

@@ -1,16 +1,16 @@
 ---
-description: 'End-to-end harness governance loop — measure (context-budget + harness-audit) -> conform to official Claude Code best-practices -> fix (harness-revise) -> verify. Read-only by default; --fix opts into mutations. Safe to /loop.'
+description: 'End-to-end harness governance loop and single front door for the harness-* family — measure (harness-budget + harness-audit) -> conform to official Claude Code best-practices -> fix (harness-revise) -> verify. Read-only by default; --fix opts into mutations. Safe to /loop.'
 argument-hint: '[--fix] [--scope repo|skills|rules|mcp]'
 allowed-tools: 'Read, Grep, Glob, Bash, Skill'
 ---
 
 # /harness-govern
 
-Single orchestrator that runs the harness governance loop end-to-end by **delegating** to the existing specialists — it adds zero new measurement logic.
+Single orchestrator and **front door for the harness-* family** — runs the governance loop end-to-end by **delegating** to the existing specialists; it adds zero new measurement logic.
 
-> Different from the specialists it chains:
-> - `/harness-audit` = deterministic 7-category **score** (read-only). `context-budget` = **token** accounting. `/harness-revise` = **trim/dedupe/validate** (G1–G13, mutating). `claude-health` = `.claude/` hygiene.
-> - This command is the **detect -> fix loop** that sequences them and applies the official best-practices lens. Use a specialist directly when you only need that one concern.
+> The harness-* family (use a specialist directly when you only need that one concern):
+> - `/harness-audit` = deterministic 7-category **score** (read-only). `harness-budget` = **token** accounting. `/harness-revise` = **trim/dedupe/validate** (G1–G13, mutating). `/harness-fill` = one-shot **backfill** of missing `.claude/` infrastructure (onboarding). `claude-health` = `.claude/` hygiene.
+> - This command is the **detect -> fix loop** that sequences them and applies the official best-practices lens (the broader reliability/cost/throughput scoring that the former `harness-optimizer` agent did is now this command's conform step).
 
 ## Mode (loop-safe)
 
@@ -27,7 +27,8 @@ Single orchestrator that runs the harness governance loop end-to-end by **delega
 
 ### Step 1 — Measure (delegate; do NOT re-implement)
 
-- Run `Skill(context-budget)` for token consumption across agents/skills/rules/MCP/CLAUDE.md.
+- **Precondition** — if `.claude/` is sparse or unbuilt (no agents/skills/rules to govern), this loop has nothing to act on: suggest `/harness-fill` first (one-shot backfill) and stop. `/harness-fill` is onboarding, deliberately *not* part of this maintenance loop.
+- Run `Skill(harness-budget)` for token consumption across agents/skills/rules/MCP/CLAUDE.md.
 - Run `/harness-audit` (script SSOT: `scripts/harness-audit.js`) for the 7-category scorecard.
 - Collect a few raw counts for the conform pass:
   ```bash
@@ -51,6 +52,16 @@ Judge the measurements against the **official Claude Code best-practices checkli
 | guardrails | "must happen every time" lives in a hook, not a prompt |
 | verification gate | a check Claude can run (test/build) + Stop hook / `/goal` |
 
+Then scan the **five leverage areas** (absorbed from the former `harness-optimizer` agent) and name the top 3 with the highest reliability/cost/throughput payoff — propose minimal, reversible changes for each, but **delegate the edits to the Fix step** (`/harness-revise`); do not mutate here:
+
+| Leverage area | What to look for |
+|---|---|
+| hooks | must-happen guardrails missing / fragile / firing on the wrong files |
+| evals | no runnable check Claude can self-verify against (test/build/goal) |
+| routing | triggers/keywords that don't reach the right skill or agent |
+| context | token bloat, truncated skill surface, redundant always-on rules |
+| safety | dangerous-command coverage, sentinel gates, protected-branch handling |
+
 **Known caveats (cite when relevant):**
 - `skillOverrides` does **not** apply to plugin skills — cannot hide them via settings. Reduce plugin skill count via `/plugin` or module-gating instead.
 - claude.ai connectors (Canva/Gmail/Drive/...) are **account-level**; disable via `/mcp`, not a file edit. Only `~/.claude.json` `mcpServers` are file-level.
@@ -73,8 +84,8 @@ Docs: `code.claude.com/docs/en/{best-practices,features-overview,skills,hooks-gu
 
 | Step | Delegates to |
 |------|--------------|
-| Measure | `Skill(context-budget)` + `/harness-audit` |
-| Conform | this command (official best-practices lens) |
+| Measure | `Skill(harness-budget)` + `/harness-audit` (or `/harness-fill` first if `.claude/` is unbuilt) |
+| Conform | this command (official best-practices lens + five-leverage-area scan) |
 | Fix (`--fix`) | `/harness-revise --scan` -> `--apply` (-> `harness-reviser` agent, `code-reviewer`) |
 | Verify | re-measure + `/doctor` + `/mcp` |
 
@@ -84,7 +95,7 @@ Reply in order: (1) Measure summary (token + 7-category score + counts), (2) Con
 
 ## Anti-patterns
 
-- Re-implementing token/score measurement instead of delegating to `context-budget` / `/harness-audit`.
+- Re-implementing token/score measurement instead of delegating to `harness-budget` / `/harness-audit`.
 - Mutating anything without `--fix`.
 - Merging or duplicating the specialist skills — this command only orchestrates; the specialists stay the SSOT.
 

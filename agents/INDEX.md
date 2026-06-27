@@ -1,6 +1,6 @@
 # Agents Index (dhpk plugin)
 
-> 19 agents shipped by the dhpk plugin (18 root-level + `polyfill-reviewer` under `modules/library-author/agents/`). Discovered as `dhpk:<name>` after install. The full list also appears in `plugin.json`.
+> 18 agents shipped by the dhpk plugin (17 root-level + `polyfill-reviewer` under `modules/library-author/agents/`). Discovered as `dhpk:<name>` after install. The full list also appears in `plugin.json`.
 
 ## Sentinel-driven reviewer dispatch (5 slots, v0.2.0+)
 
@@ -29,8 +29,7 @@ Agent names are overridable via `userConfig.review_agents` — a project can poi
 | [performance-analyzer](performance-analyzer.md) | sonnet | N+1 queries, EXPLAIN, index/perf audits |
 | [doc-updater](doc-updater.md) | haiku | Doc / codemap updates |
 | [docs-lookup](docs-lookup.md) | haiku | Library / framework / API doc lookup (Context7) |
-| [harness-reviser](harness-reviser.md) | sonnet | Deterministic harness trim/dedupe/validate |
-| [harness-optimizer](harness-optimizer.md) | sonnet | Harness reliability / cost / throughput scorecard |
+| [harness-reviser](harness-reviser.md) | sonnet | Deterministic harness trim/dedupe/validate (G1–G13). Broader reliability/cost/throughput scoring now lives in `/harness-govern`'s conform step |
 | [migration-reviewer](migration-reviewer.md) | sonnet | DB migration up/down symmetry, multi-tenant FK/index collision, online-DDL safety on high-volume tables |
 | [version-matrix-impact-reviewer](version-matrix-impact-reviewer.md) | sonnet | Per-change blast radius across a CI version matrix (PHP × Laravel/Symfony, Yii 1×2); recommends the minimum testsuite subset |
 | [swift-build-resolver](swift-build-resolver.md) | sonnet | Swift / Xcode / SwiftPM build-error resolution (compile, Sendable/actor isolation, Codable, package-version conflicts, signing) |
