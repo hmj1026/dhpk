@@ -1,5 +1,80 @@
 # Changelog
 
+## 0.17.0 — 2026-06-27 — skill audit: format/content hardening, oversized splits, wiring fixes
+
+Full health-check of every skill (necessity, relationships, format, content
+correctness) plus reconstruction of documented-but-unbuilt helper infrastructure.
+
+**fix(skill-lint)** — `skill-lint.js` now (1) accepts namespaced MCP tool names
+(`mcp__server__tool`, including hyphenated segments) instead of flagging valid
+`mcp__gitnexus__*` / `mcp__context7__*` agent tools as "non-canonical" (16 false
+positives removed), and (2) discovers skills **recursively**, so the 6 nested
+`skills/gitnexus/*` skills are linted for the first time.
+
+**fix(skills) — format / routing** — Cleared all P1/P2 routing & structure
+findings across ~40 skills: added missing `When NOT to Use` / `Output` /
+`Verification` sections, strengthened description routing signatures, and added
+`Agent` / `Task` to `allowed-tools` where dispatched.
+
+**fix(skills) — latent loader bugs** — Three description classes that broke under
+strict YAML are now single-quoted: the 6 `gitnexus/*` descriptions
+(double-quote-wrapped with backslash escapes → literal quotes), and
+`swift-test-strategy` / `phpunit-10-notes` (unquoted ` #[…]` / ` #expect`
+truncated the description at the `#`).
+
+**fix(skills) — content correctness** — Corrected version-fact errors found in
+deep review: laravel-6 (fabricated "extracted packages" list → the real
+`laravel/ui` extraction; removed a non-existent `RetrievedUser` event and a
+mis-dated `MustVerifyEmail` change), laravel-10 (broken Faker entry with
+identical before/after), laravel-5.4 (route-model-binding / middleware-groups
+re-dated to their real 5.2 origin), phpunit-9 (Prophecy deprecated in 9, removed
+in 10 — was "removed in 9"), phpunit-10 (`CovesClass` typo). `feasibility-study`
+dispatched a non-existent `feasibility-analyst` agent → repointed to
+`general-purpose`.
+
+**fix(skills) — Context7 fact validation** — Cross-checked every
+language/framework skill's version-specific claims against Context7 docs
+(Laravel 6.x/8.x/11.x branches, PHPUnit, php.net, FastAPI/SQLAlchemy/pytest/Ruff,
+ESLint/TypeScript/Vue) plus the authoritative PHPUnit changelog. PHP, Python, JS
+and Vue facts came back clean; further corrections: **phpunit-11** doc-comment
+annotations are *deprecated in 11, removed in 12* (the skill wrongly said "fully
+removed in 11" throughout) and the Rector set is `PHPUnitLevelSetList`
+(was the non-existent `PHPUnitCodeQualityLevel`); **phpunit-9** Prophecy's
+replacement is a `ProphecyTrait` (not a base class); **TestListener** deprecation
+re-dated to 7.3 consistently across the 9/10 skills; **python-pro** PEP 585
+builtin generics re-dated to 3.9 (was 3.10); **laravel-6** gained the Carbon-2
+requirement note; **laravel-11** "Backport classes" wording corrected;
+**laravel-package-author** dropped a false "Laravel 11 no longer recommends
+deferred providers" claim; **laravel-testbench-matrix** "−2 offset" note fixed.
+Apple-SDK facts (Swift/iOS) are thinly covered by Context7 and were left as-is
+where unverifiable.
+
+**refactor(skills) — oversized splits** — Split 5 over-budget skills into
+`references/` (content moved, not lost): skill-judge 753→141, project-setup
+554→179, create-request 464→183, continuous-learning-v2 363→170, claude-health
+335→148.
+
+**feat(scripts) — build documented-but-missing helpers** — Implemented helpers
+that skills referenced but that never existed in git: `scripts/run-skill.sh`
+(skill helper-script runner, used by 6 skills), `scripts/emit-review-gate.sh`
+(review-gate marker), and the feature-context resolver
+`scripts/lib/feature-resolver.js` + `scripts/resolve-feature-cli.js` +
+`scripts/resolve-feature.sh` (the documented 4-level cascade, slug-validated,
+`execFileSync`-safe).
+
+**fix(skills) — dangling references** — Inlined the never-built `seek-verdict`
+verdict-prompt + thresholds into `issue-analyze` and `codex-code-review`
+(self-contained now); repointed `test-driven-development` → the `tdd-guide`
+agent (4 files); fixed the `smart-commit` command to reference the
+`git-smart-commit` skill.
+
+**chore(skills) — retire** — Removed `contract-decode` (EVM decoder, out of
+stack) and `phpunit-batch-refactor` (project-specific completed-migration
+artifact), and cleaned their inbound references.
+
+Validation: root + every module lint clean (0 P0/P1; residual P2 are intentional
+reference-length line counts), `validate-harness.sh` + `test-hooks.sh` green.
+
 ## 0.16.2 — 2026-06-27 — module skill description trim (issue #12 interim)
 
 **docs/perf(skills)** — Interim mitigation for
