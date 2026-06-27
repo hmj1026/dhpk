@@ -20,8 +20,35 @@ input="$(cat 2>/dev/null || true)"
 # Global statusline (rich: model, tokens, effort, rate limit).
 base_line=""
 if [ -x "$HOME/.claude/statusline.sh" ]; then
+    # Normalize the payload before handing it to the global statusline:
+    #   - strip .cwd so the global script skips its own git/dir section
+    #   - for 1M-context models (model id carries a "[1m]" suffix, e.g.
+    #     "claude-opus-4-8[1m]"), set context_window_size=1000000 so the global
+    #     script computes its usage percentage against the real ceiling instead
+    #     of its 200000 default — otherwise ~192k tokens reads as 96%, not ~19%.
     if command -v jq >/dev/null 2>&1; then
-        base_line="$(printf '%s' "$input" | jq -c 'del(.cwd)' 2>/dev/null | bash "$HOME/.claude/statusline.sh" 2>/dev/null)"
+        base_line="$(printf '%s' "$input" | jq -c '
+            del(.cwd)
+            | if ((.model.id // "") | test("\\[1m\\]"))
+              then .context_window.context_window_size = 1000000
+              else .
+              end
+          ' 2>/dev/null | bash "$HOME/.claude/statusline.sh" 2>/dev/null)"
+    elif command -v python3 >/dev/null 2>&1; then
+        base_line="$(printf '%s' "$input" | python3 -c '
+import sys, json
+raw = sys.stdin.read()
+try:
+    d = json.loads(raw)
+    d.pop("cwd", None)
+    if "[1m]" in ((d.get("model") or {}).get("id") or ""):
+        if not isinstance(d.get("context_window"), dict):
+            d["context_window"] = {}
+        d["context_window"]["context_window_size"] = 1000000
+    sys.stdout.write(json.dumps(d))
+except Exception:
+    sys.stdout.write(raw)
+' 2>/dev/null | bash "$HOME/.claude/statusline.sh" 2>/dev/null)"
     else
         base_line="$(printf '%s' "$input" | bash "$HOME/.claude/statusline.sh" 2>/dev/null)"
     fi
