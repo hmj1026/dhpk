@@ -6,6 +6,8 @@ The plugin SHALL ship 12 role-based agents under `agents/` (plus a non-invocable
 
 `architect`, `code-reviewer`, `database-reviewer`, `doc-updater`, `docs-lookup`, `harness-optimizer`, `harness-reviser`, `performance-analyzer`, `refactor-cleaner`, `security-reviewer`, `tdd-guide`, `ui-ux-verifier`.
 
+> **v0.16.0 update:** `harness-optimizer` was removed — its broader reliability/cost/throughput scoring folded into `/harness-govern`'s conform step. The `context-budget` skill listed further below was renamed `harness-budget`. The enumerations in this bootstrap spec are preserved as the v0.1.0 snapshot; the live agent/skill roster is `plugin.json` + `agents/INDEX.md`.
+
 #### Scenario: Agent discovery after install
 
 - **WHEN** the plugin is installed and the user opens `/agents`

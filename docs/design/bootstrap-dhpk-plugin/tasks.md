@@ -28,7 +28,7 @@
 
 ## 3. Agents (12 generic role-based)
 
-- [x] 3.1 Copy 5 already-generic agents (`doc-updater`, `docs-lookup`, `harness-optimizer`, `harness-reviser`, `INDEX.md`)
+- [x] 3.1 Copy 5 already-generic agents (`doc-updater`, `docs-lookup`, `harness-optimizer`, `harness-reviser`, `INDEX.md`) — *(`harness-optimizer` removed in v0.16.0; folded into `/harness-govern` conform)*
 - [x] 3.2 Copy 8 `-zdpos_dev` agents under their generic names (`architect`, `code-reviewer`, `database-reviewer`, `performance-analyzer`, `refactor-cleaner`, `security-reviewer`, `tdd-guide`, `ui-ux-verifier`)
 - [x] 3.3 sed-strip `-zdpos_dev` suffix from frontmatter `name:` and from cross-references in both agents and commands
 - [x] 3.4 Rewrite `agents/INDEX.md` to a plugin-namespaced agent list (no `-zdpos_dev` references)
