@@ -192,6 +192,17 @@ Mapping table says Laravel 12 → Testbench 10. Add the cell with
 
 ---
 
+## Verification
+
+- [ ] `composer.json` admits every dep in the cell (or the needed extension is listed).
+- [ ] The new matrix row pins all deps in the project's per-cell `include:` style.
+- [ ] Testbench version derived from the Laravel→Testbench table; PHPUnit ≥ the Laravel minimum.
+- [ ] Every polyfill branch the cell enters has a test that proves it (no new uncovered branch).
+- [ ] Floor-raising (semver major) surfaced if the cell required bumping a constraint.
+- [ ] Local dry-run (`composer update --prefer-lowest` + `composer test:unit`) attempted where possible.
+
+---
+
 ## Common traps
 
 - **Floor-raising disguised as cell add**: if adding the new cell requires

@@ -15,7 +15,7 @@
  *   2 = errors found (P0/P1)
  */
 
-const { readdirSync, readFileSync, existsSync, statSync } = require('node:fs');
+const { readdirSync, readFileSync, existsSync, statSync, lstatSync } = require('node:fs');
 const { join, basename, resolve } = require('node:path');
 
 // ---------------------------------------------------------------------------
@@ -290,14 +290,47 @@ function checkCrossSkillRefPaths(skillName, skillDir, body) {
 function findRefInOtherSkills(refFile, excludeSkill) {
   if (!isDir(skillsDir)) return null;
   const matches = [];
-  for (const d of readdirSync(skillsDir)) {
-    if (d === excludeSkill) continue;
-    const p = join(skillsDir, d);
-    if (!statSync(p).isDirectory()) continue;
-    if (existsSync(join(p, 'references', refFile))) matches.push(d);
+  for (const p of findSkillDirs(skillsDir)) {
+    if (basename(p) === excludeSkill) continue;
+    if (existsSync(join(p, 'references', refFile))) matches.push(basename(p));
   }
   // Ambiguous if 2+ skills share the same filename — not clearly cross-skill
   return matches.length === 1 ? matches[0] : null;
+}
+
+// Recursively find leaf skill directories (a dir containing SKILL.md). Supports
+// nested layouts like skills/gitnexus/<sub-skill>/SKILL.md so every skill is
+// linted, matching Claude Code's recursive skill discovery.
+function findSkillDirs(root) {
+  if (!isDir(root)) return [];
+  const SKIP = new Set(['references', 'scripts', 'templates', 'node_modules']);
+  // lstat (not stat) so symlinked dirs are NOT descended into — avoids cyclic-
+  // symlink stack overflow and double-counting linked skills.
+  const isRealDir = (p) => {
+    try {
+      return lstatSync(p).isDirectory();
+    } catch {
+      return false;
+    }
+  };
+  const out = [];
+  function walk(dir) {
+    if (existsSync(join(dir, 'SKILL.md'))) {
+      out.push(dir); // leaf skill — do not descend further
+      return;
+    }
+    for (const e of readdirSync(dir)) {
+      if (SKIP.has(e)) continue;
+      const p = join(dir, e);
+      if (isRealDir(p)) walk(p);
+    }
+  }
+  for (const e of readdirSync(root)) {
+    if (SKIP.has(e)) continue;
+    const p = join(root, e);
+    if (isRealDir(p)) walk(p);
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -412,6 +445,11 @@ function detectAgentToolsSyntax(_agentsDir) {
     'Agent', 'Task', 'Skill', 'WebSearch', 'WebFetch', 'NotebookEdit',
   ]);
   const SCOPED_RE = /^Bash\([a-z-]+:\*\)$/;
+  // MCP tools are namespaced: mcp__<server>__<tool> (e.g. mcp__gitnexus__impact,
+  // mcp__context7__resolve-library-id, mcp__claude_ai_Context7__query-docs).
+  // Each segment may contain single underscores/hyphens but not the "__"
+  // delimiter, so exactly two segments are accepted (no trailing __extra).
+  const MCP_RE = /^mcp__[a-z0-9-]+(?:_[a-z0-9-]+)*__[a-z0-9-]+(?:_[a-z0-9-]+)*$/i;
   const findings = [];
   for (const f of readdirSync(_agentsDir).filter((x) => x.endsWith('.md'))) {
     const content = normalizeContent(readFileSync(join(_agentsDir, f), 'utf8'));
@@ -422,7 +460,7 @@ function detectAgentToolsSyntax(_agentsDir) {
     for (const t of tools) {
       const trimmed = t.trim();
       if (!trimmed) continue;
-      if (CANONICAL_BARE.has(trimmed) || SCOPED_RE.test(trimmed)) continue;
+      if (CANONICAL_BARE.has(trimmed) || SCOPED_RE.test(trimmed) || MCP_RE.test(trimmed)) continue;
       findings.push({
         check: 'agent-tools-syntax',
         pass: false,
@@ -449,13 +487,10 @@ function main() {
     process.exit(2);
   }
 
-  const skillDirs = readdirSync(skillsDir).filter((d) => {
-    const p = join(skillsDir, d);
-    return statSync(p).isDirectory() && existsSync(join(p, 'SKILL.md'));
-  });
-
-  // Per-skill checks
-  const skillResults = skillDirs.map((d) => lintSkill(d, join(skillsDir, d)));
+  // Recursive discovery — finds nested skills (e.g. skills/gitnexus/<sub>/SKILL.md)
+  const skillDirPaths = findSkillDirs(skillsDir);
+  const skillResults = skillDirPaths.map((p) => lintSkill(basename(p), p));
+  const skillDirs = skillResults.map((r) => r.name);
 
   // Cross-skill checks
   const orphanFindings = detectOrphans(skillDirs);

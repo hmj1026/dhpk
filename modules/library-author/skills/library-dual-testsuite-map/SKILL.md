@@ -108,6 +108,15 @@ clearer.
 
 ---
 
+## Verification
+
+- [ ] Read `phpunit.xml` for the actual testsuite→directory mapping (don't assume).
+- [ ] Suite choice matches the edit location per the decision table.
+- [ ] `test:unit` edits run each suite separately for clear failure attribution.
+- [ ] Core files import no `Illuminate\` / `Symfony\` symbols (boundary grep ran).
+
+---
+
 ## Examples
 
 **Edited file:** `src/Core/Storage/LocalDriver.php`

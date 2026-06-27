@@ -1,6 +1,6 @@
 ---
 name: harness-budget
-description: 'Audits Claude Code context window consumption across agents, skills, MCP servers, and rules. Identifies bloat, redundant components, and produces prioritized token-savings recommendations. The token-accounting member of the harness-* family; backs /harness-govern''s measure step.'
+description: 'Audits Claude Code context-window token consumption across agents, skills, MCP, rules, and CLAUDE.md; produces prioritized token-savings fixes. Use when: context feels bloated, after adding components, or checking headroom. Not for: trimming harness structure (use harness-revise), backfilling .claude/ (use harness-fill). Output: budget report + ranked fixes.'
 origin: ECC
 ---
 
@@ -17,6 +17,13 @@ Analyze token overhead across every loaded component in a Claude Code session an
 - You want to know how much context headroom you actually have
 - Planning to add more components and need to know if there's room
 - Running `/harness-budget` command (this skill backs it)
+
+## When NOT to Use
+
+- Trimming, deduplicating, or validating harness structure — use `harness-revise`.
+- Backfilling missing `.claude/` skills / agents / rules — use `harness-fill`.
+- Auditing `.claude/` config health, naming, or hook wiring — use `/claude-health`.
+- Reviewing business code — route through the reviewer agents.
 
 ## How It Works
 
@@ -133,6 +140,13 @@ User: I want to add 5 more MCP servers, do I have room?
 Skill: Current overhead 33% → adding 5 servers (~50 tools) would add ~25,000 tokens → pushes to 45% overhead
        Recommendation: remove 2 CLI-replaceable servers first to stay under 40%
 ```
+
+## Verification
+
+- [ ] Context window detected from the actual model id (`[1m]` / 1M vs 200K) before computing percentages.
+- [ ] All buckets inventoried: agents, skills, rules, MCP tools, CLAUDE.md.
+- [ ] Issues ranked by token savings; top 3 optimizations quantified.
+- [ ] Potential-savings total reported (tokens + % of current overhead).
 
 ## Best Practices
 

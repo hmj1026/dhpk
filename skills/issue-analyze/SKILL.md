@@ -68,8 +68,8 @@ When input is a **Review Thread**:
 ├─────────────────────────────────────────────────────────────────┤
 │ Codex blind verification: ACTIONABLE / NON_ACTIONABLE / UNCERTAIN│
 │ Fresh mcp__codex__codex thread, read-only, anti-anchoring       │
-│ Pattern: @skills/seek-verdict/references/verdict-prompt.md      │
-│ Thresholds: @skills/seek-verdict/references/policy-mapping.md   │
+│ Prompt: blind-verdict pattern (see Phase 2.5)                   │
+│ Thresholds: policy table (see Phase 2.5)                        │
 │                                                                 │
 │ ⚠️ Never send Claude's classification to Codex                  │
 │ --triage mode: stop here, output verdict + classification       │
@@ -128,7 +128,7 @@ Issue Symptoms
 
 After classification, run Codex blind verification to independently assess actionability.
 
-**Codex call requirements** (same as `/seek-verdict` pattern):
+**Codex call requirements**:
 
 | Requirement | Detail |
 |-------------|--------|
@@ -137,7 +137,7 @@ After classification, run Codex blind verification to independently assess actio
 | Approval policy | `never` |
 | Anti-anchoring | Never send Claude's Phase 2 classification to Codex |
 
-**Prompt construction**: follow `@skills/seek-verdict/references/verdict-prompt.md` pattern, adapting input:
+**Prompt construction** (blind verdict — never reveal Claude's Phase 2 classification to Codex):
 
 - **GitHub Issue input**: provide issue title, body, labels as finding context
 - **Review Thread input**: provide file path, line, reviewer comment as finding context
@@ -152,7 +152,7 @@ After classification, run Codex blind verification to independently assess actio
 - reasoning: [why this verdict]
 ```
 
-**Policy mapping**: follow `@skills/seek-verdict/references/policy-mapping.md` thresholds (normal state; heightened thresholds apply after `[DISMISS_PATTERN_WARN]` — see policy-mapping.md Anti-Abuse Guard):
+**Policy mapping** (apply these thresholds; the heightened column applies after a repeated-dismiss warning `[DISMISS_PATTERN_WARN]`):
 
 | Verdict | Confidence | Evidence Refs | Result |
 |---------|------------|---------------|--------|
@@ -204,8 +204,7 @@ After classification, run Codex blind verification to independently assess actio
 
 - `references/classification.md` — Detailed problem classification guide (includes Review Thread dimensions)
 - `references/report-template.md` — Report template (includes Triage Report)
-- `@skills/seek-verdict/references/verdict-prompt.md` — Codex blind verification prompt pattern (source of truth)
-- `@skills/seek-verdict/references/policy-mapping.md` — Verdict thresholds + audit format (source of truth)
+- Verdict prompt pattern + thresholds are inlined in Phase 2.5 above (this skill is self-contained)
 
 ## Examples
 

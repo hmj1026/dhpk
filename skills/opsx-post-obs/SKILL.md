@@ -1,6 +1,6 @@
 ---
 name: opsx-post-obs
-description: "Post a session observation to claude-mem from opsx-apply-resume Save Phase. Invoked after compact-save extracts L0/session_goal/completed/in_progress/key_decisions/failed_approaches. Builds JSON payload, writes to temp file, runs post-obs.sh in background (fire-and-forget), returns OBS_PID and OBS_RESULT_FILE path for caller to wait on. Invoke at Save Phase Step 3b immediately after compact-save completes."
+description: 'Post a session observation to claude-mem from opsx-apply-resume Save Phase — builds a JSON payload and runs post-obs.sh in the background (fire-and-forget). Use when: opsx-apply-resume Save Phase Step 3b, right after compact-save extracts L0/session_goal/completed/key_decisions. Not for: loading Resume context (use opsx-load-context) or goal generation (use opsx-goal). Output: OBS_PID + OBS_RESULT_FILE path for the caller to wait on.'
 allowed-tools: Bash, Write
 ---
 
@@ -8,6 +8,12 @@ allowed-tools: Bash, Write
 
 Fire-and-forget background observer for `opsx-apply-resume` Save Phase.
 Called with compact-save output fields; posts an observation to the claude-mem worker without blocking the main Save Phase flow.
+
+## When NOT to Use
+
+- Loading Resume Phase context → use `opsx-load-context`
+- Generating a `/goal` condition for a fresh session → use `opsx-goal`
+- Outside Save Phase Step 3b (do not post observations mid-implementation)
 
 ## Inputs
 
@@ -61,7 +67,7 @@ OBS_PID=$!
 
 `post-obs.sh` outputs either an integer obs_id or the string `null`.
 
-## Returns
+## Output
 
 Set these variables for the caller to use later (before Step 7 of Save Phase):
 
@@ -76,6 +82,13 @@ The caller collects the result before writing the handoff file:
 wait $OBS_PID
 CLAUDE_MEM_OBS_ID=$(cat "$OBS_RESULT_FILE" 2>/dev/null || echo null)
 ```
+
+## Verification
+
+- [ ] Payload is a single valid JSON object (`content` parts joined with `\n`)
+- [ ] `concepts` values lowercased, no spaces; stage/wave omitted if unparsable
+- [ ] `post-obs.sh` launched with `&` — Save Phase never blocked
+- [ ] `OBS_PID` and `OBS_RESULT_FILE` returned; `null` outcomes accepted
 
 ## Guardrails
 

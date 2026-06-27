@@ -1,6 +1,6 @@
 ---
 name: xcode-build-tooling
-description: Xcode / SwiftLint / xcodebuild / Swift Package Manager tooling — SwiftLint rule-tier strategy and per-package .swiftlint.yml, xcodebuild -scheme/-destination build & test vs swift build / swift test for SPM packages, and scheme / code-signing notes for a no-iCloud capability set. Use when configuring SwiftLint, deciding how to build/test an iOS app or SPM package from the CLI, interpreting the module's post-edit SwiftLint hook or pre-commit build gate, or setting up CI build commands. Requires the swift module; wires post-edit-swiftlint.sh and pre-commit-swift-build.sh.
+description: Xcode / SwiftLint / xcodebuild / Swift Package Manager tooling — SwiftLint rule-tier strategy and per-package .swiftlint.yml, xcodebuild -scheme/-destination build & test vs swift build / swift test for SPM packages, and scheme / code-signing notes for a no-iCloud capability set. Use when configuring SwiftLint, deciding how to build/test an iOS app or SPM package from the CLI, interpreting the module's post-edit SwiftLint hook or pre-commit build gate, or setting up CI build commands. Not for Swift language questions (swift) or test strategy (swift-test-strategy); output is build/lint commands plus hook and CI config. Requires the swift module; wires post-edit-swiftlint.sh and pre-commit-swift-build.sh.
 ---
 
 # Xcode build & lint tooling
@@ -42,6 +42,25 @@ Load references on demand:
    → `swift build`/`swift test` (faster, no simulator). See `xcodebuild-spm.md`.
 3. **Keep SwiftLint config close to the code** — a root `.swiftlint.yml` plus
    per-package overrides; treat new violations as a work list, not a flag day.
+
+## When NOT to Use
+
+- Swift language / concurrency questions → swift module.
+- Test strategy, framework choice, target layout → swift-test-strategy.
+- SwiftUI architecture or iOS SDK framework code → swiftui / ios-platform.
+
+## Output
+
+The right CLI invocation for the unit under test (`xcodebuild -scheme … -destination …`
+for an app target, `swift build` / `swift test` for an SPM package), a SwiftLint
+config placement, or the hook / `userConfig` setting that drives the gate.
+
+## Verification
+
+- [ ] App targets build via `xcodebuild -scheme`; pure SPM packages via `swift build` / `swift test`.
+- [ ] SwiftLint config lives close to the code (root `.swiftlint.yml` + per-package overrides).
+- [ ] Hooks fail-soft when `swiftlint` / `xcodebuild` / `swift` is absent.
+- [ ] `xcode_scheme` / `xcode_destination` `userConfig` set correctly for the pre-commit gate.
 
 ## babylon
 

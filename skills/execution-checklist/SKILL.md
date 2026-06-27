@@ -12,6 +12,12 @@ when triggers fire, task-end book-keeping.
 > `.claude/rules/execution-policy.md`). This skill carries the long-form
 > checklist so the policy rule itself stays index-sized.
 
+## When NOT to Use
+
+- Trivial one-line edits or pure typo fixes.
+- Pure research / planning turns with no Edit/Write.
+- Replies that touched no source, harness, or doc files — there is nothing to gate.
+
 ## Usage
 
 - **Not every reply needs this** — small change / pure research → skip.
@@ -127,3 +133,23 @@ gitnexus_impact: skipped — append-only (new file / new method, no existing sym
 
 If the change modifies an existing method signature / class hierarchy /
 interface contract, the exemption does not apply — run impact analysis.
+
+---
+
+## Output
+
+This skill produces no artifact of its own — it shapes the **wrap-up reply**.
+At wrap-up the reply MUST follow:
+
+`Conclusion → Changed files → Verification → Risks / Open questions`
+
+When blocked, switch to: `Blocker → Tried → Next viable option`. Any
+self-accountable reviewer skip is recorded inline (with its reason) in the
+Verification section.
+
+## Verification
+
+- [ ] Per-reply four boxes cleared (TDD pre-run, final gate, output structure, Edit-before-Read).
+- [ ] Every conditional trigger that fired has its required check run, or a recorded skip reason.
+- [ ] Surviving reviewers dispatched in parallel; any CRITICAL resolved before commit.
+- [ ] Task-end book-keeping considered (MEMORY.md / retrospective / backlog tickets).

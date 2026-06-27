@@ -1,6 +1,6 @@
 ---
 name: laravel-testbench-matrix
-description: Orchestra Testbench setup for packages that span multiple Laravel majors. Use when designing a CI matrix for a Laravel package, picking Testbench versions per Laravel cell, troubleshooting "wrong testbench version" install errors, setting up the abstract TestCase base class, registering the package's service provider / facade in tests, provisioning per-cell databases (sqlite memory vs MySQL service), or running --prefer-lowest to catch constraint floor bugs. Sub-skill of laravel-package-author — that skill covers the rest of Laravel package authoring (service providers, facades, publishing, discovery). Load this when the question is specifically about the testbench matrix mechanics.
+description: Orchestra Testbench setup for packages that span multiple Laravel majors. Use when designing a CI matrix for a Laravel package, picking Testbench versions per Laravel cell, troubleshooting "wrong testbench version" install errors, setting up the abstract TestCase base class, registering the package's service provider / facade in tests, provisioning per-cell databases (sqlite memory vs MySQL service), or running --prefer-lowest to catch constraint floor bugs. Sub-skill of laravel-package-author — that skill covers the rest of Laravel package authoring (service providers, facades, publishing, discovery). Load this when the question is specifically about the testbench matrix mechanics. Not for single-Laravel-major packages or application test suites, and not for the rest of package authoring (service providers, facades, publishing) — use laravel-package-author for those. Output is a per-cell CI matrix with correct Testbench pins, an abstract TestCase, and a green test run.
 ---
 
 # Orchestra Testbench matrix — per-Laravel-major test cells
@@ -27,8 +27,8 @@ Testbench → install conflict.
 | 10.x | 8.x | 8.1 | typed app skeleton |
 | 11.x | 9.x | 8.2 | streamlined structure |
 
-> Rule of thumb: Testbench major = Laravel major − 2 (until Laravel 9
-> where they re-aligned). Always confirm via Testbench's `composer.json`
+> Rule of thumb: Testbench major = Laravel major − 2 (holds from
+> Laravel 6 through 11). Always confirm via Testbench's `composer.json`
 > for the cell — the mapping above is current as of dhpk 0.2.
 
 ---
@@ -277,6 +277,43 @@ malformed — invisible until a consumer installs.
 | `Class 'X' not found` only on prefer-lowest cell | Used a method/class added in a later minor | Tighten constraint floor in `composer.json` |
 | `SQLSTATE[HY000]: General error: 1 no such table` | Migration not loaded; `defineDatabaseMigrations` not overridden | Add the override in base TestCase |
 | Tests work in `vendor/bin/phpunit` but `package:discover` errors | Provider FQCN typo in `composer.json:extra.laravel.providers` | Run discovery-check job locally |
+
+---
+
+## When NOT to Use
+
+- A package that targets a single Laravel major — one Testbench version,
+  no matrix; the per-cell pinning machinery here is overkill.
+- Application test suites — an app already boots a real framework; it does
+  not need Testbench to fake one.
+- The rest of Laravel package authoring (service provider design, facade
+  accessors, publishing, discovery) — that is the parent
+  `laravel-package-author` skill.
+- Semver / constraint-floor *decisions* (as opposed to the
+  `--prefer-lowest` cell that *exercises* them) — see
+  `composer-package-hygiene`.
+
+## Output
+
+Consulting this skill should yield:
+
+- A **CI matrix** with one cell per supported Laravel major, each pinned
+  to the correct Testbench version via `composer require --no-update`.
+- An **abstract `TestCase`** that registers the package's provider and
+  facade and provisions a per-cell database.
+- A green `vendor/bin/phpunit` on every cell, plus a `--prefer-lowest`
+  cell and a separate `package:discover` job.
+
+## Verification
+
+- [ ] Each Laravel cell pins the Testbench version from the mapping table.
+- [ ] `composer require --no-update` + `composer update` resolves per cell
+      with no cross-cell lock leakage.
+- [ ] PHP × Laravel excludes match each Laravel's minimum-PHP floor.
+- [ ] A `--prefer-lowest --prefer-stable` cell exists.
+- [ ] Laravel 6/7 cells shim the missing `defineDatabaseMigrations()`.
+- [ ] A separate job runs `package:discover` against a real consumer
+      install (Testbench alone does not validate `extra.laravel`).
 
 ---
 

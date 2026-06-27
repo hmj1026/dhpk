@@ -1,6 +1,6 @@
 ---
 name: fastapi-pro
-description: FastAPI + SQLAlchemy 2.0 async service patterns and review checklist — routers, dependency injection, Pydantic schemas, async session/transaction discipline, Alembic migration safety, CORS/auth/error handling. Use when writing or reviewing FastAPI endpoints, SQLAlchemy async repositories, or Alembic migrations.
+description: 'FastAPI + SQLAlchemy 2.0 async patterns + review checklist: routers, Depends DI, Pydantic schemas, session/transaction discipline, Alembic safety, auth/CORS/errors. Use when writing or reviewing FastAPI routes, async repositories, or migrations. Not for non-web Python. Output: layered, transaction-safe API.'
 ---
 
 # FastAPI + SQLAlchemy (async) Pro
@@ -64,3 +64,24 @@ data-access in repositories.
   way). The `sec` triggers route auth/oauth/ingestor edits to security-reviewer.
 - Guard external I/O with timeouts; isolate untrusted inputs (ccas runs PDF parsing
   under `asyncio.wait_for` to contain poison inputs).
+
+## When NOT to Use
+
+Not for non-web Python (see `python-pro`), and not for writing the tests that
+exercise these endpoints (see `pytest-async`). Load when building or reviewing
+routers, async repositories, or Alembic migrations.
+
+## Output
+
+FastAPI code that follows Router → Service → Repository: every route declares
+`response_model` + `status_code` and returns a Pydantic schema (never a raw ORM
+object), one session per request, writes wrapped in a single transaction,
+eager-loaded relationships, and a reviewed, reversible Alembic migration.
+
+## Verification
+
+- No route returns a raw ORM object; request and response schemas are separate.
+- Each unit of work commits/rolls back once at the edge; no session held across
+  an unrelated `await`.
+- `alembic upgrade head` then `downgrade` round-trips locally; CORS origins and
+  error handlers come from settings — no hardcoded `*` or leaked tracebacks.

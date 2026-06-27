@@ -214,3 +214,21 @@ Surface-area decisions that matter for downstream consumers:
 | You're working on legacy 5.6 code with no plans to upgrade | `modules/php-5.6/skills/php-pro/SKILL.md` |
 | You're writing tests for a package that supports a Laravel range | (planned) `modules/laravel-N/skills/laravel-N-dev/` — until then, the existing `php-pro` skill has Laravel 10 / 11-12 reference docs |
 | You're shipping a release and need to validate composer constraints / API surface | (planned) `skills/composer-package-hygiene/SKILL.md` |
+
+---
+
+## When NOT to Use
+
+- Everyday business logic — load only for API-shape, idiom, or packaging decisions
+- Legacy 5.6 code with no upgrade plans — use `php-pro` instead
+- Deep per-feature 8.0–8.3 guidance — use `php-8x-features` instead
+
+## Output
+
+Inline guidance only — an idiom recommendation, a packaging / constraint decision, or a polyfill pattern. No file artifact.
+
+## Verification
+
+- [ ] Each chosen idiom's min-PHP is ≤ the declared composer floor
+- [ ] composer constraints use `^` unions (`^7.4 || ^8.0`), never bare `>=`
+- [ ] Every polyfill / `class_alias` branch has a matching CI matrix cell

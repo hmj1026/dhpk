@@ -1,6 +1,6 @@
 ---
 name: python-pro
-description: Modern Python (3.10+) idioms and review checklist — type hints, dataclasses/pydantic, async-await discipline, logging-over-print, exception hierarchy, and the ruff+pyright tooling baseline. Use when writing or reviewing backend Python, especially async services (FastAPI/SQLAlchemy). Pairs with the fastapi and pytest dhpk modules.
+description: 'Modern Python (3.10+) review checklist: typing, dataclasses/pydantic, async-await discipline, logging over print, exception chain, ruff+pyright. Use when writing or reviewing backend Python (async FastAPI/SQLAlchemy). Not for non-backend or pre-3.10 code. Output: typed, ruff/pyright-clean code.'
 ---
 
 # Python Pro (3.10+)
@@ -13,7 +13,7 @@ the `fastapi` module; for tests see the `pytest` module.
 ## Typing discipline
 
 - **Annotate every public function** (params + return). Prefer `X | None` over
-  `Optional[X]`, `list[str]` over `List[str]` (PEP 585/604, 3.10+).
+  `Optional[X]`, `list[str]` over `List[str]` (PEP 585 3.9+, PEP 604 3.10+).
 - Run the type checker as a gate, not a suggestion. ccas runs **pyright strict**;
   mypy is the alternative. Don't add `# type: ignore` without a reason comment.
 - Model data with `@dataclass(slots=True)` or **pydantic** models, not bare dicts.
@@ -65,3 +65,23 @@ the `fastapi` module; for tests see the `pytest` module.
 - Type checker on every commit (pyright/mypy). Coverage floor via pytest-cov.
 - The `python` module's pre-commit gate runs ruff + format-check + type-check on
   staged `.py`; `[skip-python-lint]` bypasses in an emergency.
+
+## When NOT to Use
+
+Not for non-Python work, frontend tasks, or codebases pinned to Python <=3.9
+(the `X | None`, `slots=True`, and `TaskGroup` idioms here assume 3.10/3.11+).
+For ruff/pyright config see `python-static-checks`; for web-API specifics see
+`fastapi-pro`; for tests see `pytest-async`.
+
+## Output
+
+Python that meets the checklist above: every public function annotated, data
+modelled with dataclasses/pydantic, no blocking I/O in `async def`, no stray
+`print`, a preserved exception chain — and that passes ruff + the type checker
+clean.
+
+## Verification
+
+- `ruff check` and `ruff format --check` report no findings.
+- `pyright` (strict) or `mypy` passes; no new `# type: ignore` without a reason.
+- No `print()` in library/app code; `pytest --cov` meets the coverage floor.

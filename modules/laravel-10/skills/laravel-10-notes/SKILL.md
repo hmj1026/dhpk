@@ -1,6 +1,6 @@
 ---
 name: laravel-10-notes
-description: Laravel 10.x (February 2023) signature features and the breaking-change traps from 9 → 10. Use when writing or reviewing code in a Laravel 10 project, or in a package whose composer constraint includes ^10.0. Covers native return types throughout the app skeleton, invokable validation rules via the ValidationRule contract, the Process facade for shell invocation, the Pest-as-default test option, and the Predis 2.x default.
+description: Laravel 10.x (February 2023) signature features and the breaking-change traps from 9 → 10. Use when writing or reviewing code in a Laravel 10 project, or in a package whose composer constraint includes ^10.0. Covers native return types throughout the app skeleton, invokable validation rules via the ValidationRule contract, the Process facade for shell invocation, the Pest-as-default test option, and the Predis 2.x default. Not for application business logic — load when touching the app skeleton, validation rules, or shell calls, or planning a 9 → 10 upgrade.
 ---
 
 # Laravel 10 — native types, invokable rules, Process facade
@@ -113,12 +113,6 @@ you.
 Synchronous job dispatch via `dispatch_sync()` or `Bus::dispatchSync()`
 is now the only path. `dispatchNow()` was deprecated in 9 and removed.
 
-### Faker locale config moved
-
-Was `config('app.faker_locale')`; now lives at `config('app.faker_locale')`
-*with a different default* (`en_US` was implicit, now explicit). Update
-config files generated pre-10 if they rely on the old implicit default.
-
 ### Test factory `make()` vs `create()`
 
 No change in 10, but **deprecation warnings** are louder if you call
@@ -134,6 +128,27 @@ that mix `make()` (no DB) with `create()` semantics.
 - **`$casts` property on models** (Laravel 11 prefers `casts()` method)
 - **Per-minute rate limiting only** (Laravel 11 adds per-second)
 - **No `/up` health endpoint** (added in 11)
+
+---
+
+## When NOT to Use
+
+Not for application business logic, and not for a project on a different
+Laravel major — use the matching `laravel-N-notes`. Package-authoring
+concerns (service providers, facades, testbench) live in
+`laravel-package-author`.
+
+## Output
+
+Framework-touching code or review notes that match Laravel 10's APIs
+(PHP 8.1 floor) — flag any call that actually belongs to a different
+major.
+
+## Verification
+
+- Confirm the project runs Laravel 10 (`composer show laravel/framework`).
+- Check the PHP 8.1 floor before using version-gated syntax.
+- Cross-check cited APIs against the 9 → 10 upgrade guide.
 
 ---
 

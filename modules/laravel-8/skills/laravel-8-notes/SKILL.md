@@ -1,6 +1,6 @@
 ---
 name: laravel-8-notes
-description: Laravel 8.x (September 2020) signature features and the breaking-change traps from 7 → 8. Use when writing or reviewing code in a Laravel 8 project, or in a package whose composer constraint includes ^8.0. Covers the factory class rewrite (HasFactory trait), Jetstream/Fortify scaffolding split, job batching, queueable closures, the app/Models/ relocation, dynamic Blade components, migration squashing, and the Tailwind-by-default switch.
+description: Laravel 8.x (September 2020) signature features and the breaking-change traps from 7 → 8. Use when writing or reviewing code in a Laravel 8 project, or in a package whose composer constraint includes ^8.0. Covers the factory class rewrite (HasFactory trait), Jetstream/Fortify scaffolding split, job batching, queueable closures, the app/Models/ relocation, dynamic Blade components, migration squashing, and the Tailwind-by-default switch. Not for application business logic — load when touching factories, jobs, models, or Blade, or planning a 7 → 8 upgrade.
 ---
 
 # Laravel 8 — factories rewritten, job batching, models relocated
@@ -162,6 +162,27 @@ contradict each other quietly.
   but the underlying mailer differs
 - **Flysystem 1** (Flysystem 3 in 9) — visibility and exception API
   differs
+
+---
+
+## When NOT to Use
+
+Not for application business logic, and not for a project on a different
+Laravel major — use the matching `laravel-N-notes`. Package-authoring
+concerns (service providers, facades, testbench) live in
+`laravel-package-author`.
+
+## Output
+
+Framework-touching code or review notes that match Laravel 8's APIs
+(PHP 7.3 floor) — flag any closure-based factory or other call that
+actually belongs to a different major.
+
+## Verification
+
+- Confirm the project runs Laravel 8 (`composer show laravel/framework`).
+- Check the PHP 7.3 floor before using version-gated syntax.
+- Cross-check cited APIs against the 7 → 8 upgrade guide.
 
 ---
 

@@ -52,6 +52,27 @@ Load references on demand:
   `body` (`StateObject`/`@State` owns lifecycle; constructing in `body` recreates
   it every render).
 
+## When NOT to Use
+
+- Pure language questions (concurrency, optionals, value vs reference) → swift module.
+- iOS SDK frameworks (persistence, crypto, OCR, camera, HealthKit) → ios-platform.
+- Test strategy / target structure → swift-test-strategy.
+
+## Output
+
+A SwiftUI screen or layer where views stay declarative, view models are
+`@Observable @MainActor` with protocol-injected dependencies, and navigation is
+driven by a coordinator-owned `NavigationPath` — plus the correct state-ownership
+wrapper (`@State` / `@Binding` / `@Environment` / `@Bindable`) for each piece of state.
+
+## Verification
+
+- [ ] No business logic, persistence, or networking in a `View` or in `body`.
+- [ ] View models are `@Observable` (not `ObservableObject` + `@Published`) and `@MainActor`.
+- [ ] Routing goes through the coordinator's `NavigationPath`, not inline `NavigationLink(destination:)`.
+- [ ] Each state value has exactly one owner; bindings use `@Bindable` / `@Binding`.
+- [ ] UIKit / Combine APIs are wrapped at a boundary, not called from `body`.
+
 ## babylon mapping
 
 The consent gate, biometric lock gate, and background-masking overlay are

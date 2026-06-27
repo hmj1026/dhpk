@@ -172,6 +172,17 @@ APPROVE: openspec/ shape is valid. <N> change(s) checked.
 
 ---
 
+## Verification
+
+- [ ] All six checks ran against the current `openspec/` diff (or working tree).
+- [ ] No `openspec/specs/` SSOT edit outside an archive commit (Check 1).
+- [ ] Every spec-delta carries ADDED / MODIFIED / REMOVED markers (Check 2).
+- [ ] Each active change has proposal.md, tasks.md, and specs/ (Check 3).
+- [ ] Slugs are kebab-case (Check 5); proposal capability refs resolve (Check 6).
+- [ ] Verdict emitted: APPROVE / WARNING / BLOCK.
+
+---
+
 ## Common traps the guard catches
 
 - **Writer "fixes" the SSOT directly because the change felt small** —

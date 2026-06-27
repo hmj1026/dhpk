@@ -90,7 +90,7 @@ Please verify:
 
 ## Dismiss Verdict Format
 
-When a finding is verified via `/seek-verdict`, output:
+When a finding is verified via an independent blind verdict, output:
 
 **Dismiss intent**:
 
@@ -132,7 +132,7 @@ When `SPEC_CHECKLIST` is injected (feature has request doc with ACs), review out
 
 ## Gate Sentinels
 
-Hook gate is emitted via `bash scripts/emit-review-gate.sh READY|BLOCKED` (outputs `REVIEW_GATE=<value>`, consumed by `post-tool-review-state.sh`).
+Hook gate is emitted via `bash scripts/emit-review-gate.sh READY|BLOCKED` (outputs `REVIEW_GATE=<value>`, consumed by a review-state hook when one is wired).
 
 Text sentinels below are for **behavior-layer** (auto-loop) and **stop-guard** visual confirmation:
 

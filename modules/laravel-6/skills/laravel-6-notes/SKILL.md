@@ -70,15 +70,20 @@ $users = User::addSelect(['last_login_at' => Login::select('created_at')
 One query instead of N+1. The subquery becomes a column in the
 parent select.
 
-### Extracted packages
+### Frontend scaffolding extracted to laravel/ui
 
-These moved out of laravel/framework into separate packages requiring
-explicit `composer require`:
+The Bootstrap/Vue/React auth scaffolding (`make:auth`, login/register
+views) moved out of laravel/framework into the separate `laravel/ui`
+package:
 
-- `laravel/cashier`
-- `laravel/passport`
-- `laravel/nova` (commercial)
-- `facade/ignition` (error page — used to be the default in dev)
+```bash
+composer require laravel/ui
+php artisan ui vue --auth      # replaces the old `php artisan make:auth`
+```
+
+Note: `laravel/cashier`, `laravel/passport`, and `laravel/nova` have
+always been separate packages — they were *not* extracted in 6.0. Ignition
+(`facade/ignition`) shipped as the default dev error page in 6.0.
 
 ---
 
@@ -105,16 +110,18 @@ to migrate to `Str::` / `Arr::`.
 Symbols affected: `array_*` (16 helpers), `str_*` (24 helpers). The
 upgrade guide lists each.
 
-### Auto-resolved auth model
+### Authorization responses can carry messages
 
-Before 6.0: `Auth::user()` could return `null` mid-request silently.
-After: same behaviour, but `RetrievedUser` event removed — code that
-hooked it must move to `Authenticated`.
+`Gate` checks and policy methods may now return
+`Illuminate\Auth\Access\Response` (via `Response::allow()` / `deny()`),
+and `Gate::inspect()` exposes the message — handy for richer 403s. Older
+boolean returns keep working, so this is additive, not a break.
 
-### Email verification interface signature changed
+### Carbon 1.x no longer supported
 
-`MustVerifyEmail` interface gained `sendEmailVerificationNotification()`.
-Custom user models that implemented it manually must add the method.
+Carbon 1.x is end-of-life and **no longer supported** in 6.0 —
+`nesbot/carbon` must be on `^2.0`. The date API is largely compatible,
+but audit any Carbon 1.x-only behaviour before upgrading.
 
 ---
 
@@ -129,6 +136,27 @@ miss and shim:
   for transformation, or store JSON-encoded
 - **No Blade `x-` components** (added in 7) — use `@include` or
   manual View Composers
+
+---
+
+## When NOT to Use
+
+Not for application business logic, and not for a project on a different
+Laravel major — use the matching `laravel-N-notes`. Package-authoring
+concerns (service providers, facades, testbench) live in
+`laravel-package-author`.
+
+## Output
+
+Framework-touching code or review notes that match Laravel 6's APIs
+(PHP 7.2 floor) — flag any `str_*` / `array_*` global helper or other
+call that actually belongs to a different major.
+
+## Verification
+
+- Confirm the project runs Laravel 6 (`composer show laravel/framework`).
+- Check the PHP 7.2 floor before using version-gated syntax.
+- Cross-check cited APIs against the 5.8 → 6.0 upgrade guide.
 
 ---
 

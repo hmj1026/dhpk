@@ -141,6 +141,25 @@ Keep upgrade plans separate from day-to-day Mix 5 edits.
 
 ---
 
+## When NOT to Use
+
+Not for application or Vue component logic (use the `laravel-5.4` /
+`vue-2` notes), and not for a Mix 6+ / webpack 5 / Vite project — the
+APIs differ. This skill is only for the Mix 5 asset pipeline itself.
+
+## Output
+
+`webpack.mix.js` / `package.json` edits that build cleanly under Mix 5
+(webpack 4) — flag anything copied from a Mix 6 / Vite guide.
+
+## Verification
+
+- Confirm `laravel-mix` resolves to `^5.x` (`npm ls laravel-mix`).
+- On Node 17+, confirm `NODE_OPTIONS=--openssl-legacy-provider` is set.
+- Run `npm run dev` (and `npm run prod`) to confirm the build succeeds.
+
+---
+
 ## Cross-references
 
 - `modules/vue-2/skills/vue-2-notes/SKILL.md` — Vue 2 SFCs are compiled

@@ -262,6 +262,24 @@ Bump the floor in `composer.json` deliberately — semver major. See
 
 ---
 
+## When NOT to Use
+
+- Everyday business logic — load only when picking between valid idioms or designing API shape
+- 7.4-baseline idioms or dual-floor packaging patterns — use `php-modern-pro`
+- Legacy 5.6 code — use `php-pro`
+
+## Output
+
+Inline guidance only — a feature recommendation with its min-PHP marker, or a migration suggestion. No file artifact.
+
+## Verification
+
+- [ ] The chosen feature's min-PHP is ≤ the project's declared floor
+- [ ] For `^7.4 || ^8.0` libraries, only attributes are used unconditionally; every other 8.x feature is gated
+- [ ] A floor bump in composer.json is treated as a semver major
+
+---
+
 ## Cross-references
 
 - `modules/php-7.4/skills/php-modern-pro/SKILL.md` — the 7.4 baseline

@@ -1,6 +1,6 @@
 ---
 name: laravel-7-notes
-description: Laravel 7.x (March 2020) signature features and the breaking-change traps from 6 → 7. Use when writing or reviewing code in a Laravel 7 project, or in a package whose composer constraint includes ^7.0. Covers the new HTTP client facade, custom Eloquent casts via the CastsAttributes interface, the Blade x-component overhaul, Symfony 5 upgrade implications, and route-model-binding-by-key.
+description: Laravel 7.x (March 2020) signature features and the breaking-change traps from 6 → 7. Use when writing or reviewing code in a Laravel 7 project, or in a package whose composer constraint includes ^7.0. Covers the new HTTP client facade, custom Eloquent casts via the CastsAttributes interface, the Blade x-component overhaul, Symfony 5 upgrade implications, and route-model-binding-by-key. Not for application business logic — load when touching framework code (HTTP calls, casts, Blade components) or planning a 6 → 7 upgrade.
 ---
 
 # Laravel 7 — HTTP client, custom casts, blade components
@@ -123,6 +123,27 @@ If reviewing a 7.x codebase mid-upgrade:
   closures instead of factory classes
 - **No job batching** (added in 8) — implement manually with
   `Bus::chain()`
+
+---
+
+## When NOT to Use
+
+Not for application business logic, and not for a project on a different
+Laravel major — use the matching `laravel-N-notes`. Package-authoring
+concerns (service providers, facades, testbench) live in
+`laravel-package-author`.
+
+## Output
+
+Framework-touching code or review notes that match Laravel 7's APIs
+(PHP 7.2.5 floor) — flag any call that actually belongs to a different
+major.
+
+## Verification
+
+- Confirm the project runs Laravel 7 (`composer show laravel/framework`).
+- Check the PHP 7.2.5 floor before using version-gated syntax.
+- Cross-check cited APIs against the 6 → 7 upgrade guide.
 
 ---
 

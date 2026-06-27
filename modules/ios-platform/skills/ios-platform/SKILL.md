@@ -47,6 +47,27 @@ Art. 6 special-category-data + App Review obligations:
 
 6. **HealthKit is read-only** (no public write API for medication records).
 
+## When NOT to Use
+
+- SwiftUI view composition / state / navigation → swiftui module.
+- Pure language questions (concurrency, optionals, actors) → swift module.
+- Test authoring for these services → swift-test-strategy.
+
+## Output
+
+Persistence / encryption / Keychain / OCR / camera / biometric / notification /
+HealthKit / privacy-manifest code that satisfies the always-on PHI rules: no
+iCloud sync, encrypted at rest, keys in the Keychain (this-device-only,
+non-synchronizable), a manual fallback for OCR, and Time Sensitive notifications.
+
+## Verification
+
+- [ ] No PHI reaches iCloud / CloudKit / iCloud backup; `kSecAttrSynchronizable` never set on PHI keys.
+- [ ] PHI store encrypted (SQLCipher / EncryptedCoreData, or `NSFileProtectionComplete` baseline); images via `AES.GCM`.
+- [ ] Keychain items use `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`.
+- [ ] OCR has a manual-correction path; notifications stay under the 64-pending limit with rollover.
+- [ ] Privacy manifest + usage strings present for every accessed sensitive API.
+
 ## Reviewer hand-off
 
 Encryption / Keychain / privacy-manifest / consent findings → `security-reviewer`

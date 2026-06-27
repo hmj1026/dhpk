@@ -52,9 +52,9 @@ Trap: doing `config('devkit.x')` inside `register()` will silently return
 use `$app['config']->get(...)` if you must read config in `register()`,
 and prefer to defer config-dependent work to `boot()`.
 
-### Deferred providers (Laravel < 11)
+### Deferred providers
 
-For Laravel ≤10 packages whose bindings are rarely accessed:
+For packages whose bindings are rarely accessed:
 
 ```php
 final class DevkitServiceProvider extends ServiceProvider implements DeferrableProvider
@@ -71,10 +71,10 @@ The container only instantiates the provider when one of the `provides()`
 classes is resolved. Useful for packages with expensive `register()`
 (reading large config files, opening connections).
 
-> **Laravel 11+ note**: the framework no longer recommends deferred
-> providers; the resolution overhead it saves is negligible in modern
-> Laravel. Don't add new `DeferrableProvider` implementations in 11+
-> packages.
+> **Laravel 11 note**: `DeferrableProvider` still exists and is
+> documented in 11.x — deferral remains valid for packages with an
+> expensive `register()`. (Laravel 11's default skeleton ships fewer
+> providers, but the deferral mechanism itself is unchanged.)
 
 ---
 
@@ -299,6 +299,46 @@ fine in a plain PHP package:
 For each of these, treat the change as major. For published artifacts
 specifically, prefer **adding new** (new config key, new migration) over
 **modifying existing**.
+
+---
+
+## When NOT to Use
+
+- Application code — controllers, jobs, Eloquent models that live in one
+  app and ship to no one. Service-provider and facade discipline here is
+  about *distributing* code, not consuming Laravel.
+- Version-specific deprecations or new APIs for a single Laravel major —
+  use the matching `laravel-N` module (`laravel-6` → `laravel-11`).
+- The publish-side release flow (semver, tag/changelog sync, autoload
+  hygiene) — that is `composer-package-hygiene`.
+- Deep testbench-matrix mechanics (per-cell Testbench pins, sqlite vs
+  MySQL provisioning, `--prefer-lowest`) — drill into the
+  `laravel-testbench-matrix` sub-skill.
+
+## Output
+
+Consulting this skill should yield one of:
+
+- A **service provider** with the register/boot split correct, deferral
+  decided per Laravel major, and version-conditional bindings each paired
+  with a test cell.
+- A **facade** whose accessor matches the provider binding, registered in
+  `extra.laravel.aliases`, with `@method` IDE hints in sync.
+- A **publishing setup** with per-artifact tags and a deliberate
+  auto-run-vs-publish decision for migrations.
+- A **discovery-validated** package — `package:discover` proven green
+  against a real consumer install, not just the package's own dir.
+
+## Verification
+
+- [ ] `composer validate --strict` passes.
+- [ ] `php artisan package:discover --ansi` succeeds on a fresh consumer
+      install (not just inside the package repo).
+- [ ] Facade smoke test — one method called through the alias, no
+      `Class '...' not found`.
+- [ ] Each version-conditional branch has a Testbench cell that enters it.
+- [ ] Every published artifact (config, views, assets, migrations) has a
+      unique `--tag` and publishes cleanly.
 
 ---
 

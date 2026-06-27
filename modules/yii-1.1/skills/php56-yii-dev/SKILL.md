@@ -9,6 +9,13 @@ description: 'Generic backend development workflow for legacy Yii 1.x applicatio
 
 Use this skill to work on generic Yii 1.x backend tasks in legacy PHP 5.6 environments without introducing syntax or patterns that block a later PHP 7 upgrade. Keep the workflow small: refresh framework knowledge through Context7 when needed, design with pragmatic DDD boundaries, drive changes with tests, then implement and verify.
 
+## When NOT to Use
+
+- Frontend-only work, documentation-only edits, or non-PHP stacks.
+- The workflow still needs classification or gate decisions — route to `$adaptive-dev-workflow` first, then return here for implementation.
+- The bug's root cause is unknown — route to `$bug-investigation` first, then return here for the PHP 5.6-safe fix.
+- Modern PHP 7+/PHPUnit 6+ greenfield code with no PHP 5.6 runtime constraint.
+
 ## Core Rules
 
 1. Treat PHP 5.6 runtime compatibility as a hard constraint.

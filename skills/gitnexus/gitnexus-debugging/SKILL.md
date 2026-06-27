@@ -1,6 +1,6 @@
 ---
 name: gitnexus-debugging
-description: '"Use when the user is debugging a bug, tracing an error, or asking why something fails. Examples: \"Why is X failing?\", \"Where does this error come from?\", \"Trace this bug\""'
+description: 'Trace bugs and errors through the GitNexus knowledge graph. Use when: debugging a failure, tracing an error to its origin, finding callers of a suspect symbol, investigating unexpected behavior. Not for: general architecture understanding (use gitnexus-exploring), change blast-radius (use gitnexus-impact-analysis), CLI/index ops (use gitnexus-cli). Output: a root-cause hypothesis with the call chain + files to inspect.'
 ---
 
 # Debugging with GitNexus
@@ -87,3 +87,13 @@ RETURN [n IN nodes(path) | n.name] AS chain
 
 4. Root cause: fetchRates calls external API without proper timeout
 ```
+
+## When NOT to Use
+
+- You want to understand architecture, not chase a bug → `gitnexus-exploring`
+- You need the blast radius of a planned change → `gitnexus-impact-analysis`
+- You need to (re)build the index or run CLI ops → `gitnexus-cli`
+
+## Output
+
+A root-cause hypothesis backed by the graph: the suspect symbol, its call chain (callers/callees), the execution flow it sits in, and the source files to confirm the fix.

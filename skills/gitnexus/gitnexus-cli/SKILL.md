@@ -1,6 +1,6 @@
 ---
 name: gitnexus-cli
-description: '"Use when the user needs to run GitNexus CLI commands like analyze/index a repo, check status, clean the index, generate a wiki, or list indexed repos. Examples: \"Index this repo\", \"Reanalyze the codebase\", \"Generate a wiki\""'
+description: 'Run GitNexus CLI commands (analyze, status, clean, wiki, list). Use when: indexing or re-indexing a repo, checking index freshness, generating a wiki, listing indexed repos. Not for: querying the graph (use gitnexus-exploring), tool/schema reference (use gitnexus-guide). Output: the npx gitnexus command to run + next step.'
 ---
 
 # GitNexus CLI Commands
@@ -75,6 +75,22 @@ Lists all repositories registered in `~/.gitnexus/registry.json`. The MCP `list_
 
 1. **Read `gitnexus://repo/{name}/context`** to verify the index loaded
 2. Use the other GitNexus skills (`exploring`, `debugging`, `impact-analysis`, `refactoring`) for your task
+
+## When NOT to Use
+
+- You need to query or explore the graph, not manage the index → `gitnexus-exploring` / `gitnexus-impact-analysis` / `gitnexus-debugging`
+- You need the tool / resource / schema reference → `gitnexus-guide`
+- Not inside a git repository (there is no repo to index)
+
+## Output
+
+The exact `npx gitnexus` command for the user's goal, plus the next step (read `gitnexus://repo/{name}/context` to confirm, or move to the relevant gitnexus skill).
+
+## Verification
+
+- [ ] Command run from the git repo root
+- [ ] `npx gitnexus status` confirms the index updated
+- [ ] `gitnexus://repo/{name}/context` no longer reports staleness
 
 ## Troubleshooting
 

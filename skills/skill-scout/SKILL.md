@@ -1,6 +1,6 @@
 ---
 name: skill-scout
-description: 'Search existing local, marketplace, GitHub, and web skill sources before creating a new skill. Use when the user wants to create, build, fork, or find a skill for a workflow.'
+description: 'Search existing local, marketplace, GitHub, and web skill sources before creating a new skill. Use when: the user wants to create, build, fork, or find a skill for a workflow. Not for: authoring a skill (use create-skill), auditing skill quality (use skill-health-check). Output: ranked candidate table + use/fork/create recommendation.'
 origin: community
 ---
 
@@ -23,6 +23,13 @@ Source: salvaged from stale community PR #1232 by `redminwang`.
 
 If the user explicitly says to skip search or create from scratch, acknowledge
 that and proceed with the requested creation workflow.
+
+## When NOT to Use
+
+- Authoring or refactoring a skill — use `create-skill` (it calls this skill first).
+- Auditing installed skills for quality, duplicates, or staleness — use
+  `skill-health-check` (lint) or `skill-stocktake` (batch audit).
+- The user explicitly says to skip the search and create from scratch.
 
 ## How It Works
 
@@ -103,6 +110,19 @@ Give the user a short table:
 
 Only create a new skill after the user chooses that path or after the search
 finds no close match.
+
+## Output
+
+- A ranked candidate table (`# | Skill | Source | Why it matches | Gap`), capped
+  at 10 rows (see Examples for the format).
+- A short user-facing summary ending in a use / fork / create-fresh recommendation.
+
+## Verification
+
+- [ ] Local sources searched before remote ones.
+- [ ] Any external match read and vetted before recommending (no blind installs).
+- [ ] Results ranked and capped at 10.
+- [ ] User offered the use / fork / create-fresh decision options.
 
 ## Examples
 

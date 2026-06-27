@@ -1,6 +1,6 @@
 ---
 name: op-session
-description: "Initialize 1Password CLI session for Claude Code. Use when: starting a session that needs 1Password secrets, op CLI keeps prompting biometric auth, setting up OP_SESSION token. Solves: Claude Code's no-TTY subprocess model triggers 1Password biometric auth on every op call. Supports both token-based and App Integration auth modes — auto-detects which mode to use."
+description: 'Initialize a 1Password CLI session for Claude Code so op stops triggering biometric auth on every Bash call. Use when: a session needs 1Password secrets, op keeps prompting biometric auth, or setting up OP_SESSION. Not for: storing/rotating secrets, non-1Password vaults, configuring op itself. Output: cached session file (token or app mode) + op wrapper.'
 allowed-tools: Bash(bash:*)
 ---
 
@@ -106,6 +106,26 @@ export OP_ACCOUNT='<account-id>'
 ```
 
 Legacy session files (without `OP_AUTH_MODE`) are auto-detected as token mode if `OP_SESSION` is non-empty.
+
+## When NOT to Use
+
+- Storing, creating, or rotating secrets — this only opens a read session, not a secret manager
+- Secret stores other than 1Password (use that tool's own auth flow)
+- Configuring the `op` CLI itself (`op account add`, enabling the desktop integration)
+- Interactive terminals where biometric prompts already succeed — no wrapper needed
+
+## Output
+
+- A session file at `~/.op-claude-session` recording `OP_AUTH_MODE` plus the token (token mode) or mode only (app mode)
+- `scripts/op-with-session.sh`, a wrapper to use for every subsequent `op` call
+- `--check` prints the current session status (active / expired / missing)
+
+## Verification
+
+- [ ] `bash skills/op-session/scripts/op-session-init.sh --check` reports an active session
+- [ ] A read works: `bash skills/op-session/scripts/op-with-session.sh whoami`
+- [ ] Subsequent `op` calls within the idle window raise no biometric prompt
+- [ ] Session file is owner-only (`umask 077`) in token mode
 
 ## Security
 
