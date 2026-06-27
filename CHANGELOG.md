@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.16.1 — 2026-06-27 — statusline 1M-context usage fix
+
+**fix(statusline)** — The global statusline defaults `context_window_size` to
+200000, so a 1M-context model (model id carries a `[1m]` suffix, e.g.
+`claude-opus-4-8[1m]`) reading ~192k tokens displayed **96%** instead of ~19%.
+`scripts/statusline/statusline.sh` now injects `context_window_size=1000000`
+when the model id matches `[1m]` before delegating to the global statusline,
+with a `python3` fallback for the jq-less path. No behaviour change for
+200k-context models.
+
 ## 0.16.0 — 2026-06-27 — harness-* family consolidation (BREAKING)
 
 Consolidates the `harness-*` command / skill / agent family into one coherent set
