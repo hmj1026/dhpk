@@ -107,6 +107,7 @@ The same actions are available as `/plugin update dhpk`, `/plugin uninstall dhpk
 | `/dhpk:*` commands or hooks don't appear after install | Session loaded its skill list before install finished | Run `/reload-plugins` inside Claude Code, or restart the session |
 | `claude plugin list` shows dhpk but `/dhpk:setup` is missing | Plugin is installed but disabled | `claude plugin enable dhpk` (or `/plugin enable dhpk`) |
 | `install.sh` errors on `gum` / `jq` not found | Optional UI deps missing | The script falls back to plain shell / `python3`; install `gum` and `jq` for the nicer flow, or ignore the warning |
+| Some skill descriptions truncated/dropped (seen in `/doctor`) | Many modules shipped → skill-listing budget overflow (module skills list regardless of `modules`, [#12](https://github.com/hmj1026/dhpk/issues/12)) | Raise `skillListingBudgetFraction` in `settings.json` (default ~1% → `0.02`–`0.03`), or install fewer modules / disable the whole plugin with `/plugin` where unused |
 
 ## What you get
 
@@ -245,10 +246,12 @@ A **module** is a labeled, version-tagged bundle of skills + references + hooks 
 - **`xcode-tooling`** — SwiftLint post-edit hook + xcodebuild/SPM pre-commit build+test gate (generic build destination, simulator auto-fallback, toolchain self-skip) + `ios-icon-gen` skill. Requires `swift`.
 
 When enabled, a module:
-- Surfaces its skills under `dhpk:<skill-name>` (e.g. `dhpk:php-pro`, `dhpk:yii1-security-audit`, `dhpk:js-lint-config`).
+- Makes its skills invocable as `dhpk:<skill-name>` (e.g. `dhpk:php-pro`, `dhpk:yii1-security-audit`, `dhpk:js-lint-config`). *(Skill **descriptions** are listed for every shipped module regardless of `modules` — see the budget note below.)*
 - Contributes path triggers to `post-edit-remind` so reviewers fire on framework-specific paths.
 - May contribute hooks under `modules/<m>/hooks/post-edit-*.sh` and `modules/<m>/hooks/pre-{bash,commit}-*.sh`, fanned out by the dispatcher when the module is active. See [`docs/hook-extension.md`](./docs/hook-extension.md).
 - Prints a SessionStart activation line so Claude knows the module is in scope.
+
+> **Skill listing is always-on, not module-gated.** Claude Code registers every shipped module's skill *descriptions* from the plugin manifest at load time, so `modules` gates **hooks, path triggers, and the SessionStart activation line — not** the skill listing ([#12](https://github.com/hmj1026/dhpk/issues/12); a plugin-manifest limitation — `skillOverrides` can't hide plugin skills either). On a machine running many stacks this can overflow Claude Code's skill-listing budget and truncate/drop descriptions (visible via `/doctor`). Raise `skillListingBudgetFraction` in `settings.json` (default ~1% of the context window — try `0.02`–`0.03`) to keep all descriptions intact; or install fewer modules / disable the whole plugin with `/plugin` on projects that don't need it.
 
 ### Adding a new module
 

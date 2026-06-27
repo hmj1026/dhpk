@@ -1,6 +1,6 @@
 ---
 name: js-lint-config
-description: ESLint 9 flat config tier pattern (Tier 1 strict / 1.5 core-exempt / 1.7 deferred-migration / 2 test / Global vendor ignores), custom no-restricted-syntax AST selectors, project legacy-globals whitelist three-way sync (eslint config / TS ambient .d.ts / JSDoc typedef), TypeScript noEmit gate design, progress-measurement grep templates. Use when planning per-leaf cleanup, adding a leaf that introduces a new global, interpreting /ts-check-status output, validating Phase 2 exit gate, editing eslint.config.js or tsconfig.json, frontend-reviewer auditing tier consistency, or deciding which tier a new file belongs to. Not for everyday JS business-logic writing or simple AJAX wrapper lookups.
+description: ESLint 9 flat-config tier pattern (Tier 1 strict / 1.5 core-exempt / 1.7 deferred-migration / 2 test / Global vendor ignores), custom no-restricted-syntax AST selectors, the legacy-globals whitelist three-way sync (ESLint config / TS ambient .d.ts / JSDoc typedef), TypeScript noEmit gate, and progress-measurement grep templates. Use when planning per-leaf cleanup, adding a leaf that introduces a new global, interpreting /ts-check-status output, validating the Phase 2 exit gate, editing eslint.config.js or tsconfig.json, frontend-reviewer auditing tier consistency, or deciding which tier a new file belongs to. Not for everyday JS business logic or simple AJAX wrapper lookups.
 ---
 
 # JS lint config — tier framework

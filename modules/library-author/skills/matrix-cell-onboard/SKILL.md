@@ -1,6 +1,6 @@
 ---
 name: matrix-cell-onboard
-description: Checklist + procedure for adding a new PHP/Laravel/PHPUnit/Monolog cell to a multi-major library's CI matrix. Use when extending support to a new runtime version (e.g. "add PHP 8.3 + Laravel 12 to the matrix"), bumping a dep major (e.g. "Monolog 4 came out, plan the cell"), or restoring a previously dropped cell. Cross-checks `composer.json` constraints, `.github/workflows/*.yml` matrix rows, Testbench mapping for Laravel, and triggers a polyfill-coverage check for the new cell's dep versions. Pairs with the `laravel-testbench-matrix` skill (which covers per-cell Testbench install logic) and `composer-package-hygiene` (which covers the semver implication of raising the floor).
+description: Checklist + procedure for adding a new PHP / Laravel / PHPUnit / Monolog cell to a multi-major library's CI matrix. Use when extending support to a new runtime version (e.g. "add PHP 8.3 + Laravel 12"), bumping a dep major (e.g. "Monolog 4 came out, plan the cell"), or restoring a dropped cell. Cross-checks `composer.json` constraints, `.github/workflows/*.yml` matrix rows, Testbench mapping for Laravel, and triggers a polyfill-coverage check for the new cell's dep versions. Pairs with `laravel-testbench-matrix` (per-cell Testbench install) and `composer-package-hygiene` (semver of raising the floor).
 ---
 
 # Matrix cell onboard
