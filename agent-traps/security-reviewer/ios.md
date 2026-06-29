@@ -25,3 +25,14 @@ Encodes a health/PHI app's at-rest-encryption + PDPA Art. 6 + App Review duties.
 
 - `kSecAttrAccessibleAfterFirstUnlock` on a **non-PHI** key that genuinely needs background read — note the File-Protection trade-off, don't flag as CRITICAL
 - force-unwrap inside a test target, or an `@IBOutlet` / lifecycle-guaranteed property
+
+## Worked example
+
+```swift
+// BAD — PHI key syncs to iCloud Keychain and survives at AfterFirstUnlock
+SecItemAdd([kSecAttrSynchronizable: true,
+            kSecAttrAccessible: kSecAttrAccessibleAfterFirstUnlock, ...] as CFDictionary, nil)
+// GOOD — device-only, unlocked-only, non-syncing for PHI keys
+SecItemAdd([kSecAttrSynchronizable: false,
+            kSecAttrAccessible: kSecAttrAccessibleWhenUnlockedThisDeviceOnly, ...] as CFDictionary, nil)
+```
