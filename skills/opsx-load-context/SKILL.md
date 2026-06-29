@@ -29,6 +29,27 @@ Work through tiers in order. Stop at the first successful tier and record `CONTE
 
 ---
 
+### Pre-chain — Unattended stop resume note (highest priority)
+
+**Condition**: An active change carries a `.resume-note.md` (written by
+`opsx-goal`'s Part 4 when an unattended session hit its turn or wall-clock
+limit). Check this before the tiers below — it is the freshest, most specific
+carry-forward for a resumed run.
+
+```bash
+RESUME=$(ls -t openspec/changes/*/.resume-note.md 2>/dev/null | head -1)
+```
+
+- File found → read it; extract the remaining unchecked tasks, the last pending
+  sentinels, and the one-line next-focus hint. Map them to `in_progress` and
+  `session_goal`. Set `CONTEXT_SOURCE = ".resume-note.md"`. Skip Tiers 0–3 (still
+  run the optional cross-session step below).
+- No file (the common case) → fall through to Tier 0. Behavior unchanged.
+
+Best-effort only: a malformed or unreadable note → silently fall through.
+
+---
+
 ### Tier 0 — Claude-mem pinned observation
 
 **Condition**: `claude_mem_obs_id` is present and not null.
@@ -104,7 +125,7 @@ Cross-session context is always optional — never retry or block on it.
 
 | Variable | Type | Description |
 |----------|------|-------------|
-| `CONTEXT_SOURCE` | string | One of: "claude-mem obs #N", "compact JSON", "compact JSON (heuristic)", "handoff only" |
+| `CONTEXT_SOURCE` | string | One of: ".resume-note.md", "claude-mem obs #N", "compact JSON", "compact JSON (heuristic)", "handoff only" |
 | `session_goal` | string | Goal from context, or "(未取得)" |
 | `completed` | list | Completed items, or empty list |
 | `in_progress` | list | In-progress items, or empty list |
@@ -115,6 +136,7 @@ All variables always set — no undefined outputs. The caller (Resume Phase Step
 ## Verification
 
 - [ ] `CONTEXT_SOURCE` set to exactly one tier label
+- [ ] Pre-chain `.resume-note.md` checked first; absent → falls through silently to Tier 0
 - [ ] Stopped at the first successful tier (no redundant lower-tier calls)
 - [ ] All return fields set — no undefined outputs (Tier 3 always succeeds from handoff)
 - [ ] Cross-session search failure handled silently (`cross_session_observations = []`)

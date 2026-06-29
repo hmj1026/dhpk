@@ -20,8 +20,26 @@ positive signal matches AND no negative override matches.
    override for `HAS_PHPUNIT` / `HAS_JEST`.
 2. Apply positive signals against the combined text of `proposal.md` +
    `design.md` + `tasks.md`.
-3. If no flag is `true` → `HAS_TEST=false`. Omit Part 3 from the goal
-   condition entirely. Doc-only and harness-only changes have no automated tests.
+3. If no flag is `true` → `HAS_TEST=false`. Doc-only and harness-only changes
+   have no automated tests. Part 3 is still emitted if a build/lint gate is
+   detected (below); omit Part 3 entirely only when test, build, and lint are
+   all absent.
+
+## Build/lint gates
+
+Independent of test runners. Each flag is `true` when at least one positive
+signal matches AND no negative override matches — same rule as the test table.
+A build-only change can have `HAS_BUILD=true` while `HAS_TEST=false`.
+
+| Flag | Positive signals | Negative override |
+|------|-----------------|------------------|
+| `HAS_BUILD` | `composer install` · `npm run build` · `yarn build` · `swift build` · `xcodebuild` · `make build` · `tsc --build` | `no build step` · `doc-only` |
+| `HAS_LINT` | `eslint` · `phpcs` · `php-cs-fixer` · `phpstan` · `ruff` · `swiftlint` · `npm run lint` · `lint:fix` | `no lint` · `doc-only` |
+
+When emitting Part 3, add `build output shows 0 errors` for `HAS_BUILD` and
+`lint output shows 0 errors` for `HAS_LINT`. Keep each gate to one verifiable
+line so the Haiku evaluator can check it from conversation. Detected nothing →
+add nothing (no forced gate on changes that have no build/lint step).
 
 ## Sentinel strategy rationale
 
