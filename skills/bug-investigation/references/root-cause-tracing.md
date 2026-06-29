@@ -32,17 +32,20 @@ digraph when_to_use {
 ## 回溯步驟
 
 ### 1. 觀察症狀
+
 ```
 Error: git init failed in /Users/jesse/project/packages/core
 ```
 
 ### 2. 找到直接原因
+
 **哪段程式碼直接造成這個錯誤？**
 ```typescript
 await execFileAsync('git', ['init'], { cwd: projectDir });
 ```
 
 ### 3. 問：是誰呼叫它？
+
 ```typescript
 WorktreeManager.createSessionWorktree(projectDir, sessionId)
   → called by Session.initializeWorkspace()
@@ -51,12 +54,14 @@ WorktreeManager.createSessionWorktree(projectDir, sessionId)
 ```
 
 ### 4. 持續往上追
+
 **傳入的值是什麼？**
 - `projectDir = ''`（空字串）
 - 空字串作為 `cwd` 會落到 `process.cwd()`
 - 結果在錯誤目錄建立 `.git`
 
 ### 5. 找到最初觸發點
+
 **空字串從哪裡來？**
 ```typescript
 const context = setupCoreTest(); // Returns { tempDir: '' }

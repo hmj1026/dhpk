@@ -1,6 +1,7 @@
 # Phase Templates
 
 ## Table of Contents
+
 - Investigation document template
 - SQL verification templates
 - Database evidence table template

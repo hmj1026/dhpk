@@ -9,3 +9,19 @@ Severities feed the same Verdict gate (BLOCK on CRITICAL, WARNING on HIGH-only).
 - **MEDIUM — Observation** — prefer `@Observable` over `ObservableObject` / `@Published` on the iOS 17 floor; don't mix paradigms in one type; don't construct a view model inside `body`.
 - **LOW — Optionals style** — comparing optionals to `nil` where `guard let` is clearer; IUO misuse.
 - Detail: swift module `references/concurrency.md` (+ `approachable-concurrency.md` on Xcode 26+); swiftui module `references/observation-state.md`. A failing **build** from any of these → hand off to `swift-build-resolver`.
+
+## Worked examples
+
+```swift
+// BAD — force-unwrap on dynamic input is a crash / DoS
+let url = URL(string: userInput)!
+// GOOD — guard and handle the nil path
+guard let url = URL(string: userInput) else { return .invalidURL }
+```
+
+```swift
+// BAD — strong self in a long-lived closure → retain cycle
+store.sink { self.update($0) }
+// GOOD — capture weak
+store.sink { [weak self] in self?.update($0) }
+```

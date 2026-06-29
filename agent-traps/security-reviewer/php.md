@@ -12,3 +12,13 @@ Universal PHP web traps:
 
 - `unserialize()` on framework session
 - `md5()` for cache key / filename
+
+## Worked example
+
+```php
+// BAD — concatenated input (SQL injection)
+$db->query("SELECT * FROM users WHERE email = '" . $_GET['email'] . "'");
+// GOOD — bound parameter
+$stmt = $db->prepare('SELECT * FROM users WHERE email = :email');
+$stmt->execute([':email' => $_GET['email']]);
+```

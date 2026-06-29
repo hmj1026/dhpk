@@ -32,6 +32,7 @@ Reads observations from the **project-scoped** observations file:
 Look for these patterns in observations:
 
 ### 1. User Corrections
+
 When a user's follow-up message corrects Claude's previous action:
 - "No, use X instead of Y"
 - "Actually, I meant..."
@@ -40,6 +41,7 @@ When a user's follow-up message corrects Claude's previous action:
 → Create instinct: "When doing X, prefer Y"
 
 ### 2. Error Resolutions
+
 When an error is followed by a fix:
 - Tool output contains error
 - Next few tool calls fix it
@@ -48,6 +50,7 @@ When an error is followed by a fix:
 → Create instinct: "When encountering error X, try Y"
 
 ### 3. Repeated Workflows
+
 When the same sequence of tools is used multiple times:
 - Same tool sequence with similar inputs
 - File patterns that change together
@@ -56,6 +59,7 @@ When the same sequence of tools is used multiple times:
 → Create workflow instinct: "When doing X, follow steps Y, Z, W"
 
 ### 4. Tool Preferences
+
 When certain tools are consistently preferred:
 - Always uses Grep before Edit
 - Prefers Read over Bash cat

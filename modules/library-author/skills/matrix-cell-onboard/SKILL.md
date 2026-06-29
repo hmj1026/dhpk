@@ -176,6 +176,7 @@ Append to `strategy.matrix.include`:
 ```
 
 ### Polyfill branches relevant to this cell
+
 - Guard L42 `class_exists(\Monolog\LogRecord::class)` → cell enters
   Monolog 3 branch → test at `tests/Logging/MonologV3Test.php` covers it
 - Guard L88 `version_compare(PHP_VERSION, '8.0', '>=')` → cell enters
@@ -183,10 +184,12 @@ Append to `strategy.matrix.include`:
 - NEW UNCOVERED BRANCH: none
 
 ### Testbench
+
 Mapping table says Laravel 12 → Testbench 10. Add the cell with
 `testbench: '^10.0'`.
 
 ### Open questions
+
 - Is PHPUnit 12 desired? (Mapping admits ^11 or ^12 on Laravel 12)
 ```
 

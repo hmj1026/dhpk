@@ -22,3 +22,13 @@
 JSON output uses `CJSON::encode()` / `json_encode()`, **not** `CHtml::encode()`. Headers / cookie flags / Strict-Transport-Security — see `.claude/rules/php/security.md`.
 
 Deeper Yii security patterns: modules/yii-1.1/skills/yii1-security-audit/references/yii1-security-patterns.md
+
+## Worked example
+
+```php
+// BAD — no ownership check: any logged-in user can read any order
+$order = Order::model()->findByPk($_GET['id']);
+// GOOD — scope the resource to the current principal
+$order = Order::model()->findByPk($_GET['id']);
+if ($order->owner_id !== Yii::app()->user->id) throw new CHttpException(403);
+```

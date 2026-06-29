@@ -188,7 +188,7 @@ Notable removals in 11:
 - `modules/phpunit-10/skills/phpunit-10-notes/SKILL.md` — the
   attribute table that this version makes mandatory
 - `modules/phpunit-9/skills/phpunit-9-modern/SKILL.md` — assertion API
-  + mock idioms that carry forward unchanged
+  - mock idioms that carry forward unchanged
 - `modules/php-8.x/skills/php-8x-features/SKILL.md` — `readonly`
   classes + DNF types that PHPUnit 11's 8.2 floor unlocks
 - `skills/laravel-testbench-matrix/SKILL.md` — testbench cells for

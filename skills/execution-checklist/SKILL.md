@@ -83,7 +83,7 @@ before reaching for Edit**:
 | Pure `.claude/{agents,rules,commands,skills,manifests}/**/*.md` edit | The doc-reviewer slot (sentinel `.pending-doc-review`) cleared. Code-reviewer is not required for pure-doc edits; mixed diffs run both. |
 | Controller / HTTP-entry-point edits | Security-reviewer and code-reviewer both dispatch (in parallel per reviewer dispatch); code-reviewer merges the findings. |
 | Edits to a shared `_lib/` hook helper | Run contract tests for ALL hooks that source the helper (e.g. `_lib/js-tier-detect.sh` is consumed by both `post-edit-js-lint.sh` and `pre-commit-js-validation.sh` — verify both still pass). |
-| Bash uses bare glob expansion (`ls .pending-*` / `for f in .pending-*`) in a shell **without** `nullglob` (zsh default, dash, BusyBox) | Switch to `find <dir> -maxdepth N -name '<pattern>' -print 2>/dev/null` or append ` 2>/dev/null \|\| true`. Bare glob with zero matches becomes a literal token in those shells, then often errors as "no such file". Common in sentinel-existence checks. |
+| Bash uses bare glob expansion (`ls .pending-*` / `for f in .pending-*`) in a shell **without** `nullglob` (zsh default, dash, BusyBox) | Switch to `find <dir> -maxdepth N -name '<pattern>' -print 2>/dev/null` or append `2>/dev/null \|\| true`. Bare glob with zero matches becomes a literal token in those shells, then often errors as "no such file". Common in sentinel-existence checks. |
 | Hand-constructing `clear-sentinel.sh` path | Use the dhpk SSOT: `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh` (NOT `${CLAUDE_PROJECT_DIR}/.claude/scripts/...`). Reviewer agent bodies shipped in dhpk already use the correct path — compare against them before constructing your own. |
 
 ---
