@@ -21,6 +21,7 @@ Evaluate Agent Skills against official specifications and patterns derived from 
 - **Quick structural lint** (frontmatter, routing cues, line count) → use `skill-health-check`
 - **Batch audit of many skills** at once → use `skill-stocktake`
 - **Creating or refactoring** a skill → use `create-skill`
+- **Scoring an agent's completed run OUTPUT** (not the skill definition) → use the `agent-evaluator` agent (the run-output sibling of this skill)
 - Code review or document review → use the respective code/doc review skills
 
 ## Core Workflow

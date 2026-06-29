@@ -19,6 +19,7 @@
    - `lightweight`：只確認 heavy gate 應該被 skip，仍需另外回報 targeted verification
 4. `python3 $SCRIPTS/openspec_gate_check.py --change <name>`
    - OpenSpec change 的 apply-ready adapter
+   - 前置條件：需安裝 `openspec` CLI；若不存在，腳本回報 `Result: ERROR` 並以 exit 2 結束（不會丟出 traceback）
 
 ## Command Templates
 

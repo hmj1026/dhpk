@@ -8,6 +8,8 @@ allowed-tools: 'Read, Write, Edit, Grep, Glob, Bash(ls:*), Bash(git:*), Bash(fin
 
 Auto-triggered after precommit Pass, only when the change maps to a feature under `docs/features/` (see @rules/auto-loop.md Doc Sync Note). Can also be invoked manually.
 
+Proactive orchestration: the `doc-updater` agent runs this command after structural code changes — see the back-stop in `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`.
+
 ## Context
 
 - Goal: Update docs based on current code state, ensuring docs stay in sync with implementation.

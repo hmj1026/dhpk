@@ -43,6 +43,8 @@ def run_json(cmd, label, required_keys=None):
     except subprocess.CalledProcessError as exc:
         message = exc.output.decode("utf-8", "replace")
         raise RuntimeError("%s failed: %s" % (label, message.strip()))
+    except OSError as exc:
+        raise RuntimeError("%s could not be executed: %s" % (label, exc))
 
     text = output.decode("utf-8", "replace")
     parsed_objects = extract_json_objects(text)

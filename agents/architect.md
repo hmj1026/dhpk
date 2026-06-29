@@ -28,6 +28,19 @@ The generic Layers + ADR + Phased Plan below apply to any stack; the loaded shee
 
 No reverse / cyclic deps. Cross-layer payloads are DTO/Entity. Domain is framework-agnostic.
 
+## Anti-patterns to flag
+
+Name the smell when the design exhibits it — each is a re-design trigger, not a nit:
+
+- **Big Ball of Mud** — no discernible layering; everything reaches everything.
+- **God Object** — one class / service owning unrelated responsibilities.
+- **Tight Coupling** — a change here forces edits across N unrelated modules.
+- **Golden Hammer** — one tool / pattern forced onto every problem.
+- **Premature Optimization** — complexity for a load profile not yet observed.
+- **Not-Invented-Here** — re-building what a vetted library already provides.
+- **Magic** — undocumented implicit behavior (hidden globals, action-at-a-distance).
+- **Analysis Paralysis** — design churn with no shippable slice.
+
 ## ADR Required
 
 | Trigger | Format |
@@ -48,10 +61,16 @@ list. Discipline:
 - **Independently-deliverable phases**: MVP slice → core happy path → edge cases /
   error handling → optimization. Each phase MUST be mergeable on its own. A plan
   where nothing works until the last phase is a red flag — re-slice it.
+- **Build order within a phase**: construct in dependency order — types / contracts →
+  core logic → integration → UI → tests → docs — so each artifact compiles against
+  something that already exists.
 - **Per step**: `Action` (exact file path) · `Why` · `Dependencies` (none / requires
   step N) · `Risk` (L/M/H). High-risk steps name the failure scenario.
 - **Risks & mitigations** + **success criteria** (checkbox, includes the test/verify
   bar). Pair with `tdd-guide` for the RED-first sequence.
+- **Reject & re-slice if**: a step names no exact file path · the plan has no testing
+  strategy · a phase is not independently mergeable · a step is too large to state its
+  own failure scenario.
 
 ```
 ### Phase 1: <name> (independently shippable)

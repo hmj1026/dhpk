@@ -55,8 +55,8 @@ HIGH / CRITICAL additionally require: exact snippet + line, the specific failure
 
 Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks — never review a PHP change against Swift rules, or vice-versa.
 
-1. **Active stacks**: read `$DHPK_ACTIVE_MODULES` (comma list) if set; otherwise detect from manifests via Bash — `composer.json` (`require.php` floor + framework key, e.g. `yiisoft/*`, `laravel/framework`), `package.json`, `*.xcodeproj` / `Package.swift`, `pyproject.toml`.
-2. For each detected stack `S` (e.g. `php`, `yii`, `laravel`, `swift`), Read `${CLAUDE_PLUGIN_ROOT}/agent-traps/code-reviewer/<S>.md` if it exists and apply those traps. (Locator: `find "${CLAUDE_PLUGIN_ROOT}/agent-traps/code-reviewer" -name '<S>.md'`.)
+1. **Active stacks**: read `$DHPK_ACTIVE_MODULES` (comma list) if set; otherwise detect from manifests via Bash — `composer.json` (`require.php` floor + framework key, e.g. `yiisoft/*`, `laravel/framework`), `package.json` (default `js`; a `vue` dependency ⇒ also `vue`), `*.xcodeproj` / `Package.swift` (`swift`), `pyproject.toml` (default `python`; a `fastapi` dependency ⇒ also `fastapi`). **Map module ids to stack ids** before loading: `php-7.4`→`php`, `laravel-9`→`laravel`, `phpunit-11`→ (no code sheet), `vue-2`→`vue`, `swiftui`/`ios-platform`→`swift`.
+2. For each detected stack `S` (e.g. `php`, `yii`, `laravel`, `js`, `vue`, `python`, `fastapi`, `swift`), Read `${CLAUDE_PLUGIN_ROOT}/agent-traps/code-reviewer/<S>.md` if it exists and apply those traps. (Locator: `find "${CLAUDE_PLUGIN_ROOT}/agent-traps/code-reviewer" -name '<S>.md'`.)
 3. No sheet matches → apply only the Baseline below.
 
 ## Baseline (language-agnostic)
@@ -73,7 +73,7 @@ This plugin reviews predominantly Claude-authored code. Bias attention toward th
 1. **Behavioral regression / edge cases** — the happy path is usually correct while the error / boundary path is silently dropped or weakened.
 2. **Trust boundaries** — confirm new code did not move validation / authz off the layer that previously enforced it.
 3. **Hidden coupling / architecture drift** — shortcuts that bypass the project's Controller → Service → Repository path or introduce cross-layer dependencies.
-4. **Unjustified complexity & cost** — speculative abstractions, or escalating to a higher-cost model tier for a deterministic refactor; prefer the lower tier.
+4. **Unjustified complexity & cost** — speculative abstractions, or routing a deterministic / mechanical task (rename, format, codemod, lint-fix) to a higher-cost model tier or `opus` / `max` effort with no stated reason. Prefer the lower tier; treat an unjustified high-tier selection on a rules-driven transform as a MEDIUM finding.
 
 ## Delegate
 
@@ -84,6 +84,7 @@ This plugin reviews predominantly Claude-authored code. Bias attention toward th
 | Auth / authz / crypto / money | `security-reviewer` |
 | Keychain / CryptoKit / privacy manifest / LocalAuthentication | `security-reviewer` |
 | Deep error-handling audit (empty catch / swallowed exceptions / hidden fallbacks / missing rollback) | `silent-failure-hunter` |
+| New / changed domain type / value object / enum / struct with non-trivial invariants ("make illegal states unrepresentable") | `type-design-analyzer` |
 
 ## Output
 
