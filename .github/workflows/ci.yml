@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, develop]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate harness assets
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Structure check (bash). Exit 1 = errors (fail); exit 2 = warnings (ok).
+      - name: Harness structure
+        run: bash scripts/validate/validate-harness.sh || [ $? -eq 2 ]
+
+      # Zero-dep Node validators in strict mode (warnings become errors).
+      - name: Validate agents
+        run: node scripts/ci/validate-agents.js --strict
+      - name: Validate skills
+        run: node scripts/ci/validate-skills.js --strict
+      - name: Validate commands
+        run: node scripts/ci/validate-commands.js --strict
+      - name: Validate modules
+        run: node scripts/ci/validate-modules.js --strict
+      - name: Validate plugin manifest
+        run: node scripts/ci/validate-plugin.js --strict
+
+      # Count SSOT: README / manifest exact claims must match reality.
+      - name: Catalog count check
+        run: node scripts/ci/catalog.js --check
+
+      # Regression tests (plugin paths, hook wiring, catalog<->modules).
+      - name: Tests
+        run: node tests/run-all.js
+
+  lint:
+    name: Markdown lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # Non-blocking for now: surfaces findings without failing the build while
+    # the 400+ existing docs are brought into compliance incrementally.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: markdownlint
+        uses: DavidAnson/markdownlint-cli2-action@v16
+        with:
+          globs: |
+            agents/**/*.md
+            skills/**/*.md
+            commands/**/*.md
+            rules/**/*.md
+            modules/**/*.md

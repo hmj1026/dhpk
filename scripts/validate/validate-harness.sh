@@ -1,12 +1,18 @@
 #!/bin/bash
-# validate-harness.sh — 檢查 .claude/ 資產格式正確性
+# validate-harness.sh — 檢查 harness 資產格式正確性
+#
+# Dual-mode: validates the PLUGIN SOURCE when run inside the dhpk repo
+# (assets live at repo-root agents/ skills/ commands/ rules/, hook scripts in
+# scripts/hooks/), and falls back to the INSTALLED layout (.claude/...) in a
+# consumer project. Detection keys off repo-root agents/ + .claude-plugin/.
+#
 # 檢查項：
 #   1. agents/*.md frontmatter 完整（name / description / model / tools）
 #   2. commands/**/*.md 有 frontmatter
 #   3. rules/*.md 無明顯 broken link（相對路徑 .md）
 #   4. skills/*/SKILL.md 存在
 #   5. hooks 腳本可執行
-#   6. artifacts 目錄結構
+#   6. artifacts 目錄結構（僅安裝模式）
 #
 # 退出碼：
 #   0 = 全通過
@@ -17,6 +23,19 @@ set -o pipefail
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "$ROOT" || exit 1
 
+# Mode detection: plugin source repo vs installed .claude/ tree.
+if [[ -d "$ROOT/agents" && -f "$ROOT/.claude-plugin/plugin.json" ]]; then
+    ASSET_ROOT="$ROOT"                  # plugin source: assets at repo-root
+    HOOKS_DIR="$ROOT/scripts/hooks"     # hook scripts live here, not hooks/
+    STATUSLINE="$ROOT/statusline.sh"
+    CHECK_ARTIFACTS=0                    # artifacts are runtime-only
+else
+    ASSET_ROOT="$ROOT/.claude"          # consumer: installed layout
+    HOOKS_DIR="$ROOT/.claude/hooks"
+    STATUSLINE="$ROOT/.claude/statusline.sh"
+    CHECK_ARTIFACTS=1
+fi
+
 ERR=0
 WARN=0
 
@@ -26,7 +45,7 @@ warn() { echo "  [WARN] $*"; WARN=$((WARN+1)); }
 ok()   { echo "  [OK] $*"; }
 
 echo "== 1. Agents frontmatter =="
-for f in .claude/agents/*.md; do
+for f in "$ASSET_ROOT"/agents/*.md; do
     [[ -f "$f" ]] || continue
     base="$(basename "$f")"
     [[ "$base" == "INDEX.md" ]] && continue
@@ -46,15 +65,15 @@ while IFS= read -r f; do
     base="$(basename "$f")"
     [[ "$base" == "INDEX.md" ]] && continue
     if ! head -5 "$f" | grep -q '^description:'; then
-        warn "$(echo "$f" | sed 's|^.claude/commands/||') 缺 description"
+        warn "${f#"$ASSET_ROOT"/commands/} 缺 description"
         CMD_MISSING=$((CMD_MISSING+1))
     fi
-done < <(find .claude/commands -name '*.md' 2>/dev/null)
+done < <(find "$ASSET_ROOT/commands" -name '*.md' 2>/dev/null)
 ok "commands 檢查完 $CMD_COUNT 支，$CMD_MISSING 支缺 description"
 
 echo ""
 echo "== 3. Rules broken link 檢查 =="
-for f in .claude/rules/*.md .claude/rules/**/*.md; do
+for f in "$ASSET_ROOT"/rules/*.md "$ASSET_ROOT"/rules/**/*.md; do
     [[ -f "$f" ]] || continue
     # 抓 `*.md` 相對路徑引用
     while IFS= read -r link; do
@@ -64,6 +83,10 @@ for f in .claude/rules/*.md .claude/rules/**/*.md; do
         [[ "$target" == /* || "$target" == http* ]] && continue
         [[ "$target" =~ 20[0-9]{6} ]] && continue
         [[ "$target" =~ \{.*\} || "$target" == *latest.md ]] && continue
+        # Consumer/runtime-side references written in prose (e.g. "your project's
+        # memory/..." or the adopting project's CLAUDE.md) — never plugin files.
+        [[ "$target" == CLAUDE.md || "$target" == */CLAUDE.md ]] && continue
+        [[ "$target" == .claude/* || "$target" == memory/* ]] && continue
         dir="$(dirname "$f")"
         resolved="$dir/$target"
         [[ -f "$resolved" || -f "$target" || -f "$ROOT/$target" ]] || warn "$f 引用不存在 $target"
@@ -73,9 +96,19 @@ ok "rules broken link 檢查完"
 
 echo ""
 echo "== 4. Skills SKILL.md =="
-for d in .claude/skills/*/; do
+for d in "$ASSET_ROOT"/skills/*/; do
     [[ -d "$d" ]] || continue
-    if [[ ! -f "$d/SKILL.md" ]]; then
+    # A leaf skill has SKILL.md directly — its subdirs (references/, scripts/,
+    # agents/, evals/...) are support dirs, not skills. Skip descending.
+    [[ -f "$d/SKILL.md" ]] && continue
+    # No direct SKILL.md: a category container (e.g. gitnexus/) holds nested
+    # skill dirs that each have their own SKILL.md — validate those children.
+    if compgen -G "$d*/SKILL.md" >/dev/null; then
+        for sub in "$d"*/; do
+            [[ -d "$sub" ]] || continue
+            [[ -f "$sub/SKILL.md" ]] || warn "$sub 缺 SKILL.md"
+        done
+    else
         warn "$d 缺 SKILL.md"
     fi
 done
@@ -83,7 +116,7 @@ ok "skills 檢查完"
 
 echo ""
 echo "== 5. Hook 腳本可執行 =="
-for s in .claude/hooks/*.sh .claude/statusline.sh; do
+for s in "$HOOKS_DIR"/*.sh "$STATUSLINE"; do
     [[ -f "$s" ]] || continue
     [[ -x "$s" ]] || fail "$s 無執行權限（chmod +x）"
 done
@@ -91,10 +124,14 @@ done
 
 echo ""
 echo "== 6. Artifacts 目錄 =="
-for d in reviews plans audits adr sessions; do
-    [[ -d ".claude/artifacts/$d" ]] || warn ".claude/artifacts/$d 不存在（session-start 未跑？）"
-done
-ok "artifacts 結構檢查完"
+if [[ $CHECK_ARTIFACTS -eq 1 ]]; then
+    for d in reviews plans audits adr sessions; do
+        [[ -d ".claude/artifacts/$d" ]] || warn ".claude/artifacts/$d 不存在（session-start 未跑？）"
+    done
+    ok "artifacts 結構檢查完"
+else
+    ok "plugin source 模式 — artifacts 為 runtime 產物，跳過"
+fi
 
 echo ""
 echo "== 7. Route table SSOT =="
