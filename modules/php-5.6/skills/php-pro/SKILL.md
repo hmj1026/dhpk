@@ -75,6 +75,7 @@ Apply these defaults to Laravel, Symfony, and framework-agnostic PHP 8.3+ projec
 ## Legacy Constraints (PHP 5.6 + Yii 1.1 only)
 
 ### MUST DO
+
 - Use PHPDoc-only typing: `@param int $id`, `@return Order[]`
 - Use PDO prepared statements for all DAO / SQL queries with named bindings
 - Use `Yii::app()->request->getPost()`, not `$_POST`
@@ -85,6 +86,7 @@ Apply these defaults to Laravel, Symfony, and framework-agnostic PHP 8.3+ projec
 - Follow PHP 5.6 hard limits and repository-specific rules from `CLAUDE.md`
 
 ### MUST NOT DO
+
 - Introduce PHP 7+ syntax or PHPUnit 6+ APIs
 - Use `??`, named arguments, attributes, union/intersection types, `match`, `readonly`, or return types
 - Direct `$_POST` / `$_GET` access

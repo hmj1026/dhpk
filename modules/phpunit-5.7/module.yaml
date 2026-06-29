@@ -14,5 +14,5 @@ triggers:
     extensions: []
     paths: []
 provides:
-  skills: [phpunit-batch-refactor, legacy-code-characterization]
+  skills: [legacy-code-characterization]
   references: [testing.md]

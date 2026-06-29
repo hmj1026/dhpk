@@ -86,7 +86,7 @@ spec. On archive, no delta directives → no SSOT mutation → silent no-op.
 
 **Fix:** the writer must declare each requirement under the appropriate
 directive. The mechanical fix is to prefix existing `## Requirements`
-with `ADDED ` (or whichever matches intent).
+with `ADDED` (or whichever matches intent).
 
 ### Check 3 — Required artifacts present (HIGH)
 

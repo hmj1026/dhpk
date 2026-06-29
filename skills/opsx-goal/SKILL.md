@@ -1,6 +1,6 @@
 ---
 name: opsx-goal
-argument-hint: '<change-id> [--turns N] [--dry-run]'
+argument-hint: '<change-id> [--turns N] [--max-duration <Nm|Nh>] [--dry-run]'
 description: 'Generate a /goal condition for an unattended OpenSpec change implementation session. Reads tasks.md + proposal.md, detects test-runner scope, calculates turn budget, and emits the /goal string + /opsx:apply sequence ready to paste into a fresh session. Use when starting an unattended implementation session for an OpenSpec change. Not for: archiving, verifying, or syncing changes (use opsx-archive / opsx-verify / opsx-sync).'
 allowed-tools: 'Bash, Read, Glob'
 ---
@@ -29,6 +29,8 @@ fresh session so Claude drives the change to completion unattended.
 From `$ARGUMENTS`:
 - `CHANGE_ID` = first non-flag token (required)
 - `CUSTOM_TURNS` = integer after `--turns`, if present
+- `MAX_DURATION` = value after `--max-duration` (e.g. `30m`, `2h`), if present.
+  Absent → no wall-clock stop is emitted (behavior unchanged).
 - `DRY_RUN` = `true` if `--dry-run` present
 
 Missing `CHANGE_ID` → print usage and stop:
@@ -71,15 +73,21 @@ Extract:
 - `OPEN_TASKS`  = count of lines matching `^- \[ \]`
 - `DONE_TASKS`  = count of lines matching `^- \[x\]`
 
-## Step 4 — Detect test-runner scope and non-automatable tasks
+## Step 4 — Detect verification-gate scope and non-automatable tasks
 
 From combined text of `proposal.md` + `design.md` + `tasks.md`, set boolean
 flags `HAS_PHPUNIT`, `HAS_JEST`, `HAS_PYTEST`, `HAS_SWIFT_TEST`, `HAS_OTHER_TEST`.
 A flag is `true` when at least one positive signal matches AND no negative
 override matches. See `references/detection.md` for the full signal/override table.
 
-If no flag is `true` → `HAS_TEST=false` (doc-only / harness-only changes; omit
-Part 3 from the goal condition).
+If no test-runner flag is `true` → `HAS_TEST=false` (doc-only / harness-only
+changes; no test line in Part 3).
+
+Then, from the same combined text, set `HAS_BUILD` and `HAS_LINT` the same way
+(positive signal AND no negative override) — see `references/detection.md`
+§Build/lint gates. These are independent of `HAS_TEST`: a build-only change can
+have `HAS_BUILD=true` while `HAS_TEST=false`. If none of test / build / lint is
+detected, omit Part 3 entirely.
 
 Additionally, scan each task line in `tasks.md` for non-automatable signals
 (see `references/detection.md` §Non-automatable tasks). For each matching task:
@@ -116,19 +124,35 @@ Claude ran `ls .claude/artifacts/sessions/.pending-* 2>/dev/null || echo NONE`
 and confirmed the output is NONE in conversation (all pending reviewer sentinels cleared)
 ```
 
-**Part 3 (only if `HAS_TEST=true`)** — one line per detected runner:
+**Part 3 (verification gates — emit one line per detected gate; omit the whole
+part only if none of test / build / lint is detected):**
+
+Test runners (only if `HAS_TEST=true`):
 - `HAS_PHPUNIT` → `phpunit output shows 0 errors, 0 failures`
 - `HAS_JEST` → `jest output shows 0 failed`
 - `HAS_PYTEST` → `pytest output shows 0 failed`
 - `HAS_SWIFT_TEST` → `swift test output shows 0 failures`
 - `HAS_OTHER_TEST` → use the specific command and "0 failures" phrasing from tasks.md
 
-**Part 4 (always — turn limit):**
+Build / lint (only if detected — conditional, never forced):
+- `HAS_BUILD` → `build output shows 0 errors`
+- `HAS_LINT` → `lint output shows 0 errors`
+
+**Part 4 (always — stop limits):**
+
+Emit the turn line always. Emit the wall-clock line **only if `MAX_DURATION` is
+set** (when absent, omit that line — behavior unchanged):
 ```
-OR stop after <TURN_BUDGET> turns and list in conversation:
+OR stop after <TURN_BUDGET> turns
+OR stop after <MAX_DURATION> wall-clock elapsed
+and list in conversation, then write the same three items into
+openspec/changes/<CHANGE_ID>/.resume-note.md:
 (1) unchecked task items
 (2) output of ls .claude/artifacts/sessions/.pending-*
+(3) a one-line next-focus hint
 ```
+The `.resume-note.md` carry-forward lets a follow-up session resume cleanly via
+`opsx-load-context` (which checks for it before all other context tiers).
 
 ## Step 7 — Emit output
 
@@ -185,7 +209,26 @@ Print the `/goal` command in a fenced code block:
   the ls output and test results into conversation for evaluation to work
 • Combine with /auto mode for a fully unattended goal loop
 • Turn budget ran out: /goal clear, then re-run with --turns N
+• --max-duration ran out: same recovery — /goal clear, then re-run
 ```
+
+### Block C2 — Monitor (always printed; read-only)
+
+Print a snippet the operator can paste into a **second terminal** to watch
+progress without touching the running session. Pure reads, no side effects:
+
+```
+━━━ MONITOR (run in a SECOND terminal, read-only) ━━━━━━━━━━━━
+# open vs done tasks (re-run to watch progress)
+grep -c '^- \[ \]' openspec/changes/<CHANGE_ID>/tasks.md   # open
+grep -c '^- \[x\]' openspec/changes/<CHANGE_ID>/tasks.md   # done
+# pending reviewer sentinels (NONE = all cleared)
+ls .claude/artifacts/sessions/.pending-* 2>/dev/null || echo NONE
+```
+
+Stall read: if two consecutive checks show the same `open` count with no new
+commits, the session may be stuck — judgement is the operator's; the probe only
+reports data, it never intervenes.
 
 If `DRY_RUN=true`, stop here.
 
@@ -204,6 +247,10 @@ This session will NOT auto-run /opsx:apply.
 - [ ] Block B `/goal` string is entirely in English
 - [ ] Sentinel check in Part 2 uses `ls .claude/artifacts/sessions/.pending-*` (not reviewer names)
 - [ ] Non-automatable tasks appear in Block A warning, NOT in Part 3
-- [ ] `--dry-run` stops after Block C (no "THIS SESSION" block)
+- [ ] `--max-duration` set → Part 4 has the wall-clock line; absent → no such line
+- [ ] Part 3 emits build/lint gate lines only when `HAS_BUILD` / `HAS_LINT` detected
+- [ ] Part 4 instructs writing `.resume-note.md` with items (1)(2)(3) on stop
+- [ ] Block C2 Monitor snippet is present and read-only (grep + ls only)
+- [ ] `--dry-run` stops after Block C2 Monitor (no "THIS SESSION" block)
 - [ ] Archived change → warn and stop (no goal emitted)
 - [ ] Missing `tasks.md` → fail with clear error message

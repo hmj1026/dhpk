@@ -59,16 +59,25 @@ to decide the codex flag.
 - **`MATCH`** → invoke `<skill>` immediately with the **Skill** tool (e.g.
   `dhpk:bug-fix`). Do **not** re-classify — the route table already matched.
   State one line: `Routing to /<skill> (<label>).`
-- **`NO_MATCH`** → classify the request yourself and pick the single best-fit
-  dhpk command, then invoke it via the **Skill** tool. State one line:
-  `No deterministic route; routing to /<chosen> because <reason>.`
+- **`NO_MATCH`** → before guessing, gather a few **cheap repo signals** to
+  disambiguate (evidence beats a blind classification, but stay one-shot — do not
+  start exploring the codebase). Quick checks only, e.g.:
+  - `git status --porcelain` non-empty → dirty worktree (a "are we done?" /
+    "收尾" request likely means `dhpk:verify` or `dhpk:review-pending`).
+  - `ls openspec/changes/ 2>/dev/null` shows an active change → a "finish it" /
+    "跑完它" request likely means `dhpk:opsx-goal` (unattended) or `/opsx:apply`.
+  - test config / build config present → verification-class intent is plausible.
+
+  Then classify the request yourself and pick the single best-fit dhpk command,
+  invoke it via the **Skill** tool, and state one line citing the evidence:
+  `No deterministic route; routing to /<chosen> because <reason + signal>.`
   Common targets: `dhpk:adaptive-dev-workflow` (substantial bug/feature changes —
   classify + gate before implementing), `dhpk:bug-fix`, `dhpk:feature-dev`,
   `dhpk:code-explore`, `dhpk:review-pending`, `dhpk:security-review`,
   `dhpk:project-audit`, `dhpk:simplify`, `dhpk:tech-spec`, `dhpk:risk-assess`,
-  `dhpk:deploy-list`, `dhpk:feasibility-study`, `dhpk:verify`, `dhpk:create-pr`,
-  `dhpk:smart-commit`. If nothing fits, say so and ask one clarifying question
-  instead of guessing.
+  `dhpk:deploy-list`, `dhpk:feasibility-study`, `dhpk:verify`, `dhpk:opsx-goal`,
+  `dhpk:create-pr`, `dhpk:smart-commit`. If nothing fits, say so and ask one
+  clarifying question instead of guessing.
 - **`NO_QUERY`** → ask the user what they want to do; do not route.
 
 ### Codex-mode rule (how `CODEX` shapes the invocation)

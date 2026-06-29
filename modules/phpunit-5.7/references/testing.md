@@ -3,17 +3,20 @@
 > Extends `~/.claude/rules/common/testing.md`. Full standards: `<PROJECT_TEST_STANDARDS>`.
 
 ## Suite Layout
+
 - `unit/` — no `Yii::app()` / DB
 - `integration/` — Yii + DB; InnoDB → `IntegrationTestCase` (auto rollback); MyISAM → manual setUp/tearDown cleanup
 - `functional/` — E2E
 
 ## Docker Commands (`-i` required, else WSL hangs)
+
 ```bash
 docker exec -i -w <container-workdir> ${PHP_CONTAINER:-php} phpunit -c protected/tests/phpunit.xml [--testsuite unit|integration]
 docker exec -i -w <container-workdir> ${PHP_CONTAINER:-php} phpunit -c protected/tests/phpunit-fast.xml  # ~330ms, Domain+Infrastructure only
 ```
 
 ## PHPUnit 5.7
+
 - `public function testXxx()` — not `@test`
 - `assertSame()` over `assertEquals()` (strict type + value)
 - Exceptions: `@expectedException` or `setExpectedException()`
@@ -21,6 +24,7 @@ docker exec -i -w <container-workdir> ${PHP_CONTAINER:-php} phpunit -c protected
 - Naming: `test[Subject]_[Condition]_[ExpectedOutcome]` — e.g. `testGoldMemberPurchase1000_shouldReceive100Discount()` (rule body in common/testing.md `Test Naming`)
 
 ## Bad Test Patterns — PHPUnit 5.7 syntax mapping
+>
 > Pattern names (Giant / Inspector / Flicker / Silent / Chain / Mockery) are defined in `~/.claude/rules/common/testing.md`; the table below lists only the PHPUnit 5.7 symptom and fix.
 
 | Pattern | PHPUnit 5.7 Symptom | Fix |
@@ -33,6 +37,7 @@ docker exec -i -w <container-workdir> ${PHP_CONTAINER:-php} phpunit -c protected
 | Mockery | Mock stubs > assertions; mocks non-existent contracts | Mock direct deps only |
 
 ## Common Traps
+
 | Trap | Fix |
 |------|-----|
 | `unit/` uses `Yii::app()` / DB | Move to `integration/` |
@@ -45,6 +50,7 @@ docker exec -i -w <container-workdir> ${PHP_CONTAINER:-php} phpunit -c protected
 | Print_r style log parser fixture 時間戳含日期前綴（`2026-05-18 09:30:00`） | parser regex 只命中 bare `HH:MM:SS`；含日期前綴的行被忽略、entry time 留空。fixture 必只放 bare 時間戳行 |
 
 ## E2E
+
 Login accounts and full login flow: see skill `<your-project>-environment`, section "POS UI Login (playwright-cli)" (credentials live in the gitignored local file `.claude/artifacts/accounts.md` — never checked in).
 ```bash
 playwright-cli snapshot https://<app-host>/dev3/<controller>/<action>

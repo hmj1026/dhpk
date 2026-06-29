@@ -28,6 +28,7 @@ recommended next command (`/dhpk:bug-fix --codex`, `/dhpk:feature-dev --codex`).
 `--codex` is given but Codex is unavailable, warn once and fall back to codex-free.
 
 ## Context
+
 - Git status: !`git status -sb`
 - Current branch: !`git branch --show-current`
 

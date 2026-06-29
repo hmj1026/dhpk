@@ -1,6 +1,7 @@
 # Checklists
 
 ## Table of Contents
+
 - Phase 5 knowledge checklist
 - Full investigation checklist
 
