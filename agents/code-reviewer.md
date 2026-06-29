@@ -84,6 +84,7 @@ This plugin reviews predominantly Claude-authored code. Bias attention toward th
 | Auth / authz / crypto / money | `security-reviewer` |
 | Keychain / CryptoKit / privacy manifest / LocalAuthentication | `security-reviewer` |
 | Deep error-handling audit (empty catch / swallowed exceptions / hidden fallbacks / missing rollback) | `silent-failure-hunter` |
+| New / changed domain type / value object / enum / struct with non-trivial invariants ("make illegal states unrepresentable") | `type-design-analyzer` |
 
 ## Output
 
