@@ -75,7 +75,7 @@ Walk the inventory output against the gap taxonomy below.
 | **G4** | `settings.json` (or config.toml) contains loose command wildcards | Refine to explicit matchers or `<verb>:*` colon-prefix |
 | **G5** | Sentinel gates bypassed by terminal `git commit` | Add `.git/hooks/pre-commit` wrapper (mirroring harness hooks) |
 | **G6** | Rules reference deleted skills | `harness-inventory.sh` `dangling_skills` count > 0 — prune rules |
-| **G7** | `pre-bash-guard.sh` lacks coverage for dangerous operations | Extend with `rm -rf /`, `curl | sh` patterns |
+| **G7** | `pre-bash-guard.sh` lacks coverage for dangerous operations | Extend with `rm -rf /`, `curl \| sh` patterns |
 | **G8** | `test-harness.sh` uses outdated hook payload formats | Update to JSON payload contract: `{tool_input:{file_path}}` |
 | **G9** | Cosmetic `echo` or dead-code in settings/hooks | Prune redundant entries from `settings.json` / `config.toml` |
 | **G10** | Status line lacks sentinel badge | Ensure `statusline.sh` surfaces pending sentinels (e.g. `⚠2pending`) |

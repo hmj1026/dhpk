@@ -35,6 +35,7 @@ Analyzes instincts and clusters related ones into higher-level structures:
 ## Evolution Rules
 
 ### → Command (User-Invoked)
+
 When instincts describe actions a user would explicitly request:
 - Multiple instincts about "when user asks to..."
 - Instincts with triggers like "when creating a new X"
@@ -48,6 +49,7 @@ Example:
 → Creates: **new-table** command
 
 ### → Skill (Auto-Triggered)
+
 When instincts describe behaviors that should happen automatically:
 - Pattern-matching triggers
 - Error handling responses
@@ -61,6 +63,7 @@ Example:
 → Creates: `functional-patterns` skill
 
 ### → Agent (Needs Depth/Isolation)
+
 When instincts describe complex, multi-step processes that benefit from isolation:
 - Debugging workflows
 - Refactoring sequences
@@ -124,6 +127,7 @@ High confidence instincts (>=80%): 5
 ## Generated File Format
 
 ### Command
+
 ```markdown
 ---
 name: new-table
@@ -145,6 +149,7 @@ evolved_from:
 ```
 
 ### Skill
+
 ```markdown
 ---
 name: functional-patterns
@@ -161,6 +166,7 @@ evolved_from:
 ```
 
 ### Agent
+
 ```markdown
 ---
 name: debugger

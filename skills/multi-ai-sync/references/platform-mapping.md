@@ -7,10 +7,12 @@
 > is not installed, treat those rows as N/A and skip them during sync.
 
 ## Canonical Source
+
 - Source platform: `claude`
 - Source root: `.claude`
 
 ## Categories
+
 - `skills`
 - `commands`
 - `agents`
@@ -44,6 +46,7 @@ Gemini hooks are treated as **conditionally available**:
 3. Codex and Antigravity remain `skip-incompatible` for direct Claude hook parity in current repository structure.
 
 ## Status Policy
+
 - `equivalent`: target has same feature semantics and complete baseline structure
 - `adapted`: target has similar capability but requires platform-specific format/schema
 - `skip-incompatible`: no stable equivalent capability in target platform

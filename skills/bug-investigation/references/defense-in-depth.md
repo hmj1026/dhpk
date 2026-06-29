@@ -20,6 +20,7 @@
 ## 四層防護
 
 ### Layer 1: 入口驗證
+
 **目的：** 在 API/入口即擋掉不合法資料
 
 ```typescript
@@ -38,6 +39,7 @@ function createProject(name: string, workingDirectory: string) {
 ```
 
 ### Layer 2: 業務邏輯驗證
+
 **目的：** 確保這個操作在語意上合理
 
 ```typescript
@@ -50,6 +52,7 @@ function initializeWorkspace(projectDir: string, sessionId: string) {
 ```
 
 ### Layer 3: 環境防護
+
 **目的：** 特定情境下避免危險行為
 
 ```typescript
@@ -70,6 +73,7 @@ async function gitInit(directory: string) {
 ```
 
 ### Layer 4: 偵錯儀表
+
 **目的：** 發生問題時保留可用的鑑識線索
 
 ```typescript

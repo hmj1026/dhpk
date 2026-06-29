@@ -1,11 +1,13 @@
 # Risk Policy
 
 ## Risk Levels
+
 - `P1`: Security, permissions, execution policy, destructive behavior
 - `P2`: Behavior changes across commands/workflows/agents
 - `P3`: Documentation/description/frontmatter quality
 
 ## Mandatory Gates
+
 1. **Review Gate**
 - No direct file mutation from plan output.
 - Produce migration plan first; execute only after approval.
@@ -21,6 +23,7 @@
 - Validate multi-agent representative case.
 
 ## Acceptance
+
 A sync run is complete only when:
 - All approved `adapted` items are tracked in tasks
 - All skipped items are documented with reason + evidence

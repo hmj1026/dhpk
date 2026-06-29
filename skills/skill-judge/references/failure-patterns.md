@@ -21,6 +21,7 @@ Self-contained catalog for `skill-judge`. Load this when you have a low score an
 ## Common Failure Patterns
 
 ### Pattern 1: The Tutorial
+
 ```
 Symptom: Explains what PDF is, how Python works, basic library usage
 Root cause: Author assumes Skill should "teach" the model
@@ -29,6 +30,7 @@ Fix: Claude already knows this. Delete all basic explanations.
 ```
 
 ### Pattern 2: The Dump
+
 ```
 Symptom: SKILL.md is 800+ lines with everything included
 Root cause: No progressive disclosure design
@@ -37,6 +39,7 @@ Fix: Core routing and decision trees in SKILL.md (<300 lines ideal)
 ```
 
 ### Pattern 3: The Orphan References
+
 ```
 Symptom: References directory exists but files are never loaded
 Root cause: No explicit loading triggers
@@ -45,6 +48,7 @@ Fix: Add "MANDATORY - READ ENTIRE FILE" at workflow decision points
 ```
 
 ### Pattern 4: The Checkbox Procedure
+
 ```
 Symptom: Step 1, Step 2, Step 3... mechanical procedures
 Root cause: Author thinks in procedures, not thinking frameworks
@@ -53,6 +57,7 @@ Fix: Transform into "Before doing X, ask yourself..."
 ```
 
 ### Pattern 5: The Vague Warning
+
 ```
 Symptom: "Be careful", "avoid errors", "consider edge cases"
 Root cause: Author knows things can go wrong but hasn't articulated specifics
@@ -61,6 +66,7 @@ Fix: Specific NEVER list with concrete examples and non-obvious reasons
 ```
 
 ### Pattern 6: The Invisible Skill
+
 ```
 Symptom: Great content but skill rarely gets activated
 Root cause: Description is vague, missing keywords, or lacks trigger scenarios
@@ -74,6 +80,7 @@ GOOD: "Create, edit, and analyze .docx files. Use when working with
 ```
 
 ### Pattern 7: The Wrong Location
+
 ```
 Symptom: "When to use this Skill" section in body, not in description
 Root cause: Misunderstanding of three-layer loading
@@ -82,6 +89,7 @@ Fix: Move all triggering information to description field
 ```
 
 ### Pattern 8: The Over-Engineered
+
 ```
 Symptom: README.md, CHANGELOG.md, INSTALLATION_GUIDE.md, CONTRIBUTING.md
 Root cause: Treating Skill like a software project
@@ -90,6 +98,7 @@ Fix: Delete all auxiliary files. Only include what Agent needs for the task.
 ```
 
 ### Pattern 9: The Freedom Mismatch
+
 ```
 Symptom: Rigid scripts for creative tasks, vague guidance for fragile operations
 Root cause: Not considering task fragility

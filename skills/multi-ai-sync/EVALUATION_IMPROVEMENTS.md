@@ -9,6 +9,7 @@
 ## 🎯 Improvements Applied
 
 ### 1. **Plan-Only Mode Support (Evaluation Result: 100% Pass)**
+
 **Problem:** SKILL.md didn't explicitly address how to detect and handle plan-only requests.
 
 **Improvement:**
@@ -23,6 +24,7 @@
 ---
 
 ### 2. **Dry-Run Documentation (Evaluation Result: 86% Pass - 1 missing assertion)**
+
 **Problem:** Step 3 didn't emphasize explicit documentation of dry-run execution.
 
 **Improvement:**
@@ -40,6 +42,7 @@
 ---
 
 ### 3. **Multilingual Output (Evaluation Result: 75% Pass - 1 missing assertion)**
+
 **Problem:** Step 1 output wasn't explicitly marked as multilingual.
 
 **Improvement:**
@@ -53,6 +56,7 @@
 ---
 
 ### 4. **Preflight Checks Clarity (Evaluation Result: 100% Pass)**
+
 **Enhancement:**
 - Added to Step 0: "**Output:** 明確列出三項檢查結果（✅/❌）"
 - Clarified Preflight output must show clear pass/fail status for all three checks
@@ -62,6 +66,7 @@
 ---
 
 ### 5. **Validation Gate Output (Evaluation Result: 100% Pass)**
+
 **Enhancement:**
 - Improved Step 4 documentation requirements:
   - "**必須輸出：** 明確的驗證結果"
@@ -86,6 +91,7 @@
 ## 🔄 Impact on Future Iterations
 
 ### What This Means
+
 When the skill is next invoked:
 1. **Plan-only requests** will be recognized and stop at Step 1
 2. **Dry-run execution** will be explicitly documented with clear output
@@ -94,6 +100,7 @@ When the skill is next invoked:
 5. **Final validation** will be clearly stated with actionable recommendations
 
 ### Baseline Improvements Expected
+
 - **Plan-only mode:** Already at 100%, will stay at 100%
 - **Full-sync workflow:** Will improve from 86% to higher pass rate due to explicit dry-run documentation
 - **English triggers:** Will improve from 75% to higher due to explicit multilingual output requirement
@@ -103,6 +110,7 @@ When the skill is next invoked:
 ## 📝 Changes Made to SKILL.md
 
 ### Sections Updated
+
 - **Step 0 (Preflight):** Added "Output:" clarification
 - **Step 1 (Plan Generation):**
   - Added plan-only mode detection section
@@ -115,6 +123,7 @@ When the skill is next invoked:
   - Added explicit reporting format requirements
 
 ### Key Additions
+
 - "關鍵決定：先判斷使用者意圖" section
 - "Plan-only 模式判斷" guidance
 - Explicit dry-run documentation requirements

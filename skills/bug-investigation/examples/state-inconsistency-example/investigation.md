@@ -32,7 +32,7 @@
 
 ### 涉及的元件
 
-- **前端**: 
+- **前端**:
   - `js/transaction.js` - 交易處理流程
   - `js/discount.js` - 折扣憑證管理
 - **後端**:
@@ -49,6 +49,7 @@
 ### 階段 1: 前端資料流
 
 #### 1.1 憑證套用
+
 **位置**: `js/discount.js:applyDiscount()`
 
 ```javascript
@@ -72,6 +73,7 @@ function applyDiscount(discountCode) {
 **問題發現**: ✅ 此階段正常，憑證正確套用
 
 #### 1.2 提交觸發
+
 **位置**: `js/transaction.js:processTransaction()`
 
 ```javascript
@@ -93,6 +95,7 @@ function processTransaction(processingMethod) {
 ### 階段 2: 後端資料流
 
 #### 2.1 接收請求
+
 **位置**: `Controller/TransactionController.php:processTransaction()`
 
 ```php
