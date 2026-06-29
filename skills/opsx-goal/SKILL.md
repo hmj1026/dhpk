@@ -1,6 +1,6 @@
 ---
 name: opsx-goal
-argument-hint: '<change-id> [--turns N] [--max-duration <Nm|Nh>] [--dry-run]'
+argument-hint: '<change-id> [--turns N] [--max-duration <Nm|Nh>] [--min-coverage N] [--dry-run]'
 description: 'Generate a /goal condition for an unattended OpenSpec change implementation session. Reads tasks.md + proposal.md, detects test-runner scope, calculates turn budget, and emits the /goal string + /opsx:apply sequence ready to paste into a fresh session. Use when starting an unattended implementation session for an OpenSpec change. Not for: archiving, verifying, or syncing changes (use opsx-archive / opsx-verify / opsx-sync).'
 allowed-tools: 'Bash, Read, Glob'
 ---
@@ -32,10 +32,14 @@ From `$ARGUMENTS`:
 - `MAX_DURATION` = value after `--max-duration` (e.g. `30m`, `2h`), if present.
   Absent → no wall-clock stop is emitted (behavior unchanged).
 - `DRY_RUN` = `true` if `--dry-run` present
+- `MIN_COVERAGE` = integer percent after `--min-coverage`, if present. Opt-in
+  escape hatch: forces a coverage gate at this threshold even when the project
+  has no native coverage config. Requires a detected test runner (`HAS_TEST=true`);
+  ignored with a Block A note otherwise. Overrides any detected `COVERAGE_THRESHOLD`.
 
 Missing `CHANGE_ID` → print usage and stop:
 ```
-Usage: /dhpk:opsx-goal <change-id> [--turns N] [--dry-run]
+Usage: /dhpk:opsx-goal <change-id> [--turns N] [--max-duration <Nm|Nh>] [--min-coverage N] [--dry-run]
 Example: /dhpk:opsx-goal fix-spec-select-empty-gplist-overflow
 ```
 
@@ -134,14 +138,19 @@ Test runners (only if `HAS_TEST=true`):
 - `HAS_SWIFT_TEST` → `swift test output shows 0 failures`
 - `HAS_OTHER_TEST` → use the specific command and "0 failures" phrasing from tasks.md
 
-Coverage (only if `HAS_COVERAGE=true` — see `references/detection.md`): emit the
-test line using the project's coverage invocation (`COVERAGE_CMD`) so the runner
-enforces its own threshold, and fold the threshold into that one line. Example:
-`jest --coverage output shows 0 failed AND coverage thresholds met`, or with an
-explicit `COVERAGE_THRESHOLD`: `pytest --cov output shows 0 failed AND total
-coverage ≥ <COVERAGE_THRESHOLD>%`. Keep it one verifiable line (replaces the
-plain test line above for that runner). When `HAS_COVERAGE=false`, emit the plain
-`0 failed` line and add no coverage condition.
+Coverage (emit when `HAS_TEST=true` AND (`HAS_COVERAGE=true` OR `MIN_COVERAGE` is
+set) — see `references/detection.md`): emit the test line using the runner's
+coverage invocation (`COVERAGE_CMD`) so the runner enforces the threshold, folded
+into that one line. Threshold precedence: `MIN_COVERAGE` (operator flag) overrides
+a detected `COVERAGE_THRESHOLD`. When the project has no native coverage config but
+`MIN_COVERAGE` is set, derive `COVERAGE_CMD` from the detected runner (jest →
+`jest --coverage`, phpunit → `phpunit --coverage-text`, pytest →
+`pytest --cov --cov-fail-under=<N>`, swift → `swift test --enable-code-coverage`).
+Examples: `jest --coverage output shows 0 failed AND coverage thresholds met`, or
+`pytest --cov output shows 0 failed AND total coverage ≥ <threshold>%`. Keep it one
+verifiable line (replaces the plain test line for that runner). Otherwise emit the
+plain `0 failed` line and add no coverage condition. If `MIN_COVERAGE` is set but
+`HAS_TEST=false`, ignore it and note in Block A (no runner to measure coverage).
 
 Build / lint (only if detected — conditional, never forced):
 - `HAS_BUILD` → `build output shows 0 errors`
@@ -173,7 +182,7 @@ The `.resume-note.md` carry-forward lets a follow-up session resume cleanly via
 ╠══════════════════════════════════════════════════════════════╣
 ║  Tasks       : <DONE_TASKS>/<TOTAL_TASKS> done, <OPEN_TASKS> open
 ║  Test runners: <detected runners, or "none detected">
-║  Coverage    : <enforced (threshold <T>) | not enforced (no coverage config)>
+║  Coverage    : <enforced threshold <T> (config | --min-coverage) | not enforced (pass --min-coverage N) | not enforced (no test runner) | --min-coverage ignored (no test runner)>
 ║  Sentinels   : universal check (all 7 slots, self-calibrating)
 ║  Turn budget : <TURN_BUDGET>  (formula: <OPEN_TASKS> × 4 + 20, cap 20–120)
 ║  Manual tasks: <N skipped, or "none">
@@ -232,13 +241,13 @@ Print the `/goal` command in a fenced code block:
 • --max-duration ran out: same recovery — /goal clear, then re-run
 ```
 
-If `HAS_COVERAGE=false` AND `HAS_TEST=true`, append one NOTES line:
+If `HAS_COVERAGE=false` AND `MIN_COVERAGE` is unset AND `HAS_TEST=true`, append one NOTES line:
 
 ```
 • Coverage gate OFF (no coverage threshold configured) — new-code coverage is
-  NOT gated; author tests via feature-dev / tdd-guide, or add a coverage
+  NOT gated; author tests via feature-dev / tdd-guide, add a native coverage
   threshold (jest coverageThreshold / phpunit <coverage> min / pytest
-  --cov-fail-under) to enforce it on unattended runs
+  --cov-fail-under), or pass --min-coverage N to opsx-goal to force it this run
 ```
 
 ### Block C2 — Monitor (always printed; read-only)
@@ -279,6 +288,7 @@ This session will NOT auto-run /opsx:apply.
 - [ ] Non-automatable tasks appear in Block A warning, NOT in Part 3
 - [ ] `--max-duration` set → Part 4 has the wall-clock line; absent → no such line
 - [ ] Part 3 emits build/lint gate lines only when `HAS_BUILD` / `HAS_LINT` detected
+- [ ] Part 3 emits a coverage gate when `HAS_COVERAGE=true` OR `--min-coverage N` set (with `HAS_TEST=true`); `--min-coverage` overrides a detected threshold and is ignored (Block A note) when no test runner is detected
 - [ ] Part 4 instructs writing `.resume-note.md` with items (1)(2)(3) on stop
 - [ ] Block C2 Monitor snippet is present and read-only (grep + ls only)
 - [ ] Block C NOTES include the unattended-loop pre-flight (rollback path / isolation / quality gate)

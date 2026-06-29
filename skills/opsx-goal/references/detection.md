@@ -64,6 +64,15 @@ coverage invocation) and `COVERAGE_THRESHOLD` (only when an explicit number is
 stated). Step 6 uses these to enforce the threshold via the runner itself rather
 than a separate coverage tool.
 
+**Operator override (`--min-coverage N`):** opsx-goal's `--min-coverage N` flag
+forces this gate at threshold `N` even when no native threshold is configured —
+the escape hatch for projects that have a test runner but no coverage config.
+Requires `HAS_TEST=true` (a runner must exist to measure coverage); when set it
+overrides any detected `COVERAGE_THRESHOLD`, and Step 6 derives `COVERAGE_CMD`
+from the detected runner. No runner detected → the flag is ignored (noted in
+Block A). The flag never *invents* a default — coverage is enforced only when the
+operator explicitly asks or the project configures it.
+
 ## Sentinel strategy rationale
 
 The goal condition uses a universal `ls .pending-*` check rather than
