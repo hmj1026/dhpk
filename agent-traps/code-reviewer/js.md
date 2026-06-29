@@ -17,7 +17,7 @@ commenting; skip cleanly for JS-only projects.
 
 Security lanes (`eval`/`new Function`, `innerHTML`/`dangerouslySetInnerHTML` XSS,
 SQL/NoSQL injection, `child_process` with user input, prototype pollution, hardcoded
-secrets) are reportable here too, but the OWASP baseline lives in `security-reviewer`.
+secrets) are reportable here too, but the OWASP baseline lives in `security-reviewer/js.md`.
 
 ## Worked examples
 
