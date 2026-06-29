@@ -113,7 +113,7 @@ Semantically matches but path pattern did not trigger a sentinel → self-trigge
 > **Why view-layer script doesn't go through the hook**: `post-edit-dispatch.sh` uses path-pattern matching (O(1)). Detecting `<script>` blocks would require reading the full PHP file content on every Edit (grep cost asymmetric to the edit cost). Per the trigger taxonomy, view templates don't all contain `<script>`; AI looking at the diff has near-zero recognition cost, so back-stop is sufficient.
 >
 > **When to upgrade to hook**: once a project accumulates ≥3 missed-review cases (feature shipped to prod), or view-layer JS bug ratio significantly exceeds the JS-file leaf ratio, then add path+content grep to the hook. Until then, AI judgment.
-
+>
 > **`tdd-guide` has no sentinel.** `.pending-tdd` is never written by any hook (tdd-guide is pre-edit, not post-edit), so it is reached only via the back-stop above or an explicit pre-implementation invocation — it is **not** auto-enforced by the `opsx-goal` universal `ls .pending-*` gate. For unattended `opsx-goal` runs, new-code testing is enforced as an *outcome* by the **coverage gate** when the project has a coverage threshold configured (see `skills/opsx-goal/references/detection.md` `HAS_COVERAGE`); where no threshold exists, tests-first must be carried by the change's tasks/plan (authored via `feature-dev`), not assumed from the sentinel gate.
 
 ## Pre-plan checklist (Feature / Bug)
