@@ -41,6 +41,29 @@ When emitting Part 3, add `build output shows 0 errors` for `HAS_BUILD` and
 line so the Haiku evaluator can check it from conversation. Detected nothing →
 add nothing (no forced gate on changes that have no build/lint step).
 
+## Coverage gate (opt-in, threshold-driven)
+
+Closes the "new code shipped with zero tests still passes the `0 failed` gate"
+hole — but only as an **outcome** check (unattended runs cannot enforce
+tests-first). `HAS_COVERAGE=true` **only when `HAS_TEST=true` AND** the project
+already has coverage tooling with a **fail-threshold** configured. Never invent a
+threshold: no configured threshold → `HAS_COVERAGE=false` (soft-fallback to the
+plain `0 failed` test gate).
+
+| Flag | Positive signals (a configured fail-threshold) | Capture |
+|------|-----------------|---------|
+| `HAS_COVERAGE` (jest) | `coverageThreshold` in jest config / `package.json` | `COVERAGE_CMD = jest --coverage` |
+| `HAS_COVERAGE` (phpunit) | `<coverage>` in `phpunit.xml` with a stated minimum, or `--coverage-text` + a stated % in tasks/proposal | `COVERAGE_CMD = phpunit --coverage-text` |
+| `HAS_COVERAGE` (pytest) | `--cov-fail-under=<N>` / `[tool.coverage]` in `pyproject.toml` / `.coveragerc` | `COVERAGE_CMD = pytest --cov --cov-fail-under=<N>` |
+| `HAS_COVERAGE` (swift) | `--enable-code-coverage` + a stated threshold | `COVERAGE_CMD = swift test --enable-code-coverage` |
+| common intent | `coverage` · `≥ N%` · `--coverage` stated in `proposal.md` / `design.md` / `tasks.md` | `COVERAGE_THRESHOLD = <N>` when explicit |
+
+Detection mirrors the test/build/lint tables: positive signal matches AND no
+`no tests`/`doc-only` negative override. Capture `COVERAGE_CMD` (the runner's
+coverage invocation) and `COVERAGE_THRESHOLD` (only when an explicit number is
+stated). Step 6 uses these to enforce the threshold via the runner itself rather
+than a separate coverage tool.
+
 ## Sentinel strategy rationale
 
 The goal condition uses a universal `ls .pending-*` check rather than

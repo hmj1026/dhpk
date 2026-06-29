@@ -134,6 +134,15 @@ Test runners (only if `HAS_TEST=true`):
 - `HAS_SWIFT_TEST` → `swift test output shows 0 failures`
 - `HAS_OTHER_TEST` → use the specific command and "0 failures" phrasing from tasks.md
 
+Coverage (only if `HAS_COVERAGE=true` — see `references/detection.md`): emit the
+test line using the project's coverage invocation (`COVERAGE_CMD`) so the runner
+enforces its own threshold, and fold the threshold into that one line. Example:
+`jest --coverage output shows 0 failed AND coverage thresholds met`, or with an
+explicit `COVERAGE_THRESHOLD`: `pytest --cov output shows 0 failed AND total
+coverage ≥ <COVERAGE_THRESHOLD>%`. Keep it one verifiable line (replaces the
+plain test line above for that runner). When `HAS_COVERAGE=false`, emit the plain
+`0 failed` line and add no coverage condition.
+
 Build / lint (only if detected — conditional, never forced):
 - `HAS_BUILD` → `build output shows 0 errors`
 - `HAS_LINT` → `lint output shows 0 errors`
@@ -164,6 +173,7 @@ The `.resume-note.md` carry-forward lets a follow-up session resume cleanly via
 ╠══════════════════════════════════════════════════════════════╣
 ║  Tasks       : <DONE_TASKS>/<TOTAL_TASKS> done, <OPEN_TASKS> open
 ║  Test runners: <detected runners, or "none detected">
+║  Coverage    : <enforced (threshold <T>) | not enforced (no coverage config)>
 ║  Sentinels   : universal check (all 7 slots, self-calibrating)
 ║  Turn budget : <TURN_BUDGET>  (formula: <OPEN_TASKS> × 4 + 20, cap 20–120)
 ║  Manual tasks: <N skipped, or "none">
@@ -217,6 +227,15 @@ Print the `/goal` command in a fenced code block:
 • Combine with /auto mode for a fully unattended goal loop
 • Turn budget ran out: /goal clear, then re-run with --turns N
 • --max-duration ran out: same recovery — /goal clear, then re-run
+```
+
+If `HAS_COVERAGE=false` AND `HAS_TEST=true`, append one NOTES line:
+
+```
+• Coverage gate OFF (no coverage threshold configured) — new-code coverage is
+  NOT gated; author tests via feature-dev / tdd-guide, or add a coverage
+  threshold (jest coverageThreshold / phpunit <coverage> min / pytest
+  --cov-fail-under) to enforce it on unattended runs
 ```
 
 ### Block C2 — Monitor (always printed; read-only)
