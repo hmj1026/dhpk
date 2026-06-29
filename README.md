@@ -2,7 +2,7 @@
 
 > **Languages**: **English** · [繁體中文](./README.zh-TW.md)
 
-A generic, install-and-go Claude Code harness. Ships **22 role-based agents** (+ 1 module-scoped reviewer), ~73 commands (codex / gitnexus / git / project workflow), ~57 core skills + the `deploy-list` cross-project deploy file list generator + the **`/dhpk:do` Smart Router** (natural-language task routing via 21-pattern route table + LLM fallback) + **cross-session learning DB** (operational signal store with confidence decay, opt-in), **7-slot sentinel-driven review hooks** (code / db / sec / frontend / doc / **polyfill** / **migration** — polyfill via `library-author`, migration via module triggers or a `mig:` extra path), statusline, harness scripts, and **27 opt-in stack modules** across PHP (`php-5.6`, `php-7.4`, `php-8.x`), Yii (`yii-1.1`), PHPUnit (`phpunit-5.7`, `phpunit-9`, `phpunit-10`, `phpunit-11`), Laravel (`laravel-5.4`, `laravel-6` through `laravel-11`), JS (`js`), Vue (`vue-2`), Laravel Mix (`laravel-mix`), Python (`python`, `fastapi`, `pytest`), the cross-cutting `library-author` module, and an **iOS/Swift suite** (`swift`, `swiftui`, `ios-platform`, `swift-testing`, `xcode-tooling`). Modules contribute hooks at runtime via the **wrapper-dispatch** model (see [`docs/hook-extension.md`](./docs/hook-extension.md)). Parallel Codex CLI tree included for dual-assistant projects.
+A generic, install-and-go Claude Code harness. Ships **22 role-based agents** (+ 1 module-scoped reviewer), ~73 commands (codex / gitnexus / git / project workflow), ~57 core skills + the `deploy-list` cross-project deploy file list generator + the **`/dhpk:do` Smart Router** (natural-language task routing via 35-pattern route table + LLM fallback) + **cross-session learning DB** (operational signal store with confidence decay, opt-in), **7-slot sentinel-driven review hooks** (code / db / sec / frontend / doc / **polyfill** / **migration** — polyfill via `library-author`, migration via module triggers or a `mig:` extra path), statusline, harness scripts, and **27 opt-in stack modules** across PHP (`php-5.6`, `php-7.4`, `php-8.x`), Yii (`yii-1.1`), PHPUnit (`phpunit-5.7`, `phpunit-9`, `phpunit-10`, `phpunit-11`), Laravel (`laravel-5.4`, `laravel-6` through `laravel-11`), JS (`js`), Vue (`vue-2`), Laravel Mix (`laravel-mix`), Python (`python`, `fastapi`, `pytest`), the cross-cutting `library-author` module, and an **iOS/Swift suite** (`swift`, `swiftui`, `ios-platform`, `swift-testing`, `xcode-tooling`). Modules contribute hooks at runtime via the **wrapper-dispatch** model (see [`docs/hook-extension.md`](./docs/hook-extension.md)). Parallel Codex CLI tree included for dual-assistant projects.
 
 OpenSpec is an **optional external integration** — install the [OpenSpec plugin](https://github.com/Fission-AI/OpenSpec) separately if you want OpenSpec workflow commands. dhpk retains only its own value-add helper `opsx-apply-resume` (long-running OpenSpec session context handoff); the 10 generic OpenSpec wrapper skills/commands were unbundled in v0.2.1 since OpenSpec ships them upstream.
 
@@ -121,6 +121,79 @@ The same actions are available as `/plugin update dhpk`, `/plugin uninstall dhpk
 | Hook dispatchers | 2 | `post-edit-dispatch.sh`, `pre-bash-dispatch.sh` — fan out to active modules' hooks |
 | Harness scripts | 5 | precommit-runner, verify-runner, harness-audit, codemap generator, dep-audit |
 | Codex dual-track | 14 skills + 1 agent (5 config profiles) | Synced into project `.codex/` by `install-codex-skills.sh` |
+
+## Common workflows
+
+Everything is reachable through `/dhpk:do` — one entry point that routes natural-language task descriptions to the right skill. The examples below show what actually happens after you type a command.
+
+### 1. Feature development
+
+```text
+/dhpk:do implement a password-reset email flow
+```
+
+The Smart Router matches "implement … feature" → `dhpk:adaptive-dev-workflow` → **Feature Delivery** path. The skill loads TDD guide, runs the RED→GREEN→REFACTOR cycle, and closes with code-review and security gates. Post-edit hooks automatically drop sentinels after each file write; the Stop hook reminds you of any still-open reviewers.
+
+### 2. Bug fix
+
+```text
+/dhpk:do fix the login redirect loop
+```
+
+Matches "fix … bug" → `dhpk:adaptive-dev-workflow` → **Bug Investigation & Fix**: root-cause evidence, regression test, RED gate before writing the fix.
+
+### 3. Post-edit review cycle (automatic)
+
+No command needed. After any file edit the hooks automatically:
+
+1. Drop a `.pending-*` sentinel for each relevant reviewer slot (code / db / sec / frontend / doc)
+2. Remind dispatched reviewers to run in parallel at Stop
+3. Warn before `git commit` while sentinels are open (configurable via `sentinel_commit_gate`: `warn` / `block` / `off`)
+
+To trigger reviews immediately without waiting for Stop: `/dhpk:review-pending`
+
+### 4. Commit and PR
+
+```text
+/dhpk:smart-commit        # stages changed files, generates a conventional commit message, runs pre-commit gates
+/dhpk:create-pr           # drafts PR title + summary from the branch commit log
+```
+
+Or describe it in plain language:
+
+```text
+/dhpk:do 幫我提交並建立 PR
+```
+
+### 5. Unattended OpenSpec session
+
+For a long-running change that should run without supervision — generates the `/goal` condition and `/opsx:apply` sequence, ready to paste into a fresh session:
+
+```text
+/dhpk:opsx-goal my-change-id --max-duration 2h
+```
+
+Add `--min-coverage 80` to enforce a coverage gate even when the project has no native coverage config.
+
+### 6. Mine specs from existing code
+
+Extracts behavioral requirements from an existing module into `openspec/specs/<capability>/spec.md` (brownfield onboarding):
+
+```text
+/dhpk:spec-mine user-authentication
+```
+
+Delegates to the `spec-miner` (Opus) agent. Omit the capability name to get a prompted list.
+
+### 7. E2E test authoring
+
+```text
+/dhpk:do write E2E tests for the checkout flow
+```
+
+Routes to `dhpk:post-dev-test`, which delegates Playwright suite authoring to the `e2e-runner` agent.
+
+---
 
 ## userConfig
 
