@@ -216,6 +216,9 @@ Print the `/goal` command in a fenced code block:
   exists), branch or worktree isolation in place, and a quality gate (test /
   build / lint) detected above — if none is detected the loop has no safety net,
   so add one or supervise the run
+• Clear stale / orphaned sentinels first (a leaked or unknown .pending-*
+  blocks the goal's NONE check):
+  bash "$CLAUDE_PLUGIN_ROOT/scripts/hooks/reap-stale-sentinels.sh" --threshold-minutes 60 --clear
 • Brownfield with no baseline specs: if openspec/specs/ is empty, run
   /spec-mine (spec-miner agent) first so change deltas have a baseline truth
   to reference — then start the goal loop
