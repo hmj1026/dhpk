@@ -73,7 +73,7 @@ This plugin reviews predominantly Claude-authored code. Bias attention toward th
 1. **Behavioral regression / edge cases** — the happy path is usually correct while the error / boundary path is silently dropped or weakened.
 2. **Trust boundaries** — confirm new code did not move validation / authz off the layer that previously enforced it.
 3. **Hidden coupling / architecture drift** — shortcuts that bypass the project's Controller → Service → Repository path or introduce cross-layer dependencies.
-4. **Unjustified complexity & cost** — speculative abstractions, or escalating to a higher-cost model tier for a deterministic refactor; prefer the lower tier.
+4. **Unjustified complexity & cost** — speculative abstractions, or routing a deterministic / mechanical task (rename, format, codemod, lint-fix) to a higher-cost model tier or `opus` / `max` effort with no stated reason. Prefer the lower tier; treat an unjustified high-tier selection on a rules-driven transform as a MEDIUM finding.
 
 ## Delegate
 

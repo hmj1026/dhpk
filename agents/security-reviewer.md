@@ -17,8 +17,8 @@ Run after any input handling, authn/authz, file upload, or money path.
 
 Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks — never review a PHP change against iOS rules, or vice-versa.
 
-1. **Active stacks**: read `$DHPK_ACTIVE_MODULES` (comma list) if set; otherwise detect from manifests via Bash — `composer.json` (`require.php` floor + framework key, e.g. `yiisoft/*`, `laravel/framework`), `package.json`, `*.xcodeproj` / `Package.swift`, `pyproject.toml` (default `python`; a `fastapi` dependency ⇒ also `fastapi`). Map module ids to stack ids (`php-7.4`→`php`, `swiftui`/`ios-platform`→`ios`).
-2. For each detected stack `S` (e.g. `php`, `yii`, `ios`, `python`, `fastapi`), Read `${CLAUDE_PLUGIN_ROOT}/agent-traps/security-reviewer/<S>.md` if it exists and apply those traps. (Locator: `find "${CLAUDE_PLUGIN_ROOT}/agent-traps/security-reviewer" -name '<S>.md'`.)
+1. **Active stacks**: read `$DHPK_ACTIVE_MODULES` (comma list) if set; otherwise detect from manifests via Bash — `composer.json` (`require.php` floor + framework key, e.g. `yiisoft/*`, `laravel/framework`), `package.json` (default `js`; a `vue` dependency ⇒ also `vue`), `*.xcodeproj` / `Package.swift`, `pyproject.toml` (default `python`; a `fastapi` dependency ⇒ also `fastapi`). Map module ids to stack ids (`php-7.4`→`php`, `swiftui`/`ios-platform`→`ios`).
+2. For each detected stack `S` (e.g. `php`, `yii`, `js`, `vue`, `ios`, `python`, `fastapi`), Read `${CLAUDE_PLUGIN_ROOT}/agent-traps/security-reviewer/<S>.md` if it exists and apply those traps. (Locator: `find "${CLAUDE_PLUGIN_ROOT}/agent-traps/security-reviewer" -name '<S>.md'`.)
 3. No sheet matches → apply only the Baseline below.
 
 ## Baseline (language-agnostic)
@@ -29,6 +29,22 @@ Detect the active stack, then load ONLY the matching trap sheet(s); ignore other
 - **Unvalidated file upload** — extension / MIME / size unchecked, or the file lands inside the webroot. Whitelist type, verify content, cap size, store outside the webroot.
 - **Sensitive data in logs** — PAN / passwords / tokens / PII in logs or error responses. Mask (PAN last-4, password `[REDACTED]`); keep detail out of the client-facing response.
 - **Missing CSRF on state-changing forms** — POST / PUT / DELETE handlers without an anti-CSRF token. Require the framework's CSRF token on every state-changing request.
+
+## Severity anchors (cross-stack)
+
+| Pattern | Severity | Fix |
+|---------|----------|-----|
+| Hardcoded secret / token / connection string | CRITICAL | env / secret store; rotate if committed |
+| User input in a shell (`exec` / `system` / backticks) | CRITICAL | arg-array API (`execFile` / `escapeshellarg`); allowlist |
+| String-concatenated SQL | CRITICAL | bound / prepared parameters |
+| User input into `innerHTML` / unescaped output | HIGH | escape on output / DOMPurify |
+| Balance / quota check without a row lock | CRITICAL | `SELECT … FOR UPDATE` inside the transaction |
+| Plaintext / `==` password comparison | CRITICAL | constant-time verify (`password_verify` / `bcrypt.compare`) |
+| No rate limit on an auth / write route | HIGH | throttle login + state-changing endpoints |
+
+## Emergency Response (confirmed live exposure)
+
+Document the finding → alert the owner → supply the secure fix → verify the fix closes the path → rotate any exposed secret. Do not stop at "reported".
 
 ## False Positives (skip)
 
