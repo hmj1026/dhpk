@@ -202,6 +202,10 @@ Print the `/goal` command in a fenced code block:
 
 ```
 ━━━ NOTES ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• Pre-flight before an unattended loop: clean git / worktree (a rollback path
+  exists), branch or worktree isolation in place, and a quality gate (test /
+  build / lint) detected above — if none is detected the loop has no safety net,
+  so add one or supervise the run
 • /goal resets on /new or /clear — re-run this command in the new session
 • Sentinel check is self-calibrating: the goal satisfies when ls outputs
   NONE, regardless of which reviewers fired during implementation
@@ -227,8 +231,9 @@ ls .claude/artifacts/sessions/.pending-* 2>/dev/null || echo NONE
 ```
 
 Stall read: if two consecutive checks show the same `open` count with no new
-commits, the session may be stuck — judgement is the operator's; the probe only
-reports data, it never intervenes.
+commits — or the session keeps hitting the *same* failure signature (identical
+error / stack trace) — it is stuck; stop and re-scope rather than let it loop.
+Judgement is the operator's; the probe only reports data, it never intervenes.
 
 If `DRY_RUN=true`, stop here.
 
@@ -251,6 +256,7 @@ This session will NOT auto-run /opsx:apply.
 - [ ] Part 3 emits build/lint gate lines only when `HAS_BUILD` / `HAS_LINT` detected
 - [ ] Part 4 instructs writing `.resume-note.md` with items (1)(2)(3) on stop
 - [ ] Block C2 Monitor snippet is present and read-only (grep + ls only)
+- [ ] Block C NOTES include the unattended-loop pre-flight (rollback path / isolation / quality gate)
 - [ ] `--dry-run` stops after Block C2 Monitor (no "THIS SESSION" block)
 - [ ] Archived change → warn and stop (no goal emitted)
 - [ ] Missing `tasks.md` → fail with clear error message
