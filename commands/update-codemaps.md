@@ -7,6 +7,8 @@ allowed-tools: 'Read, Grep, Glob, Bash(ls:*), Bash(git:*), Write, Edit'
 
 Analyze the codebase structure and generate token-lean architecture documentation.
 
+> Proactive orchestration: after structural changes (new module / renamed dir / new public service) the `doc-updater` agent runs this command (and `/update-docs`) — see the back-stop in `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`. Invoke `/update-codemaps` directly for a one-off manual refresh.
+
 ## Step 1: Scan Project Structure
 
 1. 偵測專案架構（框架、是否分層、是否單體 / monorepo）。常見模式：

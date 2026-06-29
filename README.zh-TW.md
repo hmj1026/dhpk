@@ -2,7 +2,7 @@
 
 > **語言**: [English](./README.md) · **繁體中文**
 
-通用、安裝即用的 Claude Code harness。內含 **18 個角色導向 agent**（+1 個模組範圍的 reviewer）、約 73 個指令（codex / gitnexus / git / 專案工作流）、約 57 個核心 skill 加上跨專案的 `deploy-list` 部署清單產生器 + **`/dhpk:do` Smart Router**（透過 21 條 route-table 規則 + LLM fallback 進行自然語言任務路由）+ **跨 session 學習 DB**（作業訊號儲存庫，附信心衰退機制，預設關閉）、**7-slot sentinel 驅動的 review hook**（code / db / sec / frontend / doc / **polyfill** / **migration** — polyfill 由 `library-author` 提供，migration 由模組 triggers 或 `mig:` 額外路徑啟用）、statusline、harness 腳本，以及 **27 個可選用的技術棧模組**（PHP：`php-5.6`、`php-7.4`、`php-8.x`；Yii：`yii-1.1`；PHPUnit：`phpunit-5.7`、`phpunit-9`、`phpunit-10`、`phpunit-11`；Laravel：`laravel-5.4`、`laravel-6` 至 `laravel-11`；前端：`js`、`vue-2`、`laravel-mix`；**Python**：`python`、`fastapi`、`pytest`；跨版本的 `library-author`；以及 **iOS/Swift 套件**（`swift`、`swiftui`、`ios-platform`、`swift-testing`、`xcode-tooling`））。模組可透過 **wrapper-dispatch** 模型在 runtime 提供 hook（詳見 [`docs/hook-extension.md`](./docs/hook-extension.md)）。內附平行的 Codex CLI 樹，適用於雙助理（Claude + Codex）專案。
+通用、安裝即用的 Claude Code harness。內含 **22 個角色導向 agent**（+1 個模組範圍的 reviewer）、約 73 個指令（codex / gitnexus / git / 專案工作流）、約 57 個核心 skill 加上跨專案的 `deploy-list` 部署清單產生器 + **`/dhpk:do` Smart Router**（透過 35 條 route-table 規則 + LLM fallback 進行自然語言任務路由）+ **跨 session 學習 DB**（作業訊號儲存庫，附信心衰退機制，預設關閉）、**7-slot sentinel 驅動的 review hook**（code / db / sec / frontend / doc / **polyfill** / **migration** — polyfill 由 `library-author` 提供，migration 由模組 triggers 或 `mig:` 額外路徑啟用）、statusline、harness 腳本，以及 **27 個可選用的技術棧模組**（PHP：`php-5.6`、`php-7.4`、`php-8.x`；Yii：`yii-1.1`；PHPUnit：`phpunit-5.7`、`phpunit-9`、`phpunit-10`、`phpunit-11`；Laravel：`laravel-5.4`、`laravel-6` 至 `laravel-11`；前端：`js`、`vue-2`、`laravel-mix`；**Python**：`python`、`fastapi`、`pytest`；跨版本的 `library-author`；以及 **iOS/Swift 套件**（`swift`、`swiftui`、`ios-platform`、`swift-testing`、`xcode-tooling`））。模組可透過 **wrapper-dispatch** 模型在 runtime 提供 hook（詳見 [`docs/hook-extension.md`](./docs/hook-extension.md)）。內附平行的 Codex CLI 樹，適用於雙助理（Claude + Codex）專案。
 
 OpenSpec 是**可選的外部整合**——若需要 OpenSpec 工作流指令，請另行安裝 [OpenSpec 插件](https://github.com/Fission-AI/OpenSpec)。dhpk 僅保留自家加值的 `opsx-apply-resume`（長時間 OpenSpec 工作階段的 context handoff）；v0.2.1 起，10 個通用 OpenSpec wrapper skill/command 已從套件中移除，由 OpenSpec 上游提供。
 
@@ -112,7 +112,7 @@ claude plugin marketplace remove dhpk  # 忘記 marketplace 註冊
 
 | 元件 | 數量 | 說明 |
 |------|----:|------|
-| Agents | 17 root | 7 個 sentinel 驅動的 reviewer，對應各 slot：code / db / sec / **frontend** / **doc** / **polyfill**（slot 5，由 `library-author` 寫入）/ **migration**（slot 6，經模組 triggers 或 `mig:` 額外路徑 opt-in）。情境型：architect、tdd-guide、refactor-cleaner、ui-ux-verifier、performance-analyzer、doc-updater、docs-lookup、harness-reviser、version-matrix-impact-reviewer、**swift-build-resolver**（iOS 套件）、**silent-failure-hunter**（錯誤處理稽核）。 |
+| Agents | 21 root | 7 個 sentinel 驅動的 reviewer，對應各 slot：code / db / sec / **frontend** / **doc** / **polyfill**（slot 5，由 `library-author` 寫入）/ **migration**（slot 6，經模組 triggers 或 `mig:` 額外路徑 opt-in）。情境型：architect、tdd-guide、refactor-cleaner、ui-ux-verifier、performance-analyzer、doc-updater、docs-lookup、harness-reviser、version-matrix-impact-reviewer、**swift-build-resolver**（iOS 套件）、**silent-failure-hunter**（錯誤處理稽核）、**spec-miner**（brownfield→OpenSpec 萃取）、**type-design-analyzer**（型別設計）、**agent-evaluator**（產出品質評分）、**e2e-runner**（E2E 旅程）。 |
 | Commands | ~73 | `dhpk:do`（Smart Router）、`dhpk:create-dev`、`dhpk:codex-*`、`dhpk:review-pending`、`dhpk:smart-commit`、`dhpk:ts-check-status`（JS 模組）、`dhpk:opsx-apply-resume`（需 OpenSpec）、`dhpk:matrix-cell-onboard`（library-author）、`dhpk:de-ai-flavor`、`dhpk:deploy-list`、`dhpk:harness-fill`、`dhpk:ui-ux-verify` 等 |
 | 核心 skills | ~57 加上 | codex-*、gitnexus、tool-routing、dhpk-execution-policy、**adaptive-dev-workflow**（Feature/Bug/Maintenance 分類器）、**deploy-list**（跨專案部署清單產生器）、**execution-checklist**（任務收尾自檢）、`opsx-apply-resume` 配套（需 OpenSpec） |
 | 技術棧模組 | 27 | PHP：`php-5.6`、`php-7.4`、`php-8.x` · Yii：`yii-1.1` · PHPUnit：`phpunit-5.7`、`phpunit-9`、`phpunit-10`、`phpunit-11` · Laravel：`laravel-5.4`、`laravel-6` … `laravel-11` · 前端：`js`、`vue-2`、`laravel-mix` · **Python**：`python`、`fastapi`、`pytest` · `library-author` · **iOS**：`swift`、`swiftui`、`ios-platform`、`swift-testing`、`xcode-tooling`（選用；詳見下方「模組」） |
@@ -120,6 +120,113 @@ claude plugin marketplace remove dhpk  # 忘記 marketplace 註冊
 | Hook dispatchers | 2 | `post-edit-dispatch.sh`、`pre-bash-dispatch.sh` — 分派到啟用模組的 hook |
 | Harness 腳本 | 5 | precommit-runner、verify-runner、harness-audit、codemap generator、dep-audit |
 | Codex 雙軌 | 14 skills + 1 agent（5 個 config profile） | 由 `install-codex-skills.sh` 同步進專案的 `.codex/` |
+
+## 常見工作流
+
+所有功能都能透過 `/dhpk:do` 進入——一個接收自然語言任務描述、並路由到正確 skill 的單一入口。以下範例說明輸入指令後實際發生的事。
+
+### 1. 新功能開發
+
+```text
+/dhpk:do implement a password-reset email flow
+```
+
+Smart Router 匹配「implement … feature」→ `dhpk:adaptive-dev-workflow` → **Feature Delivery** 路徑。該 skill 載入 TDD guide，執行 RED→GREEN→REFACTOR 循環，最後以 code-review 與 security gate 收尾。每次寫檔後，post-edit hook 自動投下 sentinel；Stop hook 在 session 結束時提醒尚未清除的 reviewer。
+
+### 2. 修 Bug
+
+```text
+/dhpk:do fix the login redirect loop
+```
+
+匹配「fix … bug」→ `dhpk:adaptive-dev-workflow` → **Bug Investigation & Fix**：先確認根因證據、撰寫回歸測試，通過 RED gate 後才動手修。
+
+### 3. 程式碼 review 循環（自動）
+
+不需要任何指令。每次編輯檔案後，hook 自動：
+
+1. 為各相關 reviewer slot（code / db / sec / frontend / doc）投下 `.pending-*` sentinel
+2. 在 Stop 時提醒並行派發 reviewer
+3. sentinel 存在時，`git commit` 前會發出警告（可透過 `sentinel_commit_gate` 設定：`warn` / `block` / `off`）
+
+若想立即觸發而不等 Stop：`/dhpk:review-pending`
+
+### 4. 提交與建立 PR
+
+```text
+/dhpk:smart-commit        # 暫存變更檔案、產生 conventional commit 訊息、跑 pre-commit gate
+/dhpk:create-pr           # 從分支 commit log 草擬 PR 標題與摘要
+```
+
+或用自然語言：
+
+```text
+/dhpk:do 幫我提交並建立 PR
+```
+
+### 5. 無人值守 OpenSpec session
+
+適用於需要長時間執行、不需人在旁監看的變更實作——產生 `/goal` 條件與 `/opsx:apply` 序列，貼到新 session 即可執行：
+
+```text
+/dhpk:opsx-goal my-change-id --max-duration 2h
+```
+
+加上 `--min-coverage 80` 可強制套用覆蓋率門檻，即使專案本身沒有原生的覆蓋率設定。
+
+### 6. 從現有程式碼萃取規格
+
+將現有模組的行為需求萃取為 `openspec/specs/<capability>/spec.md`（棕地專案導入規格驅動開發的起點）：
+
+```text
+/dhpk:spec-mine user-authentication
+```
+
+委派給 `spec-miner`（Opus）agent。省略 capability 名稱會顯示提示清單讓你選擇。
+
+### 7. E2E 測試撰寫
+
+```text
+/dhpk:do write E2E tests for the checkout flow
+```
+
+路由到 `dhpk:post-dev-test`，委派 `e2e-runner` agent 負責 Playwright 測試套件撰寫。
+
+### 8. Harness 健康檢測與修復
+
+harness-* 工具家族各自負責不同面向——請依需求選用正確工具：
+
+| 指令 / Skill | 負責面向 | 是否修改檔案 |
+|---|---|---|
+| `/harness-audit` | 確定性 7 大分類評分 | 否 |
+| `dhpk:harness-budget` | Context window token 用量統計 | 否 |
+| `dhpk:claude-health` | `.claude/` 設定健康、命名、plugin 同步 | 否 |
+| `/harness-govern` | 端到端 measure → conform → fix → verify 循環 | 否（加 `--fix` 才套用修改） |
+| `dhpk:harness-revise` | 精簡、去重、驗證（G1–G13 gap 分類） | 是 |
+| `dhpk:harness-fill` | 補齊缺失的 `.claude/` 基礎設施 | 是 |
+
+**典型流程：**
+
+```text
+# 1. 快速診斷——看看哪裡有問題
+/harness-audit
+
+# 2. 檢查 context window 用量（token 預算）
+/dhpk:harness-budget
+
+# 3. 端到端治理循環（預設唯讀）
+/harness-govern
+
+# 4. 套用修復（精簡、去重、驗證）
+/harness-govern --fix
+
+# 5. 若 .claude/ 缺少 skills/agents/rules（新專案導入）
+/dhpk:harness-fill
+```
+
+`/harness-govern` 是單一入口：依序執行 `/harness-audit`（評分）→ conform（最佳實踐對齊）→ `/harness-revise`（修復，僅在加 `--fix` 時）→ 驗證。可以 `/loop /harness-govern` 持續監控。
+
+---
 
 ## userConfig
 
@@ -341,7 +448,7 @@ dhpk/
 ├── .claude-plugin/
 │   ├── marketplace.json          # 單一條目的 marketplace（plugins[0].source: "./"）
 │   └── plugin.json               # 含 userConfig 的插件 manifest
-├── agents/                       # 18 個角色 agent（INDEX.md 為導覽用）
+├── agents/                       # 22 個角色 agent（INDEX.md 為導覽用）
 ├── commands/                     # ~73 個 slash 指令（do、create-dev、codex-*、smart-commit、opsx-apply-resume、matrix-cell-onboard 等）
 ├── skills/                       # ~57 個核心 skill（adaptive-dev-workflow、codex-*、tool-routing、dhpk-execution-policy、opsx-apply-resume 配套等）
 ├── templates/                    # hook 引導用範本（graduation-candidates.md — 首次 graduation 執行時複製到 .claude/artifacts/）

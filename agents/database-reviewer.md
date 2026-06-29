@@ -16,7 +16,8 @@ Detect the active stack, then load ONLY the matching trap sheet(s); ignore other
 
 1. **Active stacks**: read `$DHPK_ACTIVE_MODULES` (comma list) if set; otherwise detect from manifests via Bash — `composer.json` (`require.php` floor + framework key, e.g. `yiisoft/*`), `*.xcodeproj` / `Package.swift` / `*.xcdatamodeld`, `pyproject.toml` (`sqlalchemy` / `alembic`).
 2. For each detected stack `S` (e.g. `yii`, `ios`, `fastapi`), Read `${CLAUDE_PLUGIN_ROOT}/agent-traps/database-reviewer/<S>.md` if it exists and apply those traps. (Locator: `find "${CLAUDE_PLUGIN_ROOT}/agent-traps/database-reviewer" -name '<S>.md'`.)
-3. No sheet matches → apply only the Baseline below.
+3. **Engine overlay** (independent of framework): if a Postgres driver is present — `pg` / `postgres` / `@supabase/*` in `package.json`, `psycopg` / `asyncpg` / `sqlalchemy[postgresql]` in `pyproject.toml`, `*/pgsql*` in `composer.json`, or a `supabase/` dir — also Read `database-reviewer/postgres.md` for RLS / index / keyset-pagination traps.
+4. No sheet matches → apply only the Baseline below.
 
 ## Baseline (language-agnostic)
 

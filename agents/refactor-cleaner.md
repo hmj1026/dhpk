@@ -41,6 +41,17 @@ Stack-specific module overlays (e.g. `modules/php-5.6/`, `modules/yii-1.1/`)
 may provide more detailed checklists per framework — consult them if the
 matching module is enabled.
 
+## What counts as removable
+
+Delete only with proof (a `cx references` / `gitnexus_impact` miss, not a guess):
+
+- **Unused symbol** — function / method / class / export with zero call sites.
+- **Dead import** — an imported name never referenced in the file.
+- **Unreachable branch** — code after an unconditional return / throw, or a condition that is always false.
+- **Single-use indirection** — a wrapper / helper called exactly once that adds no clarity (inline it).
+
+Keep (flag for human confirmation, never blind-delete): dynamic-dispatch / reflection / string-built call targets, framework-injected hooks (lifecycle methods, DI entry points), and public API surface a consumer outside the repo may use.
+
 ## Workflow
 
 1. `cx references --name X` (or `gitnexus_impact upstream`) to find callers.

@@ -83,5 +83,44 @@ for name in "${SENTINEL_NAMES[@]}"; do
     fi
 done
 
+# ---- Unknown-stray pass: .pending-* files NOT in the SSOT ----
+# These have no clearing agent (clear-sentinel.sh rejects unknown names by
+# whitelist), so an orphan here blocks the opsx-goal `ls .pending-* == NONE`
+# gate forever. Surface ALWAYS (age is irrelevant to visibility when nothing
+# can ever clear it); with --clear, remove only those older than the threshold
+# (a fresh one may be a legit project-custom sentinel created mid-session).
+sessions_dir="$repo_root/.claude/artifacts/sessions"
+if [ -d "$sessions_dir" ]; then
+    while IFS= read -r stray; do
+        [ -n "$stray" ] || continue
+        base="$(basename "$stray")"
+        known=0
+        for name in "${SENTINEL_NAMES[@]}"; do
+            [ "$base" = "$name" ] && { known=1; break; }
+        done
+        [ "$known" -eq 1 ] && continue   # already handled by the loop above
+        mtime="$(file_mtime_epoch "$stray")"
+        [ -z "$mtime" ] && [ ! -e "$stray" ] && continue   # disappeared mid-scan
+        mtime="${mtime:-0}"
+        age=$((now - mtime))
+        if [ "$threshold_minutes" -ge 60 ]; then
+            age_disp="$((age / 3600))h"
+            thresh_disp="$((threshold_minutes / 60))h"
+        else
+            age_disp="$((age / 60))min"
+            thresh_disp="${threshold_minutes}min"
+        fi
+        if [ "$do_clear" -eq 1 ] && [ "$age" -gt "$threshold" ]; then
+            rm -f "$stray"
+            echo "[reap-sentinels] cleared UNKNOWN stray: $base (age ${age_disp} > threshold ${thresh_disp}; not in dhpk SSOT)" >&2
+        else
+            echo "[reap-sentinels] UNKNOWN sentinel: $base (age ${age_disp}) — not in dhpk SSOT; no agent will clear it." >&2
+            echo "[reap-sentinels]   If project-custom, ensure its agent clears it; if orphaned, remove it:" >&2
+            echo "[reap-sentinels]   rm -f \"$stray\"" >&2
+        fi
+        found_stale=1
+    done < <(find "$sessions_dir" -maxdepth 1 -name '.pending-*' 2>/dev/null)
+fi
+
 # Stop hook MUST NOT block; stale sentinels only emit stderr (or are cleared).
 exit 0

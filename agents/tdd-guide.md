@@ -16,8 +16,8 @@ RED → GREEN → REFACTOR. Coverage ≥80%.
 
 Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks — never write a PHP test against Swift conventions, or vice-versa.
 
-1. **Active stacks**: read `$DHPK_ACTIVE_MODULES` (comma list) if set; otherwise detect from manifests via Bash — `composer.json` (`require.php` floor + framework key, e.g. `yiisoft/*`, `laravel/framework`), `package.json`, `*.xcodeproj` / `Package.swift`, `pyproject.toml`.
-2. For each detected stack `S` (e.g. `php`, `swift`, `python`), Read `${CLAUDE_PLUGIN_ROOT}/agent-traps/tdd-guide/<S>.md` if it exists and apply those conventions + run commands. (Locator: `find "${CLAUDE_PLUGIN_ROOT}/agent-traps/tdd-guide" -name '<S>.md'`.)
+1. **Active stacks**: read `$DHPK_ACTIVE_MODULES` (comma list) if set; otherwise detect from manifests via Bash — `composer.json` (`require.php` floor + framework key, e.g. `yiisoft/*`, `laravel/framework`), `package.json` (default `js`), `*.xcodeproj` / `Package.swift`, `pyproject.toml`.
+2. For each detected stack `S` (e.g. `php`, `js`, `swift`, `python`), Read `${CLAUDE_PLUGIN_ROOT}/agent-traps/tdd-guide/<S>.md` if it exists and apply those conventions + run commands. (Locator: `find "${CLAUDE_PLUGIN_ROOT}/agent-traps/tdd-guide" -name '<S>.md'`.)
 3. No sheet matches → apply only the Baseline below.
 
 ## Baseline (language-agnostic)
@@ -28,7 +28,7 @@ Detect the active stack, then load ONLY the matching trap sheet(s); ignore other
 - **One behavior per test** — a test names a single observable outcome; split when a name needs "and".
 - **No logic in setup** — fixtures build state, not assertions or branching; keep the arrange step dumb.
 - **Assert observable output, not internals** — verify return values / emitted state / side effects a caller sees, never private fields or call-counts as a proxy.
-- **Cover the edges** — null / empty / boundary inputs AND the error path, not just the happy path.
+- **Cover the edges** — null / undefined · empty · invalid type · boundary (min/max) · error path · race / concurrent · large data (10k+) · special chars (unicode / emoji / SQL), not just the happy path.
 
 ## Run
 

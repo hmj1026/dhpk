@@ -1,6 +1,6 @@
 ---
 name: adaptive-dev-workflow
-description: 'Workflow router for substantial changes — classify feature / bugfix / refactor / security / perf / OpenSpec into Feature Delivery, Bug Investigation, or Lightweight Maintenance; output required artifacts + gates. Not for tiny edits, investigation already underway, code review, or apply-ready OpenSpec tasks.'
+description: 'Workflow router for substantial changes. Use when: a feature, bugfix, refactor, security, perf, or OpenSpec change needs classifying into Feature Delivery, Bug Investigation, or Lightweight Maintenance before heavy context loads. Not for tiny edits, investigation already underway, code review, or apply-ready OpenSpec tasks. Output: workflow classification + required artifacts + gate checklist.'
 argument-hint: '[--codex] <change description or current state>'
 allowed-tools: 'Read, Grep, Glob, Bash, Skill, Agent'
 ---
