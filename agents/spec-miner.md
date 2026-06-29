@@ -121,7 +121,7 @@ One spec file per capability at `openspec/specs/<capability>/spec.md`. The file 
 ## Integration
 
 - Self-sufficient — needs no other agent to run first.
-- Downstream: the `code-explore` skill uses these specs as a primary source (checking `Last verified` freshness first); `architect` adds `## ADDED Requirements` blocks when planning; `tdd-guide` reads `#### Scenario:` blocks for test skeletons; `code-reviewer` greps `<!-- enforced: -->` to confirm implementation still matches.
+- Downstream: `architect` adds `## ADDED Requirements` blocks when planning against an existing spec; `tdd-guide` reads `#### Scenario:` blocks for test skeletons; `code-reviewer` greps `<!-- enforced: -->` to confirm implementation still matches the mined contract.
 
 ## Anti-patterns
 
