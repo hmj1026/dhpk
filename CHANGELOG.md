@@ -1,5 +1,68 @@
 # Changelog
 
+## 0.19.0 — 2026-06-29 — ECC agent port: 4 new agents, trap-sheet harvest, reachability wiring, opsx coverage gate
+
+ECC sibling-project content ported into dhpk across four passes. Agent count
+18 → 22. Existing single stack-aware reviewer model preserved; ECC per-language
+reviewer content harvested into `agent-traps/` instead of creating new agents.
+
+**feat(agent)** — Four new manual-invoke agents:
+- `spec-miner` (Opus) — brownfield spec extraction → `openspec/specs/`; paired
+  with new `/spec-mine` command.
+- `type-design-analyzer` — data-model / type-system review; dispatched from
+  `code-reviewer` Delegate table.
+- `agent-evaluator` — 5-axis agent-quality scorecard; wired to `skill-judge`
+  and `harness-govern` family only, kept out of dev routing.
+- `e2e-runner` — Playwright E2E runner; `skills: ["playwright-cli"]` like
+  `ui-ux-verifier`; dispatched from `post-dev-test` and E2E routing rules.
+
+**feat(trap)** — New trap sheets harvested from ECC:
+- `code-reviewer/{python,js,vue,fastapi}.md` — stack-specific reviewer traps.
+- `security-reviewer/{python,js}.md` — severity-anchor table, emergency
+  response protocol, JS/Vue stack detection.
+- `database-reviewer/postgres.md` — Postgres-specific query traps + engine
+  detection clause in `database-reviewer.md`.
+- `performance-analyzer/{frontend,swift}.md` — broadened beyond relational-only.
+- `tdd-guide/js.md` — JS-specific edge-case catalog.
+- `_common/prompt-defense.md` already present (shipped in 0.18.0).
+
+**feat(agent-baseline)** — Baseline enrichment across agents:
+- `architect.md` — 8-name anti-pattern catalog, build-order bullet, reject
+  & re-slice plan gate.
+- `tdd-guide.md` — fuller edge-case catalog + `js` detection wiring.
+- `refactor-cleaner.md` — dead-code "what counts as removable" checklist.
+- `commands/simplify.md` — 3-category simplification checklist.
+- `code-reviewer.md` — model-cost-tier bias surfaced as MEDIUM finding.
+- `security-reviewer.md` — severity-anchors table + emergency response section.
+
+**feat(routing)** — Agent reachability wiring for 8 previously orphaned agents:
+- `rules/execution-policy.md` — AI-judgment back-stop list (8 bullets).
+- `commands/spec-mine.md` — new thin command dispatching to `spec-miner`.
+- `commands/simplify.md` — `Agent` added to allowed-tools for `refactor-cleaner`
+  dispatch.
+- `scripts/lib/route-table.json` — dead-code regex scoped to explicit removal
+  verbs so "review dead code" no longer routes to simplify.
+
+**feat(opsx)** — opsx-goal reliability fixes:
+- **Coverage gate** — opt-in outcome gate; `detection.md` += `HAS_COVERAGE`
+  section (true only when project has a configured fail-threshold: jest
+  `coverageThreshold` / phpunit `<coverage>` min / pytest `--cov-fail-under` /
+  swift). `SKILL.md` Step 6 emits coverage via runner's own `--coverage`
+  invocation when active. Never invents a threshold.
+- **`--min-coverage N`** — CLI flag to override the coverage threshold at
+  invocation time (opt-in, logged to Block A).
+- **Stray-sentinel reaper** — `scripts/hooks/reap-stale-sentinels.sh` hardened
+  with an unknown-stray pass: warns always, `--clear` removes strays older than
+  threshold (age-gated). `opsx-goal` Block C pre-flight now runs reaper with
+  `--threshold-minutes 60 --clear`. `clear-sentinel.sh` whitelist-rejects unknown
+  names.
+
+**feat(workflow)** — `adaptive-dev-workflow`: description and openspec error
+handling improved.
+
+**docs** — Harness health-check / governance guide, spec-extraction guide, and
+E2E test writing guide added to README files.
+
 ## 0.18.0 — 2026-06-29 — CI quality gate, opsx hang-detection, prompt-injection defense, reviewer trap enrichment
 
 First PR-level harness quality gate modelled on ECC's `scripts/ci/` pattern,
