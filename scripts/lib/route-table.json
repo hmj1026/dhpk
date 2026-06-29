@@ -2,6 +2,8 @@
   "_comment": "Workflow routing SSOT for dhpk. Used by userpromptsubmit-skill-hint.sh (advisory hint) and by /dhpk:do Smart Router. Patterns are ERE (extended regex). First match wins. Add specific patterns before general ones.",
   "schema": "dhpk.route-table.v1",
   "rules": [
+    { "pattern": "(unattended|auto[- ]?run|goal +session|overnight|hands?[- ]?off).{0,30}(implement|change|openspec|opsx|session|run)",                                                          "skill": "dhpk:opsx-goal",      "label": "unattended OpenSpec goal session" },
+    { "pattern": "(無人值守|自動跑完|過夜跑|掛著跑).{0,20}(實作|變更|openspec|opsx)?",                                                                                                            "skill": "dhpk:opsx-goal",      "label": "unattended OpenSpec goal session" },
     { "pattern": "(^|[^a-z])(bug|bugfix|crash|broken|stack[ -]?trace|exception|failure|fail(s|ed|ing)?|error[ -]?out|regress(ion|ed)?)([^a-z]|$)", "skill": "dhpk:adaptive-dev-workflow",       "label": "adaptive dev workflow (bug)" },
     { "pattern": "(new|add(ing)?|implement(ing)?|build(ing)?|create) +.{0,40}(feature|endpoint|page|action|module|api)",                                                       "skill": "dhpk:adaptive-dev-workflow",    "label": "adaptive dev workflow (feature)" },
     { "pattern": "(code +review|review +(this|the|my)? *(diff|change|patch|pr)|quality +check|lint +everything)",                                                                "skill": "dhpk:review-pending",    "label": "manual code review" },
