@@ -55,8 +55,8 @@ HIGH / CRITICAL additionally require: exact snippet + line, the specific failure
 
 Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks — never review a PHP change against Swift rules, or vice-versa.
 
-1. **Active stacks**: read `$DHPK_ACTIVE_MODULES` (comma list) if set; otherwise detect from manifests via Bash — `composer.json` (`require.php` floor + framework key, e.g. `yiisoft/*`, `laravel/framework`), `package.json`, `*.xcodeproj` / `Package.swift`, `pyproject.toml`.
-2. For each detected stack `S` (e.g. `php`, `yii`, `laravel`, `swift`), Read `${CLAUDE_PLUGIN_ROOT}/agent-traps/code-reviewer/<S>.md` if it exists and apply those traps. (Locator: `find "${CLAUDE_PLUGIN_ROOT}/agent-traps/code-reviewer" -name '<S>.md'`.)
+1. **Active stacks**: read `$DHPK_ACTIVE_MODULES` (comma list) if set; otherwise detect from manifests via Bash — `composer.json` (`require.php` floor + framework key, e.g. `yiisoft/*`, `laravel/framework`), `package.json` (default `js`; a `vue` dependency ⇒ also `vue`), `*.xcodeproj` / `Package.swift` (`swift`), `pyproject.toml` (default `python`; a `fastapi` dependency ⇒ also `fastapi`). **Map module ids to stack ids** before loading: `php-7.4`→`php`, `laravel-9`→`laravel`, `phpunit-11`→ (no code sheet), `vue-2`→`vue`, `swiftui`/`ios-platform`→`swift`.
+2. For each detected stack `S` (e.g. `php`, `yii`, `laravel`, `js`, `vue`, `python`, `fastapi`, `swift`), Read `${CLAUDE_PLUGIN_ROOT}/agent-traps/code-reviewer/<S>.md` if it exists and apply those traps. (Locator: `find "${CLAUDE_PLUGIN_ROOT}/agent-traps/code-reviewer" -name '<S>.md'`.)
 3. No sheet matches → apply only the Baseline below.
 
 ## Baseline (language-agnostic)

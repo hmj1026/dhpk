@@ -1,6 +1,6 @@
 ---
 name: performance-analyzer
-description: 'Query-performance specialist (relational DBs). Use proactively when writing or reviewing data-access methods that touch high-volume tables. Checks N+1 patterns, EXPLAIN output, index coverage, and query-count regressions. Does NOT duplicate database-reviewer (which covers correctness — bind parameters, IN-clauses, schema).'
+description: 'Performance specialist. Owns latency / index usage / query count for relational data-access (N+1, EXPLAIN, index coverage, query-count regressions) AND — when a frontend or native trap sheet is active — client/runtime performance (bundle size, render / re-render, memory leaks, Web Vitals). Use proactively on data-access methods touching high-volume tables, or on hot frontend / native paths. Does NOT duplicate database-reviewer (correctness — bind parameters, IN-clauses, schema).'
 tools: Read, Grep, Glob, Bash, mcp__gitnexus__impact
 model: sonnet
 effort: medium
@@ -12,14 +12,14 @@ effort: medium
 
 ## Scope
 
-Audit query performance in the Repository (data-access) layer. `database-reviewer` owns correctness (bind parameters, IN/NOT IN, schema, transactions). This agent owns performance (latency, index usage, query count, N+1). Framework-agnostic — the perf checks apply to any relational data-access path.
+Audit query performance in the Repository (data-access) layer. `database-reviewer` owns correctness (bind parameters, IN/NOT IN, schema, transactions). This agent owns performance (latency, index usage, query count, N+1). Framework-agnostic — the relational perf checks apply to any data-access path. When a **frontend** (any JS / TS / Vue / React project) or **native** (`swift`) stack is detected, also audit client/runtime performance via the matching trap sheet (`frontend.md` / `swift.md`) — bundle size, render / re-render cost, memory leaks, Web Vitals, allocation hot paths.
 
 ## Stack trap sheet (load on demand)
 
 Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks — never grade a Yii/MySQL change against another stack's perf rules, or vice-versa.
 
-1. **Active stacks**: read `$DHPK_ACTIVE_MODULES` (comma list) if set; otherwise detect from manifests via Bash — `composer.json` (`require.php` floor + framework key, e.g. `yiisoft/*`), `package.json`, `pyproject.toml` (`sqlalchemy` / `alembic`).
-2. For each detected stack `S` (e.g. `yii`), Read `${CLAUDE_PLUGIN_ROOT}/agent-traps/performance-analyzer/<S>.md` if it exists and apply those traps — these carry the hot-table list, N+1 grep recipes, and EXPLAIN / index-inspection commands. Other relational stacks load their own sheet if one is present. (Locator: `find "${CLAUDE_PLUGIN_ROOT}/agent-traps/performance-analyzer" -name '<S>.md'`.)
+1. **Active stacks**: read `$DHPK_ACTIVE_MODULES` (comma list) if set; otherwise detect from manifests via Bash — `composer.json` (`require.php` floor + framework key, e.g. `yiisoft/*`), `package.json` (any JS / TS / React / Vue / Next project ⇒ stack id **`frontend`**), `*.xcodeproj` / `Package.swift` (`swift`), `pyproject.toml` (`sqlalchemy` / `alembic`). **Map module ids to the trap-sheet stack id** before the lookup: `js` / `vue-2` / React / Next → `frontend`; `swiftui` / `ios-platform` → `swift`. (The perf sheets are named for the runtime — `frontend.md`, `swift.md` — not for the framework, so always resolve to those ids.)
+2. For each detected stack `S` (e.g. `yii`, `frontend`, `swift`), Read `${CLAUDE_PLUGIN_ROOT}/agent-traps/performance-analyzer/<S>.md` if it exists and apply those traps — relational sheets carry the hot-table list, N+1 grep recipes, and EXPLAIN / index-inspection commands; the `frontend` / `swift` sheets carry bundle / render / memory recipes. (Locator: `find "${CLAUDE_PLUGIN_ROOT}/agent-traps/performance-analyzer" -name '<S>.md'`.)
 3. No sheet matches → apply only the Baseline below.
 
 ## Baseline (language-agnostic)
@@ -30,6 +30,13 @@ Detect the active stack, then load ONLY the matching trap sheet(s); ignore other
 - **Bound result sets** — cap rows with `LIMIT` (or cursor pagination for deep pages); no unbounded fetch on high-volume tables.
 - **Filter before sort** — apply predicates to shrink the set before an expensive sort.
 - **Stable query count** — integration-test query count stays constant as data volume grows (does not scale with rows).
+
+### Client / runtime (only when a `frontend` / `swift` sheet is loaded)
+
+- **Algorithmic cost** — no O(n²) over large inputs (nested loops, sort-in-loop, repeated linear scans); the recipe + thresholds live in the loaded sheet.
+- **Render cost** — no avoidable re-render / recompute on the hot path; memoize expensive work, virtualize long lists.
+- **Memory** — listeners / timers / subscriptions are torn down; no unbounded caches or retained closures.
+- **Payload** — bundle / asset size watched against a budget; defer / code-split non-critical paths.
 
 ## Checklist
 

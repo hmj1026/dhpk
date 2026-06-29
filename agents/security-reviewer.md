@@ -17,8 +17,8 @@ Run after any input handling, authn/authz, file upload, or money path.
 
 Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks — never review a PHP change against iOS rules, or vice-versa.
 
-1. **Active stacks**: read `$DHPK_ACTIVE_MODULES` (comma list) if set; otherwise detect from manifests via Bash — `composer.json` (`require.php` floor + framework key, e.g. `yiisoft/*`, `laravel/framework`), `package.json`, `*.xcodeproj` / `Package.swift`, `pyproject.toml` (e.g. `fastapi`).
-2. For each detected stack `S` (e.g. `php`, `yii`, `ios`, `fastapi`), Read `${CLAUDE_PLUGIN_ROOT}/agent-traps/security-reviewer/<S>.md` if it exists and apply those traps. (Locator: `find "${CLAUDE_PLUGIN_ROOT}/agent-traps/security-reviewer" -name '<S>.md'`.)
+1. **Active stacks**: read `$DHPK_ACTIVE_MODULES` (comma list) if set; otherwise detect from manifests via Bash — `composer.json` (`require.php` floor + framework key, e.g. `yiisoft/*`, `laravel/framework`), `package.json`, `*.xcodeproj` / `Package.swift`, `pyproject.toml` (default `python`; a `fastapi` dependency ⇒ also `fastapi`). Map module ids to stack ids (`php-7.4`→`php`, `swiftui`/`ios-platform`→`ios`).
+2. For each detected stack `S` (e.g. `php`, `yii`, `ios`, `python`, `fastapi`), Read `${CLAUDE_PLUGIN_ROOT}/agent-traps/security-reviewer/<S>.md` if it exists and apply those traps. (Locator: `find "${CLAUDE_PLUGIN_ROOT}/agent-traps/security-reviewer" -name '<S>.md'`.)
 3. No sheet matches → apply only the Baseline below.
 
 ## Baseline (language-agnostic)
