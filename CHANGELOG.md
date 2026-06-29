@@ -1,5 +1,46 @@
 # Changelog
 
+## 0.18.0 — 2026-06-29 — CI quality gate, opsx hang-detection, prompt-injection defense, reviewer trap enrichment
+
+First PR-level harness quality gate modelled on ECC's `scripts/ci/` pattern,
+plus opsx long-task hang monitoring, prompt-injection defence baseline, and
+enriched reviewer trap sheets.
+
+**feat(ci)** — Added `.github/workflows/ci.yml` (validate + non-blocking markdown
+lint). Added five zero-dependency Node validators
+(`scripts/ci/validate-{agents,skills,commands,modules,plugin}.js`) with shared
+`_lib/frontmatter.js` + `_lib/report.js` (WARN default / `--strict` flag).
+Added `scripts/ci/catalog.js` (count SSOT, `--check`/`--write`) — used to catch
+and fix plugin.json "17 role-based agents" description drift (actual 18).
+Fixed `scripts/validate/validate-harness.sh` for dual-mode validation (repo
+source root `agents/ skills/ commands/ rules/` + `scripts/hooks/`, not the
+installed `.claude/` layout).
+
+**test(harness)** — Added `tests/` directory with `tinytest` zero-dependency
+runner and three suites: `plugin-manifest`, `module-catalog`, `hooks-wiring`.
+
+**feat(opsx)** — `skills/opsx-goal/SKILL.md`: added wall-clock hang-detection
+(`detection.md` reference), timeout resume-note output guidance, and context-
+loading chain integration. `skills/opsx-load-context/SKILL.md`: wired into the
+resume-note pipeline.
+
+**feat(router)** — `commands/do.md`: improved repo-signal disambiguation for
+smart routing; added `opsx-goal` routing rule to `scripts/lib/route-table.json`.
+
+**feat(security)** — Added `agent-traps/_common/prompt-defense.md` (Prompt-
+Defense baseline). Applied to `security-reviewer`, `doc-reviewer`,
+`docs-lookup`, and `ui-ux-verifier` agents.
+
+**feat(review)** — Enriched PHP and Swift `code-reviewer` trap sheets with
+worked real-world examples and false-positive filtering guidance. Added AI code
+review metrics section to `security-reviewer` iOS / PHP / Yii trap sheets.
+
+**fix** — chmod +x on 4 hook scripts that shipped without execute permission
+(`check-plugin-version.sh`, `post-edit-manifest-guard.sh`,
+`pre-agent-warmstart.sh`, `stop-completion-evidence.sh`). Removed dangling
+`phpunit-batch-refactor` skill reference from `modules/phpunit-5.7/module.yaml`.
+Added `.markdownlint.json` for consistent Markdown lint config.
+
 ## 0.17.0 — 2026-06-27 — skill audit: format/content hardening, oversized splits, wiring fixes
 
 Full health-check of every skill (necessity, relationships, format, content
