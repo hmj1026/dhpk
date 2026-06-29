@@ -34,6 +34,7 @@ allowed-tools: 'Read, Grep, Glob, Write, Bash'
 - Only need unit tests (use `/codex-test-gen`)
 - Review existing tests (use `/codex-test-review`)
 - Still in development (complete `/feature-dev` flow first)
+- Full Playwright user-journey suite (POM, selector strategy, flaky management) → use `dhpk:e2e-runner` agent directly
 
 ## Workflow
 
@@ -65,7 +66,13 @@ allowed-tools: 'Read, Grep, Glob, Write, Bash'
 │ │ Cross-svc    │ E2E test (complete flow)                   │   │
 │ │ DB operation │ Integration test (actual DB)               │   │
 │ │ External API │ Integration test (mock external)           │   │
+│ │ User journey │ → delegate to dhpk:e2e-runner agent (POM) │   │
 │ └──────────────┴────────────────────────────────────────────┘   │
+│                                                                 │
+│ If project has test/**/*.spec.ts (Playwright) or the request    │
+│ involves selector strategy / flaky-test management / artifact   │
+│ collection → hand off to dhpk:e2e-runner agent rather than      │
+│ writing tests inline here.                                      │
 └─────────────────────────────────────────────────────────────────┘
                               ↓
 ┌─────────────────────────────────────────────────────────────────┐

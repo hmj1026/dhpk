@@ -18,6 +18,7 @@
     { "pattern": "(feasibility|first +principles|estimate +effort|estimate +scope)",                                                                                              "skill": "dhpk:feasibility-study","label": "feasibility study" },
     { "pattern": "(risk +(assess|analysis|audit)|blast +radius|impact +analysis)",                                                                                                "skill": "dhpk:risk-assess",    "label": "risk assessment" },
     { "pattern": "(precommit|pre[- ]commit|pre +push)",                                                                                                                          "skill": "dhpk:precommit",      "label": "pre-commit checks" },
+    { "pattern": "(playwright|write.{0,20}e2e[ -]?(test|spec|suite)|author.{0,20}e2e|e2e[ -]?(journey|flow|test|spec))",                                                   "skill": "dhpk:post-dev-test",  "label": "E2E test authoring (→ e2e-runner)" },
     { "pattern": "(verify|verification|run +all +tests?|full +test +run|run +tests?)",                                                                                                        "skill": "dhpk:verify",         "label": "verification loop" },
     { "pattern": "修.{0,8}(bug|錯誤|問題|缺陷|異常)",                                                                                                                              "skill": "dhpk:adaptive-dev-workflow",        "label": "adaptive dev workflow (bug)" },
     { "pattern": "(新增|加上?|寫個?|新做|實作).{0,12}(功能|特性|feature|頁面|端點|api)",                                                                                              "skill": "dhpk:adaptive-dev-workflow",    "label": "adaptive dev workflow (feature)" },
@@ -32,6 +33,7 @@
     { "pattern": "(提交|暫存).{0,8}(修改|變更|差異)?",                                                                                                                               "skill": "dhpk:smart-commit",   "label": "smart commit" },
     { "pattern": "(可行性|工時評估|範圍估算)",                                                                                                                                          "skill": "dhpk:feasibility-study","label": "feasibility study" },
     { "pattern": "(風險|影響範圍|blast radius).{0,8}(評估|分析)",                                                                                                                     "skill": "dhpk:risk-assess",    "label": "risk assessment" },
+    { "pattern": "(playwright|寫.{0,8}e2e|補.{0,8}e2e|端對端.{0,8}(測試|test))",                                                                                               "skill": "dhpk:post-dev-test",  "label": "E2E test authoring (→ e2e-runner)" },
     { "pattern": "(跑.{0,8}測試|執行.{0,8}測試|跑 phpunit)",                                                                                                                         "skill": "dhpk:verify",         "label": "verification loop" }
   ]
 }
