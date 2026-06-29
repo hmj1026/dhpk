@@ -193,6 +193,40 @@ Delegates to the `spec-miner` (Opus) agent. Omit the capability name to get a pr
 
 Routes to `dhpk:post-dev-test`, which delegates Playwright suite authoring to the `e2e-runner` agent.
 
+### 8. Harness health check and repair
+
+The harness-* family covers four distinct concerns — use the right tool for each:
+
+| Command / Skill | Concern | Mutates? |
+|---|---|---|
+| `/harness-audit` | Deterministic 7-category scorecard | No |
+| `dhpk:harness-budget` | Context-window token accounting | No |
+| `dhpk:claude-health` | `.claude/` config health, naming, plugin sync | No |
+| `/harness-govern` | End-to-end measure → conform → fix → verify loop | No (add `--fix` to apply) |
+| `dhpk:harness-revise` | Trim, dedupe, validate (G1–G13 gap taxonomy) | Yes |
+| `dhpk:harness-fill` | Backfill missing `.claude/` infrastructure | Yes |
+
+**Typical flow:**
+
+```text
+# 1. Quick diagnostic — see what's wrong
+/harness-audit
+
+# 2. Check context-window overhead (token budget)
+/dhpk:harness-budget
+
+# 3. End-to-end governance loop (read-only by default)
+/harness-govern
+
+# 4. Apply fixes (trim, dedupe, validate)
+/harness-govern --fix
+
+# 5. If .claude/ is missing skills/agents/rules (new project onboarding)
+/dhpk:harness-fill
+```
+
+`/harness-govern` is the single front door: it sequences `/harness-audit` (score) → conform (best-practices lens) → `/harness-revise` (fix, only with `--fix`) → verify. Safe to run as `/loop /harness-govern` for ongoing monitoring.
+
 ---
 
 ## userConfig
