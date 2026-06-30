@@ -1,6 +1,6 @@
 # Agents Index (dhpk plugin)
 
-> 25 agents shipped by the dhpk plugin (24 root-level + `polyfill-reviewer` under `modules/library-author/agents/`). Discovered as `dhpk:<name>` after install. The full list also appears in `plugin.json`.
+> 24 agents shipped by the dhpk plugin (23 root-level + `polyfill-reviewer` under `modules/library-author/agents/`). Discovered as `dhpk:<name>` after install. The full list also appears in `plugin.json`.
 
 ## Sentinel-driven reviewer dispatch (5 slots, v0.2.0+)
 
@@ -13,14 +13,13 @@ Triggered reviewers — `database-reviewer` / `security-reviewer` / `frontend-re
 | [security-reviewer](security-reviewer.md) | sonnet | Auth / authz / crypto / file-upload edits |
 | [frontend-reviewer](frontend-reviewer.md) | sonnet | JS/TS edits when the `js` module is active; template-embedded `<script>` blocks (AI-judgment backfill) |
 | [code-reviewer](code-reviewer.md) | sonnet | **Mandatory after any source-code Edit/Write** |
-| [doc-reviewer](doc-reviewer.md) | haiku | Edits under `.claude/{agents,rules,commands,skills,manifests}/`, `docs/`, `openspec/`, or top-level `CLAUDE.md` / `AGENTS.md` / `README*.md` |
-| [artifact-reviewer](artifact-reviewer.md) | sonnet | Any `.md` with YAML frontmatter (agent / skill / command / rule artifacts) — frontmatter schema + kebab-case `name` + required fields |
+| [doc-reviewer](doc-reviewer.md) | haiku | Edits under `.claude/{agents,rules,commands,skills,manifests}/`, `docs/`, `openspec/`, or top-level `CLAUDE.md` / `AGENTS.md` / `README*.md` — covers both frontmatter schema (name/model/tools) for `.md` DSL artifacts AND cross-file SSOT / link-validity checks |
 
 Agent names are overridable via `userConfig.review_agents` — a project can point sentinels at its own `code-reviewer-<project>` and friends instead of the plugin defaults. The default list ships 5 agents (code / db / sec / fe / doc); reduce by passing a shorter override.
 
 **6th sentinel slot (project-extension):** [migration-reviewer](migration-reviewer.md) is a sentinel-eligible reviewer that the default 5-slot chain does not wire. Projects with DB migrations (e.g. a multi-tenant deploy that uses site-id-prefixed migration files) add it as a 6th slot via `userConfig.review_agents` + their own `.pending-migration-review` sentinel.
 
-**Artifact slot (always-on):** [artifact-reviewer](artifact-reviewer.md) is a root-level sentinel (`.pending-artifact-review`, slot index 7 in `_lib/payload.sh`) that fires for any `.md` file whose first line is a YAML frontmatter `---` delimiter. Unlike polyfill (module-gated) and migration (opt-in), it ships enabled for every project — the post-edit hook writes the sentinel and the reviewer skips a frontmatter file that lacks a `name:` field (so a non-artifact `.md` starting with `---` costs only one cheap skip).
+**Doc slot (always-on):** `doc-reviewer` covers both frontmatter schema validation and cross-file SSOT / link-validity checks via a single `.pending-doc-review` sentinel — no separate artifact slot needed.
 
 ## Situational
 
