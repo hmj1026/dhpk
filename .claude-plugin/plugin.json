@@ -3,7 +3,7 @@
   "name": "dhpk",
   "displayName": "DHPK Dev Harness",
   "version": "0.19.0",
-  "description": "Reusable Claude Code harness — 22 role-based agents (incl. the Swift/Xcode build-resolver and the silent-failure-hunter error-handling auditor) + ~70 commands + opt-in stack modules across PHP (5.6, 7.4, 8.x), Yii (1.1), PHPUnit (5.7, 9, 10, 11), Laravel (5.4, 6–11), JS, Vue 2, Laravel Mix 5, Python (python lint/type-check hooks, fastapi, pytest), the library-author cross-cutting module, and an iOS/Swift suite (swift, swiftui, ios-platform, swift-testing, xcode-tooling) with SwiftLint post-edit + xcodebuild/SPM pre-commit hooks, a Swift 6.2 approachable-concurrency reference, and an ios-icon-gen skill. 7-slot sentinel-driven review hooks (code / db / sec / frontend / doc / polyfill / migration — polyfill via library-author, migration via module triggers or mig: extra paths), parameterised docker/agent names, wrapper-dispatch hook extension model, parallel Codex CLI tree.",
+  "description": "Reusable Claude Code harness — 25 role-based agents (incl. the Swift/Xcode build-resolver, the silent-failure-hunter error-handling auditor, the artifact-reviewer Markdown-DSL gate, and Python/Rust build-resolvers) + ~70 commands + opt-in stack modules across PHP (5.6, 7.4, 8.x), Yii (1.1), PHPUnit (5.7, 9, 10, 11), Laravel (5.4, 6–11), JS, Vue 2, Laravel Mix 5, Python (python lint/type-check hooks, fastapi, pytest), the library-author cross-cutting module, and an iOS/Swift suite (swift, swiftui, ios-platform, swift-testing, xcode-tooling) with SwiftLint post-edit + xcodebuild/SPM pre-commit hooks, a Swift 6.2 approachable-concurrency reference, and an ios-icon-gen skill. 8-slot sentinel-driven review hooks (code / db / sec / frontend / doc / polyfill / migration / artifact — polyfill via library-author, migration via module triggers or mig: extra paths, artifact on any *.md with YAML frontmatter), parameterised docker/agent names, wrapper-dispatch hook extension model, parallel Codex CLI tree.",
   "author": {
     "name": "hmj1026",
     "url": "https://github.com/hmj1026"
@@ -44,6 +44,7 @@
   "agents": [
     "./agents/agent-evaluator.md",
     "./agents/architect.md",
+    "./agents/artifact-reviewer.md",
     "./agents/code-reviewer.md",
     "./agents/database-reviewer.md",
     "./agents/doc-reviewer.md",
@@ -54,7 +55,9 @@
     "./agents/harness-reviser.md",
     "./agents/migration-reviewer.md",
     "./agents/performance-analyzer.md",
+    "./agents/python-build-resolver.md",
     "./agents/refactor-cleaner.md",
+    "./agents/rust-build-resolver.md",
     "./agents/security-reviewer.md",
     "./agents/silent-failure-hunter.md",
     "./agents/spec-miner.md",
@@ -79,8 +82,8 @@
       "type": "string",
       "multiple": true,
       "title": "Review agent names",
-      "description": "Seven agents invoked by sentinel reminders (slots: code, database, security, frontend, doc, polyfill, migration). Override to point at project-specific agents. Shorter overrides are padded with the defaults for the remaining slots.",
-      "default": ["code-reviewer", "database-reviewer", "security-reviewer", "frontend-reviewer", "doc-reviewer", "polyfill-reviewer", "migration-reviewer"]
+      "description": "Eight agents invoked by sentinel reminders (slots: code, database, security, frontend, doc, polyfill, migration, artifact). Override to point at project-specific agents. Shorter overrides are padded with the defaults for the remaining slots.",
+      "default": ["code-reviewer", "database-reviewer", "security-reviewer", "frontend-reviewer", "doc-reviewer", "polyfill-reviewer", "migration-reviewer", "artifact-reviewer"]
     },
     "docker_containers": {
       "type": "string",
@@ -100,7 +103,7 @@
       "type": "string",
       "multiple": true,
       "title": "Extra review trigger paths",
-      "description": "Extra path prefixes per reviewer slot, formatted '<slot>:<prefix>' where slot ∈ code|db|sec|fe|doc|mig. Example: 'code:protected/', 'fe:resources/views/', 'mig:db/migrate/'",
+      "description": "Extra path prefixes per reviewer slot, formatted '<slot>:<prefix>' where slot ∈ code|db|sec|fe|doc|mig|art. Example: 'code:protected/', 'fe:resources/views/', 'mig:db/migrate/', 'art:templates/agents/'",
       "default": []
     },
     "hot_tables": {
