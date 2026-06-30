@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.20.0 — 2026-06-30 — Python/Rust build-resolvers, doc-reviewer absorbs artifact validation, route-table bilingual convergence
+
+Agent count 22 → 24. Artifact-reviewer merged into doc-reviewer (7-slot
+sentinel model preserved). Route-table and `do` command simplified. opsx
+apply-resume flow improved.
+
+**feat(agent)** — Two new build-resolver agents:
+- `python-build-resolver` — diagnoses and fixes Python toolchain failures
+  (ruff/pyright/mypy/pytest/pytest-asyncio/uv sync). Three-attempt cap;
+  escalates to code-reviewer on success.
+- `rust-build-resolver` — diagnoses and fixes Rust/Cargo failures (rustc
+  type/borrow/lifetime errors, trait-bound / Send+Sync errors, async/tokio,
+  macro errors, Cargo.toml version conflicts). Same three-attempt cap.
+
+**refactor(agent)** — `doc-reviewer` absorbs artifact-reviewer scope:
+- `.md` DSL artifacts with YAML frontmatter (agent / skill / command / rule
+  files) are now reviewed under the existing `doc-reviewer` sentinel — no
+  additional slot required.
+- Standalone `artifact-reviewer` agent removed; 7-slot sentinel model preserved.
+
+**refactor(hook)** — Sentinel hook cleanup:
+- Experimental 8th sentinel slot (artifact) removed; back to canonical 7 slots
+  (code / db / sec / frontend / doc / polyfill / migration).
+- Removed artifact-reviewer hook and stale rules.
+
+**refactor(router)** — Route-table bilingual convergence:
+- Bilingual (zh/en) route rules converged into a single unified table.
+- `do` command logic simplified; dead rule branches pruned.
+
+**refactor(opsx)** — apply-resume flow:
+- Recovery and storage flow in `opsx-goal` apply-resume optimised.
+
 ## 0.19.0 — 2026-06-29 — ECC agent port: 4 new agents, trap-sheet harvest, reachability wiring, opsx coverage gate
 
 ECC sibling-project content ported into dhpk across four passes. Agent count
