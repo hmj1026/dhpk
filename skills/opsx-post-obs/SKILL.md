@@ -1,12 +1,14 @@
 ---
 name: opsx-post-obs
-description: 'Post a session observation to claude-mem from opsx-apply-resume Save Phase — builds a JSON payload and runs post-obs.sh in the background (fire-and-forget). Use when: opsx-apply-resume Save Phase Step 3b, right after compact-save extracts L0/session_goal/completed/key_decisions. Not for: loading Resume context (use opsx-load-context) or goal generation (use opsx-goal). Output: OBS_PID + OBS_RESULT_FILE path for the caller to wait on.'
+description: 'Post a session observation to claude-mem from opsx-apply-resume Save Phase — builds a JSON payload and runs post-obs.sh as a non-blocking background post (the caller collects the result before the handoff write, so the POST overlaps Save-Phase Steps 4–6). Use when: opsx-apply-resume Save Phase Step 3b, right after compact-save extracts L0/session_goal/completed/key_decisions. Not for: loading Resume context (use opsx-load-context) or goal generation (use opsx-goal). Output: OBS_PID + OBS_RESULT_FILE path for the caller to wait on.'
 allowed-tools: Bash, Write
 ---
 
 # opsx-post-obs
 
-Fire-and-forget background observer for `opsx-apply-resume` Save Phase.
+Non-blocking background observer for `opsx-apply-resume` Save Phase — the POST
+overlaps Steps 4–6 and the caller collects its result before the handoff write
+(it is *not* truly fire-and-forget: the obs_id feeds the handoff frontmatter).
 Called with compact-save output fields; posts an observation to the claude-mem worker without blocking the main Save Phase flow.
 
 ## When NOT to Use

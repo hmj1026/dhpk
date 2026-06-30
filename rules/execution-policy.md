@@ -62,12 +62,12 @@ Violation: the secondary AI confirms instead of verifying → false consensus th
 
 ### Hook-enforced (sentinels)
 
-Trigger map source-of-truth: dhpk's `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/post-edit-dispatch.sh` (5 slots) plus any per-module post-edit hooks contributed by enabled modules. Each sentinel is cleared by the agent's Closing hook (`clear-sentinel.sh <name> <label>`).
+Trigger map source-of-truth: dhpk's `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/post-edit-dispatch.sh` (5 default slots + the always-on `artifact` slot) plus any per-module post-edit hooks contributed by enabled modules. Each sentinel is cleared by the agent's Closing hook (`clear-sentinel.sh <name> <label>`).
 
 | Sentinel | Required agent | Trigger summary (default; project can extend via `userConfig.review_trigger_extra_paths`) |
 |---|---|---|
 | `.pending-review` | `code-reviewer` | `*.php` / `*.js` / `**/CLAUDE.md` |
-| `.pending-doc-review` | `doc-reviewer` | `.claude/{agents,rules,commands,hooks,scripts,skills,manifests}/**/*.{md,sh,json,yml,yaml}` (excluding CLAUDE.md) |
+| `.pending-doc-review` | `doc-reviewer` | `.claude/{agents,rules,commands,hooks,scripts,skills,manifests}/**/*.{md,sh,json,yml,yaml}` — covers both frontmatter schema (name/model/tools) for `.md` DSL artifacts AND cross-file SSOT / link-validity |
 | `.pending-db-review` | `database-reviewer` | Repository / migration / model / `*.sql` |
 | `.pending-security-review` | `security-reviewer` | Controllers / config / `*{Auth,Login,Acl,Upload,File}*.php` |
 | `.pending-frontend-review` | `frontend-reviewer` | JS / TS (vendor / ignored paths excluded) |
@@ -108,6 +108,8 @@ Semantically matches but path pattern did not trigger a sentinel → self-trigge
 - Cleanup beyond a single file — a file > 800 lines to split, cross-file duplicate logic, or a multi-module dead-code sweep → `refactor-cleaner` (use `/simplify` for in-place single-file work).
 - Brownfield project with empty `openspec/specs/` + a spec-extraction request → `spec-miner` (or the `/spec-mine` front door).
 - `swift build` / `xcodebuild` / SPM resolution failure → `swift-build-resolver` (swift / xcode-tooling module active).
+- `ruff` / `mypy` / `pytest-asyncio` (and `pyright` / `pytest` / `uv sync`) error appears in Bash output → `python-build-resolver` (python / fastapi / pytest module active).
+- `cargo build` / `cargo test` rustc (or `cargo clippy`) error appears in Bash output → `rust-build-resolver`.
 - Editing version-specific dirs (`src/Laravel/`, `src/Symfony/`), composer version constraints, or `.github/workflows` CI matrices, or before tagging a release → `version-matrix-impact-reviewer` (library-author module).
 
 > **Why view-layer script doesn't go through the hook**: `post-edit-dispatch.sh` uses path-pattern matching (O(1)). Detecting `<script>` blocks would require reading the full PHP file content on every Edit (grep cost asymmetric to the edit cost). Per the trigger taxonomy, view templates don't all contain `<script>`; AI looking at the diff has near-zero recognition cost, so back-stop is sufficient.

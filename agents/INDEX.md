@@ -1,6 +1,6 @@
 # Agents Index (dhpk plugin)
 
-> 22 agents shipped by the dhpk plugin (21 root-level + `polyfill-reviewer` under `modules/library-author/agents/`). Discovered as `dhpk:<name>` after install. The full list also appears in `plugin.json`.
+> 24 agents shipped by the dhpk plugin (23 root-level + `polyfill-reviewer` under `modules/library-author/agents/`). Discovered as `dhpk:<name>` after install. The full list also appears in `plugin.json`.
 
 ## Sentinel-driven reviewer dispatch (5 slots, v0.2.0+)
 
@@ -13,11 +13,13 @@ Triggered reviewers — `database-reviewer` / `security-reviewer` / `frontend-re
 | [security-reviewer](security-reviewer.md) | sonnet | Auth / authz / crypto / file-upload edits |
 | [frontend-reviewer](frontend-reviewer.md) | sonnet | JS/TS edits when the `js` module is active; template-embedded `<script>` blocks (AI-judgment backfill) |
 | [code-reviewer](code-reviewer.md) | sonnet | **Mandatory after any source-code Edit/Write** |
-| [doc-reviewer](doc-reviewer.md) | haiku | Edits under `.claude/{agents,rules,commands,skills,manifests}/`, `docs/`, `openspec/`, or top-level `CLAUDE.md` / `AGENTS.md` / `README*.md` |
+| [doc-reviewer](doc-reviewer.md) | haiku | Edits under `.claude/{agents,rules,commands,skills,manifests}/`, `docs/`, `openspec/`, or top-level `CLAUDE.md` / `AGENTS.md` / `README*.md` — covers both frontmatter schema (name/model/tools) for `.md` DSL artifacts AND cross-file SSOT / link-validity checks |
 
 Agent names are overridable via `userConfig.review_agents` — a project can point sentinels at its own `code-reviewer-<project>` and friends instead of the plugin defaults. The default list ships 5 agents (code / db / sec / fe / doc); reduce by passing a shorter override.
 
 **6th sentinel slot (project-extension):** [migration-reviewer](migration-reviewer.md) is a sentinel-eligible reviewer that the default 5-slot chain does not wire. Projects with DB migrations (e.g. a multi-tenant deploy that uses site-id-prefixed migration files) add it as a 6th slot via `userConfig.review_agents` + their own `.pending-migration-review` sentinel.
+
+**Doc slot (always-on):** `doc-reviewer` covers both frontmatter schema validation and cross-file SSOT / link-validity checks via a single `.pending-doc-review` sentinel — no separate artifact slot needed.
 
 ## Situational
 
@@ -33,6 +35,8 @@ Agent names are overridable via `userConfig.review_agents` — a project can poi
 | [migration-reviewer](migration-reviewer.md) | sonnet | DB migration up/down symmetry, multi-tenant FK/index collision, online-DDL safety on high-volume tables |
 | [version-matrix-impact-reviewer](version-matrix-impact-reviewer.md) | sonnet | Per-change blast radius across a CI version matrix (PHP × Laravel/Symfony, Yii 1×2); recommends the minimum testsuite subset |
 | [swift-build-resolver](swift-build-resolver.md) | sonnet | Swift / Xcode / SwiftPM build-error resolution (compile, Sendable/actor isolation, Codable, package-version conflicts, signing) |
+| [python-build-resolver](python-build-resolver.md) | sonnet | Python build-error resolution (ruff / mypy / pyright / pytest incl. pytest-asyncio scope, uv / pip / poetry install) — 3-attempt-then-escalate, re-runs to verify |
+| [rust-build-resolver](rust-build-resolver.md) | sonnet | Rust / Cargo build-error resolution (rustc type / borrow / lifetime, Send / Sync, tokio, Cargo.toml conflicts) — 3-attempt-then-escalate, re-runs to verify |
 | [silent-failure-hunter](silent-failure-hunter.md) | sonnet | Deep error-handling audit — empty catch / swallowed exceptions / error-hiding fallbacks / lost stack traces / missing rollback. Situational delegate of code-reviewer (not a sentinel) |
 | [spec-miner](spec-miner.md) | opus | Extract behavioral specs from a brownfield codebase into `openspec/specs/<capability>/spec.md` (flat Requirement / Invariant blocks). Onboarding to spec-driven development |
 | [type-design-analyzer](type-design-analyzer.md) | sonnet | Score a type's design on encapsulation / invariant expression / usefulness / enforcement ("make illegal states unrepresentable"). Read-only |
@@ -49,6 +53,7 @@ Agent names are overridable via `userConfig.review_agents` — a project can poi
 > - `e2e-runner` ← `/post-dev-test` + route-table entry
 > - `agent-evaluator` ← harness-quality family (`skill-judge` sibling pointer / `harness-govern` listing) — deliberately **out** of `dhpk:do` / `opsx-goal` dev routing
 > - `swift-build-resolver`, `version-matrix-impact-reviewer` ← execution-policy back-stop (module-gated)
+> - `python-build-resolver`, `rust-build-resolver` ← execution-policy back-stop only (build error in Bash output), same as `swift-build-resolver`. NB: the route-table `fix mypy` / `fix cargo build` patterns route to `adaptive-dev-workflow`, which does **not** itself name these agents — so there is no deterministic (route-table/sentinel) dispatch; they fire purely on the AI-judgment back-stop
 
 ## Module-shipped agents
 

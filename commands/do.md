@@ -71,8 +71,11 @@ to decide the codex flag.
   Then classify the request yourself and pick the single best-fit dhpk command,
   invoke it via the **Skill** tool, and state one line citing the evidence:
   `No deterministic route; routing to /<chosen> because <reason + signal>.`
-  Common targets: `dhpk:adaptive-dev-workflow` (substantial bug/feature changes —
-  classify + gate before implementing), `dhpk:bug-fix`, `dhpk:feature-dev`,
+  Common targets: `dhpk:adaptive-dev-workflow` (**any** substantial bug or feature
+  change — it classifies + gates, then routes into `dhpk:bug-fix` /
+  `dhpk:feature-dev` itself, so enter it rather than those two directly; this
+  mirrors the deterministic route table, which sends every bug/feature pattern
+  here),
   `dhpk:code-explore`, `dhpk:review-pending`, `dhpk:security-review`,
   `dhpk:project-audit`, `dhpk:simplify`, `dhpk:tech-spec`, `dhpk:risk-assess`,
   `dhpk:deploy-list`, `dhpk:feasibility-study`, `dhpk:verify`, `dhpk:opsx-goal`,

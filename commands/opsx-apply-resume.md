@@ -72,7 +72,7 @@ bash .claude/scripts/opsx-apply-resume/extract-compact.sh "$COMPACT_JSON_PATH"
 
 Read the output to obtain: `L0`, `session_goal`, `completed`, `in_progress`, `key_decisions`, `failed_approaches`.
 
-### Step 3b — Store observation in claude-mem (fire-and-forget)
+### Step 3b — Store observation in claude-mem (non-blocking, collected before handoff)
 
 Invoke the `opsx-post-obs` skill with:
 - `title`: L0 value
@@ -335,6 +335,6 @@ Each Save Phase creates a new `latest.md` (previous runs become `consumed-*.md`)
 - Model recommendation is always non-blocking — user decides whether to switch
 - If `openspec/changes/<change-id>/tasks.md` missing in Resume Phase, stop immediately
 - change-id priority: (1) command argument, (2) most recent `/opsx:apply <name>` in conversation, (3) AskUserQuestion
-- claude-mem obs write is fire-and-forget (background `post-obs.sh &`) — never block on it; `null` obs_id is always valid
-- Fallback chain (always completes): Tier 0 (pinned obs) → compact_json_path → heuristic compact → handoff_only
+- claude-mem obs write is non-blocking (background `post-obs.sh &`, collected with `wait` before the Step 7 handoff so it overlaps Steps 4–6); `null` obs_id is always valid
+- Fallback chain (always completes): Tier 0 (pinned obs) → Tier 1 compact JSON (explicit path or heuristic) → Tier 2 handoff_only
 - Recovery from `consuming` state: user runs `bash .claude/scripts/opsx-apply-resume/set-handoff-state.sh saved`

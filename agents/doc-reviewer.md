@@ -5,16 +5,20 @@ description: >-
   editing `.claude/{agents,rules,commands,skills,manifests}/**/*.{md,json,yml,yaml}`,
   doc-only files under `.claude/{hooks,scripts}/` (non-`.sh`), top-level
   CLAUDE.md / AGENTS.md / README*.md, and any `docs/**/*.md` or
-  `openspec/**/*.md`. Does NOT review code quality — that's code-reviewer's
-  job. Trigger: sentinel `.pending-doc-review`. Skip for `.claude/{memory,
-  artifacts,worktrees}/**` (auto / transient content) and any `.sh` / source
-  file in the diff. Do NOT skip when the change seems small, the doc looks
+  `openspec/**/*.md`. Covers two concerns: (1) frontmatter schema validation
+  for `.md` DSL artifacts (agent / skill / command / rule files carrying a
+  `---` frontmatter block) — name kebab-case, required per-kind fields,
+  model value; (2) cross-file SSOT / link-validity checks for all in-scope
+  docs. Does NOT review code quality — that's code-reviewer's job. Trigger:
+  sentinel `.pending-doc-review`. Skip for `.claude/{memory,artifacts,
+  worktrees}/**` (auto / transient content) and any `.sh` / source file in
+  the diff. Do NOT skip when the change seems small, the doc looks
   self-contained, or a manual scan was done — the agent's value is the
   cross-file SSOT and link-validity checks.
 tools: Read, Grep, Glob, Bash
 model: haiku
 effort: medium
-maxTurns: 12
+maxTurns: 15
 ---
 
 # Doc reviewer
@@ -58,18 +62,33 @@ Out of scope:
 3. Walk each file through the four-quadrant checklist below.
 4. Close out: write the artifact + clear the sentinel.
 
-## Checklist — four quadrants (only report actual hits)
+## Checklist — five quadrants (only report actual hits)
 
-### 1. Frontmatter completeness (agent / skill / command)
+### 0. Frontmatter schema (only for `.md` files whose first line is `---`)
 
-| Required field | Validation |
-|---|---|
-| `name` | Matches file basename (`grep "^name:" <file>`). |
-| `description` | Non-empty, with explicit "when to use / not for" trigger guidance. |
-| `tools` | Matches agent role (e.g. reviewer agents should not have `Write`). |
-| `model` | One of `haiku` / `sonnet` / `opus`. |
+Skip this entire section if the file has no YAML frontmatter delimiter on line 1.
 
-`.json` manifests: same-schema fields present; no trailing commas; no BOM.
+- [ ] Line 1 is exactly `---`; a closing `---` exists; keys parse as `key: value` (no tab indentation, no duplicate keys).
+- [ ] `name:` present, non-empty, kebab-case (`^[a-z0-9]+(-[a-z0-9]+)*$`), matches file basename (agents / commands) or parent dir name (skills' `SKILL.md`).
+- [ ] `description:` present, non-empty. For agents / skills: carries "use when / not for" trigger guidance — bare one-liner with no trigger is a LOW finding.
+- [ ] **Agent** (`agents/*.md`): `model` ∈ {haiku, sonnet, opus} (HARD if invalid); `tools` present (MEDIUM if absent).
+- [ ] **Skill** (`*/SKILL.md`): `name` + `description` required.
+- [ ] **Command** (`commands/*.md`): `description` present.
+
+```bash
+f="<file>"
+head -1 "$f"                                              # must be ---
+awk 'NR>1 && /^---[[:space:]]*$/{print NR; exit}' "$f"   # closing --- line number
+name="$(grep -m1 '^name:' "$f" | sed 's/^name:[[:space:]]*//;s/[[:space:]]*$//')"
+grep -m1 '^description:' "$f"
+grep -m1 '^model:' "$f" | sed 's/^model:[[:space:]]*//'
+printf '%s' "$name" | grep -Eq '^[a-z0-9]+(-[a-z0-9]+)*$' && echo kebab-ok || echo kebab-FAIL
+```
+
+### 1. Manifest structural validity (`.json` / `.yml` / `.yaml` manifests only)
+
+For `.claude/manifests/**/*.{json,yml,yaml}` in the diff: same-schema fields
+present; parses cleanly; no trailing commas; no BOM.
 
 ### 2. Cross-reference validity
 
@@ -146,7 +165,7 @@ End with a severity table and a final `Verdict: APPROVE | WARNING | BLOCK`:
 
 - APPROVE = no HIGH; any MEDIUM has a defensible reason to stay.
 - WARNING = MEDIUM but no HIGH.
-- BLOCK = any HIGH (broken link, SSOT contradiction, missing frontmatter field).
+- BLOCK = any HIGH (broken link, SSOT contradiction, malformed manifest).
 
 ## Closing — Artifact Output (MUST)
 

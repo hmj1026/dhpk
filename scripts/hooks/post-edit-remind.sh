@@ -89,6 +89,7 @@ case "$REL" in
     README*.md) [[ "$REL" != */* ]] && NEEDS[4]=1 ;;
 esac
 
+
 # ---- Active-module triggers ----
 # DHPK_ACTIVE_MODULES is set by session-start.sh (csv of module names).
 # Each module's module.yaml triggers contribute extra extensions and paths per slot.
@@ -174,7 +175,7 @@ if [ -n "${DHPK_ACTIVE_MODULES:-}" ]; then
 fi
 
 # ---- User-supplied extra paths (CLAUDE_PLUGIN_OPTION_REVIEW_TRIGGER_EXTRA_PATHS) ----
-# Entries shaped `<slot>:<prefix>` where slot ∈ code|db|sec|fe|doc.
+# Entries shaped `<slot>:<prefix>` where slot ∈ code|db|sec|fe|doc|mig|art.
 if [ -n "${CLAUDE_PLUGIN_OPTION_REVIEW_TRIGGER_EXTRA_PATHS:-}" ]; then
     IFS=',' read -r -a _extras <<< "${CLAUDE_PLUGIN_OPTION_REVIEW_TRIGGER_EXTRA_PATHS}"
     for _e in "${_extras[@]}"; do
