@@ -60,16 +60,15 @@ Out of scope:
 
 ## Checklist — four quadrants (only report actual hits)
 
-### 1. Frontmatter completeness (agent / skill / command)
+### 1. Manifest structural validity (`.json` / `.yml` / `.yaml` manifests only)
 
-| Required field | Validation |
-|---|---|
-| `name` | Matches file basename (`grep "^name:" <file>`). |
-| `description` | Non-empty, with explicit "when to use / not for" trigger guidance. |
-| `tools` | Matches agent role (e.g. reviewer agents should not have `Write`). |
-| `model` | One of `haiku` / `sonnet` / `opus`. |
+`.md` artifact frontmatter (`name` / `description` / `tools` / `model` on
+agent / skill / command files) is **not reviewed here** — that is
+`artifact-reviewer`'s job (sentinel `.pending-artifact-review` fires on the
+same edit). Do not re-flag those fields; defer to its verdict.
 
-`.json` manifests: same-schema fields present; no trailing commas; no BOM.
+For `.claude/manifests/**/*.{json,yml,yaml}` in the diff: same-schema fields
+present; parses cleanly; no trailing commas; no BOM.
 
 ### 2. Cross-reference validity
 
@@ -146,7 +145,7 @@ End with a severity table and a final `Verdict: APPROVE | WARNING | BLOCK`:
 
 - APPROVE = no HIGH; any MEDIUM has a defensible reason to stay.
 - WARNING = MEDIUM but no HIGH.
-- BLOCK = any HIGH (broken link, SSOT contradiction, missing frontmatter field).
+- BLOCK = any HIGH (broken link, SSOT contradiction, malformed manifest).
 
 ## Closing — Artifact Output (MUST)
 
