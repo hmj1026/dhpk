@@ -1,13 +1,13 @@
 ---
 name: opsx-load-context
-description: 'Load opsx-apply-resume Resume Phase context via a 4-tier fallback (claude-mem pinned obs → compact JSON path → heuristic latest compact → handoff summary), optionally fetching cross-session observations. Use when: opsx-apply-resume enters Resume Phase Steps 1b–1d. Not for: saving observations (use opsx-post-obs) or goal generation (use opsx-goal). Output: CONTEXT_SOURCE + session_goal/completed/in_progress/cross_session_observations fields.'
+description: 'Load opsx-apply-resume Resume Phase context via a 3-tier fallback (claude-mem pinned obs → compact JSON → handoff summary), optionally fetching cross-session observations. Use when: opsx-apply-resume enters Resume Phase Steps 1b–1d. Not for: saving observations (use opsx-post-obs) or goal generation (use opsx-goal). Output: CONTEXT_SOURCE + session_goal/completed/in_progress/cross_session_observations fields.'
 allowed-tools: Bash
 ---
 
 # opsx-load-context
 
 Context loading skill for `opsx-apply-resume` Resume Phase.
-Implements a 4-tier fallback so that context is always available even if earlier tiers fail.
+Implements a 3-tier fallback so that context is always available even if earlier tiers fail.
 
 ## When NOT to Use
 
@@ -42,7 +42,7 @@ RESUME=$(ls -t openspec/changes/*/.resume-note.md 2>/dev/null | head -1)
 
 - File found → read it; extract the remaining unchecked tasks, the last pending
   sentinels, and the one-line next-focus hint. Map them to `in_progress` and
-  `session_goal`. Set `CONTEXT_SOURCE = ".resume-note.md"`. Skip Tiers 0–3 (still
+  `session_goal`. Set `CONTEXT_SOURCE = ".resume-note.md"`. Skip Tiers 0–2 (still
   run the optional cross-session step below).
 - No file (the common case) → fall through to Tier 0. Behavior unchanged.
 
@@ -59,40 +59,31 @@ get_observations(ids=[<claude_mem_obs_id>])
 ```
 
 - Returns observation → extract `session_goal`, `completed`, `in_progress` from the observation body.
-  Set `CONTEXT_SOURCE = "claude-mem obs #<id>"`. Skip Tier 1 and Tier 2.
+  Set `CONTEXT_SOURCE = "claude-mem obs #<id>"`. Skip Tier 1.
 - Returns empty or error → fall through to Tier 1.
 
 ---
 
-### Tier 1 — Compact JSON (explicit path)
+### Tier 1 — Compact JSON
 
-**Condition**: `compact_json_path` is present in handoff frontmatter.
+**Condition**: a compact-notes JSON exists — either the explicit
+`compact_json_path` from handoff frontmatter, or the newest one on disk.
 
 ```bash
-bash .claude/scripts/opsx-apply-resume/extract-compact.sh "<compact_json_path>"
+# Prefer the explicit handoff path; fall back to the newest compact on disk.
+COMPACT="<compact_json_path>"
+{ [ -n "$COMPACT" ] && [ -f "$COMPACT" ]; } || COMPACT=$(ls -t compact-notes/compact-*.json 2>/dev/null | head -1)
+[ -n "$COMPACT" ] && bash .claude/scripts/opsx-apply-resume/extract-compact.sh "$COMPACT"
 ```
 
-- File exists and outputs fields → parse L0, session_goal, completed, in_progress.
-  Set `CONTEXT_SOURCE = "compact JSON"`. Skip Tier 2.
-- File not found or script errors → fall through to Tier 2.
+- Script outputs fields → parse L0, session_goal, completed, in_progress.
+  Set `CONTEXT_SOURCE = "compact JSON"` — append ` (heuristic)` when `$COMPACT`
+  came from the glob fallback rather than the handoff path. Skip Tier 2.
+- No compact file, or the script errors → fall through to Tier 2.
 
 ---
 
-### Tier 2 — Heuristic latest compact
-
-**Condition**: Tier 1 failed or compact_json_path absent.
-
-```bash
-LATEST=$(ls -t compact-notes/compact-*.json 2>/dev/null | head -1)
-```
-
-- File found → run `bash .claude/scripts/opsx-apply-resume/extract-compact.sh "$LATEST"` → parse fields.
-  Set `CONTEXT_SOURCE = "compact JSON (heuristic)"`. Skip Tier 3.
-- No file found → fall through to Tier 3.
-
----
-
-### Tier 3 — Handoff embedded summary (always succeeds)
+### Tier 2 — Handoff embedded summary (always succeeds)
 
 Use the `## Compact Summary`, `### Completed`, and `### In Progress` sections embedded in
 `.claude/artifacts/apply-resume/latest.md` (already read in Resume Phase Step 1).
@@ -138,7 +129,7 @@ All variables always set — no undefined outputs. The caller (Resume Phase Step
 - [ ] `CONTEXT_SOURCE` set to exactly one tier label
 - [ ] Pre-chain `.resume-note.md` checked first; absent → falls through silently to Tier 0
 - [ ] Stopped at the first successful tier (no redundant lower-tier calls)
-- [ ] All return fields set — no undefined outputs (Tier 3 always succeeds from handoff)
+- [ ] All return fields set — no undefined outputs (Tier 2 always succeeds from handoff)
 - [ ] Cross-session search failure handled silently (`cross_session_observations = []`)
 
 ## Guardrails
@@ -146,4 +137,4 @@ All variables always set — no undefined outputs. The caller (Resume Phase Step
 - Never throw on partial failure — always complete the chain and return `CONTEXT_SOURCE`
 - "compact JSON (heuristic)" is acceptable quality; note in Step 3 display that it is a heuristic path
 - Cross-session search failure is silent — the resume can proceed without it
-- If all tiers fail (impossible in practice since Tier 3 always succeeds from handoff), set `CONTEXT_SOURCE = "handoff only"` and use empty strings for context fields
+- If all tiers fail (impossible in practice since Tier 2 always succeeds from handoff), set `CONTEXT_SOURCE = "handoff only"` and use empty strings for context fields
