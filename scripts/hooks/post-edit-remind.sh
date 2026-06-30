@@ -33,12 +33,11 @@ esac
 ARTIFACTS="$ROOT/.claude/artifacts/sessions"
 mkdir -p "$ARTIFACTS"
 
-# Slot 0=code, 1=db, 2=sec, 3=frontend, 4=doc, 5=polyfill, 6=migration, 7=artifact
+# Slot 0=code, 1=db, 2=sec, 3=frontend, 4=doc, 5=polyfill, 6=migration
 # (matches SENTINEL_NAMES order). Slots 5 and 6 have no built-in defaults:
 # polyfill is written by the library-author module hook; migration is opt-in
 # via module.yaml `migration:` triggers or review_trigger_extra_paths `mig:`.
-# Slot 7 (artifact) IS a built-in default — any *.md with YAML frontmatter.
-NEEDS=(0 0 0 0 0 0 0 0)
+NEEDS=(0 0 0 0 0 0 0)
 
 # ---- Built-in file-extension defaults (always on) ----
 
@@ -90,25 +89,6 @@ case "$REL" in
     README*.md) [[ "$REL" != */* ]] && NEEDS[4]=1 ;;
 esac
 
-# artifact-reviewer (slot 7): Markdown DSL artifacts — any *.md whose first line
-# is a YAML frontmatter delimiter (---). The frontmatter marker filters out prose
-# (README / CHANGELOG / docs without frontmatter); the reviewer itself skips a
-# frontmatter file that has no `name:` field (e.g. a YAML data file), so a rare
-# false positive is cheap. Always-on default, independent of slot 4 (doc) — a
-# .claude/agents/*.md edit legitimately triggers both (doc = SSOT/links,
-# artifact = frontmatter schema).
-case "$BASENAME" in
-    *.md)
-        if [ -f "$FILE_PATH" ]; then
-            # read exits 1 at EOF without a trailing newline but STILL sets the
-            # var — so don't reset it with `|| var=`; pre-init covers the empty file.
-            _artifact_first_line=""
-            IFS= read -r _artifact_first_line < "$FILE_PATH" 2>/dev/null
-            _artifact_first_line="${_artifact_first_line%$'\r'}"   # tolerate CRLF
-            [ "$_artifact_first_line" = "---" ] && NEEDS[7]=1
-        fi
-        ;;
-esac
 
 # ---- Active-module triggers ----
 # DHPK_ACTIVE_MODULES is set by session-start.sh (csv of module names).
@@ -162,7 +142,7 @@ except Exception:
     sys.exit(0)
 triggers = cfg.get("triggers") or {}
 # Aliases: "fe" → 3, "frontend" → 3; "doc" → 4; "mig" → 6, "migration" → 6
-slot_map = {"code": 0, "db": 1, "sec": 2, "frontend": 3, "fe": 3, "doc": 4, "polyfill": 5, "mig": 6, "migration": 6, "artifact": 7}
+slot_map = {"code": 0, "db": 1, "sec": 2, "frontend": 3, "fe": 3, "doc": 4, "polyfill": 5, "mig": 6, "migration": 6}
 for slot_name, slot_idx in slot_map.items():
     block = triggers.get(slot_name) or {}
     for ext in (block.get("extensions") or []):
@@ -207,7 +187,6 @@ if [ -n "${CLAUDE_PLUGIN_OPTION_REVIEW_TRIGGER_EXTRA_PATHS:-}" ]; then
             fe:*)   [[ "$REL" == "${_e#fe:}"* ]] && NEEDS[3]=1 ;;
             doc:*)  [[ "$REL" == "${_e#doc:}"* ]] && NEEDS[4]=1 ;;
             mig:*)  [[ "$REL" == "${_e#mig:}"* ]] && NEEDS[6]=1 ;;
-            art:*)  [[ "$REL" == "${_e#art:}"* ]] && NEEDS[7]=1 ;;
         esac
     done
 fi

@@ -16,7 +16,7 @@
 #         Returns empty string on any error (callers MUST handle empty).
 
 # Review sentinel SSOT — slots in fixed order:
-#   0 code → 1 db → 2 sec → 3 frontend → 4 doc → 5 polyfill → 6 migration → 7 artifact
+#   0 code → 1 db → 2 sec → 3 frontend → 4 doc → 5 polyfill → 6 migration
 #
 # SENTINEL LINE FORMAT (de-facto protocol — writers and readers MUST agree):
 #   "<meta1> <meta2> <relative-path>"   → the path starts at whitespace FIELD 3.
@@ -32,12 +32,12 @@
 # push-block, stop-review-reminder) extend automatically as long as the arrays
 # stay aligned. SENTINEL_SHORT_NAMES carries compact per-slot labels for
 # space-constrained consumers (statuslines etc.).
-SENTINEL_NAMES=(".pending-review" ".pending-db-review" ".pending-security-review" ".pending-frontend-review" ".pending-doc-review" ".pending-polyfill-review" ".pending-migration-review" ".pending-artifact-review")
-SENTINEL_LABELS=("code-reviewer" "database-reviewer" "security-reviewer" "frontend-reviewer" "doc-reviewer" "polyfill-reviewer" "migration-reviewer" "artifact-reviewer")
-SENTINEL_SHORT_NAMES=("code" "db" "sec" "fe" "doc" "poly" "mig" "art")
+SENTINEL_NAMES=(".pending-review" ".pending-db-review" ".pending-security-review" ".pending-frontend-review" ".pending-doc-review" ".pending-polyfill-review" ".pending-migration-review")
+SENTINEL_LABELS=("code-reviewer" "database-reviewer" "security-reviewer" "frontend-reviewer" "doc-reviewer" "polyfill-reviewer" "migration-reviewer")
+SENTINEL_SHORT_NAMES=("code" "db" "sec" "fe" "doc" "poly" "mig")
 
 # Default agent names — overridable via userConfig.review_agents (comma-joined).
-_dhpk_default_agents=("code-reviewer" "database-reviewer" "security-reviewer" "frontend-reviewer" "doc-reviewer" "polyfill-reviewer" "migration-reviewer" "artifact-reviewer")
+_dhpk_default_agents=("code-reviewer" "database-reviewer" "security-reviewer" "frontend-reviewer" "doc-reviewer" "polyfill-reviewer" "migration-reviewer")
 if [ -n "${CLAUDE_PLUGIN_OPTION_REVIEW_AGENTS:-}" ]; then
     IFS=',' read -r -a SENTINEL_AGENTS <<< "${CLAUDE_PLUGIN_OPTION_REVIEW_AGENTS}"
 else

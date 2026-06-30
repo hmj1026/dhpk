@@ -67,12 +67,11 @@ Trigger map source-of-truth: dhpk's `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/post-ed
 | Sentinel | Required agent | Trigger summary (default; project can extend via `userConfig.review_trigger_extra_paths`) |
 |---|---|---|
 | `.pending-review` | `code-reviewer` | `*.php` / `*.js` / `**/CLAUDE.md` |
-| `.pending-doc-review` | `doc-reviewer` | `.claude/{agents,rules,commands,hooks,scripts,skills,manifests}/**/*.{md,sh,json,yml,yaml}` (excluding CLAUDE.md) |
+| `.pending-doc-review` | `doc-reviewer` | `.claude/{agents,rules,commands,hooks,scripts,skills,manifests}/**/*.{md,sh,json,yml,yaml}` — covers both frontmatter schema (name/model/tools) for `.md` DSL artifacts AND cross-file SSOT / link-validity |
 | `.pending-db-review` | `database-reviewer` | Repository / migration / model / `*.sql` |
 | `.pending-security-review` | `security-reviewer` | Controllers / config / `*{Auth,Login,Acl,Upload,File}*.php` |
 | `.pending-frontend-review` | `frontend-reviewer` | JS / TS (vendor / ignored paths excluded) |
 | `.pending-migration-review` *(opt-in 6th slot)* | `migration-reviewer` | Migration files (e.g. `**/migrations/**/*.php`) — projects that wire this sentinel in their post-edit hook get migration-specific review on top of the standard db-review |
-| `.pending-artifact-review` *(always-on)* | `artifact-reviewer` | Any `.md` whose first line is a YAML `---` frontmatter delimiter (agent / skill / command / rule artifacts) — frontmatter schema + kebab-case `name` + required-field checks |
 
 Skipped paths: openspec/**, docs/**, plain .md outside .claude/, .claude/{memory,artifacts,worktrees}/. See your hook source for the exact list.
 
