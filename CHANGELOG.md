@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.20.1 — 2026-07-01 — Post-implementation agent gate SSOT, route-table consolidation, harness validation hardening
+
+Maintenance release — no new agents or behavior changes for end users. Internal
+harness cleanup and test coverage additions only.
+
+**docs(rules)** — Post-implementation agent gate:
+- Established `rules/execution-policy.md` as the single source of truth for
+  the post-implementation reviewer-agent gate; `commands/create-dev.md`,
+  `skills/adaptive-dev-workflow/SKILL.md`, and `skills/pr-review/SKILL.md`
+  now reference it instead of duplicating the rules.
+- Added `skills/INDEX.md` — navigable index of installed skills.
+
+**chore(scripts)** — Route-table and validation hardening:
+- Consolidated task-routing rules in `scripts/lib/route-table.json` and
+  `commands/do.md`.
+- `scripts/validate/validate-harness.sh` and `scripts/ci/catalog.js`
+  strengthened for stricter static validation of the harness catalog.
+
+**test** — Integration coverage:
+- Added `tests/catalog-claims.test.js` and `tests/sentinel-slots.test.js`
+  covering catalog claim accuracy and the 7-slot sentinel model.
+
+**chore(config)** — Plugin description and README bilingual sync.
+
 ## 0.20.0 — 2026-06-30 — Python/Rust build-resolvers, doc-reviewer absorbs artifact validation, route-table bilingual convergence
 
 Agent count 22 → 24. Artifact-reviewer merged into doc-reviewer (7-slot
