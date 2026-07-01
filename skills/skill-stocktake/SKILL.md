@@ -1,6 +1,6 @@
 ---
 name: skill-stocktake
-description: 'Batch-audit installed Claude skills and commands for quality, overlap, and staleness via subagent evaluation. Use when: auditing many skills at once, periodic stocktake, Quick Scan or Full Stocktake mode. Not for: linting one skill''s structure (use skill-health-check), authoring (use create-skill). Output: per-skill verdict table (Keep/Improve/Retire/Merge) + results.json.'
+description: 'Batch-audit installed Claude skills and commands for quality, overlap, and staleness via subagent evaluation. Use when: auditing many skills at once, periodic stocktake, Quick Scan or Full Stocktake mode. Not for: linting one skill''s structure (use skill-health-check), a deep rubric grade of one skill (use skill-judge), authoring (use create-skill). Depth split: skill-health-check = structural lint of one skill · skill-judge = deep rubric of one · skill-stocktake = batch-audit of many. Output: per-skill verdict table (Keep/Improve/Retire/Merge) + results.json.'
 origin: ECC
 allowed-tools: 'Read, Grep, Glob, Bash, Agent, WebSearch'
 ---

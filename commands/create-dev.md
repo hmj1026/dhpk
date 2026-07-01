@@ -35,57 +35,39 @@ recommended next command (`/dhpk:bug-fix --codex`, `/dhpk:feature-dev --codex`).
 ## Workflow
 
 ```
-Input: change description
-        │
-        ▼
-   Classify type
-   ┌────────────────────────────────────────────┬─────────────────────────────────────────────────────┐
-   │ 分類                                        │ OpenSpec 詢問？                                     │
-   ├────────────────────────────────────────────┼─────────────────────────────────────────────────────┤
-   │ Bug Fix (unknown root cause)               │ ✅ 詢問 → y: bug-investigation → /opsx:new          │
-   │                                            │          n: bug-investigation → brief plan → patch  │
-   ├────────────────────────────────────────────┼─────────────────────────────────────────────────────┤
-   │ Feature Delivery (cross-module/DDD)        │ ✅ 詢問 → y: dhpk:architect → /opsx:new             │
-   │                                            │          n: dhpk:architect → brief plan → patch     │
-   ├────────────────────────────────────────────┼─────────────────────────────────────────────────────┤
-   │ Feature Delivery (normal)                  │ ✅ 詢問 → y: /opsx:new                              │
-   │                                            │          n: brief plan → patch                      │
-   ├────────────────────────────────────────────┼─────────────────────────────────────────────────────┤
-   │ Bug Fix (known root cause)                 │ ❌ 不詢問 → inspect → patch                         │
-   ├────────────────────────────────────────────┼─────────────────────────────────────────────────────┤
-   │ Medium change                              │ ❌ 不詢問 → brief plan → patch                      │
-   ├────────────────────────────────────────────┼─────────────────────────────────────────────────────┤
-   │ Lightweight Maintenance                    │ ❌ 不詢問 → Read → Edit                             │
-   └────────────────────────────────────────────┴─────────────────────────────────────────────────────┘
-        │
-        ▼
-   所有路徑（除 Lightweight）強制後置步驟：
-   dhpk:tdd-guide → dhpk:database-reviewer（有 SQL）→ dhpk:security-reviewer（有認證/金額）→ dhpk:code-reviewer
-        │
-        ▼
-   Output: Gate checklist + next command
+Input: change description → Classify type → [Planning agent] → [OpenSpec ask] → Gate checklist + next command
 ```
+
+Classification, the OpenSpec-ask decision, and the post-implementation gate are the single source of
+truth in **@rules/execution-policy.md** — do not restate them here:
+
+- *Change classification & OpenSpec routing (SSOT)* — the six change types (Bug Fix unknown/known,
+  Feature Delivery cross-module/normal, Medium change, Lightweight Maintenance), whether each asks
+  about OpenSpec, and its planning step.
+- *Post-implementation agent gate (SSOT)* — the ordered `tdd-guide → database-reviewer →
+  security-reviewer → code-reviewer` gate that every path except Lightweight Maintenance runs.
+
+Classify the request against that table, then proceed to the Task steps below.
 
 ## Task
 
 Use the adaptive dev workflow skill to:
 
-1. Classify the request into one of the six types above
+1. Classify the request into one of the six change types in the SSOT classification table
 2. State which artifacts or gates are required vs skipped
 3. **Invoke the planning-phase step immediately** based on classification (codex-free default;
    under `--codex` use the skill's Codex-mode substitutes):
    - `Bug Fix (unknown root cause)` → run the `bug-investigation` skill (`--codex`: `/codex-brainstorm`)
    - `Feature Delivery (cross-module/DDD)` → Agent tool with `subagent_type=dhpk:architect` (`--codex`: `/codex-architect`)
    - Other types → no immediate agent, proceed to next step
-4. **Ask the user about OpenSpec** (only for types marked ✅ above):
+4. **Ask the user about OpenSpec** (only for types whose *OpenSpec ask?* column is ✅ in the SSOT table):
    > "此變更是否需要 OpenSpec 文件留存？(y/n，預設 n)"
    - **y** → recommend `/opsx:new` to create `openspec/changes/<change-id>/` artifacts
    - **n** (or no response) → proceed with brief plan, no artifact created
-5. Output the **Post-Implementation Agent Gates Checklist** <!-- SSOT: @rules/execution-policy.md -->:
-   - [ ] dhpk:tdd-guide（bug fix 或新功能時必跑）
-   - [ ] dhpk:database-reviewer（涉及 SQL 時必跑）
-   - [ ] dhpk:security-reviewer（涉及認證/授權/加密/金額時必跑）
-   - [ ] dhpk:code-reviewer（任何 Edit/Write 後必跑）
+5. Output the **Post-Implementation Agent Gate checklist** as defined in
+   `@rules/execution-policy.md` → *Post-implementation agent gate (SSOT)* (ordered
+   `tdd-guide → database-reviewer → security-reviewer → code-reviewer`), pre-filling
+   YES/NO for each agent from the classification. Do not restate the gate — reference the SSOT.
 6. Recommend the next workflow, skill, or command (append `--codex` to it when this command was run with `--codex`)
 
 ## Important Notes

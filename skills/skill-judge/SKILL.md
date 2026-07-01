@@ -1,6 +1,6 @@
 ---
 name: skill-judge
-description: 'Evaluate Agent Skill design quality against official specs and best practices via multi-dimensional scoring. Use when reviewing, auditing, or improving a SKILL.md file or skill package and you want a deep rubric-based grade with actionable fixes. Not for: quick structural lint (use skill-health-check), batch auditing many skills at once (use skill-stocktake), or creating/refactoring a skill (use create-skill). Output: a graded evaluation report with per-dimension scores, critical issues, and top improvements.'
+description: 'Evaluate Agent Skill design quality against official specs and best practices via multi-dimensional scoring. Use when reviewing, auditing, or improving a SKILL.md file or skill package and you want a deep rubric-based grade with actionable fixes. Not for: quick structural lint (use skill-health-check), batch auditing many skills at once (use skill-stocktake), or creating/refactoring a skill (use create-skill). Depth split: skill-health-check = structural lint of one skill · skill-judge = deep rubric of one · skill-stocktake = batch-audit of many. Output: a graded evaluation report with per-dimension scores, critical issues, and top improvements.'
 ---
 
 # Skill Judge
