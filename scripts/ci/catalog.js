@@ -9,8 +9,9 @@
 //   node scripts/ci/catalog.js --check    fail (exit 1) if any exact claim drifts
 //   node scripts/ci/catalog.js --write    rewrite drifted exact claims in place
 //
-// Only claims phrased as an exact number are enforced ("18 role-based agents",
-// "27 opt-in stack modules"). Approximate claims ("~57 core skills") are printed
+// Only claims phrased as an exact number are enforced ("24 role-based agents",
+// "27 opt-in stack modules", "23 root-level agents", "24 個角色導向 agent",
+// "7-slot"). Approximate claims ("~57 core skills", "~73 commands") are printed
 // for awareness but not enforced — the `~` signals deliberate rounding.
 
 const fs = require('fs');
@@ -28,6 +29,17 @@ function walk(dir, test) {
     else if (test(fp)) out.push(fp);
   }
   return out;
+}
+
+// Parse the sentinel-slot count from the SENTINEL_NAMES=(...) array in
+// payload.sh — the single SSOT for review slots, so a "N-slot" claim can never
+// diverge from the array. Returns 0 if the file/array is absent (test asserts > 0).
+function slotCountFromPayload() {
+  const fp = p('scripts', 'hooks', '_lib', 'payload.sh');
+  if (!fs.existsSync(fp)) return 0;
+  const m = fs.readFileSync(fp, 'utf8').match(/SENTINEL_NAMES=\(([^)]*)\)/);
+  if (!m) return 0;
+  return (m[1].match(/\.pending-[a-z-]+/g) || []).length;
 }
 
 function computeCounts() {
@@ -49,6 +61,7 @@ function computeCounts() {
     skillsModule: moduleSkills.length,
     commands: commands.length,
     modules: modules.length,
+    slotCount: slotCountFromPayload(),
   };
 }
 
@@ -64,6 +77,14 @@ function claimSpecs(counts) {
   return [
     { label: 'role-based agents', re: /(\d+)(\s+role-based agents)/g, expected: counts.agentsTotal },
     { label: 'opt-in stack modules', re: /(\d+)(\s+opt-in stack modules)/g, expected: counts.modules },
+    { label: '個角色導向 agent (ZH total)', re: /(\d+)(\s*個角色導向 agent)/g, expected: counts.agentsTotal },
+    { label: 'root-level agents', re: /(\d+)(\s+root-level agent)/g, expected: counts.agentsRoot },
+    // `-slot` is intentionally broader than the phrase-anchored specs above: in these
+    // claim files "N-slot" is reserved vocabulary for the sentinel review slots and appears
+    // in several phrasings ("N-slot sentinel", "N-slot reviewer dispatch", "N-slot 預設 agent").
+    // Anchoring to "-slot sentinel" would silently drop the non-"sentinel" phrasings from
+    // enforcement — the drift this guard exists to catch. Keep it broad on purpose.
+    { label: 'sentinel slots', re: /(\d+)(-slot)/g, expected: counts.slotCount },
   ];
 }
 
@@ -124,6 +145,7 @@ function printTable() {
   console.log(`  skills:   ${c.skillsTotal}  (base ${c.skillsBase} + module ${c.skillsModule})`);
   console.log(`  commands: ${c.commands}`);
   console.log(`  modules:  ${c.modules}`);
+  console.log(`  slots:    ${c.slotCount}  (sentinel review slots from payload.sh)`);
 }
 
 const args = process.argv.slice(2);

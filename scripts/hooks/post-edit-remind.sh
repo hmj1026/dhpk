@@ -175,7 +175,7 @@ if [ -n "${DHPK_ACTIVE_MODULES:-}" ]; then
 fi
 
 # ---- User-supplied extra paths (CLAUDE_PLUGIN_OPTION_REVIEW_TRIGGER_EXTRA_PATHS) ----
-# Entries shaped `<slot>:<prefix>` where slot ∈ code|db|sec|fe|doc|mig|art.
+# Entries shaped `<slot>:<prefix>` where slot ∈ code|db|sec|fe|doc|mig.
 if [ -n "${CLAUDE_PLUGIN_OPTION_REVIEW_TRIGGER_EXTRA_PATHS:-}" ]; then
     IFS=',' read -r -a _extras <<< "${CLAUDE_PLUGIN_OPTION_REVIEW_TRIGGER_EXTRA_PATHS}"
     for _e in "${_extras[@]}"; do

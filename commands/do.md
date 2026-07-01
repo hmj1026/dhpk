@@ -6,7 +6,7 @@ allowed-tools: 'Bash, Skill, Read, Grep, Glob'
 
 # /dhpk:do — Smart Router
 
-One entry point for dhpk's ~70 commands. You describe the task in plain
+One entry point for dhpk's ~73 commands. You describe the task in plain
 language; this router resolves it to the right workflow — deterministically
 when the request matches the route table, otherwise by your own
 classification.

@@ -5,7 +5,6 @@
     { "pattern": "(unattended|auto[- ]?run|goal +session|overnight|hands?[- ]?off).{0,30}(implement|change|openspec|opsx|session|run)|(無人值守|自動跑完|過夜跑|掛著跑).{0,20}(實作|變更|openspec|opsx)?", "skill": "dhpk:opsx-goal", "label": "unattended OpenSpec goal session" },
     { "pattern": "fix\\s+(mypy|ruff|pytest(-asyncio)?)",                                                                                                                          "skill": "dhpk:adaptive-dev-workflow", "label": "adaptive dev workflow (python build)" },
     { "pattern": "fix\\s+(cargo|rust)\\s+(build|compile|error)",                                                                                                                  "skill": "dhpk:adaptive-dev-workflow", "label": "adaptive dev workflow (rust build)" },
-    { "pattern": "validate\\s+(artifact|skill|agent|command)",                                                                                                                    "skill": "dhpk:verify",         "label": "verification loop" },
     { "pattern": "(^|[^a-z])(bug|bugfix|crash|broken|stack[ -]?trace|exception|failure|fail(s|ed|ing)?|error[ -]?out|regress(ion|ed)?)([^a-z]|$)|修.{0,8}(bug|錯誤|問題|缺陷|異常)", "skill": "dhpk:adaptive-dev-workflow", "label": "adaptive dev workflow (bug)" },
     { "pattern": "(new|add(ing)?|implement(ing)?|build(ing)?|create) +.{0,40}(feature|endpoint|page|action|module|api)|(新增|加上?|寫個?|新做|實作).{0,12}(功能|特性|feature|頁面|端點|api)", "skill": "dhpk:adaptive-dev-workflow", "label": "adaptive dev workflow (feature)" },
     { "pattern": "(code +review|review +(this|the|my)? *(diff|change|patch|pr|code)|quality +check|lint +everything|(程式碼|代碼)\\s*(審查|review)|(審查|review)\\s*.{0,6}(diff|變更|差異|patch|pr|程式碼|代碼))", "skill": "dhpk:review-pending", "label": "manual code review" },
@@ -22,6 +21,6 @@
     { "pattern": "(feasibility|first +principles|estimate +effort|estimate +scope)|(可行性|工時評估|範圍估算)", "skill": "dhpk:feasibility-study","label": "feasibility study" },
     { "pattern": "(risk +(assess|analysis|audit)|blast +radius|impact +analysis)|(風險|影響範圍|blast radius).{0,8}(評估|分析)", "skill": "dhpk:risk-assess",    "label": "risk assessment" },
     { "pattern": "(playwright|write.{0,20}e2e[ -]?(test|spec|suite)|author.{0,20}e2e|e2e[ -]?(journey|flow|test|spec))|(playwright|寫.{0,8}e2e|補.{0,8}e2e|端對端.{0,8}(測試|test))", "skill": "dhpk:post-dev-test",  "label": "E2E test authoring (→ e2e-runner)" },
-    { "pattern": "(verify|verification|run +all +tests?|full +test +run|run +tests?)|(跑.{0,8}測試|執行.{0,8}測試|跑 phpunit)", "skill": "dhpk:verify",         "label": "verification loop" }
+    { "pattern": "(verify|verification|run +all +tests?|full +test +run|run +tests?|validate\\s+(artifact|skill|agent|command))|(跑.{0,8}測試|執行.{0,8}測試|跑 phpunit)", "skill": "dhpk:verify",         "label": "verification loop" }
   ]
 }
