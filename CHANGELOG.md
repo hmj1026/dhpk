@@ -24,6 +24,10 @@ harness cleanup and test coverage additions only.
 
 **chore(config)** — Plugin description and README bilingual sync.
 
+**fix(docs)** — Fixed a pre-existing MD038 markdownlint violation in
+`skills/opsx-load-context/SKILL.md` (space inside a code span) that was
+blocking CI.
+
 ## 0.20.0 — 2026-06-30 — Python/Rust build-resolvers, doc-reviewer absorbs artifact validation, route-table bilingual convergence
 
 Agent count 22 → 24. Artifact-reviewer merged into doc-reviewer (7-slot
