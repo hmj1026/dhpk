@@ -104,4 +104,10 @@ Reply in order: (1) Measure summary (token + 7-category score + counts), (2) Con
 
 Periodic governance: `/loop 7d /harness-govern` (read-only) or let the model self-pace. Use `--fix` only in attended runs.
 
+**Note on stop conditions**: the above is a pure time-based loop, not a goal-based one.
+
+- It re-runs on a fixed interval but carries no success criterion of its own, so it cannot tell "still clean" apart from "drifted, needs `--fix`." Its "safe to /loop" property (see "Mode (loop-safe)" above) is about read-only idempotency, not an adaptive stop signal.
+- For a goal-based loop — one that keeps going until a measurable condition holds, per Claude Code's `/goal` primitive — pair the schedule with a condition drawn from this command's own Step 1/2 output, e.g. "harness-audit's 7-category score has not regressed since the last run AND the Conform checklist has zero new ⚠️ items." A vague condition ("harness looks fine") will not self-verify; one anchored to this command's own deterministic output will.
+- `--fix` stays opt-in even under a goal-based loop — the goal gates *reporting drift*, not auto-mutation.
+
 $ARGUMENTS: `--fix` (apply trim step) | `--scope repo|skills|rules|mcp` (optional focus)
