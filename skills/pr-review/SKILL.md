@@ -1,7 +1,7 @@
 ---
 name: pr-review
 argument-hint: '[--base <branch>]'
-description: 'PR self-review workflow — review changes for correctness/security/perf, produce checklist, scan for unrelated changes in squash merges. Use when reviewing your own branch before opening a PR, after a squash merge needs hygiene check, or when running `/pr-review` command. Includes advisory scan for squash merge unrelated changes per `squash-merge-hygiene` capability.'
+description: 'PR self-review workflow — review changes for correctness/security/perf, produce checklist, scan for unrelated changes in squash merges. Use when reviewing your own branch before opening a PR, after a squash merge needs hygiene check, or when running `/pr-review` command. Not for: single-file code-only review (use `/code-review` or `code-reviewer`), dedicated DB or security audits (use `database-reviewer` / `security-reviewer`), or non-PR exploratory reading (use `code-explore`). Output: review notes + PR checklist + an explicit mergeable / needs-revision gate. Includes advisory scan for squash merge unrelated changes per `squash-merge-hygiene` capability.'
 ---
 
 # pr-review
@@ -92,10 +92,26 @@ backfill 範例：在 `docs/` 之下開一個對應的 refactor 子目錄（命�
 ## Rules Update (if any)
 
 - <proposed patch>
+
+## Gate
+
+✅ Mergeable / ⚠️ Needs revision / ⛔ Block — <one-line justification>
 ```
+
+Per `execution-policy.md` → *Review output gate*, every review reply MUST end with this explicit
+gate: a symbol (✅ / ⚠️ / ⛔), a status word (Mergeable / Needs revision / Block), and a one-line
+justification. The reader sees the verdict first.
+
+## Verification
+
+- [ ] Risk score obtained（High+ 已升級為 `--mode deep`）
+- [ ] 三維度（correctness / security / performance）皆已逐項 audit
+- [ ] squash merge 情境已跑 `check-unrelated-changes.sh` 掃描
+- [ ] 輸出以明確 gate 結尾（✅ Mergeable / ⚠️ Needs revision / ⛔ Block + 一句理由）
 
 ## Rule sources
 
 - `.claude/rules/execution-policy.md` "Git pipeline" — squash merge hard rule
+- `.claude/rules/execution-policy.md` "Review output gate" — the mandatory ✅/⚠️/⛔ verdict
 - 專案內任何 squash-merge-hygiene capability spec（依專案 OpenSpec 命名而定）
 - 專案 `docs/refactor-<area>/squash-<sha>-unrelated-reviews.md` — backfill 範例

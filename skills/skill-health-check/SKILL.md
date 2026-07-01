@@ -1,6 +1,6 @@
 ---
 name: skill-health-check
-description: 'Validate skill quality against routing, progressive loading, and verification criteria. Use when: auditing skills, checking skill health, reviewing skill design. Not for: code review (use codex-code-review) or doc review (use doc-review). Output: health report with per-skill ratings + Gate.'
+description: 'Validate skill quality against routing, progressive loading, and verification criteria. Use when: auditing skills, checking skill health, reviewing skill design. Not for: code review (use codex-code-review) or doc review (use doc-review). Depth split: skill-health-check = structural lint of one skill · skill-judge = deep rubric of one · skill-stocktake = batch-audit of many. Output: health report with per-skill ratings + Gate.'
 allowed-tools: 'Read, Grep, Glob, Bash(node:*), Agent, Task'
 context: fork
 ---

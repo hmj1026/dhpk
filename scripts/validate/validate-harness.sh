@@ -150,14 +150,33 @@ elif ! command -v jq >/dev/null 2>&1; then
     warn "jq 不存在，無法校驗 route-table.json"
 else
     RT_TOTAL=0
-    while IFS= read -r skill; do
+    DUP_WHITELIST="dhpk:adaptive-dev-workflow"  # workflow router: bug/feature/build variants route here by design
+    while IFS=$'\t' read -r pattern skill label; do
         [[ -z "$skill" ]] && continue
         RT_TOTAL=$((RT_TOTAL+1))
         name="${skill#dhpk:}"
-        [[ " $ROUTE_WHITELIST " == *" $name "* ]] && continue
-        [[ -f "$ROOT/commands/$name.md" || -f "$ROOT/skills/$name/SKILL.md" ]] || fail "route-table 指向不存在的 command/skill: $skill (commands/$name.md 或 skills/$name/SKILL.md)"
-    done < <(jq -r '.rules[].skill // empty' "$ROUTE_TABLE" 2>/dev/null)
-    [[ $ERR -eq 0 ]] && ok "route-table $RT_TOTAL 條對映全部存在（whitelist: $ROUTE_WHITELIST）"
+        # (a) target existence — skip only for whitelisted planned-but-unbuilt commands
+        if [[ ! " $ROUTE_WHITELIST " == *" $name "* ]]; then
+            [[ -f "$ROOT/commands/$name.md" || -f "$ROOT/skills/$name/SKILL.md" ]] \
+                || fail "route-table 指向不存在的 command/skill: $skill (commands/$name.md 或 skills/$name/SKILL.md)"
+        fi
+        # (b) pattern must compile as ERE (grep -E is the engine the runtime uses); rc>=2 = regex error
+        probe_rc=0
+        printf 'probe' | grep -E "$pattern" >/dev/null 2>&1 || probe_rc=$?
+        [[ $probe_rc -ge 2 ]] && fail "route-table pattern 無法編譯為 ERE: [$label] $pattern"
+        # (c) bilingual coverage — warn (not fail) on an English-only rule (no CJK / non-ASCII alternation)
+        if ! printf '%s' "$pattern" | LC_ALL=C grep -qE '[^ -~]'; then
+            warn "route-table 規則僅有英文（無中文 alternation）: [$label] $skill"
+        fi
+    done < <(jq -r '.rules[] | [.pattern, .skill, .label] | @tsv' "$ROUTE_TABLE" 2>/dev/null)
+    # (d) unintended duplicate skill target → fail (whitelisted routers may legitimately repeat)
+    while IFS= read -r skill; do
+        [[ -z "$skill" ]] && continue
+        [[ " $DUP_WHITELIST " == *" $skill "* ]] && continue
+        cnt=$(jq -r --arg s "$skill" '[.rules[] | select(.skill==$s)] | length' "$ROUTE_TABLE")
+        fail "route-table 重複 skill target（非預期，考慮合併規則）: $skill ×$cnt"
+    done < <(jq -r '.rules[].skill // empty' "$ROUTE_TABLE" 2>/dev/null | sort | uniq -d)
+    [[ $ERR -eq 0 ]] && ok "route-table $RT_TOTAL 條：target 存在、pattern 可編譯、無非預期重複（dup-whitelist: $DUP_WHITELIST）"
 fi
 
 echo ""

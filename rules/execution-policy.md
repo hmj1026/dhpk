@@ -26,6 +26,19 @@ dhpk's default execution policy for projects that adopt the harness. Resource-la
 
 Determine the workflow type (Small change / Bug / Feature / Architecture) from the user request BEFORE loading heavy references (profiles, scope docs, legacy analysis, investigation scaffolding). Load only the references the chosen workflow needs; expand incrementally if the classification changes. Upfront loading burns context budget on paths not taken. (adaptive-dev-workflow, harness-fill)
 
+### Change classification & OpenSpec routing (SSOT)
+
+Single source of truth for the six change types, their planning step, and whether to ask about OpenSpec. `commands/create-dev.md` and `skills/adaptive-dev-workflow/SKILL.md` route through this table — reference it, do not restate it.
+
+| Change type | OpenSpec ask? | Planning step → path |
+|---|---|---|
+| Bug Fix (unknown root cause) | ✅ ask | `bug-investigation` → y: `/opsx:new` · n: brief plan → patch |
+| Feature Delivery (cross-module / DDD) | ✅ ask | `dhpk:architect` → y: `/opsx:new` · n: brief plan → patch |
+| Feature Delivery (normal) | ✅ ask | y: `/opsx:new` · n: brief plan → patch |
+| Bug Fix (known root cause) | ❌ no | inspect → patch |
+| Medium change | ❌ no | brief plan → patch |
+| Lightweight Maintenance | ❌ no | Read → Edit |
+
 ## Agent dispatch
 
 Agents run via the `Agent` tool (`subagent_type=<name>`), not via skill names.
@@ -60,9 +73,22 @@ Violation: the secondary AI confirms instead of verifying → false consensus th
 
 ## Mandatory post-steps
 
+### Post-implementation agent gate (SSOT)
+
+Every path except Lightweight Maintenance runs these four agents in order after the last Edit/Write; each must PASS before the next. This is the canonical gate — `commands/create-dev.md`, `skills/adaptive-dev-workflow/SKILL.md`, and the opsx-goal flow reference it rather than restating.
+
+| # | Agent | Runs when |
+|---|---|---|
+| 1 | `dhpk:tdd-guide` | bug fix or new feature (before writing implementation) |
+| 2 | `dhpk:database-reviewer` | change touches SQL / database |
+| 3 | `dhpk:security-reviewer` | change touches auth / authz / crypto / money / upload |
+| 4 | `dhpk:code-reviewer` | always — final step after any Edit/Write |
+
+Gate failure → fix → re-run that gate → continue only on PASS. Never skip. (The sentinel machinery below operationalizes gates 2–4; `tdd-guide` has no sentinel — see the AI-judgment back-stop.)
+
 ### Hook-enforced (sentinels)
 
-Trigger map source-of-truth: dhpk's `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/post-edit-dispatch.sh` (5 default slots + the always-on `artifact` slot) plus any per-module post-edit hooks contributed by enabled modules. Each sentinel is cleared by the agent's Closing hook (`clear-sentinel.sh <name> <label>`).
+Trigger map source-of-truth: dhpk's `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/post-edit-dispatch.sh` (7 default slots: code, db, security, frontend, doc, polyfill, migration) plus any per-module post-edit hooks contributed by enabled modules. Each sentinel is cleared by the agent's Closing hook (`clear-sentinel.sh <name> <label>`).
 
 | Sentinel | Required agent | Trigger summary (default; project can extend via `userConfig.review_trigger_extra_paths`) |
 |---|---|---|
@@ -71,7 +97,8 @@ Trigger map source-of-truth: dhpk's `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/post-ed
 | `.pending-db-review` | `database-reviewer` | Repository / migration / model / `*.sql` |
 | `.pending-security-review` | `security-reviewer` | Controllers / config / `*{Auth,Login,Acl,Upload,File}*.php` |
 | `.pending-frontend-review` | `frontend-reviewer` | JS / TS (vendor / ignored paths excluded) |
-| `.pending-migration-review` *(opt-in 6th slot)* | `migration-reviewer` | Migration files (e.g. `**/migrations/**/*.php`) — projects that wire this sentinel in their post-edit hook get migration-specific review on top of the standard db-review |
+| `.pending-polyfill-review` *(library-author module)* | `polyfill-reviewer` | `.php` edits with a runtime version guard (`version_compare` / `class_exists` / `method_exists` / `InstalledVersions::*`) |
+| `.pending-migration-review` *(opt-in slot)* | `migration-reviewer` | Migration files (e.g. `**/migrations/**/*.php`) — projects that wire this sentinel in their post-edit hook get migration-specific review on top of the standard db-review |
 
 Skipped paths: openspec/**, docs/**, plain .md outside .claude/, .claude/{memory,artifacts,worktrees}/. See your hook source for the exact list.
 
@@ -184,3 +211,7 @@ Output: `Conclusion → Changed files → Verification → Risks/Open questions`
 ## Testing
 
 Run the project's standard test suite + browser verify (playwright-cli, manual, or stack-equivalent). For Docker projects: see your `${PHP_CONTAINER:-php}` workflow. Commands per stack live in the matching dhpk module reference (e.g. `modules/phpunit-5.7/references/testing.md`).
+
+## Component-addition gate (new agent / sentinel slot / hook)
+
+Adding a reviewer agent, sentinel slot, or hook is the add-then-remove churn that leaves residue (dead slot tokens, orphan sentinels, drifted counts). Before adding one, document in the relevant INDEX (`agents/INDEX.md`, `skills/INDEX.md`, or the hook's header comment) **why an existing component cannot cover the need** — name the agent/slot/hook considered and the specific gap it leaves. A new component with no recorded justification is rejected in review. Removal is symmetric: in the same change, delete its INDEX row and every reference (slot token, `.pending-*` literal, count claim), so nothing is orphaned — the sentinel-integrity and count guards (`tests/sentinel-slots.test.js`, `scripts/ci/catalog.js`) enforce this mechanically.

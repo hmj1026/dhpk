@@ -77,7 +77,7 @@ COMPACT="<compact_json_path>"
 ```
 
 - Script outputs fields → parse L0, session_goal, completed, in_progress.
-  Set `CONTEXT_SOURCE = "compact JSON"` — append ` (heuristic)` when `$COMPACT`
+  Set `CONTEXT_SOURCE = "compact JSON"` — append `(heuristic)` when `$COMPACT`
   came from the glob fallback rather than the handoff path. Skip Tier 2.
 - No compact file, or the script errors → fall through to Tier 2.
 
