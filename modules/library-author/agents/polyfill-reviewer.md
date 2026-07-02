@@ -129,8 +129,7 @@ confirmations.
    ---
    ```
 3. **Body**：上方 issue 清單格式
-4. **Hook**：`bash ${CLAUDE_PROJECT_DIR}/.claude/hooks/clear-sentinel.sh .pending-polyfill-review polyfill-reviewer`
-   （若 .claude/hooks/ 不存在，改用 `bash ${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh ...`）
+4. **Hook**：`bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" .pending-polyfill-review polyfill-reviewer`
 5. **Retention**：每類最近 30 件，舊的 → `archive/`
 6. **降級**：artifacts 目錄不存在 → stdout-only，不報錯
 

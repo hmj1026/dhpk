@@ -4,6 +4,7 @@ description: 'Expert code review specialist. MANDATORY final step before replyin
 tools: Read, Grep, Glob, Bash, mcp__gitnexus__impact
 model: sonnet
 effort: medium
+maxTurns: 25
 ---
 
 # Code Reviewer
@@ -21,7 +22,7 @@ Final quality gate after every Edit/Write. Stack-aware: detect the project's sta
    - Frameworks: presence of `require.laravel/*`, `require.yiisoft/*`, `dependencies.next`, `dependencies.react`, etc.
    - Swift/iOS: `ls *.xcodeproj *.xcworkspace **/Package.swift 2>/dev/null` — presence ⇒ load the `swift` trap sheet.
    - Active dhpk modules: `printf '%s' "${DHPK_ACTIVE_MODULES:-}"` — feeds the trap-sheet loader below.
-2. **Review the UNCOMMITTED working tree, never committed history:** `git diff --staged` + `git diff HEAD`. Do NOT use `git diff <base>...HEAD`, `git diff main/master/develop...HEAD`, or any merge-base-relative diff — that reviews the whole branch (often hundreds of files) instead of the change at hand, and under a no-auto-commit workflow the actual change sits uncommitted in the working tree. Only if BOTH diffs are empty (clean tree), fall back to `git log --oneline -5` for context — do not review those commits. If a caller's prompt asks for a base-relative diff, prefer the working tree unless they explicitly want a full-branch/PR review.
+2. **Pin scope.** If `.claude/artifacts/sessions/.pending-review` exists, its listed paths (path is the 3rd whitespace-separated field per line — `cut -d' ' -f3-`) are the SOLE scope: diff each individually via `git diff --staged -- <path>` + `git diff HEAD -- <path>`. Skip every other uncommitted/staged file not on that list, even same-extension ones — they belong to a different session's change. If the sentinel is absent (back-stop invocation) or the caller explicitly asks for a full working-tree/PR review, fall back to **reviewing the UNCOMMITTED working tree, never committed history:** `git diff --staged` + `git diff HEAD`. Do NOT use `git diff <base>...HEAD`, `git diff main/master/develop...HEAD`, or any merge-base-relative diff in either case — that reviews the whole branch (often hundreds of files) instead of the change at hand, and under a no-auto-commit workflow the actual change sits uncommitted in the working tree. Only if BOTH fallback diffs are empty (clean tree), fall back to `git log --oneline -5` for context — do not review those commits.
 3. Read full files; trace callers via `cx references --name X`.
 4. Three perspectives: **Reuse → Quality → Efficiency**.
 5. Report only >80%-confidence findings (apply the **Confidence gate** below); merge similar; skip style nits. A zero-finding review is valid.

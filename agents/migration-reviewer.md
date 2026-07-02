@@ -23,6 +23,20 @@ Audits migration files only — typically `**/migrations/**/*.{php,sql}` (Yii / 
 - Engine / charset explicitness
 - Transaction wrapping correctness for the engine in use
 
+## Diff scope
+
+If `.claude/artifacts/sessions/.pending-migration-review` exists, its
+listed paths (path is the 3rd whitespace-separated field per line —
+`cut -d' ' -f3-`) are the SOLE scope: diff each individually via `git diff
+--staged -- <path>` + `git diff HEAD -- <path>`. Skip every other
+uncommitted/staged file not on that list — it belongs to a different
+change. If the sentinel is absent, review the UNCOMMITTED working tree
+restricted to migration paths instead: `git diff --staged --
+'**/migrations/**'` + `git diff HEAD -- '**/migrations/**'` (or the
+project's equivalent path). Never use `git diff <base>...HEAD` /
+merge-base diff — under a no-auto-commit workflow the change sits
+uncommitted; a base-relative diff reviews the whole branch.
+
 ## Stack trap sheet (load on demand)
 
 Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks — never grade a Yii/SQL migration against Core Data rules, or vice-versa.

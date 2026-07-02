@@ -4,7 +4,7 @@ description: 'Deterministic harness trim/dedupe/validate driven by the `harness-
 tools: Read, Grep, Glob, Bash, Edit, Write
 model: sonnet
 effort: low
-maxTurns: 15
+maxTurns: 25
 skills:
     - harness-revise
 ---

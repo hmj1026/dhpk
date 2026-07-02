@@ -39,10 +39,16 @@ edits. Loads the following on demand:
 
 ## Process
 
-1. `git diff --staged -- <frontend-root>/ <view-template-roots>/` +
-   `git diff -- <frontend-root>/ <view-template-roots>/` to pin the scope.
-2. `cat .claude/artifacts/sessions/.pending-frontend-review` for the file
-   list the post-edit hook recorded.
+1. `cat .claude/artifacts/sessions/.pending-frontend-review` (if it exists).
+   Its listed paths (path is the 3rd whitespace-separated field per line —
+   `cut -d' ' -f3-`) are the SOLE scope. Diff each individually:
+   `git diff --staged -- <path>` + `git diff -- <path>`. Skip every other
+   uncommitted/staged file not on that list, even matching-glob ones —
+   they belong to a different session's change.
+2. If the sentinel is absent/empty (back-stop invocation, or an explicit
+   full-review ask), fall back to `git diff --staged -- <frontend-root>/
+   <view-template-roots>/` + `git diff -- <frontend-root>/
+   <view-template-roots>/` to pin the scope instead.
 3. Walk each leaf through the priority tiers below.
 4. Close out: write the artifact + clear the sentinel.
 

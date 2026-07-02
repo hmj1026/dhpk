@@ -116,8 +116,9 @@ Triage out false positives → dispatch the surviving reviewers **in parallel**
   dedups overlapping findings across the parallel results.
 - Pure research / planning (no Edit/Write) skips all reviewers.
 
-The slot-to-agent mapping is `review_agents` userConfig (default 5 in
-v0.2.0+). Re-order or substitute agents per project via that knob.
+The slot-to-agent mapping is `review_agents` userConfig (7-slot default
+since v0.10.0; see `agents/INDEX.md`). Re-order or substitute agents per
+project via that knob.
 
 ---
 

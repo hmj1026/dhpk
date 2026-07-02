@@ -52,13 +52,20 @@ Out of scope:
 
 ## Process
 
-1. Pin scope from the UNCOMMITTED working tree, never committed history:
+1. `cat .claude/artifacts/sessions/.pending-doc-review` (if it exists). Its
+   listed paths (path is the 3rd whitespace-separated field per line —
+   `cut -d' ' -f3-`) are the SOLE scope. Diff each individually:
+   `git diff --staged -- <path>` + `git diff HEAD -- <path>`. Skip every
+   other uncommitted/staged file not on that list, even matching-glob
+   ones — they belong to a different session's change.
+2. If the sentinel is absent/empty (back-stop invocation, or an explicit
+   full-review ask), fall back to pinning scope from the UNCOMMITTED
+   working tree instead, never committed history:
    `git diff --staged -- .claude/ docs/ openspec/` +
    `git diff HEAD -- .claude/ docs/ openspec/`.
-   Do NOT use `git diff <base>...HEAD` / merge-base diff — under a no-auto-commit
-   workflow the doc changes sit uncommitted; a base-relative diff reviews the whole branch.
-2. `cat .claude/artifacts/sessions/.pending-doc-review` for the trigger
-   file list.
+   Do NOT use `git diff <base>...HEAD` / merge-base diff in either case —
+   under a no-auto-commit workflow the doc changes sit uncommitted; a
+   base-relative diff reviews the whole branch.
 3. Walk each file through the four-quadrant checklist below.
 4. Close out: write the artifact + clear the sentinel.
 

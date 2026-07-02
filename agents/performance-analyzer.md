@@ -4,6 +4,7 @@ description: 'Performance specialist. Owns latency / index usage / query count f
 tools: Read, Grep, Glob, Bash, mcp__gitnexus__impact
 model: sonnet
 effort: medium
+maxTurns: 20
 ---
 
 # Performance Analyzer
