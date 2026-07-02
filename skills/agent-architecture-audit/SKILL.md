@@ -229,7 +229,7 @@ Audits should produce structured reports following this shape:
 
 ```json
 {
-  "schema_version": "ecc.agent-architecture-audit.report.v1",
+  "schema_version": "dhpk.agent-architecture-audit.report.v1",
   "executive_verdict": {
     "overall_health": "high_risk",
     "primary_failure_mode": "string",
@@ -260,7 +260,7 @@ Audits should produce structured reports following this shape:
 
 ## Related Skills
 
-> The four ECC skills marked `(not in <your-project>)` are not yet ported to this project. References are kept for upstream parity but invoking them will not match a local skill.
+> The four skills below marked `(not in <your-project>)` are not shipped in this project. References are kept for future portability but invoking them will not match a local skill.
 
 - `agent-introspection-debugging` — Debug agent runtime failures (loops, timeouts, state errors) `(not in <your-project>)`
 - `agent-eval` — Benchmark agent performance head-to-head `(not in <your-project>)`

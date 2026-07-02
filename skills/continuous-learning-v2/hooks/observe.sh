@@ -129,7 +129,7 @@ fi
 
 # shellcheck disable=SC1091
 . "$(dirname "$0")/../scripts/lib/homunculus-dir.sh"
-CONFIG_DIR="$(_ecc_resolve_homunculus_dir)"
+CONFIG_DIR="$(_clv2_resolve_homunculus_dir)"
 
 # Skip if disabled (check both default and CLV2_CONFIG-derived locations)
 if [ -f "$CONFIG_DIR/disabled" ]; then
@@ -140,34 +140,34 @@ if [ -n "${CLV2_CONFIG:-}" ] && [ -f "$(dirname "$CLV2_CONFIG")/disabled" ]; the
 fi
 
 # Prevent observe.sh from firing on non-human sessions to avoid:
-#   - ECC observing its own Haiku observer sessions (self-loop)
-#   - ECC observing other tools' automated sessions
+#   - the harness observing its own Haiku observer sessions (self-loop)
+#   - the harness observing other tools' automated sessions
 #   - automated sessions creating project-scoped homunculus metadata
 
 # Layer 1: entrypoint. Only interactive terminal sessions should continue.
 # sdk-ts: Agent SDK sessions can be human-interactive (e.g. via Happy).
 # Non-interactive SDK automation is still filtered by Layers 2-5 below
-# (ECC_HOOK_PROFILE=minimal, ECC_SKIP_OBSERVE=1, agent_id, path exclusions).
+# (CLV2_HOOK_PROFILE=minimal, CLV2_SKIP_OBSERVE=1, agent_id, path exclusions).
 case "${CLAUDE_CODE_ENTRYPOINT:-cli}" in
   cli|sdk-ts|claude-desktop) ;;
   *) exit 0 ;;
 esac
 
 # Layer 2: minimal hook profile suppresses non-essential hooks.
-[ "${ECC_HOOK_PROFILE:-standard}" = "minimal" ] && exit 0
+[ "${CLV2_HOOK_PROFILE:-standard}" = "minimal" ] && exit 0
 
 # Layer 3: cooperative skip env var for automated sessions.
-[ "${ECC_SKIP_OBSERVE:-0}" = "1" ] && exit 0
+[ "${CLV2_SKIP_OBSERVE:-0}" = "1" ] && exit 0
 
 # Layer 4: subagent sessions are automated by definition.
-_ECC_AGENT_ID=$(echo "$INPUT_JSON" | "$PYTHON_CMD" -c "import json,sys; print(json.load(sys.stdin).get('agent_id',''))" 2>/dev/null || true)
-[ -n "$_ECC_AGENT_ID" ] && exit 0
+_CLV2_AGENT_ID=$(echo "$INPUT_JSON" | "$PYTHON_CMD" -c "import json,sys; print(json.load(sys.stdin).get('agent_id',''))" 2>/dev/null || true)
+[ -n "$_CLV2_AGENT_ID" ] && exit 0
 
 # Layer 5: known observer-session path exclusions.
-_ECC_SKIP_PATHS="${ECC_OBSERVE_SKIP_PATHS:-observer-sessions,.claude-mem}"
+_CLV2_SKIP_PATHS="${CLV2_OBSERVE_SKIP_PATHS:-observer-sessions,.claude-mem}"
 if [ -n "$STDIN_CWD" ]; then
-  IFS=',' read -ra _ECC_SKIP_ARRAY <<< "$_ECC_SKIP_PATHS"
-  for _pattern in "${_ECC_SKIP_ARRAY[@]}"; do
+  IFS=',' read -ra _CLV2_SKIP_ARRAY <<< "$_CLV2_SKIP_PATHS"
+  for _pattern in "${_CLV2_SKIP_ARRAY[@]}"; do
     _pattern="${_pattern#"${_pattern%%[![:space:]]*}"}"
     _pattern="${_pattern%"${_pattern##*[![:space:]]}"}"
     [ -z "$_pattern" ] && continue
@@ -432,7 +432,7 @@ fi
 # Throttle SIGUSR1: only signal observer every N observations (#521)
 # This prevents rapid signaling when tool calls fire every second,
 # which caused runaway parallel Claude analysis processes.
-SIGNAL_EVERY_N="${ECC_OBSERVER_SIGNAL_EVERY_N:-20}"
+SIGNAL_EVERY_N="${CLV2_OBSERVER_SIGNAL_EVERY_N:-20}"
 SIGNAL_COUNTER_FILE="${PROJECT_DIR}/.observer-signal-counter"
 ACTIVITY_FILE="${PROJECT_DIR}/.observer-last-activity"
 

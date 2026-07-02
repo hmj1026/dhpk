@@ -1,6 +1,6 @@
-# opsx-goal — Test-runner detection flags
+# opsx-apply-goal — Test-runner detection flags
 
-Used by Step 4 of the `opsx-goal` skill. Each flag is `true` when at least one
+Used by Step 4 of the `opsx-apply-goal` skill. Each flag is `true` when at least one
 positive signal matches AND no negative override matches.
 
 ## Signal table
@@ -64,7 +64,7 @@ coverage invocation) and `COVERAGE_THRESHOLD` (only when an explicit number is
 stated). Step 6 uses these to enforce the threshold via the runner itself rather
 than a separate coverage tool.
 
-**Operator override (`--min-coverage N`):** opsx-goal's `--min-coverage N` flag
+**Operator override (`--min-coverage N`):** opsx-apply-goal's `--min-coverage N` flag
 forces this gate at threshold `N` even when no native threshold is configured —
 the escape hatch for projects that have a test runner but no coverage config.
 Requires `HAS_TEST=true` (a runner must exist to measure coverage); when set it

@@ -6,7 +6,7 @@ dhpk's default execution policy for projects that adopt the harness. Resource-la
 
 ## Glossary (inline)
 
-- **sentinel**: `.claude/artifacts/sessions/.pending-*` marker file (written by a post-edit hook; cleared by the reviewer's Closing hook via `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh`). Existence check: `find -maxdepth 1 -name '.pending-*' -print 2>/dev/null` (avoids shell-specific `nomatch` behaviour with bare globs). Unrecognized `.pending-*` strays (not in the SSOT — a typo or abandoned custom sentinel) have no clearing agent and would block the opsx-goal `NONE` gate forever; `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/reap-stale-sentinels.sh` surfaces them always and, with `--clear`, removes ones older than the threshold.
+- **sentinel**: `.claude/artifacts/sessions/.pending-*` marker file (written by a post-edit hook; cleared by the reviewer's Closing hook via `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh`). Existence check: `find -maxdepth 1 -name '.pending-*' -print 2>/dev/null` (avoids shell-specific `nomatch` behaviour with bare globs). Unrecognized `.pending-*` strays (not in the SSOT — a typo or abandoned custom sentinel) have no clearing agent and would block the opsx-apply-goal `NONE` gate forever; `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/reap-stale-sentinels.sh` surfaces them always and, with `--clear`, removes ones older than the threshold.
 - **back-stop**: hook pattern did not match but the AI semantically recognises the trigger should fire → AI proactively invokes the matching reviewer (and still clears the sentinel if present).
 - **append-only exemption**: pure additions (not modifying existing symbol body / signature / docblock) may skip `gitnexus_impact` — label the change `append-only — gitnexus_impact skipped`.
 - **reviewer dispatch**: when multiple sentinels coexist, triage out false positives → dispatch the rest **in parallel** → `code-reviewer` merges/dedups (see "Reviewer dispatch").
@@ -36,6 +36,8 @@ Agents run via the `Agent` tool (`subagent_type=<name>`), not via skill names.
 |---|---|---|
 | `tdd-guide` | Feature / bugfix, **before** writing implementation | 1 |
 | `architect` | Cross-module or DDD-layer design | — |
+| `deep-reasoner` | Reasoning-heavy implement-phase work (root cause, algorithm design, complex debugging) — see §Implementation dispatch | — |
+| `fast-worker` | Mechanical implement-phase work with a clear spec — see §Implementation dispatch | — |
 | `database-reviewer` | SQL / Repository / migration (SQL correctness) — sentinel `.pending-db-review` or back-stop | 2 |
 | `migration-reviewer` | Migration files (up/down symmetry, FK naming, large ALTER, multi-tenant deploy) — sentinel `.pending-migration-review` (one of the 7-slot default `review_agents` chain since v0.10.0; the sentinel *trigger* itself stays opt-in via `module.yaml` `migration:` triggers or `review_trigger_extra_paths` `mig:` — see the sentinel table below) | — |
 | `security-reviewer` | Auth / crypto / money / file upload — sentinel `.pending-security-review` or back-stop | 3 |
@@ -55,6 +57,27 @@ Agent names above are dhpk defaults; override via `userConfig.review_agents` per
 
 **Model tier**: reviewers run at their agent-frontmatter default (`doc-reviewer` = haiku, the rest = sonnet). For a **HIGH-risk diff** — `security-reviewer` on auth/crypto/money/upload, or `migration-reviewer` on a multi-tenant schema change against a high-volume table — the orchestrator MAY raise that single dispatch to opus via the `Agent` call's `model` param. Default stays sonnet; escalate by judgment, not by default (cost).
 
+**Configured role models** (`deep-reasoner` / `fast-worker`): `session-start.sh` announces the effective `deep_reasoner_model` / `fast_worker_model` at session start only when they differ from the shipped default (opus / sonnet) — configured via the `deep_reasoner_model` / `fast_worker_model` / `orchestration_dispatch` `userConfig` keys in `.claude-plugin/plugin.json`. When announced, the orchestrator passes that value on the `Agent` call's `model` param for every dispatch of that role; frontmatter is never edited. An invalid configured value (not a model name the running Claude Code supports) triggers one warning per session and the dispatch falls back to the agent's frontmatter default — it never fails the dispatch. The judgment-based HIGH-risk escalation above still applies on top of a configured value and takes precedence for that single dispatch (e.g. a configured `fast_worker_model=haiku` may still be raised to sonnet/opus for one high-risk task).
+
+## Implementation dispatch
+
+SSOT for implement-phase routing while `userConfig.orchestration_dispatch=on` (default). Downstream skills (`feature-dev`, `bug-fix`, `adaptive-dev-workflow`, `opsx-apply-goal`) reference this table — they do not restate it.
+
+| Work shape | Dispatch |
+|---|---|
+| Reasoning-heavy (unknown root cause, algorithm design, cross-file complex analysis) | `deep-reasoner` |
+| Mechanical with a clear spec (boilerplate, test scaffolds, rename sweeps, applying an already-approved plan) | `fast-worker` |
+| Small diff (roughly ≤2 files, unambiguous intent) | Inline in the main loop — no dispatch |
+| Complex implementation (needs both reasoning and mechanical application) | `deep-reasoner` produces the fix spec (conclusion contract) → `fast-worker` applies it |
+
+**`general-purpose` is prohibited for implementation while `orchestration_dispatch=on`.** It carries no dhpk policy context, inherits the main-session model regardless of task cost, and has no defined input/output contract — use `deep-reasoner` / `fast-worker` / inline per the table above instead.
+
+**Gate preservation (edited-file-list back-stop)**: worker dispatch never weakens a gate. `fast-worker` always reports its complete edited-file list (mandatory, even on a failed/escalated attempt — see its agent body). After a dispatch returns, the orchestrator checks for pending sentinels as usual; subagent Edit/Write triggers the same PostToolUse hooks as a main-loop edit in the default Claude Code hook wiring, so sentinels are the common path. If a project setup ever does not fire hooks for subagent tool calls, the orchestrator derives the applicable reviewer gates from the edited-file list instead and runs them — same Post-implementation agent gate either way.
+
+**Kill switch**: `orchestration_dispatch=off` restores pre-change behavior exactly — inline implementation everywhere touched by this policy, no dispatch prohibition, no `opsx-apply-goal` directive line (see that skill's wiring). This is a full opt-out, not a partial degrade.
+
+**`CODEX=on` high-stakes parallel peer path**: for a high-stakes implement-phase design/diagnosis decision, dispatch `deep-reasoner` and the Codex peer in parallel, each blind to the other's findings, per §Multi-AI / dual-perspective independence above — do not feed one side's conclusion into the other's prompt. Default (codex-free) sessions never take this path; `deep-reasoner` alone handles the work.
+
 ## Multi-AI / dual-perspective independence
 
 When a step uses a second AI or a second perspective (Codex, Gemini, or a Claude-vs-Codex/dual-view pass), each side MUST form its own conclusion from the source — never feed Claude's findings, verdict, or theory into the secondary prompt.
@@ -69,7 +92,7 @@ Violation: the secondary AI confirms instead of verifying → false consensus th
 
 ### Post-implementation agent gate (SSOT)
 
-Every path except Lightweight Maintenance runs the four **Gate order** agents above (`tdd-guide → database-reviewer → security-reviewer → code-reviewer`) in order after the last Edit/Write; each must PASS before the next. This is the canonical gate — `commands/create-dev.md`, `skills/adaptive-dev-workflow/SKILL.md`, and the opsx-goal flow reference it rather than restating.
+Every path except Lightweight Maintenance runs the four **Gate order** agents above (`tdd-guide → database-reviewer → security-reviewer → code-reviewer`) in order after the last Edit/Write; each must PASS before the next. This is the canonical gate — `commands/create-dev.md`, `skills/adaptive-dev-workflow/SKILL.md`, and the opsx-apply-goal flow reference it rather than restating.
 
 Gate failure → fix → re-run that gate → continue only on PASS. Never skip. (The sentinel machinery below operationalizes gates 2–4; `tdd-guide` has no sentinel — see the AI-judgment back-stop.)
 
@@ -80,14 +103,14 @@ Trigger map source-of-truth: dhpk's `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/post-ed
 | Sentinel | Required agent | Trigger summary (default; project can extend via `userConfig.review_trigger_extra_paths`) |
 |---|---|---|
 | `.pending-review` | `code-reviewer` | `*.php` / `*.js` / `**/CLAUDE.md` |
-| `.pending-doc-review` | `doc-reviewer` | `.claude/{agents,rules,commands,hooks,scripts,skills,manifests}/**/*.{md,sh,json,yml,yaml}` — covers both frontmatter schema (name/model/tools) for `.md` DSL artifacts AND cross-file SSOT / link-validity |
+| `.pending-doc-review` | `doc-reviewer` | `.md` files under `.claude/{agents,rules,commands,hooks,scripts,skills,manifests}/`, `openspec/`, or `docs/`; `CLAUDE.md` / `AGENTS.md` (any depth); top-level `README*.md` only — covers both frontmatter schema (name/model/tools) for `.md` DSL artifacts AND cross-file SSOT / link-validity |
 | `.pending-db-review` | `database-reviewer` | Repository / migration / model / `*.sql` |
 | `.pending-security-review` | `security-reviewer` | Controllers / config / `*{Auth,Login,Acl,Upload,File}*.php` |
 | `.pending-frontend-review` | `frontend-reviewer` | JS / TS (vendor / ignored paths excluded) |
 | `.pending-polyfill-review` *(library-author module)* | `polyfill-reviewer` | `.php` edits with a runtime version guard (`version_compare` / `class_exists` / `method_exists` / `InstalledVersions::*`) |
 | `.pending-migration-review` *(opt-in trigger)* | `migration-reviewer` | Migration files (e.g. `**/migrations/**/*.php`) — projects that wire this sentinel in their post-edit hook get migration-specific review on top of the standard db-review |
 
-Skipped paths: openspec/**, docs/**, plain .md outside .claude/, .claude/{memory,artifacts,worktrees}/. See your hook source for the exact list.
+Skipped paths: `.claude/artifacts/**` is exempt from ALL 7 slots via an unconditional early hook exit that runs before any slot logic (self-edits by review agents would otherwise re-trigger themselves). For doc-review specifically, a `.md` file is skipped UNLESS it is under `.claude/{agents,rules,commands,hooks,scripts,skills,manifests}/`, `openspec/`, or `docs/`, or is named `CLAUDE.md` / `AGENTS.md` (any depth), or is a top-level `README*.md` (nested READMEs excluded) — so `.claude/{memory,worktrees}/**` and any other `.md` file outside that list is skipped for doc-review. This does NOT exempt `.claude/{memory,worktrees}/**` from every slot: the hook's generic extension/keyword defaults (code-reviewer on `*.php`/`*.js`/etc., db-reviewer on `*.sql`, security-reviewer on `*Auth*`/`*Login*`/etc.) match on filename alone with no path restriction, so e.g. a `.php` file under `.claude/worktrees/` (a real git-worktree-checkout location) still routes normally. See your hook source for the exact list.
 
 ### Reviewer dispatch (when multiple sentinels coexist)
 
@@ -130,7 +153,7 @@ Semantically matches but path pattern did not trigger a sentinel → self-trigge
 >
 > **When to upgrade to hook**: once a project accumulates ≥3 missed-review cases (feature shipped to prod), or view-layer JS bug ratio significantly exceeds the JS-file leaf ratio, then add path+content grep to the hook. Until then, AI judgment.
 >
-> **`tdd-guide` has no sentinel.** `.pending-tdd` is never written by any hook (tdd-guide is pre-edit, not post-edit), so it is reached only via the back-stop above or an explicit pre-implementation invocation — it is **not** auto-enforced by the `opsx-goal` universal `ls .pending-*` gate. For unattended `opsx-goal` runs, new-code testing is enforced as an *outcome* by the **coverage gate** when the project has a coverage threshold configured (see `skills/opsx-goal/references/detection.md` `HAS_COVERAGE`); where no threshold exists, tests-first must be carried by the change's tasks/plan (authored via `feature-dev`), not assumed from the sentinel gate.
+> **`tdd-guide` has no sentinel.** `.pending-tdd` is never written by any hook (tdd-guide is pre-edit, not post-edit), so it is reached only via the back-stop above or an explicit pre-implementation invocation — it is **not** auto-enforced by the `opsx-apply-goal` universal `ls .pending-*` gate. For unattended `opsx-apply-goal` runs, new-code testing is enforced as an *outcome* by the **coverage gate** when the project has a coverage threshold configured (see `skills/opsx-apply-goal/references/detection.md` `HAS_COVERAGE`); where no threshold exists, tests-first must be carried by the change's tasks/plan (authored via `feature-dev`), not assumed from the sentinel gate.
 
 ## Pre-plan checklist (Feature / Bug)
 

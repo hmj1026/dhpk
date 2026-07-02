@@ -8,6 +8,8 @@
 #   4. Activate modules (CLAUDE_PLUGIN_OPTION_MODULES): parse module.yaml, validate requires,
 #      print activation line, export DHPK_ACTIVE_MODULES for downstream hooks
 #   5. Honour CLAUDE_PLUGIN_OPTION_HOOK_PROFILE={minimal|standard|strict}; strict adds docker WARN lines
+#   6. Announce orchestration worker model tiers (CLAUDE_PLUGIN_OPTION_DEEP_REASONER_MODEL /
+#      _FAST_WORKER_MODEL / _ORCHESTRATION_DISPATCH) — only when non-default
 
 set -o pipefail
 
@@ -149,6 +151,19 @@ EOF
 echo "[session-start] branch=$BRANCH docker=$DOCKER_STATUS profile=$PROFILE modules=${ACTIVE_MODULES:-none}"
 [ -n "$MODULE_LINES" ] && echo "$MODULE_LINES" | sed '/^$/d'
 [ -n "$DOCKER_WARNS" ] && echo "[session-start] strict-profile warnings:$DOCKER_WARNS"
+
+# ---- Orchestration worker config (deep-reasoner / fast-worker model tiers) ----
+# Announce only when at least one value differs from the shipped default, or the
+# dispatch switch is off — token discipline (silent on the common all-defaults case).
+DEEP_MODEL="${CLAUDE_PLUGIN_OPTION_DEEP_REASONER_MODEL:-opus}"
+WORKER_MODEL="${CLAUDE_PLUGIN_OPTION_FAST_WORKER_MODEL:-sonnet}"
+DISPATCH="${CLAUDE_PLUGIN_OPTION_ORCHESTRATION_DISPATCH:-on}"
+if [ "$DEEP_MODEL" != "opus" ] || [ "$WORKER_MODEL" != "sonnet" ] || [ "$DISPATCH" != "on" ]; then
+    _orch_line="orchestration: deep=$DEEP_MODEL worker=$WORKER_MODEL"
+    [ "$DISPATCH" != "on" ] && _orch_line="${_orch_line} dispatch=off"
+    echo "[session-start] $_orch_line"
+    unset _orch_line
+fi
 
 # ---- Cross-session learned context (opt-in via learning_db_enabled) ----
 # Surface the top recurring signatures so the model starts the session aware of

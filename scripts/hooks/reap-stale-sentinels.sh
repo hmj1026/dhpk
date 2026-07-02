@@ -85,7 +85,7 @@ done
 
 # ---- Unknown-stray pass: .pending-* files NOT in the SSOT ----
 # These have no clearing agent (clear-sentinel.sh rejects unknown names by
-# whitelist), so an orphan here blocks the opsx-goal `ls .pending-* == NONE`
+# whitelist), so an orphan here blocks the opsx-apply-goal `ls .pending-* == NONE`
 # gate forever. Surface ALWAYS (age is irrelevant to visibility when nothing
 # can ever clear it); with --clear, remove only those older than the threshold
 # (a fresh one may be a legit project-custom sentinel created mid-session).

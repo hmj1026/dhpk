@@ -1,21 +1,31 @@
 #!/usr/bin/env bash
-# One-shot migration from the legacy Claude config tree into the
-# continuous-learning-v2 data directory.
+# One-shot migration from legacy continuous-learning-v2 data directories
+# (the original ~/.claude/homunculus tree, or the interim ecc-homunculus
+# location) into the current dhpk-homunculus data directory.
 set -euo pipefail
-
-OLD="${HOME}/.claude/homunculus"
 
 # shellcheck disable=SC1091
 . "$(dirname "$0")/lib/homunculus-dir.sh"
-NEW="$(_ecc_resolve_homunculus_dir)"
+NEW="$(_clv2_resolve_homunculus_dir)"
 
-if [ "$NEW" = "$OLD" ]; then
-  echo "Resolved destination equals source ($OLD); nothing to migrate."
-  exit 0
+LEGACY_CANDIDATES=("${HOME}/.claude/homunculus")
+if [ -n "${XDG_DATA_HOME:-}" ]; then
+  case "$XDG_DATA_HOME" in
+    /*) LEGACY_CANDIDATES+=("${XDG_DATA_HOME}/ecc-homunculus") ;;
+  esac
 fi
+LEGACY_CANDIDATES+=("${HOME}/.local/share/ecc-homunculus")
 
-if [ ! -d "$OLD" ]; then
-  echo "Nothing to migrate (no $OLD)."
+OLD=""
+for candidate in "${LEGACY_CANDIDATES[@]}"; do
+  if [ "$candidate" != "$NEW" ] && [ -d "$candidate" ]; then
+    OLD="$candidate"
+    break
+  fi
+done
+
+if [ -z "$OLD" ]; then
+  echo "Nothing to migrate (checked: ${LEGACY_CANDIDATES[*]})."
   exit 0
 fi
 
@@ -50,7 +60,7 @@ fi
 
 settings="${HOME}/.claude/settings.json"
 if [ -f "$settings" ] && grep -q '"CLV2_CONFIG"' "$settings" 2>/dev/null; then
-  if grep -q '\.claude/homunculus' "$settings" 2>/dev/null; then
+  if grep -qE '\.claude/homunculus|ecc-homunculus' "$settings" 2>/dev/null; then
     cat >&2 <<WARN
 
 Advisory: ~/.claude/settings.json still sets CLV2_CONFIG under the old path.

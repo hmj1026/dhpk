@@ -54,9 +54,10 @@ opts = (
 )
 if not isinstance(opts, dict):
     sys.exit(0)
-# Known userConfig keys (mirrors .claude-plugin/plugin.json userConfig).
-# Unknown keys are still exported so plugin.json additions Just Work without
-# requiring a loader update.
+# Known userConfig keys (mirrors .claude-plugin/plugin.json userConfig, e.g.
+# hook_profile, modules, review_agents, deep_reasoner_model, fast_worker_model,
+# orchestration_dispatch). Unknown keys are still exported so plugin.json
+# additions Just Work without requiring a loader update.
 for key, val in opts.items():
     if not isinstance(key, str) or not key.replace("_", "").isalnum():
         continue

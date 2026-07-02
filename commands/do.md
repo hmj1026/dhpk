@@ -65,7 +65,7 @@ to decide the codex flag.
   - `git status --porcelain` non-empty → dirty worktree (a "are we done?" /
     "收尾" request likely means `dhpk:verify` or `dhpk:review-pending`).
   - `ls openspec/changes/ 2>/dev/null` shows an active change → a "finish it" /
-    "跑完它" request likely means `dhpk:opsx-goal` (unattended) or `/opsx:apply`.
+    "跑完它" request likely means `dhpk:opsx-apply-goal` (unattended) or `/opsx:apply`.
   - test config / build config present → verification-class intent is plausible.
 
   Then classify the request yourself and pick the single best-fit dhpk command,
@@ -78,7 +78,7 @@ to decide the codex flag.
   here),
   `dhpk:code-explore`, `dhpk:review-pending`, `dhpk:security-review`,
   `dhpk:project-audit`, `dhpk:simplify`, `dhpk:tech-spec`, `dhpk:risk-assess`,
-  `dhpk:deploy-list`, `dhpk:feasibility-study`, `dhpk:verify`, `dhpk:opsx-goal`,
+  `dhpk:deploy-list`, `dhpk:feasibility-study`, `dhpk:verify`, `dhpk:opsx-apply-goal`,
   `dhpk:create-pr`, `dhpk:smart-commit`. If nothing fits, say so and ask one
   clarifying question instead of guessing.
 - **`NO_QUERY`** → ask the user what they want to do; do not route.

@@ -11,7 +11,7 @@ Front door for behavioral-spec extraction. This command does **not** mine inline
 ## When to use
 
 - Onboarding an existing project to spec-driven development ("mine specs", "extract specs from the codebase", "萃取規格").
-- A module's existing behavior needs documenting as OpenSpec baseline truth before `opsx-goal` / `/opsx:apply` changes can reference it.
+- A module's existing behavior needs documenting as OpenSpec baseline truth before `opsx-apply-goal` / `/opsx:apply` changes can reference it.
 
 ## Steps
 
