@@ -1,6 +1,6 @@
 # Agents Index (dhpk plugin)
 
-> 24 agents shipped by the dhpk plugin (23 root-level + `polyfill-reviewer` under `modules/library-author/agents/`). Discovered as `dhpk:<name>` after install. The full list also appears in `plugin.json`.
+> 26 agents shipped by the dhpk plugin (25 root-level + `polyfill-reviewer` under `modules/library-author/agents/`). Discovered as `dhpk:<name>` after install. The full list also appears in `plugin.json`.
 
 ## Sentinel-driven reviewer dispatch (7-slot default, v0.10.0+)
 
@@ -20,6 +20,21 @@ Agent names are overridable via `userConfig.review_agents` — a project can poi
 **Opt-in triggers, not opt-in slots:** [polyfill-reviewer](../modules/library-author/agents/polyfill-reviewer.md) (module-shipped, below) and [migration-reviewer](migration-reviewer.md) are both default `review_agents` slots, but — like `frontend-reviewer` — their sentinel only fires when a trigger is separately wired (polyfill: `library-author` module hook; migration: a project's `module.yaml` `migration:` triggers or `review_trigger_extra_paths` `mig:`). See [migration-reviewer](migration-reviewer.md) and the Module-shipped agents section below for detail.
 
 **Doc slot (always-on):** `doc-reviewer` covers both frontmatter schema validation and cross-file SSOT / link-validity checks via a single `.pending-doc-review` sentinel — no separate artifact slot needed.
+
+## Implementation workers
+
+Not sentinel-driven — dispatched during the implement phase per the `rules/execution-policy.md` §Implementation dispatch decision table (SSOT; not restated here), while `userConfig.orchestration_dispatch=on` (default). Their edits still flow through the normal post-edit hook / sentinel machinery and remain subject to the full post-implementation review gate above.
+
+| Agent | Model (default) | Role |
+|-------|-------|----------------|
+| [deep-reasoner](deep-reasoner.md) | opus | Read-only reasoning worker — root-cause analysis, algorithm design, complex debugging, design synthesis. Returns a conclusion contract (conclusion + `file:line` evidence + next actions); defers DDD/cross-module design to `architect` |
+| [fast-worker](fast-worker.md) | sonnet | Write-capable mechanical implementer — executes a precise task spec (files + change intent + verification command), surgical edits only, reports pass/fail + edited-file list, escalates on ambiguous specs |
+
+Role models are configurable per project via `userConfig.deep_reasoner_model` / `userConfig.fast_worker_model` (see "Configured role models" under `rules/execution-policy.md` §Agent dispatch) — frontmatter above shows the shipped default, not necessarily the effective value.
+
+**Component-addition-gate justification** (why neither existing agent covers this need, per the "Component-addition gate" rule in `rules/execution-policy.md`):
+- `general-purpose` cannot cover it: no dhpk policy context, inherits the main-session model (cost misallocation when the orchestrator is a top-tier model and the task is mechanical), no defined input/output contract for gate enforcement.
+- `architect` cannot cover it: design-domain-scoped (DDD layering, cross-module ADRs) with a design-review posture — stretching it to general debugging/mechanical-implementation work would blur its trigger conditions and INDEX contract. `deep-reasoner` explicitly defers to `architect` for that domain rather than competing with it.
 
 ## Situational
 
@@ -63,8 +78,8 @@ Agent names are overridable via `userConfig.review_agents` — a project can poi
 
 ## Models
 
-- **opus**: architect, spec-miner (low-frequency, high-impact, deep reasoning)
-- **sonnet**: reviewers, tdd-guide, refactor, ui-ux, harness (daily-driver)
+- **opus**: architect, spec-miner, deep-reasoner (low-frequency, high-impact, deep reasoning)
+- **sonnet**: reviewers, tdd-guide, refactor, ui-ux, harness, fast-worker (daily-driver)
 - **haiku**: doc-updater, docs-lookup, doc-reviewer (high-frequency, templated, cost-first)
 
 ## maxTurns (safety-net caps)

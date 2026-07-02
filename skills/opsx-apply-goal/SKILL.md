@@ -124,16 +124,34 @@ and sentinel-clearance turns.
 
 ## Step 6 — Build goal condition string
 
+Read `DISPATCH_ON` = `${CLAUDE_PLUGIN_OPTION_ORCHESTRATION_DISPATCH:-on}` —
+true unless the value is exactly `off`.
+
 Compose `GOAL_CONDITION` by joining the following parts with `,\n`.
 
 **Part 0 (always, first — kickoff instruction):** this is what makes the
 single-paste design work — `/goal` acts on this text immediately, so the
 first thing Claude reads must be the action to take, not just the stop
-condition:
+condition.
+
+`DISPATCH_ON=false` (`orchestration_dispatch=off`) — byte-identical to
+pre-change output, no dispatch clause:
 ```
 Invoke the opsx:apply skill for change <CHANGE_ID> and continue implementing
 openspec/changes/<CHANGE_ID>/tasks.md from the first unchecked item without
 stopping for confirmation, until all of the following hold,
+```
+
+`DISPATCH_ON=true` (default) — the same kickoff with one dispatch directive
+appended before the transition into the stop conditions:
+```
+Invoke the opsx:apply skill for change <CHANGE_ID> and continue implementing
+openspec/changes/<CHANGE_ID>/tasks.md from the first unchecked item without
+stopping for confirmation. Dispatch implementation per
+rules/execution-policy.md §Implementation dispatch: dhpk:deep-reasoner for
+reasoning-heavy work, dhpk:fast-worker for mechanical work with a clear spec,
+inline for small diffs — never general-purpose. Continue until all of the
+following hold,
 ```
 
 **Part 1 (always):**
@@ -254,10 +272,17 @@ after this:
 • /goal resets on /new or /clear — re-run this command in the new session
 • Sentinel check is self-calibrating: the goal satisfies when ls outputs
   NONE, regardless of which reviewers fired during implementation
+• Worker dispatch (dhpk:deep-reasoner / dhpk:fast-worker, when
+  orchestration_dispatch=on) does not change the sentinel gate: fast-worker
+  edits converge through the same universal `ls .pending-*` check in Part 2 —
+  no separate check is added or needed for worker-produced edits
 • Haiku evaluator reads the conversation only — Claude must explicitly paste
   the ls output and test results into conversation for evaluation to work
 • Combine with /auto mode for a fully unattended goal loop
 • Turn budget ran out: /goal clear, then re-run with --turns N
+  — worker dispatch shifts turn consumption (fewer main-loop implement turns,
+  more dispatch/collect turns); the formula above is unchanged this release,
+  so re-tune with --turns N if the default misfits under dispatch
 • --max-duration ran out: same recovery — /goal clear, then re-run
 ```
 
@@ -306,6 +331,9 @@ This session will NOT auto-run /goal or opsx:apply.
 - [ ] Block B `/goal` string is entirely in English
 - [ ] Block B `/goal` string opens with the Part 0 opsx:apply kickoff sentence
       before the stop conditions — single paste, no separate STEP 3
+- [ ] Part 0 dispatch clause: present (deep-reasoner/fast-worker/inline/never
+      general-purpose) when `DISPATCH_ON=true`; absent — Part 0 byte-identical
+      to pre-change output — when `orchestration_dispatch=off`
 - [ ] Sentinel check in Part 2 uses `ls .claude/artifacts/sessions/.pending-*` (not reviewer names)
 - [ ] Non-automatable tasks appear in Block A warning, NOT in Part 3
 - [ ] `--max-duration` set → Part 4 has the wall-clock line; absent → no such line

@@ -3,7 +3,7 @@
   "name": "dhpk",
   "displayName": "DHPK Dev Harness",
   "version": "0.21.0",
-  "description": "Reusable Claude Code harness — 24 role-based agents (incl. the Swift/Xcode build-resolver, the silent-failure-hunter error-handling auditor, and Python/Rust build-resolvers) + ~73 commands + opt-in stack modules across PHP (5.6, 7.4, 8.x), Yii (1.1), PHPUnit (5.7, 9, 10, 11), Laravel (5.4, 6–11), JS, Vue 2, Laravel Mix 5, Python (python lint/type-check hooks, fastapi, pytest), the library-author cross-cutting module, and an iOS/Swift suite (swift, swiftui, ios-platform, swift-testing, xcode-tooling) with SwiftLint post-edit + xcodebuild/SPM pre-commit hooks, a Swift 6.2 approachable-concurrency reference, and an ios-icon-gen skill. 7-slot sentinel-driven review hooks (code / db / sec / frontend / doc / polyfill / migration — polyfill via library-author, migration via module triggers or mig: extra paths; doc-reviewer covers both SSOT/link-validity and frontmatter schema for .md DSL artifacts), parameterised docker/agent names, wrapper-dispatch hook extension model, parallel Codex CLI tree.",
+  "description": "Reusable Claude Code harness — 26 role-based agents (incl. the Swift/Xcode build-resolver, the silent-failure-hunter error-handling auditor, and Python/Rust build-resolvers) + ~73 commands + opt-in stack modules across PHP (5.6, 7.4, 8.x), Yii (1.1), PHPUnit (5.7, 9, 10, 11), Laravel (5.4, 6–11), JS, Vue 2, Laravel Mix 5, Python (python lint/type-check hooks, fastapi, pytest), the library-author cross-cutting module, and an iOS/Swift suite (swift, swiftui, ios-platform, swift-testing, xcode-tooling) with SwiftLint post-edit + xcodebuild/SPM pre-commit hooks, a Swift 6.2 approachable-concurrency reference, and an ios-icon-gen skill. 7-slot sentinel-driven review hooks (code / db / sec / frontend / doc / polyfill / migration — polyfill via library-author, migration via module triggers or mig: extra paths; doc-reviewer covers both SSOT/link-validity and frontmatter schema for .md DSL artifacts), parameterised docker/agent names, wrapper-dispatch hook extension model, parallel Codex CLI tree.",
   "author": {
     "name": "hmj1026",
     "url": "https://github.com/hmj1026"
@@ -46,10 +46,12 @@
     "./agents/architect.md",
     "./agents/code-reviewer.md",
     "./agents/database-reviewer.md",
+    "./agents/deep-reasoner.md",
     "./agents/doc-reviewer.md",
     "./agents/doc-updater.md",
     "./agents/docs-lookup.md",
     "./agents/e2e-runner.md",
+    "./agents/fast-worker.md",
     "./agents/frontend-reviewer.md",
     "./agents/harness-reviser.md",
     "./agents/migration-reviewer.md",
@@ -83,6 +85,24 @@
       "title": "Review agent names",
       "description": "Seven agents invoked by sentinel reminders (slots: code, database, security, frontend, doc, polyfill, migration). Override to point at project-specific agents. Shorter overrides are padded with the defaults for the remaining slots.",
       "default": ["code-reviewer", "database-reviewer", "security-reviewer", "frontend-reviewer", "doc-reviewer", "polyfill-reviewer", "migration-reviewer"]
+    },
+    "deep_reasoner_model": {
+      "type": "string",
+      "title": "deep-reasoner model",
+      "description": "Model tier for dhpk:deep-reasoner Agent-call dispatches (see \"Configured role models\" under rules/execution-policy.md §Agent dispatch) — applied per dispatch via the Agent call `model` param when it differs from the agent's frontmatter default. Valid values: at minimum haiku | sonnet | opus (whatever the running Claude Code version supports). An invalid value warns once per session and falls back to the frontmatter default; it never fails the dispatch. Default 'opus' (the shipped frontmatter default).",
+      "default": "opus"
+    },
+    "fast_worker_model": {
+      "type": "string",
+      "title": "fast-worker model",
+      "description": "Model tier for dhpk:fast-worker Agent-call dispatches (see \"Configured role models\" under rules/execution-policy.md §Agent dispatch). Same validation/fallback behavior as deep_reasoner_model. Default 'sonnet' (the shipped frontmatter default).",
+      "default": "sonnet"
+    },
+    "orchestration_dispatch": {
+      "type": "string",
+      "title": "Implementation dispatch switch",
+      "description": "'on' (default) routes implement-phase work through the Implementation dispatch decision table in rules/execution-policy.md — deep-reasoner for reasoning-heavy work, fast-worker for mechanical work with a clear spec, inline for small (~2-file) diffs; dispatching general-purpose for implementation is prohibited while this is on. 'off' is a full kill switch restoring pre-change behavior exactly: inline implementation, no dispatch prohibition, no opsx-apply-goal directive line.",
+      "default": "on"
     },
     "docker_containers": {
       "type": "string",

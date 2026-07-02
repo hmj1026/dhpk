@@ -44,7 +44,7 @@ Every Codex step below has a codex-free substitute (all already shipped):
 | Step | Codex-free (default) | `--codex` |
 |------|----------------------|-----------|
 | Design / architecture | inline design (optionally dispatch `architect` agent) | `/codex-architect` |
-| Implement | write code directly (TDD) | `/codex-implement` |
+| Implement | dispatch per `execution-policy` §Implementation dispatch (TDD); small diff inline | `/codex-implement` |
 | Test adequacy | `/check-coverage` (+ `/post-dev-test` for integration/e2e gaps) | `/codex-test-review` |
 | Test generation | write tests, guided by `tdd-guide` agent | `/codex-test-gen` |
 | Code review | `/review-pending` (→ `code-reviewer` agent) | `/codex-review-fast` |

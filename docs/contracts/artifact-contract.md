@@ -65,4 +65,4 @@ If `.claude/artifacts/` (or the specific category subdirectory) does not exist, 
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" <sentinel-name> <agent-name>
 ```
 
-N/A for agents not in the sentinel review chain (`doc-updater`, `harness-reviser`, `tdd-guide`, `type-design-analyzer`, `architect`, `agent-evaluator`, `refactor-cleaner`, `e2e-runner`, `performance-analyzer`, `spec-miner`) — those either have no sentinel slot or are triggered by explicit invocation / a back-stop, not a `.pending-*` sentinel.
+N/A for agents not in the sentinel review chain (`doc-updater`, `harness-reviser`, `tdd-guide`, `type-design-analyzer`, `architect`, `agent-evaluator`, `refactor-cleaner`, `e2e-runner`, `performance-analyzer`, `spec-miner`, `deep-reasoner`, `fast-worker`) — those either have no sentinel slot or are triggered by explicit invocation / a back-stop, not a `.pending-*` sentinel.
