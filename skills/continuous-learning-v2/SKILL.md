@@ -1,7 +1,6 @@
 ---
 name: continuous-learning-v2
 description: 'Instinct-based learning system that observes Claude Code sessions via hooks, mints atomic confidence-scored instincts, and evolves them into skills/commands/agents with project-scoped isolation. Use when: setting up session learning, tuning confidence thresholds, reviewing/exporting/importing instincts, evolving instincts into skills, or managing project-scoped vs global scope. Not for: one-off coding tasks, hand-authoring a specific skill (use create-skill), or code review. Output: confidence-scored instinct files, scope/promotion decisions, and evolved skill/command/agent artifacts.'
-origin: ECC
 version: 2.1.0
 ---
 
@@ -77,7 +76,7 @@ The system creates directories automatically on first use, but you can also crea
 
 ```bash
 # Global directories
-mkdir -p "${XDG_DATA_HOME:-$HOME/.local/share}/ecc-homunculus"/{instincts/{personal,inherited},evolved/{agents,skills,commands},projects}
+mkdir -p "${XDG_DATA_HOME:-$HOME/.local/share}/dhpk-homunculus"/{instincts/{personal,inherited},evolved/{agents,skills,commands},projects}
 
 # Project directories are auto-created when the hook first runs in a git repo
 ```
@@ -128,9 +127,9 @@ Helper scripts live in this skill's `scripts/` directory.
 
 ### `migrate-homunculus.sh`
 
-- **Purpose**: One-time migration of legacy data from `~/.claude/homunculus` to the new `ecc-homunculus` data directory (see `references/storage-and-config.md`).
+- **Purpose**: One-time migration of legacy data from `~/.claude/homunculus` (or the interim `ecc-homunculus` location) to the current `dhpk-homunculus` data directory (see `references/storage-and-config.md`).
 - **Usage**: `bash skills/continuous-learning-v2/scripts/migrate-homunculus.sh`
-- **Inputs**: legacy `~/.claude/homunculus` tree; honors `CLV2_HOMUNCULUS_DIR` / `XDG_DATA_HOME` for the destination.
+- **Inputs**: legacy `~/.claude/homunculus` or `ecc-homunculus` tree; honors `CLV2_HOMUNCULUS_DIR` / `XDG_DATA_HOME` for the destination.
 - **Outputs**: migrated instincts/observations under the resolved data directory.
 - **Exit codes**: `0` on success or when nothing to migrate; non-zero on copy failure.
 
@@ -146,7 +145,7 @@ Helper scripts live in this skill's `scripts/` directory.
 ## Verification
 
 - `/instinct-status` lists newly created instincts with their confidence scores.
-- New instinct files exist under `${XDG_DATA_HOME:-~/.local/share}/ecc-homunculus/projects/<hash>/instincts/personal/`.
+- New instinct files exist under `${XDG_DATA_HOME:-~/.local/share}/dhpk-homunculus/projects/<hash>/instincts/personal/`.
 - Observations grow: `projects/<hash>/observations.jsonl` gains lines after tool calls (confirms hooks fire).
 - `config.json` `observer.enabled` reflects the intended state.
 - Unit tests pass: `pytest skills/continuous-learning-v2/scripts/test_parse_instinct.py`.
@@ -161,7 +160,6 @@ Helper scripts live in this skill's `scripts/` directory.
 
 ## Related
 
-- [ECC-Tools GitHub App](https://github.com/apps/ecc-tools) - Generate instincts from repo history
 - Homunculus - Community project that inspired the v2 instinct-based architecture (atomic observations, confidence scoring, instinct evolution pipeline)
 - [The Longform Guide](https://x.com/affaanmustafa/status/2014040193557471352) - Continuous learning section
 

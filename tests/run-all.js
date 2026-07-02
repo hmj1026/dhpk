@@ -3,7 +3,7 @@
 
 // Discover and run every tests/**/*.test.js in its own node process, aggregate
 // results. Git env vars are stripped so test subprocesses never accidentally
-// operate on the harness's own repo state (mirrors ECC's run-all).
+// operate on the harness's own repo state.
 
 const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');

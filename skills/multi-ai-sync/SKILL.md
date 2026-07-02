@@ -1,6 +1,6 @@
 ---
 name: multi-ai-sync
-description: 'Compare and synchronize Claude-first agent configuration across Codex, Gemini, and Antigravity (.agent). Includes a pre-sync compliance gate (harness-adapter-compliance.js, 60% threshold) and post-sync Gemini frontmatter translation (gemini-adapt-agents.js). Generate read-only plans, create OpenSpec tasks, apply safe sync changes with dry-run preview and writable-path fallback, and validate post-sync results. Use when aligning `.claude` skills, commands, hooks, agents, or orchestration rules to other AI platforms, when comparing multi-platform agent setup drift, or when preparing a Claude-to-Codex/Gemini/.agent migration. Also matches requests such as `sync claude to codex`, `align multi-platform AI config`, `同步 claude 技能到 codex`, or `對齊多 AI 設定`. Not for single-platform edits, reverse sync, or missing `.claude` source.'
+description: 'Compare and synchronize Claude-first agent configuration across Codex, Gemini, and Antigravity (.agent). Includes a pre-sync smoke gate (multi_ai_sync.py self-test) and post-sync Gemini frontmatter translation (gemini-adapt-agents.js). Generate read-only plans, create OpenSpec tasks, apply safe sync changes with dry-run preview and writable-path fallback, and validate post-sync results. Use when aligning `.claude` skills, commands, hooks, agents, or orchestration rules to other AI platforms, when comparing multi-platform agent setup drift, or when preparing a Claude-to-Codex/Gemini/.agent migration. Also matches requests such as `sync claude to codex`, `align multi-platform AI config`, `同步 claude 技能到 codex`, or `對齊多 AI 設定`. Not for single-platform edits, reverse sync, or missing `.claude` source.'
 ---
 
 # Multi AI Sync (Claude First)
@@ -51,26 +51,21 @@ test -w .codex/skills || echo ".codex/skills not writable; will fallback"
 
 **重點：** 必須清楚記錄 Preflight 檢查的通過/失敗狀態。
 
-### Phase 0: Pre-Sync Compliance Gate（必要）
+### Phase 0: Pre-Sync Smoke Gate（必要）
 
-在進入差異計畫前，先對 `.codex/` 與 `.gemini/` 各跑一次 compliance 評分，作為「是否值得花時間 sync」的客觀門檻。
+在進入差異計畫前，先跑一次內建自測，作為「同步工具鏈本身是否健康」的客觀門檻（converter/regression 測試，見 Scripts 結構）。
 
 ```bash
-# Score both adapter directories using the 7-dimension rubric (harness-audit.js engine).
-# Default threshold is 60% of max_score.
-node .claude/scripts/harness-adapter-compliance.js --target codex  --format json > /tmp/sync-codex-compliance.json
-node .claude/scripts/harness-adapter-compliance.js --target gemini --format json > /tmp/sync-gemini-compliance.json
+python3 -B .codex/skills/multi-ai-sync/scripts/multi_ai_sync.py self-test --format markdown
 ```
-
-讀取兩支 JSON 的 `passes_threshold` 與 `score_pct`：
 
 | 結果 | 動作 |
 |---|---|
-| 兩者皆 `passes_threshold: true` | 繼續 Step 1（顯示分數摘要） |
-| 任一為 `false` | **halt**：印出該 target 的 `top_actions[]`、`failed_checks[]` 摘要、與「<target> compliance <score_pct>% below threshold 60%」訊息 |
-| 用戶以 `--force` 觸發 | 警告 `WARNING: compliance below threshold, --force in effect` 後繼續 |
+| self-test 通過 | 繼續 Step 1 |
+| self-test 失敗 | **halt**：印出失敗案例摘要 |
+| 用戶以 `--force` 觸發 | 警告 `WARNING: self-test failing, --force in effect` 後繼續 |
 
-**Asset profile manifest 參考**：哪些 asset 該 sync 由 `.claude/manifests/triple-platform.json` 宣告（profile = `triple` / `claude-only` / `codex-only` / `gemini-only` / `skip-incompatible`）。Plan 階段必須讀取此 manifest，並只把 `triple` profile 列入比對。
+**Asset 是否該 sync 的判定**：由 `mapping.py` 的 `category_supported()` / `evaluate_mapping()` 依目標平台能力動態判定（equivalent / adapted / skip-incompatible），規則摘要見 `references/platform-mapping.md`。Plan 階段（Step 1）的輸出已包含這個判定結果，不需另外的 profile manifest。
 
 ### Step 1: 產生差異計畫（只讀）
 
@@ -182,7 +177,7 @@ PY
 在 sync 寫入 `.gemini/agents/` 之後、進入最後驗證 Gate 之前，自動翻譯 frontmatter 為 Gemini CLI 認識的格式。
 
 ```bash
-node .claude/scripts/gemini-adapt-agents.js .gemini/agents
+node "${CLAUDE_PLUGIN_ROOT}/scripts/gemini-adapt-agents.js" .gemini/agents
 ```
 
 腳本行為：

@@ -428,6 +428,36 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"
 
 預設以 symlink（或用 `--copy` 複製）把插件的 `codex/{skills,agents}` 連到專案的 `.codex/`。具冪等性 — 插件版本 bump 後可用 `--update` 重跑。雙 harness 模型詳見 `codex/AGENTS.md` 與 `codex/README.md`。
 
+### Codex Plugin Marketplace（實驗性）
+
+dhpk 也提供 Codex plugin manifest（`.codex-plugin/plugin.json` + `plugins/dhpk/` 下的精簡 marketplace-target wrapper），讓 Codex CLI 自己的 plugin marketplace 可以原生探索並安裝 `codex/skills/` 鏡像。有兩種安裝方式：
+
+**方式 A — 交給 AI 執行。** 在 Codex CLI 對話中貼上：
+
+```text
+請把 hmj1026/dhpk 加入 Codex plugin marketplace 來源，安裝其中的 dhpk
+plugin，並確認已列在已安裝清單中。執行：
+  codex plugin marketplace add hmj1026/dhpk
+  codex plugin add dhpk@dhpk
+  codex plugin list
+回報 codex plugin list 的結果，並檢查 codex/skills/ 的內容是否真的解析
+進安裝的 plugin cache 內 —— Codex 有一個已知的上游問題
+（openai/codex#26037），透過 marketplace-target wrapper 引用的 skill
+有時不會被複製進 runtime cache。
+```
+
+**方式 B — 自己手動執行指令：**
+
+```bash
+codex plugin marketplace add hmj1026/dhpk   # 或開發時用本機路徑
+codex plugin add dhpk@dhpk
+codex plugin list
+```
+
+> **Plugin mode 目前在 Codex 上仍屬實驗性 / 不穩定**（已對照 `codex-cli 0.142.5` 驗證）。Marketplace 探索與安裝可以正常運作，但從本機/repo marketplace 載入 skill 在上游仍不穩定（見 [openai/codex#26037](https://github.com/openai/codex/issues/26037)）。目前唯一穩定可用的路徑仍是上面的 `install-codex-skills.sh` — marketplace manifest 是額外補充，並非取代。
+
+詳見 `.codex-plugin/README.md` 與 `plugins/dhpk/README.md`。
+
 ## 遷移現有專案
 
 若專案已有自己的 `.claude/` harness，請依分階段計畫進行：
@@ -475,6 +505,11 @@ dhpk/
 │   ├── AGENTS.md                 # Codex 專屬指引
 │   ├── README.md                 # 如何同步進專案
 │   ├── skills/、agents/、config.toml.example
+├── .codex-plugin/plugin.json     # Codex plugin manifest（marketplace 可安裝，實驗性）
+├── plugins/dhpk/                 # 精簡 marketplace-target wrapper（openai/codex#26037）
+│   ├── .codex-plugin/plugin.json
+│   ├── README.md
+├── .agents/plugins/marketplace.json  # repo-scoped Codex marketplace descriptor
 ├── manifests/install-profiles.json  # 精選模組組合
 ├── docs/design/bootstrap-dhpk-plugin/  # 原始設計檔案（proposal/design/tasks/specs）
 ├── README.md、README.zh-TW.md、CHANGELOG.md、LICENSE、.gitignore

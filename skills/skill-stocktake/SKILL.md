@@ -1,7 +1,6 @@
 ---
 name: skill-stocktake
 description: 'Batch-audit installed Claude skills and commands for quality, overlap, and staleness via subagent evaluation. Use when: auditing many skills at once, periodic stocktake, Quick Scan or Full Stocktake mode. Not for: linting one skill''s structure (use skill-health-check), a deep rubric grade of one skill (use skill-judge), authoring (use create-skill). Depth split: skill-health-check = structural lint of one skill · skill-judge = deep rubric of one · skill-stocktake = batch-audit of many. Output: per-skill verdict table (Keep/Improve/Retire/Merge) + results.json.'
-origin: ECC
 allowed-tools: 'Read, Grep, Glob, Bash, Agent, WebSearch'
 ---
 
@@ -210,6 +209,6 @@ Obtain via Bash: `date -u +%Y-%m-%dT%H:%M:%SZ`. Never use a date-only approximat
 
 ## Notes
 
-- Evaluation is blind: the same checklist applies to all skills regardless of origin (ECC, self-authored, auto-extracted)
+- Evaluation is blind: the same checklist applies to all skills regardless of origin (ported, self-authored, auto-extracted)
 - Archive / delete operations always require explicit user confirmation
 - No verdict branching by skill origin

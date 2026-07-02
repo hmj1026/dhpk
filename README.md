@@ -431,6 +431,44 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"
 
 Symlinks (default) or copies (`--copy`) the plugin's `codex/{skills,agents}` into the project's `.codex/`. Idempotent — re-run with `--update` after a plugin version bump. See `codex/AGENTS.md` and `codex/README.md` for the dual-harness model.
 
+### Codex Plugin Marketplace (experimental)
+
+dhpk also ships a Codex plugin manifest (`.codex-plugin/plugin.json` + a thin
+marketplace-target wrapper at `plugins/dhpk/`) so Codex CLI's own plugin
+marketplace can discover and install the `codex/skills/` mirror natively.
+Two ways to install it:
+
+**Option A — let the agent do it.** Paste this into a Codex CLI session:
+
+```text
+Add hmj1026/dhpk as a Codex plugin marketplace source, install the dhpk
+plugin from it, then verify it's listed as installed. Run:
+  codex plugin marketplace add hmj1026/dhpk
+  codex plugin add dhpk@dhpk
+  codex plugin list
+Report back what codex plugin list shows, and check whether the codex/skills/
+content actually resolved inside the installed plugin cache — Codex has a
+known upstream issue (openai/codex#26037) where skills referenced via a
+marketplace-target wrapper sometimes don't get copied into the runtime cache.
+```
+
+**Option B — run the commands yourself:**
+
+```bash
+codex plugin marketplace add hmj1026/dhpk   # or a local path while developing
+codex plugin add dhpk@dhpk
+codex plugin list
+```
+
+> **Plugin mode is currently experimental / fragile on Codex** (verified
+> against `codex-cli 0.142.5`). Marketplace discovery and install work, but
+> runtime skill loading from local/repo marketplaces is unreliable upstream
+> ([openai/codex#26037](https://github.com/openai/codex/issues/26037)). The
+> supported, fully-working path remains `install-codex-skills.sh` above — the
+> marketplace manifest is additive, not a replacement.
+
+See `.codex-plugin/README.md` and `plugins/dhpk/README.md` for details.
+
 ## Migrating an existing project
 
 If the project already has its own `.claude/` harness, follow the phased plan:
@@ -479,6 +517,11 @@ dhpk/
 │   ├── AGENTS.md                 # Codex-specific guidance
 │   ├── README.md                 # how to sync into a project
 │   ├── skills/, agents/, config.toml.example
+├── .codex-plugin/plugin.json     # Codex plugin manifest (marketplace-installable, experimental)
+├── plugins/dhpk/                 # thin marketplace-target wrapper (openai/codex#26037)
+│   ├── .codex-plugin/plugin.json
+│   ├── README.md
+├── .agents/plugins/marketplace.json  # repo-scoped Codex marketplace descriptor
 ├── manifests/install-profiles.json  # curated module bundles
 ├── docs/design/bootstrap-dhpk-plugin/  # original design archive (proposal/design/tasks/specs)
 ├── README.md, README.zh-TW.md, CHANGELOG.md, LICENSE, .gitignore
