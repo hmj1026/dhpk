@@ -15,7 +15,7 @@ OpenSpec 是**可選的外部整合**——若需要 OpenSpec 工作流指令，
 | `python3` | 啟用 `modules` 時為必要 | 在 `post-edit-remind` 與 `session-start` 中解析 `module.yaml` |
 | `jq` | 選用（有 python3 後援） | 較快的 JSON payload 擷取 |
 | `docker` | 選用 | 僅在 `userConfig.docker_containers` 非空時會被使用 |
-| Codex MCP server | 選用 | 僅在你使用 14 個 `codex-*` skill 時才需要（需另行安裝） |
+| Codex MCP server | 選用 | 僅在你使用 6 個 `codex-*` skill 或啟用 `CODEX=on` 時才需要——來自另一個 OpenAI 發布的獨立 Claude Code plugin，見 [`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕) |
 | Codex CLI 執行檔 | 選用 | 僅在執行 `install-codex-skills.sh` 且希望 Codex 真正載入同步內容時才需要 |
 | `cx` CLI | 選用 | 語意化程式碼導覽。`rules/tool-routing.md` 將 `cx overview` / `cx definition` / `cx references` 列為首選工具；6 個 reviewer agent 與 `harness-fill` skill 會引用。未安裝時 → 降級為 `Grep` / `Read`。 |
 | `gitnexus` MCP server | 選用 | 知識圖譜查詢（`gitnexus_impact`、`gitnexus_rename`、`gitnexus_detect_changes`）。6 個 `gitnexus-*` skill 以及 `rules/execution-policy.md` 的 self-check 會用到。未安裝時 → 降級為 `cx` 或 `Grep`。 |
@@ -27,86 +27,14 @@ OpenSpec 是**可選的外部整合**——若需要 OpenSpec 工作流指令，
 
 ## 安裝
 
-dhpk 遵循 [Claude Code plugin 標準發布模式](https://docs.claude.com/en/docs/claude-code/plugins)：同一份 marketplace + manifest 可從**兩個入口**使用，依你的習慣挑一個即可：
-
-- **Terminal** — `claude plugin marketplace add …` / `claude plugin install …`
-- **Claude Code session 內** — `/plugin marketplace add …` / `/plugin install …`（或 `/plugin` 互動式瀏覽器）
-
-兩個入口都讀同一份 `.claude-plugin/marketplace.json`，結果一致。
-
-### Path A — 從 GitHub 安裝（推薦）
-
-不用 clone。一般使用者的最短路徑。
+dhpk 遵循 [Claude Code plugin 標準發布模式](https://docs.claude.com/en/docs/claude-code/plugins)。最快的路徑（不用 clone）：
 
 ```bash
-# Terminal
 claude plugin marketplace add hmj1026/dhpk
-claude plugin install dhpk@dhpk
+claude plugin install dhpk@dhpk --config modules=php-8.x,laravel-11 --config hook_profile=standard
 ```
 
-```text
-# …或在 Claude Code 內
-/plugin marketplace add hmj1026/dhpk
-/plugin install dhpk@dhpk
-```
-
-要在安裝時就帶入設定，加 `--config`（若你想之後用 `/dhpk:setup` 互動回答就跳過）：
-
-```bash
-claude plugin install dhpk@dhpk \
-  --config modules=php-8.x,laravel-11,phpunit-11,library-author \
-  --config docker_containers=php-fpm,mysql \
-  --config hook_profile=standard
-```
-
-要鎖定特定版本，後面接版本號：`claude plugin install dhpk@dhpk@v0.6.0`。可用技術棧／版本列在 `manifests/module-catalog.json`（SSOT）；精選組合在 `manifests/install-profiles.json`。Docker 前置須知請見 [`docs/docker-setup.md`](./docs/docker-setup.md)。
-
-安裝後，可隨時在 Claude Code 內重新設定：
-
-```text
-/dhpk:setup           # 重跑同一份問答
-/dhpk:setup --show    # 印出目前生效設定
-```
-
-### Path B — 本地 clone + 互動安裝精靈
-
-如果你想要在 Claude 之外有 shell 安裝精靈，或本來就會改 plugin 原始碼，走這條。**必須先 `git clone`**，因為精靈腳本在 repo 裡。
-
-```bash
-git clone https://github.com/hmj1026/dhpk ~/projects/dhpk
-claude plugin marketplace add ~/projects/dhpk
-bash ~/projects/dhpk/scripts/install.sh        # 互動（gum / python3 fallback）
-```
-
-精靈會帶你選技術棧／版本、設定 docker 前置條件、覆寫 review agent、選 hook profile，最後幫你執行 `claude plugin install`。加 `--dry-run` 只印出組好的指令、不實際執行。
-
-任何時候都可以驗證 local checkout：
-
-```bash
-claude plugin validate ~/projects/dhpk --strict
-```
-
-要邊改 plugin 原始碼邊看效果（不走 install/reinstall 迴圈），請見 [§ 開發](#開發)。
-
-### 更新／移除
-
-```bash
-claude plugin update dhpk              # 從 marketplace 拉最新版
-claude plugin uninstall dhpk           # 移除 plugin
-claude plugin marketplace remove dhpk  # 忘記 marketplace 註冊
-```
-
-在 Claude Code 內也可以用 `/plugin update dhpk`、`/plugin uninstall dhpk`、`/plugin marketplace remove dhpk`。
-
-### Troubleshooting
-
-| 症狀 | 可能原因 | 解法 |
-|---|---|---|
-| `marketplace add` 說路徑不存在 | 你走 Path B 但沒先 clone | 先跑 `git clone https://github.com/hmj1026/dhpk ~/projects/dhpk`，或直接改用 Path A（不用 clone） |
-| `claude plugin install dhpk@dhpk` 找不到 marketplace | `marketplace add` 沒跑過，或已被移除 | 重跑你那條路徑的 `marketplace add` 指令 |
-| 裝完但 `/dhpk:*` 命令或 hooks 沒出現 | session 在安裝完成前就讀過 skill list | 在 Claude Code 內 `/reload-plugins`，或重啟 session |
-| `claude plugin list` 看到 dhpk 但 `/dhpk:setup` 不存在 | plugin 裝起來但停用了 | `claude plugin enable dhpk`（或 `/plugin enable dhpk`） |
-| `install.sh` 抱怨找不到 `gum` / `jq` | 互動 UI 的選用依賴沒裝 | 腳本會自動 fallback 到純 shell / `python3`，想要更好看可裝 `gum` 與 `jq`，不裝也能用 |
+安裝後隨時可用 `/dhpk:setup` 重新設定（或 `/dhpk:setup --show` 印出目前生效設定）。完整安裝路徑（GitHub vs. 本地 clone）、更新／移除、疑難排解請見 **[`docs/basic-operations.zh-TW.md`](./docs/basic-operations.zh-TW.md)**。完整 `--config` 旋鈕參考見 **[`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md)**。
 
 ## 你會得到什麼
 
@@ -123,178 +51,41 @@ claude plugin marketplace remove dhpk  # 忘記 marketplace 註冊
 
 ## 常見工作流
 
-所有功能都能透過 `/dhpk:do` 進入——一個接收自然語言任務描述、並路由到正確 skill 的單一入口。以下範例說明輸入指令後實際發生的事。
-
-### 1. 新功能開發
+所有功能都能透過 `/dhpk:do` 進入——一個接收自然語言任務描述、並路由到正確 skill 的單一入口：新功能開發、修 bug、自動 post-edit review 循環、提交與 PR、無人值守 OpenSpec session、萃取規格、E2E 測試撰寫、harness 健康檢測，以及 Implementation dispatch（推理密集工作 → `deep-reasoner`，機械式工作 → `fast-worker`）。每項的完整說明與範例見 **[`docs/basic-operations.zh-TW.md`](./docs/basic-operations.zh-TW.md)**。
 
 ```text
-/dhpk:do implement a password-reset email flow
+/dhpk:do implement a password-reset email flow   # 新功能（TDD + review gate）
+/dhpk:do fix the login redirect loop              # 修 bug（根因證據 + 回歸測試）
+/dhpk:review-pending                              # 立即觸發待處理的 reviewer
+/dhpk:smart-commit && /dhpk:create-pr             # 提交 + 建 PR
+/harness-audit                                    # harness 健康評分
 ```
-
-Smart Router 匹配「implement … feature」→ `dhpk:adaptive-dev-workflow` → **Feature Delivery** 路徑。該 skill 載入 TDD guide，執行 RED→GREEN→REFACTOR 循環，最後以 code-review 與 security gate 收尾。每次寫檔後，post-edit hook 自動投下 sentinel；Stop hook 在 session 結束時提醒尚未清除的 reviewer。
-
-### 2. 修 Bug
-
-```text
-/dhpk:do fix the login redirect loop
-```
-
-匹配「fix … bug」→ `dhpk:adaptive-dev-workflow` → **Bug Investigation & Fix**：先確認根因證據、撰寫回歸測試，通過 RED gate 後才動手修。
-
-### 3. 程式碼 review 循環（自動）
-
-不需要任何指令。每次編輯檔案後，hook 自動：
-
-1. 為各相關 reviewer slot（code / db / sec / frontend / doc）投下 `.pending-*` sentinel
-2. 在 Stop 時提醒並行派發 reviewer
-3. sentinel 存在時，`git commit` 前會發出警告（可透過 `sentinel_commit_gate` 設定：`warn` / `block` / `off`）
-
-若想立即觸發而不等 Stop：`/dhpk:review-pending`
-
-### 4. 提交與建立 PR
-
-```text
-/dhpk:smart-commit        # 暫存變更檔案、產生 conventional commit 訊息、跑 pre-commit gate
-/dhpk:create-pr           # 從分支 commit log 草擬 PR 標題與摘要
-```
-
-或用自然語言：
-
-```text
-/dhpk:do 幫我提交並建立 PR
-```
-
-### 5. 無人值守 OpenSpec session
-
-適用於需要長時間執行、不需人在旁監看的變更實作——產生單一一段 `/goal` 指令（已內嵌 `/opsx:apply` 啟動指示），貼到新 session 即可執行：
-
-```text
-/dhpk:opsx-apply-goal my-change-id --max-duration 2h
-```
-
-加上 `--min-coverage 80` 可強制套用覆蓋率門檻，即使專案本身沒有原生的覆蓋率設定。
-
-### 6. 從現有程式碼萃取規格
-
-將現有模組的行為需求萃取為 `openspec/specs/<capability>/spec.md`（棕地專案導入規格驅動開發的起點）：
-
-```text
-/dhpk:spec-mine user-authentication
-```
-
-委派給 `spec-miner`（Opus）agent。省略 capability 名稱會顯示提示清單讓你選擇。
-
-### 7. E2E 測試撰寫
-
-```text
-/dhpk:do write E2E tests for the checkout flow
-```
-
-路由到 `dhpk:post-dev-test`，委派 `e2e-runner` agent 負責 Playwright 測試套件撰寫。
-
-### 8. Harness 健康檢測與修復
-
-harness-* 工具家族各自負責不同面向——請依需求選用正確工具：
-
-| 指令 / Skill | 負責面向 | 是否修改檔案 |
-|---|---|---|
-| `/harness-audit` | 確定性 7 大分類評分 | 否 |
-| `dhpk:harness-budget` | Context window token 用量統計 | 否 |
-| `dhpk:claude-health` | `.claude/` 設定健康、命名、plugin 同步 | 否 |
-| `/harness-govern` | 端到端 measure → conform → fix → verify 循環 | 否（加 `--fix` 才套用修改） |
-| `dhpk:harness-revise` | 精簡、去重、驗證（G1–G13 gap 分類） | 是 |
-| `dhpk:harness-fill` | 補齊缺失的 `.claude/` 基礎設施 | 是 |
-
-**典型流程：**
-
-```text
-# 1. 快速診斷——看看哪裡有問題
-/harness-audit
-
-# 2. 檢查 context window 用量（token 預算）
-/dhpk:harness-budget
-
-# 3. 端到端治理循環（預設唯讀）
-/harness-govern
-
-# 4. 套用修復（精簡、去重、驗證）
-/harness-govern --fix
-
-# 5. 若 .claude/ 缺少 skills/agents/rules（新專案導入）
-/dhpk:harness-fill
-```
-
-`/harness-govern` 是單一入口：依序執行 `/harness-audit`（評分）→ conform（最佳實踐對齊）→ `/harness-revise`（修復，僅在加 `--fix` 時）→ 驗證。可以 `/loop /harness-govern` 持續監控。
 
 ---
 
 ## userConfig
 
-三十一個旋鈕，全部可在安裝時用 `--config <key>=<value>` 設定：
-
-| Key | 預設值 | 用途 |
-|-----|--------|------|
-| `hook_profile` | `standard` | `minimal` 抑制 Stop 提醒；`strict` 增加額外警告 |
-| `review_agents` | `["code-reviewer","database-reviewer","security-reviewer","frontend-reviewer","doc-reviewer","polyfill-reviewer","migration-reviewer"]` | 被 sentinel 提醒呼叫的 7 個 agent（slot：code、db、sec、frontend、doc、polyfill、migration）。可覆寫指向你專案特定的 agent；較短的覆寫會以預設值補齊其餘 slot。（slot 5–6 僅在 opt-in 時觸發——polyfill 由 `library-author`，migration 由模組 triggers 或 `mig:` 額外路徑。） |
-| `docker_containers` | `[]` | 在 SessionStart 檢查的 container 名稱。空陣列代表停用該檢查。第一筆會輸出為 `DHPK_PHP_CONTAINER`；第二筆為 `DHPK_MYSQL_CONTAINER`。 |
-| `modules` | `[]` | 要啟用的技術棧模組。內附 27 個：`php-5.6`、`php-7.4`、`php-8.x`、`yii-1.1`、`phpunit-5.7`、`phpunit-9`、`phpunit-10`、`phpunit-11`、`laravel-5.4`、`laravel-6`、`laravel-7`、`laravel-8`、`laravel-9`、`laravel-10`、`laravel-11`、`js`、`vue-2`、`laravel-mix`、`python`、`fastapi`、`pytest`、`library-author`、`swift`、`swiftui`、`ios-platform`、`swift-testing`、`xcode-tooling`。啟用 `python` 會掛上 post-edit ruff hook（在 Stop 批次執行）+ pre-commit 的 ruff/format/型別檢查（pyright\|mypy）gate（專案根目錄以向上尋找 `pyproject.toml` 自動偵測；子目錄後端可設 `python_project_roots=backend`）；`fastapi` / `pytest` 為 skills+refs，且各自 `requires: python`。模組的 `requires:` 在 SessionStart 驗證（僅警告、不阻擋）。專案層級的 `.claude/settings.local.json` `pluginConfigs.dhpk@dhpk.options.modules` 可**覆寫**全域值——讓單台開發機同時服務不同技術棧的多個專案。 |
-| `review_trigger_extra_paths` | `[]` | 每個 reviewer slot 的額外路徑前綴。格式：`<slot>:<prefix>`，slot 屬於 `code\|db\|sec\|fe\|doc\|mig`。例：`code:protected/`、`fe:resources/views/`、`mig:db/migrate/`。 |
-| `hot_tables` | `[]` | 專案特定的高流量資料表名稱，`performance-analyzer` 與 `migration-reviewer` 會視為高風險（大型 ALTER 停機、N+1、缺複合索引）。留空則退回 agent 的通用啟發式 + CLAUDE.md。例：`orders`、`order_lines`、`inventory`。 |
-| `reap_stale_mcp_processes` | `false` | 設 `true` 時，SessionStart 只 reap **孤兒** `gitnexus mcp` process（parent session 已死／reparent 到 init）—絕不殺仍被平行 live session 持有的 process。僅 gitnexus MCP 使用者需要。 |
-| `js_lint_script` | `"lint"` | `js` 模組 pre-commit gate 執行的 npm script 名稱。 |
-| `js_typecheck_script` | `"typecheck"` | `js` 模組 pre-commit gate 執行的 npm script 名稱。 |
-| `js_check_path` | `"js/"` | `/ts-check-status` 掃描 `// @ts-check` 推進度時的路徑。 |
-| `sentinel_commit_gate` | `"warn"` | `warn` \| `block` \| `off` — 在 reviewer sentinel 存在時對 `git commit/merge/rebase/cherry-pick` 設閘門。可用 `DHPK_SENTINEL_COMMIT_GATE` 單次覆寫。 |
-| `branch_safety` | `"warn"` | `warn` \| `block` \| `off` — 在受保護分支上對破壞歷史的 git 操作（`commit/merge/rebase/cherry-pick/reset/push`）設閘門。可用 `DHPK_BRANCH_SAFETY` 單次覆寫。 |
-| `protected_branches` | `["main","master","develop","release/*","hotfix/*"]` | `branch_safety` 檢查的分支 glob 清單，使用 bash `case` glob 語法。 |
-| `skill_hint_enabled` | `true` | 是否由 UserPromptSubmit hook 印出一行 route-table skill 提示。可用 `DHPK_DISABLE_SKILL_HINT=1`（單次）或設此值為 `false`（持久）關閉。 |
-| `learning_db_enabled` | `false` | （v0.6.0）啟用 `.claude/artifacts/learning.jsonl` 作業訊號儲存庫（reviewer 通過 / subagent 失敗 / 異常停止）。在 SessionStart 以 `[learned-context]` 區塊呈現。 |
-| `graduation_scan_enabled` | `false` | （v0.6.0）啟用 Stop hook，掃描 session transcript 中被引用的 auto-memory 條目，並起草 `graduation-candidates.md` 升階提案。 |
-| `lockfile_sync_commands` | `[]` | （v0.10.0）async PostToolUse manifest-guard 提醒的各 manifest lock-sync 指令，格式 `<manifest>:<command>`（例 `composer.json:docker exec -i my_php composer update --lock`）。未列出的 manifest 退回通用預設。指令不可含逗號。 |
-| `php_bin` | `"php"` | （v0.10.0）`php-5.6` 模組 async `php -l` post-edit 語法檢查所用的 PHP 執行檔／wrapper（例 `docker exec -i my_php php`）；第一個 word 不在 PATH 時自動跳過。 |
-| `completion_evidence_enabled` | `false` | （v0.10.0）Stop advisory：assistant 宣稱完成、但工作目錄有 code 變更卻無對應 test 變更時警告（純 doc／harness 變更豁免；有 active sentinel 時讓位）。單次 `DHPK_COMPLETION_EVIDENCE=1/0`。 |
-| `agent_warmstart_enabled` | `false` | （v0.10.0）PreToolUse（Task\|Agent）hook，將 parent session context（active sentinels + reviewer slots、當前 OpenSpec change + tasks、`.claude/warmstart-context.md`、tool-routing 提醒；≤2000 字元）注入 subagent prompt。單次 `DHPK_AGENT_WARMSTART=1/0`。 |
-| `harness_restore_hint` | `""` | （v0.10.0）SessionStart 斷鏈 symlink advisory 印出的還原指令（適用以 symlink 從另一 repo 部署 harness 的專案）。留空則只印 WARN、不印提示行。 |
-| `js_frontend_roots` | `[]` | （v0.10.0）`js` 模組 tier 偵測的專案覆寫——掃描第一方 JS/TS 的根目錄。留空回退 `modules/js/module.yaml`（預設 `[js, src]`）。 |
-| `js_core_files` | `[]` | （v0.10.0）專案覆寫——frontend root 根目錄下屬於第一方 entry bundle（受 lint）而非 vendor 的 basename。留空回退 `module.yaml`。 |
-| `js_vendor_globs` | `[]` | （v0.10.0）專案覆寫——視為 vendored（任何深度都跳過 lint）的 glob 路徑前綴，例 `js/ckeditor/`、`js/jquery-*`。glob 不可含逗號。留空回退 `module.yaml`。 |
-| `swiftlint_bin` | `"swiftlint"` | （v0.7.0）`xcode-tooling` post-edit SwiftLint hook 使用的執行檔；不存在時自動跳過。 |
-| `xcode_scheme` | `""` | （v0.7.0）`xcode-tooling` pre-commit build gate 使用的 scheme；留空則跳過 gate（不猜測 scheme）。 |
-| `xcode_destination` | `""` | （v0.7.0）pre-commit gate 測試步驟的 `-destination`；留空則自動挑選第一個可用模擬器（build 步驟一律使用不含裝置名稱的 generic destination）。 |
-| `swift_build_skip_tests` | `false` | （v0.7.0）設 `true` 時，Swift pre-commit gate 只 build、不跑測試（無 `xcodebuild test` / `swift test`）。 |
-| `php_cs_fixer_bin` | `"vendor/bin/php-cs-fixer"` | `php-7.4` 模組 post-edit php-cs-fixer hook 與 pre-commit gate 使用的執行檔。 |
-| `phpstan_bin` | `"vendor/bin/phpstan"` | `php-7.4` 模組 pre-commit gate 使用的 PHPStan 執行檔。 |
-| `psalm_bin` | `"vendor/bin/psalm"` | `php-7.4` 模組 pre-commit gate 使用的 Psalm 執行檔。 |
-
-範例：
+40 個旋鈕，全部可在安裝時用 `--config <key>=<value>` 設定，也可隨時用 `/dhpk:setup` 重新設定。完整參考（每個旋鈕在哪裡設定、所有選項、專案層級覆寫語法）見 **[`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md)**。
 
 ```bash
-# 以預設值純安裝（7-slot 預設 agent 名稱）。
-claude plugin install dhpk@dhpk
-
-# 舊版 PHP/Yii + JS 全端專案。
 claude plugin install dhpk@dhpk \
-  --config modules=php-5.6,yii-1.1,phpunit-5.7,js \
+  --config modules=php-7.4,php-8.x,laravel-6,laravel-11,phpunit-9,library-author \
   --config docker_containers=php-fpm,mysql \
-  --config review_agents=code-reviewer-myproj,db-reviewer-myproj,sec-reviewer-myproj,fe-reviewer-myproj,doc-reviewer-myproj
-
-# 橫跨 Laravel 6–11 的現代 PHP 套件函式庫（含 polyfill review）。
-claude plugin install dhpk@dhpk \
-  --config modules=php-7.4,php-8.x,laravel-6,laravel-11,phpunit-9,library-author
+  --config hook_profile=standard
 ```
 
 精選的模組組合請見 `manifests/install-profiles.json`。
 
 ## 需要 MCP 依賴的 skill
 
-6 個 skill 需要 **Codex MCP server**（`mcp__codex__codex`、`mcp__codex__codex-reply`）：
+6 個 skill 需要 **Codex MCP server**（`mcp__codex__codex`、`mcp__codex__codex-reply`），Implementation dispatch 中 `CODEX=on` 的雙助理 peer 路徑（常見工作流第 9/10 項）也是靠同一組工具：
 
 ```
 codex-architect       codex-brainstorm     codex-cli-review
 codex-code-review     codex-explain        codex-implement
 ```
 
-未安裝 Codex 時，呼叫上述任一 skill 會出現工具權限錯誤。請另行安裝（請參考 Anthropic 的 Codex 文件），安裝後即可使用。
+這些工具來自 OpenAI 發布的**另一個獨立** Claude Code plugin，並非 dhpk 提供。未安裝時，呼叫上述任一 skill 會出現工具權限錯誤。安裝步驟（`/plugin install codex@openai-codex`、前置需求、`/codex:setup`）與雙助理協作工作流見 **[`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕)** / **[`docs/basic-operations.zh-TW.md`](./docs/basic-operations.zh-TW.md#10-codex-雙助理協作)**。
 
 其他 skill（約 51 個）沒有 MCP 依賴。
 
@@ -419,57 +210,11 @@ Statusline 會渲染 `[branch] +staged ~modified | docker:status | profile=<p> |
 
 ## 同步 Codex CLI 內容
 
-同時使用 Claude Code 與 Codex CLI 的專案：
-
-```bash
-# 在任意專案根目錄執行：
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"
-```
-
-預設以 symlink（或用 `--copy` 複製）把插件的 `codex/{skills,agents}` 連到專案的 `.codex/`。具冪等性 — 插件版本 bump 後可用 `--update` 重跑。雙 harness 模型詳見 `codex/AGENTS.md` 與 `codex/README.md`。
-
-### Codex Plugin Marketplace（實驗性）
-
-dhpk 也提供 Codex plugin manifest（`.codex-plugin/plugin.json` + `plugins/dhpk/` 下的精簡 marketplace-target wrapper），讓 Codex CLI 自己的 plugin marketplace 可以原生探索並安裝 `codex/skills/` 鏡像。有兩種安裝方式：
-
-**方式 A — 交給 AI 執行。** 在 Codex CLI 對話中貼上：
-
-```text
-請把 hmj1026/dhpk 加入 Codex plugin marketplace 來源，安裝其中的 dhpk
-plugin，並確認已列在已安裝清單中。執行：
-  codex plugin marketplace add hmj1026/dhpk
-  codex plugin add dhpk@dhpk
-  codex plugin list
-回報 codex plugin list 的結果，並檢查 codex/skills/ 的內容是否真的解析
-進安裝的 plugin cache 內 —— Codex 有一個已知的上游問題
-（openai/codex#26037），透過 marketplace-target wrapper 引用的 skill
-有時不會被複製進 runtime cache。
-```
-
-**方式 B — 自己手動執行指令：**
-
-```bash
-codex plugin marketplace add hmj1026/dhpk   # 或開發時用本機路徑
-codex plugin add dhpk@dhpk
-codex plugin list
-```
-
-> **Plugin mode 目前在 Codex 上仍屬實驗性 / 不穩定**（已對照 `codex-cli 0.142.5` 驗證）。Marketplace 探索與安裝可以正常運作，但從本機/repo marketplace 載入 skill 在上游仍不穩定（見 [openai/codex#26037](https://github.com/openai/codex/issues/26037)）。目前唯一穩定可用的路徑仍是上面的 `install-codex-skills.sh` — marketplace manifest 是額外補充，並非取代。
-
-詳見 `.codex-plugin/README.md` 與 `plugins/dhpk/README.md`。
+適用於同時使用 Claude Code 與獨立 Codex CLI 的專案（與上方的 Codex MCP 依賴是兩回事——這條路徑不需要任何 MCP server）：`bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"` 會把 dhpk 的 skill/agent 鏡射進專案的 `.codex/`，另有實驗性的 Codex Plugin Marketplace 安裝路徑。完整說明見 **[`docs/basic-operations.zh-TW.md`](./docs/basic-operations.zh-TW.md#同步-codex-cli-內容)**。
 
 ## 遷移現有專案
 
-若專案已有自己的 `.claude/` harness，請依分階段計畫進行：
-
-1. **階段 A — baseline**：快照安裝前的 hook 輸出與測試結果。
-2. **階段 B — 並行安裝**：以 `userConfig.review_agents` 指向專案既有 agent 安裝插件。兩套 hook 並行觸發。
-3. **階段 C — 探索**：確認 `/agents` 與 `/plugin details dhpk` 顯示預期的元件。
-4. **階段 D — hook 對齊**：比對插件側 sentinel 與專案側差異。記錄所有預期內的差異。
-5. **階段 E — 切換**：透過 `.claude/settings.local.json`（`"hooks": {}`）停用專案內建 hook；跑回歸測試。
-6. **階段 F — 清理**：刪除已由插件提供的專案內檔案；保留專案特定的覆寫。
-
-每個階段都有 rollback gate。刪除任何東西前，先 tag `pre-dhpk-migration`。
+若專案已有自己的 `.claude/` harness，dhpk 支援分階段的並行安裝 → hook 對齊 → 切換流程，每階段都有 rollback gate。完整 6 階段步驟見 **[`docs/basic-operations.zh-TW.md`](./docs/basic-operations.zh-TW.md#遷移現有專案)**。
 
 ## 儲存庫結構
 
@@ -478,7 +223,7 @@ dhpk/
 ├── .claude-plugin/
 │   ├── marketplace.json          # 單一條目的 marketplace（plugins[0].source: "./"）
 │   └── plugin.json               # 含 userConfig 的插件 manifest
-├── agents/                       # 24 個角色 agent（INDEX.md 為導覽用）
+├── agents/                       # 25 個角色 agent（INDEX.md 為導覽用）
 ├── commands/                     # ~73 個 slash 指令（do、create-dev、codex-*、smart-commit、opsx-apply-resume、matrix-cell-onboard 等）
 ├── skills/                       # ~57 個核心 skill（adaptive-dev-workflow、codex-*、tool-routing、dhpk-execution-policy、opsx-apply-resume 配套等）
 ├── templates/                    # hook 引導用範本（graduation-candidates.md — 首次 graduation 執行時複製到 .claude/artifacts/）
@@ -498,6 +243,8 @@ dhpk/
 │   ├── codemaps/、lib/、opsx-apply-resume/、validate/
 │   └── （harness-audit、precommit-runner、verify-runner、gemini-adapt-agents、dep-audit）
 ├── docs/
+│   ├── configuration.md、configuration.zh-TW.md      # 完整 userConfig 參考
+│   ├── basic-operations.md、basic-operations.zh-TW.md # 安裝與工作流生命週期
 │   ├── hook-extension.md         # wrapper-dispatch 契約 + 模組 hook 撰寫指南
 │   ├── recommended-permissions.md
 │   ├── docker-setup.md、subagent-prompt-template.md
