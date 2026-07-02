@@ -11,49 +11,41 @@ dhpk's default execution policy for projects that adopt the harness. Resource-la
 - **append-only exemption**: pure additions (not modifying existing symbol body / signature / docblock) may skip `gitnexus_impact` — label the change `append-only — gitnexus_impact skipped`.
 - **reviewer dispatch**: when multiple sentinels coexist, triage out false positives → dispatch the rest **in parallel** → `code-reviewer` merges/dedups (see "Reviewer dispatch").
 
-## Task modes
-
-| Task | Flow |
-|---|---|
-| Small change | inspect → patch |
-| Small bug (known cause) | inspect → tdd-guide RED → patch → tdd-guide verify |
-| Medium change | inspect → brief plan → tdd-guide → patch |
-| Bug (unknown cause) | bug-investigation → tdd-guide → patch |
-| New feature | tdd-guide → patch |
-| Architecture change | architect → tdd-guide → patch |
-
 ## Classification-first context loading
 
 Determine the workflow type (Small change / Bug / Feature / Architecture) from the user request BEFORE loading heavy references (profiles, scope docs, legacy analysis, investigation scaffolding). Load only the references the chosen workflow needs; expand incrementally if the classification changes. Upfront loading burns context budget on paths not taken. (adaptive-dev-workflow, harness-fill)
 
 ### Change classification & OpenSpec routing (SSOT)
 
-Single source of truth for the six change types, their planning step, and whether to ask about OpenSpec. `commands/create-dev.md` and `skills/adaptive-dev-workflow/SKILL.md` route through this table — reference it, do not restate it.
+Single source of truth for the six change types, their flow, and whether to ask about OpenSpec. `commands/create-dev.md` and `skills/adaptive-dev-workflow/SKILL.md` route through this table — reference it, do not restate it.
 
-| Change type | OpenSpec ask? | Planning step → path |
+| Change type | OpenSpec ask? | Flow |
 |---|---|---|
-| Bug Fix (unknown root cause) | ✅ ask | `bug-investigation` → y: `/opsx:new` · n: brief plan → patch |
-| Feature Delivery (cross-module / DDD) | ✅ ask | `dhpk:architect` → y: `/opsx:new` · n: brief plan → patch |
-| Feature Delivery (normal) | ✅ ask | y: `/opsx:new` · n: brief plan → patch |
-| Bug Fix (known root cause) | ❌ no | inspect → patch |
-| Medium change | ❌ no | brief plan → patch |
-| Lightweight Maintenance | ❌ no | Read → Edit |
+| Bug Fix (unknown root cause) | ✅ ask | `bug-investigation` → y: `/opsx:new` · n: brief plan → tdd-guide → patch |
+| Feature Delivery (cross-module / DDD) | ✅ ask | `dhpk:architect` → y: `/opsx:new` · n: brief plan → tdd-guide → patch |
+| Feature Delivery (normal) | ✅ ask | y: `/opsx:new` · n: brief plan → tdd-guide → patch |
+| Bug Fix (known root cause) | ❌ no | inspect → tdd-guide RED → patch → tdd-guide verify |
+| Medium change | ❌ no | inspect → brief plan → tdd-guide → patch |
+| Lightweight Maintenance | ❌ no | inspect → patch |
 
 ## Agent dispatch
 
 Agents run via the `Agent` tool (`subagent_type=<name>`), not via skill names.
 
-| Agent | Trigger |
-|---|---|
-| `tdd-guide` | Feature / bugfix, **before** writing implementation |
-| `architect` | Cross-module or DDD-layer design |
-| `database-reviewer` | SQL / Repository / migration (SQL correctness) — sentinel `.pending-db-review` or back-stop |
-| `migration-reviewer` | Migration files (up/down symmetry, FK naming, large ALTER, multi-tenant deploy) — sentinel `.pending-migration-review` (one of the 7-slot default `review_agents` chain since v0.10.0; the sentinel *trigger* itself stays opt-in via `module.yaml` `migration:` triggers or `review_trigger_extra_paths` `mig:` — see the sentinel table below) |
-| `security-reviewer` | Auth / crypto / money / file upload — sentinel `.pending-security-review` or back-stop |
-| `performance-analyzer` | Repository methods on high-volume tables — back-stop only |
-| `frontend-reviewer` | JS / TS / view-layer JS — sentinel `.pending-frontend-review` or back-stop |
-| `code-reviewer` | **Code final gate** — sentinel `.pending-review` |
-| `doc-reviewer` | **Doc final gate** — sentinel `.pending-doc-review` |
+| Agent | Runs when | Gate order |
+|---|---|---|
+| `tdd-guide` | Feature / bugfix, **before** writing implementation | 1 |
+| `architect` | Cross-module or DDD-layer design | — |
+| `database-reviewer` | SQL / Repository / migration (SQL correctness) — sentinel `.pending-db-review` or back-stop | 2 |
+| `migration-reviewer` | Migration files (up/down symmetry, FK naming, large ALTER, multi-tenant deploy) — sentinel `.pending-migration-review` (one of the 7-slot default `review_agents` chain since v0.10.0; the sentinel *trigger* itself stays opt-in via `module.yaml` `migration:` triggers or `review_trigger_extra_paths` `mig:` — see the sentinel table below) | — |
+| `security-reviewer` | Auth / crypto / money / file upload — sentinel `.pending-security-review` or back-stop | 3 |
+| `performance-analyzer` | Repository methods on high-volume tables — back-stop only | — |
+| `frontend-reviewer` | JS / TS / view-layer JS — sentinel `.pending-frontend-review` or back-stop | — |
+| `polyfill-reviewer` | `.php` edits with a runtime version guard (`version_compare` / `class_exists` / `method_exists` / `InstalledVersions::*`) — sentinel `.pending-polyfill-review` *(library-author module)* | — |
+| `code-reviewer` | **Code final gate** — sentinel `.pending-review` | 4 |
+| `doc-reviewer` | **Doc final gate** — sentinel `.pending-doc-review` | — |
+
+`Gate order` (1–4) marks the agents in the mandatory sequential post-edit gate, detailed below under "Post-implementation agent gate (SSOT)"; `—` = not part of that gate (planning-phase, back-stop-only, or a specialist sentinel outside the strict 4-step chain).
 
 Agent names above are dhpk defaults; override via `userConfig.review_agents` per slot. Projects with prefixed agents (e.g. `code-reviewer-<project>`) configure the override in their `settings.local.json`.
 
@@ -77,14 +69,7 @@ Violation: the secondary AI confirms instead of verifying → false consensus th
 
 ### Post-implementation agent gate (SSOT)
 
-Every path except Lightweight Maintenance runs these four agents in order after the last Edit/Write; each must PASS before the next. This is the canonical gate — `commands/create-dev.md`, `skills/adaptive-dev-workflow/SKILL.md`, and the opsx-goal flow reference it rather than restating.
-
-| # | Agent | Runs when |
-|---|---|---|
-| 1 | `dhpk:tdd-guide` | bug fix or new feature (before writing implementation) |
-| 2 | `dhpk:database-reviewer` | change touches SQL / database |
-| 3 | `dhpk:security-reviewer` | change touches auth / authz / crypto / money / upload |
-| 4 | `dhpk:code-reviewer` | always — final step after any Edit/Write |
+Every path except Lightweight Maintenance runs the four **Gate order** agents above (`tdd-guide → database-reviewer → security-reviewer → code-reviewer`) in order after the last Edit/Write; each must PASS before the next. This is the canonical gate — `commands/create-dev.md`, `skills/adaptive-dev-workflow/SKILL.md`, and the opsx-goal flow reference it rather than restating.
 
 Gate failure → fix → re-run that gate → continue only on PASS. Never skip. (The sentinel machinery below operationalizes gates 2–4; `tdd-guide` has no sentinel — see the AI-judgment back-stop.)
 
@@ -149,9 +134,9 @@ Semantically matches but path pattern did not trigger a sentinel → self-trigge
 
 ## Pre-plan checklist (Feature / Bug)
 
-1. `claude-mem smart_search "<module or symbol>"` — past decisions (if claude-mem is installed)
+1. Past-decision search (claude-mem, if installed) — see `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md` "claude-mem at planning start"
 2. Spawn Explore agents with `cx` instructions (→ `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`)
-3. `gitnexus_impact({ target, direction:"upstream" })` after the target symbol is identified (if gitnexus is installed)
+3. Blast-radius check (gitnexus_impact, if installed) — see `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md` "gitnexus_impact timing"
 4. Database work → verify Repository routing via the project's query builder convention
 
 ## Deterministic first, judgment second
@@ -174,13 +159,7 @@ Any applicable NO → fix first, then reply.
 
 ## Anti-rationalization
 
-Before skipping any sentinel / TDD / reviewer mandated step, load `${CLAUDE_PLUGIN_ROOT}/rules/anti-rationalization.md` for self-rebuttal. On-demand load, not always-on. Trigger conditions (full table in that file):
-
-- Task mode judged "Small change" but diff exceeds 30 lines
-- Wanting to skip the reviewer corresponding to any sentinel
-- Wanting to invoke the append-only exemption (Glossary)
-- Wanting to claim completion via "verify skill passed" without a test diff
-- Three consecutive entries in judgment-retrospective memory flag the same bias
+Before skipping any sentinel / TDD / reviewer mandated step, load `${CLAUDE_PLUGIN_ROOT}/rules/anti-rationalization.md` for self-rebuttal. On-demand load, not always-on. Trigger conditions: see that file's "When to load" table (SSOT).
 
 ## Git pipeline
 

@@ -42,7 +42,7 @@ Per any of the situations below, **proactively load this file** (don't wait for 
 ## Not in scope
 
 - **Does not replace** TDD workflow specifications (your TDD discipline doc — e.g. testing.md in your common rules + framework-specific testing.md). This file only lists "rationalisation phrasings when skipping it" — it does not restate the TDD process itself.
-- **Does not replace** the reviewer dispatch model (`execution-policy.md` "Reviewer dispatch"). This file only lists "rationalisation phrasings when skipping a reviewer".
+- **Does not replace** the reviewer dispatch model (see `## Cross-references` below). This file only lists "rationalisation phrasings when skipping a reviewer".
 - **Not language-specific** — applies across PHP / JS / shell / Python / etc. Pure self-dialogue layer.
 
 ---

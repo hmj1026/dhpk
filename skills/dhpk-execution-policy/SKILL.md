@@ -17,7 +17,7 @@ Skill-form entry point into `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`, d
 
 ## Task modes
 
-See `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` "Task modes" table.
+See `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` "Change classification & OpenSpec routing (SSOT)" table.
 
 ## Skill priority order
 
