@@ -178,7 +178,7 @@ Before skipping any sentinel / TDD / reviewer mandated step, load `${CLAUDE_PLUG
 
 - Task mode judged "Small change" but diff exceeds 30 lines
 - Wanting to skip the reviewer corresponding to any sentinel
-- Wanting to invoke §0 append-only exemption
+- Wanting to invoke the append-only exemption (Glossary)
 - Wanting to claim completion via "verify skill passed" without a test diff
 - Three consecutive entries in judgment-retrospective memory flag the same bias
 
@@ -217,3 +217,18 @@ Run the project's standard test suite + browser verify (playwright-cli, manual, 
 ## Component-addition gate (new agent / sentinel slot / hook)
 
 Adding a reviewer agent, sentinel slot, or hook is the add-then-remove churn that leaves residue (dead slot tokens, orphan sentinels, drifted counts). Before adding one, document in the relevant INDEX (`agents/INDEX.md`, `skills/INDEX.md`, or the hook's header comment) **why an existing component cannot cover the need** — name the agent/slot/hook considered and the specific gap it leaves. A new component with no recorded justification is rejected in review. Removal is symmetric: in the same change, delete its INDEX row and every reference (slot token, `.pending-*` literal, count claim), so nothing is orphaned — the sentinel-integrity and count guards (`tests/sentinel-slots.test.js`, `scripts/ci/catalog.js`) enforce this mechanically.
+
+## Not in scope
+
+- **Does not restate** stack-specific coding conventions — those live in each project's `.claude/rules/<stack>.md` or the matching dhpk module reference.
+- **Does not restate** the anti-rationalization phrasing table — see `${CLAUDE_PLUGIN_ROOT}/rules/anti-rationalization.md`.
+- **Does not restate** the tool-selection decision tree — see `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`.
+- **Does not restate** the full end-of-task self-check — see `skills/execution-checklist/SKILL.md`.
+
+## Cross-references
+
+- `${CLAUDE_PLUGIN_ROOT}/rules/anti-rationalization.md` — self-rebuttal table for skipping a mandated step
+- `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md` — code-exploration tool decision tree
+- `skills/execution-checklist/SKILL.md` — full end-of-task self-check
+- `skills/dhpk-execution-policy/SKILL.md` — skill-form entry point into this policy
+- `agents/INDEX.md` — agent roster, models, maxTurns rationale
