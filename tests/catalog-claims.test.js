@@ -20,7 +20,7 @@ const ROOT = path.join(__dirname, '..');
 // the temp tree as its repo.
 function makeTempRepo() {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-catalog-'));
-  for (const rel of ['scripts', 'agents', 'modules', 'skills', 'commands',
+  for (const rel of ['scripts', 'agents', 'modules', 'skills', 'commands', 'rules',
     'README.md', 'README.zh-TW.md', '.claude-plugin']) {
     const src = path.join(ROOT, rel);
     if (fs.existsSync(src)) fs.cpSync(src, path.join(tmp, rel), { recursive: true });
@@ -50,6 +50,8 @@ const DRIFTS = [
   { file: 'README.md', find: /(\d+)(\s+opt-in stack modules)/, label: 'modules' },
   { file: 'README.md', find: /(\d+)(-slot)/, label: 'sentinel slots' },
   { file: 'README.zh-TW.md', find: /(\d+)(\s*個角色導向 agent)/, label: 'ZH total agents' },
+  { file: 'rules/execution-policy.md', find: /(\d+)(-slot)/, label: 'sentinel slots (execution-policy)' },
+  { file: 'agents/INDEX.md', find: /(\d+)(-slot)/, label: 'sentinel slots (INDEX)' },
 ];
 
 for (const d of DRIFTS) {

@@ -6,9 +6,7 @@ allowed-tools: 'Read, Grep, Glob, Bash, Skill, Agent'
 
 # DHPK Execution Policy
 
-Default: execute directly, plan sparingly. Every code change ends with `[dr*]` + `code-reviewer` **dispatched in parallel** (code-reviewer merges/dedups). `dr*` = database-reviewer (SQL) / security-reviewer (auth/crypto/money).
-
-Agent names above are the plugin defaults; projects override via `userConfig.review_agents`.
+Skill-form entry point into `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`, dhpk's canonical execution policy. Default: execute directly, plan sparingly. Every code change ends with the sentinel-driven reviewer dispatch defined there (task modes, agent dispatch table, sentinel table). This skill adds skill-routing guidance and points to that file rather than restating it — restated copies drift.
 
 ## When NOT to Use
 
@@ -19,16 +17,7 @@ Agent names above are the plugin defaults; projects override via `userConfig.rev
 
 ## Task modes
 
-| Task | Flow |
-|------|------|
-| Small change | inspect → patch |
-| Small bug (known cause) | inspect → tdd-guide RED → patch → tdd-guide verify |
-| Medium change | inspect → brief plan → tdd-guide → patch |
-| Bug (unknown cause) | bug-investigation skill → tdd-guide → patch |
-| New feature | tdd-guide → patch |
-| Architecture change | architect → tdd-guide → patch |
-
-`[OpenSpec?]` defaults to inline brief plan; use `/opsx:new` only when the user explicitly requests a spec-driven change.
+See `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` "Change classification & OpenSpec routing (SSOT)" table.
 
 ## Skill priority order
 
@@ -41,68 +30,23 @@ Agent names above are the plugin defaults; projects override via `userConfig.rev
 
 ## Mandatory post-edit steps
 
-### Hook-enforced (sentinel-driven)
-
-The `post-edit-remind` hook writes sentinels per matching reviewer slot:
-
-| Sentinel | Agent (default name) |
-|---|---|
-| `.pending-review` | `code-reviewer` (always last) |
-| `.pending-db-review` | `database-reviewer` |
-| `.pending-security-review` | `security-reviewer` |
-
-The `stop-review-reminder` Stop hook blocks the turn if any sentinel is unanswered. Each agent's Closing hook clears its matching sentinel via `clear-sentinel.sh`.
-
-Skipped paths by default: `.claude/artifacts/**`, files outside the code-extension whitelist. See `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/post-edit-remind.sh` for the exact list.
-
-### AI-judgment (self-trigger when hook misses)
-
-- New feature/bug fix in business-logic code → `tdd-guide` before writing implementation (TDD).
-- Money/crypto/cert/token paths not matched by hook patterns → `security-reviewer` after Edit.
-- High-volume DB methods → `performance-analyzer` after Edit.
-
-`tdd-guide` is pre-edit. After edits, triggered reviewers (`database-reviewer` / `security-reviewer` / `code-reviewer` / …) **dispatch in parallel**; `code-reviewer` merges/dedups.
-
-Sole exemption: pure research/planning (no Edit/Write) skips all review agents.
+See `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` "Mandatory post-steps" for the sentinel table (7-slot default), the reviewer dispatch model (triage → parallel → merge), and the AI-judgment back-stop list.
 
 ## Anti-loop
 
-Same failure 3× → STOP. Report:
-
-1. What was tried + the error
-2. ≥2 alternative approaches
-3. Recommended next step
-
-Do NOT keep retrying the same command with minor variations.
+Same failure 3× → STOP. Full policy: `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` "Anti-loop & output". Worked examples: `references/anti-loop.md`.
 
 ## Output shape (standard reply)
 
-```
-Conclusion → Changed files → Verification → Risks/Open questions
-```
-
-When blocked:
-
-```
-Blocker → Tried → Next viable option
-```
+`Conclusion → Changed files → Verification → Risks/Open questions`. When blocked: `Blocker → Tried → Next viable option`. Full guidance: `references/output-shape.md`.
 
 ## Git pipeline
 
-`feat|fix|docs|refactor/*` → integration branch → main. Standard flow: feature branch → `/codex-review-fast` → `/precommit` → `/pr-review` → PR. Claude does NOT auto `git add / commit / push / stash` — invoke `/smart-commit` or `/precommit` explicitly.
+`feat|fix|docs|refactor/*` → integration branch → main. Full policy: `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` "Git pipeline". Squash-merge hygiene: `references/squash-merge-hygiene.md`.
 
-Squash-merge hygiene: see `references/squash-merge-hygiene.md`.
+## Self-check before each reply
 
-## Verification: self-check before each reply
-
-0. Editing an existing symbol → did `gitnexus_impact` run? (Append-only edits exempt; state so in plan/commit.)
-1. Source-code or `.claude/`-markdown Edit/Write → did code-reviewer run (or is sentinel still pending)?
-2. Bug/feature → did tdd-guide run?
-3. SQL → did database-reviewer run?
-4. Auth/crypto/money → did security-reviewer run?
-5. Repository method on high-volume table → did performance-analyzer run?
-
-Any applicable NO → run it before replying.
+Load the `execution-checklist` skill for the full self-audit.
 
 ## References
 

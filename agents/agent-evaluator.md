@@ -106,4 +106,4 @@ VERDICT: Redo with specific fixes. Weakest axis: Accuracy (2/5).
 
 ## Closing — Artifact Output
 
-Reply inline by default. Only when the user asks to persist it, write `.claude/artifacts/reviews/agent-eval-{yyyymmdd-HHMMSS}-{slug}.md` (frontmatter: `agent / generated_at (ISO+08:00) / commit / scope[] / verdict`); directory absent → stdout-only, no error. Contract → `docs/contracts/artifact-contract.md`.
+Reply inline by default. Only when the user asks to persist it, category `reviews/`, path `agent-eval-{yyyymmdd-HHMMSS}-{slug}.md`. Frontmatter/retention/degradation: `docs/contracts/artifact-contract.md` non-reviewer extensions (`verdict` only, no `severity_summary`). No sentinel — not in the review chain.

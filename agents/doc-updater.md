@@ -11,7 +11,7 @@ maxTurns: 15
 
 Keep `docs/CODEMAPS/*`, READMEs, and guides aligned with code reality.
 
-> Use `cx overview` (not bulk `Read`) to scan modules. See `.claude/rules/tool-routing.md`.
+> Use `cx overview` (not bulk `Read`) to scan modules. See `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`.
 
 ## Codemap Output
 
@@ -70,11 +70,4 @@ Project-specific: writing rules in `.claude/docs/docs-writing.md`.
 
 ## Closing — Artifact Output
 
-When generating codemaps or batch doc updates:
-
-1. **目標路徑**：codemaps 寫入 `docs/CODEMAPS/{area}.md`；session log（可選）寫入 `.claude/artifacts/codemaps/{yyyymmdd-HHMMSS}-{slug}.md`（Asia/Taipei）
-2. **Session-log Frontmatter（寫入時必填）**：`agent / generated_at (ISO+08:00) / scope[] / updated_files[]`
-3. **Sentinel**：N/A — doc-updater 不在 sentinel review chain
-4. **降級**：`.claude/artifacts/codemaps/` 不存在 → 只輸出 codemap 檔，不報錯；每類最近 30 件，舊的 → `archive/`
-
-完整契約 → `docs/contracts/artifact-contract.md`
+Codemaps go to `docs/CODEMAPS/{area}.md` (not `.claude/artifacts/`). Optional session log: category `codemaps/`, frontmatter/retention/degradation per `docs/contracts/artifact-contract.md` non-reviewer extensions (`updated_files[]`, no `verdict`). No sentinel — not in the review chain.

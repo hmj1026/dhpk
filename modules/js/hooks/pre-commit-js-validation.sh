@@ -13,6 +13,9 @@
 #   2. No staged JS/TS files (no delay for non-JS commits).
 #   3. `node_modules/` missing (fail-soft warning; user hasn't run `npm i`).
 #
+# Timeouts: lint 90s / typecheck 120s (project-wide npm scripts) — a timeout
+# is a FAIL like any other, same '[skip-js-lint]' hatch applies.
+#
 # Script names (defaults in parens):
 #   CLAUDE_PLUGIN_OPTION_JS_LINT_SCRIPT       ("lint")
 #   CLAUDE_PLUGIN_OPTION_JS_TYPECHECK_SCRIPT  ("typecheck")
@@ -74,15 +77,36 @@ fi
 lint_script="${CLAUDE_PLUGIN_OPTION_JS_LINT_SCRIPT:-lint}"
 typecheck_script="${CLAUDE_PLUGIN_OPTION_JS_TYPECHECK_SCRIPT:-typecheck}"
 
+LINT_TIMEOUT_SECS=90
+TYPECHECK_TIMEOUT_SECS=120
+LINT_TIMEOUT_CMD=""
+TYPECHECK_TIMEOUT_CMD=""
+if command -v timeout >/dev/null 2>&1; then
+    LINT_TIMEOUT_CMD="timeout $LINT_TIMEOUT_SECS"
+    TYPECHECK_TIMEOUT_CMD="timeout $TYPECHECK_TIMEOUT_SECS"
+fi
+
 echo "[pre-commit-js] staged JS detected; running npm run $lint_script + $typecheck_script..." >&2
 
-if ! npm run --silent "$lint_script" >&2; then
-    echo "[pre-commit-js] FAIL: npm run $lint_script failed. Fix errors or add '[skip-js-lint]' to commit msg." >&2
+$LINT_TIMEOUT_CMD npm run --silent "$lint_script" >&2
+rc=$?
+if [ "$rc" -ne 0 ]; then
+    if [ "$rc" -eq 124 ]; then
+        echo "[pre-commit-js] FAIL: npm run $lint_script timed out after ${LINT_TIMEOUT_SECS}s (possible hang). Investigate or add '[skip-js-lint]' to commit msg." >&2
+    else
+        echo "[pre-commit-js] FAIL: npm run $lint_script failed. Fix errors or add '[skip-js-lint]' to commit msg." >&2
+    fi
     exit 2
 fi
 
-if ! npm run --silent "$typecheck_script" >&2; then
-    echo "[pre-commit-js] FAIL: npm run $typecheck_script failed. Fix errors or add '[skip-js-lint]' to commit msg." >&2
+$TYPECHECK_TIMEOUT_CMD npm run --silent "$typecheck_script" >&2
+rc=$?
+if [ "$rc" -ne 0 ]; then
+    if [ "$rc" -eq 124 ]; then
+        echo "[pre-commit-js] FAIL: npm run $typecheck_script timed out after ${TYPECHECK_TIMEOUT_SECS}s (possible hang). Investigate or add '[skip-js-lint]' to commit msg." >&2
+    else
+        echo "[pre-commit-js] FAIL: npm run $typecheck_script failed. Fix errors or add '[skip-js-lint]' to commit msg." >&2
+    fi
     exit 2
 fi
 

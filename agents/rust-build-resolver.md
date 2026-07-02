@@ -14,7 +14,7 @@ Never paper over a borrow / lifetime error with a stray `.clone()` or `unsafe`.
 
 > Before a fix that changes a signature or a public name, gauge its blast radius
 > with `gitnexus_impact` (or `cx references --name X`) — optional tools, fall back
-> to `Grep` when absent. See `.claude/rules/tool-routing.md`.
+> to `Grep` when absent. See `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`.
 >
 > Build unit: a `Cargo.toml` ⇒ `cargo build` / `cargo test`. Use
 > `cargo build --message-format=short 2>&1` for a dense error list, then drill
@@ -50,29 +50,21 @@ a non-`Send` guard (`MutexGuard`, `Rc`, …) must not be held across an `.await`
 
 ## Principles
 
-- **Smallest fix that preserves intent.** One root cause, re-run, next error.
-- **Never silence:** no new `unsafe`, no `#[allow(...)]`, no `.unwrap()` to dodge
-  a type, no `unsafe impl Send` just to satisfy the compiler. Those convert a
-  compile error into a runtime panic or a data race.
-- **Honor edition + clippy.** A clippy error in CI is a build failure — fix it,
-  don't `#[allow]` it without a one-line justification comment.
-- **Re-build after every change.** A fix is unverified until `cargo build` (and
-  the relevant `cargo test`) is green.
+Shared framing: `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/build-resolver-skeleton.md`.
+This resolver's own escape hatches to never use: new `unsafe`, `#[allow(...)]`
+(without a one-line justification comment), `.unwrap()` to dodge a type, or
+`unsafe impl Send` just to satisfy the compiler.
+
+- **Honor edition + clippy.** A clippy error in CI is a build failure.
 - **Lockfile is a deliverable.** A dependency change commits the updated
   `Cargo.lock`.
 
 ## Stop conditions (escalate, don't loop)
 
-Per the Anti-Loop Protocol, **stop after 3 failed attempts on the same error**
-and report. Also stop when:
-
-- the fix introduces more errors than it removes;
-- the error needs an architectural change (redesigning ownership across tasks,
-  splitting a crate, a real dependency major bump) — propose it, don't force it;
-- the failure needs a toolchain / user action (missing system lib, locked registry).
-
-On stop, output: the attempt log (what was tried + each error), >=2 alternative
-paths with trade-offs, and a recommendation.
+Shared framing: `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/build-resolver-skeleton.md`.
+This resolver's own architectural-change examples: redesigning ownership across
+tasks, splitting a crate, a real dependency major bump. Environmental examples:
+missing system lib, locked registry.
 
 ## Output
 
@@ -85,5 +77,4 @@ Build: cargo build OK | cargo test OK
 Handing off to code-reviewer for the diff.
 ```
 
-After a green build, hand the diff to `code-reviewer` — this agent fixes the
-build; it does not self-approve the change.
+Handoff: `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/build-resolver-skeleton.md`.

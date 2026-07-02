@@ -23,6 +23,8 @@
 #   CLAUDE_PLUGIN_OPTION_XCODE_SCHEME          ("")  empty → xcodebuild path skipped (no guessing)
 #   CLAUDE_PLUGIN_OPTION_XCODE_DESTINATION     ("")  test destination; empty → auto-pick an available simulator
 #   CLAUDE_PLUGIN_OPTION_SWIFT_BUILD_SKIP_TESTS ("false") build only, no tests
+#   CLAUDE_PLUGIN_OPTION_SWIFT_BUILD_TIMEOUT_SECS ("360")  build phase ceiling (xcodebuild build / swift build)
+#   CLAUDE_PLUGIN_OPTION_SWIFT_TEST_TIMEOUT_SECS  ("480")  test phase ceiling (xcodebuild test / swift test)
 
 set -o pipefail
 
@@ -65,6 +67,14 @@ SCHEME="${CLAUDE_PLUGIN_OPTION_XCODE_SCHEME:-}"
 DEST="${CLAUDE_PLUGIN_OPTION_XCODE_DESTINATION:-}"          # test destination (named sim); empty → auto-pick
 BUILD_DEST="generic/platform=iOS Simulator"                 # build needs no booted device → never goes stale
 SKIP_TESTS="${CLAUDE_PLUGIN_OPTION_SWIFT_BUILD_SKIP_TESTS:-false}"
+BUILD_TIMEOUT_SECS="${CLAUDE_PLUGIN_OPTION_SWIFT_BUILD_TIMEOUT_SECS:-360}"
+TEST_TIMEOUT_SECS="${CLAUDE_PLUGIN_OPTION_SWIFT_TEST_TIMEOUT_SECS:-480}"
+BUILD_TIMEOUT_CMD=""
+TEST_TIMEOUT_CMD=""
+if command -v timeout >/dev/null 2>&1; then
+    BUILD_TIMEOUT_CMD="timeout $BUILD_TIMEOUT_SECS"
+    TEST_TIMEOUT_CMD="timeout $TEST_TIMEOUT_SECS"
+fi
 
 # Emit `platform=iOS Simulator,name=<first available iPhone sim>`, or nothing.
 first_available_ios_sim() {
@@ -101,8 +111,14 @@ if command -v xcodebuild >/dev/null 2>&1 && [ "$has_xcode_project" -eq 1 ]; then
         exit 0
     fi
     echo "[pre-commit-swift] staged .swift detected; xcodebuild build (scheme=$SCHEME, dest=$BUILD_DEST)..." >&2
-    if ! xcodebuild build -scheme "$SCHEME" -destination "$BUILD_DEST" -quiet >&2; then
-        echo "[pre-commit-swift] FAIL: build failed. Fix or add '[skip-swift-build]' to the commit msg." >&2
+    $BUILD_TIMEOUT_CMD xcodebuild build -scheme "$SCHEME" -destination "$BUILD_DEST" -quiet >&2
+    rc=$?
+    if [ "$rc" -ne 0 ]; then
+        if [ "$rc" -eq 124 ]; then
+            echo "[pre-commit-swift] FAIL: xcodebuild build timed out after ${BUILD_TIMEOUT_SECS}s (possible hang — stuck code-signing prompt, corrupt DerivedData — or a genuinely large cold build; raise swift_build_timeout_secs if the latter). Investigate or add '[skip-swift-build]' to the commit msg." >&2
+        else
+            echo "[pre-commit-swift] FAIL: build failed. Fix or add '[skip-swift-build]' to the commit msg." >&2
+        fi
         exit 2
     fi
     if [ "$SKIP_TESTS" != "true" ]; then
@@ -119,8 +135,14 @@ if command -v xcodebuild >/dev/null 2>&1 && [ "$has_xcode_project" -eq 1 ]; then
         fi
         if [ -n "$test_dest" ]; then
             echo "[pre-commit-swift] xcodebuild test (scheme=$SCHEME, dest=$test_dest)..." >&2
-            if ! xcodebuild test -scheme "$SCHEME" -destination "$test_dest" -quiet >&2; then
-                echo "[pre-commit-swift] FAIL: tests failed. Fix or add '[skip-swift-build]' to the commit msg." >&2
+            $TEST_TIMEOUT_CMD xcodebuild test -scheme "$SCHEME" -destination "$test_dest" -quiet >&2
+            rc=$?
+            if [ "$rc" -ne 0 ]; then
+                if [ "$rc" -eq 124 ]; then
+                    echo "[pre-commit-swift] FAIL: xcodebuild test timed out after ${TEST_TIMEOUT_SECS}s (possible hang — simulator boot stall, deadlocked test — or a genuinely large cold test run; raise swift_test_timeout_secs if the latter). Investigate or add '[skip-swift-build]' to the commit msg." >&2
+                else
+                    echo "[pre-commit-swift] FAIL: tests failed. Fix or add '[skip-swift-build]' to the commit msg." >&2
+                fi
                 exit 2
             fi
         fi
@@ -131,14 +153,26 @@ fi
 
 if command -v swift >/dev/null 2>&1 && [ -f "$ROOT/Package.swift" ]; then
     echo "[pre-commit-swift] staged .swift detected; swift build..." >&2
-    if ! swift build >&2; then
-        echo "[pre-commit-swift] FAIL: swift build failed. Fix or add '[skip-swift-build]' to the commit msg." >&2
+    $BUILD_TIMEOUT_CMD swift build >&2
+    rc=$?
+    if [ "$rc" -ne 0 ]; then
+        if [ "$rc" -eq 124 ]; then
+            echo "[pre-commit-swift] FAIL: swift build timed out after ${BUILD_TIMEOUT_SECS}s (possible hang or a genuinely large cold build; raise swift_build_timeout_secs if the latter). Investigate or add '[skip-swift-build]' to the commit msg." >&2
+        else
+            echo "[pre-commit-swift] FAIL: swift build failed. Fix or add '[skip-swift-build]' to the commit msg." >&2
+        fi
         exit 2
     fi
     if [ "$SKIP_TESTS" != "true" ]; then
         echo "[pre-commit-swift] swift test..." >&2
-        if ! swift test >&2; then
-            echo "[pre-commit-swift] FAIL: swift test failed. Fix or add '[skip-swift-build]' to the commit msg." >&2
+        $TEST_TIMEOUT_CMD swift test >&2
+        rc=$?
+        if [ "$rc" -ne 0 ]; then
+            if [ "$rc" -eq 124 ]; then
+                echo "[pre-commit-swift] FAIL: swift test timed out after ${TEST_TIMEOUT_SECS}s (possible hang or a genuinely large test run; raise swift_test_timeout_secs if the latter). Investigate or add '[skip-swift-build]' to the commit msg." >&2
+            else
+                echo "[pre-commit-swift] FAIL: swift test failed. Fix or add '[skip-swift-build]' to the commit msg." >&2
+            fi
             exit 2
         fi
     fi

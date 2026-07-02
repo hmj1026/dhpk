@@ -39,12 +39,11 @@ edits. Loads the following on demand:
 
 ## Process
 
-1. `git diff --staged -- <frontend-root>/ <view-template-roots>/` +
-   `git diff -- <frontend-root>/ <view-template-roots>/` to pin the scope.
-2. `cat .claude/artifacts/sessions/.pending-frontend-review` for the file
-   list the post-edit hook recorded.
-3. Walk each leaf through the priority tiers below.
-4. Close out: write the artifact + clear the sentinel.
+1. Sentinel-scoped precedence: see `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`
+   "Sentinel-scoped precedence" — apply verbatim, sentinel = `.pending-frontend-review`.
+   Back-stop/full-review fallback restricts to `<frontend-root>/<view-template-roots>/`.
+2. Walk each leaf through the priority tiers below.
+3. Close out: write the artifact + clear the sentinel.
 
 ## Priority tiers
 
@@ -114,20 +113,4 @@ End with a severity table and a final `Verdict: APPROVE | WARNING | BLOCK`:
 
 ## Closing — Artifact Output (MUST)
 
-1. **Path**: `.claude/artifacts/reviews/frontend-reviewer-{YYYYMMDD-HHMMSS}-{slug}.md`.
-2. **Frontmatter** (required):
-   ```yaml
-   ---
-   agent: frontend-reviewer
-   generated_at: <ISO8601>
-   commit: <short-sha>
-   scope: [<frontend-root>/foo.js, <test-root>/bar.spec.js]
-   severity_summary: { critical: 0, high: 0, medium: 0, low: 0 }
-   verdict: APPROVE
-   ---
-   ```
-3. **Body**: the issue list above.
-4. **Hook**: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" .pending-frontend-review frontend-reviewer`.
-5. **Retention**: keep the most recent ~30 per kind; archive older ones under `archive/`.
-6. **Graceful degradation**: if `.claude/artifacts/` does not exist, emit
-   stdout-only and do not error.
+Category: `reviews/`, scope holds `<frontend-root>/foo.js` style paths. Frontmatter/retention/degradation: reviewer-family shape (APPROVE/WARNING/BLOCK) in `docs/contracts/artifact-contract.md`. Hook: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" .pending-frontend-review frontend-reviewer`.

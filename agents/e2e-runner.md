@@ -65,4 +65,4 @@ Critical journeys 100% passing · overall pass rate > 95% · flaky rate < 5% · 
 
 ## Closing — Artifact Output
 
-Test files (`tests/**/*.spec.ts`, POM helpers) are the primary deliverable — write them in the project's existing test layout. For a substantive session report, write `.claude/artifacts/reviews/e2e-{yyyymmdd-HHMMSS}-{slug}.md` (frontmatter: `agent / generated_at (ISO+08:00) / commit / scope[] / pass_rate / verdict (PASS|WARNING|FAIL)`); directory absent → stdout-only, no error. Contract → `docs/contracts/artifact-contract.md`.
+Test files (`tests/**/*.spec.ts`, POM helpers) are the primary deliverable — write them in the project's existing test layout. For a substantive session report, category `reviews/`, path `e2e-{yyyymmdd-HHMMSS}-{slug}.md`. Frontmatter/retention/degradation: `docs/contracts/artifact-contract.md` non-reviewer extensions (`pass_rate` + PASS/WARNING/FAIL). No sentinel — not in the review chain.
