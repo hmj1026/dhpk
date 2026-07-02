@@ -1,5 +1,48 @@
 # Changelog
 
+## 0.21.0 — 2026-07-02 — Agent shared skeleton, sentinel-scoped review, prompt-optimize skill
+
+**feat(infra)** — Agent shared process skeleton + artifact-output contract:
+- New `agent-traps/_common/build-resolver-skeleton.md` and `trap-sheet-loader.md`
+  — shared workflow steps for the build-resolver agents, replacing what was
+  drifting copy-paste across each agent file.
+- New `docs/contracts/artifact-contract.md` — single source of truth for the
+  `.claude/artifacts/` path template, frontmatter fields, and sentinel-clear
+  convention previously duplicated inline across 18 agent files.
+
+**refactor(agents)** — All root-level agents now reference the shared
+skeleton/contract instead of repeating instructions inline, cutting
+duplicated boilerplate across `agents/*.md` and
+`modules/library-author/agents/polyfill-reviewer.md`.
+
+**feat(agents)** — Sentinel-scoped review precedence + safety turn caps:
+- Reviewer agents (db/security/frontend/doc/migration) now treat their own
+  pending-sentinel file's listed paths as the sole authoritative review
+  scope instead of the full uncommitted working tree — prevents one
+  session's reviewer from flagging another session's unrelated uncommitted
+  files.
+- `migration-reviewer` reclassified from an opt-in 6th slot to a standing
+  member of the 7-slot `review_agents` default; its sentinel *trigger*
+  stays opt-in via module / `review_trigger_extra_paths` config.
+
+**feat(hooks)** — Pre-commit timeout detection:
+- `pre-commit-{php,js,python}-validation.sh` and `pre-commit-swift-build.sh`
+  now wrap their lint/typecheck/build subprocesses in `timeout`, with a
+  distinct "possible hang" failure message (exit 124) versus a normal lint
+  failure — prevents a hung linter from silently stalling `git commit`.
+
+**feat(skills)** — New `prompt-optimize` skill: rewrites a raw task prompt
+into a model-aware, effort-calibrated version, with reference guides for
+effort selection, model-specific rewrites, and general prompting techniques.
+
+**refactor(rules)** — Consolidated `rules/execution-policy.md` as SSOT for
+the post-implementation reviewer gate and sentinel-scope rules;
+`skills/dhpk-execution-policy/SKILL.md`, `skills/execution-checklist/SKILL.md`,
+and `skills/tool-routing/SKILL.md` now reference it instead of duplicating.
+
+**test** — Extended `tests/catalog-claims.test.js` / `scripts/ci/catalog.js`
+to cover the rules/agent index SSOT claims added in this release.
+
 ## 0.20.1 — 2026-07-01 — Post-implementation agent gate SSOT, route-table consolidation, harness validation hardening
 
 Maintenance release — no new agents or behavior changes for end users. Internal
