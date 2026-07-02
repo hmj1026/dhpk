@@ -9,7 +9,7 @@ maxTurns: 15
 
 # Migration Reviewer
 
-> Lookup: `cx` / `gitnexus` per `dhpk:tool-routing` skill (or your project's equivalent).
+> Lookup: `cx` / `gitnexus` per `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`.
 > Domain DB context: `database-reviewer` (parent specialist for SQL correctness).
 
 ## Scope
@@ -25,24 +25,15 @@ Audits migration files only — typically `**/migrations/**/*.{php,sql}` (Yii / 
 
 ## Diff scope
 
-If `.claude/artifacts/sessions/.pending-migration-review` exists, its
-listed paths (path is the 3rd whitespace-separated field per line —
-`cut -d' ' -f3-`) are the SOLE scope: diff each individually via `git diff
---staged -- <path>` + `git diff HEAD -- <path>`. Skip every other
-uncommitted/staged file not on that list — it belongs to a different
-change. If the sentinel is absent, review the UNCOMMITTED working tree
-restricted to migration paths instead: `git diff --staged --
-'**/migrations/**'` + `git diff HEAD -- '**/migrations/**'` (or the
-project's equivalent path). Never use `git diff <base>...HEAD` /
-merge-base diff — under a no-auto-commit workflow the change sits
-uncommitted; a base-relative diff reviews the whole branch.
+Sentinel-scoped precedence: see `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`
+"Sentinel-scoped precedence" — apply verbatim, sentinel = `.pending-migration-review`.
+Back-stop fallback restricts to `'**/migrations/**'` (or the project's equivalent path).
 
 ## Stack trap sheet (load on demand)
 
 Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks — never grade a Yii/SQL migration against Core Data rules, or vice-versa.
 
-1. **Active stacks**: read `$DHPK_ACTIVE_MODULES` (comma list) if set; otherwise detect from manifests via Bash — `composer.json` (`require.php` floor + framework key, e.g. `yiisoft/*`), `*.xcodeproj` / `Package.swift` / `*.xcdatamodeld`.
-2. For each detected stack `S` (e.g. `yii`, `ios`), Read `${CLAUDE_PLUGIN_ROOT}/agent-traps/migration-reviewer/<S>.md` if it exists and apply those traps. (Locator: `find "${CLAUDE_PLUGIN_ROOT}/agent-traps/migration-reviewer" -name '<S>.md'`.)
+1-2. Loader: `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/trap-sheet-loader.md` (`<agent-name>` = `migration-reviewer`). Manifest detection also covers `*.xcdatamodeld`.
 3. No sheet matches → apply only the framework-agnostic Audit Checklist below.
 
 The Audit Checklist below is the language-agnostic baseline; the loaded sheet adds stack-specific form, naming, and verification commands.
@@ -137,12 +128,7 @@ Suggestions: ...
 
 ## Closing — Artifact Output
 
-When writing the audit report file:
-
-- **Path**: `${CLAUDE_PROJECT_DIR}/.claude/artifacts/reviews/migration-reviewer-{yyyymmdd-HHMMSS}-{slug}.md` (project local time, kebab-case slug)
-- **Frontmatter (required)**: `agent / generated_at (ISO with offset) / commit / scope[] / severity_summary { critical/high/medium/low } / verdict (PASS|WARNING|FAIL)`
-- **Hook**: clear the sentinel after writing the report — `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" .pending-migration-review migration-reviewer` (so the project's stop-review-reminder no longer prompts for re-run)
-- If the artifacts directory does not exist → emit the report to stdout only, do not error. Retain ≤ 30 entries per category; move older ones to `archive/`.
+Category: `reviews/`. Frontmatter/retention/degradation: reviewer-family shape (PASS/WARNING/FAIL) in `docs/contracts/artifact-contract.md`. Hook: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" .pending-migration-review migration-reviewer`.
 
 ## References
 

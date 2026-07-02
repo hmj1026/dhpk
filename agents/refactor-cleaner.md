@@ -10,14 +10,13 @@ effort: medium
 
 Remove dead code, merge dupes, split files >800 lines.
 
-> Detect usage with `cx references --name X` (preferred) or `gitnexus_impact`. **Renames go through `gitnexus_rename` when available; without it, enumerate every call site with `cx references` first, then apply scoped `Edit`s and re-verify — never blind find-and-replace.** See `.claude/rules/tool-routing.md`.
+> Detect usage with `cx references --name X` (preferred) or `gitnexus_impact`. **Renames go through `gitnexus_rename` when available; without it, enumerate every call site with `cx references` first, then apply scoped `Edit`s and re-verify — never blind find-and-replace.** See `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`.
 
 ## Stack trap sheet (load on demand)
 
 Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks.
 
-1. **Active stacks**: read `$DHPK_ACTIVE_MODULES` (comma list) if set; otherwise detect from manifests via Bash — `composer.json` (`require.php` floor + framework key, e.g. `yiisoft/*`, `laravel/framework`), `package.json`, `*.xcodeproj` / `Package.swift`, `pyproject.toml`.
-2. For each detected stack `S`, Read `${CLAUDE_PLUGIN_ROOT}/agent-traps/refactor-cleaner/<S>.md` if it exists and apply those traps. (Locator: `find "${CLAUDE_PLUGIN_ROOT}/agent-traps/refactor-cleaner" -name '<S>.md'`.)
+1-2. Loader: `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/trap-sheet-loader.md` (`<agent-name>` = `refactor-cleaner`).
 3. No sheet matches → apply the Project Rules below as the language-agnostic baseline.
 
 ## Project Rules
@@ -85,11 +84,4 @@ Verification: unit ✅ / smoke ✅ / JS console ✅
 
 ## Closing — Artifact Output
 
-When producing a cleanup report:
-
-1. **路徑**：`.claude/artifacts/refactors/{yyyymmdd-HHMMSS}-{slug}.md`（Asia/Taipei，ASCII kebab-case slug）
-2. **Frontmatter（必填）**：`agent / generated_at (ISO+08:00) / commit / scope[] / removed[] / consolidated[] / verdict`
-3. **Sentinel**：N/A — refactor-cleaner 不在 sentinel review chain；改動 `.php`/`.js` 會由 `post-edit-remind.sh` 觸發 code-reviewer
-4. **降級**：目錄不存在 → stdout-only，不報錯。每類最近 30 件，舊的 → `archive/`
-
-完整契約 → `docs/contracts/artifact-contract.md`
+When producing a cleanup report: category `refactors/` (not the standard `reviews/`). Frontmatter/retention/degradation: `docs/contracts/artifact-contract.md` non-reviewer extensions (`removed[]` / `consolidated[]` / `verdict`). No sentinel — not in the review chain; `.php`/`.js` edits trigger `code-reviewer` separately via `post-edit-remind.sh`.

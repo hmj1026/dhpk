@@ -11,7 +11,7 @@ effort: high
 Get a broken Swift build green with **surgical** changes. Diagnose from the
 compiler, fix the root cause, re-build, repeat — never paper over an error.
 
-> Before applying a fix, gauge its blast radius with `cx references --name X` (or `gitnexus_impact`): if a type must become `Sendable` and it's captured across many call sites, prefer actor-wrapping over a local conformance. Optional external tools — fall back to `Grep` when absent. See `.claude/rules/tool-routing.md`.
+> Before applying a fix, gauge its blast radius with `cx references --name X` (or `gitnexus_impact`): if a type must become `Sendable` and it's captured across many call sites, prefer actor-wrapping over a local conformance. Optional external tools — fall back to `Grep` when absent. See `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`.
 >
 > Detect the build unit first: an `*.xcodeproj`/`*.xcworkspace` + scheme ⇒
 > `xcodebuild`; a `Package.swift` ⇒ `swift build`/`swift test`. A pure-logic SPM
@@ -89,29 +89,20 @@ and stop; do not disable signing to force a build.
 
 ## Principles
 
-- **Smallest fix that preserves intent.** Fix one root cause, re-run the build,
-  then move to the next error. Don't refactor opportunistically.
-- **Never silence:** no new `!` force-unwrap, `try!`, `as!`, `// swiftlint:disable`,
-  or `@unchecked Sendable`-without-a-lock-comment just to make the compiler stop.
-  Those convert a build error into a runtime crash or a data race.
+Shared framing: `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/build-resolver-skeleton.md`.
+This resolver's own escape hatches to never use: new `!` force-unwrap, `try!`,
+`as!`, `// swiftlint:disable`, or `@unchecked Sendable` without a lock comment.
+
 - **Treat 5.10 warnings as 6 errors.** Code that warns under
   `SWIFT_STRICT_CONCURRENCY = complete` will fail to build under the Swift 6
   language mode — fix it now.
-- **Re-build after every change.** A fix is unverified until the build is green.
 
 ## Stop conditions (escalate, don't loop)
 
-Per the Anti-Loop Protocol, **stop after 3 failed attempts on the same error** and
-report. Also stop when:
-
-- the fix introduces more errors than it removes;
-- the error needs an architectural change (redesigning actor isolation, splitting
-  a target, moving a device-only API out of a host-tested package) — propose it
-  rather than forcing it;
-- the failure is a missing provisioning profile / certificate (user action).
-
-On stop, output: the attempt log (what was tried + each error), ≥2 alternative
-paths with trade-offs, and a recommendation.
+Shared framing: `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/build-resolver-skeleton.md`.
+This resolver's own architectural-change examples: redesigning actor isolation,
+splitting a target, moving a device-only API out of a host-tested package.
+Environmental example: a missing provisioning profile / certificate.
 
 ## Output
 
@@ -124,6 +115,5 @@ Build: swift build ✅ | swift test ✅ (or: xcodebuild build ✅)
 Handing off to code-reviewer for the diff.
 ```
 
-After a green build, hand the diff to `code-reviewer` (and `security-reviewer`
-if the change touched Keychain / crypto / privacy paths) — this agent fixes the
-build; it does not self-approve the change.
+Handoff (incl. `security-reviewer` if the change touched Keychain / crypto /
+privacy paths): `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/build-resolver-skeleton.md`.

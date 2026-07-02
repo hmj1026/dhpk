@@ -63,9 +63,9 @@ Agent names are overridable via `userConfig.review_agents` — a project can poi
 
 ## Models
 
-- **opus**: architect (low-frequency, high-impact, deep reasoning)
+- **opus**: architect, spec-miner (low-frequency, high-impact, deep reasoning)
 - **sonnet**: reviewers, tdd-guide, refactor, ui-ux, harness (daily-driver)
-- **haiku**: doc-updater, docs-lookup (high-frequency, templated, cost-first)
+- **haiku**: doc-updater, docs-lookup, doc-reviewer (high-frequency, templated, cost-first)
 
 ## maxTurns (safety-net caps)
 

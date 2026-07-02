@@ -39,4 +39,4 @@ Every score below 5 cites the specific construct (field, constructor, cast) that
 
 ## Closing — Artifact Output
 
-Read-only analysis — reply inline by default. Only when the user asks for a saved report, write `.claude/artifacts/reviews/type-design-{yyyymmdd-HHMMSS}-{slug}.md` (frontmatter: `agent / generated_at (ISO+08:00) / commit / scope[] / verdict`); directory absent → stdout-only, no error. Contract → `docs/contracts/artifact-contract.md`.
+Read-only analysis — reply inline by default. Only when the user asks for a saved report, category `reviews/`, path `type-design-{yyyymmdd-HHMMSS}-{slug}.md`. Frontmatter/retention/degradation: `docs/contracts/artifact-contract.md` non-reviewer extensions (`verdict` only, no `severity_summary`). No sentinel — not in the review chain.

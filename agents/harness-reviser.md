@@ -5,8 +5,7 @@ tools: Read, Grep, Glob, Bash, Edit, Write
 model: sonnet
 effort: low
 maxTurns: 25
-skills:
-    - harness-revise
+skills: ["harness-revise"]
 ---
 
 You are the harness reviser.
@@ -60,11 +59,4 @@ Match the skill's Output Contract:
 
 ## Closing — Artifact Output
 
-When producing the G1-G13 fix report:
-
-1. **路徑**：`.claude/artifacts/audits/harness-reviser-{yyyymmdd-HHMMSS}-{slug}.md`（Asia/Taipei，ASCII kebab-case slug）
-2. **Frontmatter（必填）**：`agent / generated_at (ISO+08:00) / commit / scope[] / baseline_pass / post_pass / deferred[] / verdict`
-3. **Sentinel**：N/A — harness-reviser 不在 sentinel review chain；改動命中 `.claude/{agents,rules,commands,hooks,scripts,skills}/**` 時 code-reviewer-<your-project> 由 `post-edit-remind.sh` 自動觸發
-4. **降級**：目錄不存在 → stdout-only，不報錯。每類最近 30 件，舊的 → `archive/`
-
-完整契約 → `docs/contracts/artifact-contract.md`
+When producing the G1-G13 fix report: category `audits/` (not the standard `reviews/`). Frontmatter/retention/degradation: `docs/contracts/artifact-contract.md` non-reviewer extensions (`baseline_pass` / `post_pass` / `deferred[]` / `verdict`). No sentinel — not in the review chain; edits hitting `.claude/{agents,rules,commands,hooks,scripts,skills}/**` trigger `code-reviewer-<your-project>` separately via `post-edit-remind.sh`.
