@@ -1,5 +1,60 @@
 # Changelog
 
+## 0.22.0 — 2026-07-02 — Implementation-phase worker agents: deep-reasoner, fast-worker, and the Implementation dispatch policy
+
+Agent count 24 → 26. Every prior agent was a reviewer, planner, or build
+resolver; this release adds the first two implementation-capable workers and
+a dispatch policy that routes implement-phase work through them instead of
+the generic `general-purpose` subagent.
+
+**feat(agents)** — Two new implementation workers:
+- `dhpk:deep-reasoner` (opus, read-only) — root-cause analysis, algorithm
+  design, and complex multi-file debugging. Returns a conclusion contract
+  (conclusion + `file:line` evidence + fast-worker-ready next actions);
+  defers DDD / cross-module architecture decisions to `architect`.
+- `dhpk:fast-worker` (sonnet, write-capable) — mechanical implementer that
+  accepts a precise task spec (target files + change intent + verification
+  command), applies surgical edits only, runs the verification command, and
+  reports pass/fail plus the complete edited-file list. Escalates on
+  ambiguous specs instead of guessing; stops after 3 failed verification
+  attempts.
+
+**feat(rules)** — New `rules/execution-policy.md` §Implementation dispatch:
+decision table routing reasoning-heavy work to `deep-reasoner`, mechanical
+work with a clear spec to `fast-worker`, small (~2-file) unambiguous diffs
+inline, and complex work to a deep-reasoner-spec → fast-worker-apply
+handoff. Prohibits `general-purpose` dispatch for implementation while
+enabled; preserves every existing sentinel/reviewer gate unchanged; the
+`CODEX=on` high-stakes path cross-references the existing §Multi-AI /
+dual-perspective independence rule (deep-reasoner ∥ codex blind parallel).
+
+**feat(config)** — Three new `userConfig` keys for per-project model tuning:
+- `deep_reasoner_model` (default `opus`), `fast_worker_model` (default
+  `sonnet`) — applied per Agent-call dispatch via the `model` param; an
+  invalid value warns once per session and falls back to the agent's
+  frontmatter default rather than failing the dispatch.
+- `orchestration_dispatch` (default `on`) — kill switch. `off` restores
+  pre-change behavior exactly: inline implementation, no dispatch
+  prohibition, and `opsx-apply-goal`'s emitted `/goal` kickoff text is
+  byte-identical to the pre-change output.
+
+**feat(hooks)** — `session-start.sh` announces
+`orchestration: deep=<model> worker=<model>[ dispatch=off]`, but only when
+at least one value diverges from the shipped default (silent on the common
+all-defaults case).
+
+**refactor(skills)** — `feature-dev`, `bug-fix`, and `adaptive-dev-workflow`
+route their implement-phase steps through the new dispatch table instead of
+"write code directly" / ad-hoc `general-purpose` dispatch;
+`opsx-apply-goal`'s unattended-session kickoff gains a one-line dispatch
+directive (gated on `orchestration_dispatch=on`); Block C notes that
+worker-produced sentinels converge through the existing universal
+`ls .pending-*` gate — no new stop condition.
+
+**test** — `scripts/ci/validate-agents.js` and `tests/run-all.js` extended
+to cover the two new agent files and the updated count/catalog claims
+(25 agent files pass; 6/6 suites, 30/30 assertions green).
+
 ## 0.21.0 — 2026-07-02 — Agent shared skeleton, sentinel-scoped review, prompt-optimize skill
 
 **feat(infra)** — Agent shared process skeleton + artifact-output contract:
