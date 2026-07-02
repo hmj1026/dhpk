@@ -36,6 +36,7 @@ node_modules/
 # Externally-installed tooling (not part of the dhpk plugin source)
 openspec/
 .claude/commands/opsx/
+.claude/skills/gitnexus/*/
 .claude/skills/openspec-*/
 .antigravitycli/
 
