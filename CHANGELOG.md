@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.23.0 — 2026-07-02 — version-diff helper, README-to-docs migration, and release-flow regression tests
+
+**feat(version)** — New `scripts/version-diff.sh` helper: when
+`check-plugin-version.sh` flags the running plugin version as unverified, it
+diffs the project's `pluginConfigs["dhpk@dhpk"].options` schema against the
+running plugin's `userConfig` keys, prints the relevant `CHANGELOG.md`
+excerpt since the last verified version, and emits a ready-to-paste
+verified-entry JSON snippet (never written automatically). Read-only,
+advisory, always exits 0; not wired into any hook. `check-plugin-version.sh`
+hook prompt updated to point at it.
+
+**docs(project)** — Moved detailed setup and day-to-day operation docs out of
+`README.md` / `README.zh-TW.md` into `docs/configuration.md` and
+`docs/basic-operations.md` (with `.zh-TW` counterparts), shrinking both
+READMEs to a lighter entry point.
+
+**chore(config)** — Added a GitNexus rules configuration section to
+`CLAUDE.md` / `AGENTS.md` and ignored GitNexus's scratch directory in
+`.gitignore`.
+
+**test(ci)** — Two new regression suites: `release-workflow.test.js` locks
+the Release workflow's upsert-not-create release step and stdin-streamed
+(not inline-interpolated) release notes; `validate-agents-behavior.test.js`
+covers the agent-frontmatter validator's missing-block, empty-description,
+and duplicate-key detection paths.
+
 ## 0.22.0 — 2026-07-02 — Implementation-phase worker agents: deep-reasoner, fast-worker, and the Implementation dispatch policy
 
 Agent count 24 → 26. Every prior agent was a reviewer, planner, or build

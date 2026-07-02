@@ -15,7 +15,7 @@ OpenSpec is an **optional external integration** — install the [OpenSpec plugi
 | `python3` | Required IF you enable `modules` | Parses `module.yaml` in `post-edit-remind` and `session-start` |
 | `jq` | Optional (python3 fallback exists) | Faster JSON payload extraction |
 | `docker` | Optional | Only consulted when `userConfig.docker_containers` is non-empty |
-| Codex MCP server | Optional | Required ONLY if you invoke the 14 `codex-*` skills (install separately) |
+| Codex MCP server | Optional | Required ONLY if you invoke the 6 `codex-*` skills or use `CODEX=on` — separate OpenAI-published Claude Code plugin, see [`docs/configuration.md`](./docs/configuration.md#codex-mcp-dependency-not-a-userconfig-knob) |
 | Codex CLI binary | Optional | Required ONLY if you run `install-codex-skills.sh` and want Codex to actually load the synced content |
 | `cx` CLI | Optional | Semantic code navigation. Primary tool in `rules/tool-routing.md` for `cx overview` / `cx definition` / `cx references`. Referenced by 6 reviewer agents and the `harness-fill` skill. Missing → falls back to `Grep` / `Read`. |
 | `gitnexus` MCP server | Optional | Knowledge-graph queries (`gitnexus_impact`, `gitnexus_rename`, `gitnexus_detect_changes`). Required by 6 `gitnexus-*` skills and the `rules/execution-policy.md` self-check. Missing → falls back to `cx` or `Grep`. |
@@ -27,87 +27,14 @@ External code-navigation tools (`cx`, `gitnexus`, `claude-mem`) are **not bundle
 
 ## Install
 
-dhpk follows the standard [Claude Code plugin distribution model](https://docs.claude.com/en/docs/claude-code/plugins): the same marketplace + manifest is reachable from **two surfaces**, pick whichever fits your workflow:
-
-- **Terminal** — `claude plugin marketplace add …` / `claude plugin install …`
-- **Inside a Claude Code session** — `/plugin marketplace add …` / `/plugin install …` (or the interactive `/plugin` browser)
-
-Both surfaces read the same `.claude-plugin/marketplace.json` shipped in this repo, so the result is identical.
-
-### Path A — From GitHub (recommended)
-
-No clone needed. Fastest path for end users.
+dhpk follows the standard [Claude Code plugin distribution model](https://docs.claude.com/en/docs/claude-code/plugins). Fastest path (no clone needed):
 
 ```bash
-# Terminal
 claude plugin marketplace add hmj1026/dhpk
-claude plugin install dhpk@dhpk
+claude plugin install dhpk@dhpk --config modules=php-8.x,laravel-11 --config hook_profile=standard
 ```
 
-```text
-# …or inside Claude Code
-/plugin marketplace add hmj1026/dhpk
-/plugin install dhpk@dhpk
-```
-
-Add `--config` flags to pre-seed config (skip if you'd rather answer interactively via `/dhpk:setup` after install):
-
-```bash
-claude plugin install dhpk@dhpk \
-  --config modules=php-8.x,laravel-11,phpunit-11,library-author \
-  --config docker_containers=php-fpm,mysql \
-  --config hook_profile=standard
-```
-
-Pin a specific release by appending a version: `claude plugin install dhpk@dhpk@v0.6.0`. Available stacks/versions live in `manifests/module-catalog.json` (SSOT); curated bundles in `manifests/install-profiles.json`. Docker prerequisites: see [`docs/docker-setup.md`](./docs/docker-setup.md).
-
-After install, reconfigure any time from inside Claude Code:
-
-```text
-/dhpk:setup           # rerun the same questions
-/dhpk:setup --show    # print current effective config
-```
-
-### Path B — Local clone + interactive installer
-
-Use this if you want an out-of-Claude shell wizard, or you'll be hacking on the plugin source. **You must `git clone` first** — the installer lives inside the repo.
-
-```bash
-git clone https://github.com/hmj1026/dhpk ~/projects/dhpk
-claude plugin marketplace add ~/projects/dhpk
-bash ~/projects/dhpk/scripts/install.sh        # interactive (gum / python3 fallback)
-```
-
-The script walks stack/version selection, docker prerequisites, review-agent overrides, and hook profile, then runs `claude plugin install` for you. Append `--dry-run` to print the resolved `claude plugin install …` command without executing it.
-
-Validate the local checkout at any time:
-
-```bash
-claude plugin validate ~/projects/dhpk --strict
-```
-
-For live source edits during plugin development (no reinstall loop), see [§ Development](#development).
-
-### Update / Uninstall
-
-```bash
-claude plugin update dhpk              # pull the latest version from the marketplace
-claude plugin uninstall dhpk           # remove the plugin
-claude plugin marketplace remove dhpk  # forget the marketplace entry
-```
-
-The same actions are available as `/plugin update dhpk`, `/plugin uninstall dhpk`, `/plugin marketplace remove dhpk` inside Claude Code.
-
-### Troubleshooting
-
-| Symptom | Likely cause | Fix |
-|---|---|---|
-| `marketplace add` says the path doesn't exist | You followed Path B but skipped the `git clone` step | Run `git clone https://github.com/hmj1026/dhpk ~/projects/dhpk` first — or switch to Path A which needs no clone |
-| `claude plugin install dhpk@dhpk` says marketplace not found | `marketplace add` didn't run, or you removed it earlier | Re-run the `marketplace add` line from your chosen path |
-| `/dhpk:*` commands or hooks don't appear after install | Session loaded its skill list before install finished | Run `/reload-plugins` inside Claude Code, or restart the session |
-| `claude plugin list` shows dhpk but `/dhpk:setup` is missing | Plugin is installed but disabled | `claude plugin enable dhpk` (or `/plugin enable dhpk`) |
-| `install.sh` errors on `gum` / `jq` not found | Optional UI deps missing | The script falls back to plain shell / `python3`; install `gum` and `jq` for the nicer flow, or ignore the warning |
-| Some skill descriptions truncated/dropped (seen in `/doctor`) | Many modules shipped → skill-listing budget overflow (module skills list regardless of `modules`, [#12](https://github.com/hmj1026/dhpk/issues/12)) | Raise `skillListingBudgetFraction` in `settings.json` (default ~1% → `0.02`–`0.03`), or install fewer modules / disable the whole plugin with `/plugin` where unused |
+Reconfigure any time with `/dhpk:setup` (or `/dhpk:setup --show` to print the current config). Full install paths (GitHub vs. local clone), update/uninstall, and troubleshooting live in **[`docs/basic-operations.md`](./docs/basic-operations.md)**. Full `--config` knob reference: **[`docs/configuration.md`](./docs/configuration.md)**.
 
 ## What you get
 
@@ -124,178 +51,41 @@ The same actions are available as `/plugin update dhpk`, `/plugin uninstall dhpk
 
 ## Common workflows
 
-Everything is reachable through `/dhpk:do` — one entry point that routes natural-language task descriptions to the right skill. The examples below show what actually happens after you type a command.
-
-### 1. Feature development
+Everything is reachable through `/dhpk:do` — one entry point that routes natural-language task descriptions to the right skill: feature development, bug fixes, the automatic post-edit review cycle, commit/PR, unattended OpenSpec sessions, spec mining, E2E test authoring, harness health checks, and Implementation dispatch (reasoning-heavy work → `deep-reasoner`, mechanical work → `fast-worker`). Full walkthrough with worked examples for each: **[`docs/basic-operations.md`](./docs/basic-operations.md)**.
 
 ```text
-/dhpk:do implement a password-reset email flow
+/dhpk:do implement a password-reset email flow   # feature (TDD + review gates)
+/dhpk:do fix the login redirect loop              # bug fix (root cause + regression test)
+/dhpk:review-pending                              # trigger pending reviewers immediately
+/dhpk:smart-commit && /dhpk:create-pr             # commit + PR
+/harness-audit                                    # harness health scorecard
 ```
-
-The Smart Router matches "implement … feature" → `dhpk:adaptive-dev-workflow` → **Feature Delivery** path. The skill loads TDD guide, runs the RED→GREEN→REFACTOR cycle, and closes with code-review and security gates. Post-edit hooks automatically drop sentinels after each file write; the Stop hook reminds you of any still-open reviewers.
-
-### 2. Bug fix
-
-```text
-/dhpk:do fix the login redirect loop
-```
-
-Matches "fix … bug" → `dhpk:adaptive-dev-workflow` → **Bug Investigation & Fix**: root-cause evidence, regression test, RED gate before writing the fix.
-
-### 3. Post-edit review cycle (automatic)
-
-No command needed. After any file edit the hooks automatically:
-
-1. Drop a `.pending-*` sentinel for each relevant reviewer slot (code / db / sec / frontend / doc)
-2. Remind dispatched reviewers to run in parallel at Stop
-3. Warn before `git commit` while sentinels are open (configurable via `sentinel_commit_gate`: `warn` / `block` / `off`)
-
-To trigger reviews immediately without waiting for Stop: `/dhpk:review-pending`
-
-### 4. Commit and PR
-
-```text
-/dhpk:smart-commit        # stages changed files, generates a conventional commit message, runs pre-commit gates
-/dhpk:create-pr           # drafts PR title + summary from the branch commit log
-```
-
-Or describe it in plain language:
-
-```text
-/dhpk:do 幫我提交並建立 PR
-```
-
-### 5. Unattended OpenSpec session
-
-For a long-running change that should run without supervision — generates a single `/goal` command (with the `/opsx:apply` kickoff embedded), ready to paste into a fresh session:
-
-```text
-/dhpk:opsx-apply-goal my-change-id --max-duration 2h
-```
-
-Add `--min-coverage 80` to enforce a coverage gate even when the project has no native coverage config.
-
-### 6. Mine specs from existing code
-
-Extracts behavioral requirements from an existing module into `openspec/specs/<capability>/spec.md` (brownfield onboarding):
-
-```text
-/dhpk:spec-mine user-authentication
-```
-
-Delegates to the `spec-miner` (Opus) agent. Omit the capability name to get a prompted list.
-
-### 7. E2E test authoring
-
-```text
-/dhpk:do write E2E tests for the checkout flow
-```
-
-Routes to `dhpk:post-dev-test`, which delegates Playwright suite authoring to the `e2e-runner` agent.
-
-### 8. Harness health check and repair
-
-The harness-* family covers four distinct concerns — use the right tool for each:
-
-| Command / Skill | Concern | Mutates? |
-|---|---|---|
-| `/harness-audit` | Deterministic 7-category scorecard | No |
-| `dhpk:harness-budget` | Context-window token accounting | No |
-| `dhpk:claude-health` | `.claude/` config health, naming, plugin sync | No |
-| `/harness-govern` | End-to-end measure → conform → fix → verify loop | No (add `--fix` to apply) |
-| `dhpk:harness-revise` | Trim, dedupe, validate (G1–G13 gap taxonomy) | Yes |
-| `dhpk:harness-fill` | Backfill missing `.claude/` infrastructure | Yes |
-
-**Typical flow:**
-
-```text
-# 1. Quick diagnostic — see what's wrong
-/harness-audit
-
-# 2. Check context-window overhead (token budget)
-/dhpk:harness-budget
-
-# 3. End-to-end governance loop (read-only by default)
-/harness-govern
-
-# 4. Apply fixes (trim, dedupe, validate)
-/harness-govern --fix
-
-# 5. If .claude/ is missing skills/agents/rules (new project onboarding)
-/dhpk:harness-fill
-```
-
-`/harness-govern` is the single front door: it sequences `/harness-audit` (score) → conform (best-practices lens) → `/harness-revise` (fix, only with `--fix`) → verify. Safe to run as `/loop /harness-govern` for ongoing monitoring.
 
 ---
 
 ## userConfig
 
-Thirty-one knobs, all settable at install time with `--config <key>=<value>`:
-
-| Key | Default | Purpose |
-|-----|---------|---------|
-| `hook_profile` | `standard` | `minimal` suppresses Stop reminders; `strict` adds extra warnings |
-| `review_agents` | `["code-reviewer","database-reviewer","security-reviewer","frontend-reviewer","doc-reviewer","polyfill-reviewer","migration-reviewer"]` | Seven agents invoked by sentinel reminders (slots: code, db, sec, frontend, doc, polyfill, migration). Override to point at your project-specific agents; shorter overrides are padded with the defaults for the remaining slots. (Slots 5–6 fire only when opted in — polyfill via `library-author`, migration via module triggers or a `mig:` extra path.) |
-| `docker_containers` | `[]` | Container names checked at SessionStart. Empty list disables the check. First entry exported as `DHPK_PHP_CONTAINER`; second as `DHPK_MYSQL_CONTAINER`. |
-| `modules` | `[]` | Stack modules to enable. Ships 27: `php-5.6`, `php-7.4`, `php-8.x`, `yii-1.1`, `phpunit-5.7`, `phpunit-9`, `phpunit-10`, `phpunit-11`, `laravel-5.4`, `laravel-6`, `laravel-7`, `laravel-8`, `laravel-9`, `laravel-10`, `laravel-11`, `js`, `vue-2`, `laravel-mix`, `python`, `fastapi`, `pytest`, `library-author`, `swift`, `swiftui`, `ios-platform`, `swift-testing`, `xcode-tooling`. Enabling `python` wires a post-edit ruff hook (batched at Stop) + a pre-commit ruff/format/type-check (pyright\|mypy) gate (project root auto-detected by walking up to `pyproject.toml`; set `python_project_roots=backend` for a subdir backend); `fastapi` / `pytest` are skills+refs and each `requires: python`. Module `requires:` validated at SessionStart (warning, not blocking). Project-level `.claude/settings.local.json` `pluginConfigs.dhpk@dhpk.options.modules` **overrides** the global value — supports a single dev machine working on projects with different stacks. |
-| `review_trigger_extra_paths` | `[]` | Extra path prefixes per reviewer slot. Format: `<slot>:<prefix>` where slot ∈ `code\|db\|sec\|fe\|doc\|mig`. Example: `code:protected/`, `fe:resources/views/`, `mig:db/migrate/`. |
-| `hot_tables` | `[]` | Project-specific high-volume table names that `performance-analyzer` and `migration-reviewer` treat as elevated risk (large-ALTER downtime, N+1, missing composite index). Empty falls back to the agents' generic heuristics + CLAUDE.md. Example: `orders`, `order_lines`, `inventory`. |
-| `reap_stale_mcp_processes` | `false` | When `true`, SessionStart reaps **orphaned** `gitnexus mcp` processes (parent session dead / reparented to init) — never a process owned by a live parallel session. Only useful for gitnexus MCP users. |
-| `js_lint_script` | `"lint"` | npm script invoked by the `js` module's pre-commit gate. |
-| `js_typecheck_script` | `"typecheck"` | npm script invoked by the `js` module's pre-commit gate. |
-| `js_check_path` | `"js/"` | Path scanned by `/ts-check-status` for `// @ts-check` rollout progress. |
-| `sentinel_commit_gate` | `"warn"` | `warn` \| `block` \| `off` — gate on `git commit/merge/rebase/cherry-pick` while reviewer sentinels exist. Override one-shot via `DHPK_SENTINEL_COMMIT_GATE`. |
-| `branch_safety` | `"warn"` | `warn` \| `block` \| `off` — gate on history-mutating git ops (`commit/merge/rebase/cherry-pick/reset/push`) on protected branches. Override one-shot via `DHPK_BRANCH_SAFETY`. |
-| `protected_branches` | `["main","master","develop","release/*","hotfix/*"]` | Branch glob list checked by `branch_safety`. Bash `case` glob syntax. |
-| `skill_hint_enabled` | `true` | Whether the UserPromptSubmit hook prints a one-line route-table skill hint. Silence via `DHPK_DISABLE_SKILL_HINT=1` (one-shot) or set this `false` (persistent). |
-| `learning_db_enabled` | `false` | (v0.6.0) Enable the `.claude/artifacts/learning.jsonl` operational signal store (reviewer pass / subagent failure / abnormal stop). Surfaces as a `[learned-context]` block at SessionStart. |
-| `graduation_scan_enabled` | `false` | (v0.6.0) Enable the Stop hook that scans session transcripts for cited auto-memory entries and drafts `graduation-candidates.md` promotion proposals. |
-| `lockfile_sync_commands` | `[]` | (v0.10.0) Per-manifest lock-sync commands for the async PostToolUse manifest-guard reminder, `<manifest>:<command>` (e.g. `composer.json:docker exec -i my_php composer update --lock`). Unlisted manifests fall back to a generic default. Commands must not contain commas. |
-| `php_bin` | `"php"` | (v0.10.0) PHP binary / wrapper for the `php-5.6` module's async `php -l` post-edit syntax check (e.g. `docker exec -i my_php php`); self-skips when the first word is not on PATH. |
-| `completion_evidence_enabled` | `false` | (v0.10.0) Stop advisory warning when the assistant claims completion while the tree has code changes but no matching test changes (doc/harness-only exempt; defers to active sentinels). One-shot `DHPK_COMPLETION_EVIDENCE=1/0`. |
-| `agent_warmstart_enabled` | `false` | (v0.10.0) PreToolUse (Task\|Agent) hook injecting parent-session context (active sentinels + reviewer slots, current OpenSpec change + tasks, `.claude/warmstart-context.md`, tool-routing reminder; ≤2000 chars) into subagent prompts. One-shot `DHPK_AGENT_WARMSTART=1/0`. |
-| `harness_restore_hint` | `""` | (v0.10.0) Command line printed by the SessionStart broken-symlink advisory (for harnesses deployed via symlinks from a separate repo). Empty prints the WARN without a hint line. |
-| `js_frontend_roots` | `[]` | (v0.10.0) Project override for the `js` module's tier detection — root dirs scanned for first-party JS/TS. Empty falls back to `modules/js/module.yaml` (default `[js, src]`). |
-| `js_core_files` | `[]` | (v0.10.0) Project override — basenames at a frontend root that are first-party entry bundles (linted) rather than vendor. Empty falls back to `module.yaml`. |
-| `js_vendor_globs` | `[]` | (v0.10.0) Project override — glob path prefixes treated as vendored (lint-skipped at any depth), e.g. `js/ckeditor/`, `js/jquery-*`. Globs must not contain commas. Empty falls back to `module.yaml`. |
-| `swiftlint_bin` | `"swiftlint"` | (v0.7.0) Binary for the `xcode-tooling` post-edit SwiftLint hook; self-skips when absent. |
-| `xcode_scheme` | `""` | (v0.7.0) Scheme for the `xcode-tooling` pre-commit build gate; empty skips the gate (no scheme guessing). |
-| `xcode_destination` | `""` | (v0.7.0) Test-step `-destination` for the pre-commit gate; empty auto-picks the first available simulator (the build step always uses a device-name-free generic destination). |
-| `swift_build_skip_tests` | `false` | (v0.7.0) When `true`, the Swift pre-commit gate builds only (no `xcodebuild test` / `swift test`). |
-| `php_cs_fixer_bin` | `"vendor/bin/php-cs-fixer"` | Binary for the `php-7.4` module's post-edit php-cs-fixer hook + pre-commit gate. |
-| `phpstan_bin` | `"vendor/bin/phpstan"` | PHPStan binary for the `php-7.4` module's pre-commit gate. |
-| `psalm_bin` | `"vendor/bin/psalm"` | Psalm binary for the `php-7.4` module's pre-commit gate. |
-
-Examples:
+40 knobs, all settable at install time with `--config <key>=<value>`, reconfigurable any time via `/dhpk:setup`. Full reference (where to set each one, every option, project-level override syntax): **[`docs/configuration.md`](./docs/configuration.md)**.
 
 ```bash
-# Plain install with defaults (7-slot reviewer dispatch on the default agent names).
-claude plugin install dhpk@dhpk
-
-# Legacy PHP/Yii + JS fullstack project.
 claude plugin install dhpk@dhpk \
-  --config modules=php-5.6,yii-1.1,phpunit-5.7,js \
+  --config modules=php-7.4,php-8.x,laravel-6,laravel-11,phpunit-9,library-author \
   --config docker_containers=php-fpm,mysql \
-  --config review_agents=code-reviewer-myproj,db-reviewer-myproj,sec-reviewer-myproj,fe-reviewer-myproj,doc-reviewer-myproj
-
-# Modern Laravel package library spanning Laravel 6–11 (with polyfill review).
-claude plugin install dhpk@dhpk \
-  --config modules=php-7.4,php-8.x,laravel-6,laravel-11,phpunit-9,library-author
+  --config hook_profile=standard
 ```
 
 See `manifests/install-profiles.json` for curated module bundles.
 
 ## Skills with MCP dependencies
 
-6 skills require the **Codex MCP server** (`mcp__codex__codex`, `mcp__codex__codex-reply`):
+6 skills require the **Codex MCP server** (`mcp__codex__codex`, `mcp__codex__codex-reply`), and the same tools power the `CODEX=on` dual-assistant peer path in Implementation dispatch (item 9/10 of the common workflows):
 
 ```
 codex-architect       codex-brainstorm     codex-cli-review
 codex-code-review     codex-explain        codex-implement
 ```
 
-Without Codex installed, invoking any of these will surface a tool-permission error. Install separately (see Anthropic's Codex documentation), then these become available.
+These tools come from a separate OpenAI-published Claude Code plugin — not from dhpk. Without it installed, invoking any of the above surfaces a tool-permission error. Setup steps (`/plugin install codex@openai-codex`, requirements, `/codex:setup`) and the dual-assistant workflow: **[`docs/configuration.md`](./docs/configuration.md#codex-mcp-dependency-not-a-userconfig-knob)** / **[`docs/basic-operations.md`](./docs/basic-operations.md#10-codex-dual-assistant-collaboration)**.
 
 All other skills (~51) have no MCP dependencies.
 
@@ -422,65 +212,11 @@ The statusline renders `[branch] +staged ~modified | docker:status | profile=<p>
 
 ## Sync Codex CLI content
 
-Projects using both Claude Code and Codex CLI:
-
-```bash
-# From any project root:
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"
-```
-
-Symlinks (default) or copies (`--copy`) the plugin's `codex/{skills,agents}` into the project's `.codex/`. Idempotent — re-run with `--update` after a plugin version bump. See `codex/AGENTS.md` and `codex/README.md` for the dual-harness model.
-
-### Codex Plugin Marketplace (experimental)
-
-dhpk also ships a Codex plugin manifest (`.codex-plugin/plugin.json` + a thin
-marketplace-target wrapper at `plugins/dhpk/`) so Codex CLI's own plugin
-marketplace can discover and install the `codex/skills/` mirror natively.
-Two ways to install it:
-
-**Option A — let the agent do it.** Paste this into a Codex CLI session:
-
-```text
-Add hmj1026/dhpk as a Codex plugin marketplace source, install the dhpk
-plugin from it, then verify it's listed as installed. Run:
-  codex plugin marketplace add hmj1026/dhpk
-  codex plugin add dhpk@dhpk
-  codex plugin list
-Report back what codex plugin list shows, and check whether the codex/skills/
-content actually resolved inside the installed plugin cache — Codex has a
-known upstream issue (openai/codex#26037) where skills referenced via a
-marketplace-target wrapper sometimes don't get copied into the runtime cache.
-```
-
-**Option B — run the commands yourself:**
-
-```bash
-codex plugin marketplace add hmj1026/dhpk   # or a local path while developing
-codex plugin add dhpk@dhpk
-codex plugin list
-```
-
-> **Plugin mode is currently experimental / fragile on Codex** (verified
-> against `codex-cli 0.142.5`). Marketplace discovery and install work, but
-> runtime skill loading from local/repo marketplaces is unreliable upstream
-> ([openai/codex#26037](https://github.com/openai/codex/issues/26037)). The
-> supported, fully-working path remains `install-codex-skills.sh` above — the
-> marketplace manifest is additive, not a replacement.
-
-See `.codex-plugin/README.md` and `plugins/dhpk/README.md` for details.
+For projects using both Claude Code and the standalone Codex CLI (distinct from the Codex MCP dependency above — this needs no MCP server): `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"` mirrors dhpk's skills/agents into the project's `.codex/`, plus an experimental Codex Plugin Marketplace path. Full instructions: **[`docs/basic-operations.md`](./docs/basic-operations.md#sync-codex-cli-content)**.
 
 ## Migrating an existing project
 
-If the project already has its own `.claude/` harness, follow the phased plan:
-
-1. **Phase A — baseline**: snapshot pre-install hook outputs and test results.
-2. **Phase B — install (parallel)**: install the plugin with `userConfig.review_agents` pointing at the project's existing agents. Both sets of hooks fire side-by-side.
-3. **Phase C — discovery**: confirm `/agents` and `/plugin details dhpk` show expected components.
-4. **Phase D — hook parity**: diff plugin-side sentinels vs project-side. Document any expected differences.
-5. **Phase E — cutover**: disable the project's in-tree hooks via `.claude/settings.local.json` (`"hooks": {}`); run regression tests.
-6. **Phase F — cleanup**: delete project files now provided by the plugin; keep project-specific overrides.
-
-Each phase has a rollback gate. Tag `pre-dhpk-migration` before deleting anything.
+If the project already has its own `.claude/` harness, dhpk supports a phased parallel-install → hook-parity → cutover plan with a rollback gate at each phase. Full 6-phase walkthrough: **[`docs/basic-operations.md`](./docs/basic-operations.md#migrating-an-existing-project)**.
 
 ## Repository layout
 
@@ -510,6 +246,8 @@ dhpk/
 │   ├── codemaps/, lib/, opsx-apply-resume/, validate/
 │   └── (harness-audit, precommit-runner, verify-runner, gemini-adapt-agents, dep-audit)
 ├── docs/
+│   ├── configuration.md, configuration.zh-TW.md      # full userConfig reference
+│   ├── basic-operations.md, basic-operations.zh-TW.md # install + workflow lifecycle
 │   ├── hook-extension.md         # wrapper-dispatch contract + module-hook authoring
 │   ├── recommended-permissions.md
 │   ├── docker-setup.md, subagent-prompt-template.md
