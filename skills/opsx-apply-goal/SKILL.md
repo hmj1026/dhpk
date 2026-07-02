@@ -1,15 +1,24 @@
 ---
-name: opsx-goal
+name: opsx-apply-goal
 argument-hint: '<change-id> [--turns N] [--max-duration <Nm|Nh>] [--min-coverage N] [--dry-run]'
-description: 'Generate a /goal condition for an unattended OpenSpec change implementation session. Reads tasks.md + proposal.md, detects test-runner scope, calculates turn budget, and emits the /goal string + /opsx:apply sequence ready to paste into a fresh session. Use when starting an unattended implementation session for an OpenSpec change. Not for: archiving, verifying, or syncing changes (use opsx-archive / opsx-verify / opsx-sync).'
+description: 'Generate a single-paste /goal condition (with an embedded opsx:apply kickoff instruction) for an unattended OpenSpec change implementation session. Reads tasks.md + proposal.md, detects test-runner scope, calculates turn budget, and emits one /goal string — pasting it into a fresh session both sets the stop condition and starts implementation, since /goal triggers immediate action on submit. Use when starting an unattended implementation session for an OpenSpec change. Not for: archiving, verifying, or syncing changes (use opsx-archive / opsx-verify / opsx-sync).'
 allowed-tools: 'Bash, Read, Glob'
 ---
 
-# opsx-goal
+# opsx-apply-goal
 
 Goal-condition generator for OpenSpec change implementation sessions. Reads the
-change artifacts and emits the `/goal` and `/opsx:apply` commands to run in a
-fresh session so Claude drives the change to completion unattended.
+change artifacts and emits a single `/goal <condition>` command — with the
+opsx:apply kickoff folded into the condition text — to paste into a fresh
+session so Claude drives the change to completion unattended.
+
+> **Why single-paste:** Claude Code's `/goal` triggers immediate action as soon
+> as it is submitted — there is no window to paste a follow-up `/opsx:apply`
+> command afterward. So the kickoff instruction ("invoke the opsx:apply skill")
+> is embedded as the first sentence of the `/goal` condition itself, and the
+> whole thing is delivered as one paste. Do not split this back into a
+> `/goal` step followed by a separate `/opsx:apply` step — that leaves no
+> input window for the second command.
 
 > **Sentinel strategy:** the goal always checks `ls .claude/artifacts/sessions/.pending-*`
 > rather than enumerating specific reviewers — self-calibrating across all 7 dhpk
@@ -39,8 +48,8 @@ From `$ARGUMENTS`:
 
 Missing `CHANGE_ID` → print usage and stop:
 ```
-Usage: /dhpk:opsx-goal <change-id> [--turns N] [--max-duration <Nm|Nh>] [--min-coverage N] [--dry-run]
-Example: /dhpk:opsx-goal fix-spec-select-empty-gplist-overflow
+Usage: /dhpk:opsx-apply-goal <change-id> [--turns N] [--max-duration <Nm|Nh>] [--min-coverage N] [--dry-run]
+Example: /dhpk:opsx-apply-goal fix-spec-select-empty-gplist-overflow
 ```
 
 ## Step 2 — Locate change directory
@@ -115,7 +124,17 @@ and sentinel-clearance turns.
 
 ## Step 6 — Build goal condition string
 
-Compose `GOAL_CONDITION` by joining the following parts with `,\n`:
+Compose `GOAL_CONDITION` by joining the following parts with `,\n`.
+
+**Part 0 (always, first — kickoff instruction):** this is what makes the
+single-paste design work — `/goal` acts on this text immediately, so the
+first thing Claude reads must be the action to take, not just the stop
+condition:
+```
+Invoke the opsx:apply skill for change <CHANGE_ID> and continue implementing
+openspec/changes/<CHANGE_ID>/tasks.md from the first unchecked item without
+stopping for confirmation, until all of the following hold,
+```
 
 **Part 1 (always):**
 ```
@@ -178,7 +197,7 @@ The `.resume-note.md` carry-forward lets a follow-up session resume cleanly via
 
 ```
 ╔══════════════════════════════════════════════════════════════╗
-║  opsx-goal: <CHANGE_ID>
+║  opsx-apply-goal: <CHANGE_ID>
 ╠══════════════════════════════════════════════════════════════╣
 ║  Tasks       : <DONE_TASKS>/<TOTAL_TASKS> done, <OPEN_TASKS> open
 ║  Test runners: <detected runners, or "none detected">
@@ -204,23 +223,24 @@ If `HAS_SKIP_TASKS=true`, append after the box:
 ━━━ STEP 1 — Open a new implementation session ━━━━━━━━━━━━━━━
 /new
 
-━━━ STEP 2 — Set the goal (do this before /opsx:apply) ━━━━━━━
+━━━ STEP 2 — Set the goal AND start implementation (single paste) ━━
 ```
 
-Print the `/goal` command in a fenced code block:
+Print the `/goal` command in a fenced code block. This one paste both sets
+the stop condition and kicks off implementation — `GOAL_CONDITION` already
+opens with the Part 0 kickoff sentence, so there is nothing further to paste
+after this:
 ```
 /goal <GOAL_CONDITION>
-```
-
-```
-━━━ STEP 3 — Start implementation ━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-/opsx:apply <CHANGE_ID>
 ```
 
 ### Block C — Reminders
 
 ```
 ━━━ NOTES ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• /goal acts immediately on submit — there is no window to paste a follow-up
+  command, which is why the /goal string above already embeds the opsx:apply
+  kickoff. Paste it as-is; do not split it into two steps.
 • Pre-flight before an unattended loop: clean git / worktree (a rollback path
   exists), branch or worktree isolation in place, and a quality gate (test /
   build / lint) detected above — if none is detected the loop has no safety net,
@@ -247,7 +267,7 @@ If `HAS_COVERAGE=false` AND `MIN_COVERAGE` is unset AND `HAS_TEST=true`, append 
 • Coverage gate OFF (no coverage threshold configured) — new-code coverage is
   NOT gated; author tests via feature-dev / tdd-guide, add a native coverage
   threshold (jest coverageThreshold / phpunit <coverage> min / pytest
-  --cov-fail-under), or pass --min-coverage N to opsx-goal to force it this run
+  --cov-fail-under), or pass --min-coverage N to opsx-apply-goal to force it this run
 ```
 
 ### Block C2 — Monitor (always printed; read-only)
@@ -276,14 +296,16 @@ If `DRY_RUN=false`, add:
 ```
 ━━━ THIS SESSION ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Commands above are ready. /goal does not carry across sessions —
-run STEP 2 → STEP 3 in the new session after /new.
-This session will NOT auto-run /opsx:apply.
+run STEP 2 in the new session after /new.
+This session will NOT auto-run /goal or opsx:apply.
 ```
 
 ## Verification
 
 - [ ] Block A shows correct task counts, detected runners, and manual-task count
 - [ ] Block B `/goal` string is entirely in English
+- [ ] Block B `/goal` string opens with the Part 0 opsx:apply kickoff sentence
+      before the stop conditions — single paste, no separate STEP 3
 - [ ] Sentinel check in Part 2 uses `ls .claude/artifacts/sessions/.pending-*` (not reviewer names)
 - [ ] Non-automatable tasks appear in Block A warning, NOT in Part 3
 - [ ] `--max-duration` set → Part 4 has the wall-clock line; absent → no such line

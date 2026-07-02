@@ -167,10 +167,10 @@ Or describe it in plain language:
 
 ### 5. Unattended OpenSpec session
 
-For a long-running change that should run without supervision — generates the `/goal` condition and `/opsx:apply` sequence, ready to paste into a fresh session:
+For a long-running change that should run without supervision — generates a single `/goal` command (with the `/opsx:apply` kickoff embedded), ready to paste into a fresh session:
 
 ```text
-/dhpk:opsx-goal my-change-id --max-duration 2h
+/dhpk:opsx-apply-goal my-change-id --max-duration 2h
 ```
 
 Add `--min-coverage 80` to enforce a coverage gate even when the project has no native coverage config.

@@ -1,6 +1,6 @@
 ---
 name: opsx-load-context
-description: 'Load opsx-apply-resume Resume Phase context via a 3-tier fallback (claude-mem pinned obs → compact JSON → handoff summary), optionally fetching cross-session observations. Use when: opsx-apply-resume enters Resume Phase Steps 1b–1d. Not for: saving observations (use opsx-post-obs) or goal generation (use opsx-goal). Output: CONTEXT_SOURCE + session_goal/completed/in_progress/cross_session_observations fields.'
+description: 'Load opsx-apply-resume Resume Phase context via a 3-tier fallback (claude-mem pinned obs → compact JSON → handoff summary), optionally fetching cross-session observations. Use when: opsx-apply-resume enters Resume Phase Steps 1b–1d. Not for: saving observations (use opsx-post-obs) or goal generation (use opsx-apply-goal). Output: CONTEXT_SOURCE + session_goal/completed/in_progress/cross_session_observations fields.'
 allowed-tools: Bash
 ---
 
@@ -12,7 +12,7 @@ Implements a 3-tier fallback so that context is always available even if earlier
 ## When NOT to Use
 
 - Saving / posting a session observation → use `opsx-post-obs`
-- Generating a `/goal` condition for a fresh session → use `opsx-goal`
+- Generating a `/goal` condition for a fresh session → use `opsx-apply-goal`
 - Any phase other than `opsx-apply-resume` Resume Phase (Steps 1b–1d)
 
 ## Inputs
@@ -32,7 +32,7 @@ Work through tiers in order. Stop at the first successful tier and record `CONTE
 ### Pre-chain — Unattended stop resume note (highest priority)
 
 **Condition**: An active change carries a `.resume-note.md` (written by
-`opsx-goal`'s Part 4 when an unattended session hit its turn or wall-clock
+`opsx-apply-goal`'s Part 4 when an unattended session hit its turn or wall-clock
 limit). Check this before the tiers below — it is the freshest, most specific
 carry-forward for a resumed run.
 

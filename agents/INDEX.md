@@ -46,12 +46,12 @@ Agent names are overridable via `userConfig.review_agents` — a project can poi
 > **How situational agents are reached** (none are sentinel-driven — the trigger SSOT is the AI-judgment back-stop list in `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`):
 > - `architect` ← `adaptive-dev-workflow`
 > - `refactor-cleaner` ← `/simplify` (back-stop for >800-line splits / cross-file dedup / multi-module dead-code sweep)
-> - `silent-failure-hunter`, `type-design-analyzer` ← `code-reviewer` Delegate table (+ execution-policy back-stop) — so they ride the `.pending-review` flow in both `dhpk:do` and `opsx-goal`
+> - `silent-failure-hunter`, `type-design-analyzer` ← `code-reviewer` Delegate table (+ execution-policy back-stop) — so they ride the `.pending-review` flow in both `dhpk:do` and `opsx-apply-goal`
 > - `doc-updater` ← execution-policy back-stop on structural change (it runs `/update-codemaps` + `/update-docs`)
 > - `docs-lookup` ← execution-policy back-stop (current library/API docs, Context7)
-> - `spec-miner` ← `/spec-mine` + route-table entry (and the `opsx-goal` pre-flight note when `openspec/specs/` is empty)
+> - `spec-miner` ← `/spec-mine` + route-table entry (and the `opsx-apply-goal` pre-flight note when `openspec/specs/` is empty)
 > - `e2e-runner` ← `/post-dev-test` + route-table entry
-> - `agent-evaluator` ← harness-quality family (`skill-judge` sibling pointer / `harness-govern` listing) — deliberately **out** of `dhpk:do` / `opsx-goal` dev routing
+> - `agent-evaluator` ← harness-quality family (`skill-judge` sibling pointer / `harness-govern` listing) — deliberately **out** of `dhpk:do` / `opsx-apply-goal` dev routing
 > - `swift-build-resolver`, `version-matrix-impact-reviewer` ← execution-policy back-stop (module-gated)
 > - `python-build-resolver`, `rust-build-resolver` ← execution-policy back-stop only (build error in Bash output), same as `swift-build-resolver`. NB: the route-table `fix mypy` / `fix cargo build` patterns route to `adaptive-dev-workflow`, which does **not** itself name these agents — so there is no deterministic (route-table/sentinel) dispatch; they fire purely on the AI-judgment back-stop
 
