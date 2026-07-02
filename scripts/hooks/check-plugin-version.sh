@@ -16,6 +16,10 @@
 # present; all detected versions are validated).
 #
 # Caller: scripts/hooks/session-start.sh (non-minimal profiles).
+# Next step when flagged: scripts/version-diff.sh does the deliberate-update
+# legwork (pluginConfigs schema diff + CHANGELOG excerpt since last verified)
+# and prints a draft pin-file entry — still requires a human/AI decision to
+# actually mark the version verified.
 # Exit code: always 0.
 
 set -o pipefail
@@ -89,7 +93,7 @@ PY
 )"
 
 if [ -n "$result" ]; then
-    echo "[session-start] dhpk version advisory: $result — review .claude/dhpk-versions.json"
+    echo "[session-start] dhpk version advisory: $result — review .claude/dhpk-versions.json (or run scripts/version-diff.sh for a config/CHANGELOG diff)"
 fi
 
 exit 0
