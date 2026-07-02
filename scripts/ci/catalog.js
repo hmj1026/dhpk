@@ -3,7 +3,8 @@
 
 // Count SSOT for dhpk. Computes authoritative asset counts and enforces the
 // EXACT numeric claims that appear in README.md / README.zh-TW.md / plugin.json
-// / marketplace.json, so those numbers never silently drift from reality.
+// / marketplace.json / rules/execution-policy.md / agents/INDEX.md, so those
+// numbers never silently drift from reality.
 //
 //   node scripts/ci/catalog.js            print the count table
 //   node scripts/ci/catalog.js --check    fail (exit 1) if any exact claim drifts
@@ -71,6 +72,8 @@ const CLAIM_FILES = [
   'README.zh-TW.md',
   '.claude-plugin/plugin.json',
   '.claude-plugin/marketplace.json',
+  'rules/execution-policy.md',
+  'agents/INDEX.md',
 ];
 
 function claimSpecs(counts) {

@@ -60,6 +60,8 @@ done < <(git -C "$ROOT" diff --cached --name-only --diff-filter=ACMR 2>/dev/null
 RUFF_BIN="${CLAUDE_PLUGIN_OPTION_RUFF_BIN:-ruff}"
 PREFIX="$(py_runner_prefix)"
 TC="${CLAUDE_PLUGIN_OPTION_PYTHON_TYPECHECKER:-pyright}"
+RUFF_TIMEOUT_SECS=60
+TYPECHECK_TIMEOUT_SECS=120
 
 # Group staged files by owning project dir.
 PDIRS=""
@@ -70,12 +72,14 @@ for f in "${staged_py[@]}"; do
 done
 [ -n "$PDIRS" ] && echo "[pre-commit-py] ${#staged_py[@]} staged .py file(s) detected; running checks..." >&2
 
-run_tool() {  # <project_dir> <tool_bin> <args-string>
-    local pdir="$1" tool="$2" args="$3"
+run_tool() {  # <project_dir> <tool_bin> <args-string> <timeout_secs>
+    local pdir="$1" tool="$2" args="$3" tsec="$4"
+    local tcmd=""
+    command -v timeout >/dev/null 2>&1 && tcmd="timeout $tsec"
     if [ -n "$PREFIX" ]; then
-        ( cd "$pdir" && eval "$PREFIX \"$tool\" $args" >&2 )
+        ( cd "$pdir" && eval "$tcmd $PREFIX \"$tool\" $args" >&2 )
     else
-        ( cd "$pdir" && eval "\"$tool\" $args" >&2 )
+        ( cd "$pdir" && eval "$tcmd \"$tool\" $args" >&2 )
     fi
 }
 
@@ -93,16 +97,22 @@ for pdir in $PDIRS; do
     # (block the commit), >=2 = internal/config error (WARN only — a broken
     # pyproject.toml or corrupt venv must not masquerade as a lint failure).
     if py_tool_ok "$pdir" "$PREFIX" "$RUFF_BIN"; then
-        run_tool "$pdir" "$RUFF_BIN" "check$quoted"; rc=$?
+        run_tool "$pdir" "$RUFF_BIN" "check$quoted" "$RUFF_TIMEOUT_SECS"; rc=$?
         if [ "$rc" -eq 1 ]; then
             echo "[pre-commit-py] FAIL: ruff check found issues. Run 'ruff check --fix', or add '[skip-python-lint]' to commit msg." >&2
+            status=2
+        elif [ "$rc" -eq 124 ]; then
+            echo "[pre-commit-py] FAIL: ruff check timed out after ${RUFF_TIMEOUT_SECS}s (possible hang). Investigate or add '[skip-python-lint]'." >&2
             status=2
         elif [ "$rc" -ge 2 ]; then
             echo "[pre-commit-py] WARN: ruff check exited $rc (internal/config error) — not blocking; fix your ruff config." >&2
         fi
-        run_tool "$pdir" "$RUFF_BIN" "format --check$quoted"; rc=$?
+        run_tool "$pdir" "$RUFF_BIN" "format --check$quoted" "$RUFF_TIMEOUT_SECS"; rc=$?
         if [ "$rc" -eq 1 ]; then
             echo "[pre-commit-py] FAIL: ruff format --check failed. Run 'ruff format .' or add '[skip-python-lint]'." >&2
+            status=2
+        elif [ "$rc" -eq 124 ]; then
+            echo "[pre-commit-py] FAIL: ruff format --check timed out after ${RUFF_TIMEOUT_SECS}s (possible hang). Investigate or add '[skip-python-lint]'." >&2
             status=2
         elif [ "$rc" -ge 2 ]; then
             echo "[pre-commit-py] WARN: ruff format exited $rc (internal/config error) — not blocking." >&2
@@ -119,7 +129,11 @@ for pdir in $PDIRS; do
             *)       tcbin="" ;;
         esac
         if [ -n "$tcbin" ] && py_tool_ok "$pdir" "$PREFIX" "$tcbin"; then
-            if ! run_tool "$pdir" "$tcbin" "."; then
+            run_tool "$pdir" "$tcbin" "." "$TYPECHECK_TIMEOUT_SECS"; rc=$?
+            if [ "$rc" -eq 124 ]; then
+                echo "[pre-commit-py] FAIL: $TC timed out after ${TYPECHECK_TIMEOUT_SECS}s (possible hang). Investigate or add '[skip-python-lint]'." >&2
+                status=2
+            elif [ "$rc" -ne 0 ]; then
                 echo "[pre-commit-py] FAIL: $TC reported type errors. Fix them or add '[skip-python-lint]'." >&2
                 status=2
             fi

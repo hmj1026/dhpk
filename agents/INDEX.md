@@ -2,9 +2,9 @@
 
 > 24 agents shipped by the dhpk plugin (23 root-level + `polyfill-reviewer` under `modules/library-author/agents/`). Discovered as `dhpk:<name>` after install. The full list also appears in `plugin.json`.
 
-## Sentinel-driven reviewer dispatch (5 slots, v0.2.0+)
+## Sentinel-driven reviewer dispatch (7-slot default, v0.10.0+)
 
-Triggered reviewers — `database-reviewer` / `security-reviewer` / `frontend-reviewer` / `code-reviewer` / `doc-reviewer` — **dispatch in parallel** (one message, multiple Agent calls); `code-reviewer` merges/dedups (only triggered items run; code-reviewer and doc-reviewer are not mutually exclusive — mixed diffs run both). `tdd-guide` is pre-edit, not part of the post-edit dispatch. Triggered automatically by `post-edit-dispatch` → `post-edit-remind` hook; reminded at Stop by `stop-review-reminder` hook.
+Triggered reviewers — `database-reviewer` / `security-reviewer` / `frontend-reviewer` / `code-reviewer` / `doc-reviewer` / `polyfill-reviewer` / `migration-reviewer` — **dispatch in parallel** (one message, multiple Agent calls); `code-reviewer` merges/dedups (only triggered items run; code-reviewer and doc-reviewer are not mutually exclusive — mixed diffs run both). `tdd-guide` is pre-edit, not part of the post-edit dispatch. Triggered automatically by `post-edit-dispatch` → `post-edit-remind` hook; reminded at Stop by `stop-review-reminder` hook.
 
 | Agent | Model | When it fires |
 |-------|-------|----------------|
@@ -15,9 +15,9 @@ Triggered reviewers — `database-reviewer` / `security-reviewer` / `frontend-re
 | [code-reviewer](code-reviewer.md) | sonnet | **Mandatory after any source-code Edit/Write** |
 | [doc-reviewer](doc-reviewer.md) | haiku | Edits under `.claude/{agents,rules,commands,skills,manifests}/`, `docs/`, `openspec/`, or top-level `CLAUDE.md` / `AGENTS.md` / `README*.md` — covers both frontmatter schema (name/model/tools) for `.md` DSL artifacts AND cross-file SSOT / link-validity checks |
 
-Agent names are overridable via `userConfig.review_agents` — a project can point sentinels at its own `code-reviewer-<project>` and friends instead of the plugin defaults. The default list ships 5 agents (code / db / sec / fe / doc); reduce by passing a shorter override.
+Agent names are overridable via `userConfig.review_agents` — a project can point sentinels at its own `code-reviewer-<project>` and friends instead of the plugin defaults. All 7 slots are wired into the default `review_agents` array (`scripts/hooks/_lib/payload.sh`, shipped v0.10.0); reduce by passing a shorter override.
 
-**6th sentinel slot (project-extension):** [migration-reviewer](migration-reviewer.md) is a sentinel-eligible reviewer that the default 5-slot chain does not wire. Projects with DB migrations (e.g. a multi-tenant deploy that uses site-id-prefixed migration files) add it as a 6th slot via `userConfig.review_agents` + their own `.pending-migration-review` sentinel.
+**Opt-in triggers, not opt-in slots:** [polyfill-reviewer](../modules/library-author/agents/polyfill-reviewer.md) (module-shipped, below) and [migration-reviewer](migration-reviewer.md) are both default `review_agents` slots, but — like `frontend-reviewer` — their sentinel only fires when a trigger is separately wired (polyfill: `library-author` module hook; migration: a project's `module.yaml` `migration:` triggers or `review_trigger_extra_paths` `mig:`). See [migration-reviewer](migration-reviewer.md) and the Module-shipped agents section below for detail.
 
 **Doc slot (always-on):** `doc-reviewer` covers both frontmatter schema validation and cross-file SSOT / link-validity checks via a single `.pending-doc-review` sentinel — no separate artifact slot needed.
 
@@ -63,9 +63,41 @@ Agent names are overridable via `userConfig.review_agents` — a project can poi
 
 ## Models
 
-- **opus**: architect (low-frequency, high-impact, deep reasoning)
+- **opus**: architect, spec-miner (low-frequency, high-impact, deep reasoning)
 - **sonnet**: reviewers, tdd-guide, refactor, ui-ux, harness (daily-driver)
-- **haiku**: doc-updater, docs-lookup (high-frequency, templated, cost-first)
+- **haiku**: doc-updater, docs-lookup, doc-reviewer (high-frequency, templated, cost-first)
+
+## maxTurns (safety-net caps)
+
+Not every agent needs a cap — `maxTurns` in frontmatter is a **safety net**
+against a stuck reasoning loop (repeated failed cx/gitnexus retries, an
+oversized diff), not a target step count; a well-behaved run finishes well
+under the cap. Review-family agents (Bash + multi-file Read + cx/gitnexus
+reference tracing + artifact write) get a generous cap sized to their actual
+scope; narrower / read-only agents get a tighter one. Rationale lives here,
+not as inline frontmatter comments — no agent in this repo uses `#` comments
+inside frontmatter (untested by the schema parser); keep frontmatter
+comment-free.
+
+| Agent | maxTurns | Rationale |
+|---|---|---|
+| `docs-lookup` | 8 | Self-capped at 3 resolve+query pairs (see agent body) |
+| `polyfill-reviewer` | 12 | Bounded input set (sentinel + composer.json + workflow YAML + phpunit.xml + per-file git log) — no cx/multi-file traversal |
+| `type-design-analyzer` | 12 | Read-only, no Bash/gitnexus — single/few-type scoring against a fixed rubric |
+| `doc-updater` | 15 | Bounded to `/update-codemaps` + `/update-docs` runs, pre-existing cap |
+| `database-reviewer` | 20 | Trap-sheet load + `cx references` tracing across Repository/migration files |
+| `performance-analyzer` | 20 | Same shape as `database-reviewer` + optional EXPLAIN sampling |
+| `silent-failure-hunter` | 20 | Pattern-hunt across the diff's full blast radius, pre-existing cap |
+| `doc-reviewer` | 15 | Bounded doc-only scope, pinned by `.pending-doc-review` sentinel list |
+| `frontend-reviewer` | 15 | Bounded frontend-tier scope, pinned by `.pending-frontend-review` sentinel list |
+| `migration-reviewer` | 15 | Migration files only, typically a handful per PR |
+| `version-matrix-impact-reviewer` | 15 | Single detect-once pass + one risk table, no per-file loop |
+| `code-reviewer` | 25 | Broadest scope — any file/language + delegate table + `cx references` tracing |
+| `harness-reviser` | 25 | Iterative apply-fix → re-run-script loop multiplies turns per G1–G13 gap |
+| `security-reviewer` | 30 | `effort: high`, deepest audit + Emergency Response flow — largest safety net |
+
+Agents not listed above keep the frontmatter default (no cap) unless a future
+incident shows a runaway-loop pattern — do not add caps speculatively.
 
 ## Language-module context
 

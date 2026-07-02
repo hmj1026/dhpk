@@ -13,7 +13,7 @@ Auto-triggered review of polyfill branches after every guard-bearing edit.
 The five-color sentinel (code / db / sec / frontend / doc) doesn't reason
 about version trees; this is the sixth color filling that gap.
 
-> Use `cx` / `gitnexus` per `.claude/rules/tool-routing.md`, not bulk `Read`.
+> Use `cx` / `gitnexus` per `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`, not bulk `Read`.
 
 ## Trigger
 
@@ -114,24 +114,4 @@ confirmations.
 
 ## Closing — Artifact Output (MUST)
 
-1. **路徑**：`.claude/artifacts/reviews/polyfill-reviewer-{yyyymmdd-HHMMSS}-{slug}.md`
-   （Asia/Taipei，slug 為 ASCII kebab-case 取首檔名）
-2. **frontmatter**（必填）：
-   ```yaml
-   ---
-   agent: polyfill-reviewer
-   generated_at: <ISO8601 +08:00>
-   commit: <short-sha>
-   scope: [path/a.php, path/b.php]
-   guards_reviewed: <N>
-   severity_summary: { critical: 0, high: 0, medium: 0, low: 0 }
-   verdict: APPROVE       # or WARNING / BLOCK
-   ---
-   ```
-3. **Body**：上方 issue 清單格式
-4. **Hook**：`bash ${CLAUDE_PROJECT_DIR}/.claude/hooks/clear-sentinel.sh .pending-polyfill-review polyfill-reviewer`
-   （若 .claude/hooks/ 不存在，改用 `bash ${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh ...`）
-5. **Retention**：每類最近 30 件，舊的 → `archive/`
-6. **降級**：artifacts 目錄不存在 → stdout-only，不報錯
-
-完整契約 → `docs/contracts/artifact-contract.md`
+Category: `reviews/`. Frontmatter/retention/degradation: reviewer-family shape (APPROVE/WARNING/BLOCK) in `docs/contracts/artifact-contract.md`, plus this agent's own `guards_reviewed: <N>` field. Hook: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" .pending-polyfill-review polyfill-reviewer`.

@@ -4,18 +4,25 @@ description: 'Database review specialist (relational + object stores, framework-
 tools: Read, Grep, Glob, Bash, mcp__gitnexus__impact
 model: sonnet
 effort: medium
+maxTurns: 20
 ---
 
 # Database Reviewer
 
-> Lookup: `cx` / `gitnexus` per `.claude/rules/tool-routing.md`.
+> Lookup: `cx` / `gitnexus` per `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`.
+
+## Scope
+
+Sentinel-scoped precedence: see `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`
+"Sentinel-scoped precedence" — apply verbatim, sentinel = `.pending-db-review`
+(back-stop example: reviewing a Repository method proactively with no sentinel
+present).
 
 ## Stack trap sheet (load on demand)
 
 Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks — never check a relational SQL change against Core Data rules, or vice-versa.
 
-1. **Active stacks**: read `$DHPK_ACTIVE_MODULES` (comma list) if set; otherwise detect from manifests via Bash — `composer.json` (`require.php` floor + framework key, e.g. `yiisoft/*`), `*.xcodeproj` / `Package.swift` / `*.xcdatamodeld`, `pyproject.toml` (`sqlalchemy` / `alembic`).
-2. For each detected stack `S` (e.g. `yii`, `ios`, `fastapi`), Read `${CLAUDE_PLUGIN_ROOT}/agent-traps/database-reviewer/<S>.md` if it exists and apply those traps. (Locator: `find "${CLAUDE_PLUGIN_ROOT}/agent-traps/database-reviewer" -name '<S>.md'`.)
+1-2. Loader: `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/trap-sheet-loader.md` (`<agent-name>` = `database-reviewer`). Manifest detection also covers `*.xcdatamodeld` and `pyproject.toml`'s `sqlalchemy`/`alembic` deps.
 3. **Engine overlay** (independent of framework): if a Postgres driver is present — `pg` / `postgres` / `@supabase/*` in `package.json`, `psycopg` / `asyncpg` / `sqlalchemy[postgresql]` in `pyproject.toml`, `*/pgsql*` in `composer.json`, or a `supabase/` dir — also Read `database-reviewer/postgres.md` for RLS / index / keyset-pagination traps.
 4. No sheet matches → apply only the Baseline below.
 
@@ -49,14 +56,7 @@ Suggestions: ...
 
 ## Closing — Artifact Output
 
-寫檔時：
-
-- **路徑**：`.claude/artifacts/reviews/database-reviewer-{yyyymmdd-HHMMSS}-{slug}.md`（Asia/Taipei，kebab-case slug）
-- **Frontmatter（必填）**：`agent / generated_at (ISO+08:00) / commit / scope[] / severity_summary { critical/high/medium/low } / verdict (PASS|WARNING|FAIL)`
-- **Hook**：`bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" .pending-db-review database-reviewer`（清除 stop-review-reminder 的補跑提示）
-- 目錄不存在 → stdout-only，不報錯。每類保留 30 件，舊的搬 `archive/`。
-
-完整契約 → `docs/contracts/artifact-contract.md`
+Category: `reviews/`. Frontmatter/retention/degradation: reviewer-family shape (PASS/WARNING/FAIL) in `docs/contracts/artifact-contract.md`. Hook: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" .pending-db-review database-reviewer`.
 
 ## References
 

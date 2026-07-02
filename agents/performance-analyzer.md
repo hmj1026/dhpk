@@ -4,11 +4,12 @@ description: 'Performance specialist. Owns latency / index usage / query count f
 tools: Read, Grep, Glob, Bash, mcp__gitnexus__impact
 model: sonnet
 effort: medium
+maxTurns: 20
 ---
 
 # Performance Analyzer
 
-> Lookup: `cx` / `gitnexus` per `.claude/rules/tool-routing.md`.
+> Lookup: `cx` / `gitnexus` per `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`.
 
 ## Scope
 
@@ -19,7 +20,7 @@ Audit query performance in the Repository (data-access) layer. `database-reviewe
 Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks — never grade a Yii/MySQL change against another stack's perf rules, or vice-versa.
 
 1. **Active stacks**: read `$DHPK_ACTIVE_MODULES` (comma list) if set; otherwise detect from manifests via Bash — `composer.json` (`require.php` floor + framework key, e.g. `yiisoft/*`), `package.json` (any JS / TS / React / Vue / Next project ⇒ stack id **`frontend`**), `*.xcodeproj` / `Package.swift` (`swift`), `pyproject.toml` (`sqlalchemy` / `alembic`). **Map module ids to the trap-sheet stack id** before the lookup: `js` / `vue-2` / React / Next → `frontend`; `swiftui` / `ios-platform` → `swift`. (The perf sheets are named for the runtime — `frontend.md`, `swift.md` — not for the framework, so always resolve to those ids.)
-2. For each detected stack `S` (e.g. `yii`, `frontend`, `swift`), Read `${CLAUDE_PLUGIN_ROOT}/agent-traps/performance-analyzer/<S>.md` if it exists and apply those traps — relational sheets carry the hot-table list, N+1 grep recipes, and EXPLAIN / index-inspection commands; the `frontend` / `swift` sheets carry bundle / render / memory recipes. (Locator: `find "${CLAUDE_PLUGIN_ROOT}/agent-traps/performance-analyzer" -name '<S>.md'`.)
+2. Load: `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/trap-sheet-loader.md` step 2 (`<agent-name>` = `performance-analyzer`) — relational sheets carry the hot-table list, N+1 grep recipes, and EXPLAIN / index-inspection commands; the `frontend` / `swift` sheets carry bundle / render / memory recipes.
 3. No sheet matches → apply only the Baseline below.
 
 ## Baseline (language-agnostic)
@@ -60,13 +61,7 @@ Suggestion: ...
 
 ## Closing — Artifact Output
 
-寫檔時：
-
-- **路徑**：`.claude/artifacts/reviews/performance-analyzer-{yyyymmdd-HHMMSS}-{slug}.md`（Asia/Taipei，kebab-case slug）
-- **Frontmatter（必填）**：`agent / generated_at (ISO+08:00) / commit / scope[] / severity_summary { critical/high/medium/low } / verdict (PASS|WARNING|FAIL)`
-- 目錄不存在 → stdout-only，不報錯。每類保留 30 件，舊的搬 `archive/`。
-
-完整契約 → `docs/contracts/artifact-contract.md`
+Category: `reviews/`. Frontmatter/retention/degradation: reviewer-family shape (PASS/WARNING/FAIL) in `docs/contracts/artifact-contract.md`. No sentinel — back-stop-only agent, not in the review chain.
 
 ## References
 

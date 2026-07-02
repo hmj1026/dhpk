@@ -20,6 +20,12 @@ description: 'Navigation index for dhpk plugin skills. Internal documentation; n
 | [next-step](next-step/SKILL.md) | Change-aware "what to do next" advisor from the current worktree state |
 | [execution-checklist](execution-checklist/SKILL.md) | End-of-task self-check before wrapping up or committing |
 
+## Prompt engineering
+
+| Skill | Purpose |
+|-------|---------|
+| [prompt-optimize](prompt-optimize/SKILL.md) | Rewrite a raw task prompt for the target Claude model + recommend an effort level |
+
 ## Feature & bug development
 
 | Skill | Purpose |

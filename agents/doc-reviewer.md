@@ -52,15 +52,11 @@ Out of scope:
 
 ## Process
 
-1. Pin scope from the UNCOMMITTED working tree, never committed history:
-   `git diff --staged -- .claude/ docs/ openspec/` +
-   `git diff HEAD -- .claude/ docs/ openspec/`.
-   Do NOT use `git diff <base>...HEAD` / merge-base diff — under a no-auto-commit
-   workflow the doc changes sit uncommitted; a base-relative diff reviews the whole branch.
-2. `cat .claude/artifacts/sessions/.pending-doc-review` for the trigger
-   file list.
-3. Walk each file through the four-quadrant checklist below.
-4. Close out: write the artifact + clear the sentinel.
+1. Sentinel-scoped precedence: see `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`
+   "Sentinel-scoped precedence" — apply verbatim, sentinel = `.pending-doc-review`.
+   Back-stop/full-review fallback restricts to `.claude/ docs/ openspec/`.
+2. Walk each file through the four-quadrant checklist below.
+3. Close out: write the artifact + clear the sentinel.
 
 ## Checklist — five quadrants (only report actual hits)
 
@@ -169,21 +165,4 @@ End with a severity table and a final `Verdict: APPROVE | WARNING | BLOCK`:
 
 ## Closing — Artifact Output (MUST)
 
-1. **Path**: `.claude/artifacts/reviews/doc-reviewer-{YYYYMMDD-HHMMSS}-{slug}.md`
-   (ASCII kebab-case slug; project's local TZ).
-2. **Frontmatter** (required):
-   ```yaml
-   ---
-   agent: doc-reviewer
-   generated_at: <ISO8601>
-   commit: <short-sha>
-   scope: [.claude/rules/foo.md, .claude/agents/bar.md]
-   severity_summary: { high: 0, medium: 0, low: 0 }
-   verdict: APPROVE
-   ---
-   ```
-3. **Body**: the issue list above.
-4. **Hook**: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" .pending-doc-review doc-reviewer`.
-5. **Retention**: keep the most recent ~30 per kind; archive older ones under `archive/`.
-6. **Graceful degradation**: if `.claude/artifacts/` does not exist, emit
-   stdout-only and do not error.
+Category: `reviews/`, scope holds doc paths (e.g. `.claude/rules/foo.md`). Frontmatter/retention/degradation: reviewer-family shape (APPROVE/WARNING/BLOCK) in `docs/contracts/artifact-contract.md` — note `severity_summary` here omits `critical` (doc findings top out at HIGH). Hook: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" .pending-doc-review doc-reviewer`.

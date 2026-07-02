@@ -34,7 +34,7 @@ SSOT for code exploration in dhpk-using projects. Cross-references the existing 
 
 ## gitnexus_impact timing
 
-Run **at planning time** (once the target symbol is identified) **and** immediately before Edit/Write. Planning catches blast radius early; pre-edit is the final gate. Append-only exemption → `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` Self-check §0.
+Run **at planning time** (once the target symbol is identified) **and** immediately before Edit/Write. Planning catches blast radius early; pre-edit is the final gate. Append-only exemption → `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` Glossary.
 
 ```
 gitnexus_impact({ target: "<symbol>", direction: "upstream" })
@@ -62,6 +62,11 @@ Sub-agents do NOT inherit these rules — paste the relevant block from your pro
 - `gitnexus_query` for plain text (error messages) → use `Grep`
 - `mem-search` for current session content → already in scrollback
 
-## Cross-reference
+## Not in scope
+
+- **Does not replace** `dhpk:tool-routing` skill's worked examples and detailed sub-agent prompt boilerplate — this file is the compact decision card only.
+- **Not a general coding-style guide** — covers tool selection for code exploration/navigation only.
+
+## Cross-references
 
 The dhpk skill `tool-routing` carries the longer prose version with examples and detailed sub-agent prompt boilerplate. This file is the compact card.

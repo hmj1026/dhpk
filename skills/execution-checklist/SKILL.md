@@ -116,23 +116,18 @@ Triage out false positives → dispatch the surviving reviewers **in parallel**
   dedups overlapping findings across the parallel results.
 - Pure research / planning (no Edit/Write) skips all reviewers.
 
-The slot-to-agent mapping is `review_agents` userConfig (default 5 in
-v0.2.0+). Re-order or substitute agents per project via that knob.
+The slot-to-agent mapping is `review_agents` userConfig (7-slot default
+since v0.10.0; see `agents/INDEX.md`). Re-order or substitute agents per
+project via that knob.
 
 ---
 
-## Append-only exemption (restated)
+## Append-only exemption
 
-A pure-addition change (no existing symbol body / signature / docblock
-modified) may skip `gitnexus_impact`, but the plan / commit message MUST
-record the exemption explicitly:
-
-```
-gitnexus_impact: skipped — append-only (new file / new method, no existing symbol modified)
-```
-
-If the change modifies an existing method signature / class hierarchy /
-interface contract, the exemption does not apply — run impact analysis.
+Definition and required label live in `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`
+Glossary — do not restate here. Checklist-specific reminder: if the change
+modifies an existing method signature / class hierarchy / interface
+contract, the exemption does not apply — run impact analysis.
 
 ---
 

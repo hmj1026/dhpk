@@ -13,14 +13,13 @@ Zero tolerance for failures that disappear without a trace. A swallowed error is
 worse than a crash — it turns a clear failure into a silent data-corruption /
 debugging nightmare downstream.
 
-> Use `cx` / `gitnexus` per `.claude/rules/tool-routing.md`, not bulk `Read`.
+> Use `cx` / `gitnexus` per `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`, not bulk `Read`.
 
 ## Stack trap sheet (load on demand)
 
 Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks.
 
-1. **Active stacks**: read `$DHPK_ACTIVE_MODULES` (comma list) if set; otherwise detect from manifests via Bash — `composer.json` (`require.php` floor + framework key, e.g. `yiisoft/*`, `laravel/framework`), `package.json`, `*.xcodeproj` / `Package.swift`, `pyproject.toml`.
-2. For each detected stack `S` (e.g. `php`, `swift`), Read `${CLAUDE_PLUGIN_ROOT}/agent-traps/silent-failure-hunter/<S>.md` if it exists and apply those stack-specific swallow patterns. (Locator: `find "${CLAUDE_PLUGIN_ROOT}/agent-traps/silent-failure-hunter" -name '<S>.md'`.)
+1-2. Loader: `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/trap-sheet-loader.md` (`<agent-name>` = `silent-failure-hunter`). Loaded sheets carry stack-specific swallow patterns.
 3. No sheet matches → apply only the generic Hunt Targets below.
 
 ## Scope boundary

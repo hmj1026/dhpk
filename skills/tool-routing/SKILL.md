@@ -5,29 +5,11 @@ description: 'Decide which code-exploration tool to use (gitnexus, cx, claude-me
 
 # Tool Routing
 
-SSOT for code-exploration tool selection. Cost anchors live in `~/.claude/CX.md`.
+Skill-form entry point into `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`, the SSOT decision tree for code-exploration tool selection. This skill adds the extended rationale/edge-case reference and points to the rules file for the table itself, rather than restating it — a restated copy is how the two drifted (this file used to state find-and-replace was flatly forbidden; the rules file's fallback — `cx references` + scoped Edit when gitnexus is absent — is the correct, current behavior). Cost anchors live in `~/.claude/CX.md`.
 
 ## Decision tree
 
-| Intent | Primary | Fallback |
-|---|---|---|
-| What breaks if I edit X? | `gitnexus_impact({target, direction:"upstream"})` | `cx references` |
-| Where is X defined? | `cx definition --name X` | `gitnexus_query` |
-| File overview (>200 lines) | `cx overview <file>` | `cx definition` for selected fns |
-| File <100 lines, full read needed | `Read` (after `cx overview` confirms necessity) | — |
-| Find callers | `cx references --name X` | `gitnexus_impact upstream` |
-| Global rename / refactor | `gitnexus_rename` | **find-and-replace forbidden** |
-| Pre-commit scope check | `gitnexus_detect_changes()` | `git diff --stat` |
-| Explore unfamiliar module | `cx overview <dir>` | `gitnexus_query` |
-| Past decisions (cross-session) | claude-mem `smart_search` / `search` | `get_observations([IDs])` |
-| Plain text / comments / docs | `Grep` | — |
-
-## Tie-breakers
-
-1. **cx > gitnexus** when both apply (cheaper, local, no MCP)
-2. `gitnexus` is the hard rule for `impact` / `detect_changes` / `rename`
-3. `claude-mem` skips current session (already in scrollback); only for past decisions
-4. `Read` is floor — only when nothing else fits
+See `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md` "Decision tree" and "Tie-breakers".
 
 ## When NOT to Use
 
@@ -36,37 +18,17 @@ SSOT for code-exploration tool selection. Cost anchors live in `~/.claude/CX.md`
 - A single known small file you must read in full → use `Read`
 - Non-code questions (config values, prose) — no AST tool needed
 
-## gitnexus_impact timing
+## gitnexus_impact timing and append-only exemption
 
-Run at planning time (once the target symbol is identified) AND immediately before Edit/Write. Planning catches blast radius early; pre-edit is the final gate.
-
-```
-gitnexus_impact({ target: "<symbol>", direction: "upstream" })
-```
-
-Append-only exemption: pure additions not touching existing symbol body/signature can skip the impact pass (state "append-only" in plan/commit).
-
-## claude-mem at planning start
-
-Before spawning Explore agents:
-
-```
-claude-mem smart_search "<module or key function name>"
-```
-
-The session-start hook auto-matches context but doesn't replace a targeted query. No results → proceed without blocking.
+See `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md` "gitnexus_impact timing" and `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` Glossary (append-only exemption).
 
 ## Sub-agent prompts
 
-Sub-agents do NOT inherit these rules. Paste the relevant block from `${CLAUDE_PLUGIN_ROOT}/docs/subagent-prompt-template.md` into the agent prompt. Required blocks: source-reading boilerplate (always), DB-access boilerplate (when task touches a table).
+See `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md` "Sub-agent prompts" — sub-agents do not inherit this skill; paste the relevant block from `${CLAUDE_PLUGIN_ROOT}/docs/subagent-prompt-template.md` into the agent prompt.
 
 ## Top anti-patterns
 
-- `Read` of a large file to find one function → use `cx definition`
-- `Grep "function X"` to locate a definition → use `cx definition` (AST > regex)
-- Find-and-replace for renaming → must use `gitnexus_rename`
-- `gitnexus_query` for plain text (error messages) → use `Grep`
-- `mem-search` for current-session content → already in scrollback
+See `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md` "Top anti-patterns".
 
 ## Output
 
@@ -79,4 +41,4 @@ Sub-agents do NOT inherit these rules. Paste the relevant block from `${CLAUDE_P
 - [ ] Ran `gitnexus_impact` before any Edit/Write on an existing symbol body/signature
 - [ ] Did not Read a large file or Grep code where `cx` (AST) was the right call
 
-Full decision-tree reference: see `references/decision-tree.md`.
+Extended edge cases and rationale: `references/decision-tree.md`.

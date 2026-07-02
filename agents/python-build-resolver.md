@@ -13,7 +13,7 @@ error, fix the root cause, re-run, repeat — never silence a check to make it p
 
 > Before a fix that changes a signature or a public name, gauge its blast radius
 > with `gitnexus_impact` (or `cx references --name X`) — optional tools, fall back
-> to `Grep` when absent. See `.claude/rules/tool-routing.md`.
+> to `Grep` when absent. See `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`.
 >
 > Detect the runner first: a `uv.lock` ⇒ `uv run <tool>`; a `poetry.lock` ⇒
 > `poetry run <tool>`; an already-activated venv ⇒ the bare tool on PATH. Find
@@ -51,28 +51,19 @@ module references when those modules are active.
 
 ## Principles
 
-- **Smallest fix that preserves intent.** One root cause, re-run, next error.
-  Don't refactor opportunistically.
-- **Never silence:** no blanket `# noqa`, `# type: ignore`, `--no-verify`, or
-  deleting an assertion just to go green. Those convert a check failure into a
-  latent bug.
-- **Re-run after every change.** A fix is unverified until the command exits 0.
+Shared framing: `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/build-resolver-skeleton.md`.
+This resolver's own escape hatches to never use: blanket `# noqa`, `# type: ignore`,
+`--no-verify`, or deleting an assertion just to go green.
+
 - **Lockfile is a deliverable.** A constraint change must regenerate and commit
   the lock (`uv lock` / `poetry lock`), not just edit `pyproject.toml`.
 
 ## Stop conditions (escalate, don't loop)
 
-Per the Anti-Loop Protocol, **stop after 3 failed attempts on the same error**
-and report. Also stop when:
-
-- the fix introduces more errors than it removes;
-- the error needs an architectural change (restructuring async ownership,
-  splitting a module, a real dependency upgrade) — propose it rather than force it;
-- the failure is environmental and needs a user action (missing system lib,
-  network-restricted package index).
-
-On stop, output: the attempt log (what was tried + each error), >=2 alternative
-paths with trade-offs, and a recommendation.
+Shared framing: `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/build-resolver-skeleton.md`.
+This resolver's own architectural-change examples: restructuring async ownership,
+splitting a module, a real dependency upgrade. Environmental examples: missing
+system lib, network-restricted package index.
 
 ## Output
 
@@ -85,6 +76,4 @@ Run: ruff check OK | mypy OK | pytest OK
 Handing off to code-reviewer for the diff.
 ```
 
-After a green run, hand the diff to `code-reviewer` (and `security-reviewer` if
-the change touched auth / crypto / file paths) — this agent fixes the build; it
-does not self-approve the change.
+Handoff: `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/build-resolver-skeleton.md`.

@@ -8,14 +8,13 @@ effort: high
 
 # Architect
 
-> Exploration: `cx` (Bash CLI) / `gitnexus` (`impact` / `query`) per `.claude/rules/tool-routing.md`. Both are optional external tools — fall back to `Grep` / `Read` when neither is installed.
+> Exploration: `cx` (Bash CLI) / `gitnexus` (`impact` / `query`) per `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`. Both are optional external tools — fall back to `Grep` / `Read` when neither is installed.
 
 ## Stack trap sheet (load on demand)
 
 Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks — never apply a PHP/Yii layering convention to a Swift change, or vice-versa.
 
-1. **Active stacks**: read `$DHPK_ACTIVE_MODULES` (comma list) if set; otherwise detect from manifests via Bash — `composer.json` (`require.php` floor + framework key, e.g. `yiisoft/*`, `laravel/framework`), `package.json`, `*.xcodeproj` / `Package.swift`, `pyproject.toml`.
-2. For each detected stack `S` (e.g. `yii`), Read `${CLAUDE_PLUGIN_ROOT}/agent-traps/architect/<S>.md` if it exists and apply those layering conventions; other stacks load their own sheet if present. (Locator: `find "${CLAUDE_PLUGIN_ROOT}/agent-traps/architect" -name '<S>.md'`.)
+1-2. Loader: `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/trap-sheet-loader.md` (`<agent-name>` = `architect`). Each detected stack loads its own sheet independently if present.
 3. No sheet matches → apply only the Baseline below.
 
 ## Baseline (language-agnostic)
@@ -83,14 +82,7 @@ Success: [ ] <criterion incl. tests pass>
 
 ## Closing — Artifact Output
 
-寫檔時：
-
-- **Plan**：`.claude/artifacts/plans/architect-{yyyymmdd}-{slug}.md`
-- **ADR**：`.claude/artifacts/adr/ADR-{yyyymmdd}-{slug}.md`
-- **Frontmatter（必填）**：`agent / generated_at (ISO+08:00) / commit / scope[] / verdict`（plan 可省 severity_summary）
-- 目錄不存在 → stdout-only，不報錯。每類保留 30 件，舊的搬 `archive/`。
-
-完整契約 → `docs/contracts/artifact-contract.md`
+Two categories (not the standard single `reviews/`): plan → `.claude/artifacts/plans/architect-{yyyymmdd}-{slug}.md`; ADR → `.claude/artifacts/adr/ADR-{yyyymmdd}-{slug}.md`. Frontmatter: `agent / generated_at / commit / scope[] / verdict`, no `severity_summary` (see `docs/contracts/artifact-contract.md` non-reviewer extensions). Retention/degradation: same doc. No sentinel — not in the review chain.
 
 ## Output
 
