@@ -2,7 +2,7 @@
 
 > **Languages**: **English** · [繁體中文](./README.zh-TW.md)
 
-A generic, install-and-go Claude Code harness. Ships **24 role-based agents** (+ 1 module-scoped reviewer), ~73 commands (44 registered dhpk project-workflow commands plus the parallel codex / gitnexus / git trees), ~57 core skills + the `deploy-list` cross-project deploy file list generator + the **`/dhpk:do` Smart Router** (natural-language task routing via 20-pattern bilingual route table + LLM fallback) + **cross-session learning DB** (operational signal store with confidence decay, opt-in), **7-slot sentinel-driven review hooks** (code / db / sec / frontend / doc / **polyfill** / **migration** — polyfill via `library-author`, migration via module triggers or a `mig:` extra path; `doc-reviewer` covers both SSOT/link-validity and frontmatter schema for `.md` DSL artifacts), statusline, harness scripts, and **27 opt-in stack modules** across PHP (`php-5.6`, `php-7.4`, `php-8.x`), Yii (`yii-1.1`), PHPUnit (`phpunit-5.7`, `phpunit-9`, `phpunit-10`, `phpunit-11`), Laravel (`laravel-5.4`, `laravel-6` through `laravel-11`), JS (`js`), Vue (`vue-2`), Laravel Mix (`laravel-mix`), Python (`python`, `fastapi`, `pytest`), the cross-cutting `library-author` module, and an **iOS/Swift suite** (`swift`, `swiftui`, `ios-platform`, `swift-testing`, `xcode-tooling`). Modules contribute hooks at runtime via the **wrapper-dispatch** model (see [`docs/hook-extension.md`](./docs/hook-extension.md)). Parallel Codex CLI tree included for dual-assistant projects.
+A generic, install-and-go Claude Code harness. Ships **26 role-based agents** (+ 1 module-scoped reviewer), ~73 commands (44 registered dhpk project-workflow commands plus the parallel codex / gitnexus / git trees), ~57 core skills + the `deploy-list` cross-project deploy file list generator + the **`/dhpk:do` Smart Router** (natural-language task routing via 20-pattern bilingual route table + LLM fallback) + **cross-session learning DB** (operational signal store with confidence decay, opt-in), **7-slot sentinel-driven review hooks** (code / db / sec / frontend / doc / **polyfill** / **migration** — polyfill via `library-author`, migration via module triggers or a `mig:` extra path; `doc-reviewer` covers both SSOT/link-validity and frontmatter schema for `.md` DSL artifacts), statusline, harness scripts, and **27 opt-in stack modules** across PHP (`php-5.6`, `php-7.4`, `php-8.x`), Yii (`yii-1.1`), PHPUnit (`phpunit-5.7`, `phpunit-9`, `phpunit-10`, `phpunit-11`), Laravel (`laravel-5.4`, `laravel-6` through `laravel-11`), JS (`js`), Vue (`vue-2`), Laravel Mix (`laravel-mix`), Python (`python`, `fastapi`, `pytest`), the cross-cutting `library-author` module, and an **iOS/Swift suite** (`swift`, `swiftui`, `ios-platform`, `swift-testing`, `xcode-tooling`). Modules contribute hooks at runtime via the **wrapper-dispatch** model (see [`docs/hook-extension.md`](./docs/hook-extension.md)). Parallel Codex CLI tree included for dual-assistant projects.
 
 OpenSpec is an **optional external integration** — install the [OpenSpec plugin](https://github.com/Fission-AI/OpenSpec) separately if you want OpenSpec workflow commands. dhpk retains only its own value-add helper `opsx-apply-resume` (long-running OpenSpec session context handoff); the 10 generic OpenSpec wrapper skills/commands were unbundled in v0.2.1 since OpenSpec ships them upstream.
 
@@ -113,7 +113,7 @@ The same actions are available as `/plugin update dhpk`, `/plugin uninstall dhpk
 
 | Component | Count | Notes |
 |-----------|------:|-------|
-| Agents | 23 root-level agents | 7 sentinel-driven reviewers across the slots: code / db / sec / **frontend** / **doc** / **polyfill** (slot 5, written by `library-author`) / **migration** (slot 6, opt-in via module triggers or a `mig:` extra path). Situational: architect, tdd-guide, refactor-cleaner, ui-ux-verifier, performance-analyzer, doc-updater, docs-lookup, harness-reviser, version-matrix-impact-reviewer, **swift-build-resolver** (iOS suite), **silent-failure-hunter** (error-handling audit), **spec-miner** (brownfield→OpenSpec extraction), **type-design-analyzer**, **agent-evaluator** (output-quality scorecard), **e2e-runner** (E2E journeys). |
+| Agents | 25 root-level agents | 7 sentinel-driven reviewers across the slots: code / db / sec / **frontend** / **doc** / **polyfill** (slot 5, written by `library-author`) / **migration** (slot 6, opt-in via module triggers or a `mig:` extra path). Situational: architect, tdd-guide, refactor-cleaner, ui-ux-verifier, performance-analyzer, doc-updater, docs-lookup, harness-reviser, version-matrix-impact-reviewer, **swift-build-resolver** (iOS suite), **silent-failure-hunter** (error-handling audit), **spec-miner** (brownfield→OpenSpec extraction), **type-design-analyzer**, **agent-evaluator** (output-quality scorecard), **e2e-runner** (E2E journeys). |
 | Commands | ~73 | `dhpk:do` (Smart Router), `dhpk:create-dev`, `dhpk:codex-*`, `dhpk:review-pending`, `dhpk:smart-commit`, `dhpk:ts-check-status` (JS module), `dhpk:opsx-apply-resume` (needs OpenSpec), `dhpk:matrix-cell-onboard` (library-author), `dhpk:de-ai-flavor`, `dhpk:deploy-list`, `dhpk:harness-fill`, `dhpk:ui-ux-verify`, etc. |
 | Core skills | ~57 + extras | codex-*, gitnexus, tool-routing, dhpk-execution-policy, **adaptive-dev-workflow** (Feature/Bug/Maintenance classifier), **deploy-list** (cross-project deploy file list generator), **execution-checklist** (end-of-task self-check), `opsx-apply-resume` helpers (need OpenSpec) |
 | Stack modules | 27 | PHP: `php-5.6`, `php-7.4`, `php-8.x` · Yii: `yii-1.1` · PHPUnit: `phpunit-5.7`, `phpunit-9`, `phpunit-10`, `phpunit-11` · Laravel: `laravel-5.4`, `laravel-6` … `laravel-11` · Frontend: `js`, `vue-2`, `laravel-mix` · **Python**: `python`, `fastapi`, `pytest` · `library-author` · **iOS**: `swift`, `swiftui`, `ios-platform`, `swift-testing`, `xcode-tooling` (opt-in; see "Modules" below) |
@@ -167,10 +167,10 @@ Or describe it in plain language:
 
 ### 5. Unattended OpenSpec session
 
-For a long-running change that should run without supervision — generates the `/goal` condition and `/opsx:apply` sequence, ready to paste into a fresh session:
+For a long-running change that should run without supervision — generates a single `/goal` command (with the `/opsx:apply` kickoff embedded), ready to paste into a fresh session:
 
 ```text
-/dhpk:opsx-goal my-change-id --max-duration 2h
+/dhpk:opsx-apply-goal my-change-id --max-duration 2h
 ```
 
 Add `--min-coverage 80` to enforce a coverage gate even when the project has no native coverage config.
@@ -431,6 +431,44 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"
 
 Symlinks (default) or copies (`--copy`) the plugin's `codex/{skills,agents}` into the project's `.codex/`. Idempotent — re-run with `--update` after a plugin version bump. See `codex/AGENTS.md` and `codex/README.md` for the dual-harness model.
 
+### Codex Plugin Marketplace (experimental)
+
+dhpk also ships a Codex plugin manifest (`.codex-plugin/plugin.json` + a thin
+marketplace-target wrapper at `plugins/dhpk/`) so Codex CLI's own plugin
+marketplace can discover and install the `codex/skills/` mirror natively.
+Two ways to install it:
+
+**Option A — let the agent do it.** Paste this into a Codex CLI session:
+
+```text
+Add hmj1026/dhpk as a Codex plugin marketplace source, install the dhpk
+plugin from it, then verify it's listed as installed. Run:
+  codex plugin marketplace add hmj1026/dhpk
+  codex plugin add dhpk@dhpk
+  codex plugin list
+Report back what codex plugin list shows, and check whether the codex/skills/
+content actually resolved inside the installed plugin cache — Codex has a
+known upstream issue (openai/codex#26037) where skills referenced via a
+marketplace-target wrapper sometimes don't get copied into the runtime cache.
+```
+
+**Option B — run the commands yourself:**
+
+```bash
+codex plugin marketplace add hmj1026/dhpk   # or a local path while developing
+codex plugin add dhpk@dhpk
+codex plugin list
+```
+
+> **Plugin mode is currently experimental / fragile on Codex** (verified
+> against `codex-cli 0.142.5`). Marketplace discovery and install work, but
+> runtime skill loading from local/repo marketplaces is unreliable upstream
+> ([openai/codex#26037](https://github.com/openai/codex/issues/26037)). The
+> supported, fully-working path remains `install-codex-skills.sh` above — the
+> marketplace manifest is additive, not a replacement.
+
+See `.codex-plugin/README.md` and `plugins/dhpk/README.md` for details.
+
 ## Migrating an existing project
 
 If the project already has its own `.claude/` harness, follow the phased plan:
@@ -451,7 +489,7 @@ dhpk/
 ├── .claude-plugin/
 │   ├── marketplace.json          # one-entry marketplace (plugins[0].source: "./")
 │   └── plugin.json               # plugin manifest with userConfig
-├── agents/                       # 24 role-based agents (INDEX.md is navigation)
+├── agents/                       # 26 role-based agents (INDEX.md is navigation)
 ├── commands/                     # ~73 slash commands (do, create-dev, codex-*, smart-commit, opsx-apply-resume, matrix-cell-onboard, ...)
 ├── skills/                       # ~57 core skills (adaptive-dev-workflow, codex-*, tool-routing, dhpk-execution-policy, opsx-apply-resume helpers, harness-fill, ...)
 ├── templates/                    # hook-bootstrap templates (graduation-candidates.md — copied to .claude/artifacts/ on first graduation run)
@@ -479,6 +517,11 @@ dhpk/
 │   ├── AGENTS.md                 # Codex-specific guidance
 │   ├── README.md                 # how to sync into a project
 │   ├── skills/, agents/, config.toml.example
+├── .codex-plugin/plugin.json     # Codex plugin manifest (marketplace-installable, experimental)
+├── plugins/dhpk/                 # thin marketplace-target wrapper (openai/codex#26037)
+│   ├── .codex-plugin/plugin.json
+│   ├── README.md
+├── .agents/plugins/marketplace.json  # repo-scoped Codex marketplace descriptor
 ├── manifests/install-profiles.json  # curated module bundles
 ├── docs/design/bootstrap-dhpk-plugin/  # original design archive (proposal/design/tasks/specs)
 ├── README.md, README.zh-TW.md, CHANGELOG.md, LICENSE, .gitignore

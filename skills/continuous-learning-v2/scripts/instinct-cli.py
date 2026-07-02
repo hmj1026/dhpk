@@ -50,15 +50,15 @@ def _resolve_homunculus_dir() -> Path:
     if override:
         if Path(override).is_absolute():
             return Path(override)
-        print(f"[ecc] CLV2_HOMUNCULUS_DIR={override!r} is not absolute; ignoring", file=sys.stderr)
+        print(f"[clv2] CLV2_HOMUNCULUS_DIR={override!r} is not absolute; ignoring", file=sys.stderr)
 
     xdg = os.environ.get("XDG_DATA_HOME")
     if xdg:
         if Path(xdg).is_absolute():
-            return Path(xdg) / "ecc-homunculus"
-        print(f"[ecc] XDG_DATA_HOME={xdg!r} is not absolute; ignoring", file=sys.stderr)
+            return Path(xdg) / "dhpk-homunculus"
+        print(f"[clv2] XDG_DATA_HOME={xdg!r} is not absolute; ignoring", file=sys.stderr)
 
-    return Path.home() / ".local" / "share" / "ecc-homunculus"
+    return Path.home() / ".local" / "share" / "dhpk-homunculus"
 
 
 def _strip_remote_credentials(remote_url: str) -> str:

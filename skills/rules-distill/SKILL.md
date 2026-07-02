@@ -1,7 +1,6 @@
 ---
 name: rules-distill
 description: 'Scan installed skills to extract cross-cutting principles and distill them into rules (append, revise, or create rule files). Use when: periodic rules maintenance, after installing new skills, or a skill-stocktake surfaces patterns that should be rules. Not for: creating skills (use create-skill), one-off rule edits, code review. Output: candidate report (principle + evidence + verdict) for user approval.'
-origin: ECC
 ---
 
 # Rules Distill

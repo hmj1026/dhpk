@@ -25,7 +25,10 @@ git checkout -b feature/<name>
 ## Cutting a release
 
 1. **Branch** off `develop` (or finish your `feature/*`).
-2. **Bump version** in `.claude-plugin/plugin.json` (semver).
+2. **Bump version** (semver) in `.claude-plugin/plugin.json` and, in lockstep,
+   `.codex-plugin/plugin.json`, `plugins/dhpk/.codex-plugin/plugin.json`, and
+   `.agents/plugins/marketplace.json` — `tests/codex-plugin-manifest.test.js`
+   fails CI if any of these drift out of sync.
 3. **Write the changelog** — add a `## X.Y.Z — YYYY-MM-DD — <summary>` section at
    the top of `CHANGELOG.md`. The header format matters: the Release workflow
    extracts notes with `awk "/^## ${VERSION} /"`, so keep the space after the

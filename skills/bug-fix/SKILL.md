@@ -71,12 +71,16 @@ gh issue      Grep    Edit     /verify          /precommit
 - Root cause: <specific cause>
 - Impact scope: <which features are affected>
 
+**Unknown root cause** (not obvious from a quick grep/read/issue skim) → dispatch `dhpk:deep-reasoner` per `execution-policy` §Implementation dispatch instead of guessing; its conclusion contract (root cause + `file:line` evidence + fix spec) feeds directly into Phase 2.
+
 ## Phase 2: Fix
 
 | Principle | Description |
 |-----------|-------------|
 | Minimal changes | Only modify what is necessary |
 | No new issues | Confirm changes don't affect other features |
+
+Apply a confirmed fix spec (from Phase 1, whether self-derived or from `deep-reasoner`) per `execution-policy` §Implementation dispatch: `dhpk:fast-worker` for a mechanical, precisely-specified patch, or inline for a small (~≤2-file) unambiguous change.
 
 ## Phase 3: Add Regression Test ⚠️
 

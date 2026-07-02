@@ -17,7 +17,7 @@ const TOOL_NAME_MAP = new Map([
 
 function usage() {
   return [
-    'Adapt ECC agent frontmatter for Gemini CLI.',
+    'Adapt agent frontmatter for Gemini CLI.',
     '',
     'Usage:',
     '  node scripts/gemini-adapt-agents.js [agents-dir]',
