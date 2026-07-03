@@ -157,9 +157,13 @@ echo "[session-start] branch=$BRANCH docker=$DOCKER_STATUS profile=$PROFILE modu
 # dispatch switch is off — token discipline (silent on the common all-defaults case).
 DEEP_MODEL="${CLAUDE_PLUGIN_OPTION_DEEP_REASONER_MODEL:-opus}"
 WORKER_MODEL="${CLAUDE_PLUGIN_OPTION_FAST_WORKER_MODEL:-sonnet}"
+DEEP_EFFORT="${CLAUDE_PLUGIN_OPTION_DEEP_REASONER_EFFORT:-high}"
+WORKER_EFFORT="${CLAUDE_PLUGIN_OPTION_FAST_WORKER_EFFORT:-medium}"
 DISPATCH="${CLAUDE_PLUGIN_OPTION_ORCHESTRATION_DISPATCH:-on}"
-if [ "$DEEP_MODEL" != "opus" ] || [ "$WORKER_MODEL" != "sonnet" ] || [ "$DISPATCH" != "on" ]; then
+if [ "$DEEP_MODEL" != "opus" ] || [ "$WORKER_MODEL" != "sonnet" ] || [ "$DEEP_EFFORT" != "high" ] || [ "$WORKER_EFFORT" != "medium" ] || [ "$DISPATCH" != "on" ]; then
     _orch_line="orchestration: deep=$DEEP_MODEL worker=$WORKER_MODEL"
+    [ "$DEEP_EFFORT" != "high" ] && _orch_line="${_orch_line} deep_effort=$DEEP_EFFORT"
+    [ "$WORKER_EFFORT" != "medium" ] && _orch_line="${_orch_line} worker_effort=$WORKER_EFFORT"
     [ "$DISPATCH" != "on" ] && _orch_line="${_orch_line} dispatch=off"
     echo "[session-start] $_orch_line"
     unset _orch_line

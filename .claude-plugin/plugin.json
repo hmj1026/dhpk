@@ -104,6 +104,18 @@
       "description": "'on' (default) routes implement-phase work through the Implementation dispatch decision table in rules/execution-policy.md — deep-reasoner for reasoning-heavy work, fast-worker for mechanical work with a clear spec, inline for small (~2-file) diffs; dispatching general-purpose for implementation is prohibited while this is on. 'off' is a full kill switch restoring pre-change behavior exactly: inline implementation, no dispatch prohibition, no opsx-apply-goal directive line.",
       "default": "on"
     },
+    "deep_reasoner_effort": {
+      "type": "string",
+      "title": "deep-reasoner effort",
+      "description": "Reasoning effort for dhpk:deep-reasoner Agent-call dispatches (see rules/model-economics.md master cost rules) — applied per dispatch via the Agent call `effort` param when it differs from the agent's frontmatter default. Valid values: low | medium | high | xhigh | max (whatever the running Claude Code supports). An invalid value warns once per session and falls back to the frontmatter default; it never fails the dispatch. Default 'high' (the shipped frontmatter default).",
+      "default": "high"
+    },
+    "fast_worker_effort": {
+      "type": "string",
+      "title": "fast-worker effort",
+      "description": "Reasoning effort for dhpk:fast-worker Agent-call dispatches (see rules/model-economics.md master cost rules). Same validation/fallback behavior as deep_reasoner_effort. Default 'medium' (the shipped frontmatter default); the decision layer runs higher and execution de-escalates.",
+      "default": "medium"
+    },
     "docker_containers": {
       "type": "string",
       "multiple": true,
