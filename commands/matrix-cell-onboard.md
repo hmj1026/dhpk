@@ -36,7 +36,7 @@ versions from the Laravel ↔ Testbench ↔ PHPUnit mapping table.
 
 If `library-author` is not enabled, the skill still runs but cannot
 auto-trigger the `polyfill-reviewer` sentinel on the resulting edits.
-Enable it first via `/dhpk:dhpk-setup` or by editing
+Enable it first via `/dhpk:setup` or by editing
 `.claude/settings.local.json`.
 
 ## Execution

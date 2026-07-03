@@ -1,6 +1,6 @@
 ---
 name: dhpk-execution-policy
-description: 'Default workflow for software engineering tasks: task modes (small change, bug fix, new feature, architecture change), skill priority order, mandatory post-edit review steps (sentinel-driven), anti-loop guidance, and standard output shape. Triggers: how should I approach this, what is the workflow, do I need a plan, what reviews are required, I am stuck in a loop, what to do after editing. Use this skill at task kickoff to pick the right flow, and after edits to confirm review obligations.'
+description: 'Default workflow for software engineering tasks: task modes (bug fix known/unknown root cause, feature delivery normal/cross-module, medium change, lightweight maintenance) with OpenSpec ask-behavior per the SSOT table, skill priority order, mandatory post-edit review steps (sentinel-driven), anti-loop guidance, and standard output shape. Triggers: how should I approach this, what is the workflow, do I need a plan, what reviews are required, I am stuck in a loop, what to do after editing. Use this skill at task kickoff to pick the right flow, and after edits to confirm review obligations.'
 allowed-tools: 'Read, Grep, Glob, Bash, Skill, Agent'
 ---
 

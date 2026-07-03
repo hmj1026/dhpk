@@ -10,18 +10,18 @@ Full detail for `/project-setup` Phases 6 and 6.5.
 
 ### 6.1 Locate Plugin Hooks Directory
 
-Same 3-level fallback as Phase 5.1, but search for `hooks/pre-edit-guard.sh`:
+Same 3-level fallback as Phase 5.1, but search for `scripts/hooks/pre-edit-guard.sh`:
 
-1. `Glob: ~/.claude/plugins/**/sd0x-dev-flow/hooks/pre-edit-guard.sh`
-2. `Glob: ${REPO_ROOT}/node_modules/sd0x-dev-flow/hooks/pre-edit-guard.sh`
-3. Plugin-relative fallback: `@hooks/pre-edit-guard.sh`
+1. `Glob: ~/.claude/plugins/**/dhpk/scripts/hooks/pre-edit-guard.sh`
+2. `Glob: ${REPO_ROOT}/node_modules/dhpk/scripts/hooks/pre-edit-guard.sh`
+3. Plugin-relative fallback: `@scripts/hooks/pre-edit-guard.sh`
 4. **Not found** → **hard error for this phase** (do not silently skip). Output explicit failure with remediation steps:
 
    ```
-   ⛔ Hook source not found. Auto-loop enforcement layer cannot be installed.
+   ⛔ Hook source not found. Enforcement layer cannot be installed.
 
    Remediation (choose one):
-   1. Install the plugin: /plugin marketplace add sd0xdev/sd0x-dev-flow && /plugin install sd0x-dev-flow@sd0xdev-marketplace
+   1. Install the plugin: claude plugin marketplace add hmj1026/dhpk && claude plugin install dhpk@dhpk
    2. Copy hooks manually from a machine that has the plugin installed
    3. Re-run with --no-hooks to skip (enforcement layer will be missing)
    ```
@@ -106,8 +106,8 @@ Merge strategy:
 
 Same 3-level fallback as Phase 5.1, but search for `scripts/precommit-runner.js`:
 
-1. `Glob: ~/.claude/plugins/**/sd0x-dev-flow/scripts/precommit-runner.js`
-2. `Glob: ${REPO_ROOT}/node_modules/sd0x-dev-flow/scripts/precommit-runner.js`
+1. `Glob: ~/.claude/plugins/**/dhpk/scripts/precommit-runner.js`
+2. `Glob: ${REPO_ROOT}/node_modules/dhpk/scripts/precommit-runner.js`
 3. Plugin-relative fallback: `@scripts/precommit-runner.js`
 
 **Not found** → warn + skip Phase 6.5. Phase 7 will report `⚠️ Partial`.
@@ -133,12 +133,12 @@ Same 3-level fallback as Phase 5.1, but search for `scripts/precommit-runner.js`
 
 ### 6.5.3 Update Manifest
 
-1. Read `.sd0x/install-state.json` (create `{}` if not exists)
+1. Read `.dhpk/install-state.json` (create `{}` if not exists). If `.dhpk/install-state.json` is absent but a legacy `.sd0x/install-state.json` exists, read it (including any legacy `sd0x_version` key) to migrate forward, then write only the `.dhpk/` form (never write back to `.sd0x/`).
 2. Read plugin version from `.claude-plugin/plugin.json` or `package.json`
 3. Update: `schema_version: 1`, `installed_at`, `plugin_version`, `scripts` key
 4. Compute hash per file: `git hash-object --no-filters .claude/scripts/<name>`
 5. Preserve all existing top-level keys (e.g. `rules`, `hook_scripts`, and any unknown keys)
-6. Write back to `.sd0x/install-state.json`
+6. Write back to `.dhpk/install-state.json`
 
 ### 6.5.4 Output Scripts Report
 

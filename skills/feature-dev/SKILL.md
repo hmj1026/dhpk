@@ -121,8 +121,8 @@ If code changes after the latest `✅ Tests sufficient` gate (e.g., fixes from c
 
 ## Testing Requirements
 
-Follow `@rules/testing.md` for conventions (AAA, naming, evidence model).
-Follow `@rules/testing-project.md` for project-specific overrides (directories, runner, adequacy mode).
+Test conventions: Arrange-Act-Assert structure, behavior-describing test names, and evidence-based adequacy (assert observable output, not internal calls).
+Project-local test overrides (directories, runner, adequacy mode) take precedence when the consumer defines them in its own .claude/rules/.
 
 | Change Type | Test Requirements |
 |-------------|-------------------|
@@ -134,7 +134,7 @@ Follow `@rules/testing-project.md` for project-specific overrides (directories, 
 
 ## Test File Mapping
 
-Use project convention from `@rules/testing-project.md`. If no override is defined, follow ecosystem defaults:
+Use the project's own test-file convention (from its .claude/rules/, if defined). If no override is defined, follow ecosystem defaults:
 
 | Source Pattern | Test Pattern |
 |---------------|-------------|
@@ -159,7 +159,7 @@ Use project convention from `@rules/testing-project.md`. If no override is defin
 
 ## Doc Sync (after precommit Pass)
 
-**⚠️ Auto-triggered by @rules/auto-loop.md — behavior-layer rule, not hook-enforced.**
+**⚠️ Auto-triggered per @rules/execution-policy.md (§Post-implementation agent gate / §Review output gate) — behavior-layer, not hook-enforced.**
 
 Only when change maps to a feature under `docs/features/`. Target detection uses 3-level fallback — see `/update-docs` for algorithm details.
 
@@ -174,7 +174,7 @@ precommit Pass
 
 ## Review Loop
 
-**MUST re-review after fix until PASS** (per @rules/auto-loop.md)
+**MUST re-review after fix until PASS** (per @rules/execution-policy.md §Post-implementation agent gate; capped at 3 rounds per §Anti-loop "Review-loop ceiling")
 
 ```
 Review → Issues found → Fix → Re-review → ... → ✅ Pass → Next step

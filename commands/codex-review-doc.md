@@ -86,7 +86,3 @@ To re-review after revisions: `/codex-review-doc --continue <threadId>`
 /codex-review-doc
 /codex-review-doc --continue abc123
 ```
-
-## Related Standards
-
-- @rules/docs-writing.md

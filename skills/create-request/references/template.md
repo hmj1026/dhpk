@@ -5,7 +5,7 @@
 ```markdown
 # {Title}
 
-> **Doc class**: Request ticket (date-prefixed non-lifecycle — per `@rules/docs-numbering.md`). Per-task work breakdown unit for progress tracking. **Not** a feature-level requirements doc — for that see `../1-requirements.md` if present (created via `/req-analyze`).
+> **Doc class**: Request ticket (date-prefixed non-lifecycle). Per-task work breakdown unit for progress tracking. **Not** a feature-level requirements doc — for that see `../1-requirements.md` if present (created via `/req-analyze`).
 > **Created**: {YYYY-MM-DD}
 > **Status**: Pending
 > **Priority**: {P0|P1|P2}
@@ -102,7 +102,7 @@ See [SKILL.md §Phase 4 Auto-Update Items](../SKILL.md) for transition rules. `B
 | Track progress      | Progress section marks each phase status             |
 | Clear scope         | Scope section defines "what to do" and "what not to do" |
 | Verifiable          | Acceptance Criteria use checkboxes for verification  |
-| Doc class awareness | Request is a date-prefixed non-lifecycle tracking ticket (per `@rules/docs-numbering.md`). Do NOT inline 5-Why, stakeholder analysis, or FR/NFR decomposition here — those belong in `1-requirements.md` via `/req-analyze` |
+| Doc class awareness | Request is a date-prefixed non-lifecycle tracking ticket. Do NOT inline 5-Why, stakeholder analysis, or FR/NFR decomposition here — those belong in `1-requirements.md` via `/req-analyze` |
 
 ## Granularity Guide
 

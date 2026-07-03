@@ -12,7 +12,7 @@ disable-model-invocation: true
 
 ## Task
 
-Install sd0x-dev-flow plugin runner scripts into the current project's `.claude/scripts/` directory so they persist even without the plugin loaded. These scripts are used by `/precommit`, `/precommit-fast`, `/verify`, and `/dep-audit`.
+Install dhpk plugin runner scripts into the current project's `.claude/scripts/` directory so they persist even without the plugin loaded. These scripts are used by `/precommit`, `/precommit-fast`, `/verify`, and `/dep-audit`.
 
 ### Workflow
 
@@ -54,15 +54,16 @@ $ARGUMENTS
 
 Find the plugin's `scripts/` directory using this priority (short-circuit on first match):
 
-1. **Glob search** — search known Claude plugin locations:
+1. **Direct env var** — if running as the plugin, `${CLAUDE_PLUGIN_ROOT}` points at the plugin root; the scripts dir is `${CLAUDE_PLUGIN_ROOT}/scripts/`.
+2. **Glob search fallback** — if `${CLAUDE_PLUGIN_ROOT}` is unset, search known Claude plugin cache locations:
 
    ```
-   Glob: ~/.claude/plugins/**/sd0x-dev-flow/scripts/precommit-runner.js
-   Glob: ${REPO_ROOT}/node_modules/sd0x-dev-flow/scripts/precommit-runner.js
+   Glob: ~/.claude/plugins/**/dhpk/scripts/precommit-runner.js
+   Glob: ${REPO_ROOT}/node_modules/dhpk/scripts/precommit-runner.js
    ```
 
-2. **Plugin-relative fallback** — try reading `@scripts/precommit-runner.js` to confirm accessibility. If readable, derive the scripts directory from the resolved path.
-3. **Error** — if no scripts directory found, report error and stop.
+3. **Plugin-relative fallback** — try reading `@scripts/precommit-runner.js` to confirm accessibility. If readable, derive the scripts directory from the resolved path.
+4. **Error** — if no scripts directory found, report error and stop.
 
 ### Phase 2: Enumerate Available Scripts
 
