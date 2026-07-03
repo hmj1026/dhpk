@@ -33,11 +33,19 @@ This project is indexed by GitNexus as **dhpk** (8908 symbols, 10906 relationshi
 
 | Task | Read this skill file |
 |------|---------------------|
-| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
-| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
-| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
-| Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
-| Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
-| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
+| Understand architecture / "How does X work?" | `skills/gitnexus/gitnexus-exploring/SKILL.md` |
+| Blast radius / "What breaks if I change X?" | `skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
+| Trace bugs / "Why is X failing?" | `skills/gitnexus/gitnexus-debugging/SKILL.md` |
+| Rename / extract / split / refactor | `skills/gitnexus/gitnexus-refactoring/SKILL.md` |
+| Tools, resources, schema reference | `skills/gitnexus/gitnexus-guide/SKILL.md` |
+| Index, status, clean, wiki CLI commands | `skills/gitnexus/gitnexus-cli/SKILL.md` |
 
 <!-- gitnexus:end -->
+
+## Plugin development
+
+This repo is the dhpk plugin source, not an installed consumer.
+
+- **Change-goes-live flow**: source edits here do NOT affect an installed consumer until a version bump + reinstall (`claude plugin update dhpk`, or a fresh install). For a faster dev loop, run Claude Code with `--plugin-dir` pointed at this source tree — live reload, no bump/reinstall cycle needed.
+- **Validation gates**: `node scripts/ci/validate-plugin.js` (plugin.json path/registration integrity), `node scripts/ci/catalog.js --check all` (exact count claims), `node tests/run-all.js` (full test suite), `bash scripts/validate/validate-harness.sh` (route-table / hook wiring / sentinel integrity).
+- **Sentinel/hook model**: post-edit hooks write `.claude/artifacts/sessions/.pending-*` sentinels; reviewers clear them via their Closing hook. See `rules/execution-policy.md` (SSOT) and `docs/hook-extension.md` for detail.

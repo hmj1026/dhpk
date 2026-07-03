@@ -211,7 +211,7 @@ dhpk runs **codex-free by default**. Opting in unlocks two related but distinct 
 
 **B. Six direct Codex-delegation skills** — `codex-architect`, `codex-brainstorm`, `codex-cli-review`, `codex-code-review`, `codex-explain`, `codex-implement` — invocable directly (e.g. `/codex-code-review`) whenever you want Codex's take without going through `/dhpk:do`.
 
-Both require the `mcp__codex__codex` / `mcp__codex__codex-reply` tools, which come from a **separate** OpenAI-published Claude Code plugin, not from dhpk. Setup steps and the `CODEX=on` opt-in mechanics (the `--codex` flag / natural-language trigger on `/dhpk:do`) live in [`docs/configuration.md`](./configuration.md#codex-mcp-dependency-not-a-userconfig-knob).
+Five of these six (all but `codex-cli-review`, which shells out to the `codex` CLI binary via `Bash` and needs no MCP server) require the `mcp__codex__codex` / `mcp__codex__codex-reply` tools, which come from directly registering the Codex CLI's own `codex mcp-server` subcommand as an MCP server — **not** from installing the `openai/codex-plugin-cc` plugin, which is a separate, optional surface. Setup steps and the `CODEX=on` opt-in mechanics (the `--codex` flag / natural-language trigger on `/dhpk:do`) live in [`docs/configuration.md`](./configuration.md#codex-mcp-dependency-not-a-userconfig-knob).
 
 This is unrelated to **syncing Codex CLI content** (below) — that mirrors dhpk's own skills into a project's `.codex/` directory for the standalone `codex` CLI tool, no MCP server involved.
 
