@@ -12,8 +12,9 @@
 //
 // Only claims phrased as an exact number are enforced ("24 role-based agents",
 // "27 opt-in stack modules", "23 root-level agents", "24 個角色導向 agent",
-// "7-slot"). Approximate claims ("~57 core skills", "~73 commands") are printed
-// for awareness but not enforced — the `~` signals deliberate rounding.
+// "7-slot", "5 MCP-backed `codex-*` skills", "7 `/dhpk:codex-*` commands").
+// Approximate claims ("~57 core skills", "~73 commands") are printed for
+// awareness but not enforced — the `~` signals deliberate rounding.
 
 const fs = require('fs');
 const path = require('path');
@@ -53,6 +54,21 @@ function computeCounts() {
     ? fs.readdirSync(p('modules'), { withFileTypes: true }).filter((e) => e.isDirectory())
     : [];
 
+  // Codex surface counts: MCP-backed codex skills are skills/codex-*/ whose
+  // SKILL.md references the mcp__codex__ tools (codex-cli-review shells out to the
+  // CLI and is deliberately excluded); codex commands are the flat commands/codex-*.md.
+  const codexSkillDirs = fs.existsSync(p('skills'))
+    ? fs.readdirSync(p('skills'), { withFileTypes: true })
+        .filter((e) => e.isDirectory() && /^codex-/.test(e.name))
+    : [];
+  const mcpCodexSkills = codexSkillDirs.filter((e) => {
+    const md = p('skills', e.name, 'SKILL.md');
+    return fs.existsSync(md) && fs.readFileSync(md, 'utf8').includes('mcp__codex__');
+  }).length;
+  const codexCommands = fs.existsSync(p('commands'))
+    ? fs.readdirSync(p('commands')).filter((n) => /^codex-.*\.md$/.test(n)).length
+    : 0;
+
   return {
     agentsTotal: rootAgents.length + moduleAgents.length,
     agentsRoot: rootAgents.length,
@@ -63,6 +79,8 @@ function computeCounts() {
     commands: commands.length,
     modules: modules.length,
     slotCount: slotCountFromPayload(),
+    mcpCodexSkills,
+    codexCommands,
   };
 }
 
@@ -88,6 +106,13 @@ function claimSpecs(counts) {
     // Anchoring to "-slot sentinel" would silently drop the non-"sentinel" phrasings from
     // enforcement — the drift this guard exists to catch. Keep it broad on purpose.
     { label: 'sentinel slots', re: /(\d+)(-slot)/g, expected: counts.slotCount },
+    // Codex surface counts. Anchored to the full README phrasings so the table's
+    // bare "5 skills" / "7 commands" cells and the "~51 other skills" approx are
+    // never matched — only the prerequisite-row claims that spell out the surface.
+    { label: 'MCP-backed codex skills (EN)', re: /(\d+)(\s+MCP-backed `codex-\*` skills)/g, expected: counts.mcpCodexSkills },
+    { label: 'codex commands (EN)', re: /(\d+)(\s+`\/dhpk:codex-\*` commands)/g, expected: counts.codexCommands },
+    { label: 'MCP-backed codex skills (ZH)', re: /(\d+)(\s*個 MCP-backed `codex-\*` skill)/g, expected: counts.mcpCodexSkills },
+    { label: 'codex commands (ZH)', re: /(\d+)(\s*個 `\/dhpk:codex-\*` 指令)/g, expected: counts.codexCommands },
   ];
 }
 
@@ -149,6 +174,7 @@ function printTable() {
   console.log(`  commands: ${c.commands}`);
   console.log(`  modules:  ${c.modules}`);
   console.log(`  slots:    ${c.slotCount}  (sentinel review slots from payload.sh)`);
+  console.log(`  codex:    ${c.mcpCodexSkills} MCP-backed skills + ${c.codexCommands} commands`);
 }
 
 const args = process.argv.slice(2);

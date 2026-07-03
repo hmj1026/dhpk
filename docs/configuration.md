@@ -52,22 +52,57 @@ A handful of boolean/mode knobs additionally support a **one-shot environment-va
 
 ## Codex MCP dependency (not a `userConfig` knob)
 
-`orchestration_dispatch`'s `CODEX=on` peer path and the 6 `codex-*` skills (`codex-architect`, `codex-brainstorm`, `codex-cli-review`, `codex-code-review`, `codex-explain`, `codex-implement`) all require the `mcp__codex__codex` / `mcp__codex__codex-reply` tools. dhpk does not bundle or configure these — they come from a **separate** Claude Code plugin published by OpenAI, not from any `dhpk` `userConfig` key.
+`orchestration_dispatch`'s `CODEX=on` peer path, the **5 MCP-backed `codex-*` skills** (`codex-architect`, `codex-brainstorm`, `codex-code-review`, `codex-explain`, `codex-implement`), and the **7 `/dhpk:codex-*` commands** (`codex-review`, `-review-branch`, `-review-doc`, `-review-fast`, `-security`, `-test-gen`, `-test-review`) all require the `mcp__codex__codex` / `mcp__codex__codex-reply` tools. (`codex-cli-review` is the one exception — it shells out to the `codex` CLI binary via `Bash` and needs no MCP server.) dhpk does not bundle or configure these tools, and no `dhpk` `userConfig` key controls them: they come from **directly registering the Codex CLI's own `codex mcp-server` subcommand as an MCP server** — *not* from installing `openai/codex-plugin-cc`, which is a separate, optional surface (see the comparison aside below).
 
-Install it once, independent of dhpk:
+### How the Codex MCP server works
+
+The Codex CLI ships an MCP-server mode. `codex mcp-server` starts a stdio Model Context Protocol server that exposes exactly two tools — `codex` and `codex-reply` — which Claude Code surfaces to skills as `mcp__codex__codex` / `mcp__codex__codex-reply`. Each call is configurable via `approval-policy`, `sandbox`, `model`, `profile`, and `cwd` (OpenAI documents the command and these parameters in its [Agents SDK / Codex MCP guide](https://developers.openai.com/codex/guides/agents-sdk)). Registering this server is the **only** way to obtain the `mcp__codex__*` tools dhpk's `codex-*` skills and commands depend on.
+
+Register it once, independent of dhpk:
 
 ```bash
-/plugin marketplace add openai/codex-plugin-cc
-/plugin install codex@openai-codex
-/reload-plugins
-/codex:setup
+# Register the Codex CLI's mcp-server as an MCP server named "codex"
+claude mcp add --transport stdio codex -- codex mcp-server
+# Confirm Claude Code sees it
+claude mcp list
 ```
 
-`/codex:setup` reports whether Codex is ready and, if npm is available, offers to run `npm install -g @openai/codex` for you. Requirements: Node.js 18.18+ and either a ChatGPT subscription (including Free) or an OpenAI API key. If Codex is installed but not authenticated, run `codex login` (prefix with `!` to run it as a shell command from inside a Claude Code session).
+You can equivalently hand-write the same server into a `.mcp.json` / `.claude.json` entry instead of using `claude mcp add`. Claude Code's [MCP quickstart](https://code.claude.com/docs/en/mcp-quickstart#connect-to-mcp-servers) documents this generic connect-and-verify flow (`claude mcp add`, `claude mcp list`, and `/mcp` inside a session).
 
-Without this plugin installed, invoking any `codex-*` skill surfaces a tool-permission error (`mcp__codex__*` not found) — dhpk has no fallback for these skills specifically, since they exist only to delegate to Codex. It's distinct from `CODEX=on` (see [`docs/basic-operations.md`](./basic-operations.md#9-implementation-dispatch-automatic)), which is a **per-session opt-in flag**, not a persisted `userConfig` value — it has no install-time `--config` equivalent, and resets every session unless you pass `--codex` or say "use codex" again.
+This requires the `codex` CLI itself to be installed and authenticated first: Node.js 18.18+ and either a ChatGPT subscription (including Free) or an OpenAI API key. Install with `npm install -g @openai/codex` and authenticate with `codex login` (prefix with `!` to run it as a shell command from inside a Claude Code session).
 
-This is also unrelated to **Codex CLI dual-track sync** (`install-codex-skills.sh`, see [`docs/basic-operations.md`](./basic-operations.md)), which mirrors dhpk's own skills into a project's `.codex/` directory for people running the standalone `codex` CLI tool directly — that path needs no MCP server at all.
+**Verifying the connection** — inside a Claude Code session, run:
+
+```bash
+/mcp
+```
+
+Look for a `codex` entry with a connected status and the `codex` / `codex-reply` tools listed under it (Claude Code exposes them to skills as `mcp__codex__codex` / `mcp__codex__codex-reply`). If `codex` is missing or shows a failed/disconnected state:
+
+1. Re-check `claude mcp list` — confirm a `codex` server is registered and its command is `codex mcp-server`.
+2. Confirm the underlying `codex` CLI runs and is authenticated (`codex login`); the MCP server can't start without it.
+3. If `codex` appears connected but a `codex-*` skill still fails, the issue is usually auth (`codex login`) rather than the MCP connection itself.
+
+Without the `codex mcp-server` registration, invoking any MCP-backed `codex-*` skill or `/dhpk:codex-*` command surfaces a tool-permission error (`mcp__codex__*` not found) — dhpk has no fallback for these surfaces specifically, since they exist only to delegate to Codex. This is distinct from `CODEX=on` (see [`docs/basic-operations.md`](./basic-operations.md#9-implementation-dispatch-automatic)), a **per-session opt-in flag** (not a persisted `userConfig` value, no install-time `--config` equivalent) that resets every session unless you pass `--codex` or say "use codex" again — and when its MCP dependency is absent, `CODEX=on` degrades silently to single-assistant dispatch rather than erroring.
+
+It is also unrelated to **Codex CLI dual-track sync** (`install-codex-skills.sh`, see [`docs/basic-operations.md`](./basic-operations.md)), which mirrors dhpk's own skills into a project's `.codex/` directory for people running the standalone `codex` CLI directly — that path needs no MCP server at all.
+
+### `openai/codex-plugin-cc` vs the Codex MCP server
+
+`openai/codex-plugin-cc` (installed via `/plugin install codex@openai-codex`) is a **separate, optional** integration that does **not** register an MCP server and does **not** satisfy the `codex-*` skills' MCP dependency. It drives the Codex CLI's distinct `app-server` subcommand through its own Node broker scripts (`scripts/app-server-broker.mjs`, `scripts/codex-companion.mjs`) — not `mcp-server` — to provide its own slash commands (`/codex:review`, `/codex:adversarial-review`, `/codex:rescue`, `/codex:transfer`, `/codex:status`, `/codex:result`, `/codex:cancel`, `/codex:setup`), a `codex-rescue` subagent, background job polling, a `codex resume <session-id>` transfer mechanism, and an optional Stop-hook review gate. None of these touch `mcp-server` or `mcp__codex__*`.
+
+The two are independent — you may have **either, both, or neither** installed:
+
+| | Codex MCP server | `openai/codex-plugin-cc` |
+|---|---|---|
+| How to get it | `claude mcp add --transport stdio codex -- codex mcp-server` | `/plugin install codex@openai-codex` |
+| Codex CLI subcommand | `codex mcp-server` | `codex app-server` (via broker scripts) |
+| What it provides | `mcp__codex__codex` / `mcp__codex__codex-reply` tools | `/codex:*` slash commands, `codex-rescue` subagent, Stop-hook gate |
+| Used by dhpk's `codex-*` skills? | **Yes** — this is their dependency | No |
+
+If you install only the plugin and never register `codex mcp-server`, the `mcp__codex__codex` tool is still unavailable and invoking a `codex-*` skill will surface a tool-permission error. `/codex:setup` (shipped by the plugin) is a convenience for checking the underlying `codex` CLI install/auth state — which the MCP server also needs — but installing the plugin is neither necessary nor sufficient for the MCP dependency.
+
+Finally, don't confuse either integration with dhpk's **own** `.codex-plugin/` directory (see the "Codex Plugin Marketplace" section of [`docs/basic-operations.md`](./basic-operations.md)) — that manifest runs in the opposite direction: it lets the **Codex CLI** install dhpk's skills as a Codex-native plugin. It shares the word "plugin" but has nothing to do with `openai/codex-plugin-cc` or the MCP tools documented above.
 
 ## Docker & stack modules
 

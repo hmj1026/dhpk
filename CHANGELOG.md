@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.24.0 — 2026-07-03 — model-economics SSOT, default worker dispatch, README/CI hygiene
+
+**docs(policy)** — New `rules/model-economics.md` cost/tier SSOT (role → tier
+map + master cost rules). `execution-policy.md §Agent dispatch` and the
+`prompt-optimize` effort guide now point to it instead of each carrying
+partial tier guidance. `harness-budget` gains a Phase 3b tier-economics pass
+that flags cost-posture mismatches (discovery role on opus, mechanical role
+at high effort, reviewer above the sonnet floor) against `model-economics.md`.
+
+**feat(config)** — Two worker-scoped `userConfig` keys: `deep_reasoner_effort`
+(default: high) and `fast_worker_effort` (default: medium). Defaults match
+current agent frontmatter, so behavior is unchanged unless overridden;
+`session-start` announces them only when non-default.
+
+**docs(policy)** — Worker dispatch (deep-reasoner/fast-worker) is now the
+default execution path in `execution-policy.md`, with the bounded exception
+for falling back to `general-purpose` inlined instead of split across docs.
+`opsx-apply-goal` skill wording updated to match.
+
+**docs(readme)** — Corrected the Codex MCP dependency description in
+`README.md` / `README.zh-TW.md`, added badge icons, and added CI enforcement
+(`scripts/ci/catalog.js` + `tests/catalog-claims.test.js`) so documented
+codex-surface counts can't silently drift from the real catalog.
+
 ## 0.23.0 — 2026-07-02 — version-diff helper, README-to-docs migration, and release-flow regression tests
 
 **feat(version)** — New `scripts/version-diff.sh` helper: when

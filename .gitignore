@@ -39,4 +39,5 @@ openspec/
 .claude/skills/gitnexus/*/
 .claude/skills/openspec-*/
 .antigravitycli/
+.playwright-cli/
 
