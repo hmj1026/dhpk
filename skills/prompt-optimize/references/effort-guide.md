@@ -39,6 +39,8 @@ and act across subagents and tool calls.
 
 ## Mapping to dhpk / Claude Code
 
+> Tier/cost rationale — which model each role runs on, and the master cost rules — lives in `rules/model-economics.md`. This guide owns only the **effort** dimension; the two are cross-linked, neither restates the other.
+
 Once you've picked an API-style effort value, state its dhpk/Claude-Code equivalent too:
 
 - **dhpk agent-frontmatter `effort:` field** (`low`/`medium`/`high` only — no dhpk agent
