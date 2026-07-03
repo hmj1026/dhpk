@@ -84,8 +84,8 @@ Apply a confirmed fix spec (from Phase 1, whether self-derived or from `deep-rea
 
 ## Phase 3: Add Regression Test ⚠️
 
-Follow `@rules/testing.md` for conventions (AAA, naming, evidence model).
-Follow `@rules/testing-project.md` for project-specific overrides.
+Test conventions: Arrange-Act-Assert structure, behavior-describing test names, and evidence-based adequacy (assert observable output, not internal calls).
+Project-local test overrides take precedence when the consumer defines them in its own .claude/rules/.
 
 **Bug fixes must have tests at the corresponding level:**
 
@@ -136,7 +136,7 @@ If code changes after the latest `✅ Tests sufficient` gate (e.g., fixes from c
 
 ## Review Loop
 
-**MUST re-review after fix until PASS** (per @rules/auto-loop.md)
+**MUST re-review after fix until PASS** (per @rules/execution-policy.md §Post-implementation agent gate; capped at 3 rounds per §Anti-loop "Review-loop ceiling")
 
 ```
 Fix → Review → Issues found → Fix again → ... → ✅ Pass → Next step
@@ -144,7 +144,7 @@ Fix → Review → Issues found → Fix again → ... → ✅ Pass → Next step
 
 ## Doc Sync
 
-Doc Sync is governed by `@rules/auto-loop.md` (behavior-layer rule). After precommit pass, triggers conditionally when changes map to `docs/features/`.
+Doc Sync is a behavior-layer step (not hook-enforced): after precommit pass it triggers conditionally when changes map to `docs/features/`.
 
 ## Output
 

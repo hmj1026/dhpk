@@ -1,5 +1,56 @@
 # Changelog
 
+## 0.25.0 — 2026-07-03 — harness cross-reference audit, install rebrand, reference-integrity CI guard
+
+A three-track harness audit (rule-vs-skill dedupe, cross-reference integrity,
+main-workflow doc correctness) surfaced 6 HIGH / 6 MEDIUM / 4 LOW consistency
+defects. All are fixed and two new CI guards prevent recurrence.
+
+**fix(commands)** — Renamed the `/dhpk:dhpk-setup` command file
+(`commands/dhpk-setup.md` → `commands/setup.md`) so it resolves as
+`/dhpk:setup`, matching every shipped doc reference; the old
+`/dhpk:dhpk-setup` form no longer resolves. **(consumer-visible — takes effect
+after a version bump + reinstall.)**
+
+**fix(plugin)** — Registered `./modules/js/commands/` so `/dhpk:ts-check-status`
+is now reachable **(consumer-visible — reinstall)**; removed the duplicate
+`modules/yii-1.1/commands/yii1-security-audit.md` (the registered skill twin is
+the surviving surface) and its now-stale `module.yaml` `provides.commands` entry.
+
+**fix(harness)** — Eliminated every dangling `@rules/<file>` reference:
+repointed review-loop / Codex-independence refs to the governing
+`rules/execution-policy.md` sections, inlined testing/doc conventions (the plugin
+ships 4 rules and adds none), and reconciled
+`dhpk-execution-policy/references/task-modes.md` to the rule SSOT's 6-row
+change-classification table. Consumer-side `@rules/*-project.md` override
+illustrations are preserved by design.
+
+**fix(install)** — Rewrote `install-rules` / `install-hooks` / `install-scripts`
+as pointer-installers using the real plugin identity (`dhpk` / `hmj1026/dhpk`,
+not the pre-rename `sd0x-dev-flow`), the 4-rule path-reference model (no 11-rule
+copy, no `CLAUDE.template.md`), and the correct hook source dir `scripts/hooks/`.
+Reconciled the `project-setup` install phase to the same model and rebranded the
+installer state manifest `.sd0x/install-state.json` → `.dhpk/install-state.json`
+(key `sd0x_version` → `dhpk_version`) with a one-time legacy back-compat read so
+existing consumers migrate cleanly.
+
+**fix(manifests)** — The `full` install profile now enumerates every shipped
+module with an explicit machine-readable conflict-exclusion list (14 included +
+13 excluded = 27); added the missing `library-author` entry to
+`module-catalog.json`.
+
+**fix(docs)** — Corrected the Codex-MCP setup wording in `basic-operations.md`
+(register `codex mcp-server`; 5 MCP-backed + 1 CLI-only skill) to match
+`configuration.md` / README; added `model-economics.md` to the README rules
+list; corrected `~commands` / agent / `~skills` count claims (EN + zh-TW); fixed
+root `CLAUDE.md`/`AGENTS.md` gitnexus paths and added lean plugin-dev guidance.
+
+**feat(ci)** — New `scripts/ci/validate-references.js` reference-integrity guard
+(dangling `@rules/`, `/dhpk:`, and `${CLAUDE_PLUGIN_ROOT}/` refs + predecessor-brand
+`sd0x` strings, with a documented whitelist) wired into `tests/run-all.js`;
+extended `tests/module-catalog.test.js` with reverse catalog-selectability and a
+`full`-profile completeness/disjointness invariant.
+
 ## 0.24.0 — 2026-07-03 — model-economics SSOT, default worker dispatch, README/CI hygiene
 
 **docs(policy)** — New `rules/model-economics.md` cost/tier SSOT (role → tier

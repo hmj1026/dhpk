@@ -7,8 +7,8 @@ Full output templates for `/project-setup` Phase 7. SKILL.md keeps the closed-lo
 | Condition | Check | Required |
 |-----------|-------|----------|
 | CLAUDE.md behavior text | `Required Checks` section exists | ✅ |
-| `@rules/` references | `@rules/auto-loop.md` in `.claude/CLAUDE.md` | ✅ |
-| Rule files | `.claude/rules/auto-loop.md` exists | ✅ |
+| `@rules/` references | `@rules/execution-policy.md` in `.claude/CLAUDE.md` | ✅ |
+| Rule files | `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` accessible | ✅ |
 | Hook enforcement | `stop-guard` in `.claude/settings.json` | ✅ |
 | Script runners | `.claude/scripts/precommit-runner.js` exists | ✅ (unless `--lite` or `--detect-only`) |
 | Guard mode | `env.STOP_GUARD_MODE` = `strict` in target settings file | ✅ (unless `--guard-mode warn`) |
@@ -23,7 +23,7 @@ Full output templates for `/project-setup` Phase 7. SKILL.md keeps the closed-lo
 |-------|--------|
 | Detection | ✅ Framework: X, PM: Y, DB: Z |
 | CLAUDE.md | ✅ Configured (0 remaining placeholders) |
-| Rules | ✅ 11/11 managed rules + 1 override template |
+| Rules | ✅ 4 shipped rules referenced by path |
 | Hooks | ✅ 5/5 installed + settings merged |
 | Scripts | ✅ 3/3 runner scripts installed |
 | Env Config | ✅ STOP_GUARD_MODE=strict, AUTO_COMPACT_WINDOW=320000 (1M) |

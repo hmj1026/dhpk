@@ -14,7 +14,7 @@ disable-model-invocation: true
 
 ## Task
 
-Install sd0x-dev-flow plugin hooks into the current project's `.claude/` directory so they persist even without the plugin loaded. This involves two layers: copying hook scripts and merging hook definitions into settings.
+Install dhpk plugin hooks into the current project's `.claude/` directory so they persist even without the plugin loaded. This involves two layers: copying hook scripts and merging hook definitions into settings.
 
 ### Workflow
 
@@ -55,28 +55,29 @@ $ARGUMENTS
 
 ### Phase 1: Locate Plugin Hooks Directory
 
-Find the plugin's `hooks/` directory using this priority (short-circuit on first match):
+Find the plugin's hook scripts directory (`scripts/hooks/`) using this priority (short-circuit on first match):
 
-1. **Glob search** — search known Claude plugin locations:
+1. **Direct env var** — if running as the plugin, `${CLAUDE_PLUGIN_ROOT}` points at the plugin root; the hook scripts dir is `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/`.
+2. **Glob search fallback** — if `${CLAUDE_PLUGIN_ROOT}` is unset, search known Claude plugin cache locations:
 
    ```
-   Glob: ~/.claude/plugins/**/sd0x-dev-flow/hooks/pre-edit-guard.sh
-   Glob: ${REPO_ROOT}/node_modules/sd0x-dev-flow/hooks/pre-edit-guard.sh
+   Glob: ~/.claude/plugins/**/dhpk/scripts/hooks/pre-edit-guard.sh
+   Glob: ${REPO_ROOT}/node_modules/dhpk/scripts/hooks/pre-edit-guard.sh
    ```
 
-2. **Plugin-relative fallback** — since this command is loaded from the plugin, try reading `@hooks/pre-edit-guard.sh` to confirm accessibility. If readable, derive the hooks directory by resolving the path returned (parent of `pre-edit-guard.sh`).
-3. **Not found** → **hard error** (do not silently skip). Output explicit failure with remediation steps, then stop (unlike `/project-setup` which continues to Phase 7, `/install-hooks` is standalone and has no subsequent phases):
+3. **Plugin-relative fallback** — try reading `@scripts/hooks/pre-edit-guard.sh` to confirm accessibility. If readable, derive the hooks directory by resolving the path returned (parent of `pre-edit-guard.sh`).
+4. **Not found** → **hard error** (do not silently skip). Output explicit failure with remediation steps, then stop (unlike `/project-setup` which continues to Phase 7, `/install-hooks` is standalone and has no subsequent phases):
    ```
    ⛔ Hook source not found. Auto-loop enforcement layer cannot be installed.
 
    Remediation (choose one):
-   1. Install the plugin: /plugin marketplace add sd0xdev/sd0x-dev-flow && /plugin install sd0x-dev-flow@sd0xdev-marketplace
+   1. Install the plugin: claude plugin marketplace add hmj1026/dhpk && claude plugin install dhpk@dhpk
    2. Copy hooks manually from a machine that has the plugin installed
    ```
 
 ### Phase 2: Enumerate Available Hooks
 
-Read all `.sh` files from the discovered hooks directory. The available hooks are:
+Read all `.sh` files from the discovered `scripts/hooks/` directory. The available hooks are:
 
 | Hook | Event | Matcher | Purpose |
 |------|-------|---------|---------|
@@ -85,7 +86,7 @@ Read all `.sh` files from the discovered hooks directory. The available hooks ar
 | `post-tool-review-state.sh` | PostToolUse | Bash, mcp__codex__codex, mcp__codex__codex-reply | Parse review results, update state file |
 | `stop-guard.sh` | Stop | — | Check review + precommit completed before stop |
 
-> **Note**: The plugin's `SessionStart` namespace hook (`scripts/namespace-hint.sh`, defined in `hooks.json`) is intentionally excluded from local install — it emits plugin-namespaced command guidance (`/sd0x-dev-flow:...`) which is incorrect for local installations where commands are accessed without namespace prefix.
+> **Note**: The plugin's `SessionStart` hook, `scripts/hooks/session-start.sh` (wired in `hooks/hooks.json`), is intentionally excluded from local install by default — it may emit plugin-context guidance that assumes the plugin is loaded, which does not apply to standalone local installations. If a `SessionStart` example is needed, use `scripts/hooks/session-start.sh`.
 
 If `--list` is specified, output this table and **stop**.
 
@@ -158,15 +159,6 @@ Merge strategy:
 - **Stop hook mode merge**: when an existing Stop entry references `stop-guard.sh`, compare the full command string (including `STOP_GUARD_MODE=...` prefix). If mode differs and `--force` is set, replace the entry. If mode differs without `--force`, warn and skip.
 - `--force` semantics: **Replace** the existing entry at the same matcher (not append a duplicate). Remove the old entry, then add the new one.
 - Write updated settings back
-
-### Phase 4.5: Backfill CLAUDE.md (Closed-Loop Guarantee)
-
-Ensure `.claude/CLAUDE.md` contains the behavior-layer text so the auto-loop engine can activate. This guarantees a closed loop even when `/install-hooks` is run standalone (without `/project-setup`).
-
-1. Grep `.claude/CLAUDE.md` for `Required Checks`
-2. **Found** → skip (already configured)
-3. **Not found but file exists** → append the Required Checks + Auto-Loop Rule block at end of file (content from `CLAUDE.template.md` L1-33)
-4. **File does not exist** → extract from plugin's `CLAUDE.template.md`: L1-33 (Required Checks + Auto-Loop Rule) → create minimal `.claude/CLAUDE.md`. Remove ecosystem block markers.
 
 ### Phase 5: Output Report
 

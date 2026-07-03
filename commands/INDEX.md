@@ -48,8 +48,7 @@ description: 'Navigation index for dhpk plugin commands. Internal documentation;
 | Command | 用途 |
 |---------|------|
 | `/review-pending` | 審查 `.pending-review` sentinel 中的檔案或指定路徑，完成後 code-reviewer 自動清除 sentinel |
-| `/ts-check-status` | (JS module) 報告 `// @ts-check` / `// @ts-nocheck` / unmarked 分佈，衡量 progressive `@ts-check` 推進度 |
-| `/yii1-security-audit` | (Yii 1.1 module) Yii 1.1 專屬安全稽核 |
+| `/ts-check-status` | (JS module，已註冊於 plugin.json commands) 報告 `// @ts-check` / `// @ts-nocheck` / unmarked 分佈，衡量 progressive `@ts-check` 推進度 |
 
 ## Codex（第二意見 / 深度 review）
 
@@ -130,7 +129,7 @@ description: 'Navigation index for dhpk plugin commands. Internal documentation;
 | `/install-rules` | 安裝 plugin rules 到專案 |
 | `/install-scripts` | 安裝 plugin 腳本到專案 |
 | `/install-hooks` | 安裝 plugin hooks 到專案 |
-| `/dhpk-setup` | 互動式（重新）設定 dhpk plugin 選項（modules / docker / review agents / hook profile） |
+| `/dhpk:setup` | 互動式（重新）設定 dhpk plugin 選項（modules / docker / review agents / hook profile） |
 
 ## Instinct / 學習系統
 

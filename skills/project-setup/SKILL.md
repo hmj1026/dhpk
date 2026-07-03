@@ -81,7 +81,7 @@ Based on detected manifest (from Phase 1):
 
 **Prerequisite**: User confirmed, and not in `--detect-only` mode.
 
-1. Read `CLAUDE.template.md` (fallback to `CLAUDE.md`)
+1. Read `CLAUDE.md`
 2. Remove `<!-- block:X -->...<!-- /block -->` sections NOT matching detected ecosystem, then remove remaining block markers
 3. `Edit` each placeholder (`replace_all: true`)
 4. Write to `.claude/CLAUDE.md` (create directory / file if needed)
@@ -99,8 +99,8 @@ If `--detect-only` or `--lite`, skip to Phase 7.
 **Skip if**: `--no-rules` / `--lite` / `--detect-only`. Fresh-install semantics (install new / skip identical / warn on conflict; for smart merge run `/install-rules`).
 
 - **Locate** plugin `rules/` via 3-level fallback (Glob plugin dirs → `node_modules` → `@rules/` relative); not found → hard error + remediation, skip to Phase 6 (Phase 7 reports `⚠️ Partial`)
-- **Copy** 11 managed rules + 1 user-owned override template (`auto-loop-project.md`), then write hashes to `.sd0x/install-state.json` (preserve unknown keys)
-- **Backfill** `.claude/CLAUDE.md` with `@rules/` references so the auto-loop engine activates (closed-loop guarantee)
+- **Reference** the 4 shipped rules (`anti-rationalization.md`, `execution-policy.md`, `model-economics.md`, `tool-routing.md`) by `${CLAUDE_PLUGIN_ROOT}/rules/` path — no local copies — then record state in `.dhpk/install-state.json` (preserve unknown keys)
+- **Backfill** `.claude/CLAUDE.md` with `@rules/` references so the rules activate (closed-loop guarantee)
 - Full rule list, conflict strategy, manifest schema, backfill branches, and report template → **`references/install-rules-phase.md`**
 
 ## Phase 6: Install Hooks
@@ -117,7 +117,7 @@ If `--detect-only` or `--lite`, skip to Phase 7.
 **Skip if**: `--lite` / `--detect-only`.
 
 - **Locate** plugin `scripts/` via same fallback (search `precommit-runner.js`); not found → warn + skip (`⚠️ Partial`)
-- **Copy** 3 scripts (`precommit-runner.js`, `verify-runner.js`, `lib/utils.js`), then update `.sd0x/install-state.json` `scripts` key with per-file hashes
+- **Copy** 3 scripts (`precommit-runner.js`, `verify-runner.js`, `lib/utils.js`), then update `.dhpk/install-state.json` `scripts` key with per-file hashes
 - Script table, conflict strategy, manifest detail, and report template → **`references/install-hooks-scripts.md`**
 
 ## Phase 6.7: Configure Environment Variables
@@ -136,8 +136,8 @@ Summarize all phases and perform the closed-loop check:
 | Condition | Check | Required |
 |-----------|-------|----------|
 | CLAUDE.md behavior text | `Required Checks` section exists | ✅ |
-| `@rules/` references | `@rules/auto-loop.md` in `.claude/CLAUDE.md` | ✅ |
-| Rule files | `.claude/rules/auto-loop.md` exists | ✅ |
+| `@rules/` references | `@rules/execution-policy.md` in `.claude/CLAUDE.md` | ✅ |
+| Rule files | `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` accessible | ✅ |
 | Hook enforcement | `stop-guard` in `.claude/settings.json` | ✅ |
 | Script runners | `.claude/scripts/precommit-runner.js` exists | ✅ (unless `--lite` / `--detect-only`) |
 | Guard mode | `env.STOP_GUARD_MODE` = `strict` in target settings | ✅ (unless `--guard-mode warn`) |
@@ -150,11 +150,11 @@ Full final-output block (per-phase status table, closed-loop status variants, `-
 A configured project harness plus a final report. Deliverables:
 
 - `.claude/CLAUDE.md` — placeholders replaced, ecosystem blocks filtered, `@rules/` references present
-- `.claude/rules/` — 11 managed rules + 1 override template (unless `--no-rules` / `--lite`)
+- 4 shipped rules referenced by path (`${CLAUDE_PLUGIN_ROOT}/rules/`) — no local copies (unless `--no-rules` / `--lite`)
 - `.claude/hooks/` — 5 executable hooks + merged `.claude/settings.json` definitions (unless `--no-hooks` / `--lite`)
 - `.claude/scripts/` — `precommit-runner.js`, `verify-runner.js`, `lib/utils.js` (unless `--lite` / `--detect-only`)
 - `.claude/settings.json` `env` — `STOP_GUARD_MODE` (+ `CLAUDE_CODE_AUTO_COMPACT_WINDOW` for 1M models)
-- `.sd0x/install-state.json` — manifest of installed rule/script hashes
+- `.dhpk/install-state.json` — manifest of installed rule/script hashes
 - A final report ending in a Closed-Loop Status line (✅ fully configured / ⚠️ Partial / ℹ️). Exact format in `references/final-phase.md`.
 
 ## Verification
@@ -162,18 +162,18 @@ A configured project harness plus a final report. Deliverables:
 - [ ] All 9 auto-detected placeholders detected or marked N/A
 - [ ] User confirmed detection results before writing
 - [ ] No remaining auto-detected `{UPPER_CASE}` placeholders in `.claude/CLAUDE.md` after setup (manual placeholders like `{TICKET_PATTERN}` are acceptable)
-- [ ] `.claude/rules/` contains 12 `.md` files (11 managed + 1 override template) (unless `--no-rules` or `--lite`)
+- [ ] `.claude/CLAUDE.md` references the 4 shipped rules by `${CLAUDE_PLUGIN_ROOT}/rules/` path (unless `--no-rules` or `--lite`)
 - [ ] `.claude/hooks/` contains 5 `.sh` files with execute permission (unless `--no-hooks` or `--lite`)
 - [ ] `.claude/settings.json` contains hook definitions (unless `--no-hooks` or `--lite`)
 - [ ] `.claude/scripts/` contains `precommit-runner.js`, `verify-runner.js`, and `lib/utils.js` (unless `--lite` or `--detect-only`)
-- [ ] `.claude/CLAUDE.md` contains `@rules/auto-loop.md` reference (unless `--lite`)
+- [ ] `.claude/CLAUDE.md` contains `@rules/execution-policy.md` reference (unless `--lite`)
 - [ ] `env.STOP_GUARD_MODE` is set in target settings file (unless `--detect-only` or `--lite`)
 - [ ] `env.CLAUDE_CODE_AUTO_COMPACT_WINDOW` is set in target settings file when 1M model detected (unless `--detect-only` or `--lite`)
 
 ## References
 
 - [detection-rules.md](./references/detection-rules.md) — read when detecting ecosystem, package manager, framework, database, entrypoints, or scripts (Phase 1)
-- [install-rules-phase.md](./references/install-rules-phase.md) — read when installing rules: locate logic, 11-rule list, conflict strategy, manifest schema, CLAUDE.md backfill, report (Phase 5)
+- [install-rules-phase.md](./references/install-rules-phase.md) — read when installing rules: locate logic, 4-rule list, conflict strategy, manifest schema, CLAUDE.md backfill, report (Phase 5)
 - [install-hooks-scripts.md](./references/install-hooks-scripts.md) — read when installing hooks or scripts: hook/script tables, settings.json JSON mapping, merge strategy, manifest, reports (Phases 6 & 6.5)
 - [env-config-phase.md](./references/env-config-phase.md) — read when configuring env vars: catalog, legacy-value upgrade table, 1M-model detection, interactive flow, merge strategy, report (Phase 6.7)
 - [final-phase.md](./references/final-phase.md) — read when writing the final report: closed-loop check, full output block, status variants, `--detect-only` / `--lite` shapes (Phase 7)

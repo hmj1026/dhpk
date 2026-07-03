@@ -1,10 +1,10 @@
 # Relationship with `/req-analyze`
 
-Request tickets are **work breakdown units** derived from `/tech-spec`, not requirements documents themselves. They live in a different document class per `@rules/docs-numbering.md`.
+Request tickets are **work breakdown units** derived from `/tech-spec`, not requirements documents themselves. They live in a different document class (date-prefixed non-lifecycle vs numeric-prefix lifecycle).
 
 | Dimension | `/create-request` → `requests/YYYY-MM-DD-*.md` | `/req-analyze` → `1-requirements.md` |
 |-----------|------------------------------------------------|---------------------------------------|
-| Doc class | **Request ticket** (date-prefixed, non-lifecycle — per `@rules/docs-numbering.md`) | **Lifecycle** (Phase 1, numeric prefix) |
+| Doc class | **Request ticket** (date-prefixed, non-lifecycle) | **Lifecycle** (Phase 1, numeric prefix) |
 | Count per feature | **Many** (one per task) | **One** (upsert) |
 | Position in workflow | **After** `/tech-spec` (execution phase) | **Before** `/tech-spec` (design phase) |
 | Content focus | Execution — Status, Progress, AC checklist, Related Files | Problem space — 5-Why, FR/NFR, MoSCoW, stakeholders |

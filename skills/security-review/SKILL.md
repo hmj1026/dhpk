@@ -102,7 +102,6 @@ Max 3 rounds. Still failing → report blocker.
 
 - OWASP prompt: `references/codex-prompt-security.md`
 - Examples: `references/examples.md`
-- Standards: @rules/security.md
 
 ## Examples
 

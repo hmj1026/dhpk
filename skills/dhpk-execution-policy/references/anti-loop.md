@@ -1,37 +1,20 @@
-# Anti-loop guidance
+# Anti-loop — worked example
 
-## The 3× rule
+SSOT: `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §Anti-loop & output.
 
-When the same approach fails three times in a row, STOP retrying and report.
+## Example — same approach, three failures
 
-Loops cost token budget and rarely converge. The third failure is information: the approach is wrong, not the input.
+1. Run `phpunit tests/CheckoutTest.php` → fails on assertion X.
+2. Edit the assertion's neighboring line, re-run → same failure, same stack trace.
+3. Re-run again with no code change, hoping for a flake → same failure.
 
-## What counts as "same approach"
+This is the same approach three times (same test, same failing signal, no new information) — STOP and report, per the SSOT's "Stop and escalate" conditions, rather than trying a fourth variant of the same edit.
 
-- Same command with the same args
-- Same edit attempted with slightly different placement
-- Same agent invoked with rephrased prompt
-- Same test rerun without changing input or environment
+## Example — NOT the same approach
 
-What does NOT count:
+1. `Read` the file to find a symbol → wrong location.
+2. `cx definition --name Checkout::total` → finds it precisely.
 
-- A genuinely different command (e.g. trying `cx definition` after `Read` was wrong)
-- A test rerun after a code change that should have fixed it
-- A different agent type for the same question
+A genuinely different tool/technique for the same question does not count toward the 3x ceiling.
 
-## What to report when blocked
-
-```
-Blocker → Tried → Next viable option
-```
-
-- **Blocker**: the specific symptom (error message, exit code, unexpected output)
-- **Tried**: ordered list of approaches that failed AND why each failed
-- **Next viable option**: at least two alternatives, with the recommended one first
-
-## Common loop traps
-
-- Running a test in an environment where it cannot pass (missing service, wrong working dir)
-- Editing one file to fix a symptom that originates in another
-- Trying to make a hook fire by re-editing the same file (hooks fire once per tool call, not per Edit attempt)
-- Searching for a function name across the wrong tool (Grep for an AST symbol when `cx definition` is the right tool)
+See §Anti-loop & output in the SSOT for the full stop conditions and the required blocked-report shape.

@@ -12,9 +12,9 @@ disable-model-invocation: true
 
 ## Task
 
-Install sd0x-dev-flow plugin rules into the current project's `.claude/rules/` directory so they persist even without the plugin loaded.
+Install references to dhpk plugin rules into the current project's `.claude/CLAUDE.md` so the project consistently pulls the shipped rules by path, even when this command is run standalone. This is a **path-reference install**, not a copy: the rule files themselves stay in the plugin; only reference lines are written into the consumer repo.
 
-> **Note**: Installed rules are behavioral guidance for Claude. They reference commands in short form (`/codex-review-fast`). When the sd0x-dev-flow plugin is loaded, commands are auto-namespaced as `/sd0x-dev-flow:codex-review-fast`. For full command execution support without the plugin, also run `/install-hooks` to set up the hook scripts locally.
+> **Note**: Installed references point at `${CLAUDE_PLUGIN_ROOT}/rules/<file>.md`. They only resolve while the `dhpk` plugin is loaded. For full command execution support without the plugin, also run `/install-hooks` and `/install-scripts` to set up local fallbacks.
 
 ### Workflow
 
@@ -22,17 +22,17 @@ Install sd0x-dev-flow plugin rules into the current project's `.claude/rules/` d
 sequenceDiagram
     participant C as Claude
     participant P as Plugin Rules
-    participant T as .claude/rules/
+    participant T as .claude/CLAUDE.md
 
     C->>P: Phase 1: Locate plugin rules dir
-    P-->>C: Found (glob / fallback)
+    P-->>C: Found (env var / glob / fallback)
     C->>P: Phase 2: Enumerate *.md rules
     alt --list
         C-->>C: Output table & stop
     end
     C->>C: Phase 3: Determine install set
-    C->>T: Phase 4: Check conflicts & install
-    Note over T: mkdir -p, diff, write
+    C->>T: Phase 4: Check conflicts & write references
+    Note over T: read, diff, append reference lines
     C-->>C: Phase 5: Output report
 ```
 
@@ -44,45 +44,39 @@ $ARGUMENTS
 
 | Argument | Description |
 |----------|-------------|
-| `--all` | Install all available rules |
+| `--all` | Install references for all shipped rules |
 | `--list` | List available rules without installing |
 | `--dry-run` | Show what would be installed, no changes |
-| `--force` | Overwrite existing rules with different content |
+| `--force` | Overwrite an existing reference line that differs |
 | `rule-names...` | Space-separated rule names (without .md extension) |
 
 ### Phase 1: Locate Plugin Rules Directory
 
 Find the plugin's `rules/` directory using this priority:
 
-1. **Glob search** — search known Claude plugin locations in order, short-circuit on first match:
+1. **Direct env var** — if running as the plugin, `${CLAUDE_PLUGIN_ROOT}` points at the plugin root; the rules dir is `${CLAUDE_PLUGIN_ROOT}/rules/`.
+2. **Glob search fallback** — if `${CLAUDE_PLUGIN_ROOT}` is unset, search known Claude plugin cache locations, short-circuit on first match:
 
    ```
-   Glob: ~/.claude/plugins/**/sd0x-dev-flow/rules/auto-loop.md
-   Glob: ${REPO_ROOT}/node_modules/sd0x-dev-flow/rules/auto-loop.md
+   Glob: ~/.claude/plugins/**/dhpk/rules/execution-policy.md
+   Glob: ${REPO_ROOT}/node_modules/dhpk/rules/execution-policy.md
    ```
 
-2. **Plugin-relative fallback** — since this command is loaded from the plugin, try reading `@rules/auto-loop.md` to confirm the plugin's rules are accessible. If readable, derive the rules directory by resolving the path returned (parent of `auto-loop.md`).
-3. **Error** — if no rules directory found, report error and stop.
+3. **Plugin-relative fallback** — try reading `@rules/execution-policy.md` to confirm the plugin's rules are accessible. If readable, derive the rules directory by resolving the path returned (parent of `execution-policy.md`).
+4. **Error** — if no rules directory found, report error and stop.
 
-The `rules/` directory is the parent of whichever `auto-loop.md` is found first.
+The `rules/` directory is the parent of whichever `execution-policy.md` is found first.
 
 ### Phase 2: Enumerate Available Rules
 
-Read all `.md` files from the discovered rules directory. The expected rules are:
+The plugin ships exactly 4 rules under `rules/`:
 
 | Rule | Purpose |
 |------|---------|
-| `auto-loop.md` | Auto review loop enforcement |
-| `codex-invocation.md` | Codex independent research requirement |
-| `fix-all-issues.md` | Zero tolerance for unfixed issues |
-| `framework.md` | Framework conventions |
-| `testing.md` | Test structure and requirements |
-| `security.md` | OWASP security checklist |
-| `git-workflow.md` | Git branch and commit conventions |
-| `logging.md` | Structured logging standards |
-| `docs-writing.md` | Documentation writing conventions |
-| `docs-numbering.md` | Document numbering scheme |
-| `self-improvement.md` | Self-improvement loop (corrected → record → prevent) |
+| `anti-rationalization.md` | Self-talk stop-loss reference for rationalization phrasings that precede skipping a mandatory reviewer / TDD / sentinel step |
+| `execution-policy.md` | dhpk's default execution policy (dispatch, sentinels, anti-rationalization triggers) for projects that adopt the harness |
+| `model-economics.md` | SSOT for which model tier each role runs on and the cost rules governing tier/effort choices |
+| `tool-routing.md` | SSOT for code exploration tool choice (gitnexus / cx / claude-mem / Read / Grep) with graceful degradation |
 
 If `--list` is specified, output this table and **stop**.
 
@@ -92,53 +86,38 @@ If `--list` is specified, output this table and **stop**.
 - Specific `rule-names`: install only those (validate they exist in the enumerated list)
 - Neither: present the list and use AskUserQuestion to let the user select
 
-### Phase 4: Check Conflicts and Install
+### Phase 4: Check Conflicts and Write References
 
-Use the repo root from Context (Phase 0) to build absolute paths. All paths below use `REPO_ROOT` from `git rev-parse --show-toplevel`.
+Use the repo root from Context (Phase 0) to build absolute paths. All paths below use `REPO_ROOT` from `git rev-parse --show-toplevel`. This is a path-reference install: the rule content is never copied — only a reference line pointing at `${CLAUDE_PLUGIN_ROOT}/rules/<name>.md` is written into `${REPO_ROOT}/.claude/CLAUDE.md`.
 
-1. Ensure target directory exists:
+1. Read `${REPO_ROOT}/.claude/CLAUDE.md` (create with a minimal `# CLAUDE.md` header if it does not exist).
 
-   ```bash
-   mkdir -p ${REPO_ROOT}/.claude/rules
+2. For each rule to install, the reference line is:
+
    ```
-
-2. For each rule to install:
+   - @${CLAUDE_PLUGIN_ROOT}/rules/<name>.md
+   ```
 
    | Scenario | Default | `--force` |
    |----------|---------|-----------|
-   | `${REPO_ROOT}/.claude/rules/<name>.md` does not exist | **Install** | **Install** |
-   | File exists, content identical | **Skip** (already installed) | **Skip** |
-   | File exists, content differs | **Skip** + warn as conflict | **Overwrite** |
+   | Reference line for `<name>.md` not present in `.claude/CLAUDE.md` | **Add** | **Add** |
+   | Reference line already present, identical | **Skip** (already installed) | **Skip** |
+   | A `@rules/<name>.md`-style reference exists but resolves elsewhere (e.g. local override) | **Skip** + warn as conflict | **Overwrite** (replace with the plugin path-reference) |
 
 3. If `--dry-run`, output the plan table and **stop** (do not write any files).
 
-4. For each file to install: Read the source rule content, then Write to `${REPO_ROOT}/.claude/rules/<name>.md`.
-
-### Phase 4.5: Backfill CLAUDE.md (Closed-Loop Guarantee)
-
-Ensure `.claude/CLAUDE.md` contains `@rules/` references so the auto-loop engine can activate. This guarantees a closed loop even when `/install-rules` is run standalone (without `/project-setup`).
-
-1. Grep `.claude/CLAUDE.md` for `@rules/auto-loop.md`
-2. **Found** → skip (already configured)
-3. **Not found but file exists** → append the following `## Rules` block at end of file:
+4. Write the resulting reference lines under a `## Rules` section in `${REPO_ROOT}/.claude/CLAUDE.md`, appending the section if it does not already exist:
 
    ```markdown
    ## Rules
 
-   - @rules/auto-loop.md -- Auto review loop (highest priority)
-   - @rules/codex-invocation.md -- Codex must independently research (critical)
-   - @rules/fix-all-issues.md -- Zero tolerance
-   - @rules/testing.md
-   - @rules/framework.md
-   - @rules/security.md
-   - @rules/docs-writing.md
-   - @rules/docs-numbering.md
-   - @rules/git-workflow.md
-   - @rules/logging.md
-   - @rules/self-improvement.md -- Corrected → record → prevent recurrence
+   - @${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md
+   - @${CLAUDE_PLUGIN_ROOT}/rules/anti-rationalization.md
+   - @${CLAUDE_PLUGIN_ROOT}/rules/model-economics.md
+   - @${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md
    ```
 
-4. **File does not exist** → extract from plugin's `CLAUDE.template.md`: L1-33 (Required Checks + Auto-Loop Rule) + L288-300 (Rules references) → create minimal `.claude/CLAUDE.md`. Remove ecosystem block markers and leave unresolved placeholders as `{PLACEHOLDER}`.
+   Only reference lines for the rules selected in Phase 3 are written.
 
 ### Phase 5: Output Report
 
@@ -148,21 +127,21 @@ Ensure `.claude/CLAUDE.md` contains `@rules/` references so the auto-loop engine
 ## Install Rules Report
 
 **Source**: <plugin-rules-path>
-**Target**: <repo-root>/.claude/rules/
+**Target**: <repo-root>/.claude/CLAUDE.md
 
 | Rule | Status |
 |------|--------|
-| auto-loop.md | ✅ Installed |
-| codex-invocation.md | ✅ Installed |
-| docs-writing.md | ⚠️ Skipped (conflict — local override exists) |
-| ... | ... |
+| execution-policy.md | ✅ Reference added |
+| anti-rationalization.md | ✅ Reference added |
+| model-economics.md | ⚠️ Skipped (conflict — local override exists) |
+| tool-routing.md | ✅ Reference added |
 
 **Installed**: N / **Skipped**: M / **Conflicts**: K
 
 ### Next Steps
 
 - Review any skipped conflicts manually
-- Rules in `.claude/rules/` are auto-loaded by Claude Code for this project
+- Referenced rules resolve via `${CLAUDE_PLUGIN_ROOT}` and are auto-loaded by Claude Code for this project whenever the `dhpk` plugin is loaded
 ```
 
 ## Examples
@@ -175,7 +154,7 @@ Ensure `.claude/CLAUDE.md` contains `@rules/` references so the auto-loop engine
 /install-rules --all
 
 # Install specific rules only
-/install-rules auto-loop fix-all-issues security
+/install-rules execution-policy tool-routing
 
 # Preview what would happen
 /install-rules --all --dry-run
