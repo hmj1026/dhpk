@@ -8,7 +8,7 @@ Full sync-module reference for `claude-health`. Runs when `--scope sync` or
 
 | # | Check | Method | Criteria |
 |---|-------|--------|----------|
-| S1.1 | Manifest exists | Read `.sd0x/install-state.json` | Missing → P1 |
+| S1.1 | Manifest exists | Read `.dhpk/install-state.json` (if absent, fall back to legacy `.sd0x/install-state.json` for migration read only) | Missing → P1 |
 | S1.2 | Manifest parseable | JSON.parse | Parse error → P1 |
 | S1.3 | `schema_version` current | `== 1` | Mismatch → P2 |
 | S1.4 | `plugin_version` matches | manifest vs `.claude-plugin/plugin.json` or `package.json` | Mismatch → P1 |
@@ -23,9 +23,9 @@ Full sync-module reference for `claude-health`. Runs when `--scope sync` or
 **Plugin source location** (same as `/install-rules` Phase 1):
 
 ```
-Glob: ~/.claude/plugins/**/sd0x-dev-flow/rules/auto-loop.md
-Glob: ${REPO_ROOT}/node_modules/sd0x-dev-flow/rules/auto-loop.md
-Fallback: @rules/auto-loop.md (plugin-relative)
+Glob: ~/.claude/plugins/**/dhpk/rules/execution-policy.md
+Glob: ${REPO_ROOT}/node_modules/dhpk/rules/execution-policy.md
+Fallback: @rules/execution-policy.md (plugin-relative)
 ```
 
 ## S2: Component Classification

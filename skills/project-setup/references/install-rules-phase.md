@@ -11,75 +11,62 @@ Find the plugin's `rules/` directory using this priority (short-circuit on first
 1. **Glob search** — search known Claude plugin locations:
 
    ```
-   Glob: ~/.claude/plugins/**/sd0x-dev-flow/rules/auto-loop.md
-   Glob: ${REPO_ROOT}/node_modules/sd0x-dev-flow/rules/auto-loop.md
+   Glob: ~/.claude/plugins/**/dhpk/rules/execution-policy.md
+   Glob: ${REPO_ROOT}/node_modules/dhpk/rules/execution-policy.md
    ```
 
-2. **Plugin-relative fallback** — try reading `@rules/auto-loop.md` to confirm accessibility. If readable, derive the rules directory.
+2. **Plugin-relative fallback** — try reading `@rules/execution-policy.md` to confirm accessibility. If readable, derive the rules directory.
 3. **Not found** → **hard error for this phase** (do not silently skip). Output explicit failure with remediation steps:
 
    ```
-   ⛔ Rule source not found. Auto-loop rules cannot be installed.
+   ⛔ Rule source not found. Rules cannot be installed.
 
    Remediation (choose one):
-   1. Install the plugin: /plugin marketplace add sd0xdev/sd0x-dev-flow && /plugin install sd0x-dev-flow@sd0xdev-marketplace
+   1. Install the plugin: claude plugin marketplace add hmj1026/dhpk && claude plugin install dhpk@dhpk
    2. Copy rules manually from a machine that has the plugin installed
    3. Re-run with --no-rules to skip (rules layer will be missing)
    ```
 
    Then skip Phase 5 and continue to Phase 6. Phase 7 will report this as `⚠️ Partial`.
 
-## 5.2 Copy Rules
+## 5.2 Reference Rules (path-reference model)
 
-1. `mkdir -p ${REPO_ROOT}/.claude/rules/`
-2. Copy all 11 managed rules:
+dhpk ships exactly 4 rules under `${CLAUDE_PLUGIN_ROOT}/rules/`. These are **not copied** into the consumer repo — the installer writes `${CLAUDE_PLUGIN_ROOT}/rules/<file>` path-references into the consumer's `.claude/CLAUDE.md`.
+
+1. The 4 shipped rules:
 
    | Rule | Purpose |
    |------|---------|
-   | `auto-loop.md` | Auto review loop enforcement |
-   | `codex-invocation.md` | Codex independent research requirement |
-   | `fix-all-issues.md` | Zero tolerance for unfixed issues |
-   | `framework.md` | Framework conventions |
-   | `testing.md` | Test structure and requirements |
-   | `security.md` | OWASP security checklist |
-   | `git-workflow.md` | Git branch and commit conventions |
-   | `logging.md` | Structured logging standards |
-   | `docs-writing.md` | Documentation writing conventions |
-   | `docs-numbering.md` | Document numbering scheme |
-   | `self-improvement.md` | Self-improvement loop |
+   | `anti-rationalization.md` | Anti-rationalization guardrails |
+   | `execution-policy.md` | Execution policy enforcement |
+   | `model-economics.md` | Model selection / cost economics |
+   | `tool-routing.md` | Tool routing guidance |
 
-3. Create override template (unmanaged, not manifest-tracked):
-   - `auto-loop-project.md` — user-owned override template (see Phase 3.6 in `/install-rules`)
-
-4. Conflict strategy:
+2. Conflict strategy (applies to the `.claude/CLAUDE.md` reference lines, not to file copies):
 
    | Scenario | Action |
    |----------|--------|
-   | File does not exist | **Install** |
-   | File exists, content identical | **Skip** |
-   | File exists, content differs | **Skip** + warn as conflict |
+   | Reference line does not exist | **Install** |
+   | Reference line exists, content identical | **Skip** |
+   | Reference line exists, content differs | **Skip** + warn as conflict |
 
-5. After copying, collect hashes and write manifest:
-   - Compute `git hash-object --no-filters` for each managed rule (installed + already-identical skipped)
-   - Read `.sd0x/install-state.json` (create `{}` if not exists)
-   - Update `schema_version: 1`, `installed_at`, `plugin_version` (source priority: `.claude-plugin/plugin.json` → `package.json` → `"unknown"`), `rules` key — hash for each file in managed state (both newly installed and already-identical). Structure: `rules[filename] = { "hash": "<sha1>" }`
-   - Preserve ALL other top-level keys from existing manifest (e.g. `hook_scripts`, `scripts`, `sd0x_version`, `agents_md_hash`, `hooks_installed` — do NOT drop unknown keys)
+3. After referencing, write manifest:
+   - Read `.dhpk/install-state.json` (create `{}` if not exists)
+   - If `.dhpk/install-state.json` is absent but a legacy `.sd0x/install-state.json` exists, read it (including any legacy `sd0x_version` key) to migrate forward, then write only the `.dhpk/` form (never write back to `.sd0x/`).
+   - Update `schema_version: 1`, `installed_at`, `plugin_version` (source priority: `.claude-plugin/plugin.json` → `package.json` → `"unknown"`), `rules` key — record each of the 4 shipped rules as referenced. Structure: `rules[filename] = { "referenced": true }`
+   - Preserve ALL other top-level keys from existing manifest (e.g. `hook_scripts`, `scripts`, `dhpk_version`, `agents_md_hash`, `hooks_installed` — do NOT drop unknown keys)
    - Write updated manifest via `Write` tool
-
-> **Note**: After rule installation, `/install-rules` automatically creates `auto-loop-project.md` (user-owned override template) if it doesn't exist. See `skills/install-rules/SKILL.md`.
 
 ## 5.3 Backfill CLAUDE.md (Closed-Loop Guarantee)
 
-Ensure `.claude/CLAUDE.md` contains `@rules/` references so the auto-loop engine can activate:
+Ensure `.claude/CLAUDE.md` contains `@rules/` path-references to the 4 shipped rules so they activate:
 
-1. Grep `.claude/CLAUDE.md` for `@rules/auto-loop.md`
-2. **Found** → check if `@rules/auto-loop-project.md` also present:
-   - **Both present** → skip (fully configured)
-   - **`auto-loop.md` present, `auto-loop-project.md` missing** → insert `- @rules/auto-loop-project.md -- Project-specific auto-loop overrides (user-owned)` after `auto-loop.md` line
-3. **Not found but file exists** → append `## Rules` block at end of file (12 `@rules/` references (11 managed + 1 override template) from `CLAUDE.template.md` `## Rules` section)
-4. **File does not exist** (edge case: Phase 3 was skipped) → extract from `CLAUDE.template.md`: `## Required Checks` through `### Auto-Loop Rule` sections + `## Rules` section → create minimal `.claude/CLAUDE.md`
+1. Grep `.claude/CLAUDE.md` for `@rules/execution-policy.md`
+2. **Found** → treat as fully configured (skip)
+3. **Not found but file exists** → append `## Rules` block at end of file with 4 `${CLAUDE_PLUGIN_ROOT}/rules/` path-references (`anti-rationalization.md`, `execution-policy.md`, `model-economics.md`, `tool-routing.md`)
+4. **File does not exist** (edge case: Phase 3 was skipped) → create a minimal `.claude/CLAUDE.md` containing a `## Rules` section with the 4 path-references
 
-When extracting from template, remove ecosystem block markers and leave unresolved placeholders as `{PLACEHOLDER}`.
+Leave unresolved placeholders as `{PLACEHOLDER}`.
 
 ## 5.4 Output Rules Report
 
@@ -87,14 +74,16 @@ When extracting from template, remove ecosystem block markers and leave unresolv
 ## Rules Install Report
 
 **Source**: <plugin-rules-path>
-**Target**: <repo-root>/.claude/rules/
+**Target**: <repo-root>/.claude/CLAUDE.md (path-references, no local copies)
 
 | Rule | Status |
 |------|--------|
-| auto-loop.md | ✅ Installed |
-| ... | ... |
+| anti-rationalization.md | ✅ Referenced |
+| execution-policy.md | ✅ Referenced |
+| model-economics.md | ✅ Referenced |
+| tool-routing.md | ✅ Referenced |
 
 **Installed**: N / **Skipped**: M / **Conflicts**: K
-**Manifest**: .sd0x/install-state.json
+**Manifest**: .dhpk/install-state.json
 **CLAUDE.md backfill**: ✅ @rules/ references present
 ```
