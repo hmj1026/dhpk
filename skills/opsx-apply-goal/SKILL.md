@@ -19,7 +19,7 @@ session so Claude drives the change to completion unattended.
 > whole thing is delivered as one paste. Do not split this back into a
 > `/goal` step followed by a separate `/opsx:apply` step — that leaves no
 > input window for the second command.
-
+>
 > **Sentinel strategy:** the goal always checks `ls .claude/artifacts/sessions/.pending-*`
 > rather than enumerating specific reviewers — self-calibrating across all 7 dhpk
 > sentinel slots regardless of which files were edited. See
