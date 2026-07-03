@@ -147,11 +147,14 @@ appended before the transition into the stop conditions:
 ```
 Invoke the opsx:apply skill for change <CHANGE_ID> and continue implementing
 openspec/changes/<CHANGE_ID>/tasks.md from the first unchecked item without
-stopping for confirmation. Dispatch implementation per
-rules/execution-policy.md §Implementation dispatch: dhpk:deep-reasoner for
-reasoning-heavy work, dhpk:fast-worker for mechanical work with a clear spec,
-inline for small diffs — never general-purpose. Continue until all of the
-following hold,
+stopping for confirmation. You are the orchestrator: dispatch implementation
+per rules/execution-policy.md §Implementation dispatch — mechanical/multi-file
+clear-spec work to dhpk:fast-worker, reasoning-heavy work to dhpk:deep-reasoner;
+edit inline only for ≤2-file unambiguous diffs and your own bookkeeping
+(tasks.md checkboxes, sentinels); when unsure, dispatch; never use
+general-purpose. After each worker returns, verify its output per that section
+(re-surface the report, cross-check git diff, confirm the sentinels). Continue
+until all of the following hold,
 ```
 
 **Part 1 (always):**
@@ -276,6 +279,10 @@ after this:
   orchestration_dispatch=on) does not change the sentinel gate: fast-worker
   edits converge through the same universal `ls .pending-*` check in Part 2 —
   no separate check is added or needed for worker-produced edits
+• You are the orchestrator (the expensive tier); routing mechanical / multi-file
+  clear-spec work to dhpk:fast-worker is the point of dispatch, not an optional
+  nicety — inline is a ≤2-file exception plus your own bookkeeping, and when
+  unsure between inline and a worker, dispatch
 • Haiku evaluator reads the conversation only — Claude must explicitly paste
   the ls output and test results into conversation for evaluation to work
 • Combine with /auto mode for a fully unattended goal loop
@@ -331,9 +338,14 @@ This session will NOT auto-run /goal or opsx:apply.
 - [ ] Block B `/goal` string is entirely in English
 - [ ] Block B `/goal` string opens with the Part 0 opsx:apply kickoff sentence
       before the stop conditions — single paste, no separate STEP 3
-- [ ] Part 0 dispatch clause: present (deep-reasoner/fast-worker/inline/never
-      general-purpose) when `DISPATCH_ON=true`; absent — Part 0 byte-identical
-      to pre-change output — when `orchestration_dispatch=off`
+- [ ] Part 0 dispatch clause: posture-first when `DISPATCH_ON=true` — names the
+      session as orchestrator, routes mechanical/multi-file clear-spec work to
+      dhpk:fast-worker and reasoning-heavy work to dhpk:deep-reasoner, bounds
+      inline to ≤2-file unambiguous diffs plus bookkeeping, says "when unsure,
+      dispatch", forbids general-purpose, and references the §Implementation
+      dispatch verify procedure (re-surface report / cross-check git diff /
+      confirm sentinels); absent — Part 0 byte-identical to pre-change output —
+      when `orchestration_dispatch=off`
 - [ ] Sentinel check in Part 2 uses `ls .claude/artifacts/sessions/.pending-*` (not reviewer names)
 - [ ] Non-automatable tasks appear in Block A warning, NOT in Part 3
 - [ ] `--max-duration` set → Part 4 has the wall-clock line; absent → no such line
