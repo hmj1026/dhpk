@@ -33,6 +33,7 @@ Scan all component directories and estimate token consumption:
 **Agents** (`agents/*.md`)
 - Count lines and tokens per file (words × 1.3)
 - Extract `description` frontmatter length
+- Extract `model:` + `effort:` frontmatter and the tool list (feeds the Phase 3b tier-economics audit)
 - Flag: files >200 lines (heavy), description >30 words (bloated frontmatter)
 
 **Skills** (`skills/*/SKILL.md`)
@@ -74,6 +75,26 @@ Identify the following problem patterns:
 - **MCP over-subscription** — >10 servers, or servers wrapping CLI tools available for free
 - **CLAUDE.md bloat** — verbose explanations, outdated sections, instructions that should be rules
 
+### Phase 3b: Tier economics (cost-posture audit)
+
+Complements — does not replace — the token-size audit above: it measures **which model tier and effort each role runs on**, not how many tokens the file costs. For every `agents/*.md`, read the `model:` and `effort:` frontmatter and check it against the cost posture in `${CLAUDE_PLUGIN_ROOT}/rules/model-economics.md`. Files without agent frontmatter (e.g. `agents/INDEX.md`) have no tier and produce no row.
+
+Flag a cost-posture mismatch when:
+- **Read-only discovery role on opus** — a role whose job is gather/search (read-only tools: `Read`/`Grep`/`Glob`, no `Edit`/`Write`, and a discovery/exploration description) pinned to `opus`. Reasoning roles (`architect`, `deep-reasoner`, `spec-miner`) are NOT discovery roles — they judge, so `opus` is correct for them; do not flag them.
+- **Mechanical role at `high` effort** — a write-capable mechanical implementer (e.g. `fast-worker`) or a build-resolver set to `effort: high` where `medium` would pass.
+- **High-frequency reviewer on an expensive tier** — a sentinel-driven reviewer pinned above the sonnet floor (`doc-reviewer` above `haiku`, or another reviewer hardcoded to `opus` rather than escalating by judgment per the up-only rule).
+
+Emit a per-role tier/effort table with a cost-posture verdict per row:
+
+| Role | model | effort | tools | posture |
+|------|-------|--------|-------|---------|
+| `deep-reasoner` | opus | high | read-only | OK (reasoning role, not discovery) |
+| `fast-worker` | sonnet | medium | write | OK |
+| `doc-reviewer` | haiku | low | ... | OK (cheapest floor) |
+| `<role>` | opus | high | read-only | MISMATCH — discovery role on opus → suggest sonnet |
+
+End with a one-line verdict — `Tier economics: N roles OK, M mismatches` — listing each mismatch with the suggested cheaper tier/effort. This pass and the size audit both run and report together; neither overrides the other.
+
 ### Phase 4: Report
 
 **Detect the context window first.** The `Effective available context (XX%)`
@@ -112,6 +133,14 @@ Top 3 Optimizations:
 3. [action] → save ~X,XXX tokens
 
 Potential savings: ~XX,XXX tokens (XX% of current overhead)
+
+Tier Economics (cost-posture — from Phase 3b):
+┌──────────────────┬────────┬────────┬────────────┐
+│ Role             │ model  │ effort │ posture    │
+├──────────────────┼────────┼────────┼────────────┤
+│ <role>           │ <tier> │ <eff>  │ OK|MISMATCH│
+└──────────────────┴────────┴────────┴────────────┘
+Verdict: N roles OK, M cost-posture mismatches
 ```
 
 In verbose mode, additionally output per-file token counts, line-by-line breakdown of the heaviest files, specific redundant lines between overlapping components, and MCP tool list with per-tool schema size estimates.
