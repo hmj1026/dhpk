@@ -65,9 +65,28 @@ Install it once, independent of dhpk:
 
 `/codex:setup` reports whether Codex is ready and, if npm is available, offers to run `npm install -g @openai/codex` for you. Requirements: Node.js 18.18+ and either a ChatGPT subscription (including Free) or an OpenAI API key. If Codex is installed but not authenticated, run `codex login` (prefix with `!` to run it as a shell command from inside a Claude Code session).
 
+**Verifying the MCP connection**: installing `openai/codex-plugin-cc` registers a Codex MCP server entry with Claude Code; `/reload-plugins` (or a fresh session) is what actually spawns and connects to it — installing alone does not start the connection. To confirm it's live:
+
+```bash
+/mcp
+```
+
+Look for a `codex` entry with a connected status and the `codex` / `codex-reply` tools listed under it (Claude Code exposes them to skills as `mcp__codex__codex` / `mcp__codex__codex-reply`). If `codex` is missing or shows a failed/disconnected state:
+
+1. Re-run `/reload-plugins`, then check `/mcp` again — the connection is established at plugin load, not at install time.
+2. If still missing, run `/codex:setup` — it re-checks the underlying `codex` CLI install and auth state, which the MCP server depends on to start.
+3. If `codex` appears connected but a `codex-*` skill still fails, the issue is usually auth (`codex login`) rather than the MCP connection itself.
+
 Without this plugin installed, invoking any `codex-*` skill surfaces a tool-permission error (`mcp__codex__*` not found) — dhpk has no fallback for these skills specifically, since they exist only to delegate to Codex. It's distinct from `CODEX=on` (see [`docs/basic-operations.md`](./basic-operations.md#9-implementation-dispatch-automatic)), which is a **per-session opt-in flag**, not a persisted `userConfig` value — it has no install-time `--config` equivalent, and resets every session unless you pass `--codex` or say "use codex" again.
 
 This is also unrelated to **Codex CLI dual-track sync** (`install-codex-skills.sh`, see [`docs/basic-operations.md`](./basic-operations.md)), which mirrors dhpk's own skills into a project's `.codex/` directory for people running the standalone `codex` CLI tool directly — that path needs no MCP server at all.
+
+**MCP vs. Skill surface, and a naming collision to watch for**: `openai/codex-plugin-cc` exposes two different integration surfaces, and dhpk uses only one of them.
+
+- **MCP** (what the 6 `codex-*` skills above actually call): `mcp__codex__codex` / `mcp__codex__codex-reply` are typed tool calls over the Model Context Protocol — a persistent connection to a Codex MCP server process. dhpk's own skill files pass structured params such as `prompt`, `sandbox`, and `approval-policy` (see the example calls in `skills/codex-architect/SKILL.md` or `skills/codex-code-review/references/codex-prompt-fast.md`) and receive structured results. The exact param schema is owned by the upstream plugin and may evolve independently of dhpk — the params above are the ones dhpk's shipped skills currently rely on.
+- **Skill** (not used by any dhpk skill): the same plugin also ships slash-command skills like `/codex:review` / `/codex:setup`. These are Markdown instructions loaded into the model's context via Claude Code's Skill mechanism — no typed schema, no persistent connection; the skill itself decides how to shell out to the Codex CLI, and its output is freeform text.
+
+Don't confuse either of these with dhpk's **own** `.codex-plugin/` directory (see the "Codex Plugin Marketplace" section of [`docs/basic-operations.md`](./basic-operations.md)) — that manifest runs in the opposite direction: it lets the **Codex CLI** install dhpk's skills as a Codex-native plugin. It shares the word "plugin" but has nothing to do with `openai/codex-plugin-cc` or the MCP tools documented above.
 
 ## Docker & stack modules
 
