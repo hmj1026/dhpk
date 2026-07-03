@@ -6,7 +6,7 @@ allowed-tools: 'Read, Write, Edit, Grep, Glob, Bash(ls:*), Bash(git:*), Bash(fin
 
 ## Auto-Trigger
 
-Auto-triggered after precommit Pass, only when the change maps to a feature under `docs/features/` (see @rules/auto-loop.md Doc Sync Note). Can also be invoked manually.
+Auto-triggered after precommit Pass, only when the change maps to a feature under `docs/features/`. Can also be invoked manually.
 
 Proactive orchestration: the `doc-updater` agent runs this command after structural code changes — see the back-stop in `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`.
 
@@ -137,7 +137,7 @@ PRE_HASH=$(git diff -- '*.ts' '*.js' '*.tsx' '*.jsx' | md5sum | cut -d' ' -f1)
 POST_HASH=$(git diff -- '*.ts' '*.js' '*.tsx' '*.jsx' | md5sum | cut -d' ' -f1)
 ```
 
-If `PRE_HASH != POST_HASH` (code diff changed during doc sync), return to the review loop (@rules/auto-loop.md). Doc-only changes (`.md`) do not re-trigger the code review loop.
+If `PRE_HASH != POST_HASH` (code diff changed during doc sync), return to the review loop (per @rules/execution-policy.md §Post-implementation agent gate). Doc-only changes (`.md`) do not re-trigger the code review loop.
 
 ## Usage Examples
 

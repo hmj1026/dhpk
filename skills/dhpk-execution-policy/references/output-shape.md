@@ -1,34 +1,22 @@
-# Standard output shape
+# Standard output shape — worked example
 
-## Successful turn
+SSOT: `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §Anti-loop & output.
 
-```
-Conclusion → Changed files → Verification → Risks/Open questions
-```
-
-- **Conclusion**: one or two sentences. What you did, what the user gets.
-- **Changed files**: bulleted list with `file_path:line_number` where applicable.
-- **Verification**: how the user can confirm the change works (command, test, manual step). If you ran tests yourself, name them.
-- **Risks/Open questions**: anything the user needs to know before merging. Empty section is fine.
-
-## Blocked turn
+## Example — successful turn
 
 ```
-Blocker → Tried → Next viable option
+Conclusion → Added `--csv` flag to the export command.
+Changed files → src/commands/export.js:42, tests/export.test.js:18
+Verification → `npm test -- export.test.js` (12/12 passing)
+Risks/Open questions → none
 ```
 
-See `anti-loop.md` for what each section should contain.
+## Example — blocked turn
 
-## Tone
+```
+Blocker → `npm test` hangs on the `db-migrate` step, no output after 5 min.
+Tried → (1) re-ran with `--verbose`, same hang; (2) killed and re-ran with a fresh DB container, same hang.
+Next viable option → (a) skip migrations in the test DB and seed directly [recommended]; (b) ask infra to check the migration runner for a lock.
+```
 
-- Concise. A clear sentence beats a clear paragraph.
-- No celebratory tone. No "I successfully...". No emoji unless the user asked for them.
-- Don't restate what the diff already shows.
-- Don't apologise for failures the user hasn't complained about.
-
-## What NOT to include
-
-- Step-by-step narration of what each tool call did — the user doesn't read those
-- A summary of code that the diff already shows
-- Marketing language ("comprehensive", "robust", "production-ready")
-- A self-graded score
+See §Anti-loop & output in the SSOT for what belongs in each section and the tone/format rules.

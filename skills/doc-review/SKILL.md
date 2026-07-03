@@ -95,7 +95,6 @@ Max 3 rounds. Still failing → report blocker.
 
 - Doc review prompt: `references/codex-prompt-doc.md`
 - Review loop: `references/review-loop-doc.md`
-- Standards: @rules/docs-writing.md
 
 ## Examples
 

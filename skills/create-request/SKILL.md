@@ -43,7 +43,7 @@ flowchart LR
 - Writing tech spec (use /tech-spec)
 - Code development (use feature-dev)
 
-Request tickets are **work breakdown units** derived from `/tech-spec`, not requirements documents themselves — a different document class per `@rules/docs-numbering.md`. Workflow position: `/req-analyze` → `/tech-spec` → `/create-request` → `/feature-dev`. See `references/req-analyze-relationship.md` for the full comparison and anti-patterns.
+Request tickets are **work breakdown units** derived from `/tech-spec`, not requirements documents themselves — a different document class (Request tickets are date-prefixed, non-lifecycle; requirements docs are numeric-prefix lifecycle docs). Workflow position: `/req-analyze` → `/tech-spec` → `/create-request` → `/feature-dev`. See `references/req-analyze-relationship.md` for the full comparison and anti-patterns.
 
 ---
 

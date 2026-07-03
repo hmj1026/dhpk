@@ -111,12 +111,12 @@ Config: `sandbox: 'read-only'`, `approval-policy: 'never'`
 | Codex verification | Must emit `VALID_EXCEPTION` |
 | Expiry | ISO 8601; expired = ⛔ (strict) or ⚠️ (advisory) |
 
-**Exception caps** (from @rules/testing.md): 1-8 AC = max 1; 9-12 = max 2; 13+ = hard cap 2.
+**Exception caps**: 1-8 AC = max 1; 9-12 = max 2; 13+ = hard cap 2.
 **Prohibited domains**: Security AC, Data-integrity AC, Regression AC = no exceptions allowed.
 
 ### Step 6: Output + Gate
 
-Gate sentinels (from @rules/testing.md):
+Gate sentinels:
 
 | Sentinel | Meaning |
 |----------|---------|
@@ -196,7 +196,6 @@ Max 3 rounds. Still failing → report blocker.
 - Test review prompt: `references/codex-prompt-test-review.md`
 - Test gen prompt: `references/codex-prompt-test-gen.md`
 - AC trace prompt: `references/codex-prompt-ac-trace.md`
-- Standards: @rules/testing.md
 
 ## Examples
 

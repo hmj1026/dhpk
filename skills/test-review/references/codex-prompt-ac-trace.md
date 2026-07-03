@@ -67,7 +67,7 @@ Final summary:
 
 ## Anti-Anchoring Enforcement
 
-Per `@rules/codex-invocation.md`:
+Per `@rules/execution-policy.md` (§Multi-AI / dual-perspective independence — Codex must research independently, never confirm Claude's mapping):
 
 | Check | Required |
 |-------|----------|
