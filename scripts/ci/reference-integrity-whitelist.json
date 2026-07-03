@@ -1,0 +1,23 @@
+{
+  "rules_refs": [
+    {
+      "file": "skills/adaptive-dev-workflow/references/projects-index.md",
+      "target": "@rules/testing.md",
+      "reason": "convention illustration: consumer pairs testing.md + testing-project.md in its own .claude/rules/"
+    }
+  ],
+  "brand_backcompat": [
+    {
+      "file": "skills/claude-health/references/plugin-sync.md",
+      "contains": "legacy `.sd0x/install-state.json`"
+    },
+    {
+      "file": "skills/project-setup/references/install-rules-phase.md",
+      "contains": "legacy `.sd0x/install-state.json`"
+    },
+    {
+      "file": "skills/project-setup/references/install-hooks-scripts.md",
+      "contains": "legacy `.sd0x/install-state.json`"
+    }
+  ]
+}

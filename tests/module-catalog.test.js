@@ -10,6 +10,7 @@ const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
 const catalog = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'module-catalog.json'), 'utf8'));
+const profiles = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'install-profiles.json'), 'utf8'));
 
 function catalogModuleIds() {
   const ids = new Set();
@@ -24,6 +25,13 @@ function catalogModuleIds() {
   return [...ids];
 }
 
+function shippedModuleIds() {
+  const modulesDir = path.join(ROOT, 'modules');
+  return fs.readdirSync(modulesDir).filter((d) =>
+    fs.existsSync(path.join(modulesDir, d, 'module.yaml'))
+  );
+}
+
 const ids = catalogModuleIds();
 
 test('catalog advertises at least one module', () => {
@@ -35,6 +43,33 @@ test('every catalog module id has modules/<id>/module.yaml', () => {
     const yaml = path.join(ROOT, 'modules', id, 'module.yaml');
     assert.ok(fs.existsSync(yaml), `catalog id '${id}' has no modules/${id}/module.yaml`);
   }
+});
+
+test('every shipped module is catalog-selectable', () => {
+  const idSet = new Set(ids);
+  for (const shippedId of shippedModuleIds()) {
+    assert.ok(idSet.has(shippedId), `module '${shippedId}' has no selectable catalog entry`);
+  }
+});
+
+test('full profile: full.modules union full.excludes = every shipped module, disjoint', () => {
+  const full = profiles.profiles.full;
+  const inc = new Set(full.modules);
+  const exc = new Set(Object.keys(full.excludes || {}));
+  const shipped = shippedModuleIds();
+  const shippedSet = new Set(shipped);
+
+  const overlap = [...inc].filter((id) => exc.has(id));
+  assert.ok(overlap.length === 0, `ids in both full.modules and full.excludes: ${overlap.join(', ')}`);
+
+  const missing = shipped.filter((id) => !inc.has(id) && !exc.has(id));
+  assert.ok(missing.length === 0, `shipped modules missing from full.modules and full.excludes: ${missing.join(', ')}`);
+
+  const phantomInc = [...inc].filter((id) => !shippedSet.has(id));
+  assert.ok(phantomInc.length === 0, `full.modules ids with no modules/<id>/module.yaml: ${phantomInc.join(', ')}`);
+
+  const phantomExc = [...exc].filter((id) => !shippedSet.has(id));
+  assert.ok(phantomExc.length === 0, `full.excludes ids with no modules/<id>/module.yaml: ${phantomExc.join(', ')}`);
 });
 
 run('module-catalog');
