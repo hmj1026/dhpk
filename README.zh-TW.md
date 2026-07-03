@@ -2,7 +2,11 @@
 
 > **語言**: [English](./README.md) · **繁體中文**
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE) [![Version](https://img.shields.io/github/v/tag/hmj1026/dhpk?label=version&sort=semver)](https://github.com/hmj1026/dhpk/tags) [![CI](https://img.shields.io/github/actions/workflow/status/hmj1026/dhpk/ci.yml?branch=main&label=CI)](https://github.com/hmj1026/dhpk/actions/workflows/ci.yml) [![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A63D2)](https://docs.claude.com/en/docs/claude-code/plugins)
+
 通用、安裝即用的 Claude Code harness。內含 **26 個角色導向 agent**（+1 個模組範圍的 reviewer）、約 73 個指令（44 個註冊的 dhpk 專案工作流指令，加上平行的 codex / gitnexus / git 樹）、約 57 個核心 skill 加上跨專案的 `deploy-list` 部署清單產生器 + **`/dhpk:do` Smart Router**（透過 20 條雙語 route-table 規則 + LLM fallback 進行自然語言任務路由）+ **跨 session 學習 DB**（作業訊號儲存庫，附信心衰退機制，預設關閉）、**7-slot sentinel 驅動的 review hook**（code / db / sec / frontend / doc / **polyfill** / **migration** — polyfill 由 `library-author` 提供，migration 由模組 triggers 或 `mig:` 額外路徑啟用；`doc-reviewer` 同時涵蓋 SSOT／連結有效性與 `.md` DSL artifact 的 frontmatter schema）、statusline、harness 腳本，以及 **27 個可選用的技術棧模組**（PHP：`php-5.6`、`php-7.4`、`php-8.x`；Yii：`yii-1.1`；PHPUnit：`phpunit-5.7`、`phpunit-9`、`phpunit-10`、`phpunit-11`；Laravel：`laravel-5.4`、`laravel-6` 至 `laravel-11`；前端：`js`、`vue-2`、`laravel-mix`；**Python**：`python`、`fastapi`、`pytest`；跨版本的 `library-author`；以及 **iOS/Swift 套件**（`swift`、`swiftui`、`ios-platform`、`swift-testing`、`xcode-tooling`））。模組可透過 **wrapper-dispatch** 模型在 runtime 提供 hook（詳見 [`docs/hook-extension.md`](./docs/hook-extension.md)）。內附平行的 Codex CLI 樹，適用於雙助理（Claude + Codex）專案。
+
+> **Harness engineering 重於 prompt engineering。** dhpk 把 agent 的運作環境——hooks、sentinel review gate、路由規則、技術棧感知模組——當作施力點。你安裝的不是逐次微調的 one-off prompt，而是一套可重用的 harness，讓正確的檢查自動觸發，並讓模型跨 session 維持在軌道上。
 
 OpenSpec 是**可選的外部整合**——若需要 OpenSpec 工作流指令，請另行安裝 [OpenSpec 插件](https://github.com/Fission-AI/OpenSpec)。dhpk 僅保留自家加值的 `opsx-apply-resume`（長時間 OpenSpec 工作階段的 context handoff）；v0.2.1 起，10 個通用 OpenSpec wrapper skill/command 已從套件中移除，由 OpenSpec 上游提供。
 
@@ -15,7 +19,7 @@ OpenSpec 是**可選的外部整合**——若需要 OpenSpec 工作流指令，
 | `python3` | 啟用 `modules` 時為必要 | 在 `post-edit-remind` 與 `session-start` 中解析 `module.yaml` |
 | `jq` | 選用（有 python3 後援） | 較快的 JSON payload 擷取 |
 | `docker` | 選用 | 僅在 `userConfig.docker_containers` 非空時會被使用 |
-| Codex MCP server | 選用 | 僅在你使用 6 個 `codex-*` skill 或啟用 `CODEX=on` 時才需要——來自另一個 OpenAI 發布的獨立 Claude Code plugin，見 [`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕) |
+| Codex MCP server | 選用 | 僅在你使用 5 個 MCP-backed `codex-*` skill、7 個 `/dhpk:codex-*` 指令，或啟用 `CODEX=on` 時才需要——透過將 Claude Code 指向 Codex CLI 的 `codex mcp-server` 子指令來註冊，見 [`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕) |
 | Codex CLI 執行檔 | 選用 | 僅在執行 `install-codex-skills.sh` 且希望 Codex 真正載入同步內容時才需要 |
 | `cx` CLI | 選用 | 語意化程式碼導覽。`rules/tool-routing.md` 將 `cx overview` / `cx definition` / `cx references` 列為首選工具；6 個 reviewer agent 與 `harness-fill` skill 會引用。未安裝時 → 降級為 `Grep` / `Read`。 |
 | `gitnexus` MCP server | 選用 | 知識圖譜查詢（`gitnexus_impact`、`gitnexus_rename`、`gitnexus_detect_changes`）。6 個 `gitnexus-*` skill 以及 `rules/execution-policy.md` 的 self-check 會用到。未安裝時 → 降級為 `cx` 或 `Grep`。 |
@@ -33,6 +37,8 @@ dhpk 遵循 [Claude Code plugin 標準發布模式](https://docs.claude.com/en/d
 claude plugin marketplace add hmj1026/dhpk
 claude plugin install dhpk@dhpk --config modules=php-8.x,laravel-11 --config hook_profile=standard
 ```
+
+**需求**：Claude Code 2.x。Codex MCP 為**選用**——它驅動 `codex-*` skill/指令與 `CODEX=on` 雙助理路徑；其餘一切皆 Codex-free。設定與驗證見 [`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕)。
 
 安裝後隨時可用 `/dhpk:setup` 重新設定（或 `/dhpk:setup --show` 印出目前生效設定）。完整安裝路徑（GitHub vs. 本地 clone）、更新／移除、疑難排解請見 **[`docs/basic-operations.zh-TW.md`](./docs/basic-operations.zh-TW.md)**。完整 `--config` 旋鈕參考見 **[`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md)**。
 
@@ -76,18 +82,20 @@ claude plugin install dhpk@dhpk \
 
 精選的模組組合請見 `manifests/install-profiles.json`。
 
-## 需要 MCP 依賴的 skill
+## Codex 支援的 skill 與指令
 
-6 個 skill 需要 **Codex MCP server**（`mcp__codex__codex`、`mcp__codex__codex-reply`），Implementation dispatch 中 `CODEX=on` 的雙助理 peer 路徑（常見工作流第 9/10 項）也是靠同一組工具：
+dhpk 的核心——hooks、sentinel reviewers、Smart Router，以及約 51 個其他 skill——皆為 Codex-free。`codex-*` 家族委派給 OpenAI 的 Codex 取得第二意見。它們的 `mcp__codex__codex` / `mcp__codex__codex-reply` 工具來自**直接註冊** Codex CLI 自身的 `codex mcp-server` 子指令為 MCP server（`claude mcp add --transport stdio codex -- codex mcp-server`）——**並非**來自安裝 `openai/codex-plugin-cc` plugin（那是另一個獨立的 Codex surface，不會註冊任何 MCP server）。完整註冊步驟與 plugin-vs-MCP-server 對照見 [`docs/configuration.zh-TW.md` 的運作原理說明](./docs/configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕)。
 
-```
-codex-architect       codex-brainstorm     codex-cli-review
-codex-code-review     codex-explain        codex-implement
-```
+| Surface | 名稱 | 需要 | 缺少時 |
+|---------|------|------|--------|
+| 5 個 skill | `codex-architect` · `codex-brainstorm` · `codex-code-review` · `codex-explain` · `codex-implement` | Codex MCP（`mcp__codex__codex`、`mcp__codex__codex-reply`） | 工具權限錯誤——無自動 fallback；改用下方的 Codex-free 對應品 |
+| 1 個 skill | `codex-cli-review` | 僅需 Codex CLI 執行檔（透過 Bash shell out——無 MCP server） | `codex: command not found`；改用 `codex-code-review`（MCP）或 sentinel `code-reviewer` |
+| 7 個指令 | `/dhpk:codex-review`、`-review-branch`、`-review-doc`、`-review-fast`、`-security`、`-test-gen`、`-test-review` | Codex MCP | 工具權限錯誤——Codex-free 路徑：`/dhpk:security-review`、`/dhpk:precommit`、sentinel review hooks |
+| `CODEX=on` | Implementation dispatch 的雙助理 peer 路徑 | Codex MCP | 不會壞——dispatch 維持預設的單助理模式 |
 
-這些工具來自 OpenAI 發布的**另一個獨立** Claude Code plugin，並非 dhpk 提供。未安裝時，呼叫上述任一 skill 會出現工具權限錯誤。安裝步驟（`/plugin install codex@openai-codex`、前置需求、`/codex:setup`）與雙助理協作工作流見 **[`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕)** / **[`docs/basic-operations.zh-TW.md`](./docs/basic-operations.zh-TW.md#10-codex-雙助理協作)**。
+Codex-free 對應品：`security-review` ↔ `codex-security`、`code-explore` ↔ `codex-explain`、sentinel reviewer agents ↔ `codex-code-review`，以及 `create-dev`（預設 Codex-free；`--codex` 才啟用）。
 
-其他 skill（約 51 個）沒有 MCP 依賴。
+一次性設定：以 `claude mcp add --transport stdio codex -- codex mcp-server` 註冊 Codex MCP server，再用 `claude mcp list` 與 `/mcp` 驗證（找到已連線的 `codex` 項目）。完整驗證步驟、MCP-vs-Skill surface 區別，以及獨立的 `openai/codex-plugin-cc` 協作 surface：**[`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕)** / **[`docs/basic-operations.zh-TW.md`](./docs/basic-operations.zh-TW.md#10-codex-雙助理協作)**。
 
 ## 外部 code-navigation 工具
 
@@ -278,3 +286,5 @@ Marketplace 安裝路徑（`claude plugin install`）會把插件複製到 `~/.c
 ## 授權
 
 採用 [MIT License](./LICENSE) 釋出。Copyright (c) 2026 Paul.
+
+發布歷史見 [CHANGELOG.md](./CHANGELOG.md)。
