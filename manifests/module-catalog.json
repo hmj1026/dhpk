@@ -126,6 +126,18 @@
       ]
     },
     {
+      "id": "library-author",
+      "name": "Multi-version PHP Library Author",
+      "description": "Cross-cutting glue for PHP libraries whose composer constraints span multiple majors of a key dependency (Laravel 6-11, Monolog 2/3, PHPUnit 8/9/10/11, Flysystem 1/2/3): polyfill-edit sentinel routing (auto-fires the polyfill-reviewer when an edited .php file contains a version guard), an OpenSpec workflow guard (specs vs spec-delta naming, tasks.md vs git log drift detection), a matrix-cell onboarding skill, and a dual-testsuite (Core vs Laravel) review boundary helper. Pairs with the polyfill-version-matrix-audit skill and version-matrix-impact-reviewer agent at dhpk root.",
+      "versions": [
+        {
+          "id": "0.1",
+          "module": "library-author",
+          "status": "shipped"
+        }
+      ]
+    },
+    {
       "id": "js",
       "name": "JavaScript / TypeScript",
       "description": "ESLint 9 flat config tier strategy, per-leaf `// @ts-check` progressive typing, post-edit ESLint feedback (async), pre-commit lint + typecheck gate. Framework-agnostic; works for legacy monolith bundles and modern bundler/SPA projects alike.",
