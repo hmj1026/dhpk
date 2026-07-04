@@ -84,7 +84,25 @@ if [ "$MODE" = "block" ]; then
     exit 2
 fi
 
-# warn: user-facing notice via systemMessage.
+# warn: user-facing notice via systemMessage. Deduplicated to once per session
+# per (branch, protected-list) so a long session isn't spammed on every
+# git-mutating command (D5). The session-scoped tmp state file (keyed on
+# session_id) is not a durable repo file — a new session re-warns. Keying on a
+# hash of the protected list means a mid-session protected_branches change
+# re-arms the reminder for a newly-protected branch. block mode (above) is
+# intentionally NOT deduped — a rejected command must always explain itself.
+SESSION_ID="$(extract_top_field session_id "$PAYLOAD")"
+SESSION_ID="${SESSION_ID//[^A-Za-z0-9_-]/_}"
+if [ -n "$SESSION_ID" ]; then
+    _bs_state="${TMPDIR:-/tmp}/dhpk-branch-safety-${SESSION_ID}.state"
+    _bs_key="$(printf '%s' "$PROTECTED_RAW" | cksum | cut -d' ' -f1)"
+    _bs_line="$(printf '%s\t%s' "$BRANCH" "$_bs_key")"
+    if [ -f "$_bs_state" ] && grep -Fxq -- "$_bs_line" "$_bs_state" 2>/dev/null; then
+        exit 0   # already warned for this branch+config this session
+    fi
+    printf '%s\n' "$_bs_line" >> "$_bs_state" 2>/dev/null || true
+fi
+
 emit_system_message "[branch-safety] REMINDER: $verb on protected branch '$BRANCH'.
 $DETAIL"
 exit 0
