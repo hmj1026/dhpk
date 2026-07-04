@@ -144,3 +144,14 @@ Set `modules: []` (or remove a specific module from the list) in
 userConfig. `DHPK_ACTIVE_MODULES` becomes empty (or omits the module),
 and the dispatcher skips its hooks entirely. The plugin ships every
 module, but only enabled ones run.
+
+## Hook performance convention
+
+Synchronous hooks run on the session hot path and share the platform's per-hook timeout budget. Follow this ordering so a hook never stalls a turn:
+
+1. **Bash fast-exit gates first.** Evaluate cheap pure-bash checks — env-var reads (`CLAUDE_PLUGIN_OPTION_*`, `DHPK_*`), string/length tests, file-existence tests — and `exit 0` before invoking any `python3` / `git` / other subprocess. An opted-out or trivially-irrelevant event must cost zero forks.
+2. **Bound every blocking read.** Read stdin with a deadline (`IFS= read -r -d '' -t <secs> VAR`) shorter than the hook's `hooks.json` timeout, so a stdin opened-but-not-closed degrades to an early exit instead of consuming the whole budget.
+3. **Bound external subprocesses.** Wrap any call that can hang (a daemon probe like `docker ps`, a network call) with `run_with_timeout <secs> <cmd>` from `_lib/portable-timeout.sh` (coreutils `timeout` / `gtimeout`, else a perl-alarm fallback), using a deadline shorter than the hook's own budget.
+4. **Declare an explicit `timeout` in `hooks/hooks.json`.** Every synchronous hook entry declares a `timeout` sized to its worst-case cost rather than inheriting the platform default — the outer platform backstop, with the inner guards above keeping the common case fast.
+
+`userpromptsubmit-skill-hint.sh` demonstrates conventions 1, 2, and 4 (bash fast-exit gates ahead of any subprocess, a bounded `read -r -d '' -t 3` stdin read, and an explicit `hooks.json` timeout); `session-start.sh` demonstrates convention 3 (`run_with_timeout` around its `docker ps` probe). No single hook needs all four — apply whichever guards its own work requires (convention 2 for any stdin-reading hook, convention 3 for any hook that shells out to a call that can hang).

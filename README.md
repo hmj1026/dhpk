@@ -250,7 +250,7 @@ dhpk/
 │   └── swift/, swiftui/, ios-platform/, swift-testing/, xcode-tooling/  # iOS/Swift suite (xcode-tooling adds hooks/ + skill scripts)
 ├── hooks/hooks.json              # PreToolUse / PostToolUse / SessionStart / Stop wiring
 ├── scripts/
-│   ├── hooks/                    # core hooks incl. post-edit-dispatch.sh, pre-bash-dispatch.sh, reap-stale-sentinels.sh, _lib/{payload,portable-sed}.sh
+│   ├── hooks/                    # core hooks incl. post-edit-dispatch.sh, pre-bash-dispatch.sh, reap-stale-sentinels.sh, _lib/{payload,portable-sed,portable-timeout}.sh
 │   ├── statusline/statusline.sh
 │   ├── codemaps/, lib/, opsx-apply-resume/, validate/
 │   └── (harness-audit, precommit-runner, verify-runner, gemini-adapt-agents, dep-audit)

@@ -111,7 +111,7 @@ justification. The reader sees the verdict first.
 
 ## Rule sources
 
-- `.claude/rules/execution-policy.md` "Git pipeline" — squash merge hard rule
-- `.claude/rules/execution-policy.md` "Review output gate" — the mandatory ✅/⚠️/⛔ verdict
+- Project `.claude/rules/execution-policy.md` if present, else `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`, "Git pipeline" — squash merge hard rule
+- Project `.claude/rules/execution-policy.md` if present, else `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`, "Review output gate" — the mandatory ✅/⚠️/⛔ verdict
 - 專案內任何 squash-merge-hygiene capability spec（依專案 OpenSpec 命名而定）
 - 專案 `docs/refactor-<area>/squash-<sha>-unrelated-reviews.md` — backfill 範例

@@ -23,7 +23,15 @@ FILE_PATH="$(extract_tool_input file_path "$PAYLOAD")"
 [ -z "$FILE_PATH" ] && FILE_PATH="$(extract_tool_input filePath "$PAYLOAD")"
 [ -z "$FILE_PATH" ] && exit 0
 
-REL="${FILE_PATH#$ROOT/}"
+# Containment (D4.1): only arm sentinels for paths inside the project ROOT.
+# `${FILE_PATH#$ROOT/}` is a silent no-op when FILE_PATH is not under ROOT — an
+# out-of-project absolute path (e.g. a /private/tmp scratchpad file) would pass
+# through unchanged and still match an extension rule. Validate containment first.
+case "$FILE_PATH" in
+    "$ROOT"/*) REL="${FILE_PATH#$ROOT/}" ;;
+    /*)  exit 0 ;;                # absolute path outside ROOT — never arm a sentinel
+    *)   REL="$FILE_PATH" ;;      # already project-relative — treat as in-project
+esac
 BASENAME="${REL##*/}"
 
 case "$REL" in
@@ -32,6 +40,21 @@ esac
 
 ARTIFACTS="$ROOT/.claude/artifacts/sessions"
 mkdir -p "$ARTIFACTS"
+
+# Provenance (D4.3): originating OpenSpec change slug (if this edit is inside an
+# openspec/changes/<slug>/ tree) else the session id, for later staleness
+# detection. Written to the sidecar (not the sentinel line) so field-3 readers
+# are unaffected.
+_prov="${REL#openspec/changes/}"
+if [ "$_prov" != "$REL" ]; then
+    _prov="${_prov%%/*}"
+    if [ "$_prov" = "archive" ]; then _prov="${REL#openspec/changes/archive/}"; _prov="${_prov%%/*}"; fi
+    PROVENANCE="$_prov"
+else
+    _sid="$(extract_top_field session_id "$PAYLOAD")"
+    PROVENANCE="session:${_sid:-unknown}"
+fi
+PROV_FILE="$ARTIFACTS/$SENTINEL_PROVENANCE_FILE"
 
 # Slot 0=code, 1=db, 2=sec, 3=frontend, 4=doc, 5=polyfill, 6=migration
 # (matches SENTINEL_NAMES order). Slots 5 and 6 have no built-in defaults:
@@ -277,6 +300,7 @@ for i in "${!NEEDS[@]}"; do
         fi
         # Line format "<date> <time> <path>" — path at field 3 (see _lib/payload.sh).
         printf '%s %s\n' "$(date +'%Y-%m-%d %H:%M:%S')" "$REL" >> "$sentinel"
+        printf '%s\t%s\t%s\n' "${SENTINEL_NAMES[$i]}" "$REL" "$PROVENANCE" >> "$PROV_FILE"
         msg+=" ${SENTINEL_LABELS[$i]}"
     fi
 done

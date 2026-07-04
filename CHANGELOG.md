@@ -1,5 +1,46 @@
 # Changelog
 
+## 0.26.0 — 2026-07-05 — hook reliability pass, sentinel-clear hardening, execution-policy fallback guard
+
+Hardens the session hot path: synchronous hooks now follow an explicit
+performance convention (fast-exit gates → bounded stdin reads → bounded
+subprocess timeouts → explicit `hooks.json` timeouts), sentinel clearing is
+fail-loud instead of silently no-op'ing, and a fifth CI reference-integrity
+check closes the last gap in the `execution-policy.md` dual-path contract.
+
+**perf(hooks)** — Fixed `userpromptsubmit-skill-hint.sh` blocking on an
+unbounded stdin read by adding a `-t 3` deadline, and gave synchronous hook
+entries in `hooks/hooks.json` explicit `timeout` values instead of inheriting
+the platform default. Added `scripts/hooks/_lib/portable-timeout.sh`
+(`run_with_timeout`, coreutils `timeout`/`gtimeout` with a perl-alarm
+fallback) and applied it to `session-start.sh`'s `docker ps` probe.
+Documented the resulting convention in `docs/hook-extension.md` under "Hook
+performance convention".
+
+**fix(hooks)** — `clear-sentinel.sh` no longer exits 0 while leaving a
+sentinel armed: an unknown or unresolvable sentinel name now exits 2 with an
+explicit stderr message. `rules/execution-policy.md` codifies this as the
+"Closing-hook clear contract (fail-loud)" — a reviewer whose clear call fails
+must surface that in its final output rather than reporting a clean review.
+Added `scripts/hooks/_lib/payload.sh` and `reap-stale-sentinels.sh` life-cycle
+fixes to back this contract at the Stop hook.
+
+**feat(hooks)** — `pretool-branch-safety.sh`'s reminder is now deduplicated
+per-branch-per-session instead of firing on every matching tool call.
+
+**docs(policy)** — Added an explicit resolution-order note to
+`rules/execution-policy.md`: consumers resolve their own
+`.claude/rules/execution-policy.md` first, falling back to
+`${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`.
+
+**feat(ci)** — New reference-integrity check 5 fails CI on a bare
+`.claude/rules/execution-policy.md` reference that omits the
+`${CLAUDE_PLUGIN_ROOT}/...` fallback in the same block, preventing the
+dual-path contract above from silently regressing.
+
+**docs(readme)** — `README.md` / `README.zh-TW.md` repo-tree listing now
+includes `_lib/portable-timeout.sh` alongside `payload,portable-sed`.
+
 ## 0.25.0 — 2026-07-03 — harness cross-reference audit, install rebrand, reference-integrity CI guard
 
 A three-track harness audit (rule-vs-skill dedupe, cross-reference integrity,

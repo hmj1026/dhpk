@@ -25,6 +25,7 @@ ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 . "$PLUGIN_ROOT/scripts/hooks/_lib/payload.sh"
 . "$PLUGIN_ROOT/scripts/hooks/_lib/timestamps.sh"
 . "$PLUGIN_ROOT/scripts/hooks/_lib/portable-stat.sh"
+. "$PLUGIN_ROOT/scripts/hooks/_lib/portable-timeout.sh"
 
 # Branch on the SessionStart `source` (startup|resume|clear|compact). Module
 # activation + dir creation + the snapshot are cheap and always run (downstream
@@ -65,26 +66,32 @@ if [ -n "${CLAUDE_PLUGIN_OPTION_DOCKER_CONTAINERS:-}" ]; then
     if [ "$FULL_INIT" = "0" ]; then
         DOCKER_STATUS="(skipped on $SOURCE)"
     elif command -v docker >/dev/null 2>&1; then
-        NAMES="$(docker ps --format '{{.Names}}' 2>/dev/null || true)"
-        IFS=',' read -r -a _containers <<< "${CLAUDE_PLUGIN_OPTION_DOCKER_CONTAINERS}"
-        _ok=()
-        _bad=()
-        for _c in "${_containers[@]}"; do
-            _c="$(echo "$_c" | xargs)"
-            [ -z "$_c" ] && continue
-            if echo "$NAMES" | grep -q "^${_c}$"; then
-                _ok+=("$_c")
-            else
-                _bad+=("$_c")
-                [ "$PROFILE" = "strict" ] && DOCKER_WARNS="${DOCKER_WARNS}"$'\n'"- [WARN] container '$_c' not running"
-            fi
-        done
-        if [ ${#_bad[@]} -eq 0 ]; then
-            DOCKER_STATUS="ok (${#_ok[@]})"
-        elif [ ${#_ok[@]} -eq 0 ]; then
-            DOCKER_STATUS="down (${#_bad[@]} missing)"
+        # Bound the docker call (run_with_timeout → coreutils timeout / perl alarm)
+        # so an unresponsive daemon can't consume the 20s SessionStart budget.
+        NAMES="$(run_with_timeout 8 docker ps --format '{{.Names}}' 2>/dev/null)"; _dps_rc=$?
+        if [ "$_dps_rc" -eq 124 ]; then
+            DOCKER_STATUS="(docker ps timed out)"
         else
-            DOCKER_STATUS="partial (${#_ok[@]}/${#_containers[@]})"
+            IFS=',' read -r -a _containers <<< "${CLAUDE_PLUGIN_OPTION_DOCKER_CONTAINERS}"
+            _ok=()
+            _bad=()
+            for _c in "${_containers[@]}"; do
+                _c="$(echo "$_c" | xargs)"
+                [ -z "$_c" ] && continue
+                if echo "$NAMES" | grep -q "^${_c}$"; then
+                    _ok+=("$_c")
+                else
+                    _bad+=("$_c")
+                    [ "$PROFILE" = "strict" ] && DOCKER_WARNS="${DOCKER_WARNS}"$'\n'"- [WARN] container '$_c' not running"
+                fi
+            done
+            if [ ${#_bad[@]} -eq 0 ]; then
+                DOCKER_STATUS="ok (${#_ok[@]})"
+            elif [ ${#_ok[@]} -eq 0 ]; then
+                DOCKER_STATUS="down (${#_bad[@]} missing)"
+            else
+                DOCKER_STATUS="partial (${#_ok[@]}/${#_containers[@]})"
+            fi
         fi
     else
         DOCKER_STATUS="(docker cli missing)"

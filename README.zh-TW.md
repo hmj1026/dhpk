@@ -247,7 +247,7 @@ dhpk/
 │   └── swift/, swiftui/, ios-platform/, swift-testing/, xcode-tooling/  # iOS/Swift 套件（xcode-tooling 另含 hooks/ 與 skill 腳本）
 ├── hooks/hooks.json              # PreToolUse / PostToolUse / SessionStart / Stop 連線設定
 ├── scripts/
-│   ├── hooks/                    # 核心 hook，含 post-edit-dispatch.sh、pre-bash-dispatch.sh、reap-stale-sentinels.sh、_lib/{payload,portable-sed}.sh
+│   ├── hooks/                    # 核心 hook，含 post-edit-dispatch.sh、pre-bash-dispatch.sh、reap-stale-sentinels.sh、_lib/{payload,portable-sed,portable-timeout}.sh
 │   ├── statusline/statusline.sh
 │   ├── codemaps/、lib/、opsx-apply-resume/、validate/
 │   └── （harness-audit、precommit-runner、verify-runner、gemini-adapt-agents、dep-audit）
