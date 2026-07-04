@@ -40,6 +40,17 @@ test('check 4 flags a predecessor-brand string', () => {
   assert.ok(checksHit('glob ~/.claude/plugins/**/sd0x-dev-flow/rules/x.md').has(4));
 });
 
+test('check 5 flags a bare execution-policy.md reference without the plugin-root fallback', () => {
+  assert.ok(
+    checksHit('... see .claude/rules/execution-policy.md for the gate ...').has(5)
+  );
+});
+
+test('check 5 does not flag a dual-path fallback block', () => {
+  const text = 'project .claude/rules/execution-policy.md if present, else ${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md';
+  assert.ok(!checksHit(text).has(5));
+});
+
 // (3) No false positives on legitimate / intentional refs.
 test('resolvable and intentional refs are not flagged', () => {
   const text = [
