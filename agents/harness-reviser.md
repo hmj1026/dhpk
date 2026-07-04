@@ -55,7 +55,7 @@ Match the skill's Output Contract:
 - Skill: `.claude/skills/harness-revise/SKILL.md` (symlink → `.agents/skills/harness-revise/`)
 - Scripts: `.agents/skills/harness-revise/scripts/harness-{inventory,scenarios,test-harness}.sh`
 - Trigger SSOT: `.claude/hooks/post-edit-remind.sh` header
-- Sentinel contract: `.claude/rules/execution-policy.md`
+- Sentinel contract: project `.claude/rules/execution-policy.md` if present, else `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`
 
 ## Closing — Artifact Output
 

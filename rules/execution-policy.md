@@ -3,6 +3,8 @@
 dhpk's default execution policy for projects that adopt the harness. Resource-layer markdown — referenced from the `dhpk-execution-policy` skill and consumable directly by a project's own `CLAUDE.md` via the `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` path. Not auto-loaded; opt-in.
 
 > Project overrides: projects that adopt this policy should keep their own short `.claude/rules/execution-policy.md` (or `CLAUDE.md` section) that only encodes deltas — e.g. extra sentinels, project-specific hot tables for performance reviewer, hook profile choice. Avoid copying the body wholesale; cross-link instead.
+>
+> Resolution order for any reference to this file: use the project's `.claude/rules/execution-policy.md` first if present (it carries only deltas — extra sentinels, hot tables, hook profile), otherwise resolve to `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` (the plugin SSOT). Projects should keep their local copy short and cross-link rather than copying the body wholesale.
 
 ## Glossary (inline)
 
@@ -109,6 +111,8 @@ Gate failure → fix → re-run that gate → continue only on PASS. Never skip.
 ### Hook-enforced (sentinels)
 
 Trigger map source-of-truth: dhpk's `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/post-edit-dispatch.sh` (a 7-slot default: code, db, security, frontend, doc, polyfill, migration) plus any per-module post-edit hooks contributed by enabled modules. Each sentinel is cleared by the agent's Closing hook (`clear-sentinel.sh <name> <label>`).
+
+**Closing-hook clear contract (fail-loud).** A reviewer's Closing hook clears its sentinel via `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh <name> <label>`. `clear-sentinel.sh` never exits 0 while leaving a sentinel armed: a known name clears the file and records success; an unknown name — or an empty/unresolvable name from a stale or partial payload — exits 2 with an explicit stderr message naming the problem, rather than silently no-op'ing. When the clear exits non-zero the reviewer MUST surface that failure in its final output (a review gate remains open) — it must not report a clean "review complete." Runtime backstop: `subagent-stop-verify.sh` emits a systemMessage when a reviewer stops with its sentinel still armed.
 
 | Sentinel | Required agent | Trigger summary (default; project can extend via `userConfig.review_trigger_extra_paths`) |
 |---|---|---|

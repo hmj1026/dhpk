@@ -8,9 +8,10 @@ description: End-of-task self-check before wrapping up. Use when a major task is
 Three-section self-check at task wrap-up. Per-reply mandatory, conditional
 when triggers fire, task-end book-keeping.
 
-> Source: the project's execution policy (typically
-> `.claude/rules/execution-policy.md`). This skill carries the long-form
-> checklist so the policy rule itself stays index-sized.
+> Source: the project's execution policy — project
+> `.claude/rules/execution-policy.md` if present, else
+> `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`. This skill carries the
+> long-form checklist so the policy rule itself stays index-sized.
 
 ## When NOT to Use
 
