@@ -7,7 +7,8 @@
           {
             "type": "command",
             "command": "bash",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/pre-edit-guard.sh"]
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/pre-edit-guard.sh"],
+            "timeout": 5
           }
         ]
       },
@@ -27,7 +28,8 @@
           {
             "type": "command",
             "command": "bash",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/pretool-branch-safety.sh"]
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/pretool-branch-safety.sh"],
+            "timeout": 5
           }
         ]
       },
@@ -50,7 +52,8 @@
           {
             "type": "command",
             "command": "bash",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/post-edit-dispatch.sh"]
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/post-edit-dispatch.sh"],
+            "timeout": 10
           },
           {
             "type": "command",
@@ -73,7 +76,8 @@
           {
             "type": "command",
             "command": "bash",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/userpromptsubmit-skill-hint.sh"]
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/userpromptsubmit-skill-hint.sh"],
+            "timeout": 5
           }
         ]
       }
@@ -151,7 +155,8 @@
           {
             "type": "command",
             "command": "bash",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/stop-review-reminder.sh"]
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/stop-review-reminder.sh"],
+            "timeout": 10
           },
           {
             "type": "command",

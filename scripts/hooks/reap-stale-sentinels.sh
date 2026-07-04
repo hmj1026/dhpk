@@ -122,5 +122,30 @@ if [ -d "$sessions_dir" ]; then
     done < <(find "$sessions_dir" -maxdepth 1 -name '.pending-*' 2>/dev/null)
 fi
 
+# ---- Provenance pass (D4.4): flag sentinels whose originating OpenSpec change is
+# no longer active (archived/removed) as staleness candidates. Warn-only — a
+# sentinel may still list live paths, so provenance alone does not auto-clear.
+prov_file="$repo_root/.claude/artifacts/sessions/$SENTINEL_PROVENANCE_FILE"
+if [ -f "$prov_file" ]; then
+    while IFS=$'\t' read -r _psent _ppath _pprov; do
+        [ -n "$_psent" ] || continue
+        case "$_pprov" in session:*|'') continue ;; esac   # only change-slug provenance is checkable
+        [ -f "$repo_root/.claude/artifacts/sessions/$_psent" ] || continue   # sentinel must still be armed
+        if [ ! -d "$repo_root/openspec/changes/$_pprov" ]; then
+            echo "[reap-sentinels] PROVENANCE-STALE: $_psent lists '$_ppath' from change '$_pprov' which is no longer active (archived/removed) — candidate for staleness review." >&2
+            echo "[reap-sentinels]   If this is leftover from an unrelated change, clear it: bash $(dirname "$0")/clear-sentinel.sh \"$_psent\"" >&2
+            found_stale=1
+        fi
+    done < "$prov_file"
+    # Housekeeping: prune sidecar lines whose sentinel file no longer exists.
+    _tmp_prov="$(mktemp 2>/dev/null || echo "$prov_file.reap.tmp")"
+    : > "$_tmp_prov"
+    while IFS=$'\t' read -r _psent _ppath _pprov; do
+        [ -n "$_psent" ] || continue
+        [ -f "$repo_root/.claude/artifacts/sessions/$_psent" ] && printf '%s\t%s\t%s\n' "$_psent" "$_ppath" "$_pprov" >> "$_tmp_prov"
+    done < "$prov_file"
+    if [ -s "$_tmp_prov" ]; then mv -f "$_tmp_prov" "$prov_file"; else rm -f "$_tmp_prov" "$prov_file"; fi
+fi
+
 # Stop hook MUST NOT block; stale sentinels only emit stderr (or are cleared).
 exit 0

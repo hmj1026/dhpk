@@ -100,7 +100,7 @@ Apply these defaults to Laravel, Symfony, and framework-agnostic PHP 8.3+ projec
 Follow authoritative guidance from:
 1. `CLAUDE.md` (project context)
 2. `.claude/rules/php/` (project PHP rules)
-3. `.claude/rules/execution-policy.md` (agent workflow)
+3. Project `.claude/rules/execution-policy.md` if present, else `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` (agent workflow)
 
 ## Output Templates
 

@@ -8,7 +8,7 @@
 
 set -o pipefail
 
-NAME="${1:?usage: clear-sentinel.sh <sentinel-name|--all> [agent-label]}"
+NAME="${1:-}"
 LABEL="${2:-agent}"
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 
@@ -20,6 +20,18 @@ ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 . "$(dirname "$0")/_lib/payload.sh"
 . "$(dirname "$0")/_lib/learning-db.sh"
 readonly KNOWN_SENTINELS=("${SENTINEL_NAMES[@]}")
+
+# Fail-loud front door (D3.2): a stale/partial reviewer payload that resolves to
+# an EMPTY sentinel name must not exit 0 (or a terse bash `:?` error) having done
+# nothing — it exits non-zero with an explicit message, mirroring the unknown-name
+# path below. This is the "ownership cannot be determined" case from the
+# sentinel-reliability spec; it EXTENDS (does not replace) the unknown-name exit 2.
+if [ -z "$NAME" ]; then
+    echo "[$LABEL] ERROR: no sentinel name provided — cannot determine which sentinel to clear (stale/partial payload?)." >&2
+    echo "[$LABEL] usage: clear-sentinel.sh <sentinel-name|--all> [agent-label]" >&2
+    echo "[$LABEL] known sentinels: ${KNOWN_SENTINELS[*]}" >&2
+    exit 2
+fi
 
 if [ "$NAME" = "--all" ]; then
     cleared=0

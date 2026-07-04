@@ -216,6 +216,27 @@ function checkBrand(relFile, text, whitelist) {
   return findings;
 }
 
+// --- Check 5: bare .claude/rules/execution-policy.md without plugin-root fallback ---
+// D2 (policy-resolution-fallback): a reference to the project-local policy path
+// must also state the ${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md fallback in
+// the SAME reference block (blank-line-delimited), so consumers without a local
+// copy still resolve it. Blocks are split on blank lines.
+function checkExecPolicyFallback(relFile, text) {
+  const findings = [];
+  const BARE = '.claude/rules/execution-policy.md';
+  const FALLBACK = '${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md';
+  for (const block of text.split(/\n\s*\n/)) {
+    if (!block.includes(BARE)) continue;
+    if (block.includes(FALLBACK)) continue;
+    findings.push({
+      file: relFile,
+      check: 5,
+      detail: `bare '${BARE}' reference without '${FALLBACK}' fallback in the same block`,
+    });
+  }
+  return findings;
+}
+
 // --- Public API -------------------------------------------------------------
 
 function scanText(relFile, text, opts = {}) {
@@ -225,6 +246,7 @@ function scanText(relFile, text, opts = {}) {
     findings.push(...checkRulesRefs(relFile, text, whitelist));
     findings.push(...checkDhpkRefs(relFile, text));
     findings.push(...checkPathRefs(relFile, text));
+    findings.push(...checkExecPolicyFallback(relFile, text));
   }
   if (!opts.skipBrand) {
     findings.push(...checkBrand(relFile, text, whitelist));
@@ -267,4 +289,4 @@ if (require.main === module) {
   process.exit(main());
 }
 
-module.exports = { scanRepo, scanText, harnessFiles };
+module.exports = { scanRepo, scanText, harnessFiles, checkExecPolicyFallback };

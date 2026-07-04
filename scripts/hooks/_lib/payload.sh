@@ -36,6 +36,13 @@ SENTINEL_NAMES=(".pending-review" ".pending-db-review" ".pending-security-review
 SENTINEL_LABELS=("code-reviewer" "database-reviewer" "security-reviewer" "frontend-reviewer" "doc-reviewer" "polyfill-reviewer" "migration-reviewer")
 SENTINEL_SHORT_NAMES=("code" "db" "sec" "fe" "doc" "poly" "mig")
 
+# Provenance sidecar (D4.3): records "<sentinel-basename> TAB <rel-path> TAB
+# <provenance>" per armed sentinel path, WITHOUT touching the field-3 line format
+# above — so the clear-sentinel / stop-review-reminder / pre-bash-guard readers are
+# unaffected. Its name does NOT match `.pending-*`, so it is invisible to the
+# opsx `ls .pending-*` gate and to reap-stale-sentinels' stray scan.
+SENTINEL_PROVENANCE_FILE=".sentinel-provenance"
+
 # Default agent names — overridable via userConfig.review_agents (comma-joined).
 _dhpk_default_agents=("code-reviewer" "database-reviewer" "security-reviewer" "frontend-reviewer" "doc-reviewer" "polyfill-reviewer" "migration-reviewer")
 if [ -n "${CLAUDE_PLUGIN_OPTION_REVIEW_AGENTS:-}" ]; then

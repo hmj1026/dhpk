@@ -50,7 +50,7 @@ Phase 5  Write / fill in CLAUDE.md
 - `CLAUDE.md` (root) and per-layer: e.g. `domain/CLAUDE.md`, `infrastructure/CLAUDE.md`, `presentation/CLAUDE.md` (or whatever the project's actual layers are) — mark gaps where missing
 - `.claude/agents/INDEX.md`, sample 1-2 existing agent .md
 - `.claude/commands/INDEX.md`, `.claude/skills/` directory listing + representative SKILL.md
-- `.claude/rules/execution-policy.md`, `.claude/rules/tool-routing.md` (or `${CLAUDE_PLUGIN_ROOT}/rules/` if dhpk-installed)
+- `.claude/rules/execution-policy.md` (or `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` if dhpk-installed), `.claude/rules/tool-routing.md` (or `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md` if dhpk-installed)
 - Post-edit hook(s) (where sentinels and reviewer chains are wired) — e.g. `.claude/hooks/post-edit-*.sh` or dhpk's `post-edit-dispatch.sh`
 - README, `docs/` directory (`rg --files docs/` or `cx overview docs/`)
 - `openspec/` directory (if present)
