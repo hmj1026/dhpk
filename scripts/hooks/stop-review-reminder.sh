@@ -47,8 +47,20 @@ check_one() {
     local count file_list extra=""
     count="$(wc -l < "$file" 2>/dev/null | tr -d ' ')"
     count="${count:-0}"
-    file_list="$(head -5 "$file" 2>/dev/null | awk 'NF>=3 {print "    · " $3}')"
-    [ "$count" -gt 5 ] && extra="    ... ${count} files total"
+    # Batch grouping (D4.5): a large multi-change burst is grouped by originating
+    # change/session (via the provenance sidecar) so it is reviewed per-group, not
+    # as one oversized undifferentiated batch that invites a gate bypass. Every
+    # file is still accounted for (grouped, not dropped). Small batches keep the
+    # flat head-5 listing unchanged.
+    local BATCH_GROUP_THRESHOLD=15
+    local prov_file="$SESS/$SENTINEL_PROVENANCE_FILE"
+    if [ "$count" -gt "$BATCH_GROUP_THRESHOLD" ] && [ -f "$prov_file" ]; then
+        file_list="$(awk -F'\t' -v s="$name" '$1==s {c[$3]++} END {for (p in c) printf "    · group [%s]: %d file(s)\n", p, c[p]}' "$prov_file" 2>/dev/null)"
+        extra="    ${count} files total — large batch; review per-change grouping above, not as one batch (groups shown where provenance is known)."
+    else
+        file_list="$(head -5 "$file" 2>/dev/null | awk 'NF>=3 {print "    · " $3}')"
+        [ "$count" -gt 5 ] && extra="    ... ${count} files total"
+    fi
 
     # stderr — Claude Code's Stop hook feeds stderr back to Claude when exit=2.
     echo >&2 ""
