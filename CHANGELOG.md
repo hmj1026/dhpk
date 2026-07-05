@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.27.0 — 2026-07-05 — codex-bridge: third Codex integration path
+
+Adds `codex-bridge`, a one-shot `codex exec` path distinct from the existing
+MCP-based `codex-review-*` family and the interactive `codex-rescue` agent:
+output is isolated inside a subagent and relayed verbatim, with no synthesis
+or embellishment by the calling agent.
+
+**feat(codex-bridge)** — New `skills/codex-bridge/SKILL.md`, the
+`run-codex.sh` wrapper, and the `codex-bridge` subagent. The wrapper hardcodes
+`--skip-git-repo-check`, `--sandbox`, `approval_policy=never`, and
+`--output-last-message`; it fails loud (prints the stderr tail) on empty
+output or a non-zero exit instead of fabricating a result.
+
+**chore(config)** — Bash permission rules for `codex exec:*` and the
+path-scoped direct `run-codex.sh` invocation. The subagent's `Bash(bash:*)`
+grant for `${CLAUDE_PLUGIN_ROOT}`-qualified paths is left as a user opt-in
+(#9354), not auto-applied.
+
+**docs(policy)** — `codex-bridge` added to the Implementation/Agent dispatch
+table in `execution-policy.md`, the `model-economics.md` tier map, and the
+`adaptive-dev-workflow` workflow table, all gated on `CODEX=on`; the
+codex-free default path is unaffected.
+
+**chore(agents)** — Registered as the 27th agent (26 root + 1 module-scoped
+reviewer): `plugin.json` `agents[]`, `agents/INDEX.md`, and the
+plugin/marketplace/README agent-count claims (26→27) updated in lockstep.
+
+**feat(ci)** — `validate-plugin.js` gained a disk→manifest reverse check:
+every `agents/*.md` and `modules/*/agents/*.md` (excluding `INDEX.md`) must
+be listed in `agents[]`, failing loud on an unregistered agent file.
+
 ## 0.26.0 — 2026-07-05 — hook reliability pass, sentinel-clear hardening, execution-policy fallback guard
 
 Hardens the session hot path: synchronous hooks now follow an explicit
