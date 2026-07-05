@@ -40,6 +40,7 @@ Agents run via the `Agent` tool (`subagent_type=<name>`), not via skill names.
 | `architect` | Cross-module or DDD-layer design | — |
 | `deep-reasoner` | Reasoning-heavy implement-phase work (root cause, algorithm design, complex debugging) — see §Implementation dispatch | — |
 | `fast-worker` | Mechanical implement-phase work with a clear spec — see §Implementation dispatch | — |
+| `codex-bridge` | **CODEX=on only** — outsource a self-contained clear-spec task, or a blind second opinion, to gpt-5.5 via the Codex CLI (`codex exec`); output isolated in the subagent, relayed verbatim — see §Implementation dispatch | — |
 | `database-reviewer` | SQL / Repository / migration (SQL correctness) — sentinel `.pending-db-review` or back-stop | 2 |
 | `migration-reviewer` | Migration files (up/down symmetry, FK naming, large ALTER, multi-tenant deploy) — sentinel `.pending-migration-review` (one of the 7-slot default `review_agents` chain since v0.10.0; the sentinel *trigger* itself stays opt-in via `module.yaml` `migration:` triggers or `review_trigger_extra_paths` `mig:` — see the sentinel table below) | — |
 | `security-reviewer` | Auth / crypto / money / file upload — sentinel `.pending-security-review` or back-stop | 3 |
@@ -71,6 +72,7 @@ SSOT for implement-phase routing while `userConfig.orchestration_dispatch=on` (d
 | Mechanical with a clear spec (boilerplate, test scaffolds, rename sweeps, applying an already-approved plan) | `fast-worker` |
 | Small diff (roughly ≤2 files, unambiguous intent) | Inline in the main loop — no dispatch |
 | Complex implementation (needs both reasoning and mechanical application) | `deep-reasoner` produces the fix spec (conclusion contract) → `fast-worker` applies it |
+| Independent second opinion, or an offloaded self-contained clear-spec task — **CODEX=on only** | `codex-bridge` (subagent; one-shot bash `codex exec`, output isolated + relayed verbatim) |
 
 **Orchestrator posture**: the main session is the expensive, high-capability orchestrator; its implement-phase job is **decide → dispatch → verify**, not hand-typing mechanical edits. Dispatch to a worker is the **default**; inline is a **narrow exception**, not a co-equal option. The economic reason is the point, not a nicety — the orchestrator runs on the expensive tier and `fast-worker` on a cheaper one, so routing mechanical work to `fast-worker` is why this policy exists and the default bias is to dispatch.
 
@@ -88,7 +90,7 @@ SSOT for implement-phase routing while `userConfig.orchestration_dispatch=on` (d
 
 **Kill switch**: `orchestration_dispatch=off` restores pre-change behavior exactly — inline implementation everywhere touched by this policy, no dispatch prohibition, no `opsx-apply-goal` directive line (see that skill's wiring). This is a full opt-out, not a partial degrade.
 
-**`CODEX=on` high-stakes parallel peer path**: for a high-stakes implement-phase design/diagnosis decision, dispatch `deep-reasoner` and the Codex peer in parallel, each blind to the other's findings, per §Multi-AI / dual-perspective independence above — do not feed one side's conclusion into the other's prompt. Default (codex-free) sessions never take this path; `deep-reasoner` alone handles the work.
+**`CODEX=on` high-stakes parallel peer path**: for a high-stakes implement-phase design/diagnosis decision, dispatch `deep-reasoner` and the Codex peer in parallel, each blind to the other's findings, per §Multi-AI / dual-perspective independence above — do not feed one side's conclusion into the other's prompt. The concrete Codex-peer mechanism is the `codex-bridge` subagent (a one-shot `codex exec` via `${CLAUDE_PLUGIN_ROOT}/skills/codex-bridge/scripts/run-codex.sh`, output quarantined in the subagent and relayed verbatim) — the plugin's **third** Codex path, distinct from the in-session MCP `codex-*` skills (structured review/implement, output in the main context) and the external `codex:` app-server plugin (persistent broker). `codex-bridge` also serves non-peer `CODEX=on` dispatch: offloading a self-contained clear-spec bulk task to gpt-5.5, per the §Implementation dispatch row. Default (codex-free) sessions never take any of this path; `deep-reasoner` alone handles the work.
 
 ## Multi-AI / dual-perspective independence
 
