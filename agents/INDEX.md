@@ -1,6 +1,6 @@
 # Agents Index (dhpk plugin)
 
-> 26 agents shipped by the dhpk plugin (25 root-level + `polyfill-reviewer` under `modules/library-author/agents/`). Discovered as `dhpk:<name>` after install. The full list also appears in `plugin.json`.
+> 27 agents shipped by the dhpk plugin (26 root-level + `polyfill-reviewer` under `modules/library-author/agents/`). Discovered as `dhpk:<name>` after install. The full list also appears in `plugin.json`.
 
 ## Sentinel-driven reviewer dispatch (7-slot default, v0.10.0+)
 
@@ -29,12 +29,14 @@ Not sentinel-driven — dispatched during the implement phase per the `rules/exe
 |-------|-------|----------------|
 | [deep-reasoner](deep-reasoner.md) | opus | Read-only reasoning worker — root-cause analysis, algorithm design, complex debugging, design synthesis. Returns a conclusion contract (conclusion + `file:line` evidence + next actions); defers DDD/cross-module design to `architect` |
 | [fast-worker](fast-worker.md) | sonnet | Write-capable mechanical implementer — executes a precise task spec (files + change intent + verification command), surgical edits only, reports pass/fail + edited-file list, escalates on ambiguous specs |
+| [codex-bridge](codex-bridge.md) | sonnet | **CODEX=on only** — thin bridge that outsources a self-contained clear-spec task, or a blind second opinion, to gpt-5.5 via the Codex CLI (`codex exec`); composes a self-contained prompt, runs `skills/codex-bridge/scripts/run-codex.sh`, and relays Codex's output **verbatim** (output isolated in the subagent) |
 
 Role models are configurable per project via `userConfig.deep_reasoner_model` / `userConfig.fast_worker_model` (see "Configured role models" under `rules/execution-policy.md` §Agent dispatch) — frontmatter above shows the shipped default, not necessarily the effective value.
 
 **Component-addition-gate justification** (why neither existing agent covers this need, per the "Component-addition gate" rule in `rules/execution-policy.md`):
 - `general-purpose` cannot cover it: no dhpk policy context, inherits the main-session model (cost misallocation when the orchestrator is a top-tier model and the task is mechanical), no defined input/output contract for gate enforcement.
 - `architect` cannot cover it: design-domain-scoped (DDD layering, cross-module ADRs) with a design-review posture — stretching it to general debugging/mechanical-implementation work would blur its trigger conditions and INDEX contract. `deep-reasoner` explicitly defers to `architect` for that domain rather than competing with it.
+- `codex-bridge` cannot be covered by the workers or the other two Codex paths: `deep-reasoner` / `fast-worker` are Claude-model workers (no independent-model perspective); the in-session MCP `codex-*` skills run via `mcp__codex__*` with output landing in the main context; the external `codex:` plugin wraps a persistent app-server broker. `codex-bridge` is the plugin's **third** Codex path and the only one that is a one-shot `codex exec` CLI call whose large output is quarantined in a dedicated subagent and relayed verbatim — needed for cheap bulk outsourcing and a blind second opinion without context bleed. Opt-in (`CODEX=on`); codex-free sessions never dispatch it.
 
 ## Situational
 
@@ -79,7 +81,7 @@ Role models are configurable per project via `userConfig.deep_reasoner_model` / 
 ## Models
 
 - **opus**: architect, spec-miner, deep-reasoner (low-frequency, high-impact, deep reasoning)
-- **sonnet**: reviewers, tdd-guide, refactor, ui-ux, harness, fast-worker (daily-driver)
+- **sonnet**: reviewers, tdd-guide, refactor, ui-ux, harness, fast-worker, codex-bridge (daily-driver)
 - **haiku**: doc-updater, docs-lookup, doc-reviewer (high-frequency, templated, cost-first)
 
 ## maxTurns (safety-net caps)
