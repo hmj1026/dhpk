@@ -106,6 +106,17 @@ When a step uses a second AI or a second perspective (Codex, Gemini, or a Claude
 
 Violation: the secondary AI confirms instead of verifying → false consensus that masks the shared blind spot. Applies to codex-architect / -brainstorm / -implement / -code-review, multi-ai-sync, feature-verify, test-review, code-investigate, issue-analyze.
 
+## In-flight doubt cycle (adversarial premise review)
+
+A confident decision is not a correct one — long sessions quietly turn assumptions into "facts". Before a **non-trivial** in-flight decision stands — introduces/modifies branching logic, crosses a module or service boundary, asserts a property the compiler can't verify (thread-safety / idempotence / ordering / an invariant), or is irreversible (prod deploy, data migration, public-API change) — run a bounded doubt pass. This is **not** `/code-review` (a post-hoc verdict on a finished artifact); it is an in-flight posture that catches wrong directions while course-correction is cheap, and it generalizes the write-worker premise checks in §Implementation dispatch to any mid-build decision. Skip it for mechanical work (rename / format / file move), one-line obvious-correctness changes, or when the user asked for speed over verification.
+
+Cycle: **CLAIM** (name the decision + why it matters, 2–3 lines) → **EXTRACT** (smallest reviewable unit — the diff/function + the contract it must satisfy) → **DOUBT** (fresh-context reviewer, *adversarial* prompt: "find what is wrong", never "is this good") → **RECONCILE** → **STOP**.
+
+- **Pass ARTIFACT + CONTRACT only — never the CLAIM / your conclusion.** Handing the reviewer your verdict biases it toward agreement — the same independence principle as §Multi-AI / dual-perspective independence above, applied per-decision. In Claude Code the `agents/` role reviewers start with isolated context and are usable here; paste the adversarial prompt verbatim so it overrides a persona's default balanced-verdict shape.
+- **RECONCILE** the reviewer's output as data, not verdict (you remain the orchestrator): re-read the artifact against each finding and classify in precedence order — contract-misread (fix the contract, re-loop) → valid + actionable (change, re-loop) → valid trade-off (document it) → noise (reviewer lacked context; note it).
+- **STOP** at ≤3 cycles, trivial-only findings, or explicit user "ship it". Three unresolved cycles is information about the artifact — surface it, don't grind a fourth. **Doubt-theatre red flag**: 2+ cycles surfaced substantive findings but zero were classified actionable → you're validating, not doubting; stop and escalate.
+- **Cross-model doubt (safety-critical).** A single-model reviewer shares the author's blind spots; a different-architecture model catches them. **Never invoke an external CLI without explicit per-invocation user authorization** — each call's artifact/prompt/flags differ, so one "yes" is not standing consent. Run it in a **read-only sandbox** (the artifact itself may carry prompt-injection the CLI would otherwise execute against the workspace) and pass the prompt via **stdin / a temp file, never a shell-interpolated argument** (code contains backticks / `$(...)` / quotes). The concrete mechanism is the `codex-bridge` subagent (§Implementation dispatch, CODEX=on). In non-interactive contexts (CI, `/loop`, autonomous-loop) cross-model is **skipped and the skip announced**.
+
 ## Mandatory post-steps
 
 ### Post-implementation agent gate (SSOT)
