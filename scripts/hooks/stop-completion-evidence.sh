@@ -80,14 +80,18 @@ if ! printf '%s' "$recent_assistant_text" | grep -qiE "$claim_pattern"; then
     exit 0
 fi
 
-# Compare against git diff (HEAD vs working tree, staged + unstaged).
-diff_files="$(cd "$ROOT" && git diff --name-only HEAD 2>/dev/null || true)"
+# Compare against git diff (HEAD vs working tree, staged + unstaged) PLUS
+# untracked-but-not-ignored files, so a brand-new test file (e.g. an untracked
+# *.spec.js added by a TDD flow) counts as test evidence instead of being
+# invisible. The two sets are disjoint (tracked/staged vs untracked), so
+# concatenating them cannot double-count; --exclude-standard honors .gitignore.
+diff_files="$(cd "$ROOT" && { git diff --name-only HEAD 2>/dev/null; git ls-files --others --exclude-standard 2>/dev/null; } || true)"
 [ -z "$diff_files" ] && exit 0
 
 # Classify code vs test. The exclude regex groups (^|/)tests?/ explicitly so
 # root-level *Test.php files don't slip past the alternation.
-code_files="$(printf '%s\n' "$diff_files" | grep -E '\.(php|js|ts|jsx|tsx|py|rb|go|rs|java|kt|swift)$' | grep -vE '(Test\.php$|\.test\.(js|ts|jsx|tsx)$|_test\.(py|go)$|(^|/)tests?/|/__tests__/|(^|/)spec/)' || true)"
-test_files="$(printf '%s\n' "$diff_files" | grep -E '(Test\.php$|\.test\.(js|ts|jsx|tsx)$|_test\.(py|go)$|(^|/)tests?/|/__tests__/|(^|/)spec/)' || true)"
+code_files="$(printf '%s\n' "$diff_files" | grep -E '\.(php|js|ts|jsx|tsx|py|rb|go|rs|java|kt|swift)$' | grep -vE '(Test\.php$|\.test\.(js|ts|jsx|tsx)$|\.spec\.(js|ts|jsx|tsx)$|_test\.(py|go)$|(^|/)tests?/|/__tests__/|(^|/)spec/)' || true)"
+test_files="$(printf '%s\n' "$diff_files" | grep -E '(Test\.php$|\.test\.(js|ts|jsx|tsx)$|\.spec\.(js|ts|jsx|tsx)$|_test\.(py|go)$|(^|/)tests?/|/__tests__/|(^|/)spec/)' || true)"
 
 # No code change (doc-only / harness / spec edits) → no test evidence needed.
 [ -z "$code_files" ] && exit 0

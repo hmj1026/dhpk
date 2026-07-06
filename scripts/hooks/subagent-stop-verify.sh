@@ -1,16 +1,18 @@
 #!/usr/bin/env bash
-# subagent-stop-verify.sh — SubagentStop hook (advisory only)
+# subagent-stop-verify.sh — SubagentStop hook (non-blocking)
 #
-# Plugs reviewer dispatch gaps: when a reviewer agent stops but its sentinel
-# still exists, warn (agent likely skipped clear-sentinel.sh); when exit status
-# is non-zero, log to .claude/artifacts/agent-failures.log for next-session
-# SessionStart / manual review.
+# Plugs reviewer dispatch gaps: when a reviewer agent stops SUCCESSFULLY but its
+# own sentinel still exists, auto-clear it on the reviewer's behalf (reviewers
+# spawned via the Agent/Task tool do not reliably self-run their closing
+# clear-sentinel.sh); when exit status is non-zero, leave the sentinel armed and
+# log to .claude/artifacts/agent-failures.log for next-session SessionStart /
+# manual review.
 #
 # Design:
 # - Sources _lib/payload.sh SSOT (SENTINEL_NAMES / SENTINEL_AGENTS).
 # - Reads stdin JSON; tries multiple field names because Claude Code's
 #   SubagentStop envelope schema has evolved across versions.
-# - Always exits 0 (advisory only — must not block the next chain step).
+# - Always exits 0 (non-blocking — must not block the next chain step).
 # - Profile-aware: minimal profile suppresses stderr summary; failure log is
 #   still appended so the trail survives.
 #
@@ -118,13 +120,6 @@ TIMESTAMP="$(date -Iseconds 2>/dev/null || date +%Y-%m-%dT%H:%M:%S%z)"
 
 mkdir -p "$(dirname "$LOG")" 2>/dev/null || true
 
-# Pre-resolve plugin root for copy-paste-runnable manual-clear hint.
-if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ]; then
-    CLEAR_CMD="bash \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh\" $SENTINEL_NAME manual"
-else
-    CLEAR_CMD="bash \"\${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh\" $SENTINEL_NAME manual"
-fi
-
 if [ "$EXIT_STATUS" != "0" ]; then
     # Case A: subagent failed.
     SENTINEL_STATE="none"
@@ -142,13 +137,29 @@ Logged to: .claude/artifacts/agent-failures.log"
         emit_system_message "$msg"
     fi
 elif [ -f "$SENTINEL_FILE" ]; then
-    # Case B: subagent succeeded but sentinel uncleared — likely missed clear-sentinel.sh.
-    echo "$TIMESTAMP $SUBAGENT exit=0 sentinel=$SENTINEL_NAME (uncleared)" >> "$LOG" || true
+    # Case B: subagent succeeded but sentinel uncleared — auto-clear it on the
+    # reviewer's behalf. Reviewers spawned via the Agent/Task tool do not
+    # reliably run their own closing clear-sentinel.sh, which would otherwise
+    # leave a stale sentinel that falsely blocks the opsx-apply-goal end-gate.
+    # This fires at the same moment (SubagentStop) the reviewer's own closing
+    # clear would have, scoped strictly to this reviewer's own slot, so it is
+    # equivalent to the reviewer having self-cleared. Run the SSOT clearer first
+    # (SENTINEL_NAMES whitelist + ldb success record); its stdout MUST be
+    # suppressed so its plain text cannot corrupt this hook's single JSON
+    # systemMessage envelope (a hook may emit at most one JSON object). Then
+    # unconditionally rm the exact sentinel THIS hook detected ($SENTINEL_FILE,
+    # built from ROOT above): clear-sentinel.sh resolves its own ROOT via
+    # git-toplevel, so if that ever diverges from CLAUDE_PROJECT_DIR (e.g. a
+    # worktree subagent) the guaranteed rm keeps the AUTO-CLEARED report honest.
+    # rm -f is idempotent — it no-ops when the clearer already removed the file.
+    if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] && [ -f "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" ]; then
+        bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" "$SENTINEL_NAME" "subagent-stop-auto" >/dev/null 2>&1 || true
+    fi
+    rm -f "$SENTINEL_FILE"
+    echo "$TIMESTAMP $SUBAGENT exit=0 sentinel=$SENTINEL_NAME (auto-cleared)" >> "$LOG" || true
     ldb_record failure "sentinel-uncleared:$SENTINEL_NAME" "$SUBAGENT"
     if [ "$PROFILE" != "minimal" ]; then
-        emit_system_message "[subagent-verify] SENTINEL UNCLEARED: $SUBAGENT finished but $SENTINEL_NAME remains.
-Likely cause: agent closing step did not call clear-sentinel.sh
-Manual clear: $CLEAR_CMD
+        emit_system_message "[subagent-verify] AUTO-CLEARED: $SUBAGENT finished; cleared $SENTINEL_NAME on its behalf.
 Logged to: .claude/artifacts/agent-failures.log"
     fi
 fi

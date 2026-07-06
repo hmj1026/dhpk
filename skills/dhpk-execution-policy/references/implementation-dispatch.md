@@ -1,0 +1,43 @@
+# Implementation dispatch — operational detail
+
+Operational detail for `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §Implementation dispatch. The dispatch **table** and the decide→dispatch→verify posture summary live there (the always-loaded SSOT); this file carries the how/why the orchestrator needs **when actually dispatching implement-phase work**. Every "§X" below refers to a section of that SSOT file.
+
+## Orchestrator posture
+
+The main session is the expensive, high-capability orchestrator; its implement-phase job is **decide → dispatch → verify**, not hand-typing mechanical edits. Dispatch to a worker is the **default**; inline is a **narrow exception**, not a co-equal option. The economic reason is the point, not a nicety — the orchestrator runs on the expensive tier and `fast-worker` on a cheaper one, so routing mechanical work to `fast-worker` is why this policy exists and the default bias is to dispatch.
+
+**The "≤2 files" inline bound is measured on the whole implement-step footprint, not each individual Edit.** A run of individually-small mechanical edits that together touch more than two files is **one `fast-worker` dispatch** (batched into a single fix-spec), not a salami-sliced sequence of "small" inline diffs. When the choice between inline and `fast-worker` is unclear, **dispatch**.
+
+**`general-purpose` is prohibited for implementation while `orchestration_dispatch=on`.** It carries no dhpk policy context, inherits the main-session model regardless of task cost, and has no defined input/output contract — use `deep-reasoner` / `fast-worker` / inline per the dispatch table instead.
+
+## Gate preservation (edited-file-list back-stop)
+
+Worker dispatch never weakens a gate. `fast-worker` always reports its complete edited-file list (mandatory, even on a failed/escalated attempt — see its agent body). After a dispatch returns, the orchestrator checks for pending sentinels as usual; subagent Edit/Write triggers the same PostToolUse hooks as a main-loop edit in the default Claude Code hook wiring, so sentinels are the common path. If a project setup ever does not fire hooks for subagent tool calls, the orchestrator derives the applicable reviewer gates from the edited-file list instead and runs them — same Post-implementation agent gate either way.
+
+## Verify worker output before accepting (implement phase)
+
+When a `fast-worker` (or `deep-reasoner` → `fast-worker`) dispatch returns, before marking the task complete the orchestrator (a) re-surfaces the worker's verification line (`<command> → PASS|FAIL`) and complete edited-file list into the conversation, so the goal loop's conversation-only Haiku evaluator can see the evidence; (b) cross-checks that edited-file list against `git status --short` / `git diff --name-only` and investigates any mismatch (a worker no-op, or files changed but unreported); (c) confirms the review sentinels expected for the edited file types are present or were already cleared by a reviewer that ran, and when an expected sentinel is missing invokes the reviewer derived from the edited-file list (activating the back-stop above rather than leaving it dead); (d) on a worker FAIL or 3-attempt escalation, does NOT mark the task complete and re-scopes or re-dispatches `deep-reasoner` for a corrected fix-spec. This is a lightweight cross-check — the full test-suite re-run stays the `opsx-apply-goal` Part 3 end-gate, not a per-task step.
+
+## Phase scoping (implement phase only)
+
+The dispatch table governs the **implement phase**. OpenSpec artifact authoring (proposal / specs / design / tasks) is orchestrator-inline reasoning work — it is NOT mechanical and is never dispatched to `fast-worker`; the orchestrator authors it, seeded by any preceding investigation. Root-cause investigation dispatches read-only `deep-reasoner`, whose conclusion contract seeds the fix-spec or the authored artifacts. In plan mode only read-only workers (`deep-reasoner`, `Explore`) may be dispatched — `fast-worker` cannot apply edits until plan mode is exited; `deep-reasoner` **is** permitted in plan mode because it is read-only.
+
+## Verify an unverified behavioral premise before dispatching a write worker
+
+When a `fast-worker` task rests on an unverified *behavioral premise* — that a bug reproduces under the given fixture/data, that an algorithm or formula is correct, or that an assumed data-shape / plan dependency holds — dispatch read-only `deep-reasoner` to confirm the premise **first**, and dispatch `fast-worker` only once it holds. Scope this by premise *type*: a **static / structural** premise — whether a specific line lists a given type, whether a column is unique in a query, whether two code paths share a guard condition — is settled by a single inline Read, so spending a `deep-reasoner` dispatch on it is waste; verify it inline and move on. Reserve the gate for **behavioral / runtime / non-deterministic** premises — does the bug actually reproduce under this fixture, is a timing- or order-dependent path hit, does a plan-dependent value land in the branch under test — where reading the code is not enough to know. (Don't over-correct from a prior "always deep-reasoner first" lesson into dispatching for facts a Read settles.) Writing a RED regression test or a non-obvious fix on top of an unverified premise can hand `fast-worker` an impossible spec: a full apply-and-fail (or a multi-attempt escalation costing ~100k+ subagent tokens) that verifying the premise up front would have avoided. This is distinct from the conclusion sanity-check below — that checks a `deep-reasoner` *conclusion* is precise enough to apply; this checks the *premise the task is built on* before any fix-spec exists. (`deep-reasoner` is read-only, so this applies in plan mode too.)
+
+## Sanity-check a `deep-reasoner` conclusion before `fast-worker` applies it
+
+Before dispatching `fast-worker` to apply a conclusion contract, confirm it carries file:line evidence and next-actions precise enough to serve as a task spec. Re-work a vague or evidence-free conclusion (return it to `deep-reasoner`, or resolve it inline) rather than dispatching it for application — a wrong confident conclusion otherwise costs a full 3-attempt apply-and-fail cycle.
+
+## Kill switch
+
+`orchestration_dispatch=off` restores pre-change behavior exactly — inline implementation everywhere touched by this policy, no dispatch prohibition, no `opsx-apply-goal` directive line (see that skill's wiring). This is a full opt-out, not a partial degrade.
+
+## `CODEX=on` high-stakes parallel peer path
+
+For a high-stakes implement-phase design/diagnosis decision, dispatch `deep-reasoner` and the Codex peer in parallel, each blind to the other's findings, per §Multi-AI / dual-perspective independence — do not feed one side's conclusion into the other's prompt. The concrete Codex-peer mechanism is the `codex-bridge` subagent (a one-shot `codex exec` via `${CLAUDE_PLUGIN_ROOT}/skills/codex-bridge/scripts/run-codex.sh`, output quarantined in the subagent and relayed verbatim) — the plugin's **third** Codex path, distinct from the in-session MCP `codex-*` skills (structured review/implement, output in the main context) and the external `codex:` app-server plugin (persistent broker). `codex-bridge` also serves non-peer `CODEX=on` dispatch: offloading a self-contained clear-spec bulk task to gpt-5.5, per the §Implementation dispatch row. Default (codex-free) sessions never take any of this path; `deep-reasoner` alone handles the work.
+
+## Cross-verify a premise-overturning worker discovery before reframing
+
+When a worker returns a finding that *overturns an existing design premise* — "the bug is not reproducible as `design.md` assumed", "the documented approach cannot work", any result that changes the plan's direction — treat it as an approach-changing decision, not a routine result. Before reframing the plan on that single finding, obtain an **independent** second opinion per §Multi-AI / dual-perspective independence: in a default (codex-free) session, a second `deep-reasoner` pass prompted independently from the source (never fed the first conclusion); when `CODEX=on`, the `codex-bridge` peer. A single model overturning its own earlier premise is exactly the shared-blind-spot case independence guards against — orchestrator-inline self-confirmation is not a substitute.
