@@ -54,3 +54,6 @@ Load the `execution-checklist` skill for the full self-audit.
 - `references/anti-loop.md` — the 3x rule and what counts as the same approach; read when a retry loop is suspected.
 - `references/output-shape.md` — full reply-shape and tone guidance; read when formatting a summary or a blocked reply.
 - `references/squash-merge-hygiene.md` — spotting unrelated changes after a squash merge; read before reviewing a squash-merged branch.
+- `references/implementation-dispatch.md` — orchestrator posture, worker-output verification, premise discipline, CODEX peer path; read when dispatching implement-phase work to `deep-reasoner` / `fast-worker`.
+- `references/review-gate-mechanics.md` — sentinel clear-contract, orchestrator-side confirm, full reviewer-dispatch triage rules, and back-stop notes; read when wiring/clearing sentinels or self-triggering a back-stop reviewer.
+- `references/deterministic-first.md` — the collect→gate→judge discipline and tool-output-immutable rule; read for audit / setup / inventory / generation work.

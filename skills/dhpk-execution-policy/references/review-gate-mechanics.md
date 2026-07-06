@@ -1,0 +1,37 @@
+# Review-gate mechanics — operational detail
+
+Operational detail for `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §Mandatory post-steps. The always-loaded SSOT there keeps the Post-implementation agent gate, the sentinel table (7-slot default), the reviewer-dispatch skeleton (triage → parallel → merge), the Review output gate, and the AI-judgment back-stop **trigger list**. This file carries the how/why the orchestrator needs **when wiring or clearing sentinels, or self-triggering a back-stop reviewer**. Every "§X" below refers to a section of that SSOT file.
+
+## Closing-hook clear contract (fail-loud)
+
+A reviewer's Closing hook clears its sentinel via `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh <name> <label>`. `clear-sentinel.sh` never exits 0 while leaving a sentinel armed: a known name clears the file and records success; an unknown name — or an empty/unresolvable name from a stale or partial payload — exits 2 with an explicit stderr message naming the problem, rather than silently no-op'ing. When the clear exits non-zero the reviewer MUST surface that failure in its final output (a review gate remains open) — it must not report a clean "review complete." Runtime backstop: `subagent-stop-verify.sh` emits a systemMessage when a reviewer stops with its sentinel still armed.
+
+## Orchestrator-side confirm the clear actually happened (Closing-hook back-stop)
+
+The reviewer-side contract above and the `subagent-stop-verify.sh` runtime backstop are not a guarantee — a reviewer has been observed returning APPROVE while its `.pending-review` sentinel stayed armed (a second same-session `code-reviewer` left it armed while the first cleared it). So after a reviewer returns, the orchestrator itself runs `ls .claude/artifacts/sessions/.pending-*`; if the just-handled sentinel is still present after an APPROVE, it clears it manually with `clear-sentinel.sh <exact-basename>` — the **full** sentinel filename from `SENTINEL_NAMES` (e.g. `.pending-review`), since the script matches on the exact basename, not a keyword (`clear-sentinel.sh review` → `unknown sentinel name`). Never leave a stale sentinel to falsely block the `opsx-apply-goal` end-gate.
+
+## Skipped paths (sentinel table)
+
+`.claude/artifacts/**` is exempt from ALL 7 slots via an unconditional early hook exit that runs before any slot logic (self-edits by review agents would otherwise re-trigger themselves). For doc-review specifically, a `.md` file is skipped UNLESS it is under `.claude/{agents,rules,commands,hooks,scripts,skills,manifests}/`, `openspec/`, or `docs/`, or is named `CLAUDE.md` / `AGENTS.md` (any depth), or is a top-level `README*.md` (nested READMEs excluded) — so `.claude/{memory,worktrees}/**` and any other `.md` file outside that list is skipped for doc-review. This does NOT exempt `.claude/{memory,worktrees}/**` from every slot: the hook's generic extension/keyword defaults (code-reviewer on `*.php`/`*.js`/etc., db-reviewer on `*.sql`, security-reviewer on `*Auth*`/`*Login*`/etc.) match on filename alone with no path restriction, so e.g. a `.php` file under `.claude/worktrees/` (a real git-worktree-checkout location) still routes normally. See your hook source for the exact list.
+
+## Reviewer dispatch — full triage → parallel → merge
+
+At the end of a turn that produced Edits/Writes, gather ALL pending sentinels, then **triage → dispatch in parallel → merge**:
+
+1. **Triage first (cheap, no agent).** Look at the diff scope and DROP false-positive sentinels before dispatching — a pure-style CSS tweak, a single-string / comment-only / whitespace-reflow change does not warrant a full reviewer (e.g. a 2-line CSS change must not pull in `security-reviewer`); a typo-fix or pure-formatting `.md` change does not warrant `doc-reviewer` (it fires for substantive policy/SSOT changes, not cosmetics), and pure OpenSpec bookkeeping — ticking `tasks.md` checkboxes — is the canonical batch/drop case (make the checkbox edits together and let `doc-reviewer` run once on the substantive artifacts, not once per checkbox). Clear each dropped sentinel via its Closing hook with a one-line reason. Triage only **drops**; when in doubt, keep the reviewer.
+2. **Dispatch the surviving reviewers IN PARALLEL** — one message, multiple Agent calls. Each reviewer audits only its own concern and is independent, so wall-clock is `max(reviewers)`, not the sum. Do **not** run them as a sequential chain.
+3. **`code-reviewer` is the merge/dedup owner.** When it is in the dispatched set, `code-reviewer` (or the orchestrator on collecting the parallel results) merges all findings and removes cross-reviewer duplicates — this replaces the old "sequential order de-dups" mechanism. Each specialist still owns its lane (code-reviewer does not re-run OWASP / SQL / link-checks; frontend-reviewer does not re-run SQL; doc-reviewer does not audit code quality).
+
+- Each reviewer **only handles its own sentinel**: missing sentinel → skip; present (and not triaged out) → it MUST run (back-stop excepted).
+- **Batched per turn, not per edit**: a turn with N Edits runs each reviewer at most once, after the last edit — never once per Edit.
+- **CRITICAL handling under parallel dispatch**: collect every parallel verdict, then if any reviewer returns CRITICAL → surface it and block the merge/commit. (Parallel means all reviewers run regardless of another's CRITICAL — independent concerns are not short-circuited.)
+- `code-reviewer` and `doc-reviewer` **are not mutually exclusive**: mixed diffs (PHP + .sh + plain `.claude/` policy doc) dispatch both. Single-type diffs dispatch only the matching one.
+- Pure research / planning (no Edit/Write) skips all reviewer agents.
+
+## AI-judgment back-stop — explanatory notes
+
+> **Why view-layer script doesn't go through the hook**: `post-edit-dispatch.sh` uses path-pattern matching (O(1)). Detecting `<script>` blocks would require reading the full PHP file content on every Edit (grep cost asymmetric to the edit cost). Per the trigger taxonomy, view templates don't all contain `<script>`; AI looking at the diff has near-zero recognition cost, so back-stop is sufficient.
+>
+> **When to upgrade to hook**: once a project accumulates ≥3 missed-review cases (feature shipped to prod), or view-layer JS bug ratio significantly exceeds the JS-file leaf ratio, then add path+content grep to the hook. Until then, AI judgment.
+>
+> **`tdd-guide` has no sentinel.** `.pending-tdd` is never written by any hook (tdd-guide is pre-edit, not post-edit), so it is reached only via the back-stop list or an explicit pre-implementation invocation — it is **not** auto-enforced by the `opsx-apply-goal` universal `ls .pending-*` gate. For unattended `opsx-apply-goal` runs, new-code testing is enforced as an *outcome* by the **coverage gate** when the project has a coverage threshold configured (see `skills/opsx-apply-goal/references/detection.md` `HAS_COVERAGE`); where no threshold exists, tests-first must be carried by the change's tasks/plan (authored via `feature-dev`), not assumed from the sentinel gate.
