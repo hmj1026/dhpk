@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.27.1 — 2026-07-06 — orchestrator premise verification
+
+Adds behavioral-premise verification and a sentinel double-confirmation
+back-stop to the Implementation dispatch policy, guarding against
+`fast-worker` being dispatched onto an unverified assumption or a stale
+`.pending-review` sentinel silently blocking `opsx-apply-goal`.
+
+**docs(policy)** — `execution-policy.md` gains three additions: (1) verify an
+unverified behavioral premise (bug repro, algorithm correctness, data-shape
+assumption) via `deep-reasoner` before dispatching a write worker; (2)
+cross-verify a premise-overturning worker discovery with an independent
+second opinion before reframing a plan on it; (3) an orchestrator-side
+back-stop that re-checks a reviewer's sentinel actually cleared after an
+APPROVE, since a reviewer has been observed returning APPROVE while its
+`.pending-review` sentinel stayed armed. Also adds a doc-reviewer triage drop
+rule so pure OpenSpec bookkeeping (`tasks.md` checkbox edits) batches instead
+of firing per-checkbox.
+
+**docs(command)** — `opsx-apply-goal` SKILL.md's `/goal` condition template
+and validation checklist updated to reference the premise-verification step.
+
 ## 0.27.0 — 2026-07-05 — codex-bridge: third Codex integration path
 
 Adds `codex-bridge`, a one-shot `codex exec` path distinct from the existing
