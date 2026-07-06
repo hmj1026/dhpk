@@ -1,5 +1,4 @@
 ---
-name: "OPSX: Apply Resume"
 description: 'Context handoff wrapper for long-running opsx:apply sessions — save state before /fork or /new, then resume seamlessly'
 argument-hint: '[change-id]'
 disable-model-invocation: true

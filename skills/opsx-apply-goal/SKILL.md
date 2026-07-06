@@ -152,7 +152,10 @@ per rules/execution-policy.md §Implementation dispatch — mechanical/multi-fil
 clear-spec work to dhpk:fast-worker, reasoning-heavy work to dhpk:deep-reasoner;
 edit inline only for ≤2-file unambiguous diffs and your own bookkeeping
 (tasks.md checkboxes, sentinels); when unsure, dispatch; never use
-general-purpose. After each worker returns, verify its output per that section
+general-purpose. Before dispatching a write worker on a task resting on an
+unverified behavioral premise (bug-repro condition, algorithm correctness,
+data-shape/plan assumption), first verify the premise with dhpk:deep-reasoner.
+After each worker returns, verify its output per that section
 (re-surface the report, cross-check git diff, confirm the sentinels). Continue
 until all of the following hold,
 ```
@@ -342,9 +345,11 @@ This session will NOT auto-run /goal or opsx:apply.
       session as orchestrator, routes mechanical/multi-file clear-spec work to
       dhpk:fast-worker and reasoning-heavy work to dhpk:deep-reasoner, bounds
       inline to ≤2-file unambiguous diffs plus bookkeeping, says "when unsure,
-      dispatch", forbids general-purpose, and references the §Implementation
-      dispatch verify procedure (re-surface report / cross-check git diff /
-      confirm sentinels); absent — Part 0 byte-identical to pre-change output —
+      dispatch", forbids general-purpose, instructs verifying an unverified
+      behavioral premise with dhpk:deep-reasoner before a write dispatch, and
+      references the §Implementation dispatch verify procedure (re-surface
+      report / cross-check git diff / confirm sentinels); absent — Part 0
+      byte-identical to pre-change output —
       when `orchestration_dispatch=off`
 - [ ] Sentinel check in Part 2 uses `ls .claude/artifacts/sessions/.pending-*` (not reviewer names)
 - [ ] Non-automatable tasks appear in Block A warning, NOT in Part 3
