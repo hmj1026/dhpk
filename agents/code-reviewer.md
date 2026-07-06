@@ -66,6 +66,8 @@ Detect the active stack, then load ONLY the matching trap sheet(s); ignore other
 - **Correctness** — off-by-one, null / empty / boundary inputs, unhandled error paths, resource cleanup on the failure path.
 - **Security surface** (deep audit → `security-reviewer`) — unparameterized / string-built queries, untrusted input reaching exec / eval / file paths, missing authz / CSRF, hardcoded secrets.
 - **Clarity** — dead code, misleading names, a function doing two jobs, magic values that aren't well-known constants.
+- **Observability** — for a diff that adds an endpoint, job, retry, queue, or external call: expect structured logging (stable event name + fields, not string interpolation) carrying a correlation/request id, and bounded-cardinality metric labels (route template / status class / provider — never user id, raw URL, or error text). Alert on user-felt symptoms, not causes (CPU/memory). Secrets / tokens / full PII in a log line → hand to `security-reviewer`. Zero telemetry on a prod-facing feature is a MEDIUM finding, not a nit.
+- **Interface contract** (design depth → `architect`) — one consistent error shape across endpoints (not throw-here / null-there / `{error}`-elsewhere); list endpoints paginated; REST paths are plural nouns, not verbs (`/tasks`, not `/createTask`); a field type-change or removal on a public interface is a breaking change; a third-party API response is untrusted — validate its shape at the boundary before use.
 
 ## Reviewing AI-generated code (most diffs here are model-authored)
 

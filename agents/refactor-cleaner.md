@@ -51,6 +51,8 @@ Delete only with proof (a `cx references` / `gitnexus_impact` miss, not a guess)
 
 Keep (flag for human confirmation, never blind-delete): dynamic-dispatch / reflection / string-built call targets, framework-injected hooks (lifecycle methods, DI entry points), and public API surface a consumer outside the repo may use.
 
+**Consumer-facing symbols need a deprecation path, not a raw delete.** A public / cross-repo / documented symbol is still a liability, but it can't vanish silently: either advisory-deprecate it (mark it + name the removal target, hold one release) or land the consumer's migration first (replacement shipped + call sites moved), then remove. In-repo-only symbols with a proven-zero `cx references` miss skip this — delete them in the change that orphaned them.
+
 ## Workflow
 
 1. `cx references --name X` (or `gitnexus_impact upstream`) to find callers.

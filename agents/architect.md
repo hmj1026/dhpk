@@ -40,6 +40,18 @@ Name the smell when the design exhibits it — each is a re-design trigger, not 
 - **Magic** — undocumented implicit behavior (hidden globals, action-at-a-distance).
 - **Analysis Paralysis** — design churn with no shippable slice.
 
+## Interface & API contract
+
+When the design defines or changes a public surface — REST/GraphQL endpoint, module boundary, service interface, component props — hold it to contract-first design (the interface is the spec; implementation follows):
+
+- **Hyrum's Law** — with enough consumers, *every* observable behaviour (undocumented quirks, error text, ordering, timing) becomes a depended-on contract. Be intentional about what you expose; don't leak implementation detail; plan deprecation at design time.
+- **One-Version Rule** — extend, don't fork. Design for one version existing at a time; concurrent versions multiply maintenance and create diamond-dependency problems.
+- **Additive over breaking** — new fields optional; changing a field's type or removing it breaks existing consumers.
+- **One error strategy** — a single error shape (status code + structured body, or a Result type) used everywhere; mixed throw/null/`{error}` is unpredictable for callers.
+- **Validate at boundaries only** — trust internal typed code; validate at system edges (route handlers, form input, third-party responses — always untrusted, env/config), not between already-typed internal functions.
+
+A change to a public interface's direction or shape is an **ADR trigger** (below).
+
 ## ADR Required
 
 | Trigger | Format |
