@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.27.2 — 2026-07-06 — harness reliability fixes + execution-policy slim
+
+Two hook reliability fixes plus dispatch-policy refinements distilled from a
+real `opsx-apply-goal` retrospective, bundled with the execution-policy
+progressive-disclosure slim.
+
+**fix(hooks)** — `stop-completion-evidence.sh` now counts untracked new test
+files (`git ls-files --others`) and recognizes a `.spec.` filename suffix, so a
+TDD flow that adds a brand-new spec no longer trips a false "no test changes"
+warning. `subagent-stop-verify.sh` now auto-clears a reviewer's own sentinel on
+its behalf when that reviewer subagent stops successfully with the sentinel
+still armed — scoped strictly to that reviewer's slot, and a failed reviewer
+keeps its sentinel armed. Reviewers spawned via the Agent/Task tool did not
+reliably self-run their closing `clear-sentinel.sh`, leaving a stale `.pending-*`
+sentinel that could falsely block `opsx-apply-goal`.
+
+**docs(policy)** — `execution-policy.md` gains an `e2e-runner` row in both the
+Agent-dispatch and Implementation-dispatch tables (RED/E2E specs that must run
+against a live server), and reframes reviewer-sentinel auto-clear as the primary
+mechanism with the orchestrator's manual re-check as the fallback. The
+premise-verify gate is now conditioned by premise type (static/structural →
+inline Read; behavioral / runtime / non-deterministic → `deep-reasoner`).
+`opsx-apply-goal`'s Part-3 test gate is baseline-aware: a runner passes when
+remaining failures are proven pre-existing via `git stash`, without narrowing
+the run to the change's own spec.
+
+**docs(rules)** — bundles the execution-policy progressive-disclosure slim
+(detail moved into `dhpk-execution-policy` reference files), the
+development-time doubt-cycle / foolproofing rules, and the addyosmani
+discipline-pack technique folds.
+
 ## 0.27.1 — 2026-07-06 — orchestrator premise verification
 
 Adds behavioral-premise verification and a sentinel double-confirmation
