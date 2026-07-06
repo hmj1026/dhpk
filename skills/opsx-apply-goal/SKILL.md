@@ -149,7 +149,8 @@ Invoke the opsx:apply skill for change <CHANGE_ID> and continue implementing
 openspec/changes/<CHANGE_ID>/tasks.md from the first unchecked item without
 stopping for confirmation. You are the orchestrator: dispatch implementation
 per rules/execution-policy.md §Implementation dispatch — mechanical/multi-file
-clear-spec work to dhpk:fast-worker, reasoning-heavy work to dhpk:deep-reasoner;
+clear-spec work to dhpk:fast-worker, reasoning-heavy work to dhpk:deep-reasoner,
+RED/E2E specs that must run against a live server to dhpk:e2e-runner;
 edit inline only for ≤2-file unambiguous diffs and your own bookkeeping
 (tasks.md checkboxes, sentinels); when unsure, dispatch; never use
 general-purpose. Before dispatching a write worker on a task resting on an
@@ -180,6 +181,8 @@ Test runners (only if `HAS_TEST=true`):
 - `HAS_PYTEST` → `pytest output shows 0 failed`
 - `HAS_SWIFT_TEST` → `swift test output shows 0 failures`
 - `HAS_OTHER_TEST` → use the specific command and "0 failures" phrasing from tasks.md
+
+**Pre-existing-failure rule** (applies to every test-runner line above): a runner also satisfies its gate when the only remaining failures are **proven pre-existing** — they still fail after `git stash` of this change's edits (so they are not change-introduced) and are unrelated to the change — provided each such failure is named in the completion summary. A failure that **disappears** when the change is stashed is change-introduced and still blocks. This keeps the full-suite run (so regressions the change causes anywhere are still caught) without letting one unrelated pre-existing red block the goal forever. Do NOT narrow the gate to only the change's own spec — that would miss regressions elsewhere.
 
 Coverage (emit when `HAS_TEST=true` AND (`HAS_COVERAGE=true` OR `MIN_COVERAGE` is
 set) — see `references/detection.md`): emit the test line using the runner's

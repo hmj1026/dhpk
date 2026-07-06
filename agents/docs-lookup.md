@@ -24,6 +24,7 @@ Answer library / framework / API questions from **current** docs via Context7, n
 
 - Invent API details, versions, or behavior
 - Skip Context7 when the question is about a specific library
+- Present a specific API detail (signature, option name, version behaviour) as fact when the fetched docs did not confirm it — mark it "unverified — confirm against docs" rather than asserting it from memory
 
 ## Ask before calling when
 
