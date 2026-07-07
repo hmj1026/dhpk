@@ -29,6 +29,9 @@ node_modules/
 # Local Claude Code overrides
 .claude/settings.local.json
 
+# Session retrospective log (local-only, not part of the dhpk plugin source)
+.claude/dhpk_advice.md
+
 # Plans
 .claude/plans/
 .claude/workflows/

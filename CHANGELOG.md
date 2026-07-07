@@ -22,8 +22,9 @@ to match.
 **test(hook)** — new unit test coverage for `post-edit-remind.sh` under
 plugin-development mode.
 
-**docs(advice)** — adds the `dhpk-advice-fe13512c-fixes` implementation
-retrospective and optimization-advice report to `.claude/dhpk_advice.md`.
+**chore(gitignore)** — `.claude/dhpk_advice.md` (the per-session retrospective
+log) is untracked and gitignored — it's local working state, not part of the
+shipped plugin source.
 
 ## 0.27.2 — 2026-07-06 — harness reliability fixes + execution-policy slim
 
