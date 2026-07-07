@@ -1,0 +1,12 @@
+name: react-19
+display_name: "React 19"
+version: 0.1.0
+description: "React 19 (December 2024) — Actions and async transitions, new hooks (useActionState/useOptimistic/useFormStatus and the use() API), ref as a regular prop (forwardRef no longer needed), <Context> as a provider, document metadata hoisting (<title>/<meta>/<link>), stylesheet + async-script precedence, resource preloading (preload/preinit), and stable Server Components / Server Actions. Removes long-deprecated APIs (ReactDOM.render/hydrate/unmountComponentAtNode, propTypes/defaultProps on function components, legacy Context, string refs). Recommended but NOT required for Next.js 16 (React 18.2+ also works). Pair cross-stack with a nextjs-<version> module, or use standalone for any non-Next React app."
+requires: []
+triggers:
+  frontend:
+    extensions: [".tsx", ".ts", ".jsx", ".js"]
+    paths: []
+provides:
+  skills: [react-19-notes]
+  references: []

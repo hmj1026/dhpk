@@ -244,6 +244,42 @@
       ]
     },
     {
+      "id": "nextjs",
+      "name": "Next.js",
+      "selection": "exclusive",
+      "description": "Next.js React framework — per-version modules. Pick 15.5 for the current stable line (15.x ends at v15.5.19; 15.6 never shipped stable). Pick 16 for the current major (Turbopack-by-default, next lint removed, async-only request APIs; supports React 18.2+ or 19). Single-version pick — a project runs one Next.js major at a time.",
+      "versions": [
+        {
+          "id": "15.5",
+          "module": "nextjs-15.5",
+          "status": "shipped"
+        },
+        {
+          "id": "16",
+          "module": "nextjs-16",
+          "status": "shipped"
+        }
+      ]
+    },
+    {
+      "id": "react",
+      "name": "React",
+      "selection": "exclusive",
+      "description": "React library — per-major modules. Pick 18 for React 18.x (createRoot, automatic batching, opt-in concurrent features, streaming SSR) or 19 for React 19.x (Actions, use(), ref-as-prop, document metadata, stable Server Components). Single-version pick — an app runs one React major. Pair cross-stack with a nextjs module (e.g. nextjs-16 + react-19), or use standalone for a non-Next React app.",
+      "versions": [
+        {
+          "id": "18",
+          "module": "react-18",
+          "status": "shipped"
+        },
+        {
+          "id": "19",
+          "module": "react-19",
+          "status": "shipped"
+        }
+      ]
+    },
+    {
       "id": "python",
       "name": "Python",
       "description": "Python language baseline + tooling. Modern Python (3.10+) idioms (type hints, dataclasses / pydantic, async-await discipline, logging-over-print, exception hierarchy), a post-edit ruff feedback hook (async, batched at Stop), and a pre-commit ruff-check + ruff-format + type-check (pyright|mypy) gate. Project root auto-detected by walking up to the nearest pyproject.toml, so monorepo backends (pyproject under backend/) work with zero config. Runner / binaries / type-checker overridable via userConfig (python_runner, ruff_bin, python_typechecker, python_project_roots). Framework-agnostic — pair with fastapi + pytest.",

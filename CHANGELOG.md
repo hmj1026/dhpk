@@ -1,5 +1,48 @@
 # Changelog
 
+## 0.28.0 — 2026-07-07 — Next.js + React stack modules
+
+Adds new `nextjs` and `react` stacks with opt-in per-version modules. The version
+bump + reinstall release step is handled separately by the project release flow;
+once released, `nextjs-15.5` / `nextjs-16` and `react-18` / `react-19` become
+selectable via `pluginConfigs."dhpk@dhpk".options.modules`.
+
+**feat(modules)** — new `nextjs-15.5` and `nextjs-16` modules (stack-module count
+27 → 29). `nextjs-15.5` covers the current stable 15.x line (`next typegen`,
+stable typed routes, beta Turbopack production builds, the `next lint`
+deprecation). `nextjs-16` covers the current major (Turbopack default for dev +
+build, async-only Request APIs, `next lint` + AMP removed, `next/image`
+`priority` → `preload`, removed runtime-config APIs, the 16.1 `next upgrade`
+CLI). Registered across `module-catalog.json` (new exclusive `nextjs` stack),
+`install-profiles.json` (`full.excludes`), and `.claude-plugin/plugin.json`
+(`skills[]` + descriptions); `README.md` / `README.zh-TW.md` updated in lockstep.
+
+**note(facts)** — Next.js 16 supports React 18.2+ or 19 (peerDependency
+`^18.2.0 || ^19.0.0`); React 19 is recommended but NOT required. Verified against
+Context7 `/vercel/next.js` and cross-checked with a second model at implementation
+time, correcting an earlier draft premise that framed React 19 as a hard upgrade
+blocker.
+
+**feat(modules)** — new `react-18` and `react-19` modules under a new exclusive
+`react` stack (stack-module count 29 → 31). `react-18` covers the concurrent
+baseline (`createRoot`/`hydrateRoot`, automatic batching, `startTransition` /
+`useTransition` / `useDeferredValue`, streaming SSR, `useId` /
+`useSyncExternalStore` / `useInsertionEffect`, StrictMode dev-only effect
+double-invoke). `react-19` covers Actions + async transitions (`useActionState` /
+`useOptimistic` / `useFormStatus` / `use()`), `ref` as a prop, `<Context>` as
+provider, document metadata hoisting, resource preloading, stable Server
+Components, and the removed legacy APIs (`ReactDOM.render`/`hydrate`,
+`propTypes`/`defaultProps` on function components, legacy Context, string refs).
+Registered across `module-catalog.json` (new exclusive `react` stack),
+`install-profiles.json` (`full.excludes`), and `.claude-plugin/plugin.json`
+(`skills[]` + descriptions); `README.md` / `README.zh-TW.md` updated in lockstep.
+React facts verified against Context7 `/reactjs/react.dev`.
+
+**note(design)** — reverses the Next.js design decision D3 ("no separate `react`
+module ships"). React-language guidance now lives in the dedicated `react-18` /
+`react-19` modules; the `nextjs-15.5` / `nextjs-16` modules now point to them
+cross-stack instead of inlining React notes.
+
 ## 0.27.3 — 2026-07-07 — premise verification + reviewer activeness + plugin-dev test coverage
 
 Dispatch-policy hardening for `opsx-apply-goal` and the orchestrator's execution

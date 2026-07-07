@@ -1,0 +1,12 @@
+name: nextjs-16
+display_name: "Next.js 16"
+version: 0.1.0
+description: "Next.js 16 — current stable major (now at 16.2.x). Turbopack is the default bundler for both dev and build (no --turbopack flag needed; --webpack opts out). next lint removed — bring your own ESLint/Biome CLI. AMP support fully removed. next/image priority deprecated for preload. serverRuntimeConfig/publicRuntimeConfig removed. next upgrade CLI added in 16.1. Requires Node.js 20.9+ and TypeScript 5.1+. Supports React 18.2+ or 19 — React 19 is recommended but NOT required (a React 18.2+ app adopts 16 without a React major upgrade). Biggest code-level break: params/searchParams/cookies/headers/draftMode are now async-only."
+requires: []
+triggers:
+  frontend:
+    extensions: [".tsx", ".ts", ".jsx", ".js"]
+    paths: []
+provides:
+  skills: [nextjs-16-notes]
+  references: []
