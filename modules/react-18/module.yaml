@@ -1,0 +1,12 @@
+name: react-18
+display_name: "React 18"
+version: 0.1.0
+description: "React 18 (March 2022) — createRoot/hydrateRoot (react-dom/client), automatic batching across promises/timeouts/native handlers, opt-in concurrent features (startTransition/useTransition/useDeferredValue), streaming SSR (renderToPipeableStream + selective hydration), and new hooks (useId/useSyncExternalStore/useInsertionEffect). StrictMode double-invokes effects in dev. React 18.2+ is the minimum Next.js 16 supports and one side of Next.js 15.5's React 18/19 dual support. Pair cross-stack with a nextjs-<version> module, or use standalone for any non-Next React app."
+requires: []
+triggers:
+  frontend:
+    extensions: [".tsx", ".ts", ".jsx", ".js"]
+    paths: []
+provides:
+  skills: [react-18-notes]
+  references: []
