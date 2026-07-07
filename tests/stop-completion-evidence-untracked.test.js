@@ -62,11 +62,13 @@ function runHook(repo, transcriptPath) {
   delete env.DHPK_ACTIVE_MODULES;
   env.DHPK_COMPLETION_EVIDENCE = '1'; // opt-in
   env.CLAUDE_PROJECT_DIR = repo; // pin ROOT to the temp repo
-  return spawnSync('bash', [HOOK], {
+  env.DHPK_TEST_HOOK = HOOK;
+  env.DHPK_TEST_PAYLOAD = JSON.stringify({ transcript_path: transcriptPath });
+  return spawnSync('bash', ['-c', 'printf %s "$DHPK_TEST_PAYLOAD" | bash "$DHPK_TEST_HOOK"'], {
     cwd: repo,
-    input: JSON.stringify({ transcript_path: transcriptPath }),
     env,
     encoding: 'utf8',
+    timeout: 10000,
   });
 }
 
