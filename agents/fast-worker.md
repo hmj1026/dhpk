@@ -46,6 +46,8 @@ After applying changes:
 2. **Pass** → report success, the verification output, and the complete edited-file list.
 3. **Fail** → diagnose from the error, apply the smallest fix that preserves intent, re-run. **Stop after 3 failed attempts** on the same error (same contract as the build-resolver family — see `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/build-resolver-skeleton.md` Stop conditions) and escalate: report the attempt log (what was tried + each error), ≥2 alternative paths, and a recommendation. Also stop early if a fix attempt needs an architectural redesign — propose it, don't force it.
 
+**Fixed-string matching for special-character greps.** When a verification grep searches for a string containing shell-special or multibyte/CJK characters — `$` (as in `${CLAUDE_PLUGIN_ROOT}`), the section sign `§`, fullwidth punctuation (`，（）——`), or other non-ASCII — use fixed-string matching (`grep -F`, or `grep -Fc` on a fixed substring), never a BRE/ERE. Under some locales (e.g. `zh_TW.UTF-8`) a BRE `$` next to a multibyte character silently matches zero times even when the string is present. A verification grep that returns zero matches for content you believe you just wrote MUST be re-checked with `grep -F` before you report it as a failure — report failure only if the fixed-string check also fails.
+
 ## Edited-file list (mandatory)
 
 Every report — pass, fail, or escalation — includes the complete list of files

@@ -112,6 +112,21 @@ case "$REL" in
     README*.md) [[ "$REL" != */* ]] && NEEDS[4]=1 ;;
 esac
 
+# doc-reviewer (slot 4) — plugin-source mode. When this repo IS a plugin source
+# (a repo-root .claude-plugin/plugin.json marker), the plugin's OWN harness lives
+# at repo-root agents/ rules/ skills/ agent-traps/ commands/ (not under .claude/),
+# so the consumer-mode .claude/{…}/ match above never fires for plugin self-edits.
+# Arm doc-review for those repo-root harness .md files too, so plugin
+# self-development is not review-gate-blind. `.claude/artifacts/**` stays exempt
+# (handled by the early exit near the top); non-harness repo-root files (README,
+# tests/, scripts/) are unaffected by this branch.
+if [ -f "$ROOT/.claude-plugin/plugin.json" ]; then
+    case "$REL" in
+        agents/*|rules/*|skills/*|agent-traps/*|commands/*)
+            case "$BASENAME" in *.md) NEEDS[4]=1 ;; esac ;;
+    esac
+fi
+
 
 # ---- Active-module triggers ----
 # DHPK_ACTIVE_MODULES is set by session-start.sh (csv of module names).
