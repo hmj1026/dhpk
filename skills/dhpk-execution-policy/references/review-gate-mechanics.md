@@ -28,6 +28,10 @@ At the end of a turn that produced Edits/Writes, gather ALL pending sentinels, t
 - `code-reviewer` and `doc-reviewer` **are not mutually exclusive**: mixed diffs (PHP + .sh + plain `.claude/` policy doc) dispatch both. Single-type diffs dispatch only the matching one.
 - Pure research / planning (no Edit/Write) skips all reviewer agents.
 
+## Reviewer liveness — a no-op return is a failed gate
+
+A reviewer that *ran* but did no work is a distinct failure from a reviewer that never fired. When a dispatched reviewer returns with `tool_uses=0` (no `Read`/`Grep`/`Bash`), or a body that only echoes an injected `<system-reminder>` / agent roster rather than a findings-plus-verdict report, the gate is **FAILED, not satisfied** — the orchestrator must not mark the review complete or accept a cleared sentinel. Re-dispatch to a reviewer that can actually run it: substitute a stronger reviewer (`code-reviewer`, chartered to review the same `.claude/`-style agents/rules/skills markdown) for a misfiring Haiku `doc-reviewer`, never retry the same agent a third identical time (anti-loop), and record the substitution and its reason in the conversation. A real review — `Read`/`Grep` performed, a findings list plus an explicit gate verdict returned — is evaluated on its verdict as usual, with no substitution. SSOT: `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §Reviewer dispatch.
+
 ## AI-judgment back-stop — explanatory notes
 
 > **Why view-layer script doesn't go through the hook**: `post-edit-dispatch.sh` uses path-pattern matching (O(1)). Detecting `<script>` blocks would require reading the full PHP file content on every Edit (grep cost asymmetric to the edit cost). Per the trigger taxonomy, view templates don't all contain `<script>`; AI looking at the diff has near-zero recognition cost, so back-stop is sufficient.
