@@ -165,7 +165,7 @@ output per that section (re-surface the report, cross-check git diff, confirm
 the sentinels). Continue until all of the following hold,
 ```
 Substitute `<CODEX_STATEMENT>` with the session's CODEX setting from Step 1 (state it explicitly, never leave the orchestrator to infer it):
-- `CODEX=on` → `CODEX is ON for this session: at a contradiction-arbitration point where two agents' conclusions directly conflict, run a cross-model (Codex) doubt cycle per ${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md §In-flight doubt cycle rather than skipping it`
+- `CODEX=on` → `CODEX is ON for this session: at a contradiction-arbitration point where two agents' conclusions directly conflict, run a cross-model (Codex) doubt cycle per ${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md §In-flight doubt cycle rather than skipping it; and PROACTIVELY, before finalizing a high-stakes solo design edit that has no inter-agent conflict to arbitrate — the goal-template generator itself, an SSOT policy file, or the deferral of a spec'd requirement — run a parallel dhpk:codex-bridge independent review per ${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md §CODEX=on high-stakes parallel peer path, so the declared CODEX=on capability fires on the session's riskiest edits and not only at two-agent contradiction points`
 - `CODEX=off` → `CODEX is OFF for this session: at a contradiction-arbitration point where two agents' conclusions directly conflict, announce "cross-model doubt skipped (CODEX=off)" per ${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md §In-flight doubt cycle rather than performing a cross-model pass`
 This reuses the existing skip-announced policy at `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §In-flight doubt cycle rather than introducing new wording there.
 
@@ -191,6 +191,8 @@ Test runners (only if `HAS_TEST=true`):
 - `HAS_OTHER_TEST` → use the specific command and "0 failures" phrasing from tasks.md
 
 **Pre-existing-failure rule** (applies to every test-runner line above): a runner also satisfies its gate when the only remaining failures are **proven pre-existing** — they still fail after `git stash` of this change's edits (so they are not change-introduced) and are unrelated to the change — provided each such failure is named in the completion summary. A failure that **disappears** when the change is stashed is change-introduced and still blocks. This keeps the full-suite run (so regressions the change causes anywhere are still caught) without letting one unrelated pre-existing red block the goal forever. Do NOT narrow the gate to only the change's own spec — that would miss regressions elsewhere.
+
+**Pre-existing-warnings rule** (harness validators, e.g. `scripts/validate/validate-harness.sh`): a validator result of **PASS-with-warnings** counts as green for this gate when every remaining warning is **proven pre-existing** — present and identical on a `git stash`-ed clean HEAD, unrelated to the change, and named in the completion summary. A warning that **disappears** when the change is stashed is change-introduced and still blocks (mirroring the pre-existing-failure rule above). `validate-harness.sh` currently exits non-zero (2) on warnings-only; the gate SHALL NOT treat that non-zero exit alone as a failure when the `PASS (with warnings)` line and the pre-existing proof are both present.
 
 Coverage (emit when `HAS_TEST=true` AND (`HAS_COVERAGE=true` OR `MIN_COVERAGE` is
 set) — see `references/detection.md`): emit the test line using the runner's
@@ -366,8 +368,11 @@ This session will NOT auto-run /goal or opsx:apply.
       cross-check git diff / confirm sentinels) anchored at
       `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` (not a bare relative
       path), and states the session's CODEX setting explicitly (`CODEX is ON`
-      or `CODEX is OFF` per Step 1's `--codex` detection); absent — Part 0
-      byte-identical to pre-change output —
+      or `CODEX is OFF` per Step 1's `--codex` detection) — and when `CODEX is
+      ON`, the CODEX statement also carries the proactive high-stakes-peer clause
+      (a parallel dhpk:codex-bridge independent review before finalizing a
+      high-stakes solo design edit, per §CODEX=on high-stakes parallel peer
+      path); absent — Part 0 byte-identical to pre-change output —
       when `orchestration_dispatch=off`
 - [ ] Sentinel check in Part 2 uses `ls .claude/artifacts/sessions/.pending-*` (not reviewer names)
 - [ ] Non-automatable tasks appear in Block A warning, NOT in Part 3
