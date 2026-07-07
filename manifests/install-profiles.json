@@ -51,7 +51,11 @@
         "laravel-9": "Laravel major (mutually exclusive) — requires PHP 7+",
         "laravel-10": "Laravel major (mutually exclusive) — requires PHP 8+",
         "laravel-11": "Laravel major (mutually exclusive) — requires PHP 8.2+",
-        "laravel-mix": "Laravel-world frontend build toolchain — pairs with the excluded Laravel majors"
+        "laravel-mix": "Laravel-world frontend build toolchain — pairs with the excluded Laravel majors",
+        "nextjs-15.5": "Next.js version (mutually exclusive) — modern application framework outside full's legacy-PHP/Yii reference theme; no representative chosen, mirrors the modern-Laravel exclusion",
+        "nextjs-16": "Next.js version (mutually exclusive) — upgrade target; excluded alongside nextjs-15.5 for the same reason",
+        "react-18": "React major (mutually exclusive) — library-language module outside full's legacy-PHP/Yii reference theme; no representative chosen, mirrors the Next.js/modern-Laravel exclusion",
+        "react-19": "React major (mutually exclusive) — upgrade target; excluded alongside react-18 for the same reason"
       }
     }
   }
