@@ -43,6 +43,13 @@ check_one() {
     local name="$1" agent="$2"
     local file="$SESS/$name"
     [ -f "$file" ] || return 0
+    local active_name="${name/.pending-/.active-}"
+    local active_file="$SESS/$active_name"
+    local active_count=0
+    if [ -f "$active_file" ]; then
+        active_count="$(awk 'NF { c++ } END { print c + 0 }' "$active_file" 2>/dev/null)"
+        active_count="${active_count:-0}"
+    fi
 
     local count file_list extra=""
     count="$(wc -l < "$file" 2>/dev/null | tr -d ' ')"
@@ -65,12 +72,20 @@ check_one() {
     # stderr — Claude Code's Stop hook feeds stderr back to Claude when exit=2.
     echo >&2 ""
     echo >&2 "-----------------------------------------------------------"
-    echo >&2 "[WARN] PENDING: $agent ($count file(s) awaiting review)"
+    if [ "$active_count" -gt 0 ]; then
+        echo >&2 "[WARN] IN-FLIGHT: $agent ($count file(s) awaiting review; $active_count dispatch(es) still running)"
+    else
+        echo >&2 "[WARN] PENDING: $agent ($count file(s) awaiting review)"
+    fi
     echo >&2 "   Triggering files:"
     echo >&2 "$file_list"
     [ -n "$extra" ] && echo >&2 "$extra"
     echo >&2 ""
-    echo >&2 "   Recommended: invoke '$agent'"
+    if [ "$active_count" -gt 0 ]; then
+        echo >&2 "   Recommended: wait for the existing $agent result; do not dispatch a duplicate reviewer."
+    else
+        echo >&2 "   Recommended: invoke '$agent'"
+    fi
     # Pre-resolve CLAUDE_PLUGIN_ROOT so the printed command is copy-paste-runnable
     # in a fresh shell where the env var is not set. Fall back to literal + export
     # hint if the hook itself was invoked without the var (unlikely but safe).

@@ -23,6 +23,7 @@ set -o pipefail
 
 # ---- Argument parsing (back-compatible: no args = 24h warn-only) ----
 threshold_minutes=$((24 * 60))   # default 1440 min = 24h
+active_threshold_minutes=60      # liveness markers are shorter-lived than pending review sentinels
 do_clear=0
 while [ "$#" -gt 0 ]; do
     case "$1" in
@@ -32,6 +33,14 @@ while [ "$#" -gt 0 ]; do
                 ''|*[!0-9]*) echo "[reap-sentinels] --threshold-minutes must be a positive integer (got: $2)" >&2; exit 2 ;;
             esac
             threshold_minutes="$2"
+            shift 2
+            ;;
+        --active-threshold-minutes)
+            [ -n "${2:-}" ] || { echo "[reap-sentinels] --active-threshold-minutes requires a value" >&2; exit 2; }
+            case "$2" in
+                ''|*[!0-9]*) echo "[reap-sentinels] --active-threshold-minutes must be a positive integer (got: $2)" >&2; exit 2 ;;
+            esac
+            active_threshold_minutes="$2"
             shift 2
             ;;
         --clear)
@@ -83,13 +92,48 @@ for name in "${SENTINEL_NAMES[@]}"; do
     fi
 done
 
+# ---- Active liveness marker pass: prune stale entries individually ----
+sessions_dir="$repo_root/.claude/artifacts/sessions"
+active_threshold=$((active_threshold_minutes * 60))
+if [ -d "$sessions_dir" ]; then
+    for name in "${SENTINEL_NAMES[@]}"; do
+        active_name="${name/.pending-/.active-}"
+        active="$sessions_dir/$active_name"
+        [ -f "$active" ] || continue
+        tmp="$(mktemp 2>/dev/null || printf '%s.reap.tmp' "$active")"
+        : > "$tmp"
+        stale_count=0
+        while IFS= read -r line || [ -n "$line" ]; do
+            [ -n "$line" ] || continue
+            ts="${line%% *}"
+            case "$ts" in
+                ''|*[!0-9]*) printf '%s\n' "$line" >> "$tmp"; continue ;;
+            esac
+            age=$((now - ts))
+            if [ "$age" -gt "$active_threshold" ]; then
+                stale_count=$((stale_count + 1))
+            else
+                printf '%s\n' "$line" >> "$tmp"
+            fi
+        done < "$active"
+        if [ "$stale_count" -gt 0 ]; then
+            echo "[reap-sentinels] reaped ACTIVE: $active_name ($stale_count stale entr$( [ "$stale_count" -eq 1 ] && printf 'y' || printf 'ies' ); threshold ${active_threshold_minutes}min)" >&2
+            found_stale=1
+        fi
+        if [ -s "$tmp" ]; then
+            mv -f "$tmp" "$active"
+        else
+            rm -f "$tmp" "$active"
+        fi
+    done
+fi
+
 # ---- Unknown-stray pass: .pending-* files NOT in the SSOT ----
 # These have no clearing agent (clear-sentinel.sh rejects unknown names by
 # whitelist), so an orphan here blocks the opsx-apply-goal `ls .pending-* == NONE`
 # gate forever. Surface ALWAYS (age is irrelevant to visibility when nothing
 # can ever clear it); with --clear, remove only those older than the threshold
 # (a fresh one may be a legit project-custom sentinel created mid-session).
-sessions_dir="$repo_root/.claude/artifacts/sessions"
 if [ -d "$sessions_dir" ]; then
     while IFS= read -r stray; do
         [ -n "$stray" ] || continue
