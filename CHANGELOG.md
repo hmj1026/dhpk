@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased] — Next.js + React stack modules
+## 0.28.0 — 2026-07-07 — Next.js + React stack modules
 
 Adds new `nextjs` and `react` stacks with opt-in per-version modules. The version
 bump + reinstall release step is handled separately by the project release flow;
