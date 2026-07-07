@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.27.3 — 2026-07-07 — premise verification + reviewer activeness + plugin-dev test coverage
+
+Dispatch-policy hardening for `opsx-apply-goal` and the orchestrator's execution
+policy, plus new unit coverage for a plugin-development hook path.
+
+**chore(rules)** — `execution-policy.md` gains premise-verification guidance
+(don't trust unverified behavioral claims before dispatch), a non-blocking
+polling rule, a `SendMessage` reuse rule for resuming agents, and a proactive
+CODEX peer-review clause for high-stakes changes.
+
+**chore(skill)** — `opsx-apply-goal`'s Part 0 dispatch clause adds premise
+verification and CODEX configuration, a Pre-existing-warnings rule, and a
+proactive peer-review clause for CODEX mode.
+
+**chore(agent)** — `deep-reasoner` and `e2e-runner` gain a new Playwright trap
+sheet reference; `fast-worker` gets a tightened special-character grep-matching
+spec; `post-edit-remind.sh` adjusts its plugin-development-mode trigger logic
+to match.
+
+**test(hook)** — new unit test coverage for `post-edit-remind.sh` under
+plugin-development mode.
+
+**chore(gitignore)** — `.claude/dhpk_advice.md` (the per-session retrospective
+log) is untracked and gitignored — it's local working state, not part of the
+shipped plugin source.
+
 ## 0.27.2 — 2026-07-06 — harness reliability fixes + execution-policy slim
 
 Two hook reliability fixes plus dispatch-policy refinements distilled from a

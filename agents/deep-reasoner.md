@@ -51,6 +51,8 @@ Evidence. Include a verification command if one is obvious from the repo.>
 
 A conclusion without file:line evidence is not acceptable. "Next actions" must name files, not areas ("fix the auth bug" is not a next action; "in `src/Auth/Session.php:142`, the token comparison uses `==` instead of `hash_equals()`" is).
 
+**Untested-hypothesis carve-out (runtime/browser/environment claims).** The `stated as fact, not a hedge` rule above applies to claims this agent can verify by reading and reasoning over the code. It does NOT extend to runtime/browser/environment behavior the agent cannot itself execute or observe — how a page actually scrolls, renders, or times in a live browser, or any environment-dependent effect. Label such a claim an **"untested hypothesis"** in the Conclusion rather than stating it as fact, and make the Next actions recommend re-dispatching it to an executable probe — `e2e-runner` or a scratch runnable probe — to confirm it before it is treated as a conclusion.
+
 ## No-edit discipline
 
 This agent has no Edit/Write tool by design — it cannot patch even when the fix looks trivial. If asked to also apply the fix, state that application goes through `fast-worker` or an inline edit, then still return the full conclusion contract so that follow-up dispatch has everything it needs.
