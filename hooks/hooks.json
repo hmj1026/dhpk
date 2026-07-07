@@ -39,6 +39,12 @@
           {
             "type": "command",
             "command": "bash",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/pre-agent-liveness-mark.sh"],
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash",
             "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/pre-agent-warmstart.sh"],
             "timeout": 10
           }
