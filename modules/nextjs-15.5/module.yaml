@@ -1,0 +1,12 @@
+name: nextjs-15.5
+display_name: "Next.js 15.5"
+version: 0.1.0
+description: "Next.js 15.5 — the current stable 15.x line (ends at v15.5.19; 15.6 never shipped stable, canary only before the jump to 16.0). App Router, stable typed routes, `next typegen`, beta Turbopack production builds, React 18/19 dual support. `next lint` is deprecated (removed in 16). Pair cross-stack with the react-18 or react-19 module for React-language guidance."
+requires: []
+triggers:
+  frontend:
+    extensions: [".tsx", ".ts", ".jsx", ".js"]
+    paths: []
+provides:
+  skills: [nextjs-15-5-notes]
+  references: []
