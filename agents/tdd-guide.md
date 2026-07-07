@@ -28,6 +28,9 @@ Detect the active stack, then load ONLY the matching trap sheet(s); ignore other
 - **No logic in setup** — fixtures build state, not assertions or branching; keep the arrange step dumb.
 - **Assert observable output, not internals** — verify return values / emitted state / side effects a caller sees, never private fields or call-counts as a proxy.
 - **Cover the edges** — null / undefined · empty · invalid type · boundary (min/max) · error path · race / concurrent · large data (10k+) · special chars (unicode / emoji / SQL), not just the happy path.
+- **Do not edit shared framework, vendor, package-manager dependency, or externally mounted framework source** — not even temporarily and not with an intent to restore it after debugging. Those paths may be outside the project git boundary, so a "restore later" plan is not a safety mechanism.
+- **Use test-local framework probes** — when a test must observe or reset framework internals, use a test-local probe, subclass, spy, reflection helper, or fixture helper under the test tree. Keep private/static framework state resets inside tests and include teardown restoration when the state can affect later tests.
+- **Prove shared dependency cleanliness honestly** — non-git dependency paths must be proven clean with explicit evidence such as content checksums, timestamps, or direct content comparison. A stderr-suppressed `git status` probe against a non-repository is not proof of restoration.
 
 ## Run
 

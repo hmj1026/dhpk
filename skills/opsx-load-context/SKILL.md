@@ -29,7 +29,29 @@ Work through tiers in order. Stop at the first successful tier and record `CONTE
 
 ---
 
-### Pre-chain — Unattended stop resume note (highest priority)
+### Pre-chain — Hard-rule escalation (highest priority — blocking human decision)
+
+**Condition**: An active change carries a `.hard-rule-escalation.md` written by
+`opsx-apply-goal` because unattended implementation hit an explicit hard-rule
+conflict that could not be resolved without human input. Check this before
+routine carry-forward such as `.resume-note.md`.
+
+```bash
+ESCALATION=$(ls -t openspec/changes/*/.hard-rule-escalation.md 2>/dev/null | head -1)
+```
+
+- File found → read it and surface it as a blocking human decision. Set
+  `CONTEXT_SOURCE = ".hard-rule-escalation.md"`. Do not fold it into ordinary
+  `session_goal` / `in_progress` resume context, and do not continue the goal
+  loop until the human explicitly decides how to resolve the rule conflict.
+- No file (the common case) → fall through to the unattended stop resume note.
+
+Best-effort only: a malformed or unreadable escalation file still blocks; report
+the path and ask the human to inspect it.
+
+---
+
+### Pre-chain — Unattended stop resume note (checked after hard-rule escalation)
 
 **Condition**: An active change carries a `.resume-note.md` (written by
 `opsx-apply-goal`'s Part 4 when an unattended session hit its turn or wall-clock
@@ -116,7 +138,7 @@ Cross-session context is always optional — never retry or block on it.
 
 | Variable | Type | Description |
 |----------|------|-------------|
-| `CONTEXT_SOURCE` | string | One of: ".resume-note.md", "claude-mem obs #N", "compact JSON", "compact JSON (heuristic)", "handoff only" |
+| `CONTEXT_SOURCE` | string | One of: ".hard-rule-escalation.md", ".resume-note.md", "claude-mem obs #N", "compact JSON", "compact JSON (heuristic)", "handoff only" |
 | `session_goal` | string | Goal from context, or "(未取得)" |
 | `completed` | list | Completed items, or empty list |
 | `in_progress` | list | In-progress items, or empty list |
@@ -127,7 +149,7 @@ All variables always set — no undefined outputs. The caller (Resume Phase Step
 ## Verification
 
 - [ ] `CONTEXT_SOURCE` set to exactly one tier label
-- [ ] Pre-chain `.resume-note.md` checked first; absent → falls through silently to Tier 0
+- [ ] Pre-chain `.hard-rule-escalation.md` checked before `.resume-note.md`; both absent → falls through silently to Tier 0
 - [ ] Stopped at the first successful tier (no redundant lower-tier calls)
 - [ ] All return fields set — no undefined outputs (Tier 2 always succeeds from handoff)
 - [ ] Cross-session search failure handled silently (`cross_session_observations = []`)

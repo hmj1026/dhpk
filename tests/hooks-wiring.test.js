@@ -38,4 +38,13 @@ test('every referenced hook script is executable', () => {
   }
 });
 
+test('Task|Agent PreToolUse hooks include reviewer liveness marker before subagent work returns', () => {
+  const parsed = JSON.parse(raw);
+  const taskAgent = parsed.hooks.PreToolUse.find((entry) => entry.matcher === 'Task|Agent');
+  assert.ok(taskAgent, 'missing Task|Agent PreToolUse matcher');
+  const args = taskAgent.hooks.flatMap((hook) => hook.args || []);
+  assert.ok(args.some((arg) => arg.includes('scripts/hooks/pre-agent-liveness-mark.sh')),
+    'Task|Agent PreToolUse must wire pre-agent-liveness-mark.sh');
+});
+
 run('hooks-wiring');

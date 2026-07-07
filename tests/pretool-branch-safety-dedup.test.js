@@ -43,11 +43,13 @@ function runHook(cwd, tmpdir, extraEnv) {
     session_id: 'testsess1',
     tool_input: { command: 'git commit -m x' },
   });
-  return spawnSync('bash', [HOOK], {
+  env.DHPK_TEST_HOOK = HOOK;
+  env.DHPK_TEST_PAYLOAD = payload;
+  return spawnSync('bash', ['-c', 'printf %s "$DHPK_TEST_PAYLOAD" | bash "$DHPK_TEST_HOOK"'], {
     cwd,
-    input: payload,
     env,
     encoding: 'utf8',
+    timeout: 10000,
   });
 }
 

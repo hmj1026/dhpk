@@ -37,13 +37,15 @@ PROFILE="${CLAUDE_PLUGIN_OPTION_HOOK_PROFILE:-standard}"
 PAYLOAD="$(cat 2>/dev/null || true)"
 
 # Try multiple field names — SubagentStop envelope schema differs across
-# Claude Code versions (subagent_type vs subagent vs tool_input.subagent_type).
+# Claude Code versions. The current (verified) schema delivers the reviewer
+# identity in top-level `agent_type`, prefixed with the plugin namespace (e.g.
+# `dhpk:doc-reviewer`); other candidates are kept for back-compat / forward-compat.
 extract_subagent_name() {
     local payload="$1" out=""
     [ -z "$payload" ] && return 0
     if command -v jq >/dev/null 2>&1; then
         out="$(printf '%s' "$payload" | jq -r '
-            .subagent_type // .subagent // .tool_input.subagent_type // empty
+            .agent_type // .subagent_type // .subagent // .agent_name // .tool_input.subagent_type // empty
         ' 2>/dev/null || true)"
     fi
     if [ -z "$out" ] && command -v python3 >/dev/null 2>&1; then
@@ -52,8 +54,10 @@ import sys, json
 try:
     d = json.load(sys.stdin)
     print(
-        d.get("subagent_type")
+        d.get("agent_type")
+        or d.get("subagent_type")
         or d.get("subagent")
+        or d.get("agent_name")
         or d.get("tool_input", {}).get("subagent_type")
         or ""
     )
@@ -102,7 +106,9 @@ EXIT_STATUS="$(extract_exit_status "$PAYLOAD")"
 SLOT=-1
 if [ -n "$SUBAGENT" ]; then
     for i in "${!SENTINEL_AGENTS[@]}"; do
-        if [ "${SENTINEL_AGENTS[$i]}" = "$SUBAGENT" ]; then
+        # ##*: strips the plugin namespace (dhpk:doc-reviewer -> doc-reviewer)
+        # so plugin-prefixed dispatch identities match bare SENTINEL_AGENTS names.
+        if [ "${SENTINEL_AGENTS[$i]##*:}" = "${SUBAGENT##*:}" ]; then
             SLOT="$i"
             break
         fi
@@ -116,16 +122,104 @@ fi
 
 SENTINEL_NAME="${SENTINEL_NAMES[$SLOT]}"
 SENTINEL_FILE="$SESS/$SENTINEL_NAME"
+ACTIVE_NAME="${SENTINEL_NAME/.pending-/.active-}"
+ACTIVE_FILE="$SESS/$ACTIVE_NAME"
 TIMESTAMP="$(date -Iseconds 2>/dev/null || date +%Y-%m-%dT%H:%M:%S%z)"
+# Namespace-stripped reviewer identity (dhpk:database-reviewer -> database-reviewer)
+# for the reviews-dir glob and ldb keys: review docs are named with the bare
+# reviewer label (e.g. database-reviewer-*.md), so the raw prefixed $SUBAGENT
+# would never match them under the real (agent_type) payload schema.
+SUBAGENT_BARE="${SUBAGENT##*:}"
 
 mkdir -p "$(dirname "$LOG")" 2>/dev/null || true
+
+remove_one_active_entry() {
+    local file="$1" tmp=""
+    [ -f "$file" ] || return 0
+    tmp="$(mktemp 2>/dev/null || printf '%s.tmp.%s' "$file" "$$")"
+    awk 'NR > 1 { print }' "$file" > "$tmp" 2>/dev/null || { rm -f "$tmp"; return 0; }
+    if [ -s "$tmp" ]; then
+        mv -f "$tmp" "$file" 2>/dev/null || rm -f "$tmp"
+    else
+        rm -f "$tmp" "$file"
+    fi
+}
+
+refresh_unresolved_verdict() {
+    local sentinel="$1" agent="$2" reviews_dir="$ROOT/.claude/artifacts/reviews"
+    local sidecar="$SESS/.unresolved-verdict" latest=""
+    [ -d "$reviews_dir" ] || return 0
+    latest="$(ls -t "$reviews_dir/$agent"-*.md 2>/dev/null | head -1 || true)"
+    [ -n "$latest" ] || return 0
+
+    mkdir -p "$SESS" 2>/dev/null || true
+    SENTINEL_NAME_IN="$sentinel" AGENT_NAME_IN="$agent" ARTIFACT_IN="$latest" SIDECAR_IN="$sidecar" python3 - <<'PY' 2>/dev/null || true
+import os
+import re
+from pathlib import Path
+
+sentinel = os.environ["SENTINEL_NAME_IN"]
+agent = os.environ["AGENT_NAME_IN"]
+review_doc = Path(os.environ["ARTIFACT_IN"])
+sidecar = Path(os.environ["SIDECAR_IN"])
+
+try:
+    text = review_doc.read_text(encoding="utf-8", errors="replace")
+except OSError:
+    raise SystemExit(0)
+
+frontmatter = text
+if text.startswith("---"):
+    parts = text.split("---", 2)
+    if len(parts) >= 3:
+        frontmatter = parts[1]
+
+verdict_match = re.search(r"(?im)^\s*verdict\s*:\s*['\"]?([A-Za-z_-]+)", frontmatter)
+verdict = verdict_match.group(1).upper() if verdict_match else ""
+
+def count(name):
+    m = re.search(rf"(?i)\b{name}\b\s*:\s*(\d+)", frontmatter)
+    return int(m.group(1)) if m else 0
+
+critical = count("critical")
+high = count("high")
+medium = count("medium")
+unresolved = verdict in {"BLOCK", "FAIL"} or critical > 0 or high > 0 or medium > 0
+
+lines = []
+if sidecar.exists():
+    try:
+        lines = [
+            line for line in sidecar.read_text(encoding="utf-8", errors="replace").splitlines()
+            if line and not line.startswith(sentinel + "\t")
+        ]
+    except OSError:
+        lines = []
+
+if unresolved:
+    reason = f"{sentinel}\t{agent}\tverdict={verdict or 'UNKNOWN'} critical={critical} high={high} medium={medium} review_doc={review_doc.name}"
+    lines.append(reason)
+
+if lines:
+    sidecar.write_text("\n".join(lines) + "\n", encoding="utf-8")
+else:
+    try:
+        sidecar.unlink()
+    except FileNotFoundError:
+        pass
+PY
+}
+
+# Liveness is independent of review success: a known reviewer has stopped, so
+# exactly one in-flight entry for that slot is no longer active.
+remove_one_active_entry "$ACTIVE_FILE"
 
 if [ "$EXIT_STATUS" != "0" ]; then
     # Case A: subagent failed.
     SENTINEL_STATE="none"
     [ -f "$SENTINEL_FILE" ] && SENTINEL_STATE="$SENTINEL_NAME"
     echo "$TIMESTAMP $SUBAGENT exit=$EXIT_STATUS sentinel=$SENTINEL_STATE" >> "$LOG" || true
-    ldb_record failure "agent:$SUBAGENT" "exit=$EXIT_STATUS"
+    ldb_record failure "agent:$SUBAGENT_BARE" "exit=$EXIT_STATUS"
     if [ "$PROFILE" != "minimal" ]; then
         msg="[subagent-verify] SUBAGENT FAILURE: $SUBAGENT (exit=$EXIT_STATUS)"
         if [ -f "$SENTINEL_FILE" ]; then
@@ -157,11 +251,15 @@ elif [ -f "$SENTINEL_FILE" ]; then
     fi
     rm -f "$SENTINEL_FILE"
     echo "$TIMESTAMP $SUBAGENT exit=0 sentinel=$SENTINEL_NAME (auto-cleared)" >> "$LOG" || true
-    ldb_record failure "sentinel-uncleared:$SENTINEL_NAME" "$SUBAGENT"
+    ldb_record failure "sentinel-uncleared:$SENTINEL_NAME" "$SUBAGENT_BARE"
     if [ "$PROFILE" != "minimal" ]; then
         emit_system_message "[subagent-verify] AUTO-CLEARED: $SUBAGENT finished; cleared $SENTINEL_NAME on its behalf.
 Logged to: .claude/artifacts/agent-failures.log"
     fi
+fi
+
+if [ "$EXIT_STATUS" = "0" ]; then
+    refresh_unresolved_verdict "$SENTINEL_NAME" "$SUBAGENT_BARE"
 fi
 
 # Advisory only — never block the chain.

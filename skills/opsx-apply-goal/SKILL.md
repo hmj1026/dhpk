@@ -140,7 +140,9 @@ pre-change output, no dispatch clause:
 ```
 Invoke the opsx:apply skill for change <CHANGE_ID> and continue implementing
 openspec/changes/<CHANGE_ID>/tasks.md from the first unchecked item without
-stopping for confirmation, until all of the following hold,
+stopping for confirmation. That instruction covers ordinary implementation
+judgment calls only; it is never an explicit project hard-rule conflict bypass.
+Continue until all of the following hold,
 ```
 
 `DISPATCH_ON=true` (default) — the same kickoff with one dispatch directive
@@ -148,7 +150,9 @@ appended before the transition into the stop conditions:
 ```
 Invoke the opsx:apply skill for change <CHANGE_ID> and continue implementing
 openspec/changes/<CHANGE_ID>/tasks.md from the first unchecked item without
-stopping for confirmation. You are the orchestrator: dispatch implementation
+stopping for confirmation. That instruction covers ordinary implementation
+judgment calls only; it is never an explicit project hard-rule conflict bypass.
+You are the orchestrator: dispatch implementation
 per ${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md §Implementation dispatch —
 mechanical/multi-file clear-spec work to dhpk:fast-worker (including multi-file
 same-semantic artifact/doc consistency corrections, ≥3 files), reasoning-heavy
@@ -160,12 +164,16 @@ unverified behavioral premise (bug-repro condition, algorithm correctness,
 data-shape/plan assumption), first verify the premise with the probe that can
 actually run it — code/algorithm/data-shape premises with dhpk:deep-reasoner,
 runtime/browser/environment behavior premises with dhpk:e2e-runner or a scratch
-executable probe. <CODEX_STATEMENT>. After each worker returns, verify its
+executable probe. Apply the Repository Discovery Gate before finalizing new DB,
+SQL, query-builder, criteria, model-persistence, or repository-like code:
+explicit project hard rules cannot be deferred because a prior design chose a cheaper implementation;
+comply with the hard rule or stop for a human-approved
+exception. <CODEX_STATEMENT>. After each worker returns, verify its
 output per that section (re-surface the report, cross-check git diff, confirm
 the sentinels). Continue until all of the following hold,
 ```
 Substitute `<CODEX_STATEMENT>` with the session's CODEX setting from Step 1 (state it explicitly, never leave the orchestrator to infer it):
-- `CODEX=on` → `CODEX is ON for this session: at a contradiction-arbitration point where two agents' conclusions directly conflict, run a cross-model (Codex) doubt cycle per ${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md §In-flight doubt cycle rather than skipping it; and PROACTIVELY, before finalizing a high-stakes solo design edit that has no inter-agent conflict to arbitrate — the goal-template generator itself, an SSOT policy file, or the deferral of a spec'd requirement — run a parallel dhpk:codex-bridge independent review per ${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md §CODEX=on high-stakes parallel peer path, so the declared CODEX=on capability fires on the session's riskiest edits and not only at two-agent contradiction points`
+- `CODEX=on` → `CODEX is ON for this session: at a contradiction-arbitration point where two agents' conclusions directly conflict, run a cross-model (Codex) doubt cycle per ${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md §In-flight doubt cycle rather than skipping it; and PROACTIVELY, before finalizing a high-stakes solo design edit or decision that has no inter-agent conflict to arbitrate — the goal-template generator itself, an SSOT policy file, the deferral of a spec'd requirement, first-seen query/repository patterns, framework-internal hacks or private-state resets, or explicit-rule deferrals — run a parallel dhpk:codex-bridge independent review per ${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md §CODEX=on high-stakes parallel peer path, so the declared CODEX=on capability fires on the session's riskiest edits and not only at two-agent contradiction points`
 - `CODEX=off` → `CODEX is OFF for this session: at a contradiction-arbitration point where two agents' conclusions directly conflict, announce "cross-model doubt skipped (CODEX=off)" per ${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md §In-flight doubt cycle rather than performing a cross-model pass`
 This reuses the existing skip-announced policy at `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §In-flight doubt cycle rather than introducing new wording there.
 
@@ -178,6 +186,12 @@ All checkboxes in openspec/changes/<CHANGE_ID>/tasks.md are [x] (Claude confirme
 ```
 Claude ran `ls .claude/artifacts/sessions/.pending-* 2>/dev/null || echo NONE`
 and confirmed the output is NONE in conversation (all pending reviewer sentinels cleared)
+```
+
+**Part 2b (always — unresolved reviewer verdict sidecar check):**
+```
+Claude ran `test ! -s .claude/artifacts/sessions/.unresolved-verdict && echo NONE || cat .claude/artifacts/sessions/.unresolved-verdict`
+and confirmed the output is NONE in conversation (no unresolved reviewer verdict sidecar entries)
 ```
 
 **Part 3 (verification gates — emit one line per detected gate; omit the whole
@@ -219,6 +233,11 @@ set** (when absent, omit that line — behavior unchanged):
 ```
 OR stop after <TURN_BUDGET> turns
 OR stop after <MAX_DURATION> wall-clock elapsed
+OR stop immediately when an explicit project hard-rule conflict cannot be
+resolved by strict compliance without human input; write
+openspec/changes/<CHANGE_ID>/.hard-rule-escalation.md with the rule,
+conflicting decision with file:line evidence, and why compliance is blocked,
+then end the turn without continuing or waiting
 and list in conversation, then write the same three items into
 openspec/changes/<CHANGE_ID>/.resume-note.md:
 (1) unchecked task items
@@ -330,6 +349,8 @@ grep -c '^- \[ \]' openspec/changes/<CHANGE_ID>/tasks.md   # open
 grep -c '^- \[x\]' openspec/changes/<CHANGE_ID>/tasks.md   # done
 # pending reviewer sentinels (NONE = all cleared)
 ls .claude/artifacts/sessions/.pending-* 2>/dev/null || echo NONE
+# unresolved reviewer verdicts (NONE = no blocker sidecar)
+test ! -s .claude/artifacts/sessions/.unresolved-verdict && echo NONE || cat .claude/artifacts/sessions/.unresolved-verdict
 ```
 
 Stall read: if two consecutive checks show the same `open` count with no new
@@ -364,6 +385,8 @@ This session will NOT auto-run /goal or opsx:apply.
       probe before a write dispatch — code/algorithm/data-shape premises to
       dhpk:deep-reasoner AND runtime/browser/environment premises to
       dhpk:e2e-runner or a scratch probe, both branches present — references
+      the Repository Discovery Gate and states that explicit project hard rules
+      cannot be deferred because a prior design chose a cheaper implementation,
       the §Implementation dispatch verify procedure (re-surface report /
       cross-check git diff / confirm sentinels) anchored at
       `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` (not a bare relative
@@ -371,15 +394,21 @@ This session will NOT auto-run /goal or opsx:apply.
       or `CODEX is OFF` per Step 1's `--codex` detection) — and when `CODEX is
       ON`, the CODEX statement also carries the proactive high-stakes-peer clause
       (a parallel dhpk:codex-bridge independent review before finalizing a
-      high-stakes solo design edit, per §CODEX=on high-stakes parallel peer
-      path); absent — Part 0 byte-identical to pre-change output —
+      high-stakes solo design edit or decision, including first-seen
+      query/repository patterns, framework-internal hacks, and explicit-rule
+      deferrals, per §CODEX=on high-stakes parallel peer path); absent —
+      Part 0 retains the no-dispatch behavior except for the explicit hard-rule
+      carve-out —
       when `orchestration_dispatch=off`
 - [ ] Sentinel check in Part 2 uses `ls .claude/artifacts/sessions/.pending-*` (not reviewer names)
+- [ ] Part 2b checks `.unresolved-verdict` and requires output `NONE`
 - [ ] Non-automatable tasks appear in Block A warning, NOT in Part 3
 - [ ] `--max-duration` set → Part 4 has the wall-clock line; absent → no such line
 - [ ] Part 3 emits build/lint gate lines only when `HAS_BUILD` / `HAS_LINT` detected
 - [ ] Part 3 emits a coverage gate when `HAS_COVERAGE=true` OR `--min-coverage N` set (with `HAS_TEST=true`); `--min-coverage` overrides a detected threshold and is ignored (Block A note) when no test runner is detected
 - [ ] Part 4 instructs writing `.resume-note.md` with items (1)(2)(3) on stop
+- [ ] Part 4 hard-rule stop clause writes `openspec/changes/<CHANGE_ID>/.hard-rule-escalation.md` with rule, conflicting decision with file:line evidence, and why compliance is blocked, then ends the turn
+- [ ] Part 0 says "without stopping for confirmation" covers ordinary implementation judgment calls only and never an explicit project hard-rule conflict
 - [ ] Block C2 Monitor snippet is present and read-only (grep + ls only)
 - [ ] Block C NOTES include the unattended-loop pre-flight (rollback path / isolation / quality gate)
 - [ ] `--dry-run` stops after Block C2 Monitor (no "THIS SESSION" block)

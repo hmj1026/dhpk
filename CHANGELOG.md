@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.28.1 — 2026-07-07 — Reviewer liveness tracking and static guardrails
+
+Adds reviewer liveness tracking to prevent redundant dispatches, introduces Repository Discovery Gate rules, and hardens the opsx-apply-goal pipeline.
+
+**feat(hooks)** — New `pre-agent-liveness-mark.sh` hook. Track reviewer dispatches as active liveness markers and report them as in-flight work. Strip plugin namespaces during liveness checks and auto-clearing. Record unresolved blocker verdicts in a `.unresolved-verdict` sidecar.
+
+**chore(policy)** — Implement Repository Discovery Gate, anti-rationalization guidelines, and parallel Codex peer triggers for query/repository patterns in `rules/execution-policy.md` and `implementation-dispatch.md`. Incorporate strict framework/vendor edit bans and cleanliness proof rules into `agents/tdd-guide.md`.
+
+**feat(opsx)** — Integrate the Repository Discovery Gate, `.unresolved-verdict` verification, and `.hard-rule-escalation.md` stop conditions into `opsx-apply-goal` goal generation and load-context pipeline.
+
 ## 0.28.0 — 2026-07-07 — Next.js + React stack modules
 
 Adds new `nextjs` and `react` stacks with opt-in per-version modules. The version

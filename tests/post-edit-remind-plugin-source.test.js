@@ -31,11 +31,13 @@ function mkTempRepo({ pluginSource } = {}) {
 function runHook(cwd, filePath) {
   const env = { ...process.env };
   delete env.DHPK_ACTIVE_MODULES;
-  return spawnSync('bash', [HOOK], {
+  env.DHPK_TEST_HOOK = HOOK;
+  env.DHPK_TEST_PAYLOAD = JSON.stringify({ tool_input: { file_path: filePath } });
+  return spawnSync('bash', ['-c', 'printf %s "$DHPK_TEST_PAYLOAD" | bash "$DHPK_TEST_HOOK"'], {
     cwd,
-    input: JSON.stringify({ tool_input: { file_path: filePath } }),
     env,
     encoding: 'utf8',
+    timeout: 10000,
   });
 }
 
