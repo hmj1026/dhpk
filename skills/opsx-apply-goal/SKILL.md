@@ -45,10 +45,11 @@ From `$ARGUMENTS`:
   escape hatch: forces a coverage gate at this threshold even when the project
   has no native coverage config. Requires a detected test runner (`HAS_TEST=true`);
   ignored with a Block A note otherwise. Overrides any detected `COVERAGE_THRESHOLD`.
+- `CODEX` = `on` if `--codex` is present, else `off` (codex-free default, per the dhpk `--codex` convention). Stated explicitly in the emitted goal's Part 0 so the orchestrator does not have to guess the session's cross-model setting.
 
 Missing `CHANGE_ID` → print usage and stop:
 ```
-Usage: /dhpk:opsx-apply-goal <change-id> [--turns N] [--max-duration <Nm|Nh>] [--min-coverage N] [--dry-run]
+Usage: /dhpk:opsx-apply-goal <change-id> [--turns N] [--max-duration <Nm|Nh>] [--min-coverage N] [--codex] [--dry-run]
 Example: /dhpk:opsx-apply-goal fix-spec-select-empty-gplist-overflow
 ```
 
@@ -148,18 +149,25 @@ appended before the transition into the stop conditions:
 Invoke the opsx:apply skill for change <CHANGE_ID> and continue implementing
 openspec/changes/<CHANGE_ID>/tasks.md from the first unchecked item without
 stopping for confirmation. You are the orchestrator: dispatch implementation
-per rules/execution-policy.md §Implementation dispatch — mechanical/multi-file
-clear-spec work to dhpk:fast-worker, reasoning-heavy work to dhpk:deep-reasoner,
-RED/E2E specs that must run against a live server to dhpk:e2e-runner;
-edit inline only for ≤2-file unambiguous diffs and your own bookkeeping
-(tasks.md checkboxes, sentinels); when unsure, dispatch; never use
+per ${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md §Implementation dispatch —
+mechanical/multi-file clear-spec work to dhpk:fast-worker (including multi-file
+same-semantic artifact/doc consistency corrections, ≥3 files), reasoning-heavy
+work to dhpk:deep-reasoner, RED/E2E specs that must run against a live server to
+dhpk:e2e-runner; edit inline only for ≤2-file unambiguous diffs and your own
+bookkeeping (tasks.md checkboxes, sentinels); when unsure, dispatch; never use
 general-purpose. Before dispatching a write worker on a task resting on an
 unverified behavioral premise (bug-repro condition, algorithm correctness,
-data-shape/plan assumption), first verify the premise with dhpk:deep-reasoner.
-After each worker returns, verify its output per that section
-(re-surface the report, cross-check git diff, confirm the sentinels). Continue
-until all of the following hold,
+data-shape/plan assumption), first verify the premise with the probe that can
+actually run it — code/algorithm/data-shape premises with dhpk:deep-reasoner,
+runtime/browser/environment behavior premises with dhpk:e2e-runner or a scratch
+executable probe. <CODEX_STATEMENT>. After each worker returns, verify its
+output per that section (re-surface the report, cross-check git diff, confirm
+the sentinels). Continue until all of the following hold,
 ```
+Substitute `<CODEX_STATEMENT>` with the session's CODEX setting from Step 1 (state it explicitly, never leave the orchestrator to infer it):
+- `CODEX=on` → `CODEX is ON for this session: at a contradiction-arbitration point where two agents' conclusions directly conflict, run a cross-model (Codex) doubt cycle per ${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md §In-flight doubt cycle rather than skipping it`
+- `CODEX=off` → `CODEX is OFF for this session: at a contradiction-arbitration point where two agents' conclusions directly conflict, announce "cross-model doubt skipped (CODEX=off)" per ${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md §In-flight doubt cycle rather than performing a cross-model pass`
+This reuses the existing skip-announced policy at `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §In-flight doubt cycle rather than introducing new wording there.
 
 **Part 1 (always):**
 ```
@@ -346,12 +354,19 @@ This session will NOT auto-run /goal or opsx:apply.
       before the stop conditions — single paste, no separate STEP 3
 - [ ] Part 0 dispatch clause: posture-first when `DISPATCH_ON=true` — names the
       session as orchestrator, routes mechanical/multi-file clear-spec work to
-      dhpk:fast-worker and reasoning-heavy work to dhpk:deep-reasoner, bounds
-      inline to ≤2-file unambiguous diffs plus bookkeeping, says "when unsure,
-      dispatch", forbids general-purpose, instructs verifying an unverified
-      behavioral premise with dhpk:deep-reasoner before a write dispatch, and
-      references the §Implementation dispatch verify procedure (re-surface
-      report / cross-check git diff / confirm sentinels); absent — Part 0
+      dhpk:fast-worker (including the multi-file, ≥3-file same-semantic
+      artifact/doc consistency example) and reasoning-heavy work to
+      dhpk:deep-reasoner, bounds inline to ≤2-file unambiguous diffs plus
+      bookkeeping, says "when unsure, dispatch", forbids general-purpose,
+      instructs verifying an unverified behavioral premise with the matching
+      probe before a write dispatch — code/algorithm/data-shape premises to
+      dhpk:deep-reasoner AND runtime/browser/environment premises to
+      dhpk:e2e-runner or a scratch probe, both branches present — references
+      the §Implementation dispatch verify procedure (re-surface report /
+      cross-check git diff / confirm sentinels) anchored at
+      `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` (not a bare relative
+      path), and states the session's CODEX setting explicitly (`CODEX is ON`
+      or `CODEX is OFF` per Step 1's `--codex` detection); absent — Part 0
       byte-identical to pre-change output —
       when `orchestration_dispatch=off`
 - [ ] Sentinel check in Part 2 uses `ls .claude/artifacts/sessions/.pending-*` (not reviewer names)
