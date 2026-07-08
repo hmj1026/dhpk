@@ -1,7 +1,7 @@
 ---
 description: 'Smart Router — map a natural-language task to the right dhpk workflow, then run it. Deterministic route-table fast path, LLM fallback for misses.'
 argument-hint: '[--codex] [--plan[=<model>[:<effort>]]] <natural language task, e.g. "fix the login bug" / "幫我修一個 bug">'
-allowed-tools: 'Bash, Skill, Read, Grep, Glob'
+allowed-tools: 'Bash(bash:*), Bash(git:*), Bash(ls:*), Skill, Read, Grep, Glob'
 ---
 
 # /dhpk:do — Smart Router
@@ -197,5 +197,20 @@ decide whether a `dhpk:planner` consult runs first.
   invoking it does not do the work in this session: it emits a `/goal` string
   to paste into a **separate, fresh** session (`/new` first) — this session's
   job ends at printing that string.
+
+## Example Output
+
+One line per outcome — the router states where it went, then hands off:
+
+```text
+# MATCH (deterministic route table hit)
+Routing to /adaptive-dev-workflow (adaptive dev workflow (bug)).
+
+# NO_MATCH (classified from cheap repo signals)
+No deterministic route; routing to /verify because worktree is dirty and the request ("收尾") reads as a wrap-up.
+
+# NO_QUERY (no task text given)
+No task described — what would you like to do? (e.g. "fix the login bug", "review my branch")
+```
 
 User request: $ARGUMENTS
