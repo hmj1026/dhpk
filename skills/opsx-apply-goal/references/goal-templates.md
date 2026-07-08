@@ -40,8 +40,9 @@ You are the orchestrator: dispatch implementation
 per ${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md §Implementation dispatch —
 mechanical/multi-file clear-spec work to dhpk:fast-worker (including multi-file
 same-semantic artifact/doc consistency corrections, ≥3 files), reasoning-heavy
-work to dhpk:deep-reasoner, RED/E2E specs that must run against a live server to
-dhpk:e2e-runner; edit inline only for ≤2-file unambiguous diffs and your own
+work to dhpk:deep-reasoner, RED/E2E Playwright specs that must run against a live
+server to dhpk:e2e-runner, RED PHPUnit unit/integration tests (test-first, run
+against a live DB) to dhpk:tdd-guide; edit inline only for ≤2-file unambiguous diffs and your own
 bookkeeping (tasks.md checkboxes, sentinels); when unsure, dispatch; never use
 general-purpose. Before dispatching a write worker on a task resting on an
 unverified behavioral premise (bug-repro condition, algorithm correctness,
@@ -62,7 +63,7 @@ the sentinels). Continue until all of the following hold,
 Substitute `<CODEX_STATEMENT>` with the session's CODEX setting from Step 1 (state
 it explicitly, never leave the orchestrator to infer it):
 
-- `CODEX=on` → `CODEX is ON for this session: at a contradiction-arbitration point where two agents' conclusions directly conflict, run a cross-model (Codex) doubt cycle per ${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md §In-flight doubt cycle rather than skipping it; and PROACTIVELY, before finalizing a high-stakes solo design edit or decision that has no inter-agent conflict to arbitrate — the goal-template generator itself, an SSOT policy file, the deferral of a spec'd requirement, first-seen query/repository patterns, framework-internal hacks or private-state resets, or explicit-rule deferrals — run a parallel dhpk:codex-bridge independent review per ${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md §CODEX=on high-stakes parallel peer path, so the declared CODEX=on capability fires on the session's riskiest edits and not only at two-agent contradiction points`
+- `CODEX=on` → `CODEX is ON for this session: at a contradiction-arbitration point where two agents' conclusions directly conflict, run a cross-model (Codex) doubt cycle per ${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md §In-flight doubt cycle rather than skipping it; and PROACTIVELY, before finalizing a high-stakes solo design edit or decision that has no inter-agent conflict to arbitrate — the goal-template generator itself, an SSOT policy file, the deferral of a spec'd requirement, first-seen query/repository patterns, framework-internal hacks or private-state resets, or explicit-rule deferrals — run a parallel dhpk:codex-bridge independent review per ${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md §CODEX=on high-stakes parallel peer path, so the declared CODEX=on capability fires on the session's riskiest edits and not only at two-agent contradiction points; and as a wrap-up self-check, before declaring the goal complete, if dhpk:codex-bridge was dispatched 0 times this session, enumerate the session's high-risk decision points (first-seen query/repository patterns, framework-internal hacks or private-state resets, explicit-rule/SSOT deferrals) and either run one retrospective dhpk:codex-bridge peer review or record an explicit per-point why-not, so a declared CODEX=on capability that fired 0 times is reconciled rather than left silently unused`
 - `CODEX=off` → `CODEX is OFF for this session: at a contradiction-arbitration point where two agents' conclusions directly conflict, announce "cross-model doubt skipped (CODEX=off)" per ${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md §In-flight doubt cycle rather than performing a cross-model pass`
 
 This reuses the existing skip-announced policy at
@@ -195,7 +196,8 @@ never an explicit project hard-rule conflict bypass). You are the
 orchestrator: dispatch implementation per
 ${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md §Implementation dispatch
 (mechanical/clear-spec work to dhpk:fast-worker, reasoning-heavy work to
-dhpk:deep-reasoner, RED/E2E specs to dhpk:e2e-runner; inline only for
+dhpk:deep-reasoner, RED/E2E Playwright specs to dhpk:e2e-runner, RED PHPUnit
+tests to dhpk:tdd-guide; inline only for
 ≤2-file unambiguous diffs plus bookkeeping; when unsure, dispatch; never
 general-purpose). Verify an unresolved behavioral premise with the matching
 probe (dhpk:deep-reasoner for code/algorithm/data-shape,
@@ -219,7 +221,10 @@ Continue until all of the following hold,
   patterns, framework-internal hacks or private-state resets, or
   explicit-rule deferrals), per
   ${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md §In-flight doubt cycle
-  and §CODEX=on high-stakes parallel peer path`
+  and §CODEX=on high-stakes parallel peer path; and as a wrap-up self-check,
+  if dhpk:codex-bridge was dispatched 0 times this session, enumerate the
+  high-risk decision points and either run one retrospective dhpk:codex-bridge
+  review or record a per-point why-not before declaring the goal complete`
 - `CODEX=off` → identical to the full-text variant (already short):
   `CODEX is OFF for this session: at a contradiction-arbitration point
   where two agents' conclusions directly conflict, announce "cross-model
