@@ -1,6 +1,6 @@
 ---
 description: 'Smart Router — map a natural-language task to the right dhpk workflow, then run it. Deterministic route-table fast path, LLM fallback for misses.'
-argument-hint: '[--codex] <natural language task, e.g. "fix the login bug" / "幫我修一個 bug">'
+argument-hint: '[--codex] [--plan[=<model>[:<effort>]]] <natural language task, e.g. "fix the login bug" / "幫我修一個 bug">'
 allowed-tools: 'Bash, Skill, Read, Grep, Glob'
 ---
 
@@ -25,6 +25,31 @@ Codex is an explicit opt-in:
 - If `CODEX=on` but no `mcp__codex__*` tool and no Codex CLI is available, warn
   once (`Codex requested but unavailable — falling back to codex-free.`) and set
   `CODEX=off`.
+
+## Step 0b — parse plan intent (default: off, opt-in)
+
+`/dhpk:do` supports an opt-in pre-implementation plan critique via
+`dhpk:planner`, parsed and stripped exactly like `--codex` above:
+
+- Detect an optional `--plan[=<model>[:<effort>]]` token **before** route-table
+  matching. If present, set `PLAN=on` and **strip** the token from the request
+  text before matching, so the cleaned query never contains it — this keeps
+  `scripts/lib/route-table.json` and `scripts/lib/pre-route.sh` untouched.
+  Otherwise `PLAN=off`.
+- Parse the flag value into a `<model>` and an `<effort>`:
+  - `--plan` (bare) → model `opus`, effort `high`.
+  - `--plan=fable` → model `fable`, effort `high`.
+  - `--plan=fable:medium` → model `fable`, effort `medium`.
+  - `--plan=:low` → model unset (falls through to default resolution below),
+    effort `low`.
+- Resolve the final model/effort with this precedence (highest wins): an
+  explicit `--plan=...` flag value > `planner_model`/`planner_effort`
+  userConfig (when set) > the built-in default `opus`/`high`. This mirrors the
+  existing `deep_reasoner_model`/`deep_reasoner_effort` override chain — no new
+  precedence pattern.
+- Carry `PLAN=on` and the resolved model/effort forward into Step 3. `PLAN=on`
+  does not by itself change the route: it only decides, in Step 3, whether a
+  `dhpk:planner` consult happens before the target skill is invoked.
 
 ## Step 1 — deterministic pre-route (run this first)
 
@@ -52,9 +77,10 @@ Factor them into Step 3's NO_MATCH decision and into the downstream workflow
 
 ## Step 3 — act on the result
 
-Pass the **cleaned query** (the full task with only the `--codex` opt-in token
-removed) as the task to the downstream skill, applying the codex-mode rule below
-to decide the codex flag.
+Pass the **cleaned query** (the full task with only the `--codex` and `--plan`
+opt-in tokens removed) as the task to the downstream skill, applying the
+codex-mode rule below to decide the codex flag and the plan-mode rule below to
+decide whether a `dhpk:planner` consult runs first.
 
 - **`MATCH`** → invoke `<skill>` immediately with the **Skill** tool (e.g.
   `dhpk:bug-fix`). Do **not** re-classify — the route table already matched.
@@ -96,6 +122,48 @@ to decide the codex flag.
   - An explicit `dhpk:codex-*` skill: route as-is.
   - Any other target: the flag has no effect — route normally.
 
+### Plan-mode rule (how `PLAN` shapes the invocation)
+
+- **`PLAN=off` (default):** invoke the target normally, no `dhpk:planner`
+  consult.
+- **`PLAN=on`:** a pre-implementation `dhpk:planner` consult activates **only**
+  when the resolved route target is one of the four implementation-class
+  skills — `dhpk:adaptive-dev-workflow`, `dhpk:bug-fix`, `dhpk:feature-dev`,
+  `dhpk:opsx-apply-goal`. Any other resolved route prints this literal one-line
+  message and proceeds with that route unaffected, with **no** `dhpk:planner`
+  dispatch:
+
+  `--plan ignored: <route> is not an implementation-class route; proceeding without a planner consult.`
+
+  On activation, before invoking the target skill:
+  1. **Assemble a plan brief** for `dhpk:planner` — conclusions-not-context,
+     capped at ≤3.5k tokens. The brief contains: the task verbatim, session
+     constraints, a file map, pasted load-bearing code excerpts (not paths
+     alone), the REJECTED-alternative line (which alternative was already
+     weighed and why it was killed), a lookup fence stating the orchestrator
+     has already resolved discovery and `dhpk:planner` should treat unresolved
+     lookups as the exception, not the norm, and either a DRAFT PLAN (critique
+     mode, the default) or an explicit blind-sketch request (draft withheld).
+  2. **Dispatch `dhpk:planner`** with the brief, using the resolved model/effort
+     from Step 0b.
+  3. **Check for the trailing `END` line.** A reply missing it is treated as
+     truncated — re-consult `dhpk:planner` exactly once. If the retry also
+     lacks `END`, degrade to proceeding **without** a verdict and disclose this
+     in the one-line status output. Never treat a missing `END` as an implicit
+     `ENDORSE`.
+  4. **Fold the verdict into the task handed to the target skill:**
+     - `VERDICT: ENDORSE` → the original plan passes through unchanged.
+     - `VERDICT: AMEND` → append the planner's deltas (`S2 <fix>` /
+       `+<new step>` / `-<cut step>`) to the task brief handed to the target
+       skill; unlisted steps stand as drafted.
+     - `VERDICT: REPLACE` → substitute the planner's numbered plan outright as
+       the task brief handed to the target skill.
+  5. **Record the warm-review obligation.** When a pre-implementation consult
+     occurred, state in `/dhpk:do`'s own output that a post-implementation warm
+     review (task-end diff review) is **owed**. This command only creates and
+     surfaces that obligation — it does not build the re-engagement trigger
+     that honors it; that wiring is a separate, future change.
+
 ## Notes
 
 - The route table is the SSOT: `scripts/lib/route-table.json`. To add or retune
@@ -108,5 +176,12 @@ to decide the codex flag.
   Codex-enhanced path for skills that support it (`bug-fix`, `feature-dev`,
   `security-review`, `feasibility-study`). The dedicated `dhpk:codex-*` skills
   remain available for direct use.
+- **Plan critique is opt-in.** Pass `--plan[=<model>[:<effort>]]` to run a
+  pre-implementation `dhpk:planner` consult before the target skill, scoped to
+  the four implementation-class routes (`dhpk:adaptive-dev-workflow`,
+  `dhpk:bug-fix`, `dhpk:feature-dev`, `dhpk:opsx-apply-goal`). Defaults to
+  model `opus`, effort `high`; override with `--plan=<model>[:<effort>]` (e.g.
+  `--plan=fable:medium`, `--plan=:low`). A pre-implementation consult also
+  records a warm-review obligation in this command's output.
 
 User request: $ARGUMENTS

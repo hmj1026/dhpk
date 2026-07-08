@@ -9,7 +9,7 @@
 #      print activation line, export DHPK_ACTIVE_MODULES for downstream hooks
 #   5. Honour CLAUDE_PLUGIN_OPTION_HOOK_PROFILE={minimal|standard|strict}; strict adds docker WARN lines
 #   6. Announce orchestration worker model tiers (CLAUDE_PLUGIN_OPTION_DEEP_REASONER_MODEL /
-#      _FAST_WORKER_MODEL / _ORCHESTRATION_DISPATCH) — only when non-default
+#      _FAST_WORKER_MODEL / _PLANNER_MODEL / _PLANNER_EFFORT / _ORCHESTRATION_DISPATCH) — only when non-default
 
 set -o pipefail
 
@@ -166,11 +166,15 @@ DEEP_MODEL="${CLAUDE_PLUGIN_OPTION_DEEP_REASONER_MODEL:-opus}"
 WORKER_MODEL="${CLAUDE_PLUGIN_OPTION_FAST_WORKER_MODEL:-sonnet}"
 DEEP_EFFORT="${CLAUDE_PLUGIN_OPTION_DEEP_REASONER_EFFORT:-high}"
 WORKER_EFFORT="${CLAUDE_PLUGIN_OPTION_FAST_WORKER_EFFORT:-medium}"
+PLANNER_MODEL="${CLAUDE_PLUGIN_OPTION_PLANNER_MODEL:-opus}"
+PLANNER_EFFORT="${CLAUDE_PLUGIN_OPTION_PLANNER_EFFORT:-high}"
 DISPATCH="${CLAUDE_PLUGIN_OPTION_ORCHESTRATION_DISPATCH:-on}"
-if [ "$DEEP_MODEL" != "opus" ] || [ "$WORKER_MODEL" != "sonnet" ] || [ "$DEEP_EFFORT" != "high" ] || [ "$WORKER_EFFORT" != "medium" ] || [ "$DISPATCH" != "on" ]; then
+if [ "$DEEP_MODEL" != "opus" ] || [ "$WORKER_MODEL" != "sonnet" ] || [ "$DEEP_EFFORT" != "high" ] || [ "$WORKER_EFFORT" != "medium" ] || [ "$PLANNER_MODEL" != "opus" ] || [ "$PLANNER_EFFORT" != "high" ] || [ "$DISPATCH" != "on" ]; then
     _orch_line="orchestration: deep=$DEEP_MODEL worker=$WORKER_MODEL"
     [ "$DEEP_EFFORT" != "high" ] && _orch_line="${_orch_line} deep_effort=$DEEP_EFFORT"
     [ "$WORKER_EFFORT" != "medium" ] && _orch_line="${_orch_line} worker_effort=$WORKER_EFFORT"
+    [ "$PLANNER_MODEL" != "opus" ] && _orch_line="${_orch_line} planner=$PLANNER_MODEL"
+    [ "$PLANNER_EFFORT" != "high" ] && _orch_line="${_orch_line} planner_effort=$PLANNER_EFFORT"
     [ "$DISPATCH" != "on" ] && _orch_line="${_orch_line} dispatch=off"
     echo "[session-start] $_orch_line"
     unset _orch_line
