@@ -1,6 +1,6 @@
 ---
 name: opsx-apply-goal
-argument-hint: '<change-id> [--turns N] [--max-duration <Nm|Nh>] [--min-coverage N] [--smoke|--no-smoke] [--dry-run]'
+argument-hint: '<change-id> [--turns N] [--max-duration <Nm|Nh>] [--min-coverage N] [--codex] [--smoke|--no-smoke] [--dry-run]'
 description: 'Generate a single-paste /goal condition (with an embedded opsx:apply kickoff instruction) for an unattended OpenSpec change implementation session. Reads tasks.md + proposal.md, detects test-runner scope, calculates turn budget, and emits one /goal string — pasting it into a fresh session both sets the stop condition and starts implementation, since /goal triggers immediate action on submit. Use when starting an unattended implementation session for an OpenSpec change. Not for: archiving, verifying, or syncing changes (use opsx-archive / opsx-verify / opsx-sync).'
 allowed-tools: 'Bash, Read, Glob'
 ---
@@ -288,6 +288,85 @@ openspec/changes/<CHANGE_ID>/.resume-note.md:
 The `.resume-note.md` carry-forward lets a follow-up session resume cleanly via
 `opsx-load-context` (which checks for it before all other context tiers).
 
+## Step 6b — Enforce the 4000-character paste limit
+
+Claude Code's `/goal` input has a practical paste limit around 4000
+characters — a `GOAL_CONDITION` at or beyond that cannot be submitted at
+all. Measure before Step 7 emits anything, and shrink if needed:
+
+1. `GOAL_LENGTH` = character count of the full composed `GOAL_CONDITION`
+   from Step 6 (Part 0 + Part 1 + Part 2 + Part 2b + Part 3 + Part 4,
+   joined exactly as Step 6 specifies).
+2. `GOAL_LENGTH <= 4000` → proceed to Step 7 unmodified. `GOAL_MODE = full`.
+3. `GOAL_LENGTH > 4000` → rebuild **Part 0 only** using the **compact**
+   variant below (same `DISPATCH_ON` branch, same `<CODEX_STATEMENT>`
+   substitution point but using the **compact** `CODEX_STATEMENT` variant).
+   Parts 1, 2, 2b, 3, 4 are unchanged — their length scales with the
+   change itself (task counts, detected gates), not with fixed prose, so
+   there is nothing to compact there. Recompute `GOAL_LENGTH`.
+   - `GOAL_LENGTH <= 4000` now → proceed to Step 7. `GOAL_MODE = compacted`.
+   - `GOAL_LENGTH > 4000` still → `GOAL_MODE = blocked`. In Step 7, emit
+     Block A only, then the hard-stop notice — do **not** print Block B,
+     C, or C2.
+
+### Part 0 — compact variant
+
+Preserves every safety-relevant clause (hard-rule carve-out, dispatch-table
+pointer + never-general-purpose, premise-verification-before-dispatch, the
+Repository Discovery Gate, verify-worker-output-after) and drops
+illustrative examples only.
+
+`DISPATCH_ON=false` compact — identical to the full text (already short,
+nothing to compact):
+```
+Invoke the opsx:apply skill for change <CHANGE_ID> and continue implementing
+openspec/changes/<CHANGE_ID>/tasks.md from the first unchecked item without
+stopping for confirmation. That instruction covers ordinary implementation
+judgment calls only; it is never an explicit project hard-rule conflict bypass.
+Continue until all of the following hold,
+```
+
+`DISPATCH_ON=true` compact:
+```
+Invoke the opsx:apply skill for change <CHANGE_ID> and continue implementing
+openspec/changes/<CHANGE_ID>/tasks.md from the first unchecked item without
+stopping for confirmation (ordinary implementation judgment calls only —
+never an explicit project hard-rule conflict bypass). You are the
+orchestrator: dispatch implementation per
+${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md §Implementation dispatch
+(mechanical/clear-spec work to dhpk:fast-worker, reasoning-heavy work to
+dhpk:deep-reasoner, RED/E2E specs to dhpk:e2e-runner; inline only for
+≤2-file unambiguous diffs plus bookkeeping; when unsure, dispatch; never
+general-purpose). Verify an unresolved behavioral premise with the matching
+probe (dhpk:deep-reasoner for code/algorithm/data-shape,
+dhpk:e2e-runner or a scratch probe for runtime/browser/environment) before
+dispatching a write worker on it. Apply the Repository Discovery Gate before
+finalizing new DB/query/repository-like code: explicit project hard rules
+cannot be deferred because a prior design chose a cheaper implementation;
+comply or stop for a human-approved exception. <CODEX_STATEMENT>. Verify
+each worker's output (report, git diff, sentinels) before continuing.
+Continue until all of the following hold,
+```
+
+### CODEX_STATEMENT — compact variant
+
+- `CODEX=on` → `CODEX is ON for this session: run a cross-model (Codex)
+  doubt cycle at a contradiction-arbitration point rather than skipping
+  it, and PROACTIVELY run a parallel dhpk:codex-bridge independent review
+  before finalizing a high-stakes solo design edit or decision with no
+  inter-agent conflict to arbitrate (the goal-template generator, an SSOT
+  policy file, a spec'd-requirement deferral, first-seen query/repository
+  patterns, framework-internal hacks or private-state resets, or
+  explicit-rule deferrals), per
+  ${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md §In-flight doubt cycle
+  and §CODEX=on high-stakes parallel peer path`
+- `CODEX=off` → identical to the full-text variant (already short):
+  `CODEX is OFF for this session: at a contradiction-arbitration point
+  where two agents' conclusions directly conflict, announce "cross-model
+  doubt skipped (CODEX=off)" per
+  ${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md §In-flight doubt cycle
+  rather than performing a cross-model pass`
+
 ## Step 7 — Emit output
 
 ### Block A — Analysis summary
@@ -303,8 +382,14 @@ The `.resume-note.md` carry-forward lets a follow-up session resume cleanly via
 ║  Sentinels   : universal check (all 7 slots, self-calibrating)
 ║  Turn budget : <TURN_BUDGET>  (formula: <OPEN_TASKS> × 4 + 20, cap 20–120)
 ║  Manual tasks: <N skipped, or "none">
+║  Goal length : <GOAL_LENGTH>/4000 chars  <full | compacted | ⚠ BLOCKED>
 ╚══════════════════════════════════════════════════════════════╝
 ```
+
+The `Goal length` row reflects `GOAL_MODE` from Step 6b: `full` (unmodified
+Part 0), `compacted` (Part 0/CODEX_STATEMENT swapped for the compact
+variant, same rules, shorter wording), or `⚠ BLOCKED` (still over 4000
+after compacting — see below, no `/goal` is emitted this run).
 
 If `HAS_SKIP_TASKS=true`, append after the box:
 
@@ -314,6 +399,21 @@ If `HAS_SKIP_TASKS=true`, append after the box:
    • ...
    Mark these [x] manually after out-of-band verification before the session ends.
 ```
+
+If `GOAL_MODE = blocked`, stop here — do **not** print Block B, C, or C2.
+Print this hard-stop notice instead and end the skill's output:
+
+```
+✖ Goal condition is <GOAL_LENGTH> characters — <GOAL_LENGTH - 4000> over the
+  4000-character paste limit even after compacting. Adjust and re-run:
+  • turn off the orchestration_dispatch project setting (removes the dispatch directive, the largest single block)
+  • drop --codex (removes the CODEX statement)
+  • drop --smoke / pass --no-smoke (removes the smoke-gate line)
+  • fewer verification gates detected → consider splitting into smaller changes
+No /goal command was emitted this run.
+```
+
+Otherwise (`GOAL_MODE = full` or `compacted`), continue with Block B below.
 
 ### Block B — Session setup
 
@@ -327,7 +427,9 @@ If `HAS_SKIP_TASKS=true`, append after the box:
 Print the `/goal` command in a fenced code block. This one paste both sets
 the stop condition and kicks off implementation — `GOAL_CONDITION` already
 opens with the Part 0 kickoff sentence, so there is nothing further to paste
-after this:
+after this. When `GOAL_MODE = compacted`, this is the compacted `GOAL_CONDITION`
+from Step 6b (same rules, shorter wording) — not the full-text example shown
+earlier in this skill:
 ```
 /goal <GOAL_CONDITION>
 ```
@@ -373,6 +475,11 @@ after this:
   high-precision detection (strong signals only; --smoke forces on, --no-smoke
   suppresses), so it never deadlocks a non-drivable repo (plugin/library repos
   with no running system)
+• Goal length capped at 4000 chars (Claude Code's practical /goal paste limit,
+  see Step 6b): over the cap, Part 0's dispatch directive is auto-compacted
+  (same rules, shorter wording) — check the Block A "Goal length" row; if still
+  over after compacting, no /goal is emitted and Block A's hard-stop notice
+  lists which setting or flag to adjust and re-run
 ```
 
 If `HAS_COVERAGE=false` AND `MIN_COVERAGE` is unset AND `HAS_TEST=true`, append one NOTES line:
@@ -463,3 +570,6 @@ This session will NOT auto-run /goal or opsx:apply.
 - [ ] Missing `tasks.md` → fail with clear error message
 - [ ] Part 3 emits the smoke gate line if and only if `HAS_SMOKE=true` (strong signal or `--smoke`); the line is omitted entirely when `HAS_SMOKE=false`
 - [ ] `--no-smoke` suppresses the smoke line regardless of detected signal strength; Block A `Smoke gate` row reports exactly one of `on (signal)` / `on (--smoke)` / `off (--no-smoke)` / `off (no strong signal, hint emitted)`
+- [ ] Block A `Goal length` row is always present and reports one of `full` / `compacted` / `⚠ BLOCKED`, matching `GOAL_MODE`
+- [ ] Part 0 compact variant is used only when the full `GOAL_CONDITION` exceeds 4000 characters, and preserves the hard-rule carve-out, dispatch-table pointer, never-general-purpose rule, premise-verification rule, and Repository Discovery Gate sentence
+- [ ] `GOAL_MODE = blocked` (still over 4000 after compacting) suppresses Block B, C, and C2 entirely and prints the hard-stop notice with all four setting/flag-adjustment bullets instead

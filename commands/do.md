@@ -183,5 +183,19 @@ decide whether a `dhpk:planner` consult runs first.
   model `opus`, effort `high`; override with `--plan=<model>[:<effort>]` (e.g.
   `--plan=fable:medium`, `--plan=:low`). A pre-implementation consult also
   records a warm-review obligation in this command's output.
+- **`dhpk:opsx-apply-goal` is a routing exception, not a task description.**
+  Every other route target treats the cleaned query as a free-text task; this
+  one requires its own `<change-id> [flags]` string (see its own
+  `--turns`/`--max-duration`/`--min-coverage`/`--codex`/`--smoke`/`--no-smoke`/
+  `--dry-run` flags, documented in
+  [`docs/basic-operations.md`](../docs/basic-operations.md#5-unattended-openspec-session)) —
+  pass the change id, not a description of the change. Its own `--codex` flag
+  is independent of this command's `--codex`: the Codex-mode rule above has no
+  special case for `opsx-apply-goal`, so `/dhpk:do --codex` does **not**
+  auto-forward into it — include `--codex` in the query text if you want that
+  session's `/goal` to carry the CODEX=on clause. Unlike every other route,
+  invoking it does not do the work in this session: it emits a `/goal` string
+  to paste into a **separate, fresh** session (`/new` first) — this session's
+  job ends at printing that string.
 
 User request: $ARGUMENTS

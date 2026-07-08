@@ -61,4 +61,31 @@ test('smoke gate: flags, HAS_SMOKE conditioning, Block A row, and self-escaping 
     'missing escape-hatch evidence requirement');
 });
 
+test('4000-char paste guard: threshold, compact fallback, and hard-block wiring', () => {
+  // threshold + Block A row
+  assert.ok(skill.includes('4000'), 'missing 4000-character threshold reference');
+  assert.ok(skill.includes('Goal length'), 'missing Block A Goal length row');
+  assert.ok(skill.includes('GOAL_MODE'), 'missing GOAL_MODE state tracking');
+  for (const state of ['full', 'compacted', 'BLOCKED']) {
+    assert.ok(skill.includes(state), `missing GOAL_MODE state: ${state}`);
+  }
+  // compact Part 0 variant preserves safety-critical clauses
+  assert.ok(skill.includes('Part 0 — compact variant'), 'missing compact Part 0 section');
+  assert.ok(skill.includes('CODEX_STATEMENT — compact variant'), 'missing compact CODEX_STATEMENT section');
+  assert.ok(skill.includes('Repository Discovery Gate before'), 'compact Part 0 must keep the Repository Discovery Gate rule');
+  assert.ok(/never\s+general-purpose/.test(skill), 'compact Part 0 must keep the never-general-purpose rule');
+  // hard-block behavior and operator guidance
+  assert.ok(skill.includes('No /goal command was emitted this run'), 'missing hard-stop notice');
+  assert.ok(skill.includes('do **not** print Block B, C, or C2') || skill.includes('do not print Block B, C, or C2'),
+    'missing suppression of Block B/C/C2 when blocked');
+  for (const bullet of [
+    'turn off the orchestration_dispatch project setting',
+    'drop --codex (removes the CODEX statement)',
+    'drop --smoke / pass --no-smoke (removes the smoke-gate line)',
+    'fewer verification gates detected',
+  ]) {
+    assert.ok(skill.includes(bullet), `missing hard-stop guidance bullet: ${bullet}`);
+  }
+});
+
 run('opsx-apply-goal-guardrails');
