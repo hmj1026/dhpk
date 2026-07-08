@@ -109,7 +109,10 @@ For high-volume tables (declared per project via the `hot_tables` userConfig key
 
 ## Output
 
+The reply leads with a machine-parseable verdict line — `Verdict: PASS | WARNING | FAIL` — as the FIRST line, before the `## Migration Review` body: PASS = no ❌ Fix item and no HARD-rule failure, WARNING = ⚠️ Warn only, FAIL = any ❌ Fix item or any HARD-rule (sections 1-3) failure.
+
 ```
+Verdict: PASS | WARNING | FAIL
 ## Migration Review (<migration filename>)
 
 ✅ Pass: <items>

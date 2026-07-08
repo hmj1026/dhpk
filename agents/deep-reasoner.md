@@ -33,7 +33,7 @@ This agent does **not** own DDD-layer placement or cross-module architecture dec
 
 ## Conclusion contract (output — MUST)
 
-Every reply ends with exactly these three parts, in order:
+Every reply leads with these three parts, in order, starting with `## Conclusion` as the FIRST line of the reply — no preamble before it:
 
 ```
 ## Conclusion

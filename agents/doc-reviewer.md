@@ -151,17 +151,19 @@ link.
 
 ## Output
 
+State `Verdict: APPROVE | WARNING | BLOCK` as the FIRST line of the reply:
+
+- APPROVE = no HIGH; any MEDIUM has a defensible reason to stay.
+- WARNING = MEDIUM but no HIGH.
+- BLOCK = any HIGH (broken link, SSOT contradiction, malformed manifest).
+
+Follow with the severity table, then:
+
 ```
 [HIGH|MEDIUM|LOW] Title
 File: path
 Issue / Fix
 ```
-
-End with a severity table and a final `Verdict: APPROVE | WARNING | BLOCK`:
-
-- APPROVE = no HIGH; any MEDIUM has a defensible reason to stay.
-- WARNING = MEDIUM but no HIGH.
-- BLOCK = any HIGH (broken link, SSOT contradiction, malformed manifest).
 
 ## Closing — Artifact Output (MUST)
 

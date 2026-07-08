@@ -99,17 +99,19 @@ edits. Loads the following on demand:
 
 ## Output
 
+State `Verdict: APPROVE | WARNING | BLOCK` as the FIRST line of the reply:
+
+- APPROVE = no CRITICAL/HIGH.
+- WARNING = HIGH only.
+- BLOCK = any CRITICAL.
+
+Follow with the severity table, then:
+
 ```
 [CRITICAL|HIGH|MEDIUM|LOW] Title
 File: path:line
 Issue / Fix
 ```
-
-End with a severity table and a final `Verdict: APPROVE | WARNING | BLOCK`:
-
-- APPROVE = no CRITICAL/HIGH.
-- WARNING = HIGH only.
-- BLOCK = any CRITICAL.
 
 ## Closing — Artifact Output (MUST)
 

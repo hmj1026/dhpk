@@ -63,7 +63,10 @@ Before reporting: *what attack does this enable?* No path → don't report.
 
 ## Output
 
+The reply leads with a machine-parseable verdict line — `Verdict: PASS | WARNING | FAIL` — as the FIRST line, before the `## Security Review` body: FAIL = any CRITICAL/HIGH finding, WARNING = MEDIUM/LOW only (no CRITICAL/HIGH), PASS = none.
+
 ```
+Verdict: PASS | WARNING | FAIL
 ## Security Review
 CRITICAL: <vuln> — file:line / Issue / Fix
 HIGH / MEDIUM / LOW: ...

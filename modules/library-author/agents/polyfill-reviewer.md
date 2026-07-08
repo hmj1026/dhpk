@@ -89,6 +89,13 @@ The sentinel file contains one line per edited file:
 
 ## Output
 
+State `Verdict: APPROVE | WARNING | BLOCK` as the FIRST line of the reply:
+- APPROVE = no CRITICAL/HIGH
+- WARNING = HIGH only
+- BLOCK = any CRITICAL
+
+Follow with the severity table, then:
+
 ```
 [CRITICAL|HIGH|MEDIUM|LOW] Title
 File: path:line
@@ -100,12 +107,7 @@ Pattern catalogue: <ref to polyfill-patterns.md entry, or "unclassified">
 Issue / Fix
 ```
 
-End with severity table + last line `Verdict: APPROVE | WARNING | BLOCK`.
-- APPROVE = no CRITICAL/HIGH
-- WARNING = HIGH only
-- BLOCK = any CRITICAL
-
-If all guards in the diff are covered AND no asymmetric edits exist, output:
+If all guards in the diff are covered AND no asymmetric edits exist, the first line is instead:
 ```
 APPROVE: <N> guard(s) reviewed, all branches have matrix coverage and tests.
 ```
