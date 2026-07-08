@@ -47,6 +47,22 @@ function pendingReviewPath(repoDir) {
   return path.join(repoDir, '.claude', 'artifacts', 'sessions', '.pending-review');
 }
 
+function pendingDocReviewPath(repoDir) {
+  return path.join(repoDir, '.claude', 'artifacts', 'sessions', '.pending-doc-review');
+}
+
+function writeFile(repoDir, rel, contents) {
+  const abs = path.join(repoDir, rel);
+  fs.mkdirSync(path.dirname(abs), { recursive: true });
+  fs.writeFileSync(abs, contents);
+  return abs;
+}
+
+function gitCommitAll(repoDir, msg) {
+  spawnSync('git', ['add', '-A'], { cwd: repoDir });
+  spawnSync('git', ['commit', '-q', '-m', msg], { cwd: repoDir });
+}
+
 test('out-of-project absolute path does NOT arm a sentinel', () => {
   const repo = mkTempRepo();
   try {
@@ -83,6 +99,87 @@ test('in-project path under openspec/changes/<slug>/ writes provenance sidecar',
     const contents = fs.readFileSync(provFile, 'utf8');
     assert.ok(contents.includes('fake-change-slug'),
       `provenance sidecar missing expected slug; contents:\n${contents}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+// Fix 2 (harvest-advice-20260708): the doc-review sentinel must not re-arm on
+// an unattended goal session's own bookkeeping — orchestration state dotfiles
+// under openspec/ and checkbox-only tasks.md flips.
+
+test('orchestration dotfile under openspec/ does NOT arm .pending-doc-review', () => {
+  const repo = mkTempRepo();
+  try {
+    const filePath = writeFile(repo, 'openspec/changes/fake-slug/.resume-note.md', '# resume\nstate\n');
+    const res = runHook(repo, { tool_input: { file_path: filePath } });
+    assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
+    assert.ok(!fs.existsSync(pendingDocReviewPath(repo)),
+      '.pending-doc-review was armed for an openspec/ orchestration dotfile (.resume-note.md)');
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('openspec spec/proposal .md DOES arm .pending-doc-review (positive control)', () => {
+  const repo = mkTempRepo();
+  try {
+    const filePath = writeFile(repo, 'openspec/changes/fake-slug/proposal.md', '# Proposal\n\nprose\n');
+    const res = runHook(repo, { tool_input: { file_path: filePath } });
+    assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
+    assert.ok(fs.existsSync(pendingDocReviewPath(repo)),
+      '.pending-doc-review was NOT armed for a real openspec proposal.md');
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('checkbox-only tasks.md flip does NOT arm .pending-doc-review', () => {
+  const repo = mkTempRepo();
+  try {
+    const rel = 'openspec/changes/fake-slug/tasks.md';
+    writeFile(repo, rel, '# Tasks\n\n- [ ] 1.1 First\n- [ ] 1.2 Second\n');
+    gitCommitAll(repo, 'seed tasks');
+    // Flip one checkbox in the working tree (the orchestrator's own bookkeeping).
+    writeFile(repo, rel, '# Tasks\n\n- [x] 1.1 First\n- [ ] 1.2 Second\n');
+    const res = runHook(repo, { tool_input: { file_path: path.join(repo, rel) } });
+    assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
+    assert.ok(!fs.existsSync(pendingDocReviewPath(repo)),
+      '.pending-doc-review was armed for a checkbox-only tasks.md flip');
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('multiple simultaneous checkbox flips in one diff do NOT arm .pending-doc-review', () => {
+  const repo = mkTempRepo();
+  try {
+    const rel = 'openspec/changes/fake-slug/tasks.md';
+    writeFile(repo, rel, '# Tasks\n\n- [ ] 1.1 First\n- [ ] 1.2 Second\n- [ ] 1.3 Third\n');
+    gitCommitAll(repo, 'seed tasks');
+    // Flip several checkboxes at once (locks in the multiset comparison).
+    writeFile(repo, rel, '# Tasks\n\n- [x] 1.1 First\n- [x] 1.2 Second\n- [ ] 1.3 Third\n');
+    const res = runHook(repo, { tool_input: { file_path: path.join(repo, rel) } });
+    assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
+    assert.ok(!fs.existsSync(pendingDocReviewPath(repo)),
+      '.pending-doc-review was armed for a multi-flip checkbox-only tasks.md edit');
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('prose change to tasks.md STILL arms .pending-doc-review (checkbox-only control)', () => {
+  const repo = mkTempRepo();
+  try {
+    const rel = 'openspec/changes/fake-slug/tasks.md';
+    writeFile(repo, rel, '# Tasks\n\n- [ ] 1.1 First\n');
+    gitCommitAll(repo, 'seed tasks');
+    // A non-checkbox content change (new task line) must keep the doc gate.
+    writeFile(repo, rel, '# Tasks\n\n- [ ] 1.1 First\n- [ ] 1.2 A newly added task\n');
+    const res = runHook(repo, { tool_input: { file_path: path.join(repo, rel) } });
+    assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
+    assert.ok(fs.existsSync(pendingDocReviewPath(repo)),
+      '.pending-doc-review was NOT armed for a non-checkbox tasks.md content change');
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });
   }
