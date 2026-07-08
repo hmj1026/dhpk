@@ -3,7 +3,7 @@
   "name": "dhpk",
   "displayName": "DHPK Dev Harness",
   "version": "0.28.1",
-  "description": "Reusable Claude Code harness — 27 role-based agents (26 root + 1 module-scoped reviewer; incl. the Swift/Xcode build-resolver, the silent-failure-hunter error-handling auditor, and Python/Rust build-resolvers) + ~45 registered dhpk commands (44 root + the ts-check-status JS-module command; the bundled codex / gitnexus / git trees ship their own separately) + opt-in stack modules across PHP (5.6, 7.4, 8.x), Yii (1.1), PHPUnit (5.7, 9, 10, 11), Laravel (5.4, 6–11), JS, Vue 2, Laravel Mix 5, Next.js (nextjs-15.5, nextjs-16), React (react-18, react-19), Python (python lint/type-check hooks, fastapi, pytest), the library-author cross-cutting module, and an iOS/Swift suite (swift, swiftui, ios-platform, swift-testing, xcode-tooling) with SwiftLint post-edit + xcodebuild/SPM pre-commit hooks, a Swift 6.2 approachable-concurrency reference, and an ios-icon-gen skill. 7-slot sentinel-driven review hooks (code / db / sec / frontend / doc / polyfill / migration — polyfill via library-author, migration via module triggers or mig: extra paths; doc-reviewer covers both SSOT/link-validity and frontmatter schema for .md DSL artifacts), parameterised docker/agent names, wrapper-dispatch hook extension model, parallel Codex CLI tree.",
+  "description": "Reusable Claude Code harness — 28 role-based agents (27 root + 1 module-scoped reviewer; incl. the Swift/Xcode build-resolver, the silent-failure-hunter error-handling auditor, and Python/Rust build-resolvers) + ~45 registered dhpk commands (44 root + the ts-check-status JS-module command; the bundled codex / gitnexus / git trees ship their own separately) + opt-in stack modules across PHP (5.6, 7.4, 8.x), Yii (1.1), PHPUnit (5.7, 9, 10, 11), Laravel (5.4, 6–11), JS, Vue 2, Laravel Mix 5, Next.js (nextjs-15.5, nextjs-16), React (react-18, react-19), Python (python lint/type-check hooks, fastapi, pytest), the library-author cross-cutting module, and an iOS/Swift suite (swift, swiftui, ios-platform, swift-testing, xcode-tooling) with SwiftLint post-edit + xcodebuild/SPM pre-commit hooks, a Swift 6.2 approachable-concurrency reference, and an ios-icon-gen skill. 7-slot sentinel-driven review hooks (code / db / sec / frontend / doc / polyfill / migration — polyfill via library-author, migration via module triggers or mig: extra paths; doc-reviewer covers both SSOT/link-validity and frontmatter schema for .md DSL artifacts), parameterised docker/agent names, wrapper-dispatch hook extension model, parallel Codex CLI tree.",
   "author": {
     "name": "hmj1026",
     "url": "https://github.com/hmj1026"
@@ -61,6 +61,7 @@
     "./agents/harness-reviser.md",
     "./agents/migration-reviewer.md",
     "./agents/performance-analyzer.md",
+    "./agents/planner.md",
     "./agents/python-build-resolver.md",
     "./agents/refactor-cleaner.md",
     "./agents/rust-build-resolver.md",
@@ -104,6 +105,12 @@
       "description": "Model tier for dhpk:fast-worker Agent-call dispatches (see \"Configured role models\" under rules/execution-policy.md §Agent dispatch). Same validation/fallback behavior as deep_reasoner_model. Default 'sonnet' (the shipped frontmatter default).",
       "default": "sonnet"
     },
+    "planner_model": {
+      "type": "string",
+      "title": "planner model",
+      "description": "Model tier for dhpk:planner Agent-call dispatches (see \"Configured role models\" under rules/execution-policy.md §Agent dispatch) — applied per dispatch via the Agent call `model` param when it differs from the agent's frontmatter default. Valid values: at minimum haiku | sonnet | opus (whatever the running Claude Code version supports). An invalid value warns once per session and falls back to the frontmatter default; it never fails the dispatch. Default 'opus' (the shipped frontmatter default).",
+      "default": "opus"
+    },
     "orchestration_dispatch": {
       "type": "string",
       "title": "Implementation dispatch switch",
@@ -121,6 +128,12 @@
       "title": "fast-worker effort",
       "description": "Reasoning effort for dhpk:fast-worker Agent-call dispatches (see rules/model-economics.md master cost rules). Same validation/fallback behavior as deep_reasoner_effort. Default 'medium' (the shipped frontmatter default); the decision layer runs higher and execution de-escalates.",
       "default": "medium"
+    },
+    "planner_effort": {
+      "type": "string",
+      "title": "planner effort",
+      "description": "Reasoning effort for dhpk:planner Agent-call dispatches (see rules/model-economics.md master cost rules) — applied per dispatch via the Agent call `effort` param when it differs from the agent's frontmatter default. Valid values: low | medium | high | xhigh | max (whatever the running Claude Code supports). An invalid value warns once per session and falls back to the frontmatter default; it never fails the dispatch. Default 'high' (the shipped frontmatter default); the warm-review invocation de-escalates to medium.",
+      "default": "high"
     },
     "docker_containers": {
       "type": "string",

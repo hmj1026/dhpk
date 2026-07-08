@@ -1,6 +1,6 @@
 # Agents Index (dhpk plugin)
 
-> 27 agents shipped by the dhpk plugin (26 root-level + `polyfill-reviewer` under `modules/library-author/agents/`). Discovered as `dhpk:<name>` after install. The full list also appears in `plugin.json`.
+> 28 agents shipped by the dhpk plugin (27 root-level + `polyfill-reviewer` under `modules/library-author/agents/`). Discovered as `dhpk:<name>` after install. The full list also appears in `plugin.json`.
 
 ## Sentinel-driven reviewer dispatch (7-slot default, v0.10.0+)
 
@@ -43,6 +43,7 @@ Role models are configurable per project via `userConfig.deep_reasoner_model` / 
 | Agent | Model | When to invoke |
 |-------|-------|----------------|
 | [architect](architect.md) | opus | Cross-module design, DDD layering, tech-debt analysis |
+| [planner](planner.md) | opus | Plan consultant, opt-in via `/dhpk:do --plan`. Pre-implementation critique / blind-sketch / dual-plan (VERDICT: ENDORSE\|AMEND\|REPLACE) + post-implementation warm diff review (VERDICT: SHIP\|FIX-THEN-SHIP\|RECONSULT); coded findings by exception, VERDICT-first + `END`-trailing reply contract, bounded discovery (spawns `Explore` ≤2, ≤12 own reads). New capability: neither `architect` (DDD/cross-module design) nor `deep-reasoner` (implement-phase conclusion contract) carries a verdict/critique contract or a dual-role warm review. |
 | [refactor-cleaner](refactor-cleaner.md) | sonnet | Dead-code removal, dedup, splitting large files |
 | [ui-ux-verifier](ui-ux-verifier.md) | sonnet | UI vs spec audit, screenshot diffs |
 | [performance-analyzer](performance-analyzer.md) | sonnet | N+1 queries, EXPLAIN, index/perf audits |

@@ -10,7 +10,7 @@
     {
       "name": "dhpk",
       "source": "./",
-      "description": "Reusable Claude Code harness — 27 role-based agents (incl. the Swift/Xcode build-resolver, the silent-failure-hunter error-handling auditor, and Python/Rust build-resolvers), ~73 commands, ~57 core skills, 7-slot sentinel-driven review hooks (code/db/sec/frontend/doc/polyfill/migration; doc-reviewer covers both SSOT/link-validity and frontmatter schema for .md DSL artifacts), opt-in stack modules across PHP (5.6, 7.4, 8.x), Yii (1.1), PHPUnit (5.7, 9, 10, 11), Laravel (6–11), JS, Next.js (15.5, 16), React (18, 19), the library-author cross-cutting module, and an iOS/Swift suite (swift, swiftui, ios-platform, swift-testing, xcode-tooling) with SwiftLint post-edit + xcodebuild/SPM pre-commit hooks. Wrapper-dispatch hook extension model, parallel Codex CLI tree."
+      "description": "Reusable Claude Code harness — 28 role-based agents (incl. the Swift/Xcode build-resolver, the silent-failure-hunter error-handling auditor, and Python/Rust build-resolvers), ~73 commands, ~57 core skills, 7-slot sentinel-driven review hooks (code/db/sec/frontend/doc/polyfill/migration; doc-reviewer covers both SSOT/link-validity and frontmatter schema for .md DSL artifacts), opt-in stack modules across PHP (5.6, 7.4, 8.x), Yii (1.1), PHPUnit (5.7, 9, 10, 11), Laravel (6–11), JS, Next.js (15.5, 16), React (18, 19), the library-author cross-cutting module, and an iOS/Swift suite (swift, swiftui, ios-platform, swift-testing, xcode-tooling) with SwiftLint post-edit + xcodebuild/SPM pre-commit hooks. Wrapper-dispatch hook extension model, parallel Codex CLI tree."
     }
   ]
 }
