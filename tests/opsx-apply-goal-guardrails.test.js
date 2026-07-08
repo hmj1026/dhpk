@@ -5,7 +5,31 @@ const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const skill = fs.readFileSync(path.join(ROOT, 'skills', 'opsx-apply-goal', 'SKILL.md'), 'utf8');
+const SKILL_DIR = path.join(ROOT, 'skills', 'opsx-apply-goal');
+
+// The skill was refactored into SKILL.md + references/*.md (progressive
+// disclosure). The guardrail phrases below assert the safety clauses exist
+// somewhere in the skill *package*, not in one specific file, so read the whole
+// package: SKILL.md plus every references/*.md.
+const refsDir = path.join(SKILL_DIR, 'references');
+const skill = [
+  fs.readFileSync(path.join(SKILL_DIR, 'SKILL.md'), 'utf8'),
+  ...fs
+    .readdirSync(refsDir)
+    .filter((f) => f.endsWith('.md'))
+    .map((f) => fs.readFileSync(path.join(refsDir, f), 'utf8')),
+].join('\n');
+
+// Some guardrails must be proven in the *compact* Part 0 template specifically,
+// not merely somewhere in the package — the safety phrases also appear in
+// SKILL.md's verification checklist, which would let a whole-package match pass
+// even if the compact template dropped the rule. Slice the compact Part 0
+// section out of goal-templates.md so those assertions stay meaningful.
+const goalTemplates = fs.readFileSync(path.join(refsDir, 'goal-templates.md'), 'utf8');
+const compactPart0 = goalTemplates.slice(
+  goalTemplates.indexOf('### Part 0 — compact variant'),
+  goalTemplates.indexOf('### CODEX_STATEMENT — compact variant'),
+);
 
 test('CODEX=on proactive peer text names expanded trigger categories', () => {
   for (const phrase of [
@@ -72,8 +96,8 @@ test('4000-char paste guard: threshold, compact fallback, and hard-block wiring'
   // compact Part 0 variant preserves safety-critical clauses
   assert.ok(skill.includes('Part 0 — compact variant'), 'missing compact Part 0 section');
   assert.ok(skill.includes('CODEX_STATEMENT — compact variant'), 'missing compact CODEX_STATEMENT section');
-  assert.ok(skill.includes('Repository Discovery Gate before'), 'compact Part 0 must keep the Repository Discovery Gate rule');
-  assert.ok(/never\s+general-purpose/.test(skill), 'compact Part 0 must keep the never-general-purpose rule');
+  assert.ok(compactPart0.includes('Repository Discovery Gate before'), 'compact Part 0 must keep the Repository Discovery Gate rule');
+  assert.ok(/never\s+general-purpose/.test(compactPart0), 'compact Part 0 must keep the never-general-purpose rule');
   // hard-block behavior and operator guidance
   assert.ok(skill.includes('No /goal command was emitted this run'), 'missing hard-stop notice');
   assert.ok(skill.includes('do **not** print Block B, C, or C2') || skill.includes('do not print Block B, C, or C2'),
