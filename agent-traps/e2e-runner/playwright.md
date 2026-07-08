@@ -7,6 +7,7 @@ Apply on every dispatch — Playwright is this agent's sole testing stack, so th
 | `boundingBox()` has no `.top` | `boundingBox()` returns `{x, y, width, height}` — there is no `.top` property (unlike the DOM's native `getBoundingClientRect()`, which does have one). `boundingBox()?.top` is always `undefined`, and a `?? 0` fallback silently masks this — you read `0` and never notice. | Use `.y` for the top offset. |
 | Double-counted iframe offset | For an element inside an `iframe`, Playwright's `boundingBox()` coordinates are already relative to the main viewport — the frame offset is already included. Adding the frame offset again double-counts it. | Use the coordinates as returned; do not add the frame's own offset a second time. |
 | Auto-scroll pollutes "before click" measurements | Playwright's click-actionability checks include an auto-scroll that can move the page before the click executes. A "before click" `scrollY` measurement taken without accounting for this auto-scroll is polluted — the page already scrolled. | Capture `scrollY` after any auto-scroll settles (e.g. after the locator resolves as actionable), or scroll explicitly and measure from that known state. |
+| Native dialog blocks until handled | A native `window.confirm()` / `alert()` / `prompt()` (common on destructive actions — delete / clear / discard / void) blocks Playwright: the click that raises it never resolves, and the journey stalls **silently with no error and no assertion failure**. If a step that should complete just hangs, an unhandled native dialog is the first suspect. | Register a dialog handler **before** clicking the control that raises it: `page.once('dialog', d => d.accept())` (or `d.dismiss()` per intent), or the `playwright-cli` skill's `dialog-accept` / `dialog-dismiss`. Register per-click (`once`) so a later unrelated dialog is not auto-accepted. |
 
 ## Worked examples
 
@@ -43,6 +44,16 @@ await locator.click();
 await locator.scrollIntoViewIfNeeded();
 const before = await page.evaluate(() => window.scrollY);
 await locator.click();
+```
+
+```typescript
+// BAD — clicking a control that raises a native confirm() with no handler registered;
+// the click never resolves and the test hangs silently until timeout
+await page.getByRole('button', { name: 'Clear settlement' }).click();  // stalls on confirm()
+
+// GOOD — register a per-click dialog handler BEFORE the click that raises it
+page.once('dialog', d => d.accept());   // or d.dismiss() to cancel
+await page.getByRole('button', { name: 'Clear settlement' }).click();
 ```
 
 ## Diagnostic ordering
