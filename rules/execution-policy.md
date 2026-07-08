@@ -139,7 +139,7 @@ At the end of a turn that produced Edits/Writes, gather ALL pending sentinels, t
 
 ### Review output gate
 
-Every quality-gate reply (code / doc / test / security review, audit, risk-assess) ends with an explicit gate: a symbol (✅ pass / ⚠️ conditional / ⛔ block), a status word (Mergeable / Needs revision / Adequate / Insufficient / Inconclusive), and a one-line justification. The gate is the decision — reader sees the symbol first. Example: `✅ Mergeable — all dimensions ≥4/5, no P0 findings.` (pr-review, doc-review, test-review, security-review, project-audit, risk-assess)
+Every quality-gate reply (code / doc / test / security review, audit, risk-assess) leads with an explicit gate as the FIRST line of the reply — superseding any prior convention that placed this line at the end: a symbol (✅ pass / ⚠️ conditional / ⛔ block), a status word (Mergeable / Needs revision / Adequate / Insufficient / Inconclusive), and a one-line justification. The gate is the decision — reader sees the symbol first. Example: `✅ Mergeable — all dimensions ≥4/5, no P0 findings.` (pr-review, doc-review, test-review, security-review, project-audit, risk-assess)
 
 ### AI-judgment back-stop (self-trigger)
 

@@ -180,6 +180,12 @@ if [ "$DEEP_MODEL" != "opus" ] || [ "$WORKER_MODEL" != "sonnet" ] || [ "$DEEP_EF
     unset _orch_line
 fi
 
+QUALITY_GATE="${CLAUDE_PLUGIN_OPTION_SUBAGENT_QUALITY_GATE:-off}"
+case "$(printf '%s' "$QUALITY_GATE" | tr '[:upper:]' '[:lower:]')" in
+    on|true|1) echo "[session-start] subagent_quality_gate=$QUALITY_GATE (SubagentStop thin-report gate enabled)" ;;
+    *) ;;
+esac
+
 # ---- Cross-session learned context (opt-in via learning_db_enabled) ----
 # Surface the top recurring signatures so the model starts the session aware of
 # what prior sessions learned. Capped at 5 lines (~well under 500 tokens) to

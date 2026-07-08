@@ -23,12 +23,7 @@
           {
             "type": "command",
             "command": "bash",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/pretool-sentinel-gate.sh"]
-          },
-          {
-            "type": "command",
-            "command": "bash",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/pretool-branch-safety.sh"],
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/pretool-git-gate.sh"],
             "timeout": 5
           }
         ]
@@ -64,13 +59,7 @@
           {
             "type": "command",
             "command": "bash",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/post-write-crlf-fix.sh"],
-            "async": true
-          },
-          {
-            "type": "command",
-            "command": "bash",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/post-edit-manifest-guard.sh"],
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/post-edit-advisory.sh"],
             "async": true
           }
         ]
@@ -136,6 +125,11 @@
     "SubagentStop": [
       {
         "hooks": [
+          {
+            "type": "command",
+            "command": "bash",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/subagent-stop-quality.sh"]
+          },
           {
             "type": "command",
             "command": "bash",
