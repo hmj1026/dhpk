@@ -54,6 +54,7 @@ The reply leads with a machine-parseable verdict line — `Verdict: PASS | WARNI
 - **Isolate tests**: each test independent, no shared state.
 - **Fail fast**: `expect()` at every key step.
 - **Trace on retry**: `trace: 'on-first-retry'`.
+- **Handle native dialogs before destructive clicks**: register a dialog handler (`page.once('dialog', d => d.accept())` or `dialog-accept`) before any control that can raise a native `confirm()`/`alert()`/`prompt()` — an unhandled dialog blocks Playwright and stalls the journey silently (see the native-dialog trap in the Playwright trap sheet).
 
 ## Flaky-test handling
 

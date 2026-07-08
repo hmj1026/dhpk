@@ -285,6 +285,32 @@ _tri_comment_only() {  # 0 iff >=1 changed line seen and every changed non-blank
     done <<< "$_body"
     [ "$_seen" -eq 1 ]
 }
+_tri_checkbox_only() {  # 0 iff this is a tasks.md whose NET change is only checkbox flips
+    # A pure flip means: after canonicalizing the checkbox mark ([x]->[ ]), the
+    # set of added lines equals the set of removed lines (they cancel). Adding or
+    # removing a task, or a prose edit, leaves an uncancelled line → not a flip,
+    # so the doc gate stays armed (matches the spec: only bookkeeping flips exempt).
+    [ "$BASENAME" = "tasks.md" ] || return 1
+    local _body _ln _t _canon _added="" _removed=""
+    _body="$(git -C "$ROOT" diff HEAD -U0 -- "$REL" 2>/dev/null)" || return 1
+    [ -n "$_body" ] || return 1
+    while IFS= read -r _ln; do
+        case "$_ln" in
+            +++*|---*) continue ;;
+            +*|-*) _t="${_ln:1}" ;;
+            *) continue ;;
+        esac
+        [ -z "${_t//[[:space:]]/}" ] && continue   # skip blank changed lines
+        # Canonicalize a checkbox mark so a flip cancels; prose lines pass through.
+        _canon="$(printf '%s' "$_t" | sed -E 's/^([[:space:]]*- \[)[xX](\])/\1 \2/')"
+        case "$_ln" in
+            +*) _added="${_added}${_canon}"$'\n' ;;
+            -*) _removed="${_removed}${_canon}"$'\n' ;;
+        esac
+    done <<< "$_body"
+    [ -n "${_added}${_removed}" ] || return 1
+    [ "$(printf '%s' "$_added" | LC_ALL=C sort)" = "$(printf '%s' "$_removed" | LC_ALL=C sort)" ]
+}
 _tri_numstat="$(git -C "$ROOT" diff HEAD --numstat -- "$REL" 2>/dev/null | awk 'NR==1{print $1" "$2}')"
 _tri_add="${_tri_numstat%% *}"; _tri_rem="${_tri_numstat##* }"
 if [ -n "$_tri_numstat" ] && [ "$_tri_add" != "-" ] && [ "$_tri_rem" != "-" ] \
@@ -298,7 +324,26 @@ if [ -n "$_tri_numstat" ] && [ "$_tri_add" != "-" ] && [ "$_tri_rem" != "-" ] \
             css|scss|sass|less) for _tri_s in 1 2 3; do _tri_drop "$_tri_s" "pure-style CSS (net=$_tri_net)"; done ;;
         esac
     fi
+    # Checkbox-only tasks.md flip: the orchestrator's own progress bookkeeping,
+    # never an auditable doc change. Drop the doc slot (the one slot the comment-only
+    # pass deliberately keeps) — independent of the comment/CSS branches above.
+    if _tri_checkbox_only; then
+        _tri_drop 4 "checkbox-only tasks.md edit"
+    fi
 fi
+
+# ---- Orchestration state dotfiles: never owe a doc-review ----
+# Leading-dot .md files under openspec/ (e.g. .resume-note.md,
+# .hard-rule-escalation.md that an unattended opsx-apply-goal session writes as
+# its own bookkeeping) are session state, not auditable spec artifacts — a
+# doc-review is never owed for them, and arming one re-churns the doc sentinel
+# on every write. Suppress only the doc slot (4), AFTER all built-in +
+# config-driven routing, so a project that has explicitly opted a non-doc slot
+# into openspec/ (review_trigger_extra_paths / module.yaml paths) still arms it.
+case "$REL" in
+    openspec/*)
+        case "$BASENAME" in .*.md) NEEDS[4]=0 ;; esac ;;
+esac
 
 # ---- Write sentinels ----
 # Idempotent append: if $REL already appears in the sentinel (any timestamp),
