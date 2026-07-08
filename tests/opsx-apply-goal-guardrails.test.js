@@ -38,4 +38,27 @@ test('Part 2 and Part 4 include unresolved verdict and hard-rule escalation gate
     'missing hard-rule escalation contents');
 });
 
+test('smoke gate: flags, HAS_SMOKE conditioning, Block A row, and self-escaping hatch are wired', () => {
+  // flags parsed
+  assert.ok(skill.includes('--smoke') && skill.includes('--no-smoke'),
+    'missing --smoke/--no-smoke flags');
+  assert.ok(skill.includes('HAS_SMOKE'), 'missing HAS_SMOKE detection flag');
+  // Part 3 line emitted iff HAS_SMOKE=true
+  assert.ok(skill.includes('ONLY when `HAS_SMOKE=true`') || skill.includes('only when `HAS_SMOKE=true`'),
+    'smoke gate line is not conditioned on HAS_SMOKE=true');
+  // PASS satisfies, and the FAIL-does-not-satisfy rule is stated
+  assert.ok(skill.includes('Verdict: PASS'), 'missing Verdict: PASS satisfy condition');
+  assert.ok(skill.includes('Verdict: FAIL') && /does NOT satisfy the gate/.test(skill),
+    'missing FAIL-does-not-satisfy rule');
+  // Block A enum states (on/off, both flag and signal variants)
+  for (const state of ['on (signal)', 'on (--smoke)', 'off (--no-smoke)', 'off (no strong signal, hint emitted)']) {
+    assert.ok(skill.includes(state), `missing Block A smoke-gate state: ${state}`);
+  }
+  // self-escaping hatch (branch b) is discoverable in the Part 3 gate text
+  assert.ok(skill.includes('could not be driven this session'),
+    'missing self-escaping hatch note wording');
+  assert.ok(skill.includes("failing command's output"),
+    'missing escape-hatch evidence requirement');
+});
+
 run('opsx-apply-goal-guardrails');

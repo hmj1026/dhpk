@@ -1,6 +1,6 @@
 ---
 name: opsx-apply-goal
-argument-hint: '<change-id> [--turns N] [--max-duration <Nm|Nh>] [--min-coverage N] [--dry-run]'
+argument-hint: '<change-id> [--turns N] [--max-duration <Nm|Nh>] [--min-coverage N] [--smoke|--no-smoke] [--dry-run]'
 description: 'Generate a single-paste /goal condition (with an embedded opsx:apply kickoff instruction) for an unattended OpenSpec change implementation session. Reads tasks.md + proposal.md, detects test-runner scope, calculates turn budget, and emits one /goal string — pasting it into a fresh session both sets the stop condition and starts implementation, since /goal triggers immediate action on submit. Use when starting an unattended implementation session for an OpenSpec change. Not for: archiving, verifying, or syncing changes (use opsx-archive / opsx-verify / opsx-sync).'
 allowed-tools: 'Bash, Read, Glob'
 ---
@@ -46,10 +46,11 @@ From `$ARGUMENTS`:
   has no native coverage config. Requires a detected test runner (`HAS_TEST=true`);
   ignored with a Block A note otherwise. Overrides any detected `COVERAGE_THRESHOLD`.
 - `CODEX` = `on` if `--codex` is present, else `off` (codex-free default, per the dhpk `--codex` convention). Stated explicitly in the emitted goal's Part 0 so the orchestrator does not have to guess the session's cross-model setting.
+- `SMOKE_FLAG` = `off` if `--no-smoke` is present, else `on` if `--smoke` is present, else `auto`. When both `--smoke` and `--no-smoke` are passed, `--no-smoke` wins (`SMOKE_FLAG=off`). This flag drives `HAS_SMOKE` resolution in Step 4 with precedence `--no-smoke` > `--smoke` > detection.
 
 Missing `CHANGE_ID` → print usage and stop:
 ```
-Usage: /dhpk:opsx-apply-goal <change-id> [--turns N] [--max-duration <Nm|Nh>] [--min-coverage N] [--codex] [--dry-run]
+Usage: /dhpk:opsx-apply-goal <change-id> [--turns N] [--max-duration <Nm|Nh>] [--min-coverage N] [--codex] [--smoke|--no-smoke] [--dry-run]
 Example: /dhpk:opsx-apply-goal fix-spec-select-empty-gplist-overflow
 ```
 
@@ -101,7 +102,30 @@ Then, from the same combined text, set `HAS_BUILD` and `HAS_LINT` the same way
 (positive signal AND no negative override) — see `references/detection.md`
 §Build/lint gates. These are independent of `HAS_TEST`: a build-only change can
 have `HAS_BUILD=true` while `HAS_TEST=false`. If none of test / build / lint is
-detected, omit Part 3 entirely.
+detected — and `HAS_SMOKE` (computed next) is also false — omit Part 3 entirely.
+A detected `HAS_SMOKE=true` keeps Part 3 (with only the smoke line) even when no
+test / build / lint gate is present.
+
+Then set `HAS_SMOKE` — an opt-in **read-only live-runtime probe** gate — delegated
+to `references/detection.md` §Drivable system. Detection is biased toward **high
+precision**: a false positive deadlocks an unattended session against a system it
+cannot actually drive, while a false negative merely means one fewer gate this run.
+Resolution follows `SMOKE_FLAG` from Step 1:
+- `off` (`--no-smoke`) → `HAS_SMOKE=false` regardless of any detected signal.
+- `on` (`--smoke`) → `HAS_SMOKE=true` even when no launch command is derivable; in
+  that case still emit the Block A note that the runtime could not be driven this
+  session (the §Drivable system "--smoke without a derivable launch command" case).
+- `auto` (no flag) → `HAS_SMOKE=true` ONLY on a **strong** signal (an explicit
+  runtime-verification task in `proposal.md`/`tasks.md`, a dispatched `e2e-runner`
+  task, or a derivable launch command from repo config). Any non-strong auto
+  result — a **weak** signal (a compose file with no derivable launch command, a
+  generic dev-server script with no stated port) **or no drivable signal at all**
+  (a plugin/library repo with no running system, e.g. dhpk itself) — leaves
+  `HAS_SMOKE=false` and adds the Block A hint: "weak or no drivable signal
+  detected — pass `--smoke` to enable". The hint therefore fires on every
+  detection-driven off state, which is what makes Block A's `off (no strong
+  signal, hint emitted)` value accurate (it is used only for detection-off, never
+  for the explicit `--no-smoke` off).
 
 Additionally, scan each task line in `tasks.md` for non-automatable signals
 (see `references/detection.md` §Non-automatable tasks). For each matching task:
@@ -195,7 +219,7 @@ and confirmed the output is NONE in conversation (no unresolved reviewer verdict
 ```
 
 **Part 3 (verification gates — emit one line per detected gate; omit the whole
-part only if none of test / build / lint is detected):**
+part only if none of test / build / lint is detected AND `HAS_SMOKE=false`):**
 
 Test runners (only if `HAS_TEST=true`):
 - `HAS_PHPUNIT` → `phpunit output shows 0 errors, 0 failures`
@@ -225,6 +249,23 @@ plain `0 failed` line and add no coverage condition. If `MIN_COVERAGE` is set bu
 Build / lint (only if detected — conditional, never forced):
 - `HAS_BUILD` → `build output shows 0 errors`
 - `HAS_LINT` → `lint output shows 0 errors`
+
+Smoke gate (a **read-only live-runtime probe**, emitted ONLY when `HAS_SMOKE=true`
+— omit this line entirely when `HAS_SMOKE=false`). Satisfied by exactly one of two
+branches:
+- (a) `dhpk:smoke-tester` was dispatched with one concrete scenario (the
+  orchestrator sources the scenario from the change's claimed user-visible
+  behavior in `proposal.md`/`tasks.md` — the agent never invents its own scope),
+  its report's **first line is `Verdict: PASS`**, and the key observed value from
+  that report was pasted into the conversation; OR
+- (b) a self-escaping hatch — a one-line note was pasted stating why the system
+  could not be driven this session (launch command failed / no runtime available)
+  together with the failing command's output.
+A `Verdict: FAIL` report does NOT satisfy the gate. Branch (b) mirrors the
+pre-existing-failure hatch above: a named, evidenced exception, never a silent
+skip — a bare "couldn't run it" claim without the failing command's output does
+not satisfy it. The hatch prevents a strong-signal detection from deadlocking an
+unattended session when the runtime is genuinely unreachable this session.
 
 **Part 4 (always — stop limits):**
 
@@ -258,6 +299,7 @@ The `.resume-note.md` carry-forward lets a follow-up session resume cleanly via
 ║  Tasks       : <DONE_TASKS>/<TOTAL_TASKS> done, <OPEN_TASKS> open
 ║  Test runners: <detected runners, or "none detected">
 ║  Coverage    : <enforced threshold <T> (config | --min-coverage) | not enforced (pass --min-coverage N) | not enforced (no test runner) | --min-coverage ignored (no test runner)>
+║  Smoke gate  : <on (signal) | on (--smoke) | off (--no-smoke) | off (no strong signal, hint emitted)>
 ║  Sentinels   : universal check (all 7 slots, self-calibrating)
 ║  Turn budget : <TURN_BUDGET>  (formula: <OPEN_TASKS> × 4 + 20, cap 20–120)
 ║  Manual tasks: <N skipped, or "none">
@@ -326,6 +368,11 @@ after this:
   more dispatch/collect turns); the formula above is unchanged this release,
   so re-tune with --turns N if the default misfits under dispatch
 • --max-duration ran out: same recovery — /goal clear, then re-run
+• Smoke gate (opt-in): a read-only live-runtime probe (dhpk:smoke-tester) drives
+  the real running system with one concrete scenario and observes the result —
+  high-precision detection (strong signals only; --smoke forces on, --no-smoke
+  suppresses), so it never deadlocks a non-drivable repo (plugin/library repos
+  with no running system)
 ```
 
 If `HAS_COVERAGE=false` AND `MIN_COVERAGE` is unset AND `HAS_TEST=true`, append one NOTES line:
@@ -414,3 +461,5 @@ This session will NOT auto-run /goal or opsx:apply.
 - [ ] `--dry-run` stops after Block C2 Monitor (no "THIS SESSION" block)
 - [ ] Archived change → warn and stop (no goal emitted)
 - [ ] Missing `tasks.md` → fail with clear error message
+- [ ] Part 3 emits the smoke gate line if and only if `HAS_SMOKE=true` (strong signal or `--smoke`); the line is omitted entirely when `HAS_SMOKE=false`
+- [ ] `--no-smoke` suppresses the smoke line regardless of detected signal strength; Block A `Smoke gate` row reports exactly one of `on (signal)` / `on (--smoke)` / `off (--no-smoke)` / `off (no strong signal, hint emitted)`
