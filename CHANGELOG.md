@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.28.3 — 2026-07-08 — Playwright native dialog traps, tasks.md/openspec post-edit remind bypass, and tdd-guide dispatch routing
+
+Fixes a bug where checkbox-only changes in `tasks.md` or leading-dot orchestration dotfiles in `openspec/` armed the `doc-review` sentinel, adds Playwright native dialog traps to `playwright.md` and `e2e-runner.md`, routes RED PHPUnit unit/integration tests to `tdd-guide`, and enforces a wrap-up self-check for `CODEX=on` sessions with 0 dispatches.
+
+**fix(hooks)** — Exclude checkbox-only `tasks.md` edits and leading-dot orchestration dotfiles in `openspec/` (e.g., `.resume-note.md`) from arming the `doc-review` sentinel in `post-edit-remind.sh`. Add tests verifying this behavior.
+
+**docs(agents)** — Update Playwright trap documentation and e2e-runner agent instructions with native dialog handling guidelines to avoid silent timeouts.
+
+**chore(policy)** — Update agent dispatch policy and templates to route RED PHPUnit tests to `tdd-guide`, and introduce a wrap-up self-check for `CODEX=on` sessions that dispatched `codex-bridge` 0 times.
+
 ## 0.28.2 — 2026-07-08 — Planner consult mode, smoke-test gate, and machine-readable agent verdicts
 
 Adds an opt-in pre-implementation plan consult, a live smoke-test gate for unattended opsx-apply-goal runs, and a machine-readable `Verdict:`/conclusion-first output contract across agents.
