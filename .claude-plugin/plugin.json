@@ -118,6 +118,12 @@
       "description": "'on' (default) routes implement-phase work through the Implementation dispatch decision table in rules/execution-policy.md — deep-reasoner for reasoning-heavy work, fast-worker for mechanical work with a clear spec, inline for small (~2-file) diffs; dispatching general-purpose for implementation is prohibited while this is on. 'off' is a full kill switch restoring pre-change behavior exactly: inline implementation, no dispatch prohibition, no opsx-apply-goal directive line.",
       "default": "on"
     },
+    "subagent_quality_gate": {
+      "type": "string",
+      "title": "SubagentStop thin-report quality gate",
+      "description": "Enables scripts/hooks/subagent-stop-quality.sh, a SubagentStop hook that blocks-and-continues a subagent once when its final report is thin, a bare approval, an unresolved error with no next-step language, or an evidence-free review-shaped reply — wired ahead of subagent-stop-verify.sh so a blocked reviewer's sentinel is not auto-cleared. Default 'off' (no-op, no heuristic evaluation) — set to 'on'/'true'/'1' to enable. Extraction hit/miss is recorded to .claude/artifacts/sessions/.subagent-stop-quality-extraction.json to support a future data-driven default-on flip decision.",
+      "default": "off"
+    },
     "deep_reasoner_effort": {
       "type": "string",
       "title": "deep-reasoner effort",
