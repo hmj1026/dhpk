@@ -72,17 +72,20 @@ than introducing new wording there.
 ---
 
 ## Part 1 (always)
+
 ```
 All checkboxes in openspec/changes/<CHANGE_ID>/tasks.md are [x] (Claude confirmed in conversation)
 ```
 
 ## Part 2 (always — universal sentinel check)
+
 ```
 Claude ran `ls .claude/artifacts/sessions/.pending-* 2>/dev/null || echo NONE`
 and confirmed the output is NONE in conversation (all pending reviewer sentinels cleared)
 ```
 
 ## Part 2b (always — unresolved reviewer verdict sidecar check)
+
 ```
 Claude ran `test ! -s .claude/artifacts/sessions/.unresolved-verdict && echo NONE || cat .claude/artifacts/sessions/.unresolved-verdict`
 and confirmed the output is NONE in conversation (no unresolved reviewer verdict sidecar entries)
