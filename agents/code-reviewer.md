@@ -91,13 +91,13 @@ This plugin reviews predominantly Claude-authored code. Bias attention toward th
 
 ## Output
 
+State `Verdict: APPROVE | WARNING | BLOCK` as the FIRST line of the reply — APPROVE = no CRITICAL/HIGH; WARNING = HIGH only; BLOCK = any CRITICAL. Follow with the severity table, then:
+
 ```
 [CRITICAL|HIGH|MEDIUM|LOW] Title
 File: path:line
 Issue / Fix
 ```
-
-End with severity table + last line `Verdict: APPROVE | WARNING | BLOCK`. APPROVE = no CRITICAL/HIGH; WARNING = HIGH only; BLOCK = any CRITICAL.
 
 ## Closing — Artifact Output (MUST)
 

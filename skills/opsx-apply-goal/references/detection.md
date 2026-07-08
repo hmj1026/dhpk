@@ -41,6 +41,38 @@ When emitting Part 3, add `build output shows 0 errors` for `HAS_BUILD` and
 line so the Haiku evaluator can check it from conversation. Detected nothing →
 add nothing (no forced gate on changes that have no build/lint step).
 
+## Drivable system (HAS_SMOKE)
+
+Feeds Step 4's `HAS_SMOKE` flag — the opt-in, read-only live-runtime smoke gate.
+Unlike the test/build/lint tables (any positive match is a simple boolean true),
+this table carries a **strength** column: only **strong** signals set
+`HAS_SMOKE=true`. Detection is biased toward **high precision** because a false
+positive deadlocks an unattended session against a system it cannot actually drive,
+whereas a false negative merely means one fewer gate this run.
+
+| Signal | How detected | Strength |
+|--------|--------------|----------|
+| Explicit runtime-verification task | `proposal.md`/`tasks.md` names a live-verification task (e.g. "verify the live endpoint returns X", "smoke test the deployed daemon") | strong |
+| `e2e-runner` task dispatched | a task line in `tasks.md` names `e2e-runner` (implies a drivable web surface already established) | strong |
+| Derivable launch command | a compose service / npm `start`/`dev` script / `CLAUDE.md` entrypoint with a confirmable run target | strong |
+| Compose file present, no derivable launch command | `docker-compose.yml` exists but no confirmable run target | weak |
+| Generic dev-server script | `npm run dev` / similar with no stated port or confirmable drivability | weak |
+
+Only **strong** signals set `HAS_SMOKE=true`. Any non-strong auto result — a
+**weak** signal, **or no drivable signal at all** (a plugin/library repo with no
+running system) — sets `HAS_SMOKE=false` and adds the Block A hint ("weak or no
+drivable signal detected — pass `--smoke` to enable"), mirroring the
+signal-table → Block A convention already used for skip-tasks and coverage. The
+hint fires on every detection-driven off state, so Block A's `off (no strong
+signal, hint emitted)` value is accurate whenever the off state came from
+detection rather than an explicit `--no-smoke`.
+
+**Flag precedence** (`--no-smoke` > `--smoke` > detection):
+- `--no-smoke` → `HAS_SMOKE=false` regardless of signal strength.
+- `--smoke` → `HAS_SMOKE=true` even when no launch command is derivable; in that
+  case Block A still notes the runtime could not be driven this session.
+- no flag → detection as above (strong = true; weak or none = false + hint).
+
 ## Coverage gate (opt-in, threshold-driven)
 
 Closes the "new code shipped with zero tests still passes the `0 failed` gate"

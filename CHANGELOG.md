@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.28.2 — 2026-07-08 — Planner consult mode, smoke-test gate, and machine-readable agent verdicts
+
+Adds an opt-in pre-implementation plan consult, a live smoke-test gate for unattended opsx-apply-goal runs, and a machine-readable `Verdict:`/conclusion-first output contract across agents.
+
+**feat(agent)** — New `planner` agent, invoked via `/dhpk:do --plan` for the four implementation-class skill routes. Returns ENDORSE/AMEND/REPLACE with risks, checkpoints, and assumptions, and is resumed post-implementation for a warm diff review. New `smoke-tester` agent — a read-only live-runtime probe that drives the real running system with one orchestrator-supplied scenario, used as a post-implementation live-proof gate. All agents refactored to emit a machine-checkable `Verdict:`/conclusion first line.
+
+**feat(opsx)** — `opsx-apply-goal` now integrates the smoke-test gate, a 4000-character goal-string cap with automatic compression, and a new `analyze-change.sh` helper script for deterministic OpenSpec change analysis. The skill itself was reorganized: verbatim templates and the output-block catalog moved into standalone reference files, loaded on demand.
+
+**refactor(hooks)** — Merged the `git-gate` and `post-edit` hooks for fewer duplicate invocations. New `subagent-stop-quality.sh` hook checks subagent output quality at session end.
+
+**docs** — Updated README and manual docs for the new `--plan` parameter, the 4000-character goal limit, and smoke-test configuration.
+
 ## 0.28.1 — 2026-07-07 — Reviewer liveness tracking and static guardrails
 
 Adds reviewer liveness tracking to prevent redundant dispatches, introduces Repository Discovery Gate rules, and hardens the opsx-apply-goal pipeline.

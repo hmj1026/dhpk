@@ -3,8 +3,8 @@
 #
 # Covers the 7 hooks added in 0.5.0:
 #   userpromptsubmit-skill-hint / precompact-archive / postcompact-restore /
-#   subagent-stop-verify / stop-failure-log / pretool-sentinel-gate /
-#   pretool-branch-safety
+#   subagent-stop-verify / stop-failure-log / pretool-git-gate (merged from
+#   pretool-sentinel-gate + pretool-branch-safety)
 #
 # Each case runs the real hook against an isolated throwaway git repo created
 # with `mktemp -d`, so nothing touches the developer's working tree. The repo's
@@ -166,43 +166,47 @@ slog2="$repo2/.claude/artifacts/stop-failures.log"
 if [ -f "$slog2" ] && grep -q 'active_sentinels=none' "$slog2"; then ok "no sentinels → active_sentinels=none"; else fail "empty-sentinel case wrong"; fi
 
 echo ""
-echo "== 6. pretool-sentinel-gate.sh =="
+echo "== 6. pretool-git-gate.sh — sentinel-commit slot =="
+# DHPK_BRANCH_SAFETY=off isolates the sentinel-commit slot from the
+# protected-branch slot, which would otherwise also fire warn-mode
+# REMINDERs on these repos' default (protected) 'main' branch now that
+# both slots share one merged script.
 repo="$(make_repo)"
 mk_sentinel "$repo" ".pending-review"
-run_hook "$repo" pretool-sentinel-gate.sh '{"tool_input":{"command":"git commit -m wip"}}'
+run_hook "$repo" pretool-git-gate.sh '{"tool_input":{"command":"git commit -m wip"}}' DHPK_BRANCH_SAFETY=off
 if grep -q 'REMINDER' "$STDOUT_F"; then ok "commit with pending sentinel → warn (systemMessage)"; else fail "no warn on pending commit ($(cat "$STDOUT_F"))"; fi
 if [ "$RC" -eq 0 ]; then ok "warn mode exits 0 (non-blocking)"; else fail "warn mode returned rc=$RC"; fi
 
-run_hook "$repo" pretool-sentinel-gate.sh '{"tool_input":{"command":"git commit -m wip"}}' DHPK_SENTINEL_COMMIT_GATE=block
+run_hook "$repo" pretool-git-gate.sh '{"tool_input":{"command":"git commit -m wip"}}' DHPK_SENTINEL_COMMIT_GATE=block DHPK_BRANCH_SAFETY=off
 if [ "$RC" -eq 2 ] && grep -q 'BLOCKED' "$STDERR_F"; then ok "block mode exits 2 + stderr"; else fail "block mode rc=$RC (expected 2)"; fi
 
-run_hook "$repo" pretool-sentinel-gate.sh '{"tool_input":{"command":"git commit -m wip"}}' DHPK_SENTINEL_COMMIT_GATE=off
+run_hook "$repo" pretool-git-gate.sh '{"tool_input":{"command":"git commit -m wip"}}' DHPK_SENTINEL_COMMIT_GATE=off DHPK_BRANCH_SAFETY=off
 if [ "$RC" -eq 0 ] && [ ! -s "$STDOUT_F" ] && [ ! -s "$STDERR_F" ]; then ok "off mode → silent exit 0"; else fail "off mode not silent (rc=$RC)"; fi
 
 # No sentinel → silent even in warn mode.
 rm -f "$(sess_dir "$repo")/.pending-review"
-run_hook "$repo" pretool-sentinel-gate.sh '{"tool_input":{"command":"git commit -m wip"}}'
+run_hook "$repo" pretool-git-gate.sh '{"tool_input":{"command":"git commit -m wip"}}' DHPK_BRANCH_SAFETY=off
 if [ ! -s "$STDOUT_F" ]; then ok "no pending sentinel → silent"; else fail "warned with no sentinel present"; fi
 
 # Non-git command → silent.
 mk_sentinel "$repo" ".pending-review"
-run_hook "$repo" pretool-sentinel-gate.sh '{"tool_input":{"command":"ls -la"}}'
+run_hook "$repo" pretool-git-gate.sh '{"tool_input":{"command":"ls -la"}}' DHPK_BRANCH_SAFETY=off
 if [ ! -s "$STDOUT_F" ]; then ok "non-git command → silent"; else fail "warned on non-git command"; fi
 
 echo ""
-echo "== 7. pretool-branch-safety.sh =="
+echo "== 7. pretool-git-gate.sh — protected-branch slot =="
 repo="$(make_repo)"  # default branch = main (protected)
-run_hook "$repo" pretool-branch-safety.sh '{"tool_input":{"command":"git commit -m wip"}}'
+run_hook "$repo" pretool-git-gate.sh '{"tool_input":{"command":"git commit -m wip"}}'
 if grep -q 'REMINDER' "$STDOUT_F"; then ok "commit on main → warn (systemMessage)"; else fail "no warn committing on main ($(cat "$STDOUT_F"))"; fi
 
-run_hook "$repo" pretool-branch-safety.sh '{"tool_input":{"command":"git commit -m wip"}}' DHPK_BRANCH_SAFETY=block
+run_hook "$repo" pretool-git-gate.sh '{"tool_input":{"command":"git commit -m wip"}}' DHPK_BRANCH_SAFETY=block
 if [ "$RC" -eq 2 ] && grep -q 'BLOCKED' "$STDERR_F"; then ok "block mode on main → exit 2 + stderr"; else fail "block mode rc=$RC (expected 2)"; fi
 
 git -C "$repo" checkout -q -b feature/x
-run_hook "$repo" pretool-branch-safety.sh '{"tool_input":{"command":"git commit -m wip"}}'
+run_hook "$repo" pretool-git-gate.sh '{"tool_input":{"command":"git commit -m wip"}}'
 if [ ! -s "$STDOUT_F" ]; then ok "commit on feature/x → silent"; else fail "warned on unprotected branch ($(cat "$STDOUT_F"))"; fi
 
-run_hook "$repo" pretool-branch-safety.sh '{"tool_input":{"command":"git commit -m wip"}}' DHPK_BRANCH_SAFETY=off
+run_hook "$repo" pretool-git-gate.sh '{"tool_input":{"command":"git commit -m wip"}}' DHPK_BRANCH_SAFETY=off
 if [ "$RC" -eq 0 ] && [ ! -s "$STDOUT_F" ] && [ ! -s "$STDERR_F" ]; then ok "off mode → silent exit 0"; else fail "off mode not silent (rc=$RC)"; fi
 
 echo ""

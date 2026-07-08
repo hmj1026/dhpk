@@ -46,7 +46,10 @@ Detect the active stack, then load ONLY the matching trap sheet(s); ignore other
 
 ## Output
 
+The reply leads with a machine-parseable verdict line — `Verdict: PASS | WARNING | FAIL` — as the FIRST line, before the `## DB Review` body: PASS = no ❌ Fix items, WARNING = ⚠️ Warn only (no ❌ Fix), FAIL = any ❌ Fix item.
+
 ```
+Verdict: PASS | WARNING | FAIL
 ## DB Review
 ✅ Pass: <items>
 ⚠️ Warn: <items>

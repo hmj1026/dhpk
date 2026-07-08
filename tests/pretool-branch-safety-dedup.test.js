@@ -1,12 +1,12 @@
 'use strict';
 
-// D5 regression: pretool-branch-safety.sh warn mode must dedup the
-// "[branch-safety] REMINDER" systemMessage to once per session per
-// (branch, protected-list), using a SESSION-scoped tmp state file (not a
-// durable repo file). Keying on a hash of the protected list too means a
-// mid-session protected_branches config change re-arms the reminder for a
-// newly-protected branch. block mode is NOT deduped — every rejected
-// command must always explain itself.
+// D5 regression: pretool-git-gate.sh's branch-safety slot (merged from
+// pretool-branch-safety.sh) warn mode must dedup the "[branch-safety]
+// REMINDER" systemMessage to once per session per (branch, protected-list),
+// using a SESSION-scoped tmp state file (not a durable repo file). Keying on
+// a hash of the protected list too means a mid-session protected_branches
+// config change re-arms the reminder for a newly-protected branch. block
+// mode is NOT deduped — every rejected command must always explain itself.
 
 const fs = require('node:fs');
 const os = require('node:os');
@@ -15,7 +15,7 @@ const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const HOOK = path.join(ROOT, 'scripts', 'hooks', 'pretool-branch-safety.sh');
+const HOOK = path.join(ROOT, 'scripts', 'hooks', 'pretool-git-gate.sh');
 
 function mkTempRepo() {
   // realpath: on macOS os.tmpdir() lives under a /var symlink to /private/var;
@@ -110,6 +110,58 @@ test('block mode is never deduped (5.3)', () => {
     assert.strictEqual(second.status, 2, `second run should also exit 2; stderr: ${second.stderr}`);
     assert.ok(second.stderr.includes('BLOCKED'),
       `second run stderr should also contain BLOCKED (no dedup in block mode); stderr: ${second.stderr}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
+// D-mixed regression: when the sentinel-gate slot fires in one mode and the
+// branch-safety slot fires in the other on the SAME command, the combined
+// resolution must never silently drop a fired slot's detail. If either slot
+// blocks, the single exit-2 stderr block must ALSO carry a labeled reminder
+// for the other slot's warn-mode detail (design.md Decision (a) step 5:
+// "single combined stderr message covering EVERY fired check").
+function writeSentinel(repo) {
+  const sessDir = path.join(repo, '.claude', 'artifacts', 'sessions');
+  fs.mkdirSync(sessDir, { recursive: true });
+  fs.writeFileSync(path.join(sessDir, '.pending-review'), '');
+}
+
+test('mixed mode: SENTINEL=warn + BRANCH=block surfaces both slots in exit-2 stderr', () => {
+  const repo = mkTempRepo();
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-bs-state-'));
+  try {
+    writeSentinel(repo);
+    const result = runHook(repo, stateDir, {
+      DHPK_SENTINEL_COMMIT_GATE: 'warn',
+      DHPK_BRANCH_SAFETY: 'block',
+    });
+    assert.strictEqual(result.status, 2, `should exit 2; stderr: ${result.stderr}`);
+    assert.ok(result.stderr.includes('BLOCKED [branch-safety]'),
+      `stderr should contain the blocked branch-safety detail; stderr: ${result.stderr}`);
+    assert.ok(result.stderr.includes('reminder [sentinel-gate]'),
+      `stderr should ALSO contain the warn-fired sentinel-gate reminder (not dropped); stderr: ${result.stderr}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+    fs.rmSync(stateDir, { recursive: true, force: true });
+  }
+});
+
+test('mixed mode: SENTINEL=block + BRANCH=warn surfaces both slots in exit-2 stderr', () => {
+  const repo = mkTempRepo();
+  const stateDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-bs-state-'));
+  try {
+    writeSentinel(repo);
+    const result = runHook(repo, stateDir, {
+      DHPK_SENTINEL_COMMIT_GATE: 'block',
+      DHPK_BRANCH_SAFETY: 'warn',
+    });
+    assert.strictEqual(result.status, 2, `should exit 2; stderr: ${result.stderr}`);
+    assert.ok(result.stderr.includes('BLOCKED [sentinel-gate]'),
+      `stderr should contain the blocked sentinel-gate detail; stderr: ${result.stderr}`);
+    assert.ok(result.stderr.includes('reminder [branch-safety]'),
+      `stderr should ALSO contain the warn-fired branch-safety reminder (not dropped); stderr: ${result.stderr}`);
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });
     fs.rmSync(stateDir, { recursive: true, force: true });

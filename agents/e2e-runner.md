@@ -45,6 +45,8 @@ npx playwright show-report               # HTML report
 
 Before reporting a RED/GREEN (or PASS/FAIL) verdict, run the project's typecheck command (`tsc --noEmit` or the project's equivalent). A verdict is NOT GREEN/PASS while typecheck fails, even if the Playwright assertions pass — a type error can mask a test silently exercising the wrong code path.
 
+The reply leads with a machine-parseable verdict line — `Verdict: PASS | WARNING | FAIL` — as the FIRST line of the reply (consistent with the `pass_rate` + PASS/WARNING/FAIL shape in `docs/contracts/artifact-contract.md`): FAIL = typecheck fails or any critical-journey test fails, WARNING = non-critical failures / flaky tests quarantined / pass rate below the 95% success metric, PASS = all critical journeys green and typecheck passes. It may additionally note the RED/GREEN language it already uses elsewhere in the reply.
+
 ## Key principles
 
 - **Semantic locators**: `[data-testid="…"]` > CSS > XPath.

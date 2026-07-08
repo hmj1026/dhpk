@@ -1,6 +1,6 @@
 # Agents Index (dhpk plugin)
 
-> 27 agents shipped by the dhpk plugin (26 root-level + `polyfill-reviewer` under `modules/library-author/agents/`). Discovered as `dhpk:<name>` after install. The full list also appears in `plugin.json`.
+> 29 agents shipped by the dhpk plugin (28 root-level + `polyfill-reviewer` under `modules/library-author/agents/`). Discovered as `dhpk:<name>` after install. The full list also appears in `plugin.json`.
 
 ## Sentinel-driven reviewer dispatch (7-slot default, v0.10.0+)
 
@@ -37,12 +37,14 @@ Role models are configurable per project via `userConfig.deep_reasoner_model` / 
 - `general-purpose` cannot cover it: no dhpk policy context, inherits the main-session model (cost misallocation when the orchestrator is a top-tier model and the task is mechanical), no defined input/output contract for gate enforcement.
 - `architect` cannot cover it: design-domain-scoped (DDD layering, cross-module ADRs) with a design-review posture — stretching it to general debugging/mechanical-implementation work would blur its trigger conditions and INDEX contract. `deep-reasoner` explicitly defers to `architect` for that domain rather than competing with it.
 - `codex-bridge` cannot be covered by the workers or the other two Codex paths: `deep-reasoner` / `fast-worker` are Claude-model workers (no independent-model perspective); the in-session MCP `codex-*` skills run via `mcp__codex__*` with output landing in the main context; the external `codex:` plugin wraps a persistent app-server broker. `codex-bridge` is the plugin's **third** Codex path and the only one that is a one-shot `codex exec` CLI call whose large output is quarantined in a dedicated subagent and relayed verbatim — needed for cheap bulk outsourcing and a blind second opinion without context bleed. Opt-in (`CODEX=on`); codex-free sessions never dispatch it.
+- `smoke-tester` is not covered by any existing agent: `e2e-runner` writes Playwright spec files and is web-scoped (write-capable), and `feature-verify` is a main-context skill (heavyweight P0-P5, not a dispatchable isolated agent) — neither overlaps a read-only, scenario-driven, single-concrete-scenario live probe, so `smoke-tester` is a genuinely new capability.
 
 ## Situational
 
 | Agent | Model | When to invoke |
 |-------|-------|----------------|
 | [architect](architect.md) | opus | Cross-module design, DDD layering, tech-debt analysis |
+| [planner](planner.md) | opus | Plan consultant, opt-in via `/dhpk:do --plan`. Pre-implementation critique / blind-sketch / dual-plan (VERDICT: ENDORSE\|AMEND\|REPLACE) + post-implementation warm diff review (VERDICT: SHIP\|FIX-THEN-SHIP\|RECONSULT); coded findings by exception, VERDICT-first + `END`-trailing reply contract, bounded discovery (spawns `Explore` ≤2, ≤12 own reads). New capability: neither `architect` (DDD/cross-module design) nor `deep-reasoner` (implement-phase conclusion contract) carries a verdict/critique contract or a dual-role warm review. |
 | [refactor-cleaner](refactor-cleaner.md) | sonnet | Dead-code removal, dedup, splitting large files |
 | [ui-ux-verifier](ui-ux-verifier.md) | sonnet | UI vs spec audit, screenshot diffs |
 | [performance-analyzer](performance-analyzer.md) | sonnet | N+1 queries, EXPLAIN, index/perf audits |
@@ -59,6 +61,7 @@ Role models are configurable per project via `userConfig.deep_reasoner_model` / 
 | [type-design-analyzer](type-design-analyzer.md) | sonnet | Score a type's design on encapsulation / invariant expression / usefulness / enforcement ("make illegal states unrepresentable"). Read-only |
 | [agent-evaluator](agent-evaluator.md) | sonnet | 5-axis output-quality scorecard (accuracy / completeness / clarity / actionability / conciseness) with grep-verified evidence. Scores run output, not the code |
 | [e2e-runner](e2e-runner.md) | sonnet | Author / run / stabilize E2E user-journey tests (Playwright + `playwright-cli` skill), quarantine flaky tests, manage artifacts. Distinct from ui-ux-verifier (page-vs-spec audit) |
+| [smoke-tester](smoke-tester.md) | sonnet | Read-only live-runtime probe: drives the real running system with one orchestrator-supplied concrete scenario and asserts on observed values (`Verdict:`-first-line contract). Distinct from e2e-runner (authors/runs Playwright specs, write-capable, web-scoped) and the feature-verify skill (main-context P0-P5, not a dispatchable isolated agent) |
 
 > **How situational agents are reached** (none are sentinel-driven — the trigger SSOT is the AI-judgment back-stop list in `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`):
 > - `architect` ← `adaptive-dev-workflow`
@@ -68,6 +71,7 @@ Role models are configurable per project via `userConfig.deep_reasoner_model` / 
 > - `docs-lookup` ← execution-policy back-stop (current library/API docs, Context7)
 > - `spec-miner` ← `/spec-mine` + route-table entry (and the `opsx-apply-goal` pre-flight note when `openspec/specs/` is empty)
 > - `e2e-runner` ← `/post-dev-test` + route-table entry
+> - `smoke-tester` ← `opsx-apply-goal` Part 3 conditional gate (HAS_SMOKE) + `rules/execution-policy.md` §Implementation dispatch table
 > - `agent-evaluator` ← harness-quality family (`skill-judge` sibling pointer / `harness-govern` listing) — deliberately **out** of `dhpk:do` / `opsx-apply-goal` dev routing
 > - `swift-build-resolver`, `version-matrix-impact-reviewer` ← execution-policy back-stop (module-gated)
 > - `python-build-resolver`, `rust-build-resolver` ← execution-policy back-stop only (build error in Bash output), same as `swift-build-resolver`. NB: the route-table `fix mypy` / `fix cargo build` patterns route to `adaptive-dev-workflow`, which does **not** itself name these agents — so there is no deterministic (route-table/sentinel) dispatch; they fire purely on the AI-judgment back-stop

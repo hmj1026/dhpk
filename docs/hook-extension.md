@@ -30,10 +30,59 @@ behaviour at runtime.
 | `scripts/hooks/post-edit-dispatch.sh` | `PostToolUse` matcher `Edit\|Write\|MultiEdit` | `scripts/hooks/post-edit-remind.sh` (sync — sentinel routing must complete first) | `modules/<m>/hooks/post-edit-*.sh` (each backgrounded so long-running lint never stalls the edit pipeline) |
 | `scripts/hooks/pre-bash-dispatch.sh` | `PreToolUse` matcher `Bash` | `scripts/hooks/pre-bash-guard.sh` (sync — non-zero exit aborts the bash call) | `modules/<m>/hooks/pre-bash-*.sh` and `modules/<m>/hooks/pre-commit-*.sh` (all sync — non-zero exit aborts the bash call) |
 
-`hooks.json` keeps the legacy `post-write-crlf-fix.sh` (async normalisation)
-as a separate entry — it doesn't need module context, so the dispatcher
-doesn't proxy it. Same for `pre-edit-guard.sh`, `session-start.sh`,
-`stop-review-reminder.sh`, and `reap-stale-sentinels.sh`.
+`hooks.json` keeps `post-edit-advisory.sh` (async CRLF normalisation +
+lockfile-sync reminder, see below) as a separate entry — it doesn't need
+module context, so the dispatcher doesn't proxy it. Same for
+`pre-edit-guard.sh`, `session-start.sh`, `stop-review-reminder.sh`, and
+`reap-stale-sentinels.sh`.
+
+## Merged single-parse hooks
+
+Two hooks each merge a pair of formerly-separate scripts so the shared
+payload (a Bash command, or an edited file path) is parsed exactly once,
+then evaluated against independent, disjoint triggers/slots:
+
+- **`scripts/hooks/pretool-git-gate.sh`** (`PreToolUse` Bash matcher) —
+  parses `tool_input.command` once and evaluates two independent slots
+  against it:
+  - **sentinel-commit slot** — warns (or blocks) on `git commit` / `merge` /
+    `rebase` / `cherry-pick` while reviewer sentinels are pending. Mode:
+    `DHPK_SENTINEL_COMMIT_GATE` (`warn|block|off`).
+  - **protected-branch slot** — warns (or blocks) on `git commit` / `merge`
+    / `rebase` / `cherry-pick` / `reset` / `push` on a protected branch
+    (`main`, `master`, `develop`, `release/*`, `hotfix/*` by default). Mode:
+    `DHPK_BRANCH_SAFETY` (`warn|block|off`). Warn-mode dedups the reminder
+    once per session per (branch, protected-list) via a session-scoped tmp
+    state file; block mode is never deduped — a rejected command must
+    always explain itself.
+
+  If either slot fires in block mode, the hook emits one combined stderr
+  message naming every fired slot and exits 2. Otherwise, if any slot fires
+  in warn mode, it emits one combined `systemMessage` covering every fired
+  warn slot and exits 0. Else it exits 0 silently.
+
+- **`scripts/hooks/post-edit-advisory.sh`** (`PostToolUse` `Edit|Write|MultiEdit`
+  matcher, async) — extracts `file_path` once and evaluates two disjoint
+  triggers:
+  - **CRLF normalisation** — normalises CRLF → LF in `.sh` files (a plain
+    stdout echo, not a `systemMessage`).
+  - **root-manifest lockfile-sync reminder** — when a root-level package
+    manifest (`package.json`, `composer.json`, etc.) is edited, emits a
+    `systemMessage` reminding that the matching lock file needs
+    regenerating before commit. Advisory only — writes no sentinel.
+
+  Always exits 0 regardless of which advisories fire.
+
+## SubagentStop ordering
+
+`hooks.json`'s `SubagentStop` array wires `scripts/hooks/subagent-stop-quality.sh`
+**before** `scripts/hooks/subagent-stop-verify.sh` — block-before-auto-clear.
+`subagent-stop-quality.sh` is a default-OFF quality gate
+(`CLAUDE_PLUGIN_OPTION_SUBAGENT_QUALITY_GATE=on` to enable) that blocks a
+subagent whose final report is thin, a bare approval, an unresolved error
+with no risk/next-step language, or an evidence-free review-shaped report —
+so `subagent-stop-verify.sh` never auto-clears a reviewer's sentinel on a
+no-op reply.
 
 ## Authoring a module hook
 

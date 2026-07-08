@@ -47,4 +47,17 @@ test('Task|Agent PreToolUse hooks include reviewer liveness marker before subage
     'Task|Agent PreToolUse must wire pre-agent-liveness-mark.sh');
 });
 
+test('SubagentStop wires subagent-stop-quality.sh before subagent-stop-verify.sh', () => {
+  const parsed = JSON.parse(raw);
+  const subagentStopArgs = (parsed.hooks.SubagentStop || [])
+    .flatMap((entry) => entry.hooks || [])
+    .flatMap((hook) => hook.args || []);
+  const qualityIdx = subagentStopArgs.findIndex((arg) => arg.includes('scripts/hooks/subagent-stop-quality.sh'));
+  const verifyIdx = subagentStopArgs.findIndex((arg) => arg.includes('scripts/hooks/subagent-stop-verify.sh'));
+  assert.ok(qualityIdx !== -1, 'missing subagent-stop-quality.sh in SubagentStop');
+  assert.ok(verifyIdx !== -1, 'missing subagent-stop-verify.sh in SubagentStop');
+  assert.ok(qualityIdx < verifyIdx,
+    'subagent-stop-quality.sh must be wired BEFORE subagent-stop-verify.sh (block-before-auto-clear)');
+});
+
 run('hooks-wiring');

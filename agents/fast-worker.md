@@ -59,9 +59,10 @@ alone. Omitting it (or reporting it incompletely) breaks that back-stop.
 ## Output
 
 ```
+RESULT: DONE | PARTIAL | BLOCKED
 ## Fast Worker Report
-Spec: <one-line summary of what was requested>
 Verify: <command> → PASS | FAIL (N attempts)
+Spec: <one-line summary of what was requested>
 Edited files:
 - path/a
 - path/b
