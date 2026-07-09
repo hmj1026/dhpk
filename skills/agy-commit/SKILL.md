@@ -59,14 +59,15 @@ git status --short
 使用 non-interactive 模式執行，自動批准權限並將工作範圍限定在目前 repo：
 
 ```bash
-agy --dangerously-skip-permissions --add-dir "$(pwd)" -p "Group the current git changes into cohesive, conventional-commit batches and commit each batch. ONLY run git commands (git add / git commit); do NOT edit, create, or delete any files."
+printf 'Y\n' | agy --dangerously-skip-permissions --add-dir "$(pwd)" -p "Group the current git changes into cohesive, conventional-commit batches and commit each batch. ONLY run git commands (git add / git commit); do NOT edit, create, or delete any files."
 ```
 
 **參數說明：**
-- `--dangerously-skip-permissions`：自動批准所有 tool 權限請求，跳過 `確認執行？(Y/n)` 提示。這是 non-interactive 執行的必要條件（`AGY_ALWAYS_APPROVE` 環境變數無法跳過此確認）。
+- `printf 'Y\n' |`：agy 的 git-smart-commit 產出計畫後會以 `確認執行？(Y/n)` 徵詢確認並從 **stdin** 讀取。`--dangerously-skip-permissions` **無法**跳過此計畫確認，必須以 stdin 餵入 `Y`，否則 `-p` 執行會卡住直到 `--print-timeout`（預設 5 分鐘）。
+- `--dangerously-skip-permissions`：自動批准每個 git 指令的 tool 權限請求（與上面的計畫確認是不同的閘門；兩者都需要）。`AGY_ALWAYS_APPROVE` 環境變數對兩者皆無效。
 - `--add-dir "$(pwd)"`：將目前 repo 加入 workspace。**必要** —— `agy -p` 不以 shell cwd 為準；未指定時會落到 agy 快取的預設專案，可能對錯誤的 repo 提交。
 - `-p "<prompt>"` (或 `--print`)：non-interactive 模式，執行 prompt 後退出。
-- prompt 內含 `ONLY run git commands; do NOT edit any files` 約束，將 agy 行為限制在 git 操作。
+- prompt 內含 `ONLY run git commands (git add / git commit); do NOT edit, create, or delete any files` 約束，將 agy 行為限制在 git 操作。
 
 **超時設定：** 設定 bash timeout 為 300000ms（5 分鐘），大量變更可能需要較長時間。
 
