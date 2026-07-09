@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.28.5 — 2026-07-09 — File-state ground truth, premise verification type check, and render-surface completeness
+
+Adds file-state ground truth verification to prevent snapshot-driven false defects, refactors premise verification to avoid deep dispatches for static facts, and introduces render-surface completeness rules for testing new fields.
+
+**chore(policy)** — Implement live file-state ground truth checks using `git status` and direct file reads in `rules/execution-policy.md` and `review-gate-mechanics.md`. Introduce a low-risk model tier downgrade rule for known-finding-mapped small edits, and clarify structural vs behavioral premise dispatch routing in `implementation-dispatch.md`.
+
+**docs(e2e)** — Add render-surface completeness requirements to `e2e-runner` and the legacy code characterization test skill.
+
 ## 0.28.4 — 2026-07-09 — Introduce release-creator and agy-commit
 
 Introduces the new `release-creator` skill and `/create-release` command to automate release flows across generic project ecosystems. Replaces the deprecated `gemini-commit` skill with `agy-commit` utilizing the Antigravity CLI in non-interactive mode.
