@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.28.4 — 2026-07-09 — Introduce release-creator and agy-commit
+
+Introduces the new `release-creator` skill and `/create-release` command to automate release flows across generic project ecosystems. Replaces the deprecated `gemini-commit` skill with `agy-commit` utilizing the Antigravity CLI in non-interactive mode.
+
+**feat(skill)** — New `release-creator` skill that auto-detects project ecosystem release presets (claude-plugin, node, php, python, rust, etc.) to dynamically manage version bumping, changelogs, testing, PR generation, tagging, and CI workflow tracking.
+
+**feat(command)** — New `/create-release` command that resolves the release configuration from a root `RELEASE.md` or via auto-detected presets.
+
+**refactor(skill)** — Rename `gemini-commit` to `agy-commit` to utilize the `agy` CLI, and update it to feed `Y` via stdin to avoid getting stuck in non-interactive plan confirmation prompts.
+
 ## 0.28.3 — 2026-07-08 — Playwright native dialog traps, tasks.md/openspec post-edit remind bypass, and tdd-guide dispatch routing
 
 Fixes a bug where checkbox-only changes in `tasks.md` or leading-dot orchestration dotfiles in `openspec/` armed the `doc-review` sentinel, adds Playwright native dialog traps to `playwright.md` and `e2e-runner.md`, routes RED PHPUnit unit/integration tests to `tdd-guide`, and enforces a wrap-up self-check for `CODEX=on` sessions with 0 dispatches.
