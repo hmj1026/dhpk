@@ -17,6 +17,7 @@
     { "pattern": "(tech(nical)? +spec|requirements +doc|design +doc|architecture +doc)|(技術規格|需求文件|設計文件|架構文件|tech spec)", "skill": "dhpk:tech-spec",      "label": "tech spec authoring" },
     { "pattern": "(precommit|pre[- ]commit|pre +push)|(pre.?commit|提交前|commit 前).{0,8}(檢查|驗證)", "skill": "dhpk:precommit",      "label": "pre-commit checks" },
     { "pattern": "(create|open|draft).{0,20}(pr|pull +request|merge +request)|(建立?|開|發|draft).{0,8}(pr|pull request|合併請求)", "skill": "dhpk:create-pr",      "label": "create PR" },
+    { "pattern": "(create|cut|start|run|perform|do).{0,20}release|(發布?|切|跑|執行).{0,12}(新版本|release|發版流程)", "skill": "dhpk:release-creator", "label": "create release" },
     { "pattern": "(smart +)?commit|stage +(and +)?commit|(提交|暫存).{0,8}(修改|變更|差異)?", "skill": "dhpk:smart-commit",   "label": "smart commit" },
     { "pattern": "(feasibility|first +principles|estimate +effort|estimate +scope)|(可行性|工時評估|範圍估算)", "skill": "dhpk:feasibility-study","label": "feasibility study" },
     { "pattern": "(risk +(assess|analysis|audit)|blast +radius|impact +analysis)|(風險|影響範圍|blast radius).{0,8}(評估|分析)", "skill": "dhpk:risk-assess",    "label": "risk assessment" },

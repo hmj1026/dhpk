@@ -103,6 +103,7 @@ description: 'Navigation index for dhpk plugin commands. Internal documentation;
 |---------|------|
 | `/smart-commit` | 智慧分組提交 |
 | `/create-pr` | 自動建立 PR（含 ticket 抽取） |
+| `/create-release` | 自動執行版本發布流程（版號、Changelog、PR、Tag、CI） |
 | `/pr-summary` | 列出 open PRs |
 | `/merge-prep` | 合併前分析（衝突 / 影響） |
 | `/git-worktree` | 管理 worktree（並行分支） |

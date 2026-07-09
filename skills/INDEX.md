@@ -84,7 +84,8 @@ description: 'Navigation index for dhpk plugin skills. Internal documentation; n
 | Skill | Purpose |
 |-------|---------|
 | [git-smart-commit](git-smart-commit/SKILL.md) | Group messy changes into cohesive commits |
-| [gemini-commit](gemini-commit/SKILL.md) | Delegate smart-commit batching to gemini-cli |
+| [agy-commit](agy-commit/SKILL.md) | Delegate smart-commit batching to agy-cli |
+| [release-creator](release-creator/SKILL.md) | Cut a new release of a project (version bump, changelog, PR, tag, CI) |
 | [deploy-list](deploy-list/SKILL.md) | Cross-project deploy file-list / checklist generator |
 
 ## OpenSpec (opsx) session support
