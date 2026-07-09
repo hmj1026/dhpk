@@ -47,7 +47,8 @@ Characterization tests 不是永久存在的，有明確三段生命週期：
 2. 識別外部依賴（DB query、外部 API、全域 state、singleton）
 3. 標記高風險方法（涉及金額、付款、庫存、資料寫入）
 4. 確認既有測試覆蓋狀況
-5. 產出方法清單 + 依賴清單
+5. **Render surface 盤點**：當某功能使先前**恆為空**的欄位開始存放真實資料時，列出消費該欄位的所有 render surface（畫面/編輯、列印、匯出），不僅是編輯/API 路徑 — 未被任何測試演練的 surface 可能藏有列印排版錯位等潛在格式 bug
+6. 產出方法清單 + 依賴清單
 
 ```
 格式：
@@ -223,6 +224,7 @@ docker exec -i {container} vendor/bin/phpunit --coverage-text \
 - [ ] 測試不依賴執行順序（可獨立跑）
 - [ ] 未修改任何 production code（純增加測試）
 - [ ] Integration tests 有 transaction rollback（或等效清理機制）
+- [ ] 先前恆為空、此功能起存放真實資料的欄位，已盤點並涵蓋其所有 render surface（畫面、列印、匯出），非僅編輯/API 路徑
 
 ## 注意事項
 

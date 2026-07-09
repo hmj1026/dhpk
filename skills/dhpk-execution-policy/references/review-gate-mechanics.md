@@ -23,14 +23,22 @@ At the end of a turn that produced Edits/Writes, gather ALL pending sentinels, t
 3. **`code-reviewer` is the merge/dedup owner.** When it is in the dispatched set, `code-reviewer` (or the orchestrator on collecting the parallel results) merges all findings and removes cross-reviewer duplicates — this replaces the old "sequential order de-dups" mechanism. Each specialist still owns its lane (code-reviewer does not re-run OWASP / SQL / link-checks; frontend-reviewer does not re-run SQL; doc-reviewer does not audit code quality).
 
 - Each reviewer **only handles its own sentinel**: missing sentinel → skip; present (and not triaged out) → it MUST run (back-stop excepted).
-- **Batched per turn, not per edit**: a turn with N Edits runs each reviewer at most once, after the last edit — never once per Edit.
+- **Batched per turn, not per edit**: a turn with N Edits runs each reviewer at most once, after the last edit — never once per Edit. This extends across a **review round**: when responding to a set of already-flagged findings (Codex findings, reviewer-flagged issues, a `design.md` append recording one) with a series of small fixes, apply all of that round's known-finding-mapped small fixes first and dispatch the re-review ONCE for the batch — never edit→re-review→edit→re-review serially, one finding-fix at a time. A genuinely new finding discovered mid-batch still gets its own cycle.
 - **CRITICAL handling under parallel dispatch**: collect every parallel verdict, then if any reviewer returns CRITICAL → surface it and block the merge/commit. (Parallel means all reviewers run regardless of another's CRITICAL — independent concerns are not short-circuited.)
 - `code-reviewer` and `doc-reviewer` **are not mutually exclusive**: mixed diffs (PHP + .sh + plain `.claude/` policy doc) dispatch both. Single-type diffs dispatch only the matching one.
 - Pure research / planning (no Edit/Write) skips all reviewer agents.
 
+## Reduced-tier dispatch for known-finding-mapped tiny deltas
+
+A delta of roughly **≤3 net changed lines** that maps 1:1 to a finding **already flagged in the current review round** (not new or uninspected work) MAY be dispatched to the required reviewer at a *reduced* tier — e.g. `haiku` — via the same `model` param the §Model tier rule uses to *escalate* a HIGH-risk dispatch, here reused symmetrically for a LOW-risk case, instead of the reviewer's frontmatter-default tier. Guards: never for a **security/db-sensitive file** or a **CRITICAL-severity** target finding (those stay at the default tier), and this lowers the gate's *cost*, not the gate itself — the reviewer dispatch still runs. SSOT: `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §Model tier.
+
 ## Reviewer liveness — a no-op return is a failed gate
 
 A reviewer that *ran* but did no work is a distinct failure from a reviewer that never fired. When a dispatched reviewer returns with `tool_uses=0` (no `Read`/`Grep`/`Bash`), or a body that only echoes an injected `<system-reminder>` / agent roster rather than a findings-plus-verdict report, the gate is **FAILED, not satisfied** — the orchestrator must not mark the review complete or accept a cleared sentinel. Re-dispatch to a reviewer that can actually run it: substitute a stronger reviewer (`code-reviewer`, chartered to review the same `.claude/`-style agents/rules/skills markdown) for a misfiring Haiku `doc-reviewer`, never retry the same agent a third identical time (anti-loop), and record the substitution and its reason in the conversation. A real review — `Read`/`Grep` performed, a findings list plus an explicit gate verdict returned — is evaluated on its verdict as usual, with no substitution. SSOT: `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §Reviewer dispatch.
+
+## File-state ground truth — re-verify a file-state defect live before reporting it
+
+Before concluding a file was reverted, a regression exists, or the working tree is broken/inconsistent, re-verify live — `git status --porcelain` + a direct `Read` of the target file's current content — rather than treating a single injected file-snapshot (e.g. a `<system-reminder>` capturing a mid-operation, mid-branch-switch working tree) as proof. Such a snapshot can transiently show a stale or reverted-looking state that is not a real defect; the live re-check is the tie-breaker. A live-confirmed defect is still reported — the check confirms genuine defects, it does not suppress them. SSOT: `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` (File-state ground truth paragraph, §Agent dispatch).
 
 ## AI-judgment back-stop — explanatory notes
 

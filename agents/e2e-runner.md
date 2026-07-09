@@ -37,7 +37,7 @@ npx playwright show-report               # HTML report
 
 ## Workflow
 
-1. **Plan** — identify critical journeys (auth, core CRUD, payments) and scenarios (happy / edge / error). Prioritize by risk: HIGH (money, auth) → MEDIUM (search, nav) → LOW (UI polish).
+1. **Plan** — identify critical journeys (auth, core CRUD, payments) and scenarios (happy / edge / error). Prioritize by risk: HIGH (money, auth) → MEDIUM (search, nav) → LOW (UI polish). **Render-surface completeness**: when a feature makes a field or output that was previously *always empty* begin to hold real data, inventory every render surface that consumes it — screen/edit, print, and export — and plan a journey for each, not only the edit/API path; a surface no journey exercises can hide a latent formatting bug (e.g. a print-layout misalignment) invisible on the tested surfaces.
 2. **Create** — Page Object Model; prefer `data-testid` locators (> CSS > XPath); assert at every key step; capture screenshots at critical points; use condition waits, never `waitForTimeout`.
 3. **Execute** — run locally 3-5× to surface flakiness; quarantine unstable tests; confirm artifacts are produced.
 
