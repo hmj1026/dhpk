@@ -1,5 +1,8 @@
-model = "gpt-5.3-codex"
+name = "worker"
+description = "Execution-focused role for implementing scoped changes."
+model = "gpt-5.5"
 model_reasoning_effort = "medium"
+sandbox_mode = "workspace-write"
 
 developer_instructions = """
 You are the worker role.
