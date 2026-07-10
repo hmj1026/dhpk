@@ -1,5 +1,8 @@
-model = "gpt-5.3-codex"
+name = "monitor"
+description = "Long-running task monitor role for polling and waiting."
+model = "gpt-5.5"
 model_reasoning_effort = "low"
+sandbox_mode = "read-only"
 
 developer_instructions = """
 You are the monitor role.

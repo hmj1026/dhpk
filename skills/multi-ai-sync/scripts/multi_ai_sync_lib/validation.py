@@ -87,6 +87,32 @@ def validate_claude(repo_root):
     return result_row("claude", config_ok, smoke_ok, hook_state, multi_state, notes)
 
 
+def check_codex_agent_role_fields(agents_dir):
+    """Return a list of failure strings for any *.toml role file in agents_dir
+    missing a non-empty name / description / developer_instructions."""
+    if not os.path.isdir(agents_dir):
+        return []
+
+    failures = []
+    required_fields = ["name", "description", "developer_instructions"]
+    for path in sorted(glob.glob(os.path.join(agents_dir, "*.toml"))):
+        label = os.path.basename(path)
+        try:
+            payload = parse_toml_file(path)
+        except Exception as exc:
+            failures.append("%s: 無法解析 TOML (%s)" % (label, exc))
+            continue
+        for field in required_fields:
+            value = payload.get(field)
+            if value is None:
+                failures.append("%s: 缺少非空 %s" % (label, field))
+                continue
+            if isinstance(value, str) and not value.strip():
+                failures.append("%s: 缺少非空 %s" % (label, field))
+
+    return failures
+
+
 def validate_codex(repo_root):
     notes = []
     cfg = os.path.join(repo_root, ".codex/config.toml")
@@ -106,6 +132,12 @@ def validate_codex(repo_root):
     multi_state = CHECK_PASS if (config_ok and bool(glob.glob(os.path.join(repo_root, ".codex/agents/*.toml")))) else CHECK_FAIL
     if multi_state == CHECK_FAIL:
         notes.append("Codex multi-agent 代表性檢查失敗")
+
+    role_failures = check_codex_agent_role_fields(os.path.join(repo_root, ".codex", "agents"))
+    if role_failures:
+        notes.extend(role_failures)
+        notes.append("Codex agent role 檔案缺少必要欄位: %d 個" % len(role_failures))
+        multi_state = CHECK_FAIL
 
     return result_row("codex", config_ok, smoke_ok, hook_state, multi_state, notes)
 

@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.28.6 — 2026-07-10 — Codex dual-track agent generation, multi-ai-sync role field checks, and Smart Router --openspec flag
+
+Adds an opt-in `--openspec` (alias `--opsx`) flag to the Smart Router to force-select change artifact authoring, introduces a Codex agent generator to automatically sync canonical Claude roles, and implements Codex agent role field validations within the multi-ai-sync utility.
+
+**feat(command)** — Add `--openspec`/`--opsx` argument parsing to `/dhpk:do` to bypass implementation routing and directly trigger `opsx:new` -> `opsx:ff` artifact generation. Document this override in `rules/execution-policy.md`.
+
+**feat(codex)** — Add `scripts/gen-codex-agents.js` generator to produce Codex TOML role files from the allowlisted Claude agent markdown definitions. Expand the `codex/agents/` roster to 11 roles (4 hand-maintained and 7 generated).
+
+**feat(sync)** — Add Codex agent role required-field checks (`name`, `description`, `developer_instructions`) and validation self-tests to the `multi-ai-sync` script.
+
+**docs** — Update user guides, Codex documentation, and bootstrap specifications to reflect the new router flags and generated dual-track role files.
+
 ## 0.28.5 — 2026-07-09 — File-state ground truth, premise verification type check, and render-surface completeness
 
 Adds file-state ground truth verification to prevent snapshot-driven false defects, refactors premise verification to avoid deep dispatches for static facts, and introduces render-surface completeness rules for testing new fields.

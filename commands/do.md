@@ -1,6 +1,6 @@
 ---
 description: 'Smart Router — map a natural-language task to the right dhpk workflow, then run it. Deterministic route-table fast path, LLM fallback for misses.'
-argument-hint: '[--codex] [--plan[=<model>[:<effort>]]] <natural language task, e.g. "fix the login bug" / "幫我修一個 bug">'
+argument-hint: '[--codex] [--plan[=<model>[:<effort>]]] [--openspec|--opsx] <natural language task, e.g. "fix the login bug" / "幫我修一個 bug">'
 allowed-tools: 'Bash(bash:*), Bash(git:*), Bash(ls:*), Skill, Read, Grep, Glob'
 ---
 
@@ -51,6 +51,26 @@ Codex is an explicit opt-in:
   does not by itself change the route: it only decides, in Step 3, whether a
   `dhpk:planner` consult happens before the target skill is invoked.
 
+## Step 0c — parse openspec intent (default: off, opt-in)
+
+`/dhpk:do` supports an opt-in flag that forces the OpenSpec authoring flow
+(emit change artifacts, then pause for human review) instead of implementing,
+parsed and stripped exactly like `--plan` above:
+
+- Detect an optional `--openspec` token (alias `--opsx`) **before** route-table
+  matching. If present, set `OPENSPEC=on` and **strip** the token (both spellings)
+  from the request text before matching, so the cleaned query never contains it —
+  this keeps `scripts/lib/route-table.json` and `scripts/lib/pre-route.sh`
+  untouched, identical to the `--codex`/`--plan` strip-before-match contract.
+  Otherwise `OPENSPEC=off`.
+- Carry `OPENSPEC=on` forward into Step 3. It does not by itself change the
+  route: it decides, in Step 3, whether the resolved route is diverted into the
+  `opsx:new` → `opsx:ff` artifact-then-review flow.
+- **Precedence over `--plan`:** when both `--openspec` and `--plan` are supplied,
+  `--openspec` wins — the flow terminates at artifact generation and human
+  review, so the `dhpk:planner` consult is skipped (see the Openspec-mode rule
+  in Step 3).
+
 ## Step 1 — deterministic pre-route (run this first)
 
 Run the matcher with the **cleaned query** as a single quoted argument:
@@ -77,10 +97,12 @@ Factor them into Step 3's NO_MATCH decision and into the downstream workflow
 
 ## Step 3 — act on the result
 
-Pass the **cleaned query** (the full task with only the `--codex` and `--plan`
-opt-in tokens removed) as the task to the downstream skill, applying the
-codex-mode rule below to decide the codex flag and the plan-mode rule below to
-decide whether a `dhpk:planner` consult runs first.
+Pass the **cleaned query** (the full task with only the `--codex`, `--plan`, and
+`--openspec`/`--opsx` opt-in tokens removed) as the task to the downstream skill,
+applying the codex-mode rule below to decide the codex flag, the plan-mode rule
+below to decide whether a `dhpk:planner` consult runs first, and the
+openspec-mode rule below to decide whether the resolved route is diverted into
+the OpenSpec artifact-then-review flow (which supersedes the plan consult).
 
 - **`MATCH`** → invoke `<skill>` immediately with the **Skill** tool (e.g.
   `dhpk:bug-fix`). Do **not** re-classify — the route table already matched.
@@ -129,9 +151,11 @@ decide whether a `dhpk:planner` consult runs first.
 - **`PLAN=on`:** a pre-implementation `dhpk:planner` consult activates **only**
   when the resolved route target is one of the four implementation-class
   skills — `dhpk:adaptive-dev-workflow`, `dhpk:bug-fix`, `dhpk:feature-dev`,
-  `dhpk:opsx-apply-goal`. Any other resolved route prints this literal one-line
-  message and proceeds with that route unaffected, with **no** `dhpk:planner`
-  dispatch:
+  `dhpk:opsx-apply-goal`. **Precedence:** if `OPENSPEC=on` and the resolved route
+  is a change-authoring route (see the Openspec-mode rule below), the planner
+  consult is **suppressed** — `--openspec` supersedes `--plan`. Any other
+  resolved route prints this literal one-line message and proceeds with that
+  route unaffected, with **no** `dhpk:planner` dispatch:
 
   `--plan ignored: <route> is not an implementation-class route; proceeding without a planner consult.`
 
@@ -164,6 +188,32 @@ decide whether a `dhpk:planner` consult runs first.
      surfaces that obligation — it does not build the re-engagement trigger
      that honors it; that wiring is a separate, future change.
 
+### Openspec-mode rule (how `OPENSPEC` shapes the invocation)
+
+- **`OPENSPEC=off` (default):** invoke the target normally, no OpenSpec
+  diversion.
+- **`OPENSPEC=on`:** the artifact-then-review flow activates **only** when the
+  resolved route target is one of the three **change-authoring** routes —
+  `dhpk:adaptive-dev-workflow`, `dhpk:bug-fix`, `dhpk:feature-dev`. On those,
+  instead of invoking the target skill:
+  1. Invoke `opsx:new` then `opsx:ff` via the **Skill** tool
+     (`openspec-new-change` → `openspec-ff-change`) to emit the change
+     artifacts (proposal / design / specs / tasks) for the cleaned query.
+  2. **Stop for human review** — do **not** proceed to implementation. State
+     that the change awaits review and can be applied later with `/opsx:apply`
+     (or an unattended `dhpk:opsx-apply-goal` session).
+
+  Because this supersedes `--plan`, when `OPENSPEC=on` activates on a
+  change-authoring route, **no** `dhpk:planner` consult runs even if `--plan`
+  was also passed.
+
+  Any other resolved route — **including `dhpk:opsx-apply-goal`**, which applies
+  an *existing* change (it emits a `/goal` string for a fresh session, so
+  `opsx:new` does not apply) — prints this literal one-line message and proceeds
+  with that route unaffected:
+
+  `--openspec ignored: <route> is not a change-authoring route; proceeding without OpenSpec artifact creation.`
+
 ## Notes
 
 - The route table is the SSOT: `scripts/lib/route-table.json`. To add or retune
@@ -183,6 +233,16 @@ decide whether a `dhpk:planner` consult runs first.
   model `opus`, effort `high`; override with `--plan=<model>[:<effort>]` (e.g.
   `--plan=fable:medium`, `--plan=:low`). A pre-implementation consult also
   records a warm-review obligation in this command's output.
+- **OpenSpec authoring is opt-in.** Pass `--openspec` (alias `--opsx`) to force
+  the OpenSpec authoring flow on the three change-authoring routes
+  (`dhpk:adaptive-dev-workflow`, `dhpk:bug-fix`, `dhpk:feature-dev`): it runs
+  `opsx:new` → `opsx:ff` to emit the change artifacts, then **stops for human
+  review** instead of implementing. **`--openspec` supersedes `--plan`** — when
+  both are passed on a change-authoring route, the artifact-then-review flow runs
+  and the `dhpk:planner` consult is skipped. Every other route — **including
+  `dhpk:opsx-apply-goal`** (it applies an *existing* change, so `opsx:new` does
+  not apply) — prints a literal `--openspec ignored: ...` line and proceeds
+  unaffected.
 - **`dhpk:opsx-apply-goal` is a routing exception, not a task description.**
   Every other route target treats the cleaned query as a free-text task; this
   one requires its own `<change-id> [flags]` string (see its own

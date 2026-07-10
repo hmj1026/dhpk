@@ -5,9 +5,11 @@ import json
 import os
 import re
 import shutil
+import tempfile
 
 from .constants import STATUS_ADAPT
 from .utils import now_iso, read_text
+from .validation import check_codex_agent_role_fields
 
 
 def _ensure_parent(path):
@@ -413,6 +415,52 @@ def _load_toml_from_string(content):
             raise RuntimeError("沒有可用 TOML parser（tomllib/tomli）")
 
 
+def _run_codex_role_field_self_tests():
+    results = []
+
+    tmpdir = tempfile.mkdtemp()
+    try:
+        with open(os.path.join(tmpdir, "missing-name.toml"), "w") as fh:
+            fh.write('model = "gpt-5.5"\ndeveloper_instructions = """x"""\n')
+        failures = check_codex_agent_role_fields(tmpdir)
+        ok = bool(failures) and any("name" in f for f in failures)
+        results.append({
+            "name": "codex-role-missing-name-detected",
+            "status": "pass" if ok else "fail",
+            "reason": "" if ok else "check_codex_agent_role_fields 未偵測到缺少 name 的角色檔案",
+        })
+    except Exception as exc:
+        results.append({
+            "name": "codex-role-missing-name-detected",
+            "status": "fail",
+            "reason": str(exc),
+        })
+    finally:
+        shutil.rmtree(tmpdir, ignore_errors=True)
+
+    tmpdir2 = tempfile.mkdtemp()
+    try:
+        with open(os.path.join(tmpdir2, "wellformed.toml"), "w") as fh:
+            fh.write('name = "g"\ndescription = "d"\ndeveloper_instructions = """x"""\n')
+        failures = check_codex_agent_role_fields(tmpdir2)
+        ok = failures == []
+        results.append({
+            "name": "codex-role-wellformed-passes",
+            "status": "pass" if ok else "fail",
+            "reason": "" if ok else "check_codex_agent_role_fields 對完整角色檔案回傳非空結果: %s" % failures,
+        })
+    except Exception as exc:
+        results.append({
+            "name": "codex-role-wellformed-passes",
+            "status": "fail",
+            "reason": str(exc),
+        })
+    finally:
+        shutil.rmtree(tmpdir2, ignore_errors=True)
+
+    return results
+
+
 def run_self_tests():
     cases = [
         {
@@ -449,6 +497,8 @@ def run_self_tests():
                 "status": "fail",
                 "reason": str(exc),
             })
+
+    results.extend(_run_codex_role_field_self_tests())
 
     passed = len([r for r in results if r["status"] == "pass"])
     failed = len(results) - passed

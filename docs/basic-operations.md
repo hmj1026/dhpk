@@ -108,6 +108,8 @@ The Smart Router matches "implement … feature" → `dhpk:adaptive-dev-workflow
 
 Matches "fix … bug" → `dhpk:adaptive-dev-workflow` → **Bug Investigation & Fix**: root-cause evidence, regression test, RED gate before writing the fix.
 
+**`--openspec` / `--opsx` flag:** pass `--openspec` (alias `--opsx`) to `/dhpk:do` to force the OpenSpec authoring flow (`opsx:new` → `opsx:ff`, then stop for human review) instead of routing straight to implementation. It applies to the 3 change-authoring routes — `dhpk:adaptive-dev-workflow`, `dhpk:bug-fix`, `dhpk:feature-dev` — and supersedes `--plan`. On every other route, including `dhpk:opsx-apply-goal`, the flag is a no-op: it prints `--openspec ignored: ...` and the route proceeds normally.
+
 ### 3. Post-edit review cycle (automatic)
 
 No command needed. After any file edit the hooks automatically:
@@ -238,7 +240,7 @@ Projects using both Claude Code and Codex CLI:
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"
 ```
 
-Symlinks (default) or copies (`--copy`) the plugin's `codex/{skills,agents}` into the project's `.codex/`. Idempotent — re-run with `--update` after a plugin version bump. See `codex/AGENTS.md` and `codex/README.md` for the dual-harness model.
+Symlinks (default) or copies (`--copy`) the plugin's `codex/{skills,agents}` into the project's `.codex/`. Idempotent — re-run with `--update` after a plugin version bump. `codex/agents/` now ships 11 roles (4 hand-maintained generic + 7 generated from the canonical Claude agents via `scripts/gen-codex-agents.js`, up from 4). See `codex/AGENTS.md` and `codex/README.md` for the dual-harness model.
 
 ### Codex Plugin Marketplace (experimental)
 
