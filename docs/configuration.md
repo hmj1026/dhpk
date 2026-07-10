@@ -109,6 +109,12 @@ If you install only the plugin and never register `codex mcp-server`, the `mcp__
 
 Finally, don't confuse either integration with dhpk's **own** `.codex-plugin/` directory (see the "Codex Plugin Marketplace" section of [`docs/basic-operations.md`](./basic-operations.md)) — that manifest runs in the opposite direction: it lets the **Codex CLI** install dhpk's skills as a Codex-native plugin. It shares the word "plugin" but has nothing to do with `openai/codex-plugin-cc` or the MCP tools documented above.
 
+### Codex agent roles (dual-track sync)
+
+This is about the standalone Codex CLI dual-track sync (`codex/agents/` → `.codex/agents/`), not the MCP server documented above. Every `codex/agents/*.toml` file must declare non-empty `name`, `description`, and `developer_instructions` — Codex CLI auto-discovers `.codex/agents/*.toml` and errors if `name` is missing. The 7 generated roles (`architect`, `code-reviewer`, `security-reviewer`, `database-reviewer`, `tdd-guide`, `deep-reasoner`, `doc-reviewer`) are produced from `agents/<name>.md` by `scripts/gen-codex-agents.js`, joining 4 hand-maintained generic roles (`explorer`, `worker`, `monitor`, `bug-investigator`) for a total of 11.
+
+`[agents.<name>]` registration blocks in `config.toml.example` are **optional** — Codex CLI discovers roles directly from `.codex/agents/*.toml`, and the config blocks only add a description, nickname, or concurrency caps (`max_threads`, `max_depth`). See `codex/AGENTS.md` and `codex/README.md` for the full role map.
+
 ## Docker & stack modules
 
 | Key | Type | Default | Options | Purpose |

@@ -109,6 +109,12 @@ claude mcp list
 
 最後，請不要把上述任一整合與 dhpk **自己的** `.codex-plugin/` 目錄搞混（見 [`docs/basic-operations.zh-TW.md`](./basic-operations.zh-TW.md) 的「Codex Plugin Marketplace」章節）——那份 manifest 是反方向的：讓 **Codex CLI** 把 dhpk 的 skill 當作 Codex 原生 plugin 安裝。它只是恰好也用了「plugin」這個字，跟 `openai/codex-plugin-cc` 或上面說的 MCP 工具完全無關。
 
+### Codex agent 角色（雙軌同步）
+
+這裡講的是獨立的 Codex CLI 雙軌同步（`codex/agents/` → `.codex/agents/`），與上面的 MCP server 無關。每個 `codex/agents/*.toml` 檔案都必須宣告非空的 `name`、`description`、`developer_instructions`——Codex CLI 會自動探索 `.codex/agents/*.toml`，若缺少 `name` 就會報錯。7 個產生出來的角色（`architect`、`code-reviewer`、`security-reviewer`、`database-reviewer`、`tdd-guide`、`deep-reasoner`、`doc-reviewer`）是由 `scripts/gen-codex-agents.js` 從 `agents/<name>.md` 產生，加上 4 個手動維護的通用角色（`explorer`、`worker`、`monitor`、`bug-investigator`），總共 11 個。
+
+`config.toml.example` 裡的 `[agents.<name>]` 註冊區塊是**選用**的——Codex CLI 會直接從 `.codex/agents/*.toml` 探索角色，設定區塊只是額外加上描述、暱稱或並發上限（`max_threads`、`max_depth`）。完整角色對照表見 `codex/AGENTS.md` 與 `codex/README.md`。
+
 ## Docker 與技術棧模組
 
 | Key | 型別 | 預設值 | 選項 | 用途 |

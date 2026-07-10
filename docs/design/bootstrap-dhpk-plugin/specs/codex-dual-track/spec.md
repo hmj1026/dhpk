@@ -5,7 +5,7 @@
 The plugin SHALL ship a `codex/` directory at plugin root containing:
 
 - `codex/skills/` — Codex-CLI-format skill mirrors of `skills/` content (frontmatter and structure adjusted for Codex CLI)
-- `codex/agents/` — Codex-CLI-format agent definitions (both `.md` and `.toml` variants where the source has them, plus Codex-specific Explorer / Monitor / Worker entries)
+- `codex/agents/` — Codex-CLI-format agent definitions: 11 roles total, comprising 4 hand-maintained generic roles (`explorer`, `worker`, `monitor`, `bug-investigator`) plus 7 roles generated from the canonical Claude agents (`architect`, `code-reviewer`, `security-reviewer`, `database-reviewer`, `tdd-guide`, `deep-reasoner`, `doc-reviewer`) by `scripts/gen-codex-agents.js`. Every `codex/agents/*.toml` file MUST declare non-empty `name`, `description`, and `developer_instructions`.
 - `codex/config.toml.example` — example Codex CLI configuration with project-specific values redacted
 - `codex/README.md` — documentation explaining the dual-track install procedure and the relationship with the install script
 
@@ -20,6 +20,19 @@ Claude Code SHALL NOT auto-load anything inside `codex/` — no manifest entry, 
 
 - **WHEN** `codex/README.md` is read
 - **THEN** it explains: (1) Claude Code ignores `codex/`, (2) how to run `install-codex-skills.sh` from a project root, (3) symlink vs copy modes, (4) how `.dhpk-installed.json` tracks installed version
+
+#### Scenario: Codex agent role files satisfy the required-field contract
+
+- **WHEN** any file under `codex/agents/*.toml` is inspected
+- **THEN** it declares non-empty `name`, `description`, and `developer_instructions` fields
+- **AND** the `validate_codex` guardrail fails the build if any of the three fields is missing or empty
+
+#### Scenario: Generator produces the 7 canonical-derived roles deterministically
+
+- **WHEN** `node scripts/gen-codex-agents.js` is run against the curated 7-agent allowlist in `agents/`
+- **THEN** it (re)writes `codex/agents/{architect,code-reviewer,security-reviewer,database-reviewer,tdd-guide,deep-reasoner,doc-reviewer}.toml`
+- **AND** re-running it with no change to the source `agents/<name>.md` files produces byte-identical output
+- **AND** it does not modify the 4 hand-maintained roles (`explorer`, `worker`, `monitor`, `bug-investigator`)
 
 ### Requirement: install-codex-skills.sh syncs codex/ into project .codex/
 
