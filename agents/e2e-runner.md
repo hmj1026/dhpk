@@ -66,6 +66,8 @@ test('flaky: market search', async ({ page }) => {
 
 Quarantine with `test.fixme()` / `test.skip()` and a tracking reference — never leave a flaky test failing the suite silently. Common causes: race conditions (auto-wait locators), network timing (wait for response), animation (`networkidle`).
 
+**Hard cap**: stabilize a flaky spec at most 3 attempts; after the third failed attempt, quarantine the spec (or record a tolerance adjustment) and report the outcome — never loop further (mirrors fast-worker's stop-after-3).
+
 ## Anti-Loop
 
 If the same test fails for the same reason **3 times**, stop iterating — report the failure, the suspected root cause (app bug vs test bug vs environment), and the captured trace. Do not keep re-running or pile on retries to force green.
