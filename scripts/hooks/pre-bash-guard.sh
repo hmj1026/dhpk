@@ -25,9 +25,17 @@ CMD_STRIPPED="$(printf '%s' "$CMD" | sed 's/[[:space:]]*#.*//')"
 # Pattern 1: rm -rf on root or sensitive top-level dirs.
 # Whitelist approach: only block known-dangerous targets to avoid false-positives
 # on /tmp, /var/tmp, /var/log cleanups.
-DANGEROUS_ROOT='(etc|usr|bin|sbin|lib|lib64|boot|proc|sys|dev|run|root|home|opt|srv|snap)'
+#
+# Two tiers (D4, harvest-advice-20260711):
+#   - DANGEROUS_ROOT_ANY: system dirs, blocked at any depth (rm -rf /etc/nginx/conf.d
+#     stays blocked — these never legitimately need recursive deletion under Claude).
+#   - DANGEROUS_ROOT_SHALLOW: user-data dirs (home/opt/srv), blocked only at depth <=2
+#     (/home, /home/, /home/<seg>, /home/<seg>/) so whole-home deletion stays blocked
+#     while workspace-internal paths (/home/<user>/projects/<repo>/...) pass.
+DANGEROUS_ROOT_ANY='(etc|usr|bin|sbin|lib|lib64|boot|proc|sys|dev|run|root|snap)'
+DANGEROUS_ROOT_SHALLOW="(home|opt|srv)(/+[^/[:space:]]+)?/*[\"']?([[:space:];&|]|$)"
 if printf '%s' "$CMD_STRIPPED" | grep -Eq \
-    "(^|[[:space:];&|])rm[[:space:]]+(-[a-zA-Z]+[[:space:]]+)+(--[[:space:]]+)?/([[:space:]\$\*]|$|${DANGEROUS_ROOT}([/[:space:]]|$))"; then
+    "(^|[[:space:];&|])rm[[:space:]]+(-[a-zA-Z]+[[:space:]]+)+(--[[:space:]]+)?[\"']?/+([[:space:]\$\*]|$|${DANGEROUS_ROOT_ANY}([/[:space:]]|[\"']?([[:space:];&|]|$))|${DANGEROUS_ROOT_SHALLOW})"; then
     echo "[bash-guard] blocked: rm -rf against root or system directory. Narrow the path or run outside Claude." >&2
     exit 2
 fi
@@ -114,6 +122,34 @@ if [ "${DHPK_ALLOW_NO_VERIFY:-0}" = "0" ] && \
    printf '%s' "$CMD_FLAGS" | grep -Eq '(^|[[:space:]])git[[:space:]]+(commit|push)([[:space:]]|$)' && \
    printf '%s' "$CMD_FLAGS" | grep -Eq '(^|[[:space:]])--no-verify([[:space:]]|=|$)'; then
     echo "[bash-guard] blocked: '--no-verify' bypasses the pre-commit/pre-push gates. Fix the failing check; if you must bypass, set DHPK_ALLOW_NO_VERIFY=1 or run outside Claude." >&2
+    exit 2
+fi
+
+# Pattern 6: shell writes into .env files (redirection / tee) — closes the
+# bypass where a blocked Write/Edit against .env is retried via Bash
+# (D6, harvest-advice-20260711). Mirrors pre-edit-guard.sh's allowlist:
+# .env.example / .env.sample / .env.dist are version-controlled templates
+# carrying no secrets and remain writable.
+#
+# Target-scoped allowlisting (fix, harvest-advice-20260711 fix round): the
+# allowlist must only exempt commands whose write TARGET is an allowlisted
+# file, not any command that merely mentions an allowlisted filename anywhere
+# in its text — otherwise `echo SECRET=x > .env ; cat .env.example` bypasses
+# the block because the whole-command grep sees `.env.example` and skips.
+# Strip allowlisted redirection/tee targets from a copy of the command first,
+# then test what remains for a real `.env` write.
+#
+# Path-prefix tolerance (fix round 2, harvest-advice-20260711): the redirect
+# target may carry a directory prefix (`api/.env`, `./.env`, `/tmp/foo/.env`,
+# `../.env`) — match an optional leading path segment before `.env` in both
+# the allowlist-strip patterns and the block patterns below, so `> .env` and
+# `> some/dir/.env` are treated identically.
+_env_cmd="$(printf '%s' "$CMD_STRIPPED" | sed -E \
+    -e "s/(>>?)[[:space:]]*[\"']?([^[:space:];&|]*\/)?\.env\.(example|sample|dist)[\"']?([[:space:];&|]|\$)/ /g" \
+    -e "s/(^|[[:space:];&|])tee[[:space:]]+(-a[[:space:]]+)?[\"']?([^[:space:];&|]*\/)?\.env\.(example|sample|dist)[\"']?([[:space:];&|]|\$)/\1 /g")"
+if printf '%s' "$_env_cmd" | grep -Eq "(>>?)[[:space:]]*[\"']?([^[:space:];&|]*/)?\.env(\.[A-Za-z0-9_.-]+)?[\"']?([[:space:];&|]|\$)" || \
+   printf '%s' "$_env_cmd" | grep -Eq "(^|[[:space:];&|])tee[[:space:]]+(-a[[:space:]]+)?[\"']?([^[:space:];&|]*/)?\.env(\.[A-Za-z0-9_.-]+)?[\"']?([[:space:];&|]|\$)"; then
+    echo "[bash-guard] blocked: writing to .env via shell redirection/tee. .env files hold secrets and must not be written via Bash. Ask the user for the value, or use .env.example as a template." >&2
     exit 2
 fi
 
