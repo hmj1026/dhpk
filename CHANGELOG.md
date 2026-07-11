@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.28.7 — 2026-07-11 — Pre-bash-guard env write-blocks, dangerous-root depth check, post-edit sentinel triage, and zsh status trap protection
+
+Introduces Bash redirection/tee blocks against .env files, splits dangerous root path validation into system and user directory tiers to tolerate deep workspace actions, refines checkbox-only doc-review triage, adds a zsh status-variable trap warning, and enforces flaky test hard caps.
+
+**fix(hooks)** — Add Pattern 6 to `pre-bash-guard.sh` to block writing to `.env` files via Bash redirection or `tee` (excluding template files like `.env.example`). Split Pattern 1 (dangerous root directory checks) into two tiers: block system directories (e.g. `/etc`) at any depth, and user directories (e.g. `/home`) only at depth <=2, allowing deep workspace tasks. Add comprehensive regression tests in `pre-bash-guard.test.js`.
+
+**fix(hooks)** — Refine checkbox-only task edits triage using per-edit payload classification in `post-edit-remind.sh` and add tests in `post-edit-remind-scope.test.js` verifying it does not arm doc-review sentinels despite existing uncommitted prose deltas.
+
+**chore(policy)** — Document the zsh `status` read-only variable trap and PR self-merge restriction in `execution-policy.md`. Update the `/goal` templates in `goal-templates.md` and basic operations documentation to reflect orientation-first kickoff instructions, self-locating policy pointers, and resume-note hard stops.
+
+**docs(agents)** — Add a hard cap of at most 3 attempts to stabilize a flaky test spec before quarantining it in `e2e-runner.md`.
+
 ## 0.28.6 — 2026-07-10 — Codex dual-track agent generation, multi-ai-sync role field checks, and Smart Router --openspec flag
 
 Adds an opt-in `--openspec` (alias `--opsx`) flag to the Smart Router to force-select change artifact authoring, introduces a Codex agent generator to automatically sync canonical Claude roles, and implements Codex agent role field validations within the multi-ai-sync utility.
