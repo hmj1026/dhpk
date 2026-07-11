@@ -185,4 +185,107 @@ test('prose change to tasks.md STILL arms .pending-doc-review (checkbox-only con
   }
 });
 
+// D5 (harvest-advice-20260711): per-edit payload (Edit tool old_string/new_string)
+// is the PRIMARY checkbox-flip classification path; cumulative git diff HEAD is
+// only the fallback for payloads without that pair (Write, MultiEdit, heredoc).
+
+test('D5: checkbox flip via Edit payload does NOT arm doc-review, even with an earlier uncommitted prose delta', () => {
+  const repo = mkTempRepo();
+  try {
+    const rel = 'openspec/changes/fake-slug/tasks.md';
+    writeFile(repo, rel, '# Tasks\n\n- [ ] 1.1 First\n- [ ] 1.2 Second\n[blocked: waiting on human]\n');
+    gitCommitAll(repo, 'seed tasks');
+    // Simulate an earlier, still-uncommitted prose delta already on disk (e.g. a
+    // [blocked: ...] annotation from a prior edit) alongside the flip we're about
+    // to apply via the Edit tool payload.
+    writeFile(repo, rel, '# Tasks\n\n- [x] 1.1 First\n- [ ] 1.2 Second\n[blocked: still waiting]\n');
+    const res = runHook(repo, {
+      tool_input: {
+        file_path: path.join(repo, rel),
+        old_string: '- [ ] 1.1 First',
+        new_string: '- [x] 1.1 First',
+      },
+    });
+    assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
+    assert.ok(!fs.existsSync(pendingDocReviewPath(repo)),
+      '.pending-doc-review was armed for a checkbox flip classified via per-edit payload, despite an unrelated uncommitted prose delta elsewhere in the file');
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('D5: a single mixed Edit (flip + prose in one old/new pair) STILL arms doc-review', () => {
+  const repo = mkTempRepo();
+  try {
+    const rel = 'openspec/changes/fake-slug/tasks.md';
+    writeFile(repo, rel, '# Tasks\n\n- [ ] 1.1 First task\n');
+    gitCommitAll(repo, 'seed tasks');
+    writeFile(repo, rel, '# Tasks\n\n- [x] 1.1 First task, reworded\n');
+    const res = runHook(repo, {
+      tool_input: {
+        file_path: path.join(repo, rel),
+        old_string: '- [ ] 1.1 First task',
+        new_string: '- [x] 1.1 First task, reworded',
+      },
+    });
+    assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
+    assert.ok(fs.existsSync(pendingDocReviewPath(repo)),
+      '.pending-doc-review was NOT armed for a mixed edit (checkbox flip + prose change in one old/new pair)');
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('D5: Write-path payload (no old/new strings) falls back to cumulative-diff classification', () => {
+  const repo = mkTempRepo();
+  try {
+    const rel = 'openspec/changes/fake-slug/tasks.md';
+    writeFile(repo, rel, '# Tasks\n\n- [ ] 1.1 First\n- [ ] 1.2 Second\n');
+    gitCommitAll(repo, 'seed tasks');
+    // A Write-tool-style payload: only file_path, no old_string/new_string.
+    writeFile(repo, rel, '# Tasks\n\n- [x] 1.1 First\n- [ ] 1.2 Second\n');
+    const res = runHook(repo, { tool_input: { file_path: path.join(repo, rel) } });
+    assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
+    assert.ok(!fs.existsSync(pendingDocReviewPath(repo)),
+      '.pending-doc-review was armed for a Write-path checkbox-only flip (fallback cumulative-diff behavior regressed)');
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('fix round: per-edit checkbox-flip path suppresses arming but does NOT erase a pre-existing doc-review sentinel line', () => {
+  const repo = mkTempRepo();
+  try {
+    const rel = 'openspec/changes/fake-slug/tasks.md';
+    writeFile(repo, rel, '# Tasks\n\n- [ ] 1.1 First\n- [ ] 1.2 Second\n');
+    gitCommitAll(repo, 'seed tasks');
+    // Simulate review debt already armed by an earlier, unreviewed prose edit
+    // to this same file.
+    const docSentinel = pendingDocReviewPath(repo);
+    fs.mkdirSync(path.dirname(docSentinel), { recursive: true });
+    const seededLine = `2020-01-01 00:00:00 ${rel}`;
+    fs.writeFileSync(docSentinel, seededLine + '\n');
+    // Now apply a pure checkbox flip via an Edit-tool payload (per-edit path).
+    writeFile(repo, rel, '# Tasks\n\n- [x] 1.1 First\n- [ ] 1.2 Second\n');
+    const res = runHook(repo, {
+      tool_input: {
+        file_path: path.join(repo, rel),
+        old_string: '- [ ] 1.1 First',
+        new_string: '- [x] 1.1 First',
+      },
+    });
+    assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
+    assert.ok(fs.existsSync(docSentinel),
+      '.pending-doc-review sentinel file was deleted — pre-existing review debt from an earlier prose edit was erased by a later checkbox-only flip');
+    const lines = fs.readFileSync(docSentinel, 'utf8').split('\n').filter(Boolean);
+    const matching = lines.filter((l) => l.endsWith(rel));
+    assert.strictEqual(matching.length, 1,
+      `expected exactly one sentinel line for ${rel} (no duplicate, no removal), got ${matching.length}: ${JSON.stringify(lines)}`);
+    assert.strictEqual(lines[0], seededLine,
+      'pre-existing sentinel line was mutated by the per-edit checkbox-flip suppression path');
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
 run('post-edit-remind-scope');

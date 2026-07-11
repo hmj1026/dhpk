@@ -285,12 +285,37 @@ _tri_comment_only() {  # 0 iff >=1 changed line seen and every changed non-blank
     done <<< "$_body"
     [ "$_seen" -eq 1 ]
 }
-_tri_checkbox_only() {  # 0 iff this is a tasks.md whose NET change is only checkbox flips
+_tri_checkbox_only() {  # 0 iff this edit is (or, absent per-edit payload, the
+    # cumulative diff shows) only checkbox flips.
+    #
+    # D5 primary path: when the hook's stdin payload carries the Edit tool's
+    # own old_string/new_string pair, classify THAT delta directly — it answers
+    # the right question ("is THIS edit bookkeeping") instead of the cumulative
+    # diff's wrong one ("has this file changed non-trivially since HEAD").
+    # Cumulative prose from an earlier, independent edit must not prevent a
+    # later, unrelated flip from dropping the sentinel — that earlier edit
+    # already armed its own review when it happened. A mixed single edit
+    # (flip + prose in one old/new pair) canonicalizes unequal and correctly
+    # keeps the sentinel armed.
+    #
+    # Fallback (Write, MultiEdit fan-out, heredoc — no old/new pair in the
+    # payload): the pre-existing cumulative `git diff HEAD` cancellation check.
     # A pure flip means: after canonicalizing the checkbox mark ([x]->[ ]), the
     # set of added lines equals the set of removed lines (they cancel). Adding or
     # removing a task, or a prose edit, leaves an uncancelled line → not a flip,
     # so the doc gate stays armed (matches the spec: only bookkeeping flips exempt).
     [ "$BASENAME" = "tasks.md" ] || return 1
+    local _old _new _old_canon _new_canon
+    _old="$(extract_tool_input old_string "$PAYLOAD")"
+    _new="$(extract_tool_input new_string "$PAYLOAD")"
+    if [ -n "$_old" ]; then
+        _TRI_CB_MODE=edit
+        _old_canon="$(printf '%s' "$_old" | sed -E 's/^([[:space:]]*- \[)[xX](\])/\1 \2/')"
+        _new_canon="$(printf '%s' "$_new" | sed -E 's/^([[:space:]]*- \[)[xX](\])/\1 \2/')"
+        [ "$_old_canon" = "$_new_canon" ]
+        return $?
+    fi
+    _TRI_CB_MODE=cumulative
     local _body _ln _t _canon _added="" _removed=""
     _body="$(git -C "$ROOT" diff HEAD -U0 -- "$REL" 2>/dev/null)" || return 1
     [ -n "$_body" ] || return 1
@@ -327,8 +352,23 @@ if [ -n "$_tri_numstat" ] && [ "$_tri_add" != "-" ] && [ "$_tri_rem" != "-" ] \
     # Checkbox-only tasks.md flip: the orchestrator's own progress bookkeeping,
     # never an auditable doc change. Drop the doc slot (the one slot the comment-only
     # pass deliberately keeps) — independent of the comment/CSS branches above.
+    #
+    # Mode matters here: the per-edit path (_TRI_CB_MODE=edit) only classifies
+    # THIS edit's own old/new delta — it says nothing about whether an earlier,
+    # independent prose edit to the same file already armed the doc sentinel.
+    # Removing that sentinel line via _tri_drop would silently erase review debt
+    # that isn't this edit's to clear. So the per-edit path only SUPPRESSES
+    # arming for this edit (NEEDS[4]=0, no sentinel-file mutation); only the
+    # cumulative fallback path (_TRI_CB_MODE=cumulative, whole-file diff since
+    # HEAD nets to pure flips) may safely _tri_drop, since in that case the
+    # entire delta really is bookkeeping and removal is correct.
     if _tri_checkbox_only; then
-        _tri_drop 4 "checkbox-only tasks.md edit"
+        if [ "$_TRI_CB_MODE" = "edit" ]; then
+            NEEDS[4]=0
+            echo "[post-edit] triage-suppress doc-review ($REL): checkbox-only tasks.md edit"
+        else
+            _tri_drop 4 "checkbox-only tasks.md edit"
+        fi
     fi
 fi
 
@@ -369,6 +409,9 @@ if [ -z "$msg" ]; then
     echo "[post-edit] skipped (no trigger matched): $REL"
 else
     echo "[post-edit] marked:$msg ($REL)"
+    # D8: run the pending reviewer BEFORE attempting commit/push — a sentinel
+    # armed here is review debt, not a suggestion.
+    echo "[post-edit] advisory: run the pending reviewer BEFORE attempting commit/push."
 fi
 
 exit 0
