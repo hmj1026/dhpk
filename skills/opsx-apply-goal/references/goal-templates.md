@@ -19,30 +19,46 @@ This is what makes the single-paste design work — `/goal` acts on this text
 immediately, so the first thing Claude reads must be the action to take, not just
 the stop condition.
 
-**`DISPATCH_ON=false`** (`orchestration_dispatch=off`) — byte-identical to
-pre-change output, no dispatch clause:
+**`DISPATCH_ON=false`** (`orchestration_dispatch=off`) — no dispatch clause:
 ```
-Invoke the opsx:apply skill for change <CHANGE_ID> and continue implementing
+First run ONE Bash orientation command — `head -40
+openspec/changes/<CHANGE_ID>/tasks.md` — then invoke the opsx:apply skill for
+change <CHANGE_ID> and continue implementing
 openspec/changes/<CHANGE_ID>/tasks.md from the first unchecked item without
 stopping for confirmation. That instruction covers ordinary implementation
 judgment calls only; it is never an explicit project hard-rule conflict bypass.
-Continue until all of the following hold,
+If the Skill tool returns "Unknown skill", retry once on the next turn; if it
+still fails, read openspec/changes/<CHANGE_ID>/
+(proposal.md, design.md, tasks.md) and implement tasks directly, honoring the
+same gates. Per the dhpk execution-policy
+(`$CLAUDE_PLUGIN_ROOT/rules/execution-policy.md`, else `ls -dt
+~/.claude/plugins/cache/dhpk/dhpk/*/rules/execution-policy.md | head -1`, else
+this goal string's own gates; never filesystem-scan): <CODEX_STATEMENT>. Continue
+until all of the following hold,
 ```
 
 **`DISPATCH_ON=true`** (default) — the same kickoff with one dispatch directive
 appended before the transition into the stop conditions:
 ```
-Invoke the opsx:apply skill for change <CHANGE_ID> and continue implementing
-openspec/changes/<CHANGE_ID>/tasks.md from the first unchecked item without
-stopping for confirmation. That instruction covers ordinary implementation
-judgment calls only; it is never an explicit project hard-rule conflict bypass.
-You are the orchestrator: dispatch implementation
-per ${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md §Implementation dispatch —
-mechanical/multi-file clear-spec work to dhpk:fast-worker (including multi-file
-same-semantic artifact/doc consistency corrections, ≥3 files), reasoning-heavy
-work to dhpk:deep-reasoner, RED/E2E Playwright specs that must run against a live
-server to dhpk:e2e-runner, RED PHPUnit unit/integration tests (test-first, run
-against a live DB) to dhpk:tdd-guide; edit inline only for ≤2-file unambiguous diffs and your own
+First run ONE Bash orientation command — `head -40
+openspec/changes/<CHANGE_ID>/tasks.md` — then invoke the opsx:apply skill for
+change <CHANGE_ID> and continue implementing it from the first unchecked item
+without stopping for confirmation (ordinary implementation judgment calls
+only; never an explicit project hard-rule conflict bypass). On "Unknown
+skill", retry once next turn; if it still fails, read
+openspec/changes/<CHANGE_ID>/
+(proposal.md, design.md, tasks.md) and implement directly under the same
+gates. You are the orchestrator: dispatch implementation per the dhpk
+execution-policy (`$CLAUDE_PLUGIN_ROOT/rules/execution-policy.md`, else `ls -dt
+~/.claude/plugins/cache/dhpk/dhpk/*/rules/execution-policy.md | head -1`, else
+this goal string's own gates; never filesystem-scan) §Implementation
+dispatch —
+mechanical/multi-file clear-spec work to dhpk:fast-worker (incl. multi-file
+doc-consistency fixes, ≥3 files), reasoning-heavy
+work to dhpk:deep-reasoner, RED/E2E Playwright specs (live-server) to
+dhpk:e2e-runner, RED PHPUnit tests (test-first, live DB) to dhpk:tdd-guide;
+edit inline only for ≤2-file unambiguous
+diffs (threshold = whole step's footprint, not per-edit) and your own
 bookkeeping (tasks.md checkboxes, sentinels); when unsure, dispatch; never use
 general-purpose. Before dispatching a write worker on a task resting on an
 unverified behavioral premise (bug-repro condition, algorithm correctness,
@@ -63,8 +79,8 @@ the sentinels). Continue until all of the following hold,
 Substitute `<CODEX_STATEMENT>` with the session's CODEX setting from Step 1 (state
 it explicitly, never leave the orchestrator to infer it):
 
-- `CODEX=on` → `CODEX is ON for this session: at a contradiction-arbitration point where two agents' conclusions directly conflict, run a cross-model (Codex) doubt cycle per ${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md §In-flight doubt cycle rather than skipping it; and PROACTIVELY, before finalizing a high-stakes solo design edit or decision that has no inter-agent conflict to arbitrate — the goal-template generator itself, an SSOT policy file, the deferral of a spec'd requirement, first-seen query/repository patterns, framework-internal hacks or private-state resets, or explicit-rule deferrals — run a parallel dhpk:codex-bridge independent review per ${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md §CODEX=on high-stakes parallel peer path, so the declared CODEX=on capability fires on the session's riskiest edits and not only at two-agent contradiction points; and as a wrap-up self-check, before declaring the goal complete, if dhpk:codex-bridge was dispatched 0 times this session, enumerate the session's high-risk decision points (first-seen query/repository patterns, framework-internal hacks or private-state resets, explicit-rule/SSOT deferrals) and either run one retrospective dhpk:codex-bridge peer review or record an explicit per-point why-not, so a declared CODEX=on capability that fired 0 times is reconciled rather than left silently unused`
-- `CODEX=off` → `CODEX is OFF for this session: at a contradiction-arbitration point where two agents' conclusions directly conflict, announce "cross-model doubt skipped (CODEX=off)" per ${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md §In-flight doubt cycle rather than performing a cross-model pass`
+- `CODEX=on` → `CODEX is ON for this session: at a contradiction-arbitration point where two agents' conclusions directly conflict, run a cross-model (Codex) doubt cycle per that same self-located execution-policy §In-flight doubt cycle rather than skipping it; and PROACTIVELY, before finalizing a high-stakes solo design edit or decision that has no inter-agent conflict to arbitrate — the goal-template generator itself, an SSOT policy file, the deferral of a spec'd requirement, first-seen query/repository patterns, framework-internal hacks or private-state resets, or explicit-rule deferrals — run a parallel dhpk:codex-bridge independent review per that same self-located execution-policy §CODEX=on high-stakes parallel peer path, so the declared CODEX=on capability fires on the session's riskiest edits and not only at two-agent contradiction points; and as a wrap-up self-check, before declaring the goal complete, if dhpk:codex-bridge was dispatched 0 times this session, enumerate the session's high-risk decision points (first-seen query/repository patterns, framework-internal hacks or private-state resets, explicit-rule/SSOT deferrals) and either run one retrospective dhpk:codex-bridge peer review or record an explicit per-point why-not, so a declared CODEX=on capability that fired 0 times is reconciled rather than left silently unused`
+- `CODEX=off` → `CODEX is OFF for this session: at a contradiction-arbitration point where two agents' conclusions directly conflict, announce "cross-model doubt skipped (CODEX=off)" per that same self-located execution-policy §In-flight doubt cycle rather than performing a cross-model pass`
 
 This reuses the existing skip-announced policy at
 `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §In-flight doubt cycle rather
@@ -149,21 +165,29 @@ unattended session when the runtime is genuinely unreachable this session.
 Emit the turn line always. Emit the wall-clock line **only if `MAX_DURATION` is
 set** (when absent, omit that line — behavior unchanged):
 ```
-OR stop after <TURN_BUDGET> turns
-OR stop after <MAX_DURATION> wall-clock elapsed
+OR at turn <TURN_BUDGET>: stop the current work item at the next safe point,
+write openspec/changes/<CHANGE_ID>/.resume-note.md (state, next step,
+remaining tasks), end the session — hard checkpoint, not advice; a fresh
+session resumes cheaper than this one continuing
+OR stop after <MAX_DURATION> wall-clock elapsed: write the same
+.resume-note.md (state, next step, remaining tasks), end the session
+OR stop when every remaining unchecked task is blocked on a human-only action
+(PR merge, credentials, deploy approval): annotate `[blocked: <reason>]` in
+tasks.md, write .resume-note.md, then stop
 OR stop immediately when an explicit project hard-rule conflict cannot be
 resolved by strict compliance without human input; write
 openspec/changes/<CHANGE_ID>/.hard-rule-escalation.md with the rule,
 conflicting decision with file:line evidence, and why compliance is blocked,
 then end the turn without continuing or waiting
 and list in conversation, then write the same three items into
-openspec/changes/<CHANGE_ID>/.resume-note.md:
+.resume-note.md:
 (1) unchecked task items
 (2) output of ls .claude/artifacts/sessions/.pending-*
 (3) a one-line next-focus hint
 ```
-The `.resume-note.md` carry-forward lets a follow-up session resume cleanly via
-`opsx-load-context` (which checks for it before all other context tiers).
+The `openspec/changes/<CHANGE_ID>/.resume-note.md` carry-forward lets a
+follow-up session resume cleanly via `opsx-load-context` (which searches that
+change-local path before all other context tiers).
 
 ---
 
@@ -177,34 +201,49 @@ change itself, not with fixed prose, so there is nothing to compact there.
 
 ### Part 0 — compact variant
 
-`DISPATCH_ON=false` compact — identical to the full text (already short,
-nothing to compact):
+`DISPATCH_ON=false` compact:
 ```
-Invoke the opsx:apply skill for change <CHANGE_ID> and continue implementing
+First run ONE Bash orientation command — `head -40
+openspec/changes/<CHANGE_ID>/tasks.md` — then invoke the opsx:apply skill for
+change <CHANGE_ID> and continue implementing
 openspec/changes/<CHANGE_ID>/tasks.md from the first unchecked item without
 stopping for confirmation. That instruction covers ordinary implementation
 judgment calls only; it is never an explicit project hard-rule conflict bypass.
-Continue until all of the following hold,
+On "Unknown skill", retry once next turn; if it still fails, read
+openspec/changes/<CHANGE_ID>/ (proposal.md, design.md, tasks.md) and
+implement directly under the same gates. Self-locate:
+$CLAUDE_PLUGIN_ROOT/rules/execution-policy.md, else ls -dt
+~/.claude/plugins/cache/dhpk/dhpk/*/rules/execution-policy.md | head -1, else
+this goal string's own gates. <CODEX_STATEMENT>. Continue until all of the
+following hold,
 ```
 
 `DISPATCH_ON=true` compact:
 ```
-Invoke the opsx:apply skill for change <CHANGE_ID> and continue implementing
-openspec/changes/<CHANGE_ID>/tasks.md from the first unchecked item without
-stopping for confirmation (ordinary implementation judgment calls only —
-never an explicit project hard-rule conflict bypass). You are the
-orchestrator: dispatch implementation per
-${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md §Implementation dispatch
+First run ONE Bash orientation command — `head -40
+openspec/changes/<CHANGE_ID>/tasks.md` — then invoke the opsx:apply skill for
+change <CHANGE_ID> and continue implementing it from the first unchecked item
+without stopping for confirmation (ordinary implementation judgment calls
+only — never an explicit project hard-rule conflict bypass). On "Unknown
+skill", retry once next turn; if it still fails, read
+openspec/changes/<CHANGE_ID>/
+(proposal.md, design.md, tasks.md) and implement directly under the same
+gates. You are the orchestrator: dispatch implementation per the dhpk
+execution-policy (self-locate: $CLAUDE_PLUGIN_ROOT/rules/execution-policy.md,
+else ls -dt ~/.claude/plugins/cache/dhpk/dhpk/*/rules/execution-policy.md |
+head -1, else this goal string's own gates; never filesystem-scan)
+§Implementation dispatch
 (mechanical/clear-spec work to dhpk:fast-worker, reasoning-heavy work to
 dhpk:deep-reasoner, RED/E2E Playwright specs to dhpk:e2e-runner, RED PHPUnit
 tests to dhpk:tdd-guide; inline only for
-≤2-file unambiguous diffs plus bookkeeping; when unsure, dispatch; never
+≤2-file diffs (whole step's footprint, not per-edit) plus
+bookkeeping; when unsure, dispatch; never
 general-purpose). Verify an unresolved behavioral premise with the matching
 probe (dhpk:deep-reasoner for code/algorithm/data-shape,
 dhpk:e2e-runner or a scratch probe for runtime/browser/environment) before
 dispatching a write worker on it. Apply the Repository Discovery Gate before
-finalizing new DB/query/repository-like code: explicit project hard rules
-cannot be deferred because a prior design chose a cheaper implementation;
+finalizing new DB/query/repository-like code: hard rules cannot be deferred
+for a cheaper prior design;
 comply or stop for a human-approved exception. <CODEX_STATEMENT>. Verify
 each worker's output (report, git diff, sentinels) before continuing.
 Continue until all of the following hold,
@@ -213,21 +252,18 @@ Continue until all of the following hold,
 ### CODEX_STATEMENT — compact variant
 
 - `CODEX=on` → `CODEX is ON for this session: run a cross-model (Codex)
-  doubt cycle at a contradiction-arbitration point rather than skipping
-  it, and PROACTIVELY run a parallel dhpk:codex-bridge independent review
-  before finalizing a high-stakes solo design edit or decision with no
-  inter-agent conflict to arbitrate (the goal-template generator, an SSOT
-  policy file, a spec'd-requirement deferral, first-seen query/repository
-  patterns, framework-internal hacks or private-state resets, or
-  explicit-rule deferrals), per
-  ${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md §In-flight doubt cycle
-  and §CODEX=on high-stakes parallel peer path; and as a wrap-up self-check,
-  if dhpk:codex-bridge was dispatched 0 times this session, enumerate the
-  high-risk decision points and either run one retrospective dhpk:codex-bridge
-  review or record a per-point why-not before declaring the goal complete`
-- `CODEX=off` → identical to the full-text variant (already short):
-  `CODEX is OFF for this session: at a contradiction-arbitration point
-  where two agents' conclusions directly conflict, announce "cross-model
-  doubt skipped (CODEX=off)" per
-  ${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md §In-flight doubt cycle
-  rather than performing a cross-model pass`
+  doubt cycle at a contradiction-arbitration point rather than skipping it;
+  PROACTIVELY run a parallel dhpk:codex-bridge review before finalizing any
+  high-stakes solo decision with no inter-agent conflict (goal-template
+  generator, SSOT policy file, spec'd-requirement deferral, first-seen
+  query/repository patterns, framework-internal hacks/private-state resets,
+  explicit-rule deferrals), per that same self-located execution-policy
+  §In-flight doubt cycle and §CODEX=on high-stakes parallel peer path; if
+  dhpk:codex-bridge was dispatched 0 times this session, before declaring
+  the goal complete enumerate the high-risk points and run one
+  retrospective review or record a per-point why-not`
+- `CODEX=off` → `CODEX is OFF for this session: at a contradiction-arbitration
+  point where two agents' conclusions directly conflict, announce
+  "cross-model doubt skipped (CODEX=off)" per that same self-located
+  execution-policy §In-flight doubt cycle rather than performing a
+  cross-model pass`
