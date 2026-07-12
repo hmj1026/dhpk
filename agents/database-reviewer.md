@@ -1,6 +1,6 @@
 ---
 name: database-reviewer
-description: 'Database review specialist (relational + object stores, framework-agnostic). Use when writing migrations, SQL queries, Repository methods, or schema changes. Checks prepared statements, index efficiency, N+1 issues, transaction correctness. Detects the stack at runtime and loads the matching trap sheet on demand.'
+description: 'Database review specialist (relational + object stores, framework-agnostic). MANDATORY final step after writing migrations, SQL queries, Repository methods, or schema changes. Checks prepared statements, index efficiency, N+1 issues, transaction correctness. Do NOT skip when: the change seems small, manual verification was done, task feels complete. Trigger: sentinel `.pending-db-review`. Detects the stack at runtime and loads the matching trap sheet on demand.'
 tools: Read, Grep, Glob, Bash, mcp__gitnexus__impact
 model: sonnet
 effort: medium

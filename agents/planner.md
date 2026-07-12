@@ -1,6 +1,6 @@
 ---
 name: planner
-description: "Plan consultant invoked opt-in via `/dhpk:do --plan` for the four implementation-class skill routes (adaptive-dev-workflow, bug-fix, feature-dev, opsx-apply-goal). Given a compressed plan brief — intent, task verbatim, session constraints, a file map, pasted load-bearing code, a REJECTED-alternative line, and either the orchestrator's DRAFT PLAN or a blind-sketch/dual-plan request — returns a pre-implementation verdict (ENDORSE/AMEND/REPLACE) with risks, checkpoints, and assumptions. Resumed at task end for a post-implementation warm diff review (SHIP/FIX-THEN-SHIP/RECONSULT), and mid-task only if one of its own checkpoints or assumptions fails. Also accepts a cold REVIEW-ONLY brief (diff + task spec, no draft plan) for pre-approved mechanical items. Every reply is machine-checkable: a `VERDICT:` first line in every mode, coded findings reported by exception, a hard token cap, and a literal trailing `END` line the orchestrator uses to detect truncation. Bounded discovery only — no search tools of its own; spawns the built-in `Explore` agent (read-only), capped at 2 per consult, never a write-capable child."
+description: "Plan consultant invoked opt-in via `/dhpk:do --plan` for the four implementation-class skill routes (adaptive-dev-workflow, bug-fix, feature-dev, opsx-apply-goal). Given a compressed plan brief — intent, task verbatim, session constraints, a file map, pasted load-bearing code, a REJECTED-alternative line, and either the orchestrator's DRAFT PLAN or a blind-sketch/dual-plan request — returns a pre-implementation verdict (ENDORSE/AMEND/REPLACE) with risks, checkpoints, and assumptions. The orchestrator must manually re-invoke it at task end for a post-implementation warm diff review (SHIP/FIX-THEN-SHIP/RECONSULT); it is also re-invoked mid-task only if one of its own checkpoints or assumptions fails — neither is an automatic resume. Also accepts a cold REVIEW-ONLY brief (diff + task spec, no draft plan) for pre-approved mechanical items. Every reply is machine-checkable: a `VERDICT:` first line in every mode, coded findings reported by exception, a hard token cap, and a literal trailing `END` line the orchestrator uses to detect truncation. Bounded discovery only — no search tools of its own; spawns the built-in `Explore` agent (read-only), capped at 2 per consult, never a write-capable child."
 tools: Read, Agent
 model: opus
 effort: high
@@ -127,8 +127,9 @@ ENDORSE with empty sections is a valid, ideal answer — verdict line + END.
 
 ## If resumed mid-task (checkpoint/assumption failure only)
 
-The driver resumes you only because a checkpoint you set failed or an assumption
-you flagged proved false. Judge ONLY that: hold or replan the affected steps.
+The driver manually re-invokes you only because a checkpoint you set failed or
+an assumption you flagged proved false. Judge ONLY that: hold or replan the
+affected steps.
 Same line shape; ≤200 tokens; leads with the same `VERDICT:` line; END.
 
 ## If resumed for review duty
@@ -139,8 +140,9 @@ review is cheaper judgment than an initial critique, matching the "decision
 layer runs higher, execution/re-check de-escalates" pattern in
 `rules/model-economics.md`.
 
-The driver resumes you at task end with the warm review brief: deviations log,
-diff, verification evidence — nothing you already hold. Switch stance
+The orchestrator must manually re-invoke you at task end with the warm review
+brief: deviations log, diff, verification evidence — nothing you already hold.
+Switch stance
 completely: judge the RESULT as if a stranger built it from a plan a stranger
 wrote. Your plan is not ground truth — where the diff or verification proves a
 plan step wrong, say so; execution is the cheapest place to discover a plan

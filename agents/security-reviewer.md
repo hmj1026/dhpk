@@ -1,6 +1,6 @@
 ---
 name: security-reviewer
-description: 'Security review specialist (web + mobile, framework-agnostic). Use PROACTIVELY after writing any controller action, form handler, SQL query, authentication logic, file upload, or platform secure-storage / encryption / privacy / biometric code. Checks OWASP Top 10 patterns. Detects the stack at runtime and loads the matching trap sheet on demand.'
+description: 'Security review specialist (web + mobile, framework-agnostic). MANDATORY final step after writing any controller action, form handler, SQL query, authentication logic, file upload, or platform secure-storage / encryption / privacy / biometric code. Checks OWASP Top 10 patterns. Do NOT skip when: the change seems small, manual verification was done, task feels complete. Trigger: sentinel `.pending-security-review`. Detects the stack at runtime and loads the matching trap sheet on demand.'
 tools: Read, Grep, Glob, Bash, mcp__gitnexus__impact
 model: sonnet
 effort: high

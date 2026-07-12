@@ -33,8 +33,9 @@ behaviour at runtime.
 `hooks.json` keeps `post-edit-advisory.sh` (async CRLF normalisation +
 lockfile-sync reminder, see below) as a separate entry — it doesn't need
 module context, so the dispatcher doesn't proxy it. Same for
-`pre-edit-guard.sh`, `session-start.sh`, `stop-review-reminder.sh`, and
-`reap-stale-sentinels.sh`.
+`pre-edit-guard.sh`, `session-start.sh`, and `stop-review-reminder.sh`.
+`reap-stale-sentinels.sh` is not a standalone `hooks.json` `Stop` entry at
+all — it runs at `SessionEnd`, invoked by `session-end.sh`.
 
 ## Merged single-parse hooks
 
