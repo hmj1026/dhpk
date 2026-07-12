@@ -10,6 +10,8 @@
 // stops short of executing anything. `--help` and an unknown flag are pure
 // no-ops (no prompts, no filesystem writes) and are exercised too.
 
+const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
@@ -17,12 +19,21 @@ const { test, run, assert } = require('./_lib/tinytest');
 const ROOT = path.join(__dirname, '..');
 const SCRIPT = path.join(ROOT, 'scripts', 'install.sh');
 
+// The prerequisite gate requires `claude` on PATH, which CI runners lack.
+// A stub is safe because --dry-run/--print always exits before the real
+// `claude plugin install` exec line — the stub exists only to pass the
+// `command -v claude` check, never to be executed.
+const STUB_BIN = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-install-stub-'));
+fs.writeFileSync(path.join(STUB_BIN, 'claude'), '#!/usr/bin/env bash\nexit 0\n', { mode: 0o755 });
+process.on('exit', () => fs.rmSync(STUB_BIN, { recursive: true, force: true }));
+
 function runScript(args, stdin) {
   return spawnSync('bash', [SCRIPT, ...(args || [])], {
     cwd: ROOT,
     input: stdin || '',
     encoding: 'utf8',
     timeout: 20000,
+    env: { ...process.env, PATH: `${STUB_BIN}${path.delimiter}${process.env.PATH}` },
   });
 }
 
