@@ -6,7 +6,7 @@ allowed-tools: 'Bash(bash:*), Bash(git:*), Bash(ls:*), Skill, Read, Grep, Glob'
 
 # /dhpk:do — Smart Router
 
-One entry point for dhpk's ~73 commands. You describe the task in plain
+One entry point for dhpk's 45 commands. You describe the task in plain
 language; this router resolves it to the right workflow — deterministically
 when the request matches the route table, otherwise by your own
 classification.
@@ -185,8 +185,9 @@ the OpenSpec artifact-then-review flow (which supersedes the plan consult).
   5. **Record the warm-review obligation.** When a pre-implementation consult
      occurred, state in `/dhpk:do`'s own output that a post-implementation warm
      review (task-end diff review) is **owed**. This command only creates and
-     surfaces that obligation — it does not build the re-engagement trigger
-     that honors it; that wiring is a separate, future change.
+     surfaces that obligation — honoring it requires the orchestrator to
+     **manually re-invoke `dhpk:planner`** at task end with the warm-review
+     brief; there is no automatic resume that fires this on its own.
 
 ### Openspec-mode rule (how `OPENSPEC` shapes the invocation)
 

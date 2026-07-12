@@ -84,7 +84,7 @@ Role models are configurable per project via `userConfig.deep_reasoner_model` / 
 
 ## Models
 
-- **opus**: architect, spec-miner, deep-reasoner (low-frequency, high-impact, deep reasoning)
+- **opus**: architect, spec-miner, deep-reasoner, planner (low-frequency, high-impact, deep reasoning)
 - **sonnet**: reviewers, tdd-guide, refactor, ui-ux, harness, fast-worker, codex-bridge (daily-driver)
 - **haiku**: doc-updater, docs-lookup, doc-reviewer (high-frequency, templated, cost-first)
 

@@ -225,6 +225,14 @@ Output: `Conclusion → Changed files → Verification → Risks/Open questions`
 
 Run the project's standard test suite + browser verify (playwright-cli, manual, or stack-equivalent). For Docker projects: see your `${PHP_CONTAINER:-php}` workflow. Commands per stack live in the matching dhpk module reference (e.g. `modules/phpunit-5.7/references/testing.md`).
 
+### Script test coverage policy
+
+Every guard, resolver, validator, runner, sentinel/lifecycle script, codegen script, and pure `_lib` helper under `scripts/` MUST have a dedicated test in `tests/`. Naming: the test file is named after the script's stem plus an optional aspect suffix, flat in `tests/`, discoverable by `tests/run-all.js` — `tests/<stem>[-<aspect>].test.js`.
+
+Test shape: shell hooks are driven by piping a payload via `DHPK_TEST_PAYLOAD` / `DHPK_TEST_HOOK` into `bash`, invoked with `spawnSync`, asserted on exit status/stderr; JS/TS/py scripts are driven directly via `spawnSync`, asserted on stdout/exit. All tests use the zero-dep `tests/_lib/tinytest.js` — no external test framework dependency.
+
+**Behavioral vs smoke coverage**: installers, session-lifecycle hooks, and git/network-shelling scripts are smoke-only — a smoke test asserts the script runs, is syntactically valid, and no-ops safely in a sandbox. Smoke coverage is not full behavioral verification; do not read a passing smoke test as proof the script's logic is correct.
+
 ## Component-addition gate (new agent / sentinel slot / hook)
 
 Adding a reviewer agent, sentinel slot, or hook is the add-then-remove churn that leaves residue (dead slot tokens, orphan sentinels, drifted counts). Before adding one, document in the relevant INDEX (`agents/INDEX.md`, `skills/INDEX.md`, or the hook's header comment) **why an existing component cannot cover the need** — name the agent/slot/hook considered and the specific gap it leaves. A new component with no recorded justification is rejected in review. Removal is symmetric: in the same change, delete its INDEX row and every reference (slot token, `.pending-*` literal, count claim), so nothing is orphaned — the sentinel-integrity and count guards (`tests/sentinel-slots.test.js`, `scripts/ci/catalog.js`) enforce this mechanically.
