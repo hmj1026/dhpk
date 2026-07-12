@@ -1,16 +1,18 @@
 # Changelog
 
-## 0.28.8 — 2026-07-12 — Script test coverage policy, catalog claim checks, and backfill test suite
+## 0.28.8 — 2026-07-12 — Script test coverage policy, catalog claim checks, test backfill, and CI install fix
 
-Introduces a new script test coverage policy, adds hook event count validations and script coverage checks to the catalog verification tool, and backfills 59 tests to cover all harness script assets.
+Introduces a new script test coverage policy, adds hook event count validations and script coverage checks to the catalog verification tool, backfills 59 tests to cover all harness script assets, fixes the installation test in CI runners lacking the claude CLI, and refreshes index stats.
 
 **feat(ci)** — Upgrade the `catalog.js` validation tool to enforce exact claims for command counts and hook lifecycle event counts (parsed from `hooks/hooks.json`). Implement an automated check requiring every `.sh`/`.js`/`.ts`/`.py` script under `scripts/` to have a matching test case under `tests/` or a mapped override in `COVERAGE_MAP`.
 
 **test(harness)** — Add 59 new test files in `tests/` to backfill coverage for all harness guards, resolvers, validators, runners, codegen utilities, and lifecycle scripts, satisfying the script coverage policy.
 
+**fix(tests)** — Stub the `claude` CLI in `install.test.js` to satisfy prerequisite checks on CI runners without the actual executable.
+
 **chore(policy)** — Document the `Script test coverage policy` (flat `tests/<stem>[-<aspect>].test.js` naming convention and behavioral vs smoke coverage) and component-addition gates in `execution-policy.md`. Reflect the new hook event count in `README.md` and `README.zh-TW.md`.
 
-**docs** — Align documentation for `do.md`, `hook-extension.md`, `INDEX.md`, and `SKILL.md` to reflect the updated command counts, `reap-stale-sentinels` lifecycle path, and SSOT workflow classifications.
+**docs** — Align documentation for `do.md`, `hook-extension.md`, `INDEX.md`, and `SKILL.md` to reflect the updated command counts, `reap-stale-sentinels` lifecycle path, and SSOT workflow classifications. Refresh GitNexus code intelligence index statistics in `AGENTS.md` and `CLAUDE.md`.
 
 ## 0.28.7 — 2026-07-11 — Pre-bash-guard env write-blocks, dangerous-root depth check, post-edit sentinel triage, and zsh status trap protection
 
