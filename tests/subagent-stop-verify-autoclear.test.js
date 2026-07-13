@@ -2,11 +2,16 @@
 
 // Regression: subagent-stop-verify.sh Case B must AUTO-CLEAR a reviewer's own
 // sentinel when that reviewer subagent stops successfully with the sentinel
-// still armed. Reviewers spawned via the Agent/Task tool do not reliably run
-// their own closing clear-sentinel.sh, leaving a stale sentinel that falsely
-// blocks the opsx-apply-goal end-gate. Case B was warn-only; it now clears
-// (scoped strictly to the reviewer's own slot) then warns. Case A (a FAILED
-// reviewer) must still leave the sentinel armed so the chain re-fires.
+// still armed. This is now the SANCTIONED clearance path — reviewer agent
+// definitions no longer instruct a self-run closing clear-sentinel.sh (the
+// auto-mode permission classifier blocks a reviewer clearing its own sentinel
+// as "Logging/Audit Tampering"). When a fresh review artifact with a
+// parseable verdict exists for the stopping reviewer, the clear is SILENT: no
+// failure record, no AUTO-CLEARED warning. When the sentinel is uncleared AND
+// no review doc was produced, the auto-clear still fires (must not block
+// the chain) but is logged as a failure — the review contract was actually
+// broken. Case A (a FAILED reviewer) must still leave the sentinel armed so
+// the chain re-fires.
 
 const fs = require('node:fs');
 const os = require('node:os');
@@ -31,7 +36,13 @@ function sessDir(repo) {
 function armSentinel(repo, name) {
   const d = sessDir(repo);
   fs.mkdirSync(d, { recursive: true });
-  fs.writeFileSync(path.join(d, name), '2026-07-06 12:00 src/Foo.php\n');
+  const file = path.join(d, name);
+  fs.writeFileSync(file, '2026-07-06 12:00 src/Foo.php\n');
+  // Anchor the sentinel's mtime to a fixed instant so the Case B freshness gate
+  // (review doc must postdate the sentinel) is deterministic: the default
+  // review-artifact stamp (2026-07-07) is one day newer than this.
+  const stamp = new Date('2026-07-06T12:00:00Z');
+  fs.utimesSync(file, stamp, stamp);
 }
 function sentinelExists(repo, name) {
   return fs.existsSync(path.join(sessDir(repo), name));
@@ -50,12 +61,20 @@ function unresolvedVerdict(repo) {
   const file = path.join(sessDir(repo), '.unresolved-verdict');
   return fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
 }
-function writeReviewArtifact(repo, agent, body) {
+function failureLogContents(repo) {
+  const file = path.join(repo, '.claude', 'artifacts', 'agent-failures.log');
+  return fs.existsSync(file) ? fs.readFileSync(file, 'utf8') : '';
+}
+// Default mtime 2026-07-07 is newer than a sentinel armed at 2026-07-06, so the
+// doc reads as "fresh" for the Case B gate. Pass `isoStamp` to force an older
+// (stale, prior-cycle) doc when exercising the freshness bound.
+function writeReviewArtifact(repo, agent, body, isoStamp = '2026-07-07T12:00:00Z') {
   const dir = path.join(repo, '.claude', 'artifacts', 'reviews');
   fs.mkdirSync(dir, { recursive: true });
-  const file = path.join(dir, `${agent}-20260707-120000.md`);
+  const nameStamp = isoStamp.slice(0, 10).replace(/-/g, '');
+  const file = path.join(dir, `${agent}-${nameStamp}-120000.md`);
   fs.writeFileSync(file, body);
-  const stamp = new Date('2026-07-07T12:00:00Z');
+  const stamp = new Date(isoStamp);
   fs.utimesSync(file, stamp, stamp);
   return file;
 }
@@ -78,31 +97,93 @@ function runHook(repo, payload, { pluginRoot = ROOT, cwd = repo } = {}) {
   });
 }
 
-test('reviewer stop with armed sentinel → auto-cleared via clear-sentinel.sh (primary path)', () => {
+test('reviewer stop with armed sentinel + fresh parseable artifact → silent auto-clear (sanctioned path)', () => {
+  const repo = mkTempRepo();
+  try {
+    armSentinel(repo, '.pending-frontend-review');
+    writeReviewArtifact(repo, 'frontend-reviewer', [
+      '---',
+      'verdict: APPROVE',
+      'severity_summary: { critical: 0, high: 0, medium: 0, low: 0 }',
+      '---',
+      'clean',
+    ].join('\n'));
+    const res = runHook(repo, { subagent_type: 'frontend-reviewer', exit_status: 0 });
+    assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
+    assert.ok(!sentinelExists(repo, '.pending-frontend-review'),
+      'sentinel was NOT auto-cleared on the reviewer\'s behalf');
+    assert.ok(!res.stdout.includes('AUTO-CLEARED'),
+      `sanctioned-path clear must be silent, got stdout:\n${res.stdout}`);
+    assert.ok(!failureLogContents(repo).includes('no review doc'),
+      'sanctioned-path clear must not be logged as a broken-contract failure');
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('rm -f fallback when CLAUDE_PLUGIN_ROOT unset → still cleared silently with a fresh artifact', () => {
+  const repo = mkTempRepo();
+  try {
+    armSentinel(repo, '.pending-frontend-review');
+    writeReviewArtifact(repo, 'frontend-reviewer', [
+      '---',
+      'verdict: APPROVE',
+      'severity_summary: { critical: 0, high: 0, medium: 0, low: 0 }',
+      '---',
+      'clean',
+    ].join('\n'));
+    const res = runHook(repo, { subagent_type: 'frontend-reviewer', exit_status: 0 }, { pluginRoot: null });
+    assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
+    assert.ok(!sentinelExists(repo, '.pending-frontend-review'),
+      'sentinel was NOT cleared via the rm -f fallback');
+    assert.ok(!res.stdout.includes('AUTO-CLEARED'),
+      `sanctioned-path clear must be silent, got stdout:\n${res.stdout}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('reviewer stop with armed sentinel but NO review artifact → auto-cleared, logged as failure', () => {
   const repo = mkTempRepo();
   try {
     armSentinel(repo, '.pending-frontend-review');
     const res = runHook(repo, { subagent_type: 'frontend-reviewer', exit_status: 0 });
     assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
     assert.ok(!sentinelExists(repo, '.pending-frontend-review'),
-      'sentinel was NOT auto-cleared on the reviewer\'s behalf');
+      'sentinel must still be auto-cleared even when the contract was broken (must not block the chain)');
     assert.ok(res.stdout.includes('AUTO-CLEARED'),
-      `expected AUTO-CLEARED systemMessage, got stdout:\n${res.stdout}`);
+      `broken-contract fallback must still warn, got stdout:\n${res.stdout}`);
+    assert.ok(failureLogContents(repo).includes('no review doc'),
+      `broken-contract fallback must be logged as a failure:\n${failureLogContents(repo)}`);
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });
   }
 });
 
-test('rm -f fallback when CLAUDE_PLUGIN_ROOT unset → still cleared', () => {
+test('reviewer stop with armed sentinel + only a STALE prior-cycle doc → auto-cleared, logged as failure', () => {
+  // Freshness bound: a review doc from an earlier cycle (mtime BEFORE the
+  // sentinel that armed THIS review) must not mask a reviewer that produced
+  // nothing this cycle. Reviewers run repeatedly per session, so this is the
+  // steady-state broken-contract case, not a rare race.
   const repo = mkTempRepo();
   try {
+    // Stale doc dated 2026-07-05 — older than the sentinel armed at 2026-07-06.
+    writeReviewArtifact(repo, 'frontend-reviewer', [
+      '---',
+      'verdict: APPROVE',
+      'severity_summary: { critical: 0, high: 0, medium: 0, low: 0 }',
+      '---',
+      'stale prior-cycle review',
+    ].join('\n'), '2026-07-05T12:00:00Z');
     armSentinel(repo, '.pending-frontend-review');
-    const res = runHook(repo, { subagent_type: 'frontend-reviewer', exit_status: 0 }, { pluginRoot: null });
+    const res = runHook(repo, { subagent_type: 'frontend-reviewer', exit_status: 0 });
     assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
     assert.ok(!sentinelExists(repo, '.pending-frontend-review'),
-      'sentinel was NOT cleared via the rm -f fallback');
+      'sentinel must still be auto-cleared (must not block the chain)');
     assert.ok(res.stdout.includes('AUTO-CLEARED'),
-      `expected AUTO-CLEARED systemMessage, got stdout:\n${res.stdout}`);
+      `a stale prior-cycle doc must not count as fresh — expected the broken-contract warning, got stdout:\n${res.stdout}`);
+    assert.ok(failureLogContents(repo).includes('no review doc'),
+      `stale-doc-only stop must be logged as a broken-contract failure:\n${failureLogContents(repo)}`);
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });
   }
