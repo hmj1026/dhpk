@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased] — Goal-string slimming, sentinel auto-clear promotion, and graduation auto-draft removal
+## 0.28.9 — 2026-07-13 — Goal-string slimming, sentinel auto-clear promotion, and graduation auto-draft removal
 
 Slims the `opsx-apply-goal` `/goal` string to a bounded Part 0 kickoff with behavioral prose relocated to `execution-policy.md`, removes the compact-template fallback in favor of a hard generation stop, promotes the reviewer sentinel hook's silent auto-clear to the sanctioned path, drops the graduation Stop hook's OpenSpec auto-draft step, and folds in small tool/shell guardrail fixes from the 2026-07-12 retrospective.
 
