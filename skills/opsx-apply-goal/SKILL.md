@@ -31,7 +31,7 @@ session so Claude drives the change to completion unattended.
 |------|-----------|
 | `scripts/analyze-change.sh` | Steps 1-3 & 5 — deterministic arg-norm, dir location, checkbox counts, turn budget |
 | `references/detection.md` | Step 4 — test/build/lint/coverage/smoke signal tables, non-automatable-task signals, sentinel rationale |
-| `references/goal-templates.md` | Step 6 / 6b — the verbatim Part 0..4 `/goal` condition templates (full + compact) |
+| `references/goal-templates.md` | Step 6 / 6b — the verbatim Part 0..4 `/goal` condition templates (single full variant) |
 | `references/output-blocks.md` | Step 7 — Block C NOTES catalog, hard-stop notice, Block C2 monitor snippet |
 
 ## When NOT to Use
@@ -127,17 +127,16 @@ a `GOAL_CONDITION` at or beyond that cannot be submitted. Measure before Step 7
 
 1. `GOAL_LENGTH` = char count of the full composed `GOAL_CONDITION`.
 2. `GOAL_LENGTH <= 4000` → `GOAL_MODE = full`; proceed to Step 7 unmodified.
-3. `GOAL_LENGTH > 4000` → rebuild **Part 0 only** using the **compact** variant in
-   `references/goal-templates.md` (same `DISPATCH_ON` branch, same compact
-   `<CODEX_STATEMENT>`). Parts 1/2/2b/3/4 are unchanged. Recompute:
-   - `<= 4000` now → `GOAL_MODE = compacted`; proceed to Step 7.
-   - still `> 4000` → `GOAL_MODE = blocked`. In Step 7 emit Block A only, then the
-     hard-stop notice — do **not** print Block B, C, or C2.
+3. `GOAL_LENGTH > 4000` → `GOAL_MODE = blocked`. In Step 7 emit Block A only
+   (its `Goal length` row reports the measured length), then the hard-stop
+   notice — do **not** print Block B, C, or C2.
 
-The compact Part 0 preserves every safety-relevant clause (hard-rule carve-out,
-dispatch-table pointer + never-general-purpose, premise-verification-before-
-dispatch, the Repository Discovery Gate, verify-worker-output-after) and drops
-illustrative examples only.
+There is a single (full) template variant. The bounded Part 0 lands a typical
+change around 3,300 characters (Part 0 + CODEX ≈ 1,700; the rest is the
+change-scaled Parts 1–4), so the blocked branch is a
+should-never-fire template regression: if it fires, the template (or a
+per-change Part 3 explosion) has regressed and must be fixed — never worked
+around by trimming safety clauses from the condition.
 
 ## Step 7 — Emit output
 
@@ -154,7 +153,7 @@ illustrative examples only.
 ║  Sentinels   : universal check (all 7 slots, self-calibrating)
 ║  Turn budget : <TURN_BUDGET>  (formula: <OPEN_TASKS> × 4 + 20, cap 20–120)
 ║  Manual tasks: <N skipped, or "none">
-║  Goal length : <GOAL_LENGTH>/4000 chars  <full | compacted | ⚠ BLOCKED>
+║  Goal length : <GOAL_LENGTH>/4000 chars  <full | ⚠ BLOCKED>
 ╚══════════════════════════════════════════════════════════════╝
 ```
 
@@ -167,7 +166,7 @@ If `GOAL_MODE = blocked`, stop here — do **not** print Block B, C, or C2. Prin
 the hard-stop notice from `references/output-blocks.md` (which lists the four
 setting/flag adjustments and "No /goal command was emitted this run.") and end.
 
-Otherwise (`full` or `compacted`) continue:
+Otherwise (`full`) continue:
 
 ### Block B — Session setup
 
@@ -178,7 +177,7 @@ Otherwise (`full` or `compacted`) continue:
 ━━━ STEP 2 — Set the goal AND start implementation (single paste) ━━
 ```
 
-Print the composed `GOAL_CONDITION` (compacted text when `GOAL_MODE = compacted`)
+Print the composed `GOAL_CONDITION`
 in a fenced block. This one paste both sets the stop condition and kicks off
 implementation — `GOAL_CONDITION` already opens with the Part 0 kickoff sentence,
 so there is nothing further to paste after it:
@@ -207,14 +206,15 @@ This session will NOT auto-run /goal or opsx:apply.
 - [ ] Analyzer run first; `STATUS` handled — `missing`/`archived`/`error`/exit-2 all stop with the script's message; only `active` proceeds
 - [ ] Block A shows correct task counts (from the schema block), detected runners, and manual-task count
 - [ ] Block B `/goal` string is entirely in English and opens with the Part 0 opsx:apply kickoff sentence before the stop conditions — single paste, no separate STEP 3
-- [ ] Part 0 (from goal-templates.md): posture-first when `DISPATCH_ON=true` (orchestrator role, dispatch table pointer at `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`, never general-purpose, premise-verification before write dispatch, the Repository Discovery Gate and the "hard rules cannot be deferred" sentence); no-dispatch except the hard-rule carve-out when `orchestration_dispatch=off`
-- [ ] CODEX statement stated explicitly (`CODEX is ON`/`OFF` per `--codex`); when ON, carries the proactive high-stakes-peer clause (parallel dhpk:codex-bridge review)
+- [ ] Part 0 (from goal-templates.md): compact directive when `DISPATCH_ON=true` — orchestrator naming ("You are the orchestrator"), the one-line four-role roster (fast-worker / deep-reasoner / tdd-guide / e2e-runner), the `general-purpose` prohibition, the ≤2-file whole-implement-step inline bound plus bookkeeping, the self-locating execution-policy pointer read by the orientation command, and the inline hard-rule guardrail (the "hard rules cannot be deferred" sentence); no-dispatch except the hard-rule carve-out when `orchestration_dispatch=off`
+- [ ] Part 0 does NOT restate the relocated elaborations (dispatch-verify procedure, premise-verification routing, in-flight doubt cycle, CODEX high-stakes-peer triggers, session-end self-check) — those are present in `rules/execution-policy.md` (§Implementation dispatch, §In-flight doubt cycle, §CODEX=on high-stakes parallel peer path) and bind via the orientation read
+- [ ] CODEX statement stated explicitly on one line (`CODEX is ON`/`OFF` per `--codex`); when ON, it points at the execution-policy CODEX sections (including the session-end zero-dispatch self-check) without enumerating the trigger list
 - [ ] Part 0 says "without stopping for confirmation" covers ordinary implementation judgment calls only and never an explicit project hard-rule conflict
 - [ ] Part 2 uses `ls .claude/artifacts/sessions/.pending-*` (not reviewer names); Part 2b checks `.unresolved-verdict` and requires `NONE`
 - [ ] Non-automatable tasks appear in the Block A warning, NOT in Part 3
 - [ ] Part 3 emits build/lint lines only when detected; a coverage gate when `HAS_COVERAGE=true` OR `--min-coverage N` set (with `HAS_TEST=true`); the smoke line iff `HAS_SMOKE=true`
 - [ ] `--no-smoke` suppresses the smoke line regardless of signal; Block A `Smoke gate` row is exactly one of `on (signal)` / `on (--smoke)` / `off (--no-smoke)` / `off (no strong signal, hint emitted)`
 - [ ] `--max-duration` set → Part 4 has the wall-clock line; absent → no such line. Part 4 writes `openspec/changes/<CHANGE_ID>/.hard-rule-escalation.md` with rule, conflicting decision with file:line evidence, and why compliance is blocked, then ends the turn, and writes `.resume-note.md` items (1)(2)(3) on stop
-- [ ] Block A `Goal length` row present, reporting `full` / `compacted` / `⚠ BLOCKED` matching `GOAL_MODE`; compact Part 0 used only when the full condition exceeds 4000 chars and preserves the hard-rule carve-out, dispatch pointer, never-general-purpose, premise-verification, and Repository Discovery Gate
+- [ ] Block A `Goal length` row present, reporting the measured length and `full` / `⚠ BLOCKED` matching `GOAL_MODE`; a >4000-char measurement hard-stops (should-never-fire template regression) — no compact substitution exists
 - [ ] `GOAL_MODE = blocked` suppresses Block B/C/C2 and prints the hard-stop notice with all four adjustment bullets instead
 - [ ] Block C2 monitor snippet is read-only (grep + ls only); `--dry-run` stops after it (no "THIS SESSION" block)

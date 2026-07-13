@@ -63,7 +63,7 @@ model: haiku                       # haiku (frequent lightweight reviews) / sonn
 - Process (step list)
 - Checklist (`- [ ]` format)
 - Output format (artifact output path and frontmatter format)
-- Closing hook (sentinel clear command: `bash ${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh <name> <label>` — or the project's own equivalent path if not dhpk-installed)
+- Sentinel clearance note: a reviewer agent does NOT self-run a closing `clear-sentinel.sh` step — clearance is owned by the runtime hook `subagent-stop-verify.sh`, which auto-clears the reviewer's own sentinel on a successful stop once a fresh review artifact with a parseable `verdict:` exists; the reviewer's job ends at writing that artifact. (`clear-sentinel.sh <name> <label>` remains the orchestrator's tool for a triage-drop or a stale-sentinel back-stop.)
 
 ### Length limit
 

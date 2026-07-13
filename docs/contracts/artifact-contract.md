@@ -59,7 +59,26 @@ Keep the most recent ~30 artifacts per category; move older ones to `archive/`.
 
 If `.claude/artifacts/` (or the specific category subdirectory) does not exist, emit the report to stdout only — do not error.
 
-## Sentinel-clear hook (sentinel-driven agents only)
+## Sentinel clearance (sentinel-driven agents only)
+
+Reviewer agent definitions do NOT self-run a closing `clear-sentinel.sh` step.
+Clearance is owned by the runtime hook `scripts/hooks/subagent-stop-verify.sh`:
+on a successful reviewer stop with the sentinel still armed, it auto-clears
+that reviewer's own slot once a fresh review artifact with a parseable
+`verdict:` exists — silently, no failure record. "Fresh" means produced this
+cycle: the artifact's mtime must postdate the sentinel that armed the review,
+so a doc left over from an earlier review cycle does not count (reviewers run
+repeatedly per session). This is the sanctioned path
+(the auto-mode permission classifier blocks a reviewer running
+`clear-sentinel.sh` on its own sentinel as "Logging/Audit Tampering"). When the
+sentinel is uncleared and no fresh review artifact was produced this cycle, the
+hook still auto-clears (so the chain isn't blocked) but logs it as a failure —
+the review contract was actually broken.
+
+As an exception-path back-stop, the orchestrator may still invoke
+`clear-sentinel.sh` manually for a stale sentinel left armed after an
+otherwise-clean APPROVE (e.g. when the SubagentStop payload didn't carry a
+resolvable subagent name):
 
 ```
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" <sentinel-name> <agent-name>

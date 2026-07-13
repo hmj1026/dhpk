@@ -115,4 +115,4 @@ Issue / Fix
 
 ## Closing — Artifact Output (MUST)
 
-Category: `reviews/`, scope holds `<frontend-root>/foo.js` style paths. Frontmatter/retention/degradation: reviewer-family shape (APPROVE/WARNING/BLOCK) in `docs/contracts/artifact-contract.md`. Hook: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" .pending-frontend-review frontend-reviewer`.
+Category: `reviews/`, scope holds `<frontend-root>/foo.js` style paths. Frontmatter/retention/degradation: reviewer-family shape (APPROVE/WARNING/BLOCK) in `docs/contracts/artifact-contract.md`. Sentinel clearance: owned by the runtime hook `subagent-stop-verify.sh`, which auto-clears `.pending-frontend-review` on a successful stop once a fresh review artifact with a parseable verdict exists — this reviewer's job ends at writing that artifact.

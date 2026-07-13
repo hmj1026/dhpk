@@ -36,10 +36,10 @@ Agent prompt 應包含：
 ### Step 3 — 轉達結果
 
 直接輸出 `code-reviewer` 的審查報告。  
-`code-reviewer` 的 Closing hook 會自動執行以下指令清除 sentinel（非此 command 負責）：
+Sentinel 清除由 runtime hook `subagent-stop-verify.sh` 負責（sanctioned path）：當 `code-reviewer` subagent 成功結束且產出帶可解析 `verdict:` 的審查 artifact 時，該 hook 會自動清除 `.pending-review`（非此 command、也非 reviewer 自身負責）。若審查後 sentinel 仍殘留（stale），orchestrator 可用完整 basename 手動補清：
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" .pending-review code-reviewer
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" .pending-review manual
 ```
 
 ## Output

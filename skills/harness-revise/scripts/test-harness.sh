@@ -457,7 +457,8 @@ echo "=== T10 dhpk plugin wiring (review routing SSOT) ==="
 # The full edit→review lifecycle (guard → sentinel → reminder) is plugin-owned end
 # to end post-cutover. Rather than re-test plugin internals, assert the project still
 # declares dhpk as the routing SSOT, then verify the project-local half of the
-# lifecycle — a reviewer agent clearing its sentinel via clear-sentinel.sh.
+# lifecycle — that clear-sentinel.sh functions (the tool the runtime auto-clear hook
+# and the orchestrator's stale-sentinel back-stop both use to clear a sentinel).
 rm -f "$ARTIFACTS/sessions"/.pending-* 2>/dev/null
 if [[ ! -f "$ROOT/$HARNESS_DIR/dhpk-versions.json" ]]; then
     echo "  SKIP T10.1 dhpk-versions.json absent (project may not pin a dhpk version)"

@@ -49,10 +49,11 @@ the hard-stop notice, and the Block C2 monitor snippet. Print these verbatim.
   suppresses), so it never deadlocks a non-drivable repo (plugin/library repos
   with no running system)
 • Goal length capped at 4000 chars (Claude Code's practical /goal paste limit,
-  see Step 6b): over the cap, Part 0's dispatch directive is auto-compacted
-  (same rules, shorter wording) — check the Block A "Goal length" row; if still
-  over after compacting, no /goal is emitted and Block A's hard-stop notice
-  lists which setting or flag to adjust and re-run
+  see Step 6b): the single full variant lands a typical change around 3300
+  chars — check the Block A "Goal length" row; a measurement over the cap is a
+  should-never-fire template regression: no /goal is emitted and Block A's
+  hard-stop notice reports the measured length and lists which setting or flag
+  to adjust and re-run
 ```
 
 If `HAS_COVERAGE=false` AND `MIN_COVERAGE` is unset AND `HAS_TEST=true`, append one NOTES line:
@@ -73,7 +74,9 @@ skill's output:
 
 ```
 ✖ Goal condition is <GOAL_LENGTH> characters — <GOAL_LENGTH - 4000> over the
-  4000-character paste limit even after compacting. Adjust and re-run:
+  4000-character paste limit. This should never fire with the bounded Part 0
+  (a typical change composes to ~3300 chars) — treat it as a template
+  regression to fix, or adjust and re-run:
   • turn off the orchestration_dispatch project setting (removes the dispatch directive, the largest single block)
   • drop --codex (removes the CODEX statement)
   • drop --smoke / pass --no-smoke (removes the smoke-gate line)
