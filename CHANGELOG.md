@@ -1,5 +1,21 @@
 # Changelog
 
+## [Unreleased] — Goal-string slimming, sentinel auto-clear promotion, and graduation auto-draft removal
+
+Slims the `opsx-apply-goal` `/goal` string to a bounded Part 0 kickoff with behavioral prose relocated to `execution-policy.md`, removes the compact-template fallback in favor of a hard generation stop, promotes the reviewer sentinel hook's silent auto-clear to the sanctioned path, drops the graduation Stop hook's OpenSpec auto-draft step, and folds in small tool/shell guardrail fixes from the 2026-07-12 retrospective.
+
+**refactor(skill)** — Restructure the `opsx-apply-goal` emitted `/goal` string: the orientation command now reads both the change's `tasks.md` head and the self-located `rules/execution-policy.md` in a single combined Bash step (best-effort; `POLICY-UNRESOLVED` falls back to the string's own inline gates); Part 0 is now a bounded kickoff (kickoff sentence, hard-rule carve-out, unknown-skill fallback, one-line four-role dispatch roster, inline hard-rule guardrail, CODEX ON/OFF line) with the behavioral elaborations (premise-verification routing, in-flight doubt cycle, CODEX high-stakes peer path, session-end self-check) relocated to `rules/execution-policy.md` and bound via the orientation read. Typical composed length drops to ~3300 characters, down from 5428.
+
+**fix(skill)** — Delete the compact-variant fallback: there is now a single full template (no auto-compaction step). A composed length over 4000 characters is a should-never-fire hard stop — no `/goal` is emitted, and the measured length plus adjustable settings/flags are reported instead. Retarget the goal-string guardrails test to the new single-variant, hard-stop behavior.
+
+**fix(hooks)** — Remove the `openspec/changes/graduate-*/` OpenSpec auto-draft step from the graduation Stop hook, along with the now-dead `CLAUDE_HOOK_SKIP_OPSX_DRAFT` flag and `graduated_at` field; the hook continues to maintain the candidates report only.
+
+**refactor(agents)** — Promote the `subagent-stop-verify.sh` hook's silent sentinel auto-clear to the sanctioned clearance path: a successful reviewer stop with a fresh, verdict-bearing review doc clears its sentinel silently; a failure is recorded only when the sentinel is left uncleared **and** no review doc was produced. Remove the manual closing `clear-sentinel.sh` step from all six reviewer agents; the orchestrator-side manual `clear-sentinel.sh` back-stop remains as the exception path.
+
+**fix(docs)** — Document the gitnexus multi-repo `repo` param in `tool-routing.md` and the zsh `=`-expansion trap in `execution-policy.md`.
+
+**docs** — Update `docs/basic-operations.md` and `docs/basic-operations.zh-TW.md` to reflect the restructured `/goal` string and the four-role dispatch roster. Per the 2026-07-12 retrospective, dispatch posture and Stop-hook merge behavior were verdict-only findings (no further changes needed) and are out of scope for this release.
+
 ## 0.28.8 — 2026-07-12 — Script test coverage policy, catalog claim checks, test backfill, and CI install fix
 
 Introduces a new script test coverage policy, adds hook event count validations and script coverage checks to the catalog verification tool, backfills 59 tests to cover all harness script assets, fixes the installation test in CI runners lacking the claude CLI, and refreshes index stats.
