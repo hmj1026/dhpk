@@ -25,6 +25,7 @@ SSOT for code exploration in dhpk-using projects. Cross-references the existing 
 2. `gitnexus` is the hard rule for `impact` / `detect_changes` / `rename` (when installed)
 3. `claude-mem` skips current session (already in scrollback); only for past-session decisions
 4. `Read` is the floor — only when nothing else fits
+5. Multi-repo GitNexus index: always pass the `repo` parameter to `gitnexus_impact` / `gitnexus_query` calls — omitting it errors with "Multiple repositories indexed" and costs a retry cycle
 
 ## Investigation order & perspective depth
 
