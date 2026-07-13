@@ -27,8 +27,8 @@
   - `count ≥ 3` and `confidence ≥ 0.7` and time-span gate passed → `rule`
   - `count ≥ 3` and `0.2 < confidence < 0.7` and time-span gate passed → `skill`
 - **Test mode**: `CLAUDE_HOOK_TEST_MODE=1` redirects state into
-  `$CLAUDE_HOOK_TEST_OUTDIR` and sets `CLAUDE_HOOK_SKIP_OPSX_DRAFT=1`, so
-  smoke tests never write into a real `openspec/changes/`.
+  `$CLAUDE_HOOK_TEST_OUTDIR`, so smoke tests never write into the real
+  `.claude/artifacts/` tree.
 
 ## Manual workflow
 
