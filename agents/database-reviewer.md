@@ -59,7 +59,7 @@ Suggestions: ...
 
 ## Closing — Artifact Output
 
-Category: `reviews/`. Frontmatter/retention/degradation: reviewer-family shape (PASS/WARNING/FAIL) in `docs/contracts/artifact-contract.md`. Hook: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" .pending-db-review database-reviewer`.
+Category: `reviews/`. Frontmatter/retention/degradation: reviewer-family shape (PASS/WARNING/FAIL) in `docs/contracts/artifact-contract.md`. Sentinel clearance: owned by the runtime hook `subagent-stop-verify.sh`, which auto-clears `.pending-db-review` on a successful stop once a fresh review artifact with a parseable verdict exists — this reviewer's job ends at writing that artifact.
 
 ## References
 
