@@ -21,6 +21,7 @@ Load `${CLAUDE_PLUGIN_ROOT}/agent-traps/e2e-runner/playwright.md` on **every** d
 
 - **This agent**: authors `.spec.ts` journeys, runs the suite, quarantines flaky tests, manages artifacts.
 - **ui-ux-verifier**: audits a single live page against an OpenSpec spec and proposes a fix change. Hand UI-vs-spec mismatches to it; hand SQL/Repo bugs to database-reviewer and authz bypass to security-reviewer.
+- **Non-scope**: PHPUnit RED/GREEN/REFACTOR guidance and live-DB test-first work belong to `tdd-guide`; this agent is not a generic test-suite runner.
 
 ## Tooling
 
@@ -77,5 +78,16 @@ If the same test fails for the same reason **3 times**, stop iterating — repor
 Critical journeys 100% passing · overall pass rate > 95% · flaky rate < 5% · suite < 10 min · artifacts produced and accessible.
 
 ## Closing — Artifact Output
+
+Stable report metadata:
+
+```text
+Verdict: PASS | WARNING | FAIL
+pass_rate: <percentage>
+critical_journey: PASS | FAIL
+retry_count: <integer, bounded by project cap>
+artifact_paths:
+- <trace/screenshot/report path>
+```
 
 Test files (`tests/**/*.spec.ts`, POM helpers) are the primary deliverable — write them in the project's existing test layout. For a substantive session report, category `reviews/`, path `e2e-{yyyymmdd-HHMMSS}-{slug}.md`. Frontmatter/retention/degradation: `docs/contracts/artifact-contract.md` non-reviewer extensions (`pass_rate` + PASS/WARNING/FAIL). No sentinel — not in the review chain.

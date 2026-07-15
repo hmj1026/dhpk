@@ -51,8 +51,10 @@ command -v agy >/dev/null 2>&1 || { echo "agy CLI not found"; }
 
 On a missing CLI, an authentication failure, or a rejected model name, return
 `RESULT: BLOCKED` naming the exact failure (quote the CLI error verbatim for a model
-rejection — do not retry with a guessed model). **Never** approximate the backend or fall
-back to editing the files yourself.
+rejection — do not retry with a guessed model). A configured fallback may select
+`dhpk:fast-worker` only for the deterministic missing-executable case; authentication,
+authorization, model, task, and verification failures never fall back. **Never**
+approximate the backend or fall back to editing the files yourself.
 
 ## Execute via the agy wrapper
 
@@ -111,6 +113,11 @@ Omitting it (or reporting it incompletely) breaks that back-stop.
 RESULT: DONE | PARTIAL | BLOCKED
 ## Agy Fast Worker Report
 Backend: agy --model "<model>" -p (non-interactive)
+Requested backend: agy
+Selected backend: agy | claude (only with configured missing-executable fallback)
+Availability: <agy executable available | missing executable: agy>
+Fallback reason: <none | missing executable: agy; configured fallback=claude>
+Model/effort: <model> / baked into model name
 Verify: <command> → PASS | FAIL (N attempts)
 Spec: <one-line summary of what was requested>
 Edited files (from git status --porcelain diff):

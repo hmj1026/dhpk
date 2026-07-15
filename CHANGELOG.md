@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.28.11 — 2026-07-15 — Refine opsx orchestration and governance
+
+Refines opsx apply goal pasting limits using UTF-8 byte counts, limits subagent quality gates to reviewer agents, adds fast-worker selector logic and contract verification, and expands tests across all hook lifecycle classes.
+
+**feat(config/hooks)** — Limit subagent quality gate checks to reviewer agents, improve reminder debounce/backoff mechanisms, add fast-worker selection script, and expand hook tests.
+**docs(contracts)** — Add reviewer-contract specification and verify reviewer inputs/outputs.
+**docs(opsx)** — Correct apply-goal character limits to UTF-8 byte limits in documentation and template validation.
+**test(hooks)** — Add test coverage for hook lifecycle budget and TDD E2E contract verification.
+
 ## 0.28.10 — 2026-07-15 — Usage-audit fixes and CLI-backed fast-worker variants
 
 Acts on a 2026-07-13/14 usage audit (an unattended `/goal` session spent ~65M tokens hand-typing 45 edits inline instead of dispatching) with five harness fixes to the unattended-session token economy, and adds two CLI-backed `fast-worker` variants so mechanical batches can be offloaded to an external codex/agy budget.

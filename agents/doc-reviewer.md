@@ -149,6 +149,14 @@ link.
 - Commit message / PR description (those belong to `/review-pending` or
   the `pr-review` skill).
 
+## Shared reviewer contract
+
+Use [`docs/contracts/reviewer-contract.md`](../docs/contracts/reviewer-contract.md) for scope, evidence, artifact, verdict, confirm-only, and bounded retry fields.
+
+### Specialist checks
+
+This file retains frontmatter, links, terminology, and SSOT checks unique to `doc-reviewer`.
+
 ## Output
 
 State `Verdict: APPROVE | WARNING | BLOCK` as the FIRST line of the reply:

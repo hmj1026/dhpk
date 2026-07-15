@@ -119,24 +119,23 @@ Compose `GOAL_CONDITION` from the verbatim templates in
   Substitute `<TURN_BUDGET>` and (only if `MAX_DURATION` is set) the wall-clock
   line in **Part 4**.
 
-## Step 6b — Enforce the 4000-character paste limit
+## Step 6b — Enforce the 4,000 UTF-8-byte paste limit
 
-Claude Code's `/goal` input has a practical paste limit around 4000 characters —
-a `GOAL_CONDITION` at or beyond that cannot be submitted. Measure before Step 7
+Claude Code's `/goal` input has a practical paste limit around 4,000 UTF-8 bytes —
+the unit measured by `wc -c`; a `GOAL_CONDITION` beyond that cannot be submitted. Measure before Step 7
 (write the composed draft to a scratch file and `wc -c` for an exact count):
 
-1. `GOAL_LENGTH` = char count of the full composed `GOAL_CONDITION`.
+1. `GOAL_LENGTH` = UTF-8 byte count of the full composed `GOAL_CONDITION`.
 2. `GOAL_LENGTH <= 4000` → `GOAL_MODE = full`; proceed to Step 7 unmodified.
 3. `GOAL_LENGTH > 4000` → `GOAL_MODE = blocked`. In Step 7 emit Block A only
    (its `Goal length` row reports the measured length), then the hard-stop
    notice — do **not** print Block B, C, or C2.
 
-There is a single (full) template variant. The bounded Part 0 lands a typical
-change around 3,600 characters (Part 0 + CODEX ≈ 2,000; the rest is the
-change-scaled Parts 1–4), so the blocked branch is a
-should-never-fire template regression: if it fires, the template (or a
-per-change Part 3 explosion) has regressed and must be fixed — never worked
-around by trimming safety clauses from the condition.
+There is a single (full) template variant. It targets a normal composed goal of
+at most 3,400 UTF-8 bytes, leaving a 600-byte reserve below the hard cap for
+bounded variable gate tokens. The blocked branch is a should-never-fire
+template regression: if it fires, fix the template or gate fixture — never
+trim required safety or verification clauses from the condition.
 
 ## Step 7 — Emit output
 
@@ -153,7 +152,7 @@ around by trimming safety clauses from the condition.
 ║  Sentinels   : universal check (all 7 slots, self-calibrating)
 ║  Turn budget : <TURN_BUDGET>  (formula: <OPEN_TASKS> × 4 + 20, cap 20–120)
 ║  Manual tasks: <N skipped, or "none">
-║  Goal length : <GOAL_LENGTH>/4000 chars  <full | ⚠ BLOCKED>
+║  Goal length : <GOAL_LENGTH>/4000 UTF-8 bytes  <full | ⚠ BLOCKED>
 ╚══════════════════════════════════════════════════════════════╝
 ```
 
@@ -206,7 +205,7 @@ This session will NOT auto-run /goal or opsx:apply.
 - [ ] Analyzer run first; `STATUS` handled — `missing`/`archived`/`error`/exit-2 all stop with the script's message; only `active` proceeds
 - [ ] Block A shows correct task counts (from the schema block), detected runners, and manual-task count
 - [ ] Block B `/goal` string is entirely in English and opens with the Part 0 opsx:apply kickoff sentence before the stop conditions — single paste, no separate STEP 3
-- [ ] Part 0 (from goal-templates.md): compact directive when `DISPATCH_ON=true` — orchestrator naming ("You are the orchestrator"), the one-line four-role roster (fast-worker / deep-reasoner / tdd-guide / e2e-runner), the `general-purpose` prohibition, the ≤2-file whole-implement-step inline bound plus bookkeeping, the self-locating execution-policy pointer read by the orientation command, and the inline hard-rule guardrail (the "hard rules cannot be deferred" sentence); no-dispatch except the hard-rule carve-out when `orchestration_dispatch=off`
+- [ ] Part 0 (from goal-templates.md): bounded dispatch roster when `DISPATCH_ON=true` — orchestrator naming ("You are the orchestrator"), the one-line four-role roster (fast-worker / deep-reasoner / tdd-guide / e2e-runner), the `general-purpose` prohibition, the ≤2-file whole-implement-step inline bound plus bookkeeping, the self-locating execution-policy pointer read by the orientation command, and the inline hard-rule guardrail (the "hard rules cannot be deferred" sentence); no-dispatch except the hard-rule carve-out when `orchestration_dispatch=off`
 - [ ] Part 0 does NOT restate the relocated elaborations (dispatch-verify procedure, premise-verification routing, in-flight doubt cycle, CODEX high-stakes-peer triggers, session-end self-check) — those are present in `rules/execution-policy.md` (§Implementation dispatch, §In-flight doubt cycle, §CODEX=on high-stakes parallel peer path) and bind via the orientation read
 - [ ] CODEX statement stated explicitly on one line (`CODEX is ON`/`OFF` per `--codex`); when ON, it points at the execution-policy CODEX sections (including the session-end zero-dispatch self-check) without enumerating the trigger list
 - [ ] Part 0 says "without stopping for confirmation" covers ordinary implementation judgment calls only and never an explicit project hard-rule conflict
@@ -215,6 +214,6 @@ This session will NOT auto-run /goal or opsx:apply.
 - [ ] Part 3 emits build/lint lines only when detected; a coverage gate when `HAS_COVERAGE=true` OR `--min-coverage N` set (with `HAS_TEST=true`); the smoke line iff `HAS_SMOKE=true`
 - [ ] `--no-smoke` suppresses the smoke line regardless of signal; Block A `Smoke gate` row is exactly one of `on (signal)` / `on (--smoke)` / `off (--no-smoke)` / `off (no strong signal, hint emitted)`
 - [ ] `--max-duration` set → Part 4 has the wall-clock line; absent → no such line. Part 4 writes `openspec/changes/<CHANGE_ID>/.hard-rule-escalation.md` with rule, conflicting decision with file:line evidence, and why compliance is blocked, then ends the turn, and writes `.resume-note.md` items (1)(2)(3) on stop
-- [ ] Block A `Goal length` row present, reporting the measured length and `full` / `⚠ BLOCKED` matching `GOAL_MODE`; a >4000-char measurement hard-stops (should-never-fire template regression) — no compact substitution exists
+- [ ] Block A `Goal length` row present, reporting the measured UTF-8-byte length and `full` / `⚠ BLOCKED` matching `GOAL_MODE`; a >4000-byte measurement hard-stops (should-never-fire template regression) — no unsafe gate-deleting substitution exists
 - [ ] `GOAL_MODE = blocked` suppresses Block B/C/C2 and prints the hard-stop notice with all four adjustment bullets instead
 - [ ] Block C2 monitor snippet is read-only (grep + ls only); `--dry-run` stops after it (no "THIS SESSION" block)

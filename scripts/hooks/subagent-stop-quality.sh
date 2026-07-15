@@ -19,6 +19,12 @@
 
 set -o pipefail
 
+ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+# Project overrides must be loaded before the gate decision. payload.sh supplies
+# the reviewer roster used to scope this advisory to reviewer sentinels only.
+. "$(dirname "$0")/_lib/load-project-config.sh"
+. "$(dirname "$0")/_lib/payload.sh"
+
 # Task 4.7 — gate check FIRST, before any extraction or heuristic work.
 GATE="${CLAUDE_PLUGIN_OPTION_SUBAGENT_QUALITY_GATE:-off}"
 case "$(printf '%s' "$GATE" | tr '[:upper:]' '[:lower:]')" in
@@ -28,7 +34,6 @@ esac
 
 command -v jq >/dev/null 2>&1 || exit 0
 
-ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 SESS="$ROOT/.claude/artifacts/sessions"
 STATE_FILE="$SESS/.subagent-stop-quality-state.json"
 COUNTER_FILE="$SESS/.subagent-stop-quality-extraction.json"
@@ -53,6 +58,12 @@ SUBAGENT="$(printf '%s' "$PAYLOAD" | jq -r '
 ' 2>/dev/null || true)"
 [ -n "$SUBAGENT" ] || exit 0
 SUBAGENT_BARE="${SUBAGENT##*:}"
+
+IS_REVIEWER=0
+for _reviewer in "${SENTINEL_AGENTS[@]}"; do
+    [ "${_reviewer##*:}" = "$SUBAGENT_BARE" ] && IS_REVIEWER=1 && break
+done
+[ "$IS_REVIEWER" -eq 1 ] || exit 0
 
 mkdir -p "$SESS" 2>/dev/null || true
 
@@ -121,20 +132,25 @@ fi
 
 [ -n "$REASON" ] || exit 0
 
-# Task 4.3 — block-once dedup keyed on session:subagent:sha1(trimmed report).
+# Task 4.3 — bounded reviewer retry keyed on session:subagent. The first thin
+# reviewer report is blocked once; the continuation is allowed to reach the
+# sentinel verifier, which keeps the no-op gate pending if no review output exists.
 SESSION_ID="$(printf '%s' "$PAYLOAD" | jq -r '.session_id // .run_id // .transcript_path // empty' 2>/dev/null || true)"
 [ -n "$SESSION_ID" ] || SESSION_ID="unscoped-session"
+DISPATCH_ID="$(printf '%s' "$PAYLOAD" | jq -r '.agent_id // .subagent_id // .transcript_path // empty' 2>/dev/null || true)"
 HASH="$(printf '%s' "$TRIMMED" | sha1sum 2>/dev/null | awk '{print $1}')"
 [ -n "$HASH" ] || HASH="$(printf '%s' "$TRIMMED" | shasum 2>/dev/null | awk '{print $1}')"
-SCOPE_KEY="${SESSION_ID}:${SUBAGENT_BARE}:${HASH}"
+[ -n "$DISPATCH_ID" ] || DISPATCH_ID="$HASH"
+SCOPE_KEY="${SESSION_ID}:${SUBAGENT_BARE}:${DISPATCH_ID}"
 
 if [ -f "$STATE_FILE" ]; then
-    LAST_KEY="$(jq -r '.last_blocked_key // empty' "$STATE_FILE" 2>/dev/null || true)"
-    [ "$LAST_KEY" = "$SCOPE_KEY" ] && exit 0
+    LAST_SCOPE="$(jq -r '.last_blocked_scope // empty' "$STATE_FILE" 2>/dev/null || true)"
+    BLOCK_COUNT="$(jq -r '.block_count // 0' "$STATE_FILE" 2>/dev/null || echo 0)"
+    [ "$LAST_SCOPE" = "$SCOPE_KEY" ] && [ "$BLOCK_COUNT" -ge 1 ] && exit 0
 fi
 
-jq -n --arg key "$SCOPE_KEY" --arg hash "$HASH" --arg subagent "$SUBAGENT_BARE" \
-    '{version:1,last_blocked_key:$key,last_blocked_hash:$hash,scope:{subagent:$subagent}}' \
+jq -n --arg scope "$SCOPE_KEY" --arg hash "$HASH" --arg subagent "$SUBAGENT_BARE" \
+    '{version:1,last_blocked_scope:$scope,last_blocked_hash:$hash,block_count:1,scope:{subagent:$subagent}}' \
     > "$STATE_FILE" 2>/dev/null || true
 
 # Task 4.5 — exactly ONE JSON object on stdout, raw (not emit_system_message).

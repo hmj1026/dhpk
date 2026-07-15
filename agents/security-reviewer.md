@@ -61,6 +61,14 @@ Document the finding → alert the owner → supply the secure fix → verify th
 
 Before reporting: *what attack does this enable?* No path → don't report.
 
+## Shared reviewer contract
+
+Use [`docs/contracts/reviewer-contract.md`](../docs/contracts/reviewer-contract.md) for scope, evidence, artifact, verdict, confirm-only, and bounded retry fields.
+
+### Specialist checks
+
+This file retains auth, authorization, crypto, money, and upload checks unique to `security-reviewer`.
+
 ## Output
 
 The reply leads with a machine-parseable verdict line — `Verdict: PASS | WARNING | FAIL` — as the FIRST line, before the `## Security Review` body: FAIL = any CRITICAL/HIGH finding, WARNING = MEDIUM/LOW only (no CRITICAL/HIGH), PASS = none.

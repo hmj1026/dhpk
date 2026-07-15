@@ -8,8 +8,7 @@
 #   4. Activate modules (CLAUDE_PLUGIN_OPTION_MODULES): parse module.yaml, validate requires,
 #      print activation line, export DHPK_ACTIVE_MODULES for downstream hooks
 #   5. Honour CLAUDE_PLUGIN_OPTION_HOOK_PROFILE={minimal|standard|strict}; strict adds docker WARN lines
-#   6. Announce orchestration worker model tiers (CLAUDE_PLUGIN_OPTION_DEEP_REASONER_MODEL /
-#      _FAST_WORKER_MODEL / _PLANNER_MODEL / _PLANNER_EFFORT / _ORCHESTRATION_DISPATCH) — only when non-default
+#   6. Announce orchestration worker model tiers and non-default fast-worker selector values
 
 set -o pipefail
 
@@ -190,9 +189,65 @@ fi
 
 QUALITY_GATE="${CLAUDE_PLUGIN_OPTION_SUBAGENT_QUALITY_GATE:-off}"
 case "$(printf '%s' "$QUALITY_GATE" | tr '[:upper:]' '[:lower:]')" in
-    on|true|1) echo "[session-start] subagent_quality_gate=$QUALITY_GATE (SubagentStop thin-report gate enabled)" ;;
+    on|true|1) echo "[session-start] subagent_quality_gate=$QUALITY_GATE (reviewer-sentinel SubagentStop thin-report gate enabled; one corrected retry)" ;;
     *) ;;
 esac
+
+# ---- Fast-worker backend selector -----------------------------------------
+# Resolve the small selector surface once at session start. Invalid values are
+# safe: warn once for this session and use shipped defaults. The full dispatch
+# decision and missing-executable-only fallback are implemented by
+# scripts/fast-worker-selector.js and documented in the execution policy.
+FAST_BACKEND_DEFAULT="claude"
+FAST_ORDER_DEFAULT="claude,codex,agy"
+FAST_FALLBACK_DEFAULT="none"
+FAST_BACKEND="${CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND:-$FAST_BACKEND_DEFAULT}"
+FAST_ORDER="${CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND_ORDER:-$FAST_ORDER_DEFAULT}"
+FAST_FALLBACK="${CLAUDE_PLUGIN_OPTION_FAST_WORKER_FALLBACK:-$FAST_FALLBACK_DEFAULT}"
+SELECTOR_SESSION="$(extract_top_field session_id "$PAYLOAD")"
+[ -n "$SELECTOR_SESSION" ] || SELECTOR_SESSION="startup"
+SELECTOR_WARNINGS="$ARTIFACTS/sessions/.fast-worker-selector-warnings"
+
+selector_warn_once() {
+    local key="$1" value="$2" marker="${SELECTOR_SESSION}	${key}=${value}"
+    mkdir -p "$ARTIFACTS/sessions" 2>/dev/null || true
+    if ! grep -Fqx "$marker" "$SELECTOR_WARNINGS" 2>/dev/null; then
+        printf '%s\n' "$marker" >> "$SELECTOR_WARNINGS" 2>/dev/null || true
+        echo "[session-start] WARN: invalid fast-worker selector ${key}=${value}; using shipped default" >&2
+    fi
+}
+
+case "$FAST_BACKEND" in
+    claude|codex|agy|auto) ;;
+    *) selector_warn_once "fast_worker_backend" "$FAST_BACKEND"; FAST_BACKEND="$FAST_BACKEND_DEFAULT" ;;
+esac
+
+_order_valid=1
+_order_items=()
+IFS=',' read -r -a _order_items <<< "$FAST_ORDER"
+[ "${#_order_items[@]}" -gt 0 ] || _order_valid=0
+for _backend in "${_order_items[@]}"; do
+    case "$(echo "$_backend" | xargs)" in
+        claude|codex|agy) ;;
+        *) _order_valid=0; break ;;
+    esac
+done
+if [ "$_order_valid" -eq 0 ]; then
+    selector_warn_once "fast_worker_backend_order" "$FAST_ORDER"
+    FAST_ORDER="$FAST_ORDER_DEFAULT"
+fi
+
+case "$FAST_FALLBACK" in
+    none|claude) ;;
+    *) selector_warn_once "fast_worker_fallback" "$FAST_FALLBACK"; FAST_FALLBACK="$FAST_FALLBACK_DEFAULT" ;;
+esac
+
+_selector_line=""
+[ "$FAST_BACKEND" != "$FAST_BACKEND_DEFAULT" ] && _selector_line="fast_worker_backend=$FAST_BACKEND"
+[ "$FAST_ORDER" != "$FAST_ORDER_DEFAULT" ] && _selector_line="${_selector_line}${_selector_line:+ }fast_worker_backend_order=$FAST_ORDER"
+[ "$FAST_FALLBACK" != "$FAST_FALLBACK_DEFAULT" ] && _selector_line="${_selector_line}${_selector_line:+ }fast_worker_fallback=$FAST_FALLBACK"
+[ -n "$_selector_line" ] && echo "[session-start] fast-worker selector: $_selector_line"
+unset _selector_line _order_valid _order_items _backend
 
 # ---- Cross-session learned context (opt-in via learning_db_enabled) ----
 # Surface the top recurring signatures so the model starts the session aware of

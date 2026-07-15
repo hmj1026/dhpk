@@ -3,7 +3,7 @@
 Used by Step 6 and Step 6b of the `opsx-apply-goal` skill. These are the exact
 literal strings that compose `GOAL_CONDITION`. SKILL.md owns the *rules* (which
 Part 0 branch by `DISPATCH_ON`, the `<CODEX_STATEMENT>` substitution, which Part 3
-gate lines to emit per detected flags, and the 4000-char length guard with its
+gate lines to emit per detected flags, and the 4,000 UTF-8-byte length guard with its
 should-never-fire hard stop). This file owns the *text*. Copy it out verbatim —
 do not paraphrase; placeholders (`<CHANGE_ID>`, `<CODEX_STATEMENT>`,
 `<TURN_BUDGET>`, `<MAX_DURATION>`) are substituted as noted.
@@ -29,6 +29,10 @@ in `rules/execution-policy.md` and bind the session through the orientation read
 they are NOT restated here. When the policy file is unresolvable, the session
 proceeds on this condition's own inline gates.
 
+The goal-layer roster names the generic mechanical role `dhpk:fast-worker` only;
+CLI backend choice is resolved by the policy-layer selector and is not repeated
+in every generated goal.
+
 **`DISPATCH_ON=false`** (`orchestration_dispatch=off`) — no dispatch clause:
 ```
 First run ONE Bash orientation command — `head -40
@@ -47,32 +51,25 @@ directly under the same gates. <CODEX_STATEMENT>. Continue until all of the
 following hold,
 ```
 
-**`DISPATCH_ON=true`** (default) — the same kickoff with the compact dispatch
-directive appended before the transition into the stop conditions:
+**`DISPATCH_ON=true`** (default) — the same kickoff with the bounded dispatch
+roster appended before the transition into the stop conditions:
 ```
 First run ONE Bash orientation command — `head -40
 openspec/changes/<CHANGE_ID>/tasks.md; p=${CLAUDE_PLUGIN_ROOT:-$(ls -dt
 ~/.claude/plugins/cache/dhpk/dhpk/* 2>/dev/null | head -1)}; cat
-"$p/rules/execution-policy.md" 2>/dev/null || echo POLICY-UNRESOLVED` — reading
-the dhpk execution-policy into context (on POLICY-UNRESOLVED proceed on this
-goal string's own gates; never filesystem-scan) — then invoke the opsx:apply
-skill for change <CHANGE_ID> and continue implementing it from the first
-unchecked item without stopping for confirmation (ordinary implementation
-judgment calls only — never an explicit project hard-rule conflict bypass). On
-"Unknown skill", retry once next turn; if it still fails, read
-openspec/changes/<CHANGE_ID>/ (proposal.md, design.md, tasks.md) and implement
-directly under the same gates. You are the orchestrator per that policy
-§Implementation dispatch: mechanical/multi-file clear-spec work to
-dhpk:fast-worker, reasoning-heavy work to dhpk:deep-reasoner, RED PHPUnit tests
-to dhpk:tdd-guide, RED/E2E Playwright specs to dhpk:e2e-runner; never
-general-purpose; edit inline only within a ≤2-file whole-implement-step
-footprint plus your own bookkeeping (tasks.md checkboxes, sentinels). Explicit
-project hard rules cannot be deferred because a prior design chose a cheaper
-implementation — comply or stop for a human-approved exception. Mechanical
-batches (≥3 files, or same-shaped edits past the ≤2-file inline bound) → ONE
-batched fast-worker dispatch, inline the exception (per §Implementation
-dispatch); ONE consolidated review round per wave, re-reviews confirm-only;
-never `sleep`-poll bg work — wait on notifications/Monitor.
+"$p/rules/execution-policy.md" 2>/dev/null || echo POLICY-UNRESOLVED` — read the
+policy (on POLICY-UNRESOLVED use this goal's gates; never filesystem-scan), invoke
+opsx:apply for <CHANGE_ID>, and continue from the first unchecked task without
+confirmation. Ordinary judgment is allowed; explicit project hard-rule conflicts
+must comply or stop for human exception. On "Unknown skill", retry once next turn,
+then read proposal.md, design.md, and tasks.md and implement under the same gates.
+You are the orchestrator per §Implementation dispatch: clear mechanical work →
+dhpk:fast-worker; reasoning → dhpk:deep-reasoner; RED PHPUnit → dhpk:tdd-guide;
+RED/E2E Playwright → dhpk:e2e-runner; never general-purpose. Inline only a
+≤2-file whole-implement-step plus bookkeeping; ≥3 files → one batched
+fast-worker dispatch. Review once per wave; known-finding re-review is confirm-only.
+Explicit project hard rules cannot be deferred because a prior design chose a cheaper implementation.
+Never sleep-poll background work; wait on notifications/Monitor.
 <CODEX_STATEMENT>. Continue until all of the following hold,
 ```
 

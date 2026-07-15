@@ -1,0 +1,4 @@
+{
+  "name": "normal",
+  "gates": ["test", "review", "artifact"]
+}
