@@ -19,7 +19,8 @@
 
 set -o pipefail
 
-ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+. "$(dirname "$0")/_lib/session-env.sh"
+ROOT="$(dhpk_root)"
 . "$(dirname "$0")/_lib/payload.sh"
 . "$(dirname "$0")/_lib/load-project-config.sh" 2>/dev/null || true
 
@@ -41,7 +42,7 @@ if [ "$PROFILE" = "minimal" ]; then
     exit 0
 fi
 
-PAYLOAD="$(cat 2>/dev/null || true)"
+PAYLOAD="$(dhpk_read_payload)"
 
 command -v python3 >/dev/null 2>&1 || { printf '{}'; exit 0; }
 

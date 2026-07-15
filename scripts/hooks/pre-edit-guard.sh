@@ -16,9 +16,10 @@
 
 set -euo pipefail
 
+. "$(dirname "$0")/_lib/session-env.sh"
 . "$(dirname "$0")/_lib/payload.sh"
 
-stdin_data="$(cat 2>/dev/null || true)"
+stdin_data="$(dhpk_read_payload)"
 file_path="$(extract_tool_input file_path "$stdin_data")"
 
 [ -z "$file_path" ] && exit 0

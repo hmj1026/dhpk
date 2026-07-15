@@ -33,6 +33,7 @@
 
 set -o pipefail
 
+. "$(dirname "$0")/_lib/session-env.sh"
 . "$(dirname "$0")/_lib/load-project-config.sh"
 . "$(dirname "$0")/_lib/payload.sh"
 . "$(dirname "$0")/_lib/json-out.sh"
@@ -48,7 +49,7 @@ if [ "$SENTINEL_MODE" = "off" ] && [ "$BRANCH_MODE" = "off" ]; then
     exit 0
 fi
 
-PAYLOAD="$(cat 2>/dev/null || true)"
+PAYLOAD="$(dhpk_read_payload)"
 CMD="$(extract_tool_input command "$PAYLOAD")"
 [ -z "$CMD" ] && exit 0
 
@@ -70,8 +71,8 @@ if [ "$SENTINEL_MODE" != "off" ]; then
         && ! printf '%s' "$CMD_STRIPPED" | grep -Eq \
         '(--help|[[:space:]]-h([[:space:]]|$)|--dry-run|--abort|--continue|--skip|--quit)'; then
 
-        ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-        SESS="$ROOT/.claude/artifacts/sessions"
+        ROOT="$(dhpk_root)"
+        SESS="$(dhpk_sessions_dir "$ROOT")"
 
         active_names=()
         active_agents=()
@@ -107,7 +108,7 @@ if [ "$BRANCH_MODE" != "off" ]; then
         && ! printf '%s' "$CMD_STRIPPED" | grep -Eq \
         '(--help|[[:space:]]-h([[:space:]]|$)|--dry-run|--abort|--continue|--skip|--quit)'; then
 
-        ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+        ROOT="$(dhpk_root)"
         BRANCH="$(git -C "$ROOT" branch --show-current 2>/dev/null || echo '')"
 
         if [ -n "$BRANCH" ]; then
