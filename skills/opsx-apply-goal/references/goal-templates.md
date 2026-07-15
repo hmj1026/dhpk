@@ -68,7 +68,11 @@ to dhpk:tdd-guide, RED/E2E Playwright specs to dhpk:e2e-runner; never
 general-purpose; edit inline only within a ≤2-file whole-implement-step
 footprint plus your own bookkeeping (tasks.md checkboxes, sentinels). Explicit
 project hard rules cannot be deferred because a prior design chose a cheaper
-implementation — comply or stop for a human-approved exception.
+implementation — comply or stop for a human-approved exception. Mechanical
+batches (≥3 files, or same-shaped edits past the ≤2-file inline bound) → ONE
+batched fast-worker dispatch, inline the exception (per §Implementation
+dispatch); ONE consolidated review round per wave, re-reviews confirm-only;
+never `sleep`-poll bg work — wait on notifications/Monitor.
 <CODEX_STATEMENT>. Continue until all of the following hold,
 ```
 

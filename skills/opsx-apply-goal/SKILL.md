@@ -132,7 +132,7 @@ a `GOAL_CONDITION` at or beyond that cannot be submitted. Measure before Step 7
    notice — do **not** print Block B, C, or C2.
 
 There is a single (full) template variant. The bounded Part 0 lands a typical
-change around 3,300 characters (Part 0 + CODEX ≈ 1,700; the rest is the
+change around 3,600 characters (Part 0 + CODEX ≈ 2,000; the rest is the
 change-scaled Parts 1–4), so the blocked branch is a
 should-never-fire template regression: if it fires, the template (or a
 per-change Part 3 explosion) has regressed and must be fixed — never worked
