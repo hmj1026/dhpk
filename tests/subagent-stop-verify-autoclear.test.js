@@ -16,24 +16,19 @@
 // FAILED reviewer) also leaves the sentinel armed so the chain re-fires.
 
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
+const {
+  ROOT,
+  mkRepo,
+  sessionsDir: sessDir,
+  runHook: runHookRaw,
+} = require('./_lib/hookharness');
 
-const ROOT = path.join(__dirname, '..');
-const HOOK = path.join(ROOT, 'scripts', 'hooks', 'subagent-stop-verify.sh');
+const HOOK = 'subagent-stop-verify.sh';
 
 function mkTempRepo() {
-  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-sv-')));
-  spawnSync('git', ['init', '-q'], { cwd: dir });
-  spawnSync('git', ['config', 'user.email', 'test@example.com'], { cwd: dir });
-  spawnSync('git', ['config', 'user.name', 'Test'], { cwd: dir });
-  return dir;
-}
-
-function sessDir(repo) {
-  return path.join(repo, '.claude', 'artifacts', 'sessions');
+  return mkRepo({ prefix: 'dhpk-sv-', gitConfig: true });
 }
 function armSentinel(repo, name) {
   const d = sessDir(repo);
@@ -82,20 +77,12 @@ function writeReviewArtifact(repo, agent, body, isoStamp = '2026-07-07T12:00:00Z
 }
 
 function runHook(repo, payload, { pluginRoot = ROOT, cwd = repo } = {}) {
-  const env = { ...process.env };
-  delete env.DHPK_ACTIVE_MODULES;
-  delete env.CLAUDE_PLUGIN_OPTION_REVIEW_AGENTS; // force default slot mapping
-  env.CLAUDE_PLUGIN_OPTION_HOOK_PROFILE = 'standard'; // ensure advisory messages emit
-  env.CLAUDE_PROJECT_DIR = repo; // pin the hook's ROOT to this temp repo
-  if (pluginRoot === null) delete env.CLAUDE_PLUGIN_ROOT;
-  else env.CLAUDE_PLUGIN_ROOT = pluginRoot;
-  env.DHPK_TEST_HOOK = HOOK;
-  env.DHPK_TEST_PAYLOAD = JSON.stringify(payload);
-  return spawnSync('bash', ['-c', 'printf %s "$DHPK_TEST_PAYLOAD" | bash "$DHPK_TEST_HOOK"'], {
-    cwd, // clear-sentinel.sh derives ITS root from cwd's git-toplevel
-    env,
-    encoding: 'utf8',
-    timeout: 10000,
+  return runHookRaw(HOOK, {
+    payload,
+    cwd, // both sides now resolve ROOT env-first (session-env.sh); cwd is the git fallback
+    pluginRoot,
+    projectDir: repo, // pin the hook's ROOT to this temp repo
+    deleteEnv: ['DHPK_ACTIVE_MODULES', 'CLAUDE_PLUGIN_OPTION_REVIEW_AGENTS'], // force default slot mapping
   });
 }
 

@@ -19,7 +19,8 @@
 
 set -o pipefail
 
-ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+. "$(dirname "$0")/_lib/session-env.sh"
+ROOT="$(dhpk_root)"
 # Project overrides must be loaded before the gate decision. payload.sh supplies
 # the reviewer roster used to scope this advisory to reviewer sentinels only.
 . "$(dirname "$0")/_lib/load-project-config.sh"
@@ -34,14 +35,14 @@ esac
 
 command -v jq >/dev/null 2>&1 || exit 0
 
-SESS="$ROOT/.claude/artifacts/sessions"
+SESS="$(dhpk_sessions_dir "$ROOT")"
 STATE_FILE="$SESS/.subagent-stop-quality-state.json"
 COUNTER_FILE="$SESS/.subagent-stop-quality-extraction.json"
 
 # shellcheck source=/dev/null
 . "$(dirname "$0")/_lib/json-out.sh"
 
-PAYLOAD="$(cat 2>/dev/null || true)"
+PAYLOAD="$(dhpk_read_payload)"
 [ -n "$PAYLOAD" ] || exit 0
 
 # Task 4.4 — honor stop_hook_active / subagent_stop_hook_active (prevents a
