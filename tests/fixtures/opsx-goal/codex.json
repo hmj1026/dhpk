@@ -1,0 +1,5 @@
+{
+  "name": "codex",
+  "codex": true,
+  "gates": ["test", "review", "artifact"]
+}

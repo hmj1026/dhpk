@@ -1,0 +1,5 @@
+{
+  "name": "maximum-gate",
+  "codex": true,
+  "gates": ["test", "coverage", "build", "lint", "smoke", "review", "artifact", "verdict", "turn"]
+}

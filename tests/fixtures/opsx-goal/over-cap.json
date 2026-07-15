@@ -1,0 +1,5 @@
+{
+  "name": "over-cap",
+  "gates": ["test", "coverage", "build", "lint", "smoke", "review", "artifact", "verdict", "turn"],
+  "padding_bytes": 4300
+}
