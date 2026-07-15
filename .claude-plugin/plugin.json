@@ -120,6 +120,24 @@
       "description": "'on' (default) routes implement-phase work through the Implementation dispatch decision table in rules/execution-policy.md — deep-reasoner for reasoning-heavy work, fast-worker for mechanical work with a clear spec, inline for small (~2-file) diffs; dispatching general-purpose for implementation is prohibited while this is on. 'off' is a full kill switch restoring pre-change behavior exactly: inline implementation, no dispatch prohibition, no opsx-apply-goal directive line.",
       "default": "on"
     },
+    "fast_worker_backend": {
+      "type": "string",
+      "title": "Fast-worker backend",
+      "description": "Mechanical worker backend: claude (default), codex, agy, or auto. Explicit selection is deterministic; auto uses fast_worker_backend_order.",
+      "default": "claude"
+    },
+    "fast_worker_backend_order": {
+      "type": "string",
+      "title": "Fast-worker auto order",
+      "description": "Comma-separated availability order for auto selection. Default: claude,codex,agy.",
+      "default": "claude,codex,agy"
+    },
+    "fast_worker_fallback": {
+      "type": "string",
+      "title": "Fast-worker missing-executable fallback",
+      "description": "Fallback for an explicitly selected missing CLI executable: none (default) or claude. Authentication, authorization, model, task, and verification failures never fall back.",
+      "default": "none"
+    },
     "subagent_quality_gate": {
       "type": "string",
       "title": "SubagentStop thin-report quality gate",

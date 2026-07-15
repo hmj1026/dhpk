@@ -63,11 +63,11 @@ function assertSilent(res, label) {
   assert.strictEqual(res.stdout.trim(), '', `${label}: expected silent stdout, got: ${res.stdout}`);
 }
 
-test('thin report (<120 chars) blocks', () => {
+test('thin reviewer report (<120 chars) blocks', () => {
   const dir = mkTempProjectDir();
   try {
     const res = runHook(
-      { agent_type: 'dhpk:fast-worker', last_assistant_message: 'Fixed the bug.' },
+      { agent_type: 'dhpk:code-reviewer', last_assistant_message: 'Fixed the bug.' },
       { CLAUDE_PLUGIN_OPTION_SUBAGENT_QUALITY_GATE: 'on', CLAUDE_PROJECT_DIR: dir },
     );
     assertBlocked(res, 'thin report');
@@ -80,7 +80,7 @@ test('bare approval (lgtm) blocks', () => {
   const dir = mkTempProjectDir();
   try {
     const res = runHook(
-      { agent_type: 'dhpk:fast-worker', last_assistant_message: 'lgtm' },
+      { agent_type: 'dhpk:code-reviewer', last_assistant_message: 'lgtm' },
       { CLAUDE_PLUGIN_OPTION_SUBAGENT_QUALITY_GATE: 'on', CLAUDE_PROJECT_DIR: dir },
     );
     assertBlocked(res, 'bare approval');
@@ -93,7 +93,7 @@ test('unresolved-error mention with no next-step/recommendation word blocks', ()
   const dir = mkTempProjectDir();
   try {
     const res = runHook(
-      { agent_type: 'dhpk:fast-worker', last_assistant_message: ERROR_TEXT },
+      { agent_type: 'dhpk:code-reviewer', last_assistant_message: ERROR_TEXT },
       { CLAUDE_PLUGIN_OPTION_SUBAGENT_QUALITY_GATE: 'on', CLAUDE_PROJECT_DIR: dir },
     );
     assertBlocked(res, 'unresolved error');
@@ -121,12 +121,25 @@ test('evidence-free review-shaped report blocks', () => {
   }
 });
 
+test('mechanical worker reports are outside the reviewer-only quality gate', () => {
+  const dir = mkTempProjectDir();
+  try {
+    const res = runHook(
+      { agent_type: 'dhpk:fast-worker', last_assistant_message: 'Fixed the bug.' },
+      { CLAUDE_PLUGIN_OPTION_SUBAGENT_QUALITY_GATE: 'on', CLAUDE_PROJECT_DIR: dir },
+    );
+    assertSilent(res, 'mechanical worker must bypass reviewer-only quality gate');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('scope-key dedup: same report twice → second invocation is silent', () => {
   const dir = mkTempProjectDir();
   try {
     const env = { CLAUDE_PLUGIN_OPTION_SUBAGENT_QUALITY_GATE: 'on', CLAUDE_PROJECT_DIR: dir };
     const payload = {
-      agent_type: 'dhpk:fast-worker',
+      agent_type: 'dhpk:code-reviewer',
       session_id: 'dedup-session',
       last_assistant_message: 'Fixed the bug.',
     };
@@ -140,11 +153,34 @@ test('scope-key dedup: same report twice → second invocation is silent', () =>
   }
 });
 
+test('a new reviewer dispatch in the same session gets its own bounded retry', () => {
+  const dir = mkTempProjectDir();
+  try {
+    const env = { CLAUDE_PLUGIN_OPTION_SUBAGENT_QUALITY_GATE: 'on', CLAUDE_PROJECT_DIR: dir };
+    const first = runHook({
+      agent_type: 'dhpk:code-reviewer',
+      session_id: 'multi-wave-session',
+      agent_id: 'review-dispatch-1',
+      last_assistant_message: 'Thin first wave.',
+    }, env);
+    const second = runHook({
+      agent_type: 'dhpk:code-reviewer',
+      session_id: 'multi-wave-session',
+      agent_id: 'review-dispatch-2',
+      last_assistant_message: 'Thin second wave.',
+    }, env);
+    assertBlocked(first, 'first review dispatch');
+    assertBlocked(second, 'second review dispatch');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('stop_hook_active:true → no block', () => {
   const dir = mkTempProjectDir();
   try {
     const res = runHook(
-      { agent_type: 'dhpk:fast-worker', stop_hook_active: true, last_assistant_message: 'Fixed the bug.' },
+      { agent_type: 'dhpk:code-reviewer', stop_hook_active: true, last_assistant_message: 'Fixed the bug.' },
       { CLAUDE_PLUGIN_OPTION_SUBAGENT_QUALITY_GATE: 'on', CLAUDE_PROJECT_DIR: dir },
     );
     assertSilent(res, 'stop_hook_active:true');
@@ -158,7 +194,7 @@ test('subagent_stop_hook_active:true → no block', () => {
   try {
     const res = runHook(
       {
-        agent_type: 'dhpk:fast-worker',
+        agent_type: 'dhpk:code-reviewer',
         subagent_stop_hook_active: true,
         last_assistant_message: 'Fixed the bug.',
       },
@@ -174,7 +210,7 @@ test('missing text and no transcript path → silent exit 0, no block', () => {
   const dir = mkTempProjectDir();
   try {
     const res = runHook(
-      { agent_type: 'dhpk:fast-worker' },
+      { agent_type: 'dhpk:code-reviewer' },
       { CLAUDE_PLUGIN_OPTION_SUBAGENT_QUALITY_GATE: 'on', CLAUDE_PROJECT_DIR: dir },
     );
     assertSilent(res, 'missing text, no transcript');
@@ -187,7 +223,7 @@ test('unreadable transcript path → silent, no false block', () => {
   const dir = mkTempProjectDir();
   try {
     const res = runHook(
-      { agent_type: 'dhpk:fast-worker', transcript_path: '/nonexistent/path/does-not-exist.jsonl' },
+      { agent_type: 'dhpk:code-reviewer', transcript_path: '/nonexistent/path/does-not-exist.jsonl' },
       { CLAUDE_PLUGIN_OPTION_SUBAGENT_QUALITY_GATE: 'on', CLAUDE_PROJECT_DIR: dir },
     );
     assertSilent(res, 'unreadable transcript path');
@@ -203,7 +239,7 @@ test('gate OFF (env unset) → no block even on a thin report', () => {
     delete env.CLAUDE_PLUGIN_OPTION_SUBAGENT_QUALITY_GATE;
     env.DHPK_TEST_HOOK = HOOK;
     env.DHPK_TEST_PAYLOAD = JSON.stringify({
-      agent_type: 'dhpk:fast-worker',
+      agent_type: 'dhpk:code-reviewer',
       last_assistant_message: 'Fixed the bug.',
     });
     const res = spawnSync(

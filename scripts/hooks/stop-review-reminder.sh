@@ -37,6 +37,37 @@ PROFILE="${CLAUDE_PLUGIN_OPTION_HOOK_PROFILE:-standard}"
 
 SESS="$ROOT/.claude/artifacts/sessions"
 FOUND=0
+BACKOFF_FILE="$SESS/.review-reminder-backoff"
+BACKOFF_SECONDS="${DHPK_REVIEW_REMINDER_BACKOFF_SECONDS:-300}"
+case "$BACKOFF_SECONDS" in
+    ''|*[!0-9]*) BACKOFF_SECONDS=300 ;;
+esac
+REMINDER_SESSION="$(extract_top_field session_id "$payload")"
+[ -n "$REMINDER_SESSION" ] || REMINDER_SESSION="default-session"
+
+reminder_fingerprint() {
+    local file="$1" hash=""
+    hash="$(sha1sum "$file" 2>/dev/null | awk '{print $1}')"
+    [ -n "$hash" ] || hash="$(cksum "$file" 2>/dev/null | awk '{print $1}')"
+    printf '%s' "${hash:-unknown}"
+}
+
+reminder_is_debounced() {
+    local name="$1" fingerprint="$2" now="$3" last=""
+    [ -f "$BACKOFF_FILE" ] || return 1
+    last="$(awk -F '\t' -v n="$name" -v s="$REMINDER_SESSION" -v f="$fingerprint" '$1==n && $2==s && $3==f {print $4; exit}' "$BACKOFF_FILE" 2>/dev/null || true)"
+    [ -n "$last" ] || return 1
+    [ $((now - last)) -lt "$BACKOFF_SECONDS" ]
+}
+
+record_reminder() {
+    local name="$1" fingerprint="$2" now="$3" tmp=""
+    mkdir -p "$SESS" 2>/dev/null || true
+    tmp="$(mktemp 2>/dev/null || printf '%s.tmp.%s' "$BACKOFF_FILE" "$$")"
+    awk -F '\t' -v n="$name" -v s="$REMINDER_SESSION" '$1!=n || $2!=s' "$BACKOFF_FILE" 2>/dev/null > "$tmp" || true
+    printf '%s\t%s\t%s\t%s\n' "$name" "$REMINDER_SESSION" "$fingerprint" "$now" >> "$tmp"
+    mv -f "$tmp" "$BACKOFF_FILE" 2>/dev/null || rm -f "$tmp"
+}
 
 # Writes outer FOUND — must NOT be invoked in a subshell.
 check_one() {
@@ -54,6 +85,13 @@ check_one() {
     local count file_list extra=""
     count="$(wc -l < "$file" 2>/dev/null | tr -d ' ')"
     count="${count:-0}"
+    local now fingerprint
+    now="$(date +%s)"
+    fingerprint="$(reminder_fingerprint "$file")"
+    if reminder_is_debounced "$name" "$fingerprint" "$now"; then
+        return 0
+    fi
+    record_reminder "$name" "$fingerprint" "$now"
     # Batch grouping (D4.5): a large multi-change burst is grouped by originating
     # change/session (via the provenance sidecar) so it is reviewed per-group, not
     # as one oversized undifferentiated batch that invites a gate bypass. Every
