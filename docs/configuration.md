@@ -2,7 +2,7 @@
 
 > **Languages**: **English** · [繁體中文](./configuration.zh-TW.md)
 
-dhpk exposes **48 `userConfig` knobs** in `.claude-plugin/plugin.json`. This page documents every knob: where you set it, what values it accepts, and what it actually changes. For the day-to-day command flow (install, common workflows, review cycle), see [`docs/basic-operations.md`](./basic-operations.md).
+dhpk exposes **51 `userConfig` knobs** in `.claude-plugin/plugin.json`. This page documents every knob: where you set it, what values it accepts, and what it actually changes. For the day-to-day command flow (install, common workflows, review cycle), see [`docs/basic-operations.md`](./basic-operations.md).
 
 ## Where to set a value
 
@@ -56,7 +56,10 @@ A handful of boolean/mode knobs additionally support a **one-shot environment-va
 | `codex_fast_worker_effort` | string | `xhigh` | any effort the codex CLI accepts (e.g. `low` \| `medium` \| `high` \| `xhigh`) | `model_reasoning_effort` passed to the codex CLI backend for `dhpk:codex-fast-worker` dispatches — the strong mechanical tier. |
 | `agy_fast_worker_model` | string | `Gemini 3.5 Flash (High)` | any model listed by `agy models` | Model display string passed to the agy CLI backend for `dhpk:agy-fast-worker` dispatches. agy bakes the thinking level into the model name, so there is no separate effort key. Same layering as above; override when a default is deprecated (check `agy models`). |
 | `orchestration_dispatch` | string | `on` | `on` \| `off` | Kill switch for the Implementation dispatch table (`deep-reasoner` / `fast-worker` routing in `feature-dev`, `bug-fix`, `adaptive-dev-workflow`, `opsx-apply-goal`). `on` routes implement-phase work through the decision table and prohibits `general-purpose` for implementation. `off` fully restores pre-v0.22.0 behavior: inline implementation, no dispatch prohibition, byte-identical `opsx-apply-goal` output. |
-| `subagent_quality_gate` | string | `off` | `on` \| `off` | Enables `scripts/hooks/subagent-stop-quality.sh`, a `SubagentStop` hook that blocks-and-continues a subagent once when its final report is thin, a bare approval, an unresolved error with no next-step language, or an evidence-free review-shaped reply — wired ahead of `subagent-stop-verify.sh` so a blocked reviewer's sentinel is not auto-cleared. Default `off` (no-op, no heuristic evaluation). Extraction hit/miss is recorded to `.claude/artifacts/sessions/.subagent-stop-quality-extraction.json` to support a future data-driven default-on flip decision. |
+| `fast_worker_backend` | string | `claude` | `claude` \| `codex` \| `agy` \| `auto` | Deterministic mechanical-worker selector. `claude` maps to `dhpk:fast-worker`; `auto` checks `fast_worker_backend_order`. Invalid values warn once per session and use `claude`. |
+| `fast_worker_backend_order` | string | `claude,codex,agy` | comma-separated backend names | Availability order used only by `auto`; rejected candidates and reasons are recorded. Invalid values warn once per session and use the shipped order. |
+| `fast_worker_fallback` | string | `none` | `none` \| `claude` | Explicit fallback for a missing selected CLI executable only. Auth, authorization, model, task, execution, and verification failures remain blocked. |
+| `subagent_quality_gate` | string | `off` | `on` \| `off` | Enables `scripts/hooks/subagent-stop-quality.sh` only for reviewer-sentinel subagents. It blocks-and-continues a reviewer once when its final report is thin, a bare approval, an unresolved error with no next-step language, or an evidence-free review-shaped reply — wired ahead of `subagent-stop-verify.sh` so a blocked reviewer's sentinel is not auto-cleared. The bounded outcome is one corrected retry, then replacement or a pending gate with a recorded reason. Default `off` (no-op, no heuristic evaluation). Extraction hit/miss is recorded to `.claude/artifacts/sessions/.subagent-stop-quality-extraction.json`. |
 
 ## Codex MCP dependency (not a `userConfig` knob)
 

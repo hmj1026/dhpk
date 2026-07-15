@@ -1,5 +1,9 @@
 # Agent Artifact-Output Contract
 
+Reviewer dispatch prompt fields and bounded no-op recovery are defined in
+[`reviewer-contract.md`](./reviewer-contract.md); this file remains the SSOT for
+persisted artifact paths, frontmatter, verdict vocabulary, and sentinel clearance.
+
 SSOT for the write-to-disk conventions shared across dhpk agents that persist a report, review, or plan under `.claude/artifacts/`. Extracted from what was previously copy-pasted (and drifting) inline across 18 agent files. Referenced from each agent's own "Closing — Artifact Output" section, which keeps only what's genuinely agent-specific: its own path category, its own extra frontmatter fields, and whether it's sentinel-driven.
 
 ## Path template
