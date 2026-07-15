@@ -3,7 +3,7 @@
   "name": "dhpk",
   "displayName": "DHPK Dev Harness",
   "version": "0.28.9",
-  "description": "Reusable Claude Code harness — 29 role-based agents (28 root + 1 module-scoped reviewer; incl. the Swift/Xcode build-resolver, the silent-failure-hunter error-handling auditor, and Python/Rust build-resolvers) + ~45 registered dhpk commands (44 root + the ts-check-status JS-module command; the bundled codex / gitnexus / git trees ship their own separately) + opt-in stack modules across PHP (5.6, 7.4, 8.x), Yii (1.1), PHPUnit (5.7, 9, 10, 11), Laravel (5.4, 6–11), JS, Vue 2, Laravel Mix 5, Next.js (nextjs-15.5, nextjs-16), React (react-18, react-19), Python (python lint/type-check hooks, fastapi, pytest), the library-author cross-cutting module, and an iOS/Swift suite (swift, swiftui, ios-platform, swift-testing, xcode-tooling) with SwiftLint post-edit + xcodebuild/SPM pre-commit hooks, a Swift 6.2 approachable-concurrency reference, and an ios-icon-gen skill. 7-slot sentinel-driven review hooks (code / db / sec / frontend / doc / polyfill / migration — polyfill via library-author, migration via module triggers or mig: extra paths; doc-reviewer covers both SSOT/link-validity and frontmatter schema for .md DSL artifacts), parameterised docker/agent names, wrapper-dispatch hook extension model, parallel Codex CLI tree.",
+  "description": "Reusable Claude Code harness — 31 role-based agents (30 root + 1 module-scoped reviewer; incl. the Swift/Xcode build-resolver, the silent-failure-hunter error-handling auditor, and Python/Rust build-resolvers) + ~45 registered dhpk commands (44 root + the ts-check-status JS-module command; the bundled codex / gitnexus / git trees ship their own separately) + opt-in stack modules across PHP (5.6, 7.4, 8.x), Yii (1.1), PHPUnit (5.7, 9, 10, 11), Laravel (5.4, 6–11), JS, Vue 2, Laravel Mix 5, Next.js (nextjs-15.5, nextjs-16), React (react-18, react-19), Python (python lint/type-check hooks, fastapi, pytest), the library-author cross-cutting module, and an iOS/Swift suite (swift, swiftui, ios-platform, swift-testing, xcode-tooling) with SwiftLint post-edit + xcodebuild/SPM pre-commit hooks, a Swift 6.2 approachable-concurrency reference, and an ios-icon-gen skill. 7-slot sentinel-driven review hooks (code / db / sec / frontend / doc / polyfill / migration — polyfill via library-author, migration via module triggers or mig: extra paths; doc-reviewer covers both SSOT/link-validity and frontmatter schema for .md DSL artifacts), parameterised docker/agent names, wrapper-dispatch hook extension model, parallel Codex CLI tree.",
   "author": {
     "name": "hmj1026",
     "url": "https://github.com/hmj1026"
@@ -47,9 +47,11 @@
   ],
   "agents": [
     "./agents/agent-evaluator.md",
+    "./agents/agy-fast-worker.md",
     "./agents/architect.md",
     "./agents/code-reviewer.md",
     "./agents/codex-bridge.md",
+    "./agents/codex-fast-worker.md",
     "./agents/database-reviewer.md",
     "./agents/deep-reasoner.md",
     "./agents/doc-reviewer.md",
@@ -135,6 +137,24 @@
       "title": "fast-worker effort",
       "description": "Reasoning effort for dhpk:fast-worker Agent-call dispatches (see rules/model-economics.md master cost rules). Same validation/fallback behavior as deep_reasoner_effort. Default 'medium' (the shipped frontmatter default); the decision layer runs higher and execution de-escalates.",
       "default": "medium"
+    },
+    "codex_fast_worker_model": {
+      "type": "string",
+      "title": "codex-fast-worker model",
+      "description": "Model passed to the codex CLI backend when the codex-fast-worker agent is dispatched (see rules/execution-policy.md §Implementation dispatch + rules/model-economics.md). Resolved via the standard layering (project pluginConfigs > global > this default) and passed into run-codex.sh. Model names on the codex CLI rotate quickly — override here instead of editing source when a default is deprecated (check `codex models`). Default 'gpt-5.6-luna'.",
+      "default": "gpt-5.6-luna"
+    },
+    "codex_fast_worker_effort": {
+      "type": "string",
+      "title": "codex-fast-worker effort",
+      "description": "model_reasoning_effort passed to the codex CLI backend for codex-fast-worker dispatches (see rules/model-economics.md). Valid values: whatever the codex CLI accepts (e.g. low | medium | high | xhigh). Default 'xhigh' (the strong mechanical tier).",
+      "default": "xhigh"
+    },
+    "agy_fast_worker_model": {
+      "type": "string",
+      "title": "agy-fast-worker model",
+      "description": "Model display string passed to the agy CLI backend when the agy-fast-worker agent is dispatched (see rules/execution-policy.md §Implementation dispatch + rules/model-economics.md). agy bakes the thinking level into the model name, so there is no separate effort key. Override here when a default is deprecated (check `agy models`). Default 'Gemini 3.5 Flash (High)' (live-probe-verified against agy 1.1.2).",
+      "default": "Gemini 3.5 Flash (High)"
     },
     "planner_effort": {
       "type": "string",
