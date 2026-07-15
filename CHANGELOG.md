@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased] — Usage-audit fixes and CLI-backed fast-worker variants
+## 0.28.10 — 2026-07-15 — Usage-audit fixes and CLI-backed fast-worker variants
 
 Acts on a 2026-07-13/14 usage audit (an unattended `/goal` session spent ~65M tokens hand-typing 45 edits inline instead of dispatching) with five harness fixes to the unattended-session token economy, and adds two CLI-backed `fast-worker` variants so mechanical batches can be offloaded to an external codex/agy budget.
 
