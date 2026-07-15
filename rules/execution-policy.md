@@ -42,10 +42,10 @@ Agents run via the `Agent` tool (`subagent_type=<name>`), not via skill names.
 | `architect` | Cross-module or DDD-layer design | — |
 | `deep-reasoner` | Reasoning-heavy implement-phase work (root cause, algorithm design, complex debugging) — see §Implementation dispatch | — |
 | `fast-worker` | Mechanical implement-phase work with a clear spec — see §Implementation dispatch | — |
-| `codex-fast-worker` | **CODEX=on / codex CLI available** — a `fast-worker` whose edits run on the codex CLI backend (default `gpt-5.6-luna` @ `xhigh`); opt-in alternative to the default `fast-worker` — see §Implementation dispatch | — |
-| `agy-fast-worker` | **agy CLI available** — a `fast-worker` whose edits run on the agy CLI backend (default `Gemini 3.5 Flash (High)`); opt-in alternative to the default `fast-worker` — see §Implementation dispatch | — |
+| `codex-fast-worker` | Selected by `fast_worker_backend=codex` or an available `auto` candidate — a `fast-worker` whose edits run on the codex CLI backend; see §Implementation dispatch | — |
+| `agy-fast-worker` | Selected by `fast_worker_backend=agy` or an available `auto` candidate — a `fast-worker` whose edits run on the agy CLI backend; see §Implementation dispatch | — |
 | `codex-bridge` | **CODEX=on only** — outsource a self-contained clear-spec task, or a blind second opinion, to gpt-5.5 via the Codex CLI (`codex exec`); output isolated in the subagent, relayed verbatim — see §Implementation dispatch | — |
-| `e2e-runner` | RED / E2E user-journey work — author a Playwright spec, reason about how to seed fixtures, and run it against a live server — see §Implementation dispatch | — |
+| `e2e-runner` | RED / E2E user-journey work — author a Playwright spec, reason about how to seed fixtures, and run it against a live server; not a PHPUnit runner — see §Implementation dispatch | — |
 | `database-reviewer` | SQL / Repository / migration (SQL correctness) — sentinel `.pending-db-review` or back-stop | 2 |
 | `migration-reviewer` | Migration files (up/down symmetry, FK naming, large ALTER, multi-tenant deploy) — sentinel `.pending-migration-review` (one of the 7-slot default `review_agents` chain since v0.10.0; the sentinel *trigger* itself stays opt-in via `module.yaml` `migration:` triggers or `review_trigger_extra_paths` `mig:` — see the sentinel table below) | — |
 | `security-reviewer` | Auth / crypto / money / file upload — sentinel `.pending-security-review` or back-stop | 3 |
@@ -77,8 +77,8 @@ SSOT for implement-phase routing while `userConfig.orchestration_dispatch=on` (d
 |---|---|
 | Reasoning-heavy (unknown root cause, algorithm design, cross-file complex analysis) | `deep-reasoner` |
 | Mechanical with a clear spec (boilerplate, test scaffolds, rename sweeps, multi-file doc-consistency fixes of ≥3 files, applying an already-approved plan) | `fast-worker` |
-| The same mechanical clear-spec work, offloaded to the codex CLI backend — **CODEX=on / codex CLI available** only. The plain `fast-worker` stays the default mechanical implementer; this is an **opt-in** alternative (explicit user/config preference, or the default worker unavailable), so the table stays deterministic. | `codex-fast-worker` |
-| The same mechanical clear-spec work, offloaded to the agy CLI backend — **agy CLI available** only; likewise an **opt-in** alternative to the default `fast-worker`, never auto-selected. | `agy-fast-worker` |
+| The same mechanical clear-spec work, offloaded to the codex CLI backend — **CODEX=on / codex CLI available** only. Selected by explicit configuration or as an available candidate in configured `auto` order. | `codex-fast-worker` |
+| The same mechanical clear-spec work, offloaded to the agy CLI backend — **agy CLI available** only. Selected by explicit configuration or as an available candidate in configured `auto` order. | `agy-fast-worker` |
 | Small diff (roughly ≤2 files, unambiguous intent) | Inline in the main loop — no dispatch |
 | Complex implementation (needs both reasoning and mechanical application) | `deep-reasoner` produces the fix spec (conclusion contract) → `fast-worker` applies it |
 | RED / E2E test that must reason about seeding AND run against a live server (Playwright user journeys) — read-only `deep-reasoner` can't run it, mechanical `fast-worker` can't reason about the seeding | `e2e-runner` |
@@ -87,6 +87,26 @@ SSOT for implement-phase routing while `userConfig.orchestration_dispatch=on` (d
 | Plan critique / blind-sketch / dual-plan before implementation, or a warm diff review at task end | `dhpk:planner` — opt-in via `/dhpk:do --plan` on the four implementation-class routes (`dhpk:adaptive-dev-workflow`, `dhpk:bug-fix`, `dhpk:feature-dev`, `dhpk:opsx-apply-goal`) |
 | Independent second opinion, or an offloaded self-contained clear-spec task — **CODEX=on only** | `codex-bridge` (subagent; one-shot bash `codex exec`, output isolated + relayed verbatim) |
 | Live CI/deploy verification (`gh run watch`, run-log triage, retry babysitting) — main context keeps only merge/fix decisions | `dhpk:smoke-tester` (read-only probe) or background `fast-worker` |
+
+### Fast-worker backend selector
+
+Mechanical implementation waves resolve through
+`${CLAUDE_PLUGIN_ROOT}/scripts/fast-worker-selector.js` and the three selector
+keys in `userConfig`:
+
+| Requested value | Resolution |
+|---|---|
+| `claude` (default) | `dhpk:fast-worker`; deterministic in-process default. |
+| `codex` / `agy` | Check the requested executable before dispatch; missing executable blocks unless `fast_worker_fallback=claude` was explicitly configured. |
+| `auto` | Check `fast_worker_backend_order` in order and record rejected candidates plus reasons. |
+
+Only a missing executable may use the configured `claude` fallback. Authentication,
+authorization, model, task, execution, and verification failures remain
+`RESULT: BLOCKED` on the selected backend and never silently switch semantics.
+Every fast-worker report includes requested backend, selected backend, any
+fallback reason, model/effort, verification result, and the complete edited-file
+list. `CODEX=off` removes codex from availability and an explicit codex request
+is blocked rather than silently downgraded.
 
 **Orchestrator posture**: the main session is the expensive orchestrator; its implement-phase job is **decide → dispatch → verify**, not hand-typing edits. Dispatch to a worker is the **default**; inline (`≤2 files`, measured on the whole implement-step footprint) is a narrow exception; when unsure between inline and a worker, dispatch. `general-purpose` is **prohibited** for implementation while `orchestration_dispatch=on`; `orchestration_dispatch=off` is the full opt-out (inline everywhere). Premise discipline: verify an unverified behavioral premise with the probe that can actually settle it **before** dispatching a write worker — a code/algorithm/data-shape premise with read-only `deep-reasoner`, a runtime/browser/environment behavior premise with `e2e-runner` or a scratch executable probe (read-only `deep-reasoner` cannot execute or observe such behavior); sanity-check a `deep-reasoner` conclusion before `fast-worker` applies it; cross-verify a premise-overturning discovery independently before reframing (per §Multi-AI / dual-perspective independence). `CODEX=on` adds a blind `codex-bridge` parallel peer. Worker dispatch never weakens a gate — the orchestrator verifies the worker's edited-file list + verification line and confirms expected sentinels ran. Wait on background-agent completion notifications for worker results; NEVER bash-poll `.pending-*` sentinels or sleep-loop awaiting agent results. **Plan-brief discipline**: any brief assembled for a dispatched agent — including the `dhpk:planner` plan brief — follows conclusions-not-context, a bounded token budget, and a lookup fence, so downstream skills that build their own briefs for `dhpk:planner` follow the same shape.
 
@@ -147,9 +167,27 @@ Trigger map source-of-truth: dhpk's `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/post-ed
 
 ### Reviewer dispatch (when multiple sentinels coexist)
 
-At the end of a turn that produced Edits/Writes, gather ALL pending sentinels, then **triage → dispatch in parallel → merge**: (1) **triage** (cheap, no agent) — DROP false-positive sentinels (pure CSS / whitespace / comment-only / typo, or OpenSpec `tasks.md` checkbox bookkeeping) with a one-line reason, clearing each via `clear-sentinel.sh`; triage only drops, when in doubt keep the reviewer. (2) **dispatch surviving reviewers IN PARALLEL** — one message, multiple Agent calls; wall-clock is `max(reviewers)`, not the sum — never a sequential chain. (3) **`code-reviewer` merges/dedups** cross-reviewer findings; each specialist still owns its lane (code-reviewer doesn't re-run OWASP/SQL/link-checks). Batched per turn (not per edit) — and a review round's **known-finding-mapped** small fixes (each mapping 1:1 to an already-flagged Codex finding, reviewer-flagged issue, or a design.md append recording one — not new work) are applied together and re-reviewed ONCE as a batch, never edit→re-review→edit→re-review serially one finding-fix at a time (a genuinely new finding discovered mid-batch still gets its own cycle); any CRITICAL blocks the merge/commit; `code-reviewer`+`doc-reviewer` are not mutually exclusive on mixed diffs; pure research (no Edit/Write) skips all reviewers. Full triage rules + examples: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/review-gate-mechanics.md`.
+At the end of a turn that produced Edits/Writes, gather ALL pending sentinels, then **triage → dispatch in parallel → merge**. A contiguous implementation wave is the review unit: accumulate its scope and dispatch each applicable reviewer once. Apply all known-finding fixes together, then allow at most one confirm-only re-review naming those findings; new substantive scope starts a new review decision. Any CRITICAL blocks the merge/commit; pure research (no Edit/Write) skips all reviewers. Full triage rules + examples: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/review-gate-mechanics.md`.
 
-**Reviewer liveness — a no-op reviewer is a FAILED gate.** A dispatched reviewer that returns having done no review work — `tool_uses=0`, no `Read`/`Grep`/`Bash` call, or a body that merely echoes an injected `<system-reminder>` / agent-roster instead of a findings-plus-verdict report — has NOT satisfied its gate: do not mark the review complete and do not accept a cleared sentinel on such a return. Re-dispatch to a reviewer that can actually run it — substitute a stronger reviewer (`code-reviewer`, chartered for `.claude/`-style agents/rules/skills markdown) for a misfiring Haiku `doc-reviewer` — rather than retrying the same agent a third identical time (anti-loop), and record the substitution and its reason. Mechanics: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/review-gate-mechanics.md`.
+### Hook lifecycle classes
+
+Hooks are classified as a blocking safety gate, a sentinel/liveness gate,
+lifecycle bookkeeping, or opt-in advisory. Blocking and sentinel/liveness gates remain
+enabled; expensive completion, graduation, and quality scans are advisory and
+off by default. `subagent_quality_gate` remains globally off and is enabled only
+for reviewer sentinels (reviewer-sentinel subagents) when configured, under the one-corrected-retry
+contract above; the outcome is replacement or a pending gate with a recorded reason.
+
+| Hook surface | Lifecycle class | Default behavior |
+|---|---|---|
+| `pre-edit-guard.sh`, `pre-bash-dispatch.sh`, `pretool-git-gate.sh` | blocking safety gate | enabled; reject unsafe edit or git operations |
+| `Task|Agent` liveness and `SubagentStop` sentinel verification | sentinel/liveness gate | enabled; track active reviewers and preserve unmet sentinels |
+| `Stop` review reminder | sentinel/liveness gate | enabled; one reminder per unchanged sentinel/session within the bounded backoff window |
+| `PostToolUse` advisory, `StopFailure`, and module finding collection | opt-in advisory | non-blocking; surfaced only when configured or when findings exist |
+| `Stop` completion evidence, graduation scan, and quality scan | opt-in advisory | disabled by default; no duplicate completion message on the default path |
+| `SessionStart`, `SessionEnd`, `PreCompact`, and `PostCompact` | lifecycle bookkeeping | enabled; maintain session/config/archive state without acting as a review gate |
+
+**Reviewer liveness — a no-op reviewer is a FAILED gate.** A dispatched reviewer that returns having done no review work — `tool_uses=0`, no `Read`/`Grep`/`Bash` call, or a body that merely echoes an injected `<system-reminder>` / agent-roster instead of a findings-plus-verdict report — has NOT satisfied its gate: do not mark the review complete and do not accept a cleared sentinel on such a return. Re-dispatch with exactly one corrected retry. If the retry is still empty, substitute another reviewer or leave the gate pending with a recorded reason; never perform a third identical retry. Mechanics: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/review-gate-mechanics.md`.
 
 ### Review output gate
 

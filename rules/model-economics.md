@@ -2,7 +2,7 @@
 
 SSOT for **which model tier each role runs on, and the cost rules that govern tier and effort choices**. The dispatch *routing* decision — which agent handles which work shape — lives in `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §Implementation dispatch; this file owns the *cost lens* over that routing and does not restate its work-shape rows. Resource-layer markdown, opt-in — referenced from `execution-policy.md` §Agent dispatch (model-tier + configured-role paragraphs) and `skills/prompt-optimize/references/effort-guide.md`.
 
-> Reviewers keep a sonnet floor — no downward tiering, no `reviewer_model` key. Runtime-tunable via `userConfig`: `deep-reasoner` / `fast-worker` (model + effort), plus the CLI-backed workers `codex-fast-worker` (`codex_fast_worker_model` / `codex_fast_worker_effort`) and `agy-fast-worker` (`agy_fast_worker_model` — agy bakes effort into the model name, so no effort key). The rest of the map is documentation for humans, not a runtime dial.
+> Reviewers keep a sonnet floor — no downward tiering, no `reviewer_model` key. Runtime-tunable via `userConfig`: `deep-reasoner` / `fast-worker` (model + effort), the deterministic fast-worker selector (`fast_worker_backend`, `fast_worker_backend_order`, `fast_worker_fallback`), plus the CLI-backed workers `codex-fast-worker` (`codex_fast_worker_model` / `codex_fast_worker_effort`) and `agy-fast-worker` (`agy_fast_worker_model` — agy bakes effort into the model name, so no effort key). The rest of the map is documentation for humans, not a runtime dial.
 
 ## Tier map
 
@@ -11,8 +11,8 @@ SSOT for **which model tier each role runs on, and the cost rules that govern ti
 | Orchestrator (main session) | opus | Owns decide → dispatch → verify; spends the expensive tier on judgment, risk, and evidence packets — never bulk discovery. |
 | `deep-reasoner` | opus | Reasoning-heavy judgment (root cause, algorithm, design synthesis), ideally on a distilled evidence packet rather than raw breadth. |
 | `fast-worker` | sonnet | Mechanical application of a clear spec — the cheaper execution tier the policy routes to by default. |
-| `codex-fast-worker` (opt-in) | external CLI — codex, default `gpt-5.6-luna` @ `xhigh` (`codex_fast_worker_*`) | The strong mechanical tier: offload a mechanical clear-spec batch to codex's external budget at high reasoning effort. Routing is opt-in per the execution-policy dispatch table — the plain `fast-worker` stays the default. |
-| `agy-fast-worker` (opt-in) | external CLI — agy, default `Gemini 3.5 Flash (High)` (`agy_fast_worker_model`) | The cheap high-throughput tier: offload the same class of work to agy's external budget. Routing is opt-in per the execution-policy dispatch table. |
+| `codex-fast-worker` (selector-driven) | external CLI — codex, default `gpt-5.6-luna` @ `xhigh` (`codex_fast_worker_*`) | The strong mechanical tier: selected explicitly or by configured `auto` availability order; never a silent fallback after auth/model/task failure. |
+| `agy-fast-worker` (selector-driven) | external CLI — agy, default `Gemini 3.5 Flash (High)` (`agy_fast_worker_model`) | The cheap high-throughput tier: selected explicitly or by configured `auto` availability order; missing executable may use the explicit claude fallback only. |
 | `codex-bridge` (opt-in, `CODEX=on`) | external CLI — gpt-5.5 (`~/.codex/config.toml`) | Blind second opinion / offloaded self-contained clear-spec bulk via `codex exec`; not a dhpk runtime tier, not `userConfig`-tunable. |
 | Reviewers (code / db / security / frontend / polyfill / migration) | sonnet | High-frequency gate work; sonnet floor, raised to opus only for a HIGH-risk diff (up-only). |
 | `doc-reviewer` | haiku | Lightweight frontmatter / link / SSOT lint — the cheapest tier that passes. |
