@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.28.12 — 2026-07-16 — Unify hook environment variables and test harnesses
+
+Introduces `session-env.sh` to unify environment variable loading and project root resolution across all hooks, establishes `hookharness.js` to simplify hook execution testing, and refactors all lifecycle hooks and their test suites to use these new frameworks.
+
+**feat(tests)** — Introduce `hookharness.js` to dry up temporary repo setups and run hook pipelines.
+**refactor(config)** — Add `session-env.sh` for canonical path resolutions and transition settings loaders and learning database utils to it.
+**refactor(hooks)** — Rewrite all Pre-edit, Pre-bash, Post-edit, SubagentStop, and Session-lifecycle scripts and tests to run on the new environment architecture.
+
 ## 0.28.11 — 2026-07-15 — Refine opsx orchestration and governance
 
 Refines opsx apply goal pasting limits using UTF-8 byte counts, limits subagent quality gates to reviewer agents, adds fast-worker selector logic and contract verification, and expands tests across all hook lifecycle classes.
