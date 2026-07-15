@@ -97,6 +97,14 @@ edits. Loads the following on demand:
 | The new endpoint involves auth, tokens, or money flow | `security-reviewer` |
 | Frontend-only diff already APPROVED but unrelated backend code also changed | Stand down — `code-reviewer` handles the backend slice. |
 
+## Shared reviewer contract
+
+Use [`docs/contracts/reviewer-contract.md`](../docs/contracts/reviewer-contract.md) for scope, evidence, artifact, verdict, confirm-only, and bounded retry fields.
+
+### Specialist checks
+
+This file retains browser, DOM, JS, and frontend-regression checks unique to `frontend-reviewer`.
+
 ## Output
 
 State `Verdict: APPROVE | WARNING | BLOCK` as the FIRST line of the reply:

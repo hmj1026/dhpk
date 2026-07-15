@@ -10,6 +10,12 @@ effort: medium
 
 RED → GREEN → REFACTOR. Coverage ≥80%.
 
+## Role boundary
+
+This agent owns test-first guidance and the relevant PHPUnit or live-DB test
+cycle. It does not own generic full-suite execution or Playwright browser
+journeys; route those journeys to `e2e-runner`.
+
 > Before mocking: trace the unit's collaborators with `cx references --name X` (or `gitnexus_impact`) so you mock the *real* dependencies, not guesses. Optional external tools — fall back to `Grep` when neither is installed. See `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`.
 
 ## Stack trap sheet (load on demand)
@@ -39,6 +45,13 @@ Run commands live in the loaded stack trap sheet.
 ## Output
 
 ```
+Phase: RED|GREEN|REFACTOR
+Verdict: PASS|WARNING|FAIL
+coverage_pct: <number or unavailable>
+Verification command: <command> → PASS | FAIL
+Test files:
+- <changed test file>
+
 ## TDD Report
 New tests: ✅ XxxTest::testMethod()
 Implementation: ✅

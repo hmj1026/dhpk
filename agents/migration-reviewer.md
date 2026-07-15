@@ -107,6 +107,14 @@ For high-volume tables (declared per project via the `hot_tables` userConfig key
 | Production ALTER times out | Full-table rebuild on hot table | Switch to `pt-online-schema-change` / batched approach / online DDL where the engine supports it |
 | `safeDown` throws | IRREVERSIBLE without annotation | Add PHPDoc explaining + plan compensating migration |
 
+## Shared reviewer contract
+
+Use [`docs/contracts/reviewer-contract.md`](../docs/contracts/reviewer-contract.md) for scope, evidence, artifact, verdict, confirm-only, and bounded retry fields.
+
+### Specialist checks
+
+This file retains migration symmetry, rollout, transaction, and large-ALTER checks unique to `migration-reviewer`.
+
 ## Output
 
 The reply leads with a machine-parseable verdict line — `Verdict: PASS | WARNING | FAIL` — as the FIRST line, before the `## Migration Review` body: PASS = no ❌ Fix item and no HARD-rule failure, WARNING = ⚠️ Warn only, FAIL = any ❌ Fix item or any HARD-rule (sections 1-3) failure.

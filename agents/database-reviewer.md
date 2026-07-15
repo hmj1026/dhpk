@@ -44,6 +44,14 @@ Detect the active stack, then load ONLY the matching trap sheet(s); ignore other
 - [ ] Migration has DOWN; uses bound params
 - [ ] EXPLAIN sampled for complex queries (no full table scan)
 
+## Shared reviewer contract
+
+Use [`docs/contracts/reviewer-contract.md`](../docs/contracts/reviewer-contract.md) for scope, evidence, artifact, verdict, confirm-only, and bounded retry fields.
+
+### Specialist checks
+
+This file retains SQL, repository, and migration checks unique to `database-reviewer`.
+
 ## Output
 
 The reply leads with a machine-parseable verdict line — `Verdict: PASS | WARNING | FAIL` — as the FIRST line, before the `## DB Review` body: PASS = no ❌ Fix items, WARNING = ⚠️ Warn only (no ❌ Fix), FAIL = any ❌ Fix item.

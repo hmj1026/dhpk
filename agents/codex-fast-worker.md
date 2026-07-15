@@ -50,8 +50,10 @@ command -v codex >/dev/null 2>&1 || { echo "codex CLI not found"; }
 
 On a missing CLI, an authentication failure (`401` → `codex login`), or a rejected model
 name, return `RESULT: BLOCKED` naming the exact failure (quote the CLI error verbatim for
-a model rejection — do not retry with a guessed model). **Never** approximate the backend
-or fall back to editing the files yourself.
+a model rejection — do not retry with a guessed model). A configured fallback may select
+`dhpk:fast-worker` only for the deterministic missing-executable case; authentication,
+authorization, model, task, and verification failures never fall back. **Never**
+approximate the backend or fall back to editing the files yourself.
 
 ## Execute via the codex wrapper (workspace-write)
 
@@ -106,6 +108,11 @@ Omitting it (or reporting it incompletely) breaks that back-stop.
 RESULT: DONE | PARTIAL | BLOCKED
 ## Codex Fast Worker Report
 Backend: codex exec -m <model> -c model_reasoning_effort=<effort> (workspace-write)
+Requested backend: codex
+Selected backend: codex | claude (only with configured missing-executable fallback)
+Availability: <codex executable available | missing executable: codex>
+Fallback reason: <none | missing executable: codex; configured fallback=claude>
+Model/effort: <model> / <effort>
 Verify: <command> → PASS | FAIL (N attempts)
 Spec: <one-line summary of what was requested>
 Edited files (from git status --porcelain diff):

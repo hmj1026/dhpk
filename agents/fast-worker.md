@@ -56,11 +56,22 @@ back-stop: if the orchestrator's post-edit hooks did not fire for this
 subagent's tool calls, it derives the applicable reviewer gates from this list
 alone. Omitting it (or reporting it incompletely) breaks that back-stop.
 
+Every report also identifies `Requested backend: claude` and
+`Selected backend: claude`. CLI-backed selection and missing-executable fallback
+are governed by `${CLAUDE_PLUGIN_ROOT}/scripts/fast-worker-selector.js`; this
+worker never silently changes backend after an execution or authorization
+failure.
+
 ## Output
 
 ```
 RESULT: DONE | PARTIAL | BLOCKED
 ## Fast Worker Report
+Requested backend: claude
+Selected backend: claude
+Availability: in-process backend available
+Fallback reason: none
+Model/effort: <effective model> / <effective effort>
 Verify: <command> → PASS | FAIL (N attempts)
 Spec: <one-line summary of what was requested>
 Edited files:

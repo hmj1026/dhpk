@@ -89,6 +89,14 @@ This plugin reviews predominantly Claude-authored code. Bias attention toward th
 | Deep error-handling audit (empty catch / swallowed exceptions / hidden fallbacks / missing rollback) | `silent-failure-hunter` |
 | New / changed domain type / value object / enum / struct with non-trivial invariants ("make illegal states unrepresentable") | `type-design-analyzer` |
 
+## Shared reviewer contract
+
+Use [`docs/contracts/reviewer-contract.md`](../docs/contracts/reviewer-contract.md) for scope, evidence, artifact, verdict, confirm-only, and bounded retry fields.
+
+### Specialist checks
+
+This file retains the code-quality and merge/dedup checks unique to `code-reviewer`.
+
 ## Output
 
 State `Verdict: APPROVE | WARNING | BLOCK` as the FIRST line of the reply — APPROVE = no CRITICAL/HIGH; WARNING = HIGH only; BLOCK = any CRITICAL. Follow with the severity table, then:
