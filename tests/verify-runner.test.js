@@ -97,12 +97,16 @@ test('full mode with no scripts at all: everything skipped (vacuously PASS, no s
   }
 });
 
-test('full mode: typecheck runs via tsconfig.json fallback when no "typecheck" script exists', () => {
+test('full mode: typecheck fallback uses a local compiler without network install', () => {
   const repo = mkScratchRepo({ test: 0 });
   try {
     fs.writeFileSync(path.join(repo, 'tsconfig.json'), '{}');
+    const tsc = path.join(repo, 'node_modules', '.bin', 'tsc');
+    fs.mkdirSync(path.dirname(tsc), { recursive: true });
+    fs.writeFileSync(tsc, '#!/usr/bin/env node\nprocess.exit(0);\n', { mode: 0o755 });
     const res = runScript(repo, ['--mode', 'full']);
     assert.strictEqual(res.status, 0, res.stderr);
+    assert.ok(res.stdout.includes('npx --no-install tsc --noEmit'), res.stdout);
     assert.ok(res.stdout.includes('**typecheck**'), res.stdout);
     cleanup(res.cacheDir);
   } finally {

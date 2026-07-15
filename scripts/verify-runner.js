@@ -147,9 +147,9 @@ async function main() {
       steps.push({
         name: 'typecheck',
         cmd: 'npx',
-        args: ['tsc', '--noEmit'],
+        args: ['--no-install', 'tsc', '--noEmit'],
       });
-      commands.push('npx tsc --noEmit');
+      commands.push('npx --no-install tsc --noEmit');
     } else {
       steps.push({
         name: 'typecheck',
