@@ -157,7 +157,7 @@ For a long-running change that should run without supervision — generates a si
 
 When `orchestration_dispatch=on` (default), the generated `/goal` condition also embeds a one-line dispatch directive routing implementation through the four-role roster — `fast-worker`, `deep-reasoner`, `tdd-guide`, `e2e-runner` (see item 9 below). Set `orchestration_dispatch=off` to fully opt out of that dispatch directive — implementation stays inline everywhere instead of being routed through worker agents.
 
-**4000-character hard stop:** Claude Code's `/goal` input has a practical paste ceiling around 4000 characters. There is a single full template variant — no compact fallback exists. A typical change composes to roughly 3300 characters. If the composed goal string would exceed 4000 characters, that's treated as a should-never-fire template regression, not a routine condition: no `/goal` command is emitted at all — instead you get the measured character count and which setting or flag to adjust (turn off the `orchestration_dispatch` project setting, or drop `--codex` / `--smoke`) before re-running.
+**4000-character hard stop:** Claude Code's `/goal` input has a practical paste ceiling around 4000 characters. There is a single full template variant — no compact fallback exists. A typical change composes to roughly 3600 characters. If the composed goal string would exceed 4000 characters, that's treated as a should-never-fire template regression, not a routine condition: no `/goal` command is emitted at all — instead you get the measured character count and which setting or flag to adjust (turn off the `orchestration_dispatch` project setting, or drop `--codex` / `--smoke`) before re-running.
 
 ### 6. Mine specs from existing code
 

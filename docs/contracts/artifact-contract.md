@@ -64,16 +64,20 @@ If `.claude/artifacts/` (or the specific category subdirectory) does not exist, 
 Reviewer agent definitions do NOT self-run a closing `clear-sentinel.sh` step.
 Clearance is owned by the runtime hook `scripts/hooks/subagent-stop-verify.sh`:
 on a successful reviewer stop with the sentinel still armed, it auto-clears
-that reviewer's own slot once a fresh review artifact with a parseable
-`verdict:` exists — silently, no failure record. "Fresh" means produced this
-cycle: the artifact's mtime must postdate the sentinel that armed the review,
-so a doc left over from an earlier review cycle does not count (reviewers run
-repeatedly per session). This is the sanctioned path
+that reviewer's own slot **only when a fresh review artifact exists**
+(reviewer-liveness-gate) — silently when that artifact's `verdict:` parses.
+"Fresh" means produced this cycle: the artifact's mtime must postdate the
+sentinel that armed the review, so a doc left over from an earlier review cycle
+does not count (reviewers run repeatedly per session). The clear gate keys on
+artifact existence + freshness only, never on verdict-parseability, so a
+legitimate fresh review whose verdict field can't be parsed still clears (and is
+noted) rather than looping the orchestrator forever. This is the sanctioned path
 (the auto-mode permission classifier blocks a reviewer running
 `clear-sentinel.sh` on its own sentinel as "Logging/Audit Tampering"). When the
-sentinel is uncleared and no fresh review artifact was produced this cycle, the
-hook still auto-clears (so the chain isn't blocked) but logs it as a failure —
-the review contract was actually broken.
+reviewer stops cleanly but **no fresh review artifact was produced this cycle,
+the hook leaves the sentinel ARMED** (the review gate stays unmet, so the
+orchestrator re-dispatches) and logs it as a failure — a no-output reviewer must
+not clear its own gate.
 
 As an exception-path back-stop, the orchestrator may still invoke
 `clear-sentinel.sh` manually for a stale sentinel left armed after an

@@ -1,17 +1,19 @@
 'use strict';
 
-// Regression: subagent-stop-verify.sh Case B must AUTO-CLEAR a reviewer's own
-// sentinel when that reviewer subagent stops successfully with the sentinel
-// still armed. This is now the SANCTIONED clearance path — reviewer agent
-// definitions no longer instruct a self-run closing clear-sentinel.sh (the
-// auto-mode permission classifier blocks a reviewer clearing its own sentinel
-// as "Logging/Audit Tampering"). When a fresh review artifact with a
-// parseable verdict exists for the stopping reviewer, the clear is SILENT: no
-// failure record, no AUTO-CLEARED warning. When the sentinel is uncleared AND
-// no review doc was produced, the auto-clear still fires (must not block
-// the chain) but is logged as a failure — the review contract was actually
-// broken. Case A (a FAILED reviewer) must still leave the sentinel armed so
-// the chain re-fires.
+// Regression: subagent-stop-verify.sh Case B auto-clears a reviewer's own
+// sentinel when that reviewer stops successfully AND a FRESH matching review
+// artifact exists (A5 / reviewer-liveness-gate). This is the SANCTIONED
+// clearance path — reviewer agent definitions no longer instruct a self-run
+// closing clear-sentinel.sh (the auto-mode permission classifier blocks a
+// reviewer clearing its own sentinel as "Logging/Audit Tampering"). The clear
+// is GATED on artifact existence + freshness ONLY (never on verdict
+// parseability — a legitimate fresh review whose verdict can't be parsed still
+// clears, so the orchestrator never loops forever on a present-but-unparseable
+// doc). When a fresh artifact with a parseable verdict exists the clear is
+// SILENT. When the reviewer stops exit 0 but produced NO fresh review doc (none,
+// or only a stale prior-cycle doc), the sentinel is LEFT ARMED so the gate stays
+// unmet and the orchestrator re-dispatches — logged as a failure. Case A (a
+// FAILED reviewer) also leaves the sentinel armed so the chain re-fires.
 
 const fs = require('node:fs');
 const os = require('node:os');
@@ -143,24 +145,24 @@ test('rm -f fallback when CLAUDE_PLUGIN_ROOT unset → still cleared silently wi
   }
 });
 
-test('reviewer stop with armed sentinel but NO review artifact → auto-cleared, logged as failure', () => {
+test('A5: reviewer stop with armed sentinel but NO review artifact → LEFT ARMED, logged as failure', () => {
   const repo = mkTempRepo();
   try {
     armSentinel(repo, '.pending-frontend-review');
     const res = runHook(repo, { subagent_type: 'frontend-reviewer', exit_status: 0 });
     assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
-    assert.ok(!sentinelExists(repo, '.pending-frontend-review'),
-      'sentinel must still be auto-cleared even when the contract was broken (must not block the chain)');
-    assert.ok(res.stdout.includes('AUTO-CLEARED'),
-      `broken-contract fallback must still warn, got stdout:\n${res.stdout}`);
-    assert.ok(failureLogContents(repo).includes('no review doc'),
-      `broken-contract fallback must be logged as a failure:\n${failureLogContents(repo)}`);
+    assert.ok(sentinelExists(repo, '.pending-frontend-review'),
+      'A5: a reviewer that produced no fresh review doc must LEAVE the sentinel armed (gate stays unmet)');
+    assert.ok(res.stdout.includes('NO REVIEW DOC'),
+      `expected the left-armed no-review-doc warning, got stdout:\n${res.stdout}`);
+    assert.ok(failureLogContents(repo).includes('left armed, no review doc'),
+      `no-review-doc stop must be logged as a failure:\n${failureLogContents(repo)}`);
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });
   }
 });
 
-test('reviewer stop with armed sentinel + only a STALE prior-cycle doc → auto-cleared, logged as failure', () => {
+test('A5: reviewer stop with armed sentinel + only a STALE prior-cycle doc → LEFT ARMED, logged as failure', () => {
   // Freshness bound: a review doc from an earlier cycle (mtime BEFORE the
   // sentinel that armed THIS review) must not mask a reviewer that produced
   // nothing this cycle. Reviewers run repeatedly per session, so this is the
@@ -178,12 +180,38 @@ test('reviewer stop with armed sentinel + only a STALE prior-cycle doc → auto-
     armSentinel(repo, '.pending-frontend-review');
     const res = runHook(repo, { subagent_type: 'frontend-reviewer', exit_status: 0 });
     assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
+    assert.ok(sentinelExists(repo, '.pending-frontend-review'),
+      'A5: a stale prior-cycle doc is not fresh — the sentinel must be LEFT ARMED');
+    assert.ok(res.stdout.includes('NO REVIEW DOC'),
+      `a stale prior-cycle doc must not count as fresh — expected the left-armed warning, got stdout:\n${res.stdout}`);
+    assert.ok(failureLogContents(repo).includes('left armed, no review doc'),
+      `stale-doc-only stop must be logged as a failure:\n${failureLogContents(repo)}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('A5: fresh artifact with an UNPARSEABLE verdict still clears (no re-dispatch loop)', () => {
+  // The clear gate keys on existence + freshness, NOT verdict-parseability. A
+  // legitimate fresh review whose frontmatter has no parseable `verdict:` field
+  // must still clear the sentinel — otherwise the orchestrator loops forever.
+  const repo = mkTempRepo();
+  try {
+    armSentinel(repo, '.pending-frontend-review');
+    writeReviewArtifact(repo, 'frontend-reviewer', [
+      '---',
+      'summary: reviewed, all good',
+      '---',
+      'no machine-parseable verdict field here',
+    ].join('\n'));
+    const res = runHook(repo, { subagent_type: 'frontend-reviewer', exit_status: 0 });
+    assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
     assert.ok(!sentinelExists(repo, '.pending-frontend-review'),
-      'sentinel must still be auto-cleared (must not block the chain)');
-    assert.ok(res.stdout.includes('AUTO-CLEARED'),
-      `a stale prior-cycle doc must not count as fresh — expected the broken-contract warning, got stdout:\n${res.stdout}`);
-    assert.ok(failureLogContents(repo).includes('no review doc'),
-      `stale-doc-only stop must be logged as a broken-contract failure:\n${failureLogContents(repo)}`);
+      'a fresh artifact (even with an unparseable verdict) must clear the sentinel');
+    assert.ok(!res.stdout.includes('NO REVIEW DOC'),
+      `a present fresh artifact must not trigger the no-review-doc warning:\n${res.stdout}`);
+    assert.ok(failureLogContents(repo).includes('verdict unparseable'),
+      `unparseable-but-present clear should be noted:\n${failureLogContents(repo)}`);
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });
   }
@@ -194,6 +222,7 @@ test('scoping: frontend-reviewer stop clears ONLY its slot, not code-reviewer\'s
   try {
     armSentinel(repo, '.pending-review');
     armSentinel(repo, '.pending-frontend-review');
+    writeReviewArtifact(repo, 'frontend-reviewer', '---\nverdict: APPROVE\n---\nclean');
     const res = runHook(repo, { subagent_type: 'frontend-reviewer', exit_status: 0 });
     assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
     assert.ok(!sentinelExists(repo, '.pending-frontend-review'),
@@ -216,6 +245,7 @@ test('default reviewers auto-clear only their own sentinels', () => {
     try {
       armSentinel(repo, ownSentinel);
       for (const other of otherSentinels) armSentinel(repo, other);
+      writeReviewArtifact(repo, agent, '---\nverdict: APPROVE\n---\nclean');
       const res = runHook(repo, { subagent_type: agent, exit_status: 0 });
       assert.strictEqual(res.status, 0, `hook exited non-zero for ${agent}: ${res.stderr}`);
       assert.ok(!sentinelExists(repo, ownSentinel), `${agent} did not clear ${ownSentinel}`);
@@ -238,6 +268,7 @@ test('SubagentStop identity payload variants map to the correct reviewer slot', 
     try {
       armSentinel(repo, '.pending-db-review');
       armSentinel(repo, '.pending-review');
+      writeReviewArtifact(repo, 'database-reviewer', '---\nverdict: PASS\n---\nclean');
       const res = runHook(repo, payload);
       assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
       assert.ok(!sentinelExists(repo, '.pending-db-review'),
@@ -447,12 +478,15 @@ test('guaranteed removal when CLAUDE_PROJECT_DIR diverges from cwd git-toplevel'
   const repoB = mkTempRepo();
   try {
     armSentinel(repoA, '.pending-frontend-review');
+    writeReviewArtifact(repoA, 'frontend-reviewer', '---\nverdict: APPROVE\n---\nclean');
     const res = runHook(repoA, { subagent_type: 'frontend-reviewer', exit_status: 0 }, { cwd: repoB });
     assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
     assert.ok(!sentinelExists(repoA, '.pending-frontend-review'),
       'sentinel under CLAUDE_PROJECT_DIR was NOT removed when clear-sentinel.sh resolved a different root');
-    assert.ok(res.stdout.includes('AUTO-CLEARED'),
-      `expected AUTO-CLEARED, got stdout:\n${res.stdout}`);
+    // A fresh parseable artifact clears silently (no stdout warning); the
+    // guaranteed rm is still logged in repoA's agent-failures.log.
+    assert.ok(failureLogContents(repoA).includes('auto-cleared'),
+      `expected an auto-cleared log line in repoA, got:\n${failureLogContents(repoA)}`);
   } finally {
     fs.rmSync(repoA, { recursive: true, force: true });
     fs.rmSync(repoB, { recursive: true, force: true });
@@ -464,6 +498,7 @@ test('real SubagentStop schema (top-level prefixed agent_type, no subagent_type/
   try {
     armSentinel(repo, '.pending-review');
     writeActiveMarker(repo, '.active-review', ['100 code-reviewer']);
+    writeReviewArtifact(repo, 'code-reviewer', '---\nverdict: APPROVE\n---\nclean');
     const res = runHook(repo, { agent_type: 'dhpk:code-reviewer' });
     assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
     assert.ok(!sentinelExists(repo, '.pending-review'),

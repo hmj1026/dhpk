@@ -1,16 +1,20 @@
 #!/usr/bin/env bash
 # run-codex.sh — thin wrapper around `codex exec` for the codex-bridge skill.
 #
-# Usage: run-codex.sh <read-only|workspace-write> <workdir> <prompt-file>
+# Usage: run-codex.sh <read-only|workspace-write> <workdir> <prompt-file> [model] [effort]
 #
-# Runs gpt-5.5 (per ~/.codex/config.toml) non-interactively on the prompt read from
-# <prompt-file>, in <workdir>, under the given sandbox mode. On success prints Codex's
-# final message (the -o capture) to stdout, exit 0. On failure prints the last 20 lines of
-# the captured stderr log and exits non-zero — never fabricates.
+# Runs codex non-interactively on the prompt read from <prompt-file>, in <workdir>, under
+# the given sandbox mode. The optional 4th/5th args pin the model and reasoning effort:
+# empty (or absent) → the flags are omitted and the model/effort are inherited from
+# ~/.codex/config.toml (byte-identical to the original 3-arg wrapper, so codex-bridge is
+# untouched). The codex-fast-worker agent passes the resolved userConfig values here.
+# On success prints Codex's final message (the -o capture) to stdout, exit 0. On failure
+# prints the last 20 lines of the captured stderr log and exits non-zero — never fabricates.
 #
-# Flags are verified against codex-cli 0.142.5 and the official openai/codex SDK
+# Flags are verified against codex-cli 0.144.4 and the official openai/codex SDK
 # (sdk/typescript/src/exec.ts): `codex exec` has NO --ask-for-approval flag; approval is
-# set via `-c approval_policy="never"`. Prompt is read from stdin.
+# set via `-c approval_policy="never"`; model via `-m`, effort via `-c
+# model_reasoning_effort="..."`. Prompt is read from stdin.
 #
 # Exit codes: 0 ok; 2 bad usage / missing workdir or prompt; else passes through codex's
 #             non-zero exit (1 on empty output).
@@ -19,19 +23,21 @@ set -euo pipefail
 usage() {
   cat <<'EOF'
 Usage:
-  run-codex.sh <read-only|workspace-write> <workdir> <prompt-file>
+  run-codex.sh <read-only|workspace-write> <workdir> <prompt-file> [model] [effort]
   mode         read-only (investigate/review) or workspace-write (edit files)
   workdir      working root passed to codex --cd (must be an existing directory)
   prompt-file  file whose full contents become the codex prompt (read via stdin)
+  model        (optional) codex model, e.g. gpt-5.6-luna; empty → inherit config default
+  effort       (optional) model_reasoning_effort, e.g. xhigh; empty → inherit config default
 EOF
 }
 
-if [ "$#" -ne 3 ]; then
-  echo "run-codex.sh: expected 3 arguments, got $#" >&2
+if [ "$#" -lt 3 ] || [ "$#" -gt 5 ]; then
+  echo "run-codex.sh: expected 3-5 arguments, got $#" >&2
   usage >&2
   exit 2
 fi
-MODE="$1"; WORKDIR="$2"; PROMPT_FILE="$3"
+MODE="$1"; WORKDIR="$2"; PROMPT_FILE="$3"; MODEL="${4:-}"; EFFORT="${5:-}"
 
 case "$MODE" in
   read-only|workspace-write) ;;
@@ -55,6 +61,13 @@ OUT_FILE="$WORK_TMP/last-message.txt"
 ERR_LOG="$WORK_TMP/codex.stderr.log"
 STDOUT_LOG="$WORK_TMP/codex.stdout.log"
 
+# Optional model/effort flags. Empty args → omit entirely, preserving the original
+# inherit-from-config behavior for codex-bridge (backwards-compatible; a dedicated test
+# covers both arg-present and arg-absent shapes).
+MODEL_ARGS=()
+[ -n "$MODEL" ] && MODEL_ARGS+=(-m "$MODEL")
+[ -n "$EFFORT" ] && MODEL_ARGS+=(-c "model_reasoning_effort=$EFFORT")
+
 # Progress -> stderr (ERR_LOG, its own log). Final message captured cleanly via -o. Prompt
 # via stdin (no prompt arg) to avoid long-arg / escaping problems. approval_policy=never is
 # the exec-compatible equivalent of the (exec-invalid) --ask-for-approval flag.
@@ -66,6 +79,7 @@ codex exec \
   --sandbox "$MODE" \
   -c approval_policy="never" \
   --cd "$WORKDIR_ABS" \
+  ${MODEL_ARGS[@]+"${MODEL_ARGS[@]}"} \
   --output-last-message "$OUT_FILE" \
   < "$PROMPT_FILE" \
   1> "$STDOUT_LOG" 2> "$ERR_LOG"

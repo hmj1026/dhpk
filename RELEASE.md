@@ -44,10 +44,9 @@ defer the release.
   and `develop`. **Not used so far in this repo** — every real bug fix to date
   has gone through `fix/*` off `develop` instead. Keep this lane in mind only if
   a true emergency (prod broken, can't wait for a normal PR) ever comes up.
-- **`release/*`** (historical, deprecated) — early releases used dedicated
-  version-bump-only branches merged straight into `main`. This convention was
-  abandoned; the version bump now happens directly on `develop` or inside the
-  last branch landing before the release (see below).
+- **`release/*`** — managed via `git flow release`. A temporary branch cut from
+  `develop` to perform the version bump and finalize the changelog before merging
+  to `main` and back-merging to `develop`.
 
 ## Landing work on `develop`
 
@@ -66,37 +65,40 @@ both the feature/fix→develop PR above and the develop→main release PR below.
 
 ## Cutting a release
 
-A release is its own deliberate action: a PR from `develop` into `main`,
-batching whatever has landed on `develop` since the last release.
+A release is its own deliberate action, managed via the `git flow release` workflow to ensure main, develop, and tags are cleanly synchronized.
 
-1. Make sure `develop` has everything you want in this release (finish and
-   merge any pending `feature/*`/`fix/*` branches first).
-2. **Bump version** (semver) in `.claude-plugin/plugin.json` and, in lockstep,
-   `.codex-plugin/plugin.json`, `plugins/dhpk/.codex-plugin/plugin.json`, and
-   `.agents/plugins/marketplace.json` — `tests/codex-plugin-manifest.test.js`
-   fails CI if any of these drift out of sync. This commit usually lands
-   directly on `develop`.
-3. **Write the changelog** — add a `## X.Y.Z — YYYY-MM-DD — <summary>` section at
-   the top of `CHANGELOG.md`. The header format matters: the Release workflow
-   extracts notes with `awk "/^## ${VERSION} /"`, so keep the space after the
-   version number.
-4. **Open a PR from `develop` into `main`** and merge it (squash or merge —
-   both fine; a human merges it, per the note above).
-5. **Tag `main`** and push the tag:
+1. Make sure `develop` has everything you want in this release (finish and merge any pending `feature/*`/`fix/*` branches first).
+2. **Start the release**:
    ```bash
-   git checkout main && git pull
-   git tag vX.Y.Z
-   git push origin vX.Y.Z
+   git checkout develop && git pull
+   git flow release start X.Y.Z
    ```
-6. **CI takes over** (`.github/workflows/release.yml`, triggered by `v*`):
-   - `release` job — creates the GitHub Release from the CHANGELOG notes, or
-     **updates it** if one already exists for that tag (an upsert). Don't
-     manually run `gh release create` after pushing the tag — CI already
-     handles it, and a manual create will 422 with "tag_name already exists".
-     Use `gh release edit` if you need to fix the notes afterward.
-   - `sync-develop` job — back-merges `main` into `develop` (`--no-ff`) and pushes,
-     so `develop` never falls behind. **This is the step that used to be manual
-     and got skipped.**
+3. **Bump version** (semver) in `.claude-plugin/plugin.json` and, in lockstep, `.codex-plugin/plugin.json`, `plugins/dhpk/.codex-plugin/plugin.json`, and `.agents/plugins/marketplace.json` — `tests/codex-plugin-manifest.test.js` fails CI if any of these drift out of sync.
+4. **Write the changelog** — change the `## [Unreleased]` section at the top of `CHANGELOG.md` to `## X.Y.Z — YYYY-MM-DD — <summary>`. The header format matters: the Release workflow extracts notes with `awk "/^## ${VERSION} /"`, so keep the space after the version number.
+5. **Commit the changes** on the release branch:
+   ```bash
+   git add .
+   git commit -m "chore(release): bump version to X.Y.Z and update changelog"
+   ```
+6. **Finish the release**:
+   Run git-flow finish (use `EDITOR=true` to skip interactive editor prompt):
+   ```bash
+   EDITOR=true git flow release finish -m "Release vX.Y.Z" X.Y.Z
+   ```
+7. **Fix tag prefix**:
+   By default, git-flow tags the release without a `v` prefix. Correct the tag name to match our `vX.Y.Z` convention:
+   ```bash
+   git tag -a vX.Y.Z -m "Release vX.Y.Z" main
+   git tag -d X.Y.Z
+   ```
+8. **Push to origin**:
+   Push main, develop, and the tag:
+   ```bash
+   git push origin main develop vX.Y.Z
+   ```
+9. **CI takes over** (`.github/workflows/release.yml`, triggered by `v*`):
+   - `release` job — creates the GitHub Release from the CHANGELOG notes, or **updates it** if one already exists for that tag (an upsert). Don't manually run `gh release create` after pushing the tag — CI already handles it. Use `gh release edit` if you need to fix the notes afterward.
+   - `sync-develop` job — automates back-merging `main` into `develop` (`--no-ff`) and pushes, so `develop` never falls behind.
 
 ## After release — consumers
 

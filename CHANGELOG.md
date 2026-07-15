@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.28.10 — 2026-07-15 — Usage-audit fixes and CLI-backed fast-worker variants
+
+Acts on a 2026-07-13/14 usage audit (an unattended `/goal` session spent ~65M tokens hand-typing 45 edits inline instead of dispatching) with five harness fixes to the unattended-session token economy, and adds two CLI-backed `fast-worker` variants so mechanical batches can be offloaded to an external codex/agy budget.
+
+**feat(agents)** — Add two CLI-backed mechanical implementers, `codex-fast-worker` (edits run on `codex exec`, default `gpt-5.6-luna` @ `xhigh`) and `agy-fast-worker` (edits run on the agy CLI, default `Gemini 3.5 Flash (High)`). Both preserve the full `fast-worker` contract (task-spec trio, surgical edits, 3-attempt stop, mandatory working-tree-derived edited-file list), check backend availability first (missing CLI / auth failure / rejected model → `RESULT: BLOCKED`, never simulated), and run verification themselves. Role-based agent count 29 → 31 (root 28 → 30).
+
+**feat(config)** — Add three `userConfig` keys with the standard project > global > default layering: `codex_fast_worker_model` (`gpt-5.6-luna`), `codex_fast_worker_effort` (`xhigh`), `agy_fast_worker_model` (`Gemini 3.5 Flash (High)`, live-probe-verified against agy 1.1.2). `session-start.sh` surfaces them only when non-default.
+
+**feat(scripts)** — Extend `skills/codex-bridge/scripts/run-codex.sh` with optional `<model>` `<effort>` args (empty → omit the flags, byte-identical legacy behavior for `codex-bridge`); add `skills/agy-fast-worker/scripts/run-agy.sh` implementing the verified non-interactive agy combination (stdin `Y`, `--dangerously-skip-permissions`, `--add-dir`, `--model`, `-p`, `--print-timeout`; no `--cwd`) with a loud-failure contract. Dedicated tests for both wrappers.
+
+**fix(hooks)** — Reviewer-liveness gate (A5): `subagent-stop-verify.sh` now clears a reviewer's sentinel **only when a fresh matching review artifact exists**. A reviewer that stops exit 0 but produced no fresh review doc leaves the sentinel armed (gate stays unmet → orchestrator re-dispatches) and is logged — closing the 2026-07-13 no-output auto-clear defect. The clear gate keys on artifact existence + freshness only (never verdict-parseability), so a present-but-unparseable review still clears instead of looping.
+
+**refactor(skill)** — Strengthen the `opsx-apply-goal` goal string with three compact dispatch-economy clauses (A1–A3, ≤300 chars): mechanical batches (≥3 files, or same-shaped edits past the ≤2-file inline bound) → one batched `fast-worker` dispatch; one consolidated review round per implementation wave with confirm-only re-reviews; never `sleep`-poll background work. Typical composed length moves to ~3600 chars, still under the 4000 hard stop.
+
+**refactor(rules)** — Add dispatch-table rows + roster entries for the two CLI-backed workers in `rules/execution-policy.md` (opt-in, availability/CODEX-gated; plain `fast-worker` stays the default) and tier-map rows + the runtime-tunable note in `rules/model-economics.md`.
+
+**fix(docs)** — Normalize the goal-template reference files to literal UTF-8 (A4). Document the three new keys in `docs/configuration.md` / `.zh-TW.md`, register both agents in `plugin.json` + `agents/INDEX.md`, and align the `reviewer-liveness-gate` behavior across `artifact-contract.md`, `execution-policy.md`, and `review-gate-mechanics.md`.
+
 ## 0.28.9 — 2026-07-13 — Goal-string slimming, sentinel auto-clear promotion, and graduation auto-draft removal
 
 Slims the `opsx-apply-goal` `/goal` string to a bounded Part 0 kickoff with behavioral prose relocated to `execution-policy.md`, removes the compact-template fallback in favor of a hard generation stop, promotes the reviewer sentinel hook's silent auto-clear to the sanctioned path, drops the graduation Stop hook's OpenSpec auto-draft step, and folds in small tool/shell guardrail fixes from the 2026-07-12 retrospective.
