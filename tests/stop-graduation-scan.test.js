@@ -20,11 +20,10 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
+const { runHook: runHookRaw } = require('./_lib/hookharness');
 
-const ROOT = path.join(__dirname, '..');
-const HOOK = path.join(ROOT, 'scripts', 'hooks', 'stop-graduation-scan.sh');
+const HOOK = 'stop-graduation-scan.sh';
 
 function mkDir(prefix) {
   return fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), prefix)));
@@ -38,22 +37,21 @@ function writeTranscript(text) {
 }
 
 function runHook({ transcriptPath, memoryDir, testOut, enabled, repo }) {
-  const env = { ...process.env, CLAUDE_PLUGIN_ROOT: ROOT, CLAUDE_PROJECT_DIR: repo };
-  if (enabled) env.DHPK_GRADUATION_SCAN = '1';
-  else delete env.DHPK_GRADUATION_SCAN;
-  delete env.CLAUDE_PLUGIN_OPTION_GRADUATION_SCAN_ENABLED;
+  const envOverrides = {};
   if (testOut) {
-    env.CLAUDE_HOOK_TEST_MODE = '1';
-    env.CLAUDE_HOOK_TEST_OUTDIR = testOut;
+    envOverrides.CLAUDE_HOOK_TEST_MODE = '1';
+    envOverrides.CLAUDE_HOOK_TEST_OUTDIR = testOut;
   }
-  if (memoryDir) env.CLAUDE_HOOK_MEMORY_DIR = memoryDir;
-  env.DHPK_TEST_HOOK = HOOK;
-  env.DHPK_TEST_PAYLOAD = JSON.stringify({ transcript_path: transcriptPath });
-  return spawnSync('bash', ['-c', 'printf %s "$DHPK_TEST_PAYLOAD" | bash "$DHPK_TEST_HOOK"'], {
+  if (memoryDir) envOverrides.CLAUDE_HOOK_MEMORY_DIR = memoryDir;
+  const deleteEnv = ['CLAUDE_PLUGIN_OPTION_GRADUATION_SCAN_ENABLED'];
+  if (enabled) envOverrides.DHPK_GRADUATION_SCAN = '1';
+  else deleteEnv.push('DHPK_GRADUATION_SCAN');
+  return runHookRaw(HOOK, {
+    payload: { transcript_path: transcriptPath },
     cwd: repo,
-    env,
-    encoding: 'utf8',
-    timeout: 10000,
+    projectDir: repo,
+    env: envOverrides,
+    deleteEnv,
   });
 }
 

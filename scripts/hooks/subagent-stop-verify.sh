@@ -34,18 +34,19 @@ set -o pipefail
 
 # Project pluginConfigs override must precede payload.sh — payload.sh reads
 # CLAUDE_PLUGIN_OPTION_REVIEW_AGENTS at source-time to populate SENTINEL_AGENTS.
+. "$(dirname "$0")/_lib/session-env.sh"
 . "$(dirname "$0")/_lib/load-project-config.sh"
 . "$(dirname "$0")/_lib/payload.sh"
 . "$(dirname "$0")/_lib/learning-db.sh"
 . "$(dirname "$0")/_lib/json-out.sh"
 
-ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
-SESS="$ROOT/.claude/artifacts/sessions"
+ROOT="$(dhpk_root)"
+SESS="$(dhpk_sessions_dir "$ROOT")"
 LOG="$ROOT/.claude/artifacts/agent-failures.log"
 PROFILE="${CLAUDE_PLUGIN_OPTION_HOOK_PROFILE:-standard}"
 
 # Read stdin payload (JSON envelope from Claude Code SubagentStop event).
-PAYLOAD="$(cat 2>/dev/null || true)"
+PAYLOAD="$(dhpk_read_payload)"
 
 # Try multiple field names — SubagentStop envelope schema differs across
 # Claude Code versions. The current (verified) schema delivers the reviewer
@@ -133,7 +134,7 @@ fi
 
 SENTINEL_NAME="${SENTINEL_NAMES[$SLOT]}"
 SENTINEL_FILE="$SESS/$SENTINEL_NAME"
-ACTIVE_NAME="${SENTINEL_NAME/.pending-/.active-}"
+ACTIVE_NAME="$(dhpk_active_marker "$SENTINEL_NAME")"
 ACTIVE_FILE="$SESS/$ACTIVE_NAME"
 TIMESTAMP="$(date -Iseconds 2>/dev/null || date +%Y-%m-%dT%H:%M:%S%z)"
 # Namespace-stripped reviewer identity (dhpk:database-reviewer -> database-reviewer)
@@ -225,7 +226,7 @@ PY
 
 refresh_unresolved_verdict() {
     local sentinel="$1" agent="$2" reviews_dir="$ROOT/.claude/artifacts/reviews"
-    local sidecar="$SESS/.unresolved-verdict" latest=""
+    local sidecar="$SESS/$DHPK_SIDECAR_UNRESOLVED_VERDICT" latest=""
     [ -d "$reviews_dir" ] || return 0
     latest="$(ls -t "$reviews_dir/$agent"-*.md 2>/dev/null | head -1 || true)"
     [ -n "$latest" ] || return 0
@@ -323,20 +324,20 @@ elif [ -f "$SENTINEL_FILE" ]; then
         # permission classifier blocks a reviewer running it on its own sentinel
         # as "Logging/Audit Tampering"). It fires at the same moment
         # (SubagentStop) the reviewer's own closing clear would have, scoped
-        # strictly to this reviewer's own slot. Run the SSOT clearer first
+        # strictly to this reviewer's own slot. Delegate to the SSOT clearer
         # (SENTINEL_NAMES whitelist + ldb success record); its stdout MUST be
         # suppressed so its plain text cannot corrupt this hook's single JSON
-        # systemMessage envelope (a hook may emit at most one JSON object). Then
-        # unconditionally rm the exact sentinel THIS hook detected
-        # ($SENTINEL_FILE, built from ROOT above): clear-sentinel.sh resolves its
-        # own ROOT via git-toplevel, so if that ever diverges from
-        # CLAUDE_PROJECT_DIR (e.g. a worktree subagent) the guaranteed rm keeps
-        # the log honest. rm -f is idempotent — no-ops if the clearer already
-        # removed the file.
+        # systemMessage envelope (a hook may emit at most one JSON object).
+        # Both sides resolve ROOT via _lib/session-env.sh (CLAUDE_PROJECT_DIR
+        # inherited by the child), so caller and clearer agree on the sentinel
+        # path by construction — no defensive second rm needed. The direct rm
+        # remains only as the fallback when the clearer is unavailable or fails.
         if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] && [ -f "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" ]; then
-            bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" "$SENTINEL_NAME" "subagent-stop-auto" >/dev/null 2>&1 || true
+            bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" "$SENTINEL_NAME" "subagent-stop-auto" >/dev/null 2>&1 \
+                || rm -f "$SENTINEL_FILE"
+        else
+            rm -f "$SENTINEL_FILE"
         fi
-        rm -f "$SENTINEL_FILE"
         if [ "$FRESH_VERDICT" = "1" ]; then
             # Designed handoff: a fresh, parseable review doc exists — the normal
             # path. No failure record, no warning.

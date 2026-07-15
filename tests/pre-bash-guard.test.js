@@ -7,24 +7,11 @@
 //   - D6 (harvest-advice-20260711): .env write-symmetry via Bash redirection
 //     / tee, mirroring the pre-edit-guard.sh Write/Edit block and allowlist.
 
-const path = require('node:path');
-const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
-
-const ROOT = path.join(__dirname, '..');
-const HOOK = path.join(ROOT, 'scripts', 'hooks', 'pre-bash-guard.sh');
+const { runHook: runHookRaw } = require('./_lib/hookharness');
 
 function runHook(command) {
-  const payload = JSON.stringify({ tool_input: { command } });
-  const env = { ...process.env };
-  env.DHPK_TEST_HOOK = HOOK;
-  env.DHPK_TEST_PAYLOAD = payload;
-  return spawnSync('bash', ['-c', 'printf %s "$DHPK_TEST_PAYLOAD" | bash "$DHPK_TEST_HOOK"'], {
-    cwd: ROOT,
-    env,
-    encoding: 'utf8',
-    timeout: 10000,
-  });
+  return runHookRaw('pre-bash-guard.sh', { payload: { tool_input: { command } } });
 }
 
 test('deep workspace path under /home passes (D4, observed command)', () => {

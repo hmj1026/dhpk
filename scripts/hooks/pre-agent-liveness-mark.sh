@@ -7,11 +7,12 @@
 
 set -o pipefail
 
+. "$(dirname "$0")/_lib/session-env.sh"
 . "$(dirname "$0")/_lib/load-project-config.sh" 2>/dev/null || true
 . "$(dirname "$0")/_lib/payload.sh"
 
-ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
-PAYLOAD="$(cat 2>/dev/null || true)"
+ROOT="$(dhpk_root)"
+PAYLOAD="$(dhpk_read_payload)"
 
 SUBAGENT="$(extract_tool_input subagent_type "$PAYLOAD")"
 [ -z "$SUBAGENT" ] && SUBAGENT="$(extract_tool_input subagent "$PAYLOAD")"
@@ -32,8 +33,8 @@ fi
 [ "$SLOT" -lt 0 ] && exit 0
 
 SENTINEL_NAME="${SENTINEL_NAMES[$SLOT]}"
-ACTIVE_NAME="${SENTINEL_NAME/.pending-/.active-}"
-SESS="$ROOT/.claude/artifacts/sessions"
+ACTIVE_NAME="$(dhpk_active_marker "$SENTINEL_NAME")"
+SESS="$(dhpk_sessions_dir "$ROOT")"
 STAMP="$(date +%s 2>/dev/null || date -u +%s)"
 
 mkdir -p "$SESS" 2>/dev/null || exit 0

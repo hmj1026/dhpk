@@ -10,7 +10,12 @@ set -o pipefail
 
 NAME="${1:-}"
 LABEL="${2:-agent}"
-ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+# Canonical root via _lib/session-env.sh (CLAUDE_PROJECT_DIR-first) — the same
+# resolution as every hook caller, so subagent-stop-verify.sh can delegate the
+# clear without re-deriving the path itself.
+. "$(dirname "$0")/_lib/session-env.sh"
+ROOT="$(dhpk_root)"
+SESS="$(dhpk_sessions_dir "$ROOT")"
 
 # Known sentinel whitelist derived from _lib/payload.sh (SSOT). Extending
 # SENTINEL_NAMES there is enough; this script needs no change.
@@ -36,7 +41,7 @@ fi
 if [ "$NAME" = "--all" ]; then
     cleared=0
     for s in "${KNOWN_SENTINELS[@]}"; do
-        f="$ROOT/.claude/artifacts/sessions/$s"
+        f="$SESS/$s"
         if [ -f "$f" ]; then
             rm -f "$f"
             echo "[$LABEL] sentinel cleared ($s)"
@@ -63,7 +68,7 @@ if [ "$is_known" != true ]; then
     exit 2
 fi
 
-SENTINEL="$ROOT/.claude/artifacts/sessions/$NAME"
+SENTINEL="$SESS/$NAME"
 
 if [ -f "$SENTINEL" ]; then
     rm -f "$SENTINEL"

@@ -13,9 +13,10 @@
 
 set -o pipefail
 
+. "$(dirname "$0")/_lib/session-env.sh"
 . "$(dirname "$0")/_lib/payload.sh"
 
-PAYLOAD="$(cat 2>/dev/null || true)"
+PAYLOAD="$(dhpk_read_payload)"
 CMD="$(extract_tool_input command "$PAYLOAD")"
 [ -z "$CMD" ] && exit 0
 
@@ -61,8 +62,8 @@ fi
 # --clear) so leaked sentinels from crashed reviewers don't accumulate.
 if printf '%s' "$CMD_STRIPPED" | grep -Eq '(^|[[:space:]])git[[:space:]]+push([[:space:]]|$)' && \
    ! printf '%s' "$CMD_STRIPPED" | grep -Eq '(--help|[[:space:]]-h([[:space:]]|$)|--dry-run)'; then
-    HOOK_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-    SENTINEL_DIR="$HOOK_ROOT/.claude/artifacts/sessions"
+    HOOK_ROOT="$(dhpk_root)"
+    SENTINEL_DIR="$(dhpk_sessions_dir "$HOOK_ROOT")"
 
     # Auto-clear sentinels older than 60 min (delegated; see reap-stale-sentinels.sh).
     CLAUDE_PROJECT_DIR="$HOOK_ROOT" bash "$(dirname "$0")/reap-stale-sentinels.sh" \

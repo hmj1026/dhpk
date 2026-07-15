@@ -10,37 +10,25 @@
 // tree writes a provenance sidecar line tagging that slug.
 
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
+const { mkRepo, runHook: runHookRaw } = require('./_lib/hookharness');
 
-const ROOT = path.join(__dirname, '..');
-const HOOK = path.join(ROOT, 'scripts', 'hooks', 'post-edit-remind.sh');
+const HOOK = 'post-edit-remind.sh';
 
 function mkTempRepo() {
-  // realpath: on macOS os.tmpdir() lives under a /var symlink to /private/var;
-  // `git rev-parse --show-toplevel` (used by the hook to derive ROOT) resolves
-  // symlinks, so an unresolved path here would make FILE_PATH (built from the
-  // unresolved dir) mismatch ROOT and spuriously hit the "outside ROOT" branch.
-  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-scope-')));
-  spawnSync('git', ['init', '-q'], { cwd: dir });
-  spawnSync('git', ['config', 'user.email', 'test@example.com'], { cwd: dir });
-  spawnSync('git', ['config', 'user.name', 'Test'], { cwd: dir });
-  return dir;
+  // realpath (inside mkRepo): on macOS os.tmpdir() lives under a /var symlink
+  // to /private/var. The harness deletes CLAUDE_PROJECT_DIR by default, so the
+  // hook's dhpk_root() falls back to `git rev-parse --show-toplevel`, which
+  // resolves symlinks — an unresolved path here would make FILE_PATH (built
+  // from the unresolved dir) mismatch ROOT and spuriously hit the "outside
+  // ROOT" branch.
+  return mkRepo({ prefix: 'dhpk-scope-', gitConfig: true });
 }
 
 function runHook(cwd, payload) {
-  const env = { ...process.env };
-  delete env.DHPK_ACTIVE_MODULES;
-  env.DHPK_TEST_HOOK = HOOK;
-  env.DHPK_TEST_PAYLOAD = JSON.stringify(payload);
-  return spawnSync('bash', ['-c', 'printf %s "$DHPK_TEST_PAYLOAD" | bash "$DHPK_TEST_HOOK"'], {
-    cwd,
-    env,
-    encoding: 'utf8',
-    timeout: 10000,
-  });
+  return runHookRaw(HOOK, { cwd, payload, deleteEnv: ['DHPK_ACTIVE_MODULES'] });
 }
 
 function pendingReviewPath(repoDir) {

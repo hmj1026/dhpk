@@ -14,15 +14,12 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
+const { mkRepo, runHook: runHookRaw } = require('./_lib/hookharness');
 
-const ROOT = path.join(__dirname, '..');
-const HOOK = path.join(ROOT, 'scripts', 'hooks', 'stop-completion-evidence.sh');
+const HOOK = 'stop-completion-evidence.sh';
 
 function mkTempRepo() {
-  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ce-')));
-  spawnSync('git', ['init', '-q'], { cwd: dir });
-  spawnSync('git', ['config', 'user.email', 'test@example.com'], { cwd: dir });
-  spawnSync('git', ['config', 'user.name', 'Test'], { cwd: dir });
+  const dir = mkRepo({ prefix: 'dhpk-ce-', gitConfig: true });
   // Initial commit so HEAD exists (git diff --name-only HEAD needs it).
   writeFile(dir, 'README.md', '# fixture\n');
   spawnSync('git', ['add', '-A'], { cwd: dir });
@@ -58,17 +55,12 @@ function writeTranscript() {
 }
 
 function runHook(repo, transcriptPath) {
-  const env = { ...process.env };
-  delete env.DHPK_ACTIVE_MODULES;
-  env.DHPK_COMPLETION_EVIDENCE = '1'; // opt-in
-  env.CLAUDE_PROJECT_DIR = repo; // pin ROOT to the temp repo
-  env.DHPK_TEST_HOOK = HOOK;
-  env.DHPK_TEST_PAYLOAD = JSON.stringify({ transcript_path: transcriptPath });
-  return spawnSync('bash', ['-c', 'printf %s "$DHPK_TEST_PAYLOAD" | bash "$DHPK_TEST_HOOK"'], {
+  return runHookRaw(HOOK, {
     cwd: repo,
-    env,
-    encoding: 'utf8',
-    timeout: 10000,
+    payload: { transcript_path: transcriptPath },
+    env: { DHPK_COMPLETION_EVIDENCE: '1' }, // opt-in
+    projectDir: repo, // pin ROOT to the temp repo
+    deleteEnv: ['DHPK_ACTIVE_MODULES'],
   });
 }
 

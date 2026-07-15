@@ -28,13 +28,14 @@
 
 set -o pipefail
 
+. "$(dirname "$0")/_lib/session-env.sh"
 . "$(dirname "$0")/_lib/payload.sh"
 . "$(dirname "$0")/_lib/json-out.sh"
 
-ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+ROOT="$(dhpk_root)"
 . "$(dirname "$0")/_lib/load-project-config.sh" 2>/dev/null || true
 
-PAYLOAD="$(cat 2>/dev/null || true)"
+PAYLOAD="$(dhpk_read_payload)"
 [ -z "$PAYLOAD" ] && exit 0
 
 FILE="$(extract_tool_input file_path "$PAYLOAD")"

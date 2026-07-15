@@ -13,18 +13,15 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
+const { mkRepo, runHook: runHookRaw } = require('./_lib/hookharness');
 
-const ROOT = path.join(__dirname, '..');
-const HOOK = path.join(ROOT, 'scripts', 'hooks', 'pretool-git-gate.sh');
+const HOOK = 'pretool-git-gate.sh';
 
 function mkTempRepo() {
   // realpath: on macOS os.tmpdir() lives under a /var symlink to /private/var;
   // the hook derives ROOT via `git rev-parse --show-toplevel` which resolves
   // symlinks, so an unresolved path here could cause mismatches downstream.
-  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-bs-repo-')));
-  spawnSync('git', ['init', '-q'], { cwd: dir });
-  spawnSync('git', ['config', 'user.email', 'test@example.com'], { cwd: dir });
-  spawnSync('git', ['config', 'user.name', 'Test'], { cwd: dir });
+  const dir = mkRepo({ prefix: 'dhpk-bs-repo-', gitConfig: true });
   fs.writeFileSync(path.join(dir, 'README.md'), 'init\n');
   spawnSync('git', ['add', '.'], { cwd: dir });
   spawnSync('git', ['commit', '-q', '-m', 'init'], { cwd: dir });
@@ -35,21 +32,15 @@ function mkTempRepo() {
 }
 
 function runHook(cwd, tmpdir, extraEnv) {
-  const env = { ...process.env, TMPDIR: tmpdir, ...extraEnv };
-  delete env.DHPK_BRANCH_SAFETY;
-  delete env.CLAUDE_PLUGIN_OPTION_PROTECTED_BRANCHES;
-  Object.assign(env, extraEnv);
-  const payload = JSON.stringify({
+  const payload = {
     session_id: 'testsess1',
     tool_input: { command: 'git commit -m x' },
-  });
-  env.DHPK_TEST_HOOK = HOOK;
-  env.DHPK_TEST_PAYLOAD = payload;
-  return spawnSync('bash', ['-c', 'printf %s "$DHPK_TEST_PAYLOAD" | bash "$DHPK_TEST_HOOK"'], {
+  };
+  return runHookRaw(HOOK, {
     cwd,
-    env,
-    encoding: 'utf8',
-    timeout: 10000,
+    payload,
+    env: { TMPDIR: tmpdir, ...extraEnv },
+    deleteEnv: ['DHPK_BRANCH_SAFETY', 'CLAUDE_PLUGIN_OPTION_PROTECTED_BRANCHES'],
   });
 }
 

@@ -8,35 +8,23 @@
 // dispatch is backgrounded/async and not asserted on here).
 
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
+const { mkRepo: mkRepoRaw, sessionsDir: sessDir, runHook: runHookRaw } = require('./_lib/hookharness');
 
-const ROOT = path.join(__dirname, '..');
-const HOOK = path.join(ROOT, 'scripts', 'hooks', 'post-edit-dispatch.sh');
+const HOOK = 'post-edit-dispatch.sh';
 
 function mkRepo() {
-  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ped-')));
-  spawnSync('git', ['init', '-q'], { cwd: dir });
-  return dir;
-}
-
-function sessDir(repo) {
-  return path.join(repo, '.claude', 'artifacts', 'sessions');
+  return mkRepoRaw({ prefix: 'dhpk-ped-' });
 }
 
 function runHook(repo, filePath, extraEnv = {}) {
-  const payload = JSON.stringify({ tool_input: { file_path: filePath } });
-  const env = { ...process.env, CLAUDE_PROJECT_DIR: repo, ...extraEnv };
-  delete env.DHPK_ACTIVE_MODULES;
-  env.DHPK_TEST_HOOK = HOOK;
-  env.DHPK_TEST_PAYLOAD = payload;
-  return spawnSync('bash', ['-c', 'printf %s "$DHPK_TEST_PAYLOAD" | bash "$DHPK_TEST_HOOK"'], {
+  return runHookRaw(HOOK, {
+    payload: { tool_input: { file_path: filePath } },
     cwd: repo,
-    env,
-    encoding: 'utf8',
-    timeout: 10000,
+    projectDir: repo,
+    deleteEnv: ['DHPK_ACTIVE_MODULES'],
+    env: extraEnv,
   });
 }
 

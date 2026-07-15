@@ -5,27 +5,16 @@
 // immediately. With no active modules configured, the dispatcher's exit code
 // mirrors the core guard exactly.
 
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
-const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
+const { ROOT, runHook: runHookRaw } = require('./_lib/hookharness');
 
-const ROOT = path.join(__dirname, '..');
-const HOOK = path.join(ROOT, 'scripts', 'hooks', 'pre-bash-dispatch.sh');
+const HOOK = 'pre-bash-dispatch.sh';
 
 function runHook(command, cwd) {
-  const payload = JSON.stringify({ tool_input: { command } });
-  const env = { ...process.env, CLAUDE_PLUGIN_ROOT: ROOT };
-  delete env.DHPK_ACTIVE_MODULES;
-  delete env.CLAUDE_PLUGIN_OPTION_MODULES;
-  env.DHPK_TEST_HOOK = HOOK;
-  env.DHPK_TEST_PAYLOAD = payload;
-  return spawnSync('bash', ['-c', 'printf %s "$DHPK_TEST_PAYLOAD" | bash "$DHPK_TEST_HOOK"'], {
+  return runHookRaw(HOOK, {
+    payload: { tool_input: { command } },
     cwd: cwd || ROOT,
-    env,
-    encoding: 'utf8',
-    timeout: 10000,
+    deleteEnv: ['DHPK_ACTIVE_MODULES', 'CLAUDE_PLUGIN_OPTION_MODULES'],
   });
 }
 

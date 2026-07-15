@@ -181,7 +181,7 @@ contract above; the outcome is replacement or a pending gate with a recorded rea
 | Hook surface | Lifecycle class | Default behavior |
 |---|---|---|
 | `pre-edit-guard.sh`, `pre-bash-dispatch.sh`, `pretool-git-gate.sh` | blocking safety gate | enabled; reject unsafe edit or git operations |
-| `Task|Agent` liveness and `SubagentStop` sentinel verification | sentinel/liveness gate | enabled; track active reviewers and preserve unmet sentinels |
+| `Task\|Agent` liveness and `SubagentStop` sentinel verification | sentinel/liveness gate | enabled; track active reviewers and preserve unmet sentinels |
 | `Stop` review reminder | sentinel/liveness gate | enabled; one reminder per unchanged sentinel/session within the bounded backoff window |
 | `PostToolUse` advisory, `StopFailure`, and module finding collection | opt-in advisory | non-blocking; surfaced only when configured or when findings exist |
 | `Stop` completion evidence, graduation scan, and quality scan | opt-in advisory | disabled by default; no duplicate completion message on the default path |

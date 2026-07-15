@@ -13,7 +13,8 @@
 set -o pipefail
 
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
-ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+. "$PLUGIN_ROOT/scripts/hooks/_lib/session-env.sh"
+ROOT="$(dhpk_root)"
 
 # Overlay project-level pluginConfigs onto CLAUDE_PLUGIN_OPTION_* env vars.
 # Claude Code only injects global pluginConfigs; per-project .claude/settings.local.json
@@ -32,7 +33,7 @@ ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 # duplicative work (docker ps, learned-context, handoff surfacing, health
 # advisories) only runs on a fresh start — on resume/compact it is wasteful, and
 # on compact postcompact-restore.sh already re-injects the handoff.
-PAYLOAD="$(cat 2>/dev/null || true)"
+PAYLOAD="$(dhpk_read_payload)"
 SOURCE="$(extract_top_field source "$PAYLOAD")"
 case "$SOURCE" in
     resume|compact) FULL_INIT=0 ;;
@@ -206,7 +207,7 @@ FAST_ORDER="${CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND_ORDER:-$FAST_ORDER_DEFAUL
 FAST_FALLBACK="${CLAUDE_PLUGIN_OPTION_FAST_WORKER_FALLBACK:-$FAST_FALLBACK_DEFAULT}"
 SELECTOR_SESSION="$(extract_top_field session_id "$PAYLOAD")"
 [ -n "$SELECTOR_SESSION" ] || SELECTOR_SESSION="startup"
-SELECTOR_WARNINGS="$ARTIFACTS/sessions/.fast-worker-selector-warnings"
+SELECTOR_WARNINGS="$ARTIFACTS/sessions/$DHPK_SIDECAR_FW_SELECTOR_WARNINGS"
 
 selector_warn_once() {
     local key="$1" value="$2" marker="${SELECTOR_SESSION}	${key}=${value}"
