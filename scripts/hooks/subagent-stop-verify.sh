@@ -1,17 +1,23 @@
 #!/usr/bin/env bash
 # subagent-stop-verify.sh — SubagentStop hook (non-blocking)
 #
-# Plugs reviewer dispatch gaps: when a reviewer agent stops SUCCESSFULLY but its
-# own sentinel still exists, auto-clear it on the reviewer's behalf — this is now
-# the SANCTIONED clearance path (reviewer agent definitions no longer instruct a
-# self-run closing clear-sentinel.sh). When a fresh review doc with a parseable
-# verdict exists for the stopping reviewer, the clear is silent (no failure
-# record, no warning) — that is the designed handoff. When the sentinel is
-# uncleared AND no review doc was produced, the auto-clear still fires (must
-# not block the chain) but is logged as a failure, since the review contract
-# was actually broken. When exit status is non-zero, leave the sentinel armed
-# and log to .claude/artifacts/agent-failures.log for next-session SessionStart
-# / manual review.
+# Plugs reviewer dispatch gaps: when a reviewer agent stops SUCCESSFULLY AND a
+# fresh matching review doc exists, auto-clear its sentinel on the
+# reviewer's behalf — this is the SANCTIONED clearance path (reviewer agent
+# definitions no longer instruct a self-run closing clear-sentinel.sh). The
+# auto-clear is GATED on a fresh review doc existing (A5 /
+# reviewer-liveness-gate): a reviewer that stops exit 0 but produced NO fresh
+# review doc this cycle leaves the sentinel ARMED (gate stays unmet so the
+# orchestrator re-dispatches) and is logged as a failure — a no-output reviewer
+# clearing its own gate was the 2026-07-13 defect this closes. The clear gate
+# keys on review-doc existence + freshness ONLY, never on verdict-parseability, so
+# a legitimate fresh review whose verdict field can't be parsed still clears
+# rather than looping the orchestrator forever. When a fresh review doc with a
+# parseable verdict exists the clear is silent (the designed handoff); a fresh
+# doc with an unparseable verdict still clears but is noted. When exit status is
+# non-zero, leave the sentinel armed and log to
+# .claude/artifacts/agent-failures.log for next-session SessionStart / manual
+# review.
 #
 # Design:
 # - Sources _lib/payload.sh SSOT (SENTINEL_NAMES / SENTINEL_AGENTS).
@@ -150,16 +156,38 @@ remove_one_active_entry() {
     fi
 }
 
+# has_fresh_review_artifact <agent> <sentinel-file> — echo "1" when the latest
+# review doc for <agent> EXISTS and is FRESH (its mtime postdates the sentinel
+# that armed this review); "0" otherwise (no review doc, or only a stale
+# prior-cycle doc). This is the A5 auto-clear gate: the sentinel clears only when
+# a fresh matching review doc exists (reviewer-liveness-gate spec). It keys
+# on existence + freshness ONLY — deliberately NOT on verdict-parseability, so a
+# reviewer that legitimately wrote a fresh review doc whose `verdict:` field the
+# regex can't parse still clears the gate rather than looping the orchestrator on
+# an endless re-dispatch. Verdict-parseability is a separate concern owned by
+# refresh_unresolved_verdict below (the BLOCK/FAIL/severity sidecar). Must be
+# called while the sentinel file still exists (before the rm below).
+has_fresh_review_artifact() {
+    local agent="$1" sentinel="$2" reviews_dir="$ROOT/.claude/artifacts/reviews" latest=""
+    [ -d "$reviews_dir" ] || { printf '0'; return 0; }
+    latest="$(ls -t "$reviews_dir/$agent"-*.md 2>/dev/null | head -1 || true)"
+    [ -n "$latest" ] || { printf '0'; return 0; }
+    # Freshness gate: the newest review doc must postdate the sentinel that armed
+    # this cycle. `find -newer` avoids stat(1) GNU-vs-BSD portability differences.
+    [ -n "$(find "$latest" -newer "$sentinel" 2>/dev/null)" ] || { printf '0'; return 0; }
+    printf '1'
+}
+
 # has_fresh_parseable_verdict <agent> <sentinel-file> — echo "1" when the latest
 # review doc for <agent> exists, was produced THIS cycle (its mtime postdates
 # the sentinel that armed this review), and its frontmatter carries a parseable
 # `verdict:` field; "0" otherwise (no review doc, a stale doc from a prior
-# cycle, or one whose frontmatter doesn't parse). The freshness bound is what
-# stops a prior cycle's doc from masking a reviewer that produced nothing this
-# time — reviewers run repeatedly per session, so a bare "any doc exists" check
-# would silent-clear a broken contract in steady state. Must be called while
-# the sentinel file still exists (before the rm below). Reuses the same "latest
-# by mtime" lookup and verdict regex as refresh_unresolved_verdict below.
+# cycle, or one whose frontmatter doesn't parse). Distinct from
+# has_fresh_review_artifact above: this ALSO requires a parseable verdict, and is
+# used only to decide whether a clear is silent (normal handoff) vs. worth a
+# soft note — NOT to gate the clear itself. Must be called while the sentinel
+# file still exists (before the rm below). Reuses the same "latest by mtime"
+# lookup and verdict regex as refresh_unresolved_verdict below.
 has_fresh_parseable_verdict() {
     local agent="$1" sentinel="$2" reviews_dir="$ROOT/.claude/artifacts/reviews" latest=""
     [ -d "$reviews_dir" ] || { printf '0'; return 0; }
@@ -281,42 +309,56 @@ Logged to: .claude/artifacts/agent-failures.log"
         emit_system_message "$msg"
     fi
 elif [ -f "$SENTINEL_FILE" ]; then
-    # Determine freshness BEFORE the rm below — has_fresh_parseable_verdict
-    # compares the latest review doc's mtime against the sentinel file, which
-    # must still exist at this point.
+    # Determine freshness BEFORE any rm below — both helpers compare the latest
+    # review doc's mtime against the sentinel file, which must still exist here.
+    # FRESH_ARTIFACT (existence + freshness) is the A5 CLEAR gate; FRESH_VERDICT
+    # (also requires a parseable verdict) only decides silent-vs-note on a clear.
+    FRESH_ARTIFACT="$(has_fresh_review_artifact "$SUBAGENT_BARE" "$SENTINEL_FILE")"
     FRESH_VERDICT="$(has_fresh_parseable_verdict "$SUBAGENT_BARE" "$SENTINEL_FILE")"
-    # Case B: subagent succeeded but sentinel still armed — auto-clear it on the
-    # reviewer's behalf. This IS the sanctioned clearance path (reviewer agent
-    # definitions no longer instruct a self-run closing clear-sentinel.sh — the
-    # auto-mode permission classifier blocks a reviewer running it on its own
-    # sentinel as "Logging/Audit Tampering"). This fires at the same moment
-    # (SubagentStop) the reviewer's own closing clear would have, scoped
-    # strictly to this reviewer's own slot. Run the SSOT clearer first
-    # (SENTINEL_NAMES whitelist + ldb success record); its stdout MUST be
-    # suppressed so its plain text cannot corrupt this hook's single JSON
-    # systemMessage envelope (a hook may emit at most one JSON object). Then
-    # unconditionally rm the exact sentinel THIS hook detected ($SENTINEL_FILE,
-    # built from ROOT above): clear-sentinel.sh resolves its own ROOT via
-    # git-toplevel, so if that ever diverges from CLAUDE_PROJECT_DIR (e.g. a
-    # worktree subagent) the guaranteed rm keeps the log honest.
-    # rm -f is idempotent — it no-ops when the clearer already removed the file.
-    if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] && [ -f "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" ]; then
-        bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" "$SENTINEL_NAME" "subagent-stop-auto" >/dev/null 2>&1 || true
-    fi
-    rm -f "$SENTINEL_FILE"
-    if [ "$FRESH_VERDICT" = "1" ]; then
-        # Designed handoff: a fresh, parseable review doc exists for this
-        # reviewer — the auto-clear is the normal path, not a broken contract.
-        # No failure record, no warning.
-        echo "$TIMESTAMP $SUBAGENT exit=0 sentinel=$SENTINEL_NAME (auto-cleared)" >> "$LOG" || true
+    if [ "$FRESH_ARTIFACT" = "1" ]; then
+        # Case B (cleared): subagent succeeded AND a fresh matching review
+        # review doc exists — auto-clear the sentinel on the reviewer's behalf.
+        # This IS the sanctioned clearance path (reviewer agent definitions no
+        # longer instruct a self-run closing clear-sentinel.sh — the auto-mode
+        # permission classifier blocks a reviewer running it on its own sentinel
+        # as "Logging/Audit Tampering"). It fires at the same moment
+        # (SubagentStop) the reviewer's own closing clear would have, scoped
+        # strictly to this reviewer's own slot. Run the SSOT clearer first
+        # (SENTINEL_NAMES whitelist + ldb success record); its stdout MUST be
+        # suppressed so its plain text cannot corrupt this hook's single JSON
+        # systemMessage envelope (a hook may emit at most one JSON object). Then
+        # unconditionally rm the exact sentinel THIS hook detected
+        # ($SENTINEL_FILE, built from ROOT above): clear-sentinel.sh resolves its
+        # own ROOT via git-toplevel, so if that ever diverges from
+        # CLAUDE_PROJECT_DIR (e.g. a worktree subagent) the guaranteed rm keeps
+        # the log honest. rm -f is idempotent — no-ops if the clearer already
+        # removed the file.
+        if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] && [ -f "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" ]; then
+            bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" "$SENTINEL_NAME" "subagent-stop-auto" >/dev/null 2>&1 || true
+        fi
+        rm -f "$SENTINEL_FILE"
+        if [ "$FRESH_VERDICT" = "1" ]; then
+            # Designed handoff: a fresh, parseable review doc exists — the normal
+            # path. No failure record, no warning.
+            echo "$TIMESTAMP $SUBAGENT exit=0 sentinel=$SENTINEL_NAME (auto-cleared)" >> "$LOG" || true
+        else
+            # A fresh review doc exists but its verdict didn't parse. The clear
+            # still fires (existence + freshness satisfy the gate — do NOT loop
+            # the orchestrator on an unparseable-but-present review); note it.
+            echo "$TIMESTAMP $SUBAGENT exit=0 sentinel=$SENTINEL_NAME (auto-cleared, verdict unparseable)" >> "$LOG" || true
+        fi
     else
-        # Contract broken: the sentinel was armed but no fresh parseable review
-        # doc was produced this cycle. Still auto-clear (must not block the
-        # chain), but log it as a failure for follow-up.
-        echo "$TIMESTAMP $SUBAGENT exit=0 sentinel=$SENTINEL_NAME (auto-cleared, no review doc)" >> "$LOG" || true
+        # Case B (left armed) — A5: subagent stopped clean but produced NO fresh
+        # matching review doc this cycle. Leave the sentinel ARMED so the
+        # review gate stays unmet and the orchestrator re-dispatches per the
+        # reviewer-liveness-gate no-op rules; log it and record the failure.
+        # This deliberately reverses the prior "always clear (must not block the
+        # chain)" behavior: a no-output reviewer clearing its own gate was the
+        # 2026-07-13 defect this fix (A5) closes.
+        echo "$TIMESTAMP $SUBAGENT exit=0 sentinel=$SENTINEL_NAME (left armed, no review doc)" >> "$LOG" || true
         ldb_record failure "sentinel-uncleared:$SENTINEL_NAME" "$SUBAGENT_BARE"
         if [ "$PROFILE" != "minimal" ]; then
-            emit_system_message "[subagent-verify] AUTO-CLEARED: $SUBAGENT finished but produced no parseable review doc; cleared $SENTINEL_NAME as a fallback.
+            emit_system_message "[subagent-verify] NO REVIEW DOC: $SUBAGENT stopped clean but wrote no fresh review doc; LEFT $SENTINEL_NAME armed so the gate stays unmet — re-dispatch the reviewer.
 Logged to: .claude/artifacts/agent-failures.log"
         fi
     fi
