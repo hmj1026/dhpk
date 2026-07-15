@@ -127,9 +127,13 @@ else
   done < <(dhpk_multi_select "Which stacks do you want to enable? (none = generic core only)" "${STACK_LABELS[@]}")
 
   SELECTED_STACKS=()
-  for label in "${SELECTED_LABELS[@]}"; do
-    SELECTED_STACKS+=("${label%% — *}")
-  done
+  # Bash 3.2 with `set -u` treats an explicitly empty array as unset when it
+  # is expanded with [@]. Guard the loop so a blank selection remains valid.
+  if [[ ${#SELECTED_LABELS[@]} -gt 0 ]]; then
+    for label in "${SELECTED_LABELS[@]}"; do
+      SELECTED_STACKS+=("${label%% — *}")
+    done
+  fi
 
   # ────────────────────────────────────────────────────────────────────
   # 3b. Per-stack version

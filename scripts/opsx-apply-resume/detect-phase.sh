@@ -21,9 +21,11 @@ NOW=$(date +%s)
 if [[ -z "$SAVED_AT" ]]; then
   FILE_TS=0
 else
-  # GNU date uses -d; BSD date (macOS) needs -j -f with an explicit format.
+  # GNU date uses -d; BSD date (macOS) needs -j -u -f with an explicit format.
+  # The input ends in Z, so keep the fallback in UTC or it will be parsed as
+  # local time and look hours older than it really is on non-UTC hosts.
   FILE_TS=$(date -d "$SAVED_AT" +%s 2>/dev/null \
-    || date -j -f '%Y-%m-%dT%H:%M:%S' "${SAVED_AT%%Z*}" +%s 2>/dev/null \
+    || date -j -u -f '%Y-%m-%dT%H:%M:%S' "${SAVED_AT%%Z*}" +%s 2>/dev/null \
     || echo 0)
 fi
 AGE=$(( NOW - FILE_TS ))

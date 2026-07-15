@@ -8,6 +8,10 @@
 # consuming → Resume Phase has started opsx:apply (in-flight)
 # consumed  → session completed; file will be archived immediately after
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=../hooks/_lib/portable-sed.sh
+source "$SCRIPT_DIR/../hooks/_lib/portable-sed.sh"
+
 STATE="$1"
 FILE=".claude/artifacts/apply-resume/latest.md"
 
@@ -29,7 +33,7 @@ if [[ ! -f "$FILE" ]]; then
   exit 1
 fi
 
-sed -i "s/^state: .*/state: $STATE/" "$FILE"
+sed_inplace "s/^state: .*/state: $STATE/" "$FILE"
 
 ACTUAL=$(grep '^state:' "$FILE" | awk '{print $2}')
 if [[ "$ACTUAL" != "$STATE" ]]; then
