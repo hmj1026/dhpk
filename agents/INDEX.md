@@ -1,6 +1,6 @@
 # Agents Index (dhpk plugin)
 
-> 29 agents shipped by the dhpk plugin (28 root-level + `polyfill-reviewer` under `modules/library-author/agents/`). Discovered as `dhpk:<name>` after install. The full list also appears in `plugin.json`.
+> 31 agents shipped by the dhpk plugin (30 root-level + `polyfill-reviewer` under `modules/library-author/agents/`). Discovered as `dhpk:<name>` after install. The full list also appears in `plugin.json`.
 
 ## Sentinel-driven reviewer dispatch (7-slot default, v0.10.0+)
 
@@ -29,6 +29,8 @@ Not sentinel-driven — dispatched during the implement phase per the `rules/exe
 |-------|-------|----------------|
 | [deep-reasoner](deep-reasoner.md) | opus | Read-only reasoning worker — root-cause analysis, algorithm design, complex debugging, design synthesis. Returns a conclusion contract (conclusion + `file:line` evidence + next actions); defers DDD/cross-module design to `architect` |
 | [fast-worker](fast-worker.md) | sonnet | Write-capable mechanical implementer — executes a precise task spec (files + change intent + verification command), surgical edits only, reports pass/fail + edited-file list, escalates on ambiguous specs |
+| [codex-fast-worker](codex-fast-worker.md) | sonnet + codex CLI | **CODEX=on / codex CLI available** — a `fast-worker` whose edits run on the codex CLI backend (default `gpt-5.6-luna` @ `xhigh`, via `skills/codex-bridge/scripts/run-codex.sh`); same task-spec contract + independent verification/edited-file accounting, opt-in alternative to the default `fast-worker` |
+| [agy-fast-worker](agy-fast-worker.md) | sonnet + agy CLI | **agy CLI available** — a `fast-worker` whose edits run on the agy CLI backend (default `Gemini 3.5 Flash (High)`, via `skills/agy-fast-worker/scripts/run-agy.sh`); same task-spec contract + independent verification/edited-file accounting, opt-in alternative to the default `fast-worker` |
 | [codex-bridge](codex-bridge.md) | sonnet | **CODEX=on only** — thin bridge that outsources a self-contained clear-spec task, or a blind second opinion, to gpt-5.5 via the Codex CLI (`codex exec`); composes a self-contained prompt, runs `skills/codex-bridge/scripts/run-codex.sh`, and relays Codex's output **verbatim** (output isolated in the subagent) |
 
 Role models are configurable per project via `userConfig.deep_reasoner_model` / `userConfig.fast_worker_model` (see "Configured role models" under `rules/execution-policy.md` §Agent dispatch) — frontmatter above shows the shipped default, not necessarily the effective value.
@@ -85,7 +87,7 @@ Role models are configurable per project via `userConfig.deep_reasoner_model` / 
 ## Models
 
 - **opus**: architect, spec-miner, deep-reasoner, planner (low-frequency, high-impact, deep reasoning)
-- **sonnet**: reviewers, tdd-guide, refactor, ui-ux, harness, fast-worker, codex-bridge (daily-driver)
+- **sonnet**: reviewers, tdd-guide, refactor, ui-ux, harness, fast-worker, codex-fast-worker, agy-fast-worker, codex-bridge (daily-driver; the CLI-backed workers run their edits on an external codex/agy backend)
 - **haiku**: doc-updater, docs-lookup, doc-reviewer (high-frequency, templated, cost-first)
 
 ## maxTurns (safety-net caps)
