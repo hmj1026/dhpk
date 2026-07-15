@@ -48,9 +48,9 @@ the hard-stop notice, and the Block C2 monitor snippet. Print these verbatim.
   high-precision detection (strong signals only; --smoke forces on, --no-smoke
   suppresses), so it never deadlocks a non-drivable repo (plugin/library repos
   with no running system)
-• Goal length capped at 4000 chars (Claude Code's practical /goal paste limit,
-  see Step 6b): the single full variant lands a typical change around 3600
-  chars — check the Block A "Goal length" row; a measurement over the cap is a
+• Goal length capped at 4,000 UTF-8 bytes (the unit `wc -c` measures; Claude
+  Code's practical /goal paste limit, see Step 6b): the normal target is 3,400
+  bytes — check the Block A "Goal length" row; a measurement over the cap is a
   should-never-fire template regression: no /goal is emitted and Block A's
   hard-stop notice reports the measured length and lists which setting or flag
   to adjust and re-run
@@ -73,9 +73,9 @@ When `GOAL_MODE = blocked`, print this instead of Block B/C/C2 and end the
 skill's output:
 
 ```
-✖ Goal condition is <GOAL_LENGTH> characters — <GOAL_LENGTH - 4000> over the
-  4000-character paste limit. This should never fire with the bounded Part 0
-  (a typical change composes to ~3600 chars) — treat it as a template
+✖ Goal condition is <GOAL_LENGTH> UTF-8 bytes — <GOAL_LENGTH - 4000> over the
+  4,000-byte paste limit. This should never fire with the bounded Part 0
+  (the normal target is <=3,400 bytes) — treat it as a template
   regression to fix, or adjust and re-run:
   • turn off the orchestration_dispatch project setting (removes the dispatch directive, the largest single block)
   • drop --codex (removes the CODEX statement)
