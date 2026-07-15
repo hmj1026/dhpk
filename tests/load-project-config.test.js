@@ -70,6 +70,35 @@ test('no settings file present (edge case) leaves env untouched, no error', () =
   assert.ok(res.stdout.includes('OUT:[unset]'), res.stdout);
 });
 
+test('CLI-backed fast-worker model/effort keys pass through with standard layering', () => {
+  const root = tmpRoot();
+  writeSettings(root, 'settings.local.json', {
+    codex_fast_worker_model: 'gpt-5.6-sol',
+    codex_fast_worker_effort: 'high',
+    agy_fast_worker_model: 'Gemini 3.5 Flash (High)',
+  });
+  const res = sh(
+    root,
+    'echo "M:$CLAUDE_PLUGIN_OPTION_CODEX_FAST_WORKER_MODEL"; ' +
+      'echo "E:$CLAUDE_PLUGIN_OPTION_CODEX_FAST_WORKER_EFFORT"; ' +
+      'echo "A:$CLAUDE_PLUGIN_OPTION_AGY_FAST_WORKER_MODEL"'
+  );
+  assert.strictEqual(res.status, 0, res.stderr);
+  assert.ok(res.stdout.includes('M:gpt-5.6-sol'), res.stdout);
+  assert.ok(res.stdout.includes('E:high'), res.stdout);
+  // A value with spaces must round-trip intact (shlex.quote in the loader).
+  assert.ok(res.stdout.includes('A:Gemini 3.5 Flash (High)'), res.stdout);
+});
+
+test('project settings.local.json overrides global settings.json for a CLI-worker key', () => {
+  const root = tmpRoot();
+  writeSettings(root, 'settings.json', { codex_fast_worker_model: 'gpt-5.6-luna' });
+  writeSettings(root, 'settings.local.json', { codex_fast_worker_model: 'gpt-5.6-sol' });
+  const res = sh(root, 'echo "$CLAUDE_PLUGIN_OPTION_CODEX_FAST_WORKER_MODEL"');
+  assert.strictEqual(res.status, 0, res.stderr);
+  assert.strictEqual(res.stdout.trim(), 'gpt-5.6-sol');
+});
+
 test('DHPK_HOOK_PROFILE env one-shot override wins over settings file', () => {
   const root = tmpRoot();
   writeSettings(root, 'settings.local.json', { hook_profile: 'full' });

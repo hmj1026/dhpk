@@ -169,13 +169,21 @@ WORKER_EFFORT="${CLAUDE_PLUGIN_OPTION_FAST_WORKER_EFFORT:-medium}"
 PLANNER_MODEL="${CLAUDE_PLUGIN_OPTION_PLANNER_MODEL:-opus}"
 PLANNER_EFFORT="${CLAUDE_PLUGIN_OPTION_PLANNER_EFFORT:-high}"
 DISPATCH="${CLAUDE_PLUGIN_OPTION_ORCHESTRATION_DISPATCH:-on}"
-if [ "$DEEP_MODEL" != "opus" ] || [ "$WORKER_MODEL" != "sonnet" ] || [ "$DEEP_EFFORT" != "high" ] || [ "$WORKER_EFFORT" != "medium" ] || [ "$PLANNER_MODEL" != "opus" ] || [ "$PLANNER_EFFORT" != "high" ] || [ "$DISPATCH" != "on" ]; then
+# CLI-backed fast-worker variants (codex-fast-worker / agy-fast-worker) — surfaced
+# only when overridden from the shipped defaults, same token discipline as above.
+CODEX_FW_MODEL="${CLAUDE_PLUGIN_OPTION_CODEX_FAST_WORKER_MODEL:-gpt-5.6-luna}"
+CODEX_FW_EFFORT="${CLAUDE_PLUGIN_OPTION_CODEX_FAST_WORKER_EFFORT:-xhigh}"
+AGY_FW_MODEL="${CLAUDE_PLUGIN_OPTION_AGY_FAST_WORKER_MODEL:-Gemini 3.5 Flash (High)}"
+if [ "$DEEP_MODEL" != "opus" ] || [ "$WORKER_MODEL" != "sonnet" ] || [ "$DEEP_EFFORT" != "high" ] || [ "$WORKER_EFFORT" != "medium" ] || [ "$PLANNER_MODEL" != "opus" ] || [ "$PLANNER_EFFORT" != "high" ] || [ "$DISPATCH" != "on" ] || [ "$CODEX_FW_MODEL" != "gpt-5.6-luna" ] || [ "$CODEX_FW_EFFORT" != "xhigh" ] || [ "$AGY_FW_MODEL" != "Gemini 3.5 Flash (High)" ]; then
     _orch_line="orchestration: deep=$DEEP_MODEL worker=$WORKER_MODEL"
     [ "$DEEP_EFFORT" != "high" ] && _orch_line="${_orch_line} deep_effort=$DEEP_EFFORT"
     [ "$WORKER_EFFORT" != "medium" ] && _orch_line="${_orch_line} worker_effort=$WORKER_EFFORT"
     [ "$PLANNER_MODEL" != "opus" ] && _orch_line="${_orch_line} planner=$PLANNER_MODEL"
     [ "$PLANNER_EFFORT" != "high" ] && _orch_line="${_orch_line} planner_effort=$PLANNER_EFFORT"
     [ "$DISPATCH" != "on" ] && _orch_line="${_orch_line} dispatch=off"
+    [ "$CODEX_FW_MODEL" != "gpt-5.6-luna" ] && _orch_line="${_orch_line} codex_worker=$CODEX_FW_MODEL"
+    [ "$CODEX_FW_EFFORT" != "xhigh" ] && _orch_line="${_orch_line} codex_worker_effort=$CODEX_FW_EFFORT"
+    [ "$AGY_FW_MODEL" != "Gemini 3.5 Flash (High)" ] && _orch_line="${_orch_line} agy_worker=$AGY_FW_MODEL"
     echo "[session-start] $_orch_line"
     unset _orch_line
 fi
