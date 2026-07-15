@@ -26,9 +26,11 @@
 # (Optionally export ROOT first; otherwise the loader uses `git rev-parse` /
 # falls back to PWD.)
 
-# Determine project root if not already set by caller.
+# Determine project root if not already set by caller — canonical resolution
+# from the sibling session-env.sh (CLAUDE_PROJECT_DIR first).
 if [ -z "${ROOT:-}" ]; then
-    ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+    . "${BASH_SOURCE[0]%/*}/session-env.sh"
+    ROOT="$(dhpk_root)"
 fi
 
 # Prefer settings.local.json (gitignored, per-developer) over settings.json.
