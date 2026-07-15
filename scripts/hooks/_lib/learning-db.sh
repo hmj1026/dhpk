@@ -42,10 +42,10 @@ ldb_enabled() {
 }
 
 # ldb_path — echo the absolute path to the learning log for the active project.
+# Root resolution delegates to the sibling session-env.sh (canonical order).
+. "${BASH_SOURCE[0]%/*}/session-env.sh"
 ldb_path() {
-    local root
-    root="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
-    printf '%s/.claude/artifacts/learning.jsonl' "$root"
+    printf '%s/.claude/artifacts/learning.jsonl' "$(dhpk_root)"
 }
 
 # ldb_rotate_if_needed <file> — archive the log when it grows past the cap.

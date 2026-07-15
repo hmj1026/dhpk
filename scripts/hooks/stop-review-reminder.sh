@@ -14,11 +14,12 @@
 
 set -o pipefail
 
-# Read the Stop hook payload first — before sourcing libs or anything that
-# could consume stdin.
-payload="$(cat 2>/dev/null || true)"
+# Read the Stop hook payload first — before sourcing anything else that could
+# consume stdin (session-env.sh is side-effect free and never touches stdin).
+. "$(dirname "$0")/_lib/session-env.sh"
+payload="$(dhpk_read_payload)"
 
-ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+ROOT="$(dhpk_root)"
 
 # Overlay project pluginConfigs so hook_profile / review_agents respect per-project
 # .claude/settings.local.json (Claude Code only injects global pluginConfigs).
@@ -35,9 +36,9 @@ PROFILE="${CLAUDE_PLUGIN_OPTION_HOOK_PROFILE:-standard}"
 # re-blocking until the harness block cap.
 [ "$(extract_top_field stop_hook_active "$payload")" = "true" ] && exit 0
 
-SESS="$ROOT/.claude/artifacts/sessions"
+SESS="$(dhpk_sessions_dir "$ROOT")"
 FOUND=0
-BACKOFF_FILE="$SESS/.review-reminder-backoff"
+BACKOFF_FILE="$SESS/$DHPK_SIDECAR_REVIEW_BACKOFF"
 BACKOFF_SECONDS="${DHPK_REVIEW_REMINDER_BACKOFF_SECONDS:-300}"
 case "$BACKOFF_SECONDS" in
     ''|*[!0-9]*) BACKOFF_SECONDS=300 ;;
@@ -74,7 +75,7 @@ check_one() {
     local name="$1" agent="$2"
     local file="$SESS/$name"
     [ -f "$file" ] || return 0
-    local active_name="${name/.pending-/.active-}"
+    local active_name="$(dhpk_active_marker "$name")"
     local active_file="$SESS/$active_name"
     local active_count=0
     if [ -f "$active_file" ]; then

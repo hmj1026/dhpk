@@ -11,9 +11,10 @@
 
 set -o pipefail
 
-payload="$(cat 2>/dev/null || true)"
-
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
+
+. "$PLUGIN_ROOT/scripts/hooks/_lib/session-env.sh"
+payload="$(dhpk_read_payload)"
 
 # Overlay project pluginConfigs so module selection respects per-project
 # .claude/settings.local.json (Claude Code only injects global pluginConfigs).
@@ -43,8 +44,8 @@ core_exit=$?
 # written after this turn's Stop simply surface at the next Stop (advisory,
 # eventually-consistent). `disown` detaches the child so it survives our exit.
 if [ -n "${DHPK_ACTIVE_MODULES:-}" ]; then
-    SESS="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}/.claude/artifacts/sessions"
-    FINDINGS="$SESS/.module-findings"
+    SESS="$(dhpk_sessions_dir)"
+    FINDINGS="$SESS/$DHPK_SIDECAR_MODULE_FINDINGS"
     mkdir -p "$SESS" 2>/dev/null || true
     while IFS= read -r _m; do
         for hook in "$PLUGIN_ROOT/modules/$_m/hooks/"post-edit-*.sh; do

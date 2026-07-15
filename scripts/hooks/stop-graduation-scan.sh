@@ -54,7 +54,8 @@ esac
 PROFILE="${CLAUDE_PLUGIN_OPTION_HOOK_PROFILE:-standard}"
 [ "$PROFILE" = "minimal" ] && exit 0
 
-ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+. "$PLUGIN_ROOT/scripts/hooks/_lib/session-env.sh"
+ROOT="$(dhpk_root)"
 COUNTS_JSON="$ROOT/.claude/artifacts/memory-usage-counts.json"
 CANDIDATES_MD="$ROOT/.claude/artifacts/graduation-candidates.md"
 TEMPLATE="$PLUGIN_ROOT/templates/graduation-candidates.md"
@@ -69,7 +70,7 @@ if [ "${CLAUDE_HOOK_TEST_MODE:-0}" = "1" ]; then
     CANDIDATES_MD="$TEST_OUT/graduation-candidates.md"
 fi
 
-PAYLOAD="$(cat 2>/dev/null || true)"
+PAYLOAD="$(dhpk_read_payload)"
 
 # transcript path extraction lives in _lib/transcript.sh (shared with
 # stop-completion-evidence.sh).

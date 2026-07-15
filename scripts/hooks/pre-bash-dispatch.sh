@@ -13,9 +13,10 @@
 
 set -o pipefail
 
-payload="$(cat 2>/dev/null || true)"
-
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
+
+. "$PLUGIN_ROOT/scripts/hooks/_lib/session-env.sh"
+payload="$(dhpk_read_payload)"
 
 # Overlay project pluginConfigs so module selection respects per-project
 # .claude/settings.local.json (Claude Code only injects global pluginConfigs).

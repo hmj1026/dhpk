@@ -13,11 +13,10 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
+const { runHook: runHookRaw } = require('./_lib/hookharness');
 
-const ROOT = path.join(__dirname, '..');
-const HOOK = path.join(ROOT, 'scripts', 'hooks', 'subagent-stop-quality.sh');
+const HOOK = 'subagent-stop-quality.sh';
 
 // >=120 chars, contains error/failed but no risk/uncertain/recommend/next/because.
 const ERROR_TEXT = 'The migration script encountered an error while trying to '
@@ -34,14 +33,11 @@ function mkTempProjectDir() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ssq-'));
 }
 
-function runHook(payload, extraEnv = {}) {
-  const env = { ...process.env, ...extraEnv };
-  env.DHPK_TEST_HOOK = HOOK;
-  env.DHPK_TEST_PAYLOAD = JSON.stringify(payload);
-  return spawnSync('bash', ['-c', 'printf %s "$DHPK_TEST_PAYLOAD" | bash "$DHPK_TEST_HOOK"'], {
-    encoding: 'utf8',
-    env,
-    timeout: 10000,
+function runHook(payload, extraEnv = {}, deleteEnv = []) {
+  return runHookRaw(HOOK, {
+    payload,
+    env: extraEnv,
+    deleteEnv,
   });
 }
 
@@ -235,17 +231,10 @@ test('unreadable transcript path → silent, no false block', () => {
 test('gate OFF (env unset) → no block even on a thin report', () => {
   const dir = mkTempProjectDir();
   try {
-    const env = { ...process.env, CLAUDE_PROJECT_DIR: dir };
-    delete env.CLAUDE_PLUGIN_OPTION_SUBAGENT_QUALITY_GATE;
-    env.DHPK_TEST_HOOK = HOOK;
-    env.DHPK_TEST_PAYLOAD = JSON.stringify({
-      agent_type: 'dhpk:code-reviewer',
-      last_assistant_message: 'Fixed the bug.',
-    });
-    const res = spawnSync(
-      'bash',
-      ['-c', 'printf %s "$DHPK_TEST_PAYLOAD" | bash "$DHPK_TEST_HOOK"'],
-      { encoding: 'utf8', env, timeout: 10000 },
+    const res = runHook(
+      { agent_type: 'dhpk:code-reviewer', last_assistant_message: 'Fixed the bug.' },
+      { CLAUDE_PROJECT_DIR: dir },
+      ['CLAUDE_PLUGIN_OPTION_SUBAGENT_QUALITY_GATE'],
     );
     assertSilent(res, 'gate off');
   } finally {

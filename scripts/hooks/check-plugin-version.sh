@@ -24,7 +24,8 @@
 
 set -o pipefail
 
-ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+. "$(dirname "$0")/_lib/session-env.sh"
+ROOT="$(dhpk_root)"
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
 PIN_JSON="$ROOT/.claude/dhpk-versions.json"
 DHPK_CACHE="$HOME/.claude/plugins/cache/dhpk/dhpk"

@@ -21,12 +21,13 @@
 
 set -o pipefail
 
+. "$(dirname "$0")/_lib/session-env.sh"
 . "$(dirname "$0")/_lib/load-project-config.sh"
 . "$(dirname "$0")/_lib/payload.sh"
 . "$(dirname "$0")/_lib/learning-db.sh"
 
-ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
-SESS="$ROOT/.claude/artifacts/sessions"
+ROOT="$(dhpk_root)"
+SESS="$(dhpk_sessions_dir "$ROOT")"
 LOG="$ROOT/.claude/artifacts/stop-failures.log"
 PROFILE="${CLAUDE_PLUGIN_OPTION_HOOK_PROFILE:-standard}"
 TIMESTAMP="$(date -Iseconds 2>/dev/null || date +%Y-%m-%dT%H:%M:%S%z)"
@@ -46,7 +47,7 @@ else
 fi
 
 # Try to capture supplemental fields from stdin payload.
-PAYLOAD="$(cat 2>/dev/null || true)"
+PAYLOAD="$(dhpk_read_payload)"
 extra=""
 if [ -n "$PAYLOAD" ]; then
     if command -v jq >/dev/null 2>&1; then

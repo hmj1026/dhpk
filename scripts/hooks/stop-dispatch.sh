@@ -21,9 +21,10 @@
 
 set -o pipefail
 
-payload="$(cat 2>/dev/null || true)"
-
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
+
+. "$PLUGIN_ROOT/scripts/hooks/_lib/session-env.sh"
+payload="$(dhpk_read_payload)"
 
 # Overlay project pluginConfigs so module selection respects per-project
 # .claude/settings.local.json (Claude Code only injects global pluginConfigs).
@@ -33,8 +34,8 @@ PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
 
 : "${DHPK_ACTIVE_MODULES:=${CLAUDE_PLUGIN_OPTION_MODULES:-}}"
 
-SESS="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}/.claude/artifacts/sessions"
-FINDINGS="$SESS/.module-findings"
+SESS="$(dhpk_sessions_dir)"
+FINDINGS="$SESS/$DHPK_SIDECAR_MODULE_FINDINGS"
 PROFILE="${CLAUDE_PLUGIN_OPTION_HOOK_PROFILE:-standard}"
 
 if [ -n "${DHPK_ACTIVE_MODULES:-}" ]; then

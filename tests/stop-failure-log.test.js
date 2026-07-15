@@ -8,20 +8,18 @@
 //   - Always exits 0.
 
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
+const {
+  mkRepo: mkRepoRaw,
+  sessionsDir: sessDir,
+  runHook: runHookRaw,
+} = require('./_lib/hookharness');
 
-const ROOT = path.join(__dirname, '..');
-const HOOK = path.join(ROOT, 'scripts', 'hooks', 'stop-failure-log.sh');
+const HOOK = 'stop-failure-log.sh';
 
 function mkRepo() {
-  return fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-sfl-')));
-}
-
-function sessDir(repo) {
-  return path.join(repo, '.claude', 'artifacts', 'sessions');
+  return mkRepoRaw({ prefix: 'dhpk-sfl-' });
 }
 
 function logPath(repo) {
@@ -29,14 +27,11 @@ function logPath(repo) {
 }
 
 function runHook(repo, payloadObj, extraEnv = {}) {
-  const env = { ...process.env, CLAUDE_PROJECT_DIR: repo, ...extraEnv };
-  env.DHPK_TEST_HOOK = HOOK;
-  env.DHPK_TEST_PAYLOAD = JSON.stringify(payloadObj || {});
-  return spawnSync('bash', ['-c', 'printf %s "$DHPK_TEST_PAYLOAD" | bash "$DHPK_TEST_HOOK"'], {
+  return runHookRaw(HOOK, {
+    payload: payloadObj || {},
     cwd: repo,
-    env,
-    encoding: 'utf8',
-    timeout: 10000,
+    projectDir: repo,
+    env: extraEnv,
   });
 }
 

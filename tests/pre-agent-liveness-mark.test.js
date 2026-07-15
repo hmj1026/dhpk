@@ -1,20 +1,14 @@
 'use strict';
 
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
+const { mkRepo, sessionsDir: sessDir, runHook: runHookRaw } = require('./_lib/hookharness');
 
-const ROOT = path.join(__dirname, '..');
-const HOOK = path.join(ROOT, 'scripts', 'hooks', 'pre-agent-liveness-mark.sh');
+const HOOK = 'pre-agent-liveness-mark.sh';
 
 function mkTempRepo() {
-  return fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-agent-live-')));
-}
-
-function sessDir(repo) {
-  return path.join(repo, '.claude', 'artifacts', 'sessions');
+  return mkRepo({ prefix: 'dhpk-agent-live-' });
 }
 
 function markerLines(repo, name) {
@@ -24,16 +18,11 @@ function markerLines(repo, name) {
 }
 
 function runHook(repo, payload) {
-  const env = { ...process.env };
-  delete env.CLAUDE_PLUGIN_OPTION_REVIEW_AGENTS;
-  env.CLAUDE_PROJECT_DIR = repo;
-  env.DHPK_TEST_HOOK = HOOK;
-  env.DHPK_TEST_PAYLOAD = JSON.stringify(payload);
-  return spawnSync('bash', ['-c', 'printf %s "$DHPK_TEST_PAYLOAD" | bash "$DHPK_TEST_HOOK"'], {
+  return runHookRaw(HOOK, {
+    payload,
     cwd: repo,
-    env,
-    encoding: 'utf8',
-    timeout: 10000,
+    projectDir: repo,
+    deleteEnv: ['CLAUDE_PLUGIN_OPTION_REVIEW_AGENTS'],
   });
 }
 

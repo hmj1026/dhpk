@@ -1,53 +1,21 @@
 'use strict';
 
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
+const { ROOT, mkRepo, rmRepo, sessionsDir, runHook: runHookRaw } = require('./_lib/hookharness');
 
-const ROOT = path.join(__dirname, '..');
-const HOOK = path.join(ROOT, 'scripts', 'hooks', 'stop-review-reminder.sh');
+const HOOK = 'stop-review-reminder.sh';
 
-function repo() {
-  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-hook-budget-')));
-  spawnSync('git', ['init', '-q'], { cwd: dir });
-  return dir;
-}
-
-function session(dir) {
-  return path.join(dir, '.claude', 'artifacts', 'sessions');
-}
+const repo = () => mkRepo({ prefix: 'dhpk-hook-budget-' });
+const session = sessionsDir;
 
 function runHook(dir, payload = {}) {
-  const env = {
-    ...process.env,
-    CLAUDE_PLUGIN_ROOT: ROOT,
-    CLAUDE_PLUGIN_OPTION_HOOK_PROFILE: 'standard',
-    DHPK_TEST_HOOK: HOOK,
-    DHPK_TEST_PAYLOAD: JSON.stringify(payload),
-  };
-  return spawnSync('bash', ['-c', 'printf %s "$DHPK_TEST_PAYLOAD" | bash "$DHPK_TEST_HOOK"'], {
-    cwd: dir,
-    env,
-    encoding: 'utf8',
-  });
+  return runHookRaw(HOOK, { cwd: dir, payload });
 }
 
 function runHookWithEnv(dir, payload, overrides) {
-  const env = {
-    ...process.env,
-    CLAUDE_PLUGIN_ROOT: ROOT,
-    CLAUDE_PLUGIN_OPTION_HOOK_PROFILE: 'standard',
-    DHPK_TEST_HOOK: HOOK,
-    DHPK_TEST_PAYLOAD: JSON.stringify(payload),
-    ...overrides,
-  };
-  return spawnSync('bash', ['-c', 'printf %s "$DHPK_TEST_PAYLOAD" | bash "$DHPK_TEST_HOOK"'], {
-    cwd: dir,
-    env,
-    encoding: 'utf8',
-  });
+  return runHookRaw(HOOK, { cwd: dir, payload, env: overrides });
 }
 
 test('unchanged pending state is debounced across Stop turns and state changes re-notify', () => {
@@ -64,7 +32,7 @@ test('unchanged pending state is debounced across Stop turns and state changes r
     const changed = runHook(dir, { session_id: 'budget', stop_hook_active: false });
     assert.strictEqual(changed.status, 2, `changed sentinel did not re-notify:\n${changed.stderr}`);
   } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
+    rmRepo(dir);
   }
 });
 
@@ -89,7 +57,7 @@ test('unchanged pending state re-notifies after the configured backoff expires',
     assert.strictEqual(first.status, 2, first.stderr);
     assert.strictEqual(expired.status, 2, `expired reminder did not re-notify:\n${expired.stderr}`);
   } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
+    rmRepo(dir);
   }
 });
 

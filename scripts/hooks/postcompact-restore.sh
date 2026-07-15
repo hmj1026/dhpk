@@ -23,12 +23,13 @@
 
 set -o pipefail
 
+. "$(dirname "$0")/_lib/session-env.sh"
 . "$(dirname "$0")/_lib/load-project-config.sh"
 . "$(dirname "$0")/_lib/payload.sh"
 . "$(dirname "$0")/_lib/json-out.sh"
 
-ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
-SESS="$ROOT/.claude/artifacts/sessions"
+ROOT="$(dhpk_root)"
+SESS="$(dhpk_sessions_dir "$ROOT")"
 CKPT_DIR="$ROOT/.claude/artifacts/checkpoints"
 CKPT="$CKPT_DIR/latest.json"
 PROFILE="${CLAUDE_PLUGIN_OPTION_HOOK_PROFILE:-standard}"

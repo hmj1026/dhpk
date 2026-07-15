@@ -20,11 +20,12 @@
 
 set -o pipefail
 
+. "$(dirname "$0")/_lib/session-env.sh"
 . "$(dirname "$0")/_lib/payload.sh"
 . "$(dirname "$0")/_lib/transcript.sh"
 . "$(dirname "$0")/_lib/json-out.sh"
 
-ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
+ROOT="$(dhpk_root)"
 . "$(dirname "$0")/_lib/load-project-config.sh" 2>/dev/null || true
 
 # Opt-in gate (env override > userConfig > default off).
@@ -39,8 +40,8 @@ esac
 PROFILE="${CLAUDE_PLUGIN_OPTION_HOOK_PROFILE:-standard}"
 [ "$PROFILE" = "minimal" ] && exit 0
 
-SESS="$ROOT/.claude/artifacts/sessions"
-PAYLOAD="$(cat 2>/dev/null || true)"
+SESS="$(dhpk_sessions_dir "$ROOT")"
+PAYLOAD="$(dhpk_read_payload)"
 
 # transcript path extraction lives in _lib/transcript.sh (shared with
 # stop-graduation-scan.sh).

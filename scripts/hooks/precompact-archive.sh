@@ -27,17 +27,18 @@
 
 set -o pipefail
 
+. "$(dirname "$0")/_lib/session-env.sh"
 . "$(dirname "$0")/_lib/load-project-config.sh"
 . "$(dirname "$0")/_lib/payload.sh"
 
-ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
-SESS="$ROOT/.claude/artifacts/sessions"
+ROOT="$(dhpk_root)"
+SESS="$(dhpk_sessions_dir "$ROOT")"
 CKPT_DIR="$ROOT/.claude/artifacts/checkpoints"
 PROFILE="${CLAUDE_PLUGIN_OPTION_HOOK_PROFILE:-standard}"
 
 mkdir -p "$CKPT_DIR" 2>/dev/null || true
 
-PAYLOAD="$(cat 2>/dev/null || true)"
+PAYLOAD="$(dhpk_read_payload)"
 
 # Session id extraction — multiple payload shapes across Claude Code versions.
 SID=""

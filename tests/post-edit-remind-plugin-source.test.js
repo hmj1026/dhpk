@@ -8,19 +8,14 @@
 // (no marker) is unchanged; .claude/artifacts/** stays exempt.
 
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
+const { mkRepo: mkRepoRaw, runHook: runHookRaw } = require('./_lib/hookharness');
 
-const ROOT = path.join(__dirname, '..');
-const HOOK = path.join(ROOT, 'scripts', 'hooks', 'post-edit-remind.sh');
+const HOOK = 'post-edit-remind.sh';
 
 function mkTempRepo({ pluginSource } = {}) {
-  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-plugsrc-')));
-  spawnSync('git', ['init', '-q'], { cwd: dir });
-  spawnSync('git', ['config', 'user.email', 'test@example.com'], { cwd: dir });
-  spawnSync('git', ['config', 'user.name', 'Test'], { cwd: dir });
+  const dir = mkRepoRaw({ prefix: 'dhpk-plugsrc-', gitConfig: true });
   if (pluginSource) {
     fs.mkdirSync(path.join(dir, '.claude-plugin'), { recursive: true });
     fs.writeFileSync(path.join(dir, '.claude-plugin', 'plugin.json'), '{"name":"testplugin"}\n');
@@ -29,15 +24,10 @@ function mkTempRepo({ pluginSource } = {}) {
 }
 
 function runHook(cwd, filePath) {
-  const env = { ...process.env };
-  delete env.DHPK_ACTIVE_MODULES;
-  env.DHPK_TEST_HOOK = HOOK;
-  env.DHPK_TEST_PAYLOAD = JSON.stringify({ tool_input: { file_path: filePath } });
-  return spawnSync('bash', ['-c', 'printf %s "$DHPK_TEST_PAYLOAD" | bash "$DHPK_TEST_HOOK"'], {
+  return runHookRaw(HOOK, {
+    payload: { tool_input: { file_path: filePath } },
     cwd,
-    env,
-    encoding: 'utf8',
-    timeout: 10000,
+    deleteEnv: ['DHPK_ACTIVE_MODULES'],
   });
 }
 

@@ -52,9 +52,6 @@ jobs:
     name: Markdown lint
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    # Non-blocking for now: surfaces findings without failing the build while
-    # the 400+ existing docs are brought into compliance incrementally.
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v7
       - name: markdownlint
