@@ -14,10 +14,11 @@
 
 set -o pipefail
 
+. "$(dirname "$0")/_lib/session-env.sh"
 . "$(dirname "$0")/_lib/payload.sh"
 
-ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-PAYLOAD="$(cat 2>/dev/null || true)"
+ROOT="$(dhpk_root)"
+PAYLOAD="$(dhpk_read_payload)"
 FILE_PATH="$(extract_tool_input file_path "$PAYLOAD")"
 # Some tool payload variants carry camelCase keys — fall back before giving up.
 [ -z "$FILE_PATH" ] && FILE_PATH="$(extract_tool_input filePath "$PAYLOAD")"
@@ -38,7 +39,7 @@ case "$REL" in
     .claude/artifacts/*) exit 0 ;;
 esac
 
-ARTIFACTS="$ROOT/.claude/artifacts/sessions"
+ARTIFACTS="$(dhpk_sessions_dir "$ROOT")"
 mkdir -p "$ARTIFACTS"
 
 # Provenance (D4.3): originating OpenSpec change slug (if this edit is inside an
