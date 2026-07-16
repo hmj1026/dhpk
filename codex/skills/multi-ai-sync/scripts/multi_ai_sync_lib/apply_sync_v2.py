@@ -5,6 +5,7 @@ import json
 import os
 import re
 import shutil
+import tempfile
 
 from .agent_sync import SYNC_MANIFEST_PATH, build_agent_sync_bundle, build_agent_sync_manifest
 from .constants import STATUS_ADAPT
@@ -519,27 +520,45 @@ def run_self_tests(repo_root):
             "assert_parseable": True,
         },
     ]
-    for case in agent_cases:
-        try:
-            bundle = build_agent_sync_bundle(repo_root, case["role"], "self-test-run")
-            ok = bool(bundle)
-            if case.get("assert_parseable"):
-                parsed = _load_toml_from_string(bundle["draft_toml_content"])
-                ok = ok and parsed.get("developer_instructions", "").startswith("Role: ")
-            if case["name"] == "agent-manifest-build":
-                manifest = build_agent_sync_manifest(repo_root, "self-test-run", [bundle])
-                ok = ok and bool(manifest)
-            results.append({
-                "name": case["name"],
-                "status": "pass" if ok else "fail",
-                "reason": "" if ok else "agent sync payload is empty",
-            })
-        except Exception as exc:
-            results.append({
-                "name": case["name"],
-                "status": "fail",
-                "reason": str(exc),
-            })
+    # Agent conversion tests are converter fixtures, not consumer-repository
+    # discovery tests. Build the four minimal Claude source agents in a
+    # short-lived directory so `self-test` passes in a clean repo and never
+    # writes to the caller's working tree. Codex-native role differences remain
+    # covered by the production manifest/validation path.
+    with tempfile.TemporaryDirectory(prefix="multi-ai-sync-self-test-") as fixture_root:
+        agents_root = os.path.join(fixture_root, ".claude", "agents")
+        codex_agents_root = os.path.join(fixture_root, ".codex", "agents")
+        os.makedirs(agents_root)
+        os.makedirs(codex_agents_root)
+        for case in agent_cases:
+            role = case["role"]
+            source_path = os.path.join(agents_root, "%s.md" % role)
+            with open(source_path, "w", encoding="utf-8") as fh:
+                fh.write("---\nname: %s\ndescription: self-test fixture\n---\nSample role guidance.\n" % role)
+            with open(os.path.join(codex_agents_root, "%s.toml" % role), "w", encoding="utf-8") as fh:
+                fh.write('model = "gpt-5.3-codex"\nmodel_reasoning_effort = "medium"\n')
+
+        for case in agent_cases:
+            try:
+                bundle = build_agent_sync_bundle(fixture_root, case["role"], "self-test-run")
+                ok = bool(bundle)
+                if case.get("assert_parseable"):
+                    parsed = _load_toml_from_string(bundle["draft_toml_content"])
+                    ok = ok and parsed.get("developer_instructions", "").startswith("Role: ")
+                if case["name"] == "agent-manifest-build":
+                    manifest = build_agent_sync_manifest(fixture_root, "self-test-run", [bundle])
+                    ok = ok and bool(manifest)
+                results.append({
+                    "name": case["name"],
+                    "status": "pass" if ok else "fail",
+                    "reason": "" if ok else "agent sync payload is empty",
+                })
+            except Exception as exc:
+                results.append({
+                    "name": case["name"],
+                    "status": "fail",
+                    "reason": str(exc),
+                })
 
     passed = len([r for r in results if r["status"] == "pass"])
     failed = len(results) - passed
