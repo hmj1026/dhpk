@@ -49,7 +49,12 @@ Core / review / modules separation is documented in README and enforced via `use
 
 ### D3 — Hook parameterisation via `_lib/payload.sh` reading exported `userConfig` env vars
 
-`_lib/payload.sh` defines `SENTINEL_NAMES` (fixed), `SENTINEL_LABELS` (fixed), `SENTINEL_AGENTS` (from `CLAUDE_PLUGIN_OPTION_REVIEW_AGENTS` with three-element default). Sentinel file names stay hardcoded (state-file names); only agent names vary per project.
+The original bootstrap shipped three reviewer slots. The maintained contract now
+defines seven fixed slots in `_lib/payload.sh`: code, database, security,
+frontend, documentation, polyfill, and migration. `SENTINEL_NAMES` and
+`SENTINEL_LABELS` remain fixed state identifiers; `SENTINEL_AGENTS` is resolved
+from `CLAUDE_PLUGIN_OPTION_REVIEW_AGENTS` with seven shipped defaults. Agent names
+may vary per project, but sentinel filenames and slot order do not.
 
 ### D4 — Genericise agent names by stripping `-zdpos_dev` suffix
 
@@ -57,7 +62,14 @@ Plugin ships agents under generic role names. Projects override via `userConfig.
 
 ### D5 — Hook trigger paths: file-extension defaults + module triggers + project extras
 
-`post-edit-remind.sh` matches on language-agnostic extensions by default; module `triggers:` (in each module's `module.yaml`) add per-stack paths; `userConfig.review_trigger_extra_paths` adds slot-prefixed (`code:`, `db:`, `sec:`) entries.
+`post-edit-remind.sh` matches language-agnostic code/database/security/document
+paths by default; module `triggers:` add per-stack paths; and
+`userConfig.review_trigger_extra_paths` accepts slot-prefixed `code:`, `db:`,
+`sec:`, `fe:`, `doc:`, and `mig:` entries. Polyfill is contributed by the
+`library-author` module. Sentinel path appends are idempotent. The mandatory
+pending-review advisory is emitted only when the armed sentinel-set signature
+changes; repeated edits do not repeat it, and no-trigger skip output is visible
+only with `DHPK_DEBUG=1`.
 
 ### D6 — Codex dual-track via separate `codex/` tree + sync script
 

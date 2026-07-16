@@ -30,21 +30,21 @@ The manifest SHALL define a `userConfig` block with these keys, in this exact sh
 | Key | Type | Default | Purpose |
 |-----|------|---------|---------|
 | `hook_profile` | string | `"standard"` | One of `minimal | standard | strict`; controls hook verbosity |
-| `review_agents` | string (multiple) | `["code-reviewer", "database-reviewer", "security-reviewer"]` | Three-element list of agent names invoked by sentinel reminders |
+| `review_agents` | string (multiple) | `["code-reviewer", "database-reviewer", "security-reviewer", "frontend-reviewer", "doc-reviewer", "polyfill-reviewer", "migration-reviewer"]` | Seven slot-ordered agent names invoked by sentinel reminders; short overrides are padded from these defaults |
 | `docker_containers` | string (multiple) | `[]` | Container names checked at SessionStart; empty list disables the check |
 | `modules` | string (multiple) | `[]` | Activates per-stack-version modules from `modules/<name>/`; ships: `php-5.6`, `yii-1.1`, `phpunit-5.7`. See `modules-architecture` spec. |
-| `review_trigger_extra_paths` | string (multiple) | `[]` | Extra path prefixes for review triggers, each entry prefixed `code:` / `db:` / `sec:` |
+| `review_trigger_extra_paths` | string (multiple) | `[]` | Extra path prefixes for review triggers, each entry prefixed `code:` / `db:` / `sec:` / `fe:` / `doc:` / `mig:` |
 
 #### Scenario: Defaults apply when user provides nothing
 
 - **WHEN** a project installs the plugin without specifying any `--config`
-- **THEN** the three default review agent names are exported into hook scripts and `docker_containers` is empty so the docker check is skipped
+- **THEN** the seven default review agent names are exported into hook scripts and `docker_containers` is empty so the docker check is skipped
 
 #### Scenario: User override propagates to hook subprocesses
 
 - **WHEN** the plugin is installed with `--config review_agents=code-reviewer-myproj,db-reviewer-myproj,sec-reviewer-myproj`
 - **THEN** `CLAUDE_PLUGIN_OPTION_REVIEW_AGENTS=code-reviewer-myproj,db-reviewer-myproj,sec-reviewer-myproj` is exported to hook script subprocesses
-- **AND** the stop-review reminder names those agents in its output
+- **AND** the three supplied names occupy the first slots, the remaining four slots are padded from shipped defaults, and the stop-review reminder names the applicable agents in its output
 
 ### Requirement: Manifest declares explicit module skills paths
 
