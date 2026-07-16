@@ -36,9 +36,9 @@ Single source of truth for the six change types, their flow, and whether to ask 
 
 Agents run via the `Agent` tool (`subagent_type=<name>`), not via skill names.
 
-| Agent | Runs when | Gate order |
+| Agent | Runs when | Review role |
 |---|---|---|
-| `tdd-guide` | Feature / bugfix, **before** writing implementation | 1 |
+| `tdd-guide` | RED / test-first specialist; GREEN stays inline only within its ≤2-production-file bound | specialist |
 | `architect` | Cross-module or DDD-layer design | — |
 | `deep-reasoner` | Reasoning-heavy implement-phase work (root cause, algorithm design, complex debugging) — see §Implementation dispatch | — |
 | `fast-worker` | Mechanical implement-phase work with a clear spec — see §Implementation dispatch | — |
@@ -46,16 +46,16 @@ Agents run via the `Agent` tool (`subagent_type=<name>`), not via skill names.
 | `agy-fast-worker` | Selected by `fast_worker_backend=agy` or an available `auto` candidate — a `fast-worker` whose edits run on the agy CLI backend; see §Implementation dispatch | — |
 | `codex-bridge` | **CODEX=on only** — outsource a self-contained clear-spec task, or a blind second opinion, to gpt-5.5 via the Codex CLI (`codex exec`); output isolated in the subagent, relayed verbatim — see §Implementation dispatch | — |
 | `e2e-runner` | RED / E2E user-journey work — author a Playwright spec, reason about how to seed fixtures, and run it against a live server; not a PHPUnit runner — see §Implementation dispatch | — |
-| `database-reviewer` | SQL / Repository / migration (SQL correctness) — sentinel `.pending-db-review` or back-stop | 2 |
-| `migration-reviewer` | Migration files (up/down symmetry, FK naming, large ALTER, multi-tenant deploy) — sentinel `.pending-migration-review` (one of the 7-slot default `review_agents` chain since v0.10.0; the sentinel *trigger* itself stays opt-in via `module.yaml` `migration:` triggers or `review_trigger_extra_paths` `mig:` — see the sentinel table below) | — |
-| `security-reviewer` | Auth / crypto / money / file upload — sentinel `.pending-security-review` or back-stop | 3 |
+| `database-reviewer` | SQL / Repository / migration (SQL correctness) — sentinel `.pending-db-review` or back-stop | consolidated wave |
+| `migration-reviewer` | Migration files (up/down symmetry, FK naming, large ALTER, multi-tenant deploy) — sentinel `.pending-migration-review` (one of the 7-slot default `review_agents` chain since v0.10.0; the sentinel *trigger* itself stays opt-in via `module.yaml` `migration:` triggers or `review_trigger_extra_paths` `mig:` — see the sentinel table below) | consolidated wave |
+| `security-reviewer` | Auth / crypto / money / file upload — sentinel `.pending-security-review` or back-stop | consolidated wave |
 | `performance-analyzer` | Repository methods on high-volume tables — back-stop only | — |
-| `frontend-reviewer` | JS / TS / view-layer JS — sentinel `.pending-frontend-review` or back-stop | — |
-| `polyfill-reviewer` | `.php` edits with a runtime version guard (`version_compare` / `class_exists` / `method_exists` / `InstalledVersions::*`) — sentinel `.pending-polyfill-review` *(library-author module)* | — |
-| `code-reviewer` | **Code final gate** — sentinel `.pending-review` | 4 |
-| `doc-reviewer` | **Doc final gate** — sentinel `.pending-doc-review` | — |
+| `frontend-reviewer` | JS / TS / view-layer JS — sentinel `.pending-frontend-review` or back-stop | consolidated wave |
+| `polyfill-reviewer` | `.php` edits with a runtime version guard (`version_compare` / `class_exists` / `method_exists` / `InstalledVersions::*`) — sentinel `.pending-polyfill-review` *(library-author module)* | consolidated wave |
+| `code-reviewer` | Code review — sentinel `.pending-review` | consolidated wave |
+| `doc-reviewer` | Documentation review — sentinel `.pending-doc-review` | consolidated wave |
 
-`Gate order` (1–4) marks the agents in the mandatory sequential post-edit gate, detailed below under "Post-implementation agent gate (SSOT)"; `—` = not part of that gate (planning-phase, back-stop-only, or a specialist sentinel outside the strict 4-step chain).
+`consolidated wave` means every triggered reviewer is dispatched together once per implementation wave. `specialist` denotes implementation/acceptance ownership rather than an unconditional post-edit reviewer; `—` denotes planning, worker, or back-stop-only roles.
 
 Agent names above are dhpk defaults; override via `userConfig.review_agents` per slot. Projects with prefixed agents (e.g. `code-reviewer-<project>`) configure the override in their `settings.local.json`.
 
@@ -77,10 +77,12 @@ SSOT for implement-phase routing while `userConfig.orchestration_dispatch=on` (d
 |---|---|
 | Reasoning-heavy (unknown root cause, algorithm design, cross-file complex analysis) | `deep-reasoner` |
 | Mechanical with a clear spec (boilerplate, test scaffolds, rename sweeps, multi-file doc-consistency fixes of ≥3 files, applying an already-approved plan) | `fast-worker` |
-| The same mechanical clear-spec work, offloaded to the codex CLI backend — **CODEX=on / codex CLI available** only. Selected by explicit configuration or as an available candidate in configured `auto` order. | `codex-fast-worker` |
+| The same mechanical clear-spec work, offloaded to the codex CLI backend — **codex CLI available**. Selected by an invocation override, explicit configuration, or as an available candidate in configured `auto` order; independent of the separate `CODEX` review-peer switch. | `codex-fast-worker` |
 | The same mechanical clear-spec work, offloaded to the agy CLI backend — **agy CLI available** only. Selected by explicit configuration or as an available candidate in configured `auto` order. | `agy-fast-worker` |
 | Small diff (roughly ≤2 files, unambiguous intent) | Inline in the main loop — no dispatch |
 | Complex implementation (needs both reasoning and mechanical application) | `deep-reasoner` produces the fix spec (conclusion contract) → `fast-worker` applies it |
+| Post-review findings form a clear fix-spec whose whole fix batch exceeds the ≤2-file inline bound | One batched selector-resolved fast-worker dispatch; never measure the bound per finding |
+| Specialist fix-spec handback (`tdd-guide` GREEN footprint >2 files or `e2e-runner` application-bug report) | Selector-resolved fast-worker applies it; acceptance uses the originating specialist's stated scoped verification command or journey |
 | RED / E2E test that must reason about seeding AND run against a live server (Playwright user journeys) — read-only `deep-reasoner` can't run it, mechanical `fast-worker` can't reason about the seeding | `e2e-runner` |
 | RED PHPUnit unit/integration test authored test-first and run against a live DB (Testbench / docker MySQL) — Playwright-scoped `e2e-runner` doesn't fit, read-only `deep-reasoner` can't run it, and `fast-worker`'s "make verification pass" contract conflicts with a deliberately-failing RED test | `tdd-guide` |
 | A read-only, scenario-driven live-runtime probe (drive the real running system with one concrete scenario, observe rather than infer) — distinct from `e2e-runner` (authors/runs Playwright specs, write-capable, web-scoped) and the `feature-verify` skill (main-context, heavyweight P0–P5 scope, not a dispatchable isolated agent) | `dhpk:smoke-tester` |
@@ -105,8 +107,10 @@ authorization, model, task, execution, and verification failures remain
 `RESULT: BLOCKED` on the selected backend and never silently switch semantics.
 Every fast-worker report includes requested backend, selected backend, any
 fallback reason, model/effort, verification result, and the complete edited-file
-list. `CODEX=off` removes codex from availability and an explicit codex request
-is blocked rather than silently downgraded.
+list. Worker-backend selection is independent of the `CODEX` review-peer switch:
+`CODEX=off` disables the `codex-bridge` doubt/review path, but does not remove an
+available `codex-fast-worker` backend. An explicit backend request is blocked only
+by selector availability/fallback rules, never silently downgraded.
 
 **Orchestrator posture**: the main session is the expensive orchestrator; its implement-phase job is **decide → dispatch → verify**, not hand-typing edits. Dispatch to a worker is the **default**; inline (`≤2 files`, measured on the whole implement-step footprint) is a narrow exception; when unsure between inline and a worker, dispatch. `general-purpose` is **prohibited** for implementation while `orchestration_dispatch=on`; `orchestration_dispatch=off` is the full opt-out (inline everywhere). Premise discipline: verify an unverified behavioral premise with the probe that can actually settle it **before** dispatching a write worker — a code/algorithm/data-shape premise with read-only `deep-reasoner`, a runtime/browser/environment behavior premise with `e2e-runner` or a scratch executable probe (read-only `deep-reasoner` cannot execute or observe such behavior); sanity-check a `deep-reasoner` conclusion before `fast-worker` applies it; cross-verify a premise-overturning discovery independently before reframing (per §Multi-AI / dual-perspective independence). `CODEX=on` adds a blind `codex-bridge` parallel peer. Worker dispatch never weakens a gate — the orchestrator verifies the worker's edited-file list + verification line and confirms expected sentinels ran. Wait on background-agent completion notifications for worker results; NEVER bash-poll `.pending-*` sentinels or sleep-loop awaiting agent results. **Plan-brief discipline**: any brief assembled for a dispatched agent — including the `dhpk:planner` plan brief — follows conclusions-not-context, a bounded token budget, and a lookup fence, so downstream skills that build their own briefs for `dhpk:planner` follow the same shape.
 
@@ -143,9 +147,21 @@ Cycle: **CLAIM** (name the decision + why it matters, 2–3 lines) → **EXTRACT
 
 ### Post-implementation agent gate (SSOT)
 
-Every path except Lightweight Maintenance runs the four **Gate order** agents above (`tdd-guide → database-reviewer → security-reviewer → code-reviewer`) in order after the last Edit/Write; each must PASS before the next. This is the canonical gate — `commands/create-dev.md`, `skills/adaptive-dev-workflow/SKILL.md`, and the opsx-apply-goal flow reference it rather than restating.
+After each implementation wave, dispatch every applicable sentinel reviewer as
+**one consolidated parallel batch**. Only triggered lanes run; mixed diffs may
+run code, database, security, frontend, documentation, polyfill, and migration
+reviewers together. `tdd-guide` and `e2e-runner` are implementation specialists,
+not unconditional post-edit reviewers: invoke them only when the work requires
+their RED or browser-journey ownership contract.
 
-Gate failure → fix → re-run that gate → continue only on PASS. Never skip. (The sentinel machinery below operationalizes gates 2–4; `tdd-guide` has no sentinel — see the AI-judgment back-stop.)
+Actionable findings become one clear fix-spec. If the whole fix batch exceeds the
+≤2-file inline bound, hand it to one selector-resolved fast worker, then run one
+bounded confirm-only re-review naming the findings being checked. Do not start a
+fresh broad review for the same wave or measure the inline bound per finding.
+When the fix originated from `tdd-guide` or `e2e-runner`, acceptance returns to
+that specialist's scoped verification command or originating journey. A new
+implementation wave receives a new consolidated review batch. The prompt/output
+shape is canonicalized in `docs/contracts/reviewer-contract.md`.
 
 ### Hook-enforced (sentinels)
 
@@ -167,7 +183,7 @@ Trigger map source-of-truth: dhpk's `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/post-ed
 
 ### Reviewer dispatch (when multiple sentinels coexist)
 
-At the end of a turn that produced Edits/Writes, gather ALL pending sentinels, then **triage → dispatch in parallel → merge**. A contiguous implementation wave is the review unit: accumulate its scope and dispatch each applicable reviewer once. Apply all known-finding fixes together, then allow at most one confirm-only re-review naming those findings; new substantive scope starts a new review decision. Any CRITICAL blocks the merge/commit; pure research (no Edit/Write) skips all reviewers. Full triage rules + examples: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/review-gate-mechanics.md`.
+At the end of a turn that produced Edits/Writes, gather ALL pending sentinels, then **triage → dispatch ONE consolidated parallel reviewer batch → merge**. A contiguous implementation wave is the review unit: accumulate its scope and dispatch each applicable reviewer once in that single batch. A second round for the same wave requires new substantive scope or an explicit escalation decision; known-finding fixes allow at most one confirm-only re-review naming those findings, while new substantive scope starts a new review decision. `codex-bridge` review is explicit escalation only, never a default extra round, and may run at most once per change. Any CRITICAL blocks the merge/commit; pure research (no Edit/Write) skips all reviewers. Full triage rules + examples: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/review-gate-mechanics.md`.
 
 ### Hook lifecycle classes
 
@@ -217,6 +233,11 @@ Semantically matches but path pattern did not trigger a sentinel → self-trigge
 ## Edit tool discipline
 
 **Edit/Write, not Bash writes.** Repo file edits MUST use the Edit or Write tool, not Bash-based writes (python heredoc, `tee`, shell redirection). A Bash-written file never passes through the `PostToolUse` Edit/Write hooks, so the review sentinel that file type would arm never arms and the file silently skips its mandatory reviewer gate. Use a Bash write only as a last resort (the Edit/Write tools cannot express the operation); whenever you do, self-trigger the review gate that would have applied — dispatch the matching reviewer (or, if the post-edit hook did not fire, manually check for and handle the applicable `.pending-*` sentinel per the AI-judgment back-stop convention above).
+
+**Symlink-safe writes.** Before using Write on an existing target, check whether
+it is a symlink. Resolve it with `realpath <target>` and Write to the resolved
+target; the Write tool refuses symlink paths. Preserve the link itself unless
+the task explicitly requires changing deployment topology.
 
 **CJK / fullwidth edits — copy `old_string` verbatim from Read.** When editing a document containing CJK text or fullwidth punctuation (，（）—— etc.), the Edit tool's `old_string` MUST be copied verbatim from the immediately preceding Read output for that region, never retyped or reconstructed from memory — fullwidth punctuation is visually similar to but distinct from halfwidth ASCII, and a reconstructed `old_string` fails to match silently or hits the wrong occurrence. When a verbatim-copied `old_string` still cannot be matched (non-unique text, tool limitation), fall back to a `python` or `sed` replacement rather than retrying a hand-retyped Edit string.
 

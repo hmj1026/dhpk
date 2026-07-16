@@ -6,6 +6,7 @@ Part 0 branch by `DISPATCH_ON`, the `<CODEX_STATEMENT>` substitution, which Part
 gate lines to emit per detected flags, and the 4,000 UTF-8-byte length guard with its
 should-never-fire hard stop). This file owns the *text*. Copy it out verbatim —
 do not paraphrase; placeholders (`<CHANGE_ID>`, `<CODEX_STATEMENT>`,
+`<FAST_WORKER_CLAUSE>`, `<TASK_DIGEST>`, `<E2E_ROSTER_CLAUSE>`,
 `<TURN_BUDGET>`, `<MAX_DURATION>`) are substituted as noted.
 
 `GOAL_CONDITION` = Part 0 + Part 1 + Part 2 + Part 2b + Part 3 + Part 4, joined
@@ -29,21 +30,20 @@ in `rules/execution-policy.md` and bind the session through the orientation read
 they are NOT restated here. When the policy file is unresolvable, the session
 proceeds on this condition's own inline gates.
 
-The goal-layer roster names the generic mechanical role `dhpk:fast-worker` only;
-CLI backend choice is resolved by the policy-layer selector and is not repeated
-in every generated goal.
+The generator resolves CLI backend choice through the policy selector and
+substitutes a compact `<FAST_WORKER_CLAUSE>` that states the effective backend
+and fallback order in every generated goal.
 
 **`DISPATCH_ON=false`** (`orchestration_dispatch=off`) — no dispatch clause:
 ```
-First run ONE Bash orientation command — `head -40
-openspec/changes/<CHANGE_ID>/tasks.md; p=${CLAUDE_PLUGIN_ROOT:-$(ls -dt
+First run ONE Bash orientation command — `p=${CLAUDE_PLUGIN_ROOT:-$(ls -dt
 ~/.claude/plugins/cache/dhpk/dhpk/* 2>/dev/null | head -1)}; cat
 "$p/rules/execution-policy.md" 2>/dev/null || echo POLICY-UNRESOLVED` — reading
 the dhpk execution-policy into context (on POLICY-UNRESOLVED proceed on this
 goal string's own gates; never filesystem-scan) — then invoke the opsx:apply
 skill for change <CHANGE_ID> and continue implementing
 openspec/changes/<CHANGE_ID>/tasks.md from the first unchecked item without
-stopping for confirmation. That instruction covers ordinary implementation
+stopping for confirmation. Task digest: <TASK_DIGEST>. That instruction covers ordinary implementation
 judgment calls only; it is never an explicit project hard-rule conflict bypass.
 On "Unknown skill", retry once next turn; if it still fails, read
 openspec/changes/<CHANGE_ID>/ (proposal.md, design.md, tasks.md) and implement
@@ -54,20 +54,17 @@ following hold,
 **`DISPATCH_ON=true`** (default) — the same kickoff with the bounded dispatch
 roster appended before the transition into the stop conditions:
 ```
-First run ONE Bash orientation command — `head -40
-openspec/changes/<CHANGE_ID>/tasks.md; p=${CLAUDE_PLUGIN_ROOT:-$(ls -dt
+First run ONE Bash orientation command — `p=${CLAUDE_PLUGIN_ROOT:-$(ls -dt
 ~/.claude/plugins/cache/dhpk/dhpk/* 2>/dev/null | head -1)}; cat
-"$p/rules/execution-policy.md" 2>/dev/null || echo POLICY-UNRESOLVED` — read the
-policy (on POLICY-UNRESOLVED use this goal's gates; never filesystem-scan), invoke
-opsx:apply for <CHANGE_ID>, and continue from the first unchecked task without
-confirmation. Ordinary judgment is allowed; explicit project hard-rule conflicts
-must comply or stop for human exception. On "Unknown skill", retry once next turn,
-then read proposal.md, design.md, and tasks.md and implement under the same gates.
-You are the orchestrator per §Implementation dispatch: clear mechanical work →
-dhpk:fast-worker; reasoning → dhpk:deep-reasoner; RED PHPUnit → dhpk:tdd-guide;
-RED/E2E Playwright → dhpk:e2e-runner; never general-purpose. Inline only a
-≤2-file whole-implement-step plus bookkeeping; ≥3 files → one batched
-fast-worker dispatch. Review once per wave; known-finding re-review is confirm-only.
+"$p/rules/execution-policy.md" 2>/dev/null || echo POLICY-UNRESOLVED` — read policy
+(if unresolved use these gates; never filesystem-scan), invoke opsx:apply
+<CHANGE_ID>, and continue unchecked tasks without confirmation. Tasks: <TASK_DIGEST>.
+On "Unknown skill", retry once, then implement from proposal.md, design.md, tasks.md under
+these gates. You are the orchestrator per §Implementation dispatch: mechanical →
+<FAST_WORKER_CLAUSE>; reasoning → dhpk:deep-reasoner; RED PHPUnit → dhpk:tdd-guide;
+<E2E_ROSTER_CLAUSE>never general-purpose. Inline ≤2-file whole-implement-step
+plus bookkeeping; ≥3 files → one batch. Reviews run as ONE consolidated parallel batch per wave;
+known-finding re-review confirm-only; codex-bridge only as explicit escalation, at most once per change.
 Explicit project hard rules cannot be deferred because a prior design chose a cheaper implementation.
 Never sleep-poll background work; wait on notifications/Monitor.
 <CODEX_STATEMENT>. Continue until all of the following hold,

@@ -12,6 +12,7 @@ positive signal matches AND no negative override matches.
 | `HAS_PYTEST` | `pytest` · `.py` · `tests/test_` · `def test_` | — |
 | `HAS_SWIFT_TEST` | `swift test` · `.swift` · `XCTest` · `XCTestCase` | — |
 | `HAS_OTHER_TEST` | explicit test command in tasks.md (e.g. `go test`, `cargo test`) | — |
+| `HAS_E2E` | `Playwright` · `.spec.js` · `.spec.ts` · `browser-journey` in tasks.md or proposal.md | explicit backend-only/no browser scope |
 
 ## Detection rules
 

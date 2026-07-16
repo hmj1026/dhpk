@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.28.13 — 2026-07-16 — Support fast-worker override and refine opsx goal/review waves
+
+Introduces fast-worker custom override (`--fast-worker=<claude|codex|agy|auto>`), decouples Codex reviews from codex-fast-worker backend availability, refines the implementation policy for parallel reviewer waves, upgrades the `opsx:apply` goal generation and budget control with goal-context JSON, and optimizes the post-edit reminders hook with deduplication.
+
+**feat(opsx)** — Upgrade `opsx:apply` goal generation and budget control, introducing `goal-context.js` for context analysis, a task digest, and conditional E2E composition.
+**refactor(worker)** — Support custom fast-worker overrides downstream and refine availability checks.
+**refactor(rules)** — Tune parallel reviewer waves, consolidate reviewer batches, and introduce symlink-safe writes guidance.
+**fix(remind)** — Optimize post-edit reminders hook with advisory deduplication.
+**fix(version)** — Correct plugin version checking, version diff, and references.
+**docs(agent)** — Update E2E and TDD agent contracts and verification checks.
+
 ## 0.28.12 — 2026-07-16 — Unify hook environment variables and test harnesses
 
 Introduces `session-env.sh` to unify environment variable loading and project root resolution across all hooks, establishes `hookharness.js` to simplify hook execution testing, and refactors all lifecycle hooks and their test suites to use these new frameworks.

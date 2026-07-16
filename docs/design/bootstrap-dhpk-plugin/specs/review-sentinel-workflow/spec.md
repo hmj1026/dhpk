@@ -2,14 +2,17 @@
 
 ### Requirement: hooks.json wires PreToolUse, PostToolUse, SessionStart, and Stop hooks
 
-The plugin SHALL provide `hooks/hooks.json` declaring:
+The original bootstrap used direct script entries. The maintained plugin SHALL
+provide `hooks/hooks.json` declaring the current wrapper-dispatch chain:
 
-- `PreToolUse` matchers: `Edit|Write|MultiEdit` → `pre-edit-guard.sh`; `Bash` → `pre-bash-guard.sh`
-- `PostToolUse` matchers: `Edit|Write|MultiEdit` → `post-edit-remind.sh` (sync) AND `post-write-crlf-fix.sh` (async)
+- `PreToolUse` matchers: `Edit|Write|MultiEdit` → `pre-edit-guard.sh`; `Bash` → the pre-bash dispatcher/gates
+- `PostToolUse` matchers: `Edit|Write|MultiEdit` → `post-edit-dispatch.sh`, which runs `post-edit-remind.sh` synchronously before module hooks; independent async advisories remain separately wired
 - `SessionStart` → `session-start.sh`
-- `Stop` → `stop-review-reminder.sh`
+- `Stop` → the review reminder and stop-dispatch chain
 
-All command paths SHALL use the form `"${CLAUDE_PLUGIN_ROOT}"/scripts/hooks/<name>.sh` (quoted to handle spaces).
+Each hook SHALL use structured command wiring: `command: "bash"` with
+`args: ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/<name>.sh"]`, so plugin-root paths
+containing spaces remain one argument.
 
 #### Scenario: Hooks register on enable
 
@@ -19,21 +22,36 @@ All command paths SHALL use the form `"${CLAUDE_PLUGIN_ROOT}"/scripts/hooks/<nam
 #### Scenario: Edit fires PostToolUse chain
 
 - **WHEN** an Edit tool call modifies a `.php` file in a project with the plugin enabled
-- **THEN** `post-edit-remind.sh` runs synchronously AND `post-write-crlf-fix.sh` runs asynchronously
+- **THEN** `post-edit-dispatch.sh` runs `post-edit-remind.sh` synchronously before any background module hook, while separately wired async advisories may run independently
 
 ### Requirement: post-edit-remind.sh writes sentinels based on file-extension triggers
 
-`post-edit-remind.sh` SHALL inspect the edited file path and write at least one sentinel file under `.claude/artifacts/sessions/` when the file matches a reviewer's trigger pattern. Default triggers:
+`post-edit-remind.sh` SHALL inspect the edited file path and write applicable
+sentinel files under `.claude/artifacts/sessions/` when it matches a reviewer's
+trigger pattern. The maintained slot set is:
 
-- **code-reviewer** (slot 0, sentinel `.pending-review`): files matching `*.php`, `*.js`, `*.ts`, `*.py`, `*.rb`, `*.go`, `*.rs`, `*.java`; OR files under `.claude/{agents,rules,commands,hooks,scripts,skills,manifests}/` matching `*.md|*.sh|*.json|*.yml|*.yaml`; OR any `CLAUDE.md`
-- **database-reviewer** (slot 1, sentinel `.pending-db-review`): files matching `*.sql`; OR files under `**/migrations/**` matching `*.php`
-- **security-reviewer** (slot 2, sentinel `.pending-security-review`): files matching `*Auth*`, `*Login*`, `*Acl*`, `*Upload*`, `*File*` (regardless of extension)
+- **code-reviewer** (slot 0, `.pending-review`): common source extensions and harness code/config artifacts
+- **database-reviewer** (slot 1, `.pending-db-review`): SQL and migration source
+- **security-reviewer** (slot 2, `.pending-security-review`): auth/login/ACL/upload/file source paths
+- **frontend-reviewer** (slot 3, `.pending-frontend-review`): module or `fe:` opt-in triggers
+- **doc-reviewer** (slot 4, `.pending-doc-review`): maintained harness, OpenSpec, `docs/`, and repository-level instruction Markdown
+- **polyfill-reviewer** (slot 5, `.pending-polyfill-review`): `library-author` module triggers
+- **migration-reviewer** (slot 6, `.pending-migration-review`): module or `mig:` opt-in triggers
 
-The script SHALL also merge triggers from each active module (see `modules-architecture` spec): for each module name in `DHPK_ACTIVE_MODULES`, load `${CLAUDE_PLUGIN_ROOT}/modules/<name>/module.yaml` and apply its `triggers.{code,db,sec}.{extensions,paths}` entries.
+The script SHALL also merge triggers from each active module (see
+`modules-architecture` spec), including the maintained aliases for frontend,
+documentation, polyfill, and migration slots.
 
-The script SHALL append additional path-prefix triggers from `CLAUDE_PLUGIN_OPTION_REVIEW_TRIGGER_EXTRA_PATHS` (entries shaped `<slot>:<prefix>` where slot ∈ `code`, `db`, `sec`).
+The script SHALL append path-prefix triggers from
+`CLAUDE_PLUGIN_OPTION_REVIEW_TRIGGER_EXTRA_PATHS` using `code`, `db`, `sec`,
+`fe`, `doc`, or `mig` prefixes.
 
 Order of trigger evaluation (any match writes the sentinel): file-extension defaults → active-module triggers → user extra-paths.
+
+Sentinel appends SHALL be idempotent per path. The hook SHALL persist the armed
+sentinel-set signature in `.advisory-state` and print the mandatory pending-review
+advisory only when that set changes. A no-trigger skip SHALL be silent unless
+`DHPK_DEBUG=1`.
 
 #### Scenario: Edit to a PHP file writes code-review sentinel
 
@@ -71,7 +89,10 @@ Order of trigger evaluation (any match writes the sentinel): file-extension defa
 
 ### Requirement: stop-review-reminder.sh blocks Stop when pending sentinels exist
 
-`stop-review-reminder.sh` SHALL scan the three sentinel files and, if any exist, write a reminder to stderr listing each pending sentinel, the configured agent name responsible, sample triggering files, and the manual-clear command — then exit 2 (Claude Code's "block stop, feed stderr to next turn" semantic).
+`stop-review-reminder.sh` SHALL scan all seven sentinel files and, if any exist,
+write a reminder to stderr listing each pending sentinel, the configured agent
+responsible, sample triggering files, and the manual-clear command — then exit 2
+(Claude Code's "block stop, feed stderr to next turn" semantic).
 
 When `CLAUDE_PLUGIN_OPTION_HOOK_PROFILE=minimal`, the script SHALL suppress reminders and exit 0.
 
@@ -112,9 +133,12 @@ Additionally, `session-start.sh` SHALL parse `CLAUDE_PLUGIN_OPTION_MODULES`, val
 - **WHEN** an Edit attempts to modify `.env`
 - **THEN** the hook exits 2 and prints a stderr message naming the protected path
 
-### Requirement: post-write-crlf-fix.sh normalises shell-script line endings
+### Requirement: post-edit-advisory.sh normalises shell-script line endings
 
-`post-write-crlf-fix.sh` SHALL run after Write tool calls and, when the written file is a `.sh` file containing CRLF line endings, rewrite it in place with LF endings. Runs async.
+`post-edit-advisory.sh` SHALL run asynchronously after Edit/Write/MultiEdit calls
+and, when the edited file is a `.sh` file containing CRLF line endings, rewrite
+it in place with LF endings. This merged advisory hook also owns root-manifest
+lockfile reminders; it is independent of synchronous sentinel routing.
 
 #### Scenario: CRLF in .sh file gets fixed
 
@@ -125,9 +149,12 @@ Additionally, `session-start.sh` SHALL parse `CLAUDE_PLUGIN_OPTION_MODULES`, val
 
 `scripts/hooks/_lib/payload.sh` SHALL:
 
-- Define `SENTINEL_NAMES=(".pending-review" ".pending-db-review" ".pending-security-review")` (fixed)
-- Define `SENTINEL_AGENTS=(...)` initialised from `CLAUDE_PLUGIN_OPTION_REVIEW_AGENTS` (comma-split) with the three-element default fallback
-- Define `SENTINEL_LABELS=("code-reviewer" "database-reviewer" "security-reviewer")` (fixed short labels)
+- Define the seven fixed sentinel names in slot order: review, database,
+  security, frontend, documentation, polyfill, migration
+- Define `SENTINEL_AGENTS=(...)` initialised from
+  `CLAUDE_PLUGIN_OPTION_REVIEW_AGENTS` (comma-split), padding a short override
+  from the seven shipped defaults
+- Define seven fixed short labels in the same slot order
 - Expose `extract_tool_input <field> "<payload>"` helper using `jq` with `python3` fallback (no hard dependency on either alone)
 
 The file SHALL be source-only and SHALL NOT execute side effects when sourced.
@@ -135,9 +162,11 @@ The file SHALL be source-only and SHALL NOT execute side effects when sourced.
 #### Scenario: Default agents used when env unset
 
 - **WHEN** `payload.sh` is sourced with `CLAUDE_PLUGIN_OPTION_REVIEW_AGENTS` unset
-- **THEN** `${SENTINEL_AGENTS[*]}` equals `code-reviewer database-reviewer security-reviewer`
+- **THEN** `${SENTINEL_AGENTS[*]}` equals the seven shipped reviewer names in
+  code/database/security/frontend/documentation/polyfill/migration slot order
 
 #### Scenario: Override via env propagates
 
 - **WHEN** `payload.sh` is sourced with `CLAUDE_PLUGIN_OPTION_REVIEW_AGENTS=a,b,c`
-- **THEN** `${SENTINEL_AGENTS[*]}` equals `a b c`
+- **THEN** `${SENTINEL_AGENTS[*]}` equals
+  `a b c frontend-reviewer doc-reviewer polyfill-reviewer migration-reviewer`

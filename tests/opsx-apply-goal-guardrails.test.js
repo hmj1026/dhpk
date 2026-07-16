@@ -82,9 +82,16 @@ test('relocated dispatch elaborations exist in execution-policy, not the emitted
 
 test('emitted Part 0 carries the compact directive inline survivors', () => {
   assert.ok(dispatchPart0.includes('You are the orchestrator'), 'missing orchestrator naming');
-  for (const role of ['dhpk:fast-worker', 'dhpk:deep-reasoner', 'dhpk:tdd-guide', 'dhpk:e2e-runner']) {
+  for (const role of ['<FAST_WORKER_CLAUSE>', 'dhpk:deep-reasoner', 'dhpk:tdd-guide', '<E2E_ROSTER_CLAUSE>']) {
     assert.ok(dispatchPart0.includes(role), `missing roster role: ${role}`);
   }
+  assert.ok(dispatchPart0.includes('<TASK_DIGEST>'), 'missing bounded task digest placeholder');
+  assert.ok(!dispatchPart0.includes('head -40 openspec/changes/<CHANGE_ID>/tasks.md'),
+    'kickoff must not duplicate the tasks.md orientation read');
+  assert.ok(dispatchPart0.includes('ONE consolidated parallel batch per wave'),
+    'missing consolidated reviewer-wave contract');
+  assert.ok(dispatchPart0.includes('codex-bridge only as explicit escalation, at most once per change'),
+    'missing codex-bridge escalation bound');
   assert.ok(/never\s+general-purpose/.test(dispatchPart0), 'missing never-general-purpose rule');
   assert.ok(dispatchPart0.includes('≤2-file whole-implement-step'), 'missing inline footprint bound');
   assert.ok(dispatchPart0.includes('bookkeeping'), 'missing orchestrator bookkeeping carve-out');
@@ -92,6 +99,40 @@ test('emitted Part 0 carries the compact directive inline survivors', () => {
   assert.ok(dispatchPart0.includes('CLAUDE_PLUGIN_ROOT') && dispatchPart0.includes('rules/execution-policy.md'),
     'missing self-locating execution-policy pointer');
   assert.ok(dispatchPart0.includes('never filesystem-scan'), 'missing never-filesystem-scan clause');
+});
+
+test('goal generator documents fast-worker override, task digest, and conditional e2e composition', () => {
+  for (const phrase of [
+    '--fast-worker=<claude|codex|agy|auto>',
+    'flag > userConfig > shipped default',
+    'HAS_E2E',
+    '200 UTF-8 bytes',
+    '<FAST_WORKER_CLAUSE>',
+    '<TASK_DIGEST>',
+    '<E2E_ROSTER_CLAUSE>',
+  ]) {
+    assert.ok(skill.includes(phrase), `missing goal-generation contract: ${phrase}`);
+  }
+});
+
+test('/dhpk:do carries fast-worker override through every implementation-class route', () => {
+  const command = fs.readFileSync(path.join(ROOT, 'commands', 'do.md'), 'utf8');
+  for (const route of ['dhpk:adaptive-dev-workflow', 'dhpk:bug-fix', 'dhpk:feature-dev', 'dhpk:opsx-apply-goal']) {
+    assert.ok(command.includes(route), `do command missing implementation route ${route}`);
+  }
+  assert.ok(command.includes('forward the invocation override to every implementation-class route'));
+  assert.ok(command.includes('downstream route MUST call the shared fast-worker backend selector'));
+  assert.ok(command.includes('FAST_WORKER_OVERRIDE=<actual value|unset>'),
+    'do command must preserve the actual override outside the cleaned query');
+  assert.ok(command.includes('Pass both the cleaned query and the named invocation context'),
+    'do command must forward the value-bearing invocation context');
+  for (const skillName of ['adaptive-dev-workflow', 'bug-fix', 'feature-dev']) {
+    const downstream = fs.readFileSync(path.join(ROOT, 'skills', skillName, 'SKILL.md'), 'utf8');
+    assert.ok(downstream.includes('FAST_WORKER_OVERRIDE'), `${skillName} does not consume the named override`);
+    assert.ok(downstream.includes('scripts/fast-worker-selector.js'), `${skillName} bypasses the shared selector`);
+    assert.ok(downstream.includes('--backend "$FAST_WORKER_OVERRIDE"'),
+      `${skillName} does not pass the carried value to the shared selector`);
+  }
 });
 
 test('Part 0 and verification checklist carve hard-rule conflicts out of unattended confirmation', () => {

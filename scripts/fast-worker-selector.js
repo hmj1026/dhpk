@@ -27,7 +27,6 @@ const cliAvailable = (name) => spawnSync('bash', ['-c', 'command -v "$1" >/dev/n
 
 const availability = (backend) => {
   if (backend === 'claude') return { available: process.env.DHPK_CLAUDE_BACKEND_AVAILABLE !== '0', reason: 'in-process backend' };
-  if (backend === 'codex' && String(process.env.CODEX || '').toLowerCase() === 'off') return { available: false, reason: 'CODEX=off' };
   const executable = backend === 'codex' ? 'codex' : 'agy';
   return cliAvailable(executable)
     ? { available: true, reason: `${executable} executable available` }

@@ -1,6 +1,6 @@
 ---
 description: 'Smart Router — map a natural-language task to the right dhpk workflow, then run it. Deterministic route-table fast path, LLM fallback for misses.'
-argument-hint: '[--codex] [--plan[=<model>[:<effort>]]] [--openspec|--opsx] <natural language task, e.g. "fix the login bug" / "幫我修一個 bug">'
+argument-hint: '[--codex] [--plan[=<model>[:<effort>]]] [--fast-worker=<claude|codex|agy|auto>] [--openspec|--opsx] <natural language task>'
 allowed-tools: 'Bash(bash:*), Bash(git:*), Bash(ls:*), Skill, Read, Grep, Glob'
 ---
 
@@ -71,6 +71,21 @@ parsed and stripped exactly like `--plan` above:
   review, so the `dhpk:planner` consult is skipped (see the Openspec-mode rule
   in Step 3).
 
+## Step 0d — parse fast-worker override (optional)
+
+- Detect and strip `--fast-worker=<claude|codex|agy|auto>` before route-table
+  matching, exactly like `--codex`/`--plan`; it must not pollute the cleaned query.
+- Before stripping it, preserve the actual value in the named invocation context
+  `FAST_WORKER_OVERRIDE=<actual value|unset>`; never reconstruct it from the
+  cleaned query or replace it with a route name.
+- Resolve the invocation backend with precedence flag > `fast_worker_backend`
+  userConfig > shipped default (`claude`). Invalid values emit one warning line
+  and fall back to userConfig/default without failing the route.
+- For the implementation-class routes (`dhpk:adaptive-dev-workflow`,
+  `dhpk:bug-fix`, `dhpk:feature-dev`, and `dhpk:opsx-apply-goal`), forward the invocation override to every implementation-class route; it applies to this
+  invocation only. The downstream route MUST call the shared fast-worker backend selector before its first mechanical dispatch and must not reimplement
+  availability, order, or fallback logic.
+
 ## Step 1 — deterministic pre-route (run this first)
 
 Run the matcher with the **cleaned query** as a single quoted argument:
@@ -97,8 +112,10 @@ Factor them into Step 3's NO_MATCH decision and into the downstream workflow
 
 ## Step 3 — act on the result
 
-Pass the **cleaned query** (the full task with only the `--codex`, `--plan`, and
+Pass the **cleaned query** (the full task with only the `--codex`, `--plan`, `--fast-worker`, and
 `--openspec`/`--opsx` opt-in tokens removed) as the task to the downstream skill,
+and **Pass both the cleaned query and the named invocation context**
+`FAST_WORKER_OVERRIDE=<actual value|unset>` to implementation-class routes.
 applying the codex-mode rule below to decide the codex flag, the plan-mode rule
 below to decide whether a `dhpk:planner` consult runs first, and the
 openspec-mode rule below to decide whether the resolved route is diverted into

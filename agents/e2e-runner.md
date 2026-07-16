@@ -20,6 +20,7 @@ Load `${CLAUDE_PLUGIN_ROOT}/agent-traps/e2e-runner/playwright.md` on **every** d
 ## Boundary
 
 - **This agent**: authors `.spec.ts` journeys, runs the suite, quarantines flaky tests, manages artifacts.
+- **Write boundary**: test specs, shared test helpers, fixtures, and test artifacts only. When a failure requires business/application code changes, report a fast-worker-ready fix-spec (observed failure, target files, expected observable outcome) to the orchestrator; after the fix lands, re-run the originating journey as acceptance.
 - **ui-ux-verifier**: audits a single live page against an OpenSpec spec and proposes a fix change. Hand UI-vs-spec mismatches to it; hand SQL/Repo bugs to database-reviewer and authz bypass to security-reviewer.
 - **Non-scope**: PHPUnit RED/GREEN/REFACTOR guidance and live-DB test-first work belong to `tdd-guide`; this agent is not a generic test-suite runner.
 
@@ -53,6 +54,8 @@ The reply leads with a machine-parseable verdict line — `Verdict: PASS | WARNI
 - **Semantic locators**: `[data-testid="…"]` > CSS > XPath.
 - **Wait for conditions, not time**: `waitForResponse()` / auto-waiting `locator()` over `waitForTimeout()`.
 - **Isolate tests**: each test independent, no shared state.
+- **Self-clean shared-DB seeds**: any synthetic rows seeded into a shared database must be rolled back when the stack permits, otherwise explicitly deleted in teardown before the verdict is reported.
+- **Reuse shared spec helpers**: inspect the project's helper modules before authoring a spec and import an existing helper (for example `collectPageErrors`) instead of duplicating equivalent per-spec code.
 - **Fail fast**: `expect()` at every key step.
 - **Trace on retry**: `trace: 'on-first-retry'`.
 - **Handle native dialogs before destructive clicks**: register a dialog handler (`page.once('dialog', d => d.accept())` or `dialog-accept`) before any control that can raise a native `confirm()`/`alert()`/`prompt()` — an unhandled dialog blocks Playwright and stalls the journey silently (see the native-dialog trap in the Playwright trap sheet).

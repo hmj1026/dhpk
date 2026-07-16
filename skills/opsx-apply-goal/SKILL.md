@@ -1,6 +1,6 @@
 ---
 name: opsx-apply-goal
-argument-hint: '<change-id> [--turns N] [--max-duration <Nm|Nh>] [--min-coverage N] [--codex] [--smoke|--no-smoke] [--dry-run]'
+argument-hint: '<change-id> [--turns N] [--max-duration <Nm|Nh>] [--min-coverage N] [--fast-worker=<claude|codex|agy|auto>] [--codex] [--smoke|--no-smoke] [--dry-run]'
 description: 'Generate a single-paste /goal condition (with an embedded opsx:apply kickoff instruction) for an unattended OpenSpec change implementation session. Reads tasks.md + proposal.md, detects test-runner scope, calculates turn budget, and emits one /goal string — pasting it into a fresh session both sets the stop condition and starts implementation, since /goal triggers immediate action on submit. Use when starting an unattended implementation session for an OpenSpec change. Not for: archiving, verifying, or syncing changes (use opsx-archive / opsx-verify / opsx-sync).'
 allowed-tools: 'Bash, Read, Glob'
 ---
@@ -60,7 +60,17 @@ It prints a `# schema=v1` KEY=VALUE block. Act on `STATUS`:
 - Exit code 2 → missing `CHANGE_ID`; print the usage line the script emitted and stop.
 - `STATUS=active` → read the remaining keys and continue: `CHANGE_DIR`, `HAS_DESIGN`,
   `TOTAL_TASKS`, `OPEN_TASKS`, `DONE_TASKS`, `TURN_BUDGET`, `TURN_BUDGET_SOURCE`,
-  `SMOKE_FLAG`, `CODEX`, `DRY_RUN`, `MAX_DURATION`, `MIN_COVERAGE`.
+  `SMOKE_FLAG`, `CODEX`, `DRY_RUN`, `MAX_DURATION`, `MIN_COVERAGE`,
+  `FAST_WORKER_REQUESTED`, `FAST_WORKER_SELECTED`, `FAST_WORKER_AGENT`,
+  `FAST_WORKER_ORDER`, `FAST_WORKER_FALLBACK`, `FAST_WORKER_REJECTED`,
+  `FAST_WORKER_CLAUSE`, `HAS_E2E`, and `TASK_DIGEST`.
+
+Before route/change matching, parse and strip
+`--fast-worker=<claude|codex|agy|auto>` using the same strip-before-match
+contract as `--codex` and `--plan`. Resolve the effective backend with
+precedence **flag > userConfig > shipped default** (`claude`). An invalid flag
+prints one warning line and falls back to the configured userConfig/default
+resolution; it never fails change routing.
 
 The turn budget (this is **Step 5**, computed by the analyzer alongside Steps
 1-3 — there is no separate Step 5 section) is `max(20, min(120, OPEN_TASKS × 4 + 20))`
@@ -77,6 +87,8 @@ tables in `references/detection.md`:
 - Test runners → `HAS_PHPUNIT` / `HAS_JEST` / `HAS_PYTEST` / `HAS_SWIFT_TEST` /
   `HAS_OTHER_TEST`. None true → `HAS_TEST=false`.
 - `HAS_BUILD`, `HAS_LINT` (independent of `HAS_TEST`).
+- `HAS_E2E` is supplied by the analyzer from tasks.md + proposal.md using the
+  deterministic Playwright / `.spec.js` / `.spec.ts` / browser-journey signals.
 - `HAS_COVERAGE` (only when `HAS_TEST=true` AND a fail-threshold is configured);
   capture `COVERAGE_CMD` / `COVERAGE_THRESHOLD`. `MIN_COVERAGE` (operator flag)
   overrides a detected threshold and is ignored — with a Block A note — when
@@ -108,7 +120,11 @@ Compose `GOAL_CONDITION` from the verbatim templates in
 - **Part 0** (kickoff, always first — this is what makes single-paste work):
   pick the `DISPATCH_ON=true` or `false` branch, then substitute
   `<CODEX_STATEMENT>` with the `CODEX=on`/`off` text (state the session's CODEX
-  setting explicitly — never leave the orchestrator to infer it).
+  setting explicitly — never leave the orchestrator to infer it). Substitute
+  the analyzer's `FAST_WORKER_CLAUSE` (already resolved by the shared selector,
+  with flag > userConfig > default) and its `TASK_DIGEST`, capped at 200 UTF-8 bytes without splitting a code point.
+  Substitute `<E2E_ROSTER_CLAUSE>` with `RED/E2E Playwright → dhpk:e2e-runner; `
+  only when `HAS_E2E=true`; otherwise substitute the empty string.
 - **Parts 1, 2, 2b** — always (tasks-done, universal `.pending-*` sentinel check,
   `.unresolved-verdict` sidecar check).
 - **Part 3** — one line per detected gate (test runners per their flags, coverage,
@@ -205,7 +221,7 @@ This session will NOT auto-run /goal or opsx:apply.
 - [ ] Analyzer run first; `STATUS` handled — `missing`/`archived`/`error`/exit-2 all stop with the script's message; only `active` proceeds
 - [ ] Block A shows correct task counts (from the schema block), detected runners, and manual-task count
 - [ ] Block B `/goal` string is entirely in English and opens with the Part 0 opsx:apply kickoff sentence before the stop conditions — single paste, no separate STEP 3
-- [ ] Part 0 (from goal-templates.md): bounded dispatch roster when `DISPATCH_ON=true` — orchestrator naming ("You are the orchestrator"), the one-line four-role roster (fast-worker / deep-reasoner / tdd-guide / e2e-runner), the `general-purpose` prohibition, the ≤2-file whole-implement-step inline bound plus bookkeeping, the self-locating execution-policy pointer read by the orientation command, and the inline hard-rule guardrail (the "hard rules cannot be deferred" sentence); no-dispatch except the hard-rule carve-out when `orchestration_dispatch=off`
+- [ ] Part 0 carries the selector-resolved `<FAST_WORKER_CLAUSE>` (including CLI tier and fallback order), ONE consolidated reviewer batch wording, ≤200-byte `<TASK_DIGEST>`, and `<E2E_ROSTER_CLAUSE>` iff `HAS_E2E=true`; the orientation command does not preview tasks.md
 - [ ] Part 0 does NOT restate the relocated elaborations (dispatch-verify procedure, premise-verification routing, in-flight doubt cycle, CODEX high-stakes-peer triggers, session-end self-check) — those are present in `rules/execution-policy.md` (§Implementation dispatch, §In-flight doubt cycle, §CODEX=on high-stakes parallel peer path) and bind via the orientation read
 - [ ] CODEX statement stated explicitly on one line (`CODEX is ON`/`OFF` per `--codex`); when ON, it points at the execution-policy CODEX sections (including the session-end zero-dispatch self-check) without enumerating the trigger list
 - [ ] Part 0 says "without stopping for confirmation" covers ordinary implementation judgment calls only and never an explicit project hard-rule conflict

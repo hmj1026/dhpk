@@ -57,10 +57,11 @@ Reconfigure any time with `/dhpk:setup` (or `/dhpk:setup --show` to print the cu
 
 ## Common workflows
 
-Everything is reachable through `/dhpk:do` — one entry point that routes natural-language task descriptions to the right skill: feature development, bug fixes, the automatic post-edit review cycle, commit/PR, unattended OpenSpec sessions, spec mining, E2E test authoring, harness health checks, and Implementation dispatch (reasoning-heavy work → `deep-reasoner`, mechanical work → `fast-worker`). Full walkthrough with worked examples for each: **[`docs/basic-operations.md`](./docs/basic-operations.md)**.
+Everything is reachable through `/dhpk:do` — one entry point that routes natural-language task descriptions to the right skill: feature development, bug fixes, the automatic post-edit review cycle, commit/PR, unattended OpenSpec sessions, spec mining, E2E test authoring, harness health checks, and Implementation dispatch (reasoning-heavy work → `deep-reasoner`, mechanical work → a selector-resolved Claude/Codex/agy fast worker). Full walkthrough with worked examples for each: **[`docs/basic-operations.md`](./docs/basic-operations.md)**.
 
 ```text
 /dhpk:do implement a password-reset email flow   # feature (TDD + review gates)
+/dhpk:do --fast-worker=codex implement the plan   # invocation-only worker override
 /dhpk:do fix the login redirect loop              # bug fix (root cause + regression test)
 /dhpk:review-pending                              # trigger pending reviewers immediately
 /dhpk:smart-commit && /dhpk:create-pr             # commit + PR
@@ -71,7 +72,7 @@ Everything is reachable through `/dhpk:do` — one entry point that routes natur
 
 ## userConfig
 
-40 knobs, all settable at install time with `--config <key>=<value>`, reconfigurable any time via `/dhpk:setup`. Full reference (where to set each one, every option, project-level override syntax): **[`docs/configuration.md`](./docs/configuration.md)**.
+51 knobs, all settable at install time with `--config <key>=<value>`, reconfigurable any time via `/dhpk:setup`. Full reference (where to set each one, every option, project-level override syntax): **[`docs/configuration.md`](./docs/configuration.md)**.
 
 ```bash
 claude plugin install dhpk@dhpk \

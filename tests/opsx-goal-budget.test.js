@@ -31,7 +31,7 @@ test('over-cap fixture uses wc -c measurement and emits Block A without a goal',
 
 test('goal fixtures retain required safety tokens and compact gate contracts', () => {
   const goal = generateFixture(readFixture('maximum-gate')).goal;
-  for (const token of ['${CLAUDE_PLUGIN_ROOT:-', 'hard-rule', 'Unknown skill', 'dhpk:fast-worker', '.pending-*', '.unresolved-verdict']) {
+  for (const token of ['${CLAUDE_PLUGIN_ROOT:-', 'hard-rule', 'Unknown skill', 'dhpk:codex-fast-worker', 'dhpk:agy-fast-worker', '.pending-*', '.unresolved-verdict']) {
     assert.ok(goal.includes(token), `missing required safety token: ${token}`);
   }
   for (const token of ['TEST', 'COVERAGE', 'BUILD', 'LINT', 'SMOKE', 'REVIEW', 'ARTIFACT', 'VERDICT']) {
