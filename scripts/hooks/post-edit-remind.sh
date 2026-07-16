@@ -387,6 +387,17 @@ case "$REL" in
 esac
 
 # ---- Write sentinels ----
+# Keep the sidecar aligned with the sentinel set observed before this edit. This
+# records an externally cleared set before a later edit re-arms it.
+ADVISORY_STATE="$ARTIFACTS/.advisory-state"
+armed_before="$(find "$ARTIFACTS" -maxdepth 1 -type f -name '.pending-*' -exec basename {} \; 2>/dev/null | LC_ALL=C sort)"
+stored_signature=""
+[ -f "$ADVISORY_STATE" ] && stored_signature="$(cat "$ADVISORY_STATE")"
+if [ "$armed_before" != "$stored_signature" ]; then
+    printf '%s\n' "$armed_before" > "$ADVISORY_STATE"
+    stored_signature="$armed_before"
+fi
+
 # Idempotent append: if $REL already appears in the sentinel (any timestamp),
 # skip the write. Stops repeated edits to the same file from accumulating
 # duplicate lines that mislead reviewers and stop-review-reminder's `wc -l`.
@@ -407,12 +418,16 @@ for i in "${!NEEDS[@]}"; do
 done
 
 if [ -z "$msg" ]; then
-    echo "[post-edit] skipped (no trigger matched): $REL"
+    [ "${DHPK_DEBUG:-0}" = "1" ] && echo "[post-edit] skipped (no trigger matched): $REL"
 else
     echo "[post-edit] marked:$msg ($REL)"
-    # D8: run the pending reviewer BEFORE attempting commit/push — a sentinel
-    # armed here is review debt, not a suggestion.
-    echo "[post-edit] advisory: run the pending reviewer BEFORE attempting commit/push."
+    armed_after="$(find "$ARTIFACTS" -maxdepth 1 -type f -name '.pending-*' -exec basename {} \; 2>/dev/null | LC_ALL=C sort)"
+    if [ "$armed_after" != "$stored_signature" ]; then
+        # D8: run the pending reviewer BEFORE attempting commit/push — a sentinel
+        # armed here is review debt, not a suggestion.
+        echo "[post-edit] advisory: run the pending reviewer BEFORE attempting commit/push."
+        printf '%s\n' "$armed_after" > "$ADVISORY_STATE"
+    fi
 fi
 
 exit 0
