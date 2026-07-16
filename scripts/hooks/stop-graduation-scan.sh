@@ -45,13 +45,10 @@ PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
 . "$(dirname "$0")/_lib/transcript.sh"
 
 # --- enablement (opt-in) ---------------------------------------------------
-case "${DHPK_GRADUATION_SCAN:-}" in
-    1) : ;;
-    0) exit 0 ;;
-    *) [ "${CLAUDE_PLUGIN_OPTION_GRADUATION_SCAN_ENABLED:-false}" = "true" ] || exit 0 ;;
-esac
+_enabled="$(dhpk_config_bool graduation_scan_enabled false DHPK_GRADUATION_SCAN)"
+[ "$_enabled" = "true" ] || exit 0
 
-PROFILE="${CLAUDE_PLUGIN_OPTION_HOOK_PROFILE:-standard}"
+PROFILE="$(dhpk_config_profile)"
 [ "$PROFILE" = "minimal" ] && exit 0
 
 . "$PLUGIN_ROOT/scripts/hooks/_lib/session-env.sh"

@@ -43,7 +43,7 @@ set -o pipefail
 ROOT="$(dhpk_root)"
 SESS="$(dhpk_sessions_dir "$ROOT")"
 LOG="$ROOT/.claude/artifacts/agent-failures.log"
-PROFILE="${CLAUDE_PLUGIN_OPTION_HOOK_PROFILE:-standard}"
+PROFILE="$(dhpk_config_profile)"
 
 # Read stdin payload (JSON envelope from Claude Code SubagentStop event).
 PAYLOAD="$(dhpk_read_payload)"

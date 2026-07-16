@@ -32,7 +32,7 @@ ROOT="$(dhpk_root)"
 SESS="$(dhpk_sessions_dir "$ROOT")"
 CKPT_DIR="$ROOT/.claude/artifacts/checkpoints"
 CKPT="$CKPT_DIR/latest.json"
-PROFILE="${CLAUDE_PLUGIN_OPTION_HOOK_PROFILE:-standard}"
+PROFILE="$(dhpk_config_profile)"
 
 # No checkpoint → nothing to restore. Compaction may have happened without
 # precompact (e.g. first session, or hook newly added mid-session).

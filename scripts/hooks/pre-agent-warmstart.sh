@@ -21,22 +21,18 @@ set -o pipefail
 
 . "$(dirname "$0")/_lib/session-env.sh"
 ROOT="$(dhpk_root)"
-. "$(dirname "$0")/_lib/payload.sh"
 . "$(dirname "$0")/_lib/load-project-config.sh" 2>/dev/null || true
+. "$(dirname "$0")/_lib/payload.sh"
 
 # Opt-in gate (env override > userConfig > default off).
-_enabled="${CLAUDE_PLUGIN_OPTION_AGENT_WARMSTART_ENABLED:-false}"
-case "${DHPK_AGENT_WARMSTART:-}" in
-    1|true)  _enabled="true" ;;
-    0|false) _enabled="false" ;;
-esac
+_enabled="$(dhpk_config_bool agent_warmstart_enabled false DHPK_AGENT_WARMSTART)"
 if [ "$_enabled" != "true" ]; then
     printf '{}'
     exit 0
 fi
 
 # minimal profile keeps subagent prompts lean.
-PROFILE="${CLAUDE_PLUGIN_OPTION_HOOK_PROFILE:-standard}"
+PROFILE="$(dhpk_config_profile)"
 if [ "$PROFILE" = "minimal" ]; then
     printf '{}'
     exit 0

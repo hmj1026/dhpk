@@ -8,6 +8,8 @@
 # first so per-project overrides are reflected.
 #
 # bash 3.2-safe (macOS default): no namerefs / associative arrays.
+
+. "${BASH_SOURCE[0]%/*}/runtime-config.sh"
 #
 # active_modules_list
 #   Echo the active module names, one per line, trimmed, blanks skipped, deduped.
@@ -17,7 +19,7 @@
 
 active_modules_list() {
     local list _m _mods seen=""
-    list="${DHPK_ACTIVE_MODULES:-${CLAUDE_PLUGIN_OPTION_MODULES:-}}"
+    list="${DHPK_ACTIVE_MODULES:-$(dhpk_config_csv modules '')}"
     [ -n "$list" ] || return 0
     IFS=',' read -r -a _mods <<< "$list"
     for _m in "${_mods[@]}"; do

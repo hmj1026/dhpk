@@ -14,6 +14,7 @@
 set -o pipefail
 
 . "$(dirname "$0")/../hooks/_lib/payload.sh"
+. "$(dirname "$0")/../hooks/_lib/runtime-config.sh"
 
 input="$(cat 2>/dev/null || true)"
 
@@ -55,7 +56,7 @@ except Exception:
 fi
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
-PROFILE="${CLAUDE_PLUGIN_OPTION_HOOK_PROFILE:-standard}"
+PROFILE="$(dhpk_config_profile)"
 
 BRANCH="$(git -C "$ROOT" branch --show-current 2>/dev/null)"
 [ -z "$BRANCH" ] && BRANCH="(detached)"

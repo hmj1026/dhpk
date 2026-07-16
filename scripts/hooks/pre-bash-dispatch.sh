@@ -22,7 +22,7 @@ payload="$(dhpk_read_payload)"
 # .claude/settings.local.json (Claude Code only injects global pluginConfigs).
 . "$PLUGIN_ROOT/scripts/hooks/_lib/load-project-config.sh"
 . "$PLUGIN_ROOT/scripts/hooks/_lib/modules.sh"
-: "${DHPK_ACTIVE_MODULES:=${CLAUDE_PLUGIN_OPTION_MODULES:-}}"
+: "${DHPK_ACTIVE_MODULES:=$(dhpk_config_modules)}"
 
 # Core guard — exit code bubbles up so dangerous-pattern blocks still work.
 printf '%s' "$payload" | bash "$PLUGIN_ROOT/scripts/hooks/pre-bash-guard.sh"

@@ -27,7 +27,7 @@ ROOT="$(dhpk_root)"
 . "$(dirname "$0")/_lib/payload.sh"
 
 # Task 4.7 — gate check FIRST, before any extraction or heuristic work.
-GATE="${CLAUDE_PLUGIN_OPTION_SUBAGENT_QUALITY_GATE:-off}"
+GATE="$(dhpk_config_get subagent_quality_gate off)"
 case "$(printf '%s' "$GATE" | tr '[:upper:]' '[:lower:]')" in
     on|true|1) ;;
     *) exit 0 ;;
