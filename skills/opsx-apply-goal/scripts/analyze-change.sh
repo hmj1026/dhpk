@@ -3,14 +3,14 @@
 #
 # Owns the mechanical, error-prone work the model would otherwise re-derive each
 # run: argument normalization (incl. flag precedence), change-dir location,
-# checkbox counting, and turn-budget arithmetic. Emits ONE stable schema=v1
-# KEY=VALUE block. It deliberately does NOT do Step 4 detection (semantic prose
-# matching — see references/detection.md) or compose/measure the /goal string
-# (LLM prose work).
+# checkbox counting, turn-budget arithmetic, fast-worker selector resolution,
+# bounded task-digest composition, and deterministic E2E-surface detection.
+# Emits ONE stable schema=v1 KEY=VALUE block.
 #
 # Usage:
 #   analyze-change.sh <change-id> [--turns N] [--max-duration <Nm|Nh>] \
-#                     [--min-coverage N] [--codex] [--smoke|--no-smoke] [--dry-run]
+#                     [--min-coverage N] [--codex] [--fast-worker=<backend>] \
+#                     [--smoke|--no-smoke] [--dry-run]
 #
 # Output: a `# schema=v1` block on stdout (KEY=VALUE, one per line). On a fatal
 # input problem it still prints STATUS=... plus a human-readable message and
@@ -26,6 +26,7 @@ MAX_DURATION=""
 MIN_COVERAGE=""
 CODEX="off"
 DRY_RUN="false"
+FAST_WORKER_OVERRIDE=""
 SAW_SMOKE="false"
 SAW_NO_SMOKE="false"
 
@@ -35,6 +36,7 @@ while [ "$#" -gt 0 ]; do
     --max-duration) MAX_DURATION="${2:-}"; shift 2 ;;
     --min-coverage) MIN_COVERAGE="${2:-}"; shift 2 ;;
     --codex)        CODEX="on";  shift ;;
+    --fast-worker=*) FAST_WORKER_OVERRIDE="${1#--fast-worker=}"; shift ;;
     --smoke)        SAW_SMOKE="true";    shift ;;
     --no-smoke)     SAW_NO_SMOKE="true"; shift ;;
     --dry-run)      DRY_RUN="true";      shift ;;
@@ -133,3 +135,7 @@ echo "CODEX=$CODEX"
 echo "DRY_RUN=$DRY_RUN"
 echo "MAX_DURATION=${MAX_DURATION:-}"
 echo "MIN_COVERAGE=${MIN_COVERAGE:-}"
+node "${CLAUDE_PLUGIN_ROOT:-$ROOT}/skills/opsx-apply-goal/scripts/goal-context.js" \
+  "--tasks=$TASKS" \
+  "--proposal=$PROPOSAL" \
+  "--fast-worker=$FAST_WORKER_OVERRIDE"
