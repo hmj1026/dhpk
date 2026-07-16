@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.28.14 — 2026-07-16 — Introduce sentinel-slots registry and optimize asset inventory
+
+Introduces a sentinel-slots registry and auto-generator, relocates and refactors project asset inventory logic into a shared helper module, adds shell runtime configuration helpers for hooks, improves multi-AI platform sync drift checks, and enhances change detection accuracy for Codex skills via content hashing.
+
+**feat(config)** — Introduce a sentinel-slots registry and auto-generator.
+**feat(hooks)** — Add shell runtime configuration helpers, and improve change detection accuracy for install-codex-skills.
+**refactor(ci)** — Relocate and refactor project asset inventory logic to a shared asset-inventory module.
+**feat(sync)** — Enhance multi-AI platform sync testing and drift check logic.
+
 ## 0.28.13 — 2026-07-16 — Support fast-worker override and refine opsx goal/review waves
 
 Introduces fast-worker custom override (`--fast-worker=<claude|codex|agy|auto>`), decouples Codex reviews from codex-fast-worker backend availability, refines the implementation policy for parallel reviewer waves, upgrades the `opsx:apply` goal generation and budget control with goal-context JSON, and optimizes the post-edit reminders hook with deduplication.
