@@ -26,6 +26,15 @@ allowed-tools: 'Read, Grep, Glob, Bash, Skill, Agent'
 3. `Lightweight Maintenance` 只做最小驗證，不建立 profile/scope/gate 重資產。
 4. `Feature Delivery` / `Bug Investigation & Fix` 才能展開 profile、work-item、legacy、RED gate。
 
+## Fast-worker invocation context
+
+When `/dhpk:do` supplies `FAST_WORKER_OVERRIDE`, preserve that exact invocation-only
+value through hand-off to `dhpk:bug-fix` / `dhpk:feature-dev`. Before the first
+mechanical dispatch, consume it with the shared selector at
+`scripts/fast-worker-selector.js` using `--backend "$FAST_WORKER_OVERRIDE"`.
+`unset` means omit the explicit backend argument and let the selector apply
+userConfig/default precedence; never infer the value from the cleaned task text.
+
 ## Codex mode (opt-in)
 
 本技能**預設 codex-free**——只用 Claude + dhpk agents，不需要 Codex CLI/MCP。傳入 `--codex` 才走
