@@ -40,7 +40,7 @@ description: 'Navigation index for dhpk plugin commands. Internal documentation;
 | `/opsx:bulk-archive` | 批次封存多個 change |
 | `/opsx:explore` | 探索模式（需求釐清） |
 | `/opsx:onboard` | OpenSpec 新手導覽 |
-| `/opsx-apply-goal` | Given a change-id, reads tasks/scope and emits a tailored, single-paste `/goal` condition (with the `opsx:apply` kickoff embedded) ready to paste into a fresh implementation session |
+| `/opsx-apply-goal` | Given a change-id, emits a bounded single-paste `/goal` condition with the `opsx:apply` kickoff, selector-resolved fast-worker routing, task digest, conditional E2E roster, consolidated reviews, and a 4,000-byte hard stop |
 | `/opsx-apply-resume` | dhpk wrapper：長時 `opsx:apply` 的 context handoff（/fork 或 /new 前存檔，之後無縫續跑） |
 
 ## 專案 Review（<your-project> 專屬）
