@@ -92,7 +92,7 @@ description: 'Navigation index for dhpk plugin skills. Internal documentation; n
 
 | Skill | Purpose |
 |-------|---------|
-| [opsx-apply-goal](opsx-apply-goal/SKILL.md) | Generate a single-paste `/goal` condition (embeds the opsx:apply kickoff) for an unattended OpenSpec implementation session |
+| [opsx-apply-goal](opsx-apply-goal/SKILL.md) | Generate a bounded single-paste `/goal` condition with selector-resolved fast-worker routing, a ≤200-byte task digest, conditional E2E roster, consolidated review waves, and a 4,000-byte hard stop |
 | [opsx-load-context](opsx-load-context/SKILL.md) | Load apply-resume context via 3-tier fallback |
 | [opsx-post-obs](opsx-post-obs/SKILL.md) | Post a session observation to claude-mem during Save Phase |
 

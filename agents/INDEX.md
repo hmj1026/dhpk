@@ -4,11 +4,11 @@
 
 ## Sentinel-driven reviewer dispatch (7-slot default, v0.10.0+)
 
-Triggered reviewers — `database-reviewer` / `security-reviewer` / `frontend-reviewer` / `code-reviewer` / `doc-reviewer` / `polyfill-reviewer` / `migration-reviewer` — **dispatch in parallel** (one message, multiple Agent calls); `code-reviewer` merges/dedups (only triggered items run; code-reviewer and doc-reviewer are not mutually exclusive — mixed diffs run both). `tdd-guide` is pre-edit, not part of the post-edit dispatch. Triggered automatically by `post-edit-dispatch` → `post-edit-remind` hook; reminded at Stop by `stop-review-reminder` hook.
+Triggered reviewers — `database-reviewer` / `security-reviewer` / `frontend-reviewer` / `code-reviewer` / `doc-reviewer` / `polyfill-reviewer` / `migration-reviewer` — dispatch as **one consolidated parallel batch per implementation wave** (one message, multiple Agent calls); only triggered items run, and code/doc are not mutually exclusive. Findings are deduplicated into one fix batch; a known-finding re-review is confirm-only rather than another broad review. `tdd-guide` and `e2e-runner` are implementation specialists, not part of the unconditional post-edit batch. Triggered reviewers are armed automatically by `post-edit-dispatch` → `post-edit-remind` and reminded at Stop by `stop-review-reminder`.
 
 | Agent | Model | When it fires |
 |-------|-------|----------------|
-| [tdd-guide](tdd-guide.md) | sonnet | New feature, bug fix, test changes (AI-judgment, pre-edit) |
+| [tdd-guide](tdd-guide.md) | sonnet | Test-first unit/integration work (AI-judgment, pre-edit): owns RED and scoped runs; implements GREEN only for a ≤2-production-file footprint, otherwise returns a fast-worker-ready fix-spec and later accepts with the scoped command |
 | [database-reviewer](database-reviewer.md) | sonnet | SQL / schema / migration / Repository edits |
 | [security-reviewer](security-reviewer.md) | sonnet | Auth / authz / crypto / file-upload edits |
 | [frontend-reviewer](frontend-reviewer.md) | sonnet | JS/TS edits when the `js` module is active; template-embedded `<script>` blocks (AI-judgment backfill) |
@@ -29,11 +29,16 @@ Not sentinel-driven — dispatched during the implement phase per the `rules/exe
 |-------|-------|----------------|
 | [deep-reasoner](deep-reasoner.md) | opus | Read-only reasoning worker — root-cause analysis, algorithm design, complex debugging, design synthesis. Returns a conclusion contract (conclusion + `file:line` evidence + next actions); defers DDD/cross-module design to `architect` |
 | [fast-worker](fast-worker.md) | sonnet | Write-capable mechanical implementer — executes a precise task spec (files + change intent + verification command), surgical edits only, reports pass/fail + edited-file list, escalates on ambiguous specs |
-| [codex-fast-worker](codex-fast-worker.md) | sonnet + codex CLI | **CODEX=on / codex CLI available** — a `fast-worker` whose edits run on the codex CLI backend (default `gpt-5.6-luna` @ `xhigh`, via `skills/codex-bridge/scripts/run-codex.sh`); same task-spec contract + independent verification/edited-file accounting, opt-in alternative to the default `fast-worker` |
+| [codex-fast-worker](codex-fast-worker.md) | sonnet + codex CLI | **codex CLI available** — selector-resolved `fast-worker` backend (default `gpt-5.6-luna` @ `xhigh`, via `skills/codex-bridge/scripts/run-codex.sh`); independent of the separate `CODEX` review-peer switch, with the same task-spec and verification/edited-file accounting contract |
 | [agy-fast-worker](agy-fast-worker.md) | sonnet + agy CLI | **agy CLI available** — a `fast-worker` whose edits run on the agy CLI backend (default `Gemini 3.5 Flash (High)`, via `skills/agy-fast-worker/scripts/run-agy.sh`); same task-spec contract + independent verification/edited-file accounting, opt-in alternative to the default `fast-worker` |
 | [codex-bridge](codex-bridge.md) | sonnet | **CODEX=on only** — thin bridge that outsources a self-contained clear-spec task, or a blind second opinion, to gpt-5.5 via the Codex CLI (`codex exec`); composes a self-contained prompt, runs `skills/codex-bridge/scripts/run-codex.sh`, and relays Codex's output **verbatim** (output isolated in the subagent) |
 
 Role models are configurable per project via `userConfig.deep_reasoner_model` / `userConfig.fast_worker_model` (see "Configured role models" under `rules/execution-policy.md` §Agent dispatch) — frontmatter above shows the shipped default, not necessarily the effective value.
+
+Mechanical waves resolve through `fast_worker_backend` / `fast_worker_backend_order` /
+`fast_worker_fallback` (or a workflow's explicit backend override) to
+`fast-worker`, `codex-fast-worker`, or `agy-fast-worker`. `CODEX=on` controls the
+separate `codex-bridge` review/doubt path and is not a worker-selector prerequisite.
 
 **Component-addition-gate justification** (why neither existing agent covers this need, per the "Component-addition gate" rule in `rules/execution-policy.md`):
 - `general-purpose` cannot cover it: no dhpk policy context, inherits the main-session model (cost misallocation when the orchestrator is a top-tier model and the task is mechanical), no defined input/output contract for gate enforcement.
@@ -62,7 +67,7 @@ Role models are configurable per project via `userConfig.deep_reasoner_model` / 
 | [spec-miner](spec-miner.md) | opus | Extract behavioral specs from a brownfield codebase into `openspec/specs/<capability>/spec.md` (flat Requirement / Invariant blocks). Onboarding to spec-driven development |
 | [type-design-analyzer](type-design-analyzer.md) | sonnet | Score a type's design on encapsulation / invariant expression / usefulness / enforcement ("make illegal states unrepresentable"). Read-only |
 | [agent-evaluator](agent-evaluator.md) | sonnet | 5-axis output-quality scorecard (accuracy / completeness / clarity / actionability / conciseness) with grep-verified evidence. Scores run output, not the code |
-| [e2e-runner](e2e-runner.md) | sonnet | Author / run / stabilize E2E user-journey tests (Playwright + `playwright-cli` skill), quarantine flaky tests, manage artifacts. Distinct from ui-ux-verifier (page-vs-spec audit) |
+| [e2e-runner](e2e-runner.md) | sonnet | Author / run / stabilize Playwright journeys, helpers, fixtures, and artifacts. Application-code failures return a fast-worker-ready fix-spec; after the fix, this agent re-runs the originating journey as acceptance. Distinct from ui-ux-verifier (page-vs-spec audit) |
 | [smoke-tester](smoke-tester.md) | sonnet | Read-only live-runtime probe: drives the real running system with one orchestrator-supplied concrete scenario and asserts on observed values (`Verdict:`-first-line contract). Distinct from e2e-runner (authors/runs Playwright specs, write-capable, web-scoped) and the feature-verify skill (main-context P0-P5, not a dispatchable isolated agent) |
 
 > **How situational agents are reached** (none are sentinel-driven — the trigger SSOT is the AI-judgment back-stop list in `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`):
