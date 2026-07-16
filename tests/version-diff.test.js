@@ -126,6 +126,8 @@ test('unverified version: reports config schema diff, changelog excerpt, and dra
     assert.ok(res.stdout.includes('## 0.31.0'), res.stdout);
     assert.ok(!res.stdout.includes('## 0.30.0'), res.stdout);
     assert.ok(res.stdout.includes('Draft verified-entry'), res.stdout);
+    assert.ok(res.stdout.includes('realpath .claude/dhpk-versions.json'), res.stdout);
+    assert.ok(res.stdout.includes('Write tool refuses symlinks'), res.stdout);
     assert.ok(res.stdout.includes('"range": "0.31.x"'), res.stdout);
   } finally {
     cleanup(pluginRoot, projectRoot);

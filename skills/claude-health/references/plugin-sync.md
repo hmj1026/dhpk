@@ -107,6 +107,8 @@ Applied to both: settings.json and settings.local.json
 
 **Category-specific safe fix delegation**:
 
+Before delegating any fix that Writes `.claude/dhpk-versions.json` or a consumer `CLAUDE.md`, check whether the target is a symlink. If so, resolve it and instruct the worker to Write the realpath (for example, `realpath .claude/dhpk-versions.json`); the Write tool refuses symlinked targets.
+
 | Category | `MISSING` | `OUTDATED` | `CONFLICT`/`LEGACY` |
 |----------|----------|-----------|---------------------|
 | Rules | `/install-rules <names>` | `/install-rules <names>` (smart merge AUTO_UPDATE) | Skip (report only) |

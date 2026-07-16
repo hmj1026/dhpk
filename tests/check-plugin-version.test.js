@@ -93,6 +93,8 @@ test('running version matches neither list → "(unverified)" advisory', () => {
     assert.strictEqual(res.status, 0, `expected exit 0: ${res.stderr}`);
     assert.ok(res.stdout.includes('0.99.0(unverified)'),
       `expected unverified advisory, got: ${res.stdout}`);
+    assert.ok(res.stdout.includes('realpath .claude/dhpk-versions.json'),
+      `expected symlink-safe write guidance, got: ${res.stdout}`);
   } finally {
     fs.rmSync(project, { recursive: true, force: true });
     fs.rmSync(plugin, { recursive: true, force: true });
