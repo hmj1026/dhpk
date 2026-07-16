@@ -40,6 +40,7 @@
 set -o pipefail
 
 . "$(dirname "$0")/_lib/json-out.sh"
+. "$(dirname "$0")/_lib/runtime-config.sh"
 
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
 PRE_ROUTE="$PLUGIN_ROOT/scripts/lib/pre-route.sh"
@@ -48,10 +49,10 @@ PRE_ROUTE="$PLUGIN_ROOT/scripts/lib/pre-route.sh"
 # DHPK_HOOK_PROFILE is the documented one-shot profile override (mirrors the
 # pure-bash mapping load-project-config.sh applies); honour it here so an
 # opted-down session exits before any fork.
-PROFILE="${DHPK_HOOK_PROFILE:-${CLAUDE_PLUGIN_OPTION_HOOK_PROFILE:-standard}}"
+PROFILE="$(dhpk_config_profile)"
 [ "$PROFILE" = "minimal" ] && exit 0
 [ "${DHPK_DISABLE_SKILL_HINT:-0}" = "1" ] && exit 0
-[ "${CLAUDE_PLUGIN_OPTION_SKILL_HINT_ENABLED:-true}" = "false" ] && exit 0
+[ "$(dhpk_config_bool skill_hint_enabled true)" = "false" ] && exit 0
 [ -f "$PRE_ROUTE" ] || exit 0
 
 # ---- Bounded stdin read (portable; degrades instead of hanging) ----
@@ -107,9 +108,9 @@ case "$_s" in /*) exit 0 ;; esac
 # when such a file exists) + the DHPK_HOOK_PROFILE one-shot, then re-checks the
 # opt-outs so a project that disabled the hint via settings is still honoured.
 . "$(dirname "$0")/_lib/load-project-config.sh"
-PROFILE="${DHPK_HOOK_PROFILE:-${CLAUDE_PLUGIN_OPTION_HOOK_PROFILE:-standard}}"
+PROFILE="$(dhpk_config_profile)"
 [ "$PROFILE" = "minimal" ] && exit 0
-[ "${CLAUDE_PLUGIN_OPTION_SKILL_HINT_ENABLED:-true}" = "false" ] && exit 0
+[ "$(dhpk_config_bool skill_hint_enabled true)" = "false" ] && exit 0
 
 # ---- Delegate the actual pattern match to the shared router ----
 HINT="$(CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" bash "$PRE_ROUTE" "$PROMPT" 2>/dev/null || true)"

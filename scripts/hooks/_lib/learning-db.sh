@@ -30,15 +30,12 @@
 #   unbounded.
 
 # --- enablement ------------------------------------------------------------
+. "${BASH_SOURCE[0]%/*}/runtime-config.sh"
+
 # ldb_enabled — return 0 (true) when the learning DB should record / be read.
 # DHPK_LEARNING_DB env wins (1=force on, 0=force off) for one-shot toggles.
 ldb_enabled() {
-    case "${DHPK_LEARNING_DB:-}" in
-        1) return 0 ;;
-        0) return 1 ;;
-    esac
-    [ "${CLAUDE_PLUGIN_OPTION_LEARNING_DB_ENABLED:-false}" = "true" ] && return 0
-    return 1
+    [ "$(dhpk_config_bool learning_db_enabled false DHPK_LEARNING_DB)" = "true" ]
 }
 
 # ldb_path — echo the absolute path to the learning log for the active project.

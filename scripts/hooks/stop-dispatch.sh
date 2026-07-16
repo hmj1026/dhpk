@@ -32,11 +32,11 @@ payload="$(dhpk_read_payload)"
 . "$PLUGIN_ROOT/scripts/hooks/_lib/json-out.sh" 2>/dev/null || true
 . "$PLUGIN_ROOT/scripts/hooks/_lib/modules.sh" 2>/dev/null || true
 
-: "${DHPK_ACTIVE_MODULES:=${CLAUDE_PLUGIN_OPTION_MODULES:-}}"
+: "${DHPK_ACTIVE_MODULES:=$(dhpk_config_modules)}"
 
 SESS="$(dhpk_sessions_dir)"
 FINDINGS="$SESS/$DHPK_SIDECAR_MODULE_FINDINGS"
-PROFILE="${CLAUDE_PLUGIN_OPTION_HOOK_PROFILE:-standard}"
+PROFILE="$(dhpk_config_profile)"
 
 if [ -n "${DHPK_ACTIVE_MODULES:-}" ]; then
     mkdir -p "$SESS" 2>/dev/null || true

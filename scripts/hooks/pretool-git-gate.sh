@@ -41,8 +41,8 @@ set -o pipefail
 # Mode resolution: env override (DHPK_*) wins for one-shot toggles; otherwise
 # read from userConfig via load-project-config.sh-populated env. Independence
 # is load-bearing — one may be set without the other.
-SENTINEL_MODE="${DHPK_SENTINEL_COMMIT_GATE:-${CLAUDE_PLUGIN_OPTION_SENTINEL_COMMIT_GATE:-warn}}"
-BRANCH_MODE="${DHPK_BRANCH_SAFETY:-${CLAUDE_PLUGIN_OPTION_BRANCH_SAFETY:-warn}}"
+SENTINEL_MODE="$(dhpk_config_get sentinel_commit_gate warn DHPK_SENTINEL_COMMIT_GATE)"
+BRANCH_MODE="$(dhpk_config_get branch_safety warn DHPK_BRANCH_SAFETY)"
 
 # If both are off, nothing to do — skip the parse entirely.
 if [ "$SENTINEL_MODE" = "off" ] && [ "$BRANCH_MODE" = "off" ]; then
@@ -113,7 +113,7 @@ if [ "$BRANCH_MODE" != "off" ]; then
 
         if [ -n "$BRANCH" ]; then
             # Default protected list. Override via userConfig.protected_branches.
-            PROTECTED_RAW="${CLAUDE_PLUGIN_OPTION_PROTECTED_BRANCHES:-main,master,develop,release/*,hotfix/*}"
+            PROTECTED_RAW="$(dhpk_config_csv protected_branches 'main,master,develop,release/*,hotfix/*')"
 
             matched=0
             IFS=',' read -r -a _branches <<< "$PROTECTED_RAW"

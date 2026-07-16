@@ -28,7 +28,7 @@ ROOT="$(dhpk_root)"
 . "$(dirname "$0")/_lib/load-project-config.sh"
 . "$(dirname "$0")/_lib/payload.sh"
 
-PROFILE="${CLAUDE_PLUGIN_OPTION_HOOK_PROFILE:-standard}"
+PROFILE="$(dhpk_config_profile)"
 
 [ "$PROFILE" = "minimal" ] && exit 0
 

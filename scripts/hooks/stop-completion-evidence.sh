@@ -29,15 +29,11 @@ ROOT="$(dhpk_root)"
 . "$(dirname "$0")/_lib/load-project-config.sh" 2>/dev/null || true
 
 # Opt-in gate (env override > userConfig > default off).
-_enabled="${CLAUDE_PLUGIN_OPTION_COMPLETION_EVIDENCE_ENABLED:-false}"
-case "${DHPK_COMPLETION_EVIDENCE:-}" in
-    1|true)  _enabled="true" ;;
-    0|false) _enabled="false" ;;
-esac
+_enabled="$(dhpk_config_bool completion_evidence_enabled false DHPK_COMPLETION_EVIDENCE)"
 [ "$_enabled" = "true" ] || exit 0
 
 # minimal profile suppresses all advisory output.
-PROFILE="${CLAUDE_PLUGIN_OPTION_HOOK_PROFILE:-standard}"
+PROFILE="$(dhpk_config_profile)"
 [ "$PROFILE" = "minimal" ] && exit 0
 
 SESS="$(dhpk_sessions_dir "$ROOT")"

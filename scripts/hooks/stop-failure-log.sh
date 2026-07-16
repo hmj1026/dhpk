@@ -29,7 +29,7 @@ set -o pipefail
 ROOT="$(dhpk_root)"
 SESS="$(dhpk_sessions_dir "$ROOT")"
 LOG="$ROOT/.claude/artifacts/stop-failures.log"
-PROFILE="${CLAUDE_PLUGIN_OPTION_HOOK_PROFILE:-standard}"
+PROFILE="$(dhpk_config_profile)"
 TIMESTAMP="$(date -Iseconds 2>/dev/null || date +%Y-%m-%dT%H:%M:%S%z)"
 
 # Collect currently active sentinels (SENTINEL_NAMES SSOT — keeps in sync

@@ -89,3 +89,11 @@ unset _dhpk_settings
 if [ -n "${DHPK_HOOK_PROFILE:-}" ]; then
     export CLAUDE_PLUGIN_OPTION_HOOK_PROFILE="$DHPK_HOOK_PROFILE"
 fi
+
+# Make the normalized accessor seam available to every existing loader caller.
+# The library performs no I/O and is safe to source more than once.
+_dhpk_runtime_config_lib="${BASH_SOURCE[0]%/*}/runtime-config.sh"
+if [ -f "$_dhpk_runtime_config_lib" ]; then
+    . "$_dhpk_runtime_config_lib"
+fi
+unset _dhpk_runtime_config_lib

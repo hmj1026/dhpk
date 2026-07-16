@@ -25,7 +25,7 @@ payload="$(dhpk_read_payload)"
 # `requires`. Claude Code propagates that env to subsequent hooks in most
 # setups, but fall back to the (now project-overridden) plugin option when it
 # doesn't — keeps the dispatcher correct even when env doesn't carry forward.
-: "${DHPK_ACTIVE_MODULES:=${CLAUDE_PLUGIN_OPTION_MODULES:-}}"
+: "${DHPK_ACTIVE_MODULES:=$(dhpk_config_modules)}"
 
 # Core: synchronous (the sentinel-writing logic must complete before any
 # later hook in the same event sees the artifacts/sessions/ state).

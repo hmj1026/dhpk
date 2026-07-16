@@ -5,8 +5,8 @@
 # Use case: projects maintaining parallel harnesses for multiple AI CLIs sync
 # them manually (e.g. /multi-ai-sync). When .claude/skills, .claude/commands
 # etc. change and the mirrors don't follow, the other CLI sees stale content.
-# This script compares newest-file mtimes at SessionStart and prints an
-# advisory when drift exceeds the threshold.
+# This script compares content first, then uses newest-file mtimes as a cheap
+# freshness signal for unchanged-but-not-recently-synced harnesses.
 #
 # Self-skipping: exits silently when neither .codex/ nor .gemini/ exists —
 # zero cost for single-CLI projects.
@@ -27,6 +27,18 @@ DRIFT_THRESHOLD="${DHPK_CROSS_CLI_DRIFT_THRESHOLD:-3600}"
 [ -d "$CLAUDE_DIR" ] || exit 0
 # Early skip: no sibling CLI harness → nothing to compare.
 [ -d "$ROOT/.codex" ] || [ -d "$ROOT/.gemini" ] || exit 0
+
+# Content-aware parity is the authoritative signal. Keep the mtime check below
+# as a compatibility/freshness advisory: some projects intentionally use the
+# same content but still want a reminder after a long unsynced edit window.
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
+PARITY_SCRIPT="$PLUGIN_ROOT/scripts/lib/cross-cli-parity.js"
+if command -v node >/dev/null 2>&1 && [ -f "$PARITY_SCRIPT" ]; then
+    for target_name in .codex .gemini; do
+        [ -d "$ROOT/$target_name" ] || continue
+        node "$PARITY_SCRIPT" --root "$ROOT" --source .claude --target "$target_name" 2>/dev/null || true
+    done
+fi
 
 # Newest mtime (epoch seconds) of any harness file under dir's
 # skills/commands/agents/hooks/rules subdirs. GNU find has -printf '%T@';

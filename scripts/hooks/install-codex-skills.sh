@@ -72,6 +72,40 @@ fi
 
 MANIFEST="$PROJECT_ROOT/.codex/.dhpk-installed.json"
 
+# Version alone cannot detect source edits made during plugin development. Use a
+# deterministic content fingerprint for the Codex skills/agents tree; the
+# version remains part of the manifest for human-readable provenance.
+PLUGIN_FINGERPRINT=""
+if command -v python3 >/dev/null 2>&1; then
+    PLUGIN_FINGERPRINT="$(CODEX_SRC="$CODEX_SRC" python3 - <<'PY'
+import hashlib
+import os
+
+root = os.environ['CODEX_SRC']
+digest = hashlib.sha256()
+
+def visit(path, relative):
+    # Follow directory symlinks: codex/skills contains deliberate links to
+    # canonical skills/, and their target content is part of the install surface.
+    if os.path.isdir(path):
+        for name in sorted(os.listdir(path)):
+            visit(os.path.join(path, name), os.path.join(relative, name))
+        return
+    if not os.path.isfile(path):
+        return
+    digest.update(relative.replace(os.sep, '/').encode('utf-8'))
+    digest.update(b'\0')
+    with open(path, 'rb') as fh:
+        for chunk in iter(lambda: fh.read(1024 * 1024), b''):
+            digest.update(chunk)
+
+for name in ('skills', 'agents'):
+    visit(os.path.join(root, name), name)
+print(digest.hexdigest())
+PY
+)"
+fi
+
 # Idempotency check.
 if [ "$UPDATE" -ne 1 ] && [ -f "$MANIFEST" ] && command -v python3 >/dev/null 2>&1; then
     installed_version="$(python3 -c "
@@ -81,7 +115,14 @@ try:
 except Exception:
     print('')
 ")"
-    if [ "$installed_version" = "$PLUGIN_VERSION" ]; then
+    installed_fingerprint="$(python3 -c "
+import json
+try:
+    print(json.load(open('$MANIFEST'))['source_fingerprint'])
+except Exception:
+    print('')
+")"
+    if [ -n "$PLUGIN_FINGERPRINT" ] && [ "$installed_version" = "$PLUGIN_VERSION" ] && [ "$installed_fingerprint" = "$PLUGIN_FINGERPRINT" ]; then
         echo "[install-codex-skills] already up-to-date for dhpk v$PLUGIN_VERSION"
         exit 0
     fi
@@ -123,6 +164,7 @@ INSTALLED_AT="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
 cat > "$MANIFEST" <<EOF
 {
   "plugin_version": "$PLUGIN_VERSION",
+  "source_fingerprint": "$PLUGIN_FINGERPRINT",
   "mode": "$MODE",
   "installed_at": "$INSTALLED_AT"
 }

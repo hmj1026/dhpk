@@ -24,81 +24,13 @@
 
 const fs = require('fs');
 const path = require('path');
+const { collectInventory, walkFiles } = require('../lib/asset-inventory');
 
 const ROOT = path.join(__dirname, '..', '..');
 const p = (...s) => path.join(ROOT, ...s);
 
-function walk(dir, test) {
-  if (!fs.existsSync(dir)) return [];
-  const out = [];
-  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
-    const fp = path.join(dir, e.name);
-    if (e.isDirectory()) out.push(...walk(fp, test));
-    else if (test(fp)) out.push(fp);
-  }
-  return out;
-}
-
-// Parse the sentinel-slot count from the SENTINEL_NAMES=(...) array in
-// payload.sh — the single SSOT for review slots, so a "N-slot" claim can never
-// diverge from the array. Returns 0 if the file/array is absent (test asserts > 0).
-function slotCountFromPayload() {
-  const fp = p('scripts', 'hooks', '_lib', 'payload.sh');
-  if (!fs.existsSync(fp)) return 0;
-  const m = fs.readFileSync(fp, 'utf8').match(/SENTINEL_NAMES=\(([^)]*)\)/);
-  if (!m) return 0;
-  return (m[1].match(/\.pending-[a-z-]+/g) || []).length;
-}
-
-// hooks/hooks.json's top-level keys under "hooks" are the distinct lifecycle
-// event names (PreToolUse, PostToolUse, ...). Counting them here keeps the
-// "N events" claim tied to the actual wiring instead of a hand-maintained number.
-function hookEventCount() {
-  const fp = p('hooks', 'hooks.json');
-  if (!fs.existsSync(fp)) return 0;
-  const parsed = JSON.parse(fs.readFileSync(fp, 'utf8'));
-  return Object.keys(parsed.hooks || {}).length;
-}
-
 function computeCounts() {
-  const rootAgents = walk(p('agents'), (f) => f.endsWith('.md') && !f.endsWith('INDEX.md'));
-  const moduleAgents = walk(p('modules'), (f) => /\/agents\/.+\.md$/.test(f));
-  const baseSkills = walk(p('skills'), (f) => f.endsWith('SKILL.md'));
-  const moduleSkills = walk(p('modules'), (f) => /\/skills\/.+\/SKILL\.md$/.test(f));
-  const commands = walk(p('commands'), (f) => f.endsWith('.md') && !f.endsWith('INDEX.md'));
-  const modules = fs.existsSync(p('modules'))
-    ? fs.readdirSync(p('modules'), { withFileTypes: true }).filter((e) => e.isDirectory())
-    : [];
-
-  // Codex surface counts: MCP-backed codex skills are skills/codex-*/ whose
-  // SKILL.md references the mcp__codex__ tools (codex-cli-review shells out to the
-  // CLI and is deliberately excluded); codex commands are the flat commands/codex-*.md.
-  const codexSkillDirs = fs.existsSync(p('skills'))
-    ? fs.readdirSync(p('skills'), { withFileTypes: true })
-        .filter((e) => e.isDirectory() && /^codex-/.test(e.name))
-    : [];
-  const mcpCodexSkills = codexSkillDirs.filter((e) => {
-    const md = p('skills', e.name, 'SKILL.md');
-    return fs.existsSync(md) && fs.readFileSync(md, 'utf8').includes('mcp__codex__');
-  }).length;
-  const codexCommands = fs.existsSync(p('commands'))
-    ? fs.readdirSync(p('commands')).filter((n) => /^codex-.*\.md$/.test(n)).length
-    : 0;
-
-  return {
-    agentsTotal: rootAgents.length + moduleAgents.length,
-    agentsRoot: rootAgents.length,
-    agentsModule: moduleAgents.length,
-    skillsTotal: baseSkills.length + moduleSkills.length,
-    skillsBase: baseSkills.length,
-    skillsModule: moduleSkills.length,
-    commands: commands.length,
-    modules: modules.length,
-    slotCount: slotCountFromPayload(),
-    mcpCodexSkills,
-    codexCommands,
-    hookEvents: hookEventCount(),
-  };
+  return collectInventory(ROOT).counts;
 }
 
 // Files that carry numeric marketing/spec claims, and the exact claims enforced.
@@ -155,7 +87,7 @@ const SCRIPT_EXTS = new Set(['.sh', '.js', '.ts', '.py']);
 // have a dedicated test: tests/<stem>.test.js, tests/<stem>-<aspect>.test.js, or
 // an explicit COVERAGE_MAP entry for feature-named tests. Pure fs walk, no deps.
 function findScriptCoverageGaps() {
-  const scriptFiles = walk(p('scripts'), (fp) => SCRIPT_EXTS.has(path.extname(fp)));
+  const scriptFiles = walkFiles(p('scripts'), (fp) => SCRIPT_EXTS.has(path.extname(fp)));
   const testsDir = p('tests');
   const testFiles = fs.existsSync(testsDir)
     ? fs.readdirSync(testsDir).filter((n) => n.endsWith('.test.js'))

@@ -34,7 +34,7 @@ set -o pipefail
 ROOT="$(dhpk_root)"
 SESS="$(dhpk_sessions_dir "$ROOT")"
 CKPT_DIR="$ROOT/.claude/artifacts/checkpoints"
-PROFILE="${CLAUDE_PLUGIN_OPTION_HOOK_PROFILE:-standard}"
+PROFILE="$(dhpk_config_profile)"
 
 mkdir -p "$CKPT_DIR" 2>/dev/null || true
 

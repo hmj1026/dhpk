@@ -40,7 +40,7 @@ case "$SOURCE" in
     *)              FULL_INIT=1 ;;
 esac
 
-PROFILE="${CLAUDE_PLUGIN_OPTION_HOOK_PROFILE:-standard}"
+PROFILE="$(dhpk_config_profile)"
 ARTIFACTS="$ROOT/.claude/artifacts"
 SESSION_FILE="$ARTIFACTS/sessions/latest.md"
 
@@ -107,7 +107,10 @@ fi
 # modules (no display names / requires validation) so downstream hooks keep firing.
 ACTIVE_MODULES=""
 MODULE_LINES=""
-if [ -n "${CLAUDE_PLUGIN_OPTION_MODULES:-}" ]; then
+# SessionStart is the authority that recomputes the validated active set; do
+# not reuse a stale DHPK_ACTIVE_MODULES inherited from a prior session here.
+MODULES="$(dhpk_config_csv modules '')"
+if [ -n "$MODULES" ]; then
     if command -v python3 >/dev/null 2>&1; then
         while IFS=$'\t' read -r _tag _f1 _f2; do
             case "$_tag" in
@@ -115,11 +118,11 @@ if [ -n "${CLAUDE_PLUGIN_OPTION_MODULES:-}" ]; then
                 MODULE) MODULE_LINES="${MODULE_LINES}"$'\n'"[session-start] module enabled: $_f1 — $_f2" ;;
                 ACTIVE) ACTIVE_MODULES="$_f1" ;;
             esac
-        done < <(python3 "$PLUGIN_ROOT/scripts/hooks/_lib/activate-modules.py" "$PLUGIN_ROOT" "${CLAUDE_PLUGIN_OPTION_MODULES}" 2>/dev/null)
+        done < <(python3 "$PLUGIN_ROOT/scripts/hooks/_lib/activate-modules.py" "$PLUGIN_ROOT" "$MODULES" 2>/dev/null)
     else
-        echo "[session-start] WARN: modules enabled (${CLAUDE_PLUGIN_OPTION_MODULES}) but python3 missing — module metadata not parsed; per-module path triggers will not fire. Install python3 to enable full module support." >&2
+        echo "[session-start] WARN: modules enabled ($MODULES) but python3 missing — module metadata not parsed; per-module path triggers will not fire. Install python3 to enable full module support." >&2
         # Degraded fallback: dedup + dir-check + activate (display = name, no requires validation).
-        IFS=',' read -r -a _mods <<< "${CLAUDE_PLUGIN_OPTION_MODULES}"
+        IFS=',' read -r -a _mods <<< "$MODULES"
         _enabled_list=""
         for _m in "${_mods[@]}"; do
             _m="$(echo "$_m" | xargs)"
@@ -188,7 +191,7 @@ if [ "$DEEP_MODEL" != "opus" ] || [ "$WORKER_MODEL" != "sonnet" ] || [ "$DEEP_EF
     unset _orch_line
 fi
 
-QUALITY_GATE="${CLAUDE_PLUGIN_OPTION_SUBAGENT_QUALITY_GATE:-off}"
+QUALITY_GATE="$(dhpk_config_get subagent_quality_gate off)"
 case "$(printf '%s' "$QUALITY_GATE" | tr '[:upper:]' '[:lower:]')" in
     on|true|1) echo "[session-start] subagent_quality_gate=$QUALITY_GATE (reviewer-sentinel SubagentStop thin-report gate enabled; one corrected retry)" ;;
     *) ;;
@@ -202,9 +205,9 @@ esac
 FAST_BACKEND_DEFAULT="claude"
 FAST_ORDER_DEFAULT="claude,codex,agy"
 FAST_FALLBACK_DEFAULT="none"
-FAST_BACKEND="${CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND:-$FAST_BACKEND_DEFAULT}"
-FAST_ORDER="${CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND_ORDER:-$FAST_ORDER_DEFAULT}"
-FAST_FALLBACK="${CLAUDE_PLUGIN_OPTION_FAST_WORKER_FALLBACK:-$FAST_FALLBACK_DEFAULT}"
+FAST_BACKEND="$(dhpk_config_get fast_worker_backend "$FAST_BACKEND_DEFAULT")"
+FAST_ORDER="$(dhpk_config_csv fast_worker_backend_order "$FAST_ORDER_DEFAULT")"
+FAST_FALLBACK="$(dhpk_config_get fast_worker_fallback "$FAST_FALLBACK_DEFAULT")"
 SELECTOR_SESSION="$(extract_top_field session_id "$PAYLOAD")"
 [ -n "$SELECTOR_SESSION" ] || SELECTOR_SESSION="startup"
 SELECTOR_WARNINGS="$ARTIFACTS/sessions/$DHPK_SIDECAR_FW_SELECTOR_WARNINGS"
