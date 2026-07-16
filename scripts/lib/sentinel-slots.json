@@ -1,0 +1,127 @@
+{
+  "schema": "dhpk.sentinel-slots.v1",
+  "slots": [
+    {
+      "id": "code",
+      "name": ".pending-review",
+      "label": "code-reviewer",
+      "short_name": "code",
+      "default_agent": "code-reviewer",
+      "agent_summary": "Code review — sentinel .pending-review",
+      "dispatch": "consolidated wave",
+      "trigger_summary": "*.php / *.js / **/CLAUDE.md",
+      "triggers": {
+        "basename_globs": [
+          "*.php", "*.js", "*.ts", "*.tsx", "*.jsx", "*.mjs", "*.cjs",
+          "*.vue", "*.svelte", "*.py", "*.rb", "*.go", "*.rs", "*.java",
+          "*.kt", "*.swift", "*.cs", "*.c", "*.cpp", "*.h", "*.hpp"
+        ],
+        "path_globs": [
+          ".claude/agents/*.sh", ".claude/agents/*.json", ".claude/agents/*.yml", ".claude/agents/*.yaml",
+          ".claude/rules/*.sh", ".claude/rules/*.json", ".claude/rules/*.yml", ".claude/rules/*.yaml",
+          ".claude/commands/*.sh", ".claude/commands/*.json", ".claude/commands/*.yml", ".claude/commands/*.yaml",
+          ".claude/hooks/*.sh", ".claude/hooks/*.json", ".claude/hooks/*.yml", ".claude/hooks/*.yaml",
+          ".claude/scripts/*.sh", ".claude/scripts/*.json", ".claude/scripts/*.yml", ".claude/scripts/*.yaml",
+          ".claude/skills/*.sh", ".claude/skills/*.json", ".claude/skills/*.yml", ".claude/skills/*.yaml",
+          ".claude/manifests/*.sh", ".claude/manifests/*.json", ".claude/manifests/*.yml", ".claude/manifests/*.yaml"
+        ],
+        "plugin_source_globs": []
+      }
+    },
+    {
+      "id": "db",
+      "name": ".pending-db-review",
+      "label": "database-reviewer",
+      "short_name": "db",
+      "default_agent": "database-reviewer",
+      "agent_summary": "SQL / Repository / migration (SQL correctness) — sentinel .pending-db-review or back-stop",
+      "dispatch": "consolidated wave",
+      "trigger_summary": "Repository / migration / model / *.sql",
+      "triggers": {
+        "basename_globs": ["*.sql"],
+        "path_globs": [
+          "*migrations/*.php", "*migrations/*.py", "*migrations/*.rb", "*migrations/*.ts", "*migrations/*.js", "*migrations/*.sql",
+          "*migration/*.php", "*migration/*.py", "*migration/*.rb", "*migration/*.ts", "*migration/*.js", "*migration/*.sql"
+        ],
+        "plugin_source_globs": []
+      }
+    },
+    {
+      "id": "sec",
+      "name": ".pending-security-review",
+      "label": "security-reviewer",
+      "short_name": "sec",
+      "default_agent": "security-reviewer",
+      "agent_summary": "Auth / crypto / money / file upload — sentinel .pending-security-review or back-stop",
+      "dispatch": "consolidated wave",
+      "trigger_summary": "Controllers / config / *{Auth,Login,Acl,Upload,File}* source files",
+      "triggers": {
+        "basename_globs": [
+          "*Auth*.php", "*Auth*.js", "*Auth*.ts", "*Auth*.tsx", "*Auth*.jsx", "*Auth*.py", "*Auth*.rb", "*Auth*.go", "*Auth*.rs", "*Auth*.java",
+          "*auth*.php", "*auth*.js", "*auth*.ts", "*auth*.tsx", "*auth*.jsx", "*auth*.py", "*auth*.rb", "*auth*.go", "*auth*.rs", "*auth*.java",
+          "*Login*.php", "*Login*.js", "*Login*.ts", "*Login*.tsx", "*Login*.jsx", "*Login*.py", "*Login*.rb", "*Login*.go", "*Login*.rs", "*Login*.java",
+          "*login*.php", "*login*.js", "*login*.ts", "*login*.tsx", "*login*.jsx", "*login*.py", "*login*.rb", "*login*.go", "*login*.rs", "*login*.java",
+          "*Acl*.php", "*Acl*.js", "*Acl*.ts", "*Acl*.tsx", "*Acl*.jsx", "*Acl*.py", "*Acl*.rb", "*Acl*.go", "*Acl*.rs", "*Acl*.java",
+          "*acl*.php", "*acl*.js", "*acl*.ts", "*acl*.tsx", "*acl*.jsx", "*acl*.py", "*acl*.rb", "*acl*.go", "*acl*.rs", "*acl*.java",
+          "*Upload*.php", "*Upload*.js", "*Upload*.ts", "*Upload*.tsx", "*Upload*.jsx", "*Upload*.py", "*Upload*.rb", "*Upload*.go", "*Upload*.rs", "*Upload*.java",
+          "*upload*.php", "*upload*.js", "*upload*.ts", "*upload*.tsx", "*upload*.jsx", "*upload*.py", "*upload*.rb", "*upload*.go", "*upload*.rs", "*upload*.java",
+          "*File*.php", "*File*.js", "*File*.ts", "*File*.tsx", "*File*.jsx", "*File*.py", "*File*.rb", "*File*.go", "*File*.rs", "*File*.java",
+          "*file*.php", "*file*.js", "*file*.ts", "*file*.tsx", "*file*.jsx", "*file*.py", "*file*.rb", "*file*.go", "*file*.rs", "*file*.java"
+        ],
+        "path_globs": [],
+        "plugin_source_globs": []
+      }
+    },
+    {
+      "id": "frontend",
+      "name": ".pending-frontend-review",
+      "label": "frontend-reviewer",
+      "short_name": "fe",
+      "default_agent": "frontend-reviewer",
+      "agent_summary": "JS / TS / view-layer JS — sentinel .pending-frontend-review or back-stop",
+      "dispatch": "consolidated wave",
+      "trigger_summary": "No built-in default; opt in through module triggers or fe: extra paths",
+      "triggers": { "basename_globs": [], "path_globs": [], "plugin_source_globs": [] }
+    },
+    {
+      "id": "doc",
+      "name": ".pending-doc-review",
+      "label": "doc-reviewer",
+      "short_name": "doc",
+      "default_agent": "doc-reviewer",
+      "agent_summary": "Documentation review — sentinel .pending-doc-review",
+      "dispatch": "consolidated wave",
+      "trigger_summary": ".md files under approved harness / OpenSpec / docs paths; CLAUDE.md, AGENTS.md, top-level README*.md",
+      "triggers": {
+        "basename_globs": ["CLAUDE.md", "AGENTS.md"],
+        "path_globs": [
+          ".claude/agents/*.md", ".claude/rules/*.md", ".claude/commands/*.md", ".claude/hooks/*.md", ".claude/scripts/*.md", ".claude/skills/*.md", ".claude/manifests/*.md",
+          "openspec/*.md", "docs/*.md", "README*.md"
+        ],
+        "plugin_source_globs": ["agents/*.md", "rules/*.md", "skills/*.md", "agent-traps/*.md", "commands/*.md"]
+      }
+    },
+    {
+      "id": "polyfill",
+      "name": ".pending-polyfill-review",
+      "label": "polyfill-reviewer",
+      "short_name": "poly",
+      "default_agent": "polyfill-reviewer",
+      "agent_summary": ".php edits with a runtime version guard — sentinel .pending-polyfill-review (library-author module)",
+      "dispatch": "consolidated wave",
+      "trigger_summary": "Module-owned trigger only",
+      "triggers": { "basename_globs": [], "path_globs": [], "plugin_source_globs": [] }
+    },
+    {
+      "id": "migration",
+      "name": ".pending-migration-review",
+      "label": "migration-reviewer",
+      "short_name": "mig",
+      "default_agent": "migration-reviewer",
+      "agent_summary": "Migration files (up/down symmetry, FK naming, large ALTER, multi-tenant deploy) — sentinel .pending-migration-review",
+      "dispatch": "consolidated wave",
+      "trigger_summary": "Module-owned migration: triggers or mig: extra paths only",
+      "triggers": { "basename_globs": [], "path_globs": [], "plugin_source_globs": [] }
+    }
+  ]
+}
