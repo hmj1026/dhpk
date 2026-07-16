@@ -92,6 +92,8 @@ Use the repo root from Context (Phase 0) to build absolute paths. All paths belo
 
 1. Read `${REPO_ROOT}/.claude/CLAUDE.md` (create with a minimal `# CLAUDE.md` header if it does not exist).
 
+   If that target is a symlink, resolve it with `realpath ${REPO_ROOT}/.claude/CLAUDE.md` and Write to the resolved target; the Write tool refuses symlinks.
+
 2. For each rule to install, the reference line is:
 
    ```

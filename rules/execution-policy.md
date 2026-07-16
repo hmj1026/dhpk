@@ -81,6 +81,8 @@ SSOT for implement-phase routing while `userConfig.orchestration_dispatch=on` (d
 | The same mechanical clear-spec work, offloaded to the agy CLI backend — **agy CLI available** only. Selected by explicit configuration or as an available candidate in configured `auto` order. | `agy-fast-worker` |
 | Small diff (roughly ≤2 files, unambiguous intent) | Inline in the main loop — no dispatch |
 | Complex implementation (needs both reasoning and mechanical application) | `deep-reasoner` produces the fix spec (conclusion contract) → `fast-worker` applies it |
+| Post-review findings form a clear fix-spec whose whole fix batch exceeds the ≤2-file inline bound | One batched selector-resolved fast-worker dispatch; never measure the bound per finding |
+| Specialist fix-spec handback (`tdd-guide` GREEN footprint >2 files or `e2e-runner` application-bug report) | Selector-resolved fast-worker applies it; acceptance uses the originating specialist's stated scoped verification command or journey |
 | RED / E2E test that must reason about seeding AND run against a live server (Playwright user journeys) — read-only `deep-reasoner` can't run it, mechanical `fast-worker` can't reason about the seeding | `e2e-runner` |
 | RED PHPUnit unit/integration test authored test-first and run against a live DB (Testbench / docker MySQL) — Playwright-scoped `e2e-runner` doesn't fit, read-only `deep-reasoner` can't run it, and `fast-worker`'s "make verification pass" contract conflicts with a deliberately-failing RED test | `tdd-guide` |
 | A read-only, scenario-driven live-runtime probe (drive the real running system with one concrete scenario, observe rather than infer) — distinct from `e2e-runner` (authors/runs Playwright specs, write-capable, web-scoped) and the `feature-verify` skill (main-context, heavyweight P0–P5 scope, not a dispatchable isolated agent) | `dhpk:smoke-tester` |
@@ -167,7 +169,7 @@ Trigger map source-of-truth: dhpk's `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/post-ed
 
 ### Reviewer dispatch (when multiple sentinels coexist)
 
-At the end of a turn that produced Edits/Writes, gather ALL pending sentinels, then **triage → dispatch in parallel → merge**. A contiguous implementation wave is the review unit: accumulate its scope and dispatch each applicable reviewer once. Apply all known-finding fixes together, then allow at most one confirm-only re-review naming those findings; new substantive scope starts a new review decision. Any CRITICAL blocks the merge/commit; pure research (no Edit/Write) skips all reviewers. Full triage rules + examples: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/review-gate-mechanics.md`.
+At the end of a turn that produced Edits/Writes, gather ALL pending sentinels, then **triage → dispatch ONE consolidated parallel reviewer batch → merge**. A contiguous implementation wave is the review unit: accumulate its scope and dispatch each applicable reviewer once in that single batch. A second round for the same wave requires new substantive scope or an explicit escalation decision; known-finding fixes allow at most one confirm-only re-review naming those findings, while new substantive scope starts a new review decision. `codex-bridge` review is explicit escalation only, never a default extra round, and may run at most once per change. Any CRITICAL blocks the merge/commit; pure research (no Edit/Write) skips all reviewers. Full triage rules + examples: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/review-gate-mechanics.md`.
 
 ### Hook lifecycle classes
 

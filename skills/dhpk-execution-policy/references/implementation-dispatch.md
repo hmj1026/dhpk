@@ -8,6 +8,8 @@ The main session is the expensive, high-capability orchestrator; its implement-p
 
 **The "≤2 files" inline bound is measured on the whole implement-step footprint, not each individual Edit.** A run of individually-small mechanical edits that together touch more than two files — e.g. a multi-file doc-consistency fix across ≥3 files — is **one `fast-worker` dispatch** (batched into a single fix-spec), not a salami-sliced sequence of "small" inline diffs. When the choice between inline and `fast-worker` is unclear, **dispatch**.
 
+**Review-fix waves follow the same posture.** After a consolidated review batch, combine actionable findings into one fix-spec and measure the whole fix footprint against the inline bound. A batch exceeding two files goes to the selector-resolved fast-worker. Applying production fixes inline one finding at a time after review is the audited anti-pattern: it salami-slices one mechanical wave and expands the orchestrator's replay context.
+
 **`general-purpose` is prohibited for implementation while `orchestration_dispatch=on`.** It carries no dhpk policy context, inherits the main-session model regardless of task cost, and has no defined input/output contract — use `deep-reasoner` / `fast-worker` / inline per the dispatch table instead.
 
 ## Live CI/deploy verification loops are dispatchable work

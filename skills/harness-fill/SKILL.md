@@ -133,6 +133,8 @@ Frontmatter templates + required sections per product type → `references/front
 
 ## Phase 5: write / fill in CLAUDE.md
 
+Before Writing a root or per-layer `CLAUDE.md`, check whether the target is a symlink. If so, resolve it with `realpath <target>` and Write to the resolved target; the Write tool refuses symlinks.
+
 ### Root CLAUDE.md required sections (in order)
 
 1. Project intro (one sentence + primary tech stack with version constraints)

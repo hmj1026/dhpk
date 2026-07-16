@@ -85,6 +85,7 @@ Based on detected manifest (from Phase 1):
 2. Remove `<!-- block:X -->...<!-- /block -->` sections NOT matching detected ecosystem, then remove remaining block markers
 3. `Edit` each placeholder (`replace_all: true`)
 4. Write to `.claude/CLAUDE.md` (create directory / file if needed)
+   - If the target exists as a symlink, resolve `realpath .claude/CLAUDE.md` and Write to that resolved target; the Write tool refuses symlinks.
 
 ## Phase 4: Verify CLAUDE.md
 
@@ -101,6 +102,7 @@ If `--detect-only` or `--lite`, skip to Phase 7.
 - **Locate** plugin `rules/` via 3-level fallback (Glob plugin dirs → `node_modules` → `@rules/` relative); not found → hard error + remediation, skip to Phase 6 (Phase 7 reports `⚠️ Partial`)
 - **Reference** the 4 shipped rules (`anti-rationalization.md`, `execution-policy.md`, `model-economics.md`, `tool-routing.md`) by `${CLAUDE_PLUGIN_ROOT}/rules/` path — no local copies — then record state in `.dhpk/install-state.json` (preserve unknown keys)
 - **Backfill** `.claude/CLAUDE.md` with `@rules/` references so the rules activate (closed-loop guarantee)
+- Before any backfill Write, resolve and use the realpath when `.claude/CLAUDE.md` is a symlink; the Write tool refuses symlinks.
 - Full rule list, conflict strategy, manifest schema, backfill branches, and report template → **`references/install-rules-phase.md`**
 
 ## Phase 6: Install Hooks
