@@ -29,7 +29,10 @@ Detect the active stack, then load ONLY the matching trap sheet(s); ignore other
 
 - **RED first** — write a failing test that pins the intended behavior before any implementation; confirm it fails for the right reason.
 - **Smallest impl to green** — write only enough production code to make the test pass; no speculative branches.
-- **Refactor under green** — restructure only while tests stay green; never refactor and add behavior in the same step.
+- **Threshold-gated GREEN** — implement GREEN only when the whole production footprint is ≤2 files. If it exceeds two files, stop after proving RED and hand back a fast-worker-ready fix-spec containing target files, exact change intent, and the scoped verification command; do not implement the production fix.
+- **Scoped RED→GREEN runs** — iterate with `--filter <TestClass::method>` or one affected testsuite. Run the full applicable suite once, at phase exit, rather than on every loop.
+- **Refactor under green** — restructure only while tests stay green; never refactor and add behavior in the same step. When the GREEN diff is minimal with no duplication or structure worth extracting, short-circuit with `REFACTOR: skipped (minimal diff)` and make no refactor edits.
+- **Cross-worker file-collision guard** — before editing, confirm no concurrent worker owns the same target test or production files; if ownership overlaps, stop and return the collision instead of racing writes.
 - **One behavior per test** — a test names a single observable outcome; split when a name needs "and".
 - **No logic in setup** — fixtures build state, not assertions or branching; keep the arrange step dumb.
 - **Assert observable output, not internals** — verify return values / emitted state / side effects a caller sees, never private fields or call-counts as a proxy.
@@ -49,6 +52,7 @@ Phase: RED|GREEN|REFACTOR
 Verdict: PASS|WARNING|FAIL
 coverage_pct: <number or unavailable>
 Verification command: <command> → PASS | FAIL
+GREEN handback: none | fast-worker-ready fix-spec (target files, change intent, scoped verification command)
 Test files:
 - <changed test file>
 
