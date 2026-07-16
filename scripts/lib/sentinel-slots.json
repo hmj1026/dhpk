@@ -9,7 +9,7 @@
       "default_agent": "code-reviewer",
       "agent_summary": "Code review — sentinel .pending-review",
       "dispatch": "consolidated wave",
-      "trigger_summary": "*.php / *.js / **/CLAUDE.md",
+      "trigger_summary": "`*.php` / `*.js` / `**/CLAUDE.md`",
       "triggers": {
         "basename_globs": [
           "*.php", "*.js", "*.ts", "*.tsx", "*.jsx", "*.mjs", "*.cjs",
@@ -36,7 +36,7 @@
       "default_agent": "database-reviewer",
       "agent_summary": "SQL / Repository / migration (SQL correctness) — sentinel .pending-db-review or back-stop",
       "dispatch": "consolidated wave",
-      "trigger_summary": "Repository / migration / model / *.sql",
+      "trigger_summary": "Repository / migration / model / `*.sql`",
       "triggers": {
         "basename_globs": ["*.sql"],
         "path_globs": [
@@ -54,7 +54,7 @@
       "default_agent": "security-reviewer",
       "agent_summary": "Auth / crypto / money / file upload — sentinel .pending-security-review or back-stop",
       "dispatch": "consolidated wave",
-      "trigger_summary": "Controllers / config / *{Auth,Login,Acl,Upload,File}* source files",
+      "trigger_summary": "Controllers / config / `*{Auth,Login,Acl,Upload,File}*` source files",
       "triggers": {
         "basename_globs": [
           "*Auth*.php", "*Auth*.js", "*Auth*.ts", "*Auth*.tsx", "*Auth*.jsx", "*Auth*.py", "*Auth*.rb", "*Auth*.go", "*Auth*.rs", "*Auth*.java",
@@ -91,7 +91,7 @@
       "default_agent": "doc-reviewer",
       "agent_summary": "Documentation review — sentinel .pending-doc-review",
       "dispatch": "consolidated wave",
-      "trigger_summary": ".md files under approved harness / OpenSpec / docs paths; CLAUDE.md, AGENTS.md, top-level README*.md",
+      "trigger_summary": "`.md` files under approved harness / OpenSpec / docs paths; `CLAUDE.md`, `AGENTS.md`, top-level `README*.md`",
       "triggers": {
         "basename_globs": ["CLAUDE.md", "AGENTS.md"],
         "path_globs": [
