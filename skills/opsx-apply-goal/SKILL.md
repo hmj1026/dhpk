@@ -123,7 +123,7 @@ Compose `GOAL_CONDITION` from the verbatim templates in
   setting explicitly — never leave the orchestrator to infer it). Substitute
   the analyzer's `FAST_WORKER_CLAUSE` (already resolved by the shared selector,
   with flag > userConfig > default) and its `TASK_DIGEST`, capped at 200 UTF-8 bytes without splitting a code point.
-  Substitute `<E2E_ROSTER_CLAUSE>` with `RED/E2E Playwright → dhpk:e2e-runner; `
+  Substitute `<E2E_ROSTER_CLAUSE>` with `RED/E2E Playwright → dhpk:e2e-runner;`
   only when `HAS_E2E=true`; otherwise substitute the empty string.
 - **Parts 1, 2, 2b** — always (tasks-done, universal `.pending-*` sentinel check,
   `.unresolved-verdict` sidecar check).
