@@ -25,6 +25,14 @@ allowed-tools: 'Read, Grep, Glob, Edit, Write, Bash, Skill'
 
 This skill fixes bugs but does **not** commit. `/precommit` is a quality gate only. To commit, the user must invoke `/smart-commit --execute` separately.
 
+## Fast-worker invocation context
+
+When the caller supplies `FAST_WORKER_OVERRIDE`, retain the exact invocation-only
+value and pass it to the shared `scripts/fast-worker-selector.js` as
+`--backend "$FAST_WORKER_OVERRIDE"` before the first mechanical dispatch. `unset`
+means omit that explicit argument and use selector-managed userConfig/default
+precedence; never recover the override from the cleaned task description.
+
 ## Codex mode (opt-in)
 
 This workflow runs **codex-free by default** — pure Claude + dhpk agents, no

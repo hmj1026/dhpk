@@ -87,7 +87,7 @@ test('missing executable blocks unless the configured fallback is claude', () =>
   assert.ok(fallback.value.reason.includes('missing executable'));
 });
 
-test('authorization or model failures never fall back, and CODEX-off blocks codex', () => {
+test('authorization or model failures never fall back, and CODEX review mode does not gate codex worker availability', () => {
   const failed = select(['--backend', 'codex', '--failure', 'authorization', '--fallback', 'claude'], { PATH: '/usr/bin:/bin', CODEX: 'on' });
   assert.strictEqual(failed.value.status, 'blocked');
   assert.strictEqual(failed.value.selected_backend, 'codex');
@@ -96,9 +96,15 @@ test('authorization or model failures never fall back, and CODEX-off blocks code
   assert.strictEqual(modelFailed.value.status, 'blocked');
   assert.ok(modelFailed.value.reason.includes('model failure'));
   assert.strictEqual(modelFailed.value.fallback, 'none');
-  const off = select(['--backend', 'codex'], { PATH: '/usr/bin:/bin', CODEX: 'off' });
-  assert.strictEqual(off.value.status, 'blocked');
-  assert.ok(off.value.reason.includes('CODEX=off'));
+  const dir = tempDir('dhpk-selector-codex-off-');
+  try {
+    const bin = fakeCli(dir, 'codex');
+    const off = select(['--backend', 'codex'], { PATH: `${bin}:/usr/bin:/bin`, CODEX: 'off' });
+    assert.strictEqual(off.value.status, 'selected');
+    assert.strictEqual(off.value.selected_backend, 'codex');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('invalid selector inputs normalize to shipped defaults before dispatch', () => {

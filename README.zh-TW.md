@@ -57,10 +57,11 @@ claude plugin install dhpk@dhpk --config modules=php-8.x,laravel-11 --config hoo
 
 ## 常見工作流
 
-所有功能都能透過 `/dhpk:do` 進入——一個接收自然語言任務描述、並路由到正確 skill 的單一入口：新功能開發、修 bug、自動 post-edit review 循環、提交與 PR、無人值守 OpenSpec session、萃取規格、E2E 測試撰寫、harness 健康檢測，以及 Implementation dispatch（推理密集工作 → `deep-reasoner`，機械式工作 → `fast-worker`）。每項的完整說明與範例見 **[`docs/basic-operations.zh-TW.md`](./docs/basic-operations.zh-TW.md)**。
+所有功能都能透過 `/dhpk:do` 進入——一個接收自然語言任務描述、並路由到正確 skill 的單一入口：新功能開發、修 bug、自動 post-edit review 循環、提交與 PR、無人值守 OpenSpec session、萃取規格、E2E 測試撰寫、harness 健康檢測，以及 Implementation dispatch（推理密集工作 → `deep-reasoner`，機械式工作 → selector 選出的 Claude／Codex／agy fast worker）。每項的完整說明與範例見 **[`docs/basic-operations.zh-TW.md`](./docs/basic-operations.zh-TW.md)**。
 
 ```text
 /dhpk:do implement a password-reset email flow   # 新功能（TDD + review gate）
+/dhpk:do --fast-worker=codex implement the plan   # 僅本次呼叫的 worker 覆寫
 /dhpk:do fix the login redirect loop              # 修 bug（根因證據 + 回歸測試）
 /dhpk:review-pending                              # 立即觸發待處理的 reviewer
 /dhpk:smart-commit && /dhpk:create-pr             # 提交 + 建 PR
@@ -71,7 +72,7 @@ claude plugin install dhpk@dhpk --config modules=php-8.x,laravel-11 --config hoo
 
 ## userConfig
 
-40 個旋鈕，全部可在安裝時用 `--config <key>=<value>` 設定，也可隨時用 `/dhpk:setup` 重新設定。完整參考（每個旋鈕在哪裡設定、所有選項、專案層級覆寫語法）見 **[`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md)**。
+51 個旋鈕，全部可在安裝時用 `--config <key>=<value>` 設定，也可隨時用 `/dhpk:setup` 重新設定。完整參考（每個旋鈕在哪裡設定、所有選項、專案層級覆寫語法）見 **[`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md)**。
 
 ```bash
 claude plugin install dhpk@dhpk \

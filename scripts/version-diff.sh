@@ -185,7 +185,7 @@ print()
 # --- 3c. Draft verified-entry snippet ---------------------------------------
 today = os.environ.get("VERSION_DIFF_TODAY") or date.today().isoformat()
 major_minor = ".".join(running.split(".")[:2])
-print("## Draft verified-entry (paste into .claude/dhpk-versions.json after reviewing the above — not written automatically)")
+print("## Draft verified-entry (paste into .claude/dhpk-versions.json after reviewing the above — not written automatically; if the pin file is a symlink, Write to its realpath (`realpath .claude/dhpk-versions.json`) — the Write tool refuses symlinks)")
 print(json.dumps({"range": f"{major_minor}.x", "note": f"verified {today} — <what was checked>"}, ensure_ascii=False, indent=2))
 PY
 exit 0

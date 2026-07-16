@@ -42,9 +42,11 @@ The flow mirrors the wrapper so the user sees the same questions:
    the SessionStart docker check; if yes, ask for the comma-separated container
    names. Remind that position matters: first → `DHPK_PHP_CONTAINER`, second →
    `DHPK_MYSQL_CONTAINER`.
-4. **Review agents** — offer to override the three defaults
-   (`code-reviewer`, `database-reviewer`, `security-reviewer`). Useful for
-   projects whose agents live under different names (e.g. `code-reviewer-foo`).
+4. **Review agents** — offer to override the seven slot defaults
+   (`code-reviewer`, `database-reviewer`, `security-reviewer`,
+   `frontend-reviewer`, `doc-reviewer`, `polyfill-reviewer`,
+   `migration-reviewer`). Useful for projects whose agents live under different
+   names (e.g. `code-reviewer-foo`); short lists are padded from shipped defaults.
 5. **Hook profile** — single-select from `.hook_profiles[].id`
    (`minimal | standard | strict`).
 

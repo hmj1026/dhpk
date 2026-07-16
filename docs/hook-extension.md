@@ -23,6 +23,13 @@ dhpk solves this with a thin **dispatcher** in core
 This keeps `hooks/hooks.json` static while letting modules contribute
 behaviour at runtime.
 
+The core `post-edit-remind.sh` also deduplicates its immediate advisory by the
+set of pending sentinels. It stores the last observed set in
+`.claude/artifacts/sessions/.advisory-state`, emits the advisory only when that
+set changes, and notices external reviewer clears before a later edit re-arms
+the set. A path with no matching trigger is silent unless `DHPK_DEBUG=1`; the
+sentinel writes themselves remain synchronous and idempotent.
+
 ## Dispatchers
 
 | Dispatcher | Wired by `hooks.json` for | Calls (always) | Calls (per active module) |

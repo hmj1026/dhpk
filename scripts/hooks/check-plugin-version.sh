@@ -94,7 +94,7 @@ PY
 )"
 
 if [ -n "$result" ]; then
-    echo "[session-start] dhpk version advisory: $result — review .claude/dhpk-versions.json (or run scripts/version-diff.sh for a config/CHANGELOG diff)"
+    echo "[session-start] dhpk version advisory: $result — review .claude/dhpk-versions.json (or run scripts/version-diff.sh for a config/CHANGELOG diff); if the pin file is a symlink, Write to its realpath (realpath .claude/dhpk-versions.json) — the Write tool refuses symlinks"
 fi
 
 exit 0

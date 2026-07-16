@@ -44,8 +44,8 @@ truth in **@rules/execution-policy.md** — do not restate them here:
 - *Change classification & OpenSpec routing (SSOT)* — the six change types (Bug Fix unknown/known,
   Feature Delivery cross-module/normal, Medium change, Lightweight Maintenance), whether each asks
   about OpenSpec, and its planning step.
-- *Post-implementation agent gate (SSOT)* — the ordered `tdd-guide → database-reviewer →
-  security-reviewer → code-reviewer` gate that every path except Lightweight Maintenance runs.
+- *Post-implementation agent gate (SSOT)* — applicable TDD/E2E specialists plus one
+  consolidated parallel batch of every sentinel reviewer triggered by the implementation wave.
 
 Classify the request against that table, then proceed to the Task steps below.
 
@@ -64,10 +64,11 @@ Use the adaptive dev workflow skill to:
    > "此變更是否需要 OpenSpec 文件留存？(y/n，預設 n)"
    - **y** → recommend `/opsx:new` to create `openspec/changes/<change-id>/` artifacts
    - **n** (or no response) → proceed with brief plan, no artifact created
-5. Output the **Post-Implementation Agent Gate checklist** as defined in
-   `@rules/execution-policy.md` → *Post-implementation agent gate (SSOT)* (ordered
-   `tdd-guide → database-reviewer → security-reviewer → code-reviewer`), pre-filling
-   YES/NO for each agent from the classification. Do not restate the gate — reference the SSOT.
+5. Output the **Post-Implementation Agent Gate checklist** defined in
+   `@rules/execution-policy.md` → *Post-implementation agent gate (SSOT)*. Mark
+   the applicable implementation specialists and sentinel reviewers from the
+   classification; reviewers run as one consolidated parallel batch per wave.
+   Do not restate the gate — reference the SSOT.
 6. Recommend the next workflow, skill, or command (append `--codex` to it when this command was run with `--codex`)
 
 ## Important Notes

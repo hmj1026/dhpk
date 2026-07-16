@@ -50,7 +50,10 @@ const composeGoal = (fixture) => {
     : 'CODEX is OFF for this session: at a contradiction-arbitration point where two agents\' conclusions directly conflict, announce "cross-model doubt skipped (CODEX=off)" per execution-policy §In-flight doubt cycle rather than performing a cross-model pass';
   const parts = FIXED_CORE.map((part) => part
     .replaceAll('<CHANGE_ID>', fixture.change_id || 'fixture-change')
-    .replace('<CODEX_STATEMENT>', codexStatement));
+    .replace('<CODEX_STATEMENT>', codexStatement)
+    .replaceAll('<TASK_DIGEST>', 'T'.repeat(200))
+    .replaceAll('<FAST_WORKER_CLAUSE>', 'dhpk:codex-fast-worker selected; fallback dhpk:agy-fast-worker → dhpk:fast-worker')
+    .replaceAll('<E2E_ROSTER_CLAUSE>', fixture.has_e2e === false ? '' : 'RED/E2E Playwright → dhpk:e2e-runner; '));
   for (const gate of fixture.gates || []) {
     const contract = Object.prototype.hasOwnProperty.call(GATE_TOKENS, gate) ? GATE_TOKENS[gate] : `GATE: ${gate}.`;
     if (contract) parts.push(contract);
