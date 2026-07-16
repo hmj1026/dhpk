@@ -6,7 +6,7 @@
   "plugins": [
     {
       "name": "dhpk",
-      "version": "0.28.13",
+      "version": "0.28.14",
       "source": {
         "source": "local",
         "path": "./plugins/dhpk"
