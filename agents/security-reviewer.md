@@ -23,7 +23,7 @@ Sentinel-scoped precedence: see `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md
 
 Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks — never review a PHP change against iOS rules, or vice-versa.
 
-1. **Active stacks**: read `$DHPK_ACTIVE_MODULES` (comma list) if set; otherwise detect from manifests via Bash — `composer.json` (`require.php` floor + framework key, e.g. `yiisoft/*`, `laravel/framework`), `package.json` (default `js`; a `vue` dependency ⇒ also `vue`), `*.xcodeproj` / `Package.swift`, `pyproject.toml` (default `python`; a `fastapi` dependency ⇒ also `fastapi`). Map module ids to stack ids (`php-7.4`→`php`, `swiftui`/`ios-platform`→`ios`).
+1. **Active stacks**: read `$DHPK_ACTIVE_MODULES` (comma list) if set; it takes precedence; otherwise detect fallback signals only from PROJECT-ROOT manifests/files via Bash — a root `package.json` emits generic `js`; a `vue` key in `dependencies`, `devDependencies`, or `peerDependencies` additionally emits `vue`; `next`/`react` remain covered by generic `js`; a root `composer.json` or PHP files directly under the repository root (`./*.php`) emits `php`; `*.xcodeproj` / `Package.swift` emits `swift`; `pyproject.toml` emits `python` (a `fastapi` dependency additionally emits `fastapi`). Do not recurse into `node_modules/`, `vendor/`, or other vendored trees. Map module ids to stack ids (`php-7.4`→`php`, `swiftui`/`ios-platform`→`ios`).
 2. Load: `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/trap-sheet-loader.md` step 2 (`<agent-name>` = `security-reviewer`).
 3. No sheet matches → apply only the Baseline below.
 
@@ -65,6 +65,8 @@ Before reporting: *what attack does this enable?* No path → don't report.
 
 Use [`docs/contracts/reviewer-contract.md`](../docs/contracts/reviewer-contract.md) for scope, evidence, artifact, verdict, confirm-only, and bounded retry fields.
 
+Single-run verdict: emit the final verdict in this same run; never stop for advisory or intermediary input before the verdict is written; post-verdict escalation is allowed.
+
 ### Specialist checks
 
 This file retains auth, authorization, crypto, money, and upload checks unique to `security-reviewer`.
@@ -83,4 +85,4 @@ Passed: <items>
 
 ## Closing — Artifact Output
 
-Category: `reviews/`. Frontmatter/retention/degradation: reviewer-family shape (PASS/WARNING/FAIL) in `docs/contracts/artifact-contract.md`. Sentinel clearance: owned by the runtime hook `subagent-stop-verify.sh`, which auto-clears `.pending-security-review` on a successful stop once a fresh review artifact with a parseable verdict exists — this reviewer's job ends at writing that artifact.
+Category: `reviews/`. Frontmatter/retention/degradation: reviewer-family shape (PASS/WARNING/FAIL) in `docs/contracts/artifact-contract.md`. Sentinel clearance is owned by `subagent-stop-verify.sh`: a successful stop with a fresh matching artifact clears `.pending-security-review` regardless of verdict parseability; unresolved-verdict and quality enforcement handle malformed verdicts. This reviewer's job ends at writing the artifact.

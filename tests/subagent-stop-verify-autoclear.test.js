@@ -17,6 +17,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const crypto = require('node:crypto');
 const { test, run, assert } = require('./_lib/tinytest');
 const {
   ROOT,
@@ -491,6 +492,54 @@ test('real SubagentStop schema (top-level prefixed agent_type, no subagent_type/
     assert.ok(!sentinelExists(repo, '.pending-review'),
       'sentinel was NOT auto-cleared for the real prefixed agent_type schema');
     assert.deepStrictEqual(activeMarkerLines(repo, '.active-review'), []);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('recorded lin_blog 0.28.14 fixture auto-clears only the frontend sentinel', () => {
+  const fixture = JSON.parse(fs.readFileSync(
+    path.join(ROOT, 'tests', 'fixtures', 'subagent-stop', 'lin-blog-2026-07-17.json'),
+    'utf8'
+  ));
+  const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), 'utf8'));
+  const hookPath = path.join(ROOT, 'scripts', 'hooks', HOOK);
+  const hookSha1 = crypto.createHash('sha1').update(fs.readFileSync(hookPath)).digest('hex');
+
+  assert.strictEqual(manifest.version, fixture.installedPluginVersion);
+  assert.strictEqual(hookSha1, fixture.installedHookSha1);
+  assert.deepStrictEqual(fixture.subagentStopIdentity, {
+    field: 'agent_type',
+    value: 'dhpk:frontend-reviewer',
+  });
+  assert.match(fixture.artifact.filename, /^frontend-reviewer-/);
+  assert.ok(Date.parse(fixture.artifact.mtime) > Date.parse(fixture.artifact.generatedAt));
+  assert.match(fixture.autoClearLog.line, /frontend-reviewer.*\.pending-frontend-review \(auto-cleared\)/);
+  assert.match(fixture.conclusion, /no frontend hook map change is warranted/);
+
+  const repo = mkTempRepo();
+  try {
+    armSentinel(repo, '.pending-frontend-review');
+    armSentinel(repo, '.pending-review');
+    writeReviewArtifact(repo, 'frontend-reviewer', [
+      '---',
+      'agent: frontend-reviewer',
+      'severity_summary: { critical: 0, high: 0, medium: 0, low: 1 }',
+      'verdict: APPROVE',
+      '---',
+      'clean',
+    ].join('\n'), fixture.artifact.mtime);
+    const payload = { [fixture.subagentStopIdentity.field]: fixture.subagentStopIdentity.value };
+    const res = runHook(repo, payload);
+    assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
+    assert.ok(!sentinelExists(repo, '.pending-frontend-review'),
+      'frontend sentinel was NOT auto-cleared for the real prefixed agent_type schema');
+    assert.ok(sentinelExists(repo, '.pending-review'),
+      'code-reviewer sentinel must stay armed — frontend clear must be scoped');
+    assert.ok(failureLogContents(repo).includes('auto-cleared'),
+      `expected an auto-cleared log line, got:\n${failureLogContents(repo)}`);
+    assert.ok(!failureLogContents(repo).includes('left armed'),
+      `frontend stop must not be logged as left armed:\n${failureLogContents(repo)}`);
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });
   }
