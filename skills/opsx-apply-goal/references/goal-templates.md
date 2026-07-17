@@ -33,12 +33,12 @@ proceeds on this condition's own inline gates.
 The generator resolves CLI backend choice through the policy selector and
 substitutes a compact `<FAST_WORKER_CLAUSE>` that states the effective backend
 and fallback order in every generated goal. The clause — and the whole
-`mechanical → <FAST_WORKER_CLAUSE>; ` segment it sits in, including its trailing
+`mechanical → <FAST_WORKER_CLAUSE>;` segment it sits in, including its trailing
 separator — is present only when the analyzer's footprint scan finds an eligible
 batch (a conclusive `Mechanical: yes` task naming more than `MAX_INLINE_FILES`
 distinct files) or the scan is inconclusive (fail-open). When the scan concludes
 no eligible batch exists, `FAST_WORKER_CLAUSE` is empty and the composer omits
-the entire `mechanical → <FAST_WORKER_CLAUSE>; ` segment from the emitted text —
+the entire `mechanical → <FAST_WORKER_CLAUSE>;` segment from the emitted text —
 the ≤2-file inline rule already stated in Part 0 covers that case, mirroring how
 `<E2E_ROSTER_CLAUSE>` is omitted when `HAS_E2E=false`.
 
