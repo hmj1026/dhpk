@@ -122,7 +122,14 @@ Compose `GOAL_CONDITION` from the verbatim templates in
   `<CODEX_STATEMENT>` with the `CODEX=on`/`off` text (state the session's CODEX
   setting explicitly — never leave the orchestrator to infer it). Substitute
   the analyzer's `FAST_WORKER_CLAUSE` (already resolved by the shared selector,
-  with flag > userConfig > default) and its `TASK_DIGEST`, capped at 200 UTF-8 bytes without splitting a code point.
+  with flag > userConfig > default) and its `TASK_DIGEST`, capped at 200 UTF-8 bytes without splitting a code point. The clause and the entire
+  `mechanical → <FAST_WORKER_CLAUSE>; ` segment, including its trailing separator,
+  are present only when the footprint scan finds an eligible batch with at least
+  three distinct files in a conclusive `Mechanical: yes` task, or when the scan
+  is inconclusive and fails open. When `FAST_WORKER_CLAUSE` is empty (no eligible
+  batch), omit the entire `mechanical → <FAST_WORKER_CLAUSE>; ` segment from the
+  emitted Part 0 text; the ≤2-file inline rule already stated elsewhere in Part 0
+  covers this case.
   Substitute `<E2E_ROSTER_CLAUSE>` with `RED/E2E Playwright → dhpk:e2e-runner;`
   only when `HAS_E2E=true`; otherwise substitute the empty string.
 - **Parts 1, 2, 2b** — always (tasks-done, universal `.pending-*` sentinel check,

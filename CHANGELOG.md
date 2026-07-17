@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.28.15 — 2026-07-18 — Refine reviewer contracts, footprint scanning, and script validations
+
+Refines reviewer contracts to require single-run verdicts and updates sentinel auto-clear/verify logic, implements task footprint scanning in `opsx-apply-goal` to optimize fast-worker bypass decisions, adjusts active stack detection logic for the trap sheet loader, prevents system-generated prompts from triggering workflow-routing hints, and adds static dependency validation checks for `opsx-apply-goal` scripts.
+
+**feat(opsx)** — Implement task Footprint scanning in `opsx-apply-goal` to optimize fast-worker bypass decisions.
+**refactor(reviewer)** — Update reviewer contracts to require single-run verdicts and refine sentinel auto-clear/verify logic.
+**refactor(agent-traps)** — Adjust active stack detection logic for the trap sheet loader.
+**fix(hooks)** — Prevent system-generated prompts from triggering workflow-routing hints.
+**chore(ci)** — Add static dependency check for `opsx-apply-goal` scripts during plugin validation.
+
 ## 0.28.14 — 2026-07-16 — Introduce sentinel-slots registry and optimize asset inventory
 
 Introduces a sentinel-slots registry and auto-generator, relocates and refactors project asset inventory logic into a shared helper module, adds shell runtime configuration helpers for hooks, improves multi-AI platform sync drift checks, and enhances change detection accuracy for Codex skills via content hashing.

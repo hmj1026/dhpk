@@ -56,7 +56,7 @@ Out of scope:
    "Sentinel-scoped precedence" — apply verbatim, sentinel = `.pending-doc-review`.
    Back-stop/full-review fallback restricts to `.claude/ docs/ openspec/`.
 2. Walk each file through the four-quadrant checklist below.
-3. Close out: write the artifact + clear the sentinel.
+3. Close out: write the artifact; sentinel clearance is hook-owned.
 
 ## Checklist — five quadrants (only report actual hits)
 
@@ -153,6 +153,8 @@ link.
 
 Use [`docs/contracts/reviewer-contract.md`](../docs/contracts/reviewer-contract.md) for scope, evidence, artifact, verdict, confirm-only, and bounded retry fields.
 
+Single-run verdict: emit the final verdict in this same run; never stop for advisory or intermediary input before the verdict is written; post-verdict escalation is allowed.
+
 ### Specialist checks
 
 This file retains frontmatter, links, terminology, and SSOT checks unique to `doc-reviewer`.
@@ -175,4 +177,4 @@ Issue / Fix
 
 ## Closing — Artifact Output (MUST)
 
-Category: `reviews/`, scope holds doc paths (e.g. `.claude/rules/foo.md`). Frontmatter/retention/degradation: reviewer-family shape (APPROVE/WARNING/BLOCK) in `docs/contracts/artifact-contract.md` — note `severity_summary` here omits `critical` (doc findings top out at HIGH). Sentinel clearance: owned by the runtime hook `subagent-stop-verify.sh`, which auto-clears `.pending-doc-review` on a successful stop once a fresh review artifact with a parseable verdict exists — this reviewer's job ends at writing that artifact.
+Category: `reviews/`, scope holds doc paths (e.g. `.claude/rules/foo.md`). Frontmatter/retention/degradation: reviewer-family shape (APPROVE/WARNING/BLOCK) in `docs/contracts/artifact-contract.md` — note `severity_summary` here omits `critical` (doc findings top out at HIGH). Sentinel clearance is owned by `subagent-stop-verify.sh`: a successful stop with a fresh matching artifact clears `.pending-doc-review` regardless of verdict parseability; unresolved-verdict and quality enforcement handle malformed verdicts. This reviewer's job ends at writing the artifact.

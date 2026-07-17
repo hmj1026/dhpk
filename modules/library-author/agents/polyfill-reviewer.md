@@ -83,6 +83,8 @@ The sentinel file contains one line per edited file:
 Use [`docs/contracts/reviewer-contract.md`](../../../docs/contracts/reviewer-contract.md)
 for scope, evidence, artifact, verdict, confirm-only, and bounded retry fields.
 
+Single-run verdict: emit the final verdict in this same run; never stop for advisory or intermediary input before the verdict is written; post-verdict escalation is allowed.
+
 ### Specialist checks
 
 This file retains the version-guard branch and matrix-cell checks unique to
@@ -126,4 +128,4 @@ confirmations.
 
 ## Closing — Artifact Output (MUST)
 
-Category: `reviews/`. Frontmatter/retention/degradation: reviewer-family shape (APPROVE/WARNING/BLOCK) in `docs/contracts/artifact-contract.md`, plus this agent's own `guards_reviewed: <N>` field. Hook: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" .pending-polyfill-review polyfill-reviewer`.
+Category: `reviews/`. Frontmatter/retention/degradation: reviewer-family shape (APPROVE/WARNING/BLOCK) in `docs/contracts/artifact-contract.md`, plus this agent's own `guards_reviewed: <N>` field. Sentinel clearance is owned by `subagent-stop-verify.sh`: a successful stop with a fresh matching artifact clears `.pending-polyfill-review` regardless of verdict parseability; unresolved-verdict and quality enforcement handle malformed verdicts. This reviewer's job ends at writing the artifact.

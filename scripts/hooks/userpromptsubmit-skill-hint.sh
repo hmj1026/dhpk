@@ -97,6 +97,11 @@ _s="${PROMPT#"${PROMPT%%[![:space:]]*}"}"   # ltrim
 _s="${_s%"${_s##*[![:space:]]}"}"           # rtrim
 [ -z "$_s" ] && exit 0
 case "$_s" in /*) exit 0 ;; esac
+# System-generated turns (task notifications, system reminders) must never
+# trigger workflow-routing hints — they are not user intent.
+case "$_s" in
+    *'[SYSTEM NOTIFICATION]'*|*'<task-notification>'*) exit 0 ;;
+esac
 # ${#_s} counts codepoints under a UTF-8 locale (the normal hook environment),
 # matching the old python len(). Under a non-UTF-8 locale it counts bytes, which
 # can only OVER-include a short multibyte prompt (never suppress one that should

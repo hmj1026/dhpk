@@ -35,6 +35,27 @@ test('reviewer prompts reference the shared contract while retaining specialist 
   }
 });
 
+test('reviewer contract requires a single-run verdict', () => {
+  assert.ok(contract.toLowerCase().includes('single-run verdict'), 'shared reviewer contract missing single-run verdict marker');
+  for (const [name, directory] of reviewers) {
+    const text = fs.readFileSync(path.join(ROOT, directory, `${name}.md`), 'utf8');
+    assert.ok(
+      text.includes('Single-run verdict: emit the final verdict in this same run'),
+      `${name} missing single-run verdict clause`
+    );
+    assert.doesNotMatch(
+      text,
+      /(?:clear the sentinel|clear-sentinel\.sh)/i,
+      `${name} still instructs the reviewer to clear its own sentinel`
+    );
+    assert.doesNotMatch(
+      text,
+      /auto-clears[^\n]*fresh[^\n]*parseable verdict/i,
+      `${name} incorrectly makes parseable verdict a sentinel-clear prerequisite`
+    );
+  }
+});
+
 test('reviewer frequency contract batches waves and bounds recovery', () => {
   for (const token of [
     'contiguous implementation wave',

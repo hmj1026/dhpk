@@ -56,7 +56,7 @@ HIGH / CRITICAL additionally require: exact snippet + line, the specific failure
 
 Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks — never review a PHP change against Swift rules, or vice-versa.
 
-1. **Active stacks**: read `$DHPK_ACTIVE_MODULES` (comma list) if set; otherwise detect from manifests via Bash — `composer.json` (`require.php` floor + framework key, e.g. `yiisoft/*`, `laravel/framework`), `package.json` (default `js`; a `vue` dependency ⇒ also `vue`), `*.xcodeproj` / `Package.swift` (`swift`), `pyproject.toml` (default `python`; a `fastapi` dependency ⇒ also `fastapi`). **Map module ids to stack ids** before loading: `php-7.4`→`php`, `laravel-9`→`laravel`, `phpunit-11`→ (no code sheet), `vue-2`→`vue`, `swiftui`/`ios-platform`→`swift`.
+1. **Active stacks**: read `$DHPK_ACTIVE_MODULES` (comma list) if set; it takes precedence; otherwise detect fallback signals only from PROJECT-ROOT manifests/files via Bash — a root `package.json` emits generic `js`; a `vue` key in `dependencies`, `devDependencies`, or `peerDependencies` additionally emits `vue`; `next`/`react` remain covered by generic `js`; a root `composer.json` or PHP files directly under the repository root (`./*.php`) emits `php`; `*.xcodeproj` / `Package.swift` emits `swift`; `pyproject.toml` emits `python` (a `fastapi` dependency additionally emits `fastapi`). Detection MUST NOT recurse into `node_modules/`, `vendor/`, or other vendored trees. **Map module ids to stack ids** before loading: `php-7.4`→`php`, `laravel-9`→`laravel`, `phpunit-11`→ (no code sheet), `vue-2`→`vue`, `swiftui`/`ios-platform`→`swift`.
 2. Load: `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/trap-sheet-loader.md` step 2 (`<agent-name>` = `code-reviewer`).
 3. No sheet matches → apply only the Baseline below.
 
@@ -93,6 +93,8 @@ This plugin reviews predominantly Claude-authored code. Bias attention toward th
 
 Use [`docs/contracts/reviewer-contract.md`](../docs/contracts/reviewer-contract.md) for scope, evidence, artifact, verdict, confirm-only, and bounded retry fields.
 
+Single-run verdict: emit the final verdict in this same run; never stop for advisory or intermediary input before the verdict is written; post-verdict escalation is allowed.
+
 ### Specialist checks
 
 This file retains the code-quality and merge/dedup checks unique to `code-reviewer`.
@@ -109,4 +111,4 @@ Issue / Fix
 
 ## Closing — Artifact Output (MUST)
 
-Category: `reviews/`. Frontmatter/retention/degradation: reviewer-family shape (APPROVE/WARNING/BLOCK) in `docs/contracts/artifact-contract.md`. Sentinel clearance: owned by the runtime hook `subagent-stop-verify.sh`, which auto-clears `.pending-review` on a successful stop once a fresh review artifact with a parseable verdict exists — this reviewer's job ends at writing that artifact.
+Category: `reviews/`. Frontmatter/retention/degradation: reviewer-family shape (APPROVE/WARNING/BLOCK) in `docs/contracts/artifact-contract.md`. Sentinel clearance is owned by `subagent-stop-verify.sh`: a successful stop with a fresh matching artifact clears `.pending-review` regardless of verdict parseability; unresolved-verdict and quality enforcement handle malformed verdicts. This reviewer's job ends at writing the artifact.

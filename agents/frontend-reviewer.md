@@ -43,7 +43,7 @@ edits. Loads the following on demand:
    "Sentinel-scoped precedence" — apply verbatim, sentinel = `.pending-frontend-review`.
    Back-stop/full-review fallback restricts to `<frontend-root>/<view-template-roots>/`.
 2. Walk each leaf through the priority tiers below.
-3. Close out: write the artifact + clear the sentinel.
+3. Close out: write the artifact; sentinel clearance is hook-owned.
 
 ## Priority tiers
 
@@ -101,6 +101,8 @@ edits. Loads the following on demand:
 
 Use [`docs/contracts/reviewer-contract.md`](../docs/contracts/reviewer-contract.md) for scope, evidence, artifact, verdict, confirm-only, and bounded retry fields.
 
+Single-run verdict: emit the final verdict in this same run; never stop for advisory or intermediary input before the verdict is written; post-verdict escalation is allowed.
+
 ### Specialist checks
 
 This file retains browser, DOM, JS, and frontend-regression checks unique to `frontend-reviewer`.
@@ -123,4 +125,4 @@ Issue / Fix
 
 ## Closing — Artifact Output (MUST)
 
-Category: `reviews/`, scope holds `<frontend-root>/foo.js` style paths. Frontmatter/retention/degradation: reviewer-family shape (APPROVE/WARNING/BLOCK) in `docs/contracts/artifact-contract.md`. Sentinel clearance: owned by the runtime hook `subagent-stop-verify.sh`, which auto-clears `.pending-frontend-review` on a successful stop once a fresh review artifact with a parseable verdict exists — this reviewer's job ends at writing that artifact.
+Category: `reviews/`, scope holds `<frontend-root>/foo.js` style paths. Frontmatter/retention/degradation: reviewer-family shape (APPROVE/WARNING/BLOCK) in `docs/contracts/artifact-contract.md`. Sentinel clearance is owned by `subagent-stop-verify.sh`: a successful stop with a fresh matching artifact clears `.pending-frontend-review` regardless of verdict parseability; unresolved-verdict and quality enforcement handle malformed verdicts. This reviewer's job ends at writing the artifact.

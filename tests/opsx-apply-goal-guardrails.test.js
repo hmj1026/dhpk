@@ -82,6 +82,8 @@ test('relocated dispatch elaborations exist in execution-policy, not the emitted
 
 test('emitted Part 0 carries the compact directive inline survivors', () => {
   assert.ok(dispatchPart0.includes('You are the orchestrator'), 'missing orchestrator naming');
+  assert.ok(dispatchPart0.includes('repo="<project>"') && dispatchPart0.includes('gitnexus'),
+    'missing explicit multi-repo gitnexus guidance');
   for (const role of ['<FAST_WORKER_CLAUSE>', 'dhpk:deep-reasoner', 'dhpk:tdd-guide', '<E2E_ROSTER_CLAUSE>']) {
     assert.ok(dispatchPart0.includes(role), `missing roster role: ${role}`);
   }

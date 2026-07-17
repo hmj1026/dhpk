@@ -88,6 +88,24 @@ test('CLAUDE_PLUGIN_OPTION_SKILL_HINT_ENABLED=false suppresses the hint', () => 
   assert.strictEqual(res.stdout.trim(), '', `expected no hint when option disabled, got: ${res.stdout}`);
 });
 
+test('[SYSTEM NOTIFICATION] input → no hint (system-generated turn)', () => {
+  const res = runHook('[SYSTEM NOTIFICATION] background task done: please deploy to production now');
+  assert.strictEqual(res.status, 0, `expected exit 0: ${res.stderr}`);
+  assert.strictEqual(res.stdout.trim(), '', `expected no hint for system notification, got: ${res.stdout}`);
+});
+
+test('<task-notification> input → no hint (system-generated turn)', () => {
+  const res = runHook('<task-notification>agent finished</task-notification> deploy to production now');
+  assert.strictEqual(res.status, 0, `expected exit 0: ${res.stderr}`);
+  assert.strictEqual(res.stdout.trim(), '', `expected no hint for task notification, got: ${res.stdout}`);
+});
+
+test('normal matching prompt still hints after notification filter added', () => {
+  const res = runHook('please deploy to production now');
+  assert.strictEqual(res.status, 0, `expected exit 0: ${res.stderr}`);
+  assert.ok(res.stdout.includes('additionalContext'), `expected hint preserved, got: ${res.stdout}`);
+});
+
 test('minimal hook_profile suppresses the hint even for a matching prompt', () => {
   const res = runHook('please deploy to production now', { CLAUDE_PLUGIN_OPTION_HOOK_PROFILE: 'minimal' });
   assert.strictEqual(res.status, 0, `expected exit 0: ${res.stderr}`);
