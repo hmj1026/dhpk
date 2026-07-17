@@ -12,6 +12,7 @@ test('TDD and E2E routing remains distinct and reports stable metadata', () => {
   const tdd = read('agents/tdd-guide.md');
   const e2e = read('agents/e2e-runner.md');
   assert.ok(policy.includes('RED PHPUnit') && policy.includes('`tdd-guide`'));
+  assert.ok(policy.includes('RED Vitest/Jest'), 'dispatch table missing the RED Vitest/Jest row');
   assert.ok(policy.includes('Playwright user journeys') && policy.includes('`e2e-runner`'));
   for (const token of ['Phase: RED|GREEN|REFACTOR', 'Verdict: PASS|WARNING|FAIL', 'coverage_pct', 'Verification command', 'Test files']) {
     assert.ok(tdd.includes(token), `TDD contract missing ${token}`);
