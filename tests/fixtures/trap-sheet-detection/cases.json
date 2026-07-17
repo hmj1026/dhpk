@@ -1,0 +1,29 @@
+[
+  {
+    "name": "Next root ignores vendored PHP",
+    "package": { "dependencies": { "next": "16.0.0", "react": "19.0.0" } },
+    "rootFiles": [],
+    "vendoredFiles": ["node_modules/tool/index.php"],
+    "expected": ["js"]
+  },
+  {
+    "name": "root composer and package form a polyglot repo",
+    "package": { "devDependencies": { "vue": "3.5.0" } },
+    "composer": { "require": { "php": ">=8.2" } },
+    "rootFiles": [],
+    "expected": ["js", "vue", "php"]
+  },
+  {
+    "name": "vendored-only markers emit nothing",
+    "rootFiles": [],
+    "vendoredFiles": ["vendor/pkg/composer.json", "node_modules/pkg/package.json", "vendor/pkg/a.php"],
+    "expected": []
+  },
+  {
+    "name": "configured modules take precedence",
+    "activeModules": "php-7.4,vue-2",
+    "package": { "dependencies": { "next": "16.0.0" } },
+    "rootFiles": ["index.php"],
+    "expected": ["php-7.4", "vue-2"]
+  }
+]
