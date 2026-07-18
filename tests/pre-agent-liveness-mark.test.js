@@ -34,17 +34,52 @@ test('known reviewer dispatch appends one timestamped liveness marker entry', ()
     const lines = markerLines(repo, '.active-review');
     assert.strictEqual(lines.length, 1, `expected one active marker line, got ${JSON.stringify(lines)}`);
     assert.match(lines[0], /^\d+ code-reviewer /, `expected timestamped code-reviewer entry: ${lines[0]}`);
+    const pending = markerLines(repo, '.pending-review');
+    assert.strictEqual(pending.length, 1);
+    assert.match(pending[0], /^\d+ arm-on-dispatch:code-reviewer \[arm-on-dispatch\]$/);
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });
   }
 });
 
-test('non-reviewer dispatch is a no-op with no sessions directory write', () => {
+test('known reviewer dispatch does not touch an already-armed sentinel', () => {
   const repo = mkTempRepo();
   try {
-    const res = runHook(repo, { tool_input: { subagent_type: 'fast-worker' } });
-    assert.strictEqual(res.status, 0, `hook failed: ${res.stderr}`);
-    assert.ok(!fs.existsSync(sessDir(repo)), 'non-reviewer dispatch must not create sessions directory');
+    fs.mkdirSync(sessDir(repo), { recursive: true });
+    const sentinel = path.join(sessDir(repo), '.pending-doc-review');
+    const original = '2026-07-18 12:00 docs/Guide.md\n';
+    fs.writeFileSync(sentinel, original);
+    const res = runHook(repo, { tool_input: { subagent_type: 'doc-reviewer' } });
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.strictEqual(fs.readFileSync(sentinel, 'utf8'), original);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('fast-worker variants append shared liveness entries', () => {
+  const repo = mkTempRepo();
+  try {
+    for (const agent of ['fast-worker', 'dhpk:codex-fast-worker', 'agy-fast-worker']) {
+      const res = runHook(repo, { tool_input: { subagent_type: agent } });
+      assert.strictEqual(res.status, 0, `hook failed for ${agent}: ${res.stderr}`);
+    }
+    const lines = markerLines(repo, '.active-fast-worker');
+    assert.strictEqual(lines.length, 3, JSON.stringify(lines));
+    assert.match(lines[0], /^\d+ fast-worker /);
+    assert.match(lines[1], /^\d+ dhpk:codex-fast-worker /);
+    assert.match(lines[2], /^\d+ agy-fast-worker /);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('ordinary non-reviewer dispatch remains a no-op', () => {
+  const repo = mkTempRepo();
+  try {
+    const res = runHook(repo, { tool_input: { subagent_type: 'planner' } });
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.ok(!fs.existsSync(sessDir(repo)));
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });
   }

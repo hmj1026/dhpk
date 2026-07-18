@@ -34,9 +34,11 @@ fi
 # Exception: .env.example / .env.sample / .env.dist / .env.template are
 # version-controlled templates carrying NO secrets — allow editing them.
 # (POSIX ERE has no negative lookahead, so carve the exception explicitly.)
-if echo "$file_path" | grep -Eq '\.env\.(example|sample|dist|template)$'; then
+if echo "$file_path" | grep -Eq '^(/private)?/tmp/claude-[^/]*/'; then
+    :  # allow Claude session scratchpads, including temporary .env files
+elif echo "$file_path" | grep -Eq '(^|/)\.env\.(example|sample|dist|template)$'; then
     :  # allow version-controlled env templates
-elif echo "$file_path" | grep -Eq '(\.env(\..*)?$|\.git/)'; then
+elif echo "$file_path" | grep -Eq '(^|/)\.env(\..*)?$|(^|/)\.git/'; then
     echo "[edit-guard] blocked sensitive file: $file_path" >&2
     exit 2
 fi
@@ -66,6 +68,20 @@ if [ "${DHPK_PROTECT_LINT_CONFIGS:-1}" != "0" ] && [ -f "$file_path" ]; then
         biome.json|biome.jsonc|\
         .php-cs-fixer.php|.php-cs-fixer.dist.php|phpcs.xml|phpcs.xml.dist|phpstan.neon|phpstan.neon.dist|psalm.xml|psalm.xml.dist|\
         .ruff.toml|ruff.toml|.flake8|.pylintrc|mypy.ini|.mypy.ini)
+            config_basename="$(basename "$file_path")"
+            config_pattern="$(printf '%s' "$config_basename" | sed 's/[][\\.^$*+?{}|()]/\\&/g')"
+            changes_root="$(dhpk_root)/openspec/changes"
+            if [ -d "$changes_root" ]; then
+                for tasks_file in "$changes_root"/*/tasks.md; do
+                    [ -f "$tasks_file" ] || continue
+                    change_name="$(basename "$(dirname "$tasks_file")")"
+                    [ "$change_name" = "archive" ] && continue
+                    if grep -Eq "(^|[^[:alnum:]_.-])${config_pattern}([^[:alnum:]_.-]|$)" "$tasks_file"; then
+                        echo "[edit-guard] lint config allowed: listed in $change_name/tasks.md" >&2
+                        exit 0
+                    fi
+                done
+            fi
             echo "[edit-guard] blocked lint/formatter config edit: $file_path" >&2
             echo "[edit-guard] Fix the code to satisfy the rule — don't weaken the gate. To change policy intentionally, edit outside Claude or set DHPK_PROTECT_LINT_CONFIGS=0 for this session." >&2
             exit 2 ;;

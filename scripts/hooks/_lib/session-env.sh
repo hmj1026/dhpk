@@ -34,12 +34,12 @@
 #   DHPK_SIDECAR_UNRESOLVED_VERDICT    — subagent-stop-verify verdict escalation
 #   DHPK_SIDECAR_REVIEW_BACKOFF        — stop-review-reminder debounce stamp
 #   DHPK_SIDECAR_MODULE_FINDINGS       — post-edit-dispatch / stop-dispatch accumulator
-#   DHPK_SIDECAR_FW_SELECTOR_WARNINGS  — session-start fast-worker probe warnings
+#   DHPK_SIDECAR_FAST_WORKER_ACTIVE    — shared fast-worker liveness marker
 
 DHPK_SIDECAR_UNRESOLVED_VERDICT=".unresolved-verdict"
 DHPK_SIDECAR_REVIEW_BACKOFF=".review-reminder-backoff"
 DHPK_SIDECAR_MODULE_FINDINGS=".module-findings"
-DHPK_SIDECAR_FW_SELECTOR_WARNINGS=".fast-worker-selector-warnings"
+DHPK_SIDECAR_FAST_WORKER_ACTIVE=".active-fast-worker"
 
 dhpk_root() {
     if [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then
