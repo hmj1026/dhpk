@@ -36,6 +36,11 @@ const dispatchPart0 = flat(goalTemplatesRaw.slice(
   goalTemplatesRaw.indexOf('**`DISPATCH_ON=true`**'),
   goalTemplatesRaw.indexOf('### CODEX_STATEMENT'),
 ));
+
+test('goal dispatch mode enables the runtime batch gate and carries cwd-safe Bash guidance', () => {
+  assert.ok(dispatchPart0.includes('DHPK_ORCHESTRATION_DISPATCH=on'));
+  assert.ok(dispatchPart0.includes('absolute paths') && dispatchPart0.includes('git -C'));
+});
 const policy = flat(fs.readFileSync(path.join(ROOT, 'rules', 'execution-policy.md'), 'utf8'));
 
 test('CODEX declaration is one line in the template; elaborations live in execution-policy', () => {
@@ -128,12 +133,15 @@ test('/dhpk:do carries fast-worker override through every implementation-class r
     'do command must preserve the actual override outside the cleaned query');
   assert.ok(command.includes('Pass both the cleaned query and the named invocation context'),
     'do command must forward the value-bearing invocation context');
-  for (const skillName of ['adaptive-dev-workflow', 'bug-fix', 'feature-dev']) {
+  const adaptive = fs.readFileSync(path.join(ROOT, 'skills', 'adaptive-dev-workflow', 'SKILL.md'), 'utf8');
+  assert.ok(adaptive.includes('FAST_WORKER_OVERRIDE'));
+  assert.ok(adaptive.includes('scripts/fast-worker-selector.js'));
+  assert.ok(adaptive.includes('--backend "$FAST_WORKER_OVERRIDE"'));
+  for (const skillName of ['bug-fix', 'feature-dev']) {
     const downstream = fs.readFileSync(path.join(ROOT, 'skills', skillName, 'SKILL.md'), 'utf8');
-    assert.ok(downstream.includes('FAST_WORKER_OVERRIDE'), `${skillName} does not consume the named override`);
-    assert.ok(downstream.includes('scripts/fast-worker-selector.js'), `${skillName} bypasses the shared selector`);
-    assert.ok(downstream.includes('--backend "$FAST_WORKER_OVERRIDE"'),
-      `${skillName} does not pass the carried value to the shared selector`);
+    assert.ok(downstream.includes('§Implementation dispatch'), `${skillName} must cite dispatch SSOT`);
+    assert.ok(!downstream.includes('--backend "$FAST_WORKER_OVERRIDE"'),
+      `${skillName} must not restate selector mechanics`);
   }
 });
 

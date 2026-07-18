@@ -94,7 +94,7 @@ test('sidecar basename registry constants are defined', () => {
   const res = sh(
     'printf "%s\\n%s\\n%s\\n%s" ' +
       '"$DHPK_SIDECAR_UNRESOLVED_VERDICT" "$DHPK_SIDECAR_REVIEW_BACKOFF" ' +
-      '"$DHPK_SIDECAR_MODULE_FINDINGS" "$DHPK_SIDECAR_FW_SELECTOR_WARNINGS"',
+      '"$DHPK_SIDECAR_MODULE_FINDINGS" "$DHPK_SIDECAR_FAST_WORKER_ACTIVE"',
     {}
   );
   assert.strictEqual(res.status, 0, res.stderr);
@@ -102,7 +102,7 @@ test('sidecar basename registry constants are defined', () => {
     '.unresolved-verdict',
     '.review-reminder-backoff',
     '.module-findings',
-    '.fast-worker-selector-warnings',
+    '.active-fast-worker',
   ]);
 });
 

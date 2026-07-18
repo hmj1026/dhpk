@@ -73,4 +73,21 @@ test('active threshold override prunes entries older than the override and remov
   }
 });
 
+test('fast-worker active marker uses the same stale-entry lifecycle', () => {
+  const repo = mkTempRepo();
+  try {
+    const now = Math.floor(Date.now() / 1000);
+    writeSessionFile(repo, '.active-fast-worker', [
+      `${now - 20 * 60} fast-worker stale`,
+      `${now - 60} codex-fast-worker fresh`,
+      '',
+    ].join('\n'));
+    const res = runReap(repo, ['--active-threshold-minutes', '5']);
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.deepStrictEqual(readLines(repo, '.active-fast-worker'), [`${now - 60} codex-fast-worker fresh`]);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
 run('reap-stale-sentinels-active');

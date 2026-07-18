@@ -84,7 +84,7 @@ Organize results into findings summary table + detailed findings + gate.
 
 ## Review Loop
 
-**⚠️ @CLAUDE.md auto-loop: fix → re-review → ... → ✅ PASS ⚠️**
+Auto-loop semantics: `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §Anti-loop & output.
 
 ⛔ Must fix → fix P0 issues → re-audit the fixed code inline → repeat until ✅ Mergeable.
 

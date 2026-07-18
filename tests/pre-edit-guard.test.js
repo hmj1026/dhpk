@@ -7,6 +7,8 @@
 // stdin-JSON tool_input.file_path contract.
 
 const path = require('node:path');
+const fs = require('node:fs');
+const os = require('node:os');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
@@ -43,6 +45,48 @@ test('.env.sample / .env.dist / .env.template are also allowlisted', () => {
   for (const name of ['.env.sample', '.env.dist', '.env.template']) {
     const res = runHook(name);
     assert.strictEqual(res.status, 0, `${name} expected allowed: ${res.stderr}`);
+  }
+});
+
+test('env path matching is basename-anchored and scratchpad env files are allowed', () => {
+  const cases = [
+    ['verify.env', 0],
+    ['/tmp/claude-session/.env', 0],
+    ['/private/tmp/claude-session/.env.local', 0],
+    ['config/.env', 2],
+  ];
+  for (const [filePath, expected] of cases) {
+    const res = runHook(filePath);
+    assert.strictEqual(res.status, expected, `${filePath}: ${res.stderr}`);
+  }
+});
+
+test('active OpenSpec task listing allows an existing lint config by basename', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-edit-guard-'));
+  try {
+    const config = path.join(root, 'eslint.config.mjs');
+    const change = path.join(root, 'openspec', 'changes', 'lint-policy');
+    fs.mkdirSync(change, { recursive: true });
+    fs.writeFileSync(config, 'export default [];\n');
+    fs.writeFileSync(path.join(change, 'tasks.md'), '- [ ] Intentionally update `eslint.config.mjs`\n');
+    const res = runHook(config, { CLAUDE_PROJECT_DIR: root });
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.ok(res.stderr.includes('[edit-guard] lint config allowed: listed in lint-policy/tasks.md'));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('unlisted existing lint config remains blocked', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-edit-guard-'));
+  try {
+    const config = path.join(root, 'eslint.config.mjs');
+    fs.writeFileSync(config, 'export default [];\n');
+    const res = runHook(config, { CLAUDE_PROJECT_DIR: root });
+    assert.strictEqual(res.status, 2, `expected blocked: ${res.stderr}`);
+    assert.ok(res.stderr.includes('blocked lint/formatter config edit'));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
   }
 });
 

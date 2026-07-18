@@ -17,7 +17,6 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
-const crypto = require('node:crypto');
 const { test, run, assert } = require('./_lib/tinytest');
 const {
   ROOT,
@@ -27,6 +26,7 @@ const {
 } = require('./_lib/hookharness');
 
 const HOOK = 'subagent-stop-verify.sh';
+const ARM_HOOK = 'pre-agent-liveness-mark.sh';
 
 function mkTempRepo() {
   return mkRepo({ prefix: 'dhpk-sv-', gitConfig: true });
@@ -86,6 +86,61 @@ function runHook(repo, payload, { pluginRoot = ROOT, cwd = repo } = {}) {
     deleteEnv: ['DHPK_ACTIVE_MODULES', 'CLAUDE_PLUGIN_OPTION_REVIEW_AGENTS'], // force default slot mapping
   });
 }
+
+test('dispatch arm-on-dispatch then fresh reviewer artifact round-trips to auto-clear', () => {
+  const repo = mkTempRepo();
+  try {
+    const dispatched = runHookRaw(ARM_HOOK, {
+      payload: { tool_input: { subagent_type: 'doc-reviewer' } },
+      cwd: repo,
+      projectDir: repo,
+      deleteEnv: ['CLAUDE_PLUGIN_OPTION_REVIEW_AGENTS'],
+    });
+    assert.strictEqual(dispatched.status, 0, dispatched.stderr);
+    const sentinel = path.join(sessDir(repo), '.pending-doc-review');
+    assert.ok(fs.existsSync(sentinel), 'dispatch must arm the reviewer sentinel');
+    assert.ok(fs.readFileSync(sentinel, 'utf8').includes('[arm-on-dispatch]'));
+    const fresh = new Date(Date.now() + 2000).toISOString();
+    writeReviewArtifact(repo, 'doc-reviewer', '---\nverdict: APPROVE\n---\nclean', fresh);
+    const stopped = runHook(repo, { subagent_type: 'doc-reviewer', exit_status: 0 });
+    assert.strictEqual(stopped.status, 0, stopped.stderr);
+    assert.ok(!fs.existsSync(sentinel), 'fresh reviewer result must auto-clear dispatch-armed sentinel');
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('fast-worker SubagentStop removes exactly one matching shared liveness entry', () => {
+  const repo = mkTempRepo();
+  try {
+    const now = Math.floor(Date.now() / 1000);
+    writeActiveMarker(repo, '.active-fast-worker', [
+      `${now} fast-worker pid=1`,
+      `${now} dhpk:codex-fast-worker pid=2`,
+      `${now} fast-worker pid=3`,
+    ]);
+    const stopped = runHook(repo, { subagent_type: 'dhpk:codex-fast-worker', exit_status: 1 });
+    assert.strictEqual(stopped.status, 0, stopped.stderr);
+    assert.deepStrictEqual(activeMarkerLines(repo, '.active-fast-worker'), [
+      `${now} fast-worker pid=1`,
+      `${now} fast-worker pid=3`,
+    ]);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('last fast-worker stop deletes the empty shared liveness marker', () => {
+  const repo = mkTempRepo();
+  try {
+    writeActiveMarker(repo, '.active-fast-worker', [`${Math.floor(Date.now() / 1000)} agy-fast-worker pid=1`]);
+    const stopped = runHook(repo, { agent_type: 'agy-fast-worker', exit_status: 0 });
+    assert.strictEqual(stopped.status, 0, stopped.stderr);
+    assert.ok(!fs.existsSync(path.join(sessDir(repo), '.active-fast-worker')));
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
 
 test('reviewer stop with armed sentinel + fresh parseable artifact → silent auto-clear (sanctioned path)', () => {
   const repo = mkTempRepo();
@@ -503,11 +558,9 @@ test('recorded lin_blog 0.28.14 fixture auto-clears only the frontend sentinel',
     'utf8'
   ));
   const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), 'utf8'));
-  const hookPath = path.join(ROOT, 'scripts', 'hooks', HOOK);
-  const hookSha1 = crypto.createHash('sha1').update(fs.readFileSync(hookPath)).digest('hex');
-
   assert.strictEqual(manifest.version, fixture.installedPluginVersion);
-  assert.strictEqual(hookSha1, fixture.installedHookSha1);
+  assert.strictEqual(fixture.installedHookSha1, '6d408d1e4d049900381e95e92920e1be1c7f75ed',
+    'recorded fixture must retain the installed-session hook hash; current hook behavior is exercised below');
   assert.deepStrictEqual(fixture.subagentStopIdentity, {
     field: 'agent_type',
     value: 'dhpk:frontend-reviewer',

@@ -111,8 +111,34 @@ except Exception:
     printf '%s' "$out"
 }
 
+remove_matching_active_entry() {
+    local file="$1" agent="$2" tmp=""
+    [ -f "$file" ] || return 0
+    tmp="$(mktemp 2>/dev/null || printf '%s.tmp.%s' "$file" "$$")"
+    awk -v wanted="${agent##*:}" '
+        BEGIN { removed=0 }
+        {
+            candidate=$2
+            sub(/^.*:/, "", candidate)
+            if (!removed && candidate == wanted) { removed=1; next }
+            print
+        }
+    ' "$file" > "$tmp" 2>/dev/null || { rm -f "$tmp"; return 0; }
+    if [ -s "$tmp" ]; then
+        mv -f "$tmp" "$file" 2>/dev/null || rm -f "$tmp"
+    else
+        rm -f "$tmp" "$file"
+    fi
+}
+
 SUBAGENT="$(extract_subagent_name "$PAYLOAD")"
 EXIT_STATUS="$(extract_exit_status "$PAYLOAD")"
+
+case "${SUBAGENT##*:}" in
+    fast-worker|codex-fast-worker|agy-fast-worker)
+        remove_matching_active_entry "$SESS/$DHPK_SIDECAR_FAST_WORKER_ACTIVE" "$SUBAGENT"
+        exit 0 ;;
+esac
 
 # Map subagent name → SENTINEL_AGENTS slot index → sentinel filename.
 SLOT=-1

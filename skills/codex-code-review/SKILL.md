@@ -188,26 +188,7 @@ Codex is the **blocking** reviewer — await its result for the initial gate. Se
 
 ### Step 4: Consolidate Output (Dual Mode)
 
-1. **Normalize** both sets of findings to unified format: `[severity] file:line description → fix`
-   - Codex findings: already in standard format
-   - toolkit findings: apply Severity Mapping (see `references/review-common.md § Severity Mapping`)
-   - strict-reviewer findings: already use P0/P1/P2/Nit
-
-2. **Deduplicate** using key = `file + canonical_issue_text` (ignore line ±5 difference)
-   - Same key → keep highest severity (P0 > P1 > P2 > Nit)
-
-3. **Tag source**: `source = codex | toolkit | both`
-
-4. **Sort**: P0 → P1 → P2 → Nit
-
-5. **Gate decision**: any P0/P1 → BLOCKED; else → READY
-
-Output format includes source tag:
-
-```
-- [P0] file:line issue → fix [source: both]
-- [P1] file:line issue → fix [source: codex]
-```
+Apply `references/review-common.md` §Dual Reviewer Aggregation for severity mapping, normalization, deduplication, source attribution, sorting, degradation, and the gate decision.
 
 ### Step 4.5: Emit Review Gate
 
@@ -221,17 +202,11 @@ Then output the standard gate sentinel:
 
 ## Shared Definitions
 
-See `references/review-common.md` for:
-- Severity levels (P0/P1/P2/Nit)
-- Review dimensions
-- Merge gate definitions
-- Re-review prompt template
-- Gate sentinels (hook + behavior-layer)
-- Dual Reviewer Aggregation (severity mapping, deduplication, degradation matrix, source attribution)
+See `references/review-common.md` for severity, dimensions, gates, re-review, sentinels, and dual-review aggregation.
 
 ## Review Loop
 
-**⚠️ @CLAUDE.md auto-loop: fix → re-review → ... → ✅ PASS ⚠️**
+Auto-loop semantics: `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §Anti-loop & output.
 
 Blocked → fix P0/P1 → `/codex-review-fast --continue <threadId>` → repeat until Ready.
 Ready + P2/Nit → batch fix → 1 Codex `--continue` verify → evaluate (see `rules/auto-loop.md` P2/Nit Quality Sweep).
@@ -240,22 +215,11 @@ Ready + P2/Nit → batch fix → 1 Codex `--continue` verify → evaluate (see `
 
 ### Dual Mode Loop Behavior
 
-| Reviewer | Loop Behavior |
-|----------|---------------|
-| Codex MCP | Stateful → `mcp__codex__codex-reply(threadId)` continues context |
-| Secondary | Re-dispatched every iteration (fresh context). Always dispatched in v1 (no skip exception). |
-
-Codex gate is authoritative for timing. Secondary runs non-blocking in background. Aggregation reconciled at pre-precommit checkpoint. Any code edit resets the review cycle — both reviewers must re-run.
+Use `references/review-common.md` §Review Loop and §Dual Reviewer Aggregation. Codex remains stateful; secondary is freshly dispatched after every code edit.
 
 ### Pre-precommit Checkpoint
 
-Before triggering `/precommit`, reconcile any pending secondary result:
-
-| Condition | Action |
-|-----------|--------|
-| Task completed + has P0/P1 | Re-emit BLOCKED → fix → re-review (Codex `--continue` + Secondary fresh) |
-| Task completed + no P0/P1 | Union aggregate → proceed to precommit |
-| Task still running | Proceed with Codex gate (authoritative); if late result has P0/P1, re-open fix→re-review loop |
+Before `/precommit`, reconcile pending secondary results using `references/review-common.md` §Dual Reviewer Aggregation. A late P0/P1 reopens the fix/re-review loop.
 
 ## Verification
 
@@ -279,12 +243,8 @@ Before triggering `/precommit`, reconcile any pending secondary result:
 Input: /codex-review-fast
 Action: emit PENDING → git diff → Codex + Task(code-reviewer) parallel → aggregate → emit gate → P0/P1/P2/Nit + Gate
 
-Input: /codex-review --focus "auth"
-Action: emit PENDING → lint:fix → build → git diff → Codex + Task parallel (focus: auth) → aggregate → emit gate
-
 Input: /codex-review-branch origin/develop
 Action: emit PENDING → branch diff + history → Codex + Task parallel → aggregate → emit gate → Rating table + Findings + Gate
-
 Input: /codex-review-fast (Codex unavailable)
 Action: emit PENDING → git diff → Task(code-reviewer) only → degraded aggregate → emit gate + ⚠️ warning
 ```
