@@ -38,7 +38,7 @@ SSOT for code exploration in dhpk-using projects. Cross-references the existing 
 Run **at planning time** (once the target symbol is identified) **and** immediately before Edit/Write. Planning catches blast radius early; pre-edit is the final gate. Append-only exemption → `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` Glossary.
 
 ```
-gitnexus_impact({ target: "<symbol>", direction: "upstream" })
+gitnexus_impact({ repo: "<repo>", target: "<symbol>", direction: "upstream" })
 ```
 
 ## claude-mem at planning start
