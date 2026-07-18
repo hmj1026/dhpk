@@ -48,16 +48,19 @@ function validateSkillMd(dir) {
     ? 0
     : (content.match(/\n/g) || []).length + (content.endsWith('\n') ? 0 : 1);
   const relative = rel(skillMd);
-  if (lines > 250) {
+  if (lines > 150) {
     if (!sizeAllowed.has(relative)) {
-      r.err(`${relative} — ${lines} lines exceeds hard budget 250`);
+      if (lines > 250) {
+        r.err(`${relative} — ${lines} lines exceeds hard budget 250`);
+      } else {
+        r.warn(`${relative} — ${lines} lines exceeds warning budget 150`);
+      }
     } else if (lines > sizeSeed[relative]) {
       r.err(`${relative} — ${lines} lines exceeds grandfathered baseline ${sizeSeed[relative]}`);
     }
   } else if (sizeAllowed.has(relative)) {
     r.err(`${relative} — now ${lines} lines; remove its obsolete size exception`);
   }
-  if (lines > 150) r.warn(`${relative} — ${lines} lines exceeds warning budget 150`);
   if (content.trim().length === 0) {
     r.err(`${rel(skillMd)} — empty file`);
     return;
