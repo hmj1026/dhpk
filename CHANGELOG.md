@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — Harden harness dispatch, guards, and content hygiene
+## 0.28.16 — 2026-07-19 — Harden harness dispatch, guards, and content hygiene
 
 **fix(hooks)** — Tighten pre-edit path guards, arm reviewer sentinels on dispatch, merge reminder batches, and add the dispatch-aware distinct-file edit gate.
 **fix(config)** — Detect configured-module/manifest mismatches and deduplicate session advisories with a shared once-guard.
