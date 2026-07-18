@@ -43,10 +43,10 @@ Read source → Derive test path → Codex generate → Save test file → Sugge
 
 ### Key Rules
 
-- **Codex must independently research** — read existing tests to match project patterns
 - **AAA pattern** — Arrange-Act-Assert in every test
 - **Follow project conventions** — mock setup, assertion style, describe/it structure
 - **At least one test per public method** — happy path + edge cases
+- Independent research, thread continuation, and gate sentinels: `skills/codex-code-review/references/review-common.md` §§Codex Independent Research, Gate Sentinels.
 
 ## Output
 

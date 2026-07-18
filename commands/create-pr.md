@@ -12,13 +12,11 @@ allowed-tools: 'Bash(git:*), Bash(gh:*), Read, Grep, Glob'
 
 ## Task
 
-Follow the `create-pr` skill workflow:
-
 1. **Gather info**: branch, remote, existing PRs, commits, diff stats
 2. **Extract ticket**: from branch name using `{TICKET_PATTERN}` (default: `[A-Z]+-\d+`)
 3. **Generate title**: `<type>: [<TICKET>] <summary>`
 4. **Generate body**: Summary bullets + Ticket link + Test plan
-5. **Pre-flight**: verify branch pushed, no existing PR, has diff
+5. **Pre-flight**: resolve `<base>`, run `git rev-list --count <base>..HEAD`, and abort before any PR creation when the result is 0 with: `No commits between <base> and HEAD — nothing to open a PR for`. Then verify the branch is pushed and no PR already exists.
 6. **Output**: `gh pr create` command (dry-run default)
 
 Arguments:

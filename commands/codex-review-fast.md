@@ -9,10 +9,7 @@ allowed-tools: 'mcp__codex__codex, mcp__codex__codex-reply, Bash(git:*), Read, G
 @skills/codex-code-review/SKILL.md
 @skills/codex-code-review/references/codex-prompt-fast.md
 
-## Context
-
-- Git status: !`git status -sb`
-- Git diff stats: !`git diff --stat HEAD 2>/dev/null | tail -5`
+@skills/codex-code-review/references/command-context.md
 
 ## Task
 
@@ -42,13 +39,11 @@ git diff → Codex review (diff only) → Findings + Gate → Loop if Blocked
 
 ### Key Rules
 
-- **Codex must independently research** — not rely only on diff
-- **Save `threadId`** — for review loop continuation
-- **Gate sentinels** — output `✅ Ready` or `⛔ Blocked` for hook parsing
+- Independent research, thread continuation, and gate sentinels: `skills/codex-code-review/references/review-common.md` §§Codex Independent Research, Gate Sentinels.
 
 ### Review Loop
 
-**⚠️ @CLAUDE.md auto-loop: fix → re-review → ... → ✅ PASS ⚠️**
+Auto-loop semantics: `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §Anti-loop & output.
 
 ## Output
 
