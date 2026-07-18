@@ -37,83 +37,11 @@ When input is a **Review Thread**:
 
 ## Workflow
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│ Phase 1: Read Issue / Review Thread                             │
-├─────────────────────────────────────────────────────────────────┤
-│ GitHub Issue: gh issue view <number> --json ...                  │
-│ Review Thread: use provided { path, line, reviewer, comment }   │
-│ Extract: symptoms, reproduction steps, error messages, files    │
-└─────────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────────┐
-│ Phase 2: Problem Classification                                 │
-├─────────────────────────────────────────────────────────────────┤
-│ GitHub Issue: Determine problem type → investigation strategy   │
-│ Review Thread: Determine category → actionability               │
-│                                                                 │
-│ ┌────────────────┬──────────────────────────────────┐           │
-│ │ Type           │ Investigation Strategy            │           │
-│ ├────────────────┼──────────────────────────────────┤           │
-│ │ Unfamiliar     │ /code-explore                    │           │
-│ │ Regression     │ /git-investigate                 │           │
-│ │ Complex root   │ /code-investigate (dual view)    │           │
-│ │ Multiple cause │ /codex-brainstorm (exhaustive)   │           │
-│ │ Composite      │ Combine multiple strategies      │           │
-│ └────────────────┴──────────────────────────────────┘           │
-└─────────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────────┐
-│ Phase 2.5: Verdict Assessment (NEW)                             │
-├─────────────────────────────────────────────────────────────────┤
-│ Codex blind verification: ACTIONABLE / NON_ACTIONABLE / UNCERTAIN│
-│ Fresh mcp__codex__codex thread, read-only, anti-anchoring       │
-│ Prompt: blind-verdict pattern (see Phase 2.5)                   │
-│ Thresholds: policy table (see Phase 2.5)                        │
-│                                                                 │
-│ ⚠️ Never send Claude's classification to Codex                  │
-│ --triage mode: stop here, output verdict + classification       │
-└─────────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────────┐
-│ Phase 3: Execute Investigation                                  │
-├─────────────────────────────────────────────────────────────────┤
-│ Skip if verdict = DISMISS_VERIFIED (per policy-mapping thresholds)    │
-│ Otherwise: invoke corresponding investigation command           │
-└─────────────────────────────────────────────────────────────────┘
-                              ↓
-┌─────────────────────────────────────────────────────────────────┐
-│ Phase 4: Consolidated Report                                    │
-├─────────────────────────────────────────────────────────────────┤
-│ Synthesize investigation results + verdict, produce report      │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-## Problem Classification Decision Tree
-
-```
-Issue Symptoms
-    │
-    ├─ "It used to work, now it doesn't" ───→ /git-investigate
-    │                                          (find introduction point)
-    │
-    ├─ "Don't know how this feature works" ─→ /code-explore
-    │                                          (quick understanding)
-    │
-    ├─ "Has error message / stack trace"
-    │       │
-    │       ├─ Clear error ────────────────→ /code-explore
-    │       │                                (trace path)
-    │       │
-    │       └─ Vague / intermittent ───────→ /code-investigate
-    │                                        (dual-view confirmation)
-    │
-    ├─ "Many possible causes" ────────────→ /codex-brainstorm
-    │                                        (exhaustive analysis)
-    │
-    └─ Composite / uncertain ─────────────→ Start with /code-explore
-                                             then choose based on results
-```
+1. **Read** the issue with `gh issue view --json ...`, or use the supplied review-thread fields. Extract symptoms, reproduction, errors, and file clues.
+2. **Classify** with [classification.md](references/classification.md): unfamiliar → `/code-explore`; regression → `/git-investigate`; complex root → `/code-investigate`; multiple causes → `/codex-brainstorm`.
+3. **Blind verdict** in a fresh read-only Codex thread without Claude's classification. Triage mode stops after this phase.
+4. **Investigate** unless policy maps the verdict to `DISMISS_VERIFIED`.
+5. **Report** the combined evidence, verdict, root-cause hypothesis, and recommendation.
 
 ## Investigation Tool Comparison
 
@@ -204,7 +132,7 @@ After classification, run Codex blind verification to independently assess actio
 
 - `references/classification.md` — Detailed problem classification guide (includes Review Thread dimensions)
 - `references/report-template.md` — Report template (includes Triage Report)
-- Verdict prompt pattern + thresholds are inlined in Phase 2.5 above (this skill is self-contained)
+- Verdict prompt pattern and thresholds are in Phase 2.5 above.
 
 ## Examples
 

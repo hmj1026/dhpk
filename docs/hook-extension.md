@@ -40,9 +40,19 @@ sentinel writes themselves remain synchronous and idempotent.
 `hooks.json` keeps `post-edit-advisory.sh` (async CRLF normalisation +
 lockfile-sync reminder, see below) as a separate entry — it doesn't need
 module context, so the dispatcher doesn't proxy it. Same for
-`pre-edit-guard.sh`, `session-start.sh`, and `stop-review-reminder.sh`.
+`pre-edit-guard.sh`, `pre-edit-batch-gate.sh`, `session-start.sh`, and
+`stop-review-reminder.sh`.
 `reap-stale-sentinels.sh` is not a standalone `hooks.json` `Stop` entry at
 all — it runs at `SessionEnd`, invoked by `session-end.sh`.
+
+### Inline edit batch gate
+
+`pre-edit-batch-gate.sh` is a synchronous `PreToolUse` guard for
+`Edit|Write|MultiEdit`. It counts distinct in-project source files per session,
+excluding bookkeeping and out-of-project paths. The third file warns; from the
+fourth it exits 2 only when `DHPK_ORCHESTRATION_DISPATCH=on`. Explicit
+`DHPK_INLINE_BATCH_OK=1` acceptance and a live fast-worker marker bypass the
+counter. Sidecar/parsing failures fail open.
 
 ## Merged single-parse hooks
 
@@ -176,6 +186,22 @@ Projects opt into slots 5–6 (and add extra paths to any slot) via
 Agent names per slot are overridable via `review_agents`; shorter overrides
 are padded with the defaults. Do **not** fork `payload.sh` to add a slot —
 file an upstream slot request instead, so every array consumer stays aligned.
+
+Reviewer dispatch itself establishes review debt. `pre-agent-liveness-mark.sh`
+uses the same slot table to arm an absent owning sentinel with
+`arm-on-dispatch <agent>` provenance and an `[arm-on-dispatch]` marker in the
+path field. The marker means “dispatch owed” without inventing a pending file;
+a fresh matching reviewer artifact at `SubagentStop` clears it through the
+normal auto-clear path. An already-armed sentinel is never rewritten.
+
+## Session advisory once-guard
+
+SessionStart advisories share `_lib/advise-once.sh` and call
+`dhpk_advise_once <key>`. The helper stores a session-ID-keyed marker under
+`.claude/artifacts/sessions/`, so plugin-version, cross-CLI drift, and
+module/manifest-mismatch warnings appear at most once per session and may
+appear again in a new session. If marker storage fails, it returns permission
+to emit rather than hiding the advisory.
 
 ## Worked example — project-local async PostToolUse hook
 

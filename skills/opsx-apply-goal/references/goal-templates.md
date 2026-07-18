@@ -68,15 +68,16 @@ First run ONE Bash orientation command — `p=${CLAUDE_PLUGIN_ROOT:-$(ls -dt
 ~/.claude/plugins/cache/dhpk/dhpk/* 2>/dev/null | head -1)}; cat
 "$p/rules/execution-policy.md" 2>/dev/null || echo POLICY-UNRESOLVED` — read policy
 (if unresolved use these gates; never filesystem-scan), invoke opsx:apply
-<CHANGE_ID>, and continue unchecked tasks without confirmation. Tasks: <TASK_DIGEST>. gitnexus repo="<project>".
-On "Unknown skill", retry once, then implement from proposal.md, design.md, tasks.md under
-these gates. You are the orchestrator per §Implementation dispatch: mechanical →
-<FAST_WORKER_CLAUSE>; reasoning → dhpk:deep-reasoner; RED PHPUnit → dhpk:tdd-guide;
-<E2E_ROSTER_CLAUSE>never general-purpose. Inline ≤2-file whole-implement-step
-plus bookkeeping; ≥3 files → one batch. Reviews run as ONE consolidated parallel batch per wave;
-known-finding re-review confirm-only; codex-bridge only as explicit escalation, at most once per change.
+<CHANGE_ID>; continue tasks. Tasks: <TASK_DIGEST>. gitnexus repo="<project>".
+On "Unknown skill", retry once; implement change artifacts under these gates.
+Set `DHPK_ORCHESTRATION_DISPATCH=on`. Bash resets cwd; use absolute paths, `npm --prefix`, or `git -C`.
+You are the orchestrator: mechanical → <FAST_WORKER_CLAUSE>; reasoning → dhpk:deep-reasoner;
+RED PHPUnit → dhpk:tdd-guide; <E2E_ROSTER_CLAUSE>never general-purpose.
+Inline ≤2-file whole-implement-step plus bookkeeping; ≥3 files → one batch.
+Reviews run as ONE consolidated parallel batch per wave;
+known-finding confirm-only re-review; codex-bridge only as explicit escalation, at most once per change.
 Explicit project hard rules cannot be deferred because a prior design chose a cheaper implementation.
-Never sleep-poll background work; wait on notifications/Monitor.
+Never sleep-poll; wait on notifications/Monitor.
 <CODEX_STATEMENT>. Continue until all of the following hold,
 ```
 

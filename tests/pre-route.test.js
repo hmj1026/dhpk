@@ -13,6 +13,7 @@ const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
 const SCRIPT = path.join(ROOT, 'scripts', 'lib', 'pre-route.sh');
+const REAL_TABLE = path.join(ROOT, 'scripts', 'lib', 'route-table.json');
 
 function mkTable() {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'pre-route-'));
@@ -72,6 +73,30 @@ test('missing route table degrades to NO_MATCH (fail-soft)', () => {
   const res = runRoute(['please fix the bug now'], { DHPK_ROUTE_TABLE: '/no/such/table.json' });
   assert.strictEqual(res.status, 0, res.stderr);
   assert.strictEqual(res.stdout.trim(), 'NO_MATCH');
+});
+
+test('real create-pr route matches imperative requests but not incidental command-name mentions', () => {
+  const cases = [
+    ['please create a PR for this branch', true],
+    ['open a pull request', true],
+    ['draft PR for these commits', true],
+    ['issue list: create-pr 前置檢查 git rev-list; hook noise; docs', false],
+    ['audit mentions create-pr and release-creator command names', false],
+  ];
+  for (const [query, expected] of cases) {
+    const res = runRoute([query], { DHPK_ROUTE_TABLE: REAL_TABLE });
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.strictEqual(res.stdout.includes('\tdhpk:create-pr\t'), expected, `${query}: ${res.stdout}`);
+  }
+});
+
+test('create-pr command carries deterministic ahead-count abort before gh pr create', () => {
+  const command = fs.readFileSync(path.join(ROOT, 'commands', 'create-pr.md'), 'utf8');
+  const countAt = command.indexOf('git rev-list --count <base>..HEAD');
+  const abortAt = command.indexOf('No commits between <base> and HEAD — nothing to open a PR for');
+  const createAt = command.indexOf('gh pr create');
+  assert.ok(countAt !== -1 && abortAt > countAt && createAt > abortAt, command);
+  assert.ok(!command.includes('Follow the `create-pr` skill workflow'));
 });
 
 run('pre-route');

@@ -167,7 +167,7 @@ Read source → Derive test path → Codex generate → Save test file → Sugge
 
 ## Review Loop
 
-**⚠️ @CLAUDE.md auto-loop: fix → re-review → ... → ✅ PASS ⚠️**
+Auto-loop semantics: `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §Anti-loop & output.
 
 ⛔ Needs additions → add tests → `/codex-test-review --continue <threadId>` → repeat until ✅ Sufficient.
 

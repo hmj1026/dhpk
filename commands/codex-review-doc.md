@@ -44,13 +44,12 @@ Determine target → Read content → Codex review → Rating table + Gate → L
 ### Key Rules
 
 - **Codex must verify code-documentation consistency** — grep/cat to check referenced files exist
-- **Save `threadId`** — for review loop continuation
 - **5 review dimensions** — Architecture, Performance, Security, Doc Quality, Code Consistency
-- **Gate sentinels** — output `✅ Mergeable` or `⛔ Needs revision` for hook parsing
+- Independent research, thread continuation, and gate sentinels: `skills/codex-code-review/references/review-common.md` §§Codex Independent Research, Gate Sentinels.
 
 ### Review Loop
 
-**⚠️ @CLAUDE.md auto-loop: fix → re-review → ... → ✅ PASS ⚠️**
+Auto-loop semantics: `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §Anti-loop & output.
 
 ## Output
 

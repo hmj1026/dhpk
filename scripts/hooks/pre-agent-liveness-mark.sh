@@ -17,6 +17,15 @@ PAYLOAD="$(dhpk_read_payload)"
 SUBAGENT="$(extract_tool_input subagent_type "$PAYLOAD")"
 [ -z "$SUBAGENT" ] && SUBAGENT="$(extract_tool_input subagent "$PAYLOAD")"
 
+case "${SUBAGENT##*:}" in
+    fast-worker|codex-fast-worker|agy-fast-worker)
+        SESS="$(dhpk_sessions_dir "$ROOT")"
+        STAMP="$(date +%s 2>/dev/null || date -u +%s)"
+        mkdir -p "$SESS" 2>/dev/null || exit 0
+        printf '%s %s pid=%s\n' "$STAMP" "$SUBAGENT" "$$" >> "$SESS/$DHPK_SIDECAR_FAST_WORKER_ACTIVE" 2>/dev/null || true
+        exit 0 ;;
+esac
+
 SLOT=-1
 if [ -n "$SUBAGENT" ]; then
     for i in "${!SENTINEL_AGENTS[@]}"; do
@@ -38,6 +47,10 @@ SESS="$(dhpk_sessions_dir "$ROOT")"
 STAMP="$(date +%s 2>/dev/null || date -u +%s)"
 
 mkdir -p "$SESS" 2>/dev/null || exit 0
+if [ ! -f "$SESS/$SENTINEL_NAME" ]; then
+    printf '%s arm-on-dispatch:%s [arm-on-dispatch]\n' "$STAMP" "$SUBAGENT" > "$SESS/$SENTINEL_NAME" 2>/dev/null || true
+    printf '%s\t%s\tarm-on-dispatch %s\n' "$SENTINEL_NAME" '[arm-on-dispatch]' "$SUBAGENT" >> "$SESS/$SENTINEL_PROVENANCE_FILE" 2>/dev/null || true
+fi
 printf '%s %s pid=%s\n' "$STAMP" "$SUBAGENT" "$$" >> "$SESS/$ACTIVE_NAME" 2>/dev/null || true
 
 exit 0

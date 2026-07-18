@@ -71,7 +71,7 @@ Organize results into rating table + severity-grouped findings + gate.
 
 ## Review Loop
 
-**⚠️ @CLAUDE.md auto-loop: fix → re-review → ... → ✅ PASS ⚠️**
+Auto-loop semantics: `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §Anti-loop & output.
 
 ⛔ Needs revision → fix 🔴 items → `/codex-review-doc --continue <threadId>` → repeat until ✅ Mergeable.
 

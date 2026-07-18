@@ -87,7 +87,7 @@ if printf '%s' "$CMD_STRIPPED" | grep -Eq '(^|[[:space:]])git[[:space:]]+push([[
         [ -f "$_sf" ] || continue
         # cut -d' ' -f3- drops the "YYYY-MM-DD HH:MM:SS " prefix; sort -u
         # dedupes in case of pre-fix legacy sentinels with duplicate lines.
-        _sentinel_paths="$(cut -d' ' -f3- "$_sf" 2>/dev/null | sort -u)"
+        _sentinel_paths="$(cut -d' ' -f3- "$_sf" 2>/dev/null | grep -Fvx '[arm-on-dispatch]' | sort -u)"
         [ -z "$_sentinel_paths" ] && continue
         _match=0
         while IFS= read -r _p; do

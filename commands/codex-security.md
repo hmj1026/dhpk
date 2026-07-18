@@ -12,10 +12,7 @@ as it forbids `mcp__codex__*` and would contradict this command.
 
 @skills/security-review/references/codex-prompt-security.md
 
-## Context
-
-- Git status: !`git status -sb`
-- Git diff stats: !`git diff --stat HEAD 2>/dev/null | tail -5`
+@skills/codex-code-review/references/command-context.md
 
 ## Task
 
@@ -45,15 +42,13 @@ Determine scope → Collect changes → Codex OWASP review → Findings + Gate �
 
 ### Key Rules
 
-- **Codex must independently research** — search auth, input validation, sensitive operations
-- **Save `threadId`** — for review loop continuation
 - **OWASP A01-A10** — full checklist coverage
 - **Each finding includes** — location, OWASP type, impact, fix, verification test
-- **Gate sentinels** — output `✅ Mergeable` or `⛔ Must fix` for hook parsing
+- Independent research, thread continuation, and gate sentinels: `skills/codex-code-review/references/review-common.md` §§Codex Independent Research, Gate Sentinels.
 
 ### Review Loop
 
-**⚠️ @CLAUDE.md auto-loop: fix → re-review → ... → ✅ PASS ⚠️**
+Auto-loop semantics: `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §Anti-loop & output.
 
 ## Output
 

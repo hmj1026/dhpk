@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — Harden harness dispatch, guards, and content hygiene
+
+**fix(hooks)** — Tighten pre-edit path guards, arm reviewer sentinels on dispatch, merge reminder batches, and add the dispatch-aware distinct-file edit gate.
+**fix(config)** — Detect configured-module/manifest mismatches and deduplicate session advisories with a shared once-guard.
+**refactor(skills)** — Deduplicate execution/review policy prose, extract shared development gates, script deterministic release and runtime-verification mechanics, and enforce shrink-only skill size budgets.
+**test(harness)** — Add regression coverage for guard precision, sentinel lifecycle, batch dispatch, advisory deduplication, deterministic runners, and size validation.
+
 ## 0.28.15 — 2026-07-18 — Refine reviewer contracts, footprint scanning, and script validations
 
 Refines reviewer contracts to require single-run verdicts and updates sentinel auto-clear/verify logic, implements task footprint scanning in `opsx-apply-goal` to optimize fast-worker bypass decisions, adjusts active stack detection logic for the trap sheet loader, prevents system-generated prompts from triggering workflow-routing hints, and adds static dependency validation checks for `opsx-apply-goal` scripts.

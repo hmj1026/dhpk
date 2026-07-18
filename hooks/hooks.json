@@ -9,6 +9,12 @@
             "command": "bash",
             "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/pre-edit-guard.sh"],
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bash",
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/pre-edit-batch-gate.sh"],
+            "timeout": 5
           }
         ]
       },

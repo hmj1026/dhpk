@@ -97,8 +97,12 @@ done
 # ---- Active liveness marker pass: prune stale entries individually ----
 active_threshold=$((active_threshold_minutes * 60))
 if [ -d "$sessions_dir" ]; then
+    active_names=()
     for name in "${SENTINEL_NAMES[@]}"; do
-        active_name="$(dhpk_active_marker "$name")"
+        active_names+=("$(dhpk_active_marker "$name")")
+    done
+    active_names+=("$DHPK_SIDECAR_FAST_WORKER_ACTIVE")
+    for active_name in "${active_names[@]}"; do
         active="$sessions_dir/$active_name"
         [ -f "$active" ] || continue
         tmp="$(mktemp 2>/dev/null || printf '%s.reap.tmp' "$active")"

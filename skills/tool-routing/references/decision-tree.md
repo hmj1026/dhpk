@@ -34,13 +34,7 @@ Skip claude-mem for:
 
 ## Append-only exemption (for impact)
 
-You may skip `gitnexus_impact` only when ALL of these hold:
-
-- Adding a new function, method, or class without touching any existing symbol
-- Not changing any existing signature, body, or PHPDoc/typehint
-- Not changing any module-level state (imports, top-level constants)
-
-State "append-only — gitnexus_impact skipped" in your plan or commit message when invoking this exemption.
+The sole condition list is in `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` Glossary. Apply it there and record `append-only — gitnexus_impact skipped`; do not restate or extend the conditions here.
 
 ## Sub-agent inheritance
 

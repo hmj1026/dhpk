@@ -26,6 +26,8 @@ ROOT="$(dhpk_root)"
 . "$PLUGIN_ROOT/scripts/hooks/_lib/timestamps.sh"
 . "$PLUGIN_ROOT/scripts/hooks/_lib/portable-stat.sh"
 . "$PLUGIN_ROOT/scripts/hooks/_lib/portable-timeout.sh"
+. "$PLUGIN_ROOT/scripts/hooks/_lib/advise-once.sh"
+. "$PLUGIN_ROOT/scripts/hooks/_lib/detect-stack-hints.sh"
 
 # Branch on the SessionStart `source` (startup|resume|clear|compact). Module
 # activation + dir creation + the snapshot are cheap and always run (downstream
@@ -34,6 +36,8 @@ ROOT="$(dhpk_root)"
 # advisories) only runs on a fresh start — on resume/compact it is wasteful, and
 # on compact postcompact-restore.sh already re-injects the handoff.
 PAYLOAD="$(dhpk_read_payload)"
+DHPK_ADVISE_SESSION_ID="$(extract_top_field session_id "$PAYLOAD")"
+[ -n "$DHPK_ADVISE_SESSION_ID" ] || DHPK_ADVISE_SESSION_ID="startup"
 SOURCE="$(extract_top_field source "$PAYLOAD")"
 case "$SOURCE" in
     resume|compact) FULL_INIT=0 ;;
@@ -110,6 +114,11 @@ MODULE_LINES=""
 # SessionStart is the authority that recomputes the validated active set; do
 # not reuse a stale DHPK_ACTIVE_MODULES inherited from a prior session here.
 MODULES="$(dhpk_config_csv modules '')"
+_stack_mismatch="$(dhpk_detect_stack_mismatch "$ROOT" "$MODULES")"
+if [ -n "$_stack_mismatch" ] && dhpk_advise_once "module-manifest-mismatch"; then
+    echo "[session-start] WARN module/manifest mismatch: $_stack_mismatch; check pluginConfigs.dhpk@dhpk.options.modules" >&2
+fi
+unset _stack_mismatch
 if [ -n "$MODULES" ]; then
     if command -v python3 >/dev/null 2>&1; then
         while IFS=$'\t' read -r _tag _f1 _f2; do
@@ -208,15 +217,9 @@ FAST_FALLBACK_DEFAULT="none"
 FAST_BACKEND="$(dhpk_config_get fast_worker_backend "$FAST_BACKEND_DEFAULT")"
 FAST_ORDER="$(dhpk_config_csv fast_worker_backend_order "$FAST_ORDER_DEFAULT")"
 FAST_FALLBACK="$(dhpk_config_get fast_worker_fallback "$FAST_FALLBACK_DEFAULT")"
-SELECTOR_SESSION="$(extract_top_field session_id "$PAYLOAD")"
-[ -n "$SELECTOR_SESSION" ] || SELECTOR_SESSION="startup"
-SELECTOR_WARNINGS="$ARTIFACTS/sessions/$DHPK_SIDECAR_FW_SELECTOR_WARNINGS"
-
 selector_warn_once() {
-    local key="$1" value="$2" marker="${SELECTOR_SESSION}	${key}=${value}"
-    mkdir -p "$ARTIFACTS/sessions" 2>/dev/null || true
-    if ! grep -Fqx "$marker" "$SELECTOR_WARNINGS" 2>/dev/null; then
-        printf '%s\n' "$marker" >> "$SELECTOR_WARNINGS" 2>/dev/null || true
+    local key="$1" value="$2"
+    if dhpk_advise_once "fast-worker-selector:${key}=${value}"; then
         echo "[session-start] WARN: invalid fast-worker selector ${key}=${value}; using shipped default" >&2
     fi
 }
@@ -304,10 +307,14 @@ if [ "$FULL_INIT" = "1" ] && [ "$PROFILE" != "minimal" ]; then
     unset _broken
 
     # Plugin-version pin advisory (silent unless .claude/dhpk-versions.json exists).
-    bash "$PLUGIN_ROOT/scripts/hooks/check-plugin-version.sh" || true
+    if dhpk_advise_once "plugin-version"; then
+        bash "$PLUGIN_ROOT/scripts/hooks/check-plugin-version.sh" || true
+    fi
 
     # Cross-CLI harness drift (silent unless .codex/ or .gemini/ exists).
-    bash "$PLUGIN_ROOT/scripts/check-cross-cli-drift.sh" || true
+    if dhpk_advise_once "cross-cli-drift"; then
+        bash "$PLUGIN_ROOT/scripts/check-cross-cli-drift.sh" || true
+    fi
 fi
 
 exit 0

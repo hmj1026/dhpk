@@ -47,6 +47,14 @@ test('Task|Agent PreToolUse hooks include reviewer liveness marker before subage
     'Task|Agent PreToolUse must wire pre-agent-liveness-mark.sh');
 });
 
+test('Edit|Write|MultiEdit wires the batch gate with an explicit timeout', () => {
+  const parsed = JSON.parse(raw);
+  const edit = parsed.hooks.PreToolUse.find((entry) => entry.matcher === 'Edit|Write|MultiEdit');
+  const gate = edit.hooks.find((hook) => (hook.args || []).some((arg) => arg.includes('pre-edit-batch-gate.sh')));
+  assert.ok(gate, 'missing pre-edit-batch-gate.sh');
+  assert.strictEqual(gate.timeout, 5);
+});
+
 test('SubagentStop wires subagent-stop-quality.sh before subagent-stop-verify.sh', () => {
   const parsed = JSON.parse(raw);
   const subagentStopArgs = (parsed.hooks.SubagentStop || [])

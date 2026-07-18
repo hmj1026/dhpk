@@ -160,10 +160,10 @@ else
             [[ -f "$ROOT/commands/$name.md" || -f "$ROOT/skills/$name/SKILL.md" ]] \
                 || fail "route-table 指向不存在的 command/skill: $skill (commands/$name.md 或 skills/$name/SKILL.md)"
         fi
-        # (b) pattern must compile as ERE (grep -E is the engine the runtime uses); rc>=2 = regex error
-        probe_rc=0
-        printf 'probe' | grep -E "$pattern" >/dev/null 2>&1 || probe_rc=$?
-        [[ $probe_rc -ge 2 ]] && fail "route-table pattern 無法編譯為 ERE: [$label] $pattern"
+        # (b) pattern must compile with Python re, matching pre-route.sh runtime semantics.
+        if ! python3 -c 'import re, sys; re.compile(sys.argv[1])' "$pattern" >/dev/null 2>&1; then
+            fail "route-table pattern 無法編譯為 Python re: [$label] $pattern"
+        fi
         # (c) bilingual coverage — warn (not fail) on an English-only rule (no CJK / non-ASCII alternation)
         if ! printf '%s' "$pattern" | LC_ALL=C grep -qE '[^ -~]'; then
             warn "route-table 規則僅有英文（無中文 alternation）: [$label] $skill"

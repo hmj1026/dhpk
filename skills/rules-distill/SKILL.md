@@ -67,60 +67,7 @@ After all batches complete, merge candidates across batches:
 
 #### Subagent Prompt
 
-Launch a general-purpose Agent with the following prompt:
-
-````
-You are an analyst who cross-reads skills to extract principles that should be promoted to rules.
-
-## Input
-- Skills: {full text of skills in this batch}
-- Existing rules: {full text of all rule files}
-
-## Extraction Criteria
-
-Include a candidate ONLY if ALL of these are true:
-
-1. **Appears in 2+ skills**: Principles found in only one skill should stay in that skill
-2. **Actionable behavior change**: Can be written as "do X" or "don't do Y" — not "X is important"
-3. **Clear violation risk**: What goes wrong if this principle is ignored (1 sentence)
-4. **Not already in rules**: Check the full rules text — including concepts expressed in different words
-
-## Matching & Verdict
-
-For each candidate, compare against the full rules text and assign a verdict:
-
-- **Append**: Add to an existing section of an existing rule file
-- **Revise**: Existing rule content is inaccurate or insufficient — propose a correction
-- **New Section**: Add a new section to an existing rule file
-- **New File**: Create a new rule file
-- **Already Covered**: Sufficiently covered in existing rules (even if worded differently)
-- **Too Specific**: Should remain at the skill level
-
-## Output Format (per candidate)
-
-```json
-{
-  "principle": "1-2 sentences in 'do X' / 'don't do Y' form",
-  "evidence": ["skill-name: §Section", "skill-name: §Section"],
-  "violation_risk": "1 sentence",
-  "verdict": "Append / Revise / New Section / New File / Already Covered / Too Specific",
-  "target_rule": "filename §Section, or 'new'",
-  "confidence": "high / medium / low",
-  "draft": "Draft text for Append/New Section/New File verdicts",
-  "revision": {
-    "reason": "Why the existing content is inaccurate or insufficient (Revise only)",
-    "before": "Current text to be replaced (Revise only)",
-    "after": "Proposed replacement text (Revise only)"
-  }
-}
-```
-
-## Exclude
-
-- Obvious principles already in rules
-- Language/framework-specific knowledge (belongs in language-specific rules or skills)
-- Code examples and commands (belongs in skills)
-````
+Launch a general-purpose Agent with [subagent-prompt.md](references/subagent-prompt.md). It owns the extraction criteria and candidate JSON schema.
 
 #### Verdict Reference
 
@@ -179,88 +126,11 @@ User responds with numbers to:
 
 #### Save Results
 
-Store results in the skill directory (`results.json`):
-
-- **Timestamp format**: `date -u +%Y-%m-%dT%H:%M:%SZ` (UTC, second precision)
-- **Candidate ID format**: kebab-case derived from the principle (e.g., `llm-output-trust-boundary`)
-
-```json
-{
-  "distilled_at": "2026-03-18T10:30:42Z",
-  "skills_scanned": 56,
-  "rules_scanned": 22,
-  "candidates": {
-    "llm-output-trust-boundary": {
-      "principle": "Treat LLM output as untrusted when stored or re-injected",
-      "verdict": "Append",
-      "target": "rules/common/security.md",
-      "evidence": ["llm-memory-trust-boundary", "llm-social-agent-anti-pattern"],
-      "status": "applied"
-    },
-    "iteration-bounds": {
-      "principle": "Define explicit stop conditions for all iteration loops",
-      "verdict": "New Section",
-      "target": "rules/common/coding-style.md",
-      "evidence": ["iterative-retrieval", "continuous-agent-loop", "agent-harness-construction"],
-      "status": "skipped"
-    }
-  }
-}
-```
+Store results in the skill directory using [results-schema.md](references/results-schema.md).
 
 ## Example
 
-### End-to-end run
-
-```
-$ /rules-distill
-
-Rules Distillation — Phase 1: Inventory
-────────────────────────────────────────
-Skills: 56 files scanned
-Rules:  22 files (75 headings indexed)
-
-Proceeding to cross-read analysis...
-
-[Subagent analysis: Batch 1 (agent/meta skills) ...]
-[Subagent analysis: Batch 2 (coding/pattern skills) ...]
-[Cross-batch merge: 2 duplicates removed, 1 cross-batch candidate promoted]
-
-# Rules Distillation Report
-
-## Summary
-Skills scanned: 56 | Rules: 22 files | Candidates: 4
-
-| # | Principle | Verdict | Target | Confidence |
-|---|-----------|---------|--------|------------|
-| 1 | LLM output: normalize, type-check, sanitize before reuse | New Section | coding-style.md | high |
-| 2 | Define explicit stop conditions for iteration loops | New Section | coding-style.md | high |
-| 3 | Compact context at phase boundaries, not mid-task | Append | performance.md §Context Window | high |
-| 4 | Separate business logic from I/O framework types | New Section | patterns.md | high |
-
-## Details
-
-### 1. LLM Output Validation
-Verdict: New Section in coding-style.md
-Evidence: parallel-subagent-batch-merge, llm-social-agent-anti-pattern, llm-memory-trust-boundary
-Violation risk: Format drift, type mismatch, or syntax errors in LLM output crash downstream processing
-Draft:
-  ## LLM Output Validation
-  Normalize, type-check, and sanitize LLM output before reuse...
-  See skill: parallel-subagent-batch-merge, llm-memory-trust-boundary
-
-[... details for candidates 2-4 ...]
-
-Approve, modify, or skip each candidate by number:
-> User: Approve 1, 3. Skip 2, 4.
-
-✓ Applied: coding-style.md §LLM Output Validation
-✓ Applied: performance.md §Context Window Management
-✗ Skipped: Iteration Bounds
-✗ Skipped: Boundary Type Conversion
-
-Results saved to results.json
-```
+See [end-to-end-example.md](references/end-to-end-example.md).
 
 ## Verification
 

@@ -48,14 +48,12 @@ Smart detect → Read test + source → Codex review (5 dimensions) → Coverage
 
 ### Key Rules
 
-- **Codex must independently research** — read source to find all branches and error paths
-- **Save `threadId`** — for review loop continuation
 - **5 review dimensions** — Coverage, Boundaries, Errors, Concurrency, Mock quality
-- **Gate sentinels** — output `✅ Tests sufficient` or `⛔ Tests need supplementation`
+- Independent research, thread continuation, and gate sentinels: `skills/codex-code-review/references/review-common.md` §§Codex Independent Research, Gate Sentinels.
 
 ### Review Loop
 
-**⚠️ @CLAUDE.md auto-loop: fix → re-review → ... → ✅ PASS ⚠️**
+Auto-loop semantics: `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §Anti-loop & output.
 
 ## Output
 
