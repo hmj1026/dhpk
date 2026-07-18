@@ -97,7 +97,7 @@ check_one() {
     next_count=$((ignored_count + 1))
     record_reminder "$name" "$fingerprint" "$now" "$next_count"
     file_list="$(awk 'NF>=3 && $3 != "[arm-on-dispatch]" {print "    · " $3}' "$file" 2>/dev/null)"
-    sentinel_mtime="$(stat -f %m "$file" 2>/dev/null || stat -c %Y "$file" 2>/dev/null || printf '%s' "$now")"
+    sentinel_mtime="$(stat -c %Y "$file" 2>/dev/null || stat -f %m "$file" 2>/dev/null || printf '%s' "$now")"
     sentinel_age=$((now - sentinel_mtime))
 
     # stderr — Claude Code's Stop hook feeds stderr back to Claude when exit=2.

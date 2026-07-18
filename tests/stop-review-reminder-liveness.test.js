@@ -118,4 +118,29 @@ test('arm-on-dispatch marker is treated as owed review without a phantom file pa
   }
 });
 
+test('GNU stat filesystem output does not break sentinel age detection', () => {
+  const repo = mkTempRepo();
+  try {
+    writeFile(repo, '.pending-doc-review', '2026-07-07 12:00 docs/Guide.md\n');
+    const bin = path.join(repo, 'bin');
+    const fakeStat = path.join(bin, 'stat');
+    fs.mkdirSync(bin, { recursive: true });
+    fs.writeFileSync(fakeStat, [
+      '#!/usr/bin/env bash',
+      'if [ "$1" = "-f" ]; then',
+      '  echo "File: sentinel Type: ext2/ext3"',
+      '  exit 0',
+      'fi',
+      'printf "1\\n"',
+    ].join('\n'));
+    fs.chmodSync(fakeStat, 0o755);
+
+    const res = runHook(repo, {}, { PATH: `${bin}:${process.env.PATH}` });
+    assert.strictEqual(res.status, 2, `GNU stat compatibility failed:\n${res.stderr}`);
+    assert.ok(res.stderr.includes('[WARN] PENDING: doc-reviewer'), res.stderr);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
 run('stop-review-reminder-liveness');
