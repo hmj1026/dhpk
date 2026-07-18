@@ -17,42 +17,9 @@ allowed-tools: 'Read, Grep, Glob, Edit, Write, Bash, Skill'
 - Just want to understand code (use code-explore)
 - Pure test-only tasks without feature changes (use `/codex-test-review` directly)
 
-## Prohibited Actions
+## Execution Policy
 
-```
-❌ git add | git commit | git push — per @rules/execution-policy.md (Git pipeline)
-```
-
-This skill fixes bugs but does **not** commit. `/precommit` is a quality gate only. To commit, the user must invoke `/smart-commit --execute` separately.
-
-## Fast-worker invocation context
-
-When the caller supplies `FAST_WORKER_OVERRIDE`, retain the exact invocation-only
-value and pass it to the shared `scripts/fast-worker-selector.js` as
-`--backend "$FAST_WORKER_OVERRIDE"` before the first mechanical dispatch. `unset`
-means omit that explicit argument and use selector-managed userConfig/default
-precedence; never recover the override from the cleaned task description.
-
-## Codex mode (opt-in)
-
-This workflow runs **codex-free by default** — pure Claude + dhpk agents, no
-Codex CLI/MCP required. Pass `--codex` for the Codex-enhanced path. If `--codex`
-is given but Codex is unavailable, warn once and fall back to codex-free.
-
-**Isolation invariant:** in default mode you MUST NOT call any `mcp__codex__*`
-tool — this skill's `allowed-tools` deliberately omits it. The `--codex` column
-below delegates to dedicated `/codex-*` commands, which own that permission.
-
-Every Codex step below has a codex-free substitute (all already shipped):
-
-| Step | Codex-free (default) | `--codex` |
-|------|----------------------|-----------|
-| Test adequacy | `/check-coverage` (+ `/post-dev-test` for integration/e2e gaps) | `/codex-test-review` |
-| Test generation | write tests, guided by `tdd-guide` agent | `/codex-test-gen` |
-| Code review | `/review-pending` (→ `code-reviewer` agent) | `/codex-review-fast` |
-
-The Workflow / Phase tables below name the `--codex` commands; in the default
-codex-free mode substitute each per this table.
+Follow `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §Implementation dispatch for prohibited git actions, fast-worker override handling, and Codex isolation/mode selection. This skill does not commit; `/precommit` is only a quality gate. Workflow tables show the `--codex` path; use the policy's substitutes in default mode.
 
 ## Workflow
 
@@ -92,8 +59,7 @@ Apply a confirmed fix spec (from Phase 1, whether self-derived or from `deep-rea
 
 ## Phase 3: Add Regression Test ⚠️
 
-Test conventions: Arrange-Act-Assert structure, behavior-describing test names, and evidence-based adequacy (assert observable output, not internal calls).
-Project-local test overrides take precedence when the consumer defines them in its own .claude/rules/.
+Test conventions are defined by `${CLAUDE_PLUGIN_ROOT}/skills/feature-dev/references/dev-loop-gate.md`; consumer `.claude/rules/` overrides take precedence.
 
 **Bug fixes must have tests at the corresponding level:**
 
@@ -107,48 +73,7 @@ Project-local test overrides take precedence when the consumer defines them in i
 
 ## Phase 4: Verify + Review
 
-### Step 1: Run tests
-
-```
-/verify → all tests pass?
-  Yes → Step 2
-  No → fix failures → re-run /verify
-```
-
-### Step 2: Test adequacy review (mandatory for code changes)
-
-```
-/codex-test-review → ✅ Tests sufficient?
-  Yes → Step 3
-  No → close gaps (Step 2a) → /codex-test-review --continue <threadId>
-```
-
-### Step 2a: Gap closure
-
-| Gap Type | Remediation |
-|----------|-------------|
-| Unit test missing | `/codex-test-gen` → write tests → `/verify` |
-| Integration/E2E missing | `/post-dev-test` → write tests → `/verify` |
-
-### Step 3: Code review (auto-loop)
-
-```
-/codex-review-fast → ✅ Ready?
-  Yes → Precommit Gate
-  No → fix issues → re-run /codex-review-fast (auto-loop)
-```
-
-### Freshness rule
-
-If code changes after the latest `✅ Tests sufficient` gate (e.g., fixes from code review), rerun `/verify` then `/codex-test-review --continue <threadId>` before proceeding to precommit gate.
-
-## Review Loop
-
-**MUST re-review after fix until PASS** (per @rules/execution-policy.md §Post-implementation agent gate; capped at 3 rounds per §Anti-loop "Review-loop ceiling")
-
-```
-Fix → Review → Issues found → Fix again → ... → ✅ Pass → Next step
-```
+Follow `${CLAUDE_PLUGIN_ROOT}/skills/feature-dev/references/dev-loop-gate.md` for the complete shared test, adequacy, freshness, code-review, and review-loop gate.
 
 ## Doc Sync
 

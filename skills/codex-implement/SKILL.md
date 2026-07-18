@@ -92,7 +92,7 @@ Repeat 3b → 3c until all items done.
 
 ### Step 5: Review Loop (Codex-in-the-loop)
 
-**⚠️ @CLAUDE.md auto-loop: fix → re-review → ... → ✅ PASS ⚠️**
+Auto-loop semantics: `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §Anti-loop & output.
 
 | Step | Command | On fail |
 |------|---------|---------|

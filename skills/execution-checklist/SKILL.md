@@ -76,7 +76,7 @@ before reaching for Edit**:
 
 | Trigger | Required check |
 |---|---|
-| Modifying an existing symbol's body / signature / docblock | `gitnexus_impact({ target, direction:"upstream" })` ran. Pure additions can use the **append-only exemption** (record `append-only — gitnexus_impact skipped` in the plan / commit). |
+| Modifying an existing symbol's body / signature / docblock | `gitnexus_impact({ target, direction:"upstream" })` ran. The append-only exemption is defined solely in `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` Glossary; record its required skip label when applicable. |
 | New / modified SQL, repository, or migration code | The database-reviewer slot (sentinel `.pending-db-review`) cleared, or a self-accountable skip is recorded. |
 | Auth / crypto / money / file-upload code paths | The security-reviewer slot (sentinel `.pending-security-review`) cleared, or a self-accountable skip is recorded. |
 | Repository methods on a high-volume table (the project's hottest tables — typical examples: an event log, an orders / sales table, an inventory table) | `performance-analyzer` (no hook, AI-judgment trigger) ran or skipped with reason. |
