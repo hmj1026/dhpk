@@ -5,8 +5,9 @@
 // containers like skills/gitnexus/ that nest multiple skills) and checks:
 //   FAIL: a top-level skills/<x>/ that is neither a skill (has SKILL.md) nor a
 //         container (descendants have SKILL.md); empty SKILL.md.
-//   WARN: SKILL.md missing 'name'; description uses a literal block scalar (|)
-//         which breaks flat-table renderers. (FAIL under --strict.)
+//   WARN: SKILL.md missing 'name'; description uses a literal block scalar (|);
+//         total line count exceeds 150. (FAIL under --strict.)
+//   FAIL: total line count exceeds 250 without a shrink-only exception.
 
 const fs = require('fs');
 const path = require('path');
@@ -15,6 +16,11 @@ const { createReporter } = require('./_lib/report');
 
 const ROOT = path.join(__dirname, '..', '..');
 const SKILLS_DIR = path.join(ROOT, 'skills');
+const MODULES_DIR = path.join(ROOT, 'modules');
+const SIZE_CONFIG = path.join(__dirname, 'skill-size-allowlist.json');
+const sizeConfig = JSON.parse(fs.readFileSync(SIZE_CONFIG, 'utf8'));
+const sizeSeed = sizeConfig.seed || {};
+const sizeAllowed = new Set(sizeConfig.allowed || []);
 
 const r = createReporter('skills');
 
@@ -38,6 +44,20 @@ function hasDescendantSkill(dir) {
 function validateSkillMd(dir) {
   const skillMd = path.join(dir, 'SKILL.md');
   const content = fs.readFileSync(skillMd, 'utf8');
+  const lines = content.length === 0
+    ? 0
+    : (content.match(/\n/g) || []).length + (content.endsWith('\n') ? 0 : 1);
+  const relative = rel(skillMd);
+  if (lines > 250) {
+    if (!sizeAllowed.has(relative)) {
+      r.err(`${relative} — ${lines} lines exceeds hard budget 250`);
+    } else if (lines > sizeSeed[relative]) {
+      r.err(`${relative} — ${lines} lines exceeds grandfathered baseline ${sizeSeed[relative]}`);
+    }
+  } else if (sizeAllowed.has(relative)) {
+    r.err(`${relative} — now ${lines} lines; remove its obsolete size exception`);
+  }
+  if (lines > 150) r.warn(`${relative} — ${lines} lines exceeds warning budget 150`);
   if (content.trim().length === 0) {
     r.err(`${rel(skillMd)} — empty file`);
     return;
@@ -53,9 +73,16 @@ function validateSkillMd(dir) {
   }
 }
 
-// Walk every SKILL.md anywhere under skills/ and validate its frontmatter.
+for (const allowed of sizeAllowed) {
+  if (!Object.prototype.hasOwnProperty.call(sizeSeed, allowed)) {
+    r.err(`${allowed} — allowlist entry not present in fixed seed`);
+  }
+}
+
+// Walk every SKILL.md under skills/ and modules/ and validate it.
 let skillCount = 0;
-(function walk(dir) {
+function walk(dir) {
+  if (!fs.existsSync(dir)) return;
   if (fs.existsSync(path.join(dir, 'SKILL.md'))) {
     skillCount += 1;
     validateSkillMd(dir);
@@ -64,7 +91,9 @@ let skillCount = 0;
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     if (e.isDirectory() && !e.name.startsWith('.')) walk(path.join(dir, e.name));
   }
-})(SKILLS_DIR);
+}
+walk(SKILLS_DIR);
+walk(MODULES_DIR);
 
 // Orphan check: each immediate child of skills/ must be a skill or a container.
 for (const e of fs.readdirSync(SKILLS_DIR, { withFileTypes: true })) {

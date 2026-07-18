@@ -1,0 +1,26 @@
+{
+  "seed": {
+    "skills/laravel-package-author/SKILL.md": 352,
+    "skills/laravel-testbench-matrix/SKILL.md": 327,
+    "modules/phpunit-9/skills/phpunit-9-modern/SKILL.md": 311,
+    "skills/composer-package-hygiene/SKILL.md": 300,
+    "modules/php-8.x/skills/php-8x-features/SKILL.md": 290,
+    "skills/agent-architecture-audit/SKILL.md": 269,
+    "skills/bug-investigation/SKILL.md": 264,
+    "skills/deploy-list/SKILL.md": 257,
+    "modules/laravel-5.4/skills/laravel-5.4-notes/SKILL.md": 254,
+    "skills/multi-ai-sync/SKILL.md": 251
+  },
+  "allowed": [
+    "skills/laravel-package-author/SKILL.md",
+    "skills/laravel-testbench-matrix/SKILL.md",
+    "modules/phpunit-9/skills/phpunit-9-modern/SKILL.md",
+    "skills/composer-package-hygiene/SKILL.md",
+    "modules/php-8.x/skills/php-8x-features/SKILL.md",
+    "skills/agent-architecture-audit/SKILL.md",
+    "skills/bug-investigation/SKILL.md",
+    "skills/deploy-list/SKILL.md",
+    "modules/laravel-5.4/skills/laravel-5.4-notes/SKILL.md",
+    "skills/multi-ai-sync/SKILL.md"
+  ]
+}
