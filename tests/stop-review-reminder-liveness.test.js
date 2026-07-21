@@ -143,4 +143,105 @@ test('GNU stat filesystem output does not break sentinel age detection', () => {
   }
 });
 
+// --- provenance scoping: concurrent sessions must not review each other's work ---
+
+const OWN = 'sess-own';
+const OTHER = 'sess-other';
+
+function withProvenance(repo, sentinel, rows) {
+  writeFile(repo, sentinel, rows.map((r) => `2026-07-07 12:00 ${r.path}\n`).join(''));
+  writeFile(repo, '.sentinel-provenance',
+    rows.map((r) => `${sentinel}\t${r.path}\t${r.prov}\n`).join(''));
+}
+
+test('entries owned by another live session do not trigger a dispatch recommendation', () => {
+  const repo = mkTempRepo();
+  try {
+    withProvenance(repo, '.pending-doc-review', [
+      { path: 'docs/TheirGuide.md', prov: `session:${OTHER}` },
+    ]);
+    const res = runHook(repo, { session_id: OWN, stop_hook_active: false });
+    assert.strictEqual(res.status, 0, `foreign-only sentinel must not block:\n${res.stderr}`);
+    assert.ok(!res.stderr.includes('Recommended: dispatch'),
+      `recommended a dispatch for another session's file:\n${res.stderr}`);
+    assert.ok(res.stderr.includes('pending from another session'),
+      `foreign entries should still be surfaced as INFO:\n${res.stderr}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('the owning session still gets the full pending gate for its own entries', () => {
+  const repo = mkTempRepo();
+  try {
+    withProvenance(repo, '.pending-doc-review', [
+      { path: 'docs/TheirGuide.md', prov: `session:${OTHER}` },
+      { path: 'docs/MyGuide.md', prov: `session:${OWN}` },
+    ]);
+    const res = runHook(repo, { session_id: OWN, stop_hook_active: false });
+    assert.strictEqual(res.status, 2, `own entry must still block:\n${res.stderr}`);
+    assert.ok(res.stderr.includes('docs/MyGuide.md'));
+    assert.ok(!res.stderr.includes('    · docs/TheirGuide.md'),
+      `another session's file leaked into the dispatch list:\n${res.stderr}`);
+    assert.ok(res.stderr.includes('(+1 file(s) pending from another session'),
+      `excluded count should be disclosed:\n${res.stderr}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('OpenSpec change-slug provenance is never treated as foreign', () => {
+  const repo = mkTempRepo();
+  try {
+    withProvenance(repo, '.pending-doc-review', [
+      { path: 'openspec/changes/some-change/design.md', prov: 'some-change' },
+    ]);
+    const res = runHook(repo, { session_id: OWN, stop_hook_active: false });
+    assert.strictEqual(res.status, 2, `slug-attributed entry must still block:\n${res.stderr}`);
+    assert.ok(res.stderr.includes('openspec/changes/some-change/design.md'));
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('missing provenance sidecar fails open — every entry stays owned', () => {
+  const repo = mkTempRepo();
+  try {
+    writeFile(repo, '.pending-doc-review', '2026-07-07 12:00 docs/Guide.md\n');
+    const res = runHook(repo, { session_id: OWN, stop_hook_active: false });
+    assert.strictEqual(res.status, 2, `absent sidecar must not silence the gate:\n${res.stderr}`);
+    assert.ok(res.stderr.includes('docs/Guide.md'));
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('payload without session_id fails open — provenance filter is disabled', () => {
+  const repo = mkTempRepo();
+  try {
+    withProvenance(repo, '.pending-doc-review', [
+      { path: 'docs/TheirGuide.md', prov: `session:${OTHER}` },
+    ]);
+    const res = runHook(repo, { stop_hook_active: false });
+    assert.strictEqual(res.status, 2, `unknown session must not silence the gate:\n${res.stderr}`);
+    assert.ok(res.stderr.includes('docs/TheirGuide.md'));
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('empty sentinel plus a stale active marker stays silent instead of "0 file(s)"', () => {
+  const repo = mkTempRepo();
+  try {
+    writeFile(repo, '.pending-doc-review', '');
+    writeFile(repo, '.active-doc-review', 'doc-reviewer\n');
+    const res = runHook(repo, { session_id: OWN, stop_hook_active: false });
+    assert.strictEqual(res.status, 0, `empty sentinel must not block:\n${res.stderr}`);
+    assert.ok(!res.stderr.includes('0 file(s) awaiting review'),
+      `emitted a phantom in-flight warning:\n${res.stderr}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
 run('stop-review-reminder-liveness');
