@@ -54,6 +54,21 @@ if [ "$NAME" = "--all" ]; then
     exit 0
 fi
 
+short_form_known=false
+canonical_name_known=false
+for s in "${KNOWN_SENTINELS[@]}"; do
+    if [ "$NAME" = "$s" ]; then
+        short_form_known=true
+    fi
+    if [ ".pending-$NAME" = "$s" ]; then
+        canonical_name_known=true
+    fi
+done
+if [ "$short_form_known" = false ] && [ "$canonical_name_known" = true ]; then
+    NAME=".pending-$NAME"
+    echo "[$LABEL] normalised prefix-less form sentinel name to '$NAME'" >&2
+fi
+
 is_known=false
 for s in "${KNOWN_SENTINELS[@]}"; do
     if [ "$NAME" = "$s" ]; then
@@ -65,7 +80,7 @@ done
 if [ "$is_known" != true ]; then
     echo "[$LABEL] ERROR: unknown sentinel name '$NAME'" >&2
     echo "[$LABEL] known sentinels: ${KNOWN_SENTINELS[*]}" >&2
-    echo "[$LABEL] hint: agent's Closing hook should pass the exact sentinel file basename" >&2
+    echo "[$LABEL] hint: pass a known sentinel basename or its prefix-less form" >&2
     exit 2
 fi
 

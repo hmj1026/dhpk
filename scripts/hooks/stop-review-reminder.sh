@@ -171,12 +171,22 @@ check_one() {
     echo >&2 ""
     echo >&2 "-----------------------------------------------------------"
     if [ "$active_count" -gt 0 ]; then
-        echo >&2 "[WARN] IN-FLIGHT: $agent ($count file(s) awaiting review; $active_count dispatch(es) still running)"
+        if [ "$count" -eq 0 ]; then
+            echo >&2 "[WARN] IN-FLIGHT: $agent ($owed_count dispatch obligation(s) owed, no file paths yet; $active_count dispatch(es) still running)"
+        else
+            echo >&2 "[WARN] IN-FLIGHT: $agent ($count file(s) awaiting review; $active_count dispatch(es) still running)"
+        fi
     else
-        echo >&2 "[WARN] PENDING: $agent ($count file(s) awaiting review)"
+        if [ "$count" -eq 0 ]; then
+            echo >&2 "[WARN] PENDING: $agent ($owed_count dispatch obligation(s) owed, no file paths yet)"
+        else
+            echo >&2 "[WARN] PENDING: $agent ($count file(s) awaiting review)"
+        fi
     fi
-    echo >&2 "   Triggering files:"
-    echo >&2 "$file_list"
+    if [ "$count" -gt 0 ]; then
+        echo >&2 "   Triggering files:"
+        echo >&2 "$file_list"
+    fi
     if [ "$foreign_count" -gt 0 ]; then
         echo >&2 "   (+$foreign_count file(s) pending from another session — excluded, not yours to review)"
     fi
@@ -184,7 +194,11 @@ check_one() {
     if [ "$active_count" -gt 0 ]; then
         echo >&2 "   Recommended: wait for the existing $agent result; do not dispatch a duplicate reviewer."
     else
-        echo >&2 "   Recommended: dispatch ONE '$agent' covering ALL $count pending files listed above."
+        if [ "$count" -eq 0 ]; then
+            echo >&2 "   Recommended: dispatch ONE '$agent' to satisfy $owed_count pending dispatch obligation(s) (no file paths yet)"
+        else
+            echo >&2 "   Recommended: dispatch ONE '$agent' covering ALL $count pending files listed above."
+        fi
         if [ "$ignored_count" -ge 2 ]; then
             echo >&2 "   HARD DIRECTIVE: this gate has been ignored $ignored_count times; dispatch before any further implementation work."
         fi

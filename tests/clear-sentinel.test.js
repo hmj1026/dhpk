@@ -207,4 +207,58 @@ test('a missing backoff file is not an error', () => {
   }
 });
 
+// --- short-form sentinel name normalisation (issue #53) ---
+//
+// Agents keep passing the short form ("security-review") instead of the full
+// basename ("pending-security-review" prefixed with ".pending-"). The fix
+// normalises X -> .pending-X when that prefixed form is a known sentinel,
+// and must rewrite NAME itself so every downstream consumer (sentinel path,
+// stdout message, learning-db signature, dhpk_reset_review_backoff) sees the
+// canonical name — not just pass the known-name check on a derived value.
+
+test('short form "security-review" normalises to canonical .pending-security-review and clears it', () => {
+  const repo = mkRepo();
+  try {
+    mkSentinel(repo, '.pending-security-review');
+    const res = runHook(repo, ['security-review', 'security-reviewer']);
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.ok(!fs.existsSync(path.join(sessDir(repo), '.pending-security-review')));
+    assert.ok(res.stdout.includes('sentinel cleared (.pending-security-review)'),
+      `stdout must report the CANONICAL name, not the short form typed on the CLI:\n${res.stdout}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('short form "security-review" resets the backoff row seeded under the canonical key', () => {
+  const repo = mkRepo();
+  try {
+    mkSentinel(repo, '.pending-security-review');
+    writeBackoff(repo, [
+      { name: '.pending-security-review', session: 's1', fingerprint: 'abc', count: 3 },
+    ]);
+    const res = runHook(repo, ['security-review', 'security-reviewer']);
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.strictEqual(readBackoff(repo).length, 0,
+      'the canonically-keyed row must be dropped even though the CLI arg was the short form ' +
+      '(proves the canonical name reached dhpk_reset_review_backoff, not just the path lookup)');
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+// Regression guard (must already pass): normalisation must not loosen the
+// fail-loud contract for a genuinely unknown name.
+test('regression guard: a genuinely unknown name still exits 2 with the known-sentinels list', () => {
+  const repo = mkRepo();
+  try {
+    const res = runHook(repo, ['banana', 'x']);
+    assert.strictEqual(res.status, 2);
+    assert.ok(res.stderr.includes("unknown sentinel name 'banana'"));
+    assert.ok(res.stderr.includes('known sentinels:'));
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
 run('clear-sentinel');

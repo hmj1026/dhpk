@@ -73,18 +73,23 @@ advisory only when that set changes. A no-trigger skip SHALL be silent unless
 - **WHEN** an Edit modifies a file under `.claude/artifacts/`
 - **THEN** no sentinel is written (avoids self-trigger loop when review agents write their own reports)
 
-### Requirement: clear-sentinel.sh removes a sentinel by exact name
+### Requirement: clear-sentinel.sh removes a sentinel by exact name or prefix-less form
 
-`scripts/hooks/clear-sentinel.sh <sentinel-name> [agent-label]` SHALL delete the named sentinel file if present, support `--all` to clear every known sentinel, and fail fast (exit 2) with a helpful message when given an unknown sentinel name.
+`scripts/hooks/clear-sentinel.sh <sentinel-name> [agent-label]` SHALL delete the named sentinel file if present, support `--all` to clear every known sentinel, normalise a prefix-less form (the sentinel basename minus its `.pending-` prefix; NOT the same as the `SENTINEL_SHORT_NAMES` used elsewhere, e.g. `sec`, `db`, `doc` — those are not accepted here) to its canonical `.pending-` form when that form is a known sentinel, and fail fast (exit 2) with a helpful message when given an unknown sentinel name.
+
+#### Scenario: Prefix-less form is normalised to the canonical name
+
+- **WHEN** `clear-sentinel.sh review code-reviewer` is run while `.pending-review` exists
+- **THEN** the name is normalised to `.pending-review`, the file is removed, and every downstream consumer (stdout message, learning-db signature, review-backoff reset) receives the canonical name
 
 #### Scenario: Valid clear succeeds
 
 - **WHEN** `clear-sentinel.sh .pending-review code-reviewer` is run while `.pending-review` exists
 - **THEN** the file is removed and the script prints `[code-reviewer] sentinel cleared (.pending-review)`
 
-#### Scenario: Unknown sentinel name is rejected
+#### Scenario: Unknown sentinel name is rejected even after normalisation
 
-- **WHEN** `clear-sentinel.sh review code-reviewer` is run (wrong name)
+- **WHEN** `clear-sentinel.sh bogus code-reviewer` is run (neither a known sentinel nor a prefix-less form of one)
 - **THEN** the script exits 2 and prints the list of known sentinel names
 
 ### Requirement: stop-review-reminder.sh blocks Stop when pending sentinels exist
