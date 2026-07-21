@@ -62,4 +62,33 @@ test('opsx-load-context surfaces hard-rule escalations before routine resume not
   assert.ok(text.includes('blocking human decision'), 'missing blocking human decision wording');
 });
 
+test('CLAUDE_PLUGIN_ROOT guardrail paragraph stays synchronized across policy surfaces', () => {
+  const files = [
+    'rules/execution-policy.md',
+    'skills/dhpk-execution-policy/references/review-gate-mechanics.md',
+    'skills/execution-checklist/SKILL.md',
+  ];
+  // The paragraph is embedded mid-row in a table cell in SKILL.md, so it is
+  // extracted by span rather than by line. Both markers are literal fragments
+  // of the paragraph's first and last sentences: rewording either end means
+  // updating them here too, or all three files report "missing paragraph".
+  const marker = '`${CLAUDE_PLUGIN_ROOT}` is a markdown-interpolation token';
+  const endMarker = '`find / -iname`.';
+  const spans = files.map((rel) => {
+    const text = read(rel);
+    const start = text.indexOf(marker);
+    const end = start === -1 ? -1 : text.indexOf(endMarker, start);
+    const span = start >= 0 && end >= start
+      ? text.slice(start, end + endMarker.length)
+      : '';
+    assert.ok(span.length > 0, `${rel} missing CLAUDE_PLUGIN_ROOT guardrail paragraph`);
+    return { rel, span };
+  });
+  const canonical = spans[0].span;
+  assert.strictEqual(spans[1].span, canonical,
+    'skills/dhpk-execution-policy/references/review-gate-mechanics.md CLAUDE_PLUGIN_ROOT guardrail paragraph diverged from rules/execution-policy.md');
+  assert.strictEqual(spans[2].span, canonical,
+    'skills/execution-checklist/SKILL.md CLAUDE_PLUGIN_ROOT guardrail paragraph diverged from rules/execution-policy.md');
+});
+
 run('policy-static-guardrails');
