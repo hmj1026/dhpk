@@ -60,7 +60,17 @@ fi
 #
 # 60-min TTL auto-clear runs first (delegated to reap-stale-sentinels.sh
 # --clear) so leaked sentinels from crashed reviewers don't accumulate.
-if printf '%s' "$CMD_STRIPPED" | grep -Eq '(^|[[:space:]])git[[:space:]]+push([[:space:]]|$)' && \
+# Global options may sit between `git` and `push` (`git -C <path> push`,
+# `git --no-pager push`, `git -c k=v push`). Matching only `git push` left those
+# spellings undetected, so the gate never evaluated and `git -C . push` walked
+# past a fully-armed sentinel set.
+#
+# Only tokens starting with `-` are allowed in between, which is what keeps a
+# real subcommand from being skipped over: `git config --global alias.p push`
+# and `git log --grep push` both stop at the non-flag token and do not match.
+# `-c`/`-C` additionally take a detached value, hence the first alternative.
+GIT_GLOBAL_OPT='(-[cC][[:space:]]+[^[:space:]]+|-[^[:space:]]+)'
+if printf '%s' "$CMD_STRIPPED" | grep -Eq "(^|[[:space:]])git([[:space:]]+${GIT_GLOBAL_OPT})*[[:space:]]+push([[:space:]]|$)" && \
    ! printf '%s' "$CMD_STRIPPED" | grep -Eq '(--help|[[:space:]]-h([[:space:]]|$)|--dry-run)'; then
     HOOK_ROOT="$(dhpk_root)"
     SENTINEL_DIR="$(dhpk_sessions_dir "$HOOK_ROOT")"
