@@ -296,4 +296,49 @@ test('empty sentinel plus a stale active marker stays silent instead of "0 file(
   }
 });
 
+// --- owed-but-no-file-path reporting accuracy (issue #51) ---
+//
+// A sentinel holding ONLY an [arm-on-dispatch] marker (or any unparseable
+// non-blank line) has count==0 but owed_count>0. The gate must still block
+// (lines 85-88 of the script: an owed-but-unparseable entry must never be
+// silently ignored) but the message must not claim "0 file(s) awaiting
+// review" or print an empty "Triggering files:" list — it must say plainly
+// that a dispatch obligation is owed with no listed file paths.
+
+test('owed-only sentinel (arm-on-dispatch + matching active marker) reports the obligation accurately, not "0 file(s)"', () => {
+  const repo = mkTempRepo();
+  try {
+    writeFile(repo, '.pending-doc-review', '1783440000 arm-on-dispatch:doc-reviewer [arm-on-dispatch]\n');
+    writeFile(repo, '.active-doc-review', '1783440000 doc-reviewer\n');
+    const res = runHook(repo);
+    // Invariant first: the gate must still hold even though there is no file path.
+    assert.strictEqual(res.status, 2, `expected stop block, got ${res.status}`);
+    assert.ok(!res.stderr.includes('0 file(s) awaiting review'),
+      `must not claim zero files are pending when a dispatch obligation is owed:\n${res.stderr}`);
+    assert.ok(!res.stderr.includes('Triggering files:'),
+      `must not print an empty "Triggering files:" list when there is no file to list:\n${res.stderr}`);
+    // Positive: the new wording must name the owed count and state plainly
+    // that the obligation carries no listed file path.
+    assert.ok(res.stderr.includes('1 dispatch obligation(s) owed, no file paths yet'),
+      `missing owed-count-aware wording:\n${res.stderr}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('owed-only sentinel with NO active marker still blocks and does not recommend "covering ALL 0 pending files"', () => {
+  const repo = mkTempRepo();
+  try {
+    writeFile(repo, '.pending-doc-review', '1783440000 arm-on-dispatch:doc-reviewer [arm-on-dispatch]\n');
+    const res = runHook(repo);
+    assert.strictEqual(res.status, 2, `expected stop block, got ${res.status}`);
+    assert.ok(!res.stderr.includes('covering ALL 0 pending files'),
+      `must not recommend a merged dispatch over zero files:\n${res.stderr}`);
+    assert.ok(res.stderr.includes("dispatch ONE 'doc-reviewer' to satisfy 1 pending dispatch obligation(s) (no file paths yet)"),
+      `missing owed-count-aware recommendation wording:\n${res.stderr}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
 run('stop-review-reminder-liveness');
