@@ -70,6 +70,52 @@ record_reminder() {
     mv -f "$tmp" "$BACKOFF_FILE" 2>/dev/null || rm -f "$tmp"
 }
 
+# Partition a sentinel's entries into "owned by this session" vs "owned by a
+# different session", using the .sentinel-provenance sidecar that
+# post-edit-remind.sh already writes for every armed entry.
+#
+# Fail-safe by design: an entry counts as foreign ONLY when provenance
+# positively names another session (`session:<id>`). Entries attributed to an
+# OpenSpec change slug, to `session:unknown`, or with no provenance row at all
+# stay owned — a gate is never hidden without evidence. Likewise an empty $sid
+# (payload carried no session_id) disables the filter entirely rather than
+# marking every entry foreign and silencing the gate.
+#
+# Emits "<own>\t<foreign>\t<owed>\t<own file list>" (list last; it has newlines).
+# <owed> counts lines that oblige a review but contribute no file path:
+# [arm-on-dispatch] markers, plus any non-blank line that does not parse as a
+# "<date> <time> <path>" entry. Both must keep blocking — a sentinel that is
+# non-empty but unparseable is a state we must not silently ignore.
+partition_entries() {
+    local file="$1" prov="$2" name="$3" sid="$4"
+    [ -f "$prov" ] && [ -n "$sid" ] || prov=/dev/null
+    # Discriminate the two inputs by FILENAME, not the NR==FNR idiom: when the
+    # provenance file is absent or empty, NR==FNR stays true across the whole
+    # second file and every sentinel line would be swallowed as provenance.
+    awk -v n="$name" -v sid="$sid" -v provfile="$prov" '
+        FILENAME == provfile {
+            split($0, f, "\t")
+            # Field 4 is the originating session, present on every row written
+            # since it was added. Field 3 only names a session for non-OpenSpec
+            # edits — it carries the change slug otherwise — so fall back to it
+            # for older rows and ignore anything that still is not a session.
+            owner = (f[4] != "" ? f[4] : f[3])
+            if (sid != "" && f[1] == n && owner ~ /^session:/ && owner != sid && owner != "session:unknown")
+                foreign[f[2]] = 1
+            next
+        }
+        NF == 0 { next }
+        NF>=3 && $3 == "[arm-on-dispatch]" { ac++; next }
+        NF>=3 {
+            if ($3 in foreign) fc++
+            else { oc++; ol = ol "    · " $3 "\n" }
+            next
+        }
+        { ac++ }
+        END { printf "%d\t%d\t%d\t%s", oc+0, fc+0, ac+0, ol }
+    ' "$prov" "$file" 2>/dev/null
+}
+
 # Writes outer FOUND — must NOT be invoked in a subshell.
 check_one() {
     local name="$1" agent="$2"
@@ -83,9 +129,31 @@ check_one() {
         active_count="${active_count:-0}"
     fi
 
-    local count file_list=""
-    count="$(awk 'NF>=3 && $3 != "[arm-on-dispatch]" {c++} END {print c + 0}' "$file" 2>/dev/null)"
-    count="${count:-0}"
+    local parsed count foreign_count owed_count file_list="" own_sid=""
+    # Only filter by provenance when we positively know who we are; the
+    # "default-session" fallback means the payload carried no session_id.
+    [ "$REMINDER_SESSION" != "default-session" ] && own_sid="session:$REMINDER_SESSION"
+    parsed="$(partition_entries "$file" "$SESS/$SENTINEL_PROVENANCE_FILE" "$name" "$own_sid")"
+    count="${parsed%%$'\t'*}"; parsed="${parsed#*$'\t'}"
+    foreign_count="${parsed%%$'\t'*}"; parsed="${parsed#*$'\t'}"
+    owed_count="${parsed%%$'\t'*}"; file_list="${parsed#*$'\t'}"
+    count="${count:-0}"; foreign_count="${foreign_count:-0}"; owed_count="${owed_count:-0}"
+
+    # Nothing of ours pending and nothing else in the file owing a review.
+    # Either the slot holds only another session's in-flight entries (say so,
+    # but never recommend a dispatch — reviewing a concurrent session's
+    # half-written tree and then auto-clearing its gate is worse than staying
+    # quiet), or the slot is empty apart from a stale .active-* marker, in which
+    # case an "IN-FLIGHT (0 file(s))" warning with an empty file list is pure
+    # noise. Neither case arms FOUND or bumps the escalation counter.
+    if [ "$count" -eq 0 ] && [ "$owed_count" -eq 0 ]; then
+        if [ "$foreign_count" -gt 0 ]; then
+            echo >&2 ""
+            echo >&2 "[INFO] $agent: $foreign_count file(s) pending from another session — not yours; no action."
+        fi
+        return 0
+    fi
+
     local now fingerprint ignored_count next_count sentinel_mtime sentinel_age
     now="$(date +%s)"
     fingerprint="$(reminder_fingerprint "$file")"
@@ -96,7 +164,6 @@ check_one() {
     ignored_count="${ignored_count:-0}"
     next_count=$((ignored_count + 1))
     record_reminder "$name" "$fingerprint" "$now" "$next_count"
-    file_list="$(awk 'NF>=3 && $3 != "[arm-on-dispatch]" {print "    · " $3}' "$file" 2>/dev/null)"
     sentinel_mtime="$(stat -c %Y "$file" 2>/dev/null || stat -f %m "$file" 2>/dev/null || printf '%s' "$now")"
     sentinel_age=$((now - sentinel_mtime))
 
@@ -110,6 +177,9 @@ check_one() {
     fi
     echo >&2 "   Triggering files:"
     echo >&2 "$file_list"
+    if [ "$foreign_count" -gt 0 ]; then
+        echo >&2 "   (+$foreign_count file(s) pending from another session — excluded, not yours to review)"
+    fi
     echo >&2 ""
     if [ "$active_count" -gt 0 ]; then
         echo >&2 "   Recommended: wait for the existing $agent result; do not dispatch a duplicate reviewer."

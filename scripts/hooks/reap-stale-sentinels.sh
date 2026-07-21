@@ -176,7 +176,9 @@ fi
 # sentinel may still list live paths, so provenance alone does not auto-clear.
 prov_file="$sessions_dir/$SENTINEL_PROVENANCE_FILE"
 if [ -f "$prov_file" ]; then
-    while IFS=$'\t' read -r _psent _ppath _pprov; do
+    # Read the trailing session field explicitly: given only three variables,
+    # `read` folds field 4 into _pprov and the slug checks below stop matching.
+    while IFS=$'\t' read -r _psent _ppath _pprov _psess; do
         [ -n "$_psent" ] || continue
         case "$_pprov" in session:*|'') continue ;; esac   # only change-slug provenance is checkable
         [ -f "$sessions_dir/$_psent" ] || continue   # sentinel must still be armed
@@ -189,9 +191,16 @@ if [ -f "$prov_file" ]; then
     # Housekeeping: prune sidecar lines whose sentinel file no longer exists.
     _tmp_prov="$(mktemp 2>/dev/null || echo "$prov_file.reap.tmp")"
     : > "$_tmp_prov"
-    while IFS=$'\t' read -r _psent _ppath _pprov; do
+    # Preserve the session field verbatim — rewriting rows with only three
+    # fields would strip attribution from every surviving line on each prune.
+    while IFS=$'\t' read -r _psent _ppath _pprov _psess; do
         [ -n "$_psent" ] || continue
-        [ -f "$sessions_dir/$_psent" ] && printf '%s\t%s\t%s\n' "$_psent" "$_ppath" "$_pprov" >> "$_tmp_prov"
+        [ -f "$sessions_dir/$_psent" ] || continue
+        if [ -n "$_psess" ]; then
+            printf '%s\t%s\t%s\t%s\n' "$_psent" "$_ppath" "$_pprov" "$_psess" >> "$_tmp_prov"
+        else
+            printf '%s\t%s\t%s\n' "$_psent" "$_ppath" "$_pprov" >> "$_tmp_prov"
+        fi
     done < "$prov_file"
     if [ -s "$_tmp_prov" ]; then mv -f "$_tmp_prov" "$prov_file"; else rm -f "$_tmp_prov" "$prov_file"; fi
 fi

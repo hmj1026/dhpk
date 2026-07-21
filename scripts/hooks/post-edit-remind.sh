@@ -50,14 +50,22 @@ DHPK_ACTIVE_MODULES="${DHPK_ACTIVE_MODULES:-$(dhpk_config_modules)}"
 # openspec/changes/<slug>/ tree) else the session id, for later staleness
 # detection. Written to the sidecar (not the sentinel line) so field-3 readers
 # are unaffected.
+#
+# Field 4 additionally carries the originating session unconditionally. Field 3
+# alone cannot answer "who armed this?" for OpenSpec edits — it holds the change
+# slug there — which left the most common review surface unattributable to a
+# session, so concurrent sessions could not tell each other's doc-review entries
+# apart. Appended rather than substituted: field 3 keeps its slug semantics for
+# reap-stale-sentinels.sh's archived-change staleness probe.
 _prov="${REL#openspec/changes/}"
+_sid="$(extract_top_field session_id "$PAYLOAD")"
+PROVENANCE_SESSION="session:${_sid:-unknown}"
 if [ "$_prov" != "$REL" ]; then
     _prov="${_prov%%/*}"
     if [ "$_prov" = "archive" ]; then _prov="${REL#openspec/changes/archive/}"; _prov="${_prov%%/*}"; fi
     PROVENANCE="$_prov"
 else
-    _sid="$(extract_top_field session_id "$PAYLOAD")"
-    PROVENANCE="session:${_sid:-unknown}"
+    PROVENANCE="$PROVENANCE_SESSION"
 fi
 PROV_FILE="$ARTIFACTS/$SENTINEL_PROVENANCE_FILE"
 
@@ -391,7 +399,7 @@ for i in "${!NEEDS[@]}"; do
         fi
         # Line format "<date> <time> <path>" — path at field 3 (see _lib/payload.sh).
         printf '%s %s\n' "$(date +'%Y-%m-%d %H:%M:%S')" "$REL" >> "$sentinel"
-        printf '%s\t%s\t%s\n' "${SENTINEL_NAMES[$i]}" "$REL" "$PROVENANCE" >> "$PROV_FILE"
+        printf '%s\t%s\t%s\t%s\n' "${SENTINEL_NAMES[$i]}" "$REL" "$PROVENANCE" "$PROVENANCE_SESSION" >> "$PROV_FILE"
         msg+=" ${SENTINEL_LABELS[$i]}"
     fi
 done
