@@ -95,7 +95,12 @@ partition_entries() {
     awk -v n="$name" -v sid="$sid" -v provfile="$prov" '
         FILENAME == provfile {
             split($0, f, "\t")
-            if (sid != "" && f[1] == n && f[3] ~ /^session:/ && f[3] != sid && f[3] != "session:unknown")
+            # Field 4 is the originating session, present on every row written
+            # since it was added. Field 3 only names a session for non-OpenSpec
+            # edits — it carries the change slug otherwise — so fall back to it
+            # for older rows and ignore anything that still is not a session.
+            owner = (f[4] != "" ? f[4] : f[3])
+            if (sid != "" && f[1] == n && owner ~ /^session:/ && owner != sid && owner != "session:unknown")
                 foreign[f[2]] = 1
             next
         }

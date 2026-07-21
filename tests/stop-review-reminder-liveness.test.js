@@ -190,7 +190,7 @@ test('the owning session still gets the full pending gate for its own entries', 
   }
 });
 
-test('OpenSpec change-slug provenance is never treated as foreign', () => {
+test('legacy slug-only provenance (no session field) is never treated as foreign', () => {
   const repo = mkTempRepo();
   try {
     withProvenance(repo, '.pending-doc-review', [
@@ -199,6 +199,27 @@ test('OpenSpec change-slug provenance is never treated as foreign', () => {
     const res = runHook(repo, { session_id: OWN, stop_hook_active: false });
     assert.strictEqual(res.status, 2, `slug-attributed entry must still block:\n${res.stderr}`);
     assert.ok(res.stderr.includes('openspec/changes/some-change/design.md'));
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('OpenSpec edits are attributed by the session field, not the change slug', () => {
+  const repo = mkTempRepo();
+  try {
+    // Field 3 carries the change slug for OpenSpec edits, so field 4 is the
+    // only thing that can tell two sessions working the same change apart.
+    writeFile(repo, '.pending-doc-review',
+      '2026-07-07 12:00 openspec/changes/some-change/design.md\n'
+      + '2026-07-07 12:00 openspec/changes/some-change/tasks.md\n');
+    writeFile(repo, '.sentinel-provenance',
+      `.pending-doc-review\topenspec/changes/some-change/design.md\tsome-change\tsession:${OTHER}\n`
+      + `.pending-doc-review\topenspec/changes/some-change/tasks.md\tsome-change\tsession:${OWN}\n`);
+    const res = runHook(repo, { session_id: OWN, stop_hook_active: false });
+    assert.strictEqual(res.status, 2, `own OpenSpec entry must still block:\n${res.stderr}`);
+    assert.ok(res.stderr.includes('    · openspec/changes/some-change/tasks.md'));
+    assert.ok(!res.stderr.includes('    · openspec/changes/some-change/design.md'),
+      `another session's OpenSpec file leaked into the dispatch list:\n${res.stderr}`);
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });
   }
