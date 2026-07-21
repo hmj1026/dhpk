@@ -71,7 +71,7 @@ test('CLAUDE_PLUGIN_ROOT guardrail paragraph stays synchronized across policy su
   // The paragraph is embedded mid-row in a table cell in SKILL.md, so it is
   // extracted by span rather than by line. Both markers are literal fragments
   // of the paragraph's first and last sentences: rewording either end means
-  // updating them here too, or all three files report "missing paragraph".
+  // updating them here too, or the files report "missing paragraph" instead.
   const marker = '`${CLAUDE_PLUGIN_ROOT}` is a markdown-interpolation token';
   const endMarker = '`find / -iname`.';
   const spans = files.map((rel) => {
@@ -84,11 +84,17 @@ test('CLAUDE_PLUGIN_ROOT guardrail paragraph stays synchronized across policy su
     assert.ok(span.length > 0, `${rel} missing CLAUDE_PLUGIN_ROOT guardrail paragraph`);
     return { rel, span };
   });
-  const canonical = spans[0].span;
-  assert.strictEqual(spans[1].span, canonical,
-    'skills/dhpk-execution-policy/references/review-gate-mechanics.md CLAUDE_PLUGIN_ROOT guardrail paragraph diverged from rules/execution-policy.md');
-  assert.strictEqual(spans[2].span, canonical,
-    'skills/execution-checklist/SKILL.md CLAUDE_PLUGIN_ROOT guardrail paragraph diverged from rules/execution-policy.md');
+  // Blame the odd one out, not a hardcoded canonical: the likeliest drift is
+  // someone editing the primary policy doc and forgetting the two mirrors, and
+  // treating that file as truth would name the wrong file in the failure.
+  const distinct = new Set(spans.map((s) => s.span));
+  if (distinct.size === 2) {
+    const odd = spans.find((s) => spans.filter((o) => o.span === s.span).length === 1);
+    assert.ok(false,
+      `${odd.rel} CLAUDE_PLUGIN_ROOT guardrail paragraph diverged from the other two copies — all of ${files.join(', ')} must stay byte-identical`);
+  }
+  assert.strictEqual(distinct.size, 1,
+    `every CLAUDE_PLUGIN_ROOT guardrail copy differs from the others — all of ${files.join(', ')} must stay byte-identical`);
 });
 
 run('policy-static-guardrails');
