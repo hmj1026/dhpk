@@ -197,10 +197,6 @@ test('push targeting a different repo via `cd <path> &&` is not gated by this pr
   } finally { rmRepo(repo); rmRepo(other); }
 });
 
-// NB: this currently also passes for a second reason — Pattern 4's detection
-// regex does not match `git -C <path> push` at all (#57), so the gate never
-// evaluates. It is kept because it pins the intended behavior for when that
-// detection gap is closed; until then it is not a regression guard.
 test('push targeting a different repo via `git -C <path>` is not gated by this project', () => {
   const repo = repoWithPendingReview();
   const other = mkRepo({ prefix: 'dhpk-push-other-' });
@@ -228,6 +224,61 @@ test('a cd to a nonexistent path falls back to gating the session project', () =
     const res = runPush('cd /nonexistent-xyzzy && git push', repo);
     assert.strictEqual(res.status, 2,
       `unresolvable target must not open the gate:\n${res.stderr}`);
+  } finally { rmRepo(repo); }
+});
+
+// --- Pattern 4 detection: git global options must not slip the gate ---
+//
+// The gate only matched `git` immediately followed by `push`, so any global
+// option in between meant it never evaluated at all — `git -C . push` walked
+// past a fully-armed sentinel set. Only tokens starting with `-` are skipped,
+// so a real subcommand still stops the match.
+
+const SLIPS = [
+  ['git -C . push', 'detached -C value'],
+  ['git -C. push', 'attached -C value'],
+  ['git --no-pager push', 'long global option'],
+  ['git -c user.name=x push', 'detached -c value'],
+  ['git --git-dir=.git --work-tree=. push', 'several long options'],
+  ['git -c a=b -C . push --force', 'mixed, with a push flag after'],
+];
+
+for (const [command, label] of SLIPS) {
+  test(`in-project \`${command}\` is gated (${label})`, () => {
+    const repo = repoWithPendingReview();
+    try {
+      const res = runPush(command, repo);
+      assert.strictEqual(res.status, 2,
+        `global option slipped the review gate:\n${res.stderr}`);
+    } finally { rmRepo(repo); }
+  });
+}
+
+// Widening detection must not start gating commands that merely contain the
+// word "push" after a genuine subcommand.
+const NOT_PUSHES = [
+  ['git log --grep push', 'push as a grep argument'],
+  ['git config --global alias.p push', 'push as a config value'],
+  ['git --no-pager log --grep=push', 'global option then a non-push subcommand'],
+  ['git status', 'unrelated subcommand'],
+];
+
+for (const [command, label] of NOT_PUSHES) {
+  test(`\`${command}\` is not treated as a push (${label})`, () => {
+    const repo = repoWithPendingReview();
+    try {
+      const res = runPush(command, repo);
+      assert.strictEqual(res.status, 0,
+        `false positive — this is not a push:\n${res.stderr}`);
+    } finally { rmRepo(repo); }
+  });
+}
+
+test('--dry-run stays exempt even with global options present', () => {
+  const repo = repoWithPendingReview();
+  try {
+    const res = runPush('git -C . push --dry-run', repo);
+    assert.strictEqual(res.status, 0, `--dry-run must stay exempt:\n${res.stderr}`);
   } finally { rmRepo(repo); }
 });
 
