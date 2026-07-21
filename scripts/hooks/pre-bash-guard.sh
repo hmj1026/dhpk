@@ -65,6 +65,37 @@ if printf '%s' "$CMD_STRIPPED" | grep -Eq '(^|[[:space:]])git[[:space:]]+push([[
     HOOK_ROOT="$(dhpk_root)"
     SENTINEL_DIR="$(dhpk_sessions_dir "$HOOK_ROOT")"
 
+    # The gate only means anything for the repo whose sentinels we hold. A push
+    # from a checkout of some *other* repository (working on a dependency, a
+    # sibling project, the plugin itself) has no sentinel state here, and
+    # blocking it on this project's review debt is a false positive with no
+    # available remedy — the pending reviewers named have nothing to do with the
+    # diff being pushed.
+    #
+    # Resolve what the command actually targets: an explicit `git -C <path>`,
+    # else a leading `cd <path> &&`, else the session project.
+    PUSH_TARGET="$HOOK_ROOT"
+    _tgt=""
+    _q="('[^']*'|\"[^\"]*\"|[^[:space:]]+)"
+    if [[ "$CMD_STRIPPED" =~ git[[:space:]]+-C[[:space:]]+$_q ]]; then
+        _tgt="${BASH_REMATCH[1]}"
+    elif [[ "$CMD_STRIPPED" =~ ^[[:space:]]*cd[[:space:]]+$_q[[:space:]]*(\&\&|\;) ]]; then
+        _tgt="${BASH_REMATCH[1]}"
+    fi
+    _tgt="${_tgt#[\"\']}"; _tgt="${_tgt%[\"\']}"
+    if [ -n "$_tgt" ]; then
+        case "$_tgt" in "~/"*) _tgt="$HOME/${_tgt#\~/}" ;; "~") _tgt="$HOME" ;; esac
+        case "$_tgt" in /*) : ;; *) _tgt="$HOOK_ROOT/$_tgt" ;; esac
+        [ -d "$_tgt" ] && PUSH_TARGET="$_tgt"
+    fi
+    # Compare repository roots, not raw paths: a subdirectory of HOOK_ROOT is
+    # still the same repo and must stay gated.
+    _target_repo="$(git -C "$PUSH_TARGET" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$PUSH_TARGET")"
+    _hook_repo="$(git -C "$HOOK_ROOT" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$HOOK_ROOT")"
+    if [ "$_target_repo" != "$_hook_repo" ]; then
+        exit 0
+    fi
+
     # Auto-clear sentinels older than 60 min (delegated; see reap-stale-sentinels.sh).
     CLAUDE_PROJECT_DIR="$HOOK_ROOT" bash "$(dirname "$0")/reap-stale-sentinels.sh" \
         --threshold-minutes 60 --clear 2>/dev/null || true
