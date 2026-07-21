@@ -41,6 +41,32 @@ DHPK_SIDECAR_REVIEW_BACKOFF=".review-reminder-backoff"
 DHPK_SIDECAR_MODULE_FINDINGS=".module-findings"
 DHPK_SIDECAR_FAST_WORKER_ACTIVE=".active-fast-worker"
 
+# dhpk_reset_review_backoff <sessions_dir> <sentinel_name>
+#
+# Drop stop-review-reminder's escalation rows for one slot. Call this wherever a
+# sentinel is legitimately cleared.
+#
+# The "this gate has been ignored N times" counter is keyed on
+# (sentinel, session, fingerprint-of-sentinel-contents). Clearing the sentinel
+# does not touch that row, so when later edits re-arm the same slot with the same
+# file list the fingerprint matches again and the counter resumes climbing —
+# escalating to a HARD DIRECTIVE across rounds in which a reviewer ran every
+# time. Rows for every session are dropped, not just the caller's: once the
+# sentinel is gone, no session's fingerprint for it refers to anything.
+dhpk_reset_review_backoff() {
+    local sess="$1" name="$2" file tmp
+    [ -n "$sess" ] && [ -n "$name" ] || return 0
+    file="$sess/$DHPK_SIDECAR_REVIEW_BACKOFF"
+    [ -f "$file" ] || return 0
+    tmp="$(mktemp 2>/dev/null || printf '%s.reset.%s' "$file" "$$")"
+    if awk -F '\t' -v n="$name" '$1 != n' "$file" > "$tmp" 2>/dev/null; then
+        mv -f "$tmp" "$file" 2>/dev/null || rm -f "$tmp"
+    else
+        rm -f "$tmp"
+    fi
+    return 0
+}
+
 dhpk_root() {
     if [ -n "${CLAUDE_PROJECT_DIR:-}" ]; then
         printf '%s' "$CLAUDE_PROJECT_DIR"

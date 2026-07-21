@@ -358,11 +358,15 @@ elif [ -f "$SENTINEL_FILE" ]; then
         # inherited by the child), so caller and clearer agree on the sentinel
         # path by construction — no defensive second rm needed. The direct rm
         # remains only as the fallback when the clearer is unavailable or fails.
+        # The delegated clearer resets the reminder's escalation rows for this
+        # slot itself; the direct-rm fallbacks must do the same, or the counter
+        # outlives the clear and re-escalates the next time these files change.
         if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] && [ -f "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" ]; then
             bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" "$SENTINEL_NAME" "subagent-stop-auto" >/dev/null 2>&1 \
-                || rm -f "$SENTINEL_FILE"
+                || { rm -f "$SENTINEL_FILE"; dhpk_reset_review_backoff "$SESS" "$SENTINEL_NAME"; }
         else
             rm -f "$SENTINEL_FILE"
+            dhpk_reset_review_backoff "$SESS" "$SENTINEL_NAME"
         fi
         if [ "$FRESH_VERDICT" = "1" ]; then
             # Designed handoff: a fresh, parseable review doc exists — the normal
