@@ -114,36 +114,31 @@ function buildContext(options) {
   const fallback = process.env.CLAUDE_PLUGIN_OPTION_FAST_WORKER_FALLBACK || 'none';
   const footprint = scanFootprint(tasks);
   if (footprint.inconclusive) {
-    const footprintWarning = `[opsx-goal] WARN: footprint scan inconclusive at task '${footprint.offendingTaskId}'; embedding FAST_WORKER_CLAUSE`;
+    const footprintWarning = `[opsx-goal] WARN: footprint scan inconclusive at task '${footprint.offendingTaskId}'; task metadata missing or malformed, footprint could not be classified`;
     warning = warning ? `${warning}\n${footprintWarning}` : footprintWarning;
   }
-  let workerFields = {
-    FAST_WORKER_REQUESTED: '',
-    FAST_WORKER_STATUS: 'skipped',
-    FAST_WORKER_SELECTED: '',
-    FAST_WORKER_AGENT: '',
+  // Selection runs unconditionally regardless of footprint eligibility:
+  // mechanical work routinely surfaces mid-session that no pre-written
+  // tasks.md footprint predicted, and gating emission on the scan kept the
+  // goal's `>=3 files -> one batch` rule while dropping the only line
+  // naming which agent to dispatch. footprint.inconclusive still gates the
+  // warning above; eligible is retained only as scanFootprint's own
+  // classification, asserted directly by tests — nothing here reads it.
+  const selected = selector.select(selector.parseArgs(['--backend', requested, '--order', order, '--fallback', fallback]));
+  const rejected = (selected.rejected_candidates || []).map((item) => `${item.backend}:${item.reason}`).join('|');
+  const clause = selected.status === 'blocked'
+    ? `BLOCKED fast-worker requested=${selected.requested_backend}; reason=${selected.reason}; fallback=${fallback}; action=STOP and report BLOCKED; dispatch sanctioned selected fallback only${rejected ? `; rejected=${rejected}` : ''}`
+    : `${selected.selected_agent} requested=${selected.requested_backend}; selected=${selected.selected_backend}; availability=${selected.reason}; order=${order}; fallback=${fallback}${rejected ? `; rejected=${rejected}` : ''}`;
+  const workerFields = {
+    FAST_WORKER_REQUESTED: selected.requested_backend,
+    FAST_WORKER_STATUS: selected.status,
+    FAST_WORKER_SELECTED: selected.selected_backend,
+    FAST_WORKER_AGENT: selected.selected_agent,
     FAST_WORKER_ORDER: order,
     FAST_WORKER_FALLBACK: fallback,
-    FAST_WORKER_REJECTED: '',
-    FAST_WORKER_CLAUSE: '',
+    FAST_WORKER_REJECTED: rejected,
+    FAST_WORKER_CLAUSE: clause,
   };
-  if (footprint.inconclusive || footprint.eligible) {
-    const selected = selector.select(selector.parseArgs(['--backend', requested, '--order', order, '--fallback', fallback]));
-    const rejected = (selected.rejected_candidates || []).map((item) => `${item.backend}:${item.reason}`).join('|');
-    const clause = selected.status === 'blocked'
-      ? `BLOCKED fast-worker requested=${selected.requested_backend}; reason=${selected.reason}; fallback=${fallback}; action=STOP and report BLOCKED; dispatch sanctioned selected fallback only${rejected ? `; rejected=${rejected}` : ''}`
-      : `${selected.selected_agent} requested=${selected.requested_backend}; selected=${selected.selected_backend}; availability=${selected.reason}; order=${order}; fallback=${fallback}${rejected ? `; rejected=${rejected}` : ''}`;
-    workerFields = {
-      FAST_WORKER_REQUESTED: selected.requested_backend,
-      FAST_WORKER_STATUS: selected.status,
-      FAST_WORKER_SELECTED: selected.selected_backend,
-      FAST_WORKER_AGENT: selected.selected_agent,
-      FAST_WORKER_ORDER: order,
-      FAST_WORKER_FALLBACK: fallback,
-      FAST_WORKER_REJECTED: rejected,
-      FAST_WORKER_CLAUSE: clause,
-    };
-  }
   return { warning, fields: {
     ...workerFields,
     HAS_E2E: detectE2e(tasks, proposal) ? 'true' : 'false',
