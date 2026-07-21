@@ -115,4 +115,96 @@ test('empty sentinel name fails loud with exit 2 (stale/partial payload front do
   }
 });
 
+// --- escalation-counter reset (the "ignored N times" backoff row) ---
+
+const BACKOFF = '.review-reminder-backoff';
+
+function writeBackoff(repo, rows) {
+  fs.mkdirSync(sessDir(repo), { recursive: true });
+  fs.writeFileSync(path.join(sessDir(repo), BACKOFF),
+    rows.map((r) => `${r.name}\t${r.session}\t${r.fingerprint}\t1783440000\t${r.count}\n`).join(''));
+}
+
+function readBackoff(repo) {
+  const p = path.join(sessDir(repo), BACKOFF);
+  if (!fs.existsSync(p)) return [];
+  return fs.readFileSync(p, 'utf8').split('\n').filter(Boolean).map((l) => l.split('\t'));
+}
+
+test('clearing a sentinel drops its escalation rows', () => {
+  const repo = mkRepo();
+  try {
+    mkSentinel(repo, '.pending-review');
+    writeBackoff(repo, [
+      { name: '.pending-review', session: 's1', fingerprint: 'abc', count: 3 },
+      { name: '.pending-doc-review', session: 's1', fingerprint: 'def', count: 2 },
+    ]);
+    const res = runHook(repo, ['.pending-review', 'code-reviewer']);
+    assert.strictEqual(res.status, 0, res.stderr);
+    const rows = readBackoff(repo);
+    assert.strictEqual(rows.length, 1, `only the cleared slot's rows should go: ${JSON.stringify(rows)}`);
+    assert.strictEqual(rows[0][0], '.pending-doc-review',
+      'an unrelated slot must keep its counter');
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('rows from every session are dropped, not just one', () => {
+  const repo = mkRepo();
+  try {
+    mkSentinel(repo, '.pending-review');
+    writeBackoff(repo, [
+      { name: '.pending-review', session: 's1', fingerprint: 'abc', count: 3 },
+      { name: '.pending-review', session: 's2', fingerprint: 'abc', count: 4 },
+    ]);
+    runHook(repo, ['.pending-review', 'code-reviewer']);
+    assert.strictEqual(readBackoff(repo).length, 0,
+      'a cleared sentinel leaves no session holding a live fingerprint');
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('the reset also fires when the sentinel was already clean (idempotent)', () => {
+  const repo = mkRepo();
+  try {
+    writeBackoff(repo, [{ name: '.pending-review', session: 's1', fingerprint: 'abc', count: 3 }]);
+    const res = runHook(repo, ['.pending-review', 'code-reviewer']);
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.ok(res.stdout.includes('already clean'));
+    assert.strictEqual(readBackoff(repo).length, 0,
+      'a stale counter must not survive a no-op clear');
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('--all drops the escalation rows of every slot it clears', () => {
+  const repo = mkRepo();
+  try {
+    mkSentinel(repo, '.pending-review');
+    mkSentinel(repo, '.pending-doc-review');
+    writeBackoff(repo, [
+      { name: '.pending-review', session: 's1', fingerprint: 'abc', count: 3 },
+      { name: '.pending-doc-review', session: 's1', fingerprint: 'def', count: 2 },
+    ]);
+    runHook(repo, ['--all', 'orchestrator']);
+    assert.strictEqual(readBackoff(repo).length, 0);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('a missing backoff file is not an error', () => {
+  const repo = mkRepo();
+  try {
+    mkSentinel(repo, '.pending-review');
+    const res = runHook(repo, ['.pending-review', 'code-reviewer']);
+    assert.strictEqual(res.status, 0, res.stderr);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
 run('clear-sentinel');

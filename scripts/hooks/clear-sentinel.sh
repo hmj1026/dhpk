@@ -44,6 +44,7 @@ if [ "$NAME" = "--all" ]; then
         f="$SESS/$s"
         if [ -f "$f" ]; then
             rm -f "$f"
+            dhpk_reset_review_backoff "$SESS" "$s"
             echo "[$LABEL] sentinel cleared ($s)"
             ldb_record success "review:$s" "$LABEL"
             cleared=$((cleared + 1))
@@ -77,5 +78,10 @@ if [ -f "$SENTINEL" ]; then
 else
     echo "[$LABEL] sentinel already clean ($NAME)"
 fi
+
+# Unconditional: whether we removed the sentinel or found it already gone, this
+# slot is now clean and its escalation rows are stale. Idempotent by design —
+# re-running must not leave a counter behind.
+dhpk_reset_review_backoff "$SESS" "$NAME"
 
 exit 0

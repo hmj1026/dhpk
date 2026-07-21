@@ -105,6 +105,37 @@ test('third unchanged reminder escalates after two ignored reminders', () => {
   }
 });
 
+test('a reviewer running between reminders resets the escalation counter', () => {
+  const repo = mkTempRepo();
+  const clearer = path.join(__dirname, '..', 'scripts', 'hooks', 'clear-sentinel.sh');
+  const sentinel = '2026-07-07 12:00 docs/Guide.md\n';
+  try {
+    const payload = { session_id: 'reviewed' };
+    const env = { DHPK_REVIEW_REMINDER_BACKOFF_SECONDS: '0' };
+
+    // Two reminders, then the reviewer actually runs and clears the slot.
+    writeFile(repo, '.pending-doc-review', sentinel);
+    runHook(repo, payload, env);
+    runHook(repo, payload, env);
+    const cleared = require('node:child_process').spawnSync(
+      'bash', [clearer, '.pending-doc-review', 'doc-reviewer'],
+      { cwd: repo, encoding: 'utf8', env: { ...process.env, CLAUDE_PROJECT_DIR: repo } });
+    assert.strictEqual(cleared.status, 0, cleared.stderr);
+
+    // Later edits re-arm the same slot with the same file list — identical
+    // fingerprint. Before the reset this resumed at "ignored 2 times".
+    writeFile(repo, '.pending-doc-review', sentinel);
+    const after = runHook(repo, payload, env);
+    assert.strictEqual(after.status, 2, after.stderr);
+    assert.ok(!after.stderr.includes('HARD DIRECTIVE'),
+      `escalated despite the reviewer having run:\n${after.stderr}`);
+    assert.ok(!after.stderr.includes('ignored'),
+      `counter survived the clear:\n${after.stderr}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
 test('arm-on-dispatch marker is treated as owed review without a phantom file path', () => {
   const repo = mkTempRepo();
   try {
