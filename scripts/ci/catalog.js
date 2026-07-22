@@ -78,6 +78,7 @@ const COVERAGE_MAP = {
   'scripts/ci/_lib/report.js': 'ci-report.test.js',
   'scripts/codemaps/generate.ts': 'codemaps-generate.test.js',
   'scripts/hooks/pretool-git-gate.sh': 'pretool-branch-safety-dedup.test.js',
+  'scripts/hooks/_lib/install-health.sh': 'session-install-health-version.test.js',
   'scripts/validate/test-hooks.sh': 'validate-test-hooks.test.js',
 };
 

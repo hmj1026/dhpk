@@ -28,6 +28,7 @@ ROOT="$(dhpk_root)"
 . "$PLUGIN_ROOT/scripts/hooks/_lib/portable-timeout.sh"
 . "$PLUGIN_ROOT/scripts/hooks/_lib/advise-once.sh"
 . "$PLUGIN_ROOT/scripts/hooks/_lib/detect-stack-hints.sh"
+. "$PLUGIN_ROOT/scripts/hooks/_lib/install-health.sh"
 
 # Branch on the SessionStart `source` (startup|resume|clear|compact). Module
 # activation + dir creation + the snapshot are cheap and always run (downstream
@@ -118,7 +119,8 @@ _stack_mismatch="$(dhpk_detect_stack_mismatch "$ROOT" "$MODULES")"
 if [ -n "$_stack_mismatch" ] && dhpk_advise_once "module-manifest-mismatch"; then
     echo "[session-start] WARN module/manifest mismatch: $_stack_mismatch; check pluginConfigs.dhpk@dhpk.options.modules" >&2
 fi
-unset _stack_mismatch
+# Deliberately NOT unset here: the install-health gate below reuses this value
+# so the bounded source census runs once per session rather than twice.
 if [ -n "$MODULES" ]; then
     if command -v python3 >/dev/null 2>&1; then
         while IFS=$'\t' read -r _tag _f1 _f2; do
@@ -315,6 +317,24 @@ if [ "$FULL_INIT" = "1" ] && [ "$PROFILE" != "minimal" ]; then
     if dhpk_advise_once "cross-cli-drift"; then
         bash "$PLUGIN_ROOT/scripts/check-cross-cli-drift.sh" || true
     fi
+
+    # ---- Install-health gate ----
+    # Version freshness + module-configuration validation, composed into ONE
+    # question for the model to raise on the user's first turn. Runs after the
+    # pin advisory above so a project with a version policy keeps a single
+    # coherent version message (the gate self-suppresses when a pin file
+    # exists). Silent unless it has an actionable finding, and suppressed on
+    # unchanged state via its own state digest, so this is a no-op on a healthy
+    # install. Never blocks: failures degrade to silence and the hook exits 0.
+    #
+    # Not a duplicate of the terse WARN emitted during module activation: that
+    # line is the operator log on stderr, this block is the model-facing
+    # instruction on stdout. Same finding, two audiences.
+    # `$_stack_mismatch` is passed as the third argument so the source census
+    # computed for the WARN line above is reused rather than re-run.
+    _install_health="$(dhpk_install_health_report "$ROOT" "$MODULES" "$_stack_mismatch" 2>/dev/null || true)"
+    [ -n "$_install_health" ] && printf '%s\n' "$_install_health"
+    unset _install_health _stack_mismatch
 fi
 
 exit 0
