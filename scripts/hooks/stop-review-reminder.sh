@@ -170,17 +170,22 @@ check_one() {
     # stderr — Claude Code's Stop hook feeds stderr back to Claude when exit=2.
     echo >&2 ""
     echo >&2 "-----------------------------------------------------------"
+    # Owed entries oblige a review but carry no path, so they never reach the
+    # file list below — the header is the only place they can surface. Empty
+    # when there are none, keeping the wording byte-identical to before.
+    local owed_fragment=""
+    [ "$owed_count" -gt 0 ] && owed_fragment=", +$owed_count dispatch obligation(s) owed, no file paths yet"
     if [ "$active_count" -gt 0 ]; then
         if [ "$count" -eq 0 ]; then
             echo >&2 "[WARN] IN-FLIGHT: $agent ($owed_count dispatch obligation(s) owed, no file paths yet; $active_count dispatch(es) still running)"
         else
-            echo >&2 "[WARN] IN-FLIGHT: $agent ($count file(s) awaiting review; $active_count dispatch(es) still running)"
+            echo >&2 "[WARN] IN-FLIGHT: $agent ($count file(s) awaiting review$owed_fragment; $active_count dispatch(es) still running)"
         fi
     else
         if [ "$count" -eq 0 ]; then
             echo >&2 "[WARN] PENDING: $agent ($owed_count dispatch obligation(s) owed, no file paths yet)"
         else
-            echo >&2 "[WARN] PENDING: $agent ($count file(s) awaiting review)"
+            echo >&2 "[WARN] PENDING: $agent ($count file(s) awaiting review$owed_fragment)"
         fi
     fi
     if [ "$count" -gt 0 ]; then
