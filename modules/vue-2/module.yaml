@@ -14,7 +14,8 @@ triggers:
     extensions: []
     paths: []
   frontend:
-    extensions: [".vue", ".js"]
+    # .js is ambiguous; paths: scoping below covers it instead.
+    extensions: [".vue"]
     paths: [resources/assets/js/]
 provides:
   skills: [vue-2-notes]

@@ -5,7 +5,10 @@ description: "JS / TS tooling. ESLint flat-config tier strategy (strict + core-e
 requires: []
 triggers:
   frontend:
-    extensions: [".js", ".ts", ".jsx", ".tsx", ".mjs", ".cjs", ".vue", ".svelte"]
+    # .js/.ts/.mjs/.cjs are ambiguous (Node tooling vs browser code); use
+    # paths: scoping below instead of extension matching so frontend-review
+    # does not arm for every Node script and test in the repo.
+    extensions: [".jsx", ".tsx", ".vue", ".svelte"]
     paths: [js/, src/, app/, public/]
 provides:
   skills: [js-lint-config, js-static-check-strategy]
