@@ -64,7 +64,7 @@ ln -sf "${CLAUDE_PLUGIN_ROOT}/modules/yii-1.1/skills/php56-yii-dev" .codex/skill
 ## Updating after a plugin version bump
 
 ```bash
-claude plugin update dhpk
+claude plugin update dhpk@dhpk
 # Then, in each project that uses Codex:
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --update
 ```

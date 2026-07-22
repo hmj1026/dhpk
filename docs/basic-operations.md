@@ -70,12 +70,12 @@ For live source edits during plugin development (no reinstall loop), see [§ Dev
 ### Update / Uninstall
 
 ```bash
-claude plugin update dhpk              # pull the latest version from the marketplace
-claude plugin uninstall dhpk           # remove the plugin
+claude plugin update dhpk@dhpk         # pull the latest version from the marketplace
+claude plugin uninstall dhpk@dhpk      # remove the plugin
 claude plugin marketplace remove dhpk  # forget the marketplace entry
 ```
 
-The same actions are available as `/plugin update dhpk`, `/plugin uninstall dhpk`, `/plugin marketplace remove dhpk` inside Claude Code.
+The same actions are available as `/plugin update dhpk@dhpk`, `/plugin uninstall dhpk@dhpk`, `/plugin marketplace remove dhpk` inside Claude Code.
 
 ### Install troubleshooting
 
@@ -84,7 +84,7 @@ The same actions are available as `/plugin update dhpk`, `/plugin uninstall dhpk
 | `marketplace add` says the path doesn't exist | You followed Path B but skipped the `git clone` step | Run `git clone https://github.com/hmj1026/dhpk ~/projects/dhpk` first — or switch to Path A which needs no clone |
 | `claude plugin install dhpk@dhpk` says marketplace not found | `marketplace add` didn't run, or you removed it earlier | Re-run the `marketplace add` line from your chosen path |
 | `/dhpk:*` commands or hooks don't appear after install | Session loaded its skill list before install finished | Run `/reload-plugins` inside Claude Code, or restart the session |
-| `claude plugin list` shows dhpk but `/dhpk:setup` is missing | Plugin is installed but disabled | `claude plugin enable dhpk` (or `/plugin enable dhpk`) |
+| `claude plugin list` shows dhpk but `/dhpk:setup` is missing | Plugin is installed but disabled | `claude plugin enable dhpk@dhpk` (or `/plugin enable dhpk@dhpk`) |
 | `install.sh` errors on `gum` / `jq` not found | Optional UI deps missing | The script falls back to plain shell / `python3`; install `gum` and `jq` for the nicer flow, or ignore the warning |
 | Some skill descriptions truncated/dropped (seen in `/doctor`) | Many modules shipped → skill-listing budget overflow (module skills list regardless of `modules`, [#12](https://github.com/hmj1026/dhpk/issues/12)) | Raise `skillListingBudgetFraction` in `settings.json` (default ~1% → `0.02`–`0.03`), or install fewer modules / disable the whole plugin with `/plugin` where unused |
 | Version advisory asks you to update `.claude/dhpk-versions.json`, but it is a symlink | The Write tool refuses symlink targets | Run `realpath .claude/dhpk-versions.json` and write the verified entry to that real path; `scripts/version-diff.sh` prints the same safe instruction |
@@ -293,7 +293,7 @@ If the project already has its own `.claude/` harness, follow the phased plan:
 
 1. **Phase A — baseline**: snapshot pre-install hook outputs and test results.
 2. **Phase B — install (parallel)**: install the plugin with `userConfig.review_agents` pointing at the project's existing agents. Both sets of hooks fire side-by-side.
-3. **Phase C — discovery**: confirm `/agents` and `/plugin details dhpk` show expected components.
+3. **Phase C — discovery**: confirm `/agents` and `/plugin details dhpk@dhpk` show expected components.
 4. **Phase D — hook parity**: diff plugin-side sentinels vs project-side. Document any expected differences.
 5. **Phase E — cutover**: disable the project's in-tree hooks via `.claude/settings.local.json` (`"hooks": {}`); run regression tests.
 6. **Phase F — cleanup**: delete project files now provided by the plugin; keep project-specific overrides.
@@ -311,4 +311,4 @@ claude --plugin-dir ~/projects/dhpk
 
 Edits to plugin files take effect after `/reload-plugins` (hooks, MCP, LSP) or session restart (monitors, skill listings).
 
-The marketplace install path (`claude plugin install`) copies the plugin into `~/.claude/plugins/cache/`, so edits to the source repo do NOT take effect there until `claude plugin update dhpk`.
+The marketplace install path (`claude plugin install`) copies the plugin into `~/.claude/plugins/cache/`, so edits to the source repo do NOT take effect there until `claude plugin update dhpk@dhpk`.
