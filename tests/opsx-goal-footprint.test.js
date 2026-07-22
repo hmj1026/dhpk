@@ -36,21 +36,32 @@ test('exports the inline limit and ignores checkboxes after Verification heading
     inconclusive: false,
     offendingTaskId: null,
   });
-  assert.strictEqual(result.fields.FAST_WORKER_CLAUSE, '');
-  assert.strictEqual(result.fields.FAST_WORKER_STATUS, 'skipped');
+  // No eligible batch, but the clause now emits unconditionally: an
+  // ineligible-but-conclusive scan still resolves and names a backend.
+  assert.ok(result.fields.FAST_WORKER_CLAUSE);
+  assert.notStrictEqual(result.fields.FAST_WORKER_STATUS, 'skipped');
 });
 
 test('Mechanical no does not create eligibility even with five files', () => {
-  const result = build([
+  const tasks = [
     '- [ ] 1.1 Non-mechanical task',
     '  - **Mechanical:** no; **Files:** a.js, b.js, c.js, d.js, e.js',
-  ].join('\n'));
+  ].join('\n');
+  const result = build(tasks);
 
-  assert.strictEqual(result.fields.FAST_WORKER_CLAUSE, '');
-  assert.strictEqual(result.fields.FAST_WORKER_STATUS, 'skipped');
+  // scanFootprint still gates eligibility on Mechanical: yes — this is the
+  // classification the test exists to prove, unaffected by unconditional
+  // clause emission.
+  assert.deepStrictEqual(context.scanFootprint(tasks), {
+    eligible: false,
+    inconclusive: false,
+    offendingTaskId: null,
+  });
+  assert.ok(result.fields.FAST_WORKER_CLAUSE);
+  assert.notStrictEqual(result.fields.FAST_WORKER_STATUS, 'skipped');
 });
 
-test('conclusive tasks within the inline limit skip an unavailable backend', () => {
+test('conclusive tasks within the inline limit still resolve the backend and report blocked when unavailable', () => {
   const result = build([
     '- [ ] 1.1 Small mechanical task',
     '  - **Mechanical:** yes; **Files:** a.js, ./b.js',
@@ -60,9 +71,11 @@ test('conclusive tasks within the inline limit skip an unavailable backend', () 
     CLAUDE_PLUGIN_OPTION_FAST_WORKER_FALLBACK: 'none',
   });
 
-  assert.strictEqual(result.fields.FAST_WORKER_CLAUSE, '');
-  assert.strictEqual(result.fields.FAST_WORKER_STATUS, 'skipped');
-  assert.notStrictEqual(result.fields.FAST_WORKER_STATUS, 'blocked');
+  // An ineligible batch no longer skips selection: with no sanctioned
+  // fallback and an unavailable requested backend, the selector now
+  // surfaces as blocked instead of being suppressed as skipped.
+  assert.strictEqual(result.fields.FAST_WORKER_STATUS, 'blocked');
+  assert.ok(result.fields.FAST_WORKER_CLAUSE.startsWith('BLOCKED fast-worker requested=codex'));
 });
 
 test('a mechanical task with three distinct files embeds the clause', () => {
@@ -76,17 +89,33 @@ test('a mechanical task with three distinct files embeds the clause', () => {
 });
 
 test('duplicate paths count once and a genuinely large distinct set is eligible', () => {
-  const duplicateResult = build([
+  const duplicateTasks = [
     '- [ ] 1.1 Duplicate paths',
     '  - **Mechanical:** yes; **Files:** a.js, ./a.js, a.js, b.js',
-  ].join('\n'));
-  const eligibleResult = build([
+  ].join('\n');
+  const eligibleTasks = [
     '- [ ] 1.1 Distinct paths',
     '  - **Mechanical:** yes; **Files:** a.js, ./a.js, b.js, c.js',
-  ].join('\n'));
+  ].join('\n');
+  const duplicateResult = build(duplicateTasks);
+  const eligibleResult = build(eligibleTasks);
 
-  assert.strictEqual(duplicateResult.fields.FAST_WORKER_CLAUSE, '');
-  assert.strictEqual(duplicateResult.fields.FAST_WORKER_STATUS, 'skipped');
+  // The dedup proof lives in scanFootprint's classification, not in the
+  // clause: 2 distinct files stays ineligible, 3 distinct files is
+  // eligible. This is what the test exists to prove and is unaffected by
+  // unconditional clause emission.
+  assert.deepStrictEqual(context.scanFootprint(duplicateTasks), {
+    eligible: false,
+    inconclusive: false,
+    offendingTaskId: null,
+  });
+  assert.deepStrictEqual(context.scanFootprint(eligibleTasks), {
+    eligible: true,
+    inconclusive: false,
+    offendingTaskId: null,
+  });
+  assert.ok(duplicateResult.fields.FAST_WORKER_CLAUSE);
+  assert.notStrictEqual(duplicateResult.fields.FAST_WORKER_STATUS, 'skipped');
   assert.ok(eligibleResult.fields.FAST_WORKER_CLAUSE);
 });
 
@@ -104,8 +133,27 @@ test('Files none is conclusive and contributes zero files', () => {
     inconclusive: false,
     offendingTaskId: null,
   });
-  assert.strictEqual(result.fields.FAST_WORKER_CLAUSE, '');
-  assert.strictEqual(result.fields.FAST_WORKER_STATUS, 'skipped');
+  assert.ok(result.fields.FAST_WORKER_CLAUSE);
+  assert.notStrictEqual(result.fields.FAST_WORKER_STATUS, 'skipped');
+});
+
+test('a single-file mechanical task is ineligible but still resolves and names an agent', () => {
+  const tasks = [
+    '- [ ] 1.1 Single file mechanical task',
+    '  - **Mechanical:** yes; **Files:** a.js',
+  ].join('\n');
+
+  assert.deepStrictEqual(context.scanFootprint(tasks), {
+    eligible: false,
+    inconclusive: false,
+    offendingTaskId: null,
+  });
+
+  const result = withEnv({ PATH: '/usr/bin:/bin' }, () => context.buildContext({ tasks, proposal: '', fastWorker: 'claude' }));
+
+  assert.strictEqual(result.fields.FAST_WORKER_STATUS, 'selected');
+  assert.notStrictEqual(result.fields.FAST_WORKER_STATUS, 'skipped');
+  assert.ok(result.fields.FAST_WORKER_CLAUSE.includes('dhpk:fast-worker'));
 });
 
 test('inconclusive footprint metadata fails open and names the first offending task', () => {
@@ -122,6 +170,13 @@ test('inconclusive footprint metadata fails open and names the first offending t
   ];
 
   for (const [taskId, tasks] of cases) {
+    // The scan's own classification, asserted directly: the warning below is
+    // downstream of it, so checking both keeps a silent misclassification from
+    // hiding behind a warning that happens to still fire.
+    const scan = context.scanFootprint(tasks);
+    assert.strictEqual(scan.inconclusive, true, taskId);
+    assert.strictEqual(scan.offendingTaskId, taskId, taskId);
+
     const result = build(tasks);
     assert.ok(result.fields.FAST_WORKER_CLAUSE, taskId);
     assert.ok(result.warning.includes(`[opsx-goal] WARN: footprint scan inconclusive at task '${taskId}'`), taskId);
