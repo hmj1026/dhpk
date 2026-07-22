@@ -14,7 +14,8 @@ triggers:
     extensions: []
     paths: []
   frontend:
-    extensions: [".js"]
+    # .js is ambiguous; this block now arms purely on its resources/assets/ path.
+    extensions: []
     paths: [resources/assets/]
 provides:
   skills: [laravel-mix-notes]

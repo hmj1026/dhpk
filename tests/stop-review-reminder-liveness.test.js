@@ -341,4 +341,77 @@ test('owed-only sentinel with NO active marker still blocks and does not recomme
   }
 });
 
+// --- mixed count>0 && owed_count>0 reporting accuracy (issue #62) ---
+//
+// A sentinel holding BOTH real file entries AND an [arm-on-dispatch] marker
+// (or other unparseable owed line) has count>0 AND owed_count>0. The gate
+// already reports $count correctly in this case (line ~183), but the owed
+// obligation never reaches the reader — it silently vanishes from the
+// header. The fix reuses the "dispatch obligation(s) ... no file paths yet"
+// vocabulary already established by the count==0 branch, appended onto the
+// existing count>0 header instead of replacing it.
+//
+// Exact substring under test (GREEN worker must match verbatim):
+//   ", +1 dispatch obligation(s) owed, no file paths yet)"
+// i.e. the full header reads:
+//   "[WARN] PENDING: doc-reviewer (2 file(s) awaiting review, +1 dispatch obligation(s) owed, no file paths yet)"
+
+test('RED (issue #62): mixed sentinel (real files + arm-on-dispatch marker) reports both the file count and the owed count', () => {
+  const repo = mkTempRepo();
+  try {
+    writeFile(repo, '.pending-doc-review', [
+      '2026-07-07 12:00 docs/A.md',
+      '2026-07-07 12:01 docs/B.md',
+      '1783440000 arm-on-dispatch:doc-reviewer [arm-on-dispatch]',
+    ].join('\n') + '\n');
+    const res = runHook(repo);
+    // Invariant first: the gate must still block.
+    assert.strictEqual(res.status, 2, `expected stop block, got ${res.status}`);
+    // The file list must still be printed with the real files (unchanged).
+    assert.ok(res.stderr.includes('docs/A.md'), `real file list missing:\n${res.stderr}`);
+    assert.ok(res.stderr.includes('docs/B.md'), `real file list missing:\n${res.stderr}`);
+    // Positive: the owed count must now also be named in the header, using
+    // the vocabulary already established by the count==0 branch.
+    assert.ok(res.stderr.includes('[WARN] PENDING: doc-reviewer (2 file(s) awaiting review, +1 dispatch obligation(s) owed, no file paths yet)'),
+      `missing mixed count+owed header wording (issue #62):\n${res.stderr}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+// Regression guard: the pure count==0/owed>0 wording (already fixed) and the
+// plain count>0/owed==0 wording must not shift as a side effect of the mixed
+// case fix above. These re-assert the exact substrings already pinned
+// earlier in this file (owed-only tests) and in the merged-dispatch test —
+// duplicated here, deliberately narrow, so a wording regression on either
+// branch fails loudly next to the new mixed-case test.
+
+test('REGRESSION GUARD: count==0 && owed_count>0 header wording is unchanged by the mixed-case fix', () => {
+  const repo = mkTempRepo();
+  try {
+    writeFile(repo, '.pending-doc-review', '1783440000 arm-on-dispatch:doc-reviewer [arm-on-dispatch]\n');
+    const res = runHook(repo);
+    assert.strictEqual(res.status, 2, `expected stop block, got ${res.status}`);
+    assert.ok(res.stderr.includes('[WARN] PENDING: doc-reviewer (1 dispatch obligation(s) owed, no file paths yet)'),
+      `count==0/owed>0 header wording regressed:\n${res.stderr}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('REGRESSION GUARD: plain count>0 && owed_count==0 header wording is unchanged by the mixed-case fix', () => {
+  const repo = mkTempRepo();
+  try {
+    writeFile(repo, '.pending-doc-review', '2026-07-07 12:00 docs/Guide.md\n');
+    const res = runHook(repo);
+    assert.strictEqual(res.status, 2, `expected stop block, got ${res.status}`);
+    assert.ok(res.stderr.includes('[WARN] PENDING: doc-reviewer (1 file(s) awaiting review)'),
+      `plain count>0/owed==0 header wording regressed:\n${res.stderr}`);
+    assert.ok(!res.stderr.includes('dispatch obligation(s)'),
+      `plain count>0/owed==0 header must not mention dispatch obligations:\n${res.stderr}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
 run('stop-review-reminder-liveness');
