@@ -70,12 +70,12 @@ claude plugin validate ~/projects/dhpk --strict
 ### 更新／移除
 
 ```bash
-claude plugin update dhpk              # 從 marketplace 拉最新版
-claude plugin uninstall dhpk           # 移除 plugin
-claude plugin marketplace remove dhpk  # 忘記 marketplace 註冊
+claude plugin update dhpk@dhpk          # 從 marketplace 拉最新版
+claude plugin uninstall dhpk@dhpk       # 移除 plugin
+claude plugin marketplace remove dhpk   # 忘記 marketplace 註冊
 ```
 
-在 Claude Code 內也可以用 `/plugin update dhpk`、`/plugin uninstall dhpk`、`/plugin marketplace remove dhpk`。
+在 Claude Code 內也可以用 `/plugin update dhpk@dhpk`、`/plugin uninstall dhpk@dhpk`、`/plugin marketplace remove dhpk`。
 
 ### 安裝疑難排解
 
@@ -84,7 +84,7 @@ claude plugin marketplace remove dhpk  # 忘記 marketplace 註冊
 | `marketplace add` 說路徑不存在 | 你走 Path B 但沒先 clone | 先跑 `git clone https://github.com/hmj1026/dhpk ~/projects/dhpk`，或直接改用 Path A（不用 clone） |
 | `claude plugin install dhpk@dhpk` 找不到 marketplace | `marketplace add` 沒跑過，或已被移除 | 重跑你那條路徑的 `marketplace add` 指令 |
 | 裝完但 `/dhpk:*` 命令或 hooks 沒出現 | session 在安裝完成前就讀過 skill list | 在 Claude Code 內 `/reload-plugins`，或重啟 session |
-| `claude plugin list` 看到 dhpk 但 `/dhpk:setup` 不存在 | plugin 裝起來但停用了 | `claude plugin enable dhpk`（或 `/plugin enable dhpk`） |
+| `claude plugin list` 看到 dhpk 但 `/dhpk:setup` 不存在 | plugin 裝起來但停用了 | `claude plugin enable dhpk@dhpk`（或 `/plugin enable dhpk@dhpk`） |
 | `install.sh` 抱怨找不到 `gum` / `jq` | 互動 UI 的選用依賴沒裝 | 腳本會自動 fallback 到純 shell / `python3`，想要更好看可裝 `gum` 與 `jq`，不裝也能用 |
 | 部分 skill 描述被截斷/漏掉（`/doctor` 可見） | 裝了很多模組 → skill-listing 預算超載（模組 skill 一律列出、不受 `modules` 限制，[#12](https://github.com/hmj1026/dhpk/issues/12)） | 提高 `settings.json` 中的 `skillListingBudgetFraction`（預設約 1% → 試 `0.02`–`0.03`），或少裝幾個模組／用 `/plugin` 在不需要的專案停用整個 plugin |
 | 版本 advisory 要求更新 `.claude/dhpk-versions.json`，但它是 symlink | Write 工具拒絕 symlink 目標 | 執行 `realpath .claude/dhpk-versions.json`，把確認過的 entry 寫入該真實路徑；`scripts/version-diff.sh` 也會印出同一安全指示 |
@@ -285,7 +285,7 @@ codex plugin list
 
 1. **階段 A — baseline**：快照安裝前的 hook 輸出與測試結果。
 2. **階段 B — 並行安裝**：以 `userConfig.review_agents` 指向專案既有 agent 安裝插件。兩套 hook 並行觸發。
-3. **階段 C — 探索**：確認 `/agents` 與 `/plugin details dhpk` 顯示預期的元件。
+3. **階段 C — 探索**：確認 `/agents` 與 `/plugin details dhpk@dhpk` 顯示預期的元件。
 4. **階段 D — hook 對齊**：比對插件側 sentinel 與專案側差異。記錄所有預期內的差異。
 5. **階段 E — 切換**：透過 `.claude/settings.local.json`（`"hooks": {}`）停用專案內建 hook；跑回歸測試。
 6. **階段 F — 清理**：刪除已由插件提供的專案內檔案；保留專案特定的覆寫。
@@ -303,4 +303,4 @@ claude --plugin-dir ~/projects/dhpk
 
 對插件檔案的編輯，需要 `/reload-plugins` 後才會生效（hook、MCP、LSP），或重啟 session（monitor、skill 列表）。
 
-Marketplace 安裝路徑（`claude plugin install`）會把插件複製到 `~/.claude/plugins/cache/`，所以對原始 repo 的編輯在那裡不會生效，必須 `claude plugin update dhpk` 才會更新。
+Marketplace 安裝路徑（`claude plugin install`）會把插件複製到 `~/.claude/plugins/cache/`，所以對原始 repo 的編輯在那裡不會生效，必須 `claude plugin update dhpk@dhpk` 才會更新。

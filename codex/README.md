@@ -33,7 +33,7 @@ The script copies `config.toml.example` next to (not over) any existing `.codex/
 
 ## After a plugin update
 
-1. `claude plugin update dhpk`
+1. `claude plugin update dhpk@dhpk`
 2. From each project that uses Codex: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --update`
 
 The script detects the version delta from `.dhpk-installed.json` and re-syncs everything.
