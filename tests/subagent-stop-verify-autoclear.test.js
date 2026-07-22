@@ -552,13 +552,51 @@ test('real SubagentStop schema (top-level prefixed agent_type, no subagent_type/
   }
 });
 
+// -1 / 0 / 1 over dotted numeric versions. Only used to assert a recording is
+// not newer than the running plugin.
+function compareVersions(a, b) {
+  const pa = String(a).split('.').map((n) => parseInt(n, 10) || 0);
+  const pb = String(b).split('.').map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < 3; i += 1) {
+    const x = pa[i] || 0;
+    const y = pb[i] || 0;
+    if (x !== y) return x < y ? -1 : 1;
+  }
+  return 0;
+}
+
 test('recorded lin_blog 0.28.14 fixture auto-clears only the frontend sentinel', () => {
   const fixture = JSON.parse(fs.readFileSync(
     path.join(ROOT, 'tests', 'fixtures', 'subagent-stop', 'lin-blog-2026-07-17.json'),
     'utf8'
   ));
   const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), 'utf8'));
-  assert.strictEqual(manifest.version, fixture.installedPluginVersion);
+
+  // This fixture is a RECORDING of a real lin_blog session on 2026-07-17 — it
+  // carries that session's id, hook hash, and timestamps. It is not a
+  // description of the current release.
+  //
+  // This assertion used to be `strictEqual(manifest.version, fixture.installedPluginVersion)`,
+  // which made every release bump fail CI and be "fixed" by rewriting the
+  // recording. The recorded version drifted 0.28.14 -> .15 -> .16 -> .17 -> .18
+  // while the session it documents never changed, and `conclusion` was left
+  // behind at 0.28.16 — so the file ended up claiming a 2026-07-17 session ran
+  // on a version released 2026-07-22, and contradicting itself. The same test
+  // pins `installedHookSha1` precisely BECAUSE the recording must be preserved,
+  // so the old assertion contradicted its own neighbour.
+  //
+  // The invariant that actually holds: a recording cannot come from the future.
+  assert.ok(
+    compareVersions(fixture.installedPluginVersion, manifest.version) <= 0,
+    `recorded fixture version ${fixture.installedPluginVersion} is newer than the plugin's own `
+      + `${manifest.version} — a recording cannot come from a future release`
+  );
+  // Internal consistency: the conclusion narrates the same version it records.
+  // This is what silently rotted when only one of the two fields was bumped.
+  assert.ok(
+    fixture.conclusion.startsWith(`${fixture.installedPluginVersion} `),
+    `fixture conclusion must reference the version it records (${fixture.installedPluginVersion}), got: ${fixture.conclusion}`
+  );
   assert.strictEqual(fixture.installedHookSha1, '6d408d1e4d049900381e95e92920e1be1c7f75ed',
     'recorded fixture must retain the installed-session hook hash; current hook behavior is exercised below');
   assert.deepStrictEqual(fixture.subagentStopIdentity, {
