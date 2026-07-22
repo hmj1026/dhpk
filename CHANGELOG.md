@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.28.18 — 2026-07-22 — Add session install-health gate and refine stack detection
+
+Adds SessionStart install-health gate for version gaps and module setup, refines stack evidence detection and laravel-mix ordering, and adds test coverage.
+
+**feat(hooks)** — Add SessionStart install-health gate (`install-health.sh`) to detect version gaps and contradicted module configurations.
+**fix(hooks)** — Refactor stack evidence collection to report contradicted modules independently and handle `laravel-mix` before `laravel-*` globs.
+**test(hooks)** — Add unit test suites for session install health and stack evidence.
+**docs(hooks)** — Document install-health gate behavior and execution policy rules.
+
 ## 0.28.17 — 2026-07-22 — Refine fast-worker goal clause and hook session scopes
 
 Refines `opsx-apply-goal` to emit fast-worker clause in every dispatch goal and resolve script-relative modules, scopes review reminders and sentinel entries to current sessions, and hardens push gate and review counter reset mechanics.
