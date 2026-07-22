@@ -1,6 +1,6 @@
 {
   "session": "b7ba01ba-f950-4fd7-bff4-3c6c8e31625b",
-  "installedPluginVersion": "0.28.16",
+  "installedPluginVersion": "0.28.17",
   "installedHookSha1": "6d408d1e4d049900381e95e92920e1be1c7f75ed",
   "dispatchIdentity": { "field": "subagent_type", "value": "dhpk:frontend-reviewer" },
   "subagentStopIdentity": { "field": "agent_type", "value": "dhpk:frontend-reviewer" },
