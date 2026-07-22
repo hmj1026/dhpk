@@ -199,4 +199,165 @@ test('REGRESSION GUARD: yii-1.1 module — a .php file OUTSIDE protected/ MUST S
   }
 });
 
+// ---- react/nextjs modules (issue #66, follow-up to #64) ----
+//
+// react-18, react-19, nextjs-15.5 and nextjs-16 currently declare (identically):
+//   frontend:
+//     extensions: [".tsx", ".ts", ".jsx", ".js"]
+//     paths: []
+// With paths: [] the extensions loop alone decides arming, so ANY .js/.ts file
+// anywhere in the repo arms frontend-review — next.config.js, eslint.config.mjs,
+// build scripts, Node test helpers.
+//
+// The fix under test (data-only, same mechanism as #64):
+//   frontend:
+//     extensions: [".jsx", ".tsx"]
+//     paths: [app/, pages/, src/, components/, lib/, hooks/, styles/]
+// A file containing JSX must be .jsx/.tsx (TS/Babel will not parse JSX in
+// .ts/.js), so components are always caught by extension regardless of
+// location. .ts/.js become ambiguous and are scoped to the declared paths.
+
+test('RED (issue #66): nextjs-16 — next.config.js at the repo root must NOT arm frontend-review', () => {
+  const repo = mkTempRepo();
+  try {
+    const res = writeAndRun(repo, 'next.config.js', 'nextjs-16');
+    assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
+    assert.ok(!fs.existsSync(frontendReviewPath(repo)),
+      `.pending-frontend-review armed for next.config.js at the repo root (issue #66 false positive, extensions: [".tsx",".ts",".jsx",".js"] with paths: []):\n${res.stdout}\n${res.stderr}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('RED (issue #66): nextjs-16 — scripts/build-assets.js must NOT arm frontend-review', () => {
+  const repo = mkTempRepo();
+  try {
+    const res = writeAndRun(repo, 'scripts/build-assets.js', 'nextjs-16');
+    assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
+    assert.ok(!fs.existsSync(frontendReviewPath(repo)),
+      `.pending-frontend-review armed for scripts/build-assets.js (issue #66 false positive):\n${res.stdout}\n${res.stderr}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('RED (issue #66): nextjs-16 — tests/helpers/render.ts must NOT arm frontend-review', () => {
+  const repo = mkTempRepo();
+  try {
+    const res = writeAndRun(repo, 'tests/helpers/render.ts', 'nextjs-16');
+    assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
+    assert.ok(!fs.existsSync(frontendReviewPath(repo)),
+      `.pending-frontend-review armed for tests/helpers/render.ts (issue #66 false positive):\n${res.stdout}\n${res.stderr}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('REGRESSION GUARD: nextjs-16 — components/Button.tsx (outside every declared path) MUST STILL arm frontend-review', () => {
+  const repo = mkTempRepo();
+  try {
+    const res = writeAndRun(repo, 'components/Button.tsx', 'nextjs-16');
+    assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
+    assert.ok(fs.existsSync(frontendReviewPath(repo)),
+      `.pending-frontend-review was NOT armed for components/Button.tsx — .tsx is unambiguous JSX and must arm wherever it lives:\n${res.stdout}\n${res.stderr}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('REGRESSION GUARD: nextjs-16 — src/lib/api-client.ts (ambiguous extension, under a declared path) MUST STILL arm frontend-review', () => {
+  const repo = mkTempRepo();
+  try {
+    const res = writeAndRun(repo, 'src/lib/api-client.ts', 'nextjs-16');
+    assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
+    assert.ok(fs.existsSync(frontendReviewPath(repo)),
+      `.pending-frontend-review was NOT armed for src/lib/api-client.ts under a declared frontend path (src/):\n${res.stdout}\n${res.stderr}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('REGRESSION GUARD: nextjs-16 — app/page.tsx MUST STILL arm frontend-review', () => {
+  const repo = mkTempRepo();
+  try {
+    const res = writeAndRun(repo, 'app/page.tsx', 'nextjs-16');
+    assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
+    assert.ok(fs.existsSync(frontendReviewPath(repo)),
+      `.pending-frontend-review was NOT armed for app/page.tsx under a declared frontend path (app/):\n${res.stdout}\n${res.stderr}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('RED (issue #66): react-19 — vite.config.js at the repo root must NOT arm frontend-review', () => {
+  const repo = mkTempRepo();
+  try {
+    const res = writeAndRun(repo, 'vite.config.js', 'react-19');
+    assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
+    assert.ok(!fs.existsSync(frontendReviewPath(repo)),
+      `.pending-frontend-review armed for vite.config.js at the repo root (issue #66 false positive):\n${res.stdout}\n${res.stderr}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('REGRESSION GUARD: react-19 — features/Widget.jsx (outside every declared path) MUST STILL arm frontend-review', () => {
+  const repo = mkTempRepo();
+  try {
+    const res = writeAndRun(repo, 'features/Widget.jsx', 'react-19');
+    assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
+    assert.ok(fs.existsSync(frontendReviewPath(repo)),
+      `.pending-frontend-review was NOT armed for features/Widget.jsx — .jsx is unambiguous JSX and must arm wherever it lives:\n${res.stdout}\n${res.stderr}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+// Accepted residual (not a bug): a .ts/.js file outside the declared source
+// roots does NOT arm frontend-review under the fixed react/nextjs blocks.
+// Projects with unconventional layouts (source outside app/pages/src/
+// components/lib/hooks/styles/) opt in via the `fe:`-prefixed entries of the
+// `review_trigger_extra_paths` userConfig. This case is expected to FAIL now
+// (extensions-only arming still catches it) and PASS once the fix lands.
+test('RED (issue #66): nextjs-16 — features/util.ts outside declared source roots does NOT arm frontend-review (accepted residual, opt in via review_trigger_extra_paths fe: prefix)', () => {
+  const repo = mkTempRepo();
+  try {
+    const res = writeAndRun(repo, 'features/util.ts', 'nextjs-16');
+    assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
+    assert.ok(!fs.existsSync(frontendReviewPath(repo)),
+      `.pending-frontend-review armed for features/util.ts outside the declared source roots — this is the accepted residual scoping gap (opt in via review_trigger_extra_paths fe: prefix), not a regression:\n${res.stdout}\n${res.stderr}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+// ---- partial-fix canaries: react-18 and nextjs-15.5 are byte-identical
+// blocks to react-19 / nextjs-16 — one cheap case each so a partial fix
+// (only two of the four modules corrected) is caught rather than silently
+// passing because only react-19/nextjs-16 were exercised above.
+
+test('RED (issue #66) PARTIAL-FIX CANARY: react-18 — a repo-root .js file (e.g. babel.config.js) must NOT arm frontend-review', () => {
+  const repo = mkTempRepo();
+  try {
+    const res = writeAndRun(repo, 'babel.config.js', 'react-18');
+    assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
+    assert.ok(!fs.existsSync(frontendReviewPath(repo)),
+      `.pending-frontend-review armed for babel.config.js under react-18 (issue #66 false positive — react-18 left unfixed while react-19 was fixed):\n${res.stdout}\n${res.stderr}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('RED (issue #66) PARTIAL-FIX CANARY: nextjs-15.5 — a repo-root .js file (e.g. next.config.js) must NOT arm frontend-review', () => {
+  const repo = mkTempRepo();
+  try {
+    const res = writeAndRun(repo, 'next.config.js', 'nextjs-15.5');
+    assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
+    assert.ok(!fs.existsSync(frontendReviewPath(repo)),
+      `.pending-frontend-review armed for next.config.js under nextjs-15.5 (issue #66 false positive — nextjs-15.5 left unfixed while nextjs-16 was fixed):\n${res.stdout}\n${res.stderr}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
 run('post-edit-remind-module-triggers');
