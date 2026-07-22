@@ -6,6 +6,32 @@ persisted artifact paths, frontmatter, verdict vocabulary, and sentinel clearanc
 
 SSOT for the write-to-disk conventions shared across dhpk agents that persist a report, review, or plan under `.claude/artifacts/`. Extracted from what was previously copy-pasted (and drifting) inline across 18 agent files. Referenced from each agent's own "Closing — Artifact Output" section, which keeps only what's genuinely agent-specific: its own path category, its own extra frontmatter fields, and whether it's sentinel-driven.
 
+## Does this output belong here at all?
+
+Decide this BEFORE reaching for the path template. `.claude/artifacts/` is
+gitignored; `docs/` is version-controlled. That single difference decides the
+destination, and getting it backwards silently destroys an output's value.
+
+| | `.claude/artifacts/` (gitignored) | `docs/` (tracked) |
+|---|---|---|
+| Holds | session-scoped evidence | durable project deliverables |
+| Examples | review docs, audit reports, architect plans / ADR fallbacks, session state, failure logs | codemaps, feature specs, knowledge base |
+| A teammate cloning the repo | does not need it, will not have it | needs it, gets it for free |
+| Committed | noise | reviewable in the PR |
+| Regenerated | every session, cheaply | on structural change, deliberately |
+
+The test: **would a teammate on a fresh clone need this, and would you want it
+in a PR diff?** Yes to both → `docs/`. No → `.claude/artifacts/`.
+
+Being wrong in the `docs/` → `artifacts/` direction is the costly one. An
+output whose whole purpose is to be available cheaply at session start (a
+codemap is the canonical case) becomes per-machine the moment it is gitignored:
+every teammate, every fresh clone, and every CI run must regenerate it, and it
+can never appear in review.
+
+The reverse error is cheaper but still real — committing 60+ per-session review
+docs buries the signal a PR diff is supposed to carry.
+
 ## Path template
 
 ```
@@ -14,7 +40,10 @@ SSOT for the write-to-disk conventions shared across dhpk agents that persist a 
 
 - Timestamp in the project's local timezone (dhpk defaults to Asia/Taipei).
 - `slug` is ASCII kebab-case, short.
-- Known categories: `reviews/` (most reviewer-family agents), `audits/` (harness-reviser), `codemaps/` (doc-updater), `refactors/` (refactor-cleaner). `architect` is the one exception with two categories (`plans/`, `adr/`) instead of `reviews/` — document that inline in its own Closing section, don't force it into this template.
+- Known categories: `reviews/` (most reviewer-family agents), `audits/` (harness-reviser), `codemaps/` (doc-updater — see the qualifier below), `refactors/` (refactor-cleaner). `architect` is the one exception with two categories (`plans/`, `adr/`) instead of `reviews/` — document that inline in its own Closing section, don't force it into this template.
+- **`codemaps/` holds doc-updater's optional session log, NOT the codemaps.** The codemaps themselves are a tracked deliverable at `docs/CODEMAPS/{area}.md` per the rule above, as `agents/doc-updater.md` states explicitly. Unqualified, this line reads as though `.claude/artifacts/codemaps/` were their home — it is not.
+- An empty category directory means that agent has not run in this repository. It is idle infrastructure, not a dead entry — the declared-category set above is the SSOT for which categories an *agent* writes, never the filesystem.
+- A directory here that is NOT in the list above is not necessarily a defect either. `.claude/artifacts/` is gitignored, so it is also the correct home for material that is durable but deliberately unversioned — a maintainer's own analysis kept across sessions and intentionally never committed. `reports/` is one such human-owned drop: no agent writes it, nothing creates it, and it should not be added to this registry or to `session-start.sh`'s mkdir list. Undeclared plus human-owned is a valid state; do not "clean it up".
 - Some agents have no artifact at all (`docs-lookup` is read-only-reply; `spec-miner`'s deliverable is `openspec/specs/<capability>/spec.md`, not a `.claude/artifacts/` report) — those agents document that exception inline instead of using this template.
 
 ## Universal frontmatter fields
@@ -57,7 +86,28 @@ Non-reviewer agents keep their own extra fields documented inline, not centraliz
 
 ## Retention
 
-Keep the most recent ~30 artifacts per category; move older ones to `archive/`.
+**Advisory and unenforced.** Nothing prunes these directories, and no code
+creates `archive/`. This section previously read "keep the most recent ~30 per
+category; move older ones to `archive/`" as though it were a rule. It never
+was: as of 2026-07-22 `reviews/` held 70 files and `archive/` had never existed.
+
+Prune for navigability, when a directory gets hard to scan by eye. **Not for
+speed.** The measured costs run opposite to intuition, and are recorded here so
+the performance rationale is not re-derived from a plausible guess:
+
+- The three `ls -t` globs in `subagent-stop-verify.sh` match a per-agent prefix
+  (`<agent>-*.md`), so each scales with one reviewer's own history — 39 and 24
+  against a 70-file directory — and only weakly with the directory's size (glob
+  expansion still has to `readdir` it: measured ~1.15 ms per glob at 39 files
+  versus ~4.45 ms at 20,039, so 500x the directory costs ~4x). ~5 ms combined
+  today; ~13 ms at 285x the current size.
+- `find_misplaced_review_artifact` is the expensive one (~29 ms), and it
+  **prunes `reviews/`**. Its cost scales with everything *outside* the directory
+  anyone would think to prune, and it runs only in the no-fresh-review-doc
+  failure branch, not on every stop.
+
+Growing `reviews/` is therefore close to free. Measure before acting on a
+suspected cost here, and do not restate a threshold that nothing enforces.
 
 ## Degradation
 

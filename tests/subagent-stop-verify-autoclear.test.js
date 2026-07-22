@@ -552,13 +552,51 @@ test('real SubagentStop schema (top-level prefixed agent_type, no subagent_type/
   }
 });
 
+// -1 / 0 / 1 over dotted numeric versions. Only used to assert a recording is
+// not newer than the running plugin.
+function compareVersions(a, b) {
+  const pa = String(a).split('.').map((n) => parseInt(n, 10) || 0);
+  const pb = String(b).split('.').map((n) => parseInt(n, 10) || 0);
+  for (let i = 0; i < 3; i += 1) {
+    const x = pa[i] || 0;
+    const y = pb[i] || 0;
+    if (x !== y) return x < y ? -1 : 1;
+  }
+  return 0;
+}
+
 test('recorded lin_blog 0.28.14 fixture auto-clears only the frontend sentinel', () => {
   const fixture = JSON.parse(fs.readFileSync(
     path.join(ROOT, 'tests', 'fixtures', 'subagent-stop', 'lin-blog-2026-07-17.json'),
     'utf8'
   ));
   const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), 'utf8'));
-  assert.strictEqual(manifest.version, fixture.installedPluginVersion);
+
+  // This fixture is a RECORDING of a real lin_blog session on 2026-07-17 — it
+  // carries that session's id, hook hash, and timestamps. It is not a
+  // description of the current release.
+  //
+  // This assertion used to be `strictEqual(manifest.version, fixture.installedPluginVersion)`,
+  // which made every release bump fail CI and be "fixed" by rewriting the
+  // recording. The recorded version drifted 0.28.14 -> .15 -> .16 -> .17 -> .18
+  // while the session it documents never changed, and `conclusion` was left
+  // behind at 0.28.16 — so the file ended up claiming a 2026-07-17 session ran
+  // on a version released 2026-07-22, and contradicting itself. The same test
+  // pins `installedHookSha1` precisely BECAUSE the recording must be preserved,
+  // so the old assertion contradicted its own neighbour.
+  //
+  // The invariant that actually holds: a recording cannot come from the future.
+  assert.ok(
+    compareVersions(fixture.installedPluginVersion, manifest.version) <= 0,
+    `recorded fixture version ${fixture.installedPluginVersion} is newer than the plugin's own `
+      + `${manifest.version} — a recording cannot come from a future release`
+  );
+  // Internal consistency: the conclusion narrates the same version it records.
+  // This is what silently rotted when only one of the two fields was bumped.
+  assert.ok(
+    fixture.conclusion.startsWith(`${fixture.installedPluginVersion} `),
+    `fixture conclusion must reference the version it records (${fixture.installedPluginVersion}), got: ${fixture.conclusion}`
+  );
   assert.strictEqual(fixture.installedHookSha1, '6d408d1e4d049900381e95e92920e1be1c7f75ed',
     'recorded fixture must retain the installed-session hook hash; current hook behavior is exercised below');
   assert.deepStrictEqual(fixture.subagentStopIdentity, {
@@ -593,6 +631,132 @@ test('recorded lin_blog 0.28.14 fixture auto-clears only the frontend sentinel',
       `expected an auto-cleared log line, got:\n${failureLogContents(repo)}`);
     assert.ok(!failureLogContents(repo).includes('left armed'),
       `frontend stop must not be logged as left armed:\n${failureLogContents(repo)}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+// ---- Misplaced review artifact (issue #71) ----
+//
+// A reviewer that writes its artifact outside the canonical
+// `.claude/artifacts/reviews/` produces a SILENT failure: the sentinel stays
+// armed with the message "wrote no fresh review doc", which is false — it wrote
+// one, in the wrong place. The operator reads "not reviewed", reaches for
+// clear-sentinel.sh, and the gate erodes into a formality.
+//
+// The fix diagnoses; it deliberately does NOT clear. Clearing from a
+// non-canonical path would bypass the freshness boundary (artifact mtime must
+// postdate the sentinel) — and a misfiled artifact typically lacks the
+// timestamped filename the contract requires, so freshness cannot even be
+// evaluated for it.
+
+// Write a review artifact to a NON-canonical location under .claude/artifacts/.
+function writeMisplacedReviewArtifact(repo, subdir, filename, isoStamp = '2026-07-07T12:00:00Z') {
+  const dir = path.join(repo, '.claude', 'artifacts', ...subdir.split('/'));
+  fs.mkdirSync(dir, { recursive: true });
+  const file = path.join(dir, filename);
+  fs.writeFileSync(file, '---\nverdict: APPROVE\n---\nclean');
+  const stamp = new Date(isoStamp);
+  fs.utimesSync(file, stamp, stamp);
+  return file;
+}
+
+test('a review artifact misfiled under sessions/reviews leaves the sentinel armed and is diagnosed', () => {
+  const repo = mkTempRepo();
+  try {
+    armSentinel(repo, '.pending-review');
+    // The exact shape observed in the wild: wrong dir AND no timestamp.
+    writeMisplacedReviewArtifact(
+      repo,
+      'sessions/reviews',
+      'code-reviewer-add-session-install-health-gate-confirm.md'
+    );
+    const res = runHook(repo, { subagent_type: 'code-reviewer', exit_status: 0 });
+    assert.strictEqual(res.status, 0, res.stderr);
+
+    // The freshness boundary is not bypassed: the sentinel must NOT clear.
+    assert.ok(
+      sentinelExists(repo, '.pending-review'),
+      'a misfiled artifact must not clear the sentinel — that would bypass the freshness gate'
+    );
+
+    // ...but the failure must stop being silent. Both paths must be named.
+    const surfaced = failureLogContents(repo) + res.stdout + res.stderr;
+    assert.ok(
+      /misplaced|misfiled|wrong location/i.test(surfaced),
+      `expected a misplaced-artifact diagnostic, got:\n${surfaced}`
+    );
+    assert.ok(
+      surfaced.includes('sessions/reviews'),
+      `diagnostic must name where the artifact was FOUND:\n${surfaced}`
+    );
+    assert.ok(
+      /artifacts\/reviews/.test(surfaced),
+      `diagnostic must name where it was EXPECTED:\n${surfaced}`
+    );
+    // The old, now-false "wrote no review doc" wording must not be what surfaces.
+    assert.ok(
+      !/no review doc/i.test(surfaced),
+      `must not claim no review doc was written when one exists elsewhere:\n${surfaced}`
+    );
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('a genuinely absent artifact keeps the existing no-review-doc behaviour', () => {
+  const repo = mkTempRepo();
+  try {
+    armSentinel(repo, '.pending-review');
+    const res = runHook(repo, { subagent_type: 'code-reviewer', exit_status: 0 });
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.ok(sentinelExists(repo, '.pending-review'), 'no artifact anywhere must still leave the sentinel armed');
+    const surfaced = failureLogContents(repo) + res.stdout + res.stderr;
+    assert.ok(/no review doc/i.test(surfaced), `expected the unchanged no-review-doc message:\n${surfaced}`);
+    assert.ok(
+      !/misplaced|misfiled/i.test(surfaced),
+      `must not claim misplacement when nothing was written:\n${surfaced}`
+    );
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('a canonical fresh artifact still auto-clears and raises no misplacement diagnostic', () => {
+  const repo = mkTempRepo();
+  try {
+    armSentinel(repo, '.pending-review');
+    // A decoy in the wrong place must not confuse the canonical path.
+    writeMisplacedReviewArtifact(repo, 'sessions/reviews', 'code-reviewer-decoy.md');
+    writeReviewArtifact(repo, 'code-reviewer', '---\nverdict: APPROVE\n---\nclean');
+    const res = runHook(repo, { subagent_type: 'code-reviewer', exit_status: 0 });
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.ok(!sentinelExists(repo, '.pending-review'), 'canonical fresh artifact must still auto-clear');
+    const surfaced = failureLogContents(repo) + res.stdout + res.stderr;
+    assert.ok(
+      !/misplaced|misfiled/i.test(surfaced),
+      `no misplacement diagnostic when the canonical artifact exists:\n${surfaced}`
+    );
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('a stale canonical artifact plus a misplaced one still reports misplacement, not a clear', () => {
+  const repo = mkTempRepo();
+  try {
+    armSentinel(repo, '.pending-review');
+    // Prior-cycle doc: older than the sentinel, so it fails the freshness gate.
+    writeReviewArtifact(repo, 'code-reviewer', '---\nverdict: APPROVE\n---\nold', '2026-07-05T12:00:00Z');
+    writeMisplacedReviewArtifact(repo, 'sessions/reviews', 'code-reviewer-confirm.md');
+    const res = runHook(repo, { subagent_type: 'code-reviewer', exit_status: 0 });
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.ok(sentinelExists(repo, '.pending-review'), 'a stale canonical doc must not clear the sentinel');
+    const surfaced = failureLogContents(repo) + res.stdout + res.stderr;
+    assert.ok(
+      /misplaced|misfiled|wrong location/i.test(surfaced),
+      `the misplaced artifact should still be surfaced:\n${surfaced}`
+    );
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });
   }

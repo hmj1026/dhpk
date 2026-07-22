@@ -194,6 +194,29 @@ remove_one_active_entry() {
 # an endless re-dispatch. Verdict-parseability is a separate concern owned by
 # refresh_unresolved_verdict below (the BLOCK/FAIL/severity sidecar). Must be
 # called while the sentinel file still exists (before the rm below).
+# find_misplaced_review_artifact <agent> — echo the path of a matching
+# <agent>-*.md found anywhere under .claude/artifacts/ EXCEPT the canonical
+# reviews/ dir; empty when none exists.
+#
+# Why this exists: a reviewer that writes its review doc to the wrong directory
+# used to produce a silent failure — the sentinel stayed armed with the message
+# "wrote no fresh review doc", which is false, and the operator reached for
+# clear-sentinel.sh, eroding the gate into a formality.
+#
+# This DIAGNOSES only. It deliberately does not feed the auto-clear: clearing
+# from a non-canonical path would bypass the freshness boundary (the doc's mtime
+# must postdate the sentinel), and a misfiled doc typically also lacks the
+# timestamped filename the artifacts contract requires, so freshness cannot even
+# be evaluated for it. Silent failure -> visible, actionable failure is the win;
+# tolerating the drift is not.
+find_misplaced_review_artifact() {
+    local agent="$1" artifacts="$ROOT/.claude/artifacts"
+    [ -d "$artifacts" ] || return 0
+    # -path/-prune skips the canonical dir without a regex over the path.
+    find "$artifacts" -path "$artifacts/reviews" -prune -o \
+        -type f -name "$agent-*.md" -print 2>/dev/null | head -1 || true
+}
+
 has_fresh_review_artifact() {
     local agent="$1" sentinel="$2" reviews_dir="$ROOT/.claude/artifacts/reviews" latest=""
     [ -d "$reviews_dir" ] || { printf '0'; return 0; }
@@ -386,11 +409,26 @@ elif [ -f "$SENTINEL_FILE" ]; then
         # This deliberately reverses the prior "always clear (must not block the
         # chain)" behavior: a no-output reviewer clearing its own gate was the
         # 2026-07-13 defect this fix (A5) closes.
-        echo "$TIMESTAMP $SUBAGENT exit=0 sentinel=$SENTINEL_NAME (left armed, no review doc)" >> "$LOG" || true
-        ldb_record failure "sentinel-uncleared:$SENTINEL_NAME" "$SUBAGENT_BARE"
-        if [ "$PROFILE" != "minimal" ]; then
-            emit_system_message "[subagent-verify] NO REVIEW DOC: $SUBAGENT stopped clean but wrote no fresh review doc; LEFT $SENTINEL_NAME armed so the gate stays unmet — re-dispatch the reviewer.
+        # Distinguish "wrote nothing" from "wrote it in the wrong place". The
+        # latter used to be reported as the former, which is a false statement
+        # that sends the operator to clear-sentinel.sh instead of to the fix.
+        MISPLACED="$(find_misplaced_review_artifact "$SUBAGENT_BARE")"
+        if [ -n "$MISPLACED" ]; then
+            MISPLACED_REL="${MISPLACED#"$ROOT"/}"
+            echo "$TIMESTAMP $SUBAGENT exit=0 sentinel=$SENTINEL_NAME (left armed, review doc misplaced: $MISPLACED_REL)" >> "$LOG" || true
+            ldb_record failure "review-doc-misplaced:$SENTINEL_NAME" "$SUBAGENT_BARE"
+            if [ "$PROFILE" != "minimal" ]; then
+                emit_system_message "[subagent-verify] MISPLACED REVIEW DOC: $SUBAGENT wrote its review to $MISPLACED_REL, but the canonical location is .claude/artifacts/reviews/<agent>-<yyyymmdd-HHMMSS>-<slug>.md (see the artifacts contract in docs/contracts/).
+LEFT $SENTINEL_NAME armed: the doc was not read, and freshness cannot be verified from a non-canonical path. Move it to the canonical path or re-run the reviewer — do NOT clear the sentinel by hand.
 Logged to: .claude/artifacts/agent-failures.log"
+            fi
+        else
+            echo "$TIMESTAMP $SUBAGENT exit=0 sentinel=$SENTINEL_NAME (left armed, no review doc)" >> "$LOG" || true
+            ldb_record failure "sentinel-uncleared:$SENTINEL_NAME" "$SUBAGENT_BARE"
+            if [ "$PROFILE" != "minimal" ]; then
+                emit_system_message "[subagent-verify] NO REVIEW DOC: $SUBAGENT stopped clean but wrote no fresh review doc; LEFT $SENTINEL_NAME armed so the gate stays unmet — re-dispatch the reviewer.
+Logged to: .claude/artifacts/agent-failures.log"
+            fi
         fi
     fi
 fi
