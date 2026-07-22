@@ -5,8 +5,20 @@ description: "Next.js 15.5 — the current stable 15.x line (ends at v15.5.19; 1
 requires: []
 triggers:
   frontend:
-    extensions: [".tsx", ".ts", ".jsx", ".js"]
-    paths: []
+    # A file containing JSX must be .jsx or .tsx (TypeScript/Babel will not
+    # parse JSX in .ts/.js), so components are caught by extension wherever
+    # they live; .ts/.js utilities, hooks, config and build tooling are
+    # scoped to app source roots so repo-root config/scripts stop arming
+    # the gate.
+    # Two known gaps in this scoping, both fixed the same way: plain-JS React
+    # projects (Create React App among them) do put JSX in .js files, caught
+    # here only by convention that they live under src/; and Next.js
+    # middleware.ts / instrumentation.ts sit at the project root, outside
+    # every declared path. A project with either an unconventional JSX
+    # location or root-level Next.js entry files opts in via the fe: prefix
+    # of the review_trigger_extra_paths userConfig.
+    extensions: [".jsx", ".tsx"]
+    paths: [app/, pages/, src/, components/, lib/, hooks/, styles/]
 provides:
   skills: [nextjs-15-5-notes]
   references: []
