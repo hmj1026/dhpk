@@ -135,7 +135,13 @@ echo "CODEX=$CODEX"
 echo "DRY_RUN=$DRY_RUN"
 echo "MAX_DURATION=${MAX_DURATION:-}"
 echo "MIN_COVERAGE=${MIN_COVERAGE:-}"
-node "${CLAUDE_PLUGIN_ROOT:-$ROOT}/skills/opsx-apply-goal/scripts/goal-context.js" \
+# Self-locate the sibling script. CLAUDE_PLUGIN_ROOT is interpolated into hook
+# command strings and skill markdown, but is NOT exported into the Bash tool's
+# environment — so `${CLAUDE_PLUGIN_ROOT:-$ROOT}` silently resolved to the
+# *project* root and node could never find goal-context.js, truncating the
+# schema=v1 block (no FAST_WORKER_*/HAS_E2E/TASK_DIGEST) and exiting 1 under
+# `set -e`. Matches the self-locating fallback every other shipped script uses.
+node "$(cd "$(dirname "$0")" && pwd)/goal-context.js" \
   "--tasks=$TASKS" \
   "--proposal=$PROPOSAL" \
   "--fast-worker=$FAST_WORKER_OVERRIDE"

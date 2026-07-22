@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.28.17 — 2026-07-22 — Refine fast-worker goal clause and hook session scopes
+
+Refines `opsx-apply-goal` to emit fast-worker clause in every dispatch goal and resolve script-relative modules, scopes review reminders and sentinel entries to current sessions, and hardens push gate and review counter reset mechanics.
+
+**fix(opsx)** — Emit fast-worker clause unconditionally in dispatch-on goals, and resolve `goal-context.js` relative to the script path.
+**fix(hooks)** — Scope review reminders and sentinels to current session, reset review-gate escalation counter on sentinel clear, detect git global options before push, and scope push review gate to target repository.
+**test(ci)** — Blame odd copy out in guardrail sync check, and add documentation warning that `CLAUDE_PLUGIN_ROOT` is not a shell variable.
+
 ## 0.28.16 — 2026-07-19 — Harden harness dispatch, guards, and content hygiene
 
 **fix(hooks)** — Tighten pre-edit path guards, arm reviewer sentinels on dispatch, merge reminder batches, and add the dispatch-aware distinct-file edit gate.

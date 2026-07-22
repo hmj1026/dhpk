@@ -160,6 +160,9 @@ shape is canonicalized in `docs/contracts/reviewer-contract.md`.
 
 Trigger map source-of-truth: dhpk's `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/post-edit-dispatch.sh` (a 7-slot default: code, db, security, frontend, doc, polyfill, migration) plus any per-module post-edit hooks contributed by enabled modules. Each sentinel is cleared by the runtime hook `subagent-stop-verify.sh` when its reviewer stops successfully (the sanctioned path); the orchestrator uses `clear-sentinel.sh <name> <label>` only for a triage-drop or a stale-sentinel back-stop.
 
+<!-- mirrored in rules/execution-policy.md, skills/dhpk-execution-policy/references/review-gate-mechanics.md, skills/execution-checklist/SKILL.md — keep in sync -->
+`${CLAUDE_PLUGIN_ROOT}` is a markdown-interpolation token, not a shell variable: the orchestrator resolves it when reading this document, and it is unset inside a subagent's Bash environment. A subagent must never paste the literal `${CLAUDE_PLUGIN_ROOT}/...` into a Bash command — use the absolute path the orchestrator supplies, or, when `stop-review-reminder.sh` has printed an already-resolved command (stale sentinels only — that branch is gated on sentinel age), the command it printed. On a 127 / "No such file or directory" failure, escalate to the orchestrator for the resolved path; never recover by scanning the filesystem with `find / -iname`.
+
 **Auto-clear + fallback**: a successful reviewer with a fresh matching artifact auto-clears only its own slot; absent fresh output stays armed. Exact fallback and fail-loud rules: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/review-gate-mechanics.md`.
 
 | Sentinel | Required agent | Trigger summary (default; project can extend via `userConfig.review_trigger_extra_paths`) |

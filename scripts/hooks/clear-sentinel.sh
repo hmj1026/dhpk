@@ -44,6 +44,7 @@ if [ "$NAME" = "--all" ]; then
         f="$SESS/$s"
         if [ -f "$f" ]; then
             rm -f "$f"
+            dhpk_reset_review_backoff "$SESS" "$s"
             echo "[$LABEL] sentinel cleared ($s)"
             ldb_record success "review:$s" "$LABEL"
             cleared=$((cleared + 1))
@@ -51,6 +52,21 @@ if [ "$NAME" = "--all" ]; then
     done
     [ "$cleared" -eq 0 ] && echo "[$LABEL] no sentinels to clear"
     exit 0
+fi
+
+short_form_known=false
+canonical_name_known=false
+for s in "${KNOWN_SENTINELS[@]}"; do
+    if [ "$NAME" = "$s" ]; then
+        short_form_known=true
+    fi
+    if [ ".pending-$NAME" = "$s" ]; then
+        canonical_name_known=true
+    fi
+done
+if [ "$short_form_known" = false ] && [ "$canonical_name_known" = true ]; then
+    NAME=".pending-$NAME"
+    echo "[$LABEL] normalised prefix-less form sentinel name to '$NAME'" >&2
 fi
 
 is_known=false
@@ -64,7 +80,7 @@ done
 if [ "$is_known" != true ]; then
     echo "[$LABEL] ERROR: unknown sentinel name '$NAME'" >&2
     echo "[$LABEL] known sentinels: ${KNOWN_SENTINELS[*]}" >&2
-    echo "[$LABEL] hint: agent's Closing hook should pass the exact sentinel file basename" >&2
+    echo "[$LABEL] hint: pass a known sentinel basename or its prefix-less form" >&2
     exit 2
 fi
 
@@ -77,5 +93,10 @@ if [ -f "$SENTINEL" ]; then
 else
     echo "[$LABEL] sentinel already clean ($NAME)"
 fi
+
+# Unconditional: whether we removed the sentinel or found it already gone, this
+# slot is now clean and its escalation rows are stale. Idempotent by design —
+# re-running must not leave a counter behind.
+dhpk_reset_review_backoff "$SESS" "$NAME"
 
 exit 0

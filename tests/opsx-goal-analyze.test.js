@@ -82,4 +82,34 @@ test('auto reports rejected candidates and UTF-8-safe digest plus conditional E2
   } finally { fs.rmSync(cli.root, { recursive: true, force: true }); }
 });
 
+// End-to-end execution, not just source inspection. CLAUDE_PLUGIN_ROOT is
+// interpolated into skill markdown but is NOT exported into the Bash tool's
+// environment, so this is the only condition under which the analyzer ever
+// actually runs — and it used to resolve goal-context.js against the *project*
+// root, exit 1, and truncate the block before every FAST_WORKER_* field.
+test('analyzer emits the full block when CLAUDE_PLUGIN_ROOT is unset (its real invocation condition)', () => {
+  const { spawnSync } = require('node:child_process');
+  const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'opsx-analyze-e2e-')));
+  try {
+    const change = path.join(repo, 'openspec', 'changes', 'demo-change');
+    fs.mkdirSync(change, { recursive: true });
+    fs.writeFileSync(path.join(change, 'tasks.md'), '- [ ] 1.1 do the thing\n- [x] 1.2 done\n');
+    fs.writeFileSync(path.join(change, 'proposal.md'), '# Demo\n');
+
+    const env = { ...process.env, CLAUDE_PROJECT_DIR: repo };
+    delete env.CLAUDE_PLUGIN_ROOT;
+    const res = spawnSync('bash',
+      [path.join(ROOT, 'skills', 'opsx-apply-goal', 'scripts', 'analyze-change.sh'), 'demo-change'],
+      { cwd: repo, env, encoding: 'utf8' });
+
+    assert.strictEqual(res.status, 0, `analyzer exited ${res.status}:\n${res.stderr}`);
+    const fields = Object.fromEntries(res.stdout.split('\n')
+      .filter((l) => l.includes('=')).map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1)]));
+    assert.strictEqual(fields.STATUS, 'active');
+    for (const key of ['FAST_WORKER_SELECTED', 'FAST_WORKER_AGENT', 'FAST_WORKER_CLAUSE', 'HAS_E2E', 'TASK_DIGEST']) {
+      assert.ok(key in fields, `${key} missing — the goal-context tail was truncated:\n${res.stdout}`);
+    }
+  } finally { fs.rmSync(repo, { recursive: true, force: true }); }
+});
+
 run('opsx-goal-analyze');

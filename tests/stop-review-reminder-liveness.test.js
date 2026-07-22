@@ -105,6 +105,37 @@ test('third unchanged reminder escalates after two ignored reminders', () => {
   }
 });
 
+test('a reviewer running between reminders resets the escalation counter', () => {
+  const repo = mkTempRepo();
+  const clearer = path.join(__dirname, '..', 'scripts', 'hooks', 'clear-sentinel.sh');
+  const sentinel = '2026-07-07 12:00 docs/Guide.md\n';
+  try {
+    const payload = { session_id: 'reviewed' };
+    const env = { DHPK_REVIEW_REMINDER_BACKOFF_SECONDS: '0' };
+
+    // Two reminders, then the reviewer actually runs and clears the slot.
+    writeFile(repo, '.pending-doc-review', sentinel);
+    runHook(repo, payload, env);
+    runHook(repo, payload, env);
+    const cleared = require('node:child_process').spawnSync(
+      'bash', [clearer, '.pending-doc-review', 'doc-reviewer'],
+      { cwd: repo, encoding: 'utf8', env: { ...process.env, CLAUDE_PROJECT_DIR: repo } });
+    assert.strictEqual(cleared.status, 0, cleared.stderr);
+
+    // Later edits re-arm the same slot with the same file list — identical
+    // fingerprint. Before the reset this resumed at "ignored 2 times".
+    writeFile(repo, '.pending-doc-review', sentinel);
+    const after = runHook(repo, payload, env);
+    assert.strictEqual(after.status, 2, after.stderr);
+    assert.ok(!after.stderr.includes('HARD DIRECTIVE'),
+      `escalated despite the reviewer having run:\n${after.stderr}`);
+    assert.ok(!after.stderr.includes('ignored'),
+      `counter survived the clear:\n${after.stderr}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
 test('arm-on-dispatch marker is treated as owed review without a phantom file path', () => {
   const repo = mkTempRepo();
   try {
@@ -138,6 +169,173 @@ test('GNU stat filesystem output does not break sentinel age detection', () => {
     const res = runHook(repo, {}, { PATH: `${bin}:${process.env.PATH}` });
     assert.strictEqual(res.status, 2, `GNU stat compatibility failed:\n${res.stderr}`);
     assert.ok(res.stderr.includes('[WARN] PENDING: doc-reviewer'), res.stderr);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+// --- provenance scoping: concurrent sessions must not review each other's work ---
+
+const OWN = 'sess-own';
+const OTHER = 'sess-other';
+
+function withProvenance(repo, sentinel, rows) {
+  writeFile(repo, sentinel, rows.map((r) => `2026-07-07 12:00 ${r.path}\n`).join(''));
+  writeFile(repo, '.sentinel-provenance',
+    rows.map((r) => `${sentinel}\t${r.path}\t${r.prov}\n`).join(''));
+}
+
+test('entries owned by another live session do not trigger a dispatch recommendation', () => {
+  const repo = mkTempRepo();
+  try {
+    withProvenance(repo, '.pending-doc-review', [
+      { path: 'docs/TheirGuide.md', prov: `session:${OTHER}` },
+    ]);
+    const res = runHook(repo, { session_id: OWN, stop_hook_active: false });
+    assert.strictEqual(res.status, 0, `foreign-only sentinel must not block:\n${res.stderr}`);
+    assert.ok(!res.stderr.includes('Recommended: dispatch'),
+      `recommended a dispatch for another session's file:\n${res.stderr}`);
+    assert.ok(res.stderr.includes('pending from another session'),
+      `foreign entries should still be surfaced as INFO:\n${res.stderr}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('the owning session still gets the full pending gate for its own entries', () => {
+  const repo = mkTempRepo();
+  try {
+    withProvenance(repo, '.pending-doc-review', [
+      { path: 'docs/TheirGuide.md', prov: `session:${OTHER}` },
+      { path: 'docs/MyGuide.md', prov: `session:${OWN}` },
+    ]);
+    const res = runHook(repo, { session_id: OWN, stop_hook_active: false });
+    assert.strictEqual(res.status, 2, `own entry must still block:\n${res.stderr}`);
+    assert.ok(res.stderr.includes('docs/MyGuide.md'));
+    assert.ok(!res.stderr.includes('    · docs/TheirGuide.md'),
+      `another session's file leaked into the dispatch list:\n${res.stderr}`);
+    assert.ok(res.stderr.includes('(+1 file(s) pending from another session'),
+      `excluded count should be disclosed:\n${res.stderr}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('legacy slug-only provenance (no session field) is never treated as foreign', () => {
+  const repo = mkTempRepo();
+  try {
+    withProvenance(repo, '.pending-doc-review', [
+      { path: 'openspec/changes/some-change/design.md', prov: 'some-change' },
+    ]);
+    const res = runHook(repo, { session_id: OWN, stop_hook_active: false });
+    assert.strictEqual(res.status, 2, `slug-attributed entry must still block:\n${res.stderr}`);
+    assert.ok(res.stderr.includes('openspec/changes/some-change/design.md'));
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('OpenSpec edits are attributed by the session field, not the change slug', () => {
+  const repo = mkTempRepo();
+  try {
+    // Field 3 carries the change slug for OpenSpec edits, so field 4 is the
+    // only thing that can tell two sessions working the same change apart.
+    writeFile(repo, '.pending-doc-review',
+      '2026-07-07 12:00 openspec/changes/some-change/design.md\n'
+      + '2026-07-07 12:00 openspec/changes/some-change/tasks.md\n');
+    writeFile(repo, '.sentinel-provenance',
+      `.pending-doc-review\topenspec/changes/some-change/design.md\tsome-change\tsession:${OTHER}\n`
+      + `.pending-doc-review\topenspec/changes/some-change/tasks.md\tsome-change\tsession:${OWN}\n`);
+    const res = runHook(repo, { session_id: OWN, stop_hook_active: false });
+    assert.strictEqual(res.status, 2, `own OpenSpec entry must still block:\n${res.stderr}`);
+    assert.ok(res.stderr.includes('    · openspec/changes/some-change/tasks.md'));
+    assert.ok(!res.stderr.includes('    · openspec/changes/some-change/design.md'),
+      `another session's OpenSpec file leaked into the dispatch list:\n${res.stderr}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('missing provenance sidecar fails open — every entry stays owned', () => {
+  const repo = mkTempRepo();
+  try {
+    writeFile(repo, '.pending-doc-review', '2026-07-07 12:00 docs/Guide.md\n');
+    const res = runHook(repo, { session_id: OWN, stop_hook_active: false });
+    assert.strictEqual(res.status, 2, `absent sidecar must not silence the gate:\n${res.stderr}`);
+    assert.ok(res.stderr.includes('docs/Guide.md'));
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('payload without session_id fails open — provenance filter is disabled', () => {
+  const repo = mkTempRepo();
+  try {
+    withProvenance(repo, '.pending-doc-review', [
+      { path: 'docs/TheirGuide.md', prov: `session:${OTHER}` },
+    ]);
+    const res = runHook(repo, { stop_hook_active: false });
+    assert.strictEqual(res.status, 2, `unknown session must not silence the gate:\n${res.stderr}`);
+    assert.ok(res.stderr.includes('docs/TheirGuide.md'));
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('empty sentinel plus a stale active marker stays silent instead of "0 file(s)"', () => {
+  const repo = mkTempRepo();
+  try {
+    writeFile(repo, '.pending-doc-review', '');
+    writeFile(repo, '.active-doc-review', 'doc-reviewer\n');
+    const res = runHook(repo, { session_id: OWN, stop_hook_active: false });
+    assert.strictEqual(res.status, 0, `empty sentinel must not block:\n${res.stderr}`);
+    assert.ok(!res.stderr.includes('0 file(s) awaiting review'),
+      `emitted a phantom in-flight warning:\n${res.stderr}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+// --- owed-but-no-file-path reporting accuracy (issue #51) ---
+//
+// A sentinel holding ONLY an [arm-on-dispatch] marker (or any unparseable
+// non-blank line) has count==0 but owed_count>0. The gate must still block
+// (lines 85-88 of the script: an owed-but-unparseable entry must never be
+// silently ignored) but the message must not claim "0 file(s) awaiting
+// review" or print an empty "Triggering files:" list — it must say plainly
+// that a dispatch obligation is owed with no listed file paths.
+
+test('owed-only sentinel (arm-on-dispatch + matching active marker) reports the obligation accurately, not "0 file(s)"', () => {
+  const repo = mkTempRepo();
+  try {
+    writeFile(repo, '.pending-doc-review', '1783440000 arm-on-dispatch:doc-reviewer [arm-on-dispatch]\n');
+    writeFile(repo, '.active-doc-review', '1783440000 doc-reviewer\n');
+    const res = runHook(repo);
+    // Invariant first: the gate must still hold even though there is no file path.
+    assert.strictEqual(res.status, 2, `expected stop block, got ${res.status}`);
+    assert.ok(!res.stderr.includes('0 file(s) awaiting review'),
+      `must not claim zero files are pending when a dispatch obligation is owed:\n${res.stderr}`);
+    assert.ok(!res.stderr.includes('Triggering files:'),
+      `must not print an empty "Triggering files:" list when there is no file to list:\n${res.stderr}`);
+    // Positive: the new wording must name the owed count and state plainly
+    // that the obligation carries no listed file path.
+    assert.ok(res.stderr.includes('1 dispatch obligation(s) owed, no file paths yet'),
+      `missing owed-count-aware wording:\n${res.stderr}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('owed-only sentinel with NO active marker still blocks and does not recommend "covering ALL 0 pending files"', () => {
+  const repo = mkTempRepo();
+  try {
+    writeFile(repo, '.pending-doc-review', '1783440000 arm-on-dispatch:doc-reviewer [arm-on-dispatch]\n');
+    const res = runHook(repo);
+    assert.strictEqual(res.status, 2, `expected stop block, got ${res.status}`);
+    assert.ok(!res.stderr.includes('covering ALL 0 pending files'),
+      `must not recommend a merged dispatch over zero files:\n${res.stderr}`);
+    assert.ok(res.stderr.includes("dispatch ONE 'doc-reviewer' to satisfy 1 pending dispatch obligation(s) (no file paths yet)"),
+      `missing owed-count-aware recommendation wording:\n${res.stderr}`);
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });
   }
