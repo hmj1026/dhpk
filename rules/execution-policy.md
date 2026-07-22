@@ -201,6 +201,9 @@ contract above; the outcome is replacement or a pending gate with a recorded rea
 | `PostToolUse` advisory, `StopFailure`, and module finding collection | opt-in advisory | non-blocking; surfaced only when configured or when findings exist |
 | `Stop` completion evidence, graduation scan, and quality scan | opt-in advisory | disabled by default; no duplicate completion message on the default path |
 | `SessionStart`, `SessionEnd`, `PreCompact`, and `PostCompact` | lifecycle bookkeeping | enabled; maintain session/config/archive state without acting as a review gate |
+| `SessionStart` install-health gate (`_lib/install-health.sh`) | opt-in advisory | non-blocking; local state only, silent unless a version gap or a contradicted module set is found, and suppressed on unchanged state |
+
+**Install-health gate**: inheriting the global `modules` list is NOT a finding — only a contradiction against project evidence is. Triggers, non-triggers, suppression, and how to disable it: `${CLAUDE_PLUGIN_ROOT}/docs/hook-extension.md` §Session install-health gate.
 
 **Reviewer liveness**: a no-op reviewer is a failed gate. Corrected-retry and replacement rules: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/review-gate-mechanics.md`.
 
