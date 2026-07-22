@@ -201,7 +201,93 @@ SessionStart advisories share `_lib/advise-once.sh` and call
 `.claude/artifacts/sessions/`, so plugin-version, cross-CLI drift, and
 module/manifest-mismatch warnings appear at most once per session and may
 appear again in a new session. If marker storage fails, it returns permission
-to emit rather than hiding the advisory.
+to emit rather than hiding the advisory. A caller may substitute its own value
+for the session identity to get different suppression semantics — see
+§Session install-health gate, which passes a state digest so its suppression
+persists *across* sessions until the observed state changes.
+
+## Session install-health gate
+
+`_lib/install-health.sh`, called from `session-start.sh` on a fresh start
+(non-`minimal` profiles), validates two things that are otherwise silent by
+construction: whether the running dhpk install is behind the version its
+marketplace offers, and whether the enabled stack modules are contradicted by
+the project's own evidence. It reads only local state — no network call, so the
+result is identical offline — and never blocks; every read degrades to silence
+when absent or unparseable, and the hook still exits 0.
+
+**What triggers it.** Only two module shapes raise a finding: an enabled stack
+module contradicted by a *present* manifest (a `php-*` module in a project with
+`package.json` and no PHP evidence), and stack modules enabled in a project with
+*no stack manifest at all* whose source files contradict them. Evidence covers
+both manifests and a bounded source-file census (depth 6, 400 files, vendored
+trees pruned and version-control-ignored paths dropped), because a project can
+carry a stack's sources without its manifest. On the version side, only a minor
+or major gap raises the question; patch drift is *advisory* — reported in the
+output but never asked about. Advisory means unasked, not unsaid. An install
+ahead of the marketplace (a development state) is the one version condition
+that stays entirely silent.
+
+A contradicted module is a finding on its own merits. This is the behavioural
+change that makes the motivating case fire: the detector previously required
+*both* a contradicted module set and a detected family with no matching module,
+so a project configuring `js` alongside unsupported `php-*` modules stayed
+silent — the `js` module satisfied the detected family, leaving nothing
+unmatched. A non-empty contradicted set now reports on its own.
+
+**What does NOT trigger it.** A project that declares no `modules` override and
+therefore inherits the global list is *not* a finding on that basis. Per-project
+override precedence is a supported configuration for a machine that works across
+several stacks, and firing on its absence would nag healthy installs. An
+inherited set is still validated for contradiction — the finding rests on the
+contradiction, never on the missing override. A `directory`-source marketplace
+is exempt from the version ask entirely, since its "available version" is a live
+working tree that moves with development.
+
+**Currency is never claimed bare.** A marketplace clone is only as fresh as its
+last fetch, so any currency claim is expressed relative to that fetch age ("last
+fetched 40 days ago"); the gate never asserts "up to date". It also never
+volunteers the claim: a healthy, current install produces no output at all. The
+currency line appears only when the gate is already speaking for another
+finding, where it is context rather than reassurance.
+
+**Version messages do not stack.** Freshness speaks only when the project has
+expressed no version policy — keyed on the *absence* of `.claude/dhpk-versions.json`,
+not on the pin advisory happening to be silent. A pin file whose verified range
+covers the running version produces no advisory, yet the project has still
+stated a policy; recommending an unblessed upgrade would contradict it.
+
+**Suppression.** Keyed on observed state — a digest of (installed version,
+available version, enabled module set) fed to `dhpk_advise_once` as its session
+identity. A dismissed unchanged finding never asks twice; a new release or a
+changed module set produces a new digest and legitimately re-opens the question.
+Keying on a bare condition name would mean ask-once-*ever*, swallowing exactly
+the drift the gate exists to surface.
+
+**Remediation is offered, never applied.** The gate writes no configuration
+file. A `modules` override is written to `.claude/settings.local.json` only
+after the user confirms, and the version finding surfaces the exact
+`claude plugin update dhpk@dhpk` command while stating that a hook cannot run it
+and that it takes effect only in a fresh session. Deep auditing stays with the
+`claude-health` skill, which the gate points at rather than reimplementing.
+
+**Output channel.** The gate block goes to stdout as model-facing instruction
+context; the terse `WARN module/manifest mismatch` line emitted during module
+activation stays on stderr as the operator log. Same finding, two audiences —
+not a duplicate.
+
+**Disabling.** To turn the gate off entirely, set `hook_profile=minimal` in
+userConfig — the gate lives inside the fresh-start, non-`minimal` advisory block
+and is skipped wholesale. That also disables the other session advisories, which
+is the trade.
+
+Two narrower levers, neither of which is an off-switch:
+`DHPK_INSTALL_HEALTH_ASK=0` *downgrades* rather than disables — findings are
+still emitted, as an advisory pointing at `claude-health`, with no question
+raised. Correcting the underlying configuration (writing a project-level
+`modules` override) silences the module finding at its source, which is the
+intended resolution rather than a workaround. Census bounds are tunable via
+`DHPK_STACK_CENSUS_DEPTH` / `DHPK_STACK_CENSUS_FILES`.
 
 ## Worked example — project-local async PostToolUse hook
 
