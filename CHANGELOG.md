@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.28.19 — 2026-07-22 — Diagnose misplaced review docs and refine contract guidance
+
+Diagnoses misplaced review documents in subagent stop hooks, stops release bumps from rewriting historical session fixtures, and clarifies tracked-vs-runtime rules and retention guidance for agent artifacts.
+
+**fix(hooks)** — Diagnose misplaced review docs and report actionable warning instead of silent failure.
+**fix(test)** — Stop release bumps from rewriting recorded session fixtures.
+**docs(contracts)** — State tracked-vs-runtime rule for agent outputs and replace unenforced retention numbers with measured guidance.
+
 ## 0.28.18 — 2026-07-22 — Add session install-health gate and refine stack detection
 
 Adds SessionStart install-health gate for version gaps and module setup, refines stack evidence detection and laravel-mix ordering, and adds test coverage.
