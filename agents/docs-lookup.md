@@ -33,4 +33,6 @@ Answer library / framework / API questions from **current** docs via Context7, n
 
 ## Closing — Artifact Output
 
-**No artifact** — docs-lookup is a read-only query agent. Reply inline; do not write any file. If the user's question demands a substantial deliverable (e.g. comparison matrix, multi-section reference), suggest they re-prompt with an explicit "save to `.claude/artifacts/notes/`" intent before drafting a file.
+**No artifact** — docs-lookup is a read-only query agent. Reply inline; do not write any file. If the user's question demands a substantial deliverable (e.g. comparison matrix, multi-section reference), suggest they re-prompt with an explicit "save to `docs/knowledge/<topic>/`" intent before drafting a file.
+
+Not `.claude/artifacts/notes/`, which this file used to suggest: that directory is never created, so the artifacts contract's Degradation rule would send the output to stdout only and the suggestion could not be honoured. It is also the wrong side of the tracked-vs-runtime split — a reference the user deliberately asked to keep is a durable deliverable a teammate would want on a fresh clone, not session-scoped evidence. See `docs/contracts/artifact-contract.md` §Does this output belong here at all?
