@@ -1,6 +1,6 @@
 ---
 name: opsx-apply-goal
-argument-hint: '<change-id> [--turns N] [--max-duration <Nm|Nh>] [--min-coverage N] [--fast-worker=<claude|codex|agy|auto>] [--codex] [--smoke|--no-smoke] [--dry-run]'
+argument-hint: '<change-id> [--turns N] [--max-duration <Nm|Nh>] [--min-coverage N] [--worker=<claude|codex|agy|auto>] [--codex] [--smoke|--no-smoke] [--dry-run]'
 description: 'Generate a single-paste /goal condition (with an embedded opsx:apply kickoff instruction) for an unattended OpenSpec change implementation session. Reads tasks.md + proposal.md, detects test-runner scope, calculates turn budget, and emits one /goal string — pasting it into a fresh session both sets the stop condition and starts implementation, since /goal triggers immediate action on submit. Use when starting an unattended implementation session for an OpenSpec change. Not for: archiving, verifying, or syncing changes (use opsx-archive / opsx-verify / opsx-sync).'
 allowed-tools: 'Bash, Read, Glob'
 effort: low
@@ -67,7 +67,7 @@ It prints a `# schema=v1` KEY=VALUE block. Act on `STATUS`:
   `FAST_WORKER_CLAUSE`, `HAS_E2E`, and `TASK_DIGEST`.
 
 Before route/change matching, parse and strip
-`--fast-worker=<claude|codex|agy|auto>` using the same strip-before-match
+`--worker=<claude|codex|agy|auto>` using the same strip-before-match
 contract as `--codex` and `--plan`. Resolve the effective backend with
 precedence **flag > userConfig > shipped default** (`claude`). An invalid flag
 prints one warning line and falls back to the configured userConfig/default

@@ -107,7 +107,7 @@ function buildContext(options) {
   let requested = rawFlag || configured;
   let warning = '';
   if (rawFlag && !VALID.includes(rawFlag)) {
-    warning = `[opsx-goal] WARN: invalid --fast-worker value '${rawFlag}'; using configured backend '${configured}'`;
+    warning = `[opsx-goal] WARN: invalid --worker value '${rawFlag}'; using configured backend '${configured}'`;
     requested = configured;
   }
   const order = process.env.CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND_ORDER || selector.DEFAULT_ORDER.join(',');
@@ -153,7 +153,7 @@ function main(argv) {
   }));
   const tasks = fs.readFileSync(options['--tasks'], 'utf8');
   const proposal = fs.readFileSync(options['--proposal'], 'utf8');
-  const { warning, fields } = buildContext({ tasks, proposal, fastWorker: options['--fast-worker'] });
+  const { warning, fields } = buildContext({ tasks, proposal, fastWorker: options['--worker'] });
   if (warning) process.stderr.write(`${warning}\n`);
   for (const [key, value] of Object.entries(fields)) process.stdout.write(`${key}=${clean(value)}\n`);
 }

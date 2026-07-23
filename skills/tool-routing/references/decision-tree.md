@@ -2,6 +2,8 @@
 
 This is the long-form companion to the `tool-routing` skill. The skill body has the table; this file documents edge cases and rationale.
 
+> **SSOT:** the compact decision card in `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md` is authoritative for routing order and tie-breakers. This file carries only rationale and edge cases — it must not restate or diverge from that card; on any conflict, the rules card wins.
+
 ## Why cx is preferred over Read
 
 `cx overview <file>` returns a tree-sitter-derived table of contents in ~200 tokens. A `Read` of an 800-line file costs ~6,000 tokens. That is a 30× difference, paid every time. The cheapest accurate tool wins.
