@@ -240,6 +240,23 @@ _tri_drop() {  # $1=slot $2=reason — clear NEEDS + remove any pending line for
         if [ -n "$_keep" ]; then printf '%s\n' "$_keep" > "$_sf"; else rm -f "$_sf"; fi
     fi
     echo "[post-edit] triage-drop ${SENTINEL_SHORT_NAMES[$_s]} ($REL): $2"
+    _tri_bump_drop_count "$_s"
+}
+# Issue #79: count repeated triage-drops of the same slot within one session.
+# A slot dropped 2+ times is a recurring false-positive — surface it ONCE with a
+# file-a-bug hint instead of silently re-dropping the same mis-scoped trigger
+# (session 82bfa020 dropped the same slot 4× before anyone root-caused it).
+_tri_bump_drop_count() {
+    local _s="$1" _cf="$ARTIFACTS/.triage-drop-counts" _short="${SENTINEL_SHORT_NAMES[$_s]}" _cur _cnt _tmp
+    _cur="$(awk -F '\t' -v s="$_short" '$1==s{print $2; exit}' "$_cf" 2>/dev/null || true)"
+    _cnt=$(( ${_cur:-0} + 1 ))
+    _tmp="$(mktemp 2>/dev/null || printf '%s.tmp.%s' "$_cf" "$$")"
+    [ -f "$_cf" ] && awk -F '\t' -v s="$_short" '$1!=s' "$_cf" 2>/dev/null > "$_tmp" || true
+    printf '%s\t%s\n' "$_short" "$_cnt" >> "$_tmp"
+    mv -f "$_tmp" "$_cf" 2>/dev/null || rm -f "$_tmp"
+    if [ "$_cnt" -ge 2 ]; then
+        echo "[post-edit] NOTE: '$_short' triage-dropped ${_cnt}x this session — a recurring false-positive suggests a mis-scoped trigger. Consider filing a bug or narrowing it (sentinel-slots.json / module triggers / review_trigger_extra_paths)."
+    fi
 }
 _tri_comment_only() {  # 0 iff >=1 changed line seen and every changed non-blank line is a comment in this file's language
     local _body _ln _t _seen=0 _ext
