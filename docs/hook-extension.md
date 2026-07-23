@@ -36,6 +36,7 @@ sentinel writes themselves remain synchronous and idempotent.
 |---|---|---|---|
 | `scripts/hooks/post-edit-dispatch.sh` | `PostToolUse` matcher `Edit\|Write\|MultiEdit` | `scripts/hooks/post-edit-remind.sh` (sync — sentinel routing must complete first) | `modules/<m>/hooks/post-edit-*.sh` (each backgrounded so long-running lint never stalls the edit pipeline) |
 | `scripts/hooks/pre-bash-dispatch.sh` | `PreToolUse` matcher `Bash` | `scripts/hooks/pre-bash-guard.sh` (sync — non-zero exit aborts the bash call) | `modules/<m>/hooks/pre-bash-*.sh` and `modules/<m>/hooks/pre-commit-*.sh` (all sync — non-zero exit aborts the bash call) |
+| `scripts/hooks/stop-advisory-dispatch.sh` | `Stop` (async) | three independently-gated advisories folded into one entry — completion-evidence + graduation-scan (each default-off, own kill-switch) + consolidated module-findings surfacing | `modules/<m>/hooks/stop-*.sh` (module end-of-response batch work, e.g. the js module's batched ESLint) |
 
 `hooks.json` keeps `post-edit-advisory.sh` (async CRLF normalisation +
 lockfile-sync reminder, see below) as a separate entry — it doesn't need

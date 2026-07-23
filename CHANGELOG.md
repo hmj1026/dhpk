@@ -1,5 +1,14 @@
 # Changelog
 
+## [Unreleased]
+
+**BREAKING(do)** — Rename the `/dhpk:do` and `dhpk:opsx-apply-goal` mechanical-worker override flag from `--fast-worker=<claude|codex|agy|auto>` to `--worker=<claude|codex|agy|auto>`. The legacy `--fast-worker` spelling is **removed** outright with no alias — update any hard-coded goal strings or scripts. The preserved invocation context is renamed `FAST_WORKER_OVERRIDE` → `WORKER_OVERRIDE`. The `fast_worker_backend` userConfig key and the `scripts/fast-worker-selector.js` engine interface are unchanged.
+**feat(do)** — Add `--reasoner=<claude|codex>[:<model>[:<effort>]]` to `/dhpk:do` to pick the deep-reasoning backend (claude → `deep-reasoner`, codex → new `codex-deep-reasoner`, default `gpt-5.6-sol` @ `high`); `agy` unsupported.
+**feat(agents)** — Add `codex-deep-reasoner` agent (CLI-backed, read-only reasoning; conclusion contract) and `codex_deep_reasoner_model`/`codex_deep_reasoner_effort` userConfig keys.
+**feat(do)** — `/dhpk:do --plan`/`--opsx` now consults `dhpk:architect` for architecture-relevant new-feature tasks; `architect` default tier lowered to `fable`/`low` (up-only escalation).
+**refactor(hooks)** — Extract shared `_lib/sentinel-clear-core.sh`; merge three default-off Stop advisory hooks into `stop-advisory-dispatch.sh`.
+**refactor(rules)** — Converge the `${CLAUDE_PLUGIN_ROOT}` interpolation-token caveat to one SSOT home; reconcile tool-routing decision-tree drift.
+
 ## 0.28.19 — 2026-07-22 — Diagnose misplaced review docs and refine contract guidance
 
 Diagnoses misplaced review documents in subagent stop hooks, stops release bumps from rewriting historical session fixtures, and clarifies tracked-vs-runtime rules and retention guidance for agent artifacts.
