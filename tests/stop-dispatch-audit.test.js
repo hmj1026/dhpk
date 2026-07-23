@@ -64,4 +64,18 @@ test('fewer than 3 distinct inline files stays silent even under orchestration_d
   }
 });
 
+test('the advisory fires at most once per session even across multiple Stop turns', () => {
+  const repo = mkRepo();
+  try {
+    writeCounter(repo, 'audit-once', ['src/A.php', 'src/B.php', 'src/C.php']);
+    const first = runStop(repo, 'audit-once', 'on');
+    assert.ok(first.stdout.includes(SIG), `first Stop should fire the advisory:\n${first.stdout}`);
+    const second = runStop(repo, 'audit-once', 'on');
+    assert.ok(!second.stdout.includes(SIG),
+      `a later Stop turn in the same session must NOT re-emit the advisory:\n${second.stdout}`);
+  } finally {
+    rmRepo(repo);
+  }
+});
+
 run('stop-dispatch-audit');

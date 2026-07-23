@@ -43,9 +43,11 @@ _reconcile_fresh_doc() {
     return 0
 }
 
-# _reconcile_drop_one_active <active-file> — remove a single in-flight entry
-# (the completed reviewer's), deleting the file when it empties. Mirrors
-# subagent-stop-verify.sh's remove_one_active_entry so both routes agree.
+# _reconcile_drop_one_active <active-file> — remove ONE in-flight entry (the
+# oldest line; in practice a slot carries a single active entry per wave, so this
+# is the finished reviewer's), deleting the file when it empties. Mirrors
+# subagent-stop-verify.sh's remove_one_active_entry so both routes agree — do not
+# assume it targets a specific reviewer if a slot ever holds multiple entries.
 _reconcile_drop_one_active() {
     local file="$1" tmp
     [ -f "$file" ] || return 0

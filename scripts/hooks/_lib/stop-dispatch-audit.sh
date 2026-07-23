@@ -18,7 +18,7 @@
 # line into its single Stop systemMessage.
 dhpk_stop_dispatch_audit() {
     [ "${DHPK_ORCHESTRATION_DISPATCH:-off}" = "on" ] || return 0
-    local sess="$1" session="$2" safe counter count
+    local sess="$1" session="$2" safe counter count marker
     [ -n "$sess" ] || return 0
     [ -n "$session" ] || session="default-session"
     # Mirror pre-edit-batch-gate.sh's session-id sanitization so we resolve the
@@ -29,5 +29,11 @@ dhpk_stop_dispatch_audit() {
     count="$(awk 'NF {seen[$0]=1} END {for (x in seen) n++; print n+0}' "$counter" 2>/dev/null)" || return 0
     case "$count" in ''|*[!0-9]*) return 0 ;; esac
     [ "$count" -ge 3 ] || return 0
+    # Fire ONCE per session: the .edit-batch counter persists across Stop turns,
+    # so without this marker the advisory would re-emit verbatim every turn — the
+    # recurring-noise anti-pattern issue #79 treats as a defect.
+    marker="$sess/.dispatch-audit-fired-${safe}"
+    [ -f "$marker" ] && return 0
+    : > "$marker" 2>/dev/null || true
     echo "[dispatch-audit] $count distinct source files were edited inline this session with orchestration_dispatch=on — >=3-file mechanical work should have been ONE fast-worker batch (issue #80). If the work was reasoning-heavy or genuinely inline-eligible (<=2-file steps), disregard; otherwise dispatch the batch next time."
 }

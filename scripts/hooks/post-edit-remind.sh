@@ -243,18 +243,25 @@ _tri_drop() {  # $1=slot $2=reason — clear NEEDS + remove any pending line for
     _tri_bump_drop_count "$_s"
 }
 # Issue #79: count repeated triage-drops of the same slot within one session.
-# A slot dropped 2+ times is a recurring false-positive — surface it ONCE with a
-# file-a-bug hint instead of silently re-dropping the same mis-scoped trigger
-# (session 82bfa020 dropped the same slot 4× before anyone root-caused it).
+# A slot dropped 2+ times is a recurring false-positive — surface it ONCE (on the
+# 2nd drop) with a file-a-bug hint instead of silently re-dropping the same
+# mis-scoped trigger (session 82bfa020 dropped the same slot 4x before anyone
+# root-caused it). The counter is session-scoped (suffixed with the sanitized
+# session id) so concurrent sessions sharing this dir do not cross-bump and a
+# fresh session — whose session id is unique — starts from zero.
 _tri_bump_drop_count() {
-    local _s="$1" _cf="$ARTIFACTS/.triage-drop-counts" _short="${SENTINEL_SHORT_NAMES[$_s]}" _cur _cnt _tmp
+    local _s="$1" _short="${SENTINEL_SHORT_NAMES[$_s]}" _safe_sid _cf _cur _cnt _tmp
+    _safe_sid="$(printf '%s' "${_sid:-unknown}" | tr -c 'A-Za-z0-9._-' '_')"
+    _cf="$ARTIFACTS/.triage-drop-counts-${_safe_sid}"
     _cur="$(awk -F '\t' -v s="$_short" '$1==s{print $2; exit}' "$_cf" 2>/dev/null || true)"
     _cnt=$(( ${_cur:-0} + 1 ))
     _tmp="$(mktemp 2>/dev/null || printf '%s.tmp.%s' "$_cf" "$$")"
     [ -f "$_cf" ] && awk -F '\t' -v s="$_short" '$1!=s' "$_cf" 2>/dev/null > "$_tmp" || true
     printf '%s\t%s\n' "$_short" "$_cnt" >> "$_tmp"
     mv -f "$_tmp" "$_cf" 2>/dev/null || rm -f "$_tmp"
-    if [ "$_cnt" -ge 2 ]; then
+    # Fire exactly once — at the 2nd drop, when the slot first becomes recurring.
+    # A NOTE on every later drop would be the very recurring noise this fix targets.
+    if [ "$_cnt" -eq 2 ]; then
         echo "[post-edit] NOTE: '$_short' triage-dropped ${_cnt}x this session — a recurring false-positive suggests a mis-scoped trigger. Consider filing a bug or narrowing it (sentinel-slots.json / module triggers / review_trigger_extra_paths)."
     fi
 }
