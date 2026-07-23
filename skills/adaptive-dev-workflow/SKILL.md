@@ -28,10 +28,10 @@ allowed-tools: 'Read, Grep, Glob, Bash, Skill, Agent'
 
 ## Fast-worker invocation context
 
-When `/dhpk:do` supplies `FAST_WORKER_OVERRIDE`, preserve that exact invocation-only
+When `/dhpk:do` supplies `WORKER_OVERRIDE`, preserve that exact invocation-only
 value through hand-off to `dhpk:bug-fix` / `dhpk:feature-dev`. Before the first
 mechanical dispatch, consume it with the shared selector at
-`scripts/fast-worker-selector.js` using `--backend "$FAST_WORKER_OVERRIDE"`.
+`scripts/fast-worker-selector.js` using `--backend "$WORKER_OVERRIDE"`.
 `unset` means omit the explicit backend argument and let the selector apply
 userConfig/default precedence; never infer the value from the cleaned task text.
 

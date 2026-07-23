@@ -41,4 +41,11 @@ test('a well-formed agent frontmatter passes all checks', () => {
   assert.strictEqual(fm.duplicates.length, 0, 'no duplicates expected');
 });
 
+test('fable is an accepted model tier (agents/architect.md ships on it)', () => {
+  const src = require('node:fs').readFileSync(
+    path.join(__dirname, '..', 'scripts', 'ci', 'validate-agents.js'), 'utf8');
+  assert.ok(/VALID_MODELS\s*=\s*\[[^\]]*'fable'/.test(src),
+    'validate-agents.js VALID_MODELS must include fable so agents/architect.md (model: fable) validates');
+});
+
 run('validate-agents-behavior');

@@ -1,6 +1,6 @@
 ---
 description: 'Smart Router — map a natural-language task to the right dhpk workflow, then run it. Deterministic route-table fast path, LLM fallback for misses.'
-argument-hint: '[--codex] [--plan[=<model>[:<effort>]]] [--fast-worker=<claude|codex|agy|auto>] [--openspec|--opsx] <natural language task>'
+argument-hint: '[--codex] [--plan[=<model>[:<effort>]]] [--worker=<claude|codex|agy|auto>] [--reasoner=<claude|codex>[:<model>[:<effort>]]] [--openspec|--opsx] <natural language task>'
 allowed-tools: 'Bash(bash:*), Bash(git:*), Bash(ls:*), Skill, Read, Grep, Glob'
 ---
 
@@ -71,20 +71,62 @@ parsed and stripped exactly like `--plan` above:
   review, so the `dhpk:planner` consult is skipped (see the Openspec-mode rule
   in Step 3).
 
-## Step 0d — parse fast-worker override (optional)
+## Step 0d — parse worker override (optional)
 
-- Detect and strip `--fast-worker=<claude|codex|agy|auto>` before route-table
+- Detect and strip `--worker=<claude|codex|agy|auto>` before route-table
   matching, exactly like `--codex`/`--plan`; it must not pollute the cleaned query.
+  The prior fast-worker flag spelling is **removed** — that older token is not
+  recognized, not aliased, and gets no special-case handling; if present it flows
+  through as ordinary task text.
 - Before stripping it, preserve the actual value in the named invocation context
-  `FAST_WORKER_OVERRIDE=<actual value|unset>`; never reconstruct it from the
+  `WORKER_OVERRIDE=<actual value|unset>`; never reconstruct it from the
   cleaned query or replace it with a route name.
 - Resolve the invocation backend with precedence flag > `fast_worker_backend`
   userConfig > shipped default (`claude`). Invalid values emit one warning line
-  and fall back to userConfig/default without failing the route.
+  and fall back to userConfig/default without failing the route. (The `--worker`
+  flag renames only the surface token; the `fast_worker_backend` userConfig key
+  and the `scripts/fast-worker-selector.js` engine interface are unchanged.)
 - For the implementation-class routes (`dhpk:adaptive-dev-workflow`,
   `dhpk:bug-fix`, `dhpk:feature-dev`, and `dhpk:opsx-apply-goal`), forward the invocation override to every implementation-class route; it applies to this
   invocation only. The downstream route MUST call the shared fast-worker backend selector before its first mechanical dispatch and must not reimplement
   availability, order, or fallback logic.
+
+## Step 0e — parse reasoner backend (default: off, opt-in)
+
+`/dhpk:do` supports an opt-in override for the deep-reasoning backend used by
+reasoning-heavy dispatches, parsed and stripped exactly like `--plan` above:
+
+- Detect an optional `--reasoner=<claude|codex>[:<model>[:<effort>]]` token
+  **before** route-table matching. If present, set `REASONER=on` and **strip**
+  the token from the request text before matching, so the cleaned query never
+  contains it. Otherwise `REASONER=off` (reasoning dispatches route to the
+  default `dhpk:deep-reasoner` exactly as before).
+- Only `claude` and `codex` are valid backends. `agy` is explicitly
+  **unsupported** (no reasoning-grade model): an `--reasoner=agy` (or any other
+  non-`claude|codex` value) emits one warning line and falls back to the
+  userConfig/default resolution below **without failing the route**.
+- Backend routing: `claude` → `dhpk:deep-reasoner`; `codex` →
+  `dhpk:codex-deep-reasoner`.
+- Parse the flag value into a `<backend>`, optional `<model>`, and optional
+  `<effort>` (`--reasoner=codex:gpt-5.6-sol:medium` fully specifies;
+  `--reasoner=codex` leaves model/effort to the chain below). Resolve model/effort
+  with this precedence (highest wins), mirroring the `--plan` chain — no new
+  precedence pattern:
+  - **claude:** explicit `--reasoner=claude:...` segments > `deep_reasoner_model`/
+    `deep_reasoner_effort` userConfig > `agents/deep-reasoner.md` frontmatter default.
+  - **codex:** explicit `--reasoner=codex:...` segments > `codex_deep_reasoner_model`/
+    `codex_deep_reasoner_effort` userConfig > built-in `gpt-5.6-sol` / `high`.
+- **Missing-executable fallback (codex only):** when `--reasoner=codex` is active
+  but no codex executable is available, emit one warning line and fall back to
+  `dhpk:deep-reasoner`. This missing-executable case is the **only** silent
+  substitution — authentication, model-rejection, and task failures at execution
+  time remain `RESULT: BLOCKED` per the codex-fast-worker/selector semantics.
+- Carry `REASONER=on` and the resolved backend/model/effort forward into Step 3.
+  The flag affects **only** implementation-class routes (`dhpk:adaptive-dev-workflow`,
+  `dhpk:bug-fix`, `dhpk:feature-dev`, `dhpk:opsx-apply-goal`); on any other
+  resolved route print this literal one-line message and proceed unaffected:
+
+  `--reasoner ignored: <route> is not an implementation-class route; proceeding with the default reasoning backend.`
 
 ## Step 1 — deterministic pre-route (run this first)
 
@@ -112,14 +154,15 @@ Factor them into Step 3's NO_MATCH decision and into the downstream workflow
 
 ## Step 3 — act on the result
 
-Pass the **cleaned query** (the full task with only the `--codex`, `--plan`, `--fast-worker`, and
-`--openspec`/`--opsx` opt-in tokens removed) as the task to the downstream skill,
-and **Pass both the cleaned query and the named invocation context**
-`FAST_WORKER_OVERRIDE=<actual value|unset>` to implementation-class routes.
-applying the codex-mode rule below to decide the codex flag, the plan-mode rule
-below to decide whether a `dhpk:planner` consult runs first, and the
-openspec-mode rule below to decide whether the resolved route is diverted into
-the OpenSpec artifact-then-review flow (which supersedes the plan consult).
+Pass the **cleaned query** (the full task with only the `--codex`, `--plan`,
+`--worker`, `--reasoner`, and `--openspec`/`--opsx` opt-in tokens removed) as the
+task to the downstream skill. For implementation-class routes, also pass the named
+invocation contexts `WORKER_OVERRIDE=<actual value|unset>` and (when `REASONER=on`)
+the resolved reasoner backend/model/effort. Then apply the codex-mode rule below to
+decide the codex flag, the plan-mode rule below to decide whether a `dhpk:planner`
+consult runs first, and the openspec-mode rule below to decide whether the resolved
+route is diverted into the OpenSpec artifact-then-review flow (which supersedes the
+plan consult).
 
 - **`MATCH`** → invoke `<skill>` immediately with the **Skill** tool (e.g.
   `dhpk:bug-fix`). Do **not** re-classify — the route table already matched.
@@ -161,6 +204,33 @@ the OpenSpec artifact-then-review flow (which supersedes the plan consult).
   - An explicit `dhpk:codex-*` skill: route as-is.
   - Any other target: the flag has no effect — route normally.
 
+### Architect-consult rule (how architecture-relevant tasks pull in `dhpk:architect`)
+
+Under `PLAN=on` **or** `OPENSPEC=on`, when the cleaned query describes a **new
+feature that needs architectural judgment or architecture research** — cross-module
+design, a new subsystem, or a layering / boundary decision — dispatch a
+`dhpk:architect` subagent **before** the downstream flow and fold its opinion in:
+
+- under **PLAN**, into the plan brief handed to `dhpk:planner` (Plan-mode rule
+  step 1 below);
+- under **OPENSPEC**, into the change description handed to `opsx:new` (Openspec-mode
+  rule step 1 below).
+
+The trigger is a **semantic judgment**, not a keyword match:
+
+- **Consult (positive example):** "add a cross-module event bus so billing and
+  notifications stop calling each other directly" — a new subsystem with
+  cross-module boundary implications; dispatch `dhpk:architect` first.
+- **Skip (negative example):** "fix the off-by-one in `InvoiceTotal::round()`" or
+  "rename one column in a single migration" — mechanical or single-module work
+  carries no architecture decision, so **no** architect dispatch occurs and the
+  downstream consult / flow proceeds unchanged.
+
+Dispatch `dhpk:architect` at its configured tier (default `fable` / `low`; see
+`rules/model-economics.md`), then fold its conclusion into the relevant brief and
+continue with the mode rule below. This consult is **additive**: it never replaces
+the `dhpk:planner` consult (PLAN) or the artifact-then-review flow (OPENSPEC).
+
 ### Plan-mode rule (how `PLAN` shapes the invocation)
 
 - **`PLAN=off` (default):** invoke the target normally, no `dhpk:planner`
@@ -185,6 +255,8 @@ the OpenSpec artifact-then-review flow (which supersedes the plan consult).
      has already resolved discovery and `dhpk:planner` should treat unresolved
      lookups as the exception, not the norm, and either a DRAFT PLAN (critique
      mode, the default) or an explicit blind-sketch request (draft withheld).
+     When the Architect-consult rule above fired for this task, fold the
+     `dhpk:architect` conclusion into this brief before dispatching the planner.
   2. **Dispatch `dhpk:planner`** with the brief, using the resolved model/effort
      from Step 0b.
   3. **Check for the trailing `END` line.** A reply missing it is treated as
@@ -216,7 +288,9 @@ the OpenSpec artifact-then-review flow (which supersedes the plan consult).
   instead of invoking the target skill:
   1. Invoke `opsx:new` then `opsx:ff` via the **Skill** tool
      (`openspec-new-change` → `openspec-ff-change`) to emit the change
-     artifacts (proposal / design / specs / tasks) for the cleaned query.
+     artifacts (proposal / design / specs / tasks) for the cleaned query. When
+     the Architect-consult rule above fired for this task, fold the
+     `dhpk:architect` conclusion into the change description handed to `opsx:new`.
   2. **Stop for human review** — do **not** proceed to implementation. State
      that the change awaits review and can be applied later with `/opsx:apply`
      (or an unattended `dhpk:opsx-apply-goal` session).
@@ -251,6 +325,20 @@ the OpenSpec artifact-then-review flow (which supersedes the plan consult).
   model `opus`, effort `high`; override with `--plan=<model>[:<effort>]` (e.g.
   `--plan=fable:medium`, `--plan=:low`). A pre-implementation consult also
   records a warm-review obligation in this command's output.
+- **Worker backend override is opt-in.** Pass `--worker=<claude|codex|agy|auto>`
+  to override the fast-worker backend for this invocation only (precedence
+  flag > `fast_worker_backend` userConfig > default `claude`), scoped to the four
+  implementation-class routes. The prior fast-worker flag spelling is **removed**
+  (no alias). Only the surface token is renamed — the `fast_worker_backend`
+  userConfig key and the selector engine are unchanged.
+- **Reasoner backend override is opt-in.** Pass
+  `--reasoner=<claude|codex>[:<model>[:<effort>]]` to pick the deep-reasoning
+  backend for reasoning-heavy dispatches on implementation-class routes: `claude`
+  → `dhpk:deep-reasoner`, `codex` → `dhpk:codex-deep-reasoner` (default
+  `gpt-5.6-sol` @ `high`). `agy` is unsupported. Model/effort follow the `--plan`
+  precedence pattern (flag > backend-specific userConfig > default). A missing
+  codex CLI falls back to `dhpk:deep-reasoner`; other routes print
+  `--reasoner ignored: ...`.
 - **OpenSpec authoring is opt-in.** Pass `--openspec` (alias `--opsx`) to force
   the OpenSpec authoring flow on the three change-authoring routes
   (`dhpk:adaptive-dev-workflow`, `dhpk:bug-fix`, `dhpk:feature-dev`): it runs

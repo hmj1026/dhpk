@@ -1,6 +1,6 @@
 'use strict';
 
-// Coverage for stop-dispatch.sh (Stop dispatcher for module-contributed Stop
+// Coverage for stop-advisory-dispatch.sh (module-dispatch advisory) (Stop dispatcher for module-contributed Stop
 // hooks + consolidated module-findings surfacing).
 //   - No active modules, no findings file → silent exit 0.
 //   - A pre-populated .module-findings file (as post-edit-dispatch.sh would
@@ -15,7 +15,7 @@ const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const HOOK = path.join(ROOT, 'scripts', 'hooks', 'stop-dispatch.sh');
+const HOOK = path.join(ROOT, 'scripts', 'hooks', 'stop-advisory-dispatch.sh');
 
 function mkRepo() {
   return fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-sd-')));
@@ -82,4 +82,4 @@ test('minimal profile suppresses the surfaced message but still clears the findi
   }
 });
 
-run('stop-dispatch');
+run('stop-advisory-dispatch-modules');

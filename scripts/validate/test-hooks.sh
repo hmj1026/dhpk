@@ -280,7 +280,7 @@ repo="$(make_repo)"
 if ! grep -q 'learned-context' "$repo/_ss2.out"; then ok "SessionStart silent when DB disabled"; else fail "learned-context emitted while disabled"; fi
 
 echo ""
-echo "== 9. stop-graduation-scan.sh (Phase 2.2) =="
+echo "== 9. stop-advisory-dispatch.sh (Phase 2.2) =="
 # 9a. enabled: 3 clean citations of an existing entry → count=3, rule candidate.
 repo="$(make_repo)"
 gmem="$(mktemp -d)"; TMP_DIRS+=("$gmem")
@@ -294,7 +294,7 @@ for _r in 1 2 3; do
         export CLAUDE_PROJECT_DIR="$repo" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
                DHPK_GRADUATION_SCAN=1 CLAUDE_HOOK_TEST_MODE=1 CLAUDE_HOOK_TEST_OUTDIR="$gout" \
                CLAUDE_HOOK_MEMORY_DIR="$gmem" CLAUDE_HOOK_MIN_SPAN_HOURS=0 CLAUDE_HOOK_MIN_DISTINCT_DATES=1
-        printf '{"transcript_path":"%s"}' "$gtx" | bash "$HOOKS/stop-graduation-scan.sh" >/dev/null 2>&1
+        printf '{"transcript_path":"%s"}' "$gtx" | bash "$HOOKS/stop-advisory-dispatch.sh" >/dev/null 2>&1
     )
 done
 cj="$gout/memory-usage-counts.json"
@@ -313,7 +313,7 @@ printf 'see memory/ghost_entry_x.md (no such file)\n' > "$gtx"
     export CLAUDE_PROJECT_DIR="$repo" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
            DHPK_GRADUATION_SCAN=1 CLAUDE_HOOK_TEST_MODE=1 CLAUDE_HOOK_TEST_OUTDIR="$gout" \
            CLAUDE_HOOK_MEMORY_DIR="$gmem" CLAUDE_HOOK_MIN_SPAN_HOURS=0 CLAUDE_HOOK_MIN_DISTINCT_DATES=1
-    printf '{"transcript_path":"%s"}' "$gtx" | bash "$HOOKS/stop-graduation-scan.sh" >/dev/null 2>&1
+    printf '{"transcript_path":"%s"}' "$gtx" | bash "$HOOKS/stop-advisory-dispatch.sh" >/dev/null 2>&1
 )
 cj="$gout/memory-usage-counts.json"
 if [ ! -f "$cj" ] || [ "$(jq -r '.entries.ghost_entry_x // "absent"' "$cj" 2>/dev/null)" = "absent" ]; then ok "existence gate: missing memory file not counted"; else fail "ghost entry was counted"; fi
@@ -327,7 +327,7 @@ printf 'see memory/trap_foo_example.md\n' > "$gtx"
     cd "$repo" || exit 1
     export CLAUDE_PROJECT_DIR="$repo" CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" \
            DHPK_GRADUATION_SCAN=0 CLAUDE_HOOK_TEST_MODE=1 CLAUDE_HOOK_TEST_OUTDIR="$gout"
-    printf '{"transcript_path":"%s"}' "$gtx" | bash "$HOOKS/stop-graduation-scan.sh" >/dev/null 2>&1
+    printf '{"transcript_path":"%s"}' "$gtx" | bash "$HOOKS/stop-advisory-dispatch.sh" >/dev/null 2>&1
 )
 if [ -z "$(ls -A "$gout" 2>/dev/null)" ]; then ok "graduation disabled → no state written"; else fail "wrote state while disabled"; fi
 
@@ -416,12 +416,12 @@ run_hook "$repo" session-end.sh '{}'
 if [ "$RC" -eq 0 ]; then ok "session-end with stale sentinel → exit 0 (advisory)"; else fail "session-end blocked on stale sentinel"; fi
 
 echo ""
-echo "== 15. module findings flow (P0-2: post-edit-dispatch → stop-dispatch) =="
+echo "== 15. module findings flow (P0-2: post-edit-dispatch → stop-advisory-dispatch) =="
 # Throwaway plugin tree with a fake module whose post-edit hook emits a finding.
 fakeroot="$(mktemp -d)"; TMP_DIRS+=("$fakeroot")
 mkdir -p "$fakeroot/scripts/hooks/_lib" "$fakeroot/modules/tmod/hooks"
 cp "$HOOKS"/_lib/*.sh "$fakeroot/scripts/hooks/_lib/"
-cp "$HOOKS/post-edit-dispatch.sh" "$HOOKS/post-edit-remind.sh" "$HOOKS/stop-dispatch.sh" "$fakeroot/scripts/hooks/"
+cp "$HOOKS/post-edit-dispatch.sh" "$HOOKS/post-edit-remind.sh" "$HOOKS/stop-advisory-dispatch.sh" "$fakeroot/scripts/hooks/"
 printf '#!/usr/bin/env bash\ncat >/dev/null 2>&1\necho "[tmod] finding in bar.x" >&2\nexit 0\n' > "$fakeroot/modules/tmod/hooks/post-edit-x.sh"
 chmod +x "$fakeroot/modules/tmod/hooks/post-edit-x.sh"
 repo="$(make_repo)"
@@ -430,10 +430,10 @@ repo="$(make_repo)"
     export CLAUDE_PLUGIN_ROOT="$fakeroot" CLAUDE_PROJECT_DIR="$repo" DHPK_ACTIVE_MODULES="tmod"
     printf '{"tool_input":{"file_path":"%s/bar.x"}}' "$repo" | bash "$fakeroot/scripts/hooks/post-edit-dispatch.sh" >/dev/null 2>&1
     for _i in 1 2 3 4 5; do [ -s "$repo/.claude/artifacts/sessions/.module-findings" ] && break; done
-    printf '{}' | bash "$fakeroot/scripts/hooks/stop-dispatch.sh" > "$repo/_sd.out" 2>/dev/null
+    printf '{}' | bash "$fakeroot/scripts/hooks/stop-advisory-dispatch.sh" > "$repo/_sd.out" 2>/dev/null
 )
 if grep -q '\[tmod\] finding in bar.x' "$repo/_sd.out" && grep -q 'systemMessage' "$repo/_sd.out"; then ok "module finding captured + surfaced via systemMessage"; else fail "module finding not surfaced ($(cat "$repo/_sd.out" 2>/dev/null))"; fi
-if [ ! -e "$repo/.claude/artifacts/sessions/.module-findings" ]; then ok "findings file cleared after stop-dispatch"; else fail "findings file not cleared"; fi
+if [ ! -e "$repo/.claude/artifacts/sessions/.module-findings" ]; then ok "findings file cleared after stop-advisory-dispatch"; else fail "findings file not cleared"; fi
 
 echo ""
 echo "=========================================="

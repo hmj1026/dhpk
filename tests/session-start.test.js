@@ -63,6 +63,8 @@ function runInScratch(extraEnv) {
       'CLAUDE_PLUGIN_OPTION_ORCHESTRATION_DISPATCH',
       'CLAUDE_PLUGIN_OPTION_CODEX_FAST_WORKER_MODEL', 'CLAUDE_PLUGIN_OPTION_CODEX_FAST_WORKER_EFFORT',
       'CLAUDE_PLUGIN_OPTION_AGY_FAST_WORKER_MODEL',
+      'CLAUDE_PLUGIN_OPTION_CODEX_DEEP_REASONER_MODEL', 'CLAUDE_PLUGIN_OPTION_CODEX_DEEP_REASONER_EFFORT',
+      'CLAUDE_PLUGIN_OPTION_ARCHITECT_MODEL', 'CLAUDE_PLUGIN_OPTION_ARCHITECT_EFFORT',
     ]) delete env[k];
     const payload = JSON.stringify({ source: 'startup' });
     const res = spawnSync('bash', ['-c', 'printf %s "$P" | bash "$1"', '_', HOOK], {
@@ -82,16 +84,26 @@ test('CLI-worker keys at their defaults are silent in the orchestration line', (
   assert.strictEqual(res.status, 0, `expected exit 0: ${res.stderr}`);
   assert.ok(!res.stdout.includes('codex_worker'), `default codex worker must be silent:\n${res.stdout}`);
   assert.ok(!res.stdout.includes('agy_worker'), `default agy worker must be silent:\n${res.stdout}`);
+  assert.ok(!res.stdout.includes('codex_reasoner'), `default codex reasoner must be silent:\n${res.stdout}`);
+  assert.ok(!res.stdout.includes('architect'), `default architect tier must be silent:\n${res.stdout}`);
 });
 
 test('non-default CLI-worker keys surface in the orchestration line', () => {
   const res = runInScratch({
     CLAUDE_PLUGIN_OPTION_CODEX_FAST_WORKER_MODEL: 'gpt-5.6-sol',
     CLAUDE_PLUGIN_OPTION_AGY_FAST_WORKER_MODEL: 'Gemini 3.1 Pro (High)',
+    CLAUDE_PLUGIN_OPTION_CODEX_DEEP_REASONER_MODEL: 'gpt-5.6-nova',
+    CLAUDE_PLUGIN_OPTION_CODEX_DEEP_REASONER_EFFORT: 'medium',
+    CLAUDE_PLUGIN_OPTION_ARCHITECT_MODEL: 'opus',
+    CLAUDE_PLUGIN_OPTION_ARCHITECT_EFFORT: 'high',
   });
   assert.strictEqual(res.status, 0, `expected exit 0: ${res.stderr}`);
   assert.ok(res.stdout.includes('codex_worker=gpt-5.6-sol'), `expected codex worker surfaced:\n${res.stdout}`);
   assert.ok(res.stdout.includes('agy_worker=Gemini 3.1 Pro (High)'), `expected agy worker surfaced:\n${res.stdout}`);
+  assert.ok(res.stdout.includes('codex_reasoner=gpt-5.6-nova'), `expected codex reasoner surfaced:\n${res.stdout}`);
+  assert.ok(res.stdout.includes('codex_reasoner_effort=medium'), `expected codex reasoner effort surfaced:\n${res.stdout}`);
+  assert.ok(res.stdout.includes('architect=opus'), `expected architect tier surfaced:\n${res.stdout}`);
+  assert.ok(res.stdout.includes('architect_effort=high'), `expected architect effort surfaced:\n${res.stdout}`);
 });
 
 run('session-start');

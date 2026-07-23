@@ -167,21 +167,9 @@
           {
             "type": "command",
             "command": "bash",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/stop-completion-evidence.sh"],
-            "async": true
-          },
-          {
-            "type": "command",
-            "command": "bash",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/stop-graduation-scan.sh"],
+            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/stop-advisory-dispatch.sh"],
             "async": true,
-            "timeout": 15
-          },
-          {
-            "type": "command",
-            "command": "bash",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/stop-dispatch.sh"],
-            "async": true
+            "timeout": 60
           }
         ]
       }

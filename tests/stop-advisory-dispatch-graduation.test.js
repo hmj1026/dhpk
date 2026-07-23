@@ -1,6 +1,6 @@
 'use strict';
 
-// Coverage for stop-graduation-scan.sh (Stop hook, advisory, opt-in knowledge
+// Coverage for stop-advisory-dispatch.sh (graduation-scan advisory) (Stop hook, advisory, opt-in knowledge
 // graduation scan):
 //   - Disabled by default → no-op, no state files written.
 //   - Enabled (DHPK_GRADUATION_SCAN=1) + CLAUDE_HOOK_TEST_MODE=1 isolation:
@@ -23,7 +23,7 @@ const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
 const { runHook: runHookRaw } = require('./_lib/hookharness');
 
-const HOOK = 'stop-graduation-scan.sh';
+const HOOK = 'stop-advisory-dispatch.sh';
 
 function mkDir(prefix) {
   return fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), prefix)));
@@ -156,4 +156,4 @@ test('high count/confidence entry never drafts under openspec/changes/', () => {
   }
 });
 
-run('stop-graduation-scan');
+run('stop-advisory-dispatch-graduation');

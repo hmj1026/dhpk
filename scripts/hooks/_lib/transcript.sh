@@ -2,8 +2,8 @@
 # transcript.sh — extract the session transcript path from a hook payload.
 # Source-only — never execute directly. No side effects on sourcing.
 #
-# Both stop-completion-evidence.sh and stop-graduation-scan.sh previously
-# hand-rolled this; centralized here. Prefers jq, falls back to python3, then
+# The completion-evidence and graduation-scan advisories (now folded into
+# stop-advisory-dispatch.sh) previously hand-rolled this; centralized here. Prefers jq, falls back to python3, then
 # to the CLAUDE_TRANSCRIPT_PATH env. Returns empty string on any failure
 # (callers MUST handle empty).
 #

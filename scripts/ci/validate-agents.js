@@ -14,7 +14,7 @@ const { createReporter } = require('./_lib/report');
 
 const ROOT = path.join(__dirname, '..', '..');
 const AGENTS_DIR = path.join(ROOT, 'agents');
-const VALID_MODELS = ['haiku', 'sonnet', 'opus'];
+const VALID_MODELS = ['haiku', 'sonnet', 'opus', 'fable'];
 
 const r = createReporter('agents');
 

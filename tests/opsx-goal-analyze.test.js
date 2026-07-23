@@ -30,7 +30,7 @@ function withEnv(values, callback) {
 }
 
 test('analyzer strips the invocation override and delegates deterministic context generation', () => {
-  assert.ok(analyzer.includes('--fast-worker=*'));
+  assert.ok(analyzer.includes('--worker=*'));
   assert.ok(analyzer.includes('goal-context.js'));
 });
 
@@ -50,7 +50,7 @@ test('invalid flag warns and falls back to configured resolution even when CODEX
   const cli = fakeCli('codex');
   try {
     const result = withEnv({ PATH: `${cli.bin}:/usr/bin:/bin`, CODEX: 'off', CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND: 'codex' }, () => context.buildContext({ tasks: '- [ ] backend\n', proposal: '', fastWorker: 'wat' }));
-    assert.ok(result.warning.includes('invalid --fast-worker value'));
+    assert.ok(result.warning.includes('invalid --worker value'));
     assert.strictEqual(result.fields.FAST_WORKER_SELECTED, 'codex');
   } finally { fs.rmSync(cli.root, { recursive: true, force: true }); }
 });
@@ -80,6 +80,33 @@ test('auto reports rejected candidates and UTF-8-safe digest plus conditional E2
     assert.ok(!result.fields.TASK_DIGEST.includes('\uFFFD'));
     assert.strictEqual(context.detectE2e('- [ ] backend\n', ''), false);
   } finally { fs.rmSync(cli.root, { recursive: true, force: true }); }
+});
+
+// Issue #81: the task digest must never shear a title mid-sentence. Short
+// lists pass through whole; overflow packs whole titles and appends an explicit
+// "…(+N more)" trim report instead of a silent hard cut.
+test('taskDigest returns the full joined list unchanged when it fits the budget', () => {
+  const digest = context.taskDigest('- [ ] first task\n- [ ] second task\n');
+  assert.strictEqual(digest, 'first task; second task');
+});
+
+test('taskDigest packs whole titles and reports the trimmed remainder on overflow', () => {
+  const tasks = Array.from({ length: 12 }, (_, i) => `- [ ] task number ${i} with a reasonably descriptive sentence`).join('\n');
+  const digest = context.taskDigest(tasks);
+  assert.ok(Buffer.byteLength(digest, 'utf8') <= 200, 'digest stays within the byte budget');
+  assert.ok(/ …\(\+\d+ more\)$/.test(digest), 'digest ends with a boundary-aligned trim marker');
+  // Every retained segment is a complete title — no partial/sheared task text.
+  const body = digest.replace(/ …\(\+\d+ more\)$/, '');
+  for (const segment of body.split('; ')) {
+    assert.ok(/^task number \d+ with a reasonably descriptive sentence$/.test(segment), `whole title, got: ${segment}`);
+  }
+});
+
+test('taskDigest truncates a single oversized leading title with an ellipsis rather than emit nothing', () => {
+  const digest = context.taskDigest(`- [ ] ${'長'.repeat(120)}\n- [ ] second\n`);
+  assert.ok(Buffer.byteLength(digest, 'utf8') <= 200, 'digest stays within the byte budget');
+  assert.ok(digest.endsWith('…'), 'oversized single title is ellipsis-marked');
+  assert.ok(!digest.includes('�'), 'truncation respects UTF-8 boundaries');
 });
 
 // End-to-end execution, not just source inspection. CLAUDE_PLUGIN_ROOT is

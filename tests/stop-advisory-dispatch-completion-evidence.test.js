@@ -1,6 +1,6 @@
 'use strict';
 
-// Regression: stop-completion-evidence.sh must count UNTRACKED new files when
+// Regression: stop-advisory-dispatch.sh (completion-evidence advisory) must count UNTRACKED new files when
 // deciding whether a completion claim has test evidence. Before the fix it read
 // only `git diff --name-only HEAD` (tracked/staged), so a brand-new untracked
 // test file (the TDD add-a-spec case) was invisible and the hook falsely warned
@@ -16,7 +16,7 @@ const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const { mkRepo, runHook: runHookRaw } = require('./_lib/hookharness');
 
-const HOOK = 'stop-completion-evidence.sh';
+const HOOK = 'stop-advisory-dispatch.sh';
 
 function mkTempRepo() {
   const dir = mkRepo({ prefix: 'dhpk-ce-', gitConfig: true });
@@ -132,4 +132,4 @@ test('doc-only untracked change → clean exit, no warning', () => {
   }
 });
 
-run('stop-completion-evidence-untracked');
+run('stop-advisory-dispatch-completion-evidence');

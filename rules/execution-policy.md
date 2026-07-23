@@ -41,6 +41,7 @@ Agents run via the `Agent` tool (`subagent_type=<name>`), not via skill names.
 | `tdd-guide` | RED / test-first specialist; GREEN stays inline only within its ≤2-production-file bound | specialist |
 | `architect` | Cross-module or DDD-layer design | — |
 | `deep-reasoner` | Reasoning-heavy implement-phase work (root cause, algorithm design, complex debugging) — see §Implementation dispatch | — |
+| `codex-deep-reasoner` | Selected by `--reasoner=codex` — a `deep-reasoner` whose reasoning runs on the codex CLI backend (read-only sandbox); see §Implementation dispatch | — |
 | `fast-worker` | Mechanical implement-phase work with a clear spec — see §Implementation dispatch | — |
 | `codex-fast-worker` | Selected by `fast_worker_backend=codex` or an available `auto` candidate — a `fast-worker` whose edits run on the codex CLI backend; see §Implementation dispatch | — |
 | `agy-fast-worker` | Selected by `fast_worker_backend=agy` or an available `auto` candidate — a `fast-worker` whose edits run on the agy CLI backend; see §Implementation dispatch | — |
@@ -72,6 +73,8 @@ Agent names above are dhpk defaults; override via `userConfig.review_agents` per
 
 **Configured role models** (`deep-reasoner` / `fast-worker`): `session-start.sh` announces the effective `deep_reasoner_model` / `fast_worker_model` at session start only when they differ from the shipped default (opus / sonnet) — configured via the `deep_reasoner_model` / `fast_worker_model` / `orchestration_dispatch` `userConfig` keys in `.claude-plugin/plugin.json`. When announced, the orchestrator passes that value on the `Agent` call's `model` param for every dispatch of that role; frontmatter is never edited. An invalid configured value (not a model name the running Claude Code supports) triggers one warning per session and the dispatch falls back to the agent's frontmatter default — it never fails the dispatch. The judgment-based HIGH-risk escalation above still applies on top of a configured value and takes precedence for that single dispatch (e.g. a configured `fast_worker_model=haiku` may still be raised to sonnet/opus for one high-risk task). The two workers also carry effort keys (`deep_reasoner_effort` / `fast_worker_effort`), applied on the `Agent` call's `effort` param by the same announce-when-non-default mechanism; the cost rationale for both dials is in `${CLAUDE_PLUGIN_ROOT}/rules/model-economics.md`.
 
+**Deferred-tool trap**: `SendMessage`, `Monitor`, and their background-task peers (`TaskStop` / `TaskOutput`, whichever the session roster exposes) are deferred tools — their schemas are not sent to the API at session start, only their names. Call `ToolSearch` with `select:<name>` (e.g. `ToolSearch select:SendMessage,Monitor`) to load the schema BEFORE the first invocation, or the call fails with `InputValidationError` ("this tool's schema was not sent to the API") and burns a recovery turn. This bites hardest mid-orchestration — resuming a background agent with `SendMessage` or waiting on one with `Monitor` after only ever having used the eagerly-loaded tools.
+
 ## Implementation dispatch
 
 SSOT for implement-phase routing while `userConfig.orchestration_dispatch=on` (default). Downstream skills (`feature-dev`, `bug-fix`, `adaptive-dev-workflow`, `opsx-apply-goal`) reference this table — they do not restate it. Unattended goal sessions bind this section by reading this policy during their orientation step (the `opsx-apply-goal` orientation command resolves and reads this file); the emitted `/goal` condition carries only the compact roster line and the self-locating pointer, never these elaborations.
@@ -84,7 +87,8 @@ Each Bash tool call starts from its declared/default working directory; never as
 
 | Work shape | Dispatch |
 |---|---|
-| Reasoning-heavy (unknown root cause, algorithm design, cross-file complex analysis) | `deep-reasoner` |
+| Reasoning-heavy (unknown root cause, algorithm design, cross-file complex analysis) | `deep-reasoner` (Claude, default) |
+| The same reasoning-heavy work, offloaded to the codex CLI backend (read-only sandbox) — **codex CLI available**. Selected per invocation by `--reasoner=codex` or the `codex_deep_reasoner_model`/`codex_deep_reasoner_effort` userConfig chain (default `gpt-5.6-sol` @ `high`); same reasoning brief, same conclusion contract. Missing-executable fallback to `deep-reasoner` is the only silent substitution — auth/model/task failures stay `RESULT: BLOCKED`. | `codex-deep-reasoner` |
 | Mechanical with a clear spec (boilerplate, test scaffolds, rename sweeps, multi-file doc-consistency fixes of ≥3 files, applying an already-approved plan) | `fast-worker` |
 | The same mechanical clear-spec work, offloaded to the codex CLI backend — **codex CLI available**. Selected by an invocation override, explicit configuration, or as an available candidate in configured `auto` order; independent of the separate `CODEX` review-peer switch. | `codex-fast-worker` |
 | The same mechanical clear-spec work, offloaded to the agy CLI backend — **agy CLI available** only. Selected by explicit configuration or as an available candidate in configured `auto` order. | `agy-fast-worker` |
@@ -121,6 +125,19 @@ list. Worker-backend selection is independent of the `CODEX` review-peer switch:
 `CODEX=off` disables the `codex-bridge` doubt/review path, but does not remove an
 available `codex-fast-worker` backend. An explicit backend request is blocked only
 by selector availability/fallback rules, never silently downgraded.
+
+### Reasoner backend selector
+
+Reasoning-heavy dispatches default to the in-process `deep-reasoner` (Claude). The
+`/dhpk:do --reasoner=<claude|codex>[:<model>[:<effort>]]` flag (or its userConfig chain)
+picks the backend for that invocation: `claude` → `dhpk:deep-reasoner`; `codex` →
+`dhpk:codex-deep-reasoner` (codex CLI, read-only sandbox, default `gpt-5.6-sol` @ `high`).
+Both backends receive the **same** reasoning brief and return the **same** conclusion
+contract (conclusion + file:line evidence + fast-worker-ready next actions). `agy` has no
+reasoning tier and is unsupported. Model/effort resolve flag > backend-specific userConfig
+(`deep_reasoner_*` for claude; `codex_deep_reasoner_*` for codex) > built-in default. Only a
+missing codex executable falls back to `deep-reasoner`; authentication, model, and task
+failures remain `RESULT: BLOCKED` on the selected backend — never silently switched.
 
 **Orchestrator posture**: implement-phase work defaults to **decide → dispatch → verify**; inline work is the narrow exception. Measure the **whole implement-step footprint**, so multi-file doc-consistency work is one batch; when unsure between inline and a worker, dispatch. Verify runtime premises with the applicable E2E lane or a scratch executable probe. The orientation step binds unattended goals to this policy. Full routing, premise, verification, waiting, and plan-brief rules: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/implementation-dispatch.md`.
 
@@ -160,8 +177,7 @@ shape is canonicalized in `docs/contracts/reviewer-contract.md`.
 
 Trigger map source-of-truth: dhpk's `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/post-edit-dispatch.sh` (a 7-slot default: code, db, security, frontend, doc, polyfill, migration) plus any per-module post-edit hooks contributed by enabled modules. Each sentinel is cleared by the runtime hook `subagent-stop-verify.sh` when its reviewer stops successfully (the sanctioned path); the orchestrator uses `clear-sentinel.sh <name> <label>` only for a triage-drop or a stale-sentinel back-stop.
 
-<!-- mirrored in rules/execution-policy.md, skills/dhpk-execution-policy/references/review-gate-mechanics.md, skills/execution-checklist/SKILL.md — keep in sync -->
-`${CLAUDE_PLUGIN_ROOT}` is a markdown-interpolation token, not a shell variable: the orchestrator resolves it when reading this document, and it is unset inside a subagent's Bash environment. A subagent must never paste the literal `${CLAUDE_PLUGIN_ROOT}/...` into a Bash command — use the absolute path the orchestrator supplies, or, when `stop-review-reminder.sh` has printed an already-resolved command (stale sentinels only — that branch is gated on sentinel age), the command it printed. On a 127 / "No such file or directory" failure, escalate to the orchestrator for the resolved path; never recover by scanning the filesystem with `find / -iname`.
+A subagent must never paste the literal `${CLAUDE_PLUGIN_ROOT}/...` into a Bash command — it is a markdown-interpolation token, unset in a subagent's shell. Full caveat (SSOT): `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/review-gate-mechanics.md`.
 
 **Auto-clear + fallback**: a successful reviewer with a fresh matching artifact auto-clears only its own slot; absent fresh output stays armed. Exact fallback and fail-loud rules: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/review-gate-mechanics.md`.
 
@@ -183,6 +199,8 @@ Trigger map source-of-truth: dhpk's `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/post-ed
 ### Reviewer dispatch (when multiple sentinels coexist)
 
 For each contiguous implementation wave, dispatch each applicable reviewer once as **triage → ONE consolidated parallel reviewer batch → merge**; CRITICAL blocks, and pure research skips. Known findings receive at most one confirm-only re-review; new substantive scope starts a new review decision. A missing or invalid reviewer result gets one corrected retry, then replacement or a pending gate with a recorded reason. `codex-bridge` remains escalation-only and runs at most once per change. Full batching, reminder, retry, and escalation mechanics: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/review-gate-mechanics.md`.
+
+**Reviewer economy**: hold the review dispatch until the wave's edit batch is edit-complete — do not dispatch mid-batch and then re-review each micro-fix as its own round. Batch any post-confirm micro-edits together before a single confirm dispatch. A findings set that is LOW/WARNING-only (no BLOCK/CRITICAL/HIGH) may be closed on the fast-worker's own verification output plus a diff-scope recheck, without a dedicated confirm-only reviewer dispatch; reserve a re-review round for BLOCK/CRITICAL/HIGH findings. Split waves and confirm-only rounds are the dominant reviewer overspend — batching before dispatch is the primary lever.
 
 ### Hook lifecycle classes
 
@@ -269,6 +287,8 @@ Before skipping any sentinel / TDD / reviewer mandated step, load `${CLAUDE_PLUG
 `feat|fix|docs|refactor/*` → `develop` → `master` (or your equivalent branching model). Standard flow: feature branch → `/codex-review-fast` → `/precommit` → `/pr-review` → PR. dhpk does **not** auto `git add/commit/push/stash` — invoke `/smart-commit` or `/precommit`.
 
 **Shell trap**: this policy's shell is zsh, where `status` is a read-only variable — use `st=` / `rc=` for captured exit codes, never `status=`. Words beginning with `=` trigger zsh `=cmd` path expansion (an unquoted `==` yields `== not found`) — quote `=`-leading words. **PR self-merge is classifier-blocked** — never attempt `gh pr merge --admin` or remote branch deletion; hand off to a human.
+
+**PR-branch follow-up trap**: before pushing a follow-up commit to a branch that already has an open PR, check `gh pr view <branch> --json state,baseRefName` first — a concurrent session or a human may have merged (and deleted) it, orphaning the new commit onto a dead branch and forcing a second PR. For CI/run waits, prefer `gh run watch <run-id>` (or the harness completion-notification pattern) over hand-rolled `sleep`-poll loops over `gh run list` — the same "background waits use completion notifications, never bash polling" rule the anti-loop safety floor already assumes.
 
 ### Squash merge hygiene (recommended)
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# stop-js-batch-check.sh — JS module Stop hook (fired via stop-dispatch.sh).
+# stop-js-batch-check.sh — JS module Stop hook (fired via stop-advisory-dispatch.sh).
 #
 # Batches the JS/TS quality feedback that post-edit-js-lint.sh deferred: run
 # ESLint ONCE over every frontend file edited during this response, instead of
