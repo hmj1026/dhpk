@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.29.0 — 2026-07-23 — Rename fast-worker override to worker, support codex-deep-reasoner, and consolidate advisory hooks
+
+Rename the fast-worker override flag to worker, add support for the codex-deep-reasoner agent and backend selector, consult the architect agent during planning phase, and consolidate default-off advisory hooks.
+
 **BREAKING(do)** — Rename the `/dhpk:do` and `dhpk:opsx-apply-goal` mechanical-worker override flag from `--fast-worker=<claude|codex|agy|auto>` to `--worker=<claude|codex|agy|auto>`. The legacy `--fast-worker` spelling is **removed** outright with no alias — update any hard-coded goal strings or scripts. The preserved invocation context is renamed `FAST_WORKER_OVERRIDE` → `WORKER_OVERRIDE`. The `fast_worker_backend` userConfig key and the `scripts/fast-worker-selector.js` engine interface are unchanged.
 **feat(do)** — Add `--reasoner=<claude|codex>[:<model>[:<effort>]]` to `/dhpk:do` to pick the deep-reasoning backend (claude → `deep-reasoner`, codex → new `codex-deep-reasoner`, default `gpt-5.6-sol` @ `high`); `agy` unsupported.
 **feat(agents)** — Add `codex-deep-reasoner` agent (CLI-backed, read-only reasoning; conclusion contract) and `codex_deep_reasoner_model`/`codex_deep_reasoner_effort` userConfig keys.
