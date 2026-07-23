@@ -38,6 +38,7 @@ set -o pipefail
 . "$(dirname "$0")/_lib/load-project-config.sh"
 . "$(dirname "$0")/_lib/payload.sh"
 . "$(dirname "$0")/_lib/learning-db.sh"
+. "$(dirname "$0")/_lib/sentinel-clear-core.sh"
 . "$(dirname "$0")/_lib/json-out.sh"
 
 ROOT="$(dhpk_root)"
@@ -386,9 +387,9 @@ elif [ -f "$SENTINEL_FILE" ]; then
         # outlives the clear and re-escalates the next time these files change.
         if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] && [ -f "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" ]; then
             bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" "$SENTINEL_NAME" "subagent-stop-auto" >/dev/null 2>&1 \
-                || { rm -f "$SENTINEL_FILE"; dhpk_reset_review_backoff "$SESS" "$SENTINEL_NAME"; }
+                || { sentinel_remove_file "$SENTINEL_FILE"; dhpk_reset_review_backoff "$SESS" "$SENTINEL_NAME"; }
         else
-            rm -f "$SENTINEL_FILE"
+            sentinel_remove_file "$SENTINEL_FILE"
             dhpk_reset_review_backoff "$SESS" "$SENTINEL_NAME"
         fi
         if [ "$FRESH_VERDICT" = "1" ]; then

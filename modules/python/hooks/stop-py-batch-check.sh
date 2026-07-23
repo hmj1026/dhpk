@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# stop-py-batch-check.sh — Python module Stop hook (fired via stop-dispatch.sh).
+# stop-py-batch-check.sh — Python module Stop hook (fired via stop-advisory-dispatch.sh).
 #
 # Batches the ruff feedback that post-edit-python-lint.sh deferred: run ruff ONCE
 # over every .py file edited during this response, instead of once per edit.

@@ -33,7 +33,7 @@
 # sentinel basenames themselves stay in payload.sh SENTINEL_NAMES, the SSOT):
 #   DHPK_SIDECAR_UNRESOLVED_VERDICT    — subagent-stop-verify verdict escalation
 #   DHPK_SIDECAR_REVIEW_BACKOFF        — stop-review-reminder debounce stamp
-#   DHPK_SIDECAR_MODULE_FINDINGS       — post-edit-dispatch / stop-dispatch accumulator
+#   DHPK_SIDECAR_MODULE_FINDINGS       — post-edit-dispatch / stop-advisory-dispatch accumulator
 #   DHPK_SIDECAR_FAST_WORKER_ACTIVE    — shared fast-worker liveness marker
 
 DHPK_SIDECAR_UNRESOLVED_VERDICT=".unresolved-verdict"
