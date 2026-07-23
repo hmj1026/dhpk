@@ -62,39 +62,38 @@ test('opsx-load-context surfaces hard-rule escalations before routine resume not
   assert.ok(text.includes('blocking human decision'), 'missing blocking human decision wording');
 });
 
-test('CLAUDE_PLUGIN_ROOT guardrail paragraph stays synchronized across policy surfaces', () => {
-  const files = [
+test('CLAUDE_PLUGIN_ROOT guardrail caveat has one SSOT home with pointers elsewhere', () => {
+  // rules-ssot-dedup: the interpolation-token caveat was deduped. The full
+  // paragraph lives ONCE in review-gate-mechanics.md; execution-policy.md and
+  // execution-checklist/SKILL.md carry a one-line pointer to it instead, and the
+  // old keep-in-sync mirror markers are removed. Markers are literal fragments of
+  // the paragraph's first and last sentences.
+  const SSOT = 'skills/dhpk-execution-policy/references/review-gate-mechanics.md';
+  const pointers = [
     'rules/execution-policy.md',
-    'skills/dhpk-execution-policy/references/review-gate-mechanics.md',
     'skills/execution-checklist/SKILL.md',
   ];
-  // The paragraph is embedded mid-row in a table cell in SKILL.md, so it is
-  // extracted by span rather than by line. Both markers are literal fragments
-  // of the paragraph's first and last sentences: rewording either end means
-  // updating them here too, or the files report "missing paragraph" instead.
   const marker = '`${CLAUDE_PLUGIN_ROOT}` is a markdown-interpolation token';
   const endMarker = '`find / -iname`.';
-  const spans = files.map((rel) => {
+  const carriesFullParagraph = (rel) => {
     const text = read(rel);
     const start = text.indexOf(marker);
-    const end = start === -1 ? -1 : text.indexOf(endMarker, start);
-    const span = start >= 0 && end >= start
-      ? text.slice(start, end + endMarker.length)
-      : '';
-    assert.ok(span.length > 0, `${rel} missing CLAUDE_PLUGIN_ROOT guardrail paragraph`);
-    return { rel, span };
-  });
-  // Blame the odd one out, not a hardcoded canonical: the likeliest drift is
-  // someone editing the primary policy doc and forgetting the two mirrors, and
-  // treating that file as truth would name the wrong file in the failure.
-  const distinct = new Set(spans.map((s) => s.span));
-  if (distinct.size === 2) {
-    const odd = spans.find((s) => spans.filter((o) => o.span === s.span).length === 1);
-    assert.ok(false,
-      `${odd.rel} CLAUDE_PLUGIN_ROOT guardrail paragraph diverged from the other two copies — all of ${files.join(', ')} must stay byte-identical`);
+    return start >= 0 && text.indexOf(endMarker, start) >= start;
+  };
+  // The full paragraph must live in exactly one file — the SSOT.
+  const carriers = [SSOT, ...pointers].filter(carriesFullParagraph);
+  assert.deepStrictEqual(carriers, [SSOT],
+    `the full CLAUDE_PLUGIN_ROOT guardrail paragraph must live only in ${SSOT}, found in: ${carriers.join(', ') || 'none'}`);
+  // Each former mirror now points at the SSOT reference file.
+  for (const rel of pointers) {
+    assert.ok(read(rel).includes('review-gate-mechanics.md'),
+      `${rel} must point to the review-gate-mechanics.md SSOT for the CLAUDE_PLUGIN_ROOT caveat`);
   }
-  assert.strictEqual(distinct.size, 1,
-    `every CLAUDE_PLUGIN_ROOT guardrail copy differs from the others — all of ${files.join(', ')} must stay byte-identical`);
+  // The removed keep-in-sync mirror markers must not resurface.
+  for (const rel of [SSOT, ...pointers]) {
+    assert.ok(!read(rel).includes('— keep in sync -->'),
+      `${rel} must not carry the removed keep-in-sync mirror marker`);
+  }
 });
 
 run('policy-static-guardrails');
