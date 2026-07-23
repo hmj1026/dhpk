@@ -9,7 +9,7 @@
 #
 # Usage:
 #   analyze-change.sh <change-id> [--turns N] [--max-duration <Nm|Nh>] \
-#                     [--min-coverage N] [--codex] [--fast-worker=<backend>] \
+#                     [--min-coverage N] [--codex] [--worker=<backend>] \
 #                     [--smoke|--no-smoke] [--dry-run]
 #
 # Output: a `# schema=v1` block on stdout (KEY=VALUE, one per line). On a fatal
@@ -36,7 +36,7 @@ while [ "$#" -gt 0 ]; do
     --max-duration) MAX_DURATION="${2:-}"; shift 2 ;;
     --min-coverage) MIN_COVERAGE="${2:-}"; shift 2 ;;
     --codex)        CODEX="on";  shift ;;
-    --fast-worker=*) FAST_WORKER_OVERRIDE="${1#--fast-worker=}"; shift ;;
+    --worker=*) FAST_WORKER_OVERRIDE="${1#--worker=}"; shift ;;
     --smoke)        SAW_SMOKE="true";    shift ;;
     --no-smoke)     SAW_NO_SMOKE="true"; shift ;;
     --dry-run)      DRY_RUN="true";      shift ;;
@@ -144,4 +144,4 @@ echo "MIN_COVERAGE=${MIN_COVERAGE:-}"
 node "$(cd "$(dirname "$0")" && pwd)/goal-context.js" \
   "--tasks=$TASKS" \
   "--proposal=$PROPOSAL" \
-  "--fast-worker=$FAST_WORKER_OVERRIDE"
+  "--worker=$FAST_WORKER_OVERRIDE"

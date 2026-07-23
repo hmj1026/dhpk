@@ -22,7 +22,7 @@ unless a maintained document links to them as current guidance.
 
 ## Synchronization Rules
 
-1. Describe `--fast-worker=claude|codex|agy|auto`, its invocation precedence,
+1. Describe `--worker=claude|codex|agy|auto`, its invocation precedence,
    selector order/fallback, availability handling, and independence from the
    separate `CODEX` review switch.
 2. Document deterministic goal generation: the bounded task digest,

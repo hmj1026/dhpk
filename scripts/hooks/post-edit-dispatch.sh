@@ -40,7 +40,7 @@ core_exit=$?
 # stdout/stderr — those pipes close the instant we `exit "$core_exit"`, so the
 # child's lint findings were lost (and exit-0 stderr is inert anyway — see
 # _lib/json-out.sh). Instead each child appends to a per-session findings file;
-# stop-dispatch.sh surfaces + clears it via systemMessage at turn end. Findings
+# stop-advisory-dispatch.sh surfaces + clears it via systemMessage at turn end. Findings
 # written after this turn's Stop simply surface at the next Stop (advisory,
 # eventually-consistent). `disown` detaches the child so it survives our exit.
 if [ -n "${DHPK_ACTIVE_MODULES:-}" ]; then

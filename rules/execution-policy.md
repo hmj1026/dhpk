@@ -41,6 +41,7 @@ Agents run via the `Agent` tool (`subagent_type=<name>`), not via skill names.
 | `tdd-guide` | RED / test-first specialist; GREEN stays inline only within its ≤2-production-file bound | specialist |
 | `architect` | Cross-module or DDD-layer design | — |
 | `deep-reasoner` | Reasoning-heavy implement-phase work (root cause, algorithm design, complex debugging) — see §Implementation dispatch | — |
+| `codex-deep-reasoner` | Selected by `--reasoner=codex` — a `deep-reasoner` whose reasoning runs on the codex CLI backend (read-only sandbox); see §Implementation dispatch | — |
 | `fast-worker` | Mechanical implement-phase work with a clear spec — see §Implementation dispatch | — |
 | `codex-fast-worker` | Selected by `fast_worker_backend=codex` or an available `auto` candidate — a `fast-worker` whose edits run on the codex CLI backend; see §Implementation dispatch | — |
 | `agy-fast-worker` | Selected by `fast_worker_backend=agy` or an available `auto` candidate — a `fast-worker` whose edits run on the agy CLI backend; see §Implementation dispatch | — |
@@ -86,7 +87,8 @@ Each Bash tool call starts from its declared/default working directory; never as
 
 | Work shape | Dispatch |
 |---|---|
-| Reasoning-heavy (unknown root cause, algorithm design, cross-file complex analysis) | `deep-reasoner` |
+| Reasoning-heavy (unknown root cause, algorithm design, cross-file complex analysis) | `deep-reasoner` (Claude, default) |
+| The same reasoning-heavy work, offloaded to the codex CLI backend (read-only sandbox) — **codex CLI available**. Selected per invocation by `--reasoner=codex` or the `codex_deep_reasoner_model`/`codex_deep_reasoner_effort` userConfig chain (default `gpt-5.6-sol` @ `high`); same reasoning brief, same conclusion contract. Missing-executable fallback to `deep-reasoner` is the only silent substitution — auth/model/task failures stay `RESULT: BLOCKED`. | `codex-deep-reasoner` |
 | Mechanical with a clear spec (boilerplate, test scaffolds, rename sweeps, multi-file doc-consistency fixes of ≥3 files, applying an already-approved plan) | `fast-worker` |
 | The same mechanical clear-spec work, offloaded to the codex CLI backend — **codex CLI available**. Selected by an invocation override, explicit configuration, or as an available candidate in configured `auto` order; independent of the separate `CODEX` review-peer switch. | `codex-fast-worker` |
 | The same mechanical clear-spec work, offloaded to the agy CLI backend — **agy CLI available** only. Selected by explicit configuration or as an available candidate in configured `auto` order. | `agy-fast-worker` |
@@ -123,6 +125,19 @@ list. Worker-backend selection is independent of the `CODEX` review-peer switch:
 `CODEX=off` disables the `codex-bridge` doubt/review path, but does not remove an
 available `codex-fast-worker` backend. An explicit backend request is blocked only
 by selector availability/fallback rules, never silently downgraded.
+
+### Reasoner backend selector
+
+Reasoning-heavy dispatches default to the in-process `deep-reasoner` (Claude). The
+`/dhpk:do --reasoner=<claude|codex>[:<model>[:<effort>]]` flag (or its userConfig chain)
+picks the backend for that invocation: `claude` → `dhpk:deep-reasoner`; `codex` →
+`dhpk:codex-deep-reasoner` (codex CLI, read-only sandbox, default `gpt-5.6-sol` @ `high`).
+Both backends receive the **same** reasoning brief and return the **same** conclusion
+contract (conclusion + file:line evidence + fast-worker-ready next actions). `agy` has no
+reasoning tier and is unsupported. Model/effort resolve flag > backend-specific userConfig
+(`deep_reasoner_*` for claude; `codex_deep_reasoner_*` for codex) > built-in default. Only a
+missing codex executable falls back to `deep-reasoner`; authentication, model, and task
+failures remain `RESULT: BLOCKED` on the selected backend — never silently switched.
 
 **Orchestrator posture**: implement-phase work defaults to **decide → dispatch → verify**; inline work is the narrow exception. Measure the **whole implement-step footprint**, so multi-file doc-consistency work is one batch; when unsure between inline and a worker, dispatch. Verify runtime premises with the applicable E2E lane or a scratch executable probe. The orientation step binds unattended goals to this policy. Full routing, premise, verification, waiting, and plan-brief rules: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/implementation-dispatch.md`.
 
@@ -162,8 +177,7 @@ shape is canonicalized in `docs/contracts/reviewer-contract.md`.
 
 Trigger map source-of-truth: dhpk's `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/post-edit-dispatch.sh` (a 7-slot default: code, db, security, frontend, doc, polyfill, migration) plus any per-module post-edit hooks contributed by enabled modules. Each sentinel is cleared by the runtime hook `subagent-stop-verify.sh` when its reviewer stops successfully (the sanctioned path); the orchestrator uses `clear-sentinel.sh <name> <label>` only for a triage-drop or a stale-sentinel back-stop.
 
-<!-- mirrored in rules/execution-policy.md, skills/dhpk-execution-policy/references/review-gate-mechanics.md, skills/execution-checklist/SKILL.md — keep in sync -->
-`${CLAUDE_PLUGIN_ROOT}` is a markdown-interpolation token, not a shell variable: the orchestrator resolves it when reading this document, and it is unset inside a subagent's Bash environment. A subagent must never paste the literal `${CLAUDE_PLUGIN_ROOT}/...` into a Bash command — use the absolute path the orchestrator supplies, or, when `stop-review-reminder.sh` has printed an already-resolved command (stale sentinels only — that branch is gated on sentinel age), the command it printed. On a 127 / "No such file or directory" failure, escalate to the orchestrator for the resolved path; never recover by scanning the filesystem with `find / -iname`.
+A subagent must never paste the literal `${CLAUDE_PLUGIN_ROOT}/...` into a Bash command — it is a markdown-interpolation token, unset in a subagent's shell. Full caveat (SSOT): `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/review-gate-mechanics.md`.
 
 **Auto-clear + fallback**: a successful reviewer with a fresh matching artifact auto-clears only its own slot; absent fresh output stays armed. Exact fallback and fail-loud rules: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/review-gate-mechanics.md`.
 

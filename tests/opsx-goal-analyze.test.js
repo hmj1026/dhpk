@@ -30,7 +30,7 @@ function withEnv(values, callback) {
 }
 
 test('analyzer strips the invocation override and delegates deterministic context generation', () => {
-  assert.ok(analyzer.includes('--fast-worker=*'));
+  assert.ok(analyzer.includes('--worker=*'));
   assert.ok(analyzer.includes('goal-context.js'));
 });
 
@@ -50,7 +50,7 @@ test('invalid flag warns and falls back to configured resolution even when CODEX
   const cli = fakeCli('codex');
   try {
     const result = withEnv({ PATH: `${cli.bin}:/usr/bin:/bin`, CODEX: 'off', CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND: 'codex' }, () => context.buildContext({ tasks: '- [ ] backend\n', proposal: '', fastWorker: 'wat' }));
-    assert.ok(result.warning.includes('invalid --fast-worker value'));
+    assert.ok(result.warning.includes('invalid --worker value'));
     assert.strictEqual(result.fields.FAST_WORKER_SELECTED, 'codex');
   } finally { fs.rmSync(cli.root, { recursive: true, force: true }); }
 });

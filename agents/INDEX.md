@@ -1,6 +1,6 @@
 # Agents Index (dhpk plugin)
 
-> 31 agents shipped by the dhpk plugin (30 root-level + `polyfill-reviewer` under `modules/library-author/agents/`). Discovered as `dhpk:<name>` after install. The full list also appears in `plugin.json`.
+> 32 agents shipped by the dhpk plugin (31 root-level + `polyfill-reviewer` under `modules/library-author/agents/`). Discovered as `dhpk:<name>` after install. The full list also appears in `plugin.json`.
 
 ## Sentinel-driven reviewer dispatch (7-slot default, v0.10.0+)
 
@@ -28,6 +28,7 @@ Not sentinel-driven — dispatched during the implement phase per the `rules/exe
 | Agent | Model (default) | Role |
 |-------|-------|----------------|
 | [deep-reasoner](deep-reasoner.md) | opus | Read-only reasoning worker — root-cause analysis, algorithm design, complex debugging, design synthesis. Returns a conclusion contract (conclusion + `file:line` evidence + next actions); defers DDD/cross-module design to `architect` |
+| [codex-deep-reasoner](codex-deep-reasoner.md) | sonnet + codex CLI | **codex CLI available** — selector-resolved `deep-reasoner` backend via `--reasoner=codex` (default `gpt-5.6-sol` @ `high`, read-only sandbox via `skills/codex-bridge/scripts/run-codex.sh`); same read-only conclusion contract, never modifies the working tree; independent of the separate `CODEX` review-peer switch |
 | [fast-worker](fast-worker.md) | sonnet | Write-capable mechanical implementer — executes a precise task spec (files + change intent + verification command), surgical edits only, reports pass/fail + edited-file list, escalates on ambiguous specs |
 | [codex-fast-worker](codex-fast-worker.md) | sonnet + codex CLI | **codex CLI available** — selector-resolved `fast-worker` backend (default `gpt-5.6-luna` @ `xhigh`, via `skills/codex-bridge/scripts/run-codex.sh`); independent of the separate `CODEX` review-peer switch, with the same task-spec and verification/edited-file accounting contract |
 | [agy-fast-worker](agy-fast-worker.md) | sonnet + agy CLI | **agy CLI available** — a `fast-worker` whose edits run on the agy CLI backend (default `Gemini 3.5 Flash (High)`, via `skills/agy-fast-worker/scripts/run-agy.sh`); same task-spec contract + independent verification/edited-file accounting, opt-in alternative to the default `fast-worker` |
@@ -50,7 +51,7 @@ separate `codex-bridge` review/doubt path and is not a worker-selector prerequis
 
 | Agent | Model | When to invoke |
 |-------|-------|----------------|
-| [architect](architect.md) | opus | Cross-module design, DDD layering, tech-debt analysis |
+| [architect](architect.md) | fable | Cross-module design, DDD layering, tech-debt analysis (cheap consult tier; up-only escalation for HIGH-risk designs) |
 | [planner](planner.md) | opus | Plan consultant, opt-in via `/dhpk:do --plan`. Pre-implementation critique / blind-sketch / dual-plan (VERDICT: ENDORSE\|AMEND\|REPLACE) + post-implementation warm diff review (VERDICT: SHIP\|FIX-THEN-SHIP\|RECONSULT); coded findings by exception, VERDICT-first + `END`-trailing reply contract, bounded discovery (spawns `Explore` ≤2, ≤12 own reads). New capability: neither `architect` (DDD/cross-module design) nor `deep-reasoner` (implement-phase conclusion contract) carries a verdict/critique contract or a dual-role warm review. |
 | [refactor-cleaner](refactor-cleaner.md) | sonnet | Dead-code removal, dedup, splitting large files |
 | [ui-ux-verifier](ui-ux-verifier.md) | sonnet | UI vs spec audit, screenshot diffs |
@@ -91,9 +92,10 @@ separate `codex-bridge` review/doubt path and is not a worker-selector prerequis
 
 ## Models
 
-- **opus**: architect, spec-miner, deep-reasoner, planner (low-frequency, high-impact, deep reasoning)
-- **sonnet**: reviewers, tdd-guide, refactor, ui-ux, harness, fast-worker, codex-fast-worker, agy-fast-worker, codex-bridge (daily-driver; the CLI-backed workers run their edits on an external codex/agy backend)
+- **opus**: spec-miner, deep-reasoner, planner (low-frequency, high-impact, deep reasoning)
+- **sonnet**: reviewers, tdd-guide, refactor, ui-ux, harness, fast-worker, codex-fast-worker, agy-fast-worker, codex-deep-reasoner, codex-bridge (daily-driver; the CLI-backed workers run their work on an external codex/agy backend — `codex-deep-reasoner` reasons read-only on codex)
 - **haiku**: doc-updater, docs-lookup, doc-reviewer (high-frequency, templated, cost-first)
+- **fable**: architect (cheap architecture-consult tier; up-only escalation to a higher tier for HIGH-risk designs via the configured-role override)
 
 ## maxTurns (safety-net caps)
 

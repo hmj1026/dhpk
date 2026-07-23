@@ -8,7 +8,7 @@ provide `hooks/hooks.json` declaring the current wrapper-dispatch chain:
 - `PreToolUse` matchers: `Edit|Write|MultiEdit` → `pre-edit-guard.sh`; `Bash` → the pre-bash dispatcher/gates
 - `PostToolUse` matchers: `Edit|Write|MultiEdit` → `post-edit-dispatch.sh`, which runs `post-edit-remind.sh` synchronously before module hooks; independent async advisories remain separately wired
 - `SessionStart` → `session-start.sh`
-- `Stop` → the review reminder and stop-dispatch chain
+- `Stop` → the review reminder and stop-advisory-dispatch chain
 
 Each hook SHALL use structured command wiring: `command: "bash"` with
 `args: ["${CLAUDE_PLUGIN_ROOT}/scripts/hooks/<name>.sh"]`, so plugin-root paths

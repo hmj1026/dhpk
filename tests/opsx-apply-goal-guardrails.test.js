@@ -110,7 +110,7 @@ test('emitted Part 0 carries the compact directive inline survivors', () => {
 
 test('goal generator documents fast-worker override, task digest, and conditional e2e composition', () => {
   for (const phrase of [
-    '--fast-worker=<claude|codex|agy|auto>',
+    '--worker=<claude|codex|agy|auto>',
     'flag > userConfig > shipped default',
     'HAS_E2E',
     '200 UTF-8 bytes',
@@ -129,18 +129,18 @@ test('/dhpk:do carries fast-worker override through every implementation-class r
   }
   assert.ok(command.includes('forward the invocation override to every implementation-class route'));
   assert.ok(command.includes('downstream route MUST call the shared fast-worker backend selector'));
-  assert.ok(command.includes('FAST_WORKER_OVERRIDE=<actual value|unset>'),
+  assert.ok(command.includes('WORKER_OVERRIDE=<actual value|unset>'),
     'do command must preserve the actual override outside the cleaned query');
-  assert.ok(command.includes('Pass both the cleaned query and the named invocation context'),
+  assert.ok(command.includes('For implementation-class routes, also pass'),
     'do command must forward the value-bearing invocation context');
   const adaptive = fs.readFileSync(path.join(ROOT, 'skills', 'adaptive-dev-workflow', 'SKILL.md'), 'utf8');
-  assert.ok(adaptive.includes('FAST_WORKER_OVERRIDE'));
+  assert.ok(adaptive.includes('WORKER_OVERRIDE'));
   assert.ok(adaptive.includes('scripts/fast-worker-selector.js'));
-  assert.ok(adaptive.includes('--backend "$FAST_WORKER_OVERRIDE"'));
+  assert.ok(adaptive.includes('--backend "$WORKER_OVERRIDE"'));
   for (const skillName of ['bug-fix', 'feature-dev']) {
     const downstream = fs.readFileSync(path.join(ROOT, 'skills', skillName, 'SKILL.md'), 'utf8');
     assert.ok(downstream.includes('§Implementation dispatch'), `${skillName} must cite dispatch SSOT`);
-    assert.ok(!downstream.includes('--backend "$FAST_WORKER_OVERRIDE"'),
+    assert.ok(!downstream.includes('--backend "$WORKER_OVERRIDE"'),
       `${skillName} must not restate selector mechanics`);
   }
 });

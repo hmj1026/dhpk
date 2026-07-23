@@ -1,7 +1,7 @@
 'use strict';
 
 // stop-dispatch-audit.sh — the post-hoc fast-worker dispatch-mandate audit sourced
-// by stop-dispatch.sh. Covers issue #80: when orchestration_dispatch is on and a
+// by stop-advisory-dispatch.sh (Advisory 3). Covers issue #80: when orchestration_dispatch is on and a
 // session edited >=3 distinct source files inline (the pre-edit batch gate having
 // been overridden), Stop surfaces the violation instead of leaving it for a later
 // manual audit.
@@ -11,7 +11,7 @@ const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
 const { mkRepo, rmRepo, runHook, sessionsDir } = require('./_lib/hookharness');
 
-const HOOK = 'stop-dispatch.sh';
+const HOOK = 'stop-advisory-dispatch.sh';
 const SIG = 'should have been ONE fast-worker batch'; // stable substring of the advisory
 
 function writeCounter(repo, sessionId, files) {

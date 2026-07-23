@@ -24,6 +24,7 @@ SESS="$(dhpk_sessions_dir "$ROOT")"
 . "$(dirname "$0")/_lib/load-project-config.sh"
 . "$(dirname "$0")/_lib/payload.sh"
 . "$(dirname "$0")/_lib/learning-db.sh"
+. "$(dirname "$0")/_lib/sentinel-clear-core.sh"
 readonly KNOWN_SENTINELS=("${SENTINEL_NAMES[@]}")
 
 # Fail-loud front door (D3.2): a stale/partial reviewer payload that resolves to
@@ -41,12 +42,8 @@ fi
 if [ "$NAME" = "--all" ]; then
     cleared=0
     for s in "${KNOWN_SENTINELS[@]}"; do
-        f="$SESS/$s"
-        if [ -f "$f" ]; then
-            rm -f "$f"
-            dhpk_reset_review_backoff "$SESS" "$s"
-            echo "[$LABEL] sentinel cleared ($s)"
-            ldb_record success "review:$s" "$LABEL"
+        if [ -f "$SESS/$s" ]; then
+            sentinel_clear_present "$SESS" "$s" "$LABEL"
             cleared=$((cleared + 1))
         fi
     done
@@ -87,16 +84,13 @@ fi
 SENTINEL="$SESS/$NAME"
 
 if [ -f "$SENTINEL" ]; then
-    rm -f "$SENTINEL"
-    echo "[$LABEL] sentinel cleared ($NAME)"
-    ldb_record success "review:$NAME" "$LABEL"
+    sentinel_clear_present "$SESS" "$NAME" "$LABEL"
 else
     echo "[$LABEL] sentinel already clean ($NAME)"
+    # Unconditional reset: whether we removed the sentinel or found it already
+    # gone, this slot is now clean and its escalation rows are stale. Idempotent
+    # by design — re-running must not leave a counter behind.
+    dhpk_reset_review_backoff "$SESS" "$NAME"
 fi
-
-# Unconditional: whether we removed the sentinel or found it already gone, this
-# slot is now clean and its escalation rows are stale. Idempotent by design —
-# re-running must not leave a counter behind.
-dhpk_reset_review_backoff "$SESS" "$NAME"
 
 exit 0

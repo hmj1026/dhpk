@@ -21,6 +21,7 @@ set -o pipefail
 . "$(dirname "$0")/_lib/session-env.sh"
 . "$(dirname "$0")/_lib/payload.sh"
 . "$(dirname "$0")/_lib/portable-stat.sh"
+. "$(dirname "$0")/_lib/sentinel-clear-core.sh"
 
 # ---- Argument parsing (back-compatible: no args = 24h warn-only) ----
 threshold_minutes=$((24 * 60))   # default 1440 min = 24h
@@ -83,7 +84,10 @@ for name in "${SENTINEL_NAMES[@]}"; do
             thresh_disp="${threshold_minutes}min"
         fi
         if [ "$do_clear" -eq 1 ]; then
-            rm -f "$sentinel"
+            # Stale reap = GC, not a passed review: bare removal only, no backoff
+            # reset / ldb success (that would mask an unreviewed slot). Removal
+            # routes through the shared core so the rm has one implementation.
+            sentinel_remove_file "$sentinel"
             echo "[reap-sentinels] cleared STALE: $name (age ${age_disp} > threshold ${thresh_disp})" >&2
         else
             echo "[reap-sentinels] STALE: $name (age ${age_disp}, threshold ${thresh_disp})" >&2
@@ -160,7 +164,7 @@ if [ -d "$sessions_dir" ]; then
             thresh_disp="${threshold_minutes}min"
         fi
         if [ "$do_clear" -eq 1 ] && [ "$age" -gt "$threshold" ]; then
-            rm -f "$stray"
+            sentinel_remove_file "$stray"
             echo "[reap-sentinels] cleared UNKNOWN stray: $base (age ${age_disp} > threshold ${thresh_disp}; not in dhpk SSOT)" >&2
         else
             echo "[reap-sentinels] UNKNOWN sentinel: $base (age ${age_disp}) — not in dhpk SSOT; no agent will clear it." >&2
