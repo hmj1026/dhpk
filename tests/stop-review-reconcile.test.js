@@ -99,4 +99,25 @@ test('a stale review doc that predates the sentinel does NOT clear it', () => {
   }
 });
 
+test('a fresh review doc with NO active marker (foreign session) does NOT clear the sentinel', () => {
+  const repo = mkRepo({ gitConfig: true });
+  try {
+    const { sentinel, active } = scaffold(repo, { withFreshDoc: true });
+    // Simulate the concurrent-session case: this session never dispatched the
+    // reviewer, so no active-liveness marker exists — but a foreign session's
+    // fresh, non-session-scoped doc-reviewer artifact is present in the shared
+    // reviews dir. The sweep must NOT clear a gate this session didn't satisfy.
+    fs.rmSync(active);
+    const res = runHook(HOOK, {
+      projectDir: repo,
+      payload: { session_id: 'reconcile-foreign', stop_hook_active: false },
+    });
+    assert.ok(!/\[stop-reconcile\]/.test(res.stderr),
+      `must not reconcile a slot with no active marker (foreign artifact):\n${res.stderr}`);
+    assert.ok(fs.existsSync(sentinel), 'sentinel must stay armed when this session never dispatched the reviewer');
+  } finally {
+    rmRepo(repo);
+  }
+});
+
 run('stop-review-reconcile');

@@ -70,6 +70,15 @@ dhpk_stop_review_reconcile() {
         name="${SENTINEL_NAMES[$i]}"
         sentinel="$sess/$name"
         [ -f "$sentinel" ] || continue
+        # Scope to THIS session: only reconcile a slot for which an active-liveness
+        # marker exists — proof this session actually dispatched that reviewer (the
+        # PreToolUse arm-on-dispatch mark, which for a background dispatch lingers
+        # precisely because SubagentStop never fired). The review-doc glob below is
+        # NOT session-scoped, so without this gate a concurrent session's fresh
+        # doc-reviewer review doc (dhpk sessions share the artifacts dir) could
+        # false-clear a gate this session's reviewer never satisfied.
+        active="$sess/$(dhpk_active_marker "$name")"
+        [ -f "$active" ] || continue
         agent_bare="${SENTINEL_AGENTS[$i]##*:}"
         _reconcile_fresh_doc "$root" "$agent_bare" "$sentinel" || continue
         # Fresh review doc exists but SubagentStop never cleared it — clear via SSOT.
