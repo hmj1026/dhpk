@@ -17,11 +17,40 @@ function truncateUtf8(text, maxBytes) {
   return result;
 }
 
+const TASK_DIGEST_MAX_BYTES = 200;
+// Reserve headroom for the " …(+N more)" trim marker so the packed digest plus
+// marker never exceeds the byte budget (N is small — task counts are two-digit).
+const TASK_DIGEST_MARKER_RESERVE = 16;
+
+// Join task titles into a digest that stays within the byte budget WITHOUT
+// cutting a title mid-word. The prior implementation hard-truncated the joined
+// string at 200 bytes, which sheared the first task's instruction mid-sentence
+// (issue #81 — a silent spec-loss risk for unattended goal sessions). Instead
+// we pack whole titles and, when they overflow, append an explicit "…(+N more)"
+// trim report so the truncation is visible and boundary-aligned.
 function taskDigest(tasks) {
   const titles = tasks.split(/\r?\n/)
     .filter((line) => /^- \[ \] /.test(line))
     .map((line) => line.replace(/^- \[ \] /, '').trim());
-  return truncateUtf8(titles.join('; '), 200);
+
+  const full = titles.join('; ');
+  if (Buffer.byteLength(full, 'utf8') <= TASK_DIGEST_MAX_BYTES) return full;
+
+  const kept = [];
+  for (const title of titles) {
+    const candidate = kept.concat(title).join('; ');
+    if (Buffer.byteLength(candidate, 'utf8') > TASK_DIGEST_MAX_BYTES - TASK_DIGEST_MARKER_RESERVE) break;
+    kept.push(title);
+  }
+
+  // A single leading title already blows the budget — truncate just that one
+  // (leaving room for the ellipsis) rather than emit an empty digest.
+  if (kept.length === 0) {
+    return `${truncateUtf8(titles[0], TASK_DIGEST_MAX_BYTES - 3)}…`;
+  }
+
+  const dropped = titles.length - kept.length;
+  return `${kept.join('; ')} …(+${dropped} more)`;
 }
 
 function detectE2e(tasks, proposal) {

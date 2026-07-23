@@ -531,6 +531,8 @@ printf '%s' "$_advisory_payload" | (
     . "$PLUGIN_ROOT/scripts/hooks/_lib/load-project-config.sh" 2>/dev/null || true
     . "$PLUGIN_ROOT/scripts/hooks/_lib/json-out.sh" 2>/dev/null || true
     . "$PLUGIN_ROOT/scripts/hooks/_lib/modules.sh" 2>/dev/null || true
+    . "$PLUGIN_ROOT/scripts/hooks/_lib/payload.sh" 2>/dev/null || true
+    . "$PLUGIN_ROOT/scripts/hooks/_lib/stop-dispatch-audit.sh" 2>/dev/null || true
 
     : "${DHPK_ACTIVE_MODULES:=$(dhpk_config_modules)}"
 
@@ -547,6 +549,13 @@ printf '%s' "$_advisory_payload" | (
             done
         done < <(active_modules_list)
     fi
+
+    # Issue #80: fold the post-hoc dispatch-mandate audit into the same findings
+    # surface, so a session that edited >=3 files inline under orchestration_dispatch
+    # with no fast-worker batch is flagged at turn end (not only in a later audit).
+    mkdir -p "$SESS" 2>/dev/null || true
+    _dispatch_audit="$(dhpk_stop_dispatch_audit "$SESS" "$(extract_top_field session_id "$payload")" 2>/dev/null || true)"
+    [ -n "$_dispatch_audit" ] && printf '%s\n' "$_dispatch_audit" >> "$FINDINGS"
 
     # Surface the consolidated module findings (per-file lint from
     # post-edit-dispatch.sh + batch checks above) once, then clear.

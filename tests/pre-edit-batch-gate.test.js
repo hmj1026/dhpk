@@ -41,19 +41,38 @@ test('fourth distinct file remains advisory outside dispatch mode', () => {
   } finally { rmRepo(repo); }
 });
 
-test('explicit acceptance and live fast-worker marker bypass without advancing count', () => {
+test('a live fast-worker marker bypasses the gate WITHOUT counting', () => {
   const repo = mkRepo({ prefix: 'dhpk-edit-batch-' });
   try {
     const env = { DHPK_ORCHESTRATION_DISPATCH: 'on' };
-    for (const name of ['a', 'b', 'c']) edit(repo, `src/${name}.js`, { env });
-    assert.strictEqual(edit(repo, 'src/inline.js', { env: { ...env, DHPK_INLINE_BATCH_OK: '1' } }).status, 0);
+    const counter = path.join(sessionsDir(repo), '.edit-batch-batch.files');
     fs.mkdirSync(sessionsDir(repo), { recursive: true });
     const active = path.join(sessionsDir(repo), '.active-fast-worker');
     fs.writeFileSync(active, `${Math.floor(Date.now() / 1000)} fast-worker pid=1\n`);
     assert.strictEqual(edit(repo, 'src/worker.js', { env }).status, 0);
     fs.rmSync(active);
-    assert.strictEqual(edit(repo, 'src/d.js', { env }).status, 2,
-      'bypassed edits must not enter the distinct-file counter');
+    assert.ok(!fs.existsSync(counter) || !fs.readFileSync(counter, 'utf8').includes('src/worker.js'),
+      'an edit made while a fast-worker is live must not enter the distinct-file counter');
+  } finally { rmRepo(repo); }
+});
+
+// Issue #80 regression (warm-review MUST-FIX): DHPK_INLINE_BATCH_OK suppresses
+// the WARN/block but the file MUST still be recorded, or the Stop-time dispatch
+// audit stays silent for exactly the session-wide-override case it targets.
+test('explicit acceptance suppresses the block but STILL counts for the dispatch audit', () => {
+  const repo = mkRepo({ prefix: 'dhpk-edit-batch-' });
+  try {
+    const env = { DHPK_ORCHESTRATION_DISPATCH: 'on', DHPK_INLINE_BATCH_OK: '1' };
+    const counter = path.join(sessionsDir(repo), '.edit-batch-batch.files');
+    for (const name of ['a', 'b', 'c', 'd']) {
+      assert.strictEqual(edit(repo, `src/${name}.js`, { env }).status, 0,
+        'override must never block, regardless of count');
+    }
+    const files = fs.readFileSync(counter, 'utf8');
+    for (const name of ['a', 'b', 'c', 'd']) {
+      assert.ok(files.includes(`src/${name}.js`),
+        `override-edited src/${name}.js must still be counted so the #80 audit can flag it`);
+    }
   } finally { rmRepo(repo); }
 });
 

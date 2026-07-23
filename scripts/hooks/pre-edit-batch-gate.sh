@@ -12,7 +12,12 @@ batch_gate_main() {
     payload="$(dhpk_read_payload)"
     file_path="$(extract_tool_input file_path "$payload")"
     [ -n "$file_path" ] || return 0
-    [ "${DHPK_INLINE_BATCH_OK:-0}" = "1" ] && return 0
+    # NOTE: DHPK_INLINE_BATCH_OK is checked LATER (just before the WARN/block),
+    # not here — the override must suppress the advisory/block, but the distinct-
+    # file counter below MUST still accumulate so the Stop-time dispatch audit
+    # (_lib/stop-dispatch-audit.sh, issue #80) can flag an override that grinds
+    # inline edits with no fast-worker batch. Returning here left that counter
+    # empty, silencing the audit for exactly the override case it targets.
 
     root="$(dhpk_root)"
     case "$file_path" in
@@ -49,6 +54,10 @@ batch_gate_main() {
     fi
     count="$(awk 'NF {seen[$0]=1} END {for (x in seen) n++; print n+0}' "$counter" 2>/dev/null)" || return 0
     case "$count" in ''|*[!0-9]*) return 0 ;; esac
+
+    # The override suppresses only the advisory/block — the counter above has
+    # already recorded this file for the Stop-time audit.
+    [ "${DHPK_INLINE_BATCH_OK:-0}" = "1" ] && return 0
 
     if [ "$count" -eq 3 ]; then
         echo "[edit-batch-gate] WARN: 3-file inline batch threshold reached; dispatch ≥3-file mechanical work as one fast-worker batch." >&2

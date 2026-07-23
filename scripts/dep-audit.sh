@@ -50,18 +50,32 @@ SUMMARY_FILE="$TMP_DIR/summary.txt"
 # 執行審計
 echo "[INFO] Running $PM audit..." >&2
 
+# Bound the audit so a registry stall can never wedge the wrapper: npm/yarn/pnpm
+# `audit` reach the network, and with no connectivity (CI runners, offline dev)
+# they can block indefinitely. `timeout` caps the call; on a timeout the audit
+# file stays empty and is parsed as zero findings, so the wrapper still reports
+# the package manager and exits cleanly. Override the cap with DEP_AUDIT_TIMEOUT.
+AUDIT_TIMEOUT="${DEP_AUDIT_TIMEOUT:-120}"
+run_audit() {  # "$@" = the audit command + args
+  if command -v timeout >/dev/null 2>&1; then
+    timeout "$AUDIT_TIMEOUT" "$@"
+  else
+    "$@"
+  fi
+}
+
 set +e
 case "$PM" in
   yarn)
-    yarn audit --json > "$AUDIT_FILE" 2>/dev/null
+    run_audit yarn audit --json > "$AUDIT_FILE" 2>/dev/null
     AUDIT_EXIT=$?
     ;;
   pnpm)
-    pnpm audit --json > "$AUDIT_FILE" 2>/dev/null
+    run_audit pnpm audit --json > "$AUDIT_FILE" 2>/dev/null
     AUDIT_EXIT=$?
     ;;
   *)
-    npm audit --json > "$AUDIT_FILE" 2>/dev/null
+    run_audit npm audit --json > "$AUDIT_FILE" 2>/dev/null
     AUDIT_EXIT=$?
     ;;
 esac

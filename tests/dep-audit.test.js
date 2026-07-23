@@ -21,7 +21,12 @@ function mkTmp() {
 }
 
 function runScript(cwd, args) {
-  const env = { ...process.env, NPM_CONFIG_OFFLINE: 'true' };
+  // DEP_AUDIT_TIMEOUT bounds the network audit call so the wrapper is exercised
+  // deterministically whether or not a package-manager binary is installed: with
+  // yarn present (CI) `yarn audit` reaches the registry and can hang, which used
+  // to kill this via the 15s spawn timeout (status=null). A low cap keeps the
+  // fixture audit well under that ceiling.
+  const env = { ...process.env, NPM_CONFIG_OFFLINE: 'true', DEP_AUDIT_TIMEOUT: '5' };
   return spawnSync('bash', [SCRIPT, ...(args || [])], { cwd, env, encoding: 'utf8', timeout: 15000 });
 }
 

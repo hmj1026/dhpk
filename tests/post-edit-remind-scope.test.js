@@ -276,4 +276,34 @@ test('fix round: per-edit checkbox-flip path suppresses arming but does NOT eras
   }
 });
 
+// Issue #79: a slot triage-dropped repeatedly in one session is a recurring
+// false-positive (a mis-scoped trigger) — the 2nd drop must surface a NOTE
+// instead of silently re-dropping, so the operator files a bug rather than
+// triage-dropping the same slot 4× as in session 82bfa020.
+test('a slot triage-dropped 2x in one session emits a recurring-false-positive NOTE', () => {
+  const repo = mkTempRepo();
+  try {
+    const rel = 'src/AuthHelper.php';
+    const filePath = path.join(repo, rel);
+    writeFile(repo, rel, '<?php\nclass AuthHelper {\n  public function x() { return 1; }\n}\n');
+    gitCommitAll(repo, 'seed AuthHelper');
+
+    // Edit 1: comment-only → drops the security slot (count 1, no NOTE yet).
+    writeFile(repo, rel, '<?php\nclass AuthHelper {\n  // note one\n  public function x() { return 1; }\n}\n');
+    let res = runHook(repo, { tool_input: { file_path: filePath } });
+    assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
+    assert.ok(/triage-drop sec/.test(res.stdout), `expected a sec triage-drop, got:\n${res.stdout}`);
+    assert.ok(!/triage-dropped 2x/.test(res.stdout), `NOTE fired on the first drop:\n${res.stdout}`);
+
+    // Edit 2: still comment-only → drops sec again (count 2 → recurring NOTE).
+    writeFile(repo, rel, '<?php\nclass AuthHelper {\n  // note one\n  // note two\n  public function x() { return 1; }\n}\n');
+    res = runHook(repo, { tool_input: { file_path: filePath } });
+    assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
+    assert.ok(/'sec' triage-dropped 2x this session/.test(res.stdout),
+      `expected the recurring-false-positive NOTE, got:\n${res.stdout}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
 run('post-edit-remind-scope');
