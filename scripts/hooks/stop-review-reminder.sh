@@ -27,6 +27,7 @@ ROOT="$(dhpk_root)"
 # at source-time to populate SENTINEL_AGENTS.
 . "$(dirname "$0")/_lib/load-project-config.sh"
 . "$(dirname "$0")/_lib/payload.sh"
+. "$(dirname "$0")/_lib/stop-review-reconcile.sh"
 
 PROFILE="$(dhpk_config_profile)"
 
@@ -221,6 +222,12 @@ check_one() {
     echo >&2 "-----------------------------------------------------------"
     FOUND=1
 }
+
+# Issue #76/#77: before scanning, reconcile slots whose reviewer finished (wrote
+# a fresh review doc) but whose SubagentStop never fired (background dispatch) —
+# clear the sentinel and expire the stale active marker so the scan below neither
+# re-reminds a satisfied gate nor reports a phantom IN-FLIGHT dispatch.
+dhpk_stop_review_reconcile
 
 for i in "${!SENTINEL_NAMES[@]}"; do
     check_one "${SENTINEL_NAMES[$i]}" "${SENTINEL_AGENTS[$i]}"
