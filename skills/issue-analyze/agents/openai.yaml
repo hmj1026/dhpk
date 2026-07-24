@@ -1,0 +1,4 @@
+interface:
+  display_name: "Issue Analyze"
+  short_description: "GitHub Issue and PR review thread deep analysis with Codex"
+  default_prompt: "Use $issue-analyze to apply the Issue Analyze workflow with its verification rules."

@@ -1,6 +1,6 @@
 ---
 name: laravel-11-notes
-description: Laravel 11.x (March 2024) signature features and the (significant) breaking-change traps from 10 → 11. Use when writing or reviewing code in a Laravel 11 project, or in a package whose composer constraint includes ^11.0. Covers the streamlined app structure (bootstrap/app.php replaces three Kernel/Handler files), the Model casts() method that replaces $casts property, per-second rate limiting, the /up health endpoint, SQLite-as-default, Sanctum 4, and the array-style middleware exception handling. Not for application business logic — load when touching bootstrap/app.php, middleware, casts, or rate limiting, or planning a 10 → 11 upgrade.
+description: Laravel 11.x (March 2024) signature features and the (significant) breaking-change traps from 10 → 11. Use when writing or reviewing code in a Laravel 11 project, or in a package whose composer constraint includes ^11.0. Covers the streamlined app structure (bootstrap/app.php replaces three Kernel/Handler files), the Model casts() method that replaces $casts property, per-second rate limiting, the /up health endpoint, SQLite-as-default, Sanctum 4, and the array-style middleware exception handling. Not for application business logic — load when touching bootstrap/app.php, middleware, casts, or rate limiting, or planning a 10 → 11 upgrade. Output: version-specific guidance, migration traps, and verification gates.
 ---
 
 # Laravel 11 — streamlined structure, casts() method, /up

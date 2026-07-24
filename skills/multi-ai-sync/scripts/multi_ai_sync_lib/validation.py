@@ -3,6 +3,13 @@
 import glob
 import os
 
+from .agent_sync import (
+    CLAUDE_PARITY_COVERAGE_KEYWORDS,
+    CODEX_NATIVE_AGENTS,
+    SYNC_MANIFEST_PATH,
+    claude_parity_roles,
+    load_agent_sync_manifest,
+)
 from .constants import CHECK_FAIL, CHECK_PASS, CHECK_SKIP
 from .sources import gemini_hook_surface_enabled
 from .utils import has_any_files, now_iso, parse_json_ok, parse_toml_like_ok, read_text, relpath, safe_exists
@@ -88,8 +95,7 @@ def validate_claude(repo_root):
 
 
 def check_codex_agent_role_fields(agents_dir):
-    """Return a list of failure strings for any *.toml role file in agents_dir
-    missing a non-empty name / description / developer_instructions."""
+    """Return failures for role files missing required runtime fields."""
     if not os.path.isdir(agents_dir):
         return []
 
@@ -260,30 +266,68 @@ def run_policy_checks(repo_root):
                        "message": "php-pro SKILL.md 缺少 PHP 5.6 profile override: %s" % ", ".join(profile_issues)})
 
     # --- 5.3 Agent parity checks ---
-    parity_agents = {
-        "tdd-guide-<your-project>": ["PHPUnit 5.7", "strcasecmp", "assertInternalType"],
-        "code-reviewer-<your-project>": ["Yii 1.1", "PHP 5.6"],
-        "database-reviewer-<your-project>": ["queryRow", "PDO", "MySQL 5.7"],
-        "security-reviewer-<your-project>": ["accessRules", "CSRF", "Yii"],
-        "bug-investigator": ["root cause", "data-flow"],
-    }
-    parity_issues = []
-    for agent_name, keywords in parity_agents.items():
-        toml_path = os.path.join(repo_root, ".codex", "agents", "%s.toml" % agent_name)
+    parity_roles = claude_parity_roles(repo_root)
+    manifest = load_agent_sync_manifest(repo_root)
+    manifest_issues = []
+    coverage_issues = []
+
+    if not manifest:
+        manifest_issues.append("找不到 %s" % SYNC_MANIFEST_PATH)
+        manifest_roles = {}
+    else:
+        manifest_roles = {}
+        for entry in manifest.get("roles", []):
+            source_agent = entry.get("source_agent", "")
+            role = os.path.splitext(os.path.basename(source_agent))[0]
+            if role:
+                manifest_roles[role] = entry
+
+    for role in parity_roles:
+        toml_path = os.path.join(repo_root, ".codex", "agents", "%s.toml" % role)
         if not safe_exists(toml_path):
-            parity_issues.append("%s.toml 不存在" % agent_name)
+            coverage_issues.append("%s.toml 不存在" % role)
             continue
+
+        entry = manifest_roles.get(role)
+        if not entry:
+            manifest_issues.append("%s 缺少 manifest entry" % role)
+            continue
+
+        mirror_md = entry.get("mirror_md")
+        if not mirror_md or not safe_exists(os.path.join(repo_root, mirror_md)):
+            manifest_issues.append("%s mirror_md 缺失或不存在" % role)
+
+        for ref in entry.get("mirrored_refs", []):
+            if not safe_exists(os.path.join(repo_root, ref)):
+                manifest_issues.append("%s mirrored ref 不存在: %s" % (role, ref))
+
+        if "nonportable_sources" not in entry:
+            manifest_issues.append("%s 缺少 nonportable_sources 欄位" % role)
+
+        keywords = entry.get("coverage_keywords") or CLAUDE_PARITY_COVERAGE_KEYWORDS.get(role, [])
         content = read_text(toml_path)
         missing = [kw for kw in keywords if kw not in content]
         if missing:
-            parity_issues.append("%s 缺少關鍵字: %s" % (agent_name, ", ".join(missing)))
+            coverage_issues.append("%s 缺少關鍵字: %s" % (role, ", ".join(missing)))
+        if "This file is self-contained" not in content:
+            coverage_issues.append("%s 未標記 self-contained runtime contract" % role)
 
-    if not parity_issues:
-        checks.append({"id": "parity.agents", "level": "warn", "status": CHECK_PASS,
-                       "message": "Codex agents 關鍵約束覆蓋完整。"})
+    if manifest_issues:
+        checks.append({"id": "parity.agents.manifest", "level": "fail", "status": CHECK_FAIL,
+                       "message": "Agent parity manifest 不完整: %s" % "; ".join(manifest_issues)})
     else:
-        checks.append({"id": "parity.agents", "level": "warn", "status": CHECK_FAIL,
-                       "message": "Agent parity 不完整: %s" % "; ".join(parity_issues)})
+        checks.append({"id": "parity.agents.manifest", "level": "fail", "status": CHECK_PASS,
+                       "message": "Claude parity manifest 與 mirrored references 完整。"})
+
+    if coverage_issues:
+        checks.append({"id": "parity.agents.coverage", "level": "fail", "status": CHECK_FAIL,
+                       "message": "Agent self-contained coverage 不完整: %s" % "; ".join(coverage_issues)})
+    else:
+        checks.append({"id": "parity.agents.coverage", "level": "fail", "status": CHECK_PASS,
+                       "message": "Claude parity agents 均通過 self-contained coverage 檢查。"})
+
+    checks.append({"id": "parity.agents.codex_native", "level": "info", "status": CHECK_PASS,
+                   "message": "Codex-native agents 已排除於 Claude parity: %s" % ", ".join(CODEX_NATIVE_AGENTS)})
 
     return checks
 

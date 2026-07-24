@@ -1,0 +1,4 @@
+interface:
+  display_name: "React 19 Notes"
+  short_description: "React 19 (December 2024) signature features and the"
+  default_prompt: "Use $react-19-notes to apply the React 19 Notes workflow with its verification rules."

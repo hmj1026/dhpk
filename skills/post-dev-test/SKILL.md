@@ -6,10 +6,6 @@ allowed-tools: 'Read, Grep, Glob, Write, Bash'
 
 # Post-Dev Test Skill
 
-## Trigger
-
-- Keywords: add tests, integration test, e2e test, test coverage, post dev test
-
 ## When to Use
 
 - After completing feature development, before /precommit

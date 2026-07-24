@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gitnexus Impact Analysis"
+  short_description: "Assess the blast radius of a code change via the GitNexus graph."
+  default_prompt: "Use $gitnexus-impact-analysis to apply the Gitnexus Impact Analysis workflow with its verification rules."

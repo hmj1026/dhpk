@@ -1,0 +1,4 @@
+interface:
+  display_name: "Harness Revise"
+  short_description: "Trim and validate the project harness (.claude/, .gemini/, or"
+  default_prompt: "Use $harness-revise to apply the Harness Revise workflow with its verification rules."

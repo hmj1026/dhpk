@@ -1,0 +1,4 @@
+interface:
+  display_name: "Pytest Async"
+  short_description: "Async pytest + pytest-asyncio testing: asynciomode=auto, SQLite"
+  default_prompt: "Use $pytest-async to apply the Pytest Async workflow with its verification rules."

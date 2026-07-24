@@ -1,13 +1,63 @@
-# opsx-apply-goal — Step 7 emit catalog (Block C NOTES, hard-stop notice, monitor)
+# opsx-apply-goal — Output contract (Blocks A–C/C2)
 
-Used by Step 7 of the `opsx-apply-goal` skill. SKILL.md keeps the Block A box
-skeleton and the Block B `/goal` framing inline (they are the core emit
-contract); this file holds the longer literal bodies: the Block C NOTES catalog,
-the hard-stop notice, and the Block C2 monitor snippet. Print these verbatim.
+Used by the Output section of the `opsx-apply-goal` skill. This file holds the
+complete Block A, B, C, and C2 output contract, including the blocked branch.
+Read it after Steps 1–4 resolve the placeholders, then print the applicable
+blocks verbatim.
 
 ---
 
-## Block C — Reminders (NOTES)
+## Block A — Analysis summary
+
+```
+╔══════════════════════════════════════════════════════════════╗
+║  opsx-apply-goal: <CHANGE_ID>
+╠══════════════════════════════════════════════════════════════╣
+║  Tasks       : <DONE_TASKS>/<TOTAL_TASKS> done, <OPEN_TASKS> open
+║  Test runners: <detected runners, or "none detected">
+║  Coverage    : <enforced threshold <T> (config | --min-coverage) | not enforced (pass --min-coverage N) | not enforced (no test runner) | --min-coverage ignored (no test runner)>
+║  Smoke gate  : <on (signal) | on (--smoke) | off (--no-smoke) | off (no strong signal, hint emitted)>
+║  Sentinels   : universal check (all 7 slots, self-calibrating)
+║  Turn budget : <TURN_BUDGET>  (formula: <OPEN_TASKS> × 4 + 20, cap 20–120)
+║  Manual tasks: <N skipped, or "none">
+║  Goal length : <GOAL_LENGTH>/4000 UTF-8 bytes  <full | ⚠ BLOCKED>
+╚══════════════════════════════════════════════════════════════╝
+```
+
+The `Goal length` row reflects `GOAL_MODE` from Step 4. If `HAS_SKIP_TASKS=true`,
+append after the box a warning listing the `SKIP_TASKS[]` (truncated to 72 chars
+each) and the instruction to mark them `[x]` manually after out-of-band
+verification before the session ends.
+
+If `GOAL_MODE = blocked`, stop here — do **not** print Block B, C, or C2. Print
+the hard-stop notice below and end.
+
+Otherwise (`full`) continue with Block B.
+
+## Block B — Session setup
+
+```
+━━━ STEP 1 — Open a new implementation session ━━━━━━━━━━━━━━━
+/new
+
+━━━ STEP 2 — Set the goal AND start implementation (single paste) ━━
+```
+
+Print the composed `GOAL_CONDITION` in a fenced block. This one paste both sets
+the stop condition and starts implementation — `GOAL_CONDITION` already opens
+with the Part 0 kickoff sentence, so there is nothing further to paste after it:
+
+```
+/goal <GOAL_CONDITION>
+```
+
+## Block C / C2 — Reminders and monitor
+
+Print the Block C NOTES catalog and the Block C2 read-only monitor snippet below
+verbatim. Append the coverage-off NOTES line when
+`HAS_COVERAGE=false` AND `MIN_COVERAGE` is unset AND `HAS_TEST=true`.
+
+### Block C — Reminders (NOTES)
 
 ```
 ━━━ NOTES ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -49,7 +99,7 @@ the hard-stop notice, and the Block C2 monitor snippet. Print these verbatim.
   suppresses), so it never deadlocks a non-drivable repo (plugin/library repos
   with no running system)
 • Goal length capped at 4,000 UTF-8 bytes (the unit `wc -c` measures; Claude
-  Code's practical /goal paste limit, see Step 6b): the normal target is 3,400
+  Code's practical /goal paste limit, see Step 4): the normal target is 3,400
   bytes — check the Block A "Goal length" row; a measurement over the cap is a
   should-never-fire template regression: no /goal is emitted and Block A's
   hard-stop notice reports the measured length and lists which setting or flag
@@ -106,3 +156,12 @@ Stall read: if two consecutive checks show the same `open` count with no new
 commits — or the session keeps hitting the *same* failure signature (identical
 error / stack trace) — it is stuck; stop and re-scope rather than let it loop.
 Judgement is the operator's; the probe only reports data, it never intervenes.
+
+When `DRY_RUN=false`, append this session handoff after the monitor:
+
+```
+━━━ THIS SESSION ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Commands above are ready. /goal does not carry across sessions —
+run STEP 2 in the new session after /new.
+This session will NOT auto-run /goal or opsx:apply.
+```

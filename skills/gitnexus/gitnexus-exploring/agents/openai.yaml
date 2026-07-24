@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gitnexus Exploring"
+  short_description: "Explore and understand a codebase via the GitNexus knowledge"
+  default_prompt: "Use $gitnexus-exploring to apply the Gitnexus Exploring workflow with its verification rules."

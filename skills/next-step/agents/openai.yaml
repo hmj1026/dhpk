@@ -1,0 +1,4 @@
+interface:
+  display_name: "Next Step"
+  short_description: "Change-aware next step advisor."
+  default_prompt: "Use $next-step to apply the Next Step workflow with its verification rules."

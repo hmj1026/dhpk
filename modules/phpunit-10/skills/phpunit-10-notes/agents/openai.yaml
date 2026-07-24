@@ -1,0 +1,4 @@
+interface:
+  display_name: "Phpunit 10 Notes"
+  short_description: "PHPUnit 10.x (February 2023) signature features and the"
+  default_prompt: "Use $phpunit-10-notes to apply the Phpunit 10 Notes workflow with its verification rules."

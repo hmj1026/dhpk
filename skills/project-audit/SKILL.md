@@ -56,7 +56,7 @@ If the script fails, report the error and suggest running manually:
 bash scripts/run-skill.sh project-audit audit.js --json
 ```
 
-## Output Format
+## Output
 
 ```
 ## Project Audit Report

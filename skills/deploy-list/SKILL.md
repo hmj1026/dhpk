@@ -14,34 +14,13 @@ Generates a deploy file list from git history. **All logic lives in the
 script** — Claude parses arguments, invokes the script, and emits stdout
 verbatim. No post-processing.
 
-## Files
+## Package surfaces
 
-```
-skills/deploy-list/
-├── SKILL.md                              # this file
-├── config.sh.example                     # template; copy to config.sh per project
-├── scripts/
-│   ├── deploy-list.sh                    # main logic (schema=v1, immutable contract)
-│   └── check-golden.sh                   # golden regression runner
-├── presets/                              # ecosystem categorization rules
-│   ├── php-yii.sh                        # generic Yii 1.x
-│   ├── laravel.sh
-│   ├── node.sh
-│   ├── python.sh
-│   └── generic.sh                        # language-agnostic fallback
-├── i18n/                                 # label translations (structural headers only)
-│   ├── zh-TW.sh                          # 繁體中文
-│   └── en.sh
-├── evals/
-│   ├── evals.json                        # suite index
-│   ├── generic/fixtures/fixture-*.sh     # synthetic git fixtures (mandatory)
-│   └── generic/expected/expected-*.txt   # generic goldens
-└── references/
-    ├── why-this-grouping.md              # design notes
-    ├── presets.md                        # preset catalog + custom-preset guide
-    └── extended-presets.example/         # worked custom-preset example
-        └── php-yii-acmeshop.sh
-```
+The package keeps the immutable generator in `scripts/deploy-list.sh`, its golden
+runner in `scripts/check-golden.sh`, ecosystem rules in `presets/`, structural labels
+in `i18n/`, and preset guidance in `references/`. Copy `config.sh.example` to a
+project-local `config.sh` when defaults need to be pinned. The `evals/` fixtures are
+the regression surface for schema changes.
 
 ## Arguments
 
@@ -90,7 +69,7 @@ or pass `--preset <name>` explicitly.
 
 Full preset catalog → `references/presets.md`.
 
-## Output contract (schema=v1, immutable across presets)
+## Output
 
 | # | Marker | Required | When |
 |---|--------|----------|------|
@@ -156,7 +135,7 @@ Pass the **full anchor string** (date + author + `[tag]` + description)
 to `--anchor`. The script treats it as a literal `--fixed-strings`
 pattern — no regex escaping needed.
 
-## When NOT to use
+## When NOT to Use
 
 - Pure commit history lookup → `git log --oneline`.
 - Diff outside base..head → plain `git diff`.

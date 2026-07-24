@@ -1,0 +1,4 @@
+interface:
+  display_name: "Deploy List"
+  short_description: "Cross-project deploy file-list generator (schema=v1)."
+  default_prompt: "Use $deploy-list to apply the Deploy List workflow with its verification rules."

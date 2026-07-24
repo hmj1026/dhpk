@@ -1,0 +1,4 @@
+interface:
+  display_name: "Swiftui Architecture"
+  short_description: "SwiftUI app architecture — MVVM + Coordinator, the Observation"
+  default_prompt: "Use $swiftui-architecture to apply the Swiftui Architecture workflow with its verification rules."

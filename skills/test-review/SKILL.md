@@ -8,10 +8,6 @@ agent: Explore
 
 # Test Review Skill
 
-## Trigger
-
-- Keywords: test coverage, test review, are tests sufficient, generate tests, test gen, coverage
-
 ## When NOT to Use
 
 - Code review (use `codex-code-review`)

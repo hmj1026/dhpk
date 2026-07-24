@@ -1,17 +1,17 @@
 ---
 name: opsx-apply-goal
 argument-hint: '<change-id> [--turns N] [--max-duration <Nm|Nh>] [--min-coverage N] [--worker=<claude|codex|agy|auto>] [--codex] [--smoke|--no-smoke] [--dry-run]'
-description: 'Generate a single-paste /goal condition (with an embedded opsx:apply kickoff instruction) for an unattended OpenSpec change implementation session. Reads tasks.md + proposal.md, detects test-runner scope, calculates turn budget, and emits one /goal string — pasting it into a fresh session both sets the stop condition and starts implementation, since /goal triggers immediate action on submit. Use when starting an unattended implementation session for an OpenSpec change. Not for: archiving, verifying, or syncing changes (use opsx-archive / opsx-verify / opsx-sync).'
+description: 'Unattended OpenSpec goal generator. Use when: an existing change-id needs a bounded fresh-session implementation goal. Not for: authoring, applying in the current session, verifying, syncing, or archiving. Output: an analysis summary plus one pasteable /goal condition, or a hard-stop report.'
 allowed-tools: 'Bash, Read, Glob'
 effort: low
 ---
 
 # opsx-apply-goal
 
-Goal-condition generator for OpenSpec change implementation sessions. Reads the
-change artifacts and emits a single `/goal <condition>` command — with the
-opsx:apply kickoff folded into the condition text — to paste into a fresh
-session so Claude drives the change to completion unattended.
+This skill has one job: turn an existing OpenSpec change into a bounded
+`/goal <condition>` command. It reads the change artifacts, folds the
+`opsx:apply` kickoff into the condition, and emits one command for a fresh
+session to run the change unattended.
 
 > **Why single-paste:** Claude Code's `/goal` triggers immediate action as soon
 > as it is submitted — there is no window to paste a follow-up `/opsx:apply`
@@ -30,10 +30,12 @@ session so Claude drives the change to completion unattended.
 
 | File | Read when |
 |------|-----------|
-| `scripts/analyze-change.sh` | Steps 1-3 & 5 — deterministic arg-norm, dir location, checkbox counts, turn budget |
-| `references/detection.md` | Step 4 — test/build/lint/coverage/smoke signal tables, non-automatable-task signals, sentinel rationale |
-| `references/goal-templates.md` | Step 6 / 6b — the verbatim Part 0..4 `/goal` condition templates (single full variant) |
-| `references/output-blocks.md` | Step 7 — Block C NOTES catalog, hard-stop notice, Block C2 monitor snippet |
+| `scripts/analyze-change.sh` | Step 1 — deterministic argument normalization, change-dir location, checkbox counts, and turn budget |
+| `scripts/goal-context.js` | Step 1 — helper I/O for fast-worker selection, E2E detection, and the task digest |
+| `references/detection.md` | Step 2 — test/build/lint/coverage/smoke signal tables, non-automatable-task signals, and sentinel rationale |
+| `references/gate-contracts.md` | Step 3 — compact evidence contracts that every emitted gate must preserve |
+| `references/goal-templates.md` | Steps 3–4 — verbatim Part 0–4 `/goal` condition templates, including the single full variant |
+| `references/output-blocks.md` | Output — complete Block A/B/C/C2 contract, hard-stop branch, and session handoff |
 
 ## When NOT to Use
 
@@ -43,7 +45,10 @@ session so Claude drives the change to completion unattended.
 - Change is already in `openspec/changes/archive/` (already archived)
 - You want to run implementation now in this session (just run `/opsx:apply <change-id>` directly)
 
-## Steps 1-3 & 5 — Analyze the change (deterministic)
+The output is a generated execution contract, not approval, implementation, or
+verification evidence.
+
+## Step 1 — Analyze the change (deterministic)
 
 Run the analyzer with `$ARGUMENTS` verbatim; it normalizes arguments (incl. the
 `--no-smoke > --smoke > auto` precedence), locates the change dir, counts the
@@ -66,20 +71,31 @@ It prints a `# schema=v1` KEY=VALUE block. Act on `STATUS`:
   `FAST_WORKER_ORDER`, `FAST_WORKER_FALLBACK`, `FAST_WORKER_REJECTED`,
   `FAST_WORKER_CLAUSE`, `HAS_E2E`, and `TASK_DIGEST`.
 
-Before route/change matching, parse and strip
-`--worker=<claude|codex|agy|auto>` using the same strip-before-match
-contract as `--codex` and `--plan`. Resolve the effective backend with
+`analyze-change.sh` invokes the sibling `goal-context.js` helper after the
+deterministic fields. The helper accepts `--tasks=<path>`, `--proposal=<path>`,
+and `--worker=<backend>`, writes `FAST_WORKER_*`, `HAS_E2E`, and `TASK_DIGEST`
+fields to stdout, writes warnings to stderr, and exits non-zero on an input or
+helper failure. Treat a missing helper tail as an analyzer failure, not as a
+partial result.
+
+The analyzer parses and strips
+`--worker=<claude|codex|agy|auto>` before analyzing the change, using the same
+normalization contract as its other invocation flags. Resolve the effective backend with
 precedence **flag > userConfig > shipped default** (`claude`). An invalid flag
 prints one warning line and falls back to the configured userConfig/default
-resolution; it never fails change routing.
+resolution; it never fails change analysis.
 
-The turn budget (this is **Step 5**, computed by the analyzer alongside Steps
-1-3 — there is no separate Step 5 section) is `max(20, min(120, OPEN_TASKS × 4 + 20))`
-unless `--turns N` overrode it (each open task averages 2–4 turns; the +20 buffer
-covers reviewer invocations and sentinel-clearance turns). Step 4 (LLM detection)
-runs next because it needs judgment the analyzer deliberately does not attempt.
+The analyzer computes the turn budget as
+`max(20, min(120, OPEN_TASKS × 4 + 20))` unless `--turns N` overrides it. Each
+open task averages 2–4 turns; the +20 buffer covers reviewer invocations and
+sentinel-clearance turns. Gate detection follows because it needs judgment the
+analyzer deliberately does not attempt.
 
-## Step 4 — Detect verification-gate scope and non-automatable tasks
+**Completion criterion:** exactly one analyzer status is handled; `missing`,
+`archived`, `error`, and exit-2 stop with their reported message, while only an
+`active` result with the helper fields continues.
+
+## Step 2 — Detect verification-gate scope and non-automatable tasks
 
 Read `tasks.md` + `proposal.md` (+ `design.md` when `HAS_DESIGN=true`) with the
 Read tool. From their combined text, set the gate flags per the signal/override
@@ -110,7 +126,10 @@ set `HAS_SKIP_TASKS=true`. These require human verification and are **excluded
 from Part 3**, but still count toward Part 1 (the implementer marks them `[x]`
 manually after out-of-band verification).
 
-## Step 6 — Compose the goal condition
+**Completion criterion:** every gate flag, derived command or threshold, smoke
+mode, and manual-task entry needed by the template has an explicit value.
+
+## Step 3 — Compose the goal condition
 
 Read `DISPATCH_ON` = `${CLAUDE_PLUGIN_OPTION_ORCHESTRATION_DISPATCH:-on}` — true
 unless the value is exactly `off`.
@@ -141,15 +160,19 @@ Compose `GOAL_CONDITION` from the verbatim templates in
   Substitute `<TURN_BUDGET>` and (only if `MAX_DURATION` is set) the wall-clock
   line in **Part 4**.
 
-## Step 6b — Enforce the 4,000 UTF-8-byte paste limit
+**Completion criterion:** every placeholder in Parts 0–4 is resolved from the
+analyzer or the detected gate scope, and the condition preserves the compact
+gate contracts in `gate-contracts.md`.
+
+## Step 4 — Enforce the 4,000 UTF-8-byte paste limit
 
 Claude Code's `/goal` input has a practical paste limit around 4,000 UTF-8 bytes —
-the unit measured by `wc -c`; a `GOAL_CONDITION` beyond that cannot be submitted. Measure before Step 7
+the unit measured by `wc -c`; a `GOAL_CONDITION` beyond that cannot be submitted. Measure before Output
 (write the composed draft to a scratch file and `wc -c` for an exact count):
 
 1. `GOAL_LENGTH` = UTF-8 byte count of the full composed `GOAL_CONDITION`.
-2. `GOAL_LENGTH <= 4000` → `GOAL_MODE = full`; proceed to Step 7 unmodified.
-3. `GOAL_LENGTH > 4000` → `GOAL_MODE = blocked`. In Step 7 emit Block A only
+2. `GOAL_LENGTH <= 4000` → `GOAL_MODE = full`; proceed to Output unmodified.
+3. `GOAL_LENGTH > 4000` → `GOAL_MODE = blocked`. In Output emit Block A only
    (its `Goal length` row reports the measured length), then the hard-stop
    notice — do **not** print Block B, C, or C2.
 
@@ -159,68 +182,21 @@ bounded variable gate tokens. The blocked branch is a should-never-fire
 template regression: if it fires, fix the template or gate fixture — never
 trim required safety or verification clauses from the condition.
 
-## Step 7 — Emit output
+**Completion criterion:** `GOAL_LENGTH` is measured in UTF-8 bytes and
+`GOAL_MODE` is exactly `full` or `blocked`; blocked mode emits no actionable
+`/goal` command.
 
-### Block A — Analysis summary
+## Output
 
-```
-╔══════════════════════════════════════════════════════════════╗
-║  opsx-apply-goal: <CHANGE_ID>
-╠══════════════════════════════════════════════════════════════╣
-║  Tasks       : <DONE_TASKS>/<TOTAL_TASKS> done, <OPEN_TASKS> open
-║  Test runners: <detected runners, or "none detected">
-║  Coverage    : <enforced threshold <T> (config | --min-coverage) | not enforced (pass --min-coverage N) | not enforced (no test runner) | --min-coverage ignored (no test runner)>
-║  Smoke gate  : <on (signal) | on (--smoke) | off (--no-smoke) | off (no strong signal, hint emitted)>
-║  Sentinels   : universal check (all 7 slots, self-calibrating)
-║  Turn budget : <TURN_BUDGET>  (formula: <OPEN_TASKS> × 4 + 20, cap 20–120)
-║  Manual tasks: <N skipped, or "none">
-║  Goal length : <GOAL_LENGTH>/4000 UTF-8 bytes  <full | ⚠ BLOCKED>
-╚══════════════════════════════════════════════════════════════╝
-```
+Read `references/output-blocks.md` and emit its Block A, B, C, and C2 contract
+verbatim after substituting the analyzer and gate values. The output is either a
+diagnostic hard stop or a complete paste-and-monitor package; it is never a
+partially actionable goal. When `DRY_RUN=false`, append the `THIS SESSION` block
+defined by that reference; when `DRY_RUN=true`, stop after the C2 monitor.
 
-The `Goal length` row reflects `GOAL_MODE` from Step 6b. If `HAS_SKIP_TASKS=true`,
-append after the box a warning listing the `SKIP_TASKS[]` (truncated to 72 chars
-each) and the instruction to mark them `[x]` manually after out-of-band
-verification before the session ends.
-
-If `GOAL_MODE = blocked`, stop here — do **not** print Block B, C, or C2. Print
-the hard-stop notice from `references/output-blocks.md` (which lists the four
-setting/flag adjustments and "No /goal command was emitted this run.") and end.
-
-Otherwise (`full`) continue:
-
-### Block B — Session setup
-
-```
-━━━ STEP 1 — Open a new implementation session ━━━━━━━━━━━━━━━
-/new
-
-━━━ STEP 2 — Set the goal AND start implementation (single paste) ━━
-```
-
-Print the composed `GOAL_CONDITION`
-in a fenced block. This one paste both sets the stop condition and kicks off
-implementation — `GOAL_CONDITION` already opens with the Part 0 kickoff sentence,
-so there is nothing further to paste after it:
-```
-/goal <GOAL_CONDITION>
-```
-
-### Block C / C2 — Reminders and monitor
-
-Print the Block C NOTES catalog and the Block C2 read-only monitor snippet
-verbatim from `references/output-blocks.md`. Append the coverage-off NOTES line
-from that file when `HAS_COVERAGE=false` AND `MIN_COVERAGE` is unset AND
-`HAS_TEST=true`.
-
-If `DRY_RUN=true`, stop after the Block C2 monitor. If `DRY_RUN=false`, add:
-
-```
-━━━ THIS SESSION ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Commands above are ready. /goal does not carry across sessions —
-run STEP 2 in the new session after /new.
-This session will NOT auto-run /goal or opsx:apply.
-```
+**Completion criterion:** blocked mode contains only Block A plus the hard-stop
+notice; full mode contains Block A, the single-paste Block B, and the required
+Block C/C2 material from `output-blocks.md`, with `--dry-run` ending after C2.
 
 ## Verification
 

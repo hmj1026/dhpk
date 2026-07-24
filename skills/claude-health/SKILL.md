@@ -8,10 +8,6 @@ context: fork
 
 # Claude Health Check
 
-## Trigger
-
-- Keywords: health check, .claude check, config audit, lint .claude, claude health, plugin sync, version drift, upgrade check, doctor
-
 ## When NOT to Use
 
 - Code review (use `/codex-review-fast`)

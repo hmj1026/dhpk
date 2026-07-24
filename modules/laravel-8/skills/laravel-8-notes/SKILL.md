@@ -1,6 +1,6 @@
 ---
 name: laravel-8-notes
-description: Laravel 8.x (September 2020) signature features and the breaking-change traps from 7 → 8. Use when writing or reviewing code in a Laravel 8 project, or in a package whose composer constraint includes ^8.0. Covers the factory class rewrite (HasFactory trait), Jetstream/Fortify scaffolding split, job batching, queueable closures, the app/Models/ relocation, dynamic Blade components, migration squashing, and the Tailwind-by-default switch. Not for application business logic — load when touching factories, jobs, models, or Blade, or planning a 7 → 8 upgrade.
+description: Laravel 8.x (September 2020) signature features and the breaking-change traps from 7 → 8. Use when writing or reviewing code in a Laravel 8 project, or in a package whose composer constraint includes ^8.0. Covers the factory class rewrite (HasFactory trait), Jetstream/Fortify scaffolding split, job batching, queueable closures, the app/Models/ relocation, dynamic Blade components, migration squashing, and the Tailwind-by-default switch. Not for application business logic — load when touching factories, jobs, models, or Blade, or planning a 7 → 8 upgrade. Output: version-specific guidance, migration traps, and verification gates.
 ---
 
 # Laravel 8 — factories rewritten, job batching, models relocated

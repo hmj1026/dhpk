@@ -1,0 +1,4 @@
+interface:
+  display_name: "Phpunit 9 Modern"
+  short_description: "PHPUnit 8.5 → 9.x modern test patterns."
+  default_prompt: "Use $phpunit-9-modern to apply the Phpunit 9 Modern workflow with its verification rules."

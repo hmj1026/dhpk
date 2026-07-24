@@ -2,7 +2,7 @@
 
 Claude Code **does not** load anything under this `codex/` directory. The content here mirrors the plugin's Claude-side skills and agents in Codex CLI format, so projects using both Claude Code and the Codex CLI can keep their assistant configurations in sync without maintaining a separate repo.
 
-> **Layout note**: most entries under `codex/skills/` are in-repo symlinks to `../../skills/<name>/`. A handful (intentional Codex forks + module-skill mirrors) are physical directories. See `AGENTS.md` for the full list and why each is physical.
+> **Layout note**: all non-module entries under `codex/skills/` are in-repo symlinks to `../../skills/<name>/`. Only the four documented module-skill mirrors are physical directories. See `AGENTS.md` for the canonical mapping and maintenance rule.
 
 ## Sync into a project
 

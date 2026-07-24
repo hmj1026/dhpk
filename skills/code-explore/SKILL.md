@@ -8,10 +8,6 @@ context: fork
 
 # Code Explore Skill
 
-## Trigger
-
-- Keywords: code explore, code investigation, research code, trace code, feature understanding, quick investigation, code exploration
-
 ## When to Use
 
 - Quickly understand how a feature works
@@ -76,7 +72,7 @@ context: fork
 | Configuration   | `Read {CONFIG_FILE}`                                     |
 | Data models     | `Glob "src/model/**/*.ts"`                               |
 
-## Output Format
+## Output
 
 ```markdown
 ## Investigation Report: {Topic}

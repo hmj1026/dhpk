@@ -8,10 +8,6 @@ context: fork
 
 # Code Investigate Skill
 
-## Trigger
-
-- Keywords: investigate code, how feature works, trace implementation, dual confirmation, deep dive, how code works, what this code does, code research
-
 ## When NOT to Use
 
 - Just need quick lookup (use Grep/Glob directly)
@@ -110,7 +106,7 @@ Please grep/read and explore on your own, then provide your analysis.`,
 - **Confidence**: High / Medium / Low
 ```
 
-## Verification Checklist
+## Verification
 
 | Check                     | Standard                                      |
 | ------------------------- | --------------------------------------------- |

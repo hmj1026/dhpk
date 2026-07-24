@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codex Bridge"
+  short_description: "When CODEX=on, delegate a self-contained bulk task or blind"
+  default_prompt: "Use $codex-bridge to apply the Codex Bridge workflow with its verification rules."

@@ -6,10 +6,6 @@ allowed-tools: 'Read, Grep, Glob, Write, Bash, AskUserQuestion, Agent'
 
 # Create/Update Request Skill
 
-## Trigger
-
-- Keywords: create request, new request, write request, build request, update request, sync progress, scan requests, request status, incomplete requests, request dashboard
-
 ## Mode Overview
 
 ```mermaid

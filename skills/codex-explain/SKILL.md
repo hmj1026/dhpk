@@ -7,10 +7,6 @@ allowed-tools: 'mcp__codex__codex, mcp__codex__codex-reply, Read, Grep, Glob'
 
 # Codex Explain Skill
 
-## Trigger
-
-- Keywords: explain code, what does this do, how does this work, code walkthrough
-
 ## When NOT to Use
 
 - Code review (use `codex-code-review`)

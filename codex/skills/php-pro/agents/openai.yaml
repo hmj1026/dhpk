@@ -1,4 +1,1 @@
-interface:
-  display_name: "PHP Pro"
-  short_description: "PHP runtime router with reference gating"
-  default_prompt: "Use $php-pro to inspect this PHP repository, detect the active runtime, load only the matching Laravel, Symfony, async, or PHP 5.6/Yii references, explicitly skip irrelevant references, and then propose framework-safe changes."
+../../../../modules/php-5.6/skills/php-pro/agents/openai.yaml

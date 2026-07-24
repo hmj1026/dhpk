@@ -1,0 +1,4 @@
+interface:
+  display_name: "Python Static Checks"
+  short_description: "Static-check strategy for Python — ruff rule selection (lint vs"
+  default_prompt: "Use $python-static-checks to apply the Python Static Checks workflow with its verification rules."

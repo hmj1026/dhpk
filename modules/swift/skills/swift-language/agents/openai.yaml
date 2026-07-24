@@ -1,0 +1,4 @@
+interface:
+  display_name: "Swift Language"
+  short_description: "Swift 6 language baseline with Swift 5.10 / iOS 17"
+  default_prompt: "Use $swift-language to apply the Swift Language workflow with its verification rules."

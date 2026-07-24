@@ -1,0 +1,4 @@
+interface:
+  display_name: "Git Smart Commit"
+  short_description: "將雜亂的 git 變更依邏輯分群、逐批提交。Use when: 需要把多項變更拆成多個邏輯一致的 commit。Not"
+  default_prompt: "Use $git-smart-commit to apply the Git Smart Commit workflow with its verification rules."

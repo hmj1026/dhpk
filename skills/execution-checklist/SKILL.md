@@ -1,12 +1,13 @@
 ---
 name: execution-checklist
-description: End-of-task self-check before wrapping up. Use when a major task is about to wrap — final Edit/Write done, ready to reply with Conclusion, or commit incoming — especially after writing a feature/bugfix, touching SQL or repository code, changing auth/crypto/money/file-upload paths, modifying repository methods on a high-volume table, or editing JS/TS source or template-embedded `<script>` blocks. Not for trivial one-line edits, pure research/planning (no Edit/Write), or pure typo fixes.
+description: 'End-of-task self-check for substantive repository changes. Use after the final Edit/Write before replying or smart-commit, especially for source, SQL/repository/migration, auth/crypto/money/upload, high-volume-table, frontend/template-script, harness, policy, or documentation changes. Not for trivial typo-only edits or research/planning with no pending commit. Output: a gated wrap-up reply with changed files, verification, and risks/open questions.'
 ---
 
 # Execution checklist
 
-Three-section self-check at task wrap-up. Per-reply mandatory, conditional
-when triggers fire, task-end book-keeping.
+Use this gate at the wrap-up boundary for substantive edits or a pending commit.
+It has three stages: Per-reply, Conditional, and Task-end. Record skips and
+blockers in the wrap-up reply; a quiet hook does not prove that a reviewer ran.
 
 > Source: the project's execution policy — project
 > `.claude/rules/execution-policy.md` if present, else
@@ -15,22 +16,18 @@ when triggers fire, task-end book-keeping.
 
 ## When NOT to Use
 
-- Trivial one-line edits or pure typo fixes.
-- Pure research / planning turns with no Edit/Write.
-- Replies that touched no source, harness, or doc files — there is nothing to gate.
+- Trivial typo-only edits with no triggered safety surface.
+- Pure research / planning turns with no Edit/Write and no pending commit.
 
 ## Usage
 
-- **Not every reply needs this** — small change / pure research → skip.
 - **Load it at wrap-up** — after the final Edit/Write, before emitting the
-  Conclusion, before `smart-commit`.
-- **Honour the reviewer dispatch model** — sentinels already trigger their reviewer
-  via hooks; this skill backstops the AI-judgment calls the hook system
-  cannot see.
+  Conclusion, or before `smart-commit` when the change is already staged.
+- **Honour the reviewer dispatch model** — triage false positives, dispatch every
+  surviving configured reviewer slot in one parallel batch, and record any
+  triage-drop or self-accountable skip.
 
----
-
-## Per-reply (always check when the turn included Edit/Write)
+## Per-reply (check after a substantive Edit/Write or before a pending commit)
 
 Four boxes must clear:
 
@@ -38,11 +35,10 @@ Four boxes must clear:
    `tdd-guide` (or the configured first agent in `review_agents`) run in
    the RED phase, writing the failing test first? Skip for pure docs /
    harness / hook edits.
-2. **Final gate ran** — After the Edit/Write, the matching reviewer slot
-   (code / db / sec / frontend / doc per `review_agents`) either ran, or
-   has an explicit "self-accountable skip" reason recorded (e.g. all
-   sentinels clean already, session-local agent dispatch unavailable,
-   pure review-feedback fixup).
+2. **Final gate ran** — After the Edit/Write, every matching configured reviewer
+   slot (the 7-slot default is defined by `review_agents`) either ran, or has an
+   explicit "self-accountable skip" reason recorded (e.g. all sentinels clean
+   already, session-local agent dispatch unavailable, pure review-feedback fixup).
 3. **Output structure complete** —
    `Conclusion → Changed files → Verification → Risks/Open questions`.
    When blocked: `Blocker → Tried → Next viable option`.
@@ -70,47 +66,46 @@ before reaching for Edit**:
 > Anti-pattern: chain N Edits across N files without Read → 100%
 > failure rate × N, wasting tokens and reviewer trigger cost.
 
----
-
 ## Conditional (only when the trigger fires)
 
 | Trigger | Required check |
 |---|---|
 | Modifying an existing symbol's body / signature / docblock | `gitnexus_impact({ target, direction:"upstream" })` ran. The append-only exemption is defined solely in `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` Glossary; record its required skip label when applicable. |
-| New / modified SQL, repository, or migration code | The database-reviewer slot (sentinel `.pending-db-review`) cleared, or a self-accountable skip is recorded. |
+| New / modified SQL or repository code | The database-reviewer slot (sentinel `.pending-db-review`) cleared, or a self-accountable skip is recorded. |
+| New / modified migration code | The database-reviewer and applicable migration-reviewer slots (sentinels `.pending-db-review` and `.pending-migration-review`) cleared, or each has a self-accountable skip recorded. |
 | Auth / crypto / money / file-upload code paths | The security-reviewer slot (sentinel `.pending-security-review`) cleared, or a self-accountable skip is recorded. |
 | Repository methods on a high-volume table (the project's hottest tables — typical examples: an event log, an orders / sales table, an inventory table) | `performance-analyzer` (no hook, AI-judgment trigger) ran or skipped with reason. |
 | `*.{js,ts,jsx,tsx,vue,svelte}` edit or template-embedded `<script>` change | The frontend-reviewer slot (sentinel `.pending-frontend-review`) cleared, or backfill ran when the hook missed (template-embedded scripts cannot be detected by file-extension hooks — AI judgment must backfill). |
 | Pure `.claude/{agents,rules,commands,skills,manifests}/**/*.md` edit | The doc-reviewer slot (sentinel `.pending-doc-review`) cleared. Code-reviewer is not required for pure-doc edits; mixed diffs run both. |
+| PHP edit with a runtime-version guard | The applicable polyfill-reviewer slot (sentinel `.pending-polyfill-review`) cleared, or a self-accountable skip is recorded. This slot is module-owned and may be unavailable. |
 | Controller / HTTP-entry-point edits | Security-reviewer and code-reviewer both dispatch (in parallel per reviewer dispatch); code-reviewer merges the findings. |
 | Edits to a shared `_lib/` hook helper | Run contract tests for ALL hooks that source the helper (e.g. `_lib/js-tier-detect.sh` is consumed by both `post-edit-js-lint.sh` and `pre-commit-js-validation.sh` — verify both still pass). |
 | Bash uses bare glob expansion (`ls .pending-*` / `for f in .pending-*`) in a shell **without** `nullglob` (zsh default, dash, BusyBox) | Switch to `find <dir> -maxdepth N -name '<pattern>' -print 2>/dev/null` or append `2>/dev/null \|\| true`. Bare glob with zero matches becomes a literal token in those shells, then often errors as "no such file". Common in sentinel-existence checks. |
-| Hand-constructing `clear-sentinel.sh` path | Use the dhpk SSOT: `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh` (NOT `${CLAUDE_PROJECT_DIR}/.claude/scripts/...`). Reviewer agent bodies shipped in dhpk already use the correct path — compare against them before constructing your own. A subagent must never paste the literal `${CLAUDE_PLUGIN_ROOT}/...` token into a Bash command (it is a markdown-interpolation token, unset in the subagent shell); full caveat SSOT: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/review-gate-mechanics.md`. |
-
----
+| Hand-constructing `clear-sentinel.sh` path | Use the dhpk SSOT: `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh` (NOT `${CLAUDE_PROJECT_DIR}/.claude/scripts/...`). Reviewer agent bodies shipped in dhpk already use the correct path — compare against them before constructing your own. A subagent must never paste the literal `${CLAUDE_PLUGIN_ROOT}/...` token into a Bash command (it is a markdown-interpolation token, unset in the subagent shell); full caveat SSOT: `@skills/dhpk-execution-policy/references/review-gate-mechanics.md`. |
 
 ## Task-end (book-keeping at the very end)
 
-- **Newly discovered trap** → does the project's `MEMORY.md` need an
-  entry? Trap-knowledge is freshest right after the bug; capture it now
-  before the next session.
+- **Newly discovered trap** → if the project tracks `MEMORY.md` and its policy
+  permits updates, decide whether the trap belongs there; do not update
+  user-level memory without explicit authorization.
 - **Retrospective entry** → if the project tracks a
   `skill-retrospective.md`, append one entry. Refresh aggregate stats
   every ~5 entries.
 - **Backlog open items** → any `Risks / Open questions` item that should
   become a `/create-request` ticket?
 
----
-
 ## Reviewer dispatch (quick reference)
 
-Triage out false positives → dispatch the surviving reviewers **in parallel**
-(one message, multiple Agent calls) → `code-reviewer` merges / dedups:
+Triage out false positives → dispatch the surviving configured reviewer slots
+**in parallel** (one message, multiple Agent calls) → `code-reviewer` merges / dedups:
 
 ```
-{ database-reviewer | security-reviewer | frontend-reviewer | code-reviewer | doc-reviewer }   ← parallel
+{ code-reviewer | database-reviewer | security-reviewer | frontend-reviewer | doc-reviewer | polyfill-reviewer | migration-reviewer }   ← parallel
 ```
 
+- The default is seven slots; `polyfill-reviewer` and `migration-reviewer` are
+  module/project-triggered and may be unavailable. Follow `review_agents` and
+  the execution-policy SSOT rather than inventing a replacement slot.
 - code-reviewer and doc-reviewer are **not mutually exclusive** — a mixed
   diff dispatches both.
 - Any reviewer returning CRITICAL blocks the merge/commit; `code-reviewer`
@@ -121,16 +116,12 @@ The slot-to-agent mapping is `review_agents` userConfig (7-slot default
 since v0.10.0; see `agents/INDEX.md`). Re-order or substitute agents per
 project via that knob.
 
----
-
 ## Append-only exemption
 
 Definition and required label live in `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`
 Glossary — do not restate here. Checklist-specific reminder: if the change
 modifies an existing method signature / class hierarchy / interface
 contract, the exemption does not apply — run impact analysis.
-
----
 
 ## Output
 

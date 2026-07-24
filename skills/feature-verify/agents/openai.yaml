@@ -1,0 +1,4 @@
+interface:
+  display_name: "Feature Verify"
+  short_description: "Feature verification (READ-ONLY, P0-P5)."
+  default_prompt: "Use $feature-verify to apply the Feature Verify workflow with its verification rules."

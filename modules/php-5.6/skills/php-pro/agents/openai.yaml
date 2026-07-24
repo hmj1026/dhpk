@@ -1,0 +1,4 @@
+interface:
+  display_name: "Php Pro"
+  short_description: "Use when building, debugging, refactoring, testing, or"
+  default_prompt: "Use $php-pro to apply the Php Pro workflow with its verification rules."

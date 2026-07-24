@@ -1,0 +1,4 @@
+interface:
+  display_name: "Tool Routing"
+  short_description: "Route code-exploration requests to gitnexus, cx, claude-mem"
+  default_prompt: "Use $tool-routing to apply the Tool Routing workflow with its verification rules."

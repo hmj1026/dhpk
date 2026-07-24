@@ -1,0 +1,4 @@
+interface:
+  display_name: "Python Pro"
+  short_description: "Modern Python (3.10+) review checklist: typing"
+  default_prompt: "Use $python-pro to apply the Python Pro workflow with its verification rules."

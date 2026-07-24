@@ -1,7 +1,7 @@
 ---
 name: create-skill
 argument-hint: '<skill-name> [docs-path]'
-description: 'Create a new Claude Code skill or refactor an existing one to dhpk conventions (lean SKILL.md + progressive disclosure, trigger-rich description, validation gate). Use when the user asks to "create a skill", "make a skill", "refactor this skill", or wants to capture a workflow as a reusable skill. Not for: writing a slash command (use command-creator) or auditing skill quality only (use /check-skill).'
+description: 'Create a new Claude Code skill or refactor an existing one to dhpk conventions (lean SKILL.md + progressive disclosure, trigger-rich description, validation gate). Use when the user asks to "create a skill", "make a skill", "refactor this skill", or wants to capture a workflow as a reusable skill. Not for: writing a slash command (use command-creator) or auditing skill quality only (use /check-skill). Output: a validated skill package with an explicit diff summary and routing/verification evidence.'
 ---
 
 # Create Skill

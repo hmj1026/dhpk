@@ -7,10 +7,6 @@ context: fork
 
 # Skill Health Check
 
-## Trigger
-
-- Keywords: skill health, skill audit, skill lint, check skills, skill quality, validate skills
-
 ## When NOT to Use
 
 - Code review (use `/codex-review-fast`)
@@ -30,8 +26,16 @@ Run automated lint → Review manual dimensions → Produce integrated report �
 
 ### Step 1: Automated Lint
 
+Portable direct invocation:
+
 ```bash
-node skills/skill-health-check/scripts/skill-lint.js --fix-hint
+node skills/skill-health-check/scripts/skill-lint.js --skills-dir skills --agents-dir agents --commands-dir commands --fix-hint
+```
+
+Repository wrapper:
+
+```bash
+bash scripts/run-skill.sh skill-health-check skill-lint.js --fix-hint
 ```
 
 **Script I/O contract:**
@@ -39,12 +43,21 @@ node skills/skill-health-check/scripts/skill-lint.js --fix-hint
 | Parameter | Description |
 |-----------|-------------|
 | `--skills-dir <path>` | Skills directory (default: `./skills`) |
-| `--agents-dir <path>` | Agents directory (default: `./agents`) |
+| `--agents-dir <path>` | Optional agents directory (default: `./agents`) |
+| `--commands-dir <path>` | Optional commands directory (default: `./commands`) |
 | `--json` | Output JSON instead of markdown |
 | `--fix-hint` | Include fix suggestions |
 | Exit 0 | All pass |
 | Exit 1 | Warnings only (P2) |
 | Exit 2 | Errors found (P0/P1) |
+
+**Shared host contract:**
+
+- Universal checks always run from the discovered skill packages.
+- Agent checks run only when an agents directory is available.
+- Command/skill pairing checks run only when a commands directory is available.
+- Missing capability surfaces are reported as skipped, not passed.
+- Recursive discovery uses real directory traversal and does not follow symlinked directories.
 
 **Per-skill checks (11 items):**
 
@@ -62,13 +75,14 @@ node skills/skill-health-check/scripts/skill-lint.js --fix-hint
 | 10 | Task entitlement | P2 | Body describes `Task()` dispatch but `allowed-tools` lacks Task |
 | 11 | Cross-skill ref path | P1 | Bare ref paths not found locally but existing in another skill → must use `@skills/<parent>/` prefix |
 
-**Cross-skill checks (3 items):**
+**Cross-skill and capability checks (4 items):**
 
 | # | Check | Severity | Criteria |
 |---|-------|----------|----------|
-| 12 | Description overlap | P2 | Jaccard similarity >60% flagged |
-| 13 | Agent ref validity | P1 | `subagent_type` references in skills must exist in `agents/` |
-| 14 | Agent tools syntax | P2 | Agent `.md` tools field uses canonical format (ToolName or `Bash(<prefix>:*)`) |
+| 12 | Orphan pairing | P2 | Commands reference skills and command-backed skills are paired when commands are available |
+| 13 | Description overlap | P2 | Jaccard similarity >60% flagged |
+| 14 | Agent ref validity | P1 | `subagent_type` references in skills must exist in `agents/` when agents are available |
+| 15 | Agent tools syntax | P2 | Agent `.md` tools field uses canonical format (ToolName, `Bash(<prefix>:*)`, or MCP namespaced form) |
 
 ### Step 2: Manual Review (when comprehensive audit requested)
 
@@ -93,6 +107,8 @@ Only run Step 2 when user explicitly requests deep audit. Default: Step 1 only.
 | Metric | Value |
 |--------|-------|
 | Skills scanned | N |
+| Commands scanned | N |
+| Capability checks skipped | N |
 | Checks passed | N |
 | P0 (Must Fix) | N |
 | P1 (Should Fix) | N |
@@ -113,6 +129,9 @@ Only run Step 2 when user explicitly requests deep audit. Default: Step 1 only.
 ## P2 (Suggestion)
 - **skill-name**: Issue → Fix recommendation
 
+## Capability-Dependent Skips
+- **check-name**: Capability directory not found or not available
+
 ## Gate: ✅ All Pass / ⛔ N issues need fixing
 ```
 
@@ -126,16 +145,3 @@ Only run Step 2 when user explicitly requests deep audit. Default: Step 1 only.
 ## References
 
 - `references/routing-signature-guide.md` — How to write effective routing signatures (read when fixing P1 routing issues)
-
-## Examples
-
-```
-Input: /skill-health-check
-Action: Run skill-lint.js → Output markdown report + Gate
-
-Input: /skill-health-check --deep
-Action: Run skill-lint.js → Manual review of flagged skills → Integrated report
-
-Input: Are my skills well-designed?
-Action: Trigger health check → Report + improvement suggestions
-```

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codex Code Review"
+  short_description: "Code review using Codex MCP."
+  default_prompt: "Use $codex-code-review to apply the Codex Code Review workflow with its verification rules."

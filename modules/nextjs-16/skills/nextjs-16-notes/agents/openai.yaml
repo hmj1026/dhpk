@@ -1,0 +1,4 @@
+interface:
+  display_name: "Nextjs 16 Notes"
+  short_description: "Next.js 16 (current stable major, now at 16.2.x) signature"
+  default_prompt: "Use $nextjs-16-notes to apply the Nextjs 16 Notes workflow with its verification rules."

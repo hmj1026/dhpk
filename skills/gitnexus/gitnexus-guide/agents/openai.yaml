@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gitnexus Guide"
+  short_description: "Reference for GitNexus MCP tools, resources, and graph schema."
+  default_prompt: "Use $gitnexus-guide to apply the Gitnexus Guide workflow with its verification rules."

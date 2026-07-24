@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codex CLI Review"
+  short_description: "Code review via Codex CLI with full disk access."
+  default_prompt: "Use $codex-cli-review to apply the Codex CLI Review workflow with its verification rules."

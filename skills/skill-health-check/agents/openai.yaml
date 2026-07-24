@@ -1,0 +1,4 @@
+interface:
+  display_name: "Skill Health Check"
+  short_description: "Validate skill quality against routing, progressive loading"
+  default_prompt: "Use $skill-health-check to apply the Skill Health Check workflow with its verification rules."

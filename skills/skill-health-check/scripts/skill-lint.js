@@ -7,7 +7,7 @@
  * Validates all skills against routing, progressive loading, and structural criteria.
  *
  * Usage:
- *   node skill-lint.js [--skills-dir <path>] [--agents-dir <path>] [--json] [--fix-hint]
+ *   node skill-lint.js [--skills-dir <path>] [--agents-dir <path>] [--commands-dir <path>] [--json] [--fix-hint]
  *
  * Exit codes:
  *   0 = all pass
@@ -33,6 +33,7 @@ const fixHint = args.includes('--fix-hint');
 const cwd = process.cwd();
 const skillsDir = resolve(argVal('--skills-dir', join(cwd, 'skills')));
 const agentsDir = resolve(argVal('--agents-dir', join(cwd, 'agents')));
+const commandsDir = resolve(argVal('--commands-dir', join(cwd, 'commands')));
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -75,6 +76,14 @@ function similarity(a, b) {
   const intersection = [...wordsA].filter((w) => wordsB.has(w));
   const union = new Set([...wordsA, ...wordsB]);
   return union.size === 0 ? 0 : intersection.length / union.size;
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function capabilitySkip(check, reason) {
+  return { check, reason };
 }
 
 // ---------------------------------------------------------------------------
@@ -303,6 +312,7 @@ function findRefInOtherSkills(refFile, excludeSkill) {
 // linted, matching Claude Code's recursive skill discovery.
 function findSkillDirs(root) {
   if (!isDir(root)) return [];
+  if (existsSync(join(root, 'SKILL.md'))) return [root];
   const SKIP = new Set(['references', 'scripts', 'templates', 'node_modules']);
   // lstat (not stat) so symlinked dirs are NOT descended into — avoids cyclic-
   // symlink stack overflow and double-counting linked skills.
@@ -368,10 +378,73 @@ function lintSkill(skillName, skillDir) {
 // Cross-skill checks
 // ---------------------------------------------------------------------------
 
-function detectOrphans(skillNames) {
-  // Orphan detection simplified (skills-only architecture)
-  // CLAUDE.md coverage check handled by claude-md-coverage.test.js
-  return [];
+function detectOrphans(skillNames, commandFiles, _commandsDir = commandsDir) {
+  const findings = [];
+  if (commandFiles.length === 0) return findings;
+
+  const commandSkillMap = {};
+  for (const cmdFile of commandFiles) {
+    const content = readFileSync(join(_commandsDir, cmdFile), 'utf8');
+    const cmdName = basename(cmdFile, '.md');
+    const match = content.match(/@skills\/([^/]+)\//);
+    commandSkillMap[cmdName] = match ? match[1] : skillNameFromCommandContent(content, skillNames);
+  }
+
+  const utilityCommands = new Set([
+    'precommit',
+    'precommit-fast',
+    'verify',
+    'simplify',
+    'doc-refactor',
+    'zh-tw',
+    'pr-review',
+    'install-hooks',
+    'install-rules',
+    'install-scripts',
+    'update-docs',
+    'project-brief',
+  ]);
+
+  for (const [cmd, skill] of Object.entries(commandSkillMap)) {
+    if (!skill && !utilityCommands.has(cmd)) {
+      findings.push({
+        check: 'orphan-command',
+        pass: false,
+        severity: 'P2',
+        message: `Command "${cmd}" has no skill reference`,
+      });
+    }
+  }
+
+  const referencedSkills = new Set(Object.values(commandSkillMap).filter(Boolean));
+  const domainKB = new Set(['portfolio', 'request-tracking']);
+
+  for (const skill of skillNames) {
+    if (!referencedSkills.has(skill) && !domainKB.has(skill)) {
+      findings.push({
+        check: 'orphan-skill',
+        pass: false,
+        severity: 'P2',
+        message: `Skill "${skill}" has no command referencing it`,
+      });
+    }
+  }
+
+  return findings;
+}
+
+function skillNameFromCommandContent(content, skillNames) {
+  const candidates = [...skillNames].sort((a, b) => b.length - a.length);
+  for (const skillName of candidates) {
+    const escaped = escapeRegExp(skillName);
+    const patterns = [
+      new RegExp('`dhpk:' + escaped + '`', 'i'),
+      new RegExp('`' + escaped + '`\\s+skill\\b', 'i'),
+      new RegExp('\\bskill\\s+`' + escaped + '`', 'i'),
+    ];
+    if (patterns.some((pattern) => pattern.test(content))) return skillName;
+  }
+  return null;
 }
 
 function detectDescriptionOverlap(skillResults) {
@@ -407,7 +480,17 @@ function detectMissingArgumentHints(skillNames) {
 }
 
 function detectInvalidAgentRefs(skillResults, _agentsDir) {
-  if (!isDir(_agentsDir)) return [];
+  if (!isDir(_agentsDir)) {
+    return {
+      findings: [],
+      skipped: [
+        capabilitySkip(
+          'agent-ref-validity',
+          `Agents directory not found or not a directory: ${_agentsDir}`
+        ),
+      ],
+    };
+  }
   const knownAgents = new Set(
     readdirSync(_agentsDir).filter((f) => f.endsWith('.md')).map((f) => basename(f, '.md'))
   );
@@ -435,11 +518,21 @@ function detectInvalidAgentRefs(skillResults, _agentsDir) {
     }
   }
 
-  return findings;
+  return { findings, skipped: [] };
 }
 
 function detectAgentToolsSyntax(_agentsDir) {
-  if (!isDir(_agentsDir)) return [];
+  if (!isDir(_agentsDir)) {
+    return {
+      findings: [],
+      skipped: [
+        capabilitySkip(
+          'agent-tools-syntax',
+          `Agents directory not found or not a directory: ${_agentsDir}`
+        ),
+      ],
+    };
+  }
   const CANONICAL_BARE = new Set([
     'Read', 'Grep', 'Glob', 'Bash', 'Edit', 'Write', 'AskUserQuestion',
     'Agent', 'Task', 'Skill', 'WebSearch', 'WebFetch', 'NotebookEdit',
@@ -470,7 +563,18 @@ function detectAgentToolsSyntax(_agentsDir) {
       });
     }
   }
-  return findings;
+  return { findings, skipped: [] };
+}
+
+function commandFilesForDir(_commandsDir) {
+  if (!isDir(_commandsDir)) return { commandFiles: [], skipped: true };
+  const nonInvocableDocs = new Set(['INDEX.md', 'README.md']);
+  return {
+    commandFiles: readdirSync(_commandsDir)
+      .filter((f) => f.endsWith('.md') && !nonInvocableDocs.has(f))
+      .sort(),
+    skipped: false,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -491,13 +595,26 @@ function main() {
   const skillDirPaths = findSkillDirs(skillsDir);
   const skillResults = skillDirPaths.map((p) => lintSkill(basename(p), p));
   const skillDirs = skillResults.map((r) => r.name);
+  const { commandFiles, skipped: skippedCommands } = commandFilesForDir(commandsDir);
 
   // Cross-skill checks
-  const orphanFindings = detectOrphans(skillDirs);
+  const orphanFindings = detectOrphans(skillDirs, commandFiles);
   const overlapFindings = detectDescriptionOverlap(skillResults);
   const { findings: argHintFindings, argHintStatus } = detectMissingArgumentHints(skillDirs);
-  const agentRefFindings = detectInvalidAgentRefs(skillResults, agentsDir);
-  const agentToolsSyntaxFindings = detectAgentToolsSyntax(agentsDir);
+  const { findings: agentRefFindings, skipped: agentRefSkips } = detectInvalidAgentRefs(skillResults, agentsDir);
+  const { findings: agentToolsSyntaxFindings, skipped: agentToolsSyntaxSkips } = detectAgentToolsSyntax(agentsDir);
+  const capabilitySkips = [
+    ...(skippedCommands
+      ? [
+          capabilitySkip(
+            'orphan-command-skill-pairing',
+            `Commands directory not found or not a directory: ${commandsDir}`
+          ),
+        ]
+      : []),
+    ...agentRefSkips,
+    ...agentToolsSyntaxSkips,
+  ];
 
   // Aggregate
   const allFindings = [];
@@ -537,6 +654,8 @@ function main() {
       overallPass,
       stats: {
         skills: skillDirs.length,
+        commands: commandFiles.length,
+        skipped: capabilitySkips.length,
         checks: passCount + allFindings.length,
         pass: passCount,
         warnings: warnCount,
@@ -545,6 +664,7 @@ function main() {
         p2: p2Count,
       },
       findings: allFindings,
+      skipped: capabilitySkips,
     };
     process.stdout.write(JSON.stringify(report, null, 2) + '\n');
     process.exit(exitCode);
@@ -556,6 +676,8 @@ function main() {
   console.log(`| Metric | Value |`);
   console.log(`|--------|-------|`);
   console.log(`| Skills scanned | ${skillDirs.length} |`);
+  console.log(`| Commands scanned | ${commandFiles.length} |`);
+  console.log(`| Capability checks skipped | ${capabilitySkips.length} |`);
   console.log(`| Checks passed | ${passCount} |`);
   console.log(`| P0 (Must Fix) | ${p0Count} |`);
   console.log(`| P1 (Should Fix) | ${p1Count} |`);
@@ -610,6 +732,14 @@ function main() {
     }
   }
 
+  if (capabilitySkips.length > 0) {
+    console.log('## Capability-Dependent Skips\n');
+    for (const skip of capabilitySkips) {
+      console.log(`- **${skip.check}**: ${skip.reason}`);
+    }
+    console.log();
+  }
+
   // Gate
   console.log(`## Gate: ${overallPass ? '✅ All Pass' : `⛔ ${p0Count + p1Count} issues need fixing`}`);
 
@@ -620,13 +750,35 @@ if (require.main === module) {
   main();
 } else {
   module.exports = {
-    normalizeContent,
-    parseFrontmatter,
+    argVal,
     bodyAfterFrontmatter,
     checkAgentEntitlement,
-    checkTaskEntitlement,
     checkCrossSkillRefPaths,
-    detectInvalidAgentRefs,
+    checkFrontmatterExists,
+    checkLineCount,
+    checkOutputSection,
+    checkReferencesRouting,
+    checkRoutingSignature,
+    checkScriptsContract,
+    checkTaskEntitlement,
+    checkVerificationSection,
+    checkWhenNotSection,
+    commandFilesForDir,
+    countLines,
+    capabilitySkip,
     detectAgentToolsSyntax,
+    detectDescriptionOverlap,
+    detectInvalidAgentRefs,
+    detectMissingArgumentHints,
+    detectOrphans,
+    escapeRegExp,
+    findRefInOtherSkills,
+    findSkillDirs,
+    lintSkill,
+    main,
+    normalizeContent,
+    parseFrontmatter,
+    similarity,
+    skillNameFromCommandContent,
   };
 }

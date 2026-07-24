@@ -1,0 +1,4 @@
+interface:
+  display_name: "Phpunit 11 Notes"
+  short_description: "PHPUnit 11.x (February 2024) signature features and the"
+  default_prompt: "Use $phpunit-11-notes to apply the Phpunit 11 Notes workflow with its verification rules."

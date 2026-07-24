@@ -60,7 +60,7 @@ If the script fails, report the error and suggest running manually:
 bash scripts/run-skill.sh risk-assess risk-analyze.js --json
 ```
 
-## Output Format
+## Output
 
 ```
 ## Risk Assessment Report

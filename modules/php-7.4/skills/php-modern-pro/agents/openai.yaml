@@ -1,0 +1,4 @@
+interface:
+  display_name: "Php Modern Pro"
+  short_description: "PHP 7.4 → 8.x modern idioms and dual-version-floor library"
+  default_prompt: "Use $php-modern-pro to apply the Php Modern Pro workflow with its verification rules."

@@ -6,10 +6,6 @@ allowed-tools: 'mcp__codex__codex, mcp__codex__codex-reply, Bash(git:*), Read, G
 
 # Codex Implement Skill
 
-## Trigger
-
-- Keywords: codex implement, implement feature, codex write code, implement from spec
-
 ## When NOT to Use
 
 - Architecture advice only (use `/codex-architect`)

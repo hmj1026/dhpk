@@ -1,6 +1,6 @@
 ---
 name: nextjs-15-5-notes
-description: "Next.js 15.5 (current stable; the 15.x line ends at v15.5.19 — 15.6 never shipped stable, canary only before the jump to 16.0) signature features and traps. Use when writing or reviewing code in a Next.js 15.5 project, or a package whose package.json constraint is ^15.5. Covers next typegen, stable typed routes, beta Turbopack production builds, and the next lint deprecation (removed in 16). Not for application business logic — load when working on framework-touching code (App Router files, next.config, build tooling) or planning a 15.5 -> 16 upgrade."
+description: "Next.js 15.5 (current stable; the 15.x line ends at v15.5.19 — 15.6 never shipped stable, canary only before the jump to 16.0) signature features and traps. Use when writing or reviewing code in a Next.js 15.5 project, or a package whose package.json constraint is ^15.5. Covers next typegen, stable typed routes, beta Turbopack production builds, and the next lint deprecation (removed in 16). Not for application business logic — load when working on framework-touching code (App Router files, next.config, build tooling) or planning a 15.5 -> 16 upgrade. Output: version-specific guidance, migration traps, and verification gates."
 ---
 
 # Next.js 15.5 — current stable

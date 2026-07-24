@@ -1,14 +1,22 @@
 ---
 name: release-creator
 argument-hint: '<version>'
-description: 'Cut a new release of a software project or plugin — resolve release config, bump versions, author changelog notes, run validation, then delegate the fixed git/PR/tag/CI sequence. Not for PHP package publication or ordinary commits.'
+description: 'Cut a new release of a software project or plugin. Use when: release configuration, version files, changelog, validation, and the fixed git/PR/tag/CI sequence must be coordinated. Not for: PHP package publication or ordinary commits. Output: a validated release preparation or publication result with the human merge gate preserved.'
 ---
 
 # Release Creator
 
 Resolve project-specific release judgment first; delegate the fixed mechanics to the tested runner.
 
-## When not to use
+## Output
+
+Return a release report containing the resolved configuration, changed version files,
+changelog result, validation result, runner phase, and the current merge/tag/CI gate.
+Stop with a blocked report when configuration is ambiguous, validation fails, the PR is
+not merged, or the tag-triggered workflow cannot be identified; do not infer a release
+success from a local edit or an unassociated CI run.
+
+## When NOT to Use
 
 - PHP package/library publishing: use `composer-package-hygiene`.
 - Ordinary feature or bug commits: use `git-smart-commit`.

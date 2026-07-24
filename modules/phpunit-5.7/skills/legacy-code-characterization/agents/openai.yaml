@@ -1,0 +1,4 @@
+interface:
+  display_name: "Legacy Code Characterization"
+  short_description: "Write characterization tests for untested legacy code to lock"
+  default_prompt: "Use $legacy-code-characterization to apply the Legacy Code Characterization workflow with its verification rules."

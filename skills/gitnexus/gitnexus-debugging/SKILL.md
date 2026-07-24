@@ -97,3 +97,11 @@ RETURN [n IN nodes(path) | n.name] AS chain
 ## Output
 
 A root-cause hypothesis backed by the graph: the suspect symbol, its call chain (callers/callees), the execution flow it sits in, and the source files to confirm the fix.
+
+## Verification
+
+- [ ] The index freshness and query scope are recorded.
+- [ ] The suspect call chain is corroborated with source file evidence.
+- [ ] The affected execution flow and external boundary are identified.
+- [ ] Hypotheses are separated from confirmed root cause.
+- [ ] The next reproduction or focused test is explicit.

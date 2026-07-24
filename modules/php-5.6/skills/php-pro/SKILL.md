@@ -1,6 +1,6 @@
 ---
 name: php-pro
-description: 'Use when building, debugging, refactoring, testing, or reviewing PHP code in Laravel, Symfony, generic modern PHP, or legacy PHP 5.6 + Yii 1.1 codebases. Detect the active runtime first, then load only the matching reference set; for Laravel, confirm the resolved major version and load the version-specific reference before touching bootstrap/app.php, middleware, exceptions, auth, testing infrastructure, or Laravel-coupled packages. Not for frontend-only or non-PHP tasks.'
+description: 'Use when building, debugging, refactoring, testing, or reviewing PHP code in Laravel, Symfony, generic modern PHP, or legacy PHP 5.6 + Yii 1.1 codebases. Detect the active runtime first, then load only the matching reference set; for Laravel, confirm the resolved major version and load the version-specific reference before touching bootstrap/app.php, middleware, exceptions, auth, testing infrastructure, or Laravel-coupled packages. Not for frontend-only or non-PHP tasks. Output: runtime-matched implementation or review guidance with compatibility and verification gates.'
 ---
 
 # PHP Pro
@@ -102,7 +102,7 @@ Follow authoritative guidance from:
 2. `.claude/rules/php/` (project PHP rules)
 3. Project `.claude/rules/execution-policy.md` if present, else `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` (agent workflow)
 
-## Output Templates
+## Output
 
 When implementing PHP features, provide:
 1. Domain models / entities / value objects when needed

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Create Request"
+  short_description: "Create, update, or scan per-task request tickets for progress"
+  default_prompt: "Use $create-request to apply the Create Request workflow with its verification rules."

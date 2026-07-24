@@ -1,0 +1,4 @@
+interface:
+  display_name: "Doc Review"
+  short_description: "Document review via Codex MCP."
+  default_prompt: "Use $doc-review to apply the Doc Review workflow with its verification rules."

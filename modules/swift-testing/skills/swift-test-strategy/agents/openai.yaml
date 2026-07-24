@@ -1,0 +1,4 @@
+interface:
+  display_name: "Swift Test Strategy"
+  short_description: "iOS test strategy across Swift Testing (@Test / #expect /"
+  default_prompt: "Use $swift-test-strategy to apply the Swift Test Strategy workflow with its verification rules."

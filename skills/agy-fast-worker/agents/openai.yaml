@@ -1,0 +1,4 @@
+interface:
+  display_name: "Agy Fast Worker"
+  short_description: "Offload a self-contained, clearly-specified mechanical task to"
+  default_prompt: "Use $agy-fast-worker to apply the Agy Fast Worker workflow with its verification rules."

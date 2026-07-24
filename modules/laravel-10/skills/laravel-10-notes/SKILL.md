@@ -1,6 +1,6 @@
 ---
 name: laravel-10-notes
-description: Laravel 10.x (February 2023) signature features and the breaking-change traps from 9 → 10. Use when writing or reviewing code in a Laravel 10 project, or in a package whose composer constraint includes ^10.0. Covers native return types throughout the app skeleton, invokable validation rules via the ValidationRule contract, the Process facade for shell invocation, the Pest-as-default test option, and the Predis 2.x default. Not for application business logic — load when touching the app skeleton, validation rules, or shell calls, or planning a 9 → 10 upgrade.
+description: Laravel 10.x (February 2023) signature features and the breaking-change traps from 9 → 10. Use when writing or reviewing code in a Laravel 10 project, or in a package whose composer constraint includes ^10.0. Covers native return types throughout the app skeleton, invokable validation rules via the ValidationRule contract, the Process facade for shell invocation, the Pest-as-default test option, and the Predis 2.x default. Not for application business logic — load when touching the app skeleton, validation rules, or shell calls, or planning a 9 → 10 upgrade. Output: version-specific guidance, migration traps, and verification gates.
 ---
 
 # Laravel 10 — native types, invokable rules, Process facade

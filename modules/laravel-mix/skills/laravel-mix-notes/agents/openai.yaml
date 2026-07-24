@@ -1,0 +1,4 @@
+interface:
+  display_name: "Laravel Mix Notes"
+  short_description: "Laravel Mix 5 (^5.0.9) signature features and the webpack 4 era"
+  default_prompt: "Use $laravel-mix-notes to apply the Laravel Mix Notes workflow with its verification rules."

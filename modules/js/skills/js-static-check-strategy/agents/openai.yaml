@@ -1,0 +1,4 @@
+interface:
+  display_name: "Js Static Check Strategy"
+  short_description: "Progressive // @ts-check per-leaf rollout playbook for legacy"
+  default_prompt: "Use $js-static-check-strategy to apply the Js Static Check Strategy workflow with its verification rules."

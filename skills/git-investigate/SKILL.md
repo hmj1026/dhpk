@@ -6,10 +6,6 @@ allowed-tools: Bash(git:*), Read, Grep, Glob, Agent
 
 # Git Investigate Skill
 
-## Trigger
-
-- Keywords: code history, git blame, track changes, who wrote this, when was it changed, root cause, code archaeology
-
 ## When NOT to Use
 
 - Code review (use codex-review)

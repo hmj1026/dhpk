@@ -1,0 +1,4 @@
+interface:
+  display_name: "Agent Architecture Audit"
+  short_description: "Full-stack diagnostic for agent and LLM applications — audits"
+  default_prompt: "Use $agent-architecture-audit to apply the Agent Architecture Audit workflow with its verification rules."

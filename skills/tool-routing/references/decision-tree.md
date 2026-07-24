@@ -1,6 +1,6 @@
-# Tool-routing decision tree (extended reference)
+# Tool-routing edge cases and rationale
 
-This is the long-form companion to the `tool-routing` skill. The skill body has the table; this file documents edge cases and rationale.
+Read this reference after the compact rules card when the request is ambiguous, multiple rows appear to match, the primary tool is unavailable or unhelpful, or the routing rationale is needed. It documents edge cases and rationale; it is not a second decision table.
 
 > **SSOT:** the compact decision card in `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md` is authoritative for routing order and tie-breakers. This file carries only rationale and edge cases — it must not restate or diverge from that card; on any conflict, the rules card wins.
 

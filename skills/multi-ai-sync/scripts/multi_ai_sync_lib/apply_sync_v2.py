@@ -7,9 +7,9 @@ import re
 import shutil
 import tempfile
 
+from .agent_sync import SYNC_MANIFEST_PATH, build_agent_sync_bundle, build_agent_sync_manifest
 from .constants import STATUS_ADAPT
 from .utils import now_iso, read_text
-from .validation import check_codex_agent_role_fields
 
 
 def _ensure_parent(path):
@@ -21,6 +21,12 @@ def _ensure_parent(path):
 def _copy_file(src, dst):
     _ensure_parent(dst)
     shutil.copy2(src, dst)
+
+
+def _write_text_file(path, content):
+    _ensure_parent(path)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write(content)
 
 
 def _sync_directory(src_dir, dst_dir):
@@ -269,6 +275,22 @@ def _apply_mapping(item, repo_root, dry_run, codex_skill_fallback_roots, sync_ru
                 _copy_file(source_abs, target_abs)
             return _apply_result(item, "applied", "已同步為 Antigravity workflow Markdown")
 
+        if category == "agents" and target == "codex":
+            bundle = build_agent_sync_bundle(repo_root, item["feature_name"], sync_run_id)
+            generated_files = [bundle["mirror_md"]] + [ref["target"] for ref in bundle["mirrored_ref_items"]]
+            if not dry_run:
+                _write_text_file(os.path.join(repo_root, bundle["mirror_md"]), bundle["mirror_content"])
+                for ref in bundle["mirrored_ref_items"]:
+                    _copy_file(os.path.join(repo_root, ref["source"]), os.path.join(repo_root, ref["target"]))
+            result = _manual_result(item, "已生成 Claude mirror/references 與 reviewer-ready TOML 草稿；target role 仍需人工覆核")
+            result["generated_files"] = generated_files
+            result["draft_toml_content"] = bundle["draft_toml_content"]
+            result["draft_target_path"] = bundle["target_toml"]
+            result["manifest_entry"] = bundle["manifest_entry"]
+            result["coverage_keywords"] = bundle["coverage_keywords"]
+            result["nonportable_sources"] = bundle["nonportable_sources"]
+            return result
+
         return _manual_result(item, "此類型不做自動改寫，避免跨平台語意誤差")
     except OSError as exc:
         if exc.errno in (errno.EROFS, errno.EACCES, errno.EPERM):
@@ -335,6 +357,19 @@ def apply_plan(plan, repo_root, dry_run=False, codex_skill_fallback_roots=None, 
     for item in adapted:
         results.append(_apply_mapping(item, repo_root, dry_run, fallback_roots, sync_run_id=run_id))
 
+    agent_bundles = []
+    for item in results:
+        if item.get("category") == "agents" and item.get("target") == "codex" and item.get("manifest_entry"):
+            agent_bundles.append({"manifest_entry": item["manifest_entry"]})
+    if agent_bundles:
+        manifest = build_agent_sync_manifest(repo_root, run_id, agent_bundles)
+        if not dry_run:
+            _write_text_file(os.path.join(repo_root, SYNC_MANIFEST_PATH), json.dumps(manifest, indent=2, sort_keys=True) + "\n")
+        for item in results:
+            if item.get("category") == "agents" and item.get("target") == "codex" and item.get("manifest_entry"):
+                item["manifest_path"] = SYNC_MANIFEST_PATH
+                item.setdefault("generated_files", []).append(SYNC_MANIFEST_PATH)
+
     summary = {
         "applied": len([r for r in results if r["action"] == "applied"]),
         "manual": len([r for r in results if r["action"] == "manual"]),
@@ -376,6 +411,19 @@ def render_manual_draft_markdown(report):
         lines.append("   Source: `%s`" % (item.get("source_path") or "-"))
         lines.append("   Target: `%s`" % (item.get("target_path") or "-"))
         lines.append("   Reason: %s" % item.get("reason", ""))
+        if item.get("generated_files"):
+            lines.append("   Generated:")
+            for path in item.get("generated_files", []):
+                lines.append("   - `%s`" % path)
+        if item.get("coverage_keywords"):
+            lines.append("   Coverage: %s" % ", ".join(item.get("coverage_keywords", [])))
+        if item.get("nonportable_sources"):
+            lines.append("   Nonportable: %s" % ", ".join(item.get("nonportable_sources", [])))
+        if item.get("draft_toml_content"):
+            lines.append("")
+            lines.append("```toml")
+            lines.append(item["draft_toml_content"].rstrip())
+            lines.append("```")
     lines.append("")
 
     lines.append("## Patch Draft Strategy")
@@ -415,53 +463,9 @@ def _load_toml_from_string(content):
             raise RuntimeError("沒有可用 TOML parser（tomllib/tomli）")
 
 
-def _run_codex_role_field_self_tests():
-    results = []
+def run_self_tests(repo_root):
+    from .validation import check_codex_agent_role_fields
 
-    tmpdir = tempfile.mkdtemp()
-    try:
-        with open(os.path.join(tmpdir, "missing-name.toml"), "w") as fh:
-            fh.write('model = "gpt-5.5"\ndeveloper_instructions = """x"""\n')
-        failures = check_codex_agent_role_fields(tmpdir)
-        ok = bool(failures) and any("name" in f for f in failures)
-        results.append({
-            "name": "codex-role-missing-name-detected",
-            "status": "pass" if ok else "fail",
-            "reason": "" if ok else "check_codex_agent_role_fields 未偵測到缺少 name 的角色檔案",
-        })
-    except Exception as exc:
-        results.append({
-            "name": "codex-role-missing-name-detected",
-            "status": "fail",
-            "reason": str(exc),
-        })
-    finally:
-        shutil.rmtree(tmpdir, ignore_errors=True)
-
-    tmpdir2 = tempfile.mkdtemp()
-    try:
-        with open(os.path.join(tmpdir2, "wellformed.toml"), "w") as fh:
-            fh.write('name = "g"\ndescription = "d"\ndeveloper_instructions = """x"""\n')
-        failures = check_codex_agent_role_fields(tmpdir2)
-        ok = failures == []
-        results.append({
-            "name": "codex-role-wellformed-passes",
-            "status": "pass" if ok else "fail",
-            "reason": "" if ok else "check_codex_agent_role_fields 對完整角色檔案回傳非空結果: %s" % failures,
-        })
-    except Exception as exc:
-        results.append({
-            "name": "codex-role-wellformed-passes",
-            "status": "fail",
-            "reason": str(exc),
-        })
-    finally:
-        shutil.rmtree(tmpdir2, ignore_errors=True)
-
-    return results
-
-
-def run_self_tests():
     cases = [
         {
             "name": "basic-literal-prompt",
@@ -498,7 +502,73 @@ def run_self_tests():
                 "reason": str(exc),
             })
 
-    results.extend(_run_codex_role_field_self_tests())
+    agent_cases = [
+        {
+            "name": "agent-bundle-tdd-guide",
+            "role": "tdd-guide-<your-project>",
+        },
+        {
+            "name": "agent-bundle-architect-parseable",
+            "role": "architect-<your-project>",
+            "assert_parseable": True,
+            "assert_role_fields": True,
+        },
+        {
+            "name": "agent-manifest-build",
+            "role": "code-reviewer-<your-project>",
+        },
+        {
+            "name": "agent-bundle-refactor-cleaner-parseable",
+            "role": "refactor-cleaner-<your-project>",
+            "assert_parseable": True,
+        },
+    ]
+    # Agent conversion tests are converter fixtures, not consumer-repository
+    # discovery tests. Build the four minimal Claude source agents in a
+    # short-lived directory so `self-test` passes in a clean repo and never
+    # writes to the caller's working tree. Codex-native role differences remain
+    # covered by the production manifest/validation path.
+    with tempfile.TemporaryDirectory(prefix="multi-ai-sync-self-test-") as fixture_root:
+        agents_root = os.path.join(fixture_root, ".claude", "agents")
+        codex_agents_root = os.path.join(fixture_root, ".codex", "agents")
+        os.makedirs(agents_root)
+        os.makedirs(codex_agents_root)
+        for case in agent_cases:
+            role = case["role"]
+            source_path = os.path.join(agents_root, "%s.md" % role)
+            with open(source_path, "w", encoding="utf-8") as fh:
+                fh.write("---\nname: %s\ndescription: self-test fixture\n---\nSample role guidance.\n" % role)
+            with open(os.path.join(codex_agents_root, "%s.toml" % role), "w", encoding="utf-8") as fh:
+                fh.write('model = "gpt-5.3-codex"\nmodel_reasoning_effort = "medium"\n')
+
+        for case in agent_cases:
+            try:
+                bundle = build_agent_sync_bundle(fixture_root, case["role"], "self-test-run")
+                ok = bool(bundle)
+                if case.get("assert_parseable"):
+                    parsed = _load_toml_from_string(bundle["draft_toml_content"])
+                    ok = ok and parsed.get("developer_instructions", "").startswith("Role: ")
+                if case.get("assert_role_fields"):
+                    role_fields_dir = os.path.join(fixture_root, ".codex-agent-role-field-check", case["role"])
+                    os.makedirs(role_fields_dir)
+                    role_fields_path = os.path.join(role_fields_dir, "%s.toml" % case["role"])
+                    with open(role_fields_path, "w", encoding="utf-8") as fh:
+                        fh.write(bundle["draft_toml_content"])
+                    ok = ok and not check_codex_agent_role_fields(role_fields_dir)
+                if case["name"] == "agent-manifest-build":
+                    manifest = build_agent_sync_manifest(fixture_root, "self-test-run", [bundle])
+                    ok = ok and bool(manifest)
+                results.append({
+                    "name": case["name"],
+                    "status": "pass" if ok else "fail",
+                    "reason": "" if ok else "agent sync payload is empty",
+                })
+            except Exception as exc:
+                results.append({
+                    "name": case["name"],
+                    "status": "fail",
+                    "reason": str(exc),
+                })
 
     passed = len([r for r in results if r["status"] == "pass"])
     failed = len(results) - passed
@@ -596,6 +666,14 @@ def render_apply_markdown(report):
         lines.append("  Source: `%s`" % (item.get("source_path") or "-"))
         lines.append("  Target: `%s`" % (item.get("target_path") or "-"))
         lines.append("  Reason: %s" % item.get("reason", ""))
+        if item.get("draft_target_path"):
+            lines.append("  Draft target: `%s`" % item.get("draft_target_path"))
+        if item.get("generated_files"):
+            lines.append("  Generated files:")
+            for path in item.get("generated_files", []):
+                lines.append("  - `%s`" % path)
+        if item.get("manifest_path"):
+            lines.append("  Manifest: `%s`" % item.get("manifest_path"))
     return "\n".join(lines)
 
 

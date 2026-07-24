@@ -1,0 +1,4 @@
+interface:
+  display_name: "Create Skill"
+  short_description: "Create a new Claude Code skill or refactor an existing one to"
+  default_prompt: "Use $create-skill to apply the Create Skill workflow with its verification rules."

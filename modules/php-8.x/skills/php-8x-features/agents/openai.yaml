@@ -1,0 +1,4 @@
+interface:
+  display_name: "Php 8x Features"
+  short_description: "PHP 8.0 → 8.3 language features and when to adopt them."
+  default_prompt: "Use $php-8x-features to apply the Php 8x Features workflow with its verification rules."

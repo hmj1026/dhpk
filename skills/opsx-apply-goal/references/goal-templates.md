@@ -1,6 +1,6 @@
 # opsx-apply-goal — verbatim `/goal` condition templates
 
-Used by Step 6 and Step 6b of the `opsx-apply-goal` skill. These are the exact
+Used by Steps 3 and 4 of the `opsx-apply-goal` skill. These are the exact
 literal strings that compose `GOAL_CONDITION`. SKILL.md owns the *rules* (which
 Part 0 branch by `DISPATCH_ON`, the `<CODEX_STATEMENT>` substitution, which Part 3
 gate lines to emit per detected flags, and the 4,000 UTF-8-byte length guard with its

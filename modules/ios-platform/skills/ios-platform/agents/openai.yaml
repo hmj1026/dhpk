@@ -1,0 +1,4 @@
+interface:
+  display_name: "Ios Platform"
+  short_description: "iOS SDK framework guidance for a health/PHI app — Core Data"
+  default_prompt: "Use $ios-platform to apply the Ios Platform workflow with its verification rules."

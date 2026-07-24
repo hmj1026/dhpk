@@ -6,10 +6,6 @@ allowed-tools: 'mcp__codex__codex, mcp__codex__codex-reply, Read, Grep, Glob, Ba
 
 # Codex Brainstorm Skill
 
-## Trigger
-
-- Keywords: brainstorm, exhaust possibilities, explore solutions, deep discussion, feasibility analysis, solution exploration, Nash equilibrium
-
 ## When NOT to Use
 
 - Simple technical Q&A (answer directly)
@@ -54,7 +50,7 @@ Before forming conclusions, you **must** first:
 2. Search related code: \`grep -r "keyword" src/ --include="*.ts" -l | head -10\`
 3. Read relevant files to confirm existing implementations
 
-## Output Requirements
+## Output
 1. Research summary (related modules, existing patterns)
 2. Your position + supporting arguments
 3. Potential risks`,

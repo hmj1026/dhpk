@@ -1,0 +1,4 @@
+interface:
+  display_name: "Openspec Artifact Guard"
+  short_description: "Enforce OpenSpec artifact shape and detect specs-vs-spec-delta"
+  default_prompt: "Use $openspec-artifact-guard to apply the Openspec Artifact Guard workflow with its verification rules."

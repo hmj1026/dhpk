@@ -129,3 +129,11 @@ RETURN caller.name, caller.filePath ORDER BY caller.filePath
 ## Output
 
 An ordered refactor plan (interfaces → implementations → callers → tests), the verified multi-file edits (dry-run reviewed before apply), and a post-change `detect_changes` scope confirmation.
+
+## Verification
+
+- [ ] Upstream impact was checked before editing the symbol.
+- [ ] The dry-run rename or edit set was reviewed for dynamic and external references.
+- [ ] Interfaces, implementations, callers, and tests were updated in dependency order.
+- [ ] Focused tests for affected flows pass.
+- [ ] `gitnexus_detect_changes` shows only the intended symbols and execution flows.

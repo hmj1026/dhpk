@@ -1,0 +1,4 @@
+interface:
+  display_name: "Vue 2 Notes"
+  short_description: "Vue 2 (^2.5.17, Options API era) component structure and the"
+  default_prompt: "Use $vue-2-notes to apply the Vue 2 Notes workflow with its verification rules."

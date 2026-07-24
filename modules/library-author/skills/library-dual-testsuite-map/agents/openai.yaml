@@ -1,0 +1,4 @@
+interface:
+  display_name: "Library Dual Testsuite Map"
+  short_description: "Map edited file paths to the correct testsuite(s) for libraries"
+  default_prompt: "Use $library-dual-testsuite-map to apply the Library Dual Testsuite Map workflow with its verification rules."

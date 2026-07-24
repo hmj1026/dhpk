@@ -93,7 +93,7 @@ def cmd_apply(args):
 
 
 def cmd_self_test(args):
-    report = run_self_tests()
+    report = run_self_tests(os.path.abspath(args.root))
     if args.format == "json":
         payload = json.dumps(report, indent=2, sort_keys=True)
     else:

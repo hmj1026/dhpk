@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## 0.30.0 — 2026-07-24 — Add TDD skill, expand multi-AI sync validation, and refactor core and module skills
+
+Adds the TDD skill with comprehensive mocking and testing guidelines, expands multi-AI sync validation with OpenAI metadata checks, and refactors core and module skills for progressive disclosure.
+
+**feat(tdd)** — Add TDD skill (`skills/tdd/`) and guide agents with testing and mocking specifications.
+**feat(multi-ai-sync)** — Expand Multi-AI Sync skill with OpenAI metadata validation and canonical Codex agent mirror alignment (`tests/validate-openai-metadata.test.js`, `tests/codex-skill-*.test.js`).
+**refactor(spec)** — Refactor core command and execution policy skills (`opsx-apply-goal`, `dhpk-execution-policy`, `execution-checklist`, `tool-routing`, `codex-bridge`).
+**refactor(skills)** — Refactor core skills (`agent-architecture-audit`, `codex-code-review`, `composer-package-hygiene`, `laravel-package-author`, `laravel-testbench-matrix`, `skill-health-check`) and extract reference documentation for progressive disclosure.
+**refactor(modules)** — Refactor language and framework module skills across PHP, Yii, PHPUnit, Laravel, JS, Next.js, React, Python, Swift, and SwiftUI to adopt progressive loading.
+
 ## 0.29.0 — 2026-07-23 — Rename fast-worker override to worker, support codex-deep-reasoner, and consolidate advisory hooks
 
 Rename the fast-worker override flag to worker, add support for the codex-deep-reasoner agent and backend selector, consult the architect agent during planning phase, and consolidate default-off advisory hooks.

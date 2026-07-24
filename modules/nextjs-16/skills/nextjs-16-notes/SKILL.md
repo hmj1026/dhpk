@@ -1,6 +1,6 @@
 ---
 name: nextjs-16-notes
-description: "Next.js 16 (current stable major, now at 16.2.x) signature features and the breaking-change traps from 15.x -> 16.0. Use when writing or reviewing code in a Next.js 16 project, or planning an upgrade from Next.js 15.x. Covers Turbopack-by-default (dev and build), the async-only Request APIs (params/searchParams/cookies/headers), the Node.js 20.9+ floor, the removal of next lint and AMP, next/image priority -> preload, removed runtime-config APIs, and the 16.1 next upgrade CLI. Not for application business logic — load when working on framework-touching code or planning a 15.x -> 16 upgrade. Note: Next.js 16 supports React 18.2+ or 19 — React 19 is recommended but NOT required."
+description: "Next.js 16 (current stable major, now at 16.2.x) signature features and the breaking-change traps from 15.x -> 16.0. Use when writing or reviewing code in a Next.js 16 project, or planning an upgrade from Next.js 15.x. Covers Turbopack-by-default (dev and build), the async-only Request APIs (params/searchParams/cookies/headers), the Node.js 20.9+ floor, the removal of next lint and AMP, next/image priority -> preload, removed runtime-config APIs, and the 16.1 next upgrade CLI. Not for application business logic — load when working on framework-touching code or planning a 15.x -> 16 upgrade. Note: Next.js 16 supports React 18.2+ or 19 — React 19 is recommended but NOT required. Output: version-specific guidance, migration traps, and verification gates."
 ---
 
 # Next.js 16 — current stable major

@@ -34,32 +34,35 @@ When writing skills meant to work in both harnesses:
 
 ## Layout: symlinks vs physical copies under `codex/skills/`
 
-Most entries under `codex/skills/` are **in-repo symlinks** back to the canonical `skills/<name>/`. Editing a symlinked skill edits the Claude-side canonical, and the change applies to both worlds. Only intentionally-diverged or module-mirrored skills are stored as physical directories here.
+All non-module entries under `codex/skills/` are **in-repo symlinks** back to the canonical `skills/<name>/`. Editing a symlinked skill edits the canonical source, and the change applies to both worlds. The only physical entries are the four module mirrors listed below.
 
 Physical (non-symlink) entries:
 
 | Path | Why it's physical |
 |------|-------------------|
-| `codex/skills/multi-ai-sync/` | Codex side has additional Python (agent-sync bundling) the Claude side doesn't need. |
-| `codex/skills/skill-health-check/` | Codex side targets a command-centric model (no `Agent`/`Task` entitlements, different orphan-detection logic). |
-| `codex/skills/bug-investigation/` | Codex side mandates strict OpenSpec post-investigation; Claude side keeps OpenSpec optional. |
-| `codex/skills/{php-pro,php56-yii-dev,yii1-security-audit,legacy-code-characterization}/` | Module-skill mirrors. The canonical sources live under `modules/<stack>/skills/`; these are flat-tree copies for Codex which has no module-loading machinery. |
+| `codex/skills/php-pro/` | Mirror of `modules/php-5.6/skills/php-pro/`; Codex needs a flat skill tree. |
+| `codex/skills/php56-yii-dev/` | Mirror of `modules/yii-1.1/skills/php56-yii-dev/`; Codex needs a flat skill tree. |
+| `codex/skills/yii1-security-audit/` | Mirror of `modules/yii-1.1/skills/yii1-security-audit/`; Codex needs a flat skill tree. |
+| `codex/skills/legacy-code-characterization/` | Mirror of `modules/phpunit-5.7/skills/legacy-code-characterization/`; Codex needs a flat skill tree. |
 
-When editing a physical entry, the change applies only to the Codex side — verify intent first.
+When editing a physical module mirror, edit the corresponding canonical module
+skill first. The validator enforces the four mappings, the physical allowlist,
+and symlink-or-byte parity for `agents/openai.yaml`. Module `SKILL.md`,
+references, and scripts can retain Codex-compatible body differences, so
+review their semantic parity manually before changing the mirror.
 
 ## Module skills inside Codex
 
-The plugin's `modules/php-5.6/skills/`, `modules/yii-1.1/skills/`, `modules/phpunit-5.7/skills/` are NOT synced into the Codex `.codex/skills/` automatically — they live behind `userConfig.modules` gating, which Codex CLI doesn't honour.
+The plugin's `modules/<stack>/skills/` trees are not flattened wholesale into
+Codex because Codex does not apply Claude's `userConfig.modules` gating. The
+four approved module mirrors — `php-pro`, `php56-yii-dev`,
+`yii1-security-audit`, and `legacy-code-characterization` — are already
+available through `codex/skills/` and are covered by the metadata validator.
 
-If you want a stack module's content available in Codex too, copy or symlink the specific skills manually:
-
-```bash
-# Example: surface the yii-1.1 skills in .codex/
-ln -sf "${CLAUDE_PLUGIN_ROOT}/modules/yii-1.1/skills/yii1-security-audit" .codex/skills/yii1-security-audit
-ln -sf "${CLAUDE_PLUGIN_ROOT}/modules/yii-1.1/skills/php56-yii-dev" .codex/skills/php56-yii-dev
-```
-
-(A future release may add a `--with-modules` flag to `install-codex-skills.sh` that automates this.)
+Do not create ad hoc module copies or symlinks under `.codex/skills/`. To expose
+another module skill, first add its canonical mapping, physical-mirror
+allowlist entry, metadata link, layout-test coverage, and documentation in the
+plugin source; then update the installer policy if needed.
 
 ## Updating after a plugin version bump
 

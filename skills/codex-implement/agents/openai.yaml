@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codex Implement"
+  short_description: "Implement features via Codex MCP."
+  default_prompt: "Use $codex-implement to apply the Codex Implement workflow with its verification rules."
