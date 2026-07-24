@@ -1,0 +1,4 @@
+interface:
+  display_name: "React 18 Notes"
+  short_description: "React 18 (March 2022) signature features and the migration"
+  default_prompt: "Use $react-18-notes to apply the React 18 Notes workflow with its verification rules."

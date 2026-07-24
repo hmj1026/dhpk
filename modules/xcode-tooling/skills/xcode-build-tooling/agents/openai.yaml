@@ -1,0 +1,4 @@
+interface:
+  display_name: "Xcode Build Tooling"
+  short_description: "Xcode / SwiftLint / xcodebuild / Swift Package Manager tooling"
+  default_prompt: "Use $xcode-build-tooling to apply the Xcode Build Tooling workflow with its verification rules."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Feasibility Study"
+  short_description: "Feasibility analysis from first principles."
+  default_prompt: "Use $feasibility-study to apply the Feasibility Study workflow with its verification rules."

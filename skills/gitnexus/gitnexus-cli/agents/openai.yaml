@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gitnexus CLI"
+  short_description: "Run GitNexus CLI commands (analyze, status, clean, wiki, list)."
+  default_prompt: "Use $gitnexus-cli to apply the Gitnexus CLI workflow with its verification rules."

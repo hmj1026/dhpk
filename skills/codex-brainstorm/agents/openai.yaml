@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codex Brainstorm"
+  short_description: "Adversarial brainstorming via Claude+Codex debate."
+  default_prompt: "Use $codex-brainstorm to apply the Codex Brainstorm workflow with its verification rules."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Post Dev Test"
+  short_description: "Post-development test completion."
+  default_prompt: "Use $post-dev-test to apply the Post Dev Test workflow with its verification rules."

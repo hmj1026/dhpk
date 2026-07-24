@@ -1,0 +1,4 @@
+interface:
+  display_name: "Project Setup"
+  short_description: "Project configuration initialization."
+  default_prompt: "Use $project-setup to apply the Project Setup workflow with its verification rules."

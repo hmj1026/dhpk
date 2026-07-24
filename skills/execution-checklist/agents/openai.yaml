@@ -1,0 +1,4 @@
+interface:
+  display_name: "Execution Checklist"
+  short_description: "End-of-task self-check for substantive repository changes."
+  default_prompt: "Use $execution-checklist to apply the Execution Checklist workflow with its verification rules."

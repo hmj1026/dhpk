@@ -1,251 +1,130 @@
 ---
 name: multi-ai-sync
-description: 'Compare and synchronize Claude-first agent configuration across Codex, Gemini, and Antigravity (.agent). Includes a pre-sync smoke gate (multi_ai_sync.py self-test) and post-sync Gemini frontmatter translation (gemini-adapt-agents.js). Generate read-only plans, create OpenSpec tasks, apply safe sync changes with dry-run preview and writable-path fallback, and validate post-sync results. Use when aligning `.claude` skills, commands, hooks, agents, or orchestration rules to other AI platforms, when comparing multi-platform agent setup drift, or when preparing a Claude-to-Codex/Gemini/.agent migration. Also matches requests such as `sync claude to codex`, `align multi-platform AI config`, `同步 claude 技能到 codex`, or `對齊多 AI 設定`. Not for single-platform edits, reverse sync, or missing `.claude` source.'
+description: "Compare Claude-first configuration across Codex, Gemini, and Antigravity. Produce reviewable plans, OpenSpec tasks, dry-run/apply reports, and PASS/PARTIAL/FAIL validation. Use when aligning cross-platform skills, commands, agents, hooks, or orchestration. Not for reverse sync, single-platform edits, or missing Claude source."
 ---
 
 # Multi AI Sync (Claude First)
 
-以 `Claude` 為主來源，對齊到 `Codex`、`Gemini`、`Antigravity(.agent)`。
+以 `Claude` 為 source of truth，對齊 `Codex`、`Gemini`、`Antigravity (.agent)`。
 
 ## When NOT to Use
 
-- 反向同步（以 Codex/Gemini 為來源覆寫 Claude）→ 此技能僅支援 Claude-first
-- 單一平台內的檔案編輯或格式調整（不涉及跨平台對齊）
-- 只修改單個 command/skill 而非全局對齊
-- `.claude` 主來源目錄不存在或結構不完整
+- 反向同步，或以單一 target 覆寫 Claude。
+- 單一平台內的檔案編輯或格式調整。
+- 只修改一個 command/skill，而不是檢查跨平台對齊。
+- `.claude` 或 `CLAUDE.md` 不存在、不可讀，或結構不完整。
 
-## 核心規則
+## Operating Contract
 
-1. `Claude` 有的功能項目都必須進入檢查矩陣。
-2. 目標平台無對應能力：標記 `skip-incompatible`，不得硬套。
-3. 目標平台有近似能力：依目標平台規範移植（優先 Context7，官方文件為最終裁決）。
-4. 先出計畫供審核，核准後才生成與執行 tasks。
-5. 最後必跑 `Post-Sync Validation Gate`（Smoke + 代表流程）。
+1. 把 Claude source 的每個 feature 放入 mapping matrix。
+2. 無穩定等價能力使用 `skip-incompatible`，不可硬套。
+3. 近似能力使用 `adapted`，保留 evidence 與人工審核界線。
+4. 先產生 read-only plan；核准前不得建立 tasks 或 mutation。
+5. apply 前必須 dry-run；完成後必須跑 validation gate。
+6. Codex agent parity 使用 canonical `agent_sync.py` / `apply_sync.py`
+   helpers 產生 reviewer-ready TOML 草稿、mirror Markdown、mirrored
+   references 與 sync manifest；這些 artifact 仍受 dry-run/apply/validation
+   safety gates 管制。
 
-## 能力範圍
+每個 mapping 必須有 `status`、`reason`、`evidence_urls`、`source_path`、
+`target_path`。Status semantics 與 risk policy 見 References。
 
-- `skills`
-- `commands/workflows`
-- `agents/config`
-- `hooks`
-- `multi-agents`（含 `agent-definitions`（`.claude/agents/`）與 `orchestration-rules`（`.claude/rules/`），需人工審核）
+## Workflow
 
-## 執行流程
+### Step 0: Resolve runtime and preflight
 
-### Step 0: Preflight（必要）
+先讀 `references/runtime-entrypoints.md`，依 harness 設定 `SYNC_CLI`；
+entrypoint script 是 `multi_ai_sync.py`。若 working directory 不是 repository
+root，所有 subcommand 前加 `--root <repo-root>`。
 
-```bash
-# 0-1. 確認主來源可讀（含 symlink）
-test -e .claude && test -e CLAUDE.md
+檢查並回報：source 可讀；plan-only 的缺少 target root 可標記 `WARN`；apply
+必須有可寫 target 或明確 fallback；無法安全判定的 target 標記 `BLOCKED`。
 
-# 0-2. 檢查主要目標路徑可寫性（避免執行中途才失敗）
-test -w .gemini && test -w .agent
+**完成條件：** 每項都有 `PASS`、`WARN` 或 `BLOCKED` 及 operation。Source
+`BLOCKED` 時停止；plan-only 的 target `WARN` 可進入 Step 1。
 
-# 0-3. Codex skills 路徑若不可寫，apply 會自動 fallback
-test -w .codex/skills || echo ".codex/skills not writable; will fallback"
-```
-
-**Output:** 明確列出三項檢查結果（✅/❌）
-
-若 Preflight 失敗，先回報阻塞（原因/已嘗試/下一步），不要直接進 Step 1。
-
-**重點：** 必須清楚記錄 Preflight 檢查的通過/失敗狀態。
-
-### Phase 0: Pre-Sync Smoke Gate（必要）
-
-在進入差異計畫前，先跑一次內建自測，作為「同步工具鏈本身是否健康」的客觀門檻（converter/regression 測試，見 Scripts 結構）。
+### Step 1: Smoke gate
 
 ```bash
-python3 -B .codex/skills/multi-ai-sync/scripts/multi_ai_sync.py self-test --format markdown
+python3 -B "$SYNC_CLI" self-test --format markdown
 ```
 
-| 結果 | 動作 |
-|---|---|
-| self-test 通過 | 繼續 Step 1 |
-| self-test 失敗 | **halt**：印出失敗案例摘要 |
-| 用戶以 `--force` 觸發 | 警告 `WARNING: self-test failing, --force in effect` 後繼續 |
+失敗時停止並列出 failing cases；此 CLI 不提供 bypass。
 
-**Asset 是否該 sync 的判定**：由 `mapping.py` 的 `category_supported()` / `evaluate_mapping()` 依目標平台能力動態判定（equivalent / adapted / skip-incompatible），規則摘要見 `references/platform-mapping.md`。Plan 階段（Step 1）的輸出已包含這個判定結果，不需另外的 profile manifest。
+**完成條件：** self-test 報告 `failed: 0`。
 
-### Step 1: 產生差異計畫（只讀）
+### Step 2: Generate a read-only plan
 
-**關鍵決定：** 先判斷使用者意圖
-- **計畫模式**（plan-only）：「先給我差異計畫」、「我只想看計畫」 → 停在 Step 1，不繼續
-- **完整流程**：「同步」、「幫我...同步」 → 繼續進 Step 2-4
+讀 `references/execution-contract.md` 的 plan command 與 report contract，
+再產生 markdown/JSON plan。Plan 必須包含 coverage、mapping、`adapted`
+candidates、`skip-incompatible` register、source arbitration 與 evidence URLs。
 
-```bash
-python3 -B .codex/skills/multi-ai-sync/scripts/multi_ai_sync.py plan --format markdown
-```
+plan-only 在輸出 plan 後停止並回報沒有 mutation；完整同步停在 approval gate。
 
-**必須輸出：**
-- Coverage summary（對齊覆蓋率統計）
-- Mapping matrix（項目對應矩陣）
-- Migration candidates（`adapted` 項目清單）
-- Skip register（`skip-incompatible` 項目清單）
-- 證據來源 URL
-- **多語言混合**（中文 + English 技術術語）
+**完成條件：** 每個 feature 有 decision contract，且已標記 plan-only 或
+approval-pending。
 
-若要機器可讀格式：
+### Step 3: Generate reviewable tasks
 
-```bash
-python3 -B .codex/skills/multi-ai-sync/scripts/multi_ai_sync.py plan --format json --output /tmp/multi-ai-sync-plan.json
-```
+取得核准後，依 `execution-contract.md` 產生 OpenSpec `tasks.md`。只把
+`adapted` 轉成 tasks；skip register 不得變成自動 mutation。
 
-**Plan-only 模式判斷：** 如果使用者要求「只給計畫」，則執行此步後停止，不進 Step 2/3/4。
+**完成條件：** tasks 可追溯到 plan，含 status/reason/evidence，且未修改
+target files。
 
-### Step 2: 審核後生成 OpenSpec tasks
+### Step 4: Dry-run, then apply
 
-```bash
-python3 -B .codex/skills/multi-ai-sync/scripts/multi_ai_sync.py openspec-tasks \
-  --plan /tmp/multi-ai-sync-plan.json \
-  --change-name claude-sync-YYYY-MM-DD \
-  --output openspec/changes/claude-sync-YYYY-MM-DD/tasks.md
-```
+依 `execution-contract.md` 先產生並檢查 dry-run，再執行核准的 apply。Report
+必須區分 applied、manual、failed；`.codex/skills` 唯讀時記錄 fallback。
+Codex target 的 `adapted` agent mapping 可由 `agent_sync.py` 生成
+`.codex/agents/*.toml` 草稿、mirror Markdown 與 `.codex/agents/sync-manifest.json`，
+但仍需人工覆核 target role 指令。
 
-只會把 `adapted` 項目轉成待執行任務；`skip-incompatible` 會保留在註記區。
+**完成條件：** dry-run 與核准範圍一致，正式 report 不把 partial apply 宣稱
+為完成。
 
-### Step 3: 套用同步
+### Step 5: Validation gate
 
-**重點：必須執行 dry-run，再執行實際套用**
+依 `execution-contract.md` 執行 validation，檢查 config/frontmatter/TOML/JSON
+loadability、platform smoke、hooks 與 multi-agent representative cases。
+Codex validation 同時檢查 agent role 必要欄位、sync manifest、mirrored
+references、coverage keywords 與 self-contained runtime contract。
 
-#### 3-1. 執行 Dry-Run（預演）
+- `PASS`: config/smoke 通過，沒有代表案例 `FAIL` 或 `SKIP`。
+- `PARTIAL`: config/smoke 通過，但有明確 incompatible skip。
+- `FAIL`: config/smoke 失敗，或代表案例失敗。
 
-```bash
-python3 -B .codex/skills/multi-ai-sync/scripts/multi_ai_sync.py apply \
-  --plan /tmp/multi-ai-sync-plan.json \
-  --dry-run \
-  --format markdown \
-  --output /tmp/multi-ai-sync-apply-dryrun.md
-```
-
-**必須輸出：** 明確記錄「dry-run 預演結果」，顯示：
-- 將被修改的檔案清單
-- 預期的變更內容（不實際執行）
-- 潛在風險警告
-
-#### 3-2. 執行實際套用
-
-```bash
-python3 -B .codex/skills/multi-ai-sync/scripts/multi_ai_sync.py apply \
-  --plan /tmp/multi-ai-sync-plan.json \
-  --format markdown \
-  --update-tasks openspec/changes/claude-sync-YYYY-MM-DD/tasks.md \
-  --manual-draft-output artifacts/multi-ai-sync-manual-draft-YYYY-MM-DD.md \
-  --output artifacts/multi-ai-sync-apply-YYYY-MM-DD.md
-```
-
-**必須輸出：** 詳細的應用報告，包含：
-- 實際執行的變更摘要
-- 每個 target 平台的成功/失敗狀態
-- 手動審核項目的草稿
-
-#### 套用策略
-
-- 可自動套用：`skills`、`commands/workflows`
-- 需人工審核：`agents`、`config`、`multi-agents`
-- `.codex/skills` 不可寫：自動 fallback 到 `artifacts/codex-skills-fallback`（可用 `--codex-skills-fallback-roots` 覆寫）
-- `--update-tasks`：依 apply 結果自動勾選 OpenSpec tasks
-- `--manual-draft-output`：輸出 manual 項目的 reviewer-ready 草稿
-- apply 報告會內建 target/category breakdown（便於大批量檢視）
-
-可在同步前後跑內建自測（converter/regression）：
-
-```bash
-python3 -B .codex/skills/multi-ai-sync/scripts/multi_ai_sync.py self-test --format markdown
-```
-
-建議同步後補做一個 TOML parse 檢查（Gemini commands）：
-
-```bash
-python3 - <<'PY'
-import glob, tomllib
-errors = []
-for path in sorted(glob.glob('.gemini/commands/**/*.toml', recursive=True)):
-    with open(path, 'rb') as f:
-        try:
-            tomllib.load(f)
-        except Exception as e:
-            errors.append((path, str(e)))
-print("errors", len(errors))
-for item in errors[:20]:
-    print(item[0], item[1])
-PY
-```
-
-### Phase 3.5: Post-Sync Frontmatter Translation（必要，Step 3 apply 完成後、Step 4 validate 之前）
-
-在 sync 寫入 `.gemini/agents/` 之後、進入最後驗證 Gate 之前，自動翻譯 frontmatter 為 Gemini CLI 認識的格式。
-
-```bash
-node "${CLAUDE_PLUGIN_ROOT}/scripts/gemini-adapt-agents.js" .gemini/agents
-```
-
-腳本行為：
-- 翻譯 `tools:` 名稱（`Read → read_file`、`Edit → replace`、`Bash → run_shell_command` 等）。
-- 剝除 `color:` 等不支援欄位。
-- 是 idempotent：對已翻譯的檔案重跑為 no-op，stdout 報「Updated 0 agent file(s); N already compatible」。
-
-**錯誤處理**：
-- 翻譯腳本以非零 exit code 結束時（例如目錄被外部刪除），skill MUST 顯示錯誤訊息，但不視為 sync 失敗 — 已同步的 `.gemini/agents/*.md` 保留，僅 frontmatter 未翻譯。最終狀態標為「sync OK / translate FAILED」並進入 Step 4 驗證。
-
-**Sync 報告**：apply 報告 MUST 加一行「Translated N .gemini/agents/*.md frontmatter entries」，N 來自翻譯腳本的 stdout。
-
-### Step 4: 最後驗證 Gate（必要）
-
-```bash
-python3 -B .codex/skills/multi-ai-sync/scripts/multi_ai_sync.py validate --format markdown
-```
-
-**必須輸出：** 明確的驗證結果
-
-Gate 檢查項目：
-- 設定可載入（config/frontmatter/toml/json 基礎解析）
-- 平台 smoke 檢查
-- hooks 代表案例
-- multi-agent 代表案例
-
-**Gate 狀態判讀：**
-- `PASS`：Config+Smoke 全 OK，代表案例無 FAIL/SKIP
-- `PARTIAL`：Config+Smoke 全 OK，但代表案例有 SKIP（含 skip-incompatible）
-- `FAIL`：任一 Config/Smoke FAIL，或代表案例 FAIL
-
-**回報內容：** 必須清楚陳述最終驗證狀態，附上失敗項目的摘要及建議
+**完成條件：** 回報 Gate、failed/skipped 摘要、evidence 路徑與下一步。
 
 ## Output
 
-預期交付物（至少包含以下項目）：
-- 差異計畫：`plan --format markdown/json` 產出，含 coverage、mapping、skip register、evidence URLs
-- OpenSpec tasks：`openspec-tasks` 產出 `tasks.md`，僅納入 `adapted` 項目
-- 套用報告：`apply` 產出 dry-run/正式報告，含 target/category breakdown 與 manual draft（若有）
-- 驗證結果：`validate` 產出 Gate（`PASS | PARTIAL | FAIL`）與失敗摘要
+- Preflight status 與 operation。
+- Plan、核准後 OpenSpec tasks、dry-run/apply reports。
+- 每個 mapping 的 decision contract。
+- Validation Gate：`PASS`、`PARTIAL` 或 `FAIL`，含失敗與跳過摘要。
 
-## 決策輸出契約
+## Verification
 
-每個對齊項目必須有：
-- `status`: `equivalent | adapted | skip-incompatible`
-- `reason`: 判斷原因
-- `evidence_urls`: 來源證據
-- `source_path` / `target_path`
+- self-test 為 `failed: 0`。
+- plan-only 沒有執行 tasks 或 apply。
+- apply 前存在 dry-run report。
+- 最終 Gate 與實際 failed/skipped 項目一致。
 
-## 參考檔案
+## References
 
-- `references/platform-mapping.md`: 平台能力與路徑映射
-- `references/capability-sources.md`: Context7 與官方文件來源
-- `references/risk-policy.md`: 風險分級與審核 gate
-- `references/improvement-todo.md`: 技能優化待辦與回顧（持續更新）
-- `references/source-conflicts.json`: 衝突登記冊（Context7 vs 官方文件衝突時手動覆寫，初始為空 `{"entries": []}`)
+- `references/runtime-entrypoints.md`: 依 harness resolve `SYNC_CLI`。
+- `references/execution-contract.md`: command templates、report fields、exit semantics。
+- `references/platform-mapping.md`: target capability、path mapping、status。
+- `references/capability-sources.md`: Context7 與 official evidence。
+- `references/risk-policy.md`: approval、incompatibility、validation gates。
+- `references/improvement-todo.md`: 工具鏈回顧；`source-conflicts.json`: arbitration registry。
+- `scripts/multi_ai_sync_lib/agent_sync.py`: Claude-to-Codex agent parity
+  bundle 與 sync manifest helpers。
+- `scripts/multi_ai_sync_lib/apply_sync.py`: deprecated v1 apply reference；
+  active implementation is `apply_sync_v2.py`。
 
-## Scripts 結構
+## Stop and report
 
-入口：`scripts/multi_ai_sync.py`，委派至 `multi_ai_sync_lib/` 子模組。
-- `cli.py`: CLI 路由（plan/openspec-tasks/apply/validate/self-test）
-- `apply_sync_v2.py`: 套用邏輯（active）
-- `mapping.py` / `sources.py` / `validation.py` / `constants.py` / `utils.py`: 內部模組
-
-## 何時停止並回報
-
-- 找不到主來源 (`.claude`) 或結構不完整
-- 目標平台資料結構異常（無法安全判定）
-- 官方文件與 Context7 訊息衝突且無法裁決
-
-回報格式包含：阻塞原因、已嘗試、下一步建議。
+以 `blocker / attempted / next step` 回報並停止：source 缺失、self-test 失敗、
+target 無法安全判定、apply 沒有 writable route、source evidence 無法裁決，
+或 dry-run/apply/validation 失敗。

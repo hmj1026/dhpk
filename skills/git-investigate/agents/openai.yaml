@@ -1,0 +1,4 @@
+interface:
+  display_name: "Git Investigate"
+  short_description: "Git history investigation."
+  default_prompt: "Use $git-investigate to apply the Git Investigate workflow with its verification rules."

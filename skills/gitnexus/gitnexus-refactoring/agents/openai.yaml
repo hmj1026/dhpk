@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gitnexus Refactoring"
+  short_description: "Safely rename, extract, split, move, or restructure code using"
+  default_prompt: "Use $gitnexus-refactoring to apply the Gitnexus Refactoring workflow with its verification rules."

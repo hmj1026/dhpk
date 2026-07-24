@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codex Architect"
+  short_description: "Codex architecture consulting."
+  default_prompt: "Use $codex-architect to apply the Codex Architect workflow with its verification rules."

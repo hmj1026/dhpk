@@ -1,0 +1,4 @@
+interface:
+  display_name: "Harness Fill"
+  short_description: "Explore-driven meta-workflow SSOT: 5-phase parallel inventory →"
+  default_prompt: "Use $harness-fill to apply the Harness Fill workflow with its verification rules."

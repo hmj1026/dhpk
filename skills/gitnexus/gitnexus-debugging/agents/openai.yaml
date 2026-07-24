@@ -1,0 +1,4 @@
+interface:
+  display_name: "Gitnexus Debugging"
+  short_description: "Trace bugs and errors through the GitNexus knowledge graph."
+  default_prompt: "Use $gitnexus-debugging to apply the Gitnexus Debugging workflow with its verification rules."

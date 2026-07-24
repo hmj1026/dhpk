@@ -1,0 +1,4 @@
+interface:
+  display_name: "Feature Dev"
+  short_description: "Feature development workflow."
+  default_prompt: "Use $feature-dev to apply the Feature Dev workflow with its verification rules."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Harness Budget"
+  short_description: "Audits Claude Code context-window token consumption across"
+  default_prompt: "Use $harness-budget to apply the Harness Budget workflow with its verification rules."

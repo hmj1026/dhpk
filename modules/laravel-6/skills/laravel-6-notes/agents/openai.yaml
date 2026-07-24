@@ -1,0 +1,4 @@
+interface:
+  display_name: "Laravel 6 Notes"
+  short_description: "Laravel 6.x (LTS, Sep 2019) signature features and the"
+  default_prompt: "Use $laravel-6-notes to apply the Laravel 6 Notes workflow with its verification rules."

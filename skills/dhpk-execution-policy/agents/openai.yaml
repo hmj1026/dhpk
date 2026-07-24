@@ -1,0 +1,4 @@
+interface:
+  display_name: "Dhpk Execution Policy"
+  short_description: "Execution-policy router for dhpk software-engineering work."
+  default_prompt: "Use $dhpk-execution-policy to apply the Dhpk Execution Policy workflow with its verification rules."

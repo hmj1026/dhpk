@@ -1,0 +1,4 @@
+interface:
+  display_name: "Test Review"
+  short_description: "Test coverage review via Codex MCP."
+  default_prompt: "Use $test-review to apply the Test Review workflow with its verification rules."

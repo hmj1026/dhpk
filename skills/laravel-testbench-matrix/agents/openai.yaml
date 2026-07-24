@@ -1,0 +1,4 @@
+interface:
+  display_name: "Laravel Testbench Matrix"
+  short_description: "Orchestra Testbench setup for packages that span multiple"
+  default_prompt: "Use $laravel-testbench-matrix to apply the Laravel Testbench Matrix workflow with its verification rules."

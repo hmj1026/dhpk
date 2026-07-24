@@ -11,7 +11,7 @@ This directory contains the **Codex plugin manifest** for dhpk.
 
 ## What This Provides
 
-- The `codex/skills/` mirror (14 entries) — the same Codex-clean skill subset
+- The `codex/skills/` mirror (15 entries) — the same Codex-clean skill subset
   already shipped by `scripts/hooks/install-codex-skills.sh`, now also
   discoverable through Codex's own plugin marketplace.
 

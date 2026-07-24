@@ -1,0 +1,4 @@
+interface:
+  display_name: "Repo Intake"
+  short_description: "Project initialization inventory (one-time)."
+  default_prompt: "Use $repo-intake to apply the Repo Intake workflow with its verification rules."

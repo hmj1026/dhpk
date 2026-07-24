@@ -1,0 +1,4 @@
+interface:
+  display_name: "Code Investigate"
+  short_description: "Dual-perspective code investigation."
+  default_prompt: "Use $code-investigate to apply the Code Investigate workflow with its verification rules."

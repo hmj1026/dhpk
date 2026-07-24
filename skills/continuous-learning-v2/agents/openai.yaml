@@ -1,0 +1,4 @@
+interface:
+  display_name: "Continuous Learning V2"
+  short_description: "Instinct-based learning system that observes Claude Code"
+  default_prompt: "Use $continuous-learning-v2 to apply the Continuous Learning V2 workflow with its verification rules."

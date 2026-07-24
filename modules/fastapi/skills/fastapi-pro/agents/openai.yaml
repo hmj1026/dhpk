@@ -1,0 +1,4 @@
+interface:
+  display_name: "FastAPI Pro"
+  short_description: "FastAPI + SQLAlchemy 2.0 async patterns + review checklist"
+  default_prompt: "Use $fastapi-pro to apply the FastAPI Pro workflow with its verification rules."

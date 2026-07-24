@@ -1,0 +1,4 @@
+interface:
+  display_name: "Risk Assess"
+  short_description: "Uncommitted code risk assessment with breaking change"
+  default_prompt: "Use $risk-assess to apply the Risk Assess workflow with its verification rules."

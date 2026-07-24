@@ -1,0 +1,4 @@
+interface:
+  display_name: "De Ai Flavor"
+  short_description: "Remove AI artifacts from documents."
+  default_prompt: "Use $de-ai-flavor to apply the De Ai Flavor workflow with its verification rules."

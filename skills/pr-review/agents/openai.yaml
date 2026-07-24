@@ -1,0 +1,4 @@
+interface:
+  display_name: "PR Review"
+  short_description: "PR self-review workflow — review changes for"
+  default_prompt: "Use $pr-review to apply the PR Review workflow with its verification rules."

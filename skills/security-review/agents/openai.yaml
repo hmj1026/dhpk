@@ -1,0 +1,4 @@
+interface:
+  display_name: "Security Review"
+  short_description: "Security review (OWASP Top 10), codex-free."
+  default_prompt: "Use $security-review to apply the Security Review workflow with its verification rules."

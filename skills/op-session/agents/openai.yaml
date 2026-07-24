@@ -1,0 +1,4 @@
+interface:
+  display_name: "Op Session"
+  short_description: "Initialize a 1Password CLI session for Claude Code so op stops"
+  default_prompt: "Use $op-session to apply the Op Session workflow with its verification rules."

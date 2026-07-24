@@ -1,0 +1,4 @@
+interface:
+  display_name: "Polyfill Version Matrix Audit"
+  short_description: "Audit multi-major-version polyfill code for branch coverage and"
+  default_prompt: "Use $polyfill-version-matrix-audit to apply the Polyfill Version Matrix Audit workflow with its verification rules."

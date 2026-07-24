@@ -1,0 +1,4 @@
+interface:
+  display_name: "Bug Fix"
+  short_description: "Bug Fix workflow guidance"
+  default_prompt: "Use $bug-fix to apply the Bug Fix workflow with its verification rules."

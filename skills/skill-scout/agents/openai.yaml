@@ -1,0 +1,4 @@
+interface:
+  display_name: "Skill Scout"
+  short_description: "Search existing local, marketplace, GitHub, and web skill"
+  default_prompt: "Use $skill-scout to apply the Skill Scout workflow with its verification rules."

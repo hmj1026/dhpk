@@ -1,0 +1,4 @@
+interface:
+  display_name: "Prompt Optimize"
+  short_description: "Rewrite a raw task prompt into a model-aware, effort-calibrated"
+  default_prompt: "Use $prompt-optimize to apply the Prompt Optimize workflow with its verification rules."

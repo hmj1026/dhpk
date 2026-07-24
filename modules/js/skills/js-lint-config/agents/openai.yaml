@@ -1,0 +1,4 @@
+interface:
+  display_name: "Js Lint Config"
+  short_description: "ESLint 9 flat-config tier pattern (Tier 1 strict / 1.5"
+  default_prompt: "Use $js-lint-config to apply the Js Lint Config workflow with its verification rules."

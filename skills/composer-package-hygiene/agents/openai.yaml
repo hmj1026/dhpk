@@ -1,0 +1,4 @@
+interface:
+  display_name: "Composer Package Hygiene"
+  short_description: "Composer-published package author concerns — semver decisions"
+  default_prompt: "Use $composer-package-hygiene to apply the Composer Package Hygiene workflow with its verification rules."

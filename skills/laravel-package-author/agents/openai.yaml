@@ -1,0 +1,4 @@
+interface:
+  display_name: "Laravel Package Author"
+  short_description: "Laravel package author concerns that apply across Laravel"
+  default_prompt: "Use $laravel-package-author to apply the Laravel Package Author workflow with its verification rules."

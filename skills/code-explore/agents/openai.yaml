@@ -1,0 +1,4 @@
+interface:
+  display_name: "Code Explore"
+  short_description: "Pure Claude code investigation."
+  default_prompt: "Use $code-explore to apply the Code Explore workflow with its verification rules."

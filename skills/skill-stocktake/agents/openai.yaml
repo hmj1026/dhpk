@@ -1,0 +1,4 @@
+interface:
+  display_name: "Skill Stocktake"
+  short_description: "Batch-audit installed Claude skills and commands for quality"
+  default_prompt: "Use $skill-stocktake to apply the Skill Stocktake workflow with its verification rules."

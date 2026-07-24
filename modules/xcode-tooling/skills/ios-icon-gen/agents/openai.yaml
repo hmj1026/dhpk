@@ -1,0 +1,4 @@
+interface:
+  display_name: "Ios Icon Gen"
+  short_description: "Generate iOS/macOS asset-catalog imagesets (1x/2x/3x PNG +"
+  default_prompt: "Use $ios-icon-gen to apply the Ios Icon Gen workflow with its verification rules."
