@@ -117,20 +117,19 @@ Skills scanned: {N} | Rules: {M} files | Candidates: {K}
 
 #### User Actions
 
-User responds with numbers to:
-- **Approve**: Apply draft to rules as-is
-- **Modify**: Edit draft before applying
-- **Skip**: Do not apply this candidate
-
-**Never modify rules automatically. Always require user approval.**
+User responds with numbers to approve, modify, or skip candidates. Never modify
+rules automatically; require explicit per-candidate approval.
 
 #### Save Results
 
 Store results in the skill directory using [results-schema.md](references/results-schema.md).
 
-## Example
+## Output
 
-See [end-to-end-example.md](references/end-to-end-example.md).
+Produce a candidate report before changing any rule file. Each candidate contains the
+cross-skill principle, at least two evidence links, the current-rule gap, verdict,
+confidence, and proposed text or target. Save the approved evaluation state through
+`results-schema.md`; rule edits occur only after explicit per-candidate approval.
 
 ## Verification
 
@@ -140,9 +139,12 @@ See [end-to-end-example.md](references/end-to-end-example.md).
 - [ ] No rule file modified without explicit per-candidate user approval
 - [ ] Results saved to `results.json` with timestamp + status for each candidate
 
+## References
+
+- [end-to-end-example.md](references/end-to-end-example.md) — complete workflow example.
+
 ## Design Principles
 
-- **What, not How**: Extract principles (rules territory) only. Code examples and commands stay in skills.
-- **Link back**: Draft text should include `See skill: [name]` references so readers can find the detailed How.
+- **Scope and links**: Extract principles (rules territory) only; keep code examples and commands in skills, and link drafts back to their detailed skills.
 - **Deterministic collection, LLM judgment**: Scripts guarantee exhaustiveness; the LLM guarantees contextual understanding.
 - **Anti-abstraction safeguard**: The 3-layer filter (2+ skills evidence, actionable behavior test, violation risk) prevents overly abstract principles from entering rules.

@@ -17,10 +17,6 @@ Agent({
 Evaluate technical feasibility, effort, risk, extensibility, and maintenance cost.`
 })
 
-## Trigger
-
-- Keywords: feasibility, is this possible, can we, should we, explore options, before tech spec
-
 ## When NOT to Use
 
 - Already have a tech spec (use `/deep-analyze`)

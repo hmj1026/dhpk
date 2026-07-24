@@ -86,3 +86,10 @@ gitnexus_context({name: "validateUser"})
 ## Output
 
 A grounded explanation of how the code works — the relevant processes / execution flows, the key symbols and their callers/callees, and the source files to open next.
+
+## Verification
+
+- [ ] The repository context and index freshness were checked.
+- [ ] Execution flows are distinguished from isolated symbol matches.
+- [ ] Callers, callees, and source locations support the explanation.
+- [ ] Unknowns and dynamic or external edges are called out.

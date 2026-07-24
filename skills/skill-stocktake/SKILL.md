@@ -13,7 +13,7 @@ Slash command (`/skill-stocktake`) that audits all Claude skills and commands us
 - Linting a single skill's structure / frontmatter — use `skill-health-check`.
 - Authoring or refactoring a skill — use `create-skill`.
 - Searching for an existing skill to adopt before building — use `skill-scout`.
-
+- Canonical `./skills` and `./modules` source audits — use `skill-health-check` with explicit directories plus a source-tree inventory; this skill scans consumer `.claude/skills/` locations only.
 ## Scope
 
 The command targets the following paths **relative to the directory where it is invoked**:
@@ -34,7 +34,7 @@ cd ~/path/to/my-project
 /skill-stocktake
 ```
 
-If the project has no `.claude/skills/` directory, only global skills and commands are evaluated.
+If the project has no `.claude/skills/` directory, only global skills and commands are evaluated. Canonical plugin source requires a separate inventory.
 
 ## Modes
 

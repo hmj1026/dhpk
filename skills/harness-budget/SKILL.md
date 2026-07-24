@@ -143,7 +143,7 @@ Tier Economics (cost-posture — from Phase 3b):
 Verdict: N roles OK, M cost-posture mismatches
 ```
 
-In verbose mode, additionally output per-file token counts, line-by-line breakdown of the heaviest files, specific redundant lines between overlapping components, and MCP tool list with per-tool schema size estimates.
+In verbose mode, additionally output per-file token counts, line-by-line breakdown of the heaviest files, specific redundant lines between overlapping components, and MCP tool list with per-tool schema size estimates. Always return the context-window model, effective available context, component breakdown, ranked issues, savings, tier-economics verdict, and measurement assumptions; keep estimates separate from observed counts.
 
 ## Examples
 

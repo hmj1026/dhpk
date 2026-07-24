@@ -6,10 +6,6 @@ allowed-tools: 'Read, Grep, Glob, Bash(git:*), Bash(gh:*), mcp__codex__codex'
 
 # Issue Analyze Skill
 
-## Trigger
-
-- Keywords: analyze issue, investigate problem, problem analysis, root cause, root cause analysis, triage review, review thread analysis
-
 ## Input Types
 
 | Type | Source | Example |

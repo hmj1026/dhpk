@@ -18,7 +18,7 @@ visited branch can ship for months before someone files an issue.
 
 ---
 
-## When to run
+## When to Use
 
 - Editing any file under `src/` that contains a runtime version guard
   (`version_compare`, `PHP_VERSION_ID`, `class_exists`, `method_exists`,
@@ -28,7 +28,7 @@ visited branch can ship for months before someone files an issue.
 - After a "fix: polyfill ..." commit, audit the symmetric branch
   (it likely needs the same fix or the same test)
 
-## When NOT to run
+## When NOT to Use
 
 - Single-version libraries (composer `require.<dep>` pins one major)
 - Application code (not a published package)
@@ -126,7 +126,7 @@ N commits behind in semantics, which usually means a bug.
 
 ---
 
-## Output format
+## Output
 
 A single audit report with three sections:
 

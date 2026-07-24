@@ -13,6 +13,15 @@ Verify deployed behavior with read-only runtime evidence:
 
 Use this for post-deploy checks, smoke tests, and production diagnosis. For local tests use `/verify`; for changes use `/feature-dev`; for code review use `/codex-review-fast`.
 
+## When NOT to Use
+
+- The requested action changes application data, configuration, or deployment state.
+- The task is to implement or modify a feature; use `/feature-dev`.
+- The task is a code, security, or test review rather than runtime behavior
+  verification.
+- There is no read-only endpoint, observation path, or approved test environment that
+  can produce evidence for the requested claim.
+
 ## Required References
 
 Read these at the indicated phase:
@@ -72,3 +81,27 @@ For L2-OBS use deploy time → now, a user-provided window, or the last 30 minut
 4. Render [output-template.md](references/output-template.md).
 
 The report may recommend another skill, but must not auto-invoke it.
+
+## Output
+
+Produce the report from `references/output-template.md`. It must identify the deployed
+target and local/deployed alignment, record the detected degradation level, list every
+executed and skipped case with the reason, preserve request/log/metric evidence, state
+blind spots, and end with the integrated verdict and confidence. A skipped API phase is
+valid only when the level or safety gate requires it; it is not a passing execution.
+
+## Verification
+
+- [ ] P0 established environment, deployment alignment, read-only scope, and the
+  degradation level.
+- [ ] P1 mapped the diff or explicitly documented the feature-description fallback.
+- [ ] P2 produced a level-appropriate charter and received approval before any P3
+  request.
+- [ ] Every P3 request matched the endpoint allowlist and recorded status, fields, and
+  latency, or was marked skipped with a reason.
+- [ ] P4 correlated logs or metrics when available and recorded the observation window
+  and blind spots.
+- [ ] P5 contains Claude's analysis, the independent Codex review, and the integrated
+  verdict from the playbook.
+- [ ] The final report matches `output-template.md` and does not claim evidence for a
+  phase that was skipped or unavailable.

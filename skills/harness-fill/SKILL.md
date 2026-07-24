@@ -157,7 +157,7 @@ Each ≤40 lines, must include:
 - Avoid / Escalate (forbidden content / escalation notice)
 - Related files (cross-reference other layers + key rules)
 
-## Output Contract (reply shape)
+## Output
 
 Reply must include (in order):
 
@@ -180,7 +180,7 @@ Reply must include (in order):
 - ❌ Make up rules inside SKILL.md / agent .md / rules .md
 - ❌ Add new agent without syncing INDEX.md and execution-policy.md
 
-## Verification checklist
+## Verification
 
 - [ ] Phase 1 used `cx overview`; no direct Read on files >200 lines
 - [ ] Phase 2 each round ≤3 Explore agents in parallel; non-overlapping boundaries

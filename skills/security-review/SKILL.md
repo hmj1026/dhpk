@@ -9,10 +9,6 @@ agent: Explore
 
 # Security Review Skill
 
-## Trigger
-
-- Keywords: security review, OWASP, vulnerability, dep-audit, npm audit, dependency security
-
 ## When NOT to Use
 
 - General code review (use `codex-code-review`)
@@ -81,6 +77,13 @@ Organize results into findings summary table + detailed findings + gate.
 | A08  | Integrity Failures | Deserialization, CI/CD               |
 | A09  | Logging Failures   | Sensitive data in logs, auditing     |
 | A10  | SSRF               | URL validation, internal network access |
+
+## Output
+
+Return a findings summary table, detailed evidence with file and line
+locations, severity (P0/P1/P2), actionable remediation, verification method,
+and an explicit `Mergeable` or `Must fix` gate. A dependency-only audit must
+also state the command, advisory scope, and whether the result is advisory.
 
 ## Review Loop
 

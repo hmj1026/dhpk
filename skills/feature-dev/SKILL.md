@@ -7,10 +7,6 @@ allowed-tools: 'Read, Grep, Glob, Edit, Write, Bash, Skill, AskUserQuestion'
 
 # Feature Development Skill
 
-## Trigger
-
-- Keywords: develop feature, implement, write code, verify, precommit, refactor, simplify
-
 ## When NOT to Use
 
 - Just want to understand code (use Explore)
@@ -84,7 +80,7 @@ Use the project's own test-file convention (from its .claude/rules/, if defined)
 - Review gate: ✅ Ready
 - Precommit results: ✅ All Pass
 
-## Verification Checklist
+## Verification
 
 - [ ] All tests pass (`/verify`)
 - [ ] Test adequacy reviewed (`/codex-test-review`)

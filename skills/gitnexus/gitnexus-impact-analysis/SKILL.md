@@ -36,6 +36,21 @@ description: 'Assess the blast radius of a code change via the GitNexus graph. U
 - [ ] Assess risk level and report to user
 ```
 
+## Output
+
+Return a compact report containing the target symbol, index freshness, direct
+callers, affected execution flows, risk level, and next verification commands.
+Mark graph gaps, dynamic references, and external consumers as uncertainties
+instead of treating the graph as exhaustive.
+
+## Verification
+
+- [ ] The target and direction used for `gitnexus_impact` are recorded.
+- [ ] Direct dependents are separated from indirect dependents.
+- [ ] Affected process resources were checked, not inferred from callers only.
+- [ ] HIGH or CRITICAL risk is surfaced before any edit proceeds.
+- [ ] `gitnexus_detect_changes` is run before commit when the task changes code.
+
 ## Understanding Output
 
 | Depth | Risk Level       | Meaning                  |

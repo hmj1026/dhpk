@@ -6,10 +6,6 @@ allowed-tools: 'Read, Grep, Glob, Edit'
 
 # De-AI-Flavor Skill
 
-## Trigger
-
-- Keywords: de-ai, remove AI traces, humanize document, de-ai-flavor, humanize
-
 ## When NOT to Use
 
 - Co-Authored-By in CHANGELOG (Git convention)
@@ -48,7 +44,7 @@ Scan file -> Mark AI traces -> Remove/Rewrite/Simplify -> Output summary
 - Boilerplate rewritten to natural tone
 - Structure not overly flat or nested
 
-## Output Format
+## Output
 
 ```markdown
 ## De-AI-Flavor Results

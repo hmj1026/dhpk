@@ -8,10 +8,6 @@ agent: Explore
 
 # Document Review Skill
 
-## Trigger
-
-- Keywords: review doc, document review, tech spec review, review-spec, doc-refactor, streamline doc
-
 ## When NOT to Use
 
 - Code review (use `codex-code-review`)
@@ -68,6 +64,13 @@ Organize results into rating table + severity-grouped findings + gate.
 | Security            | Data leakage, access control, input validation, error handling |
 | Documentation Quality | Structure, completeness, accuracy, examples, docs-writing standards |
 | Code Consistency    | Pseudocode matches codebase, referenced files exist, technical accuracy |
+
+## Output
+
+Return the five-dimension rating table, severity-ranked findings with
+file:line evidence, actionable corrections, and an explicit Mergeable or
+Needs revision gate. Preserve the Codex thread ID when another review round is
+required.
 
 ## Review Loop
 

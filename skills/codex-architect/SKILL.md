@@ -7,10 +7,6 @@ allowed-tools: 'Read, Grep, Glob, mcp__codex__codex, mcp__codex__codex-reply, Ag
 
 # Codex Architect Skill (Third Brain)
 
-## Trigger
-
-- Keywords: architecture design, solution evaluation, tech selection, third brain, Codex advice, design consulting, ask Codex, second opinion
-
 ## When NOT to Use
 
 - Code implementation (use /codex-implement)
@@ -70,7 +66,7 @@ Before providing architecture advice, you **must** perform the following researc
 - What are the existing code style and patterns?
 - What similar features can be referenced?
 
-## Output Requirements
+## Output
 
 1. First describe which files you researched
 2. Provide advice based on current project state

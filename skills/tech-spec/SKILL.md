@@ -6,10 +6,6 @@ allowed-tools: 'Read, Grep, Glob, Bash(git:*), Write'
 
 # Tech Spec Skill
 
-## Trigger
-
-- Keywords: tech spec, technical specification, spec review, review spec, feature design
-
 ## When NOT to Use
 
 - Creating request documents (use /create-request)

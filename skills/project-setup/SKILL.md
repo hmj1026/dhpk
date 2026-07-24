@@ -7,10 +7,6 @@ allowed-tools: 'Read, Grep, Glob, Edit, Write, Bash(node:*), Bash(git:*), Bash(l
 
 # Project Setup
 
-## Trigger
-
-- Keywords: project setup, init, initialize, configure project, setup CLAUDE.md, customize placeholders
-
 ## When NOT to Use
 
 - CLAUDE.md placeholders are already fully replaced (no `{...}` remaining)

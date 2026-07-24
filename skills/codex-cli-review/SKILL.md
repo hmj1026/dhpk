@@ -7,10 +7,6 @@ context: fork
 
 # Codex CLI Review Skill
 
-## Trigger
-
-- Keywords: codex cli review, cli review, script review
-
 ## When to Use
 
 - Need Codex to independently explore the entire project (full disk read)

@@ -40,6 +40,43 @@ a hang or non-zero exit rather than fabricating output.
   (the backend's self-report is not trusted for gate enforcement). Stop after 3 failed
   attempts and escalate.
 
+## When NOT to Use
+
+- The task is ambiguous, exploratory, or needs conversation context that cannot be
+  reproduced in a self-contained prompt.
+- The requested work is not mechanical enough to state exact target files, change
+  intent, and a verification command.
+- The agy CLI, authentication, or requested model is unavailable; report `BLOCKED`
+  instead of switching workers silently.
+- The normal in-process `fast-worker` path is sufficient and no external dispatch is
+  needed.
+
+## Output
+
+Return one of these outcomes:
+
+- `RESULT: PASS` — the verification command passed, followed by the edited-file list
+  derived from the working tree.
+- `RESULT: BLOCKED` — the exact availability, authentication, model, timeout, or
+  permission failure, with no simulated result.
+- `RESULT: FAILED` — agy ran but the requested verification failed, including the
+  command output needed to continue.
+
+The edited-file list is authoritative only when it is collected before and after the
+dispatch from `git status --porcelain`; agy's self-reported file list is supporting
+evidence.
+
+## Verification
+
+- [ ] `command -v agy` succeeds before dispatch.
+- [ ] The prompt is self-contained and names absolute paths, intended changes, and a
+  verification command.
+- [ ] `run-agy.sh` receives an existing workdir, prompt file, and selected model.
+- [ ] The verification command is run independently after agy returns.
+- [ ] The final result includes the working-tree-derived edited-file list and does not
+  claim success for missing, empty, timed-out, or non-zero agy output.
+- [ ] After three failed attempts, the task is escalated instead of retried indefinitely.
+
 Full operational detail lives in `agents/agy-fast-worker.md`; this skill exists so the
 script-bearing directory carries the standard SKILL.md + allowed-tools surface (mirroring
 `skills/codex-bridge/`).

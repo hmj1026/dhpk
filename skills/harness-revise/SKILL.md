@@ -8,12 +8,6 @@ allowed-tools: 'Read, Edit, Write, Grep, Glob, Bash(jq:*), Bash(grep:*), Bash(fi
 
 Methodology to trim, deduplicate, and validate the project harness without regressing trigger semantics. Supports Multiple LLM Environments (Claude, Gemini, Codex).
 
-## Trigger
-
-- "harness check", "harness audit", "harness revise", "harness trim"
-- "檢查 harness", "harness 設定優化"
-- After: large rule/skill additions, agent renames, hook reshuffles
-
 ## When to Use
 
 - 當使用者想要檢視當前環境的harness配置，並且希望優化或修正其中的問題時。
@@ -116,7 +110,7 @@ bash "$SKILL_DIR/scripts/test-harness.sh" --dir [HARNESS_DIR]
 
 Then spawn the `code-reviewer` agent on the diff scope.
 
-## Output Contract
+## Output
 
 Include, in order:
 1. **Active Harness**: Detected directory and main rule file.
@@ -133,3 +127,12 @@ Include, in order:
 - Modifying business code instead of harness assets.
 - Inventing new IDs without updating the taxonomy.
 - Translating zh-TW in project communication files (PRs/commits).
+
+## Verification
+
+- [ ] The active harness and main rule file were detected rather than assumed.
+- [ ] All three deterministic baseline scripts passed before fixes, or the
+      pre-existing failure was reported without stacking changes.
+- [ ] Each applied fix was followed by its matching deterministic check.
+- [ ] Final inventory, scenario, and harness tests cover the selected harness.
+- [ ] The output lists deferred items and the code-reviewer verdict.

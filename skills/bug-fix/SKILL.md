@@ -7,10 +7,6 @@ allowed-tools: 'Read, Grep, Glob, Edit, Write, Bash, Skill'
 
 # Bug Fix Skill
 
-## Trigger
-
-- Keywords: bug, issue, fix, error, broken, failing
-
 ## When NOT to Use
 
 - New feature development (use feature-dev)
@@ -59,7 +55,7 @@ Apply a confirmed fix spec (from Phase 1, whether self-derived or from `deep-rea
 
 ## Phase 3: Add Regression Test ⚠️
 
-Test conventions are defined by `${CLAUDE_PLUGIN_ROOT}/skills/feature-dev/references/dev-loop-gate.md`; consumer `.claude/rules/` overrides take precedence.
+Test conventions are defined by `@skills/feature-dev/references/dev-loop-gate.md`; consumer `.claude/rules/` overrides take precedence.
 
 **Bug fixes must have tests at the corresponding level:**
 
@@ -73,7 +69,7 @@ Test conventions are defined by `${CLAUDE_PLUGIN_ROOT}/skills/feature-dev/refere
 
 ## Phase 4: Verify + Review
 
-Follow `${CLAUDE_PLUGIN_ROOT}/skills/feature-dev/references/dev-loop-gate.md` for the complete shared test, adequacy, freshness, code-review, and review-loop gate.
+Follow `@skills/feature-dev/references/dev-loop-gate.md` for the complete shared test, adequacy, freshness, code-review, and review-loop gate.
 
 ## Doc Sync
 
@@ -89,7 +85,7 @@ Doc Sync is a behavior-layer step (not hook-enforced): after precommit pass it t
 - **Gate**: ✅ Fixed / ⛔ Needs further investigation
 ```
 
-## Verification Checklist
+## Verification
 
 - [ ] Root cause identified and documented
 - [ ] Regression test written at appropriate level

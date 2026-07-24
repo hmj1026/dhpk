@@ -35,6 +35,7 @@ description: 'Navigation index for dhpk plugin skills. Internal documentation; n
 | [bug-investigation](bug-investigation/SKILL.md) | Systematic 5-phase root-cause investigation |
 | [feature-verify](feature-verify/SKILL.md) | Read-only post-deploy behavior verification (P0–P5) |
 | [post-dev-test](post-dev-test/SKILL.md) | Backfill missing integration / E2E tests after feature work |
+| [tdd](tdd/SKILL.md) | Behavior-first RED-GREEN-REFACTOR guidance for test-bearing work |
 
 ## Code exploration & architecture
 
