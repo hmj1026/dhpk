@@ -1,6 +1,6 @@
 ---
 name: matrix-cell-onboard
-description: Checklist + procedure for adding a new PHP / Laravel / PHPUnit / Monolog cell to a multi-major library's CI matrix. Use when extending support to a new runtime version (e.g. "add PHP 8.3 + Laravel 12"), bumping a dep major (e.g. "Monolog 4 came out, plan the cell"), or restoring a dropped cell. Cross-checks `composer.json` constraints, `.github/workflows/*.yml` matrix rows, Testbench mapping for Laravel, and triggers a polyfill-coverage check for the new cell's dep versions. Pairs with `laravel-testbench-matrix` (per-cell Testbench install) and `composer-package-hygiene` (semver of raising the floor).
+description: Checklist + procedure for adding a new PHP / Laravel / PHPUnit / Monolog cell to a multi-major library's CI matrix. Use when extending support to a new runtime version (e.g. "add PHP 8.3 + Laravel 12"), bumping a dep major (e.g. "Monolog 4 came out, plan the cell"), or restoring a dropped cell. Not for patch-only changes that do not alter the support matrix. Output: a cell plan with composer, workflow, polyfill, Testbench, and focused-test gates. Cross-checks `composer.json` constraints, `.github/workflows/*.yml` matrix rows, Testbench mapping for Laravel, and triggers a polyfill-coverage check for the new cell's dep versions. Pairs with `laravel-testbench-matrix` (per-cell Testbench install) and `composer-package-hygiene` (semver of raising the floor).
 ---
 
 # Matrix cell onboard
@@ -23,7 +23,7 @@ This skill is a procedure, not an agent. Run it as a checklist.
 - A dep ships a new major (Monolog 4, Flysystem 4, PHPUnit 12) and you want
   to start exercising it before raising the floor
 
-## When NOT to run
+## When NOT to Use
 
 - Just bumping the patch version inside an existing cell (no matrix change)
 - Adding a test file that runs on all existing cells (no matrix change)

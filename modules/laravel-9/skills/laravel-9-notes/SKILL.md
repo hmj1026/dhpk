@@ -1,6 +1,6 @@
 ---
 name: laravel-9-notes
-description: Laravel 9.x (February 2022) signature features and the breaking-change traps from 8 → 9. Use when writing or reviewing code in a Laravel 9 project, or in a package whose composer constraint includes ^9.0. Covers anonymous migrations, the Symfony 6 upgrade, Symfony Mailer replacing Swift Mailer, Flysystem 3 breaking changes (visibility / exception API), PHP 8.0 floor, query builder improvements, enum casts, and the new Ignition error page. Not for application business logic — load when touching migrations, mail, storage, or casts, or planning an 8 → 9 upgrade.
+description: Laravel 9.x (February 2022) signature features and the breaking-change traps from 8 → 9. Use when writing or reviewing code in a Laravel 9 project, or in a package whose composer constraint includes ^9.0. Covers anonymous migrations, the Symfony 6 upgrade, Symfony Mailer replacing Swift Mailer, Flysystem 3 breaking changes (visibility / exception API), PHP 8.0 floor, query builder improvements, enum casts, and the new Ignition error page. Not for application business logic — load when touching migrations, mail, storage, or casts, or planning an 8 → 9 upgrade. Output: version-specific guidance, migration traps, and verification gates.
 ---
 
 # Laravel 9 — PHP 8 floor, Symfony 6, Flysystem 3

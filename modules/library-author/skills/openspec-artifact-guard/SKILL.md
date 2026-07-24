@@ -1,6 +1,6 @@
 ---
 name: openspec-artifact-guard
-description: Enforce OpenSpec artifact shape and detect specs-vs-spec-delta naming confusion and tasks.md ↔ git-log drift. Use when creating/editing files under `openspec/`, reviewing a PR that touches `openspec/`, or verifying a change before archive. Catches direct edits to `openspec/specs/` SSOT during an active change (should live in `openspec/changes/<slug>/specs/` with delta markers); spec-delta files missing ADDED/MODIFIED/REMOVED markers (silent no-op on archive); tasks.md checkboxes drifting from git-log evidence; camelCase / under_score slugs that break tool derivation. Companion to the broader `openspec-verify-change` workflow — this is the fast safety net during edits.
+description: Enforce OpenSpec artifact shape and detect specs-vs-spec-delta naming confusion and tasks.md ↔ git-log drift. Use when creating/editing files under `openspec/`, reviewing a PR that touches `openspec/`, or verifying a change before archive. Not for implementing the change or archiving it; use the dedicated OpenSpec workflow for those phases. Output: a check report with verdict, artifact evidence, and task/git alignment. Catches direct edits to `openspec/specs/` SSOT during an active change (should live in `openspec/changes/<slug>/specs/` with delta markers); spec-delta files missing ADDED/MODIFIED/REMOVED markers (silent no-op on archive); tasks.md checkboxes drifting from git-log evidence; camelCase / under_score slugs that break tool derivation. Companion to the broader `openspec-verify-change` workflow — this is the fast safety net during edits.
 ---
 
 # OpenSpec artifact guard
@@ -26,7 +26,7 @@ This skill is the fast pre-archive guard. The deep verifier is
 - Before invoking `openspec:archive` on a change (last-line safety net)
 - After mass-rename in the openspec tree (slug normalization)
 
-## When NOT to run
+## When NOT to Use
 
 - Editing source code that has nothing to do with the spec
 - Running `openspec:verify` already (it covers a superset of these checks)

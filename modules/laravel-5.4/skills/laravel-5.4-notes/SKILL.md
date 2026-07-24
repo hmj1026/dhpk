@@ -1,6 +1,6 @@
 ---
 name: laravel-5.4-notes
-description: Laravel 5.4 (February 2017) signature features and the breaking-change traps from 5.3 → 5.4. Use when writing or reviewing code in a Laravel 5.4 project, or in a package whose composer constraint includes 5.4.*. Covers Blade components & slots, route model binding, middleware groups, realtime facades, markdown mailables, higher-order messages, and the Elixir → Mix frontend transition. Not for application business logic — load when working on framework-touching code (Blade templates, routing, mailables, service providers, Mix config) or planning a 5.3 → 5.4 upgrade.
+description: Laravel 5.4 (February 2017) signature features and the breaking-change traps from 5.3 → 5.4. Use when writing or reviewing code in a Laravel 5.4 project, or in a package whose composer constraint includes 5.4.*. Covers Blade components & slots, route model binding, middleware groups, realtime facades, markdown mailables, higher-order messages, and the Elixir → Mix frontend transition. Not for application business logic — load when working on framework-touching code (Blade templates, routing, mailables, service providers, Mix config) or planning a 5.3 → 5.4 upgrade. Output: version-specific guidance, migration traps, and verification gates.
 ---
 
 # Laravel 5.4 — LTS baseline
@@ -11,8 +11,6 @@ PHP 5.6 floor, and a heavy refactor of the frontend tooling story.
 > PHP floor: 5.6.4 (use the `php-5.6` module for the language
 > baseline). This is the era before strict semver — the 5.x rolling
 > number did not signal breaking changes meaningfully.
-
----
 
 ## Signature features
 
@@ -130,8 +128,6 @@ Route::resource('photos', 'PhotoController');
 
 Use `->only([...])` / `->except([...])` to trim the generated set.
 
----
-
 ## Migration traps from 5.3
 
 ### The `Input` facade is gone
@@ -220,8 +216,6 @@ miss and shim:
   arrived 5.5) — guard relation access manually with
   `$this->relationLoaded('x')`.
 
----
-
 ## When NOT to Use
 
 Not for application business logic, and not for a project on a different
@@ -240,8 +234,6 @@ Framework-touching code or review notes that match Laravel 5.4's APIs
 - Confirm the project runs Laravel 5.4 (`php artisan --version`).
 - Check the PHP 5.6.4 floor before using any 7.x syntax.
 - Cross-check cited APIs against the 5.3 → 5.4 upgrade guide.
-
----
 
 ## Cross-references
 

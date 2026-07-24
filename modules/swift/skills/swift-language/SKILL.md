@@ -1,6 +1,6 @@
 ---
 name: swift-language
-description: Swift 6 language baseline with Swift 5.10 / iOS 17 compatibility notes — strict concurrency (Sendable, actors, @MainActor, data-race safety), async/await + structured concurrency (TaskGroup, cancellation, continuations), optionals discipline (no force-unwrap outside tests), value-vs-reference decision rules, property-wrapper authoring, and error handling (typed throws / Result). Use when writing or reviewing any .swift file, deciding actor vs @MainActor vs Sendable struct, unwrapping optionals, choosing struct vs class, or porting Swift 5.10 code onto the Swift 6 language mode. Not for SwiftUI view composition (swiftui) or iOS SDK frameworks (ios-platform).
+description: Swift 6 language baseline with Swift 5.10 / iOS 17 compatibility notes — strict concurrency (Sendable, actors, @MainActor, data-race safety), async/await + structured concurrency (TaskGroup, cancellation, continuations), optionals discipline (no force-unwrap outside tests), value-vs-reference decision rules, property-wrapper authoring, and error handling (typed throws / Result). Use when writing or reviewing any .swift file, deciding actor vs @MainActor vs Sendable struct, unwrapping optionals, choosing struct vs class, or porting Swift 5.10 code onto the Swift 6 language mode. Not for SwiftUI view composition (swiftui) or iOS SDK frameworks (ios-platform). Output: language-level guidance with concurrency, compatibility, and verification decisions.
 ---
 
 # Swift language — baseline

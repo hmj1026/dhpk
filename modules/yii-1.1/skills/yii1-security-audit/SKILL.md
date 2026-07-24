@@ -30,7 +30,7 @@ allowed-tools: 'Read, Grep, Glob, Bash(find *), Bash(grep *), Bash(ls *)'
 可選：
 - `output_path`：輸出目錄（預設 `{source_path}_audit`）
 
-## Output（輸出目錄與報告格式）
+## Output
 
 ```
 {output_path}/framework_audit/
@@ -191,7 +191,7 @@ PoC 輸出要求：
 
 包含：accessRules 範例、CSRF main.php 設定、CHtml encode 對照、createCommand 綁定、CDbCriteria 綁定、Mass Assignment scenario、CUploadedFile 上傳白名單、Session cookieParams。
 
-## Verification（輸出完整性檢查，強制）
+## Verification
 
 - [ ] 包含 Yii 1.1 框架識別證據（至少 3 項）
 - [ ] 逐項輸出：AccessControl / RBAC / CSRF / XSS / SQL / MassAssignment / File / Session 結果

@@ -1,6 +1,6 @@
 ---
 name: ios-icon-gen
-description: Generate iOS/macOS asset-catalog imagesets (1x/2x/3x PNG + Contents.json) from SF Symbols (Apple-native, offline, macOS) or the Iconify API (275k+ open-source icons, online). Use when adding icons to an Xcode asset catalog, replacing placeholder glyphs, or searching for an icon that matches a project's style. Part of the xcode-tooling module; requires the swift module.
+description: Generate iOS/macOS asset-catalog imagesets (1x/2x/3x PNG + Contents.json) from SF Symbols (Apple-native, offline, macOS) or the Iconify API (275k+ open-source icons, online). Use when adding icons to an Xcode asset catalog, replacing placeholder glyphs, or searching for an icon that matches a project's style. Not for general SwiftUI design, arbitrary raster editing, or production code changes. Output: an imageset path plus generated PNG and Contents.json verification. Part of the xcode-tooling module; requires the swift module.
 ---
 
 # iOS icon generation

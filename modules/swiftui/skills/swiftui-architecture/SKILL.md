@@ -1,6 +1,6 @@
 ---
 name: swiftui-architecture
-description: SwiftUI app architecture — MVVM + Coordinator, the Observation framework (@Observable view models, @Bindable in views, replacing ObservableObject/@Published on the iOS 17 floor), NavigationStack + type-safe NavigationPath routing, state-ownership rules (@State / @Binding / @Environment / @Bindable), Combine bridging, and UIKit interop (UIViewRepresentable, UIHostingController). Use when building a SwiftUI screen, wiring a view model, adding navigation/routing, deciding which state-ownership property wrapper applies, or bridging a UIKit/Combine API into SwiftUI. Requires the swift module. Not for iOS SDK frameworks (ios-platform) or pure language questions (swift).
+description: SwiftUI app architecture — MVVM + Coordinator, the Observation framework (@Observable view models, @Bindable in views, replacing ObservableObject/@Published on the iOS 17 floor), NavigationStack + type-safe NavigationPath routing, state-ownership rules (@State / @Binding / @Environment / @Bindable), Combine bridging, and UIKit interop (UIViewRepresentable, UIHostingController). Use when building a SwiftUI screen, wiring a view model, adding navigation/routing, deciding which state-ownership property wrapper applies, or bridging a UIKit/Combine API into SwiftUI. Requires the swift module. Not for iOS SDK frameworks (ios-platform) or pure language questions (swift). Output: a view-architecture recommendation with state ownership, routing, and verification gates.
 ---
 
 # SwiftUI architecture — MVVM + Coordinator

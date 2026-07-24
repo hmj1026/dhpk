@@ -1,6 +1,6 @@
 ---
 name: laravel-mix-notes
-description: Laravel Mix 5 (^5.0.9) signature features and the webpack 4 era build traps. Use when editing webpack.mix.js, the resources/assets/ asset sources, or the package.json npm build scripts in a Laravel 5.4 / Mix 5 project, or diagnosing why a dev/watch/prod build fails on a newer Node. Covers the entry/output mapping, mix() versioning + manifest, the dev/watch/hot/prod script ladder, the Elixir heritage, and the legacy-OpenSSL flag. Not for application or Vue component logic — load when working on the asset pipeline itself or planning a Mix 5 → 6 upgrade.
+description: Laravel Mix 5 (^5.0.9) signature features and the webpack 4 era build traps. Use when editing webpack.mix.js, the resources/assets/ asset sources, or the package.json npm build scripts in a Laravel 5.4 / Mix 5 project, or diagnosing why a dev/watch/prod build fails on a newer Node. Covers the entry/output mapping, mix() versioning + manifest, the dev/watch/hot/prod script ladder, the Elixir heritage, and the legacy-OpenSSL flag. Not for application or Vue component logic — load when working on the asset pipeline itself or planning a Mix 5 → 6 upgrade. Output: build guidance, migration traps, and verification gates.
 ---
 
 # Laravel Mix 5 — webpack 4 wrapper

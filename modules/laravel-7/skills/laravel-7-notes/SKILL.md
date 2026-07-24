@@ -1,6 +1,6 @@
 ---
 name: laravel-7-notes
-description: Laravel 7.x (March 2020) signature features and the breaking-change traps from 6 → 7. Use when writing or reviewing code in a Laravel 7 project, or in a package whose composer constraint includes ^7.0. Covers the new HTTP client facade, custom Eloquent casts via the CastsAttributes interface, the Blade x-component overhaul, Symfony 5 upgrade implications, and route-model-binding-by-key. Not for application business logic — load when touching framework code (HTTP calls, casts, Blade components) or planning a 6 → 7 upgrade.
+description: Laravel 7.x (March 2020) signature features and the breaking-change traps from 6 → 7. Use when writing or reviewing code in a Laravel 7 project, or in a package whose composer constraint includes ^7.0. Covers the new HTTP client facade, custom Eloquent casts via the CastsAttributes interface, the Blade x-component overhaul, Symfony 5 upgrade implications, and route-model-binding-by-key. Not for application business logic — load when touching framework code (HTTP calls, casts, Blade components) or planning a 6 → 7 upgrade. Output: version-specific guidance, migration traps, and verification gates.
 ---
 
 # Laravel 7 — HTTP client, custom casts, blade components
