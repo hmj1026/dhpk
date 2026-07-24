@@ -11,6 +11,7 @@ __pycache__/
 .DS_Store
 *.swp
 *~
+*.code-workspace
 .idea/
 .vscode/
 
@@ -26,11 +27,16 @@ node_modules/
 # Hyperweave tooling cache
 .hyperweave/
 
+# Superpowers execution state and reports (local-only)
+.superpowers/
+
 # Local Claude Code overrides
 .claude/settings.local.json
 
 # Session retrospective log (local-only, not part of the dhpk plugin source)
 .claude/dhpk_advice.md
+CONTEXT.md
+
 
 # Plans
 .claude/plans/
