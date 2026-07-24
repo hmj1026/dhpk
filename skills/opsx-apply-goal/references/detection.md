@@ -1,6 +1,6 @@
 # opsx-apply-goal — Test-runner detection flags
 
-Used by Step 4 of the `opsx-apply-goal` skill. Each flag is `true` when at least one
+Used by Step 2 of the `opsx-apply-goal` skill. Each flag is `true` when at least one
 positive signal matches AND no negative override matches.
 
 ## Signal table
@@ -44,7 +44,7 @@ add nothing (no forced gate on changes that have no build/lint step).
 
 ## Drivable system (HAS_SMOKE)
 
-Feeds Step 4's `HAS_SMOKE` flag — the opt-in, read-only live-runtime smoke gate.
+Feeds Step 2's `HAS_SMOKE` flag — the opt-in, read-only live-runtime smoke gate.
 Unlike the test/build/lint tables (any positive match is a simple boolean true),
 this table carries a **strength** column: only **strong** signals set
 `HAS_SMOKE=true`. Detection is biased toward **high precision** because a false
@@ -94,14 +94,14 @@ plain `0 failed` test gate).
 Detection mirrors the test/build/lint tables: positive signal matches AND no
 `no tests`/`doc-only` negative override. Capture `COVERAGE_CMD` (the runner's
 coverage invocation) and `COVERAGE_THRESHOLD` (only when an explicit number is
-stated). Step 6 uses these to enforce the threshold via the runner itself rather
+stated). Step 3 uses these to enforce the threshold via the runner itself rather
 than a separate coverage tool.
 
 **Operator override (`--min-coverage N`):** opsx-apply-goal's `--min-coverage N` flag
 forces this gate at threshold `N` even when no native threshold is configured —
 the escape hatch for projects that have a test runner but no coverage config.
 Requires `HAS_TEST=true` (a runner must exist to measure coverage); when set it
-overrides any detected `COVERAGE_THRESHOLD`, and Step 6 derives `COVERAGE_CMD`
+overrides any detected `COVERAGE_THRESHOLD`, and Step 3 derives `COVERAGE_CMD`
 from the detected runner. No runner detected → the flag is ignored (noted in
 Block A). The flag never *invents* a default — coverage is enforced only when the
 operator explicitly asks or the project configures it.

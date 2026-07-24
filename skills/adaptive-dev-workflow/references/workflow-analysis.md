@@ -27,5 +27,9 @@
   - Lightweight skip list 與最小驗證
 - `handoff-and-verification.md`
   - completion expectations 與 next-step
+- `codex-mode.md`
+  - `--codex` phase mapping 與 fallback
+- `dispatch-and-gates.md`
+  - planning、implementation、review gate 與 workflow diagram
 
 專案特化的 pack 不放在本 skill 內，而是由使用端專案提供 `@rules/dev-workflow-project.md`（見 `projects-index.md`）。
