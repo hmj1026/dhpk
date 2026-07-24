@@ -4,6 +4,7 @@ description: 'CLI-backed mechanical implementer — the agy variant of `fast-wor
 tools: Bash, Read, Write, Grep, Glob
 model: sonnet
 effort: low
+skills: ["tdd"]
 ---
 
 # Agy Fast Worker
