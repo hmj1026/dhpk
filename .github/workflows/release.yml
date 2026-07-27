@@ -27,15 +27,20 @@ jobs:
             exit 1
           fi
 
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Verify release parity
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          node scripts/ci/verify-release-parity.js --version "$VERSION"
+
       - name: Extract release notes from CHANGELOG.md
         id: notes
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          NOTES=$(awk "/^## ${VERSION} /{found=1; next} found && /^## [0-9]/{exit} found{print}" CHANGELOG.md)
-          if [ -z "$(printf '%s' "$NOTES" | tr -d '[:space:]')" ]; then
-            echo "release workflow: empty release notes" >&2
-            exit 1
-          fi
+          NOTES="$(bash scripts/release/extract-notes.sh CHANGELOG.md "$VERSION")"
           {
             echo "notes<<EOF"
             echo "$NOTES"
@@ -57,6 +62,45 @@ jobs:
               --title "$GITHUB_REF_NAME" \
               --notes-file -
           fi
+
+  # Post-publish CONSUMER verification (task 4.2). Runs on a fresh, ephemeral
+  # runner — the only place it's safe to run `claude plugin install` for real
+  # (a dev machine's install writes to the shared global plugin cache; see
+  # scripts/release/consumer-gate.js). Reports via the job summary only —
+  # never edits the immutable GitHub Release notes.
+  consumer-verify:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      # Installs the real `claude` CLI so the supported Claude
+      # marketplace-add/install/list check in consumer-gate.js runs for
+      # real here (this ephemeral runner is the only place that's safe —
+      # see the job comment above). If this install step itself fails,
+      # consumer-gate.js still reports UNAVAILABLE for that dimension
+      # rather than crashing.
+      - name: Install claude CLI
+        run: npm install -g @anthropic-ai/claude-code
+        continue-on-error: true
+
+      - name: Run CONSUMER gate
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          node scripts/release/consumer-gate.js --version "$VERSION" | tee consumer-gate-result.json
+          {
+            echo "## Consumer verification — ${GITHUB_REF_NAME}"
+            echo ""
+            echo "Verdict: \`$(node -e "console.log(JSON.parse(require('fs').readFileSync('consumer-gate-result.json','utf8')).verdict)")\`"
+            echo ""
+            echo "Tag \`${GITHUB_REF_NAME}\` is PUBLISHED. Overall release status is COMPLETE only when this verdict is PASS; PENDING/UNAVAILABLE means consumer proof did not fully resolve and the release remains PUBLISHED/PENDING."
+          } >> "$GITHUB_STEP_SUMMARY"
 
   # git flow back-merge: after a release lands on main + tag, sync main into
   # develop so develop never falls behind. This automates the step that was

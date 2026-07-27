@@ -1,0 +1,1123 @@
+{
+  "schema": "dhpk.distribution-inventory.v1",
+  "description": "Machine-readable lifecycle and publication-surface assignment for every consumer-reachable dhpk skill and module. Generators derive Claude/Codex publication surfaces from this file; directory placement and README prose are not authoritative. See openspec/changes/curate-dhpk-distribution-surfaces.",
+  "lifecycles": [
+    "promoted",
+    "optional",
+    "experimental",
+    "deprecated"
+  ],
+  "surfaces": [
+    "claude-core",
+    "claude-module",
+    "codex-sync",
+    "codex-native"
+  ],
+  "skills": [
+    {
+      "id": "fastapi-pro",
+      "path": "modules/fastapi/skills/fastapi-pro",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "ios-platform",
+      "path": "modules/ios-platform/skills/ios-platform",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "js-lint-config",
+      "path": "modules/js/skills/js-lint-config",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "js-static-check-strategy",
+      "path": "modules/js/skills/js-static-check-strategy",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "laravel-10-notes",
+      "path": "modules/laravel-10/skills/laravel-10-notes",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "laravel-11-notes",
+      "path": "modules/laravel-11/skills/laravel-11-notes",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "laravel-5.4-notes",
+      "path": "modules/laravel-5.4/skills/laravel-5.4-notes",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "laravel-6-notes",
+      "path": "modules/laravel-6/skills/laravel-6-notes",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "laravel-7-notes",
+      "path": "modules/laravel-7/skills/laravel-7-notes",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "laravel-8-notes",
+      "path": "modules/laravel-8/skills/laravel-8-notes",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "laravel-9-notes",
+      "path": "modules/laravel-9/skills/laravel-9-notes",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "laravel-mix-notes",
+      "path": "modules/laravel-mix/skills/laravel-mix-notes",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "library-dual-testsuite-map",
+      "path": "modules/library-author/skills/library-dual-testsuite-map",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "matrix-cell-onboard",
+      "path": "modules/library-author/skills/matrix-cell-onboard",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "openspec-artifact-guard",
+      "path": "modules/library-author/skills/openspec-artifact-guard",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "nextjs-15-5-notes",
+      "path": "modules/nextjs-15.5/skills/nextjs-15-5-notes",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "nextjs-16-notes",
+      "path": "modules/nextjs-16/skills/nextjs-16-notes",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "php-pro",
+      "path": "modules/php-5.6/skills/php-pro",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module",
+        "codex-sync"
+      ]
+    },
+    {
+      "id": "php-modern-pro",
+      "path": "modules/php-7.4/skills/php-modern-pro",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "php-8x-features",
+      "path": "modules/php-8.x/skills/php-8x-features",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "phpunit-10-notes",
+      "path": "modules/phpunit-10/skills/phpunit-10-notes",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "phpunit-11-notes",
+      "path": "modules/phpunit-11/skills/phpunit-11-notes",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "legacy-code-characterization",
+      "path": "modules/phpunit-5.7/skills/legacy-code-characterization",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module",
+        "codex-sync"
+      ]
+    },
+    {
+      "id": "phpunit-9-modern",
+      "path": "modules/phpunit-9/skills/phpunit-9-modern",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "pytest-async",
+      "path": "modules/pytest/skills/pytest-async",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "python-pro",
+      "path": "modules/python/skills/python-pro",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "python-static-checks",
+      "path": "modules/python/skills/python-static-checks",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "react-18-notes",
+      "path": "modules/react-18/skills/react-18-notes",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "react-19-notes",
+      "path": "modules/react-19/skills/react-19-notes",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "swift-test-strategy",
+      "path": "modules/swift-testing/skills/swift-test-strategy",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "swift-language",
+      "path": "modules/swift/skills/swift-language",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "swiftui-architecture",
+      "path": "modules/swiftui/skills/swiftui-architecture",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "vue-2-notes",
+      "path": "modules/vue-2/skills/vue-2-notes",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "ios-icon-gen",
+      "path": "modules/xcode-tooling/skills/ios-icon-gen",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "xcode-build-tooling",
+      "path": "modules/xcode-tooling/skills/xcode-build-tooling",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "php56-yii-dev",
+      "path": "modules/yii-1.1/skills/php56-yii-dev",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module",
+        "codex-sync"
+      ]
+    },
+    {
+      "id": "yii1-security-audit",
+      "path": "modules/yii-1.1/skills/yii1-security-audit",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module",
+        "codex-sync"
+      ]
+    },
+    {
+      "id": "adaptive-dev-workflow",
+      "path": "skills/adaptive-dev-workflow",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "agent-architecture-audit",
+      "path": "skills/agent-architecture-audit",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "agy-commit",
+      "path": "skills/agy-commit",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core",
+        "codex-sync"
+      ]
+    },
+    {
+      "id": "agy-fast-worker",
+      "path": "skills/agy-fast-worker",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "bug-fix",
+      "path": "skills/bug-fix",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "bug-investigation",
+      "path": "skills/bug-investigation",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core",
+        "codex-sync"
+      ]
+    },
+    {
+      "id": "claude-health",
+      "path": "skills/claude-health",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "code-explore",
+      "path": "skills/code-explore",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "code-investigate",
+      "path": "skills/code-investigate",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "codex-architect",
+      "path": "skills/codex-architect",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "codex-brainstorm",
+      "path": "skills/codex-brainstorm",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "codex-bridge",
+      "path": "skills/codex-bridge",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "codex-cli-review",
+      "path": "skills/codex-cli-review",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "codex-code-review",
+      "path": "skills/codex-code-review",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "codex-explain",
+      "path": "skills/codex-explain",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "codex-implement",
+      "path": "skills/codex-implement",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "composer-package-hygiene",
+      "path": "skills/composer-package-hygiene",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "continuous-learning-v2",
+      "path": "skills/continuous-learning-v2",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "create-request",
+      "path": "skills/create-request",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "create-skill",
+      "path": "skills/create-skill",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "de-ai-flavor",
+      "path": "skills/de-ai-flavor",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "deploy-list",
+      "path": "skills/deploy-list",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "dhpk-execution-policy",
+      "path": "skills/dhpk-execution-policy",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "doc-review",
+      "path": "skills/doc-review",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "execution-checklist",
+      "path": "skills/execution-checklist",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "feasibility-study",
+      "path": "skills/feasibility-study",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "feature-dev",
+      "path": "skills/feature-dev",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "feature-verify",
+      "path": "skills/feature-verify",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "git-investigate",
+      "path": "skills/git-investigate",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core",
+        "codex-sync"
+      ]
+    },
+    {
+      "id": "git-smart-commit",
+      "path": "skills/git-smart-commit",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core",
+        "codex-sync"
+      ]
+    },
+    {
+      "id": "gitnexus-cli",
+      "path": "skills/gitnexus/gitnexus-cli",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "gitnexus-debugging",
+      "path": "skills/gitnexus/gitnexus-debugging",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "gitnexus-exploring",
+      "path": "skills/gitnexus/gitnexus-exploring",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "gitnexus-guide",
+      "path": "skills/gitnexus/gitnexus-guide",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "gitnexus-impact-analysis",
+      "path": "skills/gitnexus/gitnexus-impact-analysis",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "gitnexus-refactoring",
+      "path": "skills/gitnexus/gitnexus-refactoring",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "harness-budget",
+      "path": "skills/harness-budget",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "harness-fill",
+      "path": "skills/harness-fill",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "harness-revise",
+      "path": "skills/harness-revise",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "issue-analyze",
+      "path": "skills/issue-analyze",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "laravel-package-author",
+      "path": "skills/laravel-package-author",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "laravel-testbench-matrix",
+      "path": "skills/laravel-testbench-matrix",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "multi-ai-sync",
+      "path": "skills/multi-ai-sync",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core",
+        "codex-sync"
+      ]
+    },
+    {
+      "id": "next-step",
+      "path": "skills/next-step",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "op-session",
+      "path": "skills/op-session",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core",
+        "codex-sync"
+      ]
+    },
+    {
+      "id": "opsx-apply-goal",
+      "path": "skills/opsx-apply-goal",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "opsx-load-context",
+      "path": "skills/opsx-load-context",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core",
+        "codex-sync"
+      ]
+    },
+    {
+      "id": "opsx-post-obs",
+      "path": "skills/opsx-post-obs",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core",
+        "codex-sync"
+      ]
+    },
+    {
+      "id": "polyfill-version-matrix-audit",
+      "path": "skills/polyfill-version-matrix-audit",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "post-dev-test",
+      "path": "skills/post-dev-test",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "pr-review",
+      "path": "skills/pr-review",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "project-audit",
+      "path": "skills/project-audit",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "project-setup",
+      "path": "skills/project-setup",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "prompt-optimize",
+      "path": "skills/prompt-optimize",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "release-creator",
+      "path": "skills/release-creator",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "repo-intake",
+      "path": "skills/repo-intake",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "risk-assess",
+      "path": "skills/risk-assess",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "rules-distill",
+      "path": "skills/rules-distill",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "security-review",
+      "path": "skills/security-review",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "skill-health-check",
+      "path": "skills/skill-health-check",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core",
+        "codex-sync"
+      ]
+    },
+    {
+      "id": "skill-judge",
+      "path": "skills/skill-judge",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core",
+        "codex-sync"
+      ]
+    },
+    {
+      "id": "skill-scout",
+      "path": "skills/skill-scout",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "skill-stocktake",
+      "path": "skills/skill-stocktake",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "software-architecture",
+      "path": "skills/software-architecture",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "tdd",
+      "path": "skills/tdd",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core",
+        "codex-sync"
+      ]
+    },
+    {
+      "id": "tech-spec",
+      "path": "skills/tech-spec",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "test-review",
+      "path": "skills/test-review",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
+      "id": "tool-routing",
+      "path": "skills/tool-routing",
+      "lifecycle": "promoted",
+      "surfaces": [
+        "claude-core"
+      ]
+    }
+  ],
+  "modules": [
+    {
+      "id": "fastapi",
+      "path": "modules/fastapi",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "ios-platform",
+      "path": "modules/ios-platform",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "js",
+      "path": "modules/js",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "laravel-10",
+      "path": "modules/laravel-10",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "laravel-11",
+      "path": "modules/laravel-11",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "laravel-5.4",
+      "path": "modules/laravel-5.4",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "laravel-6",
+      "path": "modules/laravel-6",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "laravel-7",
+      "path": "modules/laravel-7",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "laravel-8",
+      "path": "modules/laravel-8",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "laravel-9",
+      "path": "modules/laravel-9",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "laravel-mix",
+      "path": "modules/laravel-mix",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "library-author",
+      "path": "modules/library-author",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "nextjs-15.5",
+      "path": "modules/nextjs-15.5",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "nextjs-16",
+      "path": "modules/nextjs-16",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "php-5.6",
+      "path": "modules/php-5.6",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "php-7.4",
+      "path": "modules/php-7.4",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "php-8.x",
+      "path": "modules/php-8.x",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "phpunit-10",
+      "path": "modules/phpunit-10",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "phpunit-11",
+      "path": "modules/phpunit-11",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "phpunit-5.7",
+      "path": "modules/phpunit-5.7",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "phpunit-9",
+      "path": "modules/phpunit-9",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "pytest",
+      "path": "modules/pytest",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "python",
+      "path": "modules/python",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "react-18",
+      "path": "modules/react-18",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "react-19",
+      "path": "modules/react-19",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "swift",
+      "path": "modules/swift",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "swift-testing",
+      "path": "modules/swift-testing",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "swiftui",
+      "path": "modules/swiftui",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "vue-2",
+      "path": "modules/vue-2",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "xcode-tooling",
+      "path": "modules/xcode-tooling",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    },
+    {
+      "id": "yii-1.1",
+      "path": "modules/yii-1.1",
+      "lifecycle": "optional",
+      "surfaces": [
+        "claude-module"
+      ]
+    }
+  ]
+}

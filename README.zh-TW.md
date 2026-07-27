@@ -224,7 +224,7 @@ Statusline 會渲染 `[branch] +staged ~modified | docker:status | profile=<p> |
 
 ## 同步 Codex CLI 內容
 
-適用於同時使用 Claude Code 與獨立 Codex CLI 的專案（與上方的 Codex MCP 依賴是兩回事——這條路徑不需要任何 MCP server），支援路徑是 `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"`。它會把明確策展的 Codex projection 放進專案 `.codex/`；Codex Plugin Marketplace 屬實驗性，必須另外確認 cache。完整政策與說明見 **[`docs/basic-operations.zh-TW.md`](./docs/basic-operations.zh-TW.md#同步-codex-cli-內容)**。
+適用於同時使用 Claude Code 與獨立 Codex CLI 的專案（與上方的 Codex MCP 依賴是兩回事——這條路徑不需要任何 MCP server），支援路徑是 `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"`——`--copy` 是可攜的支援 fallback（真實檔案，不依賴 plugin checkout 是否存在），預設的 symlink 模式重新同步較快但依賴 source checkout。它會把明確策展的 Codex projection 放進專案 `.codex/`；Codex Plugin Marketplace 在 [issue #88](https://github.com/hmj1026/dhpk/issues/88) 的乾淨安裝 materialization 驗收測試對正式 manifest 通過之前，維持實驗性。完整政策與說明見 **[`docs/basic-operations.zh-TW.md`](./docs/basic-operations.zh-TW.md#同步-codex-cli-內容)**。
 
 ## 遷移現有專案
 

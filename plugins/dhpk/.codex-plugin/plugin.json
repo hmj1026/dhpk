@@ -1,6 +1,6 @@
 {
   "name": "dhpk",
-  "version": "0.31.0",
+  "version": "0.32.0",
   "description": "Codex-format subset of dhpk's Claude Code harness: skills for TDD, code review, security, and multi-stack (PHP/Laravel/Swift/Python/JS) development workflows.",
   "author": {
     "name": "hmj1026",
@@ -9,14 +9,26 @@
   "homepage": "https://github.com/hmj1026/dhpk",
   "repository": "https://github.com/hmj1026/dhpk",
   "license": "MIT",
-  "keywords": ["harness", "codex", "code-review", "php", "laravel", "swift", "ios"],
+  "keywords": [
+    "harness",
+    "codex",
+    "code-review",
+    "php",
+    "laravel",
+    "swift",
+    "ios"
+  ],
   "skills": "../../codex/skills/",
   "interface": {
     "displayName": "DHPK Dev Harness",
     "shortDescription": "Codex-format subset of dhpk's skills/agents for TDD, review, and multi-stack dev workflows.",
     "developerName": "hmj1026",
     "category": "Coding",
-    "capabilities": ["Interactive", "Read", "Write"],
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
     "websiteURL": "https://github.com/hmj1026/dhpk"
   }
 }
