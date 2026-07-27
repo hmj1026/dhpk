@@ -154,12 +154,21 @@ function isInternalOnlyPath(filePath) {
   return filePath.startsWith('tests/') || HYGIENE_FILES.has(filePath);
 }
 
-function checkCoverage({ changedFiles, fragments, markers }) {
+// `releaseSectionAdded` marks a release-PR-shaped diff (develop -> main): the
+// release preparation already promoted every pending fragment into a new
+// CHANGELOG.md "## X.Y.Z — ..." section and deleted it, so changelog.d/ is
+// empty by construction. Coverage for those files was enforced on the feature
+// PRs that introduced them; the promoted section is the standing evidence.
+// Re-demanding a pending fragment here would make every release PR unmergeable.
+function checkCoverage({ changedFiles, fragments, markers, releaseSectionAdded = false }) {
   const userVisible = changedFiles.filter((f) => !isInternalOnlyPath(f));
   if (userVisible.length === 0) {
     return { ok: true, uncovered: [] };
   }
   if (fragments.length > 0 || markers.length > 0) {
+    return { ok: true, uncovered: [] };
+  }
+  if (releaseSectionAdded) {
     return { ok: true, uncovered: [] };
   }
   return { ok: false, uncovered: userVisible };

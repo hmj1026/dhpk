@@ -240,4 +240,29 @@ test('checkCoverage passes when a user-visible file changed and a .none marker e
   assert.strictEqual(result.ok, true);
 });
 
+// Release-PR shape: prepare-release already promoted every pending fragment
+// into a CHANGELOG.md release section and deleted it, so the develop -> main
+// diff is large while changelog.d/ is empty. Coverage was answered at
+// feature-PR merge time; the promoted section is the evidence.
+test('checkCoverage passes when the diff promotes a release section and no fragment is pending', () => {
+  const result = checkCoverage({
+    changedFiles: ['scripts/ci/validate-plugin.js', 'CHANGELOG.md'],
+    fragments: [],
+    markers: [],
+    releaseSectionAdded: true,
+  });
+  assert.strictEqual(result.ok, true, JSON.stringify(result.uncovered));
+});
+
+test('checkCoverage still fails without a promoted release section (releaseSectionAdded defaults to false)', () => {
+  const result = checkCoverage({
+    changedFiles: ['scripts/ci/validate-plugin.js', 'CHANGELOG.md'],
+    fragments: [],
+    markers: [],
+    releaseSectionAdded: false,
+  });
+  assert.strictEqual(result.ok, false);
+  assert.ok(result.uncovered.includes('scripts/ci/validate-plugin.js'));
+});
+
 run('changelog-fragments');

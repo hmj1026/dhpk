@@ -47,6 +47,18 @@ function changedFilesSince(root, diffBase) {
   return out.split('\n').map((l) => l.trim()).filter(Boolean);
 }
 
+// True when the diff adds a "## X.Y.Z — ..." release heading to CHANGELOG.md,
+// i.e. this is a release PR whose fragments were already promoted and deleted.
+const RELEASE_HEADING_ADDED = /^\+## \d+\.\d+\.\d+ /m;
+
+function releaseSectionAddedSince(root, diffBase) {
+  const out = execFileSync('git', ['diff', '--unified=0', `${diffBase}...HEAD`, '--', 'CHANGELOG.md'], {
+    cwd: root,
+    encoding: 'utf8',
+  });
+  return RELEASE_HEADING_ADDED.test(out);
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const fragmentDir = path.join(args.root, 'changelog.d');
@@ -68,7 +80,8 @@ function main() {
 
   if (args.diffBase) {
     const changedFiles = changedFilesSince(args.root, args.diffBase);
-    const coverage = checkCoverage({ changedFiles, fragments, markers });
+    const releaseSectionAdded = releaseSectionAddedSince(args.root, args.diffBase);
+    const coverage = checkCoverage({ changedFiles, fragments, markers, releaseSectionAdded });
     if (!coverage.ok) {
       console.error('validate-changelog-fragments: FAIL (missing release fragment)');
       console.error(`  changed files since ${args.diffBase} have no changelog.d/*.md or *.none:`);

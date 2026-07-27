@@ -64,6 +64,33 @@ test('--diff-base passes when a fragment covers the change', () => {
   assert.strictEqual(res.status, 0, res.stderr);
 });
 
+test('--diff-base passes on a release-shaped diff: promoted section, no pending fragment', () => {
+  const repo = mkRepo();
+  fs.writeFileSync(path.join(repo, 'scripts.js'), 'module.exports = {};\n');
+  fs.writeFileSync(path.join(repo, 'changelog.d', 'feat.widget.md'), 'scope: widget\nnote: Add the widget.\n');
+  spawnSync('git', ['add', '-A'], { cwd: repo });
+  spawnSync('git', ['commit', '-q', '-m', 'add source file + fragment'], { cwd: repo });
+  // Release prep consumes the fragment into a CHANGELOG.md section.
+  const write = runCli(repo, ['--write', '--version', '1.0.0', '--date', '2026-07-27', '--summary', 'Add widget']);
+  assert.strictEqual(write.status, 0, write.stderr);
+  spawnSync('git', ['add', '-A'], { cwd: repo });
+  spawnSync('git', ['commit', '-q', '-m', 'chore(release): 1.0.0'], { cwd: repo });
+
+  const res = runCli(repo, ['--diff-base', 'develop']);
+  assert.strictEqual(res.status, 0, res.stderr);
+});
+
+test('--diff-base still fails when CHANGELOG.md changed without adding a release section', () => {
+  const repo = mkRepo();
+  fs.writeFileSync(path.join(repo, 'scripts.js'), 'module.exports = {};\n');
+  fs.appendFileSync(path.join(repo, 'CHANGELOG.md'), '\nsome prose edit\n');
+  spawnSync('git', ['add', '-A'], { cwd: repo });
+  spawnSync('git', ['commit', '-q', '-m', 'edit changelog prose'], { cwd: repo });
+  const res = runCli(repo, ['--diff-base', 'develop']);
+  assert.notStrictEqual(res.status, 0);
+  assert.match(res.stderr, /missing release fragment/);
+});
+
 test('--write promotes fragments into CHANGELOG.md', () => {
   const repo = mkRepo();
   fs.writeFileSync(path.join(repo, 'changelog.d', 'feat.widget.md'), 'scope: widget\nnote: Add the widget.\n');
