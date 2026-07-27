@@ -6,12 +6,26 @@ import os
 from .agent_sync import (
     CLAUDE_PARITY_COVERAGE_KEYWORDS,
     CODEX_NATIVE_AGENTS,
+    MANIFEST_OWNER,
+    MANIFEST_SCHEMA_VERSION,
     SYNC_MANIFEST_PATH,
     claude_parity_roles,
     load_agent_sync_manifest,
 )
-from .constants import CHECK_FAIL, CHECK_PASS, CHECK_SKIP
-from .sources import gemini_hook_surface_enabled
+from .constants import (
+    CHECK_FAIL,
+    CHECK_PASS,
+    CHECK_SKIP,
+    GATE_BLOCKED,
+    GATE_FAIL,
+    GATE_PASS,
+    ROW_BLOCKED,
+    ROW_FAIL,
+    ROW_NOT_CONFIGURED,
+    ROW_PASS,
+    ROW_SKIP_INCOMPATIBLE,
+)
+from .sources import gemini_hook_surface_enabled, resolve_target_membership
 from .utils import has_any_files, now_iso, parse_json_ok, parse_toml_like_ok, read_text, relpath, safe_exists
 
 try:
@@ -33,35 +47,61 @@ def parse_toml_file(path):
 
 def state_to_markdown(state):
     return {
+        ROW_PASS: "OK",
+        ROW_FAIL: "FAIL",
+        ROW_SKIP_INCOMPATIBLE: "SKIP",
+        ROW_NOT_CONFIGURED: "N/A",
+        ROW_BLOCKED: "BLOCKED",
         CHECK_PASS: "OK",
         CHECK_FAIL: "FAIL",
         CHECK_SKIP: "SKIP",
     }.get(state, "FAIL")
 
 
-def final_status_from_checks(config_ok, smoke_ok, hook_state, multi_state):
+def platform_final_status(config_ok, smoke_ok, hook_state, multi_state):
+    """A configured platform's overall status. FAIL beats everything; a
+    documented SKIP_INCOMPATIBLE row never downgrades an otherwise-passing
+    platform (design.md Decision 2)."""
     if not config_ok or not smoke_ok:
-        return "FAIL"
-    representative = [hook_state, multi_state]
-    if CHECK_FAIL in representative:
-        return "FAIL"
-    if CHECK_SKIP in representative:
-        return "PARTIAL"
-    return "PASS"
+        return ROW_FAIL
+    if ROW_FAIL in (hook_state, multi_state):
+        return ROW_FAIL
+    return ROW_PASS
 
 
-def result_row(platform, config_ok, smoke_ok, hook_state, multi_state, notes):
-    final = final_status_from_checks(config_ok, smoke_ok, hook_state, multi_state)
+def result_row(platform, config_ok, smoke_ok, hook_state, multi_state, notes, hook_reason=None, multi_reason=None):
+    final = platform_final_status(config_ok, smoke_ok, hook_state, multi_state)
     return {
         "platform": platform,
         "config_load_ok": config_ok,
         "smoke_ok": smoke_ok,
         "hook_case_state": hook_state,
         "multi_agent_case_state": multi_state,
-        "hook_case_ok": hook_state == CHECK_PASS,
-        "multi_agent_case_ok": multi_state == CHECK_PASS,
+        "hook_case_ok": hook_state == ROW_PASS,
+        "multi_agent_case_ok": multi_state == ROW_PASS,
+        "hook_case_reason": hook_reason,
+        "multi_agent_case_reason": multi_reason,
         "final_status": final,
         "notes": notes,
+    }
+
+
+def not_participating_row(platform, status, reason):
+    """A platform absent from the resolved target set: `NOT_CONFIGURED` (never
+    requested, default auto-discovery) or `BLOCKED` (explicitly requested via
+    `--targets`/`--all-targets`). design.md Decision 6."""
+    return {
+        "platform": platform,
+        "config_load_ok": False,
+        "smoke_ok": False,
+        "hook_case_state": status,
+        "multi_agent_case_state": status,
+        "hook_case_ok": False,
+        "multi_agent_case_ok": False,
+        "hook_case_reason": reason,
+        "multi_agent_case_reason": reason,
+        "final_status": status,
+        "notes": [reason],
     }
 
 
@@ -79,19 +119,21 @@ def validate_claude(repo_root):
         notes.append(".claude 缺少核心 skills/commands")
 
     hook_dir = os.path.join(repo_root, ".claude/hooks")
+    hook_reason = None
     if os.path.isdir(hook_dir):
-        hook_state = CHECK_PASS if has_any_files(hook_dir) else CHECK_FAIL
-        if hook_state == CHECK_FAIL:
+        hook_state = ROW_PASS if has_any_files(hook_dir) else ROW_FAIL
+        if hook_state == ROW_FAIL:
             notes.append(".claude/hooks 存在，但找不到 hook 檔案")
     else:
-        hook_state = CHECK_SKIP
-        notes.append("沒有 .claude/hooks 目錄；代表性 hook 檢查標記為 skip")
+        hook_state = ROW_SKIP_INCOMPATIBLE
+        hook_reason = "沒有 .claude/hooks 目錄；代表性 hook 檢查標記為 skip"
+        notes.append(hook_reason)
 
-    multi_state = CHECK_PASS if bool(glob.glob(os.path.join(repo_root, ".claude/agents/*.md"))) else CHECK_FAIL
-    if multi_state == CHECK_FAIL:
+    multi_state = ROW_PASS if bool(glob.glob(os.path.join(repo_root, ".claude/agents/*.md"))) else ROW_FAIL
+    if multi_state == ROW_FAIL:
         notes.append("找不到 .claude/agents/*.md")
 
-    return result_row("claude", config_ok, smoke_ok, hook_state, multi_state, notes)
+    return result_row("claude", config_ok, smoke_ok, hook_state, multi_state, notes, hook_reason=hook_reason)
 
 
 def check_codex_agent_role_fields(agents_dir):
@@ -119,7 +161,15 @@ def check_codex_agent_role_fields(agents_dir):
     return failures
 
 
-def validate_codex(repo_root):
+def validate_codex(repo_root, membership=None):
+    if membership is not None and not membership.get("present"):
+        requested = membership.get("requested")
+        status = ROW_BLOCKED if requested else ROW_NOT_CONFIGURED
+        reason = ".codex/config.toml 不存在（%s）" % (
+            "已明確以 --targets/--all-targets 指定" if requested else "未設定，屬 not-configured"
+        )
+        return not_participating_row("codex", status, reason)
+
     notes = []
     cfg = os.path.join(repo_root, ".codex/config.toml")
     config_ok = parse_toml_like_ok(cfg, ["[features]", "multi_agent"])
@@ -132,23 +182,32 @@ def validate_codex(repo_root):
     if not smoke_ok:
         notes.append(".codex 缺少核心 skills/agents")
 
-    hook_state = CHECK_SKIP
-    notes.append("Codex project 的 hook mapping 不支援；視為 skip-incompatible")
+    hook_state = ROW_SKIP_INCOMPATIBLE
+    hook_reason = "Codex project 的 hook mapping 不支援；視為 skip-incompatible"
+    notes.append(hook_reason)
 
-    multi_state = CHECK_PASS if (config_ok and bool(glob.glob(os.path.join(repo_root, ".codex/agents/*.toml")))) else CHECK_FAIL
-    if multi_state == CHECK_FAIL:
+    multi_state = ROW_PASS if (config_ok and bool(glob.glob(os.path.join(repo_root, ".codex/agents/*.toml")))) else ROW_FAIL
+    if multi_state == ROW_FAIL:
         notes.append("Codex multi-agent 代表性檢查失敗")
 
     role_failures = check_codex_agent_role_fields(os.path.join(repo_root, ".codex", "agents"))
     if role_failures:
         notes.extend(role_failures)
         notes.append("Codex agent role 檔案缺少必要欄位: %d 個" % len(role_failures))
-        multi_state = CHECK_FAIL
+        multi_state = ROW_FAIL
 
-    return result_row("codex", config_ok, smoke_ok, hook_state, multi_state, notes)
+    return result_row("codex", config_ok, smoke_ok, hook_state, multi_state, notes, hook_reason=hook_reason)
 
 
-def validate_gemini(repo_root):
+def validate_gemini(repo_root, membership=None):
+    if membership is not None and not membership.get("present"):
+        requested = membership.get("requested")
+        status = ROW_BLOCKED if requested else ROW_NOT_CONFIGURED
+        reason = "找不到 .gemini/commands/**/*.toml（%s）" % (
+            "已明確以 --targets/--all-targets 指定" if requested else "未設定，屬 not-configured"
+        )
+        return not_participating_row("gemini", status, reason)
+
     notes = []
     cmd_files = sorted(glob.glob(os.path.join(repo_root, ".gemini/commands/**/*.toml"), recursive=True))
     config_ok = True
@@ -172,25 +231,38 @@ def validate_gemini(repo_root):
     if not smoke_ok:
         notes.append(".gemini 缺少核心 skills/commands")
 
+    hook_reason = None
     if gemini_hook_surface_enabled(repo_root):
         hook_root = os.path.join(repo_root, ".gemini/hooks")
         ext_root = os.path.join(repo_root, ".gemini/extensions")
         has_hook_files = has_any_files(hook_root) if os.path.isdir(hook_root) else False
         has_extension_files = has_any_files(ext_root) if os.path.isdir(ext_root) else False
-        hook_state = CHECK_PASS if (has_hook_files or has_extension_files) else CHECK_FAIL
-        if hook_state == CHECK_FAIL:
+        hook_state = ROW_PASS if (has_hook_files or has_extension_files) else ROW_FAIL
+        if hook_state == ROW_FAIL:
             notes.append("Gemini hook surface 已啟用，但找不到代表性 hook artifacts")
     else:
-        hook_state = CHECK_SKIP
-        notes.append("Gemini hook parity 屬 repository-specific；目前視為 skip-incompatible")
+        hook_state = ROW_SKIP_INCOMPATIBLE
+        hook_reason = "Gemini hook parity 屬 repository-specific；目前視為 skip-incompatible"
+        notes.append(hook_reason)
 
-    multi_state = CHECK_SKIP
-    notes.append("此 repository 佈局不提供 Gemini multi-agent parity；標記為 skip-incompatible")
+    multi_state = ROW_SKIP_INCOMPATIBLE
+    multi_reason = "此 repository 佈局不提供 Gemini multi-agent parity；標記為 skip-incompatible"
+    notes.append(multi_reason)
 
-    return result_row("gemini", config_ok, smoke_ok, hook_state, multi_state, notes)
+    return result_row(
+        "gemini", config_ok, smoke_ok, hook_state, multi_state, notes, hook_reason=hook_reason, multi_reason=multi_reason
+    )
 
 
-def validate_antigravity(repo_root):
+def validate_antigravity(repo_root, membership=None):
+    if membership is not None and not membership.get("present"):
+        requested = membership.get("requested")
+        status = ROW_BLOCKED if requested else ROW_NOT_CONFIGURED
+        reason = "找不到 .agent/rules/*.md（%s）" % (
+            "已明確以 --targets/--all-targets 指定" if requested else "未設定，屬 not-configured"
+        )
+        return not_participating_row("antigravity", status, reason)
+
     notes = []
     rules = sorted(glob.glob(os.path.join(repo_root, ".agent/rules/*.md")))
     config_ok = bool(rules)
@@ -210,18 +282,26 @@ def validate_antigravity(repo_root):
     if not smoke_ok:
         notes.append(".agent 缺少核心 skills/workflows")
 
-    hook_state = CHECK_SKIP
-    notes.append("Antigravity hook parity 不支援；視為 skip-incompatible")
+    hook_state = ROW_SKIP_INCOMPATIBLE
+    hook_reason = "Antigravity hook parity 不支援；視為 skip-incompatible"
+    notes.append(hook_reason)
 
-    multi_state = CHECK_PASS if safe_exists(os.path.join(repo_root, ".agent/workflows/review.md")) else CHECK_FAIL
-    if multi_state == CHECK_FAIL:
+    multi_state = ROW_PASS if safe_exists(os.path.join(repo_root, ".agent/workflows/review.md")) else ROW_FAIL
+    if multi_state == ROW_FAIL:
         notes.append("缺少 .agent/workflows/review.md（代表性 multi-agent workflow）")
 
-    return result_row("antigravity", config_ok, smoke_ok, hook_state, multi_state, notes)
+    return result_row("antigravity", config_ok, smoke_ok, hook_state, multi_state, notes, hook_reason=hook_reason)
 
 
-def run_policy_checks(repo_root):
-    """Task 5: 執行三類政策型檢查（path canonicalization、profile compatibility、agent parity）。"""
+def run_policy_checks(repo_root, codex_present=True):
+    """Task 5: 執行三類政策型檢查（path canonicalization、profile compatibility、agent parity）。
+
+    `codex_present` reflects whether Codex participates in this run at all
+    (configured, explicitly requested-and-present, or included by
+    `--all-targets`) — when False (NOT_CONFIGURED, BLOCKED, or excluded by an
+    explicit `--targets` list that omits codex), the Codex-specific parity
+    checks below must not independently fail the gate (issue #89: an absent
+    optional platform must never leak back in through a side channel)."""
     checks = []
 
     # --- 5.1 Canonical path check ---
@@ -266,15 +346,50 @@ def run_policy_checks(repo_root):
                        "message": "php-pro SKILL.md 缺少 PHP 5.6 profile override: %s" % ", ".join(profile_issues)})
 
     # --- 5.3 Agent parity checks ---
+    # Task 4.2/4.3: the sync manifest is a parity-apply receipt, not a standard
+    # Codex installer requirement — only require it when there is at least one
+    # Claude parity role to sync (design.md Decision 4 / multi-ai-sync-manifest-provenance).
     parity_roles = claude_parity_roles(repo_root)
     manifest = load_agent_sync_manifest(repo_root)
     manifest_issues = []
     coverage_issues = []
+    manifest_required = codex_present and bool(parity_roles)
+
+    # Task 4.3: which agent-ownership contract this Codex target selected, and
+    # the evidence used to select it (multi-ai-sync-manifest-provenance spec).
+    # A manifest that exists is always "parity_managed" — including when its
+    # roles are currently empty (a stale receipt candidate, design.md risk
+    # register) — so this label never contradicts the manifest check below.
+    if not codex_present:
+        ownership_contract = "not_configured"
+        ownership_evidence = "Codex is not participating in this run (NOT_CONFIGURED/BLOCKED/excluded)"
+    elif manifest:
+        ownership_contract = "parity_managed"
+        ownership_evidence = (
+            "%d current Claude parity role(s)" % len(parity_roles)
+            if parity_roles
+            else "existing %s with no current .claude/agents/*.md source (stale receipt candidate)" % SYNC_MANIFEST_PATH
+        )
+    elif parity_roles:
+        ownership_contract = "parity_managed"
+        ownership_evidence = "%d Claude parity role(s) under .claude/agents/*.md, manifest not yet generated" % len(parity_roles)
+    else:
+        ownership_contract = "standard_install"
+        ownership_evidence = "no .claude/agents/*.md source and no %s" % SYNC_MANIFEST_PATH
 
     if not manifest:
-        manifest_issues.append("找不到 %s" % SYNC_MANIFEST_PATH)
+        if manifest_required:
+            manifest_issues.append("找不到 %s" % SYNC_MANIFEST_PATH)
         manifest_roles = {}
     else:
+        if manifest.get("owner") != MANIFEST_OWNER:
+            manifest_issues.append(
+                "manifest owner 不符：預期 %s，實際 %s" % (MANIFEST_OWNER, manifest.get("owner"))
+            )
+        if manifest.get("schema_version") != MANIFEST_SCHEMA_VERSION:
+            manifest_issues.append(
+                "manifest schema_version 不符：預期 %s，實際 %s" % (MANIFEST_SCHEMA_VERSION, manifest.get("schema_version"))
+            )
         manifest_roles = {}
         for entry in manifest.get("roles", []):
             source_agent = entry.get("source_agent", "")
@@ -282,7 +397,7 @@ def run_policy_checks(repo_root):
             if role:
                 manifest_roles[role] = entry
 
-    for role in parity_roles:
+    for role in (parity_roles if codex_present else []):
         toml_path = os.path.join(repo_root, ".codex", "agents", "%s.toml" % role)
         if not safe_exists(toml_path):
             coverage_issues.append("%s.toml 不存在" % role)
@@ -315,6 +430,13 @@ def run_policy_checks(repo_root):
     if manifest_issues:
         checks.append({"id": "parity.agents.manifest", "level": "fail", "status": CHECK_FAIL,
                        "message": "Agent parity manifest 不完整: %s" % "; ".join(manifest_issues)})
+    elif not codex_present:
+        checks.append({"id": "parity.agents.manifest", "level": "fail", "status": CHECK_SKIP,
+                       "message": "Codex 未參與本次 run（NOT_CONFIGURED/BLOCKED/excluded）；不檢查 sync manifest。"})
+    elif manifest is None and not parity_roles:
+        checks.append({"id": "parity.agents.manifest", "level": "fail", "status": CHECK_SKIP,
+                       "message": "沒有 Claude parity agent 來源（.claude/agents/*.md）；"
+                                  "此 repository 屬標準 Codex 安裝，不需要 %s。" % SYNC_MANIFEST_PATH})
     else:
         checks.append({"id": "parity.agents.manifest", "level": "fail", "status": CHECK_PASS,
                        "message": "Claude parity manifest 與 mirrored references 完整。"})
@@ -322,6 +444,9 @@ def run_policy_checks(repo_root):
     if coverage_issues:
         checks.append({"id": "parity.agents.coverage", "level": "fail", "status": CHECK_FAIL,
                        "message": "Agent self-contained coverage 不完整: %s" % "; ".join(coverage_issues)})
+    elif not codex_present:
+        checks.append({"id": "parity.agents.coverage", "level": "fail", "status": CHECK_SKIP,
+                       "message": "Codex 未參與本次 run（NOT_CONFIGURED/BLOCKED/excluded）；不檢查 coverage。"})
     else:
         checks.append({"id": "parity.agents.coverage", "level": "fail", "status": CHECK_PASS,
                        "message": "Claude parity agents 均通過 self-contained coverage 檢查。"})
@@ -329,35 +454,55 @@ def run_policy_checks(repo_root):
     checks.append({"id": "parity.agents.codex_native", "level": "info", "status": CHECK_PASS,
                    "message": "Codex-native agents 已排除於 Claude parity: %s" % ", ".join(CODEX_NATIVE_AGENTS)})
 
+    checks.append({"id": "parity.agents.ownership_contract", "level": "info", "status": CHECK_PASS,
+                   "message": "Codex agent ownership contract: %s (%s)" % (ownership_contract, ownership_evidence)})
+
     return checks
 
 
-def run_validation(repo_root, change_id=None):
-    rows = [
-        validate_claude(repo_root),
-        validate_codex(repo_root),
-        validate_gemini(repo_root),
-        validate_antigravity(repo_root),
-    ]
-    gate = "PASS"
-    for row in rows:
-        if row["final_status"] == "FAIL":
-            gate = "FAIL"
-            break
-        if row["final_status"] == "PARTIAL" and gate != "FAIL":
-            gate = "PARTIAL"
+def run_validation(repo_root, change_id=None, targets=None, all_targets=False):
+    membership = resolve_target_membership(repo_root, targets=targets, all_targets=all_targets)
 
-    # Task 5: 政策型檢查
-    policy_checks = run_policy_checks(repo_root)
+    rows = [validate_claude(repo_root)]
+    validators = {"codex": validate_codex, "gemini": validate_gemini, "antigravity": validate_antigravity}
+    for platform, entry in membership.items():
+        rows.append(validators[platform](repo_root, entry))
+
+    gate = GATE_PASS
+    any_blocked = False
+    any_skip_incompatible = False
+    for row in rows:
+        if row["final_status"] == ROW_FAIL:
+            gate = GATE_FAIL
+        elif row["final_status"] == ROW_BLOCKED:
+            any_blocked = True
+        if row["hook_case_state"] == ROW_SKIP_INCOMPATIBLE or row["multi_agent_case_state"] == ROW_SKIP_INCOMPATIBLE:
+            any_skip_incompatible = True
+    if gate != GATE_FAIL and any_blocked:
+        gate = GATE_BLOCKED
+
+    # Task 5: 政策型檢查（既有機制，仍可將 gate 升級為 FAIL；不產生 BLOCKED）。
+    # codex_present 反映 Codex 是否參與本次 run；NOT_CONFIGURED/BLOCKED/被
+    # explicit --targets 排除時皆為 False，避免 issue #89 的缺席污染經由
+    # policy checks 側路徑重新滲入 gate。
+    codex_present = membership.get("codex", {}).get("present", False)
+    policy_checks = run_policy_checks(repo_root, codex_present=codex_present)
+    policy_partial = False
     for check in policy_checks:
         if check["status"] == CHECK_FAIL and check["level"] == "fail":
-            # FAIL level policy：升級 gate 為 FAIL
-            if gate != "FAIL":
-                gate = "FAIL"
+            gate = GATE_FAIL
         elif check["status"] == CHECK_FAIL and check["level"] == "warn":
-            # WARN level policy：降級 gate 為 PARTIAL（若原為 PASS）
-            if gate == "PASS":
-                gate = "PARTIAL"
+            policy_partial = True
+
+    # Task 2.5/2.7: legacy_gate — deprecated PASS/PARTIAL/FAIL compatibility
+    # field for one release (design.md Decision 6). Removal-pending; every
+    # in-repo consumer reads `gate`, not `legacy_gate`.
+    if gate in (GATE_FAIL, GATE_BLOCKED):
+        legacy_gate = "FAIL"
+    elif any_skip_incompatible or policy_partial:
+        legacy_gate = "PARTIAL"
+    else:
+        legacy_gate = "PASS"
 
     generated_at = now_iso()
     return {
@@ -369,6 +514,7 @@ def run_validation(repo_root, change_id=None):
         "results": rows,
         "policy_checks": policy_checks,
         "gate": gate,
+        "legacy_gate": legacy_gate,
     }
 
 
@@ -399,9 +545,11 @@ def render_validation_markdown(report):
 
     lines.append("## Gate Criteria")
     lines.append("")
-    lines.append("- `PASS`: Config+Smoke 都 OK，且代表案例（Hooks/Multi-Agent）皆非 FAIL/SKIP。")
-    lines.append("- `PARTIAL`: Config+Smoke 都 OK，但代表案例至少一項為 SKIP（通常是 skip-incompatible）。")
-    lines.append("- `FAIL`: 任一平台 Config 或 Smoke 為 FAIL，或代表案例出現 FAIL。")
+    lines.append("- `PASS`: 所有 configured/applicable 平台檢查皆為 `PASS`；`NOT_CONFIGURED`/`SKIP_INCOMPATIBLE` 不影響 gate。")
+    lines.append("- `FAIL`: 任一 configured（或明確要求）平台的 applicable 檢查為 `FAIL`。優先於 `BLOCKED`。")
+    lines.append("- `BLOCKED`: 沒有 `FAIL`，但至少一個以 `--targets`/`--all-targets` 明確要求的平台完全缺席。")
+    lines.append("- `NOT_CONFIGURED`: 平台未被明確要求且缺席（預設自動探索情境）；不影響 gate，僅供可見性。")
+    lines.append("- `SKIP_INCOMPATIBLE`: 平台已設定，但特定能力依政策矩陣不支援；不影響 gate，僅供可見性。")
     lines.append("")
 
     lines.append("## Notes")
@@ -430,4 +578,6 @@ def render_validation_markdown(report):
     lines.append("## Gate")
     lines.append("")
     lines.append("%s" % report["gate"])
+    lines.append("")
+    lines.append("_Deprecated compatibility field (removal-pending): `legacy_gate` = `%s`_" % report.get("legacy_gate", "unknown"))
     return "\n".join(lines)

@@ -1,10 +1,61 @@
 """Capability evidence and source arbitration helpers."""
 
+import glob
 import json
 import os
 
-from .constants import CONFLICT_REGISTRY_CANDIDATES, SOURCE_ARBITRATION_POLICY, STATUS_ADAPT, STATUS_EQ, STATUS_SKIP
+from .constants import (
+    CONFLICT_REGISTRY_CANDIDATES,
+    SOURCE_ARBITRATION_POLICY,
+    STATUS_ADAPT,
+    STATUS_EQ,
+    STATUS_SKIP,
+    TARGETS_DEFAULT,
+)
 from .utils import read_text, relpath, safe_exists, uniq
+
+
+def resolve_configured_targets(repo_root):
+    """Task 2.1: documented configuration markers for Codex/Gemini/Antigravity.
+
+    A target is "configured" when its primary marker exists — mere presence,
+    not full validity (an invalid-but-present marker is a `FAIL`, not an
+    absence). See design.md Decision 6 / resolved Open Question for the
+    exact marker set, reused from the pre-existing per-platform validators.
+    """
+    return {
+        "codex": safe_exists(os.path.join(repo_root, ".codex/config.toml")),
+        "gemini": bool(glob.glob(os.path.join(repo_root, ".gemini/commands/**/*.toml"), recursive=True)),
+        "antigravity": bool(glob.glob(os.path.join(repo_root, ".agent/rules/*.md"))),
+    }
+
+
+def resolve_target_membership(repo_root, targets=None, all_targets=False):
+    """Task 2.1/2.2: the single target-set resolver shared by discovery, plan,
+    apply, smoke, and validation (design.md Decision 1 and 6).
+
+    Returns an ordered ``{platform: {"present": bool, "requested": bool}}``
+    map for the non-Claude targets that should appear in this run's report:
+
+    - No ``targets`` and ``all_targets=False`` (default auto-discovery): every
+      documented target is included but none are "requested" — an absent one
+      is ``NOT_CONFIGURED``.
+    - ``all_targets=True``: every documented target is included and
+      "requested" — an absent one is ``BLOCKED`` (ADR 0002/0003 full audit).
+    - ``targets=[...]``: only the named targets are included, and each is
+      "requested" — an absent one is ``BLOCKED``.
+    """
+    configured = resolve_configured_targets(repo_root)
+    if targets:
+        included = list(dict.fromkeys(targets))
+        requested = True
+    else:
+        included = list(TARGETS_DEFAULT)
+        requested = bool(all_targets)
+    return {
+        platform: {"present": configured.get(platform, False), "requested": requested}
+        for platform in included
+    }
 
 
 def gemini_hook_surface_enabled(repo_root):
