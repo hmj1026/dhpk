@@ -80,6 +80,9 @@ const COVERAGE_MAP = {
   'scripts/hooks/pretool-git-gate.sh': 'pretool-branch-safety-dedup.test.js',
   'scripts/hooks/_lib/install-health.sh': 'session-install-health-version.test.js',
   'scripts/validate/test-hooks.sh': 'validate-test-hooks.test.js',
+  'scripts/hooks/_lib/resumed-review-obligation.sh': 'resumed-review-reconcile.test.js',
+  'scripts/hooks/record-resumed-obligation.sh': 'resumed-review-reconcile.test.js',
+  'scripts/hooks/reconcile-resumed-review.sh': 'resumed-review-reconcile.test.js',
 };
 
 const SCRIPT_EXTS = new Set(['.sh', '.js', '.ts', '.py']);
