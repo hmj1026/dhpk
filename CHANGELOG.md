@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## 0.31.0 — 2026-07-27 — Scope multi-AI sync validation to configured platforms, harden parallel dispatch worker boundaries, and fix resumed reviewer clearance
+
+Scopes multi-AI sync post-sync validation to configured platforms, hardens fast-worker parallel dispatch execution boundaries and report schema, fixes the SendMessage-resumed reviewer sentinel clearance gap, and refactors skill invocation policies.
+
+**feat(multi-ai-sync)** — Scope post-sync validation to platforms with local configuration evidence, update ADR 0002/0003, and refine risk policies.
+**feat(agent)** — Harden `fast-worker` and `codex-fast-worker` parallel mode boundaries with assigned-scope status/diff enforcement and out-of-scope write protection.
+**fix(hooks)** — Reconcile SendMessage-resumed reviewer obligations with canonical review artifacts before clearing sentinels.
+**chore(config)** — Update skill invocation policies, agent/command manifests, and CI validation scripts.
+
 ## 0.30.0 — 2026-07-24 — Add TDD skill, expand multi-AI sync validation, and refactor core and module skills
 
 Adds the TDD skill with comprehensive mocking and testing guidelines, expands multi-AI sync validation with OpenAI metadata checks, and refactors core and module skills for progressive disclosure.
