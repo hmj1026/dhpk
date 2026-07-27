@@ -86,7 +86,7 @@ an obligation whose recorded session identity equals the caller's.
   producing an unsafe or false clear — so the risk is a possibly-dead
   automatic safety net, never an unsafe clear.
 
-See `openspec/changes/fix-resumed-review-sentinel-clearance/design.md` for the
-full decision record and
+See `openspec/changes/archive/2026-07-27-fix-resumed-review-sentinel-clearance/design.md`
+(local-only; `openspec/` is gitignored in this repo) for the full decision record and
 `skills/dhpk-execution-policy/references/review-gate-mechanics.md`
 §Resumed reviewer reconcile contract for operational detail.
