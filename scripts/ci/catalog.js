@@ -25,6 +25,7 @@
 const fs = require('fs');
 const path = require('path');
 const { collectInventory, walkFiles } = require('../lib/asset-inventory');
+const { computeScopedCounts } = require('../lib/distribution-inventory');
 
 const ROOT = path.join(__dirname, '..', '..');
 const p = (...s) => path.join(ROOT, ...s);
@@ -188,6 +189,18 @@ function printTable() {
   console.log(`  slots:    ${c.slotCount}  (sentinel review slots from payload.sh)`);
   console.log(`  codex:    ${c.mcpCodexSkills} MCP-backed skills + ${c.codexCommands} commands`);
   console.log(`  hooks:    ${c.hookEvents} events (hooks/hooks.json)`);
+
+  const inventoryPath = p('manifests', 'distribution-inventory.json');
+  if (fs.existsSync(inventoryPath)) {
+    const dist = computeScopedCounts(JSON.parse(fs.readFileSync(inventoryPath, 'utf8')));
+    // Scoped, independently-derived counts (harness-count-integrity spec):
+    // a documentation claim about the default install surface must cite
+    // claudePublished/codexPublished/promotedCore, never the canonical total.
+    console.log(
+      `  distribution: canonical ${dist.canonical} = promoted-core ${dist.promotedCore} + optional ${dist.optional} + experimental ${dist.experimental} + deprecated ${dist.deprecated}`
+    );
+    console.log(`                claude-published ${dist.claudePublished}, codex-published ${dist.codexPublished}`);
+  }
 }
 
 const args = process.argv.slice(2);

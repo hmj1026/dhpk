@@ -39,6 +39,10 @@ jobs:
         run: node scripts/ci/validate-modules.js --strict
       - name: Validate plugin manifest
         run: node scripts/ci/validate-plugin.js --strict
+      - name: Validate distribution inventory
+        run: node scripts/ci/validate-distribution.js --strict
+      - name: No-drift Claude manifest check
+        run: node scripts/ci/gen-claude-manifest.js --check
       - name: Validate invocation policy
         run: node scripts/ci/validate-invocation-policy.js
 

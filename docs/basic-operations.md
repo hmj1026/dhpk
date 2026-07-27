@@ -288,16 +288,30 @@ Projects using both Claude Code and Codex CLI:
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"
 ```
 
-The script is the supported Codex distribution path. It symlinks by default or
-copies with `--copy` when symlinks are unsuitable, and records version and
-source-fingerprint provenance in `.codex/.dhpk-installed.json`. Re-run with
-`--update` after a plugin update. The Codex tree is an explicitly curated
-subset of the canonical Claude packages, not a second complete inventory.
-`codex/agents/` ships 11 roles: four hand-maintained generic roles and seven
-generated from canonical Claude agents via `scripts/gen-codex-agents.js`. See
-`codex/AGENTS.md` and `codex/README.md` for the dual-harness model.
+The script is the supported Codex distribution path, with two modes:
 
-### Codex Plugin Marketplace (experimental)
+- **`--copy` (portable supported fallback).** Materializes real files under
+  `.codex/`. Recommended whenever the project may move, be archived, or be
+  checked out somewhere the plugin source tree isn't guaranteed to sit
+  alongside it — copied content has no dependency on the plugin checkout
+  surviving.
+- **Symlink (default, source-checkout dependent).** Links `.codex/` entries
+  back to the plugin's own `codex/skills/` tree. Faster to re-sync and always
+  current with the source checkout, but the links break if that plugin
+  checkout is moved, deleted, or absent (e.g. a marketplace-cache install) —
+  this is the exact failure mode behind
+  [issue #88](https://github.com/hmj1026/dhpk/issues/88). Use `--copy`
+  instead whenever the plugin source's continued presence isn't guaranteed.
+
+Both modes record version and source-fingerprint provenance in
+`.codex/.dhpk-installed.json`; re-run with `--update` after a plugin update.
+The Codex tree is an explicitly curated subset of the canonical Claude
+packages, not a second complete inventory. `codex/agents/` ships 11 roles:
+four hand-maintained generic roles and seven generated from canonical Claude
+agents via `scripts/gen-codex-agents.js`. See `codex/AGENTS.md` and
+`codex/README.md` for the dual-harness model.
+
+### Codex Plugin Marketplace (experimental until issue #88's acceptance test passes)
 
 The repository keeps a Codex plugin manifest and thin marketplace wrapper for
 experimental compatibility testing:
@@ -309,10 +323,21 @@ codex plugin list
 ```
 
 Do not treat `codex plugin list` as proof that skills are usable. Inspect the
-installed plugin cache and confirm that `codex/skills/` materialized. Until
-that end-to-end check is reliable on supported Codex releases, use
-`install-codex-skills.sh` for production work. The marketplace wrapper is
-additive, not a replacement.
+installed plugin cache and confirm that `codex/skills/` materialized as real
+files, not dangling symlinks. `codex/skills/*` today are symlinks back to
+`../../skills/...` and the marketplace-target wrapper
+(`plugins/dhpk/.codex-plugin/plugin.json`) resolves a parent-relative
+`../../codex/skills/` path — both fail a clean marketplace-cache install,
+which is exactly what [issue #88](https://github.com/hmj1026/dhpk/issues/88)
+tracks. A promoted-only physical release-candidate generator
+(`scripts/ci/gen-codex-native-package.js`) and an automated clean-install/cache
+smoke test (`tests/codex-native-install-smoke.test.js`) already prove a
+*staged* physical candidate survives this exact scenario, but the production
+manifests above have not been cut over to it — see
+[`docs/distribution-surfaces.md`](./distribution-surfaces.md#codex-native-plugin-status-github-issue-88)
+for the current status and what's still open. Until the shipped manifests
+pass that same test, use `install-codex-skills.sh` for production work — the
+marketplace wrapper is additive, not a replacement.
 
 See `.codex-plugin/README.md` and `plugins/dhpk/README.md` for details.
 
