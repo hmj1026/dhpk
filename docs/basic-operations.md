@@ -4,6 +4,23 @@
 
 This page walks through the operational lifecycle of dhpk: installing it, the day-to-day command flow, the automatic review cycle, and how to migrate an existing project onto it. For the full `userConfig` knob reference, see [`docs/configuration.md`](./configuration.md).
 
+## Distribution surface policy
+
+dhpk deliberately exposes several surfaces with different support tiers:
+
+| Surface | Tier | Meaning |
+|---|---|---|
+| Claude marketplace | Supported | Primary consumer install and update path. |
+| `claude --plugin-dir` | Development-only | Working-tree iteration; not a release channel. |
+| `scripts/install.sh` | Convenience wrapper | Runs the Claude install contract; it is not a separate distribution. |
+| `install-codex-skills.sh` | Supported | Stable Codex project sync path. |
+| Codex plugin marketplace | Experimental | Discovery may work, but cache materialization must be verified before use. |
+| Gemini / Antigravity sync | Adapter-only | Claude-first comparison or conversion; no native package or full agent-parity promise. |
+
+Plugin management commands (`claude plugin …`, `codex plugin …`) are separate
+from skill invocation. Claude workflows enter through `/dhpk:do` or an
+explicit skill; Codex consumes the project-local `.codex/` projection.
+
 ## Install
 
 dhpk follows the standard [Claude Code plugin distribution model](https://docs.claude.com/en/docs/claude-code/plugins): the same marketplace + manifest is reachable from **two surfaces**, pick whichever fits your workflow:
@@ -49,7 +66,9 @@ After install, reconfigure any time from inside Claude Code:
 
 ### Path B — Local clone + interactive installer
 
-Use this if you want an out-of-Claude shell wizard, or you'll be hacking on the plugin source. **You must `git clone` first** — the installer lives inside the repo.
+Use this for an out-of-Claude shell wizard or when hacking on the plugin source.
+It is a convenience/development path, not a second release channel. **You must
+`git clone` first** — the installer lives inside the repo.
 
 ```bash
 git clone https://github.com/hmj1026/dhpk ~/projects/dhpk
@@ -77,6 +96,14 @@ claude plugin marketplace remove dhpk  # forget the marketplace entry
 
 The same actions are available as `/plugin update dhpk@dhpk`, `/plugin uninstall dhpk@dhpk`, `/plugin marketplace remove dhpk` inside Claude Code.
 
+For a project that uses the supported Codex projection, update Claude first and
+then refresh the project-local files:
+
+```bash
+claude plugin update dhpk@dhpk
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --update
+```
+
 ### Install troubleshooting
 
 | Symptom | Likely cause | Fix |
@@ -91,7 +118,9 @@ The same actions are available as `/plugin update dhpk@dhpk`, `/plugin uninstall
 
 ## Common workflows
 
-Everything is reachable through `/dhpk:do` — one entry point that routes natural-language task descriptions to the right skill. The examples below show what actually happens after you type a command.
+Everything is reachable through `/dhpk:do` — one entry point that routes natural-language task descriptions to the right skill. The examples below show what actually happens after you type a command, grouped into the main delivery flow, situational on-ramps, and standalone tools; each keeps its exact invocation syntax.
+
+### Main flow — feature and bug delivery
 
 ### 1. Feature development
 
@@ -113,7 +142,9 @@ Matches "fix … bug" → `dhpk:adaptive-dev-workflow` → **Bug Investigation &
 
 **`--worker=<claude|codex|agy|auto>` flag:** choose the mechanical worker for this invocation without changing project configuration. `/dhpk:do` parses and strips the flag before route matching, then forwards its exact value as `WORKER_OVERRIDE` only to implementation-class routes (`adaptive-dev-workflow`, `bug-fix`, `feature-dev`, and `opsx-apply-goal`). Precedence is flag > `fast_worker_backend` userConfig > shipped `claude`; an invalid flag warns once and falls through to userConfig/default. Downstream workflows call the shared selector rather than reimplementing availability, order, or fallback logic.
 
-### 3. Post-edit review cycle (automatic)
+### Situational on-ramps
+
+### 3. Review on-ramp (automatic, with a manual trigger)
 
 No command needed. After any file edit the hooks automatically:
 
@@ -138,7 +169,13 @@ Or describe it in plain language:
 /dhpk:do 幫我提交並建立 PR
 ```
 
-### 5. Unattended OpenSpec session
+For an actual version release (not just a commit/PR) — version files, changelog, and the fixed git/PR/tag/CI sequence — see `/dhpk:release-creator <version>` (explicit-only; run it directly, it is never auto-invoked).
+
+### 5. Setup on-ramp
+
+Re-run or inspect configuration any time, without reinstalling — see [§ Install](#install): `/dhpk:setup` / `/dhpk:setup --show`.
+
+### 6. Unattended OpenSpec session (large-uncertainty on-ramp)
 
 For a long-running change that should run without supervision — generates a single `/goal` command (with the `/opsx:apply` kickoff embedded), ready to paste into a fresh session:
 
@@ -164,7 +201,9 @@ When `orchestration_dispatch=on` (default), the generated `/goal` condition embe
 
 **4,000 UTF-8-byte hard stop:** Claude Code's `/goal` input has a practical paste ceiling around 4,000 UTF-8 bytes, measured with `wc -c`. The normal target is 3,400 bytes, leaving a 600-byte reserve for variable gate tokens. If the composed goal string would exceed 4,000 bytes, that's treated as a should-never-fire template regression, not a routine condition: no `/goal` command is emitted at all — instead you get the measured byte count and which setting or flag to adjust (turn off the `orchestration_dispatch` project setting, or drop `--codex` / `--smoke`) before re-running. Required safety and verification gates are never removed to fit.
 
-### 6. Mine specs from existing code
+### Standalone tools
+
+### 7. Mine specs from existing code
 
 Extracts behavioral requirements from an existing module into `openspec/specs/<capability>/spec.md` (brownfield onboarding):
 
@@ -174,7 +213,7 @@ Extracts behavioral requirements from an existing module into `openspec/specs/<c
 
 Delegates to the `spec-miner` (Opus) agent. Omit the capability name to get a prompted list.
 
-### 7. E2E test authoring
+### 8. E2E test authoring
 
 ```text
 /dhpk:do write E2E tests for the checkout flow
@@ -182,7 +221,7 @@ Delegates to the `spec-miner` (Opus) agent. Omit the capability name to get a pr
 
 Routes to `dhpk:post-dev-test`, which delegates Playwright suite authoring to the `e2e-runner` agent. Its write boundary is test specs, shared helpers, fixtures, and artifacts only. An application-code failure returns a fast-worker-ready fix spec; after that fix lands, `e2e-runner` reruns the originating journey. It reuses existing project helpers and cleans synthetic shared-DB rows in teardown.
 
-### 8. Harness health check and repair
+### 9. Harness health check and repair
 
 The harness-* family covers four distinct concerns — use the right tool for each:
 
@@ -216,7 +255,9 @@ The harness-* family covers four distinct concerns — use the right tool for ea
 
 `/harness-govern` is the single front door: it sequences `/harness-audit` (score) → conform (best-practices lens) → `/harness-revise` (fix, only with `--fix`) → verify. Safe to run as `/loop /harness-govern` for ongoing monitoring.
 
-### 9. Implementation dispatch (automatic)
+### Automatic (no direct invocation)
+
+### Implementation dispatch
 
 During the implement phase of `feature-dev`, `bug-fix`, `adaptive-dev-workflow`, and `opsx-apply-goal`, reasoning-heavy work goes to `deep-reasoner`; mechanical work goes through the shared selector to `fast-worker`, `codex-fast-worker`, or `agy-fast-worker`. `auto` follows `fast_worker_backend_order`; fallback to Claude is allowed only for a missing selected CLI executable, never for auth, model, execution, task, or verification failures. `--worker=codex` is independent of `CODEX=on`: the former selects a Codex CLI mechanical worker, while the latter enables the Codex MCP peer path. Small diffs totaling ≤2 files across the whole implementation step may stay inline; `general-purpose` is prohibited while dispatch is on. Full table: [`rules/execution-policy.md`](../rules/execution-policy.md) §"Implementation dispatch".
 
@@ -247,43 +288,31 @@ Projects using both Claude Code and Codex CLI:
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"
 ```
 
-Symlinks (default) or copies (`--copy`) the plugin's `codex/{skills,agents}` into the project's `.codex/`. Idempotent — re-run with `--update` after a plugin version bump. `codex/agents/` now ships 11 roles (4 hand-maintained generic + 7 generated from the canonical Claude agents via `scripts/gen-codex-agents.js`, up from 4). See `codex/AGENTS.md` and `codex/README.md` for the dual-harness model.
+The script is the supported Codex distribution path. It symlinks by default or
+copies with `--copy` when symlinks are unsuitable, and records version and
+source-fingerprint provenance in `.codex/.dhpk-installed.json`. Re-run with
+`--update` after a plugin update. The Codex tree is an explicitly curated
+subset of the canonical Claude packages, not a second complete inventory.
+`codex/agents/` ships 11 roles: four hand-maintained generic roles and seven
+generated from canonical Claude agents via `scripts/gen-codex-agents.js`. See
+`codex/AGENTS.md` and `codex/README.md` for the dual-harness model.
 
 ### Codex Plugin Marketplace (experimental)
 
-dhpk also ships a Codex plugin manifest (`.codex-plugin/plugin.json` + a thin
-marketplace-target wrapper at `plugins/dhpk/`) so Codex CLI's own plugin
-marketplace can discover and install the `codex/skills/` mirror natively.
-Two ways to install it:
-
-**Option A — let the agent do it.** Paste this into a Codex CLI session:
-
-```text
-Add hmj1026/dhpk as a Codex plugin marketplace source, install the dhpk
-plugin from it, then verify it's listed as installed. Run:
-  codex plugin marketplace add hmj1026/dhpk
-  codex plugin add dhpk@dhpk
-  codex plugin list
-Report back what codex plugin list shows, and check whether the codex/skills/
-content actually resolved inside the installed plugin cache — Codex has a
-known upstream issue (openai/codex#26037) where skills referenced via a
-marketplace-target wrapper sometimes don't get copied into the runtime cache.
-```
-
-**Option B — run the commands yourself:**
+The repository keeps a Codex plugin manifest and thin marketplace wrapper for
+experimental compatibility testing:
 
 ```bash
-codex plugin marketplace add hmj1026/dhpk   # or a local path while developing
+codex plugin marketplace add hmj1026/dhpk   # or a local path during development
 codex plugin add dhpk@dhpk
 codex plugin list
 ```
 
-> **Plugin mode is currently experimental / fragile on Codex** (verified
-> against `codex-cli 0.142.5`). Marketplace discovery and install work, but
-> runtime skill loading from local/repo marketplaces is unreliable upstream
-> ([openai/codex#26037](https://github.com/openai/codex/issues/26037)). The
-> supported, fully-working path remains `install-codex-skills.sh` above — the
-> marketplace manifest is additive, not a replacement.
+Do not treat `codex plugin list` as proof that skills are usable. Inspect the
+installed plugin cache and confirm that `codex/skills/` materialized. Until
+that end-to-end check is reliable on supported Codex releases, use
+`install-codex-skills.sh` for production work. The marketplace wrapper is
+additive, not a replacement.
 
 See `.codex-plugin/README.md` and `plugins/dhpk/README.md` for details.
 
