@@ -285,14 +285,25 @@ dhpk **預設 codex-free**。Opt-in 後會解鎖兩個相關但不同的東西�
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"
 ```
 
-這個 script 是支援的 Codex 分發路徑：預設建立 symlink，symlink 不適用時可用
-`--copy`，並在 `.codex/.dhpk-installed.json` 記錄版本與 source fingerprint。
-Plugin 更新後用 `--update` 重跑。Codex tree 是明確策展的 Claude package subset，
+這個 script 是支援的 Codex 分發路徑，有兩種模式：
+
+- **`--copy`（可攜的支援 fallback）。** 在 `.codex/` 下 materialize 真實檔案。
+  當專案可能被搬移、封存，或簽出到不保證與 plugin 原始碼樹並存的位置時，
+  建議使用此模式——複製內容不依賴 plugin checkout 是否還存在。
+- **Symlink（預設，依賴 source checkout）。** 將 `.codex/` 項目連結回 plugin
+  自身的 `codex/skills/` tree。重新同步較快，且與 source checkout 保持一致，
+  但若該 plugin checkout 被搬移、刪除或不存在（例如 marketplace-cache
+  安裝），連結就會失效——這正是
+  [issue #88](https://github.com/hmj1026/dhpk/issues/88) 追蹤的確切失效模式。
+  只要無法保證 plugin 原始碼會持續存在，請改用 `--copy`。
+
+兩種模式都會在 `.codex/.dhpk-installed.json` 記錄版本與 source fingerprint；
+plugin 更新後用 `--update` 重跑。Codex tree 是明確策展的 Claude package subset，
 不是第二份完整 inventory。`codex/agents/` 提供 11 個角色：4 個手動維護的通用
 角色，以及 7 個由 `scripts/gen-codex-agents.js` 從 Claude canonical agent 產生。
 雙 harness 模型詳見 `codex/AGENTS.md` 與 `codex/README.md`。
 
-### Codex Plugin Marketplace（實驗性）
+### Codex Plugin Marketplace（實驗性，直到 issue #88 的驗收測試通過為止）
 
 Repository 保留 Codex plugin manifest 與精簡 marketplace wrapper，供實驗性相容性
 測試使用：
@@ -303,10 +314,20 @@ codex plugin add dhpk@dhpk
 codex plugin list
 ```
 
-不要把 `codex plugin list` 當成 skill 可用的證明；必須檢查已安裝 plugin cache，
-確認 `codex/skills/` 真的 materialize。在支援的 Codex release 上完成這項 end-to-end
-確認前，正式工作請使用 `install-codex-skills.sh`。Marketplace wrapper 是額外補充，
-不是替代方案。
+不要把 `codex plugin list` 當成 skill 可用的證明；必須檢查已安裝 plugin
+cache，確認 `codex/skills/` 真的 materialize 成真實檔案，而非失效的
+symlink。目前 `codex/skills/*` 都是連回 `../../skills/...` 的 symlink，而
+marketplace-target wrapper（`plugins/dhpk/.codex-plugin/plugin.json`）解析
+的是父層相對路徑 `../../codex/skills/`——兩者在乾淨的 marketplace-cache
+安裝下都會失敗，這正是 [issue #88](https://github.com/hmj1026/dhpk/issues/88)
+追蹤的問題。promoted-only 的實體 release-candidate 產生器
+（`scripts/ci/gen-codex-native-package.js`）與自動化的 clean-install/cache
+smoke test（`tests/codex-native-install-smoke.test.js`）已證明「staged」的
+實體候選版本能撐過這個確切情境，但上述正式 manifest 尚未切換過去——目前狀態
+與尚待解決的部分詳見
+[`docs/distribution-surfaces.md`](./distribution-surfaces.md#codex-native-plugin-status-github-issue-88)。
+在正式 manifest 通過同一項測試之前，正式工作請使用
+`install-codex-skills.sh`；marketplace wrapper 是額外補充，不是替代方案。
 
 詳見 `.codex-plugin/README.md` 與 `plugins/dhpk/README.md`。
 

@@ -226,7 +226,7 @@ The statusline renders `[branch] +staged ~modified | docker:status | profile=<p>
 
 ## Sync Codex CLI content
 
-For projects using both Claude Code and the standalone Codex CLI (distinct from the Codex MCP dependency above — this needs no MCP server), the supported path is `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"`. It creates the curated Codex projection in the project's `.codex/`; the Codex Plugin Marketplace is experimental and requires cache verification. Full policy and instructions: **[`docs/basic-operations.md`](./docs/basic-operations.md#sync-codex-cli-content)**.
+For projects using both Claude Code and the standalone Codex CLI (distinct from the Codex MCP dependency above — this needs no MCP server), the supported path is `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"` — `--copy` is the portable supported fallback (real files, no dependency on the plugin checkout surviving), while the default symlink mode is faster to re-sync but source-checkout dependent. It creates the curated Codex projection in the project's `.codex/`; the Codex Plugin Marketplace remains experimental until [issue #88](https://github.com/hmj1026/dhpk/issues/88)'s clean-install materialization acceptance test passes for the shipped manifests. Full policy and instructions: **[`docs/basic-operations.md`](./docs/basic-operations.md#sync-codex-cli-content)**.
 
 ## Migrating an existing project
 
