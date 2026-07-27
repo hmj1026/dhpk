@@ -12,6 +12,27 @@ The main session is the expensive, high-capability orchestrator; its implement-p
 
 **`general-purpose` is prohibited for implementation while `orchestration_dispatch=on`.** It carries no dhpk policy context, inherits the main-session model regardless of task cost, and has no defined input/output contract — use `deep-reasoner` / `fast-worker` / inline per the dispatch table instead.
 
+## Parallel dispatch contract
+
+Use `Parallel: yes` only when two or more workers will operate in the same checkout. The dispatcher must provide each worker with:
+
+```text
+Parallel: yes
+Assigned files:
+- repo-relative/path-a
+- repo-relative/path-b
+Intent:
+- repo-relative/path-a: exact bounded change
+- repo-relative/path-b: exact bounded change
+Verification: path-scoped command, or `REPORT-ONLY: <reason and orchestrator command>`
+```
+
+The assigned list is the worker's authoritative write, diff, and verification boundary. Paths must be explicit repo-relative paths; globs, directory guesses, and unlisted generated files are not valid scope. A worker that needs another file returns `RESULT: BLOCKED` and names the required scope expansion. A worker may report out-of-scope observations, but it must not modify, revert, reset, clean, or force-delete them. Any out-of-scope write is a contract violation and remains blocked for orchestrator review.
+
+In parallel mode, before/after accounting uses path-scoped `git status --short -- <assigned files>` and `git diff --name-only -- <assigned files>`. A global status result is not evidence of worker ownership. The report separates assigned edits, out-of-scope observations, out-of-scope writes, verification, and backend identity.
+
+If a validator reads or updates shared ratchet/configuration state, the worker uses only a dispatcher-provided scoped or no-write equivalent. Without one, it reports the exact missing command as blocked or uses the explicitly declared report-only outcome; it must not invoke a global read-modify-write path. A task intentionally changing shared state is serial. After all workers return, the orchestrator runs one sequential whole-tree validator/reconciliation pass and records the consolidated result before dispatching the implementation-wave reviewers.
+
 ## Live CI/deploy verification loops are dispatchable work
 
 Watching a live CI run (`gh run watch`), triaging its run logs, and babysitting retries is dispatchable work — route it to `dhpk:smoke-tester` (read-only probe) or a background `fast-worker`, per the §Implementation dispatch table row, so the main context consumes only the resulting merge/fix decision rather than running the poll/triage loop inline.
@@ -22,7 +43,7 @@ Worker dispatch never weakens a gate. `fast-worker` always reports its complete 
 
 ## Verify worker output before accepting (implement phase)
 
-When a `fast-worker` (or `deep-reasoner` → `fast-worker`) dispatch returns, before marking the task complete the orchestrator (a) re-surfaces the worker's verification line (`<command> → PASS|FAIL`) and complete edited-file list into the conversation, so the goal loop's conversation-only Haiku evaluator can see the evidence; (b) cross-checks that edited-file list against `git status --short` / `git diff --name-only` and investigates any mismatch (a worker no-op, or files changed but unreported); (c) confirms the review sentinels expected for the edited file types are present or were already cleared by a reviewer that ran, and when an expected sentinel is missing invokes the reviewer derived from the edited-file list (activating the back-stop above rather than leaving it dead); (d) on a worker FAIL or 3-attempt escalation, does NOT mark the task complete and re-scopes or re-dispatches `deep-reasoner` for a corrected fix-spec. This is a lightweight cross-check — the full test-suite re-run stays the `opsx-apply-goal` Part 3 end-gate, not a per-task step. Wait on the dispatched worker's completion notification; NEVER bash-poll `.pending-*` sentinels or sleep-loop awaiting agent results — this does not restrict the deterministic-completion-signal polling sanctioned by §No block-polling a running worker below (polling an observable artifact such as a DB row baseline for a mutating worker remains permitted).
+When a `fast-worker` (or `deep-reasoner` → `fast-worker`) dispatch returns, before marking the task complete the orchestrator (a) re-surfaces the worker's verification line (`<command> → PASS|FAIL`) and complete assigned-scope edited-file list plus out-of-scope observations into the conversation, so the goal loop's conversation-only Haiku evaluator can see the evidence; (b) in parallel mode, cross-checks the assigned list against path-scoped `git status --short -- <assigned files>` / `git diff --name-only -- <assigned files>` and investigates any mismatch; (c) after all workers in the batch finish, performs the one whole-tree shared-state reconciliation described above; (d) confirms the review sentinels expected for the edited file types are present or were already cleared by a reviewer that ran, and when an expected sentinel is missing invokes the reviewer derived from the assigned edited-file list (activating the back-stop above rather than leaving it dead); (e) on a worker FAIL, out-of-scope write, or 3-attempt escalation, does NOT mark the task complete and re-scopes or re-dispatches `deep-reasoner` for a corrected fix-spec. This is a lightweight cross-check — the full test-suite re-run stays the `opsx-apply-goal` Part 3 end-gate, not a per-task step. Wait on the dispatched worker's completion notification; NEVER bash-poll `.pending-*` sentinels or sleep-loop awaiting agent results — this does not restrict the deterministic-completion-signal polling sanctioned by §No block-polling a running worker below (polling an observable artifact such as a DB row baseline for a mutating worker remains permitted).
 
 ## Repository Discovery Gate and explicit hard rules
 
@@ -58,7 +79,22 @@ While a dispatched `local_agent`/background worker is still running, the orchest
 
 ## SendMessage reuse vs. spawn
 
-When a follow-up dispatch targets the same test file, the same user journey, or would otherwise benefit from context (fixtures, environment overrides, prior findings) already accumulated by a still-addressable prior worker, reuse that agent via `SendMessage` rather than spawning a new one. When the follow-up is unrelated in scope (different file, different journey, no shared context to preserve), spawn a new agent instead. Session evidence: a 7-round reuse of one `e2e-runner` via `SendMessage` preserved its env overrides and fixtures across rounds and was the best-practice pattern observed in the `fe13512c` run.
+When a follow-up dispatch targets the same test file, the same user journey, or would otherwise benefit from context (fixtures, environment overrides, prior findings) already accumulated by a still-addressable prior worker, reuse that agent via `SendMessage` rather than spawning a new one. When the follow-up is unrelated in scope (different file, different journey, no shared context to preserve), spawn a new agent instead.
+
+For any configured sentinel-backed reviewer, the orchestrator records one
+`.resumed-review-obligations` entry before sending `SendMessage`. The entry fixes
+the slot, exact sentinel basename, resolved agent, session/dispatch identity,
+resume timestamp, and artifact baseline. Intermediate responses do not clear or
+consume it. A final response requires actual review work, findings or an explicit
+no-findings statement, and a parseable verdict; the orchestrator then reconciles
+only the exact sentinel when a fresh canonical artifact and matching ownership
+are proven. Native `SubagentStop` remains first choice and the fallback is
+idempotent. A missing, stale, foreign, misplaced, malformed, or conflicting
+artifact keeps the gate pending; at most one corrected resume is allowed before
+replacement or an explicit blocker, and no duplicate reviewer is dispatched
+while the original remains addressable. Session evidence: a 7-round reuse of one
+`e2e-runner` via `SendMessage` preserved its env overrides and fixtures across
+rounds and was the best-practice pattern observed in the `fe13512c` run.
 
 ## `CODEX=on` high-stakes parallel peer path
 
