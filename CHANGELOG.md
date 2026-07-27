@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.32.0 — 2026-07-27 — Harden release contracts and phase gates
+
+**feat(release)** — Add release-note fragments (changelog.d/), a version-parity preparation command, and CI/release-only parity gates as part of hardening the dhpk release contract.
+
 ## 0.31.0 — 2026-07-27 — Scope multi-AI sync validation to configured platforms, harden parallel dispatch worker boundaries, and fix resumed reviewer clearance
 
 Scopes multi-AI sync post-sync validation to configured platforms, hardens fast-worker parallel dispatch execution boundaries and report schema, fixes the SendMessage-resumed reviewer sentinel clearance gap, and refactors skill invocation policies.
