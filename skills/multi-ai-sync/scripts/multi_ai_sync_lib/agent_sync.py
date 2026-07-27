@@ -28,7 +28,17 @@ CLAUDE_PARITY_COVERAGE_KEYWORDS = {
 
 CODEX_NATIVE_AGENTS = ["bug-investigator", "explorer", "monitor", "worker"]
 
+# Task 3.2: navigation/roster basenames excluded from agent discovery before
+# parsing, on both canonical (Claude) and target (Codex) inventories. Kept
+# aligned with scripts/ci/validate-agents.js's own INDEX.md exclusion.
+AGENT_DISCOVERY_EXCLUDED_BASENAMES = {"INDEX.md", "README.md"}
+
 SYNC_MANIFEST_PATH = ".codex/agents/sync-manifest.json"
+
+# Task 4.1: versioned parity-ownership marker. Bump on a breaking schema
+# change; validation checks this against MANIFEST_OWNER/MANIFEST_SCHEMA_VERSION below.
+MANIFEST_SCHEMA_VERSION = 1
+MANIFEST_OWNER = "multi-ai-parity-apply"
 MIRROR_ROOT = ".codex/agents/references/claude"
 
 PATH_TOKEN_RE = re.compile(
@@ -100,7 +110,10 @@ def _first_nonempty(*values):
 def claude_parity_roles(repo_root):
     roles = []
     for path in sorted(glob.glob(os.path.join(repo_root, ".claude/agents/*.md"))):
-        roles.append(os.path.splitext(os.path.basename(path))[0])
+        basename = os.path.basename(path)
+        if basename in AGENT_DISCOVERY_EXCLUDED_BASENAMES:
+            continue
+        roles.append(os.path.splitext(basename)[0])
     return roles
 
 
@@ -307,6 +320,8 @@ def build_agent_sync_manifest(repo_root, sync_run_id, bundles):
 
     entries = sorted(entries, key=lambda item: item["source_agent"])
     return {
+        "schema_version": MANIFEST_SCHEMA_VERSION,
+        "owner": MANIFEST_OWNER,
         "generated_at": now_iso(),
         "source": "claude",
         "target": "codex",

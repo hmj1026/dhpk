@@ -2,6 +2,8 @@
 name: tech-spec
 description: 'Tech spec generation and review. Use when: designing features, writing specs, spec review. Not for: requirements analysis (use req-analyze), implementation (use feature-dev), architecture advice (use codex-architect). Output: numbered tech spec document.'
 allowed-tools: 'Read, Grep, Glob, Bash(git:*), Write'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # Tech Spec Skill

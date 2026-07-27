@@ -2,6 +2,8 @@
 description: 'Research current code state then update corresponding docs, ensuring docs stay in sync with code.'
 argument-hint: '<docs-path | feature-keyword>'
 allowed-tools: 'Read, Write, Edit, Grep, Glob, Bash(ls:*), Bash(git:*), Bash(find:*)'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 ## Auto-Trigger

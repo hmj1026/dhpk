@@ -4,6 +4,8 @@ description: 'Test coverage review via Codex MCP. Use when: reviewing test suffi
 allowed-tools: 'mcp__codex__codex, mcp__codex__codex-reply, Bash(git:*), Read, Grep, Glob, Write'
 context: fork
 agent: Explore
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # Test Review Skill

@@ -85,4 +85,14 @@ test('shared references stay synced and runtime entrypoints stay harness-specifi
   }
 });
 
+test('task 5.4: configured-platform status vocabulary stays consistent between SKILL.md and execution-contract.md', () => {
+  const executionContract = fs.readFileSync(path.join(CANONICAL, 'references', 'execution-contract.md'), 'utf8');
+  for (const content of [canonical, executionContract]) {
+    for (const term of ['NOT_CONFIGURED', 'SKIP_INCOMPATIBLE', 'BLOCKED', 'legacy_gate']) {
+      assert.ok(content.includes(term), `missing status vocabulary term "${term}"`);
+    }
+  }
+  assert.ok(canonical.includes('--targets'), 'SKILL.md must document the --targets/--all-targets explicit-request flags');
+});
+
 run('multi-ai-sync-skill-contract');

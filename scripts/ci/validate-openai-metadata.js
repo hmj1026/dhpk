@@ -7,7 +7,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { collectInventory, relativePosix } = require('../lib/asset-inventory');
-const { extract, isEmpty } = require('./_lib/frontmatter');
+const { extract, isEmpty, extractInvocationClass } = require('./_lib/frontmatter');
 const { createReporter } = require('./_lib/report');
 
 const PHYSICAL_SOURCES = Object.freeze({
@@ -65,9 +65,12 @@ function parseOpenaiYaml(metadataFile, reporter) {
   }
 
   const values = Object.create(null);
-  for (let index = 1; index < lines.length; index += 1) {
+  let policy = null;
+  let index = 1;
+  for (; index < lines.length; index += 1) {
     const line = lines[index];
     if (line.trim() === '') continue;
+    if (line === 'policy:') break; // second top-level block — handled below
     const match = line.match(/^  ([A-Za-z0-9_]+): ("(?:\\.|[^"\\])*")$/);
     if (!match) {
       reporter.err(`${rel} — malformed interface scalar at line ${index + 1}`);
@@ -95,22 +98,49 @@ function parseOpenaiYaml(metadataFile, reporter) {
       reporter.err(`${rel} — missing interface.${key}`);
     }
   }
-  return values;
+
+  // Optional `policy:` block — the sole supported key is a bare boolean
+  // allow_implicit_invocation (Codex's explicit-only projection). Absence
+  // means implicit invocation is permitted (no restriction).
+  if (lines[index] === 'policy:') {
+    policy = Object.create(null);
+    for (index += 1; index < lines.length; index += 1) {
+      const line = lines[index];
+      if (line.trim() === '') continue;
+      const match = line.match(/^  (allow_implicit_invocation): (true|false)$/);
+      if (!match) {
+        reporter.err(`${rel} — malformed policy scalar at line ${index + 1}`);
+        continue;
+      }
+      const [, key, rawValue] = match;
+      if (Object.prototype.hasOwnProperty.call(policy, key)) {
+        reporter.err(`${rel} — duplicate policy.${key}`);
+        continue;
+      }
+      policy[key] = rawValue === 'true';
+    }
+    if (!Object.prototype.hasOwnProperty.call(policy, 'allow_implicit_invocation')) {
+      reporter.err(`${rel} — policy: block present but missing policy.allow_implicit_invocation`);
+    }
+  }
+
+  return { values, policy };
 }
 
 function validateMetadata(skillDir, skillName, reporter) {
   const metadataFile = path.join(skillDir, 'agents', 'openai.yaml');
   if (!fs.existsSync(metadataFile)) {
     reporter.err(`${skillDir} — missing agents/openai.yaml`);
-    return false;
+    return { valid: false, policy: null };
   }
   if (!fs.statSync(metadataFile).isFile()) {
     reporter.err(`${skillDir} — agents/openai.yaml is not a file`);
-    return false;
+    return { valid: false, policy: null };
   }
 
-  const metadata = parseOpenaiYaml(metadataFile, reporter);
-  if (!metadata) return false;
+  const parsed = parseOpenaiYaml(metadataFile, reporter);
+  if (!parsed) return { valid: false, policy: null };
+  const metadata = parsed.values;
   let valid = true;
   if (isEmpty(metadata.display_name)) {
     reporter.err(`${skillDir} — interface.display_name is empty`);
@@ -124,7 +154,7 @@ function validateMetadata(skillDir, skillName, reporter) {
     reporter.err(`${skillDir} — interface.default_prompt must invoke $${skillName}`);
     valid = false;
   }
-  return valid;
+  return { valid, policy: parsed.policy };
 }
 
 function validateProjection(root, canonicalByName, reporter) {
@@ -209,6 +239,35 @@ function main() {
   );
 }
 
+// Cross-harness invocation-class parity (openspec/changes/
+// clarify-dhpk-skill-invocation-policy): explicit-only SHALL produce
+// Claude disable-model-invocation:true + Codex policy.allow_implicit_invocation:false;
+// implicit-eligible SHALL retain neither restrictive flag.
+function checkInvocationParity(skillFile, policy, reporter) {
+  const rel = path.dirname(skillFile);
+  const content = fs.readFileSync(skillFile, 'utf8');
+  const fm = extract(content);
+  const ic = extractInvocationClass(content);
+  if (!ic.present || ic.unknownValue) return; // validate-invocation-policy.js owns this failure
+  const claudeDisabled = fm.values['disable-model-invocation'] === 'true';
+
+  if (ic.value === 'explicit-only') {
+    if (!claudeDisabled) {
+      reporter.err(`${rel} — explicit-only but Claude frontmatter is missing disable-model-invocation: true`);
+    }
+    if (!policy || policy.allow_implicit_invocation !== false) {
+      reporter.err(`${rel}/agents/openai.yaml — explicit-only but missing policy.allow_implicit_invocation: false`);
+    }
+  } else if (ic.value === 'implicit-eligible') {
+    if (claudeDisabled) {
+      reporter.err(`${rel} — implicit-eligible but still carries disable-model-invocation: true (stale restriction)`);
+    }
+    if (policy) {
+      reporter.err(`${rel}/agents/openai.yaml — implicit-eligible but retains a policy: block (stale restriction)`);
+    }
+  }
+}
+
 function validateRepository(root) {
   const errors = [];
   const reporter = { err: (message) => errors.push(message) };
@@ -223,7 +282,9 @@ function validateRepository(root) {
     if (!skillName) continue;
     if (canonicalByName.has(skillName)) duplicateNames.add(skillName);
     else canonicalByName.set(skillName, skillDir);
-    if (validateMetadata(skillDir, skillName, reporter)) metadataCount += 1;
+    const { valid, policy } = validateMetadata(skillDir, skillName, reporter);
+    if (valid) metadataCount += 1;
+    checkInvocationParity(skillFile, policy, reporter);
   }
 
   for (const name of duplicateNames) {

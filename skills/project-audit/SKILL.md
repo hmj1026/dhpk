@@ -2,6 +2,8 @@
 name: project-audit
 argument-hint: '[--dir <path>]'
 description: 'Project health audit with deterministic scoring. Use when: evaluating project quality, onboarding to new codebase, periodic health checks. Not for: runtime performance analysis, security-specific audits (use /codex-security). Output: 5-dimension score + actionable findings.'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # Project Audit

@@ -2,6 +2,8 @@
 name: yii1-security-audit
 description: 'Yii 1.1（PHP 5.6）框架安全白盒靜態審計。Use when：對 Yii 1.1 專案查找漏洞、驗證 accessRules/checkAccess/CSRF/SQL injection/CUploadedFile/Session 設定，或框架安全複查（即使用戶只說「檢查這個 Controller 有沒有安全問題」也應觸發）。Not for：Yii2 專案、非 PHP 專案、純業務邏輯演算法審查。Output：依 AUTH/CSRF/XSS/SQL/CFG/LOGIC/FILE 分類、含檔名:行號 + 可觀測 PoC + Yii API 修復建議的審計報告。'
 allowed-tools: 'Read, Grep, Glob, Bash(find *), Bash(grep *), Bash(ls *)'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # Yii 1.1 框架安全審計（yii1-security-audit）

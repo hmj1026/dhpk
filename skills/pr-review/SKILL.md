@@ -2,6 +2,8 @@
 name: pr-review
 argument-hint: '[--base <branch>]'
 description: 'PR self-review workflow — review changes for correctness/security/perf, produce checklist, scan for unrelated changes in squash merges. Use when reviewing your own branch before opening a PR, after a squash merge needs hygiene check, or when running `/pr-review` command. Not for: single-file code-only review (use `/code-review` or `code-reviewer`), dedicated DB or security audits (use `database-reviewer` / `security-reviewer`), or non-PR exploratory reading (use `code-explore`). Output: review notes + PR checklist + an explicit mergeable / needs-revision gate. Includes advisory scan for squash merge unrelated changes per `squash-merge-hygiene` capability.'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # pr-review

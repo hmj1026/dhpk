@@ -2,6 +2,8 @@
 description: 'Deep-dive analysis of an initial proposal — research code implementation, produce an actionable roadmap and alternatives'
 argument-hint: '<initial proposal description or file path>'
 allowed-tools: 'Read, Grep, Glob, Bash(git:*), Bash(node:*), Write'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 ⚠️ **Must read and follow the skill below before executing this command:**

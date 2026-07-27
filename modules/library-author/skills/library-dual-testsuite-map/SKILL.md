@@ -1,6 +1,8 @@
 ---
 name: library-dual-testsuite-map
 description: Map edited file paths to the correct testsuite(s) for libraries with a framework-agnostic Core layer and a framework-specific glue layer. Use when editing any `src/**` file in a library whose phpunit.xml declares multiple testsuites (commonly `core` + `laravel`, or `core` + `symfony`, etc.) and you need to know which `composer test:*` command(s) to run. Not for single-testsuite projects or full framework integration orchestration. Output: the selected suite(s), boundary warning, and the commands to run. Saves the round-trip of "I ran the wrong suite, the failing test is in the other one". Companion to (not duplicate of) `polyfill-version-matrix-audit` which works at the version-guard level; this skill works at the directory level.
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # Library dual-testsuite map

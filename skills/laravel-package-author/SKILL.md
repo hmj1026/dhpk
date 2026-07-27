@@ -1,6 +1,8 @@
 ---
 name: laravel-package-author
 description: Cross-version Laravel package authoring. Use when: designing a service provider, facade, version-conditional binding, publishable artifact, discovery contract, or package compatibility surface. Not for: application code, one-major API details, Composer release hygiene, or deep Testbench matrix mechanics. Output: an authoring decision or package design with provider, facade, publishing, discovery, and compatibility gates.
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # Laravel package author

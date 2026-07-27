@@ -4,7 +4,7 @@
 // (extract/isEmpty), not just transitively via validate-agents-behavior.test.js.
 
 const { test, run, assert } = require('./_lib/tinytest');
-const { extract, isEmpty } = require('../scripts/ci/_lib/frontmatter');
+const { extract, isEmpty, extractInvocationClass } = require('../scripts/ci/_lib/frontmatter');
 
 test('extract parses a simple frontmatter block into key/value pairs', () => {
   const content = '---\nname: foo\ndescription: does a thing\n---\nbody text\n';
@@ -66,6 +66,58 @@ test('isEmpty treats missing, blank, and empty-quoted strings as empty', () => {
   assert.strictEqual(isEmpty("''"), true);
   assert.strictEqual(isEmpty('""'), true);
   assert.strictEqual(isEmpty('a value'), false);
+});
+
+test('extractInvocationClass reads the nested metadata.dhpk-invocation-class mapping', () => {
+  const content = '---\nname: foo\nmetadata:\n  dhpk-invocation-class: explicit-only\n---\n';
+  const r = extractInvocationClass(content);
+  assert.strictEqual(r.present, true);
+  assert.strictEqual(r.value, 'explicit-only');
+  assert.strictEqual(r.unknownValue, false);
+  assert.strictEqual(r.dottedSubstitute, false);
+});
+
+test('extractInvocationClass reads implicit-eligible alongside sibling metadata keys', () => {
+  const content = [
+    '---',
+    'name: foo',
+    'metadata:',
+    '  origin: oh-my-agent-check',
+    '  dhpk-invocation-class: implicit-eligible',
+    '---',
+  ].join('\n');
+  const r = extractInvocationClass(content);
+  assert.strictEqual(r.present, true);
+  assert.strictEqual(r.value, 'implicit-eligible');
+});
+
+test('extractInvocationClass reports absence when metadata block is missing', () => {
+  const content = '---\nname: foo\ndescription: bar\n---\n';
+  const r = extractInvocationClass(content);
+  assert.strictEqual(r.present, false);
+  assert.strictEqual(r.value, null);
+});
+
+test('extractInvocationClass flags an unknown class value', () => {
+  const content = '---\nmetadata:\n  dhpk-invocation-class: sometimes\n---\n';
+  const r = extractInvocationClass(content);
+  assert.strictEqual(r.present, true);
+  assert.strictEqual(r.value, 'sometimes');
+  assert.strictEqual(r.unknownValue, true);
+});
+
+test('extractInvocationClass rejects a dotted top-level key substitute', () => {
+  const content = '---\nmetadata.dhpk-invocation-class: explicit-only\n---\n';
+  const r = extractInvocationClass(content);
+  assert.strictEqual(r.dottedSubstitute, true, 'must detect the dotted top-level substitute');
+  assert.strictEqual(r.present, false, 'the dotted form is not a valid nested mapping');
+});
+
+test('extractInvocationClass does not see a metadata block that never nests the key', () => {
+  const content = '---\nmetadata:\n  origin: something\n---\n';
+  const r = extractInvocationClass(content);
+  assert.strictEqual(r.present, false);
+  assert.strictEqual(r.value, null);
 });
 
 run('frontmatter');

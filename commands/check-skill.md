@@ -2,6 +2,8 @@
 description: 'Validate skill quality against routing, progressive loading, and verification criteria.'
 argument-hint: '[--deep] [--json]'
 allowed-tools: 'Read, Grep, Glob, Bash(node:*)'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 **Must read and follow the skill below before executing this command:**

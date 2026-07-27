@@ -3,6 +3,8 @@ name: codex-architect
 argument-hint: '"<question>" [--context <files>] [--mode design|review|compare]'
 description: 'Codex architecture consulting. Use when: designing features, evaluating architecture, getting second opinion on design. Not for: implementation (use codex-implement), code review (use codex-code-review). Output: architecture advice + design recommendations.'
 allowed-tools: 'Read, Grep, Glob, mcp__codex__codex, mcp__codex__codex-reply, Agent'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # Codex Architect Skill (Third Brain)

@@ -1,11 +1,13 @@
 ---
 name: harness-fill
-description: 'Explore-driven meta-workflow SSOT: 5-phase parallel inventory → fill in .claude/ infrastructure. Use when: user explicitly invokes /harness-fill to backfill .claude/skills/agents/rules + per-layer CLAUDE.md (one-shot, ≤3 Explore agents in parallel per round). Not for: single-file patches (use Edit), specific symbol lookups (use cx definition / gitnexus_impact), PR review (route through the sentinel chain to the matching reviewer agent). Output: list of created / modified files + conventional commit message draft.'
+description: 'Explore-driven meta-workflow SSOT: 5-phase parallel inventory → fill in .claude/ infrastructure. Backfills .claude/skills/agents/rules + per-layer CLAUDE.md in one shot (≤3 Explore agents in parallel per round) when explicitly invoked via /harness-fill. Not for: single-file patches (use Edit), specific symbol lookups (use cx definition / gitnexus_impact), PR review (route through the sentinel chain to the matching reviewer agent). Output: list of created / modified files + conventional commit message draft.'
 argument-hint: '[--layers <list>] [--dry-run] [<extra task description>]'
 allowed-tools: 'Read, Grep, Glob, Bash, Agent'
 model: opus
 effort: high
 disable-model-invocation: true
+metadata:
+  dhpk-invocation-class: explicit-only
 ---
 
 # Harness-Fill — Explore-Driven Project Knowledge Backfill

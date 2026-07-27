@@ -1,7 +1,10 @@
 ---
 name: continuous-learning-v2
-description: 'Instinct-based learning system that observes Claude Code sessions via hooks, mints atomic confidence-scored instincts, and evolves them into skills/commands/agents with project-scoped isolation. Use when: setting up session learning, tuning confidence thresholds, reviewing/exporting/importing instincts, evolving instincts into skills, or managing project-scoped vs global scope. Not for: one-off coding tasks, hand-authoring a specific skill (use create-skill), or code review. Output: confidence-scored instinct files, scope/promotion decisions, and evolved skill/command/agent artifacts.'
+description: 'Instinct-based learning system that observes Claude Code sessions via hooks, mints atomic confidence-scored instincts, and evolves them into skills/commands/agents with project-scoped isolation. Sets up session learning, tunes confidence thresholds, reviews/exports/imports instincts, evolves instincts into skills, and manages project-scoped vs global scope. Not for: one-off coding tasks, hand-authoring a specific skill (use create-skill), or code review. Output: confidence-scored instinct files, scope/promotion decisions, and evolved skill/command/agent artifacts.'
 version: 2.1.0
+disable-model-invocation: true
+metadata:
+  dhpk-invocation-class: explicit-only
 ---
 
 # Continuous Learning v2.1 - Instinct-Based Architecture

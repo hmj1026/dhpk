@@ -1,6 +1,8 @@
 ---
 name: pytest-async
 description: 'Async pytest + pytest-asyncio testing: asyncio_mode=auto, SQLite fixtures, httpx.AsyncClient + ASGITransport, unit/integration split, coverage floor, live markers. Use when writing or reviewing async FastAPI/SQLAlchemy tests, or enforcing TDD. Not for production code. Output: offline-green async tests.'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # pytest (async)

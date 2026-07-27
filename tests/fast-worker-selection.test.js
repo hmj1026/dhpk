@@ -154,4 +154,13 @@ test('all fast-worker report schemas expose the auditable selector contract', ()
   }
 });
 
+test('all fast-worker report schemas expose the parallel-mode assigned-scope contract', () => {
+  for (const file of ['fast-worker.md', 'codex-fast-worker.md']) {
+    const prompt = fs.readFileSync(path.join(ROOT, 'agents', file), 'utf8');
+    for (const field of ['Parallel: yes', 'Out-of-scope observations:', 'Out-of-scope writes:', 'Verification scope:']) {
+      assert.ok(prompt.includes(field), `${file} missing parallel-mode report field: ${field}`);
+    }
+  }
+});
+
 run('fast-worker-selection');

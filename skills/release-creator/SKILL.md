@@ -1,7 +1,10 @@
 ---
 name: release-creator
 argument-hint: '<version>'
-description: 'Cut a new release of a software project or plugin. Use when: release configuration, version files, changelog, validation, and the fixed git/PR/tag/CI sequence must be coordinated. Not for: PHP package publication or ordinary commits. Output: a validated release preparation or publication result with the human merge gate preserved.'
+description: 'Cuts a new release of a software project or plugin, coordinating release configuration, version files, changelog, validation, and the fixed git/PR/tag/CI sequence. Not for: PHP package publication or ordinary commits. Output: a validated release preparation or publication result with the human merge gate preserved.'
+disable-model-invocation: true
+metadata:
+  dhpk-invocation-class: explicit-only
 ---
 
 # Release Creator
@@ -49,11 +52,14 @@ Config resolution, version editing, changelog synthesis, validation interpretati
 
 ## 3. Run the mechanical sequence
 
-After the release edits and validation are complete, prepare the release PR:
+After the release edits and validation are complete, prepare the release PR. Pass every
+intended release file explicitly; the runner rejects unrelated worktree changes and
+does not stage the whole repository implicitly:
 
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/skills/release-creator/scripts/release-runner.sh" \
-  "prepare" "<version>" "{BASE_BRANCH}" "{RELEASE_BRANCH}" "{TAG_PREFIX}" "{RELEASE_WORKFLOW}"
+  "prepare" "<version>" "{BASE_BRANCH}" "{RELEASE_BRANCH}" "{TAG_PREFIX}" "{RELEASE_WORKFLOW}" \
+  {VERSION_FILES} {CHANGELOG}
 ```
 
 Stop here for the human merge; never self-merge against policy. After GitHub reports
@@ -64,16 +70,19 @@ bash "${CLAUDE_PLUGIN_ROOT}/skills/release-creator/scripts/release-runner.sh" \
   "publish" "<version>" "{BASE_BRANCH}" "{RELEASE_BRANCH}" "{TAG_PREFIX}" "{RELEASE_WORKFLOW}"
 ```
 
-The publish phase independently verifies the PR merge before tagging, polls for a
-workflow run associated with the new tag, fails if no matching run appears, and
-returns to `{BASE_BRANCH}` after that run completes.
+The publish phase independently verifies the merged `{BASE_BRANCH}` →
+`{RELEASE_BRANCH}` PR before tagging, creates an annotated immutable tag, polls for a
+workflow run associated with the new tag, fails if no matching run appears, and returns
+to `{BASE_BRANCH}` only after that run completes.
 
 ## Verification
 
 - [ ] Release config was resolved and confirmed.
 - [ ] All version files agree.
 - [ ] Changelog formatting matches project CI.
+- [ ] No unrelated worktree changes were included.
 - [ ] Validation passed.
 - [ ] Release PR followed the project merge policy.
 - [ ] Tag exists remotely and release CI passed.
 - [ ] Integration branch is synchronized after release/back-merge.
+- [ ] Consumer update status is reported separately from publication status.

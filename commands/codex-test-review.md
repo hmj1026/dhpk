@@ -2,6 +2,8 @@
 description: 'Review test case sufficiency using Codex MCP, suggest additional edge cases. Supports review loop with context preservation.'
 argument-hint: '[<file-or-dir|description>] [--type unit|integration|e2e] [--continue <threadId>]'
 allowed-tools: 'mcp__codex__codex, mcp__codex__codex-reply, Bash(git:*), Read, Grep, Glob'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 ⚠️ **Must read and follow the skill below before executing this command:**

@@ -22,10 +22,11 @@ plugin as a single-file node project.
 
 - **Trunk-based (default):** `{BASE_BRANCH}` = `{RELEASE_BRANCH}` = `main`. Bump on
   `main`, tag, push. No release PR needed.
-- **git-flow:** `{BASE_BRANCH}` = `develop`, `{RELEASE_BRANCH}` = `main`. Bump lands
-  on `develop`; a `develop → main` PR cuts the release; tag on `main`; CI back-merges
-  to `develop`. Detect by the presence of a long-lived `develop` branch (or a
-  `RELEASE.md` that documents it).
+- **PR-driven integration:** `{BASE_BRANCH}` = `develop`, `{RELEASE_BRANCH}` =
+  `main`. The release edits land on `develop`; a direct `develop → main` PR cuts
+  the release; an annotated tag is created on `main`; CI back-merges to `develop`.
+  Detect by the presence of a long-lived `develop` branch or a `RELEASE.md` that
+  documents this contract.
 
 ## Multi-manifest lockstep (claude-plugin and similar)
 

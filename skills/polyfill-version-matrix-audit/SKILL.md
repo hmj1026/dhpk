@@ -1,6 +1,8 @@
 ---
 name: polyfill-version-matrix-audit
 description: 'Audit multi-major-version polyfill code for branch coverage and CI-matrix gaps. Use when: a library spans multiple dep majors (Monolog 2/3, Laravel 6/7+, PHPUnit 8-11) using version_compare / class_exists / method_exists guards, or after a "fix: polyfill ..." commit. Not for: single-version libraries, application code, version-detection-only helpers. Output: branch + matrix-gap audit report.'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # Polyfill version matrix audit

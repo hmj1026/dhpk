@@ -2,6 +2,9 @@
 description: 'Smart Router — map a natural-language task to the right dhpk workflow, then run it. Deterministic route-table fast path, LLM fallback for misses.'
 argument-hint: '[--codex] [--plan[=<model>[:<effort>]]] [--worker=<claude|codex|agy|auto>] [--reasoner=<claude|codex>[:<model>[:<effort>]]] [--openspec|--opsx] <natural language task>'
 allowed-tools: 'Bash(bash:*), Bash(git:*), Bash(ls:*), Skill, Read, Grep, Glob'
+disable-model-invocation: true
+metadata:
+  dhpk-invocation-class: explicit-only
 ---
 
 # /dhpk:do — Smart Router
@@ -153,19 +156,33 @@ Factor them into Step 3's NO_MATCH decision and into the downstream workflow
 
 ## Step 3 — act on the result
 
+**Invocation-class gate (all routes, before any Skill-tool call):** every
+resolved target carries `metadata.dhpk-invocation-class`
+(`explicit-only` or `implicit-eligible`; full precedence contract and
+rationale: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/invocation-precedence.md`).
+`/dhpk:do` has Explicit Routing Delegation to select one primary workflow —
+it may start an `implicit-eligible` target normally, but for an
+`explicit-only` target it does NOT call the Skill tool: it states the
+target's exact supported invocation syntax (its `/dhpk:<name>` command form)
+and stops, waiting for the user. This applies to both `MATCH` and `NO_MATCH`
+resolution, and to the `dhpk:opsx-apply-goal` handoff below — a deterministic
+route-table hit or a high-confidence self-classification is confidence in the
+ROUTE, not authorization to bypass the TARGET's own invocation restriction.
+
 For normal routes, pass the **cleaned query** (the full task with only the
 `--codex`, `--plan`, `--worker`, `--reasoner`, and `--openspec`/`--opsx` opt-in
-tokens removed) as the task to the downstream skill. The
-`dhpk:opsx-apply-goal` route is the sole handoff exception: derive its required
+tokens removed) as the task to the downstream skill, subject to the
+invocation-class gate above. The `dhpk:opsx-apply-goal` route is the sole
+handoff exception, and it is `explicit-only`: derive its required
 `<change-id> [flags]` argument — pass the change id, not a prose description —
-then pass that argument string to the skill and end this session after it emits
-the fresh-session `/goal` package. Because `/dhpk:do`
-consumes `--codex` before route resolution, invoke `dhpk:opsx-apply-goal` directly
-when the generated goal must carry its own `--codex` flag. Read the route's
-[argument contract](../docs/basic-operations.md#5-unattended-openspec-session)
-only for this exception. When `WORKER_OVERRIDE` is set, include
-`--worker=<actual value>` in the handoff argument because the target analyzer
-reads that flag from `$ARGUMENTS`.
+including `--worker=<actual value>` when `WORKER_OVERRIDE` is set (the target
+analyzer reads that flag from `$ARGUMENTS`) and `--codex` when the generated
+goal must carry it (`/dhpk:do` consumes `--codex` before route resolution, so
+this must be re-added explicitly). Then, per the gate, present the exact
+invocation `/dhpk:opsx-apply-goal <change-id> [flags]` and stop — do not call
+the Skill tool for it. Read the route's
+[argument contract](../docs/basic-operations.md#6-unattended-openspec-session-large-uncertainty-on-ramp)
+for the argument-derivation rules this exception still needs.
 
 For implementation-class routes, also pass the named invocation context
 `WORKER_OVERRIDE=<actual value|unset>` and, when `REASONER=on`, the resolved
@@ -175,9 +192,12 @@ runs first, and the openspec-mode rule below to decide whether the resolved rout
 is diverted into the OpenSpec artifact-then-review flow (which supersedes the
 plan consult).
 
-- **`MATCH`** → invoke `<skill>` immediately with the **Skill** tool (e.g.
-  `dhpk:bug-fix`). Do **not** re-classify — the route table already matched.
-  State one line: `Routing to /<skill> (<label>).`
+- **`MATCH`** → resolve `<skill>`'s invocation class. If `implicit-eligible`,
+  invoke it immediately with the **Skill** tool (e.g. `dhpk:bug-fix`); do
+  **not** re-classify — the route table already matched. State one line:
+  `Routing to /<skill> (<label>).` If `explicit-only`, do not call the Skill
+  tool: state `Routing to /<skill> (<label>) — explicit-only; run: /<skill>
+  <args>` and stop.
 - **`NO_MATCH`** → before guessing, gather a few **cheap repo signals** to
   disambiguate (evidence beats a blind classification, but stay one-shot — do not
   start exploring the codebase). Quick checks only, e.g.:
@@ -187,9 +207,13 @@ plan consult).
     "跑完它" request likely means `dhpk:opsx-apply-goal` (unattended) or `/opsx:apply`.
   - test config / build config present → verification-class intent is plausible.
 
-  Then classify the request yourself and pick the single best-fit dhpk command,
-  invoke it via the **Skill** tool, and state one line citing the evidence:
-  `No deterministic route; routing to /<chosen> because <reason + signal>.`
+  Then classify the request yourself and pick the single best-fit dhpk command.
+  Resolve its invocation class exactly as in `MATCH` above: invoke
+  `implicit-eligible` targets via the **Skill** tool and state one line citing
+  the evidence — `No deterministic route; routing to /<chosen> because
+  <reason + signal>.` — or, for an `explicit-only` target, state `No
+  deterministic route; best fit is /<chosen> because <reason + signal> —
+  explicit-only; run: /<chosen> <args>` and stop without invoking it.
   Common targets: `dhpk:adaptive-dev-workflow` (**any** substantial bug or feature
   change — it classifies + gates, then routes into `dhpk:bug-fix` /
   `dhpk:feature-dev` itself, so enter it rather than those two directly; this
@@ -197,9 +221,10 @@ plan consult).
   here),
   `dhpk:code-explore`, `dhpk:review-pending`, `dhpk:security-review`,
   `dhpk:project-audit`, `dhpk:simplify`, `dhpk:tech-spec`, `dhpk:risk-assess`,
-  `dhpk:deploy-list`, `dhpk:feasibility-study`, `dhpk:verify`, `dhpk:opsx-apply-goal`,
-  `dhpk:create-pr`, `dhpk:smart-commit`. If nothing fits, say so and ask one
-  clarifying question instead of guessing.
+  `dhpk:deploy-list`, `dhpk:feasibility-study`, `dhpk:verify`, `dhpk:opsx-apply-goal`
+  (explicit-only), `dhpk:create-pr` (explicit-only), `dhpk:smart-commit`
+  (explicit-only). If nothing fits, say so and ask one clarifying question
+  instead of guessing.
 - **`NO_QUERY`** → ask the user what they want to do; do not route.
 
 Completion criterion: exactly one terminal branch completes — `MATCH` hands off
@@ -301,11 +326,23 @@ the `dhpk:planner` consult (PLAN) or the artifact-then-review flow (OPENSPEC).
   resolved route target is one of the three **change-authoring** routes —
   `dhpk:adaptive-dev-workflow`, `dhpk:bug-fix`, `dhpk:feature-dev`. On those,
   instead of invoking the target skill:
-  1. Invoke `opsx:new` then `opsx:ff` via the **Skill** tool
-     (`openspec-new-change` → `openspec-ff-change`) to emit the change
-     artifacts (proposal / design / specs / tasks) for the cleaned query. When
-     the Architect-consult rule above fired for this task, fold the
-     `dhpk:architect` conclusion into the change description handed to `opsx:new`.
+  1. **Discover** whether the external OpenSpec authoring entries
+     `openspec-new-change` and `openspec-ff-change` are both available to
+     Claude's Skill tool (do not infer callability from plugin
+     installed/enabled status — check the actual callable surface). These are
+     external OpenSpec-owned Skill-tool IDs, not the human-facing `/opsx:new` /
+     `/opsx:ff` command aliases — never pass `opsx:new` or `opsx:ff` to the
+     Skill tool.
+     - **Both available:** invoke `openspec-new-change` then
+       `openspec-ff-change` via the **Skill** tool to emit the change artifacts
+       (proposal / design / specs / tasks) for the cleaned query. When the
+       Architect-consult rule above fired for this task, fold the
+       `dhpk:architect` conclusion into the change description handed to
+       `openspec-new-change`.
+     - **Either unavailable or explicit-only to model invocation:** present the
+       matching exact human command, `/opsx:new` (then `/opsx:ff`), and stop —
+       do not bypass the entry's invocation restriction and do not edit its
+       generated metadata to work around the mismatch.
   2. **Stop for human review** — do **not** proceed to implementation. State
      that the change awaits review and can be applied later with `/opsx:apply`
      (or an unattended `dhpk:opsx-apply-goal` session).

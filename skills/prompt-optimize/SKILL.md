@@ -3,6 +3,8 @@ name: prompt-optimize
 description: 'Rewrite a raw task prompt into a model-aware, effort-calibrated version before you run it. Use when: the user asks to "optimize this prompt", "improve this prompt for Claude", "what effort should I use", "make this a good API prompt/template", or pastes a rough instruction before a big Claude Code or API task. Detects the target model (current session or a named one), classifies task complexity, recommends an effort level (low/medium/high/xhigh/max, plus the dhpk agent-frontmatter/Claude Code equivalent), asks up to 4 AskUserQuestion questions only for missing required info, then applies model-specific behavioral rewrites. Not for: generic few-shot/CoT/template technique coaching with no model or effort selection (use prompt-engineering-patterns), or auditing token/cache budget (use harness-budget). Output: optimized prompt block + effort recommendation with rationale + bullet list of rewrites applied.'
 argument-hint: '"<raw prompt text>" [--model <name>]'
 allowed-tools: 'Read, AskUserQuestion'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # Prompt Optimize

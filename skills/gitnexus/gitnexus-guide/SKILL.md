@@ -1,6 +1,8 @@
 ---
 name: gitnexus-guide
 description: 'Reference for GitNexus MCP tools, resources, and graph schema. Use when: asking what GitNexus tools exist, how to query the graph, or for MCP resource / schema reference. Not for: CLI commands (use gitnexus-cli), task flows (use gitnexus-exploring / debugging / impact-analysis / refactoring). Output: the right tool / resource / skill to use next.'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # GitNexus Guide

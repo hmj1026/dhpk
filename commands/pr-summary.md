@@ -2,6 +2,8 @@
 description: 'PR status summary — list open PRs, filter bots, group by ticket ID'
 argument-hint: '[--author <user>] [--label <label>]'
 allowed-tools: 'Bash(git:*), Bash(gh:*), Bash(bash:*)'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 ## Context

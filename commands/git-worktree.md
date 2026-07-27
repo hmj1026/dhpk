@@ -2,6 +2,8 @@
 description: 'Manage git worktrees — create, list, remove, parallel branch development'
 argument-hint: '[add|list|remove|prune] [--branch <name>] [--base <ref>]'
 allowed-tools: 'Bash(git:*), Read, Grep, Glob'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 ## Context

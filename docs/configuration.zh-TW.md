@@ -94,7 +94,7 @@ claude mcp list
 2. 確認底層 `codex` CLI 可執行且已登入（`codex login`）；MCP server 沒有它便無法啟動。
 3. 若 `codex` 已顯示連線，但某個 `codex-*` skill 仍然失敗，問題通常出在登入驗證（`codex login`），而不是 MCP 連線本身。
 
-未註冊 `codex mcp-server` 時，呼叫任一 MCP-backed `codex-*` skill 或 `/dhpk:codex-*` 指令會出現工具權限錯誤（找不到 `mcp__codex__*`）——dhpk 對這些 surface 沒有降級路徑，因為它們的存在目的就是委派給 Codex。這與 `CODEX=on`（見 [`docs/basic-operations.zh-TW.md`](./basic-operations.zh-TW.md#9-implementation-dispatch自動)）是兩回事——後者是**單次 session 的 opt-in flag**（不是持久化的 `userConfig` 值，沒有安裝時 `--config` 的對應項），每個 session 都會重置，除非再次帶 `--codex` 或說「用 codex」——而當它的 MCP 依賴缺席時，`CODEX=on` 會靜默退回單助理 dispatch，而非報錯。
+未註冊 `codex mcp-server` 時，呼叫任一 MCP-backed `codex-*` skill 或 `/dhpk:codex-*` 指令會出現工具權限錯誤（找不到 `mcp__codex__*`）——dhpk 對這些 surface 沒有降級路徑，因為它們的存在目的就是委派給 Codex。這與 `CODEX=on`（見 [`docs/basic-operations.zh-TW.md`](./basic-operations.zh-TW.md#implementation-dispatch)）是兩回事——後者是**單次 session 的 opt-in flag**（不是持久化的 `userConfig` 值，沒有安裝時 `--config` 的對應項），每個 session 都會重置，除非再次帶 `--codex` 或說「用 codex」——而當它的 MCP 依賴缺席時，`CODEX=on` 會靜默退回單助理 dispatch，而非報錯。
 
 這也與 **Codex CLI 雙軌同步**（`install-codex-skills.sh`，見 [`docs/basic-operations.zh-TW.md`](./basic-operations.zh-TW.md)）無關——那是把 dhpk 自己的 skill 鏡射進專案的 `.codex/` 目錄，給直接執行獨立 `codex` CLI 的人使用，那條路徑完全不需要 MCP server。
 

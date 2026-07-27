@@ -2,6 +2,8 @@
 description: 'Wrap-up refactoring — simplify code, eliminate duplication, preserve behavior'
 argument-hint: '<file or directory>'
 allowed-tools: 'Read, Grep, Glob, Edit, Agent, Bash(TEST_ENV=unit npx jest:*)'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 ## Task

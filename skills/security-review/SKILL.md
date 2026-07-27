@@ -5,6 +5,8 @@ argument-hint: '[--scope <path>]'
 allowed-tools: 'Bash(git:*), Read, Grep, Glob'
 context: fork
 agent: Explore
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # Security Review Skill

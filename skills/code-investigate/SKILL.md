@@ -4,6 +4,8 @@ argument-hint: '<question about code>'
 description: 'Dual-perspective code investigation. Use when: deep code analysis needing both Claude and Codex perspectives. Not for: quick exploration (use code-explore), code review (use codex-code-review). Output: integrated findings from dual analysis.'
 allowed-tools: 'Read, Grep, Glob, Bash(git:*), mcp__codex__codex, mcp__codex__codex-reply'
 context: fork
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # Code Investigate Skill

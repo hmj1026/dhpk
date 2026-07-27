@@ -1,6 +1,8 @@
 ---
 name: bug-investigation
 description: 'Root-cause investigation workflow for unexpected behavior, test failures, performance regressions, data inconsistencies, and cross-layer data-flow tracing. Use when users ask to investigate or trace a bug, regression, flaky test, or root cause (including 測試失敗、效能異常、調查 Bug、追蹤資料流). Not for direct implementation when the root cause is already confirmed, ordinary code review, or pure feature work. Output: a phase-based evidence report, confirmed root cause or explicit blocked state, solution options, stop-loss state, and next actions.'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # Bug Investigation Skill

@@ -2,6 +2,8 @@
 description: 'Generate unit tests for specified functions using Codex MCP'
 argument-hint: '<file-path> [--function <name>] [--output <path>]'
 allowed-tools: 'mcp__codex__codex, mcp__codex__codex-reply, Read, Grep, Glob, Write'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 ⚠️ **Must read and follow the skill below before executing this command:**

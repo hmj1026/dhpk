@@ -35,11 +35,13 @@
 #   DHPK_SIDECAR_REVIEW_BACKOFF        — stop-review-reminder debounce stamp
 #   DHPK_SIDECAR_MODULE_FINDINGS       — post-edit-dispatch / stop-advisory-dispatch accumulator
 #   DHPK_SIDECAR_FAST_WORKER_ACTIVE    — shared fast-worker liveness marker
+#   DHPK_SIDECAR_RESUMED_OBLIGATIONS   — resumed-review (SendMessage) obligation ledger
 
 DHPK_SIDECAR_UNRESOLVED_VERDICT=".unresolved-verdict"
 DHPK_SIDECAR_REVIEW_BACKOFF=".review-reminder-backoff"
 DHPK_SIDECAR_MODULE_FINDINGS=".module-findings"
 DHPK_SIDECAR_FAST_WORKER_ACTIVE=".active-fast-worker"
+DHPK_SIDECAR_RESUMED_OBLIGATIONS=".resumed-review-obligations"
 
 # dhpk_reset_review_backoff <sessions_dir> <sentinel_name>
 #
@@ -90,5 +92,15 @@ dhpk_read_payload() {
 
 dhpk_active_marker() {
     printf '%s' "${1/.pending-/.active-}"
+    return 0
+}
+
+# dhpk_current_session_id — this session's identity for orchestrator-invoked
+# (non-hook) scripts, e.g. record-resumed-obligation.sh / reconcile-resumed-review.sh.
+# Claude Code exports CLAUDE_CODE_SESSION_ID for every Bash tool call; this is
+# the same identity a hook payload's top-level `session_id` field carries, so
+# obligations recorded here match against the Stop/SubagentStop reconcile sweep.
+dhpk_current_session_id() {
+    printf '%s' "${CLAUDE_CODE_SESSION_ID:-${CLAUDE_SESSION_ID:-}}"
     return 0
 }

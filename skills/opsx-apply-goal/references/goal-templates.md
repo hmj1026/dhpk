@@ -51,17 +51,18 @@ First run ONE Bash orientation command — `p=${CLAUDE_PLUGIN_ROOT:-$(ls -dt
 ~/.claude/plugins/cache/dhpk/dhpk/* 2>/dev/null | head -1)}; cat
 "$p/rules/execution-policy.md" 2>/dev/null || echo POLICY-UNRESOLVED` — reading
 the dhpk execution-policy into context (on POLICY-UNRESOLVED proceed on this
-goal string's own gates; never filesystem-scan) — then invoke the opsx:apply
-skill for change <CHANGE_ID> and continue implementing
-openspec/changes/<CHANGE_ID>/tasks.md from the first unchecked item without
-stopping for confirmation. Task digest: <TASK_DIGEST>. When more than one
-repository is indexed, pass an explicit `repo="<project>"` parameter on
-gitnexus MCP calls (impact, detect_changes, query). That instruction covers ordinary implementation
-judgment calls only; it is never an explicit project hard-rule conflict bypass.
-On "Unknown skill", retry once next turn; if it still fails, read
-openspec/changes/<CHANGE_ID>/ (proposal.md, design.md, tasks.md) and implement
-directly under the same gates. <CODEX_STATEMENT>. Continue until all of the
-following hold,
+goal string's own gates; never filesystem-scan) — then invoke the Skill tool
+with the canonical ID `openspec-apply-change` for change <CHANGE_ID> and
+continue implementing openspec/changes/<CHANGE_ID>/tasks.md from the first
+unchecked item without stopping for confirmation. Task digest: <TASK_DIGEST>.
+When more than one repository is indexed, pass an explicit `repo="<project>"`
+parameter on gitnexus MCP calls (impact, detect_changes, query). That
+instruction covers ordinary implementation judgment calls only; it is never
+an explicit project hard-rule conflict bypass. On "Unknown skill" (the
+external OpenSpec plugin is not installed), retry once next turn; if it still
+fails, read openspec/changes/<CHANGE_ID>/ (proposal.md, design.md, tasks.md)
+and implement directly under the same gates. <CODEX_STATEMENT>. Continue
+until all of the following hold,
 ```
 
 **`DISPATCH_ON=true`** (default) — the same kickoff with the bounded dispatch
@@ -70,9 +71,10 @@ roster appended before the transition into the stop conditions:
 First run ONE Bash orientation command — `p=${CLAUDE_PLUGIN_ROOT:-$(ls -dt
 ~/.claude/plugins/cache/dhpk/dhpk/* 2>/dev/null | head -1)}; cat
 "$p/rules/execution-policy.md" 2>/dev/null || echo POLICY-UNRESOLVED` — read policy
-(if unresolved use these gates; never filesystem-scan), invoke opsx:apply
-<CHANGE_ID>; continue tasks. Tasks: <TASK_DIGEST>. gitnexus repo="<project>".
-On "Unknown skill", retry once; implement change artifacts under these gates.
+(if unresolved use these gates; never filesystem-scan), invoke
+openspec-apply-change <CHANGE_ID>; continue tasks. Tasks:
+<TASK_DIGEST>. gitnexus repo="<project>".
+On "Unknown skill", retry once; implement directly under these gates.
 Set `DHPK_ORCHESTRATION_DISPATCH=on`. Bash resets cwd; use absolute paths, `npm --prefix`, or `git -C`.
 You are the orchestrator: mechanical → <FAST_WORKER_CLAUSE>; reasoning → dhpk:deep-reasoner;
 RED PHPUnit → dhpk:tdd-guide; <E2E_ROSTER_CLAUSE>never general-purpose.

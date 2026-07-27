@@ -1,7 +1,8 @@
 ---
 name: instinct-export
 description: 'Export instincts from project/global scope to a file'
-disable-model-invocation: true
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # Instinct Export Command

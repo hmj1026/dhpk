@@ -1,7 +1,10 @@
 ---
 name: op-session
-description: 'Initialize a 1Password CLI session for Claude Code so op stops triggering biometric auth on every Bash call. Use when: a session needs 1Password secrets, op keeps prompting biometric auth, or setting up OP_SESSION. Not for: storing/rotating secrets, non-1Password vaults, configuring op itself. Output: cached session file (token or app mode) + op wrapper.'
+description: 'Initializes a 1Password CLI session for Claude Code so op stops triggering biometric auth on every Bash call — for a session that needs 1Password secrets, keeps hitting biometric prompts, or needs OP_SESSION set up. Not for: storing/rotating secrets, non-1Password vaults, configuring op itself. Output: cached session file (token or app mode) + op wrapper.'
 allowed-tools: Bash(bash:*)
+disable-model-invocation: true
+metadata:
+  dhpk-invocation-class: explicit-only
 ---
 
 # 1Password Session for Claude Code

@@ -2,6 +2,8 @@
 name: feasibility-study
 description: 'Feasibility analysis from first principles. Use when: evaluating solutions before tech-spec, comparing approaches, risk assessment. Not for: implementation (use feature-dev), architecture advice (use codex-architect). Output: quantitative comparison + recommendation.'
 allowed-tools: 'Read, Grep, Glob, Bash(git:*), Bash(codex:*), Bash(bash:*), Write, mcp__codex__codex, mcp__codex__codex-reply, Agent'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # Feasibility Study Skill

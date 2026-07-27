@@ -282,13 +282,15 @@ userConfig — the gate lives inside the fresh-start, non-`minimal` advisory blo
 and is skipped wholesale. That also disables the other session advisories, which
 is the trade.
 
-Two narrower levers, neither of which is an off-switch:
-`DHPK_INSTALL_HEALTH_ASK=0` *downgrades* rather than disables — findings are
-still emitted, as an advisory pointing at `claude-health`, with no question
-raised. Correcting the underlying configuration (writing a project-level
-`modules` override) silences the module finding at its source, which is the
-intended resolution rather than a workaround. Census bounds are tunable via
-`DHPK_STACK_CENSUS_DEPTH` / `DHPK_STACK_CENSUS_FILES`.
+The ask mechanism is advisory-only by default. The live D7 probe found that
+plain SessionStart output did not reliably drive an `AskUserQuestion` on the
+first turn, so `DHPK_INSTALL_HEALTH_ASK` defaults to `0`: findings are still
+emitted with the `claude-health` pointer, but no question is raised. Set
+`DHPK_INSTALL_HEALTH_ASK=1` only when the current environment has independently
+verified that mechanism. Correcting the underlying configuration (writing a
+project-level `modules` override) silences the module finding at its source,
+which is the intended resolution rather than a workaround. Census bounds are
+tunable via `DHPK_STACK_CENSUS_DEPTH` / `DHPK_STACK_CENSUS_FILES`.
 
 ## Worked example — project-local async PostToolUse hook
 

@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE) [![Version](https://img.shields.io/github/v/tag/hmj1026/dhpk?label=version&sort=semver)](https://github.com/hmj1026/dhpk/tags) [![CI](https://img.shields.io/github/actions/workflow/status/hmj1026/dhpk/ci.yml?branch=main&label=CI)](https://github.com/hmj1026/dhpk/actions/workflows/ci.yml) [![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A63D2)](https://docs.claude.com/en/docs/claude-code/plugins)
 
-通用、安裝即用的 Claude Code harness。內含 **32 個角色導向 agent**（31 個 root + 1 個模組範圍的 reviewer）、約 45 個已註冊的 dhpk 指令（44 個 root 指令 + `ts-check-status` JS 模組指令；內附的 codex / gitnexus / git 樹各自另有自己的一套指令）、約 59 個核心 skill 加上跨專案的 `deploy-list` 部署清單產生器 + **`/dhpk:do` Smart Router**（透過 20 條雙語 route-table 規則 + LLM fallback 進行自然語言任務路由）+ **跨 session 學習 DB**（作業訊號儲存庫，附信心衰退機制，預設關閉）、**7-slot sentinel 驅動的 review hook**（code / db / sec / frontend / doc / **polyfill** / **migration** — polyfill 由 `library-author` 提供，migration 由模組 triggers 或 `mig:` 額外路徑啟用；`doc-reviewer` 同時涵蓋 SSOT／連結有效性與 `.md` DSL artifact 的 frontmatter schema）、statusline、harness 腳本，以及 **31 個可選用的技術棧模組**（PHP：`php-5.6`、`php-7.4`、`php-8.x`；Yii：`yii-1.1`；PHPUnit：`phpunit-5.7`、`phpunit-9`、`phpunit-10`、`phpunit-11`；Laravel：`laravel-5.4`、`laravel-6` 至 `laravel-11`；前端：`js`、`vue-2`、`laravel-mix`；Next.js：`nextjs-15.5`、`nextjs-16`；React：`react-18`、`react-19`；**Python**：`python`、`fastapi`、`pytest`；跨版本的 `library-author`；以及 **iOS/Swift 套件**（`swift`、`swiftui`、`ios-platform`、`swift-testing`、`xcode-tooling`））。模組可透過 **wrapper-dispatch** 模型在 runtime 提供 hook（詳見 [`docs/hook-extension.md`](./docs/hook-extension.md)）。內附平行的 Codex CLI 樹，適用於雙助理（Claude + Codex）專案。
+通用、安裝即用的 Claude Code harness。內含 **32 個角色導向 agent**（31 個 root-level agent 加 1 個模組範圍 reviewer）、已註冊的 dhpk 指令、核心 skill、**`/dhpk:do` Smart Router**（透過雙語 route-table 與 LLM fallback 進行自然語言任務路由）、跨 session 學習 DB（預設關閉）、**7-slot sentinel 驅動的 review hook**（code / db / sec / frontend / doc / polyfill / migration）、statusline、harness 腳本，以及 **31 個可選技術棧模組**，涵蓋 PHP、Yii、PHPUnit、Laravel、JavaScript、Vue、Laravel Mix、Next.js、React、Python 與 iOS/Swift。模組可透過 **wrapper-dispatch** 模型在 runtime 提供 hook（詳見 [`docs/hook-extension.md`](./docs/hook-extension.md)）。內附策展過的 Codex CLI projection，適用於雙助理（Claude + Codex）專案。
 
 > **Harness engineering 重於 prompt engineering。** dhpk 把 agent 的運作環境——hooks、sentinel review gate、路由規則、技術棧感知模組——當作施力點。你安裝的不是逐次微調的 one-off prompt，而是一套可重用的 harness，讓正確的檢查自動觸發，並讓模型跨 session 維持在軌道上。
 
@@ -46,14 +46,14 @@ claude plugin install dhpk@dhpk --config modules=php-8.x,laravel-11 --config hoo
 
 | 元件 | 數量 | 說明 |
 |------|----:|------|
-| Agents | 31 root-level agents | 7 個 sentinel 驅動的 reviewer，對應各 slot：code / db / sec / **frontend** / **doc** / **polyfill**（slot 5，由 `library-author` 寫入）/ **migration**（slot 6，經模組 triggers 或 `mig:` 額外路徑 opt-in）。情境型：architect、tdd-guide、refactor-cleaner、ui-ux-verifier、performance-analyzer、doc-updater、docs-lookup、harness-reviser、version-matrix-impact-reviewer、**swift-build-resolver**（iOS 套件）、**silent-failure-hunter**（錯誤處理稽核）、**spec-miner**（brownfield→OpenSpec 萃取）、**type-design-analyzer**（型別設計）、**agent-evaluator**（產出品質評分）、**e2e-runner**（E2E 旅程）、**smoke-tester**（唯讀 live-runtime 探針）。 |
-| Commands | ~45 | `dhpk:do`（Smart Router）、`dhpk:create-dev`、`dhpk:codex-*`、`dhpk:review-pending`、`dhpk:smart-commit`、`dhpk:ts-check-status`（JS 模組）、`dhpk:opsx-apply-resume`（需 OpenSpec）、`dhpk:matrix-cell-onboard`（library-author）、`dhpk:de-ai-flavor`、`dhpk:deploy-list`、`dhpk:harness-fill`、`dhpk:ui-ux-verify` 等 |
-| 核心 skills | ~59 加上 | codex-*、gitnexus、tool-routing、dhpk-execution-policy、**adaptive-dev-workflow**（Feature/Bug/Maintenance 分類器）、**deploy-list**（跨專案部署清單產生器）、**execution-checklist**（任務收尾自檢）、`opsx-apply-resume` 配套（需 OpenSpec） |
-| 技術棧模組 | 31 | PHP：`php-5.6`、`php-7.4`、`php-8.x` · Yii：`yii-1.1` · PHPUnit：`phpunit-5.7`、`phpunit-9`、`phpunit-10`、`phpunit-11` · Laravel：`laravel-5.4`、`laravel-6` … `laravel-11` · 前端：`js`、`vue-2`、`laravel-mix` · Next.js：`nextjs-15.5`、`nextjs-16` · React：`react-18`、`react-19` · **Python**：`python`、`fastapi`、`pytest` · `library-author` · **iOS**：`swift`、`swiftui`、`ios-platform`、`swift-testing`、`xcode-tooling`（選用；詳見下方「模組」） |
+| Agents | Role-based agents | Sentinel 驅動的 reviewer，以及架構、測試、安全、文件、平台與 runtime 等情境型角色。 |
+| Commands | 已註冊的 command surface | `dhpk:do`（Smart Router）、`dhpk:create-dev`、`dhpk:codex-*`、`dhpk:review-pending`、`dhpk:smart-commit`、`dhpk:ts-check-status`（JS 模組）、`dhpk:opsx-apply-resume`（需 OpenSpec）、`dhpk:matrix-cell-onboard`（library-author）、`dhpk:de-ai-flavor`、`dhpk:deploy-list`、`dhpk:harness-fill`、`dhpk:ui-ux-verify` 等 |
+| 核心 skills | 核心與輔助 skills | codex-*、gitnexus、tool-routing、dhpk-execution-policy、**adaptive-dev-workflow**（Feature/Bug/Maintenance 分類器）、**deploy-list**（跨專案部署清單產生器）、**execution-checklist**（任務收尾自檢）、`opsx-apply-resume` 配套（需 OpenSpec） |
+| 技術棧模組 | 可選技術棧模組 | PHP、Yii、PHPUnit、Laravel、JavaScript、Vue、Laravel Mix、Next.js、React、Python、`library-author` 與 iOS/Swift 模組 |
 | Hooks | 10 個事件 | PreToolUse（Edit、Bash + dispatcher + sentinel-gate + branch-safety、Task\|Agent warmstart）、PostToolUse（Edit + dispatcher + async crlf-fix + async manifest-guard）、SessionStart（+ version-pin／cross-CLI-drift／broken-symlink advisory）、SessionEnd（reap-stale-sentinels）、PreCompact（checkpoint 存檔）、PostCompact（sentinel 還原）、SubagentStop（reviewer 驗證 + 失敗記錄）、StopFailure（失敗記錄）、UserPromptSubmit（skill 提示）、Stop（review-reminder + advisory-dispatch：completion-evidence／graduation-scan／module-dispatch） |
 | Hook dispatchers | 2 | `post-edit-dispatch.sh`、`pre-bash-dispatch.sh` — 分派到啟用模組的 hook |
 | Harness 腳本 | 5 | precommit-runner、verify-runner、harness-audit、codemap generator、dep-audit |
-| Codex 雙軌 | 14 skills + 1 agent（5 個 config profile） | 由 `install-codex-skills.sh` 同步進專案的 `.codex/` |
+| Codex 雙軌 | 策展過的 Codex projection | 由 `install-codex-skills.sh` 同步進專案的 `.codex/` |
 
 ## 常見工作流
 
@@ -85,7 +85,7 @@ claude plugin install dhpk@dhpk \
 
 ## Codex 支援的 skill 與指令
 
-dhpk 的核心——hooks、sentinel reviewers、Smart Router，以及約 51 個其他 skill——皆為 Codex-free。`codex-*` 家族委派給 OpenAI 的 Codex 取得第二意見。它們的 `mcp__codex__codex` / `mcp__codex__codex-reply` 工具來自**直接註冊** Codex CLI 自身的 `codex mcp-server` 子指令為 MCP server（`claude mcp add --transport stdio codex -- codex mcp-server`）——**並非**來自安裝 `openai/codex-plugin-cc` plugin（那是另一個獨立的 Codex surface，不會註冊任何 MCP server）。完整註冊步驟與 plugin-vs-MCP-server 對照見 [`docs/configuration.zh-TW.md` 的運作原理說明](./docs/configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕)。
+dhpk 的核心——hooks、sentinel reviewers、Smart Router，以及非 Codex workflow skill——皆為 Codex-free。`codex-*` 家族委派給 OpenAI 的 Codex 取得第二意見。它們的 `mcp__codex__codex` / `mcp__codex__codex-reply` 工具來自**直接註冊** Codex CLI 自身的 `codex mcp-server` 子指令為 MCP server（`claude mcp add --transport stdio codex -- codex mcp-server`）——**並非**來自安裝 `openai/codex-plugin-cc` plugin（那是另一個獨立的 Codex surface，不會註冊任何 MCP server）。完整註冊步驟與 plugin-vs-MCP-server 對照見 [`docs/configuration.zh-TW.md` 的運作原理說明](./docs/configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕)。
 
 | Surface | 名稱 | 需要 | 缺少時 |
 |---------|------|------|--------|
@@ -224,7 +224,7 @@ Statusline 會渲染 `[branch] +staged ~modified | docker:status | profile=<p> |
 
 ## 同步 Codex CLI 內容
 
-適用於同時使用 Claude Code 與獨立 Codex CLI 的專案（與上方的 Codex MCP 依賴是兩回事——這條路徑不需要任何 MCP server）：`bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"` 會把 dhpk 的 skill/agent 鏡射進專案的 `.codex/`，另有實驗性的 Codex Plugin Marketplace 安裝路徑。完整說明見 **[`docs/basic-operations.zh-TW.md`](./docs/basic-operations.zh-TW.md#同步-codex-cli-內容)**。
+適用於同時使用 Claude Code 與獨立 Codex CLI 的專案（與上方的 Codex MCP 依賴是兩回事——這條路徑不需要任何 MCP server），支援路徑是 `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"`。它會把明確策展的 Codex projection 放進專案 `.codex/`；Codex Plugin Marketplace 屬實驗性，必須另外確認 cache。完整政策與說明見 **[`docs/basic-operations.zh-TW.md`](./docs/basic-operations.zh-TW.md#同步-codex-cli-內容)**。
 
 ## 遷移現有專案
 
@@ -238,8 +238,8 @@ dhpk/
 │   ├── marketplace.json          # 單一條目的 marketplace（plugins[0].source: "./"）
 │   └── plugin.json               # 含 userConfig 的插件 manifest
 ├── agents/                       # 32 個角色 agent（31 root + 1 模組 reviewer；INDEX.md 為導覽用）
-├── commands/                     # ~45 個 slash 指令（do、create-dev、codex-*、smart-commit、opsx-apply-resume、matrix-cell-onboard 等）
-├── skills/                       # ~59 個核心 skill（adaptive-dev-workflow、codex-*、tool-routing、dhpk-execution-policy、opsx-apply-resume 配套等）
+├── commands/                     # slash 指令（do、create-dev、codex-*、smart-commit、opsx-apply-resume、matrix-cell-onboard 等）
+├── skills/                       # 核心 skill（adaptive-dev-workflow、codex-*、tool-routing、dhpk-execution-policy、opsx-apply-resume 配套等）
 ├── templates/                    # hook 引導用範本（graduation-candidates.md — 首次 graduation 執行時複製到 .claude/artifacts/）
 ├── modules/                      # 31 個可選用的技術棧模組
 │   ├── php-5.6/, php-7.4/, php-8.x/        # {module.yaml, skills/, references/, hooks/（僅 php-7.4）}

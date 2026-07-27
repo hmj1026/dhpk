@@ -1,7 +1,8 @@
 ---
 name: instinct-status
 description: 'Show learned instincts (project + global) with confidence'
-disable-model-invocation: true
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # Instinct Status Command
