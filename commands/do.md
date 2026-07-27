@@ -210,10 +210,10 @@ plan consult).
   Then classify the request yourself and pick the single best-fit dhpk command.
   Resolve its invocation class exactly as in `MATCH` above: invoke
   `implicit-eligible` targets via the **Skill** tool and state one line citing
-  the evidence — `No deterministic route; routing to /<chosen> because <reason
-  + signal>.` — or, for an `explicit-only` target, state `No deterministic
-  route; best fit is /<chosen> because <reason + signal> — explicit-only; run:
-  /<chosen> <args>` and stop without invoking it.
+  the evidence — `No deterministic route; routing to /<chosen> because
+  <reason + signal>.` — or, for an `explicit-only` target, state `No
+  deterministic route; best fit is /<chosen> because <reason + signal> —
+  explicit-only; run: /<chosen> <args>` and stop without invoking it.
   Common targets: `dhpk:adaptive-dev-workflow` (**any** substantial bug or feature
   change — it classifies + gates, then routes into `dhpk:bug-fix` /
   `dhpk:feature-dev` itself, so enter it rather than those two directly; this
