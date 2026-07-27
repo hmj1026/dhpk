@@ -1,6 +1,8 @@
 ---
 description: '掃描程式碼結構，產生或更新 docs/CODEMAPS/ 架構文件，供 AI 快速載入專案全貌。'
 allowed-tools: 'Read, Grep, Glob, Bash(ls:*), Bash(git:*), Write, Edit'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # Update Codemaps

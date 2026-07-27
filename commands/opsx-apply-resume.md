@@ -2,6 +2,8 @@
 description: 'Context handoff wrapper for long-running opsx:apply sessions — save state before /fork or /new, then resume seamlessly'
 argument-hint: '[change-id]'
 disable-model-invocation: true
+metadata:
+  dhpk-invocation-class: explicit-only
 ---
 
 Cross-session handoff for interrupted `/opsx:apply` sessions. Run when context is ~70% full to save state, then run again after `/fork` or `/new` to resume.
@@ -281,11 +283,11 @@ bash .claude/scripts/opsx-apply-resume/set-handoff-state.sh consuming
 bash .claude/scripts/opsx-apply-resume/set-handoff-state.sh saved
 ```
 
-### Step 5 — Invoke opsx:apply
+### Step 5 — Invoke openspec-apply-change
 
-Directly invoke the `opsx:apply` skill with `<change-id>` as argument. Do not ask the user to run it manually — the goal is seamless continuation.
+Directly invoke the Skill tool with the canonical ID `openspec-apply-change` and `<change-id>` as argument — never pass the `opsx:apply` human-command alias to the Skill tool. Do not ask the user to run it manually — the goal is seamless continuation.
 
-`opsx:apply` will:
+`openspec-apply-change` will:
 - Run `openspec instructions apply --change "<change-id>" --json`
 - Automatically locate the first `- [ ]` task in `tasks.md`
 - Resume implementation from that point

@@ -2,6 +2,8 @@
 description: UI/UX verification. By default, compares the currently-changed OpenSpec specs against the actually-rendered page.
 argument-hint: "[<url>] [spec:<path>]"
 allowed-tools: Read, Grep, Glob, Bash(git:*), Task
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 ⚠️ **This command delegates to the `ui-ux-verifier` agent via the Task tool.**

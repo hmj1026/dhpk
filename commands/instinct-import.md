@@ -2,6 +2,8 @@
 name: instinct-import
 description: 'Import instincts from file or URL into project/global scope'
 disable-model-invocation: true
+metadata:
+  dhpk-invocation-class: explicit-only
 ---
 
 # Instinct Import Command

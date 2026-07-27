@@ -2,6 +2,8 @@
 description: 'Refactor documents — simplify without losing information, visualize flows with sequenceDiagram.'
 argument-hint: '<file path>'
 allowed-tools: 'Read, Grep, Glob, Edit'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 ## Task

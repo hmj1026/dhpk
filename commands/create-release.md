@@ -2,6 +2,9 @@
 description: 'Cut a new release of a project or plugin — resolve release config, bump version(s), update CHANGELOG, create release PR, and tag'
 argument-hint: '<version> [--execute]'
 allowed-tools: 'Bash(git:*), Bash(gh:*), Bash(jq:*), Bash(test:*), Read, Grep, Glob'
+disable-model-invocation: true
+metadata:
+  dhpk-invocation-class: explicit-only
 ---
 
 ## Context
@@ -21,11 +24,11 @@ Follow the `release-creator` skill workflow:
 3. **Version Bump**: Bump version to `<version>` in the project's manifest(s) — all in lockstep if there are several.
 4. **Changelog**: Add a section to the project's changelog detailing changes since last tag.
 5. **Validation**: Run the project's validation/test command to ensure everything is correct.
-6. **PR & Tag**: Create a Release PR into the release branch, merge per the repo's rules, then pull and tag/push on the release branch.
+6. **PR & Tag**: Create the direct `develop → main` Release PR, stop for the human merge gate, then pull `main` and create the immutable annotated tag only after the merge.
 
 Arguments:
 - `<version>`: Semver version number to release (e.g. `0.28.3`)
-- `--execute`: Perform the full release flow (bump, changelog, PR, merge, tag) automatically
+- `--execute`: Perform the preparation and post-merge mechanical phases, but never self-merge the Release PR.
 
 ## Output
 

@@ -2,6 +2,8 @@
 description: 'Convert a technical spec into a PM/CTO-readable executive summary. Simplify technical details, focus on business value.'
 argument-hint: '<tech spec path> [--output <output path>]'
 allowed-tools: 'Read, Grep, Glob, Write'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 ## Context

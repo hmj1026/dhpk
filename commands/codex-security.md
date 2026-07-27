@@ -2,6 +2,8 @@
 description: 'OWASP Top 10 security review using Codex MCP. Supports review loop with context preservation.'
 argument-hint: '[--scope <dir>] [--continue <threadId>]'
 allowed-tools: 'mcp__codex__codex, mcp__codex__codex-reply, Bash(git:*), Read, Grep, Glob'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 ⚠️ **Must read and follow the reference below before executing this command:**

@@ -2,6 +2,9 @@
 description: 'End-to-end harness governance loop and single front door for the harness-* family — measure (harness-budget + harness-audit) -> conform to official Claude Code best-practices -> fix (harness-revise) -> verify. Read-only by default; --fix opts into mutations. Safe to /loop.'
 argument-hint: '[--fix] [--scope repo|skills|rules|mcp]'
 allowed-tools: 'Read, Grep, Glob, Bash, Skill'
+disable-model-invocation: true
+metadata:
+  dhpk-invocation-class: explicit-only
 ---
 
 # /harness-govern

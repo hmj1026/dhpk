@@ -3,6 +3,8 @@ description: 'Install plugin runner scripts into project .claude/scripts/ for pe
 argument-hint: '[--all] [--list] [--dry-run] [--force] [--skill <name>] [--skill-all] [--skill-list] [script-names...]'
 allowed-tools: 'Read, Glob, Write, Bash(mkdir:*), Bash(diff:*), Bash(git:*), Bash(ls:*), Bash(chmod:*), Bash(cp:*)'
 disable-model-invocation: true
+metadata:
+  dhpk-invocation-class: explicit-only
 ---
 
 ## Context

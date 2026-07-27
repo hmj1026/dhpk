@@ -2,6 +2,8 @@
 description: 'Pre-commit checks — lint:fix -> build -> test:unit'
 argument-hint: '[--skip-build] [--skip-lint]'
 allowed-tools: 'Bash(node:*), Bash(git:*), Read'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 ## Task

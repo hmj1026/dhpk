@@ -2,6 +2,8 @@
 description: 'Pre-merge analysis and preparation — conflict detection, impact analysis, suggested commands (analysis-only, no auto-merge)'
 argument-hint: '<source-branch> [--target <branch>]'
 allowed-tools: 'Bash(git:*), Read, Grep, Glob'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 ## Context

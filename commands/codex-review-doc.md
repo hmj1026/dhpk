@@ -2,6 +2,8 @@
 description: 'Review documents using Codex MCP. Supports review loop with context preservation.'
 argument-hint: '[<file-path>] [--continue <threadId>]'
 allowed-tools: 'mcp__codex__codex, mcp__codex__codex-reply, Bash(git:*), Read, Glob'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 ⚠️ **Must read and follow the skill below before executing this command:**

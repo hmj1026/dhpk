@@ -2,6 +2,8 @@
 description: Route a substantial change before implementation. Classify workflow type, invoke planning agents, and output the implementation gate checklist. Codex-free by default; --codex for the Codex-enhanced path.
 argument-hint: '[--codex] <change description or current state>'
 allowed-tools: Read, Grep, Glob, Skill, Agent
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 ⚠️ **Must read and follow the skill below before executing this command:**

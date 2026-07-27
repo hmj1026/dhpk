@@ -2,6 +2,8 @@
 description: '審查 .pending-review sentinel 中的檔案（或指定路徑），完成後 code-reviewer 自動清除 sentinel'
 argument-hint: '"[--files \"<rel-path,...>\"]"'
 allowed-tools: 'Read, Bash(git:*)'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 ## Context

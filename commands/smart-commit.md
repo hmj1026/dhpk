@@ -2,6 +2,9 @@
 description: 'Smart batch commit — group changes by cohesion, generate commit messages matching project style, output git commands'
 argument-hint: '[--scope <path>] [--type <type>] [--ai-co-author]'
 allowed-tools: 'Bash(git:*), Read, Grep, Glob'
+disable-model-invocation: true
+metadata:
+  dhpk-invocation-class: explicit-only
 ---
 
 ## Context

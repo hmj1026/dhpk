@@ -2,6 +2,8 @@
 description: 'Mine behavioral specs from a brownfield codebase into openspec/specs/<capability>/spec.md. Thin front door that delegates to the spec-miner agent.'
 argument-hint: '[capability or path to mine first]'
 allowed-tools: 'Read, Grep, Glob, Bash(ls:*), Agent'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # /spec-mine
