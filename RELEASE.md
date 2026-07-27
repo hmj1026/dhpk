@@ -72,10 +72,21 @@ a `.none` marker — see `scripts/ci/validate-changelog-fragments.js` and
 
 The release PR (`develop` → `main`) is the one shape where no fragment is
 pending: release preparation already promoted them into `CHANGELOG.md` and
-deleted them. The coverage gate therefore also accepts a diff that adds a
-`## X.Y.Z — ...` release heading to `CHANGELOG.md` — the promoted section is
-the standing evidence, and coverage for those files was already enforced on
-the feature PRs that introduced them.
+deleted them. The coverage gate therefore also accepts a promoted release
+section as the standing evidence — coverage for those files was already
+enforced on the feature PRs that introduced them.
+
+So the exemption cannot become a general-purpose way to skip the fragment
+requirement, it needs both of the following, which a stray `CHANGELOG.md` edit
+cannot satisfy together:
+
+1. the diff **adds** a `## X.Y.Z ...` heading that did not exist at the diff
+   base — a genuinely new section, not a reworded or re-dated old one; and
+2. that `X.Y.Z` matches the version in `.claude-plugin/plugin.json` at `HEAD`,
+   since release preparation moves the manifests and `CHANGELOG.md` in lockstep.
+
+An unreadable or missing manifest fails closed: no exemption, the ordinary
+fragment requirement stands.
 
 ## Release candidate preparation
 

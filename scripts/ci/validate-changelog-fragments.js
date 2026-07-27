@@ -39,24 +39,76 @@ function parseArgs(argv) {
   return args;
 }
 
+// A git failure here (unreachable diff base, not a repo) is a harness fault,
+// not a fragment-coverage verdict — report it as one instead of dumping a raw
+// stack trace from execFileSync.
+function git(root, gitArgs) {
+  try {
+    return execFileSync('git', gitArgs, { cwd: root, encoding: 'utf8' });
+  } catch (err) {
+    console.error(`validate-changelog-fragments: git ${gitArgs.join(' ')} failed`);
+    console.error(`  ${(err.stderr || err.message || '').toString().trim()}`);
+    process.exit(2);
+  }
+}
+
 function changedFilesSince(root, diffBase) {
-  const out = execFileSync('git', ['diff', '--name-only', `${diffBase}...HEAD`], {
-    cwd: root,
-    encoding: 'utf8',
-  });
+  const out = git(root, ['diff', '--name-only', `${diffBase}...HEAD`]);
   return out.split('\n').map((l) => l.trim()).filter(Boolean);
 }
 
-// True when the diff adds a "## X.Y.Z — ..." release heading to CHANGELOG.md,
-// i.e. this is a release PR whose fragments were already promoted and deleted.
-const RELEASE_HEADING_ADDED = /^\+## \d+\.\d+\.\d+ /m;
+// Recognises the one PR shape that legitimately carries no pending fragment:
+// the release PR, whose fragments prepare-release already promoted into
+// CHANGELOG.md and deleted. Sniffing "a version heading appeared" alone would
+// hand every PR an easy opt-out of the fragment requirement, so this demands
+// two things a stray CHANGELOG edit cannot both satisfy:
+//
+//   1. the diff ADDS a "## X.Y.Z ..." heading that did not exist at the diff
+//      base — a genuinely new section, not a reworded or re-dated old one; and
+//   2. that X.Y.Z equals the plugin manifest version at HEAD — prepare-release
+//      moves the manifests and CHANGELOG.md in lockstep, so a hand-written
+//      section without the bump does not qualify.
+//
+// Anything unreadable (missing or malformed manifest) fails closed: no
+// exemption, the ordinary fragment requirement stands.
+const ADDED_RELEASE_HEADING = /^\+## (\d+\.\d+\.\d+)(?=[\s.])/gm;
+const PLUGIN_MANIFEST = path.join('.claude-plugin', 'plugin.json');
+
+function pluginManifestVersion(root) {
+  try {
+    const raw = fs.readFileSync(path.join(root, PLUGIN_MANIFEST), 'utf8');
+    const version = JSON.parse(raw).version;
+    return typeof version === 'string' ? version : null;
+  } catch {
+    return null;
+  }
+}
+
+function headingPresent(text, version) {
+  return new RegExp(`^## ${version.replace(/\./g, '\\.')}(?=[\\s.])`, 'm').test(text);
+}
 
 function releaseSectionAddedSince(root, diffBase) {
-  const out = execFileSync('git', ['diff', '--unified=0', `${diffBase}...HEAD`, '--', 'CHANGELOG.md'], {
-    cwd: root,
-    encoding: 'utf8',
-  });
-  return RELEASE_HEADING_ADDED.test(out);
+  const diff = git(root, ['diff', '--unified=0', `${diffBase}...HEAD`, '--', 'CHANGELOG.md']);
+  const addedVersions = [...diff.matchAll(ADDED_RELEASE_HEADING)].map((m) => m[1]);
+  if (addedVersions.length === 0) return false;
+
+  const manifestVersion = pluginManifestVersion(root);
+  if (!manifestVersion || !addedVersions.includes(manifestVersion)) return false;
+
+  // `git show` exits non-zero when CHANGELOG.md is absent at the base, which is
+  // itself proof the section is new — so this one call stays tolerant.
+  let baseChangelog = '';
+  try {
+    baseChangelog = execFileSync('git', ['show', `${diffBase}:CHANGELOG.md`], {
+      cwd: root,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    });
+  } catch {
+    baseChangelog = '';
+  }
+  return !headingPresent(baseChangelog, manifestVersion);
 }
 
 function main() {
