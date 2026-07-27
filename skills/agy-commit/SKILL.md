@@ -1,7 +1,10 @@
 ---
 name: agy-commit
-description: 'Delegate git smart commit to agy-cli. Use when: committing changes via agy-cli''s git-smart-commit skill (offload commit batching to Antigravity). Not for: a single simple commit, or when agy-cli is unavailable. Output: grouped commits created by agy-cli plus a git log summary.'
+description: 'Delegates git smart commit to agy-cli''s git-smart-commit skill, offloading commit batching to Antigravity. Not for: a single simple commit, or when agy-cli is unavailable. Output: grouped commits created by agy-cli plus a git log summary.'
 allowed-tools: Bash, Read, Grep, Glob
+disable-model-invocation: true
+metadata:
+  dhpk-invocation-class: explicit-only
 ---
 
 # agy-commit — 委派 agy-cli 執行智慧拆分提交

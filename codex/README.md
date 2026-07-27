@@ -38,6 +38,18 @@ The script copies `config.toml.example` next to (not over) any existing `.codex/
 
 The script detects the version delta from `.dhpk-installed.json` and re-syncs everything.
 
+## Invoke a skill
+
+Skill invocation is chat syntax, not a plugin-management command — `codex
+plugin list` / `codex plugin add` only install or report status; they never
+execute a skill. Every synced skill carries its own `$<skill-name>` trigger
+(baked into its `agents/openai.yaml` `default_prompt`), and this repo's
+generic namespace is `$dhpk:<skill-name>` when Codex resolves the skill
+through the dhpk plugin. Use the unprefixed `$<skill-name>` form only once
+you have verified the skill is exposed on a standalone local surface without
+a plugin namespace — do not infer that from `codex plugin list` showing dhpk
+as installed; confirm the skill actually resolves first.
+
 ## Agent roles
 
 `codex/agents/` ships 11 roles (synced into `.codex/agents/`): 4 hand-maintained generic roles (`explorer`, `worker`, `monitor`, `bug-investigator`) plus 7 roles generated from the canonical Claude agents (`architect`, `code-reviewer`, `security-reviewer`, `database-reviewer`, `tdd-guide`, `deep-reasoner`, `doc-reviewer`). See `AGENTS.md` for the full role map and manual invocation workflows.

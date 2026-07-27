@@ -1,6 +1,8 @@
 ---
 name: gitnexus-cli
 description: 'Run GitNexus CLI commands (analyze, status, clean, wiki, list). Use when: indexing or re-indexing a repo, checking index freshness, generating a wiki, listing indexed repos. Not for: querying the graph (use gitnexus-exploring), tool/schema reference (use gitnexus-guide). Output: the npx gitnexus command to run + next step.'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # GitNexus CLI Commands

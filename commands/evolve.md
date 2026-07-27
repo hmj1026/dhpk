@@ -2,6 +2,8 @@
 name: evolve
 description: 'Analyze instincts and suggest or generate evolved structures'
 disable-model-invocation: true
+metadata:
+  dhpk-invocation-class: explicit-only
 ---
 
 # Evolve Command

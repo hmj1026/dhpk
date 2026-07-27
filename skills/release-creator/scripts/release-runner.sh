@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [ "$#" -ne 6 ]; then
-    echo "usage: release-runner.sh <prepare|publish> <version> <base-branch> <release-branch> <tag-prefix> <workflow>" >&2
+if [ "$#" -lt 6 ]; then
+    echo "usage: release-runner.sh <prepare|publish> <version> <base-branch> <release-branch> <tag-prefix> <workflow> [release-file ...]" >&2
     exit 2
 fi
 
@@ -13,26 +13,72 @@ release_branch="$4"
 tag_prefix="$5"
 workflow="$6"
 tag="${tag_prefix}${version}"
+shift 6
+release_files=("$@")
+
+if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "release-runner: version must match X.Y.Z" >&2
+    exit 2
+fi
 
 case "$phase" in
     prepare)
+        if [ "${#release_files[@]}" -eq 0 ]; then
+            echo "release-runner: prepare requires explicit release files" >&2
+            exit 2
+        fi
+
         git checkout "$base_branch"
-        git pull
-        git add -A
+        git pull --ff-only
+
+        dirty="$(git status --porcelain --untracked-files=all)"
+        unexpected_paths=""
+        while IFS= read -r status_line; do
+            [ -z "$status_line" ] && continue
+            path="${status_line:3}"
+            case "$path" in
+                *" -> "*) path="${path##* -> }" ;;
+            esac
+            allowed=0
+            for release_file in "${release_files[@]}"; do
+                if [ "$path" = "$release_file" ]; then
+                    allowed=1
+                    break
+                fi
+            done
+            if [ "$allowed" -eq 0 ]; then
+                unexpected_paths="${unexpected_paths}${path}\n"
+            fi
+        done <<< "$dirty"
+        if [ -n "$unexpected_paths" ]; then
+            printf 'release-runner: unexpected worktree changes:\n%b' "$unexpected_paths" >&2
+            exit 1
+        fi
+
+        git add -- "${release_files[@]}"
         git commit -m "chore(release): bump version to $version and update changelog"
         git push origin "$base_branch"
         gh pr create --head "$base_branch" --base "$release_branch" --title "Release $tag" --body "Release version $version"
         ;;
     publish)
-        merged_at="$(gh pr view "$base_branch" --json mergedAt --jq '.mergedAt')"
+        if [ "${#release_files[@]}" -ne 0 ]; then
+            echo "release-runner: publish does not accept release files" >&2
+            exit 2
+        fi
+
+        merged_at="$(gh pr list --head "$base_branch" --base "$release_branch" --state merged --limit 1 --json mergedAt --jq '.[0].mergedAt // empty')"
         if [ -z "$merged_at" ]; then
             echo "release-runner: release PR for $base_branch is not merged" >&2
             exit 1
         fi
 
         git checkout "$release_branch"
-        git pull
-        git tag "$tag"
+        git pull --ff-only
+        if [ -n "$(git tag --list "$tag")" ]; then
+            echo "release-runner: tag $tag already exists; tags are immutable" >&2
+            exit 1
+        fi
+        git tag -a "$tag" -m "Release $tag"
         git push origin "$tag"
 
         poll_attempts="${DHPK_RELEASE_POLL_ATTEMPTS:-30}"
@@ -55,7 +101,7 @@ case "$phase" in
         gh run watch "$run_id"
 
         git checkout "$base_branch"
-        git pull
+        git pull --ff-only
         ;;
     *)
         echo "release-runner: phase must be prepare or publish" >&2

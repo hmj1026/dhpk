@@ -1,6 +1,8 @@
 ---
 name: composer-package-hygiene
 description: Composer-published package contract review. Use when: deciding semver, auditing public API or composer.json, validating Laravel package discovery, or coordinating a package release. Not for: everyday application code, language idioms, or Laravel-specific authoring mechanics. Output: a contract verdict, audited manifest, or release gate backed by the package-contract reference.
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # Composer package hygiene

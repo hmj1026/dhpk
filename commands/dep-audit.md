@@ -2,6 +2,8 @@
 description: 'Audit dependency security risks'
 argument-hint: '[--level <severity>] [--fix]'
 allowed-tools: 'Bash(yarn audit *), Bash(npm audit *), Bash(pnpm audit *), Bash(npx *), Bash(bash *), Read, Glob'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 ⚠️ **Must read and follow the skill below before executing this command:**

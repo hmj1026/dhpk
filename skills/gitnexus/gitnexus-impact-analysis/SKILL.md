@@ -1,6 +1,8 @@
 ---
 name: gitnexus-impact-analysis
 description: 'Assess the blast radius of a code change via the GitNexus graph. Use when: asking what breaks if you change X, who depends on a symbol, or for a pre-commit safety check. Not for: understanding how code works (use gitnexus-exploring), bug tracing (use gitnexus-debugging), performing the rename/refactor (use gitnexus-refactoring). Output: a depth-ranked dependents list + risk level.'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # Impact Analysis with GitNexus

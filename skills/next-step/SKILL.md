@@ -2,6 +2,8 @@
 name: next-step
 argument-hint: '[--go] [--feature <key>]'
 description: 'Change-aware next step advisor. Use when: user asks what to do next, workflow progression is unclear, session just started with dirty worktree. Not for: executing the suggested command (user decides), auto-loop decisions (hooks handle that). Output: findings-based suggestions or session summary with commit seed.'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # Next Step Advisor
@@ -59,15 +61,32 @@ Then use the Progression Tables below.
 
 ## Dispatch Mode (--go flag)
 
-When `--go` is provided, auto-execute the top `next_action` IF:
-- `next_actions[0]` exists AND `confidence >= 0.8`
-- No P0 findings
-- Command is not null
+Normal `next-step` (no `--go`) is always advisory: it presents the
+recommendation and rationale and never invokes anything.
 
-Output: "Auto-dispatching: [command] [args]" then invoke the Skill tool and report the result.
+When `--go` is provided, first resolve `next_actions[0]`'s command target's
+`metadata.dhpk-invocation-class` (full precedence contract:
+`${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/invocation-precedence.md`).
+
+- **Target is `implicit-eligible`** — auto-execute the top `next_action` IF:
+  - `next_actions[0]` exists AND `confidence >= 0.8`
+  - No P0 findings
+  - Command is not null
+
+  Output: "Auto-dispatching: [command] [args]" then invoke the Skill tool and
+  report the result.
+- **Target is `explicit-only`** — even when confidence ≥ 0.8 and no P0
+  findings hold, do NOT invoke the Skill tool. Output the exact supported
+  invocation instead: "Recommended: [command] [args] — explicit-only, run it
+  directly." and stop. A prose acceptance of this recommendation from the
+  user does not retroactively authorize dispatching it; the recommendation
+  stays confirmed-but-not-invoked until the user supplies the exact
+  invocation themselves.
 
 Safety constraints:
 - NEVER dispatch on P0. Fall back to advisory mode if confidence < 0.8.
+- NEVER dispatch an `explicit-only` target regardless of confidence — present
+  its exact invocation and wait.
 - Only skill slash-commands from `next_actions` are dispatched (via Skill tool). No arbitrary shell execution.
 - Arguments are limited to file paths and flags extracted by `buildNextActions` — no user-supplied strings.
 

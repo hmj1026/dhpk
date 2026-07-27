@@ -1,140 +1,168 @@
-# Release process (git flow)
+# Release process
 
-dhpk follows the **git flow** branching model. `develop` is a permanent
-long-lived branch and is **never deleted**.
+dhpk uses a direct, PR-driven release flow:
 
 ```
-feature/*, fix/* ─┐
-                  ├─(PR)─► develop ─(PR, release cut)─► main ─► tag vX.Y.Z ─► CI Release + auto back-merge ─► develop
-                  ┘                                                                                              │
-                                                                                                     new feature/* ◄┘
+feature/*, fix/* ──► develop ──(release PR)──► main ──► annotated vX.Y.Z tag
+                                      │                         │
+                                      │                         └─ Release CI
+                                      └─────────────────────────── back-merge
 ```
 
-Landing work on `develop` and cutting a release are two **decoupled** activities:
-branches merge into `develop` independently, whenever they're ready; a release
-(`develop` → `main`) is a separate, deliberate action that can batch however many
-branches have landed since the last one. It's fine to merge and then intentionally
-defer the release.
+`develop` is the permanent integration branch. A release is a deliberate
+`develop` → `main` pull request; it does not use a temporary `release/*`
+branch. The pull request is the release candidate boundary, and the tag is
+created only after that pull request is merged.
+
+## Contract language
+
+- **Release candidate** — the version and changelog changes proposed by the
+  release PR.
+- **Published release** — the immutable `vX.Y.Z` tag, successful Release
+  workflow, GitHub Release, and successful `main` → `develop` back-merge.
+- **Consumer update** — a separate action that refreshes a Claude or Codex
+  consumer. A published release does not imply that every consumer updated.
+- **Immutable tag** — a tag that is never moved, deleted, or reused. A
+  correction requires a new patch version.
 
 ## Branch rules
 
-- **`main`** — the released line (acts as master). Only receives merges via PR.
-- **`develop`** — permanent integration branch. Always kept in sync with `main`
-  (the `sync-develop` CI job back-merges automatically after every release).
-- **`feature/*`** — cut **from `develop`**, never from `main`. Use the git-flow
-  CLI, not a manual `checkout -b` — manual branch creation has actually forked
-  from `main` by mistake before, which then required a corrective merge to fix:
+- **`main`** — released line. It receives changes through pull requests only.
+- **`develop`** — permanent integration branch. It must be synchronized with
+  `main` after every published release and is never deleted.
+- **`feature/*` and `fix/*`** — branch from `develop` and merge back through a
+  pull request.
+- **`hotfix/*`** — exceptional emergency lane from `main`; merge the fix to
+  both `main` and `develop` through the normal human approval boundary.
+- **`release/*`** — not part of the normal dhpk release contract.
 
-  ```bash
-  git flow feature start <name>    # creates feature/<name> from develop
-  git flow feature finish <name>   # merges back into develop, deletes the branch
-  ```
+Temporary branches may be removed only after release provenance is verified:
+the relevant tag, GitHub Release, Release workflow, and branch comparison must
+show that the branch has no unreleased work. Never delete a branch merely
+because it looks merged.
 
-- **`fix/*`** — dhpk's actual bug-fix branch, cut from `develop` and merged the
-  same way as `feature/*` (no dedicated git-flow subcommand for this prefix —
-  branch it manually the same way, just off `develop`):
+## Release candidate preparation
 
-  ```bash
-  git checkout develop && git pull
-  git checkout -b fix/<name>
-  ```
+1. Confirm that `develop` contains the intended changes and is up to date:
 
-- **`hotfix/*`** — git-flow's standard emergency-patch lane: branch from `main`
-  for a critical fix that can't wait for `develop`, merge back into both `main`
-  and `develop`. **Not used so far in this repo** — every real bug fix to date
-  has gone through `fix/*` off `develop` instead. Keep this lane in mind only if
-  a true emergency (prod broken, can't wait for a normal PR) ever comes up.
-- **`release/*`** — managed via `git flow release`. A temporary branch cut from
-  `develop` to perform the version bump and finalize the changelog before merging
-  to `main` and back-merging to `develop`.
-
-## Landing work on `develop`
-
-Each `feature/*`/`fix/*` branch merges into `develop` via its own PR as soon as
-it's ready, independent of release timing. The PR must pass `.github/workflows/ci.yml`'s
-`validate` job (`scripts/ci/validate-{agents,skills,commands,modules,plugin}.js
---strict`, `catalog.js --check`, and `node tests/run-all.js` — this is where
-`tests/codex-plugin-manifest.test.js` actually runs, not in `release.yml`) plus
-its non-blocking `lint` job.
-
-**PR merges are always a manual human action.** An auto-mode classifier blocks
-`gh pr merge` on any PR that Claude/an agent authored and pushed itself, even
-under an explicit "execute through to release" instruction. Expect to prepare
-commits/PR/tag and hand off the actual merge click to a human — this applies to
-both the feature/fix→develop PR above and the develop→main release PR below.
-
-## Cutting a release
-
-A release is its own deliberate action, managed via the `git flow release` workflow to ensure main, develop, and tags are cleanly synchronized.
-
-1. Make sure `develop` has everything you want in this release (finish and merge any pending `feature/*`/`fix/*` branches first).
-2. **Start the release**:
    ```bash
-   git checkout develop && git pull
-   git flow release start X.Y.Z
+   git checkout develop
+   git pull --ff-only
    ```
-3. **Bump version** (semver) in `.claude-plugin/plugin.json` and, in lockstep, `.codex-plugin/plugin.json`, `plugins/dhpk/.codex-plugin/plugin.json`, and `.agents/plugins/marketplace.json` — `tests/codex-plugin-manifest.test.js` fails CI if any of these drift out of sync.
-4. **Write the changelog** — change the `## [Unreleased]` section at the top of `CHANGELOG.md` to `## X.Y.Z — YYYY-MM-DD — <summary>`. The header format matters: the Release workflow extracts notes with `awk "/^## ${VERSION} /"`, so keep the space after the version number.
-5. **Commit the changes** on the release branch:
+
+2. Confirm the worktree is clean before authoring the candidate. The only
+   permitted release edits are the version manifests and `CHANGELOG.md`:
+
+   - `.claude-plugin/plugin.json`
+   - `.codex-plugin/plugin.json`
+   - `plugins/dhpk/.codex-plugin/plugin.json`
+   - `.agents/plugins/marketplace.json`
+   - `CHANGELOG.md`
+
+   All four manifests must contain the same SemVer version. The tag format is
+   exactly `vX.Y.Z`.
+
+3. Replace the top `## [Unreleased]` section with a non-empty heading in this
+   format:
+
+   ```markdown
+   ## X.Y.Z — YYYY-MM-DD — summary
+   ```
+
+4. Run the release validation before creating the PR:
+
    ```bash
-   git add .
-   git commit -m "chore(release): bump version to X.Y.Z and update changelog"
+   bash scripts/validate/validate-harness.sh
+   node scripts/ci/validate-agents.js --strict
+   node scripts/ci/validate-skills.js --strict
+   node scripts/ci/validate-commands.js --strict
+   node scripts/ci/validate-modules.js --strict
+   node scripts/ci/validate-plugin.js --strict
+   node scripts/ci/catalog.js --check all
+   node tests/run-all.js
    ```
-6. **Finish the release**:
-   Run git-flow finish (use `EDITOR=true` to skip interactive editor prompt):
+
+   The release PR must pass the `validate` and Markdown `lint` jobs. The tag
+   workflow does not replace pull-request validation.
+
+5. Prepare the direct `develop` → `main` PR. Pass every intended release file
+   explicitly; the runner rejects unrelated worktree changes and never stages
+   the whole repository implicitly:
+
    ```bash
-   EDITOR=true git flow release finish -m "Release vX.Y.Z" X.Y.Z
+   bash "${CLAUDE_PLUGIN_ROOT}/skills/release-creator/scripts/release-runner.sh" \
+     prepare X.Y.Z develop main v release.yml \
+     .claude-plugin/plugin.json \
+     .codex-plugin/plugin.json \
+     plugins/dhpk/.codex-plugin/plugin.json \
+     .agents/plugins/marketplace.json \
+     CHANGELOG.md
    ```
-7. **Fix tag prefix**:
-   By default, git-flow tags the release without a `v` prefix. Correct the tag name to match our `vX.Y.Z` convention:
-   ```bash
-   git tag -a vX.Y.Z -m "Release vX.Y.Z" main
-   git tag -d X.Y.Z
-   ```
-8. **Push to origin**:
-   Push main, develop, and the tag:
-   ```bash
-   git push origin main develop vX.Y.Z
-   ```
-9. **CI takes over** (`.github/workflows/release.yml`, triggered by `v*`):
-   - `release` job — creates the GitHub Release from the CHANGELOG notes, or **updates it** if one already exists for that tag (an upsert). Don't manually run `gh release create` after pushing the tag — CI already handles it. Use `gh release edit` if you need to fix the notes afterward.
-   - `sync-develop` job — automates back-merging `main` into `develop` (`--no-ff`) and pushes, so `develop` never falls behind.
 
-## After release — consumers
+## Merge and publish
 
-Consumers load dhpk from the plugin **cache**, not this repo directly. Making a
-new version live for an installed consumer takes more than a pushed tag:
+Pull-request merge is always a human action. An agent may prepare the release
+commit and PR, but must stop at the merge gate.
 
-1. Check `known_marketplaces.json` for whether the marketplace source is a
-   GitHub remote or a local directory — this affects whether push/tag matter
-   for that consumer.
-2. `claude plugin marketplace update dhpk` (or the equivalent) to fetch the new
-   version into the cache.
-3. **Known trap:** running `claude plugin install dhpk@dhpk@vX.Y.Z` when dhpk
-   is already installed prints "already installed" and **no-ops** — it does
-   NOT switch the pinned version in `installed_plugins.json`, even though the
-   new version was fetched to cache. Fix: `claude plugin uninstall dhpk@dhpk
-   && claude plugin install dhpk@dhpk@vX.Y.Z`.
-4. Start a **fresh session** afterward — required even after a correct
-   reinstall. Agent/skill definitions are snapshotted per session (or per
-   cache version) and don't refresh mid-session.
-
-For fast local iteration on in-progress source changes — no release needed —
-use `claude --plugin-dir <path-to-this-repo>` instead. It reads the plugin
-live from the working tree, bypassing install/cache/version-pin entirely (see
-README.md § Development). This is for dev iteration only; it doesn't exercise
-the real consumer install path above.
-
-## If the automatic back-merge fails
-
-The `sync-develop` job fails **loudly** on a merge conflict (it never silently
-drops the back-merge). Resolve by hand:
+After the human confirms that the release PR is merged, publish the tag:
 
 ```bash
-git checkout develop && git pull
-git merge --no-ff origin/main      # resolve conflicts
-git push origin develop
+bash "${CLAUDE_PLUGIN_ROOT}/skills/release-creator/scripts/release-runner.sh" \
+  publish X.Y.Z develop main v release.yml
 ```
 
-Branch protection on `develop` can also block the CI push — in that case do the
-back-merge via a PR from `main` into `develop`.
+The publish phase:
+
+- verifies a merged `develop` → `main` PR;
+- fast-forwards the local `main` checkout;
+- refuses an existing tag because tags are immutable;
+- creates an annotated `vX.Y.Z` tag on `main`;
+- pushes the tag and watches the Release workflow run for that exact tag; and
+- returns to `develop` only after the workflow succeeds.
+
+The Release workflow accepts only `vX.Y.Z` tags, verifies that the tag commit
+is contained in `origin/main`, rejects missing or whitespace-only changelog
+notes, and creates a GitHub Release from those notes. If the GitHub Release
+already exists, a rerun preserves it rather than editing its metadata.
+
+## Release completion and recovery
+
+A release is complete only when all of these states hold:
+
+1. the release PR is merged;
+2. the immutable tag exists;
+3. the Release workflow and GitHub Release succeed; and
+4. the `sync-develop` job successfully back-merges `main` into `develop`.
+
+The back-merge uses `--no-ff`. Conflicts or branch-protection failures remain
+blocking; resolve them through a human PR from `main` to `develop`.
+
+Do not move, delete, or reuse a published tag. If a release is defective,
+rollback means reinstalling the previous known-good immutable version and
+starting a fresh consumer session. A correction is a new patch release.
+
+The durable release evidence is the version, tag SHA, CI run, GitHub Release,
+and back-merge result. Session-local reports may supplement that evidence but
+are not themselves proof of publication.
+
+## Consumer update boundary
+
+Publishing does not update installed consumers automatically.
+
+- Claude marketplace installation is the supported primary consumer path.
+- `scripts/hooks/install-codex-skills.sh` is the supported Codex project sync
+  path.
+- Codex marketplace remains Experimental.
+- Gemini and Antigravity remain Adapter-only.
+- `claude --plugin-dir <path>` is Development-only and must not be used as
+  proof that a published consumer version works.
+
+For an installed Claude consumer, update the marketplace, reinstall when a
+version pin prevents `install` from changing the cached version, and start a
+fresh session. Verify Codex consumers with the supported install/update script
+and its recorded version/fingerprint.
+
+## Non-goals
+
+This contract does not auto-merge pull requests, auto-reinstall consumers, add
+new distribution surfaces, or promise native parity for adapter platforms.

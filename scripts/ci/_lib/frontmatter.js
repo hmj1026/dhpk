@@ -70,4 +70,60 @@ function isEmpty(val) {
   return val.replace(/^(['"])(.*)\1$/, '$2').trim() === '';
 }
 
-module.exports = { extract, isEmpty };
+const KNOWN_INVOCATION_CLASSES = new Set(['explicit-only', 'implicit-eligible']);
+
+/**
+ * Reads the invocation-class policy field from a SKILL.md/command frontmatter
+ * block. This is a separate, additive reader — it does not use or change
+ * `extract()`'s flat top-level contract, because the canonical shape is a
+ * nested mapping under `metadata:`, and `extract()` deliberately skips
+ * indented (nested) lines.
+ *
+ * @param {string} content
+ * @returns {{present:boolean, value:string|null, unknownValue:boolean, dottedSubstitute:boolean}}
+ */
+function extractInvocationClass(content) {
+  const clean = content.replace(/^﻿/, '');
+  const m = clean.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
+  if (!m) {
+    return { present: false, value: null, unknownValue: false, dottedSubstitute: false };
+  }
+
+  const lines = m[1].split(/\r?\n/);
+  let dottedSubstitute = false;
+  let present = false;
+  let value = null;
+
+  for (let i = 0; i < lines.length; i += 1) {
+    const raw = lines[i];
+    if (/^\s/.test(raw)) continue; // only scanning top-level lines in this pass
+
+    const dotted = raw.match(/^metadata\.dhpk-invocation-class:\s*(.*)$/);
+    if (dotted) {
+      dottedSubstitute = true;
+      continue;
+    }
+
+    if (!/^metadata:\s*$/.test(raw)) continue;
+
+    // Nested block: collect indented lines until a dedent back to top level.
+    let j = i + 1;
+    while (j < lines.length && /^\s+\S/.test(lines[j])) {
+      const nested = lines[j].match(/^\s+dhpk-invocation-class:\s*(.*)$/);
+      if (nested) {
+        present = true;
+        value = nested[1].trim().replace(/^(['"])(.*)\1$/, '$2');
+      }
+      j += 1;
+    }
+  }
+
+  return {
+    present,
+    value,
+    unknownValue: present && value != null && !KNOWN_INVOCATION_CLASSES.has(value),
+    dottedSubstitute,
+  };
+}
+
+module.exports = { extract, isEmpty, extractInvocationClass, KNOWN_INVOCATION_CLASSES };

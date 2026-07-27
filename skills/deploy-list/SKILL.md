@@ -6,6 +6,8 @@ triggers:
   - deploy list
   - 部署清單
   - deploy checklist
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # deploy-list

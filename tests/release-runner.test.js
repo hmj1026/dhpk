@@ -31,7 +31,10 @@ test('prepare creates the release PR and stops before tagging', () => {
         : '#!/bin/sh\nprintf "git %s\\n" "$*" >> "$CALL_LOG"\n';
       fs.writeFileSync(path.join(bin, name), body, { mode: 0o755 });
     }
-    const res = spawnSync('bash', [RUNNER, 'prepare', '1.2.3', 'develop', 'main', 'v', 'release.yml'], {
+    const res = spawnSync('bash', [
+      RUNNER, 'prepare', '1.2.3', 'develop', 'main', 'v', 'release.yml',
+      '.claude-plugin/plugin.json', 'CHANGELOG.md',
+    ], {
       cwd: tmp,
       encoding: 'utf8',
       env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, CALL_LOG: log },
@@ -39,7 +42,7 @@ test('prepare creates the release PR and stops before tagging', () => {
     assert.strictEqual(res.status, 0, res.stderr);
     const calls = fs.readFileSync(log, 'utf8');
     const ordered = [
-      'git checkout develop', 'git pull', 'git add -A',
+      'git checkout develop', 'git pull', 'git add -- .claude-plugin/plugin.json CHANGELOG.md',
       'git commit -m chore(release): bump version to 1.2.3 and update changelog',
       'git push origin develop',
       'gh pr create --head develop --base main --title Release v1.2.3 --body Release version 1.2.3',
@@ -71,7 +74,7 @@ test('publish refuses to tag while the release PR is unmerged', () => {
     });
     assert.notStrictEqual(res.status, 0);
     const calls = fs.existsSync(log) ? fs.readFileSync(log, 'utf8') : '';
-    assert.ok(calls.includes('gh pr view develop --json mergedAt --jq .mergedAt'), calls);
+    assert.ok(calls.includes('gh pr list --head develop --base main --state merged --limit 1 --json mergedAt --jq .[0].mergedAt // empty'), calls);
     assert.ok(!calls.includes('git tag '), calls);
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 });
@@ -86,7 +89,7 @@ test('publish waits for and watches only the workflow run for the new tag', () =
     fs.writeFileSync(path.join(bin, 'git'), '#!/bin/sh\nprintf "git %s\\n" "$*" >> "$CALL_LOG"\n', { mode: 0o755 });
     fs.writeFileSync(path.join(bin, 'gh'), `#!/bin/sh
 printf "gh %s\\n" "$*" >> "$CALL_LOG"
-if [ "$1 $2" = "pr view" ]; then printf "2026-07-18T12:00:00Z\\n"; fi
+if [ "$1 $2" = "pr list" ]; then printf "2026-07-18T12:00:00Z\\n"; fi
 if [ "$1 $2" = "run list" ]; then
   n=0
   [ -f "$COUNT_FILE" ] && n=$(sed -n '1p' "$COUNT_FILE")
@@ -111,7 +114,7 @@ exit 0
     assert.strictEqual(res.status, 0, res.stderr);
     const calls = fs.readFileSync(log, 'utf8');
     assert.ok(calls.includes('git checkout main'), calls);
-    assert.ok(calls.includes('git tag v1.2.3'), calls);
+    assert.ok(calls.includes('git tag -a v1.2.3 -m Release v1.2.3'), calls);
     const query = 'gh run list --workflow release.yml --branch v1.2.3 --event push --limit 1 --json databaseId --jq .[0].databaseId // empty';
     assert.strictEqual(calls.split(query).length - 1, 2, calls);
     assert.ok(calls.includes('gh run watch run-123'), calls);
@@ -125,7 +128,7 @@ test('publish fails when the tag workflow never appears', () => {
     const log = path.join(tmp, 'calls.log');
     fs.mkdirSync(bin);
     fs.writeFileSync(path.join(bin, 'git'), '#!/bin/sh\nprintf "git %s\\n" "$*" >> "$CALL_LOG"\n', { mode: 0o755 });
-    fs.writeFileSync(path.join(bin, 'gh'), '#!/bin/sh\nprintf "gh %s\\n" "$*" >> "$CALL_LOG"\n[ "$1 $2" = "pr view" ] && printf "2026-07-18T12:00:00Z\\n"\nexit 0\n', { mode: 0o755 });
+    fs.writeFileSync(path.join(bin, 'gh'), '#!/bin/sh\nprintf "gh %s\\n" "$*" >> "$CALL_LOG"\n[ "$1 $2" = "pr list" ] && printf "2026-07-18T12:00:00Z\\n"\nexit 0\n', { mode: 0o755 });
     const res = spawnSync('bash', [RUNNER, 'publish', '1.2.3', 'develop', 'main', 'v', 'release.yml'], {
       cwd: tmp,
       encoding: 'utf8',
@@ -147,6 +150,62 @@ test('release runner rejects missing tokens before invoking commands', () => {
   const res = spawnSync('bash', [RUNNER, '1.2.3'], { encoding: 'utf8' });
   assert.strictEqual(res.status, 2);
   assert.ok(res.stderr.includes('usage:'));
+});
+
+test('release runner rejects versions that are not strict semver', () => {
+  const res = spawnSync('bash', [RUNNER, 'publish', '1.2', 'develop', 'main', 'v', 'release.yml'], {
+    encoding: 'utf8',
+  });
+  assert.strictEqual(res.status, 2);
+  assert.ok(res.stderr.includes('version must match X.Y.Z'), res.stderr);
+});
+
+test('prepare stages only explicitly declared release files', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-release-runner-'));
+  try {
+    const bin = path.join(tmp, 'bin');
+    const log = path.join(tmp, 'calls.log');
+    fs.mkdirSync(bin);
+    fs.writeFileSync(path.join(bin, 'git'), '#!/bin/sh\nprintf "git %s\\n" "$*" >> "$CALL_LOG"\n', { mode: 0o755 });
+    fs.writeFileSync(path.join(bin, 'gh'), '#!/bin/sh\nprintf "gh %s\\n" "$*" >> "$CALL_LOG"\n', { mode: 0o755 });
+    const res = spawnSync('bash', [
+      RUNNER, 'prepare', '1.2.4', 'develop', 'main', 'v', 'release.yml',
+      '.claude-plugin/plugin.json', 'CHANGELOG.md',
+    ], {
+      cwd: tmp,
+      encoding: 'utf8',
+      env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, CALL_LOG: log },
+    });
+    assert.strictEqual(res.status, 0, res.stderr);
+    const calls = fs.readFileSync(log, 'utf8');
+    assert.ok(calls.includes('git add -- .claude-plugin/plugin.json CHANGELOG.md'), calls);
+    assert.ok(!calls.includes('git add -A'), calls);
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('prepare refuses unrelated worktree changes before committing', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-release-runner-'));
+  try {
+    const bin = path.join(tmp, 'bin');
+    const log = path.join(tmp, 'calls.log');
+    fs.mkdirSync(bin);
+    fs.writeFileSync(path.join(bin, 'git'), `#!/bin/sh
+printf "git %s\\n" "$*" >> "$CALL_LOG"
+if [ "$1 $2" = "status --porcelain" ]; then printf " M unrelated.md\\n"; fi
+`, { mode: 0o755 });
+    fs.writeFileSync(path.join(bin, 'gh'), '#!/bin/sh\nprintf "gh %s\\n" "$*" >> "$CALL_LOG"\n', { mode: 0o755 });
+    const res = spawnSync('bash', [
+      RUNNER, 'prepare', '1.2.5', 'develop', 'main', 'v', 'release.yml',
+      '.claude-plugin/plugin.json', 'CHANGELOG.md',
+    ], {
+      cwd: tmp,
+      encoding: 'utf8',
+      env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, CALL_LOG: log },
+    });
+    assert.notStrictEqual(res.status, 0);
+    assert.ok(res.stderr.includes('unexpected worktree changes'), res.stderr);
+    assert.ok(!fs.readFileSync(log, 'utf8').includes('git commit'), fs.readFileSync(log, 'utf8'));
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 });
 
 run('release-runner');

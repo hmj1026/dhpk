@@ -3,6 +3,8 @@ name: bug-fix
 description: 'Bug fix workflow. Use when: fixing bugs, resolving issues, regression fixes. Not for: new features (use feature-dev), understanding code (use code-explore). Output: fix + regression test + review gate.'
 argument-hint: '[--codex] <bug description / issue ref>'
 allowed-tools: 'Read, Grep, Glob, Edit, Write, Bash, Skill'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # Bug Fix Skill

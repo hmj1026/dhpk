@@ -2,6 +2,8 @@
 description: 'Review technical spec documents from completeness, feasibility, risk, and code consistency perspectives.'
 argument-hint: '<file path>'
 allowed-tools: 'Read, Grep, Glob, Bash(git:*), Bash(node:*)'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 ⚠️ **Must read and follow the skill below before executing this command:**

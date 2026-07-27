@@ -2,6 +2,9 @@
 description: 'Create GitHub PR from branch — auto-extract ticket, generate title/body, dry-run by default'
 argument-hint: '[--head <branch>] [--base <branch>] [--title <text>] [--execute] [--dry-run]'
 allowed-tools: 'Bash(git:*), Bash(gh:*), Read, Grep, Glob'
+disable-model-invocation: true
+metadata:
+  dhpk-invocation-class: explicit-only
 ---
 
 ## Context

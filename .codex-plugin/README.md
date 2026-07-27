@@ -1,6 +1,6 @@
 # .codex-plugin — Codex Native Plugin for dhpk
 
-This directory contains the **Codex plugin manifest** for dhpk.
+This directory contains the **experimental Codex plugin manifest** for dhpk.
 
 ## Structure
 
@@ -21,7 +21,7 @@ config remains a per-project concern handled by `codex/config.toml.example`
 
 ## Installation
 
-Codex plugin support is marketplace-backed. The repo exposes a repo-scoped
+Codex plugin support is marketplace-backed and experimental. The repo exposes a repo-scoped
 marketplace at `.agents/plugins/marketplace.json`; Codex can add and track
 that marketplace source from the CLI:
 
@@ -40,19 +40,17 @@ so the entry must target a concrete plugin subdirectory (see
 thin plugin folder references the root `codex/skills/` so content stays
 single-sourced; see `plugins/dhpk/README.md` for the full rationale.
 
-After adding the marketplace:
+After adding the marketplace, treat the following as a discovery experiment,
+not proof that the runtime can load the skills:
 
 ```bash
 codex plugin add dhpk@dhpk
 codex plugin list
 ```
 
-> **Plugin mode is currently experimental / fragile on Codex** (verified
-> against `codex-cli 0.142.5`). Marketplace discovery and install work with
-> this layout, but runtime skill loading from local/repo marketplaces is
-> unreliable upstream — Codex copies only the plugin folder into its install
-> cache, so parent-referenced content may not be exposed in a fresh session.
-> The safer, fully supported path today remains the manual sync script:
+> **Plugin mode is not the supported Codex distribution path.** Inspect the
+> installed plugin cache and confirm that `codex/skills/` materialized before
+> treating it as usable. The supported path today remains the manual sync script:
 > `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"`.
 
 ## Notes

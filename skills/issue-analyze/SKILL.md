@@ -2,6 +2,8 @@
 name: issue-analyze
 description: 'GitHub Issue and PR review thread deep analysis with Codex blind verdict. Use when: analyzing issue root cause, classifying problems, investigation planning, triaging PR review comments for actionability. Not for: fixing bugs (use bug-fix), code exploration (use code-explore). Output: classified analysis + verdict assessment + investigation strategy.'
 allowed-tools: 'Read, Grep, Glob, Bash(git:*), Bash(gh:*), mcp__codex__codex'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # Issue Analyze Skill

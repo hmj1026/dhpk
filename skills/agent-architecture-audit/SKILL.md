@@ -3,6 +3,8 @@ name: agent-architecture-audit
 description: 'Full-stack diagnostic for agent and LLM applications — audits the 12-layer agent stack for wrapper regression, memory pollution, tool-discipline failures, hidden repair loops, and rendering corruption. Use when: shipping an agent/LLM feature, an agent degrades after adding wrapper/memory/tool layers, the same model works in the playground but breaks in your wrapper, or debugging agent behavior >15 min with no root cause. Not for: general code debugging, code review, or security scanning (use security-review). Output: severity-ranked findings with code-first fixes.'
 origin: oh-my-agent-check
 tools: Read, Write, Edit, Bash, Grep, Glob
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # Agent Architecture Audit

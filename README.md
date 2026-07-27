@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE) [![Version](https://img.shields.io/github/v/tag/hmj1026/dhpk?label=version&sort=semver)](https://github.com/hmj1026/dhpk/tags) [![CI](https://img.shields.io/github/actions/workflow/status/hmj1026/dhpk/ci.yml?branch=main&label=CI)](https://github.com/hmj1026/dhpk/actions/workflows/ci.yml) [![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A63D2)](https://docs.claude.com/en/docs/claude-code/plugins)
 
-A generic, install-and-go Claude Code harness. Ships **32 role-based agents** (31 root + 1 module-scoped reviewer), ~45 registered dhpk commands (44 root + the `ts-check-status` JS-module command; the bundled codex / gitnexus / git trees ship their own separately), ~59 core skills + the `deploy-list` cross-project deploy file list generator + the **`/dhpk:do` Smart Router** (natural-language task routing via 20-pattern bilingual route table + LLM fallback) + **cross-session learning DB** (operational signal store with confidence decay, opt-in), **7-slot sentinel-driven review hooks** (code / db / sec / frontend / doc / **polyfill** / **migration** — polyfill via `library-author`, migration via module triggers or a `mig:` extra path; `doc-reviewer` covers both SSOT/link-validity and frontmatter schema for `.md` DSL artifacts), statusline, harness scripts, and **31 opt-in stack modules** across PHP (`php-5.6`, `php-7.4`, `php-8.x`), Yii (`yii-1.1`), PHPUnit (`phpunit-5.7`, `phpunit-9`, `phpunit-10`, `phpunit-11`), Laravel (`laravel-5.4`, `laravel-6` through `laravel-11`), JS (`js`), Vue (`vue-2`), Laravel Mix (`laravel-mix`), Next.js (`nextjs-15.5`, `nextjs-16`), React (`react-18`, `react-19`), Python (`python`, `fastapi`, `pytest`), the cross-cutting `library-author` module, and an **iOS/Swift suite** (`swift`, `swiftui`, `ios-platform`, `swift-testing`, `xcode-tooling`). Modules contribute hooks at runtime via the **wrapper-dispatch** model (see [`docs/hook-extension.md`](./docs/hook-extension.md)). Parallel Codex CLI tree included for dual-assistant projects.
+A generic, install-and-go Claude Code harness. It ships **32 role-based agents** (31 root-level agents plus one module-scoped reviewer), registered dhpk commands, core skills, the **`/dhpk:do` Smart Router** (natural-language task routing via a bilingual route table + LLM fallback), a cross-session learning DB (opt-in), **7-slot sentinel-driven review hooks** (code / db / sec / frontend / doc / polyfill / migration), statusline, harness scripts, and **31 opt-in stack modules** across PHP, Yii, PHPUnit, Laravel, JavaScript, Vue, Laravel Mix, Next.js, React, Python, and iOS/Swift. Modules contribute hooks at runtime via the **wrapper-dispatch** model (see [`docs/hook-extension.md`](./docs/hook-extension.md)). A curated Codex CLI projection is included for dual-assistant projects.
 
 > **Harness engineering over prompt engineering.** dhpk treats the agent's operating environment — hooks, sentinel review gates, routing rules, and stack-aware modules — as the unit of leverage. Rather than hand-tuning one-off prompts, you install a reusable harness that makes the right checks fire automatically and keeps the model on the rails across sessions.
 
@@ -46,14 +46,14 @@ Reconfigure any time with `/dhpk:setup` (or `/dhpk:setup --show` to print the cu
 
 | Component | Count | Notes |
 |-----------|------:|-------|
-| Agents | 31 root-level agents | 7 sentinel-driven reviewers across the slots: code / db / sec / **frontend** / **doc** / **polyfill** (slot 5, written by `library-author`) / **migration** (slot 6, opt-in via module triggers or a `mig:` extra path). Situational: architect, tdd-guide, refactor-cleaner, ui-ux-verifier, performance-analyzer, doc-updater, docs-lookup, harness-reviser, version-matrix-impact-reviewer, **swift-build-resolver** (iOS suite), **silent-failure-hunter** (error-handling audit), **spec-miner** (brownfield→OpenSpec extraction), **type-design-analyzer**, **agent-evaluator** (output-quality scorecard), **e2e-runner** (E2E journeys), **smoke-tester** (read-only live-runtime probe). |
-| Commands | ~45 | `dhpk:do` (Smart Router), `dhpk:create-dev`, `dhpk:codex-*`, `dhpk:review-pending`, `dhpk:smart-commit`, `dhpk:ts-check-status` (JS module), `dhpk:opsx-apply-resume` (needs OpenSpec), `dhpk:matrix-cell-onboard` (library-author), `dhpk:de-ai-flavor`, `dhpk:deploy-list`, `dhpk:harness-fill`, `dhpk:ui-ux-verify`, etc. |
-| Core skills | ~59 + extras | codex-*, gitnexus, tool-routing, dhpk-execution-policy, **adaptive-dev-workflow** (Feature/Bug/Maintenance classifier), **deploy-list** (cross-project deploy file list generator), **execution-checklist** (end-of-task self-check), `opsx-apply-resume` helpers (need OpenSpec) |
-| Stack modules | 31 | PHP: `php-5.6`, `php-7.4`, `php-8.x` · Yii: `yii-1.1` · PHPUnit: `phpunit-5.7`, `phpunit-9`, `phpunit-10`, `phpunit-11` · Laravel: `laravel-5.4`, `laravel-6` … `laravel-11` · Frontend: `js`, `vue-2`, `laravel-mix` · Next.js: `nextjs-15.5`, `nextjs-16` · React: `react-18`, `react-19` · **Python**: `python`, `fastapi`, `pytest` · `library-author` · **iOS**: `swift`, `swiftui`, `ios-platform`, `swift-testing`, `xcode-tooling` (opt-in; see "Modules" below) |
+| Agents | Role-based agents | Sentinel-driven reviewers plus situational architecture, testing, security, documentation, platform, and runtime roles. |
+| Commands | Registered command surface | `dhpk:do` (Smart Router), `dhpk:create-dev`, `dhpk:codex-*`, `dhpk:review-pending`, `dhpk:smart-commit`, `dhpk:ts-check-status` (JS module), `dhpk:opsx-apply-resume` (needs OpenSpec), `dhpk:matrix-cell-onboard` (library-author), `dhpk:de-ai-flavor`, `dhpk:deploy-list`, `dhpk:harness-fill`, `dhpk:ui-ux-verify`, etc. |
+| Core skills | Core and auxiliary skills | codex-*, gitnexus, tool-routing, dhpk-execution-policy, **adaptive-dev-workflow** (Feature/Bug/Maintenance classifier), **deploy-list** (cross-project deploy file generator), **execution-checklist** (end-of-task self-check), `opsx-apply-resume` helpers (need OpenSpec) |
+| Stack modules | Opt-in stack modules | PHP, Yii, PHPUnit, Laravel, JavaScript, Vue, Laravel Mix, Next.js, React, Python, `library-author`, and iOS/Swift modules. |
 | Hooks | 10 events | PreToolUse (Edit, Bash + dispatcher + sentinel-gate + branch-safety, Task\|Agent warmstart), PostToolUse (Edit + dispatcher + async crlf-fix + async manifest-guard), SessionStart (+ version-pin / cross-CLI-drift / broken-symlink advisories), SessionEnd (reap-stale-sentinels), PreCompact (checkpoint archive), PostCompact (sentinel restore), SubagentStop (reviewer verify + failure log), StopFailure (failure log), UserPromptSubmit (skill hint), Stop (review-reminder + advisory-dispatch: completion-evidence / graduation-scan / module-dispatch) |
 | Hook dispatchers | 2 | `post-edit-dispatch.sh`, `pre-bash-dispatch.sh` — fan out to active modules' hooks |
 | Harness scripts | 5 | precommit-runner, verify-runner, harness-audit, codemap generator, dep-audit |
-| Codex dual-track | 14 skills + 1 agent (5 config profiles) | Synced into project `.codex/` by `install-codex-skills.sh` |
+| Codex dual-track | Curated Codex projection | Synced into project `.codex/` by `install-codex-skills.sh` |
 
 ## Common workflows
 
@@ -85,7 +85,7 @@ See `manifests/install-profiles.json` for curated module bundles.
 
 ## Codex-backed skills and commands
 
-dhpk's core — hooks, sentinel reviewers, the Smart Router, and ~51 other skills — is Codex-free. The `codex-*` family delegates to OpenAI's Codex for a second opinion. Their `mcp__codex__codex` / `mcp__codex__codex-reply` tools come from directly registering the Codex CLI's own `codex mcp-server` subcommand as an MCP server (`claude mcp add --transport stdio codex -- codex mcp-server`) — **not** from installing the `openai/codex-plugin-cc` plugin, which drives a separate Codex surface and registers no MCP server. See the [how-it-works aside in `docs/configuration.md`](./docs/configuration.md#codex-mcp-dependency-not-a-userconfig-knob) for the full registration steps and the plugin-vs-MCP-server contrast.
+dhpk's core — hooks, sentinel reviewers, the Smart Router, and the non-Codex workflow skills — is Codex-free. The `codex-*` family delegates to OpenAI's Codex for a second opinion. Their `mcp__codex__codex` / `mcp__codex__codex-reply` tools come from directly registering the Codex CLI's own `codex mcp-server` subcommand as an MCP server (`claude mcp add --transport stdio codex -- codex mcp-server`) — **not** from installing the `openai/codex-plugin-cc` plugin, which drives a separate Codex surface and registers no MCP server. See the [how-it-works aside in `docs/configuration.md`](./docs/configuration.md#codex-mcp-dependency-not-a-userconfig-knob) for the full registration steps and the plugin-vs-MCP-server contrast.
 
 | Surface | Names | Needs | Without it |
 |---------|-------|-------|------------|
@@ -226,7 +226,7 @@ The statusline renders `[branch] +staged ~modified | docker:status | profile=<p>
 
 ## Sync Codex CLI content
 
-For projects using both Claude Code and the standalone Codex CLI (distinct from the Codex MCP dependency above — this needs no MCP server): `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"` mirrors dhpk's skills/agents into the project's `.codex/`, plus an experimental Codex Plugin Marketplace path. Full instructions: **[`docs/basic-operations.md`](./docs/basic-operations.md#sync-codex-cli-content)**.
+For projects using both Claude Code and the standalone Codex CLI (distinct from the Codex MCP dependency above — this needs no MCP server), the supported path is `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"`. It creates the curated Codex projection in the project's `.codex/`; the Codex Plugin Marketplace is experimental and requires cache verification. Full policy and instructions: **[`docs/basic-operations.md`](./docs/basic-operations.md#sync-codex-cli-content)**.
 
 ## Migrating an existing project
 
@@ -240,8 +240,8 @@ dhpk/
 │   ├── marketplace.json          # one-entry marketplace (plugins[0].source: "./")
 │   └── plugin.json               # plugin manifest with userConfig
 ├── agents/                       # 32 role-based agents (INDEX.md is navigation)
-├── commands/                     # ~45 slash commands (do, create-dev, codex-*, smart-commit, opsx-apply-resume, matrix-cell-onboard, ...)
-├── skills/                       # ~59 core skills (adaptive-dev-workflow, codex-*, tool-routing, dhpk-execution-policy, opsx-apply-resume helpers, harness-fill, ...)
+├── commands/                     # slash commands (do, create-dev, codex-*, smart-commit, opsx-apply-resume, matrix-cell-onboard, ...)
+├── skills/                       # core skills (adaptive-dev-workflow, codex-*, tool-routing, dhpk-execution-policy, opsx-apply-resume helpers, harness-fill, ...)
 ├── templates/                    # hook-bootstrap templates (graduation-candidates.md — copied to .claude/artifacts/ on first graduation run)
 ├── rules/                        # plain-markdown governance rules (execution-policy, tool-routing, anti-rationalization) — not in plugin.json; opt-in via ${CLAUDE_PLUGIN_ROOT}/rules/*.md from a consuming project's CLAUDE.md
 ├── modules/                      # 31 opt-in stack modules

@@ -28,11 +28,11 @@ enforces this.
 ## Current Codex plugin-mode status
 
 With this layout, `codex plugin marketplace add hmj1026/dhpk` (once
-published) or `codex plugin marketplace add /path/to/dhpk` (local dev)
-discovers and installs `dhpk@dhpk`. Runtime skill loading from repo
-marketplaces is still unreliable upstream — Codex copies only the plugin
-folder into its install cache, and local/personal marketplace plugins are not
-always exposed at runtime (see the issue linked above).
+published) or `codex plugin marketplace add /path/to/dhpk` (local dev) can be
+used to exercise discovery and installation of `dhpk@dhpk`. This is an
+experimental surface: plugin listing or installation does not prove that
+`codex/skills/` materialized in the runtime cache, and cache contents must be
+inspected before use.
 
 Until the upstream discovery issue settles, the supported Codex path remains
 the manual sync flow documented in the repo README:

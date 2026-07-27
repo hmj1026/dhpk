@@ -15,11 +15,27 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Verify immutable tag provenance
+        run: |
+          if ! [[ "$GITHUB_REF_NAME" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "release workflow: tag must match vX.Y.Z" >&2
+            exit 1
+          fi
+          TAG_SHA="$(git rev-list -n 1 "$GITHUB_REF_NAME")"
+          if ! git merge-base --is-ancestor "$TAG_SHA" origin/main; then
+            echo "release workflow: tag commit is not contained in origin/main" >&2
+            exit 1
+          fi
+
       - name: Extract release notes from CHANGELOG.md
         id: notes
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           NOTES=$(awk "/^## ${VERSION} /{found=1; next} found && /^## [0-9]/{exit} found{print}" CHANGELOG.md)
+          if [ -z "$(printf '%s' "$NOTES" | tr -d '[:space:]')" ]; then
+            echo "release workflow: empty release notes" >&2
+            exit 1
+          fi
           {
             echo "notes<<EOF"
             echo "$NOTES"
@@ -33,11 +49,9 @@ jobs:
         run: |
           # Stream notes via stdin so backticks / $(...) in CHANGELOG are not
           # expanded by the runner shell when notes are interpolated inline.
-          # Use upsert: create on first push, edit if tag was moved after.
+          # An existing release is preserved; tags and release metadata are immutable.
           if gh release view "$GITHUB_REF_NAME" &>/dev/null; then
-            printf '%s' "$NOTES" | gh release edit "$GITHUB_REF_NAME" \
-              --title "$GITHUB_REF_NAME" \
-              --notes-file -
+            echo "GitHub Release $GITHUB_REF_NAME already exists; preserving it."
           else
             printf '%s' "$NOTES" | gh release create "$GITHUB_REF_NAME" \
               --title "$GITHUB_REF_NAME" \

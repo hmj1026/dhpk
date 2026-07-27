@@ -2,6 +2,8 @@
 name: promote
 description: 'Promote project-scoped instincts to global scope'
 disable-model-invocation: true
+metadata:
+  dhpk-invocation-class: explicit-only
 ---
 
 # Promote Command

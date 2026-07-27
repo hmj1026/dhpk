@@ -3,6 +3,8 @@ description: 'Interactive (re)configuration of dhpk plugin options — modules, 
 argument-hint: '[--show]'
 allowed-tools: 'Read, Write, Edit, Bash(git rev-parse:*), Bash(ls:*), AskUserQuestion'
 disable-model-invocation: true
+metadata:
+  dhpk-invocation-class: explicit-only
 ---
 
 ## Context

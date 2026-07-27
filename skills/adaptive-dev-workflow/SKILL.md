@@ -3,6 +3,8 @@ name: adaptive-dev-workflow
 description: 'Workflow router for substantial changes. Use when: a feature, bugfix, refactor, security, perf, or OpenSpec change needs classifying into Feature Delivery, Bug Investigation & Fix, or Lightweight Maintenance before heavy context loads. Not for tiny edits, investigation already underway, code review, or apply-ready OpenSpec tasks. Output: workflow classification + required artifacts + gate checklist.'
 argument-hint: '[--codex] <change description or current state>'
 allowed-tools: 'Read, Grep, Glob, Bash, Skill, Agent'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # Adaptive Dev Workflow

@@ -3,6 +3,8 @@ description: 'Install plugin hooks into project .claude/ for persistent use with
 argument-hint: '[--all] [--list] [--dry-run] [--force] [--local] [--guard-mode warn|strict] [hook-names...]'
 allowed-tools: 'Read, Grep, Glob, Write, Bash(mkdir:*), Bash(diff:*), Bash(git:*), Bash(ls:*), Bash(chmod:*), Bash(jq:*)'
 disable-model-invocation: true
+metadata:
+  dhpk-invocation-class: explicit-only
 ---
 
 ## Context

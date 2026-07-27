@@ -1,6 +1,8 @@
 ---
 name: phpunit-9-modern
 description: Use when writing or reviewing tests on PHPUnit 8.5+ or 9.x, migrating PHPUnit 5/6/7 conventions, adding typed test methods, choosing assertion/data-provider/mock APIs, or removing deprecated APIs. Not for everyday assertion writing, unupgradeable PHPUnit 5/6/7 projects, or PHPUnit 10/11 projects. Output: a focused migration recommendation or a pre-bump report whose non-empty scans remain explicit TODOs.
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # PHPUnit 8.5 / 9.x — routing entrypoint

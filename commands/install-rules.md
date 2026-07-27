@@ -3,6 +3,8 @@ description: 'Install plugin rules into project .claude/rules/ for persistent us
 argument-hint: '[--all] [--list] [--dry-run] [--force] [rule-names...]'
 allowed-tools: 'Read, Grep, Glob, Write, Bash(mkdir:*), Bash(diff:*), Bash(git:*), Bash(ls:*)'
 disable-model-invocation: true
+metadata:
+  dhpk-invocation-class: explicit-only
 ---
 
 ## Context

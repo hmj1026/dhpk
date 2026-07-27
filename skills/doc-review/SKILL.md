@@ -4,6 +4,8 @@ description: 'Document review via Codex MCP. Use when: reviewing .md docs, tech 
 allowed-tools: 'mcp__codex__codex, mcp__codex__codex-reply, Bash(git:*), Read, Grep, Glob'
 context: fork
 agent: Explore
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # Document Review Skill

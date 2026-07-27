@@ -2,6 +2,8 @@
 name: codex-implement
 description: 'Implement features via Codex MCP. Use when: writing new code from specs, implementing features, Codex-driven development. Not for: code review (use codex-code-review), architecture advice (use codex-architect). Output: implemented code + review loop.'
 allowed-tools: 'mcp__codex__codex, mcp__codex__codex-reply, Bash(git:*), Read, Grep, Glob, Edit, Write, AskUserQuestion, Skill, Agent'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # Codex Implement Skill

@@ -1,6 +1,8 @@
 ---
 name: gitnexus-refactoring
 description: 'Safely rename, extract, split, move, or restructure code using the GitNexus graph + coordinated rename. Use when: renaming a symbol across files, extracting a module, splitting a function/service, moving code. Not for: understanding code (use gitnexus-exploring), pre-change risk only (use gitnexus-impact-analysis), bug tracing (use gitnexus-debugging). Output: an ordered refactor plan + verified multi-file edits.'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # Refactoring with GitNexus
