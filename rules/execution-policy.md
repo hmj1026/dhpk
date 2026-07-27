@@ -211,6 +211,8 @@ A subagent must never paste the literal `${CLAUDE_PLUGIN_ROOT}/...` into a Bash 
 
 **Auto-clear + fallback**: a successful reviewer with a fresh matching artifact auto-clears only its own slot; absent fresh output stays armed. A resumed fallback additionally requires a matching `.resumed-review-obligations` record, conclusive final response, resume-relative freshness, and proven session/agent ownership. Exact fallback and fail-loud rules: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/review-gate-mechanics.md`.
 
+**Resumed-reviewer fallback**: a reviewer resumed through `SendMessage` may never fire a native `SubagentStop`; clearance there is a session-scoped, artifact-backed reconcile — never approval. Full contract: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/review-gate-mechanics.md`.
+
 | Sentinel | Required agent | Trigger summary (default; project can extend via `userConfig.review_trigger_extra_paths`) |
 |---|---|---|
 <!-- BEGIN GENERATED sentinel-slots:sentinel-table -->

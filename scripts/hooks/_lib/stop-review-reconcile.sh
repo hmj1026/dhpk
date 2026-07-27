@@ -60,12 +60,22 @@ _reconcile_drop_one_active() {
     fi
 }
 
-# dhpk_stop_review_reconcile — the sweep. Iterates SENTINEL_NAMES / SENTINEL_AGENTS.
+# dhpk_stop_review_reconcile [session_id] — the sweep. Iterates SENTINEL_NAMES
+# / SENTINEL_AGENTS. The optional session_id additionally runs the
+# resumed-SendMessage obligation sweep (fix-resumed-review-sentinel-clearance):
+# a resumed reviewer may already have had its active marker removed by the
+# ORIGINAL dispatch's SubagentStop, so that case is not reachable through the
+# active-marker gate below and needs its own session-scoped reconcile, defined
+# in _lib/resumed-review-obligation.sh and sourced by this sweep's caller.
 dhpk_stop_review_reconcile() {
+    local sess_id="${1:-}"
     local root sess i name agent_bare sentinel active
     root="$(dhpk_root)"
     sess="$(dhpk_sessions_dir "$root")"
     [ -d "$sess" ] || return 0
+    if [ -n "$sess_id" ] && command -v dhpk_resumed_reconcile_sweep >/dev/null 2>&1; then
+        dhpk_resumed_reconcile_sweep "$root" "$sess" "$sess_id"
+    fi
     for i in "${!SENTINEL_NAMES[@]}"; do
         name="${SENTINEL_NAMES[$i]}"
         sentinel="$sess/$name"

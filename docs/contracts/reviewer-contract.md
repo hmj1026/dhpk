@@ -31,3 +31,5 @@ otherwise permitted, never changes that outcome.
 ## Single-run verdict
 
 The final verdict MUST be emitted within the same run that performed the review. Stopping for advisory or intermediary input before the final verdict is written is forbidden; advisory work is folded into the same run, and post-verdict escalation is permitted. A run that stops without a parseable verdict is a quality-contract defect routed to `.unresolved-verdict` / subagent-quality enforcement, not a valid intermediate state. Sentinel liveness is separate from verdict correctness: a fresh artifact may still auto-clear its sentinel even though the verdict itself is treated as unresolved.
+
+No reviewer agent definition issues a self-run `clear-sentinel.sh`; that remains hook-owned (`subagent-stop-verify.sh`) or orchestrator-invoked, including for a reviewer resumed through `SendMessage` (§Resumed reviewer result above).

@@ -27,6 +27,9 @@ ROOT="$(dhpk_root)"
 # at source-time to populate SENTINEL_AGENTS.
 . "$(dirname "$0")/_lib/load-project-config.sh"
 . "$(dirname "$0")/_lib/payload.sh"
+. "$(dirname "$0")/_lib/learning-db.sh"
+. "$(dirname "$0")/_lib/sentinel-clear-core.sh"
+. "$(dirname "$0")/_lib/resumed-review-obligation.sh"
 . "$(dirname "$0")/_lib/stop-review-reconcile.sh"
 
 PROFILE="$(dhpk_config_profile)"
@@ -44,7 +47,8 @@ BACKOFF_SECONDS="${DHPK_REVIEW_REMINDER_BACKOFF_SECONDS:-300}"
 case "$BACKOFF_SECONDS" in
     ''|*[!0-9]*) BACKOFF_SECONDS=300 ;;
 esac
-REMINDER_SESSION="$(extract_top_field session_id "$payload")"
+REMINDER_SESSION_RAW="$(extract_top_field session_id "$payload")"
+REMINDER_SESSION="$REMINDER_SESSION_RAW"
 [ -n "$REMINDER_SESSION" ] || REMINDER_SESSION="default-session"
 
 reminder_fingerprint() {
@@ -176,12 +180,21 @@ check_one() {
     # when there are none, keeping the wording byte-identical to before.
     local owed_fragment=""
     [ "$owed_count" -gt 0 ] && owed_fragment=", +$owed_count dispatch obligation(s) owed, no file paths yet"
+    # Resumed-SendMessage obligation (fix-resumed-review-sentinel-clearance):
+    # the reviewer was resumed rather than freshly dispatched, so its active
+    # marker may already be gone even though it has not yet produced a fresh
+    # review doc. Report this distinctly and never recommend a duplicate
+    # dispatch — the resumed reviewer is still addressable.
+    local resumed_attempt=""
+    resumed_attempt="$(dhpk_resumed_obligation_attempt "$SESS" "$name" "$REMINDER_SESSION_RAW" 2>/dev/null || true)"
     if [ "$active_count" -gt 0 ]; then
         if [ "$count" -eq 0 ]; then
             echo >&2 "[WARN] IN-FLIGHT: $agent ($owed_count dispatch obligation(s) owed, no file paths yet; $active_count dispatch(es) still running)"
         else
             echo >&2 "[WARN] IN-FLIGHT: $agent ($count file(s) awaiting review$owed_fragment; $active_count dispatch(es) still running)"
         fi
+    elif [ -n "$resumed_attempt" ]; then
+        echo >&2 "[WARN] RESUMED: $agent (resumed via SendMessage, attempt $resumed_attempt; awaiting a fresh review doc$owed_fragment)"
     else
         if [ "$count" -eq 0 ]; then
             echo >&2 "[WARN] PENDING: $agent ($owed_count dispatch obligation(s) owed, no file paths yet)"
@@ -199,6 +212,8 @@ check_one() {
     echo >&2 ""
     if [ "$active_count" -gt 0 ]; then
         echo >&2 "   Recommended: wait for the existing $agent result; do not dispatch a duplicate reviewer."
+    elif [ -n "$resumed_attempt" ]; then
+        echo >&2 "   Recommended: wait for the resumed $agent result, then run reconcile-resumed-review.sh $name; do not dispatch a duplicate reviewer."
     else
         if [ "$count" -eq 0 ]; then
             echo >&2 "   Recommended: dispatch ONE '$agent' to satisfy $owed_count pending dispatch obligation(s) (no file paths yet)"
@@ -227,7 +242,7 @@ check_one() {
 # a fresh review doc) but whose SubagentStop never fired (background dispatch) —
 # clear the sentinel and expire the stale active marker so the scan below neither
 # re-reminds a satisfied gate nor reports a phantom IN-FLIGHT dispatch.
-dhpk_stop_review_reconcile
+dhpk_stop_review_reconcile "$REMINDER_SESSION_RAW"
 
 for i in "${!SENTINEL_NAMES[@]}"; do
     check_one "${SENTINEL_NAMES[$i]}" "${SENTINEL_AGENTS[$i]}"
