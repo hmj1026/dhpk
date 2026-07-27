@@ -27,4 +27,4 @@
 A sync run is complete only when:
 - All approved `adapted` items are tracked in tasks
 - All skipped items are documented with reason + evidence
-- Validation gate status is `PASS` (or explicitly `PARTIAL` with approved exceptions)
+- Validation gate status is `PASS`, or an explicit `BLOCKED` result has an approved exception for the absent explicitly-requested target(s). `NOT_CONFIGURED`/`SKIP_INCOMPATIBLE` rows never require an exception — they do not fail the gate. `legacy_gate` (deprecated) may still read `PARTIAL` for one release; treat `gate`, not `legacy_gate`, as authoritative.

@@ -104,8 +104,17 @@ Automatic cross-platform validation covers configured platforms with
 deterministic local evidence. An absent unrequested platform is
 `not-configured`; an explicitly requested but absent platform is `BLOCKED`; a
 configured but broken platform is `FAIL`; and an applicable capability without
-a stable equivalent remains `skip-incompatible`. `PASS`, `PARTIAL`, and `FAIL`
-retain their existing meanings.
+a stable equivalent remains `skip-incompatible`. `PASS` and `FAIL` retain
+their existing meanings; `PARTIAL` is superseded (see below).
+
+`multi-ai-sync validate` implements this with the concrete report vocabulary
+`PASS`/`FAIL`/`NOT_CONFIGURED`/`SKIP_INCOMPATIBLE` (uppercase) as per-row and
+final-gate values, plus `BLOCKED` as a third top-level gate value for an
+explicitly `--targets`/`--all-targets`-requested absent platform. `PARTIAL`
+survives only as a deprecated, removal-pending `legacy_gate` compatibility
+field alongside the primary `gate` field — see
+`skills/multi-ai-sync/references/execution-contract.md` §Validation for the
+exact mapping.
 
 ### 7. Versions, metadata, and public claims are kept coherent
 
