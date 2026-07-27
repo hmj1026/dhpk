@@ -2,6 +2,8 @@
 name: opsx-post-obs
 description: 'Post a session observation to claude-mem from opsx-apply-resume Save Phase — builds a JSON payload and runs post-obs.sh as a non-blocking background post (the caller collects the result before the handoff write, so the POST overlaps Save-Phase Steps 4–6). Use when: opsx-apply-resume Save Phase Step 3b, right after compact-save extracts L0/session_goal/completed/key_decisions. Not for: loading Resume context (use opsx-load-context) or goal generation (use opsx-apply-goal). Output: OBS_PID + OBS_RESULT_FILE path for the caller to wait on.'
 allowed-tools: Bash, Write
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # opsx-post-obs

@@ -2,3 +2,5 @@ interface:
   display_name: "Release Creator"
   short_description: "Cut a new release of a software project or plugin — resolve"
   default_prompt: "Use $release-creator to apply the Release Creator workflow with its verification rules."
+policy:
+  allow_implicit_invocation: false

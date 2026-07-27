@@ -1,6 +1,8 @@
 ---
 name: software-architecture
 description: 'Use when users need architecture decisions, module boundaries, or implementation guidance for software development tasks. Not for pure documentation editing or non-technical writing tasks. Output: actionable architecture guidance with concrete patterns, trade-offs, and implementation-ready recommendations.'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # Software Architecture Development Skill

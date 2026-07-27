@@ -2,6 +2,8 @@
 name: create-request
 description: 'Create, update, or scan per-task request tickets for progress tracking. These are date-prefixed non-lifecycle docs under requests/, NOT feature-level requirements (use /req-analyze for those). Use when: tracking task progress, updating completion status, scanning incomplete requests, checking request status dashboard. Not for: feature-level problem-space analysis (use req-analyze for 1-requirements.md lifecycle doc), tech specs (use tech-spec), code implementation (use feature-dev). Output: request ticket with status tracking, referencing parent tech-spec.'
 allowed-tools: 'Read, Grep, Glob, Write, Bash, AskUserQuestion, Agent'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # Create/Update Request Skill

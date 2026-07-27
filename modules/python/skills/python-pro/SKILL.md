@@ -1,6 +1,8 @@
 ---
 name: python-pro
 description: 'Modern Python (3.10+) review checklist: typing, dataclasses/pydantic, async-await discipline, logging over print, exception chain, ruff+pyright. Use when writing or reviewing backend Python (async FastAPI/SQLAlchemy). Not for non-backend or pre-3.10 code. Output: typed, ruff/pyright-clean code.'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # Python Pro (3.10+)

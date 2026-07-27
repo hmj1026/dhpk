@@ -1,6 +1,8 @@
 ---
 name: tool-routing
 description: 'Route code-exploration requests to gitnexus, cx, claude-mem, Read, or Grep. Use when locating a symbol, tracing callers or impact, exploring an unfamiliar module, planning a rename/refactor, checking change scope, or recalling a past decision. Not for plain-text/log/doc search, non-code questions, or a tool already chosen. Output: one primary tool, exact command or MCP call, and a named fallback.'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # Tool Routing

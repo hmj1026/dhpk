@@ -1,7 +1,10 @@
 ---
 name: harness-revise
-description: 'Trim and validate the project harness (.claude/, .gemini/, or .codex/). Detects the active environment and ensures consistency, hygiene, and trigger preservation. Use when: harness audit requested, after major rule additions, or periodic maintenance. Not for: business code review. Output: inventory snapshot, gap list with severity, proposed fixes, validation results.'
+description: 'Trims and validates the project harness (.claude/, .gemini/, or .codex/) for a harness audit request, after major rule additions, or as periodic maintenance. Detects the active environment and ensures consistency, hygiene, and trigger preservation. Not for: business code review. Output: inventory snapshot, gap list with severity, proposed fixes, validation results.'
 allowed-tools: 'Read, Edit, Write, Grep, Glob, Bash(jq:*), Bash(grep:*), Bash(find:*), Bash(wc:*), Bash(bash:*), Bash(git:*), Bash(ls:*), Bash(cat:*), Bash(chmod +x:*), Bash(rm:*)'
+disable-model-invocation: true
+metadata:
+  dhpk-invocation-class: explicit-only
 ---
 
 # Harness Revise Skill

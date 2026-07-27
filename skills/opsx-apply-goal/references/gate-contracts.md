@@ -16,7 +16,7 @@ UTF-8 bytes, the unit produced by `wc -c`.
 | `TURN` | The bounded turn checkpoint writes the resume note before stopping. |
 
 The fixed core must preserve orientation, self-locating policy lookup, the
-`opsx:apply` kickoff, the hard-rule carve-out, the Unknown-skill fallback, the
-worker roster, and sentinel/unresolved-verdict gates. The normal target is
+`openspec-apply-change` kickoff, the hard-rule carve-out, the Unknown-skill
+fallback, the worker roster, and sentinel/unresolved-verdict gates. The normal target is
 `<=3,400` UTF-8 bytes; `>4,000` bytes is a hard Block A error. Required gates
 are never deleted to fit the budget.

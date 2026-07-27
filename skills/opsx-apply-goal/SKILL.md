@@ -1,22 +1,26 @@
 ---
 name: opsx-apply-goal
 argument-hint: '<change-id> [--turns N] [--max-duration <Nm|Nh>] [--min-coverage N] [--worker=<claude|codex|agy|auto>] [--codex] [--smoke|--no-smoke] [--dry-run]'
-description: 'Unattended OpenSpec goal generator. Use when: an existing change-id needs a bounded fresh-session implementation goal. Not for: authoring, applying in the current session, verifying, syncing, or archiving. Output: an analysis summary plus one pasteable /goal condition, or a hard-stop report.'
+description: 'Unattended OpenSpec goal generator for an existing change-id that needs a bounded fresh-session implementation goal. Not for: authoring, applying in the current session, verifying, syncing, or archiving. Output: an analysis summary plus one pasteable /goal condition, or a hard-stop report.'
 allowed-tools: 'Bash, Read, Glob'
 effort: low
+disable-model-invocation: true
+metadata:
+  dhpk-invocation-class: explicit-only
 ---
 
 # opsx-apply-goal
 
 This skill has one job: turn an existing OpenSpec change into a bounded
 `/goal <condition>` command. It reads the change artifacts, folds the
-`opsx:apply` kickoff into the condition, and emits one command for a fresh
-session to run the change unattended.
+Skill-tool `openspec-apply-change` kickoff into the condition, and emits one
+command for a fresh session to run the change unattended.
 
 > **Why single-paste:** Claude Code's `/goal` triggers immediate action as soon
 > as it is submitted — there is no window to paste a follow-up `/opsx:apply`
-> command afterward. So the kickoff instruction ("invoke the opsx:apply skill")
-> is embedded as the first sentence of the `/goal` condition itself, and the
+> command afterward. So the kickoff instruction ("invoke the Skill tool with
+> the canonical ID `openspec-apply-change`") is embedded as the first sentence
+> of the `/goal` condition itself, and the
 > whole thing is delivered as one paste. Do not split this back into a
 > `/goal` step followed by a separate `/opsx:apply` step — that leaves no
 > input window for the second command.
@@ -202,7 +206,7 @@ Block C/C2 material from `output-blocks.md`, with `--dry-run` ending after C2.
 
 - [ ] Analyzer run first; `STATUS` handled — `missing`/`archived`/`error`/exit-2 all stop with the script's message; only `active` proceeds
 - [ ] Block A shows correct task counts (from the schema block), detected runners, and manual-task count
-- [ ] Block B `/goal` string is entirely in English and opens with the Part 0 opsx:apply kickoff sentence before the stop conditions — single paste, no separate STEP 3
+- [ ] Block B `/goal` string is entirely in English and opens with the Part 0 `openspec-apply-change` kickoff sentence before the stop conditions — single paste, no separate STEP 3
 - [ ] Part 0 carries the selector-resolved `<FAST_WORKER_CLAUSE>` (including CLI tier and fallback order), ONE consolidated reviewer batch wording, ≤200-byte `<TASK_DIGEST>`, and `<E2E_ROSTER_CLAUSE>` iff `HAS_E2E=true`; the orientation command does not preview tasks.md
 - [ ] Part 0 does NOT restate the relocated elaborations (dispatch-verify procedure, premise-verification routing, in-flight doubt cycle, CODEX high-stakes-peer triggers, session-end self-check) — those are present in `rules/execution-policy.md` (§Implementation dispatch, §In-flight doubt cycle, §CODEX=on high-stakes parallel peer path) and bind via the orientation read
 - [ ] CODEX statement stated explicitly on one line (`CODEX is ON`/`OFF` per `--codex`); when ON, it points at the execution-policy CODEX sections (including the session-end zero-dispatch self-check) without enumerating the trigger list

@@ -62,8 +62,8 @@ verbatim. Append the coverage-off NOTES line when
 ```
 ━━━ NOTES ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 • /goal acts immediately on submit — there is no window to paste a follow-up
-  command, which is why the /goal string above already embeds the opsx:apply
-  kickoff. Paste it as-is; do not split it into two steps.
+  command, which is why the /goal string above already embeds the
+  openspec-apply-change kickoff. Paste it as-is; do not split it into two steps.
 • Pre-flight before an unattended loop: clean git / worktree (a rollback path
   exists), branch or worktree isolation in place, and a quality gate (test /
   build / lint) detected above — if none is detected the loop has no safety net,

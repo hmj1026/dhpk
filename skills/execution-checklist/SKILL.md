@@ -1,6 +1,8 @@
 ---
 name: execution-checklist
 description: 'End-of-task self-check for substantive repository changes. Use after the final Edit/Write before replying or smart-commit, especially for source, SQL/repository/migration, auth/crypto/money/upload, high-volume-table, frontend/template-script, harness, policy, or documentation changes. Not for trivial typo-only edits or research/planning with no pending commit. Output: a gated wrap-up reply with changed files, verification, and risks/open questions.'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # Execution checklist

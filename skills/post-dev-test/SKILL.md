@@ -2,6 +2,8 @@
 name: post-dev-test
 description: 'Post-development test completion. Use when: checking test coverage after feature-dev, writing missing integration/e2e tests. Not for: unit test generation (use codex-test-gen), test review (use test-review). Output: test files + coverage report.'
 allowed-tools: 'Read, Grep, Glob, Write, Bash'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # Post-Dev Test Skill

@@ -1,6 +1,8 @@
 ---
 name: harness-budget
 description: 'Audits Claude Code context-window token consumption across agents, skills, MCP, rules, and CLAUDE.md; produces prioritized token-savings fixes. Use when: context feels bloated, after adding components, or checking headroom. Not for: trimming harness structure (use harness-revise), backfilling .claude/ (use harness-fill). Output: budget report + ranked fixes.'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # Harness Budget (context-window accounting)

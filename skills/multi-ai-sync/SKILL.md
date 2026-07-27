@@ -1,6 +1,9 @@
 ---
 name: multi-ai-sync
-description: "Compare Claude-first configuration across Codex, Gemini, and Antigravity. Produce reviewable plans, OpenSpec tasks, dry-run/apply reports, and PASS/PARTIAL/FAIL validation. Use when aligning cross-platform skills, commands, agents, hooks, or orchestration. Not for reverse sync, single-platform edits, or missing Claude source."
+description: "Compares Claude-first configuration across Codex, Gemini, and Antigravity to align cross-platform skills, commands, agents, hooks, or orchestration. Produces reviewable plans, OpenSpec tasks, dry-run/apply reports, and PASS/PARTIAL/FAIL validation. Not for reverse sync, single-platform edits, or missing Claude source."
+disable-model-invocation: true
+metadata:
+  dhpk-invocation-class: explicit-only
 ---
 
 # Multi AI Sync (Claude First)

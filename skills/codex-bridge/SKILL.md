@@ -1,7 +1,9 @@
 ---
 name: codex-bridge
-description: 'When CODEX=on, delegate a self-contained bulk task or blind second opinion to gpt-5.5 through one-shot codex exec and relay the output verbatim. Not for context-dependent or iterative work, or structured MCP codex-* review loops.'
+description: 'Use when CODEX=on and a self-contained bulk task or blind second opinion should go to gpt-5.5 through one-shot codex exec. Not for context-dependent or iterative work, or structured MCP codex-* review loops. Output: the relayed codex exec result, verbatim.'
 allowed-tools: 'Bash(bash:*), Bash(codex exec:*), Read, Write'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # Codex Bridge

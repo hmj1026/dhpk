@@ -1,8 +1,11 @@
 ---
 name: project-setup
-description: 'Project configuration initialization. Use when: first-time setup, auto-detecting framework, replacing CLAUDE.md placeholders. Not for: ongoing config checks (use claude-health), skill creation (use skill-creator). Output: configured CLAUDE.md + project settings + rules + hooks.'
+description: 'Project configuration initialization: first-time setup, auto-detecting the framework, and replacing CLAUDE.md placeholders. Not for: ongoing config checks (use claude-health), skill creation (use skill-creator). Output: configured CLAUDE.md + project settings + rules + hooks.'
 allowed-tools: 'Read, Grep, Glob, Edit, Write, Bash(node:*), Bash(git:*), Bash(ls:*), Bash(mkdir:*), Bash(diff:*), Bash(chmod:*), Bash(jq:*), Bash(bash:*)'
 # context: shared (default) — intentionally NOT fork because Phase 2 requires user confirmation
+disable-model-invocation: true
+metadata:
+  dhpk-invocation-class: explicit-only
 ---
 
 # Project Setup

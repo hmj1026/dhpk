@@ -1,6 +1,8 @@
 ---
 name: fastapi-pro
 description: 'FastAPI + SQLAlchemy 2.0 async patterns + review checklist: routers, Depends DI, Pydantic schemas, session/transaction discipline, Alembic safety, auth/CORS/errors. Use when writing or reviewing FastAPI routes, async repositories, or migrations. Not for non-web Python. Output: layered, transaction-safe API.'
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # FastAPI + SQLAlchemy (async) Pro

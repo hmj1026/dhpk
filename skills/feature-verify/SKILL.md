@@ -1,8 +1,10 @@
 ---
 name: feature-verify
-description: 'Feature verification (READ-ONLY, P0-P5). Use when: verifying feature behavior after deployment, validating API responses, diagnosing production issues, post-deploy smoke test. Not for: modifying data (use feature-dev), code review (use codex-review-fast), writing tests (use codex-test-gen), security audit (use codex-security).'
+description: 'Feature verification (READ-ONLY, P0-P5). Use when: verifying feature behavior after deployment, validating API responses, diagnosing production issues, post-deploy smoke test. Not for: modifying data (use feature-dev), code review (use codex-review-fast), writing tests (use codex-test-gen), security audit (use codex-security). Output: a P0-P5 verification report with pass/fail evidence per check.'
 allowed-tools: 'Read, Grep, Glob, Bash, WebFetch, Task, Skill, mcp__codex__codex, mcp__codex__codex-reply'
 context: fork
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # Feature Verify — Runtime-First API Verification
