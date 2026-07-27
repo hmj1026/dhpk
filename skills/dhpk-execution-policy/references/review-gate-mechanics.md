@@ -9,9 +9,49 @@ Reviewer sentinel clearance is owned by the runtime hook `${CLAUDE_PLUGIN_ROOT}/
 <!-- SSOT for the ${CLAUDE_PLUGIN_ROOT} interpolation-token caveat — rules/execution-policy.md and skills/execution-checklist/SKILL.md point here. -->
 `${CLAUDE_PLUGIN_ROOT}` is a markdown-interpolation token, not a shell variable: the orchestrator resolves it when reading this document, and it is unset inside a subagent's Bash environment. A subagent must never paste the literal `${CLAUDE_PLUGIN_ROOT}/...` into a Bash command — use the absolute path the orchestrator supplies, or, when `stop-review-reminder.sh` has printed an already-resolved command (stale sentinels only — that branch is gated on sentinel age), the command it printed. On a 127 / "No such file or directory" failure, escalate to the orchestrator for the resolved path; never recover by scanning the filesystem with `find / -iname`.
 
+## Resumed reviewer reconcile contract
+
+When a pending sentinel-backed reviewer is still addressable and is reused via
+`SendMessage`, the orchestrator records one JSONL record in
+`.claude/artifacts/sessions/.resumed-review-obligations` before sending the
+message. The record binds the generated slot, exact sentinel basename, resolved
+agent identity, origin session, dispatch/resume ID, resume timestamp, latest
+artifact baseline, attempt, and state. A repeated resume updates that slot's
+record; it does not create another sentinel or active marker.
+
+The response state machine is strict: an intermediate response leaves the
+obligation and sentinel armed; a final response must contain actual review work,
+findings or an explicit no-findings statement, and a parseable verdict from the
+reviewer's existing vocabulary. The fallback then requires a canonical
+`.claude/artifacts/reviews/<agent>-*.md` artifact newer than both the sentinel
+and the resume baseline. Missing, stale, misplaced, malformed-final, foreign, or
+ambiguous evidence does not clear the sentinel.
+
+The canonical artifact is authoritative for findings and severity. A fresh
+artifact paired with a conclusive final response may complete lifecycle
+reconciliation even when the artifact verdict is malformed, but the malformed,
+conflicting, BLOCK, FAIL, or actionable critical/high/medium result remains
+unresolved and cannot satisfy approval. Native `SubagentStop` remains first
+choice; native and fallback paths use the same whitelist, ownership checks, and
+`clear-sentinel.sh` SSOT, and repeated execution is idempotent.
+
+The fallback is orchestrator-only. It fails closed when session/provenance,
+slot, agent, dispatch, or configuration identity cannot be proven, because a
+sentinel is shared at slot scope. It must not delete a shared sentinel belonging
+to a foreign or ambiguous session. While the resumed agent remains addressable,
+the orchestrator may issue one corrected resume but must not dispatch a duplicate;
+the second failure becomes a replacement-reviewer decision or an explicit human
+blocker. Existing stale/orphan triage remains a human non-approval action only.
+
 ## Orchestrator-side confirm the clear actually happened (Closing-hook back-stop)
 
 Clearance is hook-owned: `subagent-stop-verify.sh` detects a reviewer subagent that stopped successfully with its own sentinel still armed and **clears that sentinel on the reviewer's behalf when a fresh matching review artifact exists** (reviewer-liveness-gate — same slot, so a `frontend-reviewer` stop clears only `.pending-frontend-review`, never `.pending-review`). The clear keys on artifact existence + freshness (not verdict-parseability, so a present-but-unparseable review still clears rather than looping); a clean stop that produced **no fresh review artifact leaves the sentinel armed** (gate unmet → re-dispatch), logged as a failure. This is the **sanctioned** path (reviewers no longer self-clear). It is still not a total guarantee — the hook can't act when the SubagentStop payload omits the subagent name (schema drift), when a same-session second reviewer's SubagentStop already fired, or when a **background** reviewer dispatch never fires SubagentStop at all (the dominant real-session gap — issue #76). For that last, most-common case a **Stop-time reconcile sweep** (`stop-review-reminder.sh` sourcing `_lib/stop-review-reconcile.sh`) runs at the next Stop: for each armed sentinel whose fresh matching review artifact exists it clears the sentinel via `clear-sentinel.sh` and expires the finished reviewer's stale active-liveness marker, so the reminder stops reporting a phantom IN-FLIGHT dispatch that would otherwise suppress a needed re-dispatch (issue #77). Because BOTH the auto-clear and the sweep gate on a fresh artifact in the canonical `.claude/artifacts/reviews/<agent>-<yyyymmdd-HHMMSS>-<slug>.md` path, a reviewer that writes its report anywhere else defeats both — so the orchestrator's reviewer dispatch prompt MUST pin that canonical path. For cases even the sweep misses, the orchestrator **fallback** stands: after a reviewer returns, run `ls .claude/artifacts/sessions/.pending-*` and manually clear any straggler with its **full** `SENTINEL_NAMES` basename (e.g. `clear-sentinel.sh .pending-review`). The prefix-less form is accepted too — `clear-sentinel.sh review` normalises to `.pending-review` — but only when the prefixed name is a known sentinel; anything else still exits 2 as `unknown sentinel name`, so prefer the full basename. Never leave a stale sentinel to falsely block the `opsx-apply-goal` end-gate.
+
+For a sentinel with an outstanding resumed-review obligation, this broad manual
+back-stop is overridden: use the artifact-backed resumed reconcile contract and
+do not manually clear without a conclusive result plus fresh canonical artifact.
+The stale/orphan command remains an explicit human triage action only and never
+represents approval; its reason must be recorded.
 
 ## Skipped paths (sentinel table)
 

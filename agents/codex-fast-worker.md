@@ -32,6 +32,13 @@ Identical to `fast-worker`. The dispatcher MUST provide:
 2. **Change intent per file** — precise enough to implement without inventing an interpretation.
 3. **Verification command** — the command that proves the change works (`npm test`, `pytest -x`, `php -l`, a specific test file, etc.).
 
+For a shared-checkout parallel dispatch, the spec must also provide:
+
+4. **Parallel marker** — `Parallel: yes`.
+5. **Assigned files** — exact repo-relative paths; no implicit directories or unlisted generated files.
+6. **Per-file intent** — the bounded change for every assigned path.
+7. **Scoped verification** — a command limited to the assigned paths, or an explicit `REPORT-ONLY` outcome naming the orchestrator-owned command. (`REPORT-ONLY` here is the literal spec-input token; the "report-only" prose used elsewhere in this file's reports and the wider policy is free-form, not a token the tooling parses.)
+
 Optionally the dispatcher passes the **resolved model/effort** (from the
 `codex_fast_worker_model` / `codex_fast_worker_effort` userConfig keys, surfaced at
 session start when non-default). When omitted, default to `gpt-5.6-luna` / `xhigh`.
@@ -72,6 +79,21 @@ approximate the backend or fall back to editing the files yourself.
    after="$(git status --porcelain)"
    ```
 
+   When `Parallel: yes`, replace both captures with path-scoped equivalents limited to
+   the assigned files — `run-codex.sh` itself takes no file-list argument (it is shared
+   with the `codex-bridge` skill and its usage contract is not extended here), so scoping
+   happens at this call site, before and after the same wrapper invocation:
+
+   ```bash
+   before="$(git status --porcelain -- "${ASSIGNED_FILES[@]}")"
+   bash "${CLAUDE_PLUGIN_ROOT}/skills/codex-bridge/scripts/run-codex.sh" \
+     workspace-write "<workdir>" "<prompt-file>" "<model>" "<effort>"
+   after="$(git status --porcelain -- "${ASSIGNED_FILES[@]}")"
+   ```
+
+   The CLI must not receive authority to clean sibling files; an unfiltered `git status`
+   is never worker ownership evidence in parallel mode.
+
 ## Verify and report (the agent owns this, not the CLI)
 
 After the CLI completes:
@@ -93,15 +115,20 @@ punctuation), use fixed-string matching (`grep -F` / `grep -Fc`), never a BRE/ER
 some locales a BRE `$` next to a multibyte character silently matches zero times. Re-check
 a zero-match result with `grep -F` before reporting a failure.
 
+In parallel mode, derive worker-owned edits only from assigned paths. Report out-of-scope observations separately and report any out-of-scope write as `BLOCKED`; never use `git checkout`, `git restore`, `git reset`, `git clean`, forceful deletion, or an equivalent cleanup against sibling paths. If no safe scoped validator exists, return the declared report-only outcome or `BLOCKED` and do not run a global shared-state mutation path.
+
 ## Edited-file list (mandatory — derived from the working tree)
 
 Every report — pass, fail, or escalation — includes the complete list of files touched,
 derived **independently of the backend's narrative** by diffing `git status --porcelain`
-captured before and after the CLI run (plus any file the verification step touched). The
-backend may under-report its edits; the working-tree diff is the source of truth. This is
-the gate-enforcement back-stop: if the orchestrator's post-edit hooks did not fire for the
-CLI's out-of-band writes, it derives the applicable reviewer gates from this list alone.
-Omitting it (or reporting it incompletely) breaks that back-stop.
+(single-worker mode) or the path-scoped `git status --porcelain -- <assigned files>`
+(parallel mode) captured before and after the CLI run (plus any file the verification
+step touched). The backend may under-report its edits; the working-tree diff is the
+source of truth. This is the gate-enforcement back-stop: if the orchestrator's post-edit
+hooks did not fire for the CLI's out-of-band writes, it derives the applicable reviewer
+gates from this list alone. Omitting it (or reporting it incompletely) breaks that
+back-stop. In parallel mode, a file appearing outside the assigned scope is an
+out-of-scope observation for the report, never part of this edited-file list.
 
 ## Output
 
@@ -116,9 +143,14 @@ Fallback reason: <none | missing executable: codex; configured fallback=claude>
 Model/effort: <model> / <effort>
 Verify: <command> → PASS | FAIL (N attempts)
 Spec: <one-line summary of what was requested>
-Edited files (from git status --porcelain diff):
+Edited files (assigned-scope, from path-scoped status/diff):
 - path/a
 - path/b
+Out-of-scope observations:
+- none
+Out-of-scope writes:
+- none
+Verification scope: assigned files | report-only
 Deviations from spec: <none | what and why>
 Observations (not acted on): <unrelated issue noticed, if any>
 ```

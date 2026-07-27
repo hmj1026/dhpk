@@ -12,6 +12,14 @@ dhpk's default execution policy for projects that adopt the harness. Resource-la
 - **back-stop**: hook pattern did not match but the AI semantically recognises the trigger should fire → AI proactively invokes the matching reviewer (and still clears the sentinel if present).
 - **append-only exemption**: pure additions may skip `gitnexus_impact` only when they add a new function/method/class, change no existing body/signature/docblock/typehint, and change no module-level state (imports or top-level constants); label the change `append-only — gitnexus_impact skipped`.
 - **reviewer dispatch**: when multiple sentinels coexist, triage out false positives → dispatch the rest **in parallel** → `code-reviewer` merges/dedups (see "Reviewer dispatch").
+- **resumed review obligation**: a session-scoped record created before reusing an existing sentinel-backed reviewer through `SendMessage`; it binds the final result to one generated reviewer slot, exact sentinel basename, session, dispatch, and freshness baseline.
+- **lifecycle clearance**: reconciliation and removal of a review sentinel after its lifecycle evidence is satisfied; it is not reviewer approval or completion.
+- **Parallel Dispatch**: two or more workers operating in one checkout under explicit, non-overlapping assigned scopes.
+- **Assigned Scope**: the exact repo-relative file list a worker may write, diff, and verify; it is not the whole working tree and cannot be expanded by the worker.
+- **Worker-Owned Edit**: a change within the assigned scope attributable to that worker's dispatch.
+- **Out-of-Scope Observation**: a sibling or unrelated change outside assigned scope that the worker reports but does not modify or clean.
+- **Shared-State Reconciliation**: the single sequential orchestrator pass that validates and updates shared ratchet/configuration state (a monotonic baseline file, e.g. a coverage or size-budget allowlist) after all parallel workers finish.
+- **Judgment-Dense Standardizable Batch**: a bounded, repeatable implementation step touching at least three files that requires consistent content judgment but has an exact file scope and verification contract; unresolved design and unknown root cause are excluded.
 
 ## Classification-first context loading
 
@@ -90,6 +98,7 @@ Each Bash tool call starts from its declared/default working directory; never as
 | Reasoning-heavy (unknown root cause, algorithm design, cross-file complex analysis) | `deep-reasoner` (Claude, default) |
 | The same reasoning-heavy work, offloaded to the codex CLI backend (read-only sandbox) — **codex CLI available**. Selected per invocation by `--reasoner=codex` or the `codex_deep_reasoner_model`/`codex_deep_reasoner_effort` userConfig chain (default `gpt-5.6-sol` @ `high`); same reasoning brief, same conclusion contract. Missing-executable fallback to `deep-reasoner` is the only silent substitution — auth/model/task failures stay `RESULT: BLOCKED`. | `codex-deep-reasoner` |
 | Mechanical with a clear spec (boilerplate, test scaffolds, rename sweeps, multi-file doc-consistency fixes of ≥3 files, applying an already-approved plan) | `fast-worker` |
+| Judgment-dense but standardizable work touching more than two files (bounded documentation migration, bilingual restructuring, or a known review-fix batch) | In-process `fast-worker` by default |
 | The same mechanical clear-spec work, offloaded to the codex CLI backend — **codex CLI available**. Selected by an invocation override, explicit configuration, or as an available candidate in configured `auto` order; independent of the separate `CODEX` review-peer switch. | `codex-fast-worker` |
 | The same mechanical clear-spec work, offloaded to the agy CLI backend — **agy CLI available** only. Selected by explicit configuration or as an available candidate in configured `auto` order. | `agy-fast-worker` |
 | Small diff (roughly ≤2 files, unambiguous intent) | Inline in the main loop — no dispatch |
@@ -103,6 +112,14 @@ Each Bash tool call starts from its declared/default working directory; never as
 | Plan critique / blind-sketch / dual-plan before implementation, or a warm diff review at task end | `dhpk:planner` — opt-in via `/dhpk:do --plan` on the four implementation-class routes (`dhpk:adaptive-dev-workflow`, `dhpk:bug-fix`, `dhpk:feature-dev`, `dhpk:opsx-apply-goal`) |
 | Independent second opinion, or an offloaded self-contained clear-spec task — **CODEX=on only** | `codex-bridge` (subagent; one-shot bash `codex exec`, output isolated + relayed verbatim) |
 | Live CI/deploy verification (`gh run watch`, run-log triage, retry babysitting) — main context keeps only merge/fix decisions | `dhpk:smoke-tester` (read-only probe) or background `fast-worker` |
+
+For a parallel mechanical batch, every worker task spec MUST declare `Parallel: yes`, exact assigned repo-relative files, per-file intent, and either a path-scoped verification command or an explicit report-only outcome. The assigned list is the worker's authoritative write, diff, and verification boundary. New files must be listed before dispatch; workers must stop with `BLOCKED` rather than expand scope.
+
+Workers may report out-of-scope observations, but an out-of-scope write is a worker contract violation and remains `BLOCKED`. Workers MUST NOT run `git checkout`, `git restore`, `git reset`, `git clean`, forceful deletion, or equivalent cleanup against out-of-scope files. They must leave sibling changes intact for the orchestrator.
+
+When a validator reads or modifies shared ratchet/configuration state, workers MUST use a dispatcher-provided scoped or no-write equivalent. If no safe equivalent exists, the worker reports the missing command as `BLOCKED` or the explicitly declared report-only outcome; it must not invent a global mutation path. After all workers return, the orchestrator performs one sequential whole-tree `Shared-State Reconciliation` before the consolidated reviewer wave. A task whose intended output includes shared state is serial.
+
+`Judgment-Dense Standardizable Batch` is a default fast-worker route, not a forced route. The orchestrator may override it only with a recorded reason. The route requires at least three files, bounded repeatable intent, and known verification; open-ended design, unresolved root cause, and architecture decisions remain orchestrator/deep-reasoner work. The policy does not require durable telemetry yet; the acceptance report records the selected tier, override reason if any, and result.
 
 ### Fast-worker backend selector
 
@@ -175,11 +192,11 @@ shape is canonicalized in `docs/contracts/reviewer-contract.md`.
 
 ### Hook-enforced (sentinels)
 
-Trigger map source-of-truth: dhpk's `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/post-edit-dispatch.sh` (a 7-slot default: code, db, security, frontend, doc, polyfill, migration) plus any per-module post-edit hooks contributed by enabled modules. Each sentinel is cleared by the runtime hook `subagent-stop-verify.sh` when its reviewer stops successfully (the sanctioned path); the orchestrator uses `clear-sentinel.sh <name> <label>` only for a triage-drop or a stale-sentinel back-stop.
+Trigger map source-of-truth: dhpk's `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/post-edit-dispatch.sh` (a 7-slot default: code, db, security, frontend, doc, polyfill, migration) plus any per-module post-edit hooks contributed by enabled modules. Each sentinel is cleared by the runtime hook `subagent-stop-verify.sh` when its reviewer stops successfully (the sanctioned native path); a reviewer resumed through `SendMessage` records a resumed review obligation before reuse and uses the orchestrator-owned artifact-backed fallback when no matching `SubagentStop` occurs. The orchestrator uses `clear-sentinel.sh <name> <label>` only through a known-slot reconcile, triage-drop, or stale-sentinel back-stop; a reviewer never self-clears. Lifecycle clearance is separate from verdict approval.
 
 A subagent must never paste the literal `${CLAUDE_PLUGIN_ROOT}/...` into a Bash command — it is a markdown-interpolation token, unset in a subagent's shell. Full caveat (SSOT): `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/review-gate-mechanics.md`.
 
-**Auto-clear + fallback**: a successful reviewer with a fresh matching artifact auto-clears only its own slot; absent fresh output stays armed. Exact fallback and fail-loud rules: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/review-gate-mechanics.md`.
+**Auto-clear + fallback**: a successful reviewer with a fresh matching artifact auto-clears only its own slot; absent fresh output stays armed. A resumed fallback additionally requires a matching `.resumed-review-obligations` record, conclusive final response, resume-relative freshness, and proven session/agent ownership. Exact fallback and fail-loud rules: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/review-gate-mechanics.md`.
 
 | Sentinel | Required agent | Trigger summary (default; project can extend via `userConfig.review_trigger_extra_paths`) |
 |---|---|---|

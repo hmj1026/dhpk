@@ -29,6 +29,13 @@ The dispatcher MUST provide:
 2. **Change intent per file** — what changes, precisely enough to implement without inventing an interpretation.
 3. **Verification command** — the command that proves the change works (`npm test`, `pytest -x`, `php -l`, a specific test file, etc.).
 
+For a shared-checkout parallel dispatch, the spec must also provide:
+
+4. **Parallel marker** — `Parallel: yes`.
+5. **Assigned files** — exact repo-relative paths; no implicit directories or unlisted generated files.
+6. **Per-file intent** — the bounded change for every assigned path.
+7. **Scoped verification** — a command limited to the assigned paths, or an explicit `REPORT-ONLY` outcome naming the orchestrator-owned command. (`REPORT-ONLY` here is the literal spec-input token; the "report-only" prose used elsewhere in this file's reports and the wider policy is free-form, not a token the tooling parses.)
+
 ## Escalates on ambiguous specs
 
 When the spec is underspecified — missing target files, ambiguous change intent, or no runnable verification command and none is derivable from the repo's obvious test config (`package.json` scripts, `phpunit.xml`, `pyproject.toml`) — stop and return the specific question blocking execution. Do not invent an interpretation and do not silently pick a default verification command that wasn't specified or derivable.
@@ -38,6 +45,8 @@ When the spec is underspecified — missing target files, ambiguous change inten
 - Edit exactly the files named in the spec, exactly the intent described.
 - No opportunistic refactors, no formatting sweeps, no changes outside the spec's scope.
 - Notice unrelated dead code or an adjacent issue? Mention it in the report. Do not touch it.
+- In parallel mode, the assigned file list is the authoritative write, diff, and verification boundary. If another file is required, return `RESULT: BLOCKED` rather than expanding scope.
+- Out-of-scope changes may be reported as observations, but never reverted, reset, cleaned, force-deleted, or otherwise mutated. `git checkout`, `git restore`, `git reset`, and `git clean` are prohibited for out-of-scope paths.
 
 ## Verify and report
 
@@ -46,6 +55,8 @@ After applying changes:
 1. Run the provided verification command.
 2. **Pass** → report success, the verification output, and the complete edited-file list.
 3. **Fail** → diagnose from the error, apply the smallest fix that preserves intent, re-run. **Stop after 3 failed attempts** on the same error (same contract as the build-resolver family — see `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/build-resolver-skeleton.md` Stop conditions) and escalate: report the attempt log (what was tried + each error), ≥2 alternative paths, and a recommendation. Also stop early if a fix attempt needs an architectural redesign — propose it, don't force it.
+
+In parallel mode, derive before/after edits only from path-scoped status/diff for the assigned files. Do not use global status as ownership evidence. If the scoped validator is unavailable, return the declared report-only outcome or `BLOCKED` with the exact missing command; do not invoke a global validator that mutates shared ratchet/configuration state.
 
 **Fixed-string matching for special-character greps.** When a verification grep searches for a string containing shell-special or multibyte/CJK characters — `$` (as in `${CLAUDE_PLUGIN_ROOT}`), the section sign `§`, fullwidth punctuation (`，（）——`), or other non-ASCII — use fixed-string matching (`grep -F`, or `grep -Fc` on a fixed substring), never a BRE/ERE. Under some locales (e.g. `zh_TW.UTF-8`) a BRE `$` next to a multibyte character silently matches zero times even when the string is present. A verification grep that returns zero matches for content you believe you just wrote MUST be re-checked with `grep -F` before you report it as a failure — report failure only if the fixed-string check also fails.
 
@@ -75,9 +86,14 @@ Fallback reason: none
 Model/effort: <effective model> / <effective effort>
 Verify: <command> → PASS | FAIL (N attempts)
 Spec: <one-line summary of what was requested>
-Edited files:
+Edited files (assigned-scope):
 - path/a
 - path/b
+Out-of-scope observations:
+- none
+Out-of-scope writes:
+- none
+Verification scope: assigned files | report-only
 Deviations from spec: <none | what and why>
 Observations (not acted on): <unrelated issue noticed, if any>
 ```
