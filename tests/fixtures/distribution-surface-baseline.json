@@ -1,0 +1,702 @@
+{
+  "schema": "dhpk.distribution-surface-baseline.v1",
+  "capturedFor": "openspec/changes/curate-dhpk-distribution-surfaces",
+  "capturedAtPluginVersion": "0.30.0",
+  "note": "Point-in-time snapshot of canonical, Claude-published, module, and Codex-synced skill inventories BEFORE the distribution-surface-governance lifecycle inventory existed (task 1.1). Also records the v0.30.0 native-marketplace missing-skill cache baseline reproduced by GitHub issue #88. Historical record — not regenerated after the inventory lands.",
+  "counts": {
+    "canonicalSkills": 105,
+    "canonicalModules": 31,
+    "codexSyncMirrorEntries": 15
+  },
+  "canonical": {
+    "skills": [
+      {
+        "id": "fastapi-pro",
+        "path": "modules/fastapi/skills/fastapi-pro/SKILL.md",
+        "module": "fastapi"
+      },
+      {
+        "id": "ios-platform",
+        "path": "modules/ios-platform/skills/ios-platform/SKILL.md",
+        "module": "ios-platform"
+      },
+      {
+        "id": "js-lint-config",
+        "path": "modules/js/skills/js-lint-config/SKILL.md",
+        "module": "js"
+      },
+      {
+        "id": "js-static-check-strategy",
+        "path": "modules/js/skills/js-static-check-strategy/SKILL.md",
+        "module": "js"
+      },
+      {
+        "id": "laravel-10-notes",
+        "path": "modules/laravel-10/skills/laravel-10-notes/SKILL.md",
+        "module": "laravel-10"
+      },
+      {
+        "id": "laravel-11-notes",
+        "path": "modules/laravel-11/skills/laravel-11-notes/SKILL.md",
+        "module": "laravel-11"
+      },
+      {
+        "id": "laravel-5.4-notes",
+        "path": "modules/laravel-5.4/skills/laravel-5.4-notes/SKILL.md",
+        "module": "laravel-5.4"
+      },
+      {
+        "id": "laravel-6-notes",
+        "path": "modules/laravel-6/skills/laravel-6-notes/SKILL.md",
+        "module": "laravel-6"
+      },
+      {
+        "id": "laravel-7-notes",
+        "path": "modules/laravel-7/skills/laravel-7-notes/SKILL.md",
+        "module": "laravel-7"
+      },
+      {
+        "id": "laravel-8-notes",
+        "path": "modules/laravel-8/skills/laravel-8-notes/SKILL.md",
+        "module": "laravel-8"
+      },
+      {
+        "id": "laravel-9-notes",
+        "path": "modules/laravel-9/skills/laravel-9-notes/SKILL.md",
+        "module": "laravel-9"
+      },
+      {
+        "id": "laravel-mix-notes",
+        "path": "modules/laravel-mix/skills/laravel-mix-notes/SKILL.md",
+        "module": "laravel-mix"
+      },
+      {
+        "id": "library-dual-testsuite-map",
+        "path": "modules/library-author/skills/library-dual-testsuite-map/SKILL.md",
+        "module": "library-author"
+      },
+      {
+        "id": "matrix-cell-onboard",
+        "path": "modules/library-author/skills/matrix-cell-onboard/SKILL.md",
+        "module": "library-author"
+      },
+      {
+        "id": "openspec-artifact-guard",
+        "path": "modules/library-author/skills/openspec-artifact-guard/SKILL.md",
+        "module": "library-author"
+      },
+      {
+        "id": "nextjs-15-5-notes",
+        "path": "modules/nextjs-15.5/skills/nextjs-15-5-notes/SKILL.md",
+        "module": "nextjs-15.5"
+      },
+      {
+        "id": "nextjs-16-notes",
+        "path": "modules/nextjs-16/skills/nextjs-16-notes/SKILL.md",
+        "module": "nextjs-16"
+      },
+      {
+        "id": "php-pro",
+        "path": "modules/php-5.6/skills/php-pro/SKILL.md",
+        "module": "php-5.6"
+      },
+      {
+        "id": "php-modern-pro",
+        "path": "modules/php-7.4/skills/php-modern-pro/SKILL.md",
+        "module": "php-7.4"
+      },
+      {
+        "id": "php-8x-features",
+        "path": "modules/php-8.x/skills/php-8x-features/SKILL.md",
+        "module": "php-8.x"
+      },
+      {
+        "id": "phpunit-10-notes",
+        "path": "modules/phpunit-10/skills/phpunit-10-notes/SKILL.md",
+        "module": "phpunit-10"
+      },
+      {
+        "id": "phpunit-11-notes",
+        "path": "modules/phpunit-11/skills/phpunit-11-notes/SKILL.md",
+        "module": "phpunit-11"
+      },
+      {
+        "id": "legacy-code-characterization",
+        "path": "modules/phpunit-5.7/skills/legacy-code-characterization/SKILL.md",
+        "module": "phpunit-5.7"
+      },
+      {
+        "id": "phpunit-9-modern",
+        "path": "modules/phpunit-9/skills/phpunit-9-modern/SKILL.md",
+        "module": "phpunit-9"
+      },
+      {
+        "id": "pytest-async",
+        "path": "modules/pytest/skills/pytest-async/SKILL.md",
+        "module": "pytest"
+      },
+      {
+        "id": "python-pro",
+        "path": "modules/python/skills/python-pro/SKILL.md",
+        "module": "python"
+      },
+      {
+        "id": "python-static-checks",
+        "path": "modules/python/skills/python-static-checks/SKILL.md",
+        "module": "python"
+      },
+      {
+        "id": "react-18-notes",
+        "path": "modules/react-18/skills/react-18-notes/SKILL.md",
+        "module": "react-18"
+      },
+      {
+        "id": "react-19-notes",
+        "path": "modules/react-19/skills/react-19-notes/SKILL.md",
+        "module": "react-19"
+      },
+      {
+        "id": "swift-test-strategy",
+        "path": "modules/swift-testing/skills/swift-test-strategy/SKILL.md",
+        "module": "swift-testing"
+      },
+      {
+        "id": "swift-language",
+        "path": "modules/swift/skills/swift-language/SKILL.md",
+        "module": "swift"
+      },
+      {
+        "id": "swiftui-architecture",
+        "path": "modules/swiftui/skills/swiftui-architecture/SKILL.md",
+        "module": "swiftui"
+      },
+      {
+        "id": "vue-2-notes",
+        "path": "modules/vue-2/skills/vue-2-notes/SKILL.md",
+        "module": "vue-2"
+      },
+      {
+        "id": "ios-icon-gen",
+        "path": "modules/xcode-tooling/skills/ios-icon-gen/SKILL.md",
+        "module": "xcode-tooling"
+      },
+      {
+        "id": "xcode-build-tooling",
+        "path": "modules/xcode-tooling/skills/xcode-build-tooling/SKILL.md",
+        "module": "xcode-tooling"
+      },
+      {
+        "id": "php56-yii-dev",
+        "path": "modules/yii-1.1/skills/php56-yii-dev/SKILL.md",
+        "module": "yii-1.1"
+      },
+      {
+        "id": "yii1-security-audit",
+        "path": "modules/yii-1.1/skills/yii1-security-audit/SKILL.md",
+        "module": "yii-1.1"
+      },
+      {
+        "id": "adaptive-dev-workflow",
+        "path": "skills/adaptive-dev-workflow/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "agent-architecture-audit",
+        "path": "skills/agent-architecture-audit/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "agy-commit",
+        "path": "skills/agy-commit/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "agy-fast-worker",
+        "path": "skills/agy-fast-worker/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "bug-fix",
+        "path": "skills/bug-fix/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "bug-investigation",
+        "path": "skills/bug-investigation/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "claude-health",
+        "path": "skills/claude-health/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "code-explore",
+        "path": "skills/code-explore/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "code-investigate",
+        "path": "skills/code-investigate/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "codex-architect",
+        "path": "skills/codex-architect/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "codex-brainstorm",
+        "path": "skills/codex-brainstorm/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "codex-bridge",
+        "path": "skills/codex-bridge/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "codex-cli-review",
+        "path": "skills/codex-cli-review/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "codex-code-review",
+        "path": "skills/codex-code-review/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "codex-explain",
+        "path": "skills/codex-explain/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "codex-implement",
+        "path": "skills/codex-implement/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "composer-package-hygiene",
+        "path": "skills/composer-package-hygiene/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "continuous-learning-v2",
+        "path": "skills/continuous-learning-v2/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "create-request",
+        "path": "skills/create-request/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "create-skill",
+        "path": "skills/create-skill/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "de-ai-flavor",
+        "path": "skills/de-ai-flavor/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "deploy-list",
+        "path": "skills/deploy-list/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "dhpk-execution-policy",
+        "path": "skills/dhpk-execution-policy/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "doc-review",
+        "path": "skills/doc-review/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "execution-checklist",
+        "path": "skills/execution-checklist/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "feasibility-study",
+        "path": "skills/feasibility-study/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "feature-dev",
+        "path": "skills/feature-dev/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "feature-verify",
+        "path": "skills/feature-verify/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "git-investigate",
+        "path": "skills/git-investigate/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "git-smart-commit",
+        "path": "skills/git-smart-commit/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "gitnexus-cli",
+        "path": "skills/gitnexus/gitnexus-cli/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "gitnexus-debugging",
+        "path": "skills/gitnexus/gitnexus-debugging/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "gitnexus-exploring",
+        "path": "skills/gitnexus/gitnexus-exploring/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "gitnexus-guide",
+        "path": "skills/gitnexus/gitnexus-guide/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "gitnexus-impact-analysis",
+        "path": "skills/gitnexus/gitnexus-impact-analysis/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "gitnexus-refactoring",
+        "path": "skills/gitnexus/gitnexus-refactoring/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "harness-budget",
+        "path": "skills/harness-budget/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "harness-fill",
+        "path": "skills/harness-fill/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "harness-revise",
+        "path": "skills/harness-revise/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "issue-analyze",
+        "path": "skills/issue-analyze/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "laravel-package-author",
+        "path": "skills/laravel-package-author/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "laravel-testbench-matrix",
+        "path": "skills/laravel-testbench-matrix/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "multi-ai-sync",
+        "path": "skills/multi-ai-sync/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "next-step",
+        "path": "skills/next-step/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "op-session",
+        "path": "skills/op-session/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "opsx-apply-goal",
+        "path": "skills/opsx-apply-goal/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "opsx-load-context",
+        "path": "skills/opsx-load-context/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "opsx-post-obs",
+        "path": "skills/opsx-post-obs/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "polyfill-version-matrix-audit",
+        "path": "skills/polyfill-version-matrix-audit/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "post-dev-test",
+        "path": "skills/post-dev-test/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "pr-review",
+        "path": "skills/pr-review/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "project-audit",
+        "path": "skills/project-audit/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "project-setup",
+        "path": "skills/project-setup/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "prompt-optimize",
+        "path": "skills/prompt-optimize/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "release-creator",
+        "path": "skills/release-creator/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "repo-intake",
+        "path": "skills/repo-intake/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "risk-assess",
+        "path": "skills/risk-assess/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "rules-distill",
+        "path": "skills/rules-distill/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "security-review",
+        "path": "skills/security-review/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "skill-health-check",
+        "path": "skills/skill-health-check/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "skill-judge",
+        "path": "skills/skill-judge/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "skill-scout",
+        "path": "skills/skill-scout/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "skill-stocktake",
+        "path": "skills/skill-stocktake/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "software-architecture",
+        "path": "skills/software-architecture/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "tdd",
+        "path": "skills/tdd/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "tech-spec",
+        "path": "skills/tech-spec/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "test-review",
+        "path": "skills/test-review/SKILL.md",
+        "module": null
+      },
+      {
+        "id": "tool-routing",
+        "path": "skills/tool-routing/SKILL.md",
+        "module": null
+      }
+    ],
+    "modules": [
+      "fastapi",
+      "ios-platform",
+      "js",
+      "laravel-10",
+      "laravel-11",
+      "laravel-5.4",
+      "laravel-6",
+      "laravel-7",
+      "laravel-8",
+      "laravel-9",
+      "laravel-mix",
+      "library-author",
+      "nextjs-15.5",
+      "nextjs-16",
+      "php-5.6",
+      "php-7.4",
+      "php-8.x",
+      "phpunit-10",
+      "phpunit-11",
+      "phpunit-5.7",
+      "phpunit-9",
+      "pytest",
+      "python",
+      "react-18",
+      "react-19",
+      "swift",
+      "swift-testing",
+      "swiftui",
+      "vue-2",
+      "xcode-tooling",
+      "yii-1.1"
+    ]
+  },
+  "claudePublished": {
+    "note": "Current .claude-plugin/plugin.json skills[] registers broad directory roots — one root skills/ dir plus one skills/ dir per module. There is no per-skill lifecycle filter: every canonical skill under a registered root is published identically regardless of promoted/optional/experimental status.",
+    "skillsRoots": [
+      "./skills/",
+      "./modules/php-5.6/skills/",
+      "./modules/php-7.4/skills/",
+      "./modules/php-8.x/skills/",
+      "./modules/yii-1.1/skills/",
+      "./modules/phpunit-5.7/skills/",
+      "./modules/phpunit-9/skills/",
+      "./modules/phpunit-10/skills/",
+      "./modules/phpunit-11/skills/",
+      "./modules/laravel-5.4/skills/",
+      "./modules/laravel-6/skills/",
+      "./modules/laravel-7/skills/",
+      "./modules/laravel-8/skills/",
+      "./modules/laravel-9/skills/",
+      "./modules/laravel-10/skills/",
+      "./modules/laravel-11/skills/",
+      "./modules/js/skills/",
+      "./modules/python/skills/",
+      "./modules/fastapi/skills/",
+      "./modules/pytest/skills/",
+      "./modules/vue-2/skills/",
+      "./modules/laravel-mix/skills/",
+      "./modules/nextjs-15.5/skills/",
+      "./modules/nextjs-16/skills/",
+      "./modules/react-18/skills/",
+      "./modules/react-19/skills/",
+      "./modules/library-author/skills/",
+      "./modules/swift/skills/",
+      "./modules/swiftui/skills/",
+      "./modules/ios-platform/skills/",
+      "./modules/swift-testing/skills/",
+      "./modules/xcode-tooling/skills/"
+    ],
+    "rootCount": 32
+  },
+  "codexSynced": {
+    "note": "scripts/hooks/install-codex-skills.sh syncs codex/skills/ (the supported project-local path) into a consumer project .codex/skills/. Symlink entries point at the canonical skills/<name> source; physical-dir entries are module-sourced mirrors that cannot be expressed as a same-directory symlink.",
+    "entries": [
+      {
+        "name": "agy-commit",
+        "kind": "symlink",
+        "target": "../../skills/agy-commit"
+      },
+      {
+        "name": "bug-investigation",
+        "kind": "symlink",
+        "target": "../../skills/bug-investigation"
+      },
+      {
+        "name": "git-investigate",
+        "kind": "symlink",
+        "target": "../../skills/git-investigate"
+      },
+      {
+        "name": "git-smart-commit",
+        "kind": "symlink",
+        "target": "../../skills/git-smart-commit"
+      },
+      {
+        "name": "legacy-code-characterization",
+        "kind": "physical-dir",
+        "target": null
+      },
+      {
+        "name": "multi-ai-sync",
+        "kind": "symlink",
+        "target": "../../skills/multi-ai-sync"
+      },
+      {
+        "name": "op-session",
+        "kind": "symlink",
+        "target": "../../skills/op-session"
+      },
+      {
+        "name": "opsx-load-context",
+        "kind": "symlink",
+        "target": "../../skills/opsx-load-context"
+      },
+      {
+        "name": "opsx-post-obs",
+        "kind": "symlink",
+        "target": "../../skills/opsx-post-obs"
+      },
+      {
+        "name": "php-pro",
+        "kind": "physical-dir",
+        "target": null
+      },
+      {
+        "name": "php56-yii-dev",
+        "kind": "physical-dir",
+        "target": null
+      },
+      {
+        "name": "skill-health-check",
+        "kind": "symlink",
+        "target": "../../skills/skill-health-check"
+      },
+      {
+        "name": "skill-judge",
+        "kind": "symlink",
+        "target": "../../skills/skill-judge"
+      },
+      {
+        "name": "tdd",
+        "kind": "symlink",
+        "target": "../../skills/tdd"
+      },
+      {
+        "name": "yii1-security-audit",
+        "kind": "physical-dir",
+        "target": null
+      }
+    ]
+  },
+  "marketplaceCacheBaseline_v0_30_0_issue88": {
+    "note": "Reproduced baseline from GitHub issue #88: .codex-plugin/plugin.json (native) and plugins/dhpk/.codex-plugin/plugin.json (marketplace-target wrapper) both resolve their \"skills\" field to a codex/skills/ tree containing symlinks back to ../../skills/ (and, for the wrapper, a parent-relative \"../../codex/skills/\" path escaping the wrapper package directory entirely). A codex plugin installation into a clean marketplace cache copies the plugin tree without preserving those symlink targets and without resolving the parent-relative wrapper path, so the installed cache contains only the wrapper manifest.json and README.md — none of the 15 referenced skills materialize as physical, discoverable files.",
+    "wrapperManifestSkillsField": "../../codex/skills/",
+    "nativeManifestSkillsField": "./codex/skills/",
+    "observedInstalledCacheContents": [
+      "plugin.json",
+      "README.md"
+    ],
+    "observedMissingSkillCount": 15,
+    "reference": "https://github.com/hmj1026/dhpk/issues/88"
+  }
+}

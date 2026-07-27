@@ -130,4 +130,44 @@ test('same plugin version but changed source content is not treated as up-to-dat
   }
 });
 
+test('re-running without --update when version and source fingerprint are unchanged is a reported no-op', () => {
+  const scratch = projectRoot();
+  try {
+    const first = runInstaller(scratch, ['--copy', '--force']);
+    assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+    const manifestPath = path.join(scratch, '.codex', '.dhpk-installed.json');
+    const before = fs.readFileSync(manifestPath, 'utf8');
+
+    // No --update this time — the idempotency check should short-circuit
+    // before touching .codex/ at all.
+    const second = runInstaller(scratch, ['--copy']);
+    assert.strictEqual(second.status, 0, `${second.stdout}\n${second.stderr}`);
+    assert.match(second.stdout, /already up-to-date/);
+    assert.strictEqual(fs.readFileSync(manifestPath, 'utf8'), before, 'manifest must be untouched by a reported no-op run');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('managed-target replacement: re-sync replaces a dhpk-managed target regardless of whether it is currently a file or a symlink', () => {
+  const scratch = projectRoot();
+  try {
+    const symlinked = runInstaller(scratch, ['--force']);
+    assert.strictEqual(symlinked.status, 0, `${symlinked.stdout}\n${symlinked.stderr}`);
+    const skillName = fs.readdirSync(path.join(scratch, '.codex', 'skills'))[0];
+    const target = path.join(scratch, '.codex', 'skills', skillName);
+    assert.ok(fs.lstatSync(target).isSymbolicLink(), 'first sync (symlink mode) must produce a symlink target');
+
+    // Switching to copy --update must replace that exact managed symlink
+    // target with a real materialized directory, not merge into it or fail
+    // because a symlink already occupies the path.
+    const copied = runInstaller(scratch, ['--copy', '--update', '--force']);
+    assert.strictEqual(copied.status, 0, `${copied.stdout}\n${copied.stderr}`);
+    assert.ok(!fs.lstatSync(target).isSymbolicLink(), 'copy --update must replace the prior symlink target with a real directory');
+    assert.ok(fs.existsSync(path.join(target, 'SKILL.md')), 'replaced managed target must contain real skill content');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
 run('install-codex-skills');
