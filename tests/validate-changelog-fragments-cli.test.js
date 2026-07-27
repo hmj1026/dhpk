@@ -87,8 +87,46 @@ test('--diff-base passes on a release-shaped diff: promoted section, no pending 
   spawnSync('git', ['add', '-A'], { cwd: repo });
   spawnSync('git', ['commit', '-q', '-m', 'chore(release): 1.0.0'], { cwd: repo });
 
-  const res = runCli(repo, ['--diff-base', 'develop']);
+  const res = runCli(repo, ['--diff-base', 'develop', '--base-ref', 'main']);
   assert.strictEqual(res.status, 0, res.stderr);
+});
+
+// The exemption is only reachable on a release PR. Everything a feature PR can
+// write — the heading AND the manifest version — is author-controlled, so on
+// any other base the content evidence must not buy an exemption at all.
+test('--diff-base gives no exemption on a non-release base even when heading and manifest agree', () => {
+  const repo = mkRepo();
+  fs.writeFileSync(path.join(repo, 'secret-feature.js'), 'module.exports = {};\n');
+  const changelog = path.join(repo, 'CHANGELOG.md');
+  fs.writeFileSync(
+    changelog,
+    fs.readFileSync(changelog, 'utf8').replace('## [Unreleased]', '## [Unreleased]\n\n## 9.9.9 — 2026-07-27 — Forged section')
+  );
+  writeManifestVersion(repo, '9.9.9');
+  spawnSync('git', ['add', '-A'], { cwd: repo });
+  spawnSync('git', ['commit', '-q', '-m', 'forge a release-looking diff'], { cwd: repo });
+
+  const res = runCli(repo, ['--diff-base', 'develop', '--base-ref', 'develop']);
+  assert.notStrictEqual(res.status, 0, res.stdout);
+  assert.match(res.stderr, /missing release fragment/);
+  assert.match(res.stderr, /secret-feature\.js/);
+});
+
+test('--diff-base gives no exemption when the base ref is unknown (fails closed)', () => {
+  const repo = mkRepo();
+  fs.writeFileSync(path.join(repo, 'secret-feature.js'), 'module.exports = {};\n');
+  const changelog = path.join(repo, 'CHANGELOG.md');
+  fs.writeFileSync(
+    changelog,
+    fs.readFileSync(changelog, 'utf8').replace('## [Unreleased]', '## [Unreleased]\n\n## 9.9.9 — 2026-07-27 — Forged section')
+  );
+  writeManifestVersion(repo, '9.9.9');
+  spawnSync('git', ['add', '-A'], { cwd: repo });
+  spawnSync('git', ['commit', '-q', '-m', 'forge a release-looking diff'], { cwd: repo });
+
+  const res = runCli(repo, ['--diff-base', 'develop']);
+  assert.notStrictEqual(res.status, 0, res.stdout);
+  assert.match(res.stderr, /missing release fragment/);
 });
 
 // The exemption must not become a general-purpose way to skip the fragment
@@ -103,7 +141,7 @@ test('--diff-base still fails when an existing release heading is only reworded'
   );
   spawnSync('git', ['add', '-A'], { cwd: repo });
   spawnSync('git', ['commit', '-q', '-m', 'fix changelog date'], { cwd: repo });
-  const res = runCli(repo, ['--diff-base', 'develop']);
+  const res = runCli(repo, ['--diff-base', 'develop', '--base-ref', 'main']);
   assert.notStrictEqual(res.status, 0, res.stdout);
   assert.match(res.stderr, /missing release fragment/);
 });
@@ -120,7 +158,7 @@ test('--diff-base still fails when a new section is hand-added without the manif
   );
   spawnSync('git', ['add', '-A'], { cwd: repo });
   spawnSync('git', ['commit', '-q', '-m', 'hand-write a changelog section'], { cwd: repo });
-  const res = runCli(repo, ['--diff-base', 'develop']);
+  const res = runCli(repo, ['--diff-base', 'develop', '--base-ref', 'main']);
   assert.notStrictEqual(res.status, 0, res.stdout);
   assert.match(res.stderr, /missing release fragment/);
 });

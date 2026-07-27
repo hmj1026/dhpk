@@ -26,6 +26,7 @@ function parseArgs(argv) {
     const arg = argv[i];
     if (arg === '--write') args.write = true;
     else if (arg === '--diff-base') args.diffBase = argv[++i];
+    else if (arg === '--base-ref') args.baseRef = argv[++i];
     else if (arg === '--version') args.version = argv[++i];
     else if (arg === '--date') args.date = argv[++i];
     else if (arg === '--summary') args.summary = argv[++i];
@@ -59,18 +60,25 @@ function changedFilesSince(root, diffBase) {
 
 // Recognises the one PR shape that legitimately carries no pending fragment:
 // the release PR, whose fragments prepare-release already promoted into
-// CHANGELOG.md and deleted. Sniffing "a version heading appeared" alone would
-// hand every PR an easy opt-out of the fragment requirement, so this demands
-// two things a stray CHANGELOG edit cannot both satisfy:
+// CHANGELOG.md and deleted.
 //
+// Everything a PR writes to its own files is author-controlled, so content
+// alone can always be forged — a contributor wanting to skip the fragment
+// requirement could append a version heading AND bump the manifest to match in
+// the same commit. The base ref cannot be forged that way: it is supplied by
+// the CI event, and only the release PR targets `main`. So the exemption needs
+// all three, and the first is the trust boundary:
+//
+//   0. the PR's base ref is RELEASE_BASE_REF — this is the release PR at all;
 //   1. the diff ADDS a "## X.Y.Z ..." heading that did not exist at the diff
 //      base — a genuinely new section, not a reworded or re-dated old one; and
 //   2. that X.Y.Z equals the plugin manifest version at HEAD — prepare-release
-//      moves the manifests and CHANGELOG.md in lockstep, so a hand-written
-//      section without the bump does not qualify.
+//      moves the manifests and CHANGELOG.md in lockstep.
 //
-// Anything unreadable (missing or malformed manifest) fails closed: no
-// exemption, the ordinary fragment requirement stands.
+// Everything unknown fails closed — absent `--base-ref`, a non-release base, or
+// an unreadable manifest all mean no exemption and the ordinary fragment
+// requirement stands.
+const RELEASE_BASE_REF = 'main';
 const ADDED_RELEASE_HEADING = /^\+## (\d+\.\d+\.\d+)(?=[\s.])/gm;
 const PLUGIN_MANIFEST = path.join('.claude-plugin', 'plugin.json');
 
@@ -88,7 +96,22 @@ function headingPresent(text, version) {
   return new RegExp(`^## ${version.replace(/\./g, '\\.')}(?=[\\s.])`, 'm').test(text);
 }
 
-function releaseSectionAddedSince(root, diffBase) {
+// CHANGELOG.md absent at the base is itself proof the section is new. Any other
+// git failure is a harness fault and must not be read as evidence, so only the
+// "does not exist" case is tolerated — `git cat-file -e` distinguishes them.
+function changelogAtBase(root, diffBase) {
+  const spec = `${diffBase}:CHANGELOG.md`;
+  try {
+    execFileSync('git', ['cat-file', '-e', spec], { cwd: root, stdio: 'ignore' });
+  } catch {
+    return '';
+  }
+  return git(root, ['show', spec]);
+}
+
+function releaseSectionAddedSince(root, diffBase, baseRef) {
+  if (baseRef !== RELEASE_BASE_REF) return false;
+
   const diff = git(root, ['diff', '--unified=0', `${diffBase}...HEAD`, '--', 'CHANGELOG.md']);
   const addedVersions = [...diff.matchAll(ADDED_RELEASE_HEADING)].map((m) => m[1]);
   if (addedVersions.length === 0) return false;
@@ -96,19 +119,7 @@ function releaseSectionAddedSince(root, diffBase) {
   const manifestVersion = pluginManifestVersion(root);
   if (!manifestVersion || !addedVersions.includes(manifestVersion)) return false;
 
-  // `git show` exits non-zero when CHANGELOG.md is absent at the base, which is
-  // itself proof the section is new — so this one call stays tolerant.
-  let baseChangelog = '';
-  try {
-    baseChangelog = execFileSync('git', ['show', `${diffBase}:CHANGELOG.md`], {
-      cwd: root,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    });
-  } catch {
-    baseChangelog = '';
-  }
-  return !headingPresent(baseChangelog, manifestVersion);
+  return !headingPresent(changelogAtBase(root, diffBase), manifestVersion);
 }
 
 function main() {
@@ -132,7 +143,7 @@ function main() {
 
   if (args.diffBase) {
     const changedFiles = changedFilesSince(args.root, args.diffBase);
-    const releaseSectionAdded = releaseSectionAddedSince(args.root, args.diffBase);
+    const releaseSectionAdded = releaseSectionAddedSince(args.root, args.diffBase, args.baseRef);
     const coverage = checkCoverage({ changedFiles, fragments, markers, releaseSectionAdded });
     if (!coverage.ok) {
       console.error('validate-changelog-fragments: FAIL (missing release fragment)');

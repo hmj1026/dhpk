@@ -77,16 +77,30 @@ section as the standing evidence — coverage for those files was already
 enforced on the feature PRs that introduced them.
 
 So the exemption cannot become a general-purpose way to skip the fragment
-requirement, it needs both of the following, which a stray `CHANGELOG.md` edit
-cannot satisfy together:
+requirement, it needs all three of the following:
 
+0. the pull request's **base ref is `main`** — this is the release PR at all;
 1. the diff **adds** a `## X.Y.Z ...` heading that did not exist at the diff
    base — a genuinely new section, not a reworded or re-dated old one; and
 2. that `X.Y.Z` matches the version in `.claude-plugin/plugin.json` at `HEAD`,
    since release preparation moves the manifests and `CHANGELOG.md` in lockstep.
 
-An unreadable or missing manifest fails closed: no exemption, the ordinary
-fragment requirement stands.
+Condition 0 is the trust boundary and is why it is listed first. Conditions 1
+and 2 are both ordinary file edits, so a PR author who wanted to skip the
+fragment requirement could write a matching heading and bump the manifest in
+the same commit. The base ref cannot be forged that way — CI supplies it from
+the pull-request event (`--base-ref "$BASE_REF"` in `ci.yml`), and only the
+release PR targets `main`.
+
+The residual is therefore bounded to PRs that already target `main`, which is
+the release boundary: human-merged, and separately governed by
+`prepare-release.js check` and the tag-time `verify-release-parity.js`. It is
+not claimed to be unforgeable there — it is claimed to be unreachable from an
+ordinary feature PR.
+
+Everything unknown fails closed. A missing `--base-ref`, a non-release base, or
+an unreadable manifest all mean no exemption and the ordinary fragment
+requirement stands.
 
 ## Release candidate preparation
 
