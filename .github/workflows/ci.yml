@@ -19,6 +19,8 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v6
         with:
@@ -49,6 +51,17 @@ jobs:
       # Count SSOT: README / manifest exact claims must match reality.
       - name: Catalog count check
         run: node scripts/ci/catalog.js --check
+
+      # Release-note fragment schema (always) + PR coverage (base ref must exist locally).
+      - name: Validate changelog fragments
+        run: node scripts/ci/validate-changelog-fragments.js
+      - name: Changelog fragment coverage (PR only)
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          git fetch origin "$BASE_REF"
+          node scripts/ci/validate-changelog-fragments.js --diff-base "origin/$BASE_REF"
 
       # Regression tests (plugin paths, hook wiring, catalog<->modules).
       - name: Tests

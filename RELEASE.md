@@ -41,6 +41,35 @@ the relevant tag, GitHub Release, Release workflow, and branch comparison must
 show that the branch has no unreleased work. Never delete a branch merely
 because it looks merged.
 
+## Release-note fragments
+
+Every user-visible feature, fix, deprecation, or breaking change adds one
+fragment file at merge time, instead of hand-editing `CHANGELOG.md` per PR:
+
+```
+changelog.d/<category>.<slug>.md   # category: feat, fix, refactor, docs,
+                                    # test, chore, perf, ci, or BREAKING
+```
+
+Content is exactly two lines (see `changelog.d/TEMPLATE.md`):
+
+```
+scope: <short-scope-token>
+note: <one sentence, matches the existing CHANGELOG.md bullet style>
+```
+
+An internal-only change (tests, refactors with no user-visible effect,
+internal tooling) adds an empty marker instead:
+
+```
+changelog.d/<slug>.none
+```
+
+Continuous CI (`ci.yml`) validates fragment schema on every push, and on
+pull requests fails when a non-test-only diff carries neither a fragment nor
+a `.none` marker — see `scripts/ci/validate-changelog-fragments.js` and
+`scripts/lib/changelog-fragments.js`.
+
 ## Release candidate preparation
 
 1. Confirm that `develop` contains the intended changes and is up to date:
@@ -50,26 +79,39 @@ because it looks merged.
    git pull --ff-only
    ```
 
-2. Confirm the worktree is clean before authoring the candidate. The only
-   permitted release edits are the version manifests and `CHANGELOG.md`:
+2. Run the release preparation command. It is the single source of truth for
+   version-bearing surfaces: it SemVer-validates the target, promotes
+   `changelog.d/` fragments into `CHANGELOG.md`, and updates every manifest
+   in lockstep. It refuses to run anywhere but `develop`, and check mode
+   never edits files:
+
+   ```bash
+   # Check mode — reports drift, changes nothing:
+   node scripts/release/prepare-release.js check --version X.Y.Z
+
+   # Write mode — promotes fragments and bumps every manifest:
+   node scripts/release/prepare-release.js write \
+     --version X.Y.Z --date YYYY-MM-DD --summary "One-line release summary"
+   ```
+
+   The exact version-bearing surfaces it keeps in lockstep (`scripts/lib/release-parity.js`):
 
    - `.claude-plugin/plugin.json`
    - `.codex-plugin/plugin.json`
    - `plugins/dhpk/.codex-plugin/plugin.json`
    - `.agents/plugins/marketplace.json`
-   - `CHANGELOG.md`
+   - `CHANGELOG.md` (`## X.Y.Z — YYYY-MM-DD — summary` heading)
 
    All four manifests must contain the same SemVer version. The tag format is
-   exactly `vX.Y.Z`.
+   exactly `vX.Y.Z`. Confirm the worktree contains only these five files
+   afterward — write mode never touches anything else.
 
-3. Replace the top `## [Unreleased]` section with a non-empty heading in this
-   format:
+   **Failure remediation:** check mode's error list names every drifted file
+   with its observed and expected version; re-run write mode (or hand-edit)
+   until check mode passes. A write-mode failure on invalid fragments leaves
+   every file unchanged — fix the named `changelog.d/` file and re-run.
 
-   ```markdown
-   ## X.Y.Z — YYYY-MM-DD — summary
-   ```
-
-4. Run the release validation before creating the PR:
+3. Run the release validation before creating the PR:
 
    ```bash
    bash scripts/validate/validate-harness.sh
@@ -79,13 +121,14 @@ because it looks merged.
    node scripts/ci/validate-modules.js --strict
    node scripts/ci/validate-plugin.js --strict
    node scripts/ci/catalog.js --check all
+   node scripts/release/prepare-release.js check --version X.Y.Z
    node tests/run-all.js
    ```
 
    The release PR must pass the `validate` and Markdown `lint` jobs. The tag
    workflow does not replace pull-request validation.
 
-5. Prepare the direct `develop` → `main` PR. Pass every intended release file
+4. Prepare the direct `develop` → `main` PR. Pass every intended release file
    explicitly; the runner rejects unrelated worktree changes and never stages
    the whole repository implicitly:
 
@@ -104,7 +147,16 @@ because it looks merged.
 Pull-request merge is always a human action. An agent may prepare the release
 commit and PR, but must stop at the merge gate.
 
-After the human confirms that the release PR is merged, publish the tag:
+After the human confirms that the release PR is merged, run the publish gate.
+It blocks on SOURCE or PACKAGE FAIL and never merges a PR, creates a tag, or
+pushes anything itself — `release-runner.sh publish` still owns those
+mechanics and remains an explicit, separate step:
+
+```bash
+node scripts/release/publish-gate.js --version X.Y.Z
+```
+
+Once the publish gate passes, publish the tag:
 
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/skills/release-creator/scripts/release-runner.sh" \
@@ -121,9 +173,11 @@ The publish phase:
 - returns to `develop` only after the workflow succeeds.
 
 The Release workflow accepts only `vX.Y.Z` tags, verifies that the tag commit
-is contained in `origin/main`, rejects missing or whitespace-only changelog
-notes, and creates a GitHub Release from those notes. If the GitHub Release
-already exists, a rerun preserves it rather than editing its metadata.
+is contained in `origin/main`, re-verifies manifest/changelog parity for the
+tag version (`scripts/ci/verify-release-parity.js`), rejects missing or
+whitespace-only changelog notes (`scripts/release/extract-notes.sh`), and
+creates a GitHub Release from those notes. If the GitHub Release already
+exists, a rerun preserves it rather than editing its metadata.
 
 ## Release completion and recovery
 
@@ -135,11 +189,25 @@ A release is complete only when all of these states hold:
 4. the `sync-develop` job successfully back-merges `main` into `develop`.
 
 The back-merge uses `--no-ff`. Conflicts or branch-protection failures remain
-blocking; resolve them through a human PR from `main` to `develop`.
+blocking — the `sync-develop` job fails loudly, preserves both `main` and
+`develop` exactly as they were, and never resets or force-pushes. Manual
+recovery:
 
-Do not move, delete, or reuse a published tag. If a release is defective,
-rollback means reinstalling the previous known-good immutable version and
-starting a fresh consumer session. A correction is a new patch release.
+1. Create a recovery branch from `develop`: `git checkout -b recovery/back-merge-vX.Y.Z develop`.
+2. Merge `main` into that recovery branch: `git merge --no-ff main`.
+3. Resolve conflicts locally and run the standard test suite (`node tests/run-all.js`).
+4. Open a PR from the recovery branch to `develop` and merge it through the
+   normal human approval boundary.
+
+Never resolve a failed back-merge by force-pushing `develop` or resetting
+either branch.
+
+Do not move, delete, or reuse a published tag. If the `consumer-verify` job
+reports a CONSUMER verification failure (see the job summary), the published
+tag and GitHub Release stay immutable regardless — do not delete, retag, or
+edit them. Diagnose the failure and ship a new patch (or `hotfix/*`)
+release; rollback for an already-updated consumer means reinstalling the
+previous known-good immutable version and starting a fresh session.
 
 The durable release evidence is the version, tag SHA, CI run, GitHub Release,
 and back-merge result. Session-local reports may supplement that evidence but
