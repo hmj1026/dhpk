@@ -70,6 +70,13 @@ pull requests fails when a non-test-only diff carries neither a fragment nor
 a `.none` marker — see `scripts/ci/validate-changelog-fragments.js` and
 `scripts/lib/changelog-fragments.js`.
 
+The release PR (`develop` → `main`) is the one shape where no fragment is
+pending: release preparation already promoted them into `CHANGELOG.md` and
+deleted them. The coverage gate therefore also accepts a diff that adds a
+`## X.Y.Z — ...` release heading to `CHANGELOG.md` — the promoted section is
+the standing evidence, and coverage for those files was already enforced on
+the feature PRs that introduced them.
+
 ## Release candidate preparation
 
 1. Confirm that `develop` contains the intended changes and is up to date:
