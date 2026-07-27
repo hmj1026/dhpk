@@ -66,14 +66,26 @@ Apply policy:
 
 ```bash
 python3 -B "$SYNC_CLI" validate --format markdown
+# Explicit request (absent target reports BLOCKED, not NOT_CONFIGURED):
+python3 -B "$SYNC_CLI" validate --targets codex gemini --format markdown
+python3 -B "$SYNC_CLI" validate --all-targets --format markdown
 ```
 
-Validate config/frontmatter/TOML/JSON loadability, platform smoke, hooks, and
-multi-agent representative cases. Use these exit semantics:
+Omitting `--targets`/`--all-targets` auto-discovers the configured target set
+from documented markers (Codex: `.codex/config.toml`; Gemini:
+`.gemini/commands/**/*.toml`; Antigravity: `.agent/rules/*.md`); an absent,
+unrequested target reports `NOT_CONFIGURED` and never fails the gate.
 
-- `PASS`: config/smoke pass and no representative `FAIL` or `SKIP`.
-- `PARTIAL`: config/smoke pass and only explicit incompatible skips remain.
-- `FAIL`: config/smoke fails or any representative case fails.
+Validate config/frontmatter/TOML/JSON loadability, platform smoke, hooks, and
+multi-agent representative cases. Every check reports one of `PASS`, `FAIL`,
+`NOT_CONFIGURED`, or policy-backed `SKIP_INCOMPATIBLE` (with a machine-readable
+reason). Final gate exit semantics:
+
+- `PASS`: every applicable configured (or explicitly requested and present) check passes.
+- `FAIL`: any applicable configured/requested check fails. Takes precedence over `BLOCKED`.
+- `BLOCKED`: no `FAIL`, but at least one `--targets`/`--all-targets`-requested platform is entirely absent.
+- `NOT_CONFIGURED` / `SKIP_INCOMPATIBLE` rows stay visible but never independently move the gate off `PASS`.
+- `legacy_gate` (deprecated, removal-pending): `PASS`/`PARTIAL`/`FAIL` compatibility field for consumers not yet migrated to the four values above.
 
 ## Report contract
 

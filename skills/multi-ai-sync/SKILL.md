@@ -1,6 +1,6 @@
 ---
 name: multi-ai-sync
-description: "Compares Claude-first configuration across Codex, Gemini, and Antigravity to align cross-platform skills, commands, agents, hooks, or orchestration. Produces reviewable plans, OpenSpec tasks, dry-run/apply reports, and PASS/PARTIAL/FAIL validation. Not for reverse sync, single-platform edits, or missing Claude source."
+description: "Compares Claude-first configuration across Codex, Gemini, and Antigravity to align cross-platform skills, commands, agents, hooks, or orchestration. Produces reviewable plans, OpenSpec tasks, dry-run/apply reports, and a configured-platform PASS/FAIL/BLOCKED validation gate (NOT_CONFIGURED/SKIP_INCOMPATIBLE stay visible without failing it; legacy PARTIAL is a deprecated compat field). Not for reverse sync, single-platform edits, or missing Claude source."
 disable-model-invocation: true
 metadata:
   dhpk-invocation-class: explicit-only
@@ -88,23 +88,33 @@ Codex target 的 `adapted` agent mapping 可由 `agent_sync.py` 生成
 
 ### Step 5: Validation gate
 
-依 `execution-contract.md` 執行 validation，檢查 config/frontmatter/TOML/JSON
-loadability、platform smoke、hooks 與 multi-agent representative cases。
-Codex validation 同時檢查 agent role 必要欄位、sync manifest、mirrored
-references、coverage keywords 與 self-contained runtime contract。
+先解出本次 run 的 configured target set（省略 `--targets`/`--all-targets`
+即自動探索；缺席平台為 `NOT_CONFIGURED`。傳入 `--targets <platforms>` 或
+`--all-targets` 則缺席平台為 `BLOCKED`），再依 `execution-contract.md`
+執行 validation，檢查 config/frontmatter/TOML/JSON loadability、platform
+smoke、hooks 與 multi-agent representative cases。Codex validation 同時檢查
+agent role 必要欄位、（僅當有 Claude parity role 來源時）sync manifest 的
+owner/schema_version、mirrored references、coverage keywords 與
+self-contained runtime contract；沒有 parity role 來源的 repository（標準
+Codex 安裝）不需要 sync manifest。
 
-- `PASS`: config/smoke 通過，沒有代表案例 `FAIL` 或 `SKIP`。
-- `PARTIAL`: config/smoke 通過，但有明確 incompatible skip。
-- `FAIL`: config/smoke 失敗，或代表案例失敗。
+每個平台檢查回報 `PASS`、`FAIL`、`NOT_CONFIGURED` 或政策核准的
+`SKIP_INCOMPATIBLE`（含 reason）之一：
 
-**完成條件：** 回報 Gate、failed/skipped 摘要、evidence 路徑與下一步。
+- `PASS`：configured/applicable 平台檢查皆通過。
+- `FAIL`：任一 configured（或明確要求）平台的 applicable 檢查失敗；優先於 `BLOCKED`。
+- `BLOCKED`：沒有 `FAIL`，但至少一個以 `--targets`/`--all-targets` 明確要求的平台完全缺席。
+- `NOT_CONFIGURED`／`SKIP_INCOMPATIBLE`：可見但不影響 gate。
+- `legacy_gate`（deprecated，一版後移除）：`PASS`/`PARTIAL`/`FAIL` 相容欄位，供尚未遷移的舊消費者使用。
+
+**完成條件：** 回報 Gate（含 `legacy_gate`）、failed/skipped 摘要、evidence 路徑與下一步。
 
 ## Output
 
 - Preflight status 與 operation。
 - Plan、核准後 OpenSpec tasks、dry-run/apply reports。
 - 每個 mapping 的 decision contract。
-- Validation Gate：`PASS`、`PARTIAL` 或 `FAIL`，含失敗與跳過摘要。
+- Validation Gate：`PASS`、`FAIL` 或 `BLOCKED`（`NOT_CONFIGURED`/`SKIP_INCOMPATIBLE` 可見但不影響 gate；`legacy_gate` 為 deprecated 相容欄位），含失敗與跳過摘要。
 
 ## Verification
 

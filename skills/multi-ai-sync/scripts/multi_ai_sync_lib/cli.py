@@ -43,13 +43,13 @@ def cmd_tasks(args):
 
 def cmd_validate(args):
     repo_root = os.path.abspath(args.root)
-    report = run_validation(repo_root)
+    report = run_validation(repo_root, targets=args.targets, all_targets=args.all_targets)
     if args.format == "json":
         payload = json.dumps(report, indent=2, sort_keys=True)
     else:
         payload = render_validation_markdown(report)
     write_or_print(payload, args.output)
-    if report["gate"] == "FAIL":
+    if report["gate"] in ("FAIL", "BLOCKED"):
         return 2
     return 0
 
@@ -123,6 +123,14 @@ def build_parser():
     p_tasks.set_defaults(func=cmd_tasks)
 
     p_validate = sub.add_parser("validate", help="執行 post-sync validation gate")
+    p_validate.add_argument(
+        "--targets", nargs="+", default=None, choices=["codex", "gemini", "antigravity"],
+        help="明確指定要驗證的 target 平台；缺席即 BLOCKED（省略則為自動探索，缺席為 NOT_CONFIGURED）",
+    )
+    p_validate.add_argument(
+        "--all-targets", action="store_true",
+        help="對所有支援平台做完整稽核；缺席即 BLOCKED",
+    )
     p_validate.add_argument("--format", choices=["markdown", "json"], default="markdown")
     p_validate.add_argument("--output", default="", help="把 validation 輸出寫入檔案")
     p_validate.set_defaults(func=cmd_validate)

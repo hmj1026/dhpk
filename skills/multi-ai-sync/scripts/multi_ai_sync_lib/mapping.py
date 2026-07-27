@@ -409,6 +409,6 @@ def generate_tasks(plan, change_name):
     lines.append("## 4. Validation Gate")
     lines.append("")
     lines.append("- [ ] 執行 `python3 -B .codex/skills/multi-ai-sync/scripts/multi_ai_sync.py validate --format markdown`")
-    lines.append("- [ ] 確認每個平台結果為 PASS，或已明確核准 PARTIAL")
+    lines.append("- [ ] 確認 Gate 為 PASS，或已明確核准 BLOCKED 例外（NOT_CONFIGURED/SKIP_INCOMPATIBLE 不需核准）")
 
     return "\n".join(lines)
