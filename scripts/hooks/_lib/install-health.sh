@@ -353,7 +353,11 @@ dhpk_install_health_report() {
     # version gap. Patch drift and a currency line are advisory only (D6).
     [ -n "$mismatch" ] && raise_question=1
     [ "$vask" = "1" ] && [ "$has_pin" -eq 0 ] && raise_question=1
-    [ "${DHPK_INSTALL_HEALTH_ASK:-1}" = "1" ] || raise_question=0
+    # The live D7 probe showed that SessionStart output does not reliably drive
+    # an AskUserQuestion on the first turn. Keep advisory-only as the safe
+    # default; the question path remains an explicit opt-in for environments
+    # that have independently verified the mechanism.
+    [ "${DHPK_INSTALL_HEALTH_ASK:-0}" = "1" ] || raise_question=0
 
     digest="$(dhpk__hash "${installed}|${available}|${modules}")"
     DHPK_ADVISE_SESSION_ID="$digest" dhpk_advise_once install-health || return 0

@@ -56,18 +56,21 @@ function mkProject() {
   return repo;
 }
 
-function report(repo, modules, { pluginsDir = '', env = {} } = {}) {
+function report(repo, modules, { pluginsDir = '', env = {}, ask } = {}) {
+  const childEnv = {
+    ...process.env,
+    DHPK_PLUGINS_DIR: pluginsDir,
+    CLAUDE_PROJECT_DIR: repo,
+    ...env,
+  };
+  if (ask !== undefined) childEnv.DHPK_INSTALL_HEALTH_ASK = ask;
+
   const res = spawnSync(
     'bash',
     ['-c', '. "$1"; dhpk_install_health_report "$2" "$3"', '_', LIB, repo, modules],
     {
       encoding: 'utf8',
-      env: {
-        ...process.env,
-        DHPK_PLUGINS_DIR: pluginsDir,
-        CLAUDE_PROJECT_DIR: repo,
-        ...env,
-      },
+      env: childEnv,
       timeout: 10000,
     }
   );
@@ -89,7 +92,7 @@ test('both checks firing produce exactly one question-raising instruction', () =
   const repo = mkProject();
   const plugins = mkPluginsDir();
   try {
-    const out = report(repo, CONTRADICTED, { pluginsDir: plugins });
+    const out = report(repo, CONTRADICTED, { pluginsDir: plugins, ask: '1' });
     assert.ok(out.trim().length > 0, 'both checks fired but nothing was emitted');
     assert.strictEqual(
       countOccurrences(out, 'AskUserQuestion'),
@@ -121,7 +124,7 @@ test('a module finding alone still produces exactly one question', () => {
   const repo = mkProject();
   const plugins = mkPluginsDir({ installed: '0.29.0', available: '0.29.0' });
   try {
-    const out = report(repo, CONTRADICTED, { pluginsDir: plugins });
+    const out = report(repo, CONTRADICTED, { pluginsDir: plugins, ask: '1' });
     assert.strictEqual(countOccurrences(out, 'AskUserQuestion'), 1, out);
     assert.ok(!out.includes('0.29.0 available'), `version should not be a finding here:\n${out}`);
   } finally {
@@ -133,7 +136,7 @@ test('a version finding alone still produces exactly one question', () => {
   const repo = mkProject();
   const plugins = mkPluginsDir();
   try {
-    const out = report(repo, 'js', { pluginsDir: plugins });
+    const out = report(repo, 'js', { pluginsDir: plugins, ask: '1' });
     assert.strictEqual(countOccurrences(out, 'AskUserQuestion'), 1, out);
     assert.ok(!out.includes('php-5.6'), out);
   } finally {
@@ -319,6 +322,20 @@ test('the advisory-only fallback names findings and raises no question', () => {
   }
 });
 
+test('the failed interactive probe makes advisory-only the default', () => {
+  const repo = mkProject();
+  const plugins = mkPluginsDir();
+  try {
+    const out = report(repo, CONTRADICTED, { pluginsDir: plugins });
+    assert.ok(out.trim().length > 0, 'default fallback emitted nothing');
+    assert.strictEqual(countOccurrences(out, 'AskUserQuestion'), 0, `default fallback still asked:\n${out}`);
+    assert.ok(out.includes('php-5.6'), `default fallback must name the findings:\n${out}`);
+    assert.ok(/claude-health/.test(out), `default fallback must point at claude-health:\n${out}`);
+  } finally {
+    rm(repo, plugins);
+  }
+});
+
 // ---- 6.1 remediation is offered, never applied ----
 
 test('the gate writes no configuration file under any input', () => {
@@ -354,19 +371,22 @@ test('the remediation text requires confirmation before any file is written', ()
 
 // ---- 5.4 SessionStart wiring ----
 
-function sessionStart(repo, { pluginsDir = '', modules = CONTRADICTED, session = 'ask-e2e' } = {}) {
+function sessionStart(repo, { pluginsDir = '', modules = CONTRADICTED, session = 'ask-e2e', ask } = {}) {
+  const childEnv = {
+    ...process.env,
+    CLAUDE_PLUGIN_ROOT: ROOT,
+    CLAUDE_PROJECT_DIR: repo,
+    DHPK_PLUGINS_DIR: pluginsDir,
+    CLAUDE_PLUGIN_OPTION_MODULES: modules,
+    CLAUDE_PLUGIN_OPTION_HOOK_PROFILE: 'standard',
+    P: JSON.stringify({ source: 'startup', session_id: session }),
+  };
+  if (ask !== undefined) childEnv.DHPK_INSTALL_HEALTH_ASK = ask;
+
   return spawnSync('bash', ['-c', 'printf %s "$P" | bash "$1"', '_', SESSION_START], {
     cwd: repo,
     encoding: 'utf8',
-    env: {
-      ...process.env,
-      CLAUDE_PLUGIN_ROOT: ROOT,
-      CLAUDE_PROJECT_DIR: repo,
-      DHPK_PLUGINS_DIR: pluginsDir,
-      CLAUDE_PLUGIN_OPTION_MODULES: modules,
-      CLAUDE_PLUGIN_OPTION_HOOK_PROFILE: 'standard',
-      P: JSON.stringify({ source: 'startup', session_id: session }),
-    },
+    env: childEnv,
     timeout: 15000,
   });
 }
@@ -375,7 +395,7 @@ test('session-start still exits 0 with findings present', () => {
   const repo = mkProject();
   const plugins = mkPluginsDir();
   try {
-    const res = sessionStart(repo, { pluginsDir: plugins });
+    const res = sessionStart(repo, { pluginsDir: plugins, ask: '1' });
     assert.strictEqual(res.status, 0, `session-start failed with findings:\n${res.stderr}`);
   } finally {
     rm(repo, plugins);
@@ -386,7 +406,7 @@ test('session-start emits the gate once and does not duplicate the existing mism
   const repo = mkProject();
   const plugins = mkPluginsDir();
   try {
-    const res = sessionStart(repo, { pluginsDir: plugins });
+    const res = sessionStart(repo, { pluginsDir: plugins, ask: '1' });
     const all = res.stdout + res.stderr;
     assert.strictEqual(
       countOccurrences(all, 'WARN module/manifest mismatch'),
