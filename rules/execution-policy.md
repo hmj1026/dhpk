@@ -32,6 +32,19 @@ Single source of truth for the six change types, their flow, and whether to ask 
 
 > **`/dhpk:do --openspec` override (force-`y`):** the `--openspec` flag (alias `--opsx`) force-selects the "create a change" (`y`) path — running `opsx:new` → `opsx:ff` to emit artifacts, then pausing for human review — overriding the per-type ask behavior in the "OpenSpec ask?" column above. The override is keyed on the **resolved route**, not the change-type row: it activates whenever `/dhpk:do` resolves to one of the three change-authoring routes (`dhpk:adaptive-dev-workflow`, `dhpk:bug-fix`, `dhpk:feature-dev`) — where every substantial bug/feature request lands *before* this per-type classification runs — so on those routes it goes straight to artifact authoring instead of asking or classifying (bypassing the row's normal investigation/architecture steps). It is **not applicable** to `opsx-apply-goal` (which applies an *existing* change) or any other non-authoring route — there it prints `--openspec ignored: ...` and proceeds. `--openspec` supersedes `--plan` only when this authoring diversion activates. SSOT for the flag mechanics: `commands/do.md` §Step 0c + §Openspec-mode rule.
 
+## Invocation precedence & entry selection
+
+Every distributed skill/command carries `metadata.dhpk-invocation-class`
+(`explicit-only` or `implicit-eligible`). Entry selection across exact
+invocation, `/dhpk:do`, `next-step`, and model selection follows one fixed
+precedence; an explicitly-invoked router may start an `implicit-eligible`
+target but must present-and-wait for an `explicit-only` target rather than
+calling it through the Skill tool. Full precedence order, Explicit Invocation
+definition, and the OpenSpec entry-point surface mapping:
+`${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/invocation-precedence.md`.
+Full classification rationale per entry:
+`${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/invocation-classification.md`.
+
 ## Agent dispatch
 
 Agents run via the `Agent` tool (`subagent_type=<name>`), not via skill names.
@@ -219,7 +232,7 @@ contract above; the outcome is replacement or a pending gate with a recorded rea
 | `PostToolUse` advisory, `StopFailure`, and module finding collection | opt-in advisory | non-blocking; surfaced only when configured or when findings exist |
 | `Stop` completion evidence, graduation scan, and quality scan | opt-in advisory | disabled by default; no duplicate completion message on the default path |
 | `SessionStart`, `SessionEnd`, `PreCompact`, and `PostCompact` | lifecycle bookkeeping | enabled; maintain session/config/archive state without acting as a review gate |
-| `SessionStart` install-health gate (`_lib/install-health.sh`) | opt-in advisory | non-blocking; local state only, silent unless a version gap or a contradicted module set is found, and suppressed on unchanged state |
+| `SessionStart` install-health gate (`_lib/install-health.sh`) | advisory gate | non-blocking; local state only, advisory-only by default, silent unless a version gap or a contradicted module set is found, and suppressed on unchanged state |
 
 **Install-health gate**: inheriting the global `modules` list is NOT a finding — only a contradiction against project evidence is. Triggers, non-triggers, suppression, and how to disable it: `${CLAUDE_PLUGIN_ROOT}/docs/hook-extension.md` §Session install-health gate.
 
