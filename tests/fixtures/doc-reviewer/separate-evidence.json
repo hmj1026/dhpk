@@ -1,0 +1,18 @@
+{
+  "schema": "dhpk.doc-reviewer-fixture.v1",
+  "verification": "static annotation only \u2014 not runtime-verified; no agent is invoked against this fixture, it documents the expected decision per agents/doc-reviewer.md's prose rules (checked by tests/doc-reviewer-coupled-check.test.js against the prose, not this data)",
+  "scenario": "separate-evidence",
+  "note": "Coupled spec.md and design.md both have findings, but the patterns DIFFER \u2014 the check is same-pattern-scoped, not a blanket merge, so these stay two separate findings.",
+  "batch": "openspec/changes/example-change",
+  "reviewedFile": "openspec/changes/example-change/design.md",
+  "coupledFile": "openspec/changes/example-change/spec.md",
+  "findingPatternReviewed": "missing rollback section",
+  "findingPatternCoupled": "undefined capability naming",
+  "expected": {
+    "coupled": false,
+    "findingCount": 2,
+    "citesBothPaths": false,
+    "dispatchesSecondReview": false,
+    "rewritesEitherFile": false
+  }
+}

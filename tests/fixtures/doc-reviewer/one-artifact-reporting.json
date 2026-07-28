@@ -1,0 +1,18 @@
+{
+  "schema": "dhpk.doc-reviewer-fixture.v1",
+  "verification": "static annotation only \u2014 not runtime-verified; no agent is invoked against this fixture, it documents the expected decision per agents/doc-reviewer.md's prose rules (checked by tests/doc-reviewer-coupled-check.test.js against the prose, not this data)",
+  "scenario": "one-artifact-reporting",
+  "note": "Even though both coupled paths carry evidence for the same finding pattern, the reviewer writes exactly one review artifact for the run \u2014 the coupling is reported as one entry inside it, not a second artifact.",
+  "batch": "openspec/changes/example-change",
+  "reviewedFile": "openspec/changes/example-change/design.md",
+  "coupledFile": "openspec/changes/example-change/spec.md",
+  "findingPattern": "missing rollback section",
+  "expected": {
+    "coupled": true,
+    "artifactCount": 1,
+    "findingCount": 1,
+    "citesBothPaths": true,
+    "dispatchesSecondReview": false,
+    "rewritesEitherFile": false
+  }
+}

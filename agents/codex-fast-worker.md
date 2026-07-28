@@ -157,6 +157,11 @@ Fallback reason: <none | missing executable: codex; configured fallback=claude>
 Model/effort: <model> / <effort>
 Verify: <command> → PASS | FAIL (N attempts)
 Spec: <one-line summary of what was requested>
+Timeout state: not-applicable | first-timeout-retried | second-timeout-terminal
+Completion ledger: confirmed=<paths>; unconfirmed=<paths>; remaining=<paths>
+Timeout evidence: <none | wrapper exit/evidence for attempt 1/2>
+Partial marker: <none | predeclared control-plane path>
+Next action: <reconcile, continue, or exact blocker>
 Edited files (assigned-scope, from path-scoped status/diff):
 - path/a
 - path/b

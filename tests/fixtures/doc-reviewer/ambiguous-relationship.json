@@ -1,0 +1,16 @@
+{
+  "schema": "dhpk.doc-reviewer-fixture.v1",
+  "verification": "static annotation only \u2014 not runtime-verified; no agent is invoked against this fixture, it documents the expected decision per agents/doc-reviewer.md's prose rules (checked by tests/doc-reviewer-coupled-check.test.js against the prose, not this data)",
+  "scenario": "ambiguous-relationship",
+  "note": "The finding pattern is present in the reviewed file only; the same-batch design.md exists but does not clearly govern the same requirement \u2014 do not assert coupling on a hunch.",
+  "batch": "openspec/changes/example-change",
+  "reviewedFile": "agents/example-reviewer.md",
+  "candidateFile": "openspec/changes/example-change/design.md",
+  "expected": {
+    "coupled": false,
+    "findingCount": 1,
+    "citesBothPaths": false,
+    "dispatchesSecondReview": false,
+    "rewritesEitherFile": false
+  }
+}

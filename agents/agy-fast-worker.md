@@ -153,9 +153,19 @@ Fallback reason: <none | missing executable: agy; configured fallback=claude>
 Model/effort: <model> / baked into model name
 Verify: <command> → PASS | FAIL (N attempts)
 Spec: <one-line summary of what was requested>
+Timeout state: not-applicable | first-timeout-retried | second-timeout-terminal
+Completion ledger: confirmed=<paths>; unconfirmed=<paths>; remaining=<paths>
+Timeout evidence: <none | wrapper exit/evidence for attempt 1/2>
+Partial marker: <none | predeclared control-plane path>
+Next action: <reconcile, continue, or exact blocker>
 Edited files (from git status --porcelain diff):
 - path/a
 - path/b
+Out-of-scope observations:
+- none
+Out-of-scope writes:
+- none
+Verification scope: assigned files | report-only
 Deviations from spec: <none | what and why>
 Observations (not acted on): <unrelated issue noticed, if any>
 ```
