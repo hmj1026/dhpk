@@ -165,13 +165,24 @@ PROMPT_CONTENT="$(cat "$PROMPT_FILE")"
 # Optional wrapper-level timeout backstop (GNU `timeout` / BSD `gtimeout`). agy's own
 # --print-timeout is the primary bound; this catches a hang that outlives it.
 TIMEOUT_BIN=""
-if command -v timeout >/dev/null 2>&1; then
-  TIMEOUT_BIN="timeout"
-elif command -v gtimeout >/dev/null 2>&1; then
-  TIMEOUT_BIN="gtimeout"
+if [ "$WRAP_TIMEOUT_SECS" -ge 1 ]; then
+  if command -v timeout >/dev/null 2>&1; then
+    TIMEOUT_BIN="timeout"
+  elif command -v gtimeout >/dev/null 2>&1; then
+    TIMEOUT_BIN="gtimeout"
+  else
+    echo "run-agy.sh: neither 'timeout' nor 'gtimeout' found on PATH — running without a wrapper-level timeout backstop; any 124 exit below is backend-native, not a wrapper timeout." >&2
+  fi
+else
+  # GNU `timeout 0 ...` disables the kill entirely (0 means "no limit"), so a budget
+  # below 1 can never produce a genuine timeout-kill regardless of which binary is on
+  # PATH — treat it the same as "no timeout mechanism" rather than still invoking
+  # `timeout` with a budget that can never fire.
+  echo "run-agy.sh: WRAP_TIMEOUT_SECS=${WRAP_TIMEOUT_SECS} disables the wrapper-level timeout backstop (a GNU timeout budget below 1 never fires) — running without one; any 124 exit below is backend-native, not a wrapper timeout." >&2
 fi
 
 set +e
+START_TS="$(date +%s)"
 if [ -n "$TIMEOUT_BIN" ]; then
   "$TIMEOUT_BIN" "$WRAP_TIMEOUT_SECS" \
     agy --dangerously-skip-permissions \
@@ -195,13 +206,27 @@ else
   CODE=$?
 fi
 set -e
+ELAPSED=$(( $(date +%s) - START_TS ))
+# Half the configured budget, floored at 1s: integer division truncates to 0 for
+# WRAP_TIMEOUT_SECS 0 or 1, which would make the elapsed check below vacuously true
+# (always satisfied) and silently revert to the pre-fix, already-broken two-condition
+# guard for any caller that overrides the budget that low.
+ELAPSED_THRESHOLD=$((WRAP_TIMEOUT_SECS / 2))
+[ "$ELAPSED_THRESHOLD" -lt 1 ] && ELAPSED_THRESHOLD=1
 
-# A 124 only means "wrapper backstop fired" when TIMEOUT_BIN actually wrapped the call;
-# with neither `timeout` nor `gtimeout` on PATH, agy ran unwrapped and could return 124
-# on its own — attributing that to the backstop unconditionally would be a fabricated
-# cause (see this file's own "never fabricates" contract above).
-if [ "$CODE" -eq 124 ] && [ -n "$TIMEOUT_BIN" ]; then
-  echo "run-agy.sh: agy timed out after ${WRAP_TIMEOUT_SECS}s (wrapper backstop) — check auth / model / prompt." >&2
+# A 124 only means "wrapper backstop fired" when TIMEOUT_BIN actually wrapped the call AND
+# the invocation ran for roughly the full timeout budget. GNU `timeout` passes through the
+# wrapped command's OWN exit code unchanged whenever it exits before the deadline, so a
+# backend that independently chooses exit code 124 for an unrelated reason — while still
+# running under the wrapper — is otherwise indistinguishable from a genuine timeout kill by
+# exit code alone (verified empirically: `timeout 5 bash -c "exit 124"` also returns 124).
+# Elapsed wall-clock time at or above half the configured budget (floored at 1s) is the
+# corroborating signal a real timeout requires; with neither `timeout` nor `gtimeout` on
+# PATH, agy ran unwrapped and could return 124 on its own regardless of elapsed time —
+# attributing either case to the backstop would be a fabricated cause (see this file's own
+# "never fabricates" contract above).
+if [ "$CODE" -eq 124 ] && [ -n "$TIMEOUT_BIN" ] && [ "$ELAPSED" -ge "$ELAPSED_THRESHOLD" ]; then
+  echo "run-agy.sh: agy timed out after ${WRAP_TIMEOUT_SECS}s (wrapper backstop, observed ${ELAPSED}s elapsed) — check auth / model / prompt." >&2
   tail -n 20 "$ERR_LOG" >&2 2>/dev/null || true
   exit 124
 fi

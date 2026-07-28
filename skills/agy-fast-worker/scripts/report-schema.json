@@ -26,6 +26,17 @@
     "blocked_reason": {
       "type": ["string", "null"],
       "description": "Set when status is blocked; null otherwise."
+    },
+    "timeout_recovery": {
+      "type": "object",
+      "properties": {
+        "wrapper_timeout_observed": { "type": "boolean" },
+        "confirmed": { "type": "array", "items": { "type": "string" } },
+        "unconfirmed": { "type": "array", "items": { "type": "string" } },
+        "remaining": { "type": "array", "items": { "type": "string" } },
+        "marker_path": { "type": ["string", "null"] }
+      },
+      "description": "Backend's self-reported mid-batch timeout ledger — advisory only; the dispatching agent independently derives the ledger from path-scoped git diff evidence and writes the PARTIAL marker itself regardless of this field."
     }
   }
 }

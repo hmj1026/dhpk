@@ -57,33 +57,6 @@ rejection — do not retry with a guessed model). A configured fallback may sele
 authorization, model, task, and verification failures never fall back. **Never**
 approximate the backend or fall back to editing the files yourself.
 
-## Mid-batch timeout recovery
-
-A wrapper timeout is only exit 124 plus evidence that `timeout` or `gtimeout` actually
-wrapped the CLI. A backend-native exit 124 is not this state. If timeout tooling is
-unavailable, return `RESULT: BLOCKED`; do not fabricate a timeout or retry. This state
-applies only to a started multi-file batch; single-file work and ordinary backend failures
-keep their existing semantics.
-
-Before dispatch, record the exact assigned product-file list and a path-scoped baseline. On
-the first verified wrapper timeout, derive disjoint `confirmed`, `unconfirmed`, and
-`remaining` sets. `confirmed` requires an explicit backend report plus supporting scoped
-diff/status evidence. Retry exactly once with the same agy backend, model, intent, verifier,
-and assigned scope, targeting only `remaining` plus `unconfirmed`. Never inline-edit, repeat
-confirmed files by default, expand scope, switch backend, or checkout/restore/reset/
-clean/delete sibling work.
-
-The existing agy internal verification retry remains available for verification failures only;
-it does not add timeout attempts or change this recovery state machine. If the fresh retry
-reaches a second verified wrapper timeout, stop. Return `RESULT: PARTIAL` when any file is
-confirmed; otherwise return `RESULT: BLOCKED`. Include both timeout observations, backend
-identity, all ledger sets, marker state, and the next action. Before returning `PARTIAL`, write
-a marker at the predeclared safe control-plane path
-`.claude/artifacts/sessions/.partial-cli-batch-<backend>-<session-id>-<dispatch-id>.json`.
-The marker is reported separately, is not part of the product edited-file list, is not a
-`.pending-*` reviewer sentinel, and is not auto-cleared. An unresolved marker blocks
-implementation-task completion until explicit human/orchestrator reconciliation.
-
 ## Execute via the agy wrapper
 
 1. Compose a **self-contained** prompt — agy sees a fresh session with none of this
@@ -113,6 +86,20 @@ implementation-task completion until explicit human/orchestrator reconciliation.
    well-formed report is not evidence the work was done or verified — step 2 below still
    runs unconditionally. When structured output is active, the schema-conformant object is
    at the wrapper's JSON output's `.structured_output` field, not the top level.
+
+## Mid-batch timeout recovery (multi-file dispatch only)
+
+A wrapper-reported timeout (`run-agy.sh` exit `124` with the wrapper's own "timed out after ...s (wrapper backstop)" evidence on stderr — never a backend-native `124` without that evidence) on a **multi-file** dispatch triggers timeout recovery instead of the ordinary failure path in "Verify and report" below. Build the path-scoped completion ledger (`confirmed` / `unconfirmed` / `remaining`, disjoint, covering the assigned list) per
+`${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/implementation-dispatch.md`
+§CLI worker mid-batch timeout recovery, then:
+
+1. **First verified timeout** — request exactly one same-backend, same-model recovery dispatch scoped to `remaining ∪ unconfirmed`. Never self-edit the unresolved files and never fall back to another backend because of a timeout.
+2. **Second verified timeout** — stop. Report `RESULT: PARTIAL` when any assigned file is confirmed, `RESULT: BLOCKED` when none is, naming both timeout observations, all three ledger sets, and the next action. Write the PARTIAL marker (control-plane JSON, not a product edit — see the policy reference above for the path and required fields) before returning `RESULT: PARTIAL`.
+3. **No wrapper timeout mechanism available** — `run-agy.sh` reports on stderr when neither `timeout` nor `gtimeout` is on PATH and runs unwrapped; without that mechanism there is no trustworthy timeout signal to classify, so treat any failure here as its ordinary (non-timeout) outcome and never fabricate a timeout classification.
+
+This mid-batch timeout retry is separate from, and does not extend, the internal verification-retry carve-out below — that carve-out counts only agy's self-run verification iterations inside a single dispatch, never a timeout classification or an extra timeout retry.
+
+A single-file dispatch, a non-timeout failure, or a missing-executable/auth/model failure keep their existing semantics unchanged — this section applies only to a verified wrapper timeout on a multi-file batch.
 
 ## Verify and report (the agent owns this, not the CLI)
 
