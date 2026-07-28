@@ -2,9 +2,11 @@
 
 ## [Unreleased]
 
-## 0.32.0 — 2026-07-27 — Harden release contracts and phase gates
+## 0.32.0 — 2026-07-27 — Harden release contracts and phase gates, and curate distribution surfaces
 
 **feat(release)** — Add release-note fragments (changelog.d/), a version-parity preparation command, and CI/release-only parity gates as part of hardening the dhpk release contract.
+**feat(dist)** — Curate the dhpk distribution surfaces: add a distribution inventory manifest and generator, a Codex native package builder, CI distribution validation, and updated Codex CLI installation and distribution-architecture docs.
+**fix(ci)** — Accept a promoted CHANGELOG.md release section as changelog-fragment coverage, so the develop → main release PR is no longer blocked by the fragment-coverage gate after release preparation consumed every pending fragment.
 
 ## 0.31.0 — 2026-07-27 — Scope multi-AI sync validation to configured platforms, harden parallel dispatch worker boundaries, and fix resumed reviewer clearance
 

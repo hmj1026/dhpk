@@ -61,7 +61,7 @@ jobs:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
           git fetch origin "$BASE_REF"
-          node scripts/ci/validate-changelog-fragments.js --diff-base "origin/$BASE_REF"
+          node scripts/ci/validate-changelog-fragments.js --diff-base "origin/$BASE_REF" --base-ref "$BASE_REF"
 
       # Regression tests (plugin paths, hook wiring, catalog<->modules).
       - name: Tests
