@@ -1,0 +1,105 @@
+{
+  "skill_name": "yii1-security-audit",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "我想對 <project-root> 這個 Yii 1.1 專案做一次安全審計。主要想知道：CSRF 防護有沒有開啟？accessRules 有沒有缺口？以及有沒有 SQL injection 的風險。請執行 yii1-security-audit。",
+      "expected_output": "審計報告應包含：(1) Yii 1.1 框架識別證據至少 3 項，(2) CSRF enableCsrfValidation 設定查閱結果，(3) 至少一個 Controller 的 accessRules 或 filters() 分析，(4) SQL 注入搜尋結果（區分安全綁定 vs 拼接），(5) 每條發現有類型碼 + 檔名:行號 + 修復建議，(6) 至少一個 PoC 觀察框架",
+      "files": [],
+      "assertions": [
+        {
+          "id": "contains_framework_evidence",
+          "text": "Output mentions at least 3 Yii 1.1 identification signals (yiic.php OR CController OR protected/ OR config/main.php)"
+        },
+        {
+          "id": "csrf_finding_present",
+          "text": "Output explicitly mentions enableCsrfValidation and its current value or absence in main.php"
+        },
+        {
+          "id": "access_control_section",
+          "text": "Output includes AccessControl or accessRules analysis with at least one specific controller file named"
+        },
+        {
+          "id": "sql_finding_present",
+          "text": "Output distinguishes between safe :param binding and unsafe SQL concatenation/interpolation"
+        },
+        {
+          "id": "has_type_codes",
+          "text": "Output uses risk type codes (AUTH, CSRF, XSS, SQL, CFG, LOGIC, or FILE) for at least 2 findings"
+        },
+        {
+          "id": "has_file_location",
+          "text": "At least one finding includes a specific file path and line number reference"
+        },
+        {
+          "id": "has_poc",
+          "text": "Output contains at least one observable PoC framework (request path + expected vs actual)"
+        },
+        {
+          "id": "has_yii1_api",
+          "text": "Fix recommendations use Yii 1.1 APIs (CHtml::encode, CDbCommand, createCommand, accessRules, etc.) not generic PHP or Yii2"
+        },
+        {
+          "id": "no_yii2_api_in_fixes",
+          "text": "Fix recommendations do NOT use Html::encode() (Yii2), Yii::$app, or can() without mentioning checkAccess"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "幫我找 <project-root>/protected/controllers/ 下的 Controller 有沒有漏掉加 accessRules 或 filters 的？如果有的話哪些 action 是公開的而且有危險？",
+      "expected_output": "應列出缺少 filters() 的 Controller 清單，指出具體哪些 action 無鑑權保護，映射到 AUTH 類型碼，並建議如何添加 accessRules()",
+      "files": [],
+      "assertions": [
+        {
+          "id": "lists_controllers",
+          "text": "Output names at least 3 specific controller PHP files from protected/controllers/"
+        },
+        {
+          "id": "identifies_missing_filters",
+          "text": "Output identifies at least one controller lacking filters() or accessRules()"
+        },
+        {
+          "id": "auth_type_code",
+          "text": "Output uses AUTH type code for access control findings"
+        },
+        {
+          "id": "checkpermission_awareness",
+          "text": "Output mentions checkPermission filter (<your-project> base controller mechanism)"
+        },
+        {
+          "id": "has_location",
+          "text": "Each risk finding includes a specific controller file path"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "這個 <your-project> 專案的 CDbCommand 使用方式安不安全？有沒有直接把 $POST 或 $GET 的值拼進 SQL 字串的地方？幫我掃一下 protected/controllers/ 和 protected/models/。",
+      "expected_output": "應搜尋 createCommand() 的使用，區分安全的 :param 綁定與不安全的字串拼接，對不安全的每一處給出位置（檔名:行號）、原始代碼片段、SQL injection 類型碼，以及安全重寫的建議",
+      "files": [],
+      "assertions": [
+        {
+          "id": "scans_createcommand",
+          "text": "Output explicitly searches for and discusses createCommand() usage patterns"
+        },
+        {
+          "id": "distinguishes_safe_unsafe",
+          "text": "Output explicitly differentiates safe patterns (bindParam/bindValue/inline params) from unsafe patterns (concatenation)"
+        },
+        {
+          "id": "sql_type_code",
+          "text": "SQL type code used for unsafe findings"
+        },
+        {
+          "id": "has_code_snippet",
+          "text": "At least one unsafe finding includes the actual code snippet from the project"
+        },
+        {
+          "id": "has_safe_rewrite",
+          "text": "At least one finding includes a parameterized query rewrite suggestion using Yii 1.1 API"
+        }
+      ]
+    }
+  ]
+}

@@ -17,6 +17,14 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 const { SEMVER_PATTERN, MANIFEST_PATHS, checkParity } = require('../lib/release-parity');
 const { readFragments, validateFragments, promote } = require('../lib/changelog-fragments');
+const { materializeNativePackage } = require('../lib/codex-native-package');
+
+// The codex-native package (plugins/dhpk/.codex-plugin/plugin.json +
+// provenance.json) is generated, derived output — not a hand-patchable
+// manifest. `write` mode regenerates it wholesale via materializeNativePackage
+// instead of field-patching, so skills/fingerprints/provenance never drift
+// from the version bump that produced them.
+const NATIVE_PACKAGE_PATHS = new Set(['plugins/dhpk/.codex-plugin/plugin.json', 'plugins/dhpk/provenance.json']);
 
 const DEFAULT_ROOT = path.join(__dirname, '..', '..');
 const REQUIRED_BRANCH = 'develop';
@@ -106,9 +114,22 @@ function main() {
   changed.push('CHANGELOG.md');
 
   for (const relPath of MANIFEST_PATHS) {
+    if (NATIVE_PACKAGE_PATHS.has(relPath)) continue;
     writeManifestVersion(args.root, relPath, args.version);
     changed.push(relPath);
   }
+
+  const inventory = JSON.parse(fs.readFileSync(path.join(args.root, 'manifests', 'distribution-inventory.json'), 'utf8'));
+  const sourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: args.root, encoding: 'utf8' }).trim();
+  materializeNativePackage({
+    inventory,
+    root: args.root,
+    outDir: path.join(args.root, 'plugins', 'dhpk'),
+    name: 'dhpk',
+    version: args.version,
+    sourceCommit,
+  });
+  changed.push('plugins/dhpk/ (regenerated codex-native package: manifest, skills/, fingerprints.json, provenance.json)');
 
   console.log(`prepare-release: write PASS (target ${args.version}); changed files:`);
   for (const f of changed) console.log(`  - ${f}`);

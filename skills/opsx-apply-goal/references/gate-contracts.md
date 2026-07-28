@@ -18,5 +18,8 @@ UTF-8 bytes, the unit produced by `wc -c`.
 The fixed core must preserve orientation, self-locating policy lookup, the
 `openspec-apply-change` kickoff, the hard-rule carve-out, the Unknown-skill
 fallback, the worker roster, and sentinel/unresolved-verdict gates. The normal target is
-`<=3,400` UTF-8 bytes; `>4,000` bytes is a hard Block A error. Required gates
-are never deleted to fit the budget.
+`<=3,600` UTF-8 bytes (raised from 3,400 when the source-checkout policy
+fallback and the POLICY-UNRESOLVED reviewer-artifact clause were added — the
+prior target left only 4 bytes of headroom, less than either addition costs);
+`>4,000` bytes is a hard Block A error. Required gates are never deleted to fit
+the budget.

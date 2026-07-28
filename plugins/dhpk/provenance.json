@@ -1,0 +1,23 @@
+{
+  "sourceVersion": "0.33.0",
+  "sourceCommit": "39ef09d4ad5986b246d71d0d10e20594cf38a8da",
+  "inventoryDigest": "88846ad91f0834859288ddc5f8d707a1829c9b2b0acb426e02baf69fe5f2c948",
+  "generatorVersion": "1.0.0",
+  "selectedSkillIds": [
+    "agy-commit",
+    "bug-investigation",
+    "git-investigate",
+    "git-smart-commit",
+    "legacy-code-characterization",
+    "multi-ai-sync",
+    "op-session",
+    "opsx-load-context",
+    "opsx-post-obs",
+    "php-pro",
+    "php56-yii-dev",
+    "skill-health-check",
+    "skill-judge",
+    "tdd",
+    "yii1-security-audit"
+  ]
+}

@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 'use strict';
 
-// CONSUMER release gate (task 4.2-4.5): verifies each surface's proof at its
-// own support level and never substitutes one for another.
+// CONSUMER release gate: verifies each surface's proof at its own support
+// level and never substitutes one for another.
 //   - Codex sync installer (supported): scripts/hooks/install-codex-skills.sh
 //     materializes skills/agents into a clean project and records a matching
 //     version + content fingerprint. Fully runnable and safe: it only writes
@@ -13,8 +13,17 @@
 //     runner (a dev machine's `claude plugin install` writes to the shared
 //     global plugin cache) — reported UNAVAILABLE when the `claude` CLI is
 //     absent from PATH rather than skipped silently.
-//   - Native Codex marketplace (experimental): always reported as a
-//     separate artifact, never counted toward the supported verdict.
+//   - Native Codex marketplace (experimental support tier, but a REAL
+//     verified proof — make-codex-plugin-distribution-install-safe): runs
+//     tests/codex-native-install-smoke.test.js, which installs the EXACT
+//     tracked plugins/dhpk/ artifact via the real codex CLI into a sandboxed
+//     CODEX_HOME, deletes the source checkout, and verifies the installed
+//     cache contains exactly the allowlisted native skills with zero
+//     symlinks. Reported UNAVAILABLE (never PASS) when the codex CLI is
+//     absent — matching design.md decision 7: missing consumer tooling
+//     blocks graduation but never blocks an ordinary release, since native
+//     support stays Experimental regardless (task 4.3). Always reported
+//     separately from the supported-tier verdict.
 //
 // Prints the stage as JSON on stdout; exit code mirrors the verdict.
 //
@@ -121,13 +130,48 @@ function verifyClaudeReinstall(root, version) {
   }
 }
 
+function codexCliVersion() {
+  const res = spawnSync('codex', ['--version'], { encoding: 'utf8' });
+  return res.status === 0 ? res.stdout.trim() : null;
+}
+
+// Native Codex marketplace consumer proof (task 3.4/4.1-4.3): installs the
+// EXACT tracked plugins/dhpk/ artifact via the real codex CLI, deletes the
+// source checkout, and verifies the installed cache. Reported UNAVAILABLE —
+// never PASS — when the codex CLI is absent; a missing/failed native probe
+// never fails or blocks the supported-tier (codex-sync/Claude) verdict below,
+// and native support stays Experimental regardless of this result (design.md
+// decision 7). Records the CLI version and installed cache path (task 3.3),
+// without secrets — both come from the smoke test's own stdout, never from
+// environment/config values.
+function verifyCodexNative(root) {
+  const cliVersion = codexCliVersion();
+  if (!cliVersion) {
+    return { verdict: VERDICTS.UNAVAILABLE, commands: [], reasons: ['codex CLI not found on PATH — native Codex marketplace consumer proof requires a live codex binary; native support remains Experimental regardless'] };
+  }
+  const smokeTest = path.join(root, 'tests', 'codex-native-install-smoke.test.js');
+  const res = spawnSync('node', [smokeTest], { encoding: 'utf8' });
+  const commands = [{ cmd: `node ${path.relative(root, smokeTest)}`, exitCode: res.status, codexCliVersion: cliVersion }];
+  const installedRootMatch = /CODEX_NATIVE_INSTALLED_ROOT=(.+)/.exec(res.stdout || '');
+  if (installedRootMatch) commands[0].installedCachePath = installedRootMatch[1].trim();
+  if (res.status !== 0) {
+    return { verdict: VERDICTS.FAIL, commands, reasons: [`codex-native-install-smoke exited ${res.status}: ${(res.stdout + res.stderr).trim().slice(-800)}`] };
+  }
+  return { verdict: VERDICTS.PASS, commands, reasons: [] };
+}
+
 const args = parseArgs(process.argv.slice(2));
 
 const codex = verifyCodexSync(args.root, args.version);
 const claude = verifyClaudeReinstall(args.root, args.version);
+const native = verifyCodexNative(args.root);
 
-const commands = [...codex.commands, ...claude.commands];
-const failureReasons = [...codex.reasons.map((r) => `codex-sync: ${r}`), ...claude.reasons.map((r) => `claude-reinstall: ${r}`)];
+const commands = [...codex.commands, ...claude.commands, ...native.commands];
+const failureReasons = [
+  ...codex.reasons.map((r) => `codex-sync: ${r}`),
+  ...claude.reasons.map((r) => `claude-reinstall: ${r}`),
+  ...native.reasons.map((r) => `native-codex-marketplace: ${r}`),
+];
 
 let verdict;
 if (codex.verdict === VERDICTS.FAIL || claude.verdict === VERDICTS.FAIL) verdict = VERDICTS.FAIL;
@@ -138,9 +182,12 @@ const stage = {
   verdict,
   commands,
   environment: process.env.CI ? 'ci' : 'local',
-  // Native Codex marketplace is always reported separately as experimental
-  // (task 4.5) and never substituted for the supported codex-sync result.
-  artifacts: ['native-codex-marketplace: experimental, not verified by this gate — see docs/distribution-surfaces.md'],
+  // Native Codex marketplace is always reported separately from the
+  // supported-tier verdict above (task 4.3) — a native PASS never upgrades
+  // `verdict`, and a native FAIL/UNAVAILABLE never degrades it. This field
+  // carries the real, computed result (not a hardcoded stub) so a reviewer
+  // can audit it independently; see docs/distribution-surfaces.md.
+  artifacts: [`native-codex-marketplace: ${native.verdict} (experimental support tier; consumer proof does not itself graduate the support tier)`],
   failureReasons,
 };
 

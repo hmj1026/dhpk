@@ -18,7 +18,7 @@ const CLI = path.join(ROOT, 'scripts', 'release', 'prepare-release.js');
 
 function mkRepo({ branch = 'develop' } = {}) {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-prepare-release-')));
-  for (const rel of ['.claude-plugin', '.codex-plugin', 'plugins/dhpk/.codex-plugin', '.agents/plugins', 'changelog.d']) {
+  for (const rel of ['.claude-plugin', '.codex-plugin', 'plugins/dhpk/.codex-plugin', '.agents/plugins', 'changelog.d', 'manifests', 'skills/tdd']) {
     fs.mkdirSync(path.join(root, rel), { recursive: true });
   }
   fs.writeFileSync(path.join(root, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '1.0.0' }));
@@ -26,6 +26,11 @@ function mkRepo({ branch = 'develop' } = {}) {
   fs.writeFileSync(path.join(root, 'plugins/dhpk/.codex-plugin', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '1.0.0' }));
   fs.writeFileSync(path.join(root, '.agents/plugins', 'marketplace.json'), JSON.stringify({ plugins: [{ name: 'dhpk', version: '1.0.0' }] }));
   fs.writeFileSync(path.join(root, 'CHANGELOG.md'), '# Changelog\n\n## [Unreleased]\n\n## 1.0.0 — 2026-01-01 — Prior\n\nPrior notes.\n');
+  fs.writeFileSync(path.join(root, 'skills/tdd', 'SKILL.md'), '---\nname: tdd\n---\n');
+  fs.writeFileSync(
+    path.join(root, 'manifests', 'distribution-inventory.json'),
+    JSON.stringify({ skills: [{ id: 'tdd', path: 'skills/tdd', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] }] })
+  );
 
   spawnSync('git', ['init', '-q'], { cwd: root });
   spawnSync('git', ['config', 'user.email', 'test@example.com'], { cwd: root });
@@ -71,15 +76,25 @@ test('write mode updates every manifest, promotes fragments, and reports the ful
   const res = runCli(repo, ['write', '--version', '1.1.0', '--date', '2026-07-27', '--summary', 'Add widget']);
   assert.strictEqual(res.status, 0, res.stderr);
 
-  for (const rel of ['.claude-plugin/plugin.json', '.codex-plugin/plugin.json', 'plugins/dhpk/.codex-plugin/plugin.json', '.agents/plugins/marketplace.json']) {
+  for (const rel of ['.claude-plugin/plugin.json', '.codex-plugin/plugin.json', '.agents/plugins/marketplace.json']) {
     assert.match(res.stdout, new RegExp(rel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')), `expected changed-file report to list ${rel}`);
   }
+  assert.match(res.stdout, /regenerated codex-native package/);
   assert.match(res.stdout, /CHANGELOG\.md/);
 
   const claudeManifest = JSON.parse(fs.readFileSync(path.join(repo, '.claude-plugin', 'plugin.json'), 'utf8'));
   assert.strictEqual(claudeManifest.version, '1.1.0');
   const marketplace = JSON.parse(fs.readFileSync(path.join(repo, '.agents/plugins', 'marketplace.json'), 'utf8'));
   assert.strictEqual(marketplace.plugins[0].version, '1.1.0');
+
+  // The codex-native package is regenerated wholesale, not field-patched.
+  const nativeManifest = JSON.parse(fs.readFileSync(path.join(repo, 'plugins/dhpk/.codex-plugin', 'plugin.json'), 'utf8'));
+  assert.strictEqual(nativeManifest.version, '1.1.0');
+  assert.strictEqual(nativeManifest.skills, './skills/');
+  const provenance = JSON.parse(fs.readFileSync(path.join(repo, 'plugins/dhpk', 'provenance.json'), 'utf8'));
+  assert.strictEqual(provenance.sourceVersion, '1.1.0');
+  assert.deepStrictEqual(provenance.selectedSkillIds, ['tdd']);
+  assert.ok(fs.existsSync(path.join(repo, 'plugins/dhpk/skills/tdd/SKILL.md')));
 
   const changelog = fs.readFileSync(path.join(repo, 'CHANGELOG.md'), 'utf8');
   assert.ok(changelog.includes('## 1.1.0 — 2026-07-27 — Add widget'));

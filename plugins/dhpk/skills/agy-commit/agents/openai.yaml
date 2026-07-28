@@ -1,0 +1,6 @@
+interface:
+  display_name: "Agy Commit"
+  short_description: "Delegate git smart commit to agy-cli."
+  default_prompt: "Use $agy-commit to apply the Agy Commit workflow with its verification rules."
+policy:
+  allow_implicit_invocation: false

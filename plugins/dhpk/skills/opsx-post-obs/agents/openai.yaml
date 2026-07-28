@@ -1,0 +1,4 @@
+interface:
+  display_name: "Opsx Post Obs"
+  short_description: "Post a session observation to claude-mem from opsx-apply-resume"
+  default_prompt: "Use $opsx-post-obs to apply the Opsx Post Obs workflow with its verification rules."

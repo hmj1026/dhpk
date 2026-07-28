@@ -14,7 +14,7 @@ test('representative goal fixtures stay within the target or hard-stop without o
     assert.ok(result.bytes <= 4000, `${name} exceeds hard cap: ${result.bytes}`);
     assert.strictEqual(result.mode, 'full', `${name} should emit normally`);
   }
-  assert.ok(generateFixture(readFixture('normal')).bytes <= 3400, 'normal fixture must meet target');
+  assert.ok(generateFixture(readFixture('normal')).bytes <= 3600, 'normal fixture must meet target');
   assert.ok(
     generateFixture(readFixture('normal')).goal.includes('First run ONE Bash orientation command'),
     'fixture must compose the production goal-template literal, not a parallel test-only core',
@@ -37,7 +37,7 @@ test('goal fixtures retain required safety tokens and compact gate contracts', (
   for (const token of ['TEST', 'COVERAGE', 'BUILD', 'LINT', 'SMOKE', 'REVIEW', 'ARTIFACT', 'VERDICT']) {
     assert.ok(goal.includes(`${token}:`), `missing gate token: ${token}`);
   }
-  for (const token of ['UTF-8 bytes', '3,400', '4,000', 'Required gates']) {
+  for (const token of ['UTF-8 bytes', '3,600', '4,000', 'Required gates']) {
     assert.ok(CONTRACT.includes(token), `gate contract reference missing: ${token}`);
   }
 });

@@ -1,6 +1,6 @@
 {
   "name": "dhpk",
-  "version": "0.32.0",
+  "version": "0.33.0",
   "description": "Codex-format subset of dhpk's Claude Code harness: skills for TDD, code review, security, and multi-stack (PHP/Laravel/Swift/Python/JS) development workflows.",
   "author": {
     "name": "hmj1026",
@@ -18,7 +18,7 @@
     "swift",
     "ios"
   ],
-  "skills": "../../codex/skills/",
+  "skills": "./skills/",
   "interface": {
     "displayName": "DHPK Dev Harness",
     "shortDescription": "Codex-format subset of dhpk's skills/agents for TDD, review, and multi-stack dev workflows.",

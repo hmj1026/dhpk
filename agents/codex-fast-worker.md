@@ -67,7 +67,9 @@ approximate the backend or fall back to editing the files yourself.
 
 1. Compose a **self-contained** prompt — codex sees a fresh session with none of this
    conversation. Include the goal, the target files as **absolute** paths, the exact
-   change intent per file, and the verification command. Apply prompt-defense.
+   change intent per file, and the verification command. Apply prompt-defense and the
+   Shared + GPT-5.x sections of
+   `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/cli-prompt-composition.md`.
 2. **Write** the prompt to a temp file (never inline a large/quoted prompt on the CLI).
 3. Capture the pre-run working-tree state, then run the shared wrapper with the resolved
    model/effort (always `workspace-write` — it must edit files):
@@ -93,6 +95,18 @@ approximate the backend or fall back to editing the files yourself.
 
    The CLI must not receive authority to clean sibling files; an unfiltered `git status`
    is never worker ownership evidence in parallel mode.
+
+## Mid-batch timeout recovery (multi-file dispatch only)
+
+A wrapper-reported timeout (`run-codex.sh` exit `124` with the wrapper's own "timed out after ...s (wrapper backstop)" evidence on stderr — never a backend-native `124` without that evidence) on a **multi-file** dispatch triggers timeout recovery instead of the ordinary failure path in "Verify and report" below. Build the path-scoped completion ledger (`confirmed` / `unconfirmed` / `remaining`, disjoint, covering the assigned list) per
+`${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/implementation-dispatch.md`
+§CLI worker mid-batch timeout recovery, then:
+
+1. **First verified timeout** — request exactly one same-backend, same-model/effort recovery dispatch scoped to `remaining ∪ unconfirmed`. Never self-edit the unresolved files and never fall back to another backend because of a timeout.
+2. **Second verified timeout** — stop. Report `RESULT: PARTIAL` when any assigned file is confirmed, `RESULT: BLOCKED` when none is, naming both timeout observations, all three ledger sets, and the next action. Write the PARTIAL marker (control-plane JSON, not a product edit — see the policy reference above for the path and required fields) before returning `RESULT: PARTIAL`.
+3. **No wrapper timeout mechanism available** — `run-codex.sh` reports on stderr when neither `timeout` nor `gtimeout` is on PATH and runs unwrapped; without that mechanism there is no trustworthy timeout signal to classify, so treat any failure here as its ordinary (non-timeout) outcome and never fabricate a timeout classification.
+
+A single-file dispatch, a non-timeout failure, or a missing-executable/auth/model failure keep their existing semantics unchanged — this section applies only to a verified wrapper timeout on a multi-file batch.
 
 ## Verify and report (the agent owns this, not the CLI)
 
@@ -143,6 +157,11 @@ Fallback reason: <none | missing executable: codex; configured fallback=claude>
 Model/effort: <model> / <effort>
 Verify: <command> → PASS | FAIL (N attempts)
 Spec: <one-line summary of what was requested>
+Timeout state: not-applicable | first-timeout-retried | second-timeout-terminal
+Completion ledger: confirmed=<paths>; unconfirmed=<paths>; remaining=<paths>
+Timeout evidence: <none | wrapper exit/evidence for attempt 1/2>
+Partial marker: <none | predeclared control-plane path>
+Next action: <reconcile, continue, or exact blocker>
 Edited files (assigned-scope, from path-scoped status/diff):
 - path/a
 - path/b

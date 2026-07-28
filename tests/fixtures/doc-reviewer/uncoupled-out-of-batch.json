@@ -1,0 +1,16 @@
+{
+  "schema": "dhpk.doc-reviewer-fixture.v1",
+  "verification": "static annotation only \u2014 not runtime-verified; no agent is invoked against this fixture, it documents the expected decision per agents/doc-reviewer.md's prose rules (checked by tests/doc-reviewer-coupled-check.test.js against the prose, not this data)",
+  "scenario": "uncoupled-out-of-batch",
+  "note": "The candidate design.md belongs to a DIFFERENT OpenSpec change than the file under review \u2014 never coupled by naming or proximity alone.",
+  "batch": "openspec/changes/example-change",
+  "reviewedFile": "openspec/changes/example-change/design.md",
+  "candidateFile": "openspec/changes/unrelated-change/design.md",
+  "expected": {
+    "coupled": false,
+    "findingCount": 1,
+    "citesBothPaths": false,
+    "dispatchesSecondReview": false,
+    "rewritesEitherFile": false
+  }
+}

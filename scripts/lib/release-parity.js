@@ -16,6 +16,7 @@ const MANIFEST_PATHS = [
   '.codex-plugin/plugin.json',
   'plugins/dhpk/.codex-plugin/plugin.json',
   '.agents/plugins/marketplace.json',
+  'plugins/dhpk/provenance.json',
 ];
 
 function readManifestVersion(root, relPath) {
@@ -24,6 +25,9 @@ function readManifestVersion(root, relPath) {
   if (relPath.endsWith('marketplace.json')) {
     const entry = (data.plugins || []).find((p) => p.name === 'dhpk');
     return entry ? entry.version : undefined;
+  }
+  if (relPath.endsWith('provenance.json')) {
+    return data.sourceVersion;
   }
   return data.version;
 }

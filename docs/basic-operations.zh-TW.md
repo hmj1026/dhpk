@@ -14,7 +14,7 @@ dhpk 刻意提供多個、支援等級不同的分發面：
 | `claude --plugin-dir` | Development-only | 直接迭代 working tree，不是發布通道。 |
 | `scripts/install.sh` | Convenience wrapper | 執行 Claude 安裝契約，不另立一套分發方式。 |
 | `install-codex-skills.sh` | Supported | 穩定的 Codex 專案同步路徑。 |
-| Codex plugin marketplace | Experimental | 可以探索，但使用前必須確認 cache 真的 materialize。 |
+| Codex plugin marketplace | Experimental | 實體發布套件，附真實 CLI 安裝驗證；支援等級仍須另一次畢業決策才會改變。 |
 | Gemini / Antigravity sync | Adapter-only | Claude-first 比對或轉換，不承諾原生 plugin 或完整 agent parity。 |
 
 Plugin 管理指令（`claude plugin …`、`codex plugin …`）與 skill 呼叫是兩個
@@ -303,10 +303,12 @@ plugin 更新後用 `--update` 重跑。Codex tree 是明確策展的 Claude pac
 角色，以及 7 個由 `scripts/gen-codex-agents.js` 從 Claude canonical agent 產生。
 雙 harness 模型詳見 `codex/AGENTS.md` 與 `codex/README.md`。
 
-### Codex Plugin Marketplace（實驗性，直到 issue #88 的驗收測試通過為止）
+### Codex Plugin Marketplace（實驗性支援等級）
 
-Repository 保留 Codex plugin manifest 與精簡 marketplace wrapper，供實驗性相容性
-測試使用：
+Repository 提供 Codex plugin manifest 與 marketplace wrapper，背後是
+`plugins/dhpk/` 下一份追蹤、實體化的發布產物——從
+`manifests/distribution-inventory.json` 明確的 `codex-native` surface 產生，
+內容零 symlink：
 
 ```bash
 codex plugin marketplace add hmj1026/dhpk   # 開發時也可用本機路徑
@@ -314,20 +316,22 @@ codex plugin add dhpk@dhpk
 codex plugin list
 ```
 
-不要把 `codex plugin list` 當成 skill 可用的證明；必須檢查已安裝 plugin
-cache，確認 `codex/skills/` 真的 materialize 成真實檔案，而非失效的
-symlink。目前 `codex/skills/*` 都是連回 `../../skills/...` 的 symlink，而
-marketplace-target wrapper（`plugins/dhpk/.codex-plugin/plugin.json`）解析
-的是父層相對路徑 `../../codex/skills/`——兩者在乾淨的 marketplace-cache
-安裝下都會失敗，這正是 [issue #88](https://github.com/hmj1026/dhpk/issues/88)
-追蹤的問題。promoted-only 的實體 release-candidate 產生器
-（`scripts/ci/gen-codex-native-package.js`）與自動化的 clean-install/cache
-smoke test（`tests/codex-native-install-smoke.test.js`）已證明「staged」的
-實體候選版本能撐過這個確切情境，但上述正式 manifest 尚未切換過去——目前狀態
-與尚待解決的部分詳見
-[`docs/distribution-surfaces.md`](./distribution-surfaces.md#codex-native-plugin-status-github-issue-88)。
-在正式 manifest 通過同一項測試之前，正式工作請使用
-`install-codex-skills.sh`；marketplace wrapper 是額外補充，不是替代方案。
+`codex plugin list` 只是管理層級的證據，不代表已安裝 cache 內容真的可用。
+真正的證明來自一個用真實 CLI 跑的測試：`tests/codex-native-install-smoke.test.js`
+會把追蹤中的 `plugins/dhpk/` 產物原封不動安裝進沙盒化的 `CODEX_HOME`、刪除
+來源 checkout，再驗證每個列入白名單的 native skill 都以真實檔案（非
+symlink）materialize 出來——這正是
+[issue #88](https://github.com/hmj1026/dhpk/issues/88) 追蹤的失效模式，現已
+在 manifest 層修復（`.codex-plugin/plugin.json` 與
+`plugins/dhpk/.codex-plugin/plugin.json` 現在都解析到同一份追蹤中的實體
+tree）。只要環境有 `codex` CLI，這項驗證就是 release 的 CONSUMER gate 一環；
+完整 gate 模型詳見
+[`docs/distribution-surfaces.md`](./distribution-surfaces.md#codex-native-plugin-package-github-issue-88)。
+
+通過安裝驗證是後續決策的必要證據，但不等於決策本身：native Codex marketplace
+支援等級仍維持**實驗性**，直到另有一次獨立核准的畢業（graduation）決策為止
+（見 [ADR-0006](./adr/0006-codex-native-publication-artifact.md)）。正式工作
+請使用 `install-codex-skills.sh`；marketplace 套件是額外補充，不是替代方案。
 
 詳見 `.codex-plugin/README.md` 與 `plugins/dhpk/README.md`。
 
