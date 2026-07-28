@@ -1,23 +1,26 @@
 'use strict';
 
-// Task 3.3: clean temporary marketplace install/cache smoke test. Materializes
-// the real promoted-only physical package (task 3.2), stages it as a local Codex
-// marketplace inside a fully sandboxed CODEX_HOME (never touches the real user
-// ~/.codex), installs it via the actual `codex` CLI, then DELETES the staged
-// source tree entirely and verifies every expected promoted skill name is still
-// discoverable as a REAL file (not a symlink) from the installed cache alone —
-// this is the exact acceptance criterion from GitHub issue #88: "A clean
-// temporary Codex plugin install loads all declared skills without symlink
-// targets." Skips (does not fail) when the `codex` CLI is unavailable, since CI
-// environments may not have it installed — this is a live-CLI integration test,
-// not a fallback substitute for it.
+// Task 4.1/4.2: clean temporary marketplace install/cache smoke test for the
+// EXACT TRACKED codex-native publication artifact at plugins/dhpk/ — copies
+// that real tracked tree (not a freshly materialized candidate) into a local
+// Codex marketplace inside a fully sandboxed CODEX_HOME (never touches the
+// real user ~/.codex), installs it via the actual `codex` CLI, then DELETES
+// the staged source tree entirely and verifies every expected codex-native
+// skill name is still discoverable as a REAL file (not a symlink) from the
+// installed cache alone — this is the exact acceptance criterion from GitHub
+// issue #88: "A clean temporary Codex plugin install loads all declared
+// skills without symlink targets," now proven against the artifact a
+// consumer actually installs, not a staged candidate generated separately
+// from it (spec.md: "Consumer proof validates the exact publication
+// artifact"). Skips (does not fail) when the `codex` CLI is unavailable,
+// since CI environments may not have it installed — this is a live-CLI
+// integration test, not a fallback substitute for it.
 
 const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
-const { materializeNativePackage } = require('../scripts/lib/codex-native-package');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -42,12 +45,15 @@ if (!codexAvailable()) {
   process.exit(0);
 }
 
-const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
+const trackedPluginDir = path.join(ROOT, 'plugins', 'dhpk');
+const trackedManifest = JSON.parse(fs.readFileSync(path.join(trackedPluginDir, '.codex-plugin', 'plugin.json'), 'utf8'));
+const trackedProvenance = JSON.parse(fs.readFileSync(path.join(trackedPluginDir, 'provenance.json'), 'utf8'));
+const expectedSkillIds = [...trackedProvenance.selectedSkillIds].sort();
 
 const stageRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-codex-smoke-stage-'));
 const codexHome = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-codex-smoke-home-'));
 const marketName = 'dhpk-smoke-market';
-const pluginName = 'dhpk-smoke';
+const pluginName = trackedManifest.name;
 
 process.on('exit', () => {
   for (const d of [stageRoot, codexHome]) {
@@ -62,9 +68,13 @@ function codex(args) {
 // Stage a local marketplace: .agents/plugins/marketplace.json pointing at a
 // concrete plugin subdirectory (codex refuses a marketplace root of "./" —
 // see plugins/dhpk/README.md and openai/codex#26037), matching the real
-// repo's own marketplace-target-wrapper convention.
+// repo's own marketplace-target-wrapper convention. Copies the EXACT tracked
+// artifact rather than materializing a fresh candidate — a candidate
+// generated separately from the publication artifact does not satisfy the
+// consumer-proof requirement (spec.md).
 const pluginDir = path.join(stageRoot, 'plugins', pluginName);
-const materialized = materializeNativePackage({ inventory, root: ROOT, outDir: pluginDir, name: pluginName, version: '0.0.1-smoke' });
+fs.mkdirSync(path.dirname(pluginDir), { recursive: true });
+fs.cpSync(trackedPluginDir, pluginDir, { recursive: true });
 
 fs.mkdirSync(path.join(stageRoot, '.agents', 'plugins'), { recursive: true });
 fs.writeFileSync(
@@ -87,6 +97,10 @@ test('codex plugin add installs the staged package', () => {
 
 const installedRootMatch = /Installed plugin root: (.+)/.exec(addPlugin.stdout || '');
 const installedRoot = installedRootMatch ? installedRootMatch[1].trim() : null;
+// Machine-parseable evidence line for callers (e.g. consumer-gate.js) that
+// capture this test's stdout to record the exact cache path in release
+// evidence (task 3.3) without depending on the CLI's human-readable phrasing.
+if (installedRoot) console.log(`CODEX_NATIVE_INSTALLED_ROOT=${installedRoot}`);
 
 test('the CLI reports an installed cache root distinct from the staged source, inside the sandboxed CODEX_HOME', () => {
   assert.ok(installedRoot, `could not parse installed plugin root from:\n${addPlugin.stdout}`);
@@ -105,16 +119,16 @@ test('the CLI reports an installed cache root distinct from the staged source, i
 // Withhold the source checkout entirely — the crux of issue #88.
 fs.rmSync(stageRoot, { recursive: true, force: true });
 
-test('every expected promoted skill materialized as a real (non-symlink) file in the installed cache after the source checkout is deleted', () => {
+test('every expected codex-native skill materialized as a real (non-symlink) file in the installed cache after the source checkout is deleted', () => {
   const installedSkillsDir = path.join(installedRoot, 'skills');
   assert.ok(fs.existsSync(installedSkillsDir), `installed skills/ directory missing at ${installedSkillsDir}`);
 
   const installedNames = fs.readdirSync(installedSkillsDir).sort();
-  assert.deepStrictEqual(installedNames, materialized.skillIds, 'installed skill directory names must exactly match the promoted set');
+  assert.deepStrictEqual(installedNames, expectedSkillIds, 'installed skill directory names must exactly match the tracked codex-native set');
 
   assert.deepStrictEqual(findSymlinks(installedRoot), [], 'installed cache must contain zero symlinks');
 
-  for (const id of materialized.skillIds) {
+  for (const id of expectedSkillIds) {
     const skillMd = path.join(installedSkillsDir, id, 'SKILL.md');
     assert.ok(fs.existsSync(skillMd) && fs.statSync(skillMd).size > 0, `${id}/SKILL.md missing or empty in installed cache`);
   }
