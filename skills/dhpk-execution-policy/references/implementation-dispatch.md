@@ -33,6 +33,26 @@ In parallel mode, before/after accounting uses path-scoped `git status --short -
 
 If a validator reads or updates shared ratchet/configuration state, the worker uses only a dispatcher-provided scoped or no-write equivalent. Without one, it reports the exact missing command as blocked or uses the explicitly declared report-only outcome; it must not invoke a global read-modify-write path. A task intentionally changing shared state is serial. After all workers return, the orchestrator runs one sequential whole-tree validator/reconciliation pass and records the consolidated result before dispatching the implementation-wave reviewers.
 
+## CLI worker mid-batch timeout recovery
+
+Applies only to a CLI-backed multi-file dispatch (`codex-fast-worker` / `agy-fast-worker`) that reports a wrapper-level timeout (see each worker's Backend availability section) — never to a single-file dispatch, a non-timeout failure, or a missing-executable/auth/model failure, which keep their existing semantics unchanged.
+
+**Path-scoped completion ledger.** Before dispatch, the dispatcher records the exact assigned file list and a path-scoped `git status --porcelain -- <assigned files>` baseline. After a verified wrapper timeout, the worker derives three disjoint sets covering the assigned list:
+
+- `confirmed` — intersection of the backend's own reported files and path-scoped diff evidence attributable to this dispatch.
+- `unconfirmed` — assigned files with changed or claimed work whose report or ownership evidence is incomplete.
+- `remaining` — assigned files with no confirmed or unconfirmed evidence.
+
+A global (non-path-scoped) `git status` is never completion or ownership evidence in parallel mode.
+
+**One scoped same-backend retry.** After the first verified wrapper timeout on a multi-file dispatch, the orchestrator may dispatch exactly one recovery invocation: same backend, same model/effort, same original intent, and write scope limited to `remaining ∪ unconfirmed` — confirmed files are not repeated. The worker never edits the unresolved files inline and never falls back to another backend because of a timeout (the existing missing-executable fallback carve-out is unrelated and unaffected).
+
+**Second timeout is terminal.** If the recovery invocation also has a verified wrapper timeout, the worker stops and reports `RESULT: PARTIAL` (at least one assigned file confirmed) or `RESULT: BLOCKED` (none confirmed), naming both timeout observations, the backend identity, all three ledger sets, and the next action.
+
+**PARTIAL marker (control-plane, not a product edit).** Before returning `RESULT: PARTIAL`, the worker writes one JSON marker at a dispatcher-preallocated path: `.claude/artifacts/sessions/.partial-cli-batch-<backend>-<session-id>-<dispatch-id>.json`, where `<session-id>`/`<dispatch-id>` are safe slugs the dispatcher allocates before dispatch (never a raw timestamp, to avoid collisions). The marker records backend, session/dispatch identity, the `assigned`/`confirmed`/`remaining`/`unconfirmed` sets, both timeout observations, and the next action. It is reported as a separate control-plane output, never counted in the assigned-scope edited-file list, never matches `.pending-*`, and is never auto-cleared by the worker or by a reviewer sweep — it stays until a human or the orchestrator explicitly reconciles it. An unresolved PARTIAL marker blocks marking the implementation task complete, but it is not itself a reviewer sentinel and does not gate on reviewer approval.
+
+**Six-file starting guideline.** Recommend splitting a mechanical batch with more than six assigned product files into independently verifiable batches; six is an unmeasured starting point, not a wrapper or CLI setting. A deliberately larger batch requires an override reason recorded in the dispatch record and the worker's report — the worker itself never expands or splits its own assigned scope.
+
 ## Live CI/deploy verification loops are dispatchable work
 
 Watching a live CI run (`gh run watch`), triaging its run logs, and babysitting retries is dispatchable work — route it to `dhpk:smoke-tester` (read-only probe) or a background `fast-worker`, per the §Implementation dispatch table row, so the main context consumes only the resulting merge/fix decision rather than running the poll/triage loop inline.
