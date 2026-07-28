@@ -181,7 +181,7 @@ the unit measured by `wc -c`; a `GOAL_CONDITION` beyond that cannot be submitted
    notice — do **not** print Block B, C, or C2.
 
 There is a single (full) template variant. It targets a normal composed goal of
-at most 3,400 UTF-8 bytes, leaving a 600-byte reserve below the hard cap for
+at most 3,600 UTF-8 bytes, leaving a 400-byte reserve below the hard cap for
 bounded variable gate tokens. The blocked branch is a should-never-fire
 template regression: if it fires, fix the template or gate fixture — never
 trim required safety or verification clauses from the condition.

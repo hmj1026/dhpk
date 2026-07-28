@@ -1,0 +1,5 @@
+{
+  "name": "no-dispatch",
+  "dispatch_on": false,
+  "gates": ["test", "review", "artifact"]
+}
