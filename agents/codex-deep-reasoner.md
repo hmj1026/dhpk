@@ -57,7 +57,9 @@ result from your own analysis when the CLI is unavailable.
 1. Compose a **self-contained** prompt — codex sees a fresh session with none of this
    conversation. Include the problem statement, the relevant files as **absolute** paths,
    the specific question to answer, and a request for the conclusion contract below
-   (Conclusion + Evidence with file:line + Next actions). Apply prompt-defense.
+   (Conclusion + Evidence with file:line + Next actions). Apply prompt-defense and the
+   Shared + GPT-5.x sections of
+   `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/cli-prompt-composition.md`.
 2. Write the prompt to a temp file with Bash (no Write tool — this agent is read-only):
 
    ```bash

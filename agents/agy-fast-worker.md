@@ -1,6 +1,6 @@
 ---
 name: agy-fast-worker
-description: 'CLI-backed mechanical implementer — the agy variant of `fast-worker`. Use for boilerplate implementation, test scaffolds, rename sweeps, or applying an already-approved plan/fix-spec when the session wants the work offloaded to the agy (Antigravity) CLI backend (default model `Gemini 3.5 Flash (High)`) as a cheap high-throughput tier instead of the in-process sonnet worker. Available only when the agy CLI is confirmed available; the plain `fast-worker` stays the default and this is an opt-in alternative. Accepts the same task spec (target files + exact change intent + verification command), shells the edits out to agy in non-interactive print mode, then independently runs the verification command and derives the edited-file list from the working tree. Escalates on ambiguous specs; stops after 3 failed verification attempts; BLOCKED (never simulated) when the CLI is missing, auth fails, or the model is rejected.'
+description: 'CLI-backed mechanical implementer — the agy variant of `fast-worker`. Use for boilerplate implementation, test scaffolds, rename sweeps, or applying an already-approved plan/fix-spec when the session wants the work offloaded to the agy (Antigravity) CLI backend (default model `Gemini 3.6 Flash (High)`) as a cheap high-throughput tier instead of the in-process sonnet worker. Available only when the agy CLI is confirmed available; the plain `fast-worker` stays the default and this is an opt-in alternative. Accepts the same task spec (target files + exact change intent + verification command), shells the edits out to agy in non-interactive print mode, then independently runs the verification command and derives the edited-file list from the working tree. Escalates on ambiguous specs; stops after 3 failed verification attempts; BLOCKED (never simulated) when the CLI is missing, auth fails, or the model is rejected.'
 tools: Bash, Read, Write, Grep, Glob
 model: sonnet
 effort: low
@@ -34,7 +34,7 @@ Identical to `fast-worker`. The dispatcher MUST provide:
 
 Optionally the dispatcher passes the **resolved model** (from the `agy_fast_worker_model`
 userConfig key, surfaced at session start when non-default). When omitted, default to
-`Gemini 3.5 Flash (High)`. There is no separate effort dial — agy bakes the thinking level
+`Gemini 3.6 Flash (High)`. There is no separate effort dial — agy bakes the thinking level
 into the model name (`agy models` lists the variants).
 
 ## Escalates on ambiguous specs
@@ -61,7 +61,12 @@ approximate the backend or fall back to editing the files yourself.
 
 1. Compose a **self-contained** prompt — agy sees a fresh session with none of this
    conversation. Include the goal, the target files as **absolute** paths, the exact
-   change intent per file, and the verification command. Apply prompt-defense.
+   change intent per file, and the verification command — tell agy to run that
+   verification command itself and iterate on its own output before returning. Apply
+   prompt-defense and the Shared + Gemini sections of
+   `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/cli-prompt-composition.md`. Backend-internal
+   iteration on the verification command does **not** change the trust boundary below:
+   this agent still re-runs verification independently after agy returns.
 2. **Write** the prompt to a temp file (never inline a large/quoted prompt on the CLI).
 3. Capture the pre-run working-tree state, then run the dedicated wrapper with the
    resolved model:
@@ -74,8 +79,13 @@ approximate the backend or fall back to editing the files yourself.
    ```
 
    The wrapper handles the verified non-interactive combination (stdin `Y`,
-   `--dangerously-skip-permissions`, `--add-dir`, `--model`, `-p`, `--print-timeout`) and
-   fails loudly on a hang rather than blocking indefinitely.
+   `--dangerously-skip-permissions`, `--mode accept-edits`, `--add-dir`, `--model`, `-p`,
+   `--print-timeout`, and — on agy ≥ 1.1.8 — `--output-format json` + `--json-schema` to
+   force the report contract) and fails loudly on a hang rather than blocking indefinitely.
+   The schema guarantees the **shape** of agy's self-report, never its **truth**: a
+   well-formed report is not evidence the work was done or verified — step 2 below still
+   runs unconditionally. When structured output is active, the schema-conformant object is
+   at the wrapper's JSON output's `.structured_output` field, not the top level.
 
 ## Verify and report (the agent owns this, not the CLI)
 
@@ -91,6 +101,14 @@ After the CLI completes:
    conditions) and escalate with the attempt log (what was tried + each error), ≥2
    alternative paths, and a recommendation. Also stop early if a fix needs an
    architectural redesign — propose it, don't force it.
+
+**The 3-attempt bound counts this agent's dispatch-and-independently-verify cycles, not
+agy's internal iteration.** When the composed prompt tells agy to run the verification
+command and iterate on failures itself (per step 1 above), one dispatch that goes through
+several such internal iterations still counts as one attempt. This carve-out is deliberate
+to `agy-fast-worker` and is **not** applied to `codex-fast-worker` — there is no equivalent
+OpenAI-side recommendation to iterate against a self-run verification command inside a
+single `codex exec` call.
 
 **Fixed-string matching for special-character greps.** When a verification grep searches
 for a string containing shell-special or multibyte/CJK characters (`$`, `§`, fullwidth
@@ -113,7 +131,7 @@ Omitting it (or reporting it incompletely) breaks that back-stop.
 ```
 RESULT: DONE | PARTIAL | BLOCKED
 ## Agy Fast Worker Report
-Backend: agy --model "<model>" -p (non-interactive)
+Backend: agy --model "<model>" --mode accept-edits -p (non-interactive)
 Requested backend: agy
 Selected backend: agy | claude (only with configured missing-executable fallback)
 Availability: <agy executable available | missing executable: agy>

@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "agy-fast-worker report contract",
+  "description": "Shape-only contract enforced via agy's --json-schema flag. Conformance proves the report parses; it does NOT prove the report is true — the dispatching agent still runs its own verification command and derives the edited-file list from the working tree regardless of these values.",
+  "type": "object",
+  "required": ["status"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "description": "The backend's own claimed outcome (e.g. done, partial, blocked) — advisory only."
+    },
+    "files_touched": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Backend's self-reported edited files — advisory only; the agent's edited-file list is derived independently from git status."
+    },
+    "verification": {
+      "type": "object",
+      "properties": {
+        "command": { "type": "string" },
+        "passed": { "type": "boolean" },
+        "output_tail": { "type": "string" }
+      },
+      "description": "Backend's self-reported verification attempt — advisory only; the agent re-runs verification itself."
+    },
+    "blocked_reason": {
+      "type": ["string", "null"],
+      "description": "Set when status is blocked; null otherwise."
+    }
+  }
+}

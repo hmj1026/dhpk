@@ -216,8 +216,8 @@
     "agy_fast_worker_model": {
       "type": "string",
       "title": "agy-fast-worker model",
-      "description": "Model display string passed to the agy CLI backend when the agy-fast-worker agent is dispatched (see rules/execution-policy.md §Implementation dispatch + rules/model-economics.md). agy bakes the thinking level into the model name, so there is no separate effort key. Override here when a default is deprecated (check `agy models`). Default 'Gemini 3.5 Flash (High)' (live-probe-verified against agy 1.1.2).",
-      "default": "Gemini 3.5 Flash (High)"
+      "description": "Model display string passed to the agy CLI backend when the agy-fast-worker agent is dispatched (see rules/execution-policy.md §Implementation dispatch + rules/model-economics.md). agy bakes the thinking level into the model name, so there is no separate effort key. Override here when a default is deprecated (check `agy models`). Default 'Gemini 3.6 Flash (High)' (live-probe-verified against agy 1.1.8).",
+      "default": "Gemini 3.6 Flash (High)"
     },
     "planner_effort": {
       "type": "string",

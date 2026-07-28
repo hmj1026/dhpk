@@ -1,6 +1,6 @@
 ---
 name: agy-fast-worker
-description: 'Offload a self-contained, clearly-specified mechanical task to the agy (Antigravity) CLI backend and relay its result, with the heavy output quarantined in the agy-fast-worker subagent. Use when: a mechanical batch with a precise task spec (target files + change intent + verification command) should run on the cheap high-throughput agy tier (default model `Gemini 3.5 Flash (High)`) instead of the in-process sonnet fast-worker, and the agy CLI is available. Not for: ambiguous specs (escalate), work needing this conversation context (agy sees a fresh session — the prompt must be self-contained), or the default in-process path (use plain `fast-worker`). Output: the verification result + the working-tree-derived edited-file list, or an honest BLOCKED report — never simulated.'
+description: 'Offload a self-contained, clearly-specified mechanical task to the agy (Antigravity) CLI backend and relay its result, with the heavy output quarantined in the agy-fast-worker subagent. Use when: a mechanical batch with a precise task spec (target files + change intent + verification command) should run on the cheap high-throughput agy tier (default model `Gemini 3.6 Flash (High)`) instead of the in-process sonnet fast-worker, and the agy CLI is available. Not for: ambiguous specs (escalate), work needing this conversation context (agy sees a fresh session — the prompt must be self-contained), or the default in-process path (use plain `fast-worker`). Output: the verification result + the working-tree-derived edited-file list, or an honest BLOCKED report — never simulated.'
 allowed-tools: 'Bash(bash:*), Bash(agy:*), Read, Write, Grep, Glob'
 metadata:
   dhpk-invocation-class: implicit-eligible
@@ -21,13 +21,17 @@ bash "${CLAUDE_PLUGIN_ROOT}/skills/agy-fast-worker/scripts/run-agy.sh" \
   "<workdir>" "<prompt-file>" "<model>"
 ```
 
-`run-agy.sh` implements the combination verified against agy 1.1.2 (`agy --help`,
-2026-07-14): stdin `Y` (plan confirmation — a separate gate that
-`--dangerously-skip-permissions` does not clear), `--dangerously-skip-permissions`,
-`--add-dir <workdir>` (required — print mode ignores the shell cwd), `--model "<model>"`,
-`-p` with the prompt content, and `--print-timeout` to bound the wait. It does **not** use
-`--cwd` (absent from the installed binary despite the published docs). It fails loudly on
-a hang or non-zero exit rather than fabricating output.
+`run-agy.sh` implements the combination verified against agy 1.1.8 (`agy --help`,
+2026-07-28): stdin `Y` (kept unconditionally — not required by the installed 1.1.8 binary
+together with `--dangerously-skip-permissions`, but harmless when unread and possibly
+still required by an older binary), `--dangerously-skip-permissions`, `--mode accept-edits`
+(autonomy boundary), `--add-dir <workdir>` (required — print mode ignores the shell cwd),
+`--model "<model>"`, `-p` with the prompt content, `--print-timeout` to bound the wait,
+and — on agy ≥ 1.1.8 — `--output-format json` + `--json-schema` to force the report
+contract (schema guarantees shape, never truth; degrades audibly, never silently, on an
+older binary). It does **not** use `--cwd` (absent from the installed binary despite the
+published docs) and does **not** pass `--effort` (the model string already encodes it). It
+fails loudly on a hang or non-zero exit rather than fabricating output.
 
 ## Contract (owned by the agent)
 
