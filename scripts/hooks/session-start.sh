@@ -187,13 +187,13 @@ DISPATCH="${CLAUDE_PLUGIN_OPTION_ORCHESTRATION_DISPATCH:-on}"
 # surfaced only when overridden from the shipped defaults, same token discipline as above.
 CODEX_FW_MODEL="${CLAUDE_PLUGIN_OPTION_CODEX_FAST_WORKER_MODEL:-gpt-5.6-luna}"
 CODEX_FW_EFFORT="${CLAUDE_PLUGIN_OPTION_CODEX_FAST_WORKER_EFFORT:-xhigh}"
-AGY_FW_MODEL="${CLAUDE_PLUGIN_OPTION_AGY_FAST_WORKER_MODEL:-Gemini 3.5 Flash (High)}"
+AGY_FW_MODEL="${CLAUDE_PLUGIN_OPTION_AGY_FAST_WORKER_MODEL:-Gemini 3.6 Flash (High)}"
 CODEX_DR_MODEL="${CLAUDE_PLUGIN_OPTION_CODEX_DEEP_REASONER_MODEL:-gpt-5.6-sol}"
 CODEX_DR_EFFORT="${CLAUDE_PLUGIN_OPTION_CODEX_DEEP_REASONER_EFFORT:-high}"
 # architect configured-role tier (shipped default fable/low).
 ARCH_MODEL="${CLAUDE_PLUGIN_OPTION_ARCHITECT_MODEL:-fable}"
 ARCH_EFFORT="${CLAUDE_PLUGIN_OPTION_ARCHITECT_EFFORT:-low}"
-if [ "$DEEP_MODEL" != "opus" ] || [ "$WORKER_MODEL" != "sonnet" ] || [ "$DEEP_EFFORT" != "high" ] || [ "$WORKER_EFFORT" != "medium" ] || [ "$PLANNER_MODEL" != "opus" ] || [ "$PLANNER_EFFORT" != "high" ] || [ "$DISPATCH" != "on" ] || [ "$CODEX_FW_MODEL" != "gpt-5.6-luna" ] || [ "$CODEX_FW_EFFORT" != "xhigh" ] || [ "$AGY_FW_MODEL" != "Gemini 3.5 Flash (High)" ] || [ "$CODEX_DR_MODEL" != "gpt-5.6-sol" ] || [ "$CODEX_DR_EFFORT" != "high" ] || [ "$ARCH_MODEL" != "fable" ] || [ "$ARCH_EFFORT" != "low" ]; then
+if [ "$DEEP_MODEL" != "opus" ] || [ "$WORKER_MODEL" != "sonnet" ] || [ "$DEEP_EFFORT" != "high" ] || [ "$WORKER_EFFORT" != "medium" ] || [ "$PLANNER_MODEL" != "opus" ] || [ "$PLANNER_EFFORT" != "high" ] || [ "$DISPATCH" != "on" ] || [ "$CODEX_FW_MODEL" != "gpt-5.6-luna" ] || [ "$CODEX_FW_EFFORT" != "xhigh" ] || [ "$AGY_FW_MODEL" != "Gemini 3.6 Flash (High)" ] || [ "$CODEX_DR_MODEL" != "gpt-5.6-sol" ] || [ "$CODEX_DR_EFFORT" != "high" ] || [ "$ARCH_MODEL" != "fable" ] || [ "$ARCH_EFFORT" != "low" ]; then
     _orch_line="orchestration: deep=$DEEP_MODEL worker=$WORKER_MODEL"
     [ "$DEEP_EFFORT" != "high" ] && _orch_line="${_orch_line} deep_effort=$DEEP_EFFORT"
     [ "$WORKER_EFFORT" != "medium" ] && _orch_line="${_orch_line} worker_effort=$WORKER_EFFORT"
@@ -202,7 +202,7 @@ if [ "$DEEP_MODEL" != "opus" ] || [ "$WORKER_MODEL" != "sonnet" ] || [ "$DEEP_EF
     [ "$DISPATCH" != "on" ] && _orch_line="${_orch_line} dispatch=off"
     [ "$CODEX_FW_MODEL" != "gpt-5.6-luna" ] && _orch_line="${_orch_line} codex_worker=$CODEX_FW_MODEL"
     [ "$CODEX_FW_EFFORT" != "xhigh" ] && _orch_line="${_orch_line} codex_worker_effort=$CODEX_FW_EFFORT"
-    [ "$AGY_FW_MODEL" != "Gemini 3.5 Flash (High)" ] && _orch_line="${_orch_line} agy_worker=$AGY_FW_MODEL"
+    [ "$AGY_FW_MODEL" != "Gemini 3.6 Flash (High)" ] && _orch_line="${_orch_line} agy_worker=$AGY_FW_MODEL"
     [ "$CODEX_DR_MODEL" != "gpt-5.6-sol" ] && _orch_line="${_orch_line} codex_reasoner=$CODEX_DR_MODEL"
     [ "$CODEX_DR_EFFORT" != "high" ] && _orch_line="${_orch_line} codex_reasoner_effort=$CODEX_DR_EFFORT"
     [ "$ARCH_MODEL" != "fable" ] && _orch_line="${_orch_line} architect=$ARCH_MODEL"

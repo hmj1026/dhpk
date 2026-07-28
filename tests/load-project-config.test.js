@@ -75,7 +75,7 @@ test('CLI-backed fast-worker model/effort keys pass through with standard layeri
   writeSettings(root, 'settings.local.json', {
     codex_fast_worker_model: 'gpt-5.6-sol',
     codex_fast_worker_effort: 'high',
-    agy_fast_worker_model: 'Gemini 3.5 Flash (High)',
+    agy_fast_worker_model: 'Gemini 3.6 Flash (High)',
   });
   const res = sh(
     root,
@@ -87,7 +87,7 @@ test('CLI-backed fast-worker model/effort keys pass through with standard layeri
   assert.ok(res.stdout.includes('M:gpt-5.6-sol'), res.stdout);
   assert.ok(res.stdout.includes('E:high'), res.stdout);
   // A value with spaces must round-trip intact (shlex.quote in the loader).
-  assert.ok(res.stdout.includes('A:Gemini 3.5 Flash (High)'), res.stdout);
+  assert.ok(res.stdout.includes('A:Gemini 3.6 Flash (High)'), res.stdout);
 });
 
 test('project settings.local.json overrides global settings.json for a CLI-worker key', () => {
