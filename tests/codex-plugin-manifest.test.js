@@ -47,8 +47,10 @@ test('thin wrapper skills path resolves to the same directory as the root manife
   assert.strictEqual(fs.realpathSync(wrapperSkillsDir), fs.realpathSync(rootSkillsDir));
 });
 
-test('thin wrapper does not vendor a duplicate skills/ directory', () => {
-  assert.ok(!fs.existsSync(path.join(wrapperDir, 'skills')), 'plugins/dhpk/skills/ should not exist (single-sourced from codex/skills/)');
+test('thin wrapper vendors the tracked physical native package, not a symlink mirror', () => {
+  const wrapperSkillsDir = path.join(wrapperDir, 'skills');
+  assert.ok(fs.existsSync(wrapperSkillsDir) && fs.statSync(wrapperSkillsDir).isDirectory(), 'plugins/dhpk/skills/ must exist as the tracked codex-native publication artifact');
+  assert.ok(!fs.lstatSync(wrapperSkillsDir).isSymbolicLink(), 'plugins/dhpk/skills/ must be a real directory, not a symlink');
 });
 
 test('marketplace.json plugin version matches the root manifest', () => {

@@ -156,7 +156,8 @@
       "lifecycle": "optional",
       "surfaces": [
         "claude-module",
-        "codex-sync"
+        "codex-sync",
+        "codex-native"
       ]
     },
     {
@@ -197,7 +198,8 @@
       "lifecycle": "optional",
       "surfaces": [
         "claude-module",
-        "codex-sync"
+        "codex-sync",
+        "codex-native"
       ]
     },
     {
@@ -302,7 +304,8 @@
       "lifecycle": "optional",
       "surfaces": [
         "claude-module",
-        "codex-sync"
+        "codex-sync",
+        "codex-native"
       ]
     },
     {
@@ -311,7 +314,8 @@
       "lifecycle": "optional",
       "surfaces": [
         "claude-module",
-        "codex-sync"
+        "codex-sync",
+        "codex-native"
       ]
     },
     {
@@ -336,7 +340,8 @@
       "lifecycle": "promoted",
       "surfaces": [
         "claude-core",
-        "codex-sync"
+        "codex-sync",
+        "codex-native"
       ]
     },
     {
@@ -361,7 +366,8 @@
       "lifecycle": "promoted",
       "surfaces": [
         "claude-core",
-        "codex-sync"
+        "codex-sync",
+        "codex-native"
       ]
     },
     {
@@ -546,7 +552,8 @@
       "lifecycle": "promoted",
       "surfaces": [
         "claude-core",
-        "codex-sync"
+        "codex-sync",
+        "codex-native"
       ]
     },
     {
@@ -555,7 +562,8 @@
       "lifecycle": "promoted",
       "surfaces": [
         "claude-core",
-        "codex-sync"
+        "codex-sync",
+        "codex-native"
       ]
     },
     {
@@ -660,7 +668,8 @@
       "lifecycle": "promoted",
       "surfaces": [
         "claude-core",
-        "codex-sync"
+        "codex-sync",
+        "codex-native"
       ]
     },
     {
@@ -677,7 +686,8 @@
       "lifecycle": "promoted",
       "surfaces": [
         "claude-core",
-        "codex-sync"
+        "codex-sync",
+        "codex-native"
       ]
     },
     {
@@ -694,7 +704,8 @@
       "lifecycle": "promoted",
       "surfaces": [
         "claude-core",
-        "codex-sync"
+        "codex-sync",
+        "codex-native"
       ]
     },
     {
@@ -703,7 +714,8 @@
       "lifecycle": "promoted",
       "surfaces": [
         "claude-core",
-        "codex-sync"
+        "codex-sync",
+        "codex-native"
       ]
     },
     {
@@ -800,7 +812,8 @@
       "lifecycle": "promoted",
       "surfaces": [
         "claude-core",
-        "codex-sync"
+        "codex-sync",
+        "codex-native"
       ]
     },
     {
@@ -809,7 +822,8 @@
       "lifecycle": "promoted",
       "surfaces": [
         "claude-core",
-        "codex-sync"
+        "codex-sync",
+        "codex-native"
       ]
     },
     {
@@ -842,7 +856,8 @@
       "lifecycle": "promoted",
       "surfaces": [
         "claude-core",
-        "codex-sync"
+        "codex-sync",
+        "codex-native"
       ]
     },
     {

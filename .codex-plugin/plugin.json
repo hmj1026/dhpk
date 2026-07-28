@@ -18,7 +18,7 @@
     "swift",
     "ios"
   ],
-  "skills": "./codex/skills/",
+  "skills": "./plugins/dhpk/skills/",
   "interface": {
     "displayName": "DHPK Dev Harness",
     "shortDescription": "Codex-format subset of dhpk's skills/agents for TDD, review, and multi-stack dev workflows.",

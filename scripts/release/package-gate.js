@@ -1,17 +1,19 @@
 #!/usr/bin/env node
 'use strict';
 
-// PACKAGE release gate: composes staged package layout/metadata validation
-// and local-install smoke tests into one release-evidence stage.
+// PACKAGE release gate: validates the TRACKED codex-native publication
+// artifact at plugins/dhpk/ (see scripts/lib/codex-native-package.js and
+// openspec/changes/make-codex-plugin-distribution-install-safe) — layout,
+// structural (no symlinks / no parent-relative escape), version parity, and
+// deterministic-generation (no drift from a fresh inventory-controlled
+// regeneration). Composes into one release-evidence stage.
 //
 // Claude's install source is the repository root itself (marketplace "local"
 // source, no separate staging step) — its layout is already validated by the
 // SOURCE-gate validators, so this gate does not re-stage a Claude package.
-// The Codex native package IS a separate staged build output (see
-// scripts/lib/codex-native-package.js), so this gate materializes it at the
-// target version, verifies version parity, and — when the codex CLI is
-// available — runs the real install smoke test (tests/codex-native-install-smoke.test.js,
-// which self-reports a vacuous pass when codex is absent rather than failing CI).
+// Real-CLI install/cache-discovery proof for the exact tracked artifact is a
+// CONSUMER-gate concern (scripts/release/consumer-gate.js), not this one —
+// PACKAGE validates the artifact itself, CONSUMER proves it installs.
 //
 // Prints the stage as JSON on stdout; exit code mirrors the verdict.
 //
@@ -44,7 +46,7 @@ function defaultSteps(root, version) {
     { name: 'claude-package-layout', cmd: 'node', args: [path.join(root, 'scripts/ci/validate-plugin.js'), '--strict'] },
     { name: 'claude-distribution-layout', cmd: 'node', args: [path.join(root, 'scripts/ci/validate-distribution.js'), '--strict'] },
     { name: 'staged-package-version', cmd: 'node', args: [path.join(root, 'scripts/ci/verify-staged-package-version.js'), '--version', version] },
-    { name: 'codex-native-install-smoke', cmd: 'node', args: [path.join(root, 'tests/codex-native-install-smoke.test.js')] },
+    { name: 'codex-native-deterministic-generation', cmd: 'node', args: [path.join(root, 'scripts/ci/verify-codex-native-package.js')] },
   ];
 }
 

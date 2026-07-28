@@ -1,15 +1,25 @@
 'use strict';
 
-// Physical Codex native release-package generation and validation (task 3.2,
-// curate-dhpk-distribution-surfaces). Distinct from scripts/lib/distribution-inventory.js's
-// Claude-surface generation: a native Codex package must contain ONLY promoted
-// skills, as real files (no symlinks), with a manifest `skills` field that
-// resolves inside the package directory (no parent-relative escape) — the two
-// concrete failure shapes behind GitHub issue #88.
+// Physical Codex native release-package generation and validation
+// (make-codex-plugin-distribution-install-safe). Distinct from
+// scripts/lib/distribution-inventory.js's Claude-surface generation: a native
+// Codex package must contain exactly the non-deprecated skills whose
+// distribution-inventory `surfaces` explicitly include `codex-native` — not
+// every `promoted` skill — as real files (no symlinks), with a manifest
+// `skills` field that resolves inside the package directory (no
+// parent-relative escape). These are the two concrete failure shapes behind
+// GitHub issue #88, plus the native/promoted membership mismatch that issue
+// #88's follow-up change fixes.
 
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+
+// Bump when the generation algorithm (selection, layout, or manifest-merge
+// logic) changes in a way that could produce a different package from the
+// same inventory + canonical sources. Independent of the dhpk release
+// version recorded as provenance.sourceVersion.
+const GENERATOR_VERSION = '1.0.0';
 
 // Walks packageRoot and reports any symlink found (a native package must be
 // 100% physical files — a symlink survives only as long as its target and the
@@ -56,19 +66,83 @@ function validateNativeCandidate({ manifestSkillsField, packageRoot }) {
   return { ok: errors.length === 0, errors };
 }
 
-// Task 3.2: build the physical, promoted-only release candidate from a
-// distribution inventory. Copies real file content (dereferencing any
-// canonical-source symlinks) for every skill classified `promoted` — design.md
-// decision 4 scopes the native surface to promoted content only, narrower than
-// Claude's directory-root surface. Returns the candidate's manifest field and
-// per-skill source fingerprints so a caller can validate + stage-install it.
-function materializeNativePackage({ inventory, root, outDir, name = 'dhpk-native', version = '0.0.0' }) {
-  const promoted = (inventory.skills || []).filter((s) => s.lifecycle === 'promoted');
+// Native membership SHALL be the explicit `codex-native` inventory surface,
+// never inferred from `lifecycle=promoted` (spec: "Native publication uses an
+// explicit inventory surface"). Deprecated entries are excluded even if they
+// still carry `codex-native` — the two-stage deprecation window keeps a
+// deprecated skill's surfaces intact for compatibility, but it must not be
+// (re)published into a fresh native package.
+function selectNativeSkills(inventory) {
+  return (inventory.skills || []).filter(
+    (s) => (s.surfaces || []).includes('codex-native') && s.lifecycle !== 'deprecated'
+  );
+}
+
+// Checks a candidate's actual skill-id set against the inventory-derived
+// codex-native surface — the membership dimension, distinct from
+// validateNativeCandidate's structural (symlink/path) checks. Catches a
+// promoted-but-non-native skill smuggled into a candidate, and a codex-native
+// skill silently dropped from one.
+function validateNativeMembership({ candidateSkillIds, inventory }) {
+  const expected = new Set(selectNativeSkills(inventory).map((s) => s.id));
+  const candidate = new Set(candidateSkillIds);
+  const errors = [];
+
+  for (const id of candidateSkillIds) {
+    if (!expected.has(id)) {
+      errors.push(`unexpected skill in native candidate: '${id}' is not in the codex-native inventory surface (native publication must not include promoted-but-non-native content)`);
+    }
+  }
+  for (const id of expected) {
+    if (!candidate.has(id)) {
+      errors.push(`missing skill from native candidate: '${id}' is codex-native in the inventory but absent from the package`);
+    }
+  }
+
+  return { ok: errors.length === 0, errors };
+}
+
+const DEFAULT_MANIFEST_TEMPLATE = {
+  description: 'dhpk codex-native physical Codex release candidate (generated; not a second source of truth — see docs/distribution-surfaces.md).',
+};
+
+// Materialize the physical, explicitly-allowlisted codex-native package from
+// a distribution inventory. Copies real file content (dereferencing any
+// canonical-source symlinks) for every selected skill. If a plugin.json
+// already exists at the destination, its fields (author, homepage, license,
+// keywords, interface, ...) are preserved — only `name`, `version`, and
+// `skills` are generator-controlled — so regenerating the tracked marketplace
+// package never silently strips its marketplace descriptor. Returns the
+// candidate's manifest field, selected skill ids, per-skill fingerprints, and
+// deterministic provenance (no wall-clock fields, so two runs against the
+// same inputs produce byte-identical output — see spec.md "Unchanged sources
+// are generated twice").
+function materializeNativePackage({
+  inventory,
+  root,
+  outDir,
+  name = 'dhpk-native',
+  version = '0.0.0',
+  sourceCommit = 'unknown',
+  generatorVersion = GENERATOR_VERSION,
+}) {
+  const selected = selectNativeSkills(inventory);
   const skillsOutDir = path.join(outDir, 'skills');
   fs.mkdirSync(skillsOutDir, { recursive: true });
 
+  // Regeneration is a full replace, not additive: a skill removed from the
+  // codex-native surface since outDir was last populated must not leave its
+  // stale directory behind — outDir is routinely an existing tracked package
+  // (prepare-release.js regenerates directly into plugins/dhpk/).
+  const selectedIds = new Set(selected.map((s) => s.id));
+  for (const existing of fs.readdirSync(skillsOutDir)) {
+    if (!selectedIds.has(existing)) {
+      fs.rmSync(path.join(skillsOutDir, existing), { recursive: true, force: true });
+    }
+  }
+
   const fingerprints = {};
-  for (const skill of promoted) {
+  for (const skill of selected) {
     const srcDir = path.join(root, skill.path);
     const dstDir = path.join(skillsOutDir, skill.id);
     fs.cpSync(srcDir, dstDir, { recursive: true, dereference: true });
@@ -77,16 +151,23 @@ function materializeNativePackage({ inventory, root, outDir, name = 'dhpk-native
 
   const codexPluginDir = path.join(outDir, '.codex-plugin');
   fs.mkdirSync(codexPluginDir, { recursive: true });
-  const manifest = {
-    name,
-    version,
-    description: 'dhpk promoted-only physical Codex release candidate (generated; not a second source of truth — see docs/distribution-surfaces.md).',
-    skills: './skills/',
-  };
-  fs.writeFileSync(path.join(codexPluginDir, 'plugin.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+  const manifestPath = path.join(codexPluginDir, 'plugin.json');
+  const template = fs.existsSync(manifestPath) ? JSON.parse(fs.readFileSync(manifestPath, 'utf8')) : DEFAULT_MANIFEST_TEMPLATE;
+  const manifest = { ...template, name, version, skills: './skills/' };
+  fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
   fs.writeFileSync(path.join(outDir, 'fingerprints.json'), `${JSON.stringify(fingerprints, null, 2)}\n`);
 
-  return { manifestSkillsField: manifest.skills, skillIds: promoted.map((s) => s.id).sort(), fingerprints };
+  const skillIds = selected.map((s) => s.id).sort();
+  const provenance = {
+    sourceVersion: version,
+    sourceCommit,
+    inventoryDigest: crypto.createHash('sha256').update(JSON.stringify(inventory)).digest('hex'),
+    generatorVersion,
+    selectedSkillIds: skillIds,
+  };
+  fs.writeFileSync(path.join(outDir, 'provenance.json'), `${JSON.stringify(provenance, null, 2)}\n`);
+
+  return { manifestSkillsField: manifest.skills, skillIds, fingerprints, provenance };
 }
 
 function fingerprintDir(dir) {
@@ -109,7 +190,10 @@ function fingerprintDir(dir) {
 }
 
 module.exports = {
+  GENERATOR_VERSION,
   validateNativeCandidate,
+  validateNativeMembership,
+  selectNativeSkills,
   materializeNativePackage,
   fingerprintDir,
 };

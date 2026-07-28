@@ -23,6 +23,7 @@ function mkRepo(version) {
     fs.writeFileSync(path.join(root, rel), JSON.stringify({ name: 'dhpk', version }));
   }
   fs.writeFileSync(path.join(root, '.agents/plugins/marketplace.json'), JSON.stringify({ plugins: [{ name: 'dhpk', version }] }));
+  fs.writeFileSync(path.join(root, 'plugins/dhpk/provenance.json'), JSON.stringify({ sourceVersion: version }));
   fs.writeFileSync(path.join(root, 'CHANGELOG.md'), `# Changelog\n\n## [Unreleased]\n\n## ${version} — 2026-07-27 — Summary\n\nNotes.\n`);
   return root;
 }

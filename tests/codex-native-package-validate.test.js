@@ -15,7 +15,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const { test, run, assert } = require('./_lib/tinytest');
-const { validateNativeCandidate } = require('../scripts/lib/codex-native-package');
+const { validateNativeCandidate, validateNativeMembership } = require('../scripts/lib/codex-native-package');
 
 function makeTempPackage() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-native-candidate-'));
@@ -72,6 +72,60 @@ test('accepts a same-directory candidate whose package tree is entirely physical
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test('rejects a candidate containing a promoted-but-non-native skill, naming the extra skill', () => {
+  const inventory = {
+    skills: [
+      { id: 'tdd', path: 'skills/tdd', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
+      { id: 'skill-judge', path: 'skills/skill-judge', lifecycle: 'promoted', surfaces: ['claude-core'] },
+    ],
+  };
+  const result = validateNativeMembership({ candidateSkillIds: ['tdd', 'skill-judge'], inventory });
+  assert.ok(!result.ok);
+  assert.ok(result.errors.some((e) => /skill-judge/.test(e) && /not in the codex-native/i.test(e)), result.errors.join('\n'));
+});
+
+test('accepts an approved optional-lifecycle native exception alongside promoted native skills', () => {
+  const inventory = {
+    skills: [
+      { id: 'tdd', path: 'skills/tdd', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
+      { id: 'php-pro', path: 'modules/php-5.6/skills/php-pro', lifecycle: 'optional', surfaces: ['claude-module', 'codex-native'] },
+    ],
+  };
+  const result = validateNativeMembership({ candidateSkillIds: ['tdd', 'php-pro'], inventory });
+  assert.deepStrictEqual(result.errors, []);
+  assert.ok(result.ok);
+});
+
+test('rejects a candidate missing a codex-native skill that the inventory expects', () => {
+  const inventory = {
+    skills: [
+      { id: 'tdd', path: 'skills/tdd', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
+      { id: 'skill-judge', path: 'skills/skill-judge', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
+    ],
+  };
+  const result = validateNativeMembership({ candidateSkillIds: ['tdd'], inventory });
+  assert.ok(!result.ok);
+  assert.ok(result.errors.some((e) => /skill-judge/.test(e) && /missing/i.test(e)), result.errors.join('\n'));
+});
+
+test('excludes a deprecated codex-native skill from the expected membership set', () => {
+  const inventory = {
+    skills: [
+      { id: 'tdd', path: 'skills/tdd', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
+      {
+        id: 'old-skill',
+        path: 'skills/old-skill',
+        lifecycle: 'deprecated',
+        surfaces: ['claude-core', 'codex-native'],
+        deprecation: { since: '2026-01-01', compatibilityWindowEnds: '2026-04-01', migrationNote: 'retired' },
+      },
+    ],
+  };
+  const result = validateNativeMembership({ candidateSkillIds: ['tdd'], inventory });
+  assert.deepStrictEqual(result.errors, []);
+  assert.ok(result.ok);
 });
 
 run('codex-native-package-validate');
