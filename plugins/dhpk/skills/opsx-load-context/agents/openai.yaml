@@ -1,0 +1,4 @@
+interface:
+  display_name: "Opsx Load Context"
+  short_description: "Load opsx-apply-resume Resume Phase context via a 3-tier"
+  default_prompt: "Use $opsx-load-context to apply the Opsx Load Context workflow with its verification rules."
