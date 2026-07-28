@@ -33,6 +33,51 @@ In parallel mode, before/after accounting uses path-scoped `git status --short -
 
 If a validator reads or updates shared ratchet/configuration state, the worker uses only a dispatcher-provided scoped or no-write equivalent. Without one, it reports the exact missing command as blocked or uses the explicitly declared report-only outcome; it must not invoke a global read-modify-write path. A task intentionally changing shared state is serial. After all workers return, the orchestrator runs one sequential whole-tree validator/reconciliation pass and records the consolidated result before dispatching the implementation-wave reviewers.
 
+## Mid-batch CLI timeout recovery
+
+A mid-batch timeout policy applies only to a started multi-file CLI worker batch and only
+when the wrapper selected `timeout` or `gtimeout`, the process returned exit 124, and the
+wrapper emitted timeout evidence. A backend-native exit 124 is an ordinary backend result,
+not a wrapper timeout. If no timeout mechanism is available, the worker returns `BLOCKED`
+without fabricating evidence or changing backends. Single-file work, missing CLIs,
+authentication/model failures, and ordinary nonzero exits retain their existing semantics.
+
+Before dispatch, the orchestrator records the exact assigned product files and a
+path-scoped baseline. After an interruption, the completion ledger is disjoint:
+
+- `confirmed`: the backend explicitly reports the file and the path-scoped diff/status
+  evidence supports that report;
+- `unconfirmed`: the file was changed or claimed, but completion or ownership evidence is
+  insufficient for `confirmed`;
+- `remaining`: the assigned file has no completion evidence.
+
+Global status, a backend's self-report alone, or a broad working-tree diff does not prove
+completion. On the first verified wrapper timeout, dispatch exactly one fresh invocation
+of the same backend with the same model, effort, intent, verifier, and assigned scope;
+target only `remaining ∪ unconfirmed`. The retry must not inline-edit, repeat confirmed
+files by default, expand scope, switch backend, or clean sibling work.
+
+If the retry reaches a second verified wrapper timeout, the worker stops: return `PARTIAL`
+when `confirmed` is non-empty, otherwise `BLOCKED`. The report includes both timeout
+observations, backend identity, all ledger sets, marker state, and the next action.
+The agy verification-only internal retry remains allowed for verification failures, but it
+does not add timeout attempts and does not alter this state machine.
+
+Before returning `PARTIAL`, write a durable marker to a safe, predeclared control-plane
+path of the form
+`.claude/artifacts/sessions/.partial-cli-batch-<backend>-<session-id>-<dispatch-id>.json`.
+The session and dispatch identifiers are allocated before worker start. The marker is
+reported separately from the assigned product edited-file list, is not a `.pending-*`
+reviewer sentinel, and is not auto-cleared. An unresolved marker blocks implementation-task
+completion until an orchestrator or human explicitly reconciles it; it does not itself
+create or clear a reviewer obligation.
+
+As a starting dispatch guideline, split a batch with more than six assigned product files.
+Six is an unmeasured guideline, not a worker authority to expand scope; an override records
+its reason in the dispatch and the worker report. After all workers and the single retry
+for a batch finish, the orchestrator performs one sequential whole-tree shared-state
+reconciliation.
+
 ## Live CI/deploy verification loops are dispatchable work
 
 Watching a live CI run (`gh run watch`), triaging its run logs, and babysitting retries is dispatchable work — route it to `dhpk:smoke-tester` (read-only probe) or a background `fast-worker`, per the §Implementation dispatch table row, so the main context consumes only the resulting merge/fix decision rather than running the poll/triage loop inline.

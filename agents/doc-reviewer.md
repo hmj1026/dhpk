@@ -55,10 +55,10 @@ Out of scope:
 1. Sentinel-scoped precedence: see `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`
    "Sentinel-scoped precedence" — apply verbatim, sentinel = `.pending-doc-review`.
    Back-stop/full-review fallback restricts to `.claude/ docs/ openspec/`.
-2. Walk each file through the four-quadrant checklist below.
+2. Walk each file through the six-quadrant checklist below.
 3. Close out: write the artifact; sentinel clearance is hook-owned.
 
-## Checklist — five quadrants (only report actual hits)
+## Checklist — six quadrants (only report actual hits)
 
 ### 0. Frontmatter schema (only for `.md` files whose first line is `---`)
 
@@ -140,6 +140,25 @@ tier 1.5, SSOT, etc.):
 A term that does neither: report LOW with a suggestion to add inline or
 link.
 
+### 5. Normatively coupled document check
+
+When the file under review is an in-scope OpenSpec `spec.md` or `design.md`
+(or the impl/policy file it governs) from the SAME review batch, check the
+paired file for the same finding pattern already identified above:
+
+- Coupled pair = same-batch `spec.md` + `design.md` governing the same
+  in-scope impl/policy file. `proposal.md` / `tasks.md` and any out-of-batch
+  file are never coupled — do not infer a relationship from naming or
+  directory proximity alone.
+- Read the counterpart only to confirm or deny the SAME finding pattern
+  already found — do not perform a fresh, independent review of it; code
+  correctness stays with `code-reviewer`.
+- If the same pattern is confirmed in both paths: record ONE finding citing
+  both file:line locations and their governing relationship. Do not dispatch
+  a second reviewer pass and do not edit either file.
+- If the relationship is ambiguous or absent, do not assert coupling —
+  report the original finding alone.
+
 ## Out of scope
 
 - Markdown grammar, heading levels, punctuation, emoji usage.
@@ -157,7 +176,9 @@ Single-run verdict: emit the final verdict in this same run; never stop for advi
 
 ### Specialist checks
 
-This file retains frontmatter, links, terminology, and SSOT checks unique to `doc-reviewer`.
+This file retains frontmatter, links, terminology, and SSOT checks unique to
+`doc-reviewer`, and the normatively-coupled-document check (spec.md/design.md
+same-batch evidence, §5 above).
 
 ## Output
 

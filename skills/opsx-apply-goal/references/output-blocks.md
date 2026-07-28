@@ -99,7 +99,7 @@ verbatim. Append the coverage-off NOTES line when
   suppresses), so it never deadlocks a non-drivable repo (plugin/library repos
   with no running system)
 • Goal length capped at 4,000 UTF-8 bytes (the unit `wc -c` measures; Claude
-  Code's practical /goal paste limit, see Step 4): the normal target is 3,400
+  Code's practical /goal paste limit, see Step 4): the normal target is 3,600
   bytes — check the Block A "Goal length" row; a measurement over the cap is a
   should-never-fire template regression: no /goal is emitted and Block A's
   hard-stop notice reports the measured length and lists which setting or flag
@@ -125,7 +125,7 @@ skill's output:
 ```
 ✖ Goal condition is <GOAL_LENGTH> UTF-8 bytes — <GOAL_LENGTH - 4000> over the
   4,000-byte paste limit. This should never fire with the bounded Part 0
-  (the normal target is <=3,400 bytes) — treat it as a template
+  (the normal target is <=3,600 bytes) — treat it as a template
   regression to fix, or adjust and re-run:
   • turn off the orchestration_dispatch project setting (removes the dispatch directive, the largest single block)
   • drop --codex (removes the CODEX statement)

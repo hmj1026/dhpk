@@ -49,9 +49,11 @@ Part 0 without naming the agent to dispatch.
 ```
 First run ONE Bash orientation command — `p=${CLAUDE_PLUGIN_ROOT:-$(ls -dt
 ~/.claude/plugins/cache/dhpk/dhpk/* 2>/dev/null | head -1)}; cat
-"$p/rules/execution-policy.md" 2>/dev/null || echo POLICY-UNRESOLVED` — reading
-the dhpk execution-policy into context (on POLICY-UNRESOLVED proceed on this
-goal string's own gates; never filesystem-scan) — then invoke the Skill tool
+"$p/rules/execution-policy.md" 2>/dev/null || { test -r ./.claude-plugin/plugin.json &&
+cat ./rules/execution-policy.md; } 2>/dev/null || echo POLICY-UNRESOLVED` — reads the
+dhpk execution-policy; never filesystem-scan; every reviewer dispatch (even
+confirm-only) still gets a fresh .claude/artifacts/reviews/ artifact, never
+reply-only — then invoke the Skill tool
 with the canonical ID `openspec-apply-change` for change <CHANGE_ID> and
 continue implementing openspec/changes/<CHANGE_ID>/tasks.md from the first
 unchecked item without stopping for confirmation. Task digest: <TASK_DIGEST>.
@@ -70,9 +72,10 @@ roster appended before the transition into the stop conditions:
 ```
 First run ONE Bash orientation command — `p=${CLAUDE_PLUGIN_ROOT:-$(ls -dt
 ~/.claude/plugins/cache/dhpk/dhpk/* 2>/dev/null | head -1)}; cat
-"$p/rules/execution-policy.md" 2>/dev/null || echo POLICY-UNRESOLVED` — read policy
-(if unresolved use these gates; never filesystem-scan), invoke
-openspec-apply-change <CHANGE_ID>; continue tasks. Tasks:
+"$p/rules/execution-policy.md" 2>/dev/null || { test -r ./.claude-plugin/plugin.json &&
+cat ./rules/execution-policy.md; } 2>/dev/null || echo POLICY-UNRESOLVED` — never filesystem-scan; every reviewer dispatch (even
+confirm-only) still gets a fresh .claude/artifacts/reviews/ artifact, never
+reply-only, invoke openspec-apply-change <CHANGE_ID>; continue tasks. Tasks:
 <TASK_DIGEST>. gitnexus repo="<project>".
 On "Unknown skill", retry once; implement directly under these gates.
 Set `DHPK_ORCHESTRATION_DISPATCH=on`. Bash resets cwd; use absolute paths, `npm --prefix`, or `git -C`.

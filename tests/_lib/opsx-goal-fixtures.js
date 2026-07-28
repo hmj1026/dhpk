@@ -17,12 +17,15 @@ const fencedAfter = (marker) => {
   return match[1];
 };
 
-const FIXED_CORE = [
-  fencedAfter('**`DISPATCH_ON=true`'),
-  fencedAfter('## Part 1 (always)'),
-  fencedAfter('## Part 2 (always'),
-  fencedAfter('## Part 2b (always'),
-];
+const DISPATCH_TRUE_FENCE = fencedAfter('**`DISPATCH_ON=true`');
+const DISPATCH_FALSE_FENCE = fencedAfter('**`DISPATCH_ON=false`');
+
+const PART_1 = fencedAfter('## Part 1 (always)');
+const PART_2 = fencedAfter('## Part 2 (always');
+const PART_2B = fencedAfter('## Part 2b (always');
+
+const FIXED_CORE = [DISPATCH_TRUE_FENCE, PART_1, PART_2, PART_2B];
+const FIXED_CORE_NO_DISPATCH = [DISPATCH_FALSE_FENCE, PART_1, PART_2, PART_2B];
 
 const STOP_LIMITS = fencedAfter('## Part 4 (always').replace(
   /\nOR stop after <MAX_DURATION> wall-clock elapsed: write the same\n\.resume-note\.md \(state, next step, remaining tasks\), end the session/,
@@ -48,7 +51,8 @@ const composeGoal = (fixture) => {
   const codexStatement = fixture.codex
     ? 'CODEX is ON for this session: apply execution-policy §In-flight doubt cycle and §CODEX=on high-stakes parallel peer path (including its session-end zero-dispatch self-check)'
     : 'CODEX is OFF for this session: at a contradiction-arbitration point where two agents\' conclusions directly conflict, announce "cross-model doubt skipped (CODEX=off)" per execution-policy §In-flight doubt cycle rather than performing a cross-model pass';
-  const parts = FIXED_CORE.map((part) => part
+  const core = fixture.dispatch_on === false ? FIXED_CORE_NO_DISPATCH : FIXED_CORE;
+  const parts = core.map((part) => part
     .replaceAll('<CHANGE_ID>', fixture.change_id || 'fixture-change')
     .replace('<CODEX_STATEMENT>', codexStatement)
     .replaceAll('<TASK_DIGEST>', 'T'.repeat(200))
@@ -86,4 +90,14 @@ const generateFixture = (fixture) => {
   return { mode: 'full', bytes, goal, blockA: '' };
 };
 
-module.exports = { FIXED_CORE, GATE_TOKENS, composeGoal, generateFixture, measureBytes, readFixture };
+module.exports = {
+  FIXED_CORE,
+  FIXED_CORE_NO_DISPATCH,
+  DISPATCH_TRUE_FENCE,
+  DISPATCH_FALSE_FENCE,
+  GATE_TOKENS,
+  composeGoal,
+  generateFixture,
+  measureBytes,
+  readFixture,
+};

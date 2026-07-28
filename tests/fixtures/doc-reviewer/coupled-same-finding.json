@@ -1,0 +1,17 @@
+{
+  "schema": "dhpk.doc-reviewer-fixture.v1",
+  "verification": "static annotation only \u2014 not runtime-verified; no agent is invoked against this fixture, it documents the expected decision per agents/doc-reviewer.md's prose rules (checked by tests/doc-reviewer-coupled-check.test.js against the prose, not this data)",
+  "scenario": "coupled-same-finding",
+  "note": "Same-batch spec.md and design.md both omit the same normative requirement (the reviewer already found in one) \u2014 expect ONE finding citing both file:line locations.",
+  "batch": "openspec/changes/example-change",
+  "reviewedFile": "openspec/changes/example-change/design.md",
+  "coupledFile": "openspec/changes/example-change/spec.md",
+  "findingPattern": "missing rollback section",
+  "expected": {
+    "coupled": true,
+    "findingCount": 1,
+    "citesBothPaths": true,
+    "dispatchesSecondReview": false,
+    "rewritesEitherFile": false
+  }
+}

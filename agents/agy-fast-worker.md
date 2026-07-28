@@ -57,6 +57,33 @@ rejection — do not retry with a guessed model). A configured fallback may sele
 authorization, model, task, and verification failures never fall back. **Never**
 approximate the backend or fall back to editing the files yourself.
 
+## Mid-batch timeout recovery
+
+A wrapper timeout is only exit 124 plus evidence that `timeout` or `gtimeout` actually
+wrapped the CLI. A backend-native exit 124 is not this state. If timeout tooling is
+unavailable, return `RESULT: BLOCKED`; do not fabricate a timeout or retry. This state
+applies only to a started multi-file batch; single-file work and ordinary backend failures
+keep their existing semantics.
+
+Before dispatch, record the exact assigned product-file list and a path-scoped baseline. On
+the first verified wrapper timeout, derive disjoint `confirmed`, `unconfirmed`, and
+`remaining` sets. `confirmed` requires an explicit backend report plus supporting scoped
+diff/status evidence. Retry exactly once with the same agy backend, model, intent, verifier,
+and assigned scope, targeting only `remaining` plus `unconfirmed`. Never inline-edit, repeat
+confirmed files by default, expand scope, switch backend, or checkout/restore/reset/
+clean/delete sibling work.
+
+The existing agy internal verification retry remains available for verification failures only;
+it does not add timeout attempts or change this recovery state machine. If the fresh retry
+reaches a second verified wrapper timeout, stop. Return `RESULT: PARTIAL` when any file is
+confirmed; otherwise return `RESULT: BLOCKED`. Include both timeout observations, backend
+identity, all ledger sets, marker state, and the next action. Before returning `PARTIAL`, write
+a marker at the predeclared safe control-plane path
+`.claude/artifacts/sessions/.partial-cli-batch-<backend>-<session-id>-<dispatch-id>.json`.
+The marker is reported separately, is not part of the product edited-file list, is not a
+`.pending-*` reviewer sentinel, and is not auto-cleared. An unresolved marker blocks
+implementation-task completion until explicit human/orchestrator reconciliation.
+
 ## Execute via the agy wrapper
 
 1. Compose a **self-contained** prompt — agy sees a fresh session with none of this
@@ -139,9 +166,19 @@ Fallback reason: <none | missing executable: agy; configured fallback=claude>
 Model/effort: <model> / baked into model name
 Verify: <command> → PASS | FAIL (N attempts)
 Spec: <one-line summary of what was requested>
+Timeout state: not-applicable | first-timeout-retried | second-timeout-terminal
+Completion ledger: confirmed=<paths>; unconfirmed=<paths>; remaining=<paths>
+Timeout evidence: <none | wrapper exit/evidence for attempt 1/2>
+Partial marker: <none | predeclared control-plane path>
+Next action: <reconcile, continue, or exact blocker>
 Edited files (from git status --porcelain diff):
 - path/a
 - path/b
+Out-of-scope observations:
+- none
+Out-of-scope writes:
+- none
+Verification scope: assigned files | report-only
 Deviations from spec: <none | what and why>
 Observations (not acted on): <unrelated issue noticed, if any>
 ```
