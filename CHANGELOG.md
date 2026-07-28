@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## 0.33.0 — 2026-07-28 — 強化 Codex Native 套件生成與發佈安全性、CLI Prompt 組合與 agy 旗標支援
+
+**feat(agents)** — Add a per-model (GPT-5.x/Gemini) prompt-composition effectiveness baseline (`agent-traps/_common/cli-prompt-composition.md`) and wire it into `codex-fast-worker`, `codex-deep-reasoner`, `agy-fast-worker`, and the `codex-bridge` skill's prompt-composition steps.
+**fix(agy-fast-worker)** — Modernize `run-agy.sh` to enforce the autonomy boundary and report contract via `--mode`/`--output-format json`/`--json-schema` instead of prompt text, rebuild the agy version baseline from 1.1.2 to 1.1.8 with a runtime drift notice and an audible degrade path for older binaries, and bump the default model to `Gemini 3.6 Flash (High)`.
+
 ## 0.32.0 — 2026-07-27 — Harden release contracts and phase gates, and curate distribution surfaces
 
 **feat(release)** — Add release-note fragments (changelog.d/), a version-parity preparation command, and CI/release-only parity gates as part of hardening the dhpk release contract.
