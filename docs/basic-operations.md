@@ -14,7 +14,7 @@ dhpk deliberately exposes several surfaces with different support tiers:
 | `claude --plugin-dir` | Development-only | Working-tree iteration; not a release channel. |
 | `scripts/install.sh` | Convenience wrapper | Runs the Claude install contract; it is not a separate distribution. |
 | `install-codex-skills.sh` | Supported | Stable Codex project sync path. |
-| Codex plugin marketplace | Experimental | Discovery may work, but cache materialization must be verified before use. |
+| Codex plugin marketplace | Experimental | Physical publication package with a verified real-CLI install proof; tier stays Experimental until a separate graduation decision. |
 | Gemini / Antigravity sync | Adapter-only | Claude-first comparison or conversion; no native package or full agent-parity promise. |
 
 Plugin management commands (`claude plugin …`, `codex plugin …`) are separate
@@ -311,10 +311,12 @@ four hand-maintained generic roles and seven generated from canonical Claude
 agents via `scripts/gen-codex-agents.js`. See `codex/AGENTS.md` and
 `codex/README.md` for the dual-harness model.
 
-### Codex Plugin Marketplace (experimental until issue #88's acceptance test passes)
+### Codex Plugin Marketplace (experimental support tier)
 
-The repository keeps a Codex plugin manifest and thin marketplace wrapper for
-experimental compatibility testing:
+The repository ships a Codex plugin manifest and marketplace wrapper backed
+by a tracked, physical publication package at `plugins/dhpk/` — generated
+from `manifests/distribution-inventory.json`'s explicit `codex-native`
+surface, containing zero symlinks:
 
 ```bash
 codex plugin marketplace add hmj1026/dhpk   # or a local path during development
@@ -322,22 +324,26 @@ codex plugin add dhpk@dhpk
 codex plugin list
 ```
 
-Do not treat `codex plugin list` as proof that skills are usable. Inspect the
-installed plugin cache and confirm that `codex/skills/` materialized as real
-files, not dangling symlinks. `codex/skills/*` today are symlinks back to
-`../../skills/...` and the marketplace-target wrapper
-(`plugins/dhpk/.codex-plugin/plugin.json`) resolves a parent-relative
-`../../codex/skills/` path — both fail a clean marketplace-cache install,
-which is exactly what [issue #88](https://github.com/hmj1026/dhpk/issues/88)
-tracks. A promoted-only physical release-candidate generator
-(`scripts/ci/gen-codex-native-package.js`) and an automated clean-install/cache
-smoke test (`tests/codex-native-install-smoke.test.js`) already prove a
-*staged* physical candidate survives this exact scenario, but the production
-manifests above have not been cut over to it — see
-[`docs/distribution-surfaces.md`](./distribution-surfaces.md#codex-native-plugin-status-github-issue-88)
-for the current status and what's still open. Until the shipped manifests
-pass that same test, use `install-codex-skills.sh` for production work — the
-marketplace wrapper is additive, not a replacement.
+`codex plugin list` is management evidence only; it does not by itself prove
+the installed cache contains working files. That proof is a real,
+CLI-driven test: `tests/codex-native-install-smoke.test.js` installs the
+exact tracked `plugins/dhpk/` artifact into a sandboxed `CODEX_HOME`,
+deletes the source checkout, and verifies every allowlisted native skill
+materialized as a real (non-symlink) file — the exact failure mode
+[issue #88](https://github.com/hmj1026/dhpk/issues/88) tracked is closed at
+the manifest level (both `.codex-plugin/plugin.json` and
+`plugins/dhpk/.codex-plugin/plugin.json` now resolve to the same tracked
+physical tree). This proof runs as part of the release CONSUMER gate
+whenever a `codex` CLI is available; see
+[`docs/distribution-surfaces.md`](./distribution-surfaces.md#codex-native-plugin-package-github-issue-88)
+for the full gate model.
+
+A passing install proof is necessary evidence, not sufficient by itself:
+native Codex marketplace support remains **experimental** until a later,
+separately approved graduation decision (see
+[ADR-0006](./adr/0006-codex-native-publication-artifact.md)). For production
+work, use `install-codex-skills.sh` — the marketplace package is additive,
+not a replacement for the supported project-local sync path.
 
 See `.codex-plugin/README.md` and `plugins/dhpk/README.md` for details.
 
