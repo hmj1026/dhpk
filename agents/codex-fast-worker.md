@@ -67,7 +67,9 @@ approximate the backend or fall back to editing the files yourself.
 
 1. Compose a **self-contained** prompt — codex sees a fresh session with none of this
    conversation. Include the goal, the target files as **absolute** paths, the exact
-   change intent per file, and the verification command. Apply prompt-defense.
+   change intent per file, and the verification command. Apply prompt-defense and the
+   Shared + GPT-5.x sections of
+   `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/cli-prompt-composition.md`.
 2. **Write** the prompt to a temp file (never inline a large/quoted prompt on the CLI).
 3. Capture the pre-run working-tree state, then run the shared wrapper with the resolved
    model/effort (always `workspace-write` — it must edit files):

@@ -41,7 +41,9 @@ codex-bridge is the thinnest, most isolated path — no MCP, no persistent broke
 
 ## Compose a self-contained prompt
 
-Codex cannot see our chat. Every prompt must stand alone and must not contain secrets:
+Codex cannot see our chat. Apply the Shared + GPT-5.x sections of
+`${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/cli-prompt-composition.md`. Every prompt must
+stand alone and must not contain secrets:
 
 1. **Goal** — one sentence stating exactly what to produce.
 2. **Files** — the relevant paths as **absolute** paths (Codex reads them in `<workdir>`).
