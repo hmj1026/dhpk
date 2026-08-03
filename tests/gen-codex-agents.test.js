@@ -65,12 +65,13 @@ test('generates exactly the 7-agent allowlist as .toml files with derived fields
 
     const architect = fs.readFileSync(path.join(outDir, 'architect.toml'), 'utf8');
     assert.ok(architect.includes('name = "architect"'), architect);
-    assert.ok(architect.includes('model = "gpt-5.5"'), architect);
+    assert.ok(architect.includes('model = "gpt-5.6-sol"'), architect);
     assert.ok(architect.includes('model_reasoning_effort = "high"'), architect);
     assert.ok(architect.includes('developer_instructions = """'), architect);
 
     const tddGuide = fs.readFileSync(path.join(outDir, 'tdd-guide.toml'), 'utf8');
-    assert.ok(tddGuide.includes('model_reasoning_effort = "medium"'), tddGuide);
+    assert.ok(tddGuide.includes('model = "gpt-5.6-luna"'), tddGuide);
+    assert.ok(tddGuide.includes('model_reasoning_effort = "max"'), tddGuide);
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }

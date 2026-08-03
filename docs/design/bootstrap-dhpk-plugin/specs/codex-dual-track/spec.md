@@ -5,11 +5,22 @@
 The plugin SHALL ship a `codex/` directory at plugin root containing:
 
 - `codex/skills/` — Codex-CLI-format skill mirrors of `skills/` content (frontmatter and structure adjusted for Codex CLI)
-- `codex/agents/` — Codex-CLI-format agent definitions: 11 roles total, comprising 4 hand-maintained generic roles (`explorer`, `worker`, `monitor`, `bug-investigator`) plus 7 roles generated from the canonical Claude agents (`architect`, `code-reviewer`, `security-reviewer`, `database-reviewer`, `tdd-guide`, `deep-reasoner`, `doc-reviewer`) by `scripts/gen-codex-agents.js`. Every `codex/agents/*.toml` file MUST declare non-empty `name`, `description`, and `developer_instructions`.
+- `codex/agents/` — Codex-CLI-format TOML-only agent definitions: 11 roles total, comprising 4 hand-maintained generic roles (`explorer`, `worker`, `monitor`, `bug-investigator`) plus 7 roles generated from the canonical Claude agents (`architect`, `code-reviewer`, `security-reviewer`, `database-reviewer`, `tdd-guide`, `deep-reasoner`, `doc-reviewer`) by `scripts/gen-codex-agents.js`. Every `codex/agents/*.toml` file MUST declare non-empty `name`, `description`, `model`, `model_reasoning_effort`, and `developer_instructions`.
 - `codex/config.toml.example` — example Codex CLI configuration with project-specific values redacted
 - `codex/README.md` — documentation explaining the dual-track install procedure and the relationship with the install script
 
 Claude Code SHALL NOT auto-load anything inside `codex/` — no manifest entry, hook, rule, or skill references the directory at install time.
+
+The Codex projection SHALL keep runtime metadata and handoffs self-consistent:
+
+- each generated role SHALL use its explicit effective Codex `model` and
+  `model_reasoning_effort` metadata rather than inheriting Claude tier labels;
+- generated instructions SHALL reference only roles discoverable under
+  `codex/agents/*.toml`, with a documented manual fallback for unsupported
+  Claude-only capabilities;
+- `codex/config.toml.example` SHALL use
+  `max_concurrent_threads_per_session` for the top-level agent concurrency
+  setting.
 
 #### Scenario: Plugin install does not register Codex content with Claude Code
 
@@ -24,8 +35,9 @@ Claude Code SHALL NOT auto-load anything inside `codex/` — no manifest entry, 
 #### Scenario: Codex agent role files satisfy the required-field contract
 
 - **WHEN** any file under `codex/agents/*.toml` is inspected
-- **THEN** it declares non-empty `name`, `description`, and `developer_instructions` fields
-- **AND** the `validate_codex` guardrail fails the build if any of the three fields is missing or empty
+- **THEN** it declares non-empty `name`, `description`, `model`, `model_reasoning_effort`, and `developer_instructions` fields
+- **AND** the `validate_codex` guardrail fails the build if any runtime field is missing or empty
+- **AND** any non-TOML entry under `codex/agents/` fails validation
 
 #### Scenario: Generator produces the 7 canonical-derived roles deterministically
 

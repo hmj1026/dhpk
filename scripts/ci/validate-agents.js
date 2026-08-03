@@ -11,6 +11,7 @@ const fs = require('fs');
 const path = require('path');
 const { extract, isEmpty } = require('./_lib/frontmatter');
 const { createReporter } = require('./_lib/report');
+const { collectCodexRuntimeErrors } = require('./_lib/codex-runtime');
 
 const ROOT = path.join(__dirname, '..', '..');
 const AGENTS_DIR = path.join(ROOT, 'agents');
@@ -46,4 +47,8 @@ for (const file of files) {
   if (isEmpty(fm.values.tools)) r.warn(`${file} — missing 'tools'`);
 }
 
-r.done(`${files.length} agent files`);
+for (const error of collectCodexRuntimeErrors(ROOT)) {
+  r.err(error);
+}
+
+r.done(`${files.length} agent files and Codex runtime projection`);

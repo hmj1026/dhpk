@@ -1,7 +1,7 @@
 ---
 name: doc-reviewer
 description: >-
-  Lightweight policy / harness doc reviewer (Haiku). MANDATORY final step after
+  Lightweight policy / harness doc reviewer. MANDATORY final step after
   editing `.claude/{agents,rules,commands,skills,manifests}/**/*.{md,json,yml,yaml}`,
   doc-only files under `.claude/{hooks,scripts}/` (non-`.sh`), top-level
   CLAUDE.md / AGENTS.md / README*.md, and any `docs/**/*.md` or

@@ -9,36 +9,32 @@ const ROOT = path.join(__dirname, '..');
 const SOURCE_DIR = path.join(ROOT, 'agents');
 const DEFAULT_OUT_DIR = path.join(ROOT, 'codex', 'agents');
 
-// Single source of truth for the model. A model bump is one edit here; the
-// source agent's own `model:` field is intentionally NOT copied.
-const MODEL = 'gpt-5.5';
+// Codex runtime metadata is explicit per role. Claude frontmatter describes the
+// Claude runtime and must not silently overwrite the effective Codex model or
+// reasoning effort.
+const RUNTIME_METADATA = Object.freeze({
+  architect: { model: 'gpt-5.6-sol', effort: 'high' },
+  'code-reviewer': { model: 'gpt-5.6-sol', effort: 'medium' },
+  'security-reviewer': { model: 'gpt-5.6-sol', effort: 'medium' },
+  'database-reviewer': { model: 'gpt-5.6-sol', effort: 'medium' },
+  'tdd-guide': { model: 'gpt-5.6-luna', effort: 'max' },
+  'deep-reasoner': { model: 'gpt-5.6-sol', effort: 'high' },
+  'doc-reviewer': { model: 'gpt-5.6-luna', effort: 'xhigh' },
+});
 
 // Curated allowlist — EXACTLY these 7, in emit order. Each entry pins a
 // category (not the source frontmatter's effort). The 4 hand-maintained Codex
 // roles (bug-investigator, explorer, monitor, worker) are intentionally absent
 // and are never read or overwritten: any drift check scopes to these names.
 const AGENTS = [
-  { name: 'architect', category: 'design' },
-  { name: 'code-reviewer', category: 'reviewer' },
-  { name: 'security-reviewer', category: 'reviewer' },
-  { name: 'database-reviewer', category: 'reviewer' },
-  { name: 'tdd-guide', category: 'implementer' },
-  { name: 'deep-reasoner', category: 'reasoning' },
-  { name: 'doc-reviewer', category: 'reviewer' },
+  { name: 'architect' },
+  { name: 'code-reviewer' },
+  { name: 'security-reviewer' },
+  { name: 'database-reviewer' },
+  { name: 'tdd-guide' },
+  { name: 'deep-reasoner' },
+  { name: 'doc-reviewer' },
 ];
-
-// Design D4: reviewers -> high, implementers -> medium, monitors -> low.
-// architect (design) and deep-reasoner (reasoning) are read-only,
-// reasoning-dominant roles whose output quality scales with deliberation
-// depth, so they share the reviewer high-effort tier. `monitor` is defined for
-// scheme completeness; no monitor is in this allowlist.
-const EFFORT_BY_CATEGORY = {
-  reviewer: 'high',
-  design: 'high',
-  reasoning: 'high',
-  implementer: 'medium',
-  monitor: 'low',
-};
 
 // Fixed, line-level boilerplate matchers. Every match is a Claude-only tooling
 // reference irrelevant to Codex (cx/gitnexus routing, untrusted-input defense,
@@ -189,6 +185,30 @@ function cleanBody(body) {
     .trim();
 }
 
+// Claude keeps specialist handoffs that depend on Claude's larger roster.
+// The Codex projection must remain self-contained and only name roles that
+// Codex can actually discover from codex/agents/.
+function adaptCodexBody(agentName, body) {
+  let adapted = body;
+  if (agentName === 'code-reviewer') {
+    adapted = adapted
+      .replaceAll('`silent-failure-hunter`', '`deep-reasoner` (Codex fallback; otherwise perform the audit directly)')
+      .replaceAll('`type-design-analyzer`', '`architect` (Codex fallback; otherwise perform the design check directly)');
+  }
+  if (agentName === 'tdd-guide') {
+    adapted = adapted.replace(
+      /browser\s+journeys; route those journeys to `e2e-runner`\./,
+      "browser journeys; Codex has no dedicated E2E role, so the parent must run the project's Playwright command manually and record the result.",
+    );
+  }
+  if (agentName === 'deep-reasoner') {
+    adapted = adapted
+      .replaceAll('`fast-worker`', '`worker`')
+      .replaceAll('`e2e-runner`', 'a project-specific executable browser probe');
+  }
+  return adapted;
+}
+
 // TOML single-line basic string. Backslash first, then the rest.
 function tomlBasicString(value) {
   const escaped = value
@@ -217,12 +237,12 @@ function buildToml(agent, frontmatter, body) {
   if (!description) {
     throw new Error(`Empty description in agents/${agent.name}.md`);
   }
-  const effort = EFFORT_BY_CATEGORY[agent.category];
-  if (!effort) {
-    throw new Error(`No effort mapping for category "${agent.category}" (${agent.name})`);
+  const runtime = RUNTIME_METADATA[agent.name];
+  if (!runtime) {
+    throw new Error(`No Codex runtime metadata for ${agent.name}`);
   }
   const sandbox = deriveSandbox(fm.tools);
-  const instructions = [`Role: ${agent.name}`, '', description, '', cleanBody(body)]
+  const instructions = [`Role: ${agent.name}`, '', description, '', adaptCodexBody(agent.name, cleanBody(body))]
     .join('\n')
     .trim();
   if (!instructions) {
@@ -231,8 +251,8 @@ function buildToml(agent, frontmatter, body) {
   const lines = [
     `name = ${tomlBasicString(agent.name)}`,
     `description = ${tomlBasicString(description)}`,
-    `model = ${tomlBasicString(MODEL)}`,
-    `model_reasoning_effort = ${tomlBasicString(effort)}`,
+    `model = ${tomlBasicString(runtime.model)}`,
+    `model_reasoning_effort = ${tomlBasicString(runtime.effort)}`,
     `sandbox_mode = ${tomlBasicString(sandbox)}`,
     '',
     'developer_instructions = """',
@@ -240,7 +260,7 @@ function buildToml(agent, frontmatter, body) {
     '"""',
     '',
   ];
-  return { toml: lines.join('\n'), effort, sandbox };
+  return { toml: lines.join('\n'), effort: runtime.effort, sandbox };
 }
 
 function generate(outDir) {

@@ -87,6 +87,21 @@ Codex CLI has no `/dhpk:do` command and no slash commands at all, so there is no
 
 These are sequencing guidelines, not enforced routes — nothing in Codex CLI checks that you followed them.
 
+### Codex handoff boundary
+
+The Codex projection must never name an agent that is absent from
+`codex/agents/*.toml`. The canonical Claude agents may retain Claude-only
+specialist handoffs, but the generator adapts those references for Codex:
+
+- `code-reviewer` uses the available `deep-reasoner` for deep error-handling
+  review and `architect` for non-trivial type/design review; the reviewer may
+  perform either check directly when a second role is unnecessary.
+- `tdd-guide` does not promise a dedicated E2E role. The parent must run the
+  project's Playwright command manually and record the result.
+
+If a project does not expose the required runner or role, use the documented
+manual fallback; do not invoke an unavailable agent name.
+
 ### Review discipline (no hooks, no sentinels)
 
 Claude Code enforces post-edit review through hooks and `.pending-*` sentinel files: a PostToolUse hook writes a sentinel after an edit, and a reviewer agent clears it before work is considered done. **Codex CLI has neither hooks nor sentinels.** There is no automated mechanism that fires after an edit or blocks completion until a review has run.
@@ -145,6 +160,6 @@ Specialization for these areas is delivered through the mirrored `codex/skills/`
 
 ### Role discovery
 
-Syncing `.codex/agents/` alone is sufficient for role discovery — each role `.toml` file carries its own `name` field, and Codex CLI reads roles directly from that directory. The `[agents.<name>]` blocks in `config.toml.example` are **optional**: they add a description, nickname, or concurrency caps (`max_threads`, `max_depth`), but they are not required for a role to load or be invocable via `/agent`.
+Syncing `.codex/agents/` alone is sufficient for role discovery — each role `.toml` file carries its own `name` field, and Codex CLI reads roles directly from that directory. The `[agents.<name>]` blocks in `config.toml.example` are **optional**: they add a description or nickname. The supported top-level concurrency setting is `max_concurrent_threads_per_session`; the example also shows the effective default subagent model and reasoning effort.
 
-Every `codex/agents/*.toml` file MUST declare non-empty `name`, `description`, and `developer_instructions` — Codex CLI auto-discovers `.codex/agents/*.toml` and errors "must define a non-empty name" if `name` is missing, and the plugin's `validate_codex` guardrail enforces all three fields. The 7 generated roles are produced by `scripts/gen-codex-agents.js` from the canonical `agents/<name>.md` sources; the generator is deterministic/idempotent (re-running with no source change produces byte-identical output) and does not touch the 4 hand-maintained roles.
+Every `codex/agents/*.toml` file MUST declare non-empty `name`, `description`, `model`, `model_reasoning_effort`, and `developer_instructions` — Codex CLI auto-discovers `.codex/agents/*.toml` and errors "must define a non-empty name" if `name` is missing, and the plugin's `validate_codex` guardrail enforces the runtime metadata contract. Codex agent definitions are TOML-only; legacy Markdown role bodies are not dispatchable. The 7 generated roles are produced by `scripts/gen-codex-agents.js` from the canonical `agents/<name>.md` sources; the generator is deterministic/idempotent (re-running with no source change produces byte-identical output) and does not touch the 4 hand-maintained roles.
