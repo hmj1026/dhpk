@@ -2,8 +2,10 @@
 multi_agent = true
 
 [agents]
-max_threads = 6
-max_depth = 2
+enabled = true
+default_subagent_model = "gpt-5.6-luna"
+default_subagent_reasoning_effort = "max"
+max_concurrent_threads_per_session = 6
 
 [agents.default]
 description = "General-purpose fallback role for small or ambiguous tasks."
@@ -23,4 +25,3 @@ config_file = "agents/monitor.toml"
 [agents."bug-investigator"]
 description = "Systematic root-cause investigator for bugs, regressions, and data flow anomalies."
 config_file = "agents/bug-investigator.toml"
-
