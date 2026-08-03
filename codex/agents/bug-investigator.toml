@@ -1,6 +1,6 @@
 name = "bug-investigator"
 description = "Systematic root-cause investigator for bugs, regressions, and data flow anomalies."
-model = "gpt-5.5"
+model = "gpt-5.6-sol"
 model_reasoning_effort = "high"
 sandbox_mode = "read-only"
 

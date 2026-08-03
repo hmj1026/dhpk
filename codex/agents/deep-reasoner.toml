@@ -1,6 +1,6 @@
 name = "deep-reasoner"
 description = "Read-only deep-reasoning worker. Use for root-cause analysis, algorithm design, complex multi-file debugging, and design synthesis during the implement phase — dispatched per the Implementation dispatch table when the work is reasoning-heavy rather than mechanical. Returns a conclusion contract (conclusion + file:line evidence + fast-worker-ready next actions). Defers DDD / cross-module architecture decisions to `architect`. Not a reviewer, not sentinel-driven."
-model = "gpt-5.5"
+model = "gpt-5.6-sol"
 model_reasoning_effort = "high"
 sandbox_mode = "read-only"
 
