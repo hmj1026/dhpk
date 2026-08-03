@@ -16,7 +16,7 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"
 
 | Concern | Claude Code | Codex CLI |
 |---------|-------------|-----------|
-| **Loading path** | `agents/`, `commands/`, `skills/`, `hooks/`, `modules/` at plugin root | `.codex/agents/`, `.codex/skills/` in the project (after sync) |
+| **Loading path** | `agents/`, `commands/`, `skills/`, `hooks/`, `modules/` at plugin root | `.codex/agents/`, `.codex/skills/` in the project (after sync); Codex lifecycle hooks use `~/.codex/hooks.json`, project `.codex/hooks.json`, or inline `[hooks]` in `config.toml` |
 | **userConfig** | Yes — Claude prompts at install | Codex has no equivalent; configure via the synced `config.toml.example` |
 | **Modules (`modules/<stack>-<version>/`)** | Selective activation via `userConfig.modules` | Not directly mirrored — Codex sees a flat skills set |
 | **MCP** | Full (servers declared in plugin or user settings) | Configured via `config.toml` and `codex mcp add` |
@@ -29,7 +29,7 @@ When writing skills meant to work in both harnesses:
 
 - Keep `description:` framework-agnostic. Trigger keywords are what makes both harnesses pick the skill up.
 - Avoid Claude-Code-specific syntax in skill bodies (e.g. `${user_config.X}` substitution, `TaskCreate` tool, slash-command examples).
-- If a skill is intrinsically tied to a hook lifecycle (e.g. a "review the last edit" workflow), it belongs in Claude Code only — do NOT mirror it into `codex/`.
+- If a skill is intrinsically tied to Claude-specific hook payloads, sentinel paths, or plugin-managed lifecycle (e.g. a "review the last edit" workflow), it belongs in Claude Code only — do NOT mirror it into `codex/` unchanged. A generic Codex lifecycle hook must use Codex's own `hooks.json` or inline TOML contract.
 - Tools the skill calls should be available in both environments (Read/Write/Bash usually safe; `mcp__*` tools require the matching MCP server on both sides).
 
 ## Layout: symlinks vs physical copies under `codex/skills/`
@@ -78,7 +78,7 @@ The script detects the version delta from `.codex/.dhpk-installed.json` and re-s
 
 dhpk ships 11 Codex agent roles under `codex/agents/` (synced into `.codex/agents/`): 4 hand-maintained generic roles — `explorer` (read-only investigation), `worker` (generic scoped implementer), `monitor` (long-running task watcher), `bug-investigator` (root-cause investigation) — plus 7 roles generated from the canonical Claude agents — `architect`, `code-reviewer`, `security-reviewer`, `database-reviewer`, `tdd-guide`, `deep-reasoner`, `doc-reviewer`.
 
-Codex CLI has no `/dhpk:do` command and no slash commands at all, so there is no automated router. The workflows below are **instructions to follow manually**, invoking each role in turn with `/agent <role-name>`:
+Codex CLI has no `/dhpk:do` command or dhpk slash-command router. It does provide built-in commands such as `/hooks`; the workflows below are **instructions to follow manually**, invoking each role in turn with `/agent <role-name>`:
 
 - **Bug with unknown root cause**: invoke `bug-investigator` first (evidence → hypothesis → root cause), then `worker` to apply the patch, then `code-reviewer` to review the diff.
 - **New feature / cross-module design**: invoke `architect` to decide layer placement, then `tdd-guide` to write tests first, then `worker` to implement, then `code-reviewer`.
@@ -102,9 +102,9 @@ specialist handoffs, but the generator adapts those references for Codex:
 If a project does not expose the required runner or role, use the documented
 manual fallback; do not invoke an unavailable agent name.
 
-### Review discipline (no hooks, no sentinels)
+### Review discipline and hook boundaries
 
-Claude Code enforces post-edit review through hooks and `.pending-*` sentinel files: a PostToolUse hook writes a sentinel after an edit, and a reviewer agent clears it before work is considered done. **Codex CLI has neither hooks nor sentinels.** There is no automated mechanism that fires after an edit or blocks completion until a review has run.
+Claude Code enforces post-edit review through hooks and `.pending-*` sentinel files: a PostToolUse hook writes a sentinel after an edit, and a reviewer agent clears it before work is considered done. Codex CLI supports lifecycle hooks from user/project `hooks.json` files or inline `[hooks]` TOML ([official Hooks documentation](https://learn.chatgpt.com/docs/hooks)), but those hooks are a separate Codex contract and do not reproduce dhpk's Claude sentinel chain automatically. A Codex `PreToolUse` hook can block a tool call; a `PostToolUse` hook runs after the tool and cannot undo its side effects.
 
 Because of this, after ANY code edit made via a Codex role, the user or parent flow MUST manually invoke the appropriate review role via `/agent`:
 
@@ -113,7 +113,7 @@ Because of this, after ANY code edit made via a Codex role, the user or parent f
 - `database-reviewer` — after SQL, Repository, or migration changes.
 - `doc-reviewer` — after policy or documentation edits.
 
-`sandbox_mode` (read-only vs `workspace-write`) is the **only hard enforcement primitive** Codex CLI offers. Everything else described here — review sequencing, security discipline, workflow routing — is instruction-based, not mechanically enforced. This guidance does not claim Codex fires PostToolUse or Stop hooks, and does not claim any `.pending-*` sentinel mechanism exists in Codex — both are Claude-Code-only.
+`sandbox_mode` (read-only vs `workspace-write`) remains the primary built-in execution boundary. Configured Codex lifecycle hooks can add event-level checks, while review sequencing, security discipline, workflow routing, and dhpk sentinel semantics remain instruction-based unless the project explicitly implements them with Codex's hook contract. Codex hooks do not create or clear Claude `.pending-*` sentinels by implication.
 
 ### Agent roster → Codex role map
 
@@ -150,13 +150,13 @@ Specialization for these areas is delivered through the mirrored `codex/skills/`
 
 | Feature | Claude Code | Codex CLI |
 |---------|------------|-----------|
-| Hooks | 8+ event types (PreToolUse, PostToolUse, SessionStart, Stop, etc.) | Not supported |
+| Hooks | 8+ event types (PreToolUse, PostToolUse, SessionStart, Stop, etc.) plus dhpk sentinel enforcement | Lifecycle hooks via user/project `hooks.json` or inline `[hooks]` TOML; separate from Claude sentinel enforcement |
 | Context file | CLAUDE.md + AGENTS.md | AGENTS.md only |
 | Commands | `/slash` commands | Instruction-based invocation |
 | Agents | `Task`/subagent tool | Multi-agent via `/agent` and `[agents.<name>]` roles |
-| Security / review | Hook + `.pending-*` sentinel enforcement | Instruction-based + `sandbox_mode` |
+| Security / review | Hook + `.pending-*` sentinel enforcement | `sandbox_mode` + optional Codex lifecycle hooks + instruction-based review |
 
-`sandbox_mode` is the only hard enforcement primitive Codex CLI offers. Review and security discipline described in this file is otherwise instruction-based — nothing in Codex mechanically blocks completion the way Claude Code's hooks and sentinels do.
+Codex lifecycle hooks and `sandbox_mode` are independent controls: hooks can enforce event-specific policy, while `sandbox_mode` controls tool execution permissions. Nothing in the Codex projection automatically creates the Claude `.pending-*` sentinel review gate.
 
 ### Role discovery
 
