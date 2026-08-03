@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.33.1 — 2026-08-03 — 更新 Codex agents 模型設定與 worker 開發者指引
+
+**chore(codex)** — 更新 Codex agents 模型設定與 worker 開發者指引。
+
 ## 0.33.0 — 2026-07-28 — 強化 Codex Native 套件生成與發佈安全性、CLI Prompt 組合與 agy 旗標支援
 
 **feat(agents)** — Add a per-model (GPT-5.x/Gemini) prompt-composition effectiveness baseline (`agent-traps/_common/cli-prompt-composition.md`) and wire it into `codex-fast-worker`, `codex-deep-reasoner`, `agy-fast-worker`, and the `codex-bridge` skill's prompt-composition steps.
