@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.33.2 — 2026-08-03 — Align Codex agent runtime contracts and lifecycle hook documentation
+
+**fix(codex)** — Align the Codex agent projection, TOML configuration, and lifecycle-hook documentation with the current runtime contract.
+
 ## 0.33.1 — 2026-08-03 — 更新 Codex agents 模型設定與 worker 開發者指引
 
 **chore(codex)** — 更新 Codex agents 模型設定與 worker 開發者指引。
