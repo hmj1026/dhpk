@@ -1,7 +1,7 @@
 name = "doc-reviewer"
 description = "Lightweight policy / harness doc reviewer (Haiku). MANDATORY final step after editing `.claude/{agents,rules,commands,skills,manifests}/**/*.{md,json,yml,yaml}`, doc-only files under `.claude/{hooks,scripts}/` (non-`.sh`), top-level CLAUDE.md / AGENTS.md / README*.md, and any `docs/**/*.md` or `openspec/**/*.md`. Covers two concerns: (1) frontmatter schema validation for `.md` DSL artifacts (agent / skill / command / rule files carrying a `---` frontmatter block) — name kebab-case, required per-kind fields, model value; (2) cross-file SSOT / link-validity checks for all in-scope docs. Does NOT review code quality — that's code-reviewer's job. Trigger: sentinel `.pending-doc-review`. Skip for `.claude/{memory,artifacts, worktrees}/**` (auto / transient content) and any `.sh` / source file in the diff. Do NOT skip when the change seems small, the doc looks self-contained, or a manual scan was done — the agent's value is the cross-file SSOT and link-validity checks."
-model = "gpt-5.5"
-model_reasoning_effort = "high"
+model = "gpt-5.6-luna"
+model_reasoning_effort = "xhigh"
 sandbox_mode = "read-only"
 
 developer_instructions = """
