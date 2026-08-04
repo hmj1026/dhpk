@@ -125,8 +125,22 @@ case "$HINT" in
         label="$(printf '%s' "$HINT" | cut -f3)"
         [ -z "$label" ] && label="$skill"
         if [ -n "$skill" ]; then
-            emit_additional_context "UserPromptSubmit" \
-                "[skill-hint] This prompt looks like a $label task — the /$skill workflow may fit. Suggest it (or run it) if appropriate."
+            invocation_class="$(CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" node "$PLUGIN_ROOT/scripts/lib/resolve-invocation-class.js" "$skill" 2>/dev/null || true)"
+            bare_skill="${skill#dhpk:}"
+            case "$invocation_class" in
+                explicit-only)
+                    emit_additional_context "UserPromptSubmit" \
+                        "[skill-hint] This prompt looks like a $label task — run /dhpk:$bare_skill directly; do not call the generic Skill tool."
+                    ;;
+                implicit-eligible)
+                    emit_additional_context "UserPromptSubmit" \
+                        "[skill-hint] This prompt looks like a $label task — the /$skill workflow may fit. Suggest it (or run it) if appropriate."
+                    ;;
+                *)
+                    # Missing or malformed canonical metadata fails closed. The
+                    # invocation-policy validator remains the diagnostic source.
+                    ;;
+            esac
         fi
         ;;
 esac
