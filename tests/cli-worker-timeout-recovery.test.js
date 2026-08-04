@@ -29,6 +29,9 @@ const DISPATCH_DOC = fs.readFileSync(
 );
 const CODEX_WORKER = fs.readFileSync(path.join(ROOT, 'agents', 'codex-fast-worker.md'), 'utf8');
 const AGY_WORKER = fs.readFileSync(path.join(ROOT, 'agents', 'agy-fast-worker.md'), 'utf8');
+const CODEX_DEEP_REASONER = fs.readFileSync(path.join(ROOT, 'agents', 'codex-deep-reasoner.md'), 'utf8');
+const CODEX_BRIDGE_AGENT = fs.readFileSync(path.join(ROOT, 'agents', 'codex-bridge.md'), 'utf8');
+const CODEX_BRIDGE_SKILL = fs.readFileSync(path.join(ROOT, 'skills', 'codex-bridge', 'SKILL.md'), 'utf8');
 const REAP_SCRIPT = fs.readFileSync(path.join(ROOT, 'scripts', 'hooks', 'reap-stale-sentinels.sh'), 'utf8');
 const PAYLOAD_LIB = fs.readFileSync(path.join(ROOT, 'scripts', 'hooks', '_lib', 'payload.sh'), 'utf8');
 
@@ -60,6 +63,52 @@ test('timeout recovery is gated on the wrapper\'s own verified evidence, never a
     assert.ok(/there is no trustworthy timeout signal to classify/.test(doc),
       `${name} must fail closed (no fabricated timeout) when the wrapper timeout mechanism is unavailable`);
   }
+});
+
+test('all Codex callers parse and forward the timeout envelope before interpreting exit 124', () => {
+  assert.ok(DISPATCH_DOC.includes('dhpk.codex.timeout.v1'), 'dispatch policy must name the Codex timeout envelope');
+  assert.ok(DISPATCH_DOC.includes('base64-encoded report'), 'dispatch policy must treat report payload as encoded evidence');
+  for (const [name, doc] of [
+    ['codex-fast-worker.md', CODEX_WORKER],
+    ['codex-deep-reasoner.md', CODEX_DEEP_REASONER],
+    ['codex-bridge.md', CODEX_BRIDGE_AGENT],
+    ['codex-bridge/SKILL.md', CODEX_BRIDGE_SKILL],
+  ]) {
+    assert.ok(doc.includes('dhpk.codex.timeout.v1'), `${name} must name the stable timeout envelope`);
+    assert.ok(/parse(?:s|d| the)?[^\n]{0,80}timeout envelope|timeout envelope[^\n]{0,80}parse/i.test(doc),
+      `${name} must parse the timeout envelope before classifying it`);
+    assert.ok(/independent(?:ly)?[^\n]{0,100}(?:diff|verification)|path-scoped diff/i.test(doc),
+      `${name} must require independent diff evidence`);
+    assert.ok(/not[^\n]{0,80}(?:DONE|success)|never[^\n]{0,80}(?:DONE|success)/i.test(doc),
+      `${name} must not treat a salvaged report as success`);
+  }
+});
+
+test('single-file Codex callers surface TIMEOUT_SALVAGED or BLOCKED without retry or fallback', () => {
+  for (const [name, doc] of [
+    ['codex-deep-reasoner.md', CODEX_DEEP_REASONER],
+    ['codex-bridge.md', CODEX_BRIDGE_AGENT],
+    ['codex-bridge/SKILL.md', CODEX_BRIDGE_SKILL],
+  ]) {
+    assert.ok(doc.includes('TIMEOUT_SALVAGED'), `${name} must expose TIMEOUT_SALVAGED classification`);
+    assert.ok(doc.includes('BLOCKED'), `${name} must expose BLOCKED classification`);
+    assert.ok(/no automatic retry|does not retry|no retry/i.test(doc), `${name} must retain no automatic retry`);
+    assert.ok(/no backend fallback|never fall back|without backend fallback/i.test(doc), `${name} must retain no backend fallback`);
+    assert.ok(/reconcil/i.test(doc), `${name} must require reconciliation after salvage`);
+  }
+});
+
+test('the Codex bridge documents every stable envelope field and base64 framing', () => {
+  for (const field of [
+    'schema', 'status', 'verified_wrapper_timeout', 'exit_code', 'budget_secs',
+    'elapsed_secs', 'report_present', 'report_encoding', 'report_b64',
+    'stderr_tail_encoding', 'stderr_tail_b64', 'stdout_tail_encoding',
+    'stdout_tail_b64', 'redaction',
+  ]) {
+    assert.ok(CODEX_BRIDGE_SKILL.includes(field), `codex-bridge skill must document envelope field ${field}`);
+  }
+  assert.ok(CODEX_BRIDGE_SKILL.includes('RFC 4648 base64'), 'codex-bridge skill must document RFC 4648 base64 framing');
+  assert.ok(/multiline/i.test(CODEX_BRIDGE_SKILL), 'codex-bridge skill must document multiline-safe framing');
 });
 
 // 3.1 — blocked scope expansion: the pre-existing parallel-dispatch scope

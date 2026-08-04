@@ -68,6 +68,39 @@ another agent could execute it without seeing this conversation.
    - Omit optional model/effort overrides unless the caller explicitly supplies them; the wrapper otherwise uses the configured defaults.
 3. The wrapper prints Codex's final message to stdout on success (exit 0), or fails loudly on error.
 
+### Verified timeout envelope
+
+On a verified wrapper timeout, parse the timeout envelope before classifying exit `124`; parse stdout with
+`skills/codex-bridge/scripts/codex-timeout-envelope.js` before interpreting exit
+`124`. The one JSON object has the stable fields `schema`, `status`,
+`verified_wrapper_timeout`, `exit_code`, `budget_secs`, `elapsed_secs`,
+`report_present`, `report_encoding`, `report_b64`, `stderr_tail_encoding`,
+`stderr_tail_b64`, `stdout_tail_encoding`, `stdout_tail_b64`, and `redaction`.
+`redaction` is `applied` for sanitized payloads or `unavailable` for a safe
+no-payload fallback.
+For operational validation, pipe the unchanged wrapper object to
+`node skills/codex-bridge/scripts/codex-timeout-envelope.js --parse`; exit `0`
+means the stable envelope is valid and exit `1` means `BLOCKED`. Keep the
+original object for forwarding rather than replacing it with the parser output.
+Reports and bounded diagnostics use RFC 4648 base64 so multiline Markdown,
+quotes, and non-ASCII text cannot corrupt JSON framing; common credentials are
+redacted before encoding. Raw reports over 256 KiB become the
+`[TRUNCATED_REPORT_OMITTED]` marker before redaction; the redacted report remains
+capped at 256 KiB and starts with `[TRUNCATED]` only if redaction expansion
+requires a final cap. Oversized diagnostics use
+`[TRUNCATED_DIAGNOSTIC_OMITTED]`. Parse and forward the envelope before classifying the
+result. A report is evidence, never success or independent verification: a
+single-file call is `TIMEOUT_SALVAGED` only with an independently verified
+path-scoped diff, otherwise `BLOCKED`; there is no automatic retry, no inline
+edit, and no backend fallback, and salvage always needs reconciliation.
+If the Node core helper is unavailable or cannot produce a valid payload, the
+wrapper emits a parseable no-payload envelope with `redaction=unavailable` and
+the generic timeout evidence; classify salvage as `BLOCKED` and do not infer
+edits from it.
+For a multi-file bridge task, the parent/orchestrator owns the path-scoped
+`confirmed` / `unconfirmed` / `remaining` ledger and applies `PARTIAL` or
+`BLOCKED`; the bridge only forwards the envelope and never performs the retry.
+
 > **Permissions:** this repo's `.claude/settings.json` allows `Bash(codex exec:*)` and the path-scoped `Bash(bash skills/codex-bridge/scripts/run-codex.sh:*)`, which covers a **direct** relative-path call from the plugin root. The **subagent** invokes the wrapper via `${CLAUDE_PLUGIN_ROOT}` (an absolute path) that a path-scoped rule cannot match ([#9354](https://github.com/anthropics/claude-code/issues/9354)); to keep a non-interactive subagent's Bash from being auto-denied, add the broader `Bash(bash:*)` rule (the same workaround `op-session` uses — a deliberate user decision, not applied automatically). Consumers add the equivalent rule in their own settings.
 
 ## Output
@@ -87,6 +120,17 @@ Failure:
 sandbox=<mode> exit=<non-zero code>
 <wrapper stderr tail, unchanged>
 ```
+
+Verified timeout (non-success):
+
+```text
+sandbox=<mode> exit=124
+<one dhpk.codex.timeout.v1 JSON object, unchanged>
+```
+
+When the sanitizer is unavailable, the unchanged JSON object has
+`redaction=unavailable` and empty base64 payloads; callers still report
+`BLOCKED`.
 
 The first line is bridge metadata. Keep the following Codex or wrapper payload verbatim. An
 empty final message is a failure, not a successful result. Preserve the wrapper's `401`
@@ -108,4 +152,5 @@ not alter the payload before returning it.
 - [ ] Prompt is self-contained (goal · absolute paths · spec · output format).
 - [ ] Correct sandbox mode (`read-only` for review, `workspace-write` only when edits are needed).
 - [ ] Wrapper completed with a non-empty final message, or failure was reported with mode, exit code, and stderr tail.
+- [ ] A verified exit `124` was parsed as `dhpk.codex.timeout.v1` before classification; any salvage has independent path-scoped diff evidence and a reconciliation action.
 - [ ] Result was relayed verbatim, or failure was reported honestly — nothing invented.

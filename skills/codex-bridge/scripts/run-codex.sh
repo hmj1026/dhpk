@@ -9,7 +9,8 @@
 # ~/.codex/config.toml (byte-identical to the original 3-arg wrapper, so codex-bridge is
 # untouched). The codex-fast-worker agent passes the resolved userConfig values here.
 # On success prints Codex's final message (the -o capture) to stdout, exit 0. On failure
-# prints the last 20 lines of the captured stderr log and exits non-zero — never fabricates.
+# emits bounded, redacted diagnostics and exits non-zero; a verified wrapper timeout emits
+# one stable timeout envelope before cleanup (or a safe no-payload fallback).
 #
 # Flags are verified against codex-cli 0.144.4 and the official openai/codex SDK
 # (sdk/typescript/src/exec.ts): `codex exec` has NO --ask-for-approval flag; approval is
@@ -33,6 +34,9 @@
 set -euo pipefail
 
 WRAP_TIMEOUT_SECS="${CODEX_WRAP_TIMEOUT_SECS:-360}"
+SCRIPT_DIR="${BASH_SOURCE[0]%/*}"
+[ "$SCRIPT_DIR" = "${BASH_SOURCE[0]}" ] && SCRIPT_DIR=.
+TIMEOUT_ENVELOPE_HELPER="$SCRIPT_DIR/codex-timeout-envelope.js"
 
 usage() {
   cat <<'EOF'
@@ -74,6 +78,29 @@ trap 'rm -rf "$WORK_TMP"' EXIT
 OUT_FILE="$WORK_TMP/last-message.txt"
 ERR_LOG="$WORK_TMP/codex.stderr.log"
 STDOUT_LOG="$WORK_TMP/codex.stdout.log"
+
+emit_redacted_stderr_tail() {
+  local redacted=""
+  if command -v node >/dev/null 2>&1; then
+    redacted="$(node "$TIMEOUT_ENVELOPE_HELPER" --diagnostic-text "$ERR_LOG" "$WORK_TMP" 2>/dev/null || true)"
+  fi
+  if [ -n "$redacted" ]; then
+    printf '%s\n' "$redacted" >&2
+  else
+    echo "run-codex.sh: diagnostic tail omitted (timeout-envelope sanitizer unavailable)." >&2
+  fi
+}
+
+emit_unavailable_timeout_envelope() {
+  local budget="0"
+  case "$WRAP_TIMEOUT_SECS" in
+    ''|*[!0-9]*) ;;
+    *) budget="$WRAP_TIMEOUT_SECS" ;;
+  esac
+  # Keep the timeout contract parseable even when Node is absent or the helper
+  # fails. No captured bytes are included; callers must classify this as BLOCKED.
+  printf '%s\n' "{\"schema\":\"dhpk.codex.timeout.v1\",\"status\":\"TIMEOUT\",\"verified_wrapper_timeout\":true,\"exit_code\":124,\"budget_secs\":${budget},\"elapsed_secs\":${ELAPSED},\"report_present\":false,\"report_encoding\":\"base64\",\"report_b64\":\"\",\"stderr_tail_encoding\":\"base64\",\"stderr_tail_b64\":\"\",\"stdout_tail_encoding\":\"base64\",\"stdout_tail_b64\":\"\",\"redaction\":\"unavailable\"}"
+}
 
 # Optional model/effort flags. Empty args → omit entirely, preserving the original
 # inherit-from-config behavior for codex-bridge (backwards-compatible; a dedicated test
@@ -155,7 +182,22 @@ ELAPSED_THRESHOLD=$((WRAP_TIMEOUT_SECS / 2))
 # run-agy.sh).
 if [ "$CODE" -eq 124 ] && [ -n "$TIMEOUT_BIN" ] && [ "$ELAPSED" -ge "$ELAPSED_THRESHOLD" ]; then
   echo "run-codex.sh: codex timed out after ${WRAP_TIMEOUT_SECS}s (wrapper backstop, observed ${ELAPSED}s elapsed) — check auth / model / prompt." >&2
-  tail -n 20 "$ERR_LOG" >&2 2>/dev/null || true
+  # Capture the report and bounded diagnostics before the EXIT trap removes the
+  # temporary directory. The Node helper uses only core modules and emits one
+  # versioned JSON object; no raw report/log bytes are written to stdout/stderr.
+  if ! command -v node >/dev/null 2>&1; then
+    echo "run-codex.sh: timeout-envelope sanitizer unavailable (node is missing); report salvage is BLOCKED." >&2
+    emit_unavailable_timeout_envelope
+  else
+    TIMEOUT_ENVELOPE="$(node "$TIMEOUT_ENVELOPE_HELPER" \
+      "$OUT_FILE" "$ERR_LOG" "$STDOUT_LOG" "$WRAP_TIMEOUT_SECS" "$ELAPSED" "$WORK_TMP" 2>/dev/null || true)"
+    if [ -n "$TIMEOUT_ENVELOPE" ]; then
+      printf '%s\n' "$TIMEOUT_ENVELOPE"
+    else
+      echo "run-codex.sh: timeout-envelope sanitizer failed; report salvage is BLOCKED." >&2
+      emit_unavailable_timeout_envelope
+    fi
+  fi
   exit 124
 fi
 
@@ -168,7 +210,7 @@ if [ "$CODE" -ne 0 ]; then
   else
     echo "run-codex.sh: codex exited with code $CODE" >&2
   fi
-  tail -n 20 "$ERR_LOG" >&2
+  emit_redacted_stderr_tail
   exit "$CODE"
 fi
 if [ ! -s "$OUT_FILE" ]; then
@@ -177,7 +219,7 @@ if [ ! -s "$OUT_FILE" ]; then
   else
     echo "run-codex.sh: codex produced no output (empty final message)" >&2
   fi
-  tail -n 20 "$ERR_LOG" >&2
+  emit_redacted_stderr_tail
   exit 1
 fi
 

@@ -80,6 +80,22 @@ result from your own analysis when the CLI is unavailable.
    The `read-only` sandbox guarantees codex cannot write the working tree. Confirm with a
    `git status --porcelain` before/after if in doubt — the diff must be empty.
 
+### Verified Codex timeout evidence
+
+When the wrapper exits `124`, parse the timeout envelope before interpreting the
+exit code; parse stdout with the shared
+`${CLAUDE_PLUGIN_ROOT}/skills/codex-bridge/scripts/codex-timeout-envelope.js`
+parser. Accept only a
+`dhpk.codex.timeout.v1` object with `verified_wrapper_timeout=true`; forward the
+envelope and decode its report as evidence, never as `DONE` or independent
+verification. Run an independent path-scoped diff check when the report claims
+edits: classify `TIMEOUT_SALVAGED` only when attributable edits are confirmed,
+otherwise `BLOCKED`, and request reconciliation. Deep-reasoner is read-only, so
+there is no automatic retry, no inline edits, and no backend fallback for a timeout.
+If the helper is unavailable, accept only the wrapper's no-payload envelope with
+`redaction=unavailable` and classify the timeout as `BLOCKED`; an invalid
+envelope is also `BLOCKED`.
+
 ## Conclusion contract (output — MUST)
 
 The final reply (the agent's own, after distilling the CLI output) leads with these three
@@ -120,15 +136,17 @@ conclusion contract so the follow-up dispatch has everything it needs.
 ## Output
 
 ```
-RESULT: DONE | BLOCKED
+RESULT: DONE | TIMEOUT_SALVAGED | BLOCKED
 ```
 
 On `RESULT: DONE`, the body IS the conclusion contract above (Conclusion / Evidence /
 Next actions), preceded by a one-line backend header:
 `Backend: codex exec -m <model> -c model_reasoning_effort=<effort> (read-only)`.
-On `RESULT: BLOCKED`, name the exact backend failure, confirm no working-tree edits were
-made, and state whether the dispatcher's missing-executable fallback to `dhpk:deep-reasoner`
-applies (only for a genuinely absent CLI).
+On `RESULT: TIMEOUT_SALVAGED`, include the parsed envelope, the independently verified
+path-scoped diff, and the explicit reconciliation next action; this is not success. On
+`RESULT: BLOCKED`, name the exact backend failure or missing evidence, confirm no
+working-tree edits were made, and state whether the dispatcher's missing-executable
+fallback to `dhpk:deep-reasoner` applies (only for a genuinely absent CLI).
 
 ## Closing — Artifact Output
 

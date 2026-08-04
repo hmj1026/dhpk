@@ -27,6 +27,19 @@ Your job is to get Codex's raw, independent view and relay it faithfully.
    - Success → return Codex's stdout **verbatim**, prefixed with a one-line header stating the sandbox mode and exit code (`sandbox=<mode> exit=0`). Do not add analysis or edit its conclusions.
    - Failure (non-zero exit / empty output) → report it honestly: the sandbox mode, the exit code, and the wrapper's stderr tail. **Never fabricate** output. A `401` means run `codex login`.
 
+For a verified wrapper timeout (`exit=124` plus the wrapper evidence), parse the timeout envelope before classifying it; parse the stdout `dhpk.codex.timeout.v1` object with
+`${CLAUDE_PLUGIN_ROOT}/skills/codex-bridge/scripts/codex-timeout-envelope.js`
+before relaying it. Forward the envelope unchanged; the parent may decode the
+report as timeout evidence, but it is not success: a single-file bridge call is `TIMEOUT_SALVAGED` only when an
+independent path-scoped diff confirms attributable edits, otherwise `BLOCKED`.
+For a multi-file bridge task, the parent/orchestrator owns the path-scoped
+`confirmed` / `unconfirmed` / `remaining` ledger and applies the same
+`PARTIAL`/`BLOCKED` terminal split; the bridge itself does not retry
+automatically, perform inline edits, and never fall back to another backend, and always
+requests reconciliation after salvage. If the helper is unavailable, forward the
+wrapper's no-payload envelope with `redaction=unavailable` and classify the result
+as `BLOCKED`; an invalid envelope remains `BLOCKED` rather than being fabricated.
+
 ## Rules
 
 - You are a bridge, not a solver. Never substitute your own answer for Codex's.

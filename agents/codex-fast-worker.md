@@ -102,11 +102,21 @@ A wrapper-reported timeout (`run-codex.sh` exit `124` with the wrapper's own "ti
 `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/implementation-dispatch.md`
 §CLI worker mid-batch timeout recovery, then:
 
+Parse the timeout envelope before classifying exit `124`; parse stdout with the shared
+`${CLAUDE_PLUGIN_ROOT}/skills/codex-bridge/scripts/codex-timeout-envelope.js`
+parser and require `schema=dhpk.codex.timeout.v1`,
+`verified_wrapper_timeout=true`, and the stable base64 fields. Record the parsed
+envelope as timeout evidence before any retry; a non-empty salvaged report is
+never independent verification or `RESULT: DONE`. If the helper is unavailable,
+accept only the wrapper's parseable no-payload envelope with
+`redaction=unavailable` and classify the timeout as `BLOCKED`; an invalid
+envelope is also `BLOCKED`, never fabricated salvage evidence.
+
 1. **First verified timeout** — request exactly one same-backend, same-model/effort recovery dispatch scoped to `remaining ∪ unconfirmed`. Never self-edit the unresolved files and never fall back to another backend because of a timeout.
 2. **Second verified timeout** — stop. Report `RESULT: PARTIAL` when any assigned file is confirmed, `RESULT: BLOCKED` when none is, naming both timeout observations, all three ledger sets, and the next action. Write the PARTIAL marker (control-plane JSON, not a product edit — see the policy reference above for the path and required fields) before returning `RESULT: PARTIAL`.
 3. **No wrapper timeout mechanism available** — `run-codex.sh` reports on stderr when neither `timeout` nor `gtimeout` is on PATH and runs unwrapped; without that mechanism there is no trustworthy timeout signal to classify, so treat any failure here as its ordinary (non-timeout) outcome and never fabricate a timeout classification.
 
-A single-file dispatch, a non-timeout failure, or a missing-executable/auth/model failure keep their existing semantics unchanged — this section applies only to a verified wrapper timeout on a multi-file batch.
+A single-file dispatch, a non-timeout failure, or a missing-executable/auth/model failure keep their existing semantics unchanged — this section applies only to a verified wrapper timeout on a multi-file batch. For a single-file Codex timeout, parse and forward the envelope without automatic retry or backend fallback; report `TIMEOUT_SALVAGED` only when independent path-scoped diff verification confirms attributable edits, otherwise `BLOCKED`, and request explicit reconciliation.
 
 ## Verify and report (the agent owns this, not the CLI)
 
