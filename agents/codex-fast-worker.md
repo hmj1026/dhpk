@@ -42,6 +42,10 @@ For a shared-checkout parallel dispatch, the spec must also provide:
 Optionally the dispatcher passes the **resolved model/effort** (from the
 `codex_fast_worker_model` / `codex_fast_worker_effort` userConfig keys, surfaced at
 session start when non-default). When omitted, default to `gpt-5.6-luna` / `xhigh`.
+The dispatcher also resolves the role-aware wrapper budget from
+`codex_fast_worker_timeout_secs` (or the shared `codex_timeout_secs`) before invoking
+the CLI. The effective value is an integer number of seconds; `0` deliberately disables
+the wrapper backstop, while malformed values block the dispatch.
 
 ## Escalates on ambiguous specs
 
@@ -75,6 +79,9 @@ approximate the backend or fall back to editing the files yourself.
    model/effort (always `workspace-write` — it must edit files):
 
    ```bash
+   export ROOT="<workdir>" DHPK_CODEX_ROLE=codex-fast-worker
+   . "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/_lib/load-project-config.sh"
+   dhpk_codex_timeout_export "$DHPK_CODEX_ROLE" || exit 78
    before="$(git status --porcelain)"
    bash "${CLAUDE_PLUGIN_ROOT}/skills/codex-bridge/scripts/run-codex.sh" \
      workspace-write "<workdir>" "<prompt-file>" "<model>" "<effort>"
@@ -165,6 +172,7 @@ Selected backend: codex | claude (only with configured missing-executable fallba
 Availability: <codex executable available | missing executable: codex>
 Fallback reason: <none | missing executable: codex; configured fallback=claude>
 Model/effort: <model> / <effort>
+Timeout budget: <seconds> (source=<project role|project shared|global role|global shared|env override|default>; disabled=<true|false>; outer=<unknown|warning|aligned>)
 Verify: <command> → PASS | FAIL (N attempts)
 Spec: <one-line summary of what was requested>
 Timeout state: not-applicable | first-timeout-retried | second-timeout-terminal

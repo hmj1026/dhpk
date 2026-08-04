@@ -62,6 +62,8 @@ if not isinstance(opts, dict):
 # fast_worker_backend, fast_worker_backend_order, fast_worker_fallback,
 # codex_fast_worker_model, codex_fast_worker_effort, agy_fast_worker_model,
 # codex_deep_reasoner_model, codex_deep_reasoner_effort,
+# codex_timeout_secs, codex_fast_worker_timeout_secs,
+# codex_deep_reasoner_timeout_secs, codex_bridge_timeout_secs,
 # architect_model, architect_effort).
 # Unknown keys are still exported so plugin.json
 # additions Just Work without requiring a loader update.
@@ -75,7 +77,13 @@ for key, val in opts.items():
     elif val is None:
         continue
     env = "CLAUDE_PLUGIN_OPTION_" + key.upper()
-    print(f"export {env}={shlex.quote(str(val))}")
+    quoted = shlex.quote(str(val))
+    print(f"export {env}={quoted}")
+    # Keep project-key presence separate from the merged compatibility env.
+    # The timeout resolver must distinguish project scope from global scope,
+    # including an explicitly configured empty value which must fail closed.
+    project_env = "DHPK_PROJECT_OPTION_" + key.upper()
+    print(f"export {project_env}={quoted}")
 PY
     )"
     if [ -n "$_dhpk_exports" ]; then

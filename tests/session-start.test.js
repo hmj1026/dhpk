@@ -64,6 +64,9 @@ function runInScratch(extraEnv) {
       'CLAUDE_PLUGIN_OPTION_CODEX_FAST_WORKER_MODEL', 'CLAUDE_PLUGIN_OPTION_CODEX_FAST_WORKER_EFFORT',
       'CLAUDE_PLUGIN_OPTION_AGY_FAST_WORKER_MODEL',
       'CLAUDE_PLUGIN_OPTION_CODEX_DEEP_REASONER_MODEL', 'CLAUDE_PLUGIN_OPTION_CODEX_DEEP_REASONER_EFFORT',
+      'CLAUDE_PLUGIN_OPTION_CODEX_TIMEOUT_SECS', 'CLAUDE_PLUGIN_OPTION_CODEX_FAST_WORKER_TIMEOUT_SECS',
+      'CLAUDE_PLUGIN_OPTION_CODEX_DEEP_REASONER_TIMEOUT_SECS', 'CLAUDE_PLUGIN_OPTION_CODEX_BRIDGE_TIMEOUT_SECS',
+      'CODEX_WRAP_TIMEOUT_SECS', 'DHPK_OUTER_BUDGET_SECS',
       'CLAUDE_PLUGIN_OPTION_ARCHITECT_MODEL', 'CLAUDE_PLUGIN_OPTION_ARCHITECT_EFFORT',
     ]) delete env[k];
     const payload = JSON.stringify({ source: 'startup' });
@@ -104,6 +107,34 @@ test('non-default CLI-worker keys surface in the orchestration line', () => {
   assert.ok(res.stdout.includes('codex_reasoner_effort=medium'), `expected codex reasoner effort surfaced:\n${res.stdout}`);
   assert.ok(res.stdout.includes('architect=opus'), `expected architect tier surfaced:\n${res.stdout}`);
   assert.ok(res.stdout.includes('architect_effort=high'), `expected architect effort surfaced:\n${res.stdout}`);
+});
+
+test('default Codex timeout budgets remain silent', () => {
+  const res = runInScratch({});
+  assert.strictEqual(res.status, 0, `expected exit 0: ${res.stderr}`);
+  assert.ok(!res.stdout.includes('codex_timeout'), `default Codex timeout must be silent:\n${res.stdout}`);
+});
+
+test('non-default and disabled Codex timeout budgets surface provenance and outer status', () => {
+  const res = runInScratch({
+    CLAUDE_PLUGIN_OPTION_CODEX_TIMEOUT_SECS: '0',
+  });
+  assert.strictEqual(res.status, 0, `expected exit 0: ${res.stderr}`);
+  assert.ok(res.stdout.includes('codex_timeout'), `expected Codex timeout diagnostics:\n${res.stdout}`);
+  assert.ok(res.stdout.includes('codex-fast-worker=0') && res.stdout.includes('disabled'),
+    `expected disabled fast-worker budget:\n${res.stdout}`);
+  assert.ok(res.stdout.includes('source=global:codex_timeout_secs'),
+    `expected timeout source:\n${res.stdout}`);
+  assert.ok(res.stdout.includes('outer_budget=unknown'),
+    `expected explicit unknown outer budget:\n${res.stdout}`);
+});
+
+test('invalid Codex timeout config warns without aborting SessionStart', () => {
+  const res = runInScratch({
+    CLAUDE_PLUGIN_OPTION_CODEX_DEEP_REASONER_TIMEOUT_SECS: 'fractional',
+  });
+  assert.strictEqual(res.status, 0, `SessionStart should remain available: ${res.stderr}`);
+  assert.ok(res.stderr.includes('invalid Codex timeout'), `missing invalid timeout warning: ${res.stderr}`);
 });
 
 run('session-start');

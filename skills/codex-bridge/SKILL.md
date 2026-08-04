@@ -66,6 +66,11 @@ another agent could execute it without seeing this conversation.
    - `mode` = `read-only` for investigation / review, `workspace-write` when Codex must edit files.
    - `workdir` = the working root (absolute); `prompt-file` = the temp file from step 1.
    - Omit optional model/effort overrides unless the caller explicitly supplies them; the wrapper otherwise uses the configured defaults.
+   - The wrapper resolves `DHPK_CODEX_ROLE` through the normal project-over-global seam. Use
+     `codex-bridge` for this skill and configure `codex_bridge_timeout_secs` (or shared
+     `codex_timeout_secs`) as an integer number of seconds; `0` intentionally disables the
+     wrapper backstop. Do not add a sixth positional timeout argument—the three-argument
+     bridge shape is part of the compatibility contract. Invalid values fail closed.
 3. The wrapper prints Codex's final message to stdout on success (exit 0), or fails loudly on error.
 
 ### Verified timeout envelope

@@ -2,7 +2,7 @@
 
 > **語言**: [English](./configuration.md) · **繁體中文**
 
-dhpk 在 `.claude-plugin/plugin.json` 中暴露 **51 個 `userConfig` 旋鈕**。本頁完整記錄每個旋鈕：在哪裡設定、可接受哪些值、實際會改變什麼。日常操作流程（安裝、常見工作流、review 循環）請見 [`docs/basic-operations.zh-TW.md`](./basic-operations.zh-TW.md)。
+dhpk 在 `.claude-plugin/plugin.json` 中暴露 **59 個 `userConfig` 旋鈕**。本頁完整記錄每個旋鈕：在哪裡設定、可接受哪些值、實際會改變什麼。日常操作流程（安裝、常見工作流、review 循環）請見 [`docs/basic-operations.zh-TW.md`](./basic-operations.zh-TW.md)。
 
 ## 在哪裡設定
 
@@ -54,12 +54,22 @@ dhpk 在 `.claude-plugin/plugin.json` 中暴露 **51 個 `userConfig` 旋鈕**�
 | `planner_effort` | string | `high` | 同上 | `dhpk:planner` Agent-call 派發使用的推理強度。驗證/退回行為與 `deep_reasoner_effort` 相同；實作後的 warm review 呼叫會降階為 `medium`。 |
 | `codex_fast_worker_model` | string | `gpt-5.6-luna` | codex CLI 接受的任何模型 | `dhpk:codex-fast-worker` 派發時傳給 codex CLI 後端的模型。依標準分層解析（專案 pluginConfigs > 全域 pluginConfigs > 出廠預設）後傳入 `run-codex.sh`。codex 模型名稱汰換快速——預設值失效時在此覆寫，而非改原始碼（可用 `codex models` 查詢）。 |
 | `codex_fast_worker_effort` | string | `xhigh` | codex CLI 接受的任何強度（如 `low` \| `medium` \| `high` \| `xhigh`） | `dhpk:codex-fast-worker` 派發時傳給 codex CLI 後端的 `model_reasoning_effort`——強力機械層。 |
+| `codex_deep_reasoner_model` | string | `gpt-5.6-sol` | codex CLI 接受的任何模型 | `dhpk:codex-deep-reasoner` 派發時傳給 codex CLI 後端的模型，透過 `--reasoner=codex` 使用唯讀 sandbox。 |
+| `codex_deep_reasoner_effort` | string | `high` | codex CLI 接受的任何強度 | `dhpk:codex-deep-reasoner` 派發時傳給 codex CLI 後端的 `model_reasoning_effort`。 |
+| `codex_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | 三種 Codex CLI role 共用的 `run-codex.sh` wrapper backstop。優先序為專案 role-specific > 專案 shared > 全域 role-specific > 全域 shared > 出廠預設；值格式錯誤時在派發前 fail closed。本設定不改變 Claude 的外部工具等待時間。 |
+| `codex_fast_worker_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | `dhpk:codex-fast-worker` 專用 wrapper 預算。同一 scope 內優先於 shared 值；專案值優先於全域值。`CODEX_WRAP_TIMEOUT_SECS` legacy 環境覆寫在受控／測試呼叫時具有更高優先序。 |
+| `codex_deep_reasoner_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | `dhpk:codex-deep-reasoner` 專用 wrapper 預算。同一 scope 內優先於 shared 值；專案值優先於全域值。值格式錯誤時 fail closed，並在 SessionStart 回報。 |
+| `codex_bridge_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | `dhpk:codex-bridge` 專用 wrapper 預算；既有三參數 wrapper 呼叫形狀仍受支援。同一 scope 內優先於 shared 值；專案值優先於全域值。 |
 | `agy_fast_worker_model` | string | `Gemini 3.6 Flash (High)` | `agy models` 列出的任何模型 | `dhpk:agy-fast-worker` 派發時傳給 agy CLI 後端的模型顯示字串。agy 將思考強度內建於模型名稱，故無獨立的 effort key。分層方式同上；預設值失效時覆寫（可用 `agy models` 查詢）。 |
+| `architect_model` | string | `fable` | 執行中的 Claude Code 支援的模型層級 | `dhpk:architect` Agent-call 派發的模型層級；逐次呼叫套用，不修改 frontmatter；HIGH-risk 架構決策仍可向上升級。 |
+| `architect_effort` | string | `low` | `low` \| `medium` \| `high` \| `xhigh` \| `max` | `dhpk:architect` Agent-call 派發的推理強度；逐次呼叫套用，不修改 frontmatter。 |
 | `orchestration_dispatch` | string | `on` | `on` \| `off` | Implementation dispatch 分派表（`deep-reasoner` / `fast-worker` 在 `feature-dev`、`bug-fix`、`adaptive-dev-workflow`、`opsx-apply-goal` 中的路由）的關閉開關。`on` 時實作階段工作依決策表路由，並禁止用 `general-purpose` 執行實作。`off` 完整還原 v0.22.0 之前的行為：內聯實作、不禁止派發、`opsx-apply-goal` 輸出與舊版逐位元組相同。 |
 | `fast_worker_backend` | string | `claude` | `claude` \| `codex` \| `agy` \| `auto` | 機械 worker 的確定性選擇器。`claude` 對應 `dhpk:fast-worker`；`auto` 依 `fast_worker_backend_order` 檢查可用性。`/dhpk:do --worker=...` 僅覆寫單次呼叫（旗標 > userConfig > shipped 預設）；無效旗標警告一次後退回此設定／預設，無效設定值則使用 `claude`。Codex CLI 的可用性檢查與 `CODEX=on` 無關；後者控制 MCP peer-review 路徑，不控制機械 worker 選擇。 |
 | `fast_worker_backend_order` | string | `claude,codex,agy` | 逗號分隔的 backend 名稱 | 僅供 `auto` 使用的可用性順序；會記錄被拒絕的候選及原因。值無效時每個 session 警告一次並使用 shipped 順序。 |
 | `fast_worker_fallback` | string | `none` | `none` \| `claude` | 只允許對明確選取但缺少 CLI 執行檔的情況使用 `claude` 備援。驗證、授權、模型、任務、執行與 verification 失敗都維持 blocked，不得靜默切換。 |
 | `subagent_quality_gate` | string | `off` | `on` \| `off` | 僅對 reviewer sentinel subagent 啟用 `scripts/hooks/subagent-stop-quality.sh`。當 reviewer 的最終回報過於單薄、只是空泛的核准、未附下一步建議的未解錯誤、或缺乏證據的 review 型回覆時，會攔截並要求續答一次；此 hook 排在 `subagent-stop-verify.sh` 之前，避免被攔截的 reviewer sentinel 被自動清除。界線固定為一次修正重試，之後改派其他 reviewer，或留下附理由的 pending gate。預設 `off`（無作用，不做啟發式評估）。命中/未命中的擷取結果會記錄到 `.claude/artifacts/sessions/.subagent-stop-quality-extraction.json`。 |
+
+Codex timeout 值會在 wrapper 選取 `timeout`/`gtimeout` 前驗證為無號十進位秒數。空值、小數、負數或其他格式錯誤會阻擋該次派發，不會靜默退回 `360`。若某次呼叫必須不使用 wrapper backstop，請明確設定 `0`。`CODEX_WRAP_TIMEOUT_SECS` 仍是最高優先序的相容性覆寫；診斷會標示有效 role、預算、來源、停用狀態，以及可信的外層等待是否未知或不長於內層預算。agy 的獨立 timeout 語義維持不變。
 
 ## Codex MCP 依賴（並非 `userConfig` 旋鈕）
 
@@ -141,7 +151,7 @@ claude mcp list
 |-----|------|--------|------|----------|------|
 | `sentinel_commit_gate` | string | `warn` | `warn` \| `block` \| `off` | `DHPK_SENTINEL_COMMIT_GATE` | reviewer sentinel 存在時執行 `git commit/merge/rebase/cherry-pick` 的行為。`warn` = stderr 提醒（exit 0）；`block` = 拒絕該工具呼叫（exit 2）；`off` = 靜默。與 pre-bash-guard 對 `git push` 的硬性封鎖互補。 |
 | `branch_safety` | string | `warn` | `warn` \| `block` \| `off` | `DHPK_BRANCH_SAFETY` | 在受保護分支上執行破壞歷史的 git 動詞（`commit/merge/rebase/cherry-pick/reset/push`）時的行為。 |
-| `protected_branches` | string[] | `["main","master","develop","release/*","hotfix/*"]` | 分支名稱／bash `case` glob | `branch_safety` 閘門檢查的分支清單。設為 `[]` 可在不將 `branch_safety` 設為 `off` 的情況下停用逐分支檢查。 |
+| `protected_branches` | string[] | `["main","master","develop","release/*","hotfix/*"]` | 分支名稱／bash `case` glob | — | `branch_safety` 閘門檢查的分支清單。設為 `[]` 可在不將 `branch_safety` 設為 `off` 的情況下停用逐分支檢查。 |
 
 ## Session 行為與提示
 

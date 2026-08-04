@@ -201,6 +201,30 @@
       "description": "model_reasoning_effort passed to the codex CLI backend for codex-deep-reasoner dispatches via `--reasoner=codex` (see rules/model-economics.md). Valid values: whatever the codex CLI accepts (e.g. low | medium | high | xhigh). Default 'high'.",
       "default": "high"
     },
+    "codex_timeout_secs": {
+      "type": "string",
+      "title": "Codex shared timeout (seconds)",
+      "description": "Shared wrapper backstop for codex-fast-worker, codex-deep-reasoner, and codex-bridge. Must be an integer number of seconds >= 0; 0 intentionally disables the wrapper backstop. Precedence is project role-specific > project shared > global role-specific > global shared > this shipped default. Invalid values fail closed before dispatch. This does not control Claude's external tool wait. Default '360'.",
+      "default": "360"
+    },
+    "codex_fast_worker_timeout_secs": {
+      "type": "string",
+      "title": "codex-fast-worker timeout (seconds)",
+      "description": "Role-specific wrapper backstop for codex-fast-worker. Must be an integer number of seconds >= 0; 0 intentionally disables it. Project configuration wins over global configuration, and this role-specific value wins over the shared value in the same scope; invalid values fail closed. Default inherits the shared 360-second budget.",
+      "default": "360"
+    },
+    "codex_deep_reasoner_timeout_secs": {
+      "type": "string",
+      "title": "codex-deep-reasoner timeout (seconds)",
+      "description": "Role-specific wrapper backstop for codex-deep-reasoner. Must be an integer number of seconds >= 0; 0 intentionally disables it. Project configuration wins over global configuration, and this role-specific value wins over the shared value in the same scope; invalid values fail closed. Default inherits the shared 360-second budget.",
+      "default": "360"
+    },
+    "codex_bridge_timeout_secs": {
+      "type": "string",
+      "title": "codex-bridge timeout (seconds)",
+      "description": "Role-specific wrapper backstop for codex-bridge. Must be an integer number of seconds >= 0; 0 intentionally disables it. Project configuration wins over global configuration, and this role-specific value wins over the shared value in the same scope; invalid values fail closed. The legacy three-argument wrapper invocation remains supported. Default inherits the shared 360-second budget.",
+      "default": "360"
+    },
     "architect_model": {
       "type": "string",
       "title": "architect model",
