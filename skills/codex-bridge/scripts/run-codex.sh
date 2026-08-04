@@ -33,7 +33,6 @@
 #             non-zero exit (1 on empty output).
 set -euo pipefail
 
-WRAP_TIMEOUT_SECS="${CODEX_WRAP_TIMEOUT_SECS:-360}"
 SCRIPT_DIR="${BASH_SOURCE[0]%/*}"
 [ "$SCRIPT_DIR" = "${BASH_SOURCE[0]}" ] && SCRIPT_DIR=.
 TIMEOUT_ENVELOPE_HELPER="$SCRIPT_DIR/codex-timeout-envelope.js"
@@ -71,6 +70,63 @@ fi
 if [ ! -f "$PROMPT_FILE" ]; then
   echo "run-codex.sh: prompt file not found: $PROMPT_FILE" >&2
   exit 2
+fi
+
+# Resolve the role-aware timeout through the same project/global configuration
+# seam used by hooks. A missing marker is the legacy bridge shape; explicit role
+# dispatches set DHPK_CODEX_ROLE before calling this wrapper. Keep this wiring
+# environment-based so the existing 3-5 positional arguments remain stable. A
+# dispatcher that already resolved the tuple marks it with
+# DHPK_CODEX_TIMEOUT_RESOLVED; consume that tuple rather than silently replacing
+# the caller's effective budget with a fresh default lookup.
+CALLER_CODEX_ROLE="${DHPK_CODEX_ROLE:-}"
+CALLER_CODEX_TIMEOUT="${DHPK_CODEX_TIMEOUT_SECS:-}"
+CALLER_CODEX_SOURCE="${DHPK_CODEX_TIMEOUT_SOURCE:-caller}"
+CALLER_CODEX_RESOLVED="${DHPK_CODEX_TIMEOUT_RESOLVED:-false}"
+PLUGIN_ROOT="$(cd "$SCRIPT_DIR/../../.." 2>/dev/null && pwd)" || {
+  echo "run-codex.sh: cannot resolve plugin root for timeout configuration" >&2
+  exit 78
+}
+export ROOT="$WORKDIR_ABS"
+if [ ! -f "$PLUGIN_ROOT/scripts/hooks/_lib/load-project-config.sh" ]; then
+  echo "run-codex.sh: timeout configuration seam is unavailable" >&2
+  exit 78
+fi
+. "$PLUGIN_ROOT/scripts/hooks/_lib/load-project-config.sh"
+if [ "$CALLER_CODEX_RESOLVED" = 'true' ]; then
+  CODEX_ROLE="$CALLER_CODEX_ROLE"
+  if [ -z "$CODEX_ROLE" ]; then
+    echo "run-codex.sh: refusing Codex dispatch because the propagated Codex role is empty" >&2
+    exit 78
+  fi
+  if _dhpk_var_present CODEX_WRAP_TIMEOUT_SECS; then
+    if ! dhpk_codex_timeout_export "$CODEX_ROLE"; then
+      echo "run-codex.sh: refusing Codex dispatch because timeout configuration is invalid" >&2
+      exit 78
+    fi
+  elif ! dhpk_codex_timeout_export_resolved "$CODEX_ROLE" "$CALLER_CODEX_TIMEOUT" "$CALLER_CODEX_SOURCE"; then
+    echo "run-codex.sh: refusing Codex dispatch because the propagated timeout configuration is invalid" >&2
+    exit 78
+  fi
+else
+  CODEX_ROLE="${DHPK_CODEX_ROLE:-codex-bridge}"
+  if ! dhpk_codex_timeout_export "$CODEX_ROLE"; then
+    echo "run-codex.sh: refusing Codex dispatch because timeout configuration is invalid" >&2
+    exit 78
+  fi
+fi
+if [ -z "${DHPK_CODEX_TIMEOUT_SECS:-}" ]; then
+  echo "run-codex.sh: refusing Codex dispatch because timeout configuration is invalid" >&2
+  exit 78
+fi
+WRAP_TIMEOUT_SECS="$DHPK_CODEX_TIMEOUT_SECS"
+if [ "$WRAP_TIMEOUT_SECS" != '360' ] || [ "$DHPK_CODEX_TIMEOUT_DISABLED" = 'true' ] || \
+   [ "$DHPK_CODEX_OUTER_BUDGET_STATUS" != 'outer_budget=unknown' ]; then
+  _codex_timeout_diag="run-codex.sh: codex role=$CODEX_ROLE timeout=$WRAP_TIMEOUT_SECS source=$DHPK_CODEX_TIMEOUT_SOURCE"
+  [ "$DHPK_CODEX_TIMEOUT_DISABLED" = 'true' ] && _codex_timeout_diag="${_codex_timeout_diag} disabled=true"
+  _codex_timeout_diag="${_codex_timeout_diag} $DHPK_CODEX_OUTER_BUDGET_STATUS"
+  echo "$_codex_timeout_diag" >&2
+  unset _codex_timeout_diag
 fi
 
 WORK_TMP="$(mktemp -d "${TMPDIR:-/tmp}/run-codex.XXXXXX")"
@@ -113,7 +169,7 @@ MODEL_ARGS=()
 # run-agy.sh. Availability is reported but never fails the run — an unwrapped call can
 # still return a backend-native 124 on its own, which must not be misclassified below.
 TIMEOUT_BIN=""
-if [ "$WRAP_TIMEOUT_SECS" -ge 1 ]; then
+if [ "$WRAP_TIMEOUT_SECS" != '0' ]; then
   if command -v timeout >/dev/null 2>&1; then
     TIMEOUT_BIN="timeout"
   elif command -v gtimeout >/dev/null 2>&1; then
@@ -162,12 +218,14 @@ else
 fi
 set -e
 ELAPSED=$(( $(date +%s) - START_TS ))
-# Half the configured budget, floored at 1s: integer division truncates to 0 for
-# WRAP_TIMEOUT_SECS 0 or 1, which would make the elapsed check below vacuously true
-# (always satisfied) and silently revert to the pre-fix, already-broken two-condition
-# guard for any caller that overrides the budget that low.
-ELAPSED_THRESHOLD=$((WRAP_TIMEOUT_SECS / 2))
-[ "$ELAPSED_THRESHOLD" -lt 1 ] && ELAPSED_THRESHOLD=1
+# Half the configured budget, floored at 1s. Keep this as decimal-string math so
+# a valid, very large integer cannot overflow bash's machine-sized arithmetic and
+# silently turn into an unbounded invocation or a false timeout classification.
+ELAPSED_THRESHOLD="$(_dhpk_codex_timeout_half "$WRAP_TIMEOUT_SECS")"
+if [ "$ELAPSED_THRESHOLD" = '0' ]; then
+  ELAPSED_THRESHOLD=1
+fi
+ELAPSED_COMPARISON="$(_dhpk_codex_timeout_compare "$ELAPSED" "$ELAPSED_THRESHOLD")"
 
 # A 124 only means "wrapper backstop fired" when TIMEOUT_BIN actually wrapped the call AND
 # the invocation ran for roughly the full timeout budget. GNU `timeout` passes through the
@@ -180,7 +238,7 @@ ELAPSED_THRESHOLD=$((WRAP_TIMEOUT_SECS / 2))
 # PATH, codex ran unwrapped and could return 124 on its own regardless of elapsed time —
 # attributing either case to the backstop would be a fabricated cause (same guard as
 # run-agy.sh).
-if [ "$CODE" -eq 124 ] && [ -n "$TIMEOUT_BIN" ] && [ "$ELAPSED" -ge "$ELAPSED_THRESHOLD" ]; then
+if [ "$CODE" -eq 124 ] && [ -n "$TIMEOUT_BIN" ] && [ "$ELAPSED_COMPARISON" != '-1' ]; then
   echo "run-codex.sh: codex timed out after ${WRAP_TIMEOUT_SECS}s (wrapper backstop, observed ${ELAPSED}s elapsed) — check auth / model / prompt." >&2
   # Capture the report and bounded diagnostics before the EXIT trap removes the
   # temporary directory. The Node helper uses only core modules and emits one

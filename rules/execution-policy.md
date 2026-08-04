@@ -94,6 +94,8 @@ Agent names above are dhpk defaults; override via `userConfig.review_agents` per
 
 **Configured role models** (`deep-reasoner` / `fast-worker`): `session-start.sh` announces the effective `deep_reasoner_model` / `fast_worker_model` at session start only when they differ from the shipped default (opus / sonnet) — configured via the `deep_reasoner_model` / `fast_worker_model` / `orchestration_dispatch` `userConfig` keys in `.claude-plugin/plugin.json`. When announced, the orchestrator passes that value on the `Agent` call's `model` param for every dispatch of that role; frontmatter is never edited. An invalid configured value (not a model name the running Claude Code supports) triggers one warning per session and the dispatch falls back to the agent's frontmatter default — it never fails the dispatch. The judgment-based HIGH-risk escalation above still applies on top of a configured value and takes precedence for that single dispatch (e.g. a configured `fast_worker_model=haiku` may still be raised to sonnet/opus for one high-risk task). The two workers also carry effort keys (`deep_reasoner_effort` / `fast_worker_effort`), applied on the `Agent` call's `effort` param by the same announce-when-non-default mechanism; the cost rationale for both dials is in `${CLAUDE_PLUGIN_ROOT}/rules/model-economics.md`.
 
+The CLI-backed Codex roles use the same normalized project-over-global configuration seam for timeout budgets: `codex_fast_worker_timeout_secs`, `codex_deep_reasoner_timeout_secs`, and `codex_bridge_timeout_secs` override shared `codex_timeout_secs` within their scope, with the shipped `360`-second default below both scopes. `0` is an intentional wrapper-backstop disable; malformed values fail closed before the affected dispatch. The shared wrapper reports the effective role, budget, source, disabled state, and explicit outer-budget unknown/warning status without changing Claude's external tool wait.
+
 **Deferred-tool trap**: `SendMessage`, `Monitor`, and their background-task peers (`TaskStop` / `TaskOutput`, whichever the session roster exposes) are deferred tools — their schemas are not sent to the API at session start, only their names. Call `ToolSearch` with `select:<name>` (e.g. `ToolSearch select:SendMessage,Monitor`) to load the schema BEFORE the first invocation, or the call fails with `InputValidationError` ("this tool's schema was not sent to the API") and burns a recovery turn. This bites hardest mid-orchestration — resuming a background agent with `SendMessage` or waiting on one with `Monitor` after only ever having used the eagerly-loaded tools.
 
 ## Implementation dispatch
@@ -150,7 +152,8 @@ Only a missing executable may use the configured `claude` fallback. Authenticati
 authorization, model, task, execution, and verification failures remain
 `RESULT: BLOCKED` on the selected backend and never silently switch semantics.
 Every fast-worker report includes requested backend, selected backend, any
-fallback reason, model/effort, verification result, and the complete edited-file
+fallback reason, model/effort, effective Codex timeout budget/source when the
+Codex backend is selected, verification result, and the complete edited-file
 list. Worker-backend selection is independent of the `CODEX` review-peer switch:
 `CODEX=off` disables the `codex-bridge` doubt/review path, but does not remove an
 available `codex-fast-worker` backend. An explicit backend request is blocked only

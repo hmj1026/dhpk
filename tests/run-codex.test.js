@@ -169,6 +169,82 @@ test('three-arg shape omits model/effort flags (byte-identical legacy behavior)'
   });
 });
 
+test('role-aware project timeout is resolved without changing the wrapper argv shape', () => {
+  withStub((ctx) => {
+    fs.mkdirSync(path.join(ctx.dir, '.claude'), { recursive: true });
+    fs.writeFileSync(path.join(ctx.dir, '.claude', 'settings.local.json'), JSON.stringify({
+      pluginConfigs: { 'dhpk@dhpk': { options: { codex_fast_worker_timeout_secs: '7' } } },
+    }));
+    const res = runWrapper(ctx, ['read-only', ctx.dir, ctx.promptFile], {
+      DHPK_CODEX_ROLE: 'codex-fast-worker',
+      DHPK_OUTER_BUDGET_SECS: '5',
+    });
+    assert.strictEqual(res.status, 0, `wrapper failed: ${res.stderr}`);
+    assert.strictEqual(res.stdout, 'stub-ok\n');
+    assert.ok(res.stderr.includes('role=codex-fast-worker'), `missing role diagnostic: ${res.stderr}`);
+    assert.ok(res.stderr.includes('timeout=7'), `missing effective timeout diagnostic: ${res.stderr}`);
+    assert.ok(res.stderr.includes('source=project:codex_fast_worker_timeout_secs'),
+      `missing timeout source diagnostic: ${res.stderr}`);
+    assert.ok(res.stderr.includes('outer_budget=5') && res.stderr.includes('outer_budget_not_longer_than_inner'),
+      `missing outer-budget warning: ${res.stderr}`);
+    const argv = fs.readFileSync(ctx.argvOut, 'utf8');
+    assert.ok(!/(^|\n)-m(\n|$)/.test(argv), `legacy three-arg call unexpectedly gained model flags:\n${argv}`);
+  });
+});
+
+test('wrapper consumes a caller-provided validated role and budget tuple', () => {
+  withStub((ctx) => {
+    const res = runWrapper(ctx, ['read-only', ctx.dir, ctx.promptFile], {
+      DHPK_CODEX_ROLE: 'codex-fast-worker',
+      DHPK_CODEX_TIMEOUT_SECS: '7',
+      DHPK_CODEX_TIMEOUT_SOURCE: 'caller:codex-fast-worker',
+      DHPK_CODEX_TIMEOUT_DISABLED: 'false',
+      DHPK_CODEX_TIMEOUT_RESOLVED: 'true',
+    });
+    assert.strictEqual(res.status, 0, `wrapper failed: ${res.stderr}`);
+    assert.ok(res.stderr.includes('timeout=7') && res.stderr.includes('source=caller:codex-fast-worker'),
+      `wrapper must preserve the propagated tuple: ${res.stderr}`);
+  });
+});
+
+test('incomplete propagated timeout tuple fails closed before backend invocation', () => {
+  withStub((ctx) => {
+    const res = runWrapper(ctx, ['read-only', ctx.dir, ctx.promptFile], {
+      DHPK_CODEX_ROLE: 'codex-fast-worker',
+      DHPK_CODEX_TIMEOUT_SECS: '',
+      DHPK_CODEX_TIMEOUT_SOURCE: 'caller:codex-fast-worker',
+      DHPK_CODEX_TIMEOUT_RESOLVED: 'true',
+    });
+    assert.notStrictEqual(res.status, 0, `incomplete propagated timeout must fail closed: ${res.stdout}`);
+    assert.ok(res.stderr.includes('invalid propagated Codex timeout'),
+      `missing propagated-timeout validation error: ${res.stderr}`);
+    assert.ok(!fs.existsSync(ctx.argvOut), 'Codex backend must not be invoked for an incomplete propagated tuple');
+  });
+});
+
+test('very large valid integer budgets do not overflow wrapper arithmetic', () => {
+  withStub((ctx) => {
+    fs.writeFileSync(path.join(ctx.binDir, 'timeout'), TIMEOUT_STUB_PASSTHROUGH, { mode: 0o755 });
+    const res = runWrapper(ctx, ['read-only', ctx.dir, ctx.promptFile], {
+      CODEX_WRAP_TIMEOUT_SECS: '999999999999999999999999999999999999999',
+    });
+    assert.strictEqual(res.status, 0, `large integer should not trigger bash arithmetic failure: ${res.stderr}`);
+    assert.strictEqual(res.stdout, 'stub-ok\n');
+    assert.ok(!res.stderr.includes('integer expression expected'), `unexpected arithmetic diagnostic: ${res.stderr}`);
+  });
+});
+
+test('invalid timeout configuration blocks Codex before the backend is invoked', () => {
+  withStub((ctx) => {
+    const res = runWrapper(ctx, ['read-only', ctx.dir, ctx.promptFile], {
+      CODEX_WRAP_TIMEOUT_SECS: 'not-an-integer',
+    });
+    assert.notStrictEqual(res.status, 0, `invalid timeout must fail closed: ${res.stdout}`);
+    assert.ok(res.stderr.includes('invalid Codex timeout'), `missing invalid timeout error: ${res.stderr}`);
+    assert.ok(!fs.existsSync(ctx.argvOut), 'Codex backend must not be invoked for invalid timeout');
+  });
+});
+
 test('empty model/effort args are treated as absent (no flags)', () => {
   withStub((ctx) => {
     const res = runWrapper(ctx, ['workspace-write', ctx.dir, ctx.promptFile, '', '']);

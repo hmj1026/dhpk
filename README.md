@@ -72,7 +72,7 @@ Everything is reachable through `/dhpk:do` — one entry point that routes natur
 
 ## userConfig
 
-51 knobs, all settable at install time with `--config <key>=<value>`, reconfigurable any time via `/dhpk:setup`. Full reference (where to set each one, every option, project-level override syntax): **[`docs/configuration.md`](./docs/configuration.md)**.
+59 knobs, all settable at install time with `--config <key>=<value>`, reconfigurable any time via `/dhpk:setup`. Full reference (where to set each one, every option, project-level override syntax): **[`docs/configuration.md`](./docs/configuration.md)**.
 
 ```bash
 claude plugin install dhpk@dhpk \

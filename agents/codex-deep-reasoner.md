@@ -73,6 +73,9 @@ result from your own analysis when the CLI is unavailable.
    `codex_deep_reasoner_model` / `codex_deep_reasoner_effort` or `--reasoner` segments):
 
    ```bash
+   export ROOT="<workdir>" DHPK_CODEX_ROLE=codex-deep-reasoner
+   . "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/_lib/load-project-config.sh"
+   dhpk_codex_timeout_export "$DHPK_CODEX_ROLE" || exit 78
    bash "${CLAUDE_PLUGIN_ROOT}/skills/codex-bridge/scripts/run-codex.sh" \
      read-only "<workdir>" "$prompt_file" "<model>" "<effort>"
    ```
@@ -142,6 +145,7 @@ RESULT: DONE | TIMEOUT_SALVAGED | BLOCKED
 On `RESULT: DONE`, the body IS the conclusion contract above (Conclusion / Evidence /
 Next actions), preceded by a one-line backend header:
 `Backend: codex exec -m <model> -c model_reasoning_effort=<effort> (read-only)`.
+`Timeout budget: <seconds> (source=<project role|project shared|global role|global shared|env override|default>; disabled=<true|false>; outer=<unknown|warning|aligned>)`.
 On `RESULT: TIMEOUT_SALVAGED`, include the parsed envelope, the independently verified
 path-scoped diff, and the explicit reconciliation next action; this is not success. On
 `RESULT: BLOCKED`, name the exact backend failure or missing evidence, confirm no

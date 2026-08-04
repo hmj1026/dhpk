@@ -16,14 +16,22 @@ Your job is to get Codex's raw, independent view and relay it faithfully.
 1. **Receive** the upstream task (what to outsource, which files/paths, the expected output shape, and whether files must be edited).
 2. **Compose a self-contained Codex prompt** — Codex sees a fresh session with none of the parent conversation. Include: a one-sentence goal, the relevant files as **absolute** paths, the spec / acceptance criteria, and the exact expected output format. Follow the `codex-bridge` skill's prompt discipline.
 3. **Write** the composed prompt to a temp file (use the `Write` tool — never inline a huge/quoted prompt on the command line).
-4. **Run** the bundled wrapper:
+4. **Resolve the bridge timeout role** in the same shell as the wrapper. The legacy three-argument call remains intact; `codex_bridge_timeout_secs` (or shared `codex_timeout_secs`) supplies the validated integer budget, and `0` deliberately disables the backstop:
+
+   ```bash
+   export ROOT="<workdir>" DHPK_CODEX_ROLE=codex-bridge
+   . "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/_lib/load-project-config.sh"
+   dhpk_codex_timeout_export "$DHPK_CODEX_ROLE" || exit 78
+   ```
+
+5. **Run** the bundled wrapper:
 
    ```
    bash "${CLAUDE_PLUGIN_ROOT}/skills/codex-bridge/scripts/run-codex.sh" <mode> <workdir> <prompt-file>
    ```
 
    Choose `read-only` for investigation/review, `workspace-write` only when Codex must edit files.
-5. **Relay** the result:
+6. **Relay** the result:
    - Success → return Codex's stdout **verbatim**, prefixed with a one-line header stating the sandbox mode and exit code (`sandbox=<mode> exit=0`). Do not add analysis or edit its conclusions.
    - Failure (non-zero exit / empty output) → report it honestly: the sandbox mode, the exit code, and the wrapper's stderr tail. **Never fabricate** output. A `401` means run `codex login`.
 
