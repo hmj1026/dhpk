@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## 0.34.0 — 2026-08-04 — Add role-aware Codex timeout budgets and timeout recovery safeguards
+
+**feat(codex-timeout)** — Configure role-aware Codex timeout budgets with explicit precedence, diagnostics, and fail-closed validation.
+**fix(codex-bridge)** — Preserve verified Codex timeout reports as bounded, redacted evidence for safe salvage or blocked reconciliation.
+**fix(invocation-hints)** — Respect explicit-only invocation policy in UserPromptSubmit skill hints.
+
 ## 0.33.2 — 2026-08-03 — Align Codex agent runtime contracts and lifecycle hook documentation
 
 **fix(codex)** — Align the Codex agent projection, TOML configuration, and lifecycle-hook documentation with the current runtime contract.
