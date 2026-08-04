@@ -42,6 +42,10 @@ For a shared-checkout parallel dispatch, the spec must also provide:
 Optionally the dispatcher passes the **resolved model/effort** (from the
 `codex_fast_worker_model` / `codex_fast_worker_effort` userConfig keys, surfaced at
 session start when non-default). When omitted, default to `gpt-5.6-luna` / `xhigh`.
+The dispatcher also resolves the role-aware wrapper budget from
+`codex_fast_worker_timeout_secs` (or the shared `codex_timeout_secs`) before invoking
+the CLI. The effective value is an integer number of seconds; `0` deliberately disables
+the wrapper backstop, while malformed values block the dispatch.
 
 ## Escalates on ambiguous specs
 
@@ -75,6 +79,9 @@ approximate the backend or fall back to editing the files yourself.
    model/effort (always `workspace-write` — it must edit files):
 
    ```bash
+   export ROOT="<workdir>" DHPK_CODEX_ROLE=codex-fast-worker
+   . "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/_lib/load-project-config.sh"
+   dhpk_codex_timeout_export "$DHPK_CODEX_ROLE" || exit 78
    before="$(git status --porcelain)"
    bash "${CLAUDE_PLUGIN_ROOT}/skills/codex-bridge/scripts/run-codex.sh" \
      workspace-write "<workdir>" "<prompt-file>" "<model>" "<effort>"
@@ -102,11 +109,21 @@ A wrapper-reported timeout (`run-codex.sh` exit `124` with the wrapper's own "ti
 `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/implementation-dispatch.md`
 §CLI worker mid-batch timeout recovery, then:
 
+Parse the timeout envelope before classifying exit `124`; parse stdout with the shared
+`${CLAUDE_PLUGIN_ROOT}/skills/codex-bridge/scripts/codex-timeout-envelope.js`
+parser and require `schema=dhpk.codex.timeout.v1`,
+`verified_wrapper_timeout=true`, and the stable base64 fields. Record the parsed
+envelope as timeout evidence before any retry; a non-empty salvaged report is
+never independent verification or `RESULT: DONE`. If the helper is unavailable,
+accept only the wrapper's parseable no-payload envelope with
+`redaction=unavailable` and classify the timeout as `BLOCKED`; an invalid
+envelope is also `BLOCKED`, never fabricated salvage evidence.
+
 1. **First verified timeout** — request exactly one same-backend, same-model/effort recovery dispatch scoped to `remaining ∪ unconfirmed`. Never self-edit the unresolved files and never fall back to another backend because of a timeout.
 2. **Second verified timeout** — stop. Report `RESULT: PARTIAL` when any assigned file is confirmed, `RESULT: BLOCKED` when none is, naming both timeout observations, all three ledger sets, and the next action. Write the PARTIAL marker (control-plane JSON, not a product edit — see the policy reference above for the path and required fields) before returning `RESULT: PARTIAL`.
 3. **No wrapper timeout mechanism available** — `run-codex.sh` reports on stderr when neither `timeout` nor `gtimeout` is on PATH and runs unwrapped; without that mechanism there is no trustworthy timeout signal to classify, so treat any failure here as its ordinary (non-timeout) outcome and never fabricate a timeout classification.
 
-A single-file dispatch, a non-timeout failure, or a missing-executable/auth/model failure keep their existing semantics unchanged — this section applies only to a verified wrapper timeout on a multi-file batch.
+A single-file dispatch, a non-timeout failure, or a missing-executable/auth/model failure keep their existing semantics unchanged — this section applies only to a verified wrapper timeout on a multi-file batch. For a single-file Codex timeout, parse and forward the envelope without automatic retry or backend fallback; report `TIMEOUT_SALVAGED` only when independent path-scoped diff verification confirms attributable edits, otherwise `BLOCKED`, and request explicit reconciliation.
 
 ## Verify and report (the agent owns this, not the CLI)
 
@@ -155,6 +172,7 @@ Selected backend: codex | claude (only with configured missing-executable fallba
 Availability: <codex executable available | missing executable: codex>
 Fallback reason: <none | missing executable: codex; configured fallback=claude>
 Model/effort: <model> / <effort>
+Timeout budget: <seconds> (source=<project role|project shared|global role|global shared|env override|default>; disabled=<true|false>; outer=<unknown|warning|aligned>)
 Verify: <command> → PASS | FAIL (N attempts)
 Spec: <one-line summary of what was requested>
 Timeout state: not-applicable | first-timeout-retried | second-timeout-terminal

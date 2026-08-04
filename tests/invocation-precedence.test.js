@@ -101,6 +101,20 @@ test('every scripts/lib/route-table.json target resolves and has a known invocat
   }
 });
 
+test('real route-table explicit-only targets retain their canonical classes', () => {
+  const routeTable = JSON.parse(read('scripts/lib/route-table.json'));
+  const explicitTargets = new Set(['dhpk:opsx-apply-goal', 'dhpk:create-pr', 'dhpk:release-creator', 'dhpk:smart-commit']);
+  const implicitTargets = new Set(['dhpk:review-pending']);
+  for (const target of explicitTargets) {
+    assert.ok(routeTable.rules.some((rule) => rule.skill === target), `route table must contain ${target}`);
+    assert.strictEqual(resolveInvocationClass(target.replace(/^dhpk:/, '')), 'explicit-only', `${target} must remain explicit-only`);
+  }
+  for (const target of implicitTargets) {
+    assert.ok(routeTable.rules.some((rule) => rule.skill === target), `route table must contain ${target}`);
+    assert.strictEqual(resolveInvocationClass(target.replace(/^dhpk:/, '')), 'implicit-eligible', `${target} must remain implicit-eligible`);
+  }
+});
+
 test('do.md "Common targets" (explicit-only) annotations agree with the actual declared class', () => {
   const m = doCmdFlat.match(/Common targets:([\s\S]*?)If nothing fits/);
   assert.ok(m, 'do.md must have a "Common targets" list to check');

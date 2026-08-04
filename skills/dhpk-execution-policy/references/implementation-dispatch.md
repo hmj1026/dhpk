@@ -37,6 +37,16 @@ If a validator reads or updates shared ratchet/configuration state, the worker u
 
 Applies only to a CLI-backed multi-file dispatch (`codex-fast-worker` / `agy-fast-worker`) that reports a wrapper-level timeout (see each worker's Backend availability section) — never to a single-file dispatch, a non-timeout failure, or a missing-executable/auth/model failure, which keep their existing semantics unchanged.
 
+For Codex, `run-codex.sh` emits one `dhpk.codex.timeout.v1` JSON envelope on a
+verified wrapper timeout before cleanup and retains exit `124`. The dispatcher
+validates the unchanged object with
+`node skills/codex-bridge/scripts/codex-timeout-envelope.js --parse`, then
+parses and records that envelope before interpreting the exit code; its
+base64-encoded report and bounded diagnostics are timeout evidence only; a
+`redaction=unavailable` envelope has no payload and is always `BLOCKED`. A
+non-empty report never proves edits or success without independent path-scoped
+diff verification, and the envelope is forwarded unchanged for reconciliation.
+
 **Path-scoped completion ledger.** Before dispatch, the dispatcher records the exact assigned file list and a path-scoped `git status --porcelain -- <assigned files>` baseline. After a verified wrapper timeout, the worker derives three disjoint sets covering the assigned list:
 
 - `confirmed` — intersection of the backend's own reported files and path-scoped diff evidence attributable to this dispatch.

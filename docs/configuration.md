@@ -2,7 +2,7 @@
 
 > **Languages**: **English** · [繁體中文](./configuration.zh-TW.md)
 
-dhpk exposes **51 `userConfig` knobs** in `.claude-plugin/plugin.json`. This page documents every knob: where you set it, what values it accepts, and what it actually changes. For the day-to-day command flow (install, common workflows, review cycle), see [`docs/basic-operations.md`](./basic-operations.md).
+dhpk exposes **59 `userConfig` knobs** in `.claude-plugin/plugin.json`. This page documents every knob: where you set it, what values it accepts, and what it actually changes. For the day-to-day command flow (install, common workflows, review cycle), see [`docs/basic-operations.md`](./basic-operations.md).
 
 ## Where to set a value
 
@@ -54,12 +54,29 @@ A handful of boolean/mode knobs additionally support a **one-shot environment-va
 | `planner_effort` | string | `high` | same as above | Reasoning effort for `dhpk:planner` Agent-call dispatches. Same validation/fallback behavior as `deep_reasoner_effort`; the warm-review (post-implementation) invocation de-escalates to `medium`. |
 | `codex_fast_worker_model` | string | `gpt-5.6-luna` | any model the codex CLI accepts | Model passed to the codex CLI backend for `dhpk:codex-fast-worker` dispatches. Resolved via the standard layering (project pluginConfigs > global pluginConfigs > shipped default) and passed into `run-codex.sh`. codex model names rotate quickly — override here instead of editing source when a default is deprecated (check `codex models`). |
 | `codex_fast_worker_effort` | string | `xhigh` | any effort the codex CLI accepts (e.g. `low` \| `medium` \| `high` \| `xhigh`) | `model_reasoning_effort` passed to the codex CLI backend for `dhpk:codex-fast-worker` dispatches — the strong mechanical tier. |
+| `codex_deep_reasoner_model` | string | `gpt-5.6-sol` | any model the codex CLI accepts | Model passed to the codex CLI backend for `dhpk:codex-deep-reasoner` dispatches via `--reasoner=codex` in a read-only sandbox. |
+| `codex_deep_reasoner_effort` | string | `high` | any effort the codex CLI accepts | `model_reasoning_effort` passed to the codex CLI backend for `dhpk:codex-deep-reasoner` dispatches. |
+| `codex_timeout_secs` | string | `360` | integer seconds `>= 0`; `0` disables | Shared `run-codex.sh` wrapper backstop for all three Codex CLI roles. Precedence is project role-specific > project shared > global role-specific > global shared > shipped default; malformed values fail closed before dispatch. This key does not change Claude's external tool wait. |
+| `codex_fast_worker_timeout_secs` | string | `360` | integer seconds `>= 0`; `0` disables | Role-specific wrapper budget for `dhpk:codex-fast-worker`. It wins over the shared value in the same scope; project values win over global values. The legacy `CODEX_WRAP_TIMEOUT_SECS` environment override is higher precedence for controlled/test invocations. |
+| `codex_deep_reasoner_timeout_secs` | string | `360` | integer seconds `>= 0`; `0` disables | Role-specific wrapper budget for `dhpk:codex-deep-reasoner`. It wins over the shared value in the same scope; project values win over global values. Invalid values fail closed and are reported at SessionStart. |
+| `codex_bridge_timeout_secs` | string | `360` | integer seconds `>= 0`; `0` disables | Role-specific wrapper budget for `dhpk:codex-bridge`; the existing three-argument wrapper shape remains supported. It wins over the shared value in the same scope; project values win over global values. |
 | `agy_fast_worker_model` | string | `Gemini 3.6 Flash (High)` | any model listed by `agy models` | Model display string passed to the agy CLI backend for `dhpk:agy-fast-worker` dispatches. agy bakes the thinking level into the model name, so there is no separate effort key. Same layering as above; override when a default is deprecated (check `agy models`). |
+| `architect_model` | string | `fable` | any model tier supported by the running Claude Code | Model tier for `dhpk:architect` Agent-call dispatches; applied per invocation without editing frontmatter, with up-only escalation for HIGH-risk architecture decisions. |
+| `architect_effort` | string | `low` | `low` \| `medium` \| `high` \| `xhigh` \| `max` | Reasoning effort for `dhpk:architect` Agent-call dispatches; applied per invocation without editing frontmatter. |
 | `orchestration_dispatch` | string | `on` | `on` \| `off` | Kill switch for the Implementation dispatch table (`deep-reasoner` / `fast-worker` routing in `feature-dev`, `bug-fix`, `adaptive-dev-workflow`, `opsx-apply-goal`). `on` routes implement-phase work through the decision table and prohibits `general-purpose` for implementation. `off` fully restores pre-v0.22.0 behavior: inline implementation, no dispatch prohibition, byte-identical `opsx-apply-goal` output. |
 | `fast_worker_backend` | string | `claude` | `claude` \| `codex` \| `agy` \| `auto` | Deterministic mechanical-worker selector. `claude` maps to `dhpk:fast-worker`; `auto` checks `fast_worker_backend_order`. `/dhpk:do --worker=...` overrides this key for one invocation only (flag > userConfig > shipped default); an invalid flag warns once and falls through to this key/default, while an invalid configured value uses `claude`. Codex CLI availability is checked independently of `CODEX=on`; that switch controls the MCP peer-review path, not mechanical-worker selection. |
 | `fast_worker_backend_order` | string | `claude,codex,agy` | comma-separated backend names | Availability order used only by `auto`; rejected candidates and reasons are recorded. Invalid values warn once per session and use the shipped order. |
 | `fast_worker_fallback` | string | `none` | `none` \| `claude` | Explicit fallback for a missing selected CLI executable only. Auth, authorization, model, task, execution, and verification failures remain blocked. |
 | `subagent_quality_gate` | string | `off` | `on` \| `off` | Enables `scripts/hooks/subagent-stop-quality.sh` only for reviewer-sentinel subagents. It blocks-and-continues a reviewer once when its final report is thin, a bare approval, an unresolved error with no next-step language, or an evidence-free review-shaped reply — wired ahead of `subagent-stop-verify.sh` so a blocked reviewer's sentinel is not auto-cleared. The bounded outcome is one corrected retry, then replacement or a pending gate with a recorded reason. Default `off` (no-op, no heuristic evaluation). Extraction hit/miss is recorded to `.claude/artifacts/sessions/.subagent-stop-quality-extraction.json`. |
+
+Codex timeout values are validated as unsigned decimal seconds before the
+wrapper selects `timeout`/`gtimeout`. An empty, fractional, negative, or
+otherwise malformed value blocks that dispatch instead of silently falling back
+to `360`. Set `0` deliberately when an invocation must run without the wrapper
+backstop. `CODEX_WRAP_TIMEOUT_SECS` remains the highest-precedence compatibility
+override; diagnostics identify the effective role, budget, source, disabled
+state, and whether a trusted outer wait is unknown or no longer than the inner
+budget. The separate agy timeout setting is unchanged.
 
 ## Codex MCP dependency (not a `userConfig` knob)
 
@@ -141,7 +158,7 @@ This is about the standalone Codex CLI dual-track sync (`codex/agents/` → `.co
 |-----|------|---------|---------|--------------|---------|
 | `sentinel_commit_gate` | string | `warn` | `warn` \| `block` \| `off` | `DHPK_SENTINEL_COMMIT_GATE` | Behavior when `git commit/merge/rebase/cherry-pick` runs while reviewer sentinels are pending. `warn` = stderr reminder (exit 0); `block` = reject the tool call (exit 2); `off` = silent. Companion to the pre-bash-guard's hard `git push` block. |
 | `branch_safety` | string | `warn` | `warn` \| `block` \| `off` | `DHPK_BRANCH_SAFETY` | Behavior when a history-mutating git verb (`commit/merge/rebase/cherry-pick/reset/push`) runs on a protected branch. |
-| `protected_branches` | string[] | `["main","master","develop","release/*","hotfix/*"]` | branch name(s) / bash `case` globs | Branches the `branch_safety` gate checks against. Set to `[]` to disable per-branch gating without setting `branch_safety=off`. |
+| `protected_branches` | string[] | `["main","master","develop","release/*","hotfix/*"]` | branch name(s) / bash `case` globs | — | Branches the `branch_safety` gate checks against. Set to `[]` to disable per-branch gating without setting `branch_safety=off`. |
 
 ## Session behavior & advisories
 

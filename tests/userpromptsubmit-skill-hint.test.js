@@ -26,16 +26,26 @@ function mkRouteTable() {
   const file = path.join(dir, 'route-table.json');
   fs.writeFileSync(file, JSON.stringify({
     rules: [
+      { pattern: 'deploy.{0,20}(prod|production)', skill: 'dhpk:deploy-list', label: 'production deploy' },
+    ],
+  }));
+  return { dir, file };
+}
+
+function mkUnknownRouteTable() {
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-uph-unknown-')));
+  const file = path.join(dir, 'route-table.json');
+  fs.writeFileSync(file, JSON.stringify({
+    rules: [
       { pattern: 'deploy.{0,20}(prod|production)', skill: 'dhpk:deploy-prod', label: 'production deploy' },
     ],
   }));
   return { dir, file };
 }
 
-function runHook(prompt, extraEnv = {}) {
-  const rt = mkRouteTable();
+function runHookWithRoute(prompt, routeFile, extraEnv = {}) {
   try {
-    const env = { ...process.env, CLAUDE_PLUGIN_ROOT: ROOT, DHPK_ROUTE_TABLE: rt.file, ...extraEnv };
+    const env = { ...process.env, CLAUDE_PLUGIN_ROOT: ROOT, DHPK_ROUTE_TABLE: routeFile, ...extraEnv };
     delete env.DHPK_DISABLE_SKILL_HINT;
     delete env.CLAUDE_PLUGIN_OPTION_SKILL_HINT_ENABLED;
     delete env.CLAUDE_PLUGIN_OPTION_HOOK_PROFILE;
@@ -47,8 +57,37 @@ function runHook(prompt, extraEnv = {}) {
       timeout: 10000,
     });
   } finally {
-    fs.rmSync(rt.dir, { recursive: true, force: true });
+    if (routeFile) fs.rmSync(path.dirname(routeFile), { recursive: true, force: true });
   }
+}
+
+function runHook(prompt, extraEnv = {}) {
+  const rt = mkRouteTable();
+  return runHookWithRoute(prompt, rt.file, extraEnv);
+}
+
+function runHookAgainstRealRoutes(prompt, extraEnv = {}) {
+  const env = { ...process.env, CLAUDE_PLUGIN_ROOT: ROOT, ...extraEnv };
+  delete env.DHPK_ROUTE_TABLE;
+  delete env.DHPK_DISABLE_SKILL_HINT;
+  delete env.CLAUDE_PLUGIN_OPTION_SKILL_HINT_ENABLED;
+  delete env.CLAUDE_PLUGIN_OPTION_HOOK_PROFILE;
+  Object.assign(env, extraEnv);
+  const payload = JSON.stringify({ prompt });
+  return spawnSync('bash', ['-c', 'printf %s "$P" | bash "$1"', '_', HOOK], {
+    env: { ...env, P: payload },
+    encoding: 'utf8',
+    timeout: 10000,
+  });
+}
+
+function resolveInvocationClass(name) {
+  const skillFile = path.join(ROOT, 'skills', name, 'SKILL.md');
+  const cmdFile = path.join(ROOT, 'commands', `${name}.md`);
+  const file = fs.existsSync(skillFile) ? skillFile : fs.existsSync(cmdFile) ? cmdFile : null;
+  if (!file) return null;
+  const m = fs.readFileSync(file, 'utf8').match(/^metadata:\s*\n\s+dhpk-invocation-class:\s*(\S+)/m);
+  return m ? m[1] : null;
 }
 
 test('prompt matching the route pattern emits an additionalContext hint', () => {
@@ -110,6 +149,40 @@ test('minimal hook_profile suppresses the hint even for a matching prompt', () =
   const res = runHook('please deploy to production now', { CLAUDE_PLUGIN_OPTION_HOOK_PROFILE: 'minimal' });
   assert.strictEqual(res.status, 0, `expected exit 0: ${res.stderr}`);
   assert.strictEqual(res.stdout.trim(), '', `expected no hint under minimal profile, got: ${res.stdout}`);
+});
+
+test('real explicit-only routes emit exact commands without Skill-tool advice', () => {
+  const cases = [
+    ['please run an unattended OpenSpec goal session', 'opsx-apply-goal'],
+    ['please create a PR for this branch', 'create-pr'],
+    ['please create a release', 'release-creator'],
+    ['please commit these changes', 'smart-commit'],
+  ];
+  for (const [prompt, name] of cases) {
+    assert.strictEqual(resolveInvocationClass(name), 'explicit-only', `${name} must be explicit-only in canonical metadata`);
+    const res = runHookAgainstRealRoutes(prompt);
+    assert.strictEqual(res.status, 0, `${name} expected exit 0: ${res.stderr}`);
+    assert.ok(res.stdout.includes(`/dhpk:${name}`), `${name} must show exact command: ${res.stdout}`);
+    assert.match(res.stdout, /do not call the generic Skill tool/i, `${name} must forbid Skill-tool invocation: ${res.stdout}`);
+    assert.ok(!res.stdout.includes('/dhpk:dhpk:'), `${name} must not duplicate route namespace: ${res.stdout}`);
+    assert.ok(!res.stdout.includes('Suggest it (or run it)'), `${name} must not use generic implicit wording: ${res.stdout}`);
+  }
+});
+
+test('real implicit-eligible route retains generic advisory wording', () => {
+  assert.strictEqual(resolveInvocationClass('review-pending'), 'implicit-eligible');
+  const res = runHookAgainstRealRoutes('please review this diff');
+  assert.strictEqual(res.status, 0, `expected exit 0: ${res.stderr}`);
+  assert.ok(res.stdout.includes('/dhpk:review-pending'), `expected implicit route command: ${res.stdout}`);
+  assert.ok(res.stdout.includes('Suggest it (or run it)'), `expected generic wording: ${res.stdout}`);
+  assert.ok(!/do not call the generic Skill tool/i.test(res.stdout), `implicit route must not get explicit-only restriction: ${res.stdout}`);
+});
+
+test('matching a route with missing canonical metadata fails closed', () => {
+  const rt = mkUnknownRouteTable();
+  const res = runHookWithRoute('please deploy to production now', rt.file);
+  assert.strictEqual(res.status, 0, `expected exit 0: ${res.stderr}`);
+  assert.strictEqual(res.stdout.trim(), '', `missing target metadata must suppress hint: ${res.stdout}`);
 });
 
 run('userpromptsubmit-skill-hint');

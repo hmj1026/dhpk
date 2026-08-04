@@ -1,6 +1,6 @@
 {
-  "sourceVersion": "0.33.2",
-  "sourceCommit": "0d08810c4de85841dd19feb470538030f89eafe9",
+  "sourceVersion": "0.34.0",
+  "sourceCommit": "2bdeaa29b61ce79275d47c59cb057a1901d3dae8",
   "inventoryDigest": "88846ad91f0834859288ddc5f8d707a1829c9b2b0acb426e02baf69fe5f2c948",
   "generatorVersion": "1.0.0",
   "selectedSkillIds": [

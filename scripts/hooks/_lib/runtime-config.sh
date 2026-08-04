@@ -91,6 +91,187 @@ dhpk_config_csv() {
     printf '%s' "$_out"
 }
 
+# Internal dynamic-environment helpers. Names passed here are assembled from
+# fixed option keys above; they are never user-controlled shell fragments.
+_dhpk_var_present() {
+    local _name="${1:-}" _present=""
+    [ -n "$_name" ] || return 1
+    eval "_present=\${${_name}+x}"
+    [ "$_present" = "x" ]
+}
+
+_dhpk_var_value() {
+    local _name="${1:-}" _value=""
+    [ -n "$_name" ] || return 0
+    eval "_value=\${${_name}-}"
+    printf '%s' "$_value"
+}
+
+# Normalize an unsigned decimal timeout without arithmetic expansion. Bash
+# treats leading-zero literals as octal, and very large operator values should
+# still be rejected/diagnosed deterministically rather than triggering an
+# arithmetic parse error in a hook.
+_dhpk_codex_timeout_normalize() {
+    local _value="${1:-}"
+    case "$_value" in
+        ''|*[!0-9]*) return 1 ;;
+    esac
+    while [ "$_value" != "0" ] && [ "${_value#0}" != "$_value" ]; do
+        _value="${_value#0}"
+    done
+    printf '%s' "$_value"
+}
+
+_dhpk_codex_timeout_compare() {
+    local _left="${1:-0}" _right="${2:-0}"
+    if [ "${#_left}" -lt "${#_right}" ]; then
+        printf '%s' '-1'
+    elif [ "${#_left}" -gt "${#_right}" ]; then
+        printf '%s' '1'
+    elif [ "$_left" = "$_right" ]; then
+        printf '%s' '0'
+    elif [[ "$_left" < "$_right" ]]; then
+        printf '%s' '-1'
+    else
+        printf '%s' '1'
+    fi
+}
+
+_dhpk_codex_timeout_half() {
+    local _value="${1:-0}" _result="" _carry=0 _digit="" _digit_value=0 _number=0 _quotient=0 _i=0
+    for (( _i=0; _i<${#_value}; _i++ )); do
+        _digit="${_value:_i:1}"
+        case "$_digit" in
+            0) _digit_value=0 ;; 1) _digit_value=1 ;; 2) _digit_value=2 ;;
+            3) _digit_value=3 ;; 4) _digit_value=4 ;; 5) _digit_value=5 ;;
+            6) _digit_value=6 ;; 7) _digit_value=7 ;; 8) _digit_value=8 ;;
+            9) _digit_value=9 ;; *) return 1 ;;
+        esac
+        _number=$((_carry * 10 + _digit_value))
+        _quotient=$((_number / 2))
+        _carry=$((_number % 2))
+        _result="${_result}${_quotient}"
+    done
+    while [ "${#_result}" -gt 1 ] && [ "${_result#0}" != "$_result" ]; do
+        _result="${_result#0}"
+    done
+    printf '%s' "${_result:-0}"
+}
+
+_dhpk_codex_timeout_outer_status() {
+    local _inner="${1:-0}" _outer="" _normalized="" _comparison=""
+    if ! _dhpk_var_present DHPK_OUTER_BUDGET_SECS; then
+        printf '%s' 'outer_budget=unknown'
+        return 0
+    fi
+    _outer="$(_dhpk_var_value DHPK_OUTER_BUDGET_SECS)"
+    if ! _normalized="$(_dhpk_codex_timeout_normalize "$_outer")"; then
+        printf '%s' 'outer_budget=unknown warning=invalid_outer_budget'
+        return 0
+    fi
+    _comparison="$(_dhpk_codex_timeout_compare "$_normalized" "$_inner")"
+    if [ "$_comparison" -le 0 ]; then
+        printf 'outer_budget=%s warning=outer_budget_not_longer_than_inner' "$_normalized"
+    else
+        printf 'outer_budget=%s aligned' "$_normalized"
+    fi
+}
+
+# dhpk_codex_timeout_export <codex-fast-worker|codex-deep-reasoner|codex-bridge>
+# Resolve and export the effective timeout for a Codex role. Scope precedence
+# is intentionally project-first (role > shared), then global (role > shared),
+# then the shipped 360-second default. CODEX_WRAP_TIMEOUT_SECS is a validated
+# highest-precedence compatibility/test override; a present-but-empty value is
+# malformed and therefore fails closed.
+dhpk_codex_timeout_export() {
+    local _role="${1:-${DHPK_CODEX_ROLE:-}}" _role_key="" _upper=""
+    local _project_role="" _project_shared="" _global_role="" _global_shared=""
+    local _value="" _source="default" _normalized="" _outer_status=""
+    case "$_role" in
+        codex-fast-worker)   _role_key='codex_fast_worker_timeout_secs' ;;
+        codex-deep-reasoner) _role_key='codex_deep_reasoner_timeout_secs' ;;
+        codex-bridge)        _role_key='codex_bridge_timeout_secs' ;;
+        *)
+            printf 'runtime-config: unknown Codex role %s; refusing to guess a timeout budget\n' "${_role:-<empty>}" >&2
+            return 78
+            ;;
+    esac
+    _upper="$(printf '%s' "$_role_key" | tr '[:lower:]' '[:upper:]')"
+    _project_role="DHPK_PROJECT_OPTION_${_upper}"
+    _project_shared='DHPK_PROJECT_OPTION_CODEX_TIMEOUT_SECS'
+    _global_role="CLAUDE_PLUGIN_OPTION_${_upper}"
+    _global_shared='CLAUDE_PLUGIN_OPTION_CODEX_TIMEOUT_SECS'
+
+    if _dhpk_var_present CODEX_WRAP_TIMEOUT_SECS; then
+        _value="$(_dhpk_var_value CODEX_WRAP_TIMEOUT_SECS)"
+        _source='env:CODEX_WRAP_TIMEOUT_SECS'
+    elif _dhpk_var_present "$_project_role"; then
+        _value="$(_dhpk_var_value "$_project_role")"
+        _source="project:${_role_key}"
+    elif _dhpk_var_present "$_project_shared"; then
+        _value="$(_dhpk_var_value "$_project_shared")"
+        _source='project:codex_timeout_secs'
+    elif _dhpk_var_present "$_global_role"; then
+        _value="$(_dhpk_var_value "$_global_role")"
+        _source="global:${_role_key}"
+    elif _dhpk_var_present "$_global_shared"; then
+        _value="$(_dhpk_var_value "$_global_shared")"
+        _source='global:codex_timeout_secs'
+    else
+        _value='360'
+    fi
+
+    if ! _normalized="$(_dhpk_codex_timeout_normalize "$_value")"; then
+        printf 'runtime-config: invalid Codex timeout value %s from %s; expected an integer number of seconds >= 0 (0 disables the backstop)\n' \
+            "${_value:-<empty>}" "$_source" >&2
+        return 78
+    fi
+    _outer_status="$(_dhpk_codex_timeout_outer_status "$_normalized")"
+    export DHPK_CODEX_ROLE="$_role"
+    export DHPK_CODEX_TIMEOUT_SECS="$_normalized"
+    export DHPK_CODEX_TIMEOUT_SOURCE="$_source"
+    export DHPK_CODEX_TIMEOUT_DISABLED=false
+    if [ "$_normalized" = '0' ]; then
+        export DHPK_CODEX_TIMEOUT_DISABLED=true
+    fi
+    export DHPK_CODEX_OUTER_BUDGET_STATUS="$_outer_status"
+    export DHPK_CODEX_TIMEOUT_RESOLVED=true
+    return 0
+}
+
+# dhpk_codex_timeout_export_resolved <role> <validated-budget> [source]
+# Consume a tuple resolved by a dispatcher/agent. This keeps the caller's
+# provenance intact while applying the same validation and outer-budget status
+# calculation as a fresh config lookup.
+dhpk_codex_timeout_export_resolved() {
+    local _role="${1:-}" _value="${2:-}" _source="${3:-caller}" _role_key="" _normalized="" _outer_status=""
+    case "$_role" in
+        codex-fast-worker)   _role_key='codex_fast_worker_timeout_secs' ;;
+        codex-deep-reasoner) _role_key='codex_deep_reasoner_timeout_secs' ;;
+        codex-bridge)        _role_key='codex_bridge_timeout_secs' ;;
+        *)
+            printf 'runtime-config: unknown Codex role %s; refusing a propagated timeout budget\n' "${_role:-<empty>}" >&2
+            return 78
+            ;;
+    esac
+    if ! _normalized="$(_dhpk_codex_timeout_normalize "$_value")"; then
+        printf 'runtime-config: invalid propagated Codex timeout value %s from %s; expected an integer number of seconds >= 0 (0 disables the backstop)\n' \
+            "${_value:-<empty>}" "$_source" >&2
+        return 78
+    fi
+    _outer_status="$(_dhpk_codex_timeout_outer_status "$_normalized")"
+    export DHPK_CODEX_ROLE="$_role"
+    export DHPK_CODEX_TIMEOUT_SECS="$_normalized"
+    export DHPK_CODEX_TIMEOUT_SOURCE="$_source"
+    export DHPK_CODEX_TIMEOUT_DISABLED=false
+    if [ "$_normalized" = '0' ]; then
+        export DHPK_CODEX_TIMEOUT_DISABLED=true
+    fi
+    export DHPK_CODEX_OUTER_BUDGET_STATUS="$_outer_status"
+    export DHPK_CODEX_TIMEOUT_RESOLVED=true
+    return 0
+}
+
 # Convenience accessors for the most shared runtime options.
 dhpk_config_modules() {
     dhpk_config_get modules '' DHPK_ACTIVE_MODULES

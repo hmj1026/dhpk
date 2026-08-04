@@ -211,6 +211,29 @@ if [ "$DEEP_MODEL" != "opus" ] || [ "$WORKER_MODEL" != "sonnet" ] || [ "$DEEP_EF
     unset _orch_line
 fi
 
+# ---- Codex timeout budgets -------------------------------------------------
+# Resolve all three shared-wrapper roles through the normalized seam. Defaults
+# stay silent; any explicit budget, disabled state, provenance, or outer-budget
+# warning is surfaced without printing arbitrary config payloads. A malformed
+# value warns and leaves the dispatch fail-closed; SessionStart itself remains
+# available so the operator can correct settings in the same session.
+_codex_timeout_line=""
+for _codex_role in codex-fast-worker codex-deep-reasoner codex-bridge; do
+    if dhpk_codex_timeout_export "$_codex_role"; then
+        _codex_timeout_entry="${_codex_role}=${DHPK_CODEX_TIMEOUT_SECS} source=${DHPK_CODEX_TIMEOUT_SOURCE}"
+        [ "$DHPK_CODEX_TIMEOUT_DISABLED" = 'true' ] && _codex_timeout_entry="${_codex_timeout_entry} disabled"
+        _codex_timeout_entry="${_codex_timeout_entry} ${DHPK_CODEX_OUTER_BUDGET_STATUS}"
+        if [ "$DHPK_CODEX_TIMEOUT_SECS" != '360' ] || [ "$DHPK_CODEX_TIMEOUT_DISABLED" = 'true' ] || \
+           [ "$DHPK_CODEX_OUTER_BUDGET_STATUS" != 'outer_budget=unknown' ]; then
+            _codex_timeout_line="${_codex_timeout_line}${_codex_timeout_line:+; }${_codex_timeout_entry}"
+        fi
+    else
+        echo "[session-start] WARN: invalid Codex timeout for $_codex_role; that dispatch will fail closed" >&2
+    fi
+done
+[ -n "$_codex_timeout_line" ] && echo "[session-start] codex_timeout: $_codex_timeout_line"
+unset _codex_timeout_line _codex_timeout_entry _codex_role
+
 QUALITY_GATE="$(dhpk_config_get subagent_quality_gate off)"
 case "$(printf '%s' "$QUALITY_GATE" | tr '[:upper:]' '[:lower:]')" in
     on|true|1) echo "[session-start] subagent_quality_gate=$QUALITY_GATE (reviewer-sentinel SubagentStop thin-report gate enabled; one corrected retry)" ;;
