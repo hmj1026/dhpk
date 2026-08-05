@@ -39,6 +39,16 @@ case "$INSTALL" in hooks|rules|scripts|all) ;; *) echo "--install is required" >
 [ -d "$SOURCE" ] || { echo "Source directory does not exist: $SOURCE" >&2; exit 66; }
 
 HAS_CONFLICT=0
+HAS_UNSAFE_SYMLINK=0
+
+has_symlink_component() {
+    local candidate="$1"
+    while [ "$candidate" != "/" ] && [ "$candidate" != "." ]; do
+        [ -L "$candidate" ] && return 0
+        candidate="$(dirname "$candidate")"
+    done
+    return 1
+}
 
 walk_tree() {
     local mode="$1" source_dir="$2" target_dir="$3" source_file rel target_file prefix=""
@@ -48,7 +58,10 @@ walk_tree() {
         target_file="$target_dir/$rel"
         case "$mode" in
             check)
-                if [ -f "$target_file" ] && ! cmp -s "$source_file" "$target_file"; then
+                if has_symlink_component "$target_file"; then
+                    echo "UNSAFE SYMLINK $target_file (destination path escapes the selected target)" >&2
+                    HAS_UNSAFE_SYMLINK=1
+                elif [ -f "$target_file" ] && ! cmp -s "$source_file" "$target_file"; then
                     echo "CONFLICT $target_file (source: $source_file)" >&2
                     HAS_CONFLICT=1
                 fi
@@ -107,6 +120,10 @@ walk_groups_for_all() {
 }
 
 walk_groups check
+if [ "$HAS_UNSAFE_SYMLINK" -eq 1 ]; then
+    echo "Installation aborted: destination path contains a symlink." >&2
+    exit 4
+fi
 if [ "$HAS_CONFLICT" -eq 1 ] && [ "$FORCE" -ne 1 ]; then
     echo "Installation aborted: resolve conflicts or re-run with --force." >&2
     exit 3

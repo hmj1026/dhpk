@@ -89,6 +89,20 @@ test('a conflicting target is reported without overwrite unless --force is expli
   } finally { fs.rmSync(ctx.root, { recursive: true, force: true }); }
 });
 
+test('a symlinked destination is rejected without writing outside the selected target', () => {
+  const ctx = fixture();
+  try {
+    const outside = path.join(ctx.root, 'outside-policy.md');
+    fs.mkdirSync(path.join(ctx.target, 'rules'), { recursive: true });
+    fs.writeFileSync(outside, '# outside policy\n');
+    fs.symlinkSync(outside, path.join(ctx.target, 'rules', 'execution-policy.md'));
+    const res = install(ctx, ['--install', 'rules', '--force']);
+    assert.strictEqual(res.status, 4, res.stderr);
+    assert.match(res.stderr, /UNSAFE SYMLINK/);
+    assert.strictEqual(fs.readFileSync(outside, 'utf8'), '# outside policy\n');
+  } finally { fs.rmSync(ctx.root, { recursive: true, force: true }); }
+});
+
 test('--install all copies hooks, rules, and scripts to their deterministic targets', () => {
   const ctx = fixture();
   try {

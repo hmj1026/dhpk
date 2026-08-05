@@ -34,7 +34,9 @@ installer before any configuration questions. This replaces the retired
    The source and target are printed for every planned file. `--dry-run` writes
    nothing. Identical files are skipped. A differing target is a conflict that
    leaves the whole selected group untouched unless the user explicitly passes
-   `--force`; copied executable source files remain executable.
+   `--force`; copied executable source files remain executable. The installer
+   rejects any destination path containing a symlink, even with `--force`, so a
+   copy cannot escape `<project>/.claude/dhpk`.
 3. Report the installer's copy/skip/conflict result and stop. Do not combine an
    asset installation with interactive plugin reconfiguration in the same run.
 

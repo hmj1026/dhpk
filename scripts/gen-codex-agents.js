@@ -218,8 +218,8 @@ function adaptCodexBody(agentName, body) {
     .replaceAll(/clear-sentinel\.sh/g, 'a host-specific lifecycle helper')
     .replaceAll(/post-edit-remind\.sh/g, 'the parent review flow')
     .replaceAll(/, sentinel = [^\n.]+\./g, '.')
-    .replace(/review marker clearance is owned by `the parent review flow`:.*?This reviewer's job ends at writing the artifact\./gs,
-      'The parent flow owns lifecycle; write the fresh artifact under `.codex/artifacts/` and return the final verdict in the same run.');
+    .replace(/the parent flow owns lifecycle: only a fresh canonical artifact with leading delimited frontmatter and required reviewer fields plus `APPROVE` or `PASS` clears the matching review request; warning, fail, or malformed evidence leaves it armed\. This reviewer\'s job ends at writing the artifact\./g,
+      'The parent flow does not auto-clear Codex state. Write the final review under `.codex/artifacts/reviews/` with the role\'s required frontmatter and final verdict; a human or host integration manually records any review-lifecycle completion after reading that evidence.');
   if (agentName === 'code-reviewer') {
     adapted = adapted
       .replaceAll('`silent-failure-hunter`', '`deep-reasoner` (Codex fallback; otherwise perform the audit directly)')

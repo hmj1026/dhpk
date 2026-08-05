@@ -6,12 +6,17 @@ const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
 
-test('every consumer CLAUDE.md writer resolves symlinks before Write', () => {
-  for (const file of ['commands/install-rules.md', 'skills/dhpk-project-setup/SKILL.md', 'skills/dhpk-harness-fill/SKILL.md']) {
+test('canonical writers and installer document symlink-safe destinations', () => {
+  for (const file of ['commands/setup.md', 'skills/dhpk-project-setup/SKILL.md', 'skills/dhpk-harness-fill/SKILL.md']) {
     const text = fs.readFileSync(path.join(ROOT, file), 'utf8');
-    assert.ok(text.includes('realpath'), `${file} missing realpath guidance`);
-    assert.ok(text.includes('Write tool refuses symlinks'), `${file} missing Write-tool rationale`);
+    if (file === 'commands/setup.md') {
+      assert.ok(text.includes('rejects any destination path containing a symlink'), `${file} missing installer symlink rejection`);
+    } else {
+      assert.ok(text.includes('realpath'), `${file} missing realpath guidance`);
+      assert.ok(text.includes('Write tool refuses symlinks'), `${file} missing Write-tool rationale`);
+    }
   }
+  assert.ok(!fs.readFileSync(path.join(ROOT, 'commands', 'install-rules.md'), 'utf8').includes('realpath'), 'forwarding aliases must not duplicate canonical write guidance');
 });
 
 run('symlink-write-guidance');

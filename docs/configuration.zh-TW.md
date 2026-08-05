@@ -197,7 +197,7 @@ claude mcp list
 
 | Key | 型別 | 預設值 | 用途 |
 |-----|------|--------|------|
-| `php_bin` | string | `"php"` | `php-5.6` 模組 async `php -l` post-edit 語法檢查使用的 PHP 執行檔／wrapper，例如 `docker exec -i my_php php`。第一個 word 不在 PATH 時自動跳過。 |
+| `php_bin` | string | `"php"` | 由明確註冊的 `php-5.6` 語法檢查 workflow 使用的 PHP 執行檔／wrapper，例如 `docker exec -i my_php php`。第一個 word 不在 PATH 時自動跳過。 |
 | `php_cs_fixer_bin` | string | `"vendor/bin/php-cs-fixer"` | 由明確註冊的 `php-7.4` formatter workflow 與其適用 pre-commit gate 使用的執行檔。 |
 | `phpstan_bin` | string | `"vendor/bin/phpstan"` | `php-7.4` 模組 pre-commit gate 使用的 PHPStan 執行檔；僅在 `phpstan.neon[.dist]` 存在時呼叫。 |
 | `psalm_bin` | string | `"vendor/bin/psalm"` | `php-7.4` 模組 pre-commit gate 使用的 Psalm 執行檔；僅在 `psalm.xml[.dist]` 存在時呼叫。 |

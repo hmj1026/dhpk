@@ -77,8 +77,8 @@ an explicitly registered Docker workflow when they need container checks.
 "Bash(playwright:*)"
 ```
 
-If the JS module is enabled, the post-edit and pre-commit hooks call
-`npx eslint` and `npm run <lint|typecheck>` — both are covered by the
+An explicitly registered JS lint workflow or applicable pre-commit gate may
+call `npx eslint` and `npm run <lint|typecheck>`; both are covered by the
 `npm:*` and `npx:*` entries above.
 
 ## Python projects

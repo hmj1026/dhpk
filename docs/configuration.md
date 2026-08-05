@@ -204,7 +204,7 @@ This is about the standalone Codex CLI dual-track sync (`codex/agents/` → `.co
 
 | Key | Type | Default | Purpose |
 |-----|------|---------|---------|
-| `php_bin` | string | `"php"` | PHP binary/wrapper for the `php-5.6` module's async `php -l` post-edit syntax check, e.g. `docker exec -i my_php php`. Self-skips when the first word is not on PATH. |
+| `php_bin` | string | `"php"` | PHP binary/wrapper for an explicitly registered `php-5.6` syntax-check workflow, e.g. `docker exec -i my_php php`. Self-skips when the first word is not on PATH. |
 | `php_cs_fixer_bin` | string | `"vendor/bin/php-cs-fixer"` | Binary for an explicitly registered `php-7.4` formatter workflow and its applicable pre-commit gate. |
 | `phpstan_bin` | string | `"vendor/bin/phpstan"` | PHPStan binary for the `php-7.4` module's pre-commit gate; only invoked when `phpstan.neon[.dist]` is present. |
 | `psalm_bin` | string | `"vendor/bin/psalm"` | Psalm binary for the `php-7.4` module's pre-commit gate; only invoked when `psalm.xml[.dist]` is present. |

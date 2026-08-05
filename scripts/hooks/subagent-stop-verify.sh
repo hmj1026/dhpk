@@ -2,20 +2,15 @@
 # subagent-stop-verify.sh — SubagentStop hook (non-blocking)
 #
 # Plugs reviewer dispatch gaps: when a reviewer agent stops SUCCESSFULLY AND a
-# fresh matching review doc exists, auto-clear its sentinel on the
-# reviewer's behalf — this is the SANCTIONED clearance path (reviewer agent
-# definitions no longer instruct a self-run closing clear-sentinel.sh). The
-# auto-clear is GATED on a fresh review doc existing (A5 /
-# reviewer-liveness-gate): a reviewer that stops exit 0 but produced NO fresh
-# review doc this cycle leaves the sentinel ARMED (gate stays unmet so the
-# orchestrator re-dispatches) and is logged as a failure — a no-output reviewer
-# clearing its own gate was the 2026-07-13 defect this closes. The clear gate
-# keys on review-doc existence + freshness ONLY, never on verdict-parseability, so
-# a legitimate fresh review whose verdict field can't be parsed still clears
-# rather than looping the orchestrator forever. When a fresh review doc with a
-# parseable verdict exists the clear is silent (the designed handoff); a fresh
-# doc with an unparseable verdict still clears but is noted. When exit status is
-# non-zero, leave the sentinel armed and log to
+# fresh matching canonical review evidence has leading delimited frontmatter,
+# all required reviewer fields, and a parseable passing APPROVE or PASS verdict,
+# auto-clear its sentinel on the reviewer's behalf — this is the SANCTIONED
+# clearance path (reviewer agent definitions no longer instruct a self-run
+# closing clear-sentinel.sh). A reviewer that stops exit 0 but produced no
+# qualifying fresh review evidence this cycle leaves the sentinel ARMED (gate
+# stays unmet so the orchestrator re-dispatches) and is logged as a failure — a
+# no-output reviewer clearing its own gate was the 2026-07-13 defect this
+# closes. When exit status is non-zero, leave the sentinel armed and log to
 # .claude/artifacts/agent-failures.log for next-session SessionStart / manual
 # review.
 #
@@ -631,7 +626,8 @@ Logged to: .claude/artifacts/agent-failures.log"
     fi
 elif [ -f "$SENTINEL_FILE" ]; then
     # Determine freshness BEFORE any rm below. Clearance requires a fresh,
-    # canonical artifact with a parseable passing verdict; an unparseable file
+    # canonical review evidence with a parseable passing verdict; unparseable
+    # review evidence
     # remains review debt rather than evidence.
     FRESH_VERDICT="$(has_fresh_parseable_verdict "$SUBAGENT_BARE" "$SENTINEL_FILE")"
     if [ "$FRESH_VERDICT" = "1" ]; then

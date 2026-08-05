@@ -42,7 +42,7 @@ test('default lifecycle wiring keeps only deterministic guards, routing, activat
   for (const token of ['blocking safety gate', 'sentinel/liveness gate', 'module activation only', 'opt-in advisory']) {
     assert.ok(policy.includes(token), `missing lifecycle class: ${token}`);
   }
-  assert.ok(policy.includes('parseable passing verdict') && policy.includes('sentinel slots'));
+  assert.ok(policy.includes('parseable passing verdict') && policy.includes('7-slot default sentinel set'));
   assert.ok(!hooks.includes('subagent-stop-quality.sh'));
   assert.ok(!hooks.includes('stop-review-reminder.sh'));
 });

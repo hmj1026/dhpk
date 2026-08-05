@@ -124,14 +124,15 @@ If `.claude/artifacts/` (or the specific category subdirectory) does not exist, 
 Reviewer agent definitions do NOT self-run a closing `clear-sentinel.sh` step.
 Clearance is owned by the runtime hook `scripts/hooks/subagent-stop-verify.sh`:
 on a successful reviewer stop with the sentinel still armed, it auto-clears
-that reviewer's own slot **only when a fresh review artifact exists**
-(reviewer-liveness-gate) — silently when that artifact's `verdict:` parses.
+that reviewer's own slot only when fresh canonical review evidence has a
+canonical `<agent>-YYYYMMDD-HHMMSS-<slug>.md` filename, leading delimited
+frontmatter with all required reviewer fields, and a parseable passing
+`verdict: APPROVE` or `verdict: PASS` (reviewer-liveness-gate).
 "Fresh" means produced this cycle: the artifact's mtime must postdate the
 sentinel that armed the review, so a doc left over from an earlier review cycle
-does not count (reviewers run repeatedly per session). The clear gate keys on
-artifact existence + freshness only, never on verdict-parseability, so a
-legitimate fresh review whose verdict field can't be parsed still clears (and is
-noted) rather than looping the orchestrator forever. This is the sanctioned path
+does not count (reviewers run repeatedly per session). Missing, noncanonical,
+malformed, warning, failing, or unparseable evidence leaves the sentinel armed;
+it is not clearance. This is the sanctioned path
 (the auto-mode permission classifier blocks a reviewer running
 `clear-sentinel.sh` on its own sentinel as "Logging/Audit Tampering"). When the
 reviewer stops cleanly but **no fresh review artifact was produced this cycle,
