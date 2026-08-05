@@ -109,4 +109,39 @@ test('a well-formed command file passes', () => {
   }
 });
 
+test('canonical commands expose the consolidated modes and legacy aliases only forward', () => {
+  const read = (name) => fs.readFileSync(path.join(ROOT, 'commands', name), 'utf8');
+  const codexReview = read('codex-review.md');
+  assert.match(codexReview, /--scope diff\|branch\|doc\|security\|tests/);
+  assert.match(codexReview, /--depth fast\|full/);
+  assert.match(read('precommit.md'), /--fast/);
+  assert.match(read('do.md'), /--route-only/);
+  assert.match(read('setup.md'), /--install hooks\|rules\|scripts\|all/);
+  assert.match(codexReview, /--coverage/);
+  assert.match(codexReview, /--spec/);
+
+  for (const name of [
+    'codex-review-fast.md', 'codex-review-branch.md', 'codex-review-doc.md',
+    'codex-security.md', 'codex-test-review.md', 'precommit-fast.md',
+    'create-dev.md', 'install-hooks.md', 'install-rules.md', 'install-scripts.md',
+    'check-coverage.md', 'review-spec.md', 'codex-test-gen.md',
+  ]) {
+    const body = read(name);
+    assert.match(body, /Deprecated.*forward/i, `${name} must state its forwarding deprecation`);
+    assert.ok(body.split('\n').length <= 28, `${name} must remain a thin forwarding alias`);
+  }
+  assert.ok(!fs.existsSync(path.join(ROOT, 'commands', 'zh-tw.md')), 'zh-tw must be retired');
+});
+
+test('review and prompt skills state the Task 4 evidence and scope boundaries', () => {
+  const prompt = fs.readFileSync(path.join(ROOT, 'skills', 'dhpk-prompt-optimize', 'SKILL.md'), 'utf8');
+  assert.match(prompt, /verified live sources/i);
+  assert.match(prompt, /lookup date/i);
+  assert.ok(!prompt.includes('per-model calibration table'));
+
+  const review = fs.readFileSync(path.join(ROOT, 'skills', 'dhpk-change-review', 'SKILL.md'), 'utf8');
+  assert.match(review, /doc\|security\|tests/);
+  assert.match(review, /dedicated reviewer.*preferred/i);
+});
+
 run('validate-commands');

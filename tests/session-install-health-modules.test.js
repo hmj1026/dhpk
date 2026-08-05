@@ -183,9 +183,9 @@ test("dhpk's own module set does not flag its js-family modules", () => {
   });
 });
 
-// ---- End-to-end: the finding survives the SessionStart path ----
+// ---- SessionStart deliberately does not run advisory inference ----
 
-test('session-start reports the contradiction for an inherited set with no project override', () => {
+test('session-start does not report the contradiction for an inherited set', () => {
   withRepo((repo) => {
     write(repo, 'package.json', JSON.stringify({ dependencies: { react: '^19' } }));
     assert.ok(
@@ -206,7 +206,7 @@ test('session-start reports the contradiction for an inherited set with no proje
       timeout: 10000,
     });
     assert.strictEqual(res.status, 0, res.stderr);
-    assert.ok(res.stderr.includes('WARN module/manifest mismatch'), res.stderr);
+    assert.ok(!res.stderr.includes('WARN module/manifest mismatch'), res.stderr);
   });
 });
 

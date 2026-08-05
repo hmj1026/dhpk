@@ -47,11 +47,11 @@ claude plugin install dhpk@dhpk --config modules=php-8.x,laravel-11 --config hoo
 | 元件 | 數量 | 說明 |
 |------|----:|------|
 | Agents | Role-based agents | Sentinel 驅動的 reviewer，以及架構、測試、安全、文件、平台與 runtime 等情境型角色。 |
-| Commands | 已註冊的 command surface | `dhpk:do`（Smart Router）、`dhpk:create-dev`、`dhpk:codex-*`、`dhpk:review-pending`、`dhpk:smart-commit`、`dhpk:ts-check-status`（JS 模組）、`dhpk:opsx-apply-resume`（需 OpenSpec）、`dhpk:dhpk-matrix-cell-onboard`（library-author）、`dhpk:dhpk-de-ai-flavor`、`dhpk:dhpk-deploy-list`、`dhpk:dhpk-harness-fill`、`dhpk:ui-ux-verify` 等 |
+| Commands | 已註冊的 command surface | `dhpk:do`（Smart Router）、`dhpk:codex-review`、`dhpk:precommit`、`dhpk:setup`、`dhpk:review-pending`、`dhpk:smart-commit`、`dhpk:ts-check-status`（JS 模組）、`dhpk:opsx-apply-resume`（需 OpenSpec）、`dhpk:dhpk-matrix-cell-onboard`（library-author）、`dhpk:dhpk-de-ai-flavor`、`dhpk:dhpk-deploy-list`、`dhpk:dhpk-harness-fill`、`dhpk:ui-ux-verify` 等 |
 | 核心 skills | 核心與輔助 skills | codex-*、gitnexus、tool-routing、dhpk-execution-policy、**adaptive-dev-workflow**（Feature/Bug/Maintenance 分類器）、**deploy-list**（跨專案部署清單產生器）、**execution-checklist**（任務收尾自檢）、`opsx-apply-resume` 配套（需 OpenSpec） |
 | 技術棧模組 | 可選技術棧模組 | PHP、Yii、PHPUnit、Laravel、JavaScript、Vue、Laravel Mix、Next.js、React、Python、`library-author` 與 iOS/Swift 模組 |
-| Hooks | 10 個事件 | PreToolUse（Edit、Bash + dispatcher + sentinel-gate + branch-safety、Task\|Agent warmstart）、PostToolUse（Edit + dispatcher + async crlf-fix + async manifest-guard）、SessionStart（+ version-pin／cross-CLI-drift／broken-symlink advisory）、SessionEnd（reap-stale-sentinels）、PreCompact（checkpoint 存檔）、PostCompact（sentinel 還原）、SubagentStop（reviewer 驗證 + 失敗記錄）、StopFailure（失敗記錄）、UserPromptSubmit（skill 提示）、Stop（review-reminder + advisory-dispatch：completion-evidence／graduation-scan／module-dispatch） |
-| Hook dispatchers | 2 | `post-edit-dispatch.sh`、`pre-bash-dispatch.sh` — 分派到啟用模組的 hook |
+| Hooks | 4 個事件 | PreToolUse（Edit guard 與合併 Bash safety/Git gate）、PostToolUse（sentinel routing）、SessionStart（module activation）、SubagentStop（strict reviewer reconciliation） |
+| Hook dispatchers | 2 | `post-edit-dispatch.sh` 負責 sentinel routing；`pre-bash-dispatch.sh` 合併 deterministic shell 與 Git/review-debt gate |
 | Harness 腳本 | 5 | precommit-runner、verify-runner、harness-audit、codemap generator、dep-audit |
 | Codex 雙軌 | 策展過的 Codex projection | 由 `install-codex-skills.sh` 同步進專案的 `.codex/` |
 

@@ -208,11 +208,11 @@ shape is canonicalized in `docs/contracts/reviewer-contract.md`.
 
 ### Hook-enforced (sentinels)
 
-Trigger map source-of-truth: dhpk's `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/post-edit-dispatch.sh` (a 7-slot default: code, db, security, frontend, doc, polyfill, migration) plus any per-module post-edit hooks contributed by enabled modules. Each sentinel is cleared by the runtime hook `subagent-stop-verify.sh` when its reviewer stops successfully (the sanctioned native path); a reviewer resumed through `SendMessage` records a resumed review obligation before reuse and uses the orchestrator-owned artifact-backed fallback when no matching `SubagentStop` occurs. The orchestrator uses `clear-sentinel.sh <name> <label>` only through a known-slot reconcile, triage-drop, or stale-sentinel back-stop; a reviewer never self-clears. Lifecycle clearance is separate from verdict approval.
+Trigger map source-of-truth: dhpk's `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/post-edit-dispatch.sh` routes edits to the seven default sentinel slots (code, db, security, frontend, doc, polyfill, migration). Each sentinel is cleared by `subagent-stop-verify.sh` only when its matching reviewer stops successfully with a fresh canonical artifact carrying a parseable passing verdict. A reviewer never self-clears. The orchestrator uses `clear-sentinel.sh <name> <label>` only through a known-slot reconcile, triage-drop, or stale-sentinel back-stop.
 
 A subagent must never paste the literal `${CLAUDE_PLUGIN_ROOT}/...` into a Bash command — it is a markdown-interpolation token, unset in a subagent's shell. Full caveat (SSOT): `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/review-gate-mechanics.md`.
 
-**Auto-clear + fallback**: a successful reviewer with a fresh matching artifact auto-clears only its own slot; absent fresh output stays armed. A resumed fallback additionally requires a matching `.resumed-review-obligations` record, conclusive final response, resume-relative freshness, and proven session/agent ownership. Exact fallback and fail-loud rules: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/review-gate-mechanics.md`.
+**Auto-clear + fallback**: a successful reviewer with a fresh matching canonical artifact and a parseable passing verdict (`APPROVE` or `PASS`) auto-clears only its own slot; absent, stale, unparseable, warning, or failing output stays armed. A resumed fallback additionally requires a matching `.resumed-review-obligations` record, conclusive final response, resume-relative freshness, and proven session/agent ownership. Exact fallback and fail-loud rules: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/review-gate-mechanics.md`.
 
 **Resumed-reviewer fallback**: a reviewer resumed through `SendMessage` may never fire a native `SubagentStop`; clearance there is a session-scoped, artifact-backed reconcile — never approval. Full contract: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/review-gate-mechanics.md`.
 
@@ -240,23 +240,19 @@ For each contiguous implementation wave, dispatch each applicable reviewer once 
 ### Hook lifecycle classes
 
 Hooks are classified as a blocking safety gate, a sentinel/liveness gate,
-lifecycle bookkeeping, or opt-in advisory. Blocking and sentinel/liveness gates remain
-enabled; expensive completion, graduation, and quality scans are advisory and
-off by default. `subagent_quality_gate` remains globally off and is enabled only
-for reviewer sentinels (reviewer-sentinel subagents) when configured, under the one-corrected-retry
-contract above; the outcome is replacement or a pending gate with a recorded reason.
+module activation only, or opt-in advisory. The default lifecycle registers
+only deterministic safety, review-debt routing, reviewer reconciliation, and
+module activation. Completion inference, prompt routing, lifecycle snapshots,
+and heuristic quality work remain available only through explicit opt-in setup.
 
 | Hook surface | Lifecycle class | Default behavior |
 |---|---|---|
-| `pre-edit-guard.sh`, `pre-bash-dispatch.sh`, `pretool-git-gate.sh` | blocking safety gate | enabled; reject unsafe edit or git operations |
-| `Task\|Agent` liveness and `SubagentStop` sentinel verification | sentinel/liveness gate | enabled; track active reviewers and preserve unmet sentinels |
-| `Stop` review reminder | sentinel/liveness gate | enabled; one reminder per unchanged sentinel/session within the bounded backoff window |
-| `PostToolUse` advisory, `StopFailure`, and module finding collection | opt-in advisory | non-blocking; surfaced only when configured or when findings exist |
-| `Stop` completion evidence, graduation scan, and quality scan | opt-in advisory | disabled by default; no duplicate completion message on the default path |
-| `SessionStart`, `SessionEnd`, `PreCompact`, and `PostCompact` | lifecycle bookkeeping | enabled; maintain session/config/archive state without acting as a review gate |
-| `SessionStart` install-health gate (`_lib/install-health.sh`) | advisory gate | non-blocking; local state only, advisory-only by default, silent unless a version gap or a contradicted module set is found, and suppressed on unchanged state |
-
-**Install-health gate**: inheriting the global `modules` list is NOT a finding — only a contradiction against project evidence is. Triggers, non-triggers, suppression, and how to disable it: `${CLAUDE_PLUGIN_ROOT}/docs/hook-extension.md` §Session install-health gate.
+| `PreToolUse(Edit\|Write\|MultiEdit)` → `pre-edit-guard.sh` | blocking safety gate | enabled; reject protected-path and secret-unsafe edits |
+| `PreToolUse(Bash)` → `pre-bash-dispatch.sh` | blocking safety gate | enabled; preserve shell safety plus Git/review-debt checks |
+| `PostToolUse(Edit\|Write\|MultiEdit)` → `post-edit-dispatch.sh` | sentinel/liveness gate | enabled; create and route review-debt sentinels only |
+| `SubagentStop` → `subagent-stop-verify.sh` | sentinel/liveness gate | enabled; reconcile only fresh canonical artifacts with a parseable passing verdict |
+| `SessionStart` → `session-start.sh` | module activation only | enabled; validate and activate configured modules |
+| Prompt hints, stop reminders, snapshots, failure logging, completion scans, and heuristic quality checks | opt-in advisory | not registered in the default lifecycle |
 
 **Reviewer liveness**: a no-op reviewer is a failed gate. Corrected-retry and replacement rules: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/review-gate-mechanics.md`.
 

@@ -7,6 +7,15 @@ metadata:
 
 # Test-Driven Development
 
+## Test-generation mode
+
+When invoked with `test-generation`, inspect the named production seam and its
+existing test conventions, then generate the smallest behavior-focused test
+scaffold. The caller must review and run the generated test before claiming a
+GREEN result. This is the canonical replacement for the retired
+`/codex-test-gen` command; use an explicitly selected Codex backend only when
+the caller requests one.
+
 Use this skill to keep tests attached to observable behavior rather than
 implementation details. Read [tests.md](tests.md) when writing or reviewing
 assertions and [mocking.md](mocking.md) before introducing a test double.

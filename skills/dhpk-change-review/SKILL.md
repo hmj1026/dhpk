@@ -33,6 +33,13 @@ prevents a moving branch reference from hiding changes.
 > yet resolve `${CLAUDE_PLUGIN_ROOT}` in command frontmatter. Invoke Bash only
 > for project review scripts and the commands named by the selected workflow.
 
+## Scope boundary
+
+The consolidated CLI supports `--scope diff|branch|doc|security|tests` for a
+single second-opinion entrypoint. For a standalone document, security, or test
+audit, the dedicated reviewer/skill is preferred; use these modes when that
+scope is part of the consolidated Codex review flow.
+
 ## When NOT to Use
 
 - Document review — use `dhpk-doc-review`.

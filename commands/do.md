@@ -1,6 +1,6 @@
 ---
 description: 'Smart Router — map a natural-language task to the right dhpk workflow, then run it. Deterministic route-table fast path, LLM fallback for misses.'
-argument-hint: '[--codex] [--plan[=<model>[:<effort>]]] [--worker=<claude|codex|agy|auto>] [--reasoner=<claude|codex>[:<model>[:<effort>]]] [--openspec|--opsx] <natural language task>'
+argument-hint: '[--route-only] [--codex] [--plan[=<model>[:<effort>]]] [--worker=<claude|codex|agy|auto>] [--reasoner=<claude|codex>[:<model>[:<effort>]]] [--openspec|--opsx] <natural language task>'
 allowed-tools: 'Bash(bash:*), Bash(git:*), Bash(ls:*), Skill, Read, Grep, Glob'
 disable-model-invocation: true
 metadata:
@@ -9,7 +9,10 @@ metadata:
 
 # /dhpk:do — Smart Router
 
-One entry point for dhpk's 45 commands. Route a natural-language task to the
+`--route-only` performs the same classification and reports the selected
+workflow without invoking it. It replaces the legacy `/dhpk:create-dev` entry.
+
+One entry point for dhpk's 44 commands. Route a natural-language task to the
 right workflow: the route table is the fast path, and a miss uses cheap repo
 signals before classification.
 

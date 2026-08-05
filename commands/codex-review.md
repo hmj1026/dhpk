@@ -1,91 +1,34 @@
 ---
-description: 'Full second-opinion using Codex MCP (with lint:fix + build). Supports review loop with context preservation.'
-argument-hint: '"[--no-tests] [--focus \"<text>\"] [--base <gitref>] [--continue <threadId>]"'
-allowed-tools: 'mcp__codex__codex, mcp__codex__codex-reply, Bash(git:*), Bash(yarn:*), Bash(npm:*), Read, Grep, Glob'
+description: 'Consolidated Codex second opinion for diffs, branches, documents, security, and tests.'
+argument-hint: '[--scope diff|branch|doc|security|tests] [--depth fast|full] [--coverage] [--spec] [--base <gitref>] [--continue <threadId>]'
+allowed-tools: 'mcp__codex__codex, mcp__codex__codex-reply, Bash(git:*), Bash(node:*), Bash(npm:*), Bash(yarn:*), Read, Grep, Glob'
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---
 
-⚠️ **Must read and follow the skill below before executing this command:**
+# /codex-review
 
-@skills/dhpk-change-review/SKILL.md
-@skills/dhpk-change-review/references/codex-prompt-full.md
+Use one Codex-backed review entrypoint. `--scope` selects the review contract:
 
-@skills/dhpk-change-review/references/command-context.md
+| Scope | Review target | Preferred depth |
+|---|---|---|
+| `diff` | current uncommitted diff | `fast` for quick feedback, `full` before handoff |
+| `branch` | `<base>..HEAD` feature branch | `full` |
+| `doc` | an explicit or changed document | `full` |
+| `security` | changed security-sensitive code | `full` |
+| `tests` | tests and their production seam | `full` |
 
-## Task
+`--depth fast|full` defaults to `full`. `--coverage` is valid only with
+`--scope tests`; `--spec` is valid only with `--scope doc`. `--base` chooses a
+branch comparison where relevant, and `--continue` resumes the Codex thread.
 
-Full code review using Codex MCP with local checks (lint:fix + build) before review.
+Read the matching prompt/reference from `dhpk-change-review`, `dhpk-doc-review`,
+`dhpk-security-review`, or `dhpk-test-review` before calling Codex. Collect only
+the selected scope, ask Codex for file:line findings and a verdict, and report
+the executed local checks plus PASS/FAIL/SKIP evidence. A standalone security,
+documentation, or test audit should prefer its dedicated reviewer/skill; these
+scope modes are the consolidated CLI second-opinion path.
 
-### Arguments
-
-```
-$ARGUMENTS
-```
-
-| Parameter               | Description                                 |
-| ----------------------- | ------------------------------------------- |
-| `--no-tests`            | Skip lint:fix and build steps               |
-| `--focus "<text>"`      | Focus on specific area (e.g. "auth")        |
-| `--base <gitref>`       | Compare with specified branch (e.g. origin/main) |
-| `--continue <threadId>` | Continue a previous review session          |
-
-### Workflow
-
-```
-lint:fix → build → git diff → Codex review (full) → Findings + Gate → Loop if Blocked
-```
-
-1. **Local checks** (unless `--no-tests`): `{LINT_FIX_COMMAND}` then `{BUILD_COMMAND}` — record as `LOCAL_CHECKS`
-2. **Collect diff**: `git diff HEAD --no-color | head -2000`
-3. **Codex review**: New session (`mcp__codex__codex`) or continue (`mcp__codex__codex-reply`)
-4. **Output**: Local check results + severity-grouped findings + test recommendations + Merge Gate
-
-### Key Rules
-
-- **Run local checks first** — lint:fix + build catch basic issues before Codex review
-- **Includes test recommendations** — Codex suggests missing test cases
-- Independent research, thread continuation, and gate sentinels: `skills/dhpk-change-review/references/review-common.md` §§Codex Independent Research, Gate Sentinels.
-
-### Review Loop
-
-Auto-loop semantics: `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §Anti-loop & output.
-
-## Output
-
-```markdown
-## Codex Full Review Report
-
-### Local Checks
-- lint:fix: ✅ Pass / ❌ Fail
-- build: ✅ Pass / ❌ Fail
-
-### Review Scope
-- Change stats: <git diff --stat summary>
-- Focus area: <focus or "all">
-
-### Findings
-#### P0 (Must Fix)
-- [file:line] Issue -> Fix recommendation
-#### P1 (Should Fix)
-- [file:line] Issue -> Fix recommendation
-
-### Tests Recommendation
-- Suggested new test cases
-
-### Merge Gate
-✅ Ready / ⛔ Blocked (need to fix N P0/P1 issues)
-
-### Loop Review
-To re-review after fixes: `/codex-review --continue <threadId>`
-```
-
-## Examples
-
-```bash
-/codex-review
-/codex-review --no-tests
-/codex-review --focus "database queries"
-/codex-review --base origin/main
-/codex-review --continue abc123
-```
+Do not auto-loop beyond the policy ceiling. A `BLOCK` verdict names the focused
+fix and rerun command; an acceptable verdict records scope, evidence, and
+remaining uncertainty.

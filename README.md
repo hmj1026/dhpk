@@ -47,11 +47,11 @@ Reconfigure any time with `/dhpk:setup` (or `/dhpk:setup --show` to print the cu
 | Component | Count | Notes |
 |-----------|------:|-------|
 | Agents | Role-based agents | Sentinel-driven reviewers plus situational architecture, testing, security, documentation, platform, and runtime roles. |
-| Commands | Registered command surface | `dhpk:do` (Smart Router), `dhpk:create-dev`, `dhpk:codex-*`, `dhpk:review-pending`, `dhpk:smart-commit`, `dhpk:ts-check-status` (JS module), `dhpk:opsx-apply-resume` (needs OpenSpec), `dhpk:dhpk-matrix-cell-onboard` (library-author), `dhpk:dhpk-de-ai-flavor`, `dhpk:dhpk-deploy-list`, `dhpk:dhpk-harness-fill`, `dhpk:ui-ux-verify`, etc. |
+| Commands | Registered command surface | `dhpk:do` (Smart Router), `dhpk:codex-review`, `dhpk:precommit`, `dhpk:setup`, `dhpk:review-pending`, `dhpk:smart-commit`, `dhpk:ts-check-status` (JS module), `dhpk:opsx-apply-resume` (needs OpenSpec), `dhpk:dhpk-matrix-cell-onboard` (library-author), `dhpk:dhpk-de-ai-flavor`, `dhpk:dhpk-deploy-list`, `dhpk:dhpk-harness-fill`, `dhpk:ui-ux-verify`, etc. |
 | Core skills | Core and auxiliary skills | codex-*, gitnexus, tool-routing, dhpk-execution-policy, **adaptive-dev-workflow** (Feature/Bug/Maintenance classifier), **deploy-list** (cross-project deploy file generator), **execution-checklist** (end-of-task self-check), `opsx-apply-resume` helpers (need OpenSpec) |
 | Stack modules | Opt-in stack modules | PHP, Yii, PHPUnit, Laravel, JavaScript, Vue, Laravel Mix, Next.js, React, Python, `library-author`, and iOS/Swift modules. |
-| Hooks | 10 events | PreToolUse (Edit, Bash + dispatcher + sentinel-gate + branch-safety, Task\|Agent warmstart), PostToolUse (Edit + dispatcher + async crlf-fix + async manifest-guard), SessionStart (+ version-pin / cross-CLI-drift / broken-symlink advisories), SessionEnd (reap-stale-sentinels), PreCompact (checkpoint archive), PostCompact (sentinel restore), SubagentStop (reviewer verify + failure log), StopFailure (failure log), UserPromptSubmit (skill hint), Stop (review-reminder + advisory-dispatch: completion-evidence / graduation-scan / module-dispatch) |
-| Hook dispatchers | 2 | `post-edit-dispatch.sh`, `pre-bash-dispatch.sh` — fan out to active modules' hooks |
+| Hooks | 4 events | PreToolUse (Edit guard and combined Bash safety/Git gate), PostToolUse (sentinel routing), SessionStart (module activation), SubagentStop (strict reviewer reconciliation) |
+| Hook dispatchers | 2 | `post-edit-dispatch.sh` routes sentinels; `pre-bash-dispatch.sh` combines deterministic shell and Git/review-debt gates |
 | Harness scripts | 5 | precommit-runner, verify-runner, harness-audit, codemap generator, dep-audit |
 | Codex dual-track | Curated Codex projection | Synced into project `.codex/` by `install-codex-skills.sh` |
 

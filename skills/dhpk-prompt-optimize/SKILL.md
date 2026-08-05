@@ -33,13 +33,15 @@ Exactly three parts, in this order:
 
 1. The optimized prompt, in a single fenced code block, ready to copy.
 2. Recommended effort — one line: level + API value + dhpk/Claude-Code equivalent + why.
-3. A short bullet list (not an essay) of the specific rewrites applied, and any default assumptions used for optional gaps.
+3. A short bullet list (not an essay) of the specific rewrites applied, any
+   default assumptions, and the verified live sources with their lookup date.
 
 ## Verification
 
 - [ ] Target model detected and checked through `mcp__context7__resolve-library-id` + `mcp__context7__query-docs`, then `WebSearch` + `WebFetch` for official documentation (or explicitly marked unverified)
 - [ ] Completeness gate run against `references/completeness-checklist.md`; all REQUIRED gaps asked via one batched `AskUserQuestion` call; all OPTIONAL gaps have a stated default in the output
-- [ ] Effort recommendation cites the per-model calibration table and states both the API value and the dhpk/Claude-Code equivalent
+- [ ] Effort recommendation cites verified live sources and their lookup date,
+  then states both the API value and the dhpk/Claude-Code equivalent
 - [ ] Output has exactly the 3 parts above, no extra essay
 - [ ] For a repo change to this skill itself: `bash scripts/run-skill.sh skill-health-check skill-lint.js --fix-hint` (or `/dhpk:check-skill prompt-optimize`) passes clean
 

@@ -8,8 +8,9 @@
 // reviewer clearing its own sentinel as "Logging/Audit Tampering"). The clear
 // is GATED on artifact existence + freshness ONLY (never on verdict
 // parseability — a legitimate fresh review whose verdict can't be parsed still
-// clears, so the orchestrator never loops forever on a present-but-unparseable
-// doc). When a fresh artifact with a parseable verdict exists the clear is
+// stays armed, so the orchestrator re-dispatches instead of accepting an
+// unparseable review). Only a fresh artifact with a parseable passing verdict
+// clears the sentinel.
 // SILENT. When the reviewer stops exit 0 but produced NO fresh review doc (none,
 // or only a stale prior-cycle doc), the sentinel is LEFT ARMED so the gate stays
 // unmet and the orchestrator re-dispatches — logged as a failure. Case A (a
@@ -236,10 +237,8 @@ test('A5: reviewer stop with armed sentinel + only a STALE prior-cycle doc → L
   }
 });
 
-test('A5: fresh artifact with an UNPARSEABLE verdict still clears (no re-dispatch loop)', () => {
-  // The clear gate keys on existence + freshness, NOT verdict-parseability. A
-  // legitimate fresh review whose frontmatter has no parseable `verdict:` field
-  // must still clear the sentinel — otherwise the orchestrator loops forever.
+test('A5: fresh artifact with an UNPARSEABLE verdict stays armed for re-dispatch', () => {
+  // A review artifact is only evidence when its verdict is machine-parseable.
   const repo = mkTempRepo();
   try {
     armSentinel(repo, '.pending-frontend-review');
@@ -251,12 +250,12 @@ test('A5: fresh artifact with an UNPARSEABLE verdict still clears (no re-dispatc
     ].join('\n'));
     const res = runHook(repo, { subagent_type: 'frontend-reviewer', exit_status: 0 });
     assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
-    assert.ok(!sentinelExists(repo, '.pending-frontend-review'),
-      'a fresh artifact (even with an unparseable verdict) must clear the sentinel');
-    assert.ok(!res.stdout.includes('NO REVIEW DOC'),
-      `a present fresh artifact must not trigger the no-review-doc warning:\n${res.stdout}`);
-    assert.ok(failureLogContents(repo).includes('verdict unparseable'),
-      `unparseable-but-present clear should be noted:\n${failureLogContents(repo)}`);
+    assert.ok(sentinelExists(repo, '.pending-frontend-review'),
+      'an unparseable review artifact must leave the sentinel armed');
+    assert.ok(res.stdout.includes('NO REVIEW DOC'),
+      `an unparseable artifact must report unmet review debt:\n${res.stdout}`);
+    assert.ok(failureLogContents(repo).includes('left armed, no review doc'),
+      `unparseable review should be reported as unmet review debt:\n${failureLogContents(repo)}`);
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });
   }
@@ -408,7 +407,7 @@ test('known reviewer stop removes one liveness entry on failure while sentinel r
   }
 });
 
-test('review artifact BLOCK/FAIL verdict writes unresolved-verdict sidecar line', () => {
+test('review artifact BLOCK/FAIL verdict stays armed and writes unresolved-verdict sidecar line', () => {
   const repo = mkTempRepo();
   try {
     armSentinel(repo, '.pending-db-review');
@@ -421,6 +420,8 @@ test('review artifact BLOCK/FAIL verdict writes unresolved-verdict sidecar line'
     ].join('\n'));
     const res = runHook(repo, { subagent_type: 'database-reviewer', exit_status: 0 });
     assert.strictEqual(res.status, 0, `hook exited non-zero: ${res.stderr}`);
+    assert.ok(sentinelExists(repo, '.pending-db-review'),
+      'a fresh failing verdict must not satisfy the reviewer sentinel');
     const sidecar = unresolvedVerdict(repo);
     assert.ok(sidecar.includes('.pending-db-review'), `missing db slot line:\n${sidecar}`);
     assert.ok(sidecar.includes('database-reviewer'), `missing reviewer name:\n${sidecar}`);

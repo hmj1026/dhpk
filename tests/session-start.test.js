@@ -1,14 +1,8 @@
 'use strict';
 
-// Smoke coverage for session-start.sh (SessionStart hook: artifacts dir
-// bootstrap, session snapshot, docker/module/orchestration advisories).
-//   1. bash -n syntax check.
-//   2. Safe invocation against a scratch git repo (isolated via
-//      CLAUDE_PROJECT_DIR) with no docker containers / modules configured —
-//      a provable no-op with respect to the HOST: no docker calls (unset
-//      CLAUDE_PLUGIN_OPTION_DOCKER_CONTAINERS short-circuits before any
-//      `docker ps`), no module activation, no network. All writes land only
-//      inside the scratch dir's own .claude/artifacts/.
+// SessionStart has one deterministic responsibility: activate configured
+// modules. It must not create lifecycle artifacts or run health/orchestration
+// diagnostics.
 
 const fs = require('node:fs');
 const os = require('node:os');
@@ -19,122 +13,56 @@ const { test, run, assert } = require('./_lib/tinytest');
 const ROOT = path.join(__dirname, '..');
 const HOOK = path.join(ROOT, 'scripts', 'hooks', 'session-start.sh');
 
+function runInScratch(modules) {
+  const scratch = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ss-')));
+  spawnSync('git', ['init', '-q'], { cwd: scratch });
+  try {
+    const env = {
+      ...process.env,
+      CLAUDE_PLUGIN_ROOT: ROOT,
+      CLAUDE_PROJECT_DIR: scratch,
+      CLAUDE_PLUGIN_OPTION_MODULES: modules || '',
+    };
+    const res = spawnSync('bash', ['-c', 'printf %s "$P" | bash "$1"', '_', HOOK], {
+      cwd: scratch,
+      env: { ...env, P: JSON.stringify({ source: 'startup' }) },
+      encoding: 'utf8',
+      timeout: 10000,
+    });
+    return { scratch, res };
+  } catch (error) {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    throw error;
+  }
+}
+
 test('bash -n syntax check passes', () => {
   const res = spawnSync('bash', ['-n', HOOK], { encoding: 'utf8' });
   assert.strictEqual(res.status, 0, `syntax error: ${res.stderr}`);
 });
 
-test('safe invocation against a scratch repo exits 0 and writes only into scratch/.claude/artifacts', () => {
-  const scratch = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ss-')));
-  spawnSync('git', ['init', '-q'], { cwd: scratch });
+test('no configured modules is a silent no-op with no lifecycle artifacts', () => {
+  const { scratch, res } = runInScratch('');
   try {
-    const env = { ...process.env, CLAUDE_PLUGIN_ROOT: ROOT, CLAUDE_PROJECT_DIR: scratch };
-    delete env.CLAUDE_PLUGIN_OPTION_DOCKER_CONTAINERS;
-    delete env.CLAUDE_PLUGIN_OPTION_MODULES;
-    const payload = JSON.stringify({ source: 'startup' });
-    const res = spawnSync('bash', ['-c', 'printf %s "$P" | bash "$1"', '_', HOOK], {
-      cwd: scratch,
-      env: { ...env, P: payload },
-      encoding: 'utf8',
-      timeout: 10000,
-    });
-    assert.strictEqual(res.status, 0, `expected exit 0: ${res.stderr}`);
-    assert.ok(res.stdout.includes('[session-start]'), `expected session-start banner, got: ${res.stdout}`);
-    const snapshot = path.join(scratch, '.claude', 'artifacts', 'sessions', 'latest.md');
-    assert.ok(fs.existsSync(snapshot), 'expected session snapshot file written into scratch dir');
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.strictEqual(res.stdout, '', `unexpected SessionStart output: ${res.stdout}`);
+    assert.ok(!fs.existsSync(path.join(scratch, '.claude', 'artifacts')),
+      'module activation must not create session snapshots or lifecycle artifacts');
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
   }
 });
 
-function runInScratch(extraEnv) {
-  const scratch = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ss-')));
-  spawnSync('git', ['init', '-q'], { cwd: scratch });
+test('configured modules are validated and reported without lifecycle diagnostics', () => {
+  const { scratch, res } = runInScratch('php-5.6,not-a-module,php-5.6');
   try {
-    const env = { ...process.env, CLAUDE_PLUGIN_ROOT: ROOT, CLAUDE_PROJECT_DIR: scratch };
-    delete env.CLAUDE_PLUGIN_OPTION_DOCKER_CONTAINERS;
-    delete env.CLAUDE_PLUGIN_OPTION_MODULES;
-    // Neutralize any inherited orchestration overrides so the "all defaults" case
-    // is deterministic regardless of the developer's own settings.
-    for (const k of [
-      'CLAUDE_PLUGIN_OPTION_DEEP_REASONER_MODEL', 'CLAUDE_PLUGIN_OPTION_FAST_WORKER_MODEL',
-      'CLAUDE_PLUGIN_OPTION_DEEP_REASONER_EFFORT', 'CLAUDE_PLUGIN_OPTION_FAST_WORKER_EFFORT',
-      'CLAUDE_PLUGIN_OPTION_PLANNER_MODEL', 'CLAUDE_PLUGIN_OPTION_PLANNER_EFFORT',
-      'CLAUDE_PLUGIN_OPTION_ORCHESTRATION_DISPATCH',
-      'CLAUDE_PLUGIN_OPTION_CODEX_FAST_WORKER_MODEL', 'CLAUDE_PLUGIN_OPTION_CODEX_FAST_WORKER_EFFORT',
-      'CLAUDE_PLUGIN_OPTION_AGY_FAST_WORKER_MODEL',
-      'CLAUDE_PLUGIN_OPTION_CODEX_DEEP_REASONER_MODEL', 'CLAUDE_PLUGIN_OPTION_CODEX_DEEP_REASONER_EFFORT',
-      'CLAUDE_PLUGIN_OPTION_CODEX_TIMEOUT_SECS', 'CLAUDE_PLUGIN_OPTION_CODEX_FAST_WORKER_TIMEOUT_SECS',
-      'CLAUDE_PLUGIN_OPTION_CODEX_DEEP_REASONER_TIMEOUT_SECS', 'CLAUDE_PLUGIN_OPTION_CODEX_BRIDGE_TIMEOUT_SECS',
-      'CODEX_WRAP_TIMEOUT_SECS', 'DHPK_OUTER_BUDGET_SECS',
-      'CLAUDE_PLUGIN_OPTION_ARCHITECT_MODEL', 'CLAUDE_PLUGIN_OPTION_ARCHITECT_EFFORT',
-    ]) delete env[k];
-    const payload = JSON.stringify({ source: 'startup' });
-    const res = spawnSync('bash', ['-c', 'printf %s "$P" | bash "$1"', '_', HOOK], {
-      cwd: scratch,
-      env: { ...env, P: payload, ...(extraEnv || {}) },
-      encoding: 'utf8',
-      timeout: 10000,
-    });
-    return res;
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.match(res.stdout, /module enabled: php-5\.6/);
+    assert.match(res.stderr, /module 'not-a-module' not found/);
+    assert.ok(!res.stdout.includes('snapshot') && !res.stdout.includes('orchestration'), res.stdout);
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
   }
-}
-
-test('CLI-worker keys at their defaults are silent in the orchestration line', () => {
-  const res = runInScratch({});
-  assert.strictEqual(res.status, 0, `expected exit 0: ${res.stderr}`);
-  assert.ok(!res.stdout.includes('codex_worker'), `default codex worker must be silent:\n${res.stdout}`);
-  assert.ok(!res.stdout.includes('agy_worker'), `default agy worker must be silent:\n${res.stdout}`);
-  assert.ok(!res.stdout.includes('codex_reasoner'), `default codex reasoner must be silent:\n${res.stdout}`);
-  assert.ok(!res.stdout.includes('architect'), `default architect tier must be silent:\n${res.stdout}`);
-});
-
-test('non-default CLI-worker keys surface in the orchestration line', () => {
-  const res = runInScratch({
-    CLAUDE_PLUGIN_OPTION_CODEX_FAST_WORKER_MODEL: 'gpt-5.6-sol',
-    CLAUDE_PLUGIN_OPTION_AGY_FAST_WORKER_MODEL: 'Gemini 3.1 Pro (High)',
-    CLAUDE_PLUGIN_OPTION_CODEX_DEEP_REASONER_MODEL: 'gpt-5.6-nova',
-    CLAUDE_PLUGIN_OPTION_CODEX_DEEP_REASONER_EFFORT: 'medium',
-    CLAUDE_PLUGIN_OPTION_ARCHITECT_MODEL: 'opus',
-    CLAUDE_PLUGIN_OPTION_ARCHITECT_EFFORT: 'high',
-  });
-  assert.strictEqual(res.status, 0, `expected exit 0: ${res.stderr}`);
-  assert.ok(res.stdout.includes('codex_worker=gpt-5.6-sol'), `expected codex worker surfaced:\n${res.stdout}`);
-  assert.ok(res.stdout.includes('agy_worker=Gemini 3.1 Pro (High)'), `expected agy worker surfaced:\n${res.stdout}`);
-  assert.ok(res.stdout.includes('codex_reasoner=gpt-5.6-nova'), `expected codex reasoner surfaced:\n${res.stdout}`);
-  assert.ok(res.stdout.includes('codex_reasoner_effort=medium'), `expected codex reasoner effort surfaced:\n${res.stdout}`);
-  assert.ok(res.stdout.includes('architect=opus'), `expected architect tier surfaced:\n${res.stdout}`);
-  assert.ok(res.stdout.includes('architect_effort=high'), `expected architect effort surfaced:\n${res.stdout}`);
-});
-
-test('default Codex timeout budgets remain silent', () => {
-  const res = runInScratch({});
-  assert.strictEqual(res.status, 0, `expected exit 0: ${res.stderr}`);
-  assert.ok(!res.stdout.includes('codex_timeout'), `default Codex timeout must be silent:\n${res.stdout}`);
-});
-
-test('non-default and disabled Codex timeout budgets surface provenance and outer status', () => {
-  const res = runInScratch({
-    CLAUDE_PLUGIN_OPTION_CODEX_TIMEOUT_SECS: '0',
-  });
-  assert.strictEqual(res.status, 0, `expected exit 0: ${res.stderr}`);
-  assert.ok(res.stdout.includes('codex_timeout'), `expected Codex timeout diagnostics:\n${res.stdout}`);
-  assert.ok(res.stdout.includes('codex-fast-worker=0') && res.stdout.includes('disabled'),
-    `expected disabled fast-worker budget:\n${res.stdout}`);
-  assert.ok(res.stdout.includes('source=global:codex_timeout_secs'),
-    `expected timeout source:\n${res.stdout}`);
-  assert.ok(res.stdout.includes('outer_budget=unknown'),
-    `expected explicit unknown outer budget:\n${res.stdout}`);
-});
-
-test('invalid Codex timeout config warns without aborting SessionStart', () => {
-  const res = runInScratch({
-    CLAUDE_PLUGIN_OPTION_CODEX_DEEP_REASONER_TIMEOUT_SECS: 'fractional',
-  });
-  assert.strictEqual(res.status, 0, `SessionStart should remain available: ${res.stderr}`);
-  assert.ok(res.stderr.includes('invalid Codex timeout'), `missing invalid timeout warning: ${res.stderr}`);
 });
 
 run('session-start');

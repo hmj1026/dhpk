@@ -1,6 +1,6 @@
 ---
-description: 'Interactive (re)configuration of dhpk plugin options — modules, docker, review agents, hook profile.'
-argument-hint: '[--show]'
+description: 'Interactive (re)configuration and installation of dhpk plugin options and assets.'
+argument-hint: '[--show] [--install hooks|rules|scripts|all]'
 allowed-tools: 'Read, Write, Edit, Bash(git rev-parse:*), Bash(ls:*), AskUserQuestion'
 disable-model-invocation: true
 metadata:
@@ -15,6 +15,11 @@ metadata:
 - Docker reference: `${CLAUDE_PLUGIN_ROOT}/docs/docker-setup.md`
 
 ## Task
+
+When invoked with `--install hooks|rules|scripts|all`, install only the named
+current plugin asset groups and report copied paths, conflicts, and settings
+changes. This replaces the retired `/install-*` aliases; do not revive their
+historical hook names or mappings.
 
 Walk the user through configuring (or reconfiguring) the dhpk plugin **after**
 it is installed. The first install is typically done with the shell wrapper
@@ -76,6 +81,7 @@ $ARGUMENTS
 | Argument | Description |
 |----------|-------------|
 | `--show` | Skip the questions; just print the current effective configuration. |
+| `--install hooks\|rules\|scripts\|all` | Install selected current plugin assets. |
 
 ## Use AskUserQuestion
 

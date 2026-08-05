@@ -486,13 +486,12 @@ has_fresh_review_artifact() {
 # has_fresh_parseable_verdict <agent> <sentinel-file> — echo "1" when the latest
 # review doc for <agent> exists, was produced THIS cycle (its mtime postdates
 # the sentinel that armed this review), and its frontmatter carries a parseable
-# `verdict:` field; "0" otherwise (no review doc, a stale doc from a prior
-# cycle, or one whose frontmatter doesn't parse). Distinct from
-# has_fresh_review_artifact above: this ALSO requires a parseable verdict, and is
-# used only to decide whether a clear is silent (normal handoff) vs. worth a
-# soft note — NOT to gate the clear itself. Must be called while the sentinel
-# file still exists (before the rm below). Reuses the same "latest by mtime"
-# lookup and verdict regex as refresh_unresolved_verdict below.
+# `verdict:` field whose value explicitly passes (`APPROVE` or `PASS`); "0"
+# otherwise (no review doc, stale doc, unparseable frontmatter, or an unresolved
+# verdict). This is the only sanctioned automatic sentinel-clearance decision.
+# Must be called while the sentinel file still exists (before the rm below).
+# Reuses the same "latest by mtime" lookup and verdict regex as
+# refresh_unresolved_verdict below.
 has_fresh_parseable_verdict() {
     local agent="$1" sentinel="$2" reviews_dir="$ROOT/.claude/artifacts/reviews" latest=""
     [ -d "$reviews_dir" ] || { printf '0'; return 0; }
@@ -521,7 +520,8 @@ if text.startswith("---"):
         frontmatter = parts[1]
 
 verdict_match = re.search(r"(?im)^\s*verdict\s*:\s*['\"]?([A-Za-z_-]+)", frontmatter)
-print(1 if verdict_match else 0)
+verdict = verdict_match.group(1).upper() if verdict_match else ""
+print(1 if verdict in {"APPROVE", "PASS"} else 0)
 PY
     else
         printf '0'
@@ -614,13 +614,11 @@ Logged to: .claude/artifacts/agent-failures.log"
         emit_system_message "$msg"
     fi
 elif [ -f "$SENTINEL_FILE" ]; then
-    # Determine freshness BEFORE any rm below — both helpers compare the latest
-    # review doc's mtime against the sentinel file, which must still exist here.
-    # FRESH_ARTIFACT (existence + freshness) is the A5 CLEAR gate; FRESH_VERDICT
-    # (also requires a parseable verdict) only decides silent-vs-note on a clear.
-    FRESH_ARTIFACT="$(has_fresh_review_artifact "$SUBAGENT_BARE" "$SENTINEL_FILE")"
+    # Determine freshness BEFORE any rm below. Clearance requires a fresh,
+    # canonical artifact with a parseable passing verdict; an unparseable file
+    # remains review debt rather than evidence.
     FRESH_VERDICT="$(has_fresh_parseable_verdict "$SUBAGENT_BARE" "$SENTINEL_FILE")"
-    if [ "$FRESH_ARTIFACT" = "1" ]; then
+    if [ "$FRESH_VERDICT" = "1" ]; then
         # Case B (cleared): subagent succeeded AND a fresh matching review
         # review doc exists — auto-clear the sentinel on the reviewer's behalf.
         # This IS the sanctioned clearance path (reviewer agent definitions no
@@ -646,16 +644,7 @@ elif [ -f "$SENTINEL_FILE" ]; then
             sentinel_remove_file "$SENTINEL_FILE"
             dhpk_reset_review_backoff "$SESS" "$SENTINEL_NAME"
         fi
-        if [ "$FRESH_VERDICT" = "1" ]; then
-            # Designed handoff: a fresh, parseable review doc exists — the normal
-            # path. No failure record, no warning.
-            echo "$TIMESTAMP $SUBAGENT exit=0 sentinel=$SENTINEL_NAME (auto-cleared)" >> "$LOG" || true
-        else
-            # A fresh review doc exists but its verdict didn't parse. The clear
-            # still fires (existence + freshness satisfy the gate — do NOT loop
-            # the orchestrator on an unparseable-but-present review); note it.
-            echo "$TIMESTAMP $SUBAGENT exit=0 sentinel=$SENTINEL_NAME (auto-cleared, verdict unparseable)" >> "$LOG" || true
-        fi
+        echo "$TIMESTAMP $SUBAGENT exit=0 sentinel=$SENTINEL_NAME (auto-cleared)" >> "$LOG" || true
     else
         # Case B (left armed) — A5: subagent stopped clean but produced NO fresh
         # matching review doc this cycle. Leave the sentinel ARMED so the
