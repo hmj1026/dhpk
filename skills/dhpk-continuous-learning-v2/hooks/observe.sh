@@ -7,8 +7,8 @@
 # v2.1: Project-scoped observations — detects current project context
 #       and writes observations to project-specific directory.
 #
-# Registered via plugin hooks/hooks.json (auto-loaded when plugin is enabled).
-# Can also be registered manually in ~/.claude/settings.json.
+# This optional observer is not registered by the root plugin hooks.json.
+# A caller must explicitly register it in consumer settings before enabling it.
 
 set -e
 
@@ -97,35 +97,16 @@ fi
 export CLV2_PYTHON_CMD="${CLV2_PYTHON_CMD:-$PYTHON_CMD}"
 
 # ─────────────────────────────────────────────
-# Extract cwd from stdin for project detection
-# ─────────────────────────────────────────────
-
-# Extract cwd from the hook JSON to use for project detection.
-# If cwd is a subdirectory inside a git repo, resolve it to the repo root so
-# observations attach to the project instead of a nested path.
-STDIN_CWD=$(echo "$INPUT_JSON" | "$PYTHON_CMD" -c '
-import json, sys
-try:
-    data = json.load(sys.stdin)
-    cwd = data.get("cwd", "")
-    print(cwd)
-except(KeyError, TypeError, ValueError):
-    print("")
-' 2>/dev/null || echo "")
-
-# If cwd was provided in stdin, use it for project detection
-if [ -n "$STDIN_CWD" ] && [ -d "$STDIN_CWD" ]; then
-  _GIT_ROOT=$(git -C "$STDIN_CWD" rev-parse --show-toplevel 2>/dev/null || true)
-  export CLAUDE_PROJECT_DIR="${_GIT_ROOT:-$STDIN_CWD}"
-fi
-
-# ─────────────────────────────────────────────
-# Lightweight config and automated session guards
+# Lightweight config gate
 # ─────────────────────────────────────────────
 #
-# IMPORTANT: keep these guards above detect-project.sh.
+# IMPORTANT: keep this gate above stdin cwd extraction and detect-project.sh.
 # Sourcing detect-project.sh creates project-scoped directories and updates
-# projects.json, so automated sessions must return before that point.
+# projects.json, and the observer eventually appends to observations.jsonl.
+# Disabled observation must return before either operation.
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SKILL_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # shellcheck disable=SC1091
 . "$(dirname "$0")/../scripts/lib/homunculus-dir.sh"
@@ -137,6 +118,51 @@ if [ -f "$CONFIG_DIR/disabled" ]; then
 fi
 if [ -n "${CLV2_CONFIG:-}" ] && [ -f "$(dirname "$CLV2_CONFIG")/disabled" ]; then
   exit 0
+fi
+
+if [ -n "${CLV2_CONFIG:-}" ]; then
+  CONFIG_FILE="$CLV2_CONFIG"
+elif [ -f "${CONFIG_DIR}/config.json" ]; then
+  CONFIG_FILE="${CONFIG_DIR}/config.json"
+else
+  CONFIG_FILE="${SKILL_ROOT}/config.json"
+fi
+
+_CLV2_OBSERVER_ENABLED=false
+if [ -f "$CONFIG_FILE" ] && [ -n "$PYTHON_CMD" ]; then
+  _enabled=$(CLV2_CONFIG_PATH="$CONFIG_FILE" "$PYTHON_CMD" -c '
+import json, os
+with open(os.environ["CLV2_CONFIG_PATH"]) as f:
+    cfg = json.load(f)
+print(str(cfg.get("observer", {}).get("enabled", False)).lower())
+' 2>/dev/null || echo "false")
+  if [ "$_enabled" = "true" ]; then
+    _CLV2_OBSERVER_ENABLED=true
+  fi
+fi
+
+[ "$_CLV2_OBSERVER_ENABLED" = "true" ] || exit 0
+
+# ─────────────────────────────────────────────
+# Extract cwd from stdin for project detection
+# ─────────────────────────────────────────────
+
+# Extract cwd from the hook JSON to use for project detection. If cwd is a
+# subdirectory inside a git repo, resolve it to the repo root so observations
+# attach to the project instead of a nested path.
+STDIN_CWD=$(echo "$INPUT_JSON" | "$PYTHON_CMD" -c '
+import json, sys
+try:
+    data = json.load(sys.stdin)
+    cwd = data.get("cwd", "")
+    print(cwd)
+except (KeyError, TypeError, ValueError):
+    print("")
+' 2>/dev/null || echo "")
+
+if [ -n "$STDIN_CWD" ] && [ -d "$STDIN_CWD" ]; then
+  _GIT_ROOT=$(git -C "$STDIN_CWD" rev-parse --show-toplevel 2>/dev/null || true)
+  export CLAUDE_PROJECT_DIR="${_GIT_ROOT:-$STDIN_CWD}"
 fi
 
 # Prevent observe.sh from firing on non-human sessions to avoid:
@@ -178,9 +204,6 @@ fi
 # ─────────────────────────────────────────────
 # Project detection
 # ─────────────────────────────────────────────
-
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-SKILL_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Source shared project detection helper
 # This sets: PROJECT_ID, PROJECT_NAME, PROJECT_ROOT, PROJECT_DIR
@@ -354,31 +377,9 @@ _CHECK_OBSERVER_RUNNING() {
   return 1  # No PID file or process dead
 }
 
-if [ -f "${CONFIG_DIR}/disabled" ]; then
-  OBSERVER_ENABLED=false
-else
-  OBSERVER_ENABLED=false
-  if [ -n "${CLV2_CONFIG:-}" ]; then
-    CONFIG_FILE="$CLV2_CONFIG"
-  elif [ -f "${CONFIG_DIR}/config.json" ]; then
-    CONFIG_FILE="${CONFIG_DIR}/config.json"
-  else
-    CONFIG_FILE="${SKILL_ROOT}/config.json"
-  fi
-  # Use effective config path for both existence check and reading
-  EFFECTIVE_CONFIG="$CONFIG_FILE"
-  if [ -f "$EFFECTIVE_CONFIG" ] && [ -n "$PYTHON_CMD" ]; then
-    _enabled=$(CLV2_CONFIG_PATH="$EFFECTIVE_CONFIG" "$PYTHON_CMD" -c "
-import json, os
-with open(os.environ['CLV2_CONFIG_PATH']) as f:
-    cfg = json.load(f)
-print(str(cfg.get('observer', {}).get('enabled', False)).lower())
-" 2>/dev/null || echo "false")
-    if [ "$_enabled" = "true" ]; then
-      OBSERVER_ENABLED=true
-    fi
-  fi
-fi
+# The opt-in decision was made before project detection and observation writes.
+# Keep this variable for the lazy-start section below without re-reading config.
+OBSERVER_ENABLED="$_CLV2_OBSERVER_ENABLED"
 
 # Check both project-scoped AND global PID files (with stale PID recovery)
 if [ "$OBSERVER_ENABLED" = "true" ]; then

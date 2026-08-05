@@ -77,6 +77,33 @@ test('stocktake scan records only files named SKILL.md', () => {
   }
 });
 
+test('stocktake quick diff records only files named SKILL.md', () => {
+  const skillsDir = tempDir('dhpk-task4-quick-skills-');
+  const results = path.join(skillsDir, 'results.json');
+  try {
+    const skillFile = path.join(skillsDir, 'alpha', 'SKILL.md');
+    writeFile(skillFile, '---\nname: alpha\ndescription: alpha\n---\n');
+    writeFile(path.join(skillsDir, 'alpha', 'references', 'notes.md'), '# reference\n');
+    fs.mkdirSync(path.join(skillsDir, 'project'), { recursive: true });
+    writeFile(results, JSON.stringify({ evaluated_at: '2000-01-01T00:00:00Z', skills: [] }));
+    const script = path.join(ROOT, 'skills', 'dhpk-skill-stocktake', 'scripts', 'quick-diff.sh');
+    const res = spawnSync('bash', [script, results], {
+      cwd: ROOT,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        SKILL_STOCKTAKE_GLOBAL_DIR: skillsDir,
+        SKILL_STOCKTAKE_PROJECT_DIR: path.join(skillsDir, 'project'),
+      },
+    });
+    assert.strictEqual(res.status, 0, res.stderr);
+    const output = JSON.parse(res.stdout);
+    assert.deepStrictEqual(output.map((entry) => entry.path), [skillFile]);
+  } finally {
+    fs.rmSync(skillsDir, { recursive: true, force: true });
+  }
+});
+
 test('release runner propagates a failed workflow through gh run watch --exit-status', () => {
   const repo = initRepo();
   const bin = path.join(repo, 'bin');
@@ -122,6 +149,48 @@ test('risk assessment reports inconclusive for an unsupported source language', 
   }
 });
 
+test('risk assessment classifies omitted source extensions by path, not by Low fallback', () => {
+  const script = path.join(ROOT, 'skills', 'dhpk-risk-assess', 'scripts', 'risk-analyze.js');
+  const runFixture = (file, content) => {
+    const repo = initRepo();
+    try {
+      writeFile(path.join(repo, 'README.md'), '# baseline\n');
+      spawnSync('git', ['add', 'README.md'], { cwd: repo });
+      assert.strictEqual(spawnSync('git', ['commit', '-qm', 'baseline'], { cwd: repo }).status, 0);
+      writeFile(path.join(repo, file), content);
+      return spawnSync('node', [script, '--json'], {
+        cwd: repo,
+        encoding: 'utf8',
+        env: { ...process.env, PLUGIN_ROOT: ROOT },
+      });
+    } finally {
+      fs.rmSync(repo, { recursive: true, force: true });
+    }
+  };
+
+  for (const [file, content] of [
+    ['src/Answer.fs', 'module Answer\nlet answer = 42\n'],
+    ['src/Answer.unknown', 'answer = 42\n'],
+  ]) {
+    const res = runFixture(file, content);
+    assert.notStrictEqual(res.status, 0, `${file} should require review`);
+    const output = JSON.parse(res.stdout);
+    assert.strictEqual(output.inconclusive, true, file);
+    assert.match(output.reason, /unsupported|adapter|classification/i, file);
+  }
+
+  for (const [file, content] of [
+    ['docs/guide.unknown', 'documentation\n'],
+    ['assets/data.unknown', 'asset payload\n'],
+  ]) {
+    const res = runFixture(file, content);
+    assert.strictEqual(res.status, 0, `${file}: ${res.stderr}`);
+    const output = JSON.parse(res.stdout);
+    assert.strictEqual(output.inconclusive, undefined, file);
+    assert.strictEqual(output.risk_level, 'Low', file);
+  }
+});
+
 test('codex CLI review passes hostile values as literal arguments without eval', () => {
   const repo = initRepo();
   const bin = path.join(repo, 'bin');
@@ -157,6 +226,35 @@ test('continuous learning ships disabled but keeps an explicit enable path', () 
   assert.strictEqual(config.observer.enabled, false);
   const skill = fs.readFileSync(path.join(ROOT, 'skills', 'dhpk-continuous-learning-v2', 'SKILL.md'), 'utf8');
   assert.match(skill, /observer\.enabled.*true|enable.*observer/i);
+  assert.match(skill, /config(?:uration)?[^.\n]*(?:alone|by itself)[^.\n]*(?:not|does not).*register|not.*register[^.\n]*observer/i);
+});
+
+test('continuous learning disabled config exits before project detection or writes', () => {
+  const repo = initRepo();
+  const fixture = tempDir('dhpk-task4-observer-disabled-');
+  const config = path.join(fixture, 'config.json');
+  const homunculus = path.join(fixture, 'homunculus');
+  writeFile(config, JSON.stringify({ observer: { enabled: false } }));
+  try {
+    const script = path.join(ROOT, 'skills', 'dhpk-continuous-learning-v2', 'hooks', 'observe.sh');
+    const res = spawnSync('bash', [script, 'post'], {
+      cwd: repo,
+      input: JSON.stringify({ cwd: repo, tool_name: 'Read', tool_input: { path: 'README.md' } }),
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        HOME: fixture,
+        CLV2_CONFIG: config,
+        CLV2_HOMUNCULUS_DIR: homunculus,
+        CLAUDE_CODE_ENTRYPOINT: 'cli',
+      },
+    });
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.ok(!fs.existsSync(homunculus), 'disabled observer created storage or ran project detection');
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+    fs.rmSync(fixture, { recursive: true, force: true });
+  }
 });
 
 test('opsx context guidance resolves the extractor from a plugin root or reports unresolved', () => {
@@ -206,6 +304,10 @@ test('prompt optimization points to dated live documentation verification withou
   const guides = fs.readFileSync(path.join(root, 'references', 'model-guides.md'), 'utf8');
   assert.match(skill, /Context7/i);
   assert.match(skill, /official.*documentation|official.*docs/i);
+  assert.match(skill, /allowed-tools:[^\n]*mcp__context7__resolve-library-id/i);
+  assert.match(skill, /allowed-tools:[^\n]*mcp__context7__query-docs/i);
+  assert.match(skill, /allowed-tools:[^\n]*WebFetch/i);
+  assert.match(skill, /allowed-tools:[^\n]*WebSearch/i);
   assert.match(skill, /2026-08-05|dated/i);
   assert.doesNotMatch(guides, /Sonnet 5|Opus 4\.8|Fable 5|Mythos 5/);
 });

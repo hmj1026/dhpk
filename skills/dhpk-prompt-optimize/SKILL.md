@@ -2,7 +2,7 @@
 name: dhpk-prompt-optimize
 description: 'Rewrite a raw task prompt into a model-aware, effort-calibrated version before you run it. Use when: the user asks to "optimize this prompt", "improve this prompt for Claude", "what effort should I use", "make this a good API prompt/template", or pastes a rough instruction before a big Claude Code or API task. Detects the target model (current session or a named one), classifies task complexity, recommends an effort level (low/medium/high/xhigh/max, plus the dhpk agent-frontmatter/Claude Code equivalent), asks up to 4 AskUserQuestion questions only for missing required info, then applies model-specific behavioral rewrites. Not for: generic few-shot/CoT/template technique coaching with no model or effort selection (use prompt-engineering-patterns), or auditing token/cache budget (use harness-budget). Output: optimized prompt block + effort recommendation with rationale + bullet list of rewrites applied.'
 argument-hint: '"<raw prompt text>" [--model <name>]'
-allowed-tools: 'Read, AskUserQuestion'
+allowed-tools: 'Read, AskUserQuestion, mcp__context7__resolve-library-id, mcp__context7__query-docs, WebSearch, WebFetch'
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---
@@ -21,7 +21,7 @@ Rewrite a raw, informally-written task prompt into a model-aware, effort-calibra
 ## Workflow
 
 1. **Collect the raw prompt.** Take the user's pasted text verbatim, or `Read` the file if they pointed at one instead of pasting. Do not start rewriting yet.
-2. **Detect and verify the target model.** Default to the current session's model, or use an explicit override from the user. Before making any model-specific claim, query **Context7** and then the provider's **official documentation**. Follow the dated process in `references/live-model-verification-2026-08-05.md`; record the date and sources, or mark the recommendation `unverified` and keep it generic.
+2. **Detect and verify the target model.** Default to the current session's model, or use an explicit override from the user. Resolve the relevant library with `mcp__context7__resolve-library-id`, query it with `mcp__context7__query-docs`, then use `WebSearch` to locate the provider's official documentation and `WebFetch` to confirm the same parameter or capability there. These are explicit tools in this skill's `allowed-tools`; do not claim a live lookup was completed if one is unavailable. Follow the dated process in `references/live-model-verification-2026-08-05.md`; record the date and sources, or mark the recommendation `unverified` and keep it generic.
 3. **Classify the task and pick an effort level.** Bucket the task as one of: simple lookup/classification, complex reasoning, coding/agentic tool-use, long-horizon autonomous, creative/design. Use `references/effort-guide.md` for the stable decision shape, then confirm the target's supported values in the live docs. State one verified effort value plus a one-line rationale and its dhpk/Claude-Code equivalent. If the task needs more than shallow reasoning but latency/cost forces a lower effort, add the fallback line from `references/effort-guide.md`.
 4. **Run the completeness gate.** Check the raw prompt against `references/completeness-checklist.md`. For every REQUIRED gap, draft a question; call `AskUserQuestion` once with up to 4 batched questions (split into further calls only if more than 4 required gaps exist). For OPTIONAL gaps, don't ask — record the default assumption you'll state in the final output instead. Do not skip this step even if the prompt looks "good enough."
 5. **Apply verified model-aware rewrites.** Once required gaps are answered, rewrite the prompt: general best practices first (`references/general-techniques.md`), then only the target deltas confirmed by live docs (`references/model-guides.md`). Apply the reusable-template technique (`{{variable}}` placeholders) only if the prompt shows real signs of reuse with variable inputs — not by default.
@@ -37,7 +37,7 @@ Exactly three parts, in this order:
 
 ## Verification
 
-- [ ] Target model detected and checked through Context7 plus official documentation (or explicitly marked unverified)
+- [ ] Target model detected and checked through `mcp__context7__resolve-library-id` + `mcp__context7__query-docs`, then `WebSearch` + `WebFetch` for official documentation (or explicitly marked unverified)
 - [ ] Completeness gate run against `references/completeness-checklist.md`; all REQUIRED gaps asked via one batched `AskUserQuestion` call; all OPTIONAL gaps have a stated default in the output
 - [ ] Effort recommendation cites the per-model calibration table and states both the API value and the dhpk/Claude-Code equivalent
 - [ ] Output has exactly the 3 parts above, no extra essay

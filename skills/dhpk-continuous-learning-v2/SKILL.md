@@ -55,17 +55,19 @@ to `false`, so installing this skill does not start background capture. Enable
 
 After that explicit change, continue with the hook setup below.
 
-### 2. Enable Observation Hooks
+### 2. Register Observation Hooks explicitly
 
-**If installed as a plugin** (recommended):
+`observer.enabled` is a runtime gate, not hook registration. The current root
+plugin `hooks/hooks.json` intentionally does **not** register this optional
+observer, so enabling the config alone does not register or start capture. Add the
+`PreToolUse`/`PostToolUse` entries from `references/manual-hook-setup.md` to the
+consumer settings, changing the command to the installed plugin's absolute
+`observe.sh` path when needed. Do this only after setting `observer.enabled` to
+`true` and reviewing the privacy/storage behavior.
 
-No extra `settings.json` hook block is required. Claude Code v2.1+ auto-loads the plugin `hooks/hooks.json`, and `observe.sh` is already registered there.
-
-If you previously copied `observe.sh` into `~/.claude/settings.json`, remove that duplicate `PreToolUse` / `PostToolUse` block. Duplicating the plugin hook causes double execution and `${CLAUDE_PLUGIN_ROOT}` resolution errors because that variable is only available inside plugin-managed `hooks/hooks.json` entries.
-
-**If installed manually** to `~/.claude/skills`, read
-`references/manual-hook-setup.md` and add its `PreToolUse`/`PostToolUse` block
-only after setting `observer.enabled` to `true`.
+`${CLAUDE_PLUGIN_ROOT}` is available inside plugin-managed hook entries, not
+arbitrary consumer settings. If a future plugin release registers this hook,
+remove any manually duplicated entries before enabling it.
 
 ### 3. Initialize Directory Structure
 

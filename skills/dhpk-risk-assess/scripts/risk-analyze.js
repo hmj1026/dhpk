@@ -32,7 +32,8 @@ function loadClassification() {
   }
 }
 const CLASSIFICATION = loadClassification();
-const CODE_EXTS = CLASSIFICATION?.code_extensions ?? ['.ts', '.tsx', '.js', '.jsx'];
+const CODE_EXTS = (CLASSIFICATION?.code_extensions ?? ['.ts', '.tsx', '.js', '.jsx'])
+  .map(ext => ext.toLowerCase());
 // Keep a conservative source-language census separate from CODE_EXTS.  A
 // changed source file that has no configured adapter must not be scored as a
 // harmless documentation change; it is an explicit inconclusive result.
@@ -41,6 +42,32 @@ const SOURCE_EXTS = new Set([
   '.c', '.cc', '.cpp', '.cs', '.dart', '.ex', '.exs', '.go', '.h', '.hh',
   '.hpp', '.java', '.jl', '.kt', '.kts', '.lua', '.m', '.mm', '.php', '.pl',
   '.py', '.rb', '.rs', '.scala', '.sh', '.sql', '.swift', '.vb', '.zig',
+  '.asm', '.clj', '.cljs', '.fs', '.fsi', '.fsx', '.groovy', '.hs', '.lhs',
+  '.ml', '.mli', '.nim', '.pas', '.r', '.rkt', '.sol', '.v', '.vhd', '.vhdl',
+  '.vue', '.svelte', '.css', '.scss', '.less', '.gql', '.graphql', '.proto',
+  '.tf', '.tfvars', '.bicep',
+]);
+const KNOWN_NON_SOURCE_EXTS = new Set([
+  '.md', '.markdown', '.mdx', '.txt', '.rst', '.adoc', '.asciidoc',
+  '.json', '.jsonc', '.yaml', '.yml', '.toml', '.ini', '.cfg', '.conf',
+  '.xml', '.csv', '.tsv', '.html', '.htm', '.xhtml', '.svg',
+  '.png', '.jpg', '.jpeg', '.gif', '.webp', '.avif', '.ico', '.bmp', '.tif', '.tiff',
+  '.mp3', '.mp4', '.wav', '.webm', '.ogg', '.woff', '.woff2', '.ttf', '.otf', '.eot',
+  '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+  '.zip', '.gz', '.bz2', '.xz', '.tar', '.7z', '.map', '.lock', '.log',
+  '.db', '.sqlite', '.sqlite3',
+]);
+const SOURCE_PATH_SEGMENTS = new Set([
+  'src', 'source', 'sources', 'lib', 'app', 'apps', 'packages', 'components',
+  'modules', 'server', 'client', 'backend', 'frontend', 'cmd', 'internal',
+  'pkg', 'crates', 'services', 'scripts', 'bin', 'include', 'test', 'tests',
+  '__tests__',
+]);
+const NON_SOURCE_PATH_SEGMENTS = new Set([
+  'doc', 'docs', 'documentation', 'asset', 'assets', 'image', 'images', 'media',
+  'static', 'public', 'coverage', 'report', 'reports', 'fixture', 'fixtures',
+  'snapshot', 'snapshots', 'node_modules', 'vendor', 'dist', 'build', 'out',
+  'target', '.git',
 ]);
 const IGNORE_PREFIXES = CLASSIFICATION?.ignore_prefixes ?? [
   'node_modules/', 'vendor/', 'dist/', 'build/', 'out/',
@@ -63,15 +90,29 @@ const BASE = argVal('--base') || 'HEAD';
 // Helpers
 // ---------------------------------------------------------------------------
 function isCodeFile(filePath) {
-  const ext = path.extname(filePath);
+  const ext = path.extname(filePath).toLowerCase();
   return CODE_EXTS.includes(ext);
 }
 
+function pathHasSegment(filePath, segments) {
+  const normalized = filePath.replace(/\\/g, '/').replace(/^\.\//, '');
+  return normalized.split('/').some(segment => segments.has(segment.toLowerCase()));
+}
+
+function isUnknownSourceFile(filePath) {
+  if (isIgnored(filePath)) return false;
+  const ext = path.extname(filePath).toLowerCase();
+  if (CODE_EXTS.includes(ext) || KNOWN_NON_SOURCE_EXTS.has(ext)) return false;
+  if (SOURCE_EXTS.has(ext)) return true;
+  // Unknown extensions are review-worthy only in source-like paths.  A
+  // documentation or asset directory wins over a nested src-like segment so
+  // ordinary generated/content files do not become false positives.
+  if (pathHasSegment(filePath, NON_SOURCE_PATH_SEGMENTS)) return false;
+  return pathHasSegment(filePath, SOURCE_PATH_SEGMENTS);
+}
+
 function unsupportedSourceFiles(files) {
-  return files.filter(({ file }) => {
-    const ext = path.extname(file).toLowerCase();
-    return SOURCE_EXTS.has(ext) && !CODE_EXTS.includes(ext) && !isIgnored(file);
-  });
+  return files.filter(({ file }) => isUnknownSourceFile(file));
 }
 
 function isIgnored(filePath) {
