@@ -66,6 +66,39 @@ function validateNativeCandidate({ manifestSkillsField, packageRoot }) {
   return { ok: errors.length === 0, errors };
 }
 
+function readSkillFrontmatterName(skillFile) {
+  if (!fs.existsSync(skillFile) || !fs.statSync(skillFile).isFile()) return null;
+  const text = fs.readFileSync(skillFile, 'utf8');
+  const block = text.match(/^---\s*\r?\n([\s\S]*?)\r?\n---\s*(?:\r?\n|$)/);
+  if (!block) return null;
+  const nameLine = block[1].match(/^name\s*:\s*(.*?)\s*$/m);
+  if (!nameLine) return null;
+  const value = nameLine[1].trim();
+  if (value.length >= 2 && ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'")))) {
+    return value.slice(1, -1).trim();
+  }
+  return value;
+}
+
+// Validate the identity dimension independently from fingerprints and
+// membership. A public native directory must carry the same public name in
+// SKILL.md frontmatter; stable inventory ids remain provenance-only.
+function validateNativeSkillIdentity({ packageRoot, inventory, manifestSkillsField = './skills/' }) {
+  const errors = [];
+  if (!resolvesInsidePackage(manifestSkillsField, packageRoot)) return { ok: true, errors };
+  const skillsRoot = path.resolve(packageRoot, manifestSkillsField);
+  for (const skill of selectNativeSkills(inventory)) {
+    const publicName = skill.name || skill.id;
+    const skillFile = path.join(skillsRoot, publicName, 'SKILL.md');
+    if (!fs.existsSync(skillFile)) continue;
+    const actualName = readSkillFrontmatterName(skillFile);
+    if (actualName !== publicName) {
+      errors.push(`native skill '${publicName}' SKILL.md frontmatter name '${actualName || '(missing)'}' does not match public name '${publicName}'`);
+    }
+  }
+  return { ok: errors.length === 0, errors };
+}
+
 // Native membership SHALL be the explicit `codex-native` inventory surface,
 // never inferred from `lifecycle=promoted` (spec: "Native publication uses an
 // explicit inventory surface"). Deprecated entries are excluded even if they
@@ -156,6 +189,10 @@ function materializeNativePackage({
     const srcDir = path.join(root, skill.path);
     const publicName = skill.name || skill.id;
     const dstDir = path.join(skillsOutDir, publicName);
+    const sourceFrontmatterName = readSkillFrontmatterName(path.join(srcDir, 'SKILL.md'));
+    if (sourceFrontmatterName !== publicName) {
+      throw new Error(`native skill '${publicName}' source SKILL.md frontmatter name '${sourceFrontmatterName || '(missing)'}' does not match public name '${publicName}'`);
+    }
     fs.cpSync(srcDir, dstDir, { recursive: true, dereference: true });
     fingerprints[publicName] = fingerprintDir(dstDir);
   }
@@ -205,6 +242,7 @@ function fingerprintDir(dir) {
 module.exports = {
   GENERATOR_VERSION,
   validateNativeCandidate,
+  validateNativeSkillIdentity,
   validateNativeMembership,
   selectNativeSkills,
   materializeNativePackage,

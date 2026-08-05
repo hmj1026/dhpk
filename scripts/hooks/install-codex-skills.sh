@@ -245,8 +245,8 @@ def inventory_skill_metadata():
 
     Codex sync sources are the public-name projection under codex/skills. The
     distribution inventory is the only authority for stable ids and legacy
-    names; missing/malformed inventory is treated as an empty metadata map so
-    supporting-only or legacy fixture plugins remain installable.
+    names; missing/malformed inventory is treated as an empty metadata map and
+    validated before any skill source can be materialized.
     """
     inventory_path = os.path.join(PLUGIN_ROOT, 'manifests', 'distribution-inventory.json')
     if not os.path.isfile(inventory_path):
@@ -262,10 +262,6 @@ def inventory_skill_metadata():
             continue
         name = skill.get('name')
         if not isinstance(name, str) or not name:
-            path_name = skill.get('path')
-            if isinstance(path_name, str) and path_name.startswith('skills/'):
-                name = path_name.split('/')[-1]
-        if not isinstance(name, str) or not name:
             continue
         result[name] = {
             'id': skill.get('id'),
@@ -273,6 +269,31 @@ def inventory_skill_metadata():
             'legacy_names': [legacy for legacy in (skill.get('legacy_names') or []) if isinstance(legacy, str) and legacy],
         }
     return result
+
+
+def validate_skill_metadata(sources, metadata):
+    """Fail closed when Codex skill sources lack schema-v3 identity fields.
+
+    Supporting-only installs do not need inventory skill metadata, but every
+    materialized skill entry must carry the stable inventory id and its exact
+    public name. This keeps schema-v3 receipts self-describing instead of
+    silently emitting legacy-shaped entries when a fixture or plugin ships a
+    missing/malformed distribution inventory.
+    """
+    skill_names = sorted((sources.get('skills') or {}).keys())
+    if not skill_names:
+        return
+    incomplete = []
+    for name in skill_names:
+        record = metadata.get(name) if isinstance(metadata, dict) else None
+        if (not isinstance(record, dict)
+                or not isinstance(record.get('id'), str)
+                or not record.get('id').strip()
+                or record.get('name') != name):
+            incomplete.append(name)
+    if incomplete:
+        joined = ', '.join(incomplete)
+        raise ValueError(f'distribution inventory skill metadata is missing or incomplete for Codex skill sources: {joined} (schema-v3 receipts require id and name)')
 
 
 def read_receipt():
@@ -343,6 +364,30 @@ def make_entry(source, relative, destination, metadata=None):
     return entry
 
 
+def contains_symlink(path):
+    """Return True when a destination tree contains any symlink.
+
+    Copy-mode ownership must not follow a link to prove content equality: a
+    user can retarget that link to identical bytes and otherwise trick the
+    receipt into deleting it during migration or uninstall. Walk with
+    follow_symlinks=False so nested links and broken links fail closed.
+    """
+    if os.path.islink(path):
+        return True
+    if not os.path.isdir(path):
+        return False
+    try:
+        with os.scandir(path) as children:
+            for child in children:
+                if child.is_symlink():
+                    return True
+                if child.is_dir(follow_symlinks=False) and contains_symlink(child.path):
+                    return True
+    except OSError:
+        return True
+    return False
+
+
 def is_owned(entry, destination):
     if not isinstance(entry, dict) or entry.get('orphaned') or not lexists(destination):
         return False
@@ -358,6 +403,8 @@ def is_owned(entry, destination):
         return (os.path.islink(destination)
                 and isinstance(recorded_target, str)
                 and os.readlink(destination) == recorded_target)
+    if contains_symlink(destination):
+        return False
     recorded = entry.get('destination_fingerprint') or entry.get('fingerprint')
     return bool(recorded) and hash_path(destination) == recorded
 
@@ -605,10 +652,15 @@ try:
 except ValueError as error:
     print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
     sys.exit(2)
+try:
+    sources = current_sources()
+    skill_metadata = inventory_skill_metadata()
+    validate_skill_metadata(sources, skill_metadata)
+except ValueError as error:
+    print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
+    sys.exit(2)
 os.makedirs(os.path.join(CODEX_ROOT, 'skills'), exist_ok=True)
 os.makedirs(os.path.join(CODEX_ROOT, 'agents'), exist_ok=True)
-sources = current_sources()
-skill_metadata = inventory_skill_metadata()
 
 # Public-name migration must run before the generic update-prune pass: an old
 # receipt key is not a current source name, but it remains protected when the

@@ -19,7 +19,7 @@ function fixtureRepo() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-native-drift-repo-'));
   fs.mkdirSync(path.join(root, 'manifests'), { recursive: true });
   fs.mkdirSync(path.join(root, 'skills', 'dhpk-tdd-workflow'), { recursive: true });
-  fs.writeFileSync(path.join(root, 'skills', 'dhpk-tdd-workflow', 'SKILL.md'), '---\nname: tdd\n---\n');
+  fs.writeFileSync(path.join(root, 'skills', 'dhpk-tdd-workflow', 'SKILL.md'), '---\nname: dhpk-tdd-workflow\n---\n');
   const inventory = {
     skills: [{ id: 'tdd', name: 'dhpk-tdd-workflow', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] }],
   };
@@ -66,11 +66,26 @@ test('fails when a canonical skill file changes content after the tracked packag
   const { root, inventory } = fixtureRepo();
   try {
     materializeNativePackage({ inventory, root, outDir: path.join(root, 'plugins', 'dhpk'), name: 'dhpk', version: '1.0.0', sourceCommit: 'abc' });
-    fs.writeFileSync(path.join(root, 'skills', 'dhpk-tdd-workflow', 'SKILL.md'), '---\nname: tdd\n---\nchanged content\n');
+    fs.writeFileSync(path.join(root, 'skills', 'dhpk-tdd-workflow', 'SKILL.md'), '---\nname: dhpk-tdd-workflow\n---\nchanged content\n');
 
     const res = spawnSync('node', [CLI, '--repo-root', root], { encoding: 'utf8' });
     assert.notStrictEqual(res.status, 0);
     assert.match(res.stderr, /fingerprint drifted/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('fails and identifies tracked frontmatter whose name differs from its public directory', () => {
+  const { root, inventory } = fixtureRepo();
+  try {
+    materializeNativePackage({ inventory, root, outDir: path.join(root, 'plugins', 'dhpk'), name: 'dhpk', version: '1.0.0', sourceCommit: 'abc' });
+    const trackedSkill = path.join(root, 'plugins', 'dhpk', 'skills', 'dhpk-tdd-workflow', 'SKILL.md');
+    fs.writeFileSync(trackedSkill, '---\nname: tdd\n---\n');
+
+    const res = spawnSync('node', [CLI, '--repo-root', root], { encoding: 'utf8' });
+    assert.notStrictEqual(res.status, 0);
+    assert.match(res.stderr, /frontmatter.*dhpk-tdd-workflow|public name.*dhpk-tdd-workflow/i);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

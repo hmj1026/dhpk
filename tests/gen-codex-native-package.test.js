@@ -84,6 +84,31 @@ test('materialized native packages use public names for directories, frontmatter
   }
 });
 
+test('native materialization rejects a skill whose frontmatter name differs from its public directory name', () => {
+  const root = tmpDir('dhpk-native-frontmatter-mismatch-root-');
+  const out = tmpDir('dhpk-native-frontmatter-mismatch-out-');
+  try {
+    fs.mkdirSync(path.join(root, 'skills', 'dhpk-example-skill'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'skills', 'dhpk-example-skill', 'SKILL.md'), '---\nname: legacy-example\n---\n');
+    const inventory = {
+      skills: [{
+        id: 'example-skill',
+        name: 'dhpk-example-skill',
+        path: 'skills/dhpk-example-skill',
+        lifecycle: 'promoted',
+        surfaces: ['codex-native'],
+      }],
+    };
+    assert.throws(
+      () => materializeNativePackage({ inventory, root, outDir: out }),
+      /frontmatter.*dhpk-example-skill|public name.*dhpk-example-skill/i
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
 test('regenerating into an existing outDir removes a skill directory dropped from the codex-native surface', () => {
   const firstInventory = {
     skills: [

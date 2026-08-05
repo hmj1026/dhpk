@@ -20,7 +20,12 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { materializeNativePackage, validateNativeCandidate, validateNativeMembership } = require('../lib/codex-native-package');
+const {
+  materializeNativePackage,
+  validateNativeCandidate,
+  validateNativeMembership,
+  validateNativeSkillIdentity,
+} = require('../lib/codex-native-package');
 
 function parseArgs(argv) {
   const args = { root: path.join(__dirname, '..', '..') };
@@ -73,6 +78,12 @@ const errors = [];
 // not catch on its own.
 const structural = validateNativeCandidate({ manifestSkillsField: trackedManifest.skills, packageRoot: pkgDir });
 errors.push(...structural.errors);
+const identity = validateNativeSkillIdentity({
+  manifestSkillsField: trackedManifest.skills,
+  packageRoot: pkgDir,
+  inventory,
+});
+errors.push(...identity.errors);
 const trackedMembership = validateNativeMembership({
   candidateSkillNames: fs.existsSync(path.join(pkgDir, 'skills')) ? fs.readdirSync(path.join(pkgDir, 'skills')) : [],
   inventory,

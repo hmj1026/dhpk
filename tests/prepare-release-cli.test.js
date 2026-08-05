@@ -26,7 +26,7 @@ function mkRepo({ branch = 'develop' } = {}) {
   fs.writeFileSync(path.join(root, 'plugins/dhpk/.codex-plugin', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '1.0.0' }));
   fs.writeFileSync(path.join(root, '.agents/plugins', 'marketplace.json'), JSON.stringify({ plugins: [{ name: 'dhpk', version: '1.0.0' }] }));
   fs.writeFileSync(path.join(root, 'CHANGELOG.md'), '# Changelog\n\n## [Unreleased]\n\n## 1.0.0 — 2026-01-01 — Prior\n\nPrior notes.\n');
-  fs.writeFileSync(path.join(root, 'skills/dhpk-tdd-workflow', 'SKILL.md'), '---\nname: tdd\n---\n');
+  fs.writeFileSync(path.join(root, 'skills/dhpk-tdd-workflow', 'SKILL.md'), '---\nname: dhpk-tdd-workflow\n---\n');
   fs.writeFileSync(
     path.join(root, 'manifests', 'distribution-inventory.json'),
     JSON.stringify({ skills: [{ id: 'tdd', name: 'dhpk-tdd-workflow', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] }] })
