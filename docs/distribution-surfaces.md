@@ -136,6 +136,13 @@ plus 4 approved optional-module exceptions: `php-pro`,
 acquisition/update/verification contracts — adding a skill to one does not
 add it to the other.
 
+When both surfaces expose the same id, the consumer gate records both source
+paths, versions, fingerprints, and receipt ownership. The deterministic matrix
+returns `BLOCKED` for stale or unowned content or missing precedence, `PASS` for
+identical fingerprints with valid provenance, and `WARN` only for a current
+receipt-owned project-local fallback explicitly taking precedence over an
+experimental native surface.
+
 **Structural safety.** Both `.codex-plugin/plugin.json` (root) and
 `plugins/dhpk/.codex-plugin/plugin.json` (marketplace-target wrapper) now
 resolve to the SAME physical `plugins/dhpk/skills/` tree — the root manifest
@@ -180,3 +187,26 @@ is silently dropped. The supported Codex delivery path remains
 contract unaffected by this package (see its own tests in
 `tests/install-codex-skills.test.js` for copy/symlink/update/version-fingerprint
 coverage).
+
+**Hardened distribution evidence.** The installer contract and terminology are
+defined in [basic operations](basic-operations.md#sync-codex-cli-content). A
+handoff records the schema-v2 receipt summary
+(created, updated, preserved, collision, pruned, and orphaned counts), the
+canonical/mirror fingerprints emitted by `validate-openai-metadata.js`, and
+any duplicate-surface evidence from `consumer-gate.js`. The repeatable
+verification set is:
+
+```text
+node tests/install-codex-skills.test.js
+node tests/validate-openai-metadata.test.js
+node tests/consumer-gate-cli.test.js
+node scripts/ci/validate-openai-metadata.js --root .
+node scripts/release/consumer-gate.js --version <version> --repo-root .
+node tests/run-all.js
+openspec validate <change> --strict --no-interactive
+```
+
+The installer and consumer checks run against temporary projects (including
+shell-special paths); repository validators, the full suite, and OpenSpec
+checks run against the checkout. Durable release evidence keeps absolute
+private paths out.

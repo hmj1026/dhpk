@@ -7,7 +7,7 @@ const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
 const SCRIPT = path.join(ROOT, 'scripts', 'ci', 'validate-openai-metadata.js');
-const { validateRepository } = require(SCRIPT);
+const { validateRepository, derivePhysicalSources } = require(SCRIPT);
 
 function writeFixture({ metadata = true, physical = false, invalid = false, invocationClass = null, claudeDisabled = null, codexPolicy = null } = {}) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-openai-metadata-'));
@@ -20,7 +20,7 @@ function writeFixture({ metadata = true, physical = false, invalid = false, invo
   const classBlock = invocationClass == null ? '' : `metadata:\n  dhpk-invocation-class: ${invocationClass}\n`;
   fs.writeFileSync(
     path.join(skillDir, 'SKILL.md'),
-    `---\nname: demo-skill\ndescription: A fixture skill for metadata validation.\n${claudeLine}${classBlock}---\n\n# Demo\n`,
+    `---\nname: demo-skill\ndescription: A fixture skill for metadata validation.\n${claudeLine}${classBlock}---\n\n# Demo\n\n## Output\n- Return a report with the verified result.\n`,
   );
 
   if (metadata) {
@@ -165,6 +165,66 @@ test('matching implicit-eligible class with no restrictive flags anywhere passes
   try {
     const result = runValidator(tmp);
     assert.strictEqual(result.status, 0, result.output);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('physical mirror sources are derived from the distribution inventory', () => {
+  const sources = derivePhysicalSources(ROOT);
+  assert.deepStrictEqual(sources['legacy-code-characterization'], 'modules/phpunit-5.7/skills/legacy-code-characterization');
+  assert.deepStrictEqual(sources['php56-yii-dev'], 'modules/yii-1.1/skills/php56-yii-dev');
+  assert.deepStrictEqual(sources['php-pro'], 'modules/php-5.6/skills/php-pro');
+  assert.deepStrictEqual(sources['yii1-security-audit'], 'modules/yii-1.1/skills/yii1-security-audit');
+});
+
+test('physical mirror contract diagnostics name missing fields and fingerprints', () => {
+  const tmp = writeFixture({ physical: true });
+  try {
+    fs.mkdirSync(path.join(tmp, 'manifests'), { recursive: true });
+    fs.writeFileSync(path.join(tmp, 'manifests', 'distribution-inventory.json'), JSON.stringify({
+      skills: [{ id: 'demo-skill', path: 'skills/demo-skill', surfaces: ['codex-sync'] }],
+    }));
+    const mirrorMetadata = path.join(tmp, 'codex', 'skills', 'demo-skill', 'agents', 'openai.yaml');
+    fs.writeFileSync(mirrorMetadata, 'interface:\n  display_name: "Demo Skill"\n  short_description: "A fixture metadata description for testing"\n');
+    const result = runValidator(tmp);
+    assert.strictEqual(result.status, 1);
+    assert.match(result.output, /missing field.*default_prompt|physical mirror metadata differs/);
+    assert.match(result.output, /fingerprint|demo-skill/);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('physical mirror missing the canonical output contract fails validation', () => {
+  const tmp = writeFixture({ physical: true });
+  try {
+    fs.mkdirSync(path.join(tmp, 'manifests'), { recursive: true });
+    fs.writeFileSync(path.join(tmp, 'manifests', 'distribution-inventory.json'), JSON.stringify({
+      skills: [{ id: 'demo-skill', path: 'skills/demo-skill', surfaces: ['codex-sync'] }],
+    }));
+    const mirror = path.join(tmp, 'codex', 'skills', 'demo-skill', 'SKILL.md');
+    fs.writeFileSync(mirror, fs.readFileSync(mirror, 'utf8').replace(/\n## Output[\s\S]*$/, '\n'));
+    const result = runValidator(tmp);
+    assert.strictEqual(result.status, 1);
+    assert.match(result.output, /output contract/i);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('physical mirror with an incompatible non-empty output contract fails validation', () => {
+  const tmp = writeFixture({ physical: true });
+  try {
+    fs.mkdirSync(path.join(tmp, 'manifests'), { recursive: true });
+    fs.writeFileSync(path.join(tmp, 'manifests', 'distribution-inventory.json'), JSON.stringify({
+      skills: [{ id: 'demo-skill', path: 'skills/demo-skill', surfaces: ['codex-sync'] }],
+    }));
+    const mirror = path.join(tmp, 'codex', 'skills', 'demo-skill', 'SKILL.md');
+    fs.writeFileSync(mirror, fs.readFileSync(mirror, 'utf8').replace('Return a report with the verified result.', 'Return an unrelated note.'));
+    const result = runValidator(tmp);
+    assert.strictEqual(result.status, 1);
+    assert.match(result.output, /output contract/i);
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
