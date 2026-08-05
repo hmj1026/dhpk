@@ -77,11 +77,11 @@ test('accepts a same-directory candidate whose package tree is entirely physical
 test('rejects a candidate containing a promoted-but-non-native skill, naming the extra skill', () => {
   const inventory = {
     skills: [
-      { id: 'tdd', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
-      { id: 'skill-judge', path: 'skills/dhpk-skill-quality-judge', lifecycle: 'promoted', surfaces: ['claude-core'] },
+      { id: 'tdd', name: 'dhpk-tdd-workflow', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
+      { id: 'skill-judge', name: 'dhpk-skill-quality-judge', path: 'skills/dhpk-skill-quality-judge', lifecycle: 'promoted', surfaces: ['claude-core'] },
     ],
   };
-  const result = validateNativeMembership({ candidateSkillIds: ['tdd', 'skill-judge'], inventory });
+  const result = validateNativeMembership({ candidateSkillNames: ['dhpk-tdd-workflow', 'dhpk-skill-quality-judge'], inventory });
   assert.ok(!result.ok);
   assert.ok(result.errors.some((e) => /skill-judge/.test(e) && /not in the codex-native/i.test(e)), result.errors.join('\n'));
 });
@@ -89,11 +89,11 @@ test('rejects a candidate containing a promoted-but-non-native skill, naming the
 test('accepts an approved optional-lifecycle native exception alongside promoted native skills', () => {
   const inventory = {
     skills: [
-      { id: 'tdd', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
-      { id: 'php-pro', path: 'skills/dhpk-php-runtime-router', lifecycle: 'optional', surfaces: ['claude-module', 'codex-native'] },
+      { id: 'tdd', name: 'dhpk-tdd-workflow', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
+      { id: 'php-pro', name: 'dhpk-php-runtime-router', path: 'skills/dhpk-php-runtime-router', lifecycle: 'optional', surfaces: ['claude-module', 'codex-native'] },
     ],
   };
-  const result = validateNativeMembership({ candidateSkillIds: ['tdd', 'php-pro'], inventory });
+  const result = validateNativeMembership({ candidateSkillNames: ['dhpk-tdd-workflow', 'dhpk-php-runtime-router'], inventory });
   assert.deepStrictEqual(result.errors, []);
   assert.ok(result.ok);
 });
@@ -101,11 +101,11 @@ test('accepts an approved optional-lifecycle native exception alongside promoted
 test('rejects a candidate missing a codex-native skill that the inventory expects', () => {
   const inventory = {
     skills: [
-      { id: 'tdd', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
-      { id: 'skill-judge', path: 'skills/dhpk-skill-quality-judge', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
+      { id: 'tdd', name: 'dhpk-tdd-workflow', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
+      { id: 'skill-judge', name: 'dhpk-skill-quality-judge', path: 'skills/dhpk-skill-quality-judge', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
     ],
   };
-  const result = validateNativeMembership({ candidateSkillIds: ['tdd'], inventory });
+  const result = validateNativeMembership({ candidateSkillNames: ['dhpk-tdd-workflow'], inventory });
   assert.ok(!result.ok);
   assert.ok(result.errors.some((e) => /skill-judge/.test(e) && /missing/i.test(e)), result.errors.join('\n'));
 });
@@ -113,9 +113,10 @@ test('rejects a candidate missing a codex-native skill that the inventory expect
 test('excludes a deprecated codex-native skill from the expected membership set', () => {
   const inventory = {
     skills: [
-      { id: 'tdd', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
+      { id: 'tdd', name: 'dhpk-tdd-workflow', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
       {
         id: 'old-skill',
+        name: 'dhpk-old-skill',
         path: 'skills/old-skill',
         lifecycle: 'deprecated',
         surfaces: ['claude-core', 'codex-native'],
@@ -123,7 +124,7 @@ test('excludes a deprecated codex-native skill from the expected membership set'
       },
     ],
   };
-  const result = validateNativeMembership({ candidateSkillIds: ['tdd'], inventory });
+  const result = validateNativeMembership({ candidateSkillNames: ['dhpk-tdd-workflow'], inventory });
   assert.deepStrictEqual(result.errors, []);
   assert.ok(result.ok);
 });

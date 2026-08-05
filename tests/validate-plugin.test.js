@@ -231,7 +231,7 @@ test('shell source and node-invocation edges in goal scripts are resolved', () =
     const { status, out } = runValidator(tmp);
     assert.strictEqual(status, 1);
     assert.match(out, /runner\.sh — unresolved shell source '\.\/ghost-lib\.sh'/);
-    assert.match(out, /runner\.sh — unresolved node invocation path 'skills\/opsx-apply-goal\/scripts\/ghost-entry\.js'/);
+    assert.match(out, /runner\.sh — unresolved node invocation path 'skills\/dhpk-opsx-apply-goal\/scripts\/ghost-entry\.js'/);
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }

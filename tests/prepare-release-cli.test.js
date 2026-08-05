@@ -29,7 +29,7 @@ function mkRepo({ branch = 'develop' } = {}) {
   fs.writeFileSync(path.join(root, 'skills/dhpk-tdd-workflow', 'SKILL.md'), '---\nname: tdd\n---\n');
   fs.writeFileSync(
     path.join(root, 'manifests', 'distribution-inventory.json'),
-    JSON.stringify({ skills: [{ id: 'tdd', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] }] })
+    JSON.stringify({ skills: [{ id: 'tdd', name: 'dhpk-tdd-workflow', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] }] })
   );
 
   spawnSync('git', ['init', '-q'], { cwd: root });
@@ -94,9 +94,8 @@ test('write mode updates every manifest, promotes fragments, and reports the ful
   const provenance = JSON.parse(fs.readFileSync(path.join(repo, 'plugins/dhpk', 'provenance.json'), 'utf8'));
   assert.strictEqual(provenance.sourceVersion, '1.1.0');
   assert.deepStrictEqual(provenance.selectedSkillIds, ['tdd']);
-  // Native package regeneration still uses the pre-v2 id layout; Task 3 owns
-  // the native-name/materialization migration.
-  assert.ok(fs.existsSync(path.join(repo, 'plugins/dhpk/skills/tdd/SKILL.md')));
+  assert.deepStrictEqual(provenance.selectedSkillNames, ['dhpk-tdd-workflow']);
+  assert.ok(fs.existsSync(path.join(repo, 'plugins/dhpk/skills/dhpk-tdd-workflow/SKILL.md')));
 
   const changelog = fs.readFileSync(path.join(repo, 'CHANGELOG.md'), 'utf8');
   assert.ok(changelog.includes('## 1.1.0 — 2026-07-27 — Add widget'));

@@ -1,8 +1,8 @@
 {
   "sourceVersion": "0.34.1",
-  "sourceCommit": "5d3e841255ecdb0ec59bbae030c8702bf1b948bb",
-  "inventoryDigest": "7af4a51fa4035a3fcc601db1d0d4d113b48fd26d766b4f5af9b1a36cacf9a02f",
-  "generatorVersion": "1.0.0",
+  "sourceCommit": "5af67012850bed4908f3a9f8a7c7d7a717c8fe88",
+  "inventoryDigest": "dc521c4e273a5b1de86d4b75274faf5efbdbf0738ec814001c1cbacad5092e25",
+  "generatorVersion": "2.0.0",
   "selectedSkillIds": [
     "agy-commit",
     "bug-investigation",
@@ -19,5 +19,22 @@
     "skill-judge",
     "tdd",
     "yii1-security-audit"
+  ],
+  "selectedSkillNames": [
+    "dhpk-agy-commit",
+    "dhpk-cross-agent-sync",
+    "dhpk-git-history-investigation",
+    "dhpk-git-smart-commit",
+    "dhpk-legacy-characterization-tests",
+    "dhpk-onepassword-session",
+    "dhpk-opsx-load-context",
+    "dhpk-opsx-post-observation",
+    "dhpk-php-runtime-router",
+    "dhpk-root-cause-investigation",
+    "dhpk-skill-health-audit",
+    "dhpk-skill-quality-judge",
+    "dhpk-tdd-workflow",
+    "dhpk-yii1-php56-development",
+    "dhpk-yii1-security-audit"
   ]
 }

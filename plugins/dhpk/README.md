@@ -29,9 +29,9 @@ a second copy.
 
 | File | Purpose |
 |---|---|
-| `skills/<id>/` | Physical, deduplicated content for every `codex-native` skill. |
+| `skills/<dhpk-name>/` | Physical, deduplicated content for every `codex-native` skill, keyed by its public inventory name (never the stable id). |
 | `fingerprints.json` | Per-skill content hash, for deterministic-generation drift checks. |
-| `provenance.json` | Source version, source commit, inventory digest, generator version (a separate counter tracking the generation algorithm itself, bumped independently of the dhpk release version — see `GENERATOR_VERSION` in `scripts/lib/codex-native-package.js`), and the selected skill-id set. |
+| `provenance.json` | Source version, source commit, inventory digest, generator version (a separate counter tracking the generation algorithm itself, bumped independently of the dhpk release version — see `GENERATOR_VERSION` in `scripts/lib/codex-native-package.js`), selected stable skill IDs, and selected public skill names. |
 
 Regenerating this directory and committing the result is part of the release
 PR (`scripts/release/prepare-release.js write`); CI validates it

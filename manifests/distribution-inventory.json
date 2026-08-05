@@ -36,7 +36,7 @@
       "id": "codex-supporting-agent-traps-architect-yii-md",
       "source": "codex/supporting/agent-traps/architect/yii.md",
       "canonical_source": "agent-traps/architect/yii.md",
-      "canonical_digest": "8b188bd57389a407c39a86f6387c0a084122b3237eec6f9efafda1b31f45235c",
+      "canonical_digest": "10eca22ad71c03e0e955dd01c330de6b1be30499fef8a7751aa4032ab9849e3a",
       "projection_digest": "62f2f383da219f2416c4c645bdcfe00aec310f4ca297dff2f2fdd805ac5084fb",
       "destination": "dhpk/agent-traps/architect/yii.md"
     },
@@ -85,8 +85,8 @@
       "id": "codex-supporting-agent-traps-code-reviewer-yii-md",
       "source": "codex/supporting/agent-traps/code-reviewer/yii.md",
       "canonical_source": "agent-traps/code-reviewer/yii.md",
-      "canonical_digest": "4fbf5a8452fc8fa45a3cd96f16ee39ae3f4cdf328368be83c158f27a6182b613",
-      "projection_digest": "10141cd2cf6bed20101f267d0da4415789986a102adc122471502ce86be0382d",
+      "canonical_digest": "c9ec52738d9e895a876192ded84d9949b51061377d6f7d2cc6c5a04e7c637c79",
+      "projection_digest": "3d18fa67e2143e57fc06d461e5d0390b10d2a6d663805814717999baa11849e9",
       "destination": "dhpk/agent-traps/code-reviewer/yii.md"
     },
     {
@@ -131,7 +131,7 @@
       "id": "codex-supporting-agent-traps-security-reviewer-php-md",
       "source": "codex/supporting/agent-traps/security-reviewer/php.md",
       "canonical_source": "agent-traps/security-reviewer/php.md",
-      "canonical_digest": "dfa2765612b91f1de99ec0ececa139c0c1e89517869acd1be5a89adb01686e80",
+      "canonical_digest": "edf3058d24c1530395540ee6c1cf3e7a725d1a0e6bd966765844c3a109f878ac",
       "projection_digest": "e9d773fae0318bc2215c64f5b3e2dbb897f4bec33087fd700d2ac5df044a6a44",
       "destination": "dhpk/agent-traps/security-reviewer/php.md"
     },
@@ -144,8 +144,8 @@
       "id": "codex-supporting-agent-traps-security-reviewer-yii-md",
       "source": "codex/supporting/agent-traps/security-reviewer/yii.md",
       "canonical_source": "agent-traps/security-reviewer/yii.md",
-      "canonical_digest": "e114e6c8fa2e936414e41e3f2ce17613f67ef2d5b8c009905fccb909398a0169",
-      "projection_digest": "64146ab3238448a95bb87ae1c4f204fa51766921174cf098ae81cafd024548df",
+      "canonical_digest": "63f7dd70a1c9f243714a389cd4340e1f372d09778036285ad282ecac5c5238f4",
+      "projection_digest": "55513431b37ad107c44a55d1f9f1b03f483647f265138baf13ead6da72df1c85",
       "destination": "dhpk/agent-traps/security-reviewer/yii.md"
     },
     {
@@ -157,7 +157,7 @@
       "id": "codex-supporting-agent-traps-tdd-guide-php-md",
       "source": "codex/supporting/agent-traps/tdd-guide/php.md",
       "canonical_source": "agent-traps/tdd-guide/php.md",
-      "canonical_digest": "0c95d55163d03e5e84d358d89dc97a0675fa604910953906cadfdda844710436",
+      "canonical_digest": "b0488bc9933cb3445efcbf1d38a42aa2f342685e81b32b9fd1b2f79da9415322",
       "projection_digest": "0dc288dbaa9e7dd3db766503544fa3076f8c8621b2ed2a90374bec4dd15ed832",
       "destination": "dhpk/agent-traps/tdd-guide/php.md"
     },
@@ -165,7 +165,7 @@
       "id": "codex-supporting-agent-traps-tdd-guide-python-md",
       "source": "codex/supporting/agent-traps/tdd-guide/python.md",
       "canonical_source": "agent-traps/tdd-guide/python.md",
-      "canonical_digest": "4678f428fec20eef07b1fc2dbd27e32de1db82f196f668205345a2798ae1c278",
+      "canonical_digest": "672edfb5f1aaa32e5b5c0b62ec7a9e177a8420c991a4b4fb709a75c9f1c9746e",
       "projection_digest": "992d5dbbc31ba956f4a825db1dc08ef9ef3e744d7129a0dba911edb064d2c728",
       "destination": "dhpk/agent-traps/tdd-guide/python.md"
     },
@@ -194,7 +194,7 @@
       "id": "codex-supporting-policies-execution-policy-md",
       "source": "codex/supporting/policies/execution-policy.md",
       "canonical_source": "rules/execution-policy.md",
-      "canonical_digest": "a55152d57768fa575cab59db35e58a25046e6371f4f63e9e5c81100b787d7e14",
+      "canonical_digest": "111eb19ff11dab5b4881cc6699d9da023a469593f1ebcd364acc62d1a338068e",
       "projection_digest": "197fbbce3b3bf10603ede061365fd6b51d8dc24aff0d8ea6de33821bb13512d9",
       "destination": "dhpk/policies/execution-policy.md"
     }

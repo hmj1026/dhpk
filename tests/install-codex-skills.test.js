@@ -64,7 +64,7 @@ test('copy mode materializes skills/agents and records the install manifest', ()
     assert.ok(agents.length > 0, 'expected copied Codex agents');
     assert.ok(!fs.lstatSync(path.join(codex, 'skills', skills[0])).isSymbolicLink(), 'copy mode must materialize files');
     const manifest = JSON.parse(fs.readFileSync(path.join(codex, '.dhpk-installed.json'), 'utf8'));
-    assert.strictEqual(manifest.schema_version, 2);
+    assert.strictEqual(manifest.schema_version, 3);
     assert.ok(manifest.managed_entries && manifest.managed_entries.skills);
     assert.ok(manifest.managed_entries && manifest.managed_entries.agents);
     assert.ok(manifest.managed_entries && manifest.managed_entries.supporting_assets);
@@ -82,6 +82,9 @@ test('copy mode materializes skills/agents and records the install manifest', ()
     assert.strictEqual(skillEntry.mode, 'copy');
     assert.match(skillEntry.source_fingerprint, /^[a-f0-9]{64}$/);
     assert.match(skillEntry.destination_fingerprint, /^[a-f0-9]{64}$/);
+    assert.match(skillEntry.fingerprint, /^[a-f0-9]{64}$/);
+    assert.ok(typeof skillEntry.id === 'string' && skillEntry.id.length > 0);
+    assert.strictEqual(skillEntry.name, skills[0]);
     assert.ok(skillEntry.ownership_marker);
     assert.strictEqual(manifest.mode, 'copy');
     assert.strictEqual(manifest.plugin_version, JSON.parse(fs.readFileSync(path.join(ROOT, '.claude-plugin/plugin.json'))).version);
@@ -117,7 +120,13 @@ test('same plugin version but changed source content is not treated as up-to-dat
   const scratch = projectRoot();
   const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-plugin-')));
   try {
-    fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true });
+    fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
+    fs.rmSync(path.join(fakePlugin, 'codex', 'skills'), { recursive: true, force: true });
+    fs.cpSync(
+      path.join(ROOT, 'skills', 'dhpk-tdd-workflow'),
+      path.join(fakePlugin, 'codex', 'skills', 'dhpk-tdd-workflow'),
+      { recursive: true, dereference: true }
+    );
     fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
     fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
     const first = runInstaller(scratch, ['--copy', '--force'], fakePlugin);
@@ -191,7 +200,7 @@ test('symlink mode adopts a new plugin root on update when the receipt owns the 
   const firstPlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-plugin-v1-')));
   const secondPlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-plugin-v2-')));
   const preparePlugin = (plugin) => {
-    fs.cpSync(path.join(ROOT, 'codex'), path.join(plugin, 'codex'), { recursive: true });
+    fs.cpSync(path.join(ROOT, 'codex'), path.join(plugin, 'codex'), { recursive: true, dereference: true });
     fs.mkdirSync(path.join(plugin, '.claude-plugin'), { recursive: true });
     fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(plugin, '.claude-plugin', 'plugin.json'));
   };
@@ -222,7 +231,7 @@ test('path-safe install handles apostrophes in plugin and project roots', () => 
   fs.renameSync(basePlugin, fakePlugin);
   fs.mkdirSync(path.join(scratch, '.git'));
   try {
-    fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true });
+    fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
     fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
     fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
     const first = runInstaller(scratch, ['--copy', '--force'], fakePlugin);
@@ -240,7 +249,7 @@ test('inventory supporting sources reject unsafe paths before materialization', 
   const scratch = projectRoot();
   const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-inventory-')));
   try {
-    fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true });
+    fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
     fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
     fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
     fs.mkdirSync(path.join(fakePlugin, 'manifests'), { recursive: true });
@@ -275,6 +284,25 @@ test('fresh sync preserves an unowned copy collision and continues with other en
     assert.ok(!manifest.managed_entries.skills[skillName], 'unowned collision must not enter receipt inventory');
     const other = Object.keys(manifest.managed_entries.skills).find((name) => name !== skillName);
     assert.ok(other, 'non-conflicting skill should still be installed');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('fresh sync beside generic global skill names installs public dhpk names without creating aliases', () => {
+  const scratch = projectRoot();
+  try {
+    const generic = path.join(scratch, '.codex', 'skills', 'tdd');
+    fs.mkdirSync(generic, { recursive: true });
+    fs.writeFileSync(path.join(generic, 'global.md'), 'Matt/global skill\n');
+    const res = runInstaller(scratch, ['--copy', '--force']);
+    assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+    assert.strictEqual(fs.readFileSync(path.join(generic, 'global.md'), 'utf8'), 'Matt/global skill\n');
+    assert.ok(fs.existsSync(path.join(scratch, '.codex', 'skills', 'dhpk-tdd-workflow', 'SKILL.md')));
+    assert.ok(!fs.existsSync(path.join(scratch, '.codex', 'skills', 'tdd', 'SKILL.md')));
+    assert.match(`${res.stdout}\n${res.stderr}`, /legacy conflict|collision/i);
+    const receipt = JSON.parse(fs.readFileSync(path.join(scratch, '.codex', '.dhpk-installed.json'), 'utf8'));
+    assert.ok(!receipt.managed_entries.skills.tdd, 'generic legacy alias must never enter the dhpk receipt');
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
   }
@@ -317,7 +345,7 @@ test('legacy receipt and unowned symlink are fail-closed until --migrate', () =>
     assert.ok(fs.lstatSync(target).isSymbolicLink());
     assert.strictEqual(fs.realpathSync(target), external);
     const manifest = JSON.parse(fs.readFileSync(path.join(scratch, '.codex', '.dhpk-installed.json'), 'utf8'));
-    assert.strictEqual(manifest.schema_version, 2);
+    assert.strictEqual(manifest.schema_version, 3);
     assert.ok(!manifest.managed_entries.skills[skillName]);
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
@@ -329,7 +357,7 @@ test('--update prunes only unchanged removed sources and preserves edited/unrela
   const scratch = projectRoot();
   const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-prune-plugin-')));
   try {
-    fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true });
+    fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
     fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
     fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
     const first = runInstaller(scratch, ['--copy', '--force'], fakePlugin);
@@ -378,7 +406,7 @@ test('--migrate adopts exact legacy copies but never overwrites mismatches', () 
     const res = runInstaller(scratch, ['--copy', '--migrate', '--force']);
     assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
     const manifest = JSON.parse(fs.readFileSync(path.join(scratch, '.codex', '.dhpk-installed.json'), 'utf8'));
-    assert.strictEqual(manifest.schema_version, 2);
+    assert.strictEqual(manifest.schema_version, 3);
     assert.ok(manifest.managed_entries.skills[skillName], 'exact source match should be adopted');
     assert.ok(!manifest.managed_entries.skills[mismatch], 'mismatched legacy destination must remain unowned');
     assert.strictEqual(fs.readFileSync(path.join(mismatchTarget, 'user-owned.txt'), 'utf8'), 'do not replace\n');
@@ -407,6 +435,66 @@ test('legacy migration remains available after a safe normal sync', () => {
     assert.ok(manifest.managed_entries.skills[skillName], 'exact legacy copy should become receipt-owned after explicit migration');
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('--migrate renames a receipt-owned unchanged legacy skill destination to its current public name', () => {
+  const scratch = projectRoot();
+  const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-legacy-rename-plugin-')));
+  try {
+    fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
+    fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
+    fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
+    fs.mkdirSync(path.join(fakePlugin, 'manifests'), { recursive: true });
+    fs.writeFileSync(path.join(fakePlugin, 'manifests', 'distribution-inventory.json'), JSON.stringify({
+      skills: [{
+        id: 'tdd',
+        name: 'dhpk-tdd-workflow',
+        legacy_names: ['tdd'],
+        lifecycle: 'promoted',
+        surfaces: ['codex-sync'],
+      }],
+      supporting_assets: [],
+    }));
+
+    const first = runInstaller(scratch, ['--copy', '--force'], fakePlugin);
+    assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+    const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
+    const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    const currentName = 'dhpk-tdd-workflow';
+    const legacyName = 'tdd';
+    const currentEntry = receipt.managed_entries.skills[currentName];
+    assert.ok(currentEntry, `expected initial receipt entry for ${currentName}`);
+    fs.renameSync(
+      path.join(scratch, '.codex', 'skills', currentName),
+      path.join(scratch, '.codex', 'skills', legacyName)
+    );
+    delete receipt.managed_entries.skills[currentName];
+    currentEntry.destination = `skills/${legacyName}`;
+    currentEntry.source = `skills/${legacyName}`;
+    currentEntry.ownership_marker = `copy:skills/${legacyName}`;
+    receipt.schema_version = 2;
+    receipt.plugin_version = 'legacy';
+    receipt.source_fingerprint = 'legacy';
+    receipt.managed_entries.skills[legacyName] = currentEntry;
+    fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+
+    const migrated = runInstaller(scratch, ['--copy', '--migrate', '--force'], fakePlugin);
+    assert.strictEqual(migrated.status, 0, `${migrated.stdout}\n${migrated.stderr}`);
+    assert.ok(!fs.existsSync(path.join(scratch, '.codex', 'skills', legacyName)), 'unchanged legacy destination must be removed');
+    assert.ok(fs.existsSync(path.join(scratch, '.codex', 'skills', currentName, 'SKILL.md')));
+    const after = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    assert.strictEqual(after.schema_version, 3);
+    const entry = after.managed_entries.skills[currentName];
+    assert.ok(entry, 'current public name must own the migrated destination');
+    assert.strictEqual(entry.id, 'tdd');
+    assert.strictEqual(entry.name, currentName);
+    assert.strictEqual(entry.destination, `skills/${currentName}`);
+    assert.ok(!after.managed_entries.skills[legacyName]);
+    assert.match(`${migrated.stdout}\n${migrated.stderr}`, /migrat|updated/i);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(fakePlugin, { recursive: true, force: true });
   }
 });
 

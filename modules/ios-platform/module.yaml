@@ -1,4 +1,4 @@
-name: dhpk-ios-platform
+name: ios-platform
 display_name: "iOS Platform SDK (CoreData/Crypto/Vision/Health)"
 version: 0.2.0
 description: "iOS SDK framework guidance: Core Data with at-rest encryption (EncryptedCoreData/SQLCipher, File Protection Complete fallback), CryptoKit AES.GCM + Keychain key management, an actor-based offline local-store pattern (in-memory cache + atomic file write), Vision text recognition (RecognizeTextRequest / VNRecognizeTextRequest) with handwriting limits and manual-correction fallback, AVFoundation capture, LocalAuthentication, UserNotifications (Time Sensitive, 64-pending limit, rollover), HealthKit read-only, and privacy-manifest / data-protection / iCloud-prohibition compliance. Requires the swift language module."

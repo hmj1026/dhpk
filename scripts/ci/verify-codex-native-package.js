@@ -11,8 +11,9 @@
 // Deliberately does not compare provenance.sourceCommit — every run of this
 // check happens at a later commit than the one the tracked package recorded,
 // so sourceCommit is expected to differ and is not a drift signal. It DOES
-// compare fingerprints (content), selectedSkillIds (membership), the
-// manifest skills field, inventoryDigest, and generatorVersion.
+// compare fingerprints (content), selectedSkillIds/selectedSkillNames
+// (stable/public membership), the manifest skills field, inventoryDigest, and
+// generatorVersion.
 //
 // Usage: node scripts/ci/verify-codex-native-package.js [--repo-root <path>]
 
@@ -73,7 +74,7 @@ const errors = [];
 const structural = validateNativeCandidate({ manifestSkillsField: trackedManifest.skills, packageRoot: pkgDir });
 errors.push(...structural.errors);
 const trackedMembership = validateNativeMembership({
-  candidateSkillIds: fs.existsSync(path.join(pkgDir, 'skills')) ? fs.readdirSync(path.join(pkgDir, 'skills')) : [],
+  candidateSkillNames: fs.existsSync(path.join(pkgDir, 'skills')) ? fs.readdirSync(path.join(pkgDir, 'skills')) : [],
   inventory,
 });
 errors.push(...trackedMembership.errors);
@@ -90,9 +91,19 @@ if (JSON.stringify(trackedIds) !== JSON.stringify(freshIds)) {
   errors.push(`selected skill membership drifted: missing=[${missing.join(', ')}] extra=[${extra.join(', ')}]`);
 }
 
-for (const id of freshIds) {
-  if (trackedFingerprints[id] !== fresh.fingerprints[id]) {
-    errors.push(`fingerprint drifted for '${id}': tracked='${trackedFingerprints[id] || '(absent)'}' fresh='${fresh.fingerprints[id]}'`);
+const trackedNames = Array.isArray(trackedProvenance.selectedSkillNames)
+  ? [...trackedProvenance.selectedSkillNames].sort()
+  : [];
+const freshNames = fresh.skillNames;
+if (JSON.stringify(trackedNames) !== JSON.stringify(freshNames)) {
+  const missing = freshNames.filter((name) => !trackedNames.includes(name));
+  const extra = trackedNames.filter((name) => !freshNames.includes(name));
+  errors.push(`selected public-name membership drifted: missing=[${missing.join(', ')}] extra=[${extra.join(', ')}]`);
+}
+
+for (const name of freshNames) {
+  if (trackedFingerprints[name] !== fresh.fingerprints[name]) {
+    errors.push(`fingerprint drifted for '${name}': tracked='${trackedFingerprints[name] || '(absent)'}' fresh='${fresh.fingerprints[name]}'`);
   }
 }
 

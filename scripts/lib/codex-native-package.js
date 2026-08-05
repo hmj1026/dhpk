@@ -19,7 +19,7 @@ const crypto = require('node:crypto');
 // logic) changes in a way that could produce a different package from the
 // same inventory + canonical sources. Independent of the dhpk release
 // version recorded as provenance.sourceVersion.
-const GENERATOR_VERSION = '1.0.0';
+const GENERATOR_VERSION = '2.0.0';
 
 // Walks packageRoot and reports any symlink found (a native package must be
 // 100% physical files — a symlink survives only as long as its target and the
@@ -78,24 +78,31 @@ function selectNativeSkills(inventory) {
   );
 }
 
-// Checks a candidate's actual skill-id set against the inventory-derived
-// codex-native surface — the membership dimension, distinct from
-// validateNativeCandidate's structural (symlink/path) checks. Catches a
-// promoted-but-non-native skill smuggled into a candidate, and a codex-native
-// skill silently dropped from one.
-function validateNativeMembership({ candidateSkillIds, inventory }) {
-  const expected = new Set(selectNativeSkills(inventory).map((s) => s.id));
-  const candidate = new Set(candidateSkillIds);
+// Checks a candidate's actual public-name directory set against the
+// inventory-derived codex-native surface — the membership dimension, distinct
+// from validateNativeCandidate's structural (symlink/path) checks. Stable IDs
+// remain in diagnostics and provenance, but never identify a native directory.
+// `candidateSkillIds` remains accepted as a compatibility alias for callers
+// that have not yet renamed their local variable; its values are directory
+// names, i.e. public names for v2 inventories.
+function validateNativeMembership({ candidateSkillNames, candidateSkillIds, inventory }) {
+  const selected = selectNativeSkills(inventory);
+  const expected = new Map(selected.map((s) => [s.name || s.id, s.id]));
+  const inventoryIdsByName = new Map((inventory.skills || []).map((s) => [s.name || s.id, s.id]));
+  const candidateNames = candidateSkillNames || candidateSkillIds || [];
+  const candidate = new Set(candidateNames);
   const errors = [];
 
-  for (const id of candidateSkillIds) {
-    if (!expected.has(id)) {
-      errors.push(`unexpected skill in native candidate: '${id}' is not in the codex-native inventory surface (native publication must not include promoted-but-non-native content)`);
+  for (const name of candidateNames) {
+    if (!expected.has(name)) {
+      const stableId = inventoryIdsByName.get(name);
+      const diagnostic = stableId ? ` (stable id '${stableId}')` : '';
+      errors.push(`unexpected skill in native candidate: '${name}'${diagnostic} is not in the codex-native inventory surface (native publication must not include promoted-but-non-native content; candidate directories use public names)`);
     }
   }
-  for (const id of expected) {
-    if (!candidate.has(id)) {
-      errors.push(`missing skill from native candidate: '${id}' is codex-native in the inventory but absent from the package`);
+  for (const [name, id] of expected) {
+    if (!candidate.has(name)) {
+      errors.push(`missing skill from native candidate: '${name}' (stable id '${id}') is codex-native in the inventory but absent from the package`);
     }
   }
 
@@ -113,10 +120,11 @@ const DEFAULT_MANIFEST_TEMPLATE = {
 // keywords, interface, ...) are preserved — only `name`, `version`, and
 // `skills` are generator-controlled — so regenerating the tracked marketplace
 // package never silently strips its marketplace descriptor. Returns the
-// candidate's manifest field, selected skill ids, per-skill fingerprints, and
-// deterministic provenance (no wall-clock fields, so two runs against the
-// same inputs produce byte-identical output — see spec.md "Unchanged sources
-// are generated twice").
+// candidate's manifest field, stable selected skill ids, public selected skill
+// names, per-skill fingerprints keyed by public name, and deterministic
+// provenance (no wall-clock fields, so two runs against the same inputs
+// produce byte-identical output — see spec.md "Unchanged sources are
+// generated twice").
 function materializeNativePackage({
   inventory,
   root,
@@ -133,10 +141,12 @@ function materializeNativePackage({
   // Regeneration is a full replace, not additive: a skill removed from the
   // codex-native surface since outDir was last populated must not leave its
   // stale directory behind — outDir is routinely an existing tracked package
-  // (prepare-release.js regenerates directly into plugins/dhpk/).
-  const selectedIds = new Set(selected.map((s) => s.id));
+  // (prepare-release.js regenerates directly into plugins/dhpk/). Public names
+  // are the only native directory identity; this also removes old id-based
+  // output left by the pre-consolidation generator.
+  const selectedNames = new Set(selected.map((s) => s.name || s.id));
   for (const existing of fs.readdirSync(skillsOutDir)) {
-    if (!selectedIds.has(existing)) {
+    if (!selectedNames.has(existing)) {
       fs.rmSync(path.join(skillsOutDir, existing), { recursive: true, force: true });
     }
   }
@@ -144,9 +154,10 @@ function materializeNativePackage({
   const fingerprints = {};
   for (const skill of selected) {
     const srcDir = path.join(root, skill.path);
-    const dstDir = path.join(skillsOutDir, skill.id);
+    const publicName = skill.name || skill.id;
+    const dstDir = path.join(skillsOutDir, publicName);
     fs.cpSync(srcDir, dstDir, { recursive: true, dereference: true });
-    fingerprints[skill.id] = fingerprintDir(dstDir);
+    fingerprints[publicName] = fingerprintDir(dstDir);
   }
 
   const codexPluginDir = path.join(outDir, '.codex-plugin');
@@ -158,16 +169,18 @@ function materializeNativePackage({
   fs.writeFileSync(path.join(outDir, 'fingerprints.json'), `${JSON.stringify(fingerprints, null, 2)}\n`);
 
   const skillIds = selected.map((s) => s.id).sort();
+  const skillNames = selected.map((s) => s.name || s.id).sort();
   const provenance = {
     sourceVersion: version,
     sourceCommit,
     inventoryDigest: crypto.createHash('sha256').update(JSON.stringify(inventory)).digest('hex'),
     generatorVersion,
     selectedSkillIds: skillIds,
+    selectedSkillNames: skillNames,
   };
   fs.writeFileSync(path.join(outDir, 'provenance.json'), `${JSON.stringify(provenance, null, 2)}\n`);
 
-  return { manifestSkillsField: manifest.skills, skillIds, fingerprints, provenance };
+  return { manifestSkillsField: manifest.skills, skillIds, skillNames, fingerprints, provenance };
 }
 
 function fingerprintDir(dir) {

@@ -87,7 +87,7 @@ MODE = os.environ.get('DHPK_MODE', 'symlink')
 UPDATE = os.environ.get('DHPK_UPDATE') == '1'
 MIGRATE = os.environ.get('DHPK_MIGRATE') == '1'
 UNINSTALL = os.environ.get('DHPK_UNINSTALL') == '1'
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 def lexists(path):
@@ -240,6 +240,41 @@ def read_plugin_version():
         return 'unknown'
 
 
+def inventory_skill_metadata():
+    """Return current public skill names and stable identity metadata.
+
+    Codex sync sources are the public-name projection under codex/skills. The
+    distribution inventory is the only authority for stable ids and legacy
+    names; missing/malformed inventory is treated as an empty metadata map so
+    supporting-only or legacy fixture plugins remain installable.
+    """
+    inventory_path = os.path.join(PLUGIN_ROOT, 'manifests', 'distribution-inventory.json')
+    if not os.path.isfile(inventory_path):
+        return {}
+    try:
+        with open(inventory_path, encoding='utf-8') as fh:
+            inventory = json.load(fh)
+    except Exception:
+        return {}
+    result = {}
+    for skill in inventory.get('skills') or []:
+        if not isinstance(skill, dict):
+            continue
+        name = skill.get('name')
+        if not isinstance(name, str) or not name:
+            path_name = skill.get('path')
+            if isinstance(path_name, str) and path_name.startswith('skills/'):
+                name = path_name.split('/')[-1]
+        if not isinstance(name, str) or not name:
+            continue
+        result[name] = {
+            'id': skill.get('id'),
+            'name': name,
+            'legacy_names': [legacy for legacy in (skill.get('legacy_names') or []) if isinstance(legacy, str) and legacy],
+        }
+    return result
+
+
 def read_receipt():
     ensure_manifest_safe()
     if not lexists(MANIFEST):
@@ -282,7 +317,7 @@ def target_for(relative):
     return safe_destination(relative)
 
 
-def make_entry(source, relative, destination):
+def make_entry(source, relative, destination, metadata=None):
     source_fp = hash_path(source)
     destination_fp = hash_path(destination)
     marker = f'{MODE}:{relative}'
@@ -292,15 +327,24 @@ def make_entry(source, relative, destination):
         'mode': MODE,
         'source_fingerprint': source_fp,
         'destination_fingerprint': destination_fp,
+        # `fingerprint` is the ownership fingerprint in schema v3. Keep the
+        # source/destination-specific fields for backwards-compatible reads
+        # and diagnostics.
+        'fingerprint': destination_fp,
         'ownership_marker': marker,
     }
+    if isinstance(metadata, dict):
+        if metadata.get('id'):
+            entry['id'] = metadata['id']
+        if metadata.get('name'):
+            entry['name'] = metadata['name']
     if MODE == 'symlink':
         entry['destination_target'] = os.readlink(destination)
     return entry
 
 
 def is_owned(entry, destination):
-    if not isinstance(entry, dict) or not lexists(destination):
+    if not isinstance(entry, dict) or entry.get('orphaned') or not lexists(destination):
         return False
     mode = entry.get('mode')
     relative = entry.get('source') or entry.get('destination')
@@ -314,7 +358,7 @@ def is_owned(entry, destination):
         return (os.path.islink(destination)
                 and isinstance(recorded_target, str)
                 and os.readlink(destination) == recorded_target)
-    recorded = entry.get('destination_fingerprint')
+    recorded = entry.get('destination_fingerprint') or entry.get('fingerprint')
     return bool(recorded) and hash_path(destination) == recorded
 
 
@@ -335,6 +379,31 @@ def install(source, destination):
         shutil.copytree(source, destination, symlinks=False)
     else:
         shutil.copy2(source, destination)
+
+
+def install_atomic(source, destination):
+    """Stage a fresh destination beside its final path, then publish it.
+
+    The migration path uses this helper so an unchanged legacy destination is
+    not removed until the new public-name entry has been materialized. A
+    pre-existing destination is never removed here; callers must first prove
+    it is receipt-owned and unchanged.
+    """
+    parent = os.path.dirname(destination)
+    os.makedirs(parent, exist_ok=True)
+    stage_dir = tempfile.mkdtemp(prefix='.dhpk-install-', dir=parent)
+    staged = os.path.join(stage_dir, os.path.basename(destination))
+    try:
+        if MODE == 'symlink':
+            os.symlink(source, staged, target_is_directory=os.path.isdir(source))
+        elif os.path.isdir(source):
+            shutil.copytree(source, staged, symlinks=False)
+        else:
+            shutil.copy2(source, staged)
+        os.replace(staged, destination)
+    finally:
+        if lexists(stage_dir):
+            shutil.rmtree(stage_dir, ignore_errors=True)
 
 
 def save_receipt(plugin_version, fingerprint, entries, orphaned, counts, legacy_pending=False):
@@ -366,11 +435,111 @@ def save_receipt(plugin_version, fingerprint, entries, orphaned, counts, legacy_
 
 def print_summary(counts, collisions, orphaned):
     print('[install-codex-skills] reconciliation: ' + ', '.join(f'{k}={counts[k]}' for k in (
-        'created', 'updated', 'preserved', 'skipped_collision', 'pruned', 'orphaned')))
+        'created', 'updated', 'migrated', 'preserved', 'skipped_collision', 'pruned', 'orphaned')))
     for relative in sorted(collisions):
         print(f'[install-codex-skills] collision preserved: {relative}')
     for relative in sorted(orphaned):
         print(f'[install-codex-skills] orphaned preserved: {relative}')
+
+
+def migrate_legacy_skill_names(entries, orphaned, counts, collisions, sources, metadata):
+    """Adopt receipt-owned legacy skill destinations under their public names.
+
+    A legacy destination is removable only when its receipt entry still owns
+    the unchanged target. Every other shape is retained as an orphan/conflict:
+    edited content, unowned/third-party paths, retargeted links, malformed
+    entries, and ambiguous inventory mappings all fail closed.
+    """
+    legacy_to_public = {}
+    ambiguous = set()
+    for public_name, skill in metadata.items():
+        for legacy_name in skill.get('legacy_names') or []:
+            if legacy_name == public_name:
+                continue
+            prior = legacy_to_public.get(legacy_name)
+            if prior and prior != public_name:
+                ambiguous.add(legacy_name)
+            else:
+                legacy_to_public[legacy_name] = public_name
+
+    def receipt_matches(legacy_name):
+        relative = f'skills/{legacy_name}'
+        matches = []
+        for key, value in entries['skills'].items():
+            if key == legacy_name or (isinstance(value, dict) and (value.get('destination') == relative or value.get('source') == relative)):
+                matches.append((key, value))
+        return matches
+
+    def conflict(key, old, relative, reason):
+        preserved = dict(old) if isinstance(old, dict) else {'destination': relative, 'source': relative}
+        preserved['orphaned'] = True
+        entries['skills'][key] = preserved
+        orphaned[relative] = dict(preserved, reason=reason)
+        if relative not in collisions:
+            collisions.append(relative)
+        counts['skipped_collision'] += 1
+        counts['preserved'] += 1
+        counts['orphaned'] += 1
+        print(f'[install-codex-skills] legacy conflict preserved: {relative} ({reason})')
+
+    for legacy_name, public_name in sorted(legacy_to_public.items()):
+        relative = f'skills/{legacy_name}'
+        matches = receipt_matches(legacy_name)
+        if not matches:
+            try:
+                legacy_destination = target_for(relative)
+            except ValueError:
+                legacy_destination = None
+            if legacy_destination is not None and lexists(legacy_destination):
+                if relative not in collisions:
+                    collisions.append(relative)
+                counts['skipped_collision'] += 1
+                counts['preserved'] += 1
+                print(f'[install-codex-skills] legacy conflict preserved: {relative} (destination is unowned or has no receipt ownership)')
+            continue
+        if legacy_name in ambiguous or len(matches) != 1:
+            if matches:
+                for key, old in matches:
+                    conflict(key, old, relative, 'ambiguous legacy inventory mapping')
+            continue
+        key, old = matches[0]
+        try:
+            old_destination = receipt_destination('skills', key, old)
+            new_relative = f'skills/{public_name}'
+            new_destination = target_for(new_relative)
+            source = sources['skills'].get(public_name, (None, new_relative))[0]
+            if source is None or not lexists(source):
+                conflict(key, old, relative, 'current public skill source is missing')
+                continue
+            if not lexists(old_destination):
+                conflict(key, old, relative, 'legacy destination is missing')
+                continue
+            if not is_owned(old, old_destination):
+                conflict(key, old, relative, 'legacy destination is edited, unowned, or retargeted')
+                continue
+
+            current_entry = entries['skills'].get(public_name)
+            if lexists(new_destination):
+                if not (isinstance(current_entry, dict) and is_owned(current_entry, new_destination)):
+                    conflict(key, old, relative, f'current public destination already exists: {new_relative}')
+                    continue
+                remove_path(old_destination)
+                if key != public_name:
+                    del entries['skills'][key]
+                entries['skills'][public_name] = make_entry(source, new_relative, new_destination, metadata.get(public_name))
+                counts['migrated'] += 1
+                continue
+
+            # Publish the new destination first. Only after it is visible do we
+            # remove the unchanged legacy path, preserving rollback safety.
+            install_atomic(source, new_destination)
+            remove_path(old_destination)
+            if key != public_name:
+                del entries['skills'][key]
+            entries['skills'][public_name] = make_entry(source, new_relative, new_destination, metadata.get(public_name))
+            counts['migrated'] += 1
+        except ValueError as error:
+            conflict(key, old, relative, str(error))
 
 
 plugin_version = read_plugin_version()
@@ -383,7 +552,7 @@ except ValueError as error:
 legacy_pending = bool(legacy or (isinstance(receipt, dict) and receipt.get('legacy_pending')))
 entries = entry_map(receipt)
 orphaned = dict(receipt.get('orphaned_entries') or {}) if isinstance(receipt, dict) else {}
-counts = {k: 0 for k in ('created', 'updated', 'preserved', 'skipped_collision', 'pruned', 'orphaned')}
+counts = {k: 0 for k in ('created', 'updated', 'migrated', 'preserved', 'skipped_collision', 'pruned', 'orphaned')}
 collisions = []
 
 if UNINSTALL:
@@ -439,6 +608,13 @@ except ValueError as error:
 os.makedirs(os.path.join(CODEX_ROOT, 'skills'), exist_ok=True)
 os.makedirs(os.path.join(CODEX_ROOT, 'agents'), exist_ok=True)
 sources = current_sources()
+skill_metadata = inventory_skill_metadata()
+
+# Public-name migration must run before the generic update-prune pass: an old
+# receipt key is not a current source name, but it remains protected when the
+# inventory migration cannot prove ownership.
+if UPDATE or MIGRATE:
+    migrate_legacy_skill_names(entries, orphaned, counts, collisions, sources, skill_metadata)
 
 # Reconcile entries removed from the source only during an explicit update.
 if UPDATE:
@@ -480,7 +656,7 @@ for kind in ('skills', 'agents', 'supporting_assets'):
             owned = is_owned(old, destination)
             adopted = False
             if legacy_pending and MIGRATE and exact_source_match(source, destination):
-                entries[kind][name] = make_entry(source, relative, destination)
+                entries[kind][name] = make_entry(source, relative, destination, skill_metadata.get(name) if kind == 'skills' else None)
                 adopted = True
                 counts['preserved'] += 1
             if adopted:
@@ -496,11 +672,11 @@ for kind in ('skills', 'agents', 'supporting_assets'):
                 counts['preserved'] += 1
                 continue
             install(source, destination)
-            entries[kind][name] = make_entry(source, relative, destination)
+            entries[kind][name] = make_entry(source, relative, destination, skill_metadata.get(name) if kind == 'skills' else None)
             counts['updated'] += 1
         else:
             install(source, destination)
-            entries[kind][name] = make_entry(source, relative, destination)
+            entries[kind][name] = make_entry(source, relative, destination, skill_metadata.get(name) if kind == 'skills' else None)
             counts['created'] += 1
 
 if legacy_pending and MIGRATE and not collisions:

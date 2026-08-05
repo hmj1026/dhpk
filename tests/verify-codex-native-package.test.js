@@ -21,7 +21,7 @@ function fixtureRepo() {
   fs.mkdirSync(path.join(root, 'skills', 'dhpk-tdd-workflow'), { recursive: true });
   fs.writeFileSync(path.join(root, 'skills', 'dhpk-tdd-workflow', 'SKILL.md'), '---\nname: tdd\n---\n');
   const inventory = {
-    skills: [{ id: 'tdd', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] }],
+    skills: [{ id: 'tdd', name: 'dhpk-tdd-workflow', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] }],
   };
   fs.writeFileSync(path.join(root, 'manifests', 'distribution-inventory.json'), JSON.stringify(inventory));
   return { root, inventory };

@@ -13,7 +13,7 @@ function fixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-asset-inventory-'));
   const dirs = [
     'agents', 'modules/demo/agents', 'skills/base', 'modules/demo/skills/extra',
-    'commands', 'skills/codex-sample', 'hooks', 'manifests', 'scripts/hooks/_lib', 'scripts/ci', 'scripts/lib',
+    'commands', 'skills/dhpk-codex-sample', 'skills/dhpk-change-review', 'hooks', 'manifests', 'scripts/hooks/_lib', 'scripts/ci', 'scripts/lib',
   ];
   for (const dir of dirs) fs.mkdirSync(path.join(root, dir), { recursive: true });
   fs.writeFileSync(path.join(root, 'agents', 'root.md'), '# root');
@@ -23,7 +23,8 @@ function fixture() {
   fs.writeFileSync(path.join(root, 'skills/base', 'SKILL.md'), '# base');
   fs.writeFileSync(path.join(root, 'commands', 'do.md'), '# do');
   fs.writeFileSync(path.join(root, 'commands', 'INDEX.md'), '# index');
-  fs.writeFileSync(path.join(root, 'skills/codex-sample', 'SKILL.md'), 'mcp__codex__review');
+  fs.writeFileSync(path.join(root, 'skills/dhpk-codex-sample', 'SKILL.md'), 'mcp__codex__review');
+  fs.writeFileSync(path.join(root, 'skills/dhpk-change-review', 'SKILL.md'), 'mcp__codex__review');
   fs.writeFileSync(path.join(root, 'commands/codex-review.md'), '# codex');
   fs.mkdirSync(path.join(root, 'modules/second'), { recursive: true });
   fs.writeFileSync(path.join(root, 'hooks/hooks.json'), JSON.stringify({ hooks: { A: [], B: [] } }));
@@ -41,13 +42,13 @@ test('inventory counts source trees and consumes the four SSOT manifests', () =>
     agentsTotal: 2,
     agentsRoot: 1,
     agentsModule: 1,
-    skillsTotal: 3,
-    skillsBase: 2,
+    skillsTotal: 4,
+    skillsBase: 3,
     skillsModule: 1,
     commands: 2,
     modules: 2,
     slotCount: 2,
-    mcpCodexSkills: 1,
+    mcpCodexSkills: 2,
     codexCommands: 1,
     hookEvents: 2,
   });

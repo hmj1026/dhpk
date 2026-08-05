@@ -21,9 +21,9 @@ function tmpDir(prefix) {
 test('materialized candidate contains only the explicit codex-native surface, as real files — not every promoted skill', () => {
   const inventory = {
     skills: [
-      { id: 'tdd', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
-      { id: 'skill-judge', path: 'skills/dhpk-skill-quality-judge', lifecycle: 'promoted', surfaces: ['claude-core'] },
-      { id: 'vue-2-notes', path: 'skills/dhpk-tdd-workflow', lifecycle: 'optional', surfaces: ['claude-module'] },
+      { id: 'tdd', name: 'dhpk-tdd-workflow', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
+      { id: 'skill-judge', name: 'dhpk-skill-quality-judge', path: 'skills/dhpk-skill-quality-judge', lifecycle: 'promoted', surfaces: ['claude-core'] },
+      { id: 'vue-2-notes', name: 'dhpk-vue-2-notes', path: 'skills/dhpk-vue-2-notes', lifecycle: 'optional', surfaces: ['claude-module'] },
     ],
   };
   const out = tmpDir('dhpk-native-materialize-');
@@ -44,8 +44,8 @@ test('materialized candidate contains only the explicit codex-native surface, as
 test('an approved optional-lifecycle native exception is included alongside promoted native skills', () => {
   const inventory = {
     skills: [
-      { id: 'tdd', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
-      { id: 'php-pro', path: 'skills/dhpk-php-runtime-router', lifecycle: 'optional', surfaces: ['claude-module', 'codex-native'] },
+      { id: 'tdd', name: 'dhpk-tdd-workflow', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
+      { id: 'php-pro', name: 'dhpk-php-runtime-router', path: 'skills/dhpk-php-runtime-router', lifecycle: 'optional', surfaces: ['claude-module', 'codex-native'] },
     ],
   };
   const out = tmpDir('dhpk-native-optional-exception-');
@@ -57,11 +57,38 @@ test('an approved optional-lifecycle native exception is included alongside prom
   }
 });
 
+test('materialized native packages use public names for directories, frontmatter, fingerprints, and provenance while retaining stable IDs', () => {
+  const inventory = {
+    skills: [{
+      id: 'tdd',
+      name: 'dhpk-tdd-workflow',
+      path: 'skills/dhpk-tdd-workflow',
+      lifecycle: 'promoted',
+      surfaces: ['claude-core', 'codex-native'],
+    }],
+  };
+  const out = tmpDir('dhpk-native-public-name-');
+  try {
+    const result = materializeNativePackage({ inventory, root: ROOT, outDir: out, version: '1.2.3', sourceCommit: 'abc123' });
+    const publicDir = path.join(out, 'skills', 'dhpk-tdd-workflow');
+    assert.deepStrictEqual(result.skillIds, ['tdd']);
+    assert.deepStrictEqual(result.skillNames, ['dhpk-tdd-workflow']);
+    assert.ok(fs.existsSync(path.join(publicDir, 'SKILL.md')));
+    assert.ok(!fs.existsSync(path.join(out, 'skills', 'tdd')), 'stable IDs must not become native directory names');
+    assert.match(fs.readFileSync(path.join(publicDir, 'SKILL.md'), 'utf8'), /^name:\s*dhpk-tdd-workflow/m);
+    assert.deepStrictEqual(Object.keys(result.fingerprints), ['dhpk-tdd-workflow']);
+    assert.deepStrictEqual(result.provenance.selectedSkillIds, ['tdd']);
+    assert.deepStrictEqual(result.provenance.selectedSkillNames, ['dhpk-tdd-workflow']);
+  } finally {
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
 test('regenerating into an existing outDir removes a skill directory dropped from the codex-native surface', () => {
   const firstInventory = {
     skills: [
-      { id: 'tdd', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
-      { id: 'skill-judge', path: 'skills/dhpk-skill-quality-judge', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
+      { id: 'tdd', name: 'dhpk-tdd-workflow', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
+      { id: 'skill-judge', name: 'dhpk-skill-quality-judge', path: 'skills/dhpk-skill-quality-judge', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
     ],
   };
   const out = tmpDir('dhpk-native-regenerate-drop-');
@@ -71,14 +98,14 @@ test('regenerating into an existing outDir removes a skill directory dropped fro
 
     // skill-judge is de-listed from codex-native between releases.
     const secondInventory = {
-      skills: [{ id: 'tdd', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] }],
+      skills: [{ id: 'tdd', name: 'dhpk-tdd-workflow', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] }],
     };
     const result = materializeNativePackage({ inventory: secondInventory, root: ROOT, outDir: out });
 
     assert.deepStrictEqual(result.skillIds, ['tdd']);
     assert.ok(fs.existsSync(path.join(out, 'skills', 'dhpk-tdd-workflow')), 'tdd must remain');
     assert.ok(!fs.existsSync(path.join(out, 'skills', 'dhpk-skill-quality-judge')), 'stale skill-judge directory must be removed on regeneration');
-    assert.deepStrictEqual(Object.keys(result.fingerprints), ['tdd']);
+    assert.deepStrictEqual(Object.keys(result.fingerprints), ['dhpk-tdd-workflow']);
   } finally {
     fs.rmSync(out, { recursive: true, force: true });
   }
@@ -86,7 +113,7 @@ test('regenerating into an existing outDir removes a skill directory dropped fro
 
 test('generation is deterministic: two materializations of the same inventory produce identical fingerprints and provenance', () => {
   const inventory = {
-    skills: [{ id: 'tdd', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] }],
+    skills: [{ id: 'tdd', name: 'dhpk-tdd-workflow', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] }],
   };
   const outA = tmpDir('dhpk-native-a-');
   const outB = tmpDir('dhpk-native-b-');
@@ -124,6 +151,12 @@ test('CLI generates the real repo codex-native set with zero symlinks and proven
 
     const provenance = JSON.parse(fs.readFileSync(path.join(out, 'provenance.json'), 'utf8'));
     assert.strictEqual(provenance.selectedSkillIds.length, 15);
+    assert.strictEqual(provenance.selectedSkillNames.length, 15);
+    assert.deepStrictEqual(
+      fs.readdirSync(path.join(out, 'skills')).sort(),
+      provenance.selectedSkillNames,
+      'native directory names must equal sorted public names from provenance'
+    );
     assert.ok(provenance.sourceCommit && provenance.sourceCommit !== 'unknown');
     assert.ok(provenance.inventoryDigest);
     assert.ok(provenance.generatorVersion);

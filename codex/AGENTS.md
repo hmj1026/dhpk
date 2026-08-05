@@ -10,7 +10,7 @@ When a user runs the bundled installer:
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"
 ```
 
-`codex/skills/` and `codex/agents/` are symlinked (or `--copy`-ed) into the project's `.codex/skills/` and `.codex/agents/`, while the inventory-declared support tree is materialized under `.codex/dhpk/` and `codex/config.toml.example` is placed alongside any existing `.codex/config.toml`. The installer records these destinations in the schema-versioned `.dhpk-installed.json` receipt and never replaces an unowned same-name asset. Codex CLI then discovers the skills/agents the same way it discovers any project-local Codex content, and generated roles resolve their trap sheets/contracts through `.codex/dhpk/`.
+`codex/skills/` and `codex/agents/` are symlinked (or `--copy`-ed) into the project's `.codex/skills/` and `.codex/agents/`, while the inventory-declared support tree is materialized under `.codex/dhpk/` and `codex/config.toml.example` is placed alongside any existing `.codex/config.toml`. The installer records these destinations in the schema-v3 `.dhpk-installed.json` receipt, including each skill's stable id and current public name, and never replaces an unowned same-name asset. Codex CLI then discovers the skills/agents the same way it discovers any project-local Codex content, and generated roles resolve their trap sheets/contracts through `.codex/dhpk/`.
 
 ## Plugin loading differences (Claude Code vs Codex CLI)
 
@@ -67,10 +67,14 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --update
 
 The script detects the version delta from `.codex/.dhpk-installed.json` and re-syncs everything.
 
-Legacy projects can opt into deterministic adoption with `--migrate`; only a
-destination that exactly matches the current source is added to the receipt.
-Use `--uninstall` for ownership-aware cleanup. Modified receipt entries are
-reported as orphaned and retained, as are unrelated project assets.
+Legacy projects can opt into deterministic adoption with `--migrate`; a
+receipt-owned unchanged legacy skill destination is renamed to its current
+public `dhpk-*` name and installed atomically. Edited, unowned, third-party,
+retargeted, malformed, or ambiguous legacy entries are reported as conflicts
+and retained. Only exact current-source matches without a legacy rename are
+adopted into a new receipt entry. Use `--uninstall` for ownership-aware
+cleanup. Modified receipt entries are reported as orphaned and retained, as are
+unrelated project assets.
 
 ## dhpk main flow for Codex
 

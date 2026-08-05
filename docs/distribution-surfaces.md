@@ -144,7 +144,7 @@ plus 4 approved optional-module exceptions: `php-pro`,
 acquisition/update/verification contracts — adding a skill to one does not
 add it to the other.
 
-When both surfaces expose the same id, the consumer gate records both source
+When both surfaces expose the same public name, the consumer gate records both source
 paths, versions, fingerprints, and receipt ownership. The deterministic matrix
 returns `BLOCKED` for stale or unowned content or missing precedence, `PASS` for
 identical fingerprints with valid provenance, and `WARN` only for a current
@@ -179,9 +179,9 @@ structural validation, and docs must still say "experimental" (see
   `PASS` — when the `codex` CLI is absent; a missing or failed native probe
   never fails the supported-tier (Claude/`codex-sync`) verdict.
 
-Every tracked skill's `plugins/dhpk/fingerprints.json` and
+Every tracked skill's `plugins/dhpk/fingerprints.json` (keyed by public name) and
 `plugins/dhpk/provenance.json` (source version, source commit, inventory
-digest, generator version, selected skill IDs) let a reviewer audit exactly
+digest, generator version, selected stable skill IDs, and selected public names) let a reviewer audit exactly
 what a release ships without secrets.
 
 **Experimental status, not automatic graduation.** A structural PASS and a
@@ -198,8 +198,8 @@ coverage).
 
 **Hardened distribution evidence.** The installer contract and terminology are
 defined in [basic operations](basic-operations.md#sync-codex-cli-content). A
-handoff records the schema-v2 receipt summary
-(created, updated, preserved, collision, pruned, and orphaned counts), the
+handoff records the schema-v3 receipt summary
+(created, updated, migrated, preserved, collision, pruned, and orphaned counts), the
 canonical/mirror fingerprints emitted by `validate-openai-metadata.js`, and
 any duplicate-surface evidence from `consumer-gate.js`. The repeatable
 verification set is:

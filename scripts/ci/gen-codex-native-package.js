@@ -44,7 +44,7 @@ const result = materializeNativePackage({
   sourceCommit: resolveSourceCommit(),
 });
 const structural = validateNativeCandidate({ manifestSkillsField: result.manifestSkillsField, packageRoot: resolvedOutDir });
-const membership = validateNativeMembership({ candidateSkillIds: result.skillIds, inventory });
+const membership = validateNativeMembership({ candidateSkillNames: result.skillNames, inventory });
 
 const errors = [...structural.errors, ...membership.errors];
 if (errors.length > 0) {
