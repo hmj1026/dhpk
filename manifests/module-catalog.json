@@ -31,7 +31,7 @@
       "id": "laravel",
       "name": "Laravel Framework",
       "selection": "additive",
-      "description": "Laravel framework — per-version modules for each major from 6 through 11. Library packages spanning multiple Laravel majors should enable all the versions in their composer constraint to get cumulative version-specific guidance (deprecations, signature additions, BC traps). Applications running a single Laravel major should pick only that version. Pair with skills/laravel-package-author/SKILL.md (cross-cutting, framework-agnostic).",
+      "description": "Laravel framework — per-version modules for each major from 6 through 11. Library packages spanning multiple Laravel majors should enable all the versions in their composer constraint to get cumulative version-specific guidance (deprecations, signature additions, BC traps). Applications running a single Laravel major should pick only that version. Pair with skills/dhpk-laravel-package-author/SKILL.md (cross-cutting, framework-agnostic).",
       "requires": ["php"],
       "versions": [
         {

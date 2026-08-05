@@ -196,20 +196,21 @@ function discoverCodexSurfaces({ root, project, version }) {
       const validCommit = typeof provenance.sourceCommit === 'string' && /^[a-f0-9]{40}$/i.test(provenance.sourceCommit);
       const validDigest = typeof provenance.inventoryDigest === 'string' && /^[a-f0-9]{64}$/i.test(provenance.inventoryDigest);
       const validVersion = provenance.sourceVersion === nativeVersion && nativeVersion === version;
-      const expectedNativeIds = inventory && Array.isArray(inventory.skills)
-        ? inventory.skills
-          .filter((skill) => (skill.surfaces || []).includes('codex-native') && skill.lifecycle !== 'deprecated')
-          .map((skill) => skill.id)
-          .sort()
+      const expectedNativeSkills = inventory && Array.isArray(inventory.skills)
+        ? inventory.skills.filter((skill) => (skill.surfaces || []).includes('codex-native') && skill.lifecycle !== 'deprecated')
         : [];
+      const expectedNativeIds = expectedNativeSkills.map((skill) => skill.id).sort();
+      const expectedNativeNames = expectedNativeSkills.map((skill) => skill.name || skill.id).sort();
       const selectedNativeIds = Array.isArray(provenance.selectedSkillIds) ? [...provenance.selectedSkillIds].sort() : [];
+      const selectedNativeNames = Array.isArray(provenance.selectedSkillNames) ? [...provenance.selectedSkillNames].sort() : [];
       const membershipMatches = JSON.stringify(selectedNativeIds) === JSON.stringify(expectedNativeIds)
-        && JSON.stringify(Object.keys(nativeFingerprints).sort()) === JSON.stringify(expectedNativeIds);
+        && JSON.stringify(selectedNativeNames) === JSON.stringify(expectedNativeNames)
+        && JSON.stringify(Object.keys(nativeFingerprints).sort()) === JSON.stringify(expectedNativeNames);
       const expectedInventoryDigest = inventory
         ? crypto.createHash('sha256').update(JSON.stringify(inventory)).digest('hex')
         : null;
       const inventoryMatches = Boolean(expectedInventoryDigest && provenance.inventoryDigest === expectedInventoryDigest);
-      const fingerprintsWellFormed = expectedNativeIds.every((id) => /^[a-f0-9]{64}$/i.test(nativeFingerprints[id] || ''));
+      const fingerprintsWellFormed = expectedNativeNames.every((name) => /^[a-f0-9]{64}$/i.test(nativeFingerprints[name] || ''));
       nativeProvenance = {
         valid: Boolean(validCommit && validDigest && validVersion && inventoryMatches && membershipMatches && fingerprintsWellFormed),
         current: Boolean(validVersion && inventoryMatches && membershipMatches),
@@ -289,8 +290,32 @@ function verifyCodexSync(root, version) {
     if (manifest.plugin_version !== version) {
       return { verdict: VERDICTS.FAIL, commands, reasons: [`installed manifest version '${manifest.plugin_version}' does not match target '${version}'`] };
     }
-    if (manifest.schema_version < 2 || !manifest.managed_entries || !manifest.managed_entries.skills || !manifest.managed_entries.agents || !manifest.managed_entries.supporting_assets) {
-      return { verdict: VERDICTS.FAIL, commands, reasons: ['installed manifest is missing schema-versioned managed_entries ownership data'] };
+    if (manifest.schema_version < 3 || !manifest.managed_entries || !manifest.managed_entries.skills || !manifest.managed_entries.agents || !manifest.managed_entries.supporting_assets) {
+      return { verdict: VERDICTS.FAIL, commands, reasons: ['installed manifest is missing schema-v3 managed_entries ownership data'] };
+    }
+    let expectedSyncNames = [];
+    try {
+      const inventory = JSON.parse(fs.readFileSync(path.join(root, 'manifests', 'distribution-inventory.json'), 'utf8'));
+      expectedSyncNames = (inventory.skills || [])
+        .filter((skill) => (skill.surfaces || []).includes('codex-sync') && skill.lifecycle !== 'deprecated')
+        .map((skill) => skill.name || skill.id)
+        .sort();
+    } catch (_) {
+      return { verdict: VERDICTS.FAIL, commands, reasons: ['distribution inventory is unavailable for public-name Codex sync verification'] };
+    }
+    const installedSkillNames = Object.keys(manifest.managed_entries.skills).sort();
+    if (JSON.stringify(installedSkillNames) !== JSON.stringify(expectedSyncNames)) {
+      return {
+        verdict: VERDICTS.FAIL,
+        commands,
+        reasons: [`Codex sync installed skill names drifted: expected public names [${expectedSyncNames.join(', ')}], got [${installedSkillNames.join(', ')}]`],
+      };
+    }
+    for (const name of expectedSyncNames) {
+      const entry = manifest.managed_entries.skills[name];
+      if (!entry || entry.name !== name || typeof entry.id !== 'string' || !entry.fingerprint) {
+        return { verdict: VERDICTS.FAIL, commands, reasons: [`Codex sync receipt entry '${name}' is missing stable id, public name, or fingerprint`] };
+      }
     }
     const projectionErrors = collectCodexProjectionReferenceErrors(project, root);
     commands.push({ cmd: 'validate clean Codex supporting-asset reference closure', exitCode: projectionErrors.length === 0 ? 0 : 1 });
@@ -302,11 +327,11 @@ function verifyCodexSync(root, version) {
       };
     }
     const surfaces = discoverCodexSurfaces({ root, project, version });
-    const nativeById = new Map(surfaces.native.map((entry) => [`${entry.kind}:${entry.id}`, entry]));
+    const nativeByPublicName = new Map(surfaces.native.map((entry) => [`${entry.kind}:${entry.id}`, entry]));
     const duplicateEvidence = [];
     let surfaceVerdict = CODEX_SURFACE_VERDICTS.PASS;
     for (const projectEntry of surfaces.project) {
-      const nativeEntry = nativeById.get(`${projectEntry.kind}:${projectEntry.id}`);
+      const nativeEntry = nativeByPublicName.get(`${projectEntry.kind}:${projectEntry.id}`);
       if (!nativeEntry) continue;
       const matrix = evaluateCodexSurfaceMatrix({
         project: projectEntry,

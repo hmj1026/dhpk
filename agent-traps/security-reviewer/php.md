@@ -1,6 +1,6 @@
 # security-reviewer — PHP traps
 
-Generic PHP OWASP examples (injection, XSS, CSRF, file upload, deserialization) live at `modules/php-5.6/skills/php-pro/references/agent-extracts/security-owasp-examples.md`.
+Generic PHP OWASP examples (injection, XSS, CSRF, file upload, deserialization) live at `skills/dhpk-php-runtime-router/references/agent-extracts/security-owasp-examples.md`.
 
 Universal PHP web traps:
 

@@ -21,7 +21,7 @@ function mkTable() {
   fs.writeFileSync(
     table,
     JSON.stringify({
-      rules: [{ pattern: 'fix\\s+the\\s+bug', skill: 'dhpk:adaptive-dev-workflow', label: 'bugfix' }],
+      rules: [{ pattern: 'fix\\s+the\\s+bug', skill: 'dhpk:dhpk-adaptive-dev-workflow', label: 'bugfix' }],
     })
   );
   return { tmp, table };
@@ -41,7 +41,7 @@ test('MATCH: query matching a rule prints MATCH<TAB>skill<TAB>label and exits 0'
     const res = runRoute(['please fix the bug now'], { DHPK_ROUTE_TABLE: table });
     assert.strictEqual(res.status, 0, res.stderr);
     const parts = res.stdout.trim().split('\t');
-    assert.deepStrictEqual(parts, ['MATCH', 'dhpk:adaptive-dev-workflow', 'bugfix']);
+    assert.deepStrictEqual(parts, ['MATCH', 'dhpk:dhpk-adaptive-dev-workflow', 'bugfix']);
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }

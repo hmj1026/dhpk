@@ -7,8 +7,8 @@ const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const RUNNER = path.join(ROOT, 'skills', 'release-creator', 'scripts', 'release-runner.sh');
-const SKILL = fs.readFileSync(path.join(ROOT, 'skills', 'release-creator', 'SKILL.md'), 'utf8');
+const RUNNER = path.join(ROOT, 'skills', 'dhpk-release-creator', 'scripts', 'release-runner.sh');
+const SKILL = fs.readFileSync(path.join(ROOT, 'skills', 'dhpk-release-creator', 'SKILL.md'), 'utf8');
 
 test('release skill documents prepare, human merge, then publish', () => {
   const flat = SKILL.replace(/\s+/g, ' ');

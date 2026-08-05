@@ -1,5 +1,7 @@
 # Release process
 
+> **Languages**: **English** · [繁體中文](./RELEASE.zh-TW.md)
+
 dhpk uses a direct, PR-driven release flow:
 
 ```
@@ -133,10 +135,13 @@ requirement stands.
    - `plugins/dhpk/.codex-plugin/plugin.json`
    - `.agents/plugins/marketplace.json`
    - `CHANGELOG.md` (`## X.Y.Z — YYYY-MM-DD — summary` heading)
+   - `plugins/dhpk/` (regenerated native manifest, 15 physical skills,
+     `fingerprints.json`, and `provenance.json`)
 
    All four manifests must contain the same SemVer version. The tag format is
-   exactly `vX.Y.Z`. Confirm the worktree contains only these five files
-   afterward — write mode never touches anything else.
+   exactly `vX.Y.Z`. Confirm the worktree contains only the expected manifest,
+   changelog/fragment, and regenerated `plugins/dhpk/` artifact changes
+   afterward; unrelated source changes do not belong in release preparation.
 
    **Failure remediation:** check mode's error list names every drifted file
    with its observed and expected version; re-run write mode (or hand-edit)
@@ -165,7 +170,7 @@ requirement stands.
    the whole repository implicitly:
 
    ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/skills/release-creator/scripts/release-runner.sh" \
+   bash "${CLAUDE_PLUGIN_ROOT}/skills/dhpk-release-creator/scripts/release-runner.sh" \
      prepare X.Y.Z develop main v release.yml \
      .claude-plugin/plugin.json \
      .codex-plugin/plugin.json \
@@ -191,7 +196,7 @@ node scripts/release/publish-gate.js --version X.Y.Z
 Once the publish gate passes, publish the tag:
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/skills/release-creator/scripts/release-runner.sh" \
+bash "${CLAUDE_PLUGIN_ROOT}/skills/dhpk-release-creator/scripts/release-runner.sh" \
   publish X.Y.Z develop main v release.yml
 ```
 

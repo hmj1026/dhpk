@@ -28,8 +28,12 @@ session/agent identity matches. A foreign, missing, stale, misplaced, malformed,
 or conflicting artifact leaves approval unresolved; lifecycle clearance, when
 otherwise permitted, never changes that outcome.
 
-The native stop-time gate applies the same freshness and ownership discipline to
-non-canonical review files. `pre-agent-liveness-mark.sh` records the dispatch
+The native stop-time gate requires a canonical filename
+`<agent>-YYYYMMDD-HHMMSS-<slug>.md`, leading delimited frontmatter containing
+`agent`, `generated_at`, `commit`, `scope`, `severity_summary`, and `verdict`,
+plus an `APPROVE or PASS` verdict before it clears a sentinel. The
+gate applies the same freshness and ownership discipline to non-canonical
+review files. `pre-agent-liveness-mark.sh` records the dispatch
 baseline, session, attempt, and dispatch identifier (when available) in the
 session-scoped `.review-dispatch-attempts` sidecar. `subagent-stop-verify.sh`
 ignores files older than that baseline or carrying foreign session/dispatch
@@ -42,6 +46,6 @@ accepted only for a file that is fresh in the current stop session and is marked
 
 ## Single-run verdict
 
-The final verdict MUST be emitted within the same run that performed the review. Stopping for advisory or intermediary input before the final verdict is written is forbidden; advisory work is folded into the same run, and post-verdict escalation is permitted. A run that stops without a parseable verdict is a quality-contract defect routed to `.unresolved-verdict` / subagent-quality enforcement, not a valid intermediate state. Sentinel liveness is separate from verdict correctness: a fresh artifact may still auto-clear its sentinel even though the verdict itself is treated as unresolved.
+The final verdict MUST be emitted within the same run that performed the review. Stopping for advisory or intermediary input before the final verdict is written is forbidden; advisory work is folded into the same run, and post-verdict escalation is permitted. A run that stops without valid delimited frontmatter and a parseable verdict is not a valid intermediate state and leaves the sentinel armed. A warning, failure, unparseable verdict, noncanonical filename, or malformed artifact likewise leaves the sentinel armed; only `APPROVE` or `PASS` evidence satisfies hook-owned clearance.
 
 No reviewer agent definition issues a self-run `clear-sentinel.sh`; that remains hook-owned (`subagent-stop-verify.sh`) or orchestrator-invoked, including for a reviewer resumed through `SendMessage` (§Resumed reviewer result above).

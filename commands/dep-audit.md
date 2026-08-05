@@ -8,7 +8,7 @@ metadata:
 
 ⚠️ **Must read and follow the skill below before executing this command:**
 
-@skills/security-review/SKILL.md
+@skills/dhpk-security-review/SKILL.md
 
 ## Arguments
 

@@ -14,5 +14,5 @@ triggers:
     extensions: []
     paths: []
 provides:
-  skills: [phpunit-11-notes]
+  skills: [dhpk-phpunit-11-notes]
   references: []

@@ -7,8 +7,8 @@ const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const CANONICAL = path.join(ROOT, 'skills', 'multi-ai-sync', 'scripts', 'multi_ai_sync.py');
-const CODEX = path.join(ROOT, 'codex', 'skills', 'multi-ai-sync', 'scripts', 'multi_ai_sync.py');
+const CANONICAL = path.join(ROOT, 'skills', 'dhpk-cross-agent-sync', 'scripts', 'multi_ai_sync.py');
+const CODEX = path.join(ROOT, 'codex', 'skills', 'dhpk-cross-agent-sync', 'scripts', 'multi_ai_sync.py');
 const DRIFT = path.join(ROOT, 'scripts', 'check-cross-cli-drift.sh');
 
 function runPython(script, args = []) {

@@ -12,11 +12,15 @@
 // be generated from without touching disk beyond the one read.
 
 const fs = require('node:fs');
+const crypto = require('node:crypto');
 const path = require('node:path');
 const { collectInventory, relativePosix } = require('./asset-inventory');
 
 const LIFECYCLES = ['promoted', 'optional', 'experimental', 'deprecated'];
 const SURFACES = ['claude-core', 'claude-module', 'codex-sync', 'codex-native'];
+const V2_SCHEMA = 'dhpk.distribution-inventory.v2';
+const PUBLIC_SKILL_NAME = /^dhpk-[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const CAPABILITY_ID = /^dhpk\.[a-z0-9]+(?:[.-][a-z0-9]+)*$/;
 
 function skillIdFromPath(relPath) {
   return path.basename(path.dirname(relPath));
@@ -145,12 +149,38 @@ function validateSupportingAssets({ inventory, root, exists = fs.existsSync }) {
   return { errors };
 }
 
+function digestFile(file) {
+  return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+}
+
+// Transformed Codex supporting assets are intentionally not byte-identical to
+// their Claude canonical source. Refresh their provenance as one deterministic
+// operation so a policy edit never requires hand-editing checked-in digests.
+function refreshSupportingDigests(inventory, root) {
+  const refreshed = JSON.parse(JSON.stringify(inventory));
+  for (const entry of refreshed.supporting_assets || []) {
+    if (!entry.canonical_source) continue;
+    const canonical = path.join(root, entry.canonical_source);
+    const projection = path.join(root, entry.source);
+    if (!fs.existsSync(canonical) || !fs.existsSync(projection)) {
+      throw new Error(`cannot refresh supporting provenance for ${entry.id || '<unknown>'}: source is missing`);
+    }
+    entry.canonical_digest = digestFile(canonical);
+    entry.projection_digest = digestFile(projection);
+  }
+  return refreshed;
+}
+
 function validateDistributionInventory({
   inventory,
   canonicalSkillPaths = [],
   canonicalModulePaths = [],
   generatedPromotedSkillIds = [],
 }) {
+  if (inventory && inventory.schema === V2_SCHEMA) {
+    return validateDistributionInventoryV2({ inventory });
+  }
+
   const errors = [];
   const lifecycleSet = new Set(inventory.lifecycles || LIFECYCLES);
   const surfaceSet = new Set(inventory.surfaces || SURFACES);
@@ -220,6 +250,113 @@ function validateDistributionInventory({
   return { errors };
 }
 
+// Task 1 naming/topology contract. Kept separate from the v1 lifecycle
+// validator above so the existing release manifest can remain readable and
+// backwards-compatible until the package migration task changes its schema.
+// The function is pure; filesystem shape and projection checks live in
+// scripts/lib/skill-topology.js.
+function validateDistributionInventoryV2(input = {}) {
+  const inventory = input && Object.prototype.hasOwnProperty.call(input, 'inventory')
+    ? input.inventory
+    : input;
+  const errors = [];
+  if (!inventory || typeof inventory !== 'object' || Array.isArray(inventory)) {
+    return { ok: false, errors: ['distribution inventory must be an object'] };
+  }
+  if (inventory.schema !== V2_SCHEMA) {
+    errors.push(`distribution inventory schema must be ${V2_SCHEMA}, got '${inventory.schema || '<missing>'}'`);
+  }
+  if (!Array.isArray(inventory.skills)) {
+    errors.push('distribution inventory v2 requires a skills array');
+    return { ok: false, errors };
+  }
+
+  const ids = new Set();
+  const names = new Set();
+  const capabilities = new Set();
+  const lifecycleSet = new Set(LIFECYCLES);
+  const surfaceSet = new Set(SURFACES);
+
+  inventory.skills.forEach((entry, index) => {
+    const prefix = `skill[${index}]`;
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      errors.push(`${prefix} must be an object`);
+      return;
+    }
+
+    for (const field of ['id', 'name', 'path', 'capability_id', 'lifecycle', 'tier', 'profiles', 'surfaces']) {
+      if (!Object.prototype.hasOwnProperty.call(entry, field)) {
+        errors.push(`${prefix} is missing required field '${field}'`);
+      }
+    }
+
+    if (typeof entry.id !== 'string' || entry.id.trim() === '') {
+      errors.push(`${prefix}.id must be a non-empty string`);
+    } else if (ids.has(entry.id)) {
+      errors.push(`duplicate stable id: ${entry.id}`);
+    } else {
+      ids.add(entry.id);
+    }
+
+    if (typeof entry.name !== 'string' || !PUBLIC_SKILL_NAME.test(entry.name) || entry.name.length > 63) {
+      errors.push(`${prefix}.name must match ^dhpk-[a-z0-9]+(?:-[a-z0-9]+)*$ and be at most 63 characters: '${entry.name}'`);
+    } else if (names.has(entry.name)) {
+      errors.push(`duplicate public skill name: ${entry.name}`);
+    } else {
+      names.add(entry.name);
+    }
+
+    const expectedPath = typeof entry.name === 'string' ? `skills/${entry.name}` : null;
+    if (entry.path !== expectedPath || !/^skills\/[^/]+$/.test(entry.path || '')) {
+      errors.push(`${prefix}.path must be the flat canonical path '${expectedPath || 'skills/<name>'}'; got '${entry.path}'`);
+    }
+
+    if (typeof entry.capability_id !== 'string' || !CAPABILITY_ID.test(entry.capability_id)) {
+      errors.push(`${prefix}.capability_id must match ^dhpk\\.[a-z0-9]+(?:[.-][a-z0-9]+)*$: '${entry.capability_id}'`);
+    } else if (capabilities.has(entry.capability_id)) {
+      errors.push(`duplicate capability_id: ${entry.capability_id}`);
+    } else {
+      capabilities.add(entry.capability_id);
+    }
+
+    if (typeof entry.lifecycle !== 'string' || !lifecycleSet.has(entry.lifecycle)) {
+      errors.push(`${prefix}.lifecycle must be one of ${LIFECYCLES.join('/')}: '${entry.lifecycle}'`);
+    }
+    if (entry.tier !== 'core' && entry.tier !== 'optional') {
+      errors.push(`${prefix}.tier must be 'core' or 'optional': '${entry.tier}'`);
+    }
+
+    if (!Array.isArray(entry.profiles) || entry.profiles.length === 0 || entry.profiles.some((profile) => typeof profile !== 'string' || profile.trim() === '')) {
+      errors.push(`${prefix}.profiles must be a non-empty string array`);
+    } else if (new Set(entry.profiles).size !== entry.profiles.length) {
+      errors.push(`${prefix}.profiles must not contain duplicate values`);
+    }
+
+    if (!Array.isArray(entry.surfaces)) {
+      errors.push(`${prefix}.surfaces must be a string array`);
+    } else {
+      if (new Set(entry.surfaces).size !== entry.surfaces.length) {
+        errors.push(`${prefix}.surfaces must not contain duplicate values`);
+      }
+      for (const surface of entry.surfaces) {
+        if (typeof surface !== 'string' || !surfaceSet.has(surface)) {
+          errors.push(`${prefix}.surfaces contains invalid surface '${surface}'`);
+        }
+      }
+    }
+
+    if (entry.legacy_names !== undefined) {
+      if (!Array.isArray(entry.legacy_names) || entry.legacy_names.length === 0 || entry.legacy_names.some((legacy) => typeof legacy !== 'string' || legacy.trim() === '')) {
+        errors.push(`${prefix}.legacy_names must be a non-empty string array when present`);
+      } else if (new Set(entry.legacy_names).size !== entry.legacy_names.length) {
+        errors.push(`${prefix}.legacy_names must not contain duplicate values`);
+      }
+    }
+  });
+
+  return { ok: errors.length === 0, errors };
+}
+
 // Task 1.4: reconcile the inventory against canonical packages, the module
 // catalog, install profiles, and per-skill Codex (agents/openai.yaml)
 // metadata. Distinct from validateDistributionInventory's structural checks
@@ -243,8 +380,9 @@ function reconcileDistribution({
 
   for (const s of inventory.skills || []) {
     const surfaces = s.surfaces || [];
-    if (surfaces.includes('codex-sync') && !mirrorSet.has(s.id)) {
-      errors.push(`codex-sync surface without a mirror: ${s.id} declares codex-sync but codex/skills/${s.id} does not exist`);
+    const projectionName = inventory && inventory.schema === V2_SCHEMA ? s.name : s.id;
+    if (surfaces.includes('codex-sync') && !mirrorSet.has(projectionName)) {
+      errors.push(`codex-sync surface without a mirror: ${s.id} declares codex-sync but codex/skills/${projectionName} does not exist`);
     }
     if ((surfaces.includes('codex-sync') || surfaces.includes('codex-native')) && !hasOpenaiMetadata(s)) {
       errors.push(`codex surface without agents/openai.yaml: ${s.id} declares a Codex surface but ${s.path}/agents/openai.yaml is missing`);
@@ -269,6 +407,13 @@ function reconcileDistribution({
 // scripts/ci/gen-claude-manifest.js records that host limitation.
 function generateClaudeSkillRoots(inventory) {
   const live = (inventory.skills || []).filter((s) => s.lifecycle !== 'deprecated');
+  if (inventory && inventory.schema === V2_SCHEMA) {
+    return {
+      roots: live.length > 0 ? ['./skills/'] : [],
+      generatedSkillIds: live.map((s) => s.id).sort(),
+    };
+  }
+
   const hasRootSkill = live.some((s) => !s.path.startsWith('modules/'));
   const liveModuleIds = new Set(
     live
@@ -317,11 +462,25 @@ function computeScopedCounts(inventory) {
 module.exports = {
   LIFECYCLES,
   SURFACES,
+  V2_SCHEMA,
+  PUBLIC_SKILL_NAME,
+  CAPABILITY_ID,
   classifyCanonicalInventory,
   serializeInventory,
   validateSupportingAssets,
+  refreshSupportingDigests,
   validateDistributionInventory,
+  validateDistributionInventoryV2,
+  validateInventoryV2: validateDistributionInventoryV2,
   reconcileDistribution,
   generateClaudeSkillRoots,
   computeScopedCounts,
 };
+
+// Re-export the topology primitive from the inventory module so CI callers can
+// consume one shared distribution API without importing two implementation
+// files. The require is intentionally at the end to keep the topology module
+// independent from inventory validation and avoid a circular dependency.
+const { validateSkillTopology, validateTopology } = require('./skill-topology');
+module.exports.validateSkillTopology = validateSkillTopology;
+module.exports.validateTopology = validateTopology;

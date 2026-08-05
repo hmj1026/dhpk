@@ -8,7 +8,7 @@ triggers:
     extensions: [".swift"]
     paths: [RxScanUI/, RxScanFeatures/, babylon/]
 provides:
-  skills: [swiftui-architecture]
+  skills: [dhpk-swiftui-architecture]
   references: [mvvm-coordinator.md, observation-state.md, navigation.md, interop.md]
   commands: []
   agents: []

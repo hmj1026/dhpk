@@ -68,8 +68,22 @@ ls -t compact-notes/compact-*.json 2>/dev/null | head -1
 Extract fields using the script:
 
 ```bash
-bash .claude/scripts/opsx-apply-resume/extract-compact.sh "$COMPACT_JSON_PATH"
+EXTRACTOR=""
+for ROOT in "${CLAUDE_PLUGIN_ROOT:-}" "${PLUGIN_ROOT:-}" "${DHPK_PLUGIN_ROOT:-}" "${DHPK_SOURCE_ROOT:-}"; do
+  if [ -n "$ROOT" ] && [ -x "$ROOT/scripts/opsx-apply-resume/extract-compact.sh" ]; then
+    EXTRACTOR="$ROOT/scripts/opsx-apply-resume/extract-compact.sh"
+    break
+  fi
+done
+if [ -z "$EXTRACTOR" ]; then
+  echo "CONTEXT_SOURCE=unresolved: set PLUGIN_ROOT for an installed plugin or DHPK_SOURCE_ROOT for a source checkout" >&2
+else
+  "$EXTRACTOR" "$COMPACT_JSON_PATH"
+fi
 ```
+
+If no explicit plugin root resolves, keep the `unresolved` state and continue
+with the handoff summary; do not guess a `.claude/scripts` path.
 
 Read the output to obtain: `L0`, `session_goal`, `completed`, `in_progress`, `key_decisions`, `failed_approaches`.
 

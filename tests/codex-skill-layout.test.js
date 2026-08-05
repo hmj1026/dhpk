@@ -1,8 +1,7 @@
 'use strict';
 
-// Keep the Codex mirror single-sourced: common skills must point at the
-// canonical root skill, while only module mirrors remain explicit physical
-// directories.
+// Keep the Codex mirror single-sourced: every published projection points at
+// the flat canonical root skill. Native materialization is a Task 3 concern.
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -11,12 +10,7 @@ const { test, run, assert } = require('./_lib/tinytest');
 const ROOT = path.join(__dirname, '..');
 const ROOT_SKILLS = path.join(ROOT, 'skills');
 const CODEX_SKILLS = path.join(ROOT, 'codex', 'skills');
-const PHYSICAL_SKILLS = new Set([
-  'legacy-code-characterization',
-  'php-pro',
-  'php56-yii-dev',
-  'yii1-security-audit',
-]);
+const PHYSICAL_SKILLS = new Set();
 
 function directoryEntries(dir) {
   return fs.readdirSync(dir).filter((name) => {
@@ -25,7 +19,7 @@ function directoryEntries(dir) {
   });
 }
 
-test('every non-physical Codex skill uses the root canonical skill', () => {
+test('every Codex skill uses the root canonical skill', () => {
   const rootNames = new Set(directoryEntries(ROOT_SKILLS));
 
   for (const name of directoryEntries(CODEX_SKILLS)) {
@@ -38,7 +32,7 @@ test('every non-physical Codex skill uses the root canonical skill', () => {
   }
 });
 
-test('physical Codex skills stay limited to documented module mirrors', () => {
+test('Codex has no physical source mirrors', () => {
   const physicalNames = directoryEntries(CODEX_SKILLS)
     .filter((name) => !fs.lstatSync(path.join(CODEX_SKILLS, name)).isSymbolicLink())
     .sort();

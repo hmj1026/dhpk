@@ -32,7 +32,7 @@ test('fast-worker and codex-fast-worker prompts explicitly forbid out-of-scope c
 
 test('the shared codex wrapper script contains no forbidden cleanup invocation against sibling files', () => {
   const wrapper = fs.readFileSync(
-    path.join(ROOT, 'skills', 'codex-bridge', 'scripts', 'run-codex.sh'),
+    path.join(ROOT, 'skills', 'dhpk-codex-bridge', 'scripts', 'run-codex.sh'),
     'utf8'
   );
   for (const cmd of FORBIDDEN_CLEANUP) {

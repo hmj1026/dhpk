@@ -1,5 +1,7 @@
 # plugins/dhpk — Codex Native Marketplace Publication Package
 
+> **Languages**: **English** · [繁體中文](./README.zh-TW.md)
+
 This directory is the plugin folder that `.agents/plugins/marketplace.json`
 points at. Codex does not discover plugins whose local marketplace
 `source.path` is the marketplace root itself (`./`), so the marketplace entry
@@ -29,9 +31,9 @@ a second copy.
 
 | File | Purpose |
 |---|---|
-| `skills/<id>/` | Physical, deduplicated content for every `codex-native` skill. |
+| `skills/<dhpk-name>/` | Physical, deduplicated content for every `codex-native` skill, keyed by its public inventory name (never the stable id). |
 | `fingerprints.json` | Per-skill content hash, for deterministic-generation drift checks. |
-| `provenance.json` | Source version, source commit, inventory digest, generator version (a separate counter tracking the generation algorithm itself, bumped independently of the dhpk release version — see `GENERATOR_VERSION` in `scripts/lib/codex-native-package.js`), and the selected skill-id set. |
+| `provenance.json` | Source version, source commit, inventory digest, generator version (a separate counter tracking the generation algorithm itself, bumped independently of the dhpk release version — see `GENERATOR_VERSION` in `scripts/lib/codex-native-package.js`), selected stable skill IDs, and selected public skill names. |
 
 Regenerating this directory and committing the result is part of the release
 PR (`scripts/release/prepare-release.js write`); CI validates it
@@ -45,9 +47,9 @@ enforce this.
 
 ## Current Codex plugin-mode status
 
-`codex plugin marketplace add hmj1026/dhpk` (once published) or
-`codex plugin marketplace add /path/to/dhpk` (local dev) installs `dhpk@dhpk`
-from this exact tracked package. `tests/codex-native-install-smoke.test.js`
+First run `codex plugin marketplace add hmj1026/dhpk` (once published) or
+`codex plugin marketplace add /path/to/dhpk` (local dev), then install with
+`codex plugin add dhpk@dhpk`. `tests/codex-native-install-smoke.test.js`
 proves — using the real `codex` CLI in a fully sandboxed `CODEX_HOME`, with
 the source checkout deleted afterward — that the installed cache contains
 every allowlisted native skill as a physical, discoverable file.

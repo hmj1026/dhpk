@@ -1,6 +1,6 @@
 # tdd-guide — PHP traps
 
-PHPUnit 5.7 + Yii 1.1 conventions. Code templates: `modules/php-5.6/skills/php-pro/references/agent-extracts/tdd-code-templates.md`. PHPUnit 5.7 API surface: `modules/php-5.6/skills/php-pro/references/phpunit57-*.md`.
+PHPUnit 5.7 + Yii 1.1 conventions. Code templates: `skills/dhpk-php-runtime-router/references/agent-extracts/tdd-code-templates.md`. PHPUnit 5.7 API surface: `skills/dhpk-php-runtime-router/references/phpunit57-*.md`.
 
 ## Project Test Layout
 
@@ -11,7 +11,7 @@ PHPUnit 5.7 + Yii 1.1 conventions. Code templates: `modules/php-5.6/skills/php-p
 | `protected/tests/functional/` | Critical business E2E |
 
 - Class: `[Name]Test extends CTestCase`; method: `test[What][Under][Expected]()`; **no** `@test`
-- Templates: `modules/php-5.6/skills/php-pro/references/agent-extracts/tdd-code-templates.md`
+- Templates: `skills/dhpk-php-runtime-router/references/agent-extracts/tdd-code-templates.md`
 
 ## PHPUnit 5.7 Hard Traps
 
@@ -42,6 +42,6 @@ Variants: `.claude/rules/php/testing.md`.
 
 ## References
 
-- PHPUnit 5.7 API: `modules/php-5.6/skills/php-pro/references/phpunit57-*.md`
+- PHPUnit 5.7 API: `skills/dhpk-php-runtime-router/references/phpunit57-*.md`
 - `protected/tests/docs/TESTING_STANDARDS.md`
 - `.claude/rules/php/testing.md`

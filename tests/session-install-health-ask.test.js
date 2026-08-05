@@ -165,13 +165,13 @@ test('a patch gap is reported in the advisory output with no question raised', (
   }
 });
 
-test('a patch gap reaches the session-start output', () => {
+test('a patch gap does not reach module-activation-only SessionStart output', () => {
   const repo = mkProject();
   const plugins = mkPluginsDir({ installed: '0.28.17', available: '0.28.18' });
   try {
     const res = sessionStart(repo, { pluginsDir: plugins, modules: 'js', session: 'patch-e2e' });
     assert.strictEqual(res.status, 0, res.stderr);
-    assert.ok(res.stdout.includes('0.28.18'), `patch drift never reached session output:\n${res.stdout}`);
+    assert.ok(!res.stdout.includes('0.28.18'), `install-health drift leaked into SessionStart:\n${res.stdout}`);
   } finally {
     rm(repo, plugins);
   }
@@ -402,28 +402,14 @@ test('session-start still exits 0 with findings present', () => {
   }
 });
 
-test('session-start emits the gate once and does not duplicate the existing mismatch warning', () => {
+test('session-start does not emit install-health or module-mismatch advisories', () => {
   const repo = mkProject();
   const plugins = mkPluginsDir();
   try {
     const res = sessionStart(repo, { pluginsDir: plugins, ask: '1' });
     const all = res.stdout + res.stderr;
-    assert.strictEqual(
-      countOccurrences(all, 'WARN module/manifest mismatch'),
-      1,
-      `existing mismatch warning duplicated:\n${all}`
-    );
-    // Exactly one, not "at most one" — at most one also passes when the gate
-    // was never wired in, which is the regression this test exists to catch.
-    assert.strictEqual(
-      countOccurrences(res.stdout, 'AskUserQuestion'),
-      1,
-      `expected exactly one question instruction on stdout:\n${all}`
-    );
-    assert.ok(res.stdout.includes('[dhpk install health]'), `gate block missing from stdout:\n${all}`);
-    // The terse WARN is the operator log line on stderr; the gate block is the
-    // model-facing instruction on stdout. Different channels, not a duplicate.
-    assert.ok(!res.stderr.includes('[dhpk install health]'), `gate block leaked onto stderr:\n${res.stderr}`);
+    assert.strictEqual(countOccurrences(all, 'WARN module/manifest mismatch'), 0, all);
+    assert.strictEqual(countOccurrences(all, '[dhpk install health]'), 0, all);
   } finally {
     rm(repo, plugins);
   }

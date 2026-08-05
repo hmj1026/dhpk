@@ -15,8 +15,8 @@ const { test, run, assert } = require('./_lib/tinytest');
 const { buildToolsOnlyDir } = require('./_lib/restricted-path');
 
 const ROOT = path.join(__dirname, '..');
-const WRAPPER = path.join(ROOT, 'skills', 'codex-bridge', 'scripts', 'run-codex.sh');
-const TIMEOUT_ENVELOPE_HELPER = path.join(ROOT, 'skills', 'codex-bridge', 'scripts', 'codex-timeout-envelope.js');
+const WRAPPER = path.join(ROOT, 'skills', 'dhpk-codex-bridge', 'scripts', 'run-codex.sh');
+const TIMEOUT_ENVELOPE_HELPER = path.join(ROOT, 'skills', 'dhpk-codex-bridge', 'scripts', 'codex-timeout-envelope.js');
 
 // The wrapper's own runtime dependencies (excluding `timeout`/`gtimeout`, which the
 // restricted-PATH tests below deliberately omit or fake).

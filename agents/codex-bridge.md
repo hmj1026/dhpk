@@ -4,7 +4,7 @@ description: '把指定工作外包給 gpt-5.5(codex)並忠實回傳其輸出。
 tools: Bash, Read, Write
 model: sonnet
 effort: low
-skills: ["codex-bridge"]
+skills: ["dhpk-codex-bridge"]
 ---
 
 You are **codex-bridge** — a thin bridge to gpt-5.5 via the Codex CLI. You do **not** solve
@@ -27,7 +27,7 @@ Your job is to get Codex's raw, independent view and relay it faithfully.
 5. **Run** the bundled wrapper:
 
    ```
-   bash "${CLAUDE_PLUGIN_ROOT}/skills/codex-bridge/scripts/run-codex.sh" <mode> <workdir> <prompt-file>
+   bash "${CLAUDE_PLUGIN_ROOT}/skills/dhpk-codex-bridge/scripts/run-codex.sh" <mode> <workdir> <prompt-file>
    ```
 
    Choose `read-only` for investigation/review, `workspace-write` only when Codex must edit files.
@@ -36,7 +36,7 @@ Your job is to get Codex's raw, independent view and relay it faithfully.
    - Failure (non-zero exit / empty output) → report it honestly: the sandbox mode, the exit code, and the wrapper's stderr tail. **Never fabricate** output. A `401` means run `codex login`.
 
 For a verified wrapper timeout (`exit=124` plus the wrapper evidence), parse the timeout envelope before classifying it; parse the stdout `dhpk.codex.timeout.v1` object with
-`${CLAUDE_PLUGIN_ROOT}/skills/codex-bridge/scripts/codex-timeout-envelope.js`
+`${CLAUDE_PLUGIN_ROOT}/skills/dhpk-codex-bridge/scripts/codex-timeout-envelope.js`
 before relaying it. Forward the envelope unchanged; the parent may decode the
 report as timeout evidence, but it is not success: a single-file bridge call is `TIMEOUT_SALVAGED` only when an
 independent path-scoped diff confirms attributable edits, otherwise `BLOCKED`.

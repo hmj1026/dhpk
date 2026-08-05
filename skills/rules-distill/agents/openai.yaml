@@ -1,6 +1,0 @@
-interface:
-  display_name: "Rules Distill"
-  short_description: "Scan installed skills to extract cross-cutting principles and"
-  default_prompt: "Use $rules-distill to apply the Rules Distill workflow with its verification rules."
-policy:
-  allow_implicit_invocation: false

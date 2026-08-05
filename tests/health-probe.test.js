@@ -6,7 +6,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
-const SCRIPT = path.join(__dirname, '..', 'skills', 'feature-verify', 'scripts', 'health-probe.sh');
+const SCRIPT = path.join(__dirname, '..', 'skills', 'dhpk-feature-verify', 'scripts', 'health-probe.sh');
 
 function fixture(codes) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-health-probe-'));

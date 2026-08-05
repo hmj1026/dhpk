@@ -44,8 +44,8 @@ A handful of boolean/mode knobs additionally support a **one-shot environment-va
 
 | Key | Type | Default | Options | Purpose |
 |-----|------|---------|---------|---------|
-| `hook_profile` | string | `standard` | `minimal` \| `standard` \| `strict` | Verbosity of hook output. `minimal` suppresses Stop reminders; `strict` adds extra warnings. |
-| `review_agents` | string[] | `["code-reviewer","database-reviewer","security-reviewer","frontend-reviewer","doc-reviewer","polyfill-reviewer","migration-reviewer"]` | any 7 agent names | Agents invoked by sentinel reminders, in slot order (code, db, sec, frontend, doc, polyfill, migration). Override to point at project-specific agent names; shorter overrides are padded with the defaults for the remaining slots. Slots 5–6 (polyfill, migration) only fire when opted in — polyfill via the `library-author` module, migration via module triggers or a `mig:` extra path. |
+| `hook_profile` | string | `standard` | `minimal` \| `standard` \| `strict` | Verbosity of active deterministic hook output. Retired Stop reminders are not default-wired. |
+| `review_agents` | string[] | `["code-reviewer","database-reviewer","security-reviewer","frontend-reviewer","doc-reviewer","polyfill-reviewer","migration-reviewer"]` | any 7 agent names | Reviewer names used by sentinel routing, in slot order. Override to point at project-specific agents; shorter overrides are padded with defaults. |
 | `deep_reasoner_model` | string | `opus` | `haiku` \| `sonnet` \| `opus` (whatever the running Claude Code version supports) | Model tier for `dhpk:deep-reasoner` Agent-call dispatches (reasoning-heavy implementation work). Applied per dispatch via the Agent call's `model` param when it differs from the agent's frontmatter default. Invalid value warns once per session and falls back to the frontmatter default — never fails the dispatch. |
 | `fast_worker_model` | string | `sonnet` | same as above | Model tier for `dhpk:fast-worker` Agent-call dispatches (mechanical implementation work). Same validation/fallback behavior as `deep_reasoner_model`. |
 | `planner_model` | string | `opus` | same as above | Model tier for `dhpk:planner` Agent-call dispatches (the opt-in `/dhpk:do --plan` pre-implementation critique / post-implementation warm review). Same validation/fallback behavior as `deep_reasoner_model`. |
@@ -58,8 +58,8 @@ A handful of boolean/mode knobs additionally support a **one-shot environment-va
 | `codex_deep_reasoner_effort` | string | `high` | any effort the codex CLI accepts | `model_reasoning_effort` passed to the codex CLI backend for `dhpk:codex-deep-reasoner` dispatches. |
 | `codex_timeout_secs` | string | `360` | integer seconds `>= 0`; `0` disables | Shared `run-codex.sh` wrapper backstop for all three Codex CLI roles. Precedence is project role-specific > project shared > global role-specific > global shared > shipped default; malformed values fail closed before dispatch. This key does not change Claude's external tool wait. |
 | `codex_fast_worker_timeout_secs` | string | `360` | integer seconds `>= 0`; `0` disables | Role-specific wrapper budget for `dhpk:codex-fast-worker`. It wins over the shared value in the same scope; project values win over global values. The legacy `CODEX_WRAP_TIMEOUT_SECS` environment override is higher precedence for controlled/test invocations. |
-| `codex_deep_reasoner_timeout_secs` | string | `360` | integer seconds `>= 0`; `0` disables | Role-specific wrapper budget for `dhpk:codex-deep-reasoner`. It wins over the shared value in the same scope; project values win over global values. Invalid values fail closed and are reported at SessionStart. |
-| `codex_bridge_timeout_secs` | string | `360` | integer seconds `>= 0`; `0` disables | Role-specific wrapper budget for `dhpk:codex-bridge`; the existing three-argument wrapper shape remains supported. It wins over the shared value in the same scope; project values win over global values. |
+| `codex_deep_reasoner_timeout_secs` | string | `360` | integer seconds `>= 0`; `0` disables | Role-specific wrapper budget for `dhpk:codex-deep-reasoner`. It wins over the shared value in the same scope; project values win over global values. Invalid values fail closed at dispatch time. |
+| `codex_bridge_timeout_secs` | string | `360` | integer seconds `>= 0`; `0` disables | Role-specific wrapper budget for `dhpk:dhpk-codex-bridge`; the existing three-argument wrapper shape remains supported. It wins over the shared value in the same scope; project values win over global values. |
 | `agy_fast_worker_model` | string | `Gemini 3.6 Flash (High)` | any model listed by `agy models` | Model display string passed to the agy CLI backend for `dhpk:agy-fast-worker` dispatches. agy bakes the thinking level into the model name, so there is no separate effort key. Same layering as above; override when a default is deprecated (check `agy models`). |
 | `architect_model` | string | `fable` | any model tier supported by the running Claude Code | Model tier for `dhpk:architect` Agent-call dispatches; applied per invocation without editing frontmatter, with up-only escalation for HIGH-risk architecture decisions. |
 | `architect_effort` | string | `low` | `low` \| `medium` \| `high` \| `xhigh` \| `max` | Reasoning effort for `dhpk:architect` Agent-call dispatches; applied per invocation without editing frontmatter. |
@@ -67,7 +67,7 @@ A handful of boolean/mode knobs additionally support a **one-shot environment-va
 | `fast_worker_backend` | string | `claude` | `claude` \| `codex` \| `agy` \| `auto` | Deterministic mechanical-worker selector. `claude` maps to `dhpk:fast-worker`; `auto` checks `fast_worker_backend_order`. `/dhpk:do --worker=...` overrides this key for one invocation only (flag > userConfig > shipped default); an invalid flag warns once and falls through to this key/default, while an invalid configured value uses `claude`. Codex CLI availability is checked independently of `CODEX=on`; that switch controls the MCP peer-review path, not mechanical-worker selection. |
 | `fast_worker_backend_order` | string | `claude,codex,agy` | comma-separated backend names | Availability order used only by `auto`; rejected candidates and reasons are recorded. Invalid values warn once per session and use the shipped order. |
 | `fast_worker_fallback` | string | `none` | `none` \| `claude` | Explicit fallback for a missing selected CLI executable only. Auth, authorization, model, task, execution, and verification failures remain blocked. |
-| `subagent_quality_gate` | string | `off` | `on` \| `off` | Enables `scripts/hooks/subagent-stop-quality.sh` only for reviewer-sentinel subagents. It blocks-and-continues a reviewer once when its final report is thin, a bare approval, an unresolved error with no next-step language, or an evidence-free review-shaped reply — wired ahead of `subagent-stop-verify.sh` so a blocked reviewer's sentinel is not auto-cleared. The bounded outcome is one corrected retry, then replacement or a pending gate with a recorded reason. Default `off` (no-op, no heuristic evaluation). Extraction hit/miss is recorded to `.claude/artifacts/sessions/.subagent-stop-quality-extraction.json`. |
+| `subagent_quality_gate` | string | `off` | `on` \| `off` | Retained for an explicitly registered advisory quality hook. It has no default-lifecycle effect; strict artifact evidence is enforced by `subagent-stop-verify.sh`. |
 
 Codex timeout values are validated as unsigned decimal seconds before the
 wrapper selects `timeout`/`gtimeout`. An empty, fractional, negative, or
@@ -80,7 +80,7 @@ budget. The separate agy timeout setting is unchanged.
 
 ## Codex MCP dependency (not a `userConfig` knob)
 
-`orchestration_dispatch`'s `CODEX=on` peer path, the **5 MCP-backed `codex-*` skills** (`codex-architect`, `codex-brainstorm`, `codex-code-review`, `codex-explain`, `codex-implement`), and the **7 `/dhpk:codex-*` commands** (`codex-review`, `-review-branch`, `-review-doc`, `-review-fast`, `-security`, `-test-gen`, `-test-review`) all require the `mcp__codex__codex` / `mcp__codex__codex-reply` tools. (`codex-cli-review` is the one exception — it shells out to the `codex` CLI binary via `Bash` and needs no MCP server.) dhpk does not bundle or configure these tools, and no `dhpk` `userConfig` key controls them: they come from **directly registering the Codex CLI's own `codex mcp-server` subcommand as an MCP server** — *not* from installing `openai/codex-plugin-cc`, which is a separate, optional surface (see the comparison aside below).
+`orchestration_dispatch`'s `CODEX=on` peer path, the **4 MCP-backed `dhpk-codex-*` skills** (`dhpk-codex-architect`, `dhpk-codex-brainstorm`, `dhpk-codex-implement`, `dhpk-change-review`), and the **7 `/dhpk:codex-*` commands** (`codex-review`, `-review-branch`, `-review-doc`, `-review-fast`, `-security`, `-test-gen`, `-test-review`) all require the `mcp__codex__codex` / `mcp__codex__codex-reply` tools. The optional CLI backend is `dhpk-change-review/scripts/review.sh --backend cli`; it uses no MCP server. dhpk does not bundle or configure these tools, and no `dhpk` `userConfig` key controls them: they come from **directly registering the Codex CLI's own `codex mcp-server` subcommand as an MCP server** — *not* from installing `openai/codex-plugin-cc`, which is a separate, optional surface (see the comparison aside below).
 
 ### How the Codex MCP server works
 
@@ -142,8 +142,8 @@ This is about the standalone Codex CLI dual-track sync (`codex/agents/` → `.co
 
 | Key | Type | Default | Options | Purpose |
 |-----|------|---------|---------|---------|
-| `docker_containers` | string[] | `[]` | container name(s) | Container names checked at SessionStart. Empty disables the check. First entry exports as `DHPK_PHP_CONTAINER`; second as `DHPK_MYSQL_CONTAINER`. |
-| `modules` | string[] | `[]` | any of the 27 shipped modules — see [`docs/basic-operations.md`](./basic-operations.md) or `manifests/module-catalog.json` for the full list | Stack modules to enable. Additive per axis (php / laravel / phpunit) — a library spanning Laravel 6–11 should enable each version for cumulative guidance. Enabling `js` wires the ESLint post-edit hook + pre-commit lint/typecheck gate; `php-7.4` wires php-cs-fixer + pre-commit lint/phpstan/psalm; `python` wires a post-edit ruff hook (batched at Stop) + a pre-commit ruff-check/ruff-format/type-check gate (project root auto-detected by walking up to `pyproject.toml`); `fastapi` / `pytest` are skills+references only (each `requires: python`); `library-author` wires the sixth-color `polyfill-reviewer` sentinel; `xcode-tooling` wires SwiftLint + pre-commit xcodebuild/SPM build+test (self-skips when binaries absent); `swift` / `swiftui` / `ios-platform` / `swift-testing` are skills+references only. Module `requires:` is validated at SessionStart (warning, not blocking). **Precedence**: a project's `.claude/settings.local.json` `pluginConfigs.dhpk@dhpk.options.modules` overrides the global value. |
+| `docker_containers` | string[] | `[]` | container name(s) | Retained for explicitly registered Docker tooling; default SessionStart does not probe containers or export container variables. |
+| `modules` | string[] | `[]` | any shipped module — see [`docs/basic-operations.md`](./basic-operations.md) or `manifests/module-catalog.json` | Stack modules to activate. SessionStart validates `requires:` and reports enabled modules; module selection influences sentinel routing and combined Bash/pre-commit gates. Post-edit lint/format/Stop work is not default-wired. **Precedence**: project `.claude/settings.local.json` `pluginConfigs.dhpk@dhpk.options.modules` overrides the global value. |
 
 ## Review triggers & risk heuristics
 
@@ -164,19 +164,19 @@ This is about the standalone Codex CLI dual-track sync (`codex/agents/` → `.co
 
 | Key | Type | Default | Env override | Purpose |
 |-----|------|---------|--------------|---------|
-| `skill_hint_enabled` | boolean | `true` | `DHPK_DISABLE_SKILL_HINT=1` | UserPromptSubmit hook prints a one-line route-table skill suggestion (e.g. "bug" → `/dhpk:bug-fix`). |
-| `learning_db_enabled` | boolean | `false` | `DHPK_LEARNING_DB=1/0` | Appends operational signals (reviewer pass, subagent failure, abnormal stop) to `.claude/artifacts/learning.jsonl`; SessionStart surfaces top recurring signatures as a `[learned-context]` block (capped at 5 lines). Confidence decays with recency; log self-rotates past 50MB. |
-| `graduation_scan_enabled` | boolean | `false` | `DHPK_GRADUATION_SCAN=1/0` | Stop hook scans the session transcript for cited auto-memory entries, tracks cross-session counts/confidence, and regenerates `.claude/artifacts/graduation-candidates.md`. Entries cited ≥3 times across ≥24h/≥3 dates without a trap re-occurring are proposed for promotion to a rule/skill. Requires `python3`. |
-| `completion_evidence_enabled` | boolean | `false` | `DHPK_COMPLETION_EVIDENCE=1/0` | Stop advisory warning when the assistant claims completion but the tree has code changes with no matching test changes (doc/harness-only exempt; defers to active sentinels). Advisory only — never blocks Stop. |
-| `agent_warmstart_enabled` | boolean | `false` | `DHPK_AGENT_WARMSTART=1/0` | PreToolUse (`Task`\|`Agent`) hook injecting parent-session context (active sentinels + reviewer slots, current OpenSpec change + tasks, `.claude/warmstart-context.md`, tool-routing reminder; ≤2000 chars) into subagent prompts. Costs tokens on every subagent spawn. |
-| `reap_stale_mcp_processes` | boolean | `false` | — | When `true`, SessionStart reaps **orphaned** `gitnexus mcp` processes (parent session dead / reparented to init) — never a process owned by a live parallel session. Only useful for gitnexus MCP users. |
-| `harness_restore_hint` | string | `""` | — | Command line printed by the SessionStart broken-symlink advisory (for harnesses deployed via symlinks from a separate repo). Empty prints the WARN without a hint line. |
+| `skill_hint_enabled` | boolean | `true` | `DHPK_DISABLE_SKILL_HINT=1` | Retained for an explicitly registered UserPromptSubmit hint; no default hook consumes it. |
+| `learning_db_enabled` | boolean | `false` | `DHPK_LEARNING_DB=1/0` | Retained for explicitly registered learning observation and presentation; default SessionStart does not inject learned context. |
+| `graduation_scan_enabled` | boolean | `false` | `DHPK_GRADUATION_SCAN=1/0` | Retained for explicitly registered Stop advisory work; no default Stop hook consumes it. |
+| `completion_evidence_enabled` | boolean | `false` | `DHPK_COMPLETION_EVIDENCE=1/0` | Retained for explicitly registered Stop advisory work; no default Stop hook consumes it. |
+| `agent_warmstart_enabled` | boolean | `false` | `DHPK_AGENT_WARMSTART=1/0` | Retained for explicitly registered `Task`/`Agent` prompt injection; no default lifecycle entry consumes it. |
+| `reap_stale_mcp_processes` | boolean | `false` | — | Retained for explicitly registered SessionEnd/process tooling; default SessionStart does not reap processes. |
+| `harness_restore_hint` | string | `""` | — | Retained for explicitly registered symlink-health advice; default SessionStart does not emit it. |
 
 ## Manifest / lockfile sync
 
 | Key | Type | Default | Options | Purpose |
 |-----|------|---------|---------|---------|
-| `lockfile_sync_commands` | string[] | `[]` | `<manifest>:<command>`, no commas in the command | Per-manifest lock-sync commands for the async PostToolUse manifest-guard reminder, e.g. `composer.json:docker exec -i my_php composer update --lock`. Manifests without an entry fall back to a generic default (`composer update --lock` / `npm install` / `bundle install` / `cargo build` / `poetry lock`). |
+| `lockfile_sync_commands` | string[] | `[]` | `<manifest>:<command>`, no commas in the command | Retained for explicitly registered manifest/lockfile advisory tooling; default PostToolUse only routes review sentinels. |
 
 ## `js` module
 
@@ -195,7 +195,7 @@ This is about the standalone Codex CLI dual-track sync (`codex/agents/` → `.co
 |-----|------|---------|---------|---------|
 | `python_project_roots` | string[] | `[]` | subdir path(s), e.g. `backend` | Subdirs holding a `pyproject.toml` that the python module's hooks should lint. Default empty — hooks walk up from the edited file to the nearest `pyproject.toml` (already handles monorepo backends). Set this only to **restrict** linting to specific subtrees. |
 | `python_runner` | string | `"uv run"` | e.g. `"poetry run"`, `""` | Command prefix used to invoke ruff / pyright / mypy inside the project env. `""` runs tools straight off PATH (already-activated venv). Falls back to bare PATH tools when the runner binary is absent, then self-skips if those are missing too. |
-| `ruff_bin` | string | `"ruff"` | — | ruff executable invoked by the post-edit lint hook, Stop batch check, and pre-commit validation. |
+| `ruff_bin` | string | `"ruff"` | — | ruff executable for an explicitly registered lint workflow and applicable pre-commit validation. |
 | `python_typechecker` | string | `"pyright"` | `pyright` \| `mypy` \| `none` | Type checker the pre-commit gate runs on staged `.py` files. `none` skips type-checking entirely. |
 | `pyright_bin` | string | `"pyright"` | — | pyright executable, used when `python_typechecker=pyright`. |
 | `mypy_bin` | string | `"mypy"` | — | mypy executable, used when `python_typechecker=mypy`. |
@@ -204,8 +204,8 @@ This is about the standalone Codex CLI dual-track sync (`codex/agents/` → `.co
 
 | Key | Type | Default | Purpose |
 |-----|------|---------|---------|
-| `php_bin` | string | `"php"` | PHP binary/wrapper for the `php-5.6` module's async `php -l` post-edit syntax check, e.g. `docker exec -i my_php php`. Self-skips when the first word is not on PATH. |
-| `php_cs_fixer_bin` | string | `"vendor/bin/php-cs-fixer"` | Binary for the `php-7.4` module's post-edit php-cs-fixer hook + pre-commit gate. |
+| `php_bin` | string | `"php"` | PHP binary/wrapper for an explicitly registered `php-5.6` syntax-check workflow, e.g. `docker exec -i my_php php`. Self-skips when the first word is not on PATH. |
+| `php_cs_fixer_bin` | string | `"vendor/bin/php-cs-fixer"` | Binary for an explicitly registered `php-7.4` formatter workflow and its applicable pre-commit gate. |
 | `phpstan_bin` | string | `"vendor/bin/phpstan"` | PHPStan binary for the `php-7.4` module's pre-commit gate; only invoked when `phpstan.neon[.dist]` is present. |
 | `psalm_bin` | string | `"vendor/bin/psalm"` | Psalm binary for the `php-7.4` module's pre-commit gate; only invoked when `psalm.xml[.dist]` is present. |
 
@@ -213,7 +213,7 @@ This is about the standalone Codex CLI dual-track sync (`codex/agents/` → `.co
 
 | Key | Type | Default | Options | Purpose |
 |-----|------|---------|---------|---------|
-| `swiftlint_bin` | string | `"swiftlint"` | — | Binary for the `xcode-tooling` post-edit SwiftLint hook. Self-skips when absent. |
+| `swiftlint_bin` | string | `"swiftlint"` | — | Binary for an explicitly registered `xcode-tooling` SwiftLint workflow. Self-skips when absent. |
 | `xcode_scheme` | string | `""` | scheme name, e.g. `babylon` | Scheme for the `xcode-tooling` pre-commit build gate. Empty skips the gate entirely (no scheme guessing). |
 | `xcode_destination` | string | `""` | e.g. `platform=iOS Simulator,name=iPhone 17` | `-destination` for the *test* step of the pre-commit gate. The *build* step always uses a device-name-free generic destination so it never goes stale. Empty auto-picks the first available simulator. |
 | `swift_build_skip_tests` | boolean | `false` | — | When `true`, the Swift pre-commit gate builds only (no `xcodebuild test` / `swift test`). |

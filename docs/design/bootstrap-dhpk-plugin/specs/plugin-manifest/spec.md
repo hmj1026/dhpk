@@ -1,3 +1,7 @@
+> **Historical bootstrap delta spec.** Current manifests and generated skill
+> roots supersede bootstrap paths below. See
+> [`../../../../distribution-surfaces.md`](../../../../distribution-surfaces.md).
+
 ## ADDED Requirements
 
 ### Requirement: Plugin manifest declares plugin identity and metadata
@@ -64,7 +68,7 @@ Without this declaration, module skills are not discovered (Claude Code does not
 #### Scenario: All module skills are discoverable after install
 
 - **WHEN** the plugin is installed and `claude plugin details dhpk` is inspected
-- **THEN** module-shipped skills (`dhpk:php-pro`, `dhpk:php56-yii-dev`, `dhpk:yii1-security-audit`, `dhpk:phpunit-batch-refactor`, `dhpk:legacy-code-characterization`) appear alongside core skills
+- **THEN** module-shipped skills (`dhpk:dhpk-php-runtime-router`, `dhpk:dhpk-yii1-php56-development`, `dhpk:dhpk-yii1-security-audit`, `dhpk:phpunit-batch-refactor`, `dhpk:dhpk-legacy-characterization-tests`) appear alongside core skills
 
 ### Requirement: Marketplace manifest enables installation by name
 

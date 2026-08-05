@@ -93,16 +93,13 @@ function sessionStart(repo, session) {
   });
 }
 
-test('session-start mismatch advisory dedups within session and re-advises in a new session', () => {
+test('session-start does not run module/manifest advisory inference', () => {
   const repo = tempRepo();
   try {
     fs.writeFileSync(path.join(repo, 'package.json'), JSON.stringify({ dependencies: { next: '^16', react: '^19' } }));
-    const first = sessionStart(repo, 'one');
-    const second = sessionStart(repo, 'one');
-    const next = sessionStart(repo, 'two');
-    assert.ok(first.stderr.includes('WARN module/manifest mismatch'), first.stderr);
-    assert.ok(!second.stderr.includes('WARN module/manifest mismatch'), second.stderr);
-    assert.ok(next.stderr.includes('WARN module/manifest mismatch'), next.stderr);
+    const result = sessionStart(repo, 'one');
+    assert.strictEqual(result.status, 0, result.stderr);
+    assert.ok(!result.stderr.includes('WARN module/manifest mismatch'), result.stderr);
   } finally { fs.rmSync(repo, { recursive: true, force: true }); }
 });
 

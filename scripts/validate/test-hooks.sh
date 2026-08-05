@@ -86,10 +86,10 @@ echo "== 1. userpromptsubmit-skill-hint.sh =="
 repo="$(make_repo)"
 
 run_hook "$repo" userpromptsubmit-skill-hint.sh '{"prompt":"please fix this bug for me"}'
-if grep -q 'dhpk:adaptive-dev-workflow' "$STDOUT_F" && grep -q 'additionalContext' "$STDOUT_F"; then ok "english bug prompt → /dhpk:adaptive-dev-workflow additionalContext"; else fail "english bug prompt produced no adaptive hint ($(cat "$STDOUT_F"))"; fi
+if grep -q 'dhpk:dhpk-adaptive-dev-workflow' "$STDOUT_F" && grep -q 'additionalContext' "$STDOUT_F"; then ok "english bug prompt → /dhpk:dhpk-adaptive-dev-workflow additionalContext"; else fail "english bug prompt produced no adaptive hint ($(cat "$STDOUT_F"))"; fi
 
 run_hook "$repo" userpromptsubmit-skill-hint.sh '{"prompt":"幫我修一個 bug 好嗎"}'
-if grep -q 'dhpk:adaptive-dev-workflow' "$STDOUT_F"; then ok "CJK bug prompt → /dhpk:adaptive-dev-workflow hint"; else fail "CJK bug prompt produced no hint ($(cat "$STDOUT_F"))"; fi
+if grep -q 'dhpk:dhpk-adaptive-dev-workflow' "$STDOUT_F"; then ok "CJK bug prompt → /dhpk:dhpk-adaptive-dev-workflow hint"; else fail "CJK bug prompt produced no hint ($(cat "$STDOUT_F"))"; fi
 
 run_hook "$repo" userpromptsubmit-skill-hint.sh '{"prompt":"/dhpk:foo run something"}'
 if [ ! -s "$STDOUT_F" ]; then ok "slash-prefixed prompt → no hint"; else fail "slash-prefixed prompt emitted output ($(cat "$STDOUT_F"))"; fi
@@ -336,16 +336,16 @@ echo "== 10. pre-route.sh (Phase 2.3 Smart Router) =="
 PR="$PLUGIN_ROOT/scripts/lib/pre-route.sh"
 
 out="$(bash "$PR" "please fix this login bug")"
-if [ "$(printf '%s' "$out" | cut -f1)" = "MATCH" ] && [ "$(printf '%s' "$out" | cut -f2)" = "dhpk:adaptive-dev-workflow" ]; then ok "english bug → MATCH dhpk:adaptive-dev-workflow"; else fail "english bug route wrong ($out)"; fi
+if [ "$(printf '%s' "$out" | cut -f1)" = "MATCH" ] && [ "$(printf '%s' "$out" | cut -f2)" = "dhpk:dhpk-adaptive-dev-workflow" ]; then ok "english bug → MATCH dhpk:dhpk-adaptive-dev-workflow"; else fail "english bug route wrong ($out)"; fi
 
 out="$(bash "$PR" "幫我修一個 bug")"
-if [ "$(printf '%s' "$out" | cut -f2)" = "dhpk:adaptive-dev-workflow" ]; then ok "CJK bug → MATCH dhpk:adaptive-dev-workflow"; else fail "CJK bug route wrong ($out)"; fi
+if [ "$(printf '%s' "$out" | cut -f2)" = "dhpk:dhpk-adaptive-dev-workflow" ]; then ok "CJK bug → MATCH dhpk:dhpk-adaptive-dev-workflow"; else fail "CJK bug route wrong ($out)"; fi
 
 out="$(bash "$PR" "review my diff please")"
 if [ "$(printf '%s' "$out" | cut -f2)" = "dhpk:review-pending" ]; then ok "review → MATCH dhpk:review-pending"; else fail "review route wrong ($out)"; fi
 
 out="$(bash "$PR" "run a security audit for owasp issues")"
-if [ "$(printf '%s' "$out" | cut -f2)" = "dhpk:security-review" ]; then ok "security → MATCH dhpk:security-review (codex-free default)"; else fail "security route wrong ($out)"; fi
+if [ "$(printf '%s' "$out" | cut -f2)" = "dhpk:dhpk-security-review" ]; then ok "security → MATCH dhpk:dhpk-security-review (codex-free default)"; else fail "security route wrong ($out)"; fi
 
 out="$(bash "$PR" "make me a sandwich")"
 if [ "$out" = "NO_MATCH" ]; then ok "unmatched request → NO_MATCH"; else fail "expected NO_MATCH ($out)"; fi
@@ -354,7 +354,7 @@ out="$(bash "$PR" "")"
 if [ "$out" = "NO_QUERY" ]; then ok "empty request → NO_QUERY"; else fail "expected NO_QUERY ($out)"; fi
 
 out="$(printf 'add a new feature endpoint' | bash "$PR")"
-if [ "$(printf '%s' "$out" | cut -f2)" = "dhpk:adaptive-dev-workflow" ]; then ok "stdin path → MATCH dhpk:adaptive-dev-workflow"; else fail "stdin route wrong ($out)"; fi
+if [ "$(printf '%s' "$out" | cut -f2)" = "dhpk:dhpk-adaptive-dev-workflow" ]; then ok "stdin path → MATCH dhpk:dhpk-adaptive-dev-workflow"; else fail "stdin route wrong ($out)"; fi
 
 echo ""
 echo "== 11. stop-review-reminder.sh (stop_hook_active yield) =="

@@ -5,8 +5,8 @@ const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const CANONICAL = path.join(ROOT, 'skills', 'multi-ai-sync');
-const CODEX = path.join(ROOT, 'codex', 'skills', 'multi-ai-sync');
+const CANONICAL = path.join(ROOT, 'skills', 'dhpk-cross-agent-sync');
+const CODEX = path.join(ROOT, 'codex', 'skills', 'dhpk-cross-agent-sync');
 const canonical = fs.readFileSync(path.join(CANONICAL, 'SKILL.md'), 'utf8');
 const codex = fs.readFileSync(path.join(CODEX, 'SKILL.md'), 'utf8');
 const SHARED_REFERENCES = [
@@ -64,7 +64,7 @@ test('shared references stay synced and runtime entrypoints stay harness-specifi
   const canonicalRuntime = fs.readFileSync(path.join(CANONICAL, 'references', 'runtime-entrypoints.md'), 'utf8');
   const codexRuntime = fs.readFileSync(path.join(CODEX, 'references', 'runtime-entrypoints.md'), 'utf8');
   assert.strictEqual(codexRuntime, canonicalRuntime);
-  assert.ok(canonicalRuntime.includes('SYNC_CLI="skills/multi-ai-sync/scripts/multi_ai_sync.py"'));
+  assert.ok(canonicalRuntime.includes('SYNC_CLI="skills/dhpk-cross-agent-sync/scripts/multi_ai_sync.py"'));
   for (const skillRoot of [CANONICAL, CODEX]) {
     const runtimeReference = path.join(skillRoot, 'references', 'runtime-entrypoints.md');
     assert.ok(fs.existsSync(runtimeReference), `missing ${runtimeReference}`);

@@ -18,7 +18,7 @@ const { test, run, assert } = require('./_lib/tinytest');
 const { buildToolsOnlyDir } = require('./_lib/restricted-path');
 
 const ROOT = path.join(__dirname, '..');
-const WRAPPER = path.join(ROOT, 'skills', 'agy-fast-worker', 'scripts', 'run-agy.sh');
+const WRAPPER = path.join(ROOT, 'skills', 'dhpk-agy-fast-worker', 'scripts', 'run-agy.sh');
 
 // The wrapper's own runtime dependencies (excluding `timeout`/`gtimeout`, which the
 // restricted-PATH tests below deliberately omit or fake).

@@ -33,7 +33,6 @@ function resolveSourceCommit() {
 
 const inventory = JSON.parse(fs.readFileSync(INVENTORY_PATH, 'utf8'));
 const resolvedOutDir = path.resolve(outDir);
-fs.mkdirSync(resolvedOutDir, { recursive: true });
 
 const result = materializeNativePackage({
   inventory,
@@ -44,7 +43,7 @@ const result = materializeNativePackage({
   sourceCommit: resolveSourceCommit(),
 });
 const structural = validateNativeCandidate({ manifestSkillsField: result.manifestSkillsField, packageRoot: resolvedOutDir });
-const membership = validateNativeMembership({ candidateSkillIds: result.skillIds, inventory });
+const membership = validateNativeMembership({ candidateSkillNames: result.skillNames, inventory });
 
 const errors = [...structural.errors, ...membership.errors];
 if (errors.length > 0) {

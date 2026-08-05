@@ -1,6 +1,6 @@
 # tdd-guide — Python traps
 
-pytest + pytest-asyncio conventions for async FastAPI / SQLAlchemy services. Detail: pytest module `skills/pytest-async/SKILL.md`.
+pytest + pytest-asyncio conventions for async FastAPI / SQLAlchemy services. Detail: pytest module `skills/dhpk-pytest-async/SKILL.md`.
 
 ## Test layout
 

@@ -1,3 +1,7 @@
+> **Historical bootstrap delta spec.** The live hook map is `hooks/hooks.json`;
+> current responsibilities are documented in
+> [`../../../../hook-extension.md`](../../../../hook-extension.md).
+
 ## ADDED Requirements
 
 ### Requirement: hooks.json wires PreToolUse, PostToolUse, SessionStart, and Stop hooks

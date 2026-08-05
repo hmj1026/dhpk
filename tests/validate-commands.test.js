@@ -109,4 +109,64 @@ test('a well-formed command file passes', () => {
   }
 });
 
+test('canonical commands expose the consolidated modes and legacy aliases only forward', () => {
+  const read = (name) => fs.readFileSync(path.join(ROOT, 'commands', name), 'utf8');
+  const codexReview = read('codex-review.md');
+  assert.match(codexReview, /--scope diff\|branch\|doc\|security\|tests/);
+  assert.match(codexReview, /--depth fast\|full/);
+  assert.match(read('precommit.md'), /--fast/);
+  assert.match(read('do.md'), /--route-only/);
+  assert.match(read('setup.md'), /--install hooks\|rules\|scripts\|all/);
+  assert.match(codexReview, /--coverage/);
+  assert.match(codexReview, /--spec/);
+
+  for (const name of [
+    'codex-review-fast.md', 'codex-review-branch.md', 'codex-review-doc.md',
+    'codex-security.md', 'codex-test-review.md', 'precommit-fast.md',
+    'create-dev.md', 'install-hooks.md', 'install-rules.md', 'install-scripts.md',
+    'check-coverage.md', 'review-spec.md', 'codex-test-gen.md',
+  ]) {
+    const body = read(name);
+    assert.match(body, /Deprecated.*forward/i, `${name} must state its forwarding deprecation`);
+    assert.ok(body.split('\n').length <= 28, `${name} must remain a thin forwarding alias`);
+  }
+  assert.ok(!fs.existsSync(path.join(ROOT, 'commands', 'zh-tw.md')), 'zh-tw must be retired');
+});
+
+test('route-only and setup installation have deterministic executable contracts', () => {
+  const doCommand = fs.readFileSync(path.join(ROOT, 'commands', 'do.md'), 'utf8');
+  const setup = fs.readFileSync(path.join(ROOT, 'commands', 'setup.md'), 'utf8');
+  assert.ok(doCommand.indexOf('## Step 0 — `--route-only` terminal mode') < doCommand.indexOf('## Step 1'),
+    '--route-only must terminate before normal route execution');
+  assert.match(doCommand, /strip.*--route-only|--route-only.*strip/is);
+  assert.match(doCommand, /Do not invoke.*Skill|never invoke.*target/is);
+  assert.match(setup, /scripts\/setup\/install-assets\.sh/);
+  assert.match(setup, /--source.*--target.*--dry-run.*--force/is);
+  assert.match(setup, /Bash\(bash:\*\).*Bash\(mkdir:\*\).*Bash\(cp:\*\).*Bash\(chmod:\*\)/);
+});
+
+test('invocation inventory reflects retired zh-tw and consolidated forwarding aliases', () => {
+  const inventory = JSON.parse(fs.readFileSync(
+    path.join(ROOT, 'tests', 'fixtures', 'invocation-inventory-baseline.json'), 'utf8'
+  ));
+  const commandNames = inventory.commands.map((entry) => entry.name);
+  assert.strictEqual(inventory.counts.commands, 44);
+  assert.ok(!commandNames.includes('zh-tw'));
+  for (const name of ['create-dev', 'install-hooks', 'install-rules', 'install-scripts', 'precommit-fast']) {
+    const command = fs.readFileSync(path.join(ROOT, 'commands', `${name}.md`), 'utf8');
+    assert.match(command, /dhpk-invocation-class:\s*explicit-only/);
+  }
+});
+
+test('review and prompt skills state the Task 4 evidence and scope boundaries', () => {
+  const prompt = fs.readFileSync(path.join(ROOT, 'skills', 'dhpk-prompt-optimize', 'SKILL.md'), 'utf8');
+  assert.match(prompt, /verified live sources/i);
+  assert.match(prompt, /lookup date/i);
+  assert.ok(!prompt.includes('per-model calibration table'));
+
+  const review = fs.readFileSync(path.join(ROOT, 'skills', 'dhpk-change-review', 'SKILL.md'), 'utf8');
+  assert.match(review, /doc\|security\|tests/);
+  assert.match(review, /dedicated reviewer.*preferred/i);
+});
+
 run('validate-commands');

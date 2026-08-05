@@ -99,10 +99,38 @@ The same actions are available as `/plugin update dhpk@dhpk`, `/plugin uninstall
 For a project that uses the supported Codex projection, update Claude first and
 then refresh the project-local files:
 
+`CLAUDE_PLUGIN_ROOT` is exported inside the Claude Code plugin runtime (hooks,
+commands, and Bash tools launched from that session); an ordinary terminal does
+not receive it automatically. From a normal shell, point at a persistent local
+checkout instead, for example `DHPK_ROOT=/absolute/path/to/dhpk` and run
+`bash "$DHPK_ROOT/scripts/hooks/install-codex-skills.sh" ...`. Do not hard-code
+an ephemeral marketplace cache path.
+
 ```bash
 claude plugin update dhpk@dhpk
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --update
 ```
+
+If the project has a pre-consolidation Codex receipt or unprefixed dhpk skill
+directories, migrate ownership explicitly before the normal update:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --migrate --update
+```
+
+`--migrate` adopts only unchanged destinations whose legacy source matches
+exactly. User-owned, edited, retargeted, malformed, and ambiguous entries are
+preserved and reported. `--force` only bypasses the project-root heuristic; it
+never overrides ownership, collision, symlink, containment, or modified-file
+safety. Use `--uninstall` to remove only unchanged receipt-owned entries. See
+the complete rename/merge and rollback guide in
+[`skill-platform-migration.md`](./skill-platform-migration.md).
+
+To remove both surfaces, reverse the installation order: first run the Codex
+projection script with `--uninstall` in every project while the plugin root is
+still available, then run `claude plugin uninstall dhpk@dhpk`, and finally
+remove the marketplace entry if desired. This avoids broken project symlinks
+and is also the safe order for copy mode.
 
 ### Install troubleshooting
 
@@ -128,7 +156,7 @@ Everything is reachable through `/dhpk:do` — one entry point that routes natur
 /dhpk:do implement a password-reset email flow
 ```
 
-The Smart Router matches "implement … feature" → `dhpk:adaptive-dev-workflow` → **Feature Delivery** path. The skill loads TDD guide, runs the RED→GREEN→REFACTOR cycle, and closes with code-review and security gates. Post-edit hooks automatically drop sentinels after each file write; the Stop hook reminds you of any still-open reviewers.
+The Smart Router matches "implement … feature" → `dhpk:dhpk-adaptive-dev-workflow` → **Feature Delivery** path. The skill loads TDD guide, runs the RED→GREEN→REFACTOR cycle, and closes with code-review and security gates. The default post-edit hook routes sentinel-backed review debt after each relevant file write; consumers explicitly register any additional advisory hook behavior.
 
 ### 2. Bug fix
 
@@ -136,9 +164,9 @@ The Smart Router matches "implement … feature" → `dhpk:adaptive-dev-workflow
 /dhpk:do fix the login redirect loop
 ```
 
-Matches "fix … bug" → `dhpk:adaptive-dev-workflow` → **Bug Investigation & Fix**: root-cause evidence, regression test, RED gate before writing the fix.
+Matches "fix … bug" → `dhpk:dhpk-adaptive-dev-workflow` → **Bug Investigation & Fix**: root-cause evidence, regression test, RED gate before writing the fix.
 
-**`--openspec` / `--opsx` flag:** pass `--openspec` (alias `--opsx`) to `/dhpk:do` to force the OpenSpec authoring flow (`opsx:new` → `opsx:ff`, then stop for human review) instead of routing straight to implementation. It applies to the 3 change-authoring routes — `dhpk:adaptive-dev-workflow`, `dhpk:bug-fix`, `dhpk:feature-dev` — and supersedes `--plan`. On every other route, including `dhpk:opsx-apply-goal`, the flag is a no-op: it prints `--openspec ignored: ...` and the route proceeds normally.
+**`--openspec` / `--opsx` flag:** pass `--openspec` (alias `--opsx`) to `/dhpk:do` to force the OpenSpec authoring flow (`opsx:new` → `opsx:ff`, then stop for human review) instead of routing straight to implementation. It applies to the 3 change-authoring routes — `dhpk:dhpk-adaptive-dev-workflow`, `dhpk:dhpk-bug-fix`, `dhpk:dhpk-feature-dev` — and supersedes `--plan`. On every other route, including `dhpk:dhpk-opsx-apply-goal`, the flag is a no-op: it prints `--openspec ignored: ...` and the route proceeds normally.
 
 **`--worker=<claude|codex|agy|auto>` flag:** choose the mechanical worker for this invocation without changing project configuration. `/dhpk:do` parses and strips the flag before route matching, then forwards its exact value as `WORKER_OVERRIDE` only to implementation-class routes (`adaptive-dev-workflow`, `bug-fix`, `feature-dev`, and `opsx-apply-goal`). Precedence is flag > `fast_worker_backend` userConfig > shipped `claude`; an invalid flag warns once and falls through to userConfig/default. Downstream workflows call the shared selector rather than reimplementing availability, order, or fallback logic.
 
@@ -149,10 +177,10 @@ Matches "fix … bug" → `dhpk:adaptive-dev-workflow` → **Bug Investigation &
 No command needed. After any file edit the hooks automatically:
 
 1. Drop a `.pending-*` sentinel for each relevant reviewer slot (code / db / sec / frontend / doc)
-2. Remind dispatched reviewers to run in parallel at Stop
-3. Warn before `git commit` while sentinels are open (configurable via `sentinel_commit_gate`: `warn` / `block` / `off` — see [`docs/configuration.md`](./configuration.md))
+2. Keep the resulting review debt armed until each reviewer supplies valid evidence
+3. Warn or block `git commit` while sentinels are open (configurable via `sentinel_commit_gate`: `warn` / `block` / `off` — see [`docs/configuration.md`](./configuration.md))
 
-The immediate post-edit advisory is edge-triggered: it prints only when the pending-sentinel set changes. `.advisory-state` tracks that set, so repeated edits do not spam the same message, while an externally cleared reviewer set can be re-armed and advised on a later edit. Edits with no matching trigger are silent unless `DHPK_DEBUG=1`.
+The default post-edit hook creates and routes pending-review sentinels only. It does not run formatting, lockfile, lint, or Stop advisory work; register those optional scripts explicitly when a consumer needs them.
 
 To trigger reviews immediately without waiting for Stop: `/dhpk:review-pending`
 
@@ -169,7 +197,7 @@ Or describe it in plain language:
 /dhpk:do 幫我提交並建立 PR
 ```
 
-For an actual version release (not just a commit/PR) — version files, changelog, and the fixed git/PR/tag/CI sequence — see `/dhpk:release-creator <version>` (explicit-only; run it directly, it is never auto-invoked).
+For an actual version release (not just a commit/PR) — version files, changelog, and the fixed git/PR/tag/CI sequence — see `/dhpk:dhpk-release-creator <version>` (explicit-only; run it directly, it is never auto-invoked).
 
 ### 5. Setup on-ramp
 
@@ -180,7 +208,7 @@ Re-run or inspect configuration any time, without reinstalling — see [§ Insta
 For a long-running change that should run without supervision — generates a single `/goal` command (with the `/opsx:apply` kickoff embedded), ready to paste into a fresh session:
 
 ```text
-/dhpk:opsx-apply-goal my-change-id --max-duration 2h
+/dhpk:dhpk-opsx-apply-goal my-change-id --max-duration 2h
 ```
 
 **Flags:**
@@ -195,7 +223,7 @@ For a long-running change that should run without supervision — generates a si
 | `--smoke` / `--no-smoke` | Force the read-only live-runtime smoke gate on or off. Without either, it auto-detects: on only for a strong signal (explicit runtime-verification task, dispatched `e2e-runner`, or a derivable launch command), off otherwise. |
 | `--dry-run` | Prints the analysis + goal string without the "ready to paste" session-setup framing — use it to preview before committing to an unattended run. |
 
-**What the pasted `/goal` string actually contains:** an orientation-first kickoff that locates `rules/execution-policy.md`, then invokes `opsx:apply` (with the bounded unknown-skill fallback). Part 0 carries the selector-resolved fast-worker clause and a UTF-8-safe task digest capped at 200 bytes; the `e2e-runner` roster clause appears only when the change actually has an E2E signal. Review is one consolidated parallel reviewer batch per contiguous implementation wave, with at most one confirm-only pass for known findings. Completion still requires every task checkbox, applicable test/build/lint/coverage/smoke gates, and no pending sentinels. Turn/time checkpoints write `.resume-note.md`; human-only remaining work is annotated `[blocked: <reason>]`; a hard-rule conflict writes `.hard-rule-escalation.md` with file:line evidence and stops instead of guessing. Full structure: `skills/opsx-apply-goal/SKILL.md` Steps 3-4 and Output (Parts 0-4).
+**What the pasted `/goal` string actually contains:** an orientation-first kickoff that locates `rules/execution-policy.md`, then invokes `opsx:apply` (with the bounded unknown-skill fallback). Part 0 carries the selector-resolved fast-worker clause and a UTF-8-safe task digest capped at 200 bytes; the `e2e-runner` roster clause appears only when the change actually has an E2E signal. Review is one consolidated parallel reviewer batch per contiguous implementation wave, with at most one confirm-only pass for known findings. Completion still requires every task checkbox, applicable test/build/lint/coverage/smoke gates, and no pending sentinels. Turn/time checkpoints write `.resume-note.md`; human-only remaining work is annotated `[blocked: <reason>]`; a hard-rule conflict writes `.hard-rule-escalation.md` with file:line evidence and stops instead of guessing. Full structure: `skills/dhpk-opsx-apply-goal/SKILL.md` Steps 3-4 and Output (Parts 0-4).
 
 When `orchestration_dispatch=on` (default), the generated `/goal` condition embeds the compact selector-resolved mechanical-worker clause plus the specialist clauses that apply to the detected work; the E2E clause is omitted when no browser surface is detected. Set `orchestration_dispatch=off` to remove the dispatch directive entirely — implementation stays inline instead of being routed through worker agents.
 
@@ -219,7 +247,7 @@ Delegates to the `spec-miner` (Opus) agent. Omit the capability name to get a pr
 /dhpk:do write E2E tests for the checkout flow
 ```
 
-Routes to `dhpk:post-dev-test`, which delegates Playwright suite authoring to the `e2e-runner` agent. Its write boundary is test specs, shared helpers, fixtures, and artifacts only. An application-code failure returns a fast-worker-ready fix spec; after that fix lands, `e2e-runner` reruns the originating journey. It reuses existing project helpers and cleans synthetic shared-DB rows in teardown.
+Routes to `dhpk:dhpk-post-dev-test`, which delegates Playwright suite authoring to the `e2e-runner` agent. Its write boundary is test specs, shared helpers, fixtures, and artifacts only. An application-code failure returns a fast-worker-ready fix spec; after that fix lands, `e2e-runner` reruns the originating journey. It reuses existing project helpers and cleans synthetic shared-DB rows in teardown.
 
 ### 9. Harness health check and repair
 
@@ -227,33 +255,36 @@ The harness-* family covers four distinct concerns — use the right tool for ea
 
 | Command / Skill | Concern | Mutates? |
 |---|---|---|
-| `/harness-audit` | Deterministic 7-category scorecard | No |
-| `dhpk:harness-budget` | Context-window token accounting | No |
-| `dhpk:claude-health` | `.claude/` config health, naming, plugin sync | No |
-| `/harness-govern` | End-to-end measure → conform → fix → verify loop | No (add `--fix` to apply) |
-| `dhpk:harness-revise` | Trim, dedupe, validate (G1–G13 gap taxonomy) | Yes |
-| `dhpk:harness-fill` | Backfill missing `.claude/` infrastructure | Yes |
+| `/dhpk:harness-audit` | Deterministic 7-category scorecard | No |
+| `dhpk:dhpk-harness-budget` | Context-window token accounting | No |
+| `dhpk:dhpk-claude-health` | `.claude/` config health, naming, plugin sync | No |
+| `/dhpk:harness-govern` | End-to-end measure → conform → fix → verify loop | No (add `--fix` to apply) |
+| `dhpk:dhpk-harness-revise` | Trim, dedupe, validate (G1–G13 gap taxonomy) | Yes |
+| `dhpk:dhpk-harness-fill` | Backfill missing `.claude/` infrastructure | Yes |
 
 **Typical flow:**
 
 ```text
 # 1. Quick diagnostic — see what's wrong
-/harness-audit
+/dhpk:harness-audit
 
 # 2. Check context-window overhead (token budget)
-/dhpk:harness-budget
+/dhpk:dhpk-harness-budget
 
 # 3. End-to-end governance loop (read-only by default)
-/harness-govern
+/dhpk:harness-govern
 
 # 4. Apply fixes (trim, dedupe, validate)
-/harness-govern --fix
+/dhpk:harness-govern --fix
 
 # 5. If .claude/ is missing skills/agents/rules (new project onboarding)
-/dhpk:harness-fill
+/dhpk:dhpk-harness-fill
 ```
 
-`/harness-govern` is the single front door: it sequences `/harness-audit` (score) → conform (best-practices lens) → `/harness-revise` (fix, only with `--fix`) → verify. Safe to run as `/loop /harness-govern` for ongoing monitoring.
+`/dhpk:harness-govern` is the single command front door: it sequences
+`/dhpk:harness-audit` (score) → conform (best-practices lens) → the
+`dhpk-harness-revise` skill (fix, only with `--fix`) → verify. It is safe to run
+as `/loop /dhpk:harness-govern` for ongoing monitoring.
 
 ### Automatic (no direct invocation)
 
@@ -271,17 +302,21 @@ Model overrides: `deep_reasoner_model` (default `opus`), `fast_worker_model` (de
 
 dhpk runs **codex-free by default**. Opting in unlocks two related but distinct things:
 
-**A. The Codex peer in Implementation dispatch.** With `CODEX=on`, a high-stakes implement-phase decision (root-cause diagnosis, architecture choice) is no longer `deep-reasoner`-only: dhpk dispatches `deep-reasoner` and Codex (via `mcp__codex__codex`) **in parallel, each blind to the other's findings** — neither side's prompt is seeded with the other's conclusion, verdict, or theory — then compares the two independent results and flags any divergence in the report. This blind-independence rule also governs the `codex-architect`, `codex-brainstorm`, `codex-implement`, and `codex-code-review` skills, plus `multi-ai-sync`, `feature-verify`, `test-review`, `code-investigate`, and `issue-analyze`. Full rule: [`rules/execution-policy.md`](../rules/execution-policy.md) §"Multi-AI / dual-perspective independence".
+**A. The Codex peer in Implementation dispatch.** With `CODEX=on`, a high-stakes implement-phase decision (root-cause diagnosis, architecture choice) is no longer `deep-reasoner`-only: dhpk dispatches `deep-reasoner` and Codex (via `mcp__codex__codex`) **in parallel, each blind to the other's findings** — neither side's prompt is seeded with the other's conclusion, verdict, or theory — then compares the two independent results and flags any divergence in the report. This blind-independence rule also governs the `dhpk-codex-architect`, `dhpk-codex-brainstorm`, `dhpk-codex-implement`, and `dhpk-change-review` skills, plus `dhpk-cross-agent-sync`, `dhpk-feature-verify`, `dhpk-test-review`, `dhpk-codebase-exploration --dual`, and `dhpk-issue-analyze`. Full rule: [`rules/execution-policy.md`](../rules/execution-policy.md) §"Multi-AI / dual-perspective independence".
 
-**B. Six direct Codex-delegation skills** — `codex-architect`, `codex-brainstorm`, `codex-cli-review`, `codex-code-review`, `codex-explain`, `codex-implement` — invocable directly (e.g. `/codex-code-review`) whenever you want Codex's take without going through `/dhpk:do`.
+**B. Four direct Codex-delegation skills plus one CLI backend** — `dhpk-codex-architect`, `dhpk-codex-brainstorm`, `dhpk-codex-implement`, and `dhpk-change-review` (MCP or `--backend cli`) — invocable directly whenever you want Codex's take without going through `/dhpk:do`.
 
-Five of these six (all but `codex-cli-review`, which shells out to the `codex` CLI binary via `Bash` and needs no MCP server) require the `mcp__codex__codex` / `mcp__codex__codex-reply` tools, which come from directly registering the Codex CLI's own `codex mcp-server` subcommand as an MCP server — **not** from installing the `openai/codex-plugin-cc` plugin, which is a separate, optional surface. Setup steps and the `CODEX=on` opt-in mechanics (the `--codex` flag / natural-language trigger on `/dhpk:do`) live in [`docs/configuration.md`](./configuration.md#codex-mcp-dependency-not-a-userconfig-knob).
+The MCP backend requires the `mcp__codex__codex` / `mcp__codex__codex-reply` tools. The optional CLI backend shells out to the `codex` binary through the hardened wrapper and needs no MCP server. Setup steps and the `CODEX=on` opt-in mechanics (the `--codex` flag / natural-language trigger on `/dhpk:do`) live in [`docs/configuration.md`](./configuration.md#codex-mcp-dependency-not-a-userconfig-knob).
 
 This is unrelated to **syncing Codex CLI content** (below) — that mirrors dhpk's own skills into a project's `.codex/` directory for the standalone `codex` CLI tool, no MCP server involved.
 
 ## Sync Codex CLI content
 
 Projects using both Claude Code and Codex CLI:
+
+The `${CLAUDE_PLUGIN_ROOT}` form below is for a Claude Code plugin-runtime
+shell. In an ordinary terminal use the persistent-checkout form documented in
+[Update / Uninstall](#update--uninstall).
 
 ```bash
 # From any project root:
@@ -298,16 +333,20 @@ The script is the supported Codex distribution path, with two modes:
 - **Symlink (default, source-checkout dependent).** Links `.codex/` entries
   back to the plugin's own `codex/skills/` tree. Faster to re-sync and always
   current with the source checkout, but the links break if that plugin
-  checkout is moved, deleted, or absent (e.g. a marketplace-cache install) —
-  this is the exact failure mode behind
+  root/cache is moved, pruned, or deleted. A marketplace cache is a
+  valid source while it remains present; `--update` can adopt a new owned
+  plugin root. Broken source lifetime was the failure mode behind
   [issue #88](https://github.com/hmj1026/dhpk/issues/88). Use `--copy`
   instead whenever the plugin source's continued presence isn't guaranteed.
 
-Both modes record version, source-fingerprint, and schema-versioned managed
-entry provenance in `.codex/.dhpk-installed.json`; re-run with `--update` after
-a plugin update. Unowned collisions are preserved, and `--migrate` adopts only
-exact legacy matches. Use `--uninstall` to remove unchanged receipt-owned
-entries without deleting unrelated project assets.
+Both modes record version, source-fingerprint, and schema-v3 managed entry
+provenance in `.codex/.dhpk-installed.json`; skill entries include their stable
+inventory id and current public `dhpk-*` name. Re-run with `--update` after a
+plugin update. Unowned collisions are preserved, and `--migrate` renames only
+receipt-owned unchanged legacy destinations; edited, third-party, retargeted,
+malformed, or ambiguous legacy paths remain reported conflicts. Use
+`--uninstall` to remove unchanged receipt-owned entries without deleting
+unrelated project assets.
 The Codex tree is an explicitly curated subset of the canonical Claude
 packages, not a second complete inventory. `codex/agents/` ships 11 roles:
 four hand-maintained generic roles and seven generated from canonical Claude
@@ -317,7 +356,7 @@ agents via `scripts/gen-codex-agents.js`. See `codex/AGENTS.md` and
 Generated roles may depend on shared prompt-defense, trap-sheet, reviewer-contract,
 artifact-contract, or execution-policy content. Those support files are mapped in
 the `supporting_assets` section of `manifests/distribution-inventory.json`, copied
-under `.codex/dhpk/`, and tracked in the same schema-v2 receipt. The runtime
+under `.codex/dhpk/`, and tracked in the same schema-v3 receipt. The runtime
 projection validator rejects unreachable references or Claude plugin-root paths.
 
 ### Codex Plugin Marketplace (experimental support tier)
@@ -331,6 +370,20 @@ surface, containing zero symlinks:
 codex plugin marketplace add hmj1026/dhpk   # or a local path during development
 codex plugin add dhpk@dhpk
 codex plugin list
+```
+
+Experimental lifecycle commands (the marketplace upgrade form applies to a
+configured Git marketplace; for a local-path development marketplace, refresh
+or re-add that local source before reinstalling the plugin):
+
+```bash
+codex plugin marketplace upgrade dhpk
+codex plugin remove dhpk@dhpk
+codex plugin add dhpk@dhpk        # reinstall from the refreshed snapshot
+
+# Full teardown:
+codex plugin remove dhpk@dhpk
+codex plugin marketplace remove dhpk
 ```
 
 `codex plugin list` is management evidence only; it does not by itself prove

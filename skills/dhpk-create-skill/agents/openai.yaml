@@ -1,0 +1,6 @@
+interface:
+  display_name: "Create Skill"
+  short_description: "Create a new Claude Code skill or refactor an existing one to"
+  default_prompt: "Use $dhpk-create-skill to apply the Create Skill workflow with its verification rules."
+policy:
+  allow_implicit_invocation: false

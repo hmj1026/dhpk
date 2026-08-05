@@ -1,3 +1,8 @@
+> **Historical bootstrap delta spec.** Counts and names below are archival. Use
+> `manifests/distribution-inventory.json`, `skills/INDEX.md`, `commands/INDEX.md`,
+> and [`../../../../skill-platform-migration.md`](../../../../skill-platform-migration.md)
+> for the current contract.
+
 ## ADDED Requirements
 
 ### Requirement: Plugin ships generic role-based agents
@@ -38,8 +43,8 @@ The plugin SHALL ship approximately 60 skill directories under `skills/` (NOT co
 
 #### Scenario: harness-revise is a real directory, not a symlink
 
-- **WHEN** `ls -l skills/harness-revise/SKILL.md` is run on the plugin source
-- **THEN** the file is a regular file (the symlink to `.agents/skills/harness-revise/` was dereferenced at copy time)
+- **WHEN** `ls -l skills/dhpk-harness-revise/SKILL.md` is run on the plugin source
+- **THEN** the file is a regular file (the symlink to `.agents/skills/dhpk-harness-revise/` was dereferenced at copy time)
 
 #### Scenario: Skills validate frontmatter strict-mode
 
@@ -50,7 +55,7 @@ The plugin SHALL ship approximately 60 skill directories under `skills/` (NOT co
 
 Because Claude Code's plugin spec has no `rules` component (project-local `.claude/rules/*.md` is the only path for auto-loaded rules), former rule content SHALL ship as skills with long, trigger-keyword-rich `description:` frontmatter.
 
-- `skills/tool-routing/SKILL.md` carries the cx/gitnexus/claude-mem decision tree. Body refers to `references/decision-tree.md` for detail.
+- `skills/dhpk-tool-routing/SKILL.md` carries the cx/gitnexus/claude-mem decision tree. Body refers to `references/decision-tree.md` for detail.
 - `skills/dhpk-execution-policy/SKILL.md` carries task modes, skill priority, mandatory post-edit steps, anti-loop, output shape. Body refers to `references/{task-modes,anti-loop,output-shape,squash-merge-hygiene}.md`.
 
 Both skills' `description:` SHALL include trigger keywords that match likely user phrasing for the skill's domain (e.g. "where is X defined", "how should I approach this").
@@ -58,11 +63,11 @@ Both skills' `description:` SHALL include trigger keywords that match likely use
 #### Scenario: tool-routing skill is discoverable and invocable
 
 - **WHEN** the plugin is installed and the user asks "where is the AuthService class defined"
-- **THEN** Claude considers invoking the `dhpk:tool-routing` skill based on its description's trigger keywords
+- **THEN** Claude considers invoking the `dhpk:dhpk-tool-routing` skill based on its description's trigger keywords
 
 #### Scenario: References resolve at plugin root
 
-- **WHEN** the user inspects `skills/tool-routing/references/decision-tree.md`
+- **WHEN** the user inspects `skills/dhpk-tool-routing/references/decision-tree.md`
 - **THEN** the file exists and is readable (paths use plugin-relative form, not absolute)
 
 ### Requirement: Plugin ships harness utility scripts
@@ -87,7 +92,7 @@ The plugin SHALL ship under `scripts/` the following harness utilities, with no 
 
 ### Requirement: Subagent prompt template ships in docs/
 
-The plugin SHALL ship `docs/subagent-prompt-template.md` containing the source-reading boilerplate (always include) and DB-access boilerplate (include when the task touches a table). The template is referenced from `skills/tool-routing/SKILL.md` and from sub-agent prompts written by other agents.
+The plugin SHALL ship `docs/subagent-prompt-template.md` containing the source-reading boilerplate (always include) and DB-access boilerplate (include when the task touches a table). The template is referenced from `skills/dhpk-tool-routing/SKILL.md` and from sub-agent prompts written by other agents.
 
 #### Scenario: Template is readable from plugin root
 

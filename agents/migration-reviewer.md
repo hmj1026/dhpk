@@ -141,12 +141,12 @@ Suggestions: ...
 
 ## Closing — Artifact Output
 
-Category: `reviews/`. Frontmatter/retention/degradation: reviewer-family shape (PASS/WARNING/FAIL) in `docs/contracts/artifact-contract.md`. Sentinel clearance is owned by `subagent-stop-verify.sh`: a successful stop with a fresh matching artifact clears `.pending-migration-review` regardless of verdict parseability; unresolved-verdict and quality enforcement handle malformed verdicts. This reviewer's job ends at writing the artifact.
+Category: `reviews/`. Frontmatter/retention/degradation: reviewer-family shape (PASS/WARNING/FAIL) in `docs/contracts/artifact-contract.md`. Sentinel clearance is hook-owned: only a fresh canonical artifact with leading delimited frontmatter and required reviewer fields plus `APPROVE` or `PASS` clears `.pending-migration-review`; warning, fail, or malformed evidence leaves it armed. This reviewer's job ends at writing the artifact.
 
 ## References
 
 - `dhpk:database-reviewer` agent (parent SQL specialist for query correctness)
-- `dhpk:tool-routing` skill (cx / gitnexus / claude-mem routing for the symbol-level pre-edit lookups)
+- `dhpk:dhpk-tool-routing` skill (cx / gitnexus / claude-mem routing for the symbol-level pre-edit lookups)
 - Per-stack module references (loaded only when the matching module is enabled):
   - `modules/yii-1.1/references/framework.md` — Yii 1.1 CDbMigration API + `yiic migrate` flow
   - `modules/laravel-*/` — Laravel migration patterns per major version

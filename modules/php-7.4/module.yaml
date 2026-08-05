@@ -14,7 +14,7 @@ triggers:
     extensions: []
     paths: []
 provides:
-  skills: [php-modern-pro]
+  skills: [dhpk-php-modern-pro]
   references: [static-checks.md]
 # ---- PHP-specific tool wiring (read by hooks/pre-commit-php-validation.sh) ----
 # All keys are optional; defaults match the standard `composer install` layout.

@@ -145,7 +145,7 @@ printf '%s' "$_advisory_payload" | (
     # Auto-memory accumulates fast. Manual promotion is easy to forget. This hook
     # automatically surfaces "high-frequency, repeatedly-useful" entries (cited in
     # many sessions without a follow-up trap re-occurrence) as graduation
-    # candidates so a human / `dhpk:rules-distill` can promote them deliberately.
+    # candidates so a human / `dhpk:dhpk-rules-distill` can promote them deliberately.
     #
     # Design
     # ------

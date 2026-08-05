@@ -48,7 +48,7 @@ if (!codexAvailable()) {
 const trackedPluginDir = path.join(ROOT, 'plugins', 'dhpk');
 const trackedManifest = JSON.parse(fs.readFileSync(path.join(trackedPluginDir, '.codex-plugin', 'plugin.json'), 'utf8'));
 const trackedProvenance = JSON.parse(fs.readFileSync(path.join(trackedPluginDir, 'provenance.json'), 'utf8'));
-const expectedSkillIds = [...trackedProvenance.selectedSkillIds].sort();
+const expectedSkillNames = [...trackedProvenance.selectedSkillNames].sort();
 
 const stageRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-codex-smoke-stage-'));
 const codexHome = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-codex-smoke-home-'));
@@ -124,13 +124,13 @@ test('every expected codex-native skill materialized as a real (non-symlink) fil
   assert.ok(fs.existsSync(installedSkillsDir), `installed skills/ directory missing at ${installedSkillsDir}`);
 
   const installedNames = fs.readdirSync(installedSkillsDir).sort();
-  assert.deepStrictEqual(installedNames, expectedSkillIds, 'installed skill directory names must exactly match the tracked codex-native set');
+  assert.deepStrictEqual(installedNames, expectedSkillNames, 'installed skill directory names must exactly match the tracked codex-native public-name set');
 
   assert.deepStrictEqual(findSymlinks(installedRoot), [], 'installed cache must contain zero symlinks');
 
-  for (const id of expectedSkillIds) {
-    const skillMd = path.join(installedSkillsDir, id, 'SKILL.md');
-    assert.ok(fs.existsSync(skillMd) && fs.statSync(skillMd).size > 0, `${id}/SKILL.md missing or empty in installed cache`);
+  for (const name of expectedSkillNames) {
+    const skillMd = path.join(installedSkillsDir, name, 'SKILL.md');
+    assert.ok(fs.existsSync(skillMd) && fs.statSync(skillMd).size > 0, `${name}/SKILL.md missing or empty in installed cache`);
   }
 });
 
