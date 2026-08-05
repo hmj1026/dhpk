@@ -16,16 +16,16 @@ OpenSpec is an **optional external integration** — install the [OpenSpec plugi
 |------|--------|-----|
 | `bash` | Required | All hook and helper scripts |
 | `git` | Required | Sentinel/artifact path resolution; `git rev-parse --show-toplevel` |
-| `python3` | Required IF you enable `modules` | Parses `module.yaml` in `post-edit-remind` and `session-start` |
+| `python3` | Required IF you enable `modules` | Parses `module.yaml` for opt-in module activation and routing |
 | `jq` | Optional (python3 fallback exists) | Faster JSON payload extraction |
-| `docker` | Optional | Only consulted when `userConfig.docker_containers` is non-empty |
+| `docker` | Optional | Used only by an explicitly registered Docker workflow with `userConfig.docker_containers` |
 | Codex MCP server | Optional | Required ONLY if you invoke the 4 MCP-backed `codex-*` skills, the 7 `/dhpk:codex-*` commands, or use `CODEX=on` — registered by pointing Claude Code at the Codex CLI's `codex mcp-server` subcommand, see [`docs/configuration.md`](./docs/configuration.md#codex-mcp-dependency-not-a-userconfig-knob) |
 | Codex CLI binary | Optional | Required ONLY if you run `install-codex-skills.sh` and want Codex to actually load the synced content |
 | `cx` CLI | Optional | Semantic code navigation. Primary tool in `rules/tool-routing.md` for `cx overview` / `cx definition` / `cx references`. Referenced by 6 reviewer agents and the `harness-fill` skill. Missing → falls back to `Grep` / `Read`. |
 | `gitnexus` MCP server | Optional | Knowledge-graph queries (`gitnexus_impact`, `gitnexus_rename`, `gitnexus_detect_changes`). Required by 6 `gitnexus-*` skills and the `rules/execution-policy.md` self-check. Missing → falls back to `cx` or `Grep`. |
 | `claude-mem` | Optional | Cross-session memory search (`mem-search`). Referenced by `rules/tool-routing.md` for past-decision lookups. Missing → skip. |
 
-Missing optional tools degrade gracefully (the script no-ops or skips a feature). Missing required tools surface as a single-line `[hook-name] WARN: …` to stderr at SessionStart or first hook fire so you can act on them.
+Missing optional tools degrade gracefully (the script no-ops or skips a feature). Missing required tools surface as a single-line `[hook-name] WARN: …` to stderr when an active hook needs them so you can act on them.
 
 External code-navigation tools (`cx`, `gitnexus`, `claude-mem`) are **not bundled** by dhpk. Each consuming project decides whether to install them. The shipped rules and agents are written to degrade gracefully via [`rules/tool-routing.md`](./rules/tool-routing.md).
 
@@ -125,7 +125,7 @@ A **module** is a labeled, version-tagged bundle of skills + references + hooks 
 
 **PHP language baselines** — pick the version(s) your composer `require.php` constraint spans:
 - **`php-5.6`** — forbids 7.0+ syntax; polyfill guidance.
-- **`php-7.4`** — typed properties, arrow functions, null coalescing assignment. Wires the **php-cs-fixer post-edit hook** + pre-commit lint + phpstan + psalm gate.
+- **`php-7.4`** — typed properties, arrow functions, null coalescing assignment, plus php-cs-fixer, pre-commit lint, phpstan, and psalm guidance. Consumers explicitly register any formatter hook.
 - **`php-8.x`** — readonly, enums, match, named args, attributes, first-class callable syntax.
 
 **Frameworks**:
@@ -138,7 +138,7 @@ A **module** is a labeled, version-tagged bundle of skills + references + hooks 
 - **`phpunit-9`** / **`phpunit-10`** / **`phpunit-11`** — per-major API deltas (`createMock` vs `createPartialMock`, attribute-based metadata, deprecation surface).
 
 **Frontend**:
-- **`js`** — JS / TS tooling. ESLint flat-config tier strategy (Tier 1 strict / 1.5 core-exempt / 1.7 deferred-migration / globals), per-leaf `// @ts-check` rollout, async post-edit ESLint feedback, pre-commit `npm run <lint> + <typecheck>` gate. Framework-agnostic.
+- **`js`** — JS / TS tooling. ESLint flat-config tier strategy (Tier 1 strict / 1.5 core-exempt / 1.7 deferred-migration / globals), per-leaf `// @ts-check` rollout, on-demand ESLint feedback, and a pre-commit `npm run <lint> + <typecheck>` gate. Framework-agnostic.
 - **`vue-2`** — Vue 2 (Options API era, `^2.5`): `data()` / `computed` / `methods` / `watch` + lifecycle shape, props-down + `$emit` events-up, the Vue 2 reactivity traps (`Vue.set` / array index & length), `@vue/test-utils` 1.x + `vue-jest` 3 SFC testing. Predates the Composition API.
 - **`laravel-mix`** — Laravel Mix 5 (`^5.0.9`, webpack 4): `webpack.mix.js` entry/output mapping, `mix()` versioning + manifest, the `dev` / `watch` / `hot` / `prod` script ladder, and the legacy-OpenSSL prod-build flag on newer Node.
 - **`nextjs-15.5`** — Next.js 15.5 (current stable 15.x line, ends at v15.5.19; 15.6 never shipped stable). App Router, `next typegen`, stable typed routes (`typedRoutes`), beta Turbopack production builds (`next build --turbopack`), React 18/19 dual support, and the `next lint` deprecation (removed in 16).
@@ -154,12 +154,12 @@ A **module** is a labeled, version-tagged bundle of skills + references + hooks 
 - **`swiftui`** — MVVM + Coordinator, Observation (`@Observable` / `@Bindable`), `NavigationStack` routing, Combine / UIKit interop. Requires `swift`.
 - **`ios-platform`** — health/PHI iOS SDK: Core Data encryption, CryptoKit + Keychain, actor offline store, Vision OCR, LocalAuthentication, UserNotifications, HealthKit, privacy compliance. Requires `swift`.
 - **`swift-testing`** — XCTest + Swift Testing, XCUITest, snapshot testing, a 3-layer test taxonomy, protocol-DI host testing. Requires `swift`.
-- **`xcode-tooling`** — SwiftLint post-edit hook + xcodebuild/SPM pre-commit build+test gate (generic build destination, simulator auto-fallback, toolchain self-skip) + `ios-icon-gen` skill. Requires `swift`.
+- **`xcode-tooling`** — SwiftLint guidance, xcodebuild/SPM pre-commit build+test gate (generic build destination, simulator auto-fallback, toolchain self-skip), and `ios-icon-gen` skill. Requires `swift`; consumers explicitly register any SwiftLint hook.
 
 When enabled, a module:
 - Makes its skills invocable as `dhpk:<skill-name>` (e.g. `dhpk:dhpk-php-runtime-router`, `dhpk:dhpk-yii1-security-audit`, `dhpk:dhpk-js-lint-config`). *(Skill **descriptions** are listed for every shipped module regardless of `modules` — see the budget note below.)*
-- Contributes path triggers to `post-edit-remind` so reviewers fire on framework-specific paths.
-- May contribute hooks under `modules/<m>/hooks/post-edit-*.sh` and `modules/<m>/hooks/pre-{bash,commit}-*.sh`, fanned out by the dispatcher when the module is active. See [`docs/hook-extension.md`](./docs/hook-extension.md).
+- Contributes path triggers to deterministic post-edit sentinel routing for framework-specific paths.
+- May ship optional hook scripts under `modules/<m>/hooks/`; a consumer registers them explicitly. See [`docs/hook-extension.md`](./docs/hook-extension.md).
 - Prints a SessionStart activation line so Claude knows the module is in scope.
 
 > **Skill listing is always-on, not module-gated.** Claude Code registers every shipped module's skill *descriptions* from the plugin manifest at load time, so `modules` gates **hooks, path triggers, and the SessionStart activation line — not** the skill listing ([#12](https://github.com/hmj1026/dhpk/issues/12); a plugin-manifest limitation — `skillOverrides` can't hide plugin skills either). On a machine running many stacks this can overflow Claude Code's skill-listing budget and truncate/drop descriptions (visible via `/doctor`). Raise `skillListingBudgetFraction` in `settings.json` (default ~1% of the context window — try `0.02`–`0.03`) to keep all descriptions intact; or install fewer modules / disable the whole plugin with `/plugin` on projects that don't need it.
@@ -191,10 +191,10 @@ Add at least one `modules/<stack>-<version>/skills/<name>/SKILL.md`. Then regist
 
 Bump plugin `version` in the manifest. Run `claude plugin validate ~/projects/dhpk --strict`. Document the module in this README.
 
-Per-module hooks are supported as of v0.2.0 via the wrapper-dispatch model. Drop scripts under `modules/<stack>-<version>/hooks/`:
+Modules may ship optional hook scripts under `modules/<stack>-<version>/hooks/`; a consumer chooses whether to register them:
 
-- `post-edit-*.sh` — fired (backgrounded) by `scripts/hooks/post-edit-dispatch.sh` whenever the module is active.
-- `pre-bash-*.sh` / `pre-commit-*.sh` — fired (synchronously, can block) by `scripts/hooks/pre-bash-dispatch.sh`.
+- `post-edit-*.sh` — register explicitly for advisory post-edit work.
+- `pre-bash-*.sh` / `pre-commit-*.sh` — register explicitly when synchronous checks are desired.
 
 See [`docs/hook-extension.md`](./docs/hook-extension.md) for the dispatcher contract and the worked `js` module example.
 
@@ -255,7 +255,7 @@ dhpk/
 │   ├── react-18/, react-19/             # React library (per-major)
 │   ├── library-author/{module.yaml, agents/, skills/, hooks/, references/}
 │   └── swift/, swiftui/, ios-platform/, swift-testing/, xcode-tooling/  # iOS/Swift suite (xcode-tooling adds hooks/ + skill scripts)
-├── hooks/hooks.json              # PreToolUse / PostToolUse / SessionStart / Stop wiring
+├── hooks/hooks.json              # PreToolUse / PostToolUse / SessionStart / SubagentStop wiring
 ├── scripts/
 │   ├── hooks/                    # core hooks incl. post-edit-dispatch.sh, pre-bash-dispatch.sh, reap-stale-sentinels.sh, _lib/{payload,portable-sed,portable-timeout}.sh
 │   ├── statusline/statusline.sh

@@ -78,18 +78,19 @@ release, or write externally. This includes `dhpk-matrix-cell-onboard` (a guided
 checklist for CI-matrix cells — no elevated tools, editing stays within the
 already-authorized library-authoring request).
 
-## Commands (`commands/*.md`) — 45 entries
+## Commands (`commands/*.md`) — 44 entries
 
 Only `matrix-cell-onboard.md` names a canonical skill 1:1 (paired; inherits
-`implicit-eligible` from its skill). The remaining 44 are unpaired and own
+`implicit-eligible` from its skill). The remaining 43 are unpaired and own
 their class directly.
 
-### explicit-only (14)
+### explicit-only (23)
 
 | Command | Rationale |
 |---|---|
 | `create-pr` | Creates a GitHub PR (`gh pr create`). |
 | `create-release` | Cuts a release. |
+| `check-coverage`, `codex-review-branch`, `codex-review-doc`, `codex-review-fast`, `codex-security`, `codex-test-gen`, `codex-test-review`, `create-dev`, `precommit-fast`, `review-spec` | Compatibility aliases retain their explicit-only metadata; do not infer a lower class from their forwarding target. |
 | `do` | Top-level Smart Router; can reach any downstream workflow including explicit-only ones — kept explicit-only itself per the "broad orchestration" category. |
 | `evolve` | Already explicit-only. Generates evolved skill/command/agent structures. |
 | `harness-govern` | Read-only by default, but `--fix` mutates the harness in bulk; class reflects maximum authority, not the default mode. |
@@ -101,17 +102,14 @@ their class directly.
 | `promote` | Already explicit-only. Promotes an instinct into a new skill/command/agent — creates a new distributed entry. |
 | `setup` | Already explicit-only. Interactive plugin (re)configuration. |
 | `smart-commit` | Executes `git commit` in batches. |
-| `zh-tw` | Already explicit-only. Toggles a persistent session/locale configuration. |
 
-### implicit-eligible (31, incl. `dhpk-matrix-cell-onboard` inherited)
+### implicit-eligible (21, incl. `dhpk-matrix-cell-onboard` inherited)
 
-`check-coverage`, `check-skill`, `codex-review-branch`, `codex-review-doc`,
-`codex-review-fast`, `codex-review`, `codex-security`, `codex-test-gen`,
-`codex-test-review`, `create-dev`, `deep-analyze`, `dep-audit`, `doc-refactor`,
+`check-skill`, `codex-review`, `deep-analyze`, `dep-audit`, `doc-refactor`,
 `git-worktree`, `harness-audit`, `instinct-export`, `instinct-status`,
-`dhpk-matrix-cell-onboard`, `merge-prep`, `pr-summary`, `precommit-fast`,
-`precommit`, `project-brief`, `review-pending`, `review-spec`, `simplify`,
-`spec-mine`, `ui-ux-verify`, `update-codemaps`, `update-docs`, `verify`.
+`dhpk-matrix-cell-onboard`, `merge-prep`, `pr-summary`, `precommit`,
+`project-brief`, `review-pending`, `simplify`, `spec-mine`, `ui-ux-verify`,
+`update-codemaps`, `update-docs`, `verify`.
 
 ### Reclassified from a pre-existing restriction (reviewed, not inherited)
 

@@ -12,6 +12,7 @@
 // be generated from without touching disk beyond the one read.
 
 const fs = require('node:fs');
+const crypto = require('node:crypto');
 const path = require('node:path');
 const { collectInventory, relativePosix } = require('./asset-inventory');
 
@@ -146,6 +147,28 @@ function validateSupportingAssets({ inventory, root, exists = fs.existsSync }) {
     }
   }
   return { errors };
+}
+
+function digestFile(file) {
+  return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+}
+
+// Transformed Codex supporting assets are intentionally not byte-identical to
+// their Claude canonical source. Refresh their provenance as one deterministic
+// operation so a policy edit never requires hand-editing checked-in digests.
+function refreshSupportingDigests(inventory, root) {
+  const refreshed = JSON.parse(JSON.stringify(inventory));
+  for (const entry of refreshed.supporting_assets || []) {
+    if (!entry.canonical_source) continue;
+    const canonical = path.join(root, entry.canonical_source);
+    const projection = path.join(root, entry.source);
+    if (!fs.existsSync(canonical) || !fs.existsSync(projection)) {
+      throw new Error(`cannot refresh supporting provenance for ${entry.id || '<unknown>'}: source is missing`);
+    }
+    entry.canonical_digest = digestFile(canonical);
+    entry.projection_digest = digestFile(projection);
+  }
+  return refreshed;
 }
 
 function validateDistributionInventory({
@@ -445,6 +468,7 @@ module.exports = {
   classifyCanonicalInventory,
   serializeInventory,
   validateSupportingAssets,
+  refreshSupportingDigests,
   validateDistributionInventory,
   validateDistributionInventoryV2,
   validateInventoryV2: validateDistributionInventoryV2,

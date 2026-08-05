@@ -69,7 +69,7 @@ Suggestions: ...
 
 ## Closing — Artifact Output
 
-Category: `reviews/`. Frontmatter/retention/degradation: reviewer-family shape (PASS/WARNING/FAIL) in `.codex/dhpk/contracts/artifact-contract.md`. The parent flow owns lifecycle; write the fresh artifact under `.codex/artifacts/` and return the final verdict in the same run.
+Category: `reviews/`. Frontmatter/retention/degradation: reviewer-family shape (PASS/WARNING/FAIL) in `.codex/dhpk/contracts/artifact-contract.md`. the parent flow owns lifecycle: only a fresh canonical artifact with leading delimited frontmatter and required reviewer fields plus `APPROVE` or `PASS` clears the matching review request; warning, fail, or malformed evidence leaves it armed. This reviewer's job ends at writing the artifact.
 
 ## References
 

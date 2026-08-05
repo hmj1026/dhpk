@@ -178,7 +178,7 @@
       "id": "codex-supporting-contracts-artifact-contract-md",
       "source": "codex/supporting/contracts/artifact-contract.md",
       "canonical_source": "docs/contracts/artifact-contract.md",
-      "canonical_digest": "c82cd9bd709517962a5204d32fbcefa26cdc1e0be4ae80685615c3b303cf01ef",
+      "canonical_digest": "1fd50258bc90264b7fd90bf8fe994f8acc0bc254f4e72a5a3490c642daa73d52",
       "projection_digest": "ad5a05ceaa56719084e99a37c7c57563727982cbf24bc7f0a907981071e1ac7e",
       "destination": "dhpk/contracts/artifact-contract.md"
     },
@@ -186,7 +186,7 @@
       "id": "codex-supporting-contracts-reviewer-contract-md",
       "source": "codex/supporting/contracts/reviewer-contract.md",
       "canonical_source": "docs/contracts/reviewer-contract.md",
-      "canonical_digest": "3dc1d855b460210241a91064ffb6a86fa554115cccc24a18dd057742f6c10c26",
+      "canonical_digest": "abf5b2f0b34a194b7a8e07db70fd8251af7307819caf6f0b66e242a55344d9b4",
       "projection_digest": "e0ede2ec5b485a81ea53186e05f55ffdf6ac22b9ebdd59b13982504ad69f4b5d",
       "destination": "dhpk/contracts/reviewer-contract.md"
     },
@@ -194,7 +194,7 @@
       "id": "codex-supporting-policies-execution-policy-md",
       "source": "codex/supporting/policies/execution-policy.md",
       "canonical_source": "rules/execution-policy.md",
-      "canonical_digest": "111eb19ff11dab5b4881cc6699d9da023a469593f1ebcd364acc62d1a338068e",
+      "canonical_digest": "4a9aa3e13f259becbd03ffe6a80a1ecbbe77fb94634127e58d177655ff4aba38",
       "projection_digest": "197fbbce3b3bf10603ede061365fd6b51d8dc24aff0d8ea6de33821bb13512d9",
       "destination": "dhpk/policies/execution-policy.md"
     }

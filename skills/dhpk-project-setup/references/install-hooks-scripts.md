@@ -9,7 +9,8 @@ The installer copies from `${CLAUDE_PLUGIN_ROOT}` to
 
 | Selection | Source | Target |
 |---|---|---|
-| `hooks` | `hooks/hooks.json`, `scripts/hooks/` | `.claude/dhpk/hooks/` |
+| `hooks` | `hooks/hooks.json` | `.claude/dhpk/hooks/hooks.json` |
+| `hooks` | `scripts/hooks/` | `.claude/dhpk/scripts/hooks/` |
 | `rules` | `rules/` | `.claude/dhpk/rules/` |
 | `scripts` | `scripts/` | `.claude/dhpk/scripts/` |
 

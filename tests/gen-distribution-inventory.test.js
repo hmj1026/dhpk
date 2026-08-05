@@ -6,9 +6,11 @@
 // codex-sync added wherever codex/skills/ mirrors the entry.
 
 const fs = require('node:fs');
+const crypto = require('node:crypto');
+const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
-const { classifyCanonicalInventory, LIFECYCLES } = require('../scripts/lib/distribution-inventory');
+const { classifyCanonicalInventory, LIFECYCLES, refreshSupportingDigests } = require('../scripts/lib/distribution-inventory');
 
 const ROOT = path.join(__dirname, '..');
 const MANIFEST = path.join(ROOT, 'manifests', 'distribution-inventory.json');
@@ -72,6 +74,33 @@ test('checked-in manifest covers every canonical skill/module (a deliberate life
   }
   for (const m of generated.modules) {
     assert.ok(existingModulePaths.has(m.path), `${m.path} missing from checked-in manifest — run scripts/ci/gen-distribution-inventory.js --write`);
+  }
+});
+
+test('supporting provenance refresh derives transformed digests without mutating the source inventory', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-provenance-'));
+  try {
+    fs.mkdirSync(path.join(temp, 'canonical'), { recursive: true });
+    fs.mkdirSync(path.join(temp, 'codex'), { recursive: true });
+    fs.writeFileSync(path.join(temp, 'canonical', 'policy.md'), 'canonical policy\n');
+    fs.writeFileSync(path.join(temp, 'codex', 'policy.md'), 'codex projection\n');
+    const original = {
+      supporting_assets: [{
+        id: 'policy',
+        source: 'codex/policy.md',
+        canonical_source: 'canonical/policy.md',
+        canonical_digest: 'stale',
+        projection_digest: 'stale',
+        destination: 'dhpk/policies/policy.md',
+      }],
+    };
+    const refreshed = refreshSupportingDigests(original, temp);
+    const digest = (rel) => crypto.createHash('sha256').update(fs.readFileSync(path.join(temp, rel))).digest('hex');
+    assert.strictEqual(refreshed.supporting_assets[0].canonical_digest, digest('canonical/policy.md'));
+    assert.strictEqual(refreshed.supporting_assets[0].projection_digest, digest('codex/policy.md'));
+    assert.strictEqual(original.supporting_assets[0].canonical_digest, 'stale');
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
   }
 });
 

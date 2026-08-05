@@ -16,16 +16,16 @@ OpenSpec 是**可選的外部整合**——若需要 OpenSpec 工作流指令，
 |------|------|------|
 | `bash` | 必要 | 所有 hook 與輔助腳本 |
 | `git` | 必要 | Sentinel／artifact 路徑解析；`git rev-parse --show-toplevel` |
-| `python3` | 啟用 `modules` 時為必要 | 在 `post-edit-remind` 與 `session-start` 中解析 `module.yaml` |
+| `python3` | 啟用 `modules` 時為必要 | 為選用模組啟用與路由解析 `module.yaml` |
 | `jq` | 選用（有 python3 後援） | 較快的 JSON payload 擷取 |
-| `docker` | 選用 | 僅在 `userConfig.docker_containers` 非空時會被使用 |
+| `docker` | 選用 | 僅由以 `userConfig.docker_containers` 明確註冊的 Docker workflow 使用 |
 | Codex MCP server | 選用 | 僅在你使用 4 個 MCP-backed `codex-*` skill、7 個 `/dhpk:codex-*` 指令，或啟用 `CODEX=on` 時才需要——透過將 Claude Code 指向 Codex CLI 的 `codex mcp-server` 子指令來註冊，見 [`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕) |
 | Codex CLI 執行檔 | 選用 | 僅在執行 `install-codex-skills.sh` 且希望 Codex 真正載入同步內容時才需要 |
 | `cx` CLI | 選用 | 語意化程式碼導覽。`rules/tool-routing.md` 將 `cx overview` / `cx definition` / `cx references` 列為首選工具；6 個 reviewer agent 與 `harness-fill` skill 會引用。未安裝時 → 降級為 `Grep` / `Read`。 |
 | `gitnexus` MCP server | 選用 | 知識圖譜查詢（`gitnexus_impact`、`gitnexus_rename`、`gitnexus_detect_changes`）。6 個 `gitnexus-*` skill 以及 `rules/execution-policy.md` 的 self-check 會用到。未安裝時 → 降級為 `cx` 或 `Grep`。 |
 | `claude-mem` | 選用 | 跨 session 記憶搜尋（`mem-search`）。`rules/tool-routing.md` 用於查找過往決策。未安裝時 → 直接略過。 |
 
-缺少選用工具會以優雅退化處理（腳本 no-op 或跳過該功能）。缺少必要工具則會在 SessionStart 或第一個 hook 觸發時以單行 `[hook-name] WARN: …` 寫到 stderr，方便你採取行動。
+缺少選用工具會以優雅退化處理（腳本 no-op 或跳過該功能）。缺少必要工具則會在生效 hook 需要它時以單行 `[hook-name] WARN: …` 寫到 stderr，方便你採取行動。
 
 外部 code-navigation 工具（`cx`、`gitnexus`、`claude-mem`）**不由 dhpk 內附**，是否安裝由各 consuming 專案決定。dhpk 內附的 rules 與 agents 寫法已預設它們可能不在，會依 [`rules/tool-routing.md`](./rules/tool-routing.md) 自動降級。
 
@@ -125,7 +125,7 @@ Codex-free 對應品：`security-review` ↔ `codex-security`、`codebase-explor
 
 **PHP 語言基線** — 依你 composer `require.php` 約束涵蓋的版本選擇：
 - **`php-5.6`** — 禁止 7.0+ 語法；提供 polyfill 指引。
-- **`php-7.4`** — typed properties、arrow functions、null coalescing assignment。連線 **php-cs-fixer post-edit hook** + pre-commit lint + phpstan + psalm gate。
+- **`php-7.4`** — typed properties、arrow functions、null coalescing assignment，以及 php-cs-fixer、pre-commit lint、phpstan、psalm 指引。任何 formatter hook 均由 consumer 明確註冊。
 - **`php-8.x`** — readonly、enums、match、named args、attributes、first-class callable syntax。
 
 **框架**：
@@ -138,7 +138,7 @@ Codex-free 對應品：`security-review` ↔ `codex-security`、`codebase-explor
 - **`phpunit-9`** / **`phpunit-10`** / **`phpunit-11`** — 各主版本 API 差異（`createMock` vs `createPartialMock`、attribute-based metadata、deprecation surface）。
 
 **前端**：
-- **`js`** — JS / TS 工具鏈。ESLint flat-config 分層策略（Tier 1 嚴格 / 1.5 core-exempt / 1.7 deferred-migration / globals）、per-leaf `// @ts-check` 漸進啟用、async post-edit ESLint 反饋、pre-commit `npm run <lint> + <typecheck>` gate。框架無關。
+- **`js`** — JS / TS 工具鏈。ESLint flat-config 分層策略（Tier 1 嚴格 / 1.5 core-exempt / 1.7 deferred-migration / globals）、per-leaf `// @ts-check` 漸進啟用、按需 ESLint 反饋，以及 pre-commit `npm run <lint> + <typecheck>` gate。框架無關。
 - **`vue-2`** — Vue 2（Options API 時代，`^2.5`）：`data()` / `computed` / `methods` / `watch` + 生命週期結構、props-down + `$emit` events-up、Vue 2 reactivity 陷阱（`Vue.set` / 陣列索引與長度）、`@vue/test-utils` 1.x + `vue-jest` 3 SFC 測試。早於 Composition API。
 - **`laravel-mix`** — Laravel Mix 5（`^5.0.9`，webpack 4）：`webpack.mix.js` 入口/輸出對映、`mix()` versioning + manifest、`dev` / `watch` / `hot` / `prod` 腳本階梯、新版 Node 上 prod build 的 legacy-OpenSSL flag。
 - **`nextjs-15.5`** — Next.js 15.5（現行穩定的 15.x 線，止於 v15.5.19；15.6 未曾發布穩定版）。App Router、`next typegen`、穩定 typed routes（`typedRoutes`）、beta Turbopack 生產建置（`next build --turbopack`）、React 18/19 雙支援，以及 `next lint` 棄用（16 移除）。
@@ -154,12 +154,12 @@ Codex-free 對應品：`security-review` ↔ `codex-security`、`codebase-explor
 - **`swiftui`** — MVVM + Coordinator、Observation（`@Observable` / `@Bindable`）、`NavigationStack` 路由、Combine / UIKit 互通。需要 `swift`。
 - **`ios-platform`** — health/PHI iOS SDK：Core Data 加密、CryptoKit + Keychain、actor 離線儲存、Vision OCR、LocalAuthentication、UserNotifications、HealthKit、隱私合規。需要 `swift`。
 - **`swift-testing`** — XCTest + Swift Testing、XCUITest、snapshot 測試、3 層測試分類、protocol-DI host testing。需要 `swift`。
-- **`xcode-tooling`** — SwiftLint post-edit hook + xcodebuild/SPM pre-commit build+test gate（generic build destination、模擬器自動回退、工具鏈不存在時自動跳過）+ `ios-icon-gen` skill。需要 `swift`。
+- **`xcode-tooling`** — SwiftLint 指引、xcodebuild/SPM pre-commit build+test gate（generic build destination、模擬器自動回退、工具鏈不存在時自動跳過），以及 `ios-icon-gen` skill。需要 `swift`；任何 SwiftLint hook 由 consumer 明確註冊。
 
 啟用後，模組會：
 - 將其 skill 以 `dhpk:<skill-name>` 形式暴露（例如 `dhpk:dhpk-php-runtime-router`、`dhpk:dhpk-yii1-security-audit`、`dhpk:dhpk-js-lint-config`）。
-- 為 `post-edit-remind` 貢獻路徑觸發規則，讓 reviewer 在框架特定路徑上觸發。
-- 可在 `modules/<m>/hooks/post-edit-*.sh` 與 `modules/<m>/hooks/pre-{bash,commit}-*.sh` 提供 hook，模組啟用時由 dispatcher 分派執行。詳見 [`docs/hook-extension.md`](./docs/hook-extension.md)。
+- 為 deterministic post-edit sentinel routing 貢獻路徑觸發規則，讓 reviewer 在框架特定路徑上觸發。
+- 可在 `modules/<m>/hooks/` 提供選用 hook 腳本；由 consumer 明確註冊。詳見 [`docs/hook-extension.md`](./docs/hook-extension.md)。
 - 在 SessionStart 印出一行模組啟用訊息，讓 Claude 知道該模組已生效。
 
 ### 新增模組
@@ -189,10 +189,10 @@ EOF
 
 在 manifest 中 bump 插件 `version`。執行 `claude plugin validate ~/projects/dhpk --strict`。並在本 README 中說明新模組。
 
-每模組獨立的 hook 自 v0.2.0 起透過 wrapper-dispatch 模型支援。把腳本放在 `modules/<stack>-<version>/hooks/`：
+模組可在 `modules/<stack>-<version>/hooks/` 內提供選用 hook 腳本；是否註冊由 consumer 決定：
 
-- `post-edit-*.sh` — 由 `scripts/hooks/post-edit-dispatch.sh` 在模組啟用時（背景）執行。
-- `pre-bash-*.sh` / `pre-commit-*.sh` — 由 `scripts/hooks/pre-bash-dispatch.sh` 同步執行（可阻擋）。
+- `post-edit-*.sh` — 明確註冊後才執行 advisory post-edit 工作。
+- `pre-bash-*.sh` / `pre-commit-*.sh` — 需要同步檢查時才明確註冊。
 
 Dispatcher 契約與 `js` 模組的完整範例詳見 [`docs/hook-extension.md`](./docs/hook-extension.md)。
 
@@ -252,7 +252,7 @@ dhpk/
 │   ├── react-18/, react-19/             # React 函式庫（各主版本）
 │   ├── library-author/{module.yaml, agents/, skills/, hooks/, references/}
 │   └── swift/, swiftui/, ios-platform/, swift-testing/, xcode-tooling/  # iOS/Swift 套件（xcode-tooling 另含 hooks/ 與 skill 腳本）
-├── hooks/hooks.json              # PreToolUse / PostToolUse / SessionStart / Stop 連線設定
+├── hooks/hooks.json              # PreToolUse / PostToolUse / SessionStart / SubagentStop 連線設定
 ├── scripts/
 │   ├── hooks/                    # 核心 hook，含 post-edit-dispatch.sh、pre-bash-dispatch.sh、reap-stale-sentinels.sh、_lib/{payload,portable-sed,portable-timeout}.sh
 │   ├── statusline/statusline.sh

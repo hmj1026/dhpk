@@ -41,7 +41,7 @@ case "$INSTALL" in hooks|rules|scripts|all) ;; *) echo "--install is required" >
 HAS_CONFLICT=0
 
 walk_tree() {
-    local mode="$1" source_dir="$2" target_dir="$3" source_file rel target_file
+    local mode="$1" source_dir="$2" target_dir="$3" source_file rel target_file prefix=""
     [ -d "$source_dir" ] || { echo "Missing source asset directory: $source_dir" >&2; exit 66; }
     while IFS= read -r -d '' source_file; do
         rel="${source_file#"$source_dir"/}"
@@ -54,12 +54,13 @@ walk_tree() {
                 fi
                 ;;
             report)
+                if [ "$DRY_RUN" -eq 1 ]; then prefix="DRY-RUN "; fi
                 if [ -f "$target_file" ] && cmp -s "$source_file" "$target_file"; then
                     echo "SKIP $target_file (identical)"
                 elif [ -f "$target_file" ]; then
-                    echo "${DRY_RUN:+DRY-RUN }OVERWRITE $target_file (source: $source_file)"
+                    echo "${prefix}OVERWRITE $target_file (source: $source_file)"
                 else
-                    echo "${DRY_RUN:+DRY-RUN }COPY $target_file (source: $source_file)"
+                    echo "${prefix}COPY $target_file (source: $source_file)"
                 fi
                 ;;
             copy)
@@ -82,7 +83,7 @@ walk_groups() {
         hooks)
             [ -f "$SOURCE/hooks/hooks.json" ] || { echo "Missing source asset: $SOURCE/hooks/hooks.json" >&2; exit 66; }
             walk_tree "$mode" "$SOURCE/hooks" "$TARGET/hooks"
-            walk_tree "$mode" "$SOURCE/scripts/hooks" "$TARGET/hooks/scripts"
+            walk_tree "$mode" "$SOURCE/scripts/hooks" "$TARGET/scripts/hooks"
             ;;
         rules)
             walk_tree "$mode" "$SOURCE/rules" "$TARGET/rules"
@@ -100,7 +101,7 @@ walk_groups_for_all() {
     local mode="$1"
     [ -f "$SOURCE/hooks/hooks.json" ] || { echo "Missing source asset: $SOURCE/hooks/hooks.json" >&2; exit 66; }
     walk_tree "$mode" "$SOURCE/hooks" "$TARGET/hooks"
-    walk_tree "$mode" "$SOURCE/scripts/hooks" "$TARGET/hooks/scripts"
+    walk_tree "$mode" "$SOURCE/scripts/hooks" "$TARGET/scripts/hooks"
     walk_tree "$mode" "$SOURCE/rules" "$TARGET/rules"
     walk_tree "$mode" "$SOURCE/scripts" "$TARGET/scripts"
 }

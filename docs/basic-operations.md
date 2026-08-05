@@ -128,7 +128,7 @@ Everything is reachable through `/dhpk:do` — one entry point that routes natur
 /dhpk:do implement a password-reset email flow
 ```
 
-The Smart Router matches "implement … feature" → `dhpk:dhpk-adaptive-dev-workflow` → **Feature Delivery** path. The skill loads TDD guide, runs the RED→GREEN→REFACTOR cycle, and closes with code-review and security gates. Post-edit hooks automatically drop sentinels after each file write; the Stop hook reminds you of any still-open reviewers.
+The Smart Router matches "implement … feature" → `dhpk:dhpk-adaptive-dev-workflow` → **Feature Delivery** path. The skill loads TDD guide, runs the RED→GREEN→REFACTOR cycle, and closes with code-review and security gates. The default post-edit hook routes sentinel-backed review debt after each relevant file write; consumers explicitly register any additional advisory hook behavior.
 
 ### 2. Bug fix
 

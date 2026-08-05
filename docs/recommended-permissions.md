@@ -60,7 +60,7 @@ sensitive.
 
 The two `docker` entries are for projects that run PHP / MySQL in
 containers (typical of legacy PHP 5.6 + Yii 1.1 stacks). Combine with
-the `docker_containers` userConfig to surface SessionStart status.
+an explicitly registered Docker workflow when they need container checks.
 
 ## JavaScript / Node projects
 

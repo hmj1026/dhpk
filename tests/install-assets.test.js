@@ -17,7 +17,11 @@ function fixture() {
   fs.mkdirSync(path.join(source, 'scripts', 'hooks'), { recursive: true });
   fs.mkdirSync(path.join(source, 'rules'), { recursive: true });
   fs.mkdirSync(path.join(source, 'scripts', 'lib'), { recursive: true });
-  fs.writeFileSync(path.join(source, 'hooks', 'hooks.json'), '{"hooks":{}}\n');
+  fs.writeFileSync(path.join(source, 'hooks', 'hooks.json'), JSON.stringify({
+    hooks: {
+      PreToolUse: [{ hooks: [{ args: ['${CLAUDE_PLUGIN_ROOT}/scripts/hooks/guard.sh'] }] }],
+    },
+  }) + '\n');
   fs.writeFileSync(path.join(source, 'scripts', 'hooks', 'guard.sh'), '#!/usr/bin/env bash\necho guard\n');
   fs.chmodSync(path.join(source, 'scripts', 'hooks', 'guard.sh'), 0o755);
   fs.writeFileSync(path.join(source, 'rules', 'execution-policy.md'), '# policy\n');
@@ -46,11 +50,26 @@ test('install copies selected assets and preserves executable source files', () 
   const ctx = fixture();
   try {
     const res = install(ctx, ['--install', 'hooks']);
-    const copied = path.join(ctx.target, 'hooks', 'scripts', 'guard.sh');
+    const copied = path.join(ctx.target, 'scripts', 'hooks', 'guard.sh');
     assert.strictEqual(res.status, 0, res.stderr);
     assert.ok(fs.existsSync(path.join(ctx.target, 'hooks', 'hooks.json')));
     assert.ok(fs.existsSync(copied));
     assert.ok((fs.statSync(copied).mode & 0o100) !== 0, 'executable source must stay executable');
+    assert.ok(!res.stdout.includes('DRY-RUN'), `real install must not print dry-run actions:\n${res.stdout}`);
+  } finally { fs.rmSync(ctx.root, { recursive: true, force: true }); }
+});
+
+test('installed hooks manifest resolves every plugin-root hook argument inside the target', () => {
+  const ctx = fixture();
+  try {
+    const res = install(ctx, ['--install', 'hooks']);
+    assert.strictEqual(res.status, 0, res.stderr);
+    const manifest = JSON.parse(fs.readFileSync(path.join(ctx.target, 'hooks', 'hooks.json'), 'utf8'));
+    const hookArgs = manifest.hooks.PreToolUse.flatMap((entry) => entry.hooks.flatMap((hook) => hook.args || []));
+    for (const arg of hookArgs) {
+      const resolved = arg.replace('${CLAUDE_PLUGIN_ROOT}', ctx.target);
+      assert.ok(fs.existsSync(resolved), `manifest target must exist: ${resolved}`);
+    }
   } finally { fs.rmSync(ctx.root, { recursive: true, force: true }); }
 });
 

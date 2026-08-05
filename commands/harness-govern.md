@@ -54,7 +54,7 @@ Judge the measurements against the **official Claude Code best-practices checkli
 | side-effect skills | `disable-model-invocation: true` for manual/mutating skills |
 | MCP | disable unused servers; `/mcp` for per-server cost |
 | guardrails | "must happen every time" lives in a hook, not a prompt |
-| verification gate | a check Claude can run (test/build) + Stop hook / `/goal` |
+| verification gate | a check Claude can run (test/build) + an explicit end gate such as `/goal` |
 
 Then scan the **five leverage areas** (absorbed from the former `harness-optimizer` agent) and name the top 3 with the highest reliability/cost/throughput payoff — propose minimal, reversible changes for each, but **delegate the edits to the Fix step** (`/harness-revise`); do not mutate here:
 

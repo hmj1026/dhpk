@@ -195,7 +195,7 @@ This is about the standalone Codex CLI dual-track sync (`codex/agents/` → `.co
 |-----|------|---------|---------|---------|
 | `python_project_roots` | string[] | `[]` | subdir path(s), e.g. `backend` | Subdirs holding a `pyproject.toml` that the python module's hooks should lint. Default empty — hooks walk up from the edited file to the nearest `pyproject.toml` (already handles monorepo backends). Set this only to **restrict** linting to specific subtrees. |
 | `python_runner` | string | `"uv run"` | e.g. `"poetry run"`, `""` | Command prefix used to invoke ruff / pyright / mypy inside the project env. `""` runs tools straight off PATH (already-activated venv). Falls back to bare PATH tools when the runner binary is absent, then self-skips if those are missing too. |
-| `ruff_bin` | string | `"ruff"` | — | ruff executable invoked by the post-edit lint hook, Stop batch check, and pre-commit validation. |
+| `ruff_bin` | string | `"ruff"` | — | ruff executable for an explicitly registered lint workflow and applicable pre-commit validation. |
 | `python_typechecker` | string | `"pyright"` | `pyright` \| `mypy` \| `none` | Type checker the pre-commit gate runs on staged `.py` files. `none` skips type-checking entirely. |
 | `pyright_bin` | string | `"pyright"` | — | pyright executable, used when `python_typechecker=pyright`. |
 | `mypy_bin` | string | `"mypy"` | — | mypy executable, used when `python_typechecker=mypy`. |
@@ -205,7 +205,7 @@ This is about the standalone Codex CLI dual-track sync (`codex/agents/` → `.co
 | Key | Type | Default | Purpose |
 |-----|------|---------|---------|
 | `php_bin` | string | `"php"` | PHP binary/wrapper for the `php-5.6` module's async `php -l` post-edit syntax check, e.g. `docker exec -i my_php php`. Self-skips when the first word is not on PATH. |
-| `php_cs_fixer_bin` | string | `"vendor/bin/php-cs-fixer"` | Binary for the `php-7.4` module's post-edit php-cs-fixer hook + pre-commit gate. |
+| `php_cs_fixer_bin` | string | `"vendor/bin/php-cs-fixer"` | Binary for an explicitly registered `php-7.4` formatter workflow and its applicable pre-commit gate. |
 | `phpstan_bin` | string | `"vendor/bin/phpstan"` | PHPStan binary for the `php-7.4` module's pre-commit gate; only invoked when `phpstan.neon[.dist]` is present. |
 | `psalm_bin` | string | `"vendor/bin/psalm"` | Psalm binary for the `php-7.4` module's pre-commit gate; only invoked when `psalm.xml[.dist]` is present. |
 
@@ -213,7 +213,7 @@ This is about the standalone Codex CLI dual-track sync (`codex/agents/` → `.co
 
 | Key | Type | Default | Options | Purpose |
 |-----|------|---------|---------|---------|
-| `swiftlint_bin` | string | `"swiftlint"` | — | Binary for the `xcode-tooling` post-edit SwiftLint hook. Self-skips when absent. |
+| `swiftlint_bin` | string | `"swiftlint"` | — | Binary for an explicitly registered `xcode-tooling` SwiftLint workflow. Self-skips when absent. |
 | `xcode_scheme` | string | `""` | scheme name, e.g. `babylon` | Scheme for the `xcode-tooling` pre-commit build gate. Empty skips the gate entirely (no scheme guessing). |
 | `xcode_destination` | string | `""` | e.g. `platform=iOS Simulator,name=iPhone 17` | `-destination` for the *test* step of the pre-commit gate. The *build* step always uses a device-name-free generic destination so it never goes stale. Empty auto-picks the first available simulator. |
 | `swift_build_skip_tests` | boolean | `false` | — | When `true`, the Swift pre-commit gate builds only (no `xcodebuild test` / `swift test`). |

@@ -1,27 +1,27 @@
 # Docker Setup for dhpk
 
-Reference for the `docker_containers` plugin option. The interactive installer
-(`scripts/install.sh`) and `/dhpk:setup` slash command will both ask for the
-container names this document explains.
+Reference for the `docker_containers` plugin option when a consumer explicitly
+registers a Docker workflow. The installer and `/dhpk:setup` do not add a
+Docker hook by default.
 
 > **TL;DR** — If your project does not use Docker, leave `docker_containers`
-> empty and skip this doc. The `SessionStart` hook is a no-op in that case.
+> empty and skip this doc. No default dhpk hook probes Docker.
 
 ---
 
 ## What dhpk does with Docker
 
-When `userConfig.docker_containers` is non-empty:
+When `userConfig.docker_containers` is non-empty, it is configuration for an
+explicitly registered consumer Docker workflow; dhpk does not automatically
+run a SessionStart check or export container variables. A consumer script may
+adopt the following convention:
 
-1. **SessionStart hook** runs `docker ps --format '{{.Names}}'` and verifies each
-   configured container is present. Missing containers surface as a warning
-   (with `hook_profile=strict`) or are silently skipped (`minimal`/`standard`).
-2. **Container name exports** — the list is positional. The first entry is
-   exported as `DHPK_PHP_CONTAINER`, the second as `DHPK_MYSQL_CONTAINER`. Some
-   downstream hooks and module helpers read these for `docker exec` commands.
+1. **Probe** — a registered script can run `docker ps --format '{{.Names}}'`
+   and choose its own warning/failure behavior.
+2. **Container-name convention** — the list can be positional: first for PHP,
+   second for MySQL. The registered script owns any environment exports.
 
-Empty list (`docker_containers=[]`) disables the check entirely — useful for
-host-native projects or CI.
+Empty list (`docker_containers=[]`) leaves the optional workflow unconfigured.
 
 ## Prerequisites
 
@@ -48,14 +48,14 @@ If you run Claude Code inside WSL2:
 
 ## Container naming convention
 
-The plugin's hooks assume a positional convention:
+An opt-in Docker script can use this positional convention:
 
 | Position | Env var | Typical role |
 |---------:|---------|--------------|
 | 1st | `DHPK_PHP_CONTAINER` | PHP-FPM / PHP-CLI container |
 | 2nd | `DHPK_MYSQL_CONTAINER` | Database container (MySQL/MariaDB/Postgres) |
 
-So `docker_containers=php-fpm,mysql` exports:
+For example, a consumer script can map `docker_containers=php-fpm,mysql` to:
 
 ```
 DHPK_PHP_CONTAINER=php-fpm
@@ -94,17 +94,17 @@ docker compose up -d
 docker ps   # confirm 'php-fpm' and 'mysql' show under NAMES
 ```
 
-Then install dhpk with matching names:
+Then register your Docker workflow with matching names:
 
 ```bash
 bash ~/projects/dhpk/scripts/install.sh
-# When prompted: "Container names (comma-separated, …):"
-#   php-fpm,mysql
+# Configure your consumer's explicit Docker workflow with:
+#   docker_containers=php-fpm,mysql
 ```
 
 ## Troubleshooting
 
-**`docker ps` shows my container, but SessionStart still warns.**
+**`docker ps` shows my container, but my registered workflow still warns.**
 Names must match exactly. `container_name: php-fpm` produces `php-fpm`;
 omitting `container_name:` produces `<project>_<service>_1` (compose v1) or
 `<project>-<service>-1` (compose v2). Update either side until they match.
@@ -112,18 +112,15 @@ omitting `container_name:` produces `<project>_<service>_1` (compose v1) or
 **`docker: command not found` after WSL integration toggle.**
 Restart the WSL distro: `wsl --shutdown` (from PowerShell) then reopen.
 
-**Hook never fires.**
-`docker_containers` defaults to `[]` (disabled). Re-run `/dhpk:setup` (inside
-Claude) or `scripts/install.sh` (outside) and explicitly pass the list.
+**Workflow never fires.**
+`docker_containers` defaults to `[]`; configure the list and register the
+consumer Docker script explicitly.
 
-**Want to disable the check temporarily.**
-Re-run `/plugin configure dhpk@dhpk` inside Claude Code and clear `docker_containers`,
-or from the terminal: `claude plugin uninstall dhpk@dhpk && claude plugin install dhpk@dhpk --config docker_containers=`
-(empty value disables the check). You can also remove the key from
-`.claude/settings.local.json` directly.
+**Want to disable the workflow temporarily.**
+Remove its consumer hook registration or clear `docker_containers` in the
+consumer configuration.
 
 ## Related
 
 - `manifests/module-catalog.json` — declares the positional container-role order
-- `hooks/hooks.json` — SessionStart wiring
-- `scripts/install.sh` / `/dhpk:setup` — interactive entry points
+- `scripts/install.sh` / `/dhpk:setup` — installation and configuration entry points

@@ -12,7 +12,7 @@ metadata:
 - Project root: !`git rev-parse --show-toplevel 2>/dev/null || pwd`
 - Plugin catalog: `${CLAUDE_PLUGIN_ROOT}/manifests/module-catalog.json`
 - Current local settings: `.claude/settings.local.json`
-- Docker reference: `${CLAUDE_PLUGIN_ROOT}/docs/docker-setup.md`
+- Docker reference (explicit opt-in only): `${CLAUDE_PLUGIN_ROOT}/docs/docker-setup.md`
 
 ## Task
 
@@ -60,12 +60,11 @@ The flow mirrors the wrapper so the user sees the same questions:
      siblings in the same stack, drop the siblings and surface a warning —
      an exclusive version cannot combine with others in the same stack
      (e.g. `php-5.6` forbids ≥7.0 syntax so it contradicts `php-7.4`).
-3. **Docker** — first display the prerequisite block from
-   `docs/docker-setup.md` (summarise: docker installed? compose? WSL trap?
-   container names match `docker ps`?). Then ask if the user wants to enable
-   the SessionStart docker check; if yes, ask for the comma-separated container
-   names. Remind that position matters: first → `DHPK_PHP_CONTAINER`, second →
-   `DHPK_MYSQL_CONTAINER`.
+3. **Docker (optional)** — ask about container names only when the user
+   explicitly opts into a separate Docker workflow. Point them to
+   `docs/docker-setup.md` for prerequisites and record the comma-separated
+   names for that workflow if requested. `/dhpk:setup` does not register a
+   Docker SessionStart check.
 4. **Review agents** — offer to override the seven slot defaults
    (`code-reviewer`, `database-reviewer`, `security-reviewer`,
    `frontend-reviewer`, `doc-reviewer`, `polyfill-reviewer`,

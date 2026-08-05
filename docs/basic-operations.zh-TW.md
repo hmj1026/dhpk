@@ -125,7 +125,7 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --update
 /dhpk:do implement a password-reset email flow
 ```
 
-Smart Router 匹配「implement … feature」→ `dhpk:dhpk-adaptive-dev-workflow` → **Feature Delivery** 路徑。該 skill 載入 TDD guide，執行 RED→GREEN→REFACTOR 循環，最後以 code-review 與 security gate 收尾。每次寫檔後，post-edit hook 自動投下 sentinel；Stop hook 在 session 結束時提醒尚未清除的 reviewer。
+Smart Router 匹配「implement … feature」→ `dhpk:dhpk-adaptive-dev-workflow` → **Feature Delivery** 路徑。該 skill 載入 TDD guide，執行 RED→GREEN→REFACTOR 循環，最後以 code-review 與 security gate 收尾。預設 post-edit hook 會在相關寫檔後路由 sentinel-backed review debt；其他 advisory hook 行為由 consumer 明確註冊。
 
 ### 2. 修 Bug
 
