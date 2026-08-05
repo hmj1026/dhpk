@@ -1,6 +1,6 @@
 ---
 name: dhpk-tdd-workflow
-description: 'Framework-agnostic test-driven development guidance for behavior-first unit and integration tests, test scaffolds, and minimal RED-GREEN-REFACTOR changes. Use when building a feature or fixing a bug test-first, writing a test scaffold, or reviewing test seams and mocks. Not for: Playwright journey authoring, pure documentation or rename work, or replacing dhpk''s tdd-guide dispatch. Output: a failing-test proof, minimal implementation/test change, scoped verification, and a concise TDD report.'
+description: 'Framework-agnostic test-driven development guidance for behavior-first unit and integration tests, test scaffolds, and minimal RED-GREEN-REFACTOR changes. Use when building a feature or fixing a bug test-first, writing a test scaffold, or reviewing test seams and mocks. Not for: Playwright journey authoring, pure documentation or rename work, or replacing dhpk''s dhpk-tdd-workflow dispatch. Output: a failing-test proof, minimal implementation/test change, scoped verification, and a concise TDD report.'
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---

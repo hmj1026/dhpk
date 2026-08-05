@@ -1,6 +1,6 @@
 ---
 name: dhpk-yii1-php56-development
-description: 'Generic backend development workflow for legacy Yii 1.x applications running on PHP 5.6 that must stay compatible with future PHP 7 upgrades. Use when implementing, refactoring, debugging, testing, or reviewing Yii 1.x backend code such as Controllers, FormModels, CActiveRecord, services, repositories, DAO queries, validation rules, security hardening, or domain-driven design boundaries. Includes pragmatic DDD placement, Context7-first knowledge refresh, and full TDD guidance. Not for frontend-only work, documentation-only edits, or non-PHP stacks. Output: a PHP 5.6-safe implementation or review plan with TDD and compatibility evidence.'
+description: 'Generic backend development workflow for legacy Yii 1.x applications running on PHP 5.6 that must stay compatible with future PHP 7 upgrades. Use when implementing, refactoring, debugging, testing, or reviewing Yii 1.x backend code such as Controllers, FormModels, CActiveRecord, services, repositories, DAO queries, validation rules, security hardening, or domain-driven design boundaries. Includes pragmatic DDD placement, Context7-first knowledge refresh, and full dhpk-tdd-workflow guidance. Not for frontend-only work, documentation-only edits, or non-PHP stacks. Output: a PHP 5.6-safe implementation or review plan with TDD and compatibility evidence.'
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---

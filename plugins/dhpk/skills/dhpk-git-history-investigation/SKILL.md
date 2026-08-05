@@ -1,6 +1,6 @@
 ---
 name: dhpk-git-history-investigation
-description: 'Git history investigation. Use when: tracking code changes, finding where bugs were introduced, root cause analysis. Not for: code exploration (use code-explore), issue analysis (use issue-analyze). Output: history trace + root cause report.'
+description: 'Git history investigation. Use when: tracking code changes, finding where bugs were introduced, root cause analysis. Not for: code exploration (use dhpk-codebase-exploration), issue analysis (use dhpk-issue-analyze). Output: history trace + root cause report.'
 allowed-tools: Bash(git:*), Read, Grep, Glob, Agent
 metadata:
   dhpk-invocation-class: implicit-eligible
