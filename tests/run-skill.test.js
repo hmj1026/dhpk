@@ -28,7 +28,7 @@ test('missing args prints usage and exits 2', () => {
 });
 
 test('resolves and execs a real .js skill script (read-only repo-intake scan)', () => {
-  const res = runScript(['repo-intake', 'scan_repo.js', '--format', 'json']);
+  const res = runScript(['dhpk-repo-intake', 'scan_repo.js', '--format', 'json']);
   assert.strictEqual(res.status, 0, res.stderr);
   assert.ok(res.stdout.length > 0);
   assert.doesNotThrow(() => JSON.parse(res.stdout));

@@ -6,8 +6,8 @@ const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const analyzer = fs.readFileSync(path.join(ROOT, 'skills', 'opsx-apply-goal', 'scripts', 'analyze-change.sh'), 'utf8');
-const context = require(path.join(ROOT, 'skills', 'opsx-apply-goal', 'scripts', 'goal-context.js'));
+const analyzer = fs.readFileSync(path.join(ROOT, 'skills', 'dhpk-opsx-apply-goal', 'scripts', 'analyze-change.sh'), 'utf8');
+const context = require(path.join(ROOT, 'skills', 'dhpk-opsx-apply-goal', 'scripts', 'goal-context.js'));
 
 function fakeCli(name) {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'opsx-context-')));
@@ -126,7 +126,7 @@ test('analyzer emits the full block when CLAUDE_PLUGIN_ROOT is unset (its real i
     const env = { ...process.env, CLAUDE_PROJECT_DIR: repo };
     delete env.CLAUDE_PLUGIN_ROOT;
     const res = spawnSync('bash',
-      [path.join(ROOT, 'skills', 'opsx-apply-goal', 'scripts', 'analyze-change.sh'), 'demo-change'],
+      [path.join(ROOT, 'skills', 'dhpk-opsx-apply-goal', 'scripts', 'analyze-change.sh'), 'demo-change'],
       { cwd: repo, env, encoding: 'utf8' });
 
     assert.strictEqual(res.status, 0, `analyzer exited ${res.status}:\n${res.stderr}`);

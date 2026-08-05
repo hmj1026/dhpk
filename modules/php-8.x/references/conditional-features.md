@@ -60,5 +60,5 @@ include the lowest and the highest cell to surface deprecations early.
 
 - `modules/php-7.4/references/static-checks.md` — PHPStan / Psalm rules
   that catch deprecation usage when the project sets a min-PHP target
-- `modules/php-8.x/skills/php-8x-features/SKILL.md` — the in-depth
+- `skills/dhpk-php-8x-features/SKILL.md` — the in-depth
   per-feature guidance

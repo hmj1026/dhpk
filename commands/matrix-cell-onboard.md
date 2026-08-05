@@ -2,11 +2,13 @@
 description: 'Add a new PHP/Laravel/PHPUnit/Monolog cell to a multi-major library''s CI matrix. Walks composer constraints, workflow YAML, Testbench mapping, polyfill branch coverage, dual-testsuite gating, and a local dry-run. Use when extending support to a new runtime version, restoring a previously dropped cell, or onboarding a new dep major (Monolog 4, Flysystem 4, PHPUnit 12).'
 argument-hint: '"<php-version> <laravel-version> [phpunit] [monolog]"  e.g. "8.3 12 11 3"'
 allowed-tools: 'Read, Grep, Glob, Bash, Skill, AskUserQuestion'
+metadata:
+  dhpk-invocation-class: explicit-only
 ---
 
 ⚠️ **Must read and follow the skill below before executing this command:**
 
-@modules/library-author/skills/matrix-cell-onboard/SKILL.md
+@skills/dhpk-matrix-cell-onboard/SKILL.md
 
 ## Context
 

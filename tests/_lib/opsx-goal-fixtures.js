@@ -6,7 +6,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 const FIXTURE_DIR = path.join(__dirname, '..', 'fixtures', 'opsx-goal');
-const TEMPLATE_PATH = path.join(__dirname, '..', '..', 'skills', 'opsx-apply-goal', 'references', 'goal-templates.md');
+const TEMPLATE_PATH = path.join(__dirname, '..', '..', 'skills', 'dhpk-opsx-apply-goal', 'references', 'goal-templates.md');
 const TEMPLATE = fs.readFileSync(TEMPLATE_PATH, 'utf8');
 
 const fencedAfter = (marker) => {

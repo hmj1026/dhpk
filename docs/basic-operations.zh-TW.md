@@ -55,7 +55,7 @@ claude plugin install dhpk@dhpk \
   --config hook_profile=standard
 ```
 
-要鎖定特定版本，後面接版本號：`claude plugin install dhpk@dhpk@v0.6.0`。可用技術棧／版本列在 `manifests/module-catalog.json`（SSOT）；精選組合在 `manifests/install-profiles.json`。Docker 前置須知請見 [`docs/docker-setup.md`](./docker-setup.md)。
+要鎖定特定版本，後面接版本號：`claude plugin install dhpk@dhpk@v0.6.0`。可用技術棧／版本列在 `manifests/module-catalog.json`（SSOT）；精選組合在 `manifests/install-profiles.json`。Docker 前置須知請見 [`docs/docker-setup.zh-TW.md`](./docker-setup.zh-TW.md)。
 
 安裝後，可隨時在 Claude Code 內重新設定：
 
@@ -96,10 +96,35 @@ claude plugin marketplace remove dhpk   # 忘記 marketplace 註冊
 
 若專案使用支援的 Codex projection，先更新 Claude，再刷新專案本地檔案：
 
+`CLAUDE_PLUGIN_ROOT` 只由 Claude Code plugin runtime（該 session 的 hooks、commands
+與 Bash tools）export；一般 terminal 不會自動取得。從普通 shell 執行時，請明確
+指向持久的 local checkout，例如設定 `DHPK_ROOT=/absolute/path/to/dhpk`，再執行
+`bash "$DHPK_ROOT/scripts/hooks/install-codex-skills.sh" ...`。不要 hard-code 暫時性的
+marketplace cache path。
+
 ```bash
 claude plugin update dhpk@dhpk
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --update
 ```
+
+若專案仍有整併前的 Codex receipt 或未加 prefix 的 dhpk skill 目錄，請先明確
+遷移 ownership，再做一般更新：
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --migrate --update
+```
+
+`--migrate` 只接管「內容未變更且 legacy source 完全吻合」的 destination。
+使用者自有、已編輯、重新指向、格式錯誤或無法判定的項目都會保留並回報。
+`--force` 只略過 project-root heuristic；它永遠不會繞過 ownership、collision、
+symlink、containment 或 modified-file safety。`--uninstall` 只移除未變更且 receipt
+擁有的項目。完整重新命名、整併與 rollback 指南見
+[`skill-platform-migration.zh-TW.md`](./skill-platform-migration.zh-TW.md)。
+
+若要移除兩個 surface，請反向執行安裝順序：趁 plugin root 還存在時，先在每個
+project 以 `--uninstall` 移除 Codex projection，再執行
+`claude plugin uninstall dhpk@dhpk`，最後視需要移除 marketplace entry。這能避免
+留下失效的 project symlink，copy mode 也應使用同一安全順序。
 
 ### 安裝疑難排解
 
@@ -125,7 +150,7 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --update
 /dhpk:do implement a password-reset email flow
 ```
 
-Smart Router 匹配「implement … feature」→ `dhpk:adaptive-dev-workflow` → **Feature Delivery** 路徑。該 skill 載入 TDD guide，執行 RED→GREEN→REFACTOR 循環，最後以 code-review 與 security gate 收尾。每次寫檔後，post-edit hook 自動投下 sentinel；Stop hook 在 session 結束時提醒尚未清除的 reviewer。
+Smart Router 匹配「implement … feature」→ `dhpk:dhpk-adaptive-dev-workflow` → **Feature Delivery** 路徑。該 skill 載入 TDD guide，執行 RED→GREEN→REFACTOR 循環，最後以 code-review 與 security gate 收尾。預設 post-edit hook 會在相關寫檔後路由 sentinel-backed review debt；其他 advisory hook 行為由 consumer 明確註冊。
 
 ### 2. 修 Bug
 
@@ -133,9 +158,9 @@ Smart Router 匹配「implement … feature」→ `dhpk:adaptive-dev-workflow` �
 /dhpk:do fix the login redirect loop
 ```
 
-匹配「fix … bug」→ `dhpk:adaptive-dev-workflow` → **Bug Investigation & Fix**：先確認根因證據、撰寫回歸測試，通過 RED gate 後才動手修。
+匹配「fix … bug」→ `dhpk:dhpk-adaptive-dev-workflow` → **Bug Investigation & Fix**：先確認根因證據、撰寫回歸測試，通過 RED gate 後才動手修。
 
-**`--openspec` / `--opsx` 旗標：** 在 `/dhpk:do` 加上 `--openspec`（別名 `--opsx`）可強制走 OpenSpec 撰寫流程（`opsx:new` → `opsx:ff`，接著停下等待人工審閱），而不直接進入實作。此旗標適用於 3 個「變更撰寫」路由 —— `dhpk:adaptive-dev-workflow`、`dhpk:bug-fix`、`dhpk:feature-dev` —— 並取代 `--plan`。在其餘路由（包含 `dhpk:opsx-apply-goal`）上此旗標無作用：會印出 `--openspec ignored: ...` 並照常執行原路由。
+**`--openspec` / `--opsx` 旗標：** 在 `/dhpk:do` 加上 `--openspec`（別名 `--opsx`）可強制走 OpenSpec 撰寫流程（`opsx:new` → `opsx:ff`，接著停下等待人工審閱），而不直接進入實作。此旗標適用於 3 個「變更撰寫」路由 —— `dhpk:dhpk-adaptive-dev-workflow`、`dhpk:dhpk-bug-fix`、`dhpk:dhpk-feature-dev` —— 並取代 `--plan`。在其餘路由（包含 `dhpk:dhpk-opsx-apply-goal`）上此旗標無作用：會印出 `--openspec ignored: ...` 並照常執行原路由。
 
 **`--worker=<claude|codex|agy|auto>` 旗標：** 僅為這次呼叫選擇機械 worker，不改專案設定。`/dhpk:do` 在路由匹配前解析並移除此旗標，再把原值以 `WORKER_OVERRIDE` 只傳給實作型路由（`adaptive-dev-workflow`、`bug-fix`、`feature-dev`、`opsx-apply-goal`）。優先序為旗標 > `fast_worker_backend` userConfig > shipped `claude`；無效旗標警告一次後退回 userConfig／預設。下游流程一律呼叫共用 selector，不自行重做可用性、順序或 fallback 邏輯。
 
@@ -146,10 +171,10 @@ Smart Router 匹配「implement … feature」→ `dhpk:adaptive-dev-workflow` �
 不需要任何指令。每次編輯檔案後，hook 自動：
 
 1. 為各相關 reviewer slot（code / db / sec / frontend / doc）投下 `.pending-*` sentinel
-2. 在 Stop 時提醒並行派發 reviewer
-3. sentinel 存在時，`git commit` 前會發出警告（可透過 `sentinel_commit_gate` 設定：`warn` / `block` / `off`——見 [`docs/configuration.zh-TW.md`](./configuration.zh-TW.md)）
+2. 在每位 reviewer 產出有效證據前維持 review debt
+3. sentinel 存在時，`git commit` 前會警告或阻擋（可透過 `sentinel_commit_gate` 設定：`warn` / `block` / `off`——見 [`docs/configuration.zh-TW.md`](./configuration.zh-TW.md)）
 
-即時 post-edit advisory 採邊緣觸發：只有 pending sentinel 集合改變時才輸出。`.advisory-state` 記錄該集合，因此重複編輯不會洗版；reviewer 從外部清除集合後，後續編輯仍可重新武裝並再次提醒。沒有符合 trigger 的編輯預設靜默，只有 `DHPK_DEBUG=1` 才印出 skip 訊息。
+預設 post-edit hook 只建立與路由 pending-review sentinel；不會執行 formatting、lockfile、lint 或 Stop advisory 工作。需要時由 consumer 明確註冊這些選用腳本。
 
 若想立即觸發而不等 Stop：`/dhpk:review-pending`
 
@@ -166,7 +191,7 @@ Smart Router 匹配「implement … feature」→ `dhpk:adaptive-dev-workflow` �
 /dhpk:do 幫我提交並建立 PR
 ```
 
-若要真正切一個版本發布（不只是 commit/PR）——版本檔案、changelog、以及固定的 git/PR/tag/CI 流程——見 `/dhpk:release-creator <version>`（explicit-only；直接執行，不會被自動呼叫）。
+若要真正切一個版本發布（不只是 commit/PR）——版本檔案、changelog、以及固定的 git/PR/tag/CI 流程——見 `/dhpk:dhpk-release-creator <version>`（explicit-only；直接執行，不會被自動呼叫）。
 
 ### 5. Setup 入口
 
@@ -177,7 +202,7 @@ Smart Router 匹配「implement … feature」→ `dhpk:adaptive-dev-workflow` �
 適用於需要長時間執行、不需人在旁監看的變更實作——產生單一一段 `/goal` 指令（已內嵌 `/opsx:apply` 啟動指示），貼到新 session 即可執行：
 
 ```text
-/dhpk:opsx-apply-goal my-change-id --max-duration 2h
+/dhpk:dhpk-opsx-apply-goal my-change-id --max-duration 2h
 ```
 
 **旗標：**
@@ -192,7 +217,7 @@ Smart Router 匹配「implement … feature」→ `dhpk:adaptive-dev-workflow` �
 | `--smoke` / `--no-smoke` | 強制開/關唯讀的即時執行探針門檻。兩者都不加則自動偵測：只有強訊號（明確的即時驗證任務、已派遣的 `e2e-runner`、或可推導的啟動指令）才會開啟，否則關閉。 |
 | `--dry-run` | 只印出分析結果與 goal 字串，不附「可貼上」的 session 設定框架——用來在真正執行無人值守迴圈前先預覽。 |
 
-**貼上的 `/goal` 字串實際內容：** 先定位 `rules/execution-policy.md`，再呼叫 `opsx:apply`（含有界的 Unknown-skill 備援）。Part 0 帶入 selector 解出的 fast-worker 條款，以及不切斷 UTF-8 code point、上限 200 bytes 的 task digest；只有變更實際含 E2E 訊號時才加入 `e2e-runner` 名單。Review 以連續實作 wave 為單位，只派一批合併的並行 reviewer；已知 findings 最多再做一次 confirm-only 複查。完成仍要求所有 task checkbox、適用的 test/build/lint/coverage/smoke gate，以及沒有 pending sentinel。回合／時間檢查點寫入 `.resume-note.md`；只剩人工工作時標註 `[blocked: <reason>]`；hard-rule 衝突則以 file:line 證據寫入 `.hard-rule-escalation.md` 並停止，不自行猜測。完整結構見 `skills/opsx-apply-goal/SKILL.md` Steps 3-4 與 Output（Part 0-4）。
+**貼上的 `/goal` 字串實際內容：** 先定位 `rules/execution-policy.md`，再呼叫 `opsx:apply`（含有界的 Unknown-skill 備援）。Part 0 帶入 selector 解出的 fast-worker 條款，以及不切斷 UTF-8 code point、上限 200 bytes 的 task digest；只有變更實際含 E2E 訊號時才加入 `e2e-runner` 名單。Review 以連續實作 wave 為單位，只派一批合併的並行 reviewer；已知 findings 最多再做一次 confirm-only 複查。完成仍要求所有 task checkbox、適用的 test/build/lint/coverage/smoke gate，以及沒有 pending sentinel。回合／時間檢查點寫入 `.resume-note.md`；只剩人工工作時標註 `[blocked: <reason>]`；hard-rule 衝突則以 file:line 證據寫入 `.hard-rule-escalation.md` 並停止，不自行猜測。完整結構見 `skills/dhpk-opsx-apply-goal/SKILL.md` Steps 3-4 與 Output（Part 0-4）。
 
 當 `orchestration_dispatch=on`（預設）時，產生的 `/goal` 條件會內嵌精簡的 selector-resolved 機械 worker 條款，以及本次工作實際需要的 specialist 條款；未偵測到瀏覽器工作時不會加入 E2E 條款。設為 `orchestration_dispatch=off` 會完全移除 dispatch 指示——實作工作一律內嵌執行，不再透過 worker agent 路由。
 
@@ -216,7 +241,7 @@ Smart Router 匹配「implement … feature」→ `dhpk:adaptive-dev-workflow` �
 /dhpk:do write E2E tests for the checkout flow
 ```
 
-路由到 `dhpk:post-dev-test`，委派 `e2e-runner` agent 負責 Playwright 測試套件撰寫。它只可寫 test spec、共用 helper、fixture 與 artifact；若發現 application code 問題，回傳 fast-worker-ready fix spec，修復後再重跑原始 journey。它會重用專案既有 helper，並在 teardown 清理 shared DB 的合成資料。
+路由到 `dhpk:dhpk-post-dev-test`，委派 `e2e-runner` agent 負責 Playwright 測試套件撰寫。它只可寫 test spec、共用 helper、fixture 與 artifact；若發現 application code 問題，回傳 fast-worker-ready fix spec，修復後再重跑原始 journey。它會重用專案既有 helper，並在 teardown 清理 shared DB 的合成資料。
 
 ### 9. Harness 健康檢測與修復
 
@@ -224,33 +249,36 @@ harness-* 工具家族各自負責不同面向——請依需求選用正確工�
 
 | 指令 / Skill | 負責面向 | 是否修改檔案 |
 |---|---|---|
-| `/harness-audit` | 確定性 7 大分類評分 | 否 |
-| `dhpk:harness-budget` | Context window token 用量統計 | 否 |
-| `dhpk:claude-health` | `.claude/` 設定健康、命名、plugin 同步 | 否 |
-| `/harness-govern` | 端到端 measure → conform → fix → verify 循環 | 否（加 `--fix` 才套用修改） |
-| `dhpk:harness-revise` | 精簡、去重、驗證（G1–G13 gap 分類） | 是 |
-| `dhpk:harness-fill` | 補齊缺失的 `.claude/` 基礎設施 | 是 |
+| `/dhpk:harness-audit` | 確定性 7 大分類評分 | 否 |
+| `dhpk:dhpk-harness-budget` | Context window token 用量統計 | 否 |
+| `dhpk:dhpk-claude-health` | `.claude/` 設定健康、命名、plugin 同步 | 否 |
+| `/dhpk:harness-govern` | 端到端 measure → conform → fix → verify 循環 | 否（加 `--fix` 才套用修改） |
+| `dhpk:dhpk-harness-revise` | 精簡、去重、驗證（G1–G13 gap 分類） | 是 |
+| `dhpk:dhpk-harness-fill` | 補齊缺失的 `.claude/` 基礎設施 | 是 |
 
 **典型流程：**
 
 ```text
 # 1. 快速診斷——看看哪裡有問題
-/harness-audit
+/dhpk:harness-audit
 
 # 2. 檢查 context window 用量（token 預算）
-/dhpk:harness-budget
+/dhpk:dhpk-harness-budget
 
 # 3. 端到端治理循環（預設唯讀）
-/harness-govern
+/dhpk:harness-govern
 
 # 4. 套用修復（精簡、去重、驗證）
-/harness-govern --fix
+/dhpk:harness-govern --fix
 
 # 5. 若 .claude/ 缺少 skills/agents/rules（新專案導入）
-/dhpk:harness-fill
+/dhpk:dhpk-harness-fill
 ```
 
-`/harness-govern` 是單一入口：依序執行 `/harness-audit`（評分）→ conform（最佳實踐對齊）→ `/harness-revise`（修復，僅在加 `--fix` 時）→ 驗證。可以 `/loop /harness-govern` 持續監控。
+`/dhpk:harness-govern` 是單一 command 入口：依序執行
+`/dhpk:harness-audit`（評分）→ conform（最佳實踐對齊）→
+`dhpk-harness-revise` skill（修復，僅在加 `--fix` 時）→ 驗證。可以
+`/loop /dhpk:harness-govern` 持續監控。
 
 ### 自動（不需直接呼叫）
 
@@ -268,17 +296,20 @@ TDD specialist 負責 RED 與 scoped test-first 工作。只有整個 production
 
 dhpk **預設 codex-free**。Opt-in 後會解鎖兩個相關但不同的東西：
 
-**A. Implementation dispatch 中的 Codex peer。** 設定 `CODEX=on` 後，高風險的實作階段決策（根因診斷、架構選擇）不再只有 `deep-reasoner`：dhpk 會把 `deep-reasoner` 與 Codex（透過 `mcp__codex__codex`）**並行派發，且雙方互不知道對方的結論**——任一方的 prompt 都不會被餵入對方的結論、判斷或理論——完成後比對兩個獨立結果，並在報告中明確標出分歧。這條「盲式獨立」規則同時適用於 `codex-architect`、`codex-brainstorm`、`codex-implement`、`codex-code-review` 這幾個 skill，以及 `multi-ai-sync`、`feature-verify`、`test-review`、`code-investigate`、`issue-analyze`。完整規則見 [`rules/execution-policy.md`](../rules/execution-policy.md) §"Multi-AI / dual-perspective independence"。
+**A. Implementation dispatch 中的 Codex peer。** 設定 `CODEX=on` 後，高風險的實作階段決策（根因診斷、架構選擇）不再只有 `deep-reasoner`：dhpk 會把 `deep-reasoner` 與 Codex（透過 `mcp__codex__codex`）**並行派發，且雙方互不知道對方的結論**——任一方的 prompt 都不會被餵入對方的結論、判斷或理論——完成後比對兩個獨立結果，並在報告中明確標出分歧。這條「盲式獨立」規則同時適用於 `dhpk-codex-architect`、`dhpk-codex-brainstorm`、`dhpk-codex-implement`、`dhpk-change-review`，以及 `dhpk-cross-agent-sync`、`dhpk-feature-verify`、`dhpk-test-review`、`dhpk-codebase-exploration --dual`、`dhpk-issue-analyze`。完整規則見 [`rules/execution-policy.md`](../rules/execution-policy.md) §"Multi-AI / dual-perspective independence"。
 
-**B. 六個直接委派給 Codex 的 skill** —— `codex-architect`、`codex-brainstorm`、`codex-cli-review`、`codex-code-review`、`codex-explain`、`codex-implement` —— 可直接呼叫（例如 `/codex-code-review`），不需要經過 `/dhpk:do`。
+**B. 四個直接委派給 Codex 的 skill 加一個 CLI backend** —— `dhpk-codex-architect`、`dhpk-codex-brainstorm`、`dhpk-codex-implement`、`dhpk-change-review`（MCP 或 `--backend cli`）——可直接呼叫，不需要經過 `/dhpk:do`。
 
-這六個 skill 裡有五個（除了 `codex-cli-review`——它透過 `Bash` 直接呼叫 `codex` CLI 執行檔，不需要 MCP server）需要 `mcp__codex__codex` / `mcp__codex__codex-reply` 工具，這來自**直接註冊 Codex CLI 自己的 `codex mcp-server` 子指令**作為 MCP server——**並非**安裝 `openai/codex-plugin-cc` plugin，那是另一個獨立、可選的介面。安裝步驟與 `CODEX=on` 的 opt-in 機制（`/dhpk:do` 的 `--codex` flag／自然語言觸發）見 [`docs/configuration.zh-TW.md`](./configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕)。
+MCP backend 需要 `mcp__codex__codex` / `mcp__codex__codex-reply` 工具；可選的 CLI backend 透過 hardened wrapper 呼叫 `codex` 執行檔，不需要 MCP server。安裝步驟與 `CODEX=on` 的 opt-in 機制（`/dhpk:do` 的 `--codex` flag／自然語言觸發）見 [`docs/configuration.zh-TW.md`](./configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕)。
 
 這與下方的**同步 Codex CLI 內容**是兩回事——那是把 dhpk 自己的 skill 鏡射進專案的 `.codex/` 目錄，給獨立的 `codex` CLI 工具使用，完全不涉及 MCP server。
 
 ## 同步 Codex CLI 內容
 
 同時使用 Claude Code 與 Codex CLI 的專案：
+
+下方 `${CLAUDE_PLUGIN_ROOT}` 形式適用於 Claude Code plugin-runtime shell。普通
+terminal 請使用[更新／移除](#更新移除)說明的 persistent-checkout 形式。
 
 ```bash
 # 在任意專案根目錄執行：
@@ -292,16 +323,30 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"
   建議使用此模式——複製內容不依賴 plugin checkout 是否還存在。
 - **Symlink（預設，依賴 source checkout）。** 將 `.codex/` 項目連結回 plugin
   自身的 `codex/skills/` tree。重新同步較快，且與 source checkout 保持一致，
-  但若該 plugin checkout 被搬移、刪除或不存在（例如 marketplace-cache
-  安裝），連結就會失效——這正是
+  但若該 plugin root/cache 被搬移、prune 或刪除，連結就會失效。Marketplace
+  cache 在仍存在時是有效來源；`--update` 可以接管新的 receipt-owned plugin
+  root。Source lifetime 中斷正是
   [issue #88](https://github.com/hmj1026/dhpk/issues/88) 追蹤的確切失效模式。
   只要無法保證 plugin 原始碼會持續存在，請改用 `--copy`。
 
-兩種模式都會在 `.codex/.dhpk-installed.json` 記錄版本與 source fingerprint；
-plugin 更新後用 `--update` 重跑。Codex tree 是明確策展的 Claude package subset，
-不是第二份完整 inventory。`codex/agents/` 提供 11 個角色：4 個手動維護的通用
-角色，以及 7 個由 `scripts/gen-codex-agents.js` 從 Claude canonical agent 產生。
-雙 harness 模型詳見 `codex/AGENTS.md` 與 `codex/README.md`。
+兩種模式都會在 `.codex/.dhpk-installed.json` 記錄版本、source fingerprint，以及
+schema-v3 managed entry provenance；每個 skill entry 都含有穩定的 inventory id 與
+目前公開的 `dhpk-*` 名稱。plugin 更新後用 `--update` 重跑。未受 receipt 擁有的
+collision 一律保留；`--migrate` 只會重新命名 receipt 擁有且未變更的 legacy
+destination。已編輯、第三方、重新指向、格式不正確或無法判定的 legacy path 都必須
+回報為 conflict。使用 `--uninstall` 只移除未變更且 receipt 擁有的 entry，不會刪除
+無關的 project asset。
+
+Codex tree 是明確策展的 Claude package subset，不是第二份完整 inventory。
+`codex/agents/` 提供 11 個角色：4 個手動維護的通用角色，以及 7 個由
+`scripts/gen-codex-agents.js` 從 Claude canonical agent 產生。雙 harness 模型詳見
+`codex/AGENTS.md`（工程角色契約，英文）與 `codex/README.zh-TW.md`。
+
+Generated role 可能依賴共用的 prompt-defense、trap-sheet、reviewer-contract、
+artifact-contract 或 execution-policy 內容。這些 supporting asset 在
+`manifests/distribution-inventory.json` 的 `supporting_assets` 區段定義，會被複製到
+`.codex/dhpk/`，並由同一份 schema-v3 receipt 追蹤。runtime projection validator
+會拒絕無法到達的 reference 或 Claude plugin-root path。
 
 ### Codex Plugin Marketplace（實驗性支援等級）
 
@@ -316,6 +361,20 @@ codex plugin add dhpk@dhpk
 codex plugin list
 ```
 
+實驗性 surface 的 lifecycle 指令（marketplace upgrade 適用於已設定的 Git
+marketplace；local-path 開發 marketplace 請先 refresh 或重新加入 local source，
+再重新安裝 plugin）：
+
+```bash
+codex plugin marketplace upgrade dhpk
+codex plugin remove dhpk@dhpk
+codex plugin add dhpk@dhpk        # 從更新後的 snapshot 重新安裝
+
+# 完整移除：
+codex plugin remove dhpk@dhpk
+codex plugin marketplace remove dhpk
+```
+
 `codex plugin list` 只是管理層級的證據，不代表已安裝 cache 內容真的可用。
 真正的證明來自一個用真實 CLI 跑的測試：`tests/codex-native-install-smoke.test.js`
 會把追蹤中的 `plugins/dhpk/` 產物原封不動安裝進沙盒化的 `CODEX_HOME`、刪除
@@ -326,14 +385,15 @@ symlink）materialize 出來——這正是
 `plugins/dhpk/.codex-plugin/plugin.json` 現在都解析到同一份追蹤中的實體
 tree）。只要環境有 `codex` CLI，這項驗證就是 release 的 CONSUMER gate 一環；
 完整 gate 模型詳見
-[`docs/distribution-surfaces.md`](./distribution-surfaces.md#codex-native-plugin-package-github-issue-88)。
+[`docs/distribution-surfaces.zh-TW.md`](./distribution-surfaces.zh-TW.md#codex-native-plugin-package)。
 
 通過安裝驗證是後續決策的必要證據，但不等於決策本身：native Codex marketplace
 支援等級仍維持**實驗性**，直到另有一次獨立核准的畢業（graduation）決策為止
 （見 [ADR-0006](./adr/0006-codex-native-publication-artifact.md)）。正式工作
 請使用 `install-codex-skills.sh`；marketplace 套件是額外補充，不是替代方案。
 
-詳見 `.codex-plugin/README.md` 與 `plugins/dhpk/README.md`。
+詳見 `.codex-plugin/README.md`（manifest 工程說明）與
+`plugins/dhpk/README.zh-TW.md`。
 
 ## 遷移現有專案
 

@@ -7,8 +7,8 @@ Design: `docs/superpowers/specs/2026-07-24-cross-platform-skills-canonical-and-c
 - Canonical inventory is exactly 105 packages: 68 under `skills/` and 37 under
   `modules/*/skills/`.
 - Codex is a projection, not a second canonical inventory.
-- After the three merges, `codex/skills/bug-investigation`,
-  `codex/skills/multi-ai-sync`, and `codex/skills/skill-health-check` must be
+- After the three merges, `codex/skills/dhpk-root-cause-investigation`,
+  `codex/skills/dhpk-cross-agent-sync`, and `codex/skills/dhpk-skill-health-audit` must be
   relative symlinks to `../../skills/<name>`.
 - The only remaining physical Codex entries are
   `legacy-code-characterization`, `php56-yii-dev`, `php-pro`, and
@@ -27,7 +27,7 @@ Design: `docs/superpowers/specs/2026-07-24-cross-platform-skills-canonical-and-c
 
 ### Task 1: portable `bug-investigation` canonical merge
 
-Merge the root and Codex behavioral contracts into `skills/bug-investigation`,
+Merge the root and Codex behavioral contracts into `skills/dhpk-root-cause-investigation`,
 preserving evidence-first five phases, database/cross-layer tracing, repro
 requirements, stop-loss handling, all references/scripts, and explicit
 repository-policy selection between OpenSpec and brief-plan routing.

@@ -38,34 +38,43 @@ test('every referenced hook script is executable', () => {
   }
 });
 
-test('Task|Agent PreToolUse hooks include reviewer liveness marker before subagent work returns', () => {
+test('default lifecycle wiring is the five deterministic hook events only', () => {
   const parsed = JSON.parse(raw);
-  const taskAgent = parsed.hooks.PreToolUse.find((entry) => entry.matcher === 'Task|Agent');
-  assert.ok(taskAgent, 'missing Task|Agent PreToolUse matcher');
-  const args = taskAgent.hooks.flatMap((hook) => hook.args || []);
-  assert.ok(args.some((arg) => arg.includes('scripts/hooks/pre-agent-liveness-mark.sh')),
-    'Task|Agent PreToolUse must wire pre-agent-liveness-mark.sh');
+  assert.deepStrictEqual(Object.keys(parsed.hooks).sort(), [
+    'PostToolUse', 'PreToolUse', 'SessionStart', 'SubagentStop',
+  ]);
+  assert.strictEqual(parsed.hooks.PreToolUse.length, 2, 'only edit and Bash gates are default PreToolUse hooks');
+  assert.strictEqual(parsed.hooks.PostToolUse.length, 1, 'only sentinel routing is default PostToolUse');
+  assert.strictEqual(parsed.hooks.SubagentStop.length, 1, 'only strict reviewer reconciliation is default SubagentStop');
 });
 
-test('Edit|Write|MultiEdit wires the batch gate with an explicit timeout', () => {
+test('Edit|Write|MultiEdit wires only the protected-path guard', () => {
   const parsed = JSON.parse(raw);
   const edit = parsed.hooks.PreToolUse.find((entry) => entry.matcher === 'Edit|Write|MultiEdit');
-  const gate = edit.hooks.find((hook) => (hook.args || []).some((arg) => arg.includes('pre-edit-batch-gate.sh')));
-  assert.ok(gate, 'missing pre-edit-batch-gate.sh');
-  assert.strictEqual(gate.timeout, 5);
+  assert.ok(edit, 'missing edit PreToolUse entry');
+  assert.strictEqual(edit.hooks.length, 1);
+  assert.ok(edit.hooks[0].args.some((arg) => arg.includes('pre-edit-guard.sh')));
 });
 
-test('SubagentStop wires subagent-stop-quality.sh before subagent-stop-verify.sh', () => {
+test('Bash and SubagentStop each wire one consolidated deterministic hook', () => {
   const parsed = JSON.parse(raw);
+  const bash = parsed.hooks.PreToolUse.find((entry) => entry.matcher === 'Bash');
+  assert.ok(bash, 'missing Bash PreToolUse entry');
+  assert.strictEqual(bash.hooks.length, 1);
+  assert.ok(bash.hooks[0].args.some((arg) => arg.includes('pre-bash-dispatch.sh')));
+
   const subagentStopArgs = (parsed.hooks.SubagentStop || [])
     .flatMap((entry) => entry.hooks || [])
     .flatMap((hook) => hook.args || []);
-  const qualityIdx = subagentStopArgs.findIndex((arg) => arg.includes('scripts/hooks/subagent-stop-quality.sh'));
-  const verifyIdx = subagentStopArgs.findIndex((arg) => arg.includes('scripts/hooks/subagent-stop-verify.sh'));
-  assert.ok(qualityIdx !== -1, 'missing subagent-stop-quality.sh in SubagentStop');
-  assert.ok(verifyIdx !== -1, 'missing subagent-stop-verify.sh in SubagentStop');
-  assert.ok(qualityIdx < verifyIdx,
-    'subagent-stop-quality.sh must be wired BEFORE subagent-stop-verify.sh (block-before-auto-clear)');
+  assert.deepStrictEqual(subagentStopArgs,
+    ['${CLAUDE_PLUGIN_ROOT}/scripts/hooks/subagent-stop-verify.sh']);
+});
+
+test('SessionStart wires only module activation', () => {
+  const parsed = JSON.parse(raw);
+  const sessionStart = parsed.hooks.SessionStart[0].hooks;
+  assert.strictEqual(sessionStart.length, 1);
+  assert.ok(sessionStart[0].args.some((arg) => arg.includes('session-start.sh')));
 });
 
 run('hooks-wiring');

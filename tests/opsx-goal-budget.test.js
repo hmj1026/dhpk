@@ -6,7 +6,7 @@ const { test, run, assert } = require('./_lib/tinytest');
 const { generateFixture, readFixture } = require('./_lib/opsx-goal-fixtures');
 
 const ROOT = path.join(__dirname, '..');
-const CONTRACT = fs.readFileSync(path.join(ROOT, 'skills', 'opsx-apply-goal', 'references', 'gate-contracts.md'), 'utf8');
+const CONTRACT = fs.readFileSync(path.join(ROOT, 'skills', 'dhpk-opsx-apply-goal', 'references', 'gate-contracts.md'), 'utf8');
 
 test('representative goal fixtures stay within the target or hard-stop without output', () => {
   for (const name of ['minimal', 'normal', 'maximum-gate', 'codex', 'smoke']) {

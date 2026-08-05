@@ -59,7 +59,7 @@ dhpk 在 `.claude-plugin/plugin.json` 中暴露 **59 個 `userConfig` 旋鈕**�
 | `codex_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | 三種 Codex CLI role 共用的 `run-codex.sh` wrapper backstop。優先序為專案 role-specific > 專案 shared > 全域 role-specific > 全域 shared > 出廠預設；值格式錯誤時在派發前 fail closed。本設定不改變 Claude 的外部工具等待時間。 |
 | `codex_fast_worker_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | `dhpk:codex-fast-worker` 專用 wrapper 預算。同一 scope 內優先於 shared 值；專案值優先於全域值。`CODEX_WRAP_TIMEOUT_SECS` legacy 環境覆寫在受控／測試呼叫時具有更高優先序。 |
 | `codex_deep_reasoner_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | `dhpk:codex-deep-reasoner` 專用 wrapper 預算。同一 scope 內優先於 shared 值；專案值優先於全域值。值格式錯誤時 fail closed，並在 SessionStart 回報。 |
-| `codex_bridge_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | `dhpk:codex-bridge` 專用 wrapper 預算；既有三參數 wrapper 呼叫形狀仍受支援。同一 scope 內優先於 shared 值；專案值優先於全域值。 |
+| `codex_bridge_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | `dhpk:dhpk-codex-bridge` 專用 wrapper 預算；既有三參數 wrapper 呼叫形狀仍受支援。同一 scope 內優先於 shared 值；專案值優先於全域值。 |
 | `agy_fast_worker_model` | string | `Gemini 3.6 Flash (High)` | `agy models` 列出的任何模型 | `dhpk:agy-fast-worker` 派發時傳給 agy CLI 後端的模型顯示字串。agy 將思考強度內建於模型名稱，故無獨立的 effort key。分層方式同上；預設值失效時覆寫（可用 `agy models` 查詢）。 |
 | `architect_model` | string | `fable` | 執行中的 Claude Code 支援的模型層級 | `dhpk:architect` Agent-call 派發的模型層級；逐次呼叫套用，不修改 frontmatter；HIGH-risk 架構決策仍可向上升級。 |
 | `architect_effort` | string | `low` | `low` \| `medium` \| `high` \| `xhigh` \| `max` | `dhpk:architect` Agent-call 派發的推理強度；逐次呼叫套用，不修改 frontmatter。 |
@@ -73,7 +73,7 @@ Codex timeout 值會在 wrapper 選取 `timeout`/`gtimeout` 前驗證為無號�
 
 ## Codex MCP 依賴（並非 `userConfig` 旋鈕）
 
-`orchestration_dispatch` 的 `CODEX=on` peer 路徑、**5 個 MCP-backed `codex-*` skill**（`codex-architect`、`codex-brainstorm`、`codex-code-review`、`codex-explain`、`codex-implement`），以及 **7 個 `/dhpk:codex-*` 指令**（`codex-review`、`-review-branch`、`-review-doc`、`-review-fast`、`-security`、`-test-gen`、`-test-review`），都需要 `mcp__codex__codex` / `mcp__codex__codex-reply` 工具。（`codex-cli-review` 是唯一例外——它透過 `Bash` shell out 到 `codex` CLI 執行檔，不需 MCP server。）dhpk 本身**不**內附或設定這些工具，也沒有任何 dhpk 的 `userConfig` key 控制它們：它們來自**直接註冊** Codex CLI 自身的 `codex mcp-server` 子指令為 MCP server——**並非**來自安裝 `openai/codex-plugin-cc`（那是另一個獨立、選用的 surface，見下方對照說明）。
+`orchestration_dispatch` 的 `CODEX=on` peer 路徑、**4 個 MCP-backed `dhpk-codex-*` skill**（`dhpk-codex-architect`、`dhpk-codex-brainstorm`、`dhpk-codex-implement`、`dhpk-change-review`），以及 **7 個 `/dhpk:codex-*` 指令**（`codex-review`、`-review-branch`、`-review-doc`、`-review-fast`、`-security`、`-test-gen`、`-test-review`），都需要 `mcp__codex__codex` / `mcp__codex__codex-reply` 工具。可選的 CLI backend 是 `dhpk-change-review/scripts/review.sh --backend cli`，不需 MCP server。dhpk 本身**不**內附或設定這些工具，也沒有任何 dhpk 的 `userConfig` key 控制它們：它們來自**直接註冊** Codex CLI 自身的 `codex mcp-server` 子指令為 MCP server——**並非**來自安裝 `openai/codex-plugin-cc`（那是另一個獨立、選用的 surface，見下方對照說明）。
 
 ### Codex MCP server 的運作原理
 
@@ -135,8 +135,8 @@ claude mcp list
 
 | Key | 型別 | 預設值 | 選項 | 用途 |
 |-----|------|--------|------|------|
-| `docker_containers` | string[] | `[]` | container 名稱 | SessionStart 時檢查的 container 名稱。空陣列停用該檢查。第一筆輸出為 `DHPK_PHP_CONTAINER`；第二筆為 `DHPK_MYSQL_CONTAINER`。 |
-| `modules` | string[] | `[]` | 27 個內附模組之一——完整清單見 [`docs/basic-operations.zh-TW.md`](./basic-operations.zh-TW.md) 或 `manifests/module-catalog.json` | 要啟用的技術棧模組。同一軸線（php / laravel / phpunit）為加法式——橫跨 Laravel 6–11 的函式庫應啟用每個版本以取得累積指引。啟用 `js` 會掛上 ESLint post-edit hook + pre-commit lint/typecheck gate；`php-7.4` 掛上 php-cs-fixer + pre-commit lint/phpstan/psalm；`python` 掛上 post-edit ruff hook（Stop 批次執行）+ pre-commit ruff-check/ruff-format/型別檢查 gate（專案根目錄以向上尋找 `pyproject.toml` 自動偵測）；`fastapi` / `pytest` 僅為 skills+references（各自 `requires: python`）；`library-author` 掛上第六色 `polyfill-reviewer` sentinel；`xcode-tooling` 掛上 SwiftLint + pre-commit xcodebuild/SPM build+test（執行檔不存在時自動跳過）；`swift` / `swiftui` / `ios-platform` / `swift-testing` 僅為 skills+references。模組的 `requires:` 在 SessionStart 驗證（僅警告、不阻擋）。**優先序**：專案的 `.claude/settings.local.json` `pluginConfigs.dhpk@dhpk.options.modules` 會覆寫全域值。 |
+| `docker_containers` | string[] | `[]` | container 名稱 | 保留給明確註冊的 Docker tooling；預設 SessionStart 不會檢查 container 或輸出 container 變數。 |
+| `modules` | string[] | `[]` | 任一內附模組 | 啟用技術棧模組。SessionStart 驗證 `requires:` 並回報啟用模組；模組選擇會影響 sentinel routing 與合併 Bash/pre-commit gate。post-edit lint/format/Stop 工作不在預設 lifecycle 中。 |
 
 ## Review 觸發與風險啟發式
 
@@ -157,19 +157,19 @@ claude mcp list
 
 | Key | 型別 | 預設值 | Env 覆寫 | 用途 |
 |-----|------|--------|----------|------|
-| `skill_hint_enabled` | boolean | `true` | `DHPK_DISABLE_SKILL_HINT=1` | UserPromptSubmit hook 印出一行 route-table skill 建議（例如「bug」→ `/dhpk:bug-fix`）。 |
-| `learning_db_enabled` | boolean | `false` | `DHPK_LEARNING_DB=1/0` | 將作業訊號（reviewer 通過、subagent 失敗、異常停止）附加到 `.claude/artifacts/learning.jsonl`；SessionStart 以 `[learned-context]` 區塊呈現最常見的訊號（最多 5 行）。信心值隨時間衰減；日誌超過 50MB 自動輪替。 |
-| `graduation_scan_enabled` | boolean | `false` | `DHPK_GRADUATION_SCAN=1/0` | Stop hook 掃描 session transcript 中被引用的 auto-memory 條目，追蹤跨 session 次數與信心值，並重新產生 `.claude/artifacts/graduation-candidates.md`。24 小時／3 個不同日期內被引用 ≥3 次且無 trap 重現的條目會被提案升階為 rule/skill。需要 `python3`。 |
-| `completion_evidence_enabled` | boolean | `false` | `DHPK_COMPLETION_EVIDENCE=1/0` | assistant 宣稱完成、但工作目錄有 code 變更卻無對應 test 變更時的 Stop advisory 警告（純 doc／harness 變更豁免；有 active sentinel 時讓位）。僅為建議、絕不阻擋 Stop。 |
-| `agent_warmstart_enabled` | boolean | `false` | `DHPK_AGENT_WARMSTART=1/0` | PreToolUse（`Task`\|`Agent`）hook，將 parent session context（active sentinels + reviewer slots、當前 OpenSpec change + tasks、`.claude/warmstart-context.md`、tool-routing 提醒；≤2000 字元）注入 subagent prompt。每次 subagent 產生都會消耗 token。 |
-| `reap_stale_mcp_processes` | boolean | `false` | — | 設 `true` 時，SessionStart 只 reap **孤兒** `gitnexus mcp` process（parent session 已死／reparent 到 init）——絕不殺仍被平行 live session 持有的 process。僅 gitnexus MCP 使用者需要。 |
-| `harness_restore_hint` | string | `""` | — | SessionStart 斷鏈 symlink advisory 印出的還原指令（適用以 symlink 從另一 repo 部署 harness 的專案）。留空則只印 WARN、不印提示行。 |
+| `skill_hint_enabled` | boolean | `true` | `DHPK_DISABLE_SKILL_HINT=1` | 保留給明確註冊的 UserPromptSubmit hint；預設 hook 不會使用。 |
+| `learning_db_enabled` | boolean | `false` | `DHPK_LEARNING_DB=1/0` | 保留給明確註冊的 learning observation/presentation；預設 SessionStart 不會注入 learned context。 |
+| `graduation_scan_enabled` | boolean | `false` | `DHPK_GRADUATION_SCAN=1/0` | 保留給明確註冊的 Stop advisory；預設 Stop hook 不會使用。 |
+| `completion_evidence_enabled` | boolean | `false` | `DHPK_COMPLETION_EVIDENCE=1/0` | 保留給明確註冊的 Stop advisory；預設 Stop hook 不會使用。 |
+| `agent_warmstart_enabled` | boolean | `false` | `DHPK_AGENT_WARMSTART=1/0` | 保留給明確註冊的 `Task`/`Agent` prompt injection；預設 lifecycle 不會使用。 |
+| `reap_stale_mcp_processes` | boolean | `false` | — | 保留給明確註冊的 SessionEnd/process tooling；預設 SessionStart 不會 reap process。 |
+| `harness_restore_hint` | string | `""` | — | 保留給明確註冊的 symlink-health advice；預設 SessionStart 不會輸出它。 |
 
 ## Manifest／lockfile 同步
 
 | Key | 型別 | 預設值 | 選項 | 用途 |
 |-----|------|--------|------|------|
-| `lockfile_sync_commands` | string[] | `[]` | `<manifest>:<command>`，指令不可含逗號 | async PostToolUse manifest-guard 提醒使用的各 manifest lock-sync 指令，例如 `composer.json:docker exec -i my_php composer update --lock`。未列出的 manifest 退回通用預設（`composer update --lock` / `npm install` / `bundle install` / `cargo build` / `poetry lock`）。 |
+| `lockfile_sync_commands` | string[] | `[]` | `<manifest>:<command>`，指令不可含逗號 | 保留給明確註冊的 manifest/lockfile advisory tooling；預設 PostToolUse 只做 review sentinel routing。 |
 
 ## `js` 模組
 
@@ -188,7 +188,7 @@ claude mcp list
 |-----|------|--------|------|------|
 | `python_project_roots` | string[] | `[]` | 子目錄路徑，例如 `backend` | python 模組 hook 應該 lint 的、含 `pyproject.toml` 的子目錄。預設留空——hook 會從編輯的檔案向上尋找最近的 `pyproject.toml`（已能處理 monorepo 後端）。僅在需要**限制** lint 範圍到特定子樹時才設定此值。 |
 | `python_runner` | string | `"uv run"` | 例如 `"poetry run"`、`""` | 在專案環境內呼叫 ruff / pyright / mypy 的指令前綴。`""` 代表直接以 PATH 上的工具執行（已啟用的 venv）。runner 執行檔不存在時退回 bare PATH 工具，若那也不存在則自動跳過。 |
-| `ruff_bin` | string | `"ruff"` | — | post-edit lint hook、Stop 批次檢查、pre-commit 驗證所呼叫的 ruff 執行檔。 |
+| `ruff_bin` | string | `"ruff"` | — | 由明確註冊的 lint workflow 與適用的 pre-commit 驗證呼叫的 ruff 執行檔。 |
 | `python_typechecker` | string | `"pyright"` | `pyright` \| `mypy` \| `none` | pre-commit gate 對已 staged 的 `.py` 檔案執行的型別檢查器。`none` 完全跳過型別檢查。 |
 | `pyright_bin` | string | `"pyright"` | — | `python_typechecker=pyright` 時使用的 pyright 執行檔。 |
 | `mypy_bin` | string | `"mypy"` | — | `python_typechecker=mypy` 時使用的 mypy 執行檔。 |
@@ -197,8 +197,8 @@ claude mcp list
 
 | Key | 型別 | 預設值 | 用途 |
 |-----|------|--------|------|
-| `php_bin` | string | `"php"` | `php-5.6` 模組 async `php -l` post-edit 語法檢查使用的 PHP 執行檔／wrapper，例如 `docker exec -i my_php php`。第一個 word 不在 PATH 時自動跳過。 |
-| `php_cs_fixer_bin` | string | `"vendor/bin/php-cs-fixer"` | `php-7.4` 模組 post-edit php-cs-fixer hook 與 pre-commit gate 使用的執行檔。 |
+| `php_bin` | string | `"php"` | 由明確註冊的 `php-5.6` 語法檢查 workflow 使用的 PHP 執行檔／wrapper，例如 `docker exec -i my_php php`。第一個 word 不在 PATH 時自動跳過。 |
+| `php_cs_fixer_bin` | string | `"vendor/bin/php-cs-fixer"` | 由明確註冊的 `php-7.4` formatter workflow 與其適用 pre-commit gate 使用的執行檔。 |
 | `phpstan_bin` | string | `"vendor/bin/phpstan"` | `php-7.4` 模組 pre-commit gate 使用的 PHPStan 執行檔；僅在 `phpstan.neon[.dist]` 存在時呼叫。 |
 | `psalm_bin` | string | `"vendor/bin/psalm"` | `php-7.4` 模組 pre-commit gate 使用的 Psalm 執行檔；僅在 `psalm.xml[.dist]` 存在時呼叫。 |
 
@@ -206,7 +206,7 @@ claude mcp list
 
 | Key | 型別 | 預設值 | 選項 | 用途 |
 |-----|------|--------|------|------|
-| `swiftlint_bin` | string | `"swiftlint"` | — | `xcode-tooling` post-edit SwiftLint hook 使用的執行檔。不存在時自動跳過。 |
+| `swiftlint_bin` | string | `"swiftlint"` | — | 明確註冊的 `xcode-tooling` SwiftLint workflow 使用的執行檔。不存在時自動跳過。 |
 | `xcode_scheme` | string | `""` | scheme 名稱，例如 `babylon` | `xcode-tooling` pre-commit build gate 使用的 scheme。留空則完全跳過 gate（不猜測 scheme）。 |
 | `xcode_destination` | string | `""` | 例如 `platform=iOS Simulator,name=iPhone 17` | pre-commit gate *測試*步驟使用的 `-destination`。*build* 步驟一律使用不含裝置名稱的 generic destination，因此永遠不會過期。留空則自動挑選第一個可用模擬器。 |
 | `swift_build_skip_tests` | boolean | `false` | — | 設 `true` 時，Swift pre-commit gate 只 build、不跑測試（無 `xcodebuild test` / `swift test`）。 |

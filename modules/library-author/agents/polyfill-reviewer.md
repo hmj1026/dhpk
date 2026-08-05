@@ -72,7 +72,7 @@ The sentinel file contains one line per edited file:
 ## What this reviewer does NOT do
 
 - Does not deep-dive single guards across all files (that's
-  `/dhpk:polyfill-version-matrix-audit` — manual invoke).
+  `/dhpk:dhpk-polyfill-version-matrix-audit` — manual invoke).
 - Does not assess diff blast-radius across all 13 matrix cells (that's
   `version-matrix-impact-reviewer` agent).
 - Does not run tests. Only reads code + git log + composer/workflow YAML.
@@ -96,7 +96,7 @@ This file retains the version-guard branch and matrix-cell checks unique to
 |---------|-------|
 | Diff touches SQL / schema | `database-reviewer` (different sentinel) |
 | Diff touches auth / crypto | `security-reviewer` (different sentinel) |
-| Need deep audit of one guard | suggest manual `/dhpk:polyfill-version-matrix-audit` |
+| Need deep audit of one guard | suggest manual `/dhpk:dhpk-polyfill-version-matrix-audit` |
 | Need cross-cell blast-radius | suggest `version-matrix-impact-reviewer` agent |
 
 ## Output
@@ -128,4 +128,4 @@ confirmations.
 
 ## Closing — Artifact Output (MUST)
 
-Category: `reviews/`. Frontmatter/retention/degradation: reviewer-family shape (APPROVE/WARNING/BLOCK) in `docs/contracts/artifact-contract.md`, plus this agent's own `guards_reviewed: <N>` field. Sentinel clearance is owned by `subagent-stop-verify.sh`: a successful stop with a fresh matching artifact clears `.pending-polyfill-review` regardless of verdict parseability; unresolved-verdict and quality enforcement handle malformed verdicts. This reviewer's job ends at writing the artifact.
+Category: `reviews/`. Frontmatter/retention/degradation: reviewer-family shape (APPROVE/WARNING/BLOCK) in `docs/contracts/artifact-contract.md`, plus this agent's own `guards_reviewed: <N>` field. Sentinel clearance is hook-owned: only a fresh canonical artifact with leading delimited frontmatter and required reviewer fields plus `APPROVE` or `PASS` clears `.pending-polyfill-review`; warning, fail, or malformed evidence leaves it armed. This reviewer's job ends at writing the artifact.

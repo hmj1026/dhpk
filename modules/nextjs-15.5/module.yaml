@@ -20,5 +20,5 @@ triggers:
     extensions: [".jsx", ".tsx"]
     paths: [app/, pages/, src/, components/, lib/, hooks/, styles/]
 provides:
-  skills: [nextjs-15-5-notes]
+  skills: [dhpk-nextjs-15-5-notes]
   references: []

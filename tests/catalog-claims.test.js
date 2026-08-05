@@ -51,7 +51,7 @@ const DRIFTS = [
   { file: 'README.md', find: /(\d+)(\s+opt-in stack modules)/, label: 'modules' },
   { file: 'README.md', find: /(\d+)(-slot)/, label: 'sentinel slots' },
   { file: 'README.zh-TW.md', find: /(\d+)(\s*個角色導向 agent)/, label: 'ZH total agents' },
-  { file: 'rules/execution-policy.md', find: /(\d+)(-slot)/, label: 'sentinel slots (execution-policy)' },
+  { file: 'rules/execution-policy.md', find: /(\d+)(-slot default sentinel)/, label: 'sentinel slots (execution-policy)' },
   { file: 'agents/INDEX.md', find: /(\d+)(-slot)/, label: 'sentinel slots (INDEX)' },
   { file: 'README.md', find: /(\d+)(\s+MCP-backed `codex-\*` skills)/, label: 'MCP-backed codex skills (EN)' },
   { file: 'README.md', find: /(\d+)(\s+`\/dhpk:codex-\*` commands)/, label: 'codex commands (EN)' },

@@ -18,8 +18,8 @@ desired generic TDD reference through `SKILL.md`, `tests.md`, and `mocking.md`.
 ## Goals
 
 - Ship the external TDD guidance as a discoverable dhpk skill.
-- Keep one canonical skill under `skills/tdd/` and expose the same package to
-  Codex through `codex/skills/tdd`.
+- Keep one canonical skill under `skills/dhpk-tdd-workflow/` and expose the same package to
+  Codex through `codex/skills/dhpk-tdd-workflow`.
 - Preload the skill for `tdd-guide`, `fast-worker`, `codex-fast-worker`, and
   `agy-fast-worker`.
 - Preserve role boundaries: `tdd-guide` owns RED/seam decisions; fast workers
@@ -38,7 +38,7 @@ desired generic TDD reference through `SKILL.md`, `tests.md`, and `mocking.md`.
 
 ### Skill package
 
-Create `skills/tdd/` with:
+Create `skills/dhpk-tdd-workflow/` with:
 
 - `SKILL.md`: concise, framework-agnostic RED/GREEN/REFACTOR guidance plus
   dhpk's two operating modes.
@@ -62,7 +62,7 @@ replace the `tdd-guide` dispatch requirement.
 
 ### Dual-track exposure
 
-Add `codex/skills/tdd` as an in-repo symlink to the canonical package. The
+Add `codex/skills/dhpk-tdd-workflow` as an in-repo symlink to the canonical package. The
 Codex agent generator is rerun so the generated `tdd-guide` role remains in sync
 with its source instructions. No separate Codex-only TDD fork is introduced.
 
@@ -75,8 +75,8 @@ manual navigation surface matches the manifest-discovered skill.
 
 Run the following after implementation:
 
-1. `quick_validate.py skills/tdd` for frontmatter and naming.
-2. `node skills/skill-health-check/scripts/skill-lint.js --skills-dir skills`
+1. `quick_validate.py skills/dhpk-tdd-workflow` for frontmatter and naming.
+2. `node skills/dhpk-skill-health-audit/scripts/skill-lint.js --skills-dir skills`
    and fix all new TDD P0/P1 findings.
 3. `node scripts/gen-codex-agents.js` and verify the generated Codex role.
 4. `node scripts/ci/validate-plugin.js` and

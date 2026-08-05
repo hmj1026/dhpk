@@ -5,7 +5,7 @@ const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const SKILL_DIR = path.join(ROOT, 'skills', 'opsx-apply-goal');
+const SKILL_DIR = path.join(ROOT, 'skills', 'dhpk-opsx-apply-goal');
 
 // The skill was refactored into SKILL.md + references/*.md (progressive
 // disclosure). Package-level guardrail phrases assert the safety clauses exist
@@ -65,7 +65,7 @@ test('CODEX declaration is one line in the template; elaborations live in execut
     assert.ok(policy.includes(phrase), `execution-policy missing relocated CODEX phrase: ${phrase}`);
   }
   // the template no longer restates the proactive peer elaboration
-  assert.ok(!goalTemplates.includes('dhpk:codex-bridge independent review'),
+  assert.ok(!goalTemplates.includes('dhpk:dhpk-codex-bridge independent review'),
     'template must not restate the CODEX=on proactive peer elaboration');
 });
 
@@ -124,7 +124,7 @@ test('goal generator documents fast-worker override, task digest, and conditiona
 
 test('/dhpk:do carries fast-worker override through every implementation-class route', () => {
   const command = fs.readFileSync(path.join(ROOT, 'commands', 'do.md'), 'utf8');
-  for (const route of ['dhpk:adaptive-dev-workflow', 'dhpk:bug-fix', 'dhpk:feature-dev', 'dhpk:opsx-apply-goal']) {
+  for (const route of ['dhpk:dhpk-adaptive-dev-workflow', 'dhpk:dhpk-bug-fix', 'dhpk:dhpk-feature-dev', 'dhpk:dhpk-opsx-apply-goal']) {
     assert.ok(command.includes(route), `do command missing implementation route ${route}`);
   }
   assert.ok(command.includes('forward the invocation override to every implementation-class route'));
@@ -133,11 +133,11 @@ test('/dhpk:do carries fast-worker override through every implementation-class r
     'do command must preserve the actual override outside the cleaned query');
   assert.ok(command.includes('For implementation-class routes, also pass'),
     'do command must forward the value-bearing invocation context');
-  const adaptive = fs.readFileSync(path.join(ROOT, 'skills', 'adaptive-dev-workflow', 'SKILL.md'), 'utf8');
+  const adaptive = fs.readFileSync(path.join(ROOT, 'skills', 'dhpk-adaptive-dev-workflow', 'SKILL.md'), 'utf8');
   assert.ok(adaptive.includes('WORKER_OVERRIDE'));
   assert.ok(adaptive.includes('scripts/fast-worker-selector.js'));
   assert.ok(adaptive.includes('--backend "$WORKER_OVERRIDE"'));
-  for (const skillName of ['bug-fix', 'feature-dev']) {
+  for (const skillName of ['dhpk-bug-fix', 'dhpk-feature-dev']) {
     const downstream = fs.readFileSync(path.join(ROOT, 'skills', skillName, 'SKILL.md'), 'utf8');
     assert.ok(downstream.includes('§Implementation dispatch'), `${skillName} must cite dispatch SSOT`);
     assert.ok(!downstream.includes('--backend "$WORKER_OVERRIDE"'),

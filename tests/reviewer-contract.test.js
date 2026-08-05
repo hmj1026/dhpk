@@ -37,6 +37,9 @@ test('reviewer prompts reference the shared contract while retaining specialist 
 
 test('reviewer contract requires a single-run verdict', () => {
   assert.ok(contract.toLowerCase().includes('single-run verdict'), 'shared reviewer contract missing single-run verdict marker');
+  for (const token of ['canonical filename', 'delimited frontmatter', 'APPROVE or PASS', 'leaves the sentinel armed']) {
+    assert.ok(contract.includes(token), `shared reviewer contract missing strict-clear token: ${token}`);
+  }
   for (const [name, directory] of reviewers) {
     const text = fs.readFileSync(path.join(ROOT, directory, `${name}.md`), 'utf8');
     assert.ok(
@@ -48,11 +51,10 @@ test('reviewer contract requires a single-run verdict', () => {
       /(?:clear the sentinel|clear-sentinel\.sh)/i,
       `${name} still instructs the reviewer to clear its own sentinel`
     );
-    assert.doesNotMatch(
-      text,
-      /auto-clears[^\n]*fresh[^\n]*parseable verdict/i,
-      `${name} incorrectly makes parseable verdict a sentinel-clear prerequisite`
-    );
+    assert.match(text, /fresh canonical artifact[^\n]*delimited frontmatter[^\n]*(?:APPROVE|PASS)/i,
+      `${name} must describe the strict hook-owned sentinel-clear contract`);
+    assert.doesNotMatch(text, /regardless of verdict parseability/i,
+      `${name} must not allow malformed review evidence to clear a sentinel`);
   }
 });
 

@@ -53,7 +53,7 @@ test('tdd-guide forbids shared framework/vendor edits and requires explicit depe
 });
 
 test('opsx-load-context surfaces hard-rule escalations before routine resume notes', () => {
-  const text = read('skills/opsx-load-context/SKILL.md');
+  const text = read('skills/dhpk-opsx-load-context/SKILL.md');
   const hardRule = text.indexOf('.hard-rule-escalation.md');
   const resumeNote = text.indexOf('.resume-note.md');
   assert.ok(hardRule >= 0, 'missing hard-rule escalation check');
@@ -71,7 +71,7 @@ test('CLAUDE_PLUGIN_ROOT guardrail caveat has one SSOT home with pointers elsewh
   const SSOT = 'skills/dhpk-execution-policy/references/review-gate-mechanics.md';
   const pointers = [
     'rules/execution-policy.md',
-    'skills/execution-checklist/SKILL.md',
+    'skills/dhpk-execution-checklist/SKILL.md',
   ];
   const marker = '`${CLAUDE_PLUGIN_ROOT}` is a markdown-interpolation token';
   const endMarker = '`find / -iname`.';

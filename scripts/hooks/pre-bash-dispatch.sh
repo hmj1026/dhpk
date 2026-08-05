@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # pre-bash-dispatch.sh — PreToolUse (Bash) dispatcher.
 #
-# Runs the core pre-bash-guard.sh first (any non-zero exit aborts the bash
-# call). Then, if modules are active, runs their pre-bash-* and pre-commit-*
+# Runs the core security guard and Git/review-debt gate first (any non-zero exit
+# aborts the Bash call). Then, if modules are active, runs their pre-bash-* and pre-commit-*
 # hooks synchronously — these gates intentionally block the bash call when
 # they exit non-zero (e.g. JS lint failure blocking a commit).
 #
@@ -26,6 +26,13 @@ payload="$(dhpk_read_payload)"
 
 # Core guard — exit code bubbles up so dangerous-pattern blocks still work.
 printf '%s' "$payload" | bash "$PLUGIN_ROOT/scripts/hooks/pre-bash-guard.sh"
+rc=$?
+[ "$rc" -ne 0 ] && exit "$rc"
+
+# The former separate PreToolUse entry is deliberately composed here so Bash
+# has one lifecycle hook while preserving protected-branch and review-debt
+# enforcement.
+printf '%s' "$payload" | bash "$PLUGIN_ROOT/scripts/hooks/pretool-git-gate.sh"
 rc=$?
 [ "$rc" -ne 0 ] && exit "$rc"
 

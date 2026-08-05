@@ -60,7 +60,7 @@ sensitive.
 
 The two `docker` entries are for projects that run PHP / MySQL in
 containers (typical of legacy PHP 5.6 + Yii 1.1 stacks). Combine with
-the `docker_containers` userConfig to surface SessionStart status.
+an explicitly registered Docker workflow when they need container checks.
 
 ## JavaScript / Node projects
 
@@ -77,8 +77,8 @@ the `docker_containers` userConfig to surface SessionStart status.
 "Bash(playwright:*)"
 ```
 
-If the JS module is enabled, the post-edit and pre-commit hooks call
-`npx eslint` and `npm run <lint|typecheck>` — both are covered by the
+An explicitly registered JS lint workflow or applicable pre-commit gate may
+call `npx eslint` and `npm run <lint|typecheck>`; both are covered by the
 `npm:*` and `npx:*` entries above.
 
 ## Python projects

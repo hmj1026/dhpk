@@ -150,7 +150,7 @@ test('a goal script with an unresolved local require fails, naming the path', ()
   const tmp = makeTempRepo();
   try {
     writePluginJson(tmp, { version: '1.0.0' });
-    const dir = path.join(tmp, 'skills', 'opsx-apply-goal', 'scripts');
+    const dir = path.join(tmp, 'skills', 'dhpk-opsx-apply-goal', 'scripts');
     fs.mkdirSync(dir, { recursive: true });
     fs.mkdirSync(path.join(tmp, 'rules'), { recursive: true });
     fs.writeFileSync(path.join(tmp, 'rules', 'execution-policy.md'), '# policy\n');
@@ -167,7 +167,7 @@ test('a bare external require in a goal script fails unless allow-listed', () =>
   const tmp = makeTempRepo();
   try {
     writePluginJson(tmp, { version: '1.0.0' });
-    const dir = path.join(tmp, 'skills', 'opsx-apply-goal', 'scripts');
+    const dir = path.join(tmp, 'skills', 'dhpk-opsx-apply-goal', 'scripts');
     fs.mkdirSync(dir, { recursive: true });
     fs.mkdirSync(path.join(tmp, 'rules'), { recursive: true });
     fs.writeFileSync(path.join(tmp, 'rules', 'execution-policy.md'), '# policy\n');
@@ -185,7 +185,7 @@ test('missing execution-policy.md in the packaged layout fails when goal scripts
   const tmp = makeTempRepo();
   try {
     writePluginJson(tmp, { version: '1.0.0' });
-    const dir = path.join(tmp, 'skills', 'opsx-apply-goal', 'scripts');
+    const dir = path.join(tmp, 'skills', 'dhpk-opsx-apply-goal', 'scripts');
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(path.join(dir, 'ok.js'), "require('node:path');\n");
     const { status, out } = runValidator(tmp);
@@ -200,7 +200,7 @@ test('goal-script static require graph resolves transitively (real repo edge)', 
   const tmp = makeTempRepo();
   try {
     writePluginJson(tmp, { version: '1.0.0' });
-    const dir = path.join(tmp, 'skills', 'opsx-apply-goal', 'scripts');
+    const dir = path.join(tmp, 'skills', 'dhpk-opsx-apply-goal', 'scripts');
     fs.mkdirSync(dir, { recursive: true });
     fs.mkdirSync(path.join(tmp, 'rules'), { recursive: true });
     fs.writeFileSync(path.join(tmp, 'rules', 'execution-policy.md'), '# policy\n');
@@ -218,20 +218,20 @@ test('shell source and node-invocation edges in goal scripts are resolved', () =
   const tmp = makeTempRepo();
   try {
     writePluginJson(tmp, { version: '1.0.0' });
-    const dir = path.join(tmp, 'skills', 'opsx-apply-goal', 'scripts');
+    const dir = path.join(tmp, 'skills', 'dhpk-opsx-apply-goal', 'scripts');
     fs.mkdirSync(dir, { recursive: true });
     fs.mkdirSync(path.join(tmp, 'rules'), { recursive: true });
     fs.writeFileSync(path.join(tmp, 'rules', 'execution-policy.md'), '# policy\n');
     fs.writeFileSync(path.join(dir, 'runner.sh'), [
       '#!/usr/bin/env bash',
       'source ./ghost-lib.sh',
-      'node "${CLAUDE_PLUGIN_ROOT:-$ROOT}/skills/opsx-apply-goal/scripts/ghost-entry.js"',
+      'node "${CLAUDE_PLUGIN_ROOT:-$ROOT}/skills/dhpk-opsx-apply-goal/scripts/ghost-entry.js"',
       '',
     ].join('\n'));
     const { status, out } = runValidator(tmp);
     assert.strictEqual(status, 1);
     assert.match(out, /runner\.sh — unresolved shell source '\.\/ghost-lib\.sh'/);
-    assert.match(out, /runner\.sh — unresolved node invocation path 'skills\/opsx-apply-goal\/scripts\/ghost-entry\.js'/);
+    assert.match(out, /runner\.sh — unresolved node invocation path 'skills\/dhpk-opsx-apply-goal\/scripts\/ghost-entry\.js'/);
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
@@ -241,7 +241,7 @@ test('dynamic shell source paths fail unless explicitly allow-listed', () => {
   const tmp = makeTempRepo();
   try {
     writePluginJson(tmp, { version: '1.0.0' });
-    const dir = path.join(tmp, 'skills', 'opsx-apply-goal', 'scripts');
+    const dir = path.join(tmp, 'skills', 'dhpk-opsx-apply-goal', 'scripts');
     fs.mkdirSync(dir, { recursive: true });
     fs.mkdirSync(path.join(tmp, 'rules'), { recursive: true });
     fs.writeFileSync(path.join(tmp, 'rules', 'execution-policy.md'), '# policy\n');
@@ -258,8 +258,8 @@ test('shell source graph resolves transitively', () => {
   const tmp = makeTempRepo();
   try {
     writePluginJson(tmp, { version: '1.0.0' });
-    const dir = path.join(tmp, 'skills', 'opsx-apply-goal', 'scripts');
-    const common = path.join(tmp, 'skills', 'opsx-apply-goal', 'common');
+    const dir = path.join(tmp, 'skills', 'dhpk-opsx-apply-goal', 'scripts');
+    const common = path.join(tmp, 'skills', 'dhpk-opsx-apply-goal', 'common');
     fs.mkdirSync(dir, { recursive: true });
     fs.mkdirSync(common, { recursive: true });
     fs.mkdirSync(path.join(tmp, 'rules'), { recursive: true });
@@ -278,7 +278,7 @@ test('absolute dependencies outside the packaged layout fail validation', () => 
   const tmp = makeTempRepo();
   try {
     writePluginJson(tmp, { version: '1.0.0' });
-    const dir = path.join(tmp, 'skills', 'opsx-apply-goal', 'scripts');
+    const dir = path.join(tmp, 'skills', 'dhpk-opsx-apply-goal', 'scripts');
     fs.mkdirSync(dir, { recursive: true });
     fs.mkdirSync(path.join(tmp, 'rules'), { recursive: true });
     fs.writeFileSync(path.join(tmp, 'rules', 'execution-policy.md'), '# policy\n');
@@ -297,7 +297,7 @@ test('concatenated require expressions are rejected as dynamic paths', () => {
   const tmp = makeTempRepo();
   try {
     writePluginJson(tmp, { version: '1.0.0' });
-    const dir = path.join(tmp, 'skills', 'opsx-apply-goal', 'scripts');
+    const dir = path.join(tmp, 'skills', 'dhpk-opsx-apply-goal', 'scripts');
     fs.mkdirSync(dir, { recursive: true });
     fs.mkdirSync(path.join(tmp, 'rules'), { recursive: true });
     fs.writeFileSync(path.join(tmp, 'rules', 'execution-policy.md'), '# policy\n');
@@ -314,7 +314,7 @@ test('single-quoted static shell source resolves successfully', () => {
   const tmp = makeTempRepo();
   try {
     writePluginJson(tmp, { version: '1.0.0' });
-    const dir = path.join(tmp, 'skills', 'opsx-apply-goal', 'scripts');
+    const dir = path.join(tmp, 'skills', 'dhpk-opsx-apply-goal', 'scripts');
     fs.mkdirSync(dir, { recursive: true });
     fs.mkdirSync(path.join(tmp, 'rules'), { recursive: true });
     fs.writeFileSync(path.join(tmp, 'rules', 'execution-policy.md'), '# policy\n');

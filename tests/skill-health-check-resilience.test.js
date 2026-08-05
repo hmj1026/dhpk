@@ -7,7 +7,7 @@ const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const SCRIPT = path.join(ROOT, 'skills', 'skill-health-check', 'scripts', 'skill-lint.js');
+const SCRIPT = path.join(ROOT, 'skills', 'dhpk-skill-health-audit', 'scripts', 'skill-lint.js');
 
 function write(file, content) {
   fs.mkdirSync(path.dirname(file), { recursive: true });

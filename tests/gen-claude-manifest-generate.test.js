@@ -22,7 +22,7 @@ function inventoryWith(skills) {
 
 test('promoted-core root skill stays registered under ./skills/', () => {
   const inv = inventoryWith([
-    { id: 'tdd', path: 'skills/tdd', lifecycle: 'promoted', surfaces: ['claude-core'] },
+    { id: 'tdd', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core'] },
   ]);
   const gen = generateClaudeSkillRoots(inv);
   assert.ok(gen.roots.includes('./skills/'));
@@ -31,7 +31,7 @@ test('promoted-core root skill stays registered under ./skills/', () => {
 
 test('optional module skill stays registered under its module root', () => {
   const inv = inventoryWith([
-    { id: 'vue-2-notes', path: 'modules/vue-2/skills/vue-2-notes', lifecycle: 'optional', surfaces: ['claude-module'] },
+    { id: 'vue-2-notes', path: 'modules/vue-2/skills/dhpk-vue-2-notes', lifecycle: 'optional', surfaces: ['claude-module'] },
   ]);
   const gen = generateClaudeSkillRoots(inv);
   assert.ok(gen.roots.includes('./modules/vue-2/skills/'));
@@ -50,7 +50,7 @@ test('experimental skill still stays registered (host cannot hide at discovery t
 test('a deprecated skill is excluded from generatedSkillIds', () => {
   const inv = inventoryWith([
     { id: 'old-thing', path: 'skills/old-thing', lifecycle: 'deprecated', surfaces: ['claude-core'] },
-    { id: 'tdd', path: 'skills/tdd', lifecycle: 'promoted', surfaces: ['claude-core'] },
+    { id: 'tdd', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core'] },
   ]);
   const gen = generateClaudeSkillRoots(inv);
   assert.ok(!gen.generatedSkillIds.includes('old-thing'));
@@ -59,7 +59,7 @@ test('a deprecated skill is excluded from generatedSkillIds', () => {
 
 test('a module root drops out only when every one of its skills is deprecated', () => {
   const inv = inventoryWith([
-    { id: 'vue-2-notes', path: 'modules/vue-2/skills/vue-2-notes', lifecycle: 'deprecated', surfaces: ['claude-module'] },
+    { id: 'vue-2-notes', path: 'modules/vue-2/skills/dhpk-vue-2-notes', lifecycle: 'deprecated', surfaces: ['claude-module'] },
   ]);
   const gen = generateClaudeSkillRoots(inv);
   assert.ok(!gen.roots.includes('./modules/vue-2/skills/'));

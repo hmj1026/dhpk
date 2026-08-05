@@ -20,7 +20,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { classifyCanonicalInventory, serializeInventory } = require('../lib/distribution-inventory');
+const { classifyCanonicalInventory, refreshSupportingDigests, serializeInventory } = require('../lib/distribution-inventory');
 
 const ROOT = path.join(__dirname, '..', '..');
 const OUT = path.join(ROOT, 'manifests', 'distribution-inventory.json');
@@ -30,7 +30,15 @@ function loadExisting() {
 }
 
 const args = process.argv.slice(2);
-if (args.includes('--write')) {
+if (args.includes('--refresh-supporting-digests')) {
+  const existing = loadExisting();
+  if (!existing) {
+    console.error('gen-distribution-inventory: no checked-in inventory to refresh');
+    process.exit(2);
+  }
+  fs.writeFileSync(OUT, serializeInventory(refreshSupportingDigests(existing, ROOT)));
+  console.log('gen-distribution-inventory: refreshed transformed supporting-asset provenance.');
+} else if (args.includes('--write')) {
   const generated = classifyCanonicalInventory(ROOT);
   fs.writeFileSync(OUT, serializeInventory(generated));
   console.log(`gen-distribution-inventory --write: wrote ${generated.skills.length} skills + ${generated.modules.length} modules.`);

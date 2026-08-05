@@ -65,7 +65,7 @@ function collectInventory(root) {
     (filePath) => filePath.endsWith('.md') && !filePath.endsWith('INDEX.md'));
   const moduleDirs = listDirectories(path.join(repoRoot, 'modules'));
   const codexSkillDirs = listDirectories(path.join(repoRoot, 'skills'))
-    .filter((dir) => /^codex-/.test(path.basename(dir)));
+    .filter((dir) => /^(?:dhpk-codex-|dhpk-change-review$)/.test(path.basename(dir)));
   const mcpCodexSkills = codexSkillDirs.filter((dir) => {
     const skill = path.join(dir, 'SKILL.md');
     return fs.existsSync(skill) && fs.readFileSync(skill, 'utf8').includes('mcp__codex__');

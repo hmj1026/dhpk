@@ -1,12 +1,24 @@
 # dhpk Codex dual-track
 
+> **Languages**: **English** · [繁體中文](./README.zh-TW.md)
+
 Claude Code **does not** load anything under this `codex/` directory. The content here mirrors the plugin's Claude-side skills and agents in Codex CLI format, so projects using both Claude Code and the Codex CLI can keep their assistant configurations in sync without maintaining a separate repo.
 
-> **Layout note**: all non-module entries under `codex/skills/` are in-repo symlinks to `../../skills/<name>/`. Only the four documented module-skill mirrors are physical directories. See `AGENTS.md` for the canonical mapping and maintenance rule.
+> **Layout note**: every entry under `codex/skills/` is an in-repo relative
+> symlink to its flat canonical package at `../../skills/<dhpk-name>/`. There
+> are no physical skill copies in this projection; the separate
+> `plugins/dhpk/` tree is the tracked native-package surface. See `AGENTS.md`
+> for the canonical mapping and maintenance rule.
 
 ## Sync into a project
 
 From the project root:
+
+`CLAUDE_PLUGIN_ROOT` is available in Claude Code's plugin-runtime shell. In an
+ordinary terminal, invoke the same script from a persistent checkout, for
+example set `DHPK_ROOT=/absolute/path/to/dhpk` and run
+`bash "$DHPK_ROOT/scripts/hooks/install-codex-skills.sh"`. Do not rely on an
+ephemeral marketplace-cache path.
 
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"
@@ -27,7 +39,9 @@ By default the script creates **symlinks** from `<project>/.codex/{skills,agents
 
 ### Idempotency
 
-The script writes `<project>/.codex/.dhpk-installed.json` with schema version 2, plugin version, source fingerprint, mode, and a managed-entry inventory for skills, agents, and supporting assets. Supporting assets are declared in `manifests/distribution-inventory.json`, so generated agent references resolve inside a clean `.codex/` projection without Claude-only plugin-root paths. Each entry records its source identity, fingerprints, and ownership marker. Every mutating run prints deterministic created, updated, preserved, collision, pruned, and orphaned counts without absolute private paths. A legacy receipt without `managed_entries` fails closed for same-name collisions until `--migrate` is requested.
+The ownership record is a schema-v3 receipt.
+
+The script writes `<project>/.codex/.dhpk-installed.json` with schema version 3, plugin version, source fingerprint, mode, and a managed-entry inventory for skills, agents, and supporting assets. Skill entries retain the stable inventory `id`, current public `name`, destination, content fingerprint, source, and mode. Supporting assets remain schema-compatible and are declared in `manifests/distribution-inventory.json`, so generated agent references resolve inside a clean `.codex/` projection without Claude-only plugin-root paths. On `--update` or `--migrate`, receipt-owned unchanged legacy skill destinations are renamed to their public `dhpk-*` names; edited, unowned, third-party, retargeted, malformed, or ambiguous paths are preserved and reported as conflicts. Every mutating run prints deterministic created, updated, migrated, preserved, collision, pruned, and orphaned counts without absolute private paths. A legacy receipt without `managed_entries` fails closed for same-name collisions until `--migrate` is requested.
 
 ### `config.toml.example`
 
@@ -44,13 +58,11 @@ The script detects the version delta from `.dhpk-installed.json` and re-syncs ev
 
 Skill invocation is chat syntax, not a plugin-management command — `codex
 plugin list` / `codex plugin add` only install or report status; they never
-execute a skill. Every synced skill carries its own `$<skill-name>` trigger
-(baked into its `agents/openai.yaml` `default_prompt`), and this repo's
-generic namespace is `$dhpk:<skill-name>` when Codex resolves the skill
-through the dhpk plugin. Use the unprefixed `$<skill-name>` form only once
-you have verified the skill is exposed on a standalone local surface without
-a plugin namespace — do not infer that from `codex plugin list` showing dhpk
-as installed; confirm the skill actually resolves first.
+execute a skill. Every synced skill carries its unique `$dhpk-<name>` trigger
+(baked into its `agents/openai.yaml` `default_prompt`). Codex has no
+Claude-style slash-command namespace, so the `dhpk-` prefix is part of the
+public skill name itself. Do not write `$dhpk:<name>` or an unprefixed legacy
+name. Confirm that the specific `$dhpk-<name>` resolves.
 
 ## Agent roles
 
@@ -73,4 +85,4 @@ fallback policy in `AGENTS.md`; they are not dispatchable from Codex.
 
 ## Uninstall
 
-From the project root run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --uninstall --force`. The command removes only unchanged receipt-owned entries. Edited managed entries are marked orphaned and retained, and unrelated `.codex` content is never deleted. Do not remove the whole `.codex` directory when it contains project-owned assets.
+From the project root run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --uninstall`. The command removes only unchanged receipt-owned entries. Edited managed entries are marked orphaned and retained, and unrelated `.codex` content is never deleted. `--force` is unnecessary for uninstall and cannot force deletion; it only bypasses the normal project-root heuristic. Do not remove the whole `.codex` directory when it contains project-owned assets.

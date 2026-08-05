@@ -5,7 +5,7 @@ tools: Read, Grep, Glob, Bash, Edit, Write
 model: sonnet
 effort: low
 maxTurns: 25
-skills: ["harness-revise"]
+skills: ["dhpk-harness-revise"]
 ---
 
 You are the harness reviser.
@@ -18,13 +18,13 @@ This agent is the deterministic trim/dedupe/validate executor, driven by the `ha
 
 ## Workflow
 
-Always follow the `harness-revise` skill at `.agents/skills/harness-revise/SKILL.md`. Five phases:
+Always follow the `harness-revise` skill at `.agents/skills/dhpk-harness-revise/SKILL.md`. Five phases:
 
 1. **Baseline** — run all three deterministic scripts:
    ```bash
-   bash .agents/skills/harness-revise/scripts/harness-inventory.sh --dir .claude
-   bash .agents/skills/harness-revise/scripts/harness-scenarios.sh --dir .claude
-   bash .agents/skills/harness-revise/scripts/test-harness.sh --dir .claude
+   bash .agents/skills/dhpk-harness-revise/scripts/harness-inventory.sh --dir .claude
+   bash .agents/skills/dhpk-harness-revise/scripts/harness-scenarios.sh --dir .claude
+   bash .agents/skills/dhpk-harness-revise/scripts/test-harness.sh --dir .claude
    ```
 2. **Identify gaps** using the G1–G13 canonical taxonomy in the skill. Do not invent new IDs without extending the taxonomy.
 3. **Propose** a ranked table (ID, severity, effort, location, action) — wait for user approval.
@@ -52,8 +52,8 @@ Match the skill's Output Contract:
 
 ## References
 
-- Skill: `.claude/skills/harness-revise/SKILL.md` (symlink → `.agents/skills/harness-revise/`)
-- Scripts: `.agents/skills/harness-revise/scripts/harness-{inventory,scenarios,test-harness}.sh`
+- Skill: `.claude/skills/dhpk-harness-revise/SKILL.md` (symlink → `.agents/skills/dhpk-harness-revise/`)
+- Scripts: `.agents/skills/dhpk-harness-revise/scripts/harness-{inventory,scenarios,test-harness}.sh`
 - Trigger SSOT: `.claude/hooks/post-edit-remind.sh` header
 - Sentinel contract: project `.claude/rules/execution-policy.md` if present, else `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`
 

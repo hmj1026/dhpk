@@ -1,0 +1,6 @@
+interface:
+  display_name: "Repo Intake"
+  short_description: "Project initialization inventory (one-time)."
+  default_prompt: "Use $dhpk-repo-intake to apply the Repo Intake workflow with its verification rules."
+policy:
+  allow_implicit_invocation: false

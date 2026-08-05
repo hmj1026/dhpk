@@ -1,3 +1,9 @@
+> **Historical bootstrap snapshot.** Counts, names, paths, and hook wiring below
+> record the original design rather than the current runtime contract. Use
+> [`../../skill-platform-migration.md`](../../skill-platform-migration.md),
+> [`../../distribution-surfaces.md`](../../distribution-surfaces.md), and the
+> checked-in manifests for current behavior.
+
 ## Context
 
 Source: `~/projects/zdpos_dev/.claude/` (13 agents, 70 commands, 54 skills, 8 hooks, statusline, harness scripts) and `~/projects/zdpos_dev/.codex/` (Codex CLI mirror, 35-skill subset). Roughly 65% is generic; 35% is zdpos-specific (PHP/Yii knowledge, sentinel agent names with `-zdpos_dev` suffix, docker container names `pos_php`/`pos_mysql`, `ZDPOS_HOOK_PROFILE` env, hook path triggers like `protected/` / `infrastructure/`).
@@ -81,7 +87,7 @@ Plugin spec has no statusline component. `scripts/statusline/statusline.sh` ship
 
 ### D8 — Plugin rules don't auto-load → ship as skills
 
-Discovered after first plan: plugin manifest has no `rules` component. All former `rules/tool-routing.md` and `rules/dhpk-execution-policy.md` content moves into `skills/tool-routing/SKILL.md` and `skills/dhpk-execution-policy/SKILL.md`. Each has a long, trigger-keyword-rich `description:` so Claude auto-invokes when relevant. Detailed prose moves into `references/<topic>.md` referenced from SKILL.md body.
+Discovered after first plan: plugin manifest has no `rules` component. All former `rules/tool-routing.md` and `rules/dhpk-execution-policy.md` content moves into `skills/dhpk-tool-routing/SKILL.md` and `skills/dhpk-execution-policy/SKILL.md`. Each has a long, trigger-keyword-rich `description:` so Claude auto-invokes when relevant. Detailed prose moves into `references/<topic>.md` referenced from SKILL.md body.
 
 ### D9 — Modules are version-tagged (`<stack>-<version>`)
 

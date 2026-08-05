@@ -24,9 +24,9 @@ test('the prior inventory revision regenerates exactly the currently-committed p
   assert.deepStrictEqual([...priorGenerated.roots].sort(), [...plugin.skills].sort());
 });
 
-// Simulate a later change: deprecate fastapi's only skill (a single-skill
-// module — the one case where a whole root can drop, see
-// scripts/lib/distribution-inventory.js's generateClaudeSkillRoots comment).
+// Simulate a later change: deprecate fastapi's only skill. The v2 topology
+// registers one flat Claude root, so the root remains while the generated
+// promoted skill-id set drops the deprecated entry.
 const laterInventory = JSON.parse(JSON.stringify(priorInventory));
 const fastapiSkill = laterInventory.skills.find((s) => s.id === 'fastapi-pro');
 fastapiSkill.lifecycle = 'deprecated';
@@ -37,14 +37,14 @@ fastapiSkill.deprecation = {
 };
 const laterGenerated = generateClaudeSkillRoots(laterInventory);
 
-test('the later (deprecated) inventory revision drops the now-empty module root', () => {
-  assert.ok(priorGenerated.roots.includes('./modules/fastapi/skills/'));
-  assert.ok(!laterGenerated.roots.includes('./modules/fastapi/skills/'));
+test('the later (deprecated) inventory revision drops the skill from promotion without removing the flat root', () => {
+  assert.ok(priorGenerated.roots.includes('./skills/'));
+  assert.ok(laterGenerated.roots.includes('./skills/'));
   assert.ok(!laterGenerated.generatedSkillIds.includes('fastapi-pro'));
 });
 
 test('rollback: regenerating from the prior revision again reproduces the original root set, without any canonical source having been touched', () => {
-  const canonicalSourcePath = path.join(ROOT, 'modules', 'fastapi', 'skills', 'fastapi-pro', 'SKILL.md');
+  const canonicalSourcePath = path.join(ROOT, 'skills', 'dhpk-fastapi-pro', 'SKILL.md');
   // The canonical source was never deleted by generation in either direction —
   // only the (in-memory, test-local) inventory copy's lifecycle metadata
   // changed. Rollback never needs a restore step because nothing was removed.
@@ -52,7 +52,7 @@ test('rollback: regenerating from the prior revision again reproduces the origin
 
   const rolledBackGenerated = generateClaudeSkillRoots(priorInventory);
   assert.deepStrictEqual(rolledBackGenerated, priorGenerated);
-  assert.ok(rolledBackGenerated.roots.includes('./modules/fastapi/skills/'));
+  assert.ok(rolledBackGenerated.roots.includes('./skills/'));
 });
 
 run('distribution-rollback-proof');

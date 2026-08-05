@@ -150,7 +150,7 @@ elif ! command -v jq >/dev/null 2>&1; then
     warn "jq 不存在，無法校驗 route-table.json"
 else
     RT_TOTAL=0
-    DUP_WHITELIST="dhpk:adaptive-dev-workflow"  # workflow router: bug/feature/build variants route here by design
+    DUP_WHITELIST="dhpk:dhpk-adaptive-dev-workflow"  # workflow router: bug/feature/build variants route here by design
     while IFS=$'\t' read -r pattern skill label; do
         [[ -z "$skill" ]] && continue
         RT_TOTAL=$((RT_TOTAL+1))

@@ -20,5 +20,5 @@ triggers:
     extensions: [".jsx", ".tsx"]
     paths: [app/, pages/, src/, components/, lib/, hooks/, styles/]
 provides:
-  skills: [react-18-notes]
+  skills: [dhpk-react-18-notes]
   references: []

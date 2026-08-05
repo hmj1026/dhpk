@@ -4,7 +4,7 @@ const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const context = require(path.join(ROOT, 'skills', 'opsx-apply-goal', 'scripts', 'goal-context.js'));
+const context = require(path.join(ROOT, 'skills', 'dhpk-opsx-apply-goal', 'scripts', 'goal-context.js'));
 
 function withEnv(values, callback) {
   const keys = [...Object.keys(values), 'CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND', 'CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND_ORDER', 'CLAUDE_PLUGIN_OPTION_FAST_WORKER_FALLBACK', 'DHPK_CLAUDE_BACKEND_AVAILABLE'];

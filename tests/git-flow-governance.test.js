@@ -13,7 +13,7 @@ const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
 const releaseYml = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'release.yml'), 'utf8');
-const releaseRunner = fs.readFileSync(path.join(ROOT, 'skills', 'release-creator', 'scripts', 'release-runner.sh'), 'utf8');
+const releaseRunner = fs.readFileSync(path.join(ROOT, 'skills', 'dhpk-release-creator', 'scripts', 'release-runner.sh'), 'utf8');
 const prepareRelease = fs.readFileSync(path.join(ROOT, 'scripts', 'release', 'prepare-release.js'), 'utf8');
 const publishGate = fs.readFileSync(path.join(ROOT, 'scripts', 'release', 'publish-gate.js'), 'utf8');
 

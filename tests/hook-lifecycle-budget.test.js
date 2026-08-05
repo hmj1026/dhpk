@@ -36,14 +36,15 @@ test('unchanged pending state is debounced across Stop turns and state changes r
   }
 });
 
-test('hook lifecycle policy classifies gates and keeps quality advisory reviewer-scoped', () => {
+test('default lifecycle wiring keeps only deterministic guards, routing, activation, and reconciliation', () => {
   const policy = fs.readFileSync(path.join(ROOT, 'rules', 'execution-policy.md'), 'utf8');
   const hooks = fs.readFileSync(path.join(ROOT, 'hooks', 'hooks.json'), 'utf8');
-  for (const token of ['blocking safety gate', 'sentinel/liveness gate', 'lifecycle bookkeeping', 'opt-in advisory']) {
+  for (const token of ['blocking safety gate', 'sentinel/liveness gate', 'module activation only', 'opt-in advisory']) {
     assert.ok(policy.includes(token), `missing lifecycle class: ${token}`);
   }
-  assert.ok(policy.includes('subagent_quality_gate') && policy.includes('reviewer sentinels'));
-  assert.ok(hooks.includes('subagent-stop-quality.sh'));
+  assert.ok(policy.includes('parseable passing verdict') && policy.includes('7-slot default sentinel set'));
+  assert.ok(!hooks.includes('subagent-stop-quality.sh'));
+  assert.ok(!hooks.includes('stop-review-reminder.sh'));
 });
 
 test('unchanged pending state re-notifies after the configured backoff expires', () => {

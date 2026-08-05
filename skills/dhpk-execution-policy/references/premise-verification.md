@@ -4,7 +4,7 @@
 
 When a step uses a second AI or perspective, each side MUST form its own conclusion from the source. The secondary prompt carries only the question, project path, stack, artifact, and contract—not the first model's analysis, verdict, or theory. Avoid leading questions, scope pre-filtering, and reused threads; compare independent conclusions and report divergences.
 
-Violation creates false consensus that masks shared blind spots. This applies to codex review/implementation paths, multi-ai-sync, feature-verify, test-review, code-investigate, and issue-analyze.
+Violation creates false consensus that masks shared blind spots. This applies to codex review/implementation paths, multi-ai-sync, feature-verify, test-review, codebase exploration `--dual`, and issue-analyze.
 
 ## In-flight doubt cycle
 

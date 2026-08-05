@@ -27,45 +27,45 @@ entry (one whose flag enables broad mutation) implicit-eligible.
 
 | Skill | Rationale |
 |---|---|
-| `agy-commit` | Delegates actual `git commit` execution via agy-cli. |
-| `claude-health` | Includes plugin version sync / installed-asset sync — installation-adjacent. |
-| `continuous-learning-v2` | Evolves instincts into new skills/commands/agents — creates new distributed entries. |
-| `create-skill` | Creates new distributed skill packages. |
-| `git-smart-commit` | Groups and executes `git commit` across the working tree. |
-| `harness-fill` | Already explicit-only. One-shot bulk `.claude/` infrastructure generation (batch governance). |
-| `harness-revise` | Trims/rewrites the harness tree in bulk (batch governance); tools include `rm`, `chmod +x`. |
-| `multi-ai-sync` | Applies cross-platform (Codex/Gemini/Antigravity) sync mutations — broad orchestration across surfaces. |
-| `op-session` | Initializes a 1Password CLI session — credentials/session configuration. |
-| `opsx-apply-goal` | Generates an unattended OpenSpec-apply session — initiates a broad apply workflow. |
-| `project-setup` | First-time project setup / CLAUDE.md initialization. |
-| `release-creator` | Cuts a release (version bump, changelog, tag). |
-| `repo-intake` | Already explicit-only. One-time project onboarding/inventory (setup-adjacent). |
-| `rules-distill` | Writes/revises repo-wide policy rule files (batch governance). |
+| `dhpk-agy-commit` | Delegates actual `git commit` execution via agy-cli. |
+| `dhpk-claude-health` | Includes plugin version sync / installed-asset sync — installation-adjacent. |
+| `dhpk-continuous-learning-v2` | Evolves instincts into new skills/commands/agents — creates new distributed entries. |
+| `dhpk-create-skill` | Creates new distributed skill packages. |
+| `dhpk-git-smart-commit` | Groups and executes `git commit` across the working tree. |
+| `dhpk-harness-fill` | Already explicit-only. One-shot bulk `.claude/` infrastructure generation (batch governance). |
+| `dhpk-harness-revise` | Trims/rewrites the harness tree in bulk (batch governance); tools include `rm`, `chmod +x`. |
+| `dhpk-cross-agent-sync` | Applies cross-platform (Codex/Gemini/Antigravity) sync mutations — broad orchestration across surfaces. |
+| `dhpk-onepassword-session` | Initializes a 1Password CLI session — credentials/session configuration. |
+| `dhpk-opsx-apply-goal` | Generates an unattended OpenSpec-apply session — initiates a broad apply workflow. |
+| `dhpk-project-setup` | First-time project setup / CLAUDE.md initialization. |
+| `dhpk-release-creator` | Cuts a release (version bump, changelog, tag). |
+| `dhpk-repo-intake` | Already explicit-only. One-time project onboarding/inventory (setup-adjacent). |
+| `dhpk-rules-distill` | Writes/revises repo-wide policy rule files (batch governance). |
 
 ### implicit-eligible (54)
 
-All other root skills: `adaptive-dev-workflow`, `agent-architecture-audit`,
-`agy-fast-worker`, `bug-fix`, `bug-investigation`, `code-explore`,
-`code-investigate`, `codex-architect`, `codex-brainstorm`, `codex-bridge`,
-`codex-cli-review`, `codex-code-review`, `codex-explain`, `codex-implement`,
-`composer-package-hygiene`, `create-request`, `de-ai-flavor`, `deploy-list`,
-`dhpk-execution-policy`, `doc-review`, `execution-checklist`,
-`feasibility-study`, `feature-dev`, `feature-verify`, `git-investigate`,
-`gitnexus-cli`, `gitnexus-debugging`, `gitnexus-exploring`, `gitnexus-guide`,
-`gitnexus-impact-analysis`, `gitnexus-refactoring`, `harness-budget`,
-`issue-analyze`, `laravel-package-author`, `laravel-testbench-matrix`,
-`next-step`, `opsx-load-context`, `opsx-post-obs`,
-`polyfill-version-matrix-audit`, `post-dev-test`, `pr-review`,
-`project-audit`, `prompt-optimize`, `risk-assess`, `security-review`,
-`skill-health-check`, `skill-judge`, `skill-scout`, `skill-stocktake`,
-`software-architecture`, `tdd`, `tech-spec`, `test-review`, `tool-routing`.
+All other root skills: `dhpk-adaptive-dev-workflow`, `dhpk-agent-architecture-audit`,
+`dhpk-agy-fast-worker`, `dhpk-bug-fix`, `dhpk-root-cause-investigation`, `dhpk-codebase-exploration`,
+`dhpk-codex-architect`, `dhpk-codex-brainstorm`, `dhpk-codex-bridge`, `dhpk-change-review`,
+`dhpk-codex-implement`,
+`dhpk-composer-package-hygiene`, `dhpk-create-request`, `dhpk-de-ai-flavor`, `dhpk-deploy-list`,
+`dhpk-execution-policy`, `dhpk-doc-review`, `dhpk-execution-checklist`,
+`dhpk-feasibility-study`, `dhpk-feature-dev`, `dhpk-feature-verify`, `dhpk-git-history-investigation`,
+`dhpk-gitnexus-cli`, `dhpk-gitnexus-debugging`, `dhpk-gitnexus-exploring`, `dhpk-gitnexus-guide`,
+`dhpk-gitnexus-impact-analysis`, `dhpk-gitnexus-refactoring`, `dhpk-harness-budget`,
+`dhpk-issue-analyze`, `dhpk-laravel-package-author`, `dhpk-laravel-testbench-matrix`,
+`dhpk-next-step`, `dhpk-opsx-load-context`, `dhpk-opsx-post-observation`,
+`dhpk-polyfill-version-matrix-audit`, `dhpk-post-dev-test`, `dhpk-pr-review`,
+`dhpk-project-audit`, `dhpk-prompt-optimize`, `dhpk-risk-assess`, `dhpk-security-review`,
+`dhpk-skill-health-audit`, `dhpk-skill-quality-judge`, `dhpk-skill-scout`, `dhpk-skill-stocktake`,
+`dhpk-module-design`, `dhpk-tdd-workflow`, `dhpk-tech-spec`, `dhpk-test-review`, `dhpk-tool-routing`.
 
 Notes on close calls:
-- `codex-bridge` implements/reviews within an already-authorized task (like
+- `dhpk-codex-bridge` implements/reviews within an already-authorized task (like
   `fast-worker`); it does not itself decide to commit, release, or publish.
-- `deploy-list` only generates a checklist (deterministic-first, tool output
+- `dhpk-deploy-list` only generates a checklist (deterministic-first, tool output
   is immutable) — it does not execute a deploy.
-- `multi-ai-sync` is explicit-only despite its dry-run/approval gates, because
+- `dhpk-cross-agent-sync` is explicit-only despite its dry-run/approval gates, because
   maximum authority (the `apply` path) can mutate multiple external-surface
   configs — an internal confirmation gate does not lower the class.
 
@@ -74,22 +74,23 @@ Notes on close calls:
 All implicit-eligible: these are stack reference/guidance packages (language
 and framework "notes," lint/type-check strategy, test strategy) loaded to
 inform in-scope implementation or review. None can setup, install, commit,
-release, or write externally. This includes `matrix-cell-onboard` (a guided
+release, or write externally. This includes `dhpk-matrix-cell-onboard` (a guided
 checklist for CI-matrix cells — no elevated tools, editing stays within the
 already-authorized library-authoring request).
 
-## Commands (`commands/*.md`) — 45 entries
+## Commands (`commands/*.md`) — 44 entries
 
 Only `matrix-cell-onboard.md` names a canonical skill 1:1 (paired; inherits
-`implicit-eligible` from its skill). The remaining 44 are unpaired and own
+`implicit-eligible` from its skill). The remaining 43 are unpaired and own
 their class directly.
 
-### explicit-only (14)
+### explicit-only (23)
 
 | Command | Rationale |
 |---|---|
 | `create-pr` | Creates a GitHub PR (`gh pr create`). |
 | `create-release` | Cuts a release. |
+| `check-coverage`, `codex-review-branch`, `codex-review-doc`, `codex-review-fast`, `codex-security`, `codex-test-gen`, `codex-test-review`, `create-dev`, `precommit-fast`, `review-spec` | Compatibility aliases retain their explicit-only metadata; do not infer a lower class from their forwarding target. |
 | `do` | Top-level Smart Router; can reach any downstream workflow including explicit-only ones — kept explicit-only itself per the "broad orchestration" category. |
 | `evolve` | Already explicit-only. Generates evolved skill/command/agent structures. |
 | `harness-govern` | Read-only by default, but `--fix` mutates the harness in bulk; class reflects maximum authority, not the default mode. |
@@ -101,17 +102,14 @@ their class directly.
 | `promote` | Already explicit-only. Promotes an instinct into a new skill/command/agent — creates a new distributed entry. |
 | `setup` | Already explicit-only. Interactive plugin (re)configuration. |
 | `smart-commit` | Executes `git commit` in batches. |
-| `zh-tw` | Already explicit-only. Toggles a persistent session/locale configuration. |
 
-### implicit-eligible (31, incl. `matrix-cell-onboard` inherited)
+### implicit-eligible (21, incl. `dhpk-matrix-cell-onboard` inherited)
 
-`check-coverage`, `check-skill`, `codex-review-branch`, `codex-review-doc`,
-`codex-review-fast`, `codex-review`, `codex-security`, `codex-test-gen`,
-`codex-test-review`, `create-dev`, `deep-analyze`, `dep-audit`, `doc-refactor`,
+`check-skill`, `codex-review`, `deep-analyze`, `dep-audit`, `doc-refactor`,
 `git-worktree`, `harness-audit`, `instinct-export`, `instinct-status`,
-`matrix-cell-onboard`, `merge-prep`, `pr-summary`, `precommit-fast`,
-`precommit`, `project-brief`, `review-pending`, `review-spec`, `simplify`,
-`spec-mine`, `ui-ux-verify`, `update-codemaps`, `update-docs`, `verify`.
+`dhpk-matrix-cell-onboard`, `merge-prep`, `pr-summary`, `precommit`,
+`project-brief`, `review-pending`, `simplify`, `spec-mine`, `ui-ux-verify`,
+`update-codemaps`, `update-docs`, `verify`.
 
 ### Reclassified from a pre-existing restriction (reviewed, not inherited)
 
@@ -128,10 +126,10 @@ These 17 entries had no Claude/Codex invocation restriction before this
 change and are becoming `explicit-only`. Their explicit invocation name is
 unchanged; only automatic model selection is disabled.
 
-Skills: `agy-commit`, `claude-health`, `continuous-learning-v2`,
-`create-skill`, `git-smart-commit`, `harness-revise`, `multi-ai-sync`,
-`op-session`, `opsx-apply-goal`, `project-setup`, `release-creator`,
-`rules-distill`.
+Skills: `dhpk-agy-commit`, `dhpk-claude-health`, `dhpk-continuous-learning-v2`,
+`dhpk-create-skill`, `dhpk-git-smart-commit`, `dhpk-harness-revise`, `dhpk-cross-agent-sync`,
+`dhpk-onepassword-session`, `dhpk-opsx-apply-goal`, `dhpk-project-setup`, `dhpk-release-creator`,
+`dhpk-rules-distill`.
 
 Commands: `create-pr`, `create-release`, `do`, `harness-govern`,
 `smart-commit`.
@@ -148,12 +146,12 @@ All 14 explicit-only skills carried a stale `Use when:` trigger phrase left
 over from before this change (dead routing bait once
 `disable-model-invocation: true` is set) — each was rewritten to a concise
 effect-oriented lead sentence while keeping its `Not for:` / `Output:`
-content unchanged: `agy-commit`, `claude-health`, `continuous-learning-v2`,
-`create-skill`, `git-smart-commit`, `harness-fill`, `harness-revise`,
-`multi-ai-sync`, `op-session`, `opsx-apply-goal`, `project-setup`,
-`release-creator`, `repo-intake`, `rules-distill`. Two implicit-eligible
+content unchanged: `dhpk-agy-commit`, `dhpk-claude-health`, `dhpk-continuous-learning-v2`,
+`dhpk-create-skill`, `dhpk-git-smart-commit`, `dhpk-harness-fill`, `dhpk-harness-revise`,
+`dhpk-cross-agent-sync`, `dhpk-onepassword-session`, `dhpk-opsx-apply-goal`, `dhpk-project-setup`,
+`dhpk-release-creator`, `dhpk-repo-intake`, `dhpk-rules-distill`. Two implicit-eligible
 skills were missing a routing cue outright and got one added:
-`codex-bridge` (no `Use when` trigger, no `Output:` cue) and
-`feature-verify` (no `Output:` cue). `tests/description-invocation-cues.test.js`
+`dhpk-codex-bridge` (no `Use when` trigger, no `Output:` cue) and
+`dhpk-feature-verify` (no `Output:` cue). `tests/description-invocation-cues.test.js`
 enforces both directions going forward — implicit-eligible retains all
 three cues, explicit-only drops the `Use when` trigger.

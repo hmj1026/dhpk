@@ -1,11 +1,9 @@
 'use strict';
 
 // Coverage for post-edit-dispatch.sh (PostToolUse Edit|Write|MultiEdit
-// dispatcher): always runs the core post-edit-remind.sh synchronously (its
-// sentinel-writing side effects must be visible immediately), and — when
-// DHPK_ACTIVE_MODULES is set — fires module post-edit-*.sh hooks in the
-// background. This suite exercises the synchronous core path (module
-// dispatch is backgrounded/async and not asserted on here).
+// dispatcher): runs only the core post-edit-remind.sh synchronously. Module
+// activation may influence sentinel routing, but default lifecycle wiring must
+// not launch advisory per-file module work in the edit pipeline.
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -13,6 +11,12 @@ const { test, run, assert } = require('./_lib/tinytest');
 const { mkRepo: mkRepoRaw, sessionsDir: sessDir, runHook: runHookRaw } = require('./_lib/hookharness');
 
 const HOOK = 'post-edit-dispatch.sh';
+
+test('default post-edit dispatcher contains no advisory module hook fan-out', () => {
+  const source = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'hooks', HOOK), 'utf8');
+  assert.ok(!source.includes('hooks/"post-edit-*.sh'),
+    'default PostToolUse must not execute advisory module post-edit hooks');
+});
 
 function mkRepo() {
   return mkRepoRaw({ prefix: 'dhpk-ped-' });

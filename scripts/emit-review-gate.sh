@@ -6,7 +6,7 @@
 #   emit-review-gate.sh <PENDING|READY|BLOCKED>
 #
 # Prints `REVIEW_GATE=<value>` on stdout. Skills pair this with the text sentinel
-# they write for the behavior layer (see skills/codex-code-review/references/
+# they write for the behavior layer (see skills/dhpk-change-review/references/
 # review-common.md). The marker is consumed by a review-state hook when one is
 # wired; with no hook it is a harmless, greppable status line.
 set -euo pipefail

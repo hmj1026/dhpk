@@ -66,7 +66,7 @@ for (const fp of onDiskAgents) {
 
 // Installed-plugin resolvability (install-manifest integrity): the goal
 // orientation instruction reads rules/execution-policy.md from the plugin
-// root, and skills/opsx-apply-goal/scripts/* require()/source local files at
+// root, and skills/dhpk-opsx-apply-goal/scripts/* require()/source local files at
 // runtime. A missing or relocated local file ships a consumer-side
 // `Cannot find module` / POLICY-UNRESOLVED failure, so resolve the static
 // dependency graph here, before release.
@@ -76,7 +76,7 @@ for (const fp of onDiskAgents) {
 //     REQUIRE_ALLOWLIST or fail, naming the owner file and reference
 //   - shell `source`/`.` edges and `node "<path>"` invocations are resolved
 //     after reducing a leading ${CLAUDE_PLUGIN_ROOT...}/ prefix to the root
-const GOAL_SCRIPTS_DIR = path.join(ROOT, 'skills', 'opsx-apply-goal', 'scripts');
+const GOAL_SCRIPTS_DIR = path.join(ROOT, 'skills', 'dhpk-opsx-apply-goal', 'scripts');
 const REQUIRE_ALLOWLIST = new Set([]); // bare packages / dynamic paths explicitly sanctioned
 const SHELL_SOURCE_ALLOWLIST = new Set([]); // dynamic shell source expressions explicitly sanctioned
 

@@ -1,6 +1,6 @@
 ---
 description: 'Smart Router — map a natural-language task to the right dhpk workflow, then run it. Deterministic route-table fast path, LLM fallback for misses.'
-argument-hint: '[--codex] [--plan[=<model>[:<effort>]]] [--worker=<claude|codex|agy|auto>] [--reasoner=<claude|codex>[:<model>[:<effort>]]] [--openspec|--opsx] <natural language task>'
+argument-hint: '[--route-only] [--codex] [--plan[=<model>[:<effort>]]] [--worker=<claude|codex|agy|auto>] [--reasoner=<claude|codex>[:<model>[:<effort>]]] [--openspec|--opsx] <natural language task>'
 allowed-tools: 'Bash(bash:*), Bash(git:*), Bash(ls:*), Skill, Read, Grep, Glob'
 disable-model-invocation: true
 metadata:
@@ -9,9 +9,30 @@ metadata:
 
 # /dhpk:do — Smart Router
 
-One entry point for dhpk's 45 commands. Route a natural-language task to the
+`--route-only` performs the same classification and reports the selected
+workflow without invoking it. It replaces the legacy `/dhpk:create-dev` entry.
+
+One entry point for dhpk's 44 commands. Route a natural-language task to the
 right workflow: the route table is the fast path, and a miss uses cheap repo
 signals before classification.
+
+## Step 0 — `--route-only` terminal mode
+
+Before parsing any other intent, detect every literal `--route-only` token,
+set `ROUTE_ONLY=on`, and **strip the flag from the request**. Continue only far
+enough to derive the same cleaned query and selected route that normal routing
+would produce; `--route-only` never becomes part of the downstream arguments.
+
+After Step 1 resolves `MATCH`, `NO_MATCH`, or `NO_QUERY`, `ROUTE_ONLY=on` is an
+early terminal branch:
+
+- `MATCH` → print `Route only: /<skill> (<label>).`.
+- `NO_MATCH` → use the same bounded classification and print `Route only: /<chosen> because <reason>.`.
+- `NO_QUERY` → ask for a task description.
+
+Then stop. Do not invoke the target Skill, `dhpk:planner`, `dhpk:architect`,
+OpenSpec tooling, a worker, or any other downstream execution. This is a route
+inspection mode, not a dry-run of the selected workflow.
 
 ## Step 0a — parse codex intent (default: codex-free)
 
@@ -88,8 +109,8 @@ parsed and stripped exactly like `--plan` above:
   and fall back to userConfig/default without failing the route. (The `--worker`
   flag renames only the surface token; the `fast_worker_backend` userConfig key
   and the `scripts/fast-worker-selector.js` engine interface are unchanged.)
-- For the implementation-class routes (`dhpk:adaptive-dev-workflow`,
-  `dhpk:bug-fix`, `dhpk:feature-dev`, and `dhpk:opsx-apply-goal`), forward the invocation override to every implementation-class route; it applies to this
+- For the implementation-class routes (`dhpk:dhpk-adaptive-dev-workflow`,
+  `dhpk:dhpk-bug-fix`, `dhpk:dhpk-feature-dev`, and `dhpk:dhpk-opsx-apply-goal`), forward the invocation override to every implementation-class route; it applies to this
   invocation only. The downstream route MUST call the shared fast-worker backend selector before its first mechanical dispatch and must not reimplement
   availability, order, or fallback logic.
 
@@ -124,8 +145,8 @@ reasoning-heavy dispatches, parsed and stripped exactly like `--plan` above:
   substitution — authentication, model-rejection, and task failures at execution
   time remain `RESULT: BLOCKED` per the codex-fast-worker/selector semantics.
 - Carry `REASONER=on` and the resolved backend/model/effort forward into Step 3.
-  The flag affects **only** implementation-class routes (`dhpk:adaptive-dev-workflow`,
-  `dhpk:bug-fix`, `dhpk:feature-dev`, `dhpk:opsx-apply-goal`); on any other
+  The flag affects **only** implementation-class routes (`dhpk:dhpk-adaptive-dev-workflow`,
+  `dhpk:dhpk-bug-fix`, `dhpk:dhpk-feature-dev`, `dhpk:dhpk-opsx-apply-goal`); on any other
   resolved route print this literal one-line message and proceed unaffected:
 
   `--reasoner ignored: <route> is not an implementation-class route; proceeding with the default reasoning backend.`
@@ -147,6 +168,9 @@ The matcher prints exactly one line:
 - `NO_MATCH` — nothing matched; you classify.
 - `NO_QUERY` — the user gave no task text.
 
+If `ROUTE_ONLY=on`, take the Step 0 terminal branch here, before enhancement,
+planning, architecture consultation, or target invocation.
+
 ## Step 2 — ENHANCE (optional context)
 
 If a `[learned-context]` block was injected at session start (the learning DB
@@ -165,21 +189,21 @@ it may start an `implicit-eligible` target normally, but for an
 `explicit-only` target it does NOT call the Skill tool: it states the
 target's exact supported invocation syntax (its `/dhpk:<name>` command form)
 and stops, waiting for the user. This applies to both `MATCH` and `NO_MATCH`
-resolution, and to the `dhpk:opsx-apply-goal` handoff below — a deterministic
+resolution, and to the `dhpk:dhpk-opsx-apply-goal` handoff below — a deterministic
 route-table hit or a high-confidence self-classification is confidence in the
 ROUTE, not authorization to bypass the TARGET's own invocation restriction.
 
 For normal routes, pass the **cleaned query** (the full task with only the
 `--codex`, `--plan`, `--worker`, `--reasoner`, and `--openspec`/`--opsx` opt-in
 tokens removed) as the task to the downstream skill, subject to the
-invocation-class gate above. The `dhpk:opsx-apply-goal` route is the sole
+invocation-class gate above. The `dhpk:dhpk-opsx-apply-goal` route is the sole
 handoff exception, and it is `explicit-only`: derive its required
 `<change-id> [flags]` argument — pass the change id, not a prose description —
 including `--worker=<actual value>` when `WORKER_OVERRIDE` is set (the target
 analyzer reads that flag from `$ARGUMENTS`) and `--codex` when the generated
 goal must carry it (`/dhpk:do` consumes `--codex` before route resolution, so
 this must be re-added explicitly). Then, per the gate, present the exact
-invocation `/dhpk:opsx-apply-goal <change-id> [flags]` and stop — do not call
+invocation `/dhpk:dhpk-opsx-apply-goal <change-id> [flags]` and stop — do not call
 the Skill tool for it. Read the route's
 [argument contract](../docs/basic-operations.md#6-unattended-openspec-session-large-uncertainty-on-ramp)
 for the argument-derivation rules this exception still needs.
@@ -193,7 +217,7 @@ is diverted into the OpenSpec artifact-then-review flow (which supersedes the
 plan consult).
 
 - **`MATCH`** → resolve `<skill>`'s invocation class. If `implicit-eligible`,
-  invoke it immediately with the **Skill** tool (e.g. `dhpk:bug-fix`); do
+  invoke it immediately with the **Skill** tool (e.g. `dhpk:dhpk-bug-fix`); do
   **not** re-classify — the route table already matched. State one line:
   `Routing to /<skill> (<label>).` If `explicit-only`, do not call the Skill
   tool: state `Routing to /<skill> (<label>) — explicit-only; run: /<skill>
@@ -204,7 +228,7 @@ plan consult).
   - `git status --porcelain` non-empty → dirty worktree (a "are we done?" /
     "收尾" request likely means `dhpk:verify` or `dhpk:review-pending`).
   - `ls openspec/changes/ 2>/dev/null` shows an active change → a "finish it" /
-    "跑完它" request likely means `dhpk:opsx-apply-goal` (unattended) or `/opsx:apply`.
+    "跑完它" request likely means `dhpk:dhpk-opsx-apply-goal` (unattended) or `/opsx:apply`.
   - test config / build config present → verification-class intent is plausible.
 
   Then classify the request yourself and pick the single best-fit dhpk command.
@@ -214,14 +238,14 @@ plan consult).
   <reason + signal>.` — or, for an `explicit-only` target, state `No
   deterministic route; best fit is /<chosen> because <reason + signal> —
   explicit-only; run: /<chosen> <args>` and stop without invoking it.
-  Common targets: `dhpk:adaptive-dev-workflow` (**any** substantial bug or feature
-  change — it classifies + gates, then routes into `dhpk:bug-fix` /
-  `dhpk:feature-dev` itself, so enter it rather than those two directly; this
+  Common targets: `dhpk:dhpk-adaptive-dev-workflow` (**any** substantial bug or feature
+  change — it classifies + gates, then routes into `dhpk:dhpk-bug-fix` /
+  `dhpk:dhpk-feature-dev` itself, so enter it rather than those two directly; this
   mirrors the deterministic route table, which sends every bug/feature pattern
   here),
-  `dhpk:code-explore`, `dhpk:review-pending`, `dhpk:security-review`,
-  `dhpk:project-audit`, `dhpk:simplify`, `dhpk:tech-spec`, `dhpk:risk-assess`,
-  `dhpk:deploy-list`, `dhpk:feasibility-study`, `dhpk:verify`, `dhpk:opsx-apply-goal`
+  `dhpk:dhpk-codebase-exploration`, `dhpk:review-pending`, `dhpk:dhpk-security-review`,
+  `dhpk:dhpk-project-audit`, `dhpk:simplify`, `dhpk:dhpk-tech-spec`, `dhpk:dhpk-risk-assess`,
+  `dhpk:dhpk-deploy-list`, `dhpk:dhpk-feasibility-study`, `dhpk:verify`, `dhpk:dhpk-opsx-apply-goal`
   (explicit-only), `dhpk:create-pr` (explicit-only), `dhpk:smart-commit`
   (explicit-only). If nothing fits, say so and ask one clarifying question
   instead of guessing.
@@ -234,13 +258,13 @@ or asks one clarifying question, and `NO_QUERY` asks for a task description.
 ### Codex-mode rule (how `CODEX` shapes the invocation)
 
 - **`CODEX=off` (default):** invoke the target codex-free.
-  - One exception — `dhpk:feasibility-study` defaults codex-**on**, so pass
+  - One exception — `dhpk:dhpk-feasibility-study` defaults codex-**on**, so pass
     `--no-codex` to it to honor the codex-free default.
 - **`CODEX=on`:** append `--codex` when the target supports a codex mode —
-  `dhpk:adaptive-dev-workflow`, `dhpk:bug-fix`, `dhpk:feature-dev`. Special cases:
+  `dhpk:dhpk-adaptive-dev-workflow`, `dhpk:dhpk-bug-fix`, `dhpk:dhpk-feature-dev`. Special cases:
   - **Security** has no in-skill codex mode: route to the dedicated codex command
-    instead — `dhpk:security-review` (default) → **`dhpk:codex-security`** under `--codex`.
-  - `dhpk:feasibility-study`: invoke **without** `--no-codex` (its default already uses Codex).
+    instead — `dhpk:dhpk-security-review` (default) → **`dhpk:codex-security`** under `--codex`.
+  - `dhpk:dhpk-feasibility-study`: invoke **without** `--no-codex` (its default already uses Codex).
   - An explicit `dhpk:codex-*` skill: route as-is.
   - Any other target: the flag has no effect — route normally.
 
@@ -277,8 +301,8 @@ the `dhpk:planner` consult (PLAN) or the artifact-then-review flow (OPENSPEC).
   consult.
 - **`PLAN=on`:** a pre-implementation `dhpk:planner` consult activates **only**
   when the resolved route target is one of the four implementation-class
-  skills — `dhpk:adaptive-dev-workflow`, `dhpk:bug-fix`, `dhpk:feature-dev`,
-  `dhpk:opsx-apply-goal`. **Precedence:** if `OPENSPEC=on` and the resolved route
+  skills — `dhpk:dhpk-adaptive-dev-workflow`, `dhpk:dhpk-bug-fix`, `dhpk:dhpk-feature-dev`,
+  `dhpk:dhpk-opsx-apply-goal`. **Precedence:** if `OPENSPEC=on` and the resolved route
   is a change-authoring route (see the Openspec-mode rule below), the planner
   consult is **suppressed** — `--openspec` supersedes `--plan`. Any other
   resolved route prints this literal one-line message and proceeds with that
@@ -324,7 +348,7 @@ the `dhpk:planner` consult (PLAN) or the artifact-then-review flow (OPENSPEC).
   diversion.
 - **`OPENSPEC=on`:** the artifact-then-review flow activates **only** when the
   resolved route target is one of the three **change-authoring** routes —
-  `dhpk:adaptive-dev-workflow`, `dhpk:bug-fix`, `dhpk:feature-dev`. On those,
+  `dhpk:dhpk-adaptive-dev-workflow`, `dhpk:dhpk-bug-fix`, `dhpk:dhpk-feature-dev`. On those,
   instead of invoking the target skill:
   1. **Discover** whether the external OpenSpec authoring entries
      `openspec-new-change` and `openspec-ff-change` are both available to
@@ -345,13 +369,13 @@ the `dhpk:planner` consult (PLAN) or the artifact-then-review flow (OPENSPEC).
        generated metadata to work around the mismatch.
   2. **Stop for human review** — do **not** proceed to implementation. State
      that the change awaits review and can be applied later with `/opsx:apply`
-     (or an unattended `dhpk:opsx-apply-goal` session).
+     (or an unattended `dhpk:dhpk-opsx-apply-goal` session).
 
   Because this supersedes `--plan`, when `OPENSPEC=on` activates on a
   change-authoring route, **no** `dhpk:planner` consult runs even if `--plan`
   was also passed.
 
-  Any other resolved route — **including `dhpk:opsx-apply-goal`**, which applies
+  Any other resolved route — **including `dhpk:dhpk-opsx-apply-goal`**, which applies
   an *existing* change (it emits a `/goal` string for a fresh session, so
   `opsx:new` does not apply) — prints this literal one-line message and proceeds
   with that route unaffected:
@@ -372,7 +396,7 @@ One line per outcome — the router states where it went, then hands off:
 
 ```text
 # MATCH (deterministic route table hit)
-Routing to /dhpk:adaptive-dev-workflow (adaptive dev workflow (bug)).
+Routing to /dhpk:dhpk-adaptive-dev-workflow (adaptive dev workflow (bug)).
 
 # NO_MATCH (classified from cheap repo signals)
 No deterministic route; routing to /dhpk:verify because worktree is dirty and the request ("收尾") reads as a wrap-up.

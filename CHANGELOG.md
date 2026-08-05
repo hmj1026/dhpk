@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.35.0 — 2026-08-05 — Unify Claude and Codex skills, canonical sources, and distribution surfaces
+
+**feat(skill-platform)** — Unify Claude and Codex skills under collision-safe dhpk names, one flat canonical source, safer distribution installs, and a smaller deterministic hook and command surface.
+
 ## 0.34.1 — 2026-08-05 — Fix review gate observability, skill health check resilience, codex agent projection, and codex distribution safety
 
 **fix(codex-agent-projection)** — Preserve safety and review contracts when projecting Claude agent roles into a clean Codex consumer.

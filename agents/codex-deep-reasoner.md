@@ -76,7 +76,7 @@ result from your own analysis when the CLI is unavailable.
    export ROOT="<workdir>" DHPK_CODEX_ROLE=codex-deep-reasoner
    . "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/_lib/load-project-config.sh"
    dhpk_codex_timeout_export "$DHPK_CODEX_ROLE" || exit 78
-   bash "${CLAUDE_PLUGIN_ROOT}/skills/codex-bridge/scripts/run-codex.sh" \
+   bash "${CLAUDE_PLUGIN_ROOT}/skills/dhpk-codex-bridge/scripts/run-codex.sh" \
      read-only "<workdir>" "$prompt_file" "<model>" "<effort>"
    ```
 
@@ -87,7 +87,7 @@ result from your own analysis when the CLI is unavailable.
 
 When the wrapper exits `124`, parse the timeout envelope before interpreting the
 exit code; parse stdout with the shared
-`${CLAUDE_PLUGIN_ROOT}/skills/codex-bridge/scripts/codex-timeout-envelope.js`
+`${CLAUDE_PLUGIN_ROOT}/skills/dhpk-codex-bridge/scripts/codex-timeout-envelope.js`
 parser. Accept only a
 `dhpk.codex.timeout.v1` object with `verified_wrapper_timeout=true`; forward the
 envelope and decode its report as evidence, never as `DONE` or independent

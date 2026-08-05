@@ -19,7 +19,70 @@ const crypto = require('node:crypto');
 // logic) changes in a way that could produce a different package from the
 // same inventory + canonical sources. Independent of the dhpk release
 // version recorded as provenance.sourceVersion.
-const GENERATOR_VERSION = '1.0.0';
+const GENERATOR_VERSION = '2.2.0';
+
+function lstatOrNull(candidate) {
+  try {
+    return fs.lstatSync(candidate);
+  } catch (error) {
+    if (error && error.code === 'ENOENT') return null;
+    throw error;
+  }
+}
+
+function realpathOrNull(candidate) {
+  try {
+    return fs.realpathSync(candidate);
+  } catch (error) {
+    if (error && error.code === 'ENOENT') return null;
+    throw error;
+  }
+}
+
+function isInside(parent, candidate) {
+  const rel = path.relative(parent, candidate);
+  return rel === '' || (!rel.startsWith(`..${path.sep}`) && rel !== '..');
+}
+
+function assertPhysicalAncestors(directory, label) {
+  let current = path.resolve(directory);
+  while (true) {
+    const stat = lstatOrNull(current);
+    if (stat && stat.isSymbolicLink()) {
+      throw new Error(`refusing symlinked ${label} ancestor: ${current}`);
+    }
+    const parent = path.dirname(current);
+    if (parent === current) return;
+    current = parent;
+  }
+}
+
+function ensurePhysicalDirectory(directory, label) {
+  assertPhysicalAncestors(directory, label);
+  const stat = lstatOrNull(directory);
+  if (!stat) {
+    fs.mkdirSync(directory, { recursive: true });
+    return;
+  }
+  if (stat.isSymbolicLink()) {
+    throw new Error(`refusing symlinked ${label}: ${directory}`);
+  }
+  if (!stat.isDirectory()) {
+    throw new Error(`${label} must be a directory: ${directory}`);
+  }
+  if (fs.realpathSync(directory) !== path.resolve(directory)) {
+    throw new Error(`refusing ${label} whose realpath escapes its lexical root: ${directory}`);
+  }
+}
+
+function confinedChild(parent, name) {
+  const resolvedParent = path.resolve(parent);
+  const candidate = path.resolve(resolvedParent, name);
+  if (path.dirname(candidate) !== resolvedParent) {
+    throw new Error(`native skill output escapes skills directory: ${name}`);
+  }
+  return candidate;
+}
 
 // Walks packageRoot and reports any symlink found (a native package must be
 // 100% physical files — a symlink survives only as long as its target and the
@@ -57,12 +120,55 @@ function validateNativeCandidate({ manifestSkillsField, packageRoot }) {
 
   const skillsRoot = path.resolve(packageRoot, manifestSkillsField);
   if (resolvesInsidePackage(manifestSkillsField, packageRoot)) {
-    for (const link of findSymlinks(skillsRoot)) {
-      const rel = path.relative(packageRoot, link);
-      errors.push(`symlink-dependent entry in native candidate: '${rel}' is a symlink; a clean marketplace cache install does not preserve it (issue #88)`);
+    const skillsStat = lstatOrNull(skillsRoot);
+    if (skillsStat && skillsStat.isSymbolicLink()) {
+      errors.push(`symlink-dependent skills root in native candidate: '${path.relative(packageRoot, skillsRoot)}' is a symlink; a clean marketplace cache install does not preserve it (issue #88)`);
+    } else {
+      const realPackageRoot = realpathOrNull(packageRoot);
+      const realSkillsRoot = realpathOrNull(skillsRoot);
+      if (realPackageRoot && realSkillsRoot && !isInside(realPackageRoot, realSkillsRoot)) {
+        errors.push(`native candidate skills realpath escapes the package root: '${realSkillsRoot}' is not inside '${realPackageRoot}'`);
+      }
+      for (const link of findSymlinks(skillsRoot)) {
+        const rel = path.relative(packageRoot, link);
+        errors.push(`symlink-dependent entry in native candidate: '${rel}' is a symlink; a clean marketplace cache install does not preserve it (issue #88)`);
+      }
     }
   }
 
+  return { ok: errors.length === 0, errors };
+}
+
+function readSkillFrontmatterName(skillFile) {
+  if (!fs.existsSync(skillFile) || !fs.statSync(skillFile).isFile()) return null;
+  const text = fs.readFileSync(skillFile, 'utf8');
+  const block = text.match(/^---\s*\r?\n([\s\S]*?)\r?\n---\s*(?:\r?\n|$)/);
+  if (!block) return null;
+  const nameLine = block[1].match(/^name\s*:\s*(.*?)\s*$/m);
+  if (!nameLine) return null;
+  const value = nameLine[1].trim();
+  if (value.length >= 2 && ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'")))) {
+    return value.slice(1, -1).trim();
+  }
+  return value;
+}
+
+// Validate the identity dimension independently from fingerprints and
+// membership. A public native directory must carry the same public name in
+// SKILL.md frontmatter; stable inventory ids remain provenance-only.
+function validateNativeSkillIdentity({ packageRoot, inventory, manifestSkillsField = './skills/' }) {
+  const errors = [];
+  if (!resolvesInsidePackage(manifestSkillsField, packageRoot)) return { ok: true, errors };
+  const skillsRoot = path.resolve(packageRoot, manifestSkillsField);
+  for (const skill of selectNativeSkills(inventory)) {
+    const publicName = skill.name || skill.id;
+    const skillFile = path.join(skillsRoot, publicName, 'SKILL.md');
+    if (!fs.existsSync(skillFile)) continue;
+    const actualName = readSkillFrontmatterName(skillFile);
+    if (actualName !== publicName) {
+      errors.push(`native skill '${publicName}' SKILL.md frontmatter name '${actualName || '(missing)'}' does not match public name '${publicName}'`);
+    }
+  }
   return { ok: errors.length === 0, errors };
 }
 
@@ -78,24 +184,31 @@ function selectNativeSkills(inventory) {
   );
 }
 
-// Checks a candidate's actual skill-id set against the inventory-derived
-// codex-native surface — the membership dimension, distinct from
-// validateNativeCandidate's structural (symlink/path) checks. Catches a
-// promoted-but-non-native skill smuggled into a candidate, and a codex-native
-// skill silently dropped from one.
-function validateNativeMembership({ candidateSkillIds, inventory }) {
-  const expected = new Set(selectNativeSkills(inventory).map((s) => s.id));
-  const candidate = new Set(candidateSkillIds);
+// Checks a candidate's actual public-name directory set against the
+// inventory-derived codex-native surface — the membership dimension, distinct
+// from validateNativeCandidate's structural (symlink/path) checks. Stable IDs
+// remain in diagnostics and provenance, but never identify a native directory.
+// `candidateSkillIds` remains accepted as a compatibility alias for callers
+// that have not yet renamed their local variable; its values are directory
+// names, i.e. public names for v2 inventories.
+function validateNativeMembership({ candidateSkillNames, candidateSkillIds, inventory }) {
+  const selected = selectNativeSkills(inventory);
+  const expected = new Map(selected.map((s) => [s.name || s.id, s.id]));
+  const inventoryIdsByName = new Map((inventory.skills || []).map((s) => [s.name || s.id, s.id]));
+  const candidateNames = candidateSkillNames || candidateSkillIds || [];
+  const candidate = new Set(candidateNames);
   const errors = [];
 
-  for (const id of candidateSkillIds) {
-    if (!expected.has(id)) {
-      errors.push(`unexpected skill in native candidate: '${id}' is not in the codex-native inventory surface (native publication must not include promoted-but-non-native content)`);
+  for (const name of candidateNames) {
+    if (!expected.has(name)) {
+      const stableId = inventoryIdsByName.get(name);
+      const diagnostic = stableId ? ` (stable id '${stableId}')` : '';
+      errors.push(`unexpected skill in native candidate: '${name}'${diagnostic} is not in the codex-native inventory surface (native publication must not include promoted-but-non-native content; candidate directories use public names)`);
     }
   }
-  for (const id of expected) {
-    if (!candidate.has(id)) {
-      errors.push(`missing skill from native candidate: '${id}' is codex-native in the inventory but absent from the package`);
+  for (const [name, id] of expected) {
+    if (!candidate.has(name)) {
+      errors.push(`missing skill from native candidate: '${name}' (stable id '${id}') is codex-native in the inventory but absent from the package`);
     }
   }
 
@@ -113,10 +226,11 @@ const DEFAULT_MANIFEST_TEMPLATE = {
 // keywords, interface, ...) are preserved — only `name`, `version`, and
 // `skills` are generator-controlled — so regenerating the tracked marketplace
 // package never silently strips its marketplace descriptor. Returns the
-// candidate's manifest field, selected skill ids, per-skill fingerprints, and
-// deterministic provenance (no wall-clock fields, so two runs against the
-// same inputs produce byte-identical output — see spec.md "Unchanged sources
-// are generated twice").
+// candidate's manifest field, stable selected skill ids, public selected skill
+// names, per-skill fingerprints keyed by public name, and deterministic
+// provenance (no wall-clock fields, so two runs against the same inputs
+// produce byte-identical output — see spec.md "Unchanged sources are
+// generated twice").
 function materializeNativePackage({
   inventory,
   root,
@@ -127,16 +241,19 @@ function materializeNativePackage({
   generatorVersion = GENERATOR_VERSION,
 }) {
   const selected = selectNativeSkills(inventory);
+  ensurePhysicalDirectory(outDir, 'output root');
   const skillsOutDir = path.join(outDir, 'skills');
-  fs.mkdirSync(skillsOutDir, { recursive: true });
+  ensurePhysicalDirectory(skillsOutDir, 'skills output directory');
 
   // Regeneration is a full replace, not additive: a skill removed from the
   // codex-native surface since outDir was last populated must not leave its
   // stale directory behind — outDir is routinely an existing tracked package
-  // (prepare-release.js regenerates directly into plugins/dhpk/).
-  const selectedIds = new Set(selected.map((s) => s.id));
+  // (prepare-release.js regenerates directly into plugins/dhpk/). Public names
+  // are the only native directory identity; this also removes old id-based
+  // output left by the pre-consolidation generator.
+  const selectedNames = new Set(selected.map((s) => s.name || s.id));
   for (const existing of fs.readdirSync(skillsOutDir)) {
-    if (!selectedIds.has(existing)) {
+    if (!selectedNames.has(existing)) {
       fs.rmSync(path.join(skillsOutDir, existing), { recursive: true, force: true });
     }
   }
@@ -144,13 +261,22 @@ function materializeNativePackage({
   const fingerprints = {};
   for (const skill of selected) {
     const srcDir = path.join(root, skill.path);
-    const dstDir = path.join(skillsOutDir, skill.id);
+    const publicName = skill.name || skill.id;
+    const dstDir = confinedChild(skillsOutDir, publicName);
+    const sourceFrontmatterName = readSkillFrontmatterName(path.join(srcDir, 'SKILL.md'));
+    if (sourceFrontmatterName !== publicName) {
+      throw new Error(`native skill '${publicName}' source SKILL.md frontmatter name '${sourceFrontmatterName || '(missing)'}' does not match public name '${publicName}'`);
+    }
+    // A selected skill may have lost files since the prior generation. Replace
+    // only that validated direct child before copying so stale descendants
+    // cannot survive while unrelated package metadata remains intact.
+    if (lstatOrNull(dstDir)) fs.rmSync(dstDir, { recursive: true, force: true });
     fs.cpSync(srcDir, dstDir, { recursive: true, dereference: true });
-    fingerprints[skill.id] = fingerprintDir(dstDir);
+    fingerprints[publicName] = fingerprintDir(dstDir);
   }
 
   const codexPluginDir = path.join(outDir, '.codex-plugin');
-  fs.mkdirSync(codexPluginDir, { recursive: true });
+  ensurePhysicalDirectory(codexPluginDir, 'plugin metadata directory');
   const manifestPath = path.join(codexPluginDir, 'plugin.json');
   const template = fs.existsSync(manifestPath) ? JSON.parse(fs.readFileSync(manifestPath, 'utf8')) : DEFAULT_MANIFEST_TEMPLATE;
   const manifest = { ...template, name, version, skills: './skills/' };
@@ -158,16 +284,18 @@ function materializeNativePackage({
   fs.writeFileSync(path.join(outDir, 'fingerprints.json'), `${JSON.stringify(fingerprints, null, 2)}\n`);
 
   const skillIds = selected.map((s) => s.id).sort();
+  const skillNames = selected.map((s) => s.name || s.id).sort();
   const provenance = {
     sourceVersion: version,
     sourceCommit,
     inventoryDigest: crypto.createHash('sha256').update(JSON.stringify(inventory)).digest('hex'),
     generatorVersion,
     selectedSkillIds: skillIds,
+    selectedSkillNames: skillNames,
   };
   fs.writeFileSync(path.join(outDir, 'provenance.json'), `${JSON.stringify(provenance, null, 2)}\n`);
 
-  return { manifestSkillsField: manifest.skills, skillIds, fingerprints, provenance };
+  return { manifestSkillsField: manifest.skills, skillIds, skillNames, fingerprints, provenance };
 }
 
 function fingerprintDir(dir) {
@@ -192,6 +320,7 @@ function fingerprintDir(dir) {
 module.exports = {
   GENERATOR_VERSION,
   validateNativeCandidate,
+  validateNativeSkillIdentity,
   validateNativeMembership,
   selectNativeSkills,
   materializeNativePackage,
