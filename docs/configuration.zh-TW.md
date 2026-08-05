@@ -59,8 +59,8 @@ dhpk 在 `.claude-plugin/plugin.json` 中暴露 **59 個 `userConfig` 旋鈕**�
 | `codex_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | 三種 Codex CLI role 共用的 `run-codex.sh` wrapper backstop。優先序為專案 role-specific > 專案 shared > 全域 role-specific > 全域 shared > 出廠預設；值格式錯誤時在派發前 fail closed。本設定不改變 Claude 的外部工具等待時間。 |
 | `codex_fast_worker_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | `dhpk:codex-fast-worker` 專用 wrapper 預算。同一 scope 內優先於 shared 值；專案值優先於全域值。`CODEX_WRAP_TIMEOUT_SECS` legacy 環境覆寫在受控／測試呼叫時具有更高優先序。 |
 | `codex_deep_reasoner_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | `dhpk:codex-deep-reasoner` 專用 wrapper 預算。同一 scope 內優先於 shared 值；專案值優先於全域值。值格式錯誤時 fail closed，並在 SessionStart 回報。 |
-| `codex_bridge_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | `dhpk:codex-bridge` 專用 wrapper 預算；既有三參數 wrapper 呼叫形狀仍受支援。同一 scope 內優先於 shared 值；專案值優先於全域值。 |
-| `agy_fast_worker_model` | string | `Gemini 3.6 Flash (High)` | `agy models` 列出的任何模型 | `dhpk:agy-fast-worker` 派發時傳給 agy CLI 後端的模型顯示字串。agy 將思考強度內建於模型名稱，故無獨立的 effort key。分層方式同上；預設值失效時覆寫（可用 `agy models` 查詢）。 |
+| `codex_bridge_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | `dhpk:dhpk-codex-bridge` 專用 wrapper 預算；既有三參數 wrapper 呼叫形狀仍受支援。同一 scope 內優先於 shared 值；專案值優先於全域值。 |
+| `agy_fast_worker_model` | string | `Gemini 3.6 Flash (High)` | `agy models` 列出的任何模型 | `dhpk:dhpk-agy-fast-worker` 派發時傳給 agy CLI 後端的模型顯示字串。agy 將思考強度內建於模型名稱，故無獨立的 effort key。分層方式同上；預設值失效時覆寫（可用 `agy models` 查詢）。 |
 | `architect_model` | string | `fable` | 執行中的 Claude Code 支援的模型層級 | `dhpk:architect` Agent-call 派發的模型層級；逐次呼叫套用，不修改 frontmatter；HIGH-risk 架構決策仍可向上升級。 |
 | `architect_effort` | string | `low` | `low` \| `medium` \| `high` \| `xhigh` \| `max` | `dhpk:architect` Agent-call 派發的推理強度；逐次呼叫套用，不修改 frontmatter。 |
 | `orchestration_dispatch` | string | `on` | `on` \| `off` | Implementation dispatch 分派表（`deep-reasoner` / `fast-worker` 在 `feature-dev`、`bug-fix`、`adaptive-dev-workflow`、`opsx-apply-goal` 中的路由）的關閉開關。`on` 時實作階段工作依決策表路由，並禁止用 `general-purpose` 執行實作。`off` 完整還原 v0.22.0 之前的行為：內聯實作、不禁止派發、`opsx-apply-goal` 輸出與舊版逐位元組相同。 |
@@ -157,7 +157,7 @@ claude mcp list
 
 | Key | 型別 | 預設值 | Env 覆寫 | 用途 |
 |-----|------|--------|----------|------|
-| `skill_hint_enabled` | boolean | `true` | `DHPK_DISABLE_SKILL_HINT=1` | UserPromptSubmit hook 印出一行 route-table skill 建議（例如「bug」→ `/dhpk:bug-fix`）。 |
+| `skill_hint_enabled` | boolean | `true` | `DHPK_DISABLE_SKILL_HINT=1` | UserPromptSubmit hook 印出一行 route-table skill 建議（例如「bug」→ `/dhpk:dhpk-bug-fix`）。 |
 | `learning_db_enabled` | boolean | `false` | `DHPK_LEARNING_DB=1/0` | 將作業訊號（reviewer 通過、subagent 失敗、異常停止）附加到 `.claude/artifacts/learning.jsonl`；SessionStart 以 `[learned-context]` 區塊呈現最常見的訊號（最多 5 行）。信心值隨時間衰減；日誌超過 50MB 自動輪替。 |
 | `graduation_scan_enabled` | boolean | `false` | `DHPK_GRADUATION_SCAN=1/0` | Stop hook 掃描 session transcript 中被引用的 auto-memory 條目，追蹤跨 session 次數與信心值，並重新產生 `.claude/artifacts/graduation-candidates.md`。24 小時／3 個不同日期內被引用 ≥3 次且無 trap 重現的條目會被提案升階為 rule/skill。需要 `python3`。 |
 | `completion_evidence_enabled` | boolean | `false` | `DHPK_COMPLETION_EVIDENCE=1/0` | assistant 宣稱完成、但工作目錄有 code 變更卻無對應 test 變更時的 Stop advisory 警告（純 doc／harness 變更豁免；有 active sentinel 時讓位）。僅為建議、絕不阻擋 Stop。 |

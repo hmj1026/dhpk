@@ -80,9 +80,9 @@ linked only when the relevant decision is reached.
 The workflow will define the executable as a resolved `SYNC_CLI` value rather
 than hard-coding `.codex` for every harness:
 
-- Claude/plugin execution resolves the bundled `skills/multi-ai-sync` script
+- Claude/plugin execution resolves the bundled `skills/dhpk-cross-agent-sync` script
   from the plugin root.
-- Codex project execution resolves `.codex/skills/multi-ai-sync`.
+- Codex project execution resolves `.codex/skills/dhpk-cross-agent-sync`.
 
 The command examples will use that resolved entrypoint consistently and will
 retain `--root` where a consumer repository differs from the current working

@@ -34,7 +34,7 @@ phases while retaining the five release configuration values.
   branch.
 - Poll attempt and interval defaults remain production-safe but are overridable by
   environment variables so tests do not sleep.
-- `skills/release-creator/SKILL.md` documents the two commands and the human merge
+- `skills/dhpk-release-creator/SKILL.md` documents the two commands and the human merge
   boundary explicitly.
 
 ### Execution-policy contract restoration

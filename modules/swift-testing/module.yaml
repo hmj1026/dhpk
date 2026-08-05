@@ -8,7 +8,7 @@ triggers:
     extensions: [".swift"]
     paths: [babylonTests/, babylonUITests/, Tests/]
 provides:
-  skills: [swift-test-strategy]
+  skills: [dhpk-swift-test-strategy]
   references: [swift-testing-api.md, xctest-bridging.md, xcuitest.md, snapshot-testing.md, test-taxonomy.md, protocol-di-host-testing.md]
   commands: []
   agents: []

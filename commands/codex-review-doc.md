@@ -8,8 +8,8 @@ metadata:
 
 ⚠️ **Must read and follow the skill below before executing this command:**
 
-@skills/doc-review/SKILL.md
-@skills/doc-review/references/codex-prompt-doc.md
+@skills/dhpk-doc-review/SKILL.md
+@skills/dhpk-doc-review/references/codex-prompt-doc.md
 
 ## Context
 
@@ -47,7 +47,7 @@ Determine target → Read content → Codex review → Rating table + Gate → L
 
 - **Codex must verify code-documentation consistency** — grep/cat to check referenced files exist
 - **5 review dimensions** — Architecture, Performance, Security, Doc Quality, Code Consistency
-- Independent research, thread continuation, and gate sentinels: `skills/codex-code-review/references/review-common.md` §§Codex Independent Research, Gate Sentinels.
+- Independent research, thread continuation, and gate sentinels: `skills/dhpk-change-review/references/review-common.md` §§Codex Independent Research, Gate Sentinels.
 
 ### Review Loop
 

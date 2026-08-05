@@ -38,7 +38,7 @@
 
 - [x] 4.1 Bulk-copy all generic skills from source, excluding `openspec-*` (already moved), `zdpos-*` (project-specific), `harness-revise` (symlink — separate handling)
 - [x] 4.2 Resolve `harness-revise` symlink to a real directory by following the target
-- [x] 4.3 Write `skills/tool-routing/SKILL.md` + `references/decision-tree.md` (carries former rules/tool-routing.md content)
+- [x] 4.3 Write `skills/dhpk-tool-routing/SKILL.md` + `references/decision-tree.md` (carries former rules/tool-routing.md content)
 - [x] 4.4 Write `skills/dhpk-execution-policy/SKILL.md` + `references/{task-modes,anti-loop,output-shape,squash-merge-hygiene}.md`
 - [x] 4.5 Python pass: single-quote frontmatter values containing colons/brackets/angle brackets (fixes YAML strict-mode validation)
 

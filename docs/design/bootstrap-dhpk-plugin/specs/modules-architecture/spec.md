@@ -13,7 +13,7 @@ No other top-level files inside `modules/<name>/` are loaded by the plugin in v0
 #### Scenario: php-5.6 module is laid out correctly
 
 - **WHEN** `ls modules/php-5.6/` is run on the plugin source
-- **THEN** the directory contains `module.yaml`, `skills/php-pro/SKILL.md`, and at least one file under `references/`
+- **THEN** the directory contains `module.yaml`, `skills/dhpk-php-runtime-router/SKILL.md`, and at least one file under `references/`
 
 #### Scenario: yii-1.1 module declares its dependency
 

@@ -47,7 +47,7 @@ claude plugin install dhpk@dhpk --config modules=php-8.x,laravel-11 --config hoo
 | 元件 | 數量 | 說明 |
 |------|----:|------|
 | Agents | Role-based agents | Sentinel 驅動的 reviewer，以及架構、測試、安全、文件、平台與 runtime 等情境型角色。 |
-| Commands | 已註冊的 command surface | `dhpk:do`（Smart Router）、`dhpk:create-dev`、`dhpk:codex-*`、`dhpk:review-pending`、`dhpk:smart-commit`、`dhpk:ts-check-status`（JS 模組）、`dhpk:opsx-apply-resume`（需 OpenSpec）、`dhpk:matrix-cell-onboard`（library-author）、`dhpk:de-ai-flavor`、`dhpk:deploy-list`、`dhpk:harness-fill`、`dhpk:ui-ux-verify` 等 |
+| Commands | 已註冊的 command surface | `dhpk:do`（Smart Router）、`dhpk:create-dev`、`dhpk:codex-*`、`dhpk:review-pending`、`dhpk:smart-commit`、`dhpk:ts-check-status`（JS 模組）、`dhpk:opsx-apply-resume`（需 OpenSpec）、`dhpk:dhpk-matrix-cell-onboard`（library-author）、`dhpk:dhpk-de-ai-flavor`、`dhpk:dhpk-deploy-list`、`dhpk:dhpk-harness-fill`、`dhpk:ui-ux-verify` 等 |
 | 核心 skills | 核心與輔助 skills | codex-*、gitnexus、tool-routing、dhpk-execution-policy、**adaptive-dev-workflow**（Feature/Bug/Maintenance 分類器）、**deploy-list**（跨專案部署清單產生器）、**execution-checklist**（任務收尾自檢）、`opsx-apply-resume` 配套（需 OpenSpec） |
 | 技術棧模組 | 可選技術棧模組 | PHP、Yii、PHPUnit、Laravel、JavaScript、Vue、Laravel Mix、Next.js、React、Python、`library-author` 與 iOS/Swift 模組 |
 | Hooks | 10 個事件 | PreToolUse（Edit、Bash + dispatcher + sentinel-gate + branch-safety、Task\|Agent warmstart）、PostToolUse（Edit + dispatcher + async crlf-fix + async manifest-guard）、SessionStart（+ version-pin／cross-CLI-drift／broken-symlink advisory）、SessionEnd（reap-stale-sentinels）、PreCompact（checkpoint 存檔）、PostCompact（sentinel 還原）、SubagentStop（reviewer 驗證 + 失敗記錄）、StopFailure（失敗記錄）、UserPromptSubmit（skill 提示）、Stop（review-reminder + advisory-dispatch：completion-evidence／graduation-scan／module-dispatch） |
@@ -91,7 +91,7 @@ dhpk 的核心——hooks、sentinel reviewers、Smart Router，以及非 Codex 
 |---------|------|------|--------|
 | 5 個 skill | `codex-architect` · `codex-brainstorm` · `codex-code-review` · `codex-explain` · `codex-implement` | Codex MCP（`mcp__codex__codex`、`mcp__codex__codex-reply`） | 工具權限錯誤——無自動 fallback；改用下方的 Codex-free 對應品 |
 | 1 個 skill | `codex-cli-review` | 僅需 Codex CLI 執行檔（透過 Bash shell out——無 MCP server） | `codex: command not found`；改用 `codex-code-review`（MCP）或 sentinel `code-reviewer` |
-| 7 個指令 | `/dhpk:codex-review`、`-review-branch`、`-review-doc`、`-review-fast`、`-security`、`-test-gen`、`-test-review` | Codex MCP | 工具權限錯誤——Codex-free 路徑：`/dhpk:security-review`、`/dhpk:precommit`、sentinel review hooks |
+| 7 個指令 | `/dhpk:codex-review`、`-review-branch`、`-review-doc`、`-review-fast`、`-security`、`-test-gen`、`-test-review` | Codex MCP | 工具權限錯誤——Codex-free 路徑：`/dhpk:dhpk-security-review`、`/dhpk:precommit`、sentinel review hooks |
 | `CODEX=on` | Implementation dispatch 的雙助理 peer 路徑 | Codex MCP | 不會壞——dispatch 維持預設的單助理模式 |
 
 Codex-free 對應品：`security-review` ↔ `codex-security`、`code-explore` ↔ `codex-explain`、sentinel reviewer agents ↔ `codex-code-review`，以及 `create-dev`（預設 Codex-free；`--codex` 才啟用）。
@@ -108,7 +108,7 @@ Codex-free 對應品：`security-review` ↔ `codex-security`、`code-explore` �
 | `gitnexus` MCP | 專屬 skills：`gitnexus-cli`、`gitnexus-debugging`、`gitnexus-exploring`、`gitnexus-guide`、`gitnexus-impact-analysis`、`gitnexus-refactoring`。Agents：`architect`、`code-reviewer`、`database-reviewer`、`migration-reviewer`、`performance-analyzer`、`refactor-cleaner`、`security-reviewer`、`ui-ux-verifier`。Rules：`execution-policy.md` self-check（`gitnexus_impact`）、`tool-routing.md`。 | 失去跨檔案 blast-radius 分析（`gitnexus_impact`）、安全 global rename（`gitnexus_rename`）、pre-commit 範圍檢查（`gitnexus_detect_changes`）——降級為 `cx references` / `git diff --stat` / **find-and-replace 禁用**。 |
 | `claude-mem` | Rule：`tool-routing.md` 的「Past decisions (cross-session)」入口。 | 失去跨 session 記憶搜尋；當前 session 仍可從 scrollback 取得脈絡。 |
 
-詳細的路由判斷規則見 [`rules/tool-routing.md`](./rules/tool-routing.md)；prose 與 sub-agent 樣板版本見 `dhpk:tool-routing` skill。
+詳細的路由判斷規則見 [`rules/tool-routing.md`](./rules/tool-routing.md)；prose 與 sub-agent 樣板版本見 `dhpk:dhpk-tool-routing` skill。
 
 ## Rules（資源層）
 
@@ -147,7 +147,7 @@ Codex-free 對應品：`security-review` ↔ `codex-security`、`code-explore` �
 - **`react-19`** — React 19（2024 年 12 月）。Actions 與 async transitions、新 hooks（`useActionState`/`useOptimistic`/`useFormStatus`、`use()`）、`ref` 作為一般 prop（免 `forwardRef`）、`<Context>` 直接當 provider、document metadata 自動 hoist、資源預載（`preload`/`preinit`）、穩定的 Server Components。移除 `ReactDOM.render`/`hydrate`、function component 的 `propTypes`/`defaultProps`、legacy Context 與 string refs。Next.js 16 建議但非必需。
 
 **跨版本**：
-- **`library-author`** — 多主版本 PHP 函式庫（Laravel 6–11、Monolog 2/3、PHPUnit 8–11、Flysystem 1/3 等）的跨版本膠水。附帶**第六色** `polyfill-reviewer` agent（透過 `.pending-polyfill-review` sentinel 驅動）、`polyfill-version-matrix-audit` skill、`matrix-cell-onboard` skill（+ 根目錄 `/dhpk:matrix-cell-onboard` 別名）、OpenSpec artifact guard，以及雙測試套件映射輔助。在包含 runtime 版本 guard（`version_compare`、`class_exists`、`method_exists`、`Composer\InstalledVersions::*`）的 `.php` 編輯時自動觸發。
+- **`library-author`** — 多主版本 PHP 函式庫（Laravel 6–11、Monolog 2/3、PHPUnit 8–11、Flysystem 1/3 等）的跨版本膠水。附帶**第六色** `polyfill-reviewer` agent（透過 `.pending-polyfill-review` sentinel 驅動）、`polyfill-version-matrix-audit` skill、`matrix-cell-onboard` skill（+ 根目錄 `/dhpk:dhpk-matrix-cell-onboard` 別名）、OpenSpec artifact guard，以及雙測試套件映射輔助。在包含 runtime 版本 guard（`version_compare`、`class_exists`、`method_exists`、`Composer\InstalledVersions::*`）的 `.php` 編輯時自動觸發。
 
 **iOS / Swift**（依賴鏈式——每個都 `requires: swift`；可用 `ios-app` 安裝 profile 一次啟用整套）：
 - **`swift`** — Swift 6 strict-concurrency 基線 + Swift 5.10 / iOS 17 相容性 + Swift 6.2 approachable-concurrency。整套套件的基礎。
@@ -157,7 +157,7 @@ Codex-free 對應品：`security-review` ↔ `codex-security`、`code-explore` �
 - **`xcode-tooling`** — SwiftLint post-edit hook + xcodebuild/SPM pre-commit build+test gate（generic build destination、模擬器自動回退、工具鏈不存在時自動跳過）+ `ios-icon-gen` skill。需要 `swift`。
 
 啟用後，模組會：
-- 將其 skill 以 `dhpk:<skill-name>` 形式暴露（例如 `dhpk:php-pro`、`dhpk:yii1-security-audit`、`dhpk:js-lint-config`）。
+- 將其 skill 以 `dhpk:<skill-name>` 形式暴露（例如 `dhpk:dhpk-php-runtime-router`、`dhpk:dhpk-yii1-security-audit`、`dhpk:dhpk-js-lint-config`）。
 - 為 `post-edit-remind` 貢獻路徑觸發規則，讓 reviewer 在框架特定路徑上觸發。
 - 可在 `modules/<m>/hooks/post-edit-*.sh` 與 `modules/<m>/hooks/pre-{bash,commit}-*.sh` 提供 hook，模組啟用時由 dispatcher 分派執行。詳見 [`docs/hook-extension.md`](./docs/hook-extension.md)。
 - 在 SessionStart 印出一行模組啟用訊息，讓 Claude 知道該模組已生效。

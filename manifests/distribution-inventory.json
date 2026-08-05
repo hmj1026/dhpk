@@ -1,5 +1,5 @@
 {
-  "schema": "dhpk.distribution-inventory.v1",
+  "schema": "dhpk.distribution-inventory.v2",
   "description": "Machine-readable lifecycle and publication-surface assignment for every consumer-reachable dhpk skill and module. Generators derive Claude/Codex publication surfaces from this file; directory placement and README prose are not authoritative. See openspec/changes/curate-dhpk-distribution-surfaces.",
   "lifecycles": [
     "promoted",
@@ -202,872 +202,1814 @@
   "skills": [
     {
       "id": "fastapi-pro",
-      "path": "modules/fastapi/skills/fastapi-pro",
+      "name": "dhpk-fastapi-pro",
+      "path": "skills/dhpk-fastapi-pro",
+      "capability_id": "dhpk.skill.fastapi-pro",
       "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "fastapi"
+      ],
       "surfaces": [
         "claude-module"
+      ],
+      "legacy_names": [
+        "fastapi-pro"
       ]
     },
     {
       "id": "ios-platform",
-      "path": "modules/ios-platform/skills/ios-platform",
+      "name": "dhpk-ios-platform",
+      "path": "skills/dhpk-ios-platform",
+      "capability_id": "dhpk.skill.ios-platform",
       "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "ios-platform"
+      ],
       "surfaces": [
         "claude-module"
+      ],
+      "legacy_names": [
+        "ios-platform"
       ]
     },
     {
       "id": "js-lint-config",
-      "path": "modules/js/skills/js-lint-config",
+      "name": "dhpk-js-lint-config",
+      "path": "skills/dhpk-js-lint-config",
+      "capability_id": "dhpk.skill.js-lint-config",
       "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "js"
+      ],
       "surfaces": [
         "claude-module"
+      ],
+      "legacy_names": [
+        "js-lint-config"
       ]
     },
     {
       "id": "js-static-check-strategy",
-      "path": "modules/js/skills/js-static-check-strategy",
+      "name": "dhpk-js-static-check-strategy",
+      "path": "skills/dhpk-js-static-check-strategy",
+      "capability_id": "dhpk.skill.js-static-check-strategy",
       "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "js"
+      ],
       "surfaces": [
         "claude-module"
+      ],
+      "legacy_names": [
+        "js-static-check-strategy"
       ]
     },
     {
       "id": "laravel-10-notes",
-      "path": "modules/laravel-10/skills/laravel-10-notes",
+      "name": "dhpk-laravel-10-notes",
+      "path": "skills/dhpk-laravel-10-notes",
+      "capability_id": "dhpk.skill.laravel-10-notes",
       "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "laravel-10"
+      ],
       "surfaces": [
         "claude-module"
+      ],
+      "legacy_names": [
+        "laravel-10-notes"
       ]
     },
     {
       "id": "laravel-11-notes",
-      "path": "modules/laravel-11/skills/laravel-11-notes",
+      "name": "dhpk-laravel-11-notes",
+      "path": "skills/dhpk-laravel-11-notes",
+      "capability_id": "dhpk.skill.laravel-11-notes",
       "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "laravel-11"
+      ],
       "surfaces": [
         "claude-module"
+      ],
+      "legacy_names": [
+        "laravel-11-notes"
       ]
     },
     {
       "id": "laravel-5.4-notes",
-      "path": "modules/laravel-5.4/skills/laravel-5.4-notes",
+      "name": "dhpk-laravel-5-4-notes",
+      "path": "skills/dhpk-laravel-5-4-notes",
+      "capability_id": "dhpk.skill.laravel-5.4-notes",
       "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "laravel-5.4"
+      ],
       "surfaces": [
         "claude-module"
+      ],
+      "legacy_names": [
+        "laravel-5.4-notes"
       ]
     },
     {
       "id": "laravel-6-notes",
-      "path": "modules/laravel-6/skills/laravel-6-notes",
+      "name": "dhpk-laravel-6-notes",
+      "path": "skills/dhpk-laravel-6-notes",
+      "capability_id": "dhpk.skill.laravel-6-notes",
       "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "laravel-6"
+      ],
       "surfaces": [
         "claude-module"
+      ],
+      "legacy_names": [
+        "laravel-6-notes"
       ]
     },
     {
       "id": "laravel-7-notes",
-      "path": "modules/laravel-7/skills/laravel-7-notes",
+      "name": "dhpk-laravel-7-notes",
+      "path": "skills/dhpk-laravel-7-notes",
+      "capability_id": "dhpk.skill.laravel-7-notes",
       "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "laravel-7"
+      ],
       "surfaces": [
         "claude-module"
+      ],
+      "legacy_names": [
+        "laravel-7-notes"
       ]
     },
     {
       "id": "laravel-8-notes",
-      "path": "modules/laravel-8/skills/laravel-8-notes",
+      "name": "dhpk-laravel-8-notes",
+      "path": "skills/dhpk-laravel-8-notes",
+      "capability_id": "dhpk.skill.laravel-8-notes",
       "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "laravel-8"
+      ],
       "surfaces": [
         "claude-module"
+      ],
+      "legacy_names": [
+        "laravel-8-notes"
       ]
     },
     {
       "id": "laravel-9-notes",
-      "path": "modules/laravel-9/skills/laravel-9-notes",
+      "name": "dhpk-laravel-9-notes",
+      "path": "skills/dhpk-laravel-9-notes",
+      "capability_id": "dhpk.skill.laravel-9-notes",
       "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "laravel-9"
+      ],
       "surfaces": [
         "claude-module"
+      ],
+      "legacy_names": [
+        "laravel-9-notes"
       ]
     },
     {
       "id": "laravel-mix-notes",
-      "path": "modules/laravel-mix/skills/laravel-mix-notes",
+      "name": "dhpk-laravel-mix-notes",
+      "path": "skills/dhpk-laravel-mix-notes",
+      "capability_id": "dhpk.skill.laravel-mix-notes",
       "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "laravel-mix"
+      ],
       "surfaces": [
         "claude-module"
+      ],
+      "legacy_names": [
+        "laravel-mix-notes"
       ]
     },
     {
       "id": "library-dual-testsuite-map",
-      "path": "modules/library-author/skills/library-dual-testsuite-map",
+      "name": "dhpk-library-dual-testsuite-map",
+      "path": "skills/dhpk-library-dual-testsuite-map",
+      "capability_id": "dhpk.skill.library-dual-testsuite-map",
       "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "library-author"
+      ],
       "surfaces": [
         "claude-module"
+      ],
+      "legacy_names": [
+        "library-dual-testsuite-map"
       ]
     },
     {
       "id": "matrix-cell-onboard",
-      "path": "modules/library-author/skills/matrix-cell-onboard",
+      "name": "dhpk-matrix-cell-onboard",
+      "path": "skills/dhpk-matrix-cell-onboard",
+      "capability_id": "dhpk.skill.matrix-cell-onboard",
       "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "library-author"
+      ],
       "surfaces": [
         "claude-module"
+      ],
+      "legacy_names": [
+        "matrix-cell-onboard"
       ]
     },
     {
       "id": "openspec-artifact-guard",
-      "path": "modules/library-author/skills/openspec-artifact-guard",
+      "name": "dhpk-openspec-artifact-guard",
+      "path": "skills/dhpk-openspec-artifact-guard",
+      "capability_id": "dhpk.skill.openspec-artifact-guard",
       "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "library-author"
+      ],
       "surfaces": [
         "claude-module"
+      ],
+      "legacy_names": [
+        "openspec-artifact-guard"
       ]
     },
     {
       "id": "nextjs-15-5-notes",
-      "path": "modules/nextjs-15.5/skills/nextjs-15-5-notes",
+      "name": "dhpk-nextjs-15-5-notes",
+      "path": "skills/dhpk-nextjs-15-5-notes",
+      "capability_id": "dhpk.skill.nextjs-15-5-notes",
       "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "nextjs-15.5"
+      ],
       "surfaces": [
         "claude-module"
+      ],
+      "legacy_names": [
+        "nextjs-15-5-notes"
       ]
     },
     {
       "id": "nextjs-16-notes",
-      "path": "modules/nextjs-16/skills/nextjs-16-notes",
+      "name": "dhpk-nextjs-16-notes",
+      "path": "skills/dhpk-nextjs-16-notes",
+      "capability_id": "dhpk.skill.nextjs-16-notes",
       "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "nextjs-16"
+      ],
       "surfaces": [
         "claude-module"
+      ],
+      "legacy_names": [
+        "nextjs-16-notes"
       ]
     },
     {
       "id": "php-pro",
-      "path": "modules/php-5.6/skills/php-pro",
+      "name": "dhpk-php-runtime-router",
+      "path": "skills/dhpk-php-runtime-router",
+      "capability_id": "dhpk.skill.php-pro",
       "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "php-5.6"
+      ],
       "surfaces": [
         "claude-module",
         "codex-sync",
         "codex-native"
+      ],
+      "legacy_names": [
+        "php-pro"
       ]
     },
     {
       "id": "php-modern-pro",
-      "path": "modules/php-7.4/skills/php-modern-pro",
+      "name": "dhpk-php-modern-pro",
+      "path": "skills/dhpk-php-modern-pro",
+      "capability_id": "dhpk.skill.php-modern-pro",
       "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "php-7.4"
+      ],
       "surfaces": [
         "claude-module"
+      ],
+      "legacy_names": [
+        "php-modern-pro"
       ]
     },
     {
       "id": "php-8x-features",
-      "path": "modules/php-8.x/skills/php-8x-features",
+      "name": "dhpk-php-8x-features",
+      "path": "skills/dhpk-php-8x-features",
+      "capability_id": "dhpk.skill.php-8x-features",
       "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "php-8.x"
+      ],
       "surfaces": [
         "claude-module"
+      ],
+      "legacy_names": [
+        "php-8x-features"
       ]
     },
     {
       "id": "phpunit-10-notes",
-      "path": "modules/phpunit-10/skills/phpunit-10-notes",
+      "name": "dhpk-phpunit-10-notes",
+      "path": "skills/dhpk-phpunit-10-notes",
+      "capability_id": "dhpk.skill.phpunit-10-notes",
       "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "phpunit-10"
+      ],
       "surfaces": [
         "claude-module"
+      ],
+      "legacy_names": [
+        "phpunit-10-notes"
       ]
     },
     {
       "id": "phpunit-11-notes",
-      "path": "modules/phpunit-11/skills/phpunit-11-notes",
+      "name": "dhpk-phpunit-11-notes",
+      "path": "skills/dhpk-phpunit-11-notes",
+      "capability_id": "dhpk.skill.phpunit-11-notes",
       "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "phpunit-11"
+      ],
       "surfaces": [
         "claude-module"
+      ],
+      "legacy_names": [
+        "phpunit-11-notes"
       ]
     },
     {
       "id": "legacy-code-characterization",
-      "path": "modules/phpunit-5.7/skills/legacy-code-characterization",
+      "name": "dhpk-legacy-characterization-tests",
+      "path": "skills/dhpk-legacy-characterization-tests",
+      "capability_id": "dhpk.skill.legacy-code-characterization",
       "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "phpunit-5.7"
+      ],
       "surfaces": [
         "claude-module",
         "codex-sync",
         "codex-native"
+      ],
+      "legacy_names": [
+        "legacy-code-characterization"
       ]
     },
     {
       "id": "phpunit-9-modern",
-      "path": "modules/phpunit-9/skills/phpunit-9-modern",
+      "name": "dhpk-phpunit-9-modern",
+      "path": "skills/dhpk-phpunit-9-modern",
+      "capability_id": "dhpk.skill.phpunit-9-modern",
       "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "phpunit-9"
+      ],
       "surfaces": [
         "claude-module"
+      ],
+      "legacy_names": [
+        "phpunit-9-modern"
       ]
     },
     {
       "id": "pytest-async",
-      "path": "modules/pytest/skills/pytest-async",
+      "name": "dhpk-pytest-async",
+      "path": "skills/dhpk-pytest-async",
+      "capability_id": "dhpk.skill.pytest-async",
       "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "pytest"
+      ],
       "surfaces": [
         "claude-module"
+      ],
+      "legacy_names": [
+        "pytest-async"
       ]
     },
     {
       "id": "python-pro",
-      "path": "modules/python/skills/python-pro",
+      "name": "dhpk-python-pro",
+      "path": "skills/dhpk-python-pro",
+      "capability_id": "dhpk.skill.python-pro",
       "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "python"
+      ],
       "surfaces": [
         "claude-module"
+      ],
+      "legacy_names": [
+        "python-pro"
       ]
     },
     {
       "id": "python-static-checks",
-      "path": "modules/python/skills/python-static-checks",
+      "name": "dhpk-python-static-checks",
+      "path": "skills/dhpk-python-static-checks",
+      "capability_id": "dhpk.skill.python-static-checks",
       "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "python"
+      ],
       "surfaces": [
         "claude-module"
+      ],
+      "legacy_names": [
+        "python-static-checks"
       ]
     },
     {
       "id": "react-18-notes",
-      "path": "modules/react-18/skills/react-18-notes",
+      "name": "dhpk-react-18-notes",
+      "path": "skills/dhpk-react-18-notes",
+      "capability_id": "dhpk.skill.react-18-notes",
       "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "react-18"
+      ],
       "surfaces": [
         "claude-module"
+      ],
+      "legacy_names": [
+        "react-18-notes"
       ]
     },
     {
       "id": "react-19-notes",
-      "path": "modules/react-19/skills/react-19-notes",
+      "name": "dhpk-react-19-notes",
+      "path": "skills/dhpk-react-19-notes",
+      "capability_id": "dhpk.skill.react-19-notes",
       "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "react-19"
+      ],
       "surfaces": [
         "claude-module"
+      ],
+      "legacy_names": [
+        "react-19-notes"
       ]
     },
     {
       "id": "swift-test-strategy",
-      "path": "modules/swift-testing/skills/swift-test-strategy",
+      "name": "dhpk-swift-test-strategy",
+      "path": "skills/dhpk-swift-test-strategy",
+      "capability_id": "dhpk.skill.swift-test-strategy",
       "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "swift-testing"
+      ],
       "surfaces": [
         "claude-module"
+      ],
+      "legacy_names": [
+        "swift-test-strategy"
       ]
     },
     {
       "id": "swift-language",
-      "path": "modules/swift/skills/swift-language",
+      "name": "dhpk-swift-language",
+      "path": "skills/dhpk-swift-language",
+      "capability_id": "dhpk.skill.swift-language",
       "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "swift"
+      ],
       "surfaces": [
         "claude-module"
+      ],
+      "legacy_names": [
+        "swift-language"
       ]
     },
     {
       "id": "swiftui-architecture",
-      "path": "modules/swiftui/skills/swiftui-architecture",
+      "name": "dhpk-swiftui-architecture",
+      "path": "skills/dhpk-swiftui-architecture",
+      "capability_id": "dhpk.skill.swiftui-architecture",
       "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "swiftui"
+      ],
       "surfaces": [
         "claude-module"
+      ],
+      "legacy_names": [
+        "swiftui-architecture"
       ]
     },
     {
       "id": "vue-2-notes",
-      "path": "modules/vue-2/skills/vue-2-notes",
+      "name": "dhpk-vue-2-notes",
+      "path": "skills/dhpk-vue-2-notes",
+      "capability_id": "dhpk.skill.vue-2-notes",
       "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "vue-2"
+      ],
       "surfaces": [
         "claude-module"
+      ],
+      "legacy_names": [
+        "vue-2-notes"
       ]
     },
     {
       "id": "ios-icon-gen",
-      "path": "modules/xcode-tooling/skills/ios-icon-gen",
+      "name": "dhpk-ios-icon-gen",
+      "path": "skills/dhpk-ios-icon-gen",
+      "capability_id": "dhpk.skill.ios-icon-gen",
       "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "xcode-tooling"
+      ],
       "surfaces": [
         "claude-module"
+      ],
+      "legacy_names": [
+        "ios-icon-gen"
       ]
     },
     {
       "id": "xcode-build-tooling",
-      "path": "modules/xcode-tooling/skills/xcode-build-tooling",
+      "name": "dhpk-xcode-build-tooling",
+      "path": "skills/dhpk-xcode-build-tooling",
+      "capability_id": "dhpk.skill.xcode-build-tooling",
       "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "xcode-tooling"
+      ],
       "surfaces": [
         "claude-module"
+      ],
+      "legacy_names": [
+        "xcode-build-tooling"
       ]
     },
     {
       "id": "php56-yii-dev",
-      "path": "modules/yii-1.1/skills/php56-yii-dev",
+      "name": "dhpk-yii1-php56-development",
+      "path": "skills/dhpk-yii1-php56-development",
+      "capability_id": "dhpk.skill.php56-yii-dev",
       "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "yii-1.1"
+      ],
       "surfaces": [
         "claude-module",
         "codex-sync",
         "codex-native"
+      ],
+      "legacy_names": [
+        "php56-yii-dev"
       ]
     },
     {
       "id": "yii1-security-audit",
-      "path": "modules/yii-1.1/skills/yii1-security-audit",
+      "name": "dhpk-yii1-security-audit",
+      "path": "skills/dhpk-yii1-security-audit",
+      "capability_id": "dhpk.skill.yii1-security-audit",
       "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "yii-1.1"
+      ],
       "surfaces": [
         "claude-module",
         "codex-sync",
         "codex-native"
+      ],
+      "legacy_names": [
+        "yii1-security-audit"
       ]
     },
     {
       "id": "adaptive-dev-workflow",
-      "path": "skills/adaptive-dev-workflow",
+      "name": "dhpk-adaptive-dev-workflow",
+      "path": "skills/dhpk-adaptive-dev-workflow",
+      "capability_id": "dhpk.skill.adaptive-dev-workflow",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "adaptive-dev-workflow"
       ]
     },
     {
       "id": "agent-architecture-audit",
-      "path": "skills/agent-architecture-audit",
+      "name": "dhpk-agent-architecture-audit",
+      "path": "skills/dhpk-agent-architecture-audit",
+      "capability_id": "dhpk.skill.agent-architecture-audit",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "agent-architecture-audit"
       ]
     },
     {
       "id": "agy-commit",
-      "path": "skills/agy-commit",
+      "name": "dhpk-agy-commit",
+      "path": "skills/dhpk-agy-commit",
+      "capability_id": "dhpk.skill.agy-commit",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core",
         "codex-sync",
         "codex-native"
+      ],
+      "legacy_names": [
+        "agy-commit"
       ]
     },
     {
       "id": "agy-fast-worker",
-      "path": "skills/agy-fast-worker",
+      "name": "dhpk-agy-fast-worker",
+      "path": "skills/dhpk-agy-fast-worker",
+      "capability_id": "dhpk.skill.agy-fast-worker",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "agy-fast-worker"
       ]
     },
     {
       "id": "bug-fix",
-      "path": "skills/bug-fix",
+      "name": "dhpk-bug-fix",
+      "path": "skills/dhpk-bug-fix",
+      "capability_id": "dhpk.skill.bug-fix",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "bug-fix"
       ]
     },
     {
       "id": "bug-investigation",
-      "path": "skills/bug-investigation",
+      "name": "dhpk-root-cause-investigation",
+      "path": "skills/dhpk-root-cause-investigation",
+      "capability_id": "dhpk.skill.bug-investigation",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core",
         "codex-sync",
         "codex-native"
+      ],
+      "legacy_names": [
+        "bug-investigation"
       ]
     },
     {
       "id": "claude-health",
-      "path": "skills/claude-health",
+      "name": "dhpk-claude-health",
+      "path": "skills/dhpk-claude-health",
+      "capability_id": "dhpk.skill.claude-health",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "claude-health"
       ]
     },
     {
       "id": "code-explore",
-      "path": "skills/code-explore",
+      "name": "dhpk-codebase-exploration",
+      "path": "skills/dhpk-codebase-exploration",
+      "capability_id": "dhpk.skill.code-explore",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "code-explore"
       ]
     },
     {
       "id": "code-investigate",
-      "path": "skills/code-investigate",
+      "name": "dhpk-code-investigate",
+      "path": "skills/dhpk-code-investigate",
+      "capability_id": "dhpk.skill.code-investigate",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "code-investigate"
       ]
     },
     {
       "id": "codex-architect",
-      "path": "skills/codex-architect",
+      "name": "dhpk-codex-architect",
+      "path": "skills/dhpk-codex-architect",
+      "capability_id": "dhpk.skill.codex-architect",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "codex-architect"
       ]
     },
     {
       "id": "codex-brainstorm",
-      "path": "skills/codex-brainstorm",
+      "name": "dhpk-codex-brainstorm",
+      "path": "skills/dhpk-codex-brainstorm",
+      "capability_id": "dhpk.skill.codex-brainstorm",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "codex-brainstorm"
       ]
     },
     {
       "id": "codex-bridge",
-      "path": "skills/codex-bridge",
+      "name": "dhpk-codex-bridge",
+      "path": "skills/dhpk-codex-bridge",
+      "capability_id": "dhpk.skill.codex-bridge",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "codex-bridge"
       ]
     },
     {
       "id": "codex-cli-review",
-      "path": "skills/codex-cli-review",
+      "name": "dhpk-codex-cli-review",
+      "path": "skills/dhpk-codex-cli-review",
+      "capability_id": "dhpk.skill.codex-cli-review",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "codex-cli-review"
       ]
     },
     {
       "id": "codex-code-review",
-      "path": "skills/codex-code-review",
+      "name": "dhpk-change-review",
+      "path": "skills/dhpk-change-review",
+      "capability_id": "dhpk.skill.codex-code-review",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "codex-code-review"
       ]
     },
     {
       "id": "codex-explain",
-      "path": "skills/codex-explain",
+      "name": "dhpk-codex-explain",
+      "path": "skills/dhpk-codex-explain",
+      "capability_id": "dhpk.skill.codex-explain",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "codex-explain"
       ]
     },
     {
       "id": "codex-implement",
-      "path": "skills/codex-implement",
+      "name": "dhpk-codex-implement",
+      "path": "skills/dhpk-codex-implement",
+      "capability_id": "dhpk.skill.codex-implement",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "codex-implement"
       ]
     },
     {
       "id": "composer-package-hygiene",
-      "path": "skills/composer-package-hygiene",
+      "name": "dhpk-composer-package-hygiene",
+      "path": "skills/dhpk-composer-package-hygiene",
+      "capability_id": "dhpk.skill.composer-package-hygiene",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "composer-package-hygiene"
       ]
     },
     {
       "id": "continuous-learning-v2",
-      "path": "skills/continuous-learning-v2",
+      "name": "dhpk-continuous-learning-v2",
+      "path": "skills/dhpk-continuous-learning-v2",
+      "capability_id": "dhpk.skill.continuous-learning-v2",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "continuous-learning-v2"
       ]
     },
     {
       "id": "create-request",
-      "path": "skills/create-request",
+      "name": "dhpk-create-request",
+      "path": "skills/dhpk-create-request",
+      "capability_id": "dhpk.skill.create-request",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "create-request"
       ]
     },
     {
       "id": "create-skill",
-      "path": "skills/create-skill",
+      "name": "dhpk-create-skill",
+      "path": "skills/dhpk-create-skill",
+      "capability_id": "dhpk.skill.create-skill",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "create-skill"
       ]
     },
     {
       "id": "de-ai-flavor",
-      "path": "skills/de-ai-flavor",
+      "name": "dhpk-de-ai-flavor",
+      "path": "skills/dhpk-de-ai-flavor",
+      "capability_id": "dhpk.skill.de-ai-flavor",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "de-ai-flavor"
       ]
     },
     {
       "id": "deploy-list",
-      "path": "skills/deploy-list",
+      "name": "dhpk-deploy-list",
+      "path": "skills/dhpk-deploy-list",
+      "capability_id": "dhpk.skill.deploy-list",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "deploy-list"
       ]
     },
     {
       "id": "dhpk-execution-policy",
+      "name": "dhpk-execution-policy",
       "path": "skills/dhpk-execution-policy",
+      "capability_id": "dhpk.skill.dhpk-execution-policy",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
       ]
     },
     {
       "id": "doc-review",
-      "path": "skills/doc-review",
+      "name": "dhpk-doc-review",
+      "path": "skills/dhpk-doc-review",
+      "capability_id": "dhpk.skill.doc-review",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "doc-review"
       ]
     },
     {
       "id": "execution-checklist",
-      "path": "skills/execution-checklist",
+      "name": "dhpk-execution-checklist",
+      "path": "skills/dhpk-execution-checklist",
+      "capability_id": "dhpk.skill.execution-checklist",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "execution-checklist"
       ]
     },
     {
       "id": "feasibility-study",
-      "path": "skills/feasibility-study",
+      "name": "dhpk-feasibility-study",
+      "path": "skills/dhpk-feasibility-study",
+      "capability_id": "dhpk.skill.feasibility-study",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "feasibility-study"
       ]
     },
     {
       "id": "feature-dev",
-      "path": "skills/feature-dev",
+      "name": "dhpk-feature-dev",
+      "path": "skills/dhpk-feature-dev",
+      "capability_id": "dhpk.skill.feature-dev",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "feature-dev"
       ]
     },
     {
       "id": "feature-verify",
-      "path": "skills/feature-verify",
+      "name": "dhpk-feature-verify",
+      "path": "skills/dhpk-feature-verify",
+      "capability_id": "dhpk.skill.feature-verify",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "feature-verify"
       ]
     },
     {
       "id": "git-investigate",
-      "path": "skills/git-investigate",
+      "name": "dhpk-git-history-investigation",
+      "path": "skills/dhpk-git-history-investigation",
+      "capability_id": "dhpk.skill.git-investigate",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core",
         "codex-sync",
         "codex-native"
+      ],
+      "legacy_names": [
+        "git-investigate"
       ]
     },
     {
       "id": "git-smart-commit",
-      "path": "skills/git-smart-commit",
+      "name": "dhpk-git-smart-commit",
+      "path": "skills/dhpk-git-smart-commit",
+      "capability_id": "dhpk.skill.git-smart-commit",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core",
         "codex-sync",
         "codex-native"
+      ],
+      "legacy_names": [
+        "git-smart-commit"
       ]
     },
     {
       "id": "gitnexus-cli",
-      "path": "skills/gitnexus/gitnexus-cli",
+      "name": "dhpk-gitnexus-cli",
+      "path": "skills/dhpk-gitnexus-cli",
+      "capability_id": "dhpk.skill.gitnexus-cli",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "gitnexus-cli"
       ]
     },
     {
       "id": "gitnexus-debugging",
-      "path": "skills/gitnexus/gitnexus-debugging",
+      "name": "dhpk-gitnexus-debugging",
+      "path": "skills/dhpk-gitnexus-debugging",
+      "capability_id": "dhpk.skill.gitnexus-debugging",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "gitnexus-debugging"
       ]
     },
     {
       "id": "gitnexus-exploring",
-      "path": "skills/gitnexus/gitnexus-exploring",
+      "name": "dhpk-gitnexus-exploring",
+      "path": "skills/dhpk-gitnexus-exploring",
+      "capability_id": "dhpk.skill.gitnexus-exploring",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "gitnexus-exploring"
       ]
     },
     {
       "id": "gitnexus-guide",
-      "path": "skills/gitnexus/gitnexus-guide",
+      "name": "dhpk-gitnexus-guide",
+      "path": "skills/dhpk-gitnexus-guide",
+      "capability_id": "dhpk.skill.gitnexus-guide",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "gitnexus-guide"
       ]
     },
     {
       "id": "gitnexus-impact-analysis",
-      "path": "skills/gitnexus/gitnexus-impact-analysis",
+      "name": "dhpk-gitnexus-impact-analysis",
+      "path": "skills/dhpk-gitnexus-impact-analysis",
+      "capability_id": "dhpk.skill.gitnexus-impact-analysis",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "gitnexus-impact-analysis"
       ]
     },
     {
       "id": "gitnexus-refactoring",
-      "path": "skills/gitnexus/gitnexus-refactoring",
+      "name": "dhpk-gitnexus-refactoring",
+      "path": "skills/dhpk-gitnexus-refactoring",
+      "capability_id": "dhpk.skill.gitnexus-refactoring",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "gitnexus-refactoring"
       ]
     },
     {
       "id": "harness-budget",
-      "path": "skills/harness-budget",
+      "name": "dhpk-harness-budget",
+      "path": "skills/dhpk-harness-budget",
+      "capability_id": "dhpk.skill.harness-budget",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "harness-budget"
       ]
     },
     {
       "id": "harness-fill",
-      "path": "skills/harness-fill",
+      "name": "dhpk-harness-fill",
+      "path": "skills/dhpk-harness-fill",
+      "capability_id": "dhpk.skill.harness-fill",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "harness-fill"
       ]
     },
     {
       "id": "harness-revise",
-      "path": "skills/harness-revise",
+      "name": "dhpk-harness-revise",
+      "path": "skills/dhpk-harness-revise",
+      "capability_id": "dhpk.skill.harness-revise",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "harness-revise"
       ]
     },
     {
       "id": "issue-analyze",
-      "path": "skills/issue-analyze",
+      "name": "dhpk-issue-analyze",
+      "path": "skills/dhpk-issue-analyze",
+      "capability_id": "dhpk.skill.issue-analyze",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "issue-analyze"
       ]
     },
     {
       "id": "laravel-package-author",
-      "path": "skills/laravel-package-author",
+      "name": "dhpk-laravel-package-author",
+      "path": "skills/dhpk-laravel-package-author",
+      "capability_id": "dhpk.skill.laravel-package-author",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "laravel-package-author"
       ]
     },
     {
       "id": "laravel-testbench-matrix",
-      "path": "skills/laravel-testbench-matrix",
+      "name": "dhpk-laravel-testbench-matrix",
+      "path": "skills/dhpk-laravel-testbench-matrix",
+      "capability_id": "dhpk.skill.laravel-testbench-matrix",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "laravel-testbench-matrix"
       ]
     },
     {
       "id": "multi-ai-sync",
-      "path": "skills/multi-ai-sync",
+      "name": "dhpk-cross-agent-sync",
+      "path": "skills/dhpk-cross-agent-sync",
+      "capability_id": "dhpk.skill.multi-ai-sync",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core",
         "codex-sync",
         "codex-native"
+      ],
+      "legacy_names": [
+        "multi-ai-sync"
       ]
     },
     {
       "id": "next-step",
-      "path": "skills/next-step",
+      "name": "dhpk-next-step",
+      "path": "skills/dhpk-next-step",
+      "capability_id": "dhpk.skill.next-step",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "next-step"
       ]
     },
     {
       "id": "op-session",
-      "path": "skills/op-session",
+      "name": "dhpk-onepassword-session",
+      "path": "skills/dhpk-onepassword-session",
+      "capability_id": "dhpk.skill.op-session",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core",
         "codex-sync",
         "codex-native"
+      ],
+      "legacy_names": [
+        "op-session"
       ]
     },
     {
       "id": "opsx-apply-goal",
-      "path": "skills/opsx-apply-goal",
+      "name": "dhpk-opsx-apply-goal",
+      "path": "skills/dhpk-opsx-apply-goal",
+      "capability_id": "dhpk.skill.opsx-apply-goal",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "opsx-apply-goal"
       ]
     },
     {
       "id": "opsx-load-context",
-      "path": "skills/opsx-load-context",
+      "name": "dhpk-opsx-load-context",
+      "path": "skills/dhpk-opsx-load-context",
+      "capability_id": "dhpk.skill.opsx-load-context",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core",
         "codex-sync",
         "codex-native"
+      ],
+      "legacy_names": [
+        "opsx-load-context"
       ]
     },
     {
       "id": "opsx-post-obs",
-      "path": "skills/opsx-post-obs",
+      "name": "dhpk-opsx-post-observation",
+      "path": "skills/dhpk-opsx-post-observation",
+      "capability_id": "dhpk.skill.opsx-post-obs",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core",
         "codex-sync",
         "codex-native"
+      ],
+      "legacy_names": [
+        "opsx-post-obs"
       ]
     },
     {
       "id": "polyfill-version-matrix-audit",
-      "path": "skills/polyfill-version-matrix-audit",
+      "name": "dhpk-polyfill-version-matrix-audit",
+      "path": "skills/dhpk-polyfill-version-matrix-audit",
+      "capability_id": "dhpk.skill.polyfill-version-matrix-audit",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "polyfill-version-matrix-audit"
       ]
     },
     {
       "id": "post-dev-test",
-      "path": "skills/post-dev-test",
+      "name": "dhpk-post-dev-test",
+      "path": "skills/dhpk-post-dev-test",
+      "capability_id": "dhpk.skill.post-dev-test",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "post-dev-test"
       ]
     },
     {
       "id": "pr-review",
-      "path": "skills/pr-review",
+      "name": "dhpk-pr-review",
+      "path": "skills/dhpk-pr-review",
+      "capability_id": "dhpk.skill.pr-review",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "pr-review"
       ]
     },
     {
       "id": "project-audit",
-      "path": "skills/project-audit",
+      "name": "dhpk-project-audit",
+      "path": "skills/dhpk-project-audit",
+      "capability_id": "dhpk.skill.project-audit",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "project-audit"
       ]
     },
     {
       "id": "project-setup",
-      "path": "skills/project-setup",
+      "name": "dhpk-project-setup",
+      "path": "skills/dhpk-project-setup",
+      "capability_id": "dhpk.skill.project-setup",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "project-setup"
       ]
     },
     {
       "id": "prompt-optimize",
-      "path": "skills/prompt-optimize",
+      "name": "dhpk-prompt-optimize",
+      "path": "skills/dhpk-prompt-optimize",
+      "capability_id": "dhpk.skill.prompt-optimize",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "prompt-optimize"
       ]
     },
     {
       "id": "release-creator",
-      "path": "skills/release-creator",
+      "name": "dhpk-release-creator",
+      "path": "skills/dhpk-release-creator",
+      "capability_id": "dhpk.skill.release-creator",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "release-creator"
       ]
     },
     {
       "id": "repo-intake",
-      "path": "skills/repo-intake",
+      "name": "dhpk-repo-intake",
+      "path": "skills/dhpk-repo-intake",
+      "capability_id": "dhpk.skill.repo-intake",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "repo-intake"
       ]
     },
     {
       "id": "risk-assess",
-      "path": "skills/risk-assess",
+      "name": "dhpk-risk-assess",
+      "path": "skills/dhpk-risk-assess",
+      "capability_id": "dhpk.skill.risk-assess",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "risk-assess"
       ]
     },
     {
       "id": "rules-distill",
-      "path": "skills/rules-distill",
+      "name": "dhpk-rules-distill",
+      "path": "skills/dhpk-rules-distill",
+      "capability_id": "dhpk.skill.rules-distill",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "rules-distill"
       ]
     },
     {
       "id": "security-review",
-      "path": "skills/security-review",
+      "name": "dhpk-security-review",
+      "path": "skills/dhpk-security-review",
+      "capability_id": "dhpk.skill.security-review",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "security-review"
       ]
     },
     {
       "id": "skill-health-check",
-      "path": "skills/skill-health-check",
+      "name": "dhpk-skill-health-audit",
+      "path": "skills/dhpk-skill-health-audit",
+      "capability_id": "dhpk.skill.skill-health-check",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core",
         "codex-sync",
         "codex-native"
+      ],
+      "legacy_names": [
+        "skill-health-check"
       ]
     },
     {
       "id": "skill-judge",
-      "path": "skills/skill-judge",
+      "name": "dhpk-skill-quality-judge",
+      "path": "skills/dhpk-skill-quality-judge",
+      "capability_id": "dhpk.skill.skill-judge",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core",
         "codex-sync",
         "codex-native"
+      ],
+      "legacy_names": [
+        "skill-judge"
       ]
     },
     {
       "id": "skill-scout",
-      "path": "skills/skill-scout",
+      "name": "dhpk-skill-scout",
+      "path": "skills/dhpk-skill-scout",
+      "capability_id": "dhpk.skill.skill-scout",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "skill-scout"
       ]
     },
     {
       "id": "skill-stocktake",
-      "path": "skills/skill-stocktake",
+      "name": "dhpk-skill-stocktake",
+      "path": "skills/dhpk-skill-stocktake",
+      "capability_id": "dhpk.skill.skill-stocktake",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "skill-stocktake"
       ]
     },
     {
       "id": "software-architecture",
-      "path": "skills/software-architecture",
+      "name": "dhpk-module-design",
+      "path": "skills/dhpk-module-design",
+      "capability_id": "dhpk.skill.software-architecture",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "software-architecture"
       ]
     },
     {
       "id": "tdd",
-      "path": "skills/tdd",
+      "name": "dhpk-tdd-workflow",
+      "path": "skills/dhpk-tdd-workflow",
+      "capability_id": "dhpk.skill.tdd",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core",
         "codex-sync",
         "codex-native"
+      ],
+      "legacy_names": [
+        "tdd"
       ]
     },
     {
       "id": "tech-spec",
-      "path": "skills/tech-spec",
+      "name": "dhpk-tech-spec",
+      "path": "skills/dhpk-tech-spec",
+      "capability_id": "dhpk.skill.tech-spec",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "tech-spec"
       ]
     },
     {
       "id": "test-review",
-      "path": "skills/test-review",
+      "name": "dhpk-test-review",
+      "path": "skills/dhpk-test-review",
+      "capability_id": "dhpk.skill.test-review",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "test-review"
       ]
     },
     {
       "id": "tool-routing",
-      "path": "skills/tool-routing",
+      "name": "dhpk-tool-routing",
+      "path": "skills/dhpk-tool-routing",
+      "capability_id": "dhpk.skill.tool-routing",
       "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
       "surfaces": [
         "claude-core"
+      ],
+      "legacy_names": [
+        "tool-routing"
       ]
     }
   ],

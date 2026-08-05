@@ -21,19 +21,19 @@ function tmpDir(prefix) {
 test('materialized candidate contains only the explicit codex-native surface, as real files — not every promoted skill', () => {
   const inventory = {
     skills: [
-      { id: 'tdd', path: 'skills/tdd', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
-      { id: 'skill-judge', path: 'skills/skill-judge', lifecycle: 'promoted', surfaces: ['claude-core'] },
-      { id: 'vue-2-notes', path: 'skills/tdd', lifecycle: 'optional', surfaces: ['claude-module'] },
+      { id: 'tdd', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
+      { id: 'skill-judge', path: 'skills/dhpk-skill-quality-judge', lifecycle: 'promoted', surfaces: ['claude-core'] },
+      { id: 'vue-2-notes', path: 'skills/dhpk-tdd-workflow', lifecycle: 'optional', surfaces: ['claude-module'] },
     ],
   };
   const out = tmpDir('dhpk-native-materialize-');
   try {
     const result = materializeNativePackage({ inventory, root: ROOT, outDir: out });
     assert.deepStrictEqual(result.skillIds, ['tdd']);
-    assert.ok(fs.existsSync(path.join(out, 'skills', 'tdd', 'SKILL.md')));
+    assert.ok(fs.existsSync(path.join(out, 'skills', 'dhpk-tdd-workflow', 'SKILL.md')));
     // skill-judge is promoted but NOT codex-native — must be excluded.
-    assert.ok(!fs.existsSync(path.join(out, 'skills', 'skill-judge')));
-    assert.ok(!fs.existsSync(path.join(out, 'skills', 'vue-2-notes')));
+    assert.ok(!fs.existsSync(path.join(out, 'skills', 'dhpk-skill-quality-judge')));
+    assert.ok(!fs.existsSync(path.join(out, 'skills', 'dhpk-vue-2-notes')));
     const validation = validateNativeCandidate({ manifestSkillsField: result.manifestSkillsField, packageRoot: out });
     assert.deepStrictEqual(validation.errors, []);
   } finally {
@@ -44,8 +44,8 @@ test('materialized candidate contains only the explicit codex-native surface, as
 test('an approved optional-lifecycle native exception is included alongside promoted native skills', () => {
   const inventory = {
     skills: [
-      { id: 'tdd', path: 'skills/tdd', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
-      { id: 'php-pro', path: 'modules/php-5.6/skills/php-pro', lifecycle: 'optional', surfaces: ['claude-module', 'codex-native'] },
+      { id: 'tdd', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
+      { id: 'php-pro', path: 'skills/dhpk-php-runtime-router', lifecycle: 'optional', surfaces: ['claude-module', 'codex-native'] },
     ],
   };
   const out = tmpDir('dhpk-native-optional-exception-');
@@ -60,24 +60,24 @@ test('an approved optional-lifecycle native exception is included alongside prom
 test('regenerating into an existing outDir removes a skill directory dropped from the codex-native surface', () => {
   const firstInventory = {
     skills: [
-      { id: 'tdd', path: 'skills/tdd', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
-      { id: 'skill-judge', path: 'skills/skill-judge', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
+      { id: 'tdd', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
+      { id: 'skill-judge', path: 'skills/dhpk-skill-quality-judge', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
     ],
   };
   const out = tmpDir('dhpk-native-regenerate-drop-');
   try {
     materializeNativePackage({ inventory: firstInventory, root: ROOT, outDir: out });
-    assert.ok(fs.existsSync(path.join(out, 'skills', 'skill-judge')));
+    assert.ok(fs.existsSync(path.join(out, 'skills', 'dhpk-skill-quality-judge')));
 
     // skill-judge is de-listed from codex-native between releases.
     const secondInventory = {
-      skills: [{ id: 'tdd', path: 'skills/tdd', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] }],
+      skills: [{ id: 'tdd', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] }],
     };
     const result = materializeNativePackage({ inventory: secondInventory, root: ROOT, outDir: out });
 
     assert.deepStrictEqual(result.skillIds, ['tdd']);
-    assert.ok(fs.existsSync(path.join(out, 'skills', 'tdd')), 'tdd must remain');
-    assert.ok(!fs.existsSync(path.join(out, 'skills', 'skill-judge')), 'stale skill-judge directory must be removed on regeneration');
+    assert.ok(fs.existsSync(path.join(out, 'skills', 'dhpk-tdd-workflow')), 'tdd must remain');
+    assert.ok(!fs.existsSync(path.join(out, 'skills', 'dhpk-skill-quality-judge')), 'stale skill-judge directory must be removed on regeneration');
     assert.deepStrictEqual(Object.keys(result.fingerprints), ['tdd']);
   } finally {
     fs.rmSync(out, { recursive: true, force: true });
@@ -86,7 +86,7 @@ test('regenerating into an existing outDir removes a skill directory dropped fro
 
 test('generation is deterministic: two materializations of the same inventory produce identical fingerprints and provenance', () => {
   const inventory = {
-    skills: [{ id: 'tdd', path: 'skills/tdd', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] }],
+    skills: [{ id: 'tdd', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] }],
   };
   const outA = tmpDir('dhpk-native-a-');
   const outB = tmpDir('dhpk-native-b-');
@@ -95,7 +95,7 @@ test('generation is deterministic: two materializations of the same inventory pr
     const b = materializeNativePackage({ inventory, root: ROOT, outDir: outB, version: '1.2.3', sourceCommit: 'abc123' });
     assert.deepStrictEqual(a.fingerprints, b.fingerprints);
     assert.deepStrictEqual(a.provenance, b.provenance);
-    assert.strictEqual(fingerprintDir(path.join(outA, 'skills', 'tdd')), fingerprintDir(path.join(outB, 'skills', 'tdd')));
+    assert.strictEqual(fingerprintDir(path.join(outA, 'skills', 'dhpk-tdd-workflow')), fingerprintDir(path.join(outB, 'skills', 'dhpk-tdd-workflow')));
   } finally {
     fs.rmSync(outA, { recursive: true, force: true });
     fs.rmSync(outB, { recursive: true, force: true });

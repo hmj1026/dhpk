@@ -21,7 +21,7 @@
 
 JSON output uses `CJSON::encode()` / `json_encode()`, **not** `CHtml::encode()`. Headers, cookie flags, and Strict-Transport-Security follow the project's PHP security rules.
 
-Deeper Yii security patterns: `.codex/skills/yii1-security-audit/references/yii1-security-patterns.md`
+Deeper Yii security patterns: `.codex/skills/dhpk-yii1-security-audit/references/yii1-security-patterns.md`
 
 ## Worked example
 

@@ -146,7 +146,7 @@ Category: `reviews/`. Frontmatter/retention/degradation: reviewer-family shape (
 ## References
 
 - `dhpk:database-reviewer` agent (parent SQL specialist for query correctness)
-- `dhpk:tool-routing` skill (cx / gitnexus / claude-mem routing for the symbol-level pre-edit lookups)
+- `dhpk:dhpk-tool-routing` skill (cx / gitnexus / claude-mem routing for the symbol-level pre-edit lookups)
 - Per-stack module references (loaded only when the matching module is enabled):
   - `modules/yii-1.1/references/framework.md` — Yii 1.1 CDbMigration API + `yiic migrate` flow
   - `modules/laravel-*/` — Laravel migration patterns per major version

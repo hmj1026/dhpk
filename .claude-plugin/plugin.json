@@ -24,38 +24,7 @@
     "swiftui"
   ],
   "skills": [
-    "./skills/",
-    "./modules/php-5.6/skills/",
-    "./modules/php-7.4/skills/",
-    "./modules/php-8.x/skills/",
-    "./modules/yii-1.1/skills/",
-    "./modules/phpunit-5.7/skills/",
-    "./modules/phpunit-9/skills/",
-    "./modules/phpunit-10/skills/",
-    "./modules/phpunit-11/skills/",
-    "./modules/laravel-5.4/skills/",
-    "./modules/laravel-6/skills/",
-    "./modules/laravel-7/skills/",
-    "./modules/laravel-8/skills/",
-    "./modules/laravel-9/skills/",
-    "./modules/laravel-10/skills/",
-    "./modules/laravel-11/skills/",
-    "./modules/js/skills/",
-    "./modules/python/skills/",
-    "./modules/fastapi/skills/",
-    "./modules/pytest/skills/",
-    "./modules/vue-2/skills/",
-    "./modules/laravel-mix/skills/",
-    "./modules/nextjs-15.5/skills/",
-    "./modules/nextjs-16/skills/",
-    "./modules/react-18/skills/",
-    "./modules/react-19/skills/",
-    "./modules/library-author/skills/",
-    "./modules/swift/skills/",
-    "./modules/swiftui/skills/",
-    "./modules/ios-platform/skills/",
-    "./modules/swift-testing/skills/",
-    "./modules/xcode-tooling/skills/"
+    "./skills/"
   ],
   "agents": [
     "./agents/agent-evaluator.md",
@@ -408,7 +377,7 @@
     "skill_hint_enabled": {
       "type": "boolean",
       "title": "Enable UserPromptSubmit skill hint",
-      "description": "When true (default), the userpromptsubmit-skill-hint hook prints a one-line suggestion mapping the user prompt to the most likely dhpk command (e.g. 'bug' → /dhpk:bug-fix). Set false to silence. Env DHPK_DISABLE_SKILL_HINT=1 overrides for one-shot disable.",
+      "description": "When true (default), the userpromptsubmit-skill-hint hook prints a one-line suggestion mapping the user prompt to the most likely dhpk command (e.g. 'bug' → /dhpk:dhpk-bug-fix). Set false to silence. Env DHPK_DISABLE_SKILL_HINT=1 overrides for one-shot disable.",
       "default": true
     },
     "learning_db_enabled": {

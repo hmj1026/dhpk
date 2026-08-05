@@ -8,7 +8,7 @@
   },
   "skills": [
     {
-      "path": "modules/fastapi/skills/fastapi-pro/SKILL.md",
+      "path": "skills/dhpk-fastapi-pro/SKILL.md",
       "name": "fastapi-pro",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -16,7 +16,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "modules/ios-platform/skills/ios-platform/SKILL.md",
+      "path": "skills/dhpk-ios-platform/SKILL.md",
       "name": "ios-platform",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -24,7 +24,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "modules/js/skills/js-lint-config/SKILL.md",
+      "path": "skills/dhpk-js-lint-config/SKILL.md",
       "name": "js-lint-config",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -32,7 +32,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "modules/js/skills/js-static-check-strategy/SKILL.md",
+      "path": "skills/dhpk-js-static-check-strategy/SKILL.md",
       "name": "js-static-check-strategy",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -40,7 +40,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "modules/laravel-10/skills/laravel-10-notes/SKILL.md",
+      "path": "skills/dhpk-laravel-10-notes/SKILL.md",
       "name": "laravel-10-notes",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -48,7 +48,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "modules/laravel-11/skills/laravel-11-notes/SKILL.md",
+      "path": "skills/dhpk-laravel-11-notes/SKILL.md",
       "name": "laravel-11-notes",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -56,7 +56,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "modules/laravel-5.4/skills/laravel-5.4-notes/SKILL.md",
+      "path": "skills/dhpk-laravel-5-4-notes/SKILL.md",
       "name": "laravel-5.4-notes",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -64,7 +64,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "modules/laravel-6/skills/laravel-6-notes/SKILL.md",
+      "path": "skills/dhpk-laravel-6-notes/SKILL.md",
       "name": "laravel-6-notes",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -72,7 +72,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "modules/laravel-7/skills/laravel-7-notes/SKILL.md",
+      "path": "skills/dhpk-laravel-7-notes/SKILL.md",
       "name": "laravel-7-notes",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -80,7 +80,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "modules/laravel-8/skills/laravel-8-notes/SKILL.md",
+      "path": "skills/dhpk-laravel-8-notes/SKILL.md",
       "name": "laravel-8-notes",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -88,7 +88,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "modules/laravel-9/skills/laravel-9-notes/SKILL.md",
+      "path": "skills/dhpk-laravel-9-notes/SKILL.md",
       "name": "laravel-9-notes",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -96,7 +96,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "modules/laravel-mix/skills/laravel-mix-notes/SKILL.md",
+      "path": "skills/dhpk-laravel-mix-notes/SKILL.md",
       "name": "laravel-mix-notes",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -104,7 +104,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "modules/library-author/skills/library-dual-testsuite-map/SKILL.md",
+      "path": "skills/dhpk-library-dual-testsuite-map/SKILL.md",
       "name": "library-dual-testsuite-map",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -112,7 +112,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "modules/library-author/skills/matrix-cell-onboard/SKILL.md",
+      "path": "skills/dhpk-matrix-cell-onboard/SKILL.md",
       "name": "matrix-cell-onboard",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -120,7 +120,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "modules/library-author/skills/openspec-artifact-guard/SKILL.md",
+      "path": "skills/dhpk-openspec-artifact-guard/SKILL.md",
       "name": "openspec-artifact-guard",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -128,7 +128,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "modules/nextjs-15.5/skills/nextjs-15-5-notes/SKILL.md",
+      "path": "skills/dhpk-nextjs-15-5-notes/SKILL.md",
       "name": "nextjs-15-5-notes",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -136,7 +136,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "modules/nextjs-16/skills/nextjs-16-notes/SKILL.md",
+      "path": "skills/dhpk-nextjs-16-notes/SKILL.md",
       "name": "nextjs-16-notes",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -144,7 +144,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "modules/php-5.6/skills/php-pro/SKILL.md",
+      "path": "skills/dhpk-php-runtime-router/SKILL.md",
       "name": "php-pro",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -152,7 +152,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "modules/php-7.4/skills/php-modern-pro/SKILL.md",
+      "path": "skills/dhpk-php-modern-pro/SKILL.md",
       "name": "php-modern-pro",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -160,7 +160,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "modules/php-8.x/skills/php-8x-features/SKILL.md",
+      "path": "skills/dhpk-php-8x-features/SKILL.md",
       "name": "php-8x-features",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -168,7 +168,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "modules/phpunit-10/skills/phpunit-10-notes/SKILL.md",
+      "path": "skills/dhpk-phpunit-10-notes/SKILL.md",
       "name": "phpunit-10-notes",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -176,7 +176,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "modules/phpunit-11/skills/phpunit-11-notes/SKILL.md",
+      "path": "skills/dhpk-phpunit-11-notes/SKILL.md",
       "name": "phpunit-11-notes",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -184,7 +184,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "modules/phpunit-5.7/skills/legacy-code-characterization/SKILL.md",
+      "path": "skills/dhpk-legacy-characterization-tests/SKILL.md",
       "name": "legacy-code-characterization",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -192,7 +192,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "modules/phpunit-9/skills/phpunit-9-modern/SKILL.md",
+      "path": "skills/dhpk-phpunit-9-modern/SKILL.md",
       "name": "phpunit-9-modern",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -200,7 +200,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "modules/pytest/skills/pytest-async/SKILL.md",
+      "path": "skills/dhpk-pytest-async/SKILL.md",
       "name": "pytest-async",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -208,7 +208,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "modules/python/skills/python-pro/SKILL.md",
+      "path": "skills/dhpk-python-pro/SKILL.md",
       "name": "python-pro",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -216,7 +216,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "modules/python/skills/python-static-checks/SKILL.md",
+      "path": "skills/dhpk-python-static-checks/SKILL.md",
       "name": "python-static-checks",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -224,7 +224,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "modules/react-18/skills/react-18-notes/SKILL.md",
+      "path": "skills/dhpk-react-18-notes/SKILL.md",
       "name": "react-18-notes",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -232,7 +232,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "modules/react-19/skills/react-19-notes/SKILL.md",
+      "path": "skills/dhpk-react-19-notes/SKILL.md",
       "name": "react-19-notes",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -240,7 +240,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "modules/swift-testing/skills/swift-test-strategy/SKILL.md",
+      "path": "skills/dhpk-swift-test-strategy/SKILL.md",
       "name": "swift-test-strategy",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -248,7 +248,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "modules/swift/skills/swift-language/SKILL.md",
+      "path": "skills/dhpk-swift-language/SKILL.md",
       "name": "swift-language",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -256,7 +256,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "modules/swiftui/skills/swiftui-architecture/SKILL.md",
+      "path": "skills/dhpk-swiftui-architecture/SKILL.md",
       "name": "swiftui-architecture",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -264,7 +264,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "modules/vue-2/skills/vue-2-notes/SKILL.md",
+      "path": "skills/dhpk-vue-2-notes/SKILL.md",
       "name": "vue-2-notes",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -272,7 +272,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "modules/xcode-tooling/skills/ios-icon-gen/SKILL.md",
+      "path": "skills/dhpk-ios-icon-gen/SKILL.md",
       "name": "ios-icon-gen",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -280,7 +280,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "modules/xcode-tooling/skills/xcode-build-tooling/SKILL.md",
+      "path": "skills/dhpk-xcode-build-tooling/SKILL.md",
       "name": "xcode-build-tooling",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -288,7 +288,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "modules/yii-1.1/skills/php56-yii-dev/SKILL.md",
+      "path": "skills/dhpk-yii1-php56-development/SKILL.md",
       "name": "php56-yii-dev",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -296,7 +296,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "modules/yii-1.1/skills/yii1-security-audit/SKILL.md",
+      "path": "skills/dhpk-yii1-security-audit/SKILL.md",
       "name": "yii1-security-audit",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -304,7 +304,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/adaptive-dev-workflow/SKILL.md",
+      "path": "skills/dhpk-adaptive-dev-workflow/SKILL.md",
       "name": "adaptive-dev-workflow",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -312,7 +312,7 @@
       "routedByRouteTable": true
     },
     {
-      "path": "skills/agent-architecture-audit/SKILL.md",
+      "path": "skills/dhpk-agent-architecture-audit/SKILL.md",
       "name": "agent-architecture-audit",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -320,7 +320,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/agy-commit/SKILL.md",
+      "path": "skills/dhpk-agy-commit/SKILL.md",
       "name": "agy-commit",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -328,7 +328,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/agy-fast-worker/SKILL.md",
+      "path": "skills/dhpk-agy-fast-worker/SKILL.md",
       "name": "agy-fast-worker",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -336,7 +336,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/bug-fix/SKILL.md",
+      "path": "skills/dhpk-bug-fix/SKILL.md",
       "name": "bug-fix",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -344,7 +344,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/bug-investigation/SKILL.md",
+      "path": "skills/dhpk-root-cause-investigation/SKILL.md",
       "name": "bug-investigation",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -352,7 +352,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/claude-health/SKILL.md",
+      "path": "skills/dhpk-claude-health/SKILL.md",
       "name": "claude-health",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -360,7 +360,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/code-explore/SKILL.md",
+      "path": "skills/dhpk-codebase-exploration/SKILL.md",
       "name": "code-explore",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -368,7 +368,7 @@
       "routedByRouteTable": true
     },
     {
-      "path": "skills/code-investigate/SKILL.md",
+      "path": "skills/dhpk-code-investigate/SKILL.md",
       "name": "code-investigate",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -376,7 +376,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/codex-architect/SKILL.md",
+      "path": "skills/dhpk-codex-architect/SKILL.md",
       "name": "codex-architect",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -384,7 +384,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/codex-brainstorm/SKILL.md",
+      "path": "skills/dhpk-codex-brainstorm/SKILL.md",
       "name": "codex-brainstorm",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -392,7 +392,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/codex-bridge/SKILL.md",
+      "path": "skills/dhpk-codex-bridge/SKILL.md",
       "name": "codex-bridge",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -400,7 +400,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/codex-cli-review/SKILL.md",
+      "path": "skills/dhpk-codex-cli-review/SKILL.md",
       "name": "codex-cli-review",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -408,7 +408,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/codex-code-review/SKILL.md",
+      "path": "skills/dhpk-change-review/SKILL.md",
       "name": "codex-code-review",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -416,7 +416,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/codex-explain/SKILL.md",
+      "path": "skills/dhpk-codex-explain/SKILL.md",
       "name": "codex-explain",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -424,7 +424,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/codex-implement/SKILL.md",
+      "path": "skills/dhpk-codex-implement/SKILL.md",
       "name": "codex-implement",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -432,7 +432,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/composer-package-hygiene/SKILL.md",
+      "path": "skills/dhpk-composer-package-hygiene/SKILL.md",
       "name": "composer-package-hygiene",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -440,7 +440,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/continuous-learning-v2/SKILL.md",
+      "path": "skills/dhpk-continuous-learning-v2/SKILL.md",
       "name": "continuous-learning-v2",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -448,7 +448,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/create-request/SKILL.md",
+      "path": "skills/dhpk-create-request/SKILL.md",
       "name": "create-request",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -456,7 +456,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/create-skill/SKILL.md",
+      "path": "skills/dhpk-create-skill/SKILL.md",
       "name": "create-skill",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -464,7 +464,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/de-ai-flavor/SKILL.md",
+      "path": "skills/dhpk-de-ai-flavor/SKILL.md",
       "name": "de-ai-flavor",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -472,7 +472,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/deploy-list/SKILL.md",
+      "path": "skills/dhpk-deploy-list/SKILL.md",
       "name": "deploy-list",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -488,7 +488,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/doc-review/SKILL.md",
+      "path": "skills/dhpk-doc-review/SKILL.md",
       "name": "doc-review",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -496,7 +496,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/execution-checklist/SKILL.md",
+      "path": "skills/dhpk-execution-checklist/SKILL.md",
       "name": "execution-checklist",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -504,7 +504,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/feasibility-study/SKILL.md",
+      "path": "skills/dhpk-feasibility-study/SKILL.md",
       "name": "feasibility-study",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -512,7 +512,7 @@
       "routedByRouteTable": true
     },
     {
-      "path": "skills/feature-dev/SKILL.md",
+      "path": "skills/dhpk-feature-dev/SKILL.md",
       "name": "feature-dev",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -520,7 +520,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/feature-verify/SKILL.md",
+      "path": "skills/dhpk-feature-verify/SKILL.md",
       "name": "feature-verify",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -528,7 +528,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/git-investigate/SKILL.md",
+      "path": "skills/dhpk-git-history-investigation/SKILL.md",
       "name": "git-investigate",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -536,7 +536,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/git-smart-commit/SKILL.md",
+      "path": "skills/dhpk-git-smart-commit/SKILL.md",
       "name": "git-smart-commit",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -544,7 +544,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/gitnexus/gitnexus-cli/SKILL.md",
+      "path": "skills/dhpk-gitnexus-cli/SKILL.md",
       "name": "gitnexus-cli",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -552,7 +552,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/gitnexus/gitnexus-debugging/SKILL.md",
+      "path": "skills/dhpk-gitnexus-debugging/SKILL.md",
       "name": "gitnexus-debugging",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -560,7 +560,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/gitnexus/gitnexus-exploring/SKILL.md",
+      "path": "skills/dhpk-gitnexus-exploring/SKILL.md",
       "name": "gitnexus-exploring",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -568,7 +568,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/gitnexus/gitnexus-guide/SKILL.md",
+      "path": "skills/dhpk-gitnexus-guide/SKILL.md",
       "name": "gitnexus-guide",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -576,7 +576,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/gitnexus/gitnexus-impact-analysis/SKILL.md",
+      "path": "skills/dhpk-gitnexus-impact-analysis/SKILL.md",
       "name": "gitnexus-impact-analysis",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -584,7 +584,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/gitnexus/gitnexus-refactoring/SKILL.md",
+      "path": "skills/dhpk-gitnexus-refactoring/SKILL.md",
       "name": "gitnexus-refactoring",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -592,7 +592,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/harness-budget/SKILL.md",
+      "path": "skills/dhpk-harness-budget/SKILL.md",
       "name": "harness-budget",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -600,7 +600,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/harness-fill/SKILL.md",
+      "path": "skills/dhpk-harness-fill/SKILL.md",
       "name": "harness-fill",
       "claudeDisableModelInvocation": true,
       "claudeUserInvocableFalse": false,
@@ -608,7 +608,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/harness-revise/SKILL.md",
+      "path": "skills/dhpk-harness-revise/SKILL.md",
       "name": "harness-revise",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -616,7 +616,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/issue-analyze/SKILL.md",
+      "path": "skills/dhpk-issue-analyze/SKILL.md",
       "name": "issue-analyze",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -624,7 +624,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/laravel-package-author/SKILL.md",
+      "path": "skills/dhpk-laravel-package-author/SKILL.md",
       "name": "laravel-package-author",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -632,7 +632,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/laravel-testbench-matrix/SKILL.md",
+      "path": "skills/dhpk-laravel-testbench-matrix/SKILL.md",
       "name": "laravel-testbench-matrix",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -640,7 +640,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/multi-ai-sync/SKILL.md",
+      "path": "skills/dhpk-cross-agent-sync/SKILL.md",
       "name": "multi-ai-sync",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -648,7 +648,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/next-step/SKILL.md",
+      "path": "skills/dhpk-next-step/SKILL.md",
       "name": "next-step",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -656,7 +656,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/op-session/SKILL.md",
+      "path": "skills/dhpk-onepassword-session/SKILL.md",
       "name": "op-session",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -664,7 +664,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/opsx-apply-goal/SKILL.md",
+      "path": "skills/dhpk-opsx-apply-goal/SKILL.md",
       "name": "opsx-apply-goal",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -672,7 +672,7 @@
       "routedByRouteTable": true
     },
     {
-      "path": "skills/opsx-load-context/SKILL.md",
+      "path": "skills/dhpk-opsx-load-context/SKILL.md",
       "name": "opsx-load-context",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -680,7 +680,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/opsx-post-obs/SKILL.md",
+      "path": "skills/dhpk-opsx-post-observation/SKILL.md",
       "name": "opsx-post-obs",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -688,7 +688,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/polyfill-version-matrix-audit/SKILL.md",
+      "path": "skills/dhpk-polyfill-version-matrix-audit/SKILL.md",
       "name": "polyfill-version-matrix-audit",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -696,7 +696,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/post-dev-test/SKILL.md",
+      "path": "skills/dhpk-post-dev-test/SKILL.md",
       "name": "post-dev-test",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -704,7 +704,7 @@
       "routedByRouteTable": true
     },
     {
-      "path": "skills/pr-review/SKILL.md",
+      "path": "skills/dhpk-pr-review/SKILL.md",
       "name": "pr-review",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -712,7 +712,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/project-audit/SKILL.md",
+      "path": "skills/dhpk-project-audit/SKILL.md",
       "name": "project-audit",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -720,7 +720,7 @@
       "routedByRouteTable": true
     },
     {
-      "path": "skills/project-setup/SKILL.md",
+      "path": "skills/dhpk-project-setup/SKILL.md",
       "name": "project-setup",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -728,7 +728,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/prompt-optimize/SKILL.md",
+      "path": "skills/dhpk-prompt-optimize/SKILL.md",
       "name": "prompt-optimize",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -736,7 +736,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/release-creator/SKILL.md",
+      "path": "skills/dhpk-release-creator/SKILL.md",
       "name": "release-creator",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -744,7 +744,7 @@
       "routedByRouteTable": true
     },
     {
-      "path": "skills/repo-intake/SKILL.md",
+      "path": "skills/dhpk-repo-intake/SKILL.md",
       "name": "repo-intake",
       "claudeDisableModelInvocation": true,
       "claudeUserInvocableFalse": false,
@@ -752,7 +752,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/risk-assess/SKILL.md",
+      "path": "skills/dhpk-risk-assess/SKILL.md",
       "name": "risk-assess",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -760,7 +760,7 @@
       "routedByRouteTable": true
     },
     {
-      "path": "skills/rules-distill/SKILL.md",
+      "path": "skills/dhpk-rules-distill/SKILL.md",
       "name": "rules-distill",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -768,7 +768,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/security-review/SKILL.md",
+      "path": "skills/dhpk-security-review/SKILL.md",
       "name": "security-review",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -776,7 +776,7 @@
       "routedByRouteTable": true
     },
     {
-      "path": "skills/skill-health-check/SKILL.md",
+      "path": "skills/dhpk-skill-health-audit/SKILL.md",
       "name": "skill-health-check",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -784,7 +784,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/skill-judge/SKILL.md",
+      "path": "skills/dhpk-skill-quality-judge/SKILL.md",
       "name": "skill-judge",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -792,7 +792,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/skill-scout/SKILL.md",
+      "path": "skills/dhpk-skill-scout/SKILL.md",
       "name": "skill-scout",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -800,7 +800,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/skill-stocktake/SKILL.md",
+      "path": "skills/dhpk-skill-stocktake/SKILL.md",
       "name": "skill-stocktake",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -808,7 +808,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/software-architecture/SKILL.md",
+      "path": "skills/dhpk-module-design/SKILL.md",
       "name": "software-architecture",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -816,7 +816,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/tdd/SKILL.md",
+      "path": "skills/dhpk-tdd-workflow/SKILL.md",
       "name": "tdd",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -824,7 +824,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/tech-spec/SKILL.md",
+      "path": "skills/dhpk-tech-spec/SKILL.md",
       "name": "tech-spec",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -832,7 +832,7 @@
       "routedByRouteTable": true
     },
     {
-      "path": "skills/test-review/SKILL.md",
+      "path": "skills/dhpk-test-review/SKILL.md",
       "name": "test-review",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -840,7 +840,7 @@
       "routedByRouteTable": false
     },
     {
-      "path": "skills/tool-routing/SKILL.md",
+      "path": "skills/dhpk-tool-routing/SKILL.md",
       "name": "tool-routing",
       "claudeDisableModelInvocation": false,
       "claudeUserInvocableFalse": false,
@@ -1167,23 +1167,23 @@
   ],
   "routeTableRulesSnapshot": [
     {
-      "skill": "dhpk:opsx-apply-goal",
+      "skill": "dhpk:dhpk-opsx-apply-goal",
       "label": "unattended OpenSpec goal session"
     },
     {
-      "skill": "dhpk:adaptive-dev-workflow",
+      "skill": "dhpk:dhpk-adaptive-dev-workflow",
       "label": "adaptive dev workflow (python build)"
     },
     {
-      "skill": "dhpk:adaptive-dev-workflow",
+      "skill": "dhpk:dhpk-adaptive-dev-workflow",
       "label": "adaptive dev workflow (rust build)"
     },
     {
-      "skill": "dhpk:adaptive-dev-workflow",
+      "skill": "dhpk:dhpk-adaptive-dev-workflow",
       "label": "adaptive dev workflow (bug)"
     },
     {
-      "skill": "dhpk:adaptive-dev-workflow",
+      "skill": "dhpk:dhpk-adaptive-dev-workflow",
       "label": "adaptive dev workflow (feature)"
     },
     {
@@ -1191,19 +1191,19 @@
       "label": "manual code review"
     },
     {
-      "skill": "dhpk:security-review",
+      "skill": "dhpk:dhpk-security-review",
       "label": "security review"
     },
     {
-      "skill": "dhpk:code-explore",
+      "skill": "dhpk:dhpk-codebase-exploration",
       "label": "code exploration"
     },
     {
-      "skill": "dhpk:project-audit",
+      "skill": "dhpk:dhpk-project-audit",
       "label": "project audit"
     },
     {
-      "skill": "dhpk:deploy-list",
+      "skill": "dhpk:dhpk-deploy-list",
       "label": "deploy list"
     },
     {
@@ -1215,7 +1215,7 @@
       "label": "mine behavioral specs (→ spec-miner)"
     },
     {
-      "skill": "dhpk:tech-spec",
+      "skill": "dhpk:dhpk-tech-spec",
       "label": "tech spec authoring"
     },
     {
@@ -1227,7 +1227,7 @@
       "label": "create PR"
     },
     {
-      "skill": "dhpk:release-creator",
+      "skill": "dhpk:dhpk-release-creator",
       "label": "create release"
     },
     {
@@ -1235,15 +1235,15 @@
       "label": "smart commit"
     },
     {
-      "skill": "dhpk:feasibility-study",
+      "skill": "dhpk:dhpk-feasibility-study",
       "label": "feasibility study"
     },
     {
-      "skill": "dhpk:risk-assess",
+      "skill": "dhpk:dhpk-risk-assess",
       "label": "risk assessment"
     },
     {
-      "skill": "dhpk:post-dev-test",
+      "skill": "dhpk:dhpk-post-dev-test",
       "label": "E2E test authoring (→ e2e-runner)"
     },
     {

@@ -165,7 +165,7 @@ test('clean consumer projection reports unreachable references inside supporting
     });
     assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
     const target = path.join(root, '.codex', 'dhpk', 'agent-traps', 'architect', 'yii.md');
-    fs.appendFileSync(target, '\nSee `.claude/rules/php/coding-style.md` and `modules/php-5.6/skills/php-pro/reference.md`.\n');
+    fs.appendFileSync(target, '\nSee `.claude/rules/php/coding-style.md` and `skills/dhpk-php-runtime-router/reference.md`.\n');
     const errors = collectCodexProjectionReferenceErrors(root, ROOT);
     assert.ok(errors.some((error) => error.includes('unreachable Claude project reference')), errors.join('\n'));
     assert.ok(errors.some((error) => error.includes('unresolved source-tree reference')), errors.join('\n'));

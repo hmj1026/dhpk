@@ -8,7 +8,7 @@ metadata:
 
 ⚠️ **Must read and follow the skill below before executing this command:**
 
-@skills/tech-spec/SKILL.md
+@skills/dhpk-tech-spec/SKILL.md
 
 ## Context
 

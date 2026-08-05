@@ -50,10 +50,10 @@ test('rejects a same-directory candidate that still contains a symlink (the nati
   const dir = makeTempPackage();
   try {
     // Reproduce the real bug shape: a skill entry that is a symlink back out of
-    // the package, exactly like codex/skills/tdd -> ../../skills/tdd today.
+    // the package, exactly like codex/skills/dhpk-tdd-workflow -> ../../skills/dhpk-tdd-workflow today.
     fs.mkdirSync(path.join(dir, 'canonical-elsewhere', 'tdd'), { recursive: true });
     fs.writeFileSync(path.join(dir, 'canonical-elsewhere', 'tdd', 'SKILL.md'), '---\nname: tdd\n---\n');
-    fs.symlinkSync(path.join('..', '..', 'canonical-elsewhere', 'tdd'), path.join(dir, 'skills', 'tdd'));
+    fs.symlinkSync(path.join('..', '..', 'canonical-elsewhere', 'tdd'), path.join(dir, 'skills', 'dhpk-tdd-workflow'));
 
     const result = validateNativeCandidate({ manifestSkillsField: './skills/', packageRoot: dir });
     assert.ok(!result.ok);
@@ -77,8 +77,8 @@ test('accepts a same-directory candidate whose package tree is entirely physical
 test('rejects a candidate containing a promoted-but-non-native skill, naming the extra skill', () => {
   const inventory = {
     skills: [
-      { id: 'tdd', path: 'skills/tdd', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
-      { id: 'skill-judge', path: 'skills/skill-judge', lifecycle: 'promoted', surfaces: ['claude-core'] },
+      { id: 'tdd', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
+      { id: 'skill-judge', path: 'skills/dhpk-skill-quality-judge', lifecycle: 'promoted', surfaces: ['claude-core'] },
     ],
   };
   const result = validateNativeMembership({ candidateSkillIds: ['tdd', 'skill-judge'], inventory });
@@ -89,8 +89,8 @@ test('rejects a candidate containing a promoted-but-non-native skill, naming the
 test('accepts an approved optional-lifecycle native exception alongside promoted native skills', () => {
   const inventory = {
     skills: [
-      { id: 'tdd', path: 'skills/tdd', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
-      { id: 'php-pro', path: 'modules/php-5.6/skills/php-pro', lifecycle: 'optional', surfaces: ['claude-module', 'codex-native'] },
+      { id: 'tdd', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
+      { id: 'php-pro', path: 'skills/dhpk-php-runtime-router', lifecycle: 'optional', surfaces: ['claude-module', 'codex-native'] },
     ],
   };
   const result = validateNativeMembership({ candidateSkillIds: ['tdd', 'php-pro'], inventory });
@@ -101,8 +101,8 @@ test('accepts an approved optional-lifecycle native exception alongside promoted
 test('rejects a candidate missing a codex-native skill that the inventory expects', () => {
   const inventory = {
     skills: [
-      { id: 'tdd', path: 'skills/tdd', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
-      { id: 'skill-judge', path: 'skills/skill-judge', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
+      { id: 'tdd', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
+      { id: 'skill-judge', path: 'skills/dhpk-skill-quality-judge', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
     ],
   };
   const result = validateNativeMembership({ candidateSkillIds: ['tdd'], inventory });
@@ -113,7 +113,7 @@ test('rejects a candidate missing a codex-native skill that the inventory expect
 test('excludes a deprecated codex-native skill from the expected membership set', () => {
   const inventory = {
     skills: [
-      { id: 'tdd', path: 'skills/tdd', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
+      { id: 'tdd', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
       {
         id: 'old-skill',
         path: 'skills/old-skill',

@@ -32,38 +32,30 @@ When writing skills meant to work in both harnesses:
 - If a skill is intrinsically tied to Claude-specific hook payloads, sentinel paths, or plugin-managed lifecycle (e.g. a "review the last edit" workflow), it belongs in Claude Code only — do NOT mirror it into `codex/` unchanged. A generic Codex lifecycle hook must use Codex's own `hooks.json` or inline TOML contract.
 - Tools the skill calls should be available in both environments (Read/Write/Bash usually safe; `mcp__*` tools require the matching MCP server on both sides).
 
-## Layout: symlinks vs physical copies under `codex/skills/`
+## Layout: symlink projections under `codex/skills/`
 
-All non-module entries under `codex/skills/` are **in-repo symlinks** back to the canonical `skills/<name>/`. Editing a symlinked skill edits the canonical source, and the change applies to both worlds. The only physical entries are the four module mirrors listed below.
+Every entry under `codex/skills/` is an **in-repo relative symlink** to a
+canonical flat package under `skills/<dhpk-name>/`. Editing a projection edits
+the canonical source, and the change applies to both worlds. The projection
+names are the inventory's public `name` values (for example,
+`codex/skills/dhpk-tdd-workflow` -> `../../skills/dhpk-tdd-workflow`). There are
+no physical skill copies in this tree; the separate `plugins/dhpk/` package is
+the tracked physical `codex-native` publication artifact and is maintained by
+the native-package migration task.
 
-Physical (non-symlink) entries:
-
-| Path | Why it's physical |
-|------|-------------------|
-| `codex/skills/php-pro/` | Mirror of `modules/php-5.6/skills/php-pro/`; Codex needs a flat skill tree. |
-| `codex/skills/php56-yii-dev/` | Mirror of `modules/yii-1.1/skills/php56-yii-dev/`; Codex needs a flat skill tree. |
-| `codex/skills/yii1-security-audit/` | Mirror of `modules/yii-1.1/skills/yii1-security-audit/`; Codex needs a flat skill tree. |
-| `codex/skills/legacy-code-characterization/` | Mirror of `modules/phpunit-5.7/skills/legacy-code-characterization/`; Codex needs a flat skill tree. |
-
-When editing a physical module mirror, edit the corresponding canonical module
-skill first. The validator enforces the four mappings, the physical allowlist,
-metadata/invocation/reference/output contracts, and deterministic fingerprints
-with explicit projection rules. Module `SKILL.md`, references, and scripts can
-retain only the documented Codex-compatible differences; update the semantic
-projection rule and its fixture when changing a mirror.
+The installer and layout validator enforce the complete projection set,
+relative targets, metadata/invocation/reference/output contracts, and
+deterministic inventory mappings. Do not hand-copy a skill into `codex/skills/`.
+When exposing another canonical package, update the distribution inventory and
+recreate its relative projection with the same public name.
 
 ## Module skills inside Codex
 
-The plugin's `modules/<stack>/skills/` trees are not flattened wholesale into
-Codex because Codex does not apply Claude's `userConfig.modules` gating. The
-four approved module mirrors — `php-pro`, `php56-yii-dev`,
-`yii1-security-audit`, and `legacy-code-characterization` — are already
-available through `codex/skills/` and are covered by the metadata validator.
-
-Do not create ad hoc module copies or symlinks under `.codex/skills/`. To expose
-another module skill, first add its canonical mapping, physical-mirror
-allowlist entry, metadata link, layout-test coverage, and documentation in the
-plugin source; then update the installer policy if needed.
+The plugin's `modules/<stack>/skills/` trees are also relative symlink
+projections into the same flat canonical packages. Codex receives only the
+inventory-declared `codex-sync` subset; Claude module activation continues to
+use `userConfig.modules`. The module projections are not a second source tree
+and must not be copied into `codex/skills/`.
 
 ## Updating after a plugin version bump
 

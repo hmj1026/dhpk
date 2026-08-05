@@ -27,7 +27,7 @@
 
 ### #106
 
-`skills/opsx-apply-goal/references/goal-templates.md:50-54,71-74` 只嘗試
+`skills/dhpk-opsx-apply-goal/references/goal-templates.md:50-54,71-74` 只嘗試
 `CLAUDE_PLUGIN_ROOT` 與已安裝 cache，找不到時直接輸出
 `POLICY-UNRESOLVED`；沒有固定的 `./rules/execution-policy.md` fallback。
 目前機器因 cache 存在而未現場重現，但 self-hosted `--plugin-dir` 且無 cache

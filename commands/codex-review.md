@@ -8,10 +8,10 @@ metadata:
 
 ⚠️ **Must read and follow the skill below before executing this command:**
 
-@skills/codex-code-review/SKILL.md
-@skills/codex-code-review/references/codex-prompt-full.md
+@skills/dhpk-change-review/SKILL.md
+@skills/dhpk-change-review/references/codex-prompt-full.md
 
-@skills/codex-code-review/references/command-context.md
+@skills/dhpk-change-review/references/command-context.md
 
 ## Task
 
@@ -45,7 +45,7 @@ lint:fix → build → git diff → Codex review (full) → Findings + Gate → 
 
 - **Run local checks first** — lint:fix + build catch basic issues before Codex review
 - **Includes test recommendations** — Codex suggests missing test cases
-- Independent research, thread continuation, and gate sentinels: `skills/codex-code-review/references/review-common.md` §§Codex Independent Research, Gate Sentinels.
+- Independent research, thread continuation, and gate sentinels: `skills/dhpk-change-review/references/review-common.md` §§Codex Independent Research, Gate Sentinels.
 
 ### Review Loop
 

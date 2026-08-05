@@ -47,7 +47,7 @@ Reconfigure any time with `/dhpk:setup` (or `/dhpk:setup --show` to print the cu
 | Component | Count | Notes |
 |-----------|------:|-------|
 | Agents | Role-based agents | Sentinel-driven reviewers plus situational architecture, testing, security, documentation, platform, and runtime roles. |
-| Commands | Registered command surface | `dhpk:do` (Smart Router), `dhpk:create-dev`, `dhpk:codex-*`, `dhpk:review-pending`, `dhpk:smart-commit`, `dhpk:ts-check-status` (JS module), `dhpk:opsx-apply-resume` (needs OpenSpec), `dhpk:matrix-cell-onboard` (library-author), `dhpk:de-ai-flavor`, `dhpk:deploy-list`, `dhpk:harness-fill`, `dhpk:ui-ux-verify`, etc. |
+| Commands | Registered command surface | `dhpk:do` (Smart Router), `dhpk:create-dev`, `dhpk:codex-*`, `dhpk:review-pending`, `dhpk:smart-commit`, `dhpk:ts-check-status` (JS module), `dhpk:opsx-apply-resume` (needs OpenSpec), `dhpk:dhpk-matrix-cell-onboard` (library-author), `dhpk:dhpk-de-ai-flavor`, `dhpk:dhpk-deploy-list`, `dhpk:dhpk-harness-fill`, `dhpk:ui-ux-verify`, etc. |
 | Core skills | Core and auxiliary skills | codex-*, gitnexus, tool-routing, dhpk-execution-policy, **adaptive-dev-workflow** (Feature/Bug/Maintenance classifier), **deploy-list** (cross-project deploy file generator), **execution-checklist** (end-of-task self-check), `opsx-apply-resume` helpers (need OpenSpec) |
 | Stack modules | Opt-in stack modules | PHP, Yii, PHPUnit, Laravel, JavaScript, Vue, Laravel Mix, Next.js, React, Python, `library-author`, and iOS/Swift modules. |
 | Hooks | 10 events | PreToolUse (Edit, Bash + dispatcher + sentinel-gate + branch-safety, Task\|Agent warmstart), PostToolUse (Edit + dispatcher + async crlf-fix + async manifest-guard), SessionStart (+ version-pin / cross-CLI-drift / broken-symlink advisories), SessionEnd (reap-stale-sentinels), PreCompact (checkpoint archive), PostCompact (sentinel restore), SubagentStop (reviewer verify + failure log), StopFailure (failure log), UserPromptSubmit (skill hint), Stop (review-reminder + advisory-dispatch: completion-evidence / graduation-scan / module-dispatch) |
@@ -91,7 +91,7 @@ dhpk's core — hooks, sentinel reviewers, the Smart Router, and the non-Codex w
 |---------|-------|-------|------------|
 | 5 skills | `codex-architect` · `codex-brainstorm` · `codex-code-review` · `codex-explain` · `codex-implement` | Codex MCP (`mcp__codex__codex`, `mcp__codex__codex-reply`) | Tool-permission error — no automatic fallback; use a Codex-free counterpart below |
 | 1 skill | `codex-cli-review` | Codex CLI binary only (shells out via Bash — no MCP server) | `codex: command not found`; use `codex-code-review` (MCP) or the sentinel `code-reviewer` |
-| 7 commands | `/dhpk:codex-review`, `-review-branch`, `-review-doc`, `-review-fast`, `-security`, `-test-gen`, `-test-review` | Codex MCP | Tool-permission error — Codex-free routes: `/dhpk:security-review`, `/dhpk:precommit`, sentinel review hooks |
+| 7 commands | `/dhpk:codex-review`, `-review-branch`, `-review-doc`, `-review-fast`, `-security`, `-test-gen`, `-test-review` | Codex MCP | Tool-permission error — Codex-free routes: `/dhpk:dhpk-security-review`, `/dhpk:precommit`, sentinel review hooks |
 | `CODEX=on` | Dual-assistant peer path in Implementation dispatch | Codex MCP | Nothing breaks — dispatch stays in its default single-assistant mode |
 
 Codex-free counterparts: `security-review` ↔ `codex-security`, `code-explore` ↔ `codex-explain`, sentinel reviewer agents ↔ `codex-code-review`, and `create-dev` (Codex-free by default; `--codex` opts in).
@@ -108,7 +108,7 @@ One-time setup: register the Codex MCP server with `claude mcp add --transport s
 | `gitnexus` MCP | Dedicated skills: `gitnexus-cli`, `gitnexus-debugging`, `gitnexus-exploring`, `gitnexus-guide`, `gitnexus-impact-analysis`, `gitnexus-refactoring`. Agents: `architect`, `code-reviewer`, `database-reviewer`, `migration-reviewer`, `performance-analyzer`, `refactor-cleaner`, `security-reviewer`, `ui-ux-verifier`. Rules: `execution-policy.md` self-check (`gitnexus_impact`), `tool-routing.md`. | Cross-file blast-radius analysis (`gitnexus_impact`), safe global rename (`gitnexus_rename`), pre-commit scope check (`gitnexus_detect_changes`) — falls back to `cx references` / `git diff --stat` / **find-and-replace forbidden**. |
 | `claude-mem` | Rule: `tool-routing.md` entry "Past decisions (cross-session)". | Cross-session memory recall — current-session context still works via scrollback. |
 
-Detailed routing tie-breakers live in [`rules/tool-routing.md`](./rules/tool-routing.md); the prose / sub-agent boilerplate version lives in the `dhpk:tool-routing` skill.
+Detailed routing tie-breakers live in [`rules/tool-routing.md`](./rules/tool-routing.md); the prose / sub-agent boilerplate version lives in the `dhpk:dhpk-tool-routing` skill.
 
 ## Rules (resource layer)
 
@@ -147,7 +147,7 @@ A **module** is a labeled, version-tagged bundle of skills + references + hooks 
 - **`react-19`** — React 19 (December 2024). Actions + async transitions, new hooks (`useActionState`/`useOptimistic`/`useFormStatus`, `use()`), `ref` as a prop (no `forwardRef`), `<Context>` as provider, document metadata hoisting, resource preloading (`preload`/`preinit`), stable Server Components. Removes `ReactDOM.render`/`hydrate`, `propTypes`/`defaultProps` on function components, legacy Context, and string refs. Recommended (not required) for Next.js 16.
 
 **Cross-cutting**:
-- **`library-author`** — Cross-cutting glue for multi-major-version PHP libraries (Laravel 6–11, Monolog 2/3, PHPUnit 8–11, Flysystem 1/3 etc.). Ships the **sixth-color** `polyfill-reviewer` agent (sentinel-driven via `.pending-polyfill-review`), the `polyfill-version-matrix-audit` skill, the `matrix-cell-onboard` skill (+ root-level `/dhpk:matrix-cell-onboard` alias), an OpenSpec artifact guard, and a dual-testsuite mapping helper. Auto-fires on `.php` edits containing runtime version guards (`version_compare`, `class_exists`, `method_exists`, `Composer\InstalledVersions::*`).
+- **`library-author`** — Cross-cutting glue for multi-major-version PHP libraries (Laravel 6–11, Monolog 2/3, PHPUnit 8–11, Flysystem 1/3 etc.). Ships the **sixth-color** `polyfill-reviewer` agent (sentinel-driven via `.pending-polyfill-review`), the `polyfill-version-matrix-audit` skill, the `matrix-cell-onboard` skill (+ root-level `/dhpk:dhpk-matrix-cell-onboard` alias), an OpenSpec artifact guard, and a dual-testsuite mapping helper. Auto-fires on `.php` edits containing runtime version guards (`version_compare`, `class_exists`, `method_exists`, `Composer\InstalledVersions::*`).
 
 **iOS / Swift** (dependency-chained — each `requires: swift`; enable the whole set via the `ios-app` install profile):
 - **`swift`** — Swift 6 strict-concurrency baseline + Swift 5.10 / iOS 17 compatibility + Swift 6.2 approachable-concurrency. The foundation the rest of the suite requires.
@@ -157,7 +157,7 @@ A **module** is a labeled, version-tagged bundle of skills + references + hooks 
 - **`xcode-tooling`** — SwiftLint post-edit hook + xcodebuild/SPM pre-commit build+test gate (generic build destination, simulator auto-fallback, toolchain self-skip) + `ios-icon-gen` skill. Requires `swift`.
 
 When enabled, a module:
-- Makes its skills invocable as `dhpk:<skill-name>` (e.g. `dhpk:php-pro`, `dhpk:yii1-security-audit`, `dhpk:js-lint-config`). *(Skill **descriptions** are listed for every shipped module regardless of `modules` — see the budget note below.)*
+- Makes its skills invocable as `dhpk:<skill-name>` (e.g. `dhpk:dhpk-php-runtime-router`, `dhpk:dhpk-yii1-security-audit`, `dhpk:dhpk-js-lint-config`). *(Skill **descriptions** are listed for every shipped module regardless of `modules` — see the budget note below.)*
 - Contributes path triggers to `post-edit-remind` so reviewers fire on framework-specific paths.
 - May contribute hooks under `modules/<m>/hooks/post-edit-*.sh` and `modules/<m>/hooks/pre-{bash,commit}-*.sh`, fanned out by the dispatcher when the module is active. See [`docs/hook-extension.md`](./docs/hook-extension.md).
 - Prints a SessionStart activation line so Claude knows the module is in scope.

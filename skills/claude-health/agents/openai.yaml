@@ -1,6 +1,0 @@
-interface:
-  display_name: "Claude Health"
-  short_description: "Claude Code config health check + plugin sync."
-  default_prompt: "Use $claude-health to apply the Claude Health workflow with its verification rules."
-policy:
-  allow_implicit_invocation: false

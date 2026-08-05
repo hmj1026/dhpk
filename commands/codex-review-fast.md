@@ -8,10 +8,10 @@ metadata:
 
 ⚠️ **Must read and follow the skill below before executing this command:**
 
-@skills/codex-code-review/SKILL.md
-@skills/codex-code-review/references/codex-prompt-fast.md
+@skills/dhpk-change-review/SKILL.md
+@skills/dhpk-change-review/references/codex-prompt-fast.md
 
-@skills/codex-code-review/references/command-context.md
+@skills/dhpk-change-review/references/command-context.md
 
 ## Task
 
@@ -41,7 +41,7 @@ git diff → Codex review (diff only) → Findings + Gate → Loop if Blocked
 
 ### Key Rules
 
-- Independent research, thread continuation, and gate sentinels: `skills/codex-code-review/references/review-common.md` §§Codex Independent Research, Gate Sentinels.
+- Independent research, thread continuation, and gate sentinels: `skills/dhpk-change-review/references/review-common.md` §§Codex Independent Research, Gate Sentinels.
 
 ### Review Loop
 

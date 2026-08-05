@@ -8,7 +8,7 @@ metadata:
 
 ⚠️ **Must read and follow the skill below before executing this command:**
 
-@skills/adaptive-dev-workflow/SKILL.md
+@skills/dhpk-adaptive-dev-workflow/SKILL.md
 
 ## What This Command Does
 
@@ -17,7 +17,7 @@ classifies the request, invokes the appropriate planning agent, and outputs a ga
 checklist that must be satisfied before writing any code. Use this command whenever a
 change is more than a one-line patch.
 
-This is the explicit entry point to `dhpk:adaptive-dev-workflow`; `/dhpk:do` also routes
+This is the explicit entry point to `dhpk:dhpk-adaptive-dev-workflow`; `/dhpk:do` also routes
 substantial bug/feature tasks here.
 
 ## Codex mode
@@ -26,7 +26,7 @@ substantial bug/feature tasks here.
 `mcp__codex__*` tool is invoked (this command's `allowed-tools` omits it). Pass `--codex`
 for the Codex-enhanced path: per the skill's **Codex mode** table, planning/review steps
 delegate to the dedicated `/codex-*` commands, and the `--codex` flag is appended to the
-recommended next command (`/dhpk:bug-fix --codex`, `/dhpk:feature-dev --codex`). If
+recommended next command (`/dhpk:dhpk-bug-fix --codex`, `/dhpk:dhpk-feature-dev --codex`). If
 `--codex` is given but Codex is unavailable, warn once and fall back to codex-free.
 
 ## Context
@@ -91,7 +91,7 @@ Use the adaptive dev workflow skill to:
 If classification is ambiguous or the argument is missing:
 - Ask the user: "Could you describe the change goal in one sentence, or indicate whether this is a bug, new feature, or cleanup?"
 
-If the referenced skill (`@skills/adaptive-dev-workflow/SKILL.md`) cannot be read:
+If the referenced skill (`@skills/dhpk-adaptive-dev-workflow/SKILL.md`) cannot be read:
 - Fall back to the Workflow diagram above and proceed with manual classification
 
 If an invoked planning step (`bug-investigation` / `dhpk:architect`) returns an error or produces no output:

@@ -128,7 +128,7 @@ Everything is reachable through `/dhpk:do` — one entry point that routes natur
 /dhpk:do implement a password-reset email flow
 ```
 
-The Smart Router matches "implement … feature" → `dhpk:adaptive-dev-workflow` → **Feature Delivery** path. The skill loads TDD guide, runs the RED→GREEN→REFACTOR cycle, and closes with code-review and security gates. Post-edit hooks automatically drop sentinels after each file write; the Stop hook reminds you of any still-open reviewers.
+The Smart Router matches "implement … feature" → `dhpk:dhpk-adaptive-dev-workflow` → **Feature Delivery** path. The skill loads TDD guide, runs the RED→GREEN→REFACTOR cycle, and closes with code-review and security gates. Post-edit hooks automatically drop sentinels after each file write; the Stop hook reminds you of any still-open reviewers.
 
 ### 2. Bug fix
 
@@ -136,9 +136,9 @@ The Smart Router matches "implement … feature" → `dhpk:adaptive-dev-workflow
 /dhpk:do fix the login redirect loop
 ```
 
-Matches "fix … bug" → `dhpk:adaptive-dev-workflow` → **Bug Investigation & Fix**: root-cause evidence, regression test, RED gate before writing the fix.
+Matches "fix … bug" → `dhpk:dhpk-adaptive-dev-workflow` → **Bug Investigation & Fix**: root-cause evidence, regression test, RED gate before writing the fix.
 
-**`--openspec` / `--opsx` flag:** pass `--openspec` (alias `--opsx`) to `/dhpk:do` to force the OpenSpec authoring flow (`opsx:new` → `opsx:ff`, then stop for human review) instead of routing straight to implementation. It applies to the 3 change-authoring routes — `dhpk:adaptive-dev-workflow`, `dhpk:bug-fix`, `dhpk:feature-dev` — and supersedes `--plan`. On every other route, including `dhpk:opsx-apply-goal`, the flag is a no-op: it prints `--openspec ignored: ...` and the route proceeds normally.
+**`--openspec` / `--opsx` flag:** pass `--openspec` (alias `--opsx`) to `/dhpk:do` to force the OpenSpec authoring flow (`opsx:new` → `opsx:ff`, then stop for human review) instead of routing straight to implementation. It applies to the 3 change-authoring routes — `dhpk:dhpk-adaptive-dev-workflow`, `dhpk:dhpk-bug-fix`, `dhpk:dhpk-feature-dev` — and supersedes `--plan`. On every other route, including `dhpk:dhpk-opsx-apply-goal`, the flag is a no-op: it prints `--openspec ignored: ...` and the route proceeds normally.
 
 **`--worker=<claude|codex|agy|auto>` flag:** choose the mechanical worker for this invocation without changing project configuration. `/dhpk:do` parses and strips the flag before route matching, then forwards its exact value as `WORKER_OVERRIDE` only to implementation-class routes (`adaptive-dev-workflow`, `bug-fix`, `feature-dev`, and `opsx-apply-goal`). Precedence is flag > `fast_worker_backend` userConfig > shipped `claude`; an invalid flag warns once and falls through to userConfig/default. Downstream workflows call the shared selector rather than reimplementing availability, order, or fallback logic.
 
@@ -169,7 +169,7 @@ Or describe it in plain language:
 /dhpk:do 幫我提交並建立 PR
 ```
 
-For an actual version release (not just a commit/PR) — version files, changelog, and the fixed git/PR/tag/CI sequence — see `/dhpk:release-creator <version>` (explicit-only; run it directly, it is never auto-invoked).
+For an actual version release (not just a commit/PR) — version files, changelog, and the fixed git/PR/tag/CI sequence — see `/dhpk:dhpk-release-creator <version>` (explicit-only; run it directly, it is never auto-invoked).
 
 ### 5. Setup on-ramp
 
@@ -180,7 +180,7 @@ Re-run or inspect configuration any time, without reinstalling — see [§ Insta
 For a long-running change that should run without supervision — generates a single `/goal` command (with the `/opsx:apply` kickoff embedded), ready to paste into a fresh session:
 
 ```text
-/dhpk:opsx-apply-goal my-change-id --max-duration 2h
+/dhpk:dhpk-opsx-apply-goal my-change-id --max-duration 2h
 ```
 
 **Flags:**
@@ -195,7 +195,7 @@ For a long-running change that should run without supervision — generates a si
 | `--smoke` / `--no-smoke` | Force the read-only live-runtime smoke gate on or off. Without either, it auto-detects: on only for a strong signal (explicit runtime-verification task, dispatched `e2e-runner`, or a derivable launch command), off otherwise. |
 | `--dry-run` | Prints the analysis + goal string without the "ready to paste" session-setup framing — use it to preview before committing to an unattended run. |
 
-**What the pasted `/goal` string actually contains:** an orientation-first kickoff that locates `rules/execution-policy.md`, then invokes `opsx:apply` (with the bounded unknown-skill fallback). Part 0 carries the selector-resolved fast-worker clause and a UTF-8-safe task digest capped at 200 bytes; the `e2e-runner` roster clause appears only when the change actually has an E2E signal. Review is one consolidated parallel reviewer batch per contiguous implementation wave, with at most one confirm-only pass for known findings. Completion still requires every task checkbox, applicable test/build/lint/coverage/smoke gates, and no pending sentinels. Turn/time checkpoints write `.resume-note.md`; human-only remaining work is annotated `[blocked: <reason>]`; a hard-rule conflict writes `.hard-rule-escalation.md` with file:line evidence and stops instead of guessing. Full structure: `skills/opsx-apply-goal/SKILL.md` Steps 3-4 and Output (Parts 0-4).
+**What the pasted `/goal` string actually contains:** an orientation-first kickoff that locates `rules/execution-policy.md`, then invokes `opsx:apply` (with the bounded unknown-skill fallback). Part 0 carries the selector-resolved fast-worker clause and a UTF-8-safe task digest capped at 200 bytes; the `e2e-runner` roster clause appears only when the change actually has an E2E signal. Review is one consolidated parallel reviewer batch per contiguous implementation wave, with at most one confirm-only pass for known findings. Completion still requires every task checkbox, applicable test/build/lint/coverage/smoke gates, and no pending sentinels. Turn/time checkpoints write `.resume-note.md`; human-only remaining work is annotated `[blocked: <reason>]`; a hard-rule conflict writes `.hard-rule-escalation.md` with file:line evidence and stops instead of guessing. Full structure: `skills/dhpk-opsx-apply-goal/SKILL.md` Steps 3-4 and Output (Parts 0-4).
 
 When `orchestration_dispatch=on` (default), the generated `/goal` condition embeds the compact selector-resolved mechanical-worker clause plus the specialist clauses that apply to the detected work; the E2E clause is omitted when no browser surface is detected. Set `orchestration_dispatch=off` to remove the dispatch directive entirely — implementation stays inline instead of being routed through worker agents.
 
@@ -219,7 +219,7 @@ Delegates to the `spec-miner` (Opus) agent. Omit the capability name to get a pr
 /dhpk:do write E2E tests for the checkout flow
 ```
 
-Routes to `dhpk:post-dev-test`, which delegates Playwright suite authoring to the `e2e-runner` agent. Its write boundary is test specs, shared helpers, fixtures, and artifacts only. An application-code failure returns a fast-worker-ready fix spec; after that fix lands, `e2e-runner` reruns the originating journey. It reuses existing project helpers and cleans synthetic shared-DB rows in teardown.
+Routes to `dhpk:dhpk-post-dev-test`, which delegates Playwright suite authoring to the `e2e-runner` agent. Its write boundary is test specs, shared helpers, fixtures, and artifacts only. An application-code failure returns a fast-worker-ready fix spec; after that fix lands, `e2e-runner` reruns the originating journey. It reuses existing project helpers and cleans synthetic shared-DB rows in teardown.
 
 ### 9. Harness health check and repair
 
@@ -228,11 +228,11 @@ The harness-* family covers four distinct concerns — use the right tool for ea
 | Command / Skill | Concern | Mutates? |
 |---|---|---|
 | `/harness-audit` | Deterministic 7-category scorecard | No |
-| `dhpk:harness-budget` | Context-window token accounting | No |
-| `dhpk:claude-health` | `.claude/` config health, naming, plugin sync | No |
+| `dhpk:dhpk-harness-budget` | Context-window token accounting | No |
+| `dhpk:dhpk-claude-health` | `.claude/` config health, naming, plugin sync | No |
 | `/harness-govern` | End-to-end measure → conform → fix → verify loop | No (add `--fix` to apply) |
-| `dhpk:harness-revise` | Trim, dedupe, validate (G1–G13 gap taxonomy) | Yes |
-| `dhpk:harness-fill` | Backfill missing `.claude/` infrastructure | Yes |
+| `dhpk:dhpk-harness-revise` | Trim, dedupe, validate (G1–G13 gap taxonomy) | Yes |
+| `dhpk:dhpk-harness-fill` | Backfill missing `.claude/` infrastructure | Yes |
 
 **Typical flow:**
 
@@ -241,7 +241,7 @@ The harness-* family covers four distinct concerns — use the right tool for ea
 /harness-audit
 
 # 2. Check context-window overhead (token budget)
-/dhpk:harness-budget
+/dhpk:dhpk-harness-budget
 
 # 3. End-to-end governance loop (read-only by default)
 /harness-govern
@@ -250,7 +250,7 @@ The harness-* family covers four distinct concerns — use the right tool for ea
 /harness-govern --fix
 
 # 5. If .claude/ is missing skills/agents/rules (new project onboarding)
-/dhpk:harness-fill
+/dhpk:dhpk-harness-fill
 ```
 
 `/harness-govern` is the single front door: it sequences `/harness-audit` (score) → conform (best-practices lens) → `/harness-revise` (fix, only with `--fix`) → verify. Safe to run as `/loop /harness-govern` for ongoing monitoring.

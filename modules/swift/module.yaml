@@ -8,7 +8,7 @@ triggers:
     extensions: [".swift"]
     paths: [Sources/, babylon/, RxScanCore/, RxScanData/, RxScanFeatures/, RxScanUI/, RxScanApp/]
 provides:
-  skills: [swift-language]
+  skills: [dhpk-swift-language]
   references: [concurrency.md, approachable-concurrency.md, value-vs-reference.md, error-handling.md, swift5-compat-notes.md]
   commands: []
   agents: []

@@ -3,8 +3,8 @@
 // Route precedence and invocation-class gate regression tests
 // (openspec/changes/clarify-dhpk-skill-invocation-policy specs/
 // skill-routing-guidance/spec.md). Static content assertions over the
-// dhpk-owned router surfaces — commands/do.md, skills/next-step/SKILL.md,
-// skills/opsx-apply-goal/references/goal-templates.md, and
+// dhpk-owned router surfaces — commands/do.md, skills/dhpk-next-step/SKILL.md,
+// skills/dhpk-opsx-apply-goal/references/goal-templates.md, and
 // commands/opsx-apply-resume.md — proving the explicit-only gate and the
 // issue #87 opsx:* alias fix are present and did not regress.
 
@@ -18,8 +18,8 @@ const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 const flat = (s) => s.replace(/\s+/g, ' ');
 const doCmd = read('commands/do.md');
 const doCmdFlat = flat(doCmd);
-const nextStep = read('skills/next-step/SKILL.md');
-const goalTemplates = read('skills/opsx-apply-goal/references/goal-templates.md');
+const nextStep = read('skills/dhpk-next-step/SKILL.md');
+const goalTemplates = read('skills/dhpk-opsx-apply-goal/references/goal-templates.md');
 const resumeCmd = read('commands/opsx-apply-resume.md');
 const precedenceSSOT = read('skills/dhpk-execution-policy/references/invocation-precedence.md');
 
@@ -59,7 +59,7 @@ test('/dhpk:do gates MATCH and NO_MATCH on the resolved target invocation class'
 test('/dhpk:do never unconditionally auto-invokes the explicit-only opsx-apply-goal route', () => {
   assert.ok(!/pass that argument string to the skill and end this session/.test(doCmd),
     'stale unconditional opsx-apply-goal auto-invoke phrasing must not remain');
-  assert.ok(doCmdFlat.includes('present the exact invocation `/dhpk:opsx-apply-goal'),
+  assert.ok(doCmdFlat.includes('present the exact invocation `/dhpk:dhpk-opsx-apply-goal'),
     'do.md must present the exact opsx-apply-goal invocation rather than calling it directly');
 });
 
@@ -103,7 +103,7 @@ test('every scripts/lib/route-table.json target resolves and has a known invocat
 
 test('real route-table explicit-only targets retain their canonical classes', () => {
   const routeTable = JSON.parse(read('scripts/lib/route-table.json'));
-  const explicitTargets = new Set(['dhpk:opsx-apply-goal', 'dhpk:create-pr', 'dhpk:release-creator', 'dhpk:smart-commit']);
+  const explicitTargets = new Set(['dhpk:dhpk-opsx-apply-goal', 'dhpk:create-pr', 'dhpk:dhpk-release-creator', 'dhpk:smart-commit']);
   const implicitTargets = new Set(['dhpk:review-pending']);
   for (const target of explicitTargets) {
     assert.ok(routeTable.rules.some((rule) => rule.skill === target), `route table must contain ${target}`);

@@ -6,7 +6,7 @@ allowed-tools: 'Read, Grep, Glob, Bash, Skill, AskUserQuestion'
 
 ⚠️ **Must read and follow the skill below before executing this command:**
 
-@modules/library-author/skills/matrix-cell-onboard/SKILL.md
+@skills/dhpk-matrix-cell-onboard/SKILL.md
 
 ## Context
 

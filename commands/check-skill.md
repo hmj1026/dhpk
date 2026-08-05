@@ -8,7 +8,7 @@ metadata:
 
 **Must read and follow the skill below before executing this command:**
 
-@skills/skill-health-check/SKILL.md
+@skills/dhpk-skill-health-audit/SKILL.md
 
 ## Context
 

@@ -72,7 +72,7 @@ The sentinel file contains one line per edited file:
 ## What this reviewer does NOT do
 
 - Does not deep-dive single guards across all files (that's
-  `/dhpk:polyfill-version-matrix-audit` — manual invoke).
+  `/dhpk:dhpk-polyfill-version-matrix-audit` — manual invoke).
 - Does not assess diff blast-radius across all 13 matrix cells (that's
   `version-matrix-impact-reviewer` agent).
 - Does not run tests. Only reads code + git log + composer/workflow YAML.
@@ -96,7 +96,7 @@ This file retains the version-guard branch and matrix-cell checks unique to
 |---------|-------|
 | Diff touches SQL / schema | `database-reviewer` (different sentinel) |
 | Diff touches auth / crypto | `security-reviewer` (different sentinel) |
-| Need deep audit of one guard | suggest manual `/dhpk:polyfill-version-matrix-audit` |
+| Need deep audit of one guard | suggest manual `/dhpk:dhpk-polyfill-version-matrix-audit` |
 | Need cross-cell blast-radius | suggest `version-matrix-impact-reviewer` agent |
 
 ## Output

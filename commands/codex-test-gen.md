@@ -8,8 +8,8 @@ metadata:
 
 ⚠️ **Must read and follow the skill below before executing this command:**
 
-@skills/test-review/SKILL.md
-@skills/test-review/references/codex-prompt-test-gen.md
+@skills/dhpk-test-review/SKILL.md
+@skills/dhpk-test-review/references/codex-prompt-test-gen.md
 
 ## Context
 
@@ -48,7 +48,7 @@ Read source → Derive test path → Codex generate → Save test file → Sugge
 - **AAA pattern** — Arrange-Act-Assert in every test
 - **Follow project conventions** — mock setup, assertion style, describe/it structure
 - **At least one test per public method** — happy path + edge cases
-- Independent research, thread continuation, and gate sentinels: `skills/codex-code-review/references/review-common.md` §§Codex Independent Research, Gate Sentinels.
+- Independent research, thread continuation, and gate sentinels: `skills/dhpk-change-review/references/review-common.md` §§Codex Independent Research, Gate Sentinels.
 
 ## Output
 

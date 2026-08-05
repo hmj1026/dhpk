@@ -26,7 +26,7 @@ function mkRouteTable() {
   const file = path.join(dir, 'route-table.json');
   fs.writeFileSync(file, JSON.stringify({
     rules: [
-      { pattern: 'deploy.{0,20}(prod|production)', skill: 'dhpk:deploy-list', label: 'production deploy' },
+      { pattern: 'deploy.{0,20}(prod|production)', skill: 'dhpk:dhpk-deploy-list', label: 'production deploy' },
     ],
   }));
   return { dir, file };

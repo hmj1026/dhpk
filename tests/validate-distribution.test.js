@@ -13,7 +13,7 @@ const { reconcileDistribution } = require('../scripts/lib/distribution-inventory
 function baseInventory() {
   return {
     skills: [
-      { id: 'tdd', path: 'skills/tdd', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-sync'] },
+      { id: 'tdd', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-sync'] },
     ],
     modules: [
       { id: 'vue-2', path: 'modules/vue-2', lifecycle: 'optional', surfaces: ['claude-module'] },
@@ -63,7 +63,7 @@ test('fails when a codex-sync skill has no agents/openai.yaml', () => {
 
 test('a skill with no codex surface never triggers codex reconciliation errors', () => {
   const inv = {
-    skills: [{ id: 'harness-fill', path: 'skills/harness-fill', lifecycle: 'promoted', surfaces: ['claude-core'] }],
+    skills: [{ id: 'harness-fill', path: 'skills/dhpk-harness-fill', lifecycle: 'promoted', surfaces: ['claude-core'] }],
     modules: [],
   };
   const result = reconcileDistribution({

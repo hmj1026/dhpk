@@ -13,10 +13,10 @@ const { classifyCanonicalInventory, LIFECYCLES } = require('../scripts/lib/distr
 const ROOT = path.join(__dirname, '..');
 const MANIFEST = path.join(ROOT, 'manifests', 'distribution-inventory.json');
 
-test('checked-in manifest exists and declares the v1 schema', () => {
+test('checked-in manifest exists and declares the v2 schema', () => {
   assert.ok(fs.existsSync(MANIFEST), 'manifests/distribution-inventory.json is missing — run scripts/ci/gen-distribution-inventory.js --write');
   const inv = JSON.parse(fs.readFileSync(MANIFEST, 'utf8'));
-  assert.strictEqual(inv.schema, 'dhpk.distribution-inventory.v1');
+  assert.strictEqual(inv.schema, 'dhpk.distribution-inventory.v2');
   assert.deepStrictEqual([...inv.lifecycles].sort(), [...LIFECYCLES].sort());
 });
 

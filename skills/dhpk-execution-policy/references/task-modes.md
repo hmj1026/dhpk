@@ -6,7 +6,7 @@ SSOT for the six change types, their flow, and OpenSpec ask-behavior: `${CLAUDE_
 
 You can describe the symptom but not the cause. Example: "intermittent 500 on /checkout, no useful stack trace".
 
-`bug-investigation` drives gitnexus_impact + log review + hypothesis testing BEFORE writing any code. Ask about OpenSpec (✅ per the SSOT table) — y: `/opsx:new`; n: brief plan → tdd-guide → patch.
+`dhpk-root-cause-investigation` drives gitnexus_impact + log review + hypothesis testing BEFORE writing any code. Ask about OpenSpec (✅ per the SSOT table) — y: `/opsx:new`; n: brief plan → tdd-guide → patch.
 
 ## Feature Delivery (cross-module / DDD)
 

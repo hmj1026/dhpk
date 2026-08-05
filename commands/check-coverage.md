@@ -8,7 +8,7 @@ metadata:
 
 ⚠️ **Must read and follow the skill below before executing this command:**
 
-@skills/test-review/SKILL.md
+@skills/dhpk-test-review/SKILL.md
 
 ## Context
 

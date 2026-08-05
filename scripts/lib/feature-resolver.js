@@ -3,8 +3,8 @@
 /**
  * feature-resolver.js — canonical "current feature" resolver.
  *
- * Spec: skills/create-request/references/feature-context-resolution.md
- *       skills/tech-spec/references/feature-context-resolution.md
+ * Spec: skills/dhpk-create-request/references/feature-context-resolution.md
+ *       skills/dhpk-tech-spec/references/feature-context-resolution.md
  *
  * Runs a 4-level resolution cascade (explicit key -> git branch -> changed
  * paths -> single feature dir) and, once a feature key is resolved, scans

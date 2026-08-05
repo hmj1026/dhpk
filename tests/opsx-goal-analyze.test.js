@@ -6,8 +6,8 @@ const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const analyzer = fs.readFileSync(path.join(ROOT, 'skills', 'opsx-apply-goal', 'scripts', 'analyze-change.sh'), 'utf8');
-const context = require(path.join(ROOT, 'skills', 'opsx-apply-goal', 'scripts', 'goal-context.js'));
+const analyzer = fs.readFileSync(path.join(ROOT, 'skills', 'dhpk-opsx-apply-goal', 'scripts', 'analyze-change.sh'), 'utf8');
+const context = require(path.join(ROOT, 'skills', 'dhpk-opsx-apply-goal', 'scripts', 'goal-context.js'));
 
 function fakeCli(name) {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'opsx-context-')));
@@ -39,7 +39,7 @@ test('flag overrides config and output carries availability, fallback, and order
   try {
     const result = withEnv({ PATH: `${cli.bin}:/usr/bin:/bin`, CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND: 'claude', CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND_ORDER: 'codex,agy,claude', CLAUDE_PLUGIN_OPTION_FAST_WORKER_FALLBACK: 'claude' }, () => context.buildContext({ tasks: '- [ ] backend\n', proposal: '', fastWorker: 'agy' }));
     assert.strictEqual(result.fields.FAST_WORKER_SELECTED, 'agy');
-    assert.strictEqual(result.fields.FAST_WORKER_AGENT, 'dhpk:agy-fast-worker');
+    assert.strictEqual(result.fields.FAST_WORKER_AGENT, 'dhpk:dhpk-agy-fast-worker');
     assert.strictEqual(result.fields.FAST_WORKER_ORDER, 'codex,agy,claude');
     assert.strictEqual(result.fields.FAST_WORKER_FALLBACK, 'claude');
     assert.ok(result.fields.FAST_WORKER_CLAUSE.includes('agy executable available'));
@@ -126,7 +126,7 @@ test('analyzer emits the full block when CLAUDE_PLUGIN_ROOT is unset (its real i
     const env = { ...process.env, CLAUDE_PROJECT_DIR: repo };
     delete env.CLAUDE_PLUGIN_ROOT;
     const res = spawnSync('bash',
-      [path.join(ROOT, 'skills', 'opsx-apply-goal', 'scripts', 'analyze-change.sh'), 'demo-change'],
+      [path.join(ROOT, 'skills', 'dhpk-opsx-apply-goal', 'scripts', 'analyze-change.sh'), 'demo-change'],
       { cwd: repo, env, encoding: 'utf8' });
 
     assert.strictEqual(res.status, 0, `analyzer exited ${res.status}:\n${res.stderr}`);

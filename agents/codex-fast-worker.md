@@ -83,7 +83,7 @@ approximate the backend or fall back to editing the files yourself.
    . "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/_lib/load-project-config.sh"
    dhpk_codex_timeout_export "$DHPK_CODEX_ROLE" || exit 78
    before="$(git status --porcelain)"
-   bash "${CLAUDE_PLUGIN_ROOT}/skills/codex-bridge/scripts/run-codex.sh" \
+   bash "${CLAUDE_PLUGIN_ROOT}/skills/dhpk-codex-bridge/scripts/run-codex.sh" \
      workspace-write "<workdir>" "<prompt-file>" "<model>" "<effort>"
    after="$(git status --porcelain)"
    ```
@@ -95,7 +95,7 @@ approximate the backend or fall back to editing the files yourself.
 
    ```bash
    before="$(git status --porcelain -- "${ASSIGNED_FILES[@]}")"
-   bash "${CLAUDE_PLUGIN_ROOT}/skills/codex-bridge/scripts/run-codex.sh" \
+   bash "${CLAUDE_PLUGIN_ROOT}/skills/dhpk-codex-bridge/scripts/run-codex.sh" \
      workspace-write "<workdir>" "<prompt-file>" "<model>" "<effort>"
    after="$(git status --porcelain -- "${ASSIGNED_FILES[@]}")"
    ```
@@ -110,7 +110,7 @@ A wrapper-reported timeout (`run-codex.sh` exit `124` with the wrapper's own "ti
 §CLI worker mid-batch timeout recovery, then:
 
 Parse the timeout envelope before classifying exit `124`; parse stdout with the shared
-`${CLAUDE_PLUGIN_ROOT}/skills/codex-bridge/scripts/codex-timeout-envelope.js`
+`${CLAUDE_PLUGIN_ROOT}/skills/dhpk-codex-bridge/scripts/codex-timeout-envelope.js`
 parser and require `schema=dhpk.codex.timeout.v1`,
 `verified_wrapper_timeout=true`, and the stable base64 fields. Record the parsed
 envelope as timeout evidence before any retry; a non-empty salvaged report is

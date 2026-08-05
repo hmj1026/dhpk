@@ -86,7 +86,7 @@ test('v2 inventory rejects schema drift, invalid public names, duplicate names/c
   const bad = inventory([
     skill({
       name: 'dhpk-tdd',
-      path: 'modules/js/skills/tdd',
+      path: 'modules/js/skills/dhpk-tdd-workflow',
       capability_id: 'dhpk.tdd',
       profiles: ['default', 'default'],
       legacy_names: ['old-tdd', 'old-tdd'],

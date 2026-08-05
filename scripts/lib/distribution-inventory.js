@@ -357,8 +357,9 @@ function reconcileDistribution({
 
   for (const s of inventory.skills || []) {
     const surfaces = s.surfaces || [];
-    if (surfaces.includes('codex-sync') && !mirrorSet.has(s.id)) {
-      errors.push(`codex-sync surface without a mirror: ${s.id} declares codex-sync but codex/skills/${s.id} does not exist`);
+    const projectionName = inventory && inventory.schema === V2_SCHEMA ? s.name : s.id;
+    if (surfaces.includes('codex-sync') && !mirrorSet.has(projectionName)) {
+      errors.push(`codex-sync surface without a mirror: ${s.id} declares codex-sync but codex/skills/${projectionName} does not exist`);
     }
     if ((surfaces.includes('codex-sync') || surfaces.includes('codex-native')) && !hasOpenaiMetadata(s)) {
       errors.push(`codex surface without agents/openai.yaml: ${s.id} declares a Codex surface but ${s.path}/agents/openai.yaml is missing`);

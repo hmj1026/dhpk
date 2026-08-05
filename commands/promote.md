@@ -15,13 +15,13 @@ Promote instincts from project scope to global scope in continuous-learning-v2.
 Run the instinct CLI using the plugin root path:
 
 ```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/skills/continuous-learning-v2/scripts/instinct-cli.py" promote [instinct-id] [--force] [--dry-run]
+python3 "${CLAUDE_PLUGIN_ROOT}/skills/dhpk-continuous-learning-v2/scripts/instinct-cli.py" promote [instinct-id] [--force] [--dry-run]
 ```
 
 Or if `CLAUDE_PLUGIN_ROOT` is not set (manual installation):
 
 ```bash
-python3 ~/.claude/skills/continuous-learning-v2/scripts/instinct-cli.py promote [instinct-id] [--force] [--dry-run]
+python3 ~/.claude/skills/dhpk-continuous-learning-v2/scripts/instinct-cli.py promote [instinct-id] [--force] [--dry-run]
 ```
 
 ## Usage

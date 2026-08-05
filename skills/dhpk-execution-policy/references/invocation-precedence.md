@@ -2,7 +2,7 @@
 
 Canonical precedence for entry selection across dhpk's surfaces
 (`openspec/changes/clarify-dhpk-skill-invocation-policy`). `commands/do.md`,
-`skills/next-step/SKILL.md`, and `rules/execution-policy.md` reference this
+`skills/dhpk-next-step/SKILL.md`, and `rules/execution-policy.md` reference this
 file — they do not restate it.
 
 ## Fixed order
@@ -12,7 +12,7 @@ file — they do not restate it.
    on a harness that supports that form).
 2. Explicit arguments/options attached to that entry.
 3. An explicit `/dhpk:do` request and its matched route.
-4. A `next-step` recommendation.
+4. A `dhpk-next-step` recommendation.
 5. Model selection among `implicit-eligible` skills.
 6. Implementation dispatch, after the selected workflow reaches its
    implementation phase (see `implementation-dispatch.md` — a separate
@@ -42,7 +42,7 @@ workflow. Before invoking that workflow through the Skill tool:
 - **Target is `implicit-eligible`** → invoke it normally.
 - **Target is `explicit-only`** → do NOT call the Skill tool. Print the
   target's exact supported invocation syntax and stop. This holds even when
-  the router's own matching (route-table pattern, `next-step`'s confidence
+  the router's own matching (route-table pattern, `dhpk-next-step`'s confidence
   score, a self-classification) is high-confidence — confidence in the
   ROUTE is not authorization to bypass the TARGET's own invocation
   restriction. Both harnesses enforce `explicit-only` at the target; an

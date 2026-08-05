@@ -6,7 +6,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 
 const FIXTURE_DIR = path.join(__dirname, '..', 'fixtures', 'opsx-goal');
-const TEMPLATE_PATH = path.join(__dirname, '..', '..', 'skills', 'opsx-apply-goal', 'references', 'goal-templates.md');
+const TEMPLATE_PATH = path.join(__dirname, '..', '..', 'skills', 'dhpk-opsx-apply-goal', 'references', 'goal-templates.md');
 const TEMPLATE = fs.readFileSync(TEMPLATE_PATH, 'utf8');
 
 const fencedAfter = (marker) => {
@@ -56,7 +56,7 @@ const composeGoal = (fixture) => {
     .replaceAll('<CHANGE_ID>', fixture.change_id || 'fixture-change')
     .replace('<CODEX_STATEMENT>', codexStatement)
     .replaceAll('<TASK_DIGEST>', 'T'.repeat(200))
-    .replaceAll('<FAST_WORKER_CLAUSE>', 'dhpk:codex-fast-worker selected; fallback dhpk:agy-fast-worker → dhpk:fast-worker')
+    .replaceAll('<FAST_WORKER_CLAUSE>', 'dhpk:codex-fast-worker selected; fallback dhpk:dhpk-agy-fast-worker → dhpk:fast-worker')
     .replaceAll('<E2E_ROSTER_CLAUSE>', fixture.has_e2e === false ? '' : 'RED/E2E Playwright → dhpk:e2e-runner; '));
   for (const gate of fixture.gates || []) {
     const contract = Object.prototype.hasOwnProperty.call(GATE_TOKENS, gate) ? GATE_TOKENS[gate] : `GATE: ${gate}.`;

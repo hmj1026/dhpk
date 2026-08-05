@@ -81,7 +81,7 @@ Plugin spec has no statusline component. `scripts/statusline/statusline.sh` ship
 
 ### D8 — Plugin rules don't auto-load → ship as skills
 
-Discovered after first plan: plugin manifest has no `rules` component. All former `rules/tool-routing.md` and `rules/dhpk-execution-policy.md` content moves into `skills/tool-routing/SKILL.md` and `skills/dhpk-execution-policy/SKILL.md`. Each has a long, trigger-keyword-rich `description:` so Claude auto-invokes when relevant. Detailed prose moves into `references/<topic>.md` referenced from SKILL.md body.
+Discovered after first plan: plugin manifest has no `rules` component. All former `rules/tool-routing.md` and `rules/dhpk-execution-policy.md` content moves into `skills/dhpk-tool-routing/SKILL.md` and `skills/dhpk-execution-policy/SKILL.md`. Each has a long, trigger-keyword-rich `description:` so Claude auto-invokes when relevant. Detailed prose moves into `references/<topic>.md` referenced from SKILL.md body.
 
 ### D9 — Modules are version-tagged (`<stack>-<version>`)
 

@@ -21,10 +21,10 @@ not a reason to bypass its worker or review gates.
 
 ## When NOT to Use
 
-- A substantial change needs workflow classification, required artifacts, or readiness gates → use `adaptive-dev-workflow`.
-- A root-cause investigation is already underway → use `bug-investigation`.
+- A substantial change needs workflow classification, required artifacts, or readiness gates → use `dhpk-adaptive-dev-workflow`.
+- A root-cause investigation is already underway → use `dhpk-root-cause-investigation`.
 - An OpenSpec change is apply-ready → use `/opsx:apply`.
-- Pure code understanding or tracing has no workflow decision → use `code-explore` (or `code-investigate` for a dual-perspective pass).
+- Pure code understanding or tracing has no workflow decision → use `dhpk-codebase-exploration` (or `dhpk-code-investigate` for a dual-perspective pass).
 - A specific skill's workflow is already in progress → follow that skill's steps instead of re-routing through this policy.
 
 ## Kickoff sequence
@@ -36,7 +36,7 @@ policy. Complete each step before moving to the next.
    Done when the current phase is explicit.
 2. **Resolve the route** — honor an explicit `/opsx:*` or skill invocation. For
    an unqualified substantial change, hand off classification to
-   `adaptive-dev-workflow`; otherwise use the SSOT classification table.
+   `dhpk-adaptive-dev-workflow`; otherwise use the SSOT classification table.
    Done when exactly one next route is selected and its OpenSpec ask/override
    is known.
 3. **Load narrowly** — read only the reference needed by that route, then
@@ -49,7 +49,7 @@ policy. Complete each step before moving to the next.
    with a reason and no unresolved sentinel remains; otherwise report the
    blocker.
 5. **Wrap deliberately** — for a non-trivial Edit/Write turn, load
-   `execution-checklist` before replying. Done when the output shape and every
+   `dhpk-execution-checklist` before replying. Done when the output shape and every
    triggered conditional check are accounted for.
 
 ## Routing precedence
@@ -59,9 +59,9 @@ Use this as a compact router, not as a second policy table:
 1. An explicit user-invoked command or skill wins.
 2. Project-local skills override same-name plugin skills when the route is
    unqualified.
-3. `adaptive-dev-workflow` owns substantial-change classification and its
+3. `dhpk-adaptive-dev-workflow` owns substantial-change classification and its
    artifact/readiness gates.
-4. `bug-investigation` owns unknown-root-cause work before implementation.
+4. `dhpk-root-cause-investigation` owns unknown-root-cause work before implementation.
 5. `architect` owns cross-module or DDD boundary design before implementation.
 6. `tdd-guide` owns the RED phase for business-behavior features and bug fixes
    when the selected workflow requires tests first.
@@ -73,7 +73,7 @@ Use this as a compact router, not as a second policy table:
 The exact six-mode mapping and OpenSpec ask behavior live in the SSOT section
 `Change classification & OpenSpec routing (SSOT)`. Read
 `./references/task-modes.md` for examples only when the mode is unclear; if the
-request is substantial, hand off to `adaptive-dev-workflow` rather than
+request is substantial, hand off to `dhpk-adaptive-dev-workflow` rather than
 recreating its classification output here.
 
 ## Post-edit gate

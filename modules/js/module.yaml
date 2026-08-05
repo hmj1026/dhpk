@@ -11,7 +11,7 @@ triggers:
     extensions: [".jsx", ".tsx", ".vue", ".svelte"]
     paths: [js/, src/, app/, public/]
 provides:
-  skills: [js-lint-config, js-static-check-strategy]
+  skills: [dhpk-js-lint-config, dhpk-js-static-check-strategy]
   commands: [ts-check-status]
   references: [static-checks.md, frontend-review-patterns.md]
 # ---- JS-specific tier configuration (read by hooks/_lib/js-tier-detect.sh) ----

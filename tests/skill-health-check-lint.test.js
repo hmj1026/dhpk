@@ -6,7 +6,7 @@ const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const SCRIPT = path.join(ROOT, 'skills', 'skill-health-check', 'scripts', 'skill-lint.js');
+const SCRIPT = path.join(ROOT, 'skills', 'dhpk-skill-health-audit', 'scripts', 'skill-lint.js');
 const lint = require(SCRIPT);
 
 function fixture() {
@@ -79,15 +79,15 @@ test('command pairing recognizes documented skill-name wording', () => {
     fs.mkdirSync(commands);
     fs.writeFileSync(
       path.join(commands, 'smart-commit.md'),
-      'Follow the `git-smart-commit` skill workflow.\n'
+      'Follow the `dhpk-git-smart-commit` skill workflow.\n'
     );
     fs.writeFileSync(
       path.join(commands, 'create-dev.md'),
-      'This is the explicit entry point to `dhpk:adaptive-dev-workflow`.\n'
+      'This is the explicit entry point to `dhpk:dhpk-adaptive-dev-workflow`.\n'
     );
 
     const findings = lint.detectOrphans(
-      ['git-smart-commit', 'adaptive-dev-workflow', 'unpaired-skill'],
+      ['dhpk-git-smart-commit', 'dhpk-adaptive-dev-workflow', 'unpaired-skill'],
       ['smart-commit.md', 'create-dev.md'],
       commands
     );

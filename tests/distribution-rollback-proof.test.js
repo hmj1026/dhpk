@@ -44,7 +44,7 @@ test('the later (deprecated) inventory revision drops the now-empty module root'
 });
 
 test('rollback: regenerating from the prior revision again reproduces the original root set, without any canonical source having been touched', () => {
-  const canonicalSourcePath = path.join(ROOT, 'modules', 'fastapi', 'skills', 'fastapi-pro', 'SKILL.md');
+  const canonicalSourcePath = path.join(ROOT, 'modules', 'fastapi', 'skills', 'dhpk-fastapi-pro', 'SKILL.md');
   // The canonical source was never deleted by generation in either direction —
   // only the (in-memory, test-local) inventory copy's lifecycle metadata
   // changed. Rollback never needs a restore step because nothing was removed.

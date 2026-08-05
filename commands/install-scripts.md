@@ -125,7 +125,7 @@ If `--dry-run`, compute the install plan without writing any files, output the p
    mkdir -p ${REPO_ROOT}/.claude/scripts/skills/<skill-name>
    ```
 
-   > **Note**: Installed skill scripts serve as local copies for direct invocation (e.g. `bash .claude/scripts/skills/op-session/op-session-init.sh`). They are not consumed by `run-skill.sh`, which resolves from the plugin's own `skills/` directory.
+   > **Note**: Installed skill scripts serve as local copies for direct invocation (e.g. `bash .claude/scripts/skills/dhpk-onepassword-session/op-session-init.sh`). They are not consumed by `run-skill.sh`, which resolves from the plugin's own `skills/` directory.
 
 2. For each script to install:
 

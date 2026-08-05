@@ -8,8 +8,8 @@ metadata:
 
 ⚠️ **Must read and follow the skill below before executing this command:**
 
-@skills/codex-code-review/SKILL.md
-@skills/codex-code-review/references/codex-prompt-branch.md
+@skills/dhpk-change-review/SKILL.md
+@skills/dhpk-change-review/references/codex-prompt-branch.md
 
 ## Context
 
@@ -50,7 +50,7 @@ Collect branch info → Codex review (6 dimensions) → Rating table + Findings 
 - **Reviews entire branch** — all commits from base, not just latest diff
 - **6 review dimensions** — Feature Completeness, Code Quality, Security, Performance, Test Coverage, Documentation
 - **Rating table** — star ratings per dimension
-- Independent research, thread continuation, and gate sentinels: `skills/codex-code-review/references/review-common.md` §§Codex Independent Research, Gate Sentinels.
+- Independent research, thread continuation, and gate sentinels: `skills/dhpk-change-review/references/review-common.md` §§Codex Independent Research, Gate Sentinels.
 
 ### Review Loop
 

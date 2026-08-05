@@ -125,7 +125,7 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --update
 /dhpk:do implement a password-reset email flow
 ```
 
-Smart Router 匹配「implement … feature」→ `dhpk:adaptive-dev-workflow` → **Feature Delivery** 路徑。該 skill 載入 TDD guide，執行 RED→GREEN→REFACTOR 循環，最後以 code-review 與 security gate 收尾。每次寫檔後，post-edit hook 自動投下 sentinel；Stop hook 在 session 結束時提醒尚未清除的 reviewer。
+Smart Router 匹配「implement … feature」→ `dhpk:dhpk-adaptive-dev-workflow` → **Feature Delivery** 路徑。該 skill 載入 TDD guide，執行 RED→GREEN→REFACTOR 循環，最後以 code-review 與 security gate 收尾。每次寫檔後，post-edit hook 自動投下 sentinel；Stop hook 在 session 結束時提醒尚未清除的 reviewer。
 
 ### 2. 修 Bug
 
@@ -133,9 +133,9 @@ Smart Router 匹配「implement … feature」→ `dhpk:adaptive-dev-workflow` �
 /dhpk:do fix the login redirect loop
 ```
 
-匹配「fix … bug」→ `dhpk:adaptive-dev-workflow` → **Bug Investigation & Fix**：先確認根因證據、撰寫回歸測試，通過 RED gate 後才動手修。
+匹配「fix … bug」→ `dhpk:dhpk-adaptive-dev-workflow` → **Bug Investigation & Fix**：先確認根因證據、撰寫回歸測試，通過 RED gate 後才動手修。
 
-**`--openspec` / `--opsx` 旗標：** 在 `/dhpk:do` 加上 `--openspec`（別名 `--opsx`）可強制走 OpenSpec 撰寫流程（`opsx:new` → `opsx:ff`，接著停下等待人工審閱），而不直接進入實作。此旗標適用於 3 個「變更撰寫」路由 —— `dhpk:adaptive-dev-workflow`、`dhpk:bug-fix`、`dhpk:feature-dev` —— 並取代 `--plan`。在其餘路由（包含 `dhpk:opsx-apply-goal`）上此旗標無作用：會印出 `--openspec ignored: ...` 並照常執行原路由。
+**`--openspec` / `--opsx` 旗標：** 在 `/dhpk:do` 加上 `--openspec`（別名 `--opsx`）可強制走 OpenSpec 撰寫流程（`opsx:new` → `opsx:ff`，接著停下等待人工審閱），而不直接進入實作。此旗標適用於 3 個「變更撰寫」路由 —— `dhpk:dhpk-adaptive-dev-workflow`、`dhpk:dhpk-bug-fix`、`dhpk:dhpk-feature-dev` —— 並取代 `--plan`。在其餘路由（包含 `dhpk:dhpk-opsx-apply-goal`）上此旗標無作用：會印出 `--openspec ignored: ...` 並照常執行原路由。
 
 **`--worker=<claude|codex|agy|auto>` 旗標：** 僅為這次呼叫選擇機械 worker，不改專案設定。`/dhpk:do` 在路由匹配前解析並移除此旗標，再把原值以 `WORKER_OVERRIDE` 只傳給實作型路由（`adaptive-dev-workflow`、`bug-fix`、`feature-dev`、`opsx-apply-goal`）。優先序為旗標 > `fast_worker_backend` userConfig > shipped `claude`；無效旗標警告一次後退回 userConfig／預設。下游流程一律呼叫共用 selector，不自行重做可用性、順序或 fallback 邏輯。
 
@@ -166,7 +166,7 @@ Smart Router 匹配「implement … feature」→ `dhpk:adaptive-dev-workflow` �
 /dhpk:do 幫我提交並建立 PR
 ```
 
-若要真正切一個版本發布（不只是 commit/PR）——版本檔案、changelog、以及固定的 git/PR/tag/CI 流程——見 `/dhpk:release-creator <version>`（explicit-only；直接執行，不會被自動呼叫）。
+若要真正切一個版本發布（不只是 commit/PR）——版本檔案、changelog、以及固定的 git/PR/tag/CI 流程——見 `/dhpk:dhpk-release-creator <version>`（explicit-only；直接執行，不會被自動呼叫）。
 
 ### 5. Setup 入口
 
@@ -177,7 +177,7 @@ Smart Router 匹配「implement … feature」→ `dhpk:adaptive-dev-workflow` �
 適用於需要長時間執行、不需人在旁監看的變更實作——產生單一一段 `/goal` 指令（已內嵌 `/opsx:apply` 啟動指示），貼到新 session 即可執行：
 
 ```text
-/dhpk:opsx-apply-goal my-change-id --max-duration 2h
+/dhpk:dhpk-opsx-apply-goal my-change-id --max-duration 2h
 ```
 
 **旗標：**
@@ -192,7 +192,7 @@ Smart Router 匹配「implement … feature」→ `dhpk:adaptive-dev-workflow` �
 | `--smoke` / `--no-smoke` | 強制開/關唯讀的即時執行探針門檻。兩者都不加則自動偵測：只有強訊號（明確的即時驗證任務、已派遣的 `e2e-runner`、或可推導的啟動指令）才會開啟，否則關閉。 |
 | `--dry-run` | 只印出分析結果與 goal 字串，不附「可貼上」的 session 設定框架——用來在真正執行無人值守迴圈前先預覽。 |
 
-**貼上的 `/goal` 字串實際內容：** 先定位 `rules/execution-policy.md`，再呼叫 `opsx:apply`（含有界的 Unknown-skill 備援）。Part 0 帶入 selector 解出的 fast-worker 條款，以及不切斷 UTF-8 code point、上限 200 bytes 的 task digest；只有變更實際含 E2E 訊號時才加入 `e2e-runner` 名單。Review 以連續實作 wave 為單位，只派一批合併的並行 reviewer；已知 findings 最多再做一次 confirm-only 複查。完成仍要求所有 task checkbox、適用的 test/build/lint/coverage/smoke gate，以及沒有 pending sentinel。回合／時間檢查點寫入 `.resume-note.md`；只剩人工工作時標註 `[blocked: <reason>]`；hard-rule 衝突則以 file:line 證據寫入 `.hard-rule-escalation.md` 並停止，不自行猜測。完整結構見 `skills/opsx-apply-goal/SKILL.md` Steps 3-4 與 Output（Part 0-4）。
+**貼上的 `/goal` 字串實際內容：** 先定位 `rules/execution-policy.md`，再呼叫 `opsx:apply`（含有界的 Unknown-skill 備援）。Part 0 帶入 selector 解出的 fast-worker 條款，以及不切斷 UTF-8 code point、上限 200 bytes 的 task digest；只有變更實際含 E2E 訊號時才加入 `e2e-runner` 名單。Review 以連續實作 wave 為單位，只派一批合併的並行 reviewer；已知 findings 最多再做一次 confirm-only 複查。完成仍要求所有 task checkbox、適用的 test/build/lint/coverage/smoke gate，以及沒有 pending sentinel。回合／時間檢查點寫入 `.resume-note.md`；只剩人工工作時標註 `[blocked: <reason>]`；hard-rule 衝突則以 file:line 證據寫入 `.hard-rule-escalation.md` 並停止，不自行猜測。完整結構見 `skills/dhpk-opsx-apply-goal/SKILL.md` Steps 3-4 與 Output（Part 0-4）。
 
 當 `orchestration_dispatch=on`（預設）時，產生的 `/goal` 條件會內嵌精簡的 selector-resolved 機械 worker 條款，以及本次工作實際需要的 specialist 條款；未偵測到瀏覽器工作時不會加入 E2E 條款。設為 `orchestration_dispatch=off` 會完全移除 dispatch 指示——實作工作一律內嵌執行，不再透過 worker agent 路由。
 
@@ -216,7 +216,7 @@ Smart Router 匹配「implement … feature」→ `dhpk:adaptive-dev-workflow` �
 /dhpk:do write E2E tests for the checkout flow
 ```
 
-路由到 `dhpk:post-dev-test`，委派 `e2e-runner` agent 負責 Playwright 測試套件撰寫。它只可寫 test spec、共用 helper、fixture 與 artifact；若發現 application code 問題，回傳 fast-worker-ready fix spec，修復後再重跑原始 journey。它會重用專案既有 helper，並在 teardown 清理 shared DB 的合成資料。
+路由到 `dhpk:dhpk-post-dev-test`，委派 `e2e-runner` agent 負責 Playwright 測試套件撰寫。它只可寫 test spec、共用 helper、fixture 與 artifact；若發現 application code 問題，回傳 fast-worker-ready fix spec，修復後再重跑原始 journey。它會重用專案既有 helper，並在 teardown 清理 shared DB 的合成資料。
 
 ### 9. Harness 健康檢測與修復
 
@@ -225,11 +225,11 @@ harness-* 工具家族各自負責不同面向——請依需求選用正確工�
 | 指令 / Skill | 負責面向 | 是否修改檔案 |
 |---|---|---|
 | `/harness-audit` | 確定性 7 大分類評分 | 否 |
-| `dhpk:harness-budget` | Context window token 用量統計 | 否 |
-| `dhpk:claude-health` | `.claude/` 設定健康、命名、plugin 同步 | 否 |
+| `dhpk:dhpk-harness-budget` | Context window token 用量統計 | 否 |
+| `dhpk:dhpk-claude-health` | `.claude/` 設定健康、命名、plugin 同步 | 否 |
 | `/harness-govern` | 端到端 measure → conform → fix → verify 循環 | 否（加 `--fix` 才套用修改） |
-| `dhpk:harness-revise` | 精簡、去重、驗證（G1–G13 gap 分類） | 是 |
-| `dhpk:harness-fill` | 補齊缺失的 `.claude/` 基礎設施 | 是 |
+| `dhpk:dhpk-harness-revise` | 精簡、去重、驗證（G1–G13 gap 分類） | 是 |
+| `dhpk:dhpk-harness-fill` | 補齊缺失的 `.claude/` 基礎設施 | 是 |
 
 **典型流程：**
 
@@ -238,7 +238,7 @@ harness-* 工具家族各自負責不同面向——請依需求選用正確工�
 /harness-audit
 
 # 2. 檢查 context window 用量（token 預算）
-/dhpk:harness-budget
+/dhpk:dhpk-harness-budget
 
 # 3. 端到端治理循環（預設唯讀）
 /harness-govern
@@ -247,7 +247,7 @@ harness-* 工具家族各自負責不同面向——請依需求選用正確工�
 /harness-govern --fix
 
 # 5. 若 .claude/ 缺少 skills/agents/rules（新專案導入）
-/dhpk:harness-fill
+/dhpk:dhpk-harness-fill
 ```
 
 `/harness-govern` 是單一入口：依序執行 `/harness-audit`（評分）→ conform（最佳實踐對齊）→ `/harness-revise`（修復，僅在加 `--fix` 時）→ 驗證。可以 `/loop /harness-govern` 持續監控。

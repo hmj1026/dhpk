@@ -12,9 +12,9 @@ This is the **Codex-driven** OWASP audit (it owns the `mcp__codex__*` permission
 codex-free counterpart is the `security-review` skill — do **not** `@`-include it here,
 as it forbids `mcp__codex__*` and would contradict this command.
 
-@skills/security-review/references/codex-prompt-security.md
+@skills/dhpk-security-review/references/codex-prompt-security.md
 
-@skills/codex-code-review/references/command-context.md
+@skills/dhpk-change-review/references/command-context.md
 
 ## Task
 
@@ -46,7 +46,7 @@ Determine scope → Collect changes → Codex OWASP review → Findings + Gate �
 
 - **OWASP A01-A10** — full checklist coverage
 - **Each finding includes** — location, OWASP type, impact, fix, verification test
-- Independent research, thread continuation, and gate sentinels: `skills/codex-code-review/references/review-common.md` §§Codex Independent Research, Gate Sentinels.
+- Independent research, thread continuation, and gate sentinels: `skills/dhpk-change-review/references/review-common.md` §§Codex Independent Research, Gate Sentinels.
 
 ### Review Loop
 

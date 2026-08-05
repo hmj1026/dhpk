@@ -73,7 +73,7 @@ approximate the backend or fall back to editing the files yourself.
 
    ```bash
    before="$(git status --porcelain)"
-   bash "${CLAUDE_PLUGIN_ROOT}/skills/agy-fast-worker/scripts/run-agy.sh" \
+   bash "${CLAUDE_PLUGIN_ROOT}/skills/dhpk-agy-fast-worker/scripts/run-agy.sh" \
      "<workdir>" "<prompt-file>" "<model>"
    after="$(git status --porcelain)"
    ```

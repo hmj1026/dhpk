@@ -8,8 +8,8 @@ metadata:
 
 ⚠️ **Must read and follow the skill below before executing this command:**
 
-@skills/test-review/SKILL.md
-@skills/test-review/references/codex-prompt-test-review.md
+@skills/dhpk-test-review/SKILL.md
+@skills/dhpk-test-review/references/codex-prompt-test-review.md
 
 ## Context
 
@@ -51,7 +51,7 @@ Smart detect → Read test + source → Codex review (5 dimensions) → Coverage
 ### Key Rules
 
 - **5 review dimensions** — Coverage, Boundaries, Errors, Concurrency, Mock quality
-- Independent research, thread continuation, and gate sentinels: `skills/codex-code-review/references/review-common.md` §§Codex Independent Research, Gate Sentinels.
+- Independent research, thread continuation, and gate sentinels: `skills/dhpk-change-review/references/review-common.md` §§Codex Independent Research, Gate Sentinels.
 
 ### Review Loop
 

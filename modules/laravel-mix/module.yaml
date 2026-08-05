@@ -18,5 +18,5 @@ triggers:
     extensions: []
     paths: [resources/assets/]
 provides:
-  skills: [laravel-mix-notes]
+  skills: [dhpk-laravel-mix-notes]
   references: []

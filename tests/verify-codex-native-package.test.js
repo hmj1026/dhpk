@@ -18,10 +18,10 @@ const CLI = path.join(ROOT, 'scripts', 'ci', 'verify-codex-native-package.js');
 function fixtureRepo() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-native-drift-repo-'));
   fs.mkdirSync(path.join(root, 'manifests'), { recursive: true });
-  fs.mkdirSync(path.join(root, 'skills', 'tdd'), { recursive: true });
-  fs.writeFileSync(path.join(root, 'skills', 'tdd', 'SKILL.md'), '---\nname: tdd\n---\n');
+  fs.mkdirSync(path.join(root, 'skills', 'dhpk-tdd-workflow'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'skills', 'dhpk-tdd-workflow', 'SKILL.md'), '---\nname: tdd\n---\n');
   const inventory = {
-    skills: [{ id: 'tdd', path: 'skills/tdd', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] }],
+    skills: [{ id: 'tdd', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] }],
   };
   fs.writeFileSync(path.join(root, 'manifests', 'distribution-inventory.json'), JSON.stringify(inventory));
   return { root, inventory };
@@ -66,7 +66,7 @@ test('fails when a canonical skill file changes content after the tracked packag
   const { root, inventory } = fixtureRepo();
   try {
     materializeNativePackage({ inventory, root, outDir: path.join(root, 'plugins', 'dhpk'), name: 'dhpk', version: '1.0.0', sourceCommit: 'abc' });
-    fs.writeFileSync(path.join(root, 'skills', 'tdd', 'SKILL.md'), '---\nname: tdd\n---\nchanged content\n');
+    fs.writeFileSync(path.join(root, 'skills', 'dhpk-tdd-workflow', 'SKILL.md'), '---\nname: tdd\n---\nchanged content\n');
 
     const res = spawnSync('node', [CLI, '--repo-root', root], { encoding: 'utf8' });
     assert.notStrictEqual(res.status, 0);

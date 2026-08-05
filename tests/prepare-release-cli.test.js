@@ -18,7 +18,7 @@ const CLI = path.join(ROOT, 'scripts', 'release', 'prepare-release.js');
 
 function mkRepo({ branch = 'develop' } = {}) {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-prepare-release-')));
-  for (const rel of ['.claude-plugin', '.codex-plugin', 'plugins/dhpk/.codex-plugin', '.agents/plugins', 'changelog.d', 'manifests', 'skills/tdd']) {
+  for (const rel of ['.claude-plugin', '.codex-plugin', 'plugins/dhpk/.codex-plugin', '.agents/plugins', 'changelog.d', 'manifests', 'skills/dhpk-tdd-workflow']) {
     fs.mkdirSync(path.join(root, rel), { recursive: true });
   }
   fs.writeFileSync(path.join(root, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '1.0.0' }));
@@ -26,10 +26,10 @@ function mkRepo({ branch = 'develop' } = {}) {
   fs.writeFileSync(path.join(root, 'plugins/dhpk/.codex-plugin', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '1.0.0' }));
   fs.writeFileSync(path.join(root, '.agents/plugins', 'marketplace.json'), JSON.stringify({ plugins: [{ name: 'dhpk', version: '1.0.0' }] }));
   fs.writeFileSync(path.join(root, 'CHANGELOG.md'), '# Changelog\n\n## [Unreleased]\n\n## 1.0.0 — 2026-01-01 — Prior\n\nPrior notes.\n');
-  fs.writeFileSync(path.join(root, 'skills/tdd', 'SKILL.md'), '---\nname: tdd\n---\n');
+  fs.writeFileSync(path.join(root, 'skills/dhpk-tdd-workflow', 'SKILL.md'), '---\nname: tdd\n---\n');
   fs.writeFileSync(
     path.join(root, 'manifests', 'distribution-inventory.json'),
-    JSON.stringify({ skills: [{ id: 'tdd', path: 'skills/tdd', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] }] })
+    JSON.stringify({ skills: [{ id: 'tdd', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] }] })
   );
 
   spawnSync('git', ['init', '-q'], { cwd: root });
@@ -94,6 +94,8 @@ test('write mode updates every manifest, promotes fragments, and reports the ful
   const provenance = JSON.parse(fs.readFileSync(path.join(repo, 'plugins/dhpk', 'provenance.json'), 'utf8'));
   assert.strictEqual(provenance.sourceVersion, '1.1.0');
   assert.deepStrictEqual(provenance.selectedSkillIds, ['tdd']);
+  // Native package regeneration still uses the pre-v2 id layout; Task 3 owns
+  // the native-name/materialization migration.
   assert.ok(fs.existsSync(path.join(repo, 'plugins/dhpk/skills/tdd/SKILL.md')));
 
   const changelog = fs.readFileSync(path.join(repo, 'CHANGELOG.md'), 'utf8');

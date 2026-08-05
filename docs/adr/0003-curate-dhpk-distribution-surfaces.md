@@ -113,7 +113,7 @@ final-gate values, plus `BLOCKED` as a third top-level gate value for an
 explicitly `--targets`/`--all-targets`-requested absent platform. `PARTIAL`
 survives only as a deprecated, removal-pending `legacy_gate` compatibility
 field alongside the primary `gate` field — see
-`skills/multi-ai-sync/references/execution-contract.md` §Validation for the
+`skills/dhpk-cross-agent-sync/references/execution-contract.md` §Validation for the
 exact mapping.
 
 ### 7. Versions, metadata, and public claims are kept coherent

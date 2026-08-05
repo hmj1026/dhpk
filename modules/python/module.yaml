@@ -7,7 +7,7 @@ triggers:
   code:
     extensions: [".py"]
 provides:
-  skills: [python-pro, python-static-checks]
+  skills: [dhpk-python-pro, dhpk-python-static-checks]
 # ---- Python tooling configuration (read by hooks/_lib/python-env.sh) ----
 # All keys map to userConfig knobs exported by Claude Code as
 # CLAUDE_PLUGIN_OPTION_<KEY>. All optional; defaults below suit a uv-managed
