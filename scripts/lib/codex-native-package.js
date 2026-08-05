@@ -19,7 +19,39 @@ const crypto = require('node:crypto');
 // logic) changes in a way that could produce a different package from the
 // same inventory + canonical sources. Independent of the dhpk release
 // version recorded as provenance.sourceVersion.
-const GENERATOR_VERSION = '2.0.0';
+const GENERATOR_VERSION = '2.1.0';
+
+function lstatOrNull(candidate) {
+  try {
+    return fs.lstatSync(candidate);
+  } catch (error) {
+    if (error && error.code === 'ENOENT') return null;
+    throw error;
+  }
+}
+
+function ensurePhysicalDirectory(directory, label) {
+  const stat = lstatOrNull(directory);
+  if (!stat) {
+    fs.mkdirSync(directory, { recursive: true });
+    return;
+  }
+  if (stat.isSymbolicLink()) {
+    throw new Error(`refusing symlinked ${label}: ${directory}`);
+  }
+  if (!stat.isDirectory()) {
+    throw new Error(`${label} must be a directory: ${directory}`);
+  }
+}
+
+function confinedChild(parent, name) {
+  const resolvedParent = path.resolve(parent);
+  const candidate = path.resolve(resolvedParent, name);
+  if (path.dirname(candidate) !== resolvedParent) {
+    throw new Error(`native skill output escapes skills directory: ${name}`);
+  }
+  return candidate;
+}
 
 // Walks packageRoot and reports any symlink found (a native package must be
 // 100% physical files — a symlink survives only as long as its target and the
@@ -168,8 +200,9 @@ function materializeNativePackage({
   generatorVersion = GENERATOR_VERSION,
 }) {
   const selected = selectNativeSkills(inventory);
+  ensurePhysicalDirectory(outDir, 'output root');
   const skillsOutDir = path.join(outDir, 'skills');
-  fs.mkdirSync(skillsOutDir, { recursive: true });
+  ensurePhysicalDirectory(skillsOutDir, 'skills output directory');
 
   // Regeneration is a full replace, not additive: a skill removed from the
   // codex-native surface since outDir was last populated must not leave its
@@ -188,17 +221,21 @@ function materializeNativePackage({
   for (const skill of selected) {
     const srcDir = path.join(root, skill.path);
     const publicName = skill.name || skill.id;
-    const dstDir = path.join(skillsOutDir, publicName);
+    const dstDir = confinedChild(skillsOutDir, publicName);
     const sourceFrontmatterName = readSkillFrontmatterName(path.join(srcDir, 'SKILL.md'));
     if (sourceFrontmatterName !== publicName) {
       throw new Error(`native skill '${publicName}' source SKILL.md frontmatter name '${sourceFrontmatterName || '(missing)'}' does not match public name '${publicName}'`);
     }
+    // A selected skill may have lost files since the prior generation. Replace
+    // only that validated direct child before copying so stale descendants
+    // cannot survive while unrelated package metadata remains intact.
+    if (lstatOrNull(dstDir)) fs.rmSync(dstDir, { recursive: true, force: true });
     fs.cpSync(srcDir, dstDir, { recursive: true, dereference: true });
     fingerprints[publicName] = fingerprintDir(dstDir);
   }
 
   const codexPluginDir = path.join(outDir, '.codex-plugin');
-  fs.mkdirSync(codexPluginDir, { recursive: true });
+  ensurePhysicalDirectory(codexPluginDir, 'plugin metadata directory');
   const manifestPath = path.join(codexPluginDir, 'plugin.json');
   const template = fs.existsSync(manifestPath) ? JSON.parse(fs.readFileSync(manifestPath, 'utf8')) : DEFAULT_MANIFEST_TEMPLATE;
   const manifest = { ...template, name, version, skills: './skills/' };

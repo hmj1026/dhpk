@@ -136,6 +136,49 @@ test('regenerating into an existing outDir removes a skill directory dropped fro
   }
 });
 
+test('rematerializing a selected skill removes files deleted from its canonical source', () => {
+  const root = tmpDir('dhpk-native-regenerate-file-root-');
+  const out = tmpDir('dhpk-native-regenerate-file-out-');
+  const inventory = {
+    skills: [{ id: 'example', name: 'dhpk-example-skill', path: 'skills/dhpk-example-skill', lifecycle: 'promoted', surfaces: ['codex-native'] }],
+  };
+  try {
+    const source = path.join(root, 'skills', 'dhpk-example-skill');
+    fs.mkdirSync(source, { recursive: true });
+    fs.writeFileSync(path.join(source, 'SKILL.md'), '---\nname: dhpk-example-skill\n---\n');
+    fs.writeFileSync(path.join(source, 'retired.md'), 'remove me\n');
+    materializeNativePackage({ inventory, root, outDir: out });
+    assert.ok(fs.existsSync(path.join(out, 'skills', 'dhpk-example-skill', 'retired.md')));
+
+    fs.rmSync(path.join(source, 'retired.md'));
+    const result = materializeNativePackage({ inventory, root, outDir: out });
+    assert.ok(!fs.existsSync(path.join(out, 'skills', 'dhpk-example-skill', 'retired.md')),
+      'a deleted canonical file must not survive in the selected destination');
+    assert.deepStrictEqual(result.skillNames, ['dhpk-example-skill']);
+    assert.ok(fs.existsSync(path.join(out, 'provenance.json')));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test('materialization rejects a symlinked output root instead of writing through it', () => {
+  const parent = tmpDir('dhpk-native-symlink-root-');
+  const actual = path.join(parent, 'actual');
+  const linked = path.join(parent, 'linked');
+  const inventory = {
+    skills: [{ id: 'tdd', name: 'dhpk-tdd-workflow', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['codex-native'] }],
+  };
+  try {
+    fs.mkdirSync(actual);
+    fs.symlinkSync(actual, linked, 'dir');
+    assert.throws(() => materializeNativePackage({ inventory, root: ROOT, outDir: linked }), /symlinked output root/i);
+    assert.deepStrictEqual(fs.readdirSync(actual), []);
+  } finally {
+    fs.rmSync(parent, { recursive: true, force: true });
+  }
+});
+
 test('generation is deterministic: two materializations of the same inventory produce identical fingerprints and provenance', () => {
   const inventory = {
     skills: [{ id: 'tdd', name: 'dhpk-tdd-workflow', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] }],

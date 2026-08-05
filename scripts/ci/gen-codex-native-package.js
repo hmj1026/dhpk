@@ -33,7 +33,6 @@ function resolveSourceCommit() {
 
 const inventory = JSON.parse(fs.readFileSync(INVENTORY_PATH, 'utf8'));
 const resolvedOutDir = path.resolve(outDir);
-fs.mkdirSync(resolvedOutDir, { recursive: true });
 
 const result = materializeNativePackage({
   inventory,

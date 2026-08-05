@@ -103,6 +103,17 @@ test('a symlinked destination is rejected without writing outside the selected t
   } finally { fs.rmSync(ctx.root, { recursive: true, force: true }); }
 });
 
+test('an existing directory at a required file destination is rejected even with --force', () => {
+  const ctx = fixture();
+  try {
+    fs.mkdirSync(path.join(ctx.target, 'rules', 'execution-policy.md'), { recursive: true });
+    const res = install(ctx, ['--install', 'rules', '--force']);
+    assert.strictEqual(res.status, 4, res.stderr);
+    assert.match(res.stderr, /UNSAFE DESTINATION/);
+    assert.ok(fs.statSync(path.join(ctx.target, 'rules', 'execution-policy.md')).isDirectory());
+  } finally { fs.rmSync(ctx.root, { recursive: true, force: true }); }
+});
+
 test('--install all copies hooks, rules, and scripts to their deterministic targets', () => {
   const ctx = fixture();
   try {
