@@ -1,6 +1,6 @@
 ---
 name: dhpk-codex-brainstorm
-description: 'Adversarial brainstorming via Claude+Codex debate. Use when: exploring solutions, feasibility analysis, exhaustive enumeration. Not for: implementation (use feature-dev), architecture only (use codex-architect). Output: Nash equilibrium consensus + action items.'
+description: 'Adversarial brainstorming via Claude+Codex debate. Use when: exploring solutions, feasibility analysis, exhaustive enumeration. Not for: implementation (use dhpk-feature-dev), architecture only (use dhpk-codex-architect). Output: Nash equilibrium consensus + action items.'
 allowed-tools: 'mcp__codex__codex, mcp__codex__codex-reply, Read, Grep, Glob, Bash(ls:*), Bash(find:*)'
 metadata:
   dhpk-invocation-class: implicit-eligible

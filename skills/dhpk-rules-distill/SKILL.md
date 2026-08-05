@@ -1,6 +1,6 @@
 ---
 name: dhpk-rules-distill
-description: 'Scans installed skills to extract cross-cutting principles and distill them into rules (append, revise, or create rule files), for periodic rules maintenance, after installing new skills, or when a skill-stocktake surfaces patterns that should be rules. Not for: creating skills (use create-skill), one-off rule edits, code review. Output: candidate report (principle + evidence + verdict) for user approval.'
+description: 'Scans installed skills to extract cross-cutting principles and distill them into rules (append, revise, or create rule files), for periodic rules maintenance, after installing new skills, or when a dhpk-skill-stocktake surfaces patterns that should be rules. Not for: creating skills (use dhpk-create-skill), one-off rule edits, code review. Output: candidate report (principle + evidence + verdict) for user approval.'
 disable-model-invocation: true
 metadata:
   dhpk-invocation-class: explicit-only

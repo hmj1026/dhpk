@@ -1,6 +1,6 @@
 ---
 name: dhpk-agy-commit
-description: 'Delegates git smart commit to agy-cli''s git-smart-commit skill, offloading commit batching to Antigravity. Not for: a single simple commit, or when agy-cli is unavailable. Output: grouped commits created by agy-cli plus a git log summary.'
+description: 'Delegates git smart commit to agy-cli''s dhpk-git-smart-commit skill, offloading commit batching to Antigravity. Not for: a single simple commit, or when agy-cli is unavailable. Output: grouped commits created by agy-cli plus a git log summary.'
 allowed-tools: Bash, Read, Grep, Glob
 disable-model-invocation: true
 metadata:

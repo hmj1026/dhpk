@@ -1,6 +1,6 @@
 ---
 name: dhpk-de-ai-flavor
-description: 'Remove AI artifacts from documents. Use when: cleaning AI-generated text, removing tool names, fixing boilerplate patterns. Not for: doc review (use doc-review), doc refactoring (use doc-refactor). Output: cleaned document preserving original intent.'
+description: 'Remove AI artifacts from documents. Use when: cleaning AI-generated text, removing tool names, fixing boilerplate patterns. Not for: doc review (use dhpk-doc-review), doc refactoring (use /dhpk:doc-refactor). Output: cleaned document preserving original intent.'
 allowed-tools: 'Read, Grep, Glob, Edit'
 metadata:
   dhpk-invocation-class: implicit-eligible

@@ -1,6 +1,6 @@
 ---
 name: dhpk-doc-review
-description: 'Document review via Codex MCP. Use when: reviewing .md docs, tech spec audit, document quality check. Not for: code review (use codex-code-review), test review (use test-review). Output: 5-dimension rating table + gate.'
+description: 'Document review via Codex MCP. Use when: reviewing .md docs, tech spec audit, document quality check. Not for: code review (use dhpk-change-review), test review (use dhpk-test-review). Output: 5-dimension rating table + gate.'
 allowed-tools: 'mcp__codex__codex, mcp__codex__codex-reply, Bash(git:*), Read, Grep, Glob'
 context: fork
 agent: Explore

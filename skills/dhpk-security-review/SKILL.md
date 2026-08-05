@@ -1,6 +1,6 @@
 ---
 name: dhpk-security-review
-description: 'Security review (OWASP Top 10), codex-free. Use when: security audit, dependency vulnerability check, security-sensitive changes. For a Codex-driven audit, use /codex-security instead. Not for: code review (use codex-code-review), test review (use test-review). Output: security findings + audit report.'
+description: 'Security review (OWASP Top 10), codex-free. Use when: security audit, dependency vulnerability check, security-sensitive changes. For a Codex-driven audit, use /dhpk:codex-security instead. Not for: code review (use dhpk-change-review), test review (use dhpk-test-review). Output: security findings + audit report.'
 argument-hint: '[--scope <path>]'
 allowed-tools: 'Bash(git:*), Read, Grep, Glob'
 context: fork

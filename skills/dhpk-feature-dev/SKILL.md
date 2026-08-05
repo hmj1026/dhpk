@@ -1,6 +1,6 @@
 ---
 name: dhpk-feature-dev
-description: 'Feature development workflow. Use when: implementing features, writing code, running dev loop. Not for: understanding code (use code-explore), reviewing code (use codex-code-review). Output: implemented feature + tests + review gate.'
+description: 'Feature development workflow. Use when: implementing features, writing code, running dev loop. Not for: understanding code (use dhpk-codebase-exploration), reviewing code (use dhpk-change-review). Output: implemented feature + tests + review gate.'
 argument-hint: '[--codex] <feature description>'
 allowed-tools: 'Read, Grep, Glob, Edit, Write, Bash, Skill, AskUserQuestion'
 metadata:

@@ -1,6 +1,6 @@
 ---
 name: dhpk-gitnexus-exploring
-description: 'Explore and understand a codebase via the GitNexus knowledge graph. Use when: asking how code works, understanding architecture, tracing execution flows, or exploring unfamiliar code. Not for: blast-radius of a change (use gitnexus-impact-analysis), bug tracing (use gitnexus-debugging), CLI/index ops (use gitnexus-cli). Output: a code-flow explanation grounded in graph queries + the files to read.'
+description: 'Explore and understand a codebase via the GitNexus knowledge graph. Use when: asking how code works, understanding architecture, tracing execution flows, or exploring unfamiliar code. Not for: blast-radius of a change (use dhpk-gitnexus-impact-analysis), bug tracing (use dhpk-gitnexus-debugging), CLI/index ops (use dhpk-gitnexus-cli). Output: a code-flow explanation grounded in graph queries + the files to read.'
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---

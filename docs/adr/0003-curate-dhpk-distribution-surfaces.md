@@ -11,11 +11,13 @@ Codex plugin marketplace wrapper, and Claude-first adapters for Gemini and
 Antigravity. These paths do not have the same runtime guarantees or update
 semantics.
 
-The repository currently contains 105 canonical skill packages (68 root
-packages and 37 module packages). The Codex projection contains 15 entries: 11
-symlinked root projections and four documented physical module mirrors. All
-canonical packages have Codex interface metadata, but that metadata does not
-mean every package belongs in the Codex distribution subset.
+At the time of this decision (2026-07-27), the repository contained 105
+canonical skill packages (68 root packages and 37 module packages). The Codex
+projection then contained 15 entries: 11 symlinked root projections and four
+documented physical module mirrors. This is historical topology, not a current
+count or layout claim: the current inventory and physical publication layout
+are authoritative in `manifests/distribution-inventory.json` and
+`docs/distribution-surfaces.md`.
 
 Without an explicit policy, documentation can turn an experimental discovery
 path into a supported install promise, or treat a platform adapter as native
@@ -55,15 +57,18 @@ intentional allowlist change. Claude module activation is not silently
 recreated as Codex behavior because Codex has no equivalent module-selection
 contract.
 
-Equivalent root packages use relative symlinks. Physical Codex mirrors are
-limited to the documented module-loading exceptions:
+At the time of this decision, equivalent root packages used relative symlinks.
+The following physical Codex mirrors were the documented module-loading
+exceptions in that superseded topology:
 
 - `legacy-code-characterization`
 - `php56-yii-dev`
 - `php-pro`
 - `yii1-security-audit`
 
-Hand-maintained physical duplicates outside this allowlist are not permitted.
+That historical allowlist did not permit hand-maintained physical duplicates.
+The current tracked native package is governed by ADR-0006 and the distribution
+inventory rather than this list.
 
 ### 4. Installation and update semantics stay separate by platform
 

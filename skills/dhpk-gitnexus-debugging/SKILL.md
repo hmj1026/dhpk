@@ -1,6 +1,6 @@
 ---
 name: dhpk-gitnexus-debugging
-description: 'Trace bugs and errors through the GitNexus knowledge graph. Use when: debugging a failure, tracing an error to its origin, finding callers of a suspect symbol, investigating unexpected behavior. Not for: general architecture understanding (use gitnexus-exploring), change blast-radius (use gitnexus-impact-analysis), CLI/index ops (use gitnexus-cli). Output: a root-cause hypothesis with the call chain + files to inspect.'
+description: 'Trace bugs and errors through the GitNexus knowledge graph. Use when: debugging a failure, tracing an error to its origin, finding callers of a suspect symbol, investigating unexpected behavior. Not for: general architecture understanding (use dhpk-gitnexus-exploring), change blast-radius (use dhpk-gitnexus-impact-analysis), CLI/index ops (use dhpk-gitnexus-cli). Output: a root-cause hypothesis with the call chain + files to inspect.'
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---

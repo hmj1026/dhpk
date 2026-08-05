@@ -1,6 +1,6 @@
 ---
 name: dhpk-skill-scout
-description: 'Search existing local, marketplace, GitHub, and web skill sources before creating a new skill. Use when: the user wants to create, build, fork, or find a skill for a workflow. Not for: authoring a skill (use create-skill), auditing skill quality (use skill-health-check). Output: ranked candidate table + use/fork/create recommendation.'
+description: 'Search existing local, marketplace, GitHub, and web skill sources before creating a new skill. Use when: the user wants to create, build, fork, or find a skill for a workflow. Not for: authoring a skill (use dhpk-create-skill), auditing skill quality (use dhpk-skill-health-audit). Output: ranked candidate table + use/fork/create recommendation.'
 origin: community
 metadata:
   dhpk-invocation-class: implicit-eligible

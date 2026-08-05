@@ -297,11 +297,24 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"
   [issue #88](https://github.com/hmj1026/dhpk/issues/88) 追蹤的確切失效模式。
   只要無法保證 plugin 原始碼會持續存在，請改用 `--copy`。
 
-兩種模式都會在 `.codex/.dhpk-installed.json` 記錄版本與 source fingerprint；
-plugin 更新後用 `--update` 重跑。Codex tree 是明確策展的 Claude package subset，
-不是第二份完整 inventory。`codex/agents/` 提供 11 個角色：4 個手動維護的通用
-角色，以及 7 個由 `scripts/gen-codex-agents.js` 從 Claude canonical agent 產生。
-雙 harness 模型詳見 `codex/AGENTS.md` 與 `codex/README.md`。
+兩種模式都會在 `.codex/.dhpk-installed.json` 記錄版本、source fingerprint，以及
+schema-v3 managed entry provenance；每個 skill entry 都含有穩定的 inventory id 與
+目前公開的 `dhpk-*` 名稱。plugin 更新後用 `--update` 重跑。未受 receipt 擁有的
+collision 一律保留；`--migrate` 只會重新命名 receipt 擁有且未變更的 legacy
+destination。已編輯、第三方、重新指向、格式不正確或無法判定的 legacy path 都必須
+回報為 conflict。使用 `--uninstall` 只移除未變更且 receipt 擁有的 entry，不會刪除
+無關的 project asset。
+
+Codex tree 是明確策展的 Claude package subset，不是第二份完整 inventory。
+`codex/agents/` 提供 11 個角色：4 個手動維護的通用角色，以及 7 個由
+`scripts/gen-codex-agents.js` 從 Claude canonical agent 產生。雙 harness 模型詳見
+`codex/AGENTS.md` 與 `codex/README.md`。
+
+Generated role 可能依賴共用的 prompt-defense、trap-sheet、reviewer-contract、
+artifact-contract 或 execution-policy 內容。這些 supporting asset 在
+`manifests/distribution-inventory.json` 的 `supporting_assets` 區段定義，會被複製到
+`.codex/dhpk/`，並由同一份 schema-v3 receipt 追蹤。runtime projection validator
+會拒絕無法到達的 reference 或 Claude plugin-root path。
 
 ### Codex Plugin Marketplace（實驗性支援等級）
 

@@ -1,6 +1,6 @@
 ---
 name: dhpk-opsx-load-context
-description: 'Load opsx-apply-resume Resume Phase context via a 3-tier fallback (claude-mem pinned obs → compact JSON → handoff summary), optionally fetching cross-session observations. Use when: opsx-apply-resume enters Resume Phase Steps 1b–1d. Not for: saving observations (use opsx-post-obs) or goal generation (use opsx-apply-goal). Output: CONTEXT_SOURCE + session_goal/completed/in_progress/cross_session_observations fields.'
+description: 'Load opsx-apply-resume Resume Phase context via a 3-tier fallback (claude-mem pinned obs → compact JSON → handoff summary), optionally fetching cross-session observations. Use when: opsx-apply-resume enters Resume Phase Steps 1b–1d. Not for: saving observations (use dhpk-opsx-post-observation) or goal generation (use dhpk-opsx-apply-goal). Output: CONTEXT_SOURCE + session_goal/completed/in_progress/cross_session_observations fields.'
 allowed-tools: Bash
 metadata:
   dhpk-invocation-class: implicit-eligible

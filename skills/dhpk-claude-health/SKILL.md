@@ -1,7 +1,7 @@
 ---
 name: dhpk-claude-health
 argument-hint: '[--fix]'
-description: 'Claude Code config health check + plugin sync: audits .claude/ structure, checks naming, verifies hook setup, detects plugin version drift, and syncs installed assets. Not for: skill quality (use skill-health-check), code review (use codex-code-review). Output: health report + fix recommendations.'
+description: 'Claude Code config health check + plugin sync: audits .claude/ structure, checks naming, verifies hook setup, detects plugin version drift, and syncs installed assets. Not for: skill quality (use dhpk-skill-health-audit), code review (use dhpk-change-review). Output: health report + fix recommendations.'
 allowed-tools: 'Read, Grep, Glob, Bash(ls:*), Bash(find:*), Bash(wc:*), Bash(du:*), Bash(rm:*), Bash(git:*)'
 context: fork
 disable-model-invocation: true

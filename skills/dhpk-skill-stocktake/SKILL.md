@@ -1,6 +1,6 @@
 ---
 name: dhpk-skill-stocktake
-description: 'Batch-audit installed Claude skills and commands for quality, overlap, and staleness via subagent evaluation. Use when: auditing many skills at once, periodic stocktake, Quick Scan or Full Stocktake mode. Not for: linting one skill''s structure (use skill-health-check), a deep rubric grade of one skill (use skill-judge), authoring (use create-skill). Depth split: skill-health-check = structural lint of one skill · skill-judge = deep rubric of one · skill-stocktake = batch-audit of many. Output: per-skill verdict table (Keep/Improve/Retire/Merge) + results.json.'
+description: 'Batch-audit installed Claude skills and commands for quality, overlap, and staleness via subagent evaluation. Use when: auditing many skills at once, periodic stocktake, Quick Scan or Full Stocktake mode. Not for: linting one skill''s structure (use dhpk-skill-health-audit), a deep rubric grade of one skill (use dhpk-skill-quality-judge), authoring (use dhpk-create-skill). Depth split: dhpk-skill-health-audit = structural lint of one skill · dhpk-skill-quality-judge = deep rubric of one · dhpk-skill-stocktake = batch-audit of many. Output: per-skill verdict table (Keep/Improve/Retire/Merge) + results.json.'
 allowed-tools: 'Read, Grep, Glob, Bash, Agent, WebSearch'
 metadata:
   dhpk-invocation-class: implicit-eligible

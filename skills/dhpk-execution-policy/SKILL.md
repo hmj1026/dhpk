@@ -1,6 +1,6 @@
 ---
 name: dhpk-execution-policy
-description: 'Execution-policy router for dhpk software-engineering work. Use when choosing a task flow or OpenSpec route at kickoff, checking post-edit reviewer obligations, recovering from an anti-loop stop, or shaping a blocked/completion reply. Not for: substantial-change classification (use adaptive-dev-workflow), an investigation already underway (use bug-investigation), pure code tracing, or mid-workflow execution. Output: one next route plus the required gates and completion shape.'
+description: 'Execution-policy router for dhpk software-engineering work. Use when choosing a task flow or OpenSpec route at kickoff, checking post-edit reviewer obligations, recovering from an anti-loop stop, or shaping a blocked/completion reply. Not for: substantial-change classification (use dhpk-adaptive-dev-workflow), an investigation already underway (use dhpk-root-cause-investigation), pure code tracing, or mid-workflow execution. Output: one next route plus the required gates and completion shape.'
 allowed-tools: 'Read, Grep, Glob, Bash, Skill, Agent'
 metadata:
   dhpk-invocation-class: implicit-eligible

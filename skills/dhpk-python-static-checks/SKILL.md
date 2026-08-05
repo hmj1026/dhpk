@@ -1,6 +1,6 @@
 ---
 name: dhpk-python-static-checks
-description: Static-check strategy for Python — ruff rule selection (lint vs format), pyright-strict vs mypy trade-offs, progressive typing adoption, per-file/per-line suppression discipline, and how the dhpk python module's post-edit + pre-commit hooks invoke them. Use when configuring ruff/pyright/mypy or triaging their output. Not for runtime debugging or test design; use python-pro or pytest-async. Output: a tool configuration or triage plan with commands and pass/fail gates.
+description: Static-check strategy for Python — ruff rule selection (lint vs format), pyright-strict vs mypy trade-offs, progressive typing adoption, per-file/per-line suppression discipline, and how the dhpk python module's post-edit + pre-commit hooks invoke them. Use when configuring ruff/pyright/mypy or triaging their output. Not for runtime debugging or test design; use dhpk-python-pro or dhpk-pytest-async. Output: a tool configuration or triage plan with commands and pass/fail gates.
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---
