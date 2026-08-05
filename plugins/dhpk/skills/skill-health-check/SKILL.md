@@ -58,10 +58,8 @@ bash scripts/run-skill.sh skill-health-check skill-lint.js --fix-hint
 - Universal checks always run from the discovered skill packages.
 - Agent checks run only when an agents directory is available.
 - Command/skill pairing checks run only when a commands directory is available.
-- Missing capability surfaces are reported as skipped, not passed.
-- Recursive discovery uses real directory traversal and does not follow symlinked directories.
-- Malformed discoverable skill, command, and agent entries are reported as structured P1 findings; dangling links and read failures never escape as stack traces.
-- Findings include only stable relative entry names and actionable `--fix-hint` guidance; no host or plugin-root paths are emitted.
+- Missing capability surfaces are reported as skipped, not passed; recursive discovery uses real directory traversal and does not follow symlinked directories.
+- Malformed discoverable skill, command, and agent entries are reported as structured P1 findings with stable relative names and actionable `--fix-hint` guidance; dangling links and read failures never escape as stack traces, and no host or plugin-root paths are emitted.
 
 **Per-skill checks (11 items):**
 
@@ -88,10 +86,7 @@ bash scripts/run-skill.sh skill-health-check skill-lint.js --fix-hint
 | 14 | Agent ref validity | P1 | `subagent_type` references in skills must exist in `agents/` when agents are available |
 | 15 | Agent tools syntax | P2 | Agent `.md` tools field uses canonical format (ToolName, `Bash(<prefix>:*)`, or MCP namespaced form) |
 
-Malformed command and agent entries use the same P1 contract as malformed skills:
-the finding names the relative file, records the filesystem/frontmatter failure,
-and includes a safe fix hint. The checker continues independent entries and
-deduplicates repeated path/check findings before calculating the exit status.
+Malformed command and agent entries use the same P1 contract as malformed skills: the finding names the relative file, records the filesystem/frontmatter failure, and includes a safe fix hint; the checker continues independent entries and deduplicates repeated path/check findings before calculating the exit status.
 
 ### Step 2: Manual Review (when comprehensive audit requested)
 
@@ -146,12 +141,9 @@ Only run Step 2 when user explicitly requests deep audit. Default: Step 1 only.
 
 ## Verification
 
-- [ ] Automated lint executed (exit code checked)
-- [ ] All P0/P1 findings have fix recommendations
-- [ ] Per-skill table includes all scanned skills
-- [ ] Gate sentinel present for hook parsing
+- [ ] Automated lint executed (exit code checked); all P0/P1 findings have fix recommendations.
+- [ ] Per-skill table includes all scanned skills; gate sentinel present for hook parsing.
 
 ## References
 
-- `references/routing-signature-guide.md` — How to write effective routing signatures (read when fixing P1 routing issues)
-- `--fix-hint` — Include remediation guidance for malformed entries and ordinary findings
+- `references/routing-signature-guide.md` — How to write effective routing signatures (read when fixing P1 routing issues); `--fix-hint` — Include remediation guidance for malformed entries and ordinary findings
