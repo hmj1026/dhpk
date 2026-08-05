@@ -26,9 +26,7 @@ Skills are **on-demand context packages**. Their value comes from routing precis
 Run automated lint → Review manual dimensions → Produce integrated report → Gate
 ```
 
-### Step 1: Automated Lint
-
-Portable direct invocation:
+### Step 1: Automated Lint (portable direct invocation)
 
 ```bash
 node skills/dhpk-skill-health-audit/scripts/skill-lint.js --skills-dir skills --agents-dir agents --commands-dir commands --fix-hint
@@ -58,8 +56,7 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/run-skill.sh" dhpk-skill-health-audit skill-
 - Universal checks always run from the discovered skill packages.
 - Agent checks run only when an agents directory is available.
 - Command/skill pairing checks run only when a commands directory is available.
-- Missing capability surfaces are reported as skipped, not passed; recursive discovery uses real directory traversal and does not follow symlinked directories.
-- Malformed discoverable skill, command, and agent entries are reported as structured P1 findings with stable relative names and actionable `--fix-hint` guidance; dangling links and read failures never escape as stack traces, and no host or plugin-root paths are emitted.
+- Missing capability surfaces are reported as skipped, not passed; recursive discovery uses real directory traversal and does not follow symlinked directories. Malformed discoverable entries become structured P1 findings with stable relative names and actionable `--fix-hint` guidance; dangling links and read failures never escape as stack traces or expose host/plugin-root paths.
 
 **Per-skill checks (11 items):**
 
@@ -103,10 +100,7 @@ Only run Step 2 when user explicitly requests deep audit. Default: Step 1 only.
 
 ### Cost, branch, and sediment checks
 
-The lint gate is also a context-cost check: flag unconditionally loaded
-branches, non-checkable completion, and repeated routing. Mark no-op,
-duplication, and documentation sediment for pruning; a conditional reference
-is healthy only when its triggering branch is named in `SKILL.md`.
+The lint gate also flags unconditionally loaded branches, non-checkable completion, repeated routing, no-op paths, duplication, and documentation sediment; a conditional reference is healthy only when its triggering branch is named in `SKILL.md`.
 
 ## Output
 
@@ -148,10 +142,8 @@ is healthy only when its triggering branch is named in `SKILL.md`.
 
 ## Verification
 
-- [ ] Automated lint executed (exit code checked); all P0/P1 findings have fix recommendations.
-- [ ] Per-skill table includes all scanned skills; gate sentinel present for hook parsing.
-- [ ] Invocation/context cost, conditional branches, and checkable completion are assessed.
-- [ ] No-op, duplication, and sediment findings are actionable pruning items.
+- [ ] Automated lint executed (exit code checked); all P0/P1 findings have fix recommendations, all scanned skills appear in the per-skill table, and the gate sentinel is present for hook parsing.
+- [ ] Invocation/context cost, conditional branches, checkable completion, no-op paths, duplication, and sediment are assessed with actionable pruning findings.
 
 ## References
 

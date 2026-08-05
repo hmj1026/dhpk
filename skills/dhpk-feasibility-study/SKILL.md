@@ -23,7 +23,7 @@ Evaluate technical feasibility, effort, risk, extensibility, and maintenance cos
 
 - Already have a tech spec (use `/deep-analyze`)
 - Need implementation, not analysis (use `/dhpk:dhpk-codex-implement`)
- - Quick question (use `/dhpk:dhpk-codebase-exploration --explain` or `/dhpk:dhpk-codex-architect`)
+- Quick question (use `/dhpk:dhpk-codebase-exploration --explain` or `/dhpk:dhpk-codex-architect`)
 
 ## Workflow
 

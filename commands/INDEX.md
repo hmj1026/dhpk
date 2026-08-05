@@ -22,7 +22,7 @@ description: 'Navigation index for dhpk plugin commands. Internal documentation;
 
 | Command | 用途 |
 |---------|------|
-| `/dhpk:codex-review` | 整合式 Codex second opinion（`--scope diff|branch|doc|security|tests`）。 |
+| `/dhpk:codex-review` | 整合式 Codex second opinion（`--scope diff\|branch\|doc\|security\|tests`）。 |
 | `/dhpk:codex-review-branch` / `/dhpk:codex-review-fast` | Branch 或快速 diff review。 |
 | `/dhpk:codex-review-doc` / `/dhpk:codex-security` | 文件或安全性專門 review。 |
 | `/dhpk:codex-test-gen` / `/dhpk:codex-test-review` / `/dhpk:check-coverage` | 產生、審查與檢查測試覆蓋。 |
@@ -48,7 +48,7 @@ description: 'Navigation index for dhpk plugin commands. Internal documentation;
 | `/dhpk:check-skill` | 結構化 skill 健康檢查。 |
 | `/dhpk:update-docs` / `/dhpk:update-codemaps` / `/dhpk:doc-refactor` | 更新、產生或精簡文件。 |
 | `/dhpk:project-brief` | 將技術內容整理為 PM/CTO 摘要。 |
-| `/dhpk:setup` | 設定 plugin；用 `--install hooks|rules|scripts|all` 安裝資產。 |
+| `/dhpk:setup` | 設定 plugin；用 `--install hooks\|rules\|scripts\|all` 安裝資產。 |
 | `/dhpk:install-hooks` / `/dhpk:install-rules` / `/dhpk:install-scripts` | 已棄用的一個 minor-release forwarding alias；新文件與新流程不得使用。 |
 
 ## 專用工具

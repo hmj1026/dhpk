@@ -91,10 +91,7 @@ Produce the report in the **Output** format below. If a score is hard to name, c
 
 ## Cost and maintainability lens
 
-Score invocation/context cost: conditional branches load only needed references
-and completion is checkable from an observable result. Penalize no-op,
-duplication, and documentation sediment; a polished rubric cannot rescue a
-default path that spends context on unused branches.
+Score invocation/context cost: conditional branches load only needed references and completion is checkable from an observable result. Penalize no-op, duplication, and documentation sediment; a polished rubric cannot rescue a default path that spends context on unused branches.
 
 (Full evaluator guardrails: `references/failure-patterns.md`.)
 
