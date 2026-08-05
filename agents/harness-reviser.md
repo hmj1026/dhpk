@@ -5,7 +5,7 @@ tools: Read, Grep, Glob, Bash, Edit, Write
 model: sonnet
 effort: low
 maxTurns: 25
-skills: ["harness-revise"]
+skills: ["dhpk-harness-revise"]
 ---
 
 You are the harness reviser.

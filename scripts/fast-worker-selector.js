@@ -8,7 +8,7 @@ const DEFAULT_ORDER = ['claude', 'codex', 'agy'];
 const AGENTS = {
   claude: 'dhpk:fast-worker',
   codex: 'dhpk:codex-fast-worker',
-  agy: 'dhpk:dhpk-agy-fast-worker',
+  agy: 'dhpk:agy-fast-worker',
 };
 
 const parseArgs = (argv) => {

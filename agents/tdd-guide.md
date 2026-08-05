@@ -4,7 +4,7 @@ description: 'TDD specialist (framework-agnostic). Use PROACTIVELY when writing 
 tools: Read, Write, Edit, Bash, Grep, mcp__gitnexus__impact
 model: sonnet
 effort: medium
-skills: ["tdd"]
+skills: ["dhpk-tdd-workflow"]
 ---
 
 # TDD Guide

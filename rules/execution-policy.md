@@ -27,7 +27,7 @@ Determine the workflow type (Small change / Bug / Feature / Architecture) from t
 
 ### Change classification & OpenSpec routing (SSOT)
 
-Single source of truth for the six change types, their flow, and whether to ask about OpenSpec. `commands/create-dev.md` and `skills/adaptive-dev-workflow/SKILL.md` route through this table — reference it, do not restate it.
+Single source of truth for the six change types, their flow, and whether to ask about OpenSpec. `commands/create-dev.md` and `skills/dhpk-adaptive-dev-workflow/SKILL.md` route through this table — reference it, do not restate it.
 
 | Change type | OpenSpec ask? | Flow |
 |---|---|---|
@@ -358,12 +358,12 @@ Addition/removal justification and residue-cleanup requirements live in `${CLAUD
 - **Does not restate** stack-specific coding conventions — those live in each project's `.claude/rules/<stack>.md` or the matching dhpk module reference.
 - **Does not restate** the anti-rationalization phrasing table — see `${CLAUDE_PLUGIN_ROOT}/rules/anti-rationalization.md`.
 - **Does not restate** the tool-selection decision tree — see `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`.
-- **Does not restate** the full end-of-task self-check — see `skills/execution-checklist/SKILL.md`.
+- **Does not restate** the full end-of-task self-check — see `skills/dhpk-execution-checklist/SKILL.md`.
 
 ## Cross-references
 
 - `${CLAUDE_PLUGIN_ROOT}/rules/anti-rationalization.md` — self-rebuttal table for skipping a mandated step
 - `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md` — code-exploration tool decision tree
-- `skills/execution-checklist/SKILL.md` — full end-of-task self-check
+- `skills/dhpk-execution-checklist/SKILL.md` — full end-of-task self-check
 - `skills/dhpk-execution-policy/SKILL.md` — skill-form entry point into this policy
 - `agents/INDEX.md` — agent roster, models, maxTurns rationale

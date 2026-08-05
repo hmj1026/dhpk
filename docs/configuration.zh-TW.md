@@ -60,7 +60,7 @@ dhpk 在 `.claude-plugin/plugin.json` 中暴露 **59 個 `userConfig` 旋鈕**�
 | `codex_fast_worker_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | `dhpk:codex-fast-worker` 專用 wrapper 預算。同一 scope 內優先於 shared 值；專案值優先於全域值。`CODEX_WRAP_TIMEOUT_SECS` legacy 環境覆寫在受控／測試呼叫時具有更高優先序。 |
 | `codex_deep_reasoner_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | `dhpk:codex-deep-reasoner` 專用 wrapper 預算。同一 scope 內優先於 shared 值；專案值優先於全域值。值格式錯誤時 fail closed，並在 SessionStart 回報。 |
 | `codex_bridge_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | `dhpk:dhpk-codex-bridge` 專用 wrapper 預算；既有三參數 wrapper 呼叫形狀仍受支援。同一 scope 內優先於 shared 值；專案值優先於全域值。 |
-| `agy_fast_worker_model` | string | `Gemini 3.6 Flash (High)` | `agy models` 列出的任何模型 | `dhpk:dhpk-agy-fast-worker` 派發時傳給 agy CLI 後端的模型顯示字串。agy 將思考強度內建於模型名稱，故無獨立的 effort key。分層方式同上；預設值失效時覆寫（可用 `agy models` 查詢）。 |
+| `agy_fast_worker_model` | string | `Gemini 3.6 Flash (High)` | `agy models` 列出的任何模型 | `dhpk:agy-fast-worker` 派發時傳給 agy CLI 後端的模型顯示字串。agy 將思考強度內建於模型名稱，故無獨立的 effort key。分層方式同上；預設值失效時覆寫（可用 `agy models` 查詢）。 |
 | `architect_model` | string | `fable` | 執行中的 Claude Code 支援的模型層級 | `dhpk:architect` Agent-call 派發的模型層級；逐次呼叫套用，不修改 frontmatter；HIGH-risk 架構決策仍可向上升級。 |
 | `architect_effort` | string | `low` | `low` \| `medium` \| `high` \| `xhigh` \| `max` | `dhpk:architect` Agent-call 派發的推理強度；逐次呼叫套用，不修改 frontmatter。 |
 | `orchestration_dispatch` | string | `on` | `on` \| `off` | Implementation dispatch 分派表（`deep-reasoner` / `fast-worker` 在 `feature-dev`、`bug-fix`、`adaptive-dev-workflow`、`opsx-apply-goal` 中的路由）的關閉開關。`on` 時實作階段工作依決策表路由，並禁止用 `general-purpose` 執行實作。`off` 完整還原 v0.22.0 之前的行為：內聯實作、不禁止派發、`opsx-apply-goal` 輸出與舊版逐位元組相同。 |

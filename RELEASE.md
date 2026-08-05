@@ -165,7 +165,7 @@ requirement stands.
    the whole repository implicitly:
 
    ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/skills/release-creator/scripts/release-runner.sh" \
+   bash "${CLAUDE_PLUGIN_ROOT}/skills/dhpk-release-creator/scripts/release-runner.sh" \
      prepare X.Y.Z develop main v release.yml \
      .claude-plugin/plugin.json \
      .codex-plugin/plugin.json \
@@ -191,7 +191,7 @@ node scripts/release/publish-gate.js --version X.Y.Z
 Once the publish gate passes, publish the tag:
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/skills/release-creator/scripts/release-runner.sh" \
+bash "${CLAUDE_PLUGIN_ROOT}/skills/dhpk-release-creator/scripts/release-runner.sh" \
   publish X.Y.Z develop main v release.yml
 ```
 

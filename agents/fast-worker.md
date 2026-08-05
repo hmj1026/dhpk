@@ -4,7 +4,7 @@ description: 'Write-capable mechanical implementer. Use for boilerplate implemen
 tools: Read, Edit, Write, Bash, Grep, Glob
 model: sonnet
 effort: medium
-skills: ["tdd"]
+skills: ["dhpk-tdd-workflow"]
 ---
 
 # Fast Worker

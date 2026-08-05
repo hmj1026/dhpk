@@ -2,7 +2,7 @@
   "permissions": {
     "allow": [
       "Bash(codex exec:*)",
-      "Bash(bash skills/codex-bridge/scripts/run-codex.sh:*)"
+      "Bash(bash skills/dhpk-codex-bridge/scripts/run-codex.sh:*)"
     ]
   }
 }

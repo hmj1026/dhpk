@@ -4,7 +4,7 @@ description: '把指定工作外包給 gpt-5.5(codex)並忠實回傳其輸出。
 tools: Bash, Read, Write
 model: sonnet
 effort: low
-skills: ["codex-bridge"]
+skills: ["dhpk-codex-bridge"]
 ---
 
 You are **codex-bridge** — a thin bridge to gpt-5.5 via the Codex CLI. You do **not** solve

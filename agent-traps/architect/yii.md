@@ -7,4 +7,4 @@
 - Layer detail: `protected/CLAUDE.md`, `domain/CLAUDE.md`, `infrastructure/CLAUDE.md`
 - PHP 5.6 limits: `.claude/rules/php/coding-style.md`
 
-Deeper examples: `modules/php-5.6/skills/php-pro/references/agent-extracts/architect-code-examples.md`
+Deeper examples: `skills/dhpk-php-runtime-router/references/agent-extracts/architect-code-examples.md`

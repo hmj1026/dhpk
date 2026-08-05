@@ -87,6 +87,18 @@ test('missing executable blocks unless the configured fallback is claude', () =>
   assert.ok(fallback.value.reason.includes('missing executable'));
 });
 
+test('agy backend dispatches the registered agy-fast-worker role', () => {
+  const dir = tempDir('dhpk-selector-agy-');
+  try {
+    const bin = fakeCli(dir, 'agy');
+    const selected = select(['--backend', 'agy'], { PATH: `${bin}:/usr/bin:/bin` });
+    assert.strictEqual(selected.value.status, 'selected');
+    assert.strictEqual(selected.value.selected_agent, 'dhpk:agy-fast-worker');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test('authorization or model failures never fall back, and CODEX review mode does not gate codex worker availability', () => {
   const failed = select(['--backend', 'codex', '--failure', 'authorization', '--fallback', 'claude'], { PATH: '/usr/bin:/bin', CODEX: 'on' });
   assert.strictEqual(failed.value.status, 'blocked');
