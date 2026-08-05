@@ -182,6 +182,26 @@ test('topology rejects fewer or more than one physical canonical SKILL.md per li
   }
 });
 
+test('topology rejects duplicate live capability identities even when public names differ', () => {
+  const root = makeTopologyFixture();
+  try {
+    writeSkill(root, 'skills/dhpk-other', 'dhpk-other');
+    const inv = inventory([
+      skill(),
+      skill({
+        id: 'other',
+        name: 'dhpk-other',
+        path: 'skills/dhpk-other',
+        capability_id: 'dhpk.tdd',
+      }),
+    ]);
+    const errors = errorsFor(root, inv);
+    assert.ok(errors.some((error) => /duplicate.*capability|capability.*duplicate/i.test(error)), errors.join('\n'));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('topology rejects physical module/Codex projections, absolute/dangling/outside/wrong symlinks, and native-package symlinks', () => {
   const root = makeTopologyFixture();
   try {

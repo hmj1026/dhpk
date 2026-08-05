@@ -191,6 +191,7 @@ function validateSkillTopology(options, inventoryArg, extraOptions) {
   const repoRoot = path.resolve(root);
   const byName = liveSkillByName(inventory);
   const allSkills = inventory && Array.isArray(inventory.skills) ? inventory.skills : [];
+  const liveCapabilities = new Map();
 
   for (const entry of allSkills) {
     if (!entry || typeof entry !== 'object') {
@@ -200,6 +201,14 @@ function validateSkillTopology(options, inventoryArg, extraOptions) {
     if (typeof entry.name !== 'string' || entry.name.trim() === '') {
       errors.push(`inventory skill ${entry.id || '<unknown>'} is missing a public name`);
       continue;
+    }
+    if (entry.lifecycle !== 'deprecated' && typeof entry.capability_id === 'string' && entry.capability_id.trim() !== '') {
+      const prior = liveCapabilities.get(entry.capability_id);
+      if (prior) {
+        errors.push(`duplicate live capability_id '${entry.capability_id}' is claimed by ${prior} and ${entry.name}`);
+      } else {
+        liveCapabilities.set(entry.capability_id, entry.name);
+      }
     }
     const expectedPath = `skills/${entry.name}`;
     if (entry.path !== expectedPath || !/^skills\/[^/]+$/.test(entry.path || '')) {
