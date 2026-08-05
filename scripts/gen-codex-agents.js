@@ -38,16 +38,17 @@ const AGENTS = [
 
 // Fixed, line-level boilerplate matchers. Every match is a Claude-only tooling
 // reference irrelevant to Codex (cx/gitnexus routing, untrusted-input defense,
-// or a ${CLAUDE_PLUGIN_ROOT} filesystem path: trap-sheet loader, prompt-defense,
-// execution-policy, clear-sentinel hook). Substantive checklist prose never
-// matches, so removal preserves the review/design content.
+// or Claude-only lifecycle paths. Codex-readable trap-sheet, prompt-defense,
+// execution-policy, and reviewer-contract references are retained and
+// rewritten to receipt-managed `.codex/dhpk/` assets.
 function isBoilerplate(line) {
   return (
     /^>\s*Exploration:/.test(line) ||
     /^>\s*Lookup:/.test(line) ||
     /^>\s*Use\s+`cx/.test(line) ||
-    /^>\s*\*\*Untrusted input\*\*/.test(line) ||
-    line.includes('${CLAUDE_PLUGIN_ROOT}')
+    line.includes('${CLAUDE_PLUGIN_ROOT}/scripts/') ||
+    line.includes('${CLAUDE_PLUGIN_ROOT}/skills/') ||
+    line.includes('${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md')
   );
 }
 
@@ -169,7 +170,10 @@ function cleanBody(body) {
   for (const line of body.split('\n')) {
     const isQuote = /^>/.test(line);
     if (droppingBlockquote) {
-      if (isQuote) continue; // still inside the boilerplate blockquote block
+      const keepsCodexAsset = line.includes('${CLAUDE_PLUGIN_ROOT}/agent-traps')
+        || line.includes('${CLAUDE_PLUGIN_ROOT}/docs/contracts')
+        || line.includes('${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md');
+      if (isQuote && !keepsCodexAsset) continue; // still inside a Claude-only block
       droppingBlockquote = false;
     }
     if (isBoilerplate(line)) {
@@ -189,7 +193,33 @@ function cleanBody(body) {
 // The Codex projection must remain self-contained and only name roles that
 // Codex can actually discover from codex/agents/.
 function adaptCodexBody(agentName, body) {
-  let adapted = body;
+  let adapted = body
+    .replaceAll('${CLAUDE_PLUGIN_ROOT}/agent-traps', '.codex/dhpk/agent-traps')
+    .replaceAll('${CLAUDE_PLUGIN_ROOT}/docs/contracts', '.codex/dhpk/contracts')
+    .replaceAll('../docs/contracts', '.codex/dhpk/contracts')
+    .replaceAll('docs/contracts/', '.codex/dhpk/contracts/')
+    .replaceAll('`agent-traps/', '`.codex/dhpk/agent-traps/')
+    .replaceAll('${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md', '.codex/dhpk/policies/execution-policy.md')
+    .replaceAll('rules/execution-policy.md', '.codex/dhpk/policies/execution-policy.md')
+    .replaceAll('.claude/', '.codex/')
+    .replaceAll('CLAUDE.md', 'AGENTS.md')
+    .replaceAll(/Trigger: sentinel `\.pending-[^`]+`/g, 'Trigger: an explicit review request')
+    .replaceAll(/sentinel = `\.pending-[^`]+`/g, 'without an automatic marker')
+    .replaceAll(/`\.pending-[^`]+`/g, 'the matching review request')
+    .replaceAll(/Sentinel-scoped precedence/g, 'Review precedence')
+    .replaceAll(/sentinel-driven/g, 'review-gated')
+    .replaceAll(/sentinel review chain/g, 'review chain')
+    .replaceAll(/sentinel/gi, 'review marker')
+    .replaceAll(/No sentinel/g, 'No automatic marker')
+    .replaceAll(/sentinel clearance is hook-owned/g, 'the parent flow owns lifecycle')
+    .replaceAll(/review marker clearance is hook-owned/g, 'the parent flow owns lifecycle')
+    .replaceAll(/sentinel clearance/g, 'review lifecycle')
+    .replaceAll(/subagent-stop-verify\.sh/g, 'the parent review flow')
+    .replaceAll(/clear-sentinel\.sh/g, 'a host-specific lifecycle helper')
+    .replaceAll(/post-edit-remind\.sh/g, 'the parent review flow')
+    .replaceAll(/, sentinel = [^\n.]+\./g, '.')
+    .replace(/review marker clearance is owned by `the parent review flow`:.*?This reviewer's job ends at writing the artifact\./gs,
+      'The parent flow owns lifecycle; write the fresh artifact under `.codex/artifacts/` and return the final verdict in the same run.');
   if (agentName === 'code-reviewer') {
     adapted = adapted
       .replaceAll('`silent-failure-hunter`', '`deep-reasoner` (Codex fallback; otherwise perform the audit directly)')
@@ -233,7 +263,7 @@ function escapeMultiline(value) {
 
 function buildToml(agent, frontmatter, body) {
   const fm = parseFrontmatter(frontmatter);
-  const description = (fm.description || '').trim();
+  const description = adaptCodexBody(agent.name, (fm.description || '').trim());
   if (!description) {
     throw new Error(`Empty description in agents/${agent.name}.md`);
   }

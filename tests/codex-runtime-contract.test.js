@@ -11,6 +11,9 @@ const GENERATOR = path.join(ROOT, 'scripts', 'gen-codex-agents.js');
 const { collectCodexRuntimeErrors } = require(
   path.join(ROOT, 'scripts', 'ci', '_lib', 'codex-runtime')
 );
+const { collectCodexProjectionReferenceErrors } = require(
+  path.join(ROOT, 'scripts', 'ci', '_lib', 'codex-runtime')
+);
 
 const EXPECTED_RUNTIME = {
   architect: ['gpt-5.6-sol', 'high'],
@@ -93,6 +96,79 @@ test('the Codex runtime validator catches stale labels, unavailable handoffs, an
     assert.ok(errors.some((error) => error.includes('e2e-runner')), errors.join('\n'));
     assert.ok(errors.some((error) => error.includes('must use the .toml format')), errors.join('\n'));
     assert.ok(errors.some((error) => error.includes('max_concurrent_threads_per_session')), errors.join('\n'));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('clean consumer projection resolves every generated role reference', () => {
+  const root = tmpRoot('codex-reference-consumer');
+  try {
+    fs.mkdirSync(path.join(root, '.git'));
+    const installed = spawnSync('bash', [path.join(ROOT, 'scripts', 'hooks', 'install-codex-skills.sh'), '--copy', '--force'], {
+      cwd: root,
+      env: { ...process.env, CLAUDE_PLUGIN_ROOT: ROOT },
+      encoding: 'utf8',
+    });
+    assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
+    const errors = collectCodexProjectionReferenceErrors(root, ROOT);
+    assert.deepStrictEqual(errors, [], errors.join('\n'));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('clean consumer projection reports a missing supporting asset', () => {
+  const root = tmpRoot('codex-reference-consumer-red');
+  try {
+    fs.mkdirSync(path.join(root, '.git'));
+    const installed = spawnSync('bash', [path.join(ROOT, 'scripts', 'hooks', 'install-codex-skills.sh'), '--copy', '--force'], {
+      cwd: root,
+      env: { ...process.env, CLAUDE_PLUGIN_ROOT: ROOT },
+      encoding: 'utf8',
+    });
+    assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
+    fs.rmSync(path.join(root, '.codex', 'dhpk', 'contracts', 'reviewer-contract.md'));
+    const errors = collectCodexProjectionReferenceErrors(root, ROOT);
+    assert.ok(errors.some((error) => error.includes('reviewer-contract.md')), errors.join('\n'));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('clean consumer projection reports a missing dynamic stack trap sheet', () => {
+  const root = tmpRoot('codex-reference-consumer-dynamic-red');
+  try {
+    fs.mkdirSync(path.join(root, '.git'));
+    const installed = spawnSync('bash', [path.join(ROOT, 'scripts', 'hooks', 'install-codex-skills.sh'), '--copy', '--force'], {
+      cwd: root,
+      env: { ...process.env, CLAUDE_PLUGIN_ROOT: ROOT },
+      encoding: 'utf8',
+    });
+    assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
+    fs.rmSync(path.join(root, '.codex', 'dhpk', 'agent-traps', 'code-reviewer', 'php.md'));
+    const errors = collectCodexProjectionReferenceErrors(root, ROOT);
+    assert.ok(errors.some((error) => error.includes('code-reviewer/php.md')), errors.join('\n'));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('clean consumer projection reports unreachable references inside supporting assets', () => {
+  const root = tmpRoot('codex-reference-supporting-red');
+  try {
+    fs.mkdirSync(path.join(root, '.git'));
+    const installed = spawnSync('bash', [path.join(ROOT, 'scripts', 'hooks', 'install-codex-skills.sh'), '--copy', '--force'], {
+      cwd: root,
+      env: { ...process.env, CLAUDE_PLUGIN_ROOT: ROOT },
+      encoding: 'utf8',
+    });
+    assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
+    const target = path.join(root, '.codex', 'dhpk', 'agent-traps', 'architect', 'yii.md');
+    fs.appendFileSync(target, '\nSee `.claude/rules/php/coding-style.md` and `modules/php-5.6/skills/php-pro/reference.md`.\n');
+    const errors = collectCodexProjectionReferenceErrors(root, ROOT);
+    assert.ok(errors.some((error) => error.includes('unreachable Claude project reference')), errors.join('\n'));
+    assert.ok(errors.some((error) => error.includes('unresolved source-tree reference')), errors.join('\n'));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

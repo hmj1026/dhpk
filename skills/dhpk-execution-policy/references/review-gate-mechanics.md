@@ -6,6 +6,20 @@ Operational detail for `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §Manda
 
 Reviewer sentinel clearance is owned by the runtime hook `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/subagent-stop-verify.sh`: when a reviewer subagent stops successfully with its own sentinel still armed, the hook auto-clears that sentinel (scoped to the reviewer's own slot — a `frontend-reviewer` stop clears only `.pending-frontend-review`, never `.pending-review`), and when a fresh review artifact with a parseable `verdict:` (mtime postdating the sentinel) exists it clears **silently**. This is the **sanctioned** path — reviewer agent definitions carry NO closing `clear-sentinel.sh` step (the auto-mode permission classifier blocks a reviewer clearing its own review gate as "Logging/Audit Tampering"). `clear-sentinel.sh <name> <label>` remains the tool the **orchestrator** invokes directly — for a triage-drop or the stale-sentinel back-stop below — and it stays fail-loud: a known name clears the file and records success; an unknown name — or an empty/unresolvable name from a stale or partial payload — exits 2 with an explicit stderr message naming the problem, rather than silently no-op'ing. When a manual clear exits non-zero the orchestrator MUST surface that failure (a review gate remains open) — it must not report a clean "review complete."
 
+### Misplaced review-file observability
+
+The native stop hook applies the dispatch's freshness and ownership boundary to
+review files written outside the canonical `artifacts/reviews/` directory.
+`pre-agent-liveness-mark.sh` records the dispatch baseline, session, attempt, and
+dispatch identifier (when present) in `.review-dispatch-attempts`. On reviewer
+stop, `subagent-stop-verify.sh` ignores stale or foreign candidates, chooses the
+newest qualified file with a relative-path tie-breaker, and keeps the sentinel
+armed when the only evidence is misplaced. Fresh misplaced evidence is reported
+with a relative path; stale or foreign evidence is reduced to a no-fresh-doc
+diagnostic without an absolute host path. A fresh file without provenance is
+accepted only for the current stop session and is labelled
+`current-unknown-session`.
+
 <!-- SSOT for the ${CLAUDE_PLUGIN_ROOT} interpolation-token caveat — rules/execution-policy.md and skills/execution-checklist/SKILL.md point here. -->
 `${CLAUDE_PLUGIN_ROOT}` is a markdown-interpolation token, not a shell variable: the orchestrator resolves it when reading this document, and it is unset inside a subagent's Bash environment. A subagent must never paste the literal `${CLAUDE_PLUGIN_ROOT}/...` into a Bash command — use the absolute path the orchestrator supplies, or, when `stop-review-reminder.sh` has printed an already-resolved command (stale sentinels only — that branch is gated on sentinel age), the command it printed. On a 127 / "No such file or directory" failure, escalate to the orchestrator for the resolved path; never recover by scanning the filesystem with `find / -iname`.
 

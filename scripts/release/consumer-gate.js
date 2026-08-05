@@ -36,6 +36,7 @@ const crypto = require('crypto');
 const { spawnSync } = require('child_process');
 const { VERDICTS } = require('../lib/release-evidence');
 const { fingerprintDir } = require('../lib/codex-native-package');
+const { collectCodexProjectionReferenceErrors } = require('../ci/_lib/codex-runtime');
 
 const DEFAULT_ROOT = path.join(__dirname, '..', '..');
 const CODEX_SURFACE_VERDICTS = Object.freeze({ PASS: 'PASS', WARN: 'WARN', BLOCKED: 'BLOCKED' });
@@ -276,14 +277,29 @@ function verifyCodexSync(root, version) {
     const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
     const skillsPresent = fs.existsSync(path.join(project, '.codex', 'skills')) && fs.readdirSync(path.join(project, '.codex', 'skills')).length > 0;
     const agentsPresent = fs.existsSync(path.join(project, '.codex', 'agents')) && fs.readdirSync(path.join(project, '.codex', 'agents')).length > 0;
-    if (!skillsPresent || !agentsPresent) {
-      return { verdict: VERDICTS.FAIL, commands, reasons: ['expected both skills and agents to materialize under .codex/ after install'] };
+    const supportingAssets = manifest.managed_entries && manifest.managed_entries.supporting_assets;
+    const promptDefensePresent = fs.existsSync(path.join(project, '.codex', 'dhpk', 'agent-traps', '_common', 'prompt-defense.md'));
+    if (!skillsPresent || !agentsPresent || !supportingAssets || Object.keys(supportingAssets).length === 0 || !promptDefensePresent) {
+      return {
+        verdict: VERDICTS.FAIL,
+        commands,
+        reasons: ['expected skills, agents, and receipt-managed Codex supporting assets to materialize under .codex/ after install'],
+      };
     }
     if (manifest.plugin_version !== version) {
       return { verdict: VERDICTS.FAIL, commands, reasons: [`installed manifest version '${manifest.plugin_version}' does not match target '${version}'`] };
     }
-    if (manifest.schema_version < 2 || !manifest.managed_entries || !manifest.managed_entries.skills || !manifest.managed_entries.agents) {
+    if (manifest.schema_version < 2 || !manifest.managed_entries || !manifest.managed_entries.skills || !manifest.managed_entries.agents || !manifest.managed_entries.supporting_assets) {
       return { verdict: VERDICTS.FAIL, commands, reasons: ['installed manifest is missing schema-versioned managed_entries ownership data'] };
+    }
+    const projectionErrors = collectCodexProjectionReferenceErrors(project, root);
+    commands.push({ cmd: 'validate clean Codex supporting-asset reference closure', exitCode: projectionErrors.length === 0 ? 0 : 1 });
+    if (projectionErrors.length > 0) {
+      return {
+        verdict: VERDICTS.FAIL,
+        commands,
+        reasons: projectionErrors.map((error) => `codex-sync: ${redactEvidence(error, root)}`),
+      };
     }
     const surfaces = discoverCodexSurfaces({ root, project, version });
     const nativeById = new Map(surfaces.native.map((entry) => [`${entry.kind}:${entry.id}`, entry]));

@@ -36,12 +36,14 @@
 #   DHPK_SIDECAR_MODULE_FINDINGS       — post-edit-dispatch / stop-advisory-dispatch accumulator
 #   DHPK_SIDECAR_FAST_WORKER_ACTIVE    — shared fast-worker liveness marker
 #   DHPK_SIDECAR_RESUMED_OBLIGATIONS   — resumed-review (SendMessage) obligation ledger
+#   DHPK_SIDECAR_REVIEW_DISPATCH       — reviewer dispatch-attempt baselines and provenance
 
 DHPK_SIDECAR_UNRESOLVED_VERDICT=".unresolved-verdict"
 DHPK_SIDECAR_REVIEW_BACKOFF=".review-reminder-backoff"
 DHPK_SIDECAR_MODULE_FINDINGS=".module-findings"
 DHPK_SIDECAR_FAST_WORKER_ACTIVE=".active-fast-worker"
 DHPK_SIDECAR_RESUMED_OBLIGATIONS=".resumed-review-obligations"
+DHPK_SIDECAR_REVIEW_DISPATCH=".review-dispatch-attempts"
 
 # dhpk_reset_review_backoff <sessions_dir> <sentinel_name>
 #

@@ -31,6 +31,14 @@ new canonical skill's default entry (root `skills/` → `promoted`/`claude-core`
 reconciles the checked-in file against canonical packages, the module catalog,
 and per-skill Codex metadata (`agents/openai.yaml`).
 
+The same inventory also owns Codex projection support files through
+`supporting_assets`. Each mapping declares a repository source and a safe
+project-local destination below `.codex/`; the installer records every materialized
+file in `.dhpk-installed.json`, and `codex-runtime` validation checks that generated
+agent references resolve from a clean consumer projection. This keeps review traps,
+contracts, and execution policy available to Codex without carrying Claude-only
+plugin-root or lifecycle mechanics into the generated TOML.
+
 ## Claude publication: current before/after surface
 
 `scripts/ci/gen-claude-manifest.js` derives the expected `.claude-plugin/plugin.json`

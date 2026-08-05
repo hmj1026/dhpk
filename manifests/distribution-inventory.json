@@ -13,6 +13,192 @@
     "codex-sync",
     "codex-native"
   ],
+  "supporting_assets": [
+    {
+      "id": "codex-supporting-config-toml-example",
+      "source": "codex/config.toml.example",
+      "destination": "config.toml.example"
+    },
+    {
+      "id": "codex-supporting-agent-traps-_common-prompt-defense-md",
+      "source": "agent-traps/_common/prompt-defense.md",
+      "destination": "dhpk/agent-traps/_common/prompt-defense.md"
+    },
+    {
+      "id": "codex-supporting-agent-traps-_common-trap-sheet-loader-md",
+      "source": "codex/supporting/agent-traps/_common/trap-sheet-loader.md",
+      "canonical_source": "agent-traps/_common/trap-sheet-loader.md",
+      "canonical_digest": "3a91e43ff71735426254494e34460df034f1c75ef81995115bd5a31df43ee77b",
+      "projection_digest": "1791f859680eb85074ac25e8e4aeaea5a3fdfbe95871a89695e57371e2fdc9d7",
+      "destination": "dhpk/agent-traps/_common/trap-sheet-loader.md"
+    },
+    {
+      "id": "codex-supporting-agent-traps-architect-yii-md",
+      "source": "codex/supporting/agent-traps/architect/yii.md",
+      "canonical_source": "agent-traps/architect/yii.md",
+      "canonical_digest": "8b188bd57389a407c39a86f6387c0a084122b3237eec6f9efafda1b31f45235c",
+      "projection_digest": "62f2f383da219f2416c4c645bdcfe00aec310f4ca297dff2f2fdd805ac5084fb",
+      "destination": "dhpk/agent-traps/architect/yii.md"
+    },
+    {
+      "id": "codex-supporting-agent-traps-code-reviewer-fastapi-md",
+      "source": "agent-traps/code-reviewer/fastapi.md",
+      "destination": "dhpk/agent-traps/code-reviewer/fastapi.md"
+    },
+    {
+      "id": "codex-supporting-agent-traps-code-reviewer-js-md",
+      "source": "agent-traps/code-reviewer/js.md",
+      "destination": "dhpk/agent-traps/code-reviewer/js.md"
+    },
+    {
+      "id": "codex-supporting-agent-traps-code-reviewer-laravel-md",
+      "source": "agent-traps/code-reviewer/laravel.md",
+      "destination": "dhpk/agent-traps/code-reviewer/laravel.md"
+    },
+    {
+      "id": "codex-supporting-agent-traps-code-reviewer-php-md",
+      "source": "codex/supporting/agent-traps/code-reviewer/php.md",
+      "canonical_source": "agent-traps/code-reviewer/php.md",
+      "canonical_digest": "9ac77a5467fea49436c8154703fa3263c7f0fd7f176a95fc8241c98afb115245",
+      "projection_digest": "db2f137b7ebcb6f59d06cce1c24cc3b742aa940c4e9caa8e6fdf986f5d51424d",
+      "destination": "dhpk/agent-traps/code-reviewer/php.md"
+    },
+    {
+      "id": "codex-supporting-agent-traps-code-reviewer-python-md",
+      "source": "codex/supporting/agent-traps/code-reviewer/python.md",
+      "canonical_source": "agent-traps/code-reviewer/python.md",
+      "canonical_digest": "72fa138c45d900a880de01a399dce9f2ecfa6ce5ae0ca4e932bbbccf6cf3d3bf",
+      "projection_digest": "ec17d45d828ffaec624c85cc3c9d36d126df924931e64bea655a64cb6247ee88",
+      "destination": "dhpk/agent-traps/code-reviewer/python.md"
+    },
+    {
+      "id": "codex-supporting-agent-traps-code-reviewer-swift-md",
+      "source": "agent-traps/code-reviewer/swift.md",
+      "destination": "dhpk/agent-traps/code-reviewer/swift.md"
+    },
+    {
+      "id": "codex-supporting-agent-traps-code-reviewer-vue-md",
+      "source": "agent-traps/code-reviewer/vue.md",
+      "destination": "dhpk/agent-traps/code-reviewer/vue.md"
+    },
+    {
+      "id": "codex-supporting-agent-traps-code-reviewer-yii-md",
+      "source": "codex/supporting/agent-traps/code-reviewer/yii.md",
+      "canonical_source": "agent-traps/code-reviewer/yii.md",
+      "canonical_digest": "4fbf5a8452fc8fa45a3cd96f16ee39ae3f4cdf328368be83c158f27a6182b613",
+      "projection_digest": "10141cd2cf6bed20101f267d0da4415789986a102adc122471502ce86be0382d",
+      "destination": "dhpk/agent-traps/code-reviewer/yii.md"
+    },
+    {
+      "id": "codex-supporting-agent-traps-database-reviewer-fastapi-md",
+      "source": "agent-traps/database-reviewer/fastapi.md",
+      "destination": "dhpk/agent-traps/database-reviewer/fastapi.md"
+    },
+    {
+      "id": "codex-supporting-agent-traps-database-reviewer-ios-md",
+      "source": "agent-traps/database-reviewer/ios.md",
+      "destination": "dhpk/agent-traps/database-reviewer/ios.md"
+    },
+    {
+      "id": "codex-supporting-agent-traps-database-reviewer-postgres-md",
+      "source": "agent-traps/database-reviewer/postgres.md",
+      "destination": "dhpk/agent-traps/database-reviewer/postgres.md"
+    },
+    {
+      "id": "codex-supporting-agent-traps-database-reviewer-yii-md",
+      "source": "codex/supporting/agent-traps/database-reviewer/yii.md",
+      "canonical_source": "agent-traps/database-reviewer/yii.md",
+      "canonical_digest": "7ef10a4c3c796650791d8283ad55e6665eeb9e654807388bdf86afbaaed53f86",
+      "projection_digest": "d40316b21e36cfe800de62a9c9a7dea2889e6afb125067c6f25623133cb2f753",
+      "destination": "dhpk/agent-traps/database-reviewer/yii.md"
+    },
+    {
+      "id": "codex-supporting-agent-traps-security-reviewer-fastapi-md",
+      "source": "agent-traps/security-reviewer/fastapi.md",
+      "destination": "dhpk/agent-traps/security-reviewer/fastapi.md"
+    },
+    {
+      "id": "codex-supporting-agent-traps-security-reviewer-ios-md",
+      "source": "agent-traps/security-reviewer/ios.md",
+      "destination": "dhpk/agent-traps/security-reviewer/ios.md"
+    },
+    {
+      "id": "codex-supporting-agent-traps-security-reviewer-js-md",
+      "source": "agent-traps/security-reviewer/js.md",
+      "destination": "dhpk/agent-traps/security-reviewer/js.md"
+    },
+    {
+      "id": "codex-supporting-agent-traps-security-reviewer-php-md",
+      "source": "codex/supporting/agent-traps/security-reviewer/php.md",
+      "canonical_source": "agent-traps/security-reviewer/php.md",
+      "canonical_digest": "dfa2765612b91f1de99ec0ececa139c0c1e89517869acd1be5a89adb01686e80",
+      "projection_digest": "e9d773fae0318bc2215c64f5b3e2dbb897f4bec33087fd700d2ac5df044a6a44",
+      "destination": "dhpk/agent-traps/security-reviewer/php.md"
+    },
+    {
+      "id": "codex-supporting-agent-traps-security-reviewer-python-md",
+      "source": "agent-traps/security-reviewer/python.md",
+      "destination": "dhpk/agent-traps/security-reviewer/python.md"
+    },
+    {
+      "id": "codex-supporting-agent-traps-security-reviewer-yii-md",
+      "source": "codex/supporting/agent-traps/security-reviewer/yii.md",
+      "canonical_source": "agent-traps/security-reviewer/yii.md",
+      "canonical_digest": "e114e6c8fa2e936414e41e3f2ce17613f67ef2d5b8c009905fccb909398a0169",
+      "projection_digest": "64146ab3238448a95bb87ae1c4f204fa51766921174cf098ae81cafd024548df",
+      "destination": "dhpk/agent-traps/security-reviewer/yii.md"
+    },
+    {
+      "id": "codex-supporting-agent-traps-tdd-guide-js-md",
+      "source": "agent-traps/tdd-guide/js.md",
+      "destination": "dhpk/agent-traps/tdd-guide/js.md"
+    },
+    {
+      "id": "codex-supporting-agent-traps-tdd-guide-php-md",
+      "source": "codex/supporting/agent-traps/tdd-guide/php.md",
+      "canonical_source": "agent-traps/tdd-guide/php.md",
+      "canonical_digest": "0c95d55163d03e5e84d358d89dc97a0675fa604910953906cadfdda844710436",
+      "projection_digest": "0dc288dbaa9e7dd3db766503544fa3076f8c8621b2ed2a90374bec4dd15ed832",
+      "destination": "dhpk/agent-traps/tdd-guide/php.md"
+    },
+    {
+      "id": "codex-supporting-agent-traps-tdd-guide-python-md",
+      "source": "codex/supporting/agent-traps/tdd-guide/python.md",
+      "canonical_source": "agent-traps/tdd-guide/python.md",
+      "canonical_digest": "4678f428fec20eef07b1fc2dbd27e32de1db82f196f668205345a2798ae1c278",
+      "projection_digest": "992d5dbbc31ba956f4a825db1dc08ef9ef3e744d7129a0dba911edb064d2c728",
+      "destination": "dhpk/agent-traps/tdd-guide/python.md"
+    },
+    {
+      "id": "codex-supporting-agent-traps-tdd-guide-swift-md",
+      "source": "agent-traps/tdd-guide/swift.md",
+      "destination": "dhpk/agent-traps/tdd-guide/swift.md"
+    },
+    {
+      "id": "codex-supporting-contracts-artifact-contract-md",
+      "source": "codex/supporting/contracts/artifact-contract.md",
+      "canonical_source": "docs/contracts/artifact-contract.md",
+      "canonical_digest": "c82cd9bd709517962a5204d32fbcefa26cdc1e0be4ae80685615c3b303cf01ef",
+      "projection_digest": "ad5a05ceaa56719084e99a37c7c57563727982cbf24bc7f0a907981071e1ac7e",
+      "destination": "dhpk/contracts/artifact-contract.md"
+    },
+    {
+      "id": "codex-supporting-contracts-reviewer-contract-md",
+      "source": "codex/supporting/contracts/reviewer-contract.md",
+      "canonical_source": "docs/contracts/reviewer-contract.md",
+      "canonical_digest": "3dc1d855b460210241a91064ffb6a86fa554115cccc24a18dd057742f6c10c26",
+      "projection_digest": "e0ede2ec5b485a81ea53186e05f55ffdf6ac22b9ebdd59b13982504ad69f4b5d",
+      "destination": "dhpk/contracts/reviewer-contract.md"
+    },
+    {
+      "id": "codex-supporting-policies-execution-policy-md",
+      "source": "codex/supporting/policies/execution-policy.md",
+      "canonical_source": "rules/execution-policy.md",
+      "canonical_digest": "a55152d57768fa575cab59db35e58a25046e6371f4f63e9e5c81100b787d7e14",
+      "projection_digest": "197fbbce3b3bf10603ede061365fd6b51d8dc24aff0d8ea6de33821bb13512d9",
+      "destination": "dhpk/policies/execution-policy.md"
+    }
+  ],
   "skills": [
     {
       "id": "fastapi-pro",

@@ -16,7 +16,7 @@
  */
 
 const { readdirSync, readFileSync, existsSync, statSync, lstatSync } = require('node:fs');
-const { join, basename, resolve } = require('node:path');
+const { join, basename, resolve, relative, isAbsolute, sep } = require('node:path');
 
 // ---------------------------------------------------------------------------
 // CLI args
@@ -41,6 +41,116 @@ const commandsDir = resolve(argVal('--commands-dir', join(cwd, 'commands')));
 
 function normalizeContent(raw) {
   return raw.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n');
+}
+
+function safeReadFile(filePath) {
+  try {
+    return { ok: true, content: readFileSync(filePath, 'utf8') };
+  } catch (error) {
+    return { ok: false, error };
+  }
+}
+
+function safeReadDir(dirPath) {
+  try {
+    return { ok: true, entries: readdirSync(dirPath) };
+  } catch (error) {
+    return { ok: false, error };
+  }
+}
+
+function safeLstat(filePath) {
+  try {
+    return { ok: true, stat: lstatSync(filePath) };
+  } catch (error) {
+    return { ok: false, error };
+  }
+}
+
+function malformedEntryFinding(kind, fileName, reason, fix) {
+  return {
+    check: `${kind}-entry`,
+    path: fileName,
+    pass: false,
+    severity: 'P1',
+    message: `${kind[0].toUpperCase()}${kind.slice(1)} entry "${fileName}" ${reason}`,
+    fix,
+  };
+}
+
+function invalidFrontmatterFinding(kind, fileName, missing) {
+  return {
+    check: `${kind}-frontmatter`,
+    path: fileName,
+    pass: false,
+    severity: 'P1',
+    message: `${kind[0].toUpperCase()}${kind.slice(1)} "${fileName}" has invalid frontmatter (missing ${missing.join(', ')})`,
+    fix: `Add the required frontmatter fields to ${fileName}`,
+  };
+}
+
+function readDiscoverableEntry(dirPath, fileName, kind, displayName = fileName) {
+  const filePath = join(dirPath, fileName);
+  const lstatResult = safeLstat(filePath);
+  if (!lstatResult.ok) {
+    return {
+      finding: malformedEntryFinding(
+        kind,
+        displayName,
+        `could not be inspected (${lstatResult.error.code || 'filesystem error'})`,
+        `Restore or remove ${displayName}, then run the health check again`,
+      ),
+    };
+  }
+  if (lstatResult.stat.isSymbolicLink() && !existsSync(filePath)) {
+    return {
+      finding: malformedEntryFinding(
+        kind,
+        displayName,
+        'is a dangling symlink',
+        `Restore the symlink target or remove ${displayName}`,
+      ),
+    };
+  }
+  if (!lstatResult.stat.isFile() && !lstatResult.stat.isSymbolicLink()) {
+    return {
+      finding: malformedEntryFinding(
+        kind,
+        displayName,
+        'is not a regular file',
+        `Replace ${displayName} with a regular markdown file or remove it`,
+      ),
+    };
+  }
+  const readResult = safeReadFile(filePath);
+  if (!readResult.ok) {
+    return {
+      finding: malformedEntryFinding(
+        kind,
+        displayName,
+        `could not be read (${readResult.error.code || 'filesystem error'})`,
+        `Restore read access to ${displayName} or remove it`,
+      ),
+    };
+  }
+  return { content: normalizeContent(readResult.content) };
+}
+
+function requiredFrontmatterFields(content, required) {
+  const fm = parseFrontmatter(content);
+  if (!fm) return required;
+  return required.filter((field) => !fm[field]);
+}
+
+function dedupeFindings(findings) {
+  const seen = new Set();
+  return findings.filter((finding) => {
+    if (!finding || finding.pass) return true;
+    const key = [finding.check, finding.path || finding.skill || '', finding.target || finding.message || ''].join('|');
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function parseFrontmatter(content) {
@@ -91,11 +201,12 @@ function capabilitySkip(check, reason) {
 // ---------------------------------------------------------------------------
 
 function checkFrontmatterExists(fm, skillName) {
-  if (!fm) return { pass: false, severity: 'P0', message: 'Missing YAML frontmatter' };
+  const skillPath = `${skillName}/SKILL.md`;
+  if (!fm) return { pass: false, severity: 'P1', path: skillPath, message: 'Missing YAML frontmatter', fix: 'Add YAML frontmatter with name and description' };
   if (!fm.name)
-    return { pass: false, severity: 'P0', message: 'Frontmatter missing `name` field' };
+    return { pass: false, severity: 'P1', path: skillPath, message: 'Frontmatter missing `name` field', fix: 'Add the required name field to YAML frontmatter' };
   if (!fm.description)
-    return { pass: false, severity: 'P0', message: 'Frontmatter missing `description` field' };
+    return { pass: false, severity: 'P1', path: skillPath, message: 'Frontmatter missing `description` field', fix: 'Add the required description field to YAML frontmatter' };
   return { pass: true };
 }
 
@@ -178,9 +289,11 @@ function checkVerificationSection(body) {
 
 function checkReferencesRouting(skillDir, body) {
   const refsDir = join(skillDir, 'references');
-  if (!existsSync(refsDir) || !statSync(refsDir).isDirectory()) return { pass: true };
+  if (!isDir(refsDir)) return { pass: true };
 
-  const refFiles = readdirSync(refsDir).filter((f) => f.endsWith('.md'));
+  const readResult = safeReadDir(refsDir);
+  if (!readResult.ok) return { pass: true };
+  const refFiles = readResult.entries.filter((f) => f.endsWith('.md'));
   if (refFiles.length === 0) return { pass: true };
 
   const missing = refFiles.filter((f) => !body.includes(f));
@@ -196,9 +309,11 @@ function checkReferencesRouting(skillDir, body) {
 
 function checkScriptsContract(skillDir, body) {
   const scriptsDir = join(skillDir, 'scripts');
-  if (!existsSync(scriptsDir) || !statSync(scriptsDir).isDirectory()) return { pass: true };
+  if (!isDir(scriptsDir)) return { pass: true };
 
-  const scripts = readdirSync(scriptsDir).filter(
+  const readResult = safeReadDir(scriptsDir);
+  if (!readResult.ok) return { pass: true };
+  const scripts = readResult.entries.filter(
     (f) => f.endsWith('.js') || f.endsWith('.sh') || f.endsWith('.py')
   );
   if (scripts.length === 0) return { pass: true };
@@ -264,15 +379,32 @@ function checkTaskEntitlement(body, fm) {
 }
 
 function checkCrossSkillRefPaths(skillName, skillDir, body) {
-  // Same regex as skills-schema.test.js — group 1 captures @skills/<name>/ prefix
-  const refPattern = /`?(@skills\/[^/]+\/)?@?(?:\.\/)?references\/([^`\s)]+\.md)`?/g;
+  const qualifiedPattern = /(?:@skills\/([^/`\s)]+)\/references\/([^`\s)]+\.md)|\$\{CLAUDE_PLUGIN_ROOT\}\/skills\/([^/`\s)]+)\/references\/([^`\s)]+\.md))/g;
+  const qualifiedSpans = [];
+  let qualified;
+  while ((qualified = qualifiedPattern.exec(body)) !== null) {
+    const parentSkill = qualified[1] || qualified[3];
+    const refFile = qualified[2] || qualified[4];
+    const target = resolve(skillsDir, parentSkill, 'references', refFile);
+    const parentRoot = resolve(skillsDir, parentSkill);
+    const targetRelative = relative(parentRoot, target);
+    const escapesParent = targetRelative === '..'
+      || targetRelative.startsWith(`..${sep}`)
+      || isAbsolute(targetRelative);
+    if (escapesParent || !existsSync(target)) {
+      qualifiedSpans.push({ refFile, parentSkill, missing: true });
+    }
+  }
+
+  const unqualifiedBody = body.replace(qualifiedPattern, '');
+  // Same regex as skills-schema.test.js, now applied only after qualified
+  // spans are removed so their trailing references/<file> cannot be misread.
+  const refPattern = /`?@?(?:\.\/)?references\/([^`\s)]+\.md)`?/g;
   const mismatches = [];
   let match;
 
-  while ((match = refPattern.exec(body)) !== null) {
-    if (match[1]) continue; // Already using cross-skill path — OK
-
-    const refFile = match[2];
+  while ((match = refPattern.exec(unqualifiedBody)) !== null) {
+    const refFile = match[1];
     const localPath = join(skillDir, 'references', refFile);
     if (existsSync(localPath)) continue; // Exists locally — OK
 
@@ -283,16 +415,22 @@ function checkCrossSkillRefPaths(skillName, skillDir, body) {
     }
   }
 
+  for (const missing of qualifiedSpans) {
+    mismatches.push({ refFile: missing.refFile, parentSkill: missing.parentSkill, qualified: true });
+  }
+
   if (mismatches.length === 0) return { pass: true };
 
-  const details = mismatches
-    .map((m) => `references/${m.refFile} → @skills/${m.parentSkill}/references/${m.refFile}`)
+  const details = [...new Map(mismatches.map((m) => [`${m.parentSkill}:${m.refFile}`, m])).values()]
+    .map((m) => m.qualified
+      ? `qualified reference ${m.parentSkill}/references/${m.refFile} is missing`
+      : `references/${m.refFile} → @skills/${m.parentSkill}/references/${m.refFile}`)
     .join('; ');
   return {
     pass: false,
     severity: 'P1',
     message: `Non-local reference(s) need cross-skill path: ${details}`,
-    fix: 'Use @skills/<parent>/references/<file>.md for cross-skill references',
+    fix: 'Use an existing @skills/<parent>/references/<file>.md or plugin-root-qualified reference',
   };
 }
 
@@ -312,7 +450,11 @@ function findRefInOtherSkills(refFile, excludeSkill) {
 // linted, matching Claude Code's recursive skill discovery.
 function findSkillDirs(root) {
   if (!isDir(root)) return [];
-  if (existsSync(join(root, 'SKILL.md'))) return [root];
+  const hasSkillEntry = (dir) => {
+    const entry = safeLstat(join(dir, 'SKILL.md'));
+    return entry.ok || entry.error.code !== 'ENOENT';
+  };
+  if (hasSkillEntry(root)) return [root];
   const SKIP = new Set(['references', 'scripts', 'templates', 'node_modules']);
   // lstat (not stat) so symlinked dirs are NOT descended into — avoids cyclic-
   // symlink stack overflow and double-counting linked skills.
@@ -325,17 +467,21 @@ function findSkillDirs(root) {
   };
   const out = [];
   function walk(dir) {
-    if (existsSync(join(dir, 'SKILL.md'))) {
+    if (hasSkillEntry(dir)) {
       out.push(dir); // leaf skill — do not descend further
       return;
     }
-    for (const e of readdirSync(dir)) {
+    const readResult = safeReadDir(dir);
+    if (!readResult.ok) return;
+    for (const e of readResult.entries) {
       if (SKIP.has(e)) continue;
       const p = join(dir, e);
       if (isRealDir(p)) walk(p);
     }
   }
-  for (const e of readdirSync(root)) {
+  const rootEntries = safeReadDir(root);
+  if (!rootEntries.ok) return out;
+  for (const e of rootEntries.entries) {
     if (SKIP.has(e)) continue;
     const p = join(root, e);
     if (isRealDir(p)) walk(p);
@@ -349,12 +495,15 @@ function findSkillDirs(root) {
 
 function lintSkill(skillName, skillDir) {
   const skillPath = join(skillDir, 'SKILL.md');
-  if (!existsSync(skillPath)) {
-    return { name: skillName, findings: [{ pass: false, severity: 'P0', message: 'SKILL.md not found' }] };
+  const entry = readDiscoverableEntry(skillDir, 'SKILL.md', 'skill', `${skillName}/SKILL.md`);
+  if (entry.finding) {
+    return {
+      name: skillName,
+      path: skillPath,
+      findings: [entry.finding],
+    };
   }
-
-  const raw = readFileSync(skillPath, 'utf8');
-  const content = normalizeContent(raw);
+  const content = entry.content;
   const fm = parseFrontmatter(content);
   const body = bodyAfterFrontmatter(content);
   const findings = [];
@@ -384,7 +533,9 @@ function detectOrphans(skillNames, commandFiles, _commandsDir = commandsDir) {
 
   const commandSkillMap = {};
   for (const cmdFile of commandFiles) {
-    const content = readFileSync(join(_commandsDir, cmdFile), 'utf8');
+    const readResult = safeReadFile(join(_commandsDir, cmdFile));
+    if (!readResult.ok) continue; // detectCommandFrontmatter reports the stable P1 finding
+    const content = readResult.content;
     const cmdName = basename(cmdFile, '.md');
     const match = content.match(/@skills\/([^/]+)\//);
     commandSkillMap[cmdName] = match ? match[1] : skillNameFromCommandContent(content, skillNames);
@@ -430,6 +581,20 @@ function detectOrphans(skillNames, commandFiles, _commandsDir = commandsDir) {
     }
   }
 
+  return findings;
+}
+
+function detectCommandFrontmatter(commandFiles, _commandsDir) {
+  const findings = [];
+  for (const cmdFile of commandFiles) {
+    const entry = readDiscoverableEntry(_commandsDir, cmdFile, 'command');
+    if (entry.finding) {
+      findings.push(entry.finding);
+      continue;
+    }
+    const missing = requiredFrontmatterFields(entry.content, ['description']);
+    if (missing.length > 0) findings.push(invalidFrontmatterFinding('command', cmdFile, missing));
+  }
   return findings;
 }
 
@@ -486,13 +651,20 @@ function detectInvalidAgentRefs(skillResults, _agentsDir) {
       skipped: [
         capabilitySkip(
           'agent-ref-validity',
-          `Agents directory not found or not a directory: ${_agentsDir}`
+          'Agents directory not found or not a directory'
         ),
       ],
     };
   }
+  const readResult = safeReadDir(_agentsDir);
+  if (!readResult.ok) {
+    return {
+      findings: [],
+      skipped: [capabilitySkip('agent-ref-validity', `Agents directory could not be read (${readResult.error.code || 'filesystem error'})`)],
+    };
+  }
   const knownAgents = new Set(
-    readdirSync(_agentsDir).filter((f) => f.endsWith('.md')).map((f) => basename(f, '.md'))
+    readResult.entries.filter((f) => f.endsWith('.md')).map((f) => basename(f, '.md'))
   );
   const BUILTINS = new Set(['Explore', 'general-purpose', 'Plan']);
   const findings = [];
@@ -528,7 +700,7 @@ function detectAgentToolsSyntax(_agentsDir) {
       skipped: [
         capabilitySkip(
           'agent-tools-syntax',
-          `Agents directory not found or not a directory: ${_agentsDir}`
+          'Agents directory not found or not a directory'
         ),
       ],
     };
@@ -544,10 +716,28 @@ function detectAgentToolsSyntax(_agentsDir) {
   // delimiter, so exactly two segments are accepted (no trailing __extra).
   const MCP_RE = /^mcp__[a-z0-9-]+(?:_[a-z0-9-]+)*__[a-z0-9-]+(?:_[a-z0-9-]+)*$/i;
   const findings = [];
-  for (const f of readdirSync(_agentsDir).filter((x) => x.endsWith('.md'))) {
-    const content = normalizeContent(readFileSync(join(_agentsDir, f), 'utf8'));
+  const nonInvocableDocs = new Set(['INDEX.md', 'README.md']);
+  const readResult = safeReadDir(_agentsDir);
+  if (!readResult.ok) {
+    return {
+      findings: [],
+      skipped: [capabilitySkip('agent-tools-syntax', 'Agents directory could not be read')],
+    };
+  }
+  for (const f of readResult.entries.filter((x) => x.endsWith('.md') && !nonInvocableDocs.has(x)).sort()) {
+    const entry = readDiscoverableEntry(_agentsDir, f, 'agent');
+    if (entry.finding) {
+      findings.push(entry.finding);
+      continue;
+    }
+    const content = entry.content;
+    const missing = requiredFrontmatterFields(content, ['name', 'description']);
+    if (missing.length > 0) {
+      findings.push(invalidFrontmatterFinding('agent', f, missing));
+      continue;
+    }
     const fm = parseFrontmatter(content);
-    if (!fm || !fm.tools) continue;
+    if (!fm.tools) continue;
     const agentName = basename(f, '.md');
     const tools = String(fm.tools).split(/,\s*/);
     for (const t of tools) {
@@ -569,8 +759,10 @@ function detectAgentToolsSyntax(_agentsDir) {
 function commandFilesForDir(_commandsDir) {
   if (!isDir(_commandsDir)) return { commandFiles: [], skipped: true };
   const nonInvocableDocs = new Set(['INDEX.md', 'README.md']);
+  const readResult = safeReadDir(_commandsDir);
+  if (!readResult.ok) return { commandFiles: [], skipped: true };
   return {
-    commandFiles: readdirSync(_commandsDir)
+    commandFiles: readResult.entries
       .filter((f) => f.endsWith('.md') && !nonInvocableDocs.has(f))
       .sort(),
     skipped: false,
@@ -582,7 +774,11 @@ function commandFilesForDir(_commandsDir) {
 // ---------------------------------------------------------------------------
 
 function isDir(p) {
-  return existsSync(p) && statSync(p).isDirectory();
+  try {
+    return existsSync(p) && statSync(p).isDirectory();
+  } catch {
+    return false;
+  }
 }
 
 function main() {
@@ -596,6 +792,7 @@ function main() {
   const skillResults = skillDirPaths.map((p) => lintSkill(basename(p), p));
   const skillDirs = skillResults.map((r) => r.name);
   const { commandFiles, skipped: skippedCommands } = commandFilesForDir(commandsDir);
+  const commandFrontmatterFindings = detectCommandFrontmatter(commandFiles, commandsDir);
 
   // Cross-skill checks
   const orphanFindings = detectOrphans(skillDirs, commandFiles);
@@ -608,7 +805,7 @@ function main() {
       ? [
           capabilitySkip(
             'orphan-command-skill-pairing',
-            `Commands directory not found or not a directory: ${commandsDir}`
+            'Commands directory not found or not a directory'
           ),
         ]
       : []),
@@ -617,7 +814,7 @@ function main() {
   ];
 
   // Aggregate
-  const allFindings = [];
+  const collectedFindings = [];
   let p0Count = 0;
   let p1Count = 0;
   let p2Count = 0;
@@ -630,16 +827,25 @@ function main() {
         passCount++;
         if (f.warning) warnCount++;
       } else {
-        allFindings.push({ skill: result.name, ...f });
-        if (f.severity === 'P0') p0Count++;
-        else if (f.severity === 'P1') p1Count++;
-        else p2Count++;
+        collectedFindings.push({ skill: result.name, ...f });
       }
     }
   }
 
-  for (const f of [...orphanFindings, ...overlapFindings, ...argHintFindings, ...agentRefFindings, ...agentToolsSyntaxFindings]) {
-    allFindings.push({ skill: '(cross-skill)', ...f });
+  const crossFindings = dedupeFindings([
+    ...orphanFindings,
+    ...overlapFindings,
+    ...argHintFindings,
+    ...agentRefFindings,
+    ...agentToolsSyntaxFindings,
+    ...commandFrontmatterFindings,
+  ]);
+  for (const f of crossFindings) {
+    collectedFindings.push({ skill: '(cross-skill)', ...f });
+  }
+
+  const allFindings = dedupeFindings(collectedFindings);
+  for (const f of allFindings) {
     if (f.severity === 'P0') p0Count++;
     else if (f.severity === 'P1') p1Count++;
     else p2Count++;
@@ -694,7 +900,8 @@ function main() {
       if (!f) return '—';
       return f.pass ? '✅' : f.severity === 'P0' ? '🔴' : f.severity === 'P1' ? '🟡' : '⚪';
     };
-    const lines = existsSync(result.path) ? countLines(readFileSync(result.path, 'utf8')) : 0;
+    const lineRead = result.path ? safeReadFile(result.path) : { ok: false };
+    const lines = lineRead.ok ? countLines(lineRead.content) : 0;
     const issues = result.findings.filter((f) => !f.pass);
     const status = issues.length === 0 ? '✅' : issues.some((f) => f.severity === 'P0') ? '🔴' : issues.some((f) => f.severity === 'P1') ? '🟡' : '⚪';
     console.log(

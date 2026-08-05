@@ -29,7 +29,11 @@ function runHook(repo, payload) {
 test('known reviewer dispatch appends one timestamped liveness marker entry', () => {
   const repo = mkTempRepo();
   try {
-    const res = runHook(repo, { tool_input: { subagent_type: 'code-reviewer' } });
+    const res = runHook(repo, {
+      session_id: 'session-red',
+      tool_use_id: 'attempt-1',
+      tool_input: { subagent_type: 'code-reviewer' },
+    });
     assert.strictEqual(res.status, 0, `hook failed: ${res.stderr}`);
     const lines = markerLines(repo, '.active-review');
     assert.strictEqual(lines.length, 1, `expected one active marker line, got ${JSON.stringify(lines)}`);
@@ -37,6 +41,9 @@ test('known reviewer dispatch appends one timestamped liveness marker entry', ()
     const pending = markerLines(repo, '.pending-review');
     assert.strictEqual(pending.length, 1);
     assert.match(pending[0], /^\d+ arm-on-dispatch:code-reviewer \[arm-on-dispatch\]$/);
+    const dispatch = markerLines(repo, '.review-dispatch-attempts');
+    assert.strictEqual(dispatch.length, 1, `expected one dispatch baseline, got ${JSON.stringify(dispatch)}`);
+    assert.match(dispatch[0], /^\.pending-review\t\d+\tsession-red\t1\tattempt-1\tcode-reviewer$/);
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });
   }
@@ -52,6 +59,30 @@ test('known reviewer dispatch does not touch an already-armed sentinel', () => {
     const res = runHook(repo, { tool_input: { subagent_type: 'doc-reviewer' } });
     assert.strictEqual(res.status, 0, res.stderr);
     assert.strictEqual(fs.readFileSync(sentinel, 'utf8'), original);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('re-dispatch records a new attempt baseline for the same session', () => {
+  const repo = mkTempRepo();
+  try {
+    const first = runHook(repo, {
+      session_id: 'session-repeat',
+      tool_use_id: 'attempt-1',
+      tool_input: { subagent_type: 'doc-reviewer' },
+    });
+    const second = runHook(repo, {
+      session_id: 'session-repeat',
+      tool_use_id: 'attempt-2',
+      tool_input: { subagent_type: 'doc-reviewer' },
+    });
+    assert.strictEqual(first.status, 0, first.stderr);
+    assert.strictEqual(second.status, 0, second.stderr);
+    const rows = markerLines(repo, '.review-dispatch-attempts');
+    assert.strictEqual(rows.length, 2, JSON.stringify(rows));
+    assert.match(rows[0], /^\.pending-doc-review\t\d+\tsession-repeat\t1\tattempt-1\tdoc-reviewer$/);
+    assert.match(rows[1], /^\.pending-doc-review\t\d+\tsession-repeat\t2\tattempt-2\tdoc-reviewer$/);
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });
   }

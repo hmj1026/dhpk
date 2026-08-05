@@ -68,6 +68,14 @@ test('copy mode materializes skills/agents and records the install manifest', ()
     assert.ok(manifest.managed_entries && manifest.managed_entries.skills);
     assert.ok(manifest.managed_entries && manifest.managed_entries.agents);
     assert.ok(manifest.managed_entries && manifest.managed_entries.supporting_assets);
+    const supporting = manifest.managed_entries.supporting_assets['dhpk/agent-traps/_common/prompt-defense.md'];
+    assert.ok(supporting, 'expected the Codex prompt-defense trap sheet to be receipt-managed');
+    assert.strictEqual(supporting.destination, 'dhpk/agent-traps/_common/prompt-defense.md');
+    assert.strictEqual(supporting.source, 'dhpk/agent-traps/_common/prompt-defense.md');
+    assert.strictEqual(supporting.mode, 'copy');
+    assert.ok(fs.existsSync(path.join(codex, supporting.destination)),
+      'receipt-managed Codex supporting assets must materialize in the clean project');
+    assert.match(supporting.source_fingerprint, /^[a-f0-9]{64}$/);
     const skillEntry = manifest.managed_entries.skills[skills[0]];
     assert.strictEqual(skillEntry.destination, `skills/${skills[0]}`);
     assert.strictEqual(skillEntry.source, `skills/${skills[0]}`);
@@ -222,6 +230,30 @@ test('path-safe install handles apostrophes in plugin and project roots', () => 
     const second = runInstaller(scratch, ['--copy'], fakePlugin);
     assert.strictEqual(second.status, 0, `${second.stdout}\n${second.stderr}`);
     assert.match(second.stdout, /already up-to-date/);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(fakePlugin, { recursive: true, force: true });
+  }
+});
+
+test('inventory supporting sources reject unsafe paths before materialization', () => {
+  const scratch = projectRoot();
+  const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-inventory-')));
+  try {
+    fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true });
+    fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
+    fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
+    fs.mkdirSync(path.join(fakePlugin, 'manifests'), { recursive: true });
+    fs.writeFileSync(path.join(fakePlugin, 'private.txt'), 'must not escape the mapped file boundary\n');
+    for (const source of ['.', 'codex\\supporting']) {
+      fs.writeFileSync(path.join(fakePlugin, 'manifests', 'distribution-inventory.json'), JSON.stringify({
+        supporting_assets: [{ id: 'bad-source', source, destination: 'dhpk/root-copy' }],
+      }));
+      const res = runInstaller(scratch, ['--copy', '--force'], fakePlugin);
+      assert.notStrictEqual(res.status, 0, `${source}: ${res.stdout}\n${res.stderr}`);
+      assert.ok(!fs.existsSync(path.join(scratch, '.codex', 'dhpk', 'root-copy', 'private.txt')),
+        `${source} must never copy outside the mapped file boundary`);
+    }
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
     fs.rmSync(fakePlugin, { recursive: true, force: true });
