@@ -116,10 +116,10 @@ def ensure_manifest_safe():
 
 
 def safe_destination(relative):
-    if not isinstance(relative, str) or not relative or '\x00' in relative:
+    if not isinstance(relative, str) or not relative or '\x00' in relative or '\\' in relative:
         raise ValueError('receipt destination is not a valid relative path')
     normalized = os.path.normpath(relative).replace(os.sep, '/')
-    if os.path.isabs(relative) or normalized != relative or normalized == '..' or normalized.startswith('../'):
+    if os.path.isabs(relative) or (len(relative) > 1 and relative[1] == ':') or normalized != relative or normalized in ('.', '..') or normalized.startswith('../'):
         raise ValueError(f'receipt destination escapes project .codex: {relative}')
     ensure_codex_root_safe()
     destination = os.path.join(CODEX_ROOT, *relative.split('/'))
@@ -132,7 +132,7 @@ def safe_destination(relative):
 
 
 def receipt_destination(kind, name, old):
-    expected = 'config.toml.example' if kind == 'supporting_assets' else f'{kind}/{name}'
+    expected = name if kind == 'supporting_assets' else f'{kind}/{name}'
     if not isinstance(old, dict):
         raise ValueError(f'receipt entry {kind}/{name} is malformed')
     relative = old.get('destination') or old.get('source')
@@ -174,6 +174,43 @@ def hash_path(path):
     return digest.hexdigest()
 
 
+def safe_inventory_relative(relative, label):
+    if not isinstance(relative, str) or not relative or '\x00' in relative or '\\' in relative:
+        raise ValueError(f'{label} is not a valid relative path')
+    normalized = os.path.normpath(relative).replace(os.sep, '/')
+    if os.path.isabs(relative) or (len(relative) > 1 and relative[1] == ':') or normalized != relative or normalized in ('.', '..') or normalized.startswith('../'):
+        raise ValueError(f'{label} escapes the plugin root: {relative}')
+    return normalized
+
+
+def inventory_supporting_sources():
+    inventory_path = os.path.join(PLUGIN_ROOT, 'manifests', 'distribution-inventory.json')
+    assets = None
+    if os.path.isfile(inventory_path):
+        try:
+            with open(inventory_path, encoding='utf-8') as fh:
+                assets = json.load(fh).get('supporting_assets')
+        except Exception as exc:
+            raise ValueError(f'cannot read distribution inventory: {exc}')
+    if not isinstance(assets, list) or not assets:
+        fallback = os.path.join(CODEX_SRC, 'config.toml.example')
+        return {'config.toml.example': (fallback, 'config.toml.example')} if os.path.isfile(fallback) else {}
+
+    result = {}
+    for asset in assets:
+        if not isinstance(asset, dict):
+            raise ValueError('distribution inventory supporting asset is malformed')
+        source_rel = safe_inventory_relative(asset.get('source'), 'supporting asset source')
+        destination = safe_inventory_relative(asset.get('destination'), 'supporting asset destination')
+        if destination in result:
+            raise ValueError(f'duplicate supporting asset destination: {destination}')
+        source = os.path.join(PLUGIN_ROOT, *source_rel.split('/'))
+        if not is_within(source, PLUGIN_ROOT) or not lexists(source):
+            raise ValueError(f'supporting asset source is missing or escapes the plugin root: {source_rel}')
+        result[destination] = (source, destination)
+    return result
+
+
 def source_fingerprint():
     digest = hashlib.sha256()
     for root_name in ('skills', 'agents'):
@@ -186,10 +223,11 @@ def source_fingerprint():
             digest.update(b'\0')
             digest.update(hash_path(child).encode('ascii'))
             digest.update(b'\0')
-    supporting = os.path.join(CODEX_SRC, 'config.toml.example')
-    if os.path.isfile(supporting):
-        digest.update(b'config.toml.example\0')
+    for relative, (supporting, destination) in sorted(inventory_supporting_sources().items()):
+        digest.update(destination.encode('utf-8'))
+        digest.update(b'\0')
         digest.update(hash_path(supporting).encode('ascii'))
+        digest.update(b'\0')
     return digest.hexdigest()
 
 
@@ -236,9 +274,7 @@ def current_sources():
             if not lexists(source):
                 continue
             result[kind][name] = (source, f'{kind}/{name}')
-    supporting = os.path.join(CODEX_SRC, 'config.toml.example')
-    if os.path.isfile(supporting):
-        result['supporting_assets']['config.toml.example'] = (supporting, 'config.toml.example')
+    result['supporting_assets'].update(inventory_supporting_sources())
     return result
 
 

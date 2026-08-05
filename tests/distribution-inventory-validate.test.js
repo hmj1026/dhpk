@@ -6,7 +6,7 @@
 // deprecated skills leaking into generated promoted output all fail validation.
 
 const { test, run, assert } = require('./_lib/tinytest');
-const { validateDistributionInventory, LIFECYCLES } = require('../scripts/lib/distribution-inventory');
+const { validateDistributionInventory, validateSupportingAssets, LIFECYCLES } = require('../scripts/lib/distribution-inventory');
 
 function baseInventory() {
   return {
@@ -35,6 +35,51 @@ test('passes when every canonical skill/module has one valid entry', () => {
     canonicalModulePaths: ['modules/vue-2'],
   });
   assert.deepStrictEqual(result.errors, []);
+});
+
+test('validates receipt-managed supporting assets against safe repository paths', () => {
+  const inv = baseInventory();
+  inv.supporting_assets = [
+    { id: 'prompt-defense', source: 'codex/supporting/prompt-defense.md', destination: 'dhpk/prompt-defense.md' },
+  ];
+  const result = validateSupportingAssets({
+    inventory: inv,
+    root: '/repo',
+    exists: (candidate) => candidate === '/repo/codex/supporting/prompt-defense.md',
+  });
+  assert.deepStrictEqual(result.errors, []);
+});
+
+test('rejects duplicate, absolute, and traversal supporting asset mappings', () => {
+  const inv = baseInventory();
+  inv.supporting_assets = [
+    { id: 'one', source: 'codex/a.md', destination: 'dhpk/a.md' },
+    { id: 'one', source: 'codex/b.md', destination: 'dhpk/a.md' },
+    { id: 'bad', source: '../outside.md', destination: '/tmp/outside.md' },
+  ];
+  const result = validateSupportingAssets({ inventory: inv, root: '/repo', exists: () => false });
+  assert.ok(result.errors.some((e) => /duplicate .*id/i.test(e)), result.errors.join('\n'));
+  assert.ok(result.errors.some((e) => /duplicate .*destination/i.test(e)), result.errors.join('\n'));
+  assert.ok(result.errors.some((e) => /safe relative path|traversal|absolute/i.test(e)), result.errors.join('\n'));
+  assert.ok(result.errors.some((e) => /does not exist/i.test(e)), result.errors.join('\n'));
+});
+
+test('requires canonical and projection digests for transformed supporting assets', () => {
+  const inv = baseInventory();
+  inv.supporting_assets = [{
+    id: 'transformed',
+    source: 'codex/supporting/asset.md',
+    canonical_source: 'agent-traps/asset.md',
+    canonical_digest: 'not-a-digest',
+    projection_digest: '',
+    destination: 'dhpk/asset.md',
+  }];
+  const result = validateSupportingAssets({
+    inventory: inv,
+    root: '/repo',
+    exists: (candidate) => candidate === '/repo/codex/supporting/asset.md' || candidate === '/repo/agent-traps/asset.md',
+  });
+  assert.strictEqual(result.errors.filter((e) => /SHA-256 hex digest/.test(e)).length, 2, result.errors.join('\n'));
 });
 
 test('fails when a canonical skill has no lifecycle entry', () => {

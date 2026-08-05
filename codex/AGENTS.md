@@ -10,7 +10,7 @@ When a user runs the bundled installer:
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"
 ```
 
-`codex/skills/` and `codex/agents/` are symlinked (or `--copy`-ed) into the project's `.codex/skills/` and `.codex/agents/`, plus `codex/config.toml.example` is placed alongside any existing `.codex/config.toml`. The installer records these destinations in the schema-versioned `.dhpk-installed.json` receipt and never replaces an unowned same-name asset. Codex CLI then discovers the skills/agents the same way it discovers any project-local Codex content.
+`codex/skills/` and `codex/agents/` are symlinked (or `--copy`-ed) into the project's `.codex/skills/` and `.codex/agents/`, while the inventory-declared support tree is materialized under `.codex/dhpk/` and `codex/config.toml.example` is placed alongside any existing `.codex/config.toml`. The installer records these destinations in the schema-versioned `.dhpk-installed.json` receipt and never replaces an unowned same-name asset. Codex CLI then discovers the skills/agents the same way it discovers any project-local Codex content, and generated roles resolve their trap sheets/contracts through `.codex/dhpk/`.
 
 ## Plugin loading differences (Claude Code vs Codex CLI)
 

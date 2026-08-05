@@ -17,7 +17,7 @@ const fs = require('fs');
 const path = require('path');
 const { createReporter } = require('./_lib/report');
 const { collectInventory, relativePosix, readJson } = require('../lib/asset-inventory');
-const { validateDistributionInventory, reconcileDistribution } = require('../lib/distribution-inventory');
+const { validateDistributionInventory, validateSupportingAssets, reconcileDistribution } = require('../lib/distribution-inventory');
 
 const ROOT = path.join(__dirname, '..', '..');
 const MANIFEST = path.join(ROOT, 'manifests', 'distribution-inventory.json');
@@ -41,6 +41,9 @@ const structural = validateDistributionInventory({
   canonicalModulePaths,
 });
 for (const msg of structural.errors) r.err(msg);
+
+const supporting = validateSupportingAssets({ inventory, root: ROOT });
+for (const msg of supporting.errors) r.err(msg);
 
 const codexSkillsDir = path.join(ROOT, 'codex', 'skills');
 const codexMirrorNames = fs.existsSync(codexSkillsDir) ? fs.readdirSync(codexSkillsDir) : [];

@@ -15,6 +15,7 @@ DDD architecture specialist (framework-agnostic). Use for cross-module design de
 
 Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks — never apply a PHP/Yii layering convention to a Swift change, or vice-versa.
 
+1-2. Loader: `.codex/dhpk/agent-traps/_common/trap-sheet-loader.md` (`<agent-name>` = `architect`). Each detected stack loads its own sheet independently if present.
 3. No sheet matches → apply only the Baseline below.
 
 ## Baseline (language-agnostic)
@@ -62,7 +63,7 @@ A change to a public interface's direction or shape is an **ADR trigger** (below
 | Replace framework component | **ADR** |
 | Change session / auth / authz model | **ADR** + notify security-reviewer |
 
-ADR feeds `openspec/changes/<id>/proposal.md` Decision section, or drops to `.claude/artifacts/adr/ADR-{yyyymmdd}-{slug}.md`. Sections: Context / Decision / Consequences (Pos / Neg / Neutral) / Alternatives / Status.
+ADR feeds `openspec/changes/<id>/proposal.md` Decision section, or drops to `.codex/artifacts/adr/ADR-{yyyymmdd}-{slug}.md`. Sections: Context / Decision / Consequences (Pos / Neg / Neutral) / Alternatives / Status.
 
 ## Phased Plan (multi-step features / refactors)
 
@@ -94,7 +95,7 @@ Success: [ ] <criterion incl. tests pass>
 
 ## Closing — Artifact Output
 
-Two categories (not the standard single `reviews/`): plan → `.claude/artifacts/plans/architect-{yyyymmdd}-{slug}.md`; ADR → `.claude/artifacts/adr/ADR-{yyyymmdd}-{slug}.md`. Frontmatter: `agent / generated_at / commit / scope[] / verdict`, no `severity_summary` (see `docs/contracts/artifact-contract.md` non-reviewer extensions). Retention/degradation: same doc. No sentinel — not in the review chain.
+Two categories (not the standard single `reviews/`): plan → `.codex/artifacts/plans/architect-{yyyymmdd}-{slug}.md`; ADR → `.codex/artifacts/adr/ADR-{yyyymmdd}-{slug}.md`. Frontmatter: `agent / generated_at / commit / scope[] / verdict`, no `severity_summary` (see `.codex/dhpk/contracts/artifact-contract.md` non-reviewer extensions). Retention/degradation: same doc. No review marker — not in the review chain.
 
 ## Output
 
@@ -107,5 +108,5 @@ Tech debt: | Item | Priority | Suggestion |
 
 ## References
 
-- Stack-specific layering conventions, code examples, and language limits are loaded on demand via the matching **Stack trap sheet** above (`agent-traps/architect/<stack>.md`).
+- Stack-specific layering conventions, code examples, and language limits are loaded on demand via the matching **Stack trap sheet** above (`.codex/dhpk/agent-traps/architect/<stack>.md`).
 """

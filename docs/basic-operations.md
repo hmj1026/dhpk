@@ -314,6 +314,12 @@ four hand-maintained generic roles and seven generated from canonical Claude
 agents via `scripts/gen-codex-agents.js`. See `codex/AGENTS.md` and
 `codex/README.md` for the dual-harness model.
 
+Generated roles may depend on shared prompt-defense, trap-sheet, reviewer-contract,
+artifact-contract, or execution-policy content. Those support files are mapped in
+the `supporting_assets` section of `manifests/distribution-inventory.json`, copied
+under `.codex/dhpk/`, and tracked in the same schema-v2 receipt. The runtime
+projection validator rejects unreachable references or Claude plugin-root paths.
+
 ### Codex Plugin Marketplace (experimental support tier)
 
 The repository ships a Codex plugin manifest and marketplace wrapper backed
