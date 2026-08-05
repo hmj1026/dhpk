@@ -42,14 +42,16 @@ metadata:
 
 ### Step 3 — PR hygiene scan（squash merge 用）
 
-若本次將以 squash merge 進 develop / main，**MUST** 跑 unrelated-changes 掃描：
+若本次將以 squash merge 進 develop / main，**MUST** 跑 unrelated-changes 掃描，並把
+PR metadata 中的 merge method 明確傳給腳本：
 
 ```bash
-bash .claude/skills/dhpk-pr-review/scripts/check-unrelated-changes.sh <pr-number>
+bash .claude/skills/dhpk-pr-review/scripts/check-unrelated-changes.sh <pr-number> --merge-method squash
 ```
 
 腳本行為（spec `squash-merge-hygiene`）：
-- 非 squash → 印 `[skip] not a squash merge` 並退出 0
+- 明確傳入 `--merge-method merge|rebase` → 印 `[skip]` 並退出 0
+- 未提供 merge method → **不推測**目前 HEAD 或 commit 數，印 inconclusive notice 並照常掃描
 - squash + PR description 含 `## Unrelated Changes` → 印 `[ok]` 並退出 0
 - squash + PR description **缺** `## Unrelated Changes` → 印 warning + 列疑似 unrelated 檔案集合；**退出仍為 0**（advisory，不擋 merge）
 

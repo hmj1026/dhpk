@@ -1,64 +1,35 @@
-# Effort Guide
+# Effort guide
 
-This file covers the *decision* — which effort level fits the task — not API request
-mechanics. For live parameter syntax and model IDs, see the `claude-api` skill instead of
-re-deriving them here.
+This file describes the decision shape, not current model availability or
+limits. Confirm supported effort values and parameter syntax with Context7 and
+official provider documentation before emitting an API recommendation. Record
+the lookup date and source; mark the result unverified when live docs cannot be
+reached.
 
-## Effort levels (API `output_config.effort`)
+## Stable effort vocabulary
 
-| Level | Description | Typical use case |
+| Level | Use when | Trade-off |
 |---|---|---|
-| `max` | Absolute max capability, no constraint on token spend. Can show diminishing returns / overthinking on structured or less intelligence-sensitive tasks. | Genuinely frontier problems only. |
-| `xhigh` | Extended capability for long-horizon work (30+ min, million-token budgets). Only on Fable 5, Mythos 5, Opus 4.8, Opus 4.7, Sonnet 5. | Hardest coding/agentic tasks: repeated tool calling, deep search, long exploration. |
-| `high` | High capability. Equivalent to omitting `effort` entirely — this is the API default. | Complex reasoning, difficult coding, agentic tasks — the safe default. |
-| `medium` | Balanced, moderate token savings. | Cost-sensitive agentic work that still needs decent quality. |
-| `low` | Most efficient, real capability reduction. | Simple lookups/classification, subagents, high-volume or latency-sensitive work. |
+| `low` | lookup, classification, or a short deterministic edit | least latency/cost, shallowest reasoning |
+| `medium` | ordinary coding or analysis with a bounded scope | balanced quality and cost |
+| `high` | complex reasoning, debugging, or multi-step tool use | more work and latency |
+| `xhigh` | only when live docs confirm the target supports it and the task is long-horizon | highest supported effort; can overthink simple work |
+| `max` | only when live docs explicitly document it and the task warrants it | maximum cost/latency; use sparingly |
 
-Effort affects **all** tokens in the response — text, tool calls/arguments, and thinking.
-Lower effort means fewer or combined tool calls and less preamble; higher effort means more
-tool calls, more explanation, and more thorough self-verification.
+The selected value must come from the verified target's current API or runtime
+controls. Do not translate a value across providers by analogy.
 
-**Every model respects effort strictly at the low end** — at `low`/`medium` the model scopes
-work to exactly what was asked rather than going above and beyond. If you see shallow
-reasoning on a moderately complex task, **raise effort rather than prompting around it**. If
-effort must stay low for latency reasons, add: `"This task involves multi-step reasoning.
-Think carefully through the problem before responding."`
+## Fallback when effort must stay low
 
-At `xhigh`/`max`, set a large `max_tokens` (start around 64k) so the model has room to think
-and act across subagents and tool calls.
+For a genuinely multi-step task constrained to `low` or `medium`, add:
+“This task involves multi-step reasoning. Think carefully through the problem
+before responding.” State that this is a quality safeguard, not a substitute
+for a supported effort setting.
 
-## Per-model calibration
+## dhpk / Claude Code mapping
 
-| Model | Default | Raise to `xhigh` for | Notes |
-|---|---|---|---|
-| Claude Sonnet 5 | `high` | Hardest coding/agentic work | No `xhigh` gap vs Opus — same recommendation shape. |
-| Claude Opus 4.8 | `high` | Coding/agentic use cases (start here, not at `high`) | Favors reasoning over tool calls; effort is also the lever to increase tool usage. |
-| Claude Fable 5 / Mythos 5 | `high` | The most capability-sensitive workloads only | Step down to `medium`/`low` for routine work — often still beats `xhigh` on older models. |
-| Claude Sonnet 4.6 | `high` | N/A — `xhigh` not available on this model | Set effort explicitly to avoid unexpected latency. |
-| Claude Opus 4.5-4.7 | `high` | Opus 4.7 only (Opus 4.5/4.6 lack `xhigh`) | Same "respect strictly at low end" caveat applies. |
-
-## Mapping to dhpk / Claude Code
-
-> Tier/cost rationale — which model each role runs on, and the master cost rules — lives in `rules/model-economics.md`. This guide owns only the **effort** dimension; the two are cross-linked, neither restates the other.
-
-Once you've picked an API-style effort value, state its dhpk/Claude-Code equivalent too:
-
-- **dhpk agent-frontmatter `effort:` field** (`low`/`medium`/`high` only — no dhpk agent
-  currently uses `xhigh`/`max`). Confirmed distribution across the 23 agents that set it:
-  `architect`, `security-reviewer`, `spec-miner`, `swift-build-resolver` → `high`;
-  `docs-lookup`, `harness-reviser` → `low`; the remaining ~17 (most reviewers, `tdd-guide`,
-  `doc-updater`, build-resolvers, etc.) → `medium`. Use this table as the reference point
-  when the optimized prompt is destined for a new or edited dhpk agent/skill.
-- **Claude Code's interactive effort dial** — same low/medium/high/xhigh/max vocabulary.
-  `ultracode` is not a separate API level; it pairs `xhigh` with standing permission for
-  multi-agent workflows.
-- **`Task`/`Agent`/`Workflow` tool `effort` options** accept the API values directly
-  (`low`/`medium`/`high`/`xhigh`/`max`) — no translation needed when recommending an effort
-  for a subagent dispatch.
-
-## Fallback instruction for forced-low effort
-
-When cost or latency requires staying at `low`/`medium` despite a task that has real
-multi-step reasoning in it, always append: `"This task involves multi-step reasoning. Think
-carefully through the problem before responding."` This is cheaper than raising effort and
-recovers most of the quality gap on moderately complex tasks.
+When the destination is a dhpk agent, use only the frontmatter values that its
+current schema accepts (`low`, `medium`, or `high` unless live documentation
+says otherwise). When the destination is an interactive runtime or subagent
+tool, pass the verified API value directly. If the mapping is not documented,
+report the API value and the dhpk equivalent as unknown rather than guessing.

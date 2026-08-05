@@ -97,8 +97,20 @@ get_observations(ids=[<claude_mem_obs_id>])
 # Prefer the explicit handoff path; fall back to the newest compact on disk.
 COMPACT="<compact_json_path>"
 { [ -n "$COMPACT" ] && [ -f "$COMPACT" ]; } || COMPACT=$(ls -t compact-notes/compact-*.json 2>/dev/null | head -1)
-[ -n "$COMPACT" ] && bash .claude/scripts/opsx-apply-resume/extract-compact.sh "$COMPACT"
+extractor=""
+for root in "${CLAUDE_PLUGIN_ROOT:-}" "${PLUGIN_ROOT:-}" "${DHPK_PLUGIN_ROOT:-}" "${DHPK_SOURCE_ROOT:-}"; do
+  if [ -n "$root" ] && [ -x "$root/scripts/opsx-apply-resume/extract-compact.sh" ]; then
+    extractor="$root/scripts/opsx-apply-resume/extract-compact.sh"; break
+  fi
+done
+if [ -n "$COMPACT" ] && [ -n "$extractor" ]; then "$extractor" "$COMPACT"; else
+  echo "CONTEXT_SOURCE=unresolved: set PLUGIN_ROOT for an installed plugin or DHPK_SOURCE_ROOT for a source checkout" >&2
+fi
 ```
+
+Read `references/extractor-resolution.md` when Tier 1 is used. It documents
+the installed-plugin and source-checkout candidates and the actionable
+`unresolved` fallback.
 
 - Script outputs fields → parse L0, session_goal, completed, in_progress.
   Set `CONTEXT_SOURCE = "compact JSON"` — append `(heuristic)` when `$COMPACT`

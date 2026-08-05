@@ -56,7 +56,7 @@ plugin_hash    = git hash-object --no-filters <plugin-path>  # source of truth
 | Category | Local Path | Plugin Source | Files |
 |----------|-----------|--------------|-------|
 | Rules | `.claude/rules/*.md` | `rules/*.md` | `auto-loop.md`, `codex-invocation.md`, `fix-all-issues.md`, `framework.md`, `testing.md`, `security.md`, `git-workflow.md`, `logging.md`, `docs-writing.md`, `docs-numbering.md`, `self-improvement.md`, `context-management.md` |
-| Hooks | `.claude/hooks/*.sh` | `hooks/*.sh` | `pre-edit-guard.sh`, `post-edit-format.sh`, `post-tool-review-state.sh`, `stop-guard.sh`, `post-compact-auto-loop.sh` |
+| Hooks | `.claude/hooks/*.sh` | `scripts/hooks/*.sh` | `pre-edit-guard.sh`, `pre-edit-batch-gate.sh`, `post-edit-dispatch.sh`, `post-edit-advisory.sh`, `stop-review-reminder.sh` |
 | Scripts | `.claude/scripts/` | `scripts/` | `precommit-runner.js`, `verify-runner.js`, `dep-audit.sh`, `commit-msg-guard.sh`, `pre-push-gate.sh`, `lib/utils.js` |
 
 ## S2.5: Override Safeguard Checks
@@ -66,7 +66,7 @@ plugin_hash    = git hash-object --no-filters <plugin-path>  # source of truth
 | # | Check | Severity | Detection | Recommendation |
 |---|-------|----------|-----------|----------------|
 | 1 | Override drift | P2 | `based_on` hash comment in project file vs current base file hash | "Base auto-loop updated since override authored; review your overrides" |
-| 2 | Policy contradiction | P1 | Override's Auto-Trigger table omits a command that `stop-guard.sh` requires | "Override conflicts with stop-guard enforcement" |
+| 2 | Policy contradiction | P1 | Override's Auto-Trigger table omits a review command required by `stop-review-reminder.sh` | "Override conflicts with review reminder enforcement" |
 | 3 | Missing reference | P1 | `.claude/CLAUDE.md` has `@rules/auto-loop-project.md` but file missing, OR file exists but not referenced | `/install-rules` to recreate or add reference |
 | 4 | Wrong-layer edit | P2 | Base `auto-loop.md` has `LOCAL_MODIFIED`, `CONFLICT`, or `LEGACY` state while project override exists | "Move customization to auto-loop-project.md" |
 | 5 | Duplicate heading | P2 | Override file has multiple active `## <heading>` with same text | "Keep one, remove duplicates. Last occurrence takes effect." |

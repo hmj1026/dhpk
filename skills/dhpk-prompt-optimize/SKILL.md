@@ -21,10 +21,10 @@ Rewrite a raw, informally-written task prompt into a model-aware, effort-calibra
 ## Workflow
 
 1. **Collect the raw prompt.** Take the user's pasted text verbatim, or `Read` the file if they pointed at one instead of pasting. Do not start rewriting yet.
-2. **Detect the target model.** Default to the current session's model (Claude Code states it in its own environment info, e.g. "You are powered by the model named X"). Use an explicit override if the user names a different target (e.g. "for Opus 4.8 API calls" or "for a Sonnet 5 subagent"). This drives step 5 — see `references/model-guides.md`.
-3. **Classify the task and pick an effort level.** Bucket the task as one of: simple lookup/classification, complex reasoning, coding/agentic tool-use, long-horizon autonomous, creative/design. Look up `references/effort-guide.md`'s per-model calibration table and produce one effort value plus a one-line rationale. State both the API `output_config.effort` value and its dhpk/Claude-Code equivalent (agent-frontmatter `effort:` field, or the interactive effort dial). If the task needs more than shallow reasoning but latency/cost forces a lower effort, add the fallback line from `references/effort-guide.md`.
+2. **Detect and verify the target model.** Default to the current session's model, or use an explicit override from the user. Before making any model-specific claim, query **Context7** and then the provider's **official documentation**. Follow the dated process in `references/live-model-verification-2026-08-05.md`; record the date and sources, or mark the recommendation `unverified` and keep it generic.
+3. **Classify the task and pick an effort level.** Bucket the task as one of: simple lookup/classification, complex reasoning, coding/agentic tool-use, long-horizon autonomous, creative/design. Use `references/effort-guide.md` for the stable decision shape, then confirm the target's supported values in the live docs. State one verified effort value plus a one-line rationale and its dhpk/Claude-Code equivalent. If the task needs more than shallow reasoning but latency/cost forces a lower effort, add the fallback line from `references/effort-guide.md`.
 4. **Run the completeness gate.** Check the raw prompt against `references/completeness-checklist.md`. For every REQUIRED gap, draft a question; call `AskUserQuestion` once with up to 4 batched questions (split into further calls only if more than 4 required gaps exist). For OPTIONAL gaps, don't ask — record the default assumption you'll state in the final output instead. Do not skip this step even if the prompt looks "good enough."
-5. **Apply model-aware rewrites.** Once required gaps are answered, rewrite the prompt: general best practices first (`references/general-techniques.md`), then the target model's specific behavioral deltas on top (`references/model-guides.md`). Apply the reusable-template technique (`{{variable}}` placeholders) only if the prompt shows real signs of reuse with variable inputs — not by default.
+5. **Apply verified model-aware rewrites.** Once required gaps are answered, rewrite the prompt: general best practices first (`references/general-techniques.md`), then only the target deltas confirmed by live docs (`references/model-guides.md`). Apply the reusable-template technique (`{{variable}}` placeholders) only if the prompt shows real signs of reuse with variable inputs — not by default.
 6. **Assemble the final output** in the exact shape below. Never emit the optimized prompt without having run step 4's gate first.
 
 ## Output
@@ -37,7 +37,7 @@ Exactly three parts, in this order:
 
 ## Verification
 
-- [ ] Target model detected (session default or explicit override) before any rewrite
+- [ ] Target model detected and checked through Context7 plus official documentation (or explicitly marked unverified)
 - [ ] Completeness gate run against `references/completeness-checklist.md`; all REQUIRED gaps asked via one batched `AskUserQuestion` call; all OPTIONAL gaps have a stated default in the output
 - [ ] Effort recommendation cites the per-model calibration table and states both the API value and the dhpk/Claude-Code equivalent
 - [ ] Output has exactly the 3 parts above, no extra essay
@@ -45,8 +45,9 @@ Exactly three parts, in this order:
 
 ## References
 
-- `references/model-guides.md` — per-model behavioral deltas (Sonnet 5, Opus 4.8, Fable 5/Mythos 5, older-model fallback). Read at step 2/5 once the target model is known.
-- `references/effort-guide.md` — effort-level decision table, per-model calibration, dhpk agent-frontmatter mapping. Read at step 3.
+- `references/model-guides.md` — verified target-class deltas with no stale model catalog. Read at step 2/5 once the target model is known.
+- `references/effort-guide.md` — stable effort decision shape and mapping guardrails. Read at step 3.
+- `references/live-model-verification-2026-08-05.md` — dated Context7/official-doc verification process. Read before any model-specific claim.
 - `references/completeness-checklist.md` — required-vs-optional information gate and the `AskUserQuestion` batching contract. Read at step 4.
 - `references/general-techniques.md` — all-models best-practices toolbox plus the reusable-template technique. Read at step 5.
 

@@ -42,7 +42,20 @@ See `references/instinct-model.md` for the full pipeline diagram and the instinc
 
 ## Quick Start
 
-### 1. Enable Observation Hooks
+### 1. Decide whether to enable observation hooks
+
+Observation is opt-in. The shipped `config.json` keeps `observer.enabled` set
+to `false`, so installing this skill does not start background capture. Enable
+`observer.enabled` to `true` only after reviewing the privacy and storage behavior in
+`references/storage-and-config.md`:
+
+```json
+{ "observer": { "enabled": true } }
+```
+
+After that explicit change, continue with the hook setup below.
+
+### 2. Enable Observation Hooks
 
 **If installed as a plugin** (recommended):
 
@@ -73,7 +86,7 @@ If you previously copied `observe.sh` into `~/.claude/settings.json`, remove tha
 }
 ```
 
-### 2. Initialize Directory Structure
+### 3. Initialize Directory Structure
 
 The system creates directories automatically on first use, but you can also create them manually:
 
@@ -84,7 +97,7 @@ mkdir -p "${XDG_DATA_HOME:-$HOME/.local/share}/dhpk-homunculus"/{instincts/{pers
 # Project directories are auto-created when the hook first runs in a git repo
 ```
 
-### 3. Use the Instinct Commands
+### 4. Use the Instinct Commands
 
 ```bash
 /instinct-status     # Show learned instincts (project + global)

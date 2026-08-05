@@ -98,7 +98,9 @@ case "$phase" in
             echo "release-runner: workflow run not found for tag $tag" >&2
             exit 1
         fi
-        gh run watch "$run_id"
+        # --exit-status makes a failed GitHub Actions run fail this release
+        # runner instead of allowing a tag to be reported as published.
+        gh run watch "$run_id" --exit-status
 
         git checkout "$base_branch"
         git pull --ff-only

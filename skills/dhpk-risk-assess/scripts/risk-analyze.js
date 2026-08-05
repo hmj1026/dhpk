@@ -33,6 +33,15 @@ function loadClassification() {
 }
 const CLASSIFICATION = loadClassification();
 const CODE_EXTS = CLASSIFICATION?.code_extensions ?? ['.ts', '.tsx', '.js', '.jsx'];
+// Keep a conservative source-language census separate from CODE_EXTS.  A
+// changed source file that has no configured adapter must not be scored as a
+// harmless documentation change; it is an explicit inconclusive result.
+const SOURCE_EXTS = new Set([
+  ...CODE_EXTS,
+  '.c', '.cc', '.cpp', '.cs', '.dart', '.ex', '.exs', '.go', '.h', '.hh',
+  '.hpp', '.java', '.jl', '.kt', '.kts', '.lua', '.m', '.mm', '.php', '.pl',
+  '.py', '.rb', '.rs', '.scala', '.sh', '.sql', '.swift', '.vb', '.zig',
+]);
 const IGNORE_PREFIXES = CLASSIFICATION?.ignore_prefixes ?? [
   'node_modules/', 'vendor/', 'dist/', 'build/', 'out/',
   'target/', '.next/', '.nuxt/', '__pycache__/', '.pytest_cache/',
@@ -56,6 +65,13 @@ const BASE = argVal('--base') || 'HEAD';
 function isCodeFile(filePath) {
   const ext = path.extname(filePath);
   return CODE_EXTS.includes(ext);
+}
+
+function unsupportedSourceFiles(files) {
+  return files.filter(({ file }) => {
+    const ext = path.extname(file).toLowerCase();
+    return SOURCE_EXTS.has(ext) && !CODE_EXTS.includes(ext) && !isIgnored(file);
+  });
 }
 
 function isIgnored(filePath) {
@@ -647,6 +663,44 @@ function buildOutput(root, branch, head, breakingSurface, blastRadius, changeSco
   };
 }
 
+function buildInconclusiveOutput(root, branch, head, mode, base, files) {
+  const extensions = [...new Set(files.map(({ file }) => path.extname(file).toLowerCase()).filter(Boolean))].sort();
+  const listed = files.map(({ file }) => file).slice(0, 10);
+  return {
+    version: 1,
+    repo: path.basename(root),
+    branch,
+    head,
+    mode,
+    base,
+    overall_score: null,
+    risk_level: 'Inconclusive',
+    inconclusive: true,
+    reason: `Unsupported source language(s) ${extensions.join(', ')}; no configured adapter or classification is available`,
+    unsupported_files: listed,
+    dimensions: {
+      breaking_surface: { score: null, weight: 45, signals: [] },
+      blast_radius: { score: null, weight: 35, dependents_total: null, confidence: 'none', top_affected: [] },
+      change_scope: {
+        score: null,
+        weight: 20,
+        metrics: { file_count: null, loc_delta: null, dir_span: null, rename_ratio: null },
+      },
+    },
+    flags: {
+      migration_safety: { triggered: false, has_rollback: false, files: [] },
+      regression_hint: { triggered: false, message: 'not scored' },
+    },
+    deep_analysis: null,
+    gate: 'REVIEW',
+    next_actions: [{
+      action: 'Configure a source-language adapter/classification before scoring',
+      command: null,
+      reason: 'Risk cannot be classified safely for unsupported source files',
+    }],
+  };
+}
+
 function formatMarkdown(output) {
   const lines = [];
   const icon = output.risk_level === 'Low' ? '🟢' : output.risk_level === 'Medium' ? '🟡' : output.risk_level === 'High' ? '🟠' : '🔴';
@@ -773,6 +827,17 @@ async function main() {
 
   // Collect diff data
   const diff = await collectDiff(root, BASE);
+
+  const unsupported = unsupportedSourceFiles(diff.files);
+  if (unsupported.length > 0) {
+    const output = buildInconclusiveOutput(root, branch, head, MODE, BASE, unsupported);
+    if (FORMAT === 'markdown') {
+      console.log(formatMarkdown(output));
+    } else {
+      console.log(JSON.stringify(output, null, 2));
+    }
+    process.exit(1);
+  }
 
   if (diff.files.length === 0) {
     // No changes

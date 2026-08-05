@@ -70,7 +70,9 @@ Determine whether `CLAUDE_CODE_AUTO_COMPACT_WINDOW` should be recommended:
 - Preserve all non-`env` keys in settings (hooks, etc.)
 - Write updated settings back
 
-> **Note**: Runtime mode resolution for `STOP_GUARD_MODE` follows: env var > `settings.local.json` > `settings.json` > default `warn`. See `hooks/stop-guard.sh` for canonical precedence.
+> **Note**: Review reminder behavior is configured by the active plugin profile and
+> `settings.local.json`/`settings.json`; see `scripts/hooks/stop-review-reminder.sh`
+> for the current sentinel and debounce behavior.
 
 ## 6.7.5 Interaction with Phase 6.3 and `/install-hooks`
 

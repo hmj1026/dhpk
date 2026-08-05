@@ -36,9 +36,9 @@ Same 3-level fallback as Phase 5.1, but search for `scripts/hooks/pre-edit-guard
    | Hook | Event | Matcher | Purpose |
    |------|-------|---------|---------|
    | `pre-edit-guard.sh` | PreToolUse | Edit\|Write | Block editing .env/.git |
-   | `post-edit-format.sh` | PostToolUse | Edit\|Write | Auto-format + track changes |
-   | `post-tool-review-state.sh` | PostToolUse | Bash\|mcp__codex__codex\|mcp__codex__codex-reply | Parse review results |
-   | `stop-guard.sh` | Stop | — | Check review + precommit completed |
+   | `post-edit-dispatch.sh` | PostToolUse | Edit\|Write\|MultiEdit | Route sentinel and module post-edit work |
+   | `post-edit-advisory.sh` | PostToolUse | Edit\|Write\|MultiEdit | Run non-blocking edit advisories |
+   | `stop-review-reminder.sh` | Stop | — | Remind about pending review sentinels |
    | `post-compact-auto-loop.sh` | SessionStart | compact | Re-inject auto-loop rules after compaction |
 
 3. `chmod +x` each installed script.
@@ -57,11 +57,11 @@ Hook definition mapping (uses `$CLAUDE_PROJECT_DIR` for portability):
       {"matcher": "Edit|Write", "hooks": [{"type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pre-edit-guard.sh"}]}
     ],
     "PostToolUse": [
-      {"matcher": "Edit|Write", "hooks": [{"type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/post-edit-format.sh"}]},
-      {"matcher": "Bash|mcp__codex__codex|mcp__codex__codex-reply", "hooks": [{"type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/post-tool-review-state.sh"}]}
+      {"matcher": "Edit|Write|MultiEdit", "hooks": [{"type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/post-edit-dispatch.sh"}]},
+      {"matcher": "Edit|Write|MultiEdit", "hooks": [{"type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/post-edit-advisory.sh"}]}
     ],
     "Stop": [
-      {"matcher": "", "hooks": [{"type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/stop-guard.sh"}]}
+      {"matcher": "", "hooks": [{"type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/stop-review-reminder.sh"}]}
     ],
     "SessionStart": [
       {"matcher": "compact", "hooks": [{"type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/post-compact-auto-loop.sh"}]}

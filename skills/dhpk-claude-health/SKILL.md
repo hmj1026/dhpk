@@ -98,7 +98,7 @@ metadata:
 |------|----------|--------|--------|
 | auto-loop.md | Rules | OUTDATED | `/install-rules auto-loop` |
 | security.md | Rules | OK | — |
-| stop-guard.sh | Hooks | MISSING | `/install-hooks stop-guard` |
+| stop-review-reminder.sh | Hooks | MISSING | `/install-hooks stop-review-reminder` |
 | ... | ... | ... | ... |
 
 ### S3: Settings Compatibility

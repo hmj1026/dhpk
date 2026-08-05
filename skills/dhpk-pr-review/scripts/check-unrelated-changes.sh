@@ -2,12 +2,12 @@
 # check-unrelated-changes.sh — advisory PR description scanner
 #
 # Usage:
-#   bash .claude/skills/dhpk-pr-review/scripts/check-unrelated-changes.sh <pr-number>
+#   bash .claude/skills/dhpk-pr-review/scripts/check-unrelated-changes.sh <pr-number> [--merge-method squash|merge|rebase]
 #
 # Behavior:
-#   1. 偵測 PR 是否為 squash merge（gh pr view → mergeStateStatus / commits=1）
+#   1. Require explicit merge metadata from the caller (or DHPK_PR_MERGE_METHOD)
 #   2. 若是 squash + PR description 缺 `## Unrelated Changes` 段 → stdout 印 warning + 列疑似 unrelated 檔案集合
-#   3. 若非 squash → 印 `[skip] not a squash merge` 並退出 0
+#   3. Skip only when explicit metadata says merge/rebase
 #   4. 退出碼永遠 0（advisory only，不阻擋 merge）
 #
 # Source: project OpenSpec capability spec for squash-merge-hygiene
@@ -15,45 +15,66 @@
 
 set -uo pipefail
 
-PR_NUMBER="${1:-}"
+# ---- Step 1: require explicit merge metadata -----------------------------
+#
+# A commit subject, current HEAD, or commit count cannot establish how a PR
+# will be merged. The caller must pass --merge-method (or set the environment
+# variable from trusted PR metadata). Missing metadata is deliberately
+# inconclusive and therefore runs the advisory scan instead of skipping it.
+
+PR_NUMBER=""
+MERGE_METHOD="${DHPK_PR_MERGE_METHOD:-}"
+while [[ "$#" -gt 0 ]]; do
+    case "$1" in
+        --merge-method)
+            MERGE_METHOD="${2:-}"
+            shift 2
+            ;;
+        --pr-number)
+            PR_NUMBER="${2:-}"
+            shift 2
+            ;;
+        -h|--help)
+            echo "Usage: $0 <pr-number> [--merge-method squash|merge|rebase]"
+            exit 0
+            ;;
+        --*)
+            echo "[error] unknown option: $1"
+            exit 0
+            ;;
+        *)
+            if [[ -z "$PR_NUMBER" ]]; then
+                PR_NUMBER="$1"
+            else
+                echo "[error] unexpected argument: $1"
+                exit 0
+            fi
+            shift
+            ;;
+    esac
+done
 
 if [[ -z "$PR_NUMBER" ]]; then
-    echo "[error] Usage: $0 <pr-number>"
-    echo "        Example: $0 42"
+    echo "[error] Usage: $0 <pr-number> [--merge-method squash|merge|rebase]"
+    echo "        Supply explicit merge metadata; missing metadata is inconclusive."
     exit 0   # advisory: 不阻擋
 fi
 
-# ---- Step 1: 偵測 PR squash 與否（git-only，per spec squash-merge-hygiene） ----
-#
-# Strategy (spec order):
-#   1. (Primary, git-only) commit message 含 squash 標籤：`Squash merge of` / `(#N)` 結尾
-#   2. (Optional 補強) gh CLI 可用時用 commits 陣列長度 == 1 作 secondary check
-#
-# 注意：`commit_count == 1` **不等於** squash merge — 單一 commit 的普通 PR 也是 1；
-# 故 spec 把 commit message pattern 列為主，commits == 1 僅當作 corroborating evidence
-
-is_squash=0
-commit_count=""
-
-# (1) Primary git-only detection — latest commit message
-latest_msg="$(git log -1 --pretty=%B 2>/dev/null || echo '')"
-if echo "$latest_msg" | grep -qE '^Squash merge of|\(#[0-9]+\)\s*$'; then
-    is_squash=1
-fi
-
-# (2) Optional 補強：gh CLI commits.length == 1 ∧ message 含 PR 編號樣態
-if [[ "$is_squash" -ne 1 ]] && command -v gh > /dev/null 2>&1; then
-    commit_count="$(gh pr view "$PR_NUMBER" --json commits --jq '.commits | length' 2>/dev/null || echo "")"
-    # 僅當「commits==1」且「latest commit message 包含 PR 編號 (#N)」時才視為 squash 樣板
-    if [[ "$commit_count" == "1" ]] && echo "$latest_msg" | grep -qE '\(#[0-9]+\)'; then
-        is_squash=1
-    fi
-fi
-
-if [[ "$is_squash" -ne 1 ]]; then
-    echo "[skip] not a squash merge (commits=${commit_count:-unknown}); unrelated-changes check skipped"
-    exit 0
-fi
+case "$MERGE_METHOD" in
+    merge|rebase)
+        echo "[skip] merge method '$MERGE_METHOD' supplied explicitly; unrelated-changes check is squash-only"
+        exit 0
+        ;;
+    squash)
+        echo "[info] merge method 'squash' supplied explicitly; running unrelated-changes check"
+        ;;
+    "")
+        echo "[info] merge method not provided; running an inconclusive advisory scan (no skip inferred from HEAD)"
+        ;;
+    *)
+        echo "[info] merge method '$MERGE_METHOD' is not recognized; running an inconclusive advisory scan"
+        ;;
+esac
 
 # ---- Step 2: 取 PR description 並 grep `## Unrelated Changes` 段 ----
 

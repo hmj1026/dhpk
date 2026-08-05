@@ -19,7 +19,7 @@ const _pluginRoot = (() => {
 })();
 
 const { runCapture, gitRepoRoot, gitShortHead, qualifyCommand } = require(path.join(_pluginRoot, 'scripts', 'lib', 'utils'));
-const { resolveFeatureContext: _resolveFeature } = require(path.join(_pluginRoot, 'scripts', 'lib', 'feature-resolver'));
+const { resolveFeature: _resolveFeature } = require(path.join(_pluginRoot, 'scripts', 'lib', 'feature-resolver'));
 
 // ---------------------------------------------------------------------------
 // File classification config (language-agnostic)
@@ -194,7 +194,12 @@ function evaluateGates(reviewState, files) {
 // Feature context resolution (delegated to shared module)
 // ---------------------------------------------------------------------------
 function resolveFeatureContext(root, branch, changedPaths) {
-  return _resolveFeature(root, branch, changedPaths, { featureKey: FEATURE_KEY });
+  return _resolveFeature({
+    cwd: root,
+    feature: FEATURE_KEY,
+    branch,
+    changedPaths,
+  });
 }
 
 // ---------------------------------------------------------------------------

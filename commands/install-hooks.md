@@ -84,9 +84,9 @@ Read all `.sh` files from the discovered `scripts/hooks/` directory. The availab
 | Hook | Event | Matcher | Purpose |
 |------|-------|---------|---------|
 | `pre-edit-guard.sh` | PreToolUse | Edit, Write | Block editing sensitive files (.env, .git/) |
-| `post-edit-format.sh` | PostToolUse | Edit, Write | Auto-format + track code/doc changes |
-| `post-tool-review-state.sh` | PostToolUse | Bash, mcp__codex__codex, mcp__codex__codex-reply | Parse review results, update state file |
-| `stop-guard.sh` | Stop | — | Check review + precommit completed before stop |
+| `post-edit-dispatch.sh` | PostToolUse | Edit, Write, MultiEdit | Route sentinel and module post-edit work |
+| `post-edit-advisory.sh` | PostToolUse | Edit, Write, MultiEdit | Run non-blocking edit advisories |
+| `stop-review-reminder.sh` | Stop | — | Remind about pending review sentinels |
 
 > **Note**: The plugin's `SessionStart` hook, `scripts/hooks/session-start.sh` (wired in `hooks/hooks.json`), is intentionally excluded from local install by default — it may emit plugin-context guidance that assumes the plugin is loaded, which does not apply to standalone local installations. If a `SessionStart` example is needed, use `scripts/hooks/session-start.sh`.
 
@@ -135,11 +135,11 @@ Hook definition mapping (use `$CLAUDE_PROJECT_DIR` for CWD-independent paths —
       {"matcher": "Edit|Write", "hooks": [{"type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/pre-edit-guard.sh"}]}
     ],
     "PostToolUse": [
-      {"matcher": "Edit|Write", "hooks": [{"type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/post-edit-format.sh"}]},
-      {"matcher": "Bash|mcp__codex__codex|mcp__codex__codex-reply", "hooks": [{"type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/post-tool-review-state.sh"}]}
+      {"matcher": "Edit|Write|MultiEdit", "hooks": [{"type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/post-edit-dispatch.sh"}]},
+      {"matcher": "Edit|Write|MultiEdit", "hooks": [{"type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/post-edit-advisory.sh"}]}
     ],
     "Stop": [
-      {"matcher": "", "hooks": [{"type": "command", "command": "STOP_GUARD_MODE=<MODE> \"$CLAUDE_PROJECT_DIR\"/.claude/hooks/stop-guard.sh"}]}
+      {"matcher": "", "hooks": [{"type": "command", "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/stop-review-reminder.sh"}]}
     ]
   }
 }
@@ -158,7 +158,7 @@ Merge strategy:
     - Same command path exists → **Skip**
     - Different command at same matcher → **Skip** + warn (unless `--force`)
     - No matching entry → **Append**
-- **Stop hook mode merge**: when an existing Stop entry references `stop-guard.sh`, compare the full command string (including `STOP_GUARD_MODE=...` prefix). If mode differs and `--force` is set, replace the entry. If mode differs without `--force`, warn and skip.
+- **Stop reminder merge**: when an existing Stop entry references `stop-review-reminder.sh`, compare the full command string. If it differs and `--force` is set, replace the entry; otherwise warn and skip.
 - `--force` semantics: **Replace** the existing entry at the same matcher (not append a duplicate). Remove the old entry, then add the new one.
 - Write updated settings back
 
@@ -176,9 +176,9 @@ Merge strategy:
 | Hook | Script | Settings | Status |
 |------|--------|----------|--------|
 | pre-edit-guard.sh | ✅ Copied | ✅ Added (PreToolUse) | Installed |
-| post-edit-format.sh | ✅ Copied | ✅ Added (PostToolUse) | Installed |
-| post-tool-review-state.sh | ✅ Copied | ✅ Added (PostToolUse) | Installed |
-| stop-guard.sh | ⚠️ Exists (conflict) | — Skipped | Conflict |
+| post-edit-dispatch.sh | ✅ Copied | ✅ Added (PostToolUse) | Installed |
+| post-edit-advisory.sh | ✅ Copied | ✅ Added (PostToolUse) | Installed |
+| stop-review-reminder.sh | ⚠️ Exists (conflict) | — Skipped | Conflict |
 
 **Installed**: N / **Skipped**: M / **Conflicts**: K
 

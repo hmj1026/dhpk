@@ -118,7 +118,9 @@ scan_dir_to_json() {
       '{path:$path,name:$name,description:$description,use_7d:$use_7d,use_30d:$use_30d,mtime:$mtime}' \
       > "$tmpdir/$i.json"
     i=$((i+1))
-  done < <(find "$dir" -name "*.md" -type f 2>/dev/null | sort)
+  # A skill record is anchored to the package entrypoint.  Supporting
+  # references and README markdown are intentionally not inventory items.
+  done < <(find "$dir" -name "SKILL.md" -type f 2>/dev/null | sort)
 
   if [[ $i -eq 0 ]]; then
     echo "[]"
