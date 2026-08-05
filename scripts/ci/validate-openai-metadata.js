@@ -6,16 +6,114 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const crypto = require('node:crypto');
 const { collectInventory, relativePosix } = require('../lib/asset-inventory');
 const { extract, isEmpty, extractInvocationClass } = require('./_lib/frontmatter');
 const { createReporter } = require('./_lib/report');
 
-const PHYSICAL_SOURCES = Object.freeze({
-  'legacy-code-characterization': 'modules/phpunit-5.7/skills/legacy-code-characterization',
-  'php56-yii-dev': 'modules/yii-1.1/skills/php56-yii-dev',
-  'php-pro': 'modules/php-5.6/skills/php-pro',
-  'yii1-security-audit': 'modules/yii-1.1/skills/yii1-security-audit',
+// Physical mirrors are inventory-owned.  The four current entries allow
+// Codex-specific body/reference transforms, but their metadata and runtime
+// contract still have to match the canonical source.  Keeping the allowed
+// transform paths explicit makes intentional differences auditable instead of
+// silently accepting manual drift.
+const PROJECTION_RULES = Object.freeze({
+  'legacy-code-characterization': Object.freeze(['SKILL.md']),
+  'php56-yii-dev': Object.freeze(['SKILL.md']),
+  'php-pro': Object.freeze(['SKILL.md', 'references/agent-extracts']),
+  'yii1-security-audit': Object.freeze(['SKILL.md']),
 });
+
+// Body-level transforms are intentionally different for the four physical
+// mirrors.  These markers are the semantic output contract that must survive
+// a Codex adaptation; unknown physical projections must remain byte-normalized
+// at the output-contract level.
+const OUTPUT_CONTRACT_RULES = Object.freeze({
+  'legacy-code-characterization': Object.freeze(['tests/integration', 'tests/unit', '覆蓋率']),
+  'php56-yii-dev': Object.freeze(['Task classification', 'Context7 basis', 'Verification', 'Risks / assumptions']),
+  'php-pro': Object.freeze(['Detected runtime', 'References loaded', 'Testing layer']),
+  'yii1-security-audit': Object.freeze(['AccessControl', 'RBAC', 'CSRF', 'XSS', 'SQL', 'MassAssignment', 'File', 'Session']),
+});
+
+function derivePhysicalSources(root) {
+  const manifestPath = path.join(root, 'manifests', 'distribution-inventory.json');
+  if (!fs.existsSync(manifestPath)) return {};
+  try {
+    const inventory = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    const sources = {};
+    for (const entry of inventory.skills || []) {
+      const surfaces = Array.isArray(entry.surfaces) ? entry.surfaces : [];
+      if (entry && entry.id && entry.path && surfaces.includes('codex-sync')) {
+        sources[entry.id] = entry.path;
+      }
+    }
+    return sources;
+  } catch (_) {
+    return {};
+  }
+}
+
+function fingerprintDirectory(root, ignored = []) {
+  const digest = crypto.createHash('sha256');
+  const ignoredPaths = ignored.map((entry) => entry.replace(/\\/g, '/').replace(/\/$/, ''));
+  const isIgnored = (relative) => ignoredPaths.some((prefix) => relative === prefix || relative.startsWith(`${prefix}/`));
+  const walk = (current, relative) => {
+    if (isIgnored(relative)) return;
+    const stat = fs.lstatSync(current);
+    if (stat.isSymbolicLink()) {
+      const target = fs.realpathSync(current);
+      const targetStat = fs.statSync(target);
+      if (targetStat.isDirectory()) {
+        for (const name of fs.readdirSync(target).sort()) {
+          const childRel = relative ? `${relative}/${name}` : name;
+          walk(path.join(target, name), childRel);
+        }
+      } else {
+        digest.update(relative);
+        digest.update('\0');
+        digest.update(fs.readFileSync(target));
+        digest.update('\0');
+      }
+      return;
+    }
+    if (stat.isDirectory()) {
+      for (const name of fs.readdirSync(current).sort()) {
+        const childRel = relative ? `${relative}/${name}` : name;
+        walk(path.join(current, name), childRel);
+      }
+      return;
+    }
+    digest.update(relative);
+    digest.update('\0');
+    digest.update(fs.readFileSync(current));
+    digest.update('\0');
+  };
+  walk(root, '');
+  return digest.digest('hex');
+}
+
+function referenceContract(skillDir) {
+  const skillFile = path.join(skillDir, 'SKILL.md');
+  if (!fs.existsSync(skillFile)) return { invocationClass: null, references: [] };
+  const content = fs.readFileSync(skillFile, 'utf8');
+  const parsed = extractInvocationClass(content);
+  const references = [...content.matchAll(/(?:references|docs\/contracts)\/[A-Za-z0-9_./-]+/g)]
+    .map((match) => match[0])
+    .filter((value, index, values) => values.indexOf(value) === index)
+    .sort();
+  const outputMatch = content.match(/^##\s+(Output(?: Contract)?|輸出(?:目錄|完整性檢查)?)[ \t]*\n([\s\S]*?)(?=^##\s|(?![\s\S]))/m);
+  const outputContract = outputMatch && outputMatch[2].trim()
+    ? {
+      heading: outputMatch[1],
+      body: outputMatch[2].trim(),
+      normalized: outputMatch[2].replace(/\s+/g, ' ').trim().toLowerCase(),
+    }
+    : null;
+  return {
+    invocationClass: parsed.present && !parsed.unknownValue ? parsed.value : null,
+    references,
+    outputContract,
+  };
+}
 
 const REQUIRED_INTERFACE_KEYS = new Set([
   'display_name',
@@ -157,15 +255,16 @@ function validateMetadata(skillDir, skillName, reporter) {
   return { valid, policy: parsed.policy };
 }
 
-function validateProjection(root, canonicalByName, reporter) {
+function validateProjection(root, canonicalByName, reporter, physicalSources = derivePhysicalSources(root)) {
   const codexDir = path.join(root, 'codex', 'skills');
   if (!fs.existsSync(codexDir)) {
     reporter.err('codex/skills — projection directory is missing');
-    return { entries: 0, symlinks: 0, physical: 0 };
+    return { entries: 0, symlinks: 0, physical: 0, fingerprints: {} };
   }
 
   let symlinks = 0;
   let physical = 0;
+  const fingerprints = {};
   const entries = fs.readdirSync(codexDir).sort();
 
   for (const name of entries) {
@@ -196,14 +295,15 @@ function validateProjection(root, canonicalByName, reporter) {
       continue;
     }
     physical += 1;
-    if (!Object.prototype.hasOwnProperty.call(PHYSICAL_SOURCES, name)) {
+    if (!Object.prototype.hasOwnProperty.call(physicalSources, name)) {
       reporter.err(`${relativePosix(root, entry)} — unexpected physical Codex skill`);
       continue;
     }
 
-    const source = path.join(root, PHYSICAL_SOURCES[name]);
+    const sourceRelative = physicalSources[name];
+    const source = path.join(root, sourceRelative);
     if (!fs.existsSync(source)) {
-      reporter.err(`${relativePosix(root, entry)} — canonical module source is missing: ${PHYSICAL_SOURCES[name]}`);
+      reporter.err(`${relativePosix(root, entry)} — canonical module source is missing: ${sourceRelative}`);
       continue;
     }
     const sourceMetadata = path.join(source, 'agents', 'openai.yaml');
@@ -218,14 +318,61 @@ function validateProjection(root, canonicalByName, reporter) {
           reporter.err(`${relativePosix(root, mirrorMetadata)} — metadata symlink does not target the canonical module metadata`);
         }
       } else if (fs.readFileSync(mirrorMetadata, 'utf8') !== fs.readFileSync(sourceMetadata, 'utf8')) {
+        const canonicalMetadata = parseOpenaiYaml(sourceMetadata, { err: () => {} });
+        const mirrorParsed = parseOpenaiYaml(mirrorMetadata, { err: () => {} });
+        for (const key of REQUIRED_INTERFACE_KEYS) {
+          if (!mirrorParsed || !Object.prototype.hasOwnProperty.call(mirrorParsed.values || {}, key)) {
+            reporter.err(`${relativePosix(root, mirrorMetadata)} — physical mirror metadata missing field interface.${key}`);
+          } else if (canonicalMetadata && mirrorParsed.values[key] !== canonicalMetadata.values[key]) {
+            reporter.err(`${relativePosix(root, mirrorMetadata)} — physical mirror metadata field interface.${key} differs from canonical metadata`);
+          }
+        }
         reporter.err(`${relativePosix(root, mirrorMetadata)} — physical mirror metadata differs from canonical metadata`);
       }
     } catch (error) {
       reporter.err(`${relativePosix(root, mirrorMetadata)} — cannot compare physical mirror metadata: ${error.message}`);
     }
+
+    const canonicalContract = referenceContract(source);
+    const mirrorContract = referenceContract(entry);
+    if (canonicalContract.invocationClass !== mirrorContract.invocationClass) {
+      reporter.err(`${relativePosix(root, entry)} — physical mirror invocation metadata differs from canonical source`);
+    }
+    for (const reference of canonicalContract.references) {
+      if (!mirrorContract.references.includes(reference)) {
+        reporter.err(`${relativePosix(root, entry)} — physical mirror is missing required reference ${reference}`);
+      }
+    }
+    if (canonicalContract.outputContract && !mirrorContract.outputContract) {
+      reporter.err(`${relativePosix(root, entry)} — physical mirror is missing the canonical output contract`);
+    } else if (canonicalContract.outputContract && mirrorContract.outputContract) {
+      const requiredOutputMarkers = OUTPUT_CONTRACT_RULES[name];
+      if (requiredOutputMarkers) {
+        for (const marker of requiredOutputMarkers) {
+          if (!mirrorContract.outputContract.body.includes(marker)) {
+            reporter.err(`${relativePosix(root, entry)} — physical mirror output contract is missing required marker '${marker}'`);
+          }
+        }
+      } else if (canonicalContract.outputContract.normalized !== mirrorContract.outputContract.normalized) {
+        reporter.err(`${relativePosix(root, entry)} — physical mirror output contract differs from canonical output contract`);
+      }
+    }
+
+    const ignored = PROJECTION_RULES[name] || [];
+    const canonicalFingerprint = fingerprintDirectory(source, ignored);
+    const mirrorFingerprint = fingerprintDirectory(entry, ignored);
+    if (canonicalFingerprint !== mirrorFingerprint) {
+      reporter.err(`${relativePosix(root, entry)} — mirror fingerprint differs from canonical source (${canonicalFingerprint} != ${mirrorFingerprint}); add an explicit projection rule for intentional differences`);
+    }
+    fingerprints[name] = {
+      canonical: canonicalFingerprint,
+      mirror: mirrorFingerprint,
+      source: sourceRelative,
+      allowedTransforms: ignored,
+    };
   }
 
-  return { entries: entries.length, symlinks, physical };
+  return { entries: entries.length, symlinks, physical, fingerprints };
 }
 
 function main() {
@@ -233,9 +380,14 @@ function main() {
   const reporter = createReporter('openai-metadata');
   const result = validateRepository(root);
   for (const error of result.errors) reporter.err(error);
+  const fingerprintEvidence = Object.entries(result.projection.fingerprints)
+    .map(([name, value]) => `${name}:${value.canonical}/${value.mirror}`)
+    .join(',');
   reporter.done(
     `canonical=${result.canonical} metadata=${result.metadata} ` +
-    `codex=${result.projection.entries} symlinks=${result.projection.symlinks} physical=${result.projection.physical}`
+    `codex=${result.projection.entries} symlinks=${result.projection.symlinks} ` +
+    `physical=${result.projection.physical}` +
+    (fingerprintEvidence ? ` fingerprints=${fingerprintEvidence}` : '')
   );
 }
 
@@ -291,7 +443,7 @@ function validateRepository(root) {
     reporter.err(`duplicate canonical skill name: ${name}`);
   }
 
-  const projection = validateProjection(root, canonicalByName, reporter);
+  const projection = validateProjection(root, canonicalByName, reporter, derivePhysicalSources(root));
   return {
     errors,
     canonical: inventory.paths.skills.length,
@@ -302,4 +454,4 @@ function validateRepository(root) {
 
 if (require.main === module) main();
 
-module.exports = { validateRepository };
+module.exports = { validateRepository, derivePhysicalSources, fingerprintDirectory, referenceContract };

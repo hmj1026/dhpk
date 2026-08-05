@@ -303,8 +303,11 @@ The script is the supported Codex distribution path, with two modes:
   [issue #88](https://github.com/hmj1026/dhpk/issues/88). Use `--copy`
   instead whenever the plugin source's continued presence isn't guaranteed.
 
-Both modes record version and source-fingerprint provenance in
-`.codex/.dhpk-installed.json`; re-run with `--update` after a plugin update.
+Both modes record version, source-fingerprint, and schema-versioned managed
+entry provenance in `.codex/.dhpk-installed.json`; re-run with `--update` after
+a plugin update. Unowned collisions are preserved, and `--migrate` adopts only
+exact legacy matches. Use `--uninstall` to remove unchanged receipt-owned
+entries without deleting unrelated project assets.
 The Codex tree is an explicitly curated subset of the canonical Claude
 packages, not a second complete inventory. `codex/agents/` ships 11 roles:
 four hand-maintained generic roles and seven generated from canonical Claude

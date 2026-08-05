@@ -1,6 +1,8 @@
 ---
 name: php-pro
 description: "PHP runtime router and implementation guardrail for mixed repositories. Use when building, debugging, refactoring, testing, or reviewing PHP code and you must first determine whether the active stack is Laravel, Symfony, generic modern PHP, async/event-loop PHP, or legacy PHP 5.6 + Yii 1.1. Especially use this when repository signals are mixed, when Laravel version-sensitive files such as `bootstrap/app.php`, providers, middleware, exceptions, auth, or testing infrastructure are involved, or when you need to decide which PHP references to load and which to skip before proposing changes. Output: detected runtime, references to load and skip, framework-safe implementation direction, and testing expectations. Not for frontend-only work, architecture-only discussion, or clearly scoped Yii 1.1 backend tasks that should go straight to `php56-yii-dev`."
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # PHP Pro
