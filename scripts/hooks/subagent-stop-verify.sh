@@ -183,17 +183,6 @@ remove_one_active_entry() {
     fi
 }
 
-# has_fresh_review_artifact <agent> <sentinel-file> — echo "1" when the latest
-# review doc for <agent> EXISTS and is FRESH (its mtime postdates the sentinel
-# that armed this review); "0" otherwise (no review doc, or only a stale
-# prior-cycle doc). This is the A5 auto-clear gate: the sentinel clears only when
-# a fresh matching review doc exists (reviewer-liveness-gate spec). It keys
-# on existence + freshness ONLY — deliberately NOT on verdict-parseability, so a
-# reviewer that legitimately wrote a fresh review doc whose `verdict:` field the
-# regex can't parse still clears the gate rather than looping the orchestrator on
-# an endless re-dispatch. Verdict-parseability is a separate concern owned by
-# refresh_unresolved_verdict below (the BLOCK/FAIL/severity sidecar). Must be
-# called while the sentinel file still exists (before the rm below).
 # find_misplaced_review_artifact <agent> <sentinel> [session-id] — emit one
 # tab-delimited diagnostic record: relative-path TAB reason. Matching
 # <agent>-*.md files under .claude/artifacts/ are filtered against the latest
@@ -465,17 +454,6 @@ PY
                 "${expected_session:-${session_id:-unknown}}" "${expected_attempt:-unknown}" "${expected_dispatch:-unknown}"
         fi
     fi
-}
-
-has_fresh_review_artifact() {
-    local agent="$1" sentinel="$2" reviews_dir="$ROOT/.claude/artifacts/reviews" latest=""
-    [ -d "$reviews_dir" ] || { printf '0'; return 0; }
-    latest="$(ls -t "$reviews_dir/$agent"-*.md 2>/dev/null | head -1 || true)"
-    [ -n "$latest" ] || { printf '0'; return 0; }
-    # Freshness gate: the newest review doc must postdate the sentinel that armed
-    # this cycle. `find -newer` avoids stat(1) GNU-vs-BSD portability differences.
-    [ -n "$(find "$latest" -newer "$sentinel" 2>/dev/null)" ] || { printf '0'; return 0; }
-    printf '1'
 }
 
 # has_fresh_parseable_verdict <agent> <sentinel-file> — echo "1" when the latest

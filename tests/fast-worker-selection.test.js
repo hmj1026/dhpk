@@ -133,7 +133,7 @@ test('invalid selector inputs normalize to shipped defaults before dispatch', ()
   assert.strictEqual(invalidOrder.value.selected_backend, 'claude');
 });
 
-test('session start is silent for defaults, reports overrides, and warns once for invalid values', () => {
+test('session start remains activation-only when selector configuration is overridden or invalid', () => {
   const repo = tempDir('dhpk-session-selector-');
   try {
     spawnSync('git', ['init', '-q'], { cwd: repo });
@@ -144,14 +144,17 @@ test('session start is silent for defaults, reports overrides, and warns once fo
       pluginConfigs: { 'dhpk@dhpk': { options: { fast_worker_backend: 'agy', fast_worker_fallback: 'none' } } },
     }));
     const override = sessionStart(repo, {}, { source: 'startup', session_id: 'override' });
-    assert.ok(override.stdout.includes('fast_worker_backend=agy'), override.stdout);
+    assert.ok(!override.stdout.includes('fast_worker_backend='), override.stdout);
+    assert.ok(!override.stderr.includes('invalid fast-worker selector'), override.stderr);
     fs.writeFileSync(path.join(repo, '.claude', 'settings.local.json'), JSON.stringify({
       pluginConfigs: { 'dhpk@dhpk': { options: { fast_worker_backend: 'wat' } } },
     }));
     const invalid1 = sessionStart(repo, {}, { source: 'startup', session_id: 'invalid' });
     const invalid2 = sessionStart(repo, {}, { source: 'startup', session_id: 'invalid' });
-    assert.strictEqual((invalid1.stderr.match(/invalid fast-worker selector/g) || []).length, 1, invalid1.stderr);
-    assert.strictEqual((invalid2.stderr.match(/invalid fast-worker selector/g) || []).length, 0, invalid2.stderr);
+    assert.ok(!invalid1.stdout.includes('fast_worker_backend='), invalid1.stdout);
+    assert.ok(!invalid2.stdout.includes('fast_worker_backend='), invalid2.stdout);
+    assert.ok(!invalid1.stderr.includes('invalid fast-worker selector'), invalid1.stderr);
+    assert.ok(!invalid2.stderr.includes('invalid fast-worker selector'), invalid2.stderr);
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });
   }
