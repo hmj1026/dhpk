@@ -19,7 +19,7 @@ const crypto = require('node:crypto');
 // logic) changes in a way that could produce a different package from the
 // same inventory + canonical sources. Independent of the dhpk release
 // version recorded as provenance.sourceVersion.
-const GENERATOR_VERSION = '2.1.0';
+const GENERATOR_VERSION = '2.2.0';
 
 function lstatOrNull(candidate) {
   try {
@@ -30,7 +30,35 @@ function lstatOrNull(candidate) {
   }
 }
 
+function realpathOrNull(candidate) {
+  try {
+    return fs.realpathSync(candidate);
+  } catch (error) {
+    if (error && error.code === 'ENOENT') return null;
+    throw error;
+  }
+}
+
+function isInside(parent, candidate) {
+  const rel = path.relative(parent, candidate);
+  return rel === '' || (!rel.startsWith(`..${path.sep}`) && rel !== '..');
+}
+
+function assertPhysicalAncestors(directory, label) {
+  let current = path.resolve(directory);
+  while (true) {
+    const stat = lstatOrNull(current);
+    if (stat && stat.isSymbolicLink()) {
+      throw new Error(`refusing symlinked ${label} ancestor: ${current}`);
+    }
+    const parent = path.dirname(current);
+    if (parent === current) return;
+    current = parent;
+  }
+}
+
 function ensurePhysicalDirectory(directory, label) {
+  assertPhysicalAncestors(directory, label);
   const stat = lstatOrNull(directory);
   if (!stat) {
     fs.mkdirSync(directory, { recursive: true });
@@ -41,6 +69,9 @@ function ensurePhysicalDirectory(directory, label) {
   }
   if (!stat.isDirectory()) {
     throw new Error(`${label} must be a directory: ${directory}`);
+  }
+  if (fs.realpathSync(directory) !== path.resolve(directory)) {
+    throw new Error(`refusing ${label} whose realpath escapes its lexical root: ${directory}`);
   }
 }
 
@@ -89,9 +120,19 @@ function validateNativeCandidate({ manifestSkillsField, packageRoot }) {
 
   const skillsRoot = path.resolve(packageRoot, manifestSkillsField);
   if (resolvesInsidePackage(manifestSkillsField, packageRoot)) {
-    for (const link of findSymlinks(skillsRoot)) {
-      const rel = path.relative(packageRoot, link);
-      errors.push(`symlink-dependent entry in native candidate: '${rel}' is a symlink; a clean marketplace cache install does not preserve it (issue #88)`);
+    const skillsStat = lstatOrNull(skillsRoot);
+    if (skillsStat && skillsStat.isSymbolicLink()) {
+      errors.push(`symlink-dependent skills root in native candidate: '${path.relative(packageRoot, skillsRoot)}' is a symlink; a clean marketplace cache install does not preserve it (issue #88)`);
+    } else {
+      const realPackageRoot = realpathOrNull(packageRoot);
+      const realSkillsRoot = realpathOrNull(skillsRoot);
+      if (realPackageRoot && realSkillsRoot && !isInside(realPackageRoot, realSkillsRoot)) {
+        errors.push(`native candidate skills realpath escapes the package root: '${realSkillsRoot}' is not inside '${realPackageRoot}'`);
+      }
+      for (const link of findSymlinks(skillsRoot)) {
+        const rel = path.relative(packageRoot, link);
+        errors.push(`symlink-dependent entry in native candidate: '${rel}' is a symlink; a clean marketplace cache install does not preserve it (issue #88)`);
+      }
     }
   }
 

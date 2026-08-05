@@ -63,6 +63,23 @@ test('rejects a same-directory candidate that still contains a symlink (the nati
   }
 });
 
+test('rejects a symlinked skills root even when its lexical path is inside the package', () => {
+  const dir = makeTempPackage();
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-native-outside-skills-'));
+  try {
+    fs.rmSync(path.join(dir, 'skills'), { recursive: true, force: true });
+    fs.mkdirSync(path.join(outside, 'hello-skill'), { recursive: true });
+    fs.writeFileSync(path.join(outside, 'hello-skill', 'SKILL.md'), '---\nname: hello-skill\n---\n');
+    fs.symlinkSync(outside, path.join(dir, 'skills'), 'dir');
+    const result = validateNativeCandidate({ manifestSkillsField: './skills/', packageRoot: dir });
+    assert.ok(!result.ok);
+    assert.ok(result.errors.some((e) => /skills.*symlink|realpath.*inside/i.test(e)), result.errors.join('\n'));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
+});
+
 test('accepts a same-directory candidate whose package tree is entirely physical files', () => {
   const dir = makeTempPackage();
   try {

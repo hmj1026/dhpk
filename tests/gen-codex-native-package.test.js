@@ -179,6 +179,24 @@ test('materialization rejects a symlinked output root instead of writing through
   }
 });
 
+test('materialization rejects a symlinked output ancestor before it can write outside the lexical root', () => {
+  const parent = tmpDir('dhpk-native-symlink-ancestor-');
+  const external = path.join(parent, 'external');
+  const linkedParent = path.join(parent, 'plugins');
+  const inventory = {
+    skills: [{ id: 'tdd', name: 'dhpk-tdd-workflow', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['codex-native'] }],
+  };
+  try {
+    fs.mkdirSync(external);
+    fs.symlinkSync(external, linkedParent, 'dir');
+    const outDir = path.join(linkedParent, 'dhpk');
+    assert.throws(() => materializeNativePackage({ inventory, root: ROOT, outDir }), /symlinked output root|symlinked output ancestor/i);
+    assert.deepStrictEqual(fs.readdirSync(external), []);
+  } finally {
+    fs.rmSync(parent, { recursive: true, force: true });
+  }
+});
+
 test('generation is deterministic: two materializations of the same inventory produce identical fingerprints and provenance', () => {
   const inventory = {
     skills: [{ id: 'tdd', name: 'dhpk-tdd-workflow', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] }],
