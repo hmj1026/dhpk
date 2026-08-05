@@ -146,10 +146,10 @@ Smart Router 匹配「implement … feature」→ `dhpk:dhpk-adaptive-dev-workfl
 不需要任何指令。每次編輯檔案後，hook 自動：
 
 1. 為各相關 reviewer slot（code / db / sec / frontend / doc）投下 `.pending-*` sentinel
-2. 在 Stop 時提醒並行派發 reviewer
-3. sentinel 存在時，`git commit` 前會發出警告（可透過 `sentinel_commit_gate` 設定：`warn` / `block` / `off`——見 [`docs/configuration.zh-TW.md`](./configuration.zh-TW.md)）
+2. 在每位 reviewer 產出有效證據前維持 review debt
+3. sentinel 存在時，`git commit` 前會警告或阻擋（可透過 `sentinel_commit_gate` 設定：`warn` / `block` / `off`——見 [`docs/configuration.zh-TW.md`](./configuration.zh-TW.md)）
 
-即時 post-edit advisory 採邊緣觸發：只有 pending sentinel 集合改變時才輸出。`.advisory-state` 記錄該集合，因此重複編輯不會洗版；reviewer 從外部清除集合後，後續編輯仍可重新武裝並再次提醒。沒有符合 trigger 的編輯預設靜默，只有 `DHPK_DEBUG=1` 才印出 skip 訊息。
+預設 post-edit hook 只建立與路由 pending-review sentinel；不會執行 formatting、lockfile、lint 或 Stop advisory 工作。需要時由 consumer 明確註冊這些選用腳本。
 
 若想立即觸發而不等 Stop：`/dhpk:review-pending`
 

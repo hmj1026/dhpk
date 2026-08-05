@@ -1,7 +1,7 @@
 ---
 description: 'Interactive (re)configuration and installation of dhpk plugin options and assets.'
-argument-hint: '[--show] [--install hooks|rules|scripts|all]'
-allowed-tools: 'Read, Write, Edit, Bash(git rev-parse:*), Bash(ls:*), AskUserQuestion'
+argument-hint: '[--show] [--install hooks|rules|scripts|all] [--dry-run] [--force]'
+allowed-tools: 'Read, Write, Edit, Bash(bash:*), Bash(git rev-parse:*), Bash(ls:*), Bash(mkdir:*), Bash(cp:*), Bash(chmod:*), AskUserQuestion'
 disable-model-invocation: true
 metadata:
   dhpk-invocation-class: explicit-only
@@ -16,10 +16,27 @@ metadata:
 
 ## Task
 
-When invoked with `--install hooks|rules|scripts|all`, install only the named
-current plugin asset groups and report copied paths, conflicts, and settings
-changes. This replaces the retired `/install-*` aliases; do not revive their
-historical hook names or mappings.
+When invoked with `--install hooks|rules|scripts|all`, run the deterministic
+installer before any configuration questions. This replaces the retired
+`/install-*` aliases; do not revive their historical hook names or mappings.
+
+1. Resolve the consumer project root with `git rev-parse --show-toplevel` (or
+   `pwd` if it is not a Git repository).
+2. Run:
+
+   ```bash
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/setup/install-assets.sh" \
+     --source "${CLAUDE_PLUGIN_ROOT}" \
+     --target "<project-root>/.claude/dhpk" \
+     --install <hooks|rules|scripts|all> [--dry-run] [--force]
+   ```
+
+   The source and target are printed for every planned file. `--dry-run` writes
+   nothing. Identical files are skipped. A differing target is a conflict that
+   leaves the whole selected group untouched unless the user explicitly passes
+   `--force`; copied executable source files remain executable.
+3. Report the installer's copy/skip/conflict result and stop. Do not combine an
+   asset installation with interactive plugin reconfiguration in the same run.
 
 Walk the user through configuring (or reconfiguring) the dhpk plugin **after**
 it is installed. The first install is typically done with the shell wrapper
@@ -81,7 +98,7 @@ $ARGUMENTS
 | Argument | Description |
 |----------|-------------|
 | `--show` | Skip the questions; just print the current effective configuration. |
-| `--install hooks\|rules\|scripts\|all` | Install selected current plugin assets. |
+| `--install hooks\|rules\|scripts\|all` | Install selected assets into `<project>/.claude/dhpk`; accepts `--dry-run` and `--force`. |
 
 ## Use AskUserQuestion
 

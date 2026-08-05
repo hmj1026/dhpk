@@ -485,10 +485,10 @@ has_fresh_review_artifact() {
 
 # has_fresh_parseable_verdict <agent> <sentinel-file> — echo "1" when the latest
 # review doc for <agent> exists, was produced THIS cycle (its mtime postdates
-# the sentinel that armed this review), and its frontmatter carries a parseable
-# `verdict:` field whose value explicitly passes (`APPROVE` or `PASS`); "0"
-# otherwise (no review doc, stale doc, unparseable frontmatter, or an unresolved
-# verdict). This is the only sanctioned automatic sentinel-clearance decision.
+# the sentinel that armed this review), has the canonical timestamp/slug
+# filename, and carries delimited frontmatter with all reviewer evidence fields
+# plus a passing (`APPROVE` or `PASS`) verdict; "0" otherwise. This is the only
+# sanctioned automatic sentinel-clearance decision.
 # Must be called while the sentinel file still exists (before the rm below).
 # Reuses the same "latest by mtime" lookup and verdict regex as
 # refresh_unresolved_verdict below.
@@ -501,27 +501,43 @@ has_fresh_parseable_verdict() {
     # this cycle. `find -newer` avoids stat(1) GNU-vs-BSD portability differences.
     [ -n "$(find "$latest" -newer "$sentinel" 2>/dev/null)" ] || { printf '0'; return 0; }
     if command -v python3 >/dev/null 2>&1; then
-        ARTIFACT_IN="$latest" python3 - <<'PY' 2>/dev/null || printf '0'
+        ARTIFACT_IN="$latest" REVIEWER_IN="$agent" python3 - <<'PY' 2>/dev/null || printf '0'
 import os
 import re
 from pathlib import Path
 
 review_doc = Path(os.environ["ARTIFACT_IN"])
+reviewer = os.environ["REVIEWER_IN"]
 try:
     text = review_doc.read_text(encoding="utf-8", errors="replace")
 except OSError:
     print(0)
     raise SystemExit(0)
 
-frontmatter = text
-if text.startswith("---"):
-    parts = text.split("---", 2)
-    if len(parts) >= 3:
-        frontmatter = parts[1]
+filename = re.compile(
+    rf"^{re.escape(reviewer)}-\d{{8}}-\d{{6}}-[a-z0-9][a-z0-9._-]*\.md$",
+    re.IGNORECASE,
+)
+frontmatter_match = re.match(r"\A---\r?\n(.*?)\r?\n---(?:\r?\n|\Z)", text, re.DOTALL)
+if not filename.fullmatch(review_doc.name) or not frontmatter_match:
+    print(0)
+    raise SystemExit(0)
 
-verdict_match = re.search(r"(?im)^\s*verdict\s*:\s*['\"]?([A-Za-z_-]+)", frontmatter)
+frontmatter = frontmatter_match.group(1)
+def field(name):
+    return re.search(rf"(?im)^\s*{name}\s*:\s*(.+?)\s*$", frontmatter)
+
+agent_match = field("agent")
+generated_at = field("generated_at")
+commit = field("commit")
+scope = field("scope")
+severity = field("severity_summary")
+verdict_match = field("verdict")
+required = all((agent_match, generated_at, commit, scope, severity, verdict_match))
+timestamp_ok = bool(generated_at and re.match(r"\d{4}-\d{2}-\d{2}T", generated_at.group(1)))
+agent_ok = bool(agent_match and agent_match.group(1).strip().strip("'\"") == reviewer)
 verdict = verdict_match.group(1).upper() if verdict_match else ""
-print(1 if verdict in {"APPROVE", "PASS"} else 0)
+print(1 if required and timestamp_ok and agent_ok and verdict in {"APPROVE", "PASS"} else 0)
 PY
     else
         printf '0'

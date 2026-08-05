@@ -133,6 +133,31 @@ test('canonical commands expose the consolidated modes and legacy aliases only f
   assert.ok(!fs.existsSync(path.join(ROOT, 'commands', 'zh-tw.md')), 'zh-tw must be retired');
 });
 
+test('route-only and setup installation have deterministic executable contracts', () => {
+  const doCommand = fs.readFileSync(path.join(ROOT, 'commands', 'do.md'), 'utf8');
+  const setup = fs.readFileSync(path.join(ROOT, 'commands', 'setup.md'), 'utf8');
+  assert.ok(doCommand.indexOf('## Step 0 — `--route-only` terminal mode') < doCommand.indexOf('## Step 1'),
+    '--route-only must terminate before normal route execution');
+  assert.match(doCommand, /strip.*--route-only|--route-only.*strip/is);
+  assert.match(doCommand, /Do not invoke.*Skill|never invoke.*target/is);
+  assert.match(setup, /scripts\/setup\/install-assets\.sh/);
+  assert.match(setup, /--source.*--target.*--dry-run.*--force/is);
+  assert.match(setup, /Bash\(bash:\*\).*Bash\(mkdir:\*\).*Bash\(cp:\*\).*Bash\(chmod:\*\)/);
+});
+
+test('invocation inventory reflects retired zh-tw and consolidated forwarding aliases', () => {
+  const inventory = JSON.parse(fs.readFileSync(
+    path.join(ROOT, 'tests', 'fixtures', 'invocation-inventory-baseline.json'), 'utf8'
+  ));
+  const commandNames = inventory.commands.map((entry) => entry.name);
+  assert.strictEqual(inventory.counts.commands, 44);
+  assert.ok(!commandNames.includes('zh-tw'));
+  for (const name of ['create-dev', 'install-hooks', 'install-rules', 'install-scripts', 'precommit-fast']) {
+    const command = fs.readFileSync(path.join(ROOT, 'commands', `${name}.md`), 'utf8');
+    assert.match(command, /dhpk-invocation-class:\s*explicit-only/);
+  }
+});
+
 test('review and prompt skills state the Task 4 evidence and scope boundaries', () => {
   const prompt = fs.readFileSync(path.join(ROOT, 'skills', 'dhpk-prompt-optimize', 'SKILL.md'), 'utf8');
   assert.match(prompt, /verified live sources/i);

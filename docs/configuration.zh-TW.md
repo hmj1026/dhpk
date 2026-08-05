@@ -135,8 +135,8 @@ claude mcp list
 
 | Key | 型別 | 預設值 | 選項 | 用途 |
 |-----|------|--------|------|------|
-| `docker_containers` | string[] | `[]` | container 名稱 | SessionStart 時檢查的 container 名稱。空陣列停用該檢查。第一筆輸出為 `DHPK_PHP_CONTAINER`；第二筆為 `DHPK_MYSQL_CONTAINER`。 |
-| `modules` | string[] | `[]` | 27 個內附模組之一——完整清單見 [`docs/basic-operations.zh-TW.md`](./basic-operations.zh-TW.md) 或 `manifests/module-catalog.json` | 要啟用的技術棧模組。同一軸線（php / laravel / phpunit）為加法式——橫跨 Laravel 6–11 的函式庫應啟用每個版本以取得累積指引。啟用 `js` 會掛上 ESLint post-edit hook + pre-commit lint/typecheck gate；`php-7.4` 掛上 php-cs-fixer + pre-commit lint/phpstan/psalm；`python` 掛上 post-edit ruff hook（Stop 批次執行）+ pre-commit ruff-check/ruff-format/型別檢查 gate（專案根目錄以向上尋找 `pyproject.toml` 自動偵測）；`fastapi` / `pytest` 僅為 skills+references（各自 `requires: python`）；`library-author` 掛上第六色 `polyfill-reviewer` sentinel；`xcode-tooling` 掛上 SwiftLint + pre-commit xcodebuild/SPM build+test（執行檔不存在時自動跳過）；`swift` / `swiftui` / `ios-platform` / `swift-testing` 僅為 skills+references。模組的 `requires:` 在 SessionStart 驗證（僅警告、不阻擋）。**優先序**：專案的 `.claude/settings.local.json` `pluginConfigs.dhpk@dhpk.options.modules` 會覆寫全域值。 |
+| `docker_containers` | string[] | `[]` | container 名稱 | 保留給明確註冊的 Docker tooling；預設 SessionStart 不會檢查 container 或輸出 container 變數。 |
+| `modules` | string[] | `[]` | 任一內附模組 | 啟用技術棧模組。SessionStart 驗證 `requires:` 並回報啟用模組；模組選擇會影響 sentinel routing 與合併 Bash/pre-commit gate。post-edit lint/format/Stop 工作不在預設 lifecycle 中。 |
 
 ## Review 觸發與風險啟發式
 
@@ -157,19 +157,19 @@ claude mcp list
 
 | Key | 型別 | 預設值 | Env 覆寫 | 用途 |
 |-----|------|--------|----------|------|
-| `skill_hint_enabled` | boolean | `true` | `DHPK_DISABLE_SKILL_HINT=1` | UserPromptSubmit hook 印出一行 route-table skill 建議（例如「bug」→ `/dhpk:dhpk-bug-fix`）。 |
-| `learning_db_enabled` | boolean | `false` | `DHPK_LEARNING_DB=1/0` | 將作業訊號（reviewer 通過、subagent 失敗、異常停止）附加到 `.claude/artifacts/learning.jsonl`；SessionStart 以 `[learned-context]` 區塊呈現最常見的訊號（最多 5 行）。信心值隨時間衰減；日誌超過 50MB 自動輪替。 |
-| `graduation_scan_enabled` | boolean | `false` | `DHPK_GRADUATION_SCAN=1/0` | Stop hook 掃描 session transcript 中被引用的 auto-memory 條目，追蹤跨 session 次數與信心值，並重新產生 `.claude/artifacts/graduation-candidates.md`。24 小時／3 個不同日期內被引用 ≥3 次且無 trap 重現的條目會被提案升階為 rule/skill。需要 `python3`。 |
-| `completion_evidence_enabled` | boolean | `false` | `DHPK_COMPLETION_EVIDENCE=1/0` | assistant 宣稱完成、但工作目錄有 code 變更卻無對應 test 變更時的 Stop advisory 警告（純 doc／harness 變更豁免；有 active sentinel 時讓位）。僅為建議、絕不阻擋 Stop。 |
-| `agent_warmstart_enabled` | boolean | `false` | `DHPK_AGENT_WARMSTART=1/0` | PreToolUse（`Task`\|`Agent`）hook，將 parent session context（active sentinels + reviewer slots、當前 OpenSpec change + tasks、`.claude/warmstart-context.md`、tool-routing 提醒；≤2000 字元）注入 subagent prompt。每次 subagent 產生都會消耗 token。 |
-| `reap_stale_mcp_processes` | boolean | `false` | — | 設 `true` 時，SessionStart 只 reap **孤兒** `gitnexus mcp` process（parent session 已死／reparent 到 init）——絕不殺仍被平行 live session 持有的 process。僅 gitnexus MCP 使用者需要。 |
-| `harness_restore_hint` | string | `""` | — | SessionStart 斷鏈 symlink advisory 印出的還原指令（適用以 symlink 從另一 repo 部署 harness 的專案）。留空則只印 WARN、不印提示行。 |
+| `skill_hint_enabled` | boolean | `true` | `DHPK_DISABLE_SKILL_HINT=1` | 保留給明確註冊的 UserPromptSubmit hint；預設 hook 不會使用。 |
+| `learning_db_enabled` | boolean | `false` | `DHPK_LEARNING_DB=1/0` | 保留給明確註冊的 learning observation/presentation；預設 SessionStart 不會注入 learned context。 |
+| `graduation_scan_enabled` | boolean | `false` | `DHPK_GRADUATION_SCAN=1/0` | 保留給明確註冊的 Stop advisory；預設 Stop hook 不會使用。 |
+| `completion_evidence_enabled` | boolean | `false` | `DHPK_COMPLETION_EVIDENCE=1/0` | 保留給明確註冊的 Stop advisory；預設 Stop hook 不會使用。 |
+| `agent_warmstart_enabled` | boolean | `false` | `DHPK_AGENT_WARMSTART=1/0` | 保留給明確註冊的 `Task`/`Agent` prompt injection；預設 lifecycle 不會使用。 |
+| `reap_stale_mcp_processes` | boolean | `false` | — | 保留給明確註冊的 SessionEnd/process tooling；預設 SessionStart 不會 reap process。 |
+| `harness_restore_hint` | string | `""` | — | 保留給明確註冊的 symlink-health advice；預設 SessionStart 不會輸出它。 |
 
 ## Manifest／lockfile 同步
 
 | Key | 型別 | 預設值 | 選項 | 用途 |
 |-----|------|--------|------|------|
-| `lockfile_sync_commands` | string[] | `[]` | `<manifest>:<command>`，指令不可含逗號 | async PostToolUse manifest-guard 提醒使用的各 manifest lock-sync 指令，例如 `composer.json:docker exec -i my_php composer update --lock`。未列出的 manifest 退回通用預設（`composer update --lock` / `npm install` / `bundle install` / `cargo build` / `poetry lock`）。 |
+| `lockfile_sync_commands` | string[] | `[]` | `<manifest>:<command>`，指令不可含逗號 | 保留給明確註冊的 manifest/lockfile advisory tooling；預設 PostToolUse 只做 review sentinel routing。 |
 
 ## `js` 模組
 

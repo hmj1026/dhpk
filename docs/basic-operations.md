@@ -149,10 +149,10 @@ Matches "fix … bug" → `dhpk:dhpk-adaptive-dev-workflow` → **Bug Investigat
 No command needed. After any file edit the hooks automatically:
 
 1. Drop a `.pending-*` sentinel for each relevant reviewer slot (code / db / sec / frontend / doc)
-2. Remind dispatched reviewers to run in parallel at Stop
-3. Warn before `git commit` while sentinels are open (configurable via `sentinel_commit_gate`: `warn` / `block` / `off` — see [`docs/configuration.md`](./configuration.md))
+2. Keep the resulting review debt armed until each reviewer supplies valid evidence
+3. Warn or block `git commit` while sentinels are open (configurable via `sentinel_commit_gate`: `warn` / `block` / `off` — see [`docs/configuration.md`](./configuration.md))
 
-The immediate post-edit advisory is edge-triggered: it prints only when the pending-sentinel set changes. `.advisory-state` tracks that set, so repeated edits do not spam the same message, while an externally cleared reviewer set can be re-armed and advised on a later edit. Edits with no matching trigger are silent unless `DHPK_DEBUG=1`.
+The default post-edit hook creates and routes pending-review sentinels only. It does not run formatting, lockfile, lint, or Stop advisory work; register those optional scripts explicitly when a consumer needs them.
 
 To trigger reviews immediately without waiting for Stop: `/dhpk:review-pending`
 

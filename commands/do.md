@@ -16,6 +16,24 @@ One entry point for dhpk's 44 commands. Route a natural-language task to the
 right workflow: the route table is the fast path, and a miss uses cheap repo
 signals before classification.
 
+## Step 0 — `--route-only` terminal mode
+
+Before parsing any other intent, detect every literal `--route-only` token,
+set `ROUTE_ONLY=on`, and **strip the flag from the request**. Continue only far
+enough to derive the same cleaned query and selected route that normal routing
+would produce; `--route-only` never becomes part of the downstream arguments.
+
+After Step 1 resolves `MATCH`, `NO_MATCH`, or `NO_QUERY`, `ROUTE_ONLY=on` is an
+early terminal branch:
+
+- `MATCH` → print `Route only: /<skill> (<label>).`.
+- `NO_MATCH` → use the same bounded classification and print `Route only: /<chosen> because <reason>.`.
+- `NO_QUERY` → ask for a task description.
+
+Then stop. Do not invoke the target Skill, `dhpk:planner`, `dhpk:architect`,
+OpenSpec tooling, a worker, or any other downstream execution. This is a route
+inspection mode, not a dry-run of the selected workflow.
+
 ## Step 0a — parse codex intent (default: codex-free)
 
 dhpk runs **codex-free by default** — not every install has the Codex CLI/MCP.
@@ -149,6 +167,9 @@ The matcher prints exactly one line:
 - `MATCH<TAB><skill><TAB><label>` — a high-confidence deterministic route.
 - `NO_MATCH` — nothing matched; you classify.
 - `NO_QUERY` — the user gave no task text.
+
+If `ROUTE_ONLY=on`, take the Step 0 terminal branch here, before enhancement,
+planning, architecture consultation, or target invocation.
 
 ## Step 2 — ENHANCE (optional context)
 

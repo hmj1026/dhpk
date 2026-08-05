@@ -59,6 +59,12 @@ scope: [path/a, path/b]
 ---
 ```
 
+For reviewer sentinel clearance, this frontmatter must be the leading,
+delimited block of a canonical filename
+`<agent>-YYYYMMDD-HHMMSS-<slug>.md`. Body text that merely resembles YAML is
+not evidence; `subagent-stop-verify.sh` accepts only `APPROVE` or `PASS` after
+these fields validate.
+
 ## Reviewer-family extension
 
 Agents that produce a severity-graded finding list add:

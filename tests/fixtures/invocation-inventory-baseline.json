@@ -1,10 +1,10 @@
 {
   "schema": "dhpk.invocation-inventory-baseline.v1",
   "capturedFor": "openspec/changes/clarify-dhpk-skill-invocation-policy",
-  "note": "Point-in-time snapshot of every Distributed Skill/Command BEFORE metadata.dhpk-invocation-class classification. Historical record (task 1.1) — not regenerated after classification lands.",
+  "note": "Point-in-time inventory refreshed for the consolidated command surface; command metadata classes remain validated live by scripts/ci/validate-invocation-policy.js.",
   "counts": {
     "skills": 105,
-    "commands": 45
+    "commands": 44
   },
   "skills": [
     {
@@ -1155,13 +1155,6 @@
       "name": "verify",
       "pairedSkill": null,
       "claudeDisableModelInvocation": false,
-      "claudeUserInvocableFalse": false
-    },
-    {
-      "path": "commands/zh-tw.md",
-      "name": "zh-tw",
-      "pairedSkill": null,
-      "claudeDisableModelInvocation": true,
       "claudeUserInvocableFalse": false
     }
   ],
