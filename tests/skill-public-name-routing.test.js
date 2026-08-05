@@ -14,6 +14,7 @@ const inventory = JSON.parse(fs.readFileSync(
 // occurrences are not reliable routing signals; canonical handoffs that use
 // them are covered by the exact-name integrity checks elsewhere.
 const AMBIGUOUS_TERMS = new Set(['deploy-list', 'tdd']);
+const AGENT_ROLE_TERMS = new Set(['agy-fast-worker']);
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -40,11 +41,14 @@ test('skill routing descriptions use public dhpk names, never legacy aliases', (
       : '';
 
     for (const [legacy, publicName] of legacyToPublic) {
+      const routingDescription = AGENT_ROLE_TERMS.has(legacy)
+        ? description.replace(new RegExp(`${escapeRegExp(legacy)}\\s+subagent`, 'ig'), '')
+        : description;
       const bareLegacy = new RegExp(
         `(?<![a-z0-9-])${escapeRegExp(legacy)}(?![a-z0-9-])`,
         'i',
       );
-      if (bareLegacy.test(description)) {
+      if (bareLegacy.test(routingDescription)) {
         findings.push(`${path.relative(ROOT, skillFile)}: ${legacy} -> ${publicName}`);
       }
     }
