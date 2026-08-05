@@ -186,8 +186,8 @@
       "id": "codex-supporting-contracts-reviewer-contract-md",
       "source": "codex/supporting/contracts/reviewer-contract.md",
       "canonical_source": "docs/contracts/reviewer-contract.md",
-      "canonical_digest": "45f4cbc367fc2cf797c92627ac998db395805d3ea3994c138aba35378d57af81",
-      "projection_digest": "8f783675b7889cb0b166d7282e028a30ddf0af9f81c07bdc476c8416c2431597",
+      "canonical_digest": "3dc1d855b460210241a91064ffb6a86fa554115cccc24a18dd057742f6c10c26",
+      "projection_digest": "e0ede2ec5b485a81ea53186e05f55ffdf6ac22b9ebdd59b13982504ad69f4b5d",
       "destination": "dhpk/contracts/reviewer-contract.md"
     },
     {

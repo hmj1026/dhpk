@@ -71,15 +71,7 @@ test('modified file is reflected in the ~N modified count', () => {
   }
 });
 
-test('pending sentinel present: badge is currently suppressed by an array-length mismatch bug', () => {
-  // KNOWN SCRIPT BUG (reported, not fixed here): statusline.sh's local
-  // SHORT=(...) array has 6 entries (scripts/statusline/statusline.sh:99),
-  // but the SSOT SENTINEL_NAMES in scripts/hooks/_lib/payload.sh has grown to
-  // 7 (a "migration-review" slot was added later). The script only builds the
-  // sentinel badge when `${#SHORT[@]} -eq ${#SENTINEL_NAMES[@]}`, so this
-  // guard is now always false and the "⚠ <label>" badge never renders,
-  // regardless of any pending review sentinel. This test documents the
-  // CURRENT (broken) behavior; see the fast-worker report for the escalation.
+test('pending code sentinel renders the generated short-name badge', () => {
   const repo = mkRepo();
   const home = mkHome();
   try {
@@ -88,7 +80,41 @@ test('pending sentinel present: badge is currently suppressed by an array-length
     fs.writeFileSync(path.join(sess, '.pending-review'), 'stub');
     const res = runStatusline(repo, home);
     assert.strictEqual(res.status, 0, res.stderr);
-    assert.strictEqual(res.stdout, '[main] +0 ~0 | profile=standard');
+    assert.strictEqual(res.stdout, '[main] +0 ~0 | profile=standard | ⚠ code');
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test('pending migration sentinel renders the generated migration short name', () => {
+  const repo = mkRepo();
+  const home = mkHome();
+  try {
+    const sess = path.join(repo, '.claude', 'artifacts', 'sessions');
+    fs.mkdirSync(sess, { recursive: true });
+    fs.writeFileSync(path.join(sess, '.pending-migration-review'), 'stub');
+    const res = runStatusline(repo, home);
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.strictEqual(res.stdout, '[main] +0 ~0 | profile=standard | ⚠ mig');
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test('multiple pending review sentinels render all generated short names in slot order', () => {
+  const repo = mkRepo();
+  const home = mkHome();
+  try {
+    const sess = path.join(repo, '.claude', 'artifacts', 'sessions');
+    fs.mkdirSync(sess, { recursive: true });
+    fs.writeFileSync(path.join(sess, '.pending-review'), 'stub');
+    fs.writeFileSync(path.join(sess, '.pending-migration-review'), 'stub');
+    fs.writeFileSync(path.join(sess, '.pending-doc-review'), 'stub');
+    const res = runStatusline(repo, home);
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.strictEqual(res.stdout, '[main] +0 ~0 | profile=standard | ⚠ code|doc|mig');
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });
     fs.rmSync(home, { recursive: true, force: true });

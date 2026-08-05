@@ -16,6 +16,17 @@ Do not stop for an advisory response before writing it. A fresh report must
 contain concrete file/line evidence, the verdict, and any bounded next steps;
 a reply without that evidence is not a completed review.
 
+## Misplaced review evidence
+
+The parent flow scopes reports to the current dispatch obligation rather than
+trusting a filename or directory alone. It records a dispatch baseline plus
+session, attempt, and dispatch identity when available; reports older than the
+baseline or carrying foreign provenance remain unresolved. If several fresh
+reports qualify, choose the newest report and use its relative path as the
+deterministic tie-breaker. A fresh report without provenance may be considered
+only when it belongs to the current run, and diagnostics should expose relative
+paths only.
+
 ## Manual resume
 
 Codex has no Claude sentinel or automatic reviewer lifecycle. When a parent

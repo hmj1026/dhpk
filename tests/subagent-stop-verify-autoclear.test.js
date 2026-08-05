@@ -16,7 +16,9 @@
 // FAILED reviewer) also leaves the sentinel armed so the chain re-fires.
 
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const {
   ROOT,
@@ -661,6 +663,41 @@ function writeMisplacedReviewArtifact(repo, subdir, filename, isoStamp = '2026-0
   return file;
 }
 
+function writeMisplacedReviewWithFrontmatter(repo, subdir, filename, isoStamp, frontmatter = {}) {
+  const dir = path.join(repo, '.claude', 'artifacts', ...subdir.split('/'));
+  fs.mkdirSync(dir, { recursive: true });
+  const file = path.join(dir, filename);
+  const fields = Object.entries(frontmatter).map(([key, value]) => `${key}: ${value}`);
+  fs.writeFileSync(file, `---\n${fields.join('\n')}\nverdict: APPROVE\n---\nclean`);
+  const stamp = new Date(isoStamp);
+  fs.utimesSync(file, stamp, stamp);
+  return file;
+}
+
+function dispatchReviewer(repo, agent = 'code-reviewer', sessionId = 'session-current', dispatchId = 'attempt-1') {
+  return runHookRaw(ARM_HOOK, {
+    payload: {
+      session_id: sessionId,
+      tool_use_id: dispatchId,
+      tool_input: { subagent_type: agent },
+    },
+    cwd: repo,
+    projectDir: repo,
+    deleteEnv: ['CLAUDE_PLUGIN_OPTION_REVIEW_AGENTS'],
+  });
+}
+
+function makeNoPythonPath() {
+  const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-no-python-bin-'));
+  const commands = ['bash', 'jq', 'awk', 'stat', 'find', 'date', 'git', 'mkdir', 'mktemp', 'rm', 'cat', 'sed', 'head', 'ls', 'dirname', 'pwd', 'grep', 'sort', 'cut', 'tr', 'wc'];
+  for (const command of commands) {
+    const found = spawnSync('bash', ['-c', `command -v ${command}`], { encoding: 'utf8' });
+    const target = found.status === 0 ? found.stdout.trim() : '';
+    if (target) fs.symlinkSync(target, path.join(bin, command));
+  }
+  return bin;
+}
+
 test('a review artifact misfiled under sessions/reviews leaves the sentinel armed and is diagnosed', () => {
   const repo = mkTempRepo();
   try {
@@ -699,6 +736,192 @@ test('a review artifact misfiled under sessions/reviews leaves the sentinel arme
       !/no review doc/i.test(surfaced),
       `must not claim no review doc was written when one exists elsewhere:\n${surfaced}`
     );
+    assert.ok(/current-unknown-session/.test(surfaced), `unknown-session reason missing:\n${surfaced}`);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('stale misplaced artifacts are ignored and logged as no-fresh, not attributed to this stop', () => {
+  const repo = mkTempRepo();
+  try {
+    armSentinel(repo, '.pending-review');
+    writeMisplacedReviewArtifact(repo, 'sessions/reviews', 'code-reviewer-stale.md', '2026-07-05T12:00:00Z');
+    const res = runHook(repo, { subagent_type: 'code-reviewer', exit_status: 0 });
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.ok(sentinelExists(repo, '.pending-review'));
+    const surfaced = failureLogContents(repo) + res.stdout + res.stderr;
+    assert.ok(/no fresh review doc|stale misplaced/i.test(surfaced), surfaced);
+    assert.ok(!surfaced.includes('code-reviewer-stale.md'), 'stale path must not be attributed to this stop');
+    assert.ok(!surfaced.includes(repo), 'diagnostics must not expose an absolute host path');
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('fresh current-session misplaced artifacts are diagnosed without clearing', () => {
+  const repo = mkTempRepo();
+  try {
+    const dispatched = dispatchReviewer(repo, 'code-reviewer', 'session-current', 'attempt-current');
+    assert.strictEqual(dispatched.status, 0, dispatched.stderr);
+    writeMisplacedReviewWithFrontmatter(
+      repo,
+      'sessions/reviews',
+      'code-reviewer-current.md',
+      new Date(Date.now() + 2000).toISOString(),
+      { session_id: 'session-current', dispatch_id: 'attempt-current', attempt: 1 },
+    );
+    const res = runHook(repo, { subagent_type: 'code-reviewer', session_id: 'session-current', exit_status: 0 });
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.ok(sentinelExists(repo, '.pending-review'));
+    const surfaced = failureLogContents(repo) + res.stdout + res.stderr;
+    assert.ok(surfaced.includes('code-reviewer-current.md'), surfaced);
+    assert.ok(/current-session/.test(surfaced), surfaced);
+    assert.ok(surfaced.includes('attempt=1') && surfaced.includes('dispatch=attempt-current'), surfaced);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('body text that resembles provenance is ignored without frontmatter delimiters', () => {
+  const repo = mkTempRepo();
+  try {
+    const dispatched = dispatchReviewer(repo, 'code-reviewer', 'session-current', 'attempt-current');
+    assert.strictEqual(dispatched.status, 0, dispatched.stderr);
+    const dir = path.join(repo, '.claude', 'artifacts', 'sessions', 'reviews');
+    fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, 'code-reviewer-body-text.md');
+    fs.writeFileSync(file, 'Session: findings\nverdict: APPROVE\n');
+    const stamp = new Date(Date.now() + 2000);
+    fs.utimesSync(file, stamp, stamp);
+    const res = runHook(repo, { subagent_type: 'code-reviewer', session_id: 'session-current', exit_status: 0 });
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.ok(sentinelExists(repo, '.pending-review'));
+    const surfaced = failureLogContents(repo) + res.stdout + res.stderr;
+    assert.ok(surfaced.includes('code-reviewer-body-text.md'), surfaced);
+    assert.ok(/current-unknown-session/.test(surfaced), surfaced);
+    assert.ok(!/foreign/.test(surfaced), surfaced);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('no-python fallback accepts quoted current-session provenance', () => {
+  const repo = mkTempRepo();
+  const noPythonPath = makeNoPythonPath();
+  try {
+    const dispatched = dispatchReviewer(repo, 'code-reviewer', 'session-current', 'attempt-current');
+    assert.strictEqual(dispatched.status, 0, dispatched.stderr);
+    writeMisplacedReviewWithFrontmatter(
+      repo,
+      'sessions/reviews',
+      'code-reviewer-quoted-current.md',
+      new Date(Date.now() + 2000).toISOString(),
+      { session_id: "'session-current'", dispatch_id: "'attempt-current'", attempt: "'1'" },
+    );
+    const res = runHookRaw(HOOK, {
+      payload: { subagent_type: 'code-reviewer', session_id: 'session-current', exit_status: 0 },
+      cwd: repo,
+      projectDir: repo,
+      env: { PATH: noPythonPath },
+      deleteEnv: ['DHPK_ACTIVE_MODULES', 'CLAUDE_PLUGIN_OPTION_REVIEW_AGENTS'],
+    });
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.ok(sentinelExists(repo, '.pending-review'));
+    const surfaced = failureLogContents(repo) + res.stdout + res.stderr;
+    assert.ok(surfaced.includes('code-reviewer-quoted-current.md'), surfaced);
+    assert.ok(/current-session/.test(surfaced), surfaced);
+    assert.ok(!/foreign/.test(surfaced), surfaced);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+    fs.rmSync(noPythonPath, { recursive: true, force: true });
+  }
+});
+
+test('learning-db and failure logs identify current versus stale misplaced outcomes without host paths', () => {
+  const repo = mkTempRepo();
+  try {
+    armSentinel(repo, '.pending-review');
+    writeMisplacedReviewArtifact(repo, 'sessions/reviews', 'code-reviewer-old.md', '2026-07-05T12:00:00Z');
+    const stale = runHookRaw(HOOK, {
+      payload: { subagent_type: 'code-reviewer', session_id: 'session-stale', exit_status: 0 },
+      cwd: repo,
+      projectDir: repo,
+      env: { DHPK_LEARNING_DB: '1' },
+      deleteEnv: ['DHPK_ACTIVE_MODULES', 'CLAUDE_PLUGIN_OPTION_REVIEW_AGENTS'],
+    });
+    assert.strictEqual(stale.status, 0, stale.stderr);
+    const staleLog = failureLogContents(repo);
+    const learning = path.join(repo, '.claude', 'artifacts', 'learning.jsonl');
+    const learningText = fs.existsSync(learning) ? fs.readFileSync(learning, 'utf8') : '';
+    assert.ok(staleLog.includes('no fresh review doc') && staleLog.includes('stale'), staleLog);
+    assert.ok(learningText.includes('review-doc-no-fresh:.pending-review') && learningText.includes('reason=stale'), learningText);
+    assert.ok(!staleLog.includes(repo) && !learningText.includes(repo), 'learning/log output must redact host paths');
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('foreign-session misplaced artifacts are ignored while the current gate stays armed', () => {
+  const repo = mkTempRepo();
+  try {
+    const dispatched = dispatchReviewer(repo, 'code-reviewer', 'session-current', 'attempt-current');
+    assert.strictEqual(dispatched.status, 0, dispatched.stderr);
+    writeMisplacedReviewWithFrontmatter(
+      repo,
+      'sessions/reviews',
+      'code-reviewer-foreign.md',
+      new Date(Date.now() + 2000).toISOString(),
+      { session_id: 'session-foreign', dispatch_id: 'attempt-foreign', attempt: 1 },
+    );
+    const res = runHook(repo, { subagent_type: 'code-reviewer', session_id: 'session-current', exit_status: 0 });
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.ok(sentinelExists(repo, '.pending-review'));
+    const surfaced = failureLogContents(repo) + res.stdout + res.stderr;
+    assert.ok(/no fresh review doc|foreign/i.test(surfaced), surfaced);
+    assert.ok(!surfaced.includes('code-reviewer-foreign.md'), 'foreign path must not be attributed to current stop');
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('a stop from a foreign session cannot claim an unproven fresh misplaced file', () => {
+  const repo = mkTempRepo();
+  try {
+    const dispatched = dispatchReviewer(repo, 'code-reviewer', 'session-current', 'attempt-current');
+    assert.strictEqual(dispatched.status, 0, dispatched.stderr);
+    writeMisplacedReviewWithFrontmatter(
+      repo,
+      'sessions/reviews',
+      'code-reviewer-unknown-foreign-stop.md',
+      new Date(Date.now() + 2000).toISOString(),
+    );
+    const res = runHook(repo, { subagent_type: 'code-reviewer', session_id: 'session-foreign', exit_status: 0 });
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.ok(sentinelExists(repo, '.pending-review'));
+    const surfaced = failureLogContents(repo) + res.stdout + res.stderr;
+    assert.ok(/no fresh review doc|foreign/i.test(surfaced), surfaced);
+    assert.ok(!surfaced.includes('code-reviewer-unknown-foreign-stop.md'), 'foreign stop must not claim an unknown-session path');
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('multiple qualifying misplaced artifacts select newest, then stable relative path on ties', () => {
+  const repo = mkTempRepo();
+  try {
+    const dispatched = dispatchReviewer(repo, 'code-reviewer', 'session-current', 'attempt-current');
+    assert.strictEqual(dispatched.status, 0, dispatched.stderr);
+    const current = Date.now() + 2000;
+    writeMisplacedReviewWithFrontmatter(repo, 'sessions/reviews', 'code-reviewer-old.md', new Date(current).toISOString(), { session_id: 'session-current' });
+    writeMisplacedReviewWithFrontmatter(repo, 'sessions/reviews', 'code-reviewer-new.md', new Date(current + 2000).toISOString(), { session_id: 'session-current' });
+    writeMisplacedReviewWithFrontmatter(repo, 'sessions/reviews', 'code-reviewer-aaa.md', new Date(current + 3000).toISOString(), { session_id: 'session-current' });
+    writeMisplacedReviewWithFrontmatter(repo, 'sessions/reviews', 'code-reviewer-zzz.md', new Date(current + 3000).toISOString(), { session_id: 'session-current' });
+    const res = runHook(repo, { subagent_type: 'code-reviewer', session_id: 'session-current', exit_status: 0 });
+    const surfaced = failureLogContents(repo) + res.stdout + res.stderr;
+    assert.ok(surfaced.includes('code-reviewer-aaa.md'), surfaced);
+    assert.ok(!surfaced.includes('code-reviewer-new.md'), 'older qualifying candidate must not win');
+    assert.ok(!surfaced.includes('code-reviewer-zzz.md'), 'stable tie-breaker must select one candidate');
   } finally {
     fs.rmSync(repo, { recursive: true, force: true });
   }

@@ -222,7 +222,7 @@ The plugin spec has no statusline component; opt in manually by adding to your p
 }
 ```
 
-The statusline renders `[branch] +staged ~modified | docker:status | profile=<p> | mod=<active> | ⚠ <pending-sentinels>` and falls back to the global `~/.claude/statusline.sh` for tokens/model/rate-limit lines.
+The statusline renders `[branch] +staged ~modified | docker:status | profile=<p> | mod=<active> | ⚠ <pending-sentinels>` and falls back to the global `~/.claude/statusline.sh` for tokens/model/rate-limit lines. Sentinel badges are generated from the shared `SENTINEL_SHORT_NAMES` map, so the seven review slots stay in SSOT order (including `⚠ mig` for migration review).
 
 ## Sync Codex CLI content
 

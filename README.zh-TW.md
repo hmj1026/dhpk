@@ -220,7 +220,7 @@ Dispatcher 契約與 `js` 模組的完整範例詳見 [`docs/hook-extension.md`]
 }
 ```
 
-Statusline 會渲染 `[branch] +staged ~modified | docker:status | profile=<p> | mod=<active> | ⚠ <pending-sentinels>`，並退回到全域 `~/.claude/statusline.sh` 取得 token/模型/rate-limit 行。
+Statusline 會渲染 `[branch] +staged ~modified | docker:status | profile=<p> | mod=<active> | ⚠ <pending-sentinels>`，並退回到全域 `~/.claude/statusline.sh` 取得 token/模型/rate-limit 行。Sentinel badge 直接取用共用的 `SENTINEL_SHORT_NAMES` map，因此七個 review slot 永遠遵循 SSOT 順序（包含 migration review 的 `⚠ mig`）。
 
 ## 同步 Codex CLI 內容
 
