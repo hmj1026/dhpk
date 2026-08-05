@@ -1,4 +1,0 @@
-interface:
-  display_name: "Codex Explain"
-  short_description: "Explain complex code via Codex MCP."
-  default_prompt: "Use $dhpk-codex-explain to apply the Codex Explain workflow with its verification rules."

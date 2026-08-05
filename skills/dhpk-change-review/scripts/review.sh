@@ -60,6 +60,18 @@ fi
 REPO_ROOT="$(git rev-parse --show-toplevel)"
 cd "$REPO_ROOT"
 
+# Pin the review to a non-empty merge-base. A moving branch name or an empty
+# base makes a later re-review incomparable and can silently hide changes.
+if [[ -n "$BASE_BRANCH" ]]; then
+  MERGE_BASE="$(git merge-base "$BASE_BRANCH" HEAD 2>/dev/null || true)"
+else
+  MERGE_BASE="$(git rev-parse HEAD 2>/dev/null || true)"
+fi
+if [[ -z "$MERGE_BASE" ]]; then
+  echo "review.sh: unable to resolve a non-empty merge base" >&2
+  exit 2
+fi
+
 if [[ -z "$BASE_BRANCH" ]]; then
   CHANGES="$(git status --porcelain 2>/dev/null)"
   if [[ -z "$CHANGES" ]]; then
@@ -68,12 +80,12 @@ if [[ -z "$BASE_BRANCH" ]]; then
   fi
   echo "=== CODEX CLI REVIEW (Uncommitted Changes) ==="
 else
-  CHANGES="$(git diff --name-only "$BASE_BRANCH"..HEAD 2>/dev/null)"
+  CHANGES="$(git diff --name-only "$MERGE_BASE"..HEAD 2>/dev/null)"
   if [[ -z "$CHANGES" ]]; then
     echo "[INFO] No changes compared to $BASE_BRANCH." >&2
     exit 0
   fi
-  echo "=== CODEX CLI REVIEW (vs $BASE_BRANCH) ==="
+  echo "=== CODEX CLI REVIEW (vs $BASE_BRANCH; merge-base $MERGE_BASE) ==="
 fi
 
 echo ""
@@ -81,7 +93,7 @@ echo "Changed files:"
 if [[ -z "$BASE_BRANCH" ]]; then
   git status --short
 else
-  git diff --name-only "$BASE_BRANCH"..HEAD | head -20
+  git diff --name-only "$MERGE_BASE"..HEAD | head -20
 fi
 echo ""
 
@@ -89,7 +101,7 @@ CMD=(codex review)
 if [[ -z "$BASE_BRANCH" ]]; then
   CMD+=(--uncommitted)
 else
-  CMD+=(--base "$BASE_BRANCH")
+  CMD+=(--base "$MERGE_BASE")
 fi
 if [[ -n "$TITLE" ]]; then
   CMD+=(--title "$TITLE")
@@ -98,7 +110,7 @@ CMD+=(-c 'sandbox_permissions=["disk-full-read-access"]')
 
 # Scope and depth are review workflow metadata.  Keep them in the prompt rather
 # than interpolating them into a shell command so hostile values remain literal.
-WORKFLOW_PROMPT="$(printf 'Review scope: %s\nReview depth: %s' "$SCOPE" "$DEPTH")"
+WORKFLOW_PROMPT="$(printf 'Review scope: %s\nReview depth: %s\nPinned merge base: %s\nReview both Standards and Spec axes.' "$SCOPE" "$DEPTH" "$MERGE_BASE")"
 if [[ -n "$CUSTOM_PROMPT" ]]; then
   CUSTOM_PROMPT="$(printf '%s\n%s' "$WORKFLOW_PROMPT" "$CUSTOM_PROMPT")"
 else

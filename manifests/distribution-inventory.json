@@ -974,24 +974,9 @@
         "claude-core"
       ],
       "legacy_names": [
-        "code-explore"
-      ]
-    },
-    {
-      "id": "code-investigate",
-      "name": "dhpk-code-investigate",
-      "path": "skills/dhpk-code-investigate",
-      "capability_id": "dhpk.skill.code-investigate",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core"
-      ],
-      "legacy_names": [
-        "code-investigate"
+        "code-explore",
+        "code-investigate",
+        "codex-explain"
       ]
     },
     {
@@ -1046,23 +1031,6 @@
       ]
     },
     {
-      "id": "codex-cli-review",
-      "name": "dhpk-codex-cli-review",
-      "path": "skills/dhpk-codex-cli-review",
-      "capability_id": "dhpk.skill.codex-cli-review",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core"
-      ],
-      "legacy_names": [
-        "codex-cli-review"
-      ]
-    },
-    {
       "id": "codex-code-review",
       "name": "dhpk-change-review",
       "path": "skills/dhpk-change-review",
@@ -1076,24 +1044,8 @@
         "claude-core"
       ],
       "legacy_names": [
-        "codex-code-review"
-      ]
-    },
-    {
-      "id": "codex-explain",
-      "name": "dhpk-codex-explain",
-      "path": "skills/dhpk-codex-explain",
-      "capability_id": "dhpk.skill.codex-explain",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core"
-      ],
-      "legacy_names": [
-        "codex-explain"
+        "codex-code-review",
+        "codex-cli-review"
       ]
     },
     {

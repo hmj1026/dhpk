@@ -46,8 +46,8 @@ entry (one whose flag enables broad mutation) implicit-eligible.
 
 All other root skills: `dhpk-adaptive-dev-workflow`, `dhpk-agent-architecture-audit`,
 `dhpk-agy-fast-worker`, `dhpk-bug-fix`, `dhpk-root-cause-investigation`, `dhpk-codebase-exploration`,
-`dhpk-code-investigate`, `dhpk-codex-architect`, `dhpk-codex-brainstorm`, `dhpk-codex-bridge`,
-`dhpk-codex-cli-review`, `dhpk-change-review`, `dhpk-codex-explain`, `dhpk-codex-implement`,
+`dhpk-codex-architect`, `dhpk-codex-brainstorm`, `dhpk-codex-bridge`, `dhpk-change-review`,
+`dhpk-codex-implement`,
 `dhpk-composer-package-hygiene`, `dhpk-create-request`, `dhpk-de-ai-flavor`, `dhpk-deploy-list`,
 `dhpk-execution-policy`, `dhpk-doc-review`, `dhpk-execution-checklist`,
 `dhpk-feasibility-study`, `dhpk-feature-dev`, `dhpk-feature-verify`, `dhpk-git-history-investigation`,

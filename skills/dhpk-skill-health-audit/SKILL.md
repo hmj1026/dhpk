@@ -101,6 +101,13 @@ Read flagged skills and evaluate:
 
 Only run Step 2 when user explicitly requests deep audit. Default: Step 1 only.
 
+### Cost, branch, and sediment checks
+
+The lint gate is also a context-cost check: flag unconditionally loaded
+branches, non-checkable completion, and repeated routing. Mark no-op,
+duplication, and documentation sediment for pruning; a conditional reference
+is healthy only when its triggering branch is named in `SKILL.md`.
+
 ## Output
 
 ```markdown
@@ -143,6 +150,8 @@ Only run Step 2 when user explicitly requests deep audit. Default: Step 1 only.
 
 - [ ] Automated lint executed (exit code checked); all P0/P1 findings have fix recommendations.
 - [ ] Per-skill table includes all scanned skills; gate sentinel present for hook parsing.
+- [ ] Invocation/context cost, conditional branches, and checkable completion are assessed.
+- [ ] No-op, duplication, and sediment findings are actionable pruning items.
 
 ## References
 

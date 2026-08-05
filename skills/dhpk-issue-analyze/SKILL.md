@@ -36,7 +36,7 @@ When input is a **Review Thread**:
 ## Workflow
 
 1. **Read** the issue with `gh issue view --json ...`, or use the supplied review-thread fields. Extract symptoms, reproduction, errors, and file clues.
-2. **Classify** with [classification.md](references/classification.md): unfamiliar → `/dhpk:dhpk-codebase-exploration`; regression → `/dhpk:dhpk-git-history-investigation`; complex root → `/dhpk:dhpk-code-investigate`; multiple causes → `/dhpk:dhpk-codex-brainstorm`.
+2. **Classify** with [classification.md](references/classification.md): unfamiliar → `/dhpk:dhpk-codebase-exploration`; regression → `/dhpk:dhpk-git-history-investigation`; complex root → `/dhpk:dhpk-codebase-exploration --dual`; multiple causes → `/dhpk:dhpk-codex-brainstorm`.
 3. **Blind verdict** in a fresh read-only Codex thread without Claude's classification. Triage mode stops after this phase.
 4. **Investigate** unless policy maps the verdict to `DISMISS_VERIFIED`.
 5. **Report** the combined evidence, verdict, root-cause hypothesis, and recommendation.
@@ -47,7 +47,7 @@ When input is a **Review Thread**:
 | ------------------- | ---------------------- | ------- | ---------- |
 | `/dhpk:dhpk-codebase-exploration`     | Quick code exploration | Fast    | Single     |
 | `/dhpk:dhpk-git-history-investigation`  | Track change history   | Medium  | Single     |
-| `/dhpk:dhpk-code-investigate` | Dual confirmation      | Slow    | Dual-view  |
+| `/dhpk:dhpk-codebase-exploration --dual` | Dual confirmation      | Slow    | Dual-view  |
 | `/dhpk:dhpk-codex-brainstorm` | Exhaust possibilities  | Slowest | Adversarial|
 
 ## Phase 2.5: Verdict Assessment
@@ -150,7 +150,7 @@ Phase 4: Report + fix recommendation
 Input: /dhpk:dhpk-issue-analyze 456
 Phase 1: gh issue view 456 -> "Random timeout occurrences"
 Phase 2: Classification = Complex root cause (intermittent)
-Phase 3: /dhpk:dhpk-code-investigate -> Claude + Codex dual-view
+Phase 3: /dhpk:dhpk-codebase-exploration --dual -> Claude + Codex dual-view
 Phase 4: Consolidated report -> ranked possible causes
 ```
 

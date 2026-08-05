@@ -30,6 +30,23 @@ channel that bypasses the public interface. Expected values must come from a
 literal, worked example, or independent specification; never recompute them
 with the same logic as the implementation.
 
+### Seams and slicing rules
+
+- Name the **public seams** before writing the test: API, command, event, or
+  other caller-visible boundary. Keep tests at that seam unless a genuine
+  external boundary requires a narrow adapter test.
+- Use **independent expected values** from a literal example or specification;
+  a test that calls the same helper to compute its expected result is
+  tautological and cannot detect a shared defect.
+- Build **vertical tracer bullets**: one failing behavior through the real
+  boundary and minimal collaborators, then expand coverage around the same
+  path.
+- Avoid **horizontal slicing** (all models, then all services, then all
+  controllers). It delays feedback and encourages implementation-coupled tests.
+- Reject **implementation-coupled** assertions on private names, incidental
+  call counts, or internal data shape. A **tautological** test is a test smell,
+  not evidence of coverage.
+
 ## Fast-worker mode
 
 Use this mode when `fast-worker`, `codex-fast-worker`, or `dhpk-agy-fast-worker`

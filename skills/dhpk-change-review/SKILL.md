@@ -6,11 +6,28 @@ metadata:
   dhpk-invocation-class: implicit-eligible
 ---
 
-# Codex Code Review
+# Change review
 
 Use this skill for an independent code review of a diff, branch, or pull
 request. Select one scope, load `references/review-workflow.md`, and preserve
 the gate state from initialization through final output.
+
+The MCP backend is the default. For environments with the Codex CLI, the same
+contract is available through `scripts/review.sh --backend cli`; the wrapper
+uses argument arrays, never `eval`, and accepts literal user values.
+
+```text
+scripts/review.sh --backend cli \
+  --scope diff|branch|doc|security|tests \
+  --depth fast|full [--base <branch>] [--title <text>] [--prompt <text>]
+```
+
+`--scope` narrows the review contract and `--depth` controls local checks and
+context. Read `references/cli-backend.md` when selecting the CLI backend.
+
+Every review records a non-empty, pinned `git merge-base` (or `HEAD` for an
+uncommitted diff) before reading findings. This keeps re-reviews comparable and
+prevents a moving branch reference from hiding changes.
 
 > Security note: `Bash(bash:*)` is broader than ideal because the host cannot
 > yet resolve `${CLAUDE_PLUGIN_ROOT}` in command frontmatter. Invoke Bash only
@@ -38,9 +55,13 @@ the gate state from initialization through final output.
    → aggregation → gate sequence.
 3. Keep Codex and the secondary reviewer independent; pass metadata, not one
    reviewer's conclusions, to the other.
-4. Reconcile severity, duplicate findings, late results, and degraded reviewer
+4. Review two separate axes: **Standards** (repository rules, security, tests,
+   compatibility, and maintainability) and **Spec** (the request, acceptance
+   criteria, behavior, and edge cases). A pass on one axis never substitutes
+   for the other.
+5. Reconcile severity, duplicate findings, late results, and degraded reviewer
    availability through `references/review-common.md`.
-5. Re-review after every code edit and emit `READY` or `BLOCKED` state before
+6. Re-review after every code edit and emit `READY` or `BLOCKED` state before
    returning the report.
 
 ## Output
@@ -53,6 +74,8 @@ finding may be hidden by a degraded secondary review.
 ## Verification
 
 - [ ] The variant and exact diff scope are recorded.
+- [ ] A non-empty merge-base (or `HEAD` for an uncommitted diff) is pinned.
+- [ ] Standards and Spec axes are reported separately.
 - [ ] PENDING was emitted before review and a final gate was emitted afterward.
 - [ ] Codex independently read the diff and project context.
 - [ ] The secondary reviewer was dispatched or its degradation reason is explicit.
@@ -61,6 +84,8 @@ finding may be hidden by a degraded secondary review.
 
 ## References
 
+- `references/cli-backend.md` — CLI backend options, literal argument handling,
+  and the wrapper's failure behavior.
 - `references/review-workflow.md` — exact workflow, dispatch, sanitization, and
   gate steps.
 - `references/review-common.md` — severity, dimensions, gates, re-review,

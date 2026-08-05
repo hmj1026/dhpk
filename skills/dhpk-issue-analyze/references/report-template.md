@@ -38,7 +38,7 @@
 | Complexity  | Low / Medium / High                       |
 | Type        | Logic error / Performance / Data / Other  |
 
-**Selected Strategy**: `/dhpk:dhpk-codebase-exploration` | `/dhpk:dhpk-git-history-investigation` | `/dhpk:dhpk-code-investigate` | `/dhpk:dhpk-codex-brainstorm`
+**Selected Strategy**: `/dhpk:dhpk-codebase-exploration` | `/dhpk:dhpk-git-history-investigation` | `/dhpk:dhpk-codebase-exploration --dual` | `/dhpk:dhpk-codex-brainstorm`
 
 ## Investigation Process
 

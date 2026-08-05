@@ -1,162 +1,60 @@
 ---
 name: dhpk-codebase-exploration
-argument-hint: '<investigation target or question>'
-description: 'Pure Claude code investigation. Use when: tracing execution paths, understanding architecture, diagnosing issues. Not for: dual-perspective review (use code-investigate), code review (use codex-code-review). Output: analysis report with findings.'
-allowed-tools: 'Read, Grep, Glob, Bash(ls:*), Bash(find:*)'
+argument-hint: '<investigation target or question> [--dual] [--explain --depth brief|normal|deep]'
+description: 'Explore an unfamiliar codebase with a focused symbol/flow trace, optionally run an independent second perspective, or request a depth-controlled explanation. Use when: tracing execution, understanding architecture, or diagnosing a code path. Not for: change review, security audit, or implementation. Output: evidence-backed flow findings with explicit gaps.'
+allowed-tools: 'Read, Grep, Glob, Bash(ls:*), Bash(find:*), Bash(git:*), mcp__codex__codex, mcp__codex__codex-reply'
 context: fork
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---
 
-# Code Explore Skill
+# Codebase exploration
 
-## When to Use
+Use the smallest mode that answers the question. The default is a single
+perspective symbol/flow trace: locate the entry point, follow callers and
+callees, and report evidence with file and line references. Do not turn a
+simple lookup into a review or a speculative architecture redesign.
 
-- Quickly understand how a feature works
-- Trace execution paths / data flow
-- Diagnose problem root causes
-- No dual confirmation needed (no Codex cross-validation)
+## Modes
 
-## When NOT to Use
+| Invocation | Behavior | Additional reading |
+|---|---|---|
+| default | Symbol/flow trace with one coherent report | `references/search-patterns.md` when search strategy is unclear |
+| `--dual` | Run Claude and Codex independently, then reconcile agreements and gaps. Keep the Codex prompt clean: pass the question and project path, never Claude's conclusion. | `references/dual-perspective.md` |
+| `--explain --depth brief\|normal\|deep` | Ask for an explanation of a target file or symbol. `brief` is one sentence; `normal` adds flow and concepts; `deep` adds dependencies, complexity, and risks. | `references/explain.md` |
 
-| Scenario                | Alternative                           |
-| ----------------------- | ------------------------------------- |
-| Need dual confirmation  | `/dhpk:dhpk-code-investigate` (Claude + Codex)  |
-| Git history tracking    | `/dhpk:dhpk-git-history-investigation`                    |
-| System verification     | `/dhpk:dhpk-feature-verify`                     |
-| Code review             | `/codex-review-fast`                  |
+If `--dual` and `--explain` are combined, use the explanation depth for both
+perspectives and still keep their research independent. If depth is omitted,
+use `normal`.
 
-## Workflow
+## Default workflow
 
-```
-┌──────────────────────────────────────────────────────────┐
-│ Phase 1: Locate Entry Point                                │
-├──────────────────────────────────────────────────────────┤
-│ 1. Grep keywords -> find related files                     │
-│ 2. Identify entry points (Controller / Service / Provider) │
-│ 3. Build file list                                         │
-└──────────────────────────────────────────────────────────┘
-                          ↓
-┌──────────────────────────────────────────────────────────┐
-│ Phase 2: Trace Path                                        │
-├──────────────────────────────────────────────────────────┤
-│ 1. Start from entry point, Read                            │
-│ 2. Identify dependencies -> continue tracing               │
-│ 3. Map call chain (A -> B -> C)                            │
-└──────────────────────────────────────────────────────────┘
-                          ↓
-┌──────────────────────────────────────────────────────────┐
-│ Phase 3: Understand Logic                                  │
-├──────────────────────────────────────────────────────────┤
-│ 1. What is the core logic?                                 │
-│ 2. How does data flow?                                     │
-│ 3. Error handling mechanisms?                              │
-│ 4. Key decision points?                                    │
-└──────────────────────────────────────────────────────────┘
-                          ↓
-┌──────────────────────────────────────────────────────────┐
-│ Phase 4: Output Report                                     │
-├──────────────────────────────────────────────────────────┤
-│ 1. Architecture overview (diagram / table)                 │
-│ 2. Key files list                                          │
-│ 3. Execution flow                                          │
-│ 4. Findings / notes                                        │
-└──────────────────────────────────────────────────────────┘
-```
-
-## Search Strategy
-
-| Target          | Strategy                                                 |
-| --------------- | -------------------------------------------------------- |
-| Feature entry   | `Grep "export class.*Controller"` / `Grep "@Get\|@Post"` |
-| Service layer   | `Grep "export class.*Service"`                           |
-| Provider layer  | `Glob "src/provider/**/*.ts"`                            |
-| Configuration   | `Read {CONFIG_FILE}`                                     |
-| Data models     | `Glob "src/model/**/*.ts"`                               |
+1. Identify the question, repository root, and target symbol or entry point.
+2. Inspect definitions and references; prefer symbol-level evidence over
+   loading unrelated files.
+3. Trace the data/control flow until the observable output or failure edge is
+   accounted for.
+4. Record assumptions, edge cases, and unresolved links. A clean prompt and
+   independent evidence matter more than a large file dump.
 
 ## Output
 
 ```markdown
-## Investigation Report: {Topic}
-
-### Architecture Overview
-
-{ASCII or Mermaid diagram}
-
-### Key Files
-
-| File              | Responsibility |
-| ----------------- | -------------- |
-| `path/to/file.ts` | Description   |
-
-### Execution Flow
-
-1. {Step 1}
-2. {Step 2}
-3. ...
-
-### Data Flow
-
-{Describe how data flows}
-
-### Findings
-
-- {Important finding 1}
-- {Important finding 2}
-
-### Notes
-
-- {Potential issue / edge case}
+## Exploration report: <topic>
+- Mode and depth: <default|dual|explain> / <brief|normal|deep>
+- Entry point: <file:line or symbol>
+- Flow: <ordered caller -> callee path>
+- Evidence: <file:line observations>
+- Findings and gaps: <actionable conclusions, or what remains unknown>
 ```
+
+For `--dual`, include separate Claude and Codex findings followed by an
+agreement/difference table and an integrated conclusion. For `--explain`, keep
+the requested depth; do not emit deep complexity claims in `brief` mode.
 
 ## Verification
 
-- [ ] Entry points identified and listed
-- [ ] Execution flow traced end-to-end
-- [ ] Key files table includes all relevant files
-- [ ] Findings section has actionable insights
-
-## References
-
-- `references/search-patterns.md` — Common search patterns for codebase exploration (read when building search strategy)
-
-## Examples
-
-### Feature Understanding
-
-```
-Input: Investigate how user data queries work
-Phase 1: Grep "balance" -> find UserService, UserController
-Phase 2: Controller -> Service -> Provider call chain
-Phase 3: Understand query + cache mechanism
-Phase 4: Output report + flow diagram
-```
-
-### Problem Diagnosis
-
-```
-Input: Why does this API sometimes return empty?
-Phase 1: Grep "getData" + "cache" -> related files
-Phase 2: Trace data retrieval path
-Phase 3: Identify fallback logic + timeout handling
-Phase 4: List possible causes + recommendations
-```
-
-### Architecture Understanding
-
-```
-Input: What is the overall architecture of the user module?
-Phase 1: Glob "src/**/*user*" -> list all related files
-Phase 2: Identify layer relationships (Controller -> Service -> Provider)
-Phase 3: Understand each layer's responsibilities
-Phase 4: Output architecture diagram + module description
-```
-
-## Difference from code-investigate
-
-| Dimension    | code-explore           | code-investigate       |
-| ------------ | ---------------------- | ---------------------- |
-| Speed        | Fast (single view)     | Slow (dual view)       |
-| Confirmation | Single perspective     | Cross-validation       |
-| Tools        | Pure Claude            | Claude + Codex         |
-| Use case     | Quick investigation    | Important decisions    |
+- [ ] Entry point and callers/callees are evidence-backed.
+- [ ] The selected mode and depth are stated.
+- [ ] Independent perspectives were not contaminated by sharing conclusions.
+- [ ] Unknowns and edge cases are explicit rather than guessed.

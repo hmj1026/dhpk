@@ -89,6 +89,13 @@ Produce the report in the **Output** format below. If a score is hard to name, c
 - **NEVER** overlook a missing anti-pattern (NEVER) list — that is a significant gap
 - **NEVER** undervalue the description field — poor description = skill never gets used
 
+## Cost and maintainability lens
+
+Score invocation/context cost: conditional branches load only needed references
+and completion is checkable from an observable result. Penalize no-op,
+duplication, and documentation sediment; a polished rubric cannot rescue a
+default path that spends context on unused branches.
+
 (Full evaluator guardrails: `references/failure-patterns.md`.)
 
 ## Output
@@ -136,6 +143,8 @@ Produce the report in the **Output** format below. If a score is hard to name, c
 - [ ] Total summed correctly and mapped to the right grade band
 - [ ] Report includes Critical Issues + Top 3 Improvements (not just scores)
 - [ ] Meta-question applied: would a domain expert say "this took me years to learn"?
+- [ ] Invocation/context cost and conditional reference branches are evaluated.
+- [ ] Completion is checkable; no-op, duplication, and sediment are marked for pruning.
 
 ## References
 

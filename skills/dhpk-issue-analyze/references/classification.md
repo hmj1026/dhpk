@@ -15,10 +15,10 @@
 | Temporality    | Certainty    | Complexity | Strategy                                 |
 | -------------- | ------------ | ---------- | ---------------------------------------- |
 | Regression     | Reproducible | Low        | `/dhpk:dhpk-git-history-investigation`                       |
-| Regression     | Reproducible | High       | `/dhpk:dhpk-git-history-investigation` + `/dhpk:dhpk-code-investigate` |
-| Regression     | Intermittent | -          | `/dhpk:dhpk-code-investigate`                      |
+| Regression     | Reproducible | High       | `/dhpk:dhpk-git-history-investigation` + `/dhpk:dhpk-codebase-exploration --dual` |
+| Regression     | Intermittent | -          | `/dhpk:dhpk-codebase-exploration --dual`                      |
 | Always existed | Reproducible | Low        | `/dhpk:dhpk-codebase-exploration`                          |
-| Always existed | Reproducible | High       | `/dhpk:dhpk-code-investigate`                      |
+| Always existed | Reproducible | High       | `/dhpk:dhpk-codebase-exploration --dual`                      |
 | Always existed | Intermittent | -          | `/dhpk:dhpk-codex-brainstorm`                      |
 | Uncertain      | -            | -          | `/dhpk:dhpk-codebase-exploration` first                    |
 
@@ -34,7 +34,7 @@
 - "How does this feature work" "what does this code do" "what's the flow"
 - "Don't know where it is" "how to trace"
 
-### -> `/dhpk:dhpk-code-investigate`
+### -> `/dhpk:dhpk-codebase-exploration --dual`
 
 - "Need confirmation" "somewhat complex" "unsure of the cause"
 - "Intermittent" "sometimes happens" "random"
@@ -51,7 +51,7 @@ When the problem is complex, combine strategies:
 ```
 1. /dhpk:dhpk-codebase-exploration -> Establish baseline understanding first
 2. /dhpk:dhpk-git-history-investigation -> If regression is suspected
-3. /dhpk:dhpk-code-investigate -> When dual confirmation is needed
+3. /dhpk:dhpk-codebase-exploration --dual -> When dual confirmation is needed
 4. /dhpk:dhpk-codex-brainstorm -> Exhaust all possible causes
 ```
 
@@ -90,11 +90,11 @@ When input is a PR review thread (not a GitHub Issue), use these dimensions inst
 Initial investigation insufficient -> Escalate strategy
 
 /dhpk:dhpk-codebase-exploration cannot find cause
-    -> Escalate to /dhpk:dhpk-code-investigate (add Codex perspective)
+    -> Escalate to /dhpk:dhpk-codebase-exploration --dual (add Codex perspective)
 
 /dhpk:dhpk-git-history-investigation found commit but cause unclear
     -> Combine with /dhpk:dhpk-codebase-exploration (understand change logic)
 
-/dhpk:dhpk-code-investigate dual views diverge
+/dhpk:dhpk-codebase-exploration --dual views diverge
     -> Escalate to /dhpk:dhpk-codex-brainstorm (adversarial debate)
 ```

@@ -268,11 +268,11 @@ TDD specialist 負責 RED 與 scoped test-first 工作。只有整個 production
 
 dhpk **預設 codex-free**。Opt-in 後會解鎖兩個相關但不同的東西：
 
-**A. Implementation dispatch 中的 Codex peer。** 設定 `CODEX=on` 後，高風險的實作階段決策（根因診斷、架構選擇）不再只有 `deep-reasoner`：dhpk 會把 `deep-reasoner` 與 Codex（透過 `mcp__codex__codex`）**並行派發，且雙方互不知道對方的結論**——任一方的 prompt 都不會被餵入對方的結論、判斷或理論——完成後比對兩個獨立結果，並在報告中明確標出分歧。這條「盲式獨立」規則同時適用於 `codex-architect`、`codex-brainstorm`、`codex-implement`、`codex-code-review` 這幾個 skill，以及 `multi-ai-sync`、`feature-verify`、`test-review`、`code-investigate`、`issue-analyze`。完整規則見 [`rules/execution-policy.md`](../rules/execution-policy.md) §"Multi-AI / dual-perspective independence"。
+**A. Implementation dispatch 中的 Codex peer。** 設定 `CODEX=on` 後，高風險的實作階段決策（根因診斷、架構選擇）不再只有 `deep-reasoner`：dhpk 會把 `deep-reasoner` 與 Codex（透過 `mcp__codex__codex`）**並行派發，且雙方互不知道對方的結論**——任一方的 prompt 都不會被餵入對方的結論、判斷或理論——完成後比對兩個獨立結果，並在報告中明確標出分歧。這條「盲式獨立」規則同時適用於 `codex-architect`、`codex-brainstorm`、`codex-implement`、`dhpk-change-review`，以及 `multi-ai-sync`、`feature-verify`、`test-review`、`dhpk-codebase-exploration --dual`、`issue-analyze`。完整規則見 [`rules/execution-policy.md`](../rules/execution-policy.md) §"Multi-AI / dual-perspective independence"。
 
-**B. 六個直接委派給 Codex 的 skill** —— `codex-architect`、`codex-brainstorm`、`codex-cli-review`、`codex-code-review`、`codex-explain`、`codex-implement` —— 可直接呼叫（例如 `/codex-code-review`），不需要經過 `/dhpk:do`。
+**B. 四個直接委派給 Codex 的 skill 加一個 CLI backend** —— `codex-architect`、`codex-brainstorm`、`codex-implement`、`dhpk-change-review`（MCP 或 `--backend cli`）——可直接呼叫，不需要經過 `/dhpk:do`。
 
-這六個 skill 裡有五個（除了 `codex-cli-review`——它透過 `Bash` 直接呼叫 `codex` CLI 執行檔，不需要 MCP server）需要 `mcp__codex__codex` / `mcp__codex__codex-reply` 工具，這來自**直接註冊 Codex CLI 自己的 `codex mcp-server` 子指令**作為 MCP server——**並非**安裝 `openai/codex-plugin-cc` plugin，那是另一個獨立、可選的介面。安裝步驟與 `CODEX=on` 的 opt-in 機制（`/dhpk:do` 的 `--codex` flag／自然語言觸發）見 [`docs/configuration.zh-TW.md`](./configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕)。
+MCP backend 需要 `mcp__codex__codex` / `mcp__codex__codex-reply` 工具；可選的 CLI backend 透過 hardened wrapper 呼叫 `codex` 執行檔，不需要 MCP server。安裝步驟與 `CODEX=on` 的 opt-in 機制（`/dhpk:do` 的 `--codex` flag／自然語言觸發）見 [`docs/configuration.zh-TW.md`](./configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕)。
 
 這與下方的**同步 Codex CLI 內容**是兩回事——那是把 dhpk 自己的 skill 鏡射進專案的 `.codex/` 目錄，給獨立的 `codex` CLI 工具使用，完全不涉及 MCP server。
 

@@ -19,7 +19,7 @@ OpenSpec 是**可選的外部整合**——若需要 OpenSpec 工作流指令，
 | `python3` | 啟用 `modules` 時為必要 | 在 `post-edit-remind` 與 `session-start` 中解析 `module.yaml` |
 | `jq` | 選用（有 python3 後援） | 較快的 JSON payload 擷取 |
 | `docker` | 選用 | 僅在 `userConfig.docker_containers` 非空時會被使用 |
-| Codex MCP server | 選用 | 僅在你使用 5 個 MCP-backed `codex-*` skill、7 個 `/dhpk:codex-*` 指令，或啟用 `CODEX=on` 時才需要——透過將 Claude Code 指向 Codex CLI 的 `codex mcp-server` 子指令來註冊，見 [`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕) |
+| Codex MCP server | 選用 | 僅在你使用 4 個 MCP-backed `codex-*` skill、7 個 `/dhpk:codex-*` 指令，或啟用 `CODEX=on` 時才需要——透過將 Claude Code 指向 Codex CLI 的 `codex mcp-server` 子指令來註冊，見 [`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕) |
 | Codex CLI 執行檔 | 選用 | 僅在執行 `install-codex-skills.sh` 且希望 Codex 真正載入同步內容時才需要 |
 | `cx` CLI | 選用 | 語意化程式碼導覽。`rules/tool-routing.md` 將 `cx overview` / `cx definition` / `cx references` 列為首選工具；6 個 reviewer agent 與 `harness-fill` skill 會引用。未安裝時 → 降級為 `Grep` / `Read`。 |
 | `gitnexus` MCP server | 選用 | 知識圖譜查詢（`gitnexus_impact`、`gitnexus_rename`、`gitnexus_detect_changes`）。6 個 `gitnexus-*` skill 以及 `rules/execution-policy.md` 的 self-check 會用到。未安裝時 → 降級為 `cx` 或 `Grep`。 |
@@ -89,12 +89,12 @@ dhpk 的核心——hooks、sentinel reviewers、Smart Router，以及非 Codex 
 
 | Surface | 名稱 | 需要 | 缺少時 |
 |---------|------|------|--------|
-| 5 個 skill | `codex-architect` · `codex-brainstorm` · `codex-code-review` · `codex-explain` · `codex-implement` | Codex MCP（`mcp__codex__codex`、`mcp__codex__codex-reply`） | 工具權限錯誤——無自動 fallback；改用下方的 Codex-free 對應品 |
-| 1 個 skill | `codex-cli-review` | 僅需 Codex CLI 執行檔（透過 Bash shell out——無 MCP server） | `codex: command not found`；改用 `codex-code-review`（MCP）或 sentinel `code-reviewer` |
+| 4 個 skill | `codex-architect` · `codex-brainstorm` · `codex-implement` · `change-review`（MCP backend） | Codex MCP（`mcp__codex__codex`、`mcp__codex__codex-reply`） | 工具權限錯誤——無自動 fallback；改用下方的 Codex-free 對應品 |
+| 1 個 backend | `change-review --backend cli` | 僅需 Codex CLI 執行檔（透過 hardened wrapper shell out） | `codex: command not found`；改用 MCP backend 或 sentinel `code-reviewer` |
 | 7 個指令 | `/dhpk:codex-review`、`-review-branch`、`-review-doc`、`-review-fast`、`-security`、`-test-gen`、`-test-review` | Codex MCP | 工具權限錯誤——Codex-free 路徑：`/dhpk:dhpk-security-review`、`/dhpk:precommit`、sentinel review hooks |
 | `CODEX=on` | Implementation dispatch 的雙助理 peer 路徑 | Codex MCP | 不會壞——dispatch 維持預設的單助理模式 |
 
-Codex-free 對應品：`security-review` ↔ `codex-security`、`code-explore` ↔ `codex-explain`、sentinel reviewer agents ↔ `codex-code-review`，以及 `create-dev`（預設 Codex-free；`--codex` 才啟用）。
+Codex-free 對應品：`security-review` ↔ `codex-security`、`codebase-exploration` ↔ `change-review`、sentinel reviewer agents ↔ `change-review`，以及 `create-dev`（預設 Codex-free；`--codex` 才啟用）。
 
 一次性設定：以 `claude mcp add --transport stdio codex -- codex mcp-server` 註冊 Codex MCP server，再用 `claude mcp list` 與 `/mcp` 驗證（找到已連線的 `codex` 項目）。完整驗證步驟、MCP-vs-Skill surface 區別，以及獨立的 `openai/codex-plugin-cc` 協作 surface：**[`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕)** / **[`docs/basic-operations.zh-TW.md`](./docs/basic-operations.zh-TW.md#10-codex-雙助理協作)**。
 

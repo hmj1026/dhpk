@@ -4,7 +4,7 @@ description: 'Navigation index for dhpk plugin skills. Internal documentation; n
 
 # Skills Index (dhpk plugin)
 
-> Navigation for the 105 canonical skill packages shipped by the dhpk plugin. Every
+> Navigation for the 102 canonical skill packages shipped by the dhpk plugin. Every
 > package lives flat under `skills/dhpk-<name>/SKILL.md` and is invoked with its
 > public name (for example, `/dhpk:dhpk-tdd-workflow`) or auto-triggered by its
 > `description`. Stack modules expose
@@ -43,8 +43,7 @@ description: 'Navigation index for dhpk plugin skills. Internal documentation; n
 
 | Skill | Purpose |
 |-------|---------|
-| [dhpk-codebase-exploration](dhpk-codebase-exploration/SKILL.md) | Pure-Claude code investigation (trace paths, understand architecture) |
-| [dhpk-code-investigate](dhpk-code-investigate/SKILL.md) | Dual-perspective (Claude + Codex) deep code analysis |
+| [dhpk-codebase-exploration](dhpk-codebase-exploration/SKILL.md) | Symbol/flow exploration with optional dual perspective and depth-controlled explanation |
 | [dhpk-git-history-investigation](dhpk-git-history-investigation/SKILL.md) | Git-history investigation — where a bug was introduced |
 | [dhpk-tool-routing](dhpk-tool-routing/SKILL.md) | Pick the right exploration tool (gitnexus / cx / claude-mem / Read / Grep) |
 | [dhpk-module-design](dhpk-module-design/SKILL.md) | Architecture decisions, module boundaries, implementation guidance |
@@ -57,9 +56,7 @@ description: 'Navigation index for dhpk plugin skills. Internal documentation; n
 | [dhpk-codex-architect](dhpk-codex-architect/SKILL.md) | Codex architecture consulting / design second opinion |
 | [dhpk-codex-brainstorm](dhpk-codex-brainstorm/SKILL.md) | Adversarial Claude + Codex brainstorming to consensus |
 | [dhpk-codex-implement](dhpk-codex-implement/SKILL.md) | Implement features via Codex MCP |
-| [dhpk-codex-explain](dhpk-codex-explain/SKILL.md) | Explain complex code via Codex MCP |
-| [dhpk-change-review](dhpk-change-review/SKILL.md) | Code review via Codex MCP |
-| [dhpk-codex-cli-review](dhpk-codex-cli-review/SKILL.md) | Code review via Codex CLI with full disk access |
+| [dhpk-change-review](dhpk-change-review/SKILL.md) | Code review via MCP or the hardened Codex CLI backend |
 | [dhpk-doc-review](dhpk-doc-review/SKILL.md) | Document review via Codex MCP (5-dimension rating) |
 | [dhpk-test-review](dhpk-test-review/SKILL.md) | Test-coverage sufficiency review via Codex MCP |
 

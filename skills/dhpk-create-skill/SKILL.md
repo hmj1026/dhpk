@@ -56,6 +56,18 @@ skills/<name>/
   `references/*.md` and link to them; the model reads them only when needed.
 - One responsibility per skill. If it sprawls into two jobs, split it.
 
+### Cost and completion contract
+
+- Treat invocation/context cost as a design input: keep the entry point lean,
+  and load references only on the branch that needs them.
+- Write **checkable completion** criteria (commands, observable files, or
+  caller-visible output), not “looks good” prose.
+- Make branches explicit: state which conditional path selects each reference,
+  script, or tool. Avoid loading every branch by default.
+- Before adding content, check whether it is a no-op, duplicates a neighboring
+  skill, or is documentation sediment left by a previous workflow. Prune
+  no-op/duplication/sediment instead of preserving it for completeness.
+
 ## Step 4 — Write the files
 
 - Author `SKILL.md` with the frontmatter from Step 2 and a numbered, verifiable
@@ -88,3 +100,5 @@ verification criteria pass.
 - [ ] `name` matches the directory; `description` has what-it-does + triggers + "Not for:".
 - [ ] `SKILL.md` under the line budget; deep detail moved to `references/`.
 - [ ] `/check-skill` (or `dhpk-skill-health-audit`) passes clean.
+- [ ] Invocation/context cost and conditional reference branches are explicit.
+- [ ] Completion is checkable and no-op, duplication, and sediment were pruned.

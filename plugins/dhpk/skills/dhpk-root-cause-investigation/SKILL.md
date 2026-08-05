@@ -15,6 +15,24 @@ Use a five-phase evidence loop to move from symptom to root cause, then to a bou
 
 Keep the investigation record current. Every conclusion must point to evidence; every unresolved claim must be labelled as a hypothesis or blocker.
 
+## Symptom-specific red loop
+
+Before broad theorizing, turn the reported symptom into a **symptom-specific**
+reproduction: a minimal input, expected/actual output, and a **red-capable**
+assertion or probe that fails for the same reason. Minimize the case until one
+boundary or transition can be observed. If the failure cannot be reproduced,
+record that as inconclusive evidence instead of weakening the assertion.
+
+Maintain a **ranked** list of **falsifiable** hypotheses. For each hypothesis,
+name the prediction, the smallest discriminating check, and the evidence that
+would reject it. Do not promote a hypothesis because it is plausible or because
+it matches a familiar bug pattern.
+
+Instrumentation is temporary and tagged with its purpose, owner, and cleanup
+condition. Remove or quarantine debug probes after confirmation, retain only
+the evidence needed for a regression test, and record whether a **postmortem**
+or follow-up is needed for monitoring, data repair, or process change.
+
 ## When NOT to Use
 
 - Root cause is confirmed and the user wants implementation: hand off to `dhpk:dhpk-bug-fix`.

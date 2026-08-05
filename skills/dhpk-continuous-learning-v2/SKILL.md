@@ -63,28 +63,9 @@ No extra `settings.json` hook block is required. Claude Code v2.1+ auto-loads th
 
 If you previously copied `observe.sh` into `~/.claude/settings.json`, remove that duplicate `PreToolUse` / `PostToolUse` block. Duplicating the plugin hook causes double execution and `${CLAUDE_PLUGIN_ROOT}` resolution errors because that variable is only available inside plugin-managed `hooks/hooks.json` entries.
 
-**If installed manually** to `~/.claude/skills`, add this to your `~/.claude/settings.json`:
-
-```json
-{
-  "hooks": {
-    "PreToolUse": [{
-      "matcher": "*",
-      "hooks": [{
-        "type": "command",
-        "command": "~/.claude/skills/dhpk-continuous-learning-v2/hooks/observe.sh"
-      }]
-    }],
-    "PostToolUse": [{
-      "matcher": "*",
-      "hooks": [{
-        "type": "command",
-        "command": "~/.claude/skills/dhpk-continuous-learning-v2/hooks/observe.sh"
-      }]
-    }]
-  }
-}
-```
+**If installed manually** to `~/.claude/skills`, read
+`references/manual-hook-setup.md` and add its `PreToolUse`/`PostToolUse` block
+only after setting `observer.enabled` to `true`.
 
 ### 3. Initialize Directory Structure
 

@@ -24,7 +24,7 @@ not a reason to bypass its worker or review gates.
 - A substantial change needs workflow classification, required artifacts, or readiness gates → use `dhpk-adaptive-dev-workflow`.
 - A root-cause investigation is already underway → use `dhpk-root-cause-investigation`.
 - An OpenSpec change is apply-ready → use `/opsx:apply`.
-- Pure code understanding or tracing has no workflow decision → use `dhpk-codebase-exploration` (or `dhpk-code-investigate` for a dual-perspective pass).
+ - Pure code understanding or tracing has no workflow decision → use `dhpk-codebase-exploration` (add `--dual` for an independent second perspective).
 - A specific skill's workflow is already in progress → follow that skill's steps instead of re-routing through this policy.
 
 ## Kickoff sequence

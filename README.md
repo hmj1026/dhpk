@@ -19,7 +19,7 @@ OpenSpec is an **optional external integration** — install the [OpenSpec plugi
 | `python3` | Required IF you enable `modules` | Parses `module.yaml` in `post-edit-remind` and `session-start` |
 | `jq` | Optional (python3 fallback exists) | Faster JSON payload extraction |
 | `docker` | Optional | Only consulted when `userConfig.docker_containers` is non-empty |
-| Codex MCP server | Optional | Required ONLY if you invoke the 5 MCP-backed `codex-*` skills, the 7 `/dhpk:codex-*` commands, or use `CODEX=on` — registered by pointing Claude Code at the Codex CLI's `codex mcp-server` subcommand, see [`docs/configuration.md`](./docs/configuration.md#codex-mcp-dependency-not-a-userconfig-knob) |
+| Codex MCP server | Optional | Required ONLY if you invoke the 4 MCP-backed `codex-*` skills, the 7 `/dhpk:codex-*` commands, or use `CODEX=on` — registered by pointing Claude Code at the Codex CLI's `codex mcp-server` subcommand, see [`docs/configuration.md`](./docs/configuration.md#codex-mcp-dependency-not-a-userconfig-knob) |
 | Codex CLI binary | Optional | Required ONLY if you run `install-codex-skills.sh` and want Codex to actually load the synced content |
 | `cx` CLI | Optional | Semantic code navigation. Primary tool in `rules/tool-routing.md` for `cx overview` / `cx definition` / `cx references`. Referenced by 6 reviewer agents and the `harness-fill` skill. Missing → falls back to `Grep` / `Read`. |
 | `gitnexus` MCP server | Optional | Knowledge-graph queries (`gitnexus_impact`, `gitnexus_rename`, `gitnexus_detect_changes`). Required by 6 `gitnexus-*` skills and the `rules/execution-policy.md` self-check. Missing → falls back to `cx` or `Grep`. |
@@ -89,12 +89,12 @@ dhpk's core — hooks, sentinel reviewers, the Smart Router, and the non-Codex w
 
 | Surface | Names | Needs | Without it |
 |---------|-------|-------|------------|
-| 5 skills | `codex-architect` · `codex-brainstorm` · `codex-code-review` · `codex-explain` · `codex-implement` | Codex MCP (`mcp__codex__codex`, `mcp__codex__codex-reply`) | Tool-permission error — no automatic fallback; use a Codex-free counterpart below |
-| 1 skill | `codex-cli-review` | Codex CLI binary only (shells out via Bash — no MCP server) | `codex: command not found`; use `codex-code-review` (MCP) or the sentinel `code-reviewer` |
+| 4 skills | `codex-architect` · `codex-brainstorm` · `codex-implement` · `change-review` (MCP backend) | Codex MCP (`mcp__codex__codex`, `mcp__codex__codex-reply`) | Tool-permission error — no automatic fallback; use a Codex-free counterpart below |
+| 1 backend | `change-review --backend cli` | Codex CLI binary only (shells out via the hardened wrapper) | `codex: command not found`; use the MCP backend or the sentinel `code-reviewer` |
 | 7 commands | `/dhpk:codex-review`, `-review-branch`, `-review-doc`, `-review-fast`, `-security`, `-test-gen`, `-test-review` | Codex MCP | Tool-permission error — Codex-free routes: `/dhpk:dhpk-security-review`, `/dhpk:precommit`, sentinel review hooks |
 | `CODEX=on` | Dual-assistant peer path in Implementation dispatch | Codex MCP | Nothing breaks — dispatch stays in its default single-assistant mode |
 
-Codex-free counterparts: `security-review` ↔ `codex-security`, `code-explore` ↔ `codex-explain`, sentinel reviewer agents ↔ `codex-code-review`, and `create-dev` (Codex-free by default; `--codex` opts in).
+Codex-free counterparts: `security-review` ↔ `codex-security`, `codebase-exploration` ↔ `change-review`, sentinel reviewer agents ↔ `change-review`, and `create-dev` (Codex-free by default; `--codex` opts in).
 
 One-time setup: register the Codex MCP server with `claude mcp add --transport stdio codex -- codex mcp-server`, then verify with `claude mcp list` and `/mcp` (look for a connected `codex` entry). Full verification steps, the MCP-vs-Skill surface distinction, and the separate `openai/codex-plugin-cc` collaboration surface: **[`docs/configuration.md`](./docs/configuration.md#codex-mcp-dependency-not-a-userconfig-knob)** / **[`docs/basic-operations.md`](./docs/basic-operations.md#10-codex-dual-assistant-collaboration)**.
 

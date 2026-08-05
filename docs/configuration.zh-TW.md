@@ -73,7 +73,7 @@ Codex timeout 值會在 wrapper 選取 `timeout`/`gtimeout` 前驗證為無號�
 
 ## Codex MCP 依賴（並非 `userConfig` 旋鈕）
 
-`orchestration_dispatch` 的 `CODEX=on` peer 路徑、**5 個 MCP-backed `codex-*` skill**（`codex-architect`、`codex-brainstorm`、`codex-code-review`、`codex-explain`、`codex-implement`），以及 **7 個 `/dhpk:codex-*` 指令**（`codex-review`、`-review-branch`、`-review-doc`、`-review-fast`、`-security`、`-test-gen`、`-test-review`），都需要 `mcp__codex__codex` / `mcp__codex__codex-reply` 工具。（`codex-cli-review` 是唯一例外——它透過 `Bash` shell out 到 `codex` CLI 執行檔，不需 MCP server。）dhpk 本身**不**內附或設定這些工具，也沒有任何 dhpk 的 `userConfig` key 控制它們：它們來自**直接註冊** Codex CLI 自身的 `codex mcp-server` 子指令為 MCP server——**並非**來自安裝 `openai/codex-plugin-cc`（那是另一個獨立、選用的 surface，見下方對照說明）。
+`orchestration_dispatch` 的 `CODEX=on` peer 路徑、**4 個 MCP-backed `codex-*` skill**（`codex-architect`、`codex-brainstorm`、`codex-implement`、`dhpk-change-review`），以及 **7 個 `/dhpk:codex-*` 指令**（`codex-review`、`-review-branch`、`-review-doc`、`-review-fast`、`-security`、`-test-gen`、`-test-review`），都需要 `mcp__codex__codex` / `mcp__codex__codex-reply` 工具。可選的 CLI backend 是 `dhpk-change-review/scripts/review.sh --backend cli`，不需 MCP server。dhpk 本身**不**內附或設定這些工具，也沒有任何 dhpk 的 `userConfig` key 控制它們：它們來自**直接註冊** Codex CLI 自身的 `codex mcp-server` 子指令為 MCP server——**並非**來自安裝 `openai/codex-plugin-cc`（那是另一個獨立、選用的 surface，見下方對照說明）。
 
 ### Codex MCP server 的運作原理
 

@@ -1,100 +1,48 @@
 ---
 name: dhpk-module-design
-description: 'Use when users need architecture decisions, module boundaries, or implementation guidance for software development tasks. Not for pure documentation editing or non-technical writing tasks. Output: actionable architecture guidance with concrete patterns, trade-offs, and implementation-ready recommendations.'
+description: 'Use when users need architecture decisions, module boundaries, or implementation guidance for software development tasks. Not for pure documentation editing or non-technical writing tasks. Output: actionable, stack-neutral architecture guidance with explicit seams, trade-offs, and implementation-ready recommendations.'
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---
 
-# Software Architecture Development Skill
+# Module design
 
-This skill provides guidance for quality-focused software development and architecture. It is based on Clean
-Architecture and Domain Driven Design principles.
+Design the smallest deep module that makes the caller's next decision easy.
+Keep this guidance stack-neutral until the repository evidence selects a
+framework or language.
 
-## When NOT to Use
+## Boundary tests
 
-- Pure copywriting, translation, or tone polish tasks with no architecture impact
-- Documentation-only review tasks where no system design decision is required
-- Simple one-line edits that do not involve design, boundaries, or engineering trade-offs
+- **Caller leverage**: define the decision the caller should make and make the
+  module absorb the policy and variation behind that decision.
+- **Deletion test**: temporarily imagine deleting the proposed abstraction. If
+  callers become simpler or no behavior is lost, delete it; a name alone is
+  not a module boundary.
+- **Interface-as-test-surface**: make the public interface the behavior seam;
+  tests should assert caller-visible outcomes through it, not private helpers.
+- Keep one hypothetical adapter inline. Introduce an abstraction only when
+  there are two real adapters, or when a documented near-term boundary has a
+  concrete test or deployment need. Do not design for speculative providers.
 
-## Output
+## Language and scenarios
 
-- Clear architecture recommendation aligned to current codebase constraints
-- Explicit trade-offs and why a chosen approach is preferred
-- Concrete implementation direction (module placement, naming, and integration points)
+- Maintain an **active glossary** for domain terms; challenge an
+  **ambiguous-term** before it reaches an interface or event name.
+- Write edge-case scenarios for empty, duplicate, partial, stale, and failed
+  inputs as applicable. A happy path is not a boundary contract.
+- Prefer domain-specific names and focused files. Avoid generic buckets that
+  hide ownership or make deletion difficult.
 
-## Code Style Rules
+## Decisions and output
 
-### General Principles
-
-- **Early return pattern**: Always use early returns when possible, over nested conditions for better readability
-- Avoid code duplication through creation of reusable functions and modules
-- Decompose long (more than 80 lines of code) components and functions into multiple smaller components and functions.
-  If they cannot be used anywhere else, keep it in the same file. But if file longer than 200 lines of code, it should
-  be split into multiple files.
-- Use arrow functions instead of function declarations when possible
-
-### Best Practices
-
-#### Library-First Approach
-
-- **ALWAYS search for existing solutions before writing custom code**
-  - Check npm for existing libraries that solve the problem
-  - Evaluate existing services/SaaS solutions
-  - Consider third-party APIs for common functionality
-- Use libraries instead of writing your own utils or helpers. For example, use `cockatiel` instead of writing your own
-  retry logic.
-- **When custom code IS justified:**
-  - Specific business logic unique to the domain
-  - Performance-critical paths with special requirements
-  - When external dependencies would be overkill
-  - Security-sensitive code requiring full control
-  - When existing solutions don't meet requirements after thorough evaluation
-
-#### Architecture and Design
-
-- **Clean Architecture & DDD Principles:**
-  - Follow domain-driven design and ubiquitous language
-  - Separate domain entities from infrastructure concerns
-  - Keep business logic independent of frameworks
-  - Define use cases clearly and keep them isolated
-- **Naming Conventions:**
-  - **AVOID** generic names: `utils`, `helpers`, `common`, `shared`
-  - **USE** domain-specific names: `OrderCalculator`, `UserAuthenticator`, `InvoiceGenerator`
-  - Follow bounded context naming patterns
-  - Each module should have a single, clear purpose
-- **Separation of Concerns:**
-  - Do NOT mix business logic with UI components
-  - Keep database queries out of controllers
-  - Maintain clear boundaries between contexts
-  - Ensure proper separation of responsibilities
-
-#### Anti-Patterns to Avoid
-
-- **NIH (Not Invented Here) Syndrome:**
-  - Don't build custom auth when Auth0/Supabase exists
-  - Don't write custom state management instead of using Redux/Zustand
-  - Don't create custom form validation instead of using established libraries
-- **Poor Architectural Choices:**
-  - Mixing business logic with UI components
-  - Database queries directly in controllers
-  - Lack of clear separation of concerns
-- **Generic Naming Anti-Patterns:**
-  - `utils.js` with 50 unrelated functions
-  - `helpers/misc.js` as a dumping ground
-  - `common/shared.js` with unclear purpose
-- Remember: Every line of custom code is a liability that needs maintenance, testing, and documentation
-
-#### Code Quality
-
-- Proper error handling with typed catch blocks
-- Break down complex logic into smaller, reusable functions
-- Avoid deep nesting (max 3 levels)
-- Keep functions focused and under 50 lines when possible
-- Keep files focused and under 200 lines of code when possible
+Recommend a boundary, interface, data flow, and trade-offs. Record an ADR only
+when the decision is surprising, hard-to-reverse, or likely to be revisited;
+routine local choices belong in the implementation plan or tests.
 
 ## Verification
 
-- [ ] Recommendation includes rationale, not only steps
-- [ ] Suggested structure keeps domain and infrastructure boundaries clear
-- [ ] Naming is domain-specific and avoids generic bucket names
-- [ ] Proposed change is implementation-ready for the target stack
+- [ ] Caller leverage and the deletion test justify the boundary.
+- [ ] The interface is an observable test surface with independent expected values.
+- [ ] Adapter count and abstraction threshold are explicit.
+- [ ] Glossary ambiguities and edge-case scenarios are named.
+- [ ] ADR use is limited to surprising or hard-to-reverse decisions.

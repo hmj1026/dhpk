@@ -16,7 +16,7 @@
 //
 // Only claims phrased as an exact number are enforced ("24 role-based agents",
 // "27 opt-in stack modules", "23 root-level agents", "24 個角色導向 agent",
-// "7-slot", "5 MCP-backed `codex-*` skills", "7 `/dhpk:codex-*` commands",
+// "7-slot", "4 MCP-backed `codex-*` skills", "7 `/dhpk:codex-*` commands",
 // "45 commands", "10 events" / "10 個事件"). Command count and hook-event count
 // are now exact and enforced (previously "~73 commands" was an unenforced
 // approximate claim). Other approximate claims ("~57 core skills") are printed
