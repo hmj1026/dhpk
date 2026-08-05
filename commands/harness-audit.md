@@ -10,11 +10,11 @@ metadata:
 
 Run a deterministic repository harness audit and return a prioritized scorecard.
 
-> See also: `/harness-govern` chains this audit into an end-to-end measure -> conform -> fix -> verify loop.
+> See also: `/dhpk:harness-govern` chains this audit into an end-to-end measure -> conform -> fix -> verify loop.
 
 ## Usage
 
-`/harness-audit [scope] [--format text|json] [--root path]`
+`/dhpk:harness-audit [scope] [--format text|json] [--root path]`
 
 - `scope` (optional): `repo` (default), `hooks`, `skills`, `commands`, `agents`
 - `--format`: output style (`text` default, `json` for automation)

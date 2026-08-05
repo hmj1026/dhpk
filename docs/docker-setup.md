@@ -1,5 +1,7 @@
 # Docker Setup for dhpk
 
+> **Languages**: **English** · [繁體中文](./docker-setup.zh-TW.md)
+
 Reference for the `docker_containers` plugin option when a consumer explicitly
 registers a Docker workflow. The installer and `/dhpk:setup` do not add a
 Docker hook by default.

@@ -1,5 +1,7 @@
 # Distribution surfaces — lifecycle, publication, and host limitations
 
+> **Languages**: **English** · [繁體中文](./distribution-surfaces.zh-TW.md)
+
 How dhpk decides which skills and modules reach each consumer surface
 (Claude plugin, opt-in stack modules, Codex project-local sync, experimental
 Codex marketplace), and what each surface can and cannot filter.

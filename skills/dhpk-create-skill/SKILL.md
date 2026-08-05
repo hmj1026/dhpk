@@ -80,7 +80,7 @@ skills/<name>/
 Run the health check and fix what it flags before declaring done:
 
 ```bash
-bash scripts/run-skill.sh skill-health-check skill-lint.js --fix-hint
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/run-skill.sh" dhpk-skill-health-audit skill-lint.js --fix-hint
 ```
 
 or invoke `/check-skill <name>`. Iterate until routing, progressive-loading, and

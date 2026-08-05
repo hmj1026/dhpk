@@ -7,33 +7,33 @@ metadata:
   dhpk-invocation-class: explicit-only
 ---
 
-# /harness-govern
+# /dhpk:harness-govern
 
 Single orchestrator and **front door for the harness-* family** — runs the governance loop end-to-end by **delegating** to the existing specialists; it adds zero new measurement logic.
 
 > The harness-* family (use a specialist directly when you only need that one concern):
-> - `/harness-audit` = deterministic 7-category **score** (read-only). `harness-budget` = **token** accounting. `/harness-revise` = **trim/dedupe/validate** (G1–G13, mutating). `/harness-fill` = one-shot **backfill** of missing `.claude/` infrastructure (onboarding). `claude-health` = `.claude/` hygiene.
-> - `agent-evaluator` (agent) = score a **completed agent run's OUTPUT** quality (5-axis: accuracy / completeness / clarity / actionability / conciseness, grep-verified) — the run-output analog of `skill-judge` (which scores skill *definitions*). Dispatch it directly when you need an objective quality verdict on a finished run; not part of this command's measurement loop.
+> - `/dhpk:harness-audit` = deterministic 7-category **score** (read-only). `dhpk-harness-budget` = **token** accounting. `dhpk-harness-revise` = **trim/dedupe/validate** (G1–G13, mutating). `/dhpk:dhpk-harness-fill` = one-shot **backfill** of missing `.claude/` infrastructure (onboarding). `dhpk-claude-health` = `.claude/` hygiene.
+> - `agent-evaluator` (agent) = score a **completed agent run's OUTPUT** quality (5-axis: accuracy / completeness / clarity / actionability / conciseness, grep-verified) — the run-output analog of `dhpk-skill-quality-judge` (which scores skill *definitions*). Dispatch it directly when you need an objective quality verdict on a finished run; not part of this command's measurement loop.
 > - This command is the **detect -> fix loop** that sequences them and applies the official best-practices lens (the broader reliability/cost/throughput scoring that the former `harness-optimizer` agent did is now this command's conform step).
 
 ## Mode (loop-safe)
 
-- **Default = read-only**: Measure + Conform + report. Nothing is mutated, so `/loop /harness-govern` is safe.
-- **`--fix`** opts into the mutating Fix step (routes to `/harness-revise --apply`). Never auto-applied without this flag.
+- **Default = read-only**: Measure + Conform + report. Nothing is mutated, so `/loop /dhpk:harness-govern` is safe.
+- **`--fix`** opts into the mutating Fix step through `Skill(dhpk-harness-revise)` with `--apply`. Never auto-applied without this flag.
 
 ## Usage
 
 ```
-/harness-govern [--fix] [--scope repo|skills|rules|mcp]
+/dhpk:harness-govern [--fix] [--scope repo|skills|rules|mcp]
 ```
 
 ## Workflow
 
 ### Step 1 — Measure (delegate; do NOT re-implement)
 
-- **Precondition** — if `.claude/` is sparse or unbuilt (no agents/skills/rules to govern), this loop has nothing to act on: suggest `/harness-fill` first (one-shot backfill) and stop. `/harness-fill` is onboarding, deliberately *not* part of this maintenance loop.
-- Run `Skill(harness-budget)` for token consumption across agents/skills/rules/MCP/CLAUDE.md.
-- Run `/harness-audit` (script SSOT: `scripts/harness-audit.js`) for the 7-category scorecard.
+- **Precondition** — if `.claude/` is sparse or unbuilt (no agents/skills/rules to govern), this loop has nothing to act on: suggest `/dhpk:dhpk-harness-fill` first (one-shot backfill) and stop. `dhpk-harness-fill` is onboarding, deliberately *not* part of this maintenance loop.
+- Run `Skill(dhpk-harness-budget)` for token consumption across agents/skills/rules/MCP/CLAUDE.md.
+- Run `/dhpk:harness-audit` (script SSOT: `scripts/harness-audit.js`) for the 7-category scorecard.
 - Collect a few raw counts for the conform pass:
   ```bash
   PROJ="${CLAUDE_PROJECT_DIR:-$PWD}"; G="$HOME/.claude"
@@ -56,7 +56,7 @@ Judge the measurements against the **official Claude Code best-practices checkli
 | guardrails | "must happen every time" lives in a hook, not a prompt |
 | verification gate | a check Claude can run (test/build) + an explicit end gate such as `/goal` |
 
-Then scan the **five leverage areas** (absorbed from the former `harness-optimizer` agent) and name the top 3 with the highest reliability/cost/throughput payoff — propose minimal, reversible changes for each, but **delegate the edits to the Fix step** (`/harness-revise`); do not mutate here:
+Then scan the **five leverage areas** (absorbed from the former `harness-optimizer` agent) and name the top 3 with the highest reliability/cost/throughput payoff — propose minimal, reversible changes for each, but **delegate the edits to the Fix step** through `Skill(dhpk-harness-revise)`; do not mutate here:
 
 | Leverage area | What to look for |
 |---|---|
@@ -75,7 +75,7 @@ Docs: `code.claude.com/docs/en/{best-practices,features-overview,skills,hooks-gu
 
 ### Step 3 — Fix (only with `--fix`)
 
-- Route deterministic trim/dedupe to `/harness-revise --scan` then `/harness-revise --apply` (G1–G13, with its own acceptance gate + `code-reviewer`).
+- Invoke `Skill(dhpk-harness-revise)` with `--scan`, then invoke the same skill with `--apply` only when this command received `--fix` (G1–G13, with its own acceptance gate + `code-reviewer`).
 - List items that **cannot** be auto-applied and need an interactive command: `/doctor` (skill truncation), `/mcp` (disable connectors/servers), `/plugin` (disable plugin components).
 
 ### Step 4 — Verify
@@ -88,9 +88,9 @@ Docs: `code.claude.com/docs/en/{best-practices,features-overview,skills,hooks-gu
 
 | Step | Delegates to |
 |------|--------------|
-| Measure | `Skill(harness-budget)` + `/harness-audit` (or `/harness-fill` first if `.claude/` is unbuilt) |
+| Measure | `Skill(dhpk-harness-budget)` + `/dhpk:harness-audit` (or suggest `/dhpk:dhpk-harness-fill` first if `.claude/` is unbuilt) |
 | Conform | this command (official best-practices lens + five-leverage-area scan) |
-| Fix (`--fix`) | `/harness-revise --scan` -> `--apply` (-> `harness-reviser` agent, `code-reviewer`) |
+| Fix (`--fix`) | `Skill(dhpk-harness-revise)` with `--scan`, then `--apply` (-> `harness-reviser` agent, `code-reviewer`) |
 | Verify | re-measure + `/doctor` + `/mcp` |
 
 ## Output Contract
@@ -99,13 +99,13 @@ Reply in order: (1) Measure summary (token + 7-category score + counts), (2) Con
 
 ## Anti-patterns
 
-- Re-implementing token/score measurement instead of delegating to `harness-budget` / `/harness-audit`.
+- Re-implementing token/score measurement instead of delegating to `dhpk-harness-budget` / `/dhpk:harness-audit`.
 - Mutating anything without `--fix`.
 - Merging or duplicating the specialist skills — this command only orchestrates; the specialists stay the SSOT.
 
 ## Loop
 
-Periodic governance: `/loop 7d /harness-govern` (read-only) or let the model self-pace. Use `--fix` only in attended runs.
+Periodic governance: `/loop 7d /dhpk:harness-govern` (read-only) or let the model self-pace. Use `--fix` only in attended runs.
 
 **Note on stop conditions**: the above is a pure time-based loop, not a goal-based one.
 

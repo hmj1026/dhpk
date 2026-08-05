@@ -16,7 +16,7 @@ metadata:
 
 ## Procedure
 
-1. Run `bash scripts/run-skill.sh next-step analyze.js` to collect deterministic findings
+1. Run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/run-skill.sh" dhpk-next-step analyze.js` to collect deterministic findings
 2. Parse the JSON output — findings, gates, diff summary, phase, feature_context, next_actions, backlog
 3. **If P0/P1 findings exist** → format top 3 as actionable suggestions (Findings Mode)
 4. **If mid-pipeline** (gates not all passed, no P0/P1) → use progression tables to suggest next step

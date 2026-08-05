@@ -1,6 +1,8 @@
 # dhpk — Dev Harness Plugin Kit for Claude Code
 
 > **Languages**: **English** · [繁體中文](./README.zh-TW.md)
+>
+> Skill-platform upgrade: [English](./docs/skill-platform-migration.md) · [繁體中文](./docs/skill-platform-migration.zh-TW.md)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE) [![Version](https://img.shields.io/github/v/tag/hmj1026/dhpk?label=version&sort=semver)](https://github.com/hmj1026/dhpk/tags) [![CI](https://img.shields.io/github/actions/workflow/status/hmj1026/dhpk/ci.yml?branch=main&label=CI)](https://github.com/hmj1026/dhpk/actions/workflows/ci.yml) [![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A63D2)](https://docs.claude.com/en/docs/claude-code/plugins)
 
@@ -47,13 +49,28 @@ Reconfigure any time with `/dhpk:setup` (or `/dhpk:setup --show` to print the cu
 | Component | Count | Notes |
 |-----------|------:|-------|
 | Agents | Role-based agents | Sentinel-driven reviewers plus situational architecture, testing, security, documentation, platform, and runtime roles. |
-| Commands | Registered command surface | `dhpk:do` (Smart Router), `dhpk:codex-review`, `dhpk:precommit`, `dhpk:setup`, `dhpk:review-pending`, `dhpk:smart-commit`, `dhpk:ts-check-status` (JS module), `dhpk:opsx-apply-resume` (needs OpenSpec), `dhpk:dhpk-matrix-cell-onboard` (library-author), `dhpk:dhpk-de-ai-flavor`, `dhpk:dhpk-deploy-list`, `dhpk:dhpk-harness-fill`, `dhpk:ui-ux-verify`, etc. |
-| Core skills | Core and auxiliary skills | codex-*, gitnexus, tool-routing, dhpk-execution-policy, **adaptive-dev-workflow** (Feature/Bug/Maintenance classifier), **deploy-list** (cross-project deploy file generator), **execution-checklist** (end-of-task self-check), `opsx-apply-resume` helpers (need OpenSpec) |
+| Commands | Registered command surface | `/dhpk:do`, `/dhpk:codex-review`, `/dhpk:precommit`, `/dhpk:setup`, `/dhpk:review-pending`, `/dhpk:smart-commit`, `/dhpk:opsx-apply-resume`, `/dhpk:harness-audit`, `/dhpk:harness-govern`, `/dhpk:ui-ux-verify`, etc. |
+| Canonical skills | 102 flat `dhpk-*` packages | One public name per capability, rooted at `skills/dhpk-*/`; module and Codex project surfaces are projections, not additional sources. |
 | Stack modules | Opt-in stack modules | PHP, Yii, PHPUnit, Laravel, JavaScript, Vue, Laravel Mix, Next.js, React, Python, `library-author`, and iOS/Swift modules. |
 | Hooks | 4 events | PreToolUse (Edit guard and combined Bash safety/Git gate), PostToolUse (sentinel routing), SessionStart (module activation), SubagentStop (strict reviewer reconciliation) |
 | Hook dispatchers | 2 | `post-edit-dispatch.sh` routes sentinels; `pre-bash-dispatch.sh` combines deterministic shell and Git/review-debt gates |
 | Harness scripts | 5 | precommit-runner, verify-runner, harness-audit, codemap generator, dep-audit |
-| Codex dual-track | Curated Codex projection | Synced into project `.codex/` by `install-codex-skills.sh` |
+| Codex dual-track | 15 curated skills | Project sync uses receipt-owned projections; the experimental native package publishes the same selected set as physical files. |
+
+Invocation syntax is surface-specific:
+
+| Surface | Syntax | Example |
+|---|---|---|
+| Claude command | `/dhpk:<command>` | `/dhpk:harness-audit` |
+| Claude plugin skill | `/dhpk:<public-skill-name>` | `/dhpk:dhpk-tdd-workflow` |
+| Codex skill | `$<public-skill-name>` after discovery | `$dhpk-tdd-workflow` |
+
+The doubled `dhpk` in the Claude skill example is intentional: the first is
+Claude's plugin namespace; the second belongs to the collision-safe public skill
+name. Commands do not repeat it. See the complete migration map in
+[`docs/skill-platform-migration.md`](./docs/skill-platform-migration.md).
+Lifecycle, public names, and publication surfaces are owned by
+`manifests/distribution-inventory.json` rather than this prose.
 
 ## Common workflows
 
@@ -65,7 +82,7 @@ Everything is reachable through `/dhpk:do` — one entry point that routes natur
 /dhpk:do fix the login redirect loop              # bug fix (root cause + regression test)
 /dhpk:review-pending                              # trigger pending reviewers immediately
 /dhpk:smart-commit && /dhpk:create-pr             # commit + PR
-/harness-audit                                    # harness health scorecard
+/dhpk:harness-audit                              # harness health scorecard
 ```
 
 ---
@@ -89,12 +106,12 @@ dhpk's core — hooks, sentinel reviewers, the Smart Router, and the non-Codex w
 
 | Surface | Names | Needs | Without it |
 |---------|-------|-------|------------|
-| 4 skills | `codex-architect` · `codex-brainstorm` · `codex-implement` · `change-review` (MCP backend) | Codex MCP (`mcp__codex__codex`, `mcp__codex__codex-reply`) | Tool-permission error — no automatic fallback; use a Codex-free counterpart below |
-| 1 backend | `change-review --backend cli` | Codex CLI binary only (shells out via the hardened wrapper) | `codex: command not found`; use the MCP backend or the sentinel `code-reviewer` |
+| 4 skills | `dhpk-codex-architect` · `dhpk-codex-brainstorm` · `dhpk-codex-implement` · `dhpk-change-review` (MCP backend) | Codex MCP (`mcp__codex__codex`, `mcp__codex__codex-reply`) | Tool-permission error — no automatic fallback; use a Codex-free counterpart below |
+| 1 backend | `dhpk-change-review --backend cli` | Codex CLI binary only (shells out via the hardened wrapper) | `codex: command not found`; use the MCP backend or the sentinel `code-reviewer` |
 | 7 commands | `/dhpk:codex-review`, `-review-branch`, `-review-doc`, `-review-fast`, `-security`, `-test-gen`, `-test-review` | Codex MCP | Tool-permission error — Codex-free routes: `/dhpk:dhpk-security-review`, `/dhpk:precommit`, sentinel review hooks |
 | `CODEX=on` | Dual-assistant peer path in Implementation dispatch | Codex MCP | Nothing breaks — dispatch stays in its default single-assistant mode |
 
-Codex-free counterparts: `security-review` ↔ `codex-security`, `codebase-exploration` ↔ `change-review`, sentinel reviewer agents ↔ `change-review`, and `create-dev` (Codex-free by default; `--codex` opts in).
+Codex-free counterparts: `dhpk-security-review` ↔ `/dhpk:codex-security`, `dhpk-codebase-exploration` ↔ `dhpk-change-review`, sentinel reviewer agents ↔ `dhpk-change-review`, and `/dhpk:create-dev` (Codex-free by default; `--codex` opts in).
 
 One-time setup: register the Codex MCP server with `claude mcp add --transport stdio codex -- codex mcp-server`, then verify with `claude mcp list` and `/mcp` (look for a connected `codex` entry). Full verification steps, the MCP-vs-Skill surface distinction, and the separate `openai/codex-plugin-cc` collaboration surface: **[`docs/configuration.md`](./docs/configuration.md#codex-mcp-dependency-not-a-userconfig-knob)** / **[`docs/basic-operations.md`](./docs/basic-operations.md#10-codex-dual-assistant-collaboration)**.
 
@@ -112,7 +129,7 @@ Detailed routing tie-breakers live in [`rules/tool-routing.md`](./rules/tool-rou
 
 ## Rules (resource layer)
 
-`rules/` ships three plain-markdown files that are **not** registered in `plugin.json` and are opt-in per consuming project. Load them from your project's `CLAUDE.md` with `@${CLAUDE_PLUGIN_ROOT}/rules/<file>.md`. Currently shipped:
+`rules/` ships four plain-markdown files that are **not** registered in `plugin.json` and are opt-in per consuming project. Load them from your project's `CLAUDE.md` with `@${CLAUDE_PLUGIN_ROOT}/rules/<file>.md`. Currently shipped:
 
 - `execution-policy.md` — pre-plan checklist, anti-loop, self-check gates.
 - `tool-routing.md` — the `cx` / `gitnexus` / `claude-mem` decision tree referenced above.
@@ -191,10 +208,12 @@ Add at least one `modules/<stack>-<version>/skills/<name>/SKILL.md`. Then regist
 
 Bump plugin `version` in the manifest. Run `claude plugin validate ~/projects/dhpk --strict`. Document the module in this README.
 
-Modules may ship optional hook scripts under `modules/<stack>-<version>/hooks/`; a consumer chooses whether to register them:
+Modules may ship hook scripts under `modules/<stack>-<version>/hooks/`. Their activation depends on the hook class:
 
 - `post-edit-*.sh` — register explicitly for advisory post-edit work.
-- `pre-bash-*.sh` / `pre-commit-*.sh` — register explicitly when synchronous checks are desired.
+- `pre-bash-*.sh` / `pre-commit-*.sh` — run automatically through the combined
+  `PreToolUse(Bash)` dispatcher when that module is active; non-zero status may
+  block the Bash call.
 
 See [`docs/hook-extension.md`](./docs/hook-extension.md) for the dispatcher contract and the worked `js` module example.
 
@@ -226,7 +245,7 @@ The statusline renders `[branch] +staged ~modified | docker:status | profile=<p>
 
 ## Sync Codex CLI content
 
-For projects using both Claude Code and the standalone Codex CLI (distinct from the Codex MCP dependency above — this needs no MCP server), the supported path is `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"` — `--copy` is the portable supported fallback (real files, no dependency on the plugin checkout surviving), while the default symlink mode is faster to re-sync but source-checkout dependent. It creates the curated Codex projection in the project's `.codex/`; the Codex Plugin Marketplace remains experimental until [issue #88](https://github.com/hmj1026/dhpk/issues/88)'s clean-install materialization acceptance test passes for the shipped manifests. Full policy and instructions: **[`docs/basic-operations.md`](./docs/basic-operations.md#sync-codex-cli-content)**.
+For projects using both Claude Code and the standalone Codex CLI (distinct from the Codex MCP dependency above — this needs no MCP server), the supported path is `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"` — `--copy` is the portable supported fallback (real files, no dependency on the plugin root surviving), while the default symlink mode is faster to re-sync but depends on that plugin root/cache remaining available. It creates the curated Codex projection in the project's `.codex/`. The clean-install materialization proof for [issue #88](https://github.com/hmj1026/dhpk/issues/88) now passes for the shipped physical package; Codex Plugin Marketplace support nevertheless remains experimental until a separate graduation decision. Full policy and instructions: **[`docs/basic-operations.md`](./docs/basic-operations.md#sync-codex-cli-content)**.
 
 ## Migrating an existing project
 
@@ -241,10 +260,10 @@ dhpk/
 │   └── plugin.json               # plugin manifest with userConfig
 ├── agents/                       # 32 role-based agents (INDEX.md is navigation)
 ├── commands/                     # slash commands (do, create-dev, codex-*, smart-commit, opsx-apply-resume, matrix-cell-onboard, ...)
-├── skills/                       # core skills (adaptive-dev-workflow, codex-*, tool-routing, dhpk-execution-policy, opsx-apply-resume helpers, harness-fill, ...)
+├── skills/                       # SSOT: 102 flat canonical skills, each skills/dhpk-<name>/
 ├── templates/                    # hook-bootstrap templates (graduation-candidates.md — copied to .claude/artifacts/ on first graduation run)
 ├── rules/                        # plain-markdown governance rules (execution-policy, tool-routing, anti-rationalization) — not in plugin.json; opt-in via ${CLAUDE_PLUGIN_ROOT}/rules/*.md from a consuming project's CLAUDE.md
-├── modules/                      # 31 opt-in stack modules
+├── modules/                      # 31 opt-in modules; skills/ entries are relative symlink projections
 │   ├── php-5.6/, php-7.4/, php-8.x/        # {module.yaml, skills/, references/, hooks/ (php-7.4 only)}
 │   ├── yii-1.1/                            # Yii 1.1 framework
 │   ├── phpunit-5.7/, phpunit-9/, phpunit-10/, phpunit-11/
@@ -264,19 +283,25 @@ dhpk/
 ├── docs/
 │   ├── configuration.md, configuration.zh-TW.md      # full userConfig reference
 │   ├── basic-operations.md, basic-operations.zh-TW.md # install + workflow lifecycle
-│   ├── hook-extension.md         # wrapper-dispatch contract + module-hook authoring
+│   ├── distribution-surfaces.md, distribution-surfaces.zh-TW.md
+│   ├── skill-platform-migration.md, skill-platform-migration.zh-TW.md
+│   ├── hook-extension.md, hook-extension.zh-TW.md
 │   ├── recommended-permissions.md
-│   ├── docker-setup.md, subagent-prompt-template.md
+│   ├── docker-setup.md, docker-setup.zh-TW.md, subagent-prompt-template.md
 ├── codex/                        # Codex CLI dual-track (Claude Code does NOT auto-load)
 │   ├── AGENTS.md                 # Codex-specific guidance
-│   ├── README.md                 # how to sync into a project
-│   ├── skills/, agents/, config.toml.example
+│   ├── README.md, README.zh-TW.md # how to sync into a project
+│   ├── skills/                   # 15 relative symlinks to canonical skills/
+│   ├── agents/, config.toml.example
 ├── .codex-plugin/plugin.json     # Codex plugin manifest (marketplace-installable, experimental)
-├── plugins/dhpk/                 # thin marketplace-target wrapper (openai/codex#26037)
+├── plugins/dhpk/                 # tracked Codex-native package: 15 physical skills, zero symlinks
 │   ├── .codex-plugin/plugin.json
 │   ├── README.md
 ├── .agents/plugins/marketplace.json  # repo-scoped Codex marketplace descriptor
-├── manifests/install-profiles.json  # curated module bundles
+├── manifests/
+│   ├── distribution-inventory.json  # lifecycle/name/surface SSOT (schema v2)
+│   ├── install-profiles.json         # curated module bundles
+│   └── module-catalog.json           # module configuration SSOT
 ├── docs/design/bootstrap-dhpk-plugin/  # original design archive (proposal/design/tasks/specs)
 ├── README.md, README.zh-TW.md, CHANGELOG.md, LICENSE, .gitignore
 ```

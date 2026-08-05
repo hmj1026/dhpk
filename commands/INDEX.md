@@ -4,7 +4,9 @@ description: 'Navigation index for dhpk plugin commands. Internal documentation;
 
 # Commands Index (dhpk plugin)
 
-> Navigation for slash commands shipped by the dhpk plugin. Commands are invoked as `/dhpk:<name>` (or `/dhpk:opsx:<name>` for OpenSpec).
+> Navigation for slash commands shipped by the dhpk plugin. dhpk commands are
+> invoked as `/dhpk:<name>`. External OpenSpec commands, when that separate
+> plugin is installed, use `/opsx:<name>`.
 
 ## 工作入口與交付
 
@@ -46,7 +48,8 @@ description: 'Navigation index for dhpk plugin commands. Internal documentation;
 | `/dhpk:check-skill` | 結構化 skill 健康檢查。 |
 | `/dhpk:update-docs` / `/dhpk:update-codemaps` / `/dhpk:doc-refactor` | 更新、產生或精簡文件。 |
 | `/dhpk:project-brief` | 將技術內容整理為 PM/CTO 摘要。 |
-| `/dhpk:setup` / `/dhpk:install-hooks` / `/dhpk:install-rules` / `/dhpk:install-scripts` | 設定 plugin 與安裝目前支援的資產。 |
+| `/dhpk:setup` | 設定 plugin；用 `--install hooks|rules|scripts|all` 安裝資產。 |
+| `/dhpk:install-hooks` / `/dhpk:install-rules` / `/dhpk:install-scripts` | 已棄用的一個 minor-release forwarding alias；新文件與新流程不得使用。 |
 
 ## 專用工具
 
@@ -60,7 +63,9 @@ description: 'Navigation index for dhpk plugin commands. Internal documentation;
 ## 呼叫約定
 
 - `/dhpk:<name>` — 本 plugin 實際註冊的 command namespace。
-- `dhpk-<skill-name>` — public skill identity；在 `/dhpk:do` 的路由結果或直接 skill invocation 中使用，不是假造 slash-command alias。
+- `dhpk-<skill-name>` — public skill identity，不是 `commands/` alias。Claude plugin
+  的直接 skill syntax 例如 `/dhpk:dhpk-tdd-workflow`（plugin namespace + public
+  name）；Codex discovery 後例如 `$dhpk-tdd-workflow`。
 
 ## 修改本檔時
 

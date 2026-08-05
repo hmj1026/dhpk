@@ -1,7 +1,7 @@
 ---
 name: dhpk-repo-intake
 description: 'Project initialization inventory (one-time), for first onboarding a project or rebuilding cache after structural changes. Not for: day-to-day development (read cache directly), finding specific files (use dhpk-codebase-exploration). Output: project map with entrypoints + test map + next steps.'
-allowed-tools: 'Bash(git:*), Bash(node:*), Read, Write, Grep, Glob'
+allowed-tools: 'Bash(bash:*), Bash(git:*), Bash(node:*), Read, Write, Grep, Glob'
 context: fork
 agent: Explore
 disable-model-invocation: true
@@ -32,7 +32,7 @@ Docs -> Entrypoints -> Tests Map -> Next Steps
 ## Usage
 
 ```bash
-bash scripts/run-skill.sh repo-intake intake_cached.js --mode auto --top 10
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/run-skill.sh" dhpk-repo-intake intake_cached.js --mode auto --top 10
 ```
 
 ## Cache Location

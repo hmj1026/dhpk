@@ -1,3 +1,9 @@
+> **Historical bootstrap snapshot.** Counts, names, paths, and hook wiring below
+> describe the original extraction and are not the current runtime contract.
+> Use [`../../skill-platform-migration.md`](../../skill-platform-migration.md),
+> [`../../distribution-surfaces.md`](../../distribution-surfaces.md), and the
+> checked-in manifests for current behavior.
+
 ## Why
 
 The `zdpos_dev` project has accumulated a mature Claude Code harness (13 agents, 70 commands, 54 skills, 8 hooks, statusline, harness scripts) over many months. Roughly two-thirds is project-agnostic, but it is bolted to one repo, so new projects either start empty or copy-paste subsets that drift over time. We need that proven harness reusable across any project, distributable as a single installable artifact, with the previously zdpos-specific bits (sentinel agent names, docker container names, hook profile env, review trigger paths) exposed as configuration. Stack-specific knowledge (PHP 5.6, Yii 1.1, PHPUnit 5.7) needs to be **independently activatable per version**, so a project picks just the modules it needs and a `php-8.2` module can be added later without disturbing the rest.

@@ -1,3 +1,7 @@
+> **Historical bootstrap delta spec.** Current Codex distribution and migration
+> contracts live in [`../../../../distribution-surfaces.md`](../../../../distribution-surfaces.md)
+> and [`../../../../skill-platform-migration.md`](../../../../skill-platform-migration.md).
+
 ## ADDED Requirements
 
 ### Requirement: Plugin ships Codex content under codex/

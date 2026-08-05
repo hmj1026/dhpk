@@ -246,8 +246,8 @@ private function validateProcessingConsistency($discount, $processingMethod) {
 
 ## 相關資源
 
-- [功能系統架構文件](docs/architecture/feature-system.md)
-- [流程圖](docs/diagrams/feature-flow.mmd)
+- 架構文件：`docs/architecture/<feature>-system.md`（範例佔位路徑）
+- 流程圖：`docs/diagrams/<feature>-flow.mmd`（範例佔位路徑）
 - Issue Tracker: #[ISSUE_NUMBER]
 
 ---

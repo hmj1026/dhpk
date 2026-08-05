@@ -2,7 +2,7 @@
 name: dhpk-prompt-optimize
 description: 'Rewrite a raw task prompt into a model-aware, effort-calibrated version before you run it. Use when: the user asks to "optimize this prompt", "improve this prompt for Claude", "what effort should I use", "make this a good API prompt/template", or pastes a rough instruction before a big Claude Code or API task. Detects the target model (current session or a named one), classifies task complexity, recommends an effort level (low/medium/high/xhigh/max, plus the dhpk agent-frontmatter/Claude Code equivalent), asks up to 4 AskUserQuestion questions only for missing required info, then applies model-specific behavioral rewrites. Not for: generic few-shot/CoT/template technique coaching with no model or effort selection (use prompt-engineering-patterns), or auditing token/cache budget (use dhpk-harness-budget). Output: optimized prompt block + effort recommendation with rationale + bullet list of rewrites applied.'
 argument-hint: '"<raw prompt text>" [--model <name>]'
-allowed-tools: 'Read, AskUserQuestion, mcp__context7__resolve-library-id, mcp__context7__query-docs, WebSearch, WebFetch'
+allowed-tools: 'Read, Bash(bash:*), AskUserQuestion, mcp__context7__resolve-library-id, mcp__context7__query-docs, WebSearch, WebFetch'
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---
@@ -43,7 +43,7 @@ Exactly three parts, in this order:
 - [ ] Effort recommendation cites verified live sources and their lookup date,
   then states both the API value and the dhpk/Claude-Code equivalent
 - [ ] Output has exactly the 3 parts above, no extra essay
-- [ ] For a repo change to this skill itself: `bash scripts/run-skill.sh skill-health-check skill-lint.js --fix-hint` (or `/dhpk:check-skill prompt-optimize`) passes clean
+- [ ] For a repo change to this skill itself: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/run-skill.sh" dhpk-skill-health-audit skill-lint.js --fix-hint` (or `/dhpk:check-skill dhpk-prompt-optimize`) passes clean
 
 ## References
 

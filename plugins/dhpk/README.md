@@ -1,5 +1,7 @@
 # plugins/dhpk — Codex Native Marketplace Publication Package
 
+> **Languages**: **English** · [繁體中文](./README.zh-TW.md)
+
 This directory is the plugin folder that `.agents/plugins/marketplace.json`
 points at. Codex does not discover plugins whose local marketplace
 `source.path` is the marketplace root itself (`./`), so the marketplace entry
@@ -45,9 +47,9 @@ enforce this.
 
 ## Current Codex plugin-mode status
 
-`codex plugin marketplace add hmj1026/dhpk` (once published) or
-`codex plugin marketplace add /path/to/dhpk` (local dev) installs `dhpk@dhpk`
-from this exact tracked package. `tests/codex-native-install-smoke.test.js`
+First run `codex plugin marketplace add hmj1026/dhpk` (once published) or
+`codex plugin marketplace add /path/to/dhpk` (local dev), then install with
+`codex plugin add dhpk@dhpk`. `tests/codex-native-install-smoke.test.js`
 proves — using the real `codex` CLI in a fully sandboxed `CODEX_HOME`, with
 the source checkout deleted afterward — that the installed cache contains
 every allowlisted native skill as a physical, discoverable file.

@@ -1,3 +1,7 @@
+> **Historical bootstrap delta spec.** Current canonical/projection topology is
+> defined by `manifests/distribution-inventory.json` and
+> [`../../../../skill-platform-migration.md`](../../../../skill-platform-migration.md).
+
 ## ADDED Requirements
 
 ### Requirement: Modules live under `modules/<name>/` with a documented layout

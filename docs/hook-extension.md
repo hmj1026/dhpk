@@ -1,5 +1,7 @@
 # Hook extension model
 
+> **Languages**: **English** · [繁體中文](./hook-extension.zh-TW.md)
+
 dhpk registers a deliberately small default lifecycle. The complete default
 mapping is [`hooks/hooks.json`](../hooks/hooks.json):
 

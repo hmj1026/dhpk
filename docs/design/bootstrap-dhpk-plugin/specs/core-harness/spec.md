@@ -1,3 +1,8 @@
+> **Historical bootstrap delta spec.** Counts and names below are archival. Use
+> `manifests/distribution-inventory.json`, `skills/INDEX.md`, `commands/INDEX.md`,
+> and [`../../../../skill-platform-migration.md`](../../../../skill-platform-migration.md)
+> for the current contract.
+
 ## ADDED Requirements
 
 ### Requirement: Plugin ships generic role-based agents

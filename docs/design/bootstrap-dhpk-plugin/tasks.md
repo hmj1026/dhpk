@@ -1,3 +1,8 @@
+> **Historical bootstrap checklist.** Completed items record the original
+> extraction; they are not a current component inventory. See
+> [`../../skill-platform-migration.md`](../../skill-platform-migration.md) and
+> `manifests/distribution-inventory.json` for the maintained contract.
+
 ## 1. Plugin skeleton + manifest
 
 - [x] 1.1 Create `.claude-plugin/marketplace.json` (root) as one-entry catalog

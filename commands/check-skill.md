@@ -1,7 +1,7 @@
 ---
 description: 'Validate skill quality against routing, progressive loading, and verification criteria.'
 argument-hint: '[--deep] [--json]'
-allowed-tools: 'Read, Grep, Glob, Bash(node:*)'
+allowed-tools: 'Read, Grep, Glob, Bash(bash:*), Bash(node:*)'
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---
@@ -36,7 +36,7 @@ $ARGUMENTS
 Run skill-lint.js → [Optional: manual review] → Report + Gate
 ```
 
-1. **Run automated lint**: `bash scripts/run-skill.sh skill-health-check skill-lint.js --fix-hint` (append `--json` if `$ARGUMENTS` contains `--json`)
+1. **Run automated lint**: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/run-skill.sh" dhpk-skill-health-audit skill-lint.js --fix-hint` (append `--json` if `$ARGUMENTS` contains `--json`)
 2. **If `--deep`** (from `$ARGUMENTS`): Read flagged skills and evaluate Why>What, scope, progressive loading, routing precision
 3. **Output**: Health report + Gate sentinel
 
@@ -61,7 +61,7 @@ Run skill-lint.js → [Optional: manual review] → Report + Gate
 ## Examples
 
 ```bash
-/check-skill
-/check-health --deep
-/check-health --json
+/dhpk:check-skill
+/dhpk:check-skill --deep
+/dhpk:check-skill --json
 ```

@@ -1,3 +1,7 @@
+> **Historical bootstrap delta spec.** Current manifests and generated skill
+> roots supersede bootstrap paths below. See
+> [`../../../../distribution-surfaces.md`](../../../../distribution-surfaces.md).
+
 ## ADDED Requirements
 
 ### Requirement: Plugin manifest declares plugin identity and metadata

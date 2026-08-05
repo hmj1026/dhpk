@@ -99,10 +99,38 @@ The same actions are available as `/plugin update dhpk@dhpk`, `/plugin uninstall
 For a project that uses the supported Codex projection, update Claude first and
 then refresh the project-local files:
 
+`CLAUDE_PLUGIN_ROOT` is exported inside the Claude Code plugin runtime (hooks,
+commands, and Bash tools launched from that session); an ordinary terminal does
+not receive it automatically. From a normal shell, point at a persistent local
+checkout instead, for example `DHPK_ROOT=/absolute/path/to/dhpk` and run
+`bash "$DHPK_ROOT/scripts/hooks/install-codex-skills.sh" ...`. Do not hard-code
+an ephemeral marketplace cache path.
+
 ```bash
 claude plugin update dhpk@dhpk
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --update
 ```
+
+If the project has a pre-consolidation Codex receipt or unprefixed dhpk skill
+directories, migrate ownership explicitly before the normal update:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --migrate --update
+```
+
+`--migrate` adopts only unchanged destinations whose legacy source matches
+exactly. User-owned, edited, retargeted, malformed, and ambiguous entries are
+preserved and reported. `--force` only bypasses the project-root heuristic; it
+never overrides ownership, collision, symlink, containment, or modified-file
+safety. Use `--uninstall` to remove only unchanged receipt-owned entries. See
+the complete rename/merge and rollback guide in
+[`skill-platform-migration.md`](./skill-platform-migration.md).
+
+To remove both surfaces, reverse the installation order: first run the Codex
+projection script with `--uninstall` in every project while the plugin root is
+still available, then run `claude plugin uninstall dhpk@dhpk`, and finally
+remove the marketplace entry if desired. This avoids broken project symlinks
+and is also the safe order for copy mode.
 
 ### Install troubleshooting
 
@@ -227,10 +255,10 @@ The harness-* family covers four distinct concerns — use the right tool for ea
 
 | Command / Skill | Concern | Mutates? |
 |---|---|---|
-| `/harness-audit` | Deterministic 7-category scorecard | No |
+| `/dhpk:harness-audit` | Deterministic 7-category scorecard | No |
 | `dhpk:dhpk-harness-budget` | Context-window token accounting | No |
 | `dhpk:dhpk-claude-health` | `.claude/` config health, naming, plugin sync | No |
-| `/harness-govern` | End-to-end measure → conform → fix → verify loop | No (add `--fix` to apply) |
+| `/dhpk:harness-govern` | End-to-end measure → conform → fix → verify loop | No (add `--fix` to apply) |
 | `dhpk:dhpk-harness-revise` | Trim, dedupe, validate (G1–G13 gap taxonomy) | Yes |
 | `dhpk:dhpk-harness-fill` | Backfill missing `.claude/` infrastructure | Yes |
 
@@ -238,22 +266,25 @@ The harness-* family covers four distinct concerns — use the right tool for ea
 
 ```text
 # 1. Quick diagnostic — see what's wrong
-/harness-audit
+/dhpk:harness-audit
 
 # 2. Check context-window overhead (token budget)
 /dhpk:dhpk-harness-budget
 
 # 3. End-to-end governance loop (read-only by default)
-/harness-govern
+/dhpk:harness-govern
 
 # 4. Apply fixes (trim, dedupe, validate)
-/harness-govern --fix
+/dhpk:harness-govern --fix
 
 # 5. If .claude/ is missing skills/agents/rules (new project onboarding)
 /dhpk:dhpk-harness-fill
 ```
 
-`/harness-govern` is the single front door: it sequences `/harness-audit` (score) → conform (best-practices lens) → `/harness-revise` (fix, only with `--fix`) → verify. Safe to run as `/loop /harness-govern` for ongoing monitoring.
+`/dhpk:harness-govern` is the single command front door: it sequences
+`/dhpk:harness-audit` (score) → conform (best-practices lens) → the
+`dhpk-harness-revise` skill (fix, only with `--fix`) → verify. It is safe to run
+as `/loop /dhpk:harness-govern` for ongoing monitoring.
 
 ### Automatic (no direct invocation)
 
@@ -271,9 +302,9 @@ Model overrides: `deep_reasoner_model` (default `opus`), `fast_worker_model` (de
 
 dhpk runs **codex-free by default**. Opting in unlocks two related but distinct things:
 
-**A. The Codex peer in Implementation dispatch.** With `CODEX=on`, a high-stakes implement-phase decision (root-cause diagnosis, architecture choice) is no longer `deep-reasoner`-only: dhpk dispatches `deep-reasoner` and Codex (via `mcp__codex__codex`) **in parallel, each blind to the other's findings** — neither side's prompt is seeded with the other's conclusion, verdict, or theory — then compares the two independent results and flags any divergence in the report. This blind-independence rule also governs the `codex-architect`, `codex-brainstorm`, `codex-implement`, and `dhpk-change-review` skills, plus `multi-ai-sync`, `feature-verify`, `test-review`, `dhpk-codebase-exploration --dual`, and `issue-analyze`. Full rule: [`rules/execution-policy.md`](../rules/execution-policy.md) §"Multi-AI / dual-perspective independence".
+**A. The Codex peer in Implementation dispatch.** With `CODEX=on`, a high-stakes implement-phase decision (root-cause diagnosis, architecture choice) is no longer `deep-reasoner`-only: dhpk dispatches `deep-reasoner` and Codex (via `mcp__codex__codex`) **in parallel, each blind to the other's findings** — neither side's prompt is seeded with the other's conclusion, verdict, or theory — then compares the two independent results and flags any divergence in the report. This blind-independence rule also governs the `dhpk-codex-architect`, `dhpk-codex-brainstorm`, `dhpk-codex-implement`, and `dhpk-change-review` skills, plus `dhpk-cross-agent-sync`, `dhpk-feature-verify`, `dhpk-test-review`, `dhpk-codebase-exploration --dual`, and `dhpk-issue-analyze`. Full rule: [`rules/execution-policy.md`](../rules/execution-policy.md) §"Multi-AI / dual-perspective independence".
 
-**B. Four direct Codex-delegation skills plus one CLI backend** — `codex-architect`, `codex-brainstorm`, `codex-implement`, and `dhpk-change-review` (MCP or `--backend cli`) — invocable directly whenever you want Codex's take without going through `/dhpk:do`.
+**B. Four direct Codex-delegation skills plus one CLI backend** — `dhpk-codex-architect`, `dhpk-codex-brainstorm`, `dhpk-codex-implement`, and `dhpk-change-review` (MCP or `--backend cli`) — invocable directly whenever you want Codex's take without going through `/dhpk:do`.
 
 The MCP backend requires the `mcp__codex__codex` / `mcp__codex__codex-reply` tools. The optional CLI backend shells out to the `codex` binary through the hardened wrapper and needs no MCP server. Setup steps and the `CODEX=on` opt-in mechanics (the `--codex` flag / natural-language trigger on `/dhpk:do`) live in [`docs/configuration.md`](./configuration.md#codex-mcp-dependency-not-a-userconfig-knob).
 
@@ -282,6 +313,10 @@ This is unrelated to **syncing Codex CLI content** (below) — that mirrors dhpk
 ## Sync Codex CLI content
 
 Projects using both Claude Code and Codex CLI:
+
+The `${CLAUDE_PLUGIN_ROOT}` form below is for a Claude Code plugin-runtime
+shell. In an ordinary terminal use the persistent-checkout form documented in
+[Update / Uninstall](#update--uninstall).
 
 ```bash
 # From any project root:
@@ -298,8 +333,9 @@ The script is the supported Codex distribution path, with two modes:
 - **Symlink (default, source-checkout dependent).** Links `.codex/` entries
   back to the plugin's own `codex/skills/` tree. Faster to re-sync and always
   current with the source checkout, but the links break if that plugin
-  checkout is moved, deleted, or absent (e.g. a marketplace-cache install) —
-  this is the exact failure mode behind
+  root/cache is moved, pruned, or deleted. A marketplace cache is a
+  valid source while it remains present; `--update` can adopt a new owned
+  plugin root. Broken source lifetime was the failure mode behind
   [issue #88](https://github.com/hmj1026/dhpk/issues/88). Use `--copy`
   instead whenever the plugin source's continued presence isn't guaranteed.
 
@@ -334,6 +370,20 @@ surface, containing zero symlinks:
 codex plugin marketplace add hmj1026/dhpk   # or a local path during development
 codex plugin add dhpk@dhpk
 codex plugin list
+```
+
+Experimental lifecycle commands (the marketplace upgrade form applies to a
+configured Git marketplace; for a local-path development marketplace, refresh
+or re-add that local source before reinstalling the plugin):
+
+```bash
+codex plugin marketplace upgrade dhpk
+codex plugin remove dhpk@dhpk
+codex plugin add dhpk@dhpk        # reinstall from the refreshed snapshot
+
+# Full teardown:
+codex plugin remove dhpk@dhpk
+codex plugin marketplace remove dhpk
 ```
 
 `codex plugin list` is management evidence only; it does not by itself prove

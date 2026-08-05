@@ -1,7 +1,7 @@
 ---
 name: dhpk-skill-health-audit
 description: 'Validate skill quality against routing, progressive loading, and verification criteria. Use when: auditing skills, checking skill health, reviewing skill design. Not for: code review (use dhpk-change-review) or doc review (use dhpk-doc-review). Depth split: dhpk-skill-health-audit = structural lint of one skill · dhpk-skill-quality-judge = deep rubric of one · dhpk-skill-stocktake = batch-audit of many. Output: health report with per-skill ratings + Gate.'
-allowed-tools: 'Read, Grep, Glob, Bash(node:*), Agent, Task'
+allowed-tools: 'Read, Grep, Glob, Bash(bash:*), Bash(node:*), Agent, Task'
 context: fork
 metadata:
   dhpk-invocation-class: implicit-eligible
@@ -37,7 +37,7 @@ node skills/dhpk-skill-health-audit/scripts/skill-lint.js --skills-dir skills --
 Repository wrapper:
 
 ```bash
-bash scripts/run-skill.sh skill-health-check skill-lint.js --fix-hint
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/run-skill.sh" dhpk-skill-health-audit skill-lint.js --fix-hint
 ```
 
 **Script I/O contract:**

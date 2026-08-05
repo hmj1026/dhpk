@@ -16,7 +16,7 @@ metadata:
 
 ## Procedure
 
-1. Run `bash scripts/run-skill.sh project-audit audit.js --json` to collect deterministic scores
+1. Run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/run-skill.sh" dhpk-project-audit audit.js --json` to collect deterministic scores
 2. Parse the JSON output — overall_score, status, dimensions, checks, findings, next_actions
 3. **If status = Blocked** (P0 findings) — highlight critical gaps, suggest immediate fixes
 4. **If status = Needs Work** (P1 findings) — format improvement roadmap by dimension
@@ -55,7 +55,7 @@ The audit script runs 12 deterministic checks across 5 dimensions:
 If the script fails, report the error and suggest running manually:
 
 ```bash
-bash scripts/run-skill.sh project-audit audit.js --json
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/run-skill.sh" dhpk-project-audit audit.js --json
 ```
 
 ## Output
