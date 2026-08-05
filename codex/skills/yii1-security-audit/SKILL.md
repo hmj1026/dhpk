@@ -2,6 +2,8 @@
 name: yii1-security-audit
 description: Yii 1.1 框架安全審計工具（PHP 5.6）。針對 CAccessControlFilter / accessRules()、Yii::app()->user->checkAccess() 鑑權、CHtml::encode() 輸出編碼、CSRF 設定、CDbCommand / CDbCriteria SQL 注入、CUploadedFile 上傳驗證、Session cookie 安全等進行白盒靜態審計，映射到通用漏洞類型體系（AUTH/CSRF/XSS/SQL/CFG/LOGIC/FILE）。使用時機：用戶要對 Yii 1.1 專案執行安全審計、查找漏洞、驗證安全設定、或進行框架安全複查時，即使用戶沒有明確說「audit」也應觸發，例如「幫我檢查這個 Controller 有沒有安全問題」「這個專案的 CSRF 設定對嗎」「幫我找 SQL injection」。
 allowed-tools: Read, Grep, Glob, Bash(find *), Bash(grep *), Bash(ls *)
+metadata:
+  dhpk-invocation-class: implicit-eligible
 ---
 
 # Yii 1.1 框架安全審計（yii1-security-audit）
@@ -22,6 +24,10 @@ allowed-tools: Read, Grep, Glob, Bash(find *), Bash(grep *), Bash(ls *)
 - `source_path`：Yii 1.1 專案根目錄
 可選：
 - `output_path`：輸出目錄（預設 `{source_path}_audit`）
+
+## Output Contract
+
+報告須逐項輸出 AccessControl / RBAC / CSRF / XSS / SQL / MassAssignment / File / Session 結果，每條發現含：通用類型碼 + 位置（檔名:行號）+ 可觀測 PoC 框架 + 對應 Yii 1.1 API 的修復建議。
 
 ## 輸出目錄
 

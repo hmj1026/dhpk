@@ -303,13 +303,22 @@ The script is the supported Codex distribution path, with two modes:
   [issue #88](https://github.com/hmj1026/dhpk/issues/88). Use `--copy`
   instead whenever the plugin source's continued presence isn't guaranteed.
 
-Both modes record version and source-fingerprint provenance in
-`.codex/.dhpk-installed.json`; re-run with `--update` after a plugin update.
+Both modes record version, source-fingerprint, and schema-versioned managed
+entry provenance in `.codex/.dhpk-installed.json`; re-run with `--update` after
+a plugin update. Unowned collisions are preserved, and `--migrate` adopts only
+exact legacy matches. Use `--uninstall` to remove unchanged receipt-owned
+entries without deleting unrelated project assets.
 The Codex tree is an explicitly curated subset of the canonical Claude
 packages, not a second complete inventory. `codex/agents/` ships 11 roles:
 four hand-maintained generic roles and seven generated from canonical Claude
 agents via `scripts/gen-codex-agents.js`. See `codex/AGENTS.md` and
 `codex/README.md` for the dual-harness model.
+
+Generated roles may depend on shared prompt-defense, trap-sheet, reviewer-contract,
+artifact-contract, or execution-policy content. Those support files are mapped in
+the `supporting_assets` section of `manifests/distribution-inventory.json`, copied
+under `.codex/dhpk/`, and tracked in the same schema-v2 receipt. The runtime
+projection validator rejects unreachable references or Claude plugin-root paths.
 
 ### Codex Plugin Marketplace (experimental support tier)
 

@@ -32,10 +32,208 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const crypto = require('crypto');
 const { spawnSync } = require('child_process');
 const { VERDICTS } = require('../lib/release-evidence');
+const { fingerprintDir } = require('../lib/codex-native-package');
+const { collectCodexProjectionReferenceErrors } = require('../ci/_lib/codex-runtime');
 
 const DEFAULT_ROOT = path.join(__dirname, '..', '..');
+const CODEX_SURFACE_VERDICTS = Object.freeze({ PASS: 'PASS', WARN: 'WARN', BLOCKED: 'BLOCKED' });
+
+function fingerprintPath(target) {
+  const hashNode = (current) => {
+    const stat = fs.lstatSync(current);
+    if (stat.isSymbolicLink()) return hashNode(fs.realpathSync(current));
+    const nodeDigest = crypto.createHash('sha256');
+    if (stat.isDirectory()) {
+      nodeDigest.update('dir\0');
+      for (const name of fs.readdirSync(current).sort()) {
+        nodeDigest.update(name);
+        nodeDigest.update('\0');
+        nodeDigest.update(hashNode(path.join(current, name)));
+        nodeDigest.update('\0');
+      }
+      return nodeDigest.digest('hex');
+    }
+    nodeDigest.update('file\0');
+    nodeDigest.update(fs.readFileSync(current));
+    return nodeDigest.digest('hex');
+  };
+  try {
+    return hashNode(target);
+  } catch (_) {
+    return '';
+  }
+}
+
+function relativeEvidencePath(root, target, label) {
+  const relative = path.relative(root, target).split(path.sep).join('/');
+  return relative && !relative.startsWith('../') ? relative : `${label}/${path.basename(target)}`;
+}
+
+function redactSandboxPath(value) {
+  if (!value) return value;
+  const tempRoot = path.resolve(os.tmpdir()).split(path.sep).join('/');
+  const normalized = String(value).split(path.sep).join('/');
+  return normalized.startsWith(`${tempRoot}/`)
+    ? `<sandbox>/${normalized.slice(tempRoot.length + 1)}`
+    : normalized;
+}
+
+function redactEvidence(value, root = DEFAULT_ROOT) {
+  if (!value) return value;
+  let redacted = String(value);
+  const replacements = [
+    [path.resolve(os.tmpdir()), '<sandbox>'],
+    [path.resolve(root), '<repo>'],
+  ].map(([prefix, label]) => [prefix.split(path.sep).join('/'), label]);
+  redacted = redacted.split(path.sep).join('/');
+  for (const [prefix, label] of replacements) {
+    redacted = redacted.split(prefix).join(label);
+  }
+  return redactSandboxPath(redacted);
+}
+
+function discoverCodexSurface({
+  root,
+  surfaceRoot,
+  label,
+  version,
+  manifest = null,
+  provenance = null,
+  expectedFingerprints = null,
+  fingerprintFn = fingerprintPath,
+  expectedFingerprintFn = fingerprintFn,
+}) {
+  return ['skills', 'agents'].flatMap((kind) => {
+    const kindRoot = path.join(surfaceRoot, kind);
+    if (!fs.existsSync(kindRoot)) return [];
+    const managed = manifest && manifest.managed_entries && manifest.managed_entries[kind];
+    return fs.readdirSync(kindRoot).sort().flatMap((id) => {
+      const target = path.join(kindRoot, id);
+      let stat;
+      try { stat = fs.lstatSync(target); } catch (_) { return []; }
+      if (!stat.isDirectory() && !stat.isSymbolicLink()) return [];
+      const fingerprint = fingerprintFn(target);
+      const expectedFingerprint = expectedFingerprints ? expectedFingerprintFn(target) : null;
+      const receiptEntry = managed && managed[id];
+      const owned = manifest
+        ? Boolean(receiptEntry && receiptEntry.destination_fingerprint === fingerprint)
+        : Boolean(provenance && provenance.valid && expectedFingerprints && expectedFingerprints[id] === expectedFingerprint);
+      const current = manifest
+        ? Boolean(manifest.plugin_version === version && manifest.schema_version >= 2)
+        : Boolean(provenance && provenance.current && expectedFingerprints && Object.prototype.hasOwnProperty.call(expectedFingerprints, id));
+      return [{
+        id,
+        kind,
+        surface: label,
+        version,
+        fingerprint,
+        owned,
+        current,
+        ...(provenance ? { provenance: { ...provenance } } : {}),
+        sourcePath: relativeEvidencePath(root, target, label),
+      }];
+    });
+  }).sort((left, right) => `${left.kind}:${left.id}`.localeCompare(`${right.kind}:${right.id}`));
+}
+
+function evaluateCodexSurfaceMatrix({ project, native, precedence, nativeExperimental = false }) {
+  if (!project || !native || project.id !== native.id || (project.kind && native.kind && project.kind !== native.kind)) {
+    return { verdict: CODEX_SURFACE_VERDICTS.PASS, reason: 'no duplicate surface' };
+  }
+  if (!precedence || project.current !== true || project.owned !== true || native.current !== true || native.owned !== true) {
+    return {
+      verdict: CODEX_SURFACE_VERDICTS.BLOCKED,
+      reason: 'selected project-local surface is stale/unowned or precedence is missing',
+    };
+  }
+  if (project.fingerprint === native.fingerprint) {
+    return { verdict: CODEX_SURFACE_VERDICTS.PASS, reason: 'identical fingerprints with valid provenance' };
+  }
+  if (precedence === 'project-local' && nativeExperimental) {
+    return { verdict: CODEX_SURFACE_VERDICTS.WARN, reason: 'current receipt-owned fallback takes explicit precedence over experimental native surface' };
+  }
+  return { verdict: CODEX_SURFACE_VERDICTS.BLOCKED, reason: 'duplicate surfaces differ without an approved precedence' };
+}
+
+function discoverCodexSurfaces({ root, project, version }) {
+  const manifestPath = path.join(project, '.codex', '.dhpk-installed.json');
+  let manifest = null;
+  if (fs.existsSync(manifestPath)) {
+    try { manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')); } catch (_) { manifest = null; }
+  }
+  const projectEntries = discoverCodexSurface({
+    root,
+    surfaceRoot: path.join(project, '.codex'),
+    label: 'project-local',
+    version,
+    manifest,
+  });
+  const nativeRoot = path.join(root, 'plugins', 'dhpk');
+  let nativeVersion = version;
+  const nativeManifestPath = path.join(nativeRoot, '.codex-plugin', 'plugin.json');
+  if (fs.existsSync(nativeManifestPath)) {
+    try { nativeVersion = JSON.parse(fs.readFileSync(nativeManifestPath, 'utf8')).version || version; } catch (_) { /* keep target version */ }
+  }
+  let nativeProvenance = { valid: false, current: false, packageVersion: nativeVersion, sourceVersion: null };
+  let nativeFingerprints = {};
+  const provenancePath = path.join(nativeRoot, 'provenance.json');
+  const fingerprintsPath = path.join(nativeRoot, 'fingerprints.json');
+  const inventoryPath = path.join(root, 'manifests', 'distribution-inventory.json');
+  let inventory = null;
+  try {
+    inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
+    nativeFingerprints = JSON.parse(fs.readFileSync(fingerprintsPath, 'utf8'));
+  } catch (_) {
+    inventory = null;
+    nativeFingerprints = {};
+  }
+  if (fs.existsSync(provenancePath)) {
+    try {
+      const provenance = JSON.parse(fs.readFileSync(provenancePath, 'utf8'));
+      const validCommit = typeof provenance.sourceCommit === 'string' && /^[a-f0-9]{40}$/i.test(provenance.sourceCommit);
+      const validDigest = typeof provenance.inventoryDigest === 'string' && /^[a-f0-9]{64}$/i.test(provenance.inventoryDigest);
+      const validVersion = provenance.sourceVersion === nativeVersion && nativeVersion === version;
+      const expectedNativeIds = inventory && Array.isArray(inventory.skills)
+        ? inventory.skills
+          .filter((skill) => (skill.surfaces || []).includes('codex-native') && skill.lifecycle !== 'deprecated')
+          .map((skill) => skill.id)
+          .sort()
+        : [];
+      const selectedNativeIds = Array.isArray(provenance.selectedSkillIds) ? [...provenance.selectedSkillIds].sort() : [];
+      const membershipMatches = JSON.stringify(selectedNativeIds) === JSON.stringify(expectedNativeIds)
+        && JSON.stringify(Object.keys(nativeFingerprints).sort()) === JSON.stringify(expectedNativeIds);
+      const expectedInventoryDigest = inventory
+        ? crypto.createHash('sha256').update(JSON.stringify(inventory)).digest('hex')
+        : null;
+      const inventoryMatches = Boolean(expectedInventoryDigest && provenance.inventoryDigest === expectedInventoryDigest);
+      const fingerprintsWellFormed = expectedNativeIds.every((id) => /^[a-f0-9]{64}$/i.test(nativeFingerprints[id] || ''));
+      nativeProvenance = {
+        valid: Boolean(validCommit && validDigest && validVersion && inventoryMatches && membershipMatches && fingerprintsWellFormed),
+        current: Boolean(validVersion && inventoryMatches && membershipMatches),
+        packageVersion: nativeVersion,
+        sourceVersion: provenance.sourceVersion || null,
+        sourceCommit: validCommit ? provenance.sourceCommit : null,
+        inventoryDigest: validDigest ? provenance.inventoryDigest : null,
+        generatorVersion: provenance.generatorVersion || null,
+      };
+    } catch (_) { /* retain invalid provenance */ }
+  }
+  const nativeEntries = discoverCodexSurface({
+    root,
+    surfaceRoot: nativeRoot,
+    label: 'native-experimental',
+    version: nativeVersion,
+    manifest: null,
+    provenance: nativeProvenance,
+    expectedFingerprints: nativeFingerprints,
+    fingerprintFn: fingerprintPath,
+    expectedFingerprintFn: fingerprintDir,
+  });
+  return { project: projectEntries, native: nativeEntries, manifest };
+}
 
 function parseArgs(argv) {
   const args = { root: DEFAULT_ROOT };
@@ -52,6 +250,7 @@ function parseArgs(argv) {
     console.error('usage: consumer-gate.js --version X.Y.Z [--repo-root <path>]');
     process.exit(2);
   }
+  args.root = path.resolve(args.root);
   return args;
 }
 
@@ -67,9 +266,9 @@ function verifyCodexSync(root, version) {
   try {
     const installer = path.join(root, 'scripts', 'hooks', 'install-codex-skills.sh');
     const res = spawnSync('bash', [installer, '--force'], { cwd: project, encoding: 'utf8', env: { ...process.env, CLAUDE_PLUGIN_ROOT: root } });
-    commands.push({ cmd: `bash ${installer} --force (in clean project)`, exitCode: res.status });
+    commands.push({ cmd: `bash ${path.relative(root, installer).split(path.sep).join('/')} --force (in clean project)`, exitCode: res.status });
     if (res.status !== 0) {
-      return { verdict: VERDICTS.FAIL, commands, reasons: [`install-codex-skills.sh exited ${res.status}: ${(res.stderr || '').trim()}`] };
+      return { verdict: VERDICTS.FAIL, commands, reasons: [`install-codex-skills.sh exited ${res.status}: ${redactEvidence((res.stderr || '').trim(), root)}`] };
     }
     const manifestPath = path.join(project, '.codex', '.dhpk-installed.json');
     if (!fs.existsSync(manifestPath)) {
@@ -77,13 +276,97 @@ function verifyCodexSync(root, version) {
     }
     const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
     const skillsPresent = fs.existsSync(path.join(project, '.codex', 'skills')) && fs.readdirSync(path.join(project, '.codex', 'skills')).length > 0;
-    if (!skillsPresent) {
-      return { verdict: VERDICTS.FAIL, commands, reasons: ['no skills materialized under .codex/skills after install'] };
+    const agentsPresent = fs.existsSync(path.join(project, '.codex', 'agents')) && fs.readdirSync(path.join(project, '.codex', 'agents')).length > 0;
+    const supportingAssets = manifest.managed_entries && manifest.managed_entries.supporting_assets;
+    const promptDefensePresent = fs.existsSync(path.join(project, '.codex', 'dhpk', 'agent-traps', '_common', 'prompt-defense.md'));
+    if (!skillsPresent || !agentsPresent || !supportingAssets || Object.keys(supportingAssets).length === 0 || !promptDefensePresent) {
+      return {
+        verdict: VERDICTS.FAIL,
+        commands,
+        reasons: ['expected skills, agents, and receipt-managed Codex supporting assets to materialize under .codex/ after install'],
+      };
     }
     if (manifest.plugin_version !== version) {
       return { verdict: VERDICTS.FAIL, commands, reasons: [`installed manifest version '${manifest.plugin_version}' does not match target '${version}'`] };
     }
-    return { verdict: VERDICTS.PASS, commands, reasons: [] };
+    if (manifest.schema_version < 2 || !manifest.managed_entries || !manifest.managed_entries.skills || !manifest.managed_entries.agents || !manifest.managed_entries.supporting_assets) {
+      return { verdict: VERDICTS.FAIL, commands, reasons: ['installed manifest is missing schema-versioned managed_entries ownership data'] };
+    }
+    const projectionErrors = collectCodexProjectionReferenceErrors(project, root);
+    commands.push({ cmd: 'validate clean Codex supporting-asset reference closure', exitCode: projectionErrors.length === 0 ? 0 : 1 });
+    if (projectionErrors.length > 0) {
+      return {
+        verdict: VERDICTS.FAIL,
+        commands,
+        reasons: projectionErrors.map((error) => `codex-sync: ${redactEvidence(error, root)}`),
+      };
+    }
+    const surfaces = discoverCodexSurfaces({ root, project, version });
+    const nativeById = new Map(surfaces.native.map((entry) => [`${entry.kind}:${entry.id}`, entry]));
+    const duplicateEvidence = [];
+    let surfaceVerdict = CODEX_SURFACE_VERDICTS.PASS;
+    for (const projectEntry of surfaces.project) {
+      const nativeEntry = nativeById.get(`${projectEntry.kind}:${projectEntry.id}`);
+      if (!nativeEntry) continue;
+      const matrix = evaluateCodexSurfaceMatrix({
+        project: projectEntry,
+        native: nativeEntry,
+        precedence: 'project-local',
+        nativeExperimental: true,
+      });
+      duplicateEvidence.push({
+        id: projectEntry.id,
+        kind: projectEntry.kind,
+        project: projectEntry,
+        native: nativeEntry,
+        precedence: 'project-local',
+        verdict: matrix.verdict,
+        reason: matrix.reason,
+      });
+      if (matrix.verdict === CODEX_SURFACE_VERDICTS.BLOCKED) surfaceVerdict = CODEX_SURFACE_VERDICTS.BLOCKED;
+      else if (matrix.verdict === CODEX_SURFACE_VERDICTS.WARN && surfaceVerdict === CODEX_SURFACE_VERDICTS.PASS) surfaceVerdict = CODEX_SURFACE_VERDICTS.WARN;
+    }
+    if (surfaceVerdict === CODEX_SURFACE_VERDICTS.BLOCKED) {
+      return {
+        verdict: VERDICTS.FAIL,
+        commands,
+        reasons: ['Codex duplicate-surface validation is BLOCKED'],
+        surfaceVerdict,
+        duplicateEvidence,
+        surfaces: {
+          project: surfaces.project,
+          native: surfaces.native,
+          receipt: {
+            schema_version: manifest.schema_version,
+            plugin_version: manifest.plugin_version,
+            source_fingerprint: manifest.source_fingerprint,
+            mode: manifest.mode,
+            reconciliation: manifest.reconciliation || null,
+          },
+        },
+      };
+    }
+    const reasons = surfaceVerdict === CODEX_SURFACE_VERDICTS.WARN
+      ? ['Codex duplicate-surface validation is WARN: project-local receipt-owned fallback takes precedence over experimental native content']
+      : [];
+    return {
+      verdict: VERDICTS.PASS,
+      commands,
+      reasons,
+      surfaceVerdict,
+      duplicateEvidence,
+      surfaces: {
+        project: surfaces.project,
+        native: surfaces.native,
+        receipt: {
+          schema_version: manifest.schema_version,
+          plugin_version: manifest.plugin_version,
+          source_fingerprint: manifest.source_fingerprint,
+          mode: manifest.mode,
+          reconciliation: manifest.reconciliation || null,
+        },
+      },
+    };
   } finally {
     fs.rmSync(project, { recursive: true, force: true });
   }
@@ -103,13 +386,13 @@ function verifyClaudeReinstall(root, version) {
     const add = spawnSync('claude', ['plugin', 'marketplace', 'add', root, '--scope', 'project'], { cwd: project, encoding: 'utf8' });
     commands.push({ cmd: 'claude plugin marketplace add <root> --scope project', exitCode: add.status });
     if (add.status !== 0) {
-      return { verdict: VERDICTS.FAIL, commands, reasons: [`marketplace add exited ${add.status}: ${(add.stderr || '').trim()}`] };
+      return { verdict: VERDICTS.FAIL, commands, reasons: [`marketplace add exited ${add.status}: ${redactEvidence((add.stderr || '').trim(), root)}`] };
     }
 
     const install = spawnSync('claude', ['plugin', 'install', 'dhpk@dhpk', '--scope', 'project'], { cwd: project, encoding: 'utf8' });
     commands.push({ cmd: 'claude plugin install dhpk@dhpk --scope project', exitCode: install.status });
     if (install.status !== 0) {
-      return { verdict: VERDICTS.FAIL, commands, reasons: [`plugin install exited ${install.status}: ${(install.stderr || '').trim()}`] };
+      return { verdict: VERDICTS.FAIL, commands, reasons: [`plugin install exited ${install.status}: ${redactEvidence((install.stderr || '').trim(), root)}`] };
     }
 
     const list = spawnSync('claude', ['plugin', 'list', '--json'], { cwd: project, encoding: 'utf8' });
@@ -153,43 +436,60 @@ function verifyCodexNative(root) {
   const res = spawnSync('node', [smokeTest], { encoding: 'utf8' });
   const commands = [{ cmd: `node ${path.relative(root, smokeTest)}`, exitCode: res.status, codexCliVersion: cliVersion }];
   const installedRootMatch = /CODEX_NATIVE_INSTALLED_ROOT=(.+)/.exec(res.stdout || '');
-  if (installedRootMatch) commands[0].installedCachePath = installedRootMatch[1].trim();
+  if (installedRootMatch) commands[0].installedCachePath = redactSandboxPath(installedRootMatch[1].trim());
   if (res.status !== 0) {
-    return { verdict: VERDICTS.FAIL, commands, reasons: [`codex-native-install-smoke exited ${res.status}: ${(res.stdout + res.stderr).trim().slice(-800)}`] };
+    return { verdict: VERDICTS.FAIL, commands, reasons: [`codex-native-install-smoke exited ${res.status}: ${redactEvidence((res.stdout + res.stderr).trim().slice(-800), root)}`] };
   }
   return { verdict: VERDICTS.PASS, commands, reasons: [] };
 }
 
-const args = parseArgs(process.argv.slice(2));
+function runGate(args) {
+  const codex = verifyCodexSync(args.root, args.version);
+  const claude = verifyClaudeReinstall(args.root, args.version);
+  const native = verifyCodexNative(args.root);
 
-const codex = verifyCodexSync(args.root, args.version);
-const claude = verifyClaudeReinstall(args.root, args.version);
-const native = verifyCodexNative(args.root);
+  const commands = [...codex.commands, ...claude.commands, ...native.commands];
+  const failureReasons = [
+    ...codex.reasons.map((r) => `codex-sync: ${r}`),
+    ...claude.reasons.map((r) => `claude-reinstall: ${r}`),
+    ...native.reasons.map((r) => `native-codex-marketplace: ${r}`),
+  ];
 
-const commands = [...codex.commands, ...claude.commands, ...native.commands];
-const failureReasons = [
-  ...codex.reasons.map((r) => `codex-sync: ${r}`),
-  ...claude.reasons.map((r) => `claude-reinstall: ${r}`),
-  ...native.reasons.map((r) => `native-codex-marketplace: ${r}`),
-];
+  let verdict;
+  if (codex.verdict === VERDICTS.FAIL || claude.verdict === VERDICTS.FAIL) verdict = VERDICTS.FAIL;
+  else if (claude.verdict === VERDICTS.UNAVAILABLE) verdict = VERDICTS.UNAVAILABLE;
+  else verdict = VERDICTS.PASS;
 
-let verdict;
-if (codex.verdict === VERDICTS.FAIL || claude.verdict === VERDICTS.FAIL) verdict = VERDICTS.FAIL;
-else if (claude.verdict === VERDICTS.UNAVAILABLE) verdict = VERDICTS.UNAVAILABLE;
-else verdict = VERDICTS.PASS;
+  const stage = {
+    verdict,
+    commands,
+    environment: process.env.CI ? 'ci' : 'local',
+    artifacts: [
+      `native-codex-marketplace: ${native.verdict} (experimental support tier; consumer proof does not itself graduate the support tier)`,
+      ...(codex.surfaceVerdict ? [`codex-surface: ${codex.surfaceVerdict}`] : []),
+    ],
+    failureReasons,
+    ...(codex.surfaces ? { codexSurfaces: { ...codex.surfaces, duplicates: codex.duplicateEvidence || [] } } : {}),
+  };
 
-const stage = {
-  verdict,
-  commands,
-  environment: process.env.CI ? 'ci' : 'local',
-  // Native Codex marketplace is always reported separately from the
-  // supported-tier verdict above (task 4.3) — a native PASS never upgrades
-  // `verdict`, and a native FAIL/UNAVAILABLE never degrades it. This field
-  // carries the real, computed result (not a hardcoded stub) so a reviewer
-  // can audit it independently; see docs/distribution-surfaces.md.
-  artifacts: [`native-codex-marketplace: ${native.verdict} (experimental support tier; consumer proof does not itself graduate the support tier)`],
-  failureReasons,
+  return stage;
+}
+
+if (require.main === module) {
+  const args = parseArgs(process.argv.slice(2));
+  const stage = runGate(args);
+  console.log(JSON.stringify(stage, null, 2));
+  process.exit(stage.verdict === VERDICTS.FAIL ? 1 : 0);
+}
+
+module.exports = {
+  CODEX_SURFACE_VERDICTS,
+  discoverCodexSurface,
+  discoverCodexSurfaces,
+  evaluateCodexSurfaceMatrix,
+  fingerprintDir,
+  fingerprintPath,
+  redactEvidence,
+  verifyCodexSync,
+  runGate,
 };
-
-console.log(JSON.stringify(stage, null, 2));
-process.exit(stage.verdict === VERDICTS.FAIL ? 1 : 0);

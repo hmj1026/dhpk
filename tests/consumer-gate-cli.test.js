@@ -14,6 +14,7 @@ const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
 const CLI = path.join(ROOT, 'scripts', 'release', 'consumer-gate.js');
+const { discoverCodexSurface, evaluateCodexSurfaceMatrix, fingerprintDir, fingerprintPath, redactEvidence } = require(CLI);
 
 function mkBinStub(dir, name, body) {
   fs.mkdirSync(dir, { recursive: true });
@@ -72,6 +73,122 @@ exit 0
   const stage = JSON.parse(res.stdout);
   assert.strictEqual(stage.verdict, 'FAIL');
   assert.ok(stage.failureReasons.some((r) => /0\.0\.1/.test(r)));
+});
+
+test('duplicate Codex surfaces use the deterministic PASS/WARN/BLOCKED matrix', () => {
+  const base = { id: 'dhpk:demo', version: '1.0.0', owned: true, current: true };
+  assert.strictEqual(evaluateCodexSurfaceMatrix({
+    project: { ...base, fingerprint: 'same' },
+    native: { ...base, fingerprint: 'same' },
+    precedence: 'project-local',
+    nativeExperimental: true,
+  }).verdict, 'PASS');
+  assert.strictEqual(evaluateCodexSurfaceMatrix({
+    project: { ...base, fingerprint: 'project' },
+    native: { ...base, fingerprint: 'native' },
+    precedence: 'project-local',
+    nativeExperimental: true,
+  }).verdict, 'WARN');
+  assert.strictEqual(evaluateCodexSurfaceMatrix({
+    project: { ...base, owned: false, fingerprint: 'same' },
+    native: { ...base, fingerprint: 'same' },
+    precedence: 'project-local',
+    nativeExperimental: true,
+  }).verdict, 'BLOCKED');
+  assert.strictEqual(evaluateCodexSurfaceMatrix({
+    project: { ...base, fingerprint: 'same' },
+    native: { ...base, fingerprint: 'same' },
+    precedence: null,
+    nativeExperimental: true,
+  }).verdict, 'BLOCKED');
+  assert.strictEqual(evaluateCodexSurfaceMatrix({
+    project: { ...base, fingerprint: 'same' },
+    native: { ...base, current: false, fingerprint: 'same' },
+    precedence: 'project-local',
+    nativeExperimental: true,
+  }).verdict, 'BLOCKED');
+});
+
+test('consumer gate resolves a relative repository root before entering its sandbox', () => {
+  const res = spawnSync('node', [CLI, '--version', REAL_VERSION, '--repo-root', '.'], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    env: { ...process.env, PATH: NODE_BASH_ONLY_PATH },
+  });
+  assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+  const stage = JSON.parse(res.stdout);
+  assert.ok(['PASS', 'UNAVAILABLE'].includes(stage.verdict), JSON.stringify(stage));
+});
+
+test('Codex surface discovery includes both skill and agent inventories', () => {
+  const surfaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-surface-'));
+  try {
+    fs.mkdirSync(path.join(surfaceRoot, 'skills', 'demo-skill'), { recursive: true });
+    fs.writeFileSync(path.join(surfaceRoot, 'skills', 'demo-skill', 'SKILL.md'), 'skill\n');
+    fs.mkdirSync(path.join(surfaceRoot, 'agents', 'demo-agent'), { recursive: true });
+    fs.writeFileSync(path.join(surfaceRoot, 'agents', 'demo-agent', 'AGENT.md'), 'agent\n');
+    const entries = discoverCodexSurface({
+      root: surfaceRoot,
+      surfaceRoot,
+      label: 'project-local',
+      version: '1.0.0',
+      manifest: {
+        schema_version: 2,
+        plugin_version: '1.0.0',
+        managed_entries: {
+          skills: { 'demo-skill': { destination_fingerprint: require(CLI).fingerprintPath(path.join(surfaceRoot, 'skills', 'demo-skill')) } },
+          agents: { 'demo-agent': { destination_fingerprint: require(CLI).fingerprintPath(path.join(surfaceRoot, 'agents', 'demo-agent')) } },
+        },
+      },
+    });
+    assert.deepStrictEqual(entries.map((entry) => `${entry.kind}:${entry.id}`), ['agents:demo-agent', 'skills:demo-skill']);
+    assert.ok(entries.every((entry) => entry.owned && entry.current));
+  } finally {
+    fs.rmSync(surfaceRoot, { recursive: true, force: true });
+  }
+});
+
+test('native surface ownership requires a tracked content fingerprint, not provenance shape alone', () => {
+  const surfaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-native-surface-'));
+  try {
+    const target = path.join(surfaceRoot, 'skills', 'demo-native');
+    fs.mkdirSync(target, { recursive: true });
+    fs.writeFileSync(path.join(target, 'SKILL.md'), 'native\n');
+    const actual = fingerprintDir(target);
+    const valid = discoverCodexSurface({
+      root: surfaceRoot,
+      surfaceRoot,
+      label: 'native-experimental',
+      version: '1.0.0',
+      provenance: { valid: true, current: true },
+      expectedFingerprints: { 'demo-native': actual },
+      fingerprintFn: fingerprintPath,
+      expectedFingerprintFn: fingerprintDir,
+    });
+    assert.strictEqual(valid[0].owned, true);
+    const tampered = discoverCodexSurface({
+      root: surfaceRoot,
+      surfaceRoot,
+      label: 'native-experimental',
+      version: '1.0.0',
+      provenance: { valid: true, current: true },
+      expectedFingerprints: { 'demo-native': '0'.repeat(64) },
+      fingerprintFn: fingerprintPath,
+      expectedFingerprintFn: fingerprintDir,
+    });
+    assert.strictEqual(tampered[0].owned, false);
+  } finally {
+    fs.rmSync(surfaceRoot, { recursive: true, force: true });
+  }
+});
+
+test('consumer failure evidence redacts sandbox and repository paths', () => {
+  const privateText = `installer failed at ${path.join(os.tmpdir(), 'private-project')} from ${ROOT}/plugins/dhpk`;
+  const redacted = redactEvidence(privateText, ROOT);
+  assert.doesNotMatch(redacted, new RegExp(os.tmpdir().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.doesNotMatch(redacted, new RegExp(ROOT.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  assert.match(redacted, /<sandbox>/);
+  assert.match(redacted, /<repo>/);
 });
 
 run('consumer-gate-cli');

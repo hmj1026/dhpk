@@ -28,6 +28,18 @@ session/agent identity matches. A foreign, missing, stale, misplaced, malformed,
 or conflicting artifact leaves approval unresolved; lifecycle clearance, when
 otherwise permitted, never changes that outcome.
 
+The native stop-time gate applies the same freshness and ownership discipline to
+non-canonical review files. `pre-agent-liveness-mark.sh` records the dispatch
+baseline, session, attempt, and dispatch identifier (when available) in the
+session-scoped `.review-dispatch-attempts` sidecar. `subagent-stop-verify.sh`
+ignores files older than that baseline or carrying foreign session/dispatch
+provenance, then selects the newest qualified file with a deterministic relative
+path tie-breaker. A fresh misplaced file leaves the sentinel armed but is
+reported with a relative path; stale or foreign candidates are reported as
+"no fresh review doc" without leaking an absolute path. Missing provenance is
+accepted only for a file that is fresh in the current stop session and is marked
+`current-unknown-session` in diagnostics.
+
 ## Single-run verdict
 
 The final verdict MUST be emitted within the same run that performed the review. Stopping for advisory or intermediary input before the final verdict is written is forbidden; advisory work is folded into the same run, and post-verdict escalation is permitted. A run that stops without a parseable verdict is a quality-contract defect routed to `.unresolved-verdict` / subagent-quality enforcement, not a valid intermediate state. Sentinel liveness is separate from verdict correctness: a fresh artifact may still auto-clear its sentinel even though the verdict itself is treated as unresolved.

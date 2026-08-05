@@ -117,4 +117,42 @@ test('idempotent: re-running against the SAME output dir overwrites with byte-id
   }
 });
 
+test('generated reviewer roles retain reachable Codex trap and contract references', () => {
+  const tmp = mkTmp();
+  try {
+    const outDir = path.join(tmp, 'out');
+    const res = runScript([outDir]);
+    assert.strictEqual(res.status, 0, res.stderr);
+    const codeReviewer = fs.readFileSync(path.join(outDir, 'code-reviewer.toml'), 'utf8');
+    assert.match(codeReviewer, /\.codex\/dhpk\/agent-traps\/_common\/prompt-defense\.md/);
+    assert.match(codeReviewer, /\.codex\/dhpk\/agent-traps\/_common\/trap-sheet-loader\.md/);
+    assert.match(codeReviewer, /\.codex\/dhpk\/contracts\/reviewer-contract\.md/);
+    assert.match(codeReviewer, /\.codex\/dhpk\/policies\/execution-policy\.md/);
+    assert.doesNotMatch(codeReviewer, /\$\{CLAUDE_PLUGIN_ROOT\}/);
+    const architect = fs.readFileSync(path.join(outDir, 'architect.toml'), 'utf8');
+    assert.match(architect, /\.codex\/dhpk\/agent-traps\/architect\/\<stack\>\.md/);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('generated reviewer roles use Codex manual review and artifact semantics', () => {
+  const tmp = mkTmp();
+  try {
+    const outDir = path.join(tmp, 'out');
+    const res = runScript([outDir]);
+    assert.strictEqual(res.status, 0, res.stderr);
+    for (const name of ['code-reviewer', 'security-reviewer', 'database-reviewer', 'doc-reviewer']) {
+      const body = fs.readFileSync(path.join(outDir, `${name}.toml`), 'utf8');
+      assert.doesNotMatch(body, /\.pending-[a-z-]+/);
+      assert.doesNotMatch(body, /subagent-stop-verify|clear-sentinel|post-edit-remind/);
+      assert.doesNotMatch(body, /\.claude\/artifacts|CLAUDE_PLUGIN_ROOT/);
+      assert.match(body, /\.codex\/artifacts/);
+      assert.match(body, /manual/i);
+    }
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 run('gen-codex-agents');

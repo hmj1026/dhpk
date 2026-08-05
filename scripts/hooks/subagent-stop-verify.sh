@@ -134,6 +134,10 @@ remove_matching_active_entry() {
 
 SUBAGENT="$(extract_subagent_name "$PAYLOAD")"
 EXIT_STATUS="$(extract_exit_status "$PAYLOAD")"
+STOP_SESSION_ID="$(extract_top_field session_id "$PAYLOAD")"
+DIAG_SESSION_ID="${STOP_SESSION_ID:-unknown}"
+DIAG_SESSION_ID="${DIAG_SESSION_ID//$'\t'/_}"
+DIAG_SESSION_ID="${DIAG_SESSION_ID//$'\n'/_}"
 
 case "${SUBAGENT##*:}" in
     fast-worker|codex-fast-worker|agy-fast-worker)
@@ -195,27 +199,277 @@ remove_one_active_entry() {
 # an endless re-dispatch. Verdict-parseability is a separate concern owned by
 # refresh_unresolved_verdict below (the BLOCK/FAIL/severity sidecar). Must be
 # called while the sentinel file still exists (before the rm below).
-# find_misplaced_review_artifact <agent> — echo the path of a matching
-# <agent>-*.md found anywhere under .claude/artifacts/ EXCEPT the canonical
-# reviews/ dir; empty when none exists.
+# find_misplaced_review_artifact <agent> <sentinel> [session-id] — emit one
+# tab-delimited diagnostic record: relative-path TAB reason. Matching
+# <agent>-*.md files under .claude/artifacts/ are filtered against the latest
+# dispatch-attempt baseline and optional session/attempt provenance. The
+# canonical reviews/ directory is always excluded. When no candidate qualifies,
+# emit TAB stale, TAB foreign, or TAB none so callers can distinguish a stale
+# historical document from a genuinely absent review file without exposing paths.
 #
 # Why this exists: a reviewer that writes its review doc to the wrong directory
 # used to produce a silent failure — the sentinel stayed armed with the message
 # "wrote no fresh review doc", which is false, and the operator reached for
 # clear-sentinel.sh, eroding the gate into a formality.
 #
-# This DIAGNOSES only. It deliberately does not feed the auto-clear: clearing
-# from a non-canonical path would bypass the freshness boundary (the doc's mtime
-# must postdate the sentinel), and a misfiled doc typically also lacks the
-# timestamped filename the artifacts contract requires, so freshness cannot even
-# be evaluated for it. Silent failure -> visible, actionable failure is the win;
-# tolerating the drift is not.
+# This DIAGNOSES only. It deliberately does not feed the auto-clear: only the
+# canonical reviews/ path can satisfy the existing freshness gate. A fresh
+# misplaced candidate remains a failure and is labelled current-session or
+# current-unknown-session; stale and explicitly foreign candidates are ignored.
+review_frontmatter_field() {
+    local pattern="$1" file="$2"
+    awk -F: -v wanted="$pattern" '
+        NR == 1 && $0 ~ /^---[[:space:]]*$/ { in_frontmatter=1; next }
+        in_frontmatter && $0 ~ /^---[[:space:]]*$/ { exit }
+        in_frontmatter && $0 ~ wanted {
+            value=$2
+            gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+            gsub(/^[\"\047]|[\"\047]$/, "", value)
+            print value
+            exit
+        }
+    ' "$file" 2>/dev/null || true
+}
+
 find_misplaced_review_artifact() {
-    local agent="$1" artifacts="$ROOT/.claude/artifacts"
-    [ -d "$artifacts" ] || return 0
-    # -path/-prune skips the canonical dir without a regex over the path.
-    find "$artifacts" -path "$artifacts/reviews" -prune -o \
-        -type f -name "$agent-*.md" -print 2>/dev/null | head -1 || true
+    local agent="$1" sentinel="${2:-$SENTINEL_NAME}" session_id="${3:-$STOP_SESSION_ID}"
+    local artifacts="$ROOT/.claude/artifacts" dispatch_file="$SESS/$DHPK_SIDECAR_REVIEW_DISPATCH"
+    local record="" baseline="" expected_session="" expected_attempt="" expected_dispatch="" session_record_miss=0
+    MISPLACED_SESSION=""
+    MISPLACED_ATTEMPT=""
+    MISPLACED_DISPATCH=""
+    [ -d "$artifacts" ] || { printf '\tnone\t\t\t'; return 0; }
+
+    # Select the latest dispatch attempt for this slot/agent. When the Stop
+    # payload carries a session id, require an exact session row; otherwise fall
+    # back to the newest row so legacy payloads still retain a baseline.
+    if [ -f "$dispatch_file" ]; then
+        if [ -n "$session_id" ]; then
+            record="$(awk -F '\t' -v n="$sentinel" -v a="$agent" -v s="$session_id" \
+                '$1 == n && $6 == a && $3 == s { row = $0 } END { print row }' \
+                "$dispatch_file" 2>/dev/null || true)"
+            if [ -z "$record" ] && [ "$session_id" != "unknown" ] && \
+                awk -F '\t' -v n="$sentinel" -v a="$agent" '$1 == n && $6 == a { found = 1 } END { exit(found ? 0 : 1) }' \
+                    "$dispatch_file" 2>/dev/null; then
+                session_record_miss=1
+            fi
+        fi
+        if [ -z "$session_id" ]; then
+            record="$(awk -F '\t' -v n="$sentinel" -v a="$agent" \
+                '$1 == n && $6 == a { row = $0 } END { print row }' \
+                "$dispatch_file" 2>/dev/null || true)"
+        fi
+    fi
+    if [ -n "$record" ]; then
+        IFS=$'\t' read -r _dispatch_sentinel baseline expected_session expected_attempt expected_dispatch _dispatch_agent <<< "$record"
+        [ -n "$session_id" ] || session_id="$expected_session"
+    fi
+    MISPLACED_SESSION="$expected_session"
+    MISPLACED_ATTEMPT="$expected_attempt"
+    MISPLACED_DISPATCH="$expected_dispatch"
+    if [ -z "$baseline" ]; then
+        baseline="$(stat -c %Y "$SESS/$sentinel" 2>/dev/null || stat -f %m "$SESS/$sentinel" 2>/dev/null || printf '0')"
+    fi
+    case "$baseline" in ''|*[!0-9]*) baseline=0 ;; esac
+
+    if command -v python3 >/dev/null 2>&1; then
+        ROOT_IN="$ROOT" ARTIFACTS_IN="$artifacts" AGENT_IN="$agent" BASELINE_IN="$baseline" \
+        SESSION_IN="$session_id" EXPECTED_SESSION_IN="$expected_session" \
+        ATTEMPT_IN="$expected_attempt" DISPATCH_IN="$expected_dispatch" \
+        SESSION_RECORD_MISS_IN="$session_record_miss" \
+        python3 - <<'PY' 2>/dev/null || printf '\tnone\t%s\t%s\t%s' \
+            "${expected_session:-${session_id:-unknown}}" "${expected_attempt:-unknown}" "${expected_dispatch:-unknown}"
+import os
+from pathlib import Path
+
+root = Path(os.environ["ROOT_IN"]).resolve()
+artifacts = Path(os.environ["ARTIFACTS_IN"]).resolve()
+canonical = (artifacts / "reviews").resolve()
+agent = os.environ["AGENT_IN"]
+baseline = float(os.environ.get("BASELINE_IN") or 0)
+session = os.environ.get("SESSION_IN") or os.environ.get("EXPECTED_SESSION_IN") or ""
+expected_session = os.environ.get("EXPECTED_SESSION_IN") or ""
+expected_attempt = os.environ.get("ATTEMPT_IN") or ""
+expected_dispatch = os.environ.get("DISPATCH_IN") or ""
+session_record_miss = os.environ.get("SESSION_RECORD_MISS_IN") == "1"
+session_out = expected_session or session or "unknown"
+attempt_out = expected_attempt or "unknown"
+dispatch_out = expected_dispatch or "unknown"
+
+def emit(path, reason):
+    print(f"{path}\t{reason}\t{session_out}\t{attempt_out}\t{dispatch_out}")
+stop_session_mismatch = bool(
+    session and session != "unknown" and expected_session and
+    expected_session != "unknown" and session != expected_session
+)
+
+def frontmatter(path):
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return {}
+    if not text.startswith("---"):
+        return {}
+    parts = text.split("---", 2)
+    if len(parts) < 3:
+        return {}
+    text = parts[1]
+    values = {}
+    for line in text.splitlines():
+        if ":" not in line:
+            continue
+        key, value = line.split(":", 1)
+        values[key.strip().lower()] = value.strip().strip("'\"")
+    return values
+
+def first(values, *names):
+    for name in names:
+        value = values.get(name, "")
+        if value:
+            return value
+    return ""
+
+qualifying = []
+stale = 0
+foreign = 0
+try:
+    paths = list(artifacts.rglob(f"{agent}-*.md"))
+except OSError:
+    paths = []
+for path in paths:
+    try:
+        if not path.is_file() or canonical == path or canonical in path.parents:
+            continue
+        mtime = path.stat().st_mtime
+        rel = path.relative_to(root).as_posix()
+    except (OSError, ValueError):
+        continue
+    if mtime < baseline:
+        stale += 1
+        continue
+    if stop_session_mismatch or session_record_miss:
+        foreign += 1
+        continue
+
+    meta = frontmatter(path)
+    candidate_session = first(meta, "session_id", "session", "origin_session")
+    candidate_attempt = first(meta, "dispatch_attempt", "attempt")
+    candidate_dispatch = first(meta, "dispatch_id", "attempt_id", "dispatch")
+    if candidate_session.lower() in {"unknown", "none", "null"}:
+        candidate_session = ""
+    is_foreign = False
+    if candidate_session:
+        if session and session != "unknown":
+            is_foreign = candidate_session != session
+        elif expected_session and expected_session != "unknown":
+            is_foreign = candidate_session != expected_session
+        else:
+            is_foreign = True
+    if not is_foreign and candidate_attempt and expected_attempt:
+        is_foreign = candidate_attempt != expected_attempt
+    if not is_foreign and candidate_dispatch and expected_dispatch:
+        is_foreign = candidate_dispatch != expected_dispatch
+    if not is_foreign and candidate_dispatch and not expected_dispatch and not candidate_session:
+        is_foreign = True
+    if is_foreign:
+        foreign += 1
+        continue
+
+    reason = "current-session" if (candidate_session or candidate_attempt or candidate_dispatch) else "current-unknown-session"
+    qualifying.append((mtime, rel, reason))
+
+if qualifying:
+    qualifying.sort(key=lambda item: (-item[0], item[1]))
+    _, rel, reason = qualifying[0]
+    emit(rel, reason)
+elif stale or foreign:
+    reasons = []
+    if stale:
+        reasons.append("stale")
+    if foreign:
+        reasons.append("foreign")
+    emit("", "+".join(reasons))
+else:
+    emit("", "none")
+PY
+    else
+        # Keep the same freshness, ownership, and deterministic ordering
+        # contract when python3 is unavailable. Frontmatter parsing is limited
+        # to simple key/value headers, but a stale or foreign file is never
+        # attributed merely because it is the first find(1) result.
+        local candidate="" candidate_mtime="" candidate_rel="" candidate_session="" \
+            candidate_attempt="" candidate_dispatch="" candidate_foreign=0 \
+            latest="" latest_mtime=-1 latest_reason="" stale_count=0 foreign_count=0
+        while IFS= read -r candidate; do
+            [ -n "$candidate" ] || continue
+            candidate_mtime="$(stat -c %Y "$candidate" 2>/dev/null || stat -f %m "$candidate" 2>/dev/null || printf '0')"
+            case "$candidate_mtime" in ''|*[!0-9]*) candidate_mtime=0 ;; esac
+            if [ "$candidate_mtime" -lt "$baseline" ]; then
+                stale_count=$((stale_count + 1))
+                continue
+            fi
+            if { [ "$session_record_miss" -eq 1 ] || \
+                { [ -n "$session_id" ] && [ "$session_id" != "unknown" ] && \
+                [ -n "$expected_session" ] && [ "$expected_session" != "unknown" ] && \
+                [ "$session_id" != "$expected_session" ]; }; }; then
+                foreign_count=$((foreign_count + 1))
+                continue
+            fi
+            candidate_session="$(review_frontmatter_field '^[[:space:]]*(session_id|session|origin_session)[[:space:]]*:' "$candidate")"
+            candidate_attempt="$(review_frontmatter_field '^[[:space:]]*(dispatch_attempt|attempt)[[:space:]]*:' "$candidate")"
+            candidate_dispatch="$(review_frontmatter_field '^[[:space:]]*(dispatch_id|attempt_id|dispatch)[[:space:]]*:' "$candidate")"
+            case "$candidate_session" in
+                [Uu][Nn][Kk][Nn][Oo][Ww][Nn]|[Nn][Oo][Nn][Ee]|[Nn][Uu][Ll][Ll]) candidate_session="" ;;
+            esac
+            candidate_foreign=0
+            if [ -n "$candidate_session" ]; then
+                if [ -n "$session_id" ] && [ "$session_id" != "unknown" ]; then
+                    [ "$candidate_session" = "$session_id" ] || candidate_foreign=1
+                elif [ -n "$expected_session" ] && [ "$expected_session" != "unknown" ]; then
+                    [ "$candidate_session" = "$expected_session" ] || candidate_foreign=1
+                else
+                    candidate_foreign=1
+                fi
+            fi
+            if [ "$candidate_foreign" -eq 0 ] && [ -n "$candidate_attempt" ] && [ -n "$expected_attempt" ] && \
+                [ "$candidate_attempt" != "$expected_attempt" ]; then candidate_foreign=1; fi
+            if [ "$candidate_foreign" -eq 0 ] && [ -n "$candidate_dispatch" ] && [ -n "$expected_dispatch" ] && \
+                [ "$candidate_dispatch" != "$expected_dispatch" ]; then candidate_foreign=1; fi
+            if [ "$candidate_foreign" -eq 0 ] && [ -n "$candidate_dispatch" ] && [ -z "$expected_dispatch" ] && \
+                [ -z "$candidate_session" ]; then candidate_foreign=1; fi
+            if [ "$candidate_foreign" -eq 1 ]; then
+                foreign_count=$((foreign_count + 1))
+                continue
+            fi
+            candidate_rel="${candidate#"$ROOT"/}"
+            if [ "$candidate_mtime" -gt "$latest_mtime" ] || \
+                { [ "$candidate_mtime" -eq "$latest_mtime" ] && [ -z "$latest" -o "$candidate_rel" < "$latest" ]; }; then
+                latest="$candidate_rel"
+                latest_mtime="$candidate_mtime"
+                if [ -n "$candidate_session" ] || [ -n "$candidate_attempt" ] || [ -n "$candidate_dispatch" ]; then
+                    latest_reason="current-session"
+                else
+                    latest_reason="current-unknown-session"
+                fi
+            fi
+        done < <(find "$artifacts" -path "$artifacts/reviews" -prune -o -type f -name "$agent-*.md" -print 2>/dev/null)
+        if [ -n "$latest" ]; then
+            printf '%s\t%s\t%s\t%s\t%s' "$latest" "$latest_reason" \
+                "${expected_session:-${session_id:-unknown}}" "${expected_attempt:-unknown}" "${expected_dispatch:-unknown}"
+        elif [ "$stale_count" -gt 0 ] || [ "$foreign_count" -gt 0 ]; then
+            local reasons=""
+            [ "$stale_count" -gt 0 ] && reasons="stale"
+            if [ "$foreign_count" -gt 0 ]; then
+                [ -n "$reasons" ] && reasons="$reasons+"
+                reasons="${reasons}foreign"
+            fi
+            printf '\t%s\t%s\t%s\t%s' "$reasons" \
+                "${expected_session:-${session_id:-unknown}}" "${expected_attempt:-unknown}" "${expected_dispatch:-unknown}"
+        else
+            printf '\tnone\t%s\t%s\t%s' \
+                "${expected_session:-${session_id:-unknown}}" "${expected_attempt:-unknown}" "${expected_dispatch:-unknown}"
+        fi
+    fi
 }
 
 has_fresh_review_artifact() {
@@ -413,19 +667,38 @@ elif [ -f "$SENTINEL_FILE" ]; then
         # Distinguish "wrote nothing" from "wrote it in the wrong place". The
         # latter used to be reported as the former, which is a false statement
         # that sends the operator to clear-sentinel.sh instead of to the fix.
-        MISPLACED="$(find_misplaced_review_artifact "$SUBAGENT_BARE")"
+        MISPLACED_INFO="$(find_misplaced_review_artifact "$SUBAGENT_BARE" "$SENTINEL_NAME" "$STOP_SESSION_ID")"
+        IFS=$'\t' read -r MISPLACED MISPLACED_REASON LOG_SESSION LOG_ATTEMPT LOG_DISPATCH <<< "x$MISPLACED_INFO"
+        MISPLACED="${MISPLACED#x}"
+        LOG_SESSION="${LOG_SESSION:-$DIAG_SESSION_ID}"
+        LOG_SESSION="${LOG_SESSION//$'\t'/_}"
+        LOG_SESSION="${LOG_SESSION//$'\n'/_}"
+        LOG_ATTEMPT="${LOG_ATTEMPT:-unknown}"
+        LOG_ATTEMPT="${LOG_ATTEMPT//$'\t'/_}"
+        LOG_ATTEMPT="${LOG_ATTEMPT//$'\n'/_}"
+        LOG_DISPATCH="${LOG_DISPATCH:-unknown}"
+        LOG_DISPATCH="${LOG_DISPATCH//$'\t'/_}"
+        LOG_DISPATCH="${LOG_DISPATCH//$'\n'/_}"
+        MISPLACED_DETAIL="session=$LOG_SESSION attempt=$LOG_ATTEMPT dispatch=$LOG_DISPATCH reason=$MISPLACED_REASON"
         if [ -n "$MISPLACED" ]; then
             MISPLACED_REL="${MISPLACED#"$ROOT"/}"
-            echo "$TIMESTAMP $SUBAGENT exit=0 sentinel=$SENTINEL_NAME (left armed, review doc misplaced: $MISPLACED_REL)" >> "$LOG" || true
-            ldb_record failure "review-doc-misplaced:$SENTINEL_NAME" "$SUBAGENT_BARE"
+            echo "$TIMESTAMP $SUBAGENT exit=0 sentinel=$SENTINEL_NAME (left armed, review doc misplaced: $MISPLACED_REL $MISPLACED_DETAIL)" >> "$LOG" || true
+            ldb_record failure "review-doc-misplaced:$SENTINEL_NAME" "$SUBAGENT_BARE $MISPLACED_DETAIL"
             if [ "$PROFILE" != "minimal" ]; then
-                emit_system_message "[subagent-verify] MISPLACED REVIEW DOC: $SUBAGENT wrote its review to $MISPLACED_REL, but the canonical location is .claude/artifacts/reviews/<agent>-<yyyymmdd-HHMMSS>-<slug>.md (see the artifacts contract in docs/contracts/).
+                emit_system_message "[subagent-verify] MISPLACED REVIEW DOC: $SUBAGENT wrote its review to $MISPLACED_REL ($MISPLACED_REASON), but the canonical location is .claude/artifacts/reviews/<agent>-<yyyymmdd-HHMMSS>-<slug>.md (see the artifacts contract in docs/contracts/).
 LEFT $SENTINEL_NAME armed: the doc was not read, and freshness cannot be verified from a non-canonical path. Move it to the canonical path or re-run the reviewer — do NOT clear the sentinel by hand.
 Logged to: .claude/artifacts/agent-failures.log"
             fi
+        elif [ -n "$MISPLACED_REASON" ] && [ "$MISPLACED_REASON" != "none" ]; then
+            echo "$TIMESTAMP $SUBAGENT exit=0 sentinel=$SENTINEL_NAME (left armed, no fresh review doc; misplaced candidate(s) ignored: $MISPLACED_DETAIL)" >> "$LOG" || true
+            ldb_record failure "review-doc-no-fresh:$SENTINEL_NAME" "$SUBAGENT_BARE $MISPLACED_DETAIL"
+            if [ "$PROFILE" != "minimal" ]; then
+                emit_system_message "[subagent-verify] NO FRESH REVIEW DOC: $SUBAGENT stopped clean but no qualifying current misplaced review file was found ($MISPLACED_REASON); LEFT $SENTINEL_NAME armed so the gate stays unmet — re-dispatch the reviewer.
+Logged to: .claude/artifacts/agent-failures.log"
+            fi
         else
-            echo "$TIMESTAMP $SUBAGENT exit=0 sentinel=$SENTINEL_NAME (left armed, no review doc)" >> "$LOG" || true
-            ldb_record failure "sentinel-uncleared:$SENTINEL_NAME" "$SUBAGENT_BARE"
+            echo "$TIMESTAMP $SUBAGENT exit=0 sentinel=$SENTINEL_NAME (left armed, no review doc; $MISPLACED_DETAIL)" >> "$LOG" || true
+            ldb_record failure "sentinel-uncleared:$SENTINEL_NAME" "$SUBAGENT_BARE $MISPLACED_DETAIL"
             if [ "$PROFILE" != "minimal" ]; then
                 emit_system_message "[subagent-verify] NO REVIEW DOC: $SUBAGENT stopped clean but wrote no fresh review doc; LEFT $SENTINEL_NAME armed so the gate stays unmet — re-dispatch the reviewer.
 Logged to: .claude/artifacts/agent-failures.log"

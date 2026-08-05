@@ -13,6 +13,13 @@ set -o pipefail
 
 ROOT="$(dhpk_root)"
 PAYLOAD="$(dhpk_read_payload)"
+SESSION_ID="$(extract_top_field session_id "$PAYLOAD")"
+[ -n "$SESSION_ID" ] || SESSION_ID="unknown"
+SESSION_ID="${SESSION_ID//$'\t'/_}"
+SESSION_ID="${SESSION_ID//$'\n'/_}"
+DISPATCH_ID="$(extract_top_field tool_use_id "$PAYLOAD")"
+[ -z "$DISPATCH_ID" ] && DISPATCH_ID="$(extract_top_field dispatch_id "$PAYLOAD")"
+[ -z "$DISPATCH_ID" ] && DISPATCH_ID="$(extract_tool_input dispatch_id "$PAYLOAD")"
 
 SUBAGENT="$(extract_tool_input subagent_type "$PAYLOAD")"
 [ -z "$SUBAGENT" ] && SUBAGENT="$(extract_tool_input subagent "$PAYLOAD")"
@@ -45,12 +52,27 @@ SENTINEL_NAME="${SENTINEL_NAMES[$SLOT]}"
 ACTIVE_NAME="$(dhpk_active_marker "$SENTINEL_NAME")"
 SESS="$(dhpk_sessions_dir "$ROOT")"
 STAMP="$(date +%s 2>/dev/null || date -u +%s)"
+SUBAGENT_BARE="${SUBAGENT##*:}"
+[ -n "$DISPATCH_ID" ] || DISPATCH_ID="dispatch-${STAMP}-$$"
+DISPATCH_ID="${DISPATCH_ID//$'\t'/_}"
+DISPATCH_ID="${DISPATCH_ID//$'\n'/_}"
 
 mkdir -p "$SESS" 2>/dev/null || exit 0
 if [ ! -f "$SESS/$SENTINEL_NAME" ]; then
     printf '%s arm-on-dispatch:%s [arm-on-dispatch]\n' "$STAMP" "$SUBAGENT" > "$SESS/$SENTINEL_NAME" 2>/dev/null || true
     printf '%s\t%s\tarm-on-dispatch %s\n' "$SENTINEL_NAME" '[arm-on-dispatch]' "$SUBAGENT" >> "$SESS/$SENTINEL_PROVENANCE_FILE" 2>/dev/null || true
 fi
+# Keep a separate dispatch-attempt ledger so diagnostics can distinguish the
+# current review window from old misplaced documents. The row shape is stable:
+# sentinel TAB baseline-epoch TAB session-id TAB attempt TAB dispatch-id TAB agent.
+DISPATCH_FILE="$SESS/$DHPK_SIDECAR_REVIEW_DISPATCH"
+PREVIOUS_ATTEMPT="$(awk -F '\t' -v n="$SENTINEL_NAME" -v s="$SESSION_ID" -v a="$SUBAGENT_BARE" \
+    '$1 == n && $3 == s && $6 == a && ($4 + 0) > max { max = $4 + 0 } END { print max + 0 }' \
+    "$DISPATCH_FILE" 2>/dev/null || printf '0')"
+ATTEMPT=$((PREVIOUS_ATTEMPT + 1))
+printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
+    "$SENTINEL_NAME" "$STAMP" "$SESSION_ID" "$ATTEMPT" "$DISPATCH_ID" "$SUBAGENT_BARE" \
+    >> "$DISPATCH_FILE" 2>/dev/null || true
 printf '%s %s pid=%s\n' "$STAMP" "$SUBAGENT" "$$" >> "$SESS/$ACTIVE_NAME" 2>/dev/null || true
 
 exit 0

@@ -86,6 +86,65 @@ function findByPath(entries, relPath) {
   return entries.find((e) => e.path === relPath);
 }
 
+function isSafeInventoryPath(value) {
+  if (typeof value !== 'string' || value.length === 0 || value.includes('\0')) return false;
+  if (value.includes('\\') || path.posix.isAbsolute(value) || /^[A-Za-z]:[\\/]/.test(value)) return false;
+  const normalized = path.posix.normalize(value);
+  return normalized === value && normalized !== '.' && normalized !== '..' && !normalized.startsWith('../');
+}
+
+function validateSupportingAssets({ inventory, root, exists = fs.existsSync }) {
+  const errors = [];
+  const entries = inventory && Array.isArray(inventory.supporting_assets)
+    ? inventory.supporting_assets
+    : [];
+  const ids = new Set();
+  const destinations = new Set();
+
+  for (const entry of entries) {
+    if (!entry || typeof entry !== 'object') {
+      errors.push('supporting asset entry is not an object');
+      continue;
+    }
+    const id = entry.id;
+    const source = entry.source;
+    const destination = entry.destination;
+    if (typeof id !== 'string' || id.trim() === '') {
+      errors.push('supporting asset is missing a non-empty id');
+    } else if (ids.has(id)) {
+      errors.push(`duplicate supporting asset id: ${id}`);
+    } else {
+      ids.add(id);
+    }
+    if (!isSafeInventoryPath(source)) {
+      errors.push(`supporting asset ${id || '<unknown>'} source must be a safe relative path: ${source}`);
+    }
+    if (!isSafeInventoryPath(destination)) {
+      errors.push(`supporting asset ${id || '<unknown>'} destination must be a safe relative path: ${destination}`);
+    } else if (destinations.has(destination)) {
+      errors.push(`duplicate supporting asset destination: ${destination}`);
+    } else {
+      destinations.add(destination);
+    }
+    if (isSafeInventoryPath(source) && root && !exists(path.resolve(root, ...source.split('/')))) {
+      errors.push(`supporting asset source does not exist: ${source}`);
+    }
+    if (entry.canonical_source !== undefined) {
+      if (!isSafeInventoryPath(entry.canonical_source)) {
+        errors.push(`supporting asset ${id || '<unknown>'} canonical_source must be a safe relative path: ${entry.canonical_source}`);
+      } else if (root && !exists(path.resolve(root, ...entry.canonical_source.split('/')))) {
+        errors.push(`supporting asset canonical source does not exist: ${entry.canonical_source}`);
+      }
+      for (const field of ['canonical_digest', 'projection_digest']) {
+        if (typeof entry[field] !== 'string' || !/^[a-f0-9]{64}$/.test(entry[field])) {
+          errors.push(`supporting asset ${id || '<unknown>'} ${field} must be a SHA-256 hex digest`);
+        }
+      }
+    }
+  }
+  return { errors };
+}
+
 function validateDistributionInventory({
   inventory,
   canonicalSkillPaths = [],
@@ -260,6 +319,7 @@ module.exports = {
   SURFACES,
   classifyCanonicalInventory,
   serializeInventory,
+  validateSupportingAssets,
   validateDistributionInventory,
   reconcileDistribution,
   generateClaudeSkillRoots,

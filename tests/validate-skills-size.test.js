@@ -25,8 +25,8 @@ function config(tmp, seed, allowed) {
   fs.writeFileSync(path.join(tmp, 'scripts', 'ci', 'skill-size-allowlist.json'), JSON.stringify({ seed, allowed }));
 }
 
-function validate(tmp) {
-  return spawnSync('node', [path.join(tmp, 'scripts', 'ci', 'validate-skills.js')], { encoding: 'utf8' });
+function validate(tmp, args = []) {
+  return spawnSync('node', [path.join(tmp, 'scripts', 'ci', 'validate-skills.js'), ...args], { encoding: 'utf8' });
 }
 
 test('warns above 150 lines and fails an unallowlisted file above 250', () => {
@@ -88,6 +88,20 @@ test('counts the final logical line when SKILL.md has no trailing newline', () =
     const res = validate(tmp);
     assert.strictEqual(res.status, 1);
     assert.match(res.stderr, /251 lines.*hard budget 250/);
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('strict mode accepts the 150-line boundary and rejects warning-budget overflow', () => {
+  const tmp = repo();
+  try {
+    skill(tmp, 'skills/boundary', 150);
+    const boundary = validate(tmp, ['--strict']);
+    assert.strictEqual(boundary.status, 0, boundary.stderr);
+
+    skill(tmp, 'skills/boundary', 151);
+    const overflow = validate(tmp, ['--strict']);
+    assert.strictEqual(overflow.status, 1);
+    assert.match(overflow.stderr, /ERROR \[skills\].*151 lines.*warning budget 150/);
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 });
 

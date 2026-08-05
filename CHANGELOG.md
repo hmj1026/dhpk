@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## 0.34.1 — 2026-08-05 — Fix review gate observability, skill health check resilience, codex agent projection, and codex distribution safety
+
+**fix(codex-agent-projection)** — Preserve safety and review contracts when projecting Claude agent roles into a clean Codex consumer.
+**fix(codex-distribution)** — Make Codex synchronization ownership-aware, path-safe, and explicit about fallback/native surface parity.
+**fix(review-gate)** — Scope misplaced review diagnostics to fresh dispatch/session provenance and render every generated review sentinel badge in the statusline.
+**fix(skill-health-check)** — Report malformed skill, command, and agent entries as deterministic P1 findings and accept qualified cross-skill references without stack traces or host-path leaks.
+
 ## 0.34.0 — 2026-08-04 — Add role-aware Codex timeout budgets and timeout recovery safeguards
 
 **feat(codex-timeout)** — Configure role-aware Codex timeout budgets with explicit precedence, diagnostics, and fail-closed validation.

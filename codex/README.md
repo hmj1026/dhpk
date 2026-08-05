@@ -12,7 +12,7 @@ From the project root:
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"
 ```
 
-By default the script creates **symlinks** from `<project>/.codex/{skills,agents}/*` back to the plugin cache. Symlinks track plugin updates automatically — re-run with `--update` after a plugin version bump to refresh.
+By default the script creates **symlinks** from `<project>/.codex/{skills,agents}/*` back to the plugin cache and materializes the receipt-managed Codex support tree under `<project>/.codex/dhpk/` (trap sheets, review contracts, and execution policy). Symlinks track plugin updates automatically — re-run with `--update` after a plugin version bump to refresh. The receipt is an ownership boundary: only entries recorded in `.dhpk-installed.json` whose destination still matches its marker can be replaced or removed.
 
 ### Flags
 
@@ -20,12 +20,14 @@ By default the script creates **symlinks** from `<project>/.codex/{skills,agents
 |------|--------|
 | `--copy` | Copy regular files instead of symlinking. Use on Windows without dev-mode, or on shares where symlinks misbehave. |
 | `--update` | Re-sync even when the recorded plugin version matches. Use after a manual edit to the plugin or after pulling a new plugin version. |
+| `--migrate` | Upgrade a legacy receipt. Only exact source matches are adopted; user-owned or mismatched destinations are preserved and reported. |
+| `--uninstall` | Remove unchanged receipt-owned entries. Edited or orphaned entries and unrelated project assets are preserved. |
 | `--force` | Skip the project-root heuristic check (`.git/`, `.claude/`, `package.json`, or `composer.json` must exist). |
 | `--help` | Print this summary inline. |
 
 ### Idempotency
 
-The script writes `<project>/.codex/.dhpk-installed.json` recording the plugin version, mode, and timestamp. Re-running without `--update` is a no-op when the recorded version matches the current plugin version.
+The script writes `<project>/.codex/.dhpk-installed.json` with schema version 2, plugin version, source fingerprint, mode, and a managed-entry inventory for skills, agents, and supporting assets. Supporting assets are declared in `manifests/distribution-inventory.json`, so generated agent references resolve inside a clean `.codex/` projection without Claude-only plugin-root paths. Each entry records its source identity, fingerprints, and ownership marker. Every mutating run prints deterministic created, updated, preserved, collision, pruned, and orphaned counts without absolute private paths. A legacy receipt without `managed_entries` fails closed for same-name collisions until `--migrate` is requested.
 
 ### `config.toml.example`
 
@@ -71,4 +73,4 @@ fallback policy in `AGENTS.md`; they are not dispatchable from Codex.
 
 ## Uninstall
 
-`rm -rf .codex/{skills,agents,.dhpk-installed.json}` from the project root. The script makes no global modifications, so there is nothing else to clean up.
+From the project root run `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --uninstall --force`. The command removes only unchanged receipt-owned entries. Edited managed entries are marked orphaned and retained, and unrelated `.codex` content is never deleted. Do not remove the whole `.codex` directory when it contains project-owned assets.
