@@ -25,16 +25,75 @@ const SCRIPT = path.join(ROOT, 'scripts', 'install.sh');
 // `command -v claude` check, never to be executed.
 const STUB_BIN = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-install-stub-'));
 fs.writeFileSync(path.join(STUB_BIN, 'claude'), '#!/usr/bin/env bash\nexit 0\n', { mode: 0o755 });
-process.on('exit', () => fs.rmSync(STUB_BIN, { recursive: true, force: true }));
+const TEMP_FIXTURES = [STUB_BIN];
+process.on('exit', () => {
+  for (const fixture of TEMP_FIXTURES) fs.rmSync(fixture, { recursive: true, force: true });
+});
 
-function runScript(args, stdin) {
-  return spawnSync('bash', [SCRIPT, ...(args || [])], {
-    cwd: ROOT,
+function makeNoJqBin(claudeLog) {
+  const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-install-no-jq-bin-'));
+  TEMP_FIXTURES.push(bin);
+  // Keep only the commands the installer needs in PATH. In particular, do not
+  // include /usr/bin, where jq is available on the development host.
+  const tools = ['bash', 'git', 'dirname', 'sed', 'cat', 'head', 'tail', 'tr', 'seq', 'awk', 'grep', 'cut'];
+  for (const name of tools) fs.symlinkSync(`/usr/bin/${name}`, path.join(bin, name));
+  fs.symlinkSync('/usr/bin/python3', path.join(bin, 'python3'));
+  const claudeBody = claudeLog
+    ? `#!/bin/bash\nprintf 'called\\n' > "$DHPK_TEST_CLAUDE_LOG"\nexit 99\n`
+    : '#!/bin/bash\nexit 0\n';
+  fs.writeFileSync(path.join(bin, 'claude'), claudeBody, { mode: 0o755 });
+  return bin;
+}
+
+function makeInstallerFixture(profiles) {
+  const parent = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-install-fixture-'));
+  TEMP_FIXTURES.push(parent);
+  // The apostrophe is intentionally part of the plugin root, not merely a
+  // profile value: this reproduces the original Python-source interpolation.
+  const pluginRoot = path.join(parent, "dhpk'installer");
+  for (const relative of ['scripts/lib', 'manifests', 'docs']) {
+    fs.mkdirSync(path.join(pluginRoot, relative), { recursive: true });
+  }
+  for (const relative of [
+    'scripts/install.sh',
+    'scripts/lib/install-prompts.sh',
+    'manifests/module-catalog.json',
+    'docs/docker-setup.md',
+  ]) {
+    fs.copyFileSync(path.join(ROOT, relative), path.join(pluginRoot, relative));
+  }
+  fs.writeFileSync(
+    path.join(pluginRoot, 'manifests/install-profiles.json'),
+    typeof profiles === 'string' ? profiles : JSON.stringify({ profiles }),
+  );
+  return pluginRoot;
+}
+
+function runScript(args, stdin, options = {}) {
+  const script = options.script || SCRIPT;
+  const noJqBin = options.noJq ? makeNoJqBin(options.claudeLog) : null;
+  const env = {
+    ...process.env,
+    PATH: noJqBin
+      ? noJqBin
+      : `${STUB_BIN}${path.delimiter}${process.env.PATH}`,
+    ...(options.env || {}),
+  };
+  if (options.claudeLog) env.DHPK_TEST_CLAUDE_LOG = options.claudeLog;
+  return spawnSync('bash', [script, ...(args || [])], {
+    cwd: options.cwd || ROOT,
     input: stdin || '',
     encoding: 'utf8',
-    timeout: 20000,
-    env: { ...process.env, PATH: `${STUB_BIN}${path.delimiter}${process.env.PATH}` },
+    timeout: options.timeout || 20000,
+    env,
   });
+}
+
+function assertNoInstallerSideEffects(pluginRoot, claudeLog) {
+  for (const relative of ['.claude', '.codex', 'installed']) {
+    assert.strictEqual(fs.existsSync(path.join(pluginRoot, relative)), false, relative);
+  }
+  if (claudeLog) assert.strictEqual(fs.existsSync(claudeLog), false, 'claude was invoked');
 }
 
 test('bash -n syntax check passes', () => {
@@ -76,6 +135,79 @@ test('--print is accepted as an alias for --dry-run', () => {
   const res = runScript(['--print'], stdin);
   assert.strictEqual(res.status, 0, res.stderr);
   assert.ok(res.stdout.includes('(--dry-run set — not executing.)'), res.stdout);
+});
+
+test('truncated custom flow fails closed at hook-profile selection', () => {
+  const res = runScript(['--dry-run'], '\n');
+  assert.strictEqual(res.status, 1, `${res.stdout}\n${res.stderr}`);
+  assert.match(res.stderr, /ERROR hook-selection/);
+  assert.ok(!res.stdout.includes('Command to run:'), res.stdout);
+});
+
+test('truncated version selection fails closed before resolving modules', () => {
+  const res = runScript(['--dry-run'], '\n14\n');
+  assert.strictEqual(res.status, 1, `${res.stdout}\n${res.stderr}`);
+  assert.match(res.stderr, /ERROR version-selection/);
+  assert.ok(!res.stdout.includes('Command to run:'), res.stdout);
+});
+
+test('no-jq dry-run handles an apostrophe plugin path without side effects', () => {
+  const pluginRoot = makeInstallerFixture({ safe: { modules: ['php-5.6'] } });
+  const claudeLog = path.join(pluginRoot, 'claude-called.log');
+  const res = runScript(
+    ['--dry-run'],
+    'y\n',
+    {
+      script: path.join(pluginRoot, 'scripts', 'install.sh'),
+      noJq: true,
+      claudeLog,
+    },
+  );
+  assert.strictEqual(res.status, 0, res.stderr + '\n---stdout---\n' + res.stdout);
+  assert.ok(res.stdout.includes(`Plugin root: ${pluginRoot}`), res.stdout);
+  assert.ok(res.stdout.includes("Preset 'safe' selected"), res.stdout);
+  assert.ok(res.stdout.includes('modules           : php-5.6'), res.stdout);
+  assert.ok(res.stdout.includes('(--dry-run set — not executing.)'), res.stdout);
+  assertNoInstallerSideEffects(pluginRoot, claudeLog);
+});
+
+test('no-jq malformed profile fails closed before prompts or destinations', () => {
+  const pluginRoot = makeInstallerFixture('{"profiles":');
+  const res = runScript(
+    ['--dry-run'],
+    '',
+    { script: path.join(pluginRoot, 'scripts', 'install.sh'), noJq: true, timeout: 3000 },
+  );
+  assert.strictEqual(res.status, 1, res.stderr);
+  assert.match(res.stderr, /ERROR profile-extraction/);
+  assert.ok(!res.stderr.includes(pluginRoot), res.stderr);
+  assert.ok(!res.stderr.includes('Use a curated preset'), res.stderr);
+  assertNoInstallerSideEffects(pluginRoot);
+});
+
+test('no-jq invalid preset selection exits instead of looping', () => {
+  const pluginRoot = makeInstallerFixture({ one: { modules: [] }, two: { modules: [] } });
+  const res = runScript(
+    ['--dry-run'],
+    'y\n9\n',
+    { script: path.join(pluginRoot, 'scripts', 'install.sh'), noJq: true, timeout: 3000 },
+  );
+  assert.strictEqual(res.status, 1, res.stderr);
+  assert.match(res.stderr, /ERROR preset-selection/);
+  assertNoInstallerSideEffects(pluginRoot);
+});
+
+test('no-jq missing module fails closed before preset prompts', () => {
+  const pluginRoot = makeInstallerFixture({ broken: { modules: ['not-shipped'] } });
+  const res = runScript(
+    ['--dry-run'],
+    '',
+    { script: path.join(pluginRoot, 'scripts', 'install.sh'), noJq: true, timeout: 3000 },
+  );
+  assert.strictEqual(res.status, 1, res.stderr);
+  assert.match(res.stderr, /ERROR module-extraction/);
+  assert.ok(!res.stderr.includes('Use a curated preset'), res.stderr);
+  assertNoInstallerSideEffects(pluginRoot);
 });
 
 run('install');

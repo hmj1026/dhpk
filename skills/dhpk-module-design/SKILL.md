@@ -39,6 +39,15 @@ Recommend a boundary, interface, data flow, and trade-offs. Record an ADR only
 when the decision is surprising, hard-to-reverse, or likely to be revisited;
 routine local choices belong in the implementation plan or tests.
 
+## When NOT to Use
+
+- Tracing an existing execution path without a boundary decision (use
+  `dhpk-codebase-exploration`).
+- Implementing an already-confirmed design (use `dhpk-feature-dev` or the
+  matching OpenSpec apply route).
+- Reviewing code or security controls (use `dhpk-change-review` or
+  `dhpk-security-review`).
+
 ## Verification
 
 - [ ] Caller leverage and the deletion test justify the boundary.

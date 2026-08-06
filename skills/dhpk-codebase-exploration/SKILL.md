@@ -37,6 +37,13 @@ use `normal`.
 4. Record assumptions, edge cases, and unresolved links. A clean prompt and
    independent evidence matter more than a large file dump.
 
+## When NOT to Use
+
+- Implementing or fixing code (use `dhpk-feature-dev` or the confirmed
+  OpenSpec apply route).
+- Reviewing a proposed diff (use `dhpk-change-review`).
+- Security-specific analysis (use `dhpk-security-review`).
+
 ## Output
 
 ```markdown

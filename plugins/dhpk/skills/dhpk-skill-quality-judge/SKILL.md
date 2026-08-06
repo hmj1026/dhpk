@@ -88,10 +88,10 @@ Produce the report in the **Output** format below. If a score is hard to name, c
 - **NEVER** forgive explaining basics with "but it provides helpful context"
 - **NEVER** overlook a missing anti-pattern (NEVER) list — that is a significant gap
 - **NEVER** undervalue the description field — poor description = skill never gets used
-
 ## Cost and maintainability lens
-
 Score invocation/context cost: conditional branches load only needed references and completion is checkable from an observable result. Penalize no-op, duplication, and documentation sediment; a polished rubric cannot rescue a default path that spends context on unused branches.
+## Agent-facing authoring guardrails
+When authoring or materially revising a target, require a short trigger/non-use pointer and one SSOT owner; prefer progressive disclosure with co-located references, require completion evidence plus the next-workflow handoff, distinguish plans from applied verified changes, and prune paragraphs that add no decision rule, evidence, or behavior.
 
 (Full evaluator guardrails: `references/failure-patterns.md`.)
 

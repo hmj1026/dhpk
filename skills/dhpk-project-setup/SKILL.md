@@ -36,6 +36,9 @@ Phase 7   Final verification report + closed-loop check
           → references/final-phase.md
 ```
 
+## Human-only wizard boundary
+Inspect the repository first, enumerate stages/destinations and credential, token, migration, or cutover state, then present the plan and wait for explicit human confirmation before writes. Review generated procedures with `bash -n`, shellcheck when available, JSON/static checks, and destination tracing; never autonomously open dashboards, enter credentials, run migrations, or perform cutovers. Completion requires the human's confirmation and recorded outcome, not simulated success.
+
 ### Flag Short-Circuit Semantics
 
 | Flag | Phase 1-2 | Phase 3-4 | Phase 5-6.5 | Phase 6.7 | Phase 7 |
@@ -47,7 +50,6 @@ Phase 7   Final verification report + closed-loop check
 | `--no-hooks` | Execute | Execute | Skip hooks | Execute | Report |
 | `--env-only` | Skip | Skip | Skip | Execute | Env report only (skill-level directive) |
 | `--guard-mode warn` | Execute | Execute | Execute | Execute (STOP_GUARD_MODE=warn) | Report |
-
 ## Phase 1: Detect Project Environment
 
 Run detections in order (full rules in `references/detection-rules.md`):
@@ -58,7 +60,6 @@ Run detections in order (full rules in `references/detection-rules.md`):
 4. **Detect Framework / Database / Entrypoints / Scripts** — From dependencies + manifest scripts. Missing scripts → `# N/A (no script found)`. See `references/detection-rules.md#framework`, `#database`, `#entrypoints`, `#scripts`
 
 For non-Node.js ecosystems, skip Node-specific steps and use ecosystem-specific detection from `references/detection-rules.md`.
-
 ## Phase 2: Confirm Detection Results
 
 Present a table of all 9 auto-detected placeholders with `| Placeholder | Detected Value | Source |` columns. Additional manual placeholders (`{TICKET_PATTERN}`, `{ISSUE_TRACKER_URL}`, `{TARGET_BRANCH}`) may remain if not auto-detectable — note these as "manual" in Phase 4. **Wait for user confirmation** before Phase 3.

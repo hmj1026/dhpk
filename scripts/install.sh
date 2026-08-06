@@ -38,6 +38,169 @@ esac
 
 dhpk_prompts_init "$CATALOG" || exit 1
 
+# Keep installer diagnostics stable and free of user-controlled paths or JSON
+# values. The details are useful while debugging, but copying a profile path or
+# preset value into an error makes the jq-optional path noisy and brittle.
+dhpk_install_error() {
+  case "$1" in
+    profile-extraction)
+      echo "[install] ERROR profile-extraction: profile data is invalid; no installation started." >&2
+      ;;
+    preset-selection)
+      echo "[install] ERROR preset-selection: the requested preset is unavailable; no installation started." >&2
+      ;;
+    module-extraction)
+      echo "[install] ERROR module-extraction: preset modules are invalid or unavailable; no installation started." >&2
+      ;;
+    version-selection)
+      echo "[install] ERROR version-selection: no stack version was selected; no installation started." >&2
+      ;;
+    hook-selection)
+      echo "[install] ERROR hook-selection: no hook profile was selected; no installation started." >&2
+      ;;
+    *)
+      echo "[install] ERROR installer-state: unable to resolve installation data; no installation started." >&2
+      ;;
+  esac
+}
+
+# Validate the profile document before presenting any preset prompt. This
+# catches malformed JSON and missing/invalid profile/module arrays while there
+# are still no install effects.
+dhpk_validate_profiles() {
+  local profiles_path="$1"
+  if [[ $DHPK_PROMPTS_USE_JQ -eq 1 ]]; then
+    jq -e '
+      (.profiles | type == "object")
+      and ((.profiles | length) > 0)
+      and all(.profiles[];
+        (type == "object")
+        and (.modules | type == "array")
+        and all(.modules[];
+          (type == "string") and (length > 0)
+        )
+      )
+    ' "$profiles_path" >/dev/null 2>&1
+    return $?
+  fi
+
+  # Python receives the path as argv data. Do not interpolate it or a profile
+  # value into Python source code.
+  python3 - "$profiles_path" <<'PY'
+import json
+import sys
+
+try:
+    with open(sys.argv[1], encoding="utf-8") as profile_file:
+        profile_data = json.load(profile_file)
+    profiles = profile_data.get("profiles")
+    if not isinstance(profiles, dict) or not profiles:
+        raise ValueError
+    for profile in profiles.values():
+        if not isinstance(profile, dict) or not isinstance(profile.get("modules"), list):
+            raise ValueError
+        for module in profile["modules"]:
+            if not isinstance(module, str) or not module:
+                raise ValueError
+except (OSError, AttributeError, TypeError, ValueError, KeyError, json.JSONDecodeError):
+    sys.exit(1)
+PY
+}
+
+# Validate every module identifier against the catalog only after the profile
+# JSON/shape gate has passed. This keeps malformed profiles and unknown modules
+# on distinct, stable diagnostics.
+dhpk_validate_profile_modules() {
+  local profiles_path="$1" catalog_path="$2"
+  if [[ $DHPK_PROMPTS_USE_JQ -eq 1 ]]; then
+    jq -e --slurpfile catalog "$catalog_path" '
+      all(.profiles[]?.modules[]?;
+        . as $module
+        | any($catalog[0].stacks[]?.versions[]?; .module == $module)
+      )
+    ' "$profiles_path" >/dev/null 2>&1
+    return $?
+  fi
+  python3 - "$profiles_path" "$catalog_path" <<'PY'
+import json
+import sys
+
+try:
+    with open(sys.argv[1], encoding="utf-8") as profile_file:
+        profile_data = json.load(profile_file)
+    with open(sys.argv[2], encoding="utf-8") as catalog_file:
+        catalog_data = json.load(catalog_file)
+    available_modules = {
+        version.get("module")
+        for stack in catalog_data["stacks"]
+        for version in stack["versions"]
+    }
+    for profile in profile_data["profiles"].values():
+        for module in profile["modules"]:
+            if module not in available_modules:
+                raise ValueError
+except (OSError, AttributeError, TypeError, ValueError, KeyError, json.JSONDecodeError):
+    sys.exit(1)
+PY
+}
+
+# Print profile identifiers only after the document has passed validation.
+dhpk_profile_ids() {
+  local profiles_path="$1"
+  if [[ $DHPK_PROMPTS_USE_JQ -eq 1 ]]; then
+    jq -r '.profiles | keys[]' "$profiles_path"
+    return $?
+  fi
+  python3 - "$profiles_path" <<'PY'
+import json
+import sys
+
+try:
+    with open(sys.argv[1], encoding="utf-8") as profile_file:
+        profiles = json.load(profile_file)["profiles"]
+    for name in profiles:
+        print(name)
+except (OSError, AttributeError, TypeError, ValueError, KeyError, json.JSONDecodeError):
+    sys.exit(1)
+PY
+}
+
+# Extract one selected profile's modules. The preset name is passed as argv
+# data, so shell/Python metacharacters remain opaque JSON values.
+dhpk_profile_modules() {
+  local profiles_path="$1" preset_name="$2"
+  if [[ $DHPK_PROMPTS_USE_JQ -eq 1 ]]; then
+    if ! jq -e --arg preset "$preset_name" '
+      (.profiles | type == "object")
+      and (.profiles[$preset] | type == "object")
+      and (.profiles[$preset].modules | type == "array")
+      and all(.profiles[$preset].modules[]; (type == "string") and (length > 0))
+    ' "$profiles_path" >/dev/null 2>&1; then
+      return 1
+    fi
+    jq -r --arg preset "$preset_name" '.profiles[$preset].modules[]' "$profiles_path"
+    return $?
+  fi
+  python3 - "$profiles_path" "$preset_name" <<'PY'
+import json
+import sys
+
+try:
+    with open(sys.argv[1], encoding="utf-8") as profile_file:
+        profiles = json.load(profile_file)["profiles"]
+    profile = profiles[sys.argv[2]]
+    modules = profile["modules"]
+    if not isinstance(profile, dict) or not isinstance(modules, list):
+        raise ValueError
+    if any(not isinstance(module, str) or not module for module in modules):
+        raise ValueError
+    for module in modules:
+        print(module)
+except (OSError, AttributeError, TypeError, ValueError, KeyError, json.JSONDecodeError):
+    sys.exit(1)
+PY
+}
+
 echo
 echo "╔══════════════════════════════════════════════════════════════════╗"
 echo "║          dhpk — Dev Harness Plugin Kit — Interactive Setup       ║"
@@ -82,14 +245,31 @@ fi
 # ──────────────────────────────────────────────────────────────────────
 USE_PRESET=""
 if [[ -f "$PROFILES" ]]; then
+  if ! dhpk_validate_profiles "$PROFILES"; then
+    dhpk_install_error profile-extraction
+    exit 1
+  fi
+  if ! dhpk_validate_profile_modules "$PROFILES" "$CATALOG"; then
+    dhpk_install_error module-extraction
+    exit 1
+  fi
+  PROFILE_IDS=()
+  if ! profile_ids_output="$(dhpk_profile_ids "$PROFILES")"; then
+    dhpk_install_error profile-extraction
+    exit 1
+  fi
+  while IFS= read -r p; do
+    [[ -n "$p" ]] && PROFILE_IDS+=("$p")
+  done <<<"$profile_ids_output"
+  if [[ ${#PROFILE_IDS[@]} -eq 0 ]]; then
+    dhpk_install_error profile-extraction
+    exit 1
+  fi
   if dhpk_yes_no "Use a curated preset from manifests/install-profiles.json?" n; then
-    PROFILE_IDS=()
-    if [[ $DHPK_PROMPTS_USE_JQ -eq 1 ]]; then
-      while IFS= read -r p; do PROFILE_IDS+=("$p"); done < <(jq -r '.profiles | keys[]' "$PROFILES")
-    else
-      while IFS= read -r p; do PROFILE_IDS+=("$p"); done < <(python3 -c "import json,sys; print('\n'.join(json.load(open('$PROFILES'))['profiles'].keys()))")
+    if ! USE_PRESET="$(dhpk_single_select "Pick a preset:" "${PROFILE_IDS[@]}")"; then
+      dhpk_install_error preset-selection
+      exit 1
     fi
-    USE_PRESET="$(dhpk_single_select "Pick a preset:" "${PROFILE_IDS[@]}")"
   fi
 fi
 
@@ -99,11 +279,13 @@ REVIEW_AGENTS=()
 HOOK_PROFILE="standard"
 
 if [[ -n "$USE_PRESET" ]]; then
-  if [[ $DHPK_PROMPTS_USE_JQ -eq 1 ]]; then
-    while IFS= read -r m; do SELECTED_MODULES+=("$m"); done < <(jq -r ".profiles.\"$USE_PRESET\".modules[]?" "$PROFILES")
-  else
-    while IFS= read -r m; do SELECTED_MODULES+=("$m"); done < <(python3 -c "import json; print('\n'.join(json.load(open('$PROFILES'))['profiles']['$USE_PRESET'].get('modules', [])))")
+  if ! profile_modules_output="$(dhpk_profile_modules "$PROFILES" "$USE_PRESET")"; then
+    dhpk_install_error module-extraction
+    exit 1
   fi
+  while IFS= read -r m; do
+    [[ -n "$m" ]] && SELECTED_MODULES+=("$m")
+  done <<<"$profile_modules_output"
   echo
   echo "Preset '$USE_PRESET' selected. Modules: ${SELECTED_MODULES[*]:-<none>}"
 else
@@ -172,7 +354,10 @@ else
           fi
         done
       else
-        chosen="$(dhpk_single_select "Version for $sid:" "${VERSIONS[@]}")"
+        if ! chosen="$(dhpk_single_select "Version for $sid:" "${VERSIONS[@]}")"; then
+          dhpk_install_error version-selection
+          exit 1
+        fi
         CHOSEN_VERSIONS=("$chosen")
       fi
 
@@ -236,7 +421,10 @@ else
 
   PROFILE_IDS=()
   while IFS= read -r p; do PROFILE_IDS+=("$p"); done < <(dhpk_catalog_query '.hook_profiles[].id')
-  HOOK_PROFILE="$(dhpk_single_select "Hook profile:" "${PROFILE_IDS[@]}")"
+  if ! HOOK_PROFILE="$(dhpk_single_select "Hook profile:" "${PROFILE_IDS[@]}")"; then
+    dhpk_install_error hook-selection
+    exit 1
+  fi
 fi
 
 # ──────────────────────────────────────────────────────────────────────

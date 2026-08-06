@@ -4,6 +4,30 @@
 
 This page walks through the operational lifecycle of dhpk: installing it, the day-to-day command flow, the automatic review cycle, and how to migrate an existing project onto it. For the full `userConfig` knob reference, see [`docs/configuration.md`](./configuration.md).
 
+## Decision ladder
+
+Use this order for a fresh request: **inspect** the repository and session
+state → **verify** the installed surface → **choose** Claude, supported Codex
+sync, or the experimental native Codex surface → **route** through `/dhpk:do`
+or an explicit skill → **implement** with TDD and pre-edit impact checks →
+**review/verify** the resulting evidence → **handoff** with exactly one next
+command. Plugin management (`claude plugin …`, `codex plugin …`) does not invoke
+a skill.
+
+The behavior owners are [`rules/execution-policy.md`](../rules/execution-policy.md),
+[`docs/configuration.md`](./configuration.md),
+[`docs/skill-platform-migration.md`](./skill-platform-migration.md),
+[`docs/distribution-surfaces.md`](./distribution-surfaces.md), the
+[`distribution-inventory.json`](../manifests/distribution-inventory.json)
+manifest, [`scripts/install.sh`](../scripts/install.sh), and the supported
+[`install-codex-skills.sh`](../scripts/hooks/install-codex-skills.sh). OpenSpec
+change proposals, specifications, and task evidence live under
+`openspec/changes/`; a passing validator is not version-control delivery.
+
+When a destination is unclear and the work will span sessions, first record a
+wayfinder checkpoint with destination candidates, current frontier, and one
+next decision. A clear single-session request goes directly to its route.
+
 ## Distribution surface policy
 
 dhpk deliberately exposes several surfaces with different support tiers:
@@ -84,6 +108,15 @@ Validate the local checkout at any time:
 claude plugin validate ~/projects/dhpk --strict
 ```
 
+Repository checks such as `node scripts/ci/validate-plugin.js` and
+`node scripts/ci/validate-skills.js --strict` are fast source gates, not proof of the official
+consumer. When the Claude CLI is available, retain
+`claude plugin validate <manifest> --strict` and its exit code as official
+evidence; when it is unavailable, record `NOT RUN` and do not claim an official
+PASS. The release consumer gate treats a non-zero official result as blocking
+and validates the consumer-shaped staged package (development-only root
+`CLAUDE.md` is not part of the shipped plugin surface).
+
 For live source edits during plugin development (no reinstall loop), see [§ Development](#development).
 
 ### Update / Uninstall
@@ -108,14 +141,16 @@ an ephemeral marketplace cache path.
 
 ```bash
 claude plugin update dhpk@dhpk
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --update
+DHPK_ROOT=/absolute/path/to/dhpk
+bash "$DHPK_ROOT/scripts/hooks/install-codex-skills.sh" --update
 ```
 
 If the project has a pre-consolidation Codex receipt or unprefixed dhpk skill
 directories, migrate ownership explicitly before the normal update:
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --migrate --update
+DHPK_ROOT=/absolute/path/to/dhpk
+bash "$DHPK_ROOT/scripts/hooks/install-codex-skills.sh" --migrate --update
 ```
 
 `--migrate` adopts only unchanged destinations whose legacy source matches
@@ -169,6 +204,17 @@ Matches "fix … bug" → `dhpk:dhpk-adaptive-dev-workflow` → **Bug Investigat
 **`--openspec` / `--opsx` flag:** pass `--openspec` (alias `--opsx`) to `/dhpk:do` to force the OpenSpec authoring flow (`opsx:new` → `opsx:ff`, then stop for human review) instead of routing straight to implementation. It applies to the 3 change-authoring routes — `dhpk:dhpk-adaptive-dev-workflow`, `dhpk:dhpk-bug-fix`, `dhpk:dhpk-feature-dev` — and supersedes `--plan`. On every other route, including `dhpk:dhpk-opsx-apply-goal`, the flag is a no-op: it prints `--openspec ignored: ...` and the route proceeds normally.
 
 **`--worker=<claude|codex|agy|auto>` flag:** choose the mechanical worker for this invocation without changing project configuration. `/dhpk:do` parses and strips the flag before route matching, then forwards its exact value as `WORKER_OVERRIDE` only to implementation-class routes (`adaptive-dev-workflow`, `bug-fix`, `feature-dev`, and `opsx-apply-goal`). Precedence is flag > `fast_worker_backend` userConfig > shipped `claude`; an invalid flag warns once and falls through to userConfig/default. Downstream workflows call the shared selector rather than reimplementing availability, order, or fallback logic.
+
+### OpenSpec completion boundary
+
+For unclear multi-session work, use the wayfinder checkpoint and then
+`/opsx:new` or `/opsx:ff` to author a proposal/specification. For a confirmed
+change, `$dhpk:openspec-apply-change <change>` is the implementation entry;
+follow it with verify, review, and the required consumer evidence. A complete
+plan or all-green tests do not close the lifecycle while task checkboxes,
+verification, or archive evidence are missing. Archive only after apply and
+consumer validation are recorded; issue closure and release publication are
+separate explicit steps.
 
 ### Situational on-ramps
 
@@ -319,9 +365,14 @@ shell. In an ordinary terminal use the persistent-checkout form documented in
 [Update / Uninstall](#update--uninstall).
 
 ```bash
-# From any project root:
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"
+# From any project root and a persistent local dhpk checkout:
+DHPK_ROOT=/absolute/path/to/dhpk
+bash "$DHPK_ROOT/scripts/hooks/install-codex-skills.sh"
 ```
+
+Inside a Claude plugin-runtime shell, `${CLAUDE_PLUGIN_ROOT}` may be used as an
+equivalent root. A normal terminal must set `DHPK_ROOT` explicitly; never copy
+an ephemeral marketplace-cache path into a project command.
 
 The script is the supported Codex distribution path, with two modes:
 

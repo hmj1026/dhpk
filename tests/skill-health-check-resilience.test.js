@@ -8,6 +8,7 @@ const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
 const SCRIPT = path.join(ROOT, 'skills', 'dhpk-skill-health-audit', 'scripts', 'skill-lint.js');
+const lint = require(SCRIPT);
 
 function write(file, content) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
@@ -144,6 +145,63 @@ test('malformed entries produce deterministic P1 findings with safe fix hints', 
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
+});
+
+test('empty When NOT to Use sections are a deterministic P1', () => {
+  const finding = lint.checkWhenNotSection('## When NOT to Use\n\n');
+  assert.strictEqual(finding.pass, false, JSON.stringify(finding));
+  assert.strictEqual(finding.severity, 'P1');
+  assert.match(finding.message, /empty/i);
+  assert.ok(finding.fix);
+});
+
+test('nested subsections remain part of a non-use section', () => {
+  const finding = lint.checkWhenNotSection(
+    '## When NOT to Use\n\n### Alternatives\n- @skills/dhpk-tdd-workflow\n\n## Output\n- evidence\n',
+    ['dhpk-tdd-workflow'],
+  );
+  assert.deepStrictEqual(finding, { pass: true });
+});
+
+test('unresolvable neighboring route tokens are a deterministic P1', () => {
+  const finding = lint.checkWhenNotSection(
+    '## When NOT to Use\n\n- Use `dhpk-missing-neighbor` instead.\n',
+    ['probe', 'dhpk-real-neighbor'],
+  );
+  assert.strictEqual(finding.pass, false, JSON.stringify(finding));
+  assert.strictEqual(finding.severity, 'P1');
+  assert.match(finding.message, /dhpk-missing-neighbor/);
+  assert.ok(finding.fix);
+});
+
+test('full lint preserves the stale-route skill path in its P1 finding', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-skill-health-route-'));
+  try {
+    const skills = path.join(tmp, 'skills');
+    const agents = path.join(tmp, 'agents');
+    const commands = path.join(tmp, 'commands');
+    write(path.join(skills, 'healthy', 'SKILL.md'), validSkill('healthy'));
+    write(path.join(skills, 'stale-route', 'SKILL.md'), validSkill('stale-route')
+      .replace('- For unrelated work.', '- Use `dhpk-missing-neighbor` instead.'));
+    const result = runLint({ skills, agents, commands });
+    assert.strictEqual(result.status, 2, `${result.stdout}\n${result.stderr}`);
+    const report = JSON.parse(result.stdout);
+    const finding = report.findings.find((item) => item.skill === 'stale-route' && item.check === 'when-not');
+    assert.ok(finding, JSON.stringify(report, null, 2));
+    assert.strictEqual(finding.severity, 'P1');
+    assert.strictEqual(finding.path, 'stale-route/SKILL.md');
+    assert.match(finding.message, /dhpk-missing-neighbor/);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('canonical source tree has zero P1 findings while P2 advisories remain visible', () => {
+  const result = spawnSync('node', [SCRIPT, '--json'], { cwd: ROOT, encoding: 'utf8', timeout: 30000 });
+  assert.strictEqual(result.status, 1, `${result.stdout}\n${result.stderr}`);
+  const report = JSON.parse(result.stdout);
+  assert.strictEqual(report.stats.p1, 0, JSON.stringify(report, null, 2));
+  assert.ok(report.stats.p2 > 0, JSON.stringify(report, null, 2));
 });
 
 run('skill-health-check-resilience');

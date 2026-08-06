@@ -1,6 +1,6 @@
 ---
 name: dhpk-laravel-testbench-matrix
-description: Orchestra Testbench matrix mechanics for Laravel packages spanning multiple majors. Use when: choosing Testbench pins, defining PHP × Laravel cells, building the shared TestCase, provisioning per-cell databases, running prefer-lowest, or validating package discovery. Not for: single-major packages, application test suites, Laravel package authoring outside the matrix, or semver decisions. Output: a per-cell CI matrix, TestCase design, and evidence-backed test gate.
+description: 'Orchestra Testbench matrix mechanics for Laravel packages spanning multiple majors. Use when: choosing Testbench pins, defining PHP × Laravel cells, building the shared TestCase, provisioning per-cell databases, running prefer-lowest, or validating package discovery. Not for: single-major packages, application test suites, Laravel package authoring outside the matrix, or semver decisions. Output: a per-cell CI matrix, TestCase design, and evidence-backed test gate.'
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---

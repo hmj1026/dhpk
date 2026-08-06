@@ -16,7 +16,7 @@ metadata:
 
 ## When NOT to Use
 
-- `CLAUDE.md` Execution Policy 定義的 small change：直接 patch + `dhpk:code-reviewer`
+- `CLAUDE.md` Execution Policy 定義的 small change：直接 patch + the designated code-reviewer agent
 - root-cause 調查已在進行：改用 `dhpk-root-cause-investigation`
 - 純架構或 module boundary 討論：改用 `dhpk-module-design`
 - OpenSpec change 已 apply-ready：切去 `/opsx:apply`
@@ -29,6 +29,21 @@ metadata:
 2. 以 repo 權威規範（例如 `CLAUDE.md`、`AGENTS.md`）為 SSOT；本技能只補 workflow 缺口。
 3. `Lightweight Maintenance` 只做 targeted verification；`Feature Delivery` / `Bug Investigation & Fix` 才建立 heavy artifacts。
 4. 缺件時回報 blocker；apply-ready 時直接 hand off，不重跑前置。
+
+## Wayfinder checkpoint
+
+Use a short decision map only when both conditions hold: the destination or
+owning workflow is unclear, and the work will span more than one session or
+agent. Record three fields before implementation: destination candidates, the
+current frontier (settled evidence), and the next decision that unblocks one
+route. Clear work that fits one session skips this checkpoint.
+
+Each map ticket asks one bounded question. Record the decision, evidence, and
+next destination; do not turn a list of open questions into an implementation
+plan. Once the owner resolves the destination, hand off to `/opsx:new` (or the
+verified `$dhpk:openspec-new-change` entry) and preserve the decision record.
+A map, proposal, design, or task list is planning evidence only: it is not an
+applied implementation, verified change, pull request, or archive.
 
 ## Fast-worker invocation context
 

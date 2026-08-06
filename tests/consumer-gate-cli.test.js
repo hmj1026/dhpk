@@ -43,6 +43,7 @@ test('reports Codex sync PASS and Claude/native-marketplace as UNAVAILABLE when 
   const stage = JSON.parse(res.stdout);
   assert.strictEqual(stage.verdict, 'UNAVAILABLE', JSON.stringify(stage));
   assert.ok(stage.failureReasons.some((r) => /claude/i.test(r)));
+  assert.ok(stage.artifacts.some((a) => /claude.*official.*NOT RUN|official.*NOT RUN.*claude/i.test(a)), JSON.stringify(stage));
   assert.ok(stage.artifacts.some((a) => /native.*experimental|experimental.*native/i.test(a)));
 });
 
@@ -51,6 +52,7 @@ test('reports overall PASS when the supported Codex sync check succeeds and a st
   mkBinStub(bin, 'claude', `#!/bin/sh
 if [ "$1 $2" = "plugin marketplace" ]; then exit 0; fi
 if [ "$1 $2" = "plugin install" ]; then exit 0; fi
+if [ "$1 $2" = "plugin validate" ]; then exit 0; fi
 if [ "$1 $2" = "plugin list" ]; then echo '[{"id":"dhpk@dhpk","version":"${REAL_VERSION}"}]'; exit 0; fi
 exit 0
 `);
@@ -58,6 +60,8 @@ exit 0
   const stage = JSON.parse(res.stdout);
   assert.strictEqual(stage.verdict, 'PASS', JSON.stringify(stage));
   assert.strictEqual(res.status, 0);
+  assert.ok(stage.artifacts.some((a) => /claude.*official.*PASS|official.*PASS.*claude/i.test(a)), JSON.stringify(stage));
+  assert.ok(stage.commands.some((c) => /claude plugin validate .* --strict/.test(c.cmd) && c.exitCode === 0), JSON.stringify(stage));
 });
 
 test('fails when the stubbed claude CLI reports a version mismatch after install', () => {
@@ -65,6 +69,7 @@ test('fails when the stubbed claude CLI reports a version mismatch after install
   mkBinStub(bin, 'claude', `#!/bin/sh
 if [ "$1 $2" = "plugin marketplace" ]; then exit 0; fi
 if [ "$1 $2" = "plugin install" ]; then exit 0; fi
+if [ "$1 $2" = "plugin validate" ]; then exit 0; fi
 if [ "$1 $2" = "plugin list" ]; then echo '[{"id":"dhpk@dhpk","version":"0.0.1"}]'; exit 0; fi
 exit 0
 `);
@@ -73,6 +78,24 @@ exit 0
   const stage = JSON.parse(res.stdout);
   assert.strictEqual(stage.verdict, 'FAIL');
   assert.ok(stage.failureReasons.some((r) => /0\.0\.1/.test(r)));
+});
+
+test('blocks the consumer gate when official Claude strict validation fails', () => {
+  const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-gate-bin-'));
+  mkBinStub(bin, 'claude', `#!/bin/sh
+if [ "$1" = "--version" ]; then echo '2.1.223'; exit 0; fi
+if [ "$1 $2" = "plugin marketplace" ]; then exit 0; fi
+if [ "$1 $2" = "plugin install" ]; then exit 0; fi
+if [ "$1 $2" = "plugin validate" ]; then echo 'skills/dhpk-ios-platform/SKILL.md: YAML frontmatter failed to parse' >&2; exit 1; fi
+if [ "$1 $2" = "plugin list" ]; then echo '[{"id":"dhpk@dhpk","version":"${REAL_VERSION}"}]'; exit 0; fi
+exit 0
+`);
+  const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` });
+  assert.notStrictEqual(res.status, 0);
+  const stage = JSON.parse(res.stdout);
+  assert.strictEqual(stage.verdict, 'FAIL', JSON.stringify(stage));
+  assert.ok(stage.failureReasons.some((r) => /official.*strict|claude.*validate|ios-platform/i.test(r)), JSON.stringify(stage));
+  assert.ok(stage.commands.some((c) => /claude plugin validate .* --strict/.test(c.cmd) && c.exitCode !== 0), JSON.stringify(stage));
 });
 
 test('duplicate Codex surfaces use the deterministic PASS/WARN/BLOCKED matrix', () => {

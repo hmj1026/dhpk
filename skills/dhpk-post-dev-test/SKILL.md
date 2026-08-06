@@ -32,7 +32,7 @@ metadata:
 - Only need unit tests (use `/codex-test-gen`)
 - Review existing tests (use `/codex-test-review`)
 - Still in development (complete `/dhpk:dhpk-feature-dev` flow first)
-- Full Playwright user-journey suite (POM, selector strategy, flaky management) → use `dhpk:e2e-runner` agent directly
+- Full Playwright user-journey suite (POM, selector strategy, flaky management) → hand off to the repository's e2e-runner agent directly
 
 ## Workflow
 

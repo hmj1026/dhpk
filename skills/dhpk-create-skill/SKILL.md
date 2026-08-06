@@ -68,6 +68,16 @@ skills/<name>/
   skill, or is documentation sediment left by a previous workflow. Prune
   no-op/duplication/sediment instead of preserving it for completeness.
 
+### Source and format matrix
+
+Before authoring a technical claim, resolve the current authoritative source:
+query Context7 for an indexed library, SDK, API, or CLI; otherwise use the
+owning official documentation. Record the source identity, version or retrieval
+date, query or URL, claims covered, and the repository/consumer format checks
+that will prove the result. If the source or validator is unresolved, mark the
+claim `NOT VERIFIED` and keep it out of normative guidance until an owner
+decides.
+
 ## Step 4 — Write the files
 
 - Author `SKILL.md` with the frontmatter from Step 2 and a numbered, verifiable

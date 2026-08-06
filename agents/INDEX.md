@@ -1,3 +1,8 @@
+---
+name: dhpk-agents-index
+description: 'Reference index for the agents shipped by the dhpk plugin.'
+---
+
 # Agents Index (dhpk plugin)
 
 > 32 agents shipped by the dhpk plugin (31 root-level + `polyfill-reviewer` under `modules/library-author/agents/`). Discovered as `dhpk:<name>` after install. The full list also appears in `plugin.json`.

@@ -1,6 +1,6 @@
 ---
 name: dhpk-laravel-5-4-notes
-description: Laravel 5.4 (February 2017) signature features and the breaking-change traps from 5.3 → 5.4. Use when writing or reviewing code in a Laravel 5.4 project, or in a package whose composer constraint includes 5.4.*. Covers Blade components & slots, route model binding, middleware groups, realtime facades, markdown mailables, higher-order messages, and the Elixir → Mix frontend transition. Not for application business logic — load when working on framework-touching code (Blade templates, routing, mailables, service providers, Mix config) or planning a 5.3 → 5.4 upgrade. Output: version-specific guidance, migration traps, and verification gates.
+description: 'Laravel 5.4 (February 2017) signature features and the breaking-change traps from 5.3 → 5.4. Use when writing or reviewing code in a Laravel 5.4 project, or in a package whose composer constraint includes 5.4.*. Covers Blade components & slots, route model binding, middleware groups, realtime facades, markdown mailables, higher-order messages, and the Elixir → Mix frontend transition. Not for application business logic — load when working on framework-touching code (Blade templates, routing, mailables, service providers, Mix config) or planning a 5.3 → 5.4 upgrade. Output: version-specific guidance, migration traps, and verification gates.'
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---
