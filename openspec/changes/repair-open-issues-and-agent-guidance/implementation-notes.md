@@ -64,7 +64,8 @@ warning, while the staged shipped-surface check is the release evidence.
   PASS; Claude official strict PASS on staged surface, Codex native smoke PASS
   (experimental), supported Codex duplicate surface WARN with project-local
   precedence and durable fingerprints.
-- `node tests/run-all.js`: 170/170 test files passed.
+- `node tests/run-all.js`: 171/171 test files passed (includes the full
+  agent-facing contract suite).
 - Internal validators: plugin, catalog, harness, distribution, OpenAI metadata,
   native-package verification, and health lint all passed; health lint reports
   0 P0/P1 and 127 visible P2 advisories. Normal, JSON, and `--fix-hint` modes
@@ -73,6 +74,36 @@ warning, while the staged shipped-surface check is the release evidence.
 - `bash -n` passed for all changed shell entrypoints; ShellCheck reports only
   the existing informational SC1091 source-following notice for `install.sh`.
 
+## Scope extension: writing-for-agents full-surface pass (2026-08-06)
+
+The user approved a contract-first writing-for-agents pass in the same PR. The
+scope is all canonical agent-facing source surfaces: 102 skills, 32 registered
+agents, 4 rules, 45 commands, and the repository guidance roots
+`AGENTS.md`, `CLAUDE.md`, and `codex/AGENTS.md`. The completed pass preserves
+invocation, route, roster/model/tool, rule-precedence, command-flag, and
+Claude/Codex support-tier semantics. Every inventory entry has an explicit
+updated, already-compliant, or intentionally-exempt disposition below.
+
+The selected method is the external `writing-for-agents` contract plus the
+repository `agent-md-refactor` guidance: context pointers, progressive
+disclosure, co-location, completion criteria, SSOT pruning, and a minimal root
+index. No standalone shipped `writing-for-agents` skill will be added.
+
+### Inventory disposition
+
+| Surface | Total | Updated | Already compliant | Exempt | Disposition evidence |
+| --- | ---: | ---: | ---: | ---: | --- |
+| Canonical skills | 102 | 8 | 94 | 0 | Eight heuristic gaps received source/SSOT boundary pointers; strict skill and health validators cover all 102. |
+| Registered agent roles | 32 | 0 | 32 | 0 | All 31 root roles plus the module role pass agent metadata, completion, handoff, and link checks; generated Codex roles remain projection-owned. |
+| Agent index | 1 | 1 | 0 | 0 | Roster path now names `.claude-plugin/plugin.json` and points to frontmatter/execution-policy ownership. |
+| Rules | 4 | 0 | 4 | 0 | Rule audit found no ownership, precedence, or completion gap; `rules/execution-policy.md` remains the routing SSOT. |
+| Commands | 45 | 25 | 19 | 1 | Twenty-five aliases/legacy utilities now carry shared contract pointers; `commands/INDEX.md` is an intentional navigation exemption. |
+| Guidance roots | 3 | 3 | 0 | 0 | `AGENTS.md`, `CLAUDE.md`, and `codex/AGENTS.md` retain their support boundaries while using linked progressive disclosure. |
+
+The 25 command updates are the 13 deprecated forwarding aliases plus the 12
+thin legacy utilities identified by the semantic audit. No route, invocation
+class, flag, model/tool entitlement, or support-tier behavior changed.
+
 ## OpenSpec verification report (pre-archive, 2026-08-06)
 
 ### Completeness
@@ -80,8 +111,9 @@ warning, while the staged shipped-surface check is the release evidence.
 - `openspec status --change repair-open-issues-and-agent-guidance --json` reports
   a repo-local, complete planning artifact set (`proposal`, `design`, seven
   delta specs, and `tasks`).
-- Task evidence is `32/33`: tasks 1.1–8.3 are checked; 8.4 remains intentionally
-  open until the PR's CI result is green and the archive operation is executed.
+- Task evidence is `40/41`: tasks 1.1–8.3 and 9.1–9.8 are checked; 8.4
+  remains intentionally open until the PR's CI result is green and the
+  archive operation is executed.
 
 ### Correctness
 
@@ -93,7 +125,9 @@ warning, while the staged shipped-surface check is the release evidence.
 ### Coherence
 
 - Final code review and doc review both returned `APPROVE` with zero remaining
-  findings after the orphan-recovery, no-op backup, nested-section, and
-  validator-command fixes.
-- The remaining lifecycle gate is external: push the feature branch, open the
-  PR, verify the exact CI run, repair any CI failure, then check 8.4 and archive.
+  findings after the root-index link assertion fix; the consumer review also
+  returned `APPROVE` with the official Claude strict and Codex surfaces green.
+- GitNexus staged detection for the feature worktree reported 136 changed
+  symbols across 60 files, 0 affected processes, and LOW risk.
+- The remaining lifecycle gate is external: push the feature branch, verify
+  the exact PR CI run, repair any CI failure, then check 8.4 and archive.

@@ -7,6 +7,7 @@ The proposal crosses four runtime boundaries and three documentation layers:
 3. Codex has a canonical `codex/skills` projection, an installed native package, and project-local fallback trees whose receipt can predate the current naming scheme.
 4. Skill-health and routing documentation are themselves agent-facing APIs. Matt Pocock's `wayfinder`, `wizard`, and `writing-for-agents` provide useful rules, but copying them as new standalone skills would duplicate routing and create another source of truth.
 5. The paired `docs/basic-operations.md` and `docs/basic-operations.zh-TW.md` pages are the user-facing entry point, but recent sessions exposed operational drift: management and invocation need a sharper separation, normal-terminal Codex examples must not rely on `CLAUDE_PLUGIN_ROOT`, official consumer validation is distinct from repository validation, and OpenSpec planning/implementation/archive must not be collapsed into one completion claim.
+6. The user requested a final `writing-for-agents` pass over every agent-facing source surface in the same PR. The repository has 102 canonical skills, 32 agent definitions, 4 rules, 45 commands, and three repository guidance roots (`AGENTS.md`, `CLAUDE.md`, and `codex/AGENTS.md`); a one-file-at-a-time prose rewrite would be high variance and could silently alter routing contracts.
 
 The repository must continue to support the existing Claude plugin and supported project-local Codex installer, preserve user-owned files, and keep the OpenSpec artifact lifecycle explicit. The current 127 P2 advisories are not a general cleanup target; the two P1 health findings and the four named issues are the acceptance boundary.
 
@@ -22,10 +23,13 @@ The repository must continue to support the existing Claude plugin and supported
 - Require source-first authoring for skills and operational documents: use Context7 for an indexed library/CLI, fall back to the owning official documentation, record the source/version/query or URL, and run the applicable repository and official format checks before content is accepted.
 - Produce an implementation order in which each wave has focused tests and a consumer/release evidence gate.
 - Re-edit the paired basic-operation guides into an evidence-backed playbook that reflects the current skill router, installation surfaces, session handoff rules, and OpenSpec lifecycle.
+- Normalize every agent-facing source surface against one contract-first checklist: pointer/trigger, non-use boundary, information hierarchy, SSOT link, completion evidence, and branch-specific handoff. Root guidance SHALL remain a minimal index, while detailed rules remain in linked topic documents.
+- Prove coverage by inventory, not by representative samples: every canonical skill, registered agent, rule, command, and repository guidance root must have an explicit disposition (updated, already compliant, or intentionally exempt) recorded in the implementation evidence.
 
 **Non-Goals:**
 
 - Do not introduce generic `wayfinder`, `wizard`, or `writing-for-agents` skills in this change.
+- Do not rewrite domain behavior or silently change invocation classes, route-table targets, agent roster semantics, rule precedence, command flags, or Claude/Codex support tiers as part of prose normalization.
 - Do not build a general-purpose dashboard/provisioning script or execute browser, credential, migration, or cutover actions on behalf of an agent.
 - Do not automatically overwrite or remove unowned `.codex` assets, resolve business ownership decisions, or rewrite all existing P2 advisories.
 - Do not alter the OpenSpec main specs directly; implementation will apply the delta specs and archive only after verification.
@@ -74,6 +78,14 @@ Every skill or operational-document edit will begin with a small source matrix. 
 
 Alternative rejected: relying only on model memory or repository prose. That can preserve a locally consistent but externally invalid CLI, frontmatter, or configuration contract.
 
+### 8. Use one contract-first pass for all agent-facing source surfaces
+
+The final document pass will classify each file before editing it. Skills retain their existing frontmatter and invocation class while gaining or confirming a concise positive trigger, non-use boundary, progressive-disclosure pointers, and checkable output/verification/handoff sections. Agent definitions retain their role/model/tool boundaries while stating scope, completion evidence, and the next reviewer or handoff. Rules retain their precedence and become SSOT-oriented: a rule names the owning policy and points outward instead of duplicating implementation detail. Commands retain their route target, flags, and invocation class while making the entry condition, failure boundary, and completion state explicit. Root `AGENTS.md`/`CLAUDE.md` files become minimal indexes to universal constraints and linked topic guidance; `codex/AGENTS.md` remains the Codex-specific capability and projection contract.
+
+The pass is accepted only when every inventory entry has a disposition, every newly introduced link resolves, the registered route and invocation metadata are byte/semantic-equivalent where applicable, and focused contract tests show no route, roster, precedence, or support-tier drift. Files that already satisfy the contract are recorded as compliant rather than padded with boilerplate.
+
+Alternative rejected: appending the same generic “write for agents” checklist to every file. That increases context load, duplicates the SSOT, and makes the health linter less useful.
+
 ## Risks / Trade-offs
 
 - [Official CLI availability differs by environment] → keep the internal gate for fast feedback, run the official strict check in the consumer/release job, and make missing official evidence visible rather than silently green.
@@ -92,8 +104,9 @@ Alternative rejected: relying only on model memory or repository prose. That can
 3. Apply Codex stale-receipt, projection, and duplicate-surface diagnostics for #128. Verify legacy receipts in an isolated temporary project and preserve collision backups.
 4. Add the two missing health sections and the zero-P1 regression for #145; confirm P2 findings remain advisory and documented.
 5. Build the source matrix with Context7 or owning official documentation, then integrate wayfinder, writing-for-agents, and wizard-boundary guidance into the existing skills; validate routing/reference links and format claims before accepting prose.
-6. Re-edit the paired basic-operation guides from the current skills and recent session evidence; run link, command, support-tier, and English/Traditional Chinese parity checks.
-7. Run internal validators, official Claude strict validation, focused installer/Codex/health/document tests, the full suite, native package generation/verification, and the consumer gate. Archive only after all source, format, and runtime evidence is recorded.
+6. Apply the contract-first inventory pass to all canonical skills, agents, rules, commands, and root guidance; record every file's disposition and run focused contract checks after each category.
+7. Re-edit the paired basic-operation guides from the current skills and recent session evidence; run link, command, support-tier, and English/Traditional Chinese parity checks.
+8. Run internal validators, official Claude strict validation, focused installer/Codex/health/document/contract tests, the full suite, native package generation/verification, and the consumer gate. Archive only after all source, format, and runtime evidence is recorded.
 
 Rollback is wave-scoped: revert the affected implementation and its tests/docs together, leave unowned project assets untouched, and retain any explicit migration backup. A failed official consumer check blocks release rather than triggering an automatic downgrade.
 

@@ -11,7 +11,7 @@ Released February 2023. PHP 8.1+ floor.
 
 ---
 
-## Signature features
+## Signature features — source: locked framework docs; this reference is not application-policy SSOT
 
 ### Native return types in app skeleton
 

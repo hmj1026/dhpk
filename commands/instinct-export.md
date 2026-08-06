@@ -7,6 +7,13 @@ metadata:
 
 # Instinct Export Command
 
+## Contract
+
+Use to export a selected instinct scope; not to mutate canonical agent-facing
+documents. See the [command contract](../docs/agent-guidance/command-contract.md).
+Stop on invalid scope, filter, or output path; completion reports the exported
+path or stdout result and count.
+
 Exports instincts to a shareable format. Perfect for:
 - Sharing with teammates
 - Transferring to a new machine

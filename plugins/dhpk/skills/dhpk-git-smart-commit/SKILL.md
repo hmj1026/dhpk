@@ -20,7 +20,7 @@ metadata:
 
 ---
 
-## 流程
+## 流程 — SSOT: `rules/execution-policy.md` owns commit/review safety; this skill owns grouping evidence
 
 ### 1. 檢查變更狀態
 

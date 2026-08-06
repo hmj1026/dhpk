@@ -6,6 +6,13 @@ metadata:
   dhpk-invocation-class: implicit-eligible
 ---
 
+## Contract
+
+Use for a bounded documentation refactor; not for changing policy or source
+semantics. See the [command contract](../docs/agent-guidance/command-contract.md).
+Stop when the input is missing or unsafe to rewrite; completion reports the
+preserved facts, output path, and before/after line counts.
+
 ## Task
 
 For the file specified by `$ARGUMENTS`:

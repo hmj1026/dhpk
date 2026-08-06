@@ -16,7 +16,7 @@ changes meaningfully.
 
 ---
 
-## Signature features
+## Signature features — source: locked framework docs; this reference is not application-policy SSOT
 
 ### Job middleware
 

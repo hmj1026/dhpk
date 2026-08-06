@@ -5,7 +5,14 @@ description: 'Reference index for the agents shipped by the dhpk plugin.'
 
 # Agents Index (dhpk plugin)
 
-> 32 agents shipped by the dhpk plugin (31 root-level + `polyfill-reviewer` under `modules/library-author/agents/`). Discovered as `dhpk:<name>` after install. The full list also appears in `plugin.json`.
+> 32 agents shipped by the dhpk plugin (31 root-level + `polyfill-reviewer` under `modules/library-author/agents/`). Discovered as `dhpk:<name>` after install. The full list also appears in `.claude-plugin/plugin.json`.
+
+## Agent contract
+
+Each role states its scope, entitlements, completion evidence, and next-role
+handoff in its own file. This index owns roster and trigger navigation; the
+frontmatter and `rules/execution-policy.md` remain the SSOT for registration,
+precedence, and dispatch behavior.
 
 ## Sentinel-driven reviewer dispatch (7-slot default, v0.10.0+)
 

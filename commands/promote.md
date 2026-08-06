@@ -8,6 +8,13 @@ metadata:
 
 # Promote Command
 
+## Contract
+
+Use explicitly to promote qualifying project instincts; not to modify skills or
+rules. See the [command contract](../docs/agent-guidance/command-contract.md).
+Stop on a missing instinct or failed write; completion reports promoted,
+skipped, and dry-run counts.
+
 Promote instincts from project scope to global scope in continuous-learning-v2.
 
 ## Implementation

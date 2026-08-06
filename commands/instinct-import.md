@@ -8,6 +8,13 @@ metadata:
 
 # Instinct Import Command
 
+## Contract
+
+Use explicitly to import a validated instinct file or URL; not to overwrite
+unrelated project assets. See the [command contract](../docs/agent-guidance/command-contract.md).
+Stop on fetch, parse, conflict, or write failure; completion reports imported,
+updated, skipped, and failed counts plus the selected scope.
+
 ## Implementation
 
 Run the instinct CLI using the plugin root path:

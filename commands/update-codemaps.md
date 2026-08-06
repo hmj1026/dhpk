@@ -7,6 +7,13 @@ metadata:
 
 # Update Codemaps
 
+## Contract
+
+Use after a structural change or for an explicit codemap refresh; not for
+rewriting application source. See the [command contract](../docs/agent-guidance/command-contract.md).
+Stop when scanning or generation fails; completion reports changed codemap
+paths, diff percentage, and any confirmation still required.
+
 Analyze the codebase structure and generate token-lean architecture documentation.
 
 > Proactive orchestration: after structural changes (new module / renamed dir / new public service) the `doc-updater` agent runs this command (and `/update-docs`) — see the back-stop in `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`. Invoke `/update-codemaps` directly for a one-off manual refresh.

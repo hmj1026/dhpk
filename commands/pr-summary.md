@@ -6,6 +6,13 @@ metadata:
   dhpk-invocation-class: implicit-eligible
 ---
 
+## Contract
+
+Use to summarize accessible pull requests; not to change PR state. See the
+[command contract](../docs/agent-guidance/command-contract.md). Stop when
+`gh` is unavailable or the query fails; completion reports the output path and
+the grouped result.
+
 ## Context
 
 - Repo: !`gh repo view --json nameWithOwner --jq '.nameWithOwner' 2>/dev/null || echo 'unknown'`

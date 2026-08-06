@@ -21,19 +21,21 @@ metadata:
 Skills are **on-demand context packages**. Their value comes from routing precision (right skill triggers at right time) and context efficiency (minimum tokens for maximum capability). A poorly routed skill wastes context on every mismatch; a well-routed skill transforms a generalist into a specialist at exactly the right moment.
 
 ## Writing-for-agents contract
+
 For materially changed skills, require a short positive-trigger/non-use pointer; keep the primary path brief, move optional mechanics to co-located references, link policy to its SSOT, require observable completion/verification/handoff evidence, and prune duplicate or plan-as-apply text.
+
 ## Workflow
+
 ```
 Run automated lint → Review manual dimensions → Produce integrated report → Gate
 ```
+
 ### Step 1: Automated Lint (portable direct invocation)
 
 ```bash
 node skills/dhpk-skill-health-audit/scripts/skill-lint.js --skills-dir skills --agents-dir agents --commands-dir commands --fix-hint
 ```
-
 Repository wrapper:
-
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/run-skill.sh" dhpk-skill-health-audit skill-lint.js --fix-hint
 ```
@@ -51,7 +53,6 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/run-skill.sh" dhpk-skill-health-audit skill-
 | Exit 2 | Errors found (P0/P1) |
 
 **Shared host contract:**
-
 - Universal checks always run from the discovered skill packages.
 - Agent checks run only when an agents directory is available.
 - Command/skill pairing checks run only when a commands directory is available.
@@ -105,7 +106,6 @@ The lint gate also flags unconditionally loaded branches, non-checkable completi
 
 ```markdown
 # Skill Health Check Report
-
 ## Summary
 
 | Metric | Value |

@@ -15,7 +15,7 @@ metadata:
 - Quoting others' AI-related content
 - Variable/function names in code
 
-## Usage
+## Usage — source boundary: selected document is input SSOT; output is a changed-file summary
 
 ```bash
 /dhpk:dhpk-de-ai-flavor docs/xxx.md           # Process specified file

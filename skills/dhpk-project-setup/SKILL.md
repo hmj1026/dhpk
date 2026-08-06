@@ -37,6 +37,7 @@ Phase 7   Final verification report + closed-loop check
 ```
 
 ## Human-only wizard boundary
+
 Inspect the repository first, enumerate stages/destinations and credential, token, migration, or cutover state, then present the plan and wait for explicit human confirmation before writes. Review generated procedures with `bash -n`, shellcheck when available, JSON/static checks, and destination tracing; never autonomously open dashboards, enter credentials, run migrations, or perform cutovers. Completion requires the human's confirmation and recorded outcome, not simulated success.
 
 ### Flag Short-Circuit Semantics
@@ -50,16 +51,17 @@ Inspect the repository first, enumerate stages/destinations and credential, toke
 | `--no-hooks` | Execute | Execute | Skip hooks | Execute | Report |
 | `--env-only` | Skip | Skip | Skip | Execute | Env report only (skill-level directive) |
 | `--guard-mode warn` | Execute | Execute | Execute | Execute (STOP_GUARD_MODE=warn) | Report |
+
 ## Phase 1: Detect Project Environment
 
 Run detections in order (full rules in `references/detection-rules.md`):
-
 1. **Detect Ecosystem** — Glob for manifest files (`package.json`, `pyproject.toml`, `Cargo.toml`, `go.mod`, `build.gradle`, `pom.xml`, `Gemfile`). Priority order in detection-rules.md.
 2. **Read manifest** — Extract project name, dependencies, scripts (Node.js: `package.json`; others: ecosystem manifest)
 3. **Detect Package Manager** — Lockfile detection (Node.js): `pnpm-lock.yaml` → pnpm, `yarn.lock` → yarn, else npm
 4. **Detect Framework / Database / Entrypoints / Scripts** — From dependencies + manifest scripts. Missing scripts → `# N/A (no script found)`. See `references/detection-rules.md#framework`, `#database`, `#entrypoints`, `#scripts`
 
 For non-Node.js ecosystems, skip Node-specific steps and use ecosystem-specific detection from `references/detection-rules.md`.
+
 ## Phase 2: Confirm Detection Results
 
 Present a table of all 9 auto-detected placeholders with `| Placeholder | Detected Value | Source |` columns. Additional manual placeholders (`{TICKET_PATTERN}`, `{ISSUE_TRACKER_URL}`, `{TARGET_BRANCH}`) may remain if not auto-detectable — note these as "manual" in Phase 4. **Wait for user confirmation** before Phase 3.
@@ -80,7 +82,6 @@ Based on detected manifest (from Phase 1):
 ## Phase 3: Write to .claude/CLAUDE.md
 
 **Prerequisite**: User confirmed, and not in `--detect-only` mode.
-
 1. Read `CLAUDE.md`
 2. Remove `<!-- block:X -->...<!-- /block -->` sections NOT matching detected ecosystem, then remove remaining block markers
 3. `Edit` each placeholder (`replace_all: true`)
@@ -98,7 +99,6 @@ If `--detect-only` or `--lite`, skip to Phase 7.
 ## Phase 5: Install Rules + Backfill CLAUDE.md
 
 **Skip if**: `--no-rules` / `--lite` / `--detect-only`. Fresh-install semantics (install new / skip identical / warn on conflict; for smart merge run `/install-rules`).
-
 - **Locate** plugin `rules/` via 3-level fallback (Glob plugin dirs → `node_modules` → `@rules/` relative); not found → hard error + remediation, skip to Phase 6 (Phase 7 reports `⚠️ Partial`)
 - **Reference** the 4 shipped rules (`anti-rationalization.md`, `execution-policy.md`, `model-economics.md`, `tool-routing.md`) by `${CLAUDE_PLUGIN_ROOT}/rules/` path — no local copies — then record state in `.dhpk/install-state.json` (preserve unknown keys)
 - **Backfill** `.claude/CLAUDE.md` with `@rules/` references so the rules activate (closed-loop guarantee)
