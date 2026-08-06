@@ -73,7 +73,7 @@ node scripts/ci/validate-changelog-fragments.js --diff-base develop
 node tests/run-all.js
 ```
 
-Skill platform 的預期 topology：102 canonical skills、31 modules、15 Codex
+Skill platform 的預期 topology：103 canonical skills、31 modules、15 Codex
 sync/native skills；module/Codex project projection 使用相對 symlink，native package
 零 symlink。
 

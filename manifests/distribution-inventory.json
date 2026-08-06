@@ -1806,6 +1806,23 @@
       ]
     },
     {
+      "id": "session-usage-audit",
+      "name": "dhpk-session-usage-audit",
+      "path": "skills/dhpk-session-usage-audit",
+      "capability_id": "dhpk.skill.session-usage-audit",
+      "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
+      "surfaces": [
+        "claude-core"
+      ],
+      "legacy_names": [
+        "session-usage-audit"
+      ]
+    },
+    {
       "id": "skill-health-check",
       "name": "dhpk-skill-health-audit",
       "path": "skills/dhpk-skill-health-audit",
