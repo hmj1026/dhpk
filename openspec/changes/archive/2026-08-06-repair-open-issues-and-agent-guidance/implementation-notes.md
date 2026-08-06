@@ -111,9 +111,8 @@ class, flag, model/tool entitlement, or support-tier behavior changed.
 - `openspec status --change repair-open-issues-and-agent-guidance --json` reports
   a repo-local, complete planning artifact set (`proposal`, `design`, seven
   delta specs, and `tasks`).
-- Task evidence is `40/41`: tasks 1.1–8.3 and 9.1–9.8 are checked; 8.4
-  remains intentionally open until the PR's CI result is green and the
-  archive operation is executed.
+- Task evidence is `41/41`: tasks 1.1–8.4 and 9.1–9.8 are checked after the
+  exact PR CI run `31072788431` completed green.
 
 ### Correctness
 
@@ -129,5 +128,6 @@ class, flag, model/tool entitlement, or support-tier behavior changed.
   returned `APPROVE` with the official Claude strict and Codex surfaces green.
 - GitNexus staged detection for the feature worktree reported 136 changed
   symbols across 60 files, 0 affected processes, and LOW risk.
-- The remaining lifecycle gate is external: push the feature branch, verify
-  the exact PR CI run, repair any CI failure, then check 8.4 and archive.
+- PR #146 exact CI run `31072788431` completed green: Validate harness assets
+  and Markdown lint both passed. The change is ready for archive; issue
+  closure and release publication remain separate explicit steps.
