@@ -88,6 +88,35 @@ UPDATE = os.environ.get('DHPK_UPDATE') == '1'
 MIGRATE = os.environ.get('DHPK_MIGRATE') == '1'
 UNINSTALL = os.environ.get('DHPK_UNINSTALL') == '1'
 SCHEMA_VERSION = 3
+BACKUP_DIR = '.dhpk-backups'
+BACKUP_RUN = datetime.datetime.utcnow().strftime('%Y%m%dT%H%M%SZ') + f'-{os.getpid()}'
+
+# These collections are populated by the reconciliation pass and persisted in
+# the receipt as durable evidence. Paths are always relative to the project or
+# `.codex` root so a receipt remains useful after a checkout moves.
+evidence_paths = {
+    'created': [],
+    'updated': [],
+    'migrated': [],
+    'retired': [],
+    'collisions': [],
+    'orphaned': [],
+}
+evidence_ownership = {}
+backup_records = []
+
+
+def record_path(kind, relative):
+    if not isinstance(relative, str) or not relative:
+        return
+    bucket = evidence_paths.setdefault(kind, [])
+    if relative not in bucket:
+        bucket.append(relative)
+
+
+def record_ownership(relative, classification):
+    if isinstance(relative, str) and relative:
+        evidence_ownership[relative] = classification
 
 
 def lexists(path):
@@ -148,6 +177,30 @@ def remove_path(path):
         os.unlink(path)
     else:
         shutil.rmtree(path)
+
+
+def backup_destination(relative, destination, reason):
+    """Copy a proven managed target into a rollback-addressable project path."""
+    if not lexists(destination):
+        return None
+    backup_root = os.path.join(CODEX_ROOT, BACKUP_DIR, BACKUP_RUN)
+    backup = os.path.join(backup_root, *relative.split('/'))
+    os.makedirs(os.path.dirname(backup), exist_ok=True)
+    if os.path.islink(destination):
+        os.symlink(os.readlink(destination), backup, target_is_directory=os.path.isdir(destination))
+    elif os.path.isdir(destination):
+        shutil.copytree(destination, backup, symlinks=True)
+    else:
+        shutil.copy2(destination, backup)
+    backup_relative = f'.codex/{BACKUP_DIR}/{BACKUP_RUN}/{relative}'
+    backup_records.append({
+        'path': backup_relative,
+        'original': relative,
+        'reason': reason,
+        'fingerprint': hash_path(destination),
+    })
+    record_path('backed_up', relative)
+    return backup_relative
 
 
 def hash_path(path):
@@ -319,6 +372,61 @@ def entry_map(receipt):
     }
 
 
+def classify_receipt(receipt, malformed, sources, metadata, plugin_version, fingerprint):
+    """Classify receipt/projection state before any destination mutation."""
+    if not receipt and not malformed:
+        return {
+            'state': 'new',
+            'requires_migration': False,
+            'reasons': [],
+            'legacy_names': [],
+            'retired_names': [],
+        }
+    reasons = []
+    legacy_names = []
+    retired_names = []
+    requires_migration = bool(malformed)
+    if malformed:
+        reasons.append('receipt is missing valid managed_entries or contains invalid JSON')
+    schema = receipt.get('schema_version') if isinstance(receipt, dict) else None
+    if schema != SCHEMA_VERSION:
+        requires_migration = True
+        reasons.append(f'receipt schema {schema if schema is not None else "<missing>"} requires schema-{SCHEMA_VERSION} migration')
+
+    legacy_to_public = {}
+    for public_name, skill in (metadata or {}).items():
+        for legacy_name in skill.get('legacy_names') or []:
+            legacy_to_public[legacy_name] = public_name
+    managed = entry_map(receipt)
+    canonical_names = set((sources.get('skills') or {}).keys())
+    for key, entry in managed['skills'].items():
+        relative = entry.get('source') or entry.get('destination') if isinstance(entry, dict) else ''
+        basename = relative.split('/')[-1] if isinstance(relative, str) else ''
+        if key in canonical_names and basename in ('', key):
+            continue
+        if key in legacy_to_public or basename in legacy_to_public:
+            legacy_names.append(key)
+            requires_migration = True
+            reasons.append(f'legacy Codex skill name {key} shadows canonical {legacy_to_public.get(key) or legacy_to_public.get(basename)}')
+        else:
+            retired_names.append(key)
+
+    if isinstance(receipt, dict) and receipt.get('legacy_pending'):
+        requires_migration = True
+        reasons.append('receipt has a pending legacy migration')
+    if isinstance(receipt, dict) and receipt.get('plugin_version') != plugin_version:
+        reasons.append(f"receipt plugin version {receipt.get('plugin_version', '<missing>')} differs from source {plugin_version}")
+    if isinstance(receipt, dict) and receipt.get('source_fingerprint') != fingerprint:
+        reasons.append('receipt source fingerprint differs from the current Codex source')
+    return {
+        'state': 'stale' if reasons else 'current',
+        'requires_migration': requires_migration,
+        'reasons': reasons,
+        'legacy_names': sorted(set(legacy_names)),
+        'retired_names': sorted(set(retired_names)),
+    }
+
+
 def current_sources():
     result = {'skills': {}, 'agents': {}, 'supporting_assets': {}}
     for kind in ('skills', 'agents'):
@@ -453,9 +561,65 @@ def install_atomic(source, destination):
             shutil.rmtree(stage_dir, ignore_errors=True)
 
 
-def save_receipt(plugin_version, fingerprint, entries, orphaned, counts, legacy_pending=False):
+def build_evidence(plugin_version, fingerprint, entries, counts, state):
+    destinations = {}
+    ownership = dict(evidence_ownership)
+    for kind in ('skills', 'agents', 'supporting_assets'):
+        for name, entry in entries.get(kind, {}).items():
+            if not isinstance(entry, dict):
+                continue
+            relative = entry.get('destination') or entry.get('source')
+            if not isinstance(relative, str) or not relative:
+                continue
+            destinations[relative] = {
+                'source': entry.get('source'),
+                'destination': relative,
+                'source_fingerprint': entry.get('source_fingerprint', ''),
+                'destination_fingerprint': entry.get('destination_fingerprint') or entry.get('fingerprint', ''),
+            }
+            ownership.setdefault(relative, 'orphaned' if entry.get('orphaned') else 'dhpk-managed')
+    paths = {
+        'source_root': 'codex',
+        'destination_root': '.codex',
+        'receipt': '.codex/.dhpk-installed.json',
+    }
+    for kind, values in evidence_paths.items():
+        paths[kind] = sorted(set(values))
+    return {
+        'schema_version': SCHEMA_VERSION,
+        'plugin_version': plugin_version,
+        'state': state,
+        'complete': state == 'current',
+        'paths': paths,
+        'ownership': ownership,
+        'fingerprints': {
+            'source': fingerprint,
+            'destinations': destinations,
+        },
+        'backups': list(backup_records),
+    }
+
+
+def save_receipt(plugin_version, fingerprint, entries, orphaned, counts, legacy_pending=False, state=None):
     ensure_manifest_safe()
     os.makedirs(CODEX_ROOT, exist_ok=True)
+    if state is None:
+        if legacy_pending:
+            state = 'stale'
+        elif counts.get('skipped_collision') or counts.get('orphaned'):
+            state = 'partial'
+        else:
+            state = 'current'
+    durable_counts = dict(counts)
+    # Keep the historical skipped_collision/pruned keys while exposing the
+    # action-oriented aliases used by release evidence and operators.
+    durable_counts['collided'] = durable_counts.get('skipped_collision', 0)
+    durable_counts['retired'] = durable_counts.get('retired', durable_counts.get('pruned', 0))
+    durable_counts['backed_up'] = durable_counts.get('backed_up', len(backup_records))
+    durable_counts['state'] = state
+    durable_counts['status'] = state
+    durable_counts['complete'] = state == 'current'
+    durable_counts['evidence'] = build_evidence(plugin_version, fingerprint, entries, durable_counts, state)
     receipt = {
         'schema_version': SCHEMA_VERSION,
         'plugin_version': plugin_version,
@@ -464,7 +628,8 @@ def save_receipt(plugin_version, fingerprint, entries, orphaned, counts, legacy_
         'installed_at': datetime.datetime.utcnow().replace(microsecond=0).isoformat() + 'Z',
         'managed_entries': entries,
         'orphaned_entries': orphaned,
-        'reconciliation': counts,
+        'reconciliation': durable_counts,
+        'state': state,
     }
     if legacy_pending:
         receipt['legacy_pending'] = True
@@ -482,7 +647,8 @@ def save_receipt(plugin_version, fingerprint, entries, orphaned, counts, legacy_
 
 def print_summary(counts, collisions, orphaned):
     print('[install-codex-skills] reconciliation: ' + ', '.join(f'{k}={counts[k]}' for k in (
-        'created', 'updated', 'migrated', 'preserved', 'skipped_collision', 'pruned', 'orphaned')))
+        'created', 'updated', 'migrated', 'preserved', 'skipped_collision', 'collided',
+        'pruned', 'retired', 'backed_up', 'orphaned')))
     for relative in sorted(collisions):
         print(f'[install-codex-skills] collision preserved: {relative}')
     for relative in sorted(orphaned):
@@ -527,6 +693,9 @@ def migrate_legacy_skill_names(entries, orphaned, counts, collisions, sources, m
         counts['skipped_collision'] += 1
         counts['preserved'] += 1
         counts['orphaned'] += 1
+        record_path('collisions', relative)
+        record_path('orphaned', relative)
+        record_ownership(relative, 'unowned-collision')
         print(f'[install-codex-skills] legacy conflict preserved: {relative} ({reason})')
 
     for legacy_name, public_name in sorted(legacy_to_public.items()):
@@ -542,6 +711,8 @@ def migrate_legacy_skill_names(entries, orphaned, counts, collisions, sources, m
                     collisions.append(relative)
                 counts['skipped_collision'] += 1
                 counts['preserved'] += 1
+                record_path('collisions', relative)
+                record_ownership(relative, 'unowned-collision')
                 print(f'[install-codex-skills] legacy conflict preserved: {relative} (destination is unowned or has no receipt ownership)')
             continue
         if legacy_name in ambiguous or len(matches) != 1:
@@ -570,21 +741,35 @@ def migrate_legacy_skill_names(entries, orphaned, counts, collisions, sources, m
                 if not (isinstance(current_entry, dict) and is_owned(current_entry, new_destination)):
                     conflict(key, old, relative, f'current public destination already exists: {new_relative}')
                     continue
+                backup = backup_destination(relative, old_destination, 'legacy-migration')
+                if backup:
+                    counts['backed_up'] += 1
                 remove_path(old_destination)
                 if key != public_name:
                     del entries['skills'][key]
                 entries['skills'][public_name] = make_entry(source, new_relative, new_destination, metadata.get(public_name))
+                clear_orphaned(relative, new_relative)
                 counts['migrated'] += 1
+                record_path('migrated', relative)
+                record_path('migrated', new_relative)
+                record_ownership(new_relative, 'dhpk-managed')
                 continue
 
             # Publish the new destination first. Only after it is visible do we
             # remove the unchanged legacy path, preserving rollback safety.
             install_atomic(source, new_destination)
+            backup = backup_destination(relative, old_destination, 'legacy-migration')
+            if backup:
+                counts['backed_up'] += 1
             remove_path(old_destination)
             if key != public_name:
                 del entries['skills'][key]
             entries['skills'][public_name] = make_entry(source, new_relative, new_destination, metadata.get(public_name))
+            clear_orphaned(relative, new_relative)
             counts['migrated'] += 1
+            record_path('migrated', relative)
+            record_path('migrated', new_relative)
+            record_ownership(new_relative, 'dhpk-managed')
         except ValueError as error:
             conflict(key, old, relative, str(error))
 
@@ -596,11 +781,45 @@ try:
 except ValueError as error:
     print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
     sys.exit(2)
-legacy_pending = bool(legacy or (isinstance(receipt, dict) and receipt.get('legacy_pending')))
+try:
+    sources = current_sources()
+    skill_metadata = inventory_skill_metadata()
+    validate_skill_metadata(sources, skill_metadata)
+except ValueError as error:
+    print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
+    sys.exit(2)
+
+classification = classify_receipt(receipt, legacy, sources, skill_metadata, plugin_version, fingerprint)
+legacy_pending = bool(
+    legacy
+    or classification.get('requires_migration')
+    or (isinstance(receipt, dict) and receipt.get('legacy_pending'))
+)
 entries = entry_map(receipt)
 orphaned = dict(receipt.get('orphaned_entries') or {}) if isinstance(receipt, dict) else {}
-counts = {k: 0 for k in ('created', 'updated', 'migrated', 'preserved', 'skipped_collision', 'pruned', 'orphaned')}
+counts = {k: 0 for k in (
+    'created', 'updated', 'migrated', 'preserved', 'skipped_collision', 'collided',
+    'pruned', 'retired', 'backed_up', 'orphaned',
+)}
 collisions = []
+
+
+def clear_orphaned(*relatives):
+    for relative in relatives:
+        if isinstance(relative, str) and relative:
+            orphaned.pop(relative, None)
+
+if classification.get('requires_migration') and not MIGRATE and UNINSTALL is False:
+    print('[install-codex-skills] state=stale_receipt: explicit migration is required before changing this projection', file=sys.stderr)
+    for reason in classification.get('reasons') or []:
+        print(f'[install-codex-skills] stale evidence: {reason}', file=sys.stderr)
+    mode_hint = '--copy ' if MODE == 'copy' else ''
+    print(
+        '[install-codex-skills] ACTION REQUIRED: '
+        f'bash scripts/hooks/install-codex-skills.sh {mode_hint}--migrate --update --force',
+        file=sys.stderr,
+    )
+    sys.exit(2)
 
 if UNINSTALL:
     try:
@@ -629,10 +848,15 @@ if UNINSTALL:
             if is_owned(old, destination):
                 remove_path(destination)
                 counts['pruned'] += 1
+                counts['retired'] += 1
+                record_path('retired', relative)
+                record_ownership(relative, 'dhpk-managed')
             else:
                 remaining[kind][name] = dict(old, orphaned=True)
                 orphaned[relative] = dict(old, reason='modified-before-uninstall')
                 counts['orphaned'] += 1
+                record_path('orphaned', relative)
+                record_ownership(relative, 'orphaned')
     if not orphaned and not any(remaining[kind] for kind in remaining):
         if os.path.isfile(MANIFEST):
             os.unlink(MANIFEST)
@@ -649,13 +873,6 @@ if not UPDATE and not MIGRATE and not legacy and not has_pending_conflicts and r
 
 try:
     ensure_codex_root_safe()
-except ValueError as error:
-    print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
-    sys.exit(2)
-try:
-    sources = current_sources()
-    skill_metadata = inventory_skill_metadata()
-    validate_skill_metadata(sources, skill_metadata)
 except ValueError as error:
     print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
     sys.exit(2)
@@ -687,14 +904,23 @@ if UPDATE:
                 continue
             if not lexists(destination):
                 del entries[kind][name]
+                clear_orphaned(relative)
             elif is_owned(old, destination):
+                backup = backup_destination(relative, destination, 'retired-entry')
+                if backup:
+                    counts['backed_up'] += 1
                 remove_path(destination)
                 del entries[kind][name]
                 counts['pruned'] += 1
+                counts['retired'] += 1
+                record_path('retired', relative)
+                record_ownership(relative, 'dhpk-managed')
             else:
                 entries[kind][name] = dict(old, orphaned=True)
                 orphaned[relative] = dict(old, reason='modified-removed-source')
                 counts['orphaned'] += 1
+                record_path('orphaned', relative)
+                record_ownership(relative, 'orphaned')
 
 for kind in ('skills', 'agents', 'supporting_assets'):
     for name, (source, relative) in sources[kind].items():
@@ -712,28 +938,60 @@ for kind in ('skills', 'agents', 'supporting_assets'):
                 adopted = True
                 counts['preserved'] += 1
             if adopted:
+                clear_orphaned(relative)
+                record_path('migrated', relative)
+                record_ownership(relative, 'dhpk-managed')
                 continue
             if not owned:
                 collisions.append(relative)
                 counts['skipped_collision'] += 1
                 counts['preserved'] += 1
+                record_path('collisions', relative)
+                record_ownership(relative, 'unowned-collision')
                 continue
             if old.get('orphaned'):
                 collisions.append(relative)
                 counts['skipped_collision'] += 1
                 counts['preserved'] += 1
+                record_path('collisions', relative)
+                record_ownership(relative, 'orphaned')
                 continue
+            if old.get('mode') == MODE and exact_source_match(source, destination):
+                entries[kind][name] = make_entry(source, relative, destination, skill_metadata.get(name) if kind == 'skills' else None)
+                clear_orphaned(relative)
+                record_ownership(relative, 'dhpk-managed')
+                continue
+            backup = backup_destination(relative, destination, 'updated-entry')
+            if backup:
+                counts['backed_up'] += 1
             install(source, destination)
             entries[kind][name] = make_entry(source, relative, destination, skill_metadata.get(name) if kind == 'skills' else None)
+            clear_orphaned(relative)
             counts['updated'] += 1
+            record_path('updated', relative)
+            record_ownership(relative, 'dhpk-managed')
         else:
             install(source, destination)
             entries[kind][name] = make_entry(source, relative, destination, skill_metadata.get(name) if kind == 'skills' else None)
+            clear_orphaned(relative)
             counts['created'] += 1
+            record_path('created', relative)
+            record_ownership(relative, 'dhpk-managed')
 
 if legacy_pending and MIGRATE and not collisions:
     legacy_pending = False
-save_receipt(plugin_version, fingerprint, entries, orphaned, counts, legacy_pending=legacy_pending)
+reconciliation_state = 'stale' if legacy_pending else ('partial' if collisions or orphaned else 'current')
+save_receipt(
+    plugin_version,
+    fingerprint,
+    entries,
+    orphaned,
+    counts,
+    legacy_pending=legacy_pending,
+    state=reconciliation_state,
+)
+counts['collided'] = counts.get('skipped_collision', 0)
+counts['backed_up'] = counts.get('backed_up', 0)
 print_summary(counts, collisions, sorted(orphaned))
 print(f'[install-codex-skills] synced dhpk v{plugin_version} codex/ → project-local .codex/ (mode={MODE})')
 PY

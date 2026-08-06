@@ -284,6 +284,24 @@ test('re-running without --update when version and source fingerprint are unchan
   }
 });
 
+test('--update does not back up unchanged receipt-owned destinations', () => {
+  const scratch = projectRoot();
+  try {
+    const first = runInstaller(scratch, ['--copy', '--force']);
+    assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+    const second = runInstaller(scratch, ['--copy', '--update', '--force']);
+    assert.strictEqual(second.status, 0, `${second.stdout}\n${second.stderr}`);
+    const manifest = JSON.parse(fs.readFileSync(path.join(scratch, '.codex', '.dhpk-installed.json'), 'utf8'));
+    assert.strictEqual(manifest.reconciliation.updated, 0, JSON.stringify(manifest.reconciliation));
+    assert.strictEqual(manifest.reconciliation.backed_up, 0, JSON.stringify(manifest.reconciliation));
+    assert.deepStrictEqual(manifest.reconciliation.evidence.backups, []);
+    assert.strictEqual(manifest.reconciliation.state, 'current');
+    assert.strictEqual(manifest.reconciliation.complete, true);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
 test('managed-target replacement: re-sync replaces a dhpk-managed target regardless of whether it is currently a file or a symlink', () => {
   const scratch = projectRoot();
   try {
@@ -441,7 +459,7 @@ test('a resolved collision is retried on the next idempotent sync', () => {
   }
 });
 
-test('legacy receipt and unowned symlink are fail-closed until --migrate', () => {
+test('legacy receipt and unowned symlink are fail-closed until explicit --migrate --update', () => {
   const scratch = projectRoot();
   const external = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-external-')));
   try {
@@ -452,11 +470,16 @@ test('legacy receipt and unowned symlink are fail-closed until --migrate', () =>
     fs.writeFileSync(path.join(scratch, '.codex', '.dhpk-installed.json'), JSON.stringify({
       plugin_version: '0.1.0', mode: 'symlink', installed_at: '2020-01-01T00:00:00Z',
     }));
+    const before = fs.readFileSync(path.join(scratch, '.codex', '.dhpk-installed.json'), 'utf8');
     const res = runInstaller(scratch, ['--force']);
-    assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
-    assert.match(`${res.stdout}\n${res.stderr}`, /collision/i);
+    assert.notStrictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+    assert.match(`${res.stdout}\n${res.stderr}`, /stale.*receipt|STALE_RECEIPT/i);
+    assert.match(`${res.stdout}\n${res.stderr}`, /--migrate --update/);
     assert.ok(fs.lstatSync(target).isSymbolicLink());
     assert.strictEqual(fs.realpathSync(target), external);
+    assert.strictEqual(fs.readFileSync(path.join(scratch, '.codex', '.dhpk-installed.json'), 'utf8'), before);
+    const migrated = runInstaller(scratch, ['--migrate', '--update', '--force']);
+    assert.strictEqual(migrated.status, 0, `${migrated.stdout}\n${migrated.stderr}`);
     const manifest = JSON.parse(fs.readFileSync(path.join(scratch, '.codex', '.dhpk-installed.json'), 'utf8'));
     assert.strictEqual(manifest.schema_version, 3);
     assert.ok(!manifest.managed_entries.skills[skillName]);
@@ -529,7 +552,7 @@ test('--migrate adopts exact legacy copies but never overwrites mismatches', () 
   }
 });
 
-test('legacy migration remains available after a safe normal sync', () => {
+test('legacy migration remains available after stale inspection', () => {
   const scratch = projectRoot();
   try {
     const skillName = fs.readdirSync(path.join(ROOT, 'codex', 'skills'))[0];
@@ -541,9 +564,9 @@ test('legacy migration remains available after a safe normal sync', () => {
       plugin_version: 'legacy', mode: 'copy', installed_at: '2020-01-01T00:00:00Z',
     }));
     const normal = runInstaller(scratch, ['--copy', '--force']);
-    assert.strictEqual(normal.status, 0, `${normal.stdout}\n${normal.stderr}`);
-    assert.match(`${normal.stdout}\n${normal.stderr}`, /collision/i);
-    const migrated = runInstaller(scratch, ['--copy', '--migrate', '--force']);
+    assert.notStrictEqual(normal.status, 0, `${normal.stdout}\n${normal.stderr}`);
+    assert.match(`${normal.stdout}\n${normal.stderr}`, /stale.*receipt|STALE_RECEIPT/i);
+    const migrated = runInstaller(scratch, ['--copy', '--migrate', '--update', '--force']);
     assert.strictEqual(migrated.status, 0, `${migrated.stdout}\n${migrated.stderr}`);
     const manifest = JSON.parse(fs.readFileSync(path.join(scratch, '.codex', '.dhpk-installed.json'), 'utf8'));
     assert.ok(manifest.managed_entries.skills[skillName], 'exact legacy copy should become receipt-owned after explicit migration');
@@ -615,6 +638,120 @@ test('--migrate renames a receipt-owned unchanged legacy skill destination to it
   }
 });
 
+test('pre-consolidation receipts report an explicit stale state and stay untouched until migration/update', () => {
+  const scratch = projectRoot();
+  try {
+    const first = runInstaller(scratch, ['--copy', '--force']);
+    assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+    const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
+    const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    const currentName = 'dhpk-tdd-workflow';
+    const legacyName = 'tdd';
+    const currentTarget = path.join(scratch, '.codex', 'skills', currentName);
+    const legacyTarget = path.join(scratch, '.codex', 'skills', legacyName);
+    const currentEntry = receipt.managed_entries.skills[currentName];
+    assert.ok(currentEntry, `expected initial receipt entry for ${currentName}`);
+
+    fs.renameSync(currentTarget, legacyTarget);
+    delete receipt.managed_entries.skills[currentName];
+    currentEntry.destination = `skills/${legacyName}`;
+    currentEntry.source = `skills/${legacyName}`;
+    currentEntry.ownership_marker = `copy:skills/${legacyName}`;
+    receipt.managed_entries.skills[legacyName] = currentEntry;
+    receipt.schema_version = 2;
+    receipt.plugin_version = 'pre-consolidation';
+    receipt.source_fingerprint = 'pre-consolidation-fingerprint';
+    fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+    const before = fs.readFileSync(receiptPath, 'utf8');
+
+    const blocked = runInstaller(scratch, ['--copy', '--force']);
+    assert.notStrictEqual(blocked.status, 0, `${blocked.stdout}\n${blocked.stderr}`);
+    assert.match(`${blocked.stdout}\n${blocked.stderr}`, /stale.*receipt|STALE_RECEIPT/i);
+    assert.match(`${blocked.stdout}\n${blocked.stderr}`, /--migrate --update/);
+    assert.strictEqual(fs.readFileSync(receiptPath, 'utf8'), before,
+      'stale inspection must not rewrite the receipt before explicit migration');
+    assert.ok(fs.existsSync(legacyTarget), 'legacy destination must remain recoverable while stale');
+    assert.ok(!fs.existsSync(currentTarget), 'canonical destination must not be created during stale inspection');
+
+    const migrated = runInstaller(scratch, ['--copy', '--migrate', '--update', '--force']);
+    assert.strictEqual(migrated.status, 0, `${migrated.stdout}\n${migrated.stderr}`);
+    assert.ok(fs.existsSync(path.join(currentTarget, 'SKILL.md')));
+    assert.ok(!fs.existsSync(legacyTarget));
+    const after = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    assert.strictEqual(after.schema_version, 3);
+    assert.strictEqual(after.reconciliation.state, 'current');
+    assert.strictEqual(after.reconciliation.complete, true);
+    assert.ok(after.reconciliation.migrated >= 1);
+    assert.ok(JSON.stringify(after.reconciliation.evidence).includes('skills/tdd'));
+    assert.ok(JSON.stringify(after.reconciliation.evidence).includes('skills/dhpk-tdd-workflow'));
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('reconciliation evidence records updates, retired entries, backups, and unowned collisions without overwriting', () => {
+  const scratch = projectRoot();
+  const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-evidence-plugin-')));
+  try {
+    fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
+    fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
+    fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
+    copyDistributionInventory(fakePlugin);
+
+    const first = runInstaller(scratch, ['--copy', '--force'], fakePlugin);
+    assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+    const sourceSkills = fs.readdirSync(path.join(fakePlugin, 'codex', 'skills')).sort();
+    assert.ok(sourceSkills.length >= 3, 'fixture needs retired, updated, and colliding skills');
+    const retired = sourceSkills[0];
+    const updated = sourceSkills[1];
+    const collision = sourceSkills[2];
+    fs.rmSync(path.join(fakePlugin, 'codex', 'skills', retired), { recursive: true, force: true });
+    const updatedPath = path.join(fakePlugin, 'codex', 'skills', updated);
+    if (fs.lstatSync(updatedPath).isSymbolicLink()) {
+      fs.rmSync(updatedPath, { recursive: true, force: true });
+      fs.cpSync(path.join(ROOT, 'skills', updated), updatedPath, { recursive: true, dereference: true });
+    }
+    fs.appendFileSync(path.join(updatedPath, 'SKILL.md'), '\nsource update for evidence\n');
+
+    const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
+    const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    delete receipt.managed_entries.skills[collision];
+    fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+    const collisionTarget = path.join(scratch, '.codex', 'skills', collision);
+    const userMarker = path.join(collisionTarget, 'user-owned.txt');
+    fs.writeFileSync(userMarker, 'do not overwrite\n');
+
+    const updatedRun = runInstaller(scratch, ['--copy', '--update', '--force'], fakePlugin);
+    assert.strictEqual(updatedRun.status, 0, `${updatedRun.stdout}\n${updatedRun.stderr}`);
+    assert.strictEqual(fs.readFileSync(userMarker, 'utf8'), 'do not overwrite\n');
+    const after = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    const reconciliation = after.reconciliation;
+    assert.ok(reconciliation.updated >= 1, JSON.stringify(reconciliation));
+    assert.ok(reconciliation.retired >= 1, JSON.stringify(reconciliation));
+    assert.ok(reconciliation.backed_up >= 1, JSON.stringify(reconciliation));
+    assert.ok(reconciliation.skipped_collision >= 1, JSON.stringify(reconciliation));
+    assert.ok(reconciliation.collided >= 1, JSON.stringify(reconciliation));
+    assert.strictEqual(reconciliation.state, 'partial');
+    assert.strictEqual(reconciliation.complete, false);
+    const evidence = reconciliation.evidence;
+    assert.strictEqual(evidence.paths.destination_root, '.codex');
+    assert.ok(evidence.paths.updated.includes(`skills/${updated}`));
+    assert.ok(evidence.paths.retired.includes(`skills/${retired}`));
+    assert.ok(evidence.paths.collisions.includes(`skills/${collision}`));
+    assert.ok(evidence.fingerprints.source);
+    assert.ok(evidence.fingerprints.destinations[`skills/${updated}`]);
+    assert.ok(evidence.backups.length >= 1);
+    for (const backup of evidence.backups) {
+      assert.ok(backup.path && backup.path.startsWith('.codex/.dhpk-backups/'), JSON.stringify(backup));
+      assert.ok(fs.existsSync(path.join(scratch, backup.path)), `backup path missing: ${backup.path}`);
+    }
+    assert.ok(!after.managed_entries.skills[collision], 'unowned collision must remain outside receipt ownership');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(fakePlugin, { recursive: true, force: true });
+  }
+});
+
 test('--uninstall removes only unchanged receipt-owned targets and retains orphaned/unrelated assets', () => {
   const scratch = projectRoot();
   try {
@@ -654,6 +791,31 @@ test('a normal install repopulates the project after uninstall', () => {
     assert.strictEqual(restored.status, 0, `${restored.stdout}\n${restored.stderr}`);
     assert.ok(fs.readdirSync(path.join(scratch, '.codex', 'skills')).length > 0);
     assert.doesNotMatch(restored.stdout, /already up-to-date/);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('a deleted orphaned destination is restored to managed ownership on reinstall', () => {
+  const scratch = projectRoot();
+  try {
+    const first = runInstaller(scratch, ['--copy', '--force']);
+    assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+    const skillName = fs.readdirSync(path.join(scratch, '.codex', 'skills'))[0];
+    const target = path.join(scratch, '.codex', 'skills', skillName);
+    fs.writeFileSync(path.join(target, 'user-edit.txt'), 'edited\n');
+    const removed = runInstaller(scratch, ['--uninstall', '--force']);
+    assert.strictEqual(removed.status, 0, `${removed.stdout}\n${removed.stderr}`);
+    assert.ok(fs.existsSync(target), 'edited destination should be retained as orphaned');
+    fs.rmSync(target, { recursive: true, force: true });
+
+    const restored = runInstaller(scratch, ['--copy', '--force']);
+    assert.strictEqual(restored.status, 0, `${restored.stdout}\n${restored.stderr}`);
+    const manifest = JSON.parse(fs.readFileSync(path.join(scratch, '.codex', '.dhpk-installed.json'), 'utf8'));
+    assert.ok(fs.existsSync(path.join(target, 'SKILL.md')));
+    assert.strictEqual(Object.keys(manifest.orphaned_entries || {}).length, 0, JSON.stringify(manifest));
+    assert.strictEqual(manifest.reconciliation.state, 'current');
+    assert.strictEqual(manifest.reconciliation.complete, true);
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
   }

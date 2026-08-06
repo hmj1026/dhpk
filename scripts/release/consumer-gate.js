@@ -401,38 +401,98 @@ function claudeAvailable() {
   return spawnSync('claude', ['--version'], { encoding: 'utf8' }).status === 0;
 }
 
+function claudeCliVersion() {
+  const result = spawnSync('claude', ['--version'], { encoding: 'utf8' });
+  if (result.status !== 0) return null;
+  return ((result.stdout || result.stderr || '').trim().split(/\r?\n/)[0] || 'unknown').trim();
+}
+
 function verifyClaudeReinstall(root, version) {
+  const strictCommand = 'claude plugin validate <manifest> --strict';
   if (!claudeAvailable()) {
-    return { verdict: VERDICTS.UNAVAILABLE, commands: [], reasons: ["claude CLI not found on PATH — Claude update/reinstall proof requires a clean CI runner or a fresh session; not verifiable here"] };
+    return {
+      verdict: VERDICTS.UNAVAILABLE,
+      commands: [{ cmd: strictCommand, exitCode: null, status: 'NOT RUN' }],
+      officialValidation: {
+        verdict: 'NOT RUN',
+        command: strictCommand,
+        exitCode: null,
+        reason: 'claude CLI not found on PATH',
+      },
+      reasons: ["claude CLI not found on PATH — official strict validation is NOT RUN; Claude update/reinstall proof requires a clean CI runner or a fresh session"],
+    };
   }
   const commands = [];
+  const cliVersion = claudeCliVersion() || 'unknown';
+  // Validate the consumer-shaped staged package. The source checkout carries a
+  // development-only root CLAUDE.md; Claude warns that this file is not loaded
+  // from a plugin, so leaving it in the stage would fail strict validation.
+  const validationStage = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-validation-'));
+  let strictEvidence;
+  try {
+    for (const relative of ['.claude-plugin', 'skills', 'agents', 'commands', 'modules']) {
+      const source = path.join(root, relative);
+      if (fs.existsSync(source)) {
+        fs.cpSync(source, path.join(validationStage, relative), { recursive: true, dereference: true });
+      }
+    }
+    const stagedManifest = path.join(validationStage, '.claude-plugin', 'plugin.json');
+    const strict = spawnSync('claude', ['plugin', 'validate', stagedManifest, '--strict'], { cwd: validationStage, encoding: 'utf8' });
+    strictEvidence = {
+      cmd: strictCommand,
+      manifest: '<staged>/.claude-plugin/plugin.json',
+      exitCode: strict.status,
+      claudeVersion: cliVersion,
+    };
+    commands.push(strictEvidence);
+    if (strict.status !== 0) {
+      const output = redactEvidence(`${strict.stdout || ''}\n${strict.stderr || ''}`.trim(), root);
+      return {
+        verdict: VERDICTS.FAIL,
+        commands,
+        officialValidation: {
+          verdict: 'FAIL',
+          ...strictEvidence,
+        },
+        reasons: [`official Claude strict validation failed (exit ${strict.status})${output ? `: ${output}` : ''}`],
+      };
+    }
+  } finally {
+    fs.rmSync(validationStage, { recursive: true, force: true });
+  }
+  const officialValidation = { verdict: 'PASS', ...strictEvidence };
   const project = mkTempProject();
   try {
     const add = spawnSync('claude', ['plugin', 'marketplace', 'add', root, '--scope', 'project'], { cwd: project, encoding: 'utf8' });
     commands.push({ cmd: 'claude plugin marketplace add <root> --scope project', exitCode: add.status });
     if (add.status !== 0) {
-      return { verdict: VERDICTS.FAIL, commands, reasons: [`marketplace add exited ${add.status}: ${redactEvidence((add.stderr || '').trim(), root)}`] };
+      return { verdict: VERDICTS.FAIL, commands, officialValidation, reasons: [`marketplace add exited ${add.status}: ${redactEvidence((add.stderr || '').trim(), root)}`] };
     }
 
     const install = spawnSync('claude', ['plugin', 'install', 'dhpk@dhpk', '--scope', 'project'], { cwd: project, encoding: 'utf8' });
     commands.push({ cmd: 'claude plugin install dhpk@dhpk --scope project', exitCode: install.status });
     if (install.status !== 0) {
-      return { verdict: VERDICTS.FAIL, commands, reasons: [`plugin install exited ${install.status}: ${redactEvidence((install.stderr || '').trim(), root)}`] };
+      return { verdict: VERDICTS.FAIL, commands, officialValidation, reasons: [`plugin install exited ${install.status}: ${redactEvidence((install.stderr || '').trim(), root)}`] };
     }
 
     const list = spawnSync('claude', ['plugin', 'list', '--json'], { cwd: project, encoding: 'utf8' });
     commands.push({ cmd: 'claude plugin list --json', exitCode: list.status });
     if (list.status !== 0) {
-      return { verdict: VERDICTS.FAIL, commands, reasons: [`plugin list exited ${list.status}`] };
+      return { verdict: VERDICTS.FAIL, commands, officialValidation, reasons: [`plugin list exited ${list.status}`] };
     }
     const installed = JSON.parse(list.stdout || '[]').find((p) => p.id === 'dhpk@dhpk');
     if (!installed) {
-      return { verdict: VERDICTS.FAIL, commands, reasons: ["'dhpk@dhpk' not present in 'claude plugin list --json' after install"] };
+      return { verdict: VERDICTS.FAIL, commands, officialValidation, reasons: ["'dhpk@dhpk' not present in 'claude plugin list --json' after install"] };
     }
     if (installed.version !== version) {
-      return { verdict: VERDICTS.FAIL, commands, reasons: [`installed plugin reports version '${installed.version}', expected '${version}'`] };
+      return { verdict: VERDICTS.FAIL, commands, officialValidation, reasons: [`installed plugin reports version '${installed.version}', expected '${version}'`] };
     }
-    return { verdict: VERDICTS.PASS, commands, reasons: [] };
+    return {
+      verdict: VERDICTS.PASS,
+      commands,
+      officialValidation,
+      reasons: [],
+    };
   } finally {
     fs.rmSync(project, { recursive: true, force: true });
   }
@@ -490,6 +550,7 @@ function runGate(args) {
     commands,
     environment: process.env.CI ? 'ci' : 'local',
     artifacts: [
+      `claude-official-strict: ${claude.officialValidation ? claude.officialValidation.verdict : 'NOT RUN'}${claude.officialValidation && claude.officialValidation.reason ? ` (${claude.officialValidation.reason})` : ''}`,
       `native-codex-marketplace: ${native.verdict} (experimental support tier; consumer proof does not itself graduate the support tier)`,
       ...(codex.surfaceVerdict ? [`codex-surface: ${codex.surfaceVerdict}`] : []),
     ],

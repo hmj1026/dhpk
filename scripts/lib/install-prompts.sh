@@ -221,7 +221,10 @@ dhpk_single_select() {
   while true; do
     local pick
     printf 'Pick a number [1-%d]: ' "${#items[@]}" >&2
-    read -r pick || pick=""
+    if ! read -r pick; then
+      printf 'Invalid selection (input ended).\n' >&2
+      return 1
+    fi
     if [[ "$pick" =~ ^[0-9]+$ ]] && (( pick >= 1 && pick <= ${#items[@]} )); then
       printf '%s' "${items[$((pick-1))]}"
       return 0

@@ -20,6 +20,10 @@ metadata:
 
 Skills are **on-demand context packages**. Their value comes from routing precision (right skill triggers at right time) and context efficiency (minimum tokens for maximum capability). A poorly routed skill wastes context on every mismatch; a well-routed skill transforms a generalist into a specialist at exactly the right moment.
 
+## Writing-for-agents contract
+
+For materially changed skills, require a short positive-trigger/non-use pointer; keep the primary path brief, move optional mechanics to co-located references, link policy to its SSOT, require observable completion/verification/handoff evidence, and prune duplicate or plan-as-apply text.
+
 ## Workflow
 
 ```
@@ -31,13 +35,10 @@ Run automated lint → Review manual dimensions → Produce integrated report �
 ```bash
 node skills/dhpk-skill-health-audit/scripts/skill-lint.js --skills-dir skills --agents-dir agents --commands-dir commands --fix-hint
 ```
-
 Repository wrapper:
-
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/run-skill.sh" dhpk-skill-health-audit skill-lint.js --fix-hint
 ```
-
 **Script I/O contract:**
 
 | Parameter | Description |
@@ -52,7 +53,6 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/run-skill.sh" dhpk-skill-health-audit skill-
 | Exit 2 | Errors found (P0/P1) |
 
 **Shared host contract:**
-
 - Universal checks always run from the discovered skill packages.
 - Agent checks run only when an agents directory is available.
 - Command/skill pairing checks run only when a commands directory is available.
@@ -64,7 +64,7 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/run-skill.sh" dhpk-skill-health-audit skill-
 |---|-------|----------|----------|
 | 1 | Frontmatter exists | P1 | `name` + `description` required; malformed discoverable entries are fail-closed findings |
 | 2 | Routing signature | P1 | Description has at least 2 of 3 routing cues (Use/Avoid/Output); 0 cues = P1, 1 cue = P2 |
-| 3 | When NOT section | P1 | Body has "When NOT to Use" heading |
+| 3 | When NOT section | P1 | Body has a non-empty "When NOT to Use" section; named shipped routes resolve |
 | 4 | Output section | P2 | Body defines expected deliverable |
 | 5 | Verification section | P2 | Body has verification checklist |
 | 6 | References routing | P2 | Each reference file mentioned in body |
@@ -106,7 +106,6 @@ The lint gate also flags unconditionally loaded branches, non-checkable completi
 
 ```markdown
 # Skill Health Check Report
-
 ## Summary
 
 | Metric | Value |
@@ -144,6 +143,7 @@ The lint gate also flags unconditionally loaded branches, non-checkable completi
 
 - [ ] Automated lint executed (exit code checked); all P0/P1 findings have fix recommendations, all scanned skills appear in the per-skill table, and the gate sentinel is present for hook parsing.
 - [ ] Invocation/context cost, conditional branches, checkable completion, no-op paths, duplication, and sediment are assessed with actionable pruning findings.
+- [ ] The canonical source tree reports zero P0/P1 findings; P2 advisories remain visible and separately counted.
 
 ## References
 

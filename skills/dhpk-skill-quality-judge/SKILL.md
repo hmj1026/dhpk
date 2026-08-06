@@ -33,16 +33,13 @@ A five-step evaluation protocol. Steps 1 and 3 require the reference files — l
 ### Step 1: First Pass — Knowledge Delta Scan
 
 Read the target SKILL.md completely. For each section ask: *"Does Claude already know this?"* and mark it:
-
 - **[E] Expert**: Claude genuinely doesn't know this — value-add
 - **[A] Activation**: Claude knows but a brief reminder is useful — acceptable
 - **[R] Redundant**: Claude definitely knows this — should be deleted
-
 Calculate the rough ratio E:A:R.
 - Good Skill: >70% Expert, <20% Activation, <10% Redundant
 - Mediocre Skill: 40-70% Expert, high Activation
 - Bad Skill: <40% Expert, high Redundant
-
 **Load `references/philosophy.md`** if you need the full knowledge-delta model (What is a Skill, Tool vs Skill, the three knowledge types) to make these calls.
 
 ### Step 2: Structure Analysis
@@ -93,6 +90,9 @@ Produce the report in the **Output** format below. If a score is hard to name, c
 
 Score invocation/context cost: conditional branches load only needed references and completion is checkable from an observable result. Penalize no-op, duplication, and documentation sediment; a polished rubric cannot rescue a default path that spends context on unused branches.
 
+## Agent-facing authoring guardrails
+
+When authoring or materially revising a target, require a short trigger/non-use pointer and one SSOT owner; prefer progressive disclosure with co-located references, require completion evidence plus the next-workflow handoff, distinguish plans from applied verified changes, and prune paragraphs that add no decision rule, evidence, or behavior.
 (Full evaluator guardrails: `references/failure-patterns.md`.)
 
 ## Output

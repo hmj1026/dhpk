@@ -4,6 +4,28 @@
 
 本頁說明 dhpk 的操作生命週期：安裝、日常指令流程、自動 review 循環，以及如何將既有專案遷移過來。完整的 `userConfig` 旋鈕參考請見 [`docs/configuration.zh-TW.md`](./configuration.zh-TW.md)。
 
+## 決策階梯
+
+新請求依序執行：**inspect** 檢查 repo 與 session 狀態 → **verify** 驗證已安裝的
+surface → **choose** 選 Claude、支援的 Codex sync 或實驗性的 native Codex →
+**route** 走 `/dhpk:do` 或明確 skill → **implement** 先做 TDD 與編輯前 impact
+檢查 → **review/verify** 留下可重現證據 → **handoff** 只交接一個 next command。
+Plugin 管理（`claude plugin …`、`codex plugin …`）不等於執行 skill。
+
+行為 SSOT 是 [`rules/execution-policy.md`](../rules/execution-policy.md)、
+[`docs/configuration.zh-TW.md`](./configuration.zh-TW.md)、
+[`docs/skill-platform-migration.zh-TW.md`](./skill-platform-migration.zh-TW.md)、
+[`docs/distribution-surfaces.zh-TW.md`](./distribution-surfaces.zh-TW.md)、
+[`distribution-inventory.json`](../manifests/distribution-inventory.json)、
+[`scripts/install.sh`](../scripts/install.sh) 與支援的
+[`install-codex-skills.sh`](../scripts/hooks/install-codex-skills.sh)。OpenSpec
+proposal、specification 與 task evidence 位於 `openspec/changes/`；validator
+通過不代表已完成版控交付。
+
+若 destination 不清楚且工作會跨 session，先建立 wayfinder checkpoint，記錄候選
+destination、目前 frontier 與一個 next decision。清楚且單一 session 可完成的請求
+直接進入對應 route。
+
 ## 分發面政策
 
 dhpk 刻意提供多個、支援等級不同的分發面：
@@ -82,6 +104,13 @@ bash ~/projects/dhpk/scripts/install.sh        # 互動（gum / python3 fallback
 claude plugin validate ~/projects/dhpk --strict
 ```
 
+`node scripts/ci/validate-plugin.js` 與 `node scripts/ci/validate-skills.js --strict` 是快速的
+repository source gate，不等於 official consumer 證據。若 Claude CLI 可用，請保留
+`claude plugin validate <manifest> --strict` 與 exit code；若 CLI 不可用，記錄
+`NOT RUN`，不能宣稱 official PASS。release consumer gate 會把 official 非零結果
+視為阻擋，並在 consumer-shaped staged package 上驗證（開發用的 plugin root
+`CLAUDE.md` 不屬於實際 shipped surface）。
+
 要邊改 plugin 原始碼邊看效果（不走 install/reinstall 迴圈），請見 [§ 開發](#開發)。
 
 ### 更新／移除
@@ -104,14 +133,16 @@ marketplace cache path。
 
 ```bash
 claude plugin update dhpk@dhpk
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --update
+DHPK_ROOT=/absolute/path/to/dhpk
+bash "$DHPK_ROOT/scripts/hooks/install-codex-skills.sh" --update
 ```
 
 若專案仍有整併前的 Codex receipt 或未加 prefix 的 dhpk skill 目錄，請先明確
 遷移 ownership，再做一般更新：
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --migrate --update
+DHPK_ROOT=/absolute/path/to/dhpk
+bash "$DHPK_ROOT/scripts/hooks/install-codex-skills.sh" --migrate --update
 ```
 
 `--migrate` 只接管「內容未變更且 legacy source 完全吻合」的 destination。
@@ -163,6 +194,15 @@ Smart Router 匹配「implement … feature」→ `dhpk:dhpk-adaptive-dev-workfl
 **`--openspec` / `--opsx` 旗標：** 在 `/dhpk:do` 加上 `--openspec`（別名 `--opsx`）可強制走 OpenSpec 撰寫流程（`opsx:new` → `opsx:ff`，接著停下等待人工審閱），而不直接進入實作。此旗標適用於 3 個「變更撰寫」路由 —— `dhpk:dhpk-adaptive-dev-workflow`、`dhpk:dhpk-bug-fix`、`dhpk:dhpk-feature-dev` —— 並取代 `--plan`。在其餘路由（包含 `dhpk:dhpk-opsx-apply-goal`）上此旗標無作用：會印出 `--openspec ignored: ...` 並照常執行原路由。
 
 **`--worker=<claude|codex|agy|auto>` 旗標：** 僅為這次呼叫選擇機械 worker，不改專案設定。`/dhpk:do` 在路由匹配前解析並移除此旗標，再把原值以 `WORKER_OVERRIDE` 只傳給實作型路由（`adaptive-dev-workflow`、`bug-fix`、`feature-dev`、`opsx-apply-goal`）。優先序為旗標 > `fast_worker_backend` userConfig > shipped `claude`；無效旗標警告一次後退回 userConfig／預設。下游流程一律呼叫共用 selector，不自行重做可用性、順序或 fallback 邏輯。
+
+### OpenSpec 完成邊界
+
+不清楚且跨 session 的工作先做 wayfinder checkpoint，再用 `/opsx:new` 或
+`/opsx:ff` 建立 proposal/specification。已確認的變更用
+`$dhpk:openspec-apply-change <change>` 實作，接著完成 verify、review 與 consumer
+evidence。計畫完成或測試全綠，若 task checkbox、verification 或 archive evidence
+尚未具備，生命週期仍未完成。只有 apply 與 consumer validation 都記錄後才能 archive；
+issue closure 與 release publication 必須另外明確執行。
 
 ### 情境式入口
 
@@ -312,9 +352,13 @@ MCP backend 需要 `mcp__codex__codex` / `mcp__codex__codex-reply` 工具；可�
 terminal 請使用[更新／移除](#更新移除)說明的 persistent-checkout 形式。
 
 ```bash
-# 在任意專案根目錄執行：
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"
+# 在任意專案根目錄，以持久的本地 dhpk checkout 執行：
+DHPK_ROOT=/absolute/path/to/dhpk
+bash "$DHPK_ROOT/scripts/hooks/install-codex-skills.sh"
 ```
+
+在 Claude plugin-runtime shell 內可用 `${CLAUDE_PLUGIN_ROOT}` 作為等價 root；普通
+terminal 必須明確設定 `DHPK_ROOT`，不要把短命 marketplace cache 路徑複製到專案命令。
 
 這個 script 是支援的 Codex 分發路徑，有兩種模式：
 

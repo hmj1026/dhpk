@@ -6,6 +6,13 @@ metadata:
   dhpk-invocation-class: implicit-eligible
 ---
 
+## Contract
+
+Use for worktree lifecycle operations; do not remove or prune a worktree
+without confirmation. See the [command contract](../docs/agent-guidance/command-contract.md).
+Stop when a branch/path is missing or dirty; completion reports exact commands
+and resulting status.
+
 ## Context
 
 - Worktrees: !`git worktree list 2>/dev/null || echo 'not in a git repo'`

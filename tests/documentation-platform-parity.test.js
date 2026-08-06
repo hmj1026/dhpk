@@ -93,6 +93,41 @@ test('Codex install docs cover every supported receipt operation and current exp
   }
 });
 
+test('basic-operation locales keep heading, command, and link parity', () => {
+  const english = read('docs/basic-operations.md');
+  const chinese = read('docs/basic-operations.zh-TW.md');
+  const headingLevels = (text) => [...text.matchAll(/^(#{1,4})\s+/gm)].map((match) => match[1].length);
+  assert.deepStrictEqual(headingLevels(chinese), headingLevels(english), 'locale heading structure drifted');
+
+  const commandShape = (text) => text
+    .split('\n')
+    .filter((line) => /^(?:claude|codex|bash|DHPK_ROOT=|\/dhpk:|\$dhpk:|node scripts|git |openspec )/.test(line.trim()))
+    .map((line) => line.trim().replace(/\.zh-TW(?=[.)`])/g, '').replace(/\s+#.*$/, ''));
+  assert.deepStrictEqual(commandShape(chinese), commandShape(english), 'locale command examples drifted');
+
+  const linkTargets = (text) => [...text.matchAll(/\]\(([^)]+)\)/g)]
+    .map((match) => match[1].split('#')[0].replace(/\.zh-TW(?=\.md\b)/g, ''))
+    .sort();
+  assert.deepStrictEqual(linkTargets(chinese), linkTargets(english), 'locale link targets drifted');
+});
+
+test('basic-operation guides retain the safety and lifecycle decisions in both locales', () => {
+  const required = [
+    /wayfinder/i,
+    /TDD/i,
+    /impact/i,
+    /NOT RUN/i,
+    /(?:official.*(?:non-zero|非零)|(?:non-zero|非零).*official)/i,
+    /openspec\/changes\//i,
+    /archive/i,
+    /DHPK_ROOT=\/absolute\/path\/to\/dhpk/,
+  ];
+  for (const relative of ['docs/basic-operations.md', 'docs/basic-operations.zh-TW.md']) {
+    const text = read(relative);
+    for (const pattern of required) assert.match(text, pattern, `${relative} missing ${pattern}`);
+  }
+});
+
 test('module hook and uninstall ordering match the live dispatcher lifecycle', () => {
   const dispatcher = read('scripts/hooks/pre-bash-dispatch.sh');
   assert.match(dispatcher, /pre-bash-\*\.sh[\s\S]*pre-commit-\*\.sh/, 'dispatcher must own module Bash gates');
