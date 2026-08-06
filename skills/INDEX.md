@@ -4,7 +4,7 @@ description: 'Navigation index for dhpk plugin skills. Internal documentation; n
 
 # Skills Index (dhpk plugin)
 
-> Navigation for the 102 canonical skill packages shipped by the dhpk plugin. Every
+> Navigation for the 103 canonical skill packages shipped by the dhpk plugin. Every
 > package lives flat under `skills/dhpk-<name>/SKILL.md` and is invoked with its
 > public name (for example, `/dhpk:dhpk-tdd-workflow`) or auto-triggered by its
 > `description`. Stack modules expose
@@ -69,6 +69,7 @@ description: 'Navigation index for dhpk plugin skills. Internal documentation; n
 | [dhpk-risk-assess](dhpk-risk-assess/SKILL.md) | Uncommitted-code risk scoring + breaking-change / blast-radius analysis |
 | [dhpk-project-audit](dhpk-project-audit/SKILL.md) | Project-health audit with deterministic scoring |
 | [dhpk-issue-analyze](dhpk-issue-analyze/SKILL.md) | GitHub Issue / PR review-thread triage with Codex blind verdict |
+| [dhpk-session-usage-audit](dhpk-session-usage-audit/SKILL.md) | Local dhpk session usage, evidence, verification, and issue handoff |
 
 ## Specs & documents
 

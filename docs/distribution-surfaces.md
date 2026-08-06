@@ -53,7 +53,7 @@ generated root set is **identical** to the currently-registered set:
 | | Before | After |
 |---|---|---|
 | Registered directory roots | 1 | 1 |
-| Skills reachable under that root | 102 | 102 |
+| Skills reachable under that root | 102 | 103 |
 
 Nothing is removed from `plugin.json` in this phase (design.md Non-Goals:
 "Deleting canonical skills during the first migration"). The generator

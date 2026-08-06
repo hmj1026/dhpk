@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.36.0 — 2026-08-06 — Add local session usage audit skill
+
+**feat(session-usage-audit)** — Add a local session audit skill that redacts usage evidence, verifies dhpk findings, and prepares duplicate-safe issue handoffs.
+
 ## 0.35.1 — 2026-08-06 — Repair official plugin validation, safe installer reconciliation, and agent-facing operation guidance.
 
 **fix(open-issue-guards)** — Repair official plugin validation, safe installer reconciliation, and agent-facing operation guidance.
