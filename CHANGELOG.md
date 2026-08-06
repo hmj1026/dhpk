@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.35.1 — 2026-08-06 — Repair official plugin validation, safe installer reconciliation, and agent-facing operation guidance.
+
+**fix(open-issue-guards)** — Repair official plugin validation, safe installer reconciliation, and agent-facing operation guidance.
+
 ## 0.35.0 — 2026-08-05 — Unify Claude and Codex skills, canonical sources, and distribution surfaces
 
 **feat(skill-platform)** — Unify Claude and Codex skills under collision-safe dhpk names, one flat canonical source, safer distribution installs, and a smaller deterministic hook and command surface.
