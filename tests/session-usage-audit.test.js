@@ -364,24 +364,25 @@ test('diagnostic extraction keeps structured symptoms but drops customer context
 });
 
 test('buildIssueDraft is sanitized and issueGate requires verification, dedupe, auth, and confirmation', () => {
+  const home = os.homedir();
   const finding = {
     fingerprint: 'sha256:' + 'a'.repeat(64),
     category: 'hook-failure', component: 'stop-advisory-dispatch.sh',
     title: 'dhpk hook timeout', status: 'verified', confidence: 0.91,
     occurrences: 2, message: 'hook timed out after 30 seconds',
-    evidence: [{ file: '/home/paul/projects/app/session.jsonl', line: 4, sessionId: 's1' }],
+    evidence: [{ file: path.join(home, 'projects', 'app', 'session.jsonl'), line: 4, sessionId: 's1' }],
     verification: {
       reproduction: { status: 'pass', command: 'node reproduce.js' },
       consumerGate: { status: 'pass', command: 'node scripts/ci/validate-plugin.js' },
     },
   };
-  const draft = audit.buildIssueDraft(finding, { version: '0.35.1', repository: 'hmj1026/dhpk' });
+  const draft = audit.buildIssueDraft(finding, { version: '0.35.1', repository: 'hmj1026/dhpk', home });
   assert.ok(draft.title.includes('[session-audit]'));
   assert.ok(draft.body.includes(finding.fingerprint));
   assert.ok(draft.body.includes('node reproduce.js'));
   assert.ok(draft.body.includes('validate-plugin.js'));
   assert.match(draft.confirmationDigest, /^sha256:[a-f0-9]{64}$/);
-  assert.ok(!draft.body.includes('/home/paul'));
+  assert.ok(!draft.body.includes(home));
 
   assert.strictEqual(audit.evaluateIssueGate({ finding, duplicate: false, ghAuth: true, confirmed: false }).allowed, false);
   assert.strictEqual(audit.evaluateIssueGate({ finding, duplicate: true, ghAuth: true, confirmed: true }).allowed, false);
