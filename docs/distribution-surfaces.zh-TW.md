@@ -29,7 +29,7 @@ contract 與 execution policy。Installer 會把每個 materialized asset 記錄
 ## 目前 Claude publication
 
 `scripts/ci/gen-claude-manifest.js` 從 inventory 產生 `.claude-plugin/plugin.json` 的
-skill root。現在是一個 registered directory root，下面有 102 個 reachable skill。
+skill root。現在是一個 registered directory root，下面有 103 個 reachable skill。
 所有 package 都扁平位於 `skills/dhpk-<name>/`；module `skills/` 只是相對 symlink
 projection。
 

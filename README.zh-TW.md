@@ -50,7 +50,7 @@ claude plugin install dhpk@dhpk --config modules=php-8.x,laravel-11 --config hoo
 |------|----:|------|
 | Agents | Role-based agents | Sentinel 驅動的 reviewer，以及架構、測試、安全、文件、平台與 runtime 等情境型角色。 |
 | Commands | 已註冊的 command surface | `/dhpk:do`、`/dhpk:codex-review`、`/dhpk:precommit`、`/dhpk:setup`、`/dhpk:review-pending`、`/dhpk:smart-commit`、`/dhpk:opsx-apply-resume`、`/dhpk:harness-audit`、`/dhpk:harness-govern`、`/dhpk:ui-ux-verify` 等 |
-| Canonical skills | 102 個扁平 `dhpk-*` package | 每個 capability 只有一個公開名稱，來源固定在 `skills/dhpk-*/`；module 與 Codex 專案面只做 projection，不是第二份來源。 |
+| Canonical skills | 103 個扁平 `dhpk-*` package | 每個 capability 只有一個公開名稱，來源固定在 `skills/dhpk-*/`；module 與 Codex 專案面只做 projection，不是第二份來源。 |
 | 技術棧模組 | 可選技術棧模組 | PHP、Yii、PHPUnit、Laravel、JavaScript、Vue、Laravel Mix、Next.js、React、Python、`library-author` 與 iOS/Swift 模組 |
 | Hooks | 4 個事件 | PreToolUse（Edit guard 與合併 Bash safety/Git gate）、PostToolUse（sentinel routing）、SessionStart（module activation）、SubagentStop（strict reviewer reconciliation） |
 | Hook dispatchers | 2 | `post-edit-dispatch.sh` 負責 sentinel routing；`pre-bash-dispatch.sh` 合併 deterministic shell 與 Git/review-debt gate |
@@ -256,7 +256,7 @@ dhpk/
 │   └── plugin.json               # 含 userConfig 的插件 manifest
 ├── agents/                       # 32 個角色 agent（31 root + 1 模組 reviewer；INDEX.md 為導覽用）
 ├── commands/                     # slash 指令（do、create-dev、codex-*、smart-commit、opsx-apply-resume、matrix-cell-onboard 等）
-├── skills/                       # SSOT：102 個扁平 canonical skill，皆為 skills/dhpk-<name>/
+├── skills/                       # SSOT：103 個扁平 canonical skill，皆為 skills/dhpk-<name>/
 ├── templates/                    # hook 引導用範本（graduation-candidates.md — 首次 graduation 執行時複製到 .claude/artifacts/）
 ├── modules/                      # 31 個可選用模組；skills/ 項目為相對 symlink projection
 │   ├── php-5.6/, php-7.4/, php-8.x/        # {module.yaml, skills/, references/, hooks/（僅 php-7.4）}
