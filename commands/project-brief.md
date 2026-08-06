@@ -6,6 +6,13 @@ metadata:
   dhpk-invocation-class: implicit-eligible
 ---
 
+## Contract
+
+Use to convert a readable technical spec into an executive brief; not to edit
+the source spec. See the [command contract](../docs/agent-guidance/command-contract.md).
+Stop when the source is missing or unreadable; completion reports the output
+path and unresolved decisions retained for review.
+
 ## Context
 
 - Project root: !`git rev-parse --show-toplevel`

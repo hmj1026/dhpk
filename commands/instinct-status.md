@@ -7,6 +7,13 @@ metadata:
 
 # Instinct Status Command
 
+## Contract
+
+Use to inspect project/global learned instincts; not to change their stored
+content. See the [command contract](../docs/agent-guidance/command-contract.md).
+Stop on an unreadable scope; completion reports project/global counts and the
+precedence applied to duplicate IDs.
+
 Shows learned instincts for the current project plus global instincts, grouped by domain.
 
 ## Implementation

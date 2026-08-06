@@ -1,6 +1,6 @@
 ---
 name: dhpk-laravel-6-notes
-description: Laravel 6.x (LTS, Sep 2019) signature features and the breaking-change traps from 5.8 → 6.0. Use when writing or reviewing code in a Laravel 6 project, or in a package whose composer constraint includes ^6.0. Covers job middleware, lazy collections, the Str/Arr helper migration, the strict-semver shift, and the deprecations Laravel 6 removed from 5.x. Not for application business logic — load when working on framework-touching code (service providers, jobs, model attributes) or planning a 5.8 → 6 upgrade. Output: version-specific guidance, migration traps, and verification gates.
+description: 'Laravel 6.x (LTS, Sep 2019) signature features and the breaking-change traps from 5.8 → 6.0. Use when writing or reviewing code in a Laravel 6 project, or in a package whose composer constraint includes ^6.0. Covers job middleware, lazy collections, the Str/Arr helper migration, the strict-semver shift, and the deprecations Laravel 6 removed from 5.x. Not for application business logic — load when working on framework-touching code (service providers, jobs, model attributes) or planning a 5.8 → 6 upgrade. Output: version-specific guidance, migration traps, and verification gates.'
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---
@@ -16,7 +16,7 @@ changes meaningfully.
 
 ---
 
-## Signature features
+## Signature features — source: locked framework docs; this reference is not application-policy SSOT
 
 ### Job middleware
 

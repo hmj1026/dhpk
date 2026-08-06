@@ -251,16 +251,78 @@ function checkRoutingSignature(fm) {
   return { pass: true };
 }
 
-function checkWhenNotSection(body) {
-  if (hasHeading(body, 'When NOT') || hasHeading(body, 'NOT to Use') || hasHeading(body, "Don't Use")) {
-    return { pass: true };
+function extractWhenNotSection(body) {
+  const heading = body.match(/^(#{2,})\s+.*(?:When NOT|NOT to Use|Don't Use).*$/im);
+  if (!heading || heading.index === undefined) return null;
+  const sectionStart = heading.index + heading[0].length;
+  const remainder = body.slice(sectionStart);
+  const level = heading[1].length;
+  const headingPattern = /^(#{2,})\s+/gm;
+  let nextHeading = -1;
+  let candidate;
+  while ((candidate = headingPattern.exec(remainder)) !== null) {
+    if (candidate[1].length <= level) {
+      nextHeading = candidate.index;
+      break;
+    }
   }
-  return {
-    pass: false,
-    severity: 'P1',
-    message: 'Missing "When NOT to Use" section in body',
-    fix: 'Add ## When NOT to Use section',
-  };
+  return (nextHeading === -1 ? remainder : remainder.slice(0, nextHeading)).trim();
+}
+
+function normalizeRouteToken(token) {
+  if (token.startsWith('@skills/')) return token.slice('@skills/'.length);
+  if (token.startsWith('/dhpk:')) {
+    const route = token.slice('/dhpk:'.length);
+    return route.startsWith('dhpk-') ? route : `dhpk-${route}`;
+  }
+  if (token.startsWith('dhpk:')) {
+    const route = token.slice('dhpk:'.length);
+    return route.startsWith('dhpk-') ? route : `dhpk-${route}`;
+  }
+  return token;
+}
+
+function checkWhenNotSection(body, knownSkillNames = null) {
+  const section = extractWhenNotSection(body);
+  if (section === null) {
+    return {
+      pass: false,
+      severity: 'P1',
+      message: 'Missing "When NOT to Use" section in body',
+      fix: 'Add a non-empty ## When NOT to Use section with a neighboring route or explicit exclusion',
+    };
+  }
+
+  const meaningful = section
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/^\s*[-*]\s*$/gm, '')
+    .trim();
+  if (!meaningful) {
+    return {
+      pass: false,
+      severity: 'P1',
+      message: 'Empty "When NOT to Use" section in body',
+      fix: 'Name a neighboring route or state an explicit exclusion under ## When NOT to Use',
+    };
+  }
+
+  if (knownSkillNames) {
+    const known = new Set(knownSkillNames);
+    const routePattern = /@skills\/[A-Za-z0-9][A-Za-z0-9-]*|\/dhpk:[A-Za-z0-9][A-Za-z0-9-]*|\bdhpk:[A-Za-z0-9][A-Za-z0-9-]*|\bdhpk-[A-Za-z0-9][A-Za-z0-9-]*/g;
+    const unresolved = [...new Set(
+      [...meaningful.matchAll(routePattern)].map((match) => normalizeRouteToken(match[0])),
+    )].filter((token) => !known.has(token));
+    if (unresolved.length > 0) {
+      return {
+        pass: false,
+        severity: 'P1',
+        message: `When NOT to Use names unresolvable route(s): ${unresolved.join(', ')}`,
+        fix: 'Use a shipped canonical route identifier or describe the exclusion without a stale route token',
+      };
+    }
+  }
+
+  return { pass: true };
 }
 
 function checkOutputSection(body) {
@@ -493,7 +555,7 @@ function findSkillDirs(root) {
 // Skill-level checks
 // ---------------------------------------------------------------------------
 
-function lintSkill(skillName, skillDir) {
+function lintSkill(skillName, skillDir, knownSkillNames = null) {
   const skillPath = join(skillDir, 'SKILL.md');
   const entry = readDiscoverableEntry(skillDir, 'SKILL.md', 'skill', `${skillName}/SKILL.md`);
   if (entry.finding) {
@@ -510,7 +572,7 @@ function lintSkill(skillName, skillDir) {
 
   findings.push({ check: 'frontmatter', ...checkFrontmatterExists(fm, skillName) });
   findings.push({ check: 'routing-signature', ...checkRoutingSignature(fm) });
-  findings.push({ check: 'when-not', ...checkWhenNotSection(body) });
+  findings.push({ check: 'when-not', ...checkWhenNotSection(body, knownSkillNames) });
   findings.push({ check: 'output', ...checkOutputSection(body) });
   findings.push({ check: 'verification', ...checkVerificationSection(body) });
   findings.push({ check: 'references-routing', ...checkReferencesRouting(skillDir, body) });
@@ -789,7 +851,8 @@ function main() {
 
   // Recursive discovery — finds nested skills (e.g. skills/gitnexus/<sub>/SKILL.md)
   const skillDirPaths = findSkillDirs(skillsDir);
-  const skillResults = skillDirPaths.map((p) => lintSkill(basename(p), p));
+  const skillNames = skillDirPaths.map((p) => basename(p));
+  const skillResults = skillDirPaths.map((p) => lintSkill(basename(p), p, skillNames));
   const skillDirs = skillResults.map((r) => r.name);
   const { commandFiles, skipped: skippedCommands } = commandFilesForDir(commandsDir);
   const commandFrontmatterFindings = detectCommandFrontmatter(commandFiles, commandsDir);
@@ -827,7 +890,8 @@ function main() {
         passCount++;
         if (f.warning) warnCount++;
       } else {
-        collectedFindings.push({ skill: result.name, ...f });
+        const skillPath = f.path || relative(skillsDir, result.path).split(sep).join('/');
+        collectedFindings.push({ skill: result.name, path: skillPath, ...f });
       }
     }
   }

@@ -8,6 +8,13 @@ metadata:
 
 # Evolve Command
 
+## Contract
+
+Use explicitly to inspect or generate evolved instinct structures; not for
+editing existing canonical skills, agents, or commands. See the [command
+contract](../docs/agent-guidance/command-contract.md). Stop on invalid scope or
+generation failure; completion reports candidates and generated paths/counts.
+
 ## Implementation
 
 Run the instinct CLI using the plugin root path:

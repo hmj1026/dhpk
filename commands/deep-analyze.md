@@ -10,10 +10,17 @@ metadata:
 
 @skills/dhpk-tech-spec/SKILL.md
 
+## Contract
+
+Use for proposal-to-roadmap analysis; not for applying an already approved
+change. See the [command contract](../docs/agent-guidance/command-contract.md).
+Stop when the proposal or repository cannot be read; completion reports
+verified assumptions, roadmap, alternatives, and unresolved risks.
+
 ## Context
 
 - Project root: !`git rev-parse --show-toplevel`
-- Recent changes: !`git diff --name-only HEAD~5 2>/dev/null | grep -E '^src/' | head -10`
+- Recent changes: !`git diff --name-only HEAD~5 2>/dev/null | head -10`
 
 ## Task
 
@@ -38,14 +45,16 @@ $ARGUMENTS
 Research the existing codebase thoroughly:
 
 ```bash
-# Find related implementations
-grep -r "keyword" src/ --include="*.ts" -l | head -10
+SOURCE_ROOT="${SOURCE_ROOT:-.}"
+
+# Find related implementations under the detected source root
+grep -r "keyword" "$SOURCE_ROOT"/ --include="*.ts" -l | head -10
 
 # Check similar features
-ls src/service/ src/provider/
+ls "$SOURCE_ROOT"/service/ "$SOURCE_ROOT"/provider/
 
 # Analyze specific implementation
-cat src/service/similar.service.ts | head -100
+cat "$SOURCE_ROOT"/service/similar.service.ts | head -100
 ```
 
 **Must verify**:
@@ -89,12 +98,12 @@ flowchart LR
 ### Step 1: [Title]
 
 **Objective**: One sentence
-**Files**: `src/xxx.ts` (modify/create)
+**Files**: `<source-root>/xxx.ts` (modify/create)
 
 **Pseudocode** (only when necessary, 1-3 lines):
 
 ```typescript
-// Reference: src/xxx.ts:50
+// Reference: <source-root>/xxx.ts:50
 await this.cache.set(key, data, TTL);
 ```
 

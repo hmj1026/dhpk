@@ -11,7 +11,7 @@ Design the smallest deep module that makes the caller's next decision easy.
 Keep this guidance stack-neutral until the repository evidence selects a
 framework or language.
 
-## Boundary tests
+## Boundary tests — SSOT: architecture/tests own runtime behavior; this skill owns boundary decisions
 
 - **Caller leverage**: define the decision the caller should make and make the
   module absorb the policy and variation behind that decision.
@@ -38,6 +38,15 @@ framework or language.
 Recommend a boundary, interface, data flow, and trade-offs. Record an ADR only
 when the decision is surprising, hard-to-reverse, or likely to be revisited;
 routine local choices belong in the implementation plan or tests.
+
+## When NOT to Use
+
+- Tracing an existing execution path without a boundary decision (use
+  `dhpk-codebase-exploration`).
+- Implementing an already-confirmed design (use `dhpk-feature-dev` or the
+  matching OpenSpec apply route).
+- Reviewing code or security controls (use `dhpk-change-review` or
+  `dhpk-security-review`).
 
 ## Verification
 

@@ -1,6 +1,6 @@
 ---
 name: dhpk-php-8x-features
-description: Use when the project's PHP floor permits 8.x syntax, when reviewing whether a 7.4-and-up library can adopt an 8.x idiom conditionally, or when designing an API with attributes, enums, readonly, or newer types. Not for everyday business logic, 7.4 baseline guidance, or legacy 5.6 code. Output: a feature recommendation or migration decision with its minimum PHP version and library-floor rule.
+description: 'Use when the project''s PHP floor permits 8.x syntax, when reviewing whether a 7.4-and-up library can adopt an 8.x idiom conditionally, or when designing an API with attributes, enums, readonly, or newer types. Not for everyday business logic, 7.4 baseline guidance, or legacy 5.6 code. Output: a feature recommendation or migration decision with its minimum PHP version and library-floor rule.'
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---

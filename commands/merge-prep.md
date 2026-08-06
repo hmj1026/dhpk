@@ -6,6 +6,13 @@ metadata:
   dhpk-invocation-class: implicit-eligible
 ---
 
+## Contract
+
+Use for analysis-only merge preparation; never auto-merge or mutate branches.
+See the [command contract](../docs/agent-guidance/command-contract.md). Stop
+when either branch is missing or the worktree is dirty; completion reports
+conflicts, evidence, and copy-pasteable commands.
+
 ## Context
 
 - Branch: !`git rev-parse --abbrev-ref HEAD`

@@ -8,7 +8,7 @@ metadata:
 
 # pr-review
 
-## When to use
+## When to use — SSOT: diff, repository rules, and validators own evidence; this skill owns review sequence
 
 - 自審你的 feature branch 在開 PR 前（基本 correctness / security / perf check）
 - 對既有 PR 跑 hygiene scan（特別是 squash merge → unrelated changes）

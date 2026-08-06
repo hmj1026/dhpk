@@ -7,7 +7,8 @@
 #   3. userConfig.review_trigger_extra_paths (slot-prefixed: code:, db:, sec:, fe:, doc:, mig:)
 #
 # Sentinels live at $ROOT/.claude/artifacts/sessions/.pending-{review,db-review,security-review,frontend-review,doc-review,polyfill-review,migration-review}
-# and are cleared by each review agent's Closing hook via clear-sentinel.sh.
+# and are cleared by the runtime verification hook after fresh passing
+# reviewer evidence; reviewers do not self-clear their sentinels.
 #
 # Self-edits to .claude/artifacts/** are skipped (review agents writing their
 # own reports would otherwise re-trigger themselves).

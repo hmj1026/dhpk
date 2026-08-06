@@ -7,7 +7,7 @@ metadata:
 
 # Legacy Code Characterization Skill
 
-## 概述
+## 概述 — source: observed behavior and existing tests are SSOT; this skill owns workflow, not production semantics
 
 針對無測試或低測試覆蓋率的 legacy code，撰寫 characterization tests（特徵測試）以鎖定現有行為，為後續重構提供安全網。
 

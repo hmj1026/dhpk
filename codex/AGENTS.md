@@ -106,7 +106,7 @@ manual fallback; do not invoke an unavailable agent name.
 
 ### Review discipline and hook boundaries
 
-Claude Code enforces post-edit review through hooks and `.pending-*` sentinel files: a PostToolUse hook writes a sentinel after an edit, and a reviewer agent clears it before work is considered done. Codex CLI supports lifecycle hooks from user/project `hooks.json` files or inline `[hooks]` TOML ([official Hooks documentation](https://learn.chatgpt.com/docs/hooks)), but those hooks are a separate Codex contract and do not reproduce dhpk's Claude sentinel chain automatically. A Codex `PreToolUse` hook can block a tool call; a `PostToolUse` hook runs after the tool and cannot undo its side effects.
+Claude Code enforces post-edit review through hooks and `.pending-*` sentinel files: a PostToolUse hook writes a sentinel after an edit, and the reviewer records evidence while the runtime hook clears it only after a fresh passing artifact. Codex CLI supports lifecycle hooks from user/project `hooks.json` files or inline `[hooks]` TOML ([official Hooks documentation](https://learn.chatgpt.com/docs/hooks)), but those hooks are a separate Codex contract and do not reproduce dhpk's Claude sentinel chain automatically. A Codex `PreToolUse` hook can block a tool call; a `PostToolUse` hook runs after the tool and cannot undo its side effects.
 
 Because of this, after ANY code edit made via a Codex role, the user or parent flow MUST manually invoke the appropriate review role via `/agent`:
 
