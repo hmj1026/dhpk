@@ -1,7 +1,7 @@
 name = "doc-reviewer"
 description = "Lightweight policy / harness doc reviewer. MANDATORY final step after editing `.codex/{agents,rules,commands,skills,manifests}/**/*.{md,json,yml,yaml}`, doc-only files under `.codex/{hooks,scripts}/` (non-`.sh`), top-level AGENTS.md / AGENTS.md / README*.md, and any `docs/**/*.md` or `openspec/**/*.md`. Covers two concerns: (1) frontmatter schema validation for `.md` DSL artifacts (agent / skill / command / rule files carrying a `---` frontmatter block) — name kebab-case, required per-kind fields, model value; (2) cross-file SSOT / link-validity checks for all in-scope docs. Does NOT review code quality — that's code-reviewer's job. Trigger: an explicit review request. Skip for `.codex/{memory,artifacts, worktrees}/**` (auto / transient content) and any `.sh` / source file in the diff. Do NOT skip when the change seems small, the doc looks self-contained, or a manual scan was done — the agent's value is the cross-file SSOT and link-validity checks."
 model = "gpt-5.6-luna"
-model_reasoning_effort = "xhigh"
+model_reasoning_effort = "medium"
 sandbox_mode = "read-only"
 
 developer_instructions = """

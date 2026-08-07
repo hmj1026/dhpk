@@ -18,9 +18,22 @@ function namesFrom(directory, extension) {
     .map((name) => name.slice(0, -extension.length));
 }
 
+function canonicalAgentNames(root) {
+  const names = new Set(
+    namesFrom(path.join(root, 'agents'), '.md').filter((name) => name !== 'INDEX'),
+  );
+  const modulesDir = path.join(root, 'modules');
+  if (!fs.existsSync(modulesDir)) return names;
+  for (const moduleName of fs.readdirSync(modulesDir)) {
+    const moduleAgents = path.join(modulesDir, moduleName, 'agents');
+    for (const name of namesFrom(moduleAgents, '.md')) names.add(name);
+  }
+  return names;
+}
+
 function tomlStringField(source, field) {
-  const inline = source.match(new RegExp(`^${field}\\s*=\\s*"([^"]*)"\\s*$`, 'm'));
-  if (inline) return inline[1];
+  const inline = source.match(new RegExp(`^${field}\\s*=\\s*"((?:\\\\.|[^"\\\\])*)"\\s*$`, 'm'));
+  if (inline) return inline[1].replace(/\\\\"/g, '"').replace(/\\\\\\\\/g, '\\\\');
 
   const multiline = source.match(new RegExp(`^${field}\\s*=\\s*"""([\\s\\S]*?)"""`, 'm'));
   return multiline ? multiline[1] : null;
@@ -79,7 +92,7 @@ function expectedSupportingDestinations(sourceRoot) {
     'dhpk/policies/execution-policy.md',
   ]);
   const trapRoot = path.join(sourceRoot, 'agent-traps');
-  for (const role of ['architect', 'code-reviewer', 'security-reviewer', 'database-reviewer', 'tdd-guide']) {
+  for (const role of ['architect', 'code-reviewer', 'security-reviewer', 'database-reviewer', 'tdd-guide', 'e2e-runner', 'migration-reviewer']) {
     const roleRoot = path.join(trapRoot, role);
     if (!fs.existsSync(roleRoot)) continue;
     for (const name of fs.readdirSync(roleRoot).filter((entry) => entry.endsWith('.md')).sort()) {
@@ -191,6 +204,15 @@ function collectCodexProjectionReferenceErrors(root, sourceRoot = root) {
     if (source.includes('../docs/contracts')) {
       errors.push(`${relative(root, file)} — generated Codex role retains unreachable parent-relative contract reference`);
     }
+    if (/(?:`|\(|\s)modules\/[A-Za-z0-9._-]+(?:\/[^`\s)]*)?/.test(source)) {
+      errors.push(`${relative(root, file)} — generated Codex role retains an unresolved source-module reference`);
+    }
+    if (/\bdhpk:[A-Za-z0-9_-]+/.test(source)) {
+      errors.push(`${relative(root, file)} — generated Codex role retains a Claude namespace reference`);
+    }
+    if (/\bclaude-mem\b/.test(source)) {
+      errors.push(`${relative(root, file)} — generated Codex role retains Claude-only claude-mem routing`);
+    }
     for (const reference of new Set(source.match(referencePattern) || [])) {
       if (reference.includes('<') || reference.includes('>')) continue;
       const relativeAsset = reference.slice('.codex/dhpk/'.length);
@@ -203,12 +225,78 @@ function collectCodexProjectionReferenceErrors(root, sourceRoot = root) {
   return errors;
 }
 
+function collectCodexCoverageErrors(root) {
+  const errors = [];
+  const mapPath = path.join(root, 'codex', 'agent-role-map.json');
+  if (!fs.existsSync(mapPath)) {
+    return ['codex/agent-role-map.json — canonical Codex coverage matrix is missing'];
+  }
+
+  let matrix;
+  try {
+    matrix = JSON.parse(fs.readFileSync(mapPath, 'utf8'));
+  } catch (error) {
+    return [`codex/agent-role-map.json — coverage matrix is not valid JSON: ${error.message}`];
+  }
+
+  const canonicalNames = canonicalAgentNames(root);
+  const roles = matrix && matrix.roles;
+  const statuses = new Set(Array.isArray(matrix && matrix.statuses) ? matrix.statuses : []);
+  const validStatuses = new Set([
+    'direct',
+    'merged',
+    'skill/manual-fallback',
+    'capability-gated',
+    'intentionally-unavailable',
+  ]);
+  if (!roles || typeof roles !== 'object' || Array.isArray(roles)) {
+    return ['codex/agent-role-map.json — coverage matrix must contain a roles object'];
+  }
+  for (const status of validStatuses) {
+    if (!statuses.has(status)) {
+      errors.push(`codex/agent-role-map.json — status vocabulary is missing '${status}'`);
+    }
+  }
+
+  const mappedNames = new Set(Object.keys(roles));
+  for (const name of [...canonicalNames].sort()) {
+    if (!mappedNames.has(name)) {
+      errors.push(`codex/agent-role-map.json — canonical role '${name}' is not classified`);
+    }
+  }
+  for (const name of [...mappedNames].sort()) {
+    if (!canonicalNames.has(name)) {
+      errors.push(`codex/agent-role-map.json — matrix contains non-canonical role '${name}'`);
+    }
+  }
+
+  const dispatchableNames = new Set(namesFrom(path.join(root, 'codex', 'agents'), '.toml'));
+  for (const name of [...canonicalNames].sort()) {
+    const entry = roles[name];
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      errors.push(`codex/agent-role-map.json — role '${name}' must have one classification object`);
+      continue;
+    }
+    if (!validStatuses.has(entry.status)) {
+      errors.push(`codex/agent-role-map.json — role '${name}' has invalid status '${entry.status || ''}'`);
+    }
+    if (typeof entry.target !== 'string' || !entry.target.trim()) {
+      errors.push(`codex/agent-role-map.json — role '${name}' must declare a non-empty target or rationale`);
+    }
+    if (entry.status === 'direct' && !dispatchableNames.has(entry.target)) {
+      errors.push(
+        `codex/agent-role-map.json — direct role '${name}' targets non-dispatchable Codex role '${entry.target}'`,
+      );
+    }
+  }
+  return errors;
+}
+
 function collectCodexRuntimeErrors(root) {
   const errors = [];
-  const canonicalDir = path.join(root, 'agents');
   const codexAgentsDir = path.join(root, 'codex', 'agents');
   const codexConfig = path.join(root, 'codex', 'config.toml.example');
-  const canonicalNames = new Set(namesFrom(canonicalDir, '.md'));
+  const canonicalNames = canonicalAgentNames(root);
   const codexFiles = namesFrom(codexAgentsDir, '.toml').sort();
   const dispatchableNames = new Set(codexFiles);
 
@@ -281,4 +369,8 @@ function collectCodexRuntimeErrors(root) {
   return errors;
 }
 
-module.exports = { collectCodexProjectionReferenceErrors, collectCodexRuntimeErrors };
+module.exports = {
+  collectCodexCoverageErrors,
+  collectCodexProjectionReferenceErrors,
+  collectCodexRuntimeErrors,
+};

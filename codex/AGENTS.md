@@ -78,7 +78,7 @@ unrelated project assets.
 
 ## dhpk main flow for Codex
 
-dhpk ships 11 Codex agent roles under `codex/agents/` (synced into `.codex/agents/`): 4 hand-maintained generic roles — `explorer` (read-only investigation), `worker` (generic scoped implementer), `monitor` (long-running task watcher), `bug-investigator` (root-cause investigation) — plus 7 roles generated from the canonical Claude agents — `architect`, `code-reviewer`, `security-reviewer`, `database-reviewer`, `tdd-guide`, `deep-reasoner`, `doc-reviewer`.
+dhpk ships 16 direct Codex agent roles under `codex/agents/` (synced into `.codex/agents/`): 4 hand-maintained generic roles — `explorer` (read-only investigation), `worker` (generic scoped implementer), `monitor` (long-running task watcher), `bug-investigator` (root-cause investigation) — plus 12 roles generated from the canonical agents — `architect`, `code-reviewer`, `security-reviewer`, `database-reviewer`, `tdd-guide`, `deep-reasoner`, `doc-reviewer`, `planner`, `spec-miner`, `frontend-reviewer`, `migration-reviewer`, `e2e-runner`.
 
 Codex CLI has no `/dhpk:do` command or dhpk slash-command router. It does provide built-in commands such as `/hooks`; the workflows below are **instructions to follow manually**, invoking each role in turn with `/agent <role-name>`:
 
@@ -98,8 +98,11 @@ specialist handoffs, but the generator adapts those references for Codex:
 - `code-reviewer` uses the available `deep-reasoner` for deep error-handling
   review and `architect` for non-trivial type/design review; the reviewer may
   perform either check directly when a second role is unnecessary.
-- `tdd-guide` does not promise a dedicated E2E role. The parent must run the
-  project's Playwright command manually and record the result.
+- `tdd-guide` may hand browser journeys to the available `e2e-runner` role.
+- `e2e-runner` is workspace-write because it may create and maintain test
+  specs, fixtures, and artifacts; if Playwright or a browser is unavailable it
+  must return `Verdict: BLOCKED` with the resume command instead of claiming a
+  pass.
 
 If a project does not expose the required runner or role, use the documented
 manual fallback; do not invoke an unavailable agent name.
@@ -119,7 +122,7 @@ Because of this, after ANY code edit made via a Codex role, the user or parent f
 
 ### Agent roster → Codex role map
 
-**Available in Codex** (`codex/agents/`, 11 roles):
+**Available in Codex** (`codex/agents/`, 16 roles):
 
 | Role | Use for |
 |------|---------|
@@ -134,19 +137,37 @@ Because of this, after ANY code edit made via a Codex role, the user or parent f
 | `tdd-guide` | Write-tests-first workflow |
 | `deep-reasoner` | Deep root-cause analysis and algorithm design |
 | `doc-reviewer` | Policy and documentation review |
+| `planner` | Plan critique and bounded warm/cold diff review |
+| `spec-miner` | Brownfield behavioral-spec extraction |
+| `frontend-reviewer` | Frontend JavaScript/TypeScript review |
+| `migration-reviewer` | Migration safety and rollback review |
+| `e2e-runner` | Playwright user-journey authoring and execution |
 
-**Claude-only (unavailable in Codex)**:
+The canonical source also contains roles that are not standalone Codex
+dispatch targets. Their outcome is explicit in
+[`agent-role-map.json`](agent-role-map.json), and the matrix is validated so
+each canonical role is classified exactly once:
 
-| Role | Reason unavailable |
+- `direct`: a standalone `.toml` role is dispatchable by Codex.
+- `merged`: the role's contract is handled by the named direct target; invoke
+  that target instead of an unavailable alias.
+- `skill/manual-fallback`: use a mirrored skill or perform the documented
+  workflow manually when no isolated role is needed.
+- `capability-gated`: dispatch only when the named runtime/module capability is
+  present; otherwise report the missing capability and stop.
+- `intentionally-unavailable`: do not dispatch inside Codex; the target field
+  records the explicit reason.
+
+| Coverage outcome | Canonical roles |
 |------|--------------------|
-| `planner` | Bound to `/dhpk:do --plan` and the Task-tool mechanism, neither of which exists in Codex |
-| `frontend-reviewer`, `migration-reviewer`, `polyfill-reviewer` | Narrow / situational reviewers (front-end tiers, migration safety, multi-major polyfills) — delivered as `codex/skills/` content rather than forked roles; the generic `code-reviewer` covers the common path in Codex |
-| `ui-ux-verifier`, `e2e-runner`, `docs-lookup` | Depend on Playwright/MCP agent wiring not mirrored into Codex |
-| `performance-analyzer`, `silent-failure-hunter`, `refactor-cleaner` | Narrow situational hunters — delivered as skills instead (per ECC's precedent), not per-agent forks |
-| `python-build-resolver`, `rust-build-resolver`, `swift-build-resolver` | Stack-specific build-resolvers not mirrored as Codex roles |
-| `codex-bridge` | Codex-about-Codex role — not applicable from inside Codex itself |
+| `merged` | `codex-deep-reasoner`, `codex-fast-worker`, `fast-worker`, `performance-analyzer`, `refactor-cleaner`, `silent-failure-hunter`, `type-design-analyzer` |
+| `skill/manual-fallback` | `agent-evaluator`, `agy-fast-worker`, `doc-updater`, `docs-lookup`, `harness-reviser`, `python-build-resolver`, `rust-build-resolver`, `swift-build-resolver`, `version-matrix-impact-reviewer` |
+| `capability-gated` | `polyfill-reviewer`, `smoke-tester`, `ui-ux-verifier` |
+| `intentionally-unavailable` | `codex-bridge` |
 
-Specialization for these areas is delivered through the mirrored `codex/skills/` tree, not through per-agent forks.
+Specialization for fallback areas is delivered through the mirrored
+`codex/skills/` tree or an explicitly documented capability gate, not through
+an implicit unavailable-agent handoff.
 
 ## Key Differences from Claude Code
 
@@ -164,4 +185,4 @@ Codex lifecycle hooks and `sandbox_mode` are independent controls: hooks can enf
 
 Syncing `.codex/agents/` alone is sufficient for role discovery — each role `.toml` file carries its own `name` field, and Codex CLI reads roles directly from that directory. The `[agents.<name>]` blocks in `config.toml.example` are **optional**: they add a description or nickname. The supported top-level concurrency setting is `max_concurrent_threads_per_session`; the example also shows the effective default subagent model and reasoning effort.
 
-Every `codex/agents/*.toml` file MUST declare non-empty `name`, `description`, `model`, `model_reasoning_effort`, and `developer_instructions` — Codex CLI auto-discovers `.codex/agents/*.toml` and errors "must define a non-empty name" if `name` is missing, and the plugin's `validate_codex` guardrail enforces the runtime metadata contract. Codex agent definitions are TOML-only; legacy Markdown role bodies are not dispatchable. The 7 generated roles are produced by `scripts/gen-codex-agents.js` from the canonical `agents/<name>.md` sources; the generator is deterministic/idempotent (re-running with no source change produces byte-identical output) and does not touch the 4 hand-maintained roles.
+Every `codex/agents/*.toml` file MUST declare non-empty `name`, `description`, `model`, `model_reasoning_effort`, and `developer_instructions` — Codex CLI auto-discovers `.codex/agents/*.toml` and errors "must define a non-empty name" if `name` is missing, and the plugin's `validate_codex` guardrail enforces the runtime metadata contract. Codex agent definitions are TOML-only; legacy Markdown role bodies are not dispatchable. The 12 generated roles are produced by `scripts/gen-codex-agents.js` from the canonical `agents/<name>.md` sources; the generator is deterministic/idempotent (re-running with no source change produces byte-identical output) and does not touch the 4 hand-maintained roles. Model and effort rationale is maintained in `../rules/model-economics.md`.

@@ -20,6 +20,33 @@ SSOT for **which model tier each role runs on, and the cost rules that govern ti
 | `architect` | fable @ low | Cheap architecture-consult tier — cross-module / DDD design judgment; up-only escalation to a higher tier for HIGH-risk designs via the configured-role override. |
 | `spec-miner` | opus | Behavioral-spec extraction — reasoning-heavy, not discovery. |
 
+## Codex projection map
+
+This section is the Codex-specific projection of the policy above. Codex custom
+agents set `model` and `model_reasoning_effort` per role; they do not expose a
+custom `max_output_tokens` field, so token economics are controlled through the
+model tier, effort, prompt scope, concurrency, and retry policy. The current
+standard API rates used for comparison are documented in the [OpenAI model
+catalog](https://developers.openai.com/api/docs/models) and [API pricing
+guide](https://developers.openai.com/api/docs/pricing): Sol `$5/$30`, Terra
+`$2/$12`, and Luna `$0.20/$1.20` per million input/output tokens.
+
+| Codex roles | Model | Effort | Cost/quality rationale |
+|---|---|---|---|
+| `architect`, `bug-investigator`, `deep-reasoner`, `migration-reviewer`, `planner`, `security-reviewer`, `spec-miner` | `gpt-5.6-sol` | `high` | Design, root-cause, migration-risk, and spec judgment have high failure/retry cost; use the frontier tier without defaulting to `max`. |
+| `code-reviewer` | `gpt-5.6-terra` | `medium` | High-frequency review baseline; enough reasoning for normal diffs, with explicit escalation for high-risk changes. |
+| `database-reviewer`, `e2e-runner`, `frontend-reviewer` | `gpt-5.6-terra` | `high` | Structured specialist checks benefit from more reasoning while avoiding frontier cost; E2E remains quality-sensitive and fail-loud when the browser capability is absent. |
+| `explorer` | `gpt-5.6-terra` | `medium` | Read-heavy evidence gathering needs breadth and coherent synthesis, but not frontier judgment by default. |
+| `worker`, `tdd-guide` | `gpt-5.6-luna` | `max` | Explicit quality-first exception: implementation and RED→GREEN guidance have high accepted-outcome and retry cost, so maximum effort on the efficient tier is cheaper than repeated weaker passes. |
+| `doc-reviewer` | `gpt-5.6-luna` | `medium` | Deterministic frontmatter/link/SSOT checks are narrow and frequent. |
+| `monitor` | `gpt-5.6-luna` | `low` | Polling and state-change reporting are low-complexity, high-volume work. |
+
+Global Codex defaults are `gpt-5.6-luna` at `medium`; every direct role pins
+its own exception in its TOML file. `worker` and `tdd-guide` being `max` is
+intentional and does not make `max` the global default. Escalate only when the
+acceptance contract or observed retries justify it, and calculate accepted
+outcome cost across parallel calls rather than comparing one-call prices.
+
 Routing (which role for which work shape) is the `execution-policy` §Implementation dispatch table — see it, do not restate it here.
 
 ## Master cost rules

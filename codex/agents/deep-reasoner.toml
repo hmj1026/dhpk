@@ -24,7 +24,7 @@ Reasoning-heavy implementation worker. No Edit/Write — this agent thinks, trac
 
 ## Defers to architect
 
-This agent does **not** own DDD-layer placement or cross-module architecture decisions. When the dispatched question is primarily such a design decision (\"which layer should this live in\", \"how should these modules relate\"), state that `dhpk:architect` is the right agent and return early — do not produce a competing design.
+This agent does **not** own DDD-layer placement or cross-module architecture decisions. When the dispatched question is primarily such a design decision (\"which layer should this live in\", \"how should these modules relate\"), state that `architect` is the right agent and return early — do not produce a competing design.
 
 ## Method
 
