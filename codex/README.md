@@ -66,11 +66,11 @@ name. Confirm that the specific `$dhpk-<name>` resolves.
 
 ## Agent roles
 
-`codex/agents/` ships 11 roles (synced into `.codex/agents/`): 4 hand-maintained generic roles (`explorer`, `worker`, `monitor`, `bug-investigator`) plus 7 roles generated from the canonical Claude agents (`architect`, `code-reviewer`, `security-reviewer`, `database-reviewer`, `tdd-guide`, `deep-reasoner`, `doc-reviewer`). See `AGENTS.md` for the full role map and manual invocation workflows.
+`codex/agents/` ships 16 direct roles (synced into `.codex/agents/`): 4 hand-maintained generic roles (`explorer`, `worker`, `monitor`, `bug-investigator`) plus 12 roles generated from the canonical agents (`architect`, `code-reviewer`, `security-reviewer`, `database-reviewer`, `tdd-guide`, `deep-reasoner`, `doc-reviewer`, `planner`, `spec-miner`, `frontend-reviewer`, `migration-reviewer`, `e2e-runner`). See `AGENTS.md` and [`agent-role-map.json`](agent-role-map.json) for the complete role map and manual/capability-gated outcomes.
 
 Every `codex/agents/*.toml` file must declare non-empty `name`, `description`, `model`, `model_reasoning_effort`, and `developer_instructions` — Codex CLI auto-discovers `.codex/agents/*.toml` and errors if `name` is missing. Agent definitions use TOML only; the plugin's `validate_codex` gate enforces the runtime metadata contract.
 
-The 7 generated roles come from `scripts/gen-codex-agents.js`, run as:
+The 12 generated roles come from `scripts/gen-codex-agents.js`, run as:
 
 ```bash
 node scripts/gen-codex-agents.js
@@ -79,9 +79,11 @@ node scripts/gen-codex-agents.js
 The generator is deterministic — a re-run with no source change produces no diff. It leaves the 4 hand-maintained roles untouched.
 
 The generator also applies the Codex handoff boundary: generated instructions
-may reference only roles that are present in `codex/agents/`. Claude-only
-specialist roles are represented by the documented available-role or manual
-fallback policy in `AGENTS.md`; they are not dispatchable from Codex.
+may reference only roles that are present in `codex/agents/`. The complete
+canonical-agent coverage matrix is maintained in `agent-role-map.json`; roles
+that are merged, skill/manual-fallback, capability-gated, or intentionally
+unavailable must be explicit there rather than silently dropped. The status
+definitions and dispatch guidance live in `AGENTS.md`.
 
 ## Uninstall
 

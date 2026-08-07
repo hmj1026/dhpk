@@ -175,6 +175,27 @@
       "destination": "dhpk/agent-traps/tdd-guide/swift.md"
     },
     {
+      "id": "codex-supporting-agent-traps-e2e-runner-playwright-md",
+      "source": "agent-traps/e2e-runner/playwright.md",
+      "destination": "dhpk/agent-traps/e2e-runner/playwright.md"
+    },
+    {
+      "id": "codex-supporting-agent-traps-migration-reviewer-ios-md",
+      "source": "codex/supporting/agent-traps/migration-reviewer/ios.md",
+      "canonical_source": "agent-traps/migration-reviewer/ios.md",
+      "canonical_digest": "a18d8299dd1a4bc793d60be1589389b0cd5624a2f98a560b2a868e6b2279b7d9",
+      "projection_digest": "a18d8299dd1a4bc793d60be1589389b0cd5624a2f98a560b2a868e6b2279b7d9",
+      "destination": "dhpk/agent-traps/migration-reviewer/ios.md"
+    },
+    {
+      "id": "codex-supporting-agent-traps-migration-reviewer-yii-md",
+      "source": "codex/supporting/agent-traps/migration-reviewer/yii.md",
+      "canonical_source": "agent-traps/migration-reviewer/yii.md",
+      "canonical_digest": "18ac96940b3a1c95e84a3a72864167072f10d33ede08564a964e4a446fecd2cd",
+      "projection_digest": "0ba8275c0b10ad5dde89fa8c2d13ad57d01217485bf04e640023b73524b867b0",
+      "destination": "dhpk/agent-traps/migration-reviewer/yii.md"
+    },
+    {
       "id": "codex-supporting-contracts-artifact-contract-md",
       "source": "codex/supporting/contracts/artifact-contract.md",
       "canonical_source": "docs/contracts/artifact-contract.md",

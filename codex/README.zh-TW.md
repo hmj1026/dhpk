@@ -73,11 +73,12 @@ Codex 沒有 Claude 式 slash-command namespace，因此 `dhpk-` 是 public skil
 
 ## Agent roles
 
-`codex/agents/` 提供 11 個角色：4 個手動維護的通用角色（`explorer`、`worker`、
-`monitor`、`bug-investigator`），以及 7 個由 canonical Claude agent 產生的角色
-（`architect`、`code-reviewer`、`security-reviewer`、`database-reviewer`、
-`tdd-guide`、`deep-reasoner`、`doc-reviewer`）。完整 role map 與 handoff boundary 見
-[`AGENTS.md`](./AGENTS.md)。
+`codex/agents/` 提供 16 個可直接派送的角色：4 個手動維護的通用角色（`explorer`、
+`worker`、`monitor`、`bug-investigator`），以及 12 個由 canonical agent 產生的角色
+（`architect`、`code-reviewer`、`security-reviewer`、`database-reviewer`、`tdd-guide`、
+`deep-reasoner`、`doc-reviewer`、`planner`、`spec-miner`、`frontend-reviewer`、
+`migration-reviewer`、`e2e-runner`）。完整 role map、fallback 與 capability gate 見
+[`AGENTS.md`](./AGENTS.md) 及 [`agent-role-map.json`](./agent-role-map.json)。
 
 ## 移除
 
