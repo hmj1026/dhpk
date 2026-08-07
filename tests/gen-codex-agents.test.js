@@ -1,7 +1,7 @@
 'use strict';
 
 // Coverage for scripts/gen-codex-agents.js — generates Codex CLI role .toml
-// files from the curated 7-agent allowlist under agents/<name>.md. Source
+// files from the curated 12-agent allowlist under agents/<name>.md. Source
 // dir is fixed to the repo's real agents/ (read-only, never mutated by this
 // script), but the output dir is a CLI arg — always point it at a temp dir
 // so the repo's own codex/agents/ output is never touched.
@@ -23,6 +23,11 @@ const EXPECTED_AGENTS = [
   'tdd-guide',
   'deep-reasoner',
   'doc-reviewer',
+  'planner',
+  'spec-miner',
+  'frontend-reviewer',
+  'migration-reviewer',
+  'e2e-runner',
 ];
 
 function mkTmp() {
@@ -52,13 +57,13 @@ test('too many positional args throws and exits 1', () => {
   assert.ok(res.stderr.includes('at most one output directory'), res.stderr);
 });
 
-test('generates exactly the 7-agent allowlist as .toml files with derived fields', () => {
+test('generates exactly the 12-agent allowlist as .toml files with derived fields', () => {
   const tmp = mkTmp();
   try {
     const outDir = path.join(tmp, 'out');
     const res = runScript([outDir]);
     assert.strictEqual(res.status, 0, res.stderr);
-    assert.ok(res.stdout.includes('Generated 7 Codex role file(s).'), res.stdout);
+    assert.ok(res.stdout.includes('Generated 12 Codex role file(s).'), res.stdout);
 
     const files = fs.readdirSync(outDir).sort();
     assert.deepStrictEqual(files, EXPECTED_AGENTS.map((n) => `${n}.toml`).sort());
@@ -72,6 +77,14 @@ test('generates exactly the 7-agent allowlist as .toml files with derived fields
     const tddGuide = fs.readFileSync(path.join(outDir, 'tdd-guide.toml'), 'utf8');
     assert.ok(tddGuide.includes('model = "gpt-5.6-luna"'), tddGuide);
     assert.ok(tddGuide.includes('model_reasoning_effort = "max"'), tddGuide);
+    const e2eRunner = fs.readFileSync(path.join(outDir, 'e2e-runner.toml'), 'utf8');
+    assert.ok(e2eRunner.includes('sandbox_mode = "workspace-write"'), e2eRunner);
+    assert.match(e2eRunner, /Verdict: BLOCKED/);
+    const migrationReviewer = fs.readFileSync(path.join(outDir, 'migration-reviewer.toml'), 'utf8');
+    assert.doesNotMatch(migrationReviewer, /(?:dhpk:|claude-mem)/);
+    assert.match(migrationReviewer, /`database-reviewer`/);
+    assert.match(migrationReviewer, /`cx`\/GitNexus symbol-level pre-edit guidance/);
+    assert.doesNotMatch(fs.readFileSync(path.join(outDir, 'deep-reasoner.toml'), 'utf8'), /dhpk:/);
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }

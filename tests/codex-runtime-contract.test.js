@@ -14,18 +14,34 @@ const { collectCodexRuntimeErrors } = require(
 const { collectCodexProjectionReferenceErrors } = require(
   path.join(ROOT, 'scripts', 'ci', '_lib', 'codex-runtime')
 );
+const { collectCodexCoverageErrors } = require(
+  path.join(ROOT, 'scripts', 'ci', '_lib', 'codex-runtime')
+);
 
 const EXPECTED_RUNTIME = {
   architect: ['gpt-5.6-sol', 'high'],
-  'code-reviewer': ['gpt-5.6-sol', 'medium'],
-  'security-reviewer': ['gpt-5.6-sol', 'medium'],
-  'database-reviewer': ['gpt-5.6-sol', 'medium'],
+  'code-reviewer': ['gpt-5.6-terra', 'medium'],
+  'security-reviewer': ['gpt-5.6-sol', 'high'],
+  'database-reviewer': ['gpt-5.6-terra', 'high'],
   'tdd-guide': ['gpt-5.6-luna', 'max'],
   'deep-reasoner': ['gpt-5.6-sol', 'high'],
-  'doc-reviewer': ['gpt-5.6-luna', 'xhigh'],
+  'doc-reviewer': ['gpt-5.6-luna', 'medium'],
+  planner: ['gpt-5.6-sol', 'high'],
+  'spec-miner': ['gpt-5.6-sol', 'high'],
+  'frontend-reviewer': ['gpt-5.6-terra', 'high'],
+  'migration-reviewer': ['gpt-5.6-sol', 'high'],
+  'e2e-runner': ['gpt-5.6-terra', 'high'],
 };
 
-const UNAVAILABLE_HANDOFFS = /`(?:silent-failure-hunter|type-design-analyzer|e2e-runner|fast-worker)`/;
+const EXPECTED_DIRECT_RUNTIME = {
+  ...EXPECTED_RUNTIME,
+  explorer: ['gpt-5.6-terra', 'medium'],
+  worker: ['gpt-5.6-luna', 'max'],
+  monitor: ['gpt-5.6-luna', 'low'],
+  'bug-investigator': ['gpt-5.6-sol', 'high'],
+};
+
+const UNAVAILABLE_HANDOFFS = /`(?:silent-failure-hunter|type-design-analyzer|ui-ux-verifier|fast-worker)`/;
 
 function tmpRoot(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), `dhpk-${prefix}-`));
@@ -47,6 +63,23 @@ test('the Codex projection satisfies runtime metadata and handoff contracts', ()
   assert.deepStrictEqual(errors, [], errors.join('\n'));
 });
 
+test('the canonical agent coverage matrix classifies every role exactly once', () => {
+  const errors = collectCodexCoverageErrors(ROOT);
+  assert.deepStrictEqual(errors, [], errors.join('\n'));
+});
+
+test('all committed direct roles match the approved runtime map and global defaults', () => {
+  for (const [role, [model, effort]] of Object.entries(EXPECTED_DIRECT_RUNTIME)) {
+    const file = path.join(ROOT, 'codex', 'agents', `${role}.toml`);
+    assert.strictEqual(readTomlField(file, 'model'), model, role);
+    assert.strictEqual(readTomlField(file, 'model_reasoning_effort'), effort, role);
+    assert.notStrictEqual(model, 'gpt-5.5', role);
+  }
+  const config = fs.readFileSync(path.join(ROOT, 'codex', 'config.toml.example'), 'utf8');
+  assert.match(config, /default_subagent_model\s*=\s*"gpt-5\.6-luna"/);
+  assert.match(config, /default_subagent_reasoning_effort\s*=\s*"medium"/);
+});
+
 test('the generator emits the effective Codex model metadata and compatible handoffs', () => {
   const root = tmpRoot('codex-generator-contract');
   try {
@@ -62,6 +95,14 @@ test('the generator emits the effective Codex model metadata and compatible hand
       assert.doesNotMatch(source, UNAVAILABLE_HANDOFFS, role);
     }
 
+    const e2eRunner = fs.readFileSync(path.join(output, 'e2e-runner.toml'), 'utf8');
+    assert.strictEqual(readTomlField(path.join(output, 'e2e-runner.toml'), 'sandbox_mode'), 'workspace-write');
+    assert.match(e2eRunner, /Verdict: BLOCKED/);
+    assert.match(e2eRunner, /playwright-cli/);
+    assert.doesNotMatch(e2eRunner, /ui-ux-verifier/);
+    assert.doesNotMatch(fs.readFileSync(path.join(output, 'frontend-reviewer.toml'), 'utf8'), /modules\/js\//);
+    assert.doesNotMatch(fs.readFileSync(path.join(output, 'migration-reviewer.toml'), 'utf8'), /modules\/(?:yii|laravel)/);
+    assert.doesNotMatch(fs.readFileSync(path.join(output, 'planner.toml'), 'utf8'), /`\/dhpk:do(?:\s|`)/);
     assert.doesNotMatch(readTomlField(path.join(output, 'doc-reviewer.toml'), 'description'), /\bHaiku\b/i);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
@@ -74,7 +115,7 @@ test('the Codex runtime validator catches stale labels, unavailable handoffs, an
     write(path.join(root, 'agents', 'code-reviewer.md'), '---\nname: code-reviewer\n---\n');
     write(path.join(root, 'agents', 'silent-failure-hunter.md'), '---\nname: silent-failure-hunter\n---\n');
     write(path.join(root, 'agents', 'type-design-analyzer.md'), '---\nname: type-design-analyzer\n---\n');
-    write(path.join(root, 'agents', 'e2e-runner.md'), '---\nname: e2e-runner\n---\n');
+    write(path.join(root, 'agents', 'ui-ux-verifier.md'), '---\nname: ui-ux-verifier\n---\n');
     write(path.join(root, 'codex', 'agents', 'legacy.md'), 'legacy Codex agent body\n');
     write(
       path.join(root, 'codex', 'agents', 'code-reviewer.toml'),
@@ -83,7 +124,7 @@ test('the Codex runtime validator catches stale labels, unavailable handoffs, an
         'description = "Review role (Haiku)"',
         'model = "gpt-5.6-sol"',
         'model_reasoning_effort = "medium"',
-        'developer_instructions = "Use `silent-failure-hunter`, `type-design-analyzer`, and `e2e-runner`."',
+        'developer_instructions = "Use `silent-failure-hunter`, `type-design-analyzer`, `ui-ux-verifier`, and `dhpk:legacy-agent`; do not consult claude-mem."',
         '',
       ].join('\n'),
     );
@@ -93,7 +134,9 @@ test('the Codex runtime validator catches stale labels, unavailable handoffs, an
     assert.ok(errors.some((error) => error.includes('Haiku')), errors.join('\n'));
     assert.ok(errors.some((error) => error.includes('silent-failure-hunter')), errors.join('\n'));
     assert.ok(errors.some((error) => error.includes('type-design-analyzer')), errors.join('\n'));
-    assert.ok(errors.some((error) => error.includes('e2e-runner')), errors.join('\n'));
+    assert.ok(errors.some((error) => error.includes('ui-ux-verifier')), errors.join('\n'));
+    assert.ok(errors.some((error) => error.includes('Claude namespace')), errors.join('\n'));
+    assert.ok(errors.some((error) => error.includes('claude-mem')), errors.join('\n'));
     assert.ok(errors.some((error) => error.includes('must use the .toml format')), errors.join('\n'));
     assert.ok(errors.some((error) => error.includes('max_concurrent_threads_per_session')), errors.join('\n'));
   } finally {

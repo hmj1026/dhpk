@@ -14,15 +14,20 @@ const DEFAULT_OUT_DIR = path.join(ROOT, 'codex', 'agents');
 // reasoning effort.
 const RUNTIME_METADATA = Object.freeze({
   architect: { model: 'gpt-5.6-sol', effort: 'high' },
-  'code-reviewer': { model: 'gpt-5.6-sol', effort: 'medium' },
-  'security-reviewer': { model: 'gpt-5.6-sol', effort: 'medium' },
-  'database-reviewer': { model: 'gpt-5.6-sol', effort: 'medium' },
+  'code-reviewer': { model: 'gpt-5.6-terra', effort: 'medium' },
+  'security-reviewer': { model: 'gpt-5.6-sol', effort: 'high' },
+  'database-reviewer': { model: 'gpt-5.6-terra', effort: 'high' },
   'tdd-guide': { model: 'gpt-5.6-luna', effort: 'max' },
   'deep-reasoner': { model: 'gpt-5.6-sol', effort: 'high' },
-  'doc-reviewer': { model: 'gpt-5.6-luna', effort: 'xhigh' },
+  'doc-reviewer': { model: 'gpt-5.6-luna', effort: 'medium' },
+  planner: { model: 'gpt-5.6-sol', effort: 'high' },
+  'spec-miner': { model: 'gpt-5.6-sol', effort: 'high' },
+  'frontend-reviewer': { model: 'gpt-5.6-terra', effort: 'high' },
+  'migration-reviewer': { model: 'gpt-5.6-sol', effort: 'high' },
+  'e2e-runner': { model: 'gpt-5.6-terra', effort: 'high' },
 });
 
-// Curated allowlist — EXACTLY these 7, in emit order. Each entry pins a
+// Curated allowlist — EXACTLY these 12, in emit order. Each entry pins a
 // category (not the source frontmatter's effort). The 4 hand-maintained Codex
 // roles (bug-investigator, explorer, monitor, worker) are intentionally absent
 // and are never read or overwritten: any drift check scopes to these names.
@@ -34,6 +39,11 @@ const AGENTS = [
   { name: 'tdd-guide' },
   { name: 'deep-reasoner' },
   { name: 'doc-reviewer' },
+  { name: 'planner' },
+  { name: 'spec-miner' },
+  { name: 'frontend-reviewer' },
+  { name: 'migration-reviewer' },
+  { name: 'e2e-runner' },
 ];
 
 // Fixed, line-level boilerplate matchers. Every match is a Claude-only tooling
@@ -225,14 +235,45 @@ function adaptCodexBody(agentName, body) {
       .replaceAll('`silent-failure-hunter`', '`deep-reasoner` (Codex fallback; otherwise perform the audit directly)')
       .replaceAll('`type-design-analyzer`', '`architect` (Codex fallback; otherwise perform the design check directly)');
   }
-  if (agentName === 'tdd-guide') {
-    adapted = adapted.replace(
-      /browser\s+journeys; route those journeys to `e2e-runner`\./,
-      "browser journeys; Codex has no dedicated E2E role, so the parent must run the project's Playwright command manually and record the result.",
-    );
+  if (agentName === 'e2e-runner') {
+    adapted = adapted
+      .replaceAll('`ui-ux-verifier`', 'a manual page-vs-spec UI audit fallback')
+      .replaceAll('**ui-ux-verifier**', '**manual page-vs-spec UI audit fallback**')
+      .replaceAll('ui-ux-verifier', 'manual page-vs-spec UI audit fallback')
+      .replaceAll('Verdict: PASS | WARNING | FAIL', 'Verdict: PASS | WARNING | FAIL | BLOCKED')
+      .replace(
+        'Before reporting a RED/GREEN (or PASS/FAIL) verdict, run the project\'s typecheck command',
+        "If Playwright or the browser capability is unavailable, return `Verdict: BLOCKED` as the first line with the missing capability and the exact command needed to resume. Before reporting a RED/GREEN (or PASS/FAIL) verdict, run the project's typecheck command",
+      );
+  }
+  if (agentName === 'planner') {
+    adapted = adapted
+      .replaceAll('`/dhpk:do --plan`', 'Codex plan mode')
+      .replaceAll('`/dhpk:do`', 'the Codex orchestrator');
+  }
+  if (agentName === 'frontend-reviewer') {
+    adapted = adapted
+      .replaceAll('`modules/js/references/static-checks.md`', 'the project frontend lint and type-check configuration')
+      .replaceAll('`modules/js/references/frontend-review-patterns.md`', 'the project frontend review patterns or a manual grep fallback')
+      .replaceAll('skill `js-lint-config`', 'the project ESLint configuration')
+      .replaceAll('skill `js-static-check-strategy`', 'the project TypeScript and static-check configuration')
+      .replaceAll('`js-lint-config`', 'the project ESLint configuration')
+      .replaceAll('`js-static-check-strategy`', 'the project TypeScript and static-check configuration')
+      .replaceAll('`modules/js/hooks/_lib/js-tier-detect.sh`', 'the project stack-detection command, when one is provided');
+  }
+  if (agentName === 'migration-reviewer') {
+    adapted = adapted
+      .replaceAll('`dhpk:database-reviewer`', '`database-reviewer`')
+      .replaceAll(
+        '`dhpk:dhpk-tool-routing` skill (cx / gitnexus / claude-mem routing for the symbol-level pre-edit lookups)',
+        '`cx`/GitNexus symbol-level pre-edit guidance',
+      )
+      .replaceAll('`modules/yii-1.1/references/framework.md`', 'the project Yii migration API documentation')
+      .replaceAll('`modules/laravel-*/`', 'the project Laravel migration documentation');
   }
   if (agentName === 'deep-reasoner') {
     adapted = adapted
+      .replaceAll('`dhpk:architect`', '`architect`')
       .replaceAll('`fast-worker`', '`worker`')
       .replaceAll('`e2e-runner`', 'a project-specific executable browser probe');
   }

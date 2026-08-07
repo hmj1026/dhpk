@@ -1,7 +1,7 @@
 {
-  "sourceVersion": "0.36.0",
-  "sourceCommit": "903e5d2999a0cd990114e205a73316572643e22d",
-  "inventoryDigest": "6ebbe4764e0fd4a2e0dee3a84c87614141e2e5c68ef6fd6925383dbbb27f14ad",
+  "sourceVersion": "0.37.0",
+  "sourceCommit": "ae4ddd18ce60772a9292b296df14d2d15f38422d",
+  "inventoryDigest": "883704349f5a4e4c1b81d313c097f15f05d7120afd252892915d69245740b092",
   "generatorVersion": "2.2.0",
   "selectedSkillIds": [
     "agy-commit",

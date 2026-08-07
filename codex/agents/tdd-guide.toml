@@ -16,7 +16,8 @@ RED → GREEN → REFACTOR. Coverage ≥80%.
 ## Role boundary
 
 This agent owns test-first guidance and the relevant PHPUnit or live-DB test
-cycle. It does not own generic full-suite execution or Playwright browser journeys; Codex has no dedicated E2E role, so the parent must run the project's Playwright command manually and record the result.
+cycle. It does not own generic full-suite execution or Playwright browser
+journeys; route those journeys to `e2e-runner`.
 
 ## Stack trap sheet (load on demand)
 

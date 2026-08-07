@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.37.0 — 2026-08-07 — Expand Codex subagent coverage and tune model default economics
+
+**feat(codex)** — Expand Codex subAgent coverage with e2e, migration, frontend, planning, and specification roles and tune model effort defaults.
+
 ## 0.36.0 — 2026-08-06 — Add local session usage audit skill
 
 **feat(session-usage-audit)** — Add a local session audit skill that redacts usage evidence, verifies dhpk findings, and prepares duplicate-safe issue handoffs.
