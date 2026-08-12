@@ -8,9 +8,10 @@
     "intentionally-unavailable"
   ],
   "roles": {
-    "agent-evaluator": { "status": "skill/manual-fallback", "target": "harness quality skills" },
+    "agent-evaluator": { "status": "skill/manual-fallback", "target": "capability:harness-quality" },
     "agy-fast-worker": { "status": "skill/manual-fallback", "target": "worker" },
     "architect": { "status": "direct", "target": "architect" },
+    "bug-investigator": { "status": "direct", "target": "bug-investigator" },
     "code-reviewer": { "status": "direct", "target": "code-reviewer" },
     "codex-bridge": { "status": "intentionally-unavailable", "target": "No Codex role projection is required" },
     "codex-deep-reasoner": { "status": "merged", "target": "deep-reasoner" },
@@ -18,27 +19,64 @@
     "database-reviewer": { "status": "direct", "target": "database-reviewer" },
     "deep-reasoner": { "status": "direct", "target": "deep-reasoner" },
     "doc-reviewer": { "status": "direct", "target": "doc-reviewer" },
-    "doc-updater": { "status": "skill/manual-fallback", "target": "documentation skills" },
-    "docs-lookup": { "status": "skill/manual-fallback", "target": "documentation skills" },
+    "doc-updater": { "status": "skill/manual-fallback", "target": "capability:documentation" },
+    "docs-lookup": { "status": "skill/manual-fallback", "target": "capability:documentation" },
     "e2e-runner": { "status": "direct", "target": "e2e-runner" },
+    "explorer": { "status": "direct", "target": "explorer" },
     "fast-worker": { "status": "merged", "target": "worker" },
     "frontend-reviewer": { "status": "direct", "target": "frontend-reviewer" },
-    "harness-reviser": { "status": "skill/manual-fallback", "target": "harness quality skills" },
+    "harness-reviser": { "status": "skill/manual-fallback", "target": "capability:harness-quality" },
     "migration-reviewer": { "status": "direct", "target": "migration-reviewer" },
-    "performance-analyzer": { "status": "merged", "target": "database-reviewer" },
+    "monitor": { "status": "direct", "target": "monitor" },
+    "performance-analyzer": { "status": "capability-gated", "target": "capability:performance-analysis" },
     "planner": { "status": "direct", "target": "planner" },
-    "polyfill-reviewer": { "status": "capability-gated", "target": "library-author module" },
-    "python-build-resolver": { "status": "skill/manual-fallback", "target": "language build skills" },
+    "polyfill-reviewer": { "status": "capability-gated", "target": "capability:module-library-author" },
+    "python-build-resolver": { "status": "skill/manual-fallback", "target": "capability:language-build" },
     "refactor-cleaner": { "status": "merged", "target": "worker" },
-    "rust-build-resolver": { "status": "skill/manual-fallback", "target": "language build skills" },
+    "rust-build-resolver": { "status": "skill/manual-fallback", "target": "capability:language-build" },
     "security-reviewer": { "status": "direct", "target": "security-reviewer" },
     "silent-failure-hunter": { "status": "merged", "target": "code-reviewer/deep-reasoner" },
-    "smoke-tester": { "status": "capability-gated", "target": "runtime probe" },
+    "smoke-tester": { "status": "capability-gated", "target": "capability:runtime-probe" },
     "spec-miner": { "status": "direct", "target": "spec-miner" },
-    "swift-build-resolver": { "status": "skill/manual-fallback", "target": "language build skills" },
+    "swift-build-resolver": { "status": "skill/manual-fallback", "target": "capability:language-build" },
     "tdd-guide": { "status": "direct", "target": "tdd-guide" },
     "type-design-analyzer": { "status": "merged", "target": "architect/deep-reasoner" },
-    "ui-ux-verifier": { "status": "capability-gated", "target": "e2e-runner/manual page-vs-spec audit" },
-    "version-matrix-impact-reviewer": { "status": "skill/manual-fallback", "target": "compatibility review skills" }
+    "ui-ux-verifier": { "status": "capability-gated", "target": "capability:browser-ui-audit" },
+    "version-matrix-impact-reviewer": { "status": "skill/manual-fallback", "target": "capability:compatibility-review" },
+    "worker": { "status": "direct", "target": "worker" }
+  },
+  "capabilities": {
+    "browser-ui-audit": {
+      "kind": "runtime",
+      "description": "Playwright/browser capability or documented manual page-vs-spec audit"
+    },
+    "compatibility-review": {
+      "kind": "manual",
+      "description": "Version and compatibility matrix review skills"
+    },
+    "documentation": {
+      "kind": "manual",
+      "description": "Documentation lookup and update skills"
+    },
+    "harness-quality": {
+      "kind": "manual",
+      "description": "Harness quality and agent-evaluation skills"
+    },
+    "language-build": {
+      "kind": "manual",
+      "description": "Language-specific build resolver skills"
+    },
+    "module-library-author": {
+      "kind": "module",
+      "path": "modules/library-author"
+    },
+    "performance-analysis": {
+      "kind": "runtime",
+      "description": "EXPLAIN, profiler, benchmark, or equivalent performance capability"
+    },
+    "runtime-probe": {
+      "kind": "runtime",
+      "description": "Project-specific read-only smoke/runtime probe"
+    }
   }
 }

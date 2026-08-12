@@ -84,6 +84,8 @@ const COVERAGE_MAP = {
   'scripts/hooks/_lib/resumed-review-obligation.sh': 'resumed-review-reconcile.test.js',
   'scripts/hooks/record-resumed-obligation.sh': 'resumed-review-reconcile.test.js',
   'scripts/hooks/reconcile-resumed-review.sh': 'resumed-review-reconcile.test.js',
+  'scripts/lib/reference-registry.js': 'reference-route-policy.test.js',
+  'scripts/lib/route-result.js': 'reference-route-policy.test.js',
 };
 
 const SCRIPT_EXTS = new Set(['.sh', '.js', '.ts', '.py']);

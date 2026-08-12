@@ -1,0 +1,75 @@
+{
+  "schema": "dhpk.session-usage-audit.fixture.v1",
+  "release": "0.37.0",
+  "sourceRoots": {
+    "claudeProjectTranscripts": "~/.claude/projects/**/*.jsonl",
+    "claudeArtifacts": "~/.claude/artifacts/**/*.{jsonl,log}",
+    "codexTranscripts": "~/.codex/sessions/**/*.{jsonl,ndjson}",
+    "activeOrcaCodexSessions": "~/.config/orca/codex-accounts/<account>/home/sessions/**/*.{jsonl,ndjson}",
+    "projectSurfaces": "~/projects|~/workspaces|~/repos|~/src"
+  },
+  "report": {
+    "schema": "dhpk.session-usage-audit.report.v1",
+    "requiredCoverageFields": [
+      "scanComplete",
+      "sourceCoverageComplete",
+      "malformedCount",
+      "unsupportedCount",
+      "omittedSources"
+    ]
+  },
+  "packageOwnedRoleSet": {
+    "claude": [
+      "agent-evaluator",
+      "agy-fast-worker",
+      "architect",
+      "code-reviewer",
+      "codex-bridge",
+      "codex-deep-reasoner",
+      "codex-fast-worker",
+      "database-reviewer",
+      "deep-reasoner",
+      "doc-reviewer",
+      "doc-updater",
+      "docs-lookup",
+      "e2e-runner",
+      "fast-worker",
+      "frontend-reviewer",
+      "harness-reviser",
+      "migration-reviewer",
+      "performance-analyzer",
+      "planner",
+      "python-build-resolver",
+      "refactor-cleaner",
+      "rust-build-resolver",
+      "security-reviewer",
+      "silent-failure-hunter",
+      "smoke-tester",
+      "spec-miner",
+      "swift-build-resolver",
+      "tdd-guide",
+      "type-design-analyzer",
+      "ui-ux-verifier",
+      "version-matrix-impact-reviewer"
+    ],
+    "codex": [
+      "architect",
+      "bug-investigator",
+      "code-reviewer",
+      "database-reviewer",
+      "deep-reasoner",
+      "doc-reviewer",
+      "e2e-runner",
+      "explorer",
+      "frontend-reviewer",
+      "migration-reviewer",
+      "monitor",
+      "planner",
+      "security-reviewer",
+      "spec-miner",
+      "tdd-guide",
+      "worker"
+    ],
+    "excludedNavigationFiles": ["INDEX"]
+  }
+}

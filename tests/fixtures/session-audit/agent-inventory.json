@@ -1,0 +1,19 @@
+{
+  "schema": "dhpk.session-usage-audit.agent-inventory-fixture.v1",
+  "rows": [
+    { "kind": "role", "name": "code-reviewer", "path": ".claude/agents/code-reviewer.md", "surface": "claude" },
+    { "kind": "role", "name": "code-reviewer", "path": ".codex/agents/code-reviewer.toml", "surface": "codex" },
+    { "kind": "role", "name": "code-reviewer", "path": ".claude/plugins/cache/dhpk/dhpk/0.36.0/agents/code-reviewer.md", "surface": "claude-plugin" },
+    { "kind": "role", "name": "code-reviewer", "path": ".claude/plugins/cache/dhpk/dhpk/0.37.0/agents/code-reviewer.md", "surface": "claude-plugin" },
+    { "kind": "INDEX", "name": "INDEX", "path": ".claude/agents/INDEX.md", "surface": "claude" },
+    { "kind": "INDEX", "name": "INDEX", "path": ".codex/agents/INDEX.md", "surface": "codex" },
+    { "kind": "INDEX", "name": "INDEX", "path": ".claude/plugins/cache/dhpk/dhpk/0.37.0/agents/INDEX.md", "surface": "claude-plugin" }
+  ],
+  "expected": {
+    "installationRows": 7,
+    "uniqueCanonicalRoles": 1,
+    "excludedIndexRows": 3,
+    "displayedCount": 1,
+    "displayedCountScope": "unique-canonical-role"
+  }
+}

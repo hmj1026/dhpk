@@ -1,0 +1,31 @@
+{
+  "schema": "dhpk.discovery-budgets.v1",
+  "description": "Budgets for discovery-visible metadata. Optional entries remain host-discoverable and are runtime/activation optional.",
+  "units": { "words": "whitespace-delimited words", "tokens": "conservative four-characters-per-token estimate" },
+  "budgets": {
+    "promoted": {
+      "claude-core": { "words": 120, "tokens": 180 },
+      "claude-module": { "words": 100, "tokens": 150 },
+      "codex-sync": { "words": 100, "tokens": 150 },
+      "codex-native": { "words": 100, "tokens": 150 }
+    },
+    "optional": {
+      "claude-core": { "words": 90, "tokens": 135 },
+      "claude-module": { "words": 120, "tokens": 180 },
+      "codex-sync": { "words": 90, "tokens": 135 },
+      "codex-native": { "words": 90, "tokens": 135 }
+    },
+    "experimental": {
+      "claude-core": { "words": 80, "tokens": 120 },
+      "claude-module": { "words": 80, "tokens": 120 },
+      "codex-sync": { "words": 80, "tokens": 120 },
+      "codex-native": { "words": 80, "tokens": 120 }
+    },
+    "deprecated": {
+      "claude-core": { "words": 60, "tokens": 90 },
+      "claude-module": { "words": 60, "tokens": 90 },
+      "codex-sync": { "words": 60, "tokens": 90 },
+      "codex-native": { "words": 60, "tokens": 90 }
+    }
+  }
+}

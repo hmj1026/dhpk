@@ -3,7 +3,11 @@
 > **Languages**: **English** · [繁體中文](./hook-extension.zh-TW.md)
 
 dhpk registers a deliberately small default lifecycle. The complete default
-mapping is [`hooks/hooks.json`](../hooks/hooks.json):
+mapping is [`hooks/hooks.json`](../hooks/hooks.json). The machine-readable
+default event manifest is [`hooks/default-events.json`](../hooks/default-events.json):
+the four events listed there are wired by default. Events listed under
+`optionalEvents` remain source assets until a consumer explicitly registers
+them; optional events are not registered by default and are not silently active.
 
 | Event | Script | Deterministic responsibility |
 |---|---|---|

@@ -35,6 +35,7 @@ set -o pipefail
 . "$(dirname "$0")/_lib/learning-db.sh"
 . "$(dirname "$0")/_lib/sentinel-clear-core.sh"
 . "$(dirname "$0")/_lib/json-out.sh"
+. "$(dirname "$0")/_lib/review-lifecycle.sh"
 
 ROOT="$(dhpk_root)"
 SESS="$(dhpk_sessions_dir "$ROOT")"
@@ -168,6 +169,24 @@ TIMESTAMP="$(date -Iseconds 2>/dev/null || date +%Y-%m-%dT%H:%M:%S%z)"
 # reviewer label (e.g. database-reviewer-*.md), so the raw prefixed $SUBAGENT
 # would never match them under the real (agent_type) payload schema.
 SUBAGENT_BARE="${SUBAGENT##*:}"
+
+# Resolve the dispatch identity recorded by pre-agent-liveness-mark.sh.  The
+# legacy tab sidecar remains the compatibility source; lifecycle events carry
+# the scope/diff identity used by fresh-artifact consumers.
+LIFECYCLE_TASK=""
+LIFECYCLE_ATTEMPT="0"
+LIFECYCLE_SCOPE=""
+LIFECYCLE_DIFF=""
+LIFECYCLE_CONTEXT="$(dhpk_lifecycle_context "$SUBAGENT_BARE" "$STOP_SESSION_ID" 2>/dev/null || true)"
+if [ -n "$LIFECYCLE_CONTEXT" ]; then
+    IFS=$'\t' read -r LIFECYCLE_TASK LIFECYCLE_ATTEMPT LIFECYCLE_SCOPE LIFECYCLE_DIFF _LIFECYCLE_SESSION <<< "$LIFECYCLE_CONTEXT"
+fi
+if [ -z "$LIFECYCLE_TASK" ]; then
+    LIFECYCLE_SCOPE="$(dhpk_lifecycle_scope_id "$SENTINEL_FILE" 2>/dev/null || true)"
+    LIFECYCLE_DIFF="$(dhpk_lifecycle_diff_id "$ROOT" 2>/dev/null || true)"
+    LIFECYCLE_TASK="$(dhpk_lifecycle_task_id "$SENTINEL_NAME" "${STOP_SESSION_ID:-unknown}" "0" 2>/dev/null || true)"
+fi
+LIFECYCLE_LATEST_ARTIFACT="$(ls -t "$ROOT/.claude/artifacts/reviews/$SUBAGENT_BARE"-*.md 2>/dev/null | head -1 || true)"
 
 mkdir -p "$(dirname "$LOG")" 2>/dev/null || true
 
@@ -473,45 +492,17 @@ has_fresh_parseable_verdict() {
     # Freshness gate: the newest review doc must postdate the sentinel that armed
     # this cycle. `find -newer` avoids stat(1) GNU-vs-BSD portability differences.
     [ -n "$(find "$latest" -newer "$sentinel" 2>/dev/null)" ] || { printf '0'; return 0; }
-    if command -v python3 >/dev/null 2>&1; then
-        ARTIFACT_IN="$latest" REVIEWER_IN="$agent" python3 - <<'PY' 2>/dev/null || printf '0'
-import os
-import re
-from pathlib import Path
-
-review_doc = Path(os.environ["ARTIFACT_IN"])
-reviewer = os.environ["REVIEWER_IN"]
-try:
-    text = review_doc.read_text(encoding="utf-8", errors="replace")
-except OSError:
-    print(0)
-    raise SystemExit(0)
-
-filename = re.compile(
-    rf"^{re.escape(reviewer)}-\d{{8}}-\d{{6}}-[a-z0-9][a-z0-9._-]*\.md$",
-    re.IGNORECASE,
-)
-frontmatter_match = re.match(r"\A---\r?\n(.*?)\r?\n---(?:\r?\n|\Z)", text, re.DOTALL)
-if not filename.fullmatch(review_doc.name) or not frontmatter_match:
-    print(0)
-    raise SystemExit(0)
-
-frontmatter = frontmatter_match.group(1)
-def field(name):
-    return re.search(rf"(?im)^\s*{name}\s*:\s*(.+?)\s*$", frontmatter)
-
-agent_match = field("agent")
-generated_at = field("generated_at")
-commit = field("commit")
-scope = field("scope")
-severity = field("severity_summary")
-verdict_match = field("verdict")
-required = all((agent_match, generated_at, commit, scope, severity, verdict_match))
-timestamp_ok = bool(generated_at and re.match(r"\d{4}-\d{2}-\d{2}T", generated_at.group(1)))
-agent_ok = bool(agent_match and agent_match.group(1).strip().strip("'\"") == reviewer)
-verdict = verdict_match.group(1).upper() if verdict_match else ""
-print(1 if required and timestamp_ok and agent_ok and verdict in {"APPROVE", "PASS"} else 0)
-PY
+    # New artifacts may carry the dispatch wave identity.  When present it is
+    # mandatory; reports from another scope/diff never close this obligation.
+    # Reports from pre-lifecycle versions omit these optional fields and retain
+    # the existing freshness-only compatibility path.
+    if dhpk_lifecycle_artifact_has_identity "$latest" 2>/dev/null && \
+        ! dhpk_lifecycle_artifact_matches "$latest" "$LIFECYCLE_SCOPE" "$LIFECYCLE_DIFF" 2>/dev/null; then
+        printf '0'
+        return 0
+    fi
+    if dhpk_lifecycle_artifact_is_passing "$latest" "$agent" 2>/dev/null; then
+        printf '1'
     else
         printf '0'
     fi
@@ -587,6 +578,7 @@ PY
 remove_one_active_entry "$ACTIVE_FILE"
 
 if [ "$EXIT_STATUS" != "0" ]; then
+    dhpk_lifecycle_emit failed-start "$LIFECYCLE_TASK" "$SUBAGENT_BARE" "$STOP_SESSION_ID" "$LIFECYCLE_ATTEMPT" "$LIFECYCLE_SCOPE" "$LIFECYCLE_DIFF" "" "" 2>/dev/null || true
     # Case A: subagent failed.
     SENTINEL_STATE="none"
     [ -f "$SENTINEL_FILE" ] && SENTINEL_STATE="$SENTINEL_NAME"
@@ -603,6 +595,28 @@ Logged to: .claude/artifacts/agent-failures.log"
         emit_system_message "$msg"
     fi
 elif [ -f "$SENTINEL_FILE" ]; then
+    # A fresh file becomes a producer-ready marker before any sentinel decision.
+    # Parseable failures are still completed verdicts and remain unresolved;
+    # only an APPROVE/PASS result satisfies the clearance gate below.
+    if [ -n "$LIFECYCLE_LATEST_ARTIFACT" ] && [ -n "$(find "$LIFECYCLE_LATEST_ARTIFACT" -newer "$SENTINEL_FILE" 2>/dev/null)" ]; then
+        _LIFECYCLE_IDENTITY_OK=1
+        if dhpk_lifecycle_artifact_has_identity "$LIFECYCLE_LATEST_ARTIFACT" 2>/dev/null; then
+            dhpk_lifecycle_artifact_matches "$LIFECYCLE_LATEST_ARTIFACT" "$LIFECYCLE_SCOPE" "$LIFECYCLE_DIFF" 2>/dev/null || _LIFECYCLE_IDENTITY_OK=0
+        fi
+        if [ "$_LIFECYCLE_IDENTITY_OK" -eq 1 ]; then
+            dhpk_lifecycle_mark_artifact_ready "$LIFECYCLE_TASK" "$SUBAGENT_BARE" "$STOP_SESSION_ID" "$LIFECYCLE_ATTEMPT" "$LIFECYCLE_SCOPE" "$LIFECYCLE_DIFF" "$LIFECYCLE_LATEST_ARTIFACT" 2>/dev/null || true
+            _LIFECYCLE_VERDICT="$(dhpk_lifecycle_artifact_verdict "$LIFECYCLE_LATEST_ARTIFACT" 2>/dev/null || true)"
+            if [ -n "$_LIFECYCLE_VERDICT" ]; then
+                dhpk_lifecycle_emit verdicted "$LIFECYCLE_TASK" "$SUBAGENT_BARE" "$STOP_SESSION_ID" "$LIFECYCLE_ATTEMPT" "$LIFECYCLE_SCOPE" "$LIFECYCLE_DIFF" "$_LIFECYCLE_VERDICT" "$LIFECYCLE_LATEST_ARTIFACT" 2>/dev/null || true
+            else
+                dhpk_lifecycle_emit incomplete "$LIFECYCLE_TASK" "$SUBAGENT_BARE" "$STOP_SESSION_ID" "$LIFECYCLE_ATTEMPT" "$LIFECYCLE_SCOPE" "$LIFECYCLE_DIFF" "" "$LIFECYCLE_LATEST_ARTIFACT" 2>/dev/null || true
+            fi
+        else
+            dhpk_lifecycle_emit incomplete "$LIFECYCLE_TASK" "$SUBAGENT_BARE" "$STOP_SESSION_ID" "$LIFECYCLE_ATTEMPT" "$LIFECYCLE_SCOPE" "$LIFECYCLE_DIFF" "" "$LIFECYCLE_LATEST_ARTIFACT" 2>/dev/null || true
+        fi
+    else
+        dhpk_lifecycle_emit incomplete "$LIFECYCLE_TASK" "$SUBAGENT_BARE" "$STOP_SESSION_ID" "$LIFECYCLE_ATTEMPT" "$LIFECYCLE_SCOPE" "$LIFECYCLE_DIFF" "" "" 2>/dev/null || true
+    fi
     # Determine freshness BEFORE any rm below. Clearance requires a fresh,
     # canonical review evidence with a parseable passing verdict; unparseable
     # review evidence

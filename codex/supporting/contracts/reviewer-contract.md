@@ -9,6 +9,10 @@ Every reviewer prompt is composed from these fields, in order:
 5. **Verdict** — the role's existing `APPROVE|WARNING|BLOCK` or `PASS|WARNING|FAIL` vocabulary.
 6. **Confirm-only** — named findings to confirm for a bounded re-review; omit for a new wave.
 
+For a dispatched wave, the report should also carry `scope_id` and `diff_id`
+from the dispatch record. When either identity is present, both must match the
+current obligation; a foreign wave remains unresolved.
+
 ## Single-run verdict
 
 The final verdict MUST be emitted in the same run that performed the review.
@@ -19,13 +23,14 @@ a reply without that evidence is not a completed review.
 ## Misplaced review evidence
 
 The parent flow scopes reports to the current dispatch obligation rather than
-trusting a filename or directory alone. It records a dispatch baseline plus
-session, attempt, and dispatch identity when available; reports older than the
+trusting a filename or directory alone. It records the exact dispatch
+baseline, session, attempt, and dispatch identity; reports older than the
 baseline or carrying foreign provenance remain unresolved. If several fresh
 reports qualify, choose the newest report and use its relative path as the
-deterministic tie-breaker. A fresh report without provenance may be considered
-only when it belongs to the current run, and diagnostics should expose relative
-paths only.
+deterministic tie-breaker. A background reconciliation may consume an artifact
+only when its session/attempt/dispatch tuple matches the recorded obligation;
+a legacy report without that tuple remains unresolved, and diagnostics expose
+relative paths only.
 
 ## Manual resume
 

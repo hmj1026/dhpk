@@ -38,7 +38,7 @@ test('every referenced hook script is executable', () => {
   }
 });
 
-test('default lifecycle wiring is the five deterministic hook events only', () => {
+test('default lifecycle wiring is the four deterministic hook events only', () => {
   const parsed = JSON.parse(raw);
   assert.deepStrictEqual(Object.keys(parsed.hooks).sort(), [
     'PostToolUse', 'PreToolUse', 'SessionStart', 'SubagentStop',

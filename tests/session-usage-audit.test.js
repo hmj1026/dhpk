@@ -581,6 +581,31 @@ test('verifyFinding rejects identical executed argv even when labels differ', ()
   assert.strictEqual(result.status, 'needs-verification');
 });
 
+test('verifyFinding rejects an assertion type that is not bound to the finding category', () => {
+  const candidate = {
+    status: 'candidate',
+    confidence: 0.9,
+    evidence: [],
+    fingerprint: 'sha256:' + 'a'.repeat(64),
+    reproductionAssertion: { type: 'hook-failure-observed' },
+    consumerGateAssertion: { type: 'hook-failure-remediated' },
+  };
+  const result = audit.verifyFinding(candidate, {
+    fingerprint: candidate.fingerprint,
+    reproduction: {
+      status: 'pass',
+      assertion: { type: 'unrelated-observation', observed: true },
+      execution: { trusted: true, argv: ['node', 'reproduce.js'] },
+    },
+    consumerGate: {
+      status: 'pass',
+      assertion: { type: 'hook-failure-remediated', observed: true },
+      execution: { trusted: true, argv: ['node', 'consumer.js'] },
+    },
+  });
+  assert.strictEqual(result.status, 'needs-verification');
+});
+
 test('CLI emits a JSON report and honors explicit home/output boundaries', () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-session-audit-cli-'));
   const output = path.join(home, 'audit-output');
@@ -614,8 +639,8 @@ test('runAudit applies only matching external verification records before issue 
   const first = audit.runAudit({ argv: ['--date', '2026-08-06'], home, timeZone: 'UTC', testFixtureHome: true });
   assert.strictEqual(first.findings.length, 1);
   const verificationEntries = [{ fingerprint: first.findings[0].fingerprint,
-    reproduction: { command: 'fixture reproduction', argv: ['node', path.join(home, 'reproduce.js')] },
-    consumerGate: { command: 'fixture consumer gate', argv: ['node', path.join(home, 'gate.js')] } }];
+    reproduction: { command: 'fixture reproduction', assertion: { type: 'hook-failure-observed', observed: true }, argv: ['node', path.join(home, 'reproduce.js')] },
+    consumerGate: { command: 'fixture consumer gate', assertion: { type: 'hook-failure-remediated', observed: true }, argv: ['node', path.join(home, 'gate.js')] } }];
   fs.writeFileSync(verificationFile, JSON.stringify(verificationEntries));
   const verificationDigest = audit.verificationDigest(verificationEntries);
   const second = audit.runAudit({ argv: ['--date', '2026-08-06', '--verification-file', verificationFile, '--execute-verification', '--verification-digest', verificationDigest, '--create-issues'], home, timeZone: 'UTC', testFixtureHome: true });
@@ -741,6 +766,103 @@ test('executeVerification rechecks script digests between reproduction and consu
   assert.strictEqual(executed[0].consumerGate.status, 'fail');
   assert.strictEqual(executed[0].consumerGate.execution.trusted, false);
   assert.strictEqual(executed[0].consumerGate.execution.reason, 'verification-digest-mismatch');
+});
+
+test('typed evidence ignores historical timeout prose in successful hooks and prompts', () => {
+  const records = [
+    {
+      source: 'claude-artifact',
+      recordType: 'hook_success',
+      exitStatus: 0,
+      sessionId: 'success-hook',
+      dhpkEvidenceLevel: 'strong',
+      text: JSON.stringify({ type: 'hook_success', stdout: 'historical hook timed out in v0.36.0' }),
+    },
+    {
+      source: 'claude-transcript',
+      recordType: 'user_prompt',
+      sessionId: 'prompt',
+      dhpkEvidenceLevel: 'strong',
+      text: 'sentinel pending because a historical reviewer timed out',
+    },
+    {
+      source: 'claude-artifact',
+      recordType: 'hook_failure',
+      exitStatus: 1,
+      eventId: 'evt-1',
+      sessionId: 'failure-hook',
+      dhpkEvidenceLevel: 'strong',
+      text: 'stop-advisory-dispatch.sh hook timed out',
+    },
+  ];
+  const findings = audit.detectFindings(records);
+  assert.strictEqual(findings.length, 1);
+  assert.strictEqual(findings[0].occurrences, 1);
+  assert.strictEqual(findings[0].status, 'candidate');
+  assert.strictEqual(findings[0].evidence[0].recordType, 'hook_failure');
+});
+
+test('ambiguous text remains an unverified candidate and parent/child event dedupes', () => {
+  const records = [
+    { source: 'claude-transcript', recordType: 'assistant', sessionId: 's1', taskId: 'task-1', dhpkEvidenceLevel: 'strong', text: 'stop-advisory-dispatch.sh hook timed out' },
+    { source: 'orca-trace', recordType: 'event', parentSessionId: 's1', taskId: 'task-1', dhpkEvidenceLevel: 'strong', text: 'stop-advisory-dispatch.sh hook timed out' },
+    { source: 'claude-transcript', recordType: 'event', sessionId: 's2', dhpkEvidenceLevel: 'strong', text: 'historical projection mismatch mentioned in prompt' },
+  ];
+  const findings = audit.detectFindings(records);
+  assert.strictEqual(findings.length, 2);
+  assert.strictEqual(findings.find((finding) => finding.category === 'hook-failure').occurrences, 1);
+  assert.strictEqual(findings.find((finding) => finding.category === 'projection-drift').status, 'unverified');
+});
+
+test('verification requires finding-specific reproduction and consumer assertions', () => {
+  const candidate = {
+    fingerprint: 'sha256:' + 'a'.repeat(64),
+    category: 'hook-failure',
+    component: 'stop-advisory-dispatch.sh',
+    message: 'stop-advisory-dispatch.sh hook timed out',
+    status: 'candidate',
+    confidence: 0.9,
+    evidence: [],
+  };
+  const generic = audit.verifyFinding(candidate, {
+    reproduction: { status: 'pass', argv: ['node', '--help'], execution: { trusted: true, argv: ['node', '--help'], exitCode: 0 } },
+    consumerGate: { status: 'pass', argv: ['node', 'scan-date.js'], execution: { trusted: true, argv: ['node', 'scan-date.js'], exitCode: 0 } },
+  });
+  assert.notStrictEqual(generic.status, 'verified');
+  assert.strictEqual(generic.verification.assertions.reproduction, false);
+  assert.strictEqual(generic.verification.assertions.consumerGate, false);
+
+  const verified = audit.verifyFinding(candidate, {
+    fingerprint: candidate.fingerprint,
+    reproduction: { status: 'pass', assertion: { type: 'hook-timeout', observed: true }, argv: ['node', 'reproduce-hook-timeout.js'], execution: { trusted: true, argv: ['node', 'reproduce-hook-timeout.js'], exitCode: 0 } },
+    consumerGate: { status: 'pass', assertion: { type: 'hook-timeout-absent', observed: true }, argv: ['node', 'scripts/ci/validate-plugin.js'], execution: { trusted: true, argv: ['node', 'scripts/ci/validate-plugin.js'], exitCode: 0 } },
+  });
+  assert.strictEqual(verified.status, 'verified');
+  assert.strictEqual(verified.verification.assertions.reproduction, true);
+  assert.strictEqual(verified.verification.assertions.consumerGate, true);
+});
+
+test('report exposes independent source coverage and installation identity counts', () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-session-audit-coverage-'));
+  fs.mkdirSync(path.join(home, '.config', 'orca', 'codex-accounts', 'acct-a', 'home', 'sessions'), { recursive: true });
+  fs.mkdirSync(path.join(home, '.config', 'orca', 'codex-accounts', 'acct-b', 'home', 'sessions'), { recursive: true });
+  fs.writeFileSync(path.join(home, '.config', 'orca', 'codex-accounts', 'acct-a', 'home', 'sessions', 'active.jsonl'), `${JSON.stringify({ type: 'hook_failure', timestamp: '2026-08-06T00:00:00Z', exitCode: 1, sessionId: 'orca-1', message: 'dhpk hook timed out' })}\n`);
+  fs.writeFileSync(path.join(home, '.config', 'orca', 'codex-accounts', 'acct-b', 'home', 'sessions', 'unselected.jsonl'), '{}\n');
+  fs.mkdirSync(path.join(home, '.claude', 'projects', 'demo'), { recursive: true });
+  fs.writeFileSync(path.join(home, '.claude', 'projects', 'demo', 'bad.jsonl'), '{not-json}\n');
+  fs.mkdirSync(path.join(home, '.claude', 'plugins', 'cache', 'dhpk', 'dhpk', '0.37.0', 'agents'), { recursive: true });
+  fs.writeFileSync(path.join(home, '.claude', 'plugins', 'cache', 'dhpk', 'dhpk', '0.37.0', 'agents', 'code-reviewer.md'), '# reviewer\n');
+  const result = audit.runAudit({ argv: ['--date', '2026-08-06'], home, testFixtureHome: true, timeZone: 'UTC', activeOrcaAccounts: ['acct-a'] });
+  assert.ok(result.coverage.sourceCoverageComplete !== undefined);
+  assert.ok(result.coverage.scanComplete !== undefined);
+  assert.ok(Number.isInteger(result.coverage.malformedCount));
+  assert.ok(Number.isInteger(result.coverage.unsupportedCount));
+  assert.ok(Array.isArray(result.coverage.omittedSourceReasons));
+  assert.ok(result.coverage.activeOrcaAccounts.some((account) => account.startsWith('account:')));
+  assert.ok(!JSON.stringify(result).includes('acct-a'));
+  assert.ok(!JSON.stringify(result).includes('acct-b'));
+  assert.ok(result.coverage.installationRows >= result.coverage.uniqueRoleIdentities);
+  assert.ok(Array.isArray(result.coverage.excludedIndexRows));
 });
 
 run('session-usage-audit');
