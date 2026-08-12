@@ -113,4 +113,23 @@ test('write mode fails and changes nothing when fragments are invalid', () => {
   assert.strictEqual(after, before);
 });
 
+test('write mode fails closed when an inventory-selected Agent/Cursor skill is skipped', () => {
+  const repo = mkRepo();
+  try {
+    const inventoryPath = path.join(repo, 'manifests', 'distribution-inventory.json');
+    fs.writeFileSync(inventoryPath, JSON.stringify({
+      skills: [{ id: 'portable', name: 'dhpk-portable', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['agent-plugin', 'cursor-plugin'] }],
+    }));
+    fs.writeFileSync(path.join(repo, 'skills/dhpk-tdd-workflow', 'SKILL.md'), '---\nname: wrong-name\ndescription: broken\n---\n');
+    fs.writeFileSync(path.join(repo, 'changelog.d', 'feat.widget.md'), 'scope: widget\nnote: Add the widget.\n');
+    const beforeChangelog = fs.readFileSync(path.join(repo, 'CHANGELOG.md'), 'utf8');
+    const res = runCli(repo, ['write', '--version', '1.1.0', '--date', '2026-07-27', '--summary', 'Add widget']);
+    assert.notStrictEqual(res.status, 0, res.stdout);
+    assert.match(res.stderr, /skipped selected skills|validation failed/i);
+    assert.strictEqual(fs.readFileSync(path.join(repo, 'CHANGELOG.md'), 'utf8'), beforeChangelog);
+    assert.strictEqual(JSON.parse(fs.readFileSync(path.join(repo, '.claude-plugin', 'plugin.json'), 'utf8')).version, '1.0.0');
+    assert.ok(fs.existsSync(path.join(repo, 'changelog.d', 'feat.widget.md')));
+  } finally { fs.rmSync(repo, { recursive: true, force: true }); }
+});
+
 run('prepare-release-cli');

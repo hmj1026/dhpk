@@ -92,6 +92,7 @@ def category_supported(target, category, repo_root):
         "codex": set(["skills", "agents", "config", "multi-agents"]),
         "gemini": set(["skills", "commands"]),
         "antigravity": set(["skills", "commands", "config", "multi-agents"]),
+        "cursor": set(["skills", "commands", "agents", "config", "hooks", "multi-agents"]),
     }
     if target == "gemini" and category == "hooks":
         return gemini_hook_surface_enabled(repo_root)
@@ -109,6 +110,8 @@ def map_target_path(feature, target):
             return ".gemini/skills/%s/SKILL.md" % name
         if target == "antigravity":
             return ".agent/skills/%s/SKILL.md" % name
+        if target == "cursor":
+            return ".cursor/skills/%s/SKILL.md" % name
 
     if cat == "commands":
         if name.startswith("opsx/"):
@@ -117,33 +120,45 @@ def map_target_path(feature, target):
                 return ".gemini/commands/opsx/%s.toml" % cmd
             if target == "antigravity":
                 return ".agent/workflows/opsx-%s.md" % cmd
+            if target == "cursor":
+                return ".cursor/commands/opsx-%s.md" % cmd
         else:
             cmd = os.path.splitext(os.path.basename(name))[0]
             if target == "gemini":
                 return ".gemini/commands/%s.toml" % cmd
             if target == "antigravity":
                 return ".agent/workflows/%s.md" % cmd
+            if target == "cursor":
+                return ".cursor/commands/%s.md" % cmd
 
     if cat == "agents":
         role = name
         if target == "codex":
             return ".codex/agents/%s.toml" % role
+        if target == "cursor":
+            return ".cursor/agents/%s.md" % role
 
     if cat == "config":
         if target == "codex":
             return ".codex/config.toml"
         if target == "antigravity":
             return ".agent/rules/project.md"
+        if target == "cursor":
+            return ".cursor/rules/project.md"
 
     if cat == "hooks":
         if target == "gemini":
             return ".gemini/hooks/%s" % name
+        if target == "cursor":
+            return ".cursor/hooks/%s" % name
 
     if cat == "multi-agents":
         if target == "codex":
             return ".codex/config.toml"
         if target == "antigravity":
             return ".agent/workflows/review.md"
+        if target == "cursor":
+            return ".cursor/agents/review.md"
 
     return None
 

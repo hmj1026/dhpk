@@ -37,6 +37,7 @@ const { spawnSync } = require('child_process');
 const { VERDICTS } = require('../lib/release-evidence');
 const { fingerprintDir } = require('../lib/codex-native-package');
 const { collectCodexProjectionReferenceErrors } = require('../ci/_lib/codex-runtime');
+const { redactSensitiveText } = require('../lib/redaction');
 
 const DEFAULT_ROOT = path.join(__dirname, '..', '..');
 const CODEX_SURFACE_VERDICTS = Object.freeze({ PASS: 'PASS', WARN: 'WARN', BLOCKED: 'BLOCKED' });
@@ -92,7 +93,7 @@ function redactEvidence(value, root = DEFAULT_ROOT) {
   for (const [prefix, label] of replacements) {
     redacted = redacted.split(prefix).join(label);
   }
-  return redactSandboxPath(redacted);
+  return redactSandboxPath(redactSensitiveText(redacted));
 }
 
 function discoverCodexSurface({
@@ -528,20 +529,47 @@ function verifyCodexNative(root) {
   return { verdict: VERDICTS.PASS, commands, reasons: [] };
 }
 
+function verifyProjectedConsumer(root, platform, version) {
+  const packageRoot = platform === 'codex'
+    ? path.join(root, 'plugins', 'dhpk-agent')
+    : path.join(root, 'plugins', 'dhpk-cursor');
+  const probe = path.join(root, 'scripts', 'release', 'consumer-platform-probe.js');
+  const res = spawnSync('node', [probe, '--platform', platform, '--package-root', packageRoot, '--version', version], {
+    cwd: root,
+    encoding: 'utf8',
+  });
+  let payload;
+  try { payload = JSON.parse(res.stdout || '{}'); } catch (_) {
+    payload = { status: 'FAIL', reason: `consumer probe emitted invalid JSON (exit ${res.status})` };
+  }
+  return {
+    status: payload.status || 'FAIL',
+    commands: Array.isArray(payload.commands) && payload.commands.length > 0
+      ? payload.commands.map((cmd) => ({ cmd: redactEvidence(typeof cmd === 'string' ? cmd : cmd.cmd || `node scripts/release/consumer-platform-probe.js --platform ${platform}`, root), exitCode: typeof cmd === 'string' ? res.status : (cmd.exitCode === undefined ? res.status : cmd.exitCode) }))
+      : [{ cmd: `node scripts/release/consumer-platform-probe.js --platform ${platform}`, exitCode: res.status }],
+    reason: payload.reason ? redactEvidence(payload.reason, root) : null,
+  };
+}
+
 function runGate(args) {
   const codex = verifyCodexSync(args.root, args.version);
   const claude = verifyClaudeReinstall(args.root, args.version);
   const native = verifyCodexNative(args.root);
+  const projectedCodex = verifyProjectedConsumer(args.root, 'codex', args.version);
+  const projectedCursor = verifyProjectedConsumer(args.root, 'cursor', args.version);
 
-  const commands = [...codex.commands, ...claude.commands, ...native.commands];
+  const commands = [...codex.commands, ...claude.commands, ...native.commands, ...projectedCodex.commands, ...projectedCursor.commands];
   const failureReasons = [
     ...codex.reasons.map((r) => `codex-sync: ${r}`),
     ...claude.reasons.map((r) => `claude-reinstall: ${r}`),
     ...native.reasons.map((r) => `native-codex-marketplace: ${r}`),
+    ...(['FAIL', 'BLOCKED'].includes(projectedCodex.status) ? [`agent-plugin-consumer: ${projectedCodex.reason || projectedCodex.status.toLowerCase()}`] : []),
+    ...(['FAIL', 'BLOCKED'].includes(projectedCursor.status) ? [`cursor-plugin-consumer: ${projectedCursor.reason || projectedCursor.status.toLowerCase()}`] : []),
   ];
 
   let verdict;
-  if (codex.verdict === VERDICTS.FAIL || claude.verdict === VERDICTS.FAIL) verdict = VERDICTS.FAIL;
+  if (codex.verdict === VERDICTS.FAIL || claude.verdict === VERDICTS.FAIL || projectedCodex.status === 'FAIL' || projectedCursor.status === 'FAIL') verdict = VERDICTS.FAIL;
+  else if (projectedCodex.status === 'BLOCKED' || projectedCursor.status === 'BLOCKED') verdict = VERDICTS.BLOCKED;
   else if (claude.verdict === VERDICTS.UNAVAILABLE) verdict = VERDICTS.UNAVAILABLE;
   else verdict = VERDICTS.PASS;
 
@@ -552,6 +580,8 @@ function runGate(args) {
     artifacts: [
       `claude-official-strict: ${claude.officialValidation ? claude.officialValidation.verdict : 'NOT RUN'}${claude.officialValidation && claude.officialValidation.reason ? ` (${claude.officialValidation.reason})` : ''}`,
       `native-codex-marketplace: ${native.verdict} (experimental support tier; consumer proof does not itself graduate the support tier)`,
+      `agent-plugin-consumer: ${projectedCodex.status}${projectedCodex.reason ? ` (${projectedCodex.reason})` : ''}`,
+      `cursor-plugin-consumer: ${projectedCursor.status}${projectedCursor.reason ? ` (${projectedCursor.reason})` : ''}`,
       ...(codex.surfaceVerdict ? [`codex-surface: ${codex.surfaceVerdict}`] : []),
     ],
     failureReasons,
@@ -565,7 +595,7 @@ if (require.main === module) {
   const args = parseArgs(process.argv.slice(2));
   const stage = runGate(args);
   console.log(JSON.stringify(stage, null, 2));
-  process.exit(stage.verdict === VERDICTS.FAIL ? 1 : 0);
+  process.exit([VERDICTS.FAIL, VERDICTS.BLOCKED].includes(stage.verdict) ? 1 : 0);
 }
 
 module.exports = {
@@ -577,5 +607,6 @@ module.exports = {
   fingerprintPath,
   redactEvidence,
   verifyCodexSync,
+  verifyProjectedConsumer,
   runGate,
 };

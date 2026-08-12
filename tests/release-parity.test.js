@@ -19,6 +19,8 @@ function mkRepo({ versions, changelogHeading } = {}) {
     '.claude-plugin/plugin.json': '1.0.0',
     '.codex-plugin/plugin.json': '1.0.0',
     'plugins/dhpk/.codex-plugin/plugin.json': '1.0.0',
+    'plugins/dhpk-agent/plugin.json': '1.0.0',
+    'plugins/dhpk-cursor/.cursor-plugin/plugin.json': '1.0.0',
   };
   const merged = { ...defaults, ...(versions || {}) };
   for (const [rel, version] of Object.entries(merged)) {
@@ -37,6 +39,14 @@ function mkRepo({ versions, changelogHeading } = {}) {
     JSON.stringify({ sourceVersion: (versions && versions['plugins/dhpk/provenance.json']) || '1.0.0' })
   );
   fs.writeFileSync(
+    path.join(root, 'plugins', 'dhpk-agent', 'provenance.json'),
+    JSON.stringify({ sourceVersion: (versions && versions['plugins/dhpk-agent/provenance.json']) || '1.0.0' })
+  );
+  fs.writeFileSync(
+    path.join(root, 'plugins', 'dhpk-cursor', 'provenance.json'),
+    JSON.stringify({ sourceVersion: (versions && versions['plugins/dhpk-cursor/provenance.json']) || '1.0.0' })
+  );
+  fs.writeFileSync(
     path.join(root, 'CHANGELOG.md'),
     `# Changelog\n\n## [Unreleased]\n\n${changelogHeading !== undefined ? changelogHeading : '## 1.0.0 — 2026-07-27 — Summary'}\n\nNotes.\n`
   );
@@ -50,6 +60,10 @@ test('MANIFEST_PATHS lists every version-bearing manifest, including native pack
     '.codex-plugin/plugin.json',
     'plugins/dhpk/.codex-plugin/plugin.json',
     'plugins/dhpk/provenance.json',
+    'plugins/dhpk-agent/plugin.json',
+    'plugins/dhpk-agent/provenance.json',
+    'plugins/dhpk-cursor/.cursor-plugin/plugin.json',
+    'plugins/dhpk-cursor/provenance.json',
   ].sort());
 });
 
@@ -61,7 +75,7 @@ test('checkParity rejects a non-semver target version', () => {
 });
 
 test('checkParity passes when every manifest, native package provenance, and the changelog heading match the target', () => {
-  const root = mkRepo({ versions: { '.claude-plugin/plugin.json': '1.2.3', '.codex-plugin/plugin.json': '1.2.3', 'plugins/dhpk/.codex-plugin/plugin.json': '1.2.3', '.agents/plugins/marketplace.json': '1.2.3', 'plugins/dhpk/provenance.json': '1.2.3' }, changelogHeading: '## 1.2.3 — 2026-07-27 — Summary' });
+  const root = mkRepo({ versions: { '.claude-plugin/plugin.json': '1.2.3', '.codex-plugin/plugin.json': '1.2.3', 'plugins/dhpk/.codex-plugin/plugin.json': '1.2.3', '.agents/plugins/marketplace.json': '1.2.3', 'plugins/dhpk/provenance.json': '1.2.3', 'plugins/dhpk-agent/plugin.json': '1.2.3', 'plugins/dhpk-agent/provenance.json': '1.2.3', 'plugins/dhpk-cursor/.cursor-plugin/plugin.json': '1.2.3', 'plugins/dhpk-cursor/provenance.json': '1.2.3' }, changelogHeading: '## 1.2.3 — 2026-07-27 — Summary' });
   const result = checkParity(root, '1.2.3');
   assert.strictEqual(result.ok, true, JSON.stringify(result.errors));
 });

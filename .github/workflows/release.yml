@@ -36,6 +36,12 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           node scripts/ci/verify-release-parity.js --version "$VERSION"
 
+      - name: Verify generated platform packages
+        run: |
+          node scripts/ci/validate-agent-plugin-package.js plugins/dhpk-agent
+          node scripts/ci/validate-cursor-plugin-package.js plugins/dhpk-cursor
+          node scripts/ci/verify-platform-packages.js
+
       - name: Extract release notes from CHANGELOG.md
         id: notes
         run: |

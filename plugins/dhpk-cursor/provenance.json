@@ -1,0 +1,657 @@
+{
+  "schema": "dhpk.platform-provenance.v1",
+  "surface": "cursor-plugin",
+  "owner": "plugins/dhpk-cursor",
+  "packageRoot": "plugins/dhpk-cursor",
+  "sourceVersion": "0.37.0",
+  "sourceCommit": "8324bebe685eb5a25a4853582549e0cbe52b0908",
+  "inventoryDigest": "3f0a1a3c2082f0936ed8da841d5103db7e91b1fd07ca5bd132444129dc40c96e",
+  "generatorVersion": "1.0.0",
+  "selectedSkillIds": [],
+  "selectedSkillNames": [],
+  "skillProjectionMode": "shared",
+  "sharedSkillSurface": "agent-plugin",
+  "sharedSkillSource": "plugins/dhpk-agent/skills/",
+  "sharedSkillIds": [
+    "adaptive-dev-workflow",
+    "agent-architecture-audit",
+    "agy-commit",
+    "agy-fast-worker",
+    "bug-fix",
+    "bug-investigation",
+    "claude-health",
+    "code-explore",
+    "codex-architect",
+    "codex-brainstorm",
+    "codex-bridge",
+    "codex-code-review",
+    "codex-implement",
+    "composer-package-hygiene",
+    "continuous-learning-v2",
+    "create-request",
+    "create-skill",
+    "de-ai-flavor",
+    "deploy-list",
+    "dhpk-execution-policy",
+    "doc-review",
+    "execution-checklist",
+    "feasibility-study",
+    "feature-dev",
+    "feature-verify",
+    "git-investigate",
+    "git-smart-commit",
+    "gitnexus-cli",
+    "gitnexus-debugging",
+    "gitnexus-exploring",
+    "gitnexus-guide",
+    "gitnexus-impact-analysis",
+    "gitnexus-refactoring",
+    "harness-budget",
+    "harness-fill",
+    "harness-revise",
+    "issue-analyze",
+    "laravel-package-author",
+    "laravel-testbench-matrix",
+    "multi-ai-sync",
+    "next-step",
+    "op-session",
+    "opsx-apply-goal",
+    "opsx-load-context",
+    "opsx-post-obs",
+    "polyfill-version-matrix-audit",
+    "post-dev-test",
+    "pr-review",
+    "project-audit",
+    "project-setup",
+    "prompt-optimize",
+    "release-creator",
+    "repo-intake",
+    "risk-assess",
+    "rules-distill",
+    "security-review",
+    "session-usage-audit",
+    "skill-health-check",
+    "skill-judge",
+    "skill-scout",
+    "skill-stocktake",
+    "software-architecture",
+    "tdd",
+    "tech-spec",
+    "test-review",
+    "tool-routing"
+  ],
+  "sharedSkillNames": [
+    "dhpk-adaptive-dev-workflow",
+    "dhpk-agent-architecture-audit",
+    "dhpk-agy-commit",
+    "dhpk-agy-fast-worker",
+    "dhpk-bug-fix",
+    "dhpk-change-review",
+    "dhpk-claude-health",
+    "dhpk-codebase-exploration",
+    "dhpk-codex-architect",
+    "dhpk-codex-brainstorm",
+    "dhpk-codex-bridge",
+    "dhpk-codex-implement",
+    "dhpk-composer-package-hygiene",
+    "dhpk-continuous-learning-v2",
+    "dhpk-create-request",
+    "dhpk-create-skill",
+    "dhpk-cross-agent-sync",
+    "dhpk-de-ai-flavor",
+    "dhpk-deploy-list",
+    "dhpk-doc-review",
+    "dhpk-execution-checklist",
+    "dhpk-execution-policy",
+    "dhpk-feasibility-study",
+    "dhpk-feature-dev",
+    "dhpk-feature-verify",
+    "dhpk-git-history-investigation",
+    "dhpk-git-smart-commit",
+    "dhpk-gitnexus-cli",
+    "dhpk-gitnexus-debugging",
+    "dhpk-gitnexus-exploring",
+    "dhpk-gitnexus-guide",
+    "dhpk-gitnexus-impact-analysis",
+    "dhpk-gitnexus-refactoring",
+    "dhpk-harness-budget",
+    "dhpk-harness-fill",
+    "dhpk-harness-revise",
+    "dhpk-issue-analyze",
+    "dhpk-laravel-package-author",
+    "dhpk-laravel-testbench-matrix",
+    "dhpk-module-design",
+    "dhpk-next-step",
+    "dhpk-onepassword-session",
+    "dhpk-opsx-apply-goal",
+    "dhpk-opsx-load-context",
+    "dhpk-opsx-post-observation",
+    "dhpk-polyfill-version-matrix-audit",
+    "dhpk-post-dev-test",
+    "dhpk-pr-review",
+    "dhpk-project-audit",
+    "dhpk-project-setup",
+    "dhpk-prompt-optimize",
+    "dhpk-release-creator",
+    "dhpk-repo-intake",
+    "dhpk-risk-assess",
+    "dhpk-root-cause-investigation",
+    "dhpk-rules-distill",
+    "dhpk-security-review",
+    "dhpk-session-usage-audit",
+    "dhpk-skill-health-audit",
+    "dhpk-skill-quality-judge",
+    "dhpk-skill-scout",
+    "dhpk-skill-stocktake",
+    "dhpk-tdd-workflow",
+    "dhpk-tech-spec",
+    "dhpk-test-review",
+    "dhpk-tool-routing"
+  ],
+  "skippedSkills": [],
+  "transformations": [
+    {
+      "source": "agent-evaluator.md",
+      "destination": "agents/agent-evaluator.md",
+      "transform": "cursor-agents-frontmatter"
+    },
+    {
+      "source": "agy-fast-worker.md",
+      "destination": "agents/agy-fast-worker.md",
+      "transform": "cursor-agents-frontmatter"
+    },
+    {
+      "source": "anti-rationalization.md",
+      "destination": "rules/anti-rationalization.md",
+      "transform": "cursor-rules-frontmatter"
+    },
+    {
+      "source": "architect.md",
+      "destination": "agents/architect.md",
+      "transform": "cursor-agents-frontmatter"
+    },
+    {
+      "source": "check-coverage.md",
+      "destination": "commands/check-coverage.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "check-skill.md",
+      "destination": "commands/check-skill.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "code-reviewer.md",
+      "destination": "agents/code-reviewer.md",
+      "transform": "cursor-agents-frontmatter"
+    },
+    {
+      "source": "codex-bridge.md",
+      "destination": "agents/codex-bridge.md",
+      "transform": "cursor-agents-frontmatter"
+    },
+    {
+      "source": "codex-deep-reasoner.md",
+      "destination": "agents/codex-deep-reasoner.md",
+      "transform": "cursor-agents-frontmatter"
+    },
+    {
+      "source": "codex-fast-worker.md",
+      "destination": "agents/codex-fast-worker.md",
+      "transform": "cursor-agents-frontmatter"
+    },
+    {
+      "source": "codex-review-branch.md",
+      "destination": "commands/codex-review-branch.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "codex-review-doc.md",
+      "destination": "commands/codex-review-doc.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "codex-review-fast.md",
+      "destination": "commands/codex-review-fast.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "codex-review.md",
+      "destination": "commands/codex-review.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "codex-security.md",
+      "destination": "commands/codex-security.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "codex-test-gen.md",
+      "destination": "commands/codex-test-gen.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "codex-test-review.md",
+      "destination": "commands/codex-test-review.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "create-dev.md",
+      "destination": "commands/create-dev.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "create-pr.md",
+      "destination": "commands/create-pr.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "create-release.md",
+      "destination": "commands/create-release.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "database-reviewer.md",
+      "destination": "agents/database-reviewer.md",
+      "transform": "cursor-agents-frontmatter"
+    },
+    {
+      "source": "deep-analyze.md",
+      "destination": "commands/deep-analyze.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "deep-reasoner.md",
+      "destination": "agents/deep-reasoner.md",
+      "transform": "cursor-agents-frontmatter"
+    },
+    {
+      "source": "dep-audit.md",
+      "destination": "commands/dep-audit.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "do.md",
+      "destination": "commands/do.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "doc-refactor.md",
+      "destination": "commands/doc-refactor.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "doc-reviewer.md",
+      "destination": "agents/doc-reviewer.md",
+      "transform": "cursor-agents-frontmatter"
+    },
+    {
+      "source": "doc-updater.md",
+      "destination": "agents/doc-updater.md",
+      "transform": "cursor-agents-frontmatter"
+    },
+    {
+      "source": "docs-lookup.md",
+      "destination": "agents/docs-lookup.md",
+      "transform": "cursor-agents-frontmatter"
+    },
+    {
+      "source": "e2e-runner.md",
+      "destination": "agents/e2e-runner.md",
+      "transform": "cursor-agents-frontmatter"
+    },
+    {
+      "source": "evolve.md",
+      "destination": "commands/evolve.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "execution-policy-kernel.md",
+      "destination": "rules/execution-policy-kernel.md",
+      "transform": "cursor-rules-frontmatter"
+    },
+    {
+      "source": "execution-policy.md",
+      "destination": "rules/execution-policy.md",
+      "transform": "cursor-rules-frontmatter"
+    },
+    {
+      "source": "fast-worker.md",
+      "destination": "agents/fast-worker.md",
+      "transform": "cursor-agents-frontmatter"
+    },
+    {
+      "source": "frontend-reviewer.md",
+      "destination": "agents/frontend-reviewer.md",
+      "transform": "cursor-agents-frontmatter"
+    },
+    {
+      "source": "git-worktree.md",
+      "destination": "commands/git-worktree.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "harness-audit.md",
+      "destination": "commands/harness-audit.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "harness-govern.md",
+      "destination": "commands/harness-govern.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "harness-reviser.md",
+      "destination": "agents/harness-reviser.md",
+      "transform": "cursor-agents-frontmatter"
+    },
+    {
+      "source": "hooks/hooks.json#PostToolUse",
+      "destination": null,
+      "transform": "SKIP_INCOMPATIBLE: unsupported Cursor hook event or shape"
+    },
+    {
+      "source": "hooks/hooks.json#PreToolUse",
+      "destination": null,
+      "transform": "SKIP_INCOMPATIBLE: unsupported Cursor hook event or shape"
+    },
+    {
+      "source": "hooks/hooks.json#SessionStart",
+      "destination": null,
+      "transform": "SKIP_INCOMPATIBLE: unsupported Cursor hook event or shape"
+    },
+    {
+      "source": "hooks/hooks.json#SubagentStop",
+      "destination": null,
+      "transform": "SKIP_INCOMPATIBLE: unsupported Cursor hook event or shape"
+    },
+    {
+      "source": "install-hooks.md",
+      "destination": "commands/install-hooks.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "install-rules.md",
+      "destination": "commands/install-rules.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "install-scripts.md",
+      "destination": "commands/install-scripts.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "instinct-export.md",
+      "destination": "commands/instinct-export.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "instinct-import.md",
+      "destination": "commands/instinct-import.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "instinct-status.md",
+      "destination": "commands/instinct-status.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "matrix-cell-onboard.md",
+      "destination": "commands/matrix-cell-onboard.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "merge-prep.md",
+      "destination": "commands/merge-prep.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "migration-reviewer.md",
+      "destination": "agents/migration-reviewer.md",
+      "transform": "cursor-agents-frontmatter"
+    },
+    {
+      "source": "model-economics.md",
+      "destination": "rules/model-economics.md",
+      "transform": "cursor-rules-frontmatter"
+    },
+    {
+      "source": "opsx-apply-resume.md",
+      "destination": "commands/opsx-apply-resume.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "performance-analyzer.md",
+      "destination": "agents/performance-analyzer.md",
+      "transform": "cursor-agents-frontmatter"
+    },
+    {
+      "source": "planner.md",
+      "destination": "agents/planner.md",
+      "transform": "cursor-agents-frontmatter"
+    },
+    {
+      "source": "plugins/dhpk-agent/skills/",
+      "destination": null,
+      "transform": "shared-surface:agent-plugin",
+      "stableIds": [
+        "adaptive-dev-workflow",
+        "agent-architecture-audit",
+        "agy-commit",
+        "agy-fast-worker",
+        "bug-fix",
+        "bug-investigation",
+        "claude-health",
+        "code-explore",
+        "codex-architect",
+        "codex-brainstorm",
+        "codex-bridge",
+        "codex-code-review",
+        "codex-implement",
+        "composer-package-hygiene",
+        "continuous-learning-v2",
+        "create-request",
+        "create-skill",
+        "de-ai-flavor",
+        "deploy-list",
+        "dhpk-execution-policy",
+        "doc-review",
+        "execution-checklist",
+        "feasibility-study",
+        "feature-dev",
+        "feature-verify",
+        "git-investigate",
+        "git-smart-commit",
+        "gitnexus-cli",
+        "gitnexus-debugging",
+        "gitnexus-exploring",
+        "gitnexus-guide",
+        "gitnexus-impact-analysis",
+        "gitnexus-refactoring",
+        "harness-budget",
+        "harness-fill",
+        "harness-revise",
+        "issue-analyze",
+        "laravel-package-author",
+        "laravel-testbench-matrix",
+        "multi-ai-sync",
+        "next-step",
+        "op-session",
+        "opsx-apply-goal",
+        "opsx-load-context",
+        "opsx-post-obs",
+        "polyfill-version-matrix-audit",
+        "post-dev-test",
+        "pr-review",
+        "project-audit",
+        "project-setup",
+        "prompt-optimize",
+        "release-creator",
+        "repo-intake",
+        "risk-assess",
+        "rules-distill",
+        "security-review",
+        "session-usage-audit",
+        "skill-health-check",
+        "skill-judge",
+        "skill-scout",
+        "skill-stocktake",
+        "software-architecture",
+        "tdd",
+        "tech-spec",
+        "test-review",
+        "tool-routing"
+      ]
+    },
+    {
+      "source": "pr-summary.md",
+      "destination": "commands/pr-summary.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "precommit-fast.md",
+      "destination": "commands/precommit-fast.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "precommit.md",
+      "destination": "commands/precommit.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "project-brief.md",
+      "destination": "commands/project-brief.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "promote.md",
+      "destination": "commands/promote.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "python-build-resolver.md",
+      "destination": "agents/python-build-resolver.md",
+      "transform": "cursor-agents-frontmatter"
+    },
+    {
+      "source": "refactor-cleaner.md",
+      "destination": "agents/refactor-cleaner.md",
+      "transform": "cursor-agents-frontmatter"
+    },
+    {
+      "source": "review-pending.md",
+      "destination": "commands/review-pending.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "review-spec.md",
+      "destination": "commands/review-spec.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "rust-build-resolver.md",
+      "destination": "agents/rust-build-resolver.md",
+      "transform": "cursor-agents-frontmatter"
+    },
+    {
+      "source": "security-reviewer.md",
+      "destination": "agents/security-reviewer.md",
+      "transform": "cursor-agents-frontmatter"
+    },
+    {
+      "source": "setup.md",
+      "destination": "commands/setup.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "silent-failure-hunter.md",
+      "destination": "agents/silent-failure-hunter.md",
+      "transform": "cursor-agents-frontmatter"
+    },
+    {
+      "source": "simplify.md",
+      "destination": "commands/simplify.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "smart-commit.md",
+      "destination": "commands/smart-commit.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "smoke-tester.md",
+      "destination": "agents/smoke-tester.md",
+      "transform": "cursor-agents-frontmatter"
+    },
+    {
+      "source": "spec-mine.md",
+      "destination": "commands/spec-mine.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "spec-miner.md",
+      "destination": "agents/spec-miner.md",
+      "transform": "cursor-agents-frontmatter"
+    },
+    {
+      "source": "swift-build-resolver.md",
+      "destination": "agents/swift-build-resolver.md",
+      "transform": "cursor-agents-frontmatter"
+    },
+    {
+      "source": "tdd-guide.md",
+      "destination": "agents/tdd-guide.md",
+      "transform": "cursor-agents-frontmatter"
+    },
+    {
+      "source": "tool-routing.md",
+      "destination": "rules/tool-routing.md",
+      "transform": "cursor-rules-frontmatter"
+    },
+    {
+      "source": "type-design-analyzer.md",
+      "destination": "agents/type-design-analyzer.md",
+      "transform": "cursor-agents-frontmatter"
+    },
+    {
+      "source": "ui-ux-verifier.md",
+      "destination": "agents/ui-ux-verifier.md",
+      "transform": "cursor-agents-frontmatter"
+    },
+    {
+      "source": "ui-ux-verify.md",
+      "destination": "commands/ui-ux-verify.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "update-codemaps.md",
+      "destination": "commands/update-codemaps.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "update-docs.md",
+      "destination": "commands/update-docs.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "verify.md",
+      "destination": "commands/verify.md",
+      "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "version-matrix-impact-reviewer.md",
+      "destination": "agents/version-matrix-impact-reviewer.md",
+      "transform": "cursor-agents-frontmatter"
+    }
+  ],
+  "fingerprints": {
+    "rules": "bb5312b4426135ea68714d423f50f6cef2b1fa39ed50766c006c92b19524f383",
+    "agents": "7aa8dde7c58256e7e691da76f846235833e98f44a4ae625847691c605f8a54fb",
+    "commands": "69a5078ae7bdb9ab494e7e61dd59e43352412ac7ac2ab4bce8b75d6e148c0bd6",
+    "hooks/hooks.json": "1abe14baec6393d900554ebd4a84028ebd9748e0390f370813e9e32f664d0a8a"
+  },
+  "consumer": {
+    "status": "NOT_RUN",
+    "reason": "Cursor client consumer probe is separate from structural generation."
+  }
+}

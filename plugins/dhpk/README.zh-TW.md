@@ -6,6 +6,9 @@
 `source.path` 直接指向 marketplace root (`./`) 的 local plugin，因此 marketplace
 entry 必須指向具體 plugin subdirectory。
 
+本目錄是保留的 Experimental legacy/native surface；standard Agent Plugin 與
+Cursor 路徑請見[平台安裝 SSOT](../../docs/platform-installation.zh-TW.md)。
+
 ## 追蹤中的實體發布 artifact
 
 此目錄的 `skills/`、`fingerprints.json` 與 `provenance.json` 是**產生後納入版控的

@@ -11,7 +11,9 @@
     "claude-core",
     "claude-module",
     "codex-sync",
-    "codex-native"
+    "codex-native",
+    "agent-plugin",
+    "cursor-plugin"
   ],
   "supporting_assets": [
     {
@@ -2252,5 +2254,66 @@
         "claude-module"
       ]
     }
-  ]
+  ],
+  "surface_membership": {
+    "agent-plugin": [
+      "adaptive-dev-workflow", "agent-architecture-audit", "agy-commit", "agy-fast-worker", "bug-fix", "bug-investigation", "claude-health", "code-explore", "codex-architect", "codex-brainstorm", "codex-bridge", "codex-code-review", "codex-implement", "composer-package-hygiene", "continuous-learning-v2", "create-request", "create-skill", "de-ai-flavor", "deploy-list", "dhpk-execution-policy", "doc-review", "execution-checklist", "feasibility-study", "feature-dev", "feature-verify", "git-investigate", "git-smart-commit", "gitnexus-cli", "gitnexus-debugging", "gitnexus-exploring", "gitnexus-guide", "gitnexus-impact-analysis", "gitnexus-refactoring", "harness-budget", "harness-fill", "harness-revise", "issue-analyze", "laravel-package-author", "laravel-testbench-matrix", "multi-ai-sync", "next-step", "op-session", "opsx-apply-goal", "opsx-load-context", "opsx-post-obs", "polyfill-version-matrix-audit", "post-dev-test", "pr-review", "project-audit", "project-setup", "prompt-optimize", "release-creator", "repo-intake", "risk-assess", "rules-distill", "security-review", "session-usage-audit", "skill-health-check", "skill-judge", "skill-scout", "skill-stocktake", "software-architecture", "tdd", "tech-spec", "test-review", "tool-routing"
+    ],
+    "cursor-plugin": [
+      "adaptive-dev-workflow", "agent-architecture-audit", "agy-commit", "agy-fast-worker", "bug-fix", "bug-investigation", "claude-health", "code-explore", "codex-architect", "codex-brainstorm", "codex-bridge", "codex-code-review", "codex-implement", "composer-package-hygiene", "continuous-learning-v2", "create-request", "create-skill", "de-ai-flavor", "deploy-list", "dhpk-execution-policy", "doc-review", "execution-checklist", "feasibility-study", "feature-dev", "feature-verify", "git-investigate", "git-smart-commit", "gitnexus-cli", "gitnexus-debugging", "gitnexus-exploring", "gitnexus-guide", "gitnexus-impact-analysis", "gitnexus-refactoring", "harness-budget", "harness-fill", "harness-revise", "issue-analyze", "laravel-package-author", "laravel-testbench-matrix", "multi-ai-sync", "next-step", "op-session", "opsx-apply-goal", "opsx-load-context", "opsx-post-obs", "polyfill-version-matrix-audit", "post-dev-test", "pr-review", "project-audit", "project-setup", "prompt-optimize", "release-creator", "repo-intake", "risk-assess", "rules-distill", "security-review", "session-usage-audit", "skill-health-check", "skill-judge", "skill-scout", "skill-stocktake", "software-architecture", "tdd", "tech-spec", "test-review", "tool-routing"
+    ]
+  },
+  "portable_frontmatter": {
+    "allowlist": ["name", "description", "license", "compatibility", "metadata"],
+    "client_owned": ["disable-model-invocation", "context", "argument-hint", "agents/openai.yaml", "policy.allow_implicit_invocation", "rules/frontmatter", "variables", "hooks"]
+  },
+  "platform_matrix": {
+    "schema": "dhpk.platform-capability-matrix.v1",
+    "entries": [
+      {
+        "id": "dhpk.platform.agent-plugin.skills",
+        "public_name": "agent-plugin-portable-skills",
+        "surface": "agent-plugin",
+        "source_paths": ["skills/"],
+        "destination": "plugins/dhpk-agent/skills/",
+        "transform": "agent-skills-frontmatter",
+        "fallback": "codex-sync",
+        "projection_mode": "owner",
+        "evidence": "NOT_RUN"
+      },
+      {
+        "id": "dhpk.platform.agent-plugin.mcp",
+        "public_name": "agent-plugin-mcp",
+        "surface": "agent-plugin",
+        "source_paths": ["mcp/"],
+        "destination": "plugins/dhpk-agent/mcp.json",
+        "transform": "schema-versioned-optional",
+        "fallback": "no-mcp-json",
+        "evidence": "NOT_CONFIGURED"
+      },
+      {
+        "id": "dhpk.platform.cursor-plugin.skills",
+        "public_name": "cursor-plugin-portable-skills",
+        "surface": "cursor-plugin",
+        "source_paths": ["skills/"],
+        "destination": "plugins/dhpk-agent/skills/",
+        "transform": "shared-agent-plugin-skills",
+        "fallback": "agent-plugin",
+        "projection_mode": "shared",
+        "shared_surface": "agent-plugin",
+        "evidence": "NOT_RUN"
+      },
+      {
+        "id": "dhpk.platform.cursor-plugin.native",
+        "public_name": "cursor-plugin-native-components",
+        "surface": "cursor-plugin",
+        "source_paths": ["agents/", "commands/", "rules/", "hooks/hooks.json"],
+        "destination": "plugins/dhpk-cursor/",
+        "transform": "cursor-native-adaptation",
+        "fallback": "SKIP_INCOMPATIBLE",
+        "projection_mode": "overlay",
+        "evidence": "NOT_RUN"
+      }
+    ]
+  }
 }

@@ -56,15 +56,15 @@
 function applyDiscount(discountCode) {
     // 驗證憑證
     const discount = validateDiscount(discountCode);
-    
+
     // 計算折扣
     const amount = calculateDiscount(discount, session.total);
-    
+
     // 更新會話狀態
     session.appliedDiscount = discount;
     session.discountAmount = amount;
     session.total = session.total - amount;
-    
+
     // 更新 UI
     updateDisplay();
 }
@@ -84,7 +84,7 @@ function processTransaction(processingMethod) {
         discount: session.appliedDiscount,  // 🔴 問題點
         processingMethod: processingMethod
     };
-    
+
     // 送出請求
     sendRequest(transactionData);
 }
@@ -101,10 +101,10 @@ function processTransaction(processingMethod) {
 ```php
 public function processTransaction() {
     $request = $this->getRequest();
-    
+
     $discount = $request['discount'] ?? null;
     $processingMethod = $request['processingMethod'];
-    
+
     // 驗證憑證
     if ($discount) {
         $isValid = $this->discountService->validate($discount);
@@ -113,7 +113,7 @@ public function processTransaction() {
             $processingMethod = 'methodB'; // 錯誤的預設值
         }
     }
-    
+
     // 儲存交易
     $this->saveTransaction($processingMethod);
 }
@@ -140,7 +140,7 @@ flowchart TD
     Rollback -->|🔴 錯誤| WrongMethod[錯誤處理方式]
     WrongMethod --> Save
     Save --> End([交易完成])
-    
+
     classDef errorNode fill:#f96,stroke:#333,stroke-width:2px
     class Rollback,WrongMethod errorNode
 ```
@@ -177,10 +177,10 @@ function cancelDiscount() {
 ```php
 public function processTransaction() {
     $request = $this->getRequest();
-    
+
     $discount = $request['discount'] ?? null;
     $processingMethod = $request['processingMethod'];
-    
+
     if ($discount) {
         $isValid = $this->discountService->validate($discount);
         if (!$isValid) {
@@ -188,7 +188,7 @@ public function processTransaction() {
             throw new DiscountInvalidException('憑證已失效，請重新選擇處理方式');
         }
     }
-    
+
     // 儲存交易
     $this->saveTransaction($processingMethod);
 }
@@ -201,7 +201,7 @@ private function validateProcessingConsistency($discount, $processingMethod) {
     if ($discount && $processingMethod === 'methodB') {
         throw new InvalidArgumentException('處理方式與憑證衝突');
     }
-    
+
     if (!$discount && $processingMethod === 'methodB') {
         throw new InvalidArgumentException('未套用憑證但處理方式為 methodB');
     }

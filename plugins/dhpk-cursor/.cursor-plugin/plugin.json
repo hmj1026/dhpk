@@ -1,0 +1,24 @@
+{
+  "name": "dhpk-cursor",
+  "version": "0.37.0",
+  "description": "dhpk Cursor Plugin projection (generated from canonical sources).",
+  "author": {
+    "name": "hmj1026"
+  },
+  "homepage": "https://github.com/hmj1026/dhpk",
+  "repository": "https://github.com/hmj1026/dhpk",
+  "license": "MIT",
+  "keywords": [
+    "dhpk",
+    "agent",
+    "cursor"
+  ],
+  "rules": "./rules/",
+  "agents": "./agents/",
+  "commands": "./commands/",
+  "hooks": "./hooks/hooks.json",
+  "variables": {
+    "type": "object",
+    "properties": {}
+  }
+}

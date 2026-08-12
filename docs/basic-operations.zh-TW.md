@@ -2,7 +2,7 @@
 
 > **語言**: [English](./basic-operations.md) · **繁體中文**
 
-本頁說明 dhpk 的操作生命週期：安裝、日常指令流程、自動 review 循環，以及如何將既有專案遷移過來。完整的 `userConfig` 旋鈕參考請見 [`docs/configuration.zh-TW.md`](./configuration.zh-TW.md)。
+本頁說明 dhpk 的操作生命週期：安裝、日常指令流程、自動 review 循環，以及如何將既有專案遷移過來。Codex/Cursor 的安裝、status 與 rollback 請以[平台安裝 SSOT](./platform-installation.zh-TW.md)為準；完整的 `userConfig` 旋鈕參考請見 [`docs/configuration.zh-TW.md`](./configuration.zh-TW.md)。
 
 ## 決策階梯
 

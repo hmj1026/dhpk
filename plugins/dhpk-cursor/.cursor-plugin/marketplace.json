@@ -1,0 +1,20 @@
+{
+  "name": "dhpk",
+  "owner": {
+    "name": "hmj1026"
+  },
+  "metadata": {
+    "description": "Local Cursor Plugin marketplace fixture for dhpk.",
+    "version": "0.37.0",
+    "pluginRoot": "."
+  },
+  "plugins": [
+    {
+      "name": "dhpk-cursor",
+      "source": ".",
+      "description": "dhpk Cursor Plugin projection",
+      "version": "0.37.0",
+      "license": "MIT"
+    }
+  ]
+}

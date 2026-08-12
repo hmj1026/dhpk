@@ -2,7 +2,7 @@
 
 > **Languages**: **English** · [繁體中文](./basic-operations.zh-TW.md)
 
-This page walks through the operational lifecycle of dhpk: installing it, the day-to-day command flow, the automatic review cycle, and how to migrate an existing project onto it. For the full `userConfig` knob reference, see [`docs/configuration.md`](./configuration.md).
+This page walks through the operational lifecycle of dhpk: installing it, the day-to-day command flow, the automatic review cycle, and how to migrate an existing project onto it. For exact Codex/Cursor installation, status, and rollback instructions, use the [platform installation SSOT](./platform-installation.md). For the full `userConfig` knob reference, see [`docs/configuration.md`](./configuration.md).
 
 ## Decision ladder
 

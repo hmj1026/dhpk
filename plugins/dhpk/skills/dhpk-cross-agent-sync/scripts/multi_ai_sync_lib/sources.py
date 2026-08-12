@@ -16,7 +16,7 @@ from .utils import read_text, relpath, safe_exists, uniq
 
 
 def resolve_configured_targets(repo_root):
-    """Task 2.1: documented configuration markers for Codex/Gemini/Antigravity.
+    """Task 2.1/5.1: documented configuration markers for each target.
 
     A target is "configured" when its primary marker exists — mere presence,
     not full validity (an invalid-but-present marker is a `FAIL`, not an
@@ -27,6 +27,12 @@ def resolve_configured_targets(repo_root):
         "codex": safe_exists(os.path.join(repo_root, ".codex/config.toml")),
         "gemini": bool(glob.glob(os.path.join(repo_root, ".gemini/commands/**/*.toml"), recursive=True)),
         "antigravity": bool(glob.glob(os.path.join(repo_root, ".agent/rules/*.md"))),
+        "cursor": any(safe_exists(os.path.join(repo_root, marker)) for marker in (
+            "plugins/dhpk-agent/plugin.json",
+            ".cursor-plugin/plugin.json",
+            ".cursor/plugins/local/dhpk-agent/plugin.json",
+            ".cursor/plugins/local/dhpk-cursor/.cursor-plugin/plugin.json",
+        )),
     }
 
 
@@ -107,6 +113,10 @@ def evidence_sources(target, category):
             "https://context7.com/websites/antigravity_google_home",
             "https://antigravity.google",
             "https://blog.google/intl/nl-nl/product/zoeken-kijken/een-nieuw-tijdperk-van-intelligentie-met-gemini-3/",
+        ],
+        "cursor": [
+            "https://cursor.com/docs/plugins",
+            "https://cursor.com/docs/reference/plugins",
         ],
     }
     urls = list(common.get(target, []))

@@ -1,5 +1,8 @@
 # dhpk for Codex CLI
 
+Installation and support-status SSOT: [platform-installation.md](../docs/platform-installation.md)
+and [platform-installation.zh-TW.md](../docs/platform-installation.zh-TW.md).
+
 This file describes how the `dhpk` plugin's content interacts with **Codex CLI** (separate from Claude Code). Claude Code does NOT auto-load anything inside the plugin's `codex/` directory.
 
 ## What dhpk provides to Codex CLI

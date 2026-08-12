@@ -1,7 +1,9 @@
 """Post-sync validation 與報告輸出。"""
 
 import glob
+import json
 import os
+import subprocess
 
 from .agent_sync import (
     CLAUDE_PARITY_COVERAGE_KEYWORDS,
@@ -10,6 +12,7 @@ from .agent_sync import (
     MANIFEST_SCHEMA_VERSION,
     SYNC_MANIFEST_PATH,
     claude_parity_roles,
+    cursor_agent_roles,
     load_agent_sync_manifest,
 )
 from .constants import (
@@ -24,6 +27,7 @@ from .constants import (
     ROW_NOT_CONFIGURED,
     ROW_PASS,
     ROW_SKIP_INCOMPATIBLE,
+    ROW_UNAVAILABLE,
 )
 from .sources import gemini_hook_surface_enabled, resolve_target_membership
 from .utils import has_any_files, now_iso, parse_json_ok, parse_toml_like_ok, read_text, relpath, safe_exists
@@ -52,6 +56,7 @@ def state_to_markdown(state):
         ROW_SKIP_INCOMPATIBLE: "SKIP",
         ROW_NOT_CONFIGURED: "N/A",
         ROW_BLOCKED: "BLOCKED",
+        ROW_UNAVAILABLE: "UNAVAILABLE",
         CHECK_PASS: "OK",
         CHECK_FAIL: "FAIL",
         CHECK_SKIP: "SKIP",
@@ -293,6 +298,163 @@ def validate_antigravity(repo_root, membership=None):
     return result_row("antigravity", config_ok, smoke_ok, hook_state, multi_state, notes, hook_reason=hook_reason)
 
 
+def _cursor_package_roots(repo_root):
+    portable_candidates = [
+        os.path.join(repo_root, "plugins", "dhpk-agent"),
+        os.path.join(repo_root, ".cursor", "plugins", "local", "dhpk-agent"),
+    ]
+    native_candidates = [
+        os.path.join(repo_root, "plugins", "dhpk-cursor"),
+        os.path.join(repo_root, ".cursor", "plugins", "local", "dhpk-cursor"),
+    ]
+    portable = next((root for root in portable_candidates if safe_exists(os.path.join(root, "plugin.json"))), None)
+    native = next((root for root in native_candidates if safe_exists(os.path.join(root, ".cursor-plugin", "plugin.json"))), None)
+    return portable, native
+
+
+def _validate_cursor_package_structure(package_root, kind):
+    """Run the authoritative JS projection validator, failing closed if absent.
+
+    Installed/generated copies may not carry the repository's validator scripts.
+    They must report ``UNAVAILABLE`` rather than using a weaker parser that could
+    accept a malformed package as structurally valid.
+    """
+    if not package_root:
+        return False, "Cursor package root is missing"
+    script_name = "validate-agent-plugin-package.js" if kind == "portable" else "validate-cursor-plugin-package.js"
+    source_root = os.path.abspath(os.path.dirname(__file__))
+    script = None
+    for _ in range(10):
+        candidate = os.path.join(source_root, "scripts", "ci", script_name)
+        if os.path.isfile(candidate):
+            script = candidate
+            break
+        parent = os.path.dirname(source_root)
+        if parent == source_root:
+            break
+        source_root = parent
+    if script is None:
+        return None, "authoritative Cursor %s package validator is unavailable" % kind
+    try:
+        result = subprocess.run(
+            ["node", script, package_root],
+            cwd=source_root,
+            capture_output=True,
+            text=True,
+            timeout=30,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        return None, "Cursor %s package validator is unavailable: %s" % (kind, exc)
+    try:
+        report = json.loads(result.stdout or "{}")
+    except ValueError:
+        return False, "Cursor package validator emitted invalid JSON"
+    structural = report.get("structural")
+    if result.returncode != 0 or structural != "PASS":
+        errors = report.get("errors") or ["structural validator reported %s" % (structural or "FAIL")]
+        return False, "Cursor %s package validation failed: %s" % (kind, "; ".join(str(error) for error in errors))
+    return True, None
+
+
+def validate_cursor(repo_root, membership=None):
+    """Validate Cursor portable skills separately from Cursor-native extras.
+
+    A standard Agent Plugin package proves only portable skills/MCP structure;
+    native rules/agents/commands/hooks remain independently reportable and are
+    marked SKIP_INCOMPATIBLE when the native package is not selected.
+    """
+    if membership is not None and not membership.get("present"):
+        requested = membership.get("requested")
+        status = ROW_BLOCKED if requested else ROW_NOT_CONFIGURED
+        reason = "Cursor package markers are absent (%s)" % (
+            "explicitly requested" if requested else "not configured"
+        )
+        return not_participating_row("cursor", status, reason)
+
+    notes = []
+    portable, native = _cursor_package_roots(repo_root)
+    portable_valid = True
+    native_valid = True
+    portable_unavailable = False
+    native_unavailable = False
+    if portable:
+        portable_valid, portable_error = _validate_cursor_package_structure(portable, "portable")
+        if portable_valid is None:
+            portable_unavailable = True
+            portable_valid = True
+            notes.append(portable_error)
+        elif not portable_valid:
+            notes.append(portable_error)
+    if native:
+        native_valid, native_error = _validate_cursor_package_structure(native, "native")
+        if native_valid is None:
+            native_unavailable = True
+            native_valid = True
+            notes.append(native_error)
+        elif not native_valid:
+            notes.append(native_error)
+    config_ok = (portable is not None or native is not None) and portable_valid and native_valid
+    if not config_ok:
+        notes.append("Cursor package marker is present in configuration but no package root was found")
+
+    portable_skills = bool(portable and glob.glob(os.path.join(portable, "skills", "*/SKILL.md")))
+    portable_mcp = bool(portable and safe_exists(os.path.join(portable, "mcp.json")))
+    smoke_ok = portable_skills or bool(native and glob.glob(os.path.join(native, "skills", "*/SKILL.md")))
+    if not smoke_ok:
+        notes.append("Cursor package has no discovered skills")
+    if portable and not portable_mcp:
+        notes.append("Cursor portable MCP is not configured; skills remain independently valid")
+
+    if native_unavailable:
+        hook_state = ROW_UNAVAILABLE
+        hook_reason = "Cursor-native package structural validator is unavailable"
+        multi_state = ROW_UNAVAILABLE
+        multi_reason = "Cursor-native package structural validator is unavailable"
+        notes.extend([hook_reason, multi_reason])
+    elif native and not native_valid:
+        hook_state = ROW_FAIL
+        hook_reason = "Cursor-native package structural validation failed"
+    elif native and safe_exists(os.path.join(native, "hooks", "hooks.json")):
+        hook_state = ROW_PASS
+        hook_reason = "Cursor-native hooks manifest is present"
+    else:
+        hook_state = ROW_SKIP_INCOMPATIBLE
+        hook_reason = "Cursor-native hooks are not selected; portable Agent Plugin has no native hook claim"
+        notes.append(hook_reason)
+
+    if native_unavailable:
+        multi_state = ROW_UNAVAILABLE
+        multi_reason = "Cursor-native package structural validator is unavailable"
+    elif native and cursor_agent_roles(repo_root):
+        multi_state = ROW_PASS
+        multi_reason = "Cursor-native agent definitions are discoverable (navigation/receipts excluded)"
+    else:
+        multi_state = ROW_SKIP_INCOMPATIBLE
+        multi_reason = "Cursor-native agents are unavailable; portable skills remain supported"
+        notes.append(multi_reason)
+
+    row = result_row(
+        "cursor", config_ok, smoke_ok, hook_state, multi_state, notes,
+        hook_reason=hook_reason, multi_reason=multi_reason,
+    )
+    if row["final_status"] == ROW_PASS and (portable_unavailable or native_unavailable):
+        row["final_status"] = ROW_UNAVAILABLE
+    portable_status = ROW_UNAVAILABLE if portable_unavailable else (ROW_FAIL if portable and not portable_valid else (ROW_PASS if portable and portable_skills else (ROW_FAIL if portable else ROW_NOT_CONFIGURED)))
+    mcp_status = ROW_UNAVAILABLE if portable_unavailable and portable_mcp else (ROW_FAIL if portable and portable_mcp and not portable_valid else (ROW_PASS if portable_mcp else (ROW_NOT_CONFIGURED if portable else ROW_SKIP_INCOMPATIBLE)))
+    native_status = ROW_UNAVAILABLE if native_unavailable else (ROW_FAIL if native and not native_valid else (ROW_PASS if native else ROW_SKIP_INCOMPATIBLE))
+    row["capabilities"] = [
+        {"id": "cursor.portable.skills", "status": portable_status, "fallback": "agent-plugin", "reason": "portable Agent Skills package"},
+        {"id": "cursor.portable.mcp", "status": mcp_status, "fallback": "no-mcp-json", "reason": "optional MCP is independently configured"},
+        {"id": "cursor.native.rules", "status": native_status if native and safe_exists(os.path.join(native, "rules")) else ROW_SKIP_INCOMPATIBLE, "fallback": "portable-skills", "reason": "Cursor rules"},
+        {"id": "cursor.native.agents", "status": ROW_UNAVAILABLE if native_unavailable else (ROW_PASS if native and cursor_agent_roles(repo_root) else ROW_SKIP_INCOMPATIBLE), "fallback": "portable-skills", "reason": "Cursor agents"},
+        {"id": "cursor.native.commands", "status": native_status if native and safe_exists(os.path.join(native, "commands")) else ROW_SKIP_INCOMPATIBLE, "fallback": "portable-skills", "reason": "Cursor commands"},
+        {"id": "cursor.native.hooks", "status": hook_state, "fallback": "SKIP_INCOMPATIBLE", "reason": hook_reason},
+        {"id": "cursor.native.variables", "status": ROW_UNAVAILABLE if native_unavailable else (ROW_PASS if native and safe_exists(os.path.join(native, ".cursor-plugin", "plugin.json")) else ROW_SKIP_INCOMPATIBLE), "fallback": "no-client-variables", "reason": "Cursor variables schema"},
+    ]
+    return row
+
+
 def run_policy_checks(repo_root, codex_present=True):
     """Task 5: 執行三類政策型檢查（path canonicalization、profile compatibility、agent parity）。
 
@@ -464,21 +626,26 @@ def run_validation(repo_root, change_id=None, targets=None, all_targets=False):
     membership = resolve_target_membership(repo_root, targets=targets, all_targets=all_targets)
 
     rows = [validate_claude(repo_root)]
-    validators = {"codex": validate_codex, "gemini": validate_gemini, "antigravity": validate_antigravity}
+    validators = {"codex": validate_codex, "gemini": validate_gemini, "antigravity": validate_antigravity, "cursor": validate_cursor}
     for platform, entry in membership.items():
         rows.append(validators[platform](repo_root, entry))
 
     gate = GATE_PASS
     any_blocked = False
+    any_unavailable = False
     any_skip_incompatible = False
     for row in rows:
         if row["final_status"] == ROW_FAIL:
             gate = GATE_FAIL
         elif row["final_status"] == ROW_BLOCKED:
             any_blocked = True
+        elif row["final_status"] == ROW_UNAVAILABLE:
+            any_unavailable = True
         if row["hook_case_state"] == ROW_SKIP_INCOMPATIBLE or row["multi_agent_case_state"] == ROW_SKIP_INCOMPATIBLE:
             any_skip_incompatible = True
     if gate != GATE_FAIL and any_blocked:
+        gate = GATE_BLOCKED
+    elif gate == GATE_PASS and any_unavailable:
         gate = GATE_BLOCKED
 
     # Task 5: 政策型檢查（既有機制，仍可將 gate 升級為 FAIL；不產生 BLOCKED）。
@@ -550,6 +717,7 @@ def render_validation_markdown(report):
     lines.append("- `BLOCKED`: 沒有 `FAIL`，但至少一個以 `--targets`/`--all-targets` 明確要求的平台完全缺席。")
     lines.append("- `NOT_CONFIGURED`: 平台未被明確要求且缺席（預設自動探索情境）；不影響 gate，僅供可見性。")
     lines.append("- `SKIP_INCOMPATIBLE`: 平台已設定，但特定能力依政策矩陣不支援；不影響 gate，僅供可見性。")
+    lines.append("- `UNAVAILABLE`: 對應 client/tooling 不存在；不得轉為 `PASS`。")
     lines.append("")
 
     lines.append("## Notes")

@@ -6,6 +6,9 @@
 host 能與不能過濾的內容。所有數值與歸屬以
 `manifests/distribution-inventory.json` 為 SSOT。
 
+精確安裝命令、支援層級、status vocabulary、consumer evidence 與 rollback 請以
+[平台安裝 SSOT](./platform-installation.zh-TW.md)為準。
+
 ## Lifecycle model
 
 每個 consumer-reachable skill 與 module 只允許一個 lifecycle：
@@ -25,6 +28,17 @@ package、module catalog、Codex metadata 與 inventory。
 同一份 inventory 的 `supporting_assets` 也管理 Codex projection 的 trap sheet、
 contract 與 execution policy。Installer 會把每個 materialized asset 記錄到 schema-v3
 `.codex/.dhpk-installed.json`，確保乾淨 consumer projection 中的 agent reference 可達。
+
+## Standard Agent Plugin 與 Cursor native ownership
+
+Platform capability matrix 讓相同的 portable skill 只有一個 physical publication
+owner：`plugins/dhpk-agent/skills/`。Standard Agent Plugin 擁有這份 generated tree；
+`plugins/dhpk-cursor/` 預設只放 Cursor-native rules、agents、commands、hooks 與
+variables。Cursor provenance 會記錄 shared stable IDs 與
+`plugins/dhpk-agent/skills/` source，但不建立第二份 `skills/`。只有明確 matrix row
+使用 `projection_mode: overlay`、指定 stable IDs，並記錄 transform、fallback 與獨立
+fingerprint 時，才允許 Cursor-specific copy。如此 shared portable skills 只有一個
+更新／rollback owner，而 Cursor-native files 由另一個 owner 獨立管理。
 
 ## 目前 Claude publication
 

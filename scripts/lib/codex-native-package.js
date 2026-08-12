@@ -14,6 +14,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const { RECEIPT_SCHEMA, SURFACE_OWNERS } = require('./platform-provenance');
 
 // Bump when the generation algorithm (selection, layout, or manifest-merge
 // logic) changes in a way that could produce a different package from the
@@ -271,7 +272,11 @@ function materializeNativePackage({
     // only that validated direct child before copying so stale descendants
     // cannot survive while unrelated package metadata remains intact.
     if (lstatOrNull(dstDir)) fs.rmSync(dstDir, { recursive: true, force: true });
-    fs.cpSync(srcDir, dstDir, { recursive: true, dereference: true });
+    fs.cpSync(srcDir, dstDir, {
+      recursive: true,
+      dereference: true,
+      filter: (source) => !source.split(path.sep).includes('__pycache__') && !source.endsWith('.pyc'),
+    });
     fingerprints[publicName] = fingerprintDir(dstDir);
   }
 
@@ -286,12 +291,16 @@ function materializeNativePackage({
   const skillIds = selected.map((s) => s.id).sort();
   const skillNames = selected.map((s) => s.name || s.id).sort();
   const provenance = {
+    schema: RECEIPT_SCHEMA,
+    surface: 'codex-native',
+    owner: SURFACE_OWNERS['codex-native'],
     sourceVersion: version,
     sourceCommit,
     inventoryDigest: crypto.createHash('sha256').update(JSON.stringify(inventory)).digest('hex'),
     generatorVersion,
     selectedSkillIds: skillIds,
     selectedSkillNames: skillNames,
+    fingerprints,
   };
   fs.writeFileSync(path.join(outDir, 'provenance.json'), `${JSON.stringify(provenance, null, 2)}\n`);
 

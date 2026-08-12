@@ -8,6 +8,10 @@ points at. Codex does not discover plugins whose local marketplace
 must target a concrete plugin subdirectory (see
 [openai/codex#26037](https://github.com/openai/codex/issues/26037)).
 
+This is the retained Experimental legacy/native surface. The separate standard
+Agent Plugin and Cursor routes are documented in the [platform installation
+SSOT](../../docs/platform-installation.md).
+
 ## Tracked, physical publication artifact
 
 `skills/`, `fingerprints.json`, and `provenance.json` in this directory are a
