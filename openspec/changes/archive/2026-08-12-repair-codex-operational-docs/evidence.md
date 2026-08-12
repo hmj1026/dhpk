@@ -22,8 +22,10 @@
 - `node tests/platform-installation-docs.test.js` — PASS (8/8).
 - `node tests/documentation-platform-parity.test.js` — PASS (8/8).
 - `git diff --check` — PASS.
-- `openspec validate repair-codex-operational-docs --strict --no-interactive` —
-  PASS.
+- Before archival, `openspec validate repair-codex-operational-docs --strict
+  --no-interactive` — PASS.
+- After archival, `openspec validate --all --strict --no-interactive` — PASS
+  (25/25).
 
 The source validators remain checkout-root checks and are not claimed as live
 consumer runtime proof.

@@ -1,7 +1,8 @@
 # codex-operational-documentation Specification
 
 ## Purpose
-TBD - created by archiving change repair-codex-operational-docs. Update Purpose after archive.
+Define bilingual, consumer-safe Codex installation and operational guidance that
+keeps checkout-root validators separate from consumer-project verification.
 ## Requirements
 ### Requirement: Codex verification commands declare their working root
 
@@ -64,4 +65,3 @@ working-root contract or support-status claim.
 - **THEN** both locale files contain the same consumer/source command boundary
   and equivalent `DHPK_ROOT` form
 - **AND** the suite reports the relative file when the contract drifts
-
