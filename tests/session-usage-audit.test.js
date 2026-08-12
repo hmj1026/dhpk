@@ -581,6 +581,31 @@ test('verifyFinding rejects identical executed argv even when labels differ', ()
   assert.strictEqual(result.status, 'needs-verification');
 });
 
+test('verifyFinding rejects an assertion type that is not bound to the finding category', () => {
+  const candidate = {
+    status: 'candidate',
+    confidence: 0.9,
+    evidence: [],
+    fingerprint: 'sha256:' + 'a'.repeat(64),
+    reproductionAssertion: { type: 'hook-failure-observed' },
+    consumerGateAssertion: { type: 'hook-failure-remediated' },
+  };
+  const result = audit.verifyFinding(candidate, {
+    fingerprint: candidate.fingerprint,
+    reproduction: {
+      status: 'pass',
+      assertion: { type: 'unrelated-observation', observed: true },
+      execution: { trusted: true, argv: ['node', 'reproduce.js'] },
+    },
+    consumerGate: {
+      status: 'pass',
+      assertion: { type: 'hook-failure-remediated', observed: true },
+      execution: { trusted: true, argv: ['node', 'consumer.js'] },
+    },
+  });
+  assert.strictEqual(result.status, 'needs-verification');
+});
+
 test('CLI emits a JSON report and honors explicit home/output boundaries', () => {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-session-audit-cli-'));
   const output = path.join(home, 'audit-output');

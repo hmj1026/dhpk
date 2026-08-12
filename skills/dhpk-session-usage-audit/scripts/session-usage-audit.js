@@ -1081,13 +1081,18 @@ function verifyFinding(finding, verification = {}, options = {}) {
       || verification.fingerprint
       || options.requireBoundAssertions,
   );
-  const fingerprintMatches = !verification.fingerprint || !finding?.fingerprint || verification.fingerprint === finding.fingerprint;
+  const fingerprintMatches = !verification.fingerprint || verification.fingerprint === finding?.fingerprint;
+  const assertionMatches = (entry, definition) => {
+    if (!requiresBoundAssertions) return true;
+    if (entry?.assertion?.observed !== true || !entry.assertion.type) return false;
+    return !definition?.type || entry.assertion.type === definition.type;
+  };
   const reproductionAssertion = isGenericVerification(reproduction)
     ? false
-    : (requiresBoundAssertions ? (reproduction.assertion?.observed === true && reproduction.assertion.type) : true);
+    : assertionMatches(reproduction, finding?.reproductionAssertion);
   const consumerAssertion = isGenericVerification(consumerGate)
     ? false
-    : (requiresBoundAssertions ? (consumerGate.assertion?.observed === true && consumerGate.assertion.type) : true);
+    : assertionMatches(consumerGate, finding?.consumerGateAssertion);
   const passed = trusted
     && reproduction.status === 'pass'
     && consumerGate.status === 'pass'
