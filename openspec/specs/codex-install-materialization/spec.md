@@ -58,6 +58,16 @@ failed reconciliation SHALL not claim success.
 - **AND** update reconciliation does not report a source change caused only by
   that bytecode
 
+#### Scenario: Destination ownership detects legacy bytecode
+
+- **WHEN** a pre-remediation receipt records a managed copy whose destination
+  contains ignored Python bytecode
+- **THEN** ownership validation accepts the complete legacy destination
+  fingerprint
+- **AND** update replaces the managed destination with a clean projection
+- **AND** consumer validation uses complete destination integrity so stale or
+  changed bytecode cannot be treated as an equivalent projection
+
 #### Scenario: Migration completes with collisions
 
 - **WHEN** a migration updates managed entries but skips two unowned collisions

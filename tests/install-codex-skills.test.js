@@ -4,6 +4,7 @@
 // exercise ownership boundaries rather than only checking shell syntax.
 
 const fs = require('node:fs');
+const crypto = require('node:crypto');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
@@ -55,6 +56,28 @@ function projectRoot() {
 function copyDistributionInventory(plugin) {
   fs.cpSync(path.join(ROOT, 'manifests'), path.join(plugin, 'manifests'), { recursive: true, dereference: true });
   fs.cpSync(path.join(ROOT, 'agent-traps'), path.join(plugin, 'agent-traps'), { recursive: true, dereference: true });
+}
+
+function completeTreeFingerprint(target) {
+  const hashNode = (current) => {
+    const stat = fs.lstatSync(current);
+    if (stat.isSymbolicLink()) return hashNode(fs.realpathSync(current));
+    const digest = crypto.createHash('sha256');
+    if (stat.isDirectory()) {
+      digest.update('dir\0');
+      for (const name of fs.readdirSync(current).sort()) {
+        digest.update(name);
+        digest.update('\0');
+        digest.update(hashNode(path.join(current, name)));
+        digest.update('\0');
+      }
+      return digest.digest('hex');
+    }
+    digest.update('file\0');
+    digest.update(fs.readFileSync(current));
+    return digest.digest('hex');
+  };
+  return hashNode(target);
 }
 
 test('copy mode materializes skills/agents and records the install manifest', () => {
@@ -271,6 +294,37 @@ test('copy mode excludes ignored Python bytecode from projection and fingerprint
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
     fs.rmSync(fakePlugin, { recursive: true, force: true });
+  }
+});
+
+test('copy update cleans legacy bytecode while preserving receipt ownership', () => {
+  const scratch = projectRoot();
+  try {
+    const first = runInstaller(scratch, ['--copy', '--force']);
+    assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+    const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
+    const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    const skillTarget = path.join(scratch, '.codex', 'skills', 'dhpk-cross-agent-sync');
+    const legacyBytecode = path.join(skillTarget, 'scripts', 'multi_ai_sync_lib', '__pycache__', 'legacy.pyc');
+    fs.mkdirSync(path.dirname(legacyBytecode), { recursive: true });
+    fs.writeFileSync(legacyBytecode, 'legacy-bytecode\n');
+
+    const entry = receipt.managed_entries.skills['dhpk-cross-agent-sync'];
+    assert.ok(entry, 'expected the legacy receipt entry to exist');
+    const legacyDestinationFingerprint = completeTreeFingerprint(skillTarget);
+    entry.destination_fingerprint = legacyDestinationFingerprint;
+    entry.fingerprint = legacyDestinationFingerprint;
+    fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+
+    const updated = runInstaller(scratch, ['--copy', '--update', '--force']);
+    assert.strictEqual(updated.status, 0, `${updated.stdout}\n${updated.stderr}`);
+    assert.ok(!fs.existsSync(legacyBytecode), 'legacy ignored bytecode must be removed by a managed update');
+    const after = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    assert.strictEqual(after.reconciliation.state, 'current');
+    assert.strictEqual(after.reconciliation.skipped_collision, 0);
+    assert.ok(after.reconciliation.updated >= 1, 'legacy bytecode should trigger a clean destination refresh');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
   }
 });
 
@@ -681,10 +735,26 @@ test('--migrate renames a receipt-owned unchanged legacy skill destination to it
       path.join(scratch, '.codex', 'skills', currentName),
       path.join(scratch, '.codex', 'skills', legacyName)
     );
+    const legacyBytecode = path.join(
+      scratch,
+      '.codex',
+      'skills',
+      legacyName,
+      'scripts',
+      'multi_ai_sync_lib',
+      '__pycache__',
+      'legacy.pyc',
+    );
+    fs.mkdirSync(path.dirname(legacyBytecode), { recursive: true });
+    fs.writeFileSync(legacyBytecode, 'legacy-bytecode\n');
     delete receipt.managed_entries.skills[currentName];
     currentEntry.destination = `skills/${legacyName}`;
     currentEntry.source = `skills/${legacyName}`;
     currentEntry.ownership_marker = `copy:skills/${legacyName}`;
+    currentEntry.destination_fingerprint = completeTreeFingerprint(
+      path.join(scratch, '.codex', 'skills', legacyName),
+    );
+    currentEntry.fingerprint = currentEntry.destination_fingerprint;
     receipt.schema_version = 2;
     receipt.plugin_version = 'legacy';
     receipt.source_fingerprint = 'legacy';
@@ -694,6 +764,7 @@ test('--migrate renames a receipt-owned unchanged legacy skill destination to it
     const migrated = runInstaller(scratch, ['--copy', '--migrate', '--force'], fakePlugin);
     assert.strictEqual(migrated.status, 0, `${migrated.stdout}\n${migrated.stderr}`);
     assert.ok(!fs.existsSync(path.join(scratch, '.codex', 'skills', legacyName)), 'unchanged legacy destination must be removed');
+    assert.ok(!fs.existsSync(legacyBytecode), 'legacy migration must not preserve ignored bytecode');
     assert.ok(fs.existsSync(path.join(scratch, '.codex', 'skills', currentName, 'SKILL.md')));
     const after = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
     assert.strictEqual(after.schema_version, 3);
@@ -702,6 +773,8 @@ test('--migrate renames a receipt-owned unchanged legacy skill destination to it
     assert.strictEqual(entry.id, 'tdd');
     assert.strictEqual(entry.name, currentName);
     assert.strictEqual(entry.destination, `skills/${currentName}`);
+    assert.strictEqual(after.reconciliation.state, 'current');
+    assert.strictEqual(after.reconciliation.skipped_collision, 0);
     assert.ok(!after.managed_entries.skills[legacyName]);
     assert.match(`${migrated.stdout}\n${migrated.stderr}`, /migrat|updated/i);
   } finally {

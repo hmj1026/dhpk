@@ -23,14 +23,21 @@
   `BLOCKED` until the gate traversal received the matching filter.
 
 - `bash -n scripts/hooks/install-codex-skills.sh` — PASS.
-- `node tests/install-codex-skills.test.js` — PASS (34/34), including the new
-  omission and fingerprint-stability fixture for both ignored patterns.
+- `node tests/install-codex-skills.test.js` — PASS (35/35), including the new
+  omission, fingerprint-stability, and legacy-receipt cleanup fixtures for both
+  ignored patterns.
 - `node tests/consumer-gate-cli.test.js` — PASS (10/10), including the
-  release-gate fingerprint stability fixture.
+  release-gate destination-integrity fixture.
 - `git diff --check` — PASS.
 - Before archival, `openspec validate exclude-ignored-bytecode-from-codex-copy
   --strict --no-interactive` — PASS.
 - After archival, `openspec validate --all --strict --no-interactive` — PASS
   (24/24).
+
+The remediation keeps source fingerprints filtered while using complete
+destination integrity for ownership and consumer validation. This lets an
+upgrade prove ownership of a pre-remediation receipt that still contains
+ignored bytecode, then replace it with a clean projection instead of preserving
+an executable stale collision.
 
 No receipt schema or installer flag changed.

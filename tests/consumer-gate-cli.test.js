@@ -171,7 +171,7 @@ test('Codex surface discovery includes both skill and agent inventories', () => 
   }
 });
 
-test('consumer Codex fingerprints exclude ignored Python bytecode', () => {
+test('consumer Codex fingerprints include destination Python bytecode integrity', () => {
   const surfaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-bytecode-'));
   try {
     const target = path.join(surfaceRoot, 'skills', 'demo-skill');
@@ -182,7 +182,8 @@ test('consumer Codex fingerprints exclude ignored Python bytecode', () => {
     fs.writeFileSync(bytecode, Buffer.from('bytecode-v1'));
     const before = fingerprintPath(target);
     fs.writeFileSync(bytecode, Buffer.from('bytecode-v2'));
-    assert.strictEqual(fingerprintPath(target), before);
+    assert.notStrictEqual(fingerprintPath(target), before,
+      'consumer ownership must detect a changed destination bytecode file');
     assert.notStrictEqual(before, '');
   } finally {
     fs.rmSync(surfaceRoot, { recursive: true, force: true });
