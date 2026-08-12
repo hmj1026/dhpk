@@ -72,12 +72,19 @@ safety。schema-v3 receipt 記錄 stable ID、public name、destination、source
 mode 與 fingerprint。edited、user-owned、retargeted、malformed、ambiguous
 或 collision 檔案必須保留並回報。
 
-驗證：
+先從 consumer project root 驗證已 materialize 的 projection：
 
 ```bash
 test -f .codex/.dhpk-installed.json
-node scripts/ci/validate-openai-metadata.js --root .
-node tests/install-codex-skills.test.js
+```
+
+再從 dhpk checkout 執行 source-check validator。將 `DHPK_ROOT` 設為包含
+`scripts/` 與 `tests/` 的 checkout；這些檔案不會複製到 consumer project：
+
+```bash
+DHPK_ROOT=/absolute/path/to/dhpk
+node "$DHPK_ROOT/scripts/ci/validate-openai-metadata.js" --root "$DHPK_ROOT"
+node "$DHPK_ROOT/tests/install-codex-skills.test.js"
 ```
 
 Rollback 使用 `--uninstall` 或還原已保存的 `.codex/` receipt；不要刪除整個

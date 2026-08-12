@@ -382,7 +382,7 @@ destination。已編輯、第三方、重新指向、格式不正確或無法判
 無關的 project asset。
 
 Codex tree 是明確策展的 Claude package subset，不是第二份完整 inventory。
-`codex/agents/` 提供 11 個角色：4 個手動維護的通用角色，以及 7 個由
+`codex/agents/` 提供 16 個 direct role：4 個手動維護的通用角色，以及 12 個由
 `scripts/gen-codex-agents.js` 從 Claude canonical agent 產生。雙 harness 模型詳見
 `codex/AGENTS.md`（工程角色契約，英文）與 `codex/README.zh-TW.md`。
 

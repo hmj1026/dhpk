@@ -73,12 +73,20 @@ ownership or path safety. The schema-v3 receipt records stable ID, public name,
 destination, source, mode, and fingerprint. Edited, user-owned, retargeted,
 malformed, ambiguous, or colliding files are preserved and reported.
 
-Verify with:
+Verify the consumer projection from the consumer project root:
 
 ```bash
 test -f .codex/.dhpk-installed.json
-node scripts/ci/validate-openai-metadata.js --root .
-node tests/install-codex-skills.test.js
+```
+
+Run source-check validators from the dhpk checkout. Set `DHPK_ROOT` to the
+checkout that owns `scripts/` and `tests/`; these files are not copied into the
+consumer project:
+
+```bash
+DHPK_ROOT=/absolute/path/to/dhpk
+node "$DHPK_ROOT/scripts/ci/validate-openai-metadata.js" --root "$DHPK_ROOT"
+node "$DHPK_ROOT/tests/install-codex-skills.test.js"
 ```
 
 Rollback is `--uninstall` or restoration of a saved `.codex/` receipt. Do not
