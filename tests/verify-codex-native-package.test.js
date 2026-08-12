@@ -30,7 +30,7 @@ function fixtureRepo() {
 test('passes when the tracked package matches a fresh generation from the same sources', () => {
   const { root, inventory } = fixtureRepo();
   try {
-    materializeNativePackage({ inventory, root, outDir: path.join(root, 'plugins', 'dhpk'), name: 'dhpk', version: '1.0.0', sourceCommit: 'abc' });
+    materializeNativePackage({ inventory, root, outDir: path.join(root, 'plugins', 'dhpk'), name: 'dhpk', version: '1.0.0', sourceCommit: 'a'.repeat(40) });
     const res = spawnSync('node', [CLI, '--repo-root', root], { encoding: 'utf8' });
     assert.strictEqual(res.status, 0, res.stdout + res.stderr);
   } finally {
@@ -41,7 +41,7 @@ test('passes when the tracked package matches a fresh generation from the same s
 test('fails and names the extra skill when the tracked package has drifted membership', () => {
   const { root, inventory } = fixtureRepo();
   try {
-    materializeNativePackage({ inventory, root, outDir: path.join(root, 'plugins', 'dhpk'), name: 'dhpk', version: '1.0.0', sourceCommit: 'abc' });
+    materializeNativePackage({ inventory, root, outDir: path.join(root, 'plugins', 'dhpk'), name: 'dhpk', version: '1.0.0', sourceCommit: 'a'.repeat(40) });
     // Simulate drift: inventory gains a new codex-native skill after the tracked package was generated.
     fs.mkdirSync(path.join(root, 'skills', 'extra-skill'), { recursive: true });
     fs.writeFileSync(path.join(root, 'skills', 'extra-skill', 'SKILL.md'), '---\nname: extra-skill\n---\n');
@@ -65,7 +65,7 @@ test('fails and names the extra skill when the tracked package has drifted membe
 test('fails when a canonical skill file changes content after the tracked package was generated', () => {
   const { root, inventory } = fixtureRepo();
   try {
-    materializeNativePackage({ inventory, root, outDir: path.join(root, 'plugins', 'dhpk'), name: 'dhpk', version: '1.0.0', sourceCommit: 'abc' });
+    materializeNativePackage({ inventory, root, outDir: path.join(root, 'plugins', 'dhpk'), name: 'dhpk', version: '1.0.0', sourceCommit: 'a'.repeat(40) });
     fs.writeFileSync(path.join(root, 'skills', 'dhpk-tdd-workflow', 'SKILL.md'), '---\nname: dhpk-tdd-workflow\n---\nchanged content\n');
 
     const res = spawnSync('node', [CLI, '--repo-root', root], { encoding: 'utf8' });
@@ -79,7 +79,7 @@ test('fails when a canonical skill file changes content after the tracked packag
 test('fails and identifies tracked frontmatter whose name differs from its public directory', () => {
   const { root, inventory } = fixtureRepo();
   try {
-    materializeNativePackage({ inventory, root, outDir: path.join(root, 'plugins', 'dhpk'), name: 'dhpk', version: '1.0.0', sourceCommit: 'abc' });
+    materializeNativePackage({ inventory, root, outDir: path.join(root, 'plugins', 'dhpk'), name: 'dhpk', version: '1.0.0', sourceCommit: 'a'.repeat(40) });
     const trackedSkill = path.join(root, 'plugins', 'dhpk', 'skills', 'dhpk-tdd-workflow', 'SKILL.md');
     fs.writeFileSync(trackedSkill, '---\nname: tdd\n---\n');
 

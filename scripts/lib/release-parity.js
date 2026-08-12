@@ -2,7 +2,8 @@
 
 // Version-parity checks for one release target across every version-bearing
 // surface: the Claude plugin manifest, root Codex manifest, thin Codex
-// wrapper manifest, marketplace descriptor, and the CHANGELOG.md release
+// wrapper manifest, standard Agent Plugin and Cursor Plugin manifests plus
+// owner-scoped receipts, marketplace descriptor, and the CHANGELOG.md release
 // heading. Composes (does not replace) the pairwise manifest parity already
 // covered by tests/codex-plugin-manifest.test.js.
 
@@ -17,6 +18,10 @@ const MANIFEST_PATHS = [
   'plugins/dhpk/.codex-plugin/plugin.json',
   '.agents/plugins/marketplace.json',
   'plugins/dhpk/provenance.json',
+  'plugins/dhpk-agent/plugin.json',
+  'plugins/dhpk-agent/provenance.json',
+  'plugins/dhpk-cursor/.cursor-plugin/plugin.json',
+  'plugins/dhpk-cursor/provenance.json',
 ];
 
 function readManifestVersion(root, relPath) {

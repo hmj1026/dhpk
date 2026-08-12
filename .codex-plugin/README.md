@@ -5,7 +5,8 @@ This directory contains the **experimental Codex plugin manifest** for dhpk.
 package this manifest points at is a tracked, physical publication artifact
 that install-safety gates and a real `codex` CLI consumer proof both
 validate on every relevant release — see
-[docs/distribution-surfaces.md](../docs/distribution-surfaces.md) and
+[docs/distribution-surfaces.md](../docs/distribution-surfaces.md), the
+[platform installation SSOT](../docs/platform-installation.md), and
 [ADR-0006](../docs/adr/0006-codex-native-publication-artifact.md).
 
 ## Structure

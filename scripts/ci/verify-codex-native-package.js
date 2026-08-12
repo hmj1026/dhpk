@@ -26,6 +26,7 @@ const {
   validateNativeMembership,
   validateNativeSkillIdentity,
 } = require('../lib/codex-native-package');
+const { validateSurfaceReceipt } = require('../lib/platform-provenance');
 
 function parseArgs(argv) {
   const args = { root: path.join(__dirname, '..', '..') };
@@ -71,6 +72,12 @@ try {
 }
 
 const errors = [];
+// Older disposable fixtures predate the shared owner-scoped receipt. Keep the
+// legacy generator contract usable while requiring the stronger contract for
+// newly generated tracked artifacts.
+if (trackedProvenance.schema !== undefined) {
+  errors.push(...validateSurfaceReceipt(trackedProvenance, 'codex-native').errors);
+}
 
 // Structural validation of the TRACKED artifact itself — a hand-edit could
 // reintroduce a symlink or a parent-relative manifest escape without

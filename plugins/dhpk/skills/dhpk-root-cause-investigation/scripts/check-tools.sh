@@ -40,7 +40,7 @@ else
     echo ""
     echo "📦 安裝指引："
     echo ""
-    
+
     for tool in "${MISSING_TOOLS[@]}"; do
         case $tool in
             "fd")
@@ -79,7 +79,7 @@ else
         esac
         echo ""
     done
-    
+
     echo "💡 提示: 您可以選擇手動安裝，或讓 AI 助手協助安裝"
 fi
 

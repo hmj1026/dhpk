@@ -43,6 +43,12 @@ jobs:
         run: node scripts/ci/validate-plugin.js --strict
       - name: Validate distribution inventory
         run: node scripts/ci/validate-distribution.js --strict
+      - name: Validate standard Agent Plugin package
+        run: node scripts/ci/validate-agent-plugin-package.js plugins/dhpk-agent
+      - name: Validate Cursor Plugin package
+        run: node scripts/ci/validate-cursor-plugin-package.js plugins/dhpk-cursor
+      - name: Verify platform package determinism
+        run: node scripts/ci/verify-platform-packages.js
       - name: No-drift Claude manifest check
         run: node scripts/ci/gen-claude-manifest.js --check
       - name: Validate invocation policy

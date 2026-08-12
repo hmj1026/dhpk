@@ -6,6 +6,9 @@ How dhpk decides which skills and modules reach each consumer surface
 (Claude plugin, opt-in stack modules, Codex project-local sync, experimental
 Codex marketplace), and what each surface can and cannot filter.
 
+For exact installation commands, support tiers, status vocabulary, consumer
+evidence, and rollback, use the [platform installation SSOT](./platform-installation.md).
+
 ## Lifecycle model
 
 Every consumer-reachable skill and module carries exactly one lifecycle in
@@ -40,6 +43,19 @@ file in `.dhpk-installed.json`, and `codex-runtime` validation checks that gener
 agent references resolve from a clean consumer projection. This keeps review traps,
 contracts, and execution policy available to Codex without carrying Claude-only
 plugin-root or lifecycle mechanics into the generated TOML.
+
+## Standard Agent Plugin and Cursor native ownership
+
+The platform capability matrix gives identical portable skills one physical
+publication owner: `plugins/dhpk-agent/skills/`. The standard Agent Plugin owns
+that generated tree, while `plugins/dhpk-cursor/` contains only Cursor-native
+rules, agents, commands, hooks, and variables by default. Cursor provenance
+records the shared stable IDs and `plugins/dhpk-agent/skills/` source; it does not
+create a second `skills/` tree. A Cursor-specific copy is allowed only when an
+explicit matrix row uses `projection_mode: overlay`, names the stable IDs, and
+records its transform, fallback, and independent fingerprint. Update and
+rollback therefore have one owner for shared portable skills and a separate
+owner for Cursor-native files.
 
 ## Claude publication: current before/after surface
 

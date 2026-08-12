@@ -20,7 +20,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { classifyCanonicalInventory, refreshSupportingDigests, serializeInventory } = require('../lib/distribution-inventory');
+const { classifyCanonicalInventory, preserveProjectionContract, refreshSupportingDigests, serializeInventory } = require('../lib/distribution-inventory');
 
 const ROOT = path.join(__dirname, '..', '..');
 const OUT = path.join(ROOT, 'manifests', 'distribution-inventory.json');
@@ -39,7 +39,7 @@ if (args.includes('--refresh-supporting-digests')) {
   fs.writeFileSync(OUT, serializeInventory(refreshSupportingDigests(existing, ROOT)));
   console.log('gen-distribution-inventory: refreshed transformed supporting-asset provenance.');
 } else if (args.includes('--write')) {
-  const generated = classifyCanonicalInventory(ROOT);
+  const generated = preserveProjectionContract(classifyCanonicalInventory(ROOT), loadExisting());
   fs.writeFileSync(OUT, serializeInventory(generated));
   console.log(`gen-distribution-inventory --write: wrote ${generated.skills.length} skills + ${generated.modules.length} modules.`);
 } else {

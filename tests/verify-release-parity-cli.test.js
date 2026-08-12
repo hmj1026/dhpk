@@ -16,14 +16,16 @@ const CLI = path.join(ROOT, 'scripts', 'ci', 'verify-release-parity.js');
 
 function mkRepo(version) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-verify-parity-'));
-  for (const rel of ['.claude-plugin', '.codex-plugin', 'plugins/dhpk/.codex-plugin', '.agents/plugins']) {
+  for (const rel of ['.claude-plugin', '.codex-plugin', 'plugins/dhpk/.codex-plugin', 'plugins/dhpk-agent', 'plugins/dhpk-cursor/.cursor-plugin', '.agents/plugins']) {
     fs.mkdirSync(path.join(root, rel), { recursive: true });
   }
-  for (const rel of ['.claude-plugin/plugin.json', '.codex-plugin/plugin.json', 'plugins/dhpk/.codex-plugin/plugin.json']) {
+  for (const rel of ['.claude-plugin/plugin.json', '.codex-plugin/plugin.json', 'plugins/dhpk/.codex-plugin/plugin.json', 'plugins/dhpk-agent/plugin.json', 'plugins/dhpk-cursor/.cursor-plugin/plugin.json']) {
     fs.writeFileSync(path.join(root, rel), JSON.stringify({ name: 'dhpk', version }));
   }
   fs.writeFileSync(path.join(root, '.agents/plugins/marketplace.json'), JSON.stringify({ plugins: [{ name: 'dhpk', version }] }));
   fs.writeFileSync(path.join(root, 'plugins/dhpk/provenance.json'), JSON.stringify({ sourceVersion: version }));
+  fs.writeFileSync(path.join(root, 'plugins/dhpk-agent/provenance.json'), JSON.stringify({ sourceVersion: version }));
+  fs.writeFileSync(path.join(root, 'plugins/dhpk-cursor/provenance.json'), JSON.stringify({ sourceVersion: version }));
   fs.writeFileSync(path.join(root, 'CHANGELOG.md'), `# Changelog\n\n## [Unreleased]\n\n## ${version} — 2026-07-27 — Summary\n\nNotes.\n`);
   return root;
 }

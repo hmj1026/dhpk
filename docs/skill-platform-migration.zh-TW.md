@@ -6,6 +6,8 @@
 marketplace 使用者、會把 dhpk 同步到 `.codex/` 的專案，以及同時安裝 Matt
 Pocock 或其他全域 skill 的使用者。
 
+目前 Codex/Cursor 安裝路徑與 rollback 邊界請以[平台安裝 SSOT](./platform-installation.zh-TW.md)為準。
+
 ## 目前契約
 
 | 關注點 | 目前實作 |

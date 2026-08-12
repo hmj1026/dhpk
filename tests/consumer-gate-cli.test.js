@@ -206,12 +206,13 @@ test('native surface ownership requires a tracked content fingerprint, not prove
 });
 
 test('consumer failure evidence redacts sandbox and repository paths', () => {
-  const privateText = `installer failed at ${path.join(os.tmpdir(), 'private-project')} from ${ROOT}/plugins/dhpk`;
+  const privateText = `installer failed at ${path.join(os.tmpdir(), 'private-project')} from ${ROOT}/plugins/dhpk Authorization: Bearer AUTH_MARKER_SHOULD_NOT_LEAK postgres://u:DB_MARKER@db.example`;
   const redacted = redactEvidence(privateText, ROOT);
   assert.doesNotMatch(redacted, new RegExp(os.tmpdir().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   assert.doesNotMatch(redacted, new RegExp(ROOT.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   assert.match(redacted, /<sandbox>/);
   assert.match(redacted, /<repo>/);
+  assert.doesNotMatch(redacted, /AUTH_MARKER_SHOULD_NOT_LEAK|DB_MARKER/);
 });
 
 run('consumer-gate-cli');

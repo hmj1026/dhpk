@@ -14,6 +14,7 @@ const STAGES = ['SOURCE', 'PACKAGE', 'CONSUMER'];
 const VERDICTS = {
   PASS: 'PASS',
   FAIL: 'FAIL',
+  BLOCKED: 'BLOCKED',
   UNAVAILABLE: 'UNAVAILABLE',
   PENDING: 'PENDING',
 };
@@ -66,6 +67,7 @@ function deriveOverall(stages) {
 
   if (CONSUMER.verdict === VERDICTS.PASS) return OVERALL_STATES.COMPLETE;
   if (CONSUMER.verdict === VERDICTS.FAIL) return OVERALL_STATES.PUBLISHED_UNHEALTHY;
+  if (CONSUMER.verdict === VERDICTS.BLOCKED) return OVERALL_STATES.BLOCKED;
   // PENDING or UNAVAILABLE: SOURCE+PACKAGE ready, tag not yet published or
   // consumer verification still running/unresolved.
   return OVERALL_STATES.PUBLISHED_PENDING;
