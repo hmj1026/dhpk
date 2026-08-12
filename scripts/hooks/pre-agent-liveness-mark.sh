@@ -10,6 +10,7 @@ set -o pipefail
 . "$(dirname "$0")/_lib/session-env.sh"
 . "$(dirname "$0")/_lib/load-project-config.sh" 2>/dev/null || true
 . "$(dirname "$0")/_lib/payload.sh"
+. "$(dirname "$0")/_lib/review-lifecycle.sh"
 
 ROOT="$(dhpk_root)"
 PAYLOAD="$(dhpk_read_payload)"
@@ -74,5 +75,16 @@ printf '%s\t%s\t%s\t%s\t%s\t%s\n' \
     "$SENTINEL_NAME" "$STAMP" "$SESSION_ID" "$ATTEMPT" "$DISPATCH_ID" "$SUBAGENT_BARE" \
     >> "$DISPATCH_FILE" 2>/dev/null || true
 printf '%s %s pid=%s\n' "$STAMP" "$SUBAGENT" "$$" >> "$SESS/$ACTIVE_NAME" 2>/dev/null || true
+
+# Durable lifecycle evidence is independent of the legacy tab sidecar above.
+# The scope digest is the sentinel's complete pending set; the diff digest is
+# the current worktree identity.  A dispatch therefore cannot later be closed
+# by a report from a different wave without an explicit identity match.
+LIFECYCLE_SCOPE="$(dhpk_lifecycle_scope_id "$SESS/$SENTINEL_NAME" 2>/dev/null || true)"
+LIFECYCLE_DIFF="$(dhpk_lifecycle_diff_id "$ROOT" 2>/dev/null || true)"
+LIFECYCLE_TASK="$(dhpk_lifecycle_task_id "$SENTINEL_NAME" "$SESSION_ID" "$ATTEMPT" 2>/dev/null || true)"
+dhpk_lifecycle_emit planned "$LIFECYCLE_TASK" "$SUBAGENT_BARE" "$SESSION_ID" "$ATTEMPT" "$LIFECYCLE_SCOPE" "$LIFECYCLE_DIFF" "" "" 2>/dev/null || true
+dhpk_lifecycle_emit dispatched "$LIFECYCLE_TASK" "$SUBAGENT_BARE" "$SESSION_ID" "$ATTEMPT" "$LIFECYCLE_SCOPE" "$LIFECYCLE_DIFF" "" "" 2>/dev/null || true
+dhpk_lifecycle_emit started "$LIFECYCLE_TASK" "$SUBAGENT_BARE" "$SESSION_ID" "$ATTEMPT" "$LIFECYCLE_SCOPE" "$LIFECYCLE_DIFF" "" "" 2>/dev/null || true
 
 exit 0

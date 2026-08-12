@@ -240,7 +240,141 @@ function installationVersion(value) {
 
 const SAFE_RECORD_TYPES = new Set([
   'assistant', 'effect-span', 'event', 'message', 'result', 'session', 'span', 'system', 'tool', 'tool-result', 'user',
+  'hook_failure', 'hook-failure', 'hook_success', 'hook-success', 'runtime_failure', 'runtime-failure',
+  'command_failure', 'command-failure', 'tool_failure', 'tool-failure', 'failed', 'error', 'failure',
+  'failed-start', 'quota-blocked', 'success', 'completed', 'artifact-ready', 'user_prompt', 'user-prompt',
+  'prompt', 'memory', 'historical', 'historical_summary', 'historical-summary', 'instructions',
 ]);
+
+// Typed evidence is deliberately separate from the text classifier.  A
+// transcript may quote an old timeout, a prompt may repeat a pending reminder,
+// and a successful hook may include historical diagnostics.  None of those
+// are runtime failures without an explicit record status.
+const RUNTIME_RECORD_TYPES = new Set([
+  'hook_failure', 'hook-failure', 'runtime_failure', 'runtime-failure',
+  'command_failure', 'command-failure', 'tool_failure', 'tool-failure',
+  'failed', 'error', 'failure', 'failed-start', 'quota-blocked',
+]);
+const SUCCESS_RECORD_TYPES = new Set([
+  'hook_success', 'hook-success', 'success', 'completed', 'artifact-ready',
+]);
+const CONTEXT_RECORD_TYPES = new Set([
+  'user', 'user_prompt', 'user-prompt', 'prompt', 'memory',
+  'historical', 'historical_summary', 'historical-summary', 'instructions',
+]);
+const SOURCE_ROOT_PATTERNS = Object.freeze({
+  claudeProjectTranscripts: '~/.claude/projects/**/*.jsonl',
+  claudeArtifacts: '~/.claude/artifacts/**/*.{jsonl,log}',
+  codexTranscripts: '~/.codex/sessions/**/*.{jsonl,ndjson}',
+  activeOrcaCodexSessions: '~/.config/orca/codex-accounts/<account>/home/sessions/**/*.{jsonl,ndjson}',
+  projectSurfaces: '~/projects|~/workspaces|~/repos|~/src',
+});
+
+function isSupportedRecordType(value) {
+  const normalized = normalizeRecordType(value);
+  return SAFE_RECORD_TYPES.has(normalized) || RUNTIME_RECORD_TYPES.has(normalized)
+    || SUCCESS_RECORD_TYPES.has(normalized) || CONTEXT_RECORD_TYPES.has(normalized);
+}
+
+function packageOwnedRoleSet(options = {}) {
+  const packageRoot = path.resolve(options.packageRoot || inferPluginRoot() || path.resolve(__dirname, '../../..'));
+  const names = (relative, extensions) => {
+    const directory = path.join(packageRoot, relative);
+    if (!fs.existsSync(directory)) return [];
+    try {
+      return fs.readdirSync(directory, { withFileTypes: true })
+        .filter((entry) => entry.isFile() && extensions.some((extension) => entry.name.endsWith(extension)))
+        .map((entry) => entry.name.replace(/\.(?:md|toml)$/i, ''))
+        .filter((name) => name && name.toUpperCase() !== 'INDEX')
+        .sort();
+    } catch (_error) {
+      return [];
+    }
+  };
+  return {
+    claude: names('agents', ['.md']),
+    codex: names(path.join('codex', 'agents'), ['.toml']),
+    excludedNavigationFiles: ['INDEX'],
+  };
+}
+
+function normalizeRecordType(value) {
+  const normalized = String(value == null ? '' : value).trim().toLowerCase().replace(/\s+/g, '_');
+  return normalized || 'unknown';
+}
+
+function numericStatus(value) {
+  if (value === undefined || value === null || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
+function recordField(record, keys) {
+  return nestedValue(record, keys);
+}
+
+function normalizeRuntimeRecord(record, options = {}) {
+  const recordType = normalizeRecordType(recordField(record, [
+    'recordType', 'record_type', 'kind', 'type', 'subtype', 'event.type',
+  ]));
+  const exitStatus = numericStatus(recordField(record, [
+    'exitStatus', 'exit_status', 'exitCode', 'exit_code', 'statusCode',
+    'status.code', 'exit.code', 'result.exitCode', 'result.exit_code',
+  ]));
+  const structuredErrorStatus = String(recordField(record, [
+    'structuredErrorStatus', 'structured_error_status', 'error.status',
+    'error.code', 'error.type', 'status.error', 'result.error.status',
+  ]) || '').trim();
+  const eventId = String(recordField(record, [
+    'eventId', 'event_id', 'event.id', 'spanId', 'span_id', 'traceId', 'trace_id',
+  ]) || '').trim();
+  const taskId = String(recordField(record, [
+    'taskId', 'task_id', 'task.id', 'jobId', 'job_id', 'dispatchId', 'dispatch_id',
+  ]) || '').trim();
+  const parentSessionId = String(recordField(record, [
+    'parentSessionId', 'parent_session_id', 'parentSession', 'parent.sessionId',
+  ]) || '').trim();
+  const role = String(recordField(record, [
+    'role', 'roleName', 'role_name', 'agent', 'agent_name', 'subagent_type',
+    'attributes.agent', 'meta.agent',
+  ]) || '').trim();
+  const successType = SUCCESS_RECORD_TYPES.has(recordType);
+  const failureType = RUNTIME_RECORD_TYPES.has(recordType);
+  const contextType = CONTEXT_RECORD_TYPES.has(recordType);
+  const nonZeroExit = exitStatus !== null && exitStatus !== 0;
+  const typedFailure = !successType && (failureType || nonZeroExit || Boolean(structuredErrorStatus));
+  const typedFailureKind = typedFailure
+    ? (failureType ? recordType : (nonZeroExit ? 'non-zero-exit' : 'structured-error'))
+    : '';
+  const sessionId = String(recordField(record, [
+    'sessionId', 'session_id', 'run_id', 'runId', 'traceId', 'spanId',
+    'session.id', 'meta.sessionId',
+  ]) || '').trim();
+  return {
+    ...record,
+    recordType,
+    role,
+    taskId,
+    eventId,
+    parentSessionId,
+    exitStatus,
+    structuredErrorStatus,
+    typedFailure,
+    typedFailureKind,
+    contextEvidence: contextType || (!typedFailure && !successType),
+    sessionId,
+    sourceKind: options.sourceKind || record.sourceKind || record.source || 'unknown',
+  };
+}
+
+function accountIdentifier(value) {
+  return redactIdentifier(String(value || ''), 'account');
+}
+
+function redactSourcePath(value, home) {
+  let text = redactText(value, { home });
+  return text.replace(/(codex-accounts[\\/])([^\\/]+)/g, '$1<ACCOUNT>');
+}
 
 function safeRecordType(value) {
   const normalized = String(value == null ? '' : value).trim().toLowerCase().slice(0, 80);
@@ -283,6 +417,13 @@ function discoverSources(home, options = {}) {
   const sources = [];
   const installedAgents = [];
   const omittedSources = [];
+  const activeOrcaAccounts = new Set(
+    (options.activeOrcaAccounts || process.env.DHPK_ACTIVE_ORCA_ACCOUNTS || process.env.ORCA_CODEX_ACCOUNTS || '')
+      .toString()
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean),
+  );
   const add = (kind, sourceRoot, predicate, options = {}) => {
     const resolved = path.resolve(sourceRoot);
     if (!isWithin(root, resolved)) return;
@@ -294,7 +435,9 @@ function discoverSources(home, options = {}) {
       omittedSources.push({ kind, path: resolved, status: 'UNREADABLE' });
       return;
     }
-    for (const file of walkFiles(resolved, predicate)) sources.push({ kind, path: file });
+    for (const file of walkFiles(resolved, predicate)) {
+      sources.push({ kind, path: file, ...(options.metadata || {}) });
+    }
   };
   const addOmitted = (kind, sourceRoot, predicate, status = 'UNSUPPORTED') => {
     const resolved = path.resolve(sourceRoot);
@@ -304,9 +447,11 @@ function discoverSources(home, options = {}) {
   const addAgents = (platform, sourceRoot) => {
     const resolved = path.resolve(sourceRoot);
     if (!isWithin(root, resolved)) return;
-    for (const file of walkFiles(resolved, (candidate) => candidate.endsWith('.md'))) {
+    const extensions = platform.includes('codex') ? ['.md', '.toml'] : ['.md'];
+    for (const file of walkFiles(resolved, (candidate) => extensions.some((extension) => candidate.endsWith(extension)))) {
+      const extension = path.extname(file).toLowerCase();
       installedAgents.push({
-        name: path.basename(file, '.md'),
+        name: path.basename(file, extension),
         platform,
         path: file,
       });
@@ -334,6 +479,55 @@ function discoverSources(home, options = {}) {
   add('orca-trace', path.join(root, '.orca', 'logs'), isSessionFile, { reportMissing: true });
   add('orca-transcript', path.join(root, '.config', 'orca', 'sessions'), isSessionFile, { reportMissing: true });
   add('orca-transcript', path.join(root, '.orca', 'sessions'), isSessionFile, { reportMissing: true });
+  const configuredOrcaRoots = [
+    path.join(root, '.config', 'orca', 'codex-accounts'),
+    path.join(root, '.orca', 'codex-accounts'),
+  ];
+  for (const accountsRoot of configuredOrcaRoots) {
+    if (!fs.existsSync(accountsRoot)) {
+      for (const account of activeOrcaAccounts) {
+        omittedSources.push({
+          kind: 'orca-codex-session',
+          path: path.join(accountsRoot, account, 'home', 'sessions'),
+          status: 'UNAVAILABLE',
+          reason: 'configured-active-account-missing',
+          account: accountIdentifier(account),
+        });
+      }
+      continue;
+    }
+    for (const account of activeOrcaAccounts) {
+      const accountRoot = path.join(accountsRoot, account, 'home', 'sessions');
+      const before = sources.length;
+      add('orca-codex-session', accountRoot, isSessionFile, {
+        reportMissing: false,
+        metadata: { accountId: accountIdentifier(account) },
+      });
+      if (sources.length === before && !fs.existsSync(accountRoot)) {
+        omittedSources.push({
+          kind: 'orca-codex-session',
+          path: accountRoot,
+          status: 'UNAVAILABLE',
+          reason: 'configured-active-account-missing',
+          account: accountIdentifier(account),
+        });
+      }
+    }
+    if (activeOrcaAccounts.size === 0) {
+      let entries = [];
+      try { entries = fs.readdirSync(accountsRoot, { withFileTypes: true }); } catch (_error) { entries = []; }
+      for (const entry of entries) {
+        if (!entry.isDirectory() || entry.isSymbolicLink()) continue;
+        omittedSources.push({
+          kind: 'orca-codex-session',
+          path: path.join(accountsRoot, entry.name, 'home', 'sessions'),
+          status: 'OMITTED',
+          reason: 'active-account-not-selected',
+          account: accountIdentifier(entry.name),
+        });
+      }
+    }
+  }
   addOmitted('codex-state', path.join(root, '.codex'), (file) => /\.(?:sqlite|sqlite-wal|db)$/i.test(file));
   addOmitted('orca-state', path.join(root, '.config', 'orca'), (file) => /(?:\.sqlite(?:-wal)?|\.db|orca-(?:claude|codex)-usage\.json|orca-stats\.json)$/i.test(file));
 
@@ -361,6 +555,8 @@ function discoverSources(home, options = {}) {
     sources,
     installedAgents,
     omittedSources,
+    activeOrcaAccounts: [...activeOrcaAccounts].map(accountIdentifier),
+    sourceCoverageComplete: omittedSources.every((source) => !['UNAVAILABLE', 'UNREADABLE', 'UNSUPPORTED', 'OMITTED'].includes(source.status)),
   };
 }
 
@@ -543,6 +739,8 @@ function scanJsonlFile(file, options = {}) {
     malformed: 0,
     missingTimestamp: 0,
     skippedDate: 0,
+    unsupported: 0,
+    typedFailures: 0,
     bytes: 0,
     partial: false,
   };
@@ -581,6 +779,9 @@ function scanJsonlFile(file, options = {}) {
         stats.skippedDate += 1;
         return;
       }
+      const normalized = normalizeRuntimeRecord(record, { sourceKind: options.sourceKind });
+      if (!isSupportedRecordType(normalized.recordType)) stats.unsupported += 1;
+      if (normalized.typedFailure) stats.typedFailures += 1;
       const rawText = extractRecordText(record, { home, knownAgents: options.knownAgents });
       const text = redactText(rawText, { home });
       const evidence = evidenceForText(text);
@@ -604,10 +805,11 @@ function scanJsonlFile(file, options = {}) {
         source: options.sourceKind || 'unknown',
         file,
         line: stats.lines,
-        sessionId: nestedValue(record, [
-          'sessionId', 'session_id', 'run_id', 'runId', 'traceId', 'spanId',
-          'session.id', 'meta.sessionId',
-        ]) || `unknown:${stats.lines}`,
+        sessionId: normalized.sessionId || `unknown:${stats.lines}`,
+        parentSessionId: normalized.parentSessionId,
+        eventId: normalized.eventId,
+        taskId: normalized.taskId,
+        role: safeAgent(normalized.role, { knownAgents: options.knownAgents }),
         timestamp: parsedDate.toISOString(),
         localDate,
         cwd: redactText(nestedValue(record, ['cwd', 'project', 'attributes.cwd', 'meta.cwd']), { home }),
@@ -615,7 +817,12 @@ function scanJsonlFile(file, options = {}) {
         text,
         dhpkEvidenceLevel: evidence.level,
         dhpkEvidence: evidence.evidence,
-        recordType: safeRecordType(nestedValue(record, ['type', 'subtype'])),
+        recordType: safeRecordType(normalized.recordType || nestedValue(record, ['type', 'subtype'])),
+        exitStatus: normalized.exitStatus,
+        structuredErrorStatus: normalized.structuredErrorStatus,
+        typedFailure: normalized.typedFailure,
+        typedFailureKind: normalized.typedFailureKind,
+        contextEvidence: normalized.contextEvidence,
         packageVersion: recordPackageVersion || inferredPackageVersion || '',
         packageVersionSource: recordPackageVersion
           ? 'record'
@@ -650,12 +857,42 @@ function findingComponent(message, category) {
   return script ? script[1] : category;
 }
 
+const FINDING_ASSERTIONS = {
+  'hook-failure': {
+    reproduction: { type: 'hook-failure-observed', required: true },
+    consumerGate: { type: 'hook-failure-remediated', required: true },
+  },
+  'tool-access': {
+    reproduction: { type: 'tool-access-denied', required: true },
+    consumerGate: { type: 'tool-access-allowed', required: true },
+  },
+  'metadata-validation': {
+    reproduction: { type: 'metadata-rejection-observed', required: true },
+    consumerGate: { type: 'metadata-valid', required: true },
+  },
+  'projection-drift': {
+    reproduction: { type: 'projection-drift-observed', required: true },
+    consumerGate: { type: 'projection-reconciled', required: true },
+  },
+  'agent-quality': {
+    reproduction: { type: 'agent-quality-observed', required: true },
+    consumerGate: { type: 'review-artifact-ready', required: true },
+  },
+};
+
 function detectFindings(records = []) {
   const groups = new Map();
   for (const record of records) {
     if (!record || record.dhpkEvidenceLevel === 'none') continue;
     const match = findingMatch(record.text);
     if (!match) continue;
+    const normalized = normalizeRuntimeRecord(record, { sourceKind: record.source || record.sourceKind });
+    const explicitlyTyped = Boolean(record.recordType || record.typedFailure !== undefined || record.exitStatus !== undefined || record.structuredErrorStatus);
+    const typedFailure = record.typedFailure === true || normalized.typedFailure === true;
+    const successRecord = SUCCESS_RECORD_TYPES.has(normalizeRecordType(record.recordType || normalized.recordType));
+    const contextRecord = CONTEXT_RECORD_TYPES.has(normalizeRecordType(record.recordType || normalized.recordType));
+    const ambiguous = !typedFailure || successRecord || contextRecord;
+    if (successRecord || contextRecord) continue;
     const message = match.message.replace(/\d+(?:\.\d+)?/g, '<n>').replace(/\s+/g, ' ').trim();
     const component = findingComponent(message, match.category);
     const versionSource = record.packageVersionSource || (record.packageVersion ? 'record' : 'unknown');
@@ -672,7 +909,7 @@ function detectFindings(records = []) {
         component,
         title: `${match.category}: ${component}`,
         message,
-        status: 'candidate',
+        status: ambiguous && explicitlyTyped ? 'unverified' : 'candidate',
         confidence: 0,
         occurrences: 0,
         independentSessions: 0,
@@ -680,15 +917,26 @@ function detectFindings(records = []) {
         inferredVersions: new Set(),
         inferredSurfaces: new Set(),
         evidence: [],
+        reproductionAssertion: FINDING_ASSERTIONS[match.category]?.reproduction || null,
+        consumerGateAssertion: FINDING_ASSERTIONS[match.category]?.consumerGate || null,
+        identityKeys: new Set(),
       };
       groups.set(fingerprint, group);
     }
-    group.occurrences += 1;
+    const stableIdentity = normalized.eventId || normalized.taskId || (
+      normalized.sessionId ? `${normalized.sourceKind}|${normalized.sessionId}` : ''
+    );
+    const identityKey = stableIdentity || `${record.source || 'unknown'}|${record.file || ''}|${record.line || group.occurrences + 1}`;
+    const duplicateIdentity = group.identityKeys.has(identityKey);
+    if (!duplicateIdentity) {
+      group.identityKeys.add(identityKey);
+      group.occurrences += 1;
+    }
     if (versionSource === 'current-install-inferred') {
       group.inferredVersions.add(displayVersion || 'unknown');
       group.inferredSurfaces.add(record.source || 'unknown');
     }
-    const sessionKey = `${record.source || 'unknown'}|${record.sessionId || `line:${record.line || group.occurrences}`}`;
+    const sessionKey = `${record.source || 'unknown'}|${record.sessionId || normalized.sessionId || `line:${record.line || group.occurrences}`}`;
     if (!group.sessionKeys.has(sessionKey)) {
       group.sessionKeys.add(sessionKey);
       group.independentSessions += 1;
@@ -703,12 +951,17 @@ function detectFindings(records = []) {
       sessionId: record.sessionId,
       timestamp: record.timestamp,
       agent: record.agent,
+      recordType: normalized.recordType,
+      eventId: normalized.eventId,
+      taskId: normalized.taskId,
+      parentSessionId: normalized.parentSessionId,
+      typedFailure: normalized.typedFailure,
       excerpt: redactText(record.text).slice(0, 500),
     });
   }
   return [...groups.values()]
     .map((group) => {
-      const { sessionKeys, inferredVersions, inferredSurfaces, ...publicGroup } = group;
+      const { sessionKeys, inferredVersions, inferredSurfaces, identityKeys, ...publicGroup } = group;
       const inferredVersionList = [...inferredVersions].sort();
       const inferredSurfaceList = [...inferredSurfaces].sort();
       if (publicGroup.versionSource === 'current-install-inferred' && inferredVersionList.length > 1) {
@@ -815,12 +1068,42 @@ function verifyFinding(finding, verification = {}, options = {}) {
   const trusted = reproduction.execution?.trusted === true && consumerGate.execution?.trusted === true;
   const distinctCommands = canonicalArgv(reproductionArgv) && canonicalArgv(consumerArgv)
     && canonicalArgv(reproductionArgv) !== canonicalArgv(consumerArgv);
+  const isGenericVerification = (entry) => {
+    const argv = entry?.execution?.argv || entry?.argv || [];
+    const command = argv.map((value) => String(value)).join(' ').toLowerCase();
+    return argv.length === 0
+      || /(?:--help|\bhelp\b|\bdate\b|\bscan\b|\bstatus\b|\bversion\b)/i.test(command)
+      ;
+  };
+  const requiresBoundAssertions = Boolean(
+    finding?.reproductionAssertion
+      || finding?.consumerGateAssertion
+      || verification.fingerprint
+      || options.requireBoundAssertions,
+  );
+  const fingerprintMatches = !verification.fingerprint || verification.fingerprint === finding?.fingerprint;
+  const assertionMatches = (entry, definition) => {
+    if (!requiresBoundAssertions) return true;
+    if (entry?.assertion?.observed !== true || !entry.assertion.type) return false;
+    return !definition?.type || entry.assertion.type === definition.type;
+  };
+  const reproductionAssertion = isGenericVerification(reproduction)
+    ? false
+    : assertionMatches(reproduction, finding?.reproductionAssertion);
+  const consumerAssertion = isGenericVerification(consumerGate)
+    ? false
+    : assertionMatches(consumerGate, finding?.consumerGateAssertion);
   const passed = trusted
     && reproduction.status === 'pass'
     && consumerGate.status === 'pass'
     && reproductionCommand
     && consumerCommand
-    && distinctCommands;
+    && distinctCommands
+    && fingerprintMatches
+    && !isGenericVerification(reproduction)
+    && !isGenericVerification(consumerGate)
+    && reproductionAssertion
+    && consumerAssertion;
   return {
     ...finding,
     status: passed ? 'verified' : 'needs-verification',
@@ -828,6 +1111,11 @@ function verifyFinding(finding, verification = {}, options = {}) {
       reproduction: redactValue(reproduction, options.home || ''),
       consumerGate: redactValue(consumerGate, options.home || ''),
       trusted,
+      assertions: {
+        reproduction: Boolean(reproductionAssertion),
+        consumerGate: Boolean(consumerAssertion),
+        fingerprint: Boolean(fingerprintMatches),
+      },
     },
   };
 }
@@ -987,6 +1275,7 @@ function executeVerificationCheck(check = {}, options = {}) {
     : null;
   if (!argv) {
     return {
+      assertion: check.assertion,
       status: 'fail',
       command: 'missing argv',
       execution: { trusted: false, reason: 'verification argv must be an explicit string array' },
@@ -996,6 +1285,7 @@ function executeVerificationCheck(check = {}, options = {}) {
   const error = verificationArgvError(argv, { ...options, env: environment });
   if (error) {
     return {
+      assertion: check.assertion,
       status: 'fail',
       command: formatVerificationCommand(argv, '', { home: options.home }),
       execution: { trusted: false, argv, reason: error },
@@ -1013,6 +1303,7 @@ function executeVerificationCheck(check = {}, options = {}) {
   });
   const exitCode = result.status === null ? 124 : result.status;
   return {
+    assertion: check.assertion,
     status: exitCode === 0 ? 'pass' : 'fail',
     command: formatVerificationCommand(executionArgv, '', { home: options.home }),
     execution: {
@@ -1151,7 +1442,7 @@ function collectInstallEvidence(home, options = {}) {
 function publicRecord(record, home, knownAgents) {
   return {
     ...record,
-    file: redactText(record.file, { home }),
+    file: redactSourcePath(record.file, home),
     cwd: redactText(record.cwd, { home }),
     sessionId: redactIdentifier(record.sessionId, 'session'),
     agent: safeAgent(record.agent, { knownAgents }),
@@ -1163,7 +1454,7 @@ function publicFinding(finding, home, knownAgents) {
     ...finding,
     evidence: (finding.evidence || []).map((item) => ({
       ...item,
-      file: redactText(item.file, { home }),
+      file: redactSourcePath(item.file, home),
       excerpt: redactText(item.excerpt, { home }),
       sessionId: redactIdentifier(item.sessionId, 'session'),
       agent: safeAgent(item.agent, { knownAgents }),
@@ -1180,6 +1471,9 @@ function renderReportMarkdown(report) {
     `- Records: ${report.stats.records}`,
     `- Findings: ${report.findings.length}`,
     `- Partial: ${report.stats.partial ? 'yes' : 'no'}`,
+    `- Scan complete: ${report.coverage.scanComplete ? 'yes' : 'no'}`,
+    `- Source coverage complete: ${report.coverage.sourceCoverageComplete ? 'yes' : 'no'}`,
+    `- Malformed / unsupported: ${report.coverage.malformedCount} / ${report.coverage.unsupportedCount}`,
     '',
     '## Install Evidence',
   ];
@@ -1193,7 +1487,12 @@ function renderReportMarkdown(report) {
     lines.push(`- Fingerprint: ${finding.fingerprint}`);
     lines.push(`- ${finding.message}`);
   }
-  lines.push('', '## Coverage', `- Installed agents: ${report.coverage.installedAgents.length}`, `- Unsupported/omitted sources: ${report.coverage.omittedSources.length}`);
+  lines.push('', '## Coverage',
+    `- Installed agent rows: ${report.coverage.installationRows ?? report.coverage.installedAgents.length}`,
+    `- Unique role identities: ${report.coverage.uniqueRoleIdentities ?? 0}`,
+    `- Cache/version duplicates: ${report.coverage.cacheVersionDuplicates ?? 0}`,
+    `- Excluded index rows: ${report.coverage.excludedIndexRowCount ?? (report.coverage.excludedIndexRows || []).length}`,
+    `- Unsupported/omitted sources: ${report.coverage.omittedSources.length}`);
   return `${lines.join('\n')}\n`;
 }
 
@@ -1314,7 +1613,7 @@ function runAudit(options = {}) {
       packageVersion,
       knownAgents,
     });
-    sourceStats.push({ path: redactText(source.path, { home: parsed.home }), kind: source.kind, stats: scan.stats });
+    sourceStats.push({ path: redactSourcePath(source.path, parsed.home), kind: source.kind, stats: scan.stats });
     records.push(...scan.records);
     partial = partial || scan.stats.partial;
     if (scan.stats.limitReached) break;
@@ -1392,6 +1691,8 @@ function runAudit(options = {}) {
       verificationFile: parsed.verificationFile ? redactText(parsed.verificationFile, { home: parsed.home }) : '',
     },
     coverage: {
+      sourceRoots: { ...SOURCE_ROOT_PATTERNS },
+      packageOwnedRoleSet: packageOwnedRoleSet({ packageRoot: options.packageRoot }),
       installedAgents: discovery.installedAgents.map((agent) => {
         const name = safeAgent(agent.name, { knownAgents });
         const displayedPath = path.join(path.dirname(agent.path), `${name}${path.extname(agent.path)}`);
@@ -1411,6 +1712,14 @@ function runAudit(options = {}) {
           path: redactText(source.path, { home: parsed.home }),
         })),
       ].filter((source, index, all) => all.findIndex((candidate) => `${candidate.kind}|${candidate.path}` === `${source.kind}|${source.path}`) === index),
+      activeOrcaAccounts: discovery.activeOrcaAccounts || [],
+      agentCounts: {
+        installationRows: 0,
+        uniqueCanonicalRoles: 0,
+        excludedIndexRows: 0,
+        displayedCount: 0,
+        displayedCountScope: 'unique-canonical-role',
+      },
     },
     installations: installations.map((item) => redactValue(item, parsed.home, 0, additionalRedactionRoots)),
     sourceStats,
@@ -1427,6 +1736,54 @@ function runAudit(options = {}) {
       malformed: sourceStats.reduce((sum, item) => sum + item.stats.malformed, 0),
     },
   };
+  const normalizedOmittedSources = report.coverage.omittedSources.map((source) => ({
+    ...source,
+    path: redactSourcePath(source.path, parsed.home),
+    reason: source.reason || source.status || 'omitted',
+  }));
+  const malformedCount = sourceStats.reduce((sum, item) => sum + Number(item.stats.malformed || 0), 0);
+  const unsupportedCount = sourceStats.reduce((sum, item) => sum + Number(item.stats.unsupported || 0), 0)
+    + normalizedOmittedSources.filter((source) => source.status === 'UNSUPPORTED').length;
+  const scanComplete = !partial && sourceStats.every((item) => item.stats.partial !== true);
+  const sourceCoverageComplete = scanComplete
+    && normalizedOmittedSources.every((source) => !['UNAVAILABLE', 'UNREADABLE', 'UNSUPPORTED', 'OMITTED'].includes(source.status))
+    && unsupportedCount === 0;
+  const installationRows = discovery.installedAgents.length;
+  const excludedIndexRows = discovery.installedAgents
+    .filter((agent) => String(agent.name || '').toUpperCase() === 'INDEX')
+    .map((agent) => ({
+      platform: redactText(agent.platform, { home: parsed.home }),
+      path: redactSourcePath(agent.path, parsed.home),
+    }));
+  const indexRows = excludedIndexRows.length;
+  const uniqueRoleIdentities = new Set(
+    discovery.installedAgents
+      .map((agent) => String(agent.name || '').trim())
+      .filter((name) => name && name.toUpperCase() !== 'INDEX'),
+  ).size;
+  const cacheVersionDuplicates = Math.max(0, discovery.installedAgents.length - indexRows - uniqueRoleIdentities);
+  report.coverage.omittedSources = normalizedOmittedSources;
+  report.coverage.omittedSourceReasons = normalizedOmittedSources.map((source) => source.reason);
+  report.coverage.scanComplete = scanComplete;
+  report.coverage.sourceCoverageComplete = sourceCoverageComplete;
+  report.coverage.malformedCount = malformedCount;
+  report.coverage.unsupportedCount = unsupportedCount;
+  report.coverage.installationRows = installationRows;
+  report.coverage.uniqueRoleIdentities = uniqueRoleIdentities;
+  report.coverage.cacheVersionDuplicates = cacheVersionDuplicates;
+  report.coverage.excludedIndexRows = excludedIndexRows;
+  report.coverage.excludedIndexRowCount = indexRows;
+  report.coverage.agentCounts = {
+    installationRows,
+    uniqueCanonicalRoles: uniqueRoleIdentities,
+    excludedIndexRows: indexRows,
+    displayedCount: uniqueRoleIdentities,
+    displayedCountScope: 'unique-canonical-role',
+  };
+  report.stats.scanComplete = scanComplete;
+  report.stats.sourceCoverageComplete = sourceCoverageComplete;
+  report.stats.malformedCount = malformedCount;
+  report.stats.unsupportedCount = unsupportedCount;
   if (options.write || parsed.output) writeReport(report, parsed.output || path.join(process.cwd(), '.claude', 'artifacts', 'audits', 'session-usage'));
   return report;
 }

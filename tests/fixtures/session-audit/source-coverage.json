@@ -1,0 +1,51 @@
+{
+  "schema": "dhpk.session-usage-audit.source-coverage-fixture.v1",
+  "activeAccounts": ["selected-account"],
+  "missingAccounts": ["missing-account"],
+  "unselectedAccounts": ["ignored-account"],
+  "activeSession": {
+    "relativePath": ".config/orca/codex-accounts/selected-account/home/sessions/active.jsonl",
+    "records": [
+      {
+        "type": "hook_failure",
+        "eventId": "orca-event-1",
+        "timestamp": "2026-08-06T05:00:00Z",
+        "sessionId": "orca-session-1",
+        "agent": "code-reviewer",
+        "exitCode": 1,
+        "stderr": "/dhpk:dhpk-session-usage-audit stop-advisory-dispatch.sh failed with exit code 1"
+      },
+      "malformed-json-line",
+      {
+        "type": "future_vendor_record",
+        "eventId": "orca-unsupported-1",
+        "timestamp": "2026-08-06T05:01:00Z",
+        "sessionId": "orca-session-unsupported",
+        "agent": "code-reviewer",
+        "payload": { "vendorStatus": "unknown" }
+      }
+    ]
+  },
+  "unselectedSession": {
+    "relativePath": ".config/orca/codex-accounts/ignored-account/home/sessions/ignored.jsonl",
+    "records": [
+      {
+        "type": "hook_failure",
+        "eventId": "orca-ignored-1",
+        "timestamp": "2026-08-06T06:00:00Z",
+        "sessionId": "orca-ignored-session",
+        "agent": "code-reviewer",
+        "exitCode": 1,
+        "stderr": "/dhpk:dhpk-session-usage-audit stop-advisory-dispatch.sh failed with exit code 1"
+      }
+    ]
+  },
+  "expected": {
+    "activeSourceKind": "orca-codex-session",
+    "redactedAccountPrefix": "account:",
+    "malformedCount": 1,
+    "unsupportedCount": 1,
+    "sourceCoverageComplete": false,
+    "scanComplete": true
+  }
+}

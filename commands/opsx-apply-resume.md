@@ -31,28 +31,37 @@ bash .claude/scripts/opsx-apply-resume/detect-phase.sh
 
 ## Save Phase
 
-**Goal**: Commit progress, snapshot context, write handoff, recommend next action.
+**Goal**: Snapshot the live worktree and task artifacts, write a resumable
+handoff, and recommend the next action. The live worktree is the source of
+truth; a commit is never required to save or resume.
 
-### Step 1 — Commit current progress
+### Step 1 — Optional commit gate
 
-Invoke the `smart-commit` skill to commit any completed work.
+Commit only when the user explicitly requests a commit as a separate action.
+The `smart-commit` capability is optional and is not a prerequisite for the
+handoff.
 
 - If there are unstaged changes, list them and ask whether to include
-- If the user skips commit: record `commit: SKIPPED` in handoff and continue
-- This ensures `tasks.md` checkbox state in git is the ground truth
+- If the user skips or the capability is unavailable: record `commit: SKIPPED`
+  and continue from the live worktree
+- Do not revert, delete, stash, or claim loss of uncommitted task artifacts
+  (uncommitted files remain available to Resume in the same worktree)
 
-### Step 2 — Quick quality check
+### Step 2 — Optional precommit gate
 
-Invoke the `precommit-fast` skill (lint:fix + test:unit).
+Run `precommit-fast` only when the user or project explicitly enables that
+optional gate. Its result is evidence, not a save/resume prerequisite.
 
 - PASS → continue
 - FAIL → warn with failure details, ask: "仍要存檔繼續？(y/n)"
   - yes → record `precommit: FAILED` in handoff and continue
   - no → stop, let user fix first
 
-### Step 3 — Generate compact summary
+### Step 3 — Optional compact-provider gate
 
-Invoke the `compact-save` skill. It writes a JSON file to `./compact-notes/`.
+Use the optional `compact-save` provider when it is installed and enabled. It
+writes a JSON file to `./compact-notes/`; absence of the provider or its output
+does not invalidate the live-state handoff.
 
 After invoking, verify the output exists:
 
@@ -60,9 +69,8 @@ After invoking, verify the output exists:
 ls -t compact-notes/compact-*.json 2>/dev/null | head -1
 ```
 
-- No file found → report error:
-  > compact-save 執行失敗或找不到輸出檔案。
-  > 是否要帶空白摘要繼續？空白摘要會降低 Resume Phase 的 context 品質。(y/n)
+- No file found → record `compact: UNAVAILABLE` and continue with the
+  handoff's embedded summary; do not block or discard live files.
 - Found → record as `COMPACT_JSON_PATH` (e.g. `compact-notes/compact-2026-04-27-12-00.json`)
 
 Extract fields using the script:
@@ -87,9 +95,11 @@ with the handoff summary; do not guess a `.claude/scripts` path.
 
 Read the output to obtain: `L0`, `session_goal`, `completed`, `in_progress`, `key_decisions`, `failed_approaches`.
 
-### Step 3b — Store observation in claude-mem (non-blocking, collected before handoff)
+### Step 3b — Optional memory-provider gate (non-blocking)
 
-Invoke the `opsx-post-obs` skill with:
+Post to the optional `opsx-post-obs` memory provider only when it is available.
+If it is absent or unreachable, record `claude_mem_obs_id: null` and continue.
+When enabled, invoke it with:
 - `title`: L0 value
 - `content`: session_goal + in_progress[].task + key_decisions[].decision + reason + failed_approaches[].lesson
 - `concepts`: `[<change_id>, <stage>, <wave>, "opsx-apply-resume"]`
@@ -101,7 +111,7 @@ wait $OBS_PID
 CLAUDE_MEM_OBS_ID=$(cat "$OBS_RESULT_FILE" 2>/dev/null || echo null)
 ```
 
-- `CLAUDE_MEM_OBS_ID` = integer string or `null`
+- `CLAUDE_MEM_OBS_ID` = integer string or `null`; either value is valid
 
 ### Step 4 — Identify change and remaining tasks
 
@@ -153,8 +163,9 @@ saved_at: <ISO 8601 timestamp>
 state: saved
 model_suggestion: <opus|sonnet|haiku>
 risk_level: <low|medium|high|critical>
-precommit: <PASS|FAIL|SKIPPED>
-commit: <DONE|SKIPPED>
+precommit: <PASS|FAIL|SKIPPED|UNAVAILABLE>
+commit: <DONE|SKIPPED|UNAVAILABLE>
+compact: <PASS|UNAVAILABLE>
 remaining_tasks_count: <N>
 compact_json_path: <COMPACT_JSON_PATH>
 claude_mem_obs_id: <integer | null>
@@ -200,19 +211,21 @@ claude_mem_tags: [<change_id>, <stage>, <wave>]
 （/fork 保留對話分支；/new 完全乾淨重啟）
 ```
 
-If `commit: SKIPPED`, append this warning:
+If `commit: SKIPPED` or `commit: UNAVAILABLE`, append this informational note:
 
 ```
-警告：你有未提交的變更。若 tasks.md 勾選狀態已修改，
-/new 後這些進度將遺失（git HEAD 不含未 commit 的勾選）。
-強烈建議：執行 /fork 而非 /new，以保留未 commit 的檔案狀態。
+注意：目前仍有未提交的變更；它們保留在 live worktree。
+切換 session 前請保留同一個 worktree，或明確帶走這些檔案；不需要先 commit。
 ```
 
 ---
 
 ## Resume Phase
 
-**Goal**: Restore context, hand off to `opsx:apply` which auto-resumes from the first unchecked task.
+**Goal**: Restore context from the live worktree and task artifacts, then hand
+off to `openspec-apply-change`, which resumes from the first unchecked task.
+Commit, compact, memory, and precommit are optional gates and never become an
+implicit prerequisite.
 
 ### Context check (before Step 1)
 
@@ -269,7 +282,7 @@ Stop and do not proceed further.
     <Next Actions list from handoff>
 
   模型建議: <suggestion>（可執行 /model <model> 切換）
-  上次 Precommit: <result>  |  Commit: <DONE|SKIPPED>
+  上次 Precommit: <result>  |  Commit: <DONE|SKIPPED|UNAVAILABLE>
 ```
 
 If cross-session observations found in Step 1d:
@@ -281,8 +294,8 @@ If cross-session observations found in Step 1d:
 If `precommit: FAILED`:
 > 注意：上次 precommit 失敗，建議先執行 `/precommit-fast` 修復後再繼續。
 
-If `commit: SKIPPED`:
-> 注意：上次有未提交的變更，請確認是否需要先提交。
+If `commit: SKIPPED` or `commit: UNAVAILABLE`:
+> 注意：上次的未提交變更仍以 live worktree 為準；不需先提交即可繼續。
 
 ### Step 4 — Mark handoff in-flight
 
@@ -344,7 +357,7 @@ Each Save Phase creates a new `latest.md` (previous runs become `consumed-*.md`)
 ## Guardrails
 
 - Never modify `opsx:apply` or any external skill
-- `compact-save` outputs to `./compact-notes/compact-*.json` — always validate file exists after invoking
+- `compact-save` (optional provider) outputs to `./compact-notes/compact-*.json` — when available, always validate the file exists after invoking; absence records `UNAVAILABLE` and does not invalidate the live-worktree handoff
 - `opsx:apply` finds its own task checkpoint via `openspec instructions apply --json` — do not inject task position manually
 - `set-handoff-state.sh consuming` before `opsx:apply`; archive to `consumed-*.md` after completion — never delete
 - Model recommendation is always non-blocking — user decides whether to switch

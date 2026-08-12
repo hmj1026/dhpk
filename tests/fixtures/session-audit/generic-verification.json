@@ -1,0 +1,45 @@
+{
+  "schema": "dhpk.session-usage-audit.verification-fixture.v1",
+  "finding": {
+    "fingerprint": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "category": "hook-failure",
+    "component": "stop-advisory-dispatch.sh",
+    "title": "hook failure",
+    "message": "stop-advisory-dispatch.sh failed with exit code 1",
+    "status": "candidate",
+    "confidence": 0.91,
+    "occurrences": 1
+  },
+  "verification": {
+    "reproduction": {
+      "status": "pass",
+      "command": "node session-usage-audit.js --help",
+      "argv": ["node", "session-usage-audit.js", "--help"],
+      "assertion": {
+        "kind": "finding-symptom",
+        "expected": "hook failure is reproduced"
+      },
+      "execution": {
+        "trusted": true,
+        "argv": ["node", "session-usage-audit.js", "--help"]
+      }
+    },
+    "consumerGate": {
+      "status": "pass",
+      "command": "node session-usage-audit.js --date 2026-08-06",
+      "argv": ["node", "session-usage-audit.js", "--date", "2026-08-06"],
+      "assertion": {
+        "kind": "remediation-state",
+        "expected": "the hook failure is absent after remediation"
+      },
+      "execution": {
+        "trusted": true,
+        "argv": ["node", "session-usage-audit.js", "--date", "2026-08-06"]
+      }
+    }
+  },
+  "expected": {
+    "status": "needs-verification",
+    "reason": "generic commands do not evaluate the finding-specific symptom"
+  }
+}

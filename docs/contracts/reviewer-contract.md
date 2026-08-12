@@ -31,7 +31,10 @@ otherwise permitted, never changes that outcome.
 The native stop-time gate requires a canonical filename
 `<agent>-YYYYMMDD-HHMMSS-<slug>.md`, leading delimited frontmatter containing
 `agent`, `generated_at`, `commit`, `scope`, `severity_summary`, and `verdict`,
-plus an `APPROVE or PASS` verdict before it clears a sentinel. The
+plus an `APPROVE or PASS` verdict before it clears a sentinel. A dispatched
+wave should additionally include `scope_id` and `diff_id` from the lifecycle
+dispatch record; when either field is present, both must match the current
+obligation and a foreign wave remains unresolved. The
 gate applies the same freshness and ownership discipline to non-canonical
 review files. `pre-agent-liveness-mark.sh` records the dispatch
 baseline, session, attempt, and dispatch identifier (when available) in the
@@ -41,8 +44,12 @@ provenance, then selects the newest qualified file with a deterministic relative
 path tie-breaker. A fresh misplaced file leaves the sentinel armed but is
 reported with a relative path; stale or foreign candidates are reported as
 "no fresh review doc" without leaking an absolute path. Missing provenance is
-accepted only for a file that is fresh in the current stop session and is marked
-`current-unknown-session` in diagnostics.
+accepted only for a file that is fresh in the current native stop session and
+is marked `current-unknown-session` in diagnostics. The background Stop-time
+reconciliation safety net is stricter: it must first find the exact
+session-scoped `.review-dispatch-attempts` row and then require matching
+artifact `session_id`, `dispatch_attempt`, and `dispatch_id` fields; legacy
+artifacts without that tuple remain armed.
 
 ## Single-run verdict
 

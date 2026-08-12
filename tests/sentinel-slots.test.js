@@ -45,9 +45,9 @@ test('(a) the four lockstep sentinel arrays are equal length', () => {
 });
 
 test('(b) no dead-slot token (art / singular artifact) under scripts/hooks/', () => {
-  // \bart\b / \bartifact\b match the standalone slot tokens but NOT the plural
-  // "artifacts" directory (word char follows) — so `.claude/artifacts/` is safe.
-  const dead = /\bart\b|\bartifact\b/;
+  // Detect only legacy slot aliases, not ordinary lifecycle prose such as a
+  // fresh artifact or the valid `artifact-ready` producer state.
+  const dead = /\.pending-(?:art|artifact)\b|(?:SENTINEL_(?:NAMES|LABELS|SHORT_NAMES)|_dhpk_default_agents)[^\n]*(?:\bart\b|\bartifact\b)/i;
   for (const fp of shFiles(HOOKS_DIR)) {
     const lines = fs.readFileSync(fp, 'utf8').split('\n');
     lines.forEach((line, i) => {

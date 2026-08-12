@@ -3,6 +3,8 @@
 This compact policy is the Codex projection of dhpk's execution rules. It
 preserves the safety and review contract without relying on Claude lifecycle
 hooks, sentinels, or Claude plugin-root interpolation.
+The always-visible execution kernel is loaded first; this file remains the
+conditional routing and review reference selected by the active route.
 
 ## Review precedence
 
