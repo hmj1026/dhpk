@@ -13,9 +13,8 @@ const version = JSON.parse(fs.readFileSync(
   path.join(ROOT, '.claude-plugin', 'plugin.json'),
   'utf8',
 )).version;
-const changelog = fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8');
-
 test('current release has one changelog section', () => {
+  const changelog = fs.readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf8');
   const escapedVersion = version.split('.').join('\\.');
   const heading = new RegExp(`^## ${escapedVersion}(?=[\\s.])`, 'gm');
   const matches = changelog.match(heading) || [];
