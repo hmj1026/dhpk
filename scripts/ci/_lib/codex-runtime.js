@@ -5,6 +5,12 @@ const path = require('node:path');
 
 const TIER_LABEL = /\b(?:haiku|sonnet|opus)\b/i;
 const BACKTICKED_TOKEN = /`([a-z0-9]+(?:-[a-z0-9]+)*)`/g;
+const VALID_CODEX_MODELS = new Set(['gpt-5.6-luna', 'gpt-5.6-terra', 'gpt-5.6-sol']);
+const VALID_REASONING_EFFORTS = new Set(['low', 'medium', 'high', 'max', 'xhigh']);
+const VALID_SANDBOX_MODES = new Set(['read-only', 'workspace-write', 'danger-full-access']);
+const DEFAULT_SUBAGENT_MODEL = 'gpt-5.6-luna';
+const DEFAULT_SUBAGENT_EFFORT = 'medium';
+const ROLE_OWNERSHIP_MANIFEST = 'codex/agent-projection-manifest.json';
 
 function relative(root, file) {
   return path.relative(root, file).split(path.sep).join('/');
@@ -16,6 +22,76 @@ function namesFrom(directory, extension) {
     .readdirSync(directory)
     .filter((name) => name.endsWith(extension))
     .map((name) => name.slice(0, -extension.length));
+}
+
+function walkFiles(directory, predicate, output = []) {
+  if (!fs.existsSync(directory)) return output;
+  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+    const file = path.join(directory, entry.name);
+    if (entry.isDirectory()) walkFiles(file, predicate, output);
+    else if (predicate(file)) output.push(file);
+  }
+  return output;
+}
+
+function readRoleOwnershipManifest(root) {
+  const file = path.join(root, ROLE_OWNERSHIP_MANIFEST);
+  if (!fs.existsSync(file)) {
+    return {
+      manifest: null,
+      errors: [`${ROLE_OWNERSHIP_MANIFEST} — role ownership manifest is missing`],
+      generated: new Set(),
+      packageRoles: new Set(),
+      local: new Set(),
+    };
+  }
+  let manifest;
+  try {
+    manifest = JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch (error) {
+    return {
+      manifest: null,
+      errors: [`${ROLE_OWNERSHIP_MANIFEST} — role ownership manifest is not valid JSON: ${error.message}`],
+      generated: new Set(),
+      packageRoles: new Set(),
+      local: new Set(),
+    };
+  }
+  const errors = [];
+  const generated = Array.isArray(manifest.generated_roles) ? manifest.generated_roles : null;
+  const packageRoles = Array.isArray(manifest.package_roles) ? manifest.package_roles : null;
+  const local = Array.isArray(manifest.workspace_local_extensions)
+    ? manifest.workspace_local_extensions
+    : null;
+  if (!generated || !packageRoles || !local) {
+    errors.push(
+      `${ROLE_OWNERSHIP_MANIFEST} — must declare generated_roles, package_roles, and workspace_local_extensions arrays`,
+    );
+  }
+  const asSet = (values) => new Set(Array.isArray(values) ? values : []);
+  const generatedSet = asSet(generated);
+  const packageSet = asSet(packageRoles);
+  const localSet = asSet(local);
+  for (const [label, values] of [['generated_roles', generated], ['package_roles', packageRoles], ['workspace_local_extensions', local]]) {
+    if (!Array.isArray(values)) continue;
+    if (values.some((value) => typeof value !== 'string' || !/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(value))) {
+      errors.push(`${ROLE_OWNERSHIP_MANIFEST} — ${label} contains an invalid role name`);
+    }
+    if (new Set(values).size !== values.length) {
+      errors.push(`${ROLE_OWNERSHIP_MANIFEST} — ${label} contains duplicate role names`);
+    }
+  }
+  for (const role of generatedSet) {
+    if (!packageSet.has(role)) {
+      errors.push(`${ROLE_OWNERSHIP_MANIFEST} — generated role '${role}' is not package-owned`);
+    }
+  }
+  for (const role of localSet) {
+    if (packageSet.has(role)) {
+      errors.push(`${ROLE_OWNERSHIP_MANIFEST} — workspace-local role '${role}' collides with package-owned role`);
+    }
+  }
+  return { manifest, errors, generated: generatedSet, packageRoles: packageSet, local: localSet };
 }
 
 function canonicalAgentNames(root) {
@@ -31,6 +107,30 @@ function canonicalAgentNames(root) {
   return names;
 }
 
+function collectCanonicalAgentOwnershipErrors(root) {
+  const errors = [];
+  const roots = [path.join(root, 'agents')];
+  const modulesDir = path.join(root, 'modules');
+  if (fs.existsSync(modulesDir)) {
+    for (const moduleName of fs.readdirSync(modulesDir)) {
+      roots.push(path.join(modulesDir, moduleName, 'agents'));
+    }
+  }
+  for (const agentsRoot of roots) {
+    if (!fs.existsSync(agentsRoot)) continue;
+    for (const file of fs.readdirSync(agentsRoot).filter((entry) => entry.endsWith('.md') && entry !== 'INDEX.md')) {
+      const fullPath = path.join(agentsRoot, file);
+      const source = fs.readFileSync(fullPath, 'utf8');
+      const nameMatch = source.match(/^name\s*:\s*['"]?([^'"\n]+?)['"]?\s*$/m);
+      const expected = file.slice(0, -'.md'.length);
+      if (!nameMatch || nameMatch[1].trim() !== expected) {
+        errors.push(`${relative(root, fullPath)} — canonical agent filename '${expected}.md' does not match frontmatter name '${nameMatch ? nameMatch[1].trim() : '(missing)'}'`);
+      }
+    }
+  }
+  return errors;
+}
+
 function tomlStringField(source, field) {
   const inline = source.match(new RegExp(`^${field}\\s*=\\s*"((?:\\\\.|[^"\\\\])*)"\\s*$`, 'm'));
   if (inline) return inline[1].replace(/\\\\"/g, '"').replace(/\\\\\\\\/g, '\\\\');
@@ -42,6 +142,8 @@ function tomlStringField(source, field) {
 function topLevelAgentsConfig(source) {
   let inAgents = false;
   let hasConcurrency = false;
+  let defaultModel = null;
+  let defaultEffort = null;
   const legacyKeys = [];
 
   for (const line of source.split(/\r?\n/)) {
@@ -53,12 +155,95 @@ function topLevelAgentsConfig(source) {
     if (inAgents && /^\s*max_concurrent_threads_per_session\s*=/.test(line)) {
       hasConcurrency = true;
     }
+    if (inAgents && /^\s*default_subagent_model\s*=\s*"([^"]+)"/.test(line)) {
+      defaultModel = line.match(/^\s*default_subagent_model\s*=\s*"([^"]+)"/)[1];
+    }
+    if (inAgents && /^\s*default_subagent_reasoning_effort\s*=\s*"([^"]+)"/.test(line)) {
+      defaultEffort = line.match(/^\s*default_subagent_reasoning_effort\s*=\s*"([^"]+)"/)[1];
+    }
     if (inAgents && /^\s*max_(?:threads|depth)\s*=/.test(line)) {
       legacyKeys.push(line.trim().split(/\s*=/, 1)[0]);
     }
   }
 
-  return { hasConcurrency, legacyKeys };
+  return { hasConcurrency, legacyKeys, defaultModel, defaultEffort };
+}
+
+function collectCodexRoleOwnershipErrors(root) {
+  const errors = [];
+  const ownership = readRoleOwnershipManifest(root);
+  errors.push(...ownership.errors);
+  const agentsDir = path.join(root, 'codex', 'agents');
+  const files = namesFrom(agentsDir, '.toml');
+  const fileNames = new Set(files);
+  const localExtensions = new Set(ownership.local);
+  const sidecarPath = path.join(agentsDir, '.codex-agent-ownership.json');
+  if (fs.existsSync(sidecarPath)) {
+    try {
+      const sidecar = JSON.parse(fs.readFileSync(sidecarPath, 'utf8'));
+      for (const role of sidecar.workspace_local_extensions || []) localExtensions.add(role);
+    } catch (error) {
+      errors.push(`${relative(root, sidecarPath)} — workspace-local role ownership manifest is not valid JSON: ${error.message}`);
+    }
+  }
+
+  if (ownership.manifest) {
+    for (const role of [...ownership.packageRoles].sort()) {
+      if (!fileNames.has(role)) {
+        errors.push(`${ROLE_OWNERSHIP_MANIFEST} — package-owned role '${role}' is missing from codex/agents`);
+      }
+    }
+    for (const role of [...ownership.generated].sort()) {
+      if (!fs.existsSync(path.join(root, 'agents', `${role}.md`))) {
+        errors.push(`${ROLE_OWNERSHIP_MANIFEST} — generated role '${role}' has no canonical agents/${role}.md source`);
+      }
+    }
+    for (const role of files.sort()) {
+      if (!ownership.packageRoles.has(role) && !localExtensions.has(role)) {
+        errors.push(`codex/agents/${role}.toml — stale package-owned TOML is outside the ownership manifest`);
+      }
+    }
+  }
+  return errors;
+}
+
+function collectCodexRoleMetadataErrors(root) {
+  const errors = [];
+  const agentsDir = path.join(root, 'codex', 'agents');
+  if (!fs.existsSync(agentsDir)) return errors;
+  for (const entry of fs.readdirSync(agentsDir)) {
+    if (!entry.endsWith('.toml')) continue;
+    const role = entry.slice(0, -'.toml'.length);
+    const file = path.join(agentsDir, entry);
+    const source = fs.readFileSync(file, 'utf8');
+    const relativeFile = relative(root, file);
+    const fields = {
+      name: tomlStringField(source, 'name'),
+      description: tomlStringField(source, 'description'),
+      model: tomlStringField(source, 'model'),
+      model_reasoning_effort: tomlStringField(source, 'model_reasoning_effort'),
+      sandbox_mode: tomlStringField(source, 'sandbox_mode'),
+      developer_instructions: tomlStringField(source, 'developer_instructions'),
+    };
+    for (const field of ['name', 'description', 'model', 'model_reasoning_effort', 'sandbox_mode', 'developer_instructions']) {
+      if (fields[field] == null || !fields[field].trim()) {
+        errors.push(`${relativeFile} — missing non-empty ${field}`);
+      }
+    }
+    if (fields.name && fields.name !== role) {
+      errors.push(`${relativeFile} — filename '${role}.toml' does not match declared name '${fields.name}'`);
+    }
+    if (fields.model && !VALID_CODEX_MODELS.has(fields.model)) {
+      errors.push(`${relativeFile} — invalid model '${fields.model}' (not in the Codex model catalog)`);
+    }
+    if (fields.model_reasoning_effort && !VALID_REASONING_EFFORTS.has(fields.model_reasoning_effort)) {
+      errors.push(`${relativeFile} — invalid model_reasoning_effort '${fields.model_reasoning_effort}'`);
+    }
+    if (fields.sandbox_mode && !VALID_SANDBOX_MODES.has(fields.sandbox_mode)) {
+      errors.push(`${relativeFile} — invalid sandbox_mode '${fields.sandbox_mode}'`);
+    }
+  }
+  return errors;
 }
 
 function projectionRoots(root) {
@@ -189,11 +374,64 @@ function collectSupportingClosureErrors(root, sourceRoot, assets) {
   return errors;
 }
 
+function readRoleMatrix(root) {
+  const file = path.join(root, 'codex', 'agent-role-map.json');
+  if (!fs.existsSync(file)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+function collectSupportingDispatchErrors(root, sourceRoot, assets) {
+  const errors = [];
+  const matrix = readRoleMatrix(sourceRoot);
+  if (!matrix || !matrix.roles || !fs.existsSync(assets)) return errors;
+  const canonical = new Set(Object.keys(matrix.roles));
+  const direct = new Set(namesFrom(path.join(sourceRoot, 'codex', 'agents'), '.toml'));
+  const files = walkFiles(assets, (file) => file.endsWith('.md'));
+  for (const file of files) {
+    const source = fs.readFileSync(file, 'utf8');
+    const relativeFile = relative(root, file);
+    for (const match of source.matchAll(/\bdhpk:([a-z0-9]+(?:-[a-z0-9]+)*)/g)) {
+      errors.push(`${relativeFile} — supporting Codex asset retains unsupported Claude namespace '${match[0]}'`);
+    }
+    for (const [lineNumber, line] of source.split(/\r?\n/).entries()) {
+      const tokens = [...line.matchAll(BACKTICKED_TOKEN)].map((match) => match[1]);
+      for (const token of tokens) {
+        if (!canonical.has(token)) continue;
+        const entry = matrix.roles[token];
+        if (entry && entry.status !== 'direct') {
+          errors.push(
+            `${relativeFile}:${lineNumber + 1} — supporting asset dispatch target '${token}' is ${entry.status}; use a direct Codex role or an explicit manual/capability fallback`,
+          );
+        } else if (!direct.has(token)) {
+          errors.push(`${relativeFile}:${lineNumber + 1} — supporting asset dispatch target '${token}' is not a discovered Codex role`);
+        }
+      }
+      if (/\b(?:dispatch|handoff|hand off|delegate|invoke)\b/i.test(line)) {
+        for (const match of line.matchAll(BACKTICKED_TOKEN)) {
+          const token = match[1];
+          if (canonical.has(token) || direct.has(token)) continue;
+          if (/^[a-z][a-z0-9]*(?:-[a-z0-9]+)+$/.test(token)) {
+            errors.push(
+              `${relativeFile}:${lineNumber + 1} — supporting asset dispatch target '${token}' is not declared in the role graph`,
+            );
+          }
+        }
+      }
+    }
+  }
+  return errors;
+}
+
 function collectCodexProjectionReferenceErrors(root, sourceRoot = root) {
   const errors = [];
   const { agents, assets } = projectionRoots(root);
   if (!fs.existsSync(agents)) return errors;
   errors.push(...collectSupportingClosureErrors(root, sourceRoot, assets));
+  errors.push(...collectSupportingDispatchErrors(root, sourceRoot, assets));
   const referencePattern = /\.codex\/dhpk\/[A-Za-z0-9._/<>{}-]+\.md/g;
   for (const name of fs.readdirSync(agents).filter((entry) => entry.endsWith('.toml')).sort()) {
     const file = path.join(agents, name);
@@ -240,6 +478,7 @@ function collectCodexCoverageErrors(root) {
   }
 
   const canonicalNames = canonicalAgentNames(root);
+  errors.push(...collectCanonicalAgentOwnershipErrors(root));
   const roles = matrix && matrix.roles;
   const statuses = new Set(Array.isArray(matrix && matrix.statuses) ? matrix.statuses : []);
   const validStatuses = new Set([
@@ -259,19 +498,81 @@ function collectCodexCoverageErrors(root) {
   }
 
   const mappedNames = new Set(Object.keys(roles));
+  const declaredDispatchRoles = readRoleOwnershipManifest(root).packageRoles;
   for (const name of [...canonicalNames].sort()) {
     if (!mappedNames.has(name)) {
       errors.push(`codex/agent-role-map.json — canonical role '${name}' is not classified`);
     }
   }
+  for (const name of [...declaredDispatchRoles].sort()) {
+    if (!mappedNames.has(name)) {
+      errors.push(`codex/agent-role-map.json — package dispatch role '${name}' is not classified`);
+    }
+  }
   for (const name of [...mappedNames].sort()) {
-    if (!canonicalNames.has(name)) {
+    if (!canonicalNames.has(name) && !declaredDispatchRoles.has(name)) {
       errors.push(`codex/agent-role-map.json — matrix contains non-canonical role '${name}'`);
     }
   }
 
   const dispatchableNames = new Set(namesFrom(path.join(root, 'codex', 'agents'), '.toml'));
-  for (const name of [...canonicalNames].sort()) {
+  const capabilities = matrix && matrix.capabilities;
+  if (!capabilities || typeof capabilities !== 'object' || Array.isArray(capabilities)) {
+    errors.push('codex/agent-role-map.json — capability-gated outcomes require a capabilities object');
+  }
+  const capabilityEntries = capabilities && typeof capabilities === 'object' ? capabilities : {};
+  const capabilityNames = new Set(Object.keys(capabilityEntries));
+  for (const [capability, definition] of Object.entries(capabilityEntries)) {
+    if (!definition || typeof definition !== 'object' || Array.isArray(definition)) {
+      errors.push(`codex/agent-role-map.json — capability '${capability}' must have a definition object`);
+      continue;
+    }
+    if (definition.kind === 'module') {
+      if (typeof definition.path !== 'string' || !definition.path.trim()) {
+        errors.push(`codex/agent-role-map.json — module capability '${capability}' must declare a path`);
+      } else if (!fs.existsSync(path.join(root, definition.path))) {
+        errors.push(`codex/agent-role-map.json — module capability '${capability}' points at missing '${definition.path}'`);
+      }
+    }
+  }
+  const resolveTarget = (name, entry) => {
+    if (typeof entry.target !== 'string' || !entry.target.trim()) return;
+    const target = entry.target.trim();
+    if (entry.status === 'direct') {
+      if (!dispatchableNames.has(target) || !Object.prototype.hasOwnProperty.call(roles, target)) {
+        errors.push(`codex/agent-role-map.json — direct role '${name}' targets non-dispatchable Codex role '${target}'`);
+      }
+      return;
+    }
+    if (entry.status === 'merged') {
+      const targets = target.split('/').map((part) => part.trim()).filter(Boolean);
+      if (targets.length === 0) {
+        errors.push(`codex/agent-role-map.json — merged role '${name}' has no target roles`);
+      }
+      for (const targetRole of targets) {
+        if (!dispatchableNames.has(targetRole)) {
+          errors.push(`codex/agent-role-map.json — merged role '${name}' targets non-dispatchable Codex role '${targetRole}'`);
+        }
+      }
+      return;
+    }
+    if (entry.status === 'skill/manual-fallback' || entry.status === 'capability-gated') {
+      if (target.startsWith('capability:')) {
+        const capability = target.slice('capability:'.length);
+        if (!capability || !capabilityNames.has(capability)) {
+          errors.push(`codex/agent-role-map.json — ${entry.status} role '${name}' targets unknown capability '${capability || target}'`);
+        }
+      } else if (!dispatchableNames.has(target)) {
+        errors.push(`codex/agent-role-map.json — ${entry.status} role '${name}' target '${target}' must resolve to a direct role or capability:<id>`);
+      }
+      return;
+    }
+    if (entry.status === 'intentionally-unavailable' && !target) {
+      errors.push(`codex/agent-role-map.json — intentionally unavailable role '${name}' needs a rationale`);
+    }
+  };
+  const graphNames = new Set([...canonicalNames, ...declaredDispatchRoles]);
+  for (const name of [...graphNames].sort()) {
     const entry = roles[name];
     if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
       errors.push(`codex/agent-role-map.json — role '${name}' must have one classification object`);
@@ -283,11 +584,7 @@ function collectCodexCoverageErrors(root) {
     if (typeof entry.target !== 'string' || !entry.target.trim()) {
       errors.push(`codex/agent-role-map.json — role '${name}' must declare a non-empty target or rationale`);
     }
-    if (entry.status === 'direct' && !dispatchableNames.has(entry.target)) {
-      errors.push(
-        `codex/agent-role-map.json — direct role '${name}' targets non-dispatchable Codex role '${entry.target}'`,
-      );
-    }
+    resolveTarget(name, entry);
   }
   return errors;
 }
@@ -300,6 +597,8 @@ function collectCodexRuntimeErrors(root) {
   const codexFiles = namesFrom(codexAgentsDir, '.toml').sort();
   const dispatchableNames = new Set(codexFiles);
 
+  errors.push(...collectCodexRoleOwnershipErrors(root));
+  errors.push(...collectCodexRoleMetadataErrors(root));
   errors.push(...collectCodexProjectionReferenceErrors(root));
 
   if (!fs.existsSync(codexAgentsDir)) {
@@ -317,21 +616,6 @@ function collectCodexRuntimeErrors(root) {
       const file = path.join(codexAgentsDir, `${role}.toml`);
       const source = fs.readFileSync(file, 'utf8');
       const description = tomlStringField(source, 'description');
-
-      const requiredFields = [
-        'name',
-        'description',
-        'model',
-        'model_reasoning_effort',
-        'developer_instructions',
-      ];
-      for (const field of requiredFields) {
-        const value = tomlStringField(source, field);
-        if (value == null || !value.trim()) {
-          errors.push(`${relative(root, file)} — missing non-empty ${field}`);
-        }
-      }
-
       const tierLabel = description && description.match(TIER_LABEL);
       if (tierLabel) {
         errors.push(
@@ -355,7 +639,7 @@ function collectCodexRuntimeErrors(root) {
     errors.push('codex/config.toml.example — example configuration is missing');
   } else {
     const config = fs.readFileSync(codexConfig, 'utf8');
-    const { hasConcurrency, legacyKeys } = topLevelAgentsConfig(config);
+    const { hasConcurrency, legacyKeys, defaultModel, defaultEffort } = topLevelAgentsConfig(config);
     if (!hasConcurrency) {
       errors.push(
         'codex/config.toml.example — [agents] must define max_concurrent_threads_per_session',
@@ -364,12 +648,24 @@ function collectCodexRuntimeErrors(root) {
     for (const key of legacyKeys) {
       errors.push(`codex/config.toml.example — legacy [agents] key '${key}' is not supported`);
     }
+    if (defaultModel !== DEFAULT_SUBAGENT_MODEL) {
+      errors.push(
+        `codex/config.toml.example — default_subagent_model must be '${DEFAULT_SUBAGENT_MODEL}', found '${defaultModel || '(missing)'}'`,
+      );
+    }
+    if (defaultEffort !== DEFAULT_SUBAGENT_EFFORT) {
+      errors.push(
+        `codex/config.toml.example — default_subagent_reasoning_effort must be '${DEFAULT_SUBAGENT_EFFORT}', found '${defaultEffort || '(missing)'}'`,
+      );
+    }
   }
 
   return errors;
 }
 
 module.exports = {
+  collectCodexRoleMetadataErrors,
+  collectCodexRoleOwnershipErrors,
   collectCodexCoverageErrors,
   collectCodexProjectionReferenceErrors,
   collectCodexRuntimeErrors,
