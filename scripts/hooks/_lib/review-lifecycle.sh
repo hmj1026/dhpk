@@ -6,7 +6,7 @@
 _DHPK_REVIEW_LIFECYCLE_LOADED=1
 
 : "${DHPK_SIDECAR_LIFECYCLE_EVENTS:=.lifecycle-events.jsonl}"
-: "${DHPK_SIDECAR_ARTIFACT_READY:=.artifact-ready.jsonl}"
+: "${DHPK_SIDECAR_ARTIFACT_READY:=.producer-ready.jsonl}"
 : "${DHPK_SIDECAR_REVIEW_TELEMETRY:=.review-telemetry.jsonl}"
 : "${DHPK_SIDECAR_RETRY_STATE:=.review-retry.jsonl}"
 : "${DHPK_SIDECAR_QUOTA_STATE:=.quota-resume.jsonl}"

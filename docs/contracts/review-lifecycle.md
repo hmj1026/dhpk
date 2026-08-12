@@ -7,7 +7,7 @@ evidence, not tracked deliverables:
 | File | Purpose |
 | --- | --- |
 | `.lifecycle-events.jsonl` | One versioned transition record per task identity |
-| `.artifact-ready.jsonl` | Producer marker written after a report is durable |
+| `.producer-ready.jsonl` | Producer marker written after a report is durable |
 | `.review-telemetry.jsonl` | Monotonic attempts, starts, verdicts, artifacts, retries, and unresolved-obligation counters |
 | `.review-retry.jsonl` | Keyed one-corrected-retry budget (`max_retries: 1`) |
 | `.quota-resume.jsonl` | Quota-blocked task identity and its explicit resume transition |

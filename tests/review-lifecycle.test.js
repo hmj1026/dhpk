@@ -65,7 +65,7 @@ test('artifact-ready is a producer marker and consumers fail closed without it',
     assert.strictEqual(res.status, 0, res.stderr);
     res = source(repo, `dhpk_lifecycle_require_ready task-1`);
     assert.strictEqual(res.status, 0, res.stderr);
-    const markers = readJsonl(repo, '.artifact-ready.jsonl');
+  const markers = readJsonl(repo, '.producer-ready.jsonl');
     assert.strictEqual(markers.length, 1);
     assert.strictEqual(markers[0].state, 'artifact-ready');
     assert.strictEqual(markers[0].artifact, artifact);

@@ -62,9 +62,7 @@ reasoner modes are opt-in; `--openspec` supersedes `--plan` only for a
 change-authoring route. Missing optional providers continue with an observable
 warning/result. For implementation-class routes, forward
 `WORKER_OVERRIDE=<actual value|unset>` and the resolved reasoner context. For
-implementation-class routes, forward the invocation override to every
-implementation-class route. The downstream route MUST call the shared
-fast-worker backend selector before its
+implementation-class routes, forward the invocation override to every implementation-class route. The downstream route MUST call the shared fast-worker backend selector before its
 first mechanical dispatch and must not reimplement availability, order, or
 fallback logic. An ignored reasoner prints:
 
