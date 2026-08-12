@@ -1,37 +1,4 @@
-# codex-install-materialization Specification
-
-## Purpose
-
-Define deterministic, reversible Codex projection materialization, including
-receipt reconciliation, managed-target safety, and source filtering.
-## Requirements
-### Requirement: Legacy receipts and projections reconcile explicitly
-
-The supported Codex installer SHALL compare the receipt schema/version, source fingerprint, canonical managed names, and destination entries before declaring a project up to date. A pre-consolidation receipt or legacy fallback name set SHALL produce an explicit migration/update state with an actionable command and SHALL not be silently treated as current.
-
-#### Scenario: Receipt reports an old release
-
-- **WHEN** the project receipt contains a pre-consolidation version and legacy skill names
-- **THEN** the installer reports that migration/update is required, identifies the affected managed entries, and leaves the project unchanged until the requested mode is supplied
-
-#### Scenario: Receipt version matches but content is stale
-
-- **WHEN** the recorded version matches the source but the source fingerprint differs
-- **THEN** the installer does not report up to date and schedules only dhpk-managed targets for update
-
-### Requirement: Reconciliation preserves unowned collisions
-
-Update and migration SHALL classify destination collisions by ownership and exact source match. Only proven dhpk-managed targets may be replaced or pruned; an unowned same-name file, directory, or link SHALL receive a safe collision diagnostic and SHALL remain recoverable.
-
-#### Scenario: Unowned legacy file collides with a canonical name
-
-- **WHEN** migration encounters a same-name destination that is not proven dhpk-managed
-- **THEN** the installer reports the collision, does not overwrite or delete it implicitly, and records the blocked entry for an explicit owner decision
-
-#### Scenario: Managed entry is retired
-
-- **WHEN** update finds a retired entry recorded as dhpk-managed and no longer present in the canonical inventory
-- **THEN** the installer may remove or archive only that managed entry and reports the reconciliation count
+## MODIFIED Requirements
 
 ### Requirement: Projection evidence is deterministic and reversible
 
