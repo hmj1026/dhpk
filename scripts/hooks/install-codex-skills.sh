@@ -203,12 +203,24 @@ def backup_destination(relative, destination, reason):
     return backup_relative
 
 
+def is_ignored_distribution_name(name):
+    """Return whether a generated/non-portable entry must be excluded."""
+    return name == '__pycache__' or name.endswith('.pyc')
+
+
+def ignore_distribution_entries(path, names):
+    """Ignore generated Python bytecode during distributable copytree walks."""
+    return {name for name in names if is_ignored_distribution_name(name)}
+
+
 def hash_path(path):
     """Hash a file or directory deterministically, following source links."""
     digest = hashlib.sha256()
     if os.path.islink(path):
         target = os.path.realpath(path)
         return hash_path(target)
+    if is_ignored_distribution_name(os.path.basename(path)):
+        return ''
     if os.path.isfile(path):
         digest.update(b'file\0')
         with open(path, 'rb') as fh:
@@ -219,6 +231,8 @@ def hash_path(path):
         return ''
     digest.update(b'dir\0')
     for name in sorted(os.listdir(path)):
+        if is_ignored_distribution_name(name):
+            continue
         child = os.path.join(path, name)
         digest.update(name.replace(os.sep, '/').encode('utf-8'))
         digest.update(b'\0')
@@ -271,6 +285,8 @@ def source_fingerprint():
         if not os.path.isdir(root):
             continue
         for name in sorted(os.listdir(root)):
+            if is_ignored_distribution_name(name):
+                continue
             child = os.path.join(root, name)
             digest.update(f'{root_name}/{name}'.encode('utf-8'))
             digest.update(b'\0')
@@ -434,6 +450,8 @@ def current_sources():
         if not os.path.isdir(root):
             continue
         for name in sorted(os.listdir(root)):
+            if is_ignored_distribution_name(name):
+                continue
             source = os.path.join(root, name)
             if not lexists(source):
                 continue
@@ -531,7 +549,7 @@ def install(source, destination):
     if MODE == 'symlink':
         os.symlink(source, destination, target_is_directory=os.path.isdir(source))
     elif os.path.isdir(source):
-        shutil.copytree(source, destination, symlinks=False)
+        shutil.copytree(source, destination, symlinks=False, ignore=ignore_distribution_entries)
     else:
         shutil.copy2(source, destination)
 
@@ -552,7 +570,7 @@ def install_atomic(source, destination):
         if MODE == 'symlink':
             os.symlink(source, staged, target_is_directory=os.path.isdir(source))
         elif os.path.isdir(source):
-            shutil.copytree(source, staged, symlinks=False)
+            shutil.copytree(source, staged, symlinks=False, ignore=ignore_distribution_entries)
         else:
             shutil.copy2(source, staged)
         os.replace(staged, destination)

@@ -202,6 +202,78 @@ test('supporting-only installs remain compatible without skill metadata', () => 
   }
 });
 
+test('copy mode excludes ignored Python bytecode from projection and fingerprints', () => {
+  const scratch = projectRoot();
+  const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-bytecode-plugin-')));
+  const bytecodeDir = path.join(
+    fakePlugin,
+    'codex',
+    'skills',
+    'dhpk-cross-agent-sync',
+    'scripts',
+    'multi_ai_sync_lib',
+    '__pycache__',
+  );
+  const bytecode = path.join(bytecodeDir, 'fixture.pyc');
+  const standaloneBytecode = path.join(
+    fakePlugin,
+    'codex',
+    'skills',
+    'dhpk-cross-agent-sync',
+    'scripts',
+    'multi_ai_sync_lib',
+    'standalone-fixture.pyc',
+  );
+  try {
+    fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
+    fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
+    fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
+    copyDistributionInventory(fakePlugin);
+    fs.mkdirSync(bytecodeDir, { recursive: true });
+    fs.writeFileSync(bytecode, 'fixture-bytecode-v1\n');
+    fs.writeFileSync(standaloneBytecode, 'standalone-bytecode-v1\n');
+
+    const first = runInstaller(scratch, ['--copy', '--force'], fakePlugin);
+    assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+    const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
+    const before = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    const copiedBytecode = path.join(
+      scratch,
+      '.codex',
+      'skills',
+      'dhpk-cross-agent-sync',
+      'scripts',
+      'multi_ai_sync_lib',
+      '__pycache__',
+      'fixture.pyc',
+    );
+    const copiedStandaloneBytecode = path.join(
+      scratch,
+      '.codex',
+      'skills',
+      'dhpk-cross-agent-sync',
+      'scripts',
+      'multi_ai_sync_lib',
+      'standalone-fixture.pyc',
+    );
+    assert.ok(!fs.existsSync(copiedBytecode), 'copy mode must omit ignored Python bytecode');
+    assert.ok(!fs.existsSync(copiedStandaloneBytecode), 'copy mode must omit standalone .pyc files');
+
+    fs.writeFileSync(bytecode, 'fixture-bytecode-v2\n');
+    fs.writeFileSync(standaloneBytecode, 'standalone-bytecode-v2\n');
+    const second = runInstaller(scratch, ['--copy', '--update', '--force'], fakePlugin);
+    assert.strictEqual(second.status, 0, `${second.stdout}\n${second.stderr}`);
+    const after = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+    assert.strictEqual(after.source_fingerprint, before.source_fingerprint,
+      'ignored bytecode changes must not alter the source fingerprint');
+    assert.ok(!fs.existsSync(copiedBytecode), 'update mode must continue omitting ignored Python bytecode');
+    assert.ok(!fs.existsSync(copiedStandaloneBytecode), 'update mode must continue omitting standalone .pyc files');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(fakePlugin, { recursive: true, force: true });
+  }
+});
+
 test('symlink mode links the target and --update preserves edited copied content', () => {
   const scratch = projectRoot();
   try {

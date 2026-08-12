@@ -42,14 +42,20 @@ const { redactSensitiveText } = require('../lib/redaction');
 const DEFAULT_ROOT = path.join(__dirname, '..', '..');
 const CODEX_SURFACE_VERDICTS = Object.freeze({ PASS: 'PASS', WARN: 'WARN', BLOCKED: 'BLOCKED' });
 
+function isIgnoredDistributionName(name) {
+  return name === '__pycache__' || name.endsWith('.pyc');
+}
+
 function fingerprintPath(target) {
   const hashNode = (current) => {
     const stat = fs.lstatSync(current);
     if (stat.isSymbolicLink()) return hashNode(fs.realpathSync(current));
+    if (isIgnoredDistributionName(path.basename(current))) return '';
     const nodeDigest = crypto.createHash('sha256');
     if (stat.isDirectory()) {
       nodeDigest.update('dir\0');
       for (const name of fs.readdirSync(current).sort()) {
+        if (isIgnoredDistributionName(name)) continue;
         nodeDigest.update(name);
         nodeDigest.update('\0');
         nodeDigest.update(hashNode(path.join(current, name)));
