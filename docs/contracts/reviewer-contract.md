@@ -31,7 +31,10 @@ otherwise permitted, never changes that outcome.
 The native stop-time gate requires a canonical filename
 `<agent>-YYYYMMDD-HHMMSS-<slug>.md`, leading delimited frontmatter containing
 `agent`, `generated_at`, `commit`, `scope`, `severity_summary`, and `verdict`,
-plus an `APPROVE or PASS` verdict before it clears a sentinel. The
+plus an `APPROVE or PASS` verdict before it clears a sentinel. A dispatched
+wave should additionally include `scope_id` and `diff_id` from the lifecycle
+dispatch record; when either field is present, both must match the current
+obligation and a foreign wave remains unresolved. The
 gate applies the same freshness and ownership discipline to non-canonical
 review files. `pre-agent-liveness-mark.sh` records the dispatch
 baseline, session, attempt, and dispatch identifier (when available) in the

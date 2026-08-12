@@ -72,7 +72,14 @@ Agents that produce a severity-graded finding list add:
 ```yaml
 severity_summary: { critical: 0, high: 0, medium: 0, low: 0 }
 verdict: APPROVE | WARNING | BLOCK   # or PASS | WARNING | FAIL — see below
+# lifecycle-bound reviewer waves also carry scope_id and diff_id
 ```
+
+`scope_id` identifies the complete review-trigger set for the wave and
+`diff_id` identifies the worktree diff/status snapshot. A producer writes the
+artifact-ready marker only after the artifact is durable. Consumers require
+that marker, fresh mtime, matching identity (when supplied), and a parseable
+verdict; a fixed sleep or a reviewer reply is not readiness evidence.
 
 Two verdict vocabularies are both in current use — pick the one matching the agent's own body, don't invent a third:
 

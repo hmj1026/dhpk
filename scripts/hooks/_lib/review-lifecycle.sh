@@ -1,0 +1,382 @@
+#!/usr/bin/env bash
+# review-lifecycle.sh — durable orchestration/reviewer lifecycle primitives.
+# Source-only. Durable state is session-scoped under .claude/artifacts/sessions.
+
+[ -n "${_DHPK_REVIEW_LIFECYCLE_LOADED:-}" ] && return 0
+_DHPK_REVIEW_LIFECYCLE_LOADED=1
+
+: "${DHPK_SIDECAR_LIFECYCLE_EVENTS:=.lifecycle-events.jsonl}"
+: "${DHPK_SIDECAR_ARTIFACT_READY:=.artifact-ready.jsonl}"
+: "${DHPK_SIDECAR_REVIEW_TELEMETRY:=.review-telemetry.jsonl}"
+: "${DHPK_SIDECAR_RETRY_STATE:=.review-retry.jsonl}"
+: "${DHPK_SIDECAR_QUOTA_STATE:=.quota-resume.jsonl}"
+: "${DHPK_SIDECAR_AUDIT_READY:=.audit-ready.jsonl}"
+
+_dhpk_lifecycle_root() {
+    if command -v dhpk_root >/dev/null 2>&1; then dhpk_root; else printf '%s' "${CLAUDE_PROJECT_DIR:-$(pwd)}"; fi
+}
+
+_dhpk_lifecycle_sessions() {
+    if command -v dhpk_sessions_dir >/dev/null 2>&1; then dhpk_sessions_dir "$(_dhpk_lifecycle_root)"; else printf '%s/.claude/artifacts/sessions' "$(_dhpk_lifecycle_root)"; fi
+}
+
+_dhpk_lifecycle_hash() {
+    if command -v sha256sum >/dev/null 2>&1; then
+        printf '%s' "$1" | sha256sum | awk '{print "sha256:" $1}'
+    elif command -v shasum >/dev/null 2>&1; then
+        printf '%s' "$1" | shasum -a 256 | awk '{print "sha256:" $1}'
+    else
+        printf '%s' "$1" | cksum | awk '{print "cksum:" $1 ":" $2}'
+    fi
+}
+
+dhpk_lifecycle_scope_id() {
+    local sentinel="$1" body=""
+    [ -f "$sentinel" ] && body="$(cat "$sentinel" 2>/dev/null || true)"
+    _dhpk_lifecycle_hash "$body"
+}
+
+dhpk_lifecycle_diff_id() {
+    local root="${1:-$(_dhpk_lifecycle_root)}" body=""
+    body="$(git -C "$root" diff HEAD --binary -- . 2>/dev/null || true)
+$(git -C "$root" status --porcelain=v1 --untracked-files=all 2>/dev/null || true)"
+    _dhpk_lifecycle_hash "$body"
+}
+
+dhpk_lifecycle_task_id() {
+    local sentinel="$1" session="$2" attempt="$3" value
+    value="review:${sentinel}:${session:-unknown}:${attempt:-unknown}"
+    printf '%s' "$value" | tr -c 'A-Za-z0-9._:-' '_'
+}
+
+_dhpk_lifecycle_allowed_state() {
+    case "$1" in
+        planned|dispatched|started|artifact-ready|verdicted|failed-start|quota-blocked|blocked|incomplete|retrying) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+_dhpk_lifecycle_current_state() {
+    local file="$1" task="$2"
+    [ -f "$file" ] || return 0
+    command -v python3 >/dev/null 2>&1 || return 0
+    FILE_IN="$file" TASK_IN="$task" python3 - <<'PY' 2>/dev/null || true
+import json, os
+path = os.environ['FILE_IN']; task = os.environ['TASK_IN']; last = ''
+try:
+    with open(path, encoding='utf-8') as fh:
+        for raw in fh:
+            try:
+                item = json.loads(raw)
+            except Exception:
+                continue
+            if item.get('task_id') == task:
+                last = item.get('state', '')
+except OSError:
+    pass
+print(last)
+PY
+}
+
+_dhpk_lifecycle_transition_allowed() {
+    local previous="$1" next="$2"
+    [ -z "$previous" ] && return 0
+    case "$previous:$next" in
+        planned:dispatched|planned:quota-blocked|planned:blocked|planned:incomplete|planned:retrying|dispatched:started|dispatched:artifact-ready|dispatched:failed-start|dispatched:quota-blocked|dispatched:blocked|dispatched:incomplete|dispatched:retrying|started:artifact-ready|started:verdicted|started:failed-start|started:quota-blocked|started:blocked|started:incomplete|started:retrying|artifact-ready:verdicted|artifact-ready:blocked|artifact-ready:incomplete|quota-blocked:started|quota-blocked:dispatched|quota-blocked:blocked|quota-blocked:incomplete|retrying:dispatched|retrying:started|retrying:failed-start|retrying:quota-blocked|retrying:blocked|retrying:incomplete)
+            return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+_dhpk_lifecycle_telemetry() {
+    local state="$1" task="$2" scope="$3" diff="$4" verdict="$5" file
+    file="$(_dhpk_lifecycle_sessions)/$DHPK_SIDECAR_REVIEW_TELEMETRY"
+    mkdir -p "$(dirname "$file")" 2>/dev/null || return 1
+    command -v python3 >/dev/null 2>&1 || return 0
+    FILE_IN="$file" STATE_IN="$state" TASK_IN="$task" SCOPE_IN="$scope" DIFF_IN="$diff" VERDICT_IN="$verdict" \
+    python3 - <<'PY' 2>/dev/null
+import datetime, json, os
+path = os.environ['FILE_IN']
+totals = {'attempts': 0, 'started': 0, 'completed_verdicts': 0, 'fresh_artifacts': 0, 'retries': 0, 'unresolved_obligations': 0, 'resolved_obligations': 0}
+try:
+    with open(path, encoding='utf-8') as fh:
+        for raw in fh:
+            try:
+                item = json.loads(raw)
+                for key in totals: totals[key] = int(item.get(key, totals[key]) or 0)
+            except Exception:
+                continue
+except OSError:
+    pass
+state = os.environ['STATE_IN']; verdict = os.environ.get('VERDICT_IN', '').upper()
+if state == 'dispatched': totals['attempts'] += 1
+if state == 'started': totals['started'] += 1
+if state == 'verdicted' and verdict: totals['completed_verdicts'] += 1
+if state == 'artifact-ready': totals['fresh_artifacts'] += 1
+if state == 'retrying': totals['retries'] += 1
+if state in {'failed-start', 'quota-blocked', 'blocked', 'incomplete'}: totals['unresolved_obligations'] += 1
+if state == 'verdicted' and verdict in {'PASS', 'APPROVE'}: totals['resolved_obligations'] += 1
+totals.update({'schema_version': 1, 'updated_at': datetime.datetime.now(datetime.timezone.utc).isoformat(), 'last_state': state, 'last_task_id': os.environ['TASK_IN'], 'last_scope_id': os.environ['SCOPE_IN'], 'last_diff_id': os.environ['DIFF_IN']})
+with open(path, 'a', encoding='utf-8') as fh:
+    fh.write(json.dumps(totals, sort_keys=True) + '\n'); fh.flush(); os.fsync(fh.fileno())
+PY
+}
+
+# dhpk_lifecycle_emit <state> <task> <agent> <session> <attempt> <scope> <diff> <verdict> <artifact>
+dhpk_lifecycle_emit() {
+    local state="${1:-}" task="${2:-}" agent="${3:-}" session="${4:-}" attempt="${5:-0}"
+    local scope="${6:-}" diff="${7:-}" verdict="${8:-}" artifact="${9:-}" file previous
+    _dhpk_lifecycle_allowed_state "$state" || return 2
+    [ -n "$task" ] || return 2
+    file="$(_dhpk_lifecycle_sessions)/$DHPK_SIDECAR_LIFECYCLE_EVENTS"
+    previous="$(_dhpk_lifecycle_current_state "$file" "$task")"
+    _dhpk_lifecycle_transition_allowed "$previous" "$state" || return 2
+    mkdir -p "$(dirname "$file")" 2>/dev/null || return 1
+    command -v python3 >/dev/null 2>&1 || return 1
+    FILE_IN="$file" STATE_IN="$state" TASK_IN="$task" AGENT_IN="$agent" SESSION_IN="$session" \
+    ATTEMPT_IN="$attempt" SCOPE_IN="$scope" DIFF_IN="$diff" VERDICT_IN="$verdict" ARTIFACT_IN="$artifact" \
+    RESUMED_IN="${DHPK_LIFECYCLE_RESUMED:-false}" python3 - <<'PY' 2>/dev/null
+import datetime, json, os, uuid
+record = {'schema_version': 1, 'event_id': uuid.uuid4().hex, 'event_type': 'review-lifecycle', 'state': os.environ['STATE_IN'], 'task_id': os.environ['TASK_IN'], 'agent': os.environ['AGENT_IN'], 'session_id': os.environ['SESSION_IN'], 'attempt': int(os.environ.get('ATTEMPT_IN') or 0), 'scope_id': os.environ['SCOPE_IN'], 'diff_id': os.environ['DIFF_IN'], 'verdict': os.environ['VERDICT_IN'], 'artifact': os.environ['ARTIFACT_IN'], 'occurred_at': datetime.datetime.now(datetime.timezone.utc).isoformat()}
+if os.environ.get('RESUMED_IN') == 'true': record['resumed'] = True
+with open(os.environ['FILE_IN'], 'a', encoding='utf-8') as fh:
+    fh.write(json.dumps(record, sort_keys=True) + '\n'); fh.flush(); os.fsync(fh.fileno())
+PY
+    local rc=$?
+    [ "$rc" -eq 0 ] || return "$rc"
+    _dhpk_lifecycle_telemetry "$state" "$task" "$scope" "$diff" "$verdict" || true
+    return 0
+}
+
+# Producer readiness marker.  The report is opened and fsynced before this
+# record is appended, so a consumer can depend on the marker without a sleep.
+dhpk_lifecycle_mark_artifact_ready() {
+    local task="${1:-}" agent="${2:-}" session="${3:-}" attempt="${4:-0}" scope="${5:-}" diff="${6:-}" artifact="${7:-}"
+    local file="$(_dhpk_lifecycle_sessions)/$DHPK_SIDECAR_ARTIFACT_READY"
+    [ -n "$task" ] && [ -s "$artifact" ] || return 1
+    mkdir -p "$(dirname "$file")" 2>/dev/null || return 1
+    command -v python3 >/dev/null 2>&1 || return 1
+    FILE_IN="$file" TASK_IN="$task" AGENT_IN="$agent" SESSION_IN="$session" ATTEMPT_IN="$attempt" \
+    SCOPE_IN="$scope" DIFF_IN="$diff" ARTIFACT_IN="$artifact" python3 - <<'PY' 2>/dev/null
+import datetime, hashlib, json, os
+artifact = os.environ['ARTIFACT_IN']
+with open(artifact, 'rb') as fh:
+    data = fh.read()
+    digest = hashlib.sha256(data).hexdigest()
+record = {'schema_version': 1, 'state': 'artifact-ready', 'event_id': hashlib.sha256((os.environ['TASK_IN'] + artifact + digest).encode()).hexdigest(), 'task_id': os.environ['TASK_IN'], 'agent': os.environ['AGENT_IN'], 'session_id': os.environ['SESSION_IN'], 'attempt': int(os.environ.get('ATTEMPT_IN') or 0), 'scope_id': os.environ['SCOPE_IN'], 'diff_id': os.environ['DIFF_IN'], 'artifact': artifact, 'artifact_sha256': digest, 'occurred_at': datetime.datetime.now(datetime.timezone.utc).isoformat()}
+with open(os.environ['FILE_IN'], 'a', encoding='utf-8') as fh:
+    fh.write(json.dumps(record, sort_keys=True) + '\n'); fh.flush(); os.fsync(fh.fileno())
+PY
+    [ "$?" -eq 0 ] || return 1
+    dhpk_lifecycle_emit artifact-ready "$task" "$agent" "$session" "$attempt" "$scope" "$diff" "" "$artifact"
+}
+
+dhpk_lifecycle_require_ready() {
+    local task="${1:-}" file="$(_dhpk_lifecycle_sessions)/$DHPK_SIDECAR_ARTIFACT_READY"
+    [ -n "$task" ] && [ -f "$file" ] || return 1
+    command -v python3 >/dev/null 2>&1 || return 1
+    FILE_IN="$file" TASK_IN="$task" python3 - <<'PY' 2>/dev/null
+import json, os
+found = None
+try:
+    with open(os.environ['FILE_IN'], encoding='utf-8') as fh:
+        for raw in fh:
+            try:
+                item = json.loads(raw)
+                if item.get('task_id') == os.environ['TASK_IN']: found = item
+            except Exception:
+                continue
+except OSError:
+    pass
+ok = bool(found and found.get('state') == 'artifact-ready' and os.path.isfile(found.get('artifact', '')) and os.path.getsize(found['artifact']) > 0)
+raise SystemExit(0 if ok else 1)
+PY
+}
+
+# Audit reports use the same producer/consumer boundary but are not reviewer
+# tasks.  These helpers deliberately keep a separate marker stream so an audit
+# consumer cannot accidentally consume a review artifact marker.
+dhpk_lifecycle_mark_report_ready() {
+    local report_id="$1" report="$2" file="$(_dhpk_lifecycle_sessions)/$DHPK_SIDECAR_AUDIT_READY"
+    [ -n "$report_id" ] && [ -s "$report" ] || return 1
+    mkdir -p "$(dirname "$file")" 2>/dev/null || return 1
+    command -v python3 >/dev/null 2>&1 || return 1
+    FILE_IN="$file" ID_IN="$report_id" REPORT_IN="$report" python3 - <<'PY' 2>/dev/null
+import datetime, hashlib, json, os
+report = os.environ['REPORT_IN']
+with open(report, 'rb') as fh: digest = hashlib.sha256(fh.read()).hexdigest()
+record = {'schema_version': 1, 'state': 'audit-report-ready', 'report_id': os.environ['ID_IN'], 'report': report, 'report_sha256': digest, 'occurred_at': datetime.datetime.now(datetime.timezone.utc).isoformat()}
+with open(os.environ['FILE_IN'], 'a', encoding='utf-8') as fh:
+    fh.write(json.dumps(record, sort_keys=True) + '\n'); fh.flush(); os.fsync(fh.fileno())
+PY
+}
+
+dhpk_lifecycle_require_report_ready() {
+    local report_id="$1" file="$(_dhpk_lifecycle_sessions)/$DHPK_SIDECAR_AUDIT_READY"
+    [ -n "$report_id" ] && [ -f "$file" ] || return 1
+    command -v python3 >/dev/null 2>&1 || return 1
+    FILE_IN="$file" ID_IN="$report_id" python3 - <<'PY' 2>/dev/null
+import json, os
+found = None
+with open(os.environ['FILE_IN'], encoding='utf-8') as fh:
+    for raw in fh:
+        try:
+            item = json.loads(raw)
+            if item.get('report_id') == os.environ['ID_IN']: found = item
+        except Exception: continue
+raise SystemExit(0 if found and found.get('state') == 'audit-report-ready' and os.path.isfile(found.get('report', '')) and os.path.getsize(found['report']) > 0 else 1)
+PY
+}
+
+dhpk_lifecycle_artifact_has_identity() {
+    local artifact="$1"
+    command -v python3 >/dev/null 2>&1 || return 1
+    ARTIFACT_IN="$artifact" python3 - <<'PY' 2>/dev/null
+import os
+text = open(os.environ['ARTIFACT_IN'], encoding='utf-8', errors='replace').read()
+parts = text.split('---', 2) if text.startswith('---') else []
+front = parts[1] if len(parts) >= 3 else ''
+values = {}
+for line in front.splitlines():
+    if ':' in line:
+        key, value = line.split(':', 1); values[key.strip().lower()] = value.strip().strip("'\"")
+raise SystemExit(0 if values.get('scope_id') and values.get('diff_id') else 1)
+PY
+}
+
+dhpk_lifecycle_artifact_matches() {
+    local artifact="$1" scope="$2" diff="$3"
+    [ -f "$artifact" ] || return 1
+    command -v python3 >/dev/null 2>&1 || return 1
+    ARTIFACT_IN="$artifact" SCOPE_IN="$scope" DIFF_IN="$diff" python3 - <<'PY' 2>/dev/null
+import os
+text = open(os.environ['ARTIFACT_IN'], encoding='utf-8', errors='replace').read()
+parts = text.split('---', 2) if text.startswith('---') else []
+front = parts[1] if len(parts) >= 3 else ''
+values = {}
+for line in front.splitlines():
+    if ':' in line:
+        key, value = line.split(':', 1); values[key.strip().lower()] = value.strip().strip("'\"")
+raise SystemExit(0 if values.get('scope_id') == os.environ['SCOPE_IN'] and values.get('diff_id') == os.environ['DIFF_IN'] else 1)
+PY
+}
+
+dhpk_lifecycle_artifact_verdict() {
+    local artifact="$1"
+    command -v python3 >/dev/null 2>&1 || return 1
+    ARTIFACT_IN="$artifact" python3 - <<'PY' 2>/dev/null
+import os, re
+text = open(os.environ['ARTIFACT_IN'], encoding='utf-8', errors='replace').read()
+parts = text.split('---', 2) if text.startswith('---') else []
+front = parts[1] if len(parts) >= 3 else ''
+m = re.search(r'(?im)^\s*verdict\s*:\s*["\']?([A-Za-z_-]+)', front)
+print(m.group(1).upper() if m else '')
+PY
+}
+
+dhpk_lifecycle_context() {
+    local agent="$1" session="${2:-}" file="$(_dhpk_lifecycle_sessions)/$DHPK_SIDECAR_LIFECYCLE_EVENTS"
+    [ -f "$file" ] || return 1
+    command -v python3 >/dev/null 2>&1 || return 1
+    FILE_IN="$file" AGENT_IN="$agent" SESSION_IN="$session" python3 - <<'PY' 2>/dev/null
+import json, os
+found = None
+try:
+    with open(os.environ['FILE_IN'], encoding='utf-8') as fh:
+        for raw in fh:
+            try: item = json.loads(raw)
+            except Exception: continue
+            if item.get('agent') == os.environ['AGENT_IN'] and (not os.environ['SESSION_IN'] or item.get('session_id') == os.environ['SESSION_IN']) and item.get('state') in {'planned','dispatched','started','retrying','quota-blocked'}:
+                found = item
+except OSError:
+    pass
+if found:
+    print('\t'.join(str(found.get(k, '')) for k in ('task_id','attempt','scope_id','diff_id','session_id')))
+PY
+}
+
+# Exactly one corrected retry per task/scope/diff identity.  The keyed ledger
+# is atomically replaced, so concurrent consumers cannot spend an unbounded
+# retry budget by racing an append-only log.
+dhpk_lifecycle_retry_once() {
+    local task="$1" session="$2" scope="$3" diff="$4" reason="${5:-incomplete}"
+    local file="$(_dhpk_lifecycle_sessions)/$DHPK_SIDECAR_RETRY_STATE" result
+    [ -n "$task" ] || return 2
+    case "$reason" in missing-start|missing-artifact|failed-start|incomplete|quota-blocked) ;; *) return 2 ;; esac
+    mkdir -p "$(dirname "$file")" 2>/dev/null || return 1
+    command -v python3 >/dev/null 2>&1 || return 1
+    FILE_IN="$file" TASK_IN="$task" SESSION_IN="$session" SCOPE_IN="$scope" DIFF_IN="$diff" REASON_IN="$reason" python3 - <<'PY' 2>/dev/null
+import datetime, json, os, tempfile
+path = os.environ['FILE_IN']; key = (os.environ['TASK_IN'], os.environ['SESSION_IN'], os.environ['SCOPE_IN'], os.environ['DIFF_IN']); rows = []; found = None
+try:
+    with open(path, encoding='utf-8') as fh:
+        for raw in fh:
+            try: row = json.loads(raw)
+            except Exception: continue
+            if (row.get('task_id'), row.get('session_id'), row.get('scope_id'), row.get('diff_id')) == key: found = row
+            else: rows.append(row)
+except OSError: pass
+count = int((found or {}).get('retry_count', 0) or 0)
+if count >= 1: raise SystemExit(3)
+rows.append({'schema_version': 1, 'task_id': key[0], 'session_id': key[1], 'scope_id': key[2], 'diff_id': key[3], 'retry_count': count + 1, 'max_retries': 1, 'corrected': True, 'reason': os.environ['REASON_IN'], 'state': 'retrying', 'updated_at': datetime.datetime.now(datetime.timezone.utc).isoformat()})
+tmp = tempfile.NamedTemporaryFile('w', encoding='utf-8', delete=False, dir=os.path.dirname(path))
+try:
+    tmp.write('\n'.join(json.dumps(row, sort_keys=True) for row in rows) + '\n'); tmp.flush(); os.fsync(tmp.fileno()); tmp.close(); os.replace(tmp.name, path)
+except Exception:
+    try: os.unlink(tmp.name)
+    except OSError: pass
+    raise
+PY
+    result=$?
+    [ "$result" -eq 0 ] || return "$result"
+    dhpk_lifecycle_emit retrying "$task" "" "$session" 0 "$scope" "$diff" "" "$reason" || true
+    return 0
+}
+
+dhpk_lifecycle_quota_block() {
+    local task="$1" session="$2" scope="$3" diff="$4" file="$(_dhpk_lifecycle_sessions)/$DHPK_SIDECAR_QUOTA_STATE"
+    [ -n "$task" ] || return 2
+    mkdir -p "$(dirname "$file")" 2>/dev/null || return 1
+    command -v python3 >/dev/null 2>&1 || return 1
+    FILE_IN="$file" TASK_IN="$task" SESSION_IN="$session" SCOPE_IN="$scope" DIFF_IN="$diff" python3 - <<'PY' 2>/dev/null
+import datetime, json, os, tempfile
+path = os.environ['FILE_IN']; key = (os.environ['TASK_IN'], os.environ['SESSION_IN']); rows = []
+try:
+    with open(path, encoding='utf-8') as fh:
+        for raw in fh:
+            try: row = json.loads(raw)
+            except Exception: continue
+            if (row.get('task_id'), row.get('session_id')) != key: rows.append(row)
+except OSError: pass
+rows.append({'schema_version': 1, 'task_id': key[0], 'session_id': key[1], 'scope_id': os.environ['SCOPE_IN'], 'diff_id': os.environ['DIFF_IN'], 'state': 'quota-blocked', 'resumed': False, 'updated_at': datetime.datetime.now(datetime.timezone.utc).isoformat()})
+tmp = tempfile.NamedTemporaryFile('w', encoding='utf-8', delete=False, dir=os.path.dirname(path))
+tmp.write('\n'.join(json.dumps(row, sort_keys=True) for row in rows) + '\n'); tmp.flush(); os.fsync(tmp.fileno()); tmp.close(); os.replace(tmp.name, path)
+PY
+    [ "$?" -eq 0 ] || return 1
+    dhpk_lifecycle_emit quota-blocked "$task" "" "$session" 0 "$scope" "$diff" "" "" || true
+}
+
+dhpk_lifecycle_quota_resume() {
+    local task="$1" session="$2" file="$(_dhpk_lifecycle_sessions)/$DHPK_SIDECAR_QUOTA_STATE" result scope diff
+    [ -n "$task" ] && [ -f "$file" ] || return 1
+    command -v python3 >/dev/null 2>&1 || return 1
+    result="$(FILE_IN="$file" TASK_IN="$task" SESSION_IN="$session" python3 - <<'PY' 2>/dev/null
+import datetime, json, os, tempfile
+path = os.environ['FILE_IN']; task = os.environ['TASK_IN']; session = os.environ['SESSION_IN']; rows = []; found = None
+with open(path, encoding='utf-8') as fh:
+    for raw in fh:
+        try: row = json.loads(raw)
+        except Exception: continue
+        if row.get('task_id') == task and row.get('session_id') == session: found = row
+        else: rows.append(row)
+if not found or found.get('state') != 'quota-blocked': raise SystemExit(3)
+found['state'] = 'resumed'; found['resumed'] = True; found['resumed_at'] = datetime.datetime.now(datetime.timezone.utc).isoformat(); rows.append(found)
+tmp = tempfile.NamedTemporaryFile('w', encoding='utf-8', delete=False, dir=os.path.dirname(path))
+tmp.write('\n'.join(json.dumps(row, sort_keys=True) for row in rows) + '\n'); tmp.flush(); os.fsync(tmp.fileno()); tmp.close(); os.replace(tmp.name, path)
+print(found.get('scope_id', '') + '\t' + found.get('diff_id', ''))
+PY
+    )"
+    [ -n "$result" ] || return 1
+    IFS=$'\t' read -r scope diff <<< "$result"
+    DHPK_LIFECYCLE_RESUMED=true dhpk_lifecycle_emit started "$task" "" "$session" 0 "$scope" "$diff" "" "" || return 1
+}

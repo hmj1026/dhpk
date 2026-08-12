@@ -1,0 +1,60 @@
+# Evidence-backed review lifecycle
+
+The Claude review chain keeps its durable lifecycle state in the current
+project's `.claude/artifacts/sessions/` directory. These files are session
+evidence, not tracked deliverables:
+
+| File | Purpose |
+| --- | --- |
+| `.lifecycle-events.jsonl` | One versioned transition record per task identity |
+| `.artifact-ready.jsonl` | Producer marker written after a report is durable |
+| `.review-telemetry.jsonl` | Monotonic attempts, starts, verdicts, artifacts, retries, and unresolved-obligation counters |
+| `.review-retry.jsonl` | Keyed one-corrected-retry budget (`max_retries: 1`) |
+| `.quota-resume.jsonl` | Quota-blocked task identity and its explicit resume transition |
+
+## Event schema
+
+Each lifecycle event has `schema_version: 1`, a unique `event_id`,
+`occurred_at`, `state`, `task_id`, `agent`, `session_id`, `attempt`,
+`scope_id`, `diff_id`, `verdict`, and `artifact`. The permitted states are:
+
+`planned → dispatched → started → artifact-ready → verdicted`
+
+with terminal or exceptional states `failed-start`, `quota-blocked`,
+`blocked`, and `incomplete`. A corrected retry is represented by `retrying`
+and remains keyed to the same task/scope/diff identity. The transition library
+rejects impossible edges rather than manufacturing a successful completion.
+
+`scope_id` is a digest of the complete pending review set. `diff_id` is a
+digest of the current worktree diff/status. When a report supplies
+`scope_id` and `diff_id` frontmatter, both must match the dispatch identity;
+missing, stale, foreign, or mismatched identity never closes that review.
+Reports from older releases that omit identity fields retain the existing
+freshness-only compatibility path while they are migrated.
+
+## Producer and consumer boundary
+
+The producer fsyncs the canonical review artifact and then appends an
+`artifact-ready` marker containing its path and content digest. A consumer
+must find that marker and the still-present artifact before consuming it. No
+fixed sleep is a readiness proof. The Stop-time reconciliation safety net may
+materialize a marker for a legacy/manual sentinel only after it has independently
+proved that the canonical artifact is fresh.
+
+Lifecycle clearance and approval remain separate: a `WARNING`, `BLOCK`,
+`FAIL`, malformed verdict, or actionable severity can finish the lifecycle
+event sequence but leaves the sentinel and/or `.unresolved-verdict` obligation
+visible. Only the existing parseable `APPROVE`/`PASS` gate clears the sentinel.
+
+## Retry and quota behavior
+
+`dhpk_lifecycle_retry_once` records one corrected retry for a keyed
+`task_id/session_id/scope_id/diff_id`; a second identical attempt fails closed.
+`quota-blocked` records the same task identity and `quota_resume` changes it to
+`resumed` before emitting a resumed `started` event. A quota block is never
+reported as completion, and an unknown or already-resumed task cannot be
+silently retried.
+
+Liveness cleanup only expires an active marker. It cannot clear a pending
+review unless a fresh, canonical, identity-compatible artifact has first
+produced the readiness evidence above.
