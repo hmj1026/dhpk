@@ -6,6 +6,9 @@ Claude Code **不會**載入此 `codex/` 目錄。這裡把 plugin 的 Claude-si
 agent 轉成 Codex CLI 格式，讓同時使用 Claude Code 與 Codex CLI 的專案不必維護
 第二份設定 repo。
 
+完整的 Supported project-local、legacy/native 與 standard Agent Plugin 路徑請見
+[平台安裝 SSOT](../docs/platform-installation.zh-TW.md)。
+
 `codex/skills/` 每個項目都是指向 `../../skills/<dhpk-name>/` flat canonical
 package 的 repo-relative symlink；這個 projection 沒有實體 skill copy。獨立的
 `plugins/dhpk/` 才是追蹤中的 native physical package。

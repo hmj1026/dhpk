@@ -3,6 +3,8 @@
 > **語言**: [English](./README.md) · **繁體中文**
 >
 > Skill platform 升級指南：[English](./docs/skill-platform-migration.md) · [繁體中文](./docs/skill-platform-migration.zh-TW.md)
+>
+> 平台安裝 SSOT：[English](./docs/platform-installation.md) · [繁體中文](./docs/platform-installation.zh-TW.md)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE) [![Version](https://img.shields.io/github/v/tag/hmj1026/dhpk?label=version&sort=semver)](https://github.com/hmj1026/dhpk/tags) [![CI](https://img.shields.io/github/actions/workflow/status/hmj1026/dhpk/ci.yml?branch=main&label=CI)](https://github.com/hmj1026/dhpk/actions/workflows/ci.yml) [![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A63D2)](https://docs.claude.com/en/docs/claude-code/plugins)
 

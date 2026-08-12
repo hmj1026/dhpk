@@ -111,7 +111,7 @@ def build_parser():
     sub = parser.add_subparsers(dest="command")
 
     p_plan = sub.add_parser("plan", help="產生 sync plan")
-    p_plan.add_argument("--targets", nargs="+", default=TARGETS_DEFAULT, choices=["codex", "gemini", "antigravity"], help="Target 平台")
+    p_plan.add_argument("--targets", nargs="+", default=TARGETS_DEFAULT, choices=["codex", "gemini", "antigravity", "cursor"], help="Target 平台")
     p_plan.add_argument("--format", choices=["markdown", "json"], default="markdown")
     p_plan.add_argument("--output", default="", help="把結果寫入檔案")
     p_plan.set_defaults(func=cmd_plan)
@@ -124,7 +124,7 @@ def build_parser():
 
     p_validate = sub.add_parser("validate", help="執行 post-sync validation gate")
     p_validate.add_argument(
-        "--targets", nargs="+", default=None, choices=["codex", "gemini", "antigravity"],
+        "--targets", nargs="+", default=None, choices=["codex", "gemini", "antigravity", "cursor"],
         help="明確指定要驗證的 target 平台；缺席即 BLOCKED（省略則為自動探索，缺席為 NOT_CONFIGURED）",
     )
     p_validate.add_argument(

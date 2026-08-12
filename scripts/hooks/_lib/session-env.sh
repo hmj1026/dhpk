@@ -37,6 +37,12 @@
 #   DHPK_SIDECAR_FAST_WORKER_ACTIVE    — shared fast-worker liveness marker
 #   DHPK_SIDECAR_RESUMED_OBLIGATIONS   — resumed-review (SendMessage) obligation ledger
 #   DHPK_SIDECAR_REVIEW_DISPATCH       — reviewer dispatch-attempt baselines and provenance
+#   DHPK_SIDECAR_LIFECYCLE_EVENTS       — append-only lifecycle transition events
+#   DHPK_SIDECAR_ARTIFACT_READY         — producer completion markers
+#   DHPK_SIDECAR_REVIEW_TELEMETRY       — append-only lifecycle counters
+#   DHPK_SIDECAR_RETRY_STATE            — one-corrected-retry keyed state
+#   DHPK_SIDECAR_QUOTA_STATE            — resumable quota-blocked task identity
+#   DHPK_SIDECAR_AUDIT_READY            — audit-report producer completion markers
 
 DHPK_SIDECAR_UNRESOLVED_VERDICT=".unresolved-verdict"
 DHPK_SIDECAR_REVIEW_BACKOFF=".review-reminder-backoff"
@@ -44,6 +50,12 @@ DHPK_SIDECAR_MODULE_FINDINGS=".module-findings"
 DHPK_SIDECAR_FAST_WORKER_ACTIVE=".active-fast-worker"
 DHPK_SIDECAR_RESUMED_OBLIGATIONS=".resumed-review-obligations"
 DHPK_SIDECAR_REVIEW_DISPATCH=".review-dispatch-attempts"
+DHPK_SIDECAR_LIFECYCLE_EVENTS=".lifecycle-events.jsonl"
+DHPK_SIDECAR_ARTIFACT_READY=".producer-ready.jsonl"
+DHPK_SIDECAR_REVIEW_TELEMETRY=".review-telemetry.jsonl"
+DHPK_SIDECAR_RETRY_STATE=".review-retry.jsonl"
+DHPK_SIDECAR_QUOTA_STATE=".quota-resume.jsonl"
+DHPK_SIDECAR_AUDIT_READY=".audit-ready.jsonl"
 
 # dhpk_reset_review_backoff <sessions_dir> <sentinel_name>
 #

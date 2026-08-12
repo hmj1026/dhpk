@@ -6,7 +6,14 @@
 // deprecated skills leaking into generated promoted output all fail validation.
 
 const { test, run, assert } = require('./_lib/tinytest');
-const { validateDistributionInventory, validateSupportingAssets, LIFECYCLES } = require('../scripts/lib/distribution-inventory');
+const {
+  validateDistributionInventory,
+  validateSupportingAssets,
+  validatePlatformCapabilityMatrix,
+  validatePortableFrontmatterContract,
+  preserveProjectionContract,
+  LIFECYCLES,
+} = require('../scripts/lib/distribution-inventory');
 
 function baseInventory() {
   return {
@@ -211,6 +218,76 @@ test('fails when deprecation metadata fields are whitespace-only strings, not ju
   assert.ok(result.errors.some((e) => /tdd/.test(e) && /deprecation\.since/.test(e)), result.errors.join('\n'));
   assert.ok(result.errors.some((e) => /tdd/.test(e) && /deprecation\.migrationNote/.test(e)), result.errors.join('\n'));
   assert.ok(!result.errors.some((e) => /deprecation\.compatibilityWindowEnds/.test(e)), result.errors.join('\n'));
+});
+
+test('accepts explicit portable and Cursor surface membership with capability evidence', () => {
+  const inv = {
+    schema: 'dhpk.distribution-inventory.v2',
+    skills: [{ id: 'one', name: 'dhpk-one', path: 'skills/dhpk-one', capability_id: 'dhpk.skill.one', lifecycle: 'promoted', tier: 'core', profiles: ['core'], surfaces: ['claude-core'] }],
+    surface_membership: { 'agent-plugin': ['one'], 'cursor-plugin': ['one'] },
+    portable_frontmatter: {
+      allowlist: ['name', 'description', 'metadata'],
+      client_owned: ['agents/openai.yaml', 'hooks'],
+    },
+    platform_matrix: {
+      schema: 'dhpk.platform-capability-matrix.v1',
+      entries: [{
+        id: 'dhpk.platform.agent-plugin.skills',
+        public_name: 'agent-plugin-portable-skills',
+        surface: 'agent-plugin',
+        source_paths: ['skills/'],
+        destination: 'plugins/dhpk-agent/skills/',
+        transform: 'agent-skills-frontmatter',
+        fallback: 'codex-sync',
+        evidence: 'NOT_RUN',
+      }],
+    },
+  };
+  assert.deepStrictEqual(validateDistributionInventory({ inventory: inv }).errors, []);
+});
+
+test('rejects unknown surface members, unsafe matrix paths, and non-portable frontmatter', () => {
+  const inv = {
+    schema: 'dhpk.distribution-inventory.v2',
+    skills: [{ id: 'one', name: 'dhpk-one', path: 'skills/dhpk-one', capability_id: 'dhpk.skill.one', lifecycle: 'promoted', tier: 'core', profiles: ['core'], surfaces: ['claude-core'] }],
+    surface_membership: { 'agent-plugin': ['missing'], 'cursor-plugin': ['one'] },
+    portable_frontmatter: { allowlist: ['name', 'x-client-only'], client_owned: [] },
+    platform_matrix: {
+      schema: 'dhpk.platform-capability-matrix.v1',
+      entries: [{
+        id: 'dhpk.platform.agent-plugin.skills',
+        public_name: 'skills',
+        surface: 'agent-plugin',
+        source_paths: ['../outside'],
+        destination: 'plugins/dhpk-agent/skills/',
+        transform: 'copy',
+        fallback: 'none',
+        evidence: 'UNKNOWN',
+      }],
+    },
+  };
+  const result = validateDistributionInventory({ inventory: inv });
+  assert.ok(result.errors.some((e) => /unknown stable id/.test(e)), result.errors.join('\n'));
+  assert.ok(result.errors.some((e) => /safe relative paths/.test(e)), result.errors.join('\n'));
+  assert.ok(result.errors.some((e) => /non-portable field/.test(e)), result.errors.join('\n'));
+  assert.ok(result.errors.some((e) => /evidence/.test(e)), result.errors.join('\n'));
+  assert.ok(validatePlatformCapabilityMatrix(inv.platform_matrix).errors.length > 0);
+  assert.ok(validatePortableFrontmatterContract(inv.portable_frontmatter).errors.length > 0);
+});
+
+test('inventory bootstrap preserves projection contracts on regeneration', () => {
+  const generated = { schema: 'dhpk.distribution-inventory.v2', skills: [], modules: [], surfaces: ['codex-native'] };
+  const existing = {
+    surfaces: ['codex-native', 'agent-plugin', 'cursor-plugin'],
+    surface_membership: { 'agent-plugin': ['stable'], 'cursor-plugin': ['stable'] },
+    platform_matrix: { schema: 'dhpk.platform-capability-matrix.v1', entries: [] },
+    portable_frontmatter: { allowlist: ['name'], client_owned: ['agents/openai.yaml'] },
+  };
+  const merged = preserveProjectionContract(generated, existing);
+  assert.deepStrictEqual(merged.surfaces, existing.surfaces);
+  assert.deepStrictEqual(merged.surface_membership, existing.surface_membership);
+  assert.deepStrictEqual(merged.platform_matrix, existing.platform_matrix);
+  assert.deepStrictEqual(merged.portable_frontmatter, existing.portable_frontmatter);
 });
 
 run('distribution-inventory-validate');

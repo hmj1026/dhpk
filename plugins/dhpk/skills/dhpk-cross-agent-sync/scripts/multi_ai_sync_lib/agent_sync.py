@@ -117,6 +117,31 @@ def claude_parity_roles(repo_root):
     return roles
 
 
+def cursor_agent_roles(repo_root):
+    """Discover Cursor agent definitions without treating package metadata as roles.
+
+    Cursor packages may be checked out under ``plugins/dhpk-cursor`` or the
+    local ``.cursor/plugins`` route.  Navigation, receipts, provenance,
+    fingerprints, and resource Markdown are not executable agent definitions.
+    """
+    roots = [
+        os.path.join(repo_root, "plugins/dhpk-cursor/agents"),
+        os.path.join(repo_root, ".cursor/plugins/local/dhpk-cursor/agents"),
+        os.path.join(repo_root, ".cursor/agents"),
+    ]
+    excluded = set(AGENT_DISCOVERY_EXCLUDED_BASENAMES) | {
+        "provenance.md", "fingerprints.md", "receipt.md", "receipts.md",
+    }
+    roles = []
+    for root in roots:
+        for path in sorted(glob.glob(os.path.join(root, "*.md"))):
+            basename = os.path.basename(path)
+            if basename in excluded or basename.startswith("_"):
+                continue
+            roles.append(os.path.splitext(basename)[0])
+    return sorted(set(roles))
+
+
 def codex_agent_target_rel(role):
     return ".codex/agents/%s.toml" % role
 

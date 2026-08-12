@@ -8,6 +8,7 @@ const path = require('path');
 const ROOT = path.join(__dirname, '..');
 const SOURCE_DIR = path.join(ROOT, 'agents');
 const DEFAULT_OUT_DIR = path.join(ROOT, 'codex', 'agents');
+const OWNERSHIP_MANIFEST = path.join(ROOT, 'codex', 'agent-projection-manifest.json');
 
 // Codex runtime metadata is explicit per role. Claude frontmatter describes the
 // Claude runtime and must not silently overwrite the effective Codex model or
@@ -45,6 +46,88 @@ const AGENTS = [
   { name: 'migration-reviewer' },
   { name: 'e2e-runner' },
 ];
+
+const GENERATED_NAMES = Object.freeze(AGENTS.map((agent) => agent.name));
+
+function readJson(file, label) {
+  if (!fs.existsSync(file)) {
+    throw new Error(`${label} is missing: ${file}`);
+  }
+  try {
+    return JSON.parse(fs.readFileSync(file, 'utf8'));
+  } catch (error) {
+    throw new Error(`${label} is not valid JSON: ${error.message}`);
+  }
+}
+
+function sortedNames(values) {
+  return [...new Set(values)].sort();
+}
+
+function readOwnershipManifest(outDir) {
+  const manifest = readJson(OWNERSHIP_MANIFEST, 'Codex role ownership manifest');
+  const generated = Array.isArray(manifest.generated_roles) ? manifest.generated_roles : null;
+  const packageRoles = Array.isArray(manifest.package_roles) ? manifest.package_roles : null;
+  const local = Array.isArray(manifest.workspace_local_extensions)
+    ? manifest.workspace_local_extensions
+    : null;
+  if (!generated || !packageRoles || !local) {
+    throw new Error(
+      'Codex role ownership manifest must declare generated_roles, package_roles, and workspace_local_extensions arrays',
+    );
+  }
+  if (sortedNames(generated).join('\n') !== sortedNames(GENERATED_NAMES).join('\n')) {
+    throw new Error(
+      `Codex role ownership manifest generated_roles drifted; expected [${sortedNames(GENERATED_NAMES).join(', ')}]`,
+    );
+  }
+  const packageNames = new Set(packageRoles);
+  for (const name of GENERATED_NAMES) {
+    if (!packageNames.has(name)) {
+      throw new Error(`Codex role ownership manifest omits generated package role '${name}'`);
+    }
+  }
+  const sidecarPath = path.join(outDir, '.codex-agent-ownership.json');
+  let sidecar = {};
+  if (fs.existsSync(sidecarPath)) {
+    sidecar = readJson(sidecarPath, 'workspace-local Codex role ownership manifest');
+  }
+  const sidecarLocal = Array.isArray(sidecar.workspace_local_extensions)
+    ? sidecar.workspace_local_extensions
+    : [];
+  const localNames = new Set([...local, ...sidecarLocal]);
+  for (const name of localNames) {
+    if (!/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(name)) {
+      throw new Error(`Invalid workspace-local Codex role name '${name}' in ownership manifest`);
+    }
+    if (packageNames.has(name)) {
+      throw new Error(`Workspace-local Codex role '${name}' collides with a package-owned role`);
+    }
+  }
+  return {
+    generatedNames: new Set(GENERATED_NAMES),
+    packageNames,
+    localNames,
+  };
+}
+
+function assertNoStaleToml(outDir, ownership) {
+  if (!fs.existsSync(outDir)) return;
+  const allowed = new Set([
+    ...ownership.packageNames,
+    ...ownership.generatedNames,
+    ...ownership.localNames,
+  ]);
+  for (const entry of fs.readdirSync(outDir)) {
+    if (!entry.endsWith('.toml')) continue;
+    const role = entry.slice(0, -'.toml'.length);
+    if (!allowed.has(role)) {
+      throw new Error(
+        `Stale package-owned Codex TOML '${path.join(outDir, entry)}' is outside the declared ownership manifest; remove it from the package or declare it as a workspace-local extension`,
+      );
+    }
+  }
+}
 
 // Fixed, line-level boilerplate matchers. Every match is a Claude-only tooling
 // reference irrelevant to Codex (cx/gitnexus routing, untrusted-input defense,
@@ -336,6 +419,8 @@ function buildToml(agent, frontmatter, body) {
 
 function generate(outDir) {
   fs.mkdirSync(outDir, { recursive: true });
+  const ownership = readOwnershipManifest(outDir);
+  assertNoStaleToml(outDir, ownership);
   const summary = [];
   for (const agent of AGENTS) {
     const sourcePath = path.join(SOURCE_DIR, `${agent.name}.md`);

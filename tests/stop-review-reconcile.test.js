@@ -21,7 +21,15 @@ function setMtime(file, epochSeconds) {
 
 // Arm a sentinel + active marker, then (optionally) drop a review doc that
 // postdates the sentinel. Returns the key paths.
-function scaffold(repo, { withFreshDoc }) {
+function scaffold(repo, {
+  withFreshDoc,
+  verdict = 'PASS',
+  malformed = false,
+  sessionId = 'reconcile-session',
+  artifactSessionId = sessionId,
+  artifactDispatchId = `attempt-${sessionId}`,
+  omitProvenance = false,
+}) {
   const sess = sessionsDir(repo);
   const reviews = path.join(repo, '.claude', 'artifacts', 'reviews');
   fs.mkdirSync(sess, { recursive: true });
@@ -31,6 +39,10 @@ function scaffold(repo, { withFreshDoc }) {
   const active = path.join(sess, '.active-review');
   fs.writeFileSync(sentinel, '2026-07-23 10:00:00 src/Foo.php\n');
   fs.writeFileSync(active, '2026-07-23 10:00:00 arm-on-dispatch:code-reviewer [arm-on-dispatch]\n');
+  fs.writeFileSync(
+    path.join(sess, '.review-dispatch-attempts'),
+    `.pending-review\t1000000\t${sessionId}\t1\t${artifactDispatchId}\tcode-reviewer\n`,
+  );
   // Pin the sentinel to an older mtime so freshness is deterministic.
   setMtime(sentinel, 1_000_000);
   setMtime(active, 1_000_000);
@@ -38,7 +50,36 @@ function scaffold(repo, { withFreshDoc }) {
   let doc = null;
   if (withFreshDoc) {
     doc = path.join(reviews, 'code-reviewer-20260723-100005-foo.md');
-    fs.writeFileSync(doc, '---\nverdict: PASS\n---\nlooks good\n');
+    const provenance = omitProvenance
+      ? []
+      : [
+        `session_id: ${artifactSessionId}`,
+        'dispatch_attempt: 1',
+        `dispatch_id: ${artifactDispatchId}`,
+      ];
+    const frontmatter = malformed
+      ? [
+        '---',
+        'agent: code-reviewer',
+        'generated_at: 2026-07-23T10:00:05+08:00',
+        'commit: test-sha',
+        'scope: [test/fixture]',
+        'severity_summary: { critical: 0, high: 0, medium: 0, low: 0 }',
+        ...provenance,
+        '---',
+      ].join('\n')
+      : [
+        '---',
+        'agent: code-reviewer',
+        'generated_at: 2026-07-23T10:00:05+08:00',
+        'commit: test-sha',
+        'scope: [test/fixture]',
+        'severity_summary: { critical: 0, high: 0, medium: 0, low: 0 }',
+        ...provenance,
+        `verdict: ${verdict}`,
+        '---',
+      ].join('\n');
+    fs.writeFileSync(doc, `${frontmatter}\nlooks good\n`);
     setMtime(doc, 2_000_000); // postdates the sentinel
   }
   return { sentinel, active, doc };
@@ -47,7 +88,7 @@ function scaffold(repo, { withFreshDoc }) {
 test('a fresh review doc with no SubagentStop is reconciled: sentinel cleared, active marker expired', () => {
   const repo = mkRepo({ gitConfig: true });
   try {
-    const { sentinel, active } = scaffold(repo, { withFreshDoc: true });
+    const { sentinel, active } = scaffold(repo, { withFreshDoc: true, sessionId: 'reconcile-fresh' });
     const res = runHook(HOOK, {
       projectDir: repo,
       payload: { session_id: 'reconcile-fresh', stop_hook_active: false },
@@ -65,7 +106,7 @@ test('a fresh review doc with no SubagentStop is reconciled: sentinel cleared, a
 test('an armed sentinel with NO fresh review doc is left fully armed (no premature clear)', () => {
   const repo = mkRepo({ gitConfig: true });
   try {
-    const { sentinel, active } = scaffold(repo, { withFreshDoc: false });
+    const { sentinel, active } = scaffold(repo, { withFreshDoc: false, sessionId: 'reconcile-nodoc' });
     const res = runHook(HOOK, {
       projectDir: repo,
       payload: { session_id: 'reconcile-nodoc', stop_hook_active: false },
@@ -83,7 +124,7 @@ test('an armed sentinel with NO fresh review doc is left fully armed (no prematu
 test('a stale review doc that predates the sentinel does NOT clear it', () => {
   const repo = mkRepo({ gitConfig: true });
   try {
-    const { sentinel } = scaffold(repo, { withFreshDoc: false });
+    const { sentinel } = scaffold(repo, { withFreshDoc: false, sessionId: 'reconcile-stale' });
     // A prior-cycle review doc whose mtime PREDATES the sentinel must not count.
     const stale = path.join(repo, '.claude', 'artifacts', 'reviews', 'code-reviewer-20260101-000000-old.md');
     fs.writeFileSync(stale, '---\nverdict: PASS\n---\nold\n');
@@ -102,7 +143,7 @@ test('a stale review doc that predates the sentinel does NOT clear it', () => {
 test('a fresh review doc with NO active marker (foreign session) does NOT clear the sentinel', () => {
   const repo = mkRepo({ gitConfig: true });
   try {
-    const { sentinel, active } = scaffold(repo, { withFreshDoc: true });
+    const { sentinel, active } = scaffold(repo, { withFreshDoc: true, sessionId: 'reconcile-foreign' });
     // Simulate the concurrent-session case: this session never dispatched the
     // reviewer, so no active-liveness marker exists — but a foreign session's
     // fresh, non-session-scoped doc-reviewer artifact is present in the shared
@@ -115,6 +156,107 @@ test('a fresh review doc with NO active marker (foreign session) does NOT clear 
     assert.ok(!/\[stop-reconcile\]/.test(res.stderr),
       `must not reconcile a slot with no active marker (foreign artifact):\n${res.stderr}`);
     assert.ok(fs.existsSync(sentinel), 'sentinel must stay armed when this session never dispatched the reviewer');
+  } finally {
+    rmRepo(repo);
+  }
+});
+
+test('a fresh malformed review doc does NOT clear the sentinel', () => {
+  const repo = mkRepo({ gitConfig: true });
+  try {
+    const { sentinel, active } = scaffold(repo, {
+      withFreshDoc: true,
+      malformed: true,
+      sessionId: 'reconcile-malformed',
+    });
+    const res = runHook(HOOK, {
+      projectDir: repo,
+      payload: { session_id: 'reconcile-malformed', stop_hook_active: false },
+    });
+    assert.ok(!/\[stop-reconcile\]/.test(res.stderr), `malformed evidence must not reconcile:\n${res.stderr}`);
+    assert.ok(fs.existsSync(sentinel), 'malformed evidence must leave the sentinel armed');
+    assert.ok(fs.existsSync(active), 'malformed evidence must leave the active marker armed');
+  } finally {
+    rmRepo(repo);
+  }
+});
+
+test('a fresh WARNING review verdict does NOT clear the sentinel', () => {
+  const repo = mkRepo({ gitConfig: true });
+  try {
+    const { sentinel, active } = scaffold(repo, {
+      withFreshDoc: true,
+      verdict: 'WARNING',
+      sessionId: 'reconcile-warning',
+    });
+    const res = runHook(HOOK, {
+      projectDir: repo,
+      payload: { session_id: 'reconcile-warning', stop_hook_active: false },
+    });
+    assert.ok(!/\[stop-reconcile\]/.test(res.stderr), `WARNING evidence must not reconcile:\n${res.stderr}`);
+    assert.ok(fs.existsSync(sentinel), 'WARNING evidence must leave the sentinel armed');
+    assert.ok(fs.existsSync(active), 'WARNING evidence must leave the active marker armed');
+  } finally {
+    rmRepo(repo);
+  }
+});
+
+test('a fresh BLOCK review verdict does NOT clear the sentinel', () => {
+  const repo = mkRepo({ gitConfig: true });
+  try {
+    const { sentinel, active } = scaffold(repo, {
+      withFreshDoc: true,
+      verdict: 'BLOCK',
+      sessionId: 'reconcile-block',
+    });
+    const res = runHook(HOOK, {
+      projectDir: repo,
+      payload: { session_id: 'reconcile-block', stop_hook_active: false },
+    });
+    assert.ok(!/\[stop-reconcile\]/.test(res.stderr), `BLOCK evidence must not reconcile:\n${res.stderr}`);
+    assert.ok(fs.existsSync(sentinel), 'BLOCK evidence must leave the sentinel armed');
+    assert.ok(fs.existsSync(active), 'BLOCK evidence must leave the active marker armed');
+  } finally {
+    rmRepo(repo);
+  }
+});
+
+test('a fresh valid artifact from another session does NOT clear an active sentinel', () => {
+  const repo = mkRepo({ gitConfig: true });
+  try {
+    const { sentinel, active } = scaffold(repo, {
+      withFreshDoc: true,
+      sessionId: 'reconcile-owned',
+      artifactSessionId: 'foreign-session',
+      artifactDispatchId: 'foreign-attempt',
+    });
+    const res = runHook(HOOK, {
+      projectDir: repo,
+      payload: { session_id: 'reconcile-owned', stop_hook_active: false },
+    });
+    assert.ok(!/\[stop-reconcile\]/.test(res.stderr), `foreign provenance must not reconcile:\n${res.stderr}`);
+    assert.ok(fs.existsSync(sentinel), 'foreign provenance must leave the sentinel armed');
+    assert.ok(fs.existsSync(active), 'foreign provenance must leave the active marker armed');
+  } finally {
+    rmRepo(repo);
+  }
+});
+
+test('a fresh valid artifact without dispatch provenance does NOT clear an active sentinel', () => {
+  const repo = mkRepo({ gitConfig: true });
+  try {
+    const { sentinel, active } = scaffold(repo, {
+      withFreshDoc: true,
+      sessionId: 'reconcile-missing-provenance',
+      omitProvenance: true,
+    });
+    const res = runHook(HOOK, {
+      projectDir: repo,
+      payload: { session_id: 'reconcile-missing-provenance', stop_hook_active: false },
+    });
+    assert.ok(!/\[stop-reconcile\]/.test(res.stderr), `missing provenance must not reconcile:\n${res.stderr}`);
+    assert.ok(fs.existsSync(sentinel), 'missing provenance must leave the sentinel armed');
+    assert.ok(fs.existsSync(active), 'missing provenance must leave the active marker armed');
   } finally {
     rmRepo(repo);
   }

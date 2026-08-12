@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "generated_roles": [
+    "architect",
+    "code-reviewer",
+    "security-reviewer",
+    "database-reviewer",
+    "tdd-guide",
+    "deep-reasoner",
+    "doc-reviewer",
+    "planner",
+    "spec-miner",
+    "frontend-reviewer",
+    "migration-reviewer",
+    "e2e-runner"
+  ],
+  "package_roles": [
+    "architect",
+    "bug-investigator",
+    "code-reviewer",
+    "database-reviewer",
+    "deep-reasoner",
+    "doc-reviewer",
+    "e2e-runner",
+    "explorer",
+    "frontend-reviewer",
+    "migration-reviewer",
+    "monitor",
+    "planner",
+    "security-reviewer",
+    "spec-miner",
+    "tdd-guide",
+    "worker"
+  ],
+  "workspace_local_extensions": []
+}

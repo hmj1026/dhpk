@@ -2,7 +2,7 @@
 
 > **Languages**: **English** · [繁體中文](./configuration.zh-TW.md)
 
-dhpk exposes **59 `userConfig` knobs** in `.claude-plugin/plugin.json`. This page documents every knob: where you set it, what values it accepts, and what it actually changes. For the day-to-day command flow (install, common workflows, review cycle), see [`docs/basic-operations.md`](./basic-operations.md).
+dhpk exposes **59 `userConfig` knobs** in `.claude-plugin/plugin.json`. This page documents every knob: where you set it, what values it accepts, and what it actually changes. For platform installation routes and support status, see the [platform installation SSOT](./platform-installation.md). For the day-to-day command flow (install, common workflows, review cycle), see [`docs/basic-operations.md`](./basic-operations.md).
 
 ## Where to set a value
 

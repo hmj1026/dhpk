@@ -1,7 +1,10 @@
 {
-  "sourceVersion": "0.37.0",
-  "sourceCommit": "ae4ddd18ce60772a9292b296df14d2d15f38422d",
-  "inventoryDigest": "883704349f5a4e4c1b81d313c097f15f05d7120afd252892915d69245740b092",
+  "schema": "dhpk.platform-provenance.v1",
+  "surface": "codex-native",
+  "owner": "plugins/dhpk",
+  "sourceVersion": "0.38.0",
+  "sourceCommit": "55c61b4b8ee99e479ba55f4bee575a6a47c169f1",
+  "inventoryDigest": "3f0a1a3c2082f0936ed8da841d5103db7e91b1fd07ca5bd132444129dc40c96e",
   "generatorVersion": "2.2.0",
   "selectedSkillIds": [
     "agy-commit",
@@ -36,5 +39,22 @@
     "dhpk-tdd-workflow",
     "dhpk-yii1-php56-development",
     "dhpk-yii1-security-audit"
-  ]
+  ],
+  "fingerprints": {
+    "dhpk-php-runtime-router": "a96b93201a4e30934903609abe38fb6e3b806c4a988a45d4a6e69ccc1d233b7e",
+    "dhpk-legacy-characterization-tests": "2a2df71423e54c8e24f10c645b917eb070aa728905171da6783dd23af16f8cf6",
+    "dhpk-yii1-php56-development": "924f52cf4f1561f50d665827c989b90a6fbc2c7f64d8d840f1cf22a645df11cf",
+    "dhpk-yii1-security-audit": "d923363f15312d2e700f6c9d7115d7a9978718a9d0f297652b3eb1a284403011",
+    "dhpk-agy-commit": "388b884107fef241a19dec977173964e1a18d1c9f0602ec2472fb2ef1fee09e4",
+    "dhpk-root-cause-investigation": "25fa2ec64710d2d46d7048cb220f1d638ed4599434f6364bd54a87f8ccfb75aa",
+    "dhpk-git-history-investigation": "faa91f74a2e55e48aee130f464901484021243463e49f46efb0837aad9fdd238",
+    "dhpk-git-smart-commit": "06027b35dcbb632992b7c93005d4aaab8a27cf9ed0a09741a38688eea96aec64",
+    "dhpk-cross-agent-sync": "3234e55ae922ce6639134ebc22957f81a566380e48b29ab402bd63c3915176fd",
+    "dhpk-onepassword-session": "a303951c50445479465d09746165406f1fc2bd7a8f71c97c349dd8b7e98ff600",
+    "dhpk-opsx-load-context": "4a626f37ca6904d11811ffa30c0df299c22f2c4a36aa88978aa4fe16b1ea890c",
+    "dhpk-opsx-post-observation": "cfb6322b54bac5536b4c76f42165095100fca25b45b0065a337b03a9c83b8c75",
+    "dhpk-skill-health-audit": "7f12d599f3982fd7cc6bdc5ca47374fffba72065046f64554f970396f4a1355c",
+    "dhpk-skill-quality-judge": "7fc62a8df6d91782423df3b57f933bcc370aa86df617cca343488b5b8325e723",
+    "dhpk-tdd-workflow": "217bb1b84b12c25c7032cd80cbdead44125f41afa35d43b0d4fe312ee8614a33"
+  }
 }

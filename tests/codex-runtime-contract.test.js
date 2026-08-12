@@ -58,6 +58,14 @@ function write(file, content) {
   fs.writeFileSync(file, content);
 }
 
+function cloneProjectionFixture(prefix) {
+  const root = tmpRoot(prefix);
+  for (const entry of ['agents', 'agent-traps', 'codex', 'manifests', 'modules']) {
+    fs.cpSync(path.join(ROOT, entry), path.join(root, entry), { recursive: true });
+  }
+  return root;
+}
+
 test('the Codex projection satisfies runtime metadata and handoff contracts', () => {
   const errors = collectCodexRuntimeErrors(ROOT);
   assert.deepStrictEqual(errors, [], errors.join('\n'));
@@ -130,7 +138,10 @@ test('the Codex runtime validator catches stale labels, unavailable handoffs, an
     );
     write(path.join(root, 'codex', 'config.toml.example'), '[agents]\nmax_threads = 6\nmax_depth = 2\n');
 
-    const errors = collectCodexRuntimeErrors(root);
+    const errors = [
+      ...collectCodexRuntimeErrors(root),
+      ...collectCodexCoverageErrors(root),
+    ];
     assert.ok(errors.some((error) => error.includes('Haiku')), errors.join('\n'));
     assert.ok(errors.some((error) => error.includes('silent-failure-hunter')), errors.join('\n'));
     assert.ok(errors.some((error) => error.includes('type-design-analyzer')), errors.join('\n'));
@@ -212,6 +223,104 @@ test('clean consumer projection reports unreachable references inside supporting
     const errors = collectCodexProjectionReferenceErrors(root, ROOT);
     assert.ok(errors.some((error) => error.includes('unreachable Claude project reference')), errors.join('\n'));
     assert.ok(errors.some((error) => error.includes('unresolved source-tree reference')), errors.join('\n'));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('mutation: role metadata, filename, and sandbox drift fail closed', () => {
+  const root = cloneProjectionFixture('codex-role-metadata-mutation');
+  try {
+    const file = path.join(root, 'codex', 'agents', 'explorer.toml');
+    let source = fs.readFileSync(file, 'utf8')
+      .replace('name = "explorer"', 'name = "not-explorer"')
+      .replace('model = "gpt-5.6-terra"', 'model = "not-a-codex-model"')
+      .replace('model_reasoning_effort = "medium"', 'model_reasoning_effort = "not-an-effort"')
+      .replace('sandbox_mode = "read-only"', 'sandbox_mode = "not-a-sandbox"');
+    fs.writeFileSync(file, source);
+    const errors = [
+      ...collectCodexRuntimeErrors(root),
+      ...collectCodexCoverageErrors(root),
+    ];
+    assert.ok(errors.some((error) => /filename.*name|name.*filename|does not match/i.test(error)), errors.join('\n'));
+    assert.ok(errors.some((error) => /invalid.*model|unknown model|model.*catalog/i.test(error)), errors.join('\n'));
+    assert.ok(errors.some((error) => /invalid.*reasoning_effort|reasoning_effort.*invalid/i.test(error)), errors.join('\n'));
+    assert.ok(errors.some((error) => /invalid.*sandbox|sandbox.*invalid/i.test(error)), errors.join('\n'));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('mutation: merged and capability-gated role targets cannot point at ghosts', () => {
+  const root = cloneProjectionFixture('codex-role-graph-mutation');
+  try {
+    const mapPath = path.join(root, 'codex', 'agent-role-map.json');
+    const matrix = JSON.parse(fs.readFileSync(mapPath, 'utf8'));
+    matrix.roles['fast-worker'].target = 'ghost-role';
+    matrix.roles['performance-analyzer'].target = 'capability:ghost-capability';
+    fs.writeFileSync(mapPath, `${JSON.stringify(matrix, null, 2)}\n`);
+    const errors = collectCodexCoverageErrors(root);
+    assert.ok(errors.some((error) => /fast-worker.*ghost-role|ghost-role.*fast-worker/i.test(error)), errors.join('\n'));
+    assert.ok(errors.some((error) => /performance-analyzer.*ghost-capability|ghost-capability.*performance-analyzer/i.test(error)), errors.join('\n'));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('mutation: supporting assets cannot dispatch an unavailable role or Claude namespace', () => {
+  const root = cloneProjectionFixture('codex-supporting-graph-mutation');
+  try {
+    const file = path.join(root, 'codex', 'supporting', 'agent-traps', 'code-reviewer', 'js.md');
+    fs.appendFileSync(file, '\nDispatch `ghost-role` through `dhpk:code-reviewer`.\n');
+    const errors = collectCodexProjectionReferenceErrors(root);
+    assert.ok(errors.some((error) => /ghost-role.*dispatch|dispatch.*ghost-role/i.test(error)), errors.join('\n'));
+    assert.ok(errors.some((error) => /namespace|dhpk:code-reviewer|Claude/i.test(error)), errors.join('\n'));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('mutation: generator rejects stale package TOML and preserves declared local extensions', () => {
+  const root = tmpRoot('codex-generator-stale-mutation');
+  try {
+    const output = path.join(root, 'agents');
+    let result = spawnSync('node', [GENERATOR, output], { encoding: 'utf8', timeout: 15000 });
+    assert.strictEqual(result.status, 0, result.stderr);
+    fs.writeFileSync(path.join(output, 'stale-generated.toml'), 'name = "stale-generated"\n');
+    result = spawnSync('node', [GENERATOR, output], { encoding: 'utf8', timeout: 15000 });
+    assert.notStrictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.match(result.stderr, /stale.*stale-generated\.toml|stale-generated\.toml.*stale/i);
+    assert.ok(fs.existsSync(path.join(output, 'stale-generated.toml')));
+
+    fs.rmSync(path.join(output, 'stale-generated.toml'));
+    fs.writeFileSync(path.join(output, 'local-extension.toml'), 'name = "local-extension"\n');
+    fs.writeFileSync(path.join(output, '.codex-agent-ownership.json'), JSON.stringify({
+      version: 1,
+      workspace_local_extensions: ['local-extension'],
+    }));
+    result = spawnSync('node', [GENERATOR, output], { encoding: 'utf8', timeout: 15000 });
+    assert.strictEqual(result.status, 0, result.stderr);
+    assert.ok(fs.existsSync(path.join(output, 'local-extension.toml')));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('mutation: module-agent removal and default effort drift are reported', () => {
+  const root = cloneProjectionFixture('codex-module-default-mutation');
+  try {
+    fs.rmSync(path.join(root, 'modules', 'library-author', 'agents', 'polyfill-reviewer.md'));
+    const config = path.join(root, 'codex', 'config.toml.example');
+    fs.writeFileSync(config, fs.readFileSync(config, 'utf8').replace(
+      'default_subagent_reasoning_effort = "medium"',
+      'default_subagent_reasoning_effort = "max"',
+    ));
+    const errors = [
+      ...collectCodexRuntimeErrors(root),
+      ...collectCodexCoverageErrors(root),
+    ];
+    assert.ok(errors.some((error) => /polyfill-reviewer.*canonical|matrix.*polyfill-reviewer|module.*polyfill-reviewer/i.test(error)), errors.join('\n'));
+    assert.ok(errors.some((error) => /default.*effort|default_subagent_reasoning_effort/i.test(error)), errors.join('\n'));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

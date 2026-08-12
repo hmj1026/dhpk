@@ -1,0 +1,141 @@
+# Implementation dispatch — operational detail
+
+Operational detail for `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §Implementation dispatch. The dispatch **table** and the decide→dispatch→verify posture summary live there (the always-loaded SSOT); this file carries the how/why the orchestrator needs **when actually dispatching implement-phase work**. Every "§X" below refers to a section of that SSOT file.
+
+## Orchestrator posture
+
+The main session is the expensive, high-capability orchestrator; its implement-phase job is **decide → dispatch → verify**, not hand-typing mechanical edits. Dispatch to a worker is the **default**; inline is a **narrow exception**, not a co-equal option. The economic reason is the point, not a nicety — the orchestrator runs on the expensive tier and `fast-worker` on a cheaper one, so routing mechanical work to `fast-worker` is why this policy exists and the default bias is to dispatch. Unattended goal sessions (`dhpk-opsx-apply-goal`) bind this posture by reading the execution policy during their orientation step; the emitted `/goal` condition carries only the compact roster line and the self-locating policy pointer, never these elaborations.
+
+**The "≤2 files" inline bound is measured on the whole implement-step footprint, not each individual Edit.** A run of individually-small mechanical edits that together touch more than two files — e.g. a multi-file doc-consistency fix across ≥3 files — is **one `fast-worker` dispatch** (batched into a single fix-spec), not a salami-sliced sequence of "small" inline diffs. When the choice between inline and `fast-worker` is unclear, **dispatch**.
+
+**Review-fix waves follow the same posture.** After a consolidated review batch, combine actionable findings into one fix-spec and measure the whole fix footprint against the inline bound. A batch exceeding two files goes to the selector-resolved fast-worker. Applying production fixes inline one finding at a time after review is the audited anti-pattern: it salami-slices one mechanical wave and expands the orchestrator's replay context.
+
+**`general-purpose` is prohibited for implementation while `orchestration_dispatch=on`.** It carries no dhpk policy context, inherits the main-session model regardless of task cost, and has no defined input/output contract — use `deep-reasoner` / `fast-worker` / inline per the dispatch table instead.
+
+## Parallel dispatch contract
+
+Use `Parallel: yes` only when two or more workers will operate in the same checkout. The dispatcher must provide each worker with:
+
+```text
+Parallel: yes
+Assigned files:
+- repo-relative/path-a
+- repo-relative/path-b
+Intent:
+- repo-relative/path-a: exact bounded change
+- repo-relative/path-b: exact bounded change
+Verification: path-scoped command, or `REPORT-ONLY: <reason and orchestrator command>`
+```
+
+The assigned list is the worker's authoritative write, diff, and verification boundary. Paths must be explicit repo-relative paths; globs, directory guesses, and unlisted generated files are not valid scope. A worker that needs another file returns `RESULT: BLOCKED` and names the required scope expansion. A worker may report out-of-scope observations, but it must not modify, revert, reset, clean, or force-delete them. Any out-of-scope write is a contract violation and remains blocked for orchestrator review.
+
+In parallel mode, before/after accounting uses path-scoped `git status --short -- <assigned files>` and `git diff --name-only -- <assigned files>`. A global status result is not evidence of worker ownership. The report separates assigned edits, out-of-scope observations, out-of-scope writes, verification, and backend identity.
+
+If a validator reads or updates shared ratchet/configuration state, the worker uses only a dispatcher-provided scoped or no-write equivalent. Without one, it reports the exact missing command as blocked or uses the explicitly declared report-only outcome; it must not invoke a global read-modify-write path. A task intentionally changing shared state is serial. After all workers return, the orchestrator runs one sequential whole-tree validator/reconciliation pass and records the consolidated result before dispatching the implementation-wave reviewers.
+
+## CLI worker mid-batch timeout recovery
+
+Applies only to a CLI-backed multi-file dispatch (`codex-fast-worker` / `dhpk-agy-fast-worker`) that reports a wrapper-level timeout (see each worker's Backend availability section) — never to a single-file dispatch, a non-timeout failure, or a missing-executable/auth/model failure, which keep their existing semantics unchanged.
+
+For Codex, `run-codex.sh` emits one `dhpk.codex.timeout.v1` JSON envelope on a
+verified wrapper timeout before cleanup and retains exit `124`. The dispatcher
+validates the unchanged object with
+`node skills/dhpk-codex-bridge/scripts/codex-timeout-envelope.js --parse`, then
+parses and records that envelope before interpreting the exit code; its
+base64-encoded report and bounded diagnostics are timeout evidence only; a
+`redaction=unavailable` envelope has no payload and is always `BLOCKED`. A
+non-empty report never proves edits or success without independent path-scoped
+diff verification, and the envelope is forwarded unchanged for reconciliation.
+
+**Path-scoped completion ledger.** Before dispatch, the dispatcher records the exact assigned file list and a path-scoped `git status --porcelain -- <assigned files>` baseline. After a verified wrapper timeout, the worker derives three disjoint sets covering the assigned list:
+
+- `confirmed` — intersection of the backend's own reported files and path-scoped diff evidence attributable to this dispatch.
+- `unconfirmed` — assigned files with changed or claimed work whose report or ownership evidence is incomplete.
+- `remaining` — assigned files with no confirmed or unconfirmed evidence.
+
+A global (non-path-scoped) `git status` is never completion or ownership evidence in parallel mode.
+
+**One scoped same-backend retry.** After the first verified wrapper timeout on a multi-file dispatch, the orchestrator may dispatch exactly one recovery invocation: same backend, same model/effort, same original intent, and write scope limited to `remaining ∪ unconfirmed` — confirmed files are not repeated. The worker never edits the unresolved files inline and never falls back to another backend because of a timeout (the existing missing-executable fallback carve-out is unrelated and unaffected).
+
+**Second timeout is terminal.** If the recovery invocation also has a verified wrapper timeout, the worker stops and reports `RESULT: PARTIAL` (at least one assigned file confirmed) or `RESULT: BLOCKED` (none confirmed), naming both timeout observations, the backend identity, all three ledger sets, and the next action.
+
+**PARTIAL marker (control-plane, not a product edit).** Before returning `RESULT: PARTIAL`, the worker writes one JSON marker at a dispatcher-preallocated path: `.claude/artifacts/sessions/.partial-cli-batch-<backend>-<session-id>-<dispatch-id>.json`, where `<session-id>`/`<dispatch-id>` are safe slugs the dispatcher allocates before dispatch (never a raw timestamp, to avoid collisions). The marker records backend, session/dispatch identity, the `assigned`/`confirmed`/`remaining`/`unconfirmed` sets, both timeout observations, and the next action. It is reported as a separate control-plane output, never counted in the assigned-scope edited-file list, never matches `.pending-*`, and is never auto-cleared by the worker or by a reviewer sweep — it stays until a human or the orchestrator explicitly reconciles it. An unresolved PARTIAL marker blocks marking the implementation task complete, but it is not itself a reviewer sentinel and does not gate on reviewer approval.
+
+**Six-file starting guideline.** Recommend splitting a mechanical batch with more than six assigned product files into independently verifiable batches; six is an unmeasured starting point, not a wrapper or CLI setting. A deliberately larger batch requires an override reason recorded in the dispatch record and the worker's report — the worker itself never expands or splits its own assigned scope.
+
+## Live CI/deploy verification loops are dispatchable work
+
+Watching a live CI run (`gh run watch`), triaging its run logs, and babysitting retries is dispatchable work — route it to `dhpk:smoke-tester` (read-only probe) or a background `fast-worker`, per the §Implementation dispatch table row, so the main context consumes only the resulting merge/fix decision rather than running the poll/triage loop inline.
+
+## Gate preservation (edited-file-list back-stop)
+
+Worker dispatch never weakens a gate. `fast-worker` always reports its complete edited-file list (mandatory, even on a failed/escalated attempt — see its agent body). After a dispatch returns, the orchestrator checks for pending sentinels as usual; subagent Edit/Write triggers the same PostToolUse hooks as a main-loop edit in the default Claude Code hook wiring, so sentinels are the common path. If a project setup ever does not fire hooks for subagent tool calls, the orchestrator derives the applicable reviewer gates from the edited-file list instead and runs them — same Post-implementation agent gate either way.
+
+## Verify worker output before accepting (implement phase)
+
+When a `fast-worker` (or `deep-reasoner` → `fast-worker`) dispatch returns, before marking the task complete the orchestrator (a) re-surfaces the worker's verification line (`<command> → PASS|FAIL`) and complete assigned-scope edited-file list plus out-of-scope observations into the conversation, so the goal loop's conversation-only Haiku evaluator can see the evidence; (b) in parallel mode, cross-checks the assigned list against path-scoped `git status --short -- <assigned files>` / `git diff --name-only -- <assigned files>` and investigates any mismatch; (c) after all workers in the batch finish, performs the one whole-tree shared-state reconciliation described above; (d) confirms the review sentinels expected for the edited file types are present or were already cleared by a reviewer that ran, and when an expected sentinel is missing invokes the reviewer derived from the assigned edited-file list (activating the back-stop above rather than leaving it dead); (e) on a worker FAIL, out-of-scope write, or 3-attempt escalation, does NOT mark the task complete and re-scopes or re-dispatches `deep-reasoner` for a corrected fix-spec. This is a lightweight cross-check — the full test-suite re-run stays the `dhpk-opsx-apply-goal` Part 3 end-gate, not a per-task step. Wait on the dispatched worker's completion notification; NEVER bash-poll `.pending-*` sentinels or sleep-loop awaiting agent results — this does not restrict the deterministic-completion-signal polling sanctioned by §No block-polling a running worker below (polling an observable artifact such as a DB row baseline for a mutating worker remains permitted).
+
+## Repository Discovery Gate and explicit hard rules
+
+Before finalizing new DB, SQL, query-builder, criteria, model-persistence, or repository-like code, run a Repository Discovery Gate: inspect the project's existing repository/query-layering convention, identify the current boundary, and route new persistence behavior through that boundary unless the human explicitly approves an exception. A design artifact is a planning snapshot, not permission to bypass a project hard rule discovered during implementation. Controller- or service-local persistence code must be moved to the repository/query layer, or the exception must be recorded with the approving human's decision.
+
+Anti-rationalization handling is mandatory here. If the reason for bypassing a rule sounds like "disproportionate", "approved design already chose this", "small enough to defer", "no human is available", or another cost-based deferral, load `${CLAUDE_PLUGIN_ROOT}/rules/anti-rationalization.md` before proceeding. The outcome is one of two states: comply with the explicit hard rule, or stop and record a human-approved exception. In unattended goal mode, no human being present is never implicit approval; default to compliance, and if compliance is genuinely blocked, halt and report via the hard-rule escalation artifact named by `dhpk-opsx-apply-goal`.
+
+## Phase scoping (implement phase only)
+
+The dispatch table governs the **implement phase**. OpenSpec artifact authoring (proposal / specs / design / tasks) is orchestrator-inline reasoning work — it is NOT mechanical and is never dispatched to `fast-worker`; the orchestrator authors it, seeded by any preceding investigation. Root-cause investigation dispatches read-only `deep-reasoner`, whose conclusion contract seeds the fix-spec or the authored artifacts. In plan mode only read-only workers (`deep-reasoner`, `Explore`) may be dispatched — `fast-worker` cannot apply edits until plan mode is exited; `deep-reasoner` **is** permitted in plan mode because it is read-only.
+
+## Verify an unverified behavioral premise before dispatching a write worker
+
+When a `fast-worker` task rests on an unverified *behavioral premise* — that a bug reproduces under the given fixture/data, that an algorithm or formula is correct, or that an assumed data-shape / plan dependency holds — dispatch read-only `deep-reasoner` to confirm the premise **first**, and dispatch `fast-worker` only once it holds. Scope this by premise *type*: a **static / structural** premise — whether a specific line lists a given type, whether a column is unique in a query, whether two code paths share a guard condition — is settled by a single inline Read, so spending a `deep-reasoner` dispatch on it is waste; verify it inline and move on. Reserve the gate for **behavioral / runtime / non-deterministic** premises — does the bug actually reproduce under this fixture, is a timing- or order-dependent path hit, does a plan-dependent value land in the branch under test — where reading the code is not enough to know. (Don't over-correct from a prior "always deep-reasoner first" lesson into dispatching for facts a Read settles.) Writing a RED regression test or a non-obvious fix on top of an unverified premise can hand `fast-worker` an impossible spec: a full apply-and-fail (or a multi-attempt escalation costing ~100k+ subagent tokens) that verifying the premise up front would have avoided. Route the gate to the probe that can actually settle it: a **code/algorithm/data-shape** premise (settleable by reading and reasoning over code) goes to read-only `deep-reasoner`; a **runtime/browser/environment behavior** premise (scroll position, render timing, an environment-dependent effect — not settleable by reading code alone) goes to `e2e-runner` or a scratch executable probe, since `deep-reasoner` cannot itself execute or observe such behavior. **Cross-file load-order / script-registration timing is a runtime premise, not a structural one** — extracting an inline `<script>` block into a separately-registered page asset can look like a mechanical file-move, but it changes *when* that code runs relative to state it depends on (a `const` the page defines inline, a third-party widget's own ready/draw sequence); verify the new load position against that dependency **before** writing the extraction, with a scratch probe or `e2e-runner`, not by shipping a first attempt and diagnosing the failure after. This is distinct from the conclusion sanity-check below — that checks a `deep-reasoner` *conclusion* is precise enough to apply; this checks the *premise the task is built on* before any fix-spec exists. (`deep-reasoner` is read-only, so this applies in plan mode too.)
+
+## Sanity-check a `deep-reasoner` conclusion before `fast-worker` applies it
+
+Before dispatching `fast-worker` to apply a conclusion contract, confirm it carries file:line evidence and next-actions precise enough to serve as a task spec. Re-work a vague or evidence-free conclusion (return it to `deep-reasoner`, or resolve it inline) rather than dispatching it for application — a wrong confident conclusion otherwise costs a full 3-attempt apply-and-fail cycle.
+
+## Kill switch
+
+`orchestration_dispatch=off` restores pre-change behavior exactly — inline implementation everywhere touched by this policy, no dispatch prohibition, no `dhpk-opsx-apply-goal` directive line (see that skill's wiring). This is a full opt-out, not a partial degrade.
+
+## No block-polling a running worker
+
+While a dispatched `local_agent`/background worker is still running, the orchestrator MUST NOT block-poll it with a short-timeout monitor/output call (a repeated or single long-timeout `TaskOutput`-style wait) to check progress, and MUST NOT Read or grep the running agent's `output_file`/raw JSONL transcript for the same purpose. A blocking poll against a still-running agent risks dumping the subagent's raw JSONL transcript into the main conversation, burning tokens with no decision-useful information — this happened in the `fe13512c` session where a 300s blocking poll dumped a subagent's raw JSONL into main context, and the same session later grepped a running reviewer's `output_file` mid-run, the very anti-pattern it had just shipped. Instead, wait for the task's completion notification event, then fetch the agent's final result.
+
+**Silence is not a hang; peek before you kill.** A long Playwright step or a single mega-action (a full checkout / clear-settlement / batch write) is slow by nature, so output/mtime silence alone is NOT a hang signal. Before issuing a `TaskStop` against a quiet background agent, peek its last action (most recent tool_use) — a killed agent's completion `<result>` is a *mid-flight* message, not a final verdict, so a premature kill both loses the verdict and costs a resume cycle. In one session an e2e-runner went silent for ~4 minutes mid-action and was killed as "hung"; the `<result>` then showed it was one dialog-accept away from completing.
+
+**Await a mutating agent by a deterministic completion signal.** When waiting on an agent that mutates observable state (inserts a DB row, writes a file), poll that artifact as the done-signal — e.g. `SELECT MAX(id) > baseline` on the row it will write — rather than an mtime heuristic. One deterministic hit both confirms completion and directly yields the observed value; in one session a single `SELECT MAX(settlement_id)` poll replaced four idle mtime-silence loops and returned the observed row in the same step.
+
+**The Stop hook does not sense in-flight agents.** The Stop hook reads only the goal's own stop conditions (sentinels / tasks), so while a background reviewer or worker is in flight it keeps firing "still-open" reminders that do not mean the session is stuck. Bridge the wait with a heartbeat / `ScheduleWakeup` (or the deterministic-signal poll above) and do NOT treat the repeated Stop reminders as evidence of a hang.
+
+## SendMessage reuse vs. spawn
+
+When a follow-up dispatch targets the same test file, the same user journey, or would otherwise benefit from context (fixtures, environment overrides, prior findings) already accumulated by a still-addressable prior worker, reuse that agent via `SendMessage` rather than spawning a new one. When the follow-up is unrelated in scope (different file, different journey, no shared context to preserve), spawn a new agent instead.
+
+For any configured sentinel-backed reviewer, the orchestrator records one
+`.resumed-review-obligations` entry before sending `SendMessage`. The entry fixes
+the slot, exact sentinel basename, resolved agent, session/dispatch identity,
+resume timestamp, and artifact baseline. Intermediate responses do not clear or
+consume it. A final response requires actual review work, findings or an explicit
+no-findings statement, and a parseable verdict; the orchestrator then reconciles
+only the exact sentinel when a fresh canonical artifact and matching ownership
+are proven. Native `SubagentStop` remains first choice and the fallback is
+idempotent. A missing, stale, foreign, misplaced, malformed, or conflicting
+artifact keeps the gate pending; at most one corrected resume is allowed before
+replacement or an explicit blocker, and no duplicate reviewer is dispatched
+while the original remains addressable. Session evidence: a 7-round reuse of one
+`e2e-runner` via `SendMessage` preserved its env overrides and fixtures across
+rounds and was the best-practice pattern observed in the `fe13512c` run.
+
+**Resuming a pending REVIEWER via `SendMessage`** carries an extra obligation the general reuse rule above does not: run `bash scripts/hooks/record-resumed-obligation.sh <sentinel-name>` BEFORE the `SendMessage` call, so the fallback can later prove a NEW review doc was written during the resume rather than trusting the resumed reply on its own (design: `fix-resumed-review-sentinel-clearance`). Classify the resumed reply as intermediate or final before acting on it — a final reply must contain actual review work (findings or an explicit no-findings statement) plus a parseable verdict; anything else is intermediate and the sentinel stays armed. On a final reply, run `bash scripts/hooks/reconcile-resumed-review.sh <sentinel-name>`; while the resumed reviewer remains addressable, do not dispatch a duplicate — send at most one corrected resume for a missing/invalid result, then replace the reviewer or leave an explicit pending gate with a recorded reason, mirroring the existing corrected-retry contract in §Reviewer dispatch. Full fallback mechanics and freshness rules: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/review-gate-mechanics.md` §Resumed reviewer reconcile contract.
+
+## `CODEX=on` high-stakes parallel peer path
+
+For a high-stakes implement-phase design/diagnosis decision, dispatch `deep-reasoner` and the Codex peer in parallel, each blind to the other's findings, per §Multi-AI / dual-perspective independence — do not feed one side's conclusion into the other's prompt. The concrete Codex-peer mechanism is the `dhpk-codex-bridge` subagent (a one-shot `codex exec` via `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-codex-bridge/scripts/run-codex.sh`, output quarantined in the subagent and relayed verbatim) — the plugin's **third** Codex path, distinct from the in-session MCP `codex-*` skills (structured review/implement, output in the main context) and the external `codex:` app-server plugin (persistent broker). `dhpk-codex-bridge` also serves non-peer `CODEX=on` dispatch: offloading a self-contained clear-spec bulk task to gpt-5.5, per the §Implementation dispatch row. The `dhpk-opsx-apply-goal` goal template wires this path **proactively**: under `CODEX=on` it instructs the orchestrator to run a parallel `dhpk-codex-bridge` independent review before finalizing a high-stakes **solo** design edit or decision that has no inter-agent contradiction to trigger the §In-flight doubt cycle. The trigger list includes the goal-template generator itself, an SSOT policy file, a spec-requirement deferral, first-seen query/repository patterns, framework-internal hacks or private-state resets, and explicit-rule deferrals. As a **wrap-up self-check**, the goal template additionally requires that a session which declared `CODEX=on` but dispatched `dhpk-codex-bridge` 0 times, before declaring the goal complete, enumerate its high-risk decision points and either run one retrospective `dhpk-codex-bridge` peer review or record an explicit per-point "why-not" — so a declared CODEX=on capability that fired 0 times is reconciled rather than left silently unused (three consecutive goal sessions had a 0-dispatch `dhpk-codex-bridge` under CODEX=on before this backstop). Default (codex-free) sessions never take any of this path; `deep-reasoner` alone handles the work.
+
+## Session-environment traps
+
+The shell is zsh, where `status` is a read-only variable — use `st=` / `rc=` for captured exit codes, never `status=`. PR self-merge is classifier-blocked — never attempt `gh pr merge --admin` or remote branch deletion from an agent session; hand off to a human.
+
+## Cross-verify a premise-overturning worker discovery before reframing
+
+When a worker returns a finding that *overturns an existing design premise* — "the bug is not reproducible as `design.md` assumed", "the documented approach cannot work", any result that changes the plan's direction — treat it as an approach-changing decision, not a routine result. Before reframing the plan on that single finding, obtain an **independent** second opinion per §Multi-AI / dual-perspective independence: in a default (codex-free) session, a second `deep-reasoner` pass prompted independently from the source (never fed the first conclusion); when `CODEX=on`, the `dhpk-codex-bridge` peer. A single model overturning its own earlier premise is exactly the shared-blind-spot case independence guards against — orchestrator-inline self-confirmation is not a substitute. Once the reframe is agreed and before the reframed artifacts go to the doc-review gate, run a **keyword sweep**: grep the whole change directory (proposal / design / tasks / specs) for the old, now-disproven wording and update or remove every remaining occurrence — stale wording surviving the reframe otherwise causes a doc-reviewer BLOCK → fix → re-review round that the sweep would have avoided.

@@ -8,6 +8,10 @@ metadata:
 
 # DHPK Execution Policy
 
+Read `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy-kernel.md` first. It is the
+always-visible safety, authorization, dirty-worktree, route-boundary, and
+completion kernel; the detailed rule remains the SSOT below.
+
 This is the skill-form entry point to dhpk's canonical execution policy. Read the
 project's `.claude/rules/execution-policy.md` first when it exists; otherwise
 read `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`. That policy is the

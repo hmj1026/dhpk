@@ -7,6 +7,9 @@ applies to maintainers, Claude marketplace consumers, projects that sync dhpk
 into `.codex/`, and users who also have Matt Pocock or other global skills
 installed.
 
+Current Codex/Cursor installation routes and rollback boundaries live in the
+[platform installation SSOT](./platform-installation.md).
+
 ## Current contract
 
 | Concern | Current implementation |

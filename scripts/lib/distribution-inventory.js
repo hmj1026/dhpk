@@ -17,10 +17,39 @@ const path = require('node:path');
 const { collectInventory, relativePosix } = require('./asset-inventory');
 
 const LIFECYCLES = ['promoted', 'optional', 'experimental', 'deprecated'];
-const SURFACES = ['claude-core', 'claude-module', 'codex-sync', 'codex-native'];
+const SURFACES = [
+  'claude-core',
+  'claude-module',
+  'codex-sync',
+  'codex-native',
+  'agent-plugin',
+  'cursor-plugin',
+];
 const V2_SCHEMA = 'dhpk.distribution-inventory.v2';
 const PUBLIC_SKILL_NAME = /^dhpk-[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const CAPABILITY_ID = /^dhpk\.[a-z0-9]+(?:[.-][a-z0-9]+)*$/;
+const PLATFORM_MATRIX_SCHEMA = 'dhpk.platform-capability-matrix.v1';
+const PLATFORM_STATUSES = [
+  'PASS',
+  'FAIL',
+  'NOT_RUN',
+  'NOT_CONFIGURED',
+  'SKIP_INCOMPATIBLE',
+  'BLOCKED',
+  'UNAVAILABLE',
+];
+const PORTABLE_FRONTMATTER_ALLOWLIST = [
+  'name',
+  'description',
+  'license',
+  'compatibility',
+  'metadata',
+];
+const CLIENT_METADATA_BOUNDARY = {
+  claude: ['disable-model-invocation', 'context', 'argument-hint'],
+  codex: ['agents/openai.yaml', 'policy.allow_implicit_invocation'],
+  cursor: ['rules/frontmatter', 'variables', 'hooks'],
+};
 
 function skillIdFromPath(relPath) {
   return path.basename(path.dirname(relPath));
@@ -80,6 +109,15 @@ function classifyCanonicalInventory(root) {
     skills,
     modules,
   };
+}
+
+function preserveProjectionContract(generated, existing) {
+  if (!existing || typeof existing !== 'object') return generated;
+  const contract = {};
+  for (const key of ['surfaces', 'surface_membership', 'platform_matrix', 'portable_frontmatter']) {
+    if (Object.prototype.hasOwnProperty.call(existing, key)) contract[key] = existing[key];
+  }
+  return { ...generated, ...contract };
 }
 
 function serializeInventory(inventory) {
@@ -354,7 +392,129 @@ function validateDistributionInventoryV2(input = {}) {
     }
   });
 
+  const membership = validateSurfaceMembership({ inventory, ids });
+  errors.push(...membership.errors);
+  const matrix = validatePlatformCapabilityMatrix(inventory.platform_matrix);
+  errors.push(...matrix.errors);
+  const frontmatter = validatePortableFrontmatterContract(inventory.portable_frontmatter);
+  errors.push(...frontmatter.errors);
+
   return { ok: errors.length === 0, errors };
+}
+
+function validateSurfaceMembership({ inventory, ids: skillIds = new Set() }) {
+  const errors = [];
+  const membership = inventory && inventory.surface_membership;
+  if (membership === undefined) return { errors };
+  if (!membership || typeof membership !== 'object' || Array.isArray(membership)) {
+    return { errors: ['surface_membership must be an object when present'] };
+  }
+  const knownIds = new Set(skillIds);
+  for (const [surface, values] of Object.entries(membership)) {
+    if (!SURFACES.includes(surface)) {
+      errors.push(`surface_membership declares unsupported surface '${surface}'`);
+      continue;
+    }
+    if (!Array.isArray(values)) {
+      errors.push(`surface_membership.${surface} must be a string array`);
+      continue;
+    }
+    const seen = new Set();
+    for (const id of values) {
+      if (typeof id !== 'string' || id.trim() === '') {
+        errors.push(`surface_membership.${surface} contains an empty/non-string stable id`);
+      } else if (!knownIds.has(id)) {
+        errors.push(`surface_membership.${surface} references unknown stable id '${id}'`);
+      } else if (seen.has(id)) {
+        errors.push(`surface_membership.${surface} contains duplicate stable id '${id}'`);
+      }
+      seen.add(id);
+    }
+  }
+  for (const requiredSurface of ['agent-plugin', 'cursor-plugin']) {
+    if (!Object.prototype.hasOwnProperty.call(membership, requiredSurface)) {
+      errors.push(`surface_membership is missing required '${requiredSurface}' selection`);
+    }
+  }
+  return { errors };
+}
+
+function validatePlatformCapabilityMatrix(matrix) {
+  const errors = [];
+  if (matrix === undefined) return { errors };
+  if (!matrix || typeof matrix !== 'object' || Array.isArray(matrix)) {
+    return { errors: ['platform_matrix must be an object when present'] };
+  }
+  if (matrix.schema !== PLATFORM_MATRIX_SCHEMA) {
+    errors.push(`platform_matrix schema must be ${PLATFORM_MATRIX_SCHEMA}, got '${matrix.schema || '<missing>'}'`);
+  }
+  if (!Array.isArray(matrix.entries)) {
+    errors.push('platform_matrix.entries must be an array');
+    return { errors };
+  }
+  const ids = new Set();
+  for (const [index, entry] of matrix.entries.entries()) {
+    const prefix = `platform_matrix.entries[${index}]`;
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      errors.push(`${prefix} must be an object`);
+      continue;
+    }
+    for (const field of ['id', 'public_name', 'surface', 'source_paths', 'destination', 'transform', 'fallback', 'evidence']) {
+      if (!Object.prototype.hasOwnProperty.call(entry, field)) errors.push(`${prefix} is missing required field '${field}'`);
+    }
+    if (typeof entry.id !== 'string' || !/^dhpk\.platform\.[a-z0-9.-]+$/.test(entry.id)) {
+      errors.push(`${prefix}.id must be a stable dhpk.platform.* identifier`);
+    } else if (ids.has(entry.id)) {
+      errors.push(`duplicate platform matrix id: ${entry.id}`);
+    } else ids.add(entry.id);
+    if (typeof entry.public_name !== 'string' || entry.public_name.trim() === '') errors.push(`${prefix}.public_name must be non-empty`);
+    if (typeof entry.surface !== 'string' || !SURFACES.includes(entry.surface)) errors.push(`${prefix}.surface must be a known distribution surface`);
+    if (!Array.isArray(entry.source_paths) || entry.source_paths.length === 0 || entry.source_paths.some((p) => !isSafeInventoryPath(p))) {
+      errors.push(`${prefix}.source_paths must be a non-empty array of safe relative paths`);
+    }
+    for (const field of ['destination', 'transform', 'fallback']) {
+      if (typeof entry[field] !== 'string' || entry[field].trim() === '') errors.push(`${prefix}.${field} must be non-empty`);
+    }
+    const projectionMode = entry.projection_mode || (entry.shared_surface ? 'shared' : 'overlay');
+    if (!['owner', 'shared', 'overlay'].includes(projectionMode)) {
+      errors.push(`${prefix}.projection_mode must be 'owner', 'shared', or 'overlay'`);
+    }
+    if (projectionMode === 'owner' && entry.shared_surface !== undefined) {
+      errors.push(`${prefix}.shared_surface is not valid for an owner projection`);
+    }
+    if (projectionMode === 'shared') {
+      if (typeof entry.shared_surface !== 'string' || !SURFACES.includes(entry.shared_surface)) {
+        errors.push(`${prefix}.shared_surface must name a known source surface for shared projections`);
+      } else if (entry.shared_surface === entry.surface) {
+        errors.push(`${prefix}.shared_surface must differ from the destination surface`);
+      }
+    } else if (entry.shared_surface !== undefined) {
+      errors.push(`${prefix}.shared_surface is only valid for projection_mode 'shared'`);
+    }
+    if (typeof entry.evidence !== 'string' || !PLATFORM_STATUSES.includes(entry.evidence)) {
+      errors.push(`${prefix}.evidence must be one of ${PLATFORM_STATUSES.join('/')}`);
+    }
+  }
+  return { errors };
+}
+
+function validatePortableFrontmatterContract(contract) {
+  const errors = [];
+  if (contract === undefined) return { errors };
+  if (!contract || typeof contract !== 'object' || Array.isArray(contract)) {
+    return { errors: ['portable_frontmatter must be an object when present'] };
+  }
+  if (!Array.isArray(contract.allowlist) || contract.allowlist.length === 0) {
+    errors.push('portable_frontmatter.allowlist must be a non-empty string array');
+  } else {
+    for (const field of contract.allowlist) {
+      if (!PORTABLE_FRONTMATTER_ALLOWLIST.includes(field)) errors.push(`portable_frontmatter.allowlist contains non-portable field '${field}'`);
+    }
+  }
+  if (!Array.isArray(contract.client_owned) || contract.client_owned.length === 0) {
+    errors.push('portable_frontmatter.client_owned must be a non-empty string array');
+  }
+  return { errors };
 }
 
 // Task 1.4: reconcile the inventory against canonical packages, the module
@@ -465,13 +625,21 @@ module.exports = {
   V2_SCHEMA,
   PUBLIC_SKILL_NAME,
   CAPABILITY_ID,
+  PLATFORM_MATRIX_SCHEMA,
+  PLATFORM_STATUSES,
+  PORTABLE_FRONTMATTER_ALLOWLIST,
+  CLIENT_METADATA_BOUNDARY,
   classifyCanonicalInventory,
+  preserveProjectionContract,
   serializeInventory,
   validateSupportingAssets,
   refreshSupportingDigests,
   validateDistributionInventory,
   validateDistributionInventoryV2,
   validateInventoryV2: validateDistributionInventoryV2,
+  validateSurfaceMembership,
+  validatePlatformCapabilityMatrix,
+  validatePortableFrontmatterContract,
   reconcileDistribution,
   generateClaudeSkillRoots,
   computeScopedCounts,

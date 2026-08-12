@@ -1,6 +1,11 @@
 # Execution Policy
 
-dhpk's default execution policy for projects that adopt the harness. Resource-layer markdown — referenced from the `dhpk-execution-policy` skill and consumable directly by a project's own `CLAUDE.md` via the `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` path. Not auto-loaded; opt-in.
+dhpk's default execution policy for projects that adopt the harness. Read the
+always-visible kernel first (`${CLAUDE_PLUGIN_ROOT}/rules/execution-policy-kernel.md`),
+then load the conditional sections below as the selected route requires.
+Resource-layer markdown — referenced from the `dhpk-execution-policy` skill and
+consumable directly by a project's own `CLAUDE.md` via the
+`${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` path. Not auto-loaded; opt-in.
 
 > Project overrides: projects that adopt this policy should keep their own short `.claude/rules/execution-policy.md` (or `CLAUDE.md` section) that only encodes deltas — e.g. extra sentinels, project-specific hot tables for performance reviewer, hook profile choice. Avoid copying the body wholesale; cross-link instead.
 >
@@ -38,7 +43,7 @@ Single source of truth for the six change types, their flow, and whether to ask 
 | Medium change | ❌ no | inspect → brief plan → tdd-guide → patch |
 | Lightweight Maintenance | ❌ no | inspect → patch |
 
-> **`/dhpk:do --openspec` override (force-`y`):** the `--openspec` flag (alias `--opsx`) force-selects the "create a change" (`y`) path — running `opsx:new` → `opsx:ff` to emit artifacts, then pausing for human review — overriding the per-type ask behavior in the "OpenSpec ask?" column above. The override is keyed on the **resolved route**, not the change-type row: it activates whenever `/dhpk:do` resolves to one of the three change-authoring routes (`dhpk:adaptive-dev-workflow`, `dhpk:bug-fix`, `dhpk:feature-dev`) — where every substantial bug/feature request lands *before* this per-type classification runs — so on those routes it goes straight to artifact authoring instead of asking or classifying (bypassing the row's normal investigation/architecture steps). It is **not applicable** to `opsx-apply-goal` (which applies an *existing* change) or any other non-authoring route — there it prints `--openspec ignored: ...` and proceeds. `--openspec` supersedes `--plan` only when this authoring diversion activates. SSOT for the flag mechanics: `commands/do.md` §Step 0c + §Openspec-mode rule.
+> **`/dhpk:do --openspec` override (force-`y`):** the `--openspec` flag (alias `--opsx`) force-selects the "create a change" (`y`) path — running `opsx:new` → `opsx:ff` to emit artifacts, then pausing for human review — overriding the per-type ask behavior in the "OpenSpec ask?" column above. The override is keyed on the **resolved route**, not the change-type row: it activates whenever `/dhpk:do` resolves to one of the three change-authoring routes (`dhpk:adaptive-dev-workflow`, `dhpk:bug-fix`, `dhpk:feature-dev`) — where every substantial bug/feature request lands *before* this per-type classification runs — so on those routes it goes straight to artifact authoring instead of asking or classifying (bypassing the row's normal investigation/architecture steps). It is **not applicable** to `opsx-apply-goal` (which applies an *existing* change) or any other non-authoring route — there it prints `--openspec ignored: ...` and proceeds. `--openspec` supersedes `--plan` only when this authoring diversion activates. SSOT for the flag mechanics: `commands/do.md` §Step 0a–0e and §Openspec-mode rule.
 
 ## Invocation precedence & entry selection
 

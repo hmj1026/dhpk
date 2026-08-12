@@ -29,13 +29,13 @@ echo "" | tee -a "$OUTPUT"
 if command -v ast-grep &> /dev/null; then
     echo "使用 ast-grep 進行 AST 層級分析..." | tee -a "$OUTPUT"
     echo "" | tee -a "$OUTPUT"
-    
+
     # 根據檔案類型使用不同的 pattern
     if [[ "$FILE" == *.js || "$FILE" == *.ts ]]; then
         echo "📍 JavaScript/TypeScript 函數定義" | tee -a "$OUTPUT"
         echo "==========================================" | tee -a "$OUTPUT"
         ast-grep --pattern 'function $FUNC($$$) { $$$ }' "$FILE" 2>/dev/null | head -20 | tee -a "$OUTPUT"
-        
+
     elif [[ "$FILE" == *.php ]]; then
         echo "📍 PHP 函數/方法定義" | tee -a "$OUTPUT"
         echo "==========================================" | tee -a "$OUTPUT"
