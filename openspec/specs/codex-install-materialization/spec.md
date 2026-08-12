@@ -2,7 +2,8 @@
 
 ## Purpose
 
-TBD - created by archiving change repair-open-issues-and-agent-guidance. Update Purpose after archive.
+Define deterministic, reversible Codex projection materialization, including
+receipt reconciliation, managed-target safety, and source filtering.
 ## Requirements
 ### Requirement: Legacy receipts and projections reconcile explicitly
 

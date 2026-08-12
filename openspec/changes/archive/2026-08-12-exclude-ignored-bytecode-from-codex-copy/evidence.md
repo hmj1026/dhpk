@@ -28,7 +28,9 @@
 - `node tests/consumer-gate-cli.test.js` — PASS (10/10), including the
   release-gate fingerprint stability fixture.
 - `git diff --check` — PASS.
-- `openspec validate exclude-ignored-bytecode-from-codex-copy --strict
-  --no-interactive` — PASS.
+- Before archival, `openspec validate exclude-ignored-bytecode-from-codex-copy
+  --strict --no-interactive` — PASS.
+- After archival, `openspec validate --all --strict --no-interactive` — PASS
+  (24/24).
 
 No receipt schema or installer flag changed.
