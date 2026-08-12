@@ -29,8 +29,11 @@ rejects impossible edges rather than manufacturing a successful completion.
 digest of the current worktree diff/status. When a report supplies
 `scope_id` and `diff_id` frontmatter, both must match the dispatch identity;
 missing, stale, foreign, or mismatched identity never closes that review.
-Reports from older releases that omit identity fields retain the existing
-freshness-only compatibility path while they are migrated.
+The Stop-time background-reconcile fallback additionally requires the exact
+session-scoped `.review-dispatch-attempts` row and matching artifact
+`session_id`, `dispatch_attempt`, and `dispatch_id` provenance; a legacy report
+without that tuple fails closed rather than satisfying a concurrent session's
+shared canonical review glob.
 
 ## Producer and consumer boundary
 

@@ -501,45 +501,8 @@ has_fresh_parseable_verdict() {
         printf '0'
         return 0
     fi
-    if command -v python3 >/dev/null 2>&1; then
-        ARTIFACT_IN="$latest" REVIEWER_IN="$agent" python3 - <<'PY' 2>/dev/null || printf '0'
-import os
-import re
-from pathlib import Path
-
-review_doc = Path(os.environ["ARTIFACT_IN"])
-reviewer = os.environ["REVIEWER_IN"]
-try:
-    text = review_doc.read_text(encoding="utf-8", errors="replace")
-except OSError:
-    print(0)
-    raise SystemExit(0)
-
-filename = re.compile(
-    rf"^{re.escape(reviewer)}-\d{{8}}-\d{{6}}-[a-z0-9][a-z0-9._-]*\.md$",
-    re.IGNORECASE,
-)
-frontmatter_match = re.match(r"\A---\r?\n(.*?)\r?\n---(?:\r?\n|\Z)", text, re.DOTALL)
-if not filename.fullmatch(review_doc.name) or not frontmatter_match:
-    print(0)
-    raise SystemExit(0)
-
-frontmatter = frontmatter_match.group(1)
-def field(name):
-    return re.search(rf"(?im)^\s*{name}\s*:\s*(.+?)\s*$", frontmatter)
-
-agent_match = field("agent")
-generated_at = field("generated_at")
-commit = field("commit")
-scope = field("scope")
-severity = field("severity_summary")
-verdict_match = field("verdict")
-required = all((agent_match, generated_at, commit, scope, severity, verdict_match))
-timestamp_ok = bool(generated_at and re.match(r"\d{4}-\d{2}-\d{2}T", generated_at.group(1)))
-agent_ok = bool(agent_match and agent_match.group(1).strip().strip("'\"") == reviewer)
-verdict = verdict_match.group(1).upper() if verdict_match else ""
-print(1 if required and timestamp_ok and agent_ok and verdict in {"APPROVE", "PASS"} else 0)
-PY
+    if dhpk_lifecycle_artifact_is_passing "$latest" "$agent" 2>/dev/null; then
+        printf '1'
     else
         printf '0'
     fi

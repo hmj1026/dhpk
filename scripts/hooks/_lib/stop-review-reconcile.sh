@@ -9,17 +9,16 @@
 # dispatch and suppress a genuinely-needed re-dispatch forever (issue #77).
 #
 # This sweep runs at Stop, BEFORE the reminder scans its sentinels. For each
-# armed review sentinel whose latest matching review doc is FRESH (its mtime
-# postdates the sentinel that armed this cycle), it clears the sentinel via the
-# clear-sentinel.sh SSOT and expires ONE active-marker entry for that slot —
-# a fresh doc proves the reviewer finished, so both are safe. A slot with no
-# fresh doc is left fully armed (real pending review, or a genuinely in-flight
-# reviewer that has not written its doc yet).
+# armed review sentinel whose latest matching review doc is a FRESH, canonical,
+# parseable passing artifact (its mtime postdates the sentinel that armed this
+# cycle), it clears the sentinel via the clear-sentinel.sh SSOT and expires ONE
+# active-marker entry for that slot. A missing, malformed, WARNING, or BLOCK
+# artifact is left fully armed as an unresolved review obligation.
 #
 # It is a deliberate safety NET, not a replacement for subagent-stop-verify.sh:
 # when SubagentStop DOES fire, that hook already cleared the slot and this sweep
 # finds nothing armed. When it doesn't, this catches the drift one turn later.
-# The clear is idempotent and gated on the same freshness boundary, so running
+# The clear is idempotent and gated on the same evidence boundary, so running
 # both routes over the same slot is benign (Stop and SubagentStop are sequential;
 # rm is idempotent; both go through clear-sentinel.sh).
 #
@@ -31,18 +30,24 @@
 . "$(dirname "${BASH_SOURCE[0]}")/review-lifecycle.sh" 2>/dev/null || true
 
 # _reconcile_fresh_doc <root> <agent-bare> <sentinel-file> — return 0 when the
-# newest artifacts/reviews/<agent>-*.md exists AND postdates the sentinel file.
-# Mirrors subagent-stop-verify.sh's has_fresh_review_artifact gate: existence +
-# freshness ONLY, never verdict-parseability, so a fresh-but-unparseable review
-# still clears rather than looping the orchestrator.
+# newest canonical review artifact exists, postdates the sentinel, and carries
+# the same parseable passing evidence required by SubagentStop. A fresh file is
+# not enough: malformed, warning, or blocking evidence remains an unresolved
+# review obligation.
 _reconcile_fresh_doc() {
-    local root="$1" agent="$2" sentinel="$3" reviews_dir latest
+    local root="$1" agent="$2" sentinel="$3" baseline="${4:-}" reviews_dir latest latest_mtime
     RECONCILE_DOC=""
     reviews_dir="$root/.claude/artifacts/reviews"
     [ -d "$reviews_dir" ] || return 1
     latest="$(ls -t "$reviews_dir/$agent"-*.md 2>/dev/null | head -1 || true)"
     [ -n "$latest" ] || return 1
     [ -n "$(find "$latest" -newer "$sentinel" 2>/dev/null)" ] || return 1
+    if [ -n "$baseline" ]; then
+        latest_mtime="$(stat -c %Y "$latest" 2>/dev/null || stat -f %m "$latest" 2>/dev/null || printf '0')"
+        case "$latest_mtime" in ''|*[!0-9]*) return 1 ;; esac
+        [ "$latest_mtime" -ge "$baseline" ] || return 1
+    fi
+    dhpk_lifecycle_artifact_is_passing "$latest" "$agent" || return 1
     RECONCILE_DOC="$latest"
     return 0
 }
@@ -74,6 +79,7 @@ _reconcile_drop_one_active() {
 dhpk_stop_review_reconcile() {
     local sess_id="${1:-}"
     local root sess i name agent_bare sentinel active lifecycle_context lifecycle_task lifecycle_attempt lifecycle_scope lifecycle_diff
+    local dispatch_record dispatch_baseline expected_session expected_attempt expected_dispatch
     root="$(dhpk_root)"
     sess="$(dhpk_sessions_dir "$root")"
     [ -d "$sess" ] || return 0
@@ -93,8 +99,18 @@ dhpk_stop_review_reconcile() {
         # false-clear a gate this session's reviewer never satisfied.
         active="$sess/$(dhpk_active_marker "$name")"
         [ -f "$active" ] || continue
+        # The active marker proves only that some reviewer dispatch was in
+        # flight. Bind this fallback to the exact dispatch row for this Stop
+        # session before inspecting the shared canonical review directory.
+        dispatch_record="$(dhpk_lifecycle_dispatch_record "$name" "${SENTINEL_AGENTS[$i]##*:}" "$sess_id" 2>/dev/null || true)"
+        [ -n "$dispatch_record" ] || continue
+        IFS=$'\t' read -r _dispatch_sentinel dispatch_baseline expected_session expected_attempt expected_dispatch _dispatch_agent <<< "$dispatch_record"
+        [ "$expected_session" = "$sess_id" ] || continue
+        case "$dispatch_baseline" in ''|*[!0-9]*) continue ;; esac
+        [ -n "$expected_attempt" ] && [ -n "$expected_dispatch" ] || continue
         agent_bare="${SENTINEL_AGENTS[$i]##*:}"
-        _reconcile_fresh_doc "$root" "$agent_bare" "$sentinel" || continue
+        _reconcile_fresh_doc "$root" "$agent_bare" "$sentinel" "$dispatch_baseline" || continue
+        dhpk_lifecycle_artifact_matches_dispatch "$RECONCILE_DOC" "$expected_session" "$expected_attempt" "$expected_dispatch" 2>/dev/null || continue
         lifecycle_context="$(dhpk_lifecycle_context "$agent_bare" "$sess_id" 2>/dev/null || true)"
         lifecycle_task=""
         lifecycle_attempt="0"
@@ -107,7 +123,7 @@ dhpk_stop_review_reconcile() {
         # A consumer may only proceed after the producer's durable marker.  A
         # legacy/manual sentinel has no dispatch event, so this safety-net
         # materializes the marker from the already observed fresh artifact; it
-        # still applies the same artifact/path/freshness checks.
+        # still applies the same artifact/path/freshness/verdict checks.
         if dhpk_lifecycle_artifact_has_identity "$RECONCILE_DOC" 2>/dev/null && \
             ! dhpk_lifecycle_artifact_matches "$RECONCILE_DOC" "$lifecycle_scope" "$lifecycle_diff" 2>/dev/null; then
             continue

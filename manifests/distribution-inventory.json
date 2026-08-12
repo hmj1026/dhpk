@@ -207,15 +207,15 @@
       "id": "codex-supporting-contracts-reviewer-contract-md",
       "source": "codex/supporting/contracts/reviewer-contract.md",
       "canonical_source": "docs/contracts/reviewer-contract.md",
-      "canonical_digest": "58ed8cfdcd1c95befa7fda749767060899ea00342657b0d739a42216ebdeddf1",
-      "projection_digest": "551265150f9f94ff4fb047659d836e0fa3aa9964376bc17d018c8cf2638d91d8",
+      "canonical_digest": "eadbc77719d41ede5d11c0c1dc360c56f0d5811c46e311e22c96d6a7542a245a",
+      "projection_digest": "cde7410590d50a20808ef04d4aca95cd58e232f59f53f06afe612b7143f65193",
       "destination": "dhpk/contracts/reviewer-contract.md"
     },
     {
       "id": "codex-supporting-policies-execution-policy-md",
       "source": "codex/supporting/policies/execution-policy.md",
       "canonical_source": "rules/execution-policy.md",
-      "canonical_digest": "065dfa433a548d8d2e76ce71e116dd9d977c53431a355fd33062a3770c95d6c2",
+      "canonical_digest": "f0d937a0374ff5699a1b0b052d89215eaf88420be3b61698108aeb150924a32d",
       "projection_digest": "f09b2474ecd5f1926f73239ce2e745dbe97772458c645a3025f4337bc594d06b",
       "destination": "dhpk/policies/execution-policy.md"
     }

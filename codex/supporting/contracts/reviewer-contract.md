@@ -23,13 +23,14 @@ a reply without that evidence is not a completed review.
 ## Misplaced review evidence
 
 The parent flow scopes reports to the current dispatch obligation rather than
-trusting a filename or directory alone. It records a dispatch baseline plus
-session, attempt, and dispatch identity when available; reports older than the
+trusting a filename or directory alone. It records the exact dispatch
+baseline, session, attempt, and dispatch identity; reports older than the
 baseline or carrying foreign provenance remain unresolved. If several fresh
 reports qualify, choose the newest report and use its relative path as the
-deterministic tie-breaker. A fresh report without provenance may be considered
-only when it belongs to the current run, and diagnostics should expose relative
-paths only.
+deterministic tie-breaker. A background reconciliation may consume an artifact
+only when its session/attempt/dispatch tuple matches the recorded obligation;
+a legacy report without that tuple remains unresolved, and diagnostics expose
+relative paths only.
 
 ## Manual resume
 

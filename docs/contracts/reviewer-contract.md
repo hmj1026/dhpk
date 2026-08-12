@@ -44,8 +44,12 @@ provenance, then selects the newest qualified file with a deterministic relative
 path tie-breaker. A fresh misplaced file leaves the sentinel armed but is
 reported with a relative path; stale or foreign candidates are reported as
 "no fresh review doc" without leaking an absolute path. Missing provenance is
-accepted only for a file that is fresh in the current stop session and is marked
-`current-unknown-session` in diagnostics.
+accepted only for a file that is fresh in the current native stop session and
+is marked `current-unknown-session` in diagnostics. The background Stop-time
+reconciliation safety net is stricter: it must first find the exact
+session-scoped `.review-dispatch-attempts` row and then require matching
+artifact `session_id`, `dispatch_attempt`, and `dispatch_id` fields; legacy
+artifacts without that tuple remain armed.
 
 ## Single-run verdict
 

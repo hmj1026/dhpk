@@ -274,6 +274,108 @@ print(m.group(1).upper() if m else '')
 PY
 }
 
+# dhpk_lifecycle_artifact_is_passing <artifact> <reviewer> — validate the
+# canonical reviewer artifact contract before a consumer treats it as a
+# passing completion. Freshness and lifecycle scope/diff identity are
+# deliberately checked by the caller; this helper owns the shared
+# frontmatter, filename, reviewer ownership, and passing-verdict checks.
+dhpk_lifecycle_artifact_is_passing() {
+    local artifact="$1" reviewer="$2"
+    [ -f "$artifact" ] || return 1
+    [ -n "$reviewer" ] || return 1
+    command -v python3 >/dev/null 2>&1 || return 1
+    ARTIFACT_IN="$artifact" REVIEWER_IN="$reviewer" python3 - <<'PY' 2>/dev/null
+import os
+import re
+from pathlib import Path
+
+review_doc = Path(os.environ["ARTIFACT_IN"])
+reviewer = os.environ["REVIEWER_IN"]
+try:
+    text = review_doc.read_text(encoding="utf-8", errors="replace")
+except OSError:
+    raise SystemExit(1)
+
+filename = re.compile(
+    rf"^{re.escape(reviewer)}-\d{{8}}-\d{{6}}-[a-z0-9][a-z0-9._-]*\.md$",
+    re.IGNORECASE,
+)
+frontmatter_match = re.match(r"\A---\r?\n(.*?)\r?\n---(?:\r?\n|\Z)", text, re.DOTALL)
+if not filename.fullmatch(review_doc.name) or not frontmatter_match:
+    raise SystemExit(1)
+
+frontmatter = frontmatter_match.group(1)
+def field(name):
+    return re.search(rf"(?im)^\s*{name}\s*:\s*(.+?)\s*$", frontmatter)
+
+agent_match = field("agent")
+generated_at = field("generated_at")
+commit = field("commit")
+scope = field("scope")
+severity = field("severity_summary")
+verdict_match = field("verdict")
+required = all((agent_match, generated_at, commit, scope, severity, verdict_match))
+timestamp_ok = bool(generated_at and re.match(r"\d{4}-\d{2}-\d{2}T", generated_at.group(1)))
+agent_ok = bool(agent_match and agent_match.group(1).strip().strip("'\"") == reviewer)
+verdict = verdict_match.group(1).strip().strip("'\"").upper() if verdict_match else ""
+raise SystemExit(0 if required and timestamp_ok and agent_ok and verdict in {"APPROVE", "PASS"} else 1)
+PY
+}
+
+# dhpk_lifecycle_dispatch_record <sentinel> <agent> <session> — return the
+# newest exact dispatch-attempt row for this reviewer slot. A Stop-time
+# fallback has no SubagentStop payload to establish ownership, so an active
+# marker alone is insufficient; callers must bind the artifact to this row.
+dhpk_lifecycle_dispatch_record() {
+    local sentinel="$1" agent="$2" session="$3"
+    local file="$(_dhpk_lifecycle_sessions)/$DHPK_SIDECAR_REVIEW_DISPATCH" row=""
+    [ -n "$sentinel" ] && [ -n "$agent" ] && [ -n "$session" ] && [ "$session" != "unknown" ] || return 1
+    [ -f "$file" ] || return 1
+    row="$(awk -F '\t' -v n="$sentinel" -v a="$agent" -v s="$session" \
+        '$1 == n && $3 == s && $6 == a { row = $0 } END { if (row != "") print row; else exit 1 }' \
+        "$file" 2>/dev/null || true)"
+    [ -n "$row" ] || return 1
+    printf '%s' "$row"
+}
+
+# dhpk_lifecycle_artifact_matches_dispatch <artifact> <session> <attempt>
+# <dispatch> — require explicit artifact provenance for a Stop-time fallback.
+# Legacy freshness-only evidence is intentionally not accepted here: without
+# the session/attempt/dispatch tuple, a concurrent session can satisfy the
+# shared canonical review glob by accident.
+dhpk_lifecycle_artifact_matches_dispatch() {
+    local artifact="$1" session="$2" attempt="$3" dispatch="$4"
+    [ -f "$artifact" ] && [ -n "$session" ] && [ -n "$attempt" ] && [ -n "$dispatch" ] || return 1
+    command -v python3 >/dev/null 2>&1 || return 1
+    ARTIFACT_IN="$artifact" SESSION_IN="$session" ATTEMPT_IN="$attempt" DISPATCH_IN="$dispatch" python3 - <<'PY' 2>/dev/null
+import os
+
+text = open(os.environ['ARTIFACT_IN'], encoding='utf-8', errors='replace').read()
+parts = text.split('---', 2) if text.startswith('---') else []
+front = parts[1] if len(parts) >= 3 else ''
+values = {}
+for line in front.splitlines():
+    if ':' in line:
+        key, value = line.split(':', 1)
+        values[key.strip().lower()] = value.strip().strip("'\"")
+
+def first(*names):
+    for name in names:
+        if values.get(name):
+            return values[name]
+    return ''
+
+session = first('session_id', 'session', 'origin_session')
+attempt = first('dispatch_attempt', 'attempt')
+dispatch = first('dispatch_id', 'attempt_id', 'dispatch')
+raise SystemExit(0 if (
+    session == os.environ['SESSION_IN'] and
+    attempt == os.environ['ATTEMPT_IN'] and
+    dispatch == os.environ['DISPATCH_IN']
+) else 1)
+PY
+}
+
 dhpk_lifecycle_context() {
     local agent="$1" session="${2:-}" file="$(_dhpk_lifecycle_sessions)/$DHPK_SIDECAR_LIFECYCLE_EVENTS"
     [ -f "$file" ] || return 1
