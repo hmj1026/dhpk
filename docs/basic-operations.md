@@ -399,9 +399,9 @@ malformed, or ambiguous legacy paths remain reported conflicts. Use
 `--uninstall` to remove unchanged receipt-owned entries without deleting
 unrelated project assets.
 The Codex tree is an explicitly curated subset of the canonical Claude
-packages, not a second complete inventory. `codex/agents/` ships 11 roles:
-four hand-maintained generic roles and seven generated from canonical Claude
-agents via `scripts/gen-codex-agents.js`. See `codex/AGENTS.md` and
+packages, not a second complete inventory. `codex/agents/` ships 16 direct
+roles: four hand-maintained generic roles and 12 generated from canonical
+Claude agents via `scripts/gen-codex-agents.js`. See `codex/AGENTS.md` and
 `codex/README.md` for the dual-harness model.
 
 Generated roles may depend on shared prompt-defense, trap-sheet, reviewer-contract,
