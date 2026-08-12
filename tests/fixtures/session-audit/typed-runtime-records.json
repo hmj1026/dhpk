@@ -1,0 +1,91 @@
+{
+  "schema": "dhpk.session-usage-audit.typed-record-fixture.v1",
+  "dateRange": { "from": "2026-08-06", "to": "2026-08-06" },
+  "cases": [
+    {
+      "id": "successful-hook-historical-timeout",
+      "record": {
+        "type": "hook_success",
+        "eventId": "event-success-timeout",
+        "timestamp": "2026-08-06T01:00:00Z",
+        "sessionId": "session-success-timeout",
+        "agent": "code-reviewer",
+        "exitCode": 0,
+        "stdout": "/dhpk:dhpk-session-usage-audit stop-advisory-dispatch.sh completed successfully; historical note: hook timed out after 30 seconds in an older run."
+      },
+      "expected": {
+        "findingCount": 0,
+        "state": "false-positive-suppressed"
+      }
+    },
+    {
+      "id": "prompt-memory-sentinel-text",
+      "record": {
+        "type": "user",
+        "eventId": "event-user-sentinel",
+        "timestamp": "2026-08-06T02:00:00Z",
+        "sessionId": "session-user-sentinel",
+        "agent": "worker",
+        "command": "/dhpk:dhpk-session-usage-audit",
+        "message": {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "inherited memory reminder: sentinel pending after the previous review; this is prompt context, not a runtime failure."
+            }
+          ]
+        }
+      },
+      "expected": {
+        "findingCount": 0,
+        "state": "false-positive-suppressed"
+      }
+    },
+    {
+      "id": "historical-projection-prose",
+      "record": {
+        "type": "historical_summary",
+        "eventId": "event-historical-projection",
+        "timestamp": "2026-08-06T03:00:00Z",
+        "sessionId": "session-historical-projection",
+        "agent": "auditor",
+        "command": "/dhpk:dhpk-session-usage-audit",
+        "message": {
+          "content": [
+            {
+              "type": "text",
+              "text": "historical projection note: the installed content is stale and differs from the source snapshot."
+            }
+          ]
+        }
+      },
+      "expected": {
+        "findingCount": 0,
+        "state": "false-positive-suppressed"
+      }
+    },
+    {
+      "id": "structured-hook-failure",
+      "record": {
+        "type": "hook_failure",
+        "eventId": "event-hook-failure-1",
+        "timestamp": "2026-08-06T04:00:00Z",
+        "sessionId": "session-hook-failure",
+        "agent": "code-reviewer",
+        "exitCode": 1,
+        "error": {
+          "code": "HOOK_FAILED",
+          "message": "stop-advisory-dispatch.sh failed with exit code 1"
+        },
+        "stderr": "/dhpk:dhpk-session-usage-audit stop-advisory-dispatch.sh failed with exit code 1"
+      },
+      "expected": {
+        "findingCount": 1,
+        "state": "candidate",
+        "eventId": "event-hook-failure-1",
+        "sessionId": "session-hook-failure"
+      }
+    }
+  ]
+}
