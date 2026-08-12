@@ -23,10 +23,16 @@
 
 const fs = require('fs');
 const path = require('path');
+const {
+  buildReferenceRegistry,
+  resolveReference,
+  extractNaturalLanguageReferences,
+} = require('../lib/reference-registry');
 
 const ROOT = path.join(__dirname, '..', '..');
 const p = (...s) => path.join(ROOT, ...s);
 const WHITELIST_PATH = p('scripts', 'ci', 'reference-integrity-whitelist.json');
+const REFERENCE_REGISTRY = buildReferenceRegistry(ROOT);
 
 function walk(dir, test) {
   if (!fs.existsSync(dir)) return [];
@@ -237,6 +243,27 @@ function checkExecPolicyFallback(relFile, text) {
   return findings;
 }
 
+// --- Check 6: imperative natural-language capability handoffs --------------
+// Markdown frequently names a Skill-tool capability without a slash command,
+// e.g. "Invoke the `dhpk-opsx-load-context` skill". These handoffs are part of
+// the same registry as /dhpk refs. An unresolved name is allowed only when the
+// sentence explicitly marks it as an optional provider/capability; optionality
+// is visible to the reader and cannot be inferred from a missing executable.
+function checkNaturalLanguageRefs(relFile, text) {
+  const findings = [];
+  for (const ref of extractNaturalLanguageReferences(text)) {
+    if (resolveReference(REFERENCE_REGISTRY, ref.name)) continue;
+    if (ref.optional) continue;
+    findings.push({
+      file: relFile,
+      check: 6,
+      line: ref.line,
+      detail: `natural-language handoff '${ref.name}' does not resolve to a canonical capability or explicit optional provider`,
+    });
+  }
+  return findings;
+}
+
 // --- Public API -------------------------------------------------------------
 
 function scanText(relFile, text, opts = {}) {
@@ -247,6 +274,7 @@ function scanText(relFile, text, opts = {}) {
     findings.push(...checkDhpkRefs(relFile, text));
     findings.push(...checkPathRefs(relFile, text));
     findings.push(...checkExecPolicyFallback(relFile, text));
+    findings.push(...checkNaturalLanguageRefs(relFile, text));
   }
   if (!opts.skipBrand) {
     findings.push(...checkBrand(relFile, text, whitelist));
@@ -289,4 +317,4 @@ if (require.main === module) {
   process.exit(main());
 }
 
-module.exports = { scanRepo, scanText, harnessFiles, checkExecPolicyFallback };
+module.exports = { scanRepo, scanText, harnessFiles, checkExecPolicyFallback, checkNaturalLanguageRefs };
