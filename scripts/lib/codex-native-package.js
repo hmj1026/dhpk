@@ -304,6 +304,14 @@ function materializeNativePackage({
   };
   fs.writeFileSync(path.join(outDir, 'provenance.json'), `${JSON.stringify(provenance, null, 2)}\n`);
 
+  for (const readme of ['README.md', 'README.zh-TW.md']) {
+    const srcReadme = path.join(root, 'plugins', 'dhpk', readme);
+    const dstReadme = path.join(outDir, readme);
+    if (fs.existsSync(srcReadme) && !fs.existsSync(dstReadme)) {
+      fs.copyFileSync(srcReadme, dstReadme);
+    }
+  }
+
   return { manifestSkillsField: manifest.skills, skillIds, skillNames, fingerprints, provenance };
 }
 
