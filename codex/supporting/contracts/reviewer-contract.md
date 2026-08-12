@@ -9,6 +9,10 @@ Every reviewer prompt is composed from these fields, in order:
 5. **Verdict** — the role's existing `APPROVE|WARNING|BLOCK` or `PASS|WARNING|FAIL` vocabulary.
 6. **Confirm-only** — named findings to confirm for a bounded re-review; omit for a new wave.
 
+For a dispatched wave, the report should also carry `scope_id` and `diff_id`
+from the dispatch record. When either identity is present, both must match the
+current obligation; a foreign wave remains unresolved.
+
 ## Single-run verdict
 
 The final verdict MUST be emitted in the same run that performed the review.

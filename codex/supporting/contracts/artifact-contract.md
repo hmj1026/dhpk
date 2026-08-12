@@ -44,7 +44,15 @@ Severity-graded findings add:
 ```yaml
 severity_summary: { critical: 0, high: 0, medium: 0, low: 0 }
 verdict: APPROVE | WARNING | BLOCK
+# lifecycle-bound reviewer waves may also include scope_id and diff_id
 ```
+
+For a lifecycle-bound reviewer wave, `scope_id` identifies the complete
+review-trigger set and `diff_id` identifies the worktree diff/status snapshot.
+The producer writes its artifact-ready marker only after the artifact is
+durable. A consumer requires that marker, fresh mtime, matching identity when
+supplied, and a parseable verdict; a fixed sleep or a reviewer reply is not
+readiness evidence.
 
 Audit-style roles may use `PASS | WARNING | FAIL` instead. Non-reviewer roles
 document their own extra fields inline; do not invent a third verdict vocabulary.
