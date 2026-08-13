@@ -41,11 +41,122 @@ function inside(root, candidate) {
   return relative === '' || (relative && relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative));
 }
 
+function stagedManifest(stageRoot) {
+  const files = new Map();
+  const directories = new Set(['']);
+
+  const walk = (directory, relative = '') => {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      const child = path.join(directory, entry.name);
+      const childRelative = path.posix.join(relative, entry.name);
+      if (entry.isDirectory()) {
+        directories.add(childRelative);
+        walk(child, childRelative);
+      } else if (entry.isSymbolicLink()) {
+        files.set(childRelative, { type: 'symlink', target: fs.readlinkSync(child) });
+      } else if (entry.isFile()) {
+        files.set(childRelative, { type: 'file', fingerprint: digest(child) });
+      } else {
+        files.set(childRelative, { type: 'other' });
+      }
+    }
+  };
+
+  walk(stageRoot);
+  return { files, directories };
+}
+
+function assertStagedManifest(plan, stageRoot, written, links, fail) {
+  const planned = new Map();
+  for (const entry of plan.entries) {
+    if (planned.has(entry.destination)) {
+      fail('DUPLICATE_PLANNED_PATH', `planned destination is duplicated: '${entry.destination}'`, {
+        paths: [entry.destination],
+      });
+    }
+    planned.set(entry.destination, entry);
+  }
+
+  const ledger = new Map();
+  for (const output of written) ledger.set(output.destination, { ...output, type: 'file' });
+  for (const link of links) ledger.set(link.destination, { ...link, type: 'symlink' });
+  if (ledger.size !== plan.entries.length) {
+    fail('STAGED_TREE_INCOMPLETE', 'staged tree mutation ledger does not cover the compiled plan', {
+      stableIds: plan.entries.map((entry) => entry.stableId),
+    });
+  }
+
+  const observed = stagedManifest(stageRoot);
+  const allowedDirectories = new Set(['']);
+  for (const destination of planned.keys()) {
+    const parts = destination.split('/');
+    for (let index = 1; index < parts.length; index += 1) {
+      allowedDirectories.add(parts.slice(0, index).join('/'));
+    }
+  }
+  for (const directory of observed.directories) {
+    if (!allowedDirectories.has(directory)) {
+      fail('UNEXPECTED_STAGED_ENTRY', `staged directory is absent from the compiled plan: '${directory}'`, {
+        paths: [directory],
+      });
+    }
+  }
+
+  for (const [destination, actual] of observed.files) {
+    if (!planned.has(destination) || !ledger.has(destination)) {
+      fail('UNEXPECTED_STAGED_ENTRY', `staged entry is absent from the compiled plan: '${destination}'`, {
+        paths: [destination],
+      });
+    }
+    const entry = planned.get(destination);
+    const recorded = ledger.get(destination);
+    if (actual.type !== recorded.type) {
+      fail('STAGED_ENTRY_TYPE_DRIFT', `staged entry type changed for '${destination}'`, {
+        stableIds: [entry.stableId],
+        paths: [destination],
+      });
+    }
+    if (actual.type === 'file') {
+      if (actual.fingerprint !== recorded.fingerprint) {
+        fail('STAGED_CONTENT_DRIFT', `staged content changed after store write for '${destination}'`, {
+          stableIds: [entry.stableId],
+          paths: [destination],
+        });
+      }
+      if (entry.expectedFingerprint && actual.fingerprint !== entry.expectedFingerprint) {
+        fail('STAGED_CONTENT_MISMATCH', `staged content does not match the compiled plan for '${destination}'`, {
+          stableIds: [entry.stableId],
+          paths: [destination],
+        });
+      }
+    } else if (actual.type === 'symlink') {
+      if (actual.target !== recorded.target || (entry.symlink && entry.symlink.target && actual.target !== entry.symlink.target)) {
+        fail('STAGED_LINK_DRIFT', `staged link target changed for '${destination}'`, {
+          stableIds: [entry.stableId],
+          paths: [destination],
+        });
+      }
+    }
+  }
+
+  for (const destination of planned.keys()) {
+    if (!observed.files.has(destination)) {
+      fail('STAGED_TREE_INCOMPLETE', `compiled output is missing from the staged tree: '${destination}'`, {
+        paths: [destination],
+      });
+    }
+  }
+}
+
 class ProjectionArtifactStore {
-  constructor({ root, sourceRoot = root } = {}) {
+  constructor({ root, sourceRoot = root, publishRoot = null } = {}) {
     if (typeof root !== 'string' || root.trim() === '') throw new TypeError('ProjectionArtifactStore root is required');
     this.root = path.resolve(root);
     this.sourceRoot = path.resolve(sourceRoot);
+    this.publishRoot = path.resolve(publishRoot || path.join(this.root, 'published'));
+    if (!inside(this.root, this.publishRoot)) {
+      throw new TypeError('ProjectionArtifactStore publishRoot must be contained by root');
+    }
     fs.mkdirSync(this.root, { recursive: true });
   }
 
@@ -77,6 +188,10 @@ class ProjectionArtifactStore {
     };
 
     const session = {
+      // The stage root is exposed only for adapter-side structural validation.
+      // publish() audits the complete staged manifest before the atomic rename,
+      // so direct adapter mutations cannot bypass the store writer.
+      stageRoot,
       write: (output) => {
         const entry = entryFor(output);
         if (entry.symlink && entry.symlink.policy !== 'forbid' && output.linkTarget) {
@@ -110,7 +225,8 @@ class ProjectionArtifactStore {
       },
       publish: () => {
         if (published) fail('ALREADY_PUBLISHED', 'artifact has already been published');
-        const publishRoot = path.join(this.root, 'published');
+        assertStagedManifest(plan, stageRoot, written, links, fail);
+        const publishRoot = this.publishRoot;
         const backupRoot = path.join(this.root, `.projection-backup-${process.pid}-${Date.now()}`);
         try {
           if (fs.existsSync(publishRoot)) fs.renameSync(publishRoot, backupRoot);

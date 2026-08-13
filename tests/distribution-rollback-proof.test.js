@@ -10,9 +10,12 @@
 // or restoring any canonical skill source file on disk.
 
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
 const { generateClaudeSkillRoots } = require('../scripts/lib/distribution-inventory');
+const { materializeAgentPluginPackage } = require('../scripts/lib/agent-plugin-package');
+const { ProjectionArtifactStore } = require('../scripts/lib/projection-artifact-store');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -53,6 +56,51 @@ test('rollback: regenerating from the prior revision again reproduces the origin
   const rolledBackGenerated = generateClaudeSkillRoots(priorInventory);
   assert.deepStrictEqual(rolledBackGenerated, priorGenerated);
   assert.ok(rolledBackGenerated.roots.includes('./skills/'));
+});
+
+test('failed Agent Plugin staging retains the previously accepted package tree', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-agent-rollback-source-'));
+  const outputParent = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-agent-rollback-output-'));
+  const output = path.join(outputParent, 'agent');
+  try {
+    const skillRoot = path.join(root, 'skills', 'dhpk-stable');
+    fs.mkdirSync(skillRoot, { recursive: true });
+    fs.writeFileSync(path.join(skillRoot, 'SKILL.md'), '---\nname: dhpk-stable\ndescription: Stable\n---\n\nStable body.\n');
+    const inventory = {
+      skills: [{ id: 'stable', name: 'dhpk-stable', path: 'skills/dhpk-stable', lifecycle: 'promoted', surfaces: ['agent-plugin'] }],
+    };
+    materializeAgentPluginPackage({ inventory, root, outDir: output, sourceCommit: '1111111111111111111111111111111111111111' });
+    const beforeManifest = fs.readFileSync(path.join(output, 'plugin.json'));
+    const beforeSkill = fs.readFileSync(path.join(output, 'skills', 'dhpk-stable', 'SKILL.md'));
+
+    const realStore = new ProjectionArtifactStore({
+      root: outputParent,
+      sourceRoot: root,
+      publishRoot: output,
+    });
+    const failingStore = {
+      begin(plan) {
+        const session = realStore.begin(plan);
+        const write = session.write;
+        let writes = 0;
+        session.write = (entry) => {
+          writes += 1;
+          if (writes === 2) throw new Error('synthetic Agent Plugin staging failure');
+          return write(entry);
+        };
+        return session;
+      },
+    };
+    assert.throws(
+      () => materializeAgentPluginPackage({ inventory, root, outDir: output, artifactStore: failingStore }),
+      /synthetic Agent Plugin staging failure/,
+    );
+    assert.deepStrictEqual(fs.readFileSync(path.join(output, 'plugin.json')), beforeManifest);
+    assert.deepStrictEqual(fs.readFileSync(path.join(output, 'skills', 'dhpk-stable', 'SKILL.md')), beforeSkill);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(outputParent, { recursive: true, force: true });
+  }
 });
 
 run('distribution-rollback-proof');
