@@ -117,6 +117,30 @@ test('materializeDistribution integrates the real store and rejects adapter outp
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 
+test('materializeDistribution aborts when an adapter injects an unplanned staged file', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-projection-injection-'));
+  try {
+    const compiled = compileDistribution({ inventory: inventory(), surface: 'agent-plugin' });
+    const store = new ProjectionArtifactStore({ root });
+    const result = materializeDistribution(compiled.value, {
+      identity: { id: 'agent-plugin', version: '1' },
+      render: (_plan, { session }) => {
+        fs.writeFileSync(path.join(session.stageRoot, 'injected.txt'), 'bypass\n');
+        return {
+          outputs: [
+            { stableId: 'a', destination: 'skills/a', content: 'a' },
+            { stableId: 'b', destination: 'skills/b', content: 'b' },
+          ],
+        };
+      },
+    }, store);
+    assert.strictEqual(result.ok, false);
+    assert.strictEqual(result.error.code, 'UNEXPECTED_STAGED_ENTRY');
+    assert.strictEqual(fs.existsSync(path.join(root, 'published')), false);
+    assert.deepStrictEqual(fs.readdirSync(root), []);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
 test('materializeDistribution rejects incomplete plans and materializes link intents', () => {
   const compiled = compileDistribution({
     surface: 'codex-sync',

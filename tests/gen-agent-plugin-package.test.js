@@ -18,6 +18,9 @@ const {
   fingerprintDir,
 } = require('../scripts/lib/agent-plugin-package');
 
+const ROOT = path.join(__dirname, '..');
+const MANIFEST = path.join(ROOT, 'manifests', 'distribution-inventory.json');
+
 function tmpDir(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 }
@@ -35,6 +38,21 @@ function writeSkill(root, name, frontmatter, body = '# body\n', resources = {}) 
 
 function inventoryFor(...entries) {
   return { skills: entries };
+}
+
+function packageFiles(root) {
+  const files = {};
+  const walk = (directory, relative = '') => {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      const absolute = path.join(directory, entry.name);
+      const child = path.posix.join(relative, entry.name);
+      if (entry.isDirectory()) walk(absolute, child);
+      else if (entry.isFile()) files[child] = fs.readFileSync(absolute);
+      else throw new Error(`unexpected package entry: ${child}`);
+    }
+  };
+  walk(root);
+  return files;
 }
 
 test('portable manifest is closed and uses the Agent Plugins 1.0.0 schema', () => {
@@ -272,6 +290,25 @@ test('repeated generation has stable files, fingerprints, and provenance', () =>
     fs.rmSync(outA, { recursive: true, force: true });
     fs.rmSync(outB, { recursive: true, force: true });
   }
+});
+
+test('compiler-backed Agent Plugin generation is byte-equivalent to the accepted package fixture', () => {
+  const out = tmpDir('dhpk-agent-equivalence-out-');
+  try {
+    const inventory = JSON.parse(fs.readFileSync(MANIFEST, 'utf8'));
+    const sourceManifest = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), 'utf8'));
+    const priorReceipt = JSON.parse(fs.readFileSync(path.join(ROOT, 'plugins', 'dhpk-agent', 'provenance.json'), 'utf8'));
+    materializeAgentPluginPackage({
+      inventory,
+      root: ROOT,
+      outDir: out,
+      name: sourceManifest.name,
+      version: sourceManifest.version,
+      sourceCommit: priorReceipt.sourceCommit,
+      manifestMetadata: sourceManifest,
+    });
+    assert.deepStrictEqual(packageFiles(out), packageFiles(path.join(ROOT, 'plugins', 'dhpk-agent')));
+  } finally { fs.rmSync(out, { recursive: true, force: true }); }
 });
 
 run('gen-agent-plugin-package');
