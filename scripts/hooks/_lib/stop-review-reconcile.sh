@@ -78,7 +78,8 @@ _reconcile_drop_one_active() {
 # in _lib/resumed-review-obligation.sh and sourced by this sweep's caller.
 dhpk_stop_review_reconcile() {
     local sess_id="${1:-}"
-    local root sess i name agent_bare sentinel active lifecycle_context lifecycle_task lifecycle_attempt lifecycle_scope lifecycle_diff
+    local root sess i name agent_bare sentinel active lifecycle_context lifecycle_task lifecycle_attempt lifecycle_attempt_id lifecycle_scope lifecycle_diff
+    local lifecycle_producer lifecycle_wave lifecycle_evidence_scope lifecycle_adapter lifecycle_stage lifecycle_plan lifecycle_artifact lifecycle_adapter_version
     local dispatch_record dispatch_baseline expected_session expected_attempt expected_dispatch
     root="$(dhpk_root)"
     sess="$(dhpk_sessions_dir "$root")"
@@ -114,22 +115,39 @@ dhpk_stop_review_reconcile() {
         lifecycle_context="$(dhpk_lifecycle_context "$agent_bare" "$sess_id" 2>/dev/null || true)"
         lifecycle_task=""
         lifecycle_attempt="0"
+        lifecycle_attempt_id=""
         lifecycle_scope="$(dhpk_lifecycle_scope_id "$sentinel" 2>/dev/null || true)"
         lifecycle_diff="$(dhpk_lifecycle_diff_id "$root" 2>/dev/null || true)"
+        lifecycle_producer=""
+        lifecycle_wave=""
+        lifecycle_evidence_scope=""
+        lifecycle_adapter=""
+        lifecycle_stage=""
+        lifecycle_plan=""
+        lifecycle_artifact=""
+        lifecycle_adapter_version=""
         if [ -n "$lifecycle_context" ]; then
-            IFS=$'\t' read -r lifecycle_task lifecycle_attempt lifecycle_scope lifecycle_diff _lifecycle_session <<< "$lifecycle_context"
+            IFS=$'\t' read -r lifecycle_task lifecycle_attempt lifecycle_scope lifecycle_diff _lifecycle_session \
+                lifecycle_producer lifecycle_wave lifecycle_evidence_scope lifecycle_adapter lifecycle_stage \
+                lifecycle_plan lifecycle_artifact lifecycle_adapter_version <<< "$lifecycle_context"
         fi
         [ -n "$lifecycle_task" ] || lifecycle_task="$(dhpk_lifecycle_task_id "$name" "${sess_id:-unknown}" 0 2>/dev/null || true)"
+        lifecycle_attempt_id="$(dhpk_lifecycle_attempt_id "$lifecycle_task" "$lifecycle_attempt" 2>/dev/null || true)"
         # A consumer may only proceed after the producer's durable marker.  A
         # legacy/manual sentinel has no dispatch event, so this safety-net
         # materializes the marker from the already observed fresh artifact; it
         # still applies the same artifact/path/freshness/verdict checks.
         if dhpk_lifecycle_artifact_has_identity "$RECONCILE_DOC" 2>/dev/null && \
-            ! dhpk_lifecycle_artifact_matches "$RECONCILE_DOC" "$lifecycle_scope" "$lifecycle_diff" 2>/dev/null; then
+            ! dhpk_lifecycle_artifact_matches "$RECONCILE_DOC" "$lifecycle_scope" "$lifecycle_diff" \
+                "$lifecycle_producer" "$lifecycle_wave" "$lifecycle_evidence_scope" "$lifecycle_adapter" \
+                "$lifecycle_stage" "$lifecycle_plan" "$lifecycle_artifact" "$lifecycle_attempt_id" 2>/dev/null; then
             continue
         fi
-        dhpk_lifecycle_mark_artifact_ready "$lifecycle_task" "$agent_bare" "$sess_id" "$lifecycle_attempt" "$lifecycle_scope" "$lifecycle_diff" "$RECONCILE_DOC" 2>/dev/null || continue
-        dhpk_lifecycle_require_ready "$lifecycle_task" 2>/dev/null || continue
+        dhpk_lifecycle_mark_artifact_ready "$lifecycle_task" "$agent_bare" "$sess_id" "$lifecycle_attempt" "$lifecycle_scope" "$lifecycle_diff" "$RECONCILE_DOC" \
+            "$lifecycle_producer" "$lifecycle_wave" "$lifecycle_evidence_scope" "$lifecycle_adapter" "$lifecycle_stage" \
+            "$lifecycle_plan" "$lifecycle_artifact" "$lifecycle_adapter_version" 2>/dev/null || continue
+        dhpk_lifecycle_require_ready "$lifecycle_task" "$lifecycle_attempt_id" "$lifecycle_producer" "$lifecycle_wave" \
+            "$lifecycle_evidence_scope" "$lifecycle_adapter" "$lifecycle_stage" "$lifecycle_plan" "$lifecycle_artifact" 2>/dev/null || continue
         # Fresh review doc exists but SubagentStop never cleared it — clear via SSOT.
         if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] && [ -f "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" ]; then
             bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" "$name" "stop-reconcile" >/dev/null 2>&1 \

@@ -98,7 +98,8 @@ dhpk_resumed_obligation_attempt() {
 # rather than silently pretending the obligation exists.
 dhpk_resumed_obligation_record() {
     local sess="$1" sentinel="$2" slot="$3" agent="$4" sid="$5" baseline_name="$6" baseline_mtime="$7"
-    local file tmp now dispatch
+    local task_id="${8:-}" producer="${9:-}" wave="${10:-}" evidence_scope="${11:-}" adapter="${12:-}" stage="${13:-}"
+    local plan_fingerprint="${14:-}" artifact_fingerprint="${15:-}" file tmp now dispatch
     [ -n "$sess" ] && [ -n "$sentinel" ] && [ -n "$sid" ] || return 1
     command -v python3 >/dev/null 2>&1 || return 1
     mkdir -p "$sess" 2>/dev/null || return 1
@@ -108,7 +109,9 @@ dhpk_resumed_obligation_record() {
     tmp="$(mktemp 2>/dev/null || printf '%s.tmp.%s' "$file" "$$")"
     FILE_IN="$file" TMP_IN="$tmp" SENTINEL_IN="$sentinel" SLOT_IN="$slot" AGENT_IN="$agent" \
     SID_IN="$sid" BASELINE_NAME_IN="$baseline_name" BASELINE_MTIME_IN="$baseline_mtime" \
-    NOW_IN="$now" DISPATCH_IN="$dispatch" python3 -c '
+    NOW_IN="$now" DISPATCH_IN="$dispatch" TASK_ID_IN="$task_id" PRODUCER_IN="$producer" WAVE_IN="$wave" \
+    EVIDENCE_SCOPE_IN="$evidence_scope" ADAPTER_IN="$adapter" STAGE_IN="$stage" PLAN_FINGERPRINT_IN="$plan_fingerprint" \
+    ARTIFACT_FINGERPRINT_IN="$artifact_fingerprint" python3 -c '
 import os, json
 
 path = os.environ["FILE_IN"]
@@ -125,6 +128,7 @@ if os.path.exists(path):
 
 attempt = 1
 kept = []
+previous = None
 for line in lines:
     try:
         d = json.loads(line)
@@ -133,6 +137,7 @@ for line in lines:
         continue
     if d.get("sentinel") == sentinel and d.get("session_id") == sid:
         attempt = int(d.get("attempt") or 0) + 1
+        previous = d
         continue
     kept.append(line)
 
@@ -148,6 +153,29 @@ record = {
     "attempt": attempt,
     "state": "pending",
 }
+task_value = os.environ.get("TASK_ID_IN", "")
+if task_value:
+    record["task_id"] = task_value
+    record["attempt_id"] = f"{task_value}:attempt:{attempt}"
+# New identity fields are optional so records written by older callers remain
+# readable. A corrected resume may replace them for the new attempt, while
+# omitted values inherit the previous record when available.
+optional = {
+    "producer": os.environ.get("PRODUCER_IN", ""),
+    "wave": os.environ.get("WAVE_IN", ""),
+    "scope": os.environ.get("EVIDENCE_SCOPE_IN", ""),
+    "adapter": os.environ.get("ADAPTER_IN", ""),
+    "stage": os.environ.get("STAGE_IN", ""),
+    "plan_fingerprint": os.environ.get("PLAN_FINGERPRINT_IN", ""),
+    "artifact_fingerprint": os.environ.get("ARTIFACT_FINGERPRINT_IN", ""),
+}
+for key, value in optional.items():
+    if not task_value:
+        continue
+    if value:
+        record[key] = value
+    elif previous and previous.get(key):
+        record[key] = previous[key]
 kept.append(json.dumps(record, sort_keys=True))
 with open(os.environ["TMP_IN"], "w", encoding="utf-8") as fh:
     fh.write("\n".join(kept) + "\n")
@@ -219,6 +247,48 @@ _dhpk_resumed_fresh_artifact() {
     fi
     printf '%s' "$latest"
     return 0
+}
+
+# _dhpk_resumed_artifact_matches_identity <record-json> <artifact> — optional
+# identity fields are strict when present in the obligation. Legacy records
+# without them retain the established freshness/verdict contract.
+_dhpk_resumed_artifact_matches_identity() {
+    local record="$1" artifact="$2"
+    [ -f "$artifact" ] || return 1
+    command -v python3 >/dev/null 2>&1 || return 1
+    RECORD_IN="$record" ARTIFACT_IN="$artifact" python3 - <<'PY' 2>/dev/null
+import json, os
+
+try:
+    obligation = json.loads(os.environ["RECORD_IN"])
+    text = open(os.environ["ARTIFACT_IN"], encoding="utf-8", errors="replace").read()
+except Exception:
+    raise SystemExit(1)
+parts = text.split("---", 2) if text.startswith("---") else []
+front = parts[1] if len(parts) >= 3 else ""
+values = {}
+for line in front.splitlines():
+    if ":" in line:
+        key, value = line.split(":", 1)
+        values[key.strip().lower()] = value.strip().strip("'\"")
+aliases = {
+    "scope": ("scope", "scope_id"),
+    "artifact_fingerprint": ("artifact_fingerprint", "artifact_sha256"),
+    "task_id": ("task_id",),
+    "attempt_id": ("attempt_id",),
+    "producer": ("producer",),
+    "wave": ("wave", "wave_id"),
+    "adapter": ("adapter", "adapter_id"),
+    "stage": ("stage", "verification_stage"),
+    "plan_fingerprint": ("plan_fingerprint", "plan_id"),
+}
+for key, expected in obligation.items():
+    if key not in aliases or not expected:
+        continue
+    if not any(values.get(alias) == str(expected) for alias in aliases[key]):
+        raise SystemExit(1)
+raise SystemExit(0)
+PY
 }
 
 # _dhpk_resumed_refresh_unresolved_verdict <sess> <sentinel> <agent-bare> <doc-path>
@@ -317,6 +387,11 @@ dhpk_resumed_reconcile_one() {
         echo "[$label] $name: resumed obligation pending, no fresh review doc since baseline — left armed" >&2
         return 1
     }
+
+    if ! _dhpk_resumed_artifact_matches_identity "$record" "$fresh"; then
+        echo "[$label] $name: fresh review doc identity is foreign or incomplete — left armed" >&2
+        return 1
+    fi
 
     if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] && [ -f "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" ]; then
         bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh" "$name" "$label" >/dev/null 2>&1 \

@@ -83,8 +83,15 @@ printf '%s %s pid=%s\n' "$STAMP" "$SUBAGENT" "$$" >> "$SESS/$ACTIVE_NAME" 2>/dev
 LIFECYCLE_SCOPE="$(dhpk_lifecycle_scope_id "$SESS/$SENTINEL_NAME" 2>/dev/null || true)"
 LIFECYCLE_DIFF="$(dhpk_lifecycle_diff_id "$ROOT" 2>/dev/null || true)"
 LIFECYCLE_TASK="$(dhpk_lifecycle_task_id "$SENTINEL_NAME" "$SESSION_ID" "$ATTEMPT" 2>/dev/null || true)"
-dhpk_lifecycle_emit planned "$LIFECYCLE_TASK" "$SUBAGENT_BARE" "$SESSION_ID" "$ATTEMPT" "$LIFECYCLE_SCOPE" "$LIFECYCLE_DIFF" "" "" 2>/dev/null || true
-dhpk_lifecycle_emit dispatched "$LIFECYCLE_TASK" "$SUBAGENT_BARE" "$SESSION_ID" "$ATTEMPT" "$LIFECYCLE_SCOPE" "$LIFECYCLE_DIFF" "" "" 2>/dev/null || true
-dhpk_lifecycle_emit started "$LIFECYCLE_TASK" "$SUBAGENT_BARE" "$SESSION_ID" "$ATTEMPT" "$LIFECYCLE_SCOPE" "$LIFECYCLE_DIFF" "" "" 2>/dev/null || true
+LIFECYCLE_PRODUCER="$SUBAGENT_BARE"
+LIFECYCLE_WAVE="$DISPATCH_ID"
+LIFECYCLE_ADAPTER="$SUBAGENT_BARE"
+LIFECYCLE_STAGE="review"
+dhpk_lifecycle_emit planned "$LIFECYCLE_TASK" "$SUBAGENT_BARE" "$SESSION_ID" "$ATTEMPT" "$LIFECYCLE_SCOPE" "$LIFECYCLE_DIFF" "" "" \
+    "$LIFECYCLE_PRODUCER" "$LIFECYCLE_WAVE" "$LIFECYCLE_SCOPE" "$LIFECYCLE_ADAPTER" "$LIFECYCLE_STAGE" "" "" "1" 2>/dev/null || true
+dhpk_lifecycle_emit dispatched "$LIFECYCLE_TASK" "$SUBAGENT_BARE" "$SESSION_ID" "$ATTEMPT" "$LIFECYCLE_SCOPE" "$LIFECYCLE_DIFF" "" "" \
+    "$LIFECYCLE_PRODUCER" "$LIFECYCLE_WAVE" "$LIFECYCLE_SCOPE" "$LIFECYCLE_ADAPTER" "$LIFECYCLE_STAGE" "" "" "1" 2>/dev/null || true
+dhpk_lifecycle_emit started "$LIFECYCLE_TASK" "$SUBAGENT_BARE" "$SESSION_ID" "$ATTEMPT" "$LIFECYCLE_SCOPE" "$LIFECYCLE_DIFF" "" "" \
+    "$LIFECYCLE_PRODUCER" "$LIFECYCLE_WAVE" "$LIFECYCLE_SCOPE" "$LIFECYCLE_ADAPTER" "$LIFECYCLE_STAGE" "" "" "1" 2>/dev/null || true
 
 exit 0
