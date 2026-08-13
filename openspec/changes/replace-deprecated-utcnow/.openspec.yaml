@@ -1,0 +1,3 @@
+schema: spec-driven
+created: 2026-08-13
+goal: Eliminate Python deprecation warnings from supported Codex installer syncs.

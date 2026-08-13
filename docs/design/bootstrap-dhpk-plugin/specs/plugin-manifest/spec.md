@@ -6,12 +6,16 @@
 
 ### Requirement: Plugin manifest declares plugin identity and metadata
 
-The plugin SHALL live at `plugins/dhpk/.claude-plugin/plugin.json` (NOT the repo root) and provide `name: "dhpk"`, `displayName`, `version` (semver, starting `0.1.0`), `description`, `author`, `keywords`, and `$schema` pointing at the Claude Code plugin manifest JSON schema.
+The plugin SHALL live at `plugins/dhpk/.claude-plugin/plugin.json` (NOT the repo root) and provide `name: "dhpk"`, `displayName`, `version` (semver, starting `0.1.0`), `description`, `author`, `keywords`, and `$schema` pointing at the Claude Code plugin manifest JSON schema. The separate Codex-native publication package at `plugins/dhpk/` is governed by its `.codex-plugin/plugin.json` contract and native Codex validators.
 
-#### Scenario: Validate passes on fresh plugin
+#### Scenario: Canonical Claude marketplace validation passes
 
-- **WHEN** `claude plugin validate /home/paul/projects/dhpk/plugins/dhpk --strict` is run AND `claude plugin validate /home/paul/projects/dhpk --strict` is run (marketplace)
-- **THEN** both commands exit 0 with no warnings or errors
+- **WHEN** `claude plugin validate /home/paul/projects/dhpk --strict` is run against the canonical repository checkout root/marketplace
+- **THEN** the command exits 0 with no warnings or errors
+- **AND** the Codex-only `plugins/dhpk/` publication package is checked with
+  `node scripts/ci/verify-codex-native-package.js`,
+  `node tests/codex-plugin-manifest.test.js`, and
+  `node tests/codex-native-install-smoke.test.js`, not Claude's validator
 
 #### Scenario: Plugin name namespaces components
 

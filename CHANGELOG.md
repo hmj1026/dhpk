@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## 0.38.2 — 2026-08-13 — Fix installer UTC timestamp deprecation and align historical validation docs
+
+**fix(codex-installer)** — Replace deprecated UTC timestamp APIs while preserving installer receipt and backup formats.
+**docs(bootstrap-docs)** — Align historical validation guidance with separate Claude marketplace and Codex-native package contracts.
+
 ## 0.38.1 — 2026-08-13 — Clean Python bytecode from Codex projections and repair operational docs
 
 No user-visible changes in this release.
