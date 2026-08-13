@@ -12,7 +12,7 @@
 - [x] 1.5 Move `dhpk/.claude/commands/opsx/` (10 files) → `plugins/dhpk/commands/opsx/`
 - [x] 1.6 Remove now-empty `dhpk/.claude/` scaffold
 - [x] 1.7 Create `.gitignore` excluding `.claude/artifacts/`, `.claude/worktrees/`, `node_modules/`, `*.log`
-- [x] 1.8 `claude plugin validate ~/projects/dhpk --strict` AND `claude plugin validate ~/projects/dhpk/plugins/dhpk --strict` both pass
+- [x] 1.8 `claude plugin validate ~/projects/dhpk --strict` passes for the canonical Claude marketplace/root; the Codex-only `plugins/dhpk/` package is verified separately with `node scripts/ci/verify-codex-native-package.js`, `node tests/codex-plugin-manifest.test.js`, and `node tests/codex-native-install-smoke.test.js`
 
 ## 2. Hook scripts and harness scripts
 
@@ -83,8 +83,8 @@
 
 ## 10. Validate + dogfood
 
-- [x] 10.1 `claude plugin validate ~/projects/dhpk --strict` (marketplace) passes
-- [x] 10.2 `claude plugin validate ~/projects/dhpk/plugins/dhpk --strict` passes
+- [x] 10.1 `claude plugin validate ~/projects/dhpk --strict` (canonical marketplace/root) passes
+- [x] 10.2 Codex-native `plugins/dhpk/` passes `node scripts/ci/verify-codex-native-package.js` and `node tests/codex-plugin-manifest.test.js`; `node tests/codex-native-install-smoke.test.js` is the separate consumer check and retains its explicit unavailable/skip outcome when the Codex CLI is absent
 - [x] 10.3 Hook smoke test: simulated Edit to `protected/controllers/AuthController.php` with `DHPK_ACTIVE_MODULES=yii-1.1` correctly wrote `.pending-review` AND `.pending-security-review`
 - [ ] 10.4 **DEFERRED**: full marketplace add + install + manual edit in a scratch project (requires interactive session; verification commands documented in README)
 - [ ] 10.5 **DEFERRED to migration change**: side-by-side install on `zdpos_dev` per the migration plan's M1–M3 phases
