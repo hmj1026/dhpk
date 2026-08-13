@@ -12,7 +12,12 @@
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
-const { materializeNativePackage, validateNativeCandidate, validateNativeMembership } = require('../lib/codex-native-package');
+const {
+  compileNativePackage,
+  materializeNativePackage,
+  validateNativeCandidate,
+  validateNativeMembership,
+} = require('../lib/codex-native-package');
 
 const ROOT = path.join(__dirname, '..', '..');
 const INVENTORY_PATH = path.join(ROOT, 'manifests', 'distribution-inventory.json');
@@ -34,13 +39,23 @@ function resolveSourceCommit() {
 const inventory = JSON.parse(fs.readFileSync(INVENTORY_PATH, 'utf8'));
 const resolvedOutDir = path.resolve(outDir);
 
+const sourceCommit = resolveSourceCommit();
+const compiledProjection = compileNativePackage({
+  inventory,
+  root: ROOT,
+  outDir: resolvedOutDir,
+  name: 'dhpk',
+  version,
+  sourceCommit,
+});
 const result = materializeNativePackage({
   inventory,
   root: ROOT,
   outDir: resolvedOutDir,
   name: 'dhpk',
   version,
-  sourceCommit: resolveSourceCommit(),
+  sourceCommit,
+  compiledProjection,
 });
 const structural = validateNativeCandidate({ manifestSkillsField: result.manifestSkillsField, packageRoot: resolvedOutDir });
 const membership = validateNativeMembership({ candidateSkillNames: result.skillNames, inventory });

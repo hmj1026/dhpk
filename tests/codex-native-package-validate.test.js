@@ -1,8 +1,7 @@
 'use strict';
 
-// RED (task 3.1, curate-dhpk-distribution-surfaces): scripts/lib/codex-native-package.js
-// does not exist yet. Reproduces GitHub issue #88's exact failure shape as static,
-// pre-install checks: a parent-relative manifest `skills` field (the marketplace
+// Phase 4 characterization: reproduce GitHub issue #88's exact failure shape as
+// static, pre-install checks: a parent-relative manifest `skills` field (the marketplace
 // wrapper's actual bug — `plugins/dhpk/.codex-plugin/plugin.json` resolves
 // `../../codex/skills/`, escaping its own package directory) and a same-directory
 // field whose package tree still contains a symlink (the native manifest's actual
@@ -15,7 +14,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const { test, run, assert } = require('./_lib/tinytest');
-const { validateNativeCandidate, validateNativeMembership } = require('../scripts/lib/codex-native-package');
+const {
+  validateNativeCandidate,
+  validateNativeMembership,
+  verifyNativePackage,
+} = require('../scripts/lib/codex-native-package');
 
 function makeTempPackage() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-native-candidate-'));
@@ -144,6 +147,34 @@ test('excludes a deprecated codex-native skill from the expected membership set'
   const result = validateNativeMembership({ candidateSkillNames: ['dhpk-tdd-workflow'], inventory });
   assert.deepStrictEqual(result.errors, []);
   assert.ok(result.ok);
+});
+
+test('native structural verification returns stage-bound evidence instead of a lifecycle aggregate', () => {
+  const dir = makeTempPackage();
+  try {
+    const inventory = {
+      skills: [{
+        id: 'hello',
+        name: 'hello-skill',
+        path: 'skills/hello-skill',
+        lifecycle: 'promoted',
+        surfaces: ['codex-native'],
+      }],
+    };
+    const result = verifyNativePackage({
+      packageRoot: dir,
+      inventory,
+      stage: 'structural',
+      observedAt: '2026-08-13T00:00:00.000Z',
+    });
+    assert.strictEqual(result.ok, true, result.error && result.error.message);
+    assert.strictEqual(result.evidence.stage, 'structural');
+    assert.strictEqual(result.evidence.verdict, 'PASS');
+    assert.strictEqual(result.evidence.observedAt, '2026-08-13T00:00:00.000Z');
+    assert.ok(!Object.prototype.hasOwnProperty.call(result, 'lifecycle'));
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 run('codex-native-package-validate');

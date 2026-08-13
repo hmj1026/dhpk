@@ -21,10 +21,9 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const {
+  compileNativePackage,
   materializeNativePackage,
-  validateNativeCandidate,
-  validateNativeMembership,
-  validateNativeSkillIdentity,
+  verifyNativePackage,
 } = require('../lib/codex-native-package');
 const { validateSurfaceReceipt } = require('../lib/platform-provenance');
 
@@ -59,6 +58,14 @@ const tmpOut = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-native-drift-check-')
 
 let fresh;
 try {
+  const compiledProjection = compileNativePackage({
+    inventory,
+    root: ROOT,
+    outDir: tmpOut,
+    name: trackedManifest.name,
+    version: trackedManifest.version,
+    sourceCommit: trackedProvenance.sourceCommit,
+  });
   fresh = materializeNativePackage({
     inventory,
     root: ROOT,
@@ -66,6 +73,7 @@ try {
     name: trackedManifest.name,
     version: trackedManifest.version,
     sourceCommit: trackedProvenance.sourceCommit,
+    compiledProjection,
   });
 } finally {
   fs.rmSync(tmpOut, { recursive: true, force: true });
@@ -83,19 +91,14 @@ if (trackedProvenance.schema !== undefined) {
 // reintroduce a symlink or a parent-relative manifest escape without
 // changing skill content, which the fingerprint/membership diff below would
 // not catch on its own.
-const structural = validateNativeCandidate({ manifestSkillsField: trackedManifest.skills, packageRoot: pkgDir });
-errors.push(...structural.errors);
-const identity = validateNativeSkillIdentity({
-  manifestSkillsField: trackedManifest.skills,
-  packageRoot: pkgDir,
-  inventory,
-});
-errors.push(...identity.errors);
-const trackedMembership = validateNativeMembership({
-  candidateSkillNames: fs.existsSync(path.join(pkgDir, 'skills')) ? fs.readdirSync(path.join(pkgDir, 'skills')) : [],
-  inventory,
-});
-errors.push(...trackedMembership.errors);
+// The compatibility report retains the legacy diagnostic order while the
+// shared verifier owns structural, identity, membership, and stage-bound
+// EvidenceResult construction. Structural PASS remains distinct from any
+// consumer-runtime claim.
+const trackedVerification = verifyNativePackage({ packageRoot: pkgDir, inventory, stage: 'structural' });
+errors.push(...trackedVerification.structural.errors);
+errors.push(...trackedVerification.identity.errors);
+errors.push(...trackedVerification.membership.errors);
 
 if (fresh.manifestSkillsField !== trackedManifest.skills) {
   errors.push(`manifest skills field drifted: tracked='${trackedManifest.skills}' fresh='${fresh.manifestSkillsField}'`);

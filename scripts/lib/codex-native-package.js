@@ -15,6 +15,12 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { RECEIPT_SCHEMA, SURFACE_OWNERS } = require('./platform-provenance');
+const {
+  compileDistribution,
+  materializeDistribution,
+  verifyDistribution,
+} = require('./distribution-compiler');
+const { ProjectionArtifactStore } = require('./projection-artifact-store');
 
 // Bump when the generation algorithm (selection, layout, or manifest-merge
 // logic) changes in a way that could produce a different package from the
@@ -58,31 +64,14 @@ function assertPhysicalAncestors(directory, label) {
   }
 }
 
-function ensurePhysicalDirectory(directory, label) {
+function assertPhysicalDirectory(directory, label) {
   assertPhysicalAncestors(directory, label);
   const stat = lstatOrNull(directory);
-  if (!stat) {
-    fs.mkdirSync(directory, { recursive: true });
-    return;
-  }
-  if (stat.isSymbolicLink()) {
-    throw new Error(`refusing symlinked ${label}: ${directory}`);
-  }
-  if (!stat.isDirectory()) {
-    throw new Error(`${label} must be a directory: ${directory}`);
-  }
+  if (!stat) return;
+  if (!stat.isDirectory()) throw new Error(`${label} must be a directory: ${directory}`);
   if (fs.realpathSync(directory) !== path.resolve(directory)) {
     throw new Error(`refusing ${label} whose realpath escapes its lexical root: ${directory}`);
   }
-}
-
-function confinedChild(parent, name) {
-  const resolvedParent = path.resolve(parent);
-  const candidate = path.resolve(resolvedParent, name);
-  if (path.dirname(candidate) !== resolvedParent) {
-    throw new Error(`native skill output escapes skills directory: ${name}`);
-  }
-  return candidate;
 }
 
 // Walks packageRoot and reports any symlink found (a native package must be
@@ -220,6 +209,204 @@ const DEFAULT_MANIFEST_TEMPLATE = {
   description: 'dhpk codex-native physical Codex release candidate (generated; not a second source of truth — see docs/distribution-surfaces.md).',
 };
 
+function readNativeManifestTemplate(outDir) {
+  const manifestPath = path.join(outDir, '.codex-plugin', 'plugin.json');
+  if (!fs.existsSync(manifestPath)) return DEFAULT_MANIFEST_TEMPLATE;
+  const stat = lstatOrNull(manifestPath);
+  if (!stat || !stat.isFile() || stat.isSymbolicLink()) {
+    throw new Error(`native plugin manifest must be a physical file: ${manifestPath}`);
+  }
+  return JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+}
+
+function nativeManifest({ outDir, name, version }) {
+  const template = readNativeManifestTemplate(outDir);
+  return { ...template, name, version, skills: './skills/' };
+}
+
+function readNativeReadme({ root, outDir, readme }) {
+  const destination = path.join(outDir, readme);
+  if (fs.existsSync(destination)) {
+    const stat = lstatOrNull(destination);
+    if (!stat || !stat.isFile() || stat.isSymbolicLink()) {
+      throw new Error(`native ${readme} must be a physical file: ${destination}`);
+    }
+    return fs.readFileSync(destination);
+  }
+  const source = path.join(root, 'plugins', 'dhpk', readme);
+  return fs.existsSync(source) ? fs.readFileSync(source) : null;
+}
+
+function nativeSourceFiles(sourceDir, relative = '') {
+  const stat = lstatOrNull(sourceDir);
+  if (!stat || !stat.isDirectory() || stat.isSymbolicLink()) {
+    throw new Error(`native skill source must be a physical directory: ${sourceDir}`);
+  }
+  const files = [];
+  for (const entry of fs.readdirSync(sourceDir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+    const source = path.join(sourceDir, entry.name);
+    const destination = path.posix.join(relative, entry.name);
+    if (entry.name === '__pycache__' || destination.endsWith('.pyc')) continue;
+    if (entry.isSymbolicLink()) {
+      throw new Error(`codex-native projection forbids source symlink: ${source}`);
+    }
+    if (entry.isDirectory()) files.push(...nativeSourceFiles(source, destination));
+    else if (entry.isFile()) files.push({ source, destination, content: fs.readFileSync(source), mode: fs.statSync(source).mode & 0o7777 });
+    else throw new Error(`unsupported native source filesystem entry: ${source}`);
+  }
+  return files;
+}
+
+function nativeSkillFingerprint(files) {
+  const hash = crypto.createHash('sha256');
+  // Keep the legacy fingerprintDir ordering byte-for-byte compatible. Node's
+  // default Array#sort uses code-unit ordering (uppercase SKILL.md before
+  // lowercase resource directories); localeCompare would reorder the same
+  // source tree and create false package drift.
+  for (const file of files.slice().sort((a, b) => (a.destination < b.destination ? -1 : a.destination > b.destination ? 1 : 0))) {
+    hash.update(file.destination.split(path.sep).join('/'));
+    hash.update('\0');
+    hash.update(file.content);
+  }
+  return hash.digest('hex');
+}
+
+function nativeOutputRecord(stableId, source, destination, content, transform, mode = 0o644) {
+  return {
+    stableId,
+    source,
+    destination,
+    content,
+    mode,
+    transform: transform || { id: 'codex-native-generated', version: GENERATOR_VERSION },
+  };
+}
+
+function compileNativePackage({
+  inventory = {},
+  root,
+  outDir,
+  name = 'dhpk-native',
+  version = '0.0.0',
+  sourceCommit = 'unknown',
+  generatorVersion = GENERATOR_VERSION,
+} = {}) {
+  if (!root || !outDir) throw new Error('compileNativePackage requires root and outDir');
+  const resolvedRoot = path.resolve(root);
+  const resolvedOut = path.resolve(outDir);
+  assertPhysicalDirectory(resolvedRoot, 'canonical root');
+  assertPhysicalDirectory(resolvedOut, 'output root');
+
+  const selected = selectNativeSkills(inventory);
+  const files = [];
+  const fingerprints = {};
+  const selectedEntries = [];
+  for (const skill of selected) {
+    const publicName = skill.name || skill.id;
+    const sourcePath = skill.path;
+    if (typeof sourcePath !== 'string' || !sourcePath || path.posix.normalize(sourcePath) !== sourcePath || path.posix.isAbsolute(sourcePath) || sourcePath.startsWith('../')) {
+      throw new Error(`unsafe source path for '${publicName}': ${sourcePath}`);
+    }
+    const sourceDir = path.resolve(resolvedRoot, ...sourcePath.split('/'));
+    if (!isInside(resolvedRoot, sourceDir)) throw new Error(`source path for '${publicName}' escapes canonical root: ${sourcePath}`);
+    const sourceFile = path.join(sourceDir, 'SKILL.md');
+    const sourceFrontmatterName = readSkillFrontmatterName(sourceFile);
+    if (sourceFrontmatterName !== publicName) {
+      throw new Error(`native skill '${publicName}' source SKILL.md frontmatter name '${sourceFrontmatterName || '(missing)'}' does not match public name '${publicName}'`);
+    }
+    const skillFiles = nativeSourceFiles(sourceDir);
+    fingerprints[publicName] = nativeSkillFingerprint(skillFiles);
+    for (const file of skillFiles) {
+      files.push(nativeOutputRecord(
+        `skill:${skill.id}:${file.destination}`,
+        path.posix.join(sourcePath, file.destination),
+        path.posix.join('skills', publicName, file.destination),
+        file.content,
+        { id: 'codex-native-skill', version: generatorVersion },
+        file.mode,
+      ));
+    }
+    selectedEntries.push(skill);
+  }
+
+  const manifest = nativeManifest({ outDir: resolvedOut, name, version });
+  const manifestContent = `${JSON.stringify(manifest, null, 2)}\n`;
+  files.push(nativeOutputRecord('manifest:plugin', 'generated/.codex-plugin/plugin.json', '.codex-plugin/plugin.json', manifestContent, undefined, 0o644));
+
+  const skillIds = selectedEntries.map((entry) => entry.id).sort();
+  const skillNames = selectedEntries.map((entry) => entry.name || entry.id).sort();
+  const inventoryDigest = crypto.createHash('sha256').update(JSON.stringify(inventory)).digest('hex');
+  const provenance = {
+    schema: RECEIPT_SCHEMA,
+    surface: 'codex-native',
+    owner: SURFACE_OWNERS['codex-native'],
+    sourceVersion: version,
+    sourceCommit,
+    inventoryDigest,
+    generatorVersion,
+    selectedSkillIds: skillIds,
+    selectedSkillNames: skillNames,
+    fingerprints,
+  };
+  files.push(nativeOutputRecord('manifest:fingerprints', 'generated/fingerprints.json', 'fingerprints.json', `${JSON.stringify(fingerprints, null, 2)}\n`, undefined, 0o644));
+  files.push(nativeOutputRecord('manifest:provenance', 'generated/provenance.json', 'provenance.json', `${JSON.stringify(provenance, null, 2)}\n`, undefined, 0o644));
+  for (const readme of ['README.md', 'README.zh-TW.md']) {
+    const content = readNativeReadme({ root: resolvedRoot, outDir: resolvedOut, readme });
+    if (content !== null) {
+      const readmePath = fs.existsSync(path.join(resolvedOut, readme)) ? path.join(resolvedOut, readme) : path.join(resolvedRoot, 'plugins', 'dhpk', readme);
+      const mode = lstatOrNull(readmePath) ? fs.statSync(readmePath).mode & 0o7777 : 0o644;
+      files.push(nativeOutputRecord(`manifest:${readme}`, `generated/${readme}`, readme, content, undefined, mode));
+    }
+  }
+
+  const entries = files.map((file) => ({
+    stableId: file.stableId,
+    source: file.source,
+    destination: file.destination,
+    owner: SURFACE_OWNERS['codex-native'],
+    transform: file.transform,
+    expectedFingerprint: crypto.createHash('sha256').update(file.content).digest('hex'),
+    mode: file.mode,
+    symlinkPolicy: 'forbid',
+  }));
+  const compiled = compileDistribution({
+    surface: 'codex-native',
+    compilerVersion: `codex-native-${generatorVersion}`,
+    inventoryFingerprint: inventoryDigest,
+    ownershipRoot: resolvedOut,
+    entries,
+  });
+  if (!compiled.ok) throw new Error(compiled.error.message);
+  const adapter = {
+    identity: { id: 'codex-native', version: generatorVersion },
+    render: () => ({
+      adapter: { id: 'codex-native', version: generatorVersion },
+      outputs: files.slice().sort((a, b) => a.destination.localeCompare(b.destination)),
+      links: [],
+      metadata: { manifest, manifestSkillsField: manifest.skills, skillIds, skillNames, fingerprints, provenance },
+    }),
+    validate: (rendered, context) => {
+      if (!context || !context.session || !context.session.stageRoot) return rendered;
+      const structural = validateNativeCandidate({ manifestSkillsField: rendered.metadata.manifestSkillsField, packageRoot: context.session.stageRoot });
+      const membership = validateNativeMembership({
+        candidateSkillNames: fs.existsSync(path.join(context.session.stageRoot, 'skills'))
+          ? fs.readdirSync(path.join(context.session.stageRoot, 'skills'))
+          : [],
+        inventory,
+      });
+      const identity = validateNativeSkillIdentity({
+        manifestSkillsField: rendered.metadata.manifestSkillsField,
+        packageRoot: context.session.stageRoot,
+        inventory,
+      });
+      const errors = [...structural.errors, ...membership.errors, ...identity.errors];
+      if (errors.length > 0) throw new Error(`generated Codex native package failed validation: ${errors.join('; ')}`);
+      return rendered;
+    },
+  };
+  return { plan: compiled.value, adapter, selectedSkillIds: skillIds, selectedSkillNames: skillNames, fingerprints, provenance };
+}
+
 // Materialize the physical, explicitly-allowlisted codex-native package from
 // a distribution inventory. Copies real file content (dereferencing any
 // canonical-source symlinks) for every selected skill. If a plugin.json
@@ -233,86 +420,143 @@ const DEFAULT_MANIFEST_TEMPLATE = {
 // produce byte-identical output — see spec.md "Unchanged sources are
 // generated twice").
 function materializeNativePackage({
-  inventory,
+  inventory = {},
   root,
   outDir,
   name = 'dhpk-native',
   version = '0.0.0',
   sourceCommit = 'unknown',
   generatorVersion = GENERATOR_VERSION,
+  compiledProjection,
+  artifactStore,
 }) {
-  const selected = selectNativeSkills(inventory);
-  ensurePhysicalDirectory(outDir, 'output root');
-  const skillsOutDir = path.join(outDir, 'skills');
-  ensurePhysicalDirectory(skillsOutDir, 'skills output directory');
+  if (!root || !outDir) throw new Error('materializeNativePackage requires root and outDir');
+  const resolvedRoot = path.resolve(root);
+  const resolvedOut = path.resolve(outDir);
+  assertPhysicalDirectory(resolvedRoot, 'canonical root');
+  assertPhysicalAncestors(path.dirname(resolvedOut), 'output root');
+  const existingOutput = lstatOrNull(resolvedOut);
+  if (existingOutput && existingOutput.isSymbolicLink()) throw new Error(`refusing symlinked output root: ${resolvedOut}`);
+  if (existingOutput && !existingOutput.isDirectory()) throw new Error(`output root must be a directory: ${resolvedOut}`);
 
-  // Regeneration is a full replace, not additive: a skill removed from the
-  // codex-native surface since outDir was last populated must not leave its
-  // stale directory behind — outDir is routinely an existing tracked package
-  // (prepare-release.js regenerates directly into plugins/dhpk/). Public names
-  // are the only native directory identity; this also removes old id-based
-  // output left by the pre-consolidation generator.
-  const selectedNames = new Set(selected.map((s) => s.name || s.id));
-  for (const existing of fs.readdirSync(skillsOutDir)) {
-    if (!selectedNames.has(existing)) {
-      fs.rmSync(path.join(skillsOutDir, existing), { recursive: true, force: true });
-    }
-  }
-
-  const fingerprints = {};
-  for (const skill of selected) {
-    const srcDir = path.join(root, skill.path);
-    const publicName = skill.name || skill.id;
-    const dstDir = confinedChild(skillsOutDir, publicName);
-    const sourceFrontmatterName = readSkillFrontmatterName(path.join(srcDir, 'SKILL.md'));
-    if (sourceFrontmatterName !== publicName) {
-      throw new Error(`native skill '${publicName}' source SKILL.md frontmatter name '${sourceFrontmatterName || '(missing)'}' does not match public name '${publicName}'`);
-    }
-    // A selected skill may have lost files since the prior generation. Replace
-    // only that validated direct child before copying so stale descendants
-    // cannot survive while unrelated package metadata remains intact.
-    if (lstatOrNull(dstDir)) fs.rmSync(dstDir, { recursive: true, force: true });
-    fs.cpSync(srcDir, dstDir, {
-      recursive: true,
-      dereference: true,
-      filter: (source) => !source.split(path.sep).includes('__pycache__') && !source.endsWith('.pyc'),
-    });
-    fingerprints[publicName] = fingerprintDir(dstDir);
-  }
-
-  const codexPluginDir = path.join(outDir, '.codex-plugin');
-  ensurePhysicalDirectory(codexPluginDir, 'plugin metadata directory');
-  const manifestPath = path.join(codexPluginDir, 'plugin.json');
-  const template = fs.existsSync(manifestPath) ? JSON.parse(fs.readFileSync(manifestPath, 'utf8')) : DEFAULT_MANIFEST_TEMPLATE;
-  const manifest = { ...template, name, version, skills: './skills/' };
-  fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
-  fs.writeFileSync(path.join(outDir, 'fingerprints.json'), `${JSON.stringify(fingerprints, null, 2)}\n`);
-
-  const skillIds = selected.map((s) => s.id).sort();
-  const skillNames = selected.map((s) => s.name || s.id).sort();
-  const provenance = {
-    schema: RECEIPT_SCHEMA,
-    surface: 'codex-native',
-    owner: SURFACE_OWNERS['codex-native'],
-    sourceVersion: version,
+  const projection = compiledProjection || compileNativePackage({
+    inventory,
+    root: resolvedRoot,
+    outDir: resolvedOut,
+    name,
+    version,
     sourceCommit,
-    inventoryDigest: crypto.createHash('sha256').update(JSON.stringify(inventory)).digest('hex'),
     generatorVersion,
-    selectedSkillIds: skillIds,
-    selectedSkillNames: skillNames,
-    fingerprints,
+  });
+  const parent = path.dirname(resolvedOut);
+  const store = artifactStore || new ProjectionArtifactStore({
+    root: parent,
+    sourceRoot: resolvedRoot,
+    publishRoot: resolvedOut,
+  });
+  const artifact = materializeDistribution(projection.plan, projection.adapter, store);
+  if (!artifact.ok) throw new Error(`generated Codex native package failed validation: ${artifact.error.message}`);
+  const metadata = artifact.value.metadata || {};
+  return {
+    manifestSkillsField: metadata.manifestSkillsField || './skills/',
+    skillIds: metadata.skillIds || projection.selectedSkillIds,
+    skillNames: metadata.skillNames || projection.selectedSkillNames,
+    fingerprints: metadata.fingerprints || projection.fingerprints,
+    provenance: metadata.provenance || projection.provenance,
+    artifact: artifact.value,
   };
-  fs.writeFileSync(path.join(outDir, 'provenance.json'), `${JSON.stringify(provenance, null, 2)}\n`);
+}
 
-  for (const readme of ['README.md', 'README.zh-TW.md']) {
-    const srcReadme = path.join(root, 'plugins', 'dhpk', readme);
-    const dstReadme = path.join(outDir, readme);
-    if (fs.existsSync(srcReadme) && !fs.existsSync(dstReadme)) {
-      fs.copyFileSync(srcReadme, dstReadme);
-    }
+function readNativeProvenance(packageRoot) {
+  const provenancePath = path.join(packageRoot, 'provenance.json');
+  const stat = lstatOrNull(provenancePath);
+  if (!stat || !stat.isFile() || stat.isSymbolicLink()) return null;
+  try {
+    return JSON.parse(fs.readFileSync(provenancePath, 'utf8'));
+  } catch (_) {
+    return null;
   }
+}
 
-  return { manifestSkillsField: manifest.skills, skillIds, skillNames, fingerprints, provenance };
+function readNativeManifest(packageRoot) {
+  const manifestPath = path.join(packageRoot, '.codex-plugin', 'plugin.json');
+  const stat = lstatOrNull(manifestPath);
+  if (!stat || !stat.isFile() || stat.isSymbolicLink()) return null;
+  try {
+    return JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  } catch (_) {
+    return null;
+  }
+}
+
+function verifyNativePackage({
+  packageRoot,
+  inventory = {},
+  stage = 'structural',
+  observedAt,
+  consumerAdapter,
+} = {}) {
+  if (!packageRoot) {
+    return { ok: false, errors: ['package root is required'], evidence: { ok: false, error: { code: 'INVALID_INPUT' } } };
+  }
+  const resolvedPackageRoot = path.resolve(packageRoot);
+  const manifest = readNativeManifest(resolvedPackageRoot) || {};
+  const manifestSkillsField = typeof manifest.skills === 'string' ? manifest.skills : './skills/';
+  const structural = validateNativeCandidate({ manifestSkillsField, packageRoot: resolvedPackageRoot });
+  const skillsRoot = path.resolve(resolvedPackageRoot, manifestSkillsField);
+  const candidateSkillNames = resolvesInsidePackage(manifestSkillsField, resolvedPackageRoot)
+    && lstatOrNull(skillsRoot)
+    && lstatOrNull(skillsRoot).isDirectory()
+    ? fs.readdirSync(skillsRoot, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort()
+    : [];
+  const membership = validateNativeMembership({ candidateSkillNames, inventory });
+  const identity = validateNativeSkillIdentity({ manifestSkillsField, packageRoot: resolvedPackageRoot, inventory });
+  const errors = [...structural.errors, ...membership.errors, ...identity.errors];
+  const provenance = readNativeProvenance(resolvedPackageRoot);
+  let artifactFingerprint = 'codex-native-unobserved';
+  try { artifactFingerprint = fingerprintDir(resolvedPackageRoot); } catch (_) { /* evidence remains FAIL */ }
+  const planFingerprint = provenance && typeof provenance.inventoryDigest === 'string'
+    ? provenance.inventoryDigest
+    : 'codex-native-unbound';
+  const defaultConsumerStage = stage === 'consumer-runtime' && !consumerAdapter;
+  const adapter = consumerAdapter || {
+    identity: {
+      id: defaultConsumerStage ? 'codex-native-consumer' : 'codex-native-validator',
+      version: GENERATOR_VERSION,
+    },
+    verify: () => ({
+      verdict: defaultConsumerStage ? 'NOT_CONFIGURED' : (errors.length === 0 ? 'PASS' : 'FAIL'),
+      claims: defaultConsumerStage
+        ? ['Codex native consumer configuration']
+        : ['native package structure', 'native skill identity', 'native inventory membership'],
+      observations: defaultConsumerStage
+        ? ['no Codex native consumer adapter configured']
+        : (errors.length === 0 ? ['validated package output'] : errors),
+      diagnostics: defaultConsumerStage ? ['Codex native consumer adapter is not configured'] : errors,
+      observedAt,
+    }),
+  };
+  const observer = consumerAdapter
+    ? {
+      ...adapter,
+      verify: (requestedStage, artifact) => ({
+        ...(adapter.verify(requestedStage, artifact) || {}),
+        observedAt,
+      }),
+    }
+    : adapter;
+  const evidenceResult = verifyDistribution(stage, { planFingerprint, artifactFingerprint }, observer);
+  const evidence = evidenceResult.ok ? evidenceResult.value : evidenceResult;
+  return {
+    ok: structural.ok && membership.ok && identity.ok && evidenceResult.ok,
+    errors,
+    manifest,
+    candidateSkillNames,
+    structural,
+    membership,
+    identity,
+    evidence,
+  };
 }
 
 function fingerprintDir(dir) {
@@ -340,6 +584,10 @@ module.exports = {
   validateNativeSkillIdentity,
   validateNativeMembership,
   selectNativeSkills,
+  compileNativePackage,
   materializeNativePackage,
+  verifyNativePackage,
+  compileCodexNativePackage: compileNativePackage,
+  verifyCodexNativePackage: verifyNativePackage,
   fingerprintDir,
 };
