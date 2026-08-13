@@ -89,7 +89,7 @@ MIGRATE = os.environ.get('DHPK_MIGRATE') == '1'
 UNINSTALL = os.environ.get('DHPK_UNINSTALL') == '1'
 SCHEMA_VERSION = 3
 BACKUP_DIR = '.dhpk-backups'
-BACKUP_RUN = datetime.datetime.utcnow().strftime('%Y%m%dT%H%M%SZ') + f'-{os.getpid()}'
+BACKUP_RUN = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ') + f'-{os.getpid()}'
 
 # These collections are populated by the reconciliation pass and persisted in
 # the receipt as durable evidence. Paths are always relative to the project or
@@ -655,7 +655,7 @@ def save_receipt(plugin_version, fingerprint, entries, orphaned, counts, legacy_
         'plugin_version': plugin_version,
         'source_fingerprint': fingerprint,
         'mode': MODE,
-        'installed_at': datetime.datetime.utcnow().replace(microsecond=0).isoformat() + 'Z',
+        'installed_at': datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0, tzinfo=None).isoformat() + 'Z',
         'managed_entries': entries,
         'orphaned_entries': orphaned,
         'reconciliation': durable_counts,

@@ -47,6 +47,31 @@ function runInstaller(project, args, pluginRoot = ROOT) {
   });
 }
 
+test('successful update emits no deprecation warning and preserves UTC receipt timestamps', () => {
+  const scratch = projectRoot();
+  try {
+    const res = spawnSync('bash', [HOOK, '--copy', '--update'], {
+      cwd: scratch,
+      env: {
+        ...process.env,
+        CLAUDE_PLUGIN_ROOT: ROOT,
+        PYTHONWARNINGS: 'error::DeprecationWarning',
+      },
+      encoding: 'utf8',
+      timeout: 20000,
+    });
+    assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+    assert.doesNotMatch(res.stderr, /DeprecationWarning/);
+    const receipt = JSON.parse(fs.readFileSync(
+      path.join(scratch, '.codex', '.dhpk-installed.json'),
+      'utf8',
+    ));
+    assert.match(receipt.installed_at, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
 function projectRoot() {
   const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-behavior-')));
   fs.mkdirSync(path.join(dir, '.git'));
@@ -888,6 +913,7 @@ test('reconciliation evidence records updates, retired entries, backups, and uno
     assert.ok(evidence.backups.length >= 1);
     for (const backup of evidence.backups) {
       assert.ok(backup.path && backup.path.startsWith('.codex/.dhpk-backups/'), JSON.stringify(backup));
+      assert.match(backup.path, /^\.codex\/\.dhpk-backups\/\d{8}T\d{6}Z-\d+\/.+$/, JSON.stringify(backup));
       assert.ok(fs.existsSync(path.join(scratch, backup.path)), `backup path missing: ${backup.path}`);
     }
     assert.ok(!after.managed_entries.skills[collision], 'unowned collision must remain outside receipt ownership');
