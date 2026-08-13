@@ -45,4 +45,13 @@ test('Agent Plugin validator fails closed for an unloadable skill entry', () => 
   } finally { fs.rmSync(root, { recursive: true, force: true }); }
 });
 
+test('Agent Plugin generator keeps its established usage and exit contract', () => {
+  const result = spawnSync(process.execPath, [
+    path.join(ROOT, 'scripts', 'ci', 'gen-agent-plugin-package.js'),
+  ], { encoding: 'utf8' });
+  assert.strictEqual(result.status, 2);
+  assert.match(result.stderr, /^usage: node scripts\/ci\/gen-agent-plugin-package\.js <outDir>/);
+  assert.strictEqual(result.stdout, '');
+});
+
 run('agent-plugin-package');

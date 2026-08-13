@@ -24,6 +24,7 @@ const SYMLINK_POLICIES = Object.freeze([
 ]);
 
 function clone(value) {
+  if (Buffer.isBuffer(value)) return Buffer.from(value);
   if (Array.isArray(value)) return value.map(clone);
   if (value && typeof value === 'object') {
     const out = {};
@@ -34,6 +35,7 @@ function clone(value) {
 }
 
 function freeze(value) {
+  if (Buffer.isBuffer(value)) return value;
   if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
   for (const child of Object.values(value)) freeze(child);
   return Object.freeze(value);
@@ -145,6 +147,7 @@ function createDistributionArtifact(input = {}) {
     artifactFingerprint: input.artifactFingerprint || fingerprint(input.outputs || []),
     outputs: Array.isArray(input.outputs) ? input.outputs : [],
     links: Array.isArray(input.links) ? input.links : [],
+    metadata: input.metadata === undefined ? undefined : input.metadata,
   };
   return result(body);
 }

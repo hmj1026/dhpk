@@ -14,6 +14,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const {
+  compileAgentPluginPackage,
   materializeAgentPluginPackage,
   validateAgentPluginPackage,
 } = require('../lib/agent-plugin-package');
@@ -46,6 +47,15 @@ const outDir = path.resolve(outArg);
 
 let result;
 try {
+  const compiledProjection = compileAgentPluginPackage({
+    inventory,
+    root: ROOT,
+    outDir,
+    name: 'dhpk',
+    version,
+    sourceCommit: resolveSourceCommit(),
+    manifestMetadata: sourceManifest,
+  });
   result = materializeAgentPluginPackage({
     inventory,
     root: ROOT,
@@ -54,6 +64,7 @@ try {
     version,
     sourceCommit: resolveSourceCommit(),
     manifestMetadata: sourceManifest,
+    compiledProjection,
   });
 } catch (error) {
   console.error(`FAIL [gen-agent-plugin-package]: ${error.message}`);

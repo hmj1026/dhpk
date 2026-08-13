@@ -51,7 +51,7 @@ function materializeDistribution(plan, adapter, artifactStore) {
   let session;
   try {
     session = artifactStore.begin(plan);
-    const rendered = adapter.render(plan);
+    const rendered = adapter.render(plan, { session });
     if (!rendered || !Array.isArray(rendered.outputs)) {
       throw new Error('projection adapter must return { outputs }');
     }
@@ -100,6 +100,9 @@ function materializeDistribution(plan, adapter, artifactStore) {
       error.projectionDetails = { stableIds: missingIds };
       throw error;
     }
+    if (typeof adapter.validate === 'function') {
+      adapter.validate(rendered, { plan, session });
+    }
     const published = session.publish();
     const artifact = createDistributionArtifact({
       planFingerprint: plan.planFingerprint,
@@ -107,6 +110,7 @@ function materializeDistribution(plan, adapter, artifactStore) {
       outputs: published && published.outputs ? published.outputs : rendered.outputs,
       links: published && published.links ? published.links : links,
       artifactFingerprint: published && published.artifactFingerprint,
+      metadata: rendered.metadata,
     });
     if (!artifact.ok) return artifact;
     return artifact;
