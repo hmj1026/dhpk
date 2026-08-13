@@ -251,5 +251,5 @@ portable `dhpk-agent` package。
 digest、generator version、stable IDs、public names、transforms 與 physical
 fingerprints。release evidence 另記 client versions、install route、probe
 result 及所有未執行 gate。規範見
-`openspec/changes/align-agent-plugin-platform-support/specs/` 與
+`openspec/changes/archive/2026-08-12-align-agent-plugin-platform-support/specs/` 與
 [distribution surface guide](./distribution-surfaces.zh-TW.md)。

@@ -262,5 +262,5 @@ Every generated surface records release version, source commit/tag, inventory
 digest, generator version, stable IDs, public names, transforms, and physical
 fingerprints. Release evidence also records client versions, installation
 route, probe result, and every unexecuted gate. See the normative specifications
-under `openspec/changes/align-agent-plugin-platform-support/specs/` and the
+under `openspec/changes/archive/2026-08-12-align-agent-plugin-platform-support/specs/` and the
 [distribution surface guide](./distribution-surfaces.md).
