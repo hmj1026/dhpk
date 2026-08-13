@@ -8,6 +8,8 @@ host 能與不能過濾的內容。所有數值與歸屬以
 
 精確安裝命令、支援層級、status vocabulary、consumer evidence 與 rollback 請以
 [平台安裝 SSOT](./platform-installation.zh-TW.md)為準。
+Projection 與 ownership 決策記錄於
+[ADR-0009](adr/0009-distribution-projection-and-orchestration-ownership.md)。
 
 ## Lifecycle model
 
@@ -21,13 +23,47 @@ host 能與不能過濾的內容。所有數值與歸屬以
 | `deprecated` | 已離開 promoted publication，但 compatibility window 期間保留 canonical source 與 migration guidance。 |
 
 Publication surface 包含 `claude-core`、`claude-module`、`codex-sync`（支援的
-`install-codex-skills.sh` 路徑）與 `codex-native`（實驗性的 marketplace package）。
+`install-codex-skills.sh` 路徑）、`codex-native`（實驗性的 marketplace package）、
+`agent-plugin` 與 `cursor-plugin`。後兩者分別代表 Agent Plugin 與 Cursor
+publication package；shared portable skill ownership 與 Cursor-native overlay 規則見下節。
 目錄位置與 README prose 不是權威來源。`validate-distribution.js` 會比對 canonical
 package、module catalog、Codex metadata 與 inventory。
 
 同一份 inventory 的 `supporting_assets` 也管理 Codex projection 的 trap sheet、
 contract 與 execution policy。Installer 會把每個 materialized asset 記錄到 schema-v3
 `.codex/.dhpk-installed.json`，確保乾淨 consumer projection 中的 agent reference 可達。
+
+## Projection contract 與 rollback
+
+所有已 cutover 的 publication surface 都遵循同一條 ownership 流程：
+
+```text
+inventory projection_contract
+  -> compileDistribution（純 immutable plan）
+  -> surface adapter 只 render 已規劃輸出
+  -> ProjectionArtifactStore staging 並 atomic publish
+  -> verifyDistribution(stage) 回傳 plan/artifact-bound evidence
+```
+
+`manifests/distribution-inventory.json` 是 selection、lifecycle、surface
+membership、physical owner、transform、destination、verification stage 與 symlink
+policy 的 SSOT。Adapter 只能產生 consumer-native bytes 與觀察結果，不能自行加入
+entry、寫檔、重新擁有 artifact 或提升支援等級。`ProjectionArtifactStore` 是 managed
+projection tree 的唯一 writer；staging 或驗證失敗時，上一份 accepted artifact 必須
+保持不變。Rollback 應透過同一個 CLI/store 路徑恢復上一份 accepted artifact，不要直接
+編輯 generated tree 或改動 canonical source。
+
+Symlink policy 是 closed、fail-closed vocabulary：`forbid`、`contained-relative`、
+`declared-source-relative`。預設是 `forbid`；contained link 必須留在 artifact owner
+內，declared-source-relative link 必須是相對、由 plan 宣告、由 destination root 擁有，並
+解析到 plan 綁定的 canonical source root。只有保留的 `codex-sync` compatibility route
+可使用最後一種；absolute 或未宣告 symlink 一律拒絕。
+
+Verification 必須綁定 stage。`structural` 與 `package` 的 `PASS` 只代表已檢查的
+artifact/package claims；`consumer-runtime` 必須有真實 consumer probe。前兩者不能宣稱
+runtime support，也不能讓 experimental surface 自動畢業。Evidence verdict 維持封閉
+集合：`PASS`、`FAIL`、`NOT_RUN`、`NOT_CONFIGURED`、`SKIP_INCOMPATIBLE`、`BLOCKED`、
+`UNAVAILABLE`。
 
 ## Standard Agent Plugin 與 Cursor native ownership
 
@@ -43,7 +79,7 @@ fingerprint 時，才允許 Cursor-specific copy。如此 shared portable skills
 ## 目前 Claude publication
 
 `scripts/ci/gen-claude-manifest.js` 從 inventory 產生 `.claude-plugin/plugin.json` 的
-skill root。現在是一個 registered directory root，下面有 103 個 reachable skill。
+skill root。現在是一個 registered directory root，下面有 103 個 inventory-eligible skill ID。
 所有 package 都扁平位於 `skills/dhpk-<name>/`；module `skills/` 只是相對 symlink
 projection。
 

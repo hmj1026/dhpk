@@ -173,46 +173,6 @@ function sanitizeMarkdownLinks(content, sourceFile, canonicalRoot) {
   });
 }
 
-function copyPhysicalTree(sourceDir, destinationDir, relative = '', canonicalRoot = null) {
-  const stat = lstatOrNull(sourceDir);
-  if (!stat || !stat.isDirectory()) throw new Error(`source skill directory is missing: ${sourceDir}`);
-  fs.mkdirSync(destinationDir, { recursive: true });
-  for (const entry of fs.readdirSync(sourceDir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
-    const source = path.join(sourceDir, entry.name);
-    const destination = path.join(destinationDir, entry.name);
-    const sourceRelative = path.posix.join(relative, entry.name);
-    if (entry.name === '__pycache__' || sourceRelative.endsWith('.pyc')) continue;
-    // Codex's openai.yaml is a client-owned policy contract, not an Agent
-    // Skills resource.  Do not leak it into the portable package (and do not
-    // create an otherwise empty agents/ directory for it).
-    if (sourceRelative === 'agents/openai.yaml') continue;
-    if (entry.isSymbolicLink()) {
-      const target = fs.realpathSync(source);
-      // The source containment check runs before copy.  Dereference here so
-      // the generated package can never inherit a source symlink.
-      if (fs.statSync(target).isDirectory()) copyPhysicalTree(target, destination, sourceRelative, canonicalRoot);
-      else if (path.extname(source).toLowerCase() === '.md' && canonicalRoot) fs.writeFileSync(destination, sanitizeMarkdownLinks(fs.readFileSync(target, 'utf8'), target, canonicalRoot));
-      else fs.copyFileSync(target, destination);
-    } else if (entry.isDirectory()) {
-      copyPhysicalTree(source, destination, sourceRelative, canonicalRoot);
-    } else if (entry.isFile()) {
-      if (path.extname(source).toLowerCase() === '.md' && canonicalRoot) fs.writeFileSync(destination, sanitizeMarkdownLinks(fs.readFileSync(source, 'utf8'), source, canonicalRoot));
-      else fs.copyFileSync(source, destination);
-    } else {
-      throw new Error(`unsupported source filesystem entry: ${source}`);
-    }
-  }
-}
-
-function removeEmptyDirectories(directory) {
-  const stat = lstatOrNull(directory);
-  if (!stat || !stat.isDirectory()) return;
-  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
-    if (entry.isDirectory()) removeEmptyDirectories(path.join(directory, entry.name));
-  }
-  if (fs.readdirSync(directory).length === 0) fs.rmdirSync(directory);
-}
-
 function unquote(value) {
   const trimmed = String(value == null ? '' : value).trim();
   if (trimmed.length >= 2 && trimmed[0] === '"' && trimmed[trimmed.length - 1] === '"') {
@@ -403,23 +363,6 @@ function assertProjectionDestination(root, outDir, label) {
   if (existing && existing.isSymbolicLink()) throw new Error(`${label} output must not be a symlink: ${resolvedOut}`);
 }
 
-function replaceDirectory(staged, destination, label) {
-  const parent = path.dirname(destination);
-  ensurePhysicalDirectory(parent, `${label} destination parent`);
-  const existing = lstatOrNull(destination);
-  if (existing && existing.isSymbolicLink()) throw new Error(`${label} destination must not be a symlink: ${destination}`);
-  const backup = existing ? `${destination}.backup-${process.pid}-${Date.now()}` : null;
-  try {
-    if (backup) fs.renameSync(destination, backup);
-    fs.renameSync(staged, destination);
-    if (backup) fs.rmSync(backup, { recursive: true, force: true });
-  } catch (error) {
-    if (lstatOrNull(destination) && !backup) fs.rmSync(destination, { recursive: true, force: true });
-    if (backup && lstatOrNull(backup) && !lstatOrNull(destination)) fs.renameSync(backup, destination);
-    throw error;
-  }
-}
-
 function isRemoteUrl(value) {
   try {
     const url = new URL(value);
@@ -608,26 +551,6 @@ function loadMcpOption({ mcpConfig, mcpServers, inventory, root }) {
     return readContainedJson(root, source, 'MCP source');
   }
   return source.mcpServers ? source : { $schema: MCP_SCHEMA, mcpServers: source };
-}
-
-function writePackageReadmes(packageRoot) {
-  fs.writeFileSync(path.join(packageRoot, 'README.md'), [
-    '# dhpk Agent Plugin package',
-    '',
-    'This physical package is generated from the canonical inventory. Install and',
-    'verify it using the [platform installation guide](../../docs/platform-installation.md).',
-    'It is the physical owner of portable skills shared with the Cursor-native package;',
-    'Cursor receives a separate skills tree only when an explicit environment overlay is selected.',
-    'Structural validation is not runtime client proof; use the documented consumer',
-    'probe and keep `provenance.json`/`fingerprints.json` with this surface.',
-    '',
-  ].join('\n'));
-  fs.writeFileSync(path.join(packageRoot, 'README.zh-TW.md'), [
-    '# dhpk Agent Plugin 套件',
-    '',
-    '此 physical package 由 canonical inventory 產生，並且是與 Cursor-native package 共用的 portable skills 唯一 physical owner；除非明確選擇 environment overlay，Cursor 不會再複製 skills。安裝與驗證請依照[平台安裝指南](../../docs/platform-installation.zh-TW.md)。結構驗證不等於 client runtime proof；請依指南執行 consumer probe，並保留本 surface 的 `provenance.json`/`fingerprints.json`。',
-    '',
-  ].join('\n'));
 }
 
 function packageReadmeContents() {
@@ -874,150 +797,6 @@ function buildAgentPluginProjection(options = {}) {
 
 function compileAgentPluginPackage(options = {}) {
   return buildAgentPluginProjection(options);
-}
-
-function materializeAgentPluginPackageUnsafe({
-  inventory = {},
-  root,
-  outDir,
-  name = 'dhpk',
-  version = '0.0.0',
-  sourceCommit = 'unknown',
-  generatorVersion = GENERATOR_VERSION,
-  manifestMetadata,
-  description,
-  author,
-  homepage,
-  repository,
-  license,
-  keywords,
-  extensions,
-  mcpConfig,
-  mcpServers,
-} = {}) {
-  if (!root || !outDir) throw new Error('materializeAgentPluginPackage requires root and outDir');
-  const resolvedRoot = path.resolve(root);
-  const resolvedOut = path.resolve(outDir);
-  ensurePhysicalDirectory(resolvedRoot, 'canonical root');
-  ensurePhysicalDirectory(resolvedOut, 'output root');
-  const skillsOut = path.join(resolvedOut, 'skills');
-  ensurePhysicalDirectory(skillsOut, 'skills output directory');
-
-  const allowlist = inventory.portable_frontmatter && inventory.portable_frontmatter.allowlist;
-  const selected = selectPortableSkills(inventory);
-  const selectedNames = new Set(selected.map((entry) => entry.name || entry.id));
-  for (const existing of fs.readdirSync(skillsOut)) {
-    if (!selectedNames.has(existing)) fs.rmSync(confinedChild(skillsOut, existing, 'stale skill'), { recursive: true, force: true });
-  }
-
-  const fingerprints = {};
-  const selectedEntries = [];
-  const skipped = [];
-  for (const entry of selected) {
-    const publicName = entry.name || entry.id;
-    const sourcePath = entry.path;
-    if (!safeRelative(sourcePath)) throw new Error(`unsafe source path for '${publicName}': ${sourcePath}`);
-    const sourceDir = path.resolve(resolvedRoot, ...sourcePath.split('/'));
-    if (!isInside(resolvedRoot, sourceDir)) throw new Error(`source path for '${publicName}' escapes canonical root: ${sourcePath}`);
-    const sourceStat = lstatOrNull(sourceDir);
-    if (!sourceStat || !sourceStat.isDirectory()) {
-      skipped.push({ id: entry.id, name: publicName, reason: `source skill directory is missing: ${sourcePath}` });
-      continue;
-    }
-    const sourceFile = path.join(sourceDir, 'SKILL.md');
-    if (!lstatOrNull(sourceFile) || !fs.statSync(sourceFile).isFile()) {
-      skipped.push({ id: entry.id, name: publicName, reason: 'SKILL.md is missing' });
-      continue;
-    }
-    let normalized;
-    try { normalized = normalizePortableFrontmatter(fs.readFileSync(sourceFile, 'utf8'), { allowlist }); } catch (error) {
-      skipped.push({ id: entry.id, name: publicName, reason: error.message });
-      continue;
-    }
-    if (!normalized.ok || normalized.name !== publicName) {
-      skipped.push({ id: entry.id, name: publicName, reason: normalized.errors.concat(normalized.name !== publicName ? `frontmatter name '${normalized.name || '(missing)'}' does not match public name '${publicName}'` : []).join('; ') });
-      continue;
-    }
-    assertSourceTreeContained(sourceDir, resolvedRoot);
-    const destination = confinedChild(skillsOut, publicName, 'skill output');
-    if (lstatOrNull(destination)) fs.rmSync(destination, { recursive: true, force: true });
-    copyPhysicalTree(sourceDir, destination, '', resolvedRoot);
-    removeEmptyDirectories(destination);
-    // The portable projection owns SKILL.md; replace the copied canonical file
-    // with its normalized, policy-free form.
-    fs.writeFileSync(path.join(destination, 'SKILL.md'), normalized.output);
-    const links = findSymlinks(destination);
-    if (links.length > 0) throw new Error(`generated skill contains symlinks: ${links.join(', ')}`);
-    fingerprints[publicName] = fingerprintDir(destination);
-    selectedEntries.push(entry);
-  }
-
-  const sourceManifest = readManifestMetadata(resolvedRoot, manifestMetadata);
-  const manifest = portableManifest({
-    name,
-    version,
-    manifestMetadata: sourceManifest,
-    description,
-    author,
-    homepage,
-    repository,
-    license,
-    keywords,
-    extensions,
-  });
-  const manifestValidation = validatePortableManifest(manifest);
-  if (!manifestValidation.ok) throw new Error(`generated portable manifest is invalid: ${manifestValidation.errors.join('; ')}`);
-  fs.writeFileSync(path.join(resolvedOut, 'plugin.json'), `${JSON.stringify(manifest, null, 2)}\n`);
-
-  const mcpSource = loadMcpOption({ mcpConfig, mcpServers, inventory, root: resolvedRoot });
-  let mcp = { valid: [], invalid: [], errors: [] };
-  if (mcpSource !== null) {
-    mcp = validateMcpConfig(mcpSource, resolvedOut);
-    if (!mcp.ok) throw new Error(`MCP configuration is invalid: ${mcp.errors.join('; ')}`);
-    if (mcp.valid.length > 0) {
-      const generated = { $schema: MCP_SCHEMA, mcpServers: Object.fromEntries(mcp.valid.map((entry) => [entry.name, entry.config])) };
-      fs.writeFileSync(path.join(resolvedOut, 'mcp.json'), `${JSON.stringify(generated, null, 2)}\n`);
-    } else if (fs.existsSync(path.join(resolvedOut, 'mcp.json'))) {
-      fs.rmSync(path.join(resolvedOut, 'mcp.json'), { force: true });
-    }
-  } else if (fs.existsSync(path.join(resolvedOut, 'mcp.json'))) {
-    fs.rmSync(path.join(resolvedOut, 'mcp.json'), { force: true });
-  }
-
-  const selectedSkillIds = selectedEntries.map((entry) => entry.id).sort();
-  const selectedSkillNames = selectedEntries.map((entry) => entry.name || entry.id).sort();
-  const selectedMatrixIds = matrixEntries(inventory, 'agent-plugin').map((entry) => entry.id).filter(Boolean).sort();
-  const provenance = {
-    schema: RECEIPT_SCHEMA,
-    surface: 'agent-plugin',
-    owner: SURFACE_OWNERS['agent-plugin'],
-    sourceVersion: version,
-    sourceCommit,
-    inventoryDigest: digest(stableStringify(inventory)),
-    generatorVersion,
-    schemaVersion: AGENT_PLUGIN_VERSION,
-    selectedSkillIds,
-    selectedSkillNames,
-    selectedPlatformMatrixIds: selectedMatrixIds,
-    skippedSkills: skipped,
-    mcpServerNames: mcp.valid.map((entry) => entry.name).sort(),
-    fingerprints,
-  };
-  fs.writeFileSync(path.join(resolvedOut, 'provenance.json'), `${JSON.stringify(provenance, null, 2)}\n`);
-  const evidence = { generatorVersion, surface: 'agent-plugin', skills: fingerprints };
-  fs.writeFileSync(path.join(resolvedOut, 'fingerprints.json'), `${JSON.stringify(evidence, null, 2)}\n`);
-  writePackageReadmes(resolvedOut);
-
-  return {
-    manifest,
-    manifestPath: path.join(resolvedOut, 'plugin.json'),
-    skillIds: selectedSkillIds,
-    skillNames: selectedSkillNames,
-    fingerprints,
-    provenance,
-    skippedSkills: skipped,
-    mcp,
-  };
 }
 
 function materializeAgentPluginPackage(options = {}) {
