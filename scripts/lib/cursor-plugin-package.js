@@ -173,22 +173,6 @@ function assertProjectionDestination(root, outDir, label) {
   if (existing && existing.isSymbolicLink()) throw new Error(`${label} output must not be a symlink: ${resolvedOut}`);
 }
 
-function replaceDirectory(staged, destination, label) {
-  const parent = path.dirname(destination);
-  ensurePhysicalDirectory(parent, `${label} destination parent`);
-  const existing = lstatOrNull(destination);
-  if (existing && existing.isSymbolicLink()) throw new Error(`${label} destination must not be a symlink: ${destination}`);
-  const backup = existing ? `${destination}.backup-${process.pid}-${Date.now()}` : null;
-  try {
-    if (backup) fs.renameSync(destination, backup);
-    fs.renameSync(staged, destination);
-    if (backup) fs.rmSync(backup, { recursive: true, force: true });
-  } catch (error) {
-    if (backup && lstatOrNull(backup) && !lstatOrNull(destination)) fs.renameSync(backup, destination);
-    throw error;
-  }
-}
-
 function confinedChild(parent, name) {
   if (!isSafeRelativePath(name)) throw new Error(`Cursor output path is unsafe: ${name}`);
   const child = path.resolve(parent, stripLeadingDotSlash(name));
@@ -294,38 +278,6 @@ function adaptNativeDocument(content, kind, basename, sourceFile = null, canonic
 
 function stableInventoryDigest(inventory) {
   return crypto.createHash('sha256').update(JSON.stringify(inventory || {})).digest('hex');
-}
-
-function copyPhysicalTree(source, destination, { filter = () => true, sourceRoot = source } = {}) {
-  const sourceStat = lstatOrNull(source);
-  if (!sourceStat) throw new Error(`Cursor source path does not exist: ${source}`);
-  if (sourceStat.isSymbolicLink()) {
-    let target;
-    try { target = fs.realpathSync(source); } catch (error) { throw new Error(`broken Cursor source symlink: ${source}`); }
-    if (!isInside(sourceRoot, target)) throw new Error(`Cursor source symlink target escapes source root: ${source}`);
-    copyPhysicalTree(target, destination, { filter, sourceRoot });
-    return;
-  }
-  if (sourceStat.isDirectory()) {
-    ensurePhysicalDirectory(destination, 'Cursor output directory');
-    for (const entry of fs.readdirSync(source, { withFileTypes: true })) {
-      const src = path.join(source, entry.name);
-      const rel = path.relative(sourceRoot, src).split(path.sep).join('/');
-      if (entry.name === '__pycache__' || rel.endsWith('.pyc')) continue;
-      if (!filter(rel, src, entry)) continue;
-      copyPhysicalTree(src, path.join(destination, entry.name), { filter, sourceRoot });
-    }
-    return;
-  }
-  const real = fs.realpathSync(source);
-  if (!isInside(sourceRoot, real)) throw new Error(`Cursor source symlink target escapes source root: ${source}`);
-  ensurePhysicalDirectory(path.dirname(destination), 'Cursor output parent');
-  if (path.extname(source).toLowerCase() === '.md') {
-    fs.writeFileSync(destination, sanitizeMarkdownLinks(fs.readFileSync(source, 'utf8'), source, sourceRoot));
-  } else {
-    fs.copyFileSync(source, destination);
-  }
-  try { fs.chmodSync(destination, fs.statSync(source).mode & 0o777); } catch (_) { /* mode is advisory */ }
 }
 
 function listComponentFiles(directory, extensions) {
@@ -435,75 +387,6 @@ function cursorSkillProjection(inventory) {
   };
 }
 
-function writeAdaptedDocuments(sourceDir, destinationDir, kind, transformations, canonicalRoot = sourceDir) {
-  if (!fs.existsSync(sourceDir)) return [];
-  ensurePhysicalDirectory(destinationDir, `Cursor ${kind} output`);
-  const files = listComponentFiles(sourceDir, COMPONENT_EXTENSIONS[kind]);
-  const names = [];
-  for (const source of files) {
-    const name = path.basename(source);
-    const adapted = adaptNativeDocument(fs.readFileSync(source, 'utf8'), kind, name, source, canonicalRoot);
-    if (!adapted.ok) {
-      transformations.push({ source: path.relative(sourceDir, source).split(path.sep).join('/'), destination: null, transform: `SKIP_INCOMPATIBLE: ${adapted.reason}` });
-      continue;
-    }
-    const destination = path.join(destinationDir, name);
-    fs.writeFileSync(destination, adapted.content);
-    names.push(name);
-    transformations.push({ source: path.relative(sourceDir, source).split(path.sep).join('/'), destination: path.relative(path.dirname(destinationDir), destination).split(path.sep).join('/'), transform: adapted.transform });
-  }
-  return names;
-}
-
-function adaptHooks(root, outDir, transformations) {
-  const sourcePath = path.join(root, 'hooks', 'hooks.json');
-  const outputPath = path.join(outDir, 'hooks', 'hooks.json');
-  ensurePhysicalDirectory(path.dirname(outputPath), 'Cursor hooks output');
-  const adapted = { hooks: {} };
-  if (fs.existsSync(sourcePath)) {
-    let source;
-    try { source = JSON.parse(fs.readFileSync(sourcePath, 'utf8')); } catch (error) {
-      transformations.push({ source: 'hooks/hooks.json', destination: 'hooks/hooks.json', transform: `SKIP_INCOMPATIBLE: invalid JSON (${error.message})` });
-      fs.writeFileSync(outputPath, `${JSON.stringify(adapted, null, 2)}\n`);
-      return adapted;
-    }
-    for (const event of Object.keys(source && source.hooks || {}).sort()) {
-      if (!CURSOR_HOOK_EVENTS.has(event) || !Array.isArray(source.hooks[event])) {
-        transformations.push({ source: `hooks/hooks.json#${event}`, destination: null, transform: 'SKIP_INCOMPATIBLE: unsupported Cursor hook event or shape' });
-        continue;
-      }
-      for (const [index, hook] of source.hooks[event].entries()) {
-        if (!hook || typeof hook !== 'object' || Array.isArray(hook) || Object.keys(hook).some((key) => !['command', 'matcher'].includes(key))) {
-          transformations.push({ source: `hooks/hooks.json#${event}[${index}]`, destination: null, transform: 'SKIP_INCOMPATIBLE: unknown hook field' });
-          continue;
-        }
-        const command = hook && typeof hook.command === 'string' ? hook.command : null;
-        if (!command || !isSafeRelativePath(command) || !SAFE_COMMAND_PATH.test(stripLeadingDotSlash(command))) {
-          transformations.push({ source: `hooks/hooks.json#${event}[${index}]`, destination: null, transform: 'SKIP_INCOMPATIBLE: command is not a package-relative path' });
-          continue;
-        }
-        const sourceCommand = resolveContained(root, command);
-        if (!sourceCommand || !fs.existsSync(sourceCommand) || !fs.statSync(sourceCommand).isFile()) {
-          transformations.push({ source: `hooks/hooks.json#${event}[${index}]`, destination: null, transform: 'SKIP_INCOMPATIBLE: command file is missing' });
-          continue;
-        }
-        const destinationName = `${event}-${index}-${path.basename(sourceCommand)}`;
-        const destination = path.join(outDir, 'hooks', 'commands', destinationName);
-        copyPhysicalTree(sourceCommand, destination, { sourceRoot: root });
-        const entry = { command: `./hooks/commands/${destinationName}` };
-        if (hook.matcher) entry.matcher = String(hook.matcher);
-        adapted.hooks[event] = adapted.hooks[event] || [];
-        adapted.hooks[event].push(entry);
-        transformations.push({ source: `hooks/hooks.json#${event}[${index}]`, destination: `hooks/commands/${destinationName}`, transform: 'cursor-hook-contained-command' });
-      }
-    }
-  } else {
-    transformations.push({ source: null, destination: 'hooks/hooks.json', transform: 'no-canonical-hooks' });
-  }
-  fs.writeFileSync(outputPath, `${JSON.stringify(adapted, null, 2)}\n`);
-  return adapted;
-}
-
 function safeVariables(variables) {
   if (!variables) return { type: 'object', properties: {} };
   if (typeof variables !== 'object' || Array.isArray(variables)) throw new Error('Cursor variables must be a JSON Schema object');
@@ -576,128 +459,6 @@ function fingerprintPath(target) {
 
 function fingerprintDir(directory) {
   return fingerprintPath(directory);
-}
-
-function removeGeneratedPath(target) {
-  if (lstatOrNull(target)) fs.rmSync(target, { recursive: true, force: true });
-}
-
-function materializeCursorPackageUnsafe({
-  inventory,
-  root,
-  outDir,
-  name = 'dhpk-cursor',
-  version = '0.0.0',
-  sourceCommit = 'unknown',
-  generatorVersion = GENERATOR_VERSION,
-  variables = null,
-} = {}) {
-  if (!inventory || typeof inventory !== 'object') throw new Error('Cursor package inventory is required');
-  if (!root || !outDir) throw new Error('Cursor package root and outDir are required');
-  const packageRoot = path.resolve(outDir);
-  ensurePhysicalDirectory(packageRoot, 'Cursor output root');
-  for (const component of ['skills', 'rules', 'agents', 'commands', 'hooks', 'mcp.json', 'fingerprints.json', 'provenance.json']) {
-    removeGeneratedPath(path.join(packageRoot, component));
-  }
-  removeGeneratedPath(path.join(packageRoot, '.cursor-plugin'));
-  const metadataDir = path.join(packageRoot, '.cursor-plugin');
-  ensurePhysicalDirectory(metadataDir, 'Cursor metadata directory');
-
-  const transformations = [];
-  const skippedSkills = [];
-  const skillProjection = cursorSkillProjection(inventory);
-  const selected = skillProjection.overlaySkills;
-  const selectedIds = [];
-  const selectedNames = [];
-  const skillOut = path.join(packageRoot, 'skills');
-  if (skillProjection.sharedSkills.length > 0) {
-    transformations.push({
-      source: 'plugins/dhpk-agent/skills/',
-      destination: null,
-      transform: 'shared-surface:agent-plugin',
-      stableIds: skillProjection.sharedSkills.map((skill) => skill.id).sort(),
-    });
-  }
-  if (selected.length > 0) ensurePhysicalDirectory(skillOut, 'Cursor skills output');
-  for (const skill of selected) {
-    const publicName = skill.name || skill.id;
-    const sourceDir = resolveContained(root, skill.path);
-    const sourceSkill = sourceDir && path.join(sourceDir, 'SKILL.md');
-    if (!sourceDir || !sourceSkill || !fs.existsSync(sourceSkill)) {
-      skippedSkills.push({ id: skill.id, name: publicName, reason: 'source SKILL.md is missing' });
-      continue;
-    }
-    const adapted = adaptSkill(fs.readFileSync(sourceSkill, 'utf8'), publicName);
-    if (!adapted.ok) {
-      skippedSkills.push({ id: skill.id, name: publicName, reason: adapted.reason });
-      continue;
-    }
-    const destination = confinedChild(skillOut, publicName);
-    copyPhysicalTree(sourceDir, destination, {
-      sourceRoot: root,
-      filter: (relative) => !/(?:^|\/)agents\/openai\.yaml$/.test(relative),
-    });
-    fs.writeFileSync(path.join(destination, 'SKILL.md'), adapted.content);
-    selectedIds.push(skill.id);
-    selectedNames.push(publicName);
-    transformations.push({ source: skill.path, destination: `skills/${publicName}`, transform: adapted.transform });
-  }
-
-  const componentDirs = {};
-  for (const kind of ['rules', 'agents', 'commands']) {
-    const sourceDir = path.join(root, kind);
-    if (fs.existsSync(sourceDir)) {
-      const destinationDir = path.join(packageRoot, kind);
-      const files = writeAdaptedDocuments(sourceDir, destinationDir, kind, transformations, root);
-      if (files.length > 0) componentDirs[kind] = true;
-    }
-  }
-  const hooks = adaptHooks(root, packageRoot, transformations);
-  const hasHooks = Boolean(hooks && hooks.hooks && Object.keys(hooks.hooks).length >= 0 && fs.existsSync(path.join(packageRoot, 'hooks', 'hooks.json')));
-  const cursorVariables = safeVariables(variables || inventory.cursor_variables || inventory.cursorVariables || inventory.variables);
-  const manifest = buildManifest({ name, version, variables: cursorVariables, componentDirs: { ...componentDirs, skills: selectedNames.length > 0 }, hasHooks });
-  fs.writeFileSync(path.join(metadataDir, 'plugin.json'), `${JSON.stringify(manifest, null, 2)}\n`);
-  const marketplace = writeMarketplace(packageRoot, name, version);
-
-  const fingerprints = {};
-  for (const relative of ['skills', 'rules', 'agents', 'commands', 'hooks/hooks.json']) {
-    const target = path.join(packageRoot, relative);
-    if (lstatOrNull(target)) fingerprints[relative] = fingerprintPath(target);
-  }
-  const provenance = {
-    schema: RECEIPT_SCHEMA,
-    surface: 'cursor-plugin',
-    owner: SURFACE_OWNERS['cursor-plugin'],
-    packageRoot: 'plugins/dhpk-cursor',
-    sourceVersion: version,
-    sourceCommit,
-    inventoryDigest: stableInventoryDigest(inventory),
-    generatorVersion,
-    selectedSkillIds: [...selectedIds].sort(),
-    selectedSkillNames: [...selectedNames].sort(),
-    skillProjectionMode: skillProjection.mode,
-    sharedSkillSurface: skillProjection.sharedSurface,
-    sharedSkillSource: skillProjection.sharedSkills.length > 0 ? 'plugins/dhpk-agent/skills/' : null,
-    sharedSkillIds: skillProjection.sharedSkills.map((skill) => skill.id).sort(),
-    sharedSkillNames: skillProjection.sharedSkills.map((skill) => skill.name || skill.id).sort(),
-    skippedSkills: skippedSkills.slice().sort((a, b) => String(a.id).localeCompare(String(b.id))),
-    transformations: transformations.slice().sort((a, b) => `${a.source || ''}:${a.destination || ''}`.localeCompare(`${b.source || ''}:${b.destination || ''}`)),
-    fingerprints,
-    consumer: { status: 'NOT_RUN', reason: 'Cursor client consumer probe is separate from structural generation.' },
-  };
-  fs.writeFileSync(path.join(packageRoot, 'fingerprints.json'), `${JSON.stringify(fingerprints, null, 2)}\n`);
-  fs.writeFileSync(path.join(packageRoot, 'provenance.json'), `${JSON.stringify(provenance, null, 2)}\n`);
-  writePackageReadmes(packageRoot);
-  return {
-    manifest,
-    marketplace,
-    manifestPath: path.join(metadataDir, 'plugin.json'),
-    skillIds: [...selectedIds].sort(),
-    skillNames: [...selectedNames].sort(),
-    skippedSkills: provenance.skippedSkills,
-    fingerprints,
-    provenance,
-  };
 }
 
 function collectCursorPhysicalTree(source, destination = '', { sourceRoot, filter = () => true } = {}) {
@@ -1264,26 +1025,6 @@ function validateHooks(packageRoot, hookRoots, errors) {
       }
     }
   }
-}
-
-function writePackageReadmes(packageRoot) {
-  fs.writeFileSync(path.join(packageRoot, 'README.md'), [
-    '# dhpk Cursor Plugin package',
-    '',
-    'This physical Cursor-native projection is generated from the canonical inventory.',
-    'Portable skills are owned by the standard Agent Plugin package at',
-    '`plugins/dhpk-agent/skills/` and are not duplicated here unless an explicit',
-    'inventory overlay is selected.',
-    'Follow the [platform installation guide](../../docs/platform-installation.md)',
-    'for coordinated installation, verification, and Cursor-only rollback.',
-    '',
-  ].join('\n'));
-  fs.writeFileSync(path.join(packageRoot, 'README.zh-TW.md'), [
-    '# dhpk Cursor Plugin 套件',
-    '',
-    '此 physical Cursor-native projection 由 canonical inventory 產生。portable skills 由 standard Agent Plugin 的 `plugins/dhpk-agent/skills/` 單獨擁有，除非明確選擇 environment overlay，不在此重複複製。協同安裝、驗證與 Cursor-only rollback 請依照[平台安裝指南](../../docs/platform-installation.zh-TW.md)。',
-    '',
-  ].join('\n'));
 }
 
 function validateMarketplace(packageRoot, errors) {

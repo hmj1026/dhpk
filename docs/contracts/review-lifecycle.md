@@ -49,6 +49,32 @@ Lifecycle clearance and approval remain separate: a `WARNING`, `BLOCK`,
 event sequence but leaves the sentinel and/or `.unresolved-verdict` obligation
 visible. Only the existing parseable `APPROVE`/`PASS` gate clears the sentinel.
 
+## Orchestration and Sentinel ownership
+
+Orchestration owns worker selection, dispatch, handoff, retry linkage, and
+collection of lifecycle results. Sentinel hooks exclusively own review debt,
+slot lookup, evidence eligibility, and sanctioned clearance through the
+existing hook-owned path. A passing message or a terminal orchestration state
+does not remove a sentinel. Terminal orchestration plus an armed Sentinel is
+therefore **incomplete**, not delivery-ready.
+
+Projection evidence follows the same identity discipline without changing the
+reviewer verdict contract. A consumed `EvidenceResult` binds task and
+dispatch/session identity, review obligation or wave, verification stage,
+adapter identity/version, plan and artifact fingerprints when applicable,
+timestamp, scope, and a parseable verdict. Missing, foreign, stale, or weaker
+stage evidence remains unresolved.
+
+Projection `EvidenceResult.verdict` is limited to `PASS`, `FAIL`, `NOT_RUN`,
+`NOT_CONFIGURED`, `SKIP_INCOMPATIBLE`, `BLOCKED`, and `UNAVAILABLE`. Reviewer
+artifact labels such as `APPROVE`, `WARNING`, `BLOCK`, or `PASS`/`FAIL` are a
+separate lifecycle vocabulary; lifecycle summary codes must never be passed to
+Sentinel clearance.
+
+See the [reviewer contract](reviewer-contract.md),
+[ADR-0005](../adr/0005-resumed-review-lifecycle-clearance.md), and
+[ADR-0009](../adr/0009-distribution-projection-and-orchestration-ownership.md).
+
 ## Retry and quota behavior
 
 `dhpk_lifecycle_retry_once` records one corrected retry for a keyed
