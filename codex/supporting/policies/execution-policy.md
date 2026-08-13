@@ -32,3 +32,17 @@ Keep edits inside the assigned files. Record commands, exit codes, affected
 paths, and unresolved findings in the final handoff. If a required supporting
 asset is absent, stop with a BLOCKED result instead of silently dropping the
 contract.
+
+## Orchestration lifecycle acceptance
+
+The orchestrator owns dispatch and handoff identity, retries, and evidence
+presentation; the host integration owns review-gate lifecycle completion. Each
+handoff uses one stable `task_id` and an attempt-specific `attempt_id`, with
+optional producer, wave, `scope_id`, adapter/stage, and plan/artifact
+fingerprints. Before resuming a reviewer, forward the complete
+`RESUMED_REVIEW_IDENTITY` envelope, including any declared fingerprints; the
+reviewer must reproduce every declared identity field in the canonical artifact
+frontmatter. Legacy scope/diff-only evidence remains readable, but missing or
+foreign identity fails closed. A terminal lifecycle result plus all applicable
+host review gates is required; a message, aggregate verdict, or lifecycle event
+alone is not completion.
