@@ -15,6 +15,8 @@ const {
   LIFECYCLES,
   compileClaudeProjection,
   verifyClaudeProjection,
+  validateSkillRoutingFamilies,
+  resolveSkillRoutingAlias,
 } = require('../scripts/lib/distribution-inventory');
 
 function baseInventory() {
@@ -34,6 +36,60 @@ function baseInventory() {
 
 test('LIFECYCLES exports the four canonical states', () => {
   assert.deepStrictEqual([...LIFECYCLES].sort(), ['deprecated', 'experimental', 'optional', 'promoted']);
+});
+
+test('routing families preserve every Laravel and PHPUnit legacy identifier as one explicit router selector', () => {
+  const families = [{
+    id: 'laravel', router_id: 'php-runtime-router', invocation_class: 'implicit-eligible',
+    surfaces: ['claude-module'],
+    selectors: { '5.4': 'skills/dhpk-laravel-5-4-notes/SKILL.md', mix: 'skills/dhpk-laravel-mix-notes/SKILL.md' },
+    aliases: [
+      { id: 'laravel-5.4-notes', selector: '5.4', invocation_class: 'implicit-eligible', surfaces: ['claude-module'] },
+      { id: 'laravel-mix-notes', selector: 'mix', invocation_class: 'implicit-eligible', surfaces: ['claude-module'] },
+    ],
+  }];
+  assert.deepStrictEqual(validateSkillRoutingFamilies({ families, skillIds: new Set(['php-runtime-router']) }).errors, []);
+  assert.deepStrictEqual(resolveSkillRoutingAlias({ families, id: 'laravel-mix-notes' }), {
+    familyId: 'laravel', routerId: 'php-runtime-router', selector: 'mix', reference: 'skills/dhpk-laravel-mix-notes/SKILL.md',
+  });
+});
+
+test('routing families reject duplicate aliases, missing router targets, ambiguous selectors, unsupported surfaces, unsafe references, and invocation drift', () => {
+  const families = [{
+    id: 'laravel', router_id: 'missing', invocation_class: 'implicit-eligible', surfaces: ['wrong'],
+    selectors: { '11': '../unsafe.md', '10': 'skills/not-canonical/SKILL.md' },
+    aliases: [
+      { id: 'legacy', selector: '11', invocation_class: 'explicit-only', surfaces: ['wrong'] },
+      { id: 'legacy', selector: '10', invocation_class: 'implicit-eligible', surfaces: ['claude-module'] },
+    ],
+  }];
+  const errors = validateSkillRoutingFamilies({
+    families, skillIds: new Set(['php-runtime-router', 'legacy']),
+    skills: [{ id: 'legacy', legacy_names: ['legacy'], path: 'skills/canonical', surfaces: ['claude-module'] }],
+  }).errors.join('\n');
+  assert.match(errors, /missing router/);
+  assert.match(errors, /unsupported surface/);
+  assert.match(errors, /safe relative path/);
+  assert.match(errors, /conflicting invocation/);
+  assert.match(errors, /duplicate alias/);
+  assert.match(errors, /canonical skill path/);
+});
+
+test('checked-in family aliases resolve deterministically and retain Laravel/PHPUnit IDs on their declared surface', () => {
+  const inventory = require('../manifests/distribution-inventory.json');
+  const expected = {
+    'laravel-5.4-notes': '5.4', 'laravel-6-notes': '6', 'laravel-7-notes': '7', 'laravel-8-notes': '8',
+    'laravel-9-notes': '9', 'laravel-10-notes': '10', 'laravel-11-notes': '11', 'laravel-mix-notes': 'mix',
+    'phpunit-9-modern': '9', 'phpunit-10-notes': '10', 'phpunit-11-notes': '11',
+  };
+  assert.deepStrictEqual(validateSkillRoutingFamilies({
+    families: inventory.skill_routing_families, skillIds: new Set(inventory.skills.map((skill) => skill.id)), skills: inventory.skills,
+  }).errors, []);
+  for (const [id, selector] of Object.entries(expected)) {
+    const resolved = resolveSkillRoutingAlias({ families: inventory.skill_routing_families, id });
+    assert.strictEqual(resolved.selector, selector, id);
+    assert.match(resolved.reference, /^skills\/dhpk-/);
+  }
 });
 
 test('Claude projection compiler freezes roots and inventory-view intent without filesystem writes', () => {

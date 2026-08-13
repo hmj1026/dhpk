@@ -1,6 +1,6 @@
 ---
 name: dhpk-swift-test-strategy
-description: 'iOS test strategy across Swift Testing (@Test / #expect / #require / parameterized @Test(arguments:) / traits / suites) and XCTest (UI tests, performance metrics), XCUITest automation (XCUIApplication, launch-argument test seams), and swift-snapshot-testing. Defines a 3-layer taxonomy (unit / integration / UI) mapped to iOS test targets, async patterns for actor-isolated services, and RED-first guidance. Use when writing or reviewing iOS tests, choosing Swift Testing vs XCTest, structuring test targets, testing async/actor code, or planning coverage for a feature/bugfix. Not for non-test app code (swift / swiftui / dhpk-ios-platform); output is RED-first test files plus a 3-layer coverage plan. Requires the swift module.'
+description: 'iOS testing strategy for Swift Testing, XCTest, UI automation, async actors, and RED-first coverage. Use when writing or reviewing iOS tests or choosing test targets. Not for non-test app code. Requires swift. Output: RED-first tests and a three-layer coverage plan.'
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---

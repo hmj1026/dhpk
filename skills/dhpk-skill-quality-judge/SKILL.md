@@ -1,6 +1,6 @@
 ---
 name: dhpk-skill-quality-judge
-description: 'Evaluate Agent Skill design quality against official specs and best practices via multi-dimensional scoring. Use when reviewing, auditing, or improving a SKILL.md file or skill package and you want a deep rubric-based grade with actionable fixes. Not for: quick structural lint (use dhpk-skill-health-audit), batch auditing many skills at once (use dhpk-skill-stocktake), or creating/refactoring a skill (use dhpk-create-skill). Depth split: dhpk-skill-health-audit = structural lint of one skill · dhpk-skill-quality-judge = deep rubric of one · dhpk-skill-stocktake = batch-audit of many. Output: a graded evaluation report with per-dimension scores, critical issues, and top improvements.'
+description: 'Deeply evaluate one SKILL.md or package against official design practice with a scored rubric. Not for structural lint, batch stocktake, or creating/refactoring a skill. Output: per-dimension grade, critical issues, and prioritized improvements.'
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---
