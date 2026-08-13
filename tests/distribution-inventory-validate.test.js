@@ -1,9 +1,8 @@
 'use strict';
 
-// RED (task 1.2, curate-dhpk-distribution-surfaces): scripts/lib/distribution-inventory.js
-// does not exist yet. These tests pin the validator contract that task 1.4 must satisfy:
-// missing lifecycle entries, invalid lifecycle values, duplicate surface membership, and
-// deprecated skills leaking into generated promoted output all fail validation.
+// These tests pin the inventory validator and routing contract: missing lifecycle
+// entries, invalid lifecycle values, duplicate surface membership, deprecated
+// leakage, and malformed family routing all fail closed.
 
 const { test, run, assert } = require('./_lib/tinytest');
 const {
@@ -17,6 +16,7 @@ const {
   verifyClaudeProjection,
   validateSkillRoutingFamilies,
   resolveSkillRoutingAlias,
+  resolveSkillRoutingReference,
 } = require('../scripts/lib/distribution-inventory');
 
 function baseInventory() {
@@ -90,6 +90,46 @@ test('checked-in family aliases resolve deterministically and retain Laravel/PHP
     assert.strictEqual(resolved.selector, selector, id);
     assert.match(resolved.reference, /^skills\/dhpk-/);
   }
+});
+
+test('routing resolution fails closed for unsafe conditional references and reports stable diagnostics', () => {
+  const families = [{
+    id: 'laravel',
+    router_id: 'php-pro',
+    invocation_class: 'implicit-eligible',
+    surfaces: ['claude-module'],
+    selectors: { '11': '../outside/SKILL.md', '10': '/absolute/SKILL.md' },
+    aliases: [
+      { id: 'laravel-11-notes', selector: '11', invocation_class: 'implicit-eligible', surfaces: ['claude-module'] },
+    ],
+  }];
+  const diagnostics = validateSkillRoutingFamilies({
+    families,
+    skillIds: new Set(['php-pro', 'laravel-11-notes']),
+    skills: [{
+      id: 'laravel-11-notes',
+      legacy_names: ['laravel-11-notes'],
+      path: 'skills/dhpk-laravel-11-notes',
+      surfaces: ['claude-module'],
+    }],
+  }).errors;
+
+  assert.deepStrictEqual(diagnostics, [
+    'skill_routing_families[0].selectors.10 must be a safe relative path',
+    'skill_routing_families[0].selectors.11 must be a safe relative path',
+    'skill_routing_families[0].aliases.laravel-11-notes selector reference must match canonical skill path',
+  ]);
+  const inventory = {
+    skill_routing_families: families,
+    skills: [{
+      id: 'laravel-11-notes',
+      legacy_names: ['laravel-11-notes'],
+      path: 'skills/dhpk-laravel-11-notes',
+      surfaces: ['claude-module'],
+    }],
+  };
+  assert.strictEqual(resolveSkillRoutingReference({ inventory, families, familyId: 'laravel', selector: '11' }), null);
+  assert.strictEqual(resolveSkillRoutingReference({ inventory, families, id: 'laravel-11-notes' }), null);
 });
 
 test('Claude projection compiler freezes roots and inventory-view intent without filesystem writes', () => {

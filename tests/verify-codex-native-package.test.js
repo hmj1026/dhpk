@@ -76,6 +76,25 @@ test('fails when a canonical skill file changes content after the tracked packag
   }
 });
 
+test('fails closed when the native provenance routing projection omits entries', () => {
+  const { root, inventory } = fixtureRepo();
+  try {
+    const packageRoot = path.join(root, 'plugins', 'dhpk');
+    materializeNativePackage({ inventory, root, outDir: packageRoot, name: 'dhpk', version: '1.0.0', sourceCommit: 'a'.repeat(40) });
+    const provenancePath = path.join(packageRoot, 'provenance.json');
+    const provenance = JSON.parse(fs.readFileSync(provenancePath, 'utf8'));
+    delete provenance.routingProjection.entries;
+    fs.writeFileSync(provenancePath, `${JSON.stringify(provenance, null, 2)}\n`);
+
+    const result = verifyNativePackage({ packageRoot, inventory, stage: 'structural' });
+
+    assert.strictEqual(result.ok, false);
+    assert.ok(result.routingParity.diagnostics.some((diagnostic) => /entries array/.test(diagnostic)));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('fails and identifies tracked frontmatter whose name differs from its public directory', () => {
   const { root, inventory } = fixtureRepo();
   try {
