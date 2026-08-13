@@ -171,6 +171,25 @@ test('Codex surface discovery includes both skill and agent inventories', () => 
   }
 });
 
+test('consumer Codex fingerprints include destination Python bytecode integrity', () => {
+  const surfaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-bytecode-'));
+  try {
+    const target = path.join(surfaceRoot, 'skills', 'demo-skill');
+    const cache = path.join(target, '__pycache__');
+    fs.mkdirSync(cache, { recursive: true });
+    fs.writeFileSync(path.join(target, 'SKILL.md'), 'skill\n');
+    const bytecode = path.join(cache, 'fixture.pyc');
+    fs.writeFileSync(bytecode, Buffer.from('bytecode-v1'));
+    const before = fingerprintPath(target);
+    fs.writeFileSync(bytecode, Buffer.from('bytecode-v2'));
+    assert.notStrictEqual(fingerprintPath(target), before,
+      'consumer ownership must detect a changed destination bytecode file');
+    assert.notStrictEqual(before, '');
+  } finally {
+    fs.rmSync(surfaceRoot, { recursive: true, force: true });
+  }
+});
+
 test('native surface ownership requires a tracked content fingerprint, not provenance shape alone', () => {
   const surfaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-native-surface-'));
   try {

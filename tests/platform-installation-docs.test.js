@@ -12,6 +12,16 @@ const ROOT = path.join(__dirname, '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 const STATUS = ['PASS', 'FAIL', 'NOT_RUN', 'NOT_CONFIGURED', 'SKIP_INCOMPATIBLE', 'BLOCKED', 'UNAVAILABLE'];
 
+function currentCodexRoleCounts() {
+  const roles = fs.readdirSync(path.join(ROOT, 'codex', 'agents'))
+    .filter((entry) => entry.endsWith('.toml'));
+  const projection = JSON.parse(read('codex/agent-projection-manifest.json'));
+  return {
+    direct: roles.length,
+    generated: projection.generated_roles.length,
+  };
+}
+
 test('bilingual installation SSOT exists and exposes every canonical status', () => {
   const english = read('docs/platform-installation.md');
   const chinese = read('docs/platform-installation.zh-TW.md');
@@ -48,6 +58,41 @@ test('installation routes remain separate and point to the SSOT', () => {
     'SKIP_INCOMPATIBLE',
     'UNAVAILABLE',
   ]) assert.ok(english.includes(token), `SSOT missing ${token}`);
+});
+
+test('Codex verification commands declare consumer and checkout roots', () => {
+  for (const relative of ['docs/platform-installation.md', 'docs/platform-installation.zh-TW.md']) {
+    const text = read(relative);
+    assert.ok(text.includes('test -f .codex/.dhpk-installed.json'),
+      `${relative} must keep the consumer-root receipt check`);
+    assert.ok(text.includes('DHPK_ROOT=/absolute/path/to/dhpk'),
+      `${relative} must declare the dhpk checkout root`);
+    assert.ok(text.includes('node "$DHPK_ROOT/scripts/ci/validate-openai-metadata.js" --root "$DHPK_ROOT"'),
+      `${relative} must qualify the metadata validator with DHPK_ROOT`);
+    assert.ok(text.includes('node "$DHPK_ROOT/tests/install-codex-skills.test.js"'),
+      `${relative} must qualify the installer test with DHPK_ROOT`);
+    assert.ok(!text.includes('node scripts/ci/validate-openai-metadata.js --root .'),
+      `${relative} must not run the source validator from the consumer root`);
+    assert.ok(!text.includes('node tests/install-codex-skills.test.js'),
+      `${relative} must not run the source test from the consumer root`);
+  }
+});
+
+test('current Codex operational docs match the projection role counts', () => {
+  const { direct, generated } = currentCodexRoleCounts();
+  for (const relative of [
+    'docs/basic-operations.md',
+    'docs/basic-operations.zh-TW.md',
+    'docs/configuration.md',
+    'docs/configuration.zh-TW.md',
+  ]) {
+    const text = read(relative);
+    assert.ok(text.includes('codex/agents/'), `${relative} must identify the Codex agent projection`);
+    assert.match(text, new RegExp(`${direct}[\\s\\S]{0,120}(?:direct\\s+roles?|個\\s+direct\\s+role)`, 'i'),
+      `${relative} must document ${direct} direct Codex roles`);
+    assert.match(text, new RegExp(`${generated}[\\s\\S]{0,120}(?:generated|產生)`, 'i'),
+      `${relative} must document ${generated} generated Codex roles`);
+  }
 });
 
 test('inventory declares explicit platform matrix and frontmatter ownership', () => {
