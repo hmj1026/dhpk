@@ -55,7 +55,7 @@ function stagedManifest(stageRoot) {
       } else if (entry.isSymbolicLink()) {
         files.set(childRelative, { type: 'symlink', target: fs.readlinkSync(child) });
       } else if (entry.isFile()) {
-        files.set(childRelative, { type: 'file', fingerprint: digest(child) });
+        files.set(childRelative, { type: 'file', fingerprint: digest(child), mode: fs.statSync(child).mode & 0o7777 });
       } else {
         files.set(childRelative, { type: 'other' });
       }
@@ -125,6 +125,12 @@ function assertStagedManifest(plan, stageRoot, written, links, fail) {
       }
       if (entry.expectedFingerprint && actual.fingerprint !== entry.expectedFingerprint) {
         fail('STAGED_CONTENT_MISMATCH', `staged content does not match the compiled plan for '${destination}'`, {
+          stableIds: [entry.stableId],
+          paths: [destination],
+        });
+      }
+      if (entry.mode !== null && entry.mode !== undefined && actual.mode !== entry.mode) {
+        fail('STAGED_MODE_MISMATCH', `staged mode does not match the compiled plan for '${destination}'`, {
           stableIds: [entry.stableId],
           paths: [destination],
         });
@@ -202,8 +208,16 @@ class ProjectionArtifactStore {
         if (typeof output.content !== 'string' && !Buffer.isBuffer(output.content)) {
           fail('INVALID_CONTENT', `output '${entry.stableId}' requires string or Buffer content`, { stableIds: [entry.stableId] });
         }
-        fs.writeFileSync(target, output.content);
-        written.push({ stableId: entry.stableId, destination: entry.destination, fingerprint: digest(target) });
+        const mode = output.mode === undefined || output.mode === null ? entry.mode : output.mode;
+        if (mode !== null && mode !== undefined && (!Number.isInteger(mode) || mode < 0 || mode > 0o7777)) {
+          fail('INVALID_MODE', `output '${entry.stableId}' requires a valid file mode`, { stableIds: [entry.stableId] });
+        }
+        if (entry.mode !== null && entry.mode !== undefined && mode !== entry.mode) {
+          fail('MODE_MISMATCH', `output mode does not match the compiled plan for '${entry.stableId}'`, { stableIds: [entry.stableId] });
+        }
+        if (mode === null || mode === undefined) fs.writeFileSync(target, output.content);
+        else fs.writeFileSync(target, output.content, { mode });
+        written.push({ stableId: entry.stableId, destination: entry.destination, fingerprint: digest(target), mode: fs.statSync(target).mode & 0o7777 });
       },
       link: (output) => {
         const entry = entryFor(output);

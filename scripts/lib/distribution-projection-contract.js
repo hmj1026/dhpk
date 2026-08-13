@@ -87,6 +87,10 @@ function normalizeEntry(entry, index) {
   if (!SYMLINK_POLICIES.includes(symlinkPolicy)) {
     return { error: projectionError('INVALID_SYMLINK_POLICY', 'compile', `unsupported symlink policy '${symlinkPolicy}'`, { stableIds: [stableId] }) };
   }
+  const mode = entry.mode === undefined || entry.mode === null ? null : entry.mode;
+  if (mode !== null && (!Number.isInteger(mode) || mode < 0 || mode > 0o7777)) {
+    return { error: projectionError('INVALID_MODE', 'compile', `projection entry ${stableId} requires a valid file mode`, { stableIds: [stableId] }) };
+  }
   return {
     value: {
       stableId,
@@ -96,6 +100,7 @@ function normalizeEntry(entry, index) {
       owner: entry.owner || stableId,
       transform: entry.transform || { id: 'identity', version: '1' },
       expectedFingerprint: entry.expectedFingerprint || null,
+      mode,
       symlink: {
         policy: symlinkPolicy,
         target: entry.symlinkTarget || null,

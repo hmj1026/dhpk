@@ -10,13 +10,93 @@ const path = require('node:path');
 const os = require('node:os');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
-const { materializeNativePackage, validateNativeCandidate, fingerprintDir } = require('../scripts/lib/codex-native-package');
+const {
+  compileNativePackage,
+  materializeNativePackage,
+  validateNativeCandidate,
+  fingerprintDir,
+} = require('../scripts/lib/codex-native-package');
 
 const ROOT = path.join(__dirname, '..');
 
 function tmpDir(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 }
+
+function packageFiles(root, relative = '') {
+  const files = {};
+  for (const entry of fs.readdirSync(path.join(root, relative), { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+    const child = path.posix.join(relative, entry.name);
+    const absolute = path.join(root, relative, entry.name);
+    if (entry.isDirectory()) Object.assign(files, packageFiles(root, child));
+    else if (entry.isFile()) files[child] = fs.readFileSync(absolute);
+    else throw new Error(`unexpected package entry: ${child}`);
+  }
+  return files;
+}
+
+test('native compiler plan preserves explicit selection, public identity, and generated output intent', () => {
+  const inventory = {
+    skills: [
+      { id: 'tdd', name: 'dhpk-tdd-workflow', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
+      { id: 'not-native', name: 'dhpk-not-native', path: 'skills/dhpk-not-native', lifecycle: 'promoted', surfaces: ['claude-core'] },
+    ],
+  };
+  const out = tmpDir('dhpk-native-compile-');
+  try {
+    const projection = compileNativePackage({ inventory, root: ROOT, outDir: out, version: '1.2.3', sourceCommit: 'abc123' });
+    assert.strictEqual(projection.plan.surface, 'codex-native');
+    assert.deepStrictEqual(projection.selectedSkillIds, ['tdd']);
+    assert.deepStrictEqual(projection.selectedSkillNames, ['dhpk-tdd-workflow']);
+    assert.ok(projection.plan.entries.some((entry) => entry.destination === 'skills/dhpk-tdd-workflow/SKILL.md'));
+    assert.ok(projection.plan.entries.some((entry) => entry.destination === '.codex-plugin/plugin.json'));
+    assert.ok(!projection.plan.entries.some((entry) => entry.destination.includes('dhpk-not-native')));
+    assert.ok(Object.isFrozen(projection.plan));
+  } finally {
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test('compiler-backed native generation preserves the accepted package bytes', () => {
+  const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
+  const tracked = path.join(ROOT, 'plugins', 'dhpk');
+  const trackedManifest = JSON.parse(fs.readFileSync(path.join(tracked, '.codex-plugin', 'plugin.json'), 'utf8'));
+  const trackedProvenance = JSON.parse(fs.readFileSync(path.join(tracked, 'provenance.json'), 'utf8'));
+  const out = tmpDir('dhpk-native-byte-equivalence-');
+  try {
+    materializeNativePackage({
+      inventory,
+      root: ROOT,
+      outDir: out,
+      name: trackedManifest.name,
+      version: trackedManifest.version,
+      sourceCommit: trackedProvenance.sourceCommit,
+    });
+    assert.deepStrictEqual(packageFiles(out), packageFiles(tracked));
+  } finally { fs.rmSync(out, { recursive: true, force: true }); }
+});
+
+test('native materialization preserves executable source modes through the artifact store', () => {
+  const root = tmpDir('dhpk-native-mode-source-');
+  const out = tmpDir('dhpk-native-mode-output-');
+  try {
+    const skill = path.join(root, 'skills', 'dhpk-mode-skill');
+    fs.mkdirSync(path.join(skill, 'bin'), { recursive: true });
+    fs.writeFileSync(path.join(skill, 'SKILL.md'), '---\nname: dhpk-mode-skill\n---\n');
+    const executable = path.join(skill, 'bin', 'run.sh');
+    fs.writeFileSync(executable, '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+    fs.chmodSync(executable, 0o755);
+    materializeNativePackage({
+      inventory: { skills: [{ id: 'mode', name: 'dhpk-mode-skill', path: 'skills/dhpk-mode-skill', surfaces: ['codex-native'] }] },
+      root,
+      outDir: out,
+    });
+    assert.strictEqual(fs.statSync(path.join(out, 'skills', 'dhpk-mode-skill', 'bin', 'run.sh')).mode & 0o777, 0o755);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
 
 test('materialized candidate contains only the explicit codex-native surface, as real files — not every promoted skill', () => {
   const inventory = {
