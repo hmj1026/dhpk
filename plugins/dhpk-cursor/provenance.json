@@ -4,8 +4,8 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.38.2",
-  "sourceCommit": "95f728d661d96710dc138dd13152d17a52a20427",
-  "inventoryDigest": "578c4b8d4ec715cc5a1b740787a314f87678e0351e3c1ac5fae46d6a210c2a27",
+  "sourceCommit": "ac19df597812de776b97abc1e82ec7375a218177",
+  "inventoryDigest": "092cab3297dd5bed20c4d66a2b4acc4d56b28532f29d40252e842f0c4db66e0b",
   "generatorVersion": "1.0.0",
   "selectedSkillIds": [],
   "selectedSkillNames": [],
@@ -645,7 +645,7 @@
     }
   ],
   "fingerprints": {
-    "rules": "bb5312b4426135ea68714d423f50f6cef2b1fa39ed50766c006c92b19524f383",
+    "rules": "4693a91febc8ed7a939fe58fb45b43676a58c941e4ec375de897426d54be2011",
     "agents": "7aa8dde7c58256e7e691da76f846235833e98f44a4ae625847691c605f8a54fb",
     "commands": "69a5078ae7bdb9ab494e7e61dd59e43352412ac7ac2ab4bce8b75d6e148c0bd6",
     "hooks/hooks.json": "1abe14baec6393d900554ebd4a84028ebd9748e0390f370813e9e32f664d0a8a"

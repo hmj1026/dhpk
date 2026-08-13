@@ -53,6 +53,45 @@ test('lifecycle events use a durable versioned schema and legal transitions', ()
   }
 });
 
+test('one task identity links attempts and preserves producer/wave evidence metadata', () => {
+  const repo = mkRepo({ prefix: 'dhpk-lifecycle-identity-contract-' });
+  try {
+    const res = source(repo, [
+      'first_task="$(dhpk_lifecycle_task_id .pending-review session-1 1)"',
+      'second_task="$(dhpk_lifecycle_task_id .pending-review session-1 2)"',
+      '[ "$first_task" = "$second_task" ]',
+      'dhpk_lifecycle_emit planned "$first_task" code-reviewer session-1 1 scope-a diff-a "" "" producer-a wave-a scope-a adapter-a structural plan-a artifact-a',
+      'dhpk_lifecycle_emit dispatched "$first_task" code-reviewer session-1 1 scope-a diff-a "" "" producer-a wave-a scope-a adapter-a structural plan-a artifact-a',
+      'dhpk_lifecycle_emit started "$first_task" code-reviewer session-1 1 scope-a diff-a "" "" producer-a wave-a scope-a adapter-a structural plan-a artifact-a',
+      'dhpk_lifecycle_emit retrying "$first_task" code-reviewer session-1 1 scope-a diff-a "" "" producer-a wave-a scope-a adapter-a structural plan-a artifact-a',
+      'dhpk_lifecycle_emit dispatched "$first_task" code-reviewer session-1 2 scope-a diff-a "" "" producer-a wave-a scope-a adapter-a structural plan-a artifact-a',
+    ].join('\n'));
+    assert.strictEqual(res.status, 0, `task identity/retry contract should be accepted:\n${res.stderr}`);
+    const events = readJsonl(repo, '.lifecycle-events.jsonl');
+    assert.strictEqual(events.length, 5);
+    assert.ok(events.every((event) => event.task_id === events[0].task_id), 'attempts must remain linked to one task');
+    assert.deepStrictEqual(events.map((event) => event.attempt), [1, 1, 1, 1, 2]);
+    assert.deepStrictEqual(events.map((event) => event.attempt_id), [
+      `${events[0].task_id}:attempt:1`,
+      `${events[0].task_id}:attempt:1`,
+      `${events[0].task_id}:attempt:1`,
+      `${events[0].task_id}:attempt:1`,
+      `${events[0].task_id}:attempt:2`,
+    ]);
+    for (const event of events) {
+      assert.strictEqual(event.producer, 'producer-a');
+      assert.strictEqual(event.wave, 'wave-a');
+      assert.strictEqual(event.scope, 'scope-a');
+      assert.strictEqual(event.adapter, 'adapter-a');
+      assert.strictEqual(event.stage, 'structural');
+      assert.strictEqual(event.plan_fingerprint, 'plan-a');
+      assert.strictEqual(event.artifact_fingerprint, 'artifact-a');
+    }
+  } finally {
+    rmRepo(repo);
+  }
+});
+
 test('artifact-ready is a producer marker and consumers fail closed without it', () => {
   const repo = mkRepo({ prefix: 'dhpk-lifecycle-ready-' });
   try {
