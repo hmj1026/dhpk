@@ -1,6 +1,6 @@
 ---
 name: dhpk-react-18-notes
-description: "React 18 guidance for ^18 projects, root setup, concurrent rendering, StrictMode, or 17→18/18→19 upgrades. Not for ordinary application logic. Remains a separate React 18 route; pair with Next only when needed. Output: migration traps and verification gates."
+description: "Use when working on React 18 guidance for ^18 projects, root setup, concurrent rendering, StrictMode, or 17→18/18→19 upgrades. Not for ordinary application logic. Remains a separate React 18 route; pair with Next only when needed. Output: migration traps and verification gates."
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---

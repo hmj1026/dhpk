@@ -1,6 +1,6 @@
 ---
 name: dhpk-php-runtime-router
-description: 'PHP implementation and review router for Laravel, Symfony, modern PHP, or PHP 5.6/Yii. Detect runtime first and load only matching references; select Laravel major before framework-coupled edits. Not for frontend-only work. Output: compatibility-safe guidance and verification gates.'
+description: 'Use when implementing or reviewing Laravel, Symfony, modern PHP, or PHP 5.6/Yii code. Detect runtime first and load only matching references; select Laravel major before framework-coupled edits. Not for frontend-only work. Output: compatibility-safe guidance and verification gates.'
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---

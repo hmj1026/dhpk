@@ -1,6 +1,6 @@
 ---
 name: dhpk-nextjs-16-notes
-description: "Next.js 16 guidance for framework code or 15→16 upgrades: Turbopack, async Request APIs, Node floor, removed APIs, and image changes. Not for application business logic. React 18.2+ or 19 is supported. Output: migration traps and verification gates."
+description: "Use when working on Next.js 16 framework code or 15→16 upgrades: Turbopack, async Request APIs, Node floor, removed APIs, and image changes. Not for application business logic. React 18.2+ or 19 is supported. Output: migration traps and verification gates."
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---

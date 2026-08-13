@@ -1,6 +1,6 @@
 ---
 name: dhpk-yii1-php56-development
-description: 'Yii 1.x/PHP 5.6 backend implementation and review workflow for controllers, models, services, repositories, validation, security, and DDD boundaries. Not for frontend, docs-only, or non-PHP work. Output: PHP 5.6-safe TDD plan and compatibility evidence.'
+description: 'Use when implementing or reviewing Yii 1.x/PHP 5.6 backend controllers, models, services, repositories, validation, security, and DDD boundaries. Not for frontend, docs-only, or non-PHP work. Output: PHP 5.6-safe TDD plan and compatibility evidence.'
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---

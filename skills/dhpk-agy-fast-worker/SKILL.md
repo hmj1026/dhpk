@@ -1,6 +1,6 @@
 ---
 name: dhpk-agy-fast-worker
-description: 'Offload a precise self-contained mechanical task to the agy CLI when available. Require target files, intent, and verification command; keep output in the agy-fast-worker subagent. Not for ambiguity, conversation-dependent work, or default fast-worker use. Output: verified edited files or honest BLOCKED evidence.'
+description: 'Use when offloading a precise self-contained mechanical task to the agy CLI when available. Require target files, intent, and verification command; keep output in the agy-fast-worker subagent. Not for ambiguity, conversation-dependent work, or default fast-worker use. Output: verified edited files or honest BLOCKED evidence.'
 allowed-tools: 'Bash(bash:*), Bash(agy:*), Read, Write, Grep, Glob'
 metadata:
   dhpk-invocation-class: implicit-eligible

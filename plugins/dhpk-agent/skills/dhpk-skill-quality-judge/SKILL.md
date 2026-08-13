@@ -1,6 +1,6 @@
 ---
 name: dhpk-skill-quality-judge
-description: "Deeply evaluate one SKILL.md or package against official design practice with a scored rubric. Not for structural lint, batch stocktake, or creating/refactoring a skill. Output: per-dimension grade, critical issues, and prioritized improvements."
+description: "Use when deeply evaluating one SKILL.md or package against official design practice with a scored rubric. Not for structural lint, batch stocktake, or creating/refactoring a skill. Output: per-dimension grade, critical issues, and prioritized improvements."
 metadata:
   dhpk-invocation-class: "implicit-eligible"
 ---

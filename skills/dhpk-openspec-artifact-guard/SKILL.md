@@ -1,6 +1,6 @@
 ---
 name: dhpk-openspec-artifact-guard
-description: 'Validate OpenSpec artifact shape, delta placement, task/git alignment, and safe change slugs. Use while editing OpenSpec files or reviewing them before archive. Not for implementation or archive itself. Output: a verdict with artifact and task evidence.'
+description: 'Use when validating OpenSpec artifact shape, delta placement, task/git alignment, and safe change slugs. Apply while editing OpenSpec files or reviewing them before archive. Not for implementation or archive itself. Output: a verdict with artifact and task evidence.'
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---

@@ -1,6 +1,6 @@
 ---
 name: dhpk-ios-platform
-description: 'iOS SDK guidance for privacy-sensitive persistence, CryptoKit/Keychain, OCR, camera, biometrics, notifications, HealthKit, or privacy manifests. Requires swift. Not for SwiftUI composition or pure Swift language work. Output: SDK-specific implementation or review guidance with privacy and verification gates.'
+description: 'Use when iOS SDK guidance is needed for privacy-sensitive persistence, CryptoKit/Keychain, OCR, camera, biometrics, notifications, HealthKit, or privacy manifests. Requires swift. Not for SwiftUI composition or pure Swift language work. Output: SDK-specific implementation or review guidance with privacy and verification gates.'
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---

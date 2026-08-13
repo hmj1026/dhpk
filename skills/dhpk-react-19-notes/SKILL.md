@@ -1,6 +1,6 @@
 ---
 name: dhpk-react-19-notes
-description: "React 19 guidance for Actions, new hooks, refs, providers, Server Components, or 18→19 upgrades. Not for ordinary application logic. Remains a separate React 19 route; Next 16 also supports React 18.2+. Output: migration traps and verification gates."
+description: "Use when working on React 19 guidance for Actions, new hooks, refs, providers, Server Components, or 18→19 upgrades. Not for ordinary application logic. Remains a separate React 19 route; Next 16 also supports React 18.2+. Output: migration traps and verification gates."
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---
