@@ -15,6 +15,8 @@ const fs = require('node:fs');
 const crypto = require('node:crypto');
 const path = require('node:path');
 const { collectInventory, relativePosix } = require('./asset-inventory');
+const { compileDistribution, verifyDistribution } = require('./distribution-compiler');
+const { fingerprint, createDistributionArtifact, projectionError } = require('./distribution-projection-contract');
 
 const LIFECYCLES = ['promoted', 'optional', 'experimental', 'deprecated'];
 const SURFACES = [
@@ -125,6 +127,24 @@ function preserveProjectionContract(generated, existing) {
 
 function serializeInventory(inventory) {
   return `${JSON.stringify(inventory, null, 2)}\n`;
+}
+
+// The inventory is the checked-in selection SSOT, so its writer must preserve
+// the last accepted revision if a disk write or rename fails. A same-directory
+// temporary file keeps the final rename on one filesystem and avoids exposing
+// a partially truncated manifest to a concurrent validator.
+function writeInventoryAtomically(filePath, content, filesystem = fs) {
+  const directory = path.dirname(filePath);
+  const temporaryDirectory = filesystem.mkdtempSync(path.join(directory, '.distribution-inventory-tmp-'));
+  const temporaryPath = path.join(temporaryDirectory, path.basename(filePath));
+  try {
+    filesystem.writeFileSync(temporaryPath, content, { mode: 0o644, flag: 'wx' });
+    filesystem.renameSync(temporaryPath, filePath);
+  } finally {
+    if (filesystem.existsSync(temporaryDirectory)) {
+      filesystem.rmSync(temporaryDirectory, { recursive: true, force: true });
+    }
+  }
 }
 
 function findByPath(entries, relPath) {
@@ -657,6 +677,148 @@ function generateClaudeSkillRoots(inventory) {
   };
 }
 
+function freezeProjectionValue(value) {
+  if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
+  for (const child of Object.values(value)) freezeProjectionValue(child);
+  return Object.freeze(value);
+}
+
+function normalizedInventoryView(inventory, generated) {
+  const normalize = (entries) => (entries || [])
+    .map((entry) => ({
+      id: entry.id,
+      name: entry.name || null,
+      path: entry.path,
+      lifecycle: entry.lifecycle,
+      surfaces: [...(entry.surfaces || [])].sort(),
+    }))
+    .sort((left, right) => String(left.id).localeCompare(String(right.id)));
+  return freezeProjectionValue({
+    schema: inventory && inventory.schema ? inventory.schema : null,
+    roots: [...generated.roots],
+    generatedSkillIds: [...generated.generatedSkillIds],
+    skills: normalize(inventory && inventory.skills),
+    modules: normalize(inventory && inventory.modules),
+  });
+}
+
+function projectionOutput(stableId, source, destination, content, transform) {
+  const bytes = Buffer.from(content);
+  return {
+    stableId,
+    source,
+    destination,
+    content: bytes,
+    expectedFingerprint: crypto.createHash('sha256').update(bytes).digest('hex'),
+    transform,
+    mode: 0o644,
+    symlinkPolicy: 'forbid',
+  };
+}
+
+// Claude's plugin manifest is intentionally a thin consumer surface: its
+// skills[] field registers directory roots while the inventory remains the
+// lifecycle and selection SSOT. This compiler emits a deterministic inventory
+// view and publication-root view so the shared compiler/verifier can bind the
+// existing check without making the manifest itself authoritative.
+function compileClaudeProjection({ inventory, compilerVersion = 'claude-1' } = {}) {
+  if (!inventory || typeof inventory !== 'object' || Array.isArray(inventory)) {
+    return { ok: false, error: projectionError('INVALID_INPUT', 'compile', 'inventory is required') };
+  }
+  const generated = generateClaudeSkillRoots(inventory);
+  const inventoryView = normalizedInventoryView(inventory, generated);
+  const rootsContent = `${JSON.stringify({ roots: generated.roots, generatedSkillIds: generated.generatedSkillIds }, null, 2)}\n`;
+  const inventoryContent = `${JSON.stringify(inventoryView, null, 2)}\n`;
+  const entries = [
+    projectionOutput(
+      'claude:inventory-view',
+      'manifests/distribution-inventory.json',
+      'generated/inventory-view.json',
+      inventoryContent,
+      { id: 'claude-inventory-view', version: '1' },
+    ),
+    projectionOutput(
+      'claude:publication-roots',
+      'manifests/distribution-inventory.json',
+      'generated/publication-roots.json',
+      rootsContent,
+      { id: 'claude-publication-roots', version: '1' },
+    ),
+  ];
+  const compiled = compileDistribution({
+    compilerVersion,
+    surface: 'claude-core',
+    inventoryFingerprint: fingerprint(inventoryView),
+    ownershipRoot: '.claude-plugin',
+    entries,
+  });
+  if (!compiled.ok) return compiled;
+  const plan = compiled.value;
+  const adapter = {
+    identity: { id: 'claude-inventory-projection', version: compilerVersion },
+    render: () => ({
+      adapter: { id: 'claude-inventory-projection', version: compilerVersion },
+      outputs: entries.map((entry) => ({
+        stableId: entry.stableId,
+        destination: entry.destination,
+        content: entry.content,
+        mode: entry.mode,
+      })),
+      metadata: { generated, inventoryView },
+    }),
+  };
+  return {
+    ok: true,
+    plan,
+    generated,
+    inventoryView,
+    adapter,
+  };
+}
+
+function verifyClaudeProjection({ inventory, pluginSkills = [], stage = 'structural', observedAt } = {}) {
+  const compiled = compileClaudeProjection({ inventory });
+  if (!compiled.ok) return compiled;
+  const registered = Array.isArray(pluginSkills) ? pluginSkills.filter((value) => typeof value === 'string') : [];
+  const generatedSet = new Set(compiled.generated.roots);
+  const registeredSet = new Set(registered);
+  const missing = [...generatedSet].filter((root) => !registeredSet.has(root)).sort();
+  const extra = [...registeredSet].filter((root) => !generatedSet.has(root)).sort();
+  const diagnostics = [
+    ...missing.map((root) => `DRIFT [gen-claude-manifest]: inventory expects root '${root}' but plugin.json skills[] does not register it`),
+    ...extra.map((root) => `DRIFT [gen-claude-manifest]: plugin.json skills[] registers '${root}' with no inventory-eligible skill backing it`),
+  ];
+  if (missing.length > 0 || extra.length > 0) diagnostics.push(`FAIL [gen-claude-manifest]: ${missing.length + extra.length} root mismatch(es).`);
+  const artifactResult = createDistributionArtifact({
+    planFingerprint: compiled.plan.planFingerprint,
+    adapter: compiled.adapter.identity,
+    artifactFingerprint: fingerprint({ roots: [...registeredSet].sort() }),
+    outputs: [],
+    metadata: { registeredRoots: [...registeredSet].sort() },
+  });
+  if (!artifactResult.ok) return artifactResult;
+  const evidenceResult = verifyDistribution(stage, artifactResult.value, {
+    identity: { id: 'claude-inventory-validator', version: '1' },
+    verify: () => ({
+      verdict: missing.length === 0 && extra.length === 0 ? 'PASS' : 'FAIL',
+      claims: ['inventory-derived Claude publication roots', 'Claude plugin skills[] root registration'],
+      observations: [`checked ${registeredSet.size} registered root(s)`],
+      diagnostics,
+      observedAt,
+    }),
+  });
+  const evidence = evidenceResult.ok ? evidenceResult.value : evidenceResult;
+  return {
+    ok: missing.length === 0 && extra.length === 0 && evidenceResult.ok && evidence.verdict === 'PASS',
+    plan: compiled.plan,
+    generated: compiled.generated,
+    inventoryView: compiled.inventoryView,
+    missing,
+    extra,
+    evidence,
+  };
+}
+
 // Task 4.1/4.2: scoped counts, kept independently derived so a documentation
 // claim can cite the count whose scope actually matches it (harness-count-integrity
 // spec: canonical inventory must never stand in for a narrower published surface).
@@ -701,6 +863,7 @@ module.exports = {
   classifyCanonicalInventory,
   preserveProjectionContract,
   serializeInventory,
+  writeInventoryAtomically,
   validateSupportingAssets,
   refreshSupportingDigests,
   validateDistributionInventory,
@@ -712,6 +875,8 @@ module.exports = {
   validateProjectionContract,
   reconcileDistribution,
   generateClaudeSkillRoots,
+  compileClaudeProjection,
+  verifyClaudeProjection,
   computeScopedCounts,
 };
 

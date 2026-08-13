@@ -10,7 +10,14 @@ const crypto = require('node:crypto');
 const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
-const { classifyCanonicalInventory, LIFECYCLES, refreshSupportingDigests } = require('../scripts/lib/distribution-inventory');
+const {
+  classifyCanonicalInventory,
+  LIFECYCLES,
+  refreshSupportingDigests,
+  compileClaudeProjection,
+  preserveProjectionContract,
+  writeInventoryAtomically,
+} = require('../scripts/lib/distribution-inventory');
 
 const ROOT = path.join(__dirname, '..');
 const MANIFEST = path.join(ROOT, 'manifests', 'distribution-inventory.json');
@@ -100,6 +107,40 @@ test('supporting provenance refresh derives transformed digests without mutating
     assert.strictEqual(refreshed.supporting_assets[0].projection_digest, digest('codex/policy.md'));
     assert.strictEqual(original.supporting_assets[0].canonical_digest, 'stale');
   } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test('Claude compilation is deterministic and does not let contract preservation select roots', () => {
+  const inventory = JSON.parse(fs.readFileSync(MANIFEST, 'utf8'));
+  const first = compileClaudeProjection({ inventory });
+  const second = compileClaudeProjection({ inventory: JSON.parse(JSON.stringify(inventory)) });
+  assert.strictEqual(first.ok, true, first.error && first.error.message);
+  assert.strictEqual(second.ok, true, second.error && second.error.message);
+  assert.strictEqual(first.plan.planFingerprint, second.plan.planFingerprint);
+  assert.deepStrictEqual(first.generated, second.generated);
+  const regenerated = preserveProjectionContract({ ...inventory, skills: inventory.skills.slice() }, inventory);
+  const preserved = compileClaudeProjection({ inventory: regenerated });
+  assert.strictEqual(preserved.ok, true, preserved.error && preserved.error.message);
+  assert.deepStrictEqual(preserved.generated, first.generated);
+});
+
+test('inventory writer preserves the accepted manifest when atomic rename fails', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-inventory-atomic-'));
+  const target = path.join(temp, 'distribution-inventory.json');
+  const before = '{"schema":"old"}\n';
+  fs.writeFileSync(target, before);
+  const realRename = fs.renameSync;
+  try {
+    fs.renameSync = () => { throw new Error('synthetic inventory rename failure'); };
+    assert.throws(
+      () => writeInventoryAtomically(target, '{"schema":"new"}\n'),
+      /synthetic inventory rename failure/,
+    );
+    assert.strictEqual(fs.readFileSync(target, 'utf8'), before);
+    assert.deepStrictEqual(fs.readdirSync(temp), ['distribution-inventory.json']);
+  } finally {
+    fs.renameSync = realRename;
     fs.rmSync(temp, { recursive: true, force: true });
   }
 });

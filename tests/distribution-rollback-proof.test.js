@@ -13,7 +13,8 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
-const { generateClaudeSkillRoots } = require('../scripts/lib/distribution-inventory');
+const { generateClaudeSkillRoots, compileClaudeProjection } = require('../scripts/lib/distribution-inventory');
+const { materializeDistribution } = require('../scripts/lib/distribution-compiler');
 const { materializeAgentPluginPackage } = require('../scripts/lib/agent-plugin-package');
 const { materializeNativePackage } = require('../scripts/lib/codex-native-package');
 const { materializeCursorPackage } = require('../scripts/lib/cursor-plugin-package');
@@ -70,6 +71,47 @@ test('rollback: regenerating from the prior revision again reproduces the origin
   const rolledBackGenerated = generateClaudeSkillRoots(priorInventory);
   assert.deepStrictEqual(rolledBackGenerated, priorGenerated);
   assert.ok(rolledBackGenerated.roots.includes('./skills/'));
+});
+
+test('failed Claude inventory reconciliation retains the previously accepted generated view', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-rollback-source-'));
+  const outputParent = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-claude-rollback-output-'));
+  const output = path.join(outputParent, 'claude');
+  try {
+    const inventory = {
+      schema: 'dhpk.distribution-inventory.v1',
+      skills: [{ id: 'stable', path: 'skills/dhpk-stable', lifecycle: 'promoted', surfaces: ['claude-core'] }],
+      modules: [],
+    };
+    const projection = compileClaudeProjection({ inventory });
+    assert.strictEqual(projection.ok, true, projection.error && projection.error.message);
+    const store = new ProjectionArtifactStore({ root: outputParent, sourceRoot: root, publishRoot: output });
+    const first = materializeDistribution(projection.plan, projection.adapter, store);
+    assert.strictEqual(first.ok, true, first.error && first.error.message);
+    const before = snapshotTree(output);
+
+    const failingStore = {
+      begin(plan) {
+        const session = store.begin(plan);
+        const write = session.write;
+        let writes = 0;
+        session.write = (entry) => {
+          writes += 1;
+          if (writes === 2) throw new Error('synthetic Claude inventory staging failure');
+          return write(entry);
+        };
+        return session;
+      },
+    };
+    const failed = materializeDistribution(projection.plan, projection.adapter, failingStore);
+    assert.strictEqual(failed.ok, false);
+    assert.match(failed.error.message, /synthetic Claude inventory staging failure/);
+    assert.deepStrictEqual(snapshotTree(output), before);
+    assert.deepStrictEqual(fs.readdirSync(outputParent).filter((entry) => entry.startsWith('.projection-stage-')), []);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(outputParent, { recursive: true, force: true });
+  }
 });
 
 test('failed Agent Plugin staging retains the previously accepted package tree', () => {

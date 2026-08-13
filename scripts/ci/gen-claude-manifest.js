@@ -20,7 +20,7 @@
 
 const fs = require('fs');
 const path = require('path');
-const { generateClaudeSkillRoots } = require('../lib/distribution-inventory');
+const { compileClaudeProjection, verifyClaudeProjection } = require('../lib/distribution-inventory');
 
 const ROOT = path.join(__dirname, '..', '..');
 const INVENTORY_PATH = path.join(ROOT, 'manifests', 'distribution-inventory.json');
@@ -33,24 +33,18 @@ function loadInventory() {
 function checkMode() {
   const inventory = loadInventory();
   const plugin = JSON.parse(fs.readFileSync(PLUGIN_JSON_PATH, 'utf8'));
-  const generated = generateClaudeSkillRoots(inventory);
-
-  const generatedSet = new Set(generated.roots);
-  const registeredSet = new Set(plugin.skills || []);
-
-  const missing = [...generatedSet].filter((r) => !registeredSet.has(r));
-  const extra = [...registeredSet].filter((r) => !generatedSet.has(r));
-
-  for (const r of missing) {
-    console.error(`DRIFT [gen-claude-manifest]: inventory expects root '${r}' but plugin.json skills[] does not register it`);
-  }
-  for (const r of extra) {
-    console.error(`DRIFT [gen-claude-manifest]: plugin.json skills[] registers '${r}' with no inventory-eligible skill backing it`);
-  }
-  if (missing.length > 0 || extra.length > 0) {
-    console.error(`FAIL [gen-claude-manifest]: ${missing.length + extra.length} root mismatch(es).`);
+  const verification = verifyClaudeProjection({ inventory, pluginSkills: plugin.skills || [] });
+  if (!verification.ok) {
+    if (verification.error) {
+      console.error(`FAIL [gen-claude-manifest]: ${verification.error.message}`);
+      return 1;
+    }
+    for (const diagnostic of verification.evidence && verification.evidence.diagnostics || []) {
+      if (diagnostic.startsWith('DRIFT ') || diagnostic.startsWith('FAIL ')) console.error(diagnostic);
+    }
     return 1;
   }
+  const registeredSet = new Set(plugin.skills || []);
   console.log(`PASS [gen-claude-manifest]: plugin.json skills[] (${registeredSet.size} roots) matches the inventory-derived root set.`);
   return 0;
 }
@@ -59,7 +53,12 @@ const args = process.argv.slice(2);
 if (args.includes('--check')) {
   process.exit(checkMode());
 } else {
-  const generated = generateClaudeSkillRoots(loadInventory());
+  const compiled = compileClaudeProjection({ inventory: loadInventory() });
+  if (!compiled.ok) {
+    console.error(`FAIL [gen-claude-manifest]: ${compiled.error.message}`);
+    process.exit(1);
+  }
+  const generated = compiled.generated;
   console.log('dhpk Claude publication surface (generated from distribution inventory):');
   console.log(`  roots:              ${generated.roots.length}`);
   console.log(`  generated skill ids: ${generated.generatedSkillIds.length} (excludes deprecated; host cannot hide within a shared root)`);
