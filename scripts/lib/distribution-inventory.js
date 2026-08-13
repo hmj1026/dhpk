@@ -469,9 +469,137 @@ function validateSkillRoutingFamilies({ families, skillIds = new Set(), skills =
   return { errors };
 }
 
+// Convert inventory-owned routing metadata to the stable public shape used by
+// projection consumers.  The inventory remains the only policy source: this
+// helper clones every value, sorts the collections that have semantic order,
+// and returns a deeply frozen view without mutating the caller's object.
+function normalizeSkillRoutingFamilies({ inventory } = {}) {
+  const families = inventory && Array.isArray(inventory.skill_routing_families)
+    ? inventory.skill_routing_families
+    : [];
+  const skills = inventory && Array.isArray(inventory.skills) ? inventory.skills : [];
+  const skillIds = new Set(skills.map((skill) => skill && skill.id).filter((id) => typeof id === 'string'));
+  const validation = validateSkillRoutingFamilies({ families, skillIds, skills });
+  if (validation.errors.length > 0) return freezeProjectionValue([]);
+
+  const normalized = families.map((family) => ({
+    id: family.id,
+    routerId: family.router_id,
+    invocationClass: family.invocation_class,
+    surfaces: [...family.surfaces].sort(),
+    selectors: Object.fromEntries(
+      Object.entries(family.selectors)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([selector, reference]) => [selector, reference]),
+    ),
+    aliases: family.aliases
+      .map((alias) => ({
+        id: alias.id,
+        selector: alias.selector,
+        invocationClass: alias.invocation_class,
+        surfaces: [...alias.surfaces].sort(),
+      }))
+      .sort((left, right) => left.id.localeCompare(right.id)),
+  })).sort((left, right) => left.id.localeCompare(right.id));
+
+  return freezeProjectionValue(normalized);
+}
+
+function routingLookupFamily(family) {
+  if (!family || typeof family !== 'object' || Array.isArray(family)) return null;
+  const hasSnakeRouter = Object.prototype.hasOwnProperty.call(family, 'router_id');
+  const hasCamelRouter = Object.prototype.hasOwnProperty.call(family, 'routerId');
+  if (hasSnakeRouter && hasCamelRouter && family.router_id !== family.routerId) return null;
+  const hasSnakeInvocation = Object.prototype.hasOwnProperty.call(family, 'invocation_class');
+  const hasCamelInvocation = Object.prototype.hasOwnProperty.call(family, 'invocationClass');
+  if (hasSnakeInvocation && hasCamelInvocation && family.invocation_class !== family.invocationClass) return null;
+
+  const routerId = hasCamelRouter ? family.routerId : family.router_id;
+  const invocationClass = hasCamelInvocation ? family.invocationClass : family.invocation_class;
+  if (typeof family.id !== 'string' || family.id.trim() === '' || typeof routerId !== 'string' || routerId.trim() === '') return null;
+  if (!['implicit-eligible', 'explicit-only'].includes(invocationClass)) return null;
+  if (!Array.isArray(family.surfaces) || family.surfaces.some((surface) => !SURFACES.includes(surface))) return null;
+  if (!family.selectors || typeof family.selectors !== 'object' || Array.isArray(family.selectors) || Object.keys(family.selectors).length === 0) return null;
+
+  const selectors = {};
+  for (const [selector, reference] of Object.entries(family.selectors)) {
+    if (typeof selector !== 'string' || selector.trim() === '' || !isSafeInventoryPath(reference)) return null;
+    selectors[selector] = reference;
+  }
+
+  if (!Array.isArray(family.aliases) || family.aliases.length === 0) return null;
+  const aliases = [];
+  for (const alias of family.aliases) {
+    if (!alias || typeof alias !== 'object' || Array.isArray(alias)) return null;
+    const aliasSnakeInvocation = Object.prototype.hasOwnProperty.call(alias, 'invocation_class');
+    const aliasCamelInvocation = Object.prototype.hasOwnProperty.call(alias, 'invocationClass');
+    if (aliasSnakeInvocation && aliasCamelInvocation && alias.invocation_class !== alias.invocationClass) return null;
+    const aliasInvocation = aliasCamelInvocation ? alias.invocationClass : alias.invocation_class;
+    if (typeof alias.id !== 'string' || alias.id.trim() === '' || typeof alias.selector !== 'string' || !Object.prototype.hasOwnProperty.call(selectors, alias.selector)) return null;
+    if (aliasInvocation !== invocationClass) return null;
+    if (!Array.isArray(alias.surfaces) || alias.surfaces.some((surface) => !SURFACES.includes(surface))) return null;
+    if (JSON.stringify([...alias.surfaces].sort()) !== JSON.stringify([...family.surfaces].sort())) return null;
+    aliases.push({ id: alias.id, selector: alias.selector, invocationClass: aliasInvocation, surfaces: [...alias.surfaces].sort() });
+  }
+  aliases.sort((left, right) => left.id.localeCompare(right.id));
+  for (let index = 1; index < aliases.length; index += 1) {
+    if (aliases[index - 1].id === aliases[index].id) return null;
+  }
+  return { id: family.id, routerId, invocationClass, surfaces: [...family.surfaces].sort(), selectors, aliases };
+}
+
+// Resolve one exact selector or one retained alias.  A malformed family,
+// unsafe path, missing selector, duplicate alias, or conflicting selector is
+// deliberately indistinguishable from an unknown route: callers receive null
+// and can never fall back to sibling-version detail.
+function resolveSkillRoutingReference({ inventory, families, familyId, selector, id } = {}) {
+  const source = families === undefined
+    ? normalizeSkillRoutingFamilies({ inventory })
+    : families;
+  if (!Array.isArray(source) || source.length === 0) return null;
+  const records = source.map(routingLookupFamily);
+  if (records.some((record) => record === null)) return null;
+
+  const familyIds = new Set();
+  for (const record of records) {
+    if (familyIds.has(record.id)) return null;
+    familyIds.add(record.id);
+  }
+
+  if (familyId !== undefined && (typeof familyId !== 'string' || familyId.trim() === '')) return null;
+  if (selector !== undefined && (typeof selector !== 'string' || selector.trim() === '')) return null;
+  if (id !== undefined && (typeof id !== 'string' || id.trim() === '')) return null;
+
+  let family = null;
+  let selectedSelector = selector;
+  if (id !== undefined) {
+    const matches = [];
+    for (const candidate of records) {
+      for (const alias of candidate.aliases) if (alias.id === id) matches.push({ family: candidate, alias });
+    }
+    if (matches.length !== 1) return null;
+    if (familyId !== undefined && matches[0].family.id !== familyId) return null;
+    if (selector !== undefined && matches[0].alias.selector !== selector) return null;
+    family = matches[0].family;
+    selectedSelector = matches[0].alias.selector;
+  } else {
+    if (familyId === undefined || selector === undefined) return null;
+    const matches = records.filter((candidate) => candidate.id === familyId);
+    if (matches.length !== 1) return null;
+    family = matches[0];
+  }
+
+  if (!family || !Object.prototype.hasOwnProperty.call(family.selectors, selectedSelector)) return null;
+  const reference = family.selectors[selectedSelector];
+  return isSafeInventoryPath(reference) ? reference : null;
+}
+
 function resolveSkillRoutingAlias({ families = [], id } = {}) {
   for (const family of families) for (const alias of family.aliases || []) {
-    if (alias.id === id) return { familyId: family.id, routerId: family.router_id, selector: alias.selector, reference: family.selectors && family.selectors[alias.selector] };
+    if (alias.id === id) {
+      const routerId = family.router_id === undefined ? family.routerId : family.router_id;
+      return { familyId: family.id, routerId, selector: alias.selector, reference: family.selectors && family.selectors[alias.selector] };
+    }
   }
   return null;
 }
@@ -775,7 +903,15 @@ function compileClaudeProjection({ inventory, compilerVersion = 'claude-1' } = {
     return { ok: false, error: projectionError('INVALID_INPUT', 'compile', 'inventory is required') };
   }
   const generated = generateClaudeSkillRoots(inventory);
-  const inventoryView = normalizedInventoryView(inventory, generated);
+  // Keep Claude's generated metadata on the same normalized router view that
+  // Codex and parity checks consume. The Claude host still registers roots;
+  // this view records the per-alias contract without changing that host shape.
+  const { buildSkillRoutingProjection, compareSkillRoutingProjections } = require('./skill-routing-projection');
+  const routingProjection = buildSkillRoutingProjection({ inventory, surface: 'claude-module' });
+  const inventoryView = freezeProjectionValue({
+    ...normalizedInventoryView(inventory, generated),
+    skillRoutingProjection: routingProjection,
+  });
   const rootsContent = `${JSON.stringify({ roots: generated.roots, generatedSkillIds: generated.generatedSkillIds }, null, 2)}\n`;
   const inventoryContent = `${JSON.stringify(inventoryView, null, 2)}\n`;
   const entries = [
@@ -813,30 +949,65 @@ function compileClaudeProjection({ inventory, compilerVersion = 'claude-1' } = {
         content: entry.content,
         mode: entry.mode,
       })),
-      metadata: { generated, inventoryView },
+      metadata: { generated, inventoryView, routingProjection },
     }),
+    validate: (rendered) => {
+      const expected = buildSkillRoutingProjection({ inventory, surface: 'claude-module' });
+      const metadataParity = compareSkillRoutingProjections({
+        expected,
+        actual: rendered.metadata && rendered.metadata.routingProjection,
+      });
+      if (!metadataParity.ok) {
+        throw new Error(`Claude routing projection metadata drift: ${metadataParity.diagnostics.join('; ')}`);
+      }
+      const inventoryOutput = (rendered.outputs || []).find((entry) => entry.stableId === 'claude:inventory-view');
+      let publishedView;
+      try {
+        publishedView = JSON.parse(Buffer.from(inventoryOutput && inventoryOutput.content || '').toString('utf8'));
+      } catch (_) {
+        throw new Error('Claude inventory-view output is not valid JSON');
+      }
+      const artifactParity = compareSkillRoutingProjections({
+        expected,
+        actual: publishedView && publishedView.skillRoutingProjection,
+      });
+      if (!artifactParity.ok) {
+        throw new Error(`Claude routing projection artifact drift: ${artifactParity.diagnostics.join('; ')}`);
+      }
+      return rendered;
+    },
   };
   return {
     ok: true,
     plan,
     generated,
     inventoryView,
+    routingProjection,
     adapter,
   };
 }
 
-function verifyClaudeProjection({ inventory, pluginSkills = [], stage = 'structural', observedAt } = {}) {
+function verifyClaudeProjection({ inventory, pluginSkills = [], stage = 'structural', observedAt, publishedInventoryView } = {}) {
   const compiled = compileClaudeProjection({ inventory });
   if (!compiled.ok) return compiled;
+  const { compareSkillRoutingProjections } = require('./skill-routing-projection');
+  const routingParity = compareSkillRoutingProjections({
+    expected: compiled.routingProjection,
+    actual: publishedInventoryView === undefined
+      ? compiled.inventoryView.skillRoutingProjection
+      : publishedInventoryView && publishedInventoryView.skillRoutingProjection,
+  });
   const registered = Array.isArray(pluginSkills) ? pluginSkills.filter((value) => typeof value === 'string') : [];
   const generatedSet = new Set(compiled.generated.roots);
   const registeredSet = new Set(registered);
   const missing = [...generatedSet].filter((root) => !registeredSet.has(root)).sort();
   const extra = [...registeredSet].filter((root) => !generatedSet.has(root)).sort();
   const diagnostics = [
+    ...routingParity.diagnostics.map((diagnostic) => `DRIFT [skill-routing-projection]: ${diagnostic}`),
     ...missing.map((root) => `DRIFT [gen-claude-manifest]: inventory expects root '${root}' but plugin.json skills[] does not register it`),
     ...extra.map((root) => `DRIFT [gen-claude-manifest]: plugin.json skills[] registers '${root}' with no inventory-eligible skill backing it`),
   ];
+  if (!routingParity.ok) diagnostics.push(`FAIL [skill-routing-projection]: ${routingParity.mismatches.length} routing mismatch(es).`);
   if (missing.length > 0 || extra.length > 0) diagnostics.push(`FAIL [gen-claude-manifest]: ${missing.length + extra.length} root mismatch(es).`);
   const artifactResult = createDistributionArtifact({
     planFingerprint: compiled.plan.planFingerprint,
@@ -849,16 +1020,16 @@ function verifyClaudeProjection({ inventory, pluginSkills = [], stage = 'structu
   const evidenceResult = verifyDistribution(stage, artifactResult.value, {
     identity: { id: 'claude-inventory-validator', version: '1' },
     verify: () => ({
-      verdict: missing.length === 0 && extra.length === 0 ? 'PASS' : 'FAIL',
-      claims: ['inventory-derived Claude publication roots', 'Claude plugin skills[] root registration'],
-      observations: [`checked ${registeredSet.size} registered root(s)`],
+      verdict: missing.length === 0 && extra.length === 0 && routingParity.ok ? 'PASS' : 'FAIL',
+      claims: ['inventory-derived Claude publication roots', 'Claude plugin skills[] root registration', 'Claude routing projection parity'],
+      observations: [`checked ${registeredSet.size} registered root(s)`, `checked ${compiled.routingProjection.entries.length} routing projection entr${compiled.routingProjection.entries.length === 1 ? 'y' : 'ies'}`],
       diagnostics,
       observedAt,
     }),
   });
   const evidence = evidenceResult.ok ? evidenceResult.value : evidenceResult;
   return {
-    ok: missing.length === 0 && extra.length === 0 && evidenceResult.ok && evidence.verdict === 'PASS',
+    ok: missing.length === 0 && extra.length === 0 && routingParity.ok && evidenceResult.ok && evidence.verdict === 'PASS',
     plan: compiled.plan,
     generated: compiled.generated,
     inventoryView: compiled.inventoryView,
@@ -918,6 +1089,8 @@ module.exports = {
   validateDistributionInventory,
   validateDistributionInventoryV2,
   validateSkillRoutingFamilies,
+  normalizeSkillRoutingFamilies,
+  resolveSkillRoutingReference,
   resolveSkillRoutingAlias,
   validateInventoryV2: validateDistributionInventoryV2,
   validateSurfaceMembership,
@@ -938,3 +1111,14 @@ module.exports = {
 const { validateSkillTopology, validateTopology } = require('./skill-topology');
 module.exports.validateSkillTopology = validateSkillTopology;
 module.exports.validateTopology = validateTopology;
+
+// Re-export the inventory-owned routing projection helpers so Claude, Codex,
+// and focused parity consumers share one normalized family/alias view. The
+// projection module resolves inventory normalization lazily to keep this
+// boundary free of a circular initialization hazard.
+const {
+  buildSkillRoutingProjection,
+  compareSkillRoutingProjections,
+} = require('./skill-routing-projection');
+module.exports.buildSkillRoutingProjection = buildSkillRoutingProjection;
+module.exports.compareSkillRoutingProjections = compareSkillRoutingProjections;

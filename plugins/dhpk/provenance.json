@@ -56,5 +56,10 @@
     "dhpk-skill-health-audit": "7f12d599f3982fd7cc6bdc5ca47374fffba72065046f64554f970396f4a1355c",
     "dhpk-skill-quality-judge": "14addbf45e49eab07222be1d3540e161046f18c9ebcf6a9f7dad3279e65ba223",
     "dhpk-tdd-workflow": "217bb1b84b12c25c7032cd80cbdead44125f41afa35d43b0d4fe312ee8614a33"
+  },
+  "routingProjection": {
+    "schema": "dhpk.skill-routing-projection.v1",
+    "surface": "codex-native",
+    "entries": []
   }
 }

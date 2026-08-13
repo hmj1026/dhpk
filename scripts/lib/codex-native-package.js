@@ -296,6 +296,11 @@ function compileNativePackage({
   const resolvedOut = path.resolve(outDir);
   assertPhysicalDirectory(resolvedRoot, 'canonical root');
   assertPhysicalDirectory(resolvedOut, 'output root');
+  // Codex native packaging and Claude parity checks share the inventory-owned
+  // family/alias view. Native currently publishes no claude-module aliases,
+  // so the projection is an explicit empty selection rather than a second map.
+  const { buildSkillRoutingProjection, compareSkillRoutingProjections } = require('./skill-routing-projection');
+  const routingProjection = buildSkillRoutingProjection({ inventory, surface: 'codex-native' });
 
   const selected = selectNativeSkills(inventory);
   const files = [];
@@ -347,6 +352,7 @@ function compileNativePackage({
     selectedSkillIds: skillIds,
     selectedSkillNames: skillNames,
     fingerprints,
+    routingProjection,
   };
   files.push(nativeOutputRecord('manifest:fingerprints', 'generated/fingerprints.json', 'fingerprints.json', `${JSON.stringify(fingerprints, null, 2)}\n`, undefined, 0o644));
   files.push(nativeOutputRecord('manifest:provenance', 'generated/provenance.json', 'provenance.json', `${JSON.stringify(provenance, null, 2)}\n`, undefined, 0o644));
@@ -383,10 +389,32 @@ function compileNativePackage({
       adapter: { id: 'codex-native', version: generatorVersion },
       outputs: files.slice().sort((a, b) => a.destination.localeCompare(b.destination)),
       links: [],
-      metadata: { manifest, manifestSkillsField: manifest.skills, skillIds, skillNames, fingerprints, provenance },
+      metadata: { manifest, manifestSkillsField: manifest.skills, skillIds, skillNames, fingerprints, provenance, routingProjection },
     }),
     validate: (rendered, context) => {
       if (!context || !context.session || !context.session.stageRoot) return rendered;
+      const expectedRouting = buildSkillRoutingProjection({ inventory, surface: 'codex-native' });
+      const metadataParity = compareSkillRoutingProjections({
+        expected: expectedRouting,
+        actual: rendered.metadata && rendered.metadata.routingProjection,
+      });
+      if (!metadataParity.ok) {
+        throw new Error(`Codex routing projection metadata drift: ${metadataParity.diagnostics.join('; ')}`);
+      }
+      const provenanceOutput = (rendered.outputs || []).find((entry) => entry.stableId === 'manifest:provenance');
+      let publishedProvenance;
+      try {
+        publishedProvenance = JSON.parse(Buffer.from(provenanceOutput && provenanceOutput.content || '').toString('utf8'));
+      } catch (_) {
+        throw new Error('Codex provenance output is not valid JSON');
+      }
+      const artifactParity = compareSkillRoutingProjections({
+        expected: expectedRouting,
+        actual: publishedProvenance && publishedProvenance.routingProjection,
+      });
+      if (!artifactParity.ok) {
+        throw new Error(`Codex routing projection artifact drift: ${artifactParity.diagnostics.join('; ')}`);
+      }
       const structural = validateNativeCandidate({ manifestSkillsField: rendered.metadata.manifestSkillsField, packageRoot: context.session.stageRoot });
       const membership = validateNativeMembership({
         candidateSkillNames: fs.existsSync(path.join(context.session.stageRoot, 'skills'))
@@ -404,7 +432,7 @@ function compileNativePackage({
       return rendered;
     },
   };
-  return { plan: compiled.value, adapter, selectedSkillIds: skillIds, selectedSkillNames: skillNames, fingerprints, provenance };
+  return { plan: compiled.value, adapter, selectedSkillIds: skillIds, selectedSkillNames: skillNames, fingerprints, provenance, routingProjection };
 }
 
 // Materialize the physical, explicitly-allowlisted codex-native package from
@@ -463,6 +491,7 @@ function materializeNativePackage({
     skillNames: metadata.skillNames || projection.selectedSkillNames,
     fingerprints: metadata.fingerprints || projection.fingerprints,
     provenance: metadata.provenance || projection.provenance,
+    routingProjection: metadata.routingProjection || projection.routingProjection,
     artifact: artifact.value,
   };
 }
@@ -513,6 +542,22 @@ function verifyNativePackage({
   const identity = validateNativeSkillIdentity({ manifestSkillsField, packageRoot: resolvedPackageRoot, inventory });
   const errors = [...structural.errors, ...membership.errors, ...identity.errors];
   const provenance = readNativeProvenance(resolvedPackageRoot);
+  let routingParity = { ok: true, diagnostics: [], mismatches: [] };
+  if (provenance && !Object.prototype.hasOwnProperty.call(provenance, 'routingProjection')) {
+    routingParity = {
+      ok: false,
+      diagnostics: ['native provenance is missing routingProjection'],
+      mismatches: [{ stableId: '<projection>', surface: 'codex-native', type: 'invalid', field: 'routingProjection' }],
+    };
+    errors.push(...routingParity.diagnostics);
+  } else if (provenance && Object.prototype.hasOwnProperty.call(provenance, 'routingProjection')) {
+    const { buildSkillRoutingProjection, compareSkillRoutingProjections } = require('./skill-routing-projection');
+    routingParity = compareSkillRoutingProjections({
+      expected: buildSkillRoutingProjection({ inventory, surface: 'codex-native' }),
+      actual: provenance.routingProjection,
+    });
+    if (!routingParity.ok) errors.push(...routingParity.diagnostics.map((diagnostic) => `routing projection drift: ${diagnostic}`));
+  }
   let artifactFingerprint = 'codex-native-unobserved';
   try { artifactFingerprint = fingerprintDir(resolvedPackageRoot); } catch (_) { /* evidence remains FAIL */ }
   const planFingerprint = provenance && typeof provenance.inventoryDigest === 'string'
@@ -548,13 +593,14 @@ function verifyNativePackage({
   const evidenceResult = verifyDistribution(stage, { planFingerprint, artifactFingerprint }, observer);
   const evidence = evidenceResult.ok ? evidenceResult.value : evidenceResult;
   return {
-    ok: structural.ok && membership.ok && identity.ok && evidenceResult.ok,
+    ok: structural.ok && membership.ok && identity.ok && routingParity.ok && evidenceResult.ok,
     errors,
     manifest,
     candidateSkillNames,
     structural,
     membership,
     identity,
+    routingParity,
     evidence,
   };
 }

@@ -119,6 +119,10 @@ test('Claude compilation is deterministic and does not let contract preservation
   assert.strictEqual(second.ok, true, second.error && second.error.message);
   assert.strictEqual(first.plan.planFingerprint, second.plan.planFingerprint);
   assert.deepStrictEqual(first.generated, second.generated);
+  assert.deepStrictEqual(first.inventoryView.skillRoutingProjection, first.routingProjection);
+  const rendered = first.adapter.render(first.plan);
+  const inventoryOutput = rendered.outputs.find((entry) => entry.stableId === 'claude:inventory-view');
+  assert.deepStrictEqual(JSON.parse(inventoryOutput.content.toString()).skillRoutingProjection, first.routingProjection);
   const regenerated = preserveProjectionContract({ ...inventory, skills: inventory.skills.slice() }, inventory);
   const preserved = compileClaudeProjection({ inventory: regenerated });
   assert.strictEqual(preserved.ok, true, preserved.error && preserved.error.message);

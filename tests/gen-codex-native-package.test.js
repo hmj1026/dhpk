@@ -48,6 +48,8 @@ test('native compiler plan preserves explicit selection, public identity, and ge
     assert.strictEqual(projection.plan.surface, 'codex-native');
     assert.deepStrictEqual(projection.selectedSkillIds, ['tdd']);
     assert.deepStrictEqual(projection.selectedSkillNames, ['dhpk-tdd-workflow']);
+    assert.deepStrictEqual(projection.provenance.routingProjection, projection.routingProjection);
+    assert.strictEqual(projection.routingProjection.surface, 'codex-native');
     assert.ok(projection.plan.entries.some((entry) => entry.destination === 'skills/dhpk-tdd-workflow/SKILL.md'));
     assert.ok(projection.plan.entries.some((entry) => entry.destination === '.codex-plugin/plugin.json'));
     assert.ok(!projection.plan.entries.some((entry) => entry.destination.includes('dhpk-not-native')));
