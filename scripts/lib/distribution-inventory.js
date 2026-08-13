@@ -50,6 +50,9 @@ const CLIENT_METADATA_BOUNDARY = {
   codex: ['agents/openai.yaml', 'policy.allow_implicit_invocation'],
   cursor: ['rules/frontmatter', 'variables', 'hooks'],
 };
+const PROJECTION_CONTRACT_SCHEMA = 'dhpk.distribution-projection-contract.v1';
+const PROJECTION_SYMLINK_POLICIES = ['forbid', 'contained-relative', 'declared-source-relative'];
+const PROJECTION_STAGES = ['structural', 'package', 'consumer-runtime'];
 
 function skillIdFromPath(relPath) {
   return path.basename(path.dirname(relPath));
@@ -398,6 +401,8 @@ function validateDistributionInventoryV2(input = {}) {
   errors.push(...matrix.errors);
   const frontmatter = validatePortableFrontmatterContract(inventory.portable_frontmatter);
   errors.push(...frontmatter.errors);
+  const projection = validateProjectionContract(inventory.projection_contract);
+  errors.push(...projection.errors);
 
   return { ok: errors.length === 0, errors };
 }
@@ -517,6 +522,67 @@ function validatePortableFrontmatterContract(contract) {
   return { errors };
 }
 
+function validateProjectionContract(contract) {
+  const errors = [];
+  if (contract === undefined) return { errors };
+  if (!contract || typeof contract !== 'object' || Array.isArray(contract)) {
+    return { errors: ['projection_contract must be an object when present'] };
+  }
+  if (contract.schema !== PROJECTION_CONTRACT_SCHEMA) {
+    errors.push(`projection_contract schema must be ${PROJECTION_CONTRACT_SCHEMA}, got '${contract.schema || '<missing>'}'`);
+  }
+  if (!contract.compiler || typeof contract.compiler !== 'object') {
+    errors.push('projection_contract.compiler must be an object');
+  } else {
+    for (const field of ['id', 'version']) {
+      if (typeof contract.compiler[field] !== 'string' || contract.compiler[field].trim() === '') {
+        errors.push(`projection_contract.compiler.${field} must be non-empty`);
+      }
+    }
+  }
+  if (!Array.isArray(contract.symlink_policies) || contract.symlink_policies.length === 0) {
+    errors.push('projection_contract.symlink_policies must be a non-empty string array');
+  } else {
+    for (const policy of contract.symlink_policies) {
+      if (!PROJECTION_SYMLINK_POLICIES.includes(policy)) {
+        errors.push(`projection_contract.symlink_policies contains unsupported policy '${policy}'`);
+      }
+    }
+  }
+  if (!contract.surfaces || typeof contract.surfaces !== 'object' || Array.isArray(contract.surfaces)) {
+    errors.push('projection_contract.surfaces must be an object');
+    return { errors };
+  }
+  for (const surface of SURFACES) {
+    const rule = contract.surfaces[surface];
+    if (!rule || typeof rule !== 'object') {
+      errors.push(`projection_contract.surfaces is missing '${surface}'`);
+      continue;
+    }
+    for (const field of ['adapter', 'owner', 'symlink_policy']) {
+      if (typeof rule[field] !== 'string' || rule[field].trim() === '') {
+        errors.push(`projection_contract.surfaces.${surface}.${field} must be non-empty`);
+      }
+    }
+    if (typeof rule.symlink_policy === 'string' && !PROJECTION_SYMLINK_POLICIES.includes(rule.symlink_policy)) {
+      errors.push(`projection_contract.surfaces.${surface}.symlink_policy is unsupported: '${rule.symlink_policy}'`);
+    }
+    if (!Array.isArray(rule.verification_stages) || rule.verification_stages.length === 0) {
+      errors.push(`projection_contract.surfaces.${surface}.verification_stages must be a non-empty array`);
+    } else {
+      for (const stage of rule.verification_stages) {
+        if (!PROJECTION_STAGES.includes(stage)) {
+          errors.push(`projection_contract.surfaces.${surface}.verification_stages contains unsupported stage '${stage}'`);
+        }
+      }
+    }
+  }
+  for (const surface of Object.keys(contract.surfaces)) {
+    if (!SURFACES.includes(surface)) errors.push(`projection_contract.surfaces declares unsupported surface '${surface}'`);
+  }
+  return { errors };
+}
+
 // Task 1.4: reconcile the inventory against canonical packages, the module
 // catalog, install profiles, and per-skill Codex (agents/openai.yaml)
 // metadata. Distinct from validateDistributionInventory's structural checks
@@ -629,6 +695,9 @@ module.exports = {
   PLATFORM_STATUSES,
   PORTABLE_FRONTMATTER_ALLOWLIST,
   CLIENT_METADATA_BOUNDARY,
+  PROJECTION_CONTRACT_SCHEMA,
+  PROJECTION_SYMLINK_POLICIES,
+  PROJECTION_STAGES,
   classifyCanonicalInventory,
   preserveProjectionContract,
   serializeInventory,
@@ -640,6 +709,7 @@ module.exports = {
   validateSurfaceMembership,
   validatePlatformCapabilityMatrix,
   validatePortableFrontmatterContract,
+  validateProjectionContract,
   reconcileDistribution,
   generateClaudeSkillRoots,
   computeScopedCounts,
