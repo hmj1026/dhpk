@@ -35,5 +35,6 @@
 - [x] 5.2 Run plugin/catalog/harness/full test gates and `openspec validate --specs --strict` plus strict change validation.
 - [x] 5.3 Run GitNexus changed-symbol detection, inspect staged paths, dispatch applicable consolidated reviewers, and reconcile all review obligations.
   - Evidence: GitNexus `detect_changes(scope=all)` reported low risk with no affected execution processes; staged-path allowlist contains only the routing implementation, tests, changelog, provenance, and explicitly force-added OpenSpec artifacts; code and doc reviewers both returned `APPROVE` with no remaining findings.
-- [ ] 5.4 Commit with a conventional message, push the feature branch, open a PR to `develop`, and monitor exact-head checks until all required checks pass.
+- [x] 5.4 Commit with a conventional message, push the feature branch, open a PR to `develop`, and monitor exact-head checks until all required checks pass.
+  - Evidence: implementation commit `289d578`; PR #179 exact head `6c8458d` has Markdown lint and Validate harness assets both `PASS`.
 - [ ] 5.5 Merge only after exact-head CI PASS, then verify post-merge `develop` CI PASS; archive the completed change in a follow-up lifecycle step.
