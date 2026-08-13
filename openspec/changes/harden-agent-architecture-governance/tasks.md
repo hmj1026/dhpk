@@ -67,4 +67,4 @@
 
 ## Success Criteria
 
-- [ ] 9.1 Every phase is mergeable and reversible on its own, all characterized CLI/artifact observables remain identical, new contract/store modules meet the 80% line/function coverage bar, all applicable focused/full gates pass, support tiers remain stage-honest, and no current Sentinel obligation remains unresolved.
+- [x] 9.1 Every phase is mergeable and reversible on its own, all characterized CLI/artifact observables remain identical, new contract/store modules meet the 80% line/function coverage bar, all applicable focused/full gates pass, support tiers remain stage-honest, and no current Sentinel obligation remains unresolved.
