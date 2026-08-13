@@ -8,7 +8,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const {
-  validateCursorPackage,
+  verifyCursorPackage,
   runCursorConsumerProbe,
 } = require('../lib/cursor-plugin-package');
 const { validateSurfaceReceipt } = require('../lib/platform-provenance');
@@ -30,7 +30,8 @@ if (!args.packageRoot) {
   process.exit(2);
 }
 const packageRoot = path.resolve(args.packageRoot);
-const structural = validateCursorPackage({ packageRoot });
+const verification = verifyCursorPackage({ packageRoot, stage: 'structural' });
+const structural = verification.structural || verification;
 let provenance = null;
 const provenancePath = path.join(packageRoot, 'provenance.json');
 const provenanceErrors = [];

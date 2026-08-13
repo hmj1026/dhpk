@@ -58,4 +58,14 @@ test('Codex native generator preserves success diagnostics and exit mapping', ()
   } finally { fs.rmSync(output, { recursive: true, force: true }); }
 });
 
+test('Cursor generator preserves success diagnostics and exit mapping', () => {
+  const output = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-characterization-'));
+  try {
+    const result = runNode('scripts/ci/gen-cursor-plugin-package.js', [output]);
+    assert.strictEqual(result.status, 0, result.stdout + result.stderr);
+    assert.strictEqual(result.stdout.trim(), `PASS [gen-cursor-plugin-package]: wrote 0 Cursor skills and validated package structure (NOT_RUN)`);
+    assert.strictEqual(result.stderr, '');
+  } finally { fs.rmSync(output, { recursive: true, force: true }); }
+});
+
 run('distribution-projection-characterization');

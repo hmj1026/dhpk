@@ -11,8 +11,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const {
+  compileCursorPackage,
   materializeCursorPackage,
-  validateCursorPackage,
+  verifyCursorPackage,
   runCursorConsumerProbe,
 } = require('../lib/cursor-plugin-package');
 
@@ -70,20 +71,29 @@ try { inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8')); } catch (e
 
 let result;
 try {
-  result = materializeCursorPackage({
+  const compiledProjection = compileCursorPackage({
     inventory,
     root,
     outDir,
     version: readVersion(root, args.version),
     sourceCommit: args.sourceCommit || resolveSourceCommit(root),
   });
+  result = materializeCursorPackage({
+    inventory,
+    root,
+    outDir,
+    version: readVersion(root, args.version),
+    sourceCommit: args.sourceCommit || resolveSourceCommit(root),
+    compiledProjection,
+  });
 } catch (error) {
   fail(error.message);
 }
 
-const validation = validateCursorPackage({ packageRoot: outDir, expectedManifestName: result.manifest.name });
-if (!validation.ok) {
-  for (const error of validation.errors) console.error(`ERROR [gen-cursor-plugin-package]: ${error}`);
+const validation = verifyCursorPackage({ packageRoot: outDir, stage: 'structural' });
+const structural = validation.structural || validation;
+if (!structural.ok) {
+  for (const error of structural.errors) console.error(`ERROR [gen-cursor-plugin-package]: ${error}`);
   fail('generated Cursor package failed package-boundary, frontmatter, hook, variable, or secret validation');
 }
 

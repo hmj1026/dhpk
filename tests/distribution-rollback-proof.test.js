@@ -16,6 +16,7 @@ const { test, run, assert } = require('./_lib/tinytest');
 const { generateClaudeSkillRoots } = require('../scripts/lib/distribution-inventory');
 const { materializeAgentPluginPackage } = require('../scripts/lib/agent-plugin-package');
 const { materializeNativePackage } = require('../scripts/lib/codex-native-package');
+const { materializeCursorPackage } = require('../scripts/lib/cursor-plugin-package');
 const { ProjectionArtifactStore } = require('../scripts/lib/projection-artifact-store');
 
 const ROOT = path.join(__dirname, '..');
@@ -160,6 +161,51 @@ test('failed Codex native staging retains the previously accepted package tree a
     );
     assert.deepStrictEqual(fs.readFileSync(path.join(output, '.codex-plugin', 'plugin.json')), beforeManifest);
     assert.deepStrictEqual(fs.readFileSync(path.join(output, 'skills', 'dhpk-stable', 'SKILL.md')), beforeSkill);
+    assert.deepStrictEqual(snapshotTree(output), beforeTree);
+    assert.strictEqual(fs.statSync(path.join(output, 'skills', 'dhpk-stable', 'bin', 'run.sh')).mode & 0o7777, beforeMode);
+    assert.deepStrictEqual(fs.readdirSync(outputParent).filter((entry) => entry.startsWith('.projection-stage-')), []);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(outputParent, { recursive: true, force: true });
+  }
+});
+
+test('failed Cursor staging retains the previously accepted package tree and executable modes', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-rollback-source-'));
+  const outputParent = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-rollback-output-'));
+  const output = path.join(outputParent, 'dhpk-cursor');
+  try {
+    const skillRoot = path.join(root, 'skills', 'dhpk-stable');
+    fs.mkdirSync(path.join(skillRoot, 'bin'), { recursive: true });
+    fs.writeFileSync(path.join(skillRoot, 'SKILL.md'), '---\nname: dhpk-stable\ndescription: Stable\n---\n\nStable body.\n');
+    const script = path.join(skillRoot, 'bin', 'run.sh');
+    fs.writeFileSync(script, '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+    fs.chmodSync(script, 0o755);
+    const inventory = {
+      skills: [{ id: 'stable', name: 'dhpk-stable', path: 'skills/dhpk-stable', lifecycle: 'promoted', surfaces: ['cursor-plugin'] }],
+    };
+    materializeCursorPackage({ inventory, root, outDir: output, sourceCommit: '1'.repeat(40) });
+    const beforeTree = snapshotTree(output);
+    const beforeMode = fs.statSync(path.join(output, 'skills', 'dhpk-stable', 'bin', 'run.sh')).mode & 0o7777;
+
+    const realStore = new ProjectionArtifactStore({ root: outputParent, sourceRoot: root, publishRoot: output });
+    const failingStore = {
+      begin(plan) {
+        const session = realStore.begin(plan);
+        const write = session.write;
+        let writes = 0;
+        session.write = (entry) => {
+          writes += 1;
+          if (writes === 2) throw new Error('synthetic Cursor staging failure');
+          return write(entry);
+        };
+        return session;
+      },
+    };
+    assert.throws(
+      () => materializeCursorPackage({ inventory, root, outDir: output, artifactStore: failingStore }),
+      /synthetic Cursor staging failure/,
+    );
     assert.deepStrictEqual(snapshotTree(output), beforeTree);
     assert.strictEqual(fs.statSync(path.join(output, 'skills', 'dhpk-stable', 'bin', 'run.sh')).mode & 0o7777, beforeMode);
     assert.deepStrictEqual(fs.readdirSync(outputParent).filter((entry) => entry.startsWith('.projection-stage-')), []);

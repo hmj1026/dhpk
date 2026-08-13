@@ -12,6 +12,7 @@ const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const ROOT = path.join(__dirname, '..');
 const {
+  compileCursorPackage,
   materializeCursorPackage,
   validateCursorPackage,
   runCursorConsumerProbe,
@@ -94,6 +95,86 @@ function fixtureInventory() {
     },
   };
 }
+
+test('Cursor compiler freezes shared/overlay intent before materialization', () => {
+  const root = makeFixture();
+  const out = tmpDir('dhpk-cursor-compile-');
+  try {
+    const inventory = fixtureInventory();
+    inventory.skills.push({
+      id: 'shared',
+      name: 'dhpk-shared',
+      path: 'skills/dhpk-portable',
+      lifecycle: 'promoted',
+      surfaces: ['agent-plugin'],
+    });
+    inventory.surface_membership['agent-plugin'] = ['shared'];
+    inventory.platform_matrix.entries = [
+      {
+        id: 'dhpk.platform.cursor-plugin.shared-skills',
+        public_name: 'cursor-plugin-portable-skills',
+        surface: 'cursor-plugin',
+        source_paths: ['skills/'],
+        destination: 'plugins/dhpk-agent/skills/',
+        transform: 'shared-agent-plugin-skills',
+        fallback: 'agent-plugin',
+        projection_mode: 'shared',
+        shared_surface: 'agent-plugin',
+        stable_ids: ['shared'],
+        evidence: 'NOT_RUN',
+      },
+      {
+        id: 'dhpk.platform.cursor-plugin.overlay',
+        public_name: 'cursor-plugin-environment-overlay',
+        surface: 'cursor-plugin',
+        source_paths: ['skills/dhpk-portable'],
+        destination: 'plugins/dhpk-cursor/skills/',
+        transform: 'cursor-native-adaptation',
+        fallback: 'SKIP_INCOMPATIBLE',
+        projection_mode: 'overlay',
+        stable_ids: ['portable'],
+        evidence: 'NOT_RUN',
+      },
+    ];
+
+    const compiled = compileCursorPackage({
+      inventory,
+      root,
+      outDir: out,
+      version: '1.2.3',
+      sourceCommit: 'abc123',
+    });
+    assert.deepStrictEqual(compiled.sharedSkillIds, ['shared']);
+    assert.deepStrictEqual(compiled.selectedSkillIds, ['portable']);
+    assert.strictEqual(compiled.plan.surface, 'cursor-plugin');
+    assert.ok(Object.isFrozen(compiled.plan));
+    assert.ok(compiled.plan.entries.some((entry) => entry.destination === 'skills/dhpk-portable/SKILL.md'));
+    assert.deepStrictEqual(fs.readdirSync(out), []);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test('Cursor compiler is read-only until the artifact store materializes the plan', () => {
+  const root = makeFixture();
+  const out = tmpDir('dhpk-cursor-compile-readonly-');
+  const originalWriteFileSync = fs.writeFileSync;
+  let writes = 0;
+  fs.writeFileSync = (...args) => {
+    writes += 1;
+    throw new Error(`compiler attempted a direct write: ${args[0]}`);
+  };
+  try {
+    compileCursorPackage({ inventory: fixtureInventory(), root, outDir: out });
+    assert.strictEqual(writes, 0);
+    assert.deepStrictEqual(fs.readdirSync(out), []);
+  } finally {
+    fs.writeFileSync = originalWriteFileSync;
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
 
 test('materializes selected Cursor skills and native components as physical files', () => {
   const root = makeFixture();

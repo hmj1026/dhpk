@@ -653,5 +653,6 @@
   "consumer": {
     "status": "NOT_RUN",
     "reason": "Cursor client consumer probe is separate from structural generation."
-  }
+  },
+  "planFingerprint": "69d854a1d2f7d232717ea1f208aa5762b906390c38e8c5e84c3ef67466098a23"
 }
