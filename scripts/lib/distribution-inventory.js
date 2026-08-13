@@ -423,8 +423,57 @@ function validateDistributionInventoryV2(input = {}) {
   errors.push(...frontmatter.errors);
   const projection = validateProjectionContract(inventory.projection_contract);
   errors.push(...projection.errors);
+  const routing = validateSkillRoutingFamilies({ families: inventory.skill_routing_families, skillIds: ids, skills: inventory.skills });
+  errors.push(...routing.errors);
 
   return { ok: errors.length === 0, errors };
+}
+
+// Family routing is inventory metadata, not another projection interface. It
+// preserves old invocation IDs while one router selects conditional detail.
+function validateSkillRoutingFamilies({ families, skillIds = new Set(), skills = [] } = {}) {
+  const errors = [];
+  if (families === undefined) return { errors };
+  if (!Array.isArray(families)) return { errors: ['skill_routing_families must be an array when present'] };
+  const familyIds = new Set();
+  const aliasIds = new Map();
+  for (const [index, family] of families.entries()) {
+    const prefix = `skill_routing_families[${index}]`;
+    if (!family || typeof family !== 'object' || Array.isArray(family)) { errors.push(`${prefix} must be an object`); continue; }
+    if (typeof family.id !== 'string' || family.id.trim() === '' || familyIds.has(family.id)) errors.push(`${prefix}.id must be a unique non-empty string`);
+    else familyIds.add(family.id);
+    if (typeof family.router_id !== 'string' || !skillIds.has(family.router_id)) errors.push(`${prefix} references missing router '${family.router_id}'`);
+    if (!['implicit-eligible', 'explicit-only'].includes(family.invocation_class)) errors.push(`${prefix}.invocation_class is unsupported`);
+    const surfaces = Array.isArray(family.surfaces) ? family.surfaces : [];
+    for (const surface of surfaces) if (!SURFACES.includes(surface)) errors.push(`${prefix} declares unsupported surface '${surface}'`);
+    if (!family.selectors || typeof family.selectors !== 'object' || Array.isArray(family.selectors) || Object.keys(family.selectors).length === 0) errors.push(`${prefix}.selectors must be a non-empty object`);
+    else for (const [selector, reference] of Object.entries(family.selectors)) {
+      if (selector.trim() === '' || !isSafeInventoryPath(reference)) errors.push(`${prefix}.selectors.${selector} must be a safe relative path`);
+    }
+    if (!Array.isArray(family.aliases) || family.aliases.length === 0) { errors.push(`${prefix}.aliases must be a non-empty array`); continue; }
+    for (const alias of family.aliases) {
+      if (!alias || typeof alias.id !== 'string' || alias.id.trim() === '') { errors.push(`${prefix}.aliases contains an invalid alias`); continue; }
+      if (!family.selectors || !Object.prototype.hasOwnProperty.call(family.selectors, alias.selector)) errors.push(`${prefix}.aliases.${alias.id} has ambiguous/missing selector '${alias.selector}'`);
+      if (alias.invocation_class !== family.invocation_class) errors.push(`${prefix}.aliases.${alias.id} has conflicting invocation class`);
+      if (JSON.stringify(alias.surfaces || []) !== JSON.stringify(surfaces)) errors.push(`${prefix}.aliases.${alias.id} has unsupported surface membership`);
+      const skill = skills.find((entry) => entry.id === alias.id);
+      if (skills.length && (!skill || !(skill.legacy_names || []).includes(alias.id))) errors.push(`${prefix}.aliases.${alias.id} does not preserve a stable legacy identifier`);
+      else if (skill && JSON.stringify(skill.surfaces) !== JSON.stringify(alias.surfaces)) errors.push(`${prefix}.aliases.${alias.id} drifts from canonical surface membership`);
+      if (skill && family.selectors && family.selectors[alias.selector] !== `${skill.path}/SKILL.md`) {
+        errors.push(`${prefix}.aliases.${alias.id} selector reference must match canonical skill path`);
+      }
+      if (aliasIds.has(alias.id)) errors.push(`duplicate alias '${alias.id}' in ${aliasIds.get(alias.id)} and ${family.id}`);
+      else aliasIds.set(alias.id, family.id);
+    }
+  }
+  return { errors };
+}
+
+function resolveSkillRoutingAlias({ families = [], id } = {}) {
+  for (const family of families) for (const alias of family.aliases || []) {
+    if (alias.id === id) return { familyId: family.id, routerId: family.router_id, selector: alias.selector, reference: family.selectors && family.selectors[alias.selector] };
+  }
+  return null;
 }
 
 function validateSurfaceMembership({ inventory, ids: skillIds = new Set() }) {
@@ -868,6 +917,8 @@ module.exports = {
   refreshSupportingDigests,
   validateDistributionInventory,
   validateDistributionInventoryV2,
+  validateSkillRoutingFamilies,
+  resolveSkillRoutingAlias,
   validateInventoryV2: validateDistributionInventoryV2,
   validateSurfaceMembership,
   validatePlatformCapabilityMatrix,

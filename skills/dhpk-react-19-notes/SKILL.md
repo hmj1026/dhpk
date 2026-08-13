@@ -1,6 +1,6 @@
 ---
 name: dhpk-react-19-notes
-description: "React 19 (December 2024) signature features and the breaking-change traps from 18 -> 19. Use when writing or reviewing code in a React 19 project, or planning an upgrade from React 18. Covers Actions and async transitions, the new hooks (useActionState/useOptimistic/useFormStatus and the use() API), ref as a regular prop (forwardRef deprecated), <Context> as a provider, document metadata hoisting, resource preloading (preload/preinit), stable Server Components/Actions, and the removal of long-deprecated APIs (ReactDOM.render/hydrate, propTypes/defaultProps on function components, legacy Context, string refs). Not for application business logic — load when working on React-language code or planning an 18 -> 19 upgrade. Note: React 19 is recommended but NOT required for Next.js 16 (React 18.2+ also works). Output: version-specific guidance, migration traps, and verification gates."
+description: "Use when working on React 19 guidance for Actions, new hooks, refs, providers, Server Components, or 18→19 upgrades. Not for ordinary application logic. Remains a separate React 19 route; Next 16 also supports React 18.2+. Output: migration traps and verification gates."
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---

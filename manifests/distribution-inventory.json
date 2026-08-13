@@ -15,6 +15,30 @@
     "agent-plugin",
     "cursor-plugin"
   ],
+  "skill_routing_families": [
+    {
+      "id": "laravel",
+      "router_id": "php-pro",
+      "invocation_class": "implicit-eligible",
+      "surfaces": ["claude-module"],
+      "selectors": {
+        "5.4": "skills/dhpk-laravel-5-4-notes/SKILL.md", "6": "skills/dhpk-laravel-6-notes/SKILL.md", "7": "skills/dhpk-laravel-7-notes/SKILL.md", "8": "skills/dhpk-laravel-8-notes/SKILL.md", "9": "skills/dhpk-laravel-9-notes/SKILL.md", "10": "skills/dhpk-laravel-10-notes/SKILL.md", "11": "skills/dhpk-laravel-11-notes/SKILL.md", "mix": "skills/dhpk-laravel-mix-notes/SKILL.md"
+      },
+      "aliases": [
+        {"id":"laravel-5.4-notes","selector":"5.4","invocation_class":"implicit-eligible","surfaces":["claude-module"]}, {"id":"laravel-6-notes","selector":"6","invocation_class":"implicit-eligible","surfaces":["claude-module"]}, {"id":"laravel-7-notes","selector":"7","invocation_class":"implicit-eligible","surfaces":["claude-module"]}, {"id":"laravel-8-notes","selector":"8","invocation_class":"implicit-eligible","surfaces":["claude-module"]}, {"id":"laravel-9-notes","selector":"9","invocation_class":"implicit-eligible","surfaces":["claude-module"]}, {"id":"laravel-10-notes","selector":"10","invocation_class":"implicit-eligible","surfaces":["claude-module"]}, {"id":"laravel-11-notes","selector":"11","invocation_class":"implicit-eligible","surfaces":["claude-module"]}, {"id":"laravel-mix-notes","selector":"mix","invocation_class":"implicit-eligible","surfaces":["claude-module"]}
+      ]
+    },
+    {
+      "id": "phpunit",
+      "router_id": "php-pro",
+      "invocation_class": "implicit-eligible",
+      "surfaces": ["claude-module"],
+      "selectors": {"9":"skills/dhpk-phpunit-9-modern/SKILL.md","10":"skills/dhpk-phpunit-10-notes/SKILL.md","11":"skills/dhpk-phpunit-11-notes/SKILL.md"},
+      "aliases": [
+        {"id":"phpunit-9-modern","selector":"9","invocation_class":"implicit-eligible","surfaces":["claude-module"]}, {"id":"phpunit-10-notes","selector":"10","invocation_class":"implicit-eligible","surfaces":["claude-module"]}, {"id":"phpunit-11-notes","selector":"11","invocation_class":"implicit-eligible","surfaces":["claude-module"]}
+      ]
+    }
+  ],
   "projection_contract": {
     "schema": "dhpk.distribution-projection-contract.v1",
     "compiler": {
