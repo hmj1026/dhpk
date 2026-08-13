@@ -21,6 +21,7 @@ ROOT="$(dhpk_root)"
 SESS="$(dhpk_sessions_dir "$ROOT")"
 . "$(dirname "$0")/_lib/load-project-config.sh"
 . "$(dirname "$0")/_lib/payload.sh"
+. "$(dirname "$0")/_lib/review-lifecycle.sh"
 . "$(dirname "$0")/_lib/resumed-review-obligation.sh"
 
 if [ -z "$NAME" ]; then
@@ -64,8 +65,52 @@ if [ -n "$BASELINE_PATH" ]; then
     BASELINE_MTIME="$(stat -c %Y "$BASELINE_PATH" 2>/dev/null || stat -f %m "$BASELINE_PATH" 2>/dev/null || echo 0)"
 fi
 
-if dhpk_resumed_obligation_record "$SESS" "$NAME" "${SENTINEL_LABELS[$SLOT]}" "$AGENT_BARE" "$SID" "$BASELINE_NAME" "$BASELINE_MTIME"; then
+LIFECYCLE_TASK=""
+LIFECYCLE_ATTEMPT=""
+LIFECYCLE_SCOPE=""
+LIFECYCLE_DIFF=""
+LIFECYCLE_SESSION=""
+LIFECYCLE_PRODUCER=""
+LIFECYCLE_WAVE=""
+LIFECYCLE_EVIDENCE_SCOPE=""
+LIFECYCLE_ADAPTER=""
+LIFECYCLE_STAGE=""
+LIFECYCLE_PLAN=""
+LIFECYCLE_ARTIFACT=""
+LIFECYCLE_ADAPTER_VERSION=""
+LIFECYCLE_CONTEXT="$(dhpk_lifecycle_context "$AGENT_BARE" "$SID" 2>/dev/null || true)"
+if [ -n "$LIFECYCLE_CONTEXT" ]; then
+    IFS=$'\t' read -r LIFECYCLE_TASK LIFECYCLE_ATTEMPT LIFECYCLE_SCOPE LIFECYCLE_DIFF LIFECYCLE_SESSION \
+        LIFECYCLE_PRODUCER LIFECYCLE_WAVE LIFECYCLE_EVIDENCE_SCOPE LIFECYCLE_ADAPTER LIFECYCLE_STAGE \
+        LIFECYCLE_PLAN LIFECYCLE_ARTIFACT LIFECYCLE_ADAPTER_VERSION <<< "$LIFECYCLE_CONTEXT"
+fi
+
+# A resumed SendMessage has no new PreToolUse dispatch event to seed context.
+# Bind it to a stable task identity derived from this owned sentinel/session,
+# while retaining any richer producer context from the original lifecycle.
+[ -n "$LIFECYCLE_TASK" ] || LIFECYCLE_TASK="$(dhpk_lifecycle_task_id "$NAME" "$SID" "0" 2>/dev/null || true)"
+[ -n "$LIFECYCLE_PRODUCER" ] || LIFECYCLE_PRODUCER="$AGENT_BARE"
+[ -n "$LIFECYCLE_WAVE" ] || LIFECYCLE_WAVE="resumed:${SID}:${NAME}"
+[ -n "$LIFECYCLE_EVIDENCE_SCOPE" ] || LIFECYCLE_EVIDENCE_SCOPE="$(dhpk_lifecycle_scope_id "$SESS/$NAME" 2>/dev/null || true)"
+[ -n "$LIFECYCLE_ADAPTER" ] || LIFECYCLE_ADAPTER="$AGENT_BARE"
+[ -n "$LIFECYCLE_STAGE" ] || LIFECYCLE_STAGE="review"
+[ -n "$LIFECYCLE_TASK" ] && [ -n "$LIFECYCLE_EVIDENCE_SCOPE" ] || {
+    echo "[$LABEL] ERROR: lifecycle identity could not be derived — refusing legacy obligation." >&2
+    exit 1
+}
+
+if dhpk_resumed_obligation_record "$SESS" "$NAME" "${SENTINEL_LABELS[$SLOT]}" "$AGENT_BARE" "$SID" "$BASELINE_NAME" "$BASELINE_MTIME" \
+    "$LIFECYCLE_TASK" "$LIFECYCLE_PRODUCER" "$LIFECYCLE_WAVE" "$LIFECYCLE_EVIDENCE_SCOPE" "$LIFECYCLE_ADAPTER" "$LIFECYCLE_STAGE" \
+    "$LIFECYCLE_PLAN" "$LIFECYCLE_ARTIFACT"; then
     echo "[$LABEL] resumed obligation recorded for $NAME (agent=$AGENT_BARE, baseline=${BASELINE_NAME:-none})"
+    # The orchestrator must copy this exact envelope into the resumed
+    # reviewer SendMessage. The reviewer then carries it into the new
+    # canonical artifact frontmatter; reconciliation verifies the binding.
+    IDENTITY_ENVELOPE="task_id=$LIFECYCLE_TASK attempt_id=${LIFECYCLE_TASK}:attempt:$(dhpk_resumed_obligation_attempt "$SESS" "$NAME" "$SID" 2>/dev/null || printf '1')"
+    IDENTITY_ENVELOPE="$IDENTITY_ENVELOPE producer=$LIFECYCLE_PRODUCER wave=$LIFECYCLE_WAVE scope_id=$LIFECYCLE_EVIDENCE_SCOPE adapter=$LIFECYCLE_ADAPTER stage=$LIFECYCLE_STAGE"
+    [ -n "$LIFECYCLE_PLAN" ] && IDENTITY_ENVELOPE="$IDENTITY_ENVELOPE plan_fingerprint=$LIFECYCLE_PLAN"
+    [ -n "$LIFECYCLE_ARTIFACT" ] && IDENTITY_ENVELOPE="$IDENTITY_ENVELOPE artifact_fingerprint=$LIFECYCLE_ARTIFACT"
+    printf 'RESUMED_REVIEW_IDENTITY %s\n' "$IDENTITY_ENVELOPE"
     exit 0
 else
     echo "[$LABEL] ERROR: failed to record resumed obligation for $NAME (python3 missing?)" >&2

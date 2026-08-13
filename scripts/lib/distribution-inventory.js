@@ -15,6 +15,8 @@ const fs = require('node:fs');
 const crypto = require('node:crypto');
 const path = require('node:path');
 const { collectInventory, relativePosix } = require('./asset-inventory');
+const { compileDistribution, verifyDistribution } = require('./distribution-compiler');
+const { fingerprint, createDistributionArtifact, projectionError } = require('./distribution-projection-contract');
 
 const LIFECYCLES = ['promoted', 'optional', 'experimental', 'deprecated'];
 const SURFACES = [
@@ -50,6 +52,9 @@ const CLIENT_METADATA_BOUNDARY = {
   codex: ['agents/openai.yaml', 'policy.allow_implicit_invocation'],
   cursor: ['rules/frontmatter', 'variables', 'hooks'],
 };
+const PROJECTION_CONTRACT_SCHEMA = 'dhpk.distribution-projection-contract.v1';
+const PROJECTION_SYMLINK_POLICIES = ['forbid', 'contained-relative', 'declared-source-relative'];
+const PROJECTION_STAGES = ['structural', 'package', 'consumer-runtime'];
 
 function skillIdFromPath(relPath) {
   return path.basename(path.dirname(relPath));
@@ -122,6 +127,24 @@ function preserveProjectionContract(generated, existing) {
 
 function serializeInventory(inventory) {
   return `${JSON.stringify(inventory, null, 2)}\n`;
+}
+
+// The inventory is the checked-in selection SSOT, so its writer must preserve
+// the last accepted revision if a disk write or rename fails. A same-directory
+// temporary file keeps the final rename on one filesystem and avoids exposing
+// a partially truncated manifest to a concurrent validator.
+function writeInventoryAtomically(filePath, content, filesystem = fs) {
+  const directory = path.dirname(filePath);
+  const temporaryDirectory = filesystem.mkdtempSync(path.join(directory, '.distribution-inventory-tmp-'));
+  const temporaryPath = path.join(temporaryDirectory, path.basename(filePath));
+  try {
+    filesystem.writeFileSync(temporaryPath, content, { mode: 0o644, flag: 'wx' });
+    filesystem.renameSync(temporaryPath, filePath);
+  } finally {
+    if (filesystem.existsSync(temporaryDirectory)) {
+      filesystem.rmSync(temporaryDirectory, { recursive: true, force: true });
+    }
+  }
 }
 
 function findByPath(entries, relPath) {
@@ -398,8 +421,59 @@ function validateDistributionInventoryV2(input = {}) {
   errors.push(...matrix.errors);
   const frontmatter = validatePortableFrontmatterContract(inventory.portable_frontmatter);
   errors.push(...frontmatter.errors);
+  const projection = validateProjectionContract(inventory.projection_contract);
+  errors.push(...projection.errors);
+  const routing = validateSkillRoutingFamilies({ families: inventory.skill_routing_families, skillIds: ids, skills: inventory.skills });
+  errors.push(...routing.errors);
 
   return { ok: errors.length === 0, errors };
+}
+
+// Family routing is inventory metadata, not another projection interface. It
+// preserves old invocation IDs while one router selects conditional detail.
+function validateSkillRoutingFamilies({ families, skillIds = new Set(), skills = [] } = {}) {
+  const errors = [];
+  if (families === undefined) return { errors };
+  if (!Array.isArray(families)) return { errors: ['skill_routing_families must be an array when present'] };
+  const familyIds = new Set();
+  const aliasIds = new Map();
+  for (const [index, family] of families.entries()) {
+    const prefix = `skill_routing_families[${index}]`;
+    if (!family || typeof family !== 'object' || Array.isArray(family)) { errors.push(`${prefix} must be an object`); continue; }
+    if (typeof family.id !== 'string' || family.id.trim() === '' || familyIds.has(family.id)) errors.push(`${prefix}.id must be a unique non-empty string`);
+    else familyIds.add(family.id);
+    if (typeof family.router_id !== 'string' || !skillIds.has(family.router_id)) errors.push(`${prefix} references missing router '${family.router_id}'`);
+    if (!['implicit-eligible', 'explicit-only'].includes(family.invocation_class)) errors.push(`${prefix}.invocation_class is unsupported`);
+    const surfaces = Array.isArray(family.surfaces) ? family.surfaces : [];
+    for (const surface of surfaces) if (!SURFACES.includes(surface)) errors.push(`${prefix} declares unsupported surface '${surface}'`);
+    if (!family.selectors || typeof family.selectors !== 'object' || Array.isArray(family.selectors) || Object.keys(family.selectors).length === 0) errors.push(`${prefix}.selectors must be a non-empty object`);
+    else for (const [selector, reference] of Object.entries(family.selectors)) {
+      if (selector.trim() === '' || !isSafeInventoryPath(reference)) errors.push(`${prefix}.selectors.${selector} must be a safe relative path`);
+    }
+    if (!Array.isArray(family.aliases) || family.aliases.length === 0) { errors.push(`${prefix}.aliases must be a non-empty array`); continue; }
+    for (const alias of family.aliases) {
+      if (!alias || typeof alias.id !== 'string' || alias.id.trim() === '') { errors.push(`${prefix}.aliases contains an invalid alias`); continue; }
+      if (!family.selectors || !Object.prototype.hasOwnProperty.call(family.selectors, alias.selector)) errors.push(`${prefix}.aliases.${alias.id} has ambiguous/missing selector '${alias.selector}'`);
+      if (alias.invocation_class !== family.invocation_class) errors.push(`${prefix}.aliases.${alias.id} has conflicting invocation class`);
+      if (JSON.stringify(alias.surfaces || []) !== JSON.stringify(surfaces)) errors.push(`${prefix}.aliases.${alias.id} has unsupported surface membership`);
+      const skill = skills.find((entry) => entry.id === alias.id);
+      if (skills.length && (!skill || !(skill.legacy_names || []).includes(alias.id))) errors.push(`${prefix}.aliases.${alias.id} does not preserve a stable legacy identifier`);
+      else if (skill && JSON.stringify(skill.surfaces) !== JSON.stringify(alias.surfaces)) errors.push(`${prefix}.aliases.${alias.id} drifts from canonical surface membership`);
+      if (skill && family.selectors && family.selectors[alias.selector] !== `${skill.path}/SKILL.md`) {
+        errors.push(`${prefix}.aliases.${alias.id} selector reference must match canonical skill path`);
+      }
+      if (aliasIds.has(alias.id)) errors.push(`duplicate alias '${alias.id}' in ${aliasIds.get(alias.id)} and ${family.id}`);
+      else aliasIds.set(alias.id, family.id);
+    }
+  }
+  return { errors };
+}
+
+function resolveSkillRoutingAlias({ families = [], id } = {}) {
+  for (const family of families) for (const alias of family.aliases || []) {
+    if (alias.id === id) return { familyId: family.id, routerId: family.router_id, selector: alias.selector, reference: family.selectors && family.selectors[alias.selector] };
+  }
+  return null;
 }
 
 function validateSurfaceMembership({ inventory, ids: skillIds = new Set() }) {
@@ -517,6 +591,67 @@ function validatePortableFrontmatterContract(contract) {
   return { errors };
 }
 
+function validateProjectionContract(contract) {
+  const errors = [];
+  if (contract === undefined) return { errors };
+  if (!contract || typeof contract !== 'object' || Array.isArray(contract)) {
+    return { errors: ['projection_contract must be an object when present'] };
+  }
+  if (contract.schema !== PROJECTION_CONTRACT_SCHEMA) {
+    errors.push(`projection_contract schema must be ${PROJECTION_CONTRACT_SCHEMA}, got '${contract.schema || '<missing>'}'`);
+  }
+  if (!contract.compiler || typeof contract.compiler !== 'object') {
+    errors.push('projection_contract.compiler must be an object');
+  } else {
+    for (const field of ['id', 'version']) {
+      if (typeof contract.compiler[field] !== 'string' || contract.compiler[field].trim() === '') {
+        errors.push(`projection_contract.compiler.${field} must be non-empty`);
+      }
+    }
+  }
+  if (!Array.isArray(contract.symlink_policies) || contract.symlink_policies.length === 0) {
+    errors.push('projection_contract.symlink_policies must be a non-empty string array');
+  } else {
+    for (const policy of contract.symlink_policies) {
+      if (!PROJECTION_SYMLINK_POLICIES.includes(policy)) {
+        errors.push(`projection_contract.symlink_policies contains unsupported policy '${policy}'`);
+      }
+    }
+  }
+  if (!contract.surfaces || typeof contract.surfaces !== 'object' || Array.isArray(contract.surfaces)) {
+    errors.push('projection_contract.surfaces must be an object');
+    return { errors };
+  }
+  for (const surface of SURFACES) {
+    const rule = contract.surfaces[surface];
+    if (!rule || typeof rule !== 'object') {
+      errors.push(`projection_contract.surfaces is missing '${surface}'`);
+      continue;
+    }
+    for (const field of ['adapter', 'owner', 'symlink_policy']) {
+      if (typeof rule[field] !== 'string' || rule[field].trim() === '') {
+        errors.push(`projection_contract.surfaces.${surface}.${field} must be non-empty`);
+      }
+    }
+    if (typeof rule.symlink_policy === 'string' && !PROJECTION_SYMLINK_POLICIES.includes(rule.symlink_policy)) {
+      errors.push(`projection_contract.surfaces.${surface}.symlink_policy is unsupported: '${rule.symlink_policy}'`);
+    }
+    if (!Array.isArray(rule.verification_stages) || rule.verification_stages.length === 0) {
+      errors.push(`projection_contract.surfaces.${surface}.verification_stages must be a non-empty array`);
+    } else {
+      for (const stage of rule.verification_stages) {
+        if (!PROJECTION_STAGES.includes(stage)) {
+          errors.push(`projection_contract.surfaces.${surface}.verification_stages contains unsupported stage '${stage}'`);
+        }
+      }
+    }
+  }
+  for (const surface of Object.keys(contract.surfaces)) {
+    if (!SURFACES.includes(surface)) errors.push(`projection_contract.surfaces declares unsupported surface '${surface}'`);
+  }
+  return { errors };
+}
+
 // Task 1.4: reconcile the inventory against canonical packages, the module
 // catalog, install profiles, and per-skill Codex (agents/openai.yaml)
 // metadata. Distinct from validateDistributionInventory's structural checks
@@ -591,6 +726,148 @@ function generateClaudeSkillRoots(inventory) {
   };
 }
 
+function freezeProjectionValue(value) {
+  if (!value || typeof value !== 'object' || Object.isFrozen(value)) return value;
+  for (const child of Object.values(value)) freezeProjectionValue(child);
+  return Object.freeze(value);
+}
+
+function normalizedInventoryView(inventory, generated) {
+  const normalize = (entries) => (entries || [])
+    .map((entry) => ({
+      id: entry.id,
+      name: entry.name || null,
+      path: entry.path,
+      lifecycle: entry.lifecycle,
+      surfaces: [...(entry.surfaces || [])].sort(),
+    }))
+    .sort((left, right) => String(left.id).localeCompare(String(right.id)));
+  return freezeProjectionValue({
+    schema: inventory && inventory.schema ? inventory.schema : null,
+    roots: [...generated.roots],
+    generatedSkillIds: [...generated.generatedSkillIds],
+    skills: normalize(inventory && inventory.skills),
+    modules: normalize(inventory && inventory.modules),
+  });
+}
+
+function projectionOutput(stableId, source, destination, content, transform) {
+  const bytes = Buffer.from(content);
+  return {
+    stableId,
+    source,
+    destination,
+    content: bytes,
+    expectedFingerprint: crypto.createHash('sha256').update(bytes).digest('hex'),
+    transform,
+    mode: 0o644,
+    symlinkPolicy: 'forbid',
+  };
+}
+
+// Claude's plugin manifest is intentionally a thin consumer surface: its
+// skills[] field registers directory roots while the inventory remains the
+// lifecycle and selection SSOT. This compiler emits a deterministic inventory
+// view and publication-root view so the shared compiler/verifier can bind the
+// existing check without making the manifest itself authoritative.
+function compileClaudeProjection({ inventory, compilerVersion = 'claude-1' } = {}) {
+  if (!inventory || typeof inventory !== 'object' || Array.isArray(inventory)) {
+    return { ok: false, error: projectionError('INVALID_INPUT', 'compile', 'inventory is required') };
+  }
+  const generated = generateClaudeSkillRoots(inventory);
+  const inventoryView = normalizedInventoryView(inventory, generated);
+  const rootsContent = `${JSON.stringify({ roots: generated.roots, generatedSkillIds: generated.generatedSkillIds }, null, 2)}\n`;
+  const inventoryContent = `${JSON.stringify(inventoryView, null, 2)}\n`;
+  const entries = [
+    projectionOutput(
+      'claude:inventory-view',
+      'manifests/distribution-inventory.json',
+      'generated/inventory-view.json',
+      inventoryContent,
+      { id: 'claude-inventory-view', version: '1' },
+    ),
+    projectionOutput(
+      'claude:publication-roots',
+      'manifests/distribution-inventory.json',
+      'generated/publication-roots.json',
+      rootsContent,
+      { id: 'claude-publication-roots', version: '1' },
+    ),
+  ];
+  const compiled = compileDistribution({
+    compilerVersion,
+    surface: 'claude-core',
+    inventoryFingerprint: fingerprint(inventoryView),
+    ownershipRoot: '.claude-plugin',
+    entries,
+  });
+  if (!compiled.ok) return compiled;
+  const plan = compiled.value;
+  const adapter = {
+    identity: { id: 'claude-inventory-projection', version: compilerVersion },
+    render: () => ({
+      adapter: { id: 'claude-inventory-projection', version: compilerVersion },
+      outputs: entries.map((entry) => ({
+        stableId: entry.stableId,
+        destination: entry.destination,
+        content: entry.content,
+        mode: entry.mode,
+      })),
+      metadata: { generated, inventoryView },
+    }),
+  };
+  return {
+    ok: true,
+    plan,
+    generated,
+    inventoryView,
+    adapter,
+  };
+}
+
+function verifyClaudeProjection({ inventory, pluginSkills = [], stage = 'structural', observedAt } = {}) {
+  const compiled = compileClaudeProjection({ inventory });
+  if (!compiled.ok) return compiled;
+  const registered = Array.isArray(pluginSkills) ? pluginSkills.filter((value) => typeof value === 'string') : [];
+  const generatedSet = new Set(compiled.generated.roots);
+  const registeredSet = new Set(registered);
+  const missing = [...generatedSet].filter((root) => !registeredSet.has(root)).sort();
+  const extra = [...registeredSet].filter((root) => !generatedSet.has(root)).sort();
+  const diagnostics = [
+    ...missing.map((root) => `DRIFT [gen-claude-manifest]: inventory expects root '${root}' but plugin.json skills[] does not register it`),
+    ...extra.map((root) => `DRIFT [gen-claude-manifest]: plugin.json skills[] registers '${root}' with no inventory-eligible skill backing it`),
+  ];
+  if (missing.length > 0 || extra.length > 0) diagnostics.push(`FAIL [gen-claude-manifest]: ${missing.length + extra.length} root mismatch(es).`);
+  const artifactResult = createDistributionArtifact({
+    planFingerprint: compiled.plan.planFingerprint,
+    adapter: compiled.adapter.identity,
+    artifactFingerprint: fingerprint({ roots: [...registeredSet].sort() }),
+    outputs: [],
+    metadata: { registeredRoots: [...registeredSet].sort() },
+  });
+  if (!artifactResult.ok) return artifactResult;
+  const evidenceResult = verifyDistribution(stage, artifactResult.value, {
+    identity: { id: 'claude-inventory-validator', version: '1' },
+    verify: () => ({
+      verdict: missing.length === 0 && extra.length === 0 ? 'PASS' : 'FAIL',
+      claims: ['inventory-derived Claude publication roots', 'Claude plugin skills[] root registration'],
+      observations: [`checked ${registeredSet.size} registered root(s)`],
+      diagnostics,
+      observedAt,
+    }),
+  });
+  const evidence = evidenceResult.ok ? evidenceResult.value : evidenceResult;
+  return {
+    ok: missing.length === 0 && extra.length === 0 && evidenceResult.ok && evidence.verdict === 'PASS',
+    plan: compiled.plan,
+    generated: compiled.generated,
+    inventoryView: compiled.inventoryView,
+    missing,
+    extra,
+    evidence,
+  };
+}
+
 // Task 4.1/4.2: scoped counts, kept independently derived so a documentation
 // claim can cite the count whose scope actually matches it (harness-count-integrity
 // spec: canonical inventory must never stand in for a narrower published surface).
@@ -629,19 +906,28 @@ module.exports = {
   PLATFORM_STATUSES,
   PORTABLE_FRONTMATTER_ALLOWLIST,
   CLIENT_METADATA_BOUNDARY,
+  PROJECTION_CONTRACT_SCHEMA,
+  PROJECTION_SYMLINK_POLICIES,
+  PROJECTION_STAGES,
   classifyCanonicalInventory,
   preserveProjectionContract,
   serializeInventory,
+  writeInventoryAtomically,
   validateSupportingAssets,
   refreshSupportingDigests,
   validateDistributionInventory,
   validateDistributionInventoryV2,
+  validateSkillRoutingFamilies,
+  resolveSkillRoutingAlias,
   validateInventoryV2: validateDistributionInventoryV2,
   validateSurfaceMembership,
   validatePlatformCapabilityMatrix,
   validatePortableFrontmatterContract,
+  validateProjectionContract,
   reconcileDistribution,
   generateClaudeSkillRoots,
+  compileClaudeProjection,
+  verifyClaudeProjection,
   computeScopedCounts,
 };
 

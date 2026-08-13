@@ -12,7 +12,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
-const { computeScopedCounts } = require('../scripts/lib/distribution-inventory');
+const { computeScopedCounts, verifyClaudeProjection } = require('../scripts/lib/distribution-inventory');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -41,6 +41,14 @@ test('computes independent canonical/promoted-core/optional/experimental/depreca
 test('Claude-published count excludes deprecated (host still lists the root, but the count is the inventory-derived intent)', () => {
   const counts = computeScopedCounts(fixtureInventory());
   assert.strictEqual(counts.claudePublished, 4);
+});
+
+test('Claude-published count is the same inventory-derived set used by structural verification', () => {
+  const inventory = fixtureInventory();
+  const counts = computeScopedCounts(inventory);
+  const generated = verifyClaudeProjection({ inventory, pluginSkills: ['./skills/', './modules/x/skills/'] });
+  assert.strictEqual(generated.ok, true, generated.evidence && generated.evidence.diagnostics.join('\n'));
+  assert.strictEqual(generated.generated.generatedSkillIds.length, counts.claudePublished);
 });
 
 test('Codex-published count is the codex-sync/codex-native surface count, distinct from promoted-core', () => {

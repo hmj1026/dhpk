@@ -44,9 +44,18 @@ $(git -C "$root" status --porcelain=v1 --untracked-files=all 2>/dev/null || true
 }
 
 dhpk_lifecycle_task_id() {
-    local sentinel="$1" session="$2" attempt="$3" value
-    value="review:${sentinel}:${session:-unknown}:${attempt:-unknown}"
+    local sentinel="$1" session="$2" attempt="${3:-}" value
+    # The task is the durable scope identity.  Attempt is deliberately not
+    # part of it: a corrected retry is another attempt of the same task, not a
+    # second completion.  Keep the positional argument for old callers.
+    value="review:${sentinel}:${session:-unknown}"
     printf '%s' "$value" | tr -c 'A-Za-z0-9._:-' '_'
+}
+
+dhpk_lifecycle_attempt_id() {
+    local task="$1" attempt="${2:-0}"
+    [ -n "$task" ] || return 1
+    printf '%s:attempt:%s' "$task" "$attempt"
 }
 
 _dhpk_lifecycle_allowed_state() {
@@ -70,7 +79,9 @@ try:
                 item = json.loads(raw)
             except Exception:
                 continue
-            if item.get('task_id') == task:
+            # Pre-contract records used task_id=...:<attempt>.  Accept those
+            # rows while new records use one stable task_id for every retry.
+            if item.get('task_id') == task or str(item.get('task_id', '')).startswith(task + ':'):
                 last = item.get('state', '')
 except OSError:
     pass
@@ -122,10 +133,14 @@ with open(path, 'a', encoding='utf-8') as fh:
 PY
 }
 
-# dhpk_lifecycle_emit <state> <task> <agent> <session> <attempt> <scope> <diff> <verdict> <artifact>
+# dhpk_lifecycle_emit <state> <task> <agent> <session> <attempt> <scope_id>
+#   <diff_id> <verdict> <artifact> [producer] [wave] [scope] [adapter]
+#   [stage] [plan_fingerprint] [artifact_fingerprint] [adapter_version]
 dhpk_lifecycle_emit() {
     local state="${1:-}" task="${2:-}" agent="${3:-}" session="${4:-}" attempt="${5:-0}"
     local scope="${6:-}" diff="${7:-}" verdict="${8:-}" artifact="${9:-}" file previous
+    local producer="${10:-}" wave="${11:-}" evidence_scope="${12:-}" adapter="${13:-}"
+    local stage="${14:-}" plan_fingerprint="${15:-}" artifact_fingerprint="${16:-}" adapter_version="${17:-}"
     _dhpk_lifecycle_allowed_state "$state" || return 2
     [ -n "$task" ] || return 2
     file="$(_dhpk_lifecycle_sessions)/$DHPK_SIDECAR_LIFECYCLE_EVENTS"
@@ -135,9 +150,25 @@ dhpk_lifecycle_emit() {
     command -v python3 >/dev/null 2>&1 || return 1
     FILE_IN="$file" STATE_IN="$state" TASK_IN="$task" AGENT_IN="$agent" SESSION_IN="$session" \
     ATTEMPT_IN="$attempt" SCOPE_IN="$scope" DIFF_IN="$diff" VERDICT_IN="$verdict" ARTIFACT_IN="$artifact" \
+    PRODUCER_IN="$producer" WAVE_IN="$wave" EVIDENCE_SCOPE_IN="$evidence_scope" ADAPTER_IN="$adapter" \
+    STAGE_IN="$stage" PLAN_FINGERPRINT_IN="$plan_fingerprint" ARTIFACT_FINGERPRINT_IN="$artifact_fingerprint" \
+    ADAPTER_VERSION_IN="$adapter_version" \
     RESUMED_IN="${DHPK_LIFECYCLE_RESUMED:-false}" python3 - <<'PY' 2>/dev/null
 import datetime, json, os, uuid
-record = {'schema_version': 1, 'event_id': uuid.uuid4().hex, 'event_type': 'review-lifecycle', 'state': os.environ['STATE_IN'], 'task_id': os.environ['TASK_IN'], 'agent': os.environ['AGENT_IN'], 'session_id': os.environ['SESSION_IN'], 'attempt': int(os.environ.get('ATTEMPT_IN') or 0), 'scope_id': os.environ['SCOPE_IN'], 'diff_id': os.environ['DIFF_IN'], 'verdict': os.environ['VERDICT_IN'], 'artifact': os.environ['ARTIFACT_IN'], 'occurred_at': datetime.datetime.now(datetime.timezone.utc).isoformat()}
+task = os.environ['TASK_IN']
+attempt = int(os.environ.get('ATTEMPT_IN') or 0)
+record = {'schema_version': 1, 'event_id': uuid.uuid4().hex, 'event_type': 'review-lifecycle', 'state': os.environ['STATE_IN'], 'task_id': task, 'attempt_id': f'{task}:attempt:{attempt}', 'agent': os.environ['AGENT_IN'], 'session_id': os.environ['SESSION_IN'], 'attempt': attempt, 'scope_id': os.environ['SCOPE_IN'], 'diff_id': os.environ['DIFF_IN'], 'verdict': os.environ['VERDICT_IN'], 'artifact': os.environ['ARTIFACT_IN'], 'occurred_at': datetime.datetime.now(datetime.timezone.utc).isoformat()}
+optional = {
+    'producer': os.environ.get('PRODUCER_IN', ''),
+    'wave': os.environ.get('WAVE_IN', ''),
+    'scope': os.environ.get('EVIDENCE_SCOPE_IN', ''),
+    'adapter': os.environ.get('ADAPTER_IN', ''),
+    'stage': os.environ.get('STAGE_IN', ''),
+    'plan_fingerprint': os.environ.get('PLAN_FINGERPRINT_IN', ''),
+    'artifact_fingerprint': os.environ.get('ARTIFACT_FINGERPRINT_IN', ''),
+    'adapter_version': os.environ.get('ADAPTER_VERSION_IN', ''),
+}
+record.update({key: value for key, value in optional.items() if value})
 if os.environ.get('RESUMED_IN') == 'true': record['resumed'] = True
 with open(os.environ['FILE_IN'], 'a', encoding='utf-8') as fh:
     fh.write(json.dumps(record, sort_keys=True) + '\n'); fh.flush(); os.fsync(fh.fileno())
@@ -152,30 +183,52 @@ PY
 # record is appended, so a consumer can depend on the marker without a sleep.
 dhpk_lifecycle_mark_artifact_ready() {
     local task="${1:-}" agent="${2:-}" session="${3:-}" attempt="${4:-0}" scope="${5:-}" diff="${6:-}" artifact="${7:-}"
+    local producer="${8:-}" wave="${9:-}" evidence_scope="${10:-}" adapter="${11:-}" stage="${12:-}"
+    local plan_fingerprint="${13:-}" artifact_fingerprint="${14:-}" adapter_version="${15:-}"
     local file="$(_dhpk_lifecycle_sessions)/$DHPK_SIDECAR_ARTIFACT_READY"
     [ -n "$task" ] && [ -s "$artifact" ] || return 1
     mkdir -p "$(dirname "$file")" 2>/dev/null || return 1
     command -v python3 >/dev/null 2>&1 || return 1
     FILE_IN="$file" TASK_IN="$task" AGENT_IN="$agent" SESSION_IN="$session" ATTEMPT_IN="$attempt" \
-    SCOPE_IN="$scope" DIFF_IN="$diff" ARTIFACT_IN="$artifact" python3 - <<'PY' 2>/dev/null
+    SCOPE_IN="$scope" DIFF_IN="$diff" ARTIFACT_IN="$artifact" PRODUCER_IN="$producer" WAVE_IN="$wave" \
+    EVIDENCE_SCOPE_IN="$evidence_scope" ADAPTER_IN="$adapter" STAGE_IN="$stage" PLAN_FINGERPRINT_IN="$plan_fingerprint" \
+    ARTIFACT_FINGERPRINT_IN="$artifact_fingerprint" ADAPTER_VERSION_IN="$adapter_version" python3 - <<'PY' 2>/dev/null
 import datetime, hashlib, json, os
 artifact = os.environ['ARTIFACT_IN']
 with open(artifact, 'rb') as fh:
     data = fh.read()
     digest = hashlib.sha256(data).hexdigest()
-record = {'schema_version': 1, 'state': 'artifact-ready', 'event_id': hashlib.sha256((os.environ['TASK_IN'] + artifact + digest).encode()).hexdigest(), 'task_id': os.environ['TASK_IN'], 'agent': os.environ['AGENT_IN'], 'session_id': os.environ['SESSION_IN'], 'attempt': int(os.environ.get('ATTEMPT_IN') or 0), 'scope_id': os.environ['SCOPE_IN'], 'diff_id': os.environ['DIFF_IN'], 'artifact': artifact, 'artifact_sha256': digest, 'occurred_at': datetime.datetime.now(datetime.timezone.utc).isoformat()}
+task = os.environ['TASK_IN']
+attempt = int(os.environ.get('ATTEMPT_IN') or 0)
+record = {'schema_version': 1, 'state': 'artifact-ready', 'event_id': hashlib.sha256((task + artifact + digest).encode()).hexdigest(), 'task_id': task, 'attempt_id': f'{task}:attempt:{attempt}', 'agent': os.environ['AGENT_IN'], 'session_id': os.environ['SESSION_IN'], 'attempt': attempt, 'scope_id': os.environ['SCOPE_IN'], 'diff_id': os.environ['DIFF_IN'], 'artifact': artifact, 'artifact_sha256': digest, 'occurred_at': datetime.datetime.now(datetime.timezone.utc).isoformat()}
+optional = {
+    'producer': os.environ.get('PRODUCER_IN', ''),
+    'wave': os.environ.get('WAVE_IN', ''),
+    'scope': os.environ.get('EVIDENCE_SCOPE_IN', ''),
+    'adapter': os.environ.get('ADAPTER_IN', ''),
+    'stage': os.environ.get('STAGE_IN', ''),
+    'plan_fingerprint': os.environ.get('PLAN_FINGERPRINT_IN', ''),
+    'artifact_fingerprint': os.environ.get('ARTIFACT_FINGERPRINT_IN', ''),
+    'adapter_version': os.environ.get('ADAPTER_VERSION_IN', ''),
+}
+record.update({key: value for key, value in optional.items() if value})
 with open(os.environ['FILE_IN'], 'a', encoding='utf-8') as fh:
     fh.write(json.dumps(record, sort_keys=True) + '\n'); fh.flush(); os.fsync(fh.fileno())
 PY
     [ "$?" -eq 0 ] || return 1
-    dhpk_lifecycle_emit artifact-ready "$task" "$agent" "$session" "$attempt" "$scope" "$diff" "" "$artifact"
+    dhpk_lifecycle_emit artifact-ready "$task" "$agent" "$session" "$attempt" "$scope" "$diff" "" "$artifact" \
+        "$producer" "$wave" "$evidence_scope" "$adapter" "$stage" "$plan_fingerprint" "$artifact_fingerprint" "$adapter_version"
 }
 
 dhpk_lifecycle_require_ready() {
-    local task="${1:-}" file="$(_dhpk_lifecycle_sessions)/$DHPK_SIDECAR_ARTIFACT_READY"
+    local task="${1:-}" expected_attempt_id="${2:-}" expected_producer="${3:-}" expected_wave="${4:-}"
+    local expected_scope="${5:-}" expected_adapter="${6:-}" expected_stage="${7:-}" expected_plan="${8:-}" expected_artifact="${9:-}"
+    local file="$(_dhpk_lifecycle_sessions)/$DHPK_SIDECAR_ARTIFACT_READY"
     [ -n "$task" ] && [ -f "$file" ] || return 1
     command -v python3 >/dev/null 2>&1 || return 1
-    FILE_IN="$file" TASK_IN="$task" python3 - <<'PY' 2>/dev/null
+    FILE_IN="$file" TASK_IN="$task" ATTEMPT_ID_IN="$expected_attempt_id" PRODUCER_IN="$expected_producer" WAVE_IN="$expected_wave" \
+    SCOPE_EXPECTED_IN="$expected_scope" ADAPTER_IN="$expected_adapter" STAGE_IN="$expected_stage" PLAN_IN="$expected_plan" ARTIFACT_FP_IN="$expected_artifact" \
+    python3 - <<'PY' 2>/dev/null
 import json, os
 found = None
 try:
@@ -188,7 +241,18 @@ try:
                 continue
 except OSError:
     pass
-ok = bool(found and found.get('state') == 'artifact-ready' and os.path.isfile(found.get('artifact', '')) and os.path.getsize(found['artifact']) > 0)
+expected = {
+    'attempt_id': os.environ.get('ATTEMPT_ID_IN', ''),
+    'producer': os.environ.get('PRODUCER_IN', ''),
+    'wave': os.environ.get('WAVE_IN', ''),
+    'scope': os.environ.get('SCOPE_EXPECTED_IN', ''),
+    'adapter': os.environ.get('ADAPTER_IN', ''),
+    'stage': os.environ.get('STAGE_IN', ''),
+    'plan_fingerprint': os.environ.get('PLAN_IN', ''),
+    'artifact_fingerprint': os.environ.get('ARTIFACT_FP_IN', ''),
+}
+identity_ok = all(not value or found.get(key) == value for key, value in expected.items()) if found else False
+ok = bool(found and identity_ok and found.get('state') == 'artifact-ready' and os.path.isfile(found.get('artifact', '')) and os.path.getsize(found['artifact']) > 0)
 raise SystemExit(0 if ok else 1)
 PY
 }
@@ -245,10 +309,14 @@ PY
 }
 
 dhpk_lifecycle_artifact_matches() {
-    local artifact="$1" scope="$2" diff="$3"
+    local artifact="$1" scope="$2" diff="$3" expected_producer="${4:-}" expected_wave="${5:-}"
+    local expected_scope="${6:-}" expected_adapter="${7:-}" expected_stage="${8:-}" expected_plan="${9:-}"
+    local expected_artifact="${10:-}" expected_attempt_id="${11:-}"
     [ -f "$artifact" ] || return 1
     command -v python3 >/dev/null 2>&1 || return 1
-    ARTIFACT_IN="$artifact" SCOPE_IN="$scope" DIFF_IN="$diff" python3 - <<'PY' 2>/dev/null
+    ARTIFACT_IN="$artifact" SCOPE_IN="$scope" DIFF_IN="$diff" PRODUCER_IN="$expected_producer" WAVE_IN="$expected_wave" \
+    EVIDENCE_SCOPE_IN="$expected_scope" ADAPTER_IN="$expected_adapter" STAGE_IN="$expected_stage" PLAN_IN="$expected_plan" \
+    ARTIFACT_FP_IN="$expected_artifact" ATTEMPT_ID_IN="$expected_attempt_id" python3 - <<'PY' 2>/dev/null
 import os
 text = open(os.environ['ARTIFACT_IN'], encoding='utf-8', errors='replace').read()
 parts = text.split('---', 2) if text.startswith('---') else []
@@ -257,7 +325,36 @@ values = {}
 for line in front.splitlines():
     if ':' in line:
         key, value = line.split(':', 1); values[key.strip().lower()] = value.strip().strip("'\"")
-raise SystemExit(0 if values.get('scope_id') == os.environ['SCOPE_IN'] and values.get('diff_id') == os.environ['DIFF_IN'] else 1)
+expected = {
+    'producer': os.environ.get('PRODUCER_IN', ''),
+    'wave': os.environ.get('WAVE_IN', ''),
+    'scope': os.environ.get('EVIDENCE_SCOPE_IN', ''),
+    'adapter': os.environ.get('ADAPTER_IN', ''),
+    'stage': os.environ.get('STAGE_IN', ''),
+    'plan_fingerprint': os.environ.get('PLAN_IN', ''),
+    'artifact_fingerprint': os.environ.get('ARTIFACT_FP_IN', ''),
+    'attempt_id': os.environ.get('ATTEMPT_ID_IN', ''),
+}
+aliases = {
+    'scope': ('scope', 'scope_id'),
+    'artifact_fingerprint': ('artifact_fingerprint', 'artifact_sha256'),
+    'attempt_id': ('attempt_id',),
+    'producer': ('producer',),
+    'wave': ('wave', 'wave_id'),
+    'adapter': ('adapter', 'adapter_id'),
+    'stage': ('stage', 'verification_stage'),
+    'plan_fingerprint': ('plan_fingerprint', 'plan_id'),
+}
+# Optional identity fields are additive.  A legacy scope/diff-only artifact
+# remains consumable; once a producer writes one of the new fields, a value
+# supplied by the lifecycle context must still match (mismatch fails closed).
+identity_ok = all(
+    not expected_value
+    or not any(values.get(alias) for alias in aliases[key])
+    or any(values.get(alias) == expected_value for alias in aliases[key])
+    for key, expected_value in expected.items()
+)
+raise SystemExit(0 if values.get('scope_id') == os.environ['SCOPE_IN'] and values.get('diff_id') == os.environ['DIFF_IN'] and identity_ok else 1)
 PY
 }
 
@@ -393,7 +490,11 @@ try:
 except OSError:
     pass
 if found:
-    print('\t'.join(str(found.get(k, '')) for k in ('task_id','attempt','scope_id','diff_id','session_id')))
+    print('\t'.join(str(found.get(k, '')) for k in (
+        'task_id', 'attempt', 'scope_id', 'diff_id', 'session_id',
+        'producer', 'wave', 'scope', 'adapter', 'stage',
+        'plan_fingerprint', 'artifact_fingerprint', 'adapter_version',
+    )))
 PY
 }
 

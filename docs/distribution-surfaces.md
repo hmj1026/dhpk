@@ -8,6 +8,8 @@ Codex marketplace), and what each surface can and cannot filter.
 
 For exact installation commands, support tiers, status vocabulary, consumer
 evidence, and rollback, use the [platform installation SSOT](./platform-installation.md).
+The ownership and projection decision is recorded in
+[ADR-0009](adr/0009-distribution-projection-and-orchestration-ownership.md).
 
 ## Lifecycle model
 
@@ -23,10 +25,12 @@ Every consumer-reachable skill and module carries exactly one lifecycle in
 
 Each entry also declares its publication `surfaces`: `claude-core`,
 `claude-module`, `codex-sync` (the supported `install-codex-skills.sh` path),
-and `codex-native` (the experimental marketplace package — see
+`codex-native` (the experimental marketplace package — see
 [ADR-0006](adr/0006-codex-native-publication-artifact.md)
 and [Codex native plugin package](#codex-native-plugin-package-github-issue-88)
-below).
+below), `agent-plugin`, and `cursor-plugin`. The last two identify the
+generated Agent Plugin and Cursor publication packages; their shared portable
+skill ownership and Cursor-native overlay rules are defined below.
 
 Directory placement and README prose are not authoritative — the checked-in
 inventory is. `scripts/ci/gen-distribution-inventory.js --write` bootstraps a
@@ -44,6 +48,41 @@ agent references resolve from a clean consumer projection. This keeps review tra
 contracts, and execution policy available to Codex without carrying Claude-only
 plugin-root or lifecycle mechanics into the generated TOML.
 
+## Projection contract and rollback
+
+Every migrated publication surface follows one direction of ownership:
+
+```text
+inventory projection_contract
+  -> compileDistribution (pure immutable plan)
+  -> surface adapter renders planned output only
+  -> ProjectionArtifactStore stages and atomically publishes
+  -> verifyDistribution(stage) returns plan/artifact-bound evidence
+```
+
+`manifests/distribution-inventory.json` owns selection, lifecycle, surface
+membership, physical owner, transform, destination, verification stages, and
+symlink policy. Adapters render consumer-native bytes and observe results only:
+they cannot select extra entries, write files, re-own an artifact, or promote a
+support tier. `ProjectionArtifactStore` is the sole writer for managed
+projection trees. A failed staged write or validation leaves the previously
+accepted artifact untouched; rollback uses the same CLI/store path rather than
+editing generated files or canonical sources in place.
+
+Symlink policy is closed and fail-closed: `forbid`, `contained-relative`, or
+`declared-source-relative`. The default is `forbid`; a contained link must stay
+inside its artifact owner, while a declared-source-relative link must be
+relative, plan-declared, owned by the destination root, and resolve inside the
+plan-bound canonical source root. Only the retained `codex-sync` compatibility
+route may use the latter. Absolute or undeclared links are rejected.
+
+Verification is stage-bound. `structural` and `package` `PASS` prove only the
+checked artifact/package claims; `consumer-runtime` requires a real consumer
+probe. A structural or package pass never graduates an experimental surface or
+claims runtime support. Evidence verdicts remain the closed vocabulary
+`PASS`, `FAIL`, `NOT_RUN`, `NOT_CONFIGURED`, `SKIP_INCOMPATIBLE`, `BLOCKED`, and
+`UNAVAILABLE`.
+
 ## Standard Agent Plugin and Cursor native ownership
 
 The platform capability matrix gives identical portable skills one physical
@@ -57,19 +96,25 @@ records its transform, fallback, and independent fingerprint. Update and
 rollback therefore have one owner for shared portable skills and a separate
 owner for Cursor-native files.
 
-## Claude publication: current before/after surface
+## Claude publication: current generated surface
 
 `scripts/ci/gen-claude-manifest.js` derives the expected `.claude-plugin/plugin.json`
 `skills[]` root set from the inventory (`generateClaudeSkillRoots()` in
 `scripts/lib/distribution-inventory.js`) and checks it with `--check`.
 
-As of this change's first migration phase, no skill is `deprecated`, so the
-generated root set is **identical** to the currently-registered set:
+As of the current inventory, no skill is `deprecated`, so the generated root
+set is identical to the currently-registered set. Regenerate and inspect
+scope-specific counts instead of copying a historical snapshot:
 
-| | Before | After |
-|---|---|---|
-| Registered directory roots | 1 | 1 |
-| Skills reachable under that root | 102 | 103 |
+```bash
+node scripts/ci/gen-claude-manifest.js
+node scripts/ci/gen-distribution-inventory.js
+```
+
+The current commands report one registered Claude directory root, 103
+inventory-eligible Claude skill IDs, 103 canonical skills, and 15 Codex-sync
+skills. These are independently derived scopes; a canonical total is not a
+default-install or runtime count.
 
 Nothing is removed from `plugin.json` in this phase (design.md Non-Goals:
 "Deleting canonical skills during the first migration"). The generator

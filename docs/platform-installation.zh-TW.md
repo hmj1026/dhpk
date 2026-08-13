@@ -46,6 +46,29 @@ projection 內容後，才能宣稱 client 可呼叫。
 不可把 static manifest、marketplace entry、generated file 或 enabled flag
 直接轉成 runtime `PASS`。
 
+## Unified lifecycle CLI（唯讀 slice）
+
+`dhpk-install <surface> <action>` 是共同 lifecycle entrypoint。允許的 surface
+為 `claude`、`codex-sync`、`codex-native`、`agent-plugin`、`cursor`；action 為
+`plan`、`install`、`verify`、`update`、`uninstall`、`rollback`、`status`。此初始
+slice 只啟用 deterministic、唯讀的 `plan`、`status` 與 `verify` result
+construction，例如：
+
+```bash
+dhpk-install cursor plan --scope project --json
+```
+
+從 source checkout 執行時，直接使用 bundled entrypoint：
+`bash /path/to/dhpk/bin/dhpk-install cursor plan --scope project --json`。
+
+JSON result 會將 normalized request 與 compiler plan 綁定，並將 closed
+projection evidence vocabulary 與 lifecycle presentation 分開。`INSTALL_PASS +
+CONSUMER_BLOCKED` 不是 projection `PASS`，也不能提升 support tier。目前 write
+action 在任何 mutation 前都會回傳 `BLOCKED` 與 stable `NOT_IMPLEMENTED`
+diagnostic。尤其是 Codex project-local write 仍應使用既有
+`install-codex-skills.sh` 與 schema-v3 receipt，直到該 adapter 透過相同的
+ArtifactStore transaction 遷移。
+
 ## Codex project-local sync（Supported）
 
 Prerequisites：Codex project-local loader、POSIX shell，以及上表第一列的
@@ -228,5 +251,5 @@ portable `dhpk-agent` package。
 digest、generator version、stable IDs、public names、transforms 與 physical
 fingerprints。release evidence 另記 client versions、install route、probe
 result 及所有未執行 gate。規範見
-`openspec/changes/align-agent-plugin-platform-support/specs/` 與
+`openspec/changes/archive/2026-08-12-align-agent-plugin-platform-support/specs/` 與
 [distribution surface guide](./distribution-surfaces.zh-TW.md)。

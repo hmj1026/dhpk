@@ -17,7 +17,12 @@ const fs = require('fs');
 const path = require('path');
 const { createReporter } = require('./_lib/report');
 const { collectInventory, relativePosix, readJson } = require('../lib/asset-inventory');
-const { validateDistributionInventory, validateSupportingAssets, reconcileDistribution } = require('../lib/distribution-inventory');
+const {
+  validateDistributionInventory,
+  validateSupportingAssets,
+  reconcileDistribution,
+  verifyClaudeProjection,
+} = require('../lib/distribution-inventory');
 
 const ROOT = path.join(__dirname, '..', '..');
 const MANIFEST = path.join(ROOT, 'manifests', 'distribution-inventory.json');
@@ -65,5 +70,17 @@ const reconcile = reconcileDistribution({
   hasOpenaiMetadata: (skill) => fs.existsSync(path.join(ROOT, skill.path, 'agents', 'openai.yaml')),
 });
 for (const msg of reconcile.errors) r.err(msg);
+
+const claudePlugin = readJson(ROOT, '.claude-plugin/plugin.json');
+const claudeVerification = verifyClaudeProjection({
+  inventory,
+  pluginSkills: claudePlugin && Array.isArray(claudePlugin.skills) ? claudePlugin.skills : [],
+});
+if (!claudeVerification.ok) {
+  const diagnostics = claudeVerification.evidence && Array.isArray(claudeVerification.evidence.diagnostics)
+    ? claudeVerification.evidence.diagnostics
+    : [claudeVerification.error && claudeVerification.error.message || 'Claude projection verification failed'];
+  for (const diagnostic of diagnostics) r.err(diagnostic);
+}
 
 r.done(`${inventory.skills.length} skills, ${inventory.modules.length} modules reconciled`);

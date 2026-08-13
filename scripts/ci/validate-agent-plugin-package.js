@@ -6,7 +6,7 @@
 
 const path = require('node:path');
 const {
-  validateAgentPluginPackage,
+  verifyAgentPluginPackage,
 } = require('../lib/agent-plugin-package');
 const { validateSurfaceReceipt } = require('../lib/platform-provenance');
 const fs = require('node:fs');
@@ -28,7 +28,10 @@ if (!args.packageRoot) {
 }
 
 const packageRoot = path.resolve(args.packageRoot);
-const structural = validateAgentPluginPackage(packageRoot);
+// The compatibility validator remains the report/exit contract. Its internal
+// structural adapter now presents the result through verifyDistribution so a
+// CLI consumer cannot accidentally treat a raw validator payload as evidence.
+const structural = verifyAgentPluginPackage(packageRoot);
 const errors = [...structural.errors];
 const provenancePath = path.join(packageRoot, 'provenance.json');
 let provenance = null;
