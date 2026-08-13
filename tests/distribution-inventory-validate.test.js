@@ -13,6 +13,8 @@ const {
   validatePortableFrontmatterContract,
   preserveProjectionContract,
   LIFECYCLES,
+  compileClaudeProjection,
+  verifyClaudeProjection,
 } = require('../scripts/lib/distribution-inventory');
 
 function baseInventory() {
@@ -22,7 +24,7 @@ function baseInventory() {
     surfaces: ['claude-core', 'claude-module', 'codex-sync', 'codex-native'],
     skills: [
       { id: 'tdd', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-sync'] },
-      { id: 'vue-2-notes', path: 'skills/dhpk-vue-2-notes', lifecycle: 'optional', surfaces: ['claude-module'] },
+      { id: 'vue-2-notes', path: 'modules/vue-2/skills/dhpk-vue-2-notes', lifecycle: 'optional', surfaces: ['claude-module'] },
     ],
     modules: [
       { id: 'vue-2', path: 'modules/vue-2', lifecycle: 'optional', surfaces: ['claude-module'] },
@@ -34,11 +36,36 @@ test('LIFECYCLES exports the four canonical states', () => {
   assert.deepStrictEqual([...LIFECYCLES].sort(), ['deprecated', 'experimental', 'optional', 'promoted']);
 });
 
+test('Claude projection compiler freezes roots and inventory-view intent without filesystem writes', () => {
+  const inventory = baseInventory();
+  const compiled = compileClaudeProjection({ inventory });
+  assert.strictEqual(compiled.ok, true, compiled.error && compiled.error.message);
+  assert.ok(Object.isFrozen(compiled.plan));
+  assert.strictEqual(compiled.plan.surface, 'claude-core');
+  assert.ok(compiled.plan.entries.some((entry) => entry.stableId === 'claude:publication-roots'));
+  assert.ok(compiled.plan.entries.some((entry) => entry.stableId === 'claude:inventory-view'));
+  assert.deepStrictEqual(compiled.generated.roots, ['./skills/', './modules/vue-2/skills/']);
+  assert.deepStrictEqual(compiled.generated.generatedSkillIds, ['tdd', 'vue-2-notes']);
+});
+
+test('Claude projection verification binds structural evidence to the compiled plan and reports root drift', () => {
+  const inventory = baseInventory();
+  const passing = verifyClaudeProjection({ inventory, pluginSkills: ['./skills/', './modules/vue-2/skills/'] });
+  assert.strictEqual(passing.ok, true, passing.evidence && passing.evidence.diagnostics.join('\n'));
+  assert.strictEqual(passing.evidence.verdict, 'PASS');
+  assert.strictEqual(passing.evidence.planFingerprint, passing.plan.planFingerprint);
+
+  const failing = verifyClaudeProjection({ inventory, pluginSkills: ['./skills/'] });
+  assert.strictEqual(failing.ok, false);
+  assert.strictEqual(failing.evidence.verdict, 'FAIL');
+  assert.ok(failing.evidence.diagnostics.some((diagnostic) => /modules\/vue-2\/skills/.test(diagnostic)));
+});
+
 test('passes when every canonical skill/module has one valid entry', () => {
   const inv = baseInventory();
   const result = validateDistributionInventory({
     inventory: inv,
-    canonicalSkillPaths: ['skills/dhpk-tdd-workflow', 'skills/dhpk-vue-2-notes'],
+    canonicalSkillPaths: ['skills/dhpk-tdd-workflow', 'modules/vue-2/skills/dhpk-vue-2-notes'],
     canonicalModulePaths: ['modules/vue-2'],
   });
   assert.deepStrictEqual(result.errors, []);
@@ -93,7 +120,7 @@ test('fails when a canonical skill has no lifecycle entry', () => {
   const inv = baseInventory();
   const result = validateDistributionInventory({
     inventory: inv,
-    canonicalSkillPaths: ['skills/dhpk-tdd-workflow', 'skills/dhpk-vue-2-notes', 'skills/new-skill'],
+    canonicalSkillPaths: ['skills/dhpk-tdd-workflow', 'modules/vue-2/skills/dhpk-vue-2-notes', 'skills/new-skill'],
     canonicalModulePaths: ['modules/vue-2'],
   });
   assert.ok(result.errors.some((e) => /skills\/new-skill/.test(e) && /missing/i.test(e)), result.errors.join('\n'));
@@ -103,7 +130,7 @@ test('fails when a canonical module has no lifecycle entry', () => {
   const inv = baseInventory();
   const result = validateDistributionInventory({
     inventory: inv,
-    canonicalSkillPaths: ['skills/dhpk-tdd-workflow', 'skills/dhpk-vue-2-notes'],
+    canonicalSkillPaths: ['skills/dhpk-tdd-workflow', 'modules/vue-2/skills/dhpk-vue-2-notes'],
     canonicalModulePaths: ['modules/vue-2', 'modules/new-module'],
   });
   assert.ok(result.errors.some((e) => /modules\/new-module/.test(e) && /missing/i.test(e)), result.errors.join('\n'));
@@ -114,7 +141,7 @@ test('fails on an invalid lifecycle value', () => {
   inv.skills[0].lifecycle = 'bogus';
   const result = validateDistributionInventory({
     inventory: inv,
-    canonicalSkillPaths: ['skills/dhpk-tdd-workflow', 'skills/dhpk-vue-2-notes'],
+    canonicalSkillPaths: ['skills/dhpk-tdd-workflow', 'modules/vue-2/skills/dhpk-vue-2-notes'],
     canonicalModulePaths: ['modules/vue-2'],
   });
   assert.ok(result.errors.some((e) => /tdd/.test(e) && /invalid lifecycle/i.test(e)), result.errors.join('\n'));
@@ -125,7 +152,7 @@ test('fails on an invalid surface value', () => {
   inv.skills[0].surfaces = ['claude-cor'];
   const result = validateDistributionInventory({
     inventory: inv,
-    canonicalSkillPaths: ['skills/dhpk-tdd-workflow', 'skills/dhpk-vue-2-notes'],
+    canonicalSkillPaths: ['skills/dhpk-tdd-workflow', 'modules/vue-2/skills/dhpk-vue-2-notes'],
     canonicalModulePaths: ['modules/vue-2'],
   });
   assert.ok(result.errors.some((e) => /tdd/.test(e) && /invalid surface/i.test(e)), result.errors.join('\n'));
@@ -136,7 +163,7 @@ test('fails on duplicate surface membership within one entry', () => {
   inv.skills[0].surfaces = ['claude-core', 'claude-core'];
   const result = validateDistributionInventory({
     inventory: inv,
-    canonicalSkillPaths: ['skills/dhpk-tdd-workflow', 'skills/dhpk-vue-2-notes'],
+    canonicalSkillPaths: ['skills/dhpk-tdd-workflow', 'modules/vue-2/skills/dhpk-vue-2-notes'],
     canonicalModulePaths: ['modules/vue-2'],
   });
   assert.ok(result.errors.some((e) => /tdd/.test(e) && /duplicate surface/i.test(e)), result.errors.join('\n'));
@@ -147,7 +174,7 @@ test('fails on a duplicate skill id across entries', () => {
   inv.skills.push({ id: 'tdd', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core'] });
   const result = validateDistributionInventory({
     inventory: inv,
-    canonicalSkillPaths: ['skills/dhpk-tdd-workflow', 'skills/dhpk-vue-2-notes'],
+    canonicalSkillPaths: ['skills/dhpk-tdd-workflow', 'modules/vue-2/skills/dhpk-vue-2-notes'],
     canonicalModulePaths: ['modules/vue-2'],
   });
   assert.ok(result.errors.some((e) => /tdd/.test(e) && /duplicate/i.test(e)), result.errors.join('\n'));
@@ -158,7 +185,7 @@ test('fails when a deprecated skill leaks into generated promoted output', () =>
   inv.skills[0].lifecycle = 'deprecated';
   const result = validateDistributionInventory({
     inventory: inv,
-    canonicalSkillPaths: ['skills/dhpk-tdd-workflow', 'skills/dhpk-vue-2-notes'],
+    canonicalSkillPaths: ['skills/dhpk-tdd-workflow', 'modules/vue-2/skills/dhpk-vue-2-notes'],
     canonicalModulePaths: ['modules/vue-2'],
     generatedPromotedSkillIds: ['tdd'],
   });
@@ -175,7 +202,7 @@ test('passes when a deprecated skill is correctly absent from generated promoted
   };
   const result = validateDistributionInventory({
     inventory: inv,
-    canonicalSkillPaths: ['skills/dhpk-tdd-workflow', 'skills/dhpk-vue-2-notes'],
+    canonicalSkillPaths: ['skills/dhpk-tdd-workflow', 'modules/vue-2/skills/dhpk-vue-2-notes'],
     canonicalModulePaths: ['modules/vue-2'],
     generatedPromotedSkillIds: ['vue-2-notes'],
   });
@@ -187,7 +214,7 @@ test('fails when a deprecated skill has no deprecation metadata', () => {
   inv.skills[0].lifecycle = 'deprecated';
   const result = validateDistributionInventory({
     inventory: inv,
-    canonicalSkillPaths: ['skills/dhpk-tdd-workflow', 'skills/dhpk-vue-2-notes'],
+    canonicalSkillPaths: ['skills/dhpk-tdd-workflow', 'modules/vue-2/skills/dhpk-vue-2-notes'],
     canonicalModulePaths: ['modules/vue-2'],
   });
   assert.ok(result.errors.some((e) => /tdd/.test(e) && /deprecation metadata/i.test(e)), result.errors.join('\n'));
@@ -199,7 +226,7 @@ test('fails when a deprecated skill has incomplete deprecation metadata', () => 
   inv.skills[0].deprecation = { since: '2026-07-27' };
   const result = validateDistributionInventory({
     inventory: inv,
-    canonicalSkillPaths: ['skills/dhpk-tdd-workflow', 'skills/dhpk-vue-2-notes'],
+    canonicalSkillPaths: ['skills/dhpk-tdd-workflow', 'modules/vue-2/skills/dhpk-vue-2-notes'],
     canonicalModulePaths: ['modules/vue-2'],
   });
   assert.ok(result.errors.some((e) => /tdd/.test(e) && /compatibilityWindowEnds/.test(e)), result.errors.join('\n'));
@@ -212,7 +239,7 @@ test('fails when deprecation metadata fields are whitespace-only strings, not ju
   inv.skills[0].deprecation = { since: '   ', compatibilityWindowEnds: '2026-10-27', migrationNote: '' };
   const result = validateDistributionInventory({
     inventory: inv,
-    canonicalSkillPaths: ['skills/dhpk-tdd-workflow', 'skills/dhpk-vue-2-notes'],
+    canonicalSkillPaths: ['skills/dhpk-tdd-workflow', 'modules/vue-2/skills/dhpk-vue-2-notes'],
     canonicalModulePaths: ['modules/vue-2'],
   });
   assert.ok(result.errors.some((e) => /tdd/.test(e) && /deprecation\.since/.test(e)), result.errors.join('\n'));

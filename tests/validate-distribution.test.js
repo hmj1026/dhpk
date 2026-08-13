@@ -8,7 +8,7 @@
 // checks (missing/invalid/duplicate/deprecated-leak).
 
 const { test, run, assert } = require('./_lib/tinytest');
-const { reconcileDistribution } = require('../scripts/lib/distribution-inventory');
+const { reconcileDistribution, verifyClaudeProjection } = require('../scripts/lib/distribution-inventory');
 
 function baseInventory() {
   return {
@@ -73,6 +73,22 @@ test('a skill with no codex surface never triggers codex reconciliation errors',
     hasOpenaiMetadata: () => false,
   });
   assert.deepStrictEqual(result.errors, []);
+});
+
+test('Claude verification returns plan-bound PASS evidence and isolates root drift', () => {
+  const inventory = {
+    schema: 'dhpk.distribution-inventory.v1',
+    skills: [{ id: 'core', path: 'skills/dhpk-core', lifecycle: 'promoted', surfaces: ['claude-core'] }],
+    modules: [],
+  };
+  const passing = verifyClaudeProjection({ inventory, pluginSkills: ['./skills/'] });
+  assert.strictEqual(passing.ok, true, passing.evidence && passing.evidence.diagnostics.join('\n'));
+  assert.strictEqual(passing.evidence.verdict, 'PASS');
+  assert.strictEqual(passing.evidence.planFingerprint, passing.plan.planFingerprint);
+  const failing = verifyClaudeProjection({ inventory, pluginSkills: ['./unexpected/'] });
+  assert.strictEqual(failing.ok, false);
+  assert.strictEqual(failing.evidence.verdict, 'FAIL');
+  assert.ok(failing.evidence.diagnostics.some((message) => /unexpected/.test(message)));
 });
 
 run('validate-distribution');

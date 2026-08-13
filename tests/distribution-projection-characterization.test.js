@@ -37,6 +37,13 @@ test('Claude/inventory public validator baseline preserves output and exit statu
   assert.strictEqual(result.stdout.trim(), fixture.distribution.stdout);
 });
 
+test('Claude manifest root checker preserves its characterized diagnostic and exit contract', () => {
+  const result = runNode('scripts/ci/gen-claude-manifest.js', ['--check']);
+  assert.strictEqual(result.status, 0, result.stdout + result.stderr);
+  assert.strictEqual(result.stdout.trim(), 'PASS [gen-claude-manifest]: plugin.json skills[] (1 roots) matches the inventory-derived root set.');
+  assert.strictEqual(result.stderr, '');
+});
+
 test('Codex sync characterization explicitly records the legacy absolute-link boundary', () => {
   assert.strictEqual(fixture.codexSync.symlinkBehavior, 'characterize-before-changing-legacy-absolute-targets');
 });
