@@ -1,6 +1,6 @@
 ---
 name: dhpk-php-runtime-router
-description: 'Use when building, debugging, refactoring, testing, or reviewing PHP code in Laravel, Symfony, generic modern PHP, or legacy PHP 5.6 + Yii 1.1 codebases. Detect the active runtime first, then load only the matching reference set; for Laravel, confirm the resolved major version and load the version-specific reference before touching bootstrap/app.php, middleware, exceptions, auth, testing infrastructure, or Laravel-coupled packages. Not for frontend-only or non-PHP tasks. Output: runtime-matched implementation or review guidance with compatibility and verification gates.'
+description: 'Use when implementing or reviewing Laravel, Symfony, modern PHP, or PHP 5.6/Yii code. Detect runtime first and load only matching references; select Laravel major before framework-coupled edits. Not for frontend-only work. Output: compatibility-safe guidance and verification gates.'
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---
