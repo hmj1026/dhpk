@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.38.1 — 2026-08-13 — Clean Python bytecode from Codex projections and repair operational docs
+
+No user-visible changes in this release.
+
 ## 0.38.0 — 2026-08-12 — Harden session audit, agent orchestration, and platform support projections
 
 **feat(platform-support)** — Add deterministic Agent Plugin and Cursor Plugin projections with independent provenance, validation, installation guidance, and release gates.
