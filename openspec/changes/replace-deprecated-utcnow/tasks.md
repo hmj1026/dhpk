@@ -14,5 +14,5 @@
 
 ## 3. Delivery evidence
 
-- [ ] 3.1 Link issue #163 and the focused OpenSpec change in the PR, then leave
+- [x] 3.1 Link issue #163 and the focused OpenSpec change in the PR, then leave
   the issue open until the merged exact-head CI result is confirmed.
