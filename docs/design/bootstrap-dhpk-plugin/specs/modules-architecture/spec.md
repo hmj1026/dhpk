@@ -65,8 +65,12 @@ For v0.1.0:
 
 #### Scenario: manifest validates with all three module paths
 
-- **WHEN** `claude plugin validate /home/paul/projects/dhpk/plugins/dhpk --strict` is run
+- **WHEN** `claude plugin validate /home/paul/projects/dhpk --strict` is run against the canonical repository checkout root/marketplace
 - **THEN** the command exits 0 and reports no warnings about missing skill directories
+- **AND** the Codex-only `plugins/dhpk/` publication package is validated with
+  `node scripts/ci/verify-codex-native-package.js`,
+  `node tests/codex-plugin-manifest.test.js`, and
+  `node tests/codex-native-install-smoke.test.js`, not Claude's validator
 
 #### Scenario: adding a new module requires manifest update
 

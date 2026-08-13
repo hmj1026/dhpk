@@ -48,8 +48,12 @@ The plugin SHALL ship approximately 60 skill directories under `skills/` (NOT co
 
 #### Scenario: Skills validate frontmatter strict-mode
 
-- **WHEN** `claude plugin validate /home/paul/projects/dhpk/plugins/dhpk --strict` is run
+- **WHEN** `claude plugin validate /home/paul/projects/dhpk --strict` is run against the canonical repository checkout root/marketplace
 - **THEN** no skill is reported with a frontmatter YAML parse error (description values containing colons/brackets/angle brackets are single-quoted)
+- **AND** the Codex-only `plugins/dhpk/` publication package is checked with
+  `node scripts/ci/verify-codex-native-package.js`,
+  `node tests/codex-plugin-manifest.test.js`, and
+  `node tests/codex-native-install-smoke.test.js`, not Claude's validator
 
 ### Requirement: tool-routing and dhpk-execution-policy ship as skills (NOT rules)
 
