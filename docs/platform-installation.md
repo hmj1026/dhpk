@@ -47,6 +47,30 @@ result; do not infer a runtime `PASS` from a package check.
 Never turn a static manifest, marketplace entry, generated file, or enabled
 flag into a runtime `PASS`.
 
+## Unified lifecycle CLI (read-only slice)
+
+`dhpk-install <surface> <action>` is the common lifecycle entrypoint. The
+accepted surfaces are `claude`, `codex-sync`, `codex-native`, `agent-plugin`,
+and `cursor`; actions are `plan`, `install`, `verify`, `update`, `uninstall`,
+`rollback`, and `status`. This initial slice enables deterministic read-only
+`plan`, `status`, and `verify` result construction only. For example:
+
+```bash
+dhpk-install cursor plan --scope project --json
+```
+
+When running from a source checkout, invoke the bundled entrypoint directly:
+`bash /path/to/dhpk/bin/dhpk-install cursor plan --scope project --json`.
+
+The JSON result binds the normalized request to a compiler plan and keeps the
+closed projection evidence vocabulary separate from lifecycle presentation.
+`INSTALL_PASS + CONSUMER_BLOCKED` is never a projection `PASS` and cannot
+promote a support tier. Write actions currently return `BLOCKED` with the
+stable `NOT_IMPLEMENTED` diagnostic before any mutation. In particular, retain
+the supported `install-codex-skills.sh` route and its schema-v3 receipt for
+Codex project-local writes until that adapter is migrated through the same
+ArtifactStore transaction.
+
 ## Codex project-local sync (Supported)
 
 Prerequisites: the Codex project-local loader, a POSIX shell, and the

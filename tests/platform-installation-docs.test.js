@@ -40,6 +40,16 @@ test('bilingual installation SSOT exists and exposes every canonical status', ()
   assert.ok(chinese.includes('platform-installation.md'));
 });
 
+test('bilingual SSOT documents the read-only unified lifecycle slice without claiming write support', () => {
+  for (const relative of ['docs/platform-installation.md', 'docs/platform-installation.zh-TW.md']) {
+    const text = read(relative);
+    const compact = text.replace(/\s+/g, ' ');
+    assert.ok(text.includes('dhpk-install cursor plan --scope project --json'), `${relative} must document the JSON plan command`);
+    assert.ok(text.includes('NOT_IMPLEMENTED'), `${relative} must disclose unavailable write actions`);
+    assert.ok(compact.includes('INSTALL_PASS + CONSUMER_BLOCKED'), `${relative} must distinguish lifecycle aggregate from consumer evidence`);
+  }
+});
+
 test('installation routes remain separate and point to the SSOT', () => {
   const docs = [
     'README.md', 'README.zh-TW.md',
