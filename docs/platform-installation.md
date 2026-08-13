@@ -15,6 +15,7 @@ callable only after the named consumer probe discovers the projected content.
 | Standard Agent Plugin | Publish or install `plugins/dhpk-agent/` through a verified client route | Client-owned update/remove; replace only the generated package | Root `plugin.json`, Agent Plugins schema, fixed `skills/`, optional `mcp.json`, provenance | Structural conformance is not Codex runtime proof |
 | Cursor standard Agent Plugin | Cursor Customize/Plugins, or local `~/.cursor/plugins/local/dhpk-agent` | Cursor reload/update/remove or replace that local package | Root `plugin.json`, discovered portable skills/MCP, client version | Portable skills/MCP only; no Cursor-native parity claim |
 | Cursor Plugin | Local `~/.cursor/plugins/local/dhpk-cursor`, or reviewed `.cursor-plugin/marketplace.json` source; install `plugins/dhpk-agent/` alongside it for shared portable skills | Cursor refresh/update/remove; rollback Cursor-owned files only; update the shared Agent package separately | `.cursor-plugin/plugin.json`, rules, agents, commands, hooks, variables, shared-skill IDs | Native components require Cursor evidence; shared portable skills are owned by `dhpk-agent`; gaps are `SKIP_INCOMPATIBLE` |
+| Cursor CLI launch-scoped probe | `cursor-agent --plugin-dir <agent-package> --plugin-dir <cursor-package>` after login | No persistent CLI install; update the source package or local symlink, then start a new session | `cursor-agent --version`, `cursor-agent status`, and a read-only `--mode ask` probe | Experimental/conditional: CLI help exposes the flag, but official CLI docs do not establish plugin component discovery; marketplace indexing is not a non-interactive install command |
 
 ## Prerequisites and version assumptions
 
@@ -30,6 +31,7 @@ result; do not infer a runtime `PASS` from a package check.
 | Standard Agent Plugin | Agent Plugins 1.0.0 schema consumer; minimum client version not established | Client-supported OS; package validation is performed from a POSIX shell | A verified Agent Plugin loader; Node.js for structural validation | Run both package commands, then record client discovery evidence |
 | Cursor standard Agent Plugin | Cursor desktop/plugin loader that accepts the portable package; record Cursor version; minimum version not established | A Cursor-supported desktop OS; local path is `~/.cursor/plugins/local/` | Cursor Customize → Plugins or its local loader; Node.js for validation only | Observe discovered skills/MCP after reload; no loader is `UNAVAILABLE` or `BLOCKED` |
 | Cursor Plugin (native) | Cursor plugin loader supporting `.cursor-plugin/plugin.json`; record Cursor version; install the standard `dhpk-agent` package for shared portable skills; minimum version not established | A Cursor-supported desktop OS; local path is `~/.cursor/plugins/local/` | Cursor reload/UI, local filesystem, and secret-free variable configuration; compare shared IDs with Agent provenance | Observe each selected native component and hook behavior after reload; an explicit matrix overlay is the only reason for a Cursor `skills/` directory |
+| Cursor CLI launch-scoped probe | `cursor-agent` available on `PATH`; record `cursor-agent --version`; authenticate with `cursor-agent login`; minimum version not established | Linux, macOS, or WSL POSIX shell | `cursor-agent`, `--plugin-dir`, and a Cursor account/API key; Node.js only for package validation | Experimental/conditional: run `cursor-agent status`, then a read-only probe; unauthenticated output is `BLOCKED`, missing CLI is `UNAVAILABLE`, and discovery must be recorded separately |
 
 ## Status vocabulary
 
@@ -146,6 +148,60 @@ Cursor can consume `plugins/dhpk-agent/` for portable skills and optional MCP:
 Record the Cursor version and probe output. Without a supported local loader or
 CLI, keep the result `UNAVAILABLE`/`BLOCKED`; never claim native rules,
 commands, agents, or hooks from this package.
+
+## Cursor CLI (launch-scoped probe)
+
+The Cursor CLI is a separate consumer surface from the Cursor desktop plugin
+loader. In this guide, **launch-scoped** means that `--plugin-dir` supplies
+packages to one `cursor-agent` invocation; it does not install or register a
+persistent plugin. The current CLI help exposes `--plugin-dir`, but official
+CLI documentation does not establish plugin component discovery, so this route
+is experimental/conditional until a versioned consumer probe succeeds. Its
+`plugin` subcommand does not provide a non-interactive `plugin install` command.
+Do not describe `cursor-agent plugin marketplace add` as an installation of
+dhpk; it only adds or updates a marketplace index.
+
+Prerequisites: a recorded `cursor-agent --version`, a logged-in Cursor CLI (or
+an API key), and both dhpk packages available locally. Check authentication
+before the probe:
+
+```bash
+cursor-agent --version
+cursor-agent status
+cursor-agent login  # only when status reports Not logged in
+```
+
+For a launch-scoped, read-only probe, pass both package directories explicitly:
+
+```bash
+cursor-agent \
+  --plugin-dir "$HOME/.cursor/plugins/local/dhpk-agent" \
+  --plugin-dir "$HOME/.cursor/plugins/local/dhpk-cursor" \
+  --mode ask \
+  -p 'List the dhpk skills, commands, agents, and rules you discover. Do not edit files.' \
+  --output-format json
+```
+
+Record the exact CLI version, authentication status, package paths, and probe
+output. A successful package validator proves structure and provenance only;
+runtime `PASS` requires the CLI or Cursor UI to discover the projected content;
+until then keep the CLI route `NOT_RUN` or `BLOCKED`. If the CLI reports
+`Authentication required`, the evidence is `BLOCKED` until login is completed.
+If the installed CLI has no `--plugin-dir`, record `UNAVAILABLE` and use the
+Cursor UI/local-plugin route instead.
+
+For a persistent local setup for Cursor desktop, use symlinks or copies under
+`~/.cursor/plugins/local/`. The CLI probe still passes these paths explicitly;
+restart the Cursor desktop/session after updates:
+
+```bash
+mkdir -p ~/.cursor/plugins/local
+ln -s /absolute/path/to/dhpk/plugins/dhpk-agent ~/.cursor/plugins/local/dhpk-agent
+ln -s /absolute/path/to/dhpk/plugins/dhpk-cursor ~/.cursor/plugins/local/dhpk-cursor
+```
+
+Check that each target is absent before creating a link; do not overwrite an
+existing user-owned plugin. Rollback removes only the two dhpk links.
 
 ## Cursor Plugin (native components)
 
