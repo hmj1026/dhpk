@@ -1,6 +1,6 @@
 ---
 name: dhpk-ios-platform
-description: 'iOS SDK framework guidance for a health/PHI app — Core Data at-rest encryption (SQLCipher / EncryptedCoreData, File Protection), CryptoKit AES.GCM + Keychain key management, Vision OCR (RecognizeTextRequest / VNRecognizeTextRequest), AVFoundation capture, LocalAuthentication biometric lock, UserNotifications (Time Sensitive, 64-pending limit), HealthKit read-only, and privacy-manifest / data-protection / iCloud-prohibition compliance. Use when implementing or reviewing persistence, encryption, Keychain, OCR, camera, biometric auth, local notifications, HealthKit, or the privacy manifest in an iOS app. Requires the swift module. Not for SwiftUI view composition (swiftui) or pure language questions (swift). Output: SDK-specific implementation or review guidance with privacy and verification gates.'
+description: 'Use when iOS SDK guidance is needed for privacy-sensitive persistence, CryptoKit/Keychain, OCR, camera, biometrics, notifications, HealthKit, or privacy manifests. Requires swift. Not for SwiftUI composition or pure Swift language work. Output: SDK-specific implementation or review guidance with privacy and verification gates.'
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---

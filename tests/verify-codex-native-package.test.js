@@ -1,7 +1,7 @@
 'use strict';
 
 // Coverage for scripts/ci/verify-codex-native-package.js — the deterministic
-// generation gate (task 2.3): a fresh regeneration must match the tracked
+// generation gate and Phase 4 consumer-stage adapter: a fresh regeneration must match the tracked
 // plugins/dhpk/ artifact's fingerprints, membership, manifest skills field,
 // inventory digest, and generator version.
 
@@ -10,7 +10,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
-const { materializeNativePackage } = require('../scripts/lib/codex-native-package');
+const { materializeNativePackage, verifyNativePackage } = require('../scripts/lib/codex-native-package');
 
 const ROOT = path.join(__dirname, '..');
 const CLI = path.join(ROOT, 'scripts', 'ci', 'verify-codex-native-package.js');
@@ -76,6 +76,25 @@ test('fails when a canonical skill file changes content after the tracked packag
   }
 });
 
+test('fails closed when the native provenance routing projection omits entries', () => {
+  const { root, inventory } = fixtureRepo();
+  try {
+    const packageRoot = path.join(root, 'plugins', 'dhpk');
+    materializeNativePackage({ inventory, root, outDir: packageRoot, name: 'dhpk', version: '1.0.0', sourceCommit: 'a'.repeat(40) });
+    const provenancePath = path.join(packageRoot, 'provenance.json');
+    const provenance = JSON.parse(fs.readFileSync(provenancePath, 'utf8'));
+    delete provenance.routingProjection.entries;
+    fs.writeFileSync(provenancePath, `${JSON.stringify(provenance, null, 2)}\n`);
+
+    const result = verifyNativePackage({ packageRoot, inventory, stage: 'structural' });
+
+    assert.strictEqual(result.ok, false);
+    assert.ok(result.routingParity.diagnostics.some((diagnostic) => /entries array/.test(diagnostic)));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('fails and identifies tracked frontmatter whose name differs from its public directory', () => {
   const { root, inventory } = fixtureRepo();
   try {
@@ -94,6 +113,52 @@ test('fails and identifies tracked frontmatter whose name differs from its publi
 test('against the real repo, the tracked plugins/dhpk/ package matches a fresh generation', () => {
   const res = spawnSync('node', [CLI], { encoding: 'utf8' });
   assert.strictEqual(res.status, 0, res.stdout + res.stderr);
+});
+
+test('consumer-runtime verification preserves NOT_CONFIGURED without upgrading structural evidence', () => {
+  const { root, inventory } = fixtureRepo();
+  try {
+    const packageRoot = path.join(root, 'plugins', 'dhpk');
+    materializeNativePackage({ inventory, root, outDir: packageRoot, name: 'dhpk', version: '1.0.0', sourceCommit: 'a'.repeat(40) });
+    const result = verifyNativePackage({
+      packageRoot,
+      inventory,
+      stage: 'consumer-runtime',
+      observedAt: '2026-08-13T00:00:00.000Z',
+      consumerAdapter: {
+        identity: { id: 'codex-cli', version: 'not-installed' },
+        verify: () => ({ verdict: 'NOT_CONFIGURED', diagnostics: ['codex CLI is not configured'] }),
+      },
+    });
+    assert.strictEqual(result.ok, true, result.error && result.error.message);
+    assert.strictEqual(result.evidence.stage, 'consumer-runtime');
+    assert.strictEqual(result.evidence.verdict, 'NOT_CONFIGURED');
+    assert.deepStrictEqual(result.evidence.diagnostics, ['codex CLI is not configured']);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('consumer-runtime verification stays NOT_CONFIGURED when no consumer adapter is supplied', () => {
+  const { root, inventory } = fixtureRepo();
+  try {
+    const packageRoot = path.join(root, 'plugins', 'dhpk');
+    materializeNativePackage({ inventory, root, outDir: packageRoot, name: 'dhpk', version: '1.0.0', sourceCommit: 'a'.repeat(40) });
+    const result = verifyNativePackage({
+      packageRoot,
+      inventory,
+      stage: 'consumer-runtime',
+      observedAt: '2026-08-13T00:00:00.000Z',
+    });
+    assert.strictEqual(result.ok, true, result.error && result.error.message);
+    assert.strictEqual(result.evidence.stage, 'consumer-runtime');
+    assert.strictEqual(result.evidence.verdict, 'NOT_CONFIGURED');
+    assert.strictEqual(result.evidence.observedAt, '2026-08-13T00:00:00.000Z');
+    assert.ok(result.evidence.claims.includes('Codex native consumer configuration'));
+    assert.ok(!Object.prototype.hasOwnProperty.call(result, 'lifecycle'));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 run('verify-codex-native-package');

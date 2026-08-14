@@ -12,6 +12,13 @@ const ROOT = path.join(__dirname, '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 const STATUS = ['PASS', 'FAIL', 'NOT_RUN', 'NOT_CONFIGURED', 'SKIP_INCOMPATIBLE', 'BLOCKED', 'UNAVAILABLE'];
 
+function section(text, heading) {
+  const start = text.indexOf(heading);
+  assert.ok(start >= 0, `missing section ${heading}`);
+  const next = text.indexOf('\n## ', start + heading.length);
+  return text.slice(start, next >= 0 ? next : text.length);
+}
+
 function currentCodexRoleCounts() {
   const roles = fs.readdirSync(path.join(ROOT, 'codex', 'agents'))
     .filter((entry) => entry.endsWith('.toml'));
@@ -31,6 +38,16 @@ test('bilingual installation SSOT exists and exposes every canonical status', ()
   }
   assert.ok(english.includes('platform-installation.zh-TW.md'));
   assert.ok(chinese.includes('platform-installation.md'));
+});
+
+test('bilingual SSOT documents the read-only unified lifecycle slice without claiming write support', () => {
+  for (const relative of ['docs/platform-installation.md', 'docs/platform-installation.zh-TW.md']) {
+    const text = read(relative);
+    const compact = text.replace(/\s+/g, ' ');
+    assert.ok(text.includes('dhpk-install cursor plan --scope project --json'), `${relative} must document the JSON plan command`);
+    assert.ok(text.includes('NOT_IMPLEMENTED'), `${relative} must disclose unavailable write actions`);
+    assert.ok(compact.includes('INSTALL_PASS + CONSUMER_BLOCKED'), `${relative} must distinguish lifecycle aggregate from consumer evidence`);
+  }
 });
 
 test('installation routes remain separate and point to the SSOT', () => {
@@ -54,10 +71,40 @@ test('installation routes remain separate and point to the SSOT', () => {
     'codex plugin marketplace add',
     'plugins/dhpk-agent/',
     'plugins/dhpk-cursor/',
+    'Cursor CLI',
+    '--plugin-dir',
+    'cursor-agent status',
+    'Authentication required',
+    'non-interactive `plugin install`',
+    'experimental/conditional',
     'mcp.json',
     'SKIP_INCOMPATIBLE',
     'UNAVAILABLE',
   ]) assert.ok(english.includes(token), `SSOT missing ${token}`);
+});
+
+test('Cursor CLI documentation keeps authentication, launch scope, and UI routes distinct', () => {
+  const english = read('docs/platform-installation.md');
+  const chinese = read('docs/platform-installation.zh-TW.md');
+  const cliSections = [
+    section(english, '## Cursor CLI (launch-scoped probe)'),
+    section(chinese, '## Cursor CLI（launch-scoped probe）'),
+  ];
+  for (const cli of cliSections) {
+    assert.ok(cli.includes('--plugin-dir "$HOME/.cursor/plugins/local/dhpk-agent"'),
+      'Cursor CLI probe must pass the portable Agent Plugin path');
+    assert.ok(cli.includes('--plugin-dir "$HOME/.cursor/plugins/local/dhpk-cursor"'),
+      'Cursor CLI probe must pass the native Cursor Plugin path');
+    assert.ok(cli.includes('--mode ask'), 'Cursor CLI route must be read-only for the verification probe');
+    assert.ok(cli.includes("-p 'List the dhpk skills, commands, agents, and rules you discover. Do not edit files.'"),
+      'Cursor CLI probe must state its read-only discovery prompt');
+    assert.ok(cli.includes('--output-format json'), 'Cursor CLI route must preserve machine-readable evidence');
+    assert.ok(cli.includes('cursor-agent login'), 'Cursor CLI route must document authentication');
+    assert.ok(cli.includes('cursor-agent status'), 'Cursor CLI route must document auth status');
+    assert.ok(cli.includes('~/.cursor/plugins/local/'), 'Cursor persistent local route must remain documented');
+    assert.ok(cli.includes('marketplace add'), 'Cursor marketplace route must remain distinct from install');
+    assert.ok(cli.includes('launch-scoped'), 'Cursor CLI route must define its invocation scope');
+  }
 });
 
 test('Codex verification commands declare consumer and checkout roots', () => {

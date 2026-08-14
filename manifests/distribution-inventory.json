@@ -15,6 +15,46 @@
     "agent-plugin",
     "cursor-plugin"
   ],
+  "skill_routing_families": [
+    {
+      "id": "laravel",
+      "router_id": "php-pro",
+      "invocation_class": "implicit-eligible",
+      "surfaces": ["claude-module"],
+      "selectors": {
+        "5.4": "skills/dhpk-laravel-5-4-notes/SKILL.md", "6": "skills/dhpk-laravel-6-notes/SKILL.md", "7": "skills/dhpk-laravel-7-notes/SKILL.md", "8": "skills/dhpk-laravel-8-notes/SKILL.md", "9": "skills/dhpk-laravel-9-notes/SKILL.md", "10": "skills/dhpk-laravel-10-notes/SKILL.md", "11": "skills/dhpk-laravel-11-notes/SKILL.md", "mix": "skills/dhpk-laravel-mix-notes/SKILL.md"
+      },
+      "aliases": [
+        {"id":"laravel-5.4-notes","selector":"5.4","invocation_class":"implicit-eligible","surfaces":["claude-module"]}, {"id":"laravel-6-notes","selector":"6","invocation_class":"implicit-eligible","surfaces":["claude-module"]}, {"id":"laravel-7-notes","selector":"7","invocation_class":"implicit-eligible","surfaces":["claude-module"]}, {"id":"laravel-8-notes","selector":"8","invocation_class":"implicit-eligible","surfaces":["claude-module"]}, {"id":"laravel-9-notes","selector":"9","invocation_class":"implicit-eligible","surfaces":["claude-module"]}, {"id":"laravel-10-notes","selector":"10","invocation_class":"implicit-eligible","surfaces":["claude-module"]}, {"id":"laravel-11-notes","selector":"11","invocation_class":"implicit-eligible","surfaces":["claude-module"]}, {"id":"laravel-mix-notes","selector":"mix","invocation_class":"implicit-eligible","surfaces":["claude-module"]}
+      ]
+    },
+    {
+      "id": "phpunit",
+      "router_id": "php-pro",
+      "invocation_class": "implicit-eligible",
+      "surfaces": ["claude-module"],
+      "selectors": {"9":"skills/dhpk-phpunit-9-modern/SKILL.md","10":"skills/dhpk-phpunit-10-notes/SKILL.md","11":"skills/dhpk-phpunit-11-notes/SKILL.md"},
+      "aliases": [
+        {"id":"phpunit-9-modern","selector":"9","invocation_class":"implicit-eligible","surfaces":["claude-module"]}, {"id":"phpunit-10-notes","selector":"10","invocation_class":"implicit-eligible","surfaces":["claude-module"]}, {"id":"phpunit-11-notes","selector":"11","invocation_class":"implicit-eligible","surfaces":["claude-module"]}
+      ]
+    }
+  ],
+  "projection_contract": {
+    "schema": "dhpk.distribution-projection-contract.v1",
+    "compiler": {
+      "id": "distribution-compiler",
+      "version": "1"
+    },
+    "surfaces": {
+      "claude-core": { "adapter": "claude", "owner": "claude", "verification_stages": ["structural", "package", "consumer-runtime"], "symlink_policy": "forbid" },
+      "claude-module": { "adapter": "claude", "owner": "claude", "verification_stages": ["structural", "package", "consumer-runtime"], "symlink_policy": "forbid" },
+      "codex-sync": { "adapter": "codex-sync", "owner": "codex-sync", "verification_stages": ["structural", "package", "consumer-runtime"], "symlink_policy": "declared-source-relative" },
+      "codex-native": { "adapter": "codex-native", "owner": "codex-native", "verification_stages": ["structural", "package", "consumer-runtime"], "symlink_policy": "forbid" },
+      "agent-plugin": { "adapter": "agent-plugin", "owner": "agent-plugin", "verification_stages": ["structural", "package", "consumer-runtime"], "symlink_policy": "forbid" },
+      "cursor-plugin": { "adapter": "cursor-plugin", "owner": "cursor-plugin", "verification_stages": ["structural", "package", "consumer-runtime"], "symlink_policy": "forbid" }
+    },
+    "symlink_policies": ["forbid", "contained-relative", "declared-source-relative"]
+  },
   "supporting_assets": [
     {
       "id": "codex-supporting-config-toml-example",
@@ -217,8 +257,8 @@
       "id": "codex-supporting-policies-execution-policy-md",
       "source": "codex/supporting/policies/execution-policy.md",
       "canonical_source": "rules/execution-policy.md",
-      "canonical_digest": "f0d937a0374ff5699a1b0b052d89215eaf88420be3b61698108aeb150924a32d",
-      "projection_digest": "f09b2474ecd5f1926f73239ce2e745dbe97772458c645a3025f4337bc594d06b",
+      "canonical_digest": "38d1c53dddfcd3490bfce23236bd62f373a6db7297136f3cc837ada7da7e0bbe",
+      "projection_digest": "beb63d7382fbe7ff2b350221ed3b3c34dd69e86cb1a4e5b89e6a4b52232ddc12",
       "destination": "dhpk/policies/execution-policy.md"
     }
   ],

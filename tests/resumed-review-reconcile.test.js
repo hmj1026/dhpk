@@ -21,6 +21,8 @@ const { ROOT, hookPath, mkRepo, rmRepo, sessionsDir, runHook } = require('./_lib
 const RECORD = hookPath('record-resumed-obligation.sh');
 const RECONCILE = hookPath('reconcile-resumed-review.sh');
 const REMINDER = 'stop-review-reminder.sh';
+const LIFECYCLE_LIB = path.join(ROOT, 'scripts', 'hooks', '_lib', 'review-lifecycle.sh');
+const RESUMED_LIB = path.join(ROOT, 'scripts', 'hooks', '_lib', 'resumed-review-obligation.sh');
 
 function setMtime(file, epochSeconds) {
   fs.utimesSync(file, epochSeconds, epochSeconds);
@@ -49,6 +51,35 @@ function readObligations(repo) {
     .map((l) => JSON.parse(l));
 }
 
+function sourceResumed(repo, script) {
+  return spawnSync('bash', ['-c', [
+    `. ${JSON.stringify(RESUMED_LIB)}`,
+    script,
+  ].join('\n')], {
+    cwd: repo,
+    env: {
+      ...process.env,
+      CLAUDE_PROJECT_DIR: repo,
+      DHPK_SIDECAR_RESUMED_OBLIGATIONS: '.resumed-review-obligations',
+    },
+    encoding: 'utf8',
+  });
+}
+
+function sourceLifecycle(repo, script) {
+  return spawnSync('bash', ['-c', [
+    `. ${JSON.stringify(LIFECYCLE_LIB)}`,
+    script,
+  ].join('\n')], {
+    cwd: repo,
+    env: {
+      ...process.env,
+      CLAUDE_PROJECT_DIR: repo,
+    },
+    encoding: 'utf8',
+  });
+}
+
 // Arm a sentinel with one pending file and drop an initial (pre-resume)
 // review artifact so record-resumed-obligation.sh captures a real baseline.
 function scaffold(repo, { withInitialArtifact = true } = {}) {
@@ -70,11 +101,42 @@ function scaffold(repo, { withInitialArtifact = true } = {}) {
   return { sess, reviews, sentinel, initialDoc };
 }
 
-function writeArtifact(reviews, name, body, mtime) {
+function writeArtifact(reviews, name, body, mtime, { identity = true, identityValues = null } = {}) {
+  if (identity) {
+    const repo = path.resolve(reviews, '../../..');
+    const obligation = readObligations(repo).find((item) => item.state === 'pending' && item.task_id);
+    const values = identityValues || obligation;
+    if (values) {
+      const fields = [
+        ['task_id', values.task_id],
+        ['attempt_id', values.attempt_id],
+        ['producer', values.producer],
+        ['wave', values.wave],
+        ['scope_id', values.scope_id || values.scope],
+        ['adapter', values.adapter],
+        ['stage', values.stage],
+        ['plan_fingerprint', values.plan_fingerprint],
+        ['artifact_fingerprint', values.artifact_fingerprint],
+      ].filter(([, value]) => value);
+      if (fields.length > 0 && body.startsWith('---\n')) {
+        const close = body.indexOf('\n---', 4);
+        if (close >= 0) {
+          const identityBlock = `${fields.map(([key, value]) => `${key}: ${value}`).join('\n')}\n`;
+          body = `${body.slice(0, close + 1)}${identityBlock}${body.slice(close + 1)}`;
+        }
+      }
+    }
+  }
   const p = path.join(reviews, name);
   fs.writeFileSync(p, body);
   setMtime(p, mtime);
   return p;
+}
+
+function identityFromRecordOutput(stdout) {
+  const line = stdout.split('\n').find((value) => value.startsWith('RESUMED_REVIEW_IDENTITY '));
+  assert.ok(line, `record command must print a handoff identity envelope:\n${stdout}`);
+  return Object.fromEntries([...line.matchAll(/([a-z_]+)=([^\s]+)/g)].map((match) => [match[1], match[2]]));
 }
 
 // --- 1.1: fresh artifact after the recorded baseline reconciles a resumed APPROVE ---
@@ -83,6 +145,10 @@ test('1.1: resumed APPROVE with a fresh post-baseline artifact clears the sentin
   const repo = mkRepo({ gitConfig: true });
   try {
     const { reviews, sentinel } = scaffold(repo);
+    const lifecycle = sourceLifecycle(repo, [
+      'dhpk_lifecycle_emit started task-resumed-fingerprint code-reviewer session-A 1 scope-id diff-id "" "" producer-A wave-A evidence-A adapter-A review plan-A artifact-A',
+    ].join('\n'));
+    assert.strictEqual(lifecycle.status, 0, `lifecycle context should be recorded:\n${lifecycle.stderr}`);
     const rec = runScript(RECORD, ['.pending-review'], { cwd: repo, sessionId: 'session-A' });
     assert.strictEqual(rec.status, 0, `record should succeed:\n${rec.stderr}`);
     assert.ok(/baseline=code-reviewer-20260727-085000-foo\.md/.test(rec.stdout), rec.stdout);
@@ -91,14 +157,74 @@ test('1.1: resumed APPROVE with a fresh post-baseline artifact clears the sentin
     assert.strictEqual(obligations.length, 1, 'exactly one obligation recorded');
     assert.strictEqual(obligations[0].state, 'pending');
     assert.strictEqual(obligations[0].attempt, 1);
+    const identity = identityFromRecordOutput(rec.stdout);
+    assert.strictEqual(identity.plan_fingerprint, 'plan-A');
+    assert.strictEqual(identity.artifact_fingerprint, 'artifact-A');
+    assert.strictEqual(obligations[0].plan_fingerprint, identity.plan_fingerprint);
+    assert.strictEqual(obligations[0].artifact_fingerprint, identity.artifact_fingerprint);
 
     // The resumed reviewer writes a NEW canonical artifact after the baseline.
-    writeArtifact(reviews, 'code-reviewer-20260727-093000-foo.md', '---\nverdict: APPROVE\n---\nlooks good\n', 2_000_000);
+    writeArtifact(reviews, 'code-reviewer-20260727-093000-foo.md', '---\nverdict: APPROVE\n---\nlooks good\n', 2_000_000, { identityValues: identity });
 
     const rec2 = runScript(RECONCILE, ['.pending-review'], { cwd: repo, sessionId: 'session-A' });
     assert.strictEqual(rec2.status, 0, `reconcile should succeed:\n${rec2.stderr}`);
     assert.ok(!fs.existsSync(sentinel), 'sentinel cleared without any SubagentStop event');
     assert.strictEqual(readObligations(repo).length, 0, 'obligation consumed on reconcile');
+  } finally {
+    rmRepo(repo);
+  }
+});
+
+test('wrapper-bound identity rejects a fresh artifact that omits its declared identity', () => {
+  const repo = mkRepo({ gitConfig: true });
+  try {
+    const { reviews, sentinel } = scaffold(repo);
+    const rec = runScript(RECORD, ['.pending-review'], { cwd: repo, sessionId: 'session-A' });
+    assert.strictEqual(rec.status, 0, rec.stderr);
+    const obligation = readObligations(repo)[0];
+    assert.ok(obligation.task_id && obligation.attempt_id && obligation.producer && obligation.wave && obligation.scope && obligation.adapter && obligation.stage);
+    writeArtifact(reviews, 'code-reviewer-20260727-093000-missing-identity.md', '---\nverdict: APPROVE\n---\nok\n', 2_000_000, { identity: false });
+    const res = runScript(RECONCILE, ['.pending-review'], { cwd: repo, sessionId: 'session-A' });
+    assert.notStrictEqual(res.status, 0, 'missing declared identity must fail closed');
+    assert.ok(fs.existsSync(sentinel), 'sentinel remains armed when identity is missing');
+  } finally {
+    rmRepo(repo);
+  }
+});
+
+test('resumed obligations retain task/attempt and producer-wave evidence identity', () => {
+  const repo = mkRepo({ gitConfig: true });
+  try {
+    const sess = sessionsDir(repo);
+    fs.mkdirSync(sess, { recursive: true });
+    const res = sourceResumed(repo, [
+      `dhpk_resumed_obligation_record ${JSON.stringify(sess)} .pending-review code-reviewer code-reviewer session-A baseline.md 100 task-A producer-A wave-A scope-A adapter-A structural plan-A artifact-A`,
+    ].join('\n'));
+    assert.strictEqual(res.status, 0, `record should accept additive identity fields:\n${res.stderr}`);
+    const first = readObligations(repo)[0];
+    assert.strictEqual(first.task_id, 'task-A');
+    assert.strictEqual(first.attempt, 1);
+    assert.strictEqual(first.attempt_id, 'task-A:attempt:1');
+    assert.strictEqual(first.producer, 'producer-A');
+    assert.strictEqual(first.wave, 'wave-A');
+    assert.strictEqual(first.scope, 'scope-A');
+    assert.strictEqual(first.adapter, 'adapter-A');
+    assert.strictEqual(first.stage, 'structural');
+    assert.strictEqual(first.plan_fingerprint, 'plan-A');
+    assert.strictEqual(first.artifact_fingerprint, 'artifact-A');
+
+    const retry = sourceResumed(repo, [
+      `dhpk_resumed_obligation_record ${JSON.stringify(sess)} .pending-review code-reviewer code-reviewer session-A baseline.md 100 task-A producer-A wave-B scope-A adapter-A package plan-B artifact-B`,
+    ].join('\n'));
+    assert.strictEqual(retry.status, 0, `corrected resume should remain linked:\n${retry.stderr}`);
+    const second = readObligations(repo)[0];
+    assert.strictEqual(second.task_id, 'task-A');
+    assert.strictEqual(second.attempt, 2);
+    assert.strictEqual(second.attempt_id, 'task-A:attempt:2');
+    assert.strictEqual(second.wave, 'wave-B');
+    assert.strictEqual(second.stage, 'package');
+    assert.strictEqual(second.plan_fingerprint, 'plan-B');
+    assert.strictEqual(second.artifact_fingerprint, 'artifact-B');
   } finally {
     rmRepo(repo);
   }

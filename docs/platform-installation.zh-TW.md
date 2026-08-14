@@ -15,6 +15,7 @@ projection 內容後，才能宣稱 client 可呼叫。
 | Standard Agent Plugin | 透過已驗證 client route 發布／安裝 `plugins/dhpk-agent/` | client-owned update/remove；只替換 generated package | root `plugin.json`、schema、固定 `skills/`、optional `mcp.json`、provenance | 結構合規不等於 Codex runtime proof |
 | Cursor standard Agent Plugin | Cursor Customize/Plugins，或 local `~/.cursor/plugins/local/dhpk-agent` | Cursor reload/update/remove，或替換該 local package | root `plugin.json`、portable skills/MCP discovery、client version | 僅 portable skills/MCP；不宣稱 Cursor-native parity |
 | Cursor Plugin | local `~/.cursor/plugins/local/dhpk-cursor`，或 reviewed `.cursor-plugin/marketplace.json`；另安裝 `plugins/dhpk-agent/` 供 shared portable skills 使用 | Cursor refresh/update/remove；只 rollback Cursor-owned files；shared Agent package 另行更新 | `.cursor-plugin/plugin.json`、rules、agents、commands、hooks、variables、shared-skill IDs | native components 需 Cursor evidence；shared portable skills 由 `dhpk-agent` 單獨擁有；缺口為 `SKIP_INCOMPATIBLE` |
+| Cursor CLI launch-scoped probe | 登入後執行 `cursor-agent --plugin-dir <agent-package> --plugin-dir <cursor-package>` | CLI 沒有 persistent install；更新 source package 或 local symlink 後重開 session | `cursor-agent --version`、`cursor-agent status` 與 read-only `--mode ask` probe | Experimental/conditional：CLI help 有此 flag，但官方 CLI 文件尚未建立 plugin component discovery；marketplace indexing 不是 non-interactive install command |
 
 ## Prerequisites 與版本假設
 
@@ -30,6 +31,7 @@ projection 內容後，才能宣稱 client 可呼叫。
 | Standard Agent Plugin | 實作 Agent Plugins 1.0.0 schema 的 consumer；最低 client version 尚未建立 | client 支援的 OS；package validation 從 POSIX shell 執行 | 已驗證的 Agent Plugin loader；Node.js 僅供結構驗證 | 執行兩個 package 命令，再記錄 client discovery evidence |
 | Cursor standard Agent Plugin | 接受 portable package 的 Cursor desktop/plugin loader；記錄 Cursor version；最低版本尚未建立 | Cursor 支援的 desktop OS；local path 為 `~/.cursor/plugins/local/` | Cursor Customize → Plugins 或 local loader；Node.js 僅供 validation | reload 後觀察 discovered skills/MCP；無 loader 為 `UNAVAILABLE` 或 `BLOCKED` |
 | Cursor Plugin（native） | 支援 `.cursor-plugin/plugin.json` 的 Cursor plugin loader；記錄 Cursor version；shared portable skills 另安裝 standard `dhpk-agent` package；最低版本尚未建立 | Cursor 支援的 desktop OS；local path 為 `~/.cursor/plugins/local/` | Cursor reload/UI、local filesystem、無 secret 的 variable 設定；以 Agent provenance 比對 shared IDs | reload 後觀察每個 selected native component 與 hook 行為；只有明確 matrix overlay 才能有 Cursor `skills/` |
+| Cursor CLI launch-scoped probe | `cursor-agent` 在 `PATH`；記錄 `cursor-agent --version`；使用 `cursor-agent login` 驗證；最低版本尚未建立 | Linux、macOS 或 WSL POSIX shell | `cursor-agent`、`--plugin-dir`、Cursor account/API key；Node.js 僅供 package validation | Experimental/conditional：先執行 `cursor-agent status` 再做 read-only probe；未登入為 `BLOCKED`、缺 CLI 為 `UNAVAILABLE`，discovery 另行記錄 |
 
 ## Status vocabulary
 
@@ -43,6 +45,29 @@ projection 內容後，才能宣稱 client 可呼叫。
 
 不可把 static manifest、marketplace entry、generated file 或 enabled flag
 直接轉成 runtime `PASS`。
+
+## Unified lifecycle CLI（唯讀 slice）
+
+`dhpk-install <surface> <action>` 是共同 lifecycle entrypoint。允許的 surface
+為 `claude`、`codex-sync`、`codex-native`、`agent-plugin`、`cursor`；action 為
+`plan`、`install`、`verify`、`update`、`uninstall`、`rollback`、`status`。此初始
+slice 只啟用 deterministic、唯讀的 `plan`、`status` 與 `verify` result
+construction，例如：
+
+```bash
+dhpk-install cursor plan --scope project --json
+```
+
+從 source checkout 執行時，直接使用 bundled entrypoint：
+`bash /path/to/dhpk/bin/dhpk-install cursor plan --scope project --json`。
+
+JSON result 會將 normalized request 與 compiler plan 綁定，並將 closed
+projection evidence vocabulary 與 lifecycle presentation 分開。`INSTALL_PASS +
+CONSUMER_BLOCKED` 不是 projection `PASS`，也不能提升 support tier。目前 write
+action 在任何 mutation 前都會回傳 `BLOCKED` 與 stable `NOT_IMPLEMENTED`
+diagnostic。尤其是 Codex project-local write 仍應使用既有
+`install-codex-skills.sh` 與 schema-v3 receipt，直到該 adapter 透過相同的
+ArtifactStore transaction 遷移。
 
 ## Codex project-local sync（Supported）
 
@@ -142,6 +167,57 @@ Cursor 可用 `plugins/dhpk-agent/` 取得 portable skills 與 optional MCP：
 維持 `UNAVAILABLE`／`BLOCKED`；不可從此 package 宣稱 native rules、commands、
 agents 或 hooks。
 
+## Cursor CLI（launch-scoped probe）
+
+Cursor CLI 是獨立於 Cursor desktop plugin loader 的 consumer surface。本指南
+中的 **launch-scoped** 是指 `--plugin-dir` 只把 package 傳給單次
+`cursor-agent` invocation；它不會安裝或註冊 persistent plugin。目前 CLI help
+提供 `--plugin-dir`，但官方 CLI 文件尚未建立 plugin component discovery，
+所以在有 versioned consumer probe 成功前，這條 route 是
+experimental/conditional。`plugin` subcommand 也沒有 non-interactive
+`plugin install` 命令。不可把 `cursor-agent plugin marketplace add` 說成
+dhpk 安裝；它只會加入或更新 marketplace index。
+
+Prerequisites：記錄 `cursor-agent --version`、已登入 Cursor CLI（或 API key），
+以及本機可讀取兩個 dhpk package。先確認 authentication：
+
+```bash
+cursor-agent --version
+cursor-agent status
+cursor-agent login  # 只有 status 顯示 Not logged in 時才執行
+```
+
+執行 launch-scoped、read-only probe，明確傳入兩個 package directory：
+
+```bash
+cursor-agent \
+  --plugin-dir "$HOME/.cursor/plugins/local/dhpk-agent" \
+  --plugin-dir "$HOME/.cursor/plugins/local/dhpk-cursor" \
+  --mode ask \
+  -p 'List the dhpk skills, commands, agents, and rules you discover. Do not edit files.' \
+  --output-format json
+```
+
+記錄 exact CLI version、authentication status、package paths 與 probe output。
+package validator 只證明 structure 與 provenance；runtime `PASS` 必須由 CLI
+或 Cursor UI 實際 discover projection content；在此之前 CLI route 維持
+`NOT_RUN` 或 `BLOCKED`。若 CLI 回報 `Authentication required`，在完成 login
+前證據是 `BLOCKED`。若安裝的 CLI 沒有 `--plugin-dir`，記錄 `UNAVAILABLE`，
+改用 Cursor UI/local-plugin route。
+
+若要為 Cursor desktop 建立 persistent local setup，可在
+`~/.cursor/plugins/local/` 使用 symlink 或 copy；CLI probe 仍要明確傳入這些
+path，更新後重開 Cursor desktop/session：
+
+```bash
+mkdir -p ~/.cursor/plugins/local
+ln -s /absolute/path/to/dhpk/plugins/dhpk-agent ~/.cursor/plugins/local/dhpk-agent
+ln -s /absolute/path/to/dhpk/plugins/dhpk-cursor ~/.cursor/plugins/local/dhpk-cursor
+```
+
+建立 link 前先確認 target 不存在；不可覆蓋 user-owned plugin。Rollback 只移除
+這兩個 dhpk link。
+
 ## Cursor Plugin（native components）
 
 Prerequisites：loader 支援 native manifest/components 的 Cursor desktop client，
@@ -175,5 +251,5 @@ portable `dhpk-agent` package。
 digest、generator version、stable IDs、public names、transforms 與 physical
 fingerprints。release evidence 另記 client versions、install route、probe
 result 及所有未執行 gate。規範見
-`openspec/changes/align-agent-plugin-platform-support/specs/` 與
+`openspec/changes/archive/2026-08-12-align-agent-plugin-platform-support/specs/` 與
 [distribution surface guide](./distribution-surfaces.zh-TW.md)。

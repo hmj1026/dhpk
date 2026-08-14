@@ -1,6 +1,6 @@
 ---
 name: dhpk-swift-language
-description: 'Swift 6 language baseline with Swift 5.10 / iOS 17 compatibility notes — strict concurrency (Sendable, actors, @MainActor, data-race safety), async/await + structured concurrency (TaskGroup, cancellation, continuations), optionals discipline (no force-unwrap outside tests), value-vs-reference decision rules, property-wrapper authoring, and error handling (typed throws / Result). Use when writing or reviewing any .swift file, deciding actor vs @MainActor vs Sendable struct, unwrapping optionals, choosing struct vs class, or porting Swift 5.10 code onto the Swift 6 language mode. Not for SwiftUI view composition (swiftui) or iOS SDK frameworks (dhpk-ios-platform). Output: language-level guidance with concurrency, compatibility, and verification decisions.'
+description: 'Swift language guidance for concurrency, optionals, value/reference design, property wrappers, and errors across Swift 5.10/6. Use for .swift implementation or review. Not for SwiftUI composition or iOS SDK APIs. Output: compatibility and verification decisions.'
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---

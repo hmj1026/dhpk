@@ -1,6 +1,6 @@
 ---
 name: dhpk-agy-fast-worker
-description: 'Offload a self-contained, clearly-specified mechanical task to the agy (Antigravity) CLI backend and relay its result, with the heavy output quarantined in the agy-fast-worker subagent. Use when: a mechanical batch with a precise task spec (target files + change intent + verification command) should run on the cheap high-throughput agy tier (default model `Gemini 3.6 Flash (High)`) instead of the in-process sonnet fast-worker, and the agy CLI is available. Not for: ambiguous specs (escalate), work needing this conversation context (agy sees a fresh session — the prompt must be self-contained), or the default in-process path (use plain `fast-worker`). Output: the verification result + the working-tree-derived edited-file list, or an honest BLOCKED report — never simulated.'
+description: 'Use when offloading a precise self-contained mechanical task to the agy CLI when available. Require target files, intent, and verification command; keep output in the agy-fast-worker subagent. Not for ambiguity, conversation-dependent work, or default fast-worker use. Output: verified edited files or honest BLOCKED evidence.'
 allowed-tools: 'Bash(bash:*), Bash(agy:*), Read, Write, Grep, Glob'
 metadata:
   dhpk-invocation-class: implicit-eligible

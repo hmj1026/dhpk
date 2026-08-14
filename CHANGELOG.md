@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## 0.39.0 — 2026-08-14 — Harden distribution projections, add platform lifecycle CLI, and achieve skill routing parity
+
+**feat(discovery-routing)** — Add inventory-owned Laravel and PHPUnit compatibility routing and concise discovery metadata.
+**feat(skill routing and projection parity)** — Preserve Laravel and PHPUnit legacy routes through deterministic family routing while keeping conditional references and Claude/Codex projection metadata in parity.
+**feat(platform-installation)** — Add a strict read-only dhpk-install lifecycle CLI that emits deterministic plans while retaining existing write routes until adapters are characterized.
+**chore(Agent Plugin distribution projection)** — Route the existing Agent Plugin generator through the shared compiler and staged artifact store while preserving its public CLI and package bytes.
+**chore(distribution projection architecture)** — add deterministic compiler, immutable projection contracts, and a fail-closed artifact store boundary
+**chore(Claude distribution projection)** — Route Claude inventory generation and validation through the shared compiler and evidence contract while preserving existing CLI output and exit behavior.
+**chore(Codex native distribution projection)** — Route Codex native package generation and verification through the shared compiler and staged artifact store while preserving existing CLI behavior and package bytes.
+**chore(Cursor distribution projection)** — Route Cursor package generation and verification through the shared compiler and staged artifact store while preserving existing CLI behavior and support-state semantics.
+**chore(orchestration governance)** — preserve reviewer lifecycle compatibility while binding dispatch identities and Sentinel clearance to hook-owned evidence.
+**chore(projection governance)** — Document shared projection ownership, rollback, stage-bound evidence, and orchestration/Sentinel boundaries while retiring unreachable legacy writers.
+
 ## 0.38.2 — 2026-08-13 — Fix installer UTC timestamp deprecation and align historical validation docs
 
 **fix(codex-installer)** — Replace deprecated UTC timestamp APIs while preserving installer receipt and backup formats.
