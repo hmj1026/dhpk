@@ -57,7 +57,7 @@ another.
 Migration/update operations SHALL adopt, replace, or remove only entries proven
 owned by the target surface. Existing `.codex/.dhpk-installed.json`, Codex
 native provenance, Agent Plugin provenance, Cursor marketplace metadata, and
-AGY provenance SHALL remain independently addressable and rollbackable.
+AGY provenance SHALL remain independently addressable and rollbackable. Validation SHALL expose unresolved Codex adoption collisions as explicit evidence rather than treating package structure or a partial receipt as runtime success.
 
 #### Scenario: User-owned Cursor file collides with generated output
 
@@ -72,12 +72,22 @@ AGY provenance SHALL remain independently addressable and rollbackable.
 - **THEN** only Cursor-owned generated files and receipts are reverted; Codex,
   Claude, and user-owned project files remain unchanged
 
+#### Scenario: Codex collision remains unresolved
+
+- **WHEN** standard Codex validation finds a partial receipt with an unowned collision
+- **THEN** the report identifies the collision path, ownership classification, source/destination evidence, and adoption command bound to both fingerprints, while leaving the path unchanged
+
 ### Requirement: AGY installation is receipt-owned and collision-safe
 
 AGY install, update, uninstall, and rollback SHALL operate only at
 `~/.gemini/config/plugins/dhpk/` and SHALL require a matching `agy-plugin`
-provenance receipt for replacement or removal. Foreign or changed files SHALL
-be preserved and reported as collisions.
+provenance receipt for replacement or removal. The installer SHALL expose
+read-only target ownership evidence through `plan`/`status`, including target
+manifest/version, physical `.git` marker, source fingerprint, receipt validity,
+and bounded changed/missing previews. Foreign or changed files SHALL be preserved
+and reported as collisions; a physical Git checkout without an AGY receipt
+SHALL be classified `FOREIGN_CHECKOUT`/`BLOCKED` rather than treated as a
+discovery or runtime pass.
 
 #### Scenario: AGY-owned update succeeds
 
@@ -89,3 +99,10 @@ be preserved and reported as collisions.
 - **WHEN** installation would overwrite a target file without matching AGY
   ownership
 - **THEN** the operation fails closed and leaves the user file untouched
+
+#### Scenario: Validation consumes ownership evidence separately
+
+- **WHEN** configured-platform validation inspects an AGY target with a
+  foreign-checkout diagnostic
+- **THEN** it can report ownership as `BLOCKED` without upgrading package,
+  discovery, or runtime rows to `PASS`

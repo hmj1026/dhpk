@@ -9,6 +9,7 @@
 const path = require('node:path');
 const {
   resolveAgyInstallRoot,
+  inspectAgyPlugin,
   installAgyPlugin,
   rollbackAgyPlugin,
   uninstallAgyPlugin,
@@ -26,8 +27,8 @@ function option(name, fallback = null) {
   return index >= 0 ? args[index + 1] || fallback : fallback;
 }
 
-if (!['install', 'update', 'uninstall', 'rollback'].includes(action)) {
-  console.error('usage: install-agy-plugin.js <install|update|uninstall|rollback> [--source <package>] [--target <dir>] [--json]');
+if (!['plan', 'status', 'install', 'update', 'uninstall', 'rollback'].includes(action)) {
+  console.error('usage: install-agy-plugin.js <plan|status|install|update|uninstall|rollback> [--source <package>] [--target <dir>] [--json]');
   process.exit(2);
 }
 
@@ -36,12 +37,15 @@ const sourceRoot = path.resolve(option('source', path.join(ROOT, 'plugins', 'dhp
 const json = args.includes('--json');
 
 try {
-  const result = ['install', 'update'].includes(action)
+  const result = ['plan', 'status'].includes(action)
+    ? inspectAgyPlugin({ sourceRoot, targetRoot })
+    : ['install', 'update'].includes(action)
     ? installAgyPlugin({ sourceRoot, targetRoot, mode: action })
     : (action === 'rollback' ? rollbackAgyPlugin({ targetRoot }) : uninstallAgyPlugin({ targetRoot }));
   const report = { surface: 'agy-plugin', action, ...result };
   if (json) console.log(JSON.stringify(report, null, 2));
-  else console.log(`PASS [install-agy-plugin]: ${action} ${targetRoot}`);
+  else console.log(`${report.status || 'PASS'} [install-agy-plugin]: ${action} ${targetRoot}${report.classification ? ` (${report.classification})` : ''}`);
+  if (['plan', 'status'].includes(action) && report.status !== 'PASS') process.exit(1);
 } catch (error) {
   if (json) console.log(JSON.stringify({ surface: 'agy-plugin', action, status: 'FAIL', error: error.message }, null, 2));
   else console.error(`FAIL [install-agy-plugin]: ${error.message}`);

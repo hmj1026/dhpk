@@ -101,6 +101,30 @@ ownership or path safety. The schema-v3 receipt records stable ID, public name,
 destination, source, mode, and fingerprint. Edited, user-owned, retargeted,
 malformed, ambiguous, or colliding files are preserved and reported.
 
+For a stale or unowned projection, inspect before changing anything:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" \
+  --update --plan --json
+```
+
+Planning is read-only. If an owner approves one exact collision, copy both
+reported fingerprints into an explicit adoption request. Omit `--copy`: the
+installer preserves the receipt's existing projection mode so unrelated managed
+entries are not rematerialized:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" \
+  --update \
+  --adopt='skills/dhpk-cross-agent-sync@<destination-fingerprint>@<source-fingerprint>'
+```
+
+Adoption is path-scoped and creates a rollback-addressable backup before
+promotion. It never authorizes other paths or other consumer surfaces. If the
+fingerprint changed since planning, the command fails before mutation; run a
+fresh plan. Review `.codex/.dhpk-installed.json` for `adopted`, `backups`, and
+`evidence.paths` before treating the projection as current.
+
 Verify the consumer projection from the consumer project root:
 
 ```bash
@@ -197,7 +221,19 @@ cursor-agent status
 cursor-agent login  # only when status reports Not logged in
 ```
 
-For a launch-scoped, read-only probe, pass both package directories explicitly:
+For a launch-scoped, read-only probe, use the bounded wrapper and pass both
+package directories explicitly. It invokes the command below with a finite
+timeout and output cap:
+
+```bash
+node scripts/release/cursor-agent-probe.js \
+  --agent-package "$HOME/.cursor/plugins/local/dhpk-agent" \
+  --cursor-package "$HOME/.cursor/plugins/local/dhpk-cursor" \
+  --timeout-ms 60000 \
+  --max-output-bytes 262144
+```
+
+The wrapper's launch command is equivalent to:
 
 ```bash
 cursor-agent \
@@ -213,6 +249,14 @@ output. A successful package validator proves structure and provenance only;
 runtime `PASS` requires the CLI or Cursor UI to discover the projected content;
 until then keep the CLI route `NOT_RUN` or `BLOCKED`. If the CLI reports
 `Authentication required`, the evidence is `BLOCKED` until login is completed.
+The probe enforces a 5-minute timeout ceiling and a 4 MiB output ceiling even
+when larger values are requested.
+If the wrapper reports `BLOCKED` with `timed_out: true` or
+`output_limited: true`, no consumer result was produced; retain the bounded,
+redacted diagnostic and rerun only with another finite limit.
+The wrapper also blocks an empty, invalid, or capability-negative response;
+only a response containing the requested dhpk skills, commands, agents, and
+rules evidence can be recorded as a completed probe.
 If the installed CLI has no `--plugin-dir`, record `UNAVAILABLE` and use the
 Cursor UI/local-plugin route instead.
 
@@ -265,7 +309,7 @@ agent frontmatter and never rewrites `agents/`. Generate and validate it from
 the dhpk checkout:
 
 ```bash
-node scripts/ci/gen-agy-plugin-package.js plugins/dhpk-agy --version=0.39.0
+node scripts/ci/gen-agy-plugin-package.js plugins/dhpk-agy --version=0.40.0
 node scripts/ci/validate-agy-plugin-package.js plugins/dhpk-agy
 ```
 
@@ -280,9 +324,22 @@ node scripts/ci/install-agy-plugin.js install \
 node scripts/ci/install-agy-plugin.js update \
   --source plugins/dhpk-agy \
   --target "$HOME/.gemini/config/plugins/dhpk" --json
+node scripts/ci/install-agy-plugin.js plan \
+  --source plugins/dhpk-agy \
+  --target "$HOME/.gemini/config/plugins/dhpk" --json
+node scripts/ci/install-agy-plugin.js status \
+  --source plugins/dhpk-agy \
+  --target "$HOME/.gemini/config/plugins/dhpk" --json
 node scripts/ci/install-agy-plugin.js rollback \
   --target "$HOME/.gemini/config/plugins/dhpk" --json
 ```
+
+`plan` and `status` are read-only. They report source/target versions, receipt
+ownership, a physical `.git` marker, and bounded same/changed/missing file
+evidence. A physical Git checkout without a matching AGY receipt is classified
+`FOREIGN_CHECKOUT` and returns `BLOCKED`; the owner must independently back up,
+move, or retire that checkout before a clean install. The diagnostic never
+migrates, adopts, overwrites, or removes a foreign target.
 
 Run configured-platform validation separately from package validation:
 
@@ -304,7 +361,8 @@ python3 skills/dhpk-cross-agent-sync/scripts/multi_ai_sync.py \
   --root . validate --targets agy --agy-runtime-probe --format json
 ```
 
-Do not promote a static manifest or `agy agents` listing to runtime `PASS`.
+Do not promote a static manifest, `agy agents` listing, or a foreign-checkout
+diagnostic to runtime `PASS`.
 Rollback/uninstall removes only files matching the AGY provenance receipt and
 preserves user-owned files in the plugin directory.
 

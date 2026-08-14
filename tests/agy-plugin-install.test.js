@@ -8,8 +8,12 @@ const { materializeAgyPluginPackage } = require('../scripts/lib/agy-plugin-packa
 const {
   resolveAgyInstallRoot,
   installAgyPlugin,
+  inspectAgyPlugin,
+  sourceFileDigests,
+  compareSourceInventory,
   rollbackAgyPlugin,
 } = require('../scripts/lib/agy-plugin-install');
+const { createTraversalBudget } = require('../scripts/lib/bounded-filesystem');
 
 const COMMIT = 'b'.repeat(40);
 
@@ -141,6 +145,116 @@ test('keeps the live installation unchanged when staging fails', () => {
     );
   } finally {
     fs.copyFileSync = originalCopyFileSync;
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('read-only inspection classifies a foreign Git checkout with bounded evidence', () => {
+  const root = tmp();
+  try {
+    const first = packageFixture(root, '# Source\n');
+    const target = path.join(root, 'foreign-target');
+    fs.mkdirSync(path.join(target, '.git'), { recursive: true });
+    fs.writeFileSync(path.join(target, 'plugin.json'), JSON.stringify({
+      name: 'dhpk',
+      version: '0.38.0',
+    }) + '\n');
+    const beforeManifest = fs.readFileSync(path.join(target, 'plugin.json'), 'utf8');
+    const report = inspectAgyPlugin({ sourceRoot: first.output, targetRoot: target });
+    assert.strictEqual(report.status, 'BLOCKED');
+    assert.strictEqual(report.state, 'BLOCKED');
+    assert.strictEqual(report.classification, 'FOREIGN_CHECKOUT');
+    assert.strictEqual(report.target.git_marker.present, true);
+    assert.strictEqual(report.target.manifest.version, '0.38.0');
+    assert.strictEqual(report.target.receipt.present, false);
+    assert.ok(report.diff.counts.changed >= 1, JSON.stringify(report));
+    assert.ok(report.diff.counts.missing >= 1, JSON.stringify(report));
+    assert.ok(report.diff.changed_preview.length <= report.diff.preview_limit);
+    assert.ok(report.diff.missing_preview.length <= report.diff.preview_limit);
+    assert.match(report.next_action, /back up|move|retire/i);
+    assert.strictEqual(report.mutation.performed, false);
+    assert.strictEqual(fs.readFileSync(path.join(target, 'plugin.json'), 'utf8'), beforeManifest);
+    assert.deepStrictEqual(fs.readdirSync(target).sort(), ['.git', 'plugin.json']);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('read-only inspection reports an owned current target without mutation', () => {
+  const root = tmp();
+  try {
+    const first = packageFixture(root, '# Current\n');
+    const target = path.join(root, 'owned-target');
+    installAgyPlugin({ sourceRoot: first.output, targetRoot: target, mode: 'install' });
+    const beforeReceipt = fs.readFileSync(path.join(target, 'provenance.json'), 'utf8');
+    const report = inspectAgyPlugin({ sourceRoot: first.output, targetRoot: target });
+    assert.strictEqual(report.status, 'PASS');
+    assert.strictEqual(report.state, 'CURRENT');
+    assert.strictEqual(report.classification, 'AGY_OWNED');
+    assert.strictEqual(report.diff.counts.changed, 0);
+    assert.strictEqual(report.diff.counts.missing, 0);
+    assert.strictEqual(report.diff.counts.same, report.source.file_count);
+    assert.strictEqual(report.mutation.performed, false);
+    assert.strictEqual(fs.readFileSync(path.join(target, 'provenance.json'), 'utf8'), beforeReceipt);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('inspection does not follow a symlinked target ancestor', () => {
+  const root = tmp();
+  try {
+    const first = packageFixture(root, '# Source\n');
+    const target = path.join(root, 'unsafe-target');
+    const outside = path.join(root, 'outside-agy');
+    fs.mkdirSync(path.join(outside, 'agents'), { recursive: true });
+    fs.mkdirSync(path.join(target), { recursive: true });
+    fs.symlinkSync(path.join(outside, 'agents'), path.join(target, 'agents'));
+    const report = inspectAgyPlugin({ sourceRoot: first.output, targetRoot: target });
+    assert.strictEqual(report.status, 'BLOCKED');
+    assert.ok(report.diff.unsafe_preview.includes('agents/sample.md'), JSON.stringify(report));
+    assert.strictEqual(fs.readdirSync(outside, { withFileTypes: true }).length, 1);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('read-only inspection classifies an invalid receipt as foreign', () => {
+  const root = tmp();
+  try {
+    const first = packageFixture(root, '# Source\n');
+    const target = path.join(root, 'invalid-receipt-target');
+    fs.mkdirSync(path.join(target, '.git'), { recursive: true });
+    fs.writeFileSync(path.join(target, 'plugin.json'), '{"name":"dhpk","version":"0.38.0"}\n');
+    fs.writeFileSync(path.join(target, 'provenance.json'), '{not-json}\n');
+    const report = inspectAgyPlugin({ sourceRoot: first.output, targetRoot: target });
+    assert.strictEqual(report.status, 'BLOCKED');
+    assert.strictEqual(report.classification, 'FOREIGN_CHECKOUT');
+    assert.strictEqual(report.target.receipt.present, true);
+    assert.strictEqual(report.target.receipt.valid, false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('inventory reads enforce one aggregate byte budget across files', () => {
+  const root = tmp();
+  try {
+    fs.writeFileSync(path.join(root, 'one.txt'), '12345');
+    fs.writeFileSync(path.join(root, 'two.txt'), '67890');
+    assert.throws(
+      () => sourceFileDigests(root, ['one.txt', 'two.txt'], createTraversalBudget({ maxBytes: 9 })),
+      /maximum fingerprint byte budget/,
+    );
+    const target = path.join(root, 'target');
+    fs.mkdirSync(target);
+    fs.copyFileSync(path.join(root, 'one.txt'), path.join(target, 'one.txt'));
+    fs.copyFileSync(path.join(root, 'two.txt'), path.join(target, 'two.txt'));
+    assert.throws(
+      () => compareSourceInventory(root, target, ['one.txt', 'two.txt'], {}, createTraversalBudget({ maxBytes: 9 })),
+      /maximum fingerprint byte budget/,
+    );
+  } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
 });

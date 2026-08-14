@@ -923,6 +923,328 @@ test('reconciliation evidence records updates, retired entries, backups, and uno
   }
 });
 
+function materializeFixtureSkill(fakePlugin, name) {
+  const skillSource = path.join(fakePlugin, 'codex', 'skills', name);
+  if (!fs.lstatSync(skillSource).isSymbolicLink()) {
+    return;
+  }
+  const resolvedSource = fs.realpathSync(skillSource);
+  fs.rmSync(skillSource, { recursive: true, force: true });
+  fs.cpSync(resolvedSource, skillSource, { recursive: true, dereference: true });
+}
+
+function collisionFixture() {
+  const scratch = projectRoot();
+  const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-plan-plugin-')));
+  fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
+  materializeFixtureSkill(fakePlugin, 'dhpk-cross-agent-sync');
+  fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
+  fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
+  copyDistributionInventory(fakePlugin);
+  const first = runInstaller(scratch, ['--copy', '--force'], fakePlugin);
+  assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+  const collision = 'dhpk-cross-agent-sync';
+  const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
+  const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+  assert.ok(receipt.managed_entries.skills[collision], `expected fixture receipt entry for ${collision}`);
+  delete receipt.managed_entries.skills[collision];
+  receipt.reconciliation = {
+    ...(receipt.reconciliation || {}),
+    state: 'partial',
+    status: 'partial',
+    complete: false,
+    skipped_collision: 1,
+  };
+  receipt.state = 'partial';
+  fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+  const target = path.join(scratch, '.codex', 'skills', collision);
+  fs.writeFileSync(path.join(target, 'user-owned.txt'), 'keep me\n');
+  return { scratch, fakePlugin, collision, receiptPath, target };
+}
+
+test('--plan --json reports collision evidence without mutating projection or receipt', () => {
+  const fixture = collisionFixture();
+  try {
+    const beforeReceipt = fs.readFileSync(fixture.receiptPath, 'utf8');
+    const beforeTarget = completeTreeFingerprint(fixture.target);
+    const planned = runInstaller(fixture.scratch, ['--copy', '--update', '--plan', '--json', '--force'], fixture.fakePlugin);
+    assert.notStrictEqual(planned.status, 0, `${planned.stdout}\n${planned.stderr}`);
+    const report = JSON.parse(planned.stdout);
+    const collision = report.collisions.find((entry) => entry.path === `skills/${fixture.collision}`);
+    assert.ok(collision, planned.stdout);
+    assert.strictEqual(collision.ownership, 'unowned-collision');
+    assert.match(collision.source_fingerprint, /^[a-f0-9]{64}$/);
+    assert.match(collision.destination_fingerprint, /^[a-f0-9]{64}$/);
+    assert.strictEqual(report.receipt_state, 'partial');
+    assert.strictEqual(report.reconciliation_state, 'partial');
+    assert.strictEqual(
+      collision.action,
+      `--adopt=skills/${fixture.collision}@${collision.destination_fingerprint}@${collision.source_fingerprint}`,
+    );
+    assert.match(report.next_action, /--adopt/);
+    assert.match(report.next_action, /source-fingerprint/);
+    assert.strictEqual(fs.readFileSync(fixture.receiptPath, 'utf8'), beforeReceipt);
+    assert.strictEqual(completeTreeFingerprint(fixture.target), beforeTarget);
+  } finally {
+    fs.rmSync(fixture.scratch, { recursive: true, force: true });
+    fs.rmSync(fixture.fakePlugin, { recursive: true, force: true });
+  }
+});
+
+test('--plan --json reports a current projection without mutation', () => {
+  const scratch = projectRoot();
+  try {
+    const first = runInstaller(scratch, ['--copy', '--force']);
+    assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+    const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
+    const before = fs.readFileSync(receiptPath, 'utf8');
+    const planned = runInstaller(scratch, ['--copy', '--update', '--plan', '--json', '--force']);
+    assert.strictEqual(planned.status, 0, `${planned.stdout}\n${planned.stderr}`);
+    const report = JSON.parse(planned.stdout);
+    assert.strictEqual(report.state, 'current');
+    assert.deepStrictEqual(report.collisions, []);
+    assert.strictEqual(fs.readFileSync(receiptPath, 'utf8'), before);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('explicit adoption backs up and receipt-owns only the selected collision', () => {
+  const fixture = collisionFixture();
+  try {
+    const sibling = 'dhpk-tdd-workflow';
+    const siblingTarget = path.join(fixture.scratch, '.codex', 'skills', sibling);
+    const siblingBefore = completeTreeFingerprint(siblingTarget);
+    const plan = runInstaller(fixture.scratch, ['--copy', '--update', '--plan', '--json', '--force'], fixture.fakePlugin);
+    assert.notStrictEqual(plan.status, 0);
+    const collision = JSON.parse(plan.stdout).collisions.find((entry) => entry.path === `skills/${fixture.collision}`);
+    const adopted = runInstaller(fixture.scratch, [
+      '--update', `--adopt=skills/${fixture.collision}@${collision.destination_fingerprint}@${collision.source_fingerprint}`, '--force',
+    ], fixture.fakePlugin);
+    assert.strictEqual(adopted.status, 0, `${adopted.stdout}\n${adopted.stderr}`);
+    const receipt = JSON.parse(fs.readFileSync(fixture.receiptPath, 'utf8'));
+    assert.ok(receipt.managed_entries.skills[fixture.collision]);
+    assert.ok(!fs.existsSync(path.join(fixture.target, 'user-owned.txt')));
+    assert.ok(receipt.reconciliation.adopted >= 1, JSON.stringify(receipt.reconciliation));
+    assert.ok(receipt.reconciliation.evidence.paths.adopted.includes(`skills/${fixture.collision}`));
+    assert.strictEqual(completeTreeFingerprint(siblingTarget), siblingBefore,
+      'path-scoped adoption must not rewrite an unrelated managed sibling');
+    const backup = receipt.reconciliation.evidence.backups.find((item) => item.original === `skills/${fixture.collision}`);
+    assert.ok(backup, JSON.stringify(receipt.reconciliation.evidence.backups));
+    assert.strictEqual(backup.reason, 'explicit-adoption');
+    assert.ok(fs.existsSync(path.join(fixture.scratch, backup.path)), `backup path missing: ${backup.path}`);
+    assert.strictEqual(fs.readFileSync(path.join(fixture.scratch, backup.path, 'user-owned.txt'), 'utf8'), 'keep me\n');
+  } finally {
+    fs.rmSync(fixture.scratch, { recursive: true, force: true });
+    fs.rmSync(fixture.fakePlugin, { recursive: true, force: true });
+  }
+});
+
+test('adoption is path-scoped when multiple collisions are reported', () => {
+  const fixture = collisionFixture();
+  const second = 'dhpk-legacy-characterization-tests';
+  try {
+    const receipt = JSON.parse(fs.readFileSync(fixture.receiptPath, 'utf8'));
+    assert.ok(receipt.managed_entries.skills[second], `expected fixture receipt entry for ${second}`);
+    delete receipt.managed_entries.skills[second];
+    fs.writeFileSync(fixture.receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+    const secondTarget = path.join(fixture.scratch, '.codex', 'skills', second);
+    fs.writeFileSync(path.join(secondTarget, 'second-user-owned.txt'), 'keep second\n');
+
+    const plan = runInstaller(fixture.scratch, ['--copy', '--update', '--plan', '--json', '--force'], fixture.fakePlugin);
+    assert.notStrictEqual(plan.status, 0);
+    const report = JSON.parse(plan.stdout);
+    const firstCollision = report.collisions.find((entry) => entry.path === `skills/${fixture.collision}`);
+    const secondCollision = report.collisions.find((entry) => entry.path === `skills/${second}`);
+    assert.ok(firstCollision && secondCollision, plan.stdout);
+    const adopted = runInstaller(fixture.scratch, [
+      '--update', `--adopt=skills/${fixture.collision}@${firstCollision.destination_fingerprint}@${firstCollision.source_fingerprint}`, '--force',
+    ], fixture.fakePlugin);
+    assert.strictEqual(adopted.status, 0, `${adopted.stdout}\n${adopted.stderr}`);
+    const after = JSON.parse(fs.readFileSync(fixture.receiptPath, 'utf8'));
+    assert.ok(after.managed_entries.skills[fixture.collision]);
+    assert.ok(!after.managed_entries.skills[second]);
+    assert.ok(fs.existsSync(path.join(secondTarget, 'second-user-owned.txt')));
+    assert.strictEqual(after.reconciliation.state, 'partial');
+    assert.ok(after.reconciliation.evidence.paths.collisions.includes(`skills/${second}`));
+  } finally {
+    fs.rmSync(fixture.scratch, { recursive: true, force: true });
+    fs.rmSync(fixture.fakePlugin, { recursive: true, force: true });
+  }
+});
+
+test('explicit adoption defers a stale-owned sibling instead of updating it', () => {
+  const fixture = collisionFixture();
+  const sibling = 'dhpk-tdd-workflow';
+  try {
+    materializeFixtureSkill(fixture.fakePlugin, sibling);
+    const siblingSource = path.join(fixture.fakePlugin, 'codex', 'skills', sibling, 'SKILL.md');
+    const siblingTarget = path.join(fixture.scratch, '.codex', 'skills', sibling);
+    const siblingBefore = completeTreeFingerprint(siblingTarget);
+    const receiptBefore = JSON.parse(fs.readFileSync(fixture.receiptPath, 'utf8'));
+    const siblingReceiptBefore = receiptBefore.managed_entries.skills[sibling];
+    fs.appendFileSync(siblingSource, '\nstale sibling source\n');
+
+    const plan = runInstaller(fixture.scratch, ['--copy', '--update', '--plan', '--json', '--force'], fixture.fakePlugin);
+    assert.notStrictEqual(plan.status, 0);
+    const report = JSON.parse(plan.stdout);
+    const collision = report.collisions.find((entry) => entry.path === `skills/${fixture.collision}`);
+    assert.ok(collision, plan.stdout);
+    assert.ok(report.updates.some((entry) => entry.path === `skills/${sibling}`), plan.stdout);
+
+    const adopted = runInstaller(fixture.scratch, [
+      '--update', `--adopt=skills/${fixture.collision}@${collision.destination_fingerprint}@${collision.source_fingerprint}`, '--force',
+    ], fixture.fakePlugin);
+    assert.strictEqual(adopted.status, 0, `${adopted.stdout}\n${adopted.stderr}`);
+    const after = JSON.parse(fs.readFileSync(fixture.receiptPath, 'utf8'));
+    assert.strictEqual(completeTreeFingerprint(siblingTarget), siblingBefore,
+      'stale managed sibling must remain unchanged during path-scoped adoption');
+    assert.deepStrictEqual(after.managed_entries.skills[sibling], siblingReceiptBefore,
+      'stale managed sibling receipt entry must remain unchanged');
+    assert.strictEqual(after.reconciliation.state, 'partial');
+    assert.ok(after.reconciliation.evidence.paths.deferred.includes(`skills/${sibling}`));
+  } finally {
+    fs.rmSync(fixture.scratch, { recursive: true, force: true });
+    fs.rmSync(fixture.fakePlugin, { recursive: true, force: true });
+  }
+});
+
+test('explicit adoption rejects a mode mismatch instead of rewriting the projection', () => {
+  const fixture = collisionFixture();
+  try {
+    const receipt = JSON.parse(fs.readFileSync(fixture.receiptPath, 'utf8'));
+    receipt.mode = 'symlink';
+    fs.writeFileSync(fixture.receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+    const plan = runInstaller(fixture.scratch, ['--copy', '--update', '--plan', '--json', '--force'], fixture.fakePlugin);
+    assert.notStrictEqual(plan.status, 0);
+    const collision = JSON.parse(plan.stdout).collisions.find((entry) => entry.path === `skills/${fixture.collision}`);
+    const rejected = runInstaller(fixture.scratch, [
+      '--copy', '--update', `--adopt=skills/${fixture.collision}@${collision.destination_fingerprint}@${collision.source_fingerprint}`, '--force',
+    ], fixture.fakePlugin);
+    assert.strictEqual(rejected.status, 2, `${rejected.stdout}\n${rejected.stderr}`);
+    assert.match(`${rejected.stdout}\n${rejected.stderr}`, /mode mismatch|omit --copy/i);
+    assert.ok(fs.existsSync(path.join(fixture.target, 'user-owned.txt')));
+  } finally {
+    fs.rmSync(fixture.scratch, { recursive: true, force: true });
+    fs.rmSync(fixture.fakePlugin, { recursive: true, force: true });
+  }
+});
+
+test('adoption aborts when the planned collision changes before mutation', () => {
+  const fixture = collisionFixture();
+  try {
+    const plan = runInstaller(fixture.scratch, ['--copy', '--update', '--plan', '--json', '--force'], fixture.fakePlugin);
+    assert.notStrictEqual(plan.status, 0);
+    const collision = JSON.parse(plan.stdout).collisions.find((entry) => entry.path === `skills/${fixture.collision}`);
+    fs.writeFileSync(path.join(fixture.target, 'changed-after-plan.txt'), 'changed\n');
+    const adopted = runInstaller(fixture.scratch, [
+      '--update', `--adopt=skills/${fixture.collision}@${collision.destination_fingerprint}@${collision.source_fingerprint}`, '--force',
+    ], fixture.fakePlugin);
+    assert.notStrictEqual(adopted.status, 0, `${adopted.stdout}\n${adopted.stderr}`);
+    assert.match(`${adopted.stdout}\n${adopted.stderr}`, /changed|fresh plan|preflight/i);
+    assert.ok(fs.existsSync(path.join(fixture.target, 'changed-after-plan.txt')));
+    const receipt = JSON.parse(fs.readFileSync(fixture.receiptPath, 'utf8'));
+    assert.ok(!receipt.managed_entries.skills[fixture.collision]);
+  } finally {
+    fs.rmSync(fixture.scratch, { recursive: true, force: true });
+    fs.rmSync(fixture.fakePlugin, { recursive: true, force: true });
+  }
+});
+
+test('adoption aborts when the planned source changes before mutation', () => {
+  const fixture = collisionFixture();
+  try {
+    const plan = runInstaller(fixture.scratch, ['--copy', '--update', '--plan', '--json', '--force'], fixture.fakePlugin);
+    assert.notStrictEqual(plan.status, 0);
+    const collision = JSON.parse(plan.stdout).collisions.find((entry) => entry.path === `skills/${fixture.collision}`);
+    fs.appendFileSync(path.join(fixture.fakePlugin, 'codex', 'skills', fixture.collision, 'SKILL.md'), '\nsource changed after plan\n');
+    const adopted = runInstaller(fixture.scratch, [
+      '--update', `--adopt=skills/${fixture.collision}@${collision.destination_fingerprint}@${collision.source_fingerprint}`, '--force',
+    ], fixture.fakePlugin);
+    assert.notStrictEqual(adopted.status, 0, `${adopted.stdout}\n${adopted.stderr}`);
+    assert.match(`${adopted.stdout}\n${adopted.stderr}`, /changed|fresh plan|preflight/i);
+    assert.ok(fs.existsSync(path.join(fixture.target, 'user-owned.txt')));
+  } finally {
+    fs.rmSync(fixture.scratch, { recursive: true, force: true });
+    fs.rmSync(fixture.fakePlugin, { recursive: true, force: true });
+  }
+});
+
+test('--plan and --adopt cannot be combined, and adoption requires --update', () => {
+  const fixture = collisionFixture();
+  try {
+    const token = `skills/${fixture.collision}@${'0'.repeat(64)}@${'0'.repeat(64)}`;
+    const planned = runInstaller(fixture.scratch, ['--plan', '--json', `--adopt=${token}`, '--force'], fixture.fakePlugin);
+    assert.strictEqual(planned.status, 2, `${planned.stdout}\n${planned.stderr}`);
+    assert.match(`${planned.stdout}\n${planned.stderr}`, /cannot be combined|--plan.*--adopt/i);
+    const withoutUpdate = runInstaller(fixture.scratch, ['--adopt', token, '--force'], fixture.fakePlugin);
+    assert.strictEqual(withoutUpdate.status, 2, `${withoutUpdate.stdout}\n${withoutUpdate.stderr}`);
+    assert.match(`${withoutUpdate.stdout}\n${withoutUpdate.stderr}`, /requires --update/i);
+    assert.ok(fs.existsSync(path.join(fixture.target, 'user-owned.txt')));
+  } finally {
+    fs.rmSync(fixture.scratch, { recursive: true, force: true });
+    fs.rmSync(fixture.fakePlugin, { recursive: true, force: true });
+  }
+});
+
+test('adoption rejects a symlinked backup root without writing outside .codex', () => {
+  const fixture = collisionFixture();
+  const external = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-backup-external-')));
+  try {
+    const plan = runInstaller(fixture.scratch, ['--copy', '--update', '--plan', '--json', '--force'], fixture.fakePlugin);
+    assert.notStrictEqual(plan.status, 0);
+    const collision = JSON.parse(plan.stdout).collisions.find((entry) => entry.path === `skills/${fixture.collision}`);
+    const backupRoot = path.join(fixture.scratch, '.codex', '.dhpk-backups');
+    fs.symlinkSync(external, backupRoot, 'dir');
+    const adopted = runInstaller(fixture.scratch, [
+      '--update', `--adopt=skills/${fixture.collision}@${collision.destination_fingerprint}@${collision.source_fingerprint}`, '--force',
+    ], fixture.fakePlugin);
+    assert.notStrictEqual(adopted.status, 0, `${adopted.stdout}\n${adopted.stderr}`);
+    assert.match(`${adopted.stdout}\n${adopted.stderr}`, /escapes|containment|backup|symlink/i);
+    assert.deepStrictEqual(fs.readdirSync(external), []);
+    assert.ok(fs.existsSync(path.join(fixture.target, 'user-owned.txt')));
+  } finally {
+    fs.rmSync(fixture.scratch, { recursive: true, force: true });
+    fs.rmSync(fixture.fakePlugin, { recursive: true, force: true });
+    fs.rmSync(external, { recursive: true, force: true });
+  }
+});
+
+test('planning rejects a symlinked destination ancestor even when it points inside the project', () => {
+  const fixture = collisionFixture();
+  const alias = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-skills-alias-')));
+  try {
+    const originalSkills = path.join(fixture.scratch, '.codex', 'skills');
+    const externalSkills = path.join(alias, 'skills');
+    fs.renameSync(originalSkills, externalSkills);
+    fs.symlinkSync(externalSkills, originalSkills, 'dir');
+    const planned = runInstaller(fixture.scratch, ['--copy', '--update', '--plan', '--json', '--force'], fixture.fakePlugin);
+    assert.notStrictEqual(planned.status, 0, `${planned.stdout}\n${planned.stderr}`);
+    assert.match(`${planned.stdout}\n${planned.stderr}`, /symlinked parent|symlink|unsafe/i);
+    assert.ok(fs.existsSync(path.join(externalSkills, fixture.collision, 'user-owned.txt')));
+  } finally {
+    fs.rmSync(fixture.scratch, { recursive: true, force: true });
+    fs.rmSync(fixture.fakePlugin, { recursive: true, force: true });
+    fs.rmSync(alias, { recursive: true, force: true });
+  }
+});
+
+test('adoption rejects traversal paths before writing outside the Codex root', () => {
+  const fixture = collisionFixture();
+  const outside = path.join(fixture.scratch, 'outside-adoption.txt');
+  try {
+    const rejected = runInstaller(fixture.scratch, [
+      '--copy', '--update', '--adopt=../outside-adoption.txt@0000000000000000000000000000000000000000000000000000000000000000', '--force',
+    ], fixture.fakePlugin);
+    assert.notStrictEqual(rejected.status, 0, `${rejected.stdout}\n${rejected.stderr}`);
+    assert.ok(!fs.existsSync(outside));
+    assert.ok(fs.existsSync(path.join(fixture.target, 'user-owned.txt')));
+  } finally {
+    fs.rmSync(fixture.scratch, { recursive: true, force: true });
+    fs.rmSync(fixture.fakePlugin, { recursive: true, force: true });
+  }
+});
+
 test('--uninstall removes only unchanged receipt-owned targets and retains orphaned/unrelated assets', () => {
   const scratch = projectRoot();
   try {

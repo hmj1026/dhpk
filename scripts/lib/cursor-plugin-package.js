@@ -22,8 +22,26 @@ const {
 } = require('./distribution-compiler');
 const { ProjectionArtifactStore } = require('./projection-artifact-store');
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
+const { redactSensitiveText } = require('./redaction');
 
 const GENERATOR_VERSION = '1.0.0';
+const DEFAULT_CURSOR_PROBE_TIMEOUT_MS = 30_000;
+const DEFAULT_CURSOR_PROBE_MAX_OUTPUT_BYTES = 256 * 1024;
+const MAX_CURSOR_PROBE_TIMEOUT_MS = 5 * 60 * 1000;
+const MAX_CURSOR_PROBE_OUTPUT_BYTES = 4 * 1024 * 1024;
+const CURSOR_PROBE_DIAGNOSTIC_MAX_LENGTH = 800;
+const NEGATIVE_CURSOR_DISCOVERY_PATTERNS = Object.freeze([
+  /\bno\s+dhpk\b.{0,120}\b(?:discovered|found|available|loaded|present)\b/i,
+  /\bdhpk(?:\s+\w+){0,4}\b(?:no|none|zero)\b(?:\s+\w+){0,2}\b(?:skills?|commands?|agents?|rules?)\b/i,
+  /\bdhpk\b.{0,80}\b(?:not\s+discovered|not\s+found|not\s+available|missing|unavailable)\b/i,
+  /\bdhpk\b.{0,100}\b(?:couldn['’]?t|could not|unable to|failed to|fail(?:ed)? to)\b.{0,80}\b(?:skills?|commands?|agents?|rules?|load(?:ed|ing)?|discover(?:ed|y)?|find)\b/i,
+]);
+const CURSOR_PROBE_ENV_KEYS = Object.freeze([
+  'PATH', 'PATHEXT', 'SYSTEMROOT', 'WINDIR', 'COMSPEC',
+  'LANG', 'LC_ALL', 'LC_CTYPE', 'TZ', 'TERM', 'CI',
+  'HOME', 'USERPROFILE', 'APPDATA', 'LOCALAPPDATA',
+  'XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_CACHE_HOME',
+]);
 const CANONICAL_REPOSITORY_URL = 'https://github.com/hmj1026/dhpk/blob/main/';
 const CURSOR_MANIFEST_FIELDS = new Set([
   '$schema',
@@ -1246,7 +1264,7 @@ function findExecutable(names, pathValue = process.env.PATH) {
     if (!pathValue) continue;
     for (const directory of String(pathValue).split(path.delimiter)) {
       if (!directory) continue;
-      const candidate = path.join(directory, name);
+      const candidate = path.join(path.resolve(directory), name);
       try {
         if (fs.statSync(candidate).isFile() && (process.platform === 'win32' || (fs.statSync(candidate).mode & 0o111))) return candidate;
       } catch (_) { /* absent candidate */ }
@@ -1255,19 +1273,118 @@ function findExecutable(names, pathValue = process.env.PATH) {
   return null;
 }
 
-function runCursorConsumerProbe({ packageRoot, pathValue = process.env.PATH, executable = null, args = null } = {}) {
+function positiveProbeLimit(value, fallback, label, maximum) {
+  const numeric = value === undefined ? fallback : Number(value);
+  if (!Number.isSafeInteger(numeric) || numeric <= 0 || numeric > maximum) {
+    throw new TypeError(`${label} must be a positive safe integer <= ${maximum}`);
+  }
+  return numeric;
+}
+
+function probeDiagnostic(result) {
+  const output = `${result && result.stdout ? result.stdout : ''}\n${result && result.stderr ? result.stderr : ''}`.trim();
+  return output ? redactSensitiveText(output, { maxLength: CURSOR_PROBE_DIAGNOSTIC_MAX_LENGTH }) : null;
+}
+
+function terminateProbeGroup(result) {
+  if (process.platform === 'win32' || !result || !result.pid) return;
+  try { process.kill(-result.pid, 'SIGTERM'); } catch (_) { /* child group already exited */ }
+  try { process.kill(-result.pid, 'SIGKILL'); } catch (_) { /* child group already exited */ }
+}
+
+function cursorProbeEnvironment(packageRoot) {
+  const env = {};
+  for (const key of CURSOR_PROBE_ENV_KEYS) if (process.env[key] !== undefined) env[key] = process.env[key];
+  env.CURSOR_PLUGIN_ROOT = path.resolve(packageRoot);
+  env.DHPK_CURSOR_PLUGIN_ROOT = path.resolve(packageRoot);
+  return env;
+}
+
+function runCursorConsumerProbe({
+  packageRoot,
+  pathValue = process.env.PATH,
+  executable = null,
+  args = null,
+  timeoutMs = undefined,
+  maxOutputBytes = undefined,
+  requireOutput = false,
+  requireJson = false,
+  requireDiscovery = false,
+} = {}) {
   if (!packageRoot || !fs.existsSync(packageRoot)) return { surface: 'cursor-plugin', status: 'BLOCKED', reason: 'Cursor package is missing' };
   const client = executable || findExecutable(['cursor-agent', 'cursor'], pathValue);
   if (!client) return { surface: 'cursor-plugin', status: 'UNAVAILABLE', reason: 'Cursor client tooling (cursor-agent/cursor) is not available on PATH', packageRoot };
+  if (!path.isAbsolute(client)) return { surface: 'cursor-plugin', status: 'UNAVAILABLE', reason: 'Cursor client executable must resolve to an absolute path', packageRoot, executable: client };
   if (!Array.isArray(args)) return { surface: 'cursor-plugin', status: 'NOT_RUN', reason: 'Cursor executable exists but no supported local plugin-loader command is configured', packageRoot, executable: client };
+  const probeTimeoutMs = positiveProbeLimit(timeoutMs, DEFAULT_CURSOR_PROBE_TIMEOUT_MS, 'timeoutMs', MAX_CURSOR_PROBE_TIMEOUT_MS);
+  const probeMaxOutputBytes = positiveProbeLimit(maxOutputBytes, DEFAULT_CURSOR_PROBE_MAX_OUTPUT_BYTES, 'maxOutputBytes', MAX_CURSOR_PROBE_OUTPUT_BYTES);
   const result = spawnSync(client, args, {
     cwd: packageRoot,
     encoding: 'utf8',
-    env: { ...process.env, CURSOR_PLUGIN_ROOT: path.resolve(packageRoot), DHPK_CURSOR_PLUGIN_ROOT: path.resolve(packageRoot) },
+    timeout: probeTimeoutMs,
+    maxBuffer: probeMaxOutputBytes,
+    killSignal: 'SIGKILL',
+    detached: process.platform !== 'win32',
+    env: cursorProbeEnvironment(packageRoot),
   });
-  if (result.error) return { surface: 'cursor-plugin', status: 'UNAVAILABLE', reason: `Cursor consumer invocation unavailable: ${result.error.message}`, packageRoot, executable: client };
-  if (result.status !== 0) return { surface: 'cursor-plugin', status: 'FAIL', reason: `Cursor consumer exited with status ${result.status}`, packageRoot, executable: client };
-  return { surface: 'cursor-plugin', status: 'PASS', reason: 'Cursor consumer probe discovered the package', packageRoot, executable: client };
+  const evidence = {
+    packageRoot,
+    executable: client,
+    timeout_ms: probeTimeoutMs,
+    output_limit_bytes: probeMaxOutputBytes,
+    exit_code: result.status === undefined ? null : result.status,
+    signal: result.signal || null,
+    diagnostic: probeDiagnostic(result),
+  };
+  if (result.error && result.error.code === 'ETIMEDOUT') {
+    terminateProbeGroup(result);
+    return {
+      surface: 'cursor-plugin',
+      status: 'BLOCKED',
+      reason: `Cursor consumer probe timed out after ${probeTimeoutMs} ms`,
+      timed_out: true,
+      ...evidence,
+    };
+  }
+  if (result.error && result.error.code === 'ENOBUFS') {
+    terminateProbeGroup(result);
+    return {
+      surface: 'cursor-plugin',
+      status: 'BLOCKED',
+      reason: `Cursor consumer probe output exceeded ${probeMaxOutputBytes} bytes`,
+      output_limited: true,
+      ...evidence,
+    };
+  }
+  if (result.error) return { surface: 'cursor-plugin', status: 'UNAVAILABLE', reason: `Cursor consumer invocation unavailable: ${result.error.message}`, ...evidence };
+  if (result.status !== 0) return { surface: 'cursor-plugin', status: 'FAIL', reason: `Cursor consumer exited with status ${result.status}`, exit_code: result.status, ...evidence };
+  const output = `${result.stdout || ''}\n${result.stderr || ''}`.trim();
+  if (requireOutput && !output) {
+    return { surface: 'cursor-plugin', status: 'BLOCKED', reason: 'Cursor consumer returned success without a response payload', output_missing: true, ...evidence };
+  }
+  if (requireJson) {
+    try { JSON.parse(String(result.stdout || '').trim()); } catch (_) {
+      return { surface: 'cursor-plugin', status: 'BLOCKED', reason: 'Cursor consumer response was not valid JSON', response_invalid: true, ...evidence };
+    }
+  }
+  if (requireDiscovery) {
+    const normalized = output.toLowerCase();
+    const requestedCapabilities = ['dhpk', 'skill', 'command', 'agent', 'rule'];
+    const negative = NEGATIVE_CURSOR_DISCOVERY_PATTERNS.some((pattern) => pattern.test(output));
+    if (negative || !requestedCapabilities.every((term) => normalized.includes(term))) {
+      return {
+        surface: 'cursor-plugin',
+        status: 'BLOCKED',
+        reason: negative
+          ? 'Cursor consumer response explicitly denied the requested dhpk capability evidence'
+          : 'Cursor consumer response did not contain the requested dhpk capability evidence',
+        discovery_missing: requestedCapabilities.filter((term) => !normalized.includes(term)),
+        discovery_negative: negative,
+        ...evidence,
+      };
+    }
+  }
+  return { surface: 'cursor-plugin', status: 'PASS', reason: 'Cursor consumer probe discovered the package', ...evidence };
 }
 
 module.exports = {
