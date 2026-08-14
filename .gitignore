@@ -42,8 +42,15 @@ CONTEXT.md
 .claude/plans/
 .claude/workflows/
 
-# Externally-installed tooling (not part of the dhpk plugin source)
-openspec/
+# OpenSpec workflow state is local-only; accepted main specs are the sole
+# versioned OpenSpec surface. Keep changes/config/cache available in the
+# working tree for local review without adding them to the Git index.
+openspec/*
+openspec/.*
+!openspec/specs/
+!openspec/specs/**
+openspec/specs/.*/
+openspec/specs/**/.*/
 .claude/commands/opsx/
 .claude/skills/gitnexus/*/
 .claude/skills/openspec-*/

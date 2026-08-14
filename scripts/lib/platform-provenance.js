@@ -11,6 +11,7 @@ const RECEIPT_SCHEMA = 'dhpk.platform-provenance.v1';
 const SURFACE_OWNERS = Object.freeze({
   'agent-plugin': 'plugins/dhpk-agent',
   'cursor-plugin': 'plugins/dhpk-cursor',
+  'agy-plugin': 'plugins/dhpk-agy',
   'codex-native': 'plugins/dhpk',
   'codex-sync': '.codex/.dhpk-installed.json',
   'claude-core': '.claude-plugin',

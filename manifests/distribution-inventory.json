@@ -13,7 +13,8 @@
     "codex-sync",
     "codex-native",
     "agent-plugin",
-    "cursor-plugin"
+    "cursor-plugin",
+    "agy-plugin"
   ],
   "skill_routing_families": [
     {
@@ -51,7 +52,8 @@
       "codex-sync": { "adapter": "codex-sync", "owner": "codex-sync", "verification_stages": ["structural", "package", "consumer-runtime"], "symlink_policy": "declared-source-relative" },
       "codex-native": { "adapter": "codex-native", "owner": "codex-native", "verification_stages": ["structural", "package", "consumer-runtime"], "symlink_policy": "forbid" },
       "agent-plugin": { "adapter": "agent-plugin", "owner": "agent-plugin", "verification_stages": ["structural", "package", "consumer-runtime"], "symlink_policy": "forbid" },
-      "cursor-plugin": { "adapter": "cursor-plugin", "owner": "cursor-plugin", "verification_stages": ["structural", "package", "consumer-runtime"], "symlink_policy": "forbid" }
+      "cursor-plugin": { "adapter": "cursor-plugin", "owner": "cursor-plugin", "verification_stages": ["structural", "package", "consumer-runtime"], "symlink_policy": "forbid" },
+      "agy-plugin": { "adapter": "agy-plugin", "owner": "agy-plugin", "verification_stages": ["structural", "package", "consumer-runtime"], "symlink_policy": "forbid" }
     },
     "symlink_policies": ["forbid", "contained-relative", "declared-source-relative"]
   },
@@ -2301,7 +2303,23 @@
     ],
     "cursor-plugin": [
       "adaptive-dev-workflow", "agent-architecture-audit", "agy-commit", "agy-fast-worker", "bug-fix", "bug-investigation", "claude-health", "code-explore", "codex-architect", "codex-brainstorm", "codex-bridge", "codex-code-review", "codex-implement", "composer-package-hygiene", "continuous-learning-v2", "create-request", "create-skill", "de-ai-flavor", "deploy-list", "dhpk-execution-policy", "doc-review", "execution-checklist", "feasibility-study", "feature-dev", "feature-verify", "git-investigate", "git-smart-commit", "gitnexus-cli", "gitnexus-debugging", "gitnexus-exploring", "gitnexus-guide", "gitnexus-impact-analysis", "gitnexus-refactoring", "harness-budget", "harness-fill", "harness-revise", "issue-analyze", "laravel-package-author", "laravel-testbench-matrix", "multi-ai-sync", "next-step", "op-session", "opsx-apply-goal", "opsx-load-context", "opsx-post-obs", "polyfill-version-matrix-audit", "post-dev-test", "pr-review", "project-audit", "project-setup", "prompt-optimize", "release-creator", "repo-intake", "risk-assess", "rules-distill", "security-review", "session-usage-audit", "skill-health-check", "skill-judge", "skill-scout", "skill-stocktake", "software-architecture", "tdd", "tech-spec", "test-review", "tool-routing"
+    ],
+    "agy-plugin": [
+      "adaptive-dev-workflow", "agent-architecture-audit", "agy-commit", "agy-fast-worker", "bug-fix", "bug-investigation", "claude-health", "code-explore", "codex-architect", "codex-brainstorm", "codex-bridge", "codex-code-review", "codex-implement", "composer-package-hygiene", "continuous-learning-v2", "create-request", "create-skill", "de-ai-flavor", "deploy-list", "dhpk-execution-policy", "doc-review", "execution-checklist", "feasibility-study", "feature-dev", "feature-verify", "git-investigate", "git-smart-commit", "gitnexus-cli", "gitnexus-debugging", "gitnexus-exploring", "gitnexus-guide", "gitnexus-impact-analysis", "gitnexus-refactoring", "harness-budget", "harness-fill", "harness-revise", "issue-analyze", "laravel-package-author", "laravel-testbench-matrix", "multi-ai-sync", "next-step", "op-session", "opsx-apply-goal", "opsx-load-context", "opsx-post-obs", "polyfill-version-matrix-audit", "post-dev-test", "pr-review", "project-audit", "project-setup", "prompt-optimize", "release-creator", "repo-intake", "risk-assess", "rules-distill", "security-review", "session-usage-audit", "skill-health-check", "skill-judge", "skill-scout", "skill-stocktake", "software-architecture", "tdd", "tech-spec", "test-review", "tool-routing"
     ]
+  },
+  "agy_plugin": {
+    "source_root": "plugins/dhpk-agy",
+    "owner": "plugins/dhpk-agy",
+    "adapter": "agy-agent-frontmatter-v1",
+    "transform": "agy-agent-frontmatter-v1",
+    "agents": [
+      "agent-evaluator.md", "agy-fast-worker.md", "architect.md", "code-reviewer.md", "codex-bridge.md", "codex-deep-reasoner.md", "codex-fast-worker.md", "database-reviewer.md", "deep-reasoner.md", "doc-reviewer.md", "doc-updater.md", "docs-lookup.md", "e2e-runner.md", "fast-worker.md", "frontend-reviewer.md", "harness-reviser.md", "migration-reviewer.md", "performance-analyzer.md", "planner.md", "python-build-resolver.md", "refactor-cleaner.md", "rust-build-resolver.md", "security-reviewer.md", "silent-failure-hunter.md", "smoke-tester.md", "spec-miner.md", "swift-build-resolver.md", "tdd-guide.md", "type-design-analyzer.md", "ui-ux-verifier.md", "version-matrix-impact-reviewer.md"
+    ],
+    "rules": [
+      "rules/anti-rationalization.md", "rules/execution-policy-kernel.md", "rules/execution-policy.md", "rules/model-economics.md", "rules/tool-routing.md"
+    ],
+    "optional_files": ["mcp_config.json", "hooks.json"]
   },
   "portable_frontmatter": {
     "allowlist": ["name", "description", "license", "compatibility", "metadata"],
@@ -2352,6 +2370,17 @@
         "transform": "cursor-native-adaptation",
         "fallback": "SKIP_INCOMPATIBLE",
         "projection_mode": "overlay",
+        "evidence": "NOT_RUN"
+      },
+      {
+        "id": "dhpk.platform.agy-plugin.native",
+        "public_name": "agy-plugin-native-components",
+        "surface": "agy-plugin",
+        "source_paths": ["agents/", "rules/", "skills/", "mcp_config.json", "hooks.json"],
+        "destination": "plugins/dhpk-agy/",
+        "transform": "agy-agent-frontmatter-v1",
+        "fallback": "SKIP_INCOMPATIBLE",
+        "projection_mode": "owner",
         "evidence": "NOT_RUN"
       }
     ]

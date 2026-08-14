@@ -26,6 +26,7 @@ const SURFACES = [
   'codex-native',
   'agent-plugin',
   'cursor-plugin',
+  'agy-plugin',
 ];
 const V2_SCHEMA = 'dhpk.distribution-inventory.v2';
 const PUBLIC_SKILL_NAME = /^dhpk-[a-z0-9]+(?:-[a-z0-9]+)*$/;

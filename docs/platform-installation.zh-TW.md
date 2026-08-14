@@ -16,6 +16,7 @@ projection 內容後，才能宣稱 client 可呼叫。
 | Cursor standard Agent Plugin | Cursor Customize/Plugins，或 local `~/.cursor/plugins/local/dhpk-agent` | Cursor reload/update/remove，或替換該 local package | root `plugin.json`、portable skills/MCP discovery、client version | 僅 portable skills/MCP；不宣稱 Cursor-native parity |
 | Cursor Plugin | local `~/.cursor/plugins/local/dhpk-cursor`，或 reviewed `.cursor-plugin/marketplace.json`；另安裝 `plugins/dhpk-agent/` 供 shared portable skills 使用 | Cursor refresh/update/remove；只 rollback Cursor-owned files；shared Agent package 另行更新 | `.cursor-plugin/plugin.json`、rules、agents、commands、hooks、variables、shared-skill IDs | native components 需 Cursor evidence；shared portable skills 由 `dhpk-agent` 單獨擁有；缺口為 `SKIP_INCOMPATIBLE` |
 | Cursor CLI launch-scoped probe | 登入後執行 `cursor-agent --plugin-dir <agent-package> --plugin-dir <cursor-package>` | CLI 沒有 persistent install；更新 source package 或 local symlink 後重開 session | `cursor-agent --version`、`cursor-agent status` 與 read-only `--mode ask` probe | Experimental/conditional：CLI help 有此 flag，但官方 CLI 文件尚未建立 plugin component discovery；marketplace indexing 不是 non-interactive install command |
+| AGY native plugin | 產生 `plugins/dhpk-agy/`，再由 receipt-owned installer 安裝至 `~/.gemini/config/plugins/dhpk/` | `install-agy-plugin.js update`、`uninstall` 或 `rollback`；foreign files 保留，collision fail closed | AGY package validator、`agy plugins list`、`agy agents`，以及 optional bounded Subagent probe | Experimental：package/discovery 與 runtime 分開；缺少 `agy` 為 `UNAVAILABLE` |
 
 ## Prerequisites 與版本假設
 
@@ -32,6 +33,7 @@ projection 內容後，才能宣稱 client 可呼叫。
 | Cursor standard Agent Plugin | 接受 portable package 的 Cursor desktop/plugin loader；記錄 Cursor version；最低版本尚未建立 | Cursor 支援的 desktop OS；local path 為 `~/.cursor/plugins/local/` | Cursor Customize → Plugins 或 local loader；Node.js 僅供 validation | reload 後觀察 discovered skills/MCP；無 loader 為 `UNAVAILABLE` 或 `BLOCKED` |
 | Cursor Plugin（native） | 支援 `.cursor-plugin/plugin.json` 的 Cursor plugin loader；記錄 Cursor version；shared portable skills 另安裝 standard `dhpk-agent` package；最低版本尚未建立 | Cursor 支援的 desktop OS；local path 為 `~/.cursor/plugins/local/` | Cursor reload/UI、local filesystem、無 secret 的 variable 設定；以 Agent provenance 比對 shared IDs | reload 後觀察每個 selected native component 與 hook 行為；只有明確 matrix overlay 才能有 Cursor `skills/` |
 | Cursor CLI launch-scoped probe | `cursor-agent` 在 `PATH`；記錄 `cursor-agent --version`；使用 `cursor-agent login` 驗證；最低版本尚未建立 | Linux、macOS 或 WSL POSIX shell | `cursor-agent`、`--plugin-dir`、Cursor account/API key；Node.js 僅供 package validation | Experimental/conditional：先執行 `cursor-agent status` 再做 read-only probe；未登入為 `BLOCKED`、缺 CLI 為 `UNAVAILABLE`，discovery 另行記錄 |
+| AGY native plugin | `agy` version 與 AGY model/tool enum 尚未鎖定；可用時記錄 `agy --version` | Linux、macOS 或 WSL POSIX shell；install root 為 user scope | Node.js、`git`、generated package，以及 optional `agy` CLI | 先做 structural validation；`agy plugins list`／`agy agents` 是 discovery evidence；除非明確使用 `--agy-runtime-probe`，runtime 保持 `NOT_RUN` |
 
 ## Status vocabulary
 
@@ -49,7 +51,7 @@ projection 內容後，才能宣稱 client 可呼叫。
 ## Unified lifecycle CLI（唯讀 slice）
 
 `dhpk-install <surface> <action>` 是共同 lifecycle entrypoint。允許的 surface
-為 `claude`、`codex-sync`、`codex-native`、`agent-plugin`、`cursor`；action 為
+為 `claude`、`codex-sync`、`codex-native`、`agent-plugin`、`cursor`、`agy-plugin`；action 為
 `plan`、`install`、`verify`、`update`、`uninstall`、`rollback`、`status`。此初始
 slice 只啟用 deterministic、唯讀的 `plan`、`status` 與 `verify` result
 construction，例如：
@@ -245,11 +247,60 @@ Rollback 只移除或還原 `~/.cursor/plugins/local/dhpk-cursor` 與其
 Cursor-owned receipt，不可刪除 Codex、Claude、project-owned Cursor files 或
 portable `dhpk-agent` package。
 
+## AGY／Antigravity CLI plugin（Experimental）
+
+AGY projection 是獨立的 owner-scoped package。它只轉換 canonical agent
+frontmatter，不會改寫 `agents/`。請從 dhpk checkout 產生與驗證：
+
+```bash
+node scripts/ci/gen-agy-plugin-package.js plugins/dhpk-agy --version=0.39.0
+node scripts/ci/validate-agy-plugin-package.js plugins/dhpk-agy
+```
+
+只在文件化的 user path 安裝、更新與移除 receipt-owned package。若 target
+有 foreign file 或 changed owned file，視為 collision 並保持原檔：
+
+```bash
+node scripts/ci/install-agy-plugin.js install \
+  --source plugins/dhpk-agy \
+  --target "$HOME/.gemini/config/plugins/dhpk" --json
+node scripts/ci/install-agy-plugin.js update \
+  --source plugins/dhpk-agy \
+  --target "$HOME/.gemini/config/plugins/dhpk" --json
+node scripts/ci/install-agy-plugin.js rollback \
+  --target "$HOME/.gemini/config/plugins/dhpk" --json
+```
+
+configured-platform validation 與 package validation 分開執行：
+
+```bash
+python3 skills/dhpk-cross-agent-sync/scripts/multi_ai_sync.py \
+  --root . validate --targets agy --format json
+agy --version
+agy plugins list
+agy agents
+```
+
+報告分開記錄 package structure、plugin/agent discovery 與 Subagent runtime。
+若 `agy` 不在 `PATH`，discovery 是 `UNAVAILABLE`；未使用
+`--agy-runtime-probe` 時 runtime 是 `NOT_RUN`。CLI 可用時，opt-in probe
+有界且唯讀：
+
+```bash
+python3 skills/dhpk-cross-agent-sync/scripts/multi_ai_sync.py \
+  --root . validate --targets agy --agy-runtime-probe --format json
+```
+
+不可把 static manifest 或 `agy agents` listing 升級成 runtime `PASS`。
+rollback／uninstall 只移除符合 AGY provenance receipt 的檔案，並保留 plugin
+directory 內的 user-owned files。
+
 ## Maintainer evidence
 
 每個 generated surface 記錄 release version、source commit/tag、inventory
 digest、generator version、stable IDs、public names、transforms 與 physical
 fingerprints。release evidence 另記 client versions、install route、probe
-result 及所有未執行 gate。規範見
-`openspec/changes/archive/2026-08-12-align-agent-plugin-platform-support/specs/` 與
+result 及所有未執行 gate。版本控管的規範見
+`openspec/specs/`（特別是 `agy-cli-subagent-plugin/spec.md` 與
+`platform-installation-documentation/spec.md`）與
 [distribution surface guide](./distribution-surfaces.zh-TW.md)。
