@@ -126,10 +126,13 @@ normalized output and receipt fingerprints.
 
 Installation SHALL copy or link only the generated AGY package into
 `~/.gemini/config/plugins/dhpk/` and SHALL record ownership in an AGY receipt.
-Update, uninstall, and rollback SHALL remove or restore only files matching
-that receipt; user-owned files and other Claude, Codex, Cursor, or AGY
-surfaces SHALL be preserved. A collision without matching ownership SHALL
-fail closed and require an explicit owner decision.
+The installer SHALL additionally expose read-only `plan` and `status` actions
+that classify the target and report bounded source/target evidence without
+mutation. Update, uninstall, and rollback SHALL remove or restore only files
+matching that receipt; user-owned files and other Claude, Codex, Cursor, or
+AGY surfaces SHALL be preserved. A collision without matching ownership SHALL
+fail closed, be distinguishable as a foreign checkout when a physical `.git`
+marker is present, and require an explicit owner decision.
 
 #### Scenario: AGY-owned package is rolled back
 
@@ -142,6 +145,13 @@ fail closed and require an explicit owner decision.
 - **WHEN** installation finds an edited target file without matching AGY
   ownership
 - **THEN** installation reports a collision and leaves the file untouched
+
+#### Scenario: Foreign checkout is diagnosed before installation
+
+- **WHEN** read-only plan/status sees a physical `.git` target without a
+  matching AGY receipt
+- **THEN** it returns `BLOCKED`/`FOREIGN_CHECKOUT` evidence and requires an
+  independent owner action before a clean install
 
 ### Requirement: AGY verification reports separate support states
 

@@ -253,7 +253,7 @@ AGY projection 是獨立的 owner-scoped package。它只轉換 canonical agent
 frontmatter，不會改寫 `agents/`。請從 dhpk checkout 產生與驗證：
 
 ```bash
-node scripts/ci/gen-agy-plugin-package.js plugins/dhpk-agy --version=0.39.0
+node scripts/ci/gen-agy-plugin-package.js plugins/dhpk-agy --version=0.40.0
 node scripts/ci/validate-agy-plugin-package.js plugins/dhpk-agy
 ```
 
@@ -267,9 +267,22 @@ node scripts/ci/install-agy-plugin.js install \
 node scripts/ci/install-agy-plugin.js update \
   --source plugins/dhpk-agy \
   --target "$HOME/.gemini/config/plugins/dhpk" --json
+node scripts/ci/install-agy-plugin.js plan \
+  --source plugins/dhpk-agy \
+  --target "$HOME/.gemini/config/plugins/dhpk" --json
+node scripts/ci/install-agy-plugin.js status \
+  --source plugins/dhpk-agy \
+  --target "$HOME/.gemini/config/plugins/dhpk" --json
 node scripts/ci/install-agy-plugin.js rollback \
   --target "$HOME/.gemini/config/plugins/dhpk" --json
 ```
+
+`plan` 與 `status` 都是唯讀操作，會回報 source／target version、receipt
+ownership、physical `.git` marker，以及有界的 same／changed／missing 檔案證據。
+若 physical Git checkout 沒有相符的 AGY receipt，分類為
+`FOREIGN_CHECKOUT` 並回傳 `BLOCKED`；owner 必須自行備份、移動或退役該
+checkout，之後才能 clean install。診斷不會自動 migration、adoption、覆寫或
+移除 foreign target。
 
 configured-platform validation 與 package validation 分開執行：
 
@@ -291,7 +304,8 @@ python3 skills/dhpk-cross-agent-sync/scripts/multi_ai_sync.py \
   --root . validate --targets agy --agy-runtime-probe --format json
 ```
 
-不可把 static manifest 或 `agy agents` listing 升級成 runtime `PASS`。
+不可把 static manifest、`agy agents` listing 或 foreign-checkout 診斷升級成
+runtime `PASS`。
 rollback／uninstall 只移除符合 AGY provenance receipt 的檔案，並保留 plugin
 directory 內的 user-owned files。
 

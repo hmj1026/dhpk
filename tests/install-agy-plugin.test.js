@@ -18,6 +18,11 @@ function invoke(action, target) {
   });
 }
 
+function invokeReport(action, target) {
+  const result = invoke(action, target);
+  return { result, report: JSON.parse(result.stdout) };
+}
+
 test('CLI installs and rolls back the receipt-owned AGY package', () => {
   const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'agy-cli-install-'));
   const target = path.join(temp, 'target');
@@ -29,6 +34,26 @@ test('CLI installs and rolls back the receipt-owned AGY package', () => {
     const rolledBack = invoke('rollback', target);
     assert.strictEqual(rolledBack.status, 0, `${rolledBack.stdout}\n${rolledBack.stderr}`);
     assert.ok(!fs.existsSync(path.join(target, 'provenance.json')));
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test('CLI plan and status report a foreign checkout without mutation', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'agy-cli-plan-'));
+  const target = path.join(temp, 'target');
+  try {
+    fs.mkdirSync(path.join(target, '.git'), { recursive: true });
+    fs.writeFileSync(path.join(target, 'plugin.json'), '{"name":"dhpk","version":"0.38.0"}\n');
+    for (const action of ['plan', 'status']) {
+      const { result, report } = invokeReport(action, target);
+      assert.strictEqual(result.status, 1, `${result.stdout}\n${result.stderr}`);
+      assert.strictEqual(report.status, 'BLOCKED');
+      assert.strictEqual(report.classification, 'FOREIGN_CHECKOUT');
+      assert.strictEqual(report.mutation.performed, false);
+    }
+    assert.ok(!fs.existsSync(path.join(target, 'provenance.json')));
+    assert.deepStrictEqual(fs.readdirSync(target).sort(), ['.git', 'plugin.json']);
   } finally {
     fs.rmSync(temp, { recursive: true, force: true });
   }

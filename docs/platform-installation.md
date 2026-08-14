@@ -265,7 +265,7 @@ agent frontmatter and never rewrites `agents/`. Generate and validate it from
 the dhpk checkout:
 
 ```bash
-node scripts/ci/gen-agy-plugin-package.js plugins/dhpk-agy --version=0.39.0
+node scripts/ci/gen-agy-plugin-package.js plugins/dhpk-agy --version=0.40.0
 node scripts/ci/validate-agy-plugin-package.js plugins/dhpk-agy
 ```
 
@@ -280,9 +280,22 @@ node scripts/ci/install-agy-plugin.js install \
 node scripts/ci/install-agy-plugin.js update \
   --source plugins/dhpk-agy \
   --target "$HOME/.gemini/config/plugins/dhpk" --json
+node scripts/ci/install-agy-plugin.js plan \
+  --source plugins/dhpk-agy \
+  --target "$HOME/.gemini/config/plugins/dhpk" --json
+node scripts/ci/install-agy-plugin.js status \
+  --source plugins/dhpk-agy \
+  --target "$HOME/.gemini/config/plugins/dhpk" --json
 node scripts/ci/install-agy-plugin.js rollback \
   --target "$HOME/.gemini/config/plugins/dhpk" --json
 ```
+
+`plan` and `status` are read-only. They report source/target versions, receipt
+ownership, a physical `.git` marker, and bounded same/changed/missing file
+evidence. A physical Git checkout without a matching AGY receipt is classified
+`FOREIGN_CHECKOUT` and returns `BLOCKED`; the owner must independently back up,
+move, or retire that checkout before a clean install. The diagnostic never
+migrates, adopts, overwrites, or removes a foreign target.
 
 Run configured-platform validation separately from package validation:
 
@@ -304,7 +317,8 @@ python3 skills/dhpk-cross-agent-sync/scripts/multi_ai_sync.py \
   --root . validate --targets agy --agy-runtime-probe --format json
 ```
 
-Do not promote a static manifest or `agy agents` listing to runtime `PASS`.
+Do not promote a static manifest, `agy agents` listing, or a foreign-checkout
+diagnostic to runtime `PASS`.
 Rollback/uninstall removes only files matching the AGY provenance receipt and
 preserves user-owned files in the plugin directory.
 
