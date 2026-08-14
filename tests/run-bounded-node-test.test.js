@@ -172,7 +172,7 @@ test('fallback is explicit and still applies a virtual-memory limit when user cg
   try {
     fs.writeFileSync(path.join(bin, 'systemd-run'), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
     const res = runBounded(['node', '-e', 'console.log("fallback bounded");'], {
-      PATH: `${bin}:/usr/bin:/bin`,
+      PATH: `${bin}:${process.env.PATH}`,
       DHPK_BOUNDED_REQUIRE_CGROUP: '0',
       DHPK_BOUNDED_ALLOW_FALLBACK: '1',
     });

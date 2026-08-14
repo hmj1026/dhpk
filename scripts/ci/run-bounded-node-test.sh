@@ -112,6 +112,26 @@ scope_is_owned() {
   [ "$SCOPE_DESCRIPTION_VALUE" = "$(scope_description "$token")" ] && [ "$SCOPE_ACTIVE_STATE" = 'active' ]
 }
 
+wait_scope_inactive() {
+  local unit="$1" probe_status state
+  # systemd can report a transient stop failure while the scope is already
+  # draining.  Keep the fail-closed contract by accepting only a bounded,
+  # positively observed inactive/dead/not-found state; query errors remain a
+  # containment failure.
+  for ((i = 0; i < 300; i += 1)); do
+    if scope_probe "$unit"; then
+      state="$SCOPE_ACTIVE_STATE"
+      if [ "$state" = 'inactive' ] || [ "$state" = 'dead' ]; then return 0; fi
+    else
+      probe_status=$?
+      if [ "$probe_status" -eq 3 ]; then return 0; fi
+      return 125
+    fi
+    sleep 0.01
+  done
+  return 1
+}
+
 cleanup_handshake() {
   if [ -n "${PENDING_SCOPE_READY}" ]; then
     local handshake_root
@@ -160,14 +180,7 @@ cleanup_scope() {
     return 1
   fi
   if ! systemctl --user stop "$unit" >/dev/null 2>&1; then
-    if ! scope_probe "$unit"; then
-      probe_status=$?
-      if [ "$probe_status" -eq 3 ]; then
-        ACTIVE_SCOPE_UNIT=''
-        ACTIVE_SCOPE_TOKEN=''
-        return 0
-      fi
-    elif [ "$SCOPE_ACTIVE_STATE" = 'inactive' ] || [ "$SCOPE_ACTIVE_STATE" = 'dead' ]; then
+    if wait_scope_inactive "$unit"; then
       ACTIVE_SCOPE_UNIT=''
       ACTIVE_SCOPE_TOKEN=''
       return 0
