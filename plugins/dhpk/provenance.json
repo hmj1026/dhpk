@@ -2,8 +2,8 @@
   "schema": "dhpk.platform-provenance.v1",
   "surface": "codex-native",
   "owner": "plugins/dhpk",
-  "sourceVersion": "0.40.0",
-  "sourceCommit": "5f7c860f4c8eeaf449d0e0434dc282145bc47995",
+  "sourceVersion": "0.40.1",
+  "sourceCommit": "ee2110c91014e7aef6e5b34d9108934c355123f7",
   "inventoryDigest": "816cdc29c6b0578c354b690542e48cc9ff209c2aaf66e968ad545ebc918574e2",
   "generatorVersion": "2.2.0",
   "selectedSkillIds": [

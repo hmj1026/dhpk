@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## 0.40.1 — 2026-08-15 — Harden consumer probes, AGY checkout diagnostics, and Codex projection adoption
+
+**fix(agy-installation)** — Add read-only foreign-checkout ownership diagnostics and fail-closed recovery guidance for AGY targets.
+**fix(codex-project-local-sync)** — Add read-only collision planning and explicit, rollback-safe adoption for stale project-local Codex projections.
+**fix(cursor-consumer-probe)** — Bound Cursor launch-scoped consumer probes with finite timeout, output limits, redacted JSON diagnostics, and explicit BLOCKED timeout evidence.
+
 ## 0.40.0 — 2026-08-14 — Add native AGY CLI plugin generation, receipt-owned installation, and isolated verification support
 
 **feat(agy-cli)** — Add native AGY CLI plugin generation, receipt-owned installation, and isolated verification support.
