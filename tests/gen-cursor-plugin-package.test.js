@@ -640,6 +640,168 @@ test('consumer probe only reports PASS for an explicitly supplied loader command
   }
 });
 
+test('hung Cursor consumer probes return bounded BLOCKED timeout evidence', () => {
+  const out = tmpDir('dhpk-cursor-consumer-timeout-');
+  try {
+    const probe = runCursorConsumerProbe({
+      packageRoot: out,
+      executable: process.execPath,
+      args: ['-e', 'setTimeout(() => {}, 1000)'],
+      pathValue: '',
+      timeoutMs: 40,
+    });
+    assert.strictEqual(probe.status, 'BLOCKED');
+    assert.strictEqual(probe.timed_out, true);
+    assert.strictEqual(probe.timeout_ms, 40);
+    assert.strictEqual(probe.exit_code, null);
+    assert.ok(probe.signal, JSON.stringify(probe));
+    assert.match(probe.reason, /timed out/i);
+    assert.notStrictEqual(probe.status, 'PASS');
+  } finally {
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test('Cursor probe forcibly bounds a client that ignores SIGTERM', () => {
+  if (process.platform === 'win32') return;
+  const out = tmpDir('dhpk-cursor-consumer-ignore-term-');
+  try {
+    const started = Date.now();
+    const probe = runCursorConsumerProbe({
+      packageRoot: out,
+      executable: process.execPath,
+      args: ['-e', "process.on('SIGTERM', () => {}); setTimeout(() => {}, 5000)"],
+      timeoutMs: 40,
+    });
+    assert.ok(Date.now() - started < 1000, `probe exceeded hard timeout: ${Date.now() - started}ms`);
+    assert.strictEqual(probe.status, 'BLOCKED');
+    assert.strictEqual(probe.timed_out, true);
+  } finally {
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test('Cursor probe timeout cleans up ordinary descendants in the probe group', () => {
+  const out = tmpDir('dhpk-cursor-consumer-descendant-');
+  const marker = path.join(out, 'descendant-wrote-after-timeout');
+  try {
+    const childCode = `setTimeout(() => require('node:fs').writeFileSync(${JSON.stringify(marker)}, 'escaped'), 200)`;
+    const probeCode = [
+      "const { spawn } = require('node:child_process');",
+      `spawn(process.execPath, ['-e', ${JSON.stringify(childCode)}], { stdio: 'ignore' });`,
+      'setTimeout(() => {}, 1000);',
+    ].join('');
+    const probe = runCursorConsumerProbe({
+      packageRoot: out,
+      executable: process.execPath,
+      args: ['-e', probeCode],
+      pathValue: '',
+      timeoutMs: 50,
+    });
+    assert.strictEqual(probe.status, 'BLOCKED');
+    assert.strictEqual(probe.timed_out, true);
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 300);
+    assert.strictEqual(fs.existsSync(marker), false, 'ordinary descendant survived the timeout group cleanup');
+  } finally {
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test('Cursor consumer probe rejects invalid limits and bounds redacted output', () => {
+  const out = tmpDir('dhpk-cursor-consumer-limits-');
+  const marker = 'CURSOR_PROBE_SECRET_MARKER_123456789';
+  try {
+    assert.throws(
+      () => runCursorConsumerProbe({ packageRoot: out, executable: process.execPath, args: ['-e', ''], timeoutMs: 0 }),
+      /positive safe integer/i,
+    );
+    assert.throws(
+      () => runCursorConsumerProbe({ packageRoot: out, executable: process.execPath, args: ['-e', ''], timeoutMs: Number.MAX_SAFE_INTEGER }),
+      /positive safe integer.*<=/i,
+    );
+    const probe = runCursorConsumerProbe({
+      packageRoot: out,
+      executable: process.execPath,
+      args: ['-e', `process.stdout.write('token="${marker}"'.repeat(100))`],
+      pathValue: '',
+      timeoutMs: 500,
+      maxOutputBytes: 32,
+    });
+    assert.strictEqual(probe.status, 'BLOCKED');
+    assert.strictEqual(probe.output_limited, true);
+    assert.doesNotMatch(JSON.stringify(probe), new RegExp(marker));
+    assert.ok(probe.output_limit_bytes <= 32);
+  } finally {
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test('Cursor consumer probe does not inherit arbitrary credential environment', () => {
+  const out = tmpDir('dhpk-cursor-consumer-env-');
+  const key = 'DHPK_CURSOR_PROBE_SECRET_MARKER';
+  const previous = process.env[key];
+  process.env[key] = 'credential-value-should-not-cross-boundary';
+  try {
+    const probe = runCursorConsumerProbe({
+      packageRoot: out,
+      executable: process.execPath,
+      args: ['-e', `process.stdout.write(process.env.${key} || 'absent')`],
+      timeoutMs: 500,
+    });
+    assert.strictEqual(probe.status, 'PASS');
+    assert.doesNotMatch(JSON.stringify(probe), /credential-value-should-not-cross-boundary/);
+    assert.match(probe.diagnostic, /absent/);
+  } finally {
+    if (previous === undefined) delete process.env[key];
+    else process.env[key] = previous;
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test('Cursor consumer probe rejects relative executable paths', () => {
+  const out = tmpDir('dhpk-cursor-consumer-relative-executable-');
+  try {
+    const probe = runCursorConsumerProbe({
+      packageRoot: out,
+      executable: 'bin/cursor-agent',
+      args: ['--version'],
+      timeoutMs: 500,
+    });
+    assert.strictEqual(probe.status, 'UNAVAILABLE');
+    assert.match(probe.reason, /absolute path/i);
+  } finally {
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test('Cursor PATH resolution is anchored before the probe changes cwd', () => {
+  if (process.platform === 'win32') return;
+  const root = tmpDir('dhpk-cursor-consumer-path-');
+  const packageRoot = path.join(root, 'package');
+  const trustedBin = path.join(root, 'trusted-bin');
+  const packageBin = path.join(packageRoot, 'bin');
+  const previousCwd = process.cwd();
+  fs.mkdirSync(packageBin, { recursive: true });
+  fs.mkdirSync(trustedBin);
+  fs.writeFileSync(path.join(trustedBin, 'cursor-agent'), '#!/bin/sh\nprintf trusted\n', { mode: 0o755 });
+  fs.writeFileSync(path.join(packageBin, 'cursor-agent'), '#!/bin/sh\nprintf package-controlled\n', { mode: 0o755 });
+  try {
+    process.chdir(root);
+    const probe = runCursorConsumerProbe({
+      packageRoot,
+      pathValue: 'trusted-bin',
+      args: ['--version'],
+      timeoutMs: 500,
+    });
+    assert.strictEqual(probe.status, 'PASS');
+    assert.match(probe.diagnostic, /trusted/);
+    assert.doesNotMatch(probe.diagnostic, /package-controlled/);
+  } finally {
+    process.chdir(previousCwd);
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('CLI generates and validates a Cursor package without requiring the client', () => {
   const root = makeFixture();
   const out = tmpDir('dhpk-cursor-cli-');

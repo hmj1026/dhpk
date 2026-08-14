@@ -100,6 +100,14 @@ test('Cursor CLI documentation keeps authentication, launch scope, and UI routes
       'Cursor CLI probe must pass the portable Agent Plugin path');
     assert.ok(cli.includes('--plugin-dir "$HOME/.cursor/plugins/local/dhpk-cursor"'),
       'Cursor CLI probe must pass the native Cursor Plugin path');
+    assert.ok(cli.includes('cursor-agent-probe.js'), 'Cursor CLI route must use the bounded wrapper');
+    assert.ok(cli.includes('--timeout-ms 60000'), 'Cursor CLI route must declare a finite timeout');
+    assert.ok(cli.includes('--max-output-bytes 262144'), 'Cursor CLI route must cap output');
+    assert.ok(cli.includes('5-minute') || cli.includes('5 分鐘'), 'Cursor CLI route must state the timeout ceiling');
+    assert.ok(cli.includes('4 MiB'), 'Cursor CLI route must state the output ceiling');
+    assert.ok(cli.includes('timed_out: true'), 'Cursor CLI route must document timeout evidence');
+    assert.ok(cli.includes('output_limited: true'), 'Cursor CLI route must document output-limit evidence');
+    assert.ok(cli.includes('capability-negative') || cli.includes('capability 的'), 'Cursor CLI route must reject negative discovery evidence');
     assert.ok(cli.includes('--mode ask'), 'Cursor CLI route must be read-only for the verification probe');
     assert.ok(cli.includes("-p 'List the dhpk skills, commands, agents, and rules you discover. Do not edit files.'"),
       'Cursor CLI probe must state its read-only discovery prompt');

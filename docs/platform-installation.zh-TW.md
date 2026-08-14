@@ -189,7 +189,18 @@ cursor-agent status
 cursor-agent login  # 只有 status 顯示 Not logged in 時才執行
 ```
 
-執行 launch-scoped、read-only probe，明確傳入兩個 package directory：
+執行 launch-scoped、read-only probe 時，使用有界 wrapper 並明確傳入兩個
+package directory。wrapper 會以有限 timeout 與 output cap 執行下列命令：
+
+```bash
+node scripts/release/cursor-agent-probe.js \
+  --agent-package "$HOME/.cursor/plugins/local/dhpk-agent" \
+  --cursor-package "$HOME/.cursor/plugins/local/dhpk-cursor" \
+  --timeout-ms 60000 \
+  --max-output-bytes 262144
+```
+
+wrapper 實際執行的 launch command 等同於：
 
 ```bash
 cursor-agent \
@@ -206,6 +217,12 @@ package validator 只證明 structure 與 provenance；runtime `PASS` 必須由 
 `NOT_RUN` 或 `BLOCKED`。若 CLI 回報 `Authentication required`，在完成 login
 前證據是 `BLOCKED`。若安裝的 CLI 沒有 `--plugin-dir`，記錄 `UNAVAILABLE`，
 改用 Cursor UI/local-plugin route。
+即使要求更大的值，probe 仍強制 5 分鐘 timeout 上限與 4 MiB output 上限。
+若 wrapper 回報 `BLOCKED` 且 `timed_out: true` 或 `output_limited: true`，代表
+沒有產生 consumer result；保留有界、已 redact 的 diagnostic，只能以另一組
+有限 limit 重試。
+wrapper 也會阻擋空白、無效或缺少 capability 的 response；只有包含要求的
+dhpk skills、commands、agents、rules 證據，才能記錄為完成的 probe。
 
 若要為 Cursor desktop 建立 persistent local setup，可在
 `~/.cursor/plugins/local/` 使用 symlink 或 copy；CLI probe 仍要明確傳入這些
