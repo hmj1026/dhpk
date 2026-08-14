@@ -14,6 +14,7 @@ const {
   compileNativePackage,
   materializeNativePackage,
   validateNativeCandidate,
+  verifyNativePackage,
   fingerprintDir,
 } = require('../scripts/lib/codex-native-package');
 
@@ -26,6 +27,7 @@ function tmpDir(prefix) {
 function packageFiles(root, relative = '') {
   const files = {};
   for (const entry of fs.readdirSync(path.join(root, relative), { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+    if (entry.name === '__pycache__' || entry.name.endsWith('.pyc')) continue;
     const child = path.posix.join(relative, entry.name);
     const absolute = path.join(root, relative, entry.name);
     if (entry.isDirectory()) Object.assign(files, packageFiles(root, child));
@@ -33,6 +35,13 @@ function packageFiles(root, relative = '') {
     else throw new Error(`unexpected package entry: ${child}`);
   }
   return files;
+}
+
+function assertPackageFilesEquivalent(actualFiles, expectedFiles) {
+  assert.deepStrictEqual(Object.keys(actualFiles).sort(), Object.keys(expectedFiles).sort());
+  for (const [key, content] of Object.entries(actualFiles)) {
+    assert.ok(content.equals(expectedFiles[key]), `Content mismatch for package entry: ${key}`);
+  }
 }
 
 test('native compiler plan preserves explicit selection, public identity, and generated output intent', () => {
@@ -74,7 +83,7 @@ test('compiler-backed native generation preserves the accepted package bytes', (
       version: trackedManifest.version,
       sourceCommit: trackedProvenance.sourceCommit,
     });
-    assert.deepStrictEqual(packageFiles(out), packageFiles(tracked));
+    assertPackageFilesEquivalent(packageFiles(out), packageFiles(tracked));
   } finally { fs.rmSync(out, { recursive: true, force: true }); }
 });
 
@@ -294,6 +303,89 @@ test('generation is deterministic: two materializations of the same inventory pr
   } finally {
     fs.rmSync(outA, { recursive: true, force: true });
     fs.rmSync(outB, { recursive: true, force: true });
+  }
+});
+
+test('fingerprint traversal rejects excessive directory depth before unbounded recursion', () => {
+  const root = tmpDir('dhpk-native-fingerprint-depth-');
+  try {
+    let current = root;
+    for (let depth = 0; depth < 4; depth += 1) {
+      current = path.join(current, `level-${depth}`);
+      fs.mkdirSync(current);
+    }
+    fs.writeFileSync(path.join(current, 'SKILL.md'), 'bounded\n');
+    assert.throws(
+      () => fingerprintDir(root, { maxDepth: 2 }),
+      /maximum directory depth/i,
+    );
+    assert.throws(
+      () => fingerprintDir(root, { maxBytes: 1 }),
+      /byte budget/i,
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('native projection uses one byte budget across all selected skills', () => {
+  const root = tmpDir('dhpk-native-aggregate-budget-');
+  const out = tmpDir('dhpk-native-aggregate-budget-out-');
+  const body = 'x'.repeat(180);
+  try {
+    for (const [id, name] of [['one', 'dhpk-one'], ['two', 'dhpk-two']]) {
+      const skill = path.join(root, 'skills', name);
+      fs.mkdirSync(skill, { recursive: true });
+      fs.writeFileSync(path.join(skill, 'SKILL.md'), `---\nname: ${name}\n---\n${body}\n`);
+    }
+    const inventory = {
+      skills: [
+        { id: 'one', name: 'dhpk-one', path: 'skills/dhpk-one', surfaces: ['codex-native'] },
+        { id: 'two', name: 'dhpk-two', path: 'skills/dhpk-two', surfaces: ['codex-native'] },
+      ],
+    };
+    assert.throws(
+      () => compileNativePackage({ inventory, root, outDir: out, traversalOptions: { maxBytes: 700 } }),
+      /byte budget/i,
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test('native fingerprinting rejects symlink entries before following external targets', () => {
+  const root = tmpDir('dhpk-native-fingerprint-symlink-');
+  const outside = tmpDir('dhpk-native-fingerprint-outside-');
+  try {
+    fs.writeFileSync(path.join(outside, 'secret.md'), 'outside\n');
+    fs.symlinkSync(path.join(outside, 'secret.md'), path.join(root, 'secret.md'));
+    assert.throws(() => fingerprintDir(root), /symlink/i);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
+});
+
+test('native verifier rejects symlinked package roots and ancestors before reading the package', () => {
+  const realParent = tmpDir('dhpk-native-verify-root-');
+  const packageRoot = path.join(realParent, 'package');
+  fs.mkdirSync(packageRoot);
+  const linkParent = path.join(tmpDir('dhpk-native-verify-parent-'), 'linked-parent');
+  const linkedRoot = path.join(linkParent, 'package');
+  const rootLink = path.join(tmpDir('dhpk-native-verify-link-'), 'root-link');
+  try {
+    fs.symlinkSync(realParent, linkParent, 'dir');
+    fs.symlinkSync(packageRoot, rootLink, 'dir');
+    for (const candidate of [linkedRoot, rootLink]) {
+      const result = verifyNativePackage({ packageRoot: candidate });
+      assert.strictEqual(result.ok, false);
+      assert.match(result.errors.join('\n'), /symlinked native package root ancestor|physical native package root/i);
+    }
+  } finally {
+    fs.rmSync(realParent, { recursive: true, force: true });
+    fs.rmSync(path.dirname(linkParent), { recursive: true, force: true });
+    fs.rmSync(path.dirname(rootLink), { recursive: true, force: true });
   }
 });
 

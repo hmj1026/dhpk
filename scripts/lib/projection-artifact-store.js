@@ -8,9 +8,10 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { createDistributionArtifact, projectionError, SYMLINK_POLICIES } = require('./distribution-projection-contract');
+const { createTraversalBudget, readDirectoryEntries } = require('./bounded-filesystem');
 
-function digest(file) {
-  return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+function digest(file, budget = createTraversalBudget()) {
+  return crypto.createHash('sha256').update(budget.readFile(file)).digest('hex');
 }
 
 function safeRelative(value) {
@@ -44,25 +45,31 @@ function inside(root, candidate) {
 function stagedManifest(stageRoot) {
   const files = new Map();
   const directories = new Set(['']);
+  const budget = createTraversalBudget();
 
-  const walk = (directory, relative = '') => {
-    for (const entry of fs.readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
-      const child = path.join(directory, entry.name);
-      const childRelative = path.posix.join(relative, entry.name);
-      if (entry.isDirectory()) {
-        directories.add(childRelative);
-        walk(child, childRelative);
-      } else if (entry.isSymbolicLink()) {
-        files.set(childRelative, { type: 'symlink', target: fs.readlinkSync(child) });
-      } else if (entry.isFile()) {
-        files.set(childRelative, { type: 'file', fingerprint: digest(child), mode: fs.statSync(child).mode & 0o7777 });
-      } else {
-        files.set(childRelative, { type: 'other' });
+  const walk = (directory, relative = '', depth = 0) => {
+    const realDirectory = budget.enterDirectory(directory, depth);
+    try {
+      for (const entry of readDirectoryEntries(directory, { budget, sort: true, localeSort: true })) {
+        const child = path.join(directory, entry.name);
+        const childRelative = path.posix.join(relative, entry.name);
+        if (entry.isDirectory()) {
+          directories.add(childRelative);
+          walk(child, childRelative, depth + 1);
+        } else if (entry.isSymbolicLink()) {
+          files.set(childRelative, { type: 'symlink', target: fs.readlinkSync(child) });
+        } else if (entry.isFile()) {
+          files.set(childRelative, { type: 'file', fingerprint: digest(child, budget), mode: fs.statSync(child).mode & 0o7777 });
+        } else {
+          files.set(childRelative, { type: 'other' });
+        }
       }
+    } finally {
+      budget.leaveDirectory(realDirectory);
     }
   };
 
-  walk(stageRoot);
+  walk(stageRoot, '', 0);
   return { files, directories };
 }
 

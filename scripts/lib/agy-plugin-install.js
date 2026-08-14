@@ -10,6 +10,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { PACKAGE_SCHEMA, validateAgyPluginPackage } = require('./agy-plugin-package');
 const { validateSurfaceReceipt } = require('./platform-provenance');
+const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
 
 const SURFACE = 'agy-plugin';
 const PACKAGE_METADATA = new Set(['plugin.json', 'provenance.json', 'fingerprints.json']);
@@ -65,22 +66,29 @@ function ensurePhysicalDirectory(directory, label) {
   return resolved;
 }
 
-function relativeFiles(root) {
+function relativeFiles(root, options = {}) {
   const files = [];
-  const walk = (directory) => {
-    for (const entry of fs.readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
-      const child = path.join(directory, entry.name);
-      if (entry.isSymbolicLink()) throw new Error(`symlink is not allowed in AGY installation: ${child}`);
-      if (entry.isDirectory()) walk(child);
-      else if (entry.isFile()) files.push(path.relative(root, child).split(path.sep).join('/'));
-      else throw new Error(`unsupported AGY installation entry: ${child}`);
+  const budget = createTraversalBudget(options);
+  const walk = (directory, depth) => {
+    const realDirectory = budget.enterDirectory(directory, depth);
+    try {
+      for (const entry of readDirectoryEntries(directory, { budget, sort: true, localeSort: true })) {
+        const child = path.join(directory, entry.name);
+        if (entry.isSymbolicLink()) throw new Error(`symlink is not allowed in AGY installation: ${child}`);
+        if (entry.isDirectory()) walk(child, depth + 1);
+        else if (entry.isFile()) files.push(path.relative(root, child).split(path.sep).join('/'));
+        else throw new Error(`unsupported AGY installation entry: ${child}`);
+      }
+    } finally {
+      budget.leaveDirectory(realDirectory);
     }
   };
-  walk(root);
+  walk(root, 0);
   return files.sort();
 }
 
 function copyTreePreservingEntries(sourceRoot, destinationRoot, directoryModes) {
+  const budget = createTraversalBudget();
   const copyEntry = (source, destination) => {
     const stat = lstatOrNull(source);
     if (!stat) throw new Error(`AGY staging source disappeared: ${source}`);
@@ -91,7 +99,7 @@ function copyTreePreservingEntries(sourceRoot, destinationRoot, directoryModes) 
     if (stat.isDirectory()) {
       fs.mkdirSync(destination, { recursive: true, mode: 0o700 });
       directoryModes.set(destination, stat.mode & 0o7777);
-      for (const entry of fs.readdirSync(source, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      for (const entry of readDirectoryEntries(source, { budget, sort: true, localeSort: true })) {
         copyEntry(path.join(source, entry.name), path.join(destination, entry.name));
       }
       return;
@@ -101,7 +109,7 @@ function copyTreePreservingEntries(sourceRoot, destinationRoot, directoryModes) 
     fs.chmodSync(destination, stat.mode & 0o7777);
   };
 
-  for (const entry of fs.readdirSync(sourceRoot, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+  for (const entry of readDirectoryEntries(sourceRoot, { budget, sort: true, localeSort: true })) {
     copyEntry(path.join(sourceRoot, entry.name), path.join(destinationRoot, entry.name));
   }
 }
@@ -156,7 +164,7 @@ function readReceipt(root) {
   if (!receiptStat) return null;
   if (receiptStat.isSymbolicLink() || !receiptStat.isFile()) throw new Error('AGY target receipt is not a regular file');
   let receipt;
-  try { receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8')); } catch (error) { throw new Error(`AGY target receipt is invalid JSON: ${error.message}`); }
+  try { receipt = JSON.parse(readFileBounded(receiptPath).toString('utf8')); } catch (error) { throw new Error(`AGY target receipt is invalid JSON: ${error.message}`); }
   const checked = validateSurfaceReceipt({ ...receipt, schema: 'dhpk.platform-provenance.v1' }, SURFACE);
   if (!checked.ok || receipt.schema !== 'dhpk.agy-plugin.v1') throw new Error(`AGY target receipt is not owned by dhpk: ${checked.errors.join('; ')}`);
   return receipt;
@@ -168,7 +176,7 @@ function ownedFileMatches(root, relative, receipt) {
   if (!stat) return false;
   if (stat.isSymbolicLink() || !stat.isFile()) throw new Error(`AGY owned path is not a regular file: ${relative}`);
   return Boolean(receipt.fingerprints && receipt.fingerprints[relative])
-    && digest(fs.readFileSync(target)) === receipt.fingerprints[relative];
+    && digest(readFileBounded(target)) === receipt.fingerprints[relative];
 }
 
 function metadataMatches(root, relative, receipt) {
@@ -177,26 +185,32 @@ function metadataMatches(root, relative, receipt) {
   const stat = lstatOrNull(target);
   if (!stat || stat.isSymbolicLink() || !stat.isFile()) return false;
   if (relative === 'provenance.json') {
-    return fs.readFileSync(target, 'utf8') === `${JSON.stringify(receipt)}\n`;
+    return readFileBounded(target).toString('utf8') === `${JSON.stringify(receipt)}\n`;
   }
   if (relative !== 'fingerprints.json') return false;
-  return fs.readFileSync(target, 'utf8') === `${JSON.stringify({ files: receipt.fingerprints || {}, schema: PACKAGE_SCHEMA })}\n`;
+  return readFileBounded(target).toString('utf8') === `${JSON.stringify({ files: receipt.fingerprints || {}, schema: PACKAGE_SCHEMA })}\n`;
 }
 
 function removeEmptyDirectories(root) {
   const directories = [];
-  const walk = (directory) => {
-    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
-      const child = path.join(directory, entry.name);
-      if (entry.isDirectory() && !entry.isSymbolicLink()) {
-        walk(child);
-        directories.push(child);
+  const budget = createTraversalBudget();
+  const walk = (directory, depth) => {
+    const realDirectory = budget.enterDirectory(directory, depth);
+    try {
+      for (const entry of readDirectoryEntries(directory, { budget })) {
+        const child = path.join(directory, entry.name);
+        if (entry.isDirectory() && !entry.isSymbolicLink()) {
+          walk(child, depth + 1);
+          directories.push(child);
+        }
       }
+    } finally {
+      budget.leaveDirectory(realDirectory);
     }
   };
-  walk(root);
+  walk(root, 0);
   for (const directory of directories.sort((a, b) => b.length - a.length)) {
-    if (fs.readdirSync(directory).length === 0) fs.rmdirSync(directory);
+    if (readDirectoryEntries(directory).length === 0) fs.rmdirSync(directory);
   }
 }
 

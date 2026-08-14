@@ -114,4 +114,3 @@ portable skill behavior.
   invocation, hook, or UI behavior
 - **THEN** that feature is emitted in the owning client projection or namespace
   and is not added as an unknown portable top-level manifest field
-

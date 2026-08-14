@@ -17,6 +17,7 @@ const markdownlint = JSON.parse(fs.readFileSync(CONFIG, 'utf8'));
 const lintMatch = workflow.match(/\n  lint:\n([\s\S]*?)(?=\n  [a-z][a-z0-9-]*:\n|$)/);
 assert.ok(lintMatch, 'ci.yml must define a lint job');
 const lintJob = lintMatch[1];
+const validateJob = workflow.match(/\n  validate:\n([\s\S]*?)(?=\n  [a-z][a-z0-9-]*:\n|$)/)[1];
 
 test('Markdown lint job remains blocking and covers the intended asset globs', () => {
   assert.ok(
@@ -41,6 +42,11 @@ test('Markdown lint job remains blocking and covers the intended asset globs', (
 test('Markdown table column validation remains enabled', () => {
   assert.strictEqual(markdownlint.default, true);
   assert.notStrictEqual(markdownlint.MD056, false, 'MD056 must not be disabled');
+});
+
+test('repository tests run through the bounded Node wrapper', () => {
+  assert.match(validateJob, /run-bounded-node-test\.sh\s+node\s+tests\/run-all\.js/);
+  assert.match(validateJob, /DHPK_BOUNDED_REQUIRE_CGROUP:\s*['"]?1/);
 });
 
 run('markdownlint-workflow');

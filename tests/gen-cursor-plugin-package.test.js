@@ -15,8 +15,10 @@ const {
   compileCursorPackage,
   materializeCursorPackage,
   validateCursorPackage,
+  verifyCursorPackage,
   runCursorConsumerProbe,
   fingerprintDir,
+  fingerprintPath,
 } = require('../scripts/lib/cursor-plugin-package');
 
 function tmpDir(prefix) {
@@ -530,6 +532,96 @@ test('generation is byte-stable and consumer probe is unavailable without Cursor
     fs.rmSync(root, { recursive: true, force: true });
     fs.rmSync(outA, { recursive: true, force: true });
     fs.rmSync(outB, { recursive: true, force: true });
+  }
+});
+
+test('fingerprint traversal rejects excessive directory depth before unbounded recursion', () => {
+  const root = tmpDir('dhpk-cursor-fingerprint-depth-');
+  try {
+    let current = root;
+    for (let depth = 0; depth < 4; depth += 1) {
+      current = path.join(current, `level-${depth}`);
+      fs.mkdirSync(current);
+    }
+    fs.writeFileSync(path.join(current, 'SKILL.md'), 'bounded\n');
+    assert.throws(
+      () => fingerprintPath(root, { maxDepth: 2 }),
+      /maximum directory depth/i,
+    );
+    assert.throws(
+      () => fingerprintPath(root, { maxBytes: 1 }),
+      /byte budget/i,
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('Cursor projection uses one byte budget across selected skills and generated documents', () => {
+  const root = tmpDir('dhpk-cursor-aggregate-budget-');
+  const out = tmpDir('dhpk-cursor-aggregate-budget-out-');
+  const body = 'x'.repeat(180);
+  try {
+    const skills = [];
+    const stableIds = [];
+    for (const [id, name] of [['one', 'dhpk-one'], ['two', 'dhpk-two']]) {
+      write(path.join(root, 'skills', name, 'SKILL.md'), `---\nname: ${name}\ndescription: fixture\n---\n${body}\n`);
+      skills.push({ id, name, path: `skills/${name}`, lifecycle: 'promoted', surfaces: ['cursor-plugin'] });
+      stableIds.push(id);
+    }
+    const inventory = {
+      skills,
+      platform_matrix: {
+        entries: [{
+          surface: 'cursor-plugin',
+          source_paths: ['skills/'],
+          stable_ids: stableIds,
+          projection_mode: 'overlay',
+        }],
+      },
+    };
+    assert.throws(
+      () => compileCursorPackage({ inventory, root, outDir: out, traversalOptions: { maxBytes: 900 } }),
+      /byte budget/i,
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test('Cursor fingerprinting rejects symlink entries before following external targets', () => {
+  const root = tmpDir('dhpk-cursor-fingerprint-symlink-');
+  const outside = tmpDir('dhpk-cursor-fingerprint-outside-');
+  try {
+    fs.writeFileSync(path.join(outside, 'secret.md'), 'outside\n');
+    fs.symlinkSync(path.join(outside, 'secret.md'), path.join(root, 'secret.md'));
+    assert.throws(() => fingerprintPath(root), /symlink/i);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
+});
+
+test('Cursor verifier rejects symlinked package roots and ancestors before reading the package', () => {
+  const realParent = tmpDir('dhpk-cursor-verify-root-');
+  const packageRoot = path.join(realParent, 'package');
+  fs.mkdirSync(packageRoot);
+  const linkParent = path.join(tmpDir('dhpk-cursor-verify-parent-'), 'linked-parent');
+  const linkedRoot = path.join(linkParent, 'package');
+  const rootLink = path.join(tmpDir('dhpk-cursor-verify-link-'), 'root-link');
+  try {
+    fs.symlinkSync(realParent, linkParent, 'dir');
+    fs.symlinkSync(packageRoot, rootLink, 'dir');
+    for (const candidate of [linkedRoot, rootLink]) {
+      const result = verifyCursorPackage({ packageRoot: candidate });
+      assert.strictEqual(result.ok, false);
+      assert.match(result.errors.join('\n'), /symlinked Cursor package root ancestor|physical Cursor package root/i);
+    }
+  } finally {
+    fs.rmSync(realParent, { recursive: true, force: true });
+    fs.rmSync(path.dirname(linkParent), { recursive: true, force: true });
+    fs.rmSync(path.dirname(rootLink), { recursive: true, force: true });
   }
 });
 

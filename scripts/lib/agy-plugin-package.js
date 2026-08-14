@@ -13,6 +13,7 @@ const {
   createSurfaceReceipt,
   validateSurfaceReceipt,
 } = require('./platform-provenance');
+const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
 
 const SURFACE = 'agy-plugin';
 const GENERATOR_VERSION = '1.0.0';
@@ -97,8 +98,8 @@ function ensureDirectory(directory, label) {
   return resolved;
 }
 
-function sortedEntries(directory) {
-  return fs.readdirSync(directory, { withFileTypes: true }).sort((left, right) => left.name.localeCompare(right.name));
+function sortedEntries(directory, budget = createTraversalBudget()) {
+  return readDirectoryEntries(directory, { budget, sort: true, localeSort: true });
 }
 
 function assertNoSymlink(filePath, label) {
@@ -142,6 +143,7 @@ function copyDirectory(source, destination, sourceRoot, outputRoot) {
   if (!sourceStat || !sourceStat.isDirectory()) throw new Error(`source directory is missing: ${source}`);
   ensureDirectory(destination, 'package component');
   for (const entry of sortedEntries(source)) {
+    if (entry.name === '__pycache__' || entry.name.endsWith('.pyc')) continue;
     const childSource = path.join(source, entry.name);
     const childDestination = path.join(destination, entry.name);
     if (entry.isSymbolicLink()) throw new Error(`symlink is not allowed in source component: ${childSource}`);
@@ -153,7 +155,7 @@ function copyDirectory(source, destination, sourceRoot, outputRoot) {
 
 function readJson(filePath, label) {
   try {
-    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    return JSON.parse(readFileBounded(filePath).toString('utf8'));
   } catch (error) {
     throw new Error(`${label} is not valid JSON: ${error.message}`);
   }
@@ -185,27 +187,33 @@ function selectedConfiguration(inventory) {
   return { agents, rules, skills };
 }
 
-function outputFiles(packageRoot) {
+function outputFiles(packageRoot, options = {}) {
   const files = [];
-  const walk = (directory) => {
-    for (const entry of sortedEntries(directory)) {
-      const child = path.join(directory, entry.name);
-      if (entry.isSymbolicLink()) throw new Error(`symlink is not allowed in AGY package: ${child}`);
-      if (entry.isDirectory()) walk(child);
-      else if (entry.isFile()) files.push(path.relative(packageRoot, child).split(path.sep).join('/'));
-      else throw new Error(`unsupported AGY package entry: ${child}`);
+  const budget = createTraversalBudget(options);
+  const walk = (directory, depth) => {
+    const realDirectory = budget.enterDirectory(directory, depth);
+    try {
+      for (const entry of sortedEntries(directory, budget)) {
+        const child = path.join(directory, entry.name);
+        if (entry.isSymbolicLink()) throw new Error(`symlink is not allowed in AGY package: ${child}`);
+        if (entry.isDirectory()) walk(child, depth + 1);
+        else if (entry.isFile()) files.push(path.relative(packageRoot, child).split(path.sep).join('/'));
+        else throw new Error(`unsupported AGY package entry: ${child}`);
+      }
+    } finally {
+      budget.leaveDirectory(realDirectory);
     }
   };
-  walk(packageRoot);
+  walk(packageRoot, 0);
   return files.sort();
 }
 
 function fingerprintFiles(packageRoot, files) {
-  return Object.fromEntries(files.filter((relative) => !['provenance.json', 'fingerprints.json'].includes(relative)).map((relative) => [
-    relative,
-    digest(fs.readFileSync(path.join(packageRoot, relative)),
-    ),
-  ]));
+  const budget = createTraversalBudget();
+  return Object.fromEntries(files.filter((relative) => !['provenance.json', 'fingerprints.json'].includes(relative)).map((relative) => {
+    const target = path.join(packageRoot, relative);
+    return [relative, digest(budget.readFile(target, fs.statSync(target)))];
+  }));
 }
 
 function containsSecret(content) {
@@ -229,7 +237,7 @@ function assertOwnedOutputRoot(outDir) {
   if (!provenance || typeof provenance !== 'object' || Array.isArray(provenance)) {
     throw new Error('refusing to replace AGY output with invalid provenance');
   }
-  if (fs.readFileSync(provenancePath, 'utf8') !== `${stableStringify(provenance)}\n`) {
+  if (readFileBounded(provenancePath).toString('utf8') !== `${stableStringify(provenance)}\n`) {
     throw new Error('refusing to replace changed AGY provenance');
   }
   const checked = validateSurfaceReceipt({ ...provenance, schema: 'dhpk.platform-provenance.v1' }, SURFACE);
@@ -244,7 +252,8 @@ function assertOwnedOutputRoot(outDir) {
     throw new Error('refusing to replace AGY output with incomplete or foreign fingerprints');
   }
   for (const relative of dataFiles) {
-    if (!Object.prototype.hasOwnProperty.call(fingerprints, relative) || digest(fs.readFileSync(path.join(outDir, relative))) !== fingerprints[relative]) {
+    const target = path.join(outDir, relative);
+    if (!Object.prototype.hasOwnProperty.call(fingerprints, relative) || digest(readFileBounded(target)) !== fingerprints[relative]) {
       throw new Error(`refusing to replace changed AGY output: ${relative}`);
     }
   }
@@ -252,7 +261,7 @@ function assertOwnedOutputRoot(outDir) {
   const fingerprintPayload = readJson(fingerprintsPath, 'existing AGY fingerprints');
   if (!fingerprintPayload || typeof fingerprintPayload !== 'object' || fingerprintPayload.schema !== PACKAGE_SCHEMA
     || stableStringify(fingerprintPayload.files || {}) !== stableStringify(fingerprints)
-    || fs.readFileSync(fingerprintsPath, 'utf8') !== `${stableStringify(fingerprintPayload)}\n`) {
+    || readFileBounded(fingerprintsPath).toString('utf8') !== `${stableStringify(fingerprintPayload)}\n`) {
     throw new Error('refusing to replace AGY output with changed fingerprints');
   }
   return true;
@@ -318,7 +327,7 @@ function materializeAgyPluginPackage({
     const sourceStat = assertNoSymlink(source, 'source agent');
     if (!sourceStat || !sourceStat.isFile()) throw new Error(`source agent is missing: ${source}`);
     ensureDirectory(path.dirname(target), 'AGY agent parent');
-    const sourceContent = fs.readFileSync(source, 'utf8');
+    const sourceContent = readFileBounded(source).toString('utf8');
     const adapted = adaptFrontmatter(sourceContent, { filePath: source });
     fs.writeFileSync(target, adapted.text, { mode: 0o644 });
   }
@@ -427,7 +436,7 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
     }
     const absolute = path.join(root, relative);
     if (!isInside(root, absolute)) errors.push(`AGY package path escapes root: ${relative}`);
-    const content = fs.readFileSync(absolute);
+    const content = readFileBounded(absolute);
     if (containsSecret(content.toString('utf8'))) errors.push(`possible secret in AGY package file: ${relative}`);
   }
 
@@ -437,7 +446,7 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
   if (agentFiles.length === 0) errors.push('AGY package must contain at least one adapted agent');
   for (const relative of agentFiles) {
     if (expectedAgentFiles && !expectedAgentFiles.has(relative)) errors.push(`undeclared AGY agent: ${relative}`);
-    const adapted = adaptFrontmatter(fs.readFileSync(path.join(root, relative), 'utf8'), { filePath: relative });
+    const adapted = adaptFrontmatter(readFileBounded(path.join(root, relative)).toString('utf8'), { filePath: relative });
     if (adapted.changed || adapted.droppedFields.length > 0) errors.push(`agent is not idempotently AGY-adapted: ${relative}`);
   }
   if (expectedRuleFiles) for (const relative of expectedRuleFiles) if (!files.includes(relative)) errors.push(`selected AGY rule is missing: ${relative}`);

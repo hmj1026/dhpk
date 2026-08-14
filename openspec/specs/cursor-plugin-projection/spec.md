@@ -129,4 +129,3 @@ manifest or marketplace listing SHALL not count as runtime discovery evidence.
   load was executed
 - **THEN** the result remains `NOT_RUN`/`UNAVAILABLE` and cannot graduate
   Cursor support
-

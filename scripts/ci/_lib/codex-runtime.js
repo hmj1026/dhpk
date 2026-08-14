@@ -2,6 +2,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('../../lib/bounded-filesystem');
 
 const TIER_LABEL = /\b(?:haiku|sonnet|opus)\b/i;
 const BACKTICKED_TOKEN = /`([a-z0-9]+(?:-[a-z0-9]+)*)`/g;
@@ -16,20 +17,42 @@ function relative(root, file) {
   return path.relative(root, file).split(path.sep).join('/');
 }
 
+function isInside(root, candidate) {
+  const relativePath = path.relative(root, candidate);
+  return relativePath === '' || (relativePath !== '..' && !relativePath.startsWith(`..${path.sep}`) && !path.isAbsolute(relativePath));
+}
+
+function readProjectionFile(file, allowedRoots) {
+  const realFile = fs.realpathSync(file);
+  const allowed = allowedRoots.some((root) => {
+    try { return isInside(fs.realpathSync(root), realFile); } catch (_) { return false; }
+  });
+  if (!allowed) throw new Error(`Codex projection symlink escapes allowed roots: ${file}`);
+  return readFileBounded(realFile);
+}
+
 function namesFrom(directory, extension) {
   if (!fs.existsSync(directory)) return [];
-  return fs
-    .readdirSync(directory)
+  return readDirectoryEntries(directory)
+    .map((entry) => entry.name)
     .filter((name) => name.endsWith(extension))
     .map((name) => name.slice(0, -extension.length));
 }
 
-function walkFiles(directory, predicate, output = []) {
+function walkFiles(directory, predicate, output = [], budget = createTraversalBudget(), depth = 0) {
   if (!fs.existsSync(directory)) return output;
-  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
-    const file = path.join(directory, entry.name);
-    if (entry.isDirectory()) walkFiles(file, predicate, output);
-    else if (predicate(file)) output.push(file);
+  const realDirectory = budget.enterDirectory(directory, depth);
+  try {
+    for (const entry of readDirectoryEntries(directory, { budget })) {
+      const file = path.join(directory, entry.name);
+      if (entry.isDirectory()) walkFiles(file, predicate, output, budget, depth + 1);
+      else if (predicate(file)) {
+        budget.accountFile(file, fs.statSync(file));
+        output.push(file);
+      }
+    }
+  } finally {
+    budget.leaveDirectory(realDirectory);
   }
   return output;
 }
@@ -47,7 +70,7 @@ function readRoleOwnershipManifest(root) {
   }
   let manifest;
   try {
-    manifest = JSON.parse(fs.readFileSync(file, 'utf8'));
+    manifest = JSON.parse(readFileBounded(file).toString('utf8'));
   } catch (error) {
     return {
       manifest: null,
@@ -100,7 +123,8 @@ function canonicalAgentNames(root) {
   );
   const modulesDir = path.join(root, 'modules');
   if (!fs.existsSync(modulesDir)) return names;
-  for (const moduleName of fs.readdirSync(modulesDir)) {
+  for (const entry of readDirectoryEntries(modulesDir)) {
+    const moduleName = entry.name;
     const moduleAgents = path.join(modulesDir, moduleName, 'agents');
     for (const name of namesFrom(moduleAgents, '.md')) names.add(name);
   }
@@ -112,15 +136,16 @@ function collectCanonicalAgentOwnershipErrors(root) {
   const roots = [path.join(root, 'agents')];
   const modulesDir = path.join(root, 'modules');
   if (fs.existsSync(modulesDir)) {
-    for (const moduleName of fs.readdirSync(modulesDir)) {
+    for (const entry of readDirectoryEntries(modulesDir)) {
+      const moduleName = entry.name;
       roots.push(path.join(modulesDir, moduleName, 'agents'));
     }
   }
   for (const agentsRoot of roots) {
     if (!fs.existsSync(agentsRoot)) continue;
-    for (const file of fs.readdirSync(agentsRoot).filter((entry) => entry.endsWith('.md') && entry !== 'INDEX.md')) {
+    for (const file of readDirectoryEntries(agentsRoot).map((entry) => entry.name).filter((entry) => entry.endsWith('.md') && entry !== 'INDEX.md')) {
       const fullPath = path.join(agentsRoot, file);
-      const source = fs.readFileSync(fullPath, 'utf8');
+      const source = readFileBounded(fullPath).toString('utf8');
       const nameMatch = source.match(/^name\s*:\s*['"]?([^'"\n]+?)['"]?\s*$/m);
       const expected = file.slice(0, -'.md'.length);
       if (!nameMatch || nameMatch[1].trim() !== expected) {
@@ -180,7 +205,7 @@ function collectCodexRoleOwnershipErrors(root) {
   const sidecarPath = path.join(agentsDir, '.codex-agent-ownership.json');
   if (fs.existsSync(sidecarPath)) {
     try {
-      const sidecar = JSON.parse(fs.readFileSync(sidecarPath, 'utf8'));
+      const sidecar = JSON.parse(readFileBounded(sidecarPath).toString('utf8'));
       for (const role of sidecar.workspace_local_extensions || []) localExtensions.add(role);
     } catch (error) {
       errors.push(`${relative(root, sidecarPath)} — workspace-local role ownership manifest is not valid JSON: ${error.message}`);
@@ -211,11 +236,11 @@ function collectCodexRoleMetadataErrors(root) {
   const errors = [];
   const agentsDir = path.join(root, 'codex', 'agents');
   if (!fs.existsSync(agentsDir)) return errors;
-  for (const entry of fs.readdirSync(agentsDir)) {
+  for (const entry of readDirectoryEntries(agentsDir).map((item) => item.name)) {
     if (!entry.endsWith('.toml')) continue;
     const role = entry.slice(0, -'.toml'.length);
     const file = path.join(agentsDir, entry);
-    const source = fs.readFileSync(file, 'utf8');
+    const source = readFileBounded(file).toString('utf8');
     const relativeFile = relative(root, file);
     const fields = {
       name: tomlStringField(source, 'name'),
@@ -280,7 +305,7 @@ function expectedSupportingDestinations(sourceRoot) {
   for (const role of ['architect', 'code-reviewer', 'security-reviewer', 'database-reviewer', 'tdd-guide', 'e2e-runner', 'migration-reviewer']) {
     const roleRoot = path.join(trapRoot, role);
     if (!fs.existsSync(roleRoot)) continue;
-    for (const name of fs.readdirSync(roleRoot).filter((entry) => entry.endsWith('.md')).sort()) {
+    for (const name of readDirectoryEntries(roleRoot, { sort: true }).map((entry) => entry.name).filter((entry) => entry.endsWith('.md'))) {
       expected.add(`dhpk/agent-traps/${role}/${name}`);
     }
   }
@@ -291,16 +316,21 @@ function readSupportingInventory(sourceRoot) {
   const inventoryPath = path.join(sourceRoot, 'manifests', 'distribution-inventory.json');
   if (!fs.existsSync(inventoryPath)) return null;
   try {
-    const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
+    const inventory = JSON.parse(readFileBounded(inventoryPath).toString('utf8'));
     return Array.isArray(inventory.supporting_assets) ? inventory.supporting_assets : null;
   } catch {
     return null;
   }
 }
 
-function collectCodexMarkdownReferenceErrors(root, file, assets) {
+function collectCodexMarkdownReferenceErrors(root, file, assets, sourceRoot) {
   const errors = [];
-  const source = fs.readFileSync(file, 'utf8');
+  let source;
+  try {
+    source = readProjectionFile(file, [root, assets, sourceRoot]).toString('utf8');
+  } catch (error) {
+    return [`${relative(root, file)} — unable to read contained Codex supporting asset: ${error.message}`];
+  }
   const relativeFile = relative(root, file);
   if (source.includes('${CLAUDE_PLUGIN_ROOT}')) {
     errors.push(`${relativeFile} — supporting Codex asset retains unsupported $\{CLAUDE_PLUGIN_ROOT\} interpolation`);
@@ -349,7 +379,7 @@ function collectSupportingClosureErrors(root, sourceRoot, assets) {
   let receiptEntries = null;
   if (isConsumerProjection && fs.existsSync(receiptPath)) {
     try {
-      const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+      const receipt = JSON.parse(readFileBounded(receiptPath).toString('utf8'));
       receiptEntries = receipt.managed_entries && receipt.managed_entries.supporting_assets;
     } catch {
       errors.push('.codex/.dhpk-installed.json — supporting asset receipt is not valid JSON');
@@ -368,7 +398,7 @@ function collectSupportingClosureErrors(root, sourceRoot, assets) {
     if (!fs.existsSync(target) || !fs.statSync(target).isFile()) {
       errors.push(`${relative(root, target)} — required Codex supporting asset is missing: ${destination}`);
     } else if (target.endsWith('.md')) {
-      errors.push(...collectCodexMarkdownReferenceErrors(root, target, assets));
+      errors.push(...collectCodexMarkdownReferenceErrors(root, target, assets, sourceRoot));
     }
   }
   return errors;
@@ -378,7 +408,7 @@ function readRoleMatrix(root) {
   const file = path.join(root, 'codex', 'agent-role-map.json');
   if (!fs.existsSync(file)) return null;
   try {
-    return JSON.parse(fs.readFileSync(file, 'utf8'));
+    return JSON.parse(readFileBounded(file).toString('utf8'));
   } catch {
     return null;
   }
@@ -392,7 +422,7 @@ function collectSupportingDispatchErrors(root, sourceRoot, assets) {
   const direct = new Set(namesFrom(path.join(sourceRoot, 'codex', 'agents'), '.toml'));
   const files = walkFiles(assets, (file) => file.endsWith('.md'));
   for (const file of files) {
-    const source = fs.readFileSync(file, 'utf8');
+    const source = readProjectionFile(file, [root, assets, sourceRoot]).toString('utf8');
     const relativeFile = relative(root, file);
     for (const match of source.matchAll(/\bdhpk:([a-z0-9]+(?:-[a-z0-9]+)*)/g)) {
       errors.push(`${relativeFile} — supporting Codex asset retains unsupported Claude namespace '${match[0]}'`);
@@ -433,9 +463,9 @@ function collectCodexProjectionReferenceErrors(root, sourceRoot = root) {
   errors.push(...collectSupportingClosureErrors(root, sourceRoot, assets));
   errors.push(...collectSupportingDispatchErrors(root, sourceRoot, assets));
   const referencePattern = /\.codex\/dhpk\/[A-Za-z0-9._/<>{}-]+\.md/g;
-  for (const name of fs.readdirSync(agents).filter((entry) => entry.endsWith('.toml')).sort()) {
+  for (const name of readDirectoryEntries(agents, { sort: true }).map((entry) => entry.name).filter((entry) => entry.endsWith('.toml'))) {
     const file = path.join(agents, name);
-    const source = fs.readFileSync(file, 'utf8');
+    const source = readProjectionFile(file, [root, sourceRoot]).toString('utf8');
     if (source.includes('${CLAUDE_PLUGIN_ROOT}')) {
       errors.push(`${relative(root, file)} — generated Codex role retains unsupported $\{CLAUDE_PLUGIN_ROOT\} interpolation`);
     }
@@ -472,7 +502,7 @@ function collectCodexCoverageErrors(root) {
 
   let matrix;
   try {
-    matrix = JSON.parse(fs.readFileSync(mapPath, 'utf8'));
+    matrix = JSON.parse(readFileBounded(mapPath).toString('utf8'));
   } catch (error) {
     return [`codex/agent-role-map.json — coverage matrix is not valid JSON: ${error.message}`];
   }
@@ -604,7 +634,7 @@ function collectCodexRuntimeErrors(root) {
   if (!fs.existsSync(codexAgentsDir)) {
     errors.push('codex/agents — projection directory is missing');
   } else {
-    for (const entry of fs.readdirSync(codexAgentsDir)) {
+    for (const entry of readDirectoryEntries(codexAgentsDir).map((item) => item.name)) {
       if (!entry.endsWith('.toml')) {
         errors.push(
           `${relative(root, path.join(codexAgentsDir, entry))} — Codex agent definitions must use the .toml format`,
@@ -614,7 +644,7 @@ function collectCodexRuntimeErrors(root) {
 
     for (const role of codexFiles) {
       const file = path.join(codexAgentsDir, `${role}.toml`);
-      const source = fs.readFileSync(file, 'utf8');
+      const source = readFileBounded(file).toString('utf8');
       const description = tomlStringField(source, 'description');
       const tierLabel = description && description.match(TIER_LABEL);
       if (tierLabel) {
@@ -638,7 +668,7 @@ function collectCodexRuntimeErrors(root) {
   if (!fs.existsSync(codexConfig)) {
     errors.push('codex/config.toml.example — example configuration is missing');
   } else {
-    const config = fs.readFileSync(codexConfig, 'utf8');
+    const config = readFileBounded(codexConfig).toString('utf8');
     const { hasConcurrency, legacyKeys, defaultModel, defaultEffort } = topLevelAgentsConfig(config);
     if (!hasConcurrency) {
       errors.push(

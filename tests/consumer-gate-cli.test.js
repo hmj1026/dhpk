@@ -190,6 +190,125 @@ test('consumer Codex fingerprints include destination Python bytecode integrity'
   }
 });
 
+test('project-local fingerprinting rejects symlinks that resolve outside approved roots', () => {
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-project-link-'));
+  const outsideRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-outside-link-'));
+  try {
+    const target = path.join(projectRoot, '.codex', 'skills', 'demo-skill');
+    const outside = path.join(outsideRoot, 'demo-skill');
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.mkdirSync(outside, { recursive: true });
+    fs.writeFileSync(path.join(outside, 'SKILL.md'), 'outside\n');
+    fs.symlinkSync(outside, target, 'dir');
+    const entries = discoverCodexSurface({
+      root: projectRoot,
+      surfaceRoot: path.join(projectRoot, '.codex'),
+      label: 'project-local',
+      version: '1.0.0',
+      allowedRoots: [projectRoot],
+    });
+    assert.strictEqual(entries.length, 1);
+    assert.match(entries[0].fingerprintError, /approved root|outside|symlink/i);
+    assert.strictEqual(entries[0].owned, false);
+  } finally {
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+    fs.rmSync(outsideRoot, { recursive: true, force: true });
+  }
+});
+
+test('project-local fingerprinting rejects a symlinked surface ancestor', () => {
+  const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-project-ancestor-'));
+  const outsideRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-outside-ancestor-'));
+  try {
+    const outsideSkills = path.join(outsideRoot, 'skills');
+    fs.mkdirSync(path.join(outsideSkills, 'demo-skill'), { recursive: true });
+    fs.writeFileSync(path.join(outsideSkills, 'demo-skill', 'SKILL.md'), 'outside\n');
+    fs.mkdirSync(path.join(projectRoot, '.codex'), { recursive: true });
+    fs.symlinkSync(outsideSkills, path.join(projectRoot, '.codex', 'skills'), 'dir');
+    assert.throws(() => discoverCodexSurface({
+      root: projectRoot,
+      surfaceRoot: path.join(projectRoot, '.codex'),
+      label: 'project-local',
+      version: '1.0.0',
+      allowedRoots: [projectRoot],
+    }), /approved root|outside|symlink/i);
+  } finally {
+    fs.rmSync(projectRoot, { recursive: true, force: true });
+    fs.rmSync(outsideRoot, { recursive: true, force: true });
+  }
+});
+
+test('native surface fingerprinting rejects a symlinked skill root', () => {
+  const nativeRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-native-link-'));
+  const outsideRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-native-outside-'));
+  try {
+    const target = path.join(nativeRoot, 'skills', 'demo-native');
+    const outside = path.join(outsideRoot, 'demo-native');
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.mkdirSync(outside, { recursive: true });
+    fs.writeFileSync(path.join(outside, 'SKILL.md'), 'outside\n');
+    fs.symlinkSync(outside, target, 'dir');
+    const entries = discoverCodexSurface({
+      root: nativeRoot,
+      surfaceRoot: nativeRoot,
+      label: 'native-experimental',
+      version: '1.0.0',
+      fingerprintFn: fingerprintDir,
+      expectedFingerprintFn: fingerprintDir,
+    });
+    assert.strictEqual(entries.length, 1);
+    assert.match(entries[0].fingerprintError, /symlink/i);
+    assert.strictEqual(entries[0].owned, false);
+  } finally {
+    fs.rmSync(nativeRoot, { recursive: true, force: true });
+    fs.rmSync(outsideRoot, { recursive: true, force: true });
+  }
+});
+
+test('native surface fingerprinting rejects a symlinked ancestor', () => {
+  const nativeRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-native-ancestor-'));
+  const outsideRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-native-outside-ancestor-'));
+  try {
+    const outsideSkills = path.join(outsideRoot, 'skills');
+    fs.mkdirSync(path.join(outsideSkills, 'demo-native'), { recursive: true });
+    fs.writeFileSync(path.join(outsideSkills, 'demo-native', 'SKILL.md'), 'outside\n');
+    fs.symlinkSync(outsideSkills, path.join(nativeRoot, 'skills'), 'dir');
+    assert.throws(() => discoverCodexSurface({
+      root: nativeRoot,
+      surfaceRoot: nativeRoot,
+      label: 'native-experimental',
+      version: '1.0.0',
+      fingerprintFn: fingerprintDir,
+      expectedFingerprintFn: fingerprintDir,
+    }), /symlink/i);
+  } finally {
+    fs.rmSync(nativeRoot, { recursive: true, force: true });
+    fs.rmSync(outsideRoot, { recursive: true, force: true });
+  }
+});
+
+test('consumer fingerprint traversal rejects excessive directory depth before unbounded recursion', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-fingerprint-depth-'));
+  try {
+    let current = root;
+    for (let depth = 0; depth < 4; depth += 1) {
+      current = path.join(current, `level-${depth}`);
+      fs.mkdirSync(current);
+    }
+    fs.writeFileSync(path.join(current, 'SKILL.md'), 'bounded\n');
+    assert.throws(
+      () => fingerprintPath(root, { maxDepth: 2 }),
+      /maximum directory depth/i,
+    );
+    assert.throws(
+      () => fingerprintPath(root, { maxBytes: 1 }),
+      /byte budget/i,
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('native surface ownership requires a tracked content fingerprint, not provenance shape alone', () => {
   const surfaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-native-surface-'));
   try {
