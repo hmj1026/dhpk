@@ -99,6 +99,29 @@ safety。schema-v3 receipt 記錄 stable ID、public name、destination、source
 mode 與 fingerprint。edited、user-owned、retargeted、malformed、ambiguous
 或 collision 檔案必須保留並回報。
 
+若 projection stale 或有 unowned collision，先執行唯讀 plan：
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" \
+  --update --plan --json
+```
+
+只有 owner 明確批准一個 exact collision，才把 plan 回報的 destination 與
+source fingerprint 帶入 adoption。省略 `--copy`，installer 會沿用 receipt
+原本的 projection mode，避免重新 materialize 無關的 managed entries：
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" \
+  --update \
+  --adopt='skills/dhpk-cross-agent-sync@<destination-fingerprint>@<source-fingerprint>'
+```
+
+adoption 只作用於指定 path，並會在 promotion 前建立可 rollback 的 backup；不會
+授權其他 path 或其他 consumer surface。若 plan 後 fingerprint 已改變，command
+會在 mutation 前失敗，必須重新 plan。完成後檢查
+`.codex/.dhpk-installed.json` 的 `adopted`、`backups` 與 `evidence.paths`，才可
+判定 projection 已 current。
+
 先從 consumer project root 驗證已 materialize 的 projection：
 
 ```bash

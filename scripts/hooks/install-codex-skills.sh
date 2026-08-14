@@ -7,6 +7,8 @@
 #   install-codex-skills.sh --copy           materialise regular files
 #   install-codex-skills.sh --update         reconcile an existing receipt
 #   install-codex-skills.sh --migrate        adopt exact legacy destinations
+#   install-codex-skills.sh --plan --json    report reconciliation evidence without writing
+#   install-codex-skills.sh --adopt <path>@<destination-fingerprint>@<source-fingerprint> explicitly adopt one reported collision
 #   install-codex-skills.sh --uninstall       remove unchanged owned entries
 #   install-codex-skills.sh --force          bypass project-root heuristic
 #
@@ -18,23 +20,45 @@
 set -euo pipefail
 
 MODE="symlink"
+MODE_EXPLICIT=0
 UPDATE=0
 FORCE=0
 MIGRATE=0
 UNINSTALL=0
-for arg in "$@"; do
+PLAN=0
+JSON_OUTPUT=0
+ADOPT_PATHS=""
+while [ "$#" -gt 0 ]; do
+    arg="$1"
     case "$arg" in
-        --copy) MODE="copy" ;;
+        --copy) MODE="copy"; MODE_EXPLICIT=1 ;;
         --update) UPDATE=1 ;;
         --migrate) MIGRATE=1 ;;
         --uninstall) UNINSTALL=1 ;;
+        --plan) PLAN=1 ;;
+        --json) JSON_OUTPUT=1 ;;
+        --adopt)
+            shift
+            if [ "$#" -eq 0 ]; then
+                echo "[install-codex-skills] --adopt requires a relative path" >&2
+                exit 2
+            fi
+            ADOPT_PATHS="${ADOPT_PATHS}${1}"$'\n'
+            ;;
+        --adopt=*) ADOPT_PATHS="${ADOPT_PATHS}${arg#--adopt=}"$'\n' ;;
         --force) FORCE=1 ;;
         --help|-h)
             sed -n '2,15p' "$0"
             exit 0 ;;
         *) echo "[install-codex-skills] unknown arg: $arg" >&2; exit 2 ;;
     esac
+    shift
 done
+
+if [ "$PLAN" -eq 1 ] && [ -n "$ADOPT_PATHS" ]; then
+    echo "[install-codex-skills] ERROR: --plan cannot be combined with --adopt" >&2
+    exit 2
+fi
 
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
 CODEX_SRC="$PLUGIN_ROOT/codex"
@@ -65,9 +89,13 @@ fi
 export DHPK_PLUGIN_ROOT="$PLUGIN_ROOT"
 export DHPK_PROJECT_ROOT="$PROJECT_ROOT"
 export DHPK_MODE="$MODE"
+export DHPK_MODE_EXPLICIT="$MODE_EXPLICIT"
 export DHPK_UPDATE="$UPDATE"
 export DHPK_MIGRATE="$MIGRATE"
 export DHPK_UNINSTALL="$UNINSTALL"
+export DHPK_PLAN="$PLAN"
+export DHPK_JSON_OUTPUT="$JSON_OUTPUT"
+export DHPK_ADOPT_PATHS="$ADOPT_PATHS"
 
 python3 - <<'PY'
 import datetime
@@ -75,8 +103,10 @@ import hashlib
 import json
 import os
 import shutil
+import stat
 import sys
 import tempfile
+import uuid
 
 PLUGIN_ROOT = os.environ['DHPK_PLUGIN_ROOT']
 PROJECT_ROOT = os.environ['DHPK_PROJECT_ROOT']
@@ -84,9 +114,13 @@ CODEX_SRC = os.path.join(PLUGIN_ROOT, 'codex')
 CODEX_ROOT = os.path.join(PROJECT_ROOT, '.codex')
 MANIFEST = os.path.join(CODEX_ROOT, '.dhpk-installed.json')
 MODE = os.environ.get('DHPK_MODE', 'symlink')
+MODE_EXPLICIT = os.environ.get('DHPK_MODE_EXPLICIT') == '1'
 UPDATE = os.environ.get('DHPK_UPDATE') == '1'
 MIGRATE = os.environ.get('DHPK_MIGRATE') == '1'
 UNINSTALL = os.environ.get('DHPK_UNINSTALL') == '1'
+PLAN = os.environ.get('DHPK_PLAN') == '1'
+JSON_OUTPUT = os.environ.get('DHPK_JSON_OUTPUT') == '1'
+ADOPT_PATHS = [path for path in os.environ.get('DHPK_ADOPT_PATHS', '').splitlines() if path]
 SCHEMA_VERSION = 3
 BACKUP_DIR = '.dhpk-backups'
 BACKUP_RUN = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ') + f'-{os.getpid()}'
@@ -97,9 +131,11 @@ BACKUP_RUN = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%
 evidence_paths = {
     'created': [],
     'updated': [],
+    'adopted': [],
     'migrated': [],
     'retired': [],
     'collisions': [],
+    'deferred': [],
     'orphaned': [],
 }
 evidence_ownership = {}
@@ -144,6 +180,22 @@ def ensure_manifest_safe():
         raise ValueError('project .codex receipt is not a regular file; refusing to mutate it')
 
 
+def has_symlink_ancestor(path):
+    """Reject aliases in the destination parent chain, not just the leaf."""
+    current = os.path.abspath(path)
+    root = os.path.abspath(CODEX_ROOT)
+    while current != root:
+        if not is_within(current, root):
+            return True
+        if os.path.islink(current):
+            return True
+        parent = os.path.dirname(current)
+        if parent == current:
+            return True
+        current = parent
+    return False
+
+
 def safe_destination(relative):
     if not isinstance(relative, str) or not relative or '\x00' in relative or '\\' in relative:
         raise ValueError('receipt destination is not a valid relative path')
@@ -153,11 +205,134 @@ def safe_destination(relative):
     ensure_codex_root_safe()
     destination = os.path.join(CODEX_ROOT, *relative.split('/'))
     root_real = os.path.realpath(CODEX_ROOT)
-    if not is_within(os.path.dirname(destination), root_real):
+    parent = os.path.dirname(destination)
+    if has_symlink_ancestor(parent):
+        raise ValueError(f'receipt destination has a symlinked parent: {relative}')
+    if not is_within(parent, root_real):
         raise ValueError(f'receipt destination parent escapes project .codex: {relative}')
     if lexists(destination) and not os.path.islink(destination) and not is_within(destination, root_real):
         raise ValueError(f'receipt destination escapes project .codex: {relative}')
     return destination
+
+
+_DIRECTORY_FLAGS = os.O_RDONLY | getattr(os, 'O_DIRECTORY', 0) | getattr(os, 'O_NOFOLLOW', 0)
+
+
+class ReceiptCommitError(OSError):
+    """Receipt replacement succeeded but its directory flush failed."""
+
+    def __init__(self, message, committed=False):
+        super().__init__(message)
+        self.committed = committed
+
+
+class AdoptionCommittedError(OSError):
+    """Publication and receipt committed; only post-commit cleanup failed."""
+
+
+def open_relative_directory(relative, create=False):
+    """Open a `.codex` descendant one component at a time without symlink follow."""
+    components = [component for component in relative.split('/') if component]
+    try:
+        fd = os.open(CODEX_ROOT, _DIRECTORY_FLAGS)
+    except FileNotFoundError:
+        if not create:
+            raise
+        os.mkdir(CODEX_ROOT, 0o700)
+        fd = os.open(CODEX_ROOT, _DIRECTORY_FLAGS)
+    try:
+        for component in components:
+            try:
+                child = os.open(component, _DIRECTORY_FLAGS, dir_fd=fd)
+            except FileNotFoundError:
+                if not create:
+                    raise
+                os.mkdir(component, 0o700, dir_fd=fd)
+                child = os.open(component, _DIRECTORY_FLAGS, dir_fd=fd)
+            os.close(fd)
+            fd = child
+        return fd
+    except Exception:
+        os.close(fd)
+        raise
+
+
+def fd_entry_path(fd, name):
+    for descriptor_root in ('/proc/self/fd', '/dev/fd'):
+        proc_fd = os.path.join(descriptor_root, str(fd))
+        if os.path.isdir(proc_fd):
+            return os.path.join(proc_fd, name)
+    raise ValueError('adoption requires a filesystem with descriptor-anchored paths')
+
+
+def fd_entry_exists(fd, name):
+    try:
+        os.stat(name, dir_fd=fd, follow_symlinks=False)
+        return True
+    except FileNotFoundError:
+        return False
+
+
+def fsync_tree(path):
+    """Flush a newly-created backup tree without following user links."""
+    try:
+        mode = os.lstat(path).st_mode
+    except FileNotFoundError:
+        return
+    if stat.S_ISLNK(mode):
+        return
+    flags = os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0)
+    fd = os.open(path, flags)
+    try:
+        if stat.S_ISDIR(mode):
+            for name in os.listdir(fd):
+                fsync_tree(os.path.join(path, name))
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
+def create_staging_directory(parent_fd):
+    for _ in range(20):
+        name = f'.dhpk-adopt-{uuid.uuid4().hex}'
+        try:
+            os.mkdir(name, 0o700, dir_fd=parent_fd)
+        except FileExistsError:
+            continue
+        return name, os.open(name, _DIRECTORY_FLAGS, dir_fd=parent_fd)
+    raise OSError('could not allocate a private adoption staging directory')
+
+
+def remove_fd_entry(fd, name):
+    if not fd_entry_exists(fd, name):
+        return
+    stat = os.stat(name, dir_fd=fd, follow_symlinks=False)
+    if stat.st_mode & 0o170000 == 0o040000 and not os.path.islink(fd_entry_path(fd, name)):
+        shutil.rmtree(fd_entry_path(fd, name))
+    else:
+        os.unlink(name, dir_fd=fd)
+
+
+def restore_fd_copy(backup_fd, backup_name, destination_fd, destination_name):
+    """Restore a pinned backup while retaining the backup for receipt evidence."""
+    if fd_entry_exists(destination_fd, destination_name):
+        return False
+    backup = fd_entry_path(backup_fd, backup_name)
+    destination = fd_entry_path(destination_fd, destination_name)
+    if os.path.islink(backup):
+        os.symlink(
+            os.readlink(backup_name, dir_fd=backup_fd),
+            destination_name,
+            target_is_directory=os.path.isdir(backup),
+            dir_fd=destination_fd,
+        )
+    elif os.path.isdir(backup):
+        shutil.copytree(backup, destination, symlinks=True)
+    else:
+        shutil.copy2(backup, destination)
+    fsync_tree(destination)
+    os.fsync(destination_fd)
+    return True
 
 
 def receipt_destination(kind, name, old):
@@ -183,8 +358,11 @@ def backup_destination(relative, destination, reason):
     """Copy a proven managed target into a rollback-addressable project path."""
     if not lexists(destination):
         return None
-    backup_root = os.path.join(CODEX_ROOT, BACKUP_DIR, BACKUP_RUN)
-    backup = os.path.join(backup_root, *relative.split('/'))
+    backup_relative = f'{BACKUP_DIR}/{BACKUP_RUN}/{relative}'
+    # Resolve every parent through the same containment gate as receipt
+    # destinations. An unowned `.dhpk-backups` symlink must never redirect a
+    # rollback copy outside this project's `.codex` tree.
+    backup = safe_destination(backup_relative)
     os.makedirs(os.path.dirname(backup), exist_ok=True)
     if os.path.islink(destination):
         os.symlink(os.readlink(destination), backup, target_is_directory=os.path.isdir(destination))
@@ -192,7 +370,9 @@ def backup_destination(relative, destination, reason):
         shutil.copytree(destination, backup, symlinks=True)
     else:
         shutil.copy2(destination, backup)
-    backup_relative = f'.codex/{BACKUP_DIR}/{BACKUP_RUN}/{relative}'
+    fsync_tree(backup)
+    fsync_tree(os.path.dirname(backup))
+    backup_relative = f'.codex/{backup_relative}'
     backup_records.append({
         'path': backup_relative,
         'original': relative,
@@ -201,6 +381,217 @@ def backup_destination(relative, destination, reason):
     })
     record_path('backed_up', relative)
     return backup_relative
+
+
+def restore_backup_copy(backup, destination):
+    """Restore a backup while retaining the rollback copy for evidence."""
+    if lexists(destination):
+        return False
+    os.makedirs(os.path.dirname(destination), exist_ok=True)
+    if os.path.islink(backup):
+        os.symlink(os.readlink(backup), destination, target_is_directory=os.path.isdir(backup))
+    elif os.path.isdir(backup):
+        shutil.copytree(backup, destination, symlinks=True)
+    else:
+        shutil.copy2(backup, destination)
+    return True
+
+
+def prepare_adoption_backup(relative, destination, expected_fingerprint):
+    """Copy a selected collision before receipt persistence, without detaching it."""
+    parent_relative, destination_name = os.path.split(relative)
+    destination_fd = open_relative_directory(parent_relative)
+    backup_relative = f'{BACKUP_DIR}/{BACKUP_RUN}/{relative}'
+    backup_parent_relative, backup_name = os.path.split(backup_relative)
+    try:
+        backup_fd = open_relative_directory(backup_parent_relative, create=True)
+    except Exception:
+        os.close(destination_fd)
+        raise
+    try:
+        if not fd_entry_exists(destination_fd, destination_name):
+            raise ValueError(f'adoption target disappeared: {relative}; run a fresh plan')
+        if fd_entry_exists(backup_fd, backup_name):
+            raise ValueError(f'adoption backup already exists: {relative}; retry with a fresh plan')
+        original = fd_entry_path(destination_fd, destination_name)
+        backup = fd_entry_path(backup_fd, backup_name)
+        if os.path.islink(original):
+            os.symlink(os.readlink(destination_name, dir_fd=destination_fd), backup_name, dir_fd=backup_fd)
+        elif os.path.isdir(original):
+            shutil.copytree(original, backup, symlinks=True)
+        else:
+            shutil.copy2(original, backup)
+        actual = safe_destination_fingerprint(backup)
+        if actual != expected_fingerprint:
+            remove_fd_entry(backup_fd, backup_name)
+            raise ValueError(f'adoption preflight changed: {relative}; run a fresh plan')
+        fsync_tree(backup)
+        os.fsync(backup_fd)
+    except Exception:
+        try:
+            if fd_entry_exists(backup_fd, backup_name) and not fd_entry_exists(destination_fd, destination_name):
+                os.rename(backup_name, destination_name, src_dir_fd=backup_fd, dst_dir_fd=destination_fd)
+        except OSError:
+            pass
+        os.close(backup_fd)
+        os.close(destination_fd)
+        raise
+    public_backup = f'.codex/{backup_relative}'
+    backup_records.append({
+        'path': public_backup,
+        'original': relative,
+        'reason': 'explicit-adoption',
+        'fingerprint': actual,
+    })
+    record_path('backed_up', relative)
+    return {
+        'public': public_backup,
+        'backup_fd': backup_fd,
+        'backup_name': backup_name,
+        'destination_fd': destination_fd,
+        'destination_name': destination_name,
+        'backup_path': fd_entry_path(backup_fd, backup_name),
+        'quarantine_name': None,
+        'receipt_persisted': False,
+    }
+
+
+def stage_materialization(source, destination, destination_fd):
+    """Build a new projection in a descriptor-pinned staging directory."""
+    stage_name, stage_fd = create_staging_directory(destination_fd)
+    staged_name = os.path.basename(destination)
+    staged = fd_entry_path(stage_fd, staged_name)
+    try:
+        if MODE == 'symlink':
+            os.symlink(source, staged_name, target_is_directory=os.path.isdir(source), dir_fd=stage_fd)
+        elif os.path.isdir(source):
+            shutil.copytree(source, staged, symlinks=False, ignore=ignore_distribution_entries)
+        else:
+            shutil.copy2(source, staged)
+        fsync_tree(staged)
+        os.fsync(stage_fd)
+        return stage_name, stage_fd, staged_name, staged
+    except Exception:
+        if fd_entry_exists(stage_fd, staged_name):
+            remove_fd_entry(stage_fd, staged_name)
+        os.close(stage_fd)
+        os.rmdir(stage_name, dir_fd=destination_fd)
+        raise
+
+
+def adopt_materialized(source, destination, relative, expected_source, expected_destination,
+                       persist_backup=None, persist_adoption=None):
+    """Publish one adoption with atomic detach, staging, and rollback checks."""
+    state = prepare_adoption_backup(relative, destination, expected_destination)
+    destination_fd = state['destination_fd']
+    destination_name = state['destination_name']
+    backup_fd = state['backup_fd']
+    backup_name = state['backup_name']
+    stage_fd = None
+    stage_name = None
+    staged_name = None
+    published_fingerprint = None
+    state['receipt_committed'] = False
+    try:
+        if persist_backup is not None:
+            # Make the detached original and its rollback path durable before
+            # any new projection bytes are published.
+            try:
+                persist_backup()
+            except ReceiptCommitError as error:
+                if error.committed:
+                    state['receipt_persisted'] = True
+                raise
+            state['receipt_persisted'] = True
+        quarantine_name = f'.dhpk-original-{uuid.uuid4().hex}'
+        os.rename(
+            state['destination_name'],
+            quarantine_name,
+            src_dir_fd=destination_fd,
+            dst_dir_fd=backup_fd,
+        )
+        state['quarantine_name'] = quarantine_name
+        os.fsync(backup_fd)
+        quarantined = fd_entry_path(backup_fd, quarantine_name)
+        if safe_destination_fingerprint(quarantined) != expected_destination:
+            restore_fd_copy(backup_fd, backup_name, destination_fd, destination_name)
+            raise ValueError(f'adoption preflight changed: {relative}; run a fresh plan')
+        if hash_path(source, include_ignored=False) != expected_source:
+            raise ValueError(f'adoption source changed: {relative}; run a fresh plan')
+        stage_name, stage_fd, staged_name, staged = stage_materialization(source, destination, destination_fd)
+        if hash_path(staged, include_ignored=False) != expected_source:
+            raise ValueError(f'adoption materialization changed: {relative}; run a fresh plan')
+        if hash_path(source, include_ignored=False) != expected_source:
+            raise ValueError(f'adoption source changed: {relative}; run a fresh plan')
+        if fd_entry_exists(destination_fd, destination_name):
+            raise ValueError(f'adoption target reappeared: {relative}; run a fresh plan')
+        os.replace(staged_name, destination_name, src_dir_fd=stage_fd, dst_dir_fd=destination_fd)
+        os.fsync(destination_fd)
+        published_fingerprint = safe_destination_fingerprint(fd_entry_path(destination_fd, destination_name))
+        if hash_path(source, include_ignored=False) != expected_source:
+            if (fd_entry_exists(destination_fd, destination_name)
+                    and safe_destination_fingerprint(fd_entry_path(destination_fd, destination_name)) == published_fingerprint):
+                remove_fd_entry(destination_fd, destination_name)
+            restore_fd_copy(backup_fd, backup_name, destination_fd, destination_name)
+            raise ValueError(f'adoption source changed: {relative}; run a fresh plan')
+        if persist_adoption is not None:
+            # Keep the original in quarantine and the rollback copy available
+            # until the final ownership receipt is durable. If this callback
+            # fails, the exception path restores the original before closing
+            # the descriptor-pinned transaction.
+            try:
+                persist_adoption()
+            except ReceiptCommitError as error:
+                if error.committed:
+                    state['receipt_committed'] = True
+                raise
+        state['receipt_committed'] = True
+        try:
+            remove_fd_entry(backup_fd, quarantine_name)
+            os.fsync(backup_fd)
+        except OSError as error:
+            # The replacement and receipt are already committed. Keep the
+            # quarantine/backup evidence for a later cleanup rather than
+            # rolling the projection back behind its durable receipt.
+            raise AdoptionCommittedError(f'adoption committed; quarantine cleanup deferred: {error}')
+        state['quarantine_name'] = None
+        return state['public']
+    except ReceiptCommitError:
+        if not state.get('receipt_committed'):
+            raise
+        raise
+    except Exception:
+        if state.get('receipt_committed'):
+            raise
+        if fd_entry_exists(destination_fd, destination_name) and published_fingerprint is not None:
+            try:
+                if safe_destination_fingerprint(fd_entry_path(destination_fd, destination_name)) == published_fingerprint:
+                    remove_fd_entry(destination_fd, destination_name)
+            except OSError:
+                pass
+        if (fd_entry_exists(backup_fd, backup_name)
+                and not fd_entry_exists(destination_fd, destination_name)):
+            restore_fd_copy(backup_fd, backup_name, destination_fd, destination_name)
+        if (not state['receipt_persisted'] and fd_entry_exists(backup_fd, backup_name)
+                and fd_entry_exists(destination_fd, destination_name)):
+            remove_fd_entry(backup_fd, backup_name)
+        if state.get('quarantine_name') and fd_entry_exists(backup_fd, state['quarantine_name']):
+            remove_fd_entry(backup_fd, state['quarantine_name'])
+        raise
+    finally:
+        if stage_fd is not None:
+            try:
+                if staged_name and fd_entry_exists(stage_fd, staged_name):
+                    remove_fd_entry(stage_fd, staged_name)
+            finally:
+                os.close(stage_fd)
+                if stage_name:
+                    try:
+                        os.rmdir(stage_name, dir_fd=destination_fd)
+                    except FileNotFoundError:
+                        pass
+        os.close(backup_fd)
+        os.close(destination_fd)
 
 
 def is_ignored_distribution_name(name):
@@ -555,6 +946,184 @@ def exact_source_match(source, destination):
     return hash_path(source, include_ignored=False) == hash_path(destination)
 
 
+def hash_path_without_following_links(path):
+    """Hash a destination without traversing user-controlled symlinks."""
+    digest = hashlib.sha256()
+    if os.path.islink(path):
+        digest.update(b'symlink\0')
+        digest.update(os.readlink(path).encode('utf-8'))
+        return digest.hexdigest()
+    if os.path.isfile(path):
+        digest.update(b'file\0')
+        with open(path, 'rb') as fh:
+            for chunk in iter(lambda: fh.read(1024 * 1024), b''):
+                digest.update(chunk)
+        return digest.hexdigest()
+    if not os.path.isdir(path):
+        return ''
+    digest.update(b'dir\0')
+    for name in sorted(os.listdir(path)):
+        child = os.path.join(path, name)
+        digest.update(name.replace(os.sep, '/').encode('utf-8'))
+        digest.update(b'\0')
+        digest.update(hash_path_without_following_links(child).encode('ascii'))
+        digest.update(b'\0')
+    return digest.hexdigest()
+
+
+def safe_destination_fingerprint(destination):
+    if contains_symlink(destination):
+        return hash_path_without_following_links(destination)
+    return hash_path(destination)
+
+
+def build_plan(receipt, classification, sources, metadata, plugin_version, fingerprint):
+    """Build a relative-path-only reconciliation report without writing state."""
+    entries = entry_map(receipt)
+    collisions = []
+    missing = []
+    updates = []
+    retired = []
+    for kind in ('skills', 'agents', 'supporting_assets'):
+        for name, (source, relative) in sources[kind].items():
+            try:
+                destination = target_for(relative)
+            except ValueError as error:
+                collisions.append({
+                    'path': relative,
+                    'kind': kind,
+                    'name': name,
+                    'ownership': 'unsafe-path',
+                    'error': str(error),
+                    'action': 'repair-source-inventory',
+                })
+                continue
+            old = entries[kind].get(name)
+            source_fp = hash_path(source, include_ignored=False)
+            if not lexists(destination):
+                missing.append({'path': relative, 'kind': kind, 'name': name, 'source_fingerprint': source_fp})
+                continue
+            destination_fp = safe_destination_fingerprint(destination)
+            owned = is_owned(old, destination)
+            if not owned:
+                ownership = 'orphaned' if isinstance(old, dict) and old.get('orphaned') else 'unowned-collision'
+                collisions.append({
+                    'path': relative,
+                    'kind': kind,
+                    'name': name,
+                    'ownership': ownership,
+                    'source_fingerprint': source_fp,
+                    'destination_fingerprint': destination_fp,
+                    'action': f'--adopt={relative}@{destination_fp}@{source_fp}',
+                })
+                continue
+            if old.get('mode') != MODE or not exact_source_match(source, destination):
+                updates.append({
+                    'path': relative,
+                    'kind': kind,
+                    'name': name,
+                    'ownership': 'dhpk-managed',
+                    'source_fingerprint': source_fp,
+                    'destination_fingerprint': destination_fp,
+                    'action': '--update',
+                })
+    for kind in ('skills', 'agents', 'supporting_assets'):
+        for name, old in entries[kind].items():
+            if name in sources[kind]:
+                continue
+            relative = (old.get('destination') or old.get('source')) if isinstance(old, dict) else f'{kind}/{name}'
+            try:
+                safe_destination(relative)
+            except ValueError as error:
+                retired.append({
+                    'path': f'<unsafe-receipt-path:{kind}/{name}>',
+                    'kind': kind,
+                    'name': name,
+                    'ownership': 'unsafe-receipt-path',
+                    'error': str(error),
+                    'action': 'repair-receipt',
+                })
+                continue
+            retired.append({'path': relative, 'kind': kind, 'name': name, 'ownership': 'receipt-entry'})
+    reconciliation = receipt.get('reconciliation') if isinstance(receipt, dict) else {}
+    reconciliation_state = reconciliation.get('state') if isinstance(reconciliation, dict) else None
+    if reconciliation_state not in ('current', 'partial', 'stale'):
+        reconciliation_state = receipt.get('state') if isinstance(receipt, dict) else None
+    if reconciliation_state not in ('current', 'partial', 'stale'):
+        reconciliation_state = classification.get('state')
+    if collisions:
+        state = 'requires_adoption'
+    elif classification.get('requires_migration') or reconciliation_state in ('partial', 'stale') or missing or updates or retired:
+        state = 'stale'
+    else:
+        state = 'current'
+    next_action = None
+    if collisions:
+        next_action = 'review collision evidence, then re-run with --update --adopt=<reported-relative-path>@<destination-fingerprint>@<source-fingerprint>'
+    elif state != 'current':
+        next_action = 're-run with --update (and --migrate when the receipt is legacy)'
+    return {
+        'schema_version': SCHEMA_VERSION,
+        'plugin_version': plugin_version,
+        'receipt_state': reconciliation_state,
+        'reconciliation_state': reconciliation_state,
+        'state': state,
+        'source_fingerprint': fingerprint,
+        'collisions': sorted(collisions, key=lambda item: item.get('path', '')),
+        'missing': sorted(missing, key=lambda item: item.get('path', '')),
+        'updates': sorted(updates, key=lambda item: item.get('path', '')),
+        'retired': sorted(retired, key=lambda item: item.get('path', '')),
+        'next_action': next_action,
+    }
+
+
+def print_plan(report):
+    if JSON_OUTPUT:
+        print(json.dumps(report, indent=2, sort_keys=True))
+    else:
+        print(f"[install-codex-skills] plan: state={report['state']} receipt_state={report['receipt_state']}")
+        for collision in report['collisions']:
+            print(
+                '[install-codex-skills] collision: '
+                f"{collision['path']} ownership={collision['ownership']} "
+                f"action={collision['action']}"
+            )
+        if report.get('next_action'):
+            print(f"[install-codex-skills] ACTION REQUIRED: {report['next_action']}")
+    sys.exit(0 if report['state'] == 'current' else 1)
+
+
+def validate_adoptions(plan):
+    raw_requests = sorted(set(ADOPT_PATHS))
+    if not raw_requests:
+        return {}
+    if not UPDATE:
+        raise ValueError('--adopt requires --update')
+    by_path = {item.get('path'): item for item in plan.get('collisions', [])}
+    requested = {}
+    for raw in raw_requests:
+        parts = raw.rsplit('@', 2)
+        if len(parts) != 3:
+            raise ValueError('--adopt requires path@destination-fingerprint@source-fingerprint from a fresh plan')
+        relative, expected, expected_source = parts
+        for label, value in (('destination', expected), ('source', expected_source)):
+            if len(value) != 64 or any(char not in '0123456789abcdefABCDEF' for char in value):
+                raise ValueError(f'adoption {label} fingerprint is invalid: {relative}')
+        destination = target_for(relative)
+        item = by_path.get(relative)
+        if item is None:
+            raise ValueError(f'adoption path was not reported as a collision: {relative}')
+        if os.path.islink(destination) or contains_symlink(destination):
+            raise ValueError(f'adoption target contains a symlink: {relative}')
+        current = safe_destination_fingerprint(destination)
+        if (expected != item.get('destination_fingerprint')
+                or expected_source != item.get('source_fingerprint')
+                or current != expected):
+            raise ValueError(f'adoption preflight changed: {relative}; run a fresh plan')
+        requested[relative] = expected_source
+    return requested
+
+
 def install(source, destination):
     os.makedirs(os.path.dirname(destination), exist_ok=True)
     remove_path(destination)
@@ -632,7 +1201,6 @@ def build_evidence(plugin_version, fingerprint, entries, counts, state):
 
 def save_receipt(plugin_version, fingerprint, entries, orphaned, counts, legacy_pending=False, state=None):
     ensure_manifest_safe()
-    os.makedirs(CODEX_ROOT, exist_ok=True)
     if state is None:
         if legacy_pending:
             state = 'stale'
@@ -663,21 +1231,40 @@ def save_receipt(plugin_version, fingerprint, entries, orphaned, counts, legacy_
     }
     if legacy_pending:
         receipt['legacy_pending'] = True
-    fd, temporary = tempfile.mkstemp(prefix='.dhpk-installed.json.', dir=CODEX_ROOT)
+    root_fd = open_relative_directory('', create=True)
+    temporary_name = f'.dhpk-installed.json.{uuid.uuid4().hex}'
     try:
+        fd = os.open(
+            temporary_name,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, 'O_NOFOLLOW', 0),
+            0o600,
+            dir_fd=root_fd,
+        )
         with os.fdopen(fd, 'w', encoding='utf-8') as fh:
             json.dump(receipt, fh, indent=2, sort_keys=True)
             fh.write('\n')
-        os.replace(temporary, MANIFEST)
+            fh.flush()
+            os.fsync(fh.fileno())
+        os.replace(temporary_name, os.path.basename(MANIFEST), src_dir_fd=root_fd, dst_dir_fd=root_fd)
+        try:
+            os.fsync(root_fd)
+        except OSError as error:
+            raise ReceiptCommitError(
+                f'receipt committed but directory durability failed: {error}',
+                committed=True,
+            )
     finally:
-        if lexists(temporary):
-            os.unlink(temporary)
+        try:
+            os.unlink(temporary_name, dir_fd=root_fd)
+        except FileNotFoundError:
+            pass
+        os.close(root_fd)
     return receipt
 
 
 def print_summary(counts, collisions, orphaned):
     print('[install-codex-skills] reconciliation: ' + ', '.join(f'{k}={counts[k]}' for k in (
-        'created', 'updated', 'migrated', 'preserved', 'skipped_collision', 'collided',
+        'created', 'updated', 'adopted', 'migrated', 'preserved', 'skipped_collision', 'collided',
         'pruned', 'retired', 'backed_up', 'orphaned')))
     for relative in sorted(collisions):
         print(f'[install-codex-skills] collision preserved: {relative}')
@@ -819,6 +1406,22 @@ except ValueError as error:
     print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
     sys.exit(2)
 
+if ADOPT_PATHS:
+    recorded_mode = receipt.get('mode') if isinstance(receipt, dict) else None
+    if recorded_mode not in ('symlink', 'copy'):
+        print('[install-codex-skills] ERROR: --adopt requires a schema-v3 receipt with a recorded projection mode', file=sys.stderr)
+        sys.exit(2)
+    if MODE_EXPLICIT and MODE != recorded_mode:
+        print(
+            f'[install-codex-skills] ERROR: --adopt mode mismatch: receipt uses {recorded_mode}, requested {MODE}; omit --copy or use the recorded mode',
+            file=sys.stderr,
+        )
+        sys.exit(2)
+    if not MODE_EXPLICIT:
+        # A path-scoped adoption must not turn a symlink projection into a
+        # copy projection (or vice versa) for unrelated managed entries.
+        MODE = recorded_mode
+
 classification = classify_receipt(receipt, legacy, sources, skill_metadata, plugin_version, fingerprint)
 legacy_pending = bool(
     legacy
@@ -828,7 +1431,7 @@ legacy_pending = bool(
 entries = entry_map(receipt)
 orphaned = dict(receipt.get('orphaned_entries') or {}) if isinstance(receipt, dict) else {}
 counts = {k: 0 for k in (
-    'created', 'updated', 'migrated', 'preserved', 'skipped_collision', 'collided',
+    'created', 'updated', 'adopted', 'migrated', 'preserved', 'skipped_collision', 'collided',
     'pruned', 'retired', 'backed_up', 'orphaned',
 )}
 collisions = []
@@ -838,6 +1441,16 @@ def clear_orphaned(*relatives):
     for relative in relatives:
         if isinstance(relative, str) and relative:
             orphaned.pop(relative, None)
+
+
+plan = build_plan(receipt, classification, sources, skill_metadata, plugin_version, fingerprint)
+if PLAN:
+    print_plan(plan)
+try:
+    adopt_paths = validate_adoptions(plan)
+except ValueError as error:
+    print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
+    sys.exit(2)
 
 if classification.get('requires_migration') and not MIGRATE and UNINSTALL is False:
     print('[install-codex-skills] state=stale_receipt: explicit migration is required before changing this projection', file=sys.stderr)
@@ -912,11 +1525,11 @@ os.makedirs(os.path.join(CODEX_ROOT, 'agents'), exist_ok=True)
 # Public-name migration must run before the generic update-prune pass: an old
 # receipt key is not a current source name, but it remains protected when the
 # inventory migration cannot prove ownership.
-if UPDATE or MIGRATE:
+if (UPDATE or MIGRATE) and not ADOPT_PATHS:
     migrate_legacy_skill_names(entries, orphaned, counts, collisions, sources, skill_metadata)
 
 # Reconcile entries removed from the source only during an explicit update.
-if UPDATE:
+if UPDATE and not ADOPT_PATHS:
     for kind in ('skills', 'agents', 'supporting_assets'):
         for name in list(entries[kind]):
             if name in sources[kind]:
@@ -960,6 +1573,22 @@ for kind in ('skills', 'agents', 'supporting_assets'):
             print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
             sys.exit(2)
         old = entries[kind].get(name)
+        if ADOPT_PATHS and relative not in adopt_paths:
+            # An explicit adoption authorizes only the reported paths. Leave
+            # every unrelated source entry, including missing, stale-owned,
+            # and unowned targets, unchanged for a later normal update.
+            if (not lexists(destination)
+                    or not is_owned(old, destination)
+                    or old.get('mode') != MODE
+                    or not exact_source_match(source, destination)):
+                record_path('deferred', relative)
+                if relative not in collisions:
+                    collisions.append(relative)
+                    counts['skipped_collision'] += 1
+                    counts['preserved'] += 1
+                    record_path('collisions', relative)
+                    record_ownership(relative, 'deferred-adoption')
+            continue
         if lexists(destination):
             owned = is_owned(old, destination)
             adopted = False
@@ -973,6 +1602,75 @@ for kind in ('skills', 'agents', 'supporting_assets'):
                 record_ownership(relative, 'dhpk-managed')
                 continue
             if not owned:
+                if relative in adopt_paths:
+                    expected = next(
+                        item.get('destination_fingerprint')
+                        for item in plan.get('collisions', [])
+                        if item.get('path') == relative
+                    )
+                    expected_source = adopt_paths[relative]
+                    if (safe_destination_fingerprint(destination) != expected
+                            or hash_path(source, include_ignored=False) != expected_source):
+                        print(
+                            f'[install-codex-skills] ERROR: adoption preflight changed: {relative}; run a fresh plan',
+                            file=sys.stderr,
+                        )
+                        sys.exit(2)
+                    counts['backed_up'] += 1
+
+                    def persist_adopted():
+                        # Update the in-memory ownership record before the
+                        # final receipt write. adopt_materialized keeps the
+                        # original quarantined until this callback succeeds,
+                        # so a receipt failure restores the old projection.
+                        entries[kind][name] = make_entry(
+                            source,
+                            relative,
+                            destination,
+                            skill_metadata.get(name) if kind == 'skills' else None,
+                        )
+                        clear_orphaned(relative)
+                        counts['adopted'] += 1
+                        record_path('adopted', relative)
+                        record_ownership(relative, 'dhpk-managed')
+                        save_receipt(
+                            plugin_version,
+                            fingerprint,
+                            entries,
+                            orphaned,
+                            counts,
+                            legacy_pending=legacy_pending,
+                            state='partial',
+                        )
+
+                    try:
+                        adopt_materialized(
+                            source,
+                            destination,
+                            relative,
+                            expected_source,
+                            expected,
+                            persist_backup=lambda: save_receipt(
+                                plugin_version,
+                                fingerprint,
+                                entries,
+                                orphaned,
+                                counts,
+                                legacy_pending=legacy_pending,
+                                state='partial',
+                            ),
+                            persist_adoption=persist_adopted,
+                        )
+                    except ReceiptCommitError as error:
+                        print(f'[install-codex-skills] ERROR: adoption receipt commit completed but durability flush failed: {error}', file=sys.stderr)
+                        sys.exit(2)
+                    except AdoptionCommittedError as error:
+                        print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
+                        sys.exit(2)
+                    except (OSError, ValueError) as error:
+                        print(f'[install-codex-skills] ERROR: adoption rolled back: {error}', file=sys.stderr)
+                        sys.exit(2)
+                    continue
                 collisions.append(relative)
                 counts['skipped_collision'] += 1
                 counts['preserved'] += 1
@@ -1010,7 +1708,11 @@ for kind in ('skills', 'agents', 'supporting_assets'):
 
 if legacy_pending and MIGRATE and not collisions:
     legacy_pending = False
-reconciliation_state = 'stale' if legacy_pending else ('partial' if collisions or orphaned else 'current')
+reconciliation_state = (
+    'stale'
+    if legacy_pending
+    else ('partial' if collisions or orphaned or evidence_paths.get('deferred') else 'current')
+)
 save_receipt(
     plugin_version,
     fingerprint,

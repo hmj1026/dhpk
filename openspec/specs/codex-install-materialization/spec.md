@@ -21,12 +21,22 @@ The supported Codex installer SHALL compare the receipt schema/version, source f
 
 ### Requirement: Reconciliation preserves unowned collisions
 
-Update and migration SHALL classify destination collisions by ownership and exact source match. Only proven dhpk-managed targets may be replaced or pruned; an unowned same-name file, directory, or link SHALL receive a safe collision diagnostic and SHALL remain recoverable.
+Update and migration SHALL classify destination collisions by ownership and exact source match. Only proven dhpk-managed targets may be replaced or pruned; an unowned same-name file, directory, or link SHALL receive a safe collision diagnostic and SHALL remain recoverable. The installer SHALL additionally provide a read-only JSON planning mode and an explicit path-scoped adoption mode. Planning SHALL not mutate the projection; adoption SHALL require an exact reported path, matching source and destination preflight fingerprints, and a rollback-addressable backup before ownership is changed. When no mode is explicitly supplied for adoption, the receipt's recorded mode SHALL be preserved.
 
 #### Scenario: Unowned legacy file collides with a canonical name
 
 - **WHEN** migration encounters a same-name destination that is not proven dhpk-managed
 - **THEN** the installer reports the collision, does not overwrite or delete it implicitly, and records the blocked entry for an explicit owner decision
+
+#### Scenario: Owner explicitly adopts a collision
+
+- **WHEN** an owner supplies an exact collision path and both fingerprints from a fresh planning report and they remain unchanged
+- **THEN** the installer creates a rollback-addressable backup, reconciles only that path into receipt ownership, and records the adoption evidence
+
+#### Scenario: Adoption preflight is stale
+
+- **WHEN** the selected collision or its source differs from the planning fingerprints before adoption
+- **THEN** the installer exits before mutation and requires a new plan and explicit confirmation
 
 #### Scenario: Managed entry is retired
 
@@ -37,7 +47,8 @@ Update and migration SHALL classify destination collisions by ownership and exac
 
 Every reconciliation SHALL report source/destination paths, ownership
 classification, version/schema, fingerprints, and counts for updated, skipped,
-collided, and retired entries. The distributable source tree used for
+collided, and retired entries. Planning reports SHALL be JSON-serializable and
+SHALL not write receipt or projection state. The distributable source tree used for
 fingerprints and copy mode SHALL exclude `__pycache__/` directories and files
 ending in `.pyc`, and the same exclusion SHALL apply to normal and atomic
 materialization. Any migration backup SHALL be addressable for rollback, and a
@@ -80,3 +91,8 @@ failed reconciliation SHALL not claim success.
   are processed
 - **THEN** the installer exits non-zero, reports the incomplete state, and does
   not mark the receipt as fully current
+
+#### Scenario: Planning is read-only
+
+- **WHEN** an operator requests a JSON plan for a stale projection
+- **THEN** the report includes the complete evidence needed for an owner decision and the projection and receipt hashes remain unchanged
