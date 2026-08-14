@@ -221,7 +221,19 @@ cursor-agent status
 cursor-agent login  # only when status reports Not logged in
 ```
 
-For a launch-scoped, read-only probe, pass both package directories explicitly:
+For a launch-scoped, read-only probe, use the bounded wrapper and pass both
+package directories explicitly. It invokes the command below with a finite
+timeout and output cap:
+
+```bash
+node scripts/release/cursor-agent-probe.js \
+  --agent-package "$HOME/.cursor/plugins/local/dhpk-agent" \
+  --cursor-package "$HOME/.cursor/plugins/local/dhpk-cursor" \
+  --timeout-ms 60000 \
+  --max-output-bytes 262144
+```
+
+The wrapper's launch command is equivalent to:
 
 ```bash
 cursor-agent \
@@ -237,6 +249,14 @@ output. A successful package validator proves structure and provenance only;
 runtime `PASS` requires the CLI or Cursor UI to discover the projected content;
 until then keep the CLI route `NOT_RUN` or `BLOCKED`. If the CLI reports
 `Authentication required`, the evidence is `BLOCKED` until login is completed.
+The probe enforces a 5-minute timeout ceiling and a 4 MiB output ceiling even
+when larger values are requested.
+If the wrapper reports `BLOCKED` with `timed_out: true` or
+`output_limited: true`, no consumer result was produced; retain the bounded,
+redacted diagnostic and rerun only with another finite limit.
+The wrapper also blocks an empty, invalid, or capability-negative response;
+only a response containing the requested dhpk skills, commands, agents, and
+rules evidence can be recorded as a completed probe.
 If the installed CLI has no `--plugin-dir`, record `UNAVAILABLE` and use the
 Cursor UI/local-plugin route instead.
 
