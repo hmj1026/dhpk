@@ -5,9 +5,9 @@
 // results. Git env vars are stripped so test subprocesses never accidentally
 // operate on the harness's own repo state.
 
-const { spawnSync } = require('node:child_process');
 const fs = require('node:fs');
 const path = require('node:path');
+const { runNodeTest } = require('../scripts/lib/bounded-child-process');
 
 const TESTS_DIR = __dirname;
 
@@ -29,15 +29,26 @@ const env = { ...process.env };
 for (const k of ['GIT_DIR', 'GIT_WORK_TREE', 'GIT_INDEX_FILE', 'GIT_OBJECT_DIRECTORY']) {
   delete env[k];
 }
+if (!env.NODE_OPTIONS || !env.NODE_OPTIONS.includes('--max-old-space-size')) {
+  env.NODE_OPTIONS = `--max-old-space-size=2048 ${env.NODE_OPTIONS || ''}`.trim();
+}
 
 const files = findTests(TESTS_DIR).sort();
+const timeoutMs = Number(env.DHPK_TEST_TIMEOUT_MS || 60000);
+if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) {
+  console.error(`Invalid DHPK_TEST_TIMEOUT_MS: ${env.DHPK_TEST_TIMEOUT_MS}`);
+  process.exit(2);
+}
 let failed = 0;
 
 for (const file of files) {
   const rel = path.relative(TESTS_DIR, file);
   console.log(`\n# ${rel}`);
-  const res = spawnSync('node', [file], { stdio: 'inherit', env });
-  if (res.status !== 0) failed += 1;
+  const res = runNodeTest(file, { env, timeoutMs });
+  if (res.status !== 0 || res.error) {
+    failed += 1;
+    if (res.error) console.error(`ERROR in ${rel}: ${res.error.message}`);
+  }
 }
 
 console.log(`\n========================================`);

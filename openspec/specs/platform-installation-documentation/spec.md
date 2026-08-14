@@ -100,6 +100,29 @@ and unavailable tooling.
   variable configuration without committed secrets, hook safety, refresh,
   update, remove, shared-skill ownership, and Cursor-owned rollback
 
+### Requirement: AGY installation and evidence boundaries are documented
+
+The bilingual canonical guides SHALL document the inventory-owned AGY package,
+its `~/.gemini/config/plugins/dhpk/` install/update/uninstall/rollback route,
+receipt ownership and collision behavior, prerequisites, and exact structural
+and consumer commands. The guides SHALL keep package validation, `agy plugins
+list`, `agy agents`, and bounded read-only Subagent runtime evidence separate,
+and SHALL use `UNAVAILABLE`/`NOT_RUN` rather than claiming runtime support when
+the AGY CLI is absent or the probe was not executed.
+
+#### Scenario: AGY package is installed without the CLI
+
+- **WHEN** a maintainer validates and installs `plugins/dhpk-agy/` but `agy`
+  is unavailable
+- **THEN** the guide records structural evidence separately and labels consumer
+  discovery `UNAVAILABLE` and runtime `NOT_RUN`
+
+#### Scenario: AGY ownership collision is encountered
+
+- **WHEN** a user-owned file collides with the receipt-owned AGY destination
+- **THEN** the guide instructs the user to stop, preserve the file, and use
+  rollback/uninstall only for matching AGY-owned fingerprints
+
 ### Requirement: Installation docs disclose prerequisites and status vocabulary
 
 Every installation section SHALL list required client/version/OS/tooling
@@ -140,4 +163,3 @@ drift.
 - **WHEN** every affected document has current surface-specific instructions or
   a canonical-guide link and both language variants agree
 - **THEN** the documentation gate passes its cross-file consistency checks
-

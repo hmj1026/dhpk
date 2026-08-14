@@ -6,14 +6,37 @@ const path = require('path');
 
 const TOOL_NAME_MAP = new Map([
   ['Read', 'read_file'],
-  ['Write', 'write_file'],
-  ['Edit', 'replace'],
-  ['Bash', 'run_shell_command'],
+  ['Write', 'write_to_file'],
+  ['Edit', 'replace_file_content'],
+  ['Bash', 'run_command'],
   ['Grep', 'grep_search'],
   ['Glob', 'glob'],
-  ['WebSearch', 'google_web_search'],
-  ['WebFetch', 'web_fetch'],
+  ['WebSearch', 'search_web'],
+  ['WebFetch', 'read_url_content'],
+  ['Agent', 'invoke_subagent'],
+  // Claude's Skill pseudo-tool is a subagent-style dispatch in AGY. Keep the
+  // compatibility alias explicit so the complete canonical roster remains
+  // loadable while the transform stays fail-closed for unknown tools.
+  ['Skill', 'invoke_subagent'],
 ]);
+
+const MODEL_NAME_MAP = new Map([
+  ['opus', 'pro'],
+  ['sonnet', 'pro'],
+  ['fable', 'flash'],
+  ['haiku', 'flash_lite'],
+]);
+
+const VALID_AGY_MODELS = new Set(['inherit', 'flash_lite', 'flash', 'pro']);
+const SUPPORTED_AGY_TOOLS = new Set([
+  ...TOOL_NAME_MAP.values(),
+  'list_dir',
+  'view_file',
+  'replace_file_content',
+  'multi_replace_file_content',
+  'mcp',
+]);
+const FRONTMATTER_ALLOWLIST = new Set(['name', 'description', 'tools', 'model']);
 
 function usage() {
   return [
@@ -23,7 +46,7 @@ function usage() {
     '  node scripts/gemini-adapt-agents.js [agents-dir]',
     '',
     'Defaults to .gemini/agents under the current working directory.',
-    'Rewrites tools: to Gemini-compatible tool names and removes unsupported color: metadata.'
+    'Rewrites tools/model metadata to the AGY contract and removes unsupported Claude fields.'
   ].join('\n');
 }
 
@@ -57,19 +80,44 @@ function stripQuotes(value) {
   return value.trim().replace(/^['"]|['"]$/g, '');
 }
 
+function splitCommaSeparated(value) {
+  const parts = [];
+  let current = '';
+  let quote = '';
+
+  for (const char of value) {
+    if ((char === '"' || char === "'") && (!quote || quote === char)) {
+      quote = quote ? '' : char;
+      current += char;
+      continue;
+    }
+    if (char === ',' && !quote) {
+      if (current.trim()) parts.push(current.trim());
+      current = '';
+      continue;
+    }
+    current += char;
+  }
+
+  if (current.trim()) parts.push(current.trim());
+  return parts;
+}
+
 function parseToolList(line) {
-  const match = line.match(/^(\s*tools\s*:\s*)\[(.*)\]\s*$/);
+  const match = line.match(/^\s*tools\s*:\s*(.*)$/);
   if (!match) {
     return null;
   }
 
-  const rawItems = match[2].trim();
+  let rawItems = match[1].trim();
+  if (rawItems.startsWith('[') && rawItems.endsWith(']')) {
+    rawItems = rawItems.slice(1, -1).trim();
+  }
   if (!rawItems) {
     return [];
   }
 
-  return rawItems
-    .split(',')
+  return splitCommaSeparated(rawItems)
     .map(part => stripQuotes(part))
     .filter(Boolean);
 }
@@ -95,38 +143,81 @@ function formatToolLine(tools) {
   return `tools: [${tools.map(tool => JSON.stringify(tool)).join(', ')}]`;
 }
 
-function adaptFrontmatter(text) {
-  const match = text.match(/^---\n([\s\S]*?)\n---(\n|$)/);
+function parseFrontmatterKey(line) {
+  const match = line.match(/^\s*([A-Za-z0-9_-]+)\s*:\s*(.*)$/);
+  return match ? { key: match[1], value: match[2] } : null;
+}
+
+function adaptModel(value, filePath) {
+  const model = stripQuotes(value);
+  if (!model) return 'inherit';
+  const mapped = MODEL_NAME_MAP.get(model) || model;
+  if (!VALID_AGY_MODELS.has(mapped)) {
+    const location = filePath ? ` in ${filePath}` : '';
+    throw new Error(`Unsupported AGY model '${model}'${location}`);
+  }
+  return mapped;
+}
+
+function adaptToolNames(tools, filePath) {
+  const adaptedTools = [];
+  const seen = new Set();
+
+  for (const sourceTool of tools) {
+    const tool = adaptToolName(sourceTool);
+    const isMcpTool = tool.startsWith('mcp_');
+    if (!SUPPORTED_AGY_TOOLS.has(tool) && !isMcpTool) {
+      const location = filePath ? ` in ${filePath}` : '';
+      throw new Error(`Unsupported AGY tool '${sourceTool}'${location}`);
+    }
+    if (seen.has(tool)) continue;
+    seen.add(tool);
+    adaptedTools.push(tool);
+  }
+
+  return adaptedTools;
+}
+
+function adaptFrontmatter(text, options = {}) {
+  const match = text.match(/^---\r?\n([\s\S]*?)\r?\n---(\r?\n|$)/);
   if (!match) {
-    return { text, changed: false };
+    return { text, changed: false, droppedFields: [], warnings: [] };
   }
 
   let changed = false;
   const updatedLines = [];
+  const droppedFields = [];
+  const warnings = [];
+  let sawTools = false;
+  let sawModel = false;
 
   for (const line of match[1].split('\n')) {
-    if (/^\s*color\s*:/.test(line)) {
+    const parsed = parseFrontmatterKey(line);
+    if (!parsed) {
+      updatedLines.push(line);
+      continue;
+    }
+
+    if (!FRONTMATTER_ALLOWLIST.has(parsed.key)) {
+      droppedFields.push(parsed.key);
+      warnings.push(`dropped unsupported AGY field: ${parsed.key}`);
       changed = true;
       continue;
     }
 
-    const tools = parseToolList(line);
-    if (tools) {
-      const adaptedTools = [];
-      const seen = new Set();
+    if (parsed.key === 'tools') {
+      const tools = parseToolList(line);
+      const updatedLine = formatToolLine(adaptToolNames(tools, options.filePath));
+      sawTools = true;
+      if (updatedLine !== line) changed = true;
+      updatedLines.push(updatedLine);
+      continue;
+    }
 
-      for (const tool of tools.map(adaptToolName)) {
-        if (seen.has(tool)) {
-          continue;
-        }
-        seen.add(tool);
-        adaptedTools.push(tool);
-      }
-
-      const updatedLine = formatToolLine(adaptedTools);
-      if (updatedLine !== line) {
-        changed = true;
-      }
+    if (parsed.key === 'model') {
+      const updatedLine = `model: ${adaptModel(parsed.value, options.filePath)}`;
+      sawModel = true;
+      if (updatedLine !== line) changed = true;
       updatedLines.push(updatedLine);
       continue;
     }
@@ -134,13 +225,24 @@ function adaptFrontmatter(text) {
     updatedLines.push(line);
   }
 
+  if (!sawTools) {
+    updatedLines.push(formatToolLine([]));
+    changed = true;
+  }
+  if (!sawModel) {
+    updatedLines.push('model: inherit');
+    changed = true;
+  }
+
   if (!changed) {
-    return { text, changed: false };
+    return { text, changed: false, droppedFields: [], warnings: [] };
   }
 
   return {
     text: `---\n${updatedLines.join('\n')}\n---${match[2]}${text.slice(match[0].length)}`,
     changed: true,
+    droppedFields: [...new Set(droppedFields)],
+    warnings,
   };
 }
 
@@ -157,7 +259,7 @@ function adaptAgents(dirPath) {
 
     const filePath = path.join(dirPath, entry.name);
     const original = fs.readFileSync(filePath, 'utf8');
-    const adapted = adaptFrontmatter(original);
+    const adapted = adaptFrontmatter(original, { filePath });
 
     if (adapted.changed) {
       fs.writeFileSync(filePath, adapted.text);
@@ -181,9 +283,20 @@ function main() {
   console.log(`Updated ${result.updated} agent file(s); ${result.unchanged} already compatible`);
 }
 
-try {
-  main();
-} catch (error) {
-  console.error(error.message);
-  process.exit(1);
+if (require.main === module) {
+  try {
+    main();
+  } catch (error) {
+    console.error(error.message);
+    process.exit(1);
+  }
 }
+
+module.exports = {
+  adaptAgents,
+  adaptFrontmatter,
+  adaptModel,
+  adaptToolName,
+  adaptToolNames,
+  parseToolList,
+};

@@ -12,6 +12,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { RECEIPT_SCHEMA, SURFACE_OWNERS } = require('./platform-provenance');
+const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
 const { compileDistribution, materializeDistribution, verifyDistribution } = require('./distribution-compiler');
 const { ProjectionArtifactStore } = require('./projection-artifact-store');
 
@@ -96,6 +97,20 @@ function ensurePhysicalDirectory(directory, label) {
   }
 }
 
+function physicalPackageRootError(directory) {
+  try {
+    assertPhysicalAncestors(directory, 'Agent Plugin package root');
+    const stat = lstatOrNull(directory);
+    if (!stat || !stat.isDirectory()) return `Agent Plugin package root must be a physical directory: ${directory}`;
+    if (fs.realpathSync(directory) !== path.resolve(directory)) {
+      return `Agent Plugin package root realpath escapes its lexical root: ${directory}`;
+    }
+    return null;
+  } catch (error) {
+    return error.message;
+  }
+}
+
 function safeRelative(value) {
   if (typeof value !== 'string' || value.length === 0 || value.includes('\0')) return false;
   if (value.includes('\\') || path.posix.isAbsolute(value) || /^[A-Za-z]:[\\/]/.test(value)) return false;
@@ -122,38 +137,56 @@ function confinedChild(parent, name, label = 'package child') {
   return candidate;
 }
 
-function findSymlinks(directory) {
-  const found = [];
-  const stat = lstatOrNull(directory);
-  if (!stat) return found;
-  if (stat.isSymbolicLink()) return [directory];
-  if (!stat.isDirectory()) return found;
-  for (const entry of fs.readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
-    const child = path.join(directory, entry.name);
-    if (entry.isSymbolicLink()) found.push(child);
-    else if (entry.isDirectory()) found.push(...findSymlinks(child));
-  }
-  return found;
+function findSymlinks(directory, options = {}) {
+  const budget = createTraversalBudget(options);
+  const walk = (current, depth) => {
+    const found = [];
+    const stat = lstatOrNull(current);
+    if (!stat) return found;
+    if (stat.isSymbolicLink()) return [current];
+    if (!stat.isDirectory()) return found;
+    const realDirectory = budget.enterDirectory(current, depth);
+    try {
+      for (const entry of readDirectoryEntries(current, { budget, sort: true, localeSort: true })) {
+        const child = path.join(current, entry.name);
+        if (entry.isSymbolicLink()) found.push(child);
+        else if (entry.isDirectory()) found.push(...walk(child, depth + 1));
+      }
+      return found;
+    } finally {
+      budget.leaveDirectory(realDirectory);
+    }
+  };
+  return walk(directory, 0);
 }
 
 function assertSourceTreeContained(sourceDir, root) {
   const sourceRoot = fs.realpathSync(root);
-  const walk = (directory) => {
-    for (const entry of fs.readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
-      const child = path.join(directory, entry.name);
-      if (entry.isSymbolicLink()) {
-        let target;
-        try {
-          target = fs.realpathSync(child);
-        } catch (error) {
-          throw new Error(`broken source symlink cannot be projected: ${child}`);
+  const visited = new Set();
+  const budget = createTraversalBudget();
+  const walk = (directory, depth = 0) => {
+    const realDir = budget.enterDirectory(directory, depth);
+    try {
+      if (visited.has(realDir)) throw new Error(`symlink cycle detected in source directory: ${directory}`);
+      visited.add(realDir);
+      for (const entry of readDirectoryEntries(directory, { budget, sort: true, localeSort: true })) {
+        const child = path.join(directory, entry.name);
+        if (entry.isSymbolicLink()) {
+          let target;
+          try {
+            target = fs.realpathSync(child);
+          } catch (error) {
+            throw new Error(`broken source symlink cannot be projected: ${child}`);
+          }
+          if (!isInside(sourceRoot, target)) {
+            throw new Error(`source symlink escapes canonical root: ${path.relative(sourceRoot, child)} -> ${target}`);
+          }
+          continue;
         }
-        if (!isInside(sourceRoot, target)) {
-          throw new Error(`source symlink escapes canonical root: ${path.relative(sourceRoot, child)} -> ${target}`);
-        }
-        continue;
+        if (entry.isDirectory()) walk(child, depth + 1);
       }
-      if (entry.isDirectory()) walk(child);
+    } finally {
+      budget.leaveDirectory(realDir);
     }
   };
   walk(sourceDir);
@@ -345,7 +378,7 @@ function readContainedJson(root, relative, label) {
   if (!stat || !stat.isFile() || stat.isSymbolicLink()) throw new Error(`${label} must be a regular non-symlink file: ${relative}`);
   const real = fs.realpathSync(candidate);
   if (!isInside(root, real)) throw new Error(`${label} realpath escapes canonical root: ${relative}`);
-  return JSON.parse(fs.readFileSync(candidate, 'utf8'));
+  return JSON.parse(readFileBounded(candidate).toString('utf8'));
 }
 
 function assertProjectionDestination(root, outDir, label) {
@@ -495,21 +528,28 @@ function selectPortableSkills(inventory, surface = 'agent-plugin') {
   }).sort((a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id)));
 }
 
-function fingerprintDir(directory) {
+function fingerprintDir(directory, options = {}) {
   const hash = crypto.createHash('sha256');
-  const walk = (current, relative) => {
-    for (const entry of fs.readdirSync(current, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
-      const absolute = path.join(current, entry.name);
-      const rel = path.posix.join(relative, entry.name);
-      if (entry.isDirectory()) walk(absolute, rel);
-      else if (entry.isFile()) {
-        hash.update(rel);
-        hash.update('\0');
-        hash.update(fs.readFileSync(absolute));
-      } else throw new Error(`cannot fingerprint symlink or special file: ${absolute}`);
+  const budget = createTraversalBudget(options);
+  const walk = (current, relative, depth) => {
+    const realDirectory = budget.enterDirectory(current, depth);
+    try {
+      for (const entry of readDirectoryEntries(current, { budget, sort: true, localeSort: true })) {
+        if (entry.name === '__pycache__' || entry.name.endsWith('.pyc')) continue;
+        const absolute = path.join(current, entry.name);
+        const rel = path.posix.join(relative, entry.name);
+        if (entry.isDirectory()) walk(absolute, rel, depth + 1);
+        else if (entry.isFile()) {
+          hash.update(rel);
+          hash.update('\0');
+          hash.update(budget.readFile(absolute, fs.statSync(absolute)));
+        } else throw new Error(`cannot fingerprint symlink or special file: ${absolute}`);
+      }
+    } finally {
+      budget.leaveDirectory(realDirectory);
     }
   };
-  walk(directory, '');
+  walk(directory, '', 0);
   return hash.digest('hex');
 }
 
@@ -517,7 +557,7 @@ function readManifestMetadata(root, manifestMetadata) {
   if (manifestMetadata && typeof manifestMetadata === 'object') return manifestMetadata;
   const candidate = path.join(root, '.claude-plugin', 'plugin.json');
   if (!fs.existsSync(candidate)) return {};
-  try { return JSON.parse(fs.readFileSync(candidate, 'utf8')); } catch (_) { return {}; }
+  try { return JSON.parse(readFileBounded(candidate).toString('utf8')); } catch (_) { return {}; }
 }
 
 function portableManifest({ name = 'dhpk', version = '0.0.0', manifestMetadata = {}, description, author, homepage, repository, license, keywords, extensions }) {
@@ -585,30 +625,94 @@ function fingerprintProjectedFiles(files) {
   return hash.digest('hex');
 }
 
-function collectProjectedFiles(sourceDir, canonicalRoot, relative = '', overrides = {}) {
+function collectProjectedFiles(
+  sourceDir,
+  canonicalRoot,
+  relative = '',
+  overrides = {},
+  options = {},
+) {
+  const visited = options.visited || new Set();
+  const depth = options.depth || 0;
+  const budget = options.budget || {
+    files: 0,
+    bytes: 0,
+    entries: 0,
+    maxFiles: 20000,
+    maxEntries: 40000,
+    maxBytes: 128 * 1024 * 1024,
+    maxDepth: 64,
+  };
+
+  if (depth > budget.maxDepth) {
+    throw new Error(`maximum directory recursion depth (${budget.maxDepth}) exceeded: ${sourceDir}`);
+  }
+
+  const realSourceDir = fs.realpathSync(sourceDir);
+  if (visited.has(realSourceDir)) {
+    throw new Error(`symlink cycle detected in source directory: ${sourceDir}`);
+  }
+  visited.add(realSourceDir);
+
   const files = [];
   const addFile = (sourceFile, destinationRelative) => {
+    budget.files += 1;
+    if (budget.files > budget.maxFiles) {
+      throw new Error(`maximum projected file count (${budget.maxFiles}) exceeded while projecting ${sourceFile}`);
+    }
     const override = Object.prototype.hasOwnProperty.call(overrides, destinationRelative)
       ? overrides[destinationRelative]
       : null;
-    let content = override === null ? fs.readFileSync(sourceFile) : Buffer.from(String(override));
+    let content;
+    if (override === null) {
+      const stat = fs.statSync(sourceFile);
+      if (!stat.isFile()) throw new Error(`projected source is not a regular file: ${sourceFile}`);
+      if (Number(stat.size) > budget.maxBytes - budget.bytes) {
+        throw new Error(`maximum projected byte budget (${budget.maxBytes} bytes) exceeded while projecting ${sourceFile}`);
+      }
+      content = readFileBounded(sourceFile, { maxBytes: budget.maxBytes - budget.bytes });
+    } else {
+      const overrideText = String(override);
+      const overrideBytes = Buffer.byteLength(overrideText);
+      if (overrideBytes > budget.maxBytes - budget.bytes) {
+        throw new Error(`maximum projected byte budget (${budget.maxBytes} bytes) exceeded while projecting ${sourceFile}`);
+      }
+      content = Buffer.from(overrideText);
+    }
     if (override === null && path.extname(sourceFile).toLowerCase() === '.md') {
-      content = Buffer.from(sanitizeMarkdownLinks(fs.readFileSync(sourceFile, 'utf8'), sourceFile, canonicalRoot));
+      content = Buffer.from(sanitizeMarkdownLinks(content.toString('utf8'), sourceFile, canonicalRoot));
+    }
+    budget.bytes += content.length;
+    if (budget.bytes > budget.maxBytes) {
+      throw new Error(`maximum projected byte budget (${budget.maxBytes} bytes) exceeded while projecting ${sourceFile}`);
     }
     files.push({ relative: destinationRelative, source: sourceFile, content });
   };
-  for (const entry of fs.readdirSync(sourceDir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+
+  const nextOptions = { visited, depth: depth + 1, budget };
+
+  const entryBudget = {
+    accountEntry: () => {
+      budget.entries += 1;
+      if (budget.entries > budget.maxEntries) throw new Error(`maximum projected entry count (${budget.maxEntries}) exceeded while projecting ${sourceDir}`);
+    },
+  };
+  for (const entry of readDirectoryEntries(sourceDir, { budget: entryBudget, sort: true, localeSort: true })) {
     const source = path.join(sourceDir, entry.name);
     const destinationRelative = path.posix.join(relative, entry.name);
     if (entry.name === '__pycache__' || destinationRelative.endsWith('.pyc')) continue;
     if (destinationRelative === 'agents/openai.yaml') continue;
     if (entry.isSymbolicLink()) {
       const target = fs.realpathSync(source);
-      if (fs.statSync(target).isDirectory()) collectProjectedFiles(target, canonicalRoot, destinationRelative, overrides).forEach((file) => files.push(file));
-      else if (fs.statSync(target).isFile()) addFile(target, destinationRelative);
-      else throw new Error(`unsupported source filesystem entry: ${source}`);
+      if (fs.statSync(target).isDirectory()) {
+        collectProjectedFiles(target, canonicalRoot, destinationRelative, overrides, nextOptions).forEach((file) => files.push(file));
+      } else if (fs.statSync(target).isFile()) {
+        addFile(target, destinationRelative);
+      } else {
+        throw new Error(`unsupported source filesystem entry: ${source}`);
+      }
     } else if (entry.isDirectory()) {
-      collectProjectedFiles(source, canonicalRoot, destinationRelative, overrides).forEach((file) => files.push(file));
+      collectProjectedFiles(source, canonicalRoot, destinationRelative, overrides, nextOptions).forEach((file) => files.push(file));
     } else if (entry.isFile()) {
       addFile(source, destinationRelative);
     } else {
@@ -647,6 +751,7 @@ function buildAgentPluginProjection(options = {}) {
     extensions,
     mcpConfig,
     mcpServers,
+    projectionLimits = {},
   } = options;
   if (!root || !outDir) throw new Error('materializeAgentPluginPackage requires root and outDir');
   const resolvedRoot = path.resolve(root);
@@ -660,6 +765,16 @@ function buildAgentPluginProjection(options = {}) {
   const fingerprints = {};
   const selectedEntries = [];
   const skipped = [];
+  const projectionBudget = {
+    files: 0,
+    bytes: 0,
+    entries: 0,
+    maxFiles: 20000,
+    maxEntries: 40000,
+    maxBytes: 128 * 1024 * 1024,
+    maxDepth: 64,
+    ...projectionLimits,
+  };
   for (const entry of selected) {
     const publicName = entry.name || entry.id;
     const sourcePath = entry.path;
@@ -676,8 +791,12 @@ function buildAgentPluginProjection(options = {}) {
       skipped.push({ id: entry.id, name: publicName, reason: 'SKILL.md is missing' });
       continue;
     }
+    const sourceFileStat = fs.statSync(sourceFile);
+    if (Number(sourceFileStat.size) > projectionBudget.maxBytes - projectionBudget.bytes) {
+      throw new Error(`maximum projected byte budget (${projectionBudget.maxBytes} bytes) exceeded while reading ${sourceFile}`);
+    }
     let normalized;
-    try { normalized = normalizePortableFrontmatter(fs.readFileSync(sourceFile, 'utf8'), { allowlist }); } catch (error) {
+    try { normalized = normalizePortableFrontmatter(readFileBounded(sourceFile).toString('utf8'), { allowlist }); } catch (error) {
       skipped.push({ id: entry.id, name: publicName, reason: error.message });
       continue;
     }
@@ -686,7 +805,7 @@ function buildAgentPluginProjection(options = {}) {
       continue;
     }
     assertSourceTreeContained(sourceDir, resolvedRoot);
-    const skillFiles = collectProjectedFiles(sourceDir, resolvedRoot, '', { 'SKILL.md': normalized.output });
+    const skillFiles = collectProjectedFiles(sourceDir, resolvedRoot, '', { 'SKILL.md': normalized.output }, { budget: projectionBudget });
     fingerprints[publicName] = fingerprintProjectedFiles(skillFiles);
     for (const file of skillFiles) {
       files.push(outputRecord(
@@ -837,6 +956,8 @@ function validateAgentPluginPackage(input, maybeOptions = {}) {
   const warnings = [];
   const skills = { valid: [], invalid: [] };
   const mcp = { valid: [], invalid: [] };
+  const packageRootError = physicalPackageRootError(packageRoot);
+  if (packageRootError) return { ok: false, errors: [packageRootError], warnings, skills, mcp };
   const rootStat = lstatOrNull(packageRoot);
   if (!rootStat || !rootStat.isDirectory()) return { ok: false, errors: [`package root is not a directory: ${packageRoot}`], warnings, skills, mcp };
   if (rootStat.isSymbolicLink()) errors.push('package root must not be a symlink');
@@ -847,7 +968,7 @@ function validateAgentPluginPackage(input, maybeOptions = {}) {
   if (!manifestStat || !manifestStat.isFile()) errors.push('package root must contain a regular plugin.json');
   let manifest = null;
   if (manifestStat && manifestStat.isFile()) {
-    try { manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')); } catch (error) { errors.push(`plugin.json is not valid JSON: ${error.message}`); }
+    try { manifest = JSON.parse(readFileBounded(manifestPath).toString('utf8')); } catch (error) { errors.push(`plugin.json is not valid JSON: ${error.message}`); }
   }
   if (manifest) errors.push(...validatePortableManifest(manifest).errors);
 
@@ -855,7 +976,7 @@ function validateAgentPluginPackage(input, maybeOptions = {}) {
   const skillsStat = lstatOrNull(skillsRoot);
   if (skillsStat && !skillsStat.isDirectory()) errors.push('skills must be a directory when present');
   if (skillsStat && skillsStat.isDirectory()) {
-    for (const entry of fs.readdirSync(skillsRoot, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+    for (const entry of readDirectoryEntries(skillsRoot, { sort: true, localeSort: true })) {
       if (!entry.isDirectory()) {
         errors.push(`skills contains a non-directory immediate child '${entry.name}'`);
         continue;
@@ -869,21 +990,29 @@ function validateAgentPluginPackage(input, maybeOptions = {}) {
         errors.push(`skill '${entry.name}' is invalid: ${invalid.errors.join('; ')}`);
         continue;
       }
-      const normalized = normalizePortableFrontmatter(fs.readFileSync(skillFile, 'utf8'), { allowlist: options.allowlist });
+      const normalized = normalizePortableFrontmatter(readFileBounded(skillFile).toString('utf8'), { allowlist: options.allowlist });
       const skillErrors = [...normalized.errors];
       if (normalized.name !== entry.name) skillErrors.push(`frontmatter name '${normalized.name || '(missing)'}' does not match directory '${entry.name}'`);
       if (skillErrors.length > 0) {
         skills.invalid.push({ name: entry.name, errors: skillErrors });
         errors.push(`skill '${entry.name}' is invalid: ${skillErrors.join('; ')}`);
       }
-      else skills.valid.push({ name: entry.name, fingerprint: fingerprintDir(directory) });
+      else {
+        try {
+          skills.valid.push({ name: entry.name, fingerprint: fingerprintDir(directory) });
+        } catch (error) {
+          const diagnostic = `skill '${entry.name}' fingerprint failed: ${error.message}`;
+          skills.invalid.push({ name: entry.name, errors: [diagnostic] });
+          errors.push(diagnostic);
+        }
+      }
     }
   }
 
   const mcpPath = path.join(packageRoot, 'mcp.json');
   if (fs.existsSync(mcpPath)) {
     try {
-      const config = JSON.parse(fs.readFileSync(mcpPath, 'utf8'));
+      const config = JSON.parse(readFileBounded(mcpPath).toString('utf8'));
       const checked = validateMcpConfig(config, packageRoot);
       mcp.valid.push(...checked.valid);
       mcp.invalid.push(...checked.invalid);
@@ -894,14 +1023,14 @@ function validateAgentPluginPackage(input, maybeOptions = {}) {
   const fingerprintsPath = path.join(packageRoot, 'fingerprints.json');
   if (fs.existsSync(fingerprintsPath)) {
     try {
-      const recorded = JSON.parse(fs.readFileSync(fingerprintsPath, 'utf8'));
+      const recorded = JSON.parse(readFileBounded(fingerprintsPath).toString('utf8'));
       for (const skill of skills.valid) if (recorded.skills && recorded.skills[skill.name] && recorded.skills[skill.name] !== skill.fingerprint) errors.push(`fingerprint drifted for skill '${skill.name}'`);
     } catch (error) { errors.push(`fingerprints.json is not valid JSON: ${error.message}`); }
   }
   const provenancePath = path.join(packageRoot, 'provenance.json');
   if (fs.existsSync(provenancePath)) {
     try {
-      const provenance = JSON.parse(fs.readFileSync(provenancePath, 'utf8'));
+      const provenance = JSON.parse(readFileBounded(provenancePath).toString('utf8'));
       if (provenance.surface !== undefined && provenance.surface !== 'agent-plugin') errors.push(`provenance surface must be agent-plugin, got '${provenance.surface}'`);
       if (provenance.schemaVersion !== undefined && provenance.schemaVersion !== AGENT_PLUGIN_VERSION) errors.push(`provenance schemaVersion must be ${AGENT_PLUGIN_VERSION}`);
       const actualNames = skills.valid.map((skill) => skill.name).sort();
@@ -914,13 +1043,28 @@ function validateAgentPluginPackage(input, maybeOptions = {}) {
 function verifyAgentPluginPackage(input, maybeOptions = {}) {
   const structural = validateAgentPluginPackage(input, maybeOptions);
   const packageRoot = typeof input === 'string' ? path.resolve(input) : path.resolve(input.packageRoot);
+  const packageRootError = physicalPackageRootError(packageRoot);
+  if (packageRootError) {
+    if (!structural.errors.includes(packageRootError)) structural.errors.push(packageRootError);
+    structural.ok = false;
+    return {
+      ...structural,
+      evidence: { ok: false, error: { code: 'UNSAFE_PACKAGE_ROOT', message: packageRootError } },
+    };
+  }
   let planFingerprint = 'agent-plugin-unbound';
   let artifactFingerprint = 'agent-plugin-unobserved';
   try {
-    const provenance = JSON.parse(fs.readFileSync(path.join(packageRoot, 'provenance.json'), 'utf8'));
+    const provenance = JSON.parse(readFileBounded(path.join(packageRoot, 'provenance.json')).toString('utf8'));
     if (typeof provenance.inventoryDigest === 'string' && provenance.inventoryDigest.length > 0) planFingerprint = provenance.inventoryDigest;
   } catch (_) { /* structural errors retain the legacy report; evidence stays FAIL */ }
-  try { artifactFingerprint = fingerprintDir(packageRoot); } catch (_) { /* missing/invalid roots remain FAIL */ }
+  try {
+    artifactFingerprint = fingerprintDir(packageRoot);
+  } catch (error) {
+    const diagnostic = `Agent Plugin package fingerprint failed: ${error.message}`;
+    structural.errors.push(diagnostic);
+    structural.ok = false;
+  }
   const evidence = verifyDistribution('structural', {
     planFingerprint,
     artifactFingerprint,

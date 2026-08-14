@@ -94,4 +94,3 @@ requirement.
 - **WHEN** Codex and Cursor load the same portable skill
 - **THEN** both clients can use the standard name/description/body while
   ignoring unimplemented policy metadata without changing skill identity
-

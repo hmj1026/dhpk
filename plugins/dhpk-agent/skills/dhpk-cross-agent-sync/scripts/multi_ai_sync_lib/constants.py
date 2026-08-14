@@ -1,6 +1,6 @@
 """Constants used by multi-ai-sync modules."""
 
-TARGETS_DEFAULT = ["codex", "gemini", "antigravity", "cursor"]
+TARGETS_DEFAULT = ["codex", "gemini", "antigravity", "agy", "cursor"]
 
 STATUS_EQ = "equivalent"
 STATUS_ADAPT = "adapted"
@@ -30,6 +30,7 @@ ROW_NOT_CONFIGURED = "NOT_CONFIGURED"
 ROW_SKIP_INCOMPATIBLE = "SKIP_INCOMPATIBLE"
 ROW_BLOCKED = "BLOCKED"
 ROW_UNAVAILABLE = "UNAVAILABLE"
+ROW_NOT_RUN = "NOT_RUN"
 
 GATE_PASS = "PASS"
 GATE_FAIL = "FAIL"

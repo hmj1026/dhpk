@@ -21,6 +21,7 @@ const {
   verifyDistribution,
 } = require('./distribution-compiler');
 const { ProjectionArtifactStore } = require('./projection-artifact-store');
+const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
 
 // Bump when the generation algorithm (selection, layout, or manifest-merge
 // logic) changes in a way that could produce a different package from the
@@ -74,22 +75,42 @@ function assertPhysicalDirectory(directory, label) {
   }
 }
 
+function physicalPackageRootError(directory) {
+  try {
+    assertPhysicalAncestors(directory, 'native package root');
+    const stat = lstatOrNull(directory);
+    if (!stat || !stat.isDirectory()) return `native package root must be a physical directory: ${directory}`;
+    if (fs.realpathSync(directory) !== path.resolve(directory)) {
+      return `native package root realpath escapes its lexical root: ${directory}`;
+    }
+    return null;
+  } catch (error) {
+    return error.message;
+  }
+}
+
 // Walks packageRoot and reports any symlink found (a native package must be
 // 100% physical files — a symlink survives only as long as its target and the
 // source checkout that contains it both remain present, which a clean
 // marketplace cache install does not guarantee; see issue #88).
-function findSymlinks(dir) {
-  const found = [];
-  if (!fs.existsSync(dir)) return found;
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const fp = path.join(dir, entry.name);
-    if (entry.isSymbolicLink()) {
-      found.push(fp);
-    } else if (entry.isDirectory()) {
-      found.push(...findSymlinks(fp));
+function findSymlinks(dir, options = {}) {
+  const budget = createTraversalBudget(options);
+  const walk = (directory, depth) => {
+    const found = [];
+    if (!fs.existsSync(directory)) return found;
+    const realDirectory = budget.enterDirectory(directory, depth);
+    try {
+      for (const entry of readDirectoryEntries(directory, { budget })) {
+        const fp = path.join(directory, entry.name);
+        if (entry.isSymbolicLink()) found.push(fp);
+        else if (entry.isDirectory()) found.push(...walk(fp, depth + 1));
+      }
+      return found;
+    } finally {
+      budget.leaveDirectory(realDirectory);
     }
-  }
-  return found;
+  };
+  return walk(dir, 0);
 }
 
 function resolvesInsidePackage(manifestSkillsField, packageRoot) {
@@ -129,9 +150,9 @@ function validateNativeCandidate({ manifestSkillsField, packageRoot }) {
   return { ok: errors.length === 0, errors };
 }
 
-function readSkillFrontmatterName(skillFile) {
+function readSkillFrontmatterName(skillFile, budget = null) {
   if (!fs.existsSync(skillFile) || !fs.statSync(skillFile).isFile()) return null;
-  const text = fs.readFileSync(skillFile, 'utf8');
+  const text = (budget ? budget.readFile(skillFile, fs.statSync(skillFile)) : readFileBounded(skillFile)).toString('utf8');
   const block = text.match(/^---\s*\r?\n([\s\S]*?)\r?\n---\s*(?:\r?\n|$)/);
   if (!block) return null;
   const nameLine = block[1].match(/^name\s*:\s*(.*?)\s*$/m);
@@ -209,52 +230,61 @@ const DEFAULT_MANIFEST_TEMPLATE = {
   description: 'dhpk codex-native physical Codex release candidate (generated; not a second source of truth — see docs/distribution-surfaces.md).',
 };
 
-function readNativeManifestTemplate(outDir) {
+function readNativeManifestTemplate(outDir, budget = null) {
   const manifestPath = path.join(outDir, '.codex-plugin', 'plugin.json');
   if (!fs.existsSync(manifestPath)) return DEFAULT_MANIFEST_TEMPLATE;
   const stat = lstatOrNull(manifestPath);
   if (!stat || !stat.isFile() || stat.isSymbolicLink()) {
     throw new Error(`native plugin manifest must be a physical file: ${manifestPath}`);
   }
-  return JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  return JSON.parse((budget ? budget.readFile(manifestPath, stat) : readFileBounded(manifestPath)).toString('utf8'));
 }
 
-function nativeManifest({ outDir, name, version }) {
-  const template = readNativeManifestTemplate(outDir);
+function nativeManifest({ outDir, name, version, budget = null }) {
+  const template = readNativeManifestTemplate(outDir, budget);
   return { ...template, name, version, skills: './skills/' };
 }
 
-function readNativeReadme({ root, outDir, readme }) {
+function readNativeReadme({ root, outDir, readme, budget = null }) {
   const destination = path.join(outDir, readme);
   if (fs.existsSync(destination)) {
     const stat = lstatOrNull(destination);
     if (!stat || !stat.isFile() || stat.isSymbolicLink()) {
       throw new Error(`native ${readme} must be a physical file: ${destination}`);
     }
-    return fs.readFileSync(destination);
+    return budget ? budget.readFile(destination, stat) : readFileBounded(destination);
   }
   const source = path.join(root, 'plugins', 'dhpk', readme);
-  return fs.existsSync(source) ? fs.readFileSync(source) : null;
+  return fs.existsSync(source) ? (budget ? budget.readFile(source, fs.statSync(source)) : readFileBounded(source)) : null;
 }
 
-function nativeSourceFiles(sourceDir, relative = '') {
+function nativeSourceFiles(sourceDir, relative = '', options = {}) {
   const stat = lstatOrNull(sourceDir);
   if (!stat || !stat.isDirectory() || stat.isSymbolicLink()) {
     throw new Error(`native skill source must be a physical directory: ${sourceDir}`);
   }
+  const budget = options.budget || createTraversalBudget();
+  const depth = options.depth || 0;
+  const realDirectory = budget.enterDirectory(sourceDir, depth);
   const files = [];
-  for (const entry of fs.readdirSync(sourceDir, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
-    const source = path.join(sourceDir, entry.name);
-    const destination = path.posix.join(relative, entry.name);
-    if (entry.name === '__pycache__' || destination.endsWith('.pyc')) continue;
-    if (entry.isSymbolicLink()) {
-      throw new Error(`codex-native projection forbids source symlink: ${source}`);
+  try {
+    for (const entry of readDirectoryEntries(sourceDir, { budget, sort: true, localeSort: true })) {
+      const source = path.join(sourceDir, entry.name);
+      const destination = path.posix.join(relative, entry.name);
+      if (entry.name === '__pycache__' || destination.endsWith('.pyc')) continue;
+      if (entry.isSymbolicLink()) {
+        throw new Error(`codex-native projection forbids source symlink: ${source}`);
+      }
+      if (entry.isDirectory()) files.push(...nativeSourceFiles(source, destination, { budget, depth: depth + 1 }));
+      else if (entry.isFile()) {
+        const sourceStat = fs.statSync(source);
+        files.push({ source, destination, content: budget.readFile(source, sourceStat), mode: sourceStat.mode & 0o7777 });
+      } else throw new Error(`unsupported native source filesystem entry: ${source}`);
     }
-    if (entry.isDirectory()) files.push(...nativeSourceFiles(source, destination));
-    else if (entry.isFile()) files.push({ source, destination, content: fs.readFileSync(source), mode: fs.statSync(source).mode & 0o7777 });
-    else throw new Error(`unsupported native source filesystem entry: ${source}`);
+    return files;
+  } finally {
+    budget.leaveDirectory(realDirectory);
   }
-  return files;
 }
 
 function nativeSkillFingerprint(files) {
@@ -290,6 +320,7 @@ function compileNativePackage({
   version = '0.0.0',
   sourceCommit = 'unknown',
   generatorVersion = GENERATOR_VERSION,
+  traversalOptions = {},
 } = {}) {
   if (!root || !outDir) throw new Error('compileNativePackage requires root and outDir');
   const resolvedRoot = path.resolve(root);
@@ -301,6 +332,7 @@ function compileNativePackage({
   // so the projection is an explicit empty selection rather than a second map.
   const { buildSkillRoutingProjection, compareSkillRoutingProjections } = require('./skill-routing-projection');
   const routingProjection = buildSkillRoutingProjection({ inventory, surface: 'codex-native' });
+  const traversalBudget = createTraversalBudget(traversalOptions);
 
   const selected = selectNativeSkills(inventory);
   const files = [];
@@ -315,11 +347,11 @@ function compileNativePackage({
     const sourceDir = path.resolve(resolvedRoot, ...sourcePath.split('/'));
     if (!isInside(resolvedRoot, sourceDir)) throw new Error(`source path for '${publicName}' escapes canonical root: ${sourcePath}`);
     const sourceFile = path.join(sourceDir, 'SKILL.md');
-    const sourceFrontmatterName = readSkillFrontmatterName(sourceFile);
+    const sourceFrontmatterName = readSkillFrontmatterName(sourceFile, traversalBudget);
     if (sourceFrontmatterName !== publicName) {
       throw new Error(`native skill '${publicName}' source SKILL.md frontmatter name '${sourceFrontmatterName || '(missing)'}' does not match public name '${publicName}'`);
     }
-    const skillFiles = nativeSourceFiles(sourceDir);
+    const skillFiles = nativeSourceFiles(sourceDir, '', { budget: traversalBudget });
     fingerprints[publicName] = nativeSkillFingerprint(skillFiles);
     for (const file of skillFiles) {
       files.push(nativeOutputRecord(
@@ -334,8 +366,9 @@ function compileNativePackage({
     selectedEntries.push(skill);
   }
 
-  const manifest = nativeManifest({ outDir: resolvedOut, name, version });
+  const manifest = nativeManifest({ outDir: resolvedOut, name, version, budget: traversalBudget });
   const manifestContent = `${JSON.stringify(manifest, null, 2)}\n`;
+  traversalBudget.accountBytes(Buffer.byteLength(manifestContent), '.codex-plugin/plugin.json');
   files.push(nativeOutputRecord('manifest:plugin', 'generated/.codex-plugin/plugin.json', '.codex-plugin/plugin.json', manifestContent, undefined, 0o644));
 
   const skillIds = selectedEntries.map((entry) => entry.id).sort();
@@ -354,10 +387,14 @@ function compileNativePackage({
     fingerprints,
     routingProjection,
   };
-  files.push(nativeOutputRecord('manifest:fingerprints', 'generated/fingerprints.json', 'fingerprints.json', `${JSON.stringify(fingerprints, null, 2)}\n`, undefined, 0o644));
-  files.push(nativeOutputRecord('manifest:provenance', 'generated/provenance.json', 'provenance.json', `${JSON.stringify(provenance, null, 2)}\n`, undefined, 0o644));
+  const fingerprintsContent = `${JSON.stringify(fingerprints, null, 2)}\n`;
+  const provenanceContent = `${JSON.stringify(provenance, null, 2)}\n`;
+  traversalBudget.accountBytes(Buffer.byteLength(fingerprintsContent), 'fingerprints.json');
+  traversalBudget.accountBytes(Buffer.byteLength(provenanceContent), 'provenance.json');
+  files.push(nativeOutputRecord('manifest:fingerprints', 'generated/fingerprints.json', 'fingerprints.json', fingerprintsContent, undefined, 0o644));
+  files.push(nativeOutputRecord('manifest:provenance', 'generated/provenance.json', 'provenance.json', provenanceContent, undefined, 0o644));
   for (const readme of ['README.md', 'README.zh-TW.md']) {
-    const content = readNativeReadme({ root: resolvedRoot, outDir: resolvedOut, readme });
+    const content = readNativeReadme({ root: resolvedRoot, outDir: resolvedOut, readme, budget: traversalBudget });
     if (content !== null) {
       const readmePath = fs.existsSync(path.join(resolvedOut, readme)) ? path.join(resolvedOut, readme) : path.join(resolvedRoot, 'plugins', 'dhpk', readme);
       const mode = lstatOrNull(readmePath) ? fs.statSync(readmePath).mode & 0o7777 : 0o644;
@@ -416,9 +453,11 @@ function compileNativePackage({
         throw new Error(`Codex routing projection artifact drift: ${artifactParity.diagnostics.join('; ')}`);
       }
       const structural = validateNativeCandidate({ manifestSkillsField: rendered.metadata.manifestSkillsField, packageRoot: context.session.stageRoot });
+      const stagedSkillsRoot = path.join(context.session.stageRoot, 'skills');
+      const stagedSkillsStat = lstatOrNull(stagedSkillsRoot);
       const membership = validateNativeMembership({
-        candidateSkillNames: fs.existsSync(path.join(context.session.stageRoot, 'skills'))
-          ? fs.readdirSync(path.join(context.session.stageRoot, 'skills'))
+        candidateSkillNames: stagedSkillsStat && stagedSkillsStat.isDirectory() && !stagedSkillsStat.isSymbolicLink()
+          ? readDirectoryEntries(stagedSkillsRoot, { sort: true }).map((entry) => entry.name)
           : [],
         inventory,
       });
@@ -457,6 +496,7 @@ function materializeNativePackage({
   generatorVersion = GENERATOR_VERSION,
   compiledProjection,
   artifactStore,
+  traversalOptions = {},
 }) {
   if (!root || !outDir) throw new Error('materializeNativePackage requires root and outDir');
   const resolvedRoot = path.resolve(root);
@@ -475,6 +515,7 @@ function materializeNativePackage({
     version,
     sourceCommit,
     generatorVersion,
+    traversalOptions,
   });
   const parent = path.dirname(resolvedOut);
   const store = artifactStore || new ProjectionArtifactStore({
@@ -501,7 +542,7 @@ function readNativeProvenance(packageRoot) {
   const stat = lstatOrNull(provenancePath);
   if (!stat || !stat.isFile() || stat.isSymbolicLink()) return null;
   try {
-    return JSON.parse(fs.readFileSync(provenancePath, 'utf8'));
+    return JSON.parse(readFileBounded(provenancePath).toString('utf8'));
   } catch (_) {
     return null;
   }
@@ -512,7 +553,7 @@ function readNativeManifest(packageRoot) {
   const stat = lstatOrNull(manifestPath);
   if (!stat || !stat.isFile() || stat.isSymbolicLink()) return null;
   try {
-    return JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    return JSON.parse(readFileBounded(manifestPath).toString('utf8'));
   } catch (_) {
     return null;
   }
@@ -529,6 +570,15 @@ function verifyNativePackage({
     return { ok: false, errors: ['package root is required'], evidence: { ok: false, error: { code: 'INVALID_INPUT' } } };
   }
   const resolvedPackageRoot = path.resolve(packageRoot);
+  const packageRootError = physicalPackageRootError(resolvedPackageRoot);
+  if (packageRootError) {
+    return {
+      ok: false,
+      errors: [packageRootError],
+      structural: { ok: false, errors: [packageRootError] },
+      evidence: { ok: false, error: { code: 'UNSAFE_PACKAGE_ROOT', message: packageRootError } },
+    };
+  }
   const manifest = readNativeManifest(resolvedPackageRoot) || {};
   const manifestSkillsField = typeof manifest.skills === 'string' ? manifest.skills : './skills/';
   const structural = validateNativeCandidate({ manifestSkillsField, packageRoot: resolvedPackageRoot });
@@ -536,7 +586,7 @@ function verifyNativePackage({
   const candidateSkillNames = resolvesInsidePackage(manifestSkillsField, resolvedPackageRoot)
     && lstatOrNull(skillsRoot)
     && lstatOrNull(skillsRoot).isDirectory()
-    ? fs.readdirSync(skillsRoot, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort()
+    ? readDirectoryEntries(skillsRoot, { sort: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name)
     : [];
   const membership = validateNativeMembership({ candidateSkillNames, inventory });
   const identity = validateNativeSkillIdentity({ manifestSkillsField, packageRoot: resolvedPackageRoot, inventory });
@@ -559,7 +609,14 @@ function verifyNativePackage({
     if (!routingParity.ok) errors.push(...routingParity.diagnostics.map((diagnostic) => `routing projection drift: ${diagnostic}`));
   }
   let artifactFingerprint = 'codex-native-unobserved';
-  try { artifactFingerprint = fingerprintDir(resolvedPackageRoot); } catch (_) { /* evidence remains FAIL */ }
+  try {
+    artifactFingerprint = fingerprintDir(resolvedPackageRoot);
+  } catch (error) {
+    const diagnostic = `native package fingerprint failed: ${error.message}`;
+    errors.push(diagnostic);
+    structural.errors.push(diagnostic);
+    structural.ok = false;
+  }
   const planFingerprint = provenance && typeof provenance.inventoryDigest === 'string'
     ? provenance.inventoryDigest
     : 'codex-native-unbound';
@@ -605,22 +662,44 @@ function verifyNativePackage({
   };
 }
 
-function fingerprintDir(dir) {
+function fingerprintDir(dir, options = {}) {
   const digest = crypto.createHash('sha256');
-  const walk = (d, relBase) => {
-    for (const name of fs.readdirSync(d).sort()) {
-      const fp = path.join(d, name);
-      const rel = path.join(relBase, name);
-      if (fs.statSync(fp).isDirectory()) {
-        walk(fp, rel);
-      } else {
-        digest.update(rel.split(path.sep).join('/'));
-        digest.update('\0');
-        digest.update(fs.readFileSync(fp));
+  const budget = createTraversalBudget(options);
+  const lexicalRoot = path.resolve(dir);
+  const canonicalRoot = fs.realpathSync(dir);
+  if (lexicalRoot !== canonicalRoot) {
+    throw new Error(`cannot fingerprint symlinked root or ancestor: ${dir}`);
+  }
+  const rootStat = fs.lstatSync(canonicalRoot);
+  if (rootStat.isSymbolicLink()) {
+    throw new Error(`cannot fingerprint symlink root: ${dir}`);
+  }
+  const walk = (d, relBase, depth) => {
+    const realDirectory = budget.enterDirectory(d, depth);
+    try {
+      for (const entry of readDirectoryEntries(d, { budget, sort: true })) {
+        const name = entry.name;
+        if (name === '__pycache__' || name.endsWith('.pyc')) continue;
+        const fp = path.join(d, name);
+        const rel = path.join(relBase, name);
+        const stat = fs.lstatSync(fp);
+        if (stat.isDirectory()) {
+          walk(fp, rel, depth + 1);
+        } else if (stat.isSymbolicLink()) {
+          throw new Error(`cannot fingerprint symlink entry: ${fp}`);
+        } else if (stat.isFile()) {
+          digest.update(rel.split(path.sep).join('/'));
+          digest.update('\0');
+          digest.update(budget.readFile(fp, stat));
+        } else {
+          throw new Error(`cannot fingerprint special entry: ${fp}`);
+        }
       }
+    } finally {
+      budget.leaveDirectory(realDirectory);
     }
   };
-  walk(dir, '');
+  walk(canonicalRoot, '', 0);
   return digest.digest('hex');
 }
 

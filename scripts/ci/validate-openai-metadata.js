@@ -8,6 +8,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { collectInventory, relativePosix } = require('../lib/asset-inventory');
+const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('../lib/bounded-filesystem');
 const { extract, isEmpty, extractInvocationClass } = require('./_lib/frontmatter');
 const { createReporter } = require('./_lib/report');
 
@@ -38,7 +39,7 @@ function derivePhysicalSources(root) {
   const manifestPath = path.join(root, 'manifests', 'distribution-inventory.json');
   if (!fs.existsSync(manifestPath)) return {};
   try {
-    const inventory = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    const inventory = JSON.parse(readFileBounded(manifestPath).toString('utf8'));
     const sources = {};
     for (const entry of inventory.skills || []) {
       const surfaces = Array.isArray(entry.surfaces) ? entry.surfaces : [];
@@ -52,49 +53,54 @@ function derivePhysicalSources(root) {
   }
 }
 
-function fingerprintDirectory(root, ignored = []) {
+function fingerprintDirectory(root, ignored = [], options = {}) {
   const digest = crypto.createHash('sha256');
+  const budget = createTraversalBudget(options);
   const ignoredPaths = ignored.map((entry) => entry.replace(/\\/g, '/').replace(/\/$/, ''));
   const isIgnored = (relative) => ignoredPaths.some((prefix) => relative === prefix || relative.startsWith(`${prefix}/`));
-  const walk = (current, relative) => {
+  const walk = (current, relative, depth) => {
     if (isIgnored(relative)) return;
     const stat = fs.lstatSync(current);
     if (stat.isSymbolicLink()) {
       const target = fs.realpathSync(current);
       const targetStat = fs.statSync(target);
       if (targetStat.isDirectory()) {
-        for (const name of fs.readdirSync(target).sort()) {
-          const childRel = relative ? `${relative}/${name}` : name;
-          walk(path.join(target, name), childRel);
-        }
+        walk(target, relative, depth + 1);
       } else {
         digest.update(relative);
         digest.update('\0');
-        digest.update(fs.readFileSync(target));
+        digest.update(budget.readFile(target, targetStat, current));
         digest.update('\0');
       }
       return;
     }
     if (stat.isDirectory()) {
-      for (const name of fs.readdirSync(current).sort()) {
-        const childRel = relative ? `${relative}/${name}` : name;
-        walk(path.join(current, name), childRel);
+      const realDirectory = budget.enterDirectory(current, depth);
+      try {
+        for (const entry of readDirectoryEntries(current, { budget, sort: true })) {
+          const name = entry.name;
+          const childRel = relative ? `${relative}/${name}` : name;
+          walk(path.join(current, name), childRel, depth + 1);
+        }
+      } finally {
+        budget.leaveDirectory(realDirectory);
       }
       return;
     }
+    if (!stat.isFile()) throw new Error(`cannot fingerprint special entry: ${current}`);
     digest.update(relative);
     digest.update('\0');
-    digest.update(fs.readFileSync(current));
+    digest.update(budget.readFile(current, stat));
     digest.update('\0');
   };
-  walk(root, '');
+  walk(root, '', 0);
   return digest.digest('hex');
 }
 
 function referenceContract(skillDir) {
   const skillFile = path.join(skillDir, 'SKILL.md');
   if (!fs.existsSync(skillFile)) return { invocationClass: null, references: [] };
-  const content = fs.readFileSync(skillFile, 'utf8');
+  const content = readFileBounded(skillFile).toString('utf8');
   const parsed = extractInvocationClass(content);
   const references = [...content.matchAll(/(?:references|docs\/contracts)\/[A-Za-z0-9_./-]+/g)]
     .map((match) => match[0])
@@ -136,7 +142,7 @@ function decodeQuotedScalar(raw) {
 }
 
 function frontmatterName(skillFile, reporter) {
-  const parsed = extract(fs.readFileSync(skillFile, 'utf8'));
+  const parsed = extract(readFileBounded(skillFile).toString('utf8'));
   const rel = path.dirname(skillFile);
   if (!parsed.present) {
     reporter.err(`${rel} — SKILL.md frontmatter is missing`);
@@ -155,7 +161,7 @@ function frontmatterName(skillFile, reporter) {
 
 function parseOpenaiYaml(metadataFile, reporter) {
   const rel = path.dirname(metadataFile);
-  const lines = fs.readFileSync(metadataFile, 'utf8').replace(/\r\n/g, '\n').split('\n');
+  const lines = readFileBounded(metadataFile).toString('utf8').replace(/\r\n/g, '\n').split('\n');
   if (lines[lines.length - 1] === '') lines.pop();
   if (lines[0] !== 'interface:') {
     reporter.err(`${rel} — openai.yaml must start with interface:`);
@@ -265,7 +271,7 @@ function validateProjection(root, canonicalByName, reporter, physicalSources = d
   let symlinks = 0;
   let physical = 0;
   const fingerprints = {};
-  const entries = fs.readdirSync(codexDir).sort();
+  const entries = readDirectoryEntries(codexDir, { sort: true }).map((entry) => entry.name);
 
   for (const name of entries) {
     const entry = path.join(codexDir, name);
@@ -317,7 +323,7 @@ function validateProjection(root, canonicalByName, reporter, physicalSources = d
         if (fs.realpathSync(mirrorMetadata) !== fs.realpathSync(sourceMetadata)) {
           reporter.err(`${relativePosix(root, mirrorMetadata)} — metadata symlink does not target the canonical module metadata`);
         }
-      } else if (fs.readFileSync(mirrorMetadata, 'utf8') !== fs.readFileSync(sourceMetadata, 'utf8')) {
+      } else if (readFileBounded(mirrorMetadata).toString('utf8') !== readFileBounded(sourceMetadata).toString('utf8')) {
         const canonicalMetadata = parseOpenaiYaml(sourceMetadata, { err: () => {} });
         const mirrorParsed = parseOpenaiYaml(mirrorMetadata, { err: () => {} });
         for (const key of REQUIRED_INTERFACE_KEYS) {
@@ -359,8 +365,15 @@ function validateProjection(root, canonicalByName, reporter, physicalSources = d
     }
 
     const ignored = PROJECTION_RULES[name] || [];
-    const canonicalFingerprint = fingerprintDirectory(source, ignored);
-    const mirrorFingerprint = fingerprintDirectory(entry, ignored);
+    let canonicalFingerprint;
+    let mirrorFingerprint;
+    try {
+      canonicalFingerprint = fingerprintDirectory(source, ignored);
+      mirrorFingerprint = fingerprintDirectory(entry, ignored);
+    } catch (error) {
+      reporter.err(`${relativePosix(root, entry)} — fingerprint traversal blocked: ${error.message}`);
+      continue;
+    }
     if (canonicalFingerprint !== mirrorFingerprint) {
       reporter.err(`${relativePosix(root, entry)} — mirror fingerprint differs from canonical source (${canonicalFingerprint} != ${mirrorFingerprint}); add an explicit projection rule for intentional differences`);
     }
@@ -397,7 +410,7 @@ function main() {
 // implicit-eligible SHALL retain neither restrictive flag.
 function checkInvocationParity(skillFile, policy, reporter) {
   const rel = path.dirname(skillFile);
-  const content = fs.readFileSync(skillFile, 'utf8');
+  const content = readFileBounded(skillFile).toString('utf8');
   const fm = extract(content);
   const ic = extractInvocationClass(content);
   if (!ic.present || ic.unknownValue) return; // validate-invocation-policy.js owns this failure

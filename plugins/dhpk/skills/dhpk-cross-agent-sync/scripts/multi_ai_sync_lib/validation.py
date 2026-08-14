@@ -1,8 +1,11 @@
 """Post-sync validation 與報告輸出。"""
 
 import glob
+import hashlib
 import json
 import os
+import re
+import shutil
 import subprocess
 
 from .agent_sync import (
@@ -25,6 +28,7 @@ from .constants import (
     ROW_BLOCKED,
     ROW_FAIL,
     ROW_NOT_CONFIGURED,
+    ROW_NOT_RUN,
     ROW_PASS,
     ROW_SKIP_INCOMPATIBLE,
     ROW_UNAVAILABLE,
@@ -55,6 +59,7 @@ def state_to_markdown(state):
         ROW_FAIL: "FAIL",
         ROW_SKIP_INCOMPATIBLE: "SKIP",
         ROW_NOT_CONFIGURED: "N/A",
+        ROW_NOT_RUN: "NOT_RUN",
         ROW_BLOCKED: "BLOCKED",
         ROW_UNAVAILABLE: "UNAVAILABLE",
         CHECK_PASS: "OK",
@@ -71,6 +76,8 @@ def platform_final_status(config_ok, smoke_ok, hook_state, multi_state):
         return ROW_FAIL
     if ROW_FAIL in (hook_state, multi_state):
         return ROW_FAIL
+    if ROW_UNAVAILABLE in (hook_state, multi_state):
+        return ROW_UNAVAILABLE
     return ROW_PASS
 
 
@@ -296,6 +303,411 @@ def validate_antigravity(repo_root, membership=None):
         notes.append("缺少 .agent/workflows/review.md（代表性 multi-agent workflow）")
 
     return result_row("antigravity", config_ok, smoke_ok, hook_state, multi_state, notes, hook_reason=hook_reason)
+
+
+AGY_MODELS = {"inherit", "flash_lite", "flash", "pro"}
+AGY_TOOLS = {
+    "read_file", "view_file", "write_to_file", "replace_file_content",
+    "multi_replace_file_content", "run_command", "grep_search", "glob",
+    "list_dir", "search_web", "read_url_content", "invoke_subagent",
+}
+AGY_FRONTMATTER_KEYS = {"name", "description", "tools", "model"}
+AGY_PACKAGE_SCHEMA = "dhpk.agy-plugin.v1"
+AGY_PROVENANCE_SCHEMA = "dhpk.platform-provenance.v1"
+AGY_PACKAGE_METADATA = {"plugin.json", "provenance.json", "fingerprints.json"}
+AGY_OPTIONAL_FILES = {"mcp_config.json", "hooks.json"}
+AGY_COMPONENT_ROOTS = {"agents", "rules", "skills"}
+AGY_RESERVED_AGENT_FILES = {"index.md", "readme.md", "provenance.md", "fingerprints.md"}
+AGY_SHA256 = re.compile(r"^[a-f0-9]{64}$", re.IGNORECASE)
+AGY_COMMIT = re.compile(r"^[a-f0-9]{40}$", re.IGNORECASE)
+AGY_SEMVER = re.compile(r"^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$")
+AGY_SECRET_PATTERNS = (
+    re.compile(r"\b(?:gh[pousr]|github_pat)_[A-Za-z0-9_]{20,}\b", re.IGNORECASE),
+    re.compile(r"\bsk-[A-Za-z0-9_-]{20,}\b", re.IGNORECASE),
+    re.compile(r"\b(?:https?|postgres(?:ql)?|mysql|mariadb|redis|mongodb(?:\+srv)?):\/\/[^\s/@:]+:[^\s/@]+@", re.IGNORECASE),
+)
+
+
+def _agy_contains_secret(content):
+    text = content.decode("utf-8", errors="replace") if isinstance(content, bytes) else str(content)
+    return any(pattern.search(text) for pattern in AGY_SECRET_PATTERNS)
+
+
+def _agy_package_root(repo_root):
+    candidates = [
+        os.path.join(repo_root, "plugins", "dhpk-agy"),
+        os.path.join(repo_root, ".gemini", "config", "plugins", "dhpk"),
+    ]
+    return next((candidate for candidate in candidates if safe_exists(os.path.join(candidate, "plugin.json"))), None)
+
+
+def _agy_frontmatter(path):
+    """Validate the small, deliberately closed AGY agent frontmatter contract."""
+    text = read_text(path)
+    match = re.match(r"^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)", text)
+    if not match:
+        return False, "missing AGY frontmatter"
+    values = {}
+    for line in match.group(1).splitlines():
+        key_match = re.match(r"^\s*([A-Za-z0-9_-]+)\s*:\s*(.*)$", line)
+        if not key_match:
+            continue
+        key, value = key_match.group(1), key_match.group(2).strip()
+        if key not in AGY_FRONTMATTER_KEYS:
+            return False, "unsupported AGY frontmatter field: %s" % key
+        values[key] = value
+    if not values.get("name") or not values.get("description"):
+        return False, "AGY agent requires name and description"
+    model = values.get("model", "inherit").strip("'\"")
+    if model not in AGY_MODELS:
+        return False, "unsupported AGY model: %s" % model
+    tools = values.get("tools")
+    if tools is None:
+        return False, "AGY agent requires tools"
+    raw = tools.strip()
+    if raw.startswith("[") and raw.endswith("]"):
+        raw = raw[1:-1]
+    tool_names = [item.strip().strip("'\"") for item in raw.split(",") if item.strip()]
+    for tool in tool_names:
+        if tool not in AGY_TOOLS and not tool.startswith("mcp_"):
+            return False, "unsupported AGY tool: %s" % tool
+    return True, None
+
+
+def _agy_walk_package(package_root):
+    """Enumerate a physical AGY package without following any symlink."""
+    errors = []
+    files = []
+    root = os.path.abspath(package_root)
+    root_real = os.path.realpath(root)
+
+    def inside(candidate):
+        candidate_real = os.path.realpath(candidate)
+        try:
+            return os.path.commonpath([root_real, candidate_real]) == root_real
+        except ValueError:
+            return False
+
+    def walk(directory, prefix=""):
+        try:
+            entries = sorted(os.scandir(directory), key=lambda entry: entry.name)
+        except OSError as exc:
+            errors.append("cannot read AGY package directory %s: %s" % (prefix or ".", exc))
+            return
+        for entry in entries:
+            relative = "%s/%s" % (prefix, entry.name) if prefix else entry.name
+            candidate = entry.path
+            if entry.is_symlink():
+                errors.append("AGY package symlink is not allowed: %s" % relative)
+                continue
+            if not inside(candidate):
+                errors.append("AGY package path escapes root: %s" % relative)
+                continue
+            if entry.is_dir(follow_symlinks=False):
+                walk(candidate, relative)
+            elif entry.is_file(follow_symlinks=False):
+                files.append(relative)
+            else:
+                errors.append("unsupported AGY package entry: %s" % relative)
+
+    walk(root)
+    return sorted(files), errors
+
+
+def _agy_read_json(path, label, errors):
+    try:
+        with open(path, "r", encoding="utf-8") as fh:
+            value = json.load(fh)
+    except (OSError, ValueError) as exc:
+        errors.append("AGY %s is missing or invalid: %s" % (label, exc))
+        return None
+    return value
+
+
+def _agy_validate_manifest(manifest, errors):
+    if not isinstance(manifest, dict) or manifest.get("name") != "dhpk":
+        errors.append("AGY plugin.json name must be dhpk")
+        return
+    if not isinstance(manifest.get("version"), str) or not re.match(r"^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$", manifest["version"]):
+        errors.append("AGY plugin.json version must be SemVer")
+    expected = {"agents": "agents", "rules": "rules", "skills": "skills"}
+    for key, root in expected.items():
+        values = manifest.get(key)
+        if not isinstance(values, list) or values != ["./%s/" % root]:
+            errors.append("AGY plugin.json %s must declare only ./%s/" % (key, root))
+
+
+def _validate_agy_package_structure(package_root):
+    errors = []
+    if not package_root or not os.path.isdir(package_root) or os.path.islink(package_root):
+        return False, ["AGY package root must be a physical directory"], []
+
+    files, walk_errors = _agy_walk_package(package_root)
+    errors.extend(walk_errors)
+    manifest = _agy_read_json(os.path.join(package_root, "plugin.json"), "plugin.json", errors)
+    _agy_validate_manifest(manifest, errors)
+
+    for component in sorted(AGY_COMPONENT_ROOTS):
+        component_path = os.path.join(package_root, component)
+        if not os.path.isdir(component_path) or os.path.islink(component_path):
+            errors.append("AGY package %s directory is missing or unsafe" % component)
+
+    agents = []
+    agent_files = []
+    rule_files = []
+    skill_files = []
+    for relative in files:
+        base = relative.split("/", 1)[0]
+        if relative in AGY_PACKAGE_METADATA or relative in AGY_OPTIONAL_FILES:
+            continue
+        if base not in AGY_COMPONENT_ROOTS:
+            errors.append("undeclared AGY package component: %s" % relative)
+            continue
+        if base == "agents":
+            name = relative.split("/", 1)[1] if "/" in relative else ""
+            if "/" in name or not name.endswith(".md"):
+                errors.append("AGY agent path is not a flat Markdown file: %s" % relative)
+                continue
+            if name.lower() in AGY_RESERVED_AGENT_FILES:
+                continue
+            agent_files.append(relative)
+        elif base == "rules":
+            if relative.count("/") != 1 or not relative.endswith(".md"):
+                errors.append("AGY rule path is not a flat Markdown file: %s" % relative)
+                continue
+            rule_files.append(relative)
+        elif base == "skills":
+            if not re.match(r"^skills/[^/]+/SKILL\.md$", relative):
+                errors.append("AGY skill path must be <skill>/SKILL.md: %s" % relative)
+                continue
+            skill_files.append(relative)
+
+    for relative in sorted(agent_files):
+        name = relative.split("/", 1)[1]
+        candidate = os.path.join(package_root, relative)
+        ok, reason = _agy_frontmatter(candidate)
+        if not ok:
+            errors.append("%s: %s" % (name, reason))
+        agents.append(name)
+    if not agents:
+        errors.append("AGY package contains no discoverable agents")
+    if not rule_files:
+        errors.append("AGY package contains no selected rules")
+    if not skill_files:
+        errors.append("AGY package contains no selected skills")
+
+    fingerprints = _agy_read_json(os.path.join(package_root, "fingerprints.json"), "fingerprints.json", errors)
+    if not isinstance(fingerprints, dict) or fingerprints.get("schema") != AGY_PACKAGE_SCHEMA or not isinstance(fingerprints.get("files"), dict):
+        errors.append("AGY fingerprints.json must use %s" % AGY_PACKAGE_SCHEMA)
+        fingerprint_map = {}
+    else:
+        fingerprint_map = fingerprints["files"]
+    actual_files = {relative for relative in files if relative not in {"provenance.json", "fingerprints.json"}}
+    if set(fingerprint_map) != actual_files:
+        errors.append("AGY fingerprints do not cover exactly the package files")
+    for relative in sorted(actual_files):
+        expected_hash = fingerprint_map.get(relative)
+        if not isinstance(expected_hash, str) or not AGY_SHA256.match(expected_hash):
+            errors.append("AGY fingerprint is not SHA-256: %s" % relative)
+            continue
+        with open(os.path.join(package_root, relative), "rb") as fh:
+            content = fh.read()
+            actual_hash = hashlib.sha256(content).hexdigest()
+        if _agy_contains_secret(content):
+            errors.append("possible secret in AGY package file: %s" % relative)
+        if actual_hash != expected_hash:
+            errors.append("AGY fingerprint does not match output: %s" % relative)
+
+    provenance = _agy_read_json(os.path.join(package_root, "provenance.json"), "provenance.json", errors)
+    if not isinstance(provenance, dict):
+        errors.append("AGY provenance must be an object")
+    else:
+        if provenance.get("surface") != "agy-plugin":
+            errors.append("AGY provenance surface must be agy-plugin")
+        if provenance.get("schema") != AGY_PACKAGE_SCHEMA:
+            errors.append("AGY provenance schema must be %s" % AGY_PACKAGE_SCHEMA)
+        if provenance.get("provenanceSchema") != AGY_PROVENANCE_SCHEMA:
+            errors.append("AGY provenance schema marker is invalid")
+        if provenance.get("owner") != "plugins/dhpk-agy" or provenance.get("packageRoot") != "plugins/dhpk-agy":
+            errors.append("AGY provenance owner/packageRoot is not owner-scoped")
+        if not isinstance(provenance.get("sourceVersion"), str) or not AGY_SEMVER.match(provenance["sourceVersion"]):
+            errors.append("AGY provenance sourceVersion must be SemVer")
+        if not isinstance(provenance.get("sourceCommit"), str) or not AGY_COMMIT.match(provenance["sourceCommit"]):
+            errors.append("AGY provenance sourceCommit must be a 40-character commit SHA")
+        if not isinstance(provenance.get("inventoryDigest"), str) or not AGY_SHA256.match(provenance["inventoryDigest"]):
+            errors.append("AGY provenance inventoryDigest must be a SHA-256 digest")
+        if not isinstance(provenance.get("generatorVersion"), str) or not AGY_SEMVER.match(provenance["generatorVersion"]):
+            errors.append("AGY provenance generatorVersion must be SemVer")
+        transform = provenance.get("transform")
+        if not isinstance(transform, dict) or not isinstance(transform.get("id"), str) or not isinstance(transform.get("version"), str):
+            errors.append("AGY provenance transform identity is missing")
+        if provenance.get("fingerprints") != fingerprint_map:
+            errors.append("AGY provenance fingerprints do not match fingerprints.json")
+        selected = provenance.get("selectedIds")
+        if not isinstance(selected, dict) or not all(isinstance(selected.get(key), list) for key in ("agents", "rules", "skills")):
+            errors.append("AGY provenance selectedIds are missing")
+        else:
+            if set(selected["agents"]) != set(os.path.basename(relative) for relative in agent_files):
+                errors.append("AGY provenance agent IDs do not match package agents")
+            if set(selected["rules"]) != set(rule_files):
+                errors.append("AGY provenance rule IDs do not match package rules")
+            skill_dirs = set(relative.split("/")[1] for relative in skill_files)
+            if len(selected["skills"]) != len(skill_dirs) or len(set(selected["skills"])) != len(selected["skills"]):
+                errors.append("AGY provenance skill IDs do not match package skills")
+
+    return len(errors) == 0, errors, agents
+
+
+def _run_agy_command(args, repo_root, timeout=15, read_only=False):
+    executable = shutil.which("agy")
+    if not executable:
+        return None, "agy executable is unavailable"
+    if not read_only:
+        return None, "AGY probes must run in the read-only sandbox"
+    sandbox = shutil.which("bwrap")
+    if not sandbox:
+        return None, "read-only AGY probe sandbox (bwrap) is unavailable"
+    if os.path.islink(executable) or not os.path.isfile(executable):
+        return None, "AGY executable must be a regular file for the sandbox"
+
+    # Never bind the host root or the caller's home into a probe.  A
+    # command-capable AGY agent must not be able to reach Docker, DBus, SSH
+    # agents, credentials, or another user's files even though the package
+    # itself is mounted read-only.  The executable is mounted at a stable path
+    # and only standard runtime libraries plus the package under validation are
+    # visible.  --unshare-all also isolates PID/IPC/UTS/cgroup/network; the
+    # explicit user namespace and capability drop prevent namespace escape via
+    # a privileged probe process.
+    package_root = _agy_package_root(repo_root)
+    command = [
+        sandbox, "--unshare-user", "--unshare-all", "--disable-userns", "--cap-drop", "ALL",
+        "--die-with-parent", "--clearenv",
+        "--setenv", "PATH", "/workspace/bin:/usr/bin:/bin",
+        "--setenv", "HOME", "/home/agy",
+        "--setenv", "LANG", "C",
+        "--setenv", "LC_ALL", "C",
+        "--setenv", "TMPDIR", "/tmp",
+        "--setenv", "XDG_CONFIG_HOME", "/home/agy/.config",
+        "--setenv", "XDG_CACHE_HOME", "/tmp/cache",
+        "--setenv", "XDG_STATE_HOME", "/tmp/state",
+        "--dir", "/workspace",
+        "--dir", "/workspace/bin",
+        "--ro-bind", os.path.realpath(executable), "/workspace/bin/agy",
+        "--ro-bind-try", "/usr", "/usr",
+        "--ro-bind-try", "/bin", "/bin",
+        "--ro-bind-try", "/lib", "/lib",
+        "--ro-bind-try", "/lib64", "/lib64",
+        "--dir", "/workspace/plugins",
+        "--dir", "/home",
+        "--dir", "/home/agy",
+        "--dir", "/home/agy/.config",
+        "--tmpfs", "/tmp",
+        "--tmpfs", "/run",
+        "--tmpfs", "/etc",
+        "--ro-bind-try", "/etc/passwd", "/etc/passwd",
+        "--ro-bind-try", "/etc/group", "/etc/group",
+        "--ro-bind-try", "/etc/nsswitch.conf", "/etc/nsswitch.conf",
+        "--proc", "/proc",
+        "--dev", "/dev",
+        "--chdir", "/workspace",
+        "/workspace/bin/agy",
+    ]
+    if os.path.isdir(package_root) and not os.path.islink(package_root):
+        # Insert the package bind before the home mounts.  The package is
+        # already structurally validated and is the only project material the
+        # consumer CLI may inspect.
+        insert_at = command.index("/workspace/plugins") + 1
+        command[insert_at:insert_at] = ["--ro-bind", os.path.realpath(package_root), "/workspace/plugins/dhpk-agy"]
+    command += list(args)
+    try:
+        result = subprocess.run(
+            command, cwd=repo_root, env={}, capture_output=True, text=True,
+            timeout=timeout, check=False,
+        )
+    except (OSError, subprocess.SubprocessError) as exc:
+        return None, "agy command unavailable: %s" % exc
+    output = (result.stdout or "") + (result.stderr or "")
+    return result.returncode, output
+
+
+def _agy_discovery_probe(repo_root, package_root, agents):
+    notes = []
+    plugin_status = ROW_UNAVAILABLE
+    agent_status = ROW_UNAVAILABLE
+    plugin_code, plugin_output = _run_agy_command(["plugins", "list"], repo_root, read_only=True)
+    agent_code, agent_output = _run_agy_command(["agents"], repo_root, read_only=True)
+    if plugin_code is None or agent_code is None:
+        reason = plugin_output if plugin_code is None else agent_output
+        notes.append(reason)
+    else:
+        plugin_status = ROW_PASS if plugin_code == 0 and "dhpk" in plugin_output else ROW_FAIL
+        agent_status = ROW_PASS if agent_code == 0 and any(agent[:-3] in agent_output for agent in agents) else ROW_FAIL
+        if plugin_status == ROW_FAIL:
+            notes.append("agy plugins list did not report the dhpk plugin")
+        if agent_status == ROW_FAIL:
+            notes.append("agy agents did not report an inventory-derived agent")
+    return plugin_status, agent_status, notes
+
+
+def _agy_runtime_probe(repo_root):
+    code, output = _run_agy_command([
+        "subagent", "--agent", "agy-fast-worker", "--prompt",
+        "Read-only smoke check. Return exactly AGY_SMOKE_OK and do not modify files.",
+    ], repo_root, timeout=30, read_only=True)
+    if code is None:
+        return ROW_UNAVAILABLE, output
+    if code != 0:
+        return ROW_FAIL, "agy Subagent probe exited with status %s" % code
+    if output.strip() != "AGY_SMOKE_OK":
+        return ROW_FAIL, "agy Subagent probe did not return the exact AGY_SMOKE_OK marker"
+    return ROW_PASS, "bounded read-only Subagent probe returned AGY_SMOKE_OK"
+
+
+def validate_agy(repo_root, membership=None, runtime_probe=False):
+    package_root = _agy_package_root(repo_root)
+    if membership is not None and not membership.get("present"):
+        requested = membership.get("requested")
+        status = ROW_BLOCKED if requested else ROW_NOT_CONFIGURED
+        reason = "找不到 plugins/dhpk-agy/plugin.json 或 .gemini/config/plugins/dhpk/plugin.json（%s）" % (
+            "已明確以 --targets/--all-targets 指定" if requested else "未設定，屬 not-configured"
+        )
+        return not_participating_row("agy", status, reason)
+
+    notes = []
+    structural_ok, structural_errors, agents = _validate_agy_package_structure(package_root)
+    notes.extend(structural_errors)
+    if not structural_ok:
+        row = result_row("agy", False, False, ROW_FAIL, ROW_FAIL, notes)
+        row["capabilities"] = [
+            {"id": "agy.package.structure", "status": ROW_FAIL, "fallback": "none", "reason": "inventory-owned AGY package"},
+            {"id": "agy.discovery.plugins", "status": ROW_NOT_RUN, "fallback": "package-structure", "reason": "package structure failed"},
+            {"id": "agy.discovery.agents", "status": ROW_NOT_RUN, "fallback": "package-structure", "reason": "package structure failed"},
+            {"id": "agy.runtime.subagent", "status": ROW_NOT_RUN, "fallback": "NOT_RUN", "reason": "package structure failed"},
+        ]
+        return row
+
+    plugin_status, agent_status, discovery_notes = _agy_discovery_probe(repo_root, package_root, agents)
+    notes.extend(discovery_notes)
+    runtime_status = ROW_NOT_RUN
+    runtime_reason = "runtime Subagent invocation was not requested"
+    if runtime_probe:
+        runtime_status, runtime_reason = _agy_runtime_probe(repo_root)
+        notes.append(runtime_reason)
+    hook_state = plugin_status
+    multi_state = agent_status
+    row = result_row("agy", True, bool(agents), hook_state, multi_state, notes,
+                     hook_reason="agy plugins list discovery", multi_reason="agy agents discovery")
+    row["capabilities"] = [
+        {"id": "agy.package.structure", "status": ROW_PASS if structural_ok else ROW_FAIL, "fallback": "none", "reason": "inventory-owned AGY package"},
+        {"id": "agy.discovery.plugins", "status": plugin_status, "fallback": "package-structure", "reason": "agy plugins list"},
+        {"id": "agy.discovery.agents", "status": agent_status, "fallback": "package-structure", "reason": "agy agents"},
+        {"id": "agy.runtime.subagent", "status": runtime_status, "fallback": "NOT_RUN", "reason": runtime_reason},
+    ]
+    if runtime_status == ROW_FAIL:
+        row["final_status"] = ROW_FAIL
+    elif runtime_status == ROW_UNAVAILABLE and row["final_status"] == ROW_PASS:
+        row["final_status"] = ROW_UNAVAILABLE
+    return row
 
 
 def _cursor_package_roots(repo_root):
@@ -622,11 +1034,11 @@ def run_policy_checks(repo_root, codex_present=True):
     return checks
 
 
-def run_validation(repo_root, change_id=None, targets=None, all_targets=False):
+def run_validation(repo_root, change_id=None, targets=None, all_targets=False, agy_runtime_probe=False):
     membership = resolve_target_membership(repo_root, targets=targets, all_targets=all_targets)
 
     rows = [validate_claude(repo_root)]
-    validators = {"codex": validate_codex, "gemini": validate_gemini, "antigravity": validate_antigravity, "cursor": validate_cursor}
+    validators = {"codex": validate_codex, "gemini": validate_gemini, "antigravity": validate_antigravity, "agy": lambda root, entry: validate_agy(root, entry, runtime_probe=agy_runtime_probe), "cursor": validate_cursor}
     for platform, entry in membership.items():
         rows.append(validators[platform](repo_root, entry))
 

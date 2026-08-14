@@ -16,6 +16,7 @@ callable only after the named consumer probe discovers the projected content.
 | Cursor standard Agent Plugin | Cursor Customize/Plugins, or local `~/.cursor/plugins/local/dhpk-agent` | Cursor reload/update/remove or replace that local package | Root `plugin.json`, discovered portable skills/MCP, client version | Portable skills/MCP only; no Cursor-native parity claim |
 | Cursor Plugin | Local `~/.cursor/plugins/local/dhpk-cursor`, or reviewed `.cursor-plugin/marketplace.json` source; install `plugins/dhpk-agent/` alongside it for shared portable skills | Cursor refresh/update/remove; rollback Cursor-owned files only; update the shared Agent package separately | `.cursor-plugin/plugin.json`, rules, agents, commands, hooks, variables, shared-skill IDs | Native components require Cursor evidence; shared portable skills are owned by `dhpk-agent`; gaps are `SKIP_INCOMPATIBLE` |
 | Cursor CLI launch-scoped probe | `cursor-agent --plugin-dir <agent-package> --plugin-dir <cursor-package>` after login | No persistent CLI install; update the source package or local symlink, then start a new session | `cursor-agent --version`, `cursor-agent status`, and a read-only `--mode ask` probe | Experimental/conditional: CLI help exposes the flag, but official CLI docs do not establish plugin component discovery; marketplace indexing is not a non-interactive install command |
+| AGY native plugin | Generate `plugins/dhpk-agy/`, then receipt-owned install to `~/.gemini/config/plugins/dhpk/` | `install-agy-plugin.js update`, `uninstall`, or `rollback`; foreign files are preserved and collisions fail closed | AGY package validator, `agy plugins list`, `agy agents`, and optional bounded Subagent probe | Experimental: package/discovery evidence is separate from runtime; absent `agy` is `UNAVAILABLE` |
 
 ## Prerequisites and version assumptions
 
@@ -32,6 +33,7 @@ result; do not infer a runtime `PASS` from a package check.
 | Cursor standard Agent Plugin | Cursor desktop/plugin loader that accepts the portable package; record Cursor version; minimum version not established | A Cursor-supported desktop OS; local path is `~/.cursor/plugins/local/` | Cursor Customize → Plugins or its local loader; Node.js for validation only | Observe discovered skills/MCP after reload; no loader is `UNAVAILABLE` or `BLOCKED` |
 | Cursor Plugin (native) | Cursor plugin loader supporting `.cursor-plugin/plugin.json`; record Cursor version; install the standard `dhpk-agent` package for shared portable skills; minimum version not established | A Cursor-supported desktop OS; local path is `~/.cursor/plugins/local/` | Cursor reload/UI, local filesystem, and secret-free variable configuration; compare shared IDs with Agent provenance | Observe each selected native component and hook behavior after reload; an explicit matrix overlay is the only reason for a Cursor `skills/` directory |
 | Cursor CLI launch-scoped probe | `cursor-agent` available on `PATH`; record `cursor-agent --version`; authenticate with `cursor-agent login`; minimum version not established | Linux, macOS, or WSL POSIX shell | `cursor-agent`, `--plugin-dir`, and a Cursor account/API key; Node.js only for package validation | Experimental/conditional: run `cursor-agent status`, then a read-only probe; unauthenticated output is `BLOCKED`, missing CLI is `UNAVAILABLE`, and discovery must be recorded separately |
+| AGY native plugin | `agy` version and supported AGY model/tool enum are not pinned; record `agy --version` when available | Linux, macOS, or WSL POSIX shell; install root is user-scoped | Node.js, `git`, generated package, and optional `agy` CLI | Run structural validation first; `agy plugins list`/`agy agents` are discovery evidence; runtime remains `NOT_RUN` unless `--agy-runtime-probe` is explicitly used |
 
 ## Status vocabulary
 
@@ -51,7 +53,7 @@ flag into a runtime `PASS`.
 
 `dhpk-install <surface> <action>` is the common lifecycle entrypoint. The
 accepted surfaces are `claude`, `codex-sync`, `codex-native`, `agent-plugin`,
-and `cursor`; actions are `plan`, `install`, `verify`, `update`, `uninstall`,
+`cursor`, and `agy-plugin`; actions are `plan`, `install`, `verify`, `update`, `uninstall`,
 `rollback`, and `status`. This initial slice enables deterministic read-only
 `plan`, `status`, and `verify` result construction only. For example:
 
@@ -256,11 +258,62 @@ Rollback removes or restores only `~/.cursor/plugins/local/dhpk-cursor` and its
 Cursor-owned receipt. It must not remove Codex, Claude, project-owned Cursor
 files, or the portable `dhpk-agent` package.
 
+## AGY / Antigravity CLI plugin (Experimental)
+
+The AGY projection is a separate owner-scoped package. It adapts canonical
+agent frontmatter and never rewrites `agents/`. Generate and validate it from
+the dhpk checkout:
+
+```bash
+node scripts/ci/gen-agy-plugin-package.js plugins/dhpk-agy --version=0.39.0
+node scripts/ci/validate-agy-plugin-package.js plugins/dhpk-agy
+```
+
+Install, update, and remove only the receipt-owned package at the documented
+user path. A target containing a foreign file or a changed owned file is a
+collision and is left untouched:
+
+```bash
+node scripts/ci/install-agy-plugin.js install \
+  --source plugins/dhpk-agy \
+  --target "$HOME/.gemini/config/plugins/dhpk" --json
+node scripts/ci/install-agy-plugin.js update \
+  --source plugins/dhpk-agy \
+  --target "$HOME/.gemini/config/plugins/dhpk" --json
+node scripts/ci/install-agy-plugin.js rollback \
+  --target "$HOME/.gemini/config/plugins/dhpk" --json
+```
+
+Run configured-platform validation separately from package validation:
+
+```bash
+python3 skills/dhpk-cross-agent-sync/scripts/multi_ai_sync.py \
+  --root . validate --targets agy --format json
+agy --version
+agy plugins list
+agy agents
+```
+
+The report keeps package structure, plugin/agent discovery, and Subagent
+runtime as independent rows. If `agy` is absent, discovery is `UNAVAILABLE`;
+without `--agy-runtime-probe`, runtime remains `NOT_RUN`. When the CLI is
+available, the opt-in probe is bounded and read-only:
+
+```bash
+python3 skills/dhpk-cross-agent-sync/scripts/multi_ai_sync.py \
+  --root . validate --targets agy --agy-runtime-probe --format json
+```
+
+Do not promote a static manifest or `agy agents` listing to runtime `PASS`.
+Rollback/uninstall removes only files matching the AGY provenance receipt and
+preserves user-owned files in the plugin directory.
+
 ## Maintainer evidence
 
 Every generated surface records release version, source commit/tag, inventory
 digest, generator version, stable IDs, public names, transforms, and physical
 fingerprints. Release evidence also records client versions, installation
-route, probe result, and every unexecuted gate. See the normative specifications
-under `openspec/changes/archive/2026-08-12-align-agent-plugin-platform-support/specs/` and the
+route, probe result, and every unexecuted gate. See the versioned normative
+specifications under `openspec/specs/` (especially
+`agy-cli-subagent-plugin/spec.md` and `platform-installation-documentation/spec.md`) and the
 [distribution surface guide](./distribution-surfaces.md).

@@ -20,7 +20,7 @@ const TIMEOUT_ENVELOPE_HELPER = path.join(ROOT, 'skills', 'dhpk-codex-bridge', '
 
 // The wrapper's own runtime dependencies (excluding `timeout`/`gtimeout`, which the
 // restricted-PATH tests below deliberately omit or fake).
-const REQUIRED_TOOLS = ['mktemp', 'grep', 'tail', 'cat', 'rm', 'date', 'bash', 'node'];
+const REQUIRED_TOOLS = ['mktemp', 'grep', 'tail', 'cat', 'rm', 'date', 'tr', 'bash', 'node', 'setsid'];
 
 // A fake `timeout` that ignores its wrapped command entirely, sleeps ~its duration
 // argument, then exits 124 — simulating a genuine GNU timeout kill (elapsed time close
@@ -29,6 +29,9 @@ const REQUIRED_TOOLS = ['mktemp', 'grep', 'tail', 'cat', 'rm', 'date', 'bash', '
 const TIMEOUT_STUB_FIRES = `#!/usr/bin/env bash
 dur="$1"
 sleep "$dur"
+# Keep the elapsed-time corroboration comfortably above the wrapper's half-
+# budget threshold even when the wall clock truncates a boundary-second sleep.
+sleep 1
 exit 124
 `;
 
@@ -45,11 +48,14 @@ exec "$@"
 const TIMEOUT_STUB_KILLS = `#!/usr/bin/env bash
 dur="$1"
 shift
-"$@" &
+setsid "$@" &
 child="$!"
 sleep "$dur"
-kill "$child" 2>/dev/null || true
+kill -KILL -- "-$child" 2>/dev/null || kill -KILL "$child" 2>/dev/null || true
 wait "$child" 2>/dev/null || true
+# Leave a full extra second so the wrapper's elapsed-time corroboration cannot
+# mistake a boundary-second kill for a backend-native 124 under load.
+sleep 1
 exit 124
 `;
 
@@ -108,7 +114,9 @@ if [ "\${STUB_INCLUDE_TEMP_PATH:-0}" = "1" ]; then
 fi
 printf '%s' "\${STUB_STDOUT:-stdout diagnostic}"
 printf '%s' "\${STUB_STDERR:-stderr diagnostic}" >&2
-sleep "\${STUB_SLEEP:-10}"
+# Keep the fixture's helper process below the parent spawnSync guard even if a
+# platform's setsid implementation forks before the timeout stub can reap it.
+sleep "\${STUB_SLEEP:-3}"
 exit 0
 `;
 
@@ -138,7 +146,10 @@ function runWrapper({ binDir, argvOut, dir }, args, extraEnv = {}, opts = {}) {
     env: { ...process.env, PATH, ARGV_OUT: argvOut, STUB_EXIT: String(opts.stubExit ?? 0), ...extraEnv },
     cwd: dir,
     encoding: 'utf8',
-    timeout: 10000,
+    // The wrapper budget is intentionally short, but process-group teardown
+    // can take a few seconds on a loaded CI worker. Keep this outer fixture
+    // bound finite without turning teardown races into empty-result flakes.
+    timeout: 20000,
   });
 }
 
@@ -346,6 +357,7 @@ test('verified timeout emits a redacted, parseable report envelope and keeps exi
       },
     );
     assert.strictEqual(res.status, 124, `expected verified timeout exit 124, got ${res.status}: ${res.stderr}`);
+    assert.ok(res.stdout, `verified timeout envelope was empty (status=${res.status}, error=${res.error && res.error.code}, stderr=${res.stderr})`);
     const envelope = JSON.parse(res.stdout);
     assert.deepStrictEqual(Object.keys(envelope).sort(), [
       'budget_secs', 'elapsed_secs', 'exit_code', 'redaction', 'report_b64',
@@ -414,6 +426,7 @@ test('verified timeout fails closed when the sanitizer helper is unavailable', (
         { toolsDir },
       );
       assert.strictEqual(res.status, 124, `expected timeout exit 124, got ${res.status}: ${res.stderr}`);
+      assert.ok(res.stdout, `timeout fallback envelope was empty (status=${res.status}, error=${res.error && res.error.code}, stderr=${res.stderr})`);
       const envelope = JSON.parse(res.stdout);
       assert.strictEqual(envelope.schema, 'dhpk.codex.timeout.v1');
       assert.strictEqual(envelope.report_present, false);

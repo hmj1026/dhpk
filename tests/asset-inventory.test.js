@@ -6,7 +6,7 @@ const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const { collectInventory, listAgentFiles, relativePosix } =
+const { collectInventory, listAgentFiles, relativePosix, walkFiles } =
   require(path.join(ROOT, 'scripts', 'lib', 'asset-inventory'));
 
 function fixture() {
@@ -72,6 +72,53 @@ test('missing or malformed optional manifests degrade to empty facts', () => {
   assert.deepStrictEqual(inventory.sources.hooks.events, []);
   assert.deepStrictEqual(inventory.sources.sentinelRegistry, null);
   assert.strictEqual(inventory.counts.slotCount, 0);
+});
+
+test('inventory traversal rejects a caller-supplied file-count budget before growing output', () => {
+  const root = fixture();
+  try {
+    assert.throws(
+      () => walkFiles(path.join(root, 'agents'), () => true, new Set(), 0, { files: 0, maxFiles: 1 }),
+      /maximum inventory file count/i,
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('inventory traversal rejects a caller-supplied entry-count budget', () => {
+  const root = fixture();
+  try {
+    assert.throws(
+      () => walkFiles(path.join(root, 'agents'), () => false, new Set(), 0, {
+        files: 0,
+        maxFiles: 20000,
+        entries: 0,
+        maxEntries: 1,
+      }),
+      /maximum inventory entry count/i,
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('inventory traversal fails closed when the depth limit is exceeded', () => {
+  const root = fixture();
+  try {
+    let current = path.join(root, 'agents');
+    for (let depth = 0; depth < 66; depth += 1) {
+      current = path.join(current, `level-${depth}`);
+      fs.mkdirSync(current);
+    }
+    fs.writeFileSync(path.join(current, 'deep.md'), '# deep');
+    assert.throws(
+      () => walkFiles(path.join(root, 'agents'), () => true),
+      /maximum inventory directory depth/i,
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
 });
 
 run('asset-inventory');

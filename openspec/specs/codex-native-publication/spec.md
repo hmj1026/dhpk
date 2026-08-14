@@ -181,4 +181,3 @@ Adding an Agent Plugins artifact SHALL not silently change either tier.
 - **THEN** documentation continues to provide
   `install-codex-skills.sh` with its receipt, collision, copy/symlink, update,
   and rollback semantics
-

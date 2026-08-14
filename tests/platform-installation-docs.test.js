@@ -78,6 +78,11 @@ test('installation routes remain separate and point to the SSOT', () => {
     'non-interactive `plugin install`',
     'experimental/conditional',
     'mcp.json',
+    'plugins/dhpk-agy/',
+    'install-agy-plugin.js',
+    '--targets agy',
+    '--agy-runtime-probe',
+    'agy plugins list',
     'SKIP_INCOMPATIBLE',
     'UNAVAILABLE',
   ]) assert.ok(english.includes(token), `SSOT missing ${token}`);
@@ -144,17 +149,21 @@ test('current Codex operational docs match the projection role counts', () => {
 
 test('inventory declares explicit platform matrix and frontmatter ownership', () => {
   const inventory = JSON.parse(read('manifests/distribution-inventory.json'));
-  assert.deepStrictEqual(inventory.surfaces.slice(-2), ['agent-plugin', 'cursor-plugin']);
+  assert.deepStrictEqual(inventory.surfaces.slice(-3), ['agent-plugin', 'cursor-plugin', 'agy-plugin']);
   assert.ok(Array.isArray(inventory.surface_membership['agent-plugin']));
   assert.ok(Array.isArray(inventory.surface_membership['cursor-plugin']));
+  assert.ok(Array.isArray(inventory.surface_membership['agy-plugin']));
   assert.strictEqual(inventory.platform_matrix.schema, 'dhpk.platform-capability-matrix.v1');
-  assert.ok(inventory.platform_matrix.entries.length >= 4);
+  assert.ok(inventory.platform_matrix.entries.length >= 5);
   const agentSkills = inventory.platform_matrix.entries.find((entry) => entry.id === 'dhpk.platform.agent-plugin.skills');
   const cursorSkills = inventory.platform_matrix.entries.find((entry) => entry.id === 'dhpk.platform.cursor-plugin.skills');
   assert.strictEqual(agentSkills.projection_mode, 'owner');
   assert.strictEqual(cursorSkills.projection_mode, 'shared');
   assert.strictEqual(cursorSkills.shared_surface, 'agent-plugin');
   assert.strictEqual(cursorSkills.destination, 'plugins/dhpk-agent/skills/');
+  const agy = inventory.platform_matrix.entries.find((entry) => entry.id === 'dhpk.platform.agy-plugin.native');
+  assert.strictEqual(agy.surface, 'agy-plugin');
+  assert.strictEqual(agy.destination, 'plugins/dhpk-agy/');
   assert.ok(inventory.portable_frontmatter.allowlist.includes('metadata'));
   assert.ok(inventory.portable_frontmatter.client_owned.includes('agents/openai.yaml'));
 });
