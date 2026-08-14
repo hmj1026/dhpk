@@ -21,6 +21,7 @@ const {
   verifyDistribution,
 } = require('./distribution-compiler');
 const { ProjectionArtifactStore } = require('./projection-artifact-store');
+const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
 
 const GENERATOR_VERSION = '1.0.0';
 const CANONICAL_REPOSITORY_URL = 'https://github.com/hmj1026/dhpk/blob/main/';
@@ -125,18 +126,41 @@ function ensurePhysicalDirectory(directory, label) {
   }
 }
 
-function findSymlinks(directory) {
-  const found = [];
-  const stat = lstatOrNull(directory);
-  if (!stat) return found;
-  if (stat.isSymbolicLink()) return [directory];
-  if (!stat.isDirectory()) return found;
-  for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
-    const current = path.join(directory, entry.name);
-    if (entry.isSymbolicLink()) found.push(current);
-    else if (entry.isDirectory()) found.push(...findSymlinks(current));
+function physicalPackageRootError(directory) {
+  try {
+    assertPhysicalAncestors(directory, 'Cursor package root');
+    const stat = lstatOrNull(directory);
+    if (!stat || !stat.isDirectory()) return `Cursor package root must be a physical directory: ${directory}`;
+    if (fs.realpathSync(directory) !== path.resolve(directory)) {
+      return `Cursor package root realpath escapes its lexical root: ${directory}`;
+    }
+    return null;
+  } catch (error) {
+    return error.message;
   }
-  return found;
+}
+
+function findSymlinks(directory, options = {}) {
+  const budget = createTraversalBudget(options);
+  const walk = (current, depth) => {
+    const found = [];
+    const stat = lstatOrNull(current);
+    if (!stat) return found;
+    if (stat.isSymbolicLink()) return [current];
+    if (!stat.isDirectory()) return found;
+    const realDirectory = budget.enterDirectory(current, depth);
+    try {
+      for (const entry of readDirectoryEntries(current, { budget })) {
+        const child = path.join(current, entry.name);
+        if (entry.isSymbolicLink()) found.push(child);
+        else if (entry.isDirectory()) found.push(...walk(child, depth + 1));
+      }
+      return found;
+    } finally {
+      budget.leaveDirectory(realDirectory);
+    }
+  };
+  return walk(directory, 0);
 }
 
 function stripLeadingDotSlash(value) {
@@ -282,7 +306,7 @@ function stableInventoryDigest(inventory) {
 
 function listComponentFiles(directory, extensions) {
   if (!fs.existsSync(directory)) return [];
-  return fs.readdirSync(directory, { withFileTypes: true })
+  return readDirectoryEntries(directory)
     .filter((entry) => entry.isFile() && extensions.has(path.extname(entry.name).toLowerCase()) && !/^(?:INDEX|README)\./i.test(entry.name))
     .map((entry) => path.join(directory, entry.name))
     .sort();
@@ -437,46 +461,79 @@ function writeMarketplace(outDir, name, version) {
   return marketplace;
 }
 
-function fingerprintPath(target) {
+function fingerprintPath(target, options = {}) {
   const stat = lstatOrNull(target);
   if (!stat) return '';
-  if (stat.isSymbolicLink()) return `symlink:${fs.readlinkSync(target)}`;
-  const hash = crypto.createHash('sha256');
-  if (stat.isDirectory()) {
-    hash.update('directory\0');
-    for (const name of fs.readdirSync(target).sort()) {
-      hash.update(name);
-      hash.update('\0');
-      hash.update(fingerprintPath(path.join(target, name)));
-      hash.update('\0');
+  if (stat.isSymbolicLink()) throw new Error(`cannot fingerprint symlink entry: ${target}`);
+  const budget = createTraversalBudget(options);
+  const hashNode = (current, depth) => {
+    const currentStat = lstatOrNull(current);
+    if (!currentStat) return '';
+    if (currentStat.isSymbolicLink()) throw new Error(`cannot fingerprint symlink entry: ${current}`);
+    if (currentStat.isDirectory()) {
+      const realDirectory = budget.enterDirectory(current, depth);
+      try {
+        const nodeDigest = crypto.createHash('sha256');
+        nodeDigest.update('directory\0');
+        for (const entry of readDirectoryEntries(current, { budget, sort: true })) {
+          const name = entry.name;
+          if (name === '__pycache__' || name.endsWith('.pyc')) continue;
+          nodeDigest.update(name);
+          nodeDigest.update('\0');
+          nodeDigest.update(hashNode(path.join(current, name), depth + 1));
+          nodeDigest.update('\0');
+        }
+        return nodeDigest.digest('hex');
+      } finally {
+        budget.leaveDirectory(realDirectory);
+      }
     }
-  } else {
-    hash.update('file\0');
-    hash.update(fs.readFileSync(target));
+    if (currentStat.isFile()) {
+      const nodeDigest = crypto.createHash('sha256');
+      nodeDigest.update('file\0');
+      nodeDigest.update(budget.readFile(current, currentStat));
+      return nodeDigest.digest('hex');
+    }
+    throw new Error(`cannot fingerprint special entry: ${current}`);
+  };
+  if (stat.isDirectory()) {
+    return hashNode(target, 0);
   }
-  return hash.digest('hex');
+  if (stat.isFile()) {
+    const fileDigest = crypto.createHash('sha256');
+    fileDigest.update('file\0');
+    fileDigest.update(budget.readFile(target, stat));
+    return fileDigest.digest('hex');
+  }
+  throw new Error(`cannot fingerprint special entry: ${target}`);
 }
 
-function fingerprintDir(directory) {
-  return fingerprintPath(directory);
+function fingerprintDir(directory, options = {}) {
+  return fingerprintPath(directory, options);
 }
 
-function collectCursorPhysicalTree(source, destination = '', { sourceRoot, filter = () => true } = {}) {
+function collectCursorPhysicalTree(source, destination = '', { sourceRoot, filter = () => true, budget = null, depth = 0 } = {}) {
+  const traversalBudget = budget || createTraversalBudget();
   const sourceStat = lstatOrNull(source);
   if (!sourceStat) throw new Error(`Cursor source path does not exist: ${source}`);
   if (sourceStat.isSymbolicLink()) {
     let target;
     try { target = fs.realpathSync(source); } catch (_) { throw new Error(`broken Cursor source symlink: ${source}`); }
     if (!isInside(sourceRoot, target)) throw new Error(`Cursor source symlink target escapes source root: ${source}`);
-    return collectCursorPhysicalTree(target, destination, { sourceRoot, filter });
+    return collectCursorPhysicalTree(target, destination, { sourceRoot, filter, budget: traversalBudget, depth: depth + 1 });
   }
   if (sourceStat.isDirectory()) {
     const files = [];
-    for (const entry of fs.readdirSync(source, { withFileTypes: true }).sort((left, right) => left.name.localeCompare(right.name))) {
-      const child = path.join(source, entry.name);
-      const relative = path.relative(sourceRoot, child).split(path.sep).join('/');
-      if (entry.name === '__pycache__' || relative.endsWith('.pyc') || !filter(relative, child, entry)) continue;
-      files.push(...collectCursorPhysicalTree(child, path.posix.join(destination, entry.name), { sourceRoot, filter }));
+    const realDirectory = traversalBudget.enterDirectory(source, depth);
+    try {
+      for (const entry of readDirectoryEntries(source, { budget: traversalBudget, sort: true, localeSort: true })) {
+        const child = path.join(source, entry.name);
+        const relative = path.relative(sourceRoot, child).split(path.sep).join('/');
+        if (entry.name === '__pycache__' || relative.endsWith('.pyc') || !filter(relative, child, entry)) continue;
+        files.push(...collectCursorPhysicalTree(child, path.posix.join(destination, entry.name), { sourceRoot, filter, budget: traversalBudget, depth: depth + 1 }));
+      }
+    } finally {
+      traversalBudget.leaveDirectory(realDirectory);
     }
     return files;
   }
@@ -484,9 +541,10 @@ function collectCursorPhysicalTree(source, destination = '', { sourceRoot, filte
   const real = fs.realpathSync(source);
   if (!isInside(sourceRoot, real)) throw new Error(`Cursor source symlink target escapes source root: ${source}`);
   const sourceRelative = path.relative(sourceRoot, source).split(path.sep).join('/');
+  const contentBuffer = traversalBudget.readFile(source, fs.statSync(source));
   const content = path.extname(source).toLowerCase() === '.md'
-    ? Buffer.from(sanitizeMarkdownLinks(fs.readFileSync(source, 'utf8'), source, sourceRoot))
-    : fs.readFileSync(source);
+    ? Buffer.from(sanitizeMarkdownLinks(contentBuffer.toString('utf8'), source, sourceRoot))
+    : contentBuffer;
   return [{
     source: sourceRelative,
     destination,
@@ -495,38 +553,43 @@ function collectCursorPhysicalTree(source, destination = '', { sourceRoot, filte
   }];
 }
 
-function collectAdaptedCursorDocuments(sourceDir, destinationDir, kind, transformations, canonicalRoot) {
+function collectAdaptedCursorDocuments(sourceDir, destinationDir, kind, transformations, canonicalRoot, traversalBudget) {
   if (!fs.existsSync(sourceDir)) return { files: [], names: [] };
   const files = [];
   const names = [];
   for (const source of listComponentFiles(sourceDir, COMPONENT_EXTENSIONS[kind])) {
     const name = path.basename(source);
-    const adapted = adaptNativeDocument(fs.readFileSync(source, 'utf8'), kind, name, source, canonicalRoot);
+    const sourceStat = fs.statSync(source);
+    const adapted = adaptNativeDocument(traversalBudget.readFile(source, sourceStat).toString('utf8'), kind, name, source, canonicalRoot);
     if (!adapted.ok) {
       transformations.push({ source: path.relative(sourceDir, source).split(path.sep).join('/'), destination: null, transform: `SKIP_INCOMPATIBLE: ${adapted.reason}` });
       continue;
     }
-    files.push({
+    const output = {
       source: path.relative(sourceDir, source).split(path.sep).join('/'),
       destination: path.posix.join(destinationDir, name),
       content: Buffer.from(adapted.content),
       mode: 0o644,
-    });
+    };
+    traversalBudget.accountBytes(output.content.byteLength, output.destination);
+    files.push(output);
     names.push(name);
     transformations.push({ source: path.relative(sourceDir, source).split(path.sep).join('/'), destination: path.posix.join(destinationDir, name), transform: adapted.transform });
   }
   return { files, names };
 }
 
-function collectAdaptedCursorHooks(root, transformations) {
+function collectAdaptedCursorHooks(root, transformations, traversalBudget) {
   const sourcePath = path.join(root, 'hooks', 'hooks.json');
   const adapted = { hooks: {} };
   const files = [];
   if (fs.existsSync(sourcePath)) {
     let source;
-    try { source = JSON.parse(fs.readFileSync(sourcePath, 'utf8')); } catch (error) {
+    try { source = JSON.parse(traversalBudget.readFile(sourcePath, fs.statSync(sourcePath)).toString('utf8')); } catch (error) {
       transformations.push({ source: 'hooks/hooks.json', destination: 'hooks/hooks.json', transform: `SKIP_INCOMPATIBLE: invalid JSON (${error.message})` });
-      files.push({ source: 'hooks/hooks.json', destination: 'hooks/hooks.json', content: Buffer.from(`${JSON.stringify(adapted, null, 2)}\n`), mode: 0o644 });
+      const output = { source: 'hooks/hooks.json', destination: 'hooks/hooks.json', content: Buffer.from(`${JSON.stringify(adapted, null, 2)}\n`), mode: 0o644 };
+      traversalBudget.accountBytes(output.content.byteLength, output.destination);
+      files.push(output);
       return { adapted, files };
     }
     for (const event of Object.keys(source && source.hooks || {}).sort()) {
@@ -551,7 +614,7 @@ function collectAdaptedCursorHooks(root, transformations) {
         }
         const destinationName = `${event}-${index}-${path.basename(sourceCommand)}`;
         const destination = `hooks/commands/${destinationName}`;
-        files.push(...collectCursorPhysicalTree(sourceCommand, destination, { sourceRoot: root }));
+        files.push(...collectCursorPhysicalTree(sourceCommand, destination, { sourceRoot: root, budget: traversalBudget }));
         const entry = { command: `./${destination}` };
         if (hook.matcher) entry.matcher = String(hook.matcher);
         adapted.hooks[event] = adapted.hooks[event] || [];
@@ -562,7 +625,9 @@ function collectAdaptedCursorHooks(root, transformations) {
   } else {
     transformations.push({ source: null, destination: 'hooks/hooks.json', transform: 'no-canonical-hooks' });
   }
-  files.push({ source: 'hooks/hooks.json', destination: 'hooks/hooks.json', content: Buffer.from(`${JSON.stringify(adapted, null, 2)}\n`), mode: 0o644 });
+  const output = { source: 'hooks/hooks.json', destination: 'hooks/hooks.json', content: Buffer.from(`${JSON.stringify(adapted, null, 2)}\n`), mode: 0o644 };
+  traversalBudget.accountBytes(output.content.byteLength, output.destination);
+  files.push(output);
   return { adapted, files };
 }
 
@@ -606,11 +671,12 @@ function cursorReadmeContents() {
   };
 }
 
-function buildCursorProjection({ inventory, root, name, version, sourceCommit, generatorVersion, variables }) {
+function buildCursorProjection({ inventory, root, name, version, sourceCommit, generatorVersion, variables, traversalOptions = {} }) {
   const resolvedRoot = path.resolve(root);
   const transformations = [];
   const skippedSkills = [];
   const files = [];
+  const traversalBudget = createTraversalBudget(traversalOptions);
   const skillProjection = cursorSkillProjection(inventory);
   const selectedIds = [];
   const selectedNames = [];
@@ -625,18 +691,20 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
       skippedSkills.push({ id: skill.id, name: publicName, reason: 'source SKILL.md is missing' });
       continue;
     }
-    const adapted = adaptSkill(fs.readFileSync(sourceSkill, 'utf8'), publicName);
+    const adapted = adaptSkill(traversalBudget.readFile(sourceSkill, fs.statSync(sourceSkill)).toString('utf8'), publicName);
     if (!adapted.ok) {
       skippedSkills.push({ id: skill.id, name: publicName, reason: adapted.reason });
       continue;
     }
     const skillFiles = collectCursorPhysicalTree(sourceDir, `skills/${publicName}`, {
       sourceRoot: resolvedRoot,
+      budget: traversalBudget,
       filter: (relative) => !/(?:^|\/)agents\/openai\.yaml$/.test(relative),
     });
     const skillFile = skillFiles.find((file) => file.destination === `skills/${publicName}/SKILL.md`);
     if (!skillFile) throw new Error(`Cursor source skill is missing SKILL.md: ${skill.path}`);
     skillFile.content = Buffer.from(adapted.content);
+    traversalBudget.accountBytes(skillFile.content.byteLength, skillFile.destination);
     selectedIds.push(skill.id);
     selectedNames.push(publicName);
     files.push(...skillFiles);
@@ -645,11 +713,11 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
 
   const componentDirs = {};
   for (const kind of ['rules', 'agents', 'commands']) {
-    const result = collectAdaptedCursorDocuments(path.join(resolvedRoot, kind), kind, kind, transformations, resolvedRoot);
+    const result = collectAdaptedCursorDocuments(path.join(resolvedRoot, kind), kind, kind, transformations, resolvedRoot, traversalBudget);
     if (result.files.length > 0) componentDirs[kind] = true;
     files.push(...result.files);
   }
-  const hooks = collectAdaptedCursorHooks(resolvedRoot, transformations);
+  const hooks = collectAdaptedCursorHooks(resolvedRoot, transformations, traversalBudget);
   files.push(...hooks.files);
   const cursorVariables = safeVariables(variables || inventory.cursor_variables || inventory.cursorVariables || inventory.variables);
   const manifest = buildManifest({ name, version, variables: cursorVariables, componentDirs: { ...componentDirs, skills: selectedNames.length > 0 }, hasHooks: true });
@@ -659,8 +727,12 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
     metadata: { description: 'Local Cursor Plugin marketplace fixture for dhpk.', version, pluginRoot: '.' },
     plugins: [{ name, source: '.', description: 'dhpk Cursor Plugin projection', version, license: 'MIT' }],
   };
-  files.push({ source: 'generated/.cursor-plugin/plugin.json', destination: '.cursor-plugin/plugin.json', content: Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`), mode: 0o644 });
-  files.push({ source: 'generated/.cursor-plugin/marketplace.json', destination: '.cursor-plugin/marketplace.json', content: Buffer.from(`${JSON.stringify(marketplace, null, 2)}\n`), mode: 0o644 });
+  const manifestOutput = { source: 'generated/.cursor-plugin/plugin.json', destination: '.cursor-plugin/plugin.json', content: Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`), mode: 0o644 };
+  const marketplaceOutput = { source: 'generated/.cursor-plugin/marketplace.json', destination: '.cursor-plugin/marketplace.json', content: Buffer.from(`${JSON.stringify(marketplace, null, 2)}\n`), mode: 0o644 };
+  traversalBudget.accountBytes(manifestOutput.content.byteLength, manifestOutput.destination);
+  traversalBudget.accountBytes(marketplaceOutput.content.byteLength, marketplaceOutput.destination);
+  files.push(manifestOutput);
+  files.push(marketplaceOutput);
   const fingerprints = {};
   for (const relative of ['skills', 'rules', 'agents', 'commands', 'hooks/hooks.json']) {
     const value = cursorVirtualFingerprint(files, relative);
@@ -687,10 +759,18 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
     fingerprints,
     consumer: { status: 'NOT_RUN', reason: 'Cursor client consumer probe is separate from structural generation.' },
   };
-  files.push({ source: 'generated/fingerprints.json', destination: 'fingerprints.json', content: Buffer.from(`${JSON.stringify(fingerprints, null, 2)}\n`), mode: 0o644 });
-  files.push({ source: 'generated/provenance.json', destination: 'provenance.json', content: Buffer.from(`${JSON.stringify(provenance, null, 2)}\n`), mode: 0o644 });
-  for (const [destination, content] of Object.entries(cursorReadmeContents())) files.push({ source: `generated/${destination}`, destination, content: Buffer.from(content), mode: 0o644 });
-  return { files, manifest, marketplace, selectedSkillIds: [...selectedIds].sort(), selectedSkillNames: [...selectedNames].sort(), skippedSkills: provenance.skippedSkills, fingerprints, provenance };
+  const fingerprintsOutput = { source: 'generated/fingerprints.json', destination: 'fingerprints.json', content: Buffer.from(`${JSON.stringify(fingerprints, null, 2)}\n`), mode: 0o644 };
+  const provenanceOutput = { source: 'generated/provenance.json', destination: 'provenance.json', content: Buffer.from(`${JSON.stringify(provenance, null, 2)}\n`), mode: 0o644 };
+  traversalBudget.accountBytes(fingerprintsOutput.content.byteLength, fingerprintsOutput.destination);
+  traversalBudget.accountBytes(provenanceOutput.content.byteLength, provenanceOutput.destination);
+  files.push(fingerprintsOutput);
+  files.push(provenanceOutput);
+  for (const [destination, content] of Object.entries(cursorReadmeContents())) {
+    const output = { source: `generated/${destination}`, destination, content: Buffer.from(content), mode: 0o644 };
+    traversalBudget.accountBytes(output.content.byteLength, output.destination);
+    files.push(output);
+  }
+  return { files, manifest, marketplace, selectedSkillIds: [...selectedIds].sort(), selectedSkillNames: [...selectedNames].sort(), skippedSkills: provenance.skippedSkills, fingerprints, provenance, traversalBudget };
 }
 
 function compileCursorPackage({
@@ -702,6 +782,7 @@ function compileCursorPackage({
   sourceCommit = 'unknown',
   generatorVersion = GENERATOR_VERSION,
   variables = null,
+  traversalOptions = {},
 } = {}) {
   if (!inventory || typeof inventory !== 'object') throw new Error('Cursor package inventory is required');
   if (!root || !outDir) throw new Error('Cursor package root and outDir are required');
@@ -709,7 +790,7 @@ function compileCursorPackage({
   const resolvedOut = path.resolve(outDir);
   ensurePhysicalDirectory(resolvedRoot, 'canonical root');
   assertProjectionDestination(resolvedRoot, resolvedOut, 'Cursor Plugin');
-  const projection = buildCursorProjection({ inventory, root: resolvedRoot, name, version, sourceCommit, generatorVersion, variables });
+  const projection = buildCursorProjection({ inventory, root: resolvedRoot, name, version, sourceCommit, generatorVersion, variables, traversalOptions });
   const entries = projection.files.map((file) => ({
       stableId: `cursor:${file.destination}`,
       source: file.source,
@@ -737,7 +818,15 @@ function compileCursorPackage({
   if (!compiled.ok) throw new Error(compiled.error.message);
   projection.provenance.planFingerprint = compiled.value.planFingerprint;
   const provenanceOutput = projection.files.find((file) => file.destination === 'provenance.json');
-  if (provenanceOutput) provenanceOutput.content = Buffer.from(`${JSON.stringify(projection.provenance, null, 2)}\n`);
+  if (provenanceOutput) {
+    const nextContent = Buffer.from(`${JSON.stringify(projection.provenance, null, 2)}\n`);
+    if (nextContent.byteLength > provenanceOutput.content.byteLength) {
+      // The initial receipt was budgeted during projection. Charge only the
+      // additional bytes introduced by the compiler-bound plan fingerprint.
+      projection.traversalBudget?.accountBytes(nextContent.byteLength - provenanceOutput.content.byteLength, provenanceOutput.destination);
+    }
+    provenanceOutput.content = nextContent;
+  }
   const adapter = {
       identity: { id: 'cursor-plugin', version: generatorVersion },
       render: () => ({
@@ -821,16 +910,32 @@ function verifyCursorPackage(input = {}, maybeOptions = {}) {
   const packageRoot = options.packageRoot;
   const stage = options.stage || 'structural';
   const observedAt = options.observedAt;
-  const structural = validateCursorPackage(options);
   const resolvedPackageRoot = packageRoot ? path.resolve(packageRoot) : '';
+  const packageRootError = packageRoot ? physicalPackageRootError(resolvedPackageRoot) : null;
+  if (packageRootError) {
+    const structural = { ok: false, errors: [packageRootError], skippedSkills: [] };
+    return {
+      ...structural,
+      structural,
+      ok: false,
+      evidence: { ok: false, error: { code: 'UNSAFE_PACKAGE_ROOT', message: packageRootError } },
+    };
+  }
+  const structural = validateCursorPackage(options);
   let planFingerprint = 'cursor-plugin-unbound';
   let artifactFingerprint = 'cursor-plugin-unobserved';
   try {
-    const provenance = JSON.parse(fs.readFileSync(path.join(resolvedPackageRoot, 'provenance.json'), 'utf8'));
+    const provenance = JSON.parse(readFileBounded(path.join(resolvedPackageRoot, 'provenance.json')).toString('utf8'));
     if (typeof provenance.planFingerprint === 'string' && provenance.planFingerprint.length > 0) planFingerprint = provenance.planFingerprint;
     else if (typeof provenance.inventoryDigest === 'string' && provenance.inventoryDigest.length > 0) planFingerprint = provenance.inventoryDigest;
   } catch (_) { /* structural errors retain the legacy report; evidence stays FAIL */ }
-  try { artifactFingerprint = fingerprintDir(resolvedPackageRoot); } catch (_) { /* missing/invalid roots remain FAIL */ }
+  try {
+    artifactFingerprint = fingerprintDir(resolvedPackageRoot);
+  } catch (error) {
+    const diagnostic = `Cursor package fingerprint failed: ${error.message}`;
+    structural.errors.push(diagnostic);
+    structural.ok = false;
+  }
   const defaultConsumerStage = stage === 'consumer-runtime' && !options.consumerAdapter;
   const consumerAdapter = options.consumerAdapter || {
     identity: { id: defaultConsumerStage ? 'cursor-consumer' : 'cursor-validator', version: GENERATOR_VERSION },
@@ -857,14 +962,26 @@ function verifyCursorPackage(input = {}, maybeOptions = {}) {
 
 function collectPackageFiles(directory) {
   const files = [];
-  const walk = (current) => {
+  const budget = createTraversalBudget();
+  const walk = (current, depth) => {
     const stat = lstatOrNull(current);
     if (!stat || stat.isSymbolicLink()) return;
     if (stat.isDirectory()) {
-      for (const entry of fs.readdirSync(current, { withFileTypes: true }).sort((left, right) => left.name.localeCompare(right.name))) walk(path.join(current, entry.name));
-    } else files.push(current);
+      const realDirectory = budget.enterDirectory(current, depth);
+      try {
+        for (const entry of readDirectoryEntries(current, { budget, sort: true, localeSort: true })) {
+          const child = path.join(current, entry.name);
+          walk(child, depth + 1);
+        }
+      } finally {
+        budget.leaveDirectory(realDirectory);
+      }
+    } else {
+      if (stat.isFile()) budget.accountFile(current, stat);
+      files.push(current);
+    }
   };
-  walk(directory);
+  walk(directory, 0);
   return files;
 }
 
@@ -878,7 +995,7 @@ function scanSecrets(packageRoot) {
     const configuration = ['.json', '.yaml', '.yml', '.toml', '.ini', '.env', '.conf'].includes(extension);
     const executableArtifact = executable || ['.sh', '.bash', '.cmd', '.bat', '.ps1', '.js', '.mjs', '.cjs', '.ts'].includes(extension);
     if (!configuration && !executableArtifact) continue;
-    const text = fs.readFileSync(file, 'utf8');
+    const text = readFileBounded(file).toString('utf8');
     for (const pattern of [...SECRET_PATTERNS, URL_CREDENTIAL_PATTERN, CONNECTION_SECRET_PATTERN]) {
       if (pattern.test(text)) {
         findings.push(`${relative} contains a literal credential-like value`);
@@ -954,7 +1071,7 @@ function validateVariables(variables, errors) {
 function validateSkills(packageRoot, skillRoots, errors, skippedSkills) {
   for (const root of skillRoots) {
     if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) continue;
-    for (const entry of fs.readdirSync(root, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+    for (const entry of readDirectoryEntries(root, { sort: true, localeSort: true })) {
       if (!entry.isDirectory() || entry.isSymbolicLink()) continue;
       const skillPath = path.join(root, entry.name, 'SKILL.md');
       if (!fs.existsSync(skillPath)) {
@@ -963,7 +1080,7 @@ function validateSkills(packageRoot, skillRoots, errors, skippedSkills) {
         errors.push(`${relative} is invalid: missing SKILL.md`);
         continue;
       }
-      const parsed = parseFrontmatter(fs.readFileSync(skillPath, 'utf8'));
+      const parsed = parseFrontmatter(readFileBounded(skillPath).toString('utf8'));
       if (!parsed.present || !parsed.fields.name || !parsed.fields.description || parsed.fields.name !== entry.name || !NAME_PATTERN.test(parsed.fields.name)) {
         const relative = path.relative(packageRoot, skillPath).split(path.sep).join('/');
         skippedSkills.push({ path: relative, reason: 'invalid Cursor skill frontmatter' });
@@ -978,7 +1095,7 @@ function validateNativeDocuments(packageRoot, roots, kind, errors) {
   for (const root of roots) {
     if (!fs.existsSync(root)) continue;
     for (const file of listComponentFiles(root, extensions)) {
-      const parsed = parseFrontmatter(fs.readFileSync(file, 'utf8'));
+      const parsed = parseFrontmatter(readFileBounded(file).toString('utf8'));
       const relative = path.relative(packageRoot, file).split(path.sep).join('/');
       if (!parsed.present || !parsed.fields.name || !parsed.fields.description || !NAME_PATTERN.test(parsed.fields.name)) {
         errors.push(`${relative} has invalid Cursor ${kind} frontmatter (name and description are required)`);
@@ -993,7 +1110,7 @@ function validateNativeDocuments(packageRoot, roots, kind, errors) {
 function validateHooks(packageRoot, hookRoots, errors) {
   for (const hooksPath of hookRoots) {
     let config;
-    try { config = JSON.parse(fs.readFileSync(hooksPath, 'utf8')); } catch (error) {
+    try { config = JSON.parse(readFileBounded(hooksPath).toString('utf8')); } catch (error) {
       errors.push(`${path.relative(packageRoot, hooksPath).split(path.sep).join('/')} is invalid JSON: ${error.message}`);
       continue;
     }
@@ -1034,7 +1151,7 @@ function validateMarketplace(packageRoot, errors) {
     return;
   }
   let marketplace;
-  try { marketplace = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (error) {
+  try { marketplace = JSON.parse(readFileBounded(file).toString('utf8')); } catch (error) {
     errors.push(`.cursor-plugin/marketplace.json is invalid JSON: ${error.message}`);
     return;
   }
@@ -1056,13 +1173,15 @@ function validateCursorPackage(input = {}) {
   const skippedSkills = [];
   if (!packageRoot) return { ok: false, errors: ['Cursor packageRoot is required'], skippedSkills };
   const root = path.resolve(packageRoot);
+  const packageRootError = physicalPackageRootError(root);
+  if (packageRootError) return { ok: false, errors: [packageRootError], skippedSkills };
   if (!fs.existsSync(root) || !fs.statSync(root).isDirectory()) return { ok: false, errors: [`Cursor package root does not exist: ${packageRoot}`], skippedSkills };
   for (const link of findSymlinks(root)) errors.push(`Cursor package contains symlink: ${path.relative(root, link).split(path.sep).join('/')}`);
   const manifestPath = path.join(root, '.cursor-plugin', 'plugin.json');
   if (!fs.existsSync(manifestPath)) errors.push('.cursor-plugin/plugin.json is missing');
   let manifest = null;
   if (fs.existsSync(manifestPath)) {
-    try { manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')); } catch (error) { errors.push(`.cursor-plugin/plugin.json is invalid JSON: ${error.message}`); }
+    try { manifest = JSON.parse(readFileBounded(manifestPath).toString('utf8')); } catch (error) { errors.push(`.cursor-plugin/plugin.json is invalid JSON: ${error.message}`); }
   }
   const componentRoots = {};
   if (manifest) {
@@ -1092,14 +1211,14 @@ function validateCursorPackage(input = {}) {
   validateMarketplace(root, errors);
   if (fs.existsSync(path.join(root, 'fingerprints.json'))) {
     try {
-      const fingerprints = JSON.parse(fs.readFileSync(path.join(root, 'fingerprints.json'), 'utf8'));
+      const fingerprints = JSON.parse(readFileBounded(path.join(root, 'fingerprints.json')).toString('utf8'));
       for (const key of Object.keys(fingerprints || {})) if (!isSafeRelativePath(key)) errors.push(`fingerprint path escapes package root: '${key}'`);
     } catch (error) { errors.push(`fingerprints.json is invalid JSON: ${error.message}`); }
   }
   const provenancePath = path.join(root, 'provenance.json');
   if (fs.existsSync(provenancePath)) {
     try {
-      const provenance = JSON.parse(fs.readFileSync(provenancePath, 'utf8'));
+      const provenance = JSON.parse(readFileBounded(provenancePath).toString('utf8'));
       const sharedIds = Array.isArray(provenance.sharedSkillIds) ? provenance.sharedSkillIds : [];
       const selectedIds = Array.isArray(provenance.selectedSkillIds) ? provenance.selectedSkillIds : [];
       if (provenance.skillProjectionMode !== undefined && !['shared', 'overlay', null].includes(provenance.skillProjectionMode)) {

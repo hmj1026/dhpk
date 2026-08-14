@@ -34,11 +34,11 @@ The validation report SHALL state whether Codex was checked as a standard instal
 
 ### Requirement: Every generated platform surface has owner-scoped provenance
 
-Generated `agent-plugin`, `codex-native`, `codex-sync`, and `cursor-plugin` outputs SHALL
-carry or reference a receipt that identifies the owning
-generator, schema version, source commit/version, inventory digest, selected
-stable IDs, public names, transformations, and output fingerprints. A receipt
-for one surface SHALL not authorize mutation or parity claims for another.
+Generated `agent-plugin`, `codex-native`, `codex-sync`, `cursor-plugin`, and `agy-plugin` outputs SHALL carry or reference a receipt that identifies the
+owning generator, schema version, source commit/version, inventory digest,
+selected stable IDs, public names, transformations, and output fingerprints.
+A receipt for one surface SHALL not authorize mutation or parity claims for
+another.
 
 #### Scenario: Standard package receipt is valid
 
@@ -56,8 +56,8 @@ for one surface SHALL not authorize mutation or parity claims for another.
 
 Migration/update operations SHALL adopt, replace, or remove only entries proven
 owned by the target surface. Existing `.codex/.dhpk-installed.json`, Codex
-native provenance, Agent Plugin provenance, and Cursor marketplace metadata
-SHALL remain independently addressable and rollbackable.
+native provenance, Agent Plugin provenance, Cursor marketplace metadata, and
+AGY provenance SHALL remain independently addressable and rollbackable.
 
 #### Scenario: User-owned Cursor file collides with generated output
 
@@ -72,3 +72,20 @@ SHALL remain independently addressable and rollbackable.
 - **THEN** only Cursor-owned generated files and receipts are reverted; Codex,
   Claude, and user-owned project files remain unchanged
 
+### Requirement: AGY installation is receipt-owned and collision-safe
+
+AGY install, update, uninstall, and rollback SHALL operate only at
+`~/.gemini/config/plugins/dhpk/` and SHALL require a matching `agy-plugin`
+provenance receipt for replacement or removal. Foreign or changed files SHALL
+be preserved and reported as collisions.
+
+#### Scenario: AGY-owned update succeeds
+
+- **WHEN** the target receipt and every existing generated fingerprint match
+- **THEN** update replaces only AGY-owned files and refreshes the receipt
+
+#### Scenario: AGY target contains a user file
+
+- **WHEN** installation would overwrite a target file without matching AGY
+  ownership
+- **THEN** the operation fails closed and leaves the user file untouched

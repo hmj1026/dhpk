@@ -7,25 +7,50 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
 
 function relativePosix(root, filePath) {
   return path.relative(root, filePath).split(path.sep).join('/');
 }
 
-function walkFiles(dir, predicate = () => true) {
+function walkFiles(dir, predicate = () => true, visited = new Set(), depth = 0, budget = {
+  files: 0,
+  maxFiles: 20000,
+  entries: 0,
+  maxEntries: 40000,
+}) {
   if (!fs.existsSync(dir)) return [];
+  if (depth > 64) throw new Error(`maximum inventory directory depth (64) exceeded: ${dir}`);
+  if (!Number.isSafeInteger(budget.entries)) budget.entries = 0;
+  if (!Number.isSafeInteger(budget.maxEntries)) budget.maxEntries = 40000;
+  const realDir = fs.realpathSync(dir);
+  if (visited.has(realDir)) return [];
+  visited.add(realDir);
   const out = [];
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+  const entryBudget = {
+    accountEntry: () => {
+      budget.entries += 1;
+      if (budget.entries > budget.maxEntries) throw new Error(`maximum inventory entry count (${budget.maxEntries}) exceeded: ${dir}`);
+    },
+  };
+  for (const entry of readDirectoryEntries(dir, { budget: entryBudget })) {
+    if (entry.name === '__pycache__' || entry.name.endsWith('.pyc') || entry.name === 'node_modules' || entry.name === '.git') continue;
     const filePath = path.join(dir, entry.name);
-    if (entry.isDirectory()) out.push(...walkFiles(filePath, predicate));
-    else if (entry.isFile() && predicate(filePath)) out.push(filePath);
+    if (entry.isDirectory()) out.push(...walkFiles(filePath, predicate, visited, depth + 1, budget));
+    else if (entry.isFile() && predicate(filePath)) {
+      budget.files += 1;
+      if (budget.files > budget.maxFiles) {
+        throw new Error(`maximum inventory file count (${budget.maxFiles}) exceeded: ${filePath}`);
+      }
+      out.push(filePath);
+    }
   }
   return out.sort();
 }
 
 function listDirectories(dir) {
   if (!fs.existsSync(dir)) return [];
-  return fs.readdirSync(dir, { withFileTypes: true })
+  return readDirectoryEntries(dir)
     .filter((entry) => entry.isDirectory())
     .map((entry) => path.join(dir, entry.name))
     .sort();
@@ -33,7 +58,7 @@ function listDirectories(dir) {
 
 function readJson(root, rel) {
   try {
-    return JSON.parse(fs.readFileSync(path.join(root, rel), 'utf8'));
+    return JSON.parse(readFileBounded(path.join(root, rel)).toString('utf8'));
   } catch (_) {
     return null;
   }
@@ -68,10 +93,10 @@ function collectInventory(root) {
     .filter((dir) => /^(?:dhpk-codex-|dhpk-change-review$)/.test(path.basename(dir)));
   const mcpCodexSkills = codexSkillDirs.filter((dir) => {
     const skill = path.join(dir, 'SKILL.md');
-    return fs.existsSync(skill) && fs.readFileSync(skill, 'utf8').includes('mcp__codex__');
+    return fs.existsSync(skill) && readFileBounded(skill).toString('utf8').includes('mcp__codex__');
   });
   const codexCommandFiles = fs.existsSync(path.join(repoRoot, 'commands'))
-    ? fs.readdirSync(path.join(repoRoot, 'commands')).filter((name) => /^codex-.*\.md$/.test(name)).sort()
+    ? readDirectoryEntries(path.join(repoRoot, 'commands')).map((entry) => entry.name).filter((name) => /^codex-.*\.md$/.test(name)).sort()
     : [];
 
   const sentinelRegistry = readJson(repoRoot, 'scripts/lib/sentinel-slots.json');

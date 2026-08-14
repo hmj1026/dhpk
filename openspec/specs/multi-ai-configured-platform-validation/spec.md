@@ -4,7 +4,7 @@
 TBD - created by archiving change scope-multi-ai-sync-validation-to-configured-platforms. Update Purpose after archive.
 ## Requirements
 ### Requirement: Validation derives the configured target set before checking parity
-`multi-ai-sync validate` SHALL validate the canonical Claude source first and then derive the configured Codex, Gemini, and Antigravity target set from documented platform markers, using one shared resolver. The resolver SHALL be implemented as a reusable function so `plan`/`apply`/discovery can adopt it in a later change; this requirement binds `validate` only.
+`multi-ai-sync validate` SHALL validate the canonical Claude source first and then derive the configured Codex, Gemini, Antigravity, AGY, and Cursor target set from documented platform markers, using one shared resolver. The resolver SHALL be implemented as a reusable function so `plan`/`apply`/discovery can adopt it in a later change; this requirement binds `validate` only.
 
 #### Scenario: Repository configures only Codex
 - **WHEN** the Claude source is valid, Codex markers are present, and Gemini and Antigravity markers are absent
@@ -124,3 +124,26 @@ all rows and their evidence.
 - **THEN** the Cursor row is `BLOCKED`, the final gate is non-zero, and other
   platform rows remain visible
 
+### Requirement: AGY discovery and runtime evidence remain separate
+
+The shared resolver SHALL recognize an inventory-owned `agy-plugin` package or
+installed `~/.gemini/config/plugins/dhpk/plugin.json` marker. An explicit
+`--targets agy` request without a marker SHALL be `BLOCKED`; an unrequested
+absence SHALL be `NOT_CONFIGURED`. Structural package validation,
+`agy plugins list`, `agy agents`, and a bounded read-only Subagent invocation
+MUST be separate report capabilities. Missing `agy` tooling SHALL be
+`UNAVAILABLE`, and discovery SHALL NOT upgrade runtime support.
+
+#### Scenario: AGY package is configured without a client
+
+- **WHEN** `plugins/dhpk-agy/plugin.json` and adapted agents are valid but
+  `agy` is not on `PATH`
+- **THEN** package evidence is `PASS`, consumer discovery is `UNAVAILABLE`,
+  and runtime remains `NOT_RUN`
+
+#### Scenario: AGY runtime probe is explicitly requested
+
+- **WHEN** `--targets agy --agy-runtime-probe` runs with a configured client
+  and the bounded read-only smoke prompt returns its sentinel
+- **THEN** the runtime capability is `PASS` independently of package and
+  discovery rows

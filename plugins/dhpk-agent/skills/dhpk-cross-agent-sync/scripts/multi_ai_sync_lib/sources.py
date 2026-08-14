@@ -27,6 +27,10 @@ def resolve_configured_targets(repo_root):
         "codex": safe_exists(os.path.join(repo_root, ".codex/config.toml")),
         "gemini": bool(glob.glob(os.path.join(repo_root, ".gemini/commands/**/*.toml"), recursive=True)),
         "antigravity": bool(glob.glob(os.path.join(repo_root, ".agent/rules/*.md"))),
+        "agy": any(safe_exists(os.path.join(repo_root, marker)) for marker in (
+            "plugins/dhpk-agy/plugin.json",
+            ".gemini/config/plugins/dhpk/plugin.json",
+        )),
         "cursor": any(safe_exists(os.path.join(repo_root, marker)) for marker in (
             "plugins/dhpk-agent/plugin.json",
             ".cursor-plugin/plugin.json",
@@ -113,6 +117,10 @@ def evidence_sources(target, category):
             "https://context7.com/websites/antigravity_google_home",
             "https://antigravity.google",
             "https://blog.google/intl/nl-nl/product/zoeken-kijken/een-nieuw-tijdperk-van-intelligentie-met-gemini-3/",
+        ],
+        "agy": [
+            "https://antigravity.google",
+            "https://github.com/hmj1026/dhpk/blob/main/docs/gemini-agy-subagent-plugin-guide.md",
         ],
         "cursor": [
             "https://cursor.com/docs/plugins",

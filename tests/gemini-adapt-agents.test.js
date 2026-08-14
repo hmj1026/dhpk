@@ -70,7 +70,7 @@ test('rewrites tools list to Gemini names, dedupes, strips color, and reports co
 
     const rewritten = fs.readFileSync(path.join(agentsDir, 'sample.md'), 'utf8');
     assert.ok(!rewritten.includes('color:'), rewritten);
-    assert.ok(rewritten.includes('tools: ["read_file", "write_file", "mcp_foo_bar"]'), rewritten);
+    assert.ok(rewritten.includes('tools: ["read_file", "write_to_file", "mcp_foo_bar"]'), rewritten);
     assert.ok(rewritten.includes('Body text.'), rewritten);
 
     const untouched = fs.readFileSync(path.join(agentsDir, 'no-frontmatter.md'), 'utf8');
@@ -85,7 +85,7 @@ test('already-compatible tools line is left unchanged (idempotent, reported as u
   try {
     const agentsDir = path.join(tmp, 'agents');
     fs.mkdirSync(agentsDir, { recursive: true });
-    const src = ['---', 'name: sample', 'tools: ["read_file", "write_file"]', '---', '', 'Body.', ''].join('\n');
+    const src = ['---', 'name: sample', 'tools: ["read_file", "write_to_file"]', 'model: inherit', '---', '', 'Body.', ''].join('\n');
     fs.writeFileSync(path.join(agentsDir, 'sample.md'), src);
 
     const res = runScript([agentsDir]);

@@ -11,6 +11,7 @@
 const fs = require('fs');
 const path = require('path');
 const { runSteps } = require('../lib/gate-runner');
+const { readFileBounded } = require('../lib/bounded-filesystem');
 
 const DEFAULT_ROOT = path.join(__dirname, '..', '..');
 
@@ -36,7 +37,7 @@ function defaultSteps(root, version) {
   return [
     { name: 'changelog-fragments', cmd: 'node', args: [path.join(root, 'scripts/ci/validate-changelog-fragments.js'), '--repo-root', root] },
     { name: 'release-parity', cmd: 'node', args: [path.join(root, 'scripts/release/prepare-release.js'), 'check', '--version', version, '--repo-root', root] },
-    { name: 'repository-tests', cmd: 'node', args: [path.join(root, 'tests/run-all.js')] },
+    { name: 'repository-tests', cmd: path.join(root, 'scripts/ci/run-bounded-node-test.sh'), args: ['node', path.join(root, 'tests/run-all.js')] },
     { name: 'openspec-validate', cmd: 'openspec', args: ['validate', '--changes', '--strict', '--no-interactive'] },
   ];
 }
@@ -48,7 +49,7 @@ if (!args.stepsFile && !args.version) {
 }
 
 const steps = args.stepsFile
-  ? JSON.parse(fs.readFileSync(args.stepsFile, 'utf8'))
+  ? JSON.parse(readFileBounded(args.stepsFile).toString('utf8'))
   : defaultSteps(args.root, args.version);
 
 const stage = runSteps(steps, { environment: process.env.CI ? 'ci' : 'local', cwd: args.root });

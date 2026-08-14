@@ -10,22 +10,35 @@
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
+const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
 
 const MANAGED_DIRS = ['skills', 'commands', 'agents', 'hooks', 'rules'];
 
-function walkFiles(dir) {
+function walkFiles(dir, options = {}) {
   if (!fs.existsSync(dir)) return [];
   const out = [];
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const fp = path.join(dir, entry.name);
-    if (entry.isDirectory()) out.push(...walkFiles(fp));
-    else if (entry.isFile()) out.push(fp);
-  }
+  const budget = createTraversalBudget(options);
+  const walk = (directory, depth) => {
+    const realDirectory = budget.enterDirectory(directory, depth);
+    try {
+      for (const entry of readDirectoryEntries(directory, { budget })) {
+        const fp = path.join(directory, entry.name);
+        if (entry.isDirectory()) walk(fp, depth + 1);
+        else if (entry.isFile()) {
+          budget.accountFile(fp, fs.statSync(fp));
+          out.push(fp);
+        }
+      }
+    } finally {
+      budget.leaveDirectory(realDirectory);
+    }
+  };
+  walk(dir, 0);
   return out.sort();
 }
 
 function hashFile(filePath) {
-  return crypto.createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+  return crypto.createHash('sha256').update(readFileBounded(filePath)).digest('hex');
 }
 
 function managedFiles(root) {
@@ -39,7 +52,7 @@ function managedFiles(root) {
 
 function loadAllowlist(root, targetName) {
   try {
-    const raw = JSON.parse(fs.readFileSync(path.join(root, '.cross-cli-allowlist.json'), 'utf8'));
+    const raw = JSON.parse(readFileBounded(path.join(root, '.cross-cli-allowlist.json')).toString('utf8'));
     const entries = raw && Array.isArray(raw[targetName]) ? raw[targetName] : [];
     return new Set(entries.filter((item) => typeof item === 'string'));
   } catch (_) {

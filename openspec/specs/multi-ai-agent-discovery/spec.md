@@ -49,7 +49,7 @@ skills or arbitrary Markdown resources.
 Cursor and Codex discovery SHALL exclude `INDEX.md`, `README.md`, provenance,
 fingerprint, receipt, and other configured navigation/evidence files before
 definition parsing. The same exclusion policy SHALL apply to canonical and
-generated inventories.
+generated inventories, including the native AGY `agents/` package.
 
 #### Scenario: Cursor agent directory contains a README
 
@@ -63,3 +63,9 @@ generated inventories.
 - **THEN** its configured evidence basename prevents it from being treated as
   an invocable agent
 
+#### Scenario: AGY package excludes navigation and receipt files
+
+- **WHEN** `plugins/dhpk-agy/agents/` contains adapted definitions alongside
+  `INDEX.md`, `README.md`, provenance, or fingerprint evidence
+- **THEN** AGY discovery counts only adapted agent definitions and reports the
+  excluded files separately from the invocable roster

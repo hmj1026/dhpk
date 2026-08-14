@@ -36,35 +36,78 @@ const crypto = require('crypto');
 const { spawnSync } = require('child_process');
 const { VERDICTS } = require('../lib/release-evidence');
 const { fingerprintDir } = require('../lib/codex-native-package');
+const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('../lib/bounded-filesystem');
 const { collectCodexProjectionReferenceErrors } = require('../ci/_lib/codex-runtime');
 const { redactSensitiveText } = require('../lib/redaction');
 
 const DEFAULT_ROOT = path.join(__dirname, '..', '..');
 const CODEX_SURFACE_VERDICTS = Object.freeze({ PASS: 'PASS', WARN: 'WARN', BLOCKED: 'BLOCKED' });
 
-function fingerprintPath(target) {
-  const hashNode = (current) => {
-    const stat = fs.lstatSync(current);
-    if (stat.isSymbolicLink()) return hashNode(fs.realpathSync(current));
+function canonicalAllowedRoots(roots) {
+  return Array.isArray(roots) ? roots.map((root) => fs.realpathSync(path.resolve(root))) : [];
+}
+
+function isContainedPath(candidate, roots) {
+  return roots.some((root) => candidate === root || candidate.startsWith(`${root}${path.sep}`));
+}
+
+function resolveSurfaceRoot(surfaceRoot, { allowedRoots = [], rejectSymlinkAncestors = false } = {}) {
+  const lexical = path.resolve(surfaceRoot);
+  const canonical = fs.realpathSync(surfaceRoot);
+  if (rejectSymlinkAncestors && lexical !== canonical) {
+    throw new Error(`surface root or ancestor is a symlink: ${surfaceRoot}`);
+  }
+  const roots = canonicalAllowedRoots(allowedRoots);
+  if (roots.length > 0 && !isContainedPath(canonical, roots)) {
+    throw new Error(`surface root resolves outside approved roots: ${surfaceRoot}`);
+  }
+  return canonical;
+}
+
+function fingerprintPath(target, options = {}) {
+  const budget = createTraversalBudget(options);
+  const allowedRoots = canonicalAllowedRoots(options.allowedRoots);
+  const resolveCanonicalPath = (current) => {
+    const lexical = path.resolve(current);
+    const resolved = fs.realpathSync(current);
+    if (allowedRoots.length === 0 && lexical !== resolved) {
+      throw new Error(`symlinked path is not allowed without an approved root: ${current}`);
+    }
+    const contained = isContainedPath(resolved, allowedRoots);
+    if (allowedRoots.length > 0 && !contained) {
+      throw new Error(`symlink target is outside approved roots: ${current}`);
+    }
+    return resolved;
+  };
+  const hashNode = (current, depth) => {
+    const canonical = resolveCanonicalPath(current);
+    const stat = fs.lstatSync(canonical);
     const nodeDigest = crypto.createHash('sha256');
     if (stat.isDirectory()) {
-      nodeDigest.update('dir\0');
-      for (const name of fs.readdirSync(current).sort()) {
-        nodeDigest.update(name);
-        nodeDigest.update('\0');
-        nodeDigest.update(hashNode(path.join(current, name)));
-        nodeDigest.update('\0');
+      const realDirectory = budget.enterDirectory(canonical, depth);
+      try {
+        nodeDigest.update('dir\0');
+        for (const entry of readDirectoryEntries(canonical, { budget, sort: true })) {
+          const name = entry.name;
+          nodeDigest.update(name);
+          nodeDigest.update('\0');
+          nodeDigest.update(hashNode(path.join(canonical, name), depth + 1));
+          nodeDigest.update('\0');
+        }
+      } finally {
+        budget.leaveDirectory(realDirectory);
       }
       return nodeDigest.digest('hex');
     }
     nodeDigest.update('file\0');
-    nodeDigest.update(fs.readFileSync(current));
+    nodeDigest.update(budget.readFile(canonical, stat));
     return nodeDigest.digest('hex');
   };
   try {
-    return hashNode(target);
-  } catch (_) {
-    return '';
+    return hashNode(target, 0);
+  } catch (error) {
+    if (error && error.code === 'ENOENT') return '';
+    throw error;
   }
 }
 
@@ -106,18 +149,38 @@ function discoverCodexSurface({
   expectedFingerprints = null,
   fingerprintFn = fingerprintPath,
   expectedFingerprintFn = fingerprintFn,
+  allowedRoots = [],
 }) {
   return ['skills', 'agents'].flatMap((kind) => {
     const kindRoot = path.join(surfaceRoot, kind);
-    if (!fs.existsSync(kindRoot)) return [];
+    let kindStat;
+    try { kindStat = fs.lstatSync(kindRoot); } catch (error) {
+      if (error && error.code === 'ENOENT') return [];
+      throw error;
+    }
+    if (!kindStat.isDirectory() && !kindStat.isSymbolicLink()) {
+      throw new Error(`surface root is not a directory: ${kindRoot}`);
+    }
+    const enumerationRoot = resolveSurfaceRoot(kindRoot, {
+      allowedRoots,
+      rejectSymlinkAncestors: fingerprintFn === fingerprintDir,
+    });
     const managed = manifest && manifest.managed_entries && manifest.managed_entries[kind];
-    return fs.readdirSync(kindRoot).sort().flatMap((id) => {
+    return readDirectoryEntries(enumerationRoot, { sort: true }).map((entry) => entry.name).flatMap((id) => {
       const target = path.join(kindRoot, id);
       let stat;
       try { stat = fs.lstatSync(target); } catch (_) { return []; }
       if (!stat.isDirectory() && !stat.isSymbolicLink()) return [];
-      const fingerprint = fingerprintFn(target);
-      const expectedFingerprint = expectedFingerprints ? expectedFingerprintFn(target) : null;
+      let fingerprint = '';
+      let expectedFingerprint = null;
+      let fingerprintError = null;
+      try {
+        const fingerprintOptions = fingerprintFn === fingerprintPath ? { allowedRoots } : {};
+        fingerprint = fingerprintFn(target, fingerprintOptions);
+        expectedFingerprint = expectedFingerprints ? expectedFingerprintFn(target, fingerprintOptions) : null;
+      } catch (error) {
+        fingerprintError = error;
+      }
       const receiptEntry = managed && managed[id];
       const owned = manifest
         ? Boolean(receiptEntry && receiptEntry.destination_fingerprint === fingerprint)
@@ -133,6 +196,7 @@ function discoverCodexSurface({
         fingerprint,
         owned,
         current,
+        ...(fingerprintError ? { fingerprintError: fingerprintError.message } : {}),
         ...(provenance ? { provenance: { ...provenance } } : {}),
         sourcePath: relativeEvidencePath(root, target, label),
       }];
@@ -163,7 +227,7 @@ function discoverCodexSurfaces({ root, project, version }) {
   const manifestPath = path.join(project, '.codex', '.dhpk-installed.json');
   let manifest = null;
   if (fs.existsSync(manifestPath)) {
-    try { manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8')); } catch (_) { manifest = null; }
+    try { manifest = JSON.parse(readFileBounded(manifestPath).toString('utf8')); } catch (_) { manifest = null; }
   }
   const projectEntries = discoverCodexSurface({
     root,
@@ -171,12 +235,13 @@ function discoverCodexSurfaces({ root, project, version }) {
     label: 'project-local',
     version,
     manifest,
+    allowedRoots: [project, root],
   });
   const nativeRoot = path.join(root, 'plugins', 'dhpk');
   let nativeVersion = version;
   const nativeManifestPath = path.join(nativeRoot, '.codex-plugin', 'plugin.json');
   if (fs.existsSync(nativeManifestPath)) {
-    try { nativeVersion = JSON.parse(fs.readFileSync(nativeManifestPath, 'utf8')).version || version; } catch (_) { /* keep target version */ }
+    try { nativeVersion = JSON.parse(readFileBounded(nativeManifestPath).toString('utf8')).version || version; } catch (_) { /* keep target version */ }
   }
   let nativeProvenance = { valid: false, current: false, packageVersion: nativeVersion, sourceVersion: null };
   let nativeFingerprints = {};
@@ -185,15 +250,15 @@ function discoverCodexSurfaces({ root, project, version }) {
   const inventoryPath = path.join(root, 'manifests', 'distribution-inventory.json');
   let inventory = null;
   try {
-    inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
-    nativeFingerprints = JSON.parse(fs.readFileSync(fingerprintsPath, 'utf8'));
+    inventory = JSON.parse(readFileBounded(inventoryPath).toString('utf8'));
+    nativeFingerprints = JSON.parse(readFileBounded(fingerprintsPath).toString('utf8'));
   } catch (_) {
     inventory = null;
     nativeFingerprints = {};
   }
   if (fs.existsSync(provenancePath)) {
     try {
-      const provenance = JSON.parse(fs.readFileSync(provenancePath, 'utf8'));
+      const provenance = JSON.parse(readFileBounded(provenancePath).toString('utf8'));
       const validCommit = typeof provenance.sourceCommit === 'string' && /^[a-f0-9]{40}$/i.test(provenance.sourceCommit);
       const validDigest = typeof provenance.inventoryDigest === 'string' && /^[a-f0-9]{64}$/i.test(provenance.inventoryDigest);
       const validVersion = provenance.sourceVersion === nativeVersion && nativeVersion === version;
@@ -231,7 +296,7 @@ function discoverCodexSurfaces({ root, project, version }) {
     manifest: null,
     provenance: nativeProvenance,
     expectedFingerprints: nativeFingerprints,
-    fingerprintFn: fingerprintPath,
+    fingerprintFn: fingerprintDir,
     expectedFingerprintFn: fingerprintDir,
   });
   return { project: projectEntries, native: nativeEntries, manifest };
@@ -276,9 +341,14 @@ function verifyCodexSync(root, version) {
     if (!fs.existsSync(manifestPath)) {
       return { verdict: VERDICTS.FAIL, commands, reasons: ['no .codex/.dhpk-installed.json manifest after install'] };
     }
-    const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-    const skillsPresent = fs.existsSync(path.join(project, '.codex', 'skills')) && fs.readdirSync(path.join(project, '.codex', 'skills')).length > 0;
-    const agentsPresent = fs.existsSync(path.join(project, '.codex', 'agents')) && fs.readdirSync(path.join(project, '.codex', 'agents')).length > 0;
+    const manifest = JSON.parse(readFileBounded(manifestPath).toString('utf8'));
+    const hasPhysicalEntries = (directory) => {
+      let stat;
+      try { stat = fs.lstatSync(directory); } catch (_) { return false; }
+      return stat.isDirectory() && readDirectoryEntries(directory, { sort: false }).length > 0;
+    };
+    const skillsPresent = hasPhysicalEntries(path.join(project, '.codex', 'skills'));
+    const agentsPresent = hasPhysicalEntries(path.join(project, '.codex', 'agents'));
     const supportingAssets = manifest.managed_entries && manifest.managed_entries.supporting_assets;
     const promptDefensePresent = fs.existsSync(path.join(project, '.codex', 'dhpk', 'agent-traps', '_common', 'prompt-defense.md'));
     if (!skillsPresent || !agentsPresent || !supportingAssets || Object.keys(supportingAssets).length === 0 || !promptDefensePresent) {
@@ -296,7 +366,7 @@ function verifyCodexSync(root, version) {
     }
     let expectedSyncNames = [];
     try {
-      const inventory = JSON.parse(fs.readFileSync(path.join(root, 'manifests', 'distribution-inventory.json'), 'utf8'));
+      const inventory = JSON.parse(readFileBounded(path.join(root, 'manifests', 'distribution-inventory.json')).toString('utf8'));
       expectedSyncNames = (inventory.skills || [])
         .filter((skill) => (skill.surfaces || []).includes('codex-sync') && skill.lifecycle !== 'deprecated')
         .map((skill) => skill.name || skill.id)
@@ -327,7 +397,16 @@ function verifyCodexSync(root, version) {
         reasons: projectionErrors.map((error) => `codex-sync: ${redactEvidence(error, root)}`),
       };
     }
-    const surfaces = discoverCodexSurfaces({ root, project, version });
+    let surfaces;
+    try {
+      surfaces = discoverCodexSurfaces({ root, project, version });
+    } catch (error) {
+      return {
+        verdict: VERDICTS.FAIL,
+        commands,
+        reasons: [`Codex surface discovery rejected an unsafe root: ${redactEvidence(error.message, root)}`],
+      };
+    }
     const nativeByPublicName = new Map(surfaces.native.map((entry) => [`${entry.kind}:${entry.id}`, entry]));
     const duplicateEvidence = [];
     let surfaceVerdict = CODEX_SURFACE_VERDICTS.PASS;

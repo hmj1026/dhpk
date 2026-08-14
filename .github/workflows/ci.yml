@@ -71,7 +71,9 @@ jobs:
 
       # Regression tests (plugin paths, hook wiring, catalog<->modules).
       - name: Tests
-        run: node tests/run-all.js
+        env:
+          DHPK_BOUNDED_REQUIRE_CGROUP: '1'
+        run: ./scripts/ci/run-bounded-node-test.sh node tests/run-all.js
 
   lint:
     name: Markdown lint

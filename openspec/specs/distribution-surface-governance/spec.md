@@ -68,8 +68,9 @@ Publication and manifest generation SHALL expose which safety/routing contracts 
 
 ### Requirement: Portable and client-native surfaces are explicit inventory members
 
-The distribution inventory SHALL support explicit `agent-plugin` and
-`cursor-plugin` surfaces in addition to existing Claude and Codex surfaces.
+The distribution inventory SHALL support explicit `agent-plugin`,
+`cursor-plugin`, and `agy-plugin` surfaces in addition to existing Claude and
+Codex surfaces.
 Every skill, agent, command, rule, hook, and MCP entry published on one of
 these surfaces MUST have an inventory-owned stable ID, public name, lifecycle,
 source path, and surface membership. No surface may be inferred from a
@@ -89,7 +90,7 @@ directory, README list, or manifest presence.
 
 ### Requirement: Cross-surface projections have one canonical source
 
-All generated Agent Plugins, Codex, Cursor, and Claude projections SHALL be
+All generated Agent Plugins, Codex, Cursor, AGY, and Claude projections SHALL be
 derived from canonical sources plus explicit adaptation rules. Generated files
 MUST NOT become an independently authored source of behavior, and identical
 portable skill content across surfaces SHALL share a fingerprint or a recorded
@@ -173,7 +174,7 @@ stable-ID provenance linking it to the owner.
 
 ### Requirement: Every migrated generated surface uses the shared projection pipeline
 
-After its characterization gate and cutover, each Agent Plugin, Codex native, Cursor, and Claude generated surface SHALL be planned through `compileDistribution`, materialized through `materializeDistribution` and `ProjectionArtifactStore`, and assessed through `verifyDistribution` for each supported verification stage. Before that per-surface cutover, the characterized legacy implementation remains authoritative as the rollback path. Surface adapters MAY render consumer-native syntax but MUST NOT bypass the shared selection, ownership, provenance, or evidence contracts after cutover.
+After its characterization gate and cutover, each Agent Plugin, Codex native, Cursor, AGY, and Claude generated surface SHALL be planned through `compileDistribution`, materialized through `materializeDistribution` and `ProjectionArtifactStore`, and assessed through `verifyDistribution` for each supported verification stage. Before that per-surface cutover, the characterized legacy implementation remains authoritative as the rollback path. Surface adapters MAY render consumer-native syntax but MUST NOT bypass the shared selection, ownership, provenance, or evidence contracts after cutover.
 
 #### Scenario: Consumer requires a native manifest format
 
@@ -184,6 +185,24 @@ After its characterization gate and cutover, each Agent Plugin, Codex native, Cu
 
 - **WHEN** a surface that has completed its characterized cutover attempts to derive its membership directly from directories or its existing manifest
 - **THEN** the distribution gate fails and identifies the bypassed projection stage
+
+### Requirement: AGY projection uses one physical owner per selected source
+
+An AGY projection SHALL reference canonical source IDs and record its
+adaptation transform and output fingerprint. It SHALL NOT create a second
+implicit canonical skill or agent tree; any deliberate AGY-specific content
+must have its own inventory identity and lifecycle.
+
+#### Scenario: AGY projection adapts a canonical agent
+
+- **WHEN** the AGY frontmatter differs from the Claude source only because of
+  the declared AGY transform
+- **THEN** provenance links both identities and validation accepts the output
+
+#### Scenario: AGY generator discovers an unowned file
+
+- **WHEN** a file appears in `plugins/dhpk-agy/` without an inventory owner
+- **THEN** distribution validation rejects the surface
 
 ### Requirement: Surface migration preserves the current distribution contract
 

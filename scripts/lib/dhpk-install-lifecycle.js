@@ -7,7 +7,7 @@ const crypto = require('node:crypto');
 const { compileDistribution } = require('./distribution-compiler');
 const { createEvidenceResult, VERDICTS } = require('./distribution-projection-contract');
 
-const SURFACES = Object.freeze(['claude', 'codex-sync', 'codex-native', 'agent-plugin', 'cursor']);
+const SURFACES = Object.freeze(['claude', 'codex-sync', 'codex-native', 'agent-plugin', 'cursor', 'agy-plugin']);
 const ACTIONS = Object.freeze(['plan', 'install', 'verify', 'update', 'uninstall', 'rollback', 'status']);
 const SCOPES = Object.freeze(['project', 'user', 'local']);
 const MODES = Object.freeze(['auto', 'copy', 'symlink', 'client-managed']);
@@ -25,7 +25,9 @@ function sourceSurface(surface) {
 }
 
 function defaultScope(surface) {
-  return surface === 'cursor' || surface === 'codex-sync' ? 'project' : null;
+  if (surface === 'cursor' || surface === 'codex-sync') return 'project';
+  if (surface === 'agy-plugin') return 'user';
+  return null;
 }
 
 function parseRequest(argv) {

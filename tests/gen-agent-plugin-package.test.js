@@ -13,6 +13,7 @@ const {
   MCP_SCHEMA,
   materializeAgentPluginPackage,
   validateAgentPluginPackage,
+  verifyAgentPluginPackage,
   validatePortableManifest,
   validateMcpConfig,
   fingerprintDir,
@@ -44,6 +45,7 @@ function packageFiles(root) {
   const files = {};
   const walk = (directory, relative = '') => {
     for (const entry of fs.readdirSync(directory, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      if (entry.name === '__pycache__' || entry.name.endsWith('.pyc')) continue;
       const absolute = path.join(directory, entry.name);
       const child = path.posix.join(relative, entry.name);
       if (entry.isDirectory()) walk(absolute, child);
@@ -53,6 +55,13 @@ function packageFiles(root) {
   };
   walk(root);
   return files;
+}
+
+function assertPackageFilesEquivalent(actualFiles, expectedFiles) {
+  assert.deepStrictEqual(Object.keys(actualFiles).sort(), Object.keys(expectedFiles).sort());
+  for (const [key, content] of Object.entries(actualFiles)) {
+    assert.ok(content.equals(expectedFiles[key]), `Content mismatch for package entry: ${key}`);
+  }
 }
 
 test('portable manifest is closed and uses the Agent Plugins 1.0.0 schema', () => {
@@ -292,6 +301,116 @@ test('repeated generation has stable files, fingerprints, and provenance', () =>
   }
 });
 
+test('fingerprint traversal rejects excessive directory depth before unbounded recursion', () => {
+  const root = tmpDir('dhpk-agent-fingerprint-depth-');
+  try {
+    let current = root;
+    for (let depth = 0; depth < 4; depth += 1) {
+      current = path.join(current, `level-${depth}`);
+      fs.mkdirSync(current);
+    }
+    fs.writeFileSync(path.join(current, 'SKILL.md'), 'bounded\n');
+    assert.throws(
+      () => fingerprintDir(root, { maxDepth: 2 }),
+      /maximum directory depth/i,
+    );
+    assert.throws(
+      () => fingerprintDir(root, { maxBytes: 1 }),
+      /byte budget/i,
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('projection rejects an oversized source file before readFileSync allocates it', () => {
+  const root = tmpDir('dhpk-agent-projection-budget-');
+  const out = tmpDir('dhpk-agent-projection-budget-out-');
+  try {
+    writeSkill(root, 'dhpk-budget-skill', 'name: dhpk-budget-skill\ndescription: Budget fixture');
+    fs.writeFileSync(path.join(root, 'skills', 'dhpk-budget-skill', 'large.txt'), '0123456789');
+    assert.throws(
+      () => materializeAgentPluginPackage({
+        inventory: inventoryFor({ id: 'budget', name: 'dhpk-budget-skill', path: 'skills/dhpk-budget-skill', surfaces: ['agent-plugin'] }),
+        root,
+        outDir: out,
+        projectionLimits: { maxBytes: 1 },
+      }),
+      /projected byte budget/i,
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test('in-root symlink cycle throws fast without memory explosion', () => {
+  const root = tmpDir('dhpk-agent-cycle-source-');
+  const out = tmpDir('dhpk-agent-cycle-out-');
+  try {
+    writeSkill(root, 'dhpk-cycle-skill', 'name: dhpk-cycle-skill\ndescription: Cycle');
+    const skillDir = path.join(root, 'skills', 'dhpk-cycle-skill');
+    // Create a circular symlink inside the skill directory
+    fs.symlinkSync(skillDir, path.join(skillDir, 'loop'), 'dir');
+
+    assert.throws(
+      () => materializeAgentPluginPackage({
+        inventory: inventoryFor({ id: 'cycle', name: 'dhpk-cycle-skill', path: 'skills/dhpk-cycle-skill', lifecycle: 'promoted', surfaces: ['agent-plugin'] }),
+        root,
+        outDir: out,
+      }),
+      /symlink cycle detected/i
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test('Agent Plugin verifier rejects symlinked package roots and ancestors before reading the package', () => {
+  const realParent = tmpDir('dhpk-agent-verify-root-');
+  const packageRoot = path.join(realParent, 'package');
+  fs.mkdirSync(packageRoot);
+  const linkParent = path.join(tmpDir('dhpk-agent-verify-parent-'), 'linked-parent');
+  const linkedRoot = path.join(linkParent, 'package');
+  const rootLink = path.join(tmpDir('dhpk-agent-verify-link-'), 'root-link');
+  try {
+    fs.symlinkSync(realParent, linkParent, 'dir');
+    fs.symlinkSync(packageRoot, rootLink, 'dir');
+    for (const candidate of [linkedRoot, rootLink]) {
+      const result = verifyAgentPluginPackage(candidate);
+      assert.strictEqual(result.ok, false);
+      assert.match(result.errors.join('\n'), /symlinked Agent Plugin package root ancestor|physical Agent Plugin package root/i);
+    }
+  } finally {
+    fs.rmSync(realParent, { recursive: true, force: true });
+    fs.rmSync(path.dirname(linkParent), { recursive: true, force: true });
+    fs.rmSync(path.dirname(rootLink), { recursive: true, force: true });
+  }
+});
+
+test('Agent Plugin verifier turns a child fingerprint failure into a structural failure', () => {
+  const packageRoot = tmpDir('dhpk-agent-verify-fingerprint-');
+  const outside = tmpDir('dhpk-agent-verify-fingerprint-outside-');
+  try {
+    fs.writeFileSync(path.join(packageRoot, 'plugin.json'), JSON.stringify({
+      $schema: AGENT_PLUGIN_SCHEMA,
+      name: 'fixture',
+      version: '1.0.0',
+    }));
+    writeSkill(packageRoot, 'fixture-skill', 'name: fixture-skill\ndescription: Fixture');
+    fs.writeFileSync(path.join(outside, 'secret.txt'), 'outside\n');
+    fs.symlinkSync(path.join(outside, 'secret.txt'), path.join(packageRoot, 'skills', 'fixture-skill', 'secret.txt'));
+
+    const result = verifyAgentPluginPackage(packageRoot);
+    assert.strictEqual(result.ok, false);
+    assert.match(result.errors.join('\n'), /fingerprint failed|symlink/i);
+  } finally {
+    fs.rmSync(packageRoot, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
+});
+
 test('compiler-backed Agent Plugin generation is byte-equivalent to the accepted package fixture', () => {
   const out = tmpDir('dhpk-agent-equivalence-out-');
   try {
@@ -307,7 +426,7 @@ test('compiler-backed Agent Plugin generation is byte-equivalent to the accepted
       sourceCommit: priorReceipt.sourceCommit,
       manifestMetadata: sourceManifest,
     });
-    assert.deepStrictEqual(packageFiles(out), packageFiles(path.join(ROOT, 'plugins', 'dhpk-agent')));
+    assertPackageFilesEquivalent(packageFiles(out), packageFiles(path.join(ROOT, 'plugins', 'dhpk-agent')));
   } finally { fs.rmSync(out, { recursive: true, force: true }); }
 });
 

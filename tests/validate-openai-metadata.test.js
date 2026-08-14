@@ -7,7 +7,7 @@ const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
 const SCRIPT = path.join(ROOT, 'scripts', 'ci', 'validate-openai-metadata.js');
-const { validateRepository, derivePhysicalSources } = require(SCRIPT);
+const { validateRepository, derivePhysicalSources, fingerprintDirectory } = require(SCRIPT);
 
 function writeFixture({ metadata = true, physical = false, invalid = false, invocationClass = null, claudeDisabled = null, codexPolicy = null } = {}) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-openai-metadata-'));
@@ -210,6 +210,28 @@ test('physical mirror missing the canonical output contract fails validation', (
     assert.match(result.output, /output contract/i);
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('fingerprint traversal rejects excessive directory depth before unbounded recursion', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-openai-fingerprint-depth-'));
+  try {
+    let current = root;
+    for (let depth = 0; depth < 4; depth += 1) {
+      current = path.join(current, `level-${depth}`);
+      fs.mkdirSync(current);
+    }
+    fs.writeFileSync(path.join(current, 'SKILL.md'), 'bounded\n');
+    assert.throws(
+      () => fingerprintDirectory(root, [], { maxDepth: 2 }),
+      /maximum directory depth/i,
+    );
+    assert.throws(
+      () => fingerprintDirectory(root, [], { maxBytes: 1 }),
+      /byte budget/i,
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
   }
 });
 
