@@ -14,6 +14,8 @@ const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require
 
 const SURFACE = 'agy-plugin';
 const PACKAGE_METADATA = new Set(['plugin.json', 'provenance.json', 'fingerprints.json']);
+const DIAGNOSTIC_SCHEMA = 'dhpk.agy-install-plan.v1';
+const DIFF_PREVIEW_LIMIT = 20;
 
 function digest(value) {
   return crypto.createHash('sha256').update(value).digest('hex');
@@ -64,6 +66,20 @@ function ensurePhysicalDirectory(directory, label) {
   if (stat && !stat.isDirectory()) throw new Error(`${label} must be a directory: ${resolved}`);
   if (!stat) fs.mkdirSync(resolved, { recursive: true });
   return resolved;
+}
+
+function assertExistingPhysicalAncestors(directory, label) {
+  let current = path.resolve(directory);
+  while (true) {
+    const stat = lstatOrNull(current);
+    if (stat) {
+      if (stat.isSymbolicLink()) throw new Error(`refusing symlinked ${label} ancestor: ${current}`);
+      if (!stat.isDirectory()) throw new Error(`${label} ancestor must be a directory: ${current}`);
+    }
+    const parent = path.dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
 }
 
 function relativeFiles(root, options = {}) {
@@ -168,6 +184,195 @@ function readReceipt(root) {
   const checked = validateSurfaceReceipt({ ...receipt, schema: 'dhpk.platform-provenance.v1' }, SURFACE);
   if (!checked.ok || receipt.schema !== 'dhpk.agy-plugin.v1') throw new Error(`AGY target receipt is not owned by dhpk: ${checked.errors.join('; ')}`);
   return receipt;
+}
+
+function readJsonFile(root, relative, label) {
+  const target = assertPhysicalPath(root, path.join(root, relative), label);
+  const stat = lstatOrNull(target);
+  if (!stat) return null;
+  if (stat.isSymbolicLink() || !stat.isFile()) throw new Error(`${label} is not a regular file: ${relative}`);
+  try {
+    return JSON.parse(readFileBounded(target).toString('utf8'));
+  } catch (error) {
+    throw new Error(`${label} is invalid JSON: ${error.message}`);
+  }
+}
+
+function sourceFileDigests(sourceRoot, sourceFiles, budget = createTraversalBudget()) {
+  const files = {};
+  for (const relative of sourceFiles) {
+    const source = assertPhysicalPath(sourceRoot, path.join(sourceRoot, relative), 'AGY source path');
+    const stat = lstatOrNull(source);
+    if (!stat || stat.isSymbolicLink() || !stat.isFile()) {
+      throw new Error(`AGY source file is not a regular file: ${relative}`);
+    }
+    files[relative] = digest(budget.readFile(source, stat, `AGY source path: ${relative}`));
+  }
+  return files;
+}
+
+function preview(values) {
+  return values.slice(0, DIFF_PREVIEW_LIMIT);
+}
+
+function compareSourceInventory(sourceRoot, targetRoot, sourceFiles, sourceDigests, budget = createTraversalBudget()) {
+  const same = [];
+  const changed = [];
+  const missing = [];
+  const unsafe = [];
+  for (const relative of sourceFiles) {
+    let target;
+    try {
+      target = assertPhysicalPath(targetRoot, path.join(targetRoot, relative), 'AGY target path');
+    } catch (error) {
+      unsafe.push(relative);
+      changed.push(relative);
+      continue;
+    }
+    const stat = lstatOrNull(target);
+    if (!stat) {
+      missing.push(relative);
+      continue;
+    }
+    if (stat.isSymbolicLink() || !stat.isFile()) {
+      changed.push(relative);
+      continue;
+    }
+    if (digest(budget.readFile(target, stat, `AGY target path: ${relative}`)) === sourceDigests[relative]) same.push(relative);
+    else changed.push(relative);
+  }
+  return {
+    counts: { same: same.length, changed: changed.length, missing: missing.length },
+    changed_preview: preview(changed),
+    missing_preview: preview(missing),
+    unsafe_preview: preview(unsafe),
+    preview_limit: DIFF_PREVIEW_LIMIT,
+  };
+}
+
+function inspectAgyPlugin({ sourceRoot, targetRoot } = {}) {
+  if (!sourceRoot || !targetRoot) throw new Error('sourceRoot and targetRoot are required');
+  const source = path.resolve(sourceRoot);
+  const target = path.resolve(targetRoot);
+  if (isInside(source, target) || isInside(target, source)) {
+    throw new Error('AGY source and target roots must be independent directories');
+  }
+  const checked = validateAgyPluginPackage(source);
+  if (!checked.ok) throw new Error(`AGY source package is invalid: ${checked.errors.join('; ')}`);
+  assertExistingPhysicalAncestors(path.dirname(target), 'AGY target');
+
+  const sourceManifest = readJsonFile(source, 'plugin.json', 'AGY source manifest');
+  const sourceFiles = relativeFiles(source);
+  const sourceDigests = sourceFileDigests(source, sourceFiles);
+  const sourceFingerprint = digest(JSON.stringify(sourceDigests));
+  const sourceReport = {
+    version: sourceManifest && sourceManifest.version,
+    fingerprint: sourceFingerprint,
+    file_count: sourceFiles.length,
+  };
+  const targetStat = lstatOrNull(target);
+  const baseTarget = {
+    root: target,
+    exists: Boolean(targetStat),
+    git_marker: { present: false, physical: false },
+    manifest: { present: false, valid: false },
+    receipt: { present: false, valid: false },
+  };
+  if (!targetStat) {
+    return {
+      schema: DIAGNOSTIC_SCHEMA,
+      status: 'PASS',
+      state: 'READY',
+      classification: 'ABSENT',
+      source: sourceReport,
+      target: baseTarget,
+      diff: { counts: { same: 0, changed: 0, missing: sourceFiles.length }, changed_preview: [], missing_preview: preview(sourceFiles), unsafe_preview: [], preview_limit: DIFF_PREVIEW_LIMIT },
+      next_action: 'run install-agy-plugin.js install after reviewing the source package',
+      mutation: { performed: false },
+    };
+  }
+  if (targetStat.isSymbolicLink() || !targetStat.isDirectory()) {
+    return {
+      schema: DIAGNOSTIC_SCHEMA,
+      status: 'BLOCKED',
+      state: 'BLOCKED',
+      classification: 'UNSAFE_TARGET',
+      source: sourceReport,
+      target: { ...baseTarget, error: 'AGY target root must be a physical directory' },
+      diff: { counts: { same: 0, changed: 0, missing: sourceFiles.length }, changed_preview: [], missing_preview: preview(sourceFiles), unsafe_preview: [], preview_limit: DIFF_PREVIEW_LIMIT },
+      next_action: 'owner must inspect and replace the unsafe target root before installation',
+      mutation: { performed: false },
+    };
+  }
+
+  const gitMarker = lstatOrNull(path.join(target, '.git'));
+  baseTarget.git_marker = {
+    present: Boolean(gitMarker),
+    physical: Boolean(gitMarker && !gitMarker.isSymbolicLink()),
+  };
+  try {
+    const manifest = readJsonFile(target, 'plugin.json', 'AGY target manifest');
+    baseTarget.manifest = {
+      present: Boolean(manifest),
+      valid: Boolean(manifest && typeof manifest === 'object'),
+      name: manifest && manifest.name,
+      version: manifest && manifest.version,
+    };
+  } catch (error) {
+    baseTarget.manifest = { present: true, valid: false, error: error.message };
+  }
+  try {
+    const receipt = readReceipt(target);
+    baseTarget.receipt = {
+      present: Boolean(lstatOrNull(path.join(target, 'provenance.json'))),
+      valid: Boolean(receipt),
+      schema: receipt && receipt.schema,
+      source_version: receipt && receipt.sourceVersion,
+    };
+  } catch (error) {
+    baseTarget.receipt = {
+      present: Boolean(lstatOrNull(path.join(target, 'provenance.json'))),
+      valid: false,
+      error: error.message,
+    };
+  }
+  const diff = compareSourceInventory(source, target, sourceFiles, sourceDigests);
+  let classification = 'AGY_OWNED';
+  let state = 'CURRENT';
+  let status = 'PASS';
+  let nextAction = null;
+  if (baseTarget.git_marker.present && !baseTarget.git_marker.physical) {
+    classification = 'UNSAFE_TARGET';
+    state = 'BLOCKED';
+    status = 'BLOCKED';
+    nextAction = 'owner must inspect and replace the symlinked .git marker before installation';
+  } else if (baseTarget.git_marker.present && !baseTarget.receipt.valid) {
+    classification = 'FOREIGN_CHECKOUT';
+    state = 'BLOCKED';
+    status = 'BLOCKED';
+    nextAction = 'owner must independently back up, move, or retire the foreign checkout, then run a clean AGY install';
+  } else if (!baseTarget.receipt.valid) {
+    classification = 'UNOWNED_TARGET';
+    state = 'BLOCKED';
+    status = 'BLOCKED';
+    nextAction = 'owner must independently back up, move, or retire the unowned target, then run a clean AGY install';
+  } else if (diff.counts.changed || diff.counts.missing || diff.unsafe_preview.length) {
+    classification = diff.unsafe_preview.length ? 'UNSAFE_TARGET' : 'OWNED_CHANGED';
+    state = 'BLOCKED';
+    status = 'BLOCKED';
+    nextAction = 'owner must review changed target files and receipt ownership before running AGY update';
+  }
+  return {
+    schema: DIAGNOSTIC_SCHEMA,
+    status,
+    state,
+    classification,
+    source: sourceReport,
+    target: baseTarget,
+    diff,
+    next_action: nextAction,
+    mutation: { performed: false },
+  };
 }
 
 function ownedFileMatches(root, relative, receipt) {
@@ -365,6 +570,9 @@ function uninstallAgyPlugin(options = {}) {
 module.exports = {
   SURFACE,
   resolveAgyInstallRoot,
+  inspectAgyPlugin,
+  sourceFileDigests,
+  compareSourceInventory,
   installAgyPlugin,
   rollbackAgyPlugin,
   uninstallAgyPlugin,
