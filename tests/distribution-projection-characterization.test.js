@@ -8,6 +8,7 @@ const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
 const fixture = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures/distribution-projection-characterization.json'), 'utf8'));
+const RELEASE_VERSION = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), 'utf8')).version;
 
 function runNode(script, args) {
   return spawnSync(process.execPath, [path.join(ROOT, script), ...args], { cwd: ROOT, encoding: 'utf8' });
@@ -60,7 +61,7 @@ test('Codex native generator preserves success diagnostics and exit mapping', ()
   try {
     const result = runNode('scripts/ci/gen-codex-native-package.js', [output]);
     assert.strictEqual(result.status, 0, result.stdout + result.stderr);
-    assert.strictEqual(result.stdout.trim(), `PASS [gen-codex-native-package]: wrote 15 codex-native skills to ${output} (version 0.38.2).`);
+    assert.strictEqual(result.stdout.trim(), `PASS [gen-codex-native-package]: wrote 15 codex-native skills to ${output} (version ${RELEASE_VERSION}).`);
     assert.strictEqual(result.stderr, '');
   } finally { fs.rmSync(output, { recursive: true, force: true }); }
 });
