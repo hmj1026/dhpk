@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.40.0 — 2026-08-14 — Add native AGY CLI plugin generation, receipt-owned installation, and isolated verification support
+
+**feat(agy-cli)** — Add native AGY CLI plugin generation, receipt-owned installation, and isolated verification support.
+
 ## 0.39.0 — 2026-08-14 — Harden distribution projections, add platform lifecycle CLI, and achieve skill routing parity
 
 **feat(discovery-routing)** — Add inventory-owned Laravel and PHPUnit compatibility routing and concise discovery metadata.
