@@ -101,6 +101,30 @@ ownership or path safety. The schema-v3 receipt records stable ID, public name,
 destination, source, mode, and fingerprint. Edited, user-owned, retargeted,
 malformed, ambiguous, or colliding files are preserved and reported.
 
+For a stale or unowned projection, inspect before changing anything:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" \
+  --update --plan --json
+```
+
+Planning is read-only. If an owner approves one exact collision, copy both
+reported fingerprints into an explicit adoption request. Omit `--copy`: the
+installer preserves the receipt's existing projection mode so unrelated managed
+entries are not rematerialized:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" \
+  --update \
+  --adopt='skills/dhpk-cross-agent-sync@<destination-fingerprint>@<source-fingerprint>'
+```
+
+Adoption is path-scoped and creates a rollback-addressable backup before
+promotion. It never authorizes other paths or other consumer surfaces. If the
+fingerprint changed since planning, the command fails before mutation; run a
+fresh plan. Review `.codex/.dhpk-installed.json` for `adopted`, `backups`, and
+`evidence.paths` before treating the projection as current.
+
 Verify the consumer projection from the consumer project root:
 
 ```bash

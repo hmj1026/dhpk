@@ -57,7 +57,7 @@ another.
 Migration/update operations SHALL adopt, replace, or remove only entries proven
 owned by the target surface. Existing `.codex/.dhpk-installed.json`, Codex
 native provenance, Agent Plugin provenance, Cursor marketplace metadata, and
-AGY provenance SHALL remain independently addressable and rollbackable.
+AGY provenance SHALL remain independently addressable and rollbackable. Validation SHALL expose unresolved Codex adoption collisions as explicit evidence rather than treating package structure or a partial receipt as runtime success.
 
 #### Scenario: User-owned Cursor file collides with generated output
 
@@ -71,6 +71,11 @@ AGY provenance SHALL remain independently addressable and rollbackable.
 - **WHEN** a Cursor projection is rolled back after a failed consumer gate
 - **THEN** only Cursor-owned generated files and receipts are reverted; Codex,
   Claude, and user-owned project files remain unchanged
+
+#### Scenario: Codex collision remains unresolved
+
+- **WHEN** standard Codex validation finds a partial receipt with an unowned collision
+- **THEN** the report identifies the collision path, ownership classification, source/destination evidence, and adoption command bound to both fingerprints, while leaving the path unchanged
 
 ### Requirement: AGY installation is receipt-owned and collision-safe
 
