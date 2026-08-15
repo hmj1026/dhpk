@@ -63,9 +63,13 @@ if (moduleCatalog && Array.isArray(moduleCatalog.stacks)) {
   }
 }
 
+const cursorSkillsDir = path.join(ROOT, 'cursor', 'skills');
+const cursorMirrorNames = fs.existsSync(cursorSkillsDir) ? fs.readdirSync(cursorSkillsDir) : [];
+
 const reconcile = reconcileDistribution({
   inventory,
   codexMirrorNames,
+  cursorMirrorNames,
   moduleCatalogIds,
   hasOpenaiMetadata: (skill) => fs.existsSync(path.join(ROOT, skill.path, 'agents', 'openai.yaml')),
 });

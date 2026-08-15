@@ -15,6 +15,7 @@ projection 內容後，才能宣稱 client 可呼叫。
 | Standard Agent Plugin | 透過已驗證 client route 發布／安裝 `plugins/dhpk-agent/` | client-owned update/remove；只替換 generated package | root `plugin.json`、schema、固定 `skills/`、optional `mcp.json`、provenance | 結構合規不等於 Codex runtime proof |
 | Cursor standard Agent Plugin | Cursor Customize/Plugins，或 local `~/.cursor/plugins/local/dhpk-agent` | Cursor reload/update/remove，或替換該 local package | root `plugin.json`、portable skills/MCP discovery、client version | 僅 portable skills/MCP；不宣稱 Cursor-native parity |
 | Cursor Plugin | local `~/.cursor/plugins/local/dhpk-cursor`，或 reviewed `.cursor-plugin/marketplace.json`；另安裝 `plugins/dhpk-agent/` 供 shared portable skills 使用 | Cursor refresh/update/remove；只 rollback Cursor-owned files；shared Agent package 另行更新 | `.cursor-plugin/plugin.json`、rules、agents、commands、hooks、variables、shared-skill IDs | native components 需 Cursor evidence；shared portable skills 由 `dhpk-agent` 單獨擁有；缺口為 `SKIP_INCOMPATIBLE` |
+| Cursor project-local sync | checkout：`bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh`；Claude plugin runtime：`bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh"` | `--update`、`--migrate`、`--uninstall`；`--force` 只繞過 project-root heuristic | `.cursor/.dhpk-installed.json` schema-v3、`.mdc` rules、managed entries | Supported Cursor project-local path；native hooks 不在 v1；安裝不等於 runtime callable |
 | Cursor CLI launch-scoped probe | 登入後執行 `cursor-agent --plugin-dir <agent-package> --plugin-dir <cursor-package>` | CLI 沒有 persistent install；更新 source package 或 local symlink 後重開 session | `cursor-agent --version`、`cursor-agent status` 與 read-only `--mode ask` probe | Experimental/conditional：CLI help 有此 flag，但官方 CLI 文件尚未建立 plugin component discovery；marketplace indexing 不是 non-interactive install command |
 | AGY native plugin | 產生 `plugins/dhpk-agy/`，再由 receipt-owned installer 安裝至 `~/.gemini/config/plugins/dhpk/` | `install-agy-plugin.js update`、`uninstall` 或 `rollback`；foreign files 保留，collision fail closed | AGY package validator、`agy plugins list`、`agy agents`，以及 optional bounded Subagent probe | Experimental：package/discovery 與 runtime 分開；缺少 `agy` 為 `UNAVAILABLE` |
 
@@ -32,6 +33,7 @@ projection 內容後，才能宣稱 client 可呼叫。
 | Standard Agent Plugin | 實作 Agent Plugins 1.0.0 schema 的 consumer；最低 client version 尚未建立 | client 支援的 OS；package validation 從 POSIX shell 執行 | 已驗證的 Agent Plugin loader；Node.js 僅供結構驗證 | 執行兩個 package 命令，再記錄 client discovery evidence |
 | Cursor standard Agent Plugin | 接受 portable package 的 Cursor desktop/plugin loader；記錄 Cursor version；最低版本尚未建立 | Cursor 支援的 desktop OS；local path 為 `~/.cursor/plugins/local/` | Cursor Customize → Plugins 或 local loader；Node.js 僅供 validation | reload 後觀察 discovered skills/MCP；無 loader 為 `UNAVAILABLE` 或 `BLOCKED` |
 | Cursor Plugin（native） | 支援 `.cursor-plugin/plugin.json` 的 Cursor plugin loader；記錄 Cursor version；shared portable skills 另安裝 standard `dhpk-agent` package；最低版本尚未建立 | Cursor 支援的 desktop OS；local path 為 `~/.cursor/plugins/local/` | Cursor reload/UI、local filesystem、無 secret 的 variable 設定；以 Agent provenance 比對 shared IDs | reload 後觀察每個 selected native component 與 hook 行為；只有明確 matrix overlay 才能有 Cursor `skills/` |
+| Cursor project-local sync | Cursor project-local loader；schema-v3 receipt；最低 Cursor version 尚未建立 | Linux、macOS 或 WSL POSIX shell，從 project root 執行 | `bash`、`git`；Node.js 僅供 validator 使用 | 執行 installer、檢查 `.cursor/.dhpk-installed.json`，並執行列出的 installer 測試；缺少 live Cursor client 不得視為 runtime `PASS` |
 | Cursor CLI launch-scoped probe | `cursor-agent` 在 `PATH`；記錄 `cursor-agent --version`；使用 `cursor-agent login` 驗證；最低版本尚未建立 | Linux、macOS 或 WSL POSIX shell | `cursor-agent`、`--plugin-dir`、Cursor account/API key；Node.js 僅供 package validation | Experimental/conditional：先執行 `cursor-agent status` 再做 read-only probe；未登入為 `BLOCKED`、缺 CLI 為 `UNAVAILABLE`，discovery 另行記錄 |
 | AGY native plugin | `agy` version 與 AGY model/tool enum 尚未鎖定；可用時記錄 `agy --version` | Linux、macOS 或 WSL POSIX shell；install root 為 user scope | Node.js、`git`、generated package，以及 optional `agy` CLI | 先做 structural validation；`agy plugins list`／`agy agents` 是 discovery evidence；除非明確使用 `--agy-runtime-probe`，runtime 保持 `NOT_RUN` |
 
@@ -68,8 +70,9 @@ projection evidence vocabulary 與 lifecycle presentation 分開。`INSTALL_PASS
 CONSUMER_BLOCKED` 不是 projection `PASS`，也不能提升 support tier。目前 write
 action 在任何 mutation 前都會回傳 `BLOCKED` 與 stable `NOT_IMPLEMENTED`
 diagnostic。尤其是 Codex project-local write 仍應使用既有
-`install-codex-skills.sh` 與 schema-v3 receipt，直到該 adapter 透過相同的
-ArtifactStore transaction 遷移。
+`install-codex-skills.sh`，Cursor project-local write 應使用
+`install-cursor-harness.sh`，直到這些 adapter 透過相同的 ArtifactStore
+transaction 遷移。
 
 ## Codex project-local sync（Supported）
 
@@ -286,6 +289,79 @@ package：請安裝 `plugins/dhpk-agent/` 作為專案唯一的 physical skill s
 Rollback 只移除或還原 `~/.cursor/plugins/local/dhpk-cursor` 與其
 Cursor-owned receipt，不可刪除 Codex、Claude、project-owned Cursor files 或
 portable `dhpk-agent` package。
+
+## Cursor project-local sync（Supported）
+
+Prerequisites：Cursor project-local loader、POSIX shell，以及上表 Cursor
+project-local 列的 schema-v3 receipt contract。client version 必須等 release
+evidence 記錄後才算已建立。
+
+此路徑與 `plugins/dhpk-cursor/`（marketplace／user-scoped plugin）分開。
+project-local 檔案只在 installer 執行後出現於 consumer `.cursor/`。native
+`.cursor/hooks.json` mapping 不在 v1；此 installer 不會寫入 `hooks.json`。
+若 Third-party skills 開啟，Cursor 仍可能從 `.claude/settings.json` 載入
+Claude hooks——那是可選相容路徑，不是 v1 owner。
+
+請從 project root 執行 checkout 版本：
+
+```bash
+bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh
+```
+
+Claude plugin runtime 使用 `${CLAUDE_PLUGIN_ROOT}`。installer 使用
+project-root heuristic，預設建立相對 symlink，並支援 `--copy`：
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" --copy
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" --update
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" --migrate --update
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" --uninstall
+```
+
+`--force` 只繞過 project-root heuristic，不會繞過 receipt ownership 或 path
+safety。schema-v3 receipt 記錄 stable ID、public name、destination、source、
+mode 與 fingerprint。已編輯、user-owned、retargeted、malformed、ambiguous 或
+colliding 的檔案會被保留並回報。
+
+對 stale 或 unowned projection，先檢查再變更：
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" \
+  --update --plan --json
+```
+
+Planning 是唯讀。若 owner 核准一個精確 collision，把兩份 fingerprint 複製到
+explicit adoption request。省略 `--copy`：installer 會保留 receipt 既有
+projection mode：
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" \
+  --update \
+  --adopt='skills/dhpk-cross-agent-sync@<destination-fingerprint>@<source-fingerprint>'
+```
+
+Adoption 以 path 為範圍，並在 promotion 前建立可 rollback 的 backup。fingerprint
+若已變更，命令會在 mutation 前失敗；請重新 plan。將 projection 視為 current
+前，先檢查 `.cursor/.dhpk-installed.json`。
+
+從 consumer project root 驗證：
+
+```bash
+test -f .cursor/.dhpk-installed.json
+```
+
+source-check validator 必須從 dhpk checkout 執行。將 `DHPK_ROOT` 設為擁有
+`scripts/` 與 `tests/` 的 checkout；這些檔案不會複製到 consumer project：
+
+```bash
+DHPK_ROOT=/absolute/path/to/dhpk
+node "$DHPK_ROOT/scripts/ci/validate-cursor-sync.js"
+node "$DHPK_ROOT/tests/install-cursor-harness.test.js"
+```
+
+Rollback 使用 `--uninstall` 或還原已儲存的 `.cursor/` receipt。不要刪除整個
+`.cursor/` 目錄。`dhpk-install cursor` write 仍為 `NOT_IMPLEMENTED`；支援的
+write path 是此 bash installer。
 
 ## AGY／Antigravity CLI plugin（Experimental）
 

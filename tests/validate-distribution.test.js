@@ -51,6 +51,22 @@ test('fails when a codex-sync skill has no codex/skills/ mirror', () => {
   assert.ok(result.errors.some((e) => /tdd/.test(e) && /mirror/i.test(e)), result.errors.join('\n'));
 });
 
+test('fails when a cursor-sync skill has no cursor/skills/ mirror', () => {
+  const result = reconcileDistribution({
+    inventory: {
+      skills: [
+        { id: 'tdd', name: 'dhpk-tdd-workflow', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['cursor-sync'] },
+      ],
+      surface_membership: { 'cursor-sync': ['tdd'] },
+      modules: [],
+    },
+    cursorMirrorNames: [],
+    moduleCatalogIds: [],
+    hasOpenaiMetadata: () => true,
+  });
+  assert.ok(result.errors.some((e) => /tdd/.test(e) && /cursor\/skills/.test(e)), result.errors.join('\n'));
+});
+
 test('fails when a codex-sync skill has no agents/openai.yaml', () => {
   const result = reconcileDistribution({
     inventory: baseInventory(),

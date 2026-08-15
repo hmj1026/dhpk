@@ -1,0 +1,350 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "version": 1,
+  "description": "Single source of truth for stacks, versions, and module identifiers exposed by the interactive installer (`scripts/install.sh`) and the `/dhpk:setup` slash command. Adding a new module means: (1) add an entry here, (2) create modules/<id>/module.yaml + skills/, (3) register the skills path in .claude-plugin/plugin.json. Optional stack field `selection` defaults to `exclusive` (single-version pick); set to `additive` for stacks where library projects need to enable multiple versions cumulatively (e.g. a package spanning PHP 7.4 → 8.x). Optional per-version field `exclusive: true` (only meaningful under `additive`) marks a version that cannot combine with siblings in the same stack — the installer drops the others when an exclusive pick is selected.",
+  "stacks": [
+    {
+      "id": "php",
+      "name": "PHP",
+      "selection": "additive",
+      "description": "PHP language baseline. Pick 5.6 for legacy monoliths (forbids 7.0+ syntax, polyfill guidance) — note 5.6 is marked exclusive and cannot combine with later versions. Pick 7.4 for the modern baseline (ships post-edit php-cs-fixer hook + pre-commit lint+phpstan+psalm gate). Pick 8.x additively on top of 7.4 for projects whose floor is ≥8.0, or for library packages that span 7.x→8.x and want guidance on conditionally-usable 8.x features (match, nullsafe, named args, attributes, readonly, enums, intersection types). Selection is additive — pick multiple versions to stack cumulative guidance.",
+      "versions": [
+        {
+          "id": "5.6",
+          "module": "php-5.6",
+          "status": "shipped",
+          "exclusive": true
+        },
+        {
+          "id": "7.4",
+          "module": "php-7.4",
+          "status": "shipped"
+        },
+        {
+          "id": "8.x",
+          "module": "php-8.x",
+          "status": "shipped"
+        }
+      ]
+    },
+    {
+      "id": "laravel",
+      "name": "Laravel Framework",
+      "selection": "additive",
+      "description": "Laravel framework — per-version modules for each major from 6 through 11. Library packages spanning multiple Laravel majors should enable all the versions in their composer constraint to get cumulative version-specific guidance (deprecations, signature additions, BC traps). Applications running a single Laravel major should pick only that version. Pair with skills/dhpk-laravel-package-author/SKILL.md (cross-cutting, framework-agnostic).",
+      "requires": ["php"],
+      "versions": [
+        {
+          "id": "5.4",
+          "module": "laravel-5.4",
+          "status": "shipped",
+          "requires_module": "php-5.6"
+        },
+        {
+          "id": "6",
+          "module": "laravel-6",
+          "status": "shipped",
+          "requires_module": "php-7.4"
+        },
+        {
+          "id": "7",
+          "module": "laravel-7",
+          "status": "shipped",
+          "requires_module": "php-7.4"
+        },
+        {
+          "id": "8",
+          "module": "laravel-8",
+          "status": "shipped",
+          "requires_module": "php-7.4"
+        },
+        {
+          "id": "9",
+          "module": "laravel-9",
+          "status": "shipped",
+          "requires_module": "php-7.4"
+        },
+        {
+          "id": "10",
+          "module": "laravel-10",
+          "status": "shipped",
+          "requires_module": "php-7.4"
+        },
+        {
+          "id": "11",
+          "module": "laravel-11",
+          "status": "shipped",
+          "requires_module": "php-7.4"
+        }
+      ]
+    },
+    {
+      "id": "yii",
+      "name": "Yii Framework",
+      "description": "Yii PHP framework. The 1.1 module covers autoload, ActiveRecord / CDbCriteria, DDD layering, XSS/CSRF defaults.",
+      "requires": ["php"],
+      "versions": [
+        {
+          "id": "1.1",
+          "module": "yii-1.1",
+          "status": "shipped",
+          "requires_module": "php-5.6"
+        }
+      ]
+    },
+    {
+      "id": "phpunit",
+      "name": "PHPUnit",
+      "selection": "additive",
+      "description": "PHPUnit testing framework. Pick 5.7 for legacy PHP 5.6 / pre-PHPUnit-8 stacks. Pick 9 for PHP 7.3+ projects (latest version compatible with that PHP floor). Pick 10 for PHP 8.1+ projects (attribute-style annotations preferred). Pick 11 for PHP 8.2+ projects (doc-comment annotations fully removed; attributes-only). Selection is additive — a project mid-migration can enable two adjacent versions to consult both sets of guidance. The phpunit-10 / phpunit-11 modules document attribute migration paths; project's composer.json PHP constraint must independently satisfy each module's runtime requirement.",
+      "requires": ["php"],
+      "versions": [
+        {
+          "id": "5.7",
+          "module": "phpunit-5.7",
+          "status": "shipped",
+          "requires_module": "php-5.6"
+        },
+        {
+          "id": "9",
+          "module": "phpunit-9",
+          "status": "shipped",
+          "requires_module": "php-7.4"
+        },
+        {
+          "id": "10",
+          "module": "phpunit-10",
+          "status": "shipped",
+          "requires_module": "php-7.4"
+        },
+        {
+          "id": "11",
+          "module": "phpunit-11",
+          "status": "shipped",
+          "requires_module": "php-7.4"
+        }
+      ]
+    },
+    {
+      "id": "library-author",
+      "name": "Multi-version PHP Library Author",
+      "description": "Cross-cutting glue for PHP libraries whose composer constraints span multiple majors of a key dependency (Laravel 6-11, Monolog 2/3, PHPUnit 8/9/10/11, Flysystem 1/2/3): polyfill-edit sentinel routing (auto-fires the polyfill-reviewer when an edited .php file contains a version guard), an OpenSpec workflow guard (specs vs spec-delta naming, tasks.md vs git log drift detection), a matrix-cell onboarding skill, and a dual-testsuite (Core vs Laravel) review boundary helper. Pairs with the polyfill-version-matrix-audit skill and version-matrix-impact-reviewer agent at dhpk root.",
+      "versions": [
+        {
+          "id": "0.1",
+          "module": "library-author",
+          "status": "shipped"
+        }
+      ]
+    },
+    {
+      "id": "js",
+      "name": "JavaScript / TypeScript",
+      "description": "ESLint 9 flat config tier strategy, per-leaf `// @ts-check` progressive typing, post-edit ESLint feedback (async), pre-commit lint + typecheck gate. Framework-agnostic; works for legacy monolith bundles and modern bundler/SPA projects alike.",
+      "versions": [
+        {
+          "id": "0.1",
+          "module": "js",
+          "status": "shipped"
+        }
+      ]
+    },
+    {
+      "id": "swift",
+      "name": "Swift",
+      "description": "Swift 6 language baseline with Swift 5.10 / iOS 17 compatibility notes AND Swift 6.2+ (Xcode 26+) approachable-concurrency defaults (async stays on the caller, @concurrent opt-in offload, isolated conformances, MainActor default inference). Strict concurrency (Sendable/actors, async-await), optionals discipline, value-vs-reference, error handling. The foundation module the rest of the iOS suite (swiftui / ios-platform / swift-testing / xcode-tooling) requires.",
+      "versions": [
+        {
+          "id": "6",
+          "module": "swift",
+          "status": "shipped"
+        }
+      ]
+    },
+    {
+      "id": "swiftui",
+      "name": "SwiftUI",
+      "description": "SwiftUI app architecture: MVVM + Coordinator, Observation framework (@Observable / @Bindable), NavigationStack + type-safe routing, state-ownership rules, Combine + UIKit interop.",
+      "requires": ["swift"],
+      "versions": [
+        {
+          "id": "ios17",
+          "module": "swiftui",
+          "status": "shipped",
+          "requires_module": "swift"
+        }
+      ]
+    },
+    {
+      "id": "ios-platform",
+      "name": "iOS Platform SDK",
+      "description": "iOS SDK frameworks for a health/PHI app: Core Data at-rest encryption (SQLCipher / File Protection), CryptoKit + Keychain, an actor-based offline local-store pattern (in-memory cache + atomic file write), Vision OCR (with handwriting limits + manual fallback), AVFoundation, LocalAuthentication, UserNotifications (Time Sensitive / 64-pending / rollover), HealthKit read-only, privacy-manifest / no-iCloud compliance.",
+      "requires": ["swift"],
+      "versions": [
+        {
+          "id": "ios17",
+          "module": "ios-platform",
+          "status": "shipped",
+          "requires_module": "swift"
+        }
+      ]
+    },
+    {
+      "id": "swift-testing",
+      "name": "Swift Testing",
+      "description": "iOS test strategy across XCTest and Swift Testing (@Test / #expect / #require / parameterized), XCUITest, and swift-snapshot-testing, with a 3-layer unit/integration/UI taxonomy plus protocol-based DI for host-testable (`swift test`) file/Keychain/network code.",
+      "requires": ["swift"],
+      "versions": [
+        {
+          "id": "0.1",
+          "module": "swift-testing",
+          "status": "shipped",
+          "requires_module": "swift"
+        }
+      ]
+    },
+    {
+      "id": "xcode-tooling",
+      "name": "Xcode Tooling",
+      "description": "SwiftLint config strategy + post-edit SwiftLint hook (async, self-skip) and a pre-commit xcodebuild/SPM build+test gate (self-skip when toolchain absent; build uses a device-name-free generic destination and tests auto-fall back to an available simulator, so a stale named default never breaks the gate); scheme/signing notes; an ios-icon-gen skill (SF Symbols / Iconify → asset-catalog imageset). Tooling binary / scheme / destination overridable via userConfig.",
+      "requires": ["swift"],
+      "versions": [
+        {
+          "id": "0.1",
+          "module": "xcode-tooling",
+          "status": "shipped",
+          "requires_module": "swift"
+        }
+      ]
+    },
+    {
+      "id": "vue",
+      "name": "Vue.js",
+      "selection": "exclusive",
+      "description": "Vue.js framework — per-version modules. The 2 module covers the Options API, Vue 2 reactivity caveats (Vue.set / array index), and @vue/test-utils 1.x + vue-jest SFC testing. Single-version pick.",
+      "versions": [
+        {
+          "id": "2",
+          "module": "vue-2",
+          "status": "shipped"
+        }
+      ]
+    },
+    {
+      "id": "laravel-mix",
+      "name": "Laravel Mix",
+      "selection": "exclusive",
+      "description": "Laravel Mix asset pipeline (webpack wrapper). The 5 module covers webpack.mix.js entry/output mapping, mix() versioning, the npm dev/watch/hot/prod scripts, and the legacy-OpenSSL prod-build flag on newer Node.",
+      "versions": [
+        {
+          "id": "5",
+          "module": "laravel-mix",
+          "status": "shipped"
+        }
+      ]
+    },
+    {
+      "id": "nextjs",
+      "name": "Next.js",
+      "selection": "exclusive",
+      "description": "Next.js React framework — per-version modules. Pick 15.5 for the current stable line (15.x ends at v15.5.19; 15.6 never shipped stable). Pick 16 for the current major (Turbopack-by-default, next lint removed, async-only request APIs; supports React 18.2+ or 19). Single-version pick — a project runs one Next.js major at a time.",
+      "versions": [
+        {
+          "id": "15.5",
+          "module": "nextjs-15.5",
+          "status": "shipped"
+        },
+        {
+          "id": "16",
+          "module": "nextjs-16",
+          "status": "shipped"
+        }
+      ]
+    },
+    {
+      "id": "react",
+      "name": "React",
+      "selection": "exclusive",
+      "description": "React library — per-major modules. Pick 18 for React 18.x (createRoot, automatic batching, opt-in concurrent features, streaming SSR) or 19 for React 19.x (Actions, use(), ref-as-prop, document metadata, stable Server Components). Single-version pick — an app runs one React major. Pair cross-stack with a nextjs module (e.g. nextjs-16 + react-19), or use standalone for a non-Next React app.",
+      "versions": [
+        {
+          "id": "18",
+          "module": "react-18",
+          "status": "shipped"
+        },
+        {
+          "id": "19",
+          "module": "react-19",
+          "status": "shipped"
+        }
+      ]
+    },
+    {
+      "id": "python",
+      "name": "Python",
+      "description": "Python language baseline + tooling. Modern Python (3.10+) idioms (type hints, dataclasses / pydantic, async-await discipline, logging-over-print, exception hierarchy), a post-edit ruff feedback hook (async, batched at Stop), and a pre-commit ruff-check + ruff-format + type-check (pyright|mypy) gate. Project root auto-detected by walking up to the nearest pyproject.toml, so monorepo backends (pyproject under backend/) work with zero config. Runner / binaries / type-checker overridable via userConfig (python_runner, ruff_bin, python_typechecker, python_project_roots). Framework-agnostic — pair with fastapi + pytest.",
+      "versions": [
+        {
+          "id": "0.1",
+          "module": "python",
+          "status": "shipped"
+        }
+      ]
+    },
+    {
+      "id": "fastapi",
+      "name": "FastAPI + SQLAlchemy (async)",
+      "description": "Async web-API guidance for FastAPI services: router + dependency-injection patterns, Pydantic schemas, SQLAlchemy 2.0 async session & transaction discipline, Alembic migration safety, CORS/auth/error handling. Skills + references only (no hooks) — the python module provides the lint/type-check hooks. Adds db / sec path triggers so database-reviewer and security-reviewer fire on model, migration, and auth edits.",
+      "requires": ["python"],
+      "versions": [
+        {
+          "id": "0.1",
+          "module": "fastapi",
+          "status": "shipped",
+          "requires_module": "python"
+        }
+      ]
+    },
+    {
+      "id": "pytest",
+      "name": "pytest (async)",
+      "description": "Python test strategy for async services: pytest + pytest-asyncio (asyncio_mode=auto), in-memory SQLite fixtures, httpx.AsyncClient + ASGITransport for FastAPI integration tests, unit/integration taxonomy, coverage-floor strategy, opt-in live markers. Skills + references only (no hooks). Provides test-framework conventions for the tdd-guide agent when active.",
+      "requires": ["python"],
+      "versions": [
+        {
+          "id": "0.1",
+          "module": "pytest",
+          "status": "shipped",
+          "requires_module": "python"
+        }
+      ]
+    }
+  ],
+  "hook_profiles": [
+    {
+      "id": "minimal",
+      "description": "Suppress Stop reminders. Quietest profile."
+    },
+    {
+      "id": "standard",
+      "description": "Default profile. Sentinel-driven review reminders fire on relevant edits."
+    },
+    {
+      "id": "strict",
+      "description": "Standard + extra warnings (missing tools at SessionStart, docker container mismatch, etc.)."
+    }
+  ],
+  "review_slots": [
+    { "id": "code", "default_agent": "code-reviewer" },
+    { "id": "db",   "default_agent": "database-reviewer" },
+    { "id": "sec",  "default_agent": "security-reviewer" },
+    { "id": "fe",   "default_agent": "frontend-reviewer" },
+    { "id": "doc",  "default_agent": "doc-reviewer" },
+    { "id": "polyfill",  "default_agent": "polyfill-reviewer",  "notes": "No built-in trigger — written by the library-author module's post-edit hook." },
+    { "id": "migration", "default_agent": "migration-reviewer", "notes": "No built-in trigger — opt in via a module.yaml `migration:` triggers block (yii-1.1 ships one for protected/migrations/) or review_trigger_extra_paths 'mig:<prefix>'." }
+  ],
+  "docker": {
+    "container_role_order": ["DHPK_PHP_CONTAINER", "DHPK_MYSQL_CONTAINER"],
+    "notes": "Container names are passed positionally to `--config docker_containers=<csv>`. The first entry is exported as DHPK_PHP_CONTAINER, the second as DHPK_MYSQL_CONTAINER, etc. Empty list disables the SessionStart docker check entirely."
+  }
+}

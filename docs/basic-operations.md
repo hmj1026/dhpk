@@ -19,8 +19,9 @@ The behavior owners are [`rules/execution-policy.md`](../rules/execution-policy.
 [`docs/skill-platform-migration.md`](./skill-platform-migration.md),
 [`docs/distribution-surfaces.md`](./distribution-surfaces.md), the
 [`distribution-inventory.json`](../manifests/distribution-inventory.json)
-manifest, [`scripts/install.sh`](../scripts/install.sh), and the supported
-[`install-codex-skills.sh`](../scripts/hooks/install-codex-skills.sh). OpenSpec
+manifest, [`scripts/install.sh`](../scripts/install.sh), the supported
+[`install-codex-skills.sh`](../scripts/hooks/install-codex-skills.sh), and the
+supported [`install-cursor-harness.sh`](../scripts/hooks/install-cursor-harness.sh). OpenSpec
 change proposals, specifications, and task evidence live under
 `openspec/changes/`; a passing validator is not version-control delivery.
 
@@ -38,12 +39,14 @@ dhpk deliberately exposes several surfaces with different support tiers:
 | `claude --plugin-dir` | Development-only | Working-tree iteration; not a release channel. |
 | `scripts/install.sh` | Convenience wrapper | Runs the Claude install contract; it is not a separate distribution. |
 | `install-codex-skills.sh` | Supported | Stable Codex project sync path. |
+| `install-cursor-harness.sh` | Supported | Stable Cursor project-local sync path (`.cursor/`). |
 | Codex plugin marketplace | Experimental | Physical publication package with a verified real-CLI install proof; tier stays Experimental until a separate graduation decision. |
 | Gemini / Antigravity sync | Adapter-only | Claude-first comparison or conversion; no native package or full agent-parity promise. |
 
 Plugin management commands (`claude plugin …`, `codex plugin …`) are separate
 from skill invocation. Claude workflows enter through `/dhpk:do` or an
-explicit skill; Codex consumes the project-local `.codex/` projection.
+explicit skill; Codex consumes the project-local `.codex/` projection; Cursor
+project-local files are installed into `.cursor/` by `install-cursor-harness.sh`.
 
 ## Install
 

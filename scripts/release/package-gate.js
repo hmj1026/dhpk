@@ -49,6 +49,7 @@ function defaultSteps(root, version) {
     { name: 'codex-native-deterministic-generation', cmd: 'node', args: [path.join(root, 'scripts/ci/verify-codex-native-package.js')] },
     { name: 'agent-plugin-structural-provenance', cmd: 'node', args: [path.join(root, 'scripts/ci/validate-agent-plugin-package.js'), path.join(root, 'plugins/dhpk-agent')] },
     { name: 'cursor-plugin-structural-provenance', cmd: 'node', args: [path.join(root, 'scripts/ci/validate-cursor-plugin-package.js'), path.join(root, 'plugins/dhpk-cursor')] },
+    { name: 'cursor-sync-layout', cmd: 'node', args: [path.join(root, 'scripts/ci/validate-cursor-sync.js')] },
     { name: 'projected-platform-deterministic-generation', cmd: 'node', args: [path.join(root, 'scripts/ci/verify-platform-packages.js')] },
   ];
 }

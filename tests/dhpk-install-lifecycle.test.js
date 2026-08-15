@@ -61,6 +61,15 @@ test('write actions remain explicitly blocked while legacy Codex sync is preserv
   assert.match(output.remediation[0], /install-codex-skills\.sh/);
 });
 
+test('cursor write actions remain blocked and point at the project-local installer', () => {
+  const result = invoke(['cursor', 'install', '--scope', 'project', '--json']);
+  assert.strictEqual(result.status, 2, result.stderr);
+  const output = json(result);
+  assert.strictEqual(output.lifecycle.verdict, 'BLOCKED');
+  assert.strictEqual(output.diagnostics[0].code, 'NOT_IMPLEMENTED');
+  assert.match(output.remediation[0], /install-cursor-harness\.sh/);
+});
+
 test('non-Cursor plans select actual inventory entries and retain their IDs for status and verify', () => {
   for (const action of ['plan', 'status', 'verify']) {
     const result = invoke(['codex-sync', action, '--scope', 'project', '--json']);

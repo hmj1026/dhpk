@@ -47,6 +47,8 @@ jobs:
         run: node scripts/ci/validate-agent-plugin-package.js plugins/dhpk-agent
       - name: Validate Cursor Plugin package
         run: node scripts/ci/validate-cursor-plugin-package.js plugins/dhpk-cursor
+      - name: Validate Cursor project-local sync
+        run: node scripts/ci/validate-cursor-sync.js
       - name: Verify platform package determinism
         run: node scripts/ci/verify-platform-packages.js
       - name: No-drift Claude manifest check

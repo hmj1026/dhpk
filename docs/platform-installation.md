@@ -15,6 +15,7 @@ callable only after the named consumer probe discovers the projected content.
 | Standard Agent Plugin | Publish or install `plugins/dhpk-agent/` through a verified client route | Client-owned update/remove; replace only the generated package | Root `plugin.json`, Agent Plugins schema, fixed `skills/`, optional `mcp.json`, provenance | Structural conformance is not Codex runtime proof |
 | Cursor standard Agent Plugin | Cursor Customize/Plugins, or local `~/.cursor/plugins/local/dhpk-agent` | Cursor reload/update/remove or replace that local package | Root `plugin.json`, discovered portable skills/MCP, client version | Portable skills/MCP only; no Cursor-native parity claim |
 | Cursor Plugin | Local `~/.cursor/plugins/local/dhpk-cursor`, or reviewed `.cursor-plugin/marketplace.json` source; install `plugins/dhpk-agent/` alongside it for shared portable skills | Cursor refresh/update/remove; rollback Cursor-owned files only; update the shared Agent package separately | `.cursor-plugin/plugin.json`, rules, agents, commands, hooks, variables, shared-skill IDs | Native components require Cursor evidence; shared portable skills are owned by `dhpk-agent`; gaps are `SKIP_INCOMPATIBLE` |
+| Cursor project-local sync | From a checkout: `bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh`; inside a Claude plugin: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh"` | `--update`, `--migrate`, `--uninstall`; `--force` only bypasses the project-root heuristic | `.cursor/.dhpk-installed.json` schema-v3, `.mdc` rules, managed entries | Supported Cursor project-local path; native hooks are out of v1; install does not prove runtime callability |
 | Cursor CLI launch-scoped probe | `cursor-agent --plugin-dir <agent-package> --plugin-dir <cursor-package>` after login | No persistent CLI install; update the source package or local symlink, then start a new session | `cursor-agent --version`, `cursor-agent status`, and a read-only `--mode ask` probe | Experimental/conditional: CLI help exposes the flag, but official CLI docs do not establish plugin component discovery; marketplace indexing is not a non-interactive install command |
 | AGY native plugin | Generate `plugins/dhpk-agy/`, then receipt-owned install to `~/.gemini/config/plugins/dhpk/` | `install-agy-plugin.js update`, `uninstall`, or `rollback`; foreign files are preserved and collisions fail closed | AGY package validator, `agy plugins list`, `agy agents`, and optional bounded Subagent probe | Experimental: package/discovery evidence is separate from runtime; absent `agy` is `UNAVAILABLE` |
 
@@ -32,6 +33,7 @@ result; do not infer a runtime `PASS` from a package check.
 | Standard Agent Plugin | Agent Plugins 1.0.0 schema consumer; minimum client version not established | Client-supported OS; package validation is performed from a POSIX shell | A verified Agent Plugin loader; Node.js for structural validation | Run both package commands, then record client discovery evidence |
 | Cursor standard Agent Plugin | Cursor desktop/plugin loader that accepts the portable package; record Cursor version; minimum version not established | A Cursor-supported desktop OS; local path is `~/.cursor/plugins/local/` | Cursor Customize → Plugins or its local loader; Node.js for validation only | Observe discovered skills/MCP after reload; no loader is `UNAVAILABLE` or `BLOCKED` |
 | Cursor Plugin (native) | Cursor plugin loader supporting `.cursor-plugin/plugin.json`; record Cursor version; install the standard `dhpk-agent` package for shared portable skills; minimum version not established | A Cursor-supported desktop OS; local path is `~/.cursor/plugins/local/` | Cursor reload/UI, local filesystem, and secret-free variable configuration; compare shared IDs with Agent provenance | Observe each selected native component and hook behavior after reload; an explicit matrix overlay is the only reason for a Cursor `skills/` directory |
+| Cursor project-local sync | Cursor project-local loader; schema-v3 receipt; minimum Cursor version not established | Linux, macOS, or WSL with a POSIX shell, run from the project root | `bash`, `git`; Node.js is needed only for validators | Run the installer, inspect `.cursor/.dhpk-installed.json`, and run the listed installer test; do not treat a missing live Cursor client as a runtime `PASS` |
 | Cursor CLI launch-scoped probe | `cursor-agent` available on `PATH`; record `cursor-agent --version`; authenticate with `cursor-agent login`; minimum version not established | Linux, macOS, or WSL POSIX shell | `cursor-agent`, `--plugin-dir`, and a Cursor account/API key; Node.js only for package validation | Experimental/conditional: run `cursor-agent status`, then a read-only probe; unauthenticated output is `BLOCKED`, missing CLI is `UNAVAILABLE`, and discovery must be recorded separately |
 | AGY native plugin | `agy` version and supported AGY model/tool enum are not pinned; record `agy --version` when available | Linux, macOS, or WSL POSIX shell; install root is user-scoped | Node.js, `git`, generated package, and optional `agy` CLI | Run structural validation first; `agy plugins list`/`agy agents` are discovery evidence; runtime remains `NOT_RUN` unless `--agy-runtime-probe` is explicitly used |
 
@@ -69,9 +71,9 @@ closed projection evidence vocabulary separate from lifecycle presentation.
 `INSTALL_PASS + CONSUMER_BLOCKED` is never a projection `PASS` and cannot
 promote a support tier. Write actions currently return `BLOCKED` with the
 stable `NOT_IMPLEMENTED` diagnostic before any mutation. In particular, retain
-the supported `install-codex-skills.sh` route and its schema-v3 receipt for
-Codex project-local writes until that adapter is migrated through the same
-ArtifactStore transaction.
+the supported `install-codex-skills.sh` route for Codex project-local writes and
+`install-cursor-harness.sh` for Cursor project-local writes until those adapters
+are migrated through the same ArtifactStore transaction.
 
 ## Codex project-local sync (Supported)
 
@@ -301,6 +303,84 @@ with the matrix fallback; missing Cursor tooling is `UNAVAILABLE`.
 Rollback removes or restores only `~/.cursor/plugins/local/dhpk-cursor` and its
 Cursor-owned receipt. It must not remove Codex, Claude, project-owned Cursor
 files, or the portable `dhpk-agent` package.
+
+## Cursor project-local sync (Supported)
+
+Prerequisites: the Cursor project-local loader, a POSIX shell, and the
+schema-v3 receipt contract from the Cursor project-local row above. The client
+version is not established until release evidence records it.
+
+Keep this route distinct from `plugins/dhpk-cursor/` (marketplace / user-scoped
+plugin). Project-local files live in the consumer `.cursor/` tree after the
+installer runs. Native `.cursor/hooks.json` mapping is out of v1; this
+installer never writes `hooks.json`. Cursor may still load Claude hooks from
+`.claude/settings.json` when Third-party skills are enabled — that is an
+optional compatibility path, not the supported owner.
+
+Run from the project root. The standalone checkout form is:
+
+```bash
+bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh
+```
+
+Inside the Claude plugin runtime use `${CLAUDE_PLUGIN_ROOT}`. The installer
+uses the project-root heuristic, creates relative symlinks by default, and
+supports `--copy` for a physical portable projection:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" --copy
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" --update
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" --migrate --update
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" --uninstall
+```
+
+`--force` bypasses only the project-root heuristic. It never bypasses receipt
+ownership or path safety. The schema-v3 receipt records stable ID, public name,
+destination, source, mode, and fingerprint. Edited, user-owned, retargeted,
+malformed, ambiguous, or colliding files are preserved and reported.
+
+For a stale or unowned projection, inspect before changing anything:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" \
+  --update --plan --json
+```
+
+Planning is read-only. If an owner approves one exact collision, copy both
+reported fingerprints into an explicit adoption request. Omit `--copy`: the
+installer preserves the receipt's existing projection mode so unrelated managed
+entries are not rematerialized:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" \
+  --update \
+  --adopt='skills/dhpk-cross-agent-sync@<destination-fingerprint>@<source-fingerprint>'
+```
+
+Adoption is path-scoped and creates a rollback-addressable backup before
+promotion. If the fingerprint changed since planning, the command fails before
+mutation; run a fresh plan. Review `.cursor/.dhpk-installed.json` before
+treating the projection as current.
+
+Verify the consumer projection from the consumer project root:
+
+```bash
+test -f .cursor/.dhpk-installed.json
+```
+
+Run source-check validators from the dhpk checkout. Set `DHPK_ROOT` to the
+checkout that owns `scripts/` and `tests/`; these files are not copied into the
+consumer project:
+
+```bash
+DHPK_ROOT=/absolute/path/to/dhpk
+node "$DHPK_ROOT/scripts/ci/validate-cursor-sync.js"
+node "$DHPK_ROOT/tests/install-cursor-harness.test.js"
+```
+
+Rollback is `--uninstall` or restoration of a saved `.cursor/` receipt. Do not
+delete the whole `.cursor/` directory. `dhpk-install cursor` writes remain
+`NOT_IMPLEMENTED`; the supported write path is this bash installer.
 
 ## AGY / Antigravity CLI plugin (Experimental)
 

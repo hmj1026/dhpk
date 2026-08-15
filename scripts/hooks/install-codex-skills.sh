@@ -40,7 +40,7 @@ while [ "$#" -gt 0 ]; do
         --adopt)
             shift
             if [ "$#" -eq 0 ]; then
-                echo "[install-codex-skills] --adopt requires a relative path" >&2
+                echo "[${DHPK_INSTALLER_NAME:-install-codex-skills}] --adopt requires a relative path" >&2
                 exit 2
             fi
             ADOPT_PATHS="${ADOPT_PATHS}${1}"$'\n'
@@ -50,42 +50,51 @@ while [ "$#" -gt 0 ]; do
         --help|-h)
             sed -n '2,15p' "$0"
             exit 0 ;;
-        *) echo "[install-codex-skills] unknown arg: $arg" >&2; exit 2 ;;
+        *) echo "[${DHPK_INSTALLER_NAME:-install-codex-skills}] unknown arg: $arg" >&2; exit 2 ;;
     esac
     shift
 done
 
 if [ "$PLAN" -eq 1 ] && [ -n "$ADOPT_PATHS" ]; then
-    echo "[install-codex-skills] ERROR: --plan cannot be combined with --adopt" >&2
+    echo "[${DHPK_INSTALLER_NAME:-install-codex-skills}] ERROR: --plan cannot be combined with --adopt" >&2
     exit 2
 fi
 
+INSTALLER_NAME="${DHPK_INSTALLER_NAME:-install-codex-skills}"
+SRC_REL="${DHPK_SRC_REL:-codex}"
+DEST_REL="${DHPK_DEST_REL:-.codex}"
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
-CODEX_SRC="$PLUGIN_ROOT/codex"
+CODEX_SRC="$PLUGIN_ROOT/$SRC_REL"
 PROJECT_ROOT="$(pwd)"
 
 if [ ! -d "$CODEX_SRC" ]; then
-    echo "[install-codex-skills] ERROR: plugin codex/ source not found" >&2
+    echo "[$INSTALLER_NAME] ERROR: plugin $SRC_REL/ source not found" >&2
     exit 2
 fi
 if ! command -v python3 >/dev/null 2>&1; then
-    echo "[install-codex-skills] ERROR: python3 is required for receipt reconciliation" >&2
+    echo "[$INSTALLER_NAME] ERROR: python3 is required for receipt reconciliation" >&2
     exit 2
 fi
 
 if [ "$FORCE" -ne 1 ] && [ "$UNINSTALL" -ne 1 ]; then
     if [ ! -e "$PROJECT_ROOT/.git" ] && [ ! -e "$PROJECT_ROOT/.claude" ] && \
+       [ ! -e "$PROJECT_ROOT/.codex" ] && [ ! -e "$PROJECT_ROOT/.cursor" ] && \
        [ ! -e "$PROJECT_ROOT/package.json" ] && [ ! -e "$PROJECT_ROOT/composer.json" ]; then
-        echo "[install-codex-skills] ERROR: '$PROJECT_ROOT' does not look like a project root." >&2
-        echo "[install-codex-skills] Re-run with --force to bypass this check." >&2
+        echo "[$INSTALLER_NAME] ERROR: '$PROJECT_ROOT' does not look like a project root." >&2
+        echo "[$INSTALLER_NAME] Re-run with --force to bypass this check." >&2
         exit 2
     fi
 fi
 
-if ! command -v codex >/dev/null 2>&1 && [ "$UNINSTALL" -ne 1 ]; then
-    echo "[install-codex-skills] note: 'codex' CLI not found on PATH; files can still be synced." >&2
+if [ "${DHPK_HARNESS_KIND:-codex}" = "codex" ] && ! command -v codex >/dev/null 2>&1 && [ "$UNINSTALL" -ne 1 ]; then
+    echo "[$INSTALLER_NAME] note: 'codex' CLI not found on PATH; files can still be synced." >&2
 fi
 
+export DHPK_HARNESS_KIND="${DHPK_HARNESS_KIND:-codex}"
+export DHPK_SRC_REL="$SRC_REL"
+export DHPK_DEST_REL="$DEST_REL"
+export DHPK_SOURCE_KINDS="${DHPK_SOURCE_KINDS:-skills,agents}"
+export DHPK_INSTALLER_NAME="$INSTALLER_NAME"
 export DHPK_PLUGIN_ROOT="$PLUGIN_ROOT"
 export DHPK_PROJECT_ROOT="$PROJECT_ROOT"
 export DHPK_MODE="$MODE"
@@ -110,8 +119,20 @@ import uuid
 
 PLUGIN_ROOT = os.environ['DHPK_PLUGIN_ROOT']
 PROJECT_ROOT = os.environ['DHPK_PROJECT_ROOT']
-CODEX_SRC = os.path.join(PLUGIN_ROOT, 'codex')
-CODEX_ROOT = os.path.join(PROJECT_ROOT, '.codex')
+HARNESS_KIND = os.environ.get('DHPK_HARNESS_KIND', 'codex')
+SRC_REL = os.environ.get('DHPK_SRC_REL', 'codex')
+DEST_REL = os.environ.get('DHPK_DEST_REL', '.codex')
+SOURCE_KINDS = tuple(kind.strip() for kind in os.environ.get('DHPK_SOURCE_KINDS', 'skills,agents').split(',') if kind.strip())
+MANAGED_KINDS = SOURCE_KINDS + ('supporting_assets',)
+INSTALLER_NAME = os.environ.get('DHPK_INSTALLER_NAME', 'install-codex-skills')
+INSTALLER_SCRIPT = f'scripts/hooks/{INSTALLER_NAME}.sh'
+_print = print
+def print(*args, **kwargs):
+    if args and isinstance(args[0], str):
+        args = (args[0].replace('[install-codex-skills]', f'[{INSTALLER_NAME}]'),) + args[1:]
+    _print(*args, **kwargs)
+CODEX_SRC = os.path.join(PLUGIN_ROOT, SRC_REL)
+CODEX_ROOT = os.path.join(PROJECT_ROOT, DEST_REL)
 MANIFEST = os.path.join(CODEX_ROOT, '.dhpk-installed.json')
 MODE = os.environ.get('DHPK_MODE', 'symlink')
 MODE_EXPLICIT = os.environ.get('DHPK_MODE_EXPLICIT') == '1'
@@ -167,7 +188,7 @@ def is_within(path, root):
 
 def ensure_codex_root_safe():
     if lexists(CODEX_ROOT) and os.path.islink(CODEX_ROOT):
-        raise ValueError('project .codex is a symlink; refusing to mutate outside the project')
+        raise ValueError(f'project {DEST_REL} is a symlink; refusing to mutate outside the project')
 
 
 def ensure_manifest_safe():
@@ -175,9 +196,9 @@ def ensure_manifest_safe():
     if not lexists(MANIFEST):
         return
     if os.path.islink(MANIFEST):
-        raise ValueError('project .codex receipt is a symlink; refusing to follow it')
+        raise ValueError(f'project {DEST_REL} receipt is a symlink; refusing to follow it')
     if not os.path.isfile(MANIFEST):
-        raise ValueError('project .codex receipt is not a regular file; refusing to mutate it')
+        raise ValueError(f'project {DEST_REL} receipt is not a regular file; refusing to mutate it')
 
 
 def has_symlink_ancestor(path):
@@ -201,7 +222,7 @@ def safe_destination(relative):
         raise ValueError('receipt destination is not a valid relative path')
     normalized = os.path.normpath(relative).replace(os.sep, '/')
     if os.path.isabs(relative) or (len(relative) > 1 and relative[1] == ':') or normalized != relative or normalized in ('.', '..') or normalized.startswith('../'):
-        raise ValueError(f'receipt destination escapes project .codex: {relative}')
+        raise ValueError(f'receipt destination escapes project {DEST_REL}: {relative}')
     ensure_codex_root_safe()
     destination = os.path.join(CODEX_ROOT, *relative.split('/'))
     root_real = os.path.realpath(CODEX_ROOT)
@@ -209,9 +230,9 @@ def safe_destination(relative):
     if has_symlink_ancestor(parent):
         raise ValueError(f'receipt destination has a symlinked parent: {relative}')
     if not is_within(parent, root_real):
-        raise ValueError(f'receipt destination parent escapes project .codex: {relative}')
+        raise ValueError(f'receipt destination parent escapes project {DEST_REL}: {relative}')
     if lexists(destination) and not os.path.islink(destination) and not is_within(destination, root_real):
-        raise ValueError(f'receipt destination escapes project .codex: {relative}')
+        raise ValueError(f'receipt destination escapes project {DEST_REL}: {relative}')
     return destination
 
 
@@ -372,7 +393,7 @@ def backup_destination(relative, destination, reason):
         shutil.copy2(destination, backup)
     fsync_tree(backup)
     fsync_tree(os.path.dirname(backup))
-    backup_relative = f'.codex/{backup_relative}'
+    backup_relative = f'{DEST_REL}/{backup_relative}'
     backup_records.append({
         'path': backup_relative,
         'original': relative,
@@ -436,7 +457,7 @@ def prepare_adoption_backup(relative, destination, expected_fingerprint):
         os.close(backup_fd)
         os.close(destination_fd)
         raise
-    public_backup = f'.codex/{backup_relative}'
+    public_backup = f'{DEST_REL}/{backup_relative}'
     backup_records.append({
         'path': public_backup,
         'original': relative,
@@ -668,7 +689,13 @@ def inventory_supporting_sources():
         destination = safe_inventory_relative(asset.get('destination'), 'supporting asset destination')
         if destination in result:
             raise ValueError(f'duplicate supporting asset destination: {destination}')
+        if HARNESS_KIND == 'cursor' and destination != 'dhpk' and not destination.startswith('dhpk/'):
+            continue
         source = os.path.join(PLUGIN_ROOT, *source_rel.split('/'))
+        if HARNESS_KIND == 'cursor':
+            projected = os.path.join(PLUGIN_ROOT, SRC_REL, *destination.split('/'))
+            if os.path.isfile(projected) and is_within(projected, PLUGIN_ROOT):
+                source = projected
         if not is_within(source, PLUGIN_ROOT) or not lexists(source):
             raise ValueError(f'supporting asset source is missing or escapes the plugin root: {source_rel}')
         result[destination] = (source, destination)
@@ -677,7 +704,7 @@ def inventory_supporting_sources():
 
 def source_fingerprint():
     digest = hashlib.sha256()
-    for root_name in ('skills', 'agents'):
+    for root_name in SOURCE_KINDS:
         root = os.path.join(CODEX_SRC, root_name)
         if not os.path.isdir(root):
             continue
@@ -778,11 +805,9 @@ def read_receipt():
 def entry_map(receipt):
     managed = receipt.get('managed_entries') if isinstance(receipt, dict) else None
     managed = managed if isinstance(managed, dict) else {}
-    return {
-        'skills': dict(managed.get('skills') or {}),
-        'agents': dict(managed.get('agents') or {}),
-        'supporting_assets': dict(managed.get('supporting_assets') or {}),
-    }
+    result = {kind: dict(managed.get(kind) or {}) for kind in SOURCE_KINDS}
+    result['supporting_assets'] = dict(managed.get('supporting_assets') or {})
+    return result
 
 
 def classify_receipt(receipt, malformed, sources, metadata, plugin_version, fingerprint):
@@ -841,8 +866,8 @@ def classify_receipt(receipt, malformed, sources, metadata, plugin_version, fing
 
 
 def current_sources():
-    result = {'skills': {}, 'agents': {}, 'supporting_assets': {}}
-    for kind in ('skills', 'agents'):
+    result = {kind: {} for kind in MANAGED_KINDS}
+    for kind in SOURCE_KINDS:
         root = os.path.join(CODEX_SRC, kind)
         if not os.path.isdir(root):
             continue
@@ -984,7 +1009,7 @@ def build_plan(receipt, classification, sources, metadata, plugin_version, finge
     missing = []
     updates = []
     retired = []
-    for kind in ('skills', 'agents', 'supporting_assets'):
+    for kind in MANAGED_KINDS:
         for name, (source, relative) in sources[kind].items():
             try:
                 destination = target_for(relative)
@@ -1027,7 +1052,7 @@ def build_plan(receipt, classification, sources, metadata, plugin_version, finge
                     'destination_fingerprint': destination_fp,
                     'action': '--update',
                 })
-    for kind in ('skills', 'agents', 'supporting_assets'):
+    for kind in MANAGED_KINDS:
         for name, old in entries[kind].items():
             if name in sources[kind]:
                 continue
@@ -1163,7 +1188,7 @@ def install_atomic(source, destination):
 def build_evidence(plugin_version, fingerprint, entries, counts, state):
     destinations = {}
     ownership = dict(evidence_ownership)
-    for kind in ('skills', 'agents', 'supporting_assets'):
+    for kind in MANAGED_KINDS:
         for name, entry in entries.get(kind, {}).items():
             if not isinstance(entry, dict):
                 continue
@@ -1178,9 +1203,9 @@ def build_evidence(plugin_version, fingerprint, entries, counts, state):
             }
             ownership.setdefault(relative, 'orphaned' if entry.get('orphaned') else 'dhpk-managed')
     paths = {
-        'source_root': 'codex',
-        'destination_root': '.codex',
-        'receipt': '.codex/.dhpk-installed.json',
+        'source_root': SRC_REL,
+        'destination_root': DEST_REL,
+        'receipt': f'{DEST_REL}/.dhpk-installed.json',
     }
     for kind, values in evidence_paths.items():
         paths[kind] = sorted(set(values))
@@ -1459,7 +1484,7 @@ if classification.get('requires_migration') and not MIGRATE and UNINSTALL is Fal
     mode_hint = '--copy ' if MODE == 'copy' else ''
     print(
         '[install-codex-skills] ACTION REQUIRED: '
-        f'bash scripts/hooks/install-codex-skills.sh {mode_hint}--migrate --update --force',
+        f'bash {INSTALLER_SCRIPT} {mode_hint}--migrate --update --force',
         file=sys.stderr,
     )
     sys.exit(2)
@@ -1475,8 +1500,8 @@ if UNINSTALL:
             os.unlink(MANIFEST)
         print('[install-codex-skills] no managed receipt entries to uninstall')
         sys.exit(0)
-    remaining = {'skills': {}, 'agents': {}, 'supporting_assets': {}}
-    for kind in ('skills', 'agents', 'supporting_assets'):
+    remaining = {kind: {} for kind in MANAGED_KINDS}
+    for kind in MANAGED_KINDS:
         for name, old in entries[kind].items():
             relative = (old.get('destination') or old.get('source')) if isinstance(old, dict) else f'{kind}/{name}'
             relative = relative or f'{kind}/{name}'
@@ -1521,6 +1546,8 @@ except ValueError as error:
     sys.exit(2)
 os.makedirs(os.path.join(CODEX_ROOT, 'skills'), exist_ok=True)
 os.makedirs(os.path.join(CODEX_ROOT, 'agents'), exist_ok=True)
+for kind in SOURCE_KINDS:
+    os.makedirs(os.path.join(CODEX_ROOT, kind), exist_ok=True)
 
 # Public-name migration must run before the generic update-prune pass: an old
 # receipt key is not a current source name, but it remains protected when the
@@ -1530,7 +1557,7 @@ if (UPDATE or MIGRATE) and not ADOPT_PATHS:
 
 # Reconcile entries removed from the source only during an explicit update.
 if UPDATE and not ADOPT_PATHS:
-    for kind in ('skills', 'agents', 'supporting_assets'):
+    for kind in MANAGED_KINDS:
         for name in list(entries[kind]):
             if name in sources[kind]:
                 continue
@@ -1565,7 +1592,7 @@ if UPDATE and not ADOPT_PATHS:
                 record_path('orphaned', relative)
                 record_ownership(relative, 'orphaned')
 
-for kind in ('skills', 'agents', 'supporting_assets'):
+for kind in MANAGED_KINDS:
     for name, (source, relative) in sources[kind].items():
         try:
             destination = target_for(relative)
@@ -1725,5 +1752,5 @@ save_receipt(
 counts['collided'] = counts.get('skipped_collision', 0)
 counts['backed_up'] = counts.get('backed_up', 0)
 print_summary(counts, collisions, sorted(orphaned))
-print(f'[install-codex-skills] synced dhpk v{plugin_version} codex/ → project-local .codex/ (mode={MODE})')
+print(f'[install-codex-skills] synced dhpk v{plugin_version} {SRC_REL}/ → project-local {DEST_REL}/ (mode={MODE})')
 PY

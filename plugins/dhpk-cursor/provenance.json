@@ -3,9 +3,9 @@
   "surface": "cursor-plugin",
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
-  "sourceVersion": "0.40.1",
-  "sourceCommit": "ee2110c91014e7aef6e5b34d9108934c355123f7",
-  "inventoryDigest": "816cdc29c6b0578c354b690542e48cc9ff209c2aaf66e968ad545ebc918574e2",
+  "sourceVersion": "0.41.0",
+  "sourceCommit": "38790d3ab9aeed973ea5c432473350bd41059097",
+  "inventoryDigest": "2c06d8830d6db199e0d16a0c360ac60e196d21944efa12a9b7ed59fb6e001b8b",
   "generatorVersion": "1.0.0",
   "selectedSkillIds": [],
   "selectedSkillNames": [],
@@ -162,7 +162,7 @@
     },
     {
       "source": "anti-rationalization.md",
-      "destination": "rules/anti-rationalization.md",
+      "destination": "rules/anti-rationalization.mdc",
       "transform": "cursor-rules-frontmatter"
     },
     {
@@ -307,12 +307,12 @@
     },
     {
       "source": "execution-policy-kernel.md",
-      "destination": "rules/execution-policy-kernel.md",
+      "destination": "rules/execution-policy-kernel.mdc",
       "transform": "cursor-rules-frontmatter"
     },
     {
       "source": "execution-policy.md",
-      "destination": "rules/execution-policy.md",
+      "destination": "rules/execution-policy.mdc",
       "transform": "cursor-rules-frontmatter"
     },
     {
@@ -412,7 +412,7 @@
     },
     {
       "source": "model-economics.md",
-      "destination": "rules/model-economics.md",
+      "destination": "rules/model-economics.mdc",
       "transform": "cursor-rules-frontmatter"
     },
     {
@@ -605,7 +605,7 @@
     },
     {
       "source": "tool-routing.md",
-      "destination": "rules/tool-routing.md",
+      "destination": "rules/tool-routing.mdc",
       "transform": "cursor-rules-frontmatter"
     },
     {
@@ -645,14 +645,14 @@
     }
   ],
   "fingerprints": {
-    "rules": "4693a91febc8ed7a939fe58fb45b43676a58c941e4ec375de897426d54be2011",
-    "agents": "7aa8dde7c58256e7e691da76f846235833e98f44a4ae625847691c605f8a54fb",
-    "commands": "69a5078ae7bdb9ab494e7e61dd59e43352412ac7ac2ab4bce8b75d6e148c0bd6",
+    "rules": "d01dcae306083d19068284dd7870861d4019e5bec1941679f9183585b20526e6",
+    "agents": "37d47477e055e7695abc42eab66e33c78c0be3358d5a49216364932126e31f4f",
+    "commands": "acbf9e700317ae3d88dcc35858c3f2e2e9648c45f3dc41a47b9d47446f8d5db3",
     "hooks/hooks.json": "1abe14baec6393d900554ebd4a84028ebd9748e0390f370813e9e32f664d0a8a"
   },
   "consumer": {
     "status": "NOT_RUN",
     "reason": "Cursor client consumer probe is separate from structural generation."
   },
-  "planFingerprint": "a64f321f4598cee0046963623d2d695bd36583ddedb79d9fe69373a5af24301f"
+  "planFingerprint": "cd458aaf90ad66600f3d7436c1b392de4353623e13c0c85cadeb1bd123e598b2"
 }
