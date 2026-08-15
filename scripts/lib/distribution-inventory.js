@@ -26,6 +26,7 @@ const SURFACES = [
   'codex-native',
   'agent-plugin',
   'cursor-plugin',
+  'cursor-sync',
   'agy-plugin',
 ];
 const V2_SCHEMA = 'dhpk.distribution-inventory.v2';
@@ -634,7 +635,7 @@ function validateSurfaceMembership({ inventory, ids: skillIds = new Set() }) {
       seen.add(id);
     }
   }
-  for (const requiredSurface of ['agent-plugin', 'cursor-plugin']) {
+  for (const requiredSurface of ['agent-plugin', 'cursor-plugin', 'cursor-sync']) {
     if (!Object.prototype.hasOwnProperty.call(membership, requiredSurface)) {
       errors.push(`surface_membership is missing required '${requiredSurface}' selection`);
     }
@@ -789,11 +790,13 @@ function validateProjectionContract(contract) {
 function reconcileDistribution({
   inventory,
   codexMirrorNames = [],
+  cursorMirrorNames = [],
   moduleCatalogIds = [],
   hasOpenaiMetadata = () => false,
 }) {
   const errors = [];
   const mirrorSet = new Set(codexMirrorNames);
+  const cursorMirrorSet = new Set(cursorMirrorNames);
   const catalogSet = new Set(moduleCatalogIds);
 
   for (const m of inventory.modules || []) {
@@ -802,11 +805,20 @@ function reconcileDistribution({
     }
   }
 
+  const membershipIds = new Set(
+    inventory && inventory.surface_membership && Array.isArray(inventory.surface_membership['cursor-sync'])
+      ? inventory.surface_membership['cursor-sync']
+      : [],
+  );
+
   for (const s of inventory.skills || []) {
     const surfaces = s.surfaces || [];
     const projectionName = inventory && inventory.schema === V2_SCHEMA ? s.name : s.id;
     if (surfaces.includes('codex-sync') && !mirrorSet.has(projectionName)) {
       errors.push(`codex-sync surface without a mirror: ${s.id} declares codex-sync but codex/skills/${projectionName} does not exist`);
+    }
+    if ((surfaces.includes('cursor-sync') || membershipIds.has(s.id)) && !cursorMirrorSet.has(projectionName)) {
+      errors.push(`cursor-sync surface without a mirror: ${s.id} declares cursor-sync but cursor/skills/${projectionName} does not exist`);
     }
     if ((surfaces.includes('codex-sync') || surfaces.includes('codex-native')) && !hasOpenaiMetadata(s)) {
       errors.push(`codex surface without agents/openai.yaml: ${s.id} declares a Codex surface but ${s.path}/agents/openai.yaml is missing`);

@@ -3,8 +3,8 @@
   "surface": "codex-native",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.40.1",
-  "sourceCommit": "ee2110c91014e7aef6e5b34d9108934c355123f7",
-  "inventoryDigest": "816cdc29c6b0578c354b690542e48cc9ff209c2aaf66e968ad545ebc918574e2",
+  "sourceCommit": "f05995e8f722560f6bae88c8bfae8ed7e42c2a0c",
+  "inventoryDigest": "2c06d8830d6db199e0d16a0c360ac60e196d21944efa12a9b7ed59fb6e001b8b",
   "generatorVersion": "2.2.0",
   "selectedSkillIds": [
     "agy-commit",

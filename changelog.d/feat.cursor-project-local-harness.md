@@ -1,0 +1,2 @@
+scope: cursor-sync
+note: Add a Codex-parity project-local Cursor harness (`cursor/` projection plus `install-cursor-harness.sh`) so consumers can install skills, subagents, `.mdc` rules, and commands into `.cursor/` without depending on the marketplace plugin. Rewritten harness paths point at installed `.mdc` rules, `.cursor/agents/`, and `.cursor/dhpk/` supporting assets. Cursor agent frontmatter uses `cursor-grok-4.6-high` for general workflow roles and `composer-2.5-fast` for `doc-reviewer`, `docs-lookup`, and `doc-updater`.

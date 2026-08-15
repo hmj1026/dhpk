@@ -58,6 +58,7 @@ test('installation routes remain separate and point to the SSOT', () => {
     'docs/distribution-surfaces.md', 'docs/distribution-surfaces.zh-TW.md',
     'docs/skill-platform-migration.md', 'docs/skill-platform-migration.zh-TW.md',
     'codex/README.md', 'codex/README.zh-TW.md', 'codex/AGENTS.md',
+    'cursor/AGENTS.md',
     '.codex-plugin/README.md', 'plugins/dhpk/README.md', 'plugins/dhpk/README.zh-TW.md',
   ];
   for (const rel of docs) {
@@ -67,6 +68,8 @@ test('installation routes remain separate and point to the SSOT', () => {
   const english = read('docs/platform-installation.md');
   for (const token of [
     'install-codex-skills.sh',
+    'install-cursor-harness.sh',
+    '.cursor/.dhpk-installed.json',
     'schema-v3',
     'codex plugin marketplace add',
     'plugins/dhpk-agent/',
@@ -142,6 +145,20 @@ test('Codex verification commands declare consumer and checkout roots', () => {
   }
 });
 
+test('Cursor project-local verification commands declare consumer and checkout roots', () => {
+  for (const relative of ['docs/platform-installation.md', 'docs/platform-installation.zh-TW.md']) {
+    const text = read(relative);
+    assert.ok(text.includes('test -f .cursor/.dhpk-installed.json'),
+      `${relative} must keep the consumer-root Cursor receipt check`);
+    assert.ok(text.includes('node "$DHPK_ROOT/scripts/ci/validate-cursor-sync.js"'),
+      `${relative} must qualify the Cursor layout validator with DHPK_ROOT`);
+    assert.ok(text.includes('node "$DHPK_ROOT/tests/install-cursor-harness.test.js"'),
+      `${relative} must qualify the Cursor installer test with DHPK_ROOT`);
+    assert.ok(!text.includes('node tests/install-cursor-harness.test.js'),
+      `${relative} must not run the Cursor installer test from the consumer root`);
+  }
+});
+
 test('current Codex operational docs match the projection role counts', () => {
   const { direct, generated } = currentCodexRoleCounts();
   for (const relative of [
@@ -161,9 +178,10 @@ test('current Codex operational docs match the projection role counts', () => {
 
 test('inventory declares explicit platform matrix and frontmatter ownership', () => {
   const inventory = JSON.parse(read('manifests/distribution-inventory.json'));
-  assert.deepStrictEqual(inventory.surfaces.slice(-3), ['agent-plugin', 'cursor-plugin', 'agy-plugin']);
+  assert.deepStrictEqual(inventory.surfaces.slice(-4), ['agent-plugin', 'cursor-plugin', 'cursor-sync', 'agy-plugin']);
   assert.ok(Array.isArray(inventory.surface_membership['agent-plugin']));
   assert.ok(Array.isArray(inventory.surface_membership['cursor-plugin']));
+  assert.ok(Array.isArray(inventory.surface_membership['cursor-sync']));
   assert.ok(Array.isArray(inventory.surface_membership['agy-plugin']));
   assert.strictEqual(inventory.platform_matrix.schema, 'dhpk.platform-capability-matrix.v1');
   assert.ok(inventory.platform_matrix.entries.length >= 5);

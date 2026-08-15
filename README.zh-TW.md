@@ -25,6 +25,7 @@ OpenSpec 是**可選的外部整合**——若需要 OpenSpec 工作流指令，
 | `docker` | 選用 | 僅由以 `userConfig.docker_containers` 明確註冊的 Docker workflow 使用 |
 | Codex MCP server | 選用 | 僅在你使用 4 個 MCP-backed `codex-*` skill、7 個 `/dhpk:codex-*` 指令，或啟用 `CODEX=on` 時才需要——透過將 Claude Code 指向 Codex CLI 的 `codex mcp-server` 子指令來註冊，見 [`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕) |
 | Codex CLI 執行檔 | 選用 | 僅在執行 `install-codex-skills.sh` 且希望 Codex 真正載入同步內容時才需要 |
+| Cursor | 選用 | 僅在執行 `install-cursor-harness.sh` 且希望 Cursor 載入專案本地 `.cursor/` harness 時才需要 |
 | `cx` CLI | 選用 | 語意化程式碼導覽。`rules/tool-routing.md` 將 `cx overview` / `cx definition` / `cx references` 列為首選工具；6 個 reviewer agent 與 `harness-fill` skill 會引用。未安裝時 → 降級為 `Grep` / `Read`。 |
 | `gitnexus` MCP server | 選用 | 知識圖譜查詢（`gitnexus_impact`、`gitnexus_rename`、`gitnexus_detect_changes`）。6 個 `gitnexus-*` skill 以及 `rules/execution-policy.md` 的 self-check 會用到。未安裝時 → 降級為 `cx` 或 `Grep`。 |
 | `claude-mem` | 選用 | 跨 session 記憶搜尋（`mem-search`）。`rules/tool-routing.md` 用於查找過往決策。未安裝時 → 直接略過。 |
@@ -245,6 +246,16 @@ Statusline 會渲染 `[branch] +staged ~modified | docker:status | profile=<p> |
 
 適用於同時使用 Claude Code 與獨立 Codex CLI 的專案（與上方的 Codex MCP 依賴是兩回事——這條路徑不需要任何 MCP server），支援路徑是 `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"`——`--copy` 是可攜的支援 fallback（真實檔案，不依賴 plugin root 是否還存在），預設的 symlink 模式重新同步較快，但依賴原 plugin root/cache 持續存在。它會把明確策展的 Codex projection 放進專案 `.codex/`。[issue #88](https://github.com/hmj1026/dhpk/issues/88) 的乾淨安裝 materialization 驗證目前已對正式實體 package 通過；Codex Plugin Marketplace 仍維持實驗性，直到另有獨立的 graduation 決策。完整政策與說明見 **[`docs/basic-operations.zh-TW.md`](./docs/basic-operations.zh-TW.md#同步-codex-cli-內容)**。
 
+## 同步 Cursor project-local harness
+
+若希望 Cursor 從專案本身載入 dhpk skills、subagents、`.mdc` rules 與 commands
+（而不只依賴 `~/.cursor/plugins/local/`），支援路徑是
+`bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh"`。預設
+symlink 模式與 Codex 相同；`--copy` 是可攜 fallback。installer 會寫入
+schema-v3 receipt `.cursor/.dhpk-installed.json`，且不會寫入
+`.cursor/hooks.json`。`plugins/dhpk-cursor/` 仍留給 marketplace／user-plugin
+路徑。完整政策見 **[`docs/platform-installation.zh-TW.md`](./docs/platform-installation.zh-TW.md)**。
+
 ## 遷移現有專案
 
 若專案已有自己的 `.claude/` harness，dhpk 支援分階段的並行安裝 → hook 對齊 → 切換流程，每階段都有 rollback gate。完整 6 階段步驟見 **[`docs/basic-operations.zh-TW.md`](./docs/basic-operations.zh-TW.md#遷移現有專案)**。
@@ -285,6 +296,10 @@ dhpk/
 │   ├── hook-extension.md、hook-extension.zh-TW.md
 │   ├── recommended-permissions.md
 │   ├── docker-setup.md、docker-setup.zh-TW.md、subagent-prompt-template.md
+├── cursor/                       # Cursor project-local 雙軌（Cursor 不會自動載入）
+│   ├── AGENTS.md                 # Cursor 雙路徑指引
+│   ├── skills/                   # 指向 canonical skills/ 的相對 symlink
+│   ├── agents/、rules/*.mdc、commands/
 ├── codex/                        # Codex CLI 雙軌（Claude Code 不會自動載入）
 │   ├── AGENTS.md                 # Codex 專屬指引
 │   ├── README.md、README.zh-TW.md # 如何同步進專案

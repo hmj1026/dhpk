@@ -28,9 +28,12 @@ Each entry also declares its publication `surfaces`: `claude-core`,
 `codex-native` (the experimental marketplace package — see
 [ADR-0006](adr/0006-codex-native-publication-artifact.md)
 and [Codex native plugin package](#codex-native-plugin-package-github-issue-88)
-below), `agent-plugin`, and `cursor-plugin`. The last two identify the
-generated Agent Plugin and Cursor publication packages; their shared portable
-skill ownership and Cursor-native overlay rules are defined below.
+below), `agent-plugin`, `cursor-plugin`, and `cursor-sync` (the supported
+`install-cursor-harness.sh` project-local path). `agent-plugin` and
+`cursor-plugin` identify the generated Agent Plugin and Cursor publication
+packages; their shared portable skill ownership and Cursor-native overlay
+rules are defined below. `cursor-sync` is the Codex analog for consumer
+`.cursor/` files.
 
 Directory placement and README prose are not authoritative — the checked-in
 inventory is. `scripts/ci/gen-distribution-inventory.js --write` bootstraps a
@@ -73,8 +76,8 @@ Symlink policy is closed and fail-closed: `forbid`, `contained-relative`, or
 `declared-source-relative`. The default is `forbid`; a contained link must stay
 inside its artifact owner, while a declared-source-relative link must be
 relative, plan-declared, owned by the destination root, and resolve inside the
-plan-bound canonical source root. Only the retained `codex-sync` compatibility
-route may use the latter. Absolute or undeclared links are rejected.
+plan-bound canonical source root. The retained `codex-sync` and `cursor-sync`
+compatibility routes may use the latter. Absolute or undeclared links are rejected.
 
 Verification is stage-bound. `structural` and `package` `PASS` prove only the
 checked artifact/package claims; `consumer-runtime` requires a real consumer

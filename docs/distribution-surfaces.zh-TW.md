@@ -24,8 +24,11 @@ Projection 與 ownership 決策記錄於
 
 Publication surface 包含 `claude-core`、`claude-module`、`codex-sync`（支援的
 `install-codex-skills.sh` 路徑）、`codex-native`（實驗性的 marketplace package）、
-`agent-plugin` 與 `cursor-plugin`。後兩者分別代表 Agent Plugin 與 Cursor
-publication package；shared portable skill ownership 與 Cursor-native overlay 規則見下節。
+`agent-plugin`、`cursor-plugin` 與 `cursor-sync`（支援的
+`install-cursor-harness.sh` project-local 路徑）。`agent-plugin` 與
+`cursor-plugin` 分別代表 Agent Plugin 與 Cursor publication package；
+`cursor-sync` 是 consumer `.cursor/` 的 Codex 對應路徑。shared portable skill
+ownership 與 Cursor-native overlay 規則見下節。
 目錄位置與 README prose 不是權威來源。`validate-distribution.js` 會比對 canonical
 package、module catalog、Codex metadata 與 inventory。
 
@@ -56,8 +59,8 @@ projection tree 的唯一 writer；staging 或驗證失敗時，上一份 accept
 Symlink policy 是 closed、fail-closed vocabulary：`forbid`、`contained-relative`、
 `declared-source-relative`。預設是 `forbid`；contained link 必須留在 artifact owner
 內，declared-source-relative link 必須是相對、由 plan 宣告、由 destination root 擁有，並
-解析到 plan 綁定的 canonical source root。只有保留的 `codex-sync` compatibility route
-可使用最後一種；absolute 或未宣告 symlink 一律拒絕。
+解析到 plan 綁定的 canonical source root。保留的 `codex-sync` 與 `cursor-sync`
+compatibility route 可使用最後一種；absolute 或未宣告 symlink 一律拒絕。
 
 Verification 必須綁定 stage。`structural` 與 `package` 的 `PASS` 只代表已檢查的
 artifact/package claims；`consumer-runtime` 必須有真實 consumer probe。前兩者不能宣稱

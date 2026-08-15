@@ -14,6 +14,7 @@
     "codex-native",
     "agent-plugin",
     "cursor-plugin",
+    "cursor-sync",
     "agy-plugin"
   ],
   "skill_routing_families": [
@@ -21,22 +22,123 @@
       "id": "laravel",
       "router_id": "php-pro",
       "invocation_class": "implicit-eligible",
-      "surfaces": ["claude-module"],
+      "surfaces": [
+        "claude-module"
+      ],
       "selectors": {
-        "5.4": "skills/dhpk-laravel-5-4-notes/SKILL.md", "6": "skills/dhpk-laravel-6-notes/SKILL.md", "7": "skills/dhpk-laravel-7-notes/SKILL.md", "8": "skills/dhpk-laravel-8-notes/SKILL.md", "9": "skills/dhpk-laravel-9-notes/SKILL.md", "10": "skills/dhpk-laravel-10-notes/SKILL.md", "11": "skills/dhpk-laravel-11-notes/SKILL.md", "mix": "skills/dhpk-laravel-mix-notes/SKILL.md"
+        "6": "skills/dhpk-laravel-6-notes/SKILL.md",
+        "7": "skills/dhpk-laravel-7-notes/SKILL.md",
+        "8": "skills/dhpk-laravel-8-notes/SKILL.md",
+        "9": "skills/dhpk-laravel-9-notes/SKILL.md",
+        "10": "skills/dhpk-laravel-10-notes/SKILL.md",
+        "11": "skills/dhpk-laravel-11-notes/SKILL.md",
+        "5.4": "skills/dhpk-laravel-5-4-notes/SKILL.md",
+        "mix": "skills/dhpk-laravel-mix-notes/SKILL.md"
       },
       "aliases": [
-        {"id":"laravel-5.4-notes","selector":"5.4","invocation_class":"implicit-eligible","surfaces":["claude-module"]}, {"id":"laravel-6-notes","selector":"6","invocation_class":"implicit-eligible","surfaces":["claude-module"]}, {"id":"laravel-7-notes","selector":"7","invocation_class":"implicit-eligible","surfaces":["claude-module"]}, {"id":"laravel-8-notes","selector":"8","invocation_class":"implicit-eligible","surfaces":["claude-module"]}, {"id":"laravel-9-notes","selector":"9","invocation_class":"implicit-eligible","surfaces":["claude-module"]}, {"id":"laravel-10-notes","selector":"10","invocation_class":"implicit-eligible","surfaces":["claude-module"]}, {"id":"laravel-11-notes","selector":"11","invocation_class":"implicit-eligible","surfaces":["claude-module"]}, {"id":"laravel-mix-notes","selector":"mix","invocation_class":"implicit-eligible","surfaces":["claude-module"]}
+        {
+          "id": "laravel-5.4-notes",
+          "selector": "5.4",
+          "invocation_class": "implicit-eligible",
+          "surfaces": [
+            "claude-module"
+          ]
+        },
+        {
+          "id": "laravel-6-notes",
+          "selector": "6",
+          "invocation_class": "implicit-eligible",
+          "surfaces": [
+            "claude-module"
+          ]
+        },
+        {
+          "id": "laravel-7-notes",
+          "selector": "7",
+          "invocation_class": "implicit-eligible",
+          "surfaces": [
+            "claude-module"
+          ]
+        },
+        {
+          "id": "laravel-8-notes",
+          "selector": "8",
+          "invocation_class": "implicit-eligible",
+          "surfaces": [
+            "claude-module"
+          ]
+        },
+        {
+          "id": "laravel-9-notes",
+          "selector": "9",
+          "invocation_class": "implicit-eligible",
+          "surfaces": [
+            "claude-module"
+          ]
+        },
+        {
+          "id": "laravel-10-notes",
+          "selector": "10",
+          "invocation_class": "implicit-eligible",
+          "surfaces": [
+            "claude-module"
+          ]
+        },
+        {
+          "id": "laravel-11-notes",
+          "selector": "11",
+          "invocation_class": "implicit-eligible",
+          "surfaces": [
+            "claude-module"
+          ]
+        },
+        {
+          "id": "laravel-mix-notes",
+          "selector": "mix",
+          "invocation_class": "implicit-eligible",
+          "surfaces": [
+            "claude-module"
+          ]
+        }
       ]
     },
     {
       "id": "phpunit",
       "router_id": "php-pro",
       "invocation_class": "implicit-eligible",
-      "surfaces": ["claude-module"],
-      "selectors": {"9":"skills/dhpk-phpunit-9-modern/SKILL.md","10":"skills/dhpk-phpunit-10-notes/SKILL.md","11":"skills/dhpk-phpunit-11-notes/SKILL.md"},
+      "surfaces": [
+        "claude-module"
+      ],
+      "selectors": {
+        "9": "skills/dhpk-phpunit-9-modern/SKILL.md",
+        "10": "skills/dhpk-phpunit-10-notes/SKILL.md",
+        "11": "skills/dhpk-phpunit-11-notes/SKILL.md"
+      },
       "aliases": [
-        {"id":"phpunit-9-modern","selector":"9","invocation_class":"implicit-eligible","surfaces":["claude-module"]}, {"id":"phpunit-10-notes","selector":"10","invocation_class":"implicit-eligible","surfaces":["claude-module"]}, {"id":"phpunit-11-notes","selector":"11","invocation_class":"implicit-eligible","surfaces":["claude-module"]}
+        {
+          "id": "phpunit-9-modern",
+          "selector": "9",
+          "invocation_class": "implicit-eligible",
+          "surfaces": [
+            "claude-module"
+          ]
+        },
+        {
+          "id": "phpunit-10-notes",
+          "selector": "10",
+          "invocation_class": "implicit-eligible",
+          "surfaces": [
+            "claude-module"
+          ]
+        },
+        {
+          "id": "phpunit-11-notes",
+          "selector": "11",
+          "invocation_class": "implicit-eligible",
+          "surfaces": [
+            "claude-module"
+          ]
+        }
       ]
     }
   ],
@@ -47,15 +149,92 @@
       "version": "1"
     },
     "surfaces": {
-      "claude-core": { "adapter": "claude", "owner": "claude", "verification_stages": ["structural", "package", "consumer-runtime"], "symlink_policy": "forbid" },
-      "claude-module": { "adapter": "claude", "owner": "claude", "verification_stages": ["structural", "package", "consumer-runtime"], "symlink_policy": "forbid" },
-      "codex-sync": { "adapter": "codex-sync", "owner": "codex-sync", "verification_stages": ["structural", "package", "consumer-runtime"], "symlink_policy": "declared-source-relative" },
-      "codex-native": { "adapter": "codex-native", "owner": "codex-native", "verification_stages": ["structural", "package", "consumer-runtime"], "symlink_policy": "forbid" },
-      "agent-plugin": { "adapter": "agent-plugin", "owner": "agent-plugin", "verification_stages": ["structural", "package", "consumer-runtime"], "symlink_policy": "forbid" },
-      "cursor-plugin": { "adapter": "cursor-plugin", "owner": "cursor-plugin", "verification_stages": ["structural", "package", "consumer-runtime"], "symlink_policy": "forbid" },
-      "agy-plugin": { "adapter": "agy-plugin", "owner": "agy-plugin", "verification_stages": ["structural", "package", "consumer-runtime"], "symlink_policy": "forbid" }
+      "claude-core": {
+        "adapter": "claude",
+        "owner": "claude",
+        "verification_stages": [
+          "structural",
+          "package",
+          "consumer-runtime"
+        ],
+        "symlink_policy": "forbid"
+      },
+      "claude-module": {
+        "adapter": "claude",
+        "owner": "claude",
+        "verification_stages": [
+          "structural",
+          "package",
+          "consumer-runtime"
+        ],
+        "symlink_policy": "forbid"
+      },
+      "codex-sync": {
+        "adapter": "codex-sync",
+        "owner": "codex-sync",
+        "verification_stages": [
+          "structural",
+          "package",
+          "consumer-runtime"
+        ],
+        "symlink_policy": "declared-source-relative"
+      },
+      "codex-native": {
+        "adapter": "codex-native",
+        "owner": "codex-native",
+        "verification_stages": [
+          "structural",
+          "package",
+          "consumer-runtime"
+        ],
+        "symlink_policy": "forbid"
+      },
+      "agent-plugin": {
+        "adapter": "agent-plugin",
+        "owner": "agent-plugin",
+        "verification_stages": [
+          "structural",
+          "package",
+          "consumer-runtime"
+        ],
+        "symlink_policy": "forbid"
+      },
+      "cursor-plugin": {
+        "adapter": "cursor-plugin",
+        "owner": "cursor-plugin",
+        "verification_stages": [
+          "structural",
+          "package",
+          "consumer-runtime"
+        ],
+        "symlink_policy": "forbid"
+      },
+      "agy-plugin": {
+        "adapter": "agy-plugin",
+        "owner": "agy-plugin",
+        "verification_stages": [
+          "structural",
+          "package",
+          "consumer-runtime"
+        ],
+        "symlink_policy": "forbid"
+      },
+      "cursor-sync": {
+        "adapter": "cursor-sync",
+        "owner": "cursor-sync",
+        "verification_stages": [
+          "structural",
+          "package",
+          "consumer-runtime"
+        ],
+        "symlink_policy": "declared-source-relative"
+      }
     },
-    "symlink_policies": ["forbid", "contained-relative", "declared-source-relative"]
+    "symlink_policies": [
+      "forbid",
+      "contained-relative",
+      "declared-source-relative"
+    ]
   },
   "supporting_assets": [
     {
@@ -262,6 +441,40 @@
       "canonical_digest": "38d1c53dddfcd3490bfce23236bd62f373a6db7297136f3cc837ada7da7e0bbe",
       "projection_digest": "beb63d7382fbe7ff2b350221ed3b3c34dd69e86cb1a4e5b89e6a4b52232ddc12",
       "destination": "dhpk/policies/execution-policy.md"
+    },
+    {
+      "id": "codex-supporting-agent-traps-_common-build-resolver-skeleton-md",
+      "source": "codex/supporting/agent-traps/_common/build-resolver-skeleton.md",
+      "canonical_source": "agent-traps/_common/build-resolver-skeleton.md",
+      "canonical_digest": "a9a8cbc1d8c8efb249aaac1f12c79f71ebb375773d4b1a519209734469b7f125",
+      "projection_digest": "0c4491481d52237c657b208d019d921ab836362c11c7a284fbee3e8d05359c27",
+      "destination": "dhpk/agent-traps/_common/build-resolver-skeleton.md"
+    },
+    {
+      "id": "codex-supporting-agent-traps-_common-cli-prompt-composition-md",
+      "source": "codex/supporting/agent-traps/_common/cli-prompt-composition.md",
+      "canonical_source": "agent-traps/_common/cli-prompt-composition.md",
+      "canonical_digest": "6334ac0eaa5e536e72b94ea6ddfd4f3061a140e34f09c2ae77bb7876a3fdc1f1",
+      "projection_digest": "9597a0448ed83fe1cd7c613a84798a3887e728d7dfe1e8d339058b899c00d9da",
+      "destination": "dhpk/agent-traps/_common/cli-prompt-composition.md"
+    },
+    {
+      "id": "codex-supporting-docs-subagent-prompt-template-md",
+      "source": "docs/subagent-prompt-template.md",
+      "destination": "dhpk/docs/subagent-prompt-template.md"
+    },
+    {
+      "id": "codex-supporting-docs-docker-setup-md",
+      "source": "codex/supporting/docs/docker-setup.md",
+      "canonical_source": "docs/docker-setup.md",
+      "canonical_digest": "5f35fa7fa9de0edd9b4a068bc6ab3f964633f8889b663308998bfe9df11da5cf",
+      "projection_digest": "07898ac72561aeb87325925b8623fc0413eb67e29b0b15ed71f4ea9c80ec0303",
+      "destination": "dhpk/docs/docker-setup.md"
+    },
+    {
+      "id": "codex-supporting-manifests-module-catalog-json",
+      "source": "manifests/module-catalog.json",
+      "destination": "dhpk/manifests/module-catalog.json"
     }
   ],
   "skills": [
@@ -913,7 +1126,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "adaptive-dev-workflow"
@@ -930,7 +1144,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "agent-architecture-audit"
@@ -949,7 +1164,8 @@
       "surfaces": [
         "claude-core",
         "codex-sync",
-        "codex-native"
+        "codex-native",
+        "cursor-sync"
       ],
       "legacy_names": [
         "agy-commit"
@@ -966,7 +1182,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "agy-fast-worker"
@@ -983,7 +1200,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "bug-fix"
@@ -1002,7 +1220,8 @@
       "surfaces": [
         "claude-core",
         "codex-sync",
-        "codex-native"
+        "codex-native",
+        "cursor-sync"
       ],
       "legacy_names": [
         "bug-investigation"
@@ -1019,7 +1238,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "claude-health"
@@ -1036,7 +1256,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "code-explore",
@@ -1055,7 +1276,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "codex-architect"
@@ -1072,7 +1294,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "codex-brainstorm"
@@ -1089,7 +1312,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "codex-bridge"
@@ -1106,7 +1330,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "codex-code-review",
@@ -1124,7 +1349,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "codex-implement"
@@ -1141,7 +1367,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "composer-package-hygiene"
@@ -1158,7 +1385,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "continuous-learning-v2"
@@ -1175,7 +1403,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "create-request"
@@ -1192,7 +1421,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "create-skill"
@@ -1209,7 +1439,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "de-ai-flavor"
@@ -1226,7 +1457,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "deploy-list"
@@ -1243,7 +1475,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ]
     },
     {
@@ -1257,7 +1490,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "doc-review"
@@ -1274,7 +1508,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "execution-checklist"
@@ -1291,7 +1526,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "feasibility-study"
@@ -1308,7 +1544,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "feature-dev"
@@ -1325,7 +1562,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "feature-verify"
@@ -1344,7 +1582,8 @@
       "surfaces": [
         "claude-core",
         "codex-sync",
-        "codex-native"
+        "codex-native",
+        "cursor-sync"
       ],
       "legacy_names": [
         "git-investigate"
@@ -1363,7 +1602,8 @@
       "surfaces": [
         "claude-core",
         "codex-sync",
-        "codex-native"
+        "codex-native",
+        "cursor-sync"
       ],
       "legacy_names": [
         "git-smart-commit"
@@ -1380,7 +1620,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "gitnexus-cli"
@@ -1397,7 +1638,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "gitnexus-debugging"
@@ -1414,7 +1656,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "gitnexus-exploring"
@@ -1431,7 +1674,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "gitnexus-guide"
@@ -1448,7 +1692,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "gitnexus-impact-analysis"
@@ -1465,7 +1710,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "gitnexus-refactoring"
@@ -1482,7 +1728,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "harness-budget"
@@ -1499,7 +1746,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "harness-fill"
@@ -1516,7 +1764,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "harness-revise"
@@ -1533,7 +1782,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "issue-analyze"
@@ -1550,7 +1800,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "laravel-package-author"
@@ -1567,7 +1818,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "laravel-testbench-matrix"
@@ -1586,7 +1838,8 @@
       "surfaces": [
         "claude-core",
         "codex-sync",
-        "codex-native"
+        "codex-native",
+        "cursor-sync"
       ],
       "legacy_names": [
         "multi-ai-sync"
@@ -1603,7 +1856,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "next-step"
@@ -1622,7 +1876,8 @@
       "surfaces": [
         "claude-core",
         "codex-sync",
-        "codex-native"
+        "codex-native",
+        "cursor-sync"
       ],
       "legacy_names": [
         "op-session"
@@ -1639,7 +1894,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "opsx-apply-goal"
@@ -1658,7 +1914,8 @@
       "surfaces": [
         "claude-core",
         "codex-sync",
-        "codex-native"
+        "codex-native",
+        "cursor-sync"
       ],
       "legacy_names": [
         "opsx-load-context"
@@ -1677,7 +1934,8 @@
       "surfaces": [
         "claude-core",
         "codex-sync",
-        "codex-native"
+        "codex-native",
+        "cursor-sync"
       ],
       "legacy_names": [
         "opsx-post-obs"
@@ -1694,7 +1952,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "polyfill-version-matrix-audit"
@@ -1711,7 +1970,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "post-dev-test"
@@ -1728,7 +1988,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "pr-review"
@@ -1745,7 +2006,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "project-audit"
@@ -1762,7 +2024,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "project-setup"
@@ -1779,7 +2042,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "prompt-optimize"
@@ -1796,7 +2060,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "release-creator"
@@ -1813,7 +2078,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "repo-intake"
@@ -1830,7 +2096,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "risk-assess"
@@ -1847,7 +2114,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "rules-distill"
@@ -1864,7 +2132,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "security-review"
@@ -1881,7 +2150,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "session-usage-audit"
@@ -1900,7 +2170,8 @@
       "surfaces": [
         "claude-core",
         "codex-sync",
-        "codex-native"
+        "codex-native",
+        "cursor-sync"
       ],
       "legacy_names": [
         "skill-health-check"
@@ -1919,7 +2190,8 @@
       "surfaces": [
         "claude-core",
         "codex-sync",
-        "codex-native"
+        "codex-native",
+        "cursor-sync"
       ],
       "legacy_names": [
         "skill-judge"
@@ -1936,7 +2208,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "skill-scout"
@@ -1953,7 +2226,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "skill-stocktake"
@@ -1970,7 +2244,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "software-architecture"
@@ -1989,7 +2264,8 @@
       "surfaces": [
         "claude-core",
         "codex-sync",
-        "codex-native"
+        "codex-native",
+        "cursor-sync"
       ],
       "legacy_names": [
         "tdd"
@@ -2006,7 +2282,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "tech-spec"
@@ -2023,7 +2300,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "test-review"
@@ -2040,7 +2318,8 @@
         "core"
       ],
       "surfaces": [
-        "claude-core"
+        "claude-core",
+        "cursor-sync"
       ],
       "legacy_names": [
         "tool-routing"
@@ -2299,13 +2578,276 @@
   ],
   "surface_membership": {
     "agent-plugin": [
-      "adaptive-dev-workflow", "agent-architecture-audit", "agy-commit", "agy-fast-worker", "bug-fix", "bug-investigation", "claude-health", "code-explore", "codex-architect", "codex-brainstorm", "codex-bridge", "codex-code-review", "codex-implement", "composer-package-hygiene", "continuous-learning-v2", "create-request", "create-skill", "de-ai-flavor", "deploy-list", "dhpk-execution-policy", "doc-review", "execution-checklist", "feasibility-study", "feature-dev", "feature-verify", "git-investigate", "git-smart-commit", "gitnexus-cli", "gitnexus-debugging", "gitnexus-exploring", "gitnexus-guide", "gitnexus-impact-analysis", "gitnexus-refactoring", "harness-budget", "harness-fill", "harness-revise", "issue-analyze", "laravel-package-author", "laravel-testbench-matrix", "multi-ai-sync", "next-step", "op-session", "opsx-apply-goal", "opsx-load-context", "opsx-post-obs", "polyfill-version-matrix-audit", "post-dev-test", "pr-review", "project-audit", "project-setup", "prompt-optimize", "release-creator", "repo-intake", "risk-assess", "rules-distill", "security-review", "session-usage-audit", "skill-health-check", "skill-judge", "skill-scout", "skill-stocktake", "software-architecture", "tdd", "tech-spec", "test-review", "tool-routing"
+      "adaptive-dev-workflow",
+      "agent-architecture-audit",
+      "agy-commit",
+      "agy-fast-worker",
+      "bug-fix",
+      "bug-investigation",
+      "claude-health",
+      "code-explore",
+      "codex-architect",
+      "codex-brainstorm",
+      "codex-bridge",
+      "codex-code-review",
+      "codex-implement",
+      "composer-package-hygiene",
+      "continuous-learning-v2",
+      "create-request",
+      "create-skill",
+      "de-ai-flavor",
+      "deploy-list",
+      "dhpk-execution-policy",
+      "doc-review",
+      "execution-checklist",
+      "feasibility-study",
+      "feature-dev",
+      "feature-verify",
+      "git-investigate",
+      "git-smart-commit",
+      "gitnexus-cli",
+      "gitnexus-debugging",
+      "gitnexus-exploring",
+      "gitnexus-guide",
+      "gitnexus-impact-analysis",
+      "gitnexus-refactoring",
+      "harness-budget",
+      "harness-fill",
+      "harness-revise",
+      "issue-analyze",
+      "laravel-package-author",
+      "laravel-testbench-matrix",
+      "multi-ai-sync",
+      "next-step",
+      "op-session",
+      "opsx-apply-goal",
+      "opsx-load-context",
+      "opsx-post-obs",
+      "polyfill-version-matrix-audit",
+      "post-dev-test",
+      "pr-review",
+      "project-audit",
+      "project-setup",
+      "prompt-optimize",
+      "release-creator",
+      "repo-intake",
+      "risk-assess",
+      "rules-distill",
+      "security-review",
+      "session-usage-audit",
+      "skill-health-check",
+      "skill-judge",
+      "skill-scout",
+      "skill-stocktake",
+      "software-architecture",
+      "tdd",
+      "tech-spec",
+      "test-review",
+      "tool-routing"
     ],
     "cursor-plugin": [
-      "adaptive-dev-workflow", "agent-architecture-audit", "agy-commit", "agy-fast-worker", "bug-fix", "bug-investigation", "claude-health", "code-explore", "codex-architect", "codex-brainstorm", "codex-bridge", "codex-code-review", "codex-implement", "composer-package-hygiene", "continuous-learning-v2", "create-request", "create-skill", "de-ai-flavor", "deploy-list", "dhpk-execution-policy", "doc-review", "execution-checklist", "feasibility-study", "feature-dev", "feature-verify", "git-investigate", "git-smart-commit", "gitnexus-cli", "gitnexus-debugging", "gitnexus-exploring", "gitnexus-guide", "gitnexus-impact-analysis", "gitnexus-refactoring", "harness-budget", "harness-fill", "harness-revise", "issue-analyze", "laravel-package-author", "laravel-testbench-matrix", "multi-ai-sync", "next-step", "op-session", "opsx-apply-goal", "opsx-load-context", "opsx-post-obs", "polyfill-version-matrix-audit", "post-dev-test", "pr-review", "project-audit", "project-setup", "prompt-optimize", "release-creator", "repo-intake", "risk-assess", "rules-distill", "security-review", "session-usage-audit", "skill-health-check", "skill-judge", "skill-scout", "skill-stocktake", "software-architecture", "tdd", "tech-spec", "test-review", "tool-routing"
+      "adaptive-dev-workflow",
+      "agent-architecture-audit",
+      "agy-commit",
+      "agy-fast-worker",
+      "bug-fix",
+      "bug-investigation",
+      "claude-health",
+      "code-explore",
+      "codex-architect",
+      "codex-brainstorm",
+      "codex-bridge",
+      "codex-code-review",
+      "codex-implement",
+      "composer-package-hygiene",
+      "continuous-learning-v2",
+      "create-request",
+      "create-skill",
+      "de-ai-flavor",
+      "deploy-list",
+      "dhpk-execution-policy",
+      "doc-review",
+      "execution-checklist",
+      "feasibility-study",
+      "feature-dev",
+      "feature-verify",
+      "git-investigate",
+      "git-smart-commit",
+      "gitnexus-cli",
+      "gitnexus-debugging",
+      "gitnexus-exploring",
+      "gitnexus-guide",
+      "gitnexus-impact-analysis",
+      "gitnexus-refactoring",
+      "harness-budget",
+      "harness-fill",
+      "harness-revise",
+      "issue-analyze",
+      "laravel-package-author",
+      "laravel-testbench-matrix",
+      "multi-ai-sync",
+      "next-step",
+      "op-session",
+      "opsx-apply-goal",
+      "opsx-load-context",
+      "opsx-post-obs",
+      "polyfill-version-matrix-audit",
+      "post-dev-test",
+      "pr-review",
+      "project-audit",
+      "project-setup",
+      "prompt-optimize",
+      "release-creator",
+      "repo-intake",
+      "risk-assess",
+      "rules-distill",
+      "security-review",
+      "session-usage-audit",
+      "skill-health-check",
+      "skill-judge",
+      "skill-scout",
+      "skill-stocktake",
+      "software-architecture",
+      "tdd",
+      "tech-spec",
+      "test-review",
+      "tool-routing"
     ],
     "agy-plugin": [
-      "adaptive-dev-workflow", "agent-architecture-audit", "agy-commit", "agy-fast-worker", "bug-fix", "bug-investigation", "claude-health", "code-explore", "codex-architect", "codex-brainstorm", "codex-bridge", "codex-code-review", "codex-implement", "composer-package-hygiene", "continuous-learning-v2", "create-request", "create-skill", "de-ai-flavor", "deploy-list", "dhpk-execution-policy", "doc-review", "execution-checklist", "feasibility-study", "feature-dev", "feature-verify", "git-investigate", "git-smart-commit", "gitnexus-cli", "gitnexus-debugging", "gitnexus-exploring", "gitnexus-guide", "gitnexus-impact-analysis", "gitnexus-refactoring", "harness-budget", "harness-fill", "harness-revise", "issue-analyze", "laravel-package-author", "laravel-testbench-matrix", "multi-ai-sync", "next-step", "op-session", "opsx-apply-goal", "opsx-load-context", "opsx-post-obs", "polyfill-version-matrix-audit", "post-dev-test", "pr-review", "project-audit", "project-setup", "prompt-optimize", "release-creator", "repo-intake", "risk-assess", "rules-distill", "security-review", "session-usage-audit", "skill-health-check", "skill-judge", "skill-scout", "skill-stocktake", "software-architecture", "tdd", "tech-spec", "test-review", "tool-routing"
+      "adaptive-dev-workflow",
+      "agent-architecture-audit",
+      "agy-commit",
+      "agy-fast-worker",
+      "bug-fix",
+      "bug-investigation",
+      "claude-health",
+      "code-explore",
+      "codex-architect",
+      "codex-brainstorm",
+      "codex-bridge",
+      "codex-code-review",
+      "codex-implement",
+      "composer-package-hygiene",
+      "continuous-learning-v2",
+      "create-request",
+      "create-skill",
+      "de-ai-flavor",
+      "deploy-list",
+      "dhpk-execution-policy",
+      "doc-review",
+      "execution-checklist",
+      "feasibility-study",
+      "feature-dev",
+      "feature-verify",
+      "git-investigate",
+      "git-smart-commit",
+      "gitnexus-cli",
+      "gitnexus-debugging",
+      "gitnexus-exploring",
+      "gitnexus-guide",
+      "gitnexus-impact-analysis",
+      "gitnexus-refactoring",
+      "harness-budget",
+      "harness-fill",
+      "harness-revise",
+      "issue-analyze",
+      "laravel-package-author",
+      "laravel-testbench-matrix",
+      "multi-ai-sync",
+      "next-step",
+      "op-session",
+      "opsx-apply-goal",
+      "opsx-load-context",
+      "opsx-post-obs",
+      "polyfill-version-matrix-audit",
+      "post-dev-test",
+      "pr-review",
+      "project-audit",
+      "project-setup",
+      "prompt-optimize",
+      "release-creator",
+      "repo-intake",
+      "risk-assess",
+      "rules-distill",
+      "security-review",
+      "session-usage-audit",
+      "skill-health-check",
+      "skill-judge",
+      "skill-scout",
+      "skill-stocktake",
+      "software-architecture",
+      "tdd",
+      "tech-spec",
+      "test-review",
+      "tool-routing"
+    ],
+    "cursor-sync": [
+      "adaptive-dev-workflow",
+      "agent-architecture-audit",
+      "agy-commit",
+      "agy-fast-worker",
+      "bug-fix",
+      "bug-investigation",
+      "claude-health",
+      "code-explore",
+      "codex-architect",
+      "codex-brainstorm",
+      "codex-bridge",
+      "codex-code-review",
+      "codex-implement",
+      "composer-package-hygiene",
+      "continuous-learning-v2",
+      "create-request",
+      "create-skill",
+      "de-ai-flavor",
+      "deploy-list",
+      "dhpk-execution-policy",
+      "doc-review",
+      "execution-checklist",
+      "feasibility-study",
+      "feature-dev",
+      "feature-verify",
+      "git-investigate",
+      "git-smart-commit",
+      "gitnexus-cli",
+      "gitnexus-debugging",
+      "gitnexus-exploring",
+      "gitnexus-guide",
+      "gitnexus-impact-analysis",
+      "gitnexus-refactoring",
+      "harness-budget",
+      "harness-fill",
+      "harness-revise",
+      "issue-analyze",
+      "laravel-package-author",
+      "laravel-testbench-matrix",
+      "multi-ai-sync",
+      "next-step",
+      "op-session",
+      "opsx-apply-goal",
+      "opsx-load-context",
+      "opsx-post-obs",
+      "polyfill-version-matrix-audit",
+      "post-dev-test",
+      "pr-review",
+      "project-audit",
+      "project-setup",
+      "prompt-optimize",
+      "release-creator",
+      "repo-intake",
+      "risk-assess",
+      "rules-distill",
+      "security-review",
+      "session-usage-audit",
+      "skill-health-check",
+      "skill-judge",
+      "skill-scout",
+      "skill-stocktake",
+      "software-architecture",
+      "tdd",
+      "tech-spec",
+      "test-review",
+      "tool-routing"
     ]
   },
   "agy_plugin": {
@@ -2314,16 +2856,68 @@
     "adapter": "agy-agent-frontmatter-v1",
     "transform": "agy-agent-frontmatter-v1",
     "agents": [
-      "agent-evaluator.md", "agy-fast-worker.md", "architect.md", "code-reviewer.md", "codex-bridge.md", "codex-deep-reasoner.md", "codex-fast-worker.md", "database-reviewer.md", "deep-reasoner.md", "doc-reviewer.md", "doc-updater.md", "docs-lookup.md", "e2e-runner.md", "fast-worker.md", "frontend-reviewer.md", "harness-reviser.md", "migration-reviewer.md", "performance-analyzer.md", "planner.md", "python-build-resolver.md", "refactor-cleaner.md", "rust-build-resolver.md", "security-reviewer.md", "silent-failure-hunter.md", "smoke-tester.md", "spec-miner.md", "swift-build-resolver.md", "tdd-guide.md", "type-design-analyzer.md", "ui-ux-verifier.md", "version-matrix-impact-reviewer.md"
+      "agent-evaluator.md",
+      "agy-fast-worker.md",
+      "architect.md",
+      "code-reviewer.md",
+      "codex-bridge.md",
+      "codex-deep-reasoner.md",
+      "codex-fast-worker.md",
+      "database-reviewer.md",
+      "deep-reasoner.md",
+      "doc-reviewer.md",
+      "doc-updater.md",
+      "docs-lookup.md",
+      "e2e-runner.md",
+      "fast-worker.md",
+      "frontend-reviewer.md",
+      "harness-reviser.md",
+      "migration-reviewer.md",
+      "performance-analyzer.md",
+      "planner.md",
+      "python-build-resolver.md",
+      "refactor-cleaner.md",
+      "rust-build-resolver.md",
+      "security-reviewer.md",
+      "silent-failure-hunter.md",
+      "smoke-tester.md",
+      "spec-miner.md",
+      "swift-build-resolver.md",
+      "tdd-guide.md",
+      "type-design-analyzer.md",
+      "ui-ux-verifier.md",
+      "version-matrix-impact-reviewer.md"
     ],
     "rules": [
-      "rules/anti-rationalization.md", "rules/execution-policy-kernel.md", "rules/execution-policy.md", "rules/model-economics.md", "rules/tool-routing.md"
+      "rules/anti-rationalization.md",
+      "rules/execution-policy-kernel.md",
+      "rules/execution-policy.md",
+      "rules/model-economics.md",
+      "rules/tool-routing.md"
     ],
-    "optional_files": ["mcp_config.json", "hooks.json"]
+    "optional_files": [
+      "mcp_config.json",
+      "hooks.json"
+    ]
   },
   "portable_frontmatter": {
-    "allowlist": ["name", "description", "license", "compatibility", "metadata"],
-    "client_owned": ["disable-model-invocation", "context", "argument-hint", "agents/openai.yaml", "policy.allow_implicit_invocation", "rules/frontmatter", "variables", "hooks"]
+    "allowlist": [
+      "name",
+      "description",
+      "license",
+      "compatibility",
+      "metadata"
+    ],
+    "client_owned": [
+      "disable-model-invocation",
+      "context",
+      "argument-hint",
+      "agents/openai.yaml",
+      "policy.allow_implicit_invocation",
+      "rules/frontmatter",
+      "variables",
+      "hooks"
+    ]
   },
   "platform_matrix": {
     "schema": "dhpk.platform-capability-matrix.v1",
@@ -2332,7 +2926,9 @@
         "id": "dhpk.platform.agent-plugin.skills",
         "public_name": "agent-plugin-portable-skills",
         "surface": "agent-plugin",
-        "source_paths": ["skills/"],
+        "source_paths": [
+          "skills/"
+        ],
         "destination": "plugins/dhpk-agent/skills/",
         "transform": "agent-skills-frontmatter",
         "fallback": "codex-sync",
@@ -2343,7 +2939,9 @@
         "id": "dhpk.platform.agent-plugin.mcp",
         "public_name": "agent-plugin-mcp",
         "surface": "agent-plugin",
-        "source_paths": ["mcp/"],
+        "source_paths": [
+          "mcp/"
+        ],
         "destination": "plugins/dhpk-agent/mcp.json",
         "transform": "schema-versioned-optional",
         "fallback": "no-mcp-json",
@@ -2353,7 +2951,9 @@
         "id": "dhpk.platform.cursor-plugin.skills",
         "public_name": "cursor-plugin-portable-skills",
         "surface": "cursor-plugin",
-        "source_paths": ["skills/"],
+        "source_paths": [
+          "skills/"
+        ],
         "destination": "plugins/dhpk-agent/skills/",
         "transform": "shared-agent-plugin-skills",
         "fallback": "agent-plugin",
@@ -2365,7 +2965,12 @@
         "id": "dhpk.platform.cursor-plugin.native",
         "public_name": "cursor-plugin-native-components",
         "surface": "cursor-plugin",
-        "source_paths": ["agents/", "commands/", "rules/", "hooks/hooks.json"],
+        "source_paths": [
+          "agents/",
+          "commands/",
+          "rules/",
+          "hooks/hooks.json"
+        ],
         "destination": "plugins/dhpk-cursor/",
         "transform": "cursor-native-adaptation",
         "fallback": "SKIP_INCOMPATIBLE",
@@ -2376,11 +2981,45 @@
         "id": "dhpk.platform.agy-plugin.native",
         "public_name": "agy-plugin-native-components",
         "surface": "agy-plugin",
-        "source_paths": ["agents/", "rules/", "skills/", "mcp_config.json", "hooks.json"],
+        "source_paths": [
+          "agents/",
+          "rules/",
+          "skills/",
+          "mcp_config.json",
+          "hooks.json"
+        ],
         "destination": "plugins/dhpk-agy/",
         "transform": "agy-agent-frontmatter-v1",
         "fallback": "SKIP_INCOMPATIBLE",
         "projection_mode": "owner",
+        "evidence": "NOT_RUN"
+      },
+      {
+        "id": "dhpk.platform.cursor-sync.skills",
+        "public_name": "cursor-sync-portable-skills",
+        "surface": "cursor-sync",
+        "source_paths": [
+          "skills/"
+        ],
+        "destination": "cursor/skills/",
+        "transform": "declared-source-relative-symlink",
+        "fallback": "agent-plugin",
+        "projection_mode": "owner",
+        "evidence": "NOT_RUN"
+      },
+      {
+        "id": "dhpk.platform.cursor-sync.native",
+        "public_name": "cursor-sync-native-components",
+        "surface": "cursor-sync",
+        "source_paths": [
+          "agents/",
+          "commands/",
+          "rules/"
+        ],
+        "destination": "cursor/",
+        "transform": "cursor-native-adaptation",
+        "fallback": "cursor-plugin",
+        "projection_mode": "overlay",
         "evidence": "NOT_RUN"
       }
     ]
