@@ -171,7 +171,9 @@ function readOnlyResult(request, inventory) {
 function unsupportedWriteResult(request) {
   const legacy = request.surface === 'codex-sync'
     ? 'Use scripts/hooks/install-codex-skills.sh for the retained schema-v3 Codex sync route.'
-    : 'This lifecycle action is not enabled until its adapter has receipt and ArtifactStore characterization.';
+    : request.surface === 'cursor'
+      ? 'Use scripts/hooks/install-cursor-harness.sh for the supported schema-v3 Cursor project-local route.'
+      : 'This lifecycle action is not enabled until its adapter has receipt and ArtifactStore characterization.';
   return createLifecycleResult({
     lifecycleVerdict: 'BLOCKED', request,
     diagnostics: [{ code: 'NOT_IMPLEMENTED', message: `${request.surface} ${request.action} is not enabled` }],

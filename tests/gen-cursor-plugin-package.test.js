@@ -192,7 +192,8 @@ test('materializes selected Cursor skills and native components as physical file
     assert.deepStrictEqual(result.skillIds, ['portable']);
     assert.ok(fs.existsSync(path.join(out, 'skills', 'dhpk-portable', 'SKILL.md')));
     assert.ok(!fs.existsSync(path.join(out, 'skills', 'dhpk-portable', 'agents', 'openai.yaml')));
-    assert.ok(fs.existsSync(path.join(out, 'rules', 'prefer-const.md')));
+    assert.ok(fs.existsSync(path.join(out, 'rules', 'prefer-const.mdc')));
+    assert.ok(!fs.existsSync(path.join(out, 'rules', 'prefer-const.md')));
     assert.ok(fs.existsSync(path.join(out, 'agents', 'reviewer.md')));
     assert.ok(fs.existsSync(path.join(out, 'commands', 'review.md')));
     assert.ok(fs.existsSync(path.join(out, '.cursor-plugin', 'plugin.json')));
@@ -220,7 +221,9 @@ test('Cursor frontmatter adaptation keeps identity while removing client-only po
     assert.match(skill, /^name: dhpk-portable$/m);
     assert.doesNotMatch(skill, /disable-model-invocation|dhpk-invocation-class/);
     assert.match(agent, /^name: reviewer$/m);
-    assert.doesNotMatch(agent, /^tools:|^model:/m);
+    assert.match(agent, /^model: ["']?cursor-grok-4\.6-high["']?$/m);
+    assert.match(agent, /^readonly: true$/m);
+    assert.doesNotMatch(agent, /^tools:/m);
     assert.match(command, /^name: review$/m);
     assert.doesNotMatch(command, /disable-model-invocation/);
   } finally {

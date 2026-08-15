@@ -81,6 +81,15 @@ function projectRoot() {
 function copyDistributionInventory(plugin) {
   fs.cpSync(path.join(ROOT, 'manifests'), path.join(plugin, 'manifests'), { recursive: true, dereference: true });
   fs.cpSync(path.join(ROOT, 'agent-traps'), path.join(plugin, 'agent-traps'), { recursive: true, dereference: true });
+  fs.mkdirSync(path.join(plugin, 'docs'), { recursive: true });
+  fs.copyFileSync(
+    path.join(ROOT, 'docs', 'subagent-prompt-template.md'),
+    path.join(plugin, 'docs', 'subagent-prompt-template.md'),
+  );
+  fs.copyFileSync(
+    path.join(ROOT, 'docs', 'docker-setup.md'),
+    path.join(plugin, 'docs', 'docker-setup.md'),
+  );
 }
 
 function completeTreeFingerprint(target) {

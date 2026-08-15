@@ -347,7 +347,7 @@ test('accepts explicit portable and Cursor surface membership with capability ev
   const inv = {
     schema: 'dhpk.distribution-inventory.v2',
     skills: [{ id: 'one', name: 'dhpk-one', path: 'skills/dhpk-one', capability_id: 'dhpk.skill.one', lifecycle: 'promoted', tier: 'core', profiles: ['core'], surfaces: ['claude-core'] }],
-    surface_membership: { 'agent-plugin': ['one'], 'cursor-plugin': ['one'] },
+    surface_membership: { 'agent-plugin': ['one'], 'cursor-plugin': ['one'], 'cursor-sync': ['one'] },
     portable_frontmatter: {
       allowlist: ['name', 'description', 'metadata'],
       client_owned: ['agents/openai.yaml', 'hooks'],

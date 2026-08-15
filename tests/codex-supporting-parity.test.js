@@ -23,7 +23,7 @@ function sha256(file) {
 
 test('every inventory supporting asset has a unique id/destination and a materialized projection', () => {
   const entries = INVENTORY.supporting_assets || [];
-  assert.strictEqual(entries.length, 32);
+  assert.strictEqual(entries.length, 37);
   assert.strictEqual(new Set(entries.map((entry) => entry.id)).size, entries.length);
   assert.strictEqual(new Set(entries.map((entry) => entry.destination)).size, entries.length);
   for (const entry of entries) {

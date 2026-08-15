@@ -40,7 +40,7 @@ SSOT for code exploration in dhpk-using projects. Cross-references the existing 
 
 ## gitnexus_impact timing
 
-Run **at planning time** (once the target symbol is identified) **and** immediately before Edit/Write. Planning catches blast radius early; pre-edit is the final gate. Append-only exemption → `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` Glossary.
+Run **at planning time** (once the target symbol is identified) **and** immediately before Edit/Write. Planning catches blast radius early; pre-edit is the final gate. Append-only exemption → `.cursor/dhpk/policies/execution-policy.md` Glossary.
 
 ```
 gitnexus_impact({ repo: "<repo>", target: "<symbol>", direction: "upstream" })
@@ -58,7 +58,7 @@ The session-start hook (if claude-mem ships one) auto-matches context but doesn'
 
 ## Sub-agent prompts
 
-Sub-agents do NOT inherit these rules — paste the relevant block from your project's sub-agent prompt template (or use the dhpk default at `${CLAUDE_PLUGIN_ROOT}/docs/subagent-prompt-template.md`) into the agent prompt. Required blocks: source-reading boilerplate (always), DB-access boilerplate (when the task touches a table).
+Sub-agents do NOT inherit these rules — paste the relevant block from your project's sub-agent prompt template (or use the dhpk default at `.cursor/dhpk/docs/subagent-prompt-template.md`) into the agent prompt. Required blocks: source-reading boilerplate (always), DB-access boilerplate (when the task touches a table).
 
 ## Top anti-patterns
 

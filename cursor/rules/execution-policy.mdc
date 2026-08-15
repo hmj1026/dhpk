@@ -6,19 +6,18 @@ alwaysApply: false
 # Execution Policy
 
 dhpk's default execution policy for projects that adopt the harness. Read the
-always-visible kernel first (`${CLAUDE_PLUGIN_ROOT}/rules/execution-policy-kernel.md`),
+always-visible kernel first (`.cursor/rules/execution-policy-kernel.mdc`),
 then load the conditional sections below as the selected route requires.
 Resource-layer markdown — referenced from the `dhpk-execution-policy` skill and
 consumable directly by a project's own `CLAUDE.md` via the
-`${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` path. Not auto-loaded; opt-in.
+`.cursor/dhpk/policies/execution-policy.md` path. Not auto-loaded; opt-in.
 
 > Project overrides: projects that adopt this policy should keep their own short `.claude/rules/execution-policy.md` (or `CLAUDE.md` section) that only encodes deltas — e.g. extra sentinels, project-specific hot tables for performance reviewer, hook profile choice. Avoid copying the body wholesale; cross-link instead.
 >
-> Resolution order for any reference to this file: use the project's `.claude/rules/execution-policy.md` first if present (it carries only deltas — extra sentinels, hot tables, hook profile), otherwise resolve to `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` (the plugin SSOT). Projects should keep their local copy short and cross-link rather than copying the body wholesale.
+> Resolution order for any reference to this file: use the project's `.claude/rules/execution-policy.md` first if present (it carries only deltas — extra sentinels, hot tables, hook profile), otherwise resolve to `.cursor/dhpk/policies/execution-policy.md` (the plugin SSOT). Projects should keep their local copy short and cross-link rather than copying the body wholesale.
 
 ## Glossary (inline)
 
-- **sentinel**: `.claude/artifacts/sessions/.pending-*` marker file (written by a post-edit hook; cleared by the runtime hook `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/subagent-stop-verify.sh` on a successful reviewer stop — the sanctioned path — or by the orchestrator via `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/clear-sentinel.sh` for a triage-drop or a stale-sentinel back-stop; reviewer agents no longer self-clear). Existence check: `find -maxdepth 1 -name '.pending-*' -print 2>/dev/null` (avoids shell-specific `nomatch` behaviour with bare globs). Unrecognized `.pending-*` strays (not in the SSOT — a typo or abandoned custom sentinel) have no clearing agent and would block the opsx-apply-goal `NONE` gate forever; `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/reap-stale-sentinels.sh` surfaces them always and, with `--clear`, removes ones older than the threshold.
 - **back-stop**: hook pattern did not match but the AI semantically recognises the trigger should fire → AI proactively invokes the matching reviewer (and still clears the sentinel if present).
 - **append-only exemption**: pure additions may skip `gitnexus_impact` only when they add a new function/method/class, change no existing body/signature/docblock/typehint, and change no module-level state (imports or top-level constants); label the change `append-only — gitnexus_impact skipped`.
 - **reviewer dispatch**: when multiple sentinels coexist, triage out false positives → dispatch the rest **in parallel** → `code-reviewer` merges/dedups (see "Reviewer dispatch").
@@ -59,9 +58,7 @@ precedence; an explicitly-invoked router may start an `implicit-eligible`
 target but must present-and-wait for an `explicit-only` target rather than
 calling it through the Skill tool. Full precedence order, Explicit Invocation
 definition, and the OpenSpec entry-point surface mapping:
-`${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/invocation-precedence.md`.
 Full classification rationale per entry:
-`${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/invocation-classification.md`.
 
 ## Agent dispatch
 
@@ -96,13 +93,11 @@ Agent names above are dhpk defaults; override via `userConfig.review_agents` per
 
 **Diff-scope mandate (all reviewers)**: reviewers audit the UNCOMMITTED working tree (`git diff --staged` + `git diff HEAD`), never committed history (`git diff <base>...HEAD` / merge-base diff). Under the no-auto-commit workflow the change-under-review sits uncommitted; a base-relative diff reviews the whole branch (often hundreds of files) — wasting tokens/time and misreporting committed-but-superseded code as unfixed. Orchestrators dispatching a reviewer MUST NOT instruct it to diff against a base branch unless an explicit full-branch/PR review is the intent.
 
-**File-state ground truth**: re-verify live before reporting a file-state defect. Full mechanics: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/review-gate-mechanics.md`.
-
 **Sentinel-scoped precedence**: when a reviewer's own sentinel exists (`.claude/artifacts/sessions/.pending-{review,db-review,security-review,frontend-review,doc-review,polyfill-review,migration-review}`), its listed paths are the SOLE authoritative scope — not the full uncommitted tree above. Parse each line's path via the field-3 convention (`cut -d' ' -f3-`; see `scripts/hooks/_lib/payload.sh` SENTINEL LINE FORMAT). Diff each listed path individually: `git diff --staged -- <path>` + `git diff HEAD -- <path>`. Skip every other uncommitted/staged file not on the list, even same extension/glob — it belongs to a different session's change. Fall back to the unfiltered mandate above only when (a) no sentinel exists for this slot (back-stop invocation — e.g. `performance-analyzer`, which has no slot), or (b) the user/orchestrator explicitly requests a full working-tree/PR review — that explicit request wins over sentinel-scoping.
 
-**Model tier**: use agent defaults, with judgment-based risk escalation or eligible known-finding reduction. The normative role/tier rules live in `${CLAUDE_PLUGIN_ROOT}/rules/model-economics.md`.
+**Model tier**: use agent defaults, with judgment-based risk escalation or eligible known-finding reduction. The normative role/tier rules live in `.cursor/rules/model-economics.mdc`.
 
-**Configured role models** (`deep-reasoner` / `fast-worker`): `session-start.sh` announces the effective `deep_reasoner_model` / `fast_worker_model` at session start only when they differ from the shipped default (opus / sonnet) — configured via the `deep_reasoner_model` / `fast_worker_model` / `orchestration_dispatch` `userConfig` keys in `.claude-plugin/plugin.json`. When announced, the orchestrator passes that value on the `Agent` call's `model` param for every dispatch of that role; frontmatter is never edited. An invalid configured value (not a model name the running Claude Code supports) triggers one warning per session and the dispatch falls back to the agent's frontmatter default — it never fails the dispatch. The judgment-based HIGH-risk escalation above still applies on top of a configured value and takes precedence for that single dispatch (e.g. a configured `fast_worker_model=haiku` may still be raised to sonnet/opus for one high-risk task). The two workers also carry effort keys (`deep_reasoner_effort` / `fast_worker_effort`), applied on the `Agent` call's `effort` param by the same announce-when-non-default mechanism; the cost rationale for both dials is in `${CLAUDE_PLUGIN_ROOT}/rules/model-economics.md`.
+**Configured role models** (`deep-reasoner` / `fast-worker`): `session-start.sh` announces the effective `deep_reasoner_model` / `fast_worker_model` at session start only when they differ from the shipped default (opus / sonnet) — configured via the `deep_reasoner_model` / `fast_worker_model` / `orchestration_dispatch` `userConfig` keys in `.claude-plugin/plugin.json`. When announced, the orchestrator passes that value on the `Agent` call's `model` param for every dispatch of that role; frontmatter is never edited. An invalid configured value (not a model name the running Claude Code supports) triggers one warning per session and the dispatch falls back to the agent's frontmatter default — it never fails the dispatch. The judgment-based HIGH-risk escalation above still applies on top of a configured value and takes precedence for that single dispatch (e.g. a configured `fast_worker_model=haiku` may still be raised to sonnet/opus for one high-risk task). The two workers also carry effort keys (`deep_reasoner_effort` / `fast_worker_effort`), applied on the `Agent` call's `effort` param by the same announce-when-non-default mechanism; the cost rationale for both dials is in `.cursor/rules/model-economics.mdc`.
 
 The CLI-backed Codex roles use the same normalized project-over-global configuration seam for timeout budgets: `codex_fast_worker_timeout_secs`, `codex_deep_reasoner_timeout_secs`, and `codex_bridge_timeout_secs` override shared `codex_timeout_secs` within their scope, with the shipped `360`-second default below both scopes. `0` is an intentional wrapper-backstop disable; malformed values fail closed before the affected dispatch. The shared wrapper reports the effective role, budget, source, disabled state, and explicit outer-budget unknown/warning status without changing Claude's external tool wait.
 
@@ -113,8 +108,6 @@ The CLI-backed Codex roles use the same normalized project-over-global configura
 SSOT for implement-phase routing while `userConfig.orchestration_dispatch=on` (default). Downstream skills (`feature-dev`, `bug-fix`, `adaptive-dev-workflow`, `opsx-apply-goal`) reference this table — they do not restate it. Unattended goal sessions bind this section by reading this policy during their orientation step (the `opsx-apply-goal` orientation command resolves and reads this file); the emitted `/goal` condition carries only the compact roster line and the self-locating pointer, never these elaborations.
 
 Goal-driven apply flows set `DHPK_ORCHESTRATION_DISPATCH=on`, enabling the runtime edit-batch gate: warn on the third distinct inline source file and block from the fourth unless `DHPK_INLINE_BATCH_OK=1` or a live fast-worker marker proves work is already dispatched.
-
-**Orchestration lifecycle acceptance:** orchestration owns dispatch/handoff identity, retries, and evidence presentation; the existing runtime hook/reconcile path owns Sentinel clearance. Each handoff uses one stable `task_id` and an attempt-specific `attempt_id`; optional producer, wave, scope, adapter/stage, and plan/artifact fingerprints are additive. Before a resumed `SendMessage`, capture and forward the complete `RESUMED_REVIEW_IDENTITY` envelope printed by `record-resumed-obligation.sh` (including any non-empty optional fingerprints); the reviewer must reproduce every declared field in the canonical artifact frontmatter. Legacy scope/diff-only evidence remains readable, but a new obligation with declared identity fails closed on missing or foreign fields. Completion requires both a terminal lifecycle result and every applicable matching Sentinel gate resolved through the hook-owned contract; a message, aggregate verdict, or lifecycle event alone is not completion. Detailed identity/presentation mechanics live in `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/implementation-dispatch.md` and `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/review-gate-mechanics.md`; this rule intentionally does not duplicate the dispatch table or clearance implementation.
 
 ### Bash hygiene
 
@@ -151,7 +144,6 @@ When a validator reads or modifies shared ratchet/configuration state, workers M
 ### Fast-worker backend selector
 
 Mechanical implementation waves resolve through
-`${CLAUDE_PLUGIN_ROOT}/scripts/fast-worker-selector.js` and the three selector
 keys in `userConfig`:
 
 | Requested value | Resolution |
@@ -184,19 +176,9 @@ reasoning tier and is unsupported. Model/effort resolve flag > backend-specific 
 missing codex executable falls back to `deep-reasoner`; authentication, model, and task
 failures remain `RESULT: BLOCKED` on the selected backend — never silently switched.
 
-**Orchestrator posture**: implement-phase work defaults to **decide → dispatch → verify**; inline work is the narrow exception. Measure the **whole implement-step footprint**, so multi-file doc-consistency work is one batch; when unsure between inline and a worker, dispatch. Verify runtime premises with the applicable E2E lane or a scratch executable probe. The orientation step binds unattended goals to this policy. Full routing, premise, verification, waiting, and plan-brief rules: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/implementation-dispatch.md`.
-
-**Repository Discovery Gate**: before finalizing new DB, SQL, query-builder, criteria, model-persistence, or repository-like code, inspect and follow the established persistence boundary. Explicit project hard rules cannot be deferred; compliance is required unless the human records a human-approved exception. Full mechanics: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/implementation-dispatch.md`.
-
-**Operational detail** (posture rationale, the ≤2-files measurement, `general-purpose` prohibition, gate-preservation back-stop, verify-worker-output cross-check, phase scoping, the premise-verification trio, kill switch, CODEX peer path): load `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/implementation-dispatch.md` when dispatching implement-phase work.
-
 ### CODEX=on high-stakes parallel peer path
 
-Under `CODEX=on`, high-stakes decisions use an independent blind Codex peer. Triggers include a first-seen query/repository pattern, framework-internal hack, or explicit-rule deferral. At wrap-up, a session that dispatched `codex-bridge` 0 times reconciles that outcome. Full triggers and mechanics: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/implementation-dispatch.md` §CODEX=on high-stakes parallel peer path.
-
 ## Multi-AI independence and in-flight doubt
-
-Independent-perspective rules, the bounded adversarial doubt cycle, and premise-overturning reframe checks live in `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/premise-verification.md`.
 
 ## Mandatory post-steps
 
@@ -220,14 +202,6 @@ shape is canonicalized in `docs/contracts/reviewer-contract.md`.
 
 ### Hook-enforced (sentinels)
 
-Trigger map source-of-truth: dhpk's `${CLAUDE_PLUGIN_ROOT}/scripts/hooks/post-edit-dispatch.sh` routes edits to the 7-slot default sentinel set (code, db, security, frontend, doc, polyfill, migration). Each sentinel is cleared by `subagent-stop-verify.sh` only when its matching reviewer stops successfully with fresh canonical timestamp/slug evidence, valid leading delimited frontmatter, all required reviewer fields, and a parseable passing verdict (`APPROVE or PASS`). A reviewer never self-clears. The orchestrator uses `clear-sentinel.sh <name> <label>` only through a known-slot reconcile, triage-drop, or stale-sentinel back-stop.
-
-A subagent must never paste the literal `${CLAUDE_PLUGIN_ROOT}/...` into a Bash command — it is a markdown-interpolation token, unset in a subagent's shell. Full caveat (SSOT): `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/review-gate-mechanics.md`.
-
-**Auto-clear + fallback**: a successful reviewer with a fresh matching canonical timestamp/slug artifact, valid leading delimited frontmatter, all required reviewer fields, and an `APPROVE or PASS` verdict auto-clears only its own slot; absent, stale, unparseable, malformed, warning, or failing output stays armed. A resumed fallback additionally requires a matching `.resumed-review-obligations` record, conclusive final response, resume-relative freshness, and proven session/agent ownership. Exact fallback and fail-loud rules: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/review-gate-mechanics.md`.
-
-**Resumed-reviewer fallback**: a reviewer resumed through `SendMessage` may never fire a native `SubagentStop`; clearance there is a session-scoped, artifact-backed reconcile — never approval. Full contract: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/review-gate-mechanics.md`.
-
 | Sentinel | Required agent | Trigger summary (default; project can extend via `userConfig.review_trigger_extra_paths`) |
 |---|---|---|
 <!-- BEGIN GENERATED sentinel-slots:sentinel-table -->
@@ -241,11 +215,7 @@ A subagent must never paste the literal `${CLAUDE_PLUGIN_ROOT}/...` into a Bash 
 | `.pending-migration-review` | `migration-reviewer` | Module-owned migration: triggers or mig: extra paths only |
 <!-- END GENERATED sentinel-slots:sentinel-table -->
 
-**Skipped paths**: follow the self-edit and per-slot path exclusions in `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/review-gate-mechanics.md`.
-
 ### Reviewer dispatch (when multiple sentinels coexist)
-
-For each contiguous implementation wave, dispatch each applicable reviewer once as **triage → ONE consolidated parallel reviewer batch → merge**; CRITICAL blocks, and pure research skips. Known findings receive at most one confirm-only re-review; new substantive scope starts a new review decision. A missing or invalid reviewer result gets one corrected retry, then replacement or a pending gate with a recorded reason. `codex-bridge` remains escalation-only and runs at most once per change. Full batching, reminder, retry, and escalation mechanics: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/review-gate-mechanics.md`.
 
 **Reviewer economy**: hold the review dispatch until the wave's edit batch is edit-complete — do not dispatch mid-batch and then re-review each micro-fix as its own round. Batch any post-confirm micro-edits together before a single confirm dispatch. A findings set that is LOW/WARNING-only (no BLOCK/CRITICAL/HIGH) may be closed on the fast-worker's own verification output plus a diff-scope recheck, without a dedicated confirm-only reviewer dispatch; reserve a re-review round for BLOCK/CRITICAL/HIGH findings. Split waves and confirm-only rounds are the dominant reviewer overspend — batching before dispatch is the primary lever.
 
@@ -265,8 +235,6 @@ and heuristic quality work remain available only through explicit opt-in setup.
 | `SubagentStop` → `subagent-stop-verify.sh` | sentinel/liveness gate | enabled; reconcile only fresh canonical artifacts with a parseable passing verdict |
 | `SessionStart` → `session-start.sh` | module activation only | enabled; validate and activate configured modules |
 | Prompt hints, stop reminders, snapshots, failure logging, completion scans, and heuristic quality checks | opt-in advisory | not registered in the default lifecycle |
-
-**Reviewer liveness**: a no-op reviewer is a failed gate. Corrected-retry and replacement rules: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/review-gate-mechanics.md`.
 
 ### Review output gate
 
@@ -291,8 +259,6 @@ Semantically matches but path pattern did not trigger a sentinel → self-trigge
 - `cargo build` / `cargo test` rustc (or `cargo clippy`) error appears in Bash output → `rust-build-resolver`.
 - Editing version-specific dirs (`src/Laravel/`, `src/Symfony/`), composer version constraints, or `.github/workflows` CI matrices, or before tagging a release → `version-matrix-impact-reviewer` (library-author module).
 
-> **Notes** — why view-layer `<script>` uses a back-stop not a hook · when to upgrade a back-stop to a hook · why `tdd-guide` has no sentinel and how the coverage gate enforces tests-first for unattended `opsx-apply-goal` runs: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/review-gate-mechanics.md`.
-
 ## Edit tool discipline
 
 **Edit/Write, not Bash writes.** Repo file edits MUST use the Edit or Write tool, not Bash-based writes (python heredoc, `tee`, shell redirection). A Bash-written file never passes through the `PostToolUse` Edit/Write hooks, so the review sentinel that file type would arm never arms and the file silently skips its mandatory reviewer gate. Use a Bash write only as a last resort (the Edit/Write tools cannot express the operation); whenever you do, self-trigger the review gate that would have applied — dispatch the matching reviewer (or, if the post-edit hook did not fire, manually check for and handle the applicable `.pending-*` sentinel per the AI-judgment back-stop convention above).
@@ -306,14 +272,12 @@ the task explicitly requires changing deployment topology.
 
 ## Pre-plan checklist (Feature / Bug)
 
-1. Past-decision search (claude-mem, if installed) — see `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md` "claude-mem at planning start"
-2. Spawn Explore agents with `cx` instructions (→ `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`)
-3. Blast-radius check (gitnexus_impact, if installed) — see `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md` "gitnexus_impact timing"
+1. Past-decision search (claude-mem, if installed) — see `.cursor/rules/tool-routing.mdc` "claude-mem at planning start"
+2. Spawn Explore agents with `cx` instructions (→ `.cursor/rules/tool-routing.mdc`)
+3. Blast-radius check (gitnexus_impact, if installed) — see `.cursor/rules/tool-routing.mdc` "gitnexus_impact timing"
 4. Database work → verify Repository routing via the project's query builder convention
 
 ## Deterministic first, judgment second
-
-For audit / setup / inventory / generation work, separate fact-collection from interpretation: **collect** deterministically (scripts / Grep / Glob, no judgment, baseline first) → **gate** (present facts; confirm before destructive or multi-file outcomes) → **judge** (AI evaluation last). **Tool output is immutable** — forward stdout verbatim, never hand-construct contract output (e.g. `deploy-list` schema=v1); a tool failure stops-and-reports, never simulates. Full detail: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/deterministic-first.md`. (harness-revise, skill-stocktake, project-setup, project-audit, risk-assess, deploy-list, skill-scout)
 
 ## Self-check (before reply)
 
@@ -323,7 +287,7 @@ Any applicable NO → fix first, then reply.
 
 ## Anti-rationalization
 
-Before skipping any sentinel / TDD / reviewer mandated step, load `${CLAUDE_PLUGIN_ROOT}/rules/anti-rationalization.md` for self-rebuttal. On-demand load, not always-on. Trigger conditions: see that file's "When to load" table (SSOT).
+Before skipping any sentinel / TDD / reviewer mandated step, load `.cursor/rules/anti-rationalization.mdc` for self-rebuttal. On-demand load, not always-on. Trigger conditions: see that file's "When to load" table (SSOT).
 
 ## Git pipeline
 
@@ -355,23 +319,19 @@ Output: `Conclusion → Changed files → Verification → Risks/Open questions`
 
 Run the project's standard test suite + browser verify (playwright-cli, manual, or stack-equivalent). For Docker projects: see your `${PHP_CONTAINER:-php}` workflow. Commands per stack live in the matching dhpk module reference (e.g. `modules/phpunit-5.7/references/testing.md`).
 
-Script-test requirements live in `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/testing-policy.md`.
-
 ## Component-addition gate
-
-Addition/removal justification and residue-cleanup requirements live in `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/component-addition-policy.md`.
 
 ## Not in scope
 
 - **Does not restate** stack-specific coding conventions — those live in each project's `.claude/rules/<stack>.md` or the matching dhpk module reference.
-- **Does not restate** the anti-rationalization phrasing table — see `${CLAUDE_PLUGIN_ROOT}/rules/anti-rationalization.md`.
-- **Does not restate** the tool-selection decision tree — see `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`.
+- **Does not restate** the anti-rationalization phrasing table — see `.cursor/rules/anti-rationalization.mdc`.
+- **Does not restate** the tool-selection decision tree — see `.cursor/rules/tool-routing.mdc`.
 - **Does not restate** the full end-of-task self-check — see `skills/dhpk-execution-checklist/SKILL.md`.
 
 ## Cross-references
 
-- `${CLAUDE_PLUGIN_ROOT}/rules/anti-rationalization.md` — self-rebuttal table for skipping a mandated step
-- `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md` — code-exploration tool decision tree
+- `.cursor/rules/anti-rationalization.mdc` — self-rebuttal table for skipping a mandated step
+- `.cursor/rules/tool-routing.mdc` — code-exploration tool decision tree
 - `skills/dhpk-execution-checklist/SKILL.md` — full end-of-task self-check
 - `skills/dhpk-execution-policy/SKILL.md` — skill-form entry point into this policy
 - `agents/INDEX.md` — agent roster, models, maxTurns rationale

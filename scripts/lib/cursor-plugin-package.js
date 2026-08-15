@@ -23,6 +23,13 @@ const {
 const { ProjectionArtifactStore } = require('./projection-artifact-store');
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
 const { redactSensitiveText } = require('./redaction');
+const {
+  parseToolList,
+  rewriteCursorHarnessBody,
+  cursorAgentModel,
+  cursorDocumentDestinationName,
+  retainsClaudePluginRoot,
+} = require('./cursor-harness-adapt');
 
 const GENERATOR_VERSION = '1.0.0';
 const DEFAULT_CURSOR_PROBE_TIMEOUT_MS = 30_000;
@@ -314,7 +321,16 @@ function adaptNativeDocument(content, kind, basename, sourceFile = null, canonic
     fields.alwaysApply = parsed.fields.alwaysApply === true || String(parsed.fields.alwaysApply).toLowerCase() === 'true';
     if (parsed.fields.globs) fields.globs = parsed.fields.globs;
   }
-  const body = sourceFile && canonicalRoot ? sanitizeMarkdownLinks(parsed.body, sourceFile, canonicalRoot) : parsed.body;
+  if (kind === 'agents') {
+    fields.model = cursorAgentModel(parsed.fields.name || basename);
+    const tools = parseToolList(parsed.fields.tools);
+    fields.readonly = !(tools.includes('Write') || tools.includes('Edit'));
+  }
+  let body = rewriteCursorHarnessBody(parsed.body);
+  if (sourceFile && canonicalRoot) body = sanitizeMarkdownLinks(body, sourceFile, canonicalRoot);
+  if (retainsClaudePluginRoot(body)) {
+    return { ok: false, reason: 'retains unsupported Claude plugin-root interpolation' };
+  }
   return { ok: true, content: renderFrontmatter(fields, body), transform: `cursor-${kind}-frontmatter` };
 }
 
@@ -583,16 +599,17 @@ function collectAdaptedCursorDocuments(sourceDir, destinationDir, kind, transfor
       transformations.push({ source: path.relative(sourceDir, source).split(path.sep).join('/'), destination: null, transform: `SKIP_INCOMPATIBLE: ${adapted.reason}` });
       continue;
     }
+    const destName = cursorDocumentDestinationName(kind, name);
     const output = {
       source: path.relative(sourceDir, source).split(path.sep).join('/'),
-      destination: path.posix.join(destinationDir, name),
+      destination: path.posix.join(destinationDir, destName),
       content: Buffer.from(adapted.content),
       mode: 0o644,
     };
     traversalBudget.accountBytes(output.content.byteLength, output.destination);
     files.push(output);
-    names.push(name);
-    transformations.push({ source: path.relative(sourceDir, source).split(path.sep).join('/'), destination: path.posix.join(destinationDir, name), transform: adapted.transform });
+    names.push(destName);
+    transformations.push({ source: path.relative(sourceDir, source).split(path.sep).join('/'), destination: path.posix.join(destinationDir, destName), transform: adapted.transform });
   }
   return { files, names };
 }
@@ -678,12 +695,15 @@ function cursorReadmeContents() {
       'inventory overlay is selected.',
       'Follow the [platform installation guide](../../docs/platform-installation.md)',
       'for coordinated installation, verification, and Cursor-only rollback.',
+      'The marketplace/local plugin route is this package. The supported project-local',
+      'route is `bash scripts/hooks/install-cursor-harness.sh` into `.cursor/` (native',
+      'hooks are not mapped in v1).',
       '',
     ].join('\n'),
     'README.zh-TW.md': [
       '# dhpk Cursor Plugin 套件',
       '',
-      '此 physical Cursor-native projection 由 canonical inventory 產生。portable skills 由 standard Agent Plugin 的 `plugins/dhpk-agent/skills/` 單獨擁有，除非明確選擇 environment overlay，不在此重複複製。協同安裝、驗證與 Cursor-only rollback 請依照[平台安裝指南](../../docs/platform-installation.zh-TW.md)。',
+      '此 physical Cursor-native projection 由 canonical inventory 產生。portable skills 由 standard Agent Plugin 的 `plugins/dhpk-agent/skills/` 單獨擁有，除非明確選擇 environment overlay，不在此重複複製。協同安裝、驗證與 Cursor-only rollback 請依照[平台安裝指南](../../docs/platform-installation.zh-TW.md)。marketplace／local plugin 路徑是此套件；支援的 project-local 路徑是 `bash scripts/hooks/install-cursor-harness.sh`（v1 不映射 native hooks）。',
       '',
     ].join('\n'),
   };
@@ -1113,8 +1133,15 @@ function validateNativeDocuments(packageRoot, roots, kind, errors) {
   for (const root of roots) {
     if (!fs.existsSync(root)) continue;
     for (const file of listComponentFiles(root, extensions)) {
-      const parsed = parseFrontmatter(readFileBounded(file).toString('utf8'));
+      const content = readFileBounded(file).toString('utf8');
+      const parsed = parseFrontmatter(content);
       const relative = path.relative(packageRoot, file).split(path.sep).join('/');
+      if (kind === 'rules' && path.extname(file).toLowerCase() !== '.mdc') {
+        errors.push(`${relative} must use the .mdc extension`);
+      }
+      if (retainsClaudePluginRoot(content)) {
+        errors.push(`${relative} retains Claude plugin-root interpolation`);
+      }
       if (!parsed.present || !parsed.fields.name || !parsed.fields.description || !NAME_PATTERN.test(parsed.fields.name)) {
         errors.push(`${relative} has invalid Cursor ${kind} frontmatter (name and description are required)`);
       }
@@ -1394,6 +1421,8 @@ module.exports = {
   COMPONENT_EXTENSIONS,
   adaptSkill,
   adaptNativeDocument,
+  rewriteCursorHarnessBody,
+  cursorDocumentDestinationName,
   selectCursorSkills,
   cursorSkillProjection,
   materializeCursorPackage,

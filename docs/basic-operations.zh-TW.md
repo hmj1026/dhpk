@@ -17,8 +17,9 @@ Plugin 管理（`claude plugin …`、`codex plugin …`）不等於執行 skill
 [`docs/skill-platform-migration.zh-TW.md`](./skill-platform-migration.zh-TW.md)、
 [`docs/distribution-surfaces.zh-TW.md`](./distribution-surfaces.zh-TW.md)、
 [`distribution-inventory.json`](../manifests/distribution-inventory.json)、
-[`scripts/install.sh`](../scripts/install.sh) 與支援的
-[`install-codex-skills.sh`](../scripts/hooks/install-codex-skills.sh)。OpenSpec
+[`scripts/install.sh`](../scripts/install.sh)、支援的
+[`install-codex-skills.sh`](../scripts/hooks/install-codex-skills.sh)，以及支援的
+[`install-cursor-harness.sh`](../scripts/hooks/install-cursor-harness.sh)。OpenSpec
 proposal、specification 與 task evidence 位於 `openspec/changes/`；validator
 通過不代表已完成版控交付。
 
@@ -36,12 +37,14 @@ dhpk 刻意提供多個、支援等級不同的分發面：
 | `claude --plugin-dir` | Development-only | 直接迭代 working tree，不是發布通道。 |
 | `scripts/install.sh` | Convenience wrapper | 執行 Claude 安裝契約，不另立一套分發方式。 |
 | `install-codex-skills.sh` | Supported | 穩定的 Codex 專案同步路徑。 |
+| `install-cursor-harness.sh` | Supported | 穩定的 Cursor project-local 同步路徑（`.cursor/`）。 |
 | Codex plugin marketplace | Experimental | 實體發布套件，附真實 CLI 安裝驗證；支援等級仍須另一次畢業決策才會改變。 |
 | Gemini / Antigravity sync | Adapter-only | Claude-first 比對或轉換，不承諾原生 plugin 或完整 agent parity。 |
 
 Plugin 管理指令（`claude plugin …`、`codex plugin …`）與 skill 呼叫是兩個
 不同面。Claude 工作流從 `/dhpk:do` 或明確指定的 skill 進入；Codex 則使用
-專案本地的 `.codex/` projection。
+專案本地的 `.codex/` projection；Cursor project-local 檔案由
+`install-cursor-harness.sh` 安裝到 `.cursor/`。
 
 ## 安裝
 
