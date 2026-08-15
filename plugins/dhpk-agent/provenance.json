@@ -3,8 +3,8 @@
   "surface": "agent-plugin",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.40.1",
-  "sourceCommit": "9eb613f582e0c414a28e2b6012158b1e703bb7c7",
-  "inventoryDigest": "d0565daeb637bfd81c378b5738b314ab24cee6304e5efe50dba245ff18b208e1",
+  "sourceCommit": "f05995e8f722560f6bae88c8bfae8ed7e42c2a0c",
+  "inventoryDigest": "583e060e09bfb9fe9b70ab34b52d8f00248495df20c9feefdc203441a0bffdd0",
   "generatorVersion": "1.0.0",
   "schemaVersion": "1.0.0",
   "selectedSkillIds": [

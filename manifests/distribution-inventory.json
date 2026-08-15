@@ -444,12 +444,18 @@
     },
     {
       "id": "codex-supporting-agent-traps-_common-build-resolver-skeleton-md",
-      "source": "agent-traps/_common/build-resolver-skeleton.md",
+      "source": "codex/supporting/agent-traps/_common/build-resolver-skeleton.md",
+      "canonical_source": "agent-traps/_common/build-resolver-skeleton.md",
+      "canonical_digest": "a9a8cbc1d8c8efb249aaac1f12c79f71ebb375773d4b1a519209734469b7f125",
+      "projection_digest": "0c4491481d52237c657b208d019d921ab836362c11c7a284fbee3e8d05359c27",
       "destination": "dhpk/agent-traps/_common/build-resolver-skeleton.md"
     },
     {
       "id": "codex-supporting-agent-traps-_common-cli-prompt-composition-md",
-      "source": "agent-traps/_common/cli-prompt-composition.md",
+      "source": "codex/supporting/agent-traps/_common/cli-prompt-composition.md",
+      "canonical_source": "agent-traps/_common/cli-prompt-composition.md",
+      "canonical_digest": "6334ac0eaa5e536e72b94ea6ddfd4f3061a140e34f09c2ae77bb7876a3fdc1f1",
+      "projection_digest": "9597a0448ed83fe1cd7c613a84798a3887e728d7dfe1e8d339058b899c00d9da",
       "destination": "dhpk/agent-traps/_common/cli-prompt-composition.md"
     },
     {
@@ -459,7 +465,10 @@
     },
     {
       "id": "codex-supporting-docs-docker-setup-md",
-      "source": "docs/docker-setup.md",
+      "source": "codex/supporting/docs/docker-setup.md",
+      "canonical_source": "docs/docker-setup.md",
+      "canonical_digest": "5f35fa7fa9de0edd9b4a068bc6ab3f964633f8889b663308998bfe9df11da5cf",
+      "projection_digest": "07898ac72561aeb87325925b8623fc0413eb67e29b0b15ed71f4ea9c80ec0303",
       "destination": "dhpk/docs/docker-setup.md"
     },
     {

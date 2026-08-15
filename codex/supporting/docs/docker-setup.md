@@ -3,8 +3,8 @@
 > **Languages**: **English** · [繁體中文](./docker-setup.zh-TW.md)
 
 Reference for the `docker_containers` plugin option when a consumer explicitly
-registers a Docker workflow. The installer and `/dhpk:setup` do not add a
-Docker hook by default.
+registers a Docker workflow. The installer does not add a Docker hook by
+default.
 
 > **TL;DR** — If your project does not use Docker, leave `docker_containers`
 > empty and skip this doc. No default dhpk hook probes Docker.
@@ -46,7 +46,7 @@ If you run Claude Code inside WSL2:
   This breaks `git status`, `git add`, and editor saves. Two fixes:
   - Run containers with your UID: `docker compose run --user "$(id -u):$(id -g)"`
   - Add a post-run fixup: `sudo chown -R "$(id -u):$(id -g)" .`
-- See your global `~/.claude/CLAUDE.md` for the broader WSL trap discussion.
+- See the project WSL notes for the broader trap discussion.
 
 ## Container naming convention
 
@@ -125,4 +125,4 @@ consumer configuration.
 ## Related
 
 - `manifests/module-catalog.json` — declares the positional container-role order
-- `scripts/install.sh` / `/dhpk:setup` — installation and configuration entry points
+- `scripts/install.sh` — installation and configuration entry points
