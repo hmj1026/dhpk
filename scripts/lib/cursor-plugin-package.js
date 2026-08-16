@@ -1352,6 +1352,7 @@ function runCursorConsumerProbe({
     maxBuffer: probeMaxOutputBytes,
     killSignal: 'SIGKILL',
     detached: process.platform !== 'win32',
+    stdio: ['ignore', 'pipe', 'pipe'],
     env: cursorProbeEnvironment(packageRoot),
   });
   const evidence = {

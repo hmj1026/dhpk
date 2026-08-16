@@ -183,4 +183,39 @@ test('stubbed agy plugins/agents and bounded runtime probes remain distinct', ()
   }
 });
 
+test('import-only agy plugins list is not native plugin discovery PASS', () => {
+  const root = tempRoot('agy-import-only');
+  const bin = path.join(root, 'bin');
+  try {
+    agyPackage(root);
+    write(path.join(bin, 'agy'), [
+      '#!/bin/sh',
+      'if [ "$1" = "plugins" ] && [ "$2" = "list" ]; then',
+      '  printf \'%s\\n\' \'{"imports":[{"name":"dhpk","source":"claude-code","importedAt":"2026-08-07T07:51:05Z","components":["skills","agents"]}]}\'',
+      '  exit 0',
+      'fi',
+      'if [ "$1" = "agents" ]; then printf \'%s\\n\' \'unrelated-host-agent\'; exit 0; fi',
+      'exit 2',
+      '',
+    ].join('\n'), 0o755);
+    const result = validate(root, [], { ...process.env, PATH: `${bin}:/usr/bin:/bin` });
+    const row = JSON.parse(result.stdout).results.find((item) => item.platform === 'agy');
+    const plugins = row.capabilities.find((item) => item.id === 'agy.discovery.plugins').status;
+    const agents = row.capabilities.find((item) => item.id === 'agy.discovery.agents').status;
+    assert.ok(['FAIL', 'UNAVAILABLE'].includes(plugins), `import-only plugins list must not PASS: ${plugins}`);
+    assert.ok(['FAIL', 'UNAVAILABLE'].includes(agents), `unrelated agents must not PASS: ${agents}`);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('AGY sandbox binds the native package at the consumer plugin path', () => {
+  const source = fs.readFileSync(path.join(ROOT, 'skills/dhpk-cross-agent-sync/scripts/multi_ai_sync_lib/validation.py'), 'utf8');
+  assert.match(
+    source,
+    /"--ro-bind", os\.path\.realpath\(package_root\), "\/home\/agy\/\.gemini\/config\/plugins\/dhpk"/,
+  );
+  assert.doesNotMatch(source, /--ro-bind.*\/workspace\/plugins\/dhpk-agy/);
+});
+
 run('multi-ai-sync-agy-platform');

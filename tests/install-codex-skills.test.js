@@ -375,11 +375,13 @@ test('symlink mode links the target and --update preserves edited copied content
     const skillFile = path.join(scratch, '.codex', 'skills', skillName, 'SKILL.md');
     fs.writeFileSync(skillFile, 'stale target\n');
     const updated = runInstaller(scratch, ['--copy', '--update', '--force']);
-    assert.strictEqual(updated.status, 0, `${updated.stdout}\n${updated.stderr}`);
+    assert.notStrictEqual(updated.status, 0, `${updated.stdout}\n${updated.stderr}`);
+    assert.match(`${updated.stdout}\n${updated.stderr}`, /--adopt/);
     assert.strictEqual(fs.readFileSync(skillFile, 'utf8'), 'stale target\n',
-      'edited receipt-owned content must be preserved and reported as orphaned');
+      'edited copied content must be preserved as a remaining collision, not overwritten');
     const manifest = JSON.parse(fs.readFileSync(path.join(scratch, '.codex', '.dhpk-installed.json'), 'utf8'));
     assert.strictEqual(manifest.mode, 'copy');
+    assert.notStrictEqual(manifest.reconciliation.state, 'current');
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
   }
@@ -639,7 +641,8 @@ test('legacy receipt and unowned symlink are fail-closed until explicit --migrat
     assert.strictEqual(fs.realpathSync(target), external);
     assert.strictEqual(fs.readFileSync(path.join(scratch, '.codex', '.dhpk-installed.json'), 'utf8'), before);
     const migrated = runInstaller(scratch, ['--migrate', '--update', '--force']);
-    assert.strictEqual(migrated.status, 0, `${migrated.stdout}\n${migrated.stderr}`);
+    assert.notStrictEqual(migrated.status, 0, `${migrated.stdout}\n${migrated.stderr}`);
+    assert.match(`${migrated.stdout}\n${migrated.stderr}`, /--adopt/);
     const manifest = JSON.parse(fs.readFileSync(path.join(scratch, '.codex', '.dhpk-installed.json'), 'utf8'));
     assert.strictEqual(manifest.schema_version, 3);
     assert.ok(!manifest.managed_entries.skills[skillName]);
@@ -671,7 +674,8 @@ test('--update prunes only unchanged removed sources and preserves edited/unrela
     fs.mkdirSync(unrelatedTarget, { recursive: true });
     fs.writeFileSync(path.join(unrelatedTarget, 'keep.txt'), 'keep\n');
     const updated = runInstaller(scratch, ['--copy', '--update', '--force'], fakePlugin);
-    assert.strictEqual(updated.status, 0, `${updated.stdout}\n${updated.stderr}`);
+    assert.notStrictEqual(updated.status, 0, `${updated.stdout}\n${updated.stderr}`);
+    assert.match(`${updated.stdout}\n${updated.stderr}`, /--adopt/);
     assert.match(`${updated.stdout}\n${updated.stderr}`, /pruned/i);
     assert.ok(!fs.existsSync(path.join(scratch, '.codex', 'skills', removed)), 'unchanged removed source should be pruned');
     assert.strictEqual(fs.readFileSync(path.join(editedTarget, 'user-edit.txt'), 'utf8'), 'edited\n');
@@ -901,7 +905,8 @@ test('reconciliation evidence records updates, retired entries, backups, and uno
     fs.writeFileSync(userMarker, 'do not overwrite\n');
 
     const updatedRun = runInstaller(scratch, ['--copy', '--update', '--force'], fakePlugin);
-    assert.strictEqual(updatedRun.status, 0, `${updatedRun.stdout}\n${updatedRun.stderr}`);
+    assert.notStrictEqual(updatedRun.status, 0, `${updatedRun.stdout}\n${updatedRun.stderr}`);
+    assert.match(`${updatedRun.stdout}\n${updatedRun.stderr}`, /--adopt/);
     assert.strictEqual(fs.readFileSync(userMarker, 'utf8'), 'do not overwrite\n');
     const after = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
     const reconciliation = after.reconciliation;
@@ -994,6 +999,25 @@ test('--plan --json reports collision evidence without mutating projection or re
     assert.match(report.next_action, /source-fingerprint/);
     assert.strictEqual(fs.readFileSync(fixture.receiptPath, 'utf8'), beforeReceipt);
     assert.strictEqual(completeTreeFingerprint(fixture.target), beforeTarget);
+  } finally {
+    fs.rmSync(fixture.scratch, { recursive: true, force: true });
+    fs.rmSync(fixture.fakePlugin, { recursive: true, force: true });
+  }
+});
+
+test('--update without --adopt exits non-zero and preserves the unowned collision', () => {
+  const fixture = collisionFixture();
+  try {
+    const beforeTarget = completeTreeFingerprint(fixture.target);
+    const beforeReceipt = fs.readFileSync(fixture.receiptPath, 'utf8');
+    const updated = runInstaller(fixture.scratch, ['--copy', '--update', '--force'], fixture.fakePlugin);
+    assert.notStrictEqual(updated.status, 0, `${updated.stdout}\n${updated.stderr}`);
+    assert.match(`${updated.stdout}\n${updated.stderr}`, /--adopt/);
+    assert.match(`${updated.stdout}\n${updated.stderr}`, /collision preserved|unowned-collision|requires_adoption/i);
+    assert.strictEqual(completeTreeFingerprint(fixture.target), beforeTarget);
+    const receipt = JSON.parse(fs.readFileSync(fixture.receiptPath, 'utf8'));
+    assert.ok(['partial', JSON.parse(beforeReceipt).state].includes(receipt.state));
+    assert.notStrictEqual(receipt.state, 'current');
   } finally {
     fs.rmSync(fixture.scratch, { recursive: true, force: true });
     fs.rmSync(fixture.fakePlugin, { recursive: true, force: true });

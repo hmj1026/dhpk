@@ -57,6 +57,7 @@ function main() {
         '--plugin-dir', agentPackage,
         '--plugin-dir', cursorPackage,
         '--mode', 'ask',
+        '--trust',
         '-p', args.prompt,
         '--output-format', 'json',
       ],
