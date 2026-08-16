@@ -17,7 +17,7 @@ callable only after the named consumer probe discovers the projected content.
 | Cursor Plugin | Local `~/.cursor/plugins/local/dhpk-cursor`, or reviewed `.cursor-plugin/marketplace.json` source; install `plugins/dhpk-agent/` alongside it for shared portable skills | Cursor refresh/update/remove; rollback Cursor-owned files only; update the shared Agent package separately | `.cursor-plugin/plugin.json`, rules, agents, commands, hooks, variables, shared-skill IDs | Native components require Cursor evidence; shared portable skills are owned by `dhpk-agent`; gaps are `SKIP_INCOMPATIBLE` |
 | Cursor project-local sync | From a checkout: `bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh`; inside a Claude plugin: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh"` | `--update`, `--migrate`, `--uninstall`; `--force` only bypasses the project-root heuristic | `.cursor/.dhpk-installed.json` schema-v3, `.mdc` rules, managed entries | Supported Cursor project-local path; native hooks are out of v1; install does not prove runtime callability |
 | Cursor CLI launch-scoped probe | `cursor-agent --plugin-dir <agent-package> --plugin-dir <cursor-package>` after login | No persistent CLI install; update the source package or local symlink, then start a new session | `cursor-agent --version`, `cursor-agent status`, and a read-only `--mode ask` probe | Experimental/conditional: CLI help exposes the flag, but official CLI docs do not establish plugin component discovery; marketplace indexing is not a non-interactive install command |
-| AGY native plugin | Generate `plugins/dhpk-agy/`, then receipt-owned install to `~/.gemini/config/plugins/dhpk/` | `install-agy-plugin.js update`, `uninstall`, or `rollback`; foreign files are preserved and collisions fail closed | AGY package validator, `agy plugins list`, `agy agents`, and optional bounded Subagent probe | Experimental: package/discovery evidence is separate from runtime; absent `agy` is `UNAVAILABLE` |
+| AGY native plugin | Generate `plugins/dhpk-agy/`, then receipt-owned install to `~/.gemini/config/plugins/dhpk/` | `install-agy-plugin.js update`, `uninstall`, or `rollback`; foreign files are preserved and collisions fail closed | AGY package validator; `agy plugins list` is import-only; isolated `agy agents` is native load; optional bounded Subagent probe | Experimental: package/discovery evidence is separate from runtime; absent `agy` is `UNAVAILABLE` |
 
 ## Prerequisites and version assumptions
 
@@ -35,7 +35,7 @@ result; do not infer a runtime `PASS` from a package check.
 | Cursor Plugin (native) | Cursor plugin loader supporting `.cursor-plugin/plugin.json`; record Cursor version; install the standard `dhpk-agent` package for shared portable skills; minimum version not established | A Cursor-supported desktop OS; local path is `~/.cursor/plugins/local/` | Cursor reload/UI, local filesystem, and secret-free variable configuration; compare shared IDs with Agent provenance | Observe each selected native component and hook behavior after reload; an explicit matrix overlay is the only reason for a Cursor `skills/` directory |
 | Cursor project-local sync | Cursor project-local loader; schema-v3 receipt; minimum Cursor version not established | Linux, macOS, or WSL with a POSIX shell, run from the project root | `bash`, `git`; Node.js is needed only for validators | Run the installer, inspect `.cursor/.dhpk-installed.json`, and run the listed installer test; do not treat a missing live Cursor client as a runtime `PASS` |
 | Cursor CLI launch-scoped probe | `cursor-agent` available on `PATH`; record `cursor-agent --version`; authenticate with `cursor-agent login`; minimum version not established | Linux, macOS, or WSL POSIX shell | `cursor-agent`, `--plugin-dir`, and a Cursor account/API key; Node.js only for package validation | Experimental/conditional: run `cursor-agent status`, then a read-only probe; unauthenticated output is `BLOCKED`, missing CLI is `UNAVAILABLE`, and discovery must be recorded separately |
-| AGY native plugin | `agy` version and supported AGY model/tool enum are not pinned; record `agy --version` when available | Linux, macOS, or WSL POSIX shell; install root is user-scoped | Node.js, `git`, generated package, and optional `agy` CLI | Run structural validation first; `agy plugins list`/`agy agents` are discovery evidence; runtime remains `NOT_RUN` unless `--agy-runtime-probe` is explicitly used |
+| AGY native plugin | `agy` version and supported AGY model/tool enum are not pinned; record `agy --version` when available | Linux, macOS, or WSL POSIX shell; install root is user-scoped | Node.js, `git`, generated package, and optional `agy` CLI | Run structural validation first; `agy plugins list` is import-only and isolated `agy agents` is native load; runtime remains `NOT_RUN` unless `--agy-runtime-probe` is explicitly used |
 
 ## Status vocabulary
 
@@ -102,6 +102,8 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --uninstall
 ownership or path safety. The schema-v3 receipt records stable ID, public name,
 destination, source, mode, and fingerprint. Edited, user-owned, retargeted,
 malformed, ambiguous, or colliding files are preserved and reported.
+`--update` without `--adopt` exits non-zero while any reported collision
+remains, so a partial receipt cannot be mistaken for a current projection.
 
 For a stale or unowned projection, inspect before changing anything:
 
@@ -242,9 +244,15 @@ cursor-agent \
   --plugin-dir "$HOME/.cursor/plugins/local/dhpk-agent" \
   --plugin-dir "$HOME/.cursor/plugins/local/dhpk-cursor" \
   --mode ask \
+  --trust \
   -p 'List the dhpk skills, commands, agents, and rules you discover. Do not edit files.' \
   --output-format json
 ```
+
+The wrapper also passes `--trust` so a launch-scoped probe does not wait for
+an interactive workspace-confirmation prompt, and it ignores stdin so the
+child does not inherit a caller TTY. Do not paste the equivalent `cursor-agent`
+argv into an interactive shell if you need the same hang-free evidence.
 
 Record the exact CLI version, authentication status, package paths, and probe
 output. A successful package validator proves structure and provenance only;
@@ -338,6 +346,8 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" --uninstall
 ownership or path safety. The schema-v3 receipt records stable ID, public name,
 destination, source, mode, and fingerprint. Edited, user-owned, retargeted,
 malformed, ambiguous, or colliding files are preserved and reported.
+`--update` without `--adopt` exits non-zero while any reported collision
+remains, so a partial receipt cannot be mistaken for a current projection.
 
 For a stale or unowned projection, inspect before changing anything:
 
@@ -389,7 +399,7 @@ agent frontmatter and never rewrites `agents/`. Generate and validate it from
 the dhpk checkout:
 
 ```bash
-node scripts/ci/gen-agy-plugin-package.js plugins/dhpk-agy --version=0.40.0
+node scripts/ci/gen-agy-plugin-package.js plugins/dhpk-agy --version=0.41.0
 node scripts/ci/validate-agy-plugin-package.js plugins/dhpk-agy
 ```
 
@@ -430,6 +440,11 @@ agy --version
 agy plugins list
 agy agents
 ```
+
+`agy plugins list` reports import records only. A native receipt-owned package
+at `~/.gemini/config/plugins/dhpk` is discovered by isolated `agy agents`, not
+by matching `dhpk` in the import JSON. The validator mounts the package at that
+consumer path inside a read-only sandbox HOME.
 
 The report keeps package structure, plugin/agent discovery, and Subagent
 runtime as independent rows. If `agy` is absent, discovery is `UNAVAILABLE`;

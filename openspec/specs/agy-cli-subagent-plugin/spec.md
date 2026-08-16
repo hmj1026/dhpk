@@ -173,6 +173,21 @@ manifest or discovery result SHALL NOT upgrade runtime support.
   invocation has run
 - **THEN** discovery is recorded independently and runtime remains `NOT_RUN`
 
+#### Scenario: Isolated native discovery ignores import records
+
+- **WHEN** `agy plugins list` returns only import JSON or "No imported plugins"
+  and isolated `agy agents` does not list an inventory-derived agent
+- **THEN** plugin discovery does not PASS from the import record, and agent
+  discovery is `FAIL` or `UNAVAILABLE`
+
+#### Scenario: Native package is mounted at the consumer path
+
+- **WHEN** the read-only AGY sandbox runs discovery against a structurally
+  valid package
+- **THEN** the package is bound at `/home/agy/.gemini/config/plugins/dhpk`
+  rather than a workspace copy, so isolated `agy agents` can load the native
+  plugin
+
 #### Scenario: Read-only Subagent probe passes
 
 - **WHEN** the configured AGY CLI discovers the package and completes the

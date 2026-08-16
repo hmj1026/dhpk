@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## 0.41.1 — 2026-08-16 — Fail-close Codex collision exits, mount native AGY discovery, and pass trust flags to launch-scoped Cursor probes
+
+**fix(agy-installation)** — Mount the AGY package at the consumer plugin path and stop treating import-only `agy plugins list` JSON as native discovery evidence.
+**fix(codex-project-local-sync)** — Make `--update` exit non-zero while an unowned Codex collision remains, so a partial receipt cannot be treated as current without `--adopt`.
+**fix(cursor-consumer-probe)** — Pass `--trust` and ignore stdin on launch-scoped Cursor probes so authenticated discovery does not hang on a workspace-confirmation prompt.
+
 ## 0.41.0 — 2026-08-15 — Add Cursor project-local harness with standalone installation and projection contracts
 
 **feat(cursor-sync)** — Add a Codex-parity project-local Cursor harness (`cursor/` projection plus `install-cursor-harness.sh`) so consumers can install skills, subagents, `.mdc` rules, and commands into `.cursor/` without depending on the marketplace plugin. Rewritten harness paths point at installed `.mdc` rules, `.cursor/agents/`, and `.cursor/dhpk/` supporting assets. Cursor agent frontmatter uses `cursor-grok-4.6-high` for general workflow roles and `composer-2.5-fast` for `doc-reviewer`, `docs-lookup`, and `doc-updater`.

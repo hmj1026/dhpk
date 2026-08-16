@@ -90,6 +90,38 @@ test('Cursor CLI wrapper blocks a successful client with no JSON response', () =
   }
 });
 
+test('Cursor CLI wrapper passes --trust so launch-scoped probes do not wait for workspace confirmation', () => {
+  const root = temp('dhpk-cursor-cli-probe-trust-');
+  const agent = path.join(root, 'agent');
+  const cursor = path.join(root, 'cursor');
+  const bin = path.join(root, 'bin');
+  const argvFile = path.join(root, 'argv.txt');
+  fs.mkdirSync(agent);
+  fs.mkdirSync(cursor);
+  fs.mkdirSync(bin);
+  fs.writeFileSync(path.join(bin, 'cursor-agent'), [
+    '#!/bin/sh',
+    `printf '%s\\n' "$*" > ${JSON.stringify(argvFile)}`,
+    'printf \'%s\\n\' \'{"response":"dhpk skills commands agents rules were discovered."}\'',
+    '',
+  ].join('\n'), { mode: 0o755 });
+  try {
+    const result = invoke([
+      '--agent-package', agent,
+      '--cursor-package', cursor,
+      '--timeout-ms', '1000',
+      '--max-output-bytes', '1024',
+    ], { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH || ''}` });
+    assert.strictEqual(result.status, 0, result.stdout + result.stderr);
+    const argv = fs.readFileSync(argvFile, 'utf8');
+    assert.match(argv, /(^|\s)--trust(\s|$)/);
+    assert.match(argv, /--plugin-dir/);
+    assert.match(argv, /--mode ask/);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('Cursor CLI wrapper blocks valid JSON without requested capability evidence', () => {
   const root = temp('dhpk-cursor-cli-probe-negative-');
   const bin = path.join(root, 'bin');
