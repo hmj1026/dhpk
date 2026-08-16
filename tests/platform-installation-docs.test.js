@@ -50,6 +50,24 @@ test('bilingual SSOT documents the read-only unified lifecycle slice without cla
   }
 });
 
+test('bilingual SSOT pins Codex collision exit and AGY import-only discovery', () => {
+  for (const relative of ['docs/platform-installation.md', 'docs/platform-installation.zh-TW.md']) {
+    const text = read(relative);
+    assert.ok(
+      text.includes('exits non-zero') || text.includes('非零'),
+      `${relative} must say --update without --adopt exits non-zero while a collision remains`,
+    );
+    assert.ok(
+      text.includes('import-only') || text.includes('只列 import') || text.includes('只列出 import'),
+      `${relative} must say agy plugins list is import-only`,
+    );
+    assert.ok(
+      text.includes('isolated `agy agents`') || text.includes('隔離 HOME 的 `agy agents`'),
+      `${relative} must say isolated agy agents is the native load signal`,
+    );
+  }
+});
+
 test('installation routes remain separate and point to the SSOT', () => {
   const docs = [
     'README.md', 'README.zh-TW.md',
@@ -86,7 +104,12 @@ test('installation routes remain separate and point to the SSOT', () => {
     'install-agy-plugin.js plan',
     'install-agy-plugin.js status',
     'FOREIGN_CHECKOUT',
-    '0.40.0',
+    '0.41.0',
+    '--trust',
+    'ignores stdin',
+    'exits non-zero',
+    'import-only',
+    'isolated `agy agents`',
     '--targets agy',
     '--agy-runtime-probe',
     'agy plugins list',
@@ -116,6 +139,8 @@ test('Cursor CLI documentation keeps authentication, launch scope, and UI routes
     assert.ok(cli.includes('output_limited: true'), 'Cursor CLI route must document output-limit evidence');
     assert.ok(cli.includes('capability-negative') || cli.includes('capability 的'), 'Cursor CLI route must reject negative discovery evidence');
     assert.ok(cli.includes('--mode ask'), 'Cursor CLI route must be read-only for the verification probe');
+    assert.ok(cli.includes('--trust'), 'Cursor CLI probe must skip the workspace trust prompt');
+    assert.ok(cli.includes('stdin') || cli.includes('TTY'), 'Cursor CLI probe must document ignored stdin / no inherited TTY');
     assert.ok(cli.includes("-p 'List the dhpk skills, commands, agents, and rules you discover. Do not edit files.'"),
       'Cursor CLI probe must state its read-only discovery prompt');
     assert.ok(cli.includes('--output-format json'), 'Cursor CLI route must preserve machine-readable evidence');

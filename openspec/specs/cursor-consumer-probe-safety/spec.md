@@ -48,7 +48,15 @@ MUST resolve a Cursor executable from `PATH` and require a non-empty valid JSON
 response containing positive evidence for the requested dhpk skills, commands,
 agents, and rules before returning consumer `PASS`; clear negative/no-result
 responses SHALL remain `BLOCKED`. The probe child SHALL receive an allowlisted
-environment and MUST NOT inherit arbitrary credential variables.
+environment and MUST NOT inherit arbitrary credential variables. The documented
+launch-scoped wrapper MUST pass `--trust` so the client does not wait for an
+interactive workspace-confirmation prompt, and POSIX probes MUST ignore stdin.
+
+#### Scenario: Launch-scoped probe skips workspace confirmation
+
+- **WHEN** a POSIX launch-scoped probe runs through the documented wrapper
+- **THEN** the child is spawned with stdin ignored and `--trust` so it does
+  not wait on a workspace-confirmation prompt or inherit the caller TTY
 
 #### Scenario: Structural package is valid but the client hangs
 

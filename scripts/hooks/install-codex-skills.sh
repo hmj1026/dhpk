@@ -1753,4 +1753,11 @@ counts['collided'] = counts.get('skipped_collision', 0)
 counts['backed_up'] = counts.get('backed_up', 0)
 print_summary(counts, collisions, sorted(orphaned))
 print(f'[install-codex-skills] synced dhpk v{plugin_version} {SRC_REL}/ → project-local {DEST_REL}/ (mode={MODE})')
+if UPDATE and collisions and not ADOPT_PATHS:
+    print(
+        '[install-codex-skills] ACTION REQUIRED: review collision evidence, then re-run with '
+        '--update --adopt=<reported-relative-path>@<destination-fingerprint>@<source-fingerprint>',
+        file=sys.stderr,
+    )
+    sys.exit(1)
 PY

@@ -597,27 +597,32 @@ def _run_agy_command(args, repo_root, timeout=15, read_only=False):
         "--ro-bind-try", "/bin", "/bin",
         "--ro-bind-try", "/lib", "/lib",
         "--ro-bind-try", "/lib64", "/lib64",
-        "--dir", "/workspace/plugins",
         "--dir", "/home",
         "--dir", "/home/agy",
         "--dir", "/home/agy/.config",
+        "--dir", "/home/agy/.gemini",
+        "--dir", "/home/agy/.gemini/config",
+        "--dir", "/home/agy/.gemini/config/plugins",
         "--tmpfs", "/tmp",
         "--tmpfs", "/run",
         "--tmpfs", "/etc",
         "--ro-bind-try", "/etc/passwd", "/etc/passwd",
         "--ro-bind-try", "/etc/group", "/etc/group",
         "--ro-bind-try", "/etc/nsswitch.conf", "/etc/nsswitch.conf",
+        "--ro-bind-try", "/etc/ld.so.cache", "/etc/ld.so.cache",
         "--proc", "/proc",
         "--dev", "/dev",
         "--chdir", "/workspace",
         "/workspace/bin/agy",
     ]
     if os.path.isdir(package_root) and not os.path.islink(package_root):
-        # Insert the package bind before the home mounts.  The package is
-        # already structurally validated and is the only project material the
-        # consumer CLI may inspect.
-        insert_at = command.index("/workspace/plugins") + 1
-        command[insert_at:insert_at] = ["--ro-bind", os.path.realpath(package_root), "/workspace/plugins/dhpk-agy"]
+        # Mount the structurally validated package at the documented consumer
+        # path. AGY discovers native plugins from ~/.gemini/config/plugins/<name>,
+        # not from a workspace copy, and `agy plugins list` only reports imports.
+        insert_at = command.index("/home/agy/.gemini/config/plugins") + 1
+        command[insert_at:insert_at] = [
+            "--ro-bind", os.path.realpath(package_root), "/home/agy/.gemini/config/plugins/dhpk",
+        ]
     command += list(args)
     try:
         result = subprocess.run(
@@ -630,6 +635,34 @@ def _run_agy_command(args, repo_root, timeout=15, read_only=False):
     return result.returncode, output
 
 
+def _agy_plugins_list_native_status(output):
+    """Interpret `agy plugins list` without treating import records as native discovery.
+
+    Current AGY CLIs list imported Claude/Antigravity plugins only. An
+    import-only payload, including `{"imports":[...]}` or "No imported plugins.",
+    is not evidence that the receipt-owned native package was loaded. Return
+    None in that case so the caller can defer to isolated `agy agents`.
+    """
+    text = (output or "").strip()
+    if not text:
+        return ROW_FAIL, "agy plugins list produced no output"
+    lowered = text.lower()
+    if lowered == "no imported plugins." or lowered.startswith("no imported plugins"):
+        return None, "agy plugins list reports imports only; native plugins are discovered via agy agents"
+    try:
+        payload = json.loads(text)
+    except ValueError:
+        if "dhpk" in text:
+            return ROW_PASS, None
+        return ROW_FAIL, "agy plugins list did not report the dhpk plugin"
+    if isinstance(payload, dict) and set(payload.keys()) <= {"imports"}:
+        return None, "agy plugins list reports imports only; native plugins are discovered via agy agents"
+    native = json.dumps({key: value for key, value in payload.items() if key != "imports"}) if isinstance(payload, dict) else text
+    if "dhpk" in native:
+        return ROW_PASS, None
+    return ROW_FAIL, "agy plugins list did not report the dhpk plugin"
+
+
 def _agy_discovery_probe(repo_root, package_root, agents):
     notes = []
     plugin_status = ROW_UNAVAILABLE
@@ -640,9 +673,16 @@ def _agy_discovery_probe(repo_root, package_root, agents):
         reason = plugin_output if plugin_code is None else agent_output
         notes.append(reason)
     else:
-        plugin_status = ROW_PASS if plugin_code == 0 and "dhpk" in plugin_output else ROW_FAIL
         agent_status = ROW_PASS if agent_code == 0 and any(agent[:-3] in agent_output for agent in agents) else ROW_FAIL
-        if plugin_status == ROW_FAIL:
+        plugin_status, plugin_note = _agy_plugins_list_native_status(plugin_output if plugin_code == 0 else "")
+        if plugin_note:
+            notes.append(plugin_note)
+        if plugin_status is None:
+            # Import-only listing cannot prove native discovery. Isolated
+            # `agy agents` is the native load signal for a receipt-owned package.
+            plugin_status = agent_status
+        if plugin_code != 0 and plugin_status != ROW_PASS:
+            plugin_status = ROW_FAIL
             notes.append("agy plugins list did not report the dhpk plugin")
         if agent_status == ROW_FAIL:
             notes.append("agy agents did not report an inventory-derived agent")

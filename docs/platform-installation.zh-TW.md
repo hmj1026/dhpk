@@ -17,7 +17,7 @@ projection 內容後，才能宣稱 client 可呼叫。
 | Cursor Plugin | local `~/.cursor/plugins/local/dhpk-cursor`，或 reviewed `.cursor-plugin/marketplace.json`；另安裝 `plugins/dhpk-agent/` 供 shared portable skills 使用 | Cursor refresh/update/remove；只 rollback Cursor-owned files；shared Agent package 另行更新 | `.cursor-plugin/plugin.json`、rules、agents、commands、hooks、variables、shared-skill IDs | native components 需 Cursor evidence；shared portable skills 由 `dhpk-agent` 單獨擁有；缺口為 `SKIP_INCOMPATIBLE` |
 | Cursor project-local sync | checkout：`bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh`；Claude plugin runtime：`bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh"` | `--update`、`--migrate`、`--uninstall`；`--force` 只繞過 project-root heuristic | `.cursor/.dhpk-installed.json` schema-v3、`.mdc` rules、managed entries | Supported Cursor project-local path；native hooks 不在 v1；安裝不等於 runtime callable |
 | Cursor CLI launch-scoped probe | 登入後執行 `cursor-agent --plugin-dir <agent-package> --plugin-dir <cursor-package>` | CLI 沒有 persistent install；更新 source package 或 local symlink 後重開 session | `cursor-agent --version`、`cursor-agent status` 與 read-only `--mode ask` probe | Experimental/conditional：CLI help 有此 flag，但官方 CLI 文件尚未建立 plugin component discovery；marketplace indexing 不是 non-interactive install command |
-| AGY native plugin | 產生 `plugins/dhpk-agy/`，再由 receipt-owned installer 安裝至 `~/.gemini/config/plugins/dhpk/` | `install-agy-plugin.js update`、`uninstall` 或 `rollback`；foreign files 保留，collision fail closed | AGY package validator、`agy plugins list`、`agy agents`，以及 optional bounded Subagent probe | Experimental：package/discovery 與 runtime 分開；缺少 `agy` 為 `UNAVAILABLE` |
+| AGY native plugin | 產生 `plugins/dhpk-agy/`，再由 receipt-owned installer 安裝至 `~/.gemini/config/plugins/dhpk/` | `install-agy-plugin.js update`、`uninstall` 或 `rollback`；foreign files 保留，collision fail closed | AGY package validator；`agy plugins list` 只列 import；隔離 HOME 的 `agy agents` 才是 native load；以及 optional bounded Subagent probe | Experimental：package/discovery 與 runtime 分開；缺少 `agy` 為 `UNAVAILABLE` |
 
 ## Prerequisites 與版本假設
 
@@ -35,7 +35,7 @@ projection 內容後，才能宣稱 client 可呼叫。
 | Cursor Plugin（native） | 支援 `.cursor-plugin/plugin.json` 的 Cursor plugin loader；記錄 Cursor version；shared portable skills 另安裝 standard `dhpk-agent` package；最低版本尚未建立 | Cursor 支援的 desktop OS；local path 為 `~/.cursor/plugins/local/` | Cursor reload/UI、local filesystem、無 secret 的 variable 設定；以 Agent provenance 比對 shared IDs | reload 後觀察每個 selected native component 與 hook 行為；只有明確 matrix overlay 才能有 Cursor `skills/` |
 | Cursor project-local sync | Cursor project-local loader；schema-v3 receipt；最低 Cursor version 尚未建立 | Linux、macOS 或 WSL POSIX shell，從 project root 執行 | `bash`、`git`；Node.js 僅供 validator 使用 | 執行 installer、檢查 `.cursor/.dhpk-installed.json`，並執行列出的 installer 測試；缺少 live Cursor client 不得視為 runtime `PASS` |
 | Cursor CLI launch-scoped probe | `cursor-agent` 在 `PATH`；記錄 `cursor-agent --version`；使用 `cursor-agent login` 驗證；最低版本尚未建立 | Linux、macOS 或 WSL POSIX shell | `cursor-agent`、`--plugin-dir`、Cursor account/API key；Node.js 僅供 package validation | Experimental/conditional：先執行 `cursor-agent status` 再做 read-only probe；未登入為 `BLOCKED`、缺 CLI 為 `UNAVAILABLE`，discovery 另行記錄 |
-| AGY native plugin | `agy` version 與 AGY model/tool enum 尚未鎖定；可用時記錄 `agy --version` | Linux、macOS 或 WSL POSIX shell；install root 為 user scope | Node.js、`git`、generated package，以及 optional `agy` CLI | 先做 structural validation；`agy plugins list`／`agy agents` 是 discovery evidence；除非明確使用 `--agy-runtime-probe`，runtime 保持 `NOT_RUN` |
+| AGY native plugin | `agy` version 與 AGY model/tool enum 尚未鎖定；可用時記錄 `agy --version` | Linux、macOS 或 WSL POSIX shell；install root 為 user scope | Node.js、`git`、generated package，以及 optional `agy` CLI | 先做 structural validation；`agy plugins list` 只列 import，隔離 HOME 的 `agy agents` 才是 native load；除非明確使用 `--agy-runtime-probe`，runtime 保持 `NOT_RUN` |
 
 ## Status vocabulary
 
@@ -100,7 +100,8 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --uninstall
 `--force` 只繞過 project-root heuristic，不繞過 ownership 或 filesystem
 safety。schema-v3 receipt 記錄 stable ID、public name、destination、source、
 mode 與 fingerprint。edited、user-owned、retargeted、malformed、ambiguous
-或 collision 檔案必須保留並回報。
+或 collision 檔案必須保留並回報。未帶 `--adopt` 的 `--update` 在仍有
+collision 時以非零狀態結束，避免把 partial receipt 誤認為 current。
 
 若 projection stale 或有 unowned collision，先執行唯讀 plan：
 
@@ -233,9 +234,14 @@ cursor-agent \
   --plugin-dir "$HOME/.cursor/plugins/local/dhpk-agent" \
   --plugin-dir "$HOME/.cursor/plugins/local/dhpk-cursor" \
   --mode ask \
+  --trust \
   -p 'List the dhpk skills, commands, agents, and rules you discover. Do not edit files.' \
   --output-format json
 ```
+
+wrapper 也會傳 `--trust`，避免 launch-scoped probe 卡在互動式 workspace
+確認提示，並忽略 stdin，避免子行程繼承呼叫端 TTY。若要同等的不卡住證據，
+不要把等同的 `cursor-agent` argv 貼進互動式 shell。
 
 記錄 exact CLI version、authentication status、package paths 與 probe output。
 package validator 只證明 structure 與 provenance；runtime `PASS` 必須由 CLI
@@ -321,7 +327,8 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" --uninstall
 `--force` 只繞過 project-root heuristic，不會繞過 receipt ownership 或 path
 safety。schema-v3 receipt 記錄 stable ID、public name、destination、source、
 mode 與 fingerprint。已編輯、user-owned、retargeted、malformed、ambiguous 或
-colliding 的檔案會被保留並回報。
+colliding 的檔案會被保留並回報。未帶 `--adopt` 的 `--update` 在仍有
+collision 時以非零狀態結束，避免把 partial receipt 誤認為 current。
 
 對 stale 或 unowned projection，先檢查再變更：
 
@@ -369,7 +376,7 @@ AGY projection 是獨立的 owner-scoped package。它只轉換 canonical agent
 frontmatter，不會改寫 `agents/`。請從 dhpk checkout 產生與驗證：
 
 ```bash
-node scripts/ci/gen-agy-plugin-package.js plugins/dhpk-agy --version=0.40.0
+node scripts/ci/gen-agy-plugin-package.js plugins/dhpk-agy --version=0.41.0
 node scripts/ci/validate-agy-plugin-package.js plugins/dhpk-agy
 ```
 
@@ -409,6 +416,11 @@ agy --version
 agy plugins list
 agy agents
 ```
+
+`agy plugins list` 只列出 import records。安裝在
+`~/.gemini/config/plugins/dhpk` 的 native receipt-owned package 是由
+隔離 HOME 的 `agy agents` 發現，不能用 import JSON 裡出現 `dhpk` 當證明。
+validator 會把 package bind 到 sandbox 內的這個 consumer path。
 
 報告分開記錄 package structure、plugin/agent discovery 與 Subagent runtime。
 若 `agy` 不在 `PATH`，discovery 是 `UNAVAILABLE`；未使用
