@@ -16,15 +16,16 @@ const CLI = path.join(ROOT, 'scripts', 'ci', 'verify-release-parity.js');
 
 function mkRepo(version) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-verify-parity-'));
-  for (const rel of ['.claude-plugin', '.codex-plugin', 'plugins/dhpk/.codex-plugin', 'plugins/dhpk-agent', 'plugins/dhpk-cursor/.cursor-plugin', '.agents/plugins']) {
+  for (const rel of ['.claude-plugin', '.codex-plugin', 'plugins/dhpk/.codex-plugin', 'plugins/dhpk-agent', 'plugins/dhpk-agy', 'plugins/dhpk-cursor/.cursor-plugin', '.agents/plugins']) {
     fs.mkdirSync(path.join(root, rel), { recursive: true });
   }
-  for (const rel of ['.claude-plugin/plugin.json', '.codex-plugin/plugin.json', 'plugins/dhpk/.codex-plugin/plugin.json', 'plugins/dhpk-agent/plugin.json', 'plugins/dhpk-cursor/.cursor-plugin/plugin.json']) {
+  for (const rel of ['.claude-plugin/plugin.json', '.codex-plugin/plugin.json', 'plugins/dhpk/.codex-plugin/plugin.json', 'plugins/dhpk-agent/plugin.json', 'plugins/dhpk-agy/plugin.json', 'plugins/dhpk-cursor/.cursor-plugin/plugin.json']) {
     fs.writeFileSync(path.join(root, rel), JSON.stringify({ name: 'dhpk', version }));
   }
   fs.writeFileSync(path.join(root, '.agents/plugins/marketplace.json'), JSON.stringify({ plugins: [{ name: 'dhpk', version }] }));
   fs.writeFileSync(path.join(root, 'plugins/dhpk/provenance.json'), JSON.stringify({ sourceVersion: version }));
   fs.writeFileSync(path.join(root, 'plugins/dhpk-agent/provenance.json'), JSON.stringify({ sourceVersion: version }));
+  fs.writeFileSync(path.join(root, 'plugins/dhpk-agy/provenance.json'), JSON.stringify({ sourceVersion: version }));
   fs.writeFileSync(path.join(root, 'plugins/dhpk-cursor/provenance.json'), JSON.stringify({ sourceVersion: version }));
   fs.writeFileSync(path.join(root, 'CHANGELOG.md'), `# Changelog\n\n## [Unreleased]\n\n## ${version} — 2026-07-27 — Summary\n\nNotes.\n`);
   return root;
@@ -42,6 +43,14 @@ test('fails and lists every mismatched surface when a manifest drifts from the t
   const res = spawnSync('node', [CLI, '--repo-root', repo, '--version', '1.2.3'], { encoding: 'utf8' });
   assert.notStrictEqual(res.status, 0);
   assert.match(res.stderr, /\.codex-plugin\/plugin\.json/);
+});
+
+test('fails and lists the AGY package when its provenance drifts from the tag', () => {
+  const repo = mkRepo('1.2.3');
+  fs.writeFileSync(path.join(repo, 'plugins/dhpk-agy/provenance.json'), JSON.stringify({ sourceVersion: '1.2.2' }));
+  const res = spawnSync('node', [CLI, '--repo-root', repo, '--version', '1.2.3'], { encoding: 'utf8' });
+  assert.notStrictEqual(res.status, 0);
+  assert.match(res.stderr, /plugins\/dhpk-agy\/provenance\.json/);
 });
 
 run('verify-release-parity-cli');
