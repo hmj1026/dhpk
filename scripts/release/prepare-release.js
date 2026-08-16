@@ -23,6 +23,7 @@ const { materializeAgentPluginPackage } = require('../lib/agent-plugin-package')
 const { validateAgentPluginPackage } = require('../lib/agent-plugin-package');
 const { materializeCursorPackage } = require('../lib/cursor-plugin-package');
 const { validateCursorPackage } = require('../lib/cursor-plugin-package');
+const { materializeAgyPluginPackage, validateAgyPluginPackage } = require('../lib/agy-plugin-package');
 const { validateSurfaceReceipt } = require('../lib/platform-provenance');
 
 // The codex-native package (plugins/dhpk/.codex-plugin/plugin.json +
@@ -37,6 +38,8 @@ const NATIVE_PACKAGE_PATHS = new Set([
   'plugins/dhpk-agent/provenance.json',
   'plugins/dhpk-cursor/.cursor-plugin/plugin.json',
   'plugins/dhpk-cursor/provenance.json',
+  'plugins/dhpk-agy/plugin.json',
+  'plugins/dhpk-agy/provenance.json',
 ]);
 
 const DEFAULT_ROOT = path.join(__dirname, '..', '..');
@@ -211,10 +214,31 @@ function main() {
   const stagedNative = path.join(stagingRoot, 'dhpk');
   const stagedAgent = path.join(stagingRoot, 'dhpk-agent');
   const stagedCursor = path.join(stagingRoot, 'dhpk-cursor');
+  const stagedAgy = path.join(stagingRoot, 'dhpk-agy');
   try {
     materializeNativePackage({ inventory, root: args.root, outDir: stagedNative, name: 'dhpk', version: args.version, sourceCommit });
     const stagedAgentResult = materializeAgentPluginPackage({ inventory, root: args.root, outDir: stagedAgent, name: 'dhpk', version: args.version, sourceCommit });
     const stagedCursorResult = materializeCursorPackage({ inventory, root: args.root, outDir: stagedCursor, version: args.version, sourceCommit });
+    let stagedAgyValidation = { errors: [] };
+    let agyReceipt = { errors: [] };
+    try {
+      materializeAgyPluginPackage({
+        inventory,
+        root: args.root,
+        outDir: stagedAgy,
+        version: args.version,
+        sourceVersion: args.version,
+        sourceCommit,
+      });
+      stagedAgyValidation = validateAgyPluginPackage(stagedAgy, {
+        inventory,
+        expectedVersion: args.version,
+      });
+      const agyProvenance = JSON.parse(fs.readFileSync(path.join(stagedAgy, 'provenance.json'), 'utf8'));
+      agyReceipt = validateSurfaceReceipt({ ...agyProvenance, schema: 'dhpk.platform-provenance.v1' }, 'agy-plugin');
+    } catch (error) {
+      stagedAgyValidation = { errors: [error.message] };
+    }
 
     const stagedAgentValidation = validateAgentPluginPackage(stagedAgent, {
       allowlist: inventory.portable_frontmatter && inventory.portable_frontmatter.allowlist,
@@ -225,8 +249,10 @@ function main() {
     const validationErrors = [
       ...stagedAgentValidation.errors,
       ...stagedCursorValidation.errors,
+      ...stagedAgyValidation.errors,
       ...agentReceipt.errors,
       ...cursorReceipt.errors,
+      ...agyReceipt.errors,
       ...(stagedAgentResult.skippedSkills.length > 0 ? [`Agent Plugin skipped selected skills: ${stagedAgentResult.skippedSkills.map((skill) => skill.id || skill.name).join(', ')}`] : []),
       ...(stagedCursorResult.skippedSkills.length > 0 ? [`Cursor Plugin skipped selected skills: ${stagedCursorResult.skippedSkills.map((skill) => skill.id || skill.name || skill.path).join(', ')}`] : []),
     ];
@@ -266,12 +292,14 @@ function main() {
       { target: path.join(args.root, 'plugins', 'dhpk'), source: stagedNative },
       { target: path.join(args.root, 'plugins', 'dhpk-agent'), source: stagedAgent },
       { target: path.join(args.root, 'plugins', 'dhpk-cursor'), source: stagedCursor },
+      { target: path.join(args.root, 'plugins', 'dhpk-agy'), source: stagedAgy },
       ...promoted.consumed.map((relative) => ({ target: path.join(fragmentDir, relative), source: null })),
     ];
     applyReleaseTransaction(replacements);
     changed.push('plugins/dhpk/ (regenerated codex-native package: manifest, skills/, fingerprints.json, provenance.json)');
     changed.push('plugins/dhpk-agent/ (regenerated standard Agent Plugin package)');
     changed.push('plugins/dhpk-cursor/ (regenerated Cursor Plugin package)');
+    changed.push('plugins/dhpk-agy/ (regenerated native AGY package)');
 
     console.log(`prepare-release: write PASS (target ${args.version}); changed files:`);
     for (const f of changed) console.log(`  - ${f}`);
