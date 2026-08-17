@@ -114,8 +114,8 @@ node scripts/ci/gen-claude-manifest.js
 node scripts/ci/gen-distribution-inventory.js
 ```
 
-The current commands report one registered Claude directory root, 103
-inventory-eligible Claude skill IDs, 103 canonical skills, and 15 Codex-sync
+The current commands report one registered Claude directory root, 102
+inventory-eligible Claude skill IDs, 102 canonical skills, and 15 Codex-sync
 skills. These are independently derived scopes; a canonical total is not a
 default-install or runtime count.
 
@@ -190,6 +190,25 @@ set only; it cannot and does not assert per-skill hiding.
    review of that later change, not by this repository's CI; the recorded
    `compatibilityWindowEnds` date is the human-readable gate a reviewer checks
    before approving that deletion.
+
+### Never-activated exemption
+
+A package that was never activated on any published surface skips both stages
+and may be removed in a single reviewed change. A package qualifies only when
+all three hold:
+
+- the shipped hook manifest (`hooks/hooks.json`) declares no runtime
+  registration for it,
+- it ships disabled by default, and
+- activation requires a documented manual consumer step.
+
+The exempting change must record two evidence artifacts: a passing repository
+reference scan, and a migration note naming any local consumer data the
+deletion orphans. A package that the hook manifest registers, or that ships
+enabled, does not qualify — the two-stage process above applies.
+
+Like the compatibility window, this is a human review gate; no CI check
+evaluates the three preconditions.
 
 ## Codex native plugin package (GitHub issue #88)
 

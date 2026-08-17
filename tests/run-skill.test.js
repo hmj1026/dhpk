@@ -53,7 +53,7 @@ test('unknown skill/script combination reports script not found (exit 2)', () =>
 });
 
 test('unsupported script extension on an existing file is rejected as unsupported type', () => {
-  const res = runScript(['continuous-learning-v2', '__pycache__/instinct-cli.cpython-314.pyc']);
+  const res = runScript(['dhpk-skill-health-audit', '__pycache__/health-cli.cpython-314.pyc']);
   // Path contains a `/`, so the path-component guard fires first (exit 2) —
   // this still exercises the same "reject non .js/.py/.sh" outcome end-to-end.
   assert.strictEqual(res.status, 2);

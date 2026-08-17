@@ -14,7 +14,7 @@ Current Codex/Cursor installation routes and rollback boundaries live in the
 
 | Concern | Current implementation |
 |---|---|
-| Canonical source | 103 flat packages at `skills/dhpk-<name>/` |
+| Canonical source | 102 flat packages at `skills/dhpk-<name>/` |
 | Public identity | Every dhpk skill name begins with `dhpk-` |
 | Inventory SSOT | `manifests/distribution-inventory.json` schema v2 |
 | Module projection | 37 relative symlinks under `modules/*/skills/` |
@@ -22,7 +22,6 @@ Current Codex/Cursor installation routes and rollback boundaries live in the
 | Codex native package | 15 physical packages under `plugins/dhpk/skills/`; zero symlinks |
 | Codex project receipt | `.codex/.dhpk-installed.json` schema v3 |
 | Default hooks | `PreToolUse`, `PostToolUse`, `SessionStart`, `SubagentStop` |
-| Learning | `dhpk-continuous-learning-v2` is opt-in |
 
 Directory placement and README lists are not authoritative. The inventory
 owns stable ids, public names, lifecycle, modules, and publication surfaces;
@@ -67,9 +66,9 @@ The default hook surface now has five focused responsibilities:
 4. Validate and activate configured modules at session start.
 5. Reconcile reviewer evidence at subagent stop.
 
-Formatting, lint, Docker probes, prompt hints, session snapshots, continuous
-learning, and other advisory work are explicit consumer extensions rather than
-default hooks. See [Hook extension model](./hook-extension.md).
+Formatting, lint, Docker probes, prompt hints, session snapshots, and other
+advisory work are explicit consumer extensions rather than default hooks.
+See [Hook extension model](./hook-extension.md).
 
 Commands remain namespaced `/dhpk:<name>`. Overlapping workflows use four
 primary entry points:
@@ -133,7 +132,7 @@ node tests/documentation-platform-parity.test.js
 node tests/run-all.js
 ```
 
-Expected topology is 103 canonical skills, 31 modules, 15 Codex project/native
+Expected topology is 102 canonical skills, 31 modules, 15 Codex project/native
 skills, relative symlinks only in module/Codex projections, and no symlinks in
 the native package.
 

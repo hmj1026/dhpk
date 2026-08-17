@@ -3,7 +3,7 @@
     "validatorStatus": 0,
     "structural": "PASS",
     "provenance": "PASS",
-    "validSkillCount": 66
+    "validSkillCount": 65
   },
   "cursorPlugin": {
     "validatorStatus": 0,
@@ -13,7 +13,7 @@
   },
   "distribution": {
     "validatorStatus": 0,
-    "stdout": "PASS [distribution]: 103 skills, 31 modules reconciled"
+    "stdout": "PASS [distribution]: 102 skills, 31 modules reconciled"
   },
   "codexSync": {
     "symlinkBehavior": "characterize-before-changing-legacy-absolute-targets"

@@ -82,7 +82,7 @@ fingerprint 時，才允許 Cursor-specific copy。如此 shared portable skills
 ## 目前 Claude publication
 
 `scripts/ci/gen-claude-manifest.js` 從 inventory 產生 `.claude-plugin/plugin.json` 的
-skill root。現在是一個 registered directory root，下面有 103 個 inventory-eligible skill ID。
+skill root。現在是一個 registered directory root，下面有 102 個 inventory-eligible skill ID。
 所有 package 都扁平位於 `skills/dhpk-<name>/`；module `skills/` 只是相對 symlink
 projection。
 
@@ -99,6 +99,21 @@ Claude manifest 註冊的是 skill **directory root**，不是逐 skill allowlis
 `compatibilityWindowEnds` 與 `migrationNote`。Canonical package 在相容期間保留。
 第二階段只有在 window 結束且 reference scan 確認無使用者後，才能由後續受審查
 變更刪除 source。Validator 不會自動依日期刪除任何內容。
+
+### Never-activated 豁免
+
+從未在任何 published surface 啟用過的 package 可以跳過上述兩階段，於單一受審查
+變更中直接移除。必須同時滿足三個條件：
+
+- 出貨的 hook manifest（`hooks/hooks.json`）沒有為它註冊任何 runtime hook，
+- 預設為關閉出貨，且
+- 啟用需要有文件記載的手動 consumer 步驟。
+
+申請豁免的變更必須記錄兩項證據：通過的 repository reference scan，以及說明本次
+刪除會遺留哪些本機使用者資料的 migration note。若 hook manifest 有註冊該 package，
+或它預設為啟用，則不符合豁免資格，仍適用上述兩階段流程。
+
+與相容期一樣，這是人工審查閘門；CI 不會驗證這三個前置條件。
 
 ## Codex project sync
 

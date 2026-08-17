@@ -19,20 +19,30 @@ const ROOT = path.join(__dirname, '..');
 // claim files, hooks/hooks.json (hook-event count), and tests/ (script-coverage
 // check reads the real tests/ dir). catalog.js derives ROOT from __dirname, so
 // the copied script sees the temp tree as its repo.
+//
+// `docs` and `manifests` are load-bearing, not incidental: the skill-count claims live
+// in docs/ pages, and the publication-scoped claims are omitted entirely when
+// manifests/distribution-inventory.json is absent. Drop either and catalog.js silently
+// skips those claim files, the baseline below still passes, and the new specs go
+// unexercised — the exact gap that let a stale skills/INDEX.md count ship.
 function makeTempRepo() {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-catalog-'));
   for (const rel of ['scripts', 'agents', 'modules', 'skills', 'commands', 'rules',
-    'README.md', 'README.zh-TW.md', '.claude-plugin', 'hooks', 'tests']) {
+    'README.md', 'README.zh-TW.md', '.claude-plugin', 'hooks', 'tests', 'docs', 'manifests']) {
     const src = path.join(ROOT, rel);
     if (fs.existsSync(src)) fs.cpSync(src, path.join(tmp, rel), { recursive: true });
   }
   return tmp;
 }
 
-function runCheck(repo) {
-  const res = spawnSync('node', [path.join(repo, 'scripts', 'ci', 'catalog.js'), '--check'],
+function runCatalog(repo, flag) {
+  const res = spawnSync('node', [path.join(repo, 'scripts', 'ci', 'catalog.js'), flag],
     { encoding: 'utf8' });
   return { status: res.status, out: (res.stdout || '') + (res.stderr || '') };
+}
+
+function runCheck(repo) {
+  return runCatalog(repo, '--check');
 }
 
 const repo = makeTempRepo();
@@ -60,6 +70,18 @@ const DRIFTS = [
   { file: 'commands/do.md', find: /(?<=dhpk's )(\d+)(\s+commands)/, label: 'commands (do.md)' },
   { file: 'README.md', find: /(\d+)(\s+events)/, label: 'hook events (EN)' },
   { file: 'README.zh-TW.md', find: /(\d+)(\s*個事件)/, label: 'hook events (ZH)' },
+  // Canonical skill count. Every site is listed: retiring a skill touches all of them,
+  // and one stale site is precisely the drift that shipped before these specs existed.
+  { file: 'README.md', find: /(\d+)(\s+flat `dhpk-\*` packages)/, label: 'canonical skills (README EN)' },
+  { file: 'README.zh-TW.md', find: /(\d+)(\s*個扁平 `dhpk-\*` package)/, label: 'canonical skills (README ZH)' },
+  { file: 'skills/INDEX.md', find: /(\d+)(\s+canonical skill packages)/, label: 'canonical skills (skills/INDEX.md)' },
+  { file: 'docs/skill-platform-migration.md', find: /(\d+)(\s+flat packages at)/, label: 'canonical skills (migration EN)' },
+  { file: 'docs/skill-platform-migration.zh-TW.md', find: /(\d+)(\s*個扁平 package)/, label: 'canonical skills (migration ZH)' },
+  { file: 'docs/distribution-surfaces.md', find: /(\d+)(\s+canonical skills)/, label: 'canonical skills (surfaces EN)' },
+  // Publication-scoped count, separate from canonical. The EN phrasing spans a line
+  // break in the source, so `\s+` must match a newline on both the check and write paths.
+  { file: 'docs/distribution-surfaces.md', find: /(\d+)(\s+inventory-eligible Claude skill IDs)/, label: 'claude-published skills (EN)' },
+  { file: 'docs/distribution-surfaces.zh-TW.md', find: /(\d+)(\s*個 inventory-eligible skill ID)/, label: 'claude-published skills (ZH)' },
 ];
 
 for (const d of DRIFTS) {
@@ -79,6 +101,105 @@ for (const d of DRIFTS) {
     }
   });
 }
+
+// `--check` proves drift is detected; this proves `--write` repairs it byte-for-byte.
+// One English site, one Traditional-Chinese site, and the newline-spanning EN publication
+// claim — the three shapes where a wrong capture group would survive a check-only test.
+const ROUND_TRIPS = [
+  { file: 'skills/INDEX.md', find: /(\d+)(\s+canonical skill packages)/, label: 'canonical skills (EN)' },
+  { file: 'docs/skill-platform-migration.zh-TW.md', find: /(\d+)(\s*個扁平 package)/, label: 'canonical skills (ZH)' },
+  { file: 'docs/distribution-surfaces.md', find: /(\d+)(\s+inventory-eligible Claude skill IDs)/, label: 'claude-published skills (EN, spans a newline)' },
+];
+
+for (const r of ROUND_TRIPS) {
+  test(`--write repairs a drifted "${r.label}" claim in place`, () => {
+    const fp = path.join(repo, r.file);
+    const original = fs.readFileSync(fp, 'utf8');
+    const m = original.match(r.find);
+    assert.ok(m, `expected to find the "${r.label}" claim phrasing in ${r.file}`);
+    try {
+      fs.writeFileSync(fp, original.replace(r.find, `${Number(m[1]) + 7}$2`));
+      assert.strictEqual(runCheck(repo).status, 1, '--check must fail before the repair');
+
+      const written = runCatalog(repo, '--write');
+      assert.strictEqual(written.status, 0, `--write should succeed, got:\n${written.out}`);
+
+      assert.strictEqual(
+        fs.readFileSync(fp, 'utf8'), original,
+        `--write must restore ${r.file} byte-for-byte, preserving surrounding whitespace`
+      );
+      assert.strictEqual(runCheck(repo).status, 0, '--check must pass after the repair');
+    } finally {
+      fs.writeFileSync(fp, original);
+    }
+  });
+}
+
+// The canonical-skill claims expect skillsBase, not skillsTotal. In the real repo
+// skillsModule is 0, so both values are 102 and every other case here passes under
+// either choice. Planting a real module-owned SKILL.md makes them differ (base 102,
+// total 103) and is the only thing that can tell the two apart.
+test('canonical skill claims track skillsBase, so a module-owned skill does not inflate them', () => {
+  // Plant inside an EXISTING module: a new modules/<name>/ directory would also bump the
+  // module count and trip the "opt-in stack modules" claim, masking what this asserts.
+  const host = fs.readdirSync(path.join(repo, 'modules'), { withFileTypes: true })
+    .find((e) => e.isDirectory());
+  assert.ok(host, 'expected at least one module directory to host the planted skill');
+  const planted = path.join(repo, 'modules', host.name, 'skills', 'dhpk-probe');
+  try {
+    fs.mkdirSync(planted, { recursive: true });
+    fs.writeFileSync(path.join(planted, 'SKILL.md'),
+      '---\nname: dhpk-probe\ndescription: planted module-owned skill\n---\n\n# probe\n');
+
+    const table = spawnSync('node', [path.join(repo, 'scripts', 'ci', 'catalog.js')], { encoding: 'utf8' });
+    assert.strictEqual(table.status, 0, table.stderr);
+    const m = table.stdout.match(/skills:\s+(\d+)\s+\(base (\d+) \+ module (\d+)\)/);
+    assert.ok(m, `expected the printed table to split base/module skills, got:\n${table.stdout}`);
+    assert.strictEqual(Number(m[3]), 1, 'the planted module skill must be counted as a module skill');
+    assert.notStrictEqual(Number(m[1]), Number(m[2]), 'total and base must differ for this test to discriminate');
+
+    const { status, out } = runCheck(repo);
+    assert.strictEqual(status, 0,
+      `canonical claims must still match skillsBase (${m[2]}) with a module skill present; got:\n${out}`);
+  } finally {
+    fs.rmSync(planted, { recursive: true, force: true });
+  }
+});
+
+// The canonical and Claude-published counts are separate labelled claims. They are equal
+// at 102 in the real repo, so only a deprecated entry can prove they are evaluated
+// independently rather than reconciled against one value.
+test('canonical and Claude-published claims are evaluated against their own counts when they diverge', () => {
+  const invPath = path.join(repo, 'manifests', 'distribution-inventory.json');
+  const surfaces = path.join(repo, 'docs', 'distribution-surfaces.md');
+  const surfacesZh = path.join(repo, 'docs', 'distribution-surfaces.zh-TW.md');
+  const originals = [invPath, surfaces, surfacesZh].map((f) => [f, fs.readFileSync(f, 'utf8')]);
+  try {
+    const inv = JSON.parse(originals[0][1]);
+    const victim = inv.skills.find((s) => s.lifecycle === 'promoted');
+    assert.ok(victim, 'expected at least one promoted skill to deprecate');
+    victim.lifecycle = 'deprecated';
+    victim.deprecation = {
+      since: '2026-08-17',
+      compatibilityWindowEnds: '2026-11-17',
+      migrationNote: 'planted by catalog-claims test',
+    };
+    fs.writeFileSync(invPath, `${JSON.stringify(inv, null, 2)}\n`);
+
+    // Canonical is unchanged by a lifecycle move; only the published count drops.
+    const before = JSON.parse(originals[0][1]).skills.length;
+    fs.writeFileSync(surfaces, originals[1][1]
+      .replace(/(\d+)(\s+inventory-eligible Claude skill IDs)/, `${before - 1}$2`));
+    fs.writeFileSync(surfacesZh, originals[2][1]
+      .replace(/(\d+)(\s*個 inventory-eligible skill ID)/, `${before - 1}$2`));
+
+    const { status, out } = runCheck(repo);
+    assert.strictEqual(status, 0,
+      `canonical claims (${before}) and published claims (${before - 1}) must each check against their own count; got:\n${out}`);
+  } finally {
+    for (const [f, text] of originals) fs.writeFileSync(f, text);
+  }
+});
 
 test('hookEvents equals the distinct top-level event-key count of hooks/hooks.json', () => {
   const hooksJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'hooks', 'hooks.json'), 'utf8'));

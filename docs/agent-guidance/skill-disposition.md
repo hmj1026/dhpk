@@ -1,6 +1,8 @@
 # Canonical skill disposition
 
-Apply evidence for `rewrite-canonical-skills-for-agents`. Source pin: local `/home/paul/projects/matt-pocock_skills/package.json` version `1.2.3` (checked 2026-08-17). Canonical count: 103 `skills/*/SKILL.md` packages. Generated projections are not disposition rows.
+Apply evidence for `rewrite-canonical-skills-for-agents`. Source pin: local `/home/paul/projects/matt-pocock_skills/package.json` version `1.2.3` (checked 2026-08-17). Canonical count: 102 `skills/*/SKILL.md` packages. Generated projections are not disposition rows.
+
+The pass originally covered 103 packages. `dhpk-continuous-learning-v2` was retired by `retire-continuous-learning-v2` before this evidence shipped, so its row is removed rather than carried as a stale `Keep`.
 
 | Path | Family | Invocation class | Disposition | SSOT / reason |
 | --- | --- | --- | --- | --- |
@@ -17,7 +19,6 @@ Apply evidence for `rewrite-canonical-skills-for-agents`. Source pin: local `/ho
 | `skills/dhpk-codex-bridge/SKILL.md` | Other promoted | implicit-eligible | Keep | Owns its public workflow or domain-specific guidance; no duplicate SSOT identified in this pass. |
 | `skills/dhpk-codex-implement/SKILL.md` | Other promoted | implicit-eligible | Keep | Owns its public workflow or domain-specific guidance; no duplicate SSOT identified in this pass. |
 | `skills/dhpk-composer-package-hygiene/SKILL.md` | Other promoted | implicit-eligible | Keep | Owns its public workflow or domain-specific guidance; no duplicate SSOT identified in this pass. |
-| `skills/dhpk-continuous-learning-v2/SKILL.md` | Other promoted | explicit-only | Keep | Owns its public workflow or domain-specific guidance; no duplicate SSOT identified in this pass. |
 | `skills/dhpk-create-request/SKILL.md` | Other promoted | implicit-eligible | Keep | Vertical tracer-bullet request workflow; owns ticket granularity and blocking edges. |
 | `skills/dhpk-create-skill/SKILL.md` | Skill authoring | explicit-only | Merge-pointer | `docs/agent-guidance/writing-for-agents.md` and external 1.2.x source own universal writing levers; this file keeps dhpk packaging. |
 | `skills/dhpk-cross-agent-sync/SKILL.md` | Harness | explicit-only | Merge-pointer | `skills/dhpk-harness-revise/references/harness-directory-contract.md` owns active harness resolution; this file keeps cross-platform sync. |
