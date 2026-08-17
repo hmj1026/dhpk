@@ -12,7 +12,7 @@ metadata:
 `--route-only` performs the same classification and reports the selected
 workflow without invoking it. It replaces the legacy `/dhpk:create-dev` entry.
 
-One entry point for dhpk's 44 commands. Route a natural-language task to the
+One entry point for dhpk's 39 commands. Route a natural-language task to the
 right workflow: the route table is the fast path, and a miss uses cheap repo
 signals before classification.
 

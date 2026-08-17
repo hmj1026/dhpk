@@ -43,13 +43,13 @@ function projectionTarget(linkPath) {
   return fs.readlinkSync(linkPath);
 }
 
-test('real tree has 103 flat canonical packages with inventory identities and metadata tokens', () => {
+test('real tree has 102 flat canonical packages with inventory identities and metadata tokens', () => {
   assert.strictEqual(INVENTORY.schema, 'dhpk.distribution-inventory.v2');
-  assert.strictEqual(INVENTORY.skills.length, 103);
+  assert.strictEqual(INVENTORY.skills.length, 102);
   assert.deepStrictEqual(validateDistributionInventoryV2({ inventory: INVENTORY }).errors, []);
 
   const dirs = flatCanonicalDirs();
-  assert.strictEqual(dirs.length, 103);
+  assert.strictEqual(dirs.length, 102);
   assert.strictEqual(fs.readdirSync(path.join(ROOT, 'skills')).filter((name) => {
     const candidate = path.join(ROOT, 'skills', name);
     return fs.statSync(candidate).isDirectory() && !fs.existsSync(path.join(candidate, 'SKILL.md'));

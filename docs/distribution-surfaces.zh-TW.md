@@ -82,7 +82,7 @@ fingerprint 時，才允許 Cursor-specific copy。如此 shared portable skills
 ## 目前 Claude publication
 
 `scripts/ci/gen-claude-manifest.js` 從 inventory 產生 `.claude-plugin/plugin.json` 的
-skill root。現在是一個 registered directory root，下面有 103 個 inventory-eligible skill ID。
+skill root。現在是一個 registered directory root，下面有 102 個 inventory-eligible skill ID。
 所有 package 都扁平位於 `skills/dhpk-<name>/`；module `skills/` 只是相對 symlink
 projection。
 

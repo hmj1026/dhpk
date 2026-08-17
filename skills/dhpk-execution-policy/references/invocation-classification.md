@@ -21,15 +21,14 @@ Class reflects maximum authority and does not change with flags — a
 lower-authority mode (e.g. a read-only default) does not make a high-authority
 entry (one whose flag enables broad mutation) implicit-eligible.
 
-## Root skills (`skills/*/SKILL.md`) — 68 entries
+## Root skills (`skills/*/SKILL.md`) — 67 entries
 
-### explicit-only (14)
+### explicit-only (13)
 
 | Skill | Rationale |
 |---|---|
 | `dhpk-agy-commit` | Delegates actual `git commit` execution via agy-cli. |
 | `dhpk-claude-health` | Includes plugin version sync / installed-asset sync — installation-adjacent. |
-| `dhpk-continuous-learning-v2` | Evolves instincts into new skills/commands/agents — creates new distributed entries. |
 | `dhpk-create-skill` | Creates new distributed skill packages. |
 | `dhpk-git-smart-commit` | Groups and executes `git commit` across the working tree. |
 | `dhpk-harness-fill` | Already explicit-only. One-shot bulk `.claude/` infrastructure generation (batch governance). |
@@ -78,13 +77,13 @@ release, or write externally. This includes `dhpk-matrix-cell-onboard` (a guided
 checklist for CI-matrix cells — no elevated tools, editing stays within the
 already-authorized library-authoring request).
 
-## Commands (`commands/*.md`) — 44 entries
+## Commands (`commands/*.md`) — 39 entries
 
 Only `matrix-cell-onboard.md` names a canonical skill 1:1 (paired; inherits
-`implicit-eligible` from its skill). The remaining 43 are unpaired and own
+`implicit-eligible` from its skill). The remaining 38 are unpaired and own
 their class directly.
 
-### explicit-only (23)
+### explicit-only (20)
 
 | Command | Rationale |
 |---|---|
@@ -92,41 +91,29 @@ their class directly.
 | `create-release` | Cuts a release. |
 | `check-coverage`, `codex-review-branch`, `codex-review-doc`, `codex-review-fast`, `codex-security`, `codex-test-gen`, `codex-test-review`, `create-dev`, `precommit-fast`, `review-spec` | Compatibility aliases retain their explicit-only metadata; do not infer a lower class from their forwarding target. |
 | `do` | Top-level Smart Router; can reach any downstream workflow including explicit-only ones — kept explicit-only itself per the "broad orchestration" category. |
-| `evolve` | Already explicit-only. Generates evolved skill/command/agent structures. |
 | `harness-govern` | Read-only by default, but `--fix` mutates the harness in bulk; class reflects maximum authority, not the default mode. |
 | `install-hooks` | Installation. |
 | `install-rules` | Installation (writes into a consumer project's `.claude/rules/`). |
 | `install-scripts` | Installation. |
-| `instinct-import` | Already explicit-only. Ingests instinct data from a file **or URL** into persistent behavioral config — untrusted external input shaping future agent behavior. |
 | `opsx-apply-resume` | Already explicit-only. Resumes/continues an unattended OpenSpec-apply session. |
-| `promote` | Already explicit-only. Promotes an instinct into a new skill/command/agent — creates a new distributed entry. |
 | `setup` | Already explicit-only. Interactive plugin (re)configuration. |
 | `smart-commit` | Executes `git commit` in batches. |
 
-### implicit-eligible (21, incl. `dhpk-matrix-cell-onboard` inherited)
+### implicit-eligible (19, incl. `dhpk-matrix-cell-onboard` inherited)
 
 `check-skill`, `codex-review`, `deep-analyze`, `dep-audit`, `doc-refactor`,
-`git-worktree`, `harness-audit`, `instinct-export`, `instinct-status`,
+`git-worktree`, `harness-audit`,
 `dhpk-matrix-cell-onboard`, `merge-prep`, `pr-summary`, `precommit`,
 `project-brief`, `review-pending`, `simplify`, `spec-mine`, `ui-ux-verify`,
 `update-codemaps`, `update-docs`, `verify`.
 
-### Reclassified from a pre-existing restriction (reviewed, not inherited)
-
-Per the design decision that existing flags are never adopted as canonical
-without review: `instinct-export` and `instinct-status` currently carry
-`disable-model-invocation: true` but have no write authority beyond reading
-and exporting the user's own already-local instinct data — reclassified
-`implicit-eligible`. `instinct-import` keeps its explicit-only restriction
-(see rationale above): the group's existing flags were not uniformly correct.
-
 ## Before/after: newly restricted entries (task 4.4)
 
-These 17 entries had no Claude/Codex invocation restriction before this
+These 16 entries had no Claude/Codex invocation restriction before this
 change and are becoming `explicit-only`. Their explicit invocation name is
 unchanged; only automatic model selection is disabled.
 
-Skills: `dhpk-agy-commit`, `dhpk-claude-health`, `dhpk-continuous-learning-v2`,
+Skills: `dhpk-agy-commit`, `dhpk-claude-health`,
 `dhpk-create-skill`, `dhpk-git-smart-commit`, `dhpk-harness-revise`, `dhpk-cross-agent-sync`,
 `dhpk-onepassword-session`, `dhpk-opsx-apply-goal`, `dhpk-project-setup`, `dhpk-release-creator`,
 `dhpk-rules-distill`.
@@ -134,19 +121,13 @@ Skills: `dhpk-agy-commit`, `dhpk-claude-health`, `dhpk-continuous-learning-v2`,
 Commands: `create-pr`, `create-release`, `do`, `harness-govern`,
 `smart-commit`.
 
-## Before/after: newly eligible entries
-
-`instinct-export` and `instinct-status` had `disable-model-invocation: true`
-before this change and are becoming `implicit-eligible` (see rationale
-above).
-
 ## Description migration (tasks 4.1-4.3)
 
-All 14 explicit-only skills carried a stale `Use when:` trigger phrase left
+All 13 explicit-only skills carried a stale `Use when:` trigger phrase left
 over from before this change (dead routing bait once
 `disable-model-invocation: true` is set) — each was rewritten to a concise
 effect-oriented lead sentence while keeping its `Not for:` / `Output:`
-content unchanged: `dhpk-agy-commit`, `dhpk-claude-health`, `dhpk-continuous-learning-v2`,
+content unchanged: `dhpk-agy-commit`, `dhpk-claude-health`,
 `dhpk-create-skill`, `dhpk-git-smart-commit`, `dhpk-harness-fill`, `dhpk-harness-revise`,
 `dhpk-cross-agent-sync`, `dhpk-onepassword-session`, `dhpk-opsx-apply-goal`, `dhpk-project-setup`,
 `dhpk-release-creator`, `dhpk-repo-intake`, `dhpk-rules-distill`. Two implicit-eligible

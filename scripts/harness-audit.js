@@ -356,16 +356,6 @@ function getRepoChecks(rootDir) {
       fix: 'Implement scripts/hooks/session-start.js and scripts/hooks/session-end.js.',
     },
     {
-      id: 'memory-learning-skill',
-      category: 'Memory Persistence',
-      points: 2,
-      scopes: ['repo', 'skills'],
-      path: 'skills/dhpk-continuous-learning-v2/SKILL.md',
-      description: 'Continuous learning v2 skill exists',
-      pass: fileExists(rootDir, 'skills/dhpk-continuous-learning-v2/SKILL.md'),
-      fix: 'Add skills/dhpk-continuous-learning-v2/SKILL.md for memory evolution flow.',
-    },
-    {
       id: 'eval-skill',
       category: 'Eval Coverage',
       points: 4,

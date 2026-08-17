@@ -107,7 +107,6 @@ description: 'Navigation index for dhpk plugin skills. Internal documentation; n
 | [dhpk-claude-health](dhpk-claude-health/SKILL.md) | `.claude/` config health check + plugin-version sync |
 | [dhpk-cross-agent-sync](dhpk-cross-agent-sync/SKILL.md) | Sync Claude-first config to Codex / Gemini / `.agent` |
 | [dhpk-rules-distill](dhpk-rules-distill/SKILL.md) | Extract cross-cutting principles from skills into rules |
-| [dhpk-continuous-learning-v2](dhpk-continuous-learning-v2/SKILL.md) | Instinct-based session learning → skills / commands / agents |
 
 ## Skill authoring & audit
 

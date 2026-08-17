@@ -1375,24 +1375,6 @@
       ]
     },
     {
-      "id": "continuous-learning-v2",
-      "name": "dhpk-continuous-learning-v2",
-      "path": "skills/dhpk-continuous-learning-v2",
-      "capability_id": "dhpk.skill.continuous-learning-v2",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "continuous-learning-v2"
-      ]
-    },
-    {
       "id": "create-request",
       "name": "dhpk-create-request",
       "path": "skills/dhpk-create-request",
@@ -2592,7 +2574,6 @@
       "codex-code-review",
       "codex-implement",
       "composer-package-hygiene",
-      "continuous-learning-v2",
       "create-request",
       "create-skill",
       "de-ai-flavor",
@@ -2660,7 +2641,6 @@
       "codex-code-review",
       "codex-implement",
       "composer-package-hygiene",
-      "continuous-learning-v2",
       "create-request",
       "create-skill",
       "de-ai-flavor",
@@ -2728,7 +2708,6 @@
       "codex-code-review",
       "codex-implement",
       "composer-package-hygiene",
-      "continuous-learning-v2",
       "create-request",
       "create-skill",
       "de-ai-flavor",
@@ -2796,7 +2775,6 @@
       "codex-code-review",
       "codex-implement",
       "composer-package-hygiene",
-      "continuous-learning-v2",
       "create-request",
       "create-skill",
       "de-ai-flavor",

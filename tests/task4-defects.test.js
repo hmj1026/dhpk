@@ -221,42 +221,6 @@ test('codex CLI review passes hostile values as literal arguments without eval',
   }
 });
 
-test('continuous learning ships disabled but keeps an explicit enable path', () => {
-  const config = JSON.parse(fs.readFileSync(path.join(ROOT, 'skills', 'dhpk-continuous-learning-v2', 'config.json'), 'utf8'));
-  assert.strictEqual(config.observer.enabled, false);
-  const skill = fs.readFileSync(path.join(ROOT, 'skills', 'dhpk-continuous-learning-v2', 'SKILL.md'), 'utf8');
-  assert.match(skill, /observer\.enabled.*true|enable.*observer/i);
-  assert.match(skill, /config(?:uration)?[^.\n]*(?:alone|by itself)[^.\n]*(?:not|does not).*register|not.*register[^.\n]*observer/i);
-});
-
-test('continuous learning disabled config exits before project detection or writes', () => {
-  const repo = initRepo();
-  const fixture = tempDir('dhpk-task4-observer-disabled-');
-  const config = path.join(fixture, 'config.json');
-  const homunculus = path.join(fixture, 'homunculus');
-  writeFile(config, JSON.stringify({ observer: { enabled: false } }));
-  try {
-    const script = path.join(ROOT, 'skills', 'dhpk-continuous-learning-v2', 'hooks', 'observe.sh');
-    const res = spawnSync('bash', [script, 'post'], {
-      cwd: repo,
-      input: JSON.stringify({ cwd: repo, tool_name: 'Read', tool_input: { path: 'README.md' } }),
-      encoding: 'utf8',
-      env: {
-        ...process.env,
-        HOME: fixture,
-        CLV2_CONFIG: config,
-        CLV2_HOMUNCULUS_DIR: homunculus,
-        CLAUDE_CODE_ENTRYPOINT: 'cli',
-      },
-    });
-    assert.strictEqual(res.status, 0, res.stderr);
-    assert.ok(!fs.existsSync(homunculus), 'disabled observer created storage or ran project detection');
-  } finally {
-    fs.rmSync(repo, { recursive: true, force: true });
-    fs.rmSync(fixture, { recursive: true, force: true });
-  }
-});
-
 test('opsx context guidance resolves the extractor from a plugin root or reports unresolved', () => {
   const skill = fs.readFileSync(path.join(ROOT, 'skills', 'dhpk-opsx-load-context', 'SKILL.md'), 'utf8');
   assert.match(skill, /PLUGIN_ROOT|plugin root/i);
