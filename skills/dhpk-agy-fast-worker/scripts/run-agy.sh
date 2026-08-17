@@ -12,8 +12,8 @@
 # different field than the report schema's `status`). On failure prints the captured
 # stderr tail and exits non-zero — never fabricates.
 #
-# Non-interactive combination verified against the installed agy 1.1.8 binary
-# (`agy --help`, 2026-07-28):
+# Non-interactive combination verified against the installed agy 1.1.13 binary
+# (`agy --help`, re-checked 2026-08-17):
 #   - --dangerously-skip-permissions (auto-approves tool permission requests);
 #   - --mode accept-edits (autonomy boundary flag — this wrapper only ever dispatches
 #     write-enabled mechanical work, so `plan` mode is never selected here);
@@ -22,8 +22,8 @@
 #   - -p / --print with the prompt content;
 #   - --print-timeout bounds the wait (CLI default 5m0s);
 #   - plan-confirmation `Y` piped on stdin regardless — empirically NOT required by the
-#     installed 1.1.8 binary together with --dangerously-skip-permissions (re-verified
-#     2026-07-28: an accept-edits run with stdin redirected from /dev/null still edited
+#     installed 1.1.13 binary together with --dangerously-skip-permissions (re-verified
+#     2026-08-17: an accept-edits run with stdin redirected from /dev/null still edited
 #     the file). The prior version of this comment claimed a separate, unclearable
 #     confirmation gate; that claim was itself stale 1.1.2-era text carried forward
 #     without re-verification across the 1.1.2 -> 1.1.8 gap. Piping `Y` is kept anyway —
@@ -38,11 +38,11 @@
 # of what the report claims. Below the floor the wrapper degrades to the plain-text path
 # and says so on stderr; it never drops the flag silently.
 #
-# The installed binary's `--help` describes --json-schema as "(for stream-json, only
-# applicable to the final result)" — live-tested 2026-07-28 with --output-format json
-# (NOT stream-json) and it works: the JSON envelope gains a populated, schema-validated
-# `structured_output` field. Trust the installed binary's observed behavior over its own
-# --help text where they disagree, same as the --cwd case below.
+# Official Antigravity CLI headless documentation
+# (https://antigravity.google/docs/cli/headless/) documents `--json-schema` together
+# with `--output-format json` for structured output. The installed 1.1.13 `--help`
+# confirms both flags; its stream-json parenthetical describes an additional mode, not
+# a restriction on the documented JSON envelope used here.
 #
 # The wrapper does NOT pass --effort: the model string already encodes the reasoning tier
 # (e.g. "Gemini 3.6 Flash (High)" / "gemini-3.6-flash-high"), so a separate --effort flag
@@ -73,7 +73,7 @@ WRAP_TIMEOUT_SECS="${AGY_WRAP_TIMEOUT_SECS:-360}"
 # a future release would otherwise silently raise the floor too, and stop requesting
 # structured output on versions that support it.
 STRUCTURED_OUTPUT_FLOOR="${AGY_STRUCTURED_OUTPUT_FLOOR:-1.1.8}"
-VERIFIED_BASELINE="${AGY_VERIFIED_BASELINE:-1.1.8}"
+VERIFIED_BASELINE="${AGY_VERIFIED_BASELINE:-1.1.13}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPORT_SCHEMA="$SCRIPT_DIR/report-schema.json"
