@@ -47,6 +47,15 @@ Module hooks may still participate in the combined Bash dispatcher:
 non-zero exit status blocks that Bash call. They must self-skip outside their
 applicable project/file context.
 
+## Hook argument expansion
+
+When the Claude Code plugin runtime invokes a hook, `${CLAUDE_PLUGIN_ROOT}` tokens
+inside that hook entry's `args` are expanded to the installed plugin root before the
+subprocess starts. This is observed behavior, not a published or guaranteed
+contract; treat it as compatibility guidance and re-check it against the installed
+runtime before changing hook argument paths. The source mapping remains
+[`hooks/hooks.json`](../hooks/hooks.json).
+
 ## Copying assets to a consumer project
 
 `/dhpk:setup --install hooks|rules|scripts|all` invokes
