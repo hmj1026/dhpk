@@ -3,7 +3,7 @@
   "surface": "agent-plugin",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.41.2",
-  "sourceCommit": "4524bf2623ecb53032c01879c93ea6f24d3f0c1d",
+  "sourceCommit": "3a243d07c413407c07971ebce5132e76a3dc1e89",
   "inventoryDigest": "583e060e09bfb9fe9b70ab34b52d8f00248495df20c9feefdc203441a0bffdd0",
   "generatorVersion": "1.0.0",
   "schemaVersion": "1.0.0",
@@ -151,7 +151,7 @@
   "mcpServerNames": [],
   "fingerprints": {
     "dhpk-adaptive-dev-workflow": "5724b81bad9ab9743d27c33ad8d64a6fa1ce0abda3091b6abdf2d25067bf582d",
-    "dhpk-agent-architecture-audit": "a8c471bbd8d11240ae75e45bf69a21fbf23509904ea44fc1790c532836de1d1d",
+    "dhpk-agent-architecture-audit": "949cfb145a8e2aafaa0cdd8f3a117561bff4429699c769eb79d9326ddae57148",
     "dhpk-agy-commit": "37c6146d1d7abaff05a84c45376ff2dbc816c6867fe236cbc5b221c5b25ca0c5",
     "dhpk-agy-fast-worker": "dd722e126ef4b291b0fd5e59c113511fc893771bbad154c838a0726ecf85b2ff",
     "dhpk-bug-fix": "be19e55d0ea7433f6cf98840b73d4b1dc195a00a03d694e7ba252d47a84d5062",

@@ -8,6 +8,7 @@
 //   WARN: SKILL.md missing 'name'; description uses a literal block scalar (|);
 //         total line count exceeds 150. (FAIL under --strict.)
 //   FAIL: total line count exceeds 250 without a shrink-only exception.
+//   FAIL: canonical skill frontmatter contains a non-official top-level key.
 
 const fs = require('fs');
 const path = require('path');
@@ -21,6 +22,19 @@ const SIZE_CONFIG = path.join(__dirname, 'skill-size-allowlist.json');
 const sizeConfig = JSON.parse(fs.readFileSync(SIZE_CONFIG, 'utf8'));
 const sizeSeed = sizeConfig.seed || {};
 const sizeAllowed = new Set(sizeConfig.allowed || []);
+const OFFICIAL_FRONTMATTER_KEYS = new Set([
+  'name',
+  'description',
+  'license',
+  'compatibility',
+  'allowed-tools',
+  'argument-hint',
+  'disable-model-invocation',
+  'metadata',
+  'model',
+  'context',
+  'agent',
+]);
 
 const r = createReporter('skills');
 
@@ -67,6 +81,10 @@ function validateSkillMd(dir) {
   }
   const fm = extract(content);
   if (!fm.present) return; // SKILL.md without frontmatter is allowed
+  const unknownKeys = Object.keys(fm.values).filter((key) => !OFFICIAL_FRONTMATTER_KEYS.has(key));
+  if (unknownKeys.length > 0) {
+    r.err(`${relative} — unknown frontmatter key(s): ${unknownKeys.join(', ')}`);
+  }
   if (isEmpty(fm.values.name)) r.warn(`${rel(skillMd)} — frontmatter missing 'name'`);
   if (fm.descriptionIndicator && fm.descriptionIndicator.startsWith('|')) {
     r.warn(

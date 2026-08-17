@@ -4,7 +4,6 @@ description: 'Explore-driven meta-workflow SSOT: 5-phase parallel inventory → 
 argument-hint: '[--layers <list>] [--dry-run] [<extra task description>]'
 allowed-tools: 'Read, Grep, Glob, Bash, Agent'
 model: opus
-effort: high
 disable-model-invocation: true
 metadata:
   dhpk-invocation-class: explicit-only
