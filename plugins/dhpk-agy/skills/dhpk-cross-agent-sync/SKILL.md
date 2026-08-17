@@ -16,6 +16,8 @@ metadata:
 - 單一平台內的檔案編輯或格式調整。
 - 只修改一個 command/skill，而不是檢查跨平台對齊。
 - `.claude` 或 `CLAUDE.md` 不存在、不可讀，或結構不完整。
+- 只需檢查或修剪單一 harness（用 `dhpk-claude-health` 或
+  `dhpk-harness-revise`）。
 
 ## Operating Contract
 
@@ -35,6 +37,10 @@ metadata:
 ## Workflow
 
 ### Step 0: Resolve runtime and preflight
+
+Resolve each configured harness directory with
+`dhpk-harness-revise` before
+selecting source or target roots.
 
 先讀 `references/runtime-entrypoints.md`，依 harness 設定 `SYNC_CLI`；
 entrypoint script 是 `multi_ai_sync.py`。若 working directory 不是 repository

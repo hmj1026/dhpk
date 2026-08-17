@@ -31,6 +31,13 @@ const SECRET_PATTERNS = [
   /\b(?:api[_-]?key|access[_-]?token|secret|password)\s*[:=]\s*["']?(?!\$\{)[A-Za-z0-9._~+\/-]{16,}/i,
   /\b(?:https?|postgres(?:ql)?|mysql|mariadb|redis|mongodb(?:\+srv)?):\/\/[^\s/@:]+:[^\s/@]+@/i,
 ];
+const AGY_SKILL_REFERENCE_REWRITES = Object.freeze([
+  Object.freeze({
+    source: '@skills/dhpk-harness-revise/references/harness-directory-contract.md',
+    target: 'dhpk-harness-revise',
+    targetSkillId: 'harness-revise',
+  }),
+]);
 
 function stableValue(value) {
   if (Array.isArray(value)) return value.map(stableValue);
@@ -134,6 +141,19 @@ function copyFileContained(source, destination, sourceRoot, outputRoot) {
   if (!sourceStat || !sourceStat.isFile()) throw new Error(`source file is missing: ${source}`);
   ensureDirectory(path.dirname(destination), 'package parent');
   fs.copyFileSync(source, destination);
+}
+
+function adaptAgySkillContent(content, selectedSkillIds) {
+  return AGY_SKILL_REFERENCE_REWRITES.reduce(
+    (adapted, rewrite) => {
+      if (!adapted.includes(rewrite.source)) return adapted;
+      if (!selectedSkillIds.has(rewrite.targetSkillId)) {
+        throw new Error(`AGY skill reference target is not selected: ${rewrite.targetSkillId}`);
+      }
+      return adapted.replaceAll(rewrite.source, rewrite.target);
+    },
+    content,
+  );
 }
 
 function copyDirectory(source, destination, sourceRoot, outputRoot) {
@@ -342,12 +362,18 @@ function materializeAgyPluginPackage({
   }
 
   const skillsDestination = ensureDirectory(path.join(outputRoot, 'skills'), 'AGY skills directory');
+  const selectedSkillIds = new Set(selected.skills.map((skill) => skill.id));
   for (const skill of selected.skills) {
     const skillPath = skill.path.replace(/^skills\//, '');
     assertSafeRelative(skillPath, `AGY skill '${skill.id}'`);
     const source = path.join(sourceRoot, skill.path, 'SKILL.md');
     const target = path.join(skillsDestination, skillPath, 'SKILL.md');
-    copyFileContained(source, target, sourceRoot, outputRoot);
+    assertContainedPhysical(sourceRoot, source, 'source skill');
+    const sourceStat = assertNoSymlink(source, 'source skill');
+    if (!sourceStat || !sourceStat.isFile()) throw new Error(`source skill is missing: ${source}`);
+    ensureDirectory(path.dirname(target), 'AGY skill parent');
+    const sourceContent = readFileBounded(source).toString('utf8');
+    fs.writeFileSync(target, adaptAgySkillContent(sourceContent, selectedSkillIds), { mode: 0o644 });
   }
 
   // AGY-specific optional files are opt-in under an explicit agy/ source

@@ -15,7 +15,7 @@ function tempRoot() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'agy-package-test-'));
 }
 
-function writeFixture(root) {
+function writeFixture(root, { includeHarnessReference = false } = {}) {
   fs.mkdirSync(path.join(root, 'agents'), { recursive: true });
   fs.mkdirSync(path.join(root, 'rules'), { recursive: true });
   fs.mkdirSync(path.join(root, 'skills', 'dhpk-sample'), { recursive: true });
@@ -32,7 +32,7 @@ function writeFixture(root) {
     '',
   ].join('\n'));
   fs.writeFileSync(path.join(root, 'rules', 'sample.md'), '# Rule\n');
-  fs.writeFileSync(path.join(root, 'skills', 'dhpk-sample', 'SKILL.md'), [
+  const skillLines = [
     '---',
     'name: dhpk-sample',
     'description: Sample skill',
@@ -40,13 +40,32 @@ function writeFixture(root) {
     '',
     '# Skill',
     '',
-  ].join('\n'));
+  ];
+  if (includeHarnessReference) {
+    fs.mkdirSync(path.join(root, 'skills', 'dhpk-harness-revise'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'skills', 'dhpk-harness-revise', 'SKILL.md'), [
+      '---',
+      'name: dhpk-harness-revise',
+      'description: Harness revision skill',
+      '---',
+      '',
+      '# Harness Revise',
+      '',
+    ].join('\n'));
+    skillLines.push('Use @skills/dhpk-harness-revise/references/harness-directory-contract.md when resolving a harness.');
+  }
+  fs.writeFileSync(path.join(root, 'skills', 'dhpk-sample', 'SKILL.md'), `${skillLines.join('\n')}\n`);
   return {
     schema: 'dhpk.distribution-inventory.v2',
     surfaces: ['agy-plugin'],
-    skills: [{ id: 'sample', path: 'skills/dhpk-sample', surfaces: ['agy-plugin'] }],
+    skills: [
+      { id: 'sample', path: 'skills/dhpk-sample', surfaces: ['agy-plugin'] },
+      ...(includeHarnessReference
+        ? [{ id: 'harness-revise', path: 'skills/dhpk-harness-revise', surfaces: ['agy-plugin'] }]
+        : []),
+    ],
     modules: [],
-    surface_membership: { 'agy-plugin': ['sample'] },
+    surface_membership: { 'agy-plugin': ['sample', ...(includeHarnessReference ? ['harness-revise'] : [])] },
     agy_plugin: {
       agents: ['sample.md'],
       rules: ['rules/sample.md'],
@@ -54,10 +73,10 @@ function writeFixture(root) {
   };
 }
 
-function materializeFixture(root, outDir) {
+function materializeFixture(root, outDir, options) {
   return materializeAgyPluginPackage({
     root,
-    inventory: writeFixture(root),
+    inventory: writeFixture(root, options),
     outDir,
     version: '0.39.0',
     sourceVersion: '0.39.0',
@@ -75,6 +94,41 @@ test('materializes and validates a contained AGY package', () => {
     assert.ok(result.files.includes('agents/sample.md'));
     assert.ok(result.files.includes('skills/dhpk-sample/SKILL.md'));
     assert.ok(!fs.readFileSync(path.join(root, 'agents', 'sample.md'), 'utf8').includes('model: pro'));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('rewrites source-tree harness references to an AGY skill target', () => {
+  const root = tempRoot();
+  const outDir = path.join(root, 'package');
+  try {
+    materializeFixture(root, outDir, { includeHarnessReference: true });
+    const projected = fs.readFileSync(path.join(outDir, 'skills', 'dhpk-sample', 'SKILL.md'), 'utf8');
+    assert.ok(projected.includes('dhpk-harness-revise'));
+    assert.ok(!projected.includes('@skills/dhpk-harness-revise/references/harness-directory-contract.md'));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('rejects a rewritten reference when its target skill is not selected', () => {
+  const root = tempRoot();
+  const outDir = path.join(root, 'package');
+  try {
+    const inventory = writeFixture(root);
+    fs.appendFileSync(
+      path.join(root, 'skills', 'dhpk-sample', 'SKILL.md'),
+      '\nUse @skills/dhpk-harness-revise/references/harness-directory-contract.md when resolving a harness.\n',
+    );
+    assert.throws(() => materializeAgyPluginPackage({
+      root,
+      inventory,
+      outDir,
+      version: '0.39.0',
+      sourceVersion: '0.39.0',
+      sourceCommit: COMMIT,
+    }), /AGY skill reference target is not selected: harness-revise/);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

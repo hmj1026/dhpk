@@ -1,6 +1,6 @@
 ---
 name: dhpk-nextjs-16-notes
-description: "Use when working on Next.js 16 framework code or 15→16 upgrades: Turbopack, async Request APIs, Node floor, removed APIs, and image changes. Not for application business logic. React 18.2+ or 19 is supported. Output: migration traps and verification gates."
+description: "Use when working on Next.js 16 framework code or 15→16 upgrades: Turbopack, async Request APIs, Node floor, removed APIs, and image changes. Not for application business logic. React 18.2+ or 19 is supported; pair with `dhpk-react-18-notes` or `dhpk-react-19-notes` for React-language guidance and `dhpk-nextjs-15-5-notes` for the upgrade source. Output: migration traps and verification gates."
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---
@@ -9,12 +9,9 @@ metadata:
 
 Current stable major of Next.js, now at 16.2.x.
 
-> Version floors: **Node.js 20.9.0+** (Node 18 dropped), **TypeScript
-> 5.1.0+**, **React 18.2.0+ or 19**. React 19 is recommended and is
-> the default for new apps, but it is NOT required — a React 18.3.1
-> app adopts Next.js 16 without a React major upgrade. For
-> React-language guidance, pair this cross-stack with the `react-18`
-> or `react-19` module.
+> Read `docs/agent-guidance/frontend-framework-routing.md` for React/Next
+> family selection and compatibility. This module owns the Next.js 16
+> version floors and migration traps after routing.
 
 ---
 

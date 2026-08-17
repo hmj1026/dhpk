@@ -8,7 +8,6 @@ metadata:
 # Rules Distill
 
 Scan installed skills, extract cross-cutting principles that appear in multiple skills, and distill them into rules — appending to existing rule files, revising outdated content, or creating new rule files.
-
 Applies the "deterministic collection + LLM judgment" principle: scripts collect facts exhaustively, then an LLM cross-reads the full context and produces verdicts.
 
 ## When to Use
@@ -19,13 +18,14 @@ Applies the "deterministic collection + LLM judgment" principle: scripts collect
 
 ## When NOT to Use
 
-- Creating or editing a single skill (use create-skill)
+- Creating or editing a single skill (use `dhpk-create-skill`)
 - One-off manual rule edits where no cross-skill pattern is involved
 - Language- or framework-specific knowledge (keep it in the skill or a language rule)
-- Code review or skill-quality audits (use skill-health-check)
+- Code review (use `dhpk-change-review`) or skill-quality audits (use `dhpk-skill-health-audit` / `dhpk-skill-stocktake`)
 
 ## How It Works
 
+Resolve the harness directory with `@skills/dhpk-harness-revise/references/harness-directory-contract.md` before collecting skills or rules so scans cannot mix platforms.
 The rules distillation process follows three phases:
 
 ### Phase 1: Inventory (Deterministic Collection)

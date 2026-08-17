@@ -20,6 +20,10 @@ Use this skill to keep tests attached to observable behavior rather than
 implementation details. Read [tests.md](tests.md) when writing or reviewing
 assertions and [mocking.md](mocking.md) before introducing a test double.
 
+Before choosing names or seams, read `CONTEXT.md` when the repository provides
+one and respect nearby ADRs. Keep test vocabulary aligned with the project's
+domain language rather than inventing test-only names.
+
 ## Standard TDD mode
 
 Use this mode for `tdd-guide` and any task that owns test strategy:
@@ -50,6 +54,9 @@ with the same logic as the implementation.
 - Build **vertical tracer bullets**: one failing behavior through the real
   boundary and minimal collaborators, then expand coverage around the same
   path.
+- Keep the loop vertical: one test, one minimal implementation, then one
+  refactor while green. Avoid writing a horizontal batch of imagined tests
+  before the first behavior is understood.
 - Avoid **horizontal slicing** (all models, then all services, then all
   controllers). It delays feedback and encourages implementation-coupled tests.
 - Reject **implementation-coupled** assertions on private names, incidental

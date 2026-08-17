@@ -2,7 +2,11 @@
 
 Use this page when editing any skill, agent, rule, command, `AGENTS.md`, or
 `CLAUDE.md`. It is a compact repository contract; detailed skill mechanics
-remain in the external `writing-for-agents` reference and the owning files.
+remain in the external `writing-for-agents` 1.2.x reference and the owning
+files. The pinned apply source is `/home/paul/projects/matt-pocock_skills`
+(`package.json` 1.2.3); the public mirror is
+`https://github.com/mattpocock/skills/tree/main/skills/productivity/writing-for-agents`.
+Do not vendor that upstream skill into this repository.
 
 ## Five checks
 

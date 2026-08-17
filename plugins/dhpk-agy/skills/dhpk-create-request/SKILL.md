@@ -151,7 +151,7 @@ Evidence priority: Related Files from the doc first, feature-slug heuristic as f
 - Related file links are correct
 - Acceptance criteria use checkboxes
 
-## After Creation
+## After Creation — vertical tickets with explicit blocking edges
 
 Request tickets are created **after** `/dhpk:dhpk-tech-spec` exists. Suggest execution-oriented next steps:
 

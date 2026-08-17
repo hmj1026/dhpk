@@ -1,6 +1,6 @@
 ---
 name: dhpk-react-19-notes
-description: "Use when working on React 19 guidance for Actions, new hooks, refs, providers, Server Components, or 18→19 upgrades. Not for ordinary application logic. Remains a separate React 19 route; Next 16 also supports React 18.2+. Output: migration traps and verification gates."
+description: "Use when working on React 19 guidance for Actions, new hooks, refs, providers, Server Components, or 18→19 upgrades. Not for ordinary application logic. Remains a separate React 19 route; pair with `dhpk-react-18-notes` for the 18 baseline and `dhpk-nextjs-16-notes` for Next integration. Output: migration traps and verification gates."
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---
@@ -10,11 +10,9 @@ metadata:
 React 19 (December 2024) centers on Actions (async transitions for data
 mutations) and a batch of ergonomics that remove long-standing boilerplate.
 
-> Floor role: React 19 is **recommended but not required** for Next.js 16 —
-> its peerDependency is `react: "^18.2.0 || ^19.0.0"`, so a React 18.2+ app
-> adopts Next.js 16 without a React major upgrade. This module is the
-> standalone home for React-language guidance — pair it cross-stack with a
-> `nextjs-<version>` module, or use it for any non-Next React app.
+> Family routing and the React/Next compatibility matrix live in
+> `docs/agent-guidance/frontend-framework-routing.md`. This module owns
+> standalone React 19 language guidance after the family is selected.
 
 ---
 

@@ -26,10 +26,15 @@ Methodology to trim, deduplicate, and validate the project harness without regre
 ### Phase 0 — Detection
 
 Before proceeding, identify the active harness directory and its primary rule file.
+The shared resolution contract is
+`@skills/dhpk-harness-revise/references/harness-directory-contract.md`.
 
-1. **Contextual Hint**: Identify which environment is currently providing the session's instructions. When invoked by Claude Code through `/dhpk:dhpk-harness-revise`, set `[HARNESS_DIR]=.claude` even if `.gemini/` or `.codex/` also exists.
-2. **Auto-Detect**: If there is no active-environment hint, check for `.claude/`, `.gemini/`, or `.codex/`. If multiple exist, require explicit `--dir` (scripts will error with `[error] Multiple harness dirs found`).
-3. **Set Variables**: Mentally set `[HARNESS_DIR]` (e.g., `.claude`), `[MAIN_RULE]` (e.g., `CLAUDE.md`), and `[SKILL_DIR]`.
+1. **Contextual Hint**: When invoked by Claude Code through
+   `/dhpk:dhpk-harness-revise`, pass the `.claude` hint to the shared contract.
+2. **Set Variables**: Set `[HARNESS_DIR]`, `[MAIN_RULE]`, and `[SKILL_DIR]` from
+   the contract before invoking any deterministic script.
+3. **Script Boundary**: Pass the selected directory explicitly; the scripts'
+   error for an ambiguous or missing directory is a blocking result.
 
 Use the skill directory as the source of truth for scripts. Resolution order: an explicit `CLAUDE_SKILL_DIR` (set when invoked via the Skill tool), then the dhpk plugin install path (`CLAUDE_PLUGIN_ROOT`, set for plugin commands/hooks), then the repo-relative cross-LLM location for Gemini / Codex:
 

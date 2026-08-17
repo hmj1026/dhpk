@@ -1,6 +1,6 @@
 ---
 name: dhpk-nextjs-15-5-notes
-description: "Next.js 15.5 (current stable; the 15.x line ends at v15.5.19 — 15.6 never shipped stable, canary only before the jump to 16.0) signature features and traps. Use when writing or reviewing code in a Next.js 15.5 project, or a package whose package.json constraint is ^15.5. Covers next typegen, stable typed routes, beta Turbopack production builds, and the next lint deprecation (removed in 16). Not for application business logic — load when working on framework-touching code (App Router files, next.config, build tooling) or planning a 15.5 -> 16 upgrade. Output: version-specific guidance, migration traps, and verification gates."
+description: "Next.js 15.5 (current stable; the 15.x line ends at v15.5.19) signature features and traps. Use when writing or reviewing Next.js 15.5 code or a package constrained to ^15.5. Covers typegen, typed routes, beta Turbopack production builds, and the next lint deprecation. Not for application business logic; pair with `dhpk-react-18-notes` or `dhpk-react-19-notes` for React guidance and `dhpk-nextjs-16-notes` for the upgrade target. Output: version-specific guidance, migration traps, and verification gates."
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---
@@ -11,9 +11,9 @@ Current stable release of the 15.x line. **The 15.x line ends at
 v15.5.19** — 15.6 never shipped stable (canary-only) before the jump
 to 16.0, so there is **no `nextjs-15.6` module**.
 
-> React floor: 18/19 dual support. For React-language guidance (hooks,
-> concurrent features, migration), pair this cross-stack with the
-> `react-18` or `react-19` module.
+> Read `docs/agent-guidance/frontend-framework-routing.md` for family
+> selection and compatibility. This module owns Next.js 15.5 APIs and
+> migration traps after routing.
 
 ---
 
