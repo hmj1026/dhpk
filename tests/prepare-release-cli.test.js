@@ -60,6 +60,10 @@ function mkRepo({ branch = 'develop' } = {}) {
       agy_plugin: { agents: ['sample.md'], rules: ['rules/sample.md'] },
     })
   );
+  fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
+  const agyPin = 'node scripts/ci/gen-agy-plugin-package.js plugins/dhpk-agy --version=1.0.0\n';
+  fs.writeFileSync(path.join(root, 'docs', 'platform-installation.md'), agyPin);
+  fs.writeFileSync(path.join(root, 'docs', 'platform-installation.zh-TW.md'), agyPin);
 
   spawnSync('git', ['init', '-q'], { cwd: root });
   spawnSync('git', ['config', 'user.email', 'test@example.com'], { cwd: root });
@@ -138,6 +142,24 @@ test('write mode updates every manifest, promotes fragments, and reports the ful
   const changelog = fs.readFileSync(path.join(repo, 'CHANGELOG.md'), 'utf8');
   assert.ok(changelog.includes('## 1.1.0 — 2026-07-27 — Add widget'));
   assert.ok(!fs.existsSync(path.join(repo, 'changelog.d', 'feat.widget.md')));
+
+  const expectedPin = 'gen-agy-plugin-package.js plugins/dhpk-agy --version=1.1.0';
+  assert.match(res.stdout, /docs\/platform-installation\.md/);
+  assert.match(res.stdout, /docs\/platform-installation\.zh-TW\.md/);
+  assert.ok(fs.readFileSync(path.join(repo, 'docs', 'platform-installation.md'), 'utf8').includes(expectedPin));
+  assert.ok(fs.readFileSync(path.join(repo, 'docs', 'platform-installation.zh-TW.md'), 'utf8').includes(expectedPin));
+});
+
+test('write mode fails closed when the bilingual AGY generator pin is missing', () => {
+  const repo = mkRepo();
+  fs.writeFileSync(path.join(repo, 'changelog.d', 'feat.widget.md'), 'scope: widget\nnote: Add the widget.\n');
+  fs.writeFileSync(path.join(repo, 'docs', 'platform-installation.md'), '# no generator command\n');
+  fs.writeFileSync(path.join(repo, 'docs', 'platform-installation.zh-TW.md'), '# no generator command\n');
+  const before = JSON.parse(fs.readFileSync(path.join(repo, '.claude-plugin', 'plugin.json'), 'utf8')).version;
+  const res = runCli(repo, ['write', '--version', '1.1.0', '--date', '2026-07-27', '--summary', 'Add widget']);
+  assert.notStrictEqual(res.status, 0, res.stdout);
+  assert.match(res.stderr, /AGY generator pin|gen-agy-plugin-package/i);
+  assert.strictEqual(JSON.parse(fs.readFileSync(path.join(repo, '.claude-plugin', 'plugin.json'), 'utf8')).version, before);
 });
 
 test('write mode fails and changes nothing when fragments are invalid', () => {
