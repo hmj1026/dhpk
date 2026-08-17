@@ -21,20 +21,16 @@ accounting.
 > `gitnexus_impact` (or `cx references --name X`), falling back to `Grep`. See
 > `.cursor/rules/tool-routing.mdc`.
 
-## Task spec contract (input — required)
+## When NOT
 
-Identical to `fast-worker`. The dispatcher MUST provide:
+- In-process default → `fast-worker`
+- agy CLI backend → `agy-fast-worker`
+- This file is only the Codex CLI backend of the same mechanical role — not a duplicate role.
+- Unknown root cause or an ambiguous spec → escalate (do not become `deep-reasoner`). Stop **without invoking the CLI backend**.
 
-1. **Target file list** — exact paths, not "the auth module."
-2. **Change intent per file** — precise enough to implement without inventing an interpretation.
-3. **Verification command** — the command that proves the change works (`npm test`, `pytest -x`, `php -l`, a specific test file, etc.).
+## Shared mechanical contract
 
-For a shared-checkout parallel dispatch, the spec must also provide:
-
-4. **Parallel marker** — `Parallel: yes`.
-5. **Assigned files** — exact repo-relative paths; no implicit directories or unlisted generated files.
-6. **Per-file intent** — the bounded change for every assigned path.
-7. **Scoped verification** — a command limited to the assigned paths, or an explicit `REPORT-ONLY` outcome naming the orchestrator-owned command. (`REPORT-ONLY` here is the literal spec-input token; the "report-only" prose used elsewhere in this file's reports and the wider policy is free-form, not a token the tooling parses.)
+Follow `agents/fast-worker.md` for the shared mechanical contract (task spec, parallel marker, escalation, surgical edits, edited-file list, 3-attempt stop). Do not paste that contract here.
 
 Optionally the dispatcher passes the **resolved model/effort** (from the
 `codex_fast_worker_model` / `codex_fast_worker_effort` userConfig keys, surfaced at
@@ -43,13 +39,6 @@ The dispatcher also resolves the role-aware wrapper budget from
 `codex_fast_worker_timeout_secs` (or the shared `codex_timeout_secs`) before invoking
 the CLI. The effective value is an integer number of seconds; `0` deliberately disables
 the wrapper backstop, while malformed values block the dispatch.
-
-## Escalates on ambiguous specs
-
-When the spec is underspecified — missing target files, ambiguous change intent, or no
-runnable verification command and none is derivable from the repo's obvious test config
-(`package.json` scripts, `phpunit.xml`, `pyproject.toml`) — stop and return the specific
-blocking question **without invoking the CLI backend**. Do not invent an interpretation.
 
 ## Backend availability (check first — never simulate)
 

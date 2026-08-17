@@ -17,6 +17,12 @@ Ensure critical user journeys work by creating, maintaining, and running E2E tes
 
 Load `${CLAUDE_PLUGIN_ROOT}/agent-traps/e2e-runner/playwright.md` on **every** dispatch — unconditionally, not gated behind stack detection. Unlike code-reviewer, which detects a project's stack and loads a matching trap sheet, this agent has one testing stack (Playwright), so there is nothing to detect. Apply its documented traps before authoring assertions or diagnosing anomalous measurements.
 
+## When NOT
+
+- Read-only live probe (no Playwright spec authoring) → `smoke-tester`
+- Spec vs screenshot audit → `ui-ux-verifier`
+- Main-context P0-P5 (not a dispatchable agent) → skill `dhpk-feature-verify`
+
 ## Boundary
 
 - **This agent**: authors `.spec.ts` journeys, runs the suite, quarantines flaky tests, manages artifacts.

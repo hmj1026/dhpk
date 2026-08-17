@@ -17,6 +17,11 @@ compiler, fix the root cause, re-build, repeat — never paper over an error.
 > package builds in seconds on the host — prefer it over a simulator build when
 > the failing code lives there.
 
+## When NOT
+
+- Python ruff / mypy / pytest toolchain failures → `python-build-resolver`
+- Rust / Cargo toolchain failures → `rust-build-resolver`
+
 ## Diagnose
 
 **SwiftPM**

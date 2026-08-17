@@ -18,6 +18,11 @@ Sentinel-scoped precedence: see `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md
 (back-stop example: reviewing a Repository method proactively with no sentinel
 present).
 
+## When NOT
+
+- Migration reversibility / online DDL / up-down symmetry → `migration-reviewer`
+- Latency / N+1 / EXPLAIN / query-count regressions (performance, not correctness) → `performance-analyzer`
+
 ## Stack trap sheet (load on demand)
 
 Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks — never check a relational SQL change against Core Data rules, or vice-versa.

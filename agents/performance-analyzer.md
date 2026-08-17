@@ -15,13 +15,19 @@ maxTurns: 20
 
 Audit query performance in the Repository (data-access) layer. `database-reviewer` owns correctness (bind parameters, IN/NOT IN, schema, transactions). This agent owns performance (latency, index usage, query count, N+1). Framework-agnostic — the relational perf checks apply to any data-access path. When a **frontend** (any JS / TS / Vue / React project) or **native** (`swift`) stack is detected, also audit client/runtime performance via the matching trap sheet (`frontend.md` / `swift.md`) — bundle size, render / re-render cost, memory leaks, Web Vitals, allocation hot paths.
 
+## When NOT
+
+- Bind params / schema / transactions (correctness, not latency) → `database-reviewer`
+
 ## Stack trap sheet (load on demand)
 
 Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks — never grade a Yii/MySQL change against another stack's perf rules, or vice-versa.
 
-1. **Active stacks**: read `$DHPK_ACTIVE_MODULES` (comma list) if set; it takes precedence; otherwise detect fallback signals only from PROJECT-ROOT manifests/files via Bash — a root `package.json` emits generic `js`; a `vue` key in `dependencies`, `devDependencies`, or `peerDependencies` additionally emits `vue`; `next`/`react` remain covered by generic `js`; a root `composer.json` or PHP files directly under the repository root (`./*.php`) emits `php`; `*.xcodeproj` / `Package.swift` emits `swift`; a root `pyproject.toml` emits `python` (with `sqlalchemy` / `alembic` remaining this agent's performance-specific detail). Detection MUST NOT recurse into `node_modules/`, `vendor/`, or other vendored trees. **Map module ids to the trap-sheet stack id** before the lookup: `js` / `vue-2` / React / Next → `frontend`; `swiftui` / `ios-platform` → `swift`. (The perf sheets are named for the runtime — `frontend.md`, `swift.md` — not for the framework, so always resolve to those ids.)
-2. Load: `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/trap-sheet-loader.md` step 2 (`<agent-name>` = `performance-analyzer`) — relational sheets carry the hot-table list, N+1 grep recipes, and EXPLAIN / index-inspection commands; the `frontend` / `swift` sheets carry bundle / render / memory recipes.
-3. No sheet matches → apply only the Baseline below.
+1. **Shared detection**: follow `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/trap-sheet-loader.md` (`<agent-name>` = `performance-analyzer`). Do not paste its detection order here.
+2. **Exceptions (keep inline)**:
+   - Extra: root `pyproject.toml` `sqlalchemy` / `alembic` remain this agent's performance-specific detail.
+   - Map module ids to the trap-sheet stack id before lookup: `js` / `vue-2` / React / Next → `frontend`; `swiftui` / `ios-platform` → `swift`. (Perf sheets are named `frontend.md` / `swift.md`.)
+3. Load matching sheets per the loader. Relational sheets carry hot-table / N+1 / EXPLAIN recipes; `frontend` / `swift` sheets carry bundle / render / memory recipes. No sheet matches → apply only the Baseline below.
 
 ## Baseline (language-agnostic)
 

@@ -20,6 +20,10 @@ locally before pushing?"**
 > Running the full matrix in CI is fine; running it locally for every
 > change is wasteful. This agent finds the minimum-correct subset.
 
+## When NOT
+
+- Per-file guard coverage → `polyfill-reviewer`. This agent is the diff blast radius across matrix cells.
+
 ---
 
 ## Detect stack (run once at start)
@@ -163,3 +167,7 @@ Don't produce a per-cell table when one row would do.
   radius across many files
 - Audit `composer.json` itself — that's `composer-package-hygiene`'s job
 - Run the suggested tests — only **recommends** the command; the user runs it
+
+## Closing — Artifact Output
+
+Read-only analysis — reply inline by default. Only when the user asks for a saved report, category `reviews/`, path `version-matrix-{yyyymmdd-HHMMSS}-{slug}.md`. Frontmatter/retention/degradation: `docs/contracts/artifact-contract.md` non-reviewer extensions (`verdict` only, no `severity_summary`). No sentinel — not in the review chain. Done when the risk table names every executed matrix cell the diff can break and the suggested local run is a runnable command.

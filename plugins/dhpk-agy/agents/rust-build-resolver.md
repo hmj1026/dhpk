@@ -19,6 +19,11 @@ Never paper over a borrow / lifetime error with a stray `.clone()` or `unsafe`.
 > `cargo build --message-format=short 2>&1` for a dense error list, then drill
 > into one error at a time with the full output.
 
+## When NOT
+
+- Python ruff / mypy / pytest toolchain failures → `python-build-resolver`
+- Swift / Xcode / SwiftPM toolchain failures → `swift-build-resolver`
+
 ## Diagnose
 
 ```sh
