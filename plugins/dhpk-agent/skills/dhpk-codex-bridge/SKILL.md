@@ -90,7 +90,7 @@ If the Node helper is unavailable or invalid, the wrapper emits a no-payload `re
 `BLOCKED` and do not infer edits. For multi-file work, the parent owns the `confirmed` / `unconfirmed` / `remaining`
 ledger and applies `PARTIAL` or `BLOCKED`; the bridge only forwards the envelope and never retries.
 
-> **Permissions:** this repo's `.claude/settings.json` allows `Bash(codex exec:*)` and the path-scoped `Bash(bash skills/dhpk-codex-bridge/scripts/run-codex.sh:*)`, which covers a **direct** relative-path call from the plugin root. The **subagent** invokes the wrapper via `${CLAUDE_PLUGIN_ROOT}` (an absolute path) that a path-scoped rule cannot match ([#9354](https://github.com/anthropics/claude-code/issues/9354)); to keep a non-interactive subagent's Bash from being auto-denied, add the broader `Bash(bash:*)` rule (the same workaround `dhpk-onepassword-session` uses — a deliberate user decision, not applied automatically). Consumers add the equivalent rule in their own settings.
+> **Permissions:** this repo's `.claude/settings.json` allows `Bash(codex exec:*)` and the path-scoped `Bash(bash skills/dhpk-codex-bridge/scripts/run-codex.sh:*)`, which covers a **direct** relative-path call from the plugin root. The **subagent** invokes the wrapper via `${CLAUDE_PLUGIN_ROOT}` (an absolute path) that a path-scoped rule cannot match ([#9354](https://github.com/anthropics/claude-code/issues/9354), re-checked 2026-08-17); to keep a non-interactive subagent's Bash from being auto-denied, add the broader `Bash(bash:*)` rule (the same workaround `dhpk-onepassword-session` uses — a deliberate user decision, not applied automatically). Consumers add the equivalent rule in their own settings.
 
 ## Output
 

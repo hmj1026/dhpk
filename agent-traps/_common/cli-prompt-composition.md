@@ -23,11 +23,27 @@ needs (GPT-5.x or Gemini, never both).
   evidence, then next action. Skip the prose for whichever half a CLI flag already
   enforces (see above) — don't state both.
 
+### Official-docs drift re-check (2026-08-17)
+
+The confirmed-valid no-action items from the official-docs drift review remain:
+
+- Claude frontmatter and hook argument shapes: no action; the existing contracts remain valid.
+- Codex `--ask-for-approval`: TUI-only and absent from `codex exec`; keep using the exec
+  approval configuration rather than adding a prompt flag.
+- agy `--cwd`: absent from the installed binary; keep using `--add-dir` and do not cite
+  the published example.
+
+Wrapper invocation and degrade-path changes are known-pending work for
+`adapt-cli-wrappers-to-new-behaviors`; this baseline refresh does not change argv.
+
 ## GPT-5.x section (codex-fast-worker, codex-deep-reasoner, codex-bridge skill)
 
 - **Source**: GPT-5.6 latest-model guide. `codex-bridge` dispatches gpt-5.5 —
   a one-minor-version gap from this guidance; treat as directionally correct,
   not exact.
+- **Verified CLI baseline**: codex-cli 0.147.0 (`codex --version` and `codex exec
+  --help`, re-checked 2026-08-17). `model_reasoning_effort=ultra` is present but
+  intentionally unused by the wrapper.
 - **Autonomy boundary**: `read-only` sandbox → inspect-and-report; `workspace-write`
   → in-scope-changes-only, naming exactly the files the task spec authorizes.
 - **Report shape**: conclusion first, then evidence, then next action — GPT-5.x
@@ -42,6 +58,12 @@ needs (GPT-5.x or Gemini, never both).
 - **Source**: official Gemini 3 family guidance. The dispatched model is
   Gemini 3.6 Flash — a minor-version gap; the family-level guidance below still
   applies, but treat any Gemini-3.5-specific example as stale.
+- **Verified CLI baseline**: agy `AGY_VERIFIED_BASELINE=1.1.13` (`agy --version`
+  and `agy --help`, re-checked 2026-08-17). The structured-output feature floor
+  remains 1.1.8 and is not the verified baseline.
+- **Structured-output source**: official Antigravity CLI headless documentation
+  documents `--output-format json` together with `--json-schema`; use that pair
+  as the documented schema contract.
 - **Order matters**: put large context (file contents, task spec) first, the
   specific question last, anchored with "Based on the preceding information...".
   Put the single most important instruction at the very top, not buried mid-prompt.

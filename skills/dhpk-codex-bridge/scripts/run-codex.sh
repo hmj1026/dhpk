@@ -12,10 +12,12 @@
 # emits bounded, redacted diagnostics and exits non-zero; a verified wrapper timeout emits
 # one stable timeout envelope before cleanup (or a safe no-payload fallback).
 #
-# Flags are verified against codex-cli 0.144.4 and the official openai/codex SDK
-# (sdk/typescript/src/exec.ts): `codex exec` has NO --ask-for-approval flag; approval is
-# set via `-c approval_policy="never"`; model via `-m`, effort via `-c
-# model_reasoning_effort="..."`. Prompt is read from stdin.
+# Flags are verified against codex-cli 0.147.0 and the official openai/codex SDK
+# (sdk/typescript/src/exec.ts), re-checked 2026-08-17: `codex exec` has NO
+# --ask-for-approval flag; approval is set via `-c approval_policy="never"`; model via
+# `-m`, effort via `-c model_reasoning_effort="..."`. The 0.147.0 catalog includes
+# `model_reasoning_effort="ultra"`, but this wrapper intentionally leaves it unused.
+# Prompt is read from stdin.
 #
 # Wrapper-level hard timeout (seconds), mirroring run-agy.sh's backstop: a hung
 # invocation fails loudly rather than blocking the dispatching agent indefinitely.
