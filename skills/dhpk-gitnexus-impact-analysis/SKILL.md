@@ -25,7 +25,8 @@ metadata:
 4. Assess risk and report to user
 ```
 
-> If "Index is stale" → run `npx gitnexus analyze` in terminal.
+> If the context reports a stale index, follow `dhpk-gitnexus-guide` for the
+> single stale-index recovery path before continuing this workflow.
 
 ## Checklist
 
@@ -52,6 +53,9 @@ instead of treating the graph as exhaustive.
 - [ ] Affected process resources were checked, not inferred from callers only.
 - [ ] HIGH or CRITICAL risk is surfaced before any edit proceeds.
 - [ ] `gitnexus_detect_changes` is run before commit when the task changes code.
+
+The schema, tool names, resource catalog, and stale-index recovery are owned by
+`dhpk-gitnexus-guide`; this skill owns blast-radius sequencing and risk output.
 
 ## Understanding Output
 

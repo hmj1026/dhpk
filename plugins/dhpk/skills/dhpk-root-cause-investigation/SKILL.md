@@ -33,9 +33,19 @@ condition. Remove or quarantine debug probes after confirmation, retain only
 the evidence needed for a regression test, and record whether a **postmortem**
 or follow-up is needed for monitoring, data repair, or process change.
 
+## Redact before sharing evidence
+
+Redact secrets from every command, output, log excerpt, trace, and captured
+artifact before placing it in an investigation or handoff. Replace credentials,
+tokens, cookies, private keys, and personal data with `<REDACTED>`; keep the
+signal-bearing fields and build loops against environment variables instead of
+embedding credentials in a command. If redaction removes enough context that
+the symptom cannot be interpreted, record that evidence gap and stop at a
+blocked handoff rather than exposing the secret.
+
 ## When NOT to Use
 
-- Root cause is confirmed and the user wants implementation: hand off to `dhpk:dhpk-bug-fix`.
+- Root cause is confirmed and the user wants implementation: hand off to `dhpk-bug-fix`.
 - The task is ordinary code or document review: use the relevant review skill.
 - The task is pure feature development with no failure, regression, or inconsistency: use `dhpk-adaptive-dev-workflow` / `dhpk-feature-dev`.
 

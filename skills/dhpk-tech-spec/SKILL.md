@@ -8,6 +8,10 @@ metadata:
 
 # Tech Spec Skill
 
+Use `dhpk-module-design` for the shared module/interface/seam vocabulary and
+place testing decisions at the highest existing public seam. This skill owns
+the numbered spec; it does not restate architecture mechanics.
+
 ## When NOT to Use
 
 - Creating request documents (use /dhpk:dhpk-create-request)
@@ -68,6 +72,7 @@ Numbered tech spec document with sections: Overview, Requirements, Architecture,
 ## Verification
 
 - Solution covers all requirement points
+- Testing decisions name the public seam and an independent expected result.
 - Architecture diagrams use Mermaid
 - Risks have mitigation strategies
 - Work can be broken into trackable items

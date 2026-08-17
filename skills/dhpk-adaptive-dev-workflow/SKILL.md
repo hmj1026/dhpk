@@ -17,7 +17,7 @@ metadata:
 ## When NOT to Use
 
 - `CLAUDE.md` Execution Policy 定義的 small change：直接 patch + the designated code-reviewer agent
-- root-cause 調查已在進行：改用 `dhpk-root-cause-investigation`
+- Root-cause 調查已在進行：改用 `dhpk-root-cause-investigation`
 - 純架構或 module boundary 討論：改用 `dhpk-module-design`
 - OpenSpec change 已 apply-ready：切去 `/opsx:apply`
 - 已進入 TDD 實作階段：改用 `tdd-guide` agent
@@ -48,7 +48,7 @@ applied implementation, verified change, pull request, or archive.
 ## Fast-worker invocation context
 
 When `/dhpk:do` supplies `WORKER_OVERRIDE`, preserve that exact invocation-only value through hand-off to
-`dhpk:dhpk-bug-fix` / `dhpk:dhpk-feature-dev`. Before the first mechanical dispatch, consume it with the shared selector at
+`dhpk-bug-fix` / `dhpk-feature-dev`. Before the first mechanical dispatch, consume it with the shared selector at
 `scripts/fast-worker-selector.js` using `--backend "$WORKER_OVERRIDE"`.
 `unset` means omit the explicit backend argument and let the selector apply userConfig/default precedence; never infer it from cleaned task text.
 
@@ -97,6 +97,10 @@ When `/dhpk:do` supplies `WORKER_OVERRIDE`, preserve that exact invocation-only 
 4. **Plan**：分類後立即執行必要 planning dispatch，不等待確認；完整 dispatch 規則見 [dispatch-and-gates](references/dispatch-and-gates.md)。完成條件：dispatch 結果已記錄，或明確標示不需要。
 5. **Report**：輸出 workflow、理由、artifact、gate、next step 與適用的 post-implementation checklist。完成條件：所有 Output 欄位均已填寫。
 6. **Handoff**：若已 apply-ready，直接指向下一流程；若有 blocker，停止在實作前。完成條件：只有一個清楚的 next skill/command。
+
+Handoffs stay named: feature work goes to `dhpk-feature-dev`, confirmed bugs to
+`dhpk-bug-fix`, unknown causes to `dhpk-root-cause-investigation`, architecture
+decisions to `dhpk-module-design`, and test strategy to `dhpk-tdd-workflow`.
 
 ## Planning-Phase Agent
 

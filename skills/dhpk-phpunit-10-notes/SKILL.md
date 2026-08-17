@@ -1,6 +1,6 @@
 ---
 name: dhpk-phpunit-10-notes
-description: 'PHPUnit 10.x (February 2023) signature features and the breaking-change traps from 9 → 10. Use when writing or reviewing tests in a PHPUnit 10 project, or when migrating a PHPUnit 9 suite to 10. Covers PHP 8.1 floor, the attribute-style annotation system (#[DataProvider] / #[CoversClass] / #[Group] / #[Test]) that replaces (but does not yet remove) doc-comment annotations, the test runner CLI rewrite, TestListener removal, and the static-data-provider requirement. Not for everyday assertion writing or PHP < 8.1 projects (stay on dhpk-phpunit-9-modern). Output: a 9 → 10 migration plan. Pair with dhpk-phpunit-9-modern for the API conventions that carry forward unchanged.'
+description: 'PHPUnit 10.x (February 2023) signature features and breaking-change traps from 9 → 10. Use when writing or reviewing PHPUnit 10 tests or migrating a PHPUnit 9 suite. Covers the PHP 8.1 floor, attribute annotations replacing doc comments, the runner CLI rewrite, TestListener removal, and static data providers. Not for everyday assertions or PHP < 8.1 projects (use `dhpk-phpunit-9-modern`); use `dhpk-php-runtime-router` for family selection and shared PHP runtime guidance. Output: a 9 → 10 migration plan.'
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---

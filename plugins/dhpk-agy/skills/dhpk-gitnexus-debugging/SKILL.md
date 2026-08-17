@@ -24,7 +24,8 @@ metadata:
 4. gitnexus_cypher({query: "MATCH path..."})                 → Custom traces if needed
 ```
 
-> If "Index is stale" → run `npx gitnexus analyze` in terminal.
+> If the context reports a stale index, follow `dhpk-gitnexus-guide` for the
+> single stale-index recovery path before continuing this workflow.
 
 ## Checklist
 
@@ -107,3 +108,6 @@ A root-cause hypothesis backed by the graph: the suspect symbol, its call chain 
 - [ ] The affected execution flow and external boundary are identified.
 - [ ] Hypotheses are separated from confirmed root cause.
 - [ ] The next reproduction or focused test is explicit.
+
+The schema, tool names, resource catalog, and stale-index recovery are owned by
+`dhpk-gitnexus-guide`; this skill owns bug-tracing workflow and evidence.

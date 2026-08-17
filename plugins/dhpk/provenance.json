@@ -3,7 +3,7 @@
   "surface": "codex-native",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.41.2",
-  "sourceCommit": "b2e1229d47dd32dfd76343a603c49af7466bd88e",
+  "sourceCommit": "b54bb4ab6055780a115d00789191a318cf99bf91",
   "inventoryDigest": "61e40f210565a5cb8947b2092b96acd6b52b4d0e988537bc754b26d8e3aff889",
   "generatorVersion": "2.2.0",
   "selectedSkillIds": [
@@ -46,16 +46,16 @@
     "dhpk-yii1-php56-development": "2f624209e109ace2f1a86c49c106b489f2a45727fc6fad5c99141e2c63de4161",
     "dhpk-yii1-security-audit": "d923363f15312d2e700f6c9d7115d7a9978718a9d0f297652b3eb1a284403011",
     "dhpk-agy-commit": "388b884107fef241a19dec977173964e1a18d1c9f0602ec2472fb2ef1fee09e4",
-    "dhpk-root-cause-investigation": "25fa2ec64710d2d46d7048cb220f1d638ed4599434f6364bd54a87f8ccfb75aa",
+    "dhpk-root-cause-investigation": "82b63c4d6d4a735ba9ce5f8f1781f5f582590dad96501dafab243edd7eda337d",
     "dhpk-git-history-investigation": "faa91f74a2e55e48aee130f464901484021243463e49f46efb0837aad9fdd238",
     "dhpk-git-smart-commit": "06027b35dcbb632992b7c93005d4aaab8a27cf9ed0a09741a38688eea96aec64",
-    "dhpk-cross-agent-sync": "14c3de84545186a471785015718dc114366e9ab8cf05855b788db4ca284312e1",
+    "dhpk-cross-agent-sync": "3626e32abb4e746249568d99e29a5b0d4f00ac1d4557998603d466322d9b5338",
     "dhpk-onepassword-session": "f1d0679b78833c398afa0e726cc143ac62ba9a7af47af4c71724171d4cbd9376",
     "dhpk-opsx-load-context": "4a626f37ca6904d11811ffa30c0df299c22f2c4a36aa88978aa4fe16b1ea890c",
     "dhpk-opsx-post-observation": "cfb6322b54bac5536b4c76f42165095100fca25b45b0065a337b03a9c83b8c75",
-    "dhpk-skill-health-audit": "7f12d599f3982fd7cc6bdc5ca47374fffba72065046f64554f970396f4a1355c",
-    "dhpk-skill-quality-judge": "14addbf45e49eab07222be1d3540e161046f18c9ebcf6a9f7dad3279e65ba223",
-    "dhpk-tdd-workflow": "217bb1b84b12c25c7032cd80cbdead44125f41afa35d43b0d4fe312ee8614a33"
+    "dhpk-skill-health-audit": "47d17fc4e22346d70a9d322c7d2c3c5bcfdceaec9bb658beed7d1c08a4643814",
+    "dhpk-skill-quality-judge": "2e1ed7ce2acac5d5f15c458598365554554d089ac0ac9399faa11489ce5083e7",
+    "dhpk-tdd-workflow": "e673f1569c84e66f15a39bc0324fb1ec3c0b90cf06f687fa1773419fa61b48a7"
   },
   "routingProjection": {
     "schema": "dhpk.skill-routing-projection.v1",

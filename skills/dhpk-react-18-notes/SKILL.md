@@ -1,6 +1,6 @@
 ---
 name: dhpk-react-18-notes
-description: "Use when working on React 18 guidance for ^18 projects, root setup, concurrent rendering, StrictMode, or 17→18/18→19 upgrades. Not for ordinary application logic. Remains a separate React 18 route; pair with Next only when needed. Output: migration traps and verification gates."
+description: "Use when working on React 18 guidance for ^18 projects, root setup, concurrent rendering, StrictMode, or 17→18/18→19 upgrades. Not for ordinary application logic. Remains a separate React 18 route; pair with `dhpk-react-19-notes` for 18→19 changes and `dhpk-nextjs-15-5-notes` or `dhpk-nextjs-16-notes` for Next integration. Output: migration traps and verification gates."
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---
@@ -10,10 +10,9 @@ metadata:
 React 18 (March 2022) shipped the concurrent renderer. Its features are
 opt-in per update, unlocked by adopting the new `createRoot` API.
 
-> Floor role: **React 18.2.0+** is the minimum Next.js 16 supports and one
-> side of Next.js 15.5's React 18/19 dual support. This module is the
-> standalone home for React-language guidance — pair it cross-stack with a
-> `nextjs-<version>` module, or use it for any non-Next React app.
+> Family routing and the React/Next compatibility matrix live in
+> `docs/agent-guidance/frontend-framework-routing.md`. This module owns
+> standalone React 18 language guidance after the family is selected.
 
 ---
 

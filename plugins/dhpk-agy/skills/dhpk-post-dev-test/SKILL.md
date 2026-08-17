@@ -1,12 +1,12 @@
 ---
 name: dhpk-post-dev-test
-description: 'Post-development test completion. Use when: checking test coverage after dhpk-feature-dev, writing missing integration/e2e tests. Not for: unit test generation (use /dhpk:codex-test-gen), test review (use dhpk-test-review). Output: test files + coverage report.'
+description: 'Post-development test completion. Use when: checking test coverage after dhpk-feature-dev, writing missing integration/e2e tests. Not for: unit test generation (use dhpk-tdd-workflow), test review (use dhpk-test-review). Output: test files + coverage report.'
 allowed-tools: 'Read, Grep, Glob, Write, Bash'
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---
 
-# Post-Dev Test Skill
+# Post-Dev Test Skill — coverage handoff from `dhpk-feature-dev` / `dhpk-bug-fix`
 
 ## When to Use
 
@@ -29,9 +29,9 @@ metadata:
 
 ## When NOT to Use
 
-- Only need unit tests (use `/codex-test-gen`)
-- Review existing tests (use `/codex-test-review`)
-- Still in development (complete `/dhpk:dhpk-feature-dev` flow first)
+- Only need unit tests (use `dhpk-tdd-workflow`)
+- Review existing tests (use `dhpk-test-review`)
+- Still in development (complete `dhpk-feature-dev` or `dhpk-bug-fix` first)
 - Full Playwright user-journey suite (POM, selector strategy, flaky management) → hand off to the repository's e2e-runner agent directly
 
 ## Workflow

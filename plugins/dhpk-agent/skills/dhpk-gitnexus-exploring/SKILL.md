@@ -25,7 +25,8 @@ metadata:
 5. READ gitnexus://repo/{name}/process/{name}      → Trace full execution flow
 ```
 
-> If step 2 says "Index is stale" → run `npx gitnexus analyze` in terminal.
+> If the context reports a stale index, follow `dhpk-gitnexus-guide` for the
+> single stale-index recovery path before continuing this workflow.
 
 ## Checklist
 
@@ -37,6 +38,9 @@ metadata:
 - [ ] READ process resource for full execution traces
 - [ ] Read source files for implementation details
 ```
+
+The schema, tool names, resource catalog, and stale-index recovery are owned by
+`dhpk-gitnexus-guide`; this skill owns only the exploration workflow.
 
 ## Resources
 

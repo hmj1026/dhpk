@@ -1,6 +1,6 @@
 ---
 name: dhpk-harness-budget
-description: 'Audits Claude Code context-window token consumption across agents, skills, MCP, rules, and CLAUDE.md; produces prioritized token-savings fixes. Use when: context feels bloated, after adding components, or checking headroom. Not for: trimming harness structure (use dhpk-harness-revise), backfilling .claude/ (use dhpk-harness-fill). Output: budget report + ranked fixes.'
+description: 'Audits Claude Code context-window token consumption across agents, skills, MCP, rules, and CLAUDE.md; produces prioritized token-savings fixes. Use when: context feels bloated, after adding components, or checking headroom. Not for: trimming harness structure (use dhpk-harness-revise), backfilling .claude/ (use dhpk-harness-fill), or checking hook/plugin health (use dhpk-claude-health). Output: budget report + ranked fixes.'
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---
@@ -8,7 +8,7 @@ metadata:
 # Harness Budget (context-window accounting)
 
 Analyze token overhead across every loaded component in a Claude Code session and surface actionable optimizations to reclaim context space.
-
+Resolve `HARNESS_DIR` using `@skills/dhpk-harness-revise/references/harness-directory-contract.md` before counting harness components.
 > See also: `/harness-govern` chains this token audit into an end-to-end harness governance loop.
 
 ## When to Use

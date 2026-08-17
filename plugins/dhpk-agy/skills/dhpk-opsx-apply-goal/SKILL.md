@@ -3,7 +3,6 @@ name: dhpk-opsx-apply-goal
 argument-hint: '<change-id> [--turns N] [--max-duration <Nm|Nh>] [--min-coverage N] [--worker=<claude|codex|agy|auto>] [--codex] [--smoke|--no-smoke] [--dry-run]'
 description: 'Unattended OpenSpec goal generator for an existing change-id that needs a bounded fresh-session implementation goal. Not for: authoring, applying in the current session, verifying, syncing, or archiving. Output: an analysis summary plus one pasteable /goal condition, or a hard-stop report.'
 allowed-tools: 'Bash, Read, Glob'
-effort: low
 disable-model-invocation: true
 metadata:
   dhpk-invocation-class: explicit-only

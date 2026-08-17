@@ -11,10 +11,10 @@ metadata:
 
 ## When NOT to Use
 
-- Just want to understand code (use Explore)
-- Review code only (use codex-code-review)
-- Review documents only (use doc-review)
-- Pure test-only tasks without feature changes (use `/codex-test-review` directly)
+- Just want to understand code (use `dhpk-codebase-exploration`)
+- Review code only (use `dhpk-change-review`)
+- Review documents only (use `dhpk-doc-review`)
+- Pure test-only tasks without feature changes (use `dhpk-test-review` directly)
 
 ## Execution Policy
 
@@ -26,29 +26,33 @@ The workflow tables show the `--codex` path. In default codex-free mode, use the
 
 ## Workflow
 
+This route receives feature work from `dhpk-adaptive-dev-workflow` and hands
+test strategy to `dhpk-tdd-workflow`, post-development coverage to
+`dhpk-post-dev-test`, and independent review to `dhpk-change-review`.
+
 ```
 Requirements → Design → Implement → Test + Review → Precommit Gate → Doc Sync
                 │          │            │                  │               │
                 ▼          ▼            ▼                  ▼               ▼
-           /codex-     /codex-    /verify              /precommit  /update-docs
-           architect   implement  /codex-test-review   (or /precommit)  /dhpk:dhpk-create-request --update
-                                  /codex-review-fast
+           dhpk-codex- dhpk-codex- /verify             /precommit  /update-docs
+           architect  implement   dhpk-test-review    (or /precommit)  dhpk-create-request --update
+                                  dhpk-change-review
 ```
 
 ## Commands
 
 | Phase | Command | Description |
 |-------|---------|-------------|
-| Design | `/dhpk:dhpk-codex-architect` | Get architecture advice |
-| Implement | `/dhpk:dhpk-codex-implement` | Codex writes code |
+| Design | `dhpk-codex-architect` | Get architecture advice |
+| Implement | `dhpk-codex-implement` | Codex writes code |
 | Test: Run | `/verify` | Run tests (lint → typecheck → unit → integration) |
-| Test: Review | `/codex-test-review` | **Mandatory** — review test sufficiency (5 dimensions) |
-| Test: Generate | `/codex-test-gen` | Generate unit tests for gaps |
-| Test: Integration | `/dhpk:dhpk-post-dev-test` | Write missing integration/e2e tests |
-| Review | `/codex-review-fast` | Code review (auto-loop) |
+| Test: Review | `dhpk-test-review` | **Mandatory** — review test sufficiency (5 dimensions) |
+| Test: Generate | `dhpk-tdd-workflow` | Generate behavior-focused tests for gaps |
+| Test: Integration | `dhpk-post-dev-test` | Write missing integration/e2e tests |
+| Review | `dhpk-change-review` | Code review (auto-loop) |
 | Precommit | `/precommit` | lint + build + test (auto-loop canonical path) |
 | Doc Sync | `/update-docs` | Sync docs with code |
-| Doc Sync | `/dhpk:dhpk-create-request --update` | Update request progress |
+| Doc Sync | `dhpk-create-request --update` | Update request progress |
 | Refactor | `/simplify` | Final refactoring |
 
 ## Test + Review Phase
@@ -85,8 +89,8 @@ Use the project's own test-file convention (from its .claude/rules/, if defined)
 ## Verification
 
 - [ ] All tests pass (`/verify`)
-- [ ] Test adequacy reviewed (`/codex-test-review`)
-- [ ] Code review passed (`/codex-review-fast` ✅ Ready)
+- [ ] Test adequacy reviewed (`dhpk-test-review`)
+- [ ] Code review passed (`dhpk-change-review` ✅ Ready)
 - [ ] Precommit passed (`/precommit` ✅ All Pass)
 - [ ] No `git add/commit/push` executed
 
@@ -100,8 +104,8 @@ Only when change maps to a feature under `docs/features/`. Target detection uses
 precommit Pass
   → Locate feature docs (see /update-docs 3-level fallback)
   → /update-docs docs/features/<feature>/2-tech-spec.md
-  → /dhpk:dhpk-create-request --update docs/features/<feature>/requests/<date>-<title>.md
-  → /codex-review-doc (per updated file)
+  → `dhpk-create-request --update` docs/features/<feature>/requests/<date>-<title>.md
+  → `dhpk-doc-review` (per updated file)
   → Safety valve: new code diff? → back to review loop (see /update-docs)
 ```
 
@@ -109,12 +113,12 @@ precommit Pass
 
 ```
 Input: Implement a fee calculation method
-Action: /dhpk:dhpk-codex-architect → /dhpk:dhpk-codex-implement → /verify → /codex-test-review → /codex-review-fast → /precommit
+Action: `dhpk-codex-architect` → `dhpk-codex-implement` → /verify → `dhpk-test-review` → `dhpk-change-review` → /precommit
 ```
 
 ```
 Input: This code needs refactoring
-Action: /simplify → /verify → /codex-test-review → /codex-review-fast → /precommit
+Action: /simplify → /verify → `dhpk-test-review` → `dhpk-change-review` → /precommit
 ```
 
 ```

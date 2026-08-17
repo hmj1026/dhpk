@@ -11,6 +11,11 @@ Use this skill for an independent code review of a diff, branch, or pull
 request. Select one scope, load `references/review-workflow.md`, and preserve
 the gate state from initialization through final output.
 
+Dispatch and findings are host-neutral: name the selected review capability and
+backend, not a host-only tool, agent, or slash-command alias. Keep the
+secondary reviewer independent and report a degradation reason when it cannot
+run.
+
 The MCP backend is the default. For environments with the Codex CLI, the same
 contract is available through `scripts/review.sh --backend cli`; the wrapper
 uses argument arrays, never `eval`, and accepts literal user values.

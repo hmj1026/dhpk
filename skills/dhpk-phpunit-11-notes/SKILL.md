@@ -1,6 +1,6 @@
 ---
 name: dhpk-phpunit-11-notes
-description: 'PHPUnit 11.x (February 2024) signature features and the breaking-change traps from 10 → 11. Use when writing or reviewing tests in a PHPUnit 11 project, or when migrating a PHPUnit 10 suite to 11. Covers PHP 8.2 floor, the deprecation of doc-comment annotations (removed in 12; PHP 8 attributes are the recommended path), assertObjectHasProperty replacing assertObjectHasAttribute, the static-data-provider hard requirement, and the test-name discovery changes. Not for everyday assertion writing or PHP < 8.2 projects (stay on dhpk-phpunit-10-notes). Output: a 10 → 11 migration plan.'
+description: 'PHPUnit 11.x (February 2024) signature features and the breaking-change traps from 10 → 11. Use when writing or reviewing tests in a PHPUnit 11 project, or when migrating a PHPUnit 10 suite to 11. Covers PHP 8.2 floor, the deprecation of doc-comment annotations (removed in 12; PHP 8 attributes are the recommended path), assertObjectHasProperty replacing assertObjectHasAttribute, the static-data-provider hard requirement, and the test-name discovery changes. Not for everyday assertion writing or PHP < 8.2 projects (stay on dhpk-phpunit-10-notes); use `dhpk-php-runtime-router` for family selection and shared PHP runtime guidance. Output: a 10 → 11 migration plan.'
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---
