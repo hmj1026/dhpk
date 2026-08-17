@@ -140,7 +140,7 @@ Evaluation is **holistic AI judgment** — not a numeric rubric. Guiding dimensi
 - Do NOT write "unchanged" alone — always restate the core evidence
 - For **Retire**: state (1) what specific defect was found, (2) what covers the same need instead
   - Bad: `"Superseded"`
-  - Good: `"disable-model-invocation: true already set; superseded by dhpk-skill-health-audit which covers all the same checks plus resilience scoring. No unique content remains."`
+  - Good: `"disable-model-invocation: true already set; superseded by dhpk-<successor> which covers all the same patterns plus confidence scoring. No unique content remains."`
 - For **Merge**: name the target and describe what content to integrate
   - Bad: `"Overlaps with X"`
   - Good: `"42-line thin content; Step 4 of chatlog-to-article already covers the same workflow. Integrate the 'article angle' tip as a note in that skill."`

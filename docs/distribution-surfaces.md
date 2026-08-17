@@ -191,6 +191,25 @@ set only; it cannot and does not assert per-skill hiding.
    `compatibilityWindowEnds` date is the human-readable gate a reviewer checks
    before approving that deletion.
 
+### Never-activated exemption
+
+A package that was never activated on any published surface skips both stages
+and may be removed in a single reviewed change. A package qualifies only when
+all three hold:
+
+- the shipped hook manifest (`hooks/hooks.json`) declares no runtime
+  registration for it,
+- it ships disabled by default, and
+- activation requires a documented manual consumer step.
+
+The exempting change must record two evidence artifacts: a passing repository
+reference scan, and a migration note naming any local consumer data the
+deletion orphans. A package that the hook manifest registers, or that ships
+enabled, does not qualify — the two-stage process above applies.
+
+Like the compatibility window, this is a human review gate; no CI check
+evaluates the three preconditions.
+
 ## Codex native plugin package (GitHub issue #88)
 
 The native Codex marketplace package is a tracked, physical publication

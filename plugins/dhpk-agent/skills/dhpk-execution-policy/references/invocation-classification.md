@@ -21,9 +21,9 @@ Class reflects maximum authority and does not change with flags — a
 lower-authority mode (e.g. a read-only default) does not make a high-authority
 entry (one whose flag enables broad mutation) implicit-eligible.
 
-## Root skills (`skills/*/SKILL.md`) — 67 entries
+## Root skills (`skills/*/SKILL.md`) — 65 entries
 
-### explicit-only (13)
+### explicit-only (14)
 
 | Skill | Rationale |
 |---|---|
@@ -40,8 +40,9 @@ entry (one whose flag enables broad mutation) implicit-eligible.
 | `dhpk-release-creator` | Cuts a release (version bump, changelog, tag). |
 | `dhpk-repo-intake` | Already explicit-only. One-time project onboarding/inventory (setup-adjacent). |
 | `dhpk-rules-distill` | Writes/revises repo-wide policy rule files (batch governance). |
+| `dhpk-session-usage-audit` | Reads dhpk session evidence across the user's home directory (outside the current project) and prepares GitHub issue submissions — external-system write. |
 
-### implicit-eligible (54)
+### implicit-eligible (51)
 
 All other root skills: `dhpk-adaptive-dev-workflow`, `dhpk-agent-architecture-audit`,
 `dhpk-agy-fast-worker`, `dhpk-bug-fix`, `dhpk-root-cause-investigation`, `dhpk-codebase-exploration`,
