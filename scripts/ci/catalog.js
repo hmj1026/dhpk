@@ -34,6 +34,16 @@ function computeCounts() {
   return collectInventory(ROOT).counts;
 }
 
+// Scoped publication counts, or null when the inventory is absent (the catalog-claims
+// temp repo copies only the subtrees catalog.js resolves). Callers must treat null as
+// "skip the publication-scoped claims" rather than comparing against undefined, which
+// would report every such claim as drift.
+function computeScoped() {
+  const inventoryPath = p('manifests', 'distribution-inventory.json');
+  if (!fs.existsSync(inventoryPath)) return null;
+  return computeScopedCounts(JSON.parse(fs.readFileSync(inventoryPath, 'utf8')));
+}
+
 // Files that carry numeric marketing/spec claims, and the exact claims enforced.
 const CLAIM_FILES = [
   'README.md',
@@ -43,9 +53,18 @@ const CLAIM_FILES = [
   'rules/execution-policy.md',
   'agents/INDEX.md',
   'commands/do.md',
+  // Skill-count claim sites. `skills/INDEX.md` and these four bilingual docs pages are
+  // the only `docs/**`-adjacent files carrying an enforced claim; each was scanned
+  // against every existing spec above and matches none of them, so adding them cannot
+  // introduce false drift on agent/module/slot/hook-event claims.
+  'skills/INDEX.md',
+  'docs/skill-platform-migration.md',
+  'docs/skill-platform-migration.zh-TW.md',
+  'docs/distribution-surfaces.md',
+  'docs/distribution-surfaces.zh-TW.md',
 ];
 
-function claimSpecs(counts) {
+function claimSpecs(counts, scoped) {
   return [
     { label: 'role-based agents', re: /(\d+)(\s+role-based agents)/g, expected: counts.agentsTotal },
     { label: 'opt-in stack modules', re: /(\d+)(\s+opt-in stack modules)/g, expected: counts.modules },
@@ -67,6 +86,25 @@ function claimSpecs(counts) {
     { label: 'commands (do.md)', re: /(?<=dhpk's )(\d+)(\s+commands)/g, expected: counts.commands },
     { label: 'hook events (EN)', re: /(\d+)(\s+events)/g, expected: counts.hookEvents },
     { label: 'hook events (ZH)', re: /(\d+)(\s*個事件)/g, expected: counts.hookEvents },
+    // Canonical skill count. Expected is skillsBase, NOT skillsTotal: every phrasing below
+    // describes packages rooted at `skills/dhpk-<name>/` and enumerates modules separately
+    // ("N canonical skills, 31 modules"). The two are equal only while skillsModule is 0,
+    // so skillsTotal would pass today and mis-enforce the first time a module ships a skill.
+    // Anchored to the full noun phrase for the same reason as the Codex specs above: a bare
+    // number spec would match unrelated table cells.
+    { label: 'canonical skills (EN flat)', re: /(\d+)(\s+flat (?:`dhpk-\*` packages|canonical skills|packages at))/g, expected: counts.skillsBase },
+    { label: 'canonical skills (EN phrase)', re: /(\d+)(\s+canonical skill(?: packages|s))/g, expected: counts.skillsBase },
+    { label: 'canonical skills (ZH)', re: /(\d+)(\s*個扁平(?: `dhpk-\*` package| canonical skill| package))/g, expected: counts.skillsBase },
+    // Claude-published skill count, kept as its own labelled claim. It equals the canonical
+    // count only while nothing is deprecated; `harness-count-integrity` requires inventory
+    // and publication counts stay separate, so these must never share a spec. Omitted
+    // entirely when the inventory is absent — see computeScoped().
+    ...(scoped
+      ? [
+        { label: 'claude-published skills (EN)', re: /(\d+)(\s+inventory-eligible Claude skill IDs)/g, expected: scoped.claudePublished },
+        { label: 'claude-published skills (ZH)', re: /(\d+)(\s*個 inventory-eligible skill ID)/g, expected: scoped.claudePublished },
+      ]
+      : []),
   ];
 }
 
@@ -117,7 +155,7 @@ function findScriptCoverageGaps() {
 
 function checkOrWrite({ write }) {
   const counts = computeCounts();
-  const specs = claimSpecs(counts);
+  const specs = claimSpecs(counts, computeScoped());
   let mismatches = 0;
   let rewrites = 0;
 

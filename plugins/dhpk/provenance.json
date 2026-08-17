@@ -3,7 +3,7 @@
   "surface": "codex-native",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.41.2",
-  "sourceCommit": "8128761be55b4eb5750472e5ea24df9f4e3e11cb",
+  "sourceCommit": "70db2ac282135f8148856eb86008b856c1c0f387",
   "inventoryDigest": "8281a10fad417ecb236d78e3165bfd6ab6b1f5c482a672d2d4cda1178b6c73bb",
   "generatorVersion": "2.2.0",
   "selectedSkillIds": [
