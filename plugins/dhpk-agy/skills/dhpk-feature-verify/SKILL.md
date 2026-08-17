@@ -1,6 +1,6 @@
 ---
 name: dhpk-feature-verify
-description: 'Feature verification (READ-ONLY, P0-P5). Use when: verifying feature behavior after deployment, validating API responses, diagnosing production issues, post-deploy smoke test. Not for: modifying data (use dhpk-feature-dev), code review (use /dhpk:codex-review-fast), writing tests (use /dhpk:codex-test-gen), security audit (use /dhpk:codex-security). Output: a P0-P5 verification report with pass/fail evidence per check.'
+description: 'Feature verification (READ-ONLY, P0-P5). Use when: verifying feature behavior after deployment, validating API responses, diagnosing production issues, post-deploy smoke test. Not for: modifying data (use dhpk-feature-dev), code review (use dhpk-change-review), writing tests (use dhpk-tdd-workflow), security audit (use dhpk-security-review). Output: a P0-P5 verification report with pass/fail evidence per check.'
 allowed-tools: 'Read, Grep, Glob, Bash, WebFetch, Task, Skill, mcp__codex__codex, mcp__codex__codex-reply'
 context: fork
 metadata:
@@ -13,12 +13,14 @@ Verify deployed behavior with read-only runtime evidence:
 
 `Claude analysis → Codex independent confirmation → integrated verdict`
 
-Use this for post-deploy checks, smoke tests, and production diagnosis. For local tests use `/verify`; for changes use `/dhpk:dhpk-feature-dev`; for code review use `/codex-review-fast`.
+Use this for post-deploy checks, smoke tests, and production diagnosis. For
+local tests use the repository verification route; for changes use
+`dhpk-feature-dev`; for code review use `dhpk-change-review`.
 
 ## When NOT to Use
 
 - The requested action changes application data, configuration, or deployment state.
-- The task is to implement or modify a feature; use `/dhpk:dhpk-feature-dev`.
+- The task is to implement or modify a feature; use `dhpk-feature-dev`.
 - The task is a code, security, or test review rather than runtime behavior
   verification.
 - There is no read-only endpoint, observation path, or approved test environment that

@@ -11,6 +11,14 @@ Design the smallest deep module that makes the caller's next decision easy.
 Keep this guidance stack-neutral until the repository evidence selects a
 framework or language.
 
+## Scope before scan
+
+Start with the user's named module, subsystem, or pain point. When no direction
+is named, use recent commit history to find the hot spots that keep changing and
+weight the exploration there. Do not propose deepening across the whole
+codebase before a real seam, caller, and near-term change are identified; this
+is the YAGNI filter for architecture work.
+
 ## Boundary tests — SSOT: architecture/tests own runtime behavior; this skill owns boundary decisions
 
 - **Caller leverage**: define the decision the caller should make and make the
@@ -23,6 +31,9 @@ framework or language.
 - Keep one hypothetical adapter inline. Introduce an abstraction only when
   there are two real adapters, or when a documented near-term boundary has a
   concrete test or deployment need. Do not design for speculative providers.
+- Make the change easy before making the easy change: prefer a small
+  prefactor that improves locality only when the next requested behavior needs
+  it, and record speculative candidates as deferred rather than building them.
 
 ## Language and scenarios
 

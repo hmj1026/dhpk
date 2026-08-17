@@ -34,13 +34,25 @@ function computeCounts() {
   return collectInventory(ROOT).counts;
 }
 
-// Scoped publication counts, or null when the inventory is absent (the catalog-claims
-// temp repo copies only the subtrees catalog.js resolves). Callers must treat null as
-// "skip the publication-scoped claims" rather than comparing against undefined, which
-// would report every such claim as drift.
-function computeScoped() {
+// Scoped publication counts, or null when the inventory is absent. Callers must treat
+// null as "skip the publication-scoped claims" rather than comparing against undefined,
+// which would report every such claim as drift.
+//
+// The skip is announced, never silent. This whole guard exists because two claims were
+// unenforced without anyone noticing; a quiet fail-open would reintroduce that failure
+// mode at a smaller scale. `manifests/distribution-inventory.json` is tracked, so a
+// normal checkout and CI clone always take the enforcing path — only a deliberately
+// stripped tree can reach the skip.
+function computeScoped({ announce = false } = {}) {
   const inventoryPath = p('manifests', 'distribution-inventory.json');
-  if (!fs.existsSync(inventoryPath)) return null;
+  if (!fs.existsSync(inventoryPath)) {
+    if (announce) {
+      console.error(
+        'NOTE [catalog]: manifests/distribution-inventory.json is absent; publication-scoped claims are NOT enforced in this run.'
+      );
+    }
+    return null;
+  }
   return computeScopedCounts(JSON.parse(fs.readFileSync(inventoryPath, 'utf8')));
 }
 
@@ -155,7 +167,7 @@ function findScriptCoverageGaps() {
 
 function checkOrWrite({ write }) {
   const counts = computeCounts();
-  const specs = claimSpecs(counts, computeScoped());
+  const specs = claimSpecs(counts, computeScoped({ announce: true }));
   let mismatches = 0;
   let rewrites = 0;
 

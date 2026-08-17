@@ -135,6 +135,72 @@ for (const r of ROUND_TRIPS) {
   });
 }
 
+// The canonical-skill claims expect skillsBase, not skillsTotal. In the real repo
+// skillsModule is 0, so both values are 102 and every other case here passes under
+// either choice. Planting a real module-owned SKILL.md makes them differ (base 102,
+// total 103) and is the only thing that can tell the two apart.
+test('canonical skill claims track skillsBase, so a module-owned skill does not inflate them', () => {
+  // Plant inside an EXISTING module: a new modules/<name>/ directory would also bump the
+  // module count and trip the "opt-in stack modules" claim, masking what this asserts.
+  const host = fs.readdirSync(path.join(repo, 'modules'), { withFileTypes: true })
+    .find((e) => e.isDirectory());
+  assert.ok(host, 'expected at least one module directory to host the planted skill');
+  const planted = path.join(repo, 'modules', host.name, 'skills', 'dhpk-probe');
+  try {
+    fs.mkdirSync(planted, { recursive: true });
+    fs.writeFileSync(path.join(planted, 'SKILL.md'),
+      '---\nname: dhpk-probe\ndescription: planted module-owned skill\n---\n\n# probe\n');
+
+    const table = spawnSync('node', [path.join(repo, 'scripts', 'ci', 'catalog.js')], { encoding: 'utf8' });
+    assert.strictEqual(table.status, 0, table.stderr);
+    const m = table.stdout.match(/skills:\s+(\d+)\s+\(base (\d+) \+ module (\d+)\)/);
+    assert.ok(m, `expected the printed table to split base/module skills, got:\n${table.stdout}`);
+    assert.strictEqual(Number(m[3]), 1, 'the planted module skill must be counted as a module skill');
+    assert.notStrictEqual(Number(m[1]), Number(m[2]), 'total and base must differ for this test to discriminate');
+
+    const { status, out } = runCheck(repo);
+    assert.strictEqual(status, 0,
+      `canonical claims must still match skillsBase (${m[2]}) with a module skill present; got:\n${out}`);
+  } finally {
+    fs.rmSync(planted, { recursive: true, force: true });
+  }
+});
+
+// The canonical and Claude-published counts are separate labelled claims. They are equal
+// at 102 in the real repo, so only a deprecated entry can prove they are evaluated
+// independently rather than reconciled against one value.
+test('canonical and Claude-published claims are evaluated against their own counts when they diverge', () => {
+  const invPath = path.join(repo, 'manifests', 'distribution-inventory.json');
+  const surfaces = path.join(repo, 'docs', 'distribution-surfaces.md');
+  const surfacesZh = path.join(repo, 'docs', 'distribution-surfaces.zh-TW.md');
+  const originals = [invPath, surfaces, surfacesZh].map((f) => [f, fs.readFileSync(f, 'utf8')]);
+  try {
+    const inv = JSON.parse(originals[0][1]);
+    const victim = inv.skills.find((s) => s.lifecycle === 'promoted');
+    assert.ok(victim, 'expected at least one promoted skill to deprecate');
+    victim.lifecycle = 'deprecated';
+    victim.deprecation = {
+      since: '2026-08-17',
+      compatibilityWindowEnds: '2026-11-17',
+      migrationNote: 'planted by catalog-claims test',
+    };
+    fs.writeFileSync(invPath, `${JSON.stringify(inv, null, 2)}\n`);
+
+    // Canonical is unchanged by a lifecycle move; only the published count drops.
+    const before = JSON.parse(originals[0][1]).skills.length;
+    fs.writeFileSync(surfaces, originals[1][1]
+      .replace(/(\d+)(\s+inventory-eligible Claude skill IDs)/, `${before - 1}$2`));
+    fs.writeFileSync(surfacesZh, originals[2][1]
+      .replace(/(\d+)(\s*個 inventory-eligible skill ID)/, `${before - 1}$2`));
+
+    const { status, out } = runCheck(repo);
+    assert.strictEqual(status, 0,
+      `canonical claims (${before}) and published claims (${before - 1}) must each check against their own count; got:\n${out}`);
+  } finally {
+    for (const [f, text] of originals) fs.writeFileSync(f, text);
+  }
+});
+
 test('hookEvents equals the distinct top-level event-key count of hooks/hooks.json', () => {
   const hooksJson = JSON.parse(fs.readFileSync(path.join(ROOT, 'hooks', 'hooks.json'), 'utf8'));
   const expected = Object.keys(hooksJson.hooks || {}).length;

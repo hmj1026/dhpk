@@ -22,7 +22,7 @@ Evaluate Agent Skills against official specifications and patterns derived from 
 
 - **Quick structural lint** (frontmatter, routing cues, line count) → use `dhpk-skill-health-audit`
 - **Batch audit of many skills** at once → use `dhpk-skill-stocktake`
-- **Creating or refactoring** a skill → use `dhpk-create-skill`
+- **Creating or refactoring** a skill → use `dhpk-create-skill` (universal mechanics stay in external `writing-for-agents`)
 - **Scoring an agent's completed run OUTPUT** (not the skill definition) → use the `agent-evaluator` agent (the run-output sibling of this skill)
 - Code review or document review → use the respective code/doc review skills
 
@@ -92,8 +92,7 @@ Score invocation/context cost: conditional branches load only needed references 
 
 ## Agent-facing authoring guardrails
 
-When authoring or materially revising a target, require a short trigger/non-use pointer and one SSOT owner; prefer progressive disclosure with co-located references, require completion evidence plus the next-workflow handoff, distinguish plans from applied verified changes, and prune paragraphs that add no decision rule, evidence, or behavior.
-(Full evaluator guardrails: `references/failure-patterns.md`.)
+Apply `docs/agent-guidance/writing-for-agents.md`; this rubric scores the target and keeps evaluator-specific patterns in `references/failure-patterns.md`.
 
 ## Output
 
