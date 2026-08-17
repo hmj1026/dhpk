@@ -10,6 +10,7 @@ const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
+const CURRENT_VERSION = JSON.parse(read('.claude-plugin/plugin.json')).version;
 const STATUS = ['PASS', 'FAIL', 'NOT_RUN', 'NOT_CONFIGURED', 'SKIP_INCOMPATIBLE', 'BLOCKED', 'UNAVAILABLE'];
 
 function section(text, heading) {
@@ -104,7 +105,7 @@ test('installation routes remain separate and point to the SSOT', () => {
     'install-agy-plugin.js plan',
     'install-agy-plugin.js status',
     'FOREIGN_CHECKOUT',
-    '0.41.0',
+    `--version=${CURRENT_VERSION}`,
     '--trust',
     'ignores stdin',
     'exits non-zero',
@@ -116,6 +117,17 @@ test('installation routes remain separate and point to the SSOT', () => {
     'SKIP_INCOMPATIBLE',
     'UNAVAILABLE',
   ]) assert.ok(english.includes(token), `SSOT missing ${token}`);
+});
+
+test('bilingual SSOT pins gen-agy-plugin-package.js to the current plugin version', () => {
+  const expected = `gen-agy-plugin-package.js plugins/dhpk-agy --version=${CURRENT_VERSION}`;
+  for (const relative of ['docs/platform-installation.md', 'docs/platform-installation.zh-TW.md']) {
+    const text = read(relative);
+    assert.ok(
+      text.includes(expected),
+      `${relative} must document ${expected}`,
+    );
+  }
 });
 
 test('Cursor CLI documentation keeps authentication, launch scope, and UI routes distinct', () => {

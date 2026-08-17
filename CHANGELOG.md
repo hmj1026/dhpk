@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.41.2 — 2026-08-17 — Include native AGY package in release version parity
+
+**fix(release)** — Include the native AGY package in version-parity checks and regenerate it during release preparation.
+
 ## 0.41.1 — 2026-08-16 — Fail-close Codex collision exits, mount native AGY discovery, and pass trust flags to launch-scoped Cursor probes
 
 **fix(agy-installation)** — Mount the AGY package at the consumer plugin path and stop treating import-only `agy plugins list` JSON as native discovery evidence.
