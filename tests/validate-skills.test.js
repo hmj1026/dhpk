@@ -134,4 +134,28 @@ test('a well-formed skill passes with no findings', () => {
   }
 });
 
+test('an unknown top-level frontmatter key fails', () => {
+  const tmp = makeTempRepo();
+  try {
+    writeSkill(tmp, 'unknown-key', '---\nname: unknown-key\ndescription: does a thing\norigin: legacy\n---\nbody\n');
+    const { status, out } = runValidator(tmp);
+    assert.strictEqual(status, 1);
+    assert.match(out, /unknown frontmatter key\(s\): origin/);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('the agent tools key fails on a skill', () => {
+  const tmp = makeTempRepo();
+  try {
+    writeSkill(tmp, 'agent-tools', '---\nname: agent-tools\ndescription: does a thing\ntools: Read\n---\nbody\n');
+    const { status, out } = runValidator(tmp);
+    assert.strictEqual(status, 1);
+    assert.match(out, /unknown frontmatter key\(s\): tools/);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 run('validate-skills');
