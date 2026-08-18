@@ -2,21 +2,22 @@
 
 Code-quality lanes for Python. Security lanes (SQL f-strings, `eval`/`exec`, unsafe
 `yaml.load`, weak crypto, command/path injection) → `security-reviewer/python.md`.
-Detect the floor from `pyproject.toml` `requires-python`; honor an explicit project
-convention in CLAUDE.md.
+FastAPI-specific lanes → `code-reviewer/fastapi.md`. Detect the floor from
+`pyproject.toml` `requires-python`; honor an explicit project convention in CLAUDE.md.
 
-| Lane | Flag | Fix |
-|---|---|---|
-| Type hints | public fn without annotations; `Any` where a precise type exists; nullable param without `Optional`/`\| None` | annotate; narrow `Any` → concrete; `Optional[T]` for nullable |
-| Pythonic idiom | C-style index loop; `type(x) == T`; magic number; `"" + s` in a loop | comprehension; `isinstance`; `Enum`/named const; `"".join(...)` |
-| **Mutable default arg** | `def f(x=[])` / `={}` | `def f(x=None)` then `x = x or []` inside |
-| Resource mgmt | manual `open()/close()`, hand-rolled lock acquire | `with` context manager |
-| Error handling | `except:` / `except Exception: pass`; swallowed exception | catch the specific class; log + handle or re-raise |
-| Concurrency | shared mutable state without a lock; mixing sync calls into async paths; N+1 query in a loop | `threading.Lock`; keep async pure-async; batch the query |
-| Quality | fn > 50 lines / > 5 params; nesting > 4; `value == None`; shadowing `list`/`dict`/`id` | extract / dataclass params; guard clauses; `is None`; rename |
-| Best practice | `print()` for diagnostics; `from m import *`; missing docstring on public API | `logging`; explicit imports; one-line docstring |
+| Lane | Trigger | Action | Non-apply |
+|---|---|---|---|
+| Type hints | public fn without annotations; `Any` where a precise type exists; nullable param without `Optional`/`\| None` | annotate; narrow `Any`; `Optional[T]` | generated stubs; `**kwargs` on a private helper |
+| Pythonic idiom | C-style index loop; `type(x) == T`; `"" + s` in a loop | comprehension; `isinstance`; `"".join(...)` | a loop that needs the index for a documented side channel |
+| Mutable default arg | `def f(x=[])` / `={}` | `def f(x=None)` then copy inside | a default that is an immutable `()` / `""` / `0` |
+| Resource mgmt | manual `open()/close()`, hand-rolled lock acquire | `with` context manager | a test fixture that already uses `try/finally` |
+| Error handling | `except:` / `except Exception: pass` | catch the specific class; log + handle or re-raise | a CLI top-level handler that logs then exits |
+| Concurrency | shared mutable state without a lock; mixing sync calls into async paths | `threading.Lock`; keep async pure-async | a single-threaded script |
+| Quality | fn > 50 lines / > 5 params; `value == None`; shadowing `list`/`dict`/`id` | extract; `is None`; rename | generated code |
+| Best practice | `print()` for diagnostics; `from m import *`; missing docstring on public API | `logging`; explicit imports; one-line docstring | `__main__` scripts that print by design |
 
-**Framework quick-checks** — Django: `select_related`/`prefetch_related` for N+1, `transaction.atomic()` for multi-step writes. FastAPI: see `code-reviewer/fastapi.md`. Flask: error handlers + CSRF.
+**Framework quick-checks** — Django: `select_related`/`prefetch_related` for N+1,
+`transaction.atomic()` for multi-step writes. Flask: error handlers + CSRF.
 
 ## Worked examples
 
@@ -34,7 +35,7 @@ def add(item, bucket=None):
 # BAD — bare except hides the real failure
 try:
     n = int(raw)
-except:               # swallows KeyboardInterrupt, SystemExit, real bugs
+except:
     n = 0
 # GOOD — catch the expected class, name the fallback
 try:
