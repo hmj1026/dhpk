@@ -250,9 +250,12 @@ package validator 只證明 structure 與 provenance；runtime `PASS` 必須由 
 前證據是 `BLOCKED`。若安裝的 CLI 沒有 `--plugin-dir`，記錄 `UNAVAILABLE`，
 改用 Cursor UI/local-plugin route。
 即使要求更大的值，probe 仍強制 5 分鐘 timeout 上限與 4 MiB output 上限。
-若 wrapper 回報 `BLOCKED` 且 `timed_out: true` 或 `output_limited: true`，代表
-沒有產生 consumer result；保留有界、已 redact 的 diagnostic，只能以另一組
-有限 limit 重試。
+若 wrapper 回報 `SKIP_INCOMPATIBLE` 且 `timed_out: true`、`no_stdout: true`，
+代表 CLI 在期限內沒有任何輸出。目前 `cursor-agent` 沒有非 LLM 的 plugin
+list；`--plugin-dir` 加上 `--mode ask` 會啟動可能掛起的完整 session。這是
+CLI 限制，不是套件失敗。若 wrapper 回報 `BLOCKED` 且 `timed_out: true` 或
+`output_limited: true`，代表沒有產生 consumer result；保留有界、已 redact
+的 diagnostic，只能以另一組有限 limit 重試。
 wrapper 也會阻擋空白、無效或缺少 capability 的 response；只有包含要求的
 dhpk skills、commands、agents、rules 證據，才能記錄為完成的 probe。
 

@@ -77,7 +77,7 @@ function main() {
     agent_package: agentPackage,
     cursor_package: cursorPackage,
   }, null, 2));
-  if (['FAIL', 'BLOCKED'].includes(result.status)) process.exit(1);
+  if (['FAIL', 'BLOCKED', 'SKIP_INCOMPATIBLE'].includes(result.status)) process.exit(1);
 }
 
 main();

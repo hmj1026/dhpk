@@ -148,6 +148,8 @@ test('Cursor CLI documentation keeps authentication, launch scope, and UI routes
     assert.ok(cli.includes('5-minute') || cli.includes('5 分鐘'), 'Cursor CLI route must state the timeout ceiling');
     assert.ok(cli.includes('4 MiB'), 'Cursor CLI route must state the output ceiling');
     assert.ok(cli.includes('timed_out: true'), 'Cursor CLI route must document timeout evidence');
+    assert.ok(cli.includes('SKIP_INCOMPATIBLE'), 'Cursor CLI route must document silent-hang incompatibility');
+    assert.ok(cli.includes('no_stdout: true'), 'Cursor CLI route must document empty-timeout evidence');
     assert.ok(cli.includes('output_limited: true'), 'Cursor CLI route must document output-limit evidence');
     assert.ok(cli.includes('capability-negative') || cli.includes('capability 的'), 'Cursor CLI route must reject negative discovery evidence');
     assert.ok(cli.includes('--mode ask'), 'Cursor CLI route must be read-only for the verification probe');
