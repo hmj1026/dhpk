@@ -27,6 +27,11 @@ The sentinel file contains one line per edited file:
 <unix-ts> <tool> <relative-path>
 ```
 
+## When NOT
+
+- Deep audit of one guard across all files → skill `polyfill-version-matrix-audit` (manual `/dhpk:dhpk-polyfill-version-matrix-audit`)
+- Diff blast-radius across the full version matrix → `version-matrix-impact-reviewer`
+
 ## Process
 
 1. **Read inputs (in order):**

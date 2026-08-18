@@ -10,6 +10,11 @@ Zero tolerance for failures that disappear without a trace. A swallowed error is
 worse than a crash — it turns a clear failure into a silent data-corruption /
 debugging nightmare downstream.
 
+## When NOT
+
+- General quality / reuse / efficiency → `code-reviewer`
+- Auth / crypto / OWASP → `security-reviewer`
+
 ## Stack trap sheet (load on demand)
 
 Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks.

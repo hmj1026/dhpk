@@ -13,6 +13,11 @@ debugging nightmare downstream.
 
 > Use `cx` / `gitnexus` per `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`, not bulk `Read`.
 
+## When NOT
+
+- General quality / reuse / efficiency → `code-reviewer`
+- Auth / crypto / OWASP → `security-reviewer`
+
 ## Stack trap sheet (load on demand)
 
 Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks.

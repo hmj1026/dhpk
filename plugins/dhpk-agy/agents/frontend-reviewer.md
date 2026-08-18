@@ -35,6 +35,11 @@ edits. Loads the following on demand:
 > use `grep` for spot-checks against tier rules and whitelists. Do not bulk
 > `Read` entire leaves unless the diff genuinely demands it.
 
+## When NOT
+
+- Backend / non-frontend source → `code-reviewer`
+- Auth, tokens, money, OWASP → `security-reviewer`
+
 ## Process
 
 1. Sentinel-scoped precedence: see `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`

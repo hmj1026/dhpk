@@ -300,7 +300,9 @@ function adaptCodexBody(agentName, body) {
     .replaceAll(/sentinel = `\.pending-[^`]+`/g, 'without an automatic marker')
     .replaceAll(/`\.pending-[^`]+`/g, 'the matching review request')
     .replaceAll(/Sentinel-scoped precedence/g, 'Review precedence')
-    .replaceAll(/sentinel-driven/g, 'review-gated')
+    // Case-preserving: a sentence-initial "Sentinel-driven" must not fall
+    // through to the bare /sentinel/gi rule and become "review marker-driven".
+    .replaceAll(/([Ss])entinel-driven/g, (_match, initial) => (initial === 'S' ? 'Review-gated' : 'review-gated'))
     .replaceAll(/sentinel review chain/g, 'review chain')
     .replaceAll(/sentinel/gi, 'review marker')
     .replaceAll(/No sentinel/g, 'No automatic marker')
@@ -312,7 +314,12 @@ function adaptCodexBody(agentName, body) {
     .replaceAll(/post-edit-remind\.sh/g, 'the parent review flow')
     .replaceAll(/, sentinel = [^\n.]+\./g, '.')
     .replace(/the parent flow owns lifecycle: only a fresh canonical artifact with leading delimited frontmatter and required reviewer fields plus `APPROVE` or `PASS` clears the matching review request; warning, fail, or malformed evidence leaves it armed\. This reviewer\'s job ends at writing the artifact\./g,
-      'The parent flow does not auto-clear Codex state. Write the final review under `.codex/artifacts/reviews/` with the role\'s required frontmatter and final verdict; a human or host integration manually records any review-lifecycle completion after reading that evidence.');
+      'The parent flow does not auto-clear Codex state. Write the final review under `.codex/artifacts/reviews/` with the role\'s required frontmatter and final verdict; a human or host integration manually records any review-lifecycle completion after reading that evidence.')
+    .replaceAll('`/dhpk:do --plan`', 'Codex plan mode')
+    .replaceAll('`/dhpk:do`', 'the Codex orchestrator')
+    // Repo-relative skill paths do not exist in the .codex/ install layout, and
+    // the named skill is cited (not dispatched) — drop the path, keep the name.
+    .replace(/ \(`skills\/[a-z0-9-]+\/SKILL\.md`\)/g, '');
   if (agentName === 'code-reviewer') {
     adapted = adapted
       .replaceAll('`silent-failure-hunter`', '`deep-reasoner` (Codex fallback; otherwise perform the audit directly)')
@@ -320,6 +327,7 @@ function adaptCodexBody(agentName, body) {
   }
   if (agentName === 'e2e-runner') {
     adapted = adapted
+      .replaceAll('`smoke-tester`', 'perform the live probe directly (no Codex role)')
       .replaceAll('`ui-ux-verifier`', 'a manual page-vs-spec UI audit fallback')
       .replaceAll('**ui-ux-verifier**', '**manual page-vs-spec UI audit fallback**')
       .replaceAll('ui-ux-verifier', 'manual page-vs-spec UI audit fallback')
@@ -329,10 +337,18 @@ function adaptCodexBody(agentName, body) {
         "If Playwright or the browser capability is unavailable, return `Verdict: BLOCKED` as the first line with the missing capability and the exact command needed to resume. Before reporting a RED/GREEN (or PASS/FAIL) verdict, run the project's typecheck command",
       );
   }
-  if (agentName === 'planner') {
+  if (agentName === 'database-reviewer') {
     adapted = adapted
-      .replaceAll('`/dhpk:do --plan`', 'Codex plan mode')
-      .replaceAll('`/dhpk:do`', 'the Codex orchestrator');
+      .replaceAll('`performance-analyzer`', 'a dedicated performance pass (no Codex role; measure latency directly or escalate)');
+  }
+  if (agentName === 'security-reviewer') {
+    adapted = adapted
+      .replaceAll('`silent-failure-hunter`', '`deep-reasoner` (Codex fallback; otherwise perform the audit directly)');
+  }
+  if (agentName === 'doc-reviewer') {
+    adapted = adapted
+      .replaceAll('`doc-updater`', 'a documentation-refresh pass (no Codex role; update the docs directly)')
+      .replaceAll('`docs-lookup`', 'a library-documentation lookup (no Codex role; consult the vendor docs directly)');
   }
   if (agentName === 'frontend-reviewer') {
     adapted = adapted
@@ -355,7 +371,11 @@ function adaptCodexBody(agentName, body) {
       .replaceAll('`modules/laravel-*/`', 'the project Laravel migration documentation');
   }
   if (agentName === 'deep-reasoner') {
+    // This projection IS the Codex backend, so the Claude-side "pick the codex
+    // variant instead" fence has no referent here and its target is not a
+    // dispatchable Codex role.
     adapted = adapted
+      .replace(/^- `--reasoner=codex` backend variant → .*\n?/gm, '')
       .replaceAll('`dhpk:architect`', '`architect`')
       .replaceAll('`fast-worker`', '`worker`')
       .replaceAll('`e2e-runner`', 'a project-specific executable browser probe');

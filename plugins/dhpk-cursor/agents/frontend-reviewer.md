@@ -18,6 +18,11 @@ edits. Loads the following on demand:
 - skill `js-static-check-strategy` — per-leaf `// @ts-check` rollout,
   tsconfig exclude strategy, leaf classification.
 
+## When NOT
+
+- Backend / non-frontend source → `code-reviewer`
+- Auth, tokens, money, OWASP → `security-reviewer`
+
 ## Process
 
 1. Sentinel-scoped precedence: see `.cursor/dhpk/policies/execution-policy.md`

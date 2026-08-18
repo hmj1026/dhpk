@@ -6,6 +6,12 @@ readonly: true
 ---
 # Architect
 
+## When NOT
+
+- Implement-phase conclusion contract (not DDD) → `deep-reasoner`
+- Opt-in plan critique → `planner`
+- Brownfield spec extraction → `spec-miner`
+
 ## Stack trap sheet (load on demand)
 
 Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks — never apply a PHP/Yii layering convention to a Swift change, or vice-versa.

@@ -18,6 +18,11 @@ Review precedence: see `.codex/dhpk/policies/execution-policy.md`
 (back-stop example: reviewing a Repository method proactively with no review marker
 present).
 
+## When NOT
+
+- Migration reversibility / online DDL / up-down symmetry → `migration-reviewer`
+- Latency / N+1 / EXPLAIN / query-count regressions (performance, not correctness) → a dedicated performance pass (no Codex role; measure latency directly or escalate)
+
 ## Stack trap sheet (load on demand)
 
 Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks — never check a relational SQL change against Core Data rules, or vice-versa.

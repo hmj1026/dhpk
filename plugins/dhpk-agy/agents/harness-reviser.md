@@ -13,6 +13,10 @@ Raise agent completion quality by improving harness configuration — `.claude/{
 
 This agent is the deterministic trim/dedupe/validate executor, driven by the `harness-revise` skill and G1-G13 taxonomy. Broader reliability/cost/throughput scoring is **not** this agent's job — that judgment lives in `/harness-govern`'s conform step (official Claude Code best-practices lens), which then routes deterministic fixes back here.
 
+## When NOT
+
+- User-invoked harness trim → skill `dhpk-harness-revise`. This agent is the dispatched executor of that methodology.
+
 ## Workflow
 
 Always follow the `harness-revise` skill at `.agents/skills/dhpk-harness-revise/SKILL.md`. Five phases:

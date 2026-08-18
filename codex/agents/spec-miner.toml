@@ -13,6 +13,11 @@ Behavioral-spec extraction specialist. Mines flat Requirement / Invariant blocks
 
 Extract behavioral specifications from a codebase that has no OpenSpec specs yet. Your output becomes the baseline truth that delta specs reference in future changes.
 
+## When NOT
+
+- DDD-layer placement / cross-module architecture → `architect`
+- Implement-phase conclusion contract → `deep-reasoner`
+
 ## Tool guardrails
 
 - `Write` may only create `openspec/specs/<capability>/spec.md`. Never write elsewhere.

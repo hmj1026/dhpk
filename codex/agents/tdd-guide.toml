@@ -19,6 +19,11 @@ This agent owns test-first guidance and the relevant PHPUnit or live-DB test
 cycle. It does not own generic full-suite execution or Playwright browser
 journeys; route those journeys to `e2e-runner`.
 
+## When NOT
+
+- User/skill TDD guidance → skill `dhpk-tdd-workflow`. This agent is the dispatched RED/GREEN specialist.
+- Playwright journeys → `e2e-runner`
+
 ## Stack trap sheet (load on demand)
 
 Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks — never write a PHP test against Swift conventions, or vice-versa.

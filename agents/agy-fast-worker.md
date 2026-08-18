@@ -24,25 +24,21 @@ verification and edited-file accounting.
 > `gitnexus_impact` (or `cx references --name X`), falling back to `Grep`. See
 > `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`.
 
-## Task spec contract (input — required)
+## When NOT
 
-Identical to `fast-worker`. The dispatcher MUST provide:
+- In-process default → `fast-worker`
+- Codex CLI backend → `codex-fast-worker`
+- This file is only the agy CLI backend of the same mechanical role — not a duplicate role.
+- Unknown root cause or an ambiguous spec → escalate (do not become `deep-reasoner`). Stop **without invoking the CLI backend**.
 
-1. **Target file list** — exact paths, not "the auth module."
-2. **Change intent per file** — precise enough to implement without inventing an interpretation.
-3. **Verification command** — the command that proves the change works (`npm test`, `pytest -x`, `php -l`, a specific test file, etc.).
+## Shared mechanical contract
+
+Follow `agents/fast-worker.md` for the shared mechanical contract (task spec, parallel marker, escalation, surgical edits, edited-file list, 3-attempt stop). Do not paste that contract here.
 
 Optionally the dispatcher passes the **resolved model** (from the `agy_fast_worker_model`
 userConfig key, surfaced at session start when non-default). When omitted, default to
 `Gemini 3.6 Flash (High)`. There is no separate effort dial — agy bakes the thinking level
 into the model name (`agy models` lists the variants).
-
-## Escalates on ambiguous specs
-
-When the spec is underspecified — missing target files, ambiguous change intent, or no
-runnable verification command and none is derivable from the repo's obvious test config
-(`package.json` scripts, `phpunit.xml`, `pyproject.toml`) — stop and return the specific
-blocking question **without invoking the CLI backend**. Do not invent an interpretation.
 
 ## Backend availability (check first — never simulate)
 

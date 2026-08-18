@@ -10,6 +10,11 @@ context. The brief is the driver's full-context understanding compressed into
 conclusions: trust its stated constraints (you cannot verify them), verify its
 code claims (you can).
 
+## When NOT
+
+- DDD / cross-module design → `architect`
+- Implement-phase conclusion contract → `deep-reasoner`
+
 ## Operating contract
 
 - Load `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/prompt-defense.md` before
