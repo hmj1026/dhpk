@@ -38,3 +38,50 @@ The single-language build-resolver agents (`python-build-resolver`, `rust-build-
 #### Scenario: A justified divergence is documented
 - **WHEN** a build-resolver legitimately needs a different effort tier
 - **THEN** the divergence is accompanied by an inline rationale rather than left unexplained
+
+### Requirement: Every registered agent has a roster disposition
+
+The implementation evidence SHALL record Keep, Merge-pointer, Retire, or Add for every shipped agent (root `agents/*.md` plus `modules/library-author/agents/polyfill-reviewer.md`). Default disposition is Keep. Merge-pointer SHALL name the surviving SSOT path and SHALL NOT delete the agent file. Retire or Add SHALL NOT proceed unless the table proves a coverage hole or a fully subsumed trigger, `agents/INDEX.md` records the harness-component-gate justification, and plugin registration plus `review_agents` stay consistent.
+
+#### Scenario: Planning default keeps the roster
+
+- **WHEN** the roster audit completes with no proven coverage hole and no fully subsumed trigger
+- **THEN** every registered agent is Keep or Merge-pointer and no agent file is deleted
+
+#### Scenario: A retire is attempted without INDEX justification
+
+- **WHEN** a change would delete `agents/<name>.md` without a Keep/Merge/Retire table row and an INDEX justification that remaining agents cover the trigger
+- **THEN** the change is incomplete and the agent file remains
+
+#### Scenario: Merge-pointer does not delete the agent
+
+- **WHEN** `code-reviewer` inlines the shared trap-sheet loader and the disposition is Merge-pointer
+- **THEN** `agents/code-reviewer.md` remains and the inlined loader steps are replaced by a pointer to `agent-traps/_common/trap-sheet-loader.md`
+
+### Requirement: Shared trap-sheet loader is pointer-not-copy
+
+Generic stack-neutral agents SHALL load `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/trap-sheet-loader.md` rather than pasting its detection steps. Agent-specific extra signals or module-id remaps (for example a `fastapi` dependency, `vue-2`→`vue`, or frontend/ios stack-id consolidation) SHALL remain in that agent’s trap-sheet section. The loader’s detection order SHALL NOT change in this pass.
+
+#### Scenario: code-reviewer points at the shared loader
+
+- **WHEN** `agents/code-reviewer.md` is rewritten
+- **THEN** the shared project-root detection steps are a pointer to `agent-traps/_common/trap-sheet-loader.md` and the `fastapi` extra signal plus module-id remaps remain inline as exceptions
+
+#### Scenario: Loader detection order is unchanged
+
+- **WHEN** the agent prose pass finishes
+- **THEN** `agent-traps/_common/trap-sheet-loader.md` compares equal in detection order and stack signals to the pre-pass file
+
+### Requirement: Agent prose exposes role, completion, and named neighbors
+
+Each canonical agent body SHALL state role scope, tools/model entitlement already declared in frontmatter, checkable completion evidence, and the next-role handoff. Neighbor agents or counterpart skills SHALL be named in the description or an opening non-use boundary. The prose pass SHALL NOT change `model`, `tools`, sentinel names, `maxTurns`, or worker-backend selection. Description fence wording MAY change.
+
+#### Scenario: A reviewer names its delegate instead of restating the delegate’s checklist
+
+- **WHEN** `code-reviewer` would otherwise restate OWASP or silent-failure checklists
+- **THEN** it names `security-reviewer` or `silent-failure-hunter` as the handoff and does not copy those checklists
+
+#### Scenario: Frontmatter contracts stay stable
+
+- **WHEN** agent prose is rewritten
+- **THEN** `name`, `tools`, `model`, `effort`, `maxTurns`, and `skills` compare equal before and after except where a separately specified requirement already mandates a field fix
