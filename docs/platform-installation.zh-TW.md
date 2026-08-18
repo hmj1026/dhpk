@@ -379,7 +379,7 @@ AGY projection 是獨立的 owner-scoped package。它只轉換 canonical agent
 frontmatter，不會改寫 `agents/`。請從 dhpk checkout 產生與驗證：
 
 ```bash
-node scripts/ci/gen-agy-plugin-package.js plugins/dhpk-agy --version=0.42.0
+node scripts/ci/gen-agy-plugin-package.js plugins/dhpk-agy --version=0.42.1
 node scripts/ci/validate-agy-plugin-package.js plugins/dhpk-agy
 ```
 
