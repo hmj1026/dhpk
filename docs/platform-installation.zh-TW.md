@@ -421,6 +421,10 @@ agy agents
 `~/.gemini/config/plugins/dhpk` 的 native receipt-owned package 是由
 隔離 HOME 的 `agy agents` 發現，不能用 import JSON 裡出現 `dhpk` 當證明。
 validator 會把 package bind 到 sandbox 內的這個 consumer path。
+AGY 1.1.13 沒有 native filesystem plugin loader，所以隔離 HOME 的
+`agy agents` 會是空的；這組結果是 `SKIP_INCOMPATIBLE`，不是 package-shape
+`FAIL`。不要對 receipt-owned target 跑 `agy plugin install`：那不是 native
+registration 步驟，而且可能把 `plugin.json` 截成空檔。
 
 報告分開記錄 package structure、plugin/agent discovery 與 Subagent runtime。
 若 `agy` 不在 `PATH`，discovery 是 `UNAVAILABLE`；未使用

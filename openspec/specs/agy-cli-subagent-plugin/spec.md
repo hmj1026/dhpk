@@ -153,6 +153,26 @@ marker is present, and require an explicit owner decision.
 - **THEN** it returns `BLOCKED`/`FOREIGN_CHECKOUT` evidence and requires an
   independent owner action before a clean install
 
+### Requirement: Receipt-owned installers do not invoke agy plugin install
+
+AGY receipt-owned `install`, `update`, `uninstall`, and `rollback` SHALL copy,
+link, or remove only files matching the AGY provenance receipt. They MUST NOT
+invoke `agy plugin install` against the target. Isolated discovery probes MUST
+NOT invoke `agy plugin install`.
+
+#### Scenario: Status and update leave plugin.json intact
+
+- **WHEN** an operator runs receipt-owned `status` or `update` against a valid
+  AGY package
+- **THEN** the target `plugin.json` byte length remains unchanged by any AGY
+  CLI install command, because no such command is invoked
+
+#### Scenario: Discovery probe does not install
+
+- **WHEN** configured-platform validation probes `agy plugins list` and
+  `agy agents`
+- **THEN** those probes are read-only and do not call `agy plugin install`
+
 ### Requirement: AGY verification reports separate support states
 
 The AGY verification flow SHALL report structural/package validation,
@@ -177,8 +197,16 @@ manifest or discovery result SHALL NOT upgrade runtime support.
 
 - **WHEN** `agy plugins list` returns only import JSON or "No imported plugins"
   and isolated `agy agents` does not list an inventory-derived agent
-- **THEN** plugin discovery does not PASS from the import record, and agent
-  discovery is `FAIL` or `UNAVAILABLE`
+- **THEN** plugin discovery does not PASS from the import record
+
+#### Scenario: Isolated empty discovery on a valid package is CLI-incompatible
+
+- **WHEN** package structure is `PASS`, `agy plugins list` is import-only or
+  empty of native plugins, and isolated `agy agents` does not list an
+  inventory-derived agent
+- **THEN** plugin discovery and agent discovery are `SKIP_INCOMPATIBLE` with a
+  diagnostic that the AGY CLI has no native filesystem plugin loader, and the
+  configured-platform gate is not failed for that reason
 
 #### Scenario: Native package is mounted at the consumer path
 
@@ -186,7 +214,7 @@ manifest or discovery result SHALL NOT upgrade runtime support.
   valid package
 - **THEN** the package is bound at `/home/agy/.gemini/config/plugins/dhpk`
   rather than a workspace copy, so isolated `agy agents` can load the native
-  plugin
+  plugin if the CLI supports that loader
 
 #### Scenario: Read-only Subagent probe passes
 
