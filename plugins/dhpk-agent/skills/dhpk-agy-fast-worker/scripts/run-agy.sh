@@ -29,6 +29,9 @@
 #     without re-verification across the 1.1.2 -> 1.1.8 gap. Piping `Y` is kept anyway —
 #     harmless when unread, and may still be required by an older binary on the degrade
 #     path below the structured-output floor.
+# Agy 1.1.13 can still soft-deny a tool (stderr names an allow rule / settings.json)
+# or reject interactive slash commands in print mode; the wrapper classifies that
+# captured stderr after the single invocation and does not retry.
 #
 # On agy >= AGY_STRUCTURED_OUTPUT_FLOOR (below), the wrapper additionally passes
 # `--output-format json` and `--json-schema <report-schema.json>` to force the report
@@ -232,6 +235,14 @@ if [ "$CODE" -eq 124 ] && [ -n "$TIMEOUT_BIN" ] && [ "$ELAPSED" -ge "$ELAPSED_TH
 fi
 if [ "$CODE" -ne 0 ]; then
   echo "run-agy.sh: agy exited with code $CODE" >&2
+  # Classify captured stderr after the single invocation — never retry. Match
+  # with bash (not grep): restricted-PATH tests omit grep from PATH.
+  ERR_CAPTURED="$(cat "$ERR_LOG" 2>/dev/null || true)"
+  if [[ "$ERR_CAPTURED" == *"allow rule"* ]]; then
+    echo "run-agy.sh: captured stderr names a conservative allow-rule / settings.json permissions hint." >&2
+  elif [[ "$ERR_CAPTURED" == *"interactive slash commands are not supported in print mode"* ]]; then
+    echo "run-agy.sh: captured stderr is a print-mode slash-command error (not a permissions failure)." >&2
+  fi
   tail -n 20 "$ERR_LOG" >&2 2>/dev/null || true
   exit "$CODE"
 fi
