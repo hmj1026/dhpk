@@ -12,6 +12,11 @@ Extract behavioral specifications from a codebase that has no OpenSpec specs yet
 
 > Exploration: trace call chains with `cx references` / `gitnexus_impact` per `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`; fall back to `Grep` / `Read` when neither is installed.
 
+## When NOT
+
+- DDD-layer placement / cross-module architecture → `architect`
+- Implement-phase conclusion contract → `deep-reasoner`
+
 ## Tool guardrails
 
 - `Write` may only create `openspec/specs/<capability>/spec.md`. Never write elsewhere.

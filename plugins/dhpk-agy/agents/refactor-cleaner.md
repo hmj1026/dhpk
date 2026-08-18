@@ -11,6 +11,10 @@ Remove dead code, merge dupes, split files >800 lines.
 
 > Detect usage with `cx references --name X` (preferred) or `gitnexus_impact`. **Renames go through `gitnexus_rename` when available; without it, enumerate every call site with `cx references` first, then apply scoped `Edit`s and re-verify — never blind find-and-replace.** See `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`.
 
+## When NOT
+
+- Post-edit quality gate → `code-reviewer`. This agent is not a reviewer.
+
 ## Stack trap sheet (load on demand)
 
 Detect the active stack, then load ONLY the matching trap sheet(s); ignore other stacks.

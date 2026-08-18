@@ -1,18 +1,17 @@
 # performance-analyzer — Frontend traps
 
-Client-runtime perf for JS/TS/React/Vue bundles. Loaded when a `js` / `vue` / React /
-Next stack is detected. Correctness/type lanes → `code-reviewer/js.md` (+ `vue.md`);
-this sheet owns latency, render cost, bundle size, and memory.
+Client-runtime perf for JS/TS/React/Vue bundles. Correctness/type lanes →
+`code-reviewer/js.md` (+ `vue.md`); this sheet owns latency, render cost, bundle
+size, and memory.
 
-| Lane | Flag | Fix |
+| Trigger | Action | Non-apply |
 |---|---|---|
-| Algorithmic | O(n²) over large arrays (nested `.find`/`.includes` in a loop, sort inside a loop, repeated `.filter().map()` passes) | precompute a `Map`/`Set` for lookups; sort once; single pass |
-| React render | inline object/array/fn literal passed as a prop; expensive compute in render body; missing `React.memo` on a pure child re-rendering with parent | hoist / `useMemo` / `useCallback`; memoize the child; stabilize deps |
-| Effects | `useEffect` recomputing derived state that could be computed in render; missing / over-broad dependency array | derive in render; tighten deps (exhaustive-deps lint) |
-| Lists | long list rendered without virtualization; `key={index}` defeating reconciliation | `react-window`/virtual scroller; stable id keys |
-| Bundle | `import _ from 'lodash'` / `import * as X`; heavy lib imported eagerly on a route that rarely needs it; no code-splitting | named/tree-shakeable imports; `React.lazy` / dynamic `import()`; route-level split |
-| Network | independent requests `await`ed sequentially; no caching/dedupe; no debounce on input-driven fetch | `Promise.all`; cache/dedupe (SWR/React Query); debounce |
-| **Memory leak** | `addEventListener` / `setInterval` / subscription without teardown; growing module-level cache; closure retaining a large object | remove listener / `clearInterval` / unsubscribe in cleanup; bound the cache; drop the reference |
+| Algorithmic: O(n²) over large arrays (nested `.find`/`.includes` in a loop, sort inside a loop, repeated `.filter().map()` passes) | precompute a `Map`/`Set` for lookups; sort once; single pass | — |
+| React render: inline object/array/fn literal passed as a prop; expensive compute in render body; missing `React.memo` on a pure child re-rendering with parent | hoist / `useMemo` / `useCallback`; memoize the child; stabilize deps | — |
+| Effects: `useEffect` recomputing derived state that could be computed in render; missing / over-broad dependency array | derive in render; tighten deps (exhaustive-deps lint) | — |
+| Lists: long list rendered without virtualization; `key={index}` defeating reconciliation | `react-window`/virtual scroller; stable id keys | `key={index}` on a static never-reordered list |
+| Bundle: `import _ from 'lodash'` / `import * as X`; heavy lib imported eagerly on a route that rarely needs it; no code-splitting | named/tree-shakeable imports; `React.lazy` / dynamic `import()`; route-level split | one-off scripts outside the UI bundle |
+| **Memory leak**: `addEventListener` / `setInterval` / subscription without teardown; growing module-level cache; closure retaining a large object | remove listener / `clearInterval` / unsubscribe in cleanup; bound the cache; drop the reference | — |
 
 ## Web Vitals budget (flag regressions)
 

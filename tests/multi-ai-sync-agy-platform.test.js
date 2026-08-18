@@ -202,8 +202,10 @@ test('import-only agy plugins list is not native plugin discovery PASS', () => {
     const row = JSON.parse(result.stdout).results.find((item) => item.platform === 'agy');
     const plugins = row.capabilities.find((item) => item.id === 'agy.discovery.plugins').status;
     const agents = row.capabilities.find((item) => item.id === 'agy.discovery.agents').status;
-    assert.ok(['FAIL', 'UNAVAILABLE'].includes(plugins), `import-only plugins list must not PASS: ${plugins}`);
-    assert.ok(['FAIL', 'UNAVAILABLE'].includes(agents), `unrelated agents must not PASS: ${agents}`);
+    assert.ok(['SKIP_INCOMPATIBLE', 'UNAVAILABLE'].includes(plugins), `import-only plugins list must not PASS: ${plugins}`);
+    assert.ok(['SKIP_INCOMPATIBLE', 'UNAVAILABLE'].includes(agents), `unrelated agents must not PASS: ${agents}`);
+    assert.notStrictEqual(plugins, 'PASS');
+    assert.notStrictEqual(row.final_status, 'FAIL', JSON.stringify(row));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

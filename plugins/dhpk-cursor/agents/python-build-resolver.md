@@ -17,6 +17,11 @@ error, fix the root cause, re-run, repeat — never silence a check to make it p
 > `poetry run <tool>`; an already-activated venv ⇒ the bare tool on PATH. Find
 > the project root by walking up to the nearest `pyproject.toml`.
 
+## When NOT
+
+- Rust / Cargo toolchain failures → `rust-build-resolver`
+- Swift / Xcode / SwiftPM toolchain failures → `swift-build-resolver`
+
 ## Diagnose
 
 ```sh

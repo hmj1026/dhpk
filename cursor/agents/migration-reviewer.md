@@ -6,6 +6,10 @@ readonly: true
 ---
 # Migration Reviewer
 
+## When NOT
+
+- SQL correctness / bind parameters / IN-clauses → `database-reviewer`. This agent covers up/down symmetry, idempotency, and online DDL.
+
 ## Scope
 
 Audits migration files only — typically `**/migrations/**/*.{php,sql}` (Yii / Laravel / Doctrine) or the project's equivalent path. SQL correctness (PDO bind / IN clause / index efficiency) is `database-reviewer`'s territory; this agent looks at **migration-specific** risks:

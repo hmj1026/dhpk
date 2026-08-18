@@ -1,27 +1,18 @@
-# tdd-guide — JS / TypeScript traps
+# tdd-guide × js / TypeScript
 
-Jest / Vitest (unit + integration) and Playwright (E2E) conventions for
-`.ts/.tsx/.js/.jsx`. Vue component-test specifics → pair with the `vue` module if active.
+For the tdd-guide agent on Jest / Vitest (unit + integration) and Playwright (E2E) for `.ts/.tsx/.js/.jsx`. Neighboring agents: e2e-runner (Playwright journeys — boundingBox/dialog traps live in `agent-traps/e2e-runner/playwright.md`). Vue component-test specifics → pair with the `vue` module if active.
 
-## Test layout
+Layout: `*.test.ts` beside source (or `__tests__/`) = unit (pure functions / components in isolation; mock externals at the boundary); `*.integration.test.ts` = route handler + real query path against an in-memory / test store; `e2e/*.spec.ts` = Playwright, one critical user journey per file. Method names: `it('<subject> <condition> <expected>')`, not `it('works')`.
 
-| Path | Rule |
-|------|------|
-| `*.test.ts` beside source (or `__tests__/`) | Unit — pure functions / components in isolation; mock externals at the boundary |
-| `*.integration.test.ts` | Integration — route handler + real query path against an in-memory / test store |
-| `e2e/*.spec.ts` | Playwright — one critical user journey per file |
-
-- Method names describe behavior: `it('<subject> <condition> <expected>')`, not `it('works')`.
-
-## Conventions
-
-- **Arrange-Act-Assert** — one observable behavior per test; split when the name needs "and".
-- **Assert observable output, not internals** — return value / rendered DOM / emitted event a caller sees, never a spy `toHaveBeenCalledTimes` as a proxy for behavior.
-- **Test isolation** — no shared mutable module state across tests; reset with `beforeEach` / `vi.restoreAllMocks()`; never let test B depend on test A's order.
-- **Mock external boundaries only** — network / fs / clock / third-party SDK; do not mock the unit under test. Prefer `vi.mock` / `jest.mock` at the module edge.
-- **Async correctness** — `await` the assertion or return the promise; never leave a floating promise (the test passes before the assertion runs). Use fake timers for time-dependent code.
-- **Semantic selectors (Playwright)** — `getByRole` / `getByLabel` / `data-testid`, never brittle CSS / nth-child chains; assert on user-visible state.
-- **Edge + error paths** — null / empty / boundary / invalid-type / thrown-error, not just the happy path (`expect(fn).rejects.toThrow(...)`).
+| Trigger | Action | Non-apply |
+|---|---|---|
+| test name needs "and"; multiple behaviors in one case | Arrange-Act-Assert — one observable behavior per test; split | — |
+| spy `toHaveBeenCalledTimes` as a proxy for behavior | assert observable output: return value / rendered DOM / emitted event a caller sees | a documented fire-and-forget logger |
+| shared mutable module state; test B depends on test A's order | isolate: reset with `beforeEach` / `vi.restoreAllMocks()` | — |
+| mock of the unit under test | mock external boundaries only (network / fs / clock / third-party SDK); prefer `vi.mock` / `jest.mock` at the module edge | — |
+| floating promise / un-awaited assertion | `await` the assertion or return the promise; fake timers for time-dependent code | a documented fire-and-forget logger |
+| brittle CSS / nth-child Playwright selectors | `getByRole` / `getByLabel` / `data-testid`; assert on user-visible state | E2E files that belong to e2e-runner — boundingBox/dialog traps live in `agent-traps/e2e-runner/playwright.md` |
+| happy-path only | cover null / empty / boundary / invalid-type / thrown-error (`expect(fn).rejects.toThrow(...)`) | — |
 
 ## Run
 

@@ -1,22 +1,19 @@
-# database-reviewer — Yii 1.1 / MySQL traps
+# database-reviewer × yii-1.1
 
-## Required Form (no string concat ever)
+For the database-reviewer agent on Yii 1.1 / MySQL. Neighboring agents: security-reviewer (bind params), performance-analyzer (query count), tdd-guide (DAO vs AR asserts).
 
-- `Yii::app()->db->createCommand($sql)->bindParam(':id', $id, PDO::PARAM_INT)->queryAll()`
-- `Model::model()->findAll('id = :id', [':id' => $id])`
-- IN/NOT IN: `CDbCriteria::addInCondition()` / `addNotInCondition()`, never interpolation (follow the project's PHP query-pattern rules)
+SQL shape: `bindParam` and `addInCondition`. IN-clause pointer: the project's Yii repository conventions. Framework: the project's Yii 1.1 framework reference. Coding style: the project's PHP coding rules.
 
-## Project Traps
+| Trigger | Action | Non-apply |
+|---|---|---|
+| SQL built with string concat / interpolation | `Yii::app()->db->createCommand($sql)->bindParam(':id', $id, PDO::PARAM_INT)->queryAll()` or `Model::model()->findAll('id = :id', [':id' => $id])` | — |
+| IN / NOT IN with interpolated values | `CDbCriteria::addInCondition()` / `addNotInCondition()` — the project's Yii repository conventions | — |
+| ORDER BY field from user input | whitelist the column | — |
+| LIMIT/OFFSET from request | cast to `(int)` before SQL | — |
+| empty-result check on `queryRow()` vs `null` | DAO `queryRow()` returns `false` on no row; AR `find*` returns `null` (DAO ≠ AR) | — |
+| `utf8_unicode_ci` ordering compared with ASCII `strcmp()` | tests use `strcasecmp()` | — |
+| Controller / trait / Domain service calling db directly | Repository methods named `forXxx`; ALL SQL lives in Repository | — |
+| AR missing `model($className=__CLASS__)`, or wrong `tableName()` / `primaryKey()` / `rules()` | define them | — |
+| Money arithmetic with `+` / `*` / float | `bcadd`/`bcmul`; rounding via custom bcround (`memory/bcmath-rounding-trap.md`) | non-money integer counts |
 
-- ORDER BY field cannot embed user input → whitelist
-- LIMIT/OFFSET cast to `(int)` before SQL
-- `queryRow()` returns `false` (not `null`) on no row
-- `utf8_unicode_ci` ordering ≠ ASCII → tests use `strcasecmp()`
-- Repository methods named `forXxx`; ALL SQL lives in Repository (Controller / trait / Domain service must not call db directly)
-- AR must define `model($className=__CLASS__)`; correct `tableName()`, `primaryKey()`, `rules()`
-- Money: `bcadd/bcmul`; rounding via custom bcround (`memory/bcmath-rounding-trap.md`)
-
-## Environment
-
-- DB: `<your-db-name>` (MySQL 5.7.33)
-- Run: `docker exec -i -w <container-workdir> ${PHP_CONTAINER:-php} php -r "..."`
+Run: `docker exec -i -w <container-workdir> ${PHP_CONTAINER:-php} php -r "..."`.

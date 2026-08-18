@@ -643,7 +643,28 @@ test('consumer probe only reports PASS for an explicitly supplied loader command
   }
 });
 
-test('hung Cursor consumer probes return bounded BLOCKED timeout evidence', () => {
+test('hung Cursor consumer probes return BLOCKED timeout evidence when they already emitted output', () => {
+  const out = tmpDir('dhpk-cursor-consumer-timeout-output-');
+  try {
+    const probe = runCursorConsumerProbe({
+      packageRoot: out,
+      executable: process.execPath,
+      args: ['-e', "require('node:fs').writeSync(1, 'partial-output\\n'); setTimeout(() => {}, 1000)"],
+      pathValue: '',
+      timeoutMs: 80,
+    });
+    assert.strictEqual(probe.status, 'BLOCKED');
+    assert.strictEqual(probe.timed_out, true);
+    assert.strictEqual(probe.no_stdout, false);
+    assert.match(probe.reason, /timed out after 80 ms/);
+    assert.notStrictEqual(probe.status, 'PASS');
+    assert.notStrictEqual(probe.status, 'SKIP_INCOMPATIBLE');
+  } finally {
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test('hung Cursor consumer probes return SKIP_INCOMPATIBLE timeout evidence when silent', () => {
   const out = tmpDir('dhpk-cursor-consumer-timeout-');
   try {
     const probe = runCursorConsumerProbe({
@@ -653,12 +674,13 @@ test('hung Cursor consumer probes return bounded BLOCKED timeout evidence', () =
       pathValue: '',
       timeoutMs: 40,
     });
-    assert.strictEqual(probe.status, 'BLOCKED');
+    assert.strictEqual(probe.status, 'SKIP_INCOMPATIBLE');
     assert.strictEqual(probe.timed_out, true);
+    assert.strictEqual(probe.no_stdout, true);
     assert.strictEqual(probe.timeout_ms, 40);
     assert.strictEqual(probe.exit_code, null);
     assert.ok(probe.signal, JSON.stringify(probe));
-    assert.match(probe.reason, /timed out/i);
+    assert.match(probe.reason, /no stdout\/stderr before timeout|no non-LLM plugin list/i);
     assert.notStrictEqual(probe.status, 'PASS');
   } finally {
     fs.rmSync(out, { recursive: true, force: true });
@@ -677,8 +699,9 @@ test('Cursor probe forcibly bounds a client that ignores SIGTERM', () => {
       timeoutMs: 40,
     });
     assert.ok(Date.now() - started < 1000, `probe exceeded hard timeout: ${Date.now() - started}ms`);
-    assert.strictEqual(probe.status, 'BLOCKED');
+    assert.strictEqual(probe.status, 'SKIP_INCOMPATIBLE');
     assert.strictEqual(probe.timed_out, true);
+    assert.strictEqual(probe.no_stdout, true);
   } finally {
     fs.rmSync(out, { recursive: true, force: true });
   }
@@ -701,8 +724,9 @@ test('Cursor probe timeout cleans up ordinary descendants in the probe group', (
       pathValue: '',
       timeoutMs: 50,
     });
-    assert.strictEqual(probe.status, 'BLOCKED');
+    assert.strictEqual(probe.status, 'SKIP_INCOMPATIBLE');
     assert.strictEqual(probe.timed_out, true);
+    assert.strictEqual(probe.no_stdout, true);
     Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 300);
     assert.strictEqual(fs.existsSync(marker), false, 'ordinary descendant survived the timeout group cleanup');
   } finally {

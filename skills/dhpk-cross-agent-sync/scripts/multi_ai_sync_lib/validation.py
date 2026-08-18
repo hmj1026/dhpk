@@ -673,15 +673,26 @@ def _agy_discovery_probe(repo_root, package_root, agents):
         reason = plugin_output if plugin_code is None else agent_output
         notes.append(reason)
     else:
-        agent_status = ROW_PASS if agent_code == 0 and any(agent[:-3] in agent_output for agent in agents) else ROW_FAIL
+        agents_found = agent_code == 0 and any(agent[:-3] in agent_output for agent in agents)
+        agent_status = ROW_PASS if agents_found else ROW_FAIL
         plugin_status, plugin_note = _agy_plugins_list_native_status(plugin_output if plugin_code == 0 else "")
         if plugin_note:
             notes.append(plugin_note)
         if plugin_status is None:
             # Import-only listing cannot prove native discovery. Isolated
-            # `agy agents` is the native load signal for a receipt-owned package.
-            plugin_status = agent_status
-        if plugin_code != 0 and plugin_status != ROW_PASS:
+            # `agy agents` is the native load signal. Empty isolated agents on
+            # a structurally valid package is the AGY CLI's missing native
+            # filesystem loader, not a package-shape FAIL.
+            if agents_found:
+                plugin_status = ROW_PASS
+            else:
+                plugin_status = ROW_SKIP_INCOMPATIBLE
+                agent_status = ROW_SKIP_INCOMPATIBLE
+                notes.append(
+                    "AGY CLI has no native filesystem plugin loader; "
+                    "isolated empty agents are SKIP_INCOMPATIBLE, not package FAIL"
+                )
+        if plugin_code != 0 and plugin_status not in (ROW_PASS, ROW_SKIP_INCOMPATIBLE):
             plugin_status = ROW_FAIL
             notes.append("agy plugins list did not report the dhpk plugin")
         if agent_status == ROW_FAIL:

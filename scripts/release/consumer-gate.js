@@ -9,9 +9,10 @@
 //     inside a throwaway temp project directory.
 //   - Claude plugin update/reinstall (supported): `claude plugin
 //     marketplace add` + `install --scope project` + `plugin list` in a
-//     clean temp project. Only safe to run for real on an ephemeral CI
-//     runner (a dev machine's `claude plugin install` writes to the shared
-//     global plugin cache) — reported UNAVAILABLE when the `claude` CLI is
+//     clean temp project, then uninstalls the project-scope plugin and
+//     removes the project-scope marketplace before deleting the temp dir.
+//     Only safe to run for real on an ephemeral CI runner (a dev machine's
+//     `claude plugin install` writes to the shared global plugin cache) —
 //     absent from PATH rather than skipped silently.
 //   - Native Codex marketplace (experimental support tier, but a REAL
 //     verified proof — make-codex-plugin-distribution-install-safe): runs
@@ -487,6 +488,29 @@ function claudeCliVersion() {
   return ((result.stdout || result.stderr || '').trim().split(/\r?\n/)[0] || 'unknown').trim();
 }
 
+function teardownClaudeProjectRegistry(project, commands, warnings, root) {
+  const uninstall = spawnSync(
+    'claude',
+    ['plugin', 'uninstall', 'dhpk@dhpk', '--scope', 'project', '-y'],
+    { cwd: project, encoding: 'utf8' },
+  );
+  commands.push({ cmd: 'claude plugin uninstall dhpk@dhpk --scope project', exitCode: uninstall.status });
+  if (uninstall.status !== 0) {
+    const detail = redactEvidence((uninstall.stderr || '').trim(), root);
+    warnings.push(`plugin uninstall exited ${uninstall.status}${detail ? `: ${detail}` : ''}`);
+  }
+  const remove = spawnSync(
+    'claude',
+    ['plugin', 'marketplace', 'remove', 'dhpk', '--scope', 'project'],
+    { cwd: project, encoding: 'utf8' },
+  );
+  commands.push({ cmd: 'claude plugin marketplace remove dhpk --scope project', exitCode: remove.status });
+  if (remove.status !== 0) {
+    const detail = redactEvidence((remove.stderr || '').trim(), root);
+    warnings.push(`marketplace remove exited ${remove.status}${detail ? `: ${detail}` : ''}`);
+  }
+}
+
 function verifyClaudeReinstall(root, version) {
   const strictCommand = 'claude plugin validate <manifest> --strict';
   if (!claudeAvailable()) {
@@ -541,39 +565,46 @@ function verifyClaudeReinstall(root, version) {
     fs.rmSync(validationStage, { recursive: true, force: true });
   }
   const officialValidation = { verdict: 'PASS', ...strictEvidence };
+  const warnings = [];
   const project = mkTempProject();
   try {
     const add = spawnSync('claude', ['plugin', 'marketplace', 'add', root, '--scope', 'project'], { cwd: project, encoding: 'utf8' });
     commands.push({ cmd: 'claude plugin marketplace add <root> --scope project', exitCode: add.status });
     if (add.status !== 0) {
-      return { verdict: VERDICTS.FAIL, commands, officialValidation, reasons: [`marketplace add exited ${add.status}: ${redactEvidence((add.stderr || '').trim(), root)}`] };
+      return { verdict: VERDICTS.FAIL, commands, officialValidation, reasons: [`marketplace add exited ${add.status}: ${redactEvidence((add.stderr || '').trim(), root)}`], warnings };
     }
 
     const install = spawnSync('claude', ['plugin', 'install', 'dhpk@dhpk', '--scope', 'project'], { cwd: project, encoding: 'utf8' });
     commands.push({ cmd: 'claude plugin install dhpk@dhpk --scope project', exitCode: install.status });
     if (install.status !== 0) {
-      return { verdict: VERDICTS.FAIL, commands, officialValidation, reasons: [`plugin install exited ${install.status}: ${redactEvidence((install.stderr || '').trim(), root)}`] };
+      return { verdict: VERDICTS.FAIL, commands, officialValidation, reasons: [`plugin install exited ${install.status}: ${redactEvidence((install.stderr || '').trim(), root)}`], warnings };
     }
 
     const list = spawnSync('claude', ['plugin', 'list', '--json'], { cwd: project, encoding: 'utf8' });
     commands.push({ cmd: 'claude plugin list --json', exitCode: list.status });
     if (list.status !== 0) {
-      return { verdict: VERDICTS.FAIL, commands, officialValidation, reasons: [`plugin list exited ${list.status}`] };
+      return { verdict: VERDICTS.FAIL, commands, officialValidation, reasons: [`plugin list exited ${list.status}`], warnings };
     }
     const installed = JSON.parse(list.stdout || '[]').find((p) => p.id === 'dhpk@dhpk');
     if (!installed) {
-      return { verdict: VERDICTS.FAIL, commands, officialValidation, reasons: ["'dhpk@dhpk' not present in 'claude plugin list --json' after install"] };
+      return { verdict: VERDICTS.FAIL, commands, officialValidation, reasons: ["'dhpk@dhpk' not present in 'claude plugin list --json' after install"], warnings };
     }
     if (installed.version !== version) {
-      return { verdict: VERDICTS.FAIL, commands, officialValidation, reasons: [`installed plugin reports version '${installed.version}', expected '${version}'`] };
+      return { verdict: VERDICTS.FAIL, commands, officialValidation, reasons: [`installed plugin reports version '${installed.version}', expected '${version}'`], warnings };
     }
     return {
       verdict: VERDICTS.PASS,
       commands,
       officialValidation,
       reasons: [],
+      warnings,
     };
   } finally {
+    try {
+      teardownClaudeProjectRegistry(project, commands, warnings, root);
+    } catch (error) {
+      warnings.push(`registry teardown threw: ${error.message}`);
+    }
     fs.rmSync(project, { recursive: true, force: true });
   }
 }
@@ -662,6 +693,11 @@ function runGate(args) {
       `agent-plugin-consumer: ${projectedCodex.status}${projectedCodex.reason ? ` (${projectedCodex.reason})` : ''}`,
       `cursor-plugin-consumer: ${projectedCursor.status}${projectedCursor.reason ? ` (${projectedCursor.reason})` : ''}`,
       ...(codex.surfaceVerdict ? [`codex-surface: ${codex.surfaceVerdict}`] : []),
+      ...(Array.isArray(claude.warnings) && claude.warnings.length > 0
+        ? [`claude-registry-teardown: WARN (${claude.warnings.join('; ')})`]
+        : (claude.commands || []).some((c) => /plugin uninstall/.test(c.cmd))
+          ? ['claude-registry-teardown: PASS']
+          : []),
     ],
     failureReasons,
     ...(codex.surfaces ? { codexSurfaces: { ...codex.surfaces, duplicates: codex.duplicateEvidence || [] } } : {}),

@@ -4,8 +4,12 @@
 // optional model/effort args (4th/5th) produce `-m <model>` / `-c
 // model_reasoning_effort="<effort>"`, and that the original 3-arg shape stays
 // byte-identical (no model/effort flags — inherit-from-config for codex-bridge).
-// A PATH-stubbed `codex` captures argv and honors --output-last-message so no
-// real API call happens.
+// Worker-style calls (DHPK_CODEX_ROLE=codex-fast-worker) also pass additive
+// `--output-schema` (report-schema.json next to the wrapper) while keeping
+// `--output-last-message`; other roles omit the schema. Isolation flags
+// `--ephemeral` / `--ignore-user-config` are opt-in via env; `ultra` effort is
+// never passed through. A PATH-stubbed `codex` captures argv and honors
+// --output-last-message so no real API call happens.
 
 const fs = require('node:fs');
 const os = require('node:os');
@@ -16,6 +20,7 @@ const { buildToolsOnlyDir } = require('./_lib/restricted-path');
 
 const ROOT = path.join(__dirname, '..');
 const WRAPPER = path.join(ROOT, 'skills', 'dhpk-codex-bridge', 'scripts', 'run-codex.sh');
+const REPORT_SCHEMA = path.join(ROOT, 'skills', 'dhpk-codex-bridge', 'scripts', 'report-schema.json');
 const TIMEOUT_ENVELOPE_HELPER = path.join(ROOT, 'skills', 'dhpk-codex-bridge', 'scripts', 'codex-timeout-envelope.js');
 
 // The wrapper's own runtime dependencies (excluding `timeout`/`gtimeout`, which the
@@ -142,8 +147,15 @@ function withStub(fn) {
 // codex's exit code (default 0).
 function runWrapper({ binDir, argvOut, dir }, args, extraEnv = {}, opts = {}) {
   const PATH = opts.toolsDir ? `${binDir}:${opts.toolsDir}` : `${binDir}:${process.env.PATH}`;
+  const env = { ...process.env, PATH, ARGV_OUT: argvOut, STUB_EXIT: String(opts.stubExit ?? 0) };
+  // Wrapper timeout/role env from the parent process (e.g. a live-smoke in the
+  // same shell) must not leak into cases that resolve config themselves.
+  for (const key of Object.keys(env)) {
+    if (key.startsWith('DHPK_CODEX_') || key === 'DHPK_OUTER_BUDGET_SECS') delete env[key];
+  }
+  Object.assign(env, extraEnv);
   return spawnSync('bash', [WRAPPER, ...args], {
-    env: { ...process.env, PATH, ARGV_OUT: argvOut, STUB_EXIT: String(opts.stubExit ?? 0), ...extraEnv },
+    env,
     cwd: dir,
     encoding: 'utf8',
     // The wrapper budget is intentionally short, but process-group teardown
@@ -528,6 +540,156 @@ test('CODEX_WRAP_TIMEOUT_SECS=0 disables the backstop; a slow backend-native 124
     assert.ok(res.stderr.includes('codex exited with code 124'),
       `expected the generic passthrough failure message:\n${res.stderr}`);
   });
+});
+
+test('worker-style invocation adds --output-schema and keeps --output-last-message', () => {
+  withStub((ctx) => {
+    const res = runWrapper(ctx, ['workspace-write', ctx.dir, ctx.promptFile, 'gpt-5.6-luna', 'xhigh'], {
+      DHPK_CODEX_ROLE: 'codex-fast-worker',
+    });
+    assert.strictEqual(res.status, 0, `wrapper failed: ${res.stderr}`);
+    const argv = fs.readFileSync(ctx.argvOut, 'utf8');
+    const lines = argv.split('\n').filter((line) => line !== '');
+    const schemaIdx = lines.indexOf('--output-schema');
+    assert.ok(schemaIdx >= 0, `missing --output-schema in worker-style argv:\n${argv}`);
+    assert.strictEqual(
+      lines[schemaIdx + 1],
+      REPORT_SCHEMA,
+      `--output-schema must point at ${REPORT_SCHEMA}, got ${lines[schemaIdx + 1]}\n${argv}`,
+    );
+    assert.ok(
+      lines.includes('--output-last-message'),
+      `worker-style must still include --output-last-message:\n${argv}`,
+    );
+  });
+});
+
+test('three-arg with DHPK_CODEX_ROLE=codex-fast-worker still adds --output-schema', () => {
+  withStub((ctx) => {
+    const res = runWrapper(ctx, ['read-only', ctx.dir, ctx.promptFile], {
+      DHPK_CODEX_ROLE: 'codex-fast-worker',
+    });
+    assert.strictEqual(res.status, 0, `wrapper failed: ${res.stderr}`);
+    const argv = fs.readFileSync(ctx.argvOut, 'utf8');
+    const lines = argv.split('\n').filter((line) => line !== '');
+    const schemaIdx = lines.indexOf('--output-schema');
+    assert.ok(schemaIdx >= 0, `missing --output-schema on 3-arg fast-worker path:\n${argv}`);
+    assert.strictEqual(
+      lines[schemaIdx + 1],
+      REPORT_SCHEMA,
+      `--output-schema must point at ${REPORT_SCHEMA}, got ${lines[schemaIdx + 1]}\n${argv}`,
+    );
+    assert.ok(
+      lines.includes('--output-last-message'),
+      `3-arg fast-worker must still include --output-last-message:\n${argv}`,
+    );
+  });
+});
+
+test('three-arg inherit-from-config omits model flags and default isolation flags', () => {
+  withStub((ctx) => {
+    const res = runWrapper(ctx, ['read-only', ctx.dir, ctx.promptFile], {
+      DHPK_CODEX_EPHEMERAL: '',
+      DHPK_CODEX_IGNORE_USER_CONFIG: '',
+    });
+    assert.strictEqual(res.status, 0, `wrapper failed: ${res.stderr}`);
+    const argv = fs.readFileSync(ctx.argvOut, 'utf8');
+    assert.ok(!/(^|\n)-m(\n|$)/.test(argv), `unexpected -m flag in inherit-from-config shape:\n${argv}`);
+    assert.ok(!argv.includes('model_reasoning_effort'),
+      `unexpected model_reasoning_effort in inherit-from-config shape:\n${argv}`);
+    assert.ok(!/(^|\n)--ephemeral(\n|$)/.test(argv),
+      `default three-arg must not pass --ephemeral:\n${argv}`);
+    assert.ok(!/(^|\n)--ignore-user-config(\n|$)/.test(argv),
+      `default three-arg must not pass --ignore-user-config:\n${argv}`);
+    assert.ok(!/(^|\n)--output-schema(\n|$)/.test(argv),
+      `default three-arg (codex-bridge) must not pass --output-schema:\n${argv}`);
+    assert.ok(/(^|\n)--output-last-message(\n|$)/.test(argv),
+      `default three-arg must still include --output-last-message:\n${argv}`);
+  });
+});
+
+test('DHPK_CODEX_ROLE=codex-deep-reasoner omits --output-schema and keeps --output-last-message', () => {
+  withStub((ctx) => {
+    const res = runWrapper(ctx, ['workspace-write', ctx.dir, ctx.promptFile, 'gpt-5.6-luna', 'xhigh'], {
+      DHPK_CODEX_ROLE: 'codex-deep-reasoner',
+    });
+    assert.strictEqual(res.status, 0, `wrapper failed: ${res.stderr}`);
+    const argv = fs.readFileSync(ctx.argvOut, 'utf8');
+    assert.ok(!/(^|\n)--output-schema(\n|$)/.test(argv),
+      `codex-deep-reasoner must not pass --output-schema:\n${argv}`);
+    assert.ok(/(^|\n)--output-last-message(\n|$)/.test(argv),
+      `codex-deep-reasoner must still include --output-last-message:\n${argv}`);
+  });
+});
+
+test('ultra effort is not adopted (omit or reject; never pass through)', () => {
+  withStub((ctx) => {
+    const res = runWrapper(ctx, ['workspace-write', ctx.dir, ctx.promptFile, 'gpt-5.6-luna', 'ultra']);
+    if (!fs.existsSync(ctx.argvOut)) {
+      assert.notStrictEqual(res.status, 0, 'rejecting ultra must fail closed before invoking Codex');
+      return;
+    }
+    const argv = fs.readFileSync(ctx.argvOut, 'utf8');
+    assert.ok(
+      !/model_reasoning_effort=["']?ultra["']?/.test(argv),
+      `wrapper must not pass model_reasoning_effort=ultra:\n${argv}`,
+    );
+  });
+});
+
+test('optional --ephemeral and --ignore-user-config stay explicit via env', () => {
+  withStub((ctx) => {
+    const res = runWrapper(ctx, ['read-only', ctx.dir, ctx.promptFile], { DHPK_CODEX_EPHEMERAL: '1' });
+    assert.strictEqual(res.status, 0, `wrapper failed: ${res.stderr}`);
+    const argv = fs.readFileSync(ctx.argvOut, 'utf8');
+    assert.ok(/(^|\n)--ephemeral(\n|$)/.test(argv),
+      `expected --ephemeral when DHPK_CODEX_EPHEMERAL=1:\n${argv}`);
+    assert.ok(!/(^|\n)--ignore-user-config(\n|$)/.test(argv),
+      `--ignore-user-config must stay off unless explicitly requested:\n${argv}`);
+  });
+  withStub((ctx) => {
+    const res = runWrapper(ctx, ['read-only', ctx.dir, ctx.promptFile], { DHPK_CODEX_IGNORE_USER_CONFIG: '1' });
+    assert.strictEqual(res.status, 0, `wrapper failed: ${res.stderr}`);
+    const argv = fs.readFileSync(ctx.argvOut, 'utf8');
+    assert.ok(/(^|\n)--ignore-user-config(\n|$)/.test(argv),
+      `expected --ignore-user-config when DHPK_CODEX_IGNORE_USER_CONFIG=1:\n${argv}`);
+    assert.ok(!/(^|\n)--ephemeral(\n|$)/.test(argv),
+      `--ephemeral must stay off unless explicitly requested:\n${argv}`);
+  });
+});
+
+test('report-schema.json is OpenAI-strict for Codex --output-schema', () => {
+  const schema = JSON.parse(fs.readFileSync(REPORT_SCHEMA, 'utf8'));
+  const objectNodes = [];
+  function collectObjectNodes(node, path) {
+    if (!node || typeof node !== 'object' || Array.isArray(node)) return;
+    if (node.type === 'object') objectNodes.push({ node, path });
+    if (node.properties && typeof node.properties === 'object') {
+      for (const [key, child] of Object.entries(node.properties)) {
+        collectObjectNodes(child, `${path}.properties.${key}`);
+      }
+    }
+    if (node.items) collectObjectNodes(node.items, `${path}.items`);
+  }
+  collectObjectNodes(schema, '$');
+  assert.ok(objectNodes.length > 0, 'schema must contain at least one object node');
+  for (const { node, path } of objectNodes) {
+    assert.strictEqual(
+      node.additionalProperties,
+      false,
+      `${path}: additionalProperties must be false (OpenAI strict / Codex --output-schema)`,
+    );
+    const propertyKeys = Object.keys(node.properties || {});
+    assert.ok(
+      Array.isArray(node.required),
+      `${path}: required must be an array listing every property key`,
+    );
+    assert.deepStrictEqual(
+      [...node.required].sort(),
+      [...propertyKeys].sort(),
+      `${path}: required must list exactly Object.keys(properties) (got required=${JSON.stringify(node.required)} properties=${JSON.stringify(propertyKeys)})`,
+    );
+  }
 });
 
 run('run-codex');

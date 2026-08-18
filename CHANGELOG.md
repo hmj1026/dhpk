@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## 0.42.1 — 2026-08-18 — Harden CLI wrappers and discovery probes, and rewrite agent traps
+
+**fix(cli-wrappers)** — Adapt run-agy.sh and run-codex.sh to agy 1.1.13 soft-deny diagnostics and Codex 0.147.0 additive --output-schema.
+**fix(agy-discovery)** — Treat empty isolated AGY native discovery on a valid package as SKIP_INCOMPATIBLE, not a package-shape FAIL.
+**fix(claude-consumer-gate)** — Uninstall the throwaway project-scope Claude plugin and marketplace before deleting consumer-gate temp projects.
+**fix(cursor-probe)** — Map a silent Cursor `--plugin-dir` hang to `SKIP_INCOMPATIBLE` with `no_stdout`, not a package FAIL.
+**docs(agent-traps)** — Rewrite stack trap sheets into unique agent×stack rows with Non-apply bounds, and treat them as a writing-for-agents document class.
+
 ## 0.42.0 — 2026-08-18 — Retire continuous-learning-v2, enforce canonical skill counts, and sync AGY generator pin
 
 **BREAKING(skills)** — removed the dormant `dhpk-continuous-learning-v2` skill and its `/dhpk:evolve`, `/dhpk:promote`, `/dhpk:instinct-status`, `/dhpk:instinct-import`, and `/dhpk:instinct-export` commands; the observer was never registered in the shipped hooks and any local `~/.local/share/dhpk-homunculus` data is now orphaned and safe to delete by hand.

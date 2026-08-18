@@ -1,36 +1,23 @@
-# tdd-guide — PHP traps
+# tdd-guide × php (PHPUnit 5.7 + Yii 1.1)
 
-PHPUnit 5.7 + Yii 1.1 conventions. Use the installed Codex PHP/Yii skill references for code templates and PHPUnit 5.7 API details.
+For the tdd-guide agent on PHPUnit 5.7 / Yii 1.1. Neighboring agents: database-reviewer (DAO vs AR), php-runtime-router (version-gated PHPUnit API).
 
-## Project Test Layout
+Code templates: the installed Codex PHP/Yii TDD workflow reference. PHPUnit 5.7 API surface: the installed Codex PHP/Yii legacy test-trap reference. Testing conventions: the project's PHP testing rules.
 
-| Path | Rule |
-|------|------|
-| `protected/tests/unit/` | No `Yii::app()`, no real DB |
-| `protected/tests/integration/` | Wraps DB ops in transaction; rollback in `tearDown()` |
-| `protected/tests/functional/` | Critical business E2E |
-
-- Class: `[Name]Test extends CTestCase`; method: `test[What][Under][Expected]()`; **no** `@test`
-- Templates: follow the installed Codex PHP/Yii TDD workflow reference
-
-## PHPUnit 5.7 Hard Traps
-
-| ❌ | ✅ | Why |
-|----|----|-----|
-| `assertIsArray($v)` | `assertInternalType('array', $v)` | 5.7 has no type-named asserts |
-| `createMock()` ↔ `getMockBuilder()->setMethods(null)` | Pick one | `createMock` stubs all to null; the latter executes real methods |
-| `assertEquals` for ints | `assertSame` | Avoid loose equality |
-| `assertEquals` w/o delta for float | `assertEquals($exp, $act, '', $delta)` |  |
-| `strcmp()` for MySQL ordering | `strcasecmp()` | `utf8_unicode_ci` ≠ ASCII |
-
-## Yii / DB Edge Cases
-
-- `queryRow()` returns `false` on no row (not `null`)
-- `findByPk()` returns `null` on no row (DAO ≠ AR)
-- `Yii::app()->request->getPost('x')` returns `null` if missing
-- `save()` returns `false` on validation failure — collect `getErrors()` in test
-- Money: `bcadd/bcmul`; rounding via custom bcround (`memory/bcmath-rounding-trap.md`)
-- CJK length: `mb_strlen`, not `strlen`
+| Trigger | Action | Non-apply |
+|---|---|---|
+| new test file / wrong tree | unit → `protected/tests/unit/` (no `Yii::app()`, no real DB); integration → `protected/tests/integration/` (wrap DB ops in a transaction; rollback in `tearDown()`); functional → `protected/tests/functional/` (critical business E2E) | — |
+| class not `[Name]Test extends CTestCase`, method not `test[What][Under][Expected]()`, or `@test` annotation | follow that layout; **no** `@test`. Templates: the installed Codex PHP/Yii TDD workflow reference | — |
+| `assertIsArray($v)` (or other type-named asserts) | `assertInternalType('array', $v)` — 5.7 has no type-named asserts | PHPUnit 8+ projects that already have typed asserts (this sheet's 5.7 rows do not apply) |
+| mixing `createMock()` with `getMockBuilder()->setMethods(null)` | pick one: `createMock` stubs all to null; the latter executes real methods | PHPUnit 8+ projects that already have typed asserts (this sheet's 5.7 rows do not apply) |
+| `assertEquals` for ints | `assertSame` — avoid loose equality | — |
+| `assertEquals` without delta for float | `assertEquals($exp, $act, '', $delta)` | — |
+| `strcmp()` for MySQL `utf8_unicode_ci` ordering | `strcasecmp()` | — |
+| `queryRow()` empty-result asserted as `null` | DAO `queryRow()` returns `false` on no row; AR `findByPk()` returns `null` (DAO ≠ AR) | — |
+| `Yii::app()->request->getPost('x')` treated as empty string when missing | returns `null` if missing | — |
+| `save()` asserted true without collecting errors | `save()` returns `false` on validation failure — collect `getErrors()` in test | — |
+| money `+` / `*` / float in tests | `bcadd`/`bcmul`; rounding via custom bcround (`memory/bcmath-rounding-trap.md`) | non-money integer counts |
+| CJK length via `strlen` | `mb_strlen` | — |
 
 ## Run
 
@@ -38,10 +25,8 @@ PHPUnit 5.7 + Yii 1.1 conventions. Use the installed Codex PHP/Yii skill referen
 docker exec -i -w <container-workdir> ${PHP_CONTAINER:-php} phpunit -c protected/tests/phpunit.xml
 ```
 
-Variants: follow the project's PHP testing rules.
-
 ## References
 
-- PHPUnit 5.7 API: follow the installed Codex PHP/Yii legacy test-trap reference
+- PHPUnit 5.7 API: the installed Codex PHP/Yii legacy test-trap reference
 - `protected/tests/docs/TESTING_STANDARDS.md`
-- the project's PHP testing rules
+- testing: the project's PHP testing rules

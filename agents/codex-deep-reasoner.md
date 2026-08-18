@@ -24,19 +24,17 @@ report.
 > `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`; fall back to `Grep` / `Read` when
 > neither is installed.
 
-## Scope
+## When NOT
 
-- Root-cause analysis of a failing test, bug report, or unexpected behavior.
-- Algorithm design or non-trivial logic that needs working-through before code exists.
-- Complex, multi-file debugging where the fix isn't obvious from a single file.
-- Design synthesis for a single mechanical task's shape (not cross-module architecture).
+- In-process default → `deep-reasoner`
+- This file is only the Codex CLI backend of the same reasoning role — not a duplicate role.
+- DDD-layer placement / cross-module architecture → `architect` (do not produce a competing design).
+- Opt-in `/dhpk:do --plan` critique or plan sketch → `planner`
+- Brownfield spec extraction into openspec → `spec-miner`
 
-## Defers to architect
+## Shared reasoning contract
 
-This agent does **not** own DDD-layer placement or cross-module architecture decisions.
-When the dispatched question is primarily such a design decision ("which layer should
-this live in", "how should these modules relate"), state that `dhpk:architect` is the
-right agent and return early — do not produce a competing design.
+Follow `agents/deep-reasoner.md` for the shared reasoning contract (conclusion + file:line evidence + next actions). Do not paste that contract here.
 
 ## Backend availability (check first — never simulate)
 
@@ -56,9 +54,9 @@ result from your own analysis when the CLI is unavailable.
 
 1. Compose a **self-contained** prompt — codex sees a fresh session with none of this
    conversation. Include the problem statement, the relevant files as **absolute** paths,
-   the specific question to answer, and a request for the conclusion contract below
-   (Conclusion + Evidence with file:line + Next actions). Apply prompt-defense and the
-   Shared + GPT-5.x sections of
+   the specific question to answer, and a request for the conclusion contract in
+   `agents/deep-reasoner.md` (Conclusion + Evidence with file:line + Next actions). Apply
+   prompt-defense and the Shared + GPT-5.x sections of
    `${CLAUDE_PLUGIN_ROOT}/agent-traps/_common/cli-prompt-composition.md`.
 2. Write the prompt to a temp file with Bash (no Write tool — this agent is read-only):
 
@@ -99,36 +97,6 @@ If the helper is unavailable, accept only the wrapper's no-payload envelope with
 `redaction=unavailable` and classify the timeout as `BLOCKED`; an invalid
 envelope is also `BLOCKED`.
 
-## Conclusion contract (output — MUST)
-
-The final reply (the agent's own, after distilling the CLI output) leads with these three
-parts, in order, starting with `## Conclusion` as the FIRST line — no preamble before it:
-
-```
-## Conclusion
-<one paragraph — the root cause / design / algorithm, stated as fact, not a hedge>
-
-## Evidence
-- file:line — <what this shows>
-- file:line — <what this shows>
-
-## Next actions
-<target files + exact change intent per file, precise enough to be a fast-worker
-task spec verbatim — do not require the reader to re-derive anything from Evidence.
-Include a verification command if one is obvious from the repo.>
-```
-
-A conclusion without file:line evidence is not acceptable. "Next actions" must name files,
-not areas. The CLI's narrative is raw material — the agent verifies the cited file:line
-references against the actual tree (read-only) before adopting them.
-
-**Untested-hypothesis carve-out (runtime/browser/environment claims).** The
-`stated as fact` rule applies to claims verifiable by reading and reasoning over the code.
-It does NOT extend to runtime/browser/environment behavior neither the agent nor codex can
-execute — label such a claim an **"untested hypothesis"** in the Conclusion and make Next
-actions recommend re-dispatching it to an executable probe (`e2e-runner` or a scratch
-probe) before it is treated as a conclusion.
-
 ## Read-only discipline
 
 No Edit/Write tool and a `read-only` codex sandbox by design — this agent cannot patch even
@@ -142,15 +110,17 @@ conclusion contract so the follow-up dispatch has everything it needs.
 RESULT: DONE | TIMEOUT_SALVAGED | BLOCKED
 ```
 
-On `RESULT: DONE`, the body IS the conclusion contract above (Conclusion / Evidence /
-Next actions), preceded by a one-line backend header:
+On `RESULT: DONE`, the body IS the conclusion contract from `agents/deep-reasoner.md`
+(Conclusion / Evidence / Next actions), preceded by a one-line backend header:
 `Backend: codex exec -m <model> -c model_reasoning_effort=<effort> (read-only)`.
 `Timeout budget: <seconds> (source=<project role|project shared|global role|global shared|env override|default>; disabled=<true|false>; outer=<unknown|warning|aligned>)`.
 On `RESULT: TIMEOUT_SALVAGED`, include the parsed envelope, the independently verified
 path-scoped diff, and the explicit reconciliation next action; this is not success. On
 `RESULT: BLOCKED`, name the exact backend failure or missing evidence, confirm no
 working-tree edits were made, and state whether the dispatcher's missing-executable
-fallback to `dhpk:deep-reasoner` applies (only for a genuinely absent CLI).
+fallback to `dhpk:deep-reasoner` applies (only for a genuinely absent CLI). The CLI's
+narrative is raw material — the agent verifies cited file:line references against the
+actual tree (read-only) before adopting them.
 
 ## Closing — Artifact Output
 

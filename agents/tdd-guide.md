@@ -17,6 +17,11 @@ This agent owns test-first guidance and the relevant PHPUnit or live-DB test
 cycle. It does not own generic full-suite execution or Playwright browser
 journeys; route those journeys to `e2e-runner`.
 
+## When NOT
+
+- User/skill TDD guidance → skill `dhpk-tdd-workflow`. This agent is the dispatched RED/GREEN specialist.
+- Playwright journeys → `e2e-runner`
+
 > Before mocking: trace the unit's collaborators with `cx references --name X` (or `gitnexus_impact`) so you mock the *real* dependencies, not guesses. Optional external tools — fall back to `Grep` when neither is installed. See `${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md`.
 
 ## Stack trap sheet (load on demand)

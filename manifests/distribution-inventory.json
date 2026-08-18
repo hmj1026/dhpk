@@ -259,8 +259,8 @@
       "id": "codex-supporting-agent-traps-architect-yii-md",
       "source": "codex/supporting/agent-traps/architect/yii.md",
       "canonical_source": "agent-traps/architect/yii.md",
-      "canonical_digest": "10eca22ad71c03e0e955dd01c330de6b1be30499fef8a7751aa4032ab9849e3a",
-      "projection_digest": "62f2f383da219f2416c4c645bdcfe00aec310f4ca297dff2f2fdd805ac5084fb",
+      "canonical_digest": "f0863e3d83b4faa258ce17422b30ff1d986a2c8e0696102618c9f5cdf9573fdf",
+      "projection_digest": "5fdde7b8f51393f77f3efa122083dadea8f47344b679f8e041bdf84a7286b3e9",
       "destination": "dhpk/agent-traps/architect/yii.md"
     },
     {
@@ -282,16 +282,16 @@
       "id": "codex-supporting-agent-traps-code-reviewer-php-md",
       "source": "codex/supporting/agent-traps/code-reviewer/php.md",
       "canonical_source": "agent-traps/code-reviewer/php.md",
-      "canonical_digest": "9ac77a5467fea49436c8154703fa3263c7f0fd7f176a95fc8241c98afb115245",
-      "projection_digest": "db2f137b7ebcb6f59d06cce1c24cc3b742aa940c4e9caa8e6fdf986f5d51424d",
+      "canonical_digest": "1860ee32ef2a1940bc289bea2da34c103cb91019c0f687a3993e178424430765",
+      "projection_digest": "6a01de79036c827fd75443cbddbbc19ca6e68d5cb43f3574d7fc2ada7d5a523d",
       "destination": "dhpk/agent-traps/code-reviewer/php.md"
     },
     {
       "id": "codex-supporting-agent-traps-code-reviewer-python-md",
       "source": "codex/supporting/agent-traps/code-reviewer/python.md",
       "canonical_source": "agent-traps/code-reviewer/python.md",
-      "canonical_digest": "72fa138c45d900a880de01a399dce9f2ecfa6ce5ae0ca4e932bbbccf6cf3d3bf",
-      "projection_digest": "ec17d45d828ffaec624c85cc3c9d36d126df924931e64bea655a64cb6247ee88",
+      "canonical_digest": "0e61065c5208a799804222e10a915fa65a1037d33c954eacf6b87aab37893fc4",
+      "projection_digest": "b3054f8681a533798bd745aedf1048abe0f2b499cabc764ea01e8d8ac969ecaa",
       "destination": "dhpk/agent-traps/code-reviewer/python.md"
     },
     {
@@ -308,8 +308,8 @@
       "id": "codex-supporting-agent-traps-code-reviewer-yii-md",
       "source": "codex/supporting/agent-traps/code-reviewer/yii.md",
       "canonical_source": "agent-traps/code-reviewer/yii.md",
-      "canonical_digest": "c9ec52738d9e895a876192ded84d9949b51061377d6f7d2cc6c5a04e7c637c79",
-      "projection_digest": "3d18fa67e2143e57fc06d461e5d0390b10d2a6d663805814717999baa11849e9",
+      "canonical_digest": "c214a727adcfa75bea5c762076cb53adf0e5dc861ef40983aabb14d45a1c280f",
+      "projection_digest": "0a39df61133fe79ec68d915b7e556686d16aa727617658804e9effa57f89ba51",
       "destination": "dhpk/agent-traps/code-reviewer/yii.md"
     },
     {
@@ -331,8 +331,8 @@
       "id": "codex-supporting-agent-traps-database-reviewer-yii-md",
       "source": "codex/supporting/agent-traps/database-reviewer/yii.md",
       "canonical_source": "agent-traps/database-reviewer/yii.md",
-      "canonical_digest": "7ef10a4c3c796650791d8283ad55e6665eeb9e654807388bdf86afbaaed53f86",
-      "projection_digest": "d40316b21e36cfe800de62a9c9a7dea2889e6afb125067c6f25623133cb2f753",
+      "canonical_digest": "0fb18195dbcd7415a1d432f31dd5b041aed475a637049eca8d52b2cc66fb87b6",
+      "projection_digest": "900c1aa6b52774d252eb43f48b9c0f6ddbbc540e5ed428411d553c73dc422eda",
       "destination": "dhpk/agent-traps/database-reviewer/yii.md"
     },
     {
@@ -354,8 +354,8 @@
       "id": "codex-supporting-agent-traps-security-reviewer-php-md",
       "source": "codex/supporting/agent-traps/security-reviewer/php.md",
       "canonical_source": "agent-traps/security-reviewer/php.md",
-      "canonical_digest": "edf3058d24c1530395540ee6c1cf3e7a725d1a0e6bd966765844c3a109f878ac",
-      "projection_digest": "e9d773fae0318bc2215c64f5b3e2dbb897f4bec33087fd700d2ac5df044a6a44",
+      "canonical_digest": "56718d2b3d645eb310fffe62232a0c75269330f42291973d1aaf03d747b1e57a",
+      "projection_digest": "435ff3d678304cd7dc5aa3472cdcf22ce95c4e48c413ac9522c522a3ddb2f106",
       "destination": "dhpk/agent-traps/security-reviewer/php.md"
     },
     {
@@ -367,8 +367,8 @@
       "id": "codex-supporting-agent-traps-security-reviewer-yii-md",
       "source": "codex/supporting/agent-traps/security-reviewer/yii.md",
       "canonical_source": "agent-traps/security-reviewer/yii.md",
-      "canonical_digest": "63f7dd70a1c9f243714a389cd4340e1f372d09778036285ad282ecac5c5238f4",
-      "projection_digest": "55513431b37ad107c44a55d1f9f1b03f483647f265138baf13ead6da72df1c85",
+      "canonical_digest": "3c86b9dc6097b73aba8a1df5426161aa0740e1969b21992bec48766f72e83b93",
+      "projection_digest": "c455e3d172257a01a7331dde8aa188f594150aa3854eec4d17f5b06c5c5fec64",
       "destination": "dhpk/agent-traps/security-reviewer/yii.md"
     },
     {
@@ -380,16 +380,16 @@
       "id": "codex-supporting-agent-traps-tdd-guide-php-md",
       "source": "codex/supporting/agent-traps/tdd-guide/php.md",
       "canonical_source": "agent-traps/tdd-guide/php.md",
-      "canonical_digest": "b0488bc9933cb3445efcbf1d38a42aa2f342685e81b32b9fd1b2f79da9415322",
-      "projection_digest": "0dc288dbaa9e7dd3db766503544fa3076f8c8621b2ed2a90374bec4dd15ed832",
+      "canonical_digest": "374a85abb8cc2eb79eff2405293a57dc109be59b8147a3c38f52fd70e033ff54",
+      "projection_digest": "b5c99d0447652b364c9c3e62799ec39a6a7e07c73acb84a95029406f1c6ba51b",
       "destination": "dhpk/agent-traps/tdd-guide/php.md"
     },
     {
       "id": "codex-supporting-agent-traps-tdd-guide-python-md",
       "source": "codex/supporting/agent-traps/tdd-guide/python.md",
       "canonical_source": "agent-traps/tdd-guide/python.md",
-      "canonical_digest": "672edfb5f1aaa32e5b5c0b62ec7a9e177a8420c991a4b4fb709a75c9f1c9746e",
-      "projection_digest": "992d5dbbc31ba956f4a825db1dc08ef9ef3e744d7129a0dba911edb064d2c728",
+      "canonical_digest": "1d36094aff0bad44a832521ca396c70e60f2ac99ea10757c528b004cd4c760c2",
+      "projection_digest": "9202e20ff8a178ae3e547e42725aa3a10e92b8e0b3c6a82a419de15045d5e0ca",
       "destination": "dhpk/agent-traps/tdd-guide/python.md"
     },
     {
@@ -406,16 +406,16 @@
       "id": "codex-supporting-agent-traps-migration-reviewer-ios-md",
       "source": "codex/supporting/agent-traps/migration-reviewer/ios.md",
       "canonical_source": "agent-traps/migration-reviewer/ios.md",
-      "canonical_digest": "a18d8299dd1a4bc793d60be1589389b0cd5624a2f98a560b2a868e6b2279b7d9",
-      "projection_digest": "a18d8299dd1a4bc793d60be1589389b0cd5624a2f98a560b2a868e6b2279b7d9",
+      "canonical_digest": "fe4df09c7c2a62ee41c2230fa2051ca684657d0d204d3c8e08396ecf5f600310",
+      "projection_digest": "fe4df09c7c2a62ee41c2230fa2051ca684657d0d204d3c8e08396ecf5f600310",
       "destination": "dhpk/agent-traps/migration-reviewer/ios.md"
     },
     {
       "id": "codex-supporting-agent-traps-migration-reviewer-yii-md",
       "source": "codex/supporting/agent-traps/migration-reviewer/yii.md",
       "canonical_source": "agent-traps/migration-reviewer/yii.md",
-      "canonical_digest": "18ac96940b3a1c95e84a3a72864167072f10d33ede08564a964e4a446fecd2cd",
-      "projection_digest": "0ba8275c0b10ad5dde89fa8c2d13ad57d01217485bf04e640023b73524b867b0",
+      "canonical_digest": "082f6e4ec14e4e844f835681427dc55691748839c1adc84e74de597e8c7dd968",
+      "projection_digest": "de238b7f257df607f93da2a0d4a542a7632a2c7bab056d9d035a1487408685b5",
       "destination": "dhpk/agent-traps/migration-reviewer/yii.md"
     },
     {
@@ -454,8 +454,8 @@
       "id": "codex-supporting-agent-traps-_common-cli-prompt-composition-md",
       "source": "codex/supporting/agent-traps/_common/cli-prompt-composition.md",
       "canonical_source": "agent-traps/_common/cli-prompt-composition.md",
-      "canonical_digest": "6df124eb16d310e260cb66c9ba53d172a37fa576356457f9f53bed1022a2f31a",
-      "projection_digest": "e536e4847f6d20d693e2929b6d76ad4e9c58c27791baa1f5ba3aa0542c5cc712",
+      "canonical_digest": "e3b33aa2b7851a803dbafda431966a395869e08fdea4272ce54289f479ae1945",
+      "projection_digest": "2a8e7092f099aab277b1c82d91f59e64514f9078ef904d8cf812d04c880f77df",
       "destination": "dhpk/agent-traps/_common/cli-prompt-composition.md"
     },
     {

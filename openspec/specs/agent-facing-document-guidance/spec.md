@@ -132,3 +132,17 @@ The repository SHALL provide deterministic checks for the contract fields that e
 
 - **WHEN** contract normalization changes prose or section order
 - **THEN** route-table targets, invocation metadata, agent roster/model/tool fields, rule precedence, command flag contracts, and support-tier markers compare equal before and after
+
+### Requirement: Trap sheets are an agent-facing document class
+
+The writing-for-agents contract SHALL cover canonical `agent-traps/` in addition to skills, agents, rules, commands, and root guidance. Each trap sheet SHALL expose a pointer to its agent and stack, keep unique traps in-file, disclose shared mechanics through `_common/` or a skill SSOT, and record a disposition. Compact repository guidance MAY name trap sheets in the document-class list without copying the full trap-sheet capability.
+
+#### Scenario: Compact contract lists trap sheets
+
+- **WHEN** `docs/agent-guidance/writing-for-agents.md` is updated in the trap-sheet pass
+- **THEN** its document-class list includes trap sheets and points at `agent-traps/_common/` rather than restating per-stack traps
+
+#### Scenario: A trap sheet is omitted from disposition
+
+- **WHEN** the document pass completes
+- **THEN** every canonical `agent-traps/**/*.md` file has an updated, already-compliant, or exempt row and an omitted sheet is a failed pass

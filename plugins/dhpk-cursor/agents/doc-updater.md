@@ -8,6 +8,11 @@ readonly: false
 
 Keep `docs/CODEMAPS/*`, READMEs, and guides aligned with code reality.
 
+## When NOT
+
+- Harness / doc consistency review → `doc-reviewer`
+- Library / framework / API lookup via Context7 → `docs-lookup`
+
 ## Codemap Output
 
 ```

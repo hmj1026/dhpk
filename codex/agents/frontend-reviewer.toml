@@ -23,6 +23,11 @@ edits. Loads the following on demand:
 - the project TypeScript and static-check configuration — per-leaf `// @ts-check` rollout,
   tsconfig exclude strategy, leaf classification.
 
+## When NOT
+
+- Backend / non-frontend source → `code-reviewer`
+- Auth, tokens, money, OWASP → `security-reviewer`
+
 ## Process
 
 1. Review precedence: see `.codex/dhpk/policies/execution-policy.md`

@@ -261,7 +261,11 @@ until then keep the CLI route `NOT_RUN` or `BLOCKED`. If the CLI reports
 `Authentication required`, the evidence is `BLOCKED` until login is completed.
 The probe enforces a 5-minute timeout ceiling and a 4 MiB output ceiling even
 when larger values are requested.
-If the wrapper reports `BLOCKED` with `timed_out: true` or
+If the wrapper reports `SKIP_INCOMPATIBLE` with `timed_out: true` and
+`no_stdout: true`, the CLI produced no output before the deadline. Current
+`cursor-agent` has no non-LLM plugin list; `--plugin-dir` plus `--mode ask`
+starts a full session that can hang. That is a CLI limitation, not a package
+failure. If the wrapper reports `BLOCKED` with `timed_out: true` or
 `output_limited: true`, no consumer result was produced; retain the bounded,
 redacted diagnostic and rerun only with another finite limit.
 The wrapper also blocks an empty, invalid, or capability-negative response;
@@ -399,7 +403,7 @@ agent frontmatter and never rewrites `agents/`. Generate and validate it from
 the dhpk checkout:
 
 ```bash
-node scripts/ci/gen-agy-plugin-package.js plugins/dhpk-agy --version=0.42.0
+node scripts/ci/gen-agy-plugin-package.js plugins/dhpk-agy --version=0.42.1
 node scripts/ci/validate-agy-plugin-package.js plugins/dhpk-agy
 ```
 
@@ -444,7 +448,11 @@ agy agents
 `agy plugins list` reports import records only. A native receipt-owned package
 at `~/.gemini/config/plugins/dhpk` is discovered by isolated `agy agents`, not
 by matching `dhpk` in the import JSON. The validator mounts the package at that
-consumer path inside a read-only sandbox HOME.
+consumer path inside a read-only sandbox HOME. On AGY 1.1.13, isolated
+`agy agents` stays empty because the CLI has no native filesystem plugin
+loader; that pair is `SKIP_INCOMPATIBLE`, not a package-shape `FAIL`. Do not
+run `agy plugin install` against a receipt-owned target: it is not a native
+registration step and can truncate `plugin.json`.
 
 The report keeps package structure, plugin/agent discovery, and Subagent
 runtime as independent rows. If `agy` is absent, discovery is `UNAVAILABLE`;

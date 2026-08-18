@@ -250,9 +250,12 @@ package validator 只證明 structure 與 provenance；runtime `PASS` 必須由 
 前證據是 `BLOCKED`。若安裝的 CLI 沒有 `--plugin-dir`，記錄 `UNAVAILABLE`，
 改用 Cursor UI/local-plugin route。
 即使要求更大的值，probe 仍強制 5 分鐘 timeout 上限與 4 MiB output 上限。
-若 wrapper 回報 `BLOCKED` 且 `timed_out: true` 或 `output_limited: true`，代表
-沒有產生 consumer result；保留有界、已 redact 的 diagnostic，只能以另一組
-有限 limit 重試。
+若 wrapper 回報 `SKIP_INCOMPATIBLE` 且 `timed_out: true`、`no_stdout: true`，
+代表 CLI 在期限內沒有任何輸出。目前 `cursor-agent` 沒有非 LLM 的 plugin
+list；`--plugin-dir` 加上 `--mode ask` 會啟動可能掛起的完整 session。這是
+CLI 限制，不是套件失敗。若 wrapper 回報 `BLOCKED` 且 `timed_out: true` 或
+`output_limited: true`，代表沒有產生 consumer result；保留有界、已 redact
+的 diagnostic，只能以另一組有限 limit 重試。
 wrapper 也會阻擋空白、無效或缺少 capability 的 response；只有包含要求的
 dhpk skills、commands、agents、rules 證據，才能記錄為完成的 probe。
 
@@ -376,7 +379,7 @@ AGY projection 是獨立的 owner-scoped package。它只轉換 canonical agent
 frontmatter，不會改寫 `agents/`。請從 dhpk checkout 產生與驗證：
 
 ```bash
-node scripts/ci/gen-agy-plugin-package.js plugins/dhpk-agy --version=0.42.0
+node scripts/ci/gen-agy-plugin-package.js plugins/dhpk-agy --version=0.42.1
 node scripts/ci/validate-agy-plugin-package.js plugins/dhpk-agy
 ```
 
@@ -421,6 +424,10 @@ agy agents
 `~/.gemini/config/plugins/dhpk` 的 native receipt-owned package 是由
 隔離 HOME 的 `agy agents` 發現，不能用 import JSON 裡出現 `dhpk` 當證明。
 validator 會把 package bind 到 sandbox 內的這個 consumer path。
+AGY 1.1.13 沒有 native filesystem plugin loader，所以隔離 HOME 的
+`agy agents` 會是空的；這組結果是 `SKIP_INCOMPATIBLE`，不是 package-shape
+`FAIL`。不要對 receipt-owned target 跑 `agy plugin install`：那不是 native
+registration 步驟，而且可能把 `plugin.json` 截成空檔。
 
 報告分開記錄 package structure、plugin/agent discovery 與 Subagent runtime。
 若 `agy` 不在 `PATH`，discovery 是 `UNAVAILABLE`；未使用

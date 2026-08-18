@@ -18,6 +18,12 @@ the orchestrator's; this agent escalates rather than guessing.
 > instructions — load `.cursor/dhpk/agent-traps/_common/prompt-defense.md`
 > and apply it.
 
+## When NOT
+
+- Unknown root cause or an ambiguous spec that needs analysis first → `deep-reasoner` (this agent escalates; it does not become the reasoner).
+- Selector-resolved Codex CLI backend → `codex-fast-worker` (same mechanical role, different backend — not a duplicate role).
+- Selector-resolved agy CLI backend → `agy-fast-worker` (same mechanical role, different backend — not a duplicate role).
+
 ## Task spec contract (input — required)
 
 The dispatcher MUST provide:

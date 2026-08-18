@@ -46,6 +46,30 @@ test('Cursor CLI wrapper emits bounded launch-scoped PASS evidence', () => {
   }
 });
 
+test('Cursor CLI wrapper maps a silent hang to SKIP_INCOMPATIBLE', () => {
+  const root = temp('dhpk-cursor-cli-probe-hang-');
+  const bin = path.join(root, 'bin');
+  fs.mkdirSync(path.join(root, 'agent'));
+  fs.mkdirSync(path.join(root, 'cursor'));
+  fs.mkdirSync(bin);
+  fs.writeFileSync(path.join(bin, 'cursor-agent'), '#!/bin/sh\nsleep 5\n', { mode: 0o755 });
+  try {
+    const result = invoke([
+      '--agent-package', path.join(root, 'agent'),
+      '--cursor-package', path.join(root, 'cursor'),
+      '--timeout-ms', '200',
+    ], { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH || ''}` });
+    assert.strictEqual(result.status, 1, result.stdout + result.stderr);
+    const report = JSON.parse(result.stdout);
+    assert.strictEqual(report.status, 'SKIP_INCOMPATIBLE');
+    assert.strictEqual(report.timed_out, true);
+    assert.strictEqual(report.no_stdout, true);
+    assert.match(report.reason, /no stdout\/stderr before timeout|no non-LLM plugin list/i);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('Cursor CLI wrapper rejects malformed bounds before invoking the client', () => {
   const root = temp('dhpk-cursor-cli-probe-invalid-');
   const bin = path.join(root, 'bin');
