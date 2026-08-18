@@ -444,7 +444,11 @@ agy agents
 `agy plugins list` reports import records only. A native receipt-owned package
 at `~/.gemini/config/plugins/dhpk` is discovered by isolated `agy agents`, not
 by matching `dhpk` in the import JSON. The validator mounts the package at that
-consumer path inside a read-only sandbox HOME.
+consumer path inside a read-only sandbox HOME. On AGY 1.1.13, isolated
+`agy agents` stays empty because the CLI has no native filesystem plugin
+loader; that pair is `SKIP_INCOMPATIBLE`, not a package-shape `FAIL`. Do not
+run `agy plugin install` against a receipt-owned target: it is not a native
+registration step and can truncate `plugin.json`.
 
 The report keeps package structure, plugin/agent discovery, and Subagent
 runtime as independent rows. If `agy` is absent, discovery is `UNAVAILABLE`;
