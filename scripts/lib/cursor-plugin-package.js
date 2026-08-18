@@ -1366,11 +1366,15 @@ function runCursorConsumerProbe({
   };
   if (result.error && result.error.code === 'ETIMEDOUT') {
     terminateProbeGroup(result);
+    const noStdout = !evidence.diagnostic;
     return {
       surface: 'cursor-plugin',
-      status: 'BLOCKED',
-      reason: `Cursor consumer probe timed out after ${probeTimeoutMs} ms`,
+      status: noStdout ? 'SKIP_INCOMPATIBLE' : 'BLOCKED',
+      reason: noStdout
+        ? `Cursor consumer probe produced no stdout/stderr before timeout (${probeTimeoutMs} ms); CLI has no non-LLM plugin list`
+        : `Cursor consumer probe timed out after ${probeTimeoutMs} ms`,
       timed_out: true,
+      no_stdout: noStdout,
       ...evidence,
     };
   }

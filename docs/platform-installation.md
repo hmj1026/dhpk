@@ -261,7 +261,11 @@ until then keep the CLI route `NOT_RUN` or `BLOCKED`. If the CLI reports
 `Authentication required`, the evidence is `BLOCKED` until login is completed.
 The probe enforces a 5-minute timeout ceiling and a 4 MiB output ceiling even
 when larger values are requested.
-If the wrapper reports `BLOCKED` with `timed_out: true` or
+If the wrapper reports `SKIP_INCOMPATIBLE` with `timed_out: true` and
+`no_stdout: true`, the CLI produced no output before the deadline. Current
+`cursor-agent` has no non-LLM plugin list; `--plugin-dir` plus `--mode ask`
+starts a full session that can hang. That is a CLI limitation, not a package
+failure. If the wrapper reports `BLOCKED` with `timed_out: true` or
 `output_limited: true`, no consumer result was produced; retain the bounded,
 redacted diagnostic and rerun only with another finite limit.
 The wrapper also blocks an empty, invalid, or capability-negative response;
