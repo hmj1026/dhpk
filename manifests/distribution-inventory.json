@@ -454,8 +454,8 @@
       "id": "codex-supporting-agent-traps-_common-cli-prompt-composition-md",
       "source": "codex/supporting/agent-traps/_common/cli-prompt-composition.md",
       "canonical_source": "agent-traps/_common/cli-prompt-composition.md",
-      "canonical_digest": "6334ac0eaa5e536e72b94ea6ddfd4f3061a140e34f09c2ae77bb7876a3fdc1f1",
-      "projection_digest": "9597a0448ed83fe1cd7c613a84798a3887e728d7dfe1e8d339058b899c00d9da",
+      "canonical_digest": "6df124eb16d310e260cb66c9ba53d172a37fa576356457f9f53bed1022a2f31a",
+      "projection_digest": "e536e4847f6d20d693e2929b6d76ad4e9c58c27791baa1f5ba3aa0542c5cc712",
       "destination": "dhpk/agent-traps/_common/cli-prompt-composition.md"
     },
     {
@@ -1372,24 +1372,6 @@
       ],
       "legacy_names": [
         "composer-package-hygiene"
-      ]
-    },
-    {
-      "id": "continuous-learning-v2",
-      "name": "dhpk-continuous-learning-v2",
-      "path": "skills/dhpk-continuous-learning-v2",
-      "capability_id": "dhpk.skill.continuous-learning-v2",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "continuous-learning-v2"
       ]
     },
     {
@@ -2592,7 +2574,6 @@
       "codex-code-review",
       "codex-implement",
       "composer-package-hygiene",
-      "continuous-learning-v2",
       "create-request",
       "create-skill",
       "de-ai-flavor",
@@ -2660,7 +2641,6 @@
       "codex-code-review",
       "codex-implement",
       "composer-package-hygiene",
-      "continuous-learning-v2",
       "create-request",
       "create-skill",
       "de-ai-flavor",
@@ -2728,7 +2708,6 @@
       "codex-code-review",
       "codex-implement",
       "composer-package-hygiene",
-      "continuous-learning-v2",
       "create-request",
       "create-skill",
       "de-ai-flavor",
@@ -2796,7 +2775,6 @@
       "codex-code-review",
       "codex-implement",
       "composer-package-hygiene",
-      "continuous-learning-v2",
       "create-request",
       "create-skill",
       "de-ai-flavor",

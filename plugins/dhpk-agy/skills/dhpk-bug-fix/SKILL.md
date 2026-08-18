@@ -11,9 +11,9 @@ metadata:
 
 ## When NOT to Use
 
-- New feature development (use feature-dev)
-- Just want to understand code (use code-explore)
-- Pure test-only tasks without feature changes (use `/codex-test-review` directly)
+- New feature development (use `dhpk-feature-dev`)
+- Just want to understand code (use `dhpk-codebase-exploration`)
+- Pure test-only tasks without feature changes (use `dhpk-test-review` directly)
 
 ## Execution Policy
 
@@ -21,13 +21,17 @@ Follow `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §Implementation dispat
 
 ## Workflow
 
+This route receives confirmed bugs from `dhpk-adaptive-dev-workflow` or
+`dhpk-root-cause-investigation`, hands RED strategy to `dhpk-tdd-workflow`,
+and closes through `dhpk-change-review` and the precommit gate.
+
 ```
 Investigate → Locate → Fix → Test + Review → Precommit Gate
   │             │       │         │                │
   ▼             ▼       ▼         ▼                ▼
 gh issue      Grep    Edit     /verify          /precommit
-/dhpk:dhpk-git-history-investigation  Read  tests  /codex-test-review
-                               /codex-review-fast
+dhpk-git-history-investigation  Read  tests  dhpk-test-review
+                               dhpk-change-review
 ```
 
 ## Phase 1: Investigation
@@ -36,7 +40,7 @@ gh issue      Grep    Edit     /verify          /precommit
 |--------|--------|
 | GitHub Issue | `gh issue view <number>` |
 | Error message | `Grep("error message")` |
-| Code history | `/dhpk:dhpk-git-history-investigation` |
+| Code history | `dhpk-git-history-investigation` |
 
 **Output root cause analysis**:
 
@@ -44,7 +48,7 @@ gh issue      Grep    Edit     /verify          /precommit
 - Root cause: <specific cause>
 - Impact scope: <which features are affected>
 
-**Unknown root cause** (not obvious from a quick grep/read/issue skim) → dispatch `dhpk:deep-reasoner` per `execution-policy` §Implementation dispatch instead of guessing; its conclusion contract (root cause + `file:line` evidence + fix spec) feeds directly into Phase 2.
+**Unknown root cause** (not obvious from a quick grep/read/issue skim) → dispatch `deep-reasoner` per `execution-policy` §Implementation dispatch instead of guessing; its conclusion contract (root cause + `file:line` evidence + fix spec) feeds directly into Phase 2.
 
 ## Phase 2: Fix
 
@@ -53,7 +57,7 @@ gh issue      Grep    Edit     /verify          /precommit
 | Minimal changes | Only modify what is necessary |
 | No new issues | Confirm changes don't affect other features |
 
-Apply a confirmed fix spec (from Phase 1, whether self-derived or from `deep-reasoner`) per `execution-policy` §Implementation dispatch: `dhpk:fast-worker` for a mechanical, precisely-specified patch, or inline for a small (~≤2-file) unambiguous change.
+Apply a confirmed fix spec (from Phase 1, whether self-derived or from `deep-reasoner`) per `execution-policy` §Implementation dispatch: `fast-worker` for a mechanical, precisely-specified patch, or inline for a small (~≤2-file) unambiguous change.
 
 ## Phase 3: Add Regression Test ⚠️
 
@@ -92,8 +96,8 @@ Doc Sync is a behavior-layer step (not hook-enforced): after precommit pass it t
 - [ ] Root cause identified and documented
 - [ ] Regression test written at appropriate level
 - [ ] All tests pass (`/verify`)
-- [ ] Test adequacy reviewed (`/codex-test-review`)
-- [ ] Code review passed (`/codex-review-fast` ✅ Ready)
+- [ ] Test adequacy reviewed (`dhpk-test-review`)
+- [ ] Code review passed (`dhpk-change-review` ✅ Ready)
 - [ ] Precommit passed (`/precommit` ✅ All Pass)
 - [ ] No `git add/commit/push` executed
 
@@ -101,10 +105,10 @@ Doc Sync is a behavior-layer step (not hook-enforced): after precommit pass it t
 
 ```
 Input: Fix issue #123 - calculation error
-Action: gh issue view → locate → fix → write Unit Test → /verify → /codex-test-review → /codex-review-fast → /precommit
+Action: gh issue view → locate → fix → write Unit Test → /verify → `dhpk-test-review` → `dhpk-change-review` → /precommit
 ```
 
 ```
 Input: API returning 500 error
-Action: Grep error → read code → fix → write Integration Test → /verify → /codex-test-review → /codex-review-fast → /precommit
+Action: Grep error → read code → fix → write Integration Test → /verify → `dhpk-test-review` → `dhpk-change-review` → /precommit
 ```

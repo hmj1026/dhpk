@@ -10,6 +10,11 @@ metadata:
 Author or refactor a skill so it triggers reliably, loads lean, and passes the
 health check. Backs the `/dhpk:dhpk-create-skill <skill-name> [docs-path]` command.
 
+Use the external `writing-for-agents` 1.2.x reference for universal pointer,
+hierarchy, completion, leading-word, and pruning mechanics. The repository pin
+and public source are recorded in `docs/agent-guidance/writing-for-agents.md`.
+This skill keeps only dhpk packaging, routing, and validator decisions.
+
 ## When NOT to Use
 
 - Writing a slash command rather than a skill — use `command-creator`.
@@ -53,18 +58,6 @@ skills/<name>/
 - Push deep detail (long tables, code catalogs, edge-case matrices) into
   `references/*.md` and link to them; the model reads them only when needed.
 - One responsibility per skill. If it sprawls into two jobs, split it.
-
-### Cost and completion contract
-
-- Treat invocation/context cost as a design input: keep the entry point lean,
-  and load references only on the branch that needs them.
-- Write **checkable completion** criteria (commands, observable files, or
-  caller-visible output), not “looks good” prose.
-- Make branches explicit: state which conditional path selects each reference,
-  script, or tool. Avoid loading every branch by default.
-- Before adding content, check whether it is a no-op, duplicates a neighboring
-  skill, or is documentation sediment left by a previous workflow. Prune
-  no-op/duplication/sediment instead of preserving it for completeness.
 
 ### Source and format matrix
 

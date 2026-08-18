@@ -39,6 +39,8 @@ metadata:
 
 ### Hygiene Module — Checks (7 items)
 
+Resolve the active harness directory with `@skills/dhpk-harness-revise/references/harness-directory-contract.md`; health checks must not silently fall back.
+
 | # | Check | Criteria |
 |---|-------|----------|
 | 1 | Junk files (`.DS_Store`, `*.zip`, `.tmp*`) | Any exists → P1 |

@@ -21,8 +21,8 @@ bash "${CLAUDE_PLUGIN_ROOT}/skills/dhpk-agy-fast-worker/scripts/run-agy.sh" \
   "<workdir>" "<prompt-file>" "<model>"
 ```
 
-`run-agy.sh` implements the combination verified against agy 1.1.8 (`agy --help`,
-2026-07-28): stdin `Y` (kept unconditionally — not required by the installed 1.1.8 binary
+`run-agy.sh` implements the combination verified against agy 1.1.13 (`agy --help`,
+2026-08-17): stdin `Y` (kept unconditionally — not required by the installed 1.1.13 binary
 together with `--dangerously-skip-permissions`, but harmless when unread and possibly
 still required by an older binary), `--dangerously-skip-permissions`, `--mode accept-edits`
 (autonomy boundary), `--add-dir <workdir>` (required — print mode ignores the shell cwd),

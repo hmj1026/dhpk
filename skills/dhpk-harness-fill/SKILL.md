@@ -4,7 +4,6 @@ description: 'Explore-driven meta-workflow SSOT: 5-phase parallel inventory → 
 argument-hint: '[--layers <list>] [--dry-run] [<extra task description>]'
 allowed-tools: 'Read, Grep, Glob, Bash, Agent'
 model: opus
-effort: high
 disable-model-invocation: true
 metadata:
   dhpk-invocation-class: explicit-only
@@ -13,6 +12,7 @@ metadata:
 # Harness-Fill — Explore-Driven Project Knowledge Backfill
 
 Meta-workflow SSOT. Triggered by the `/dhpk:dhpk-harness-fill` command; not auto-loaded by description matching (`disable-model-invocation: true`) — entry MUST be via explicit `/dhpk:dhpk-harness-fill`.
+Resolve the active harness directory with `@skills/dhpk-harness-revise/references/harness-directory-contract.md` before inventory or layer selection.
 
 ## When to use / When NOT to use
 
@@ -24,7 +24,7 @@ Meta-workflow SSOT. Triggered by the `/dhpk:dhpk-harness-fill` command; not auto
 | Fix one controller action / bug | ❌ | `/dhpk:dhpk-bug-fix` / `/dhpk:dhpk-feature-dev` |
 | Look up a specific function / usage | ❌ | `cx definition` / `gitnexus_query` |
 | Change is known to affect only 1-2 skills | ❌ | Edit the matching SKILL.md directly |
-| `.claude/` is already saturated, no real gaps | ❌ | `/harness-audit` to read the score |
+| `.claude/` is already saturated, no real gaps | ❌ | `dhpk-harness-budget` to read the score |
 
 ## Workflow (5 phases)
 

@@ -12,7 +12,7 @@ Pocock 或其他全域 skill 的使用者。
 
 | 關注點 | 目前實作 |
 |---|---|
-| Canonical source | `skills/dhpk-<name>/` 下 103 個扁平 package |
+| Canonical source | `skills/dhpk-<name>/` 下 102 個扁平 package |
 | Public identity | 每個 dhpk skill 名稱都以 `dhpk-` 開頭 |
 | Inventory SSOT | `manifests/distribution-inventory.json` schema v2 |
 | Module projection | `modules/*/skills/` 下 37 個相對 symlink |
@@ -20,7 +20,6 @@ Pocock 或其他全域 skill 的使用者。
 | Codex native package | `plugins/dhpk/skills/` 下 15 個實體 package，零 symlink |
 | Codex 專案 receipt | `.codex/.dhpk-installed.json` schema v3 |
 | 預設 hooks | `PreToolUse`、`PostToolUse`、`SessionStart`、`SubagentStop` |
-| Learning | `dhpk-continuous-learning-v2` 為 opt-in |
 
 目錄位置與 README 清單都不是權威來源。Inventory 管理 stable id、public name、
 lifecycle、module 與 publication surface；validator 會將每個 projection 與它對齊。
@@ -62,7 +61,7 @@ namespace 與 command 檔名。
 4. Session start 時驗證並啟用設定的 module。
 5. Subagent stop 時核對 reviewer evidence。
 
-Formatting、lint、Docker probe、prompt hint、session snapshot、continuous learning
+Formatting、lint、Docker probe、prompt hint、session snapshot
 與其他 advisory 工作都改為 consumer 明確啟用的 extension，而非預設 hook。見
 [Hook extension model](./hook-extension.zh-TW.md)。
 
@@ -123,7 +122,7 @@ node tests/documentation-platform-parity.test.js
 node tests/run-all.js
 ```
 
-預期拓撲為 103 個 canonical skill、31 個 module、15 個 Codex project/native skill；
+預期拓撲為 102 個 canonical skill、31 個 module、15 個 Codex project/native skill；
 相對 symlink 只能出現在 module/Codex projection，native package 必須零 symlink。
 
 ## Rollback

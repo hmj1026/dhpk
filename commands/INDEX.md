@@ -58,7 +58,6 @@ description: 'Navigation index for dhpk plugin commands. Internal documentation;
 | `/dhpk:matrix-cell-onboard` | 為多 major library CI matrix 新增 cell。 |
 | `/dhpk:ui-ux-verify` | 比對 OpenSpec spec 與實際 UI 渲染。 |
 | `/dhpk:simplify` | 收尾式重構簡化。 |
-| `/dhpk:instinct-status` / `/dhpk:instinct-export` / `/dhpk:instinct-import` / `/dhpk:promote` / `/dhpk:evolve` | 管理與演化 instincts。 |
 
 ## 呼叫約定
 

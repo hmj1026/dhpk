@@ -3,9 +3,9 @@
   "surface": "cursor-plugin",
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
-  "sourceVersion": "0.41.2",
-  "sourceCommit": "4524bf2623ecb53032c01879c93ea6f24d3f0c1d",
-  "inventoryDigest": "2c06d8830d6db199e0d16a0c360ac60e196d21944efa12a9b7ed59fb6e001b8b",
+  "sourceVersion": "0.42.0",
+  "sourceCommit": "43f5323079f1e63d457ea2642b596b77b56358d2",
+  "inventoryDigest": "8281a10fad417ecb236d78e3165bfd6ab6b1f5c482a672d2d4cda1178b6c73bb",
   "generatorVersion": "1.0.0",
   "selectedSkillIds": [],
   "selectedSkillNames": [],
@@ -27,7 +27,6 @@
     "codex-code-review",
     "codex-implement",
     "composer-package-hygiene",
-    "continuous-learning-v2",
     "create-request",
     "create-skill",
     "de-ai-flavor",
@@ -94,7 +93,6 @@
     "dhpk-codex-bridge",
     "dhpk-codex-implement",
     "dhpk-composer-package-hygiene",
-    "dhpk-continuous-learning-v2",
     "dhpk-create-request",
     "dhpk-create-skill",
     "dhpk-cross-agent-sync",
@@ -301,11 +299,6 @@
       "transform": "cursor-agents-frontmatter"
     },
     {
-      "source": "evolve.md",
-      "destination": "commands/evolve.md",
-      "transform": "cursor-commands-frontmatter"
-    },
-    {
       "source": "execution-policy-kernel.md",
       "destination": "rules/execution-policy-kernel.mdc",
       "transform": "cursor-rules-frontmatter"
@@ -381,21 +374,6 @@
       "transform": "cursor-commands-frontmatter"
     },
     {
-      "source": "instinct-export.md",
-      "destination": "commands/instinct-export.md",
-      "transform": "cursor-commands-frontmatter"
-    },
-    {
-      "source": "instinct-import.md",
-      "destination": "commands/instinct-import.md",
-      "transform": "cursor-commands-frontmatter"
-    },
-    {
-      "source": "instinct-status.md",
-      "destination": "commands/instinct-status.md",
-      "transform": "cursor-commands-frontmatter"
-    },
-    {
       "source": "matrix-cell-onboard.md",
       "destination": "commands/matrix-cell-onboard.md",
       "transform": "cursor-commands-frontmatter"
@@ -449,7 +427,6 @@
         "codex-code-review",
         "codex-implement",
         "composer-package-hygiene",
-        "continuous-learning-v2",
         "create-request",
         "create-skill",
         "de-ai-flavor",
@@ -521,11 +498,6 @@
     {
       "source": "project-brief.md",
       "destination": "commands/project-brief.md",
-      "transform": "cursor-commands-frontmatter"
-    },
-    {
-      "source": "promote.md",
-      "destination": "commands/promote.md",
       "transform": "cursor-commands-frontmatter"
     },
     {
@@ -647,12 +619,12 @@
   "fingerprints": {
     "rules": "d01dcae306083d19068284dd7870861d4019e5bec1941679f9183585b20526e6",
     "agents": "37d47477e055e7695abc42eab66e33c78c0be3358d5a49216364932126e31f4f",
-    "commands": "acbf9e700317ae3d88dcc35858c3f2e2e9648c45f3dc41a47b9d47446f8d5db3",
+    "commands": "29ccd5d136137462f5261583480973054545bcf50d24ef29dd06004973b9ce02",
     "hooks/hooks.json": "1abe14baec6393d900554ebd4a84028ebd9748e0390f370813e9e32f664d0a8a"
   },
   "consumer": {
     "status": "NOT_RUN",
     "reason": "Cursor client consumer probe is separate from structural generation."
   },
-  "planFingerprint": "0d3a3ca74f67784d44303abaafad9540865a51abac9901aa36111d11959cafc6"
+  "planFingerprint": "fac5ee72dcbb12897b3efc1c17569b0b978178137230d54d0cc1c62963f451ab"
 }

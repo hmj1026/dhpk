@@ -45,7 +45,7 @@ function localLinks(relative) {
 
 test('all canonical skills expose the writing-for-agents contract without route boilerplate', () => {
   const files = relativeFiles('skills', (file) => file.endsWith('/SKILL.md'));
-  assert.strictEqual(files.length, 103, 'skill inventory count drifted');
+  assert.strictEqual(files.length, 102, 'skill inventory count drifted');
   const findings = [];
   for (const relative of files) {
     const text = fs.readFileSync(path.join(ROOT, relative), 'utf8');
@@ -80,7 +80,7 @@ test('rules and commands point to policy ownership and execution outcomes', () =
   const ruleFiles = relativeFiles('rules', (file) => file.endsWith('.md'));
   const commandFiles = relativeFiles('commands', (file) => file.endsWith('.md') && !file.endsWith('/INDEX.md'));
   assert.strictEqual(ruleFiles.length, 5, 'rule inventory count drifted');
-  assert.strictEqual(commandFiles.length, 44, 'invocable command inventory count drifted');
+  assert.strictEqual(commandFiles.length, 39, 'invocable command inventory count drifted');
   const findings = [];
   for (const relative of ruleFiles) {
     const text = fs.readFileSync(path.join(ROOT, relative), 'utf8');

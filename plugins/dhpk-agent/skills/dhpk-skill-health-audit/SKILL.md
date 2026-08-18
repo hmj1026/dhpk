@@ -11,7 +11,7 @@ metadata:
 
 - Code review (use `/codex-review-fast`)
 - Document review (use `/codex-review-doc`)
-- Creating new skills (use `skill-creator` plugin, external)
+- Creating or refactoring skills (use `dhpk-create-skill`, which points at external `writing-for-agents`)
 - .claude directory structure check (use `/dhpk:dhpk-claude-health`)
 
 ## Core Principle
@@ -20,7 +20,7 @@ Skills are **on-demand context packages**. Their value comes from routing precis
 
 ## Writing-for-agents contract
 
-For materially changed skills, require a short positive-trigger/non-use pointer; keep the primary path brief, move optional mechanics to co-located references, link policy to its SSOT, require observable completion/verification/handoff evidence, and prune duplicate or plan-as-apply text.
+For the universal authoring contract, read `docs/agent-guidance/writing-for-agents.md`; this audit owns structural lint.
 
 ## Workflow
 

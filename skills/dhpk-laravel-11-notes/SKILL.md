@@ -1,6 +1,6 @@
 ---
 name: dhpk-laravel-11-notes
-description: 'Use when working on Laravel 11 routing and migration guidance for ^11 projects, bootstrap/app.php, middleware, casts, rate limiting, and 10→11 upgrades. Not for ordinary business logic. Output: version-specific traps and verification gates.'
+description: 'Use when working on Laravel 11 routing and migration guidance for ^11 projects, bootstrap/app.php, middleware, casts, rate limiting, and 10→11 upgrades. Not for ordinary business logic; use `dhpk-php-runtime-router` for family selection and shared Laravel routing. Output: version-specific traps and verification gates.'
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---

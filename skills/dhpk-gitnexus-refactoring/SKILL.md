@@ -7,6 +7,9 @@ metadata:
 
 # Refactoring with GitNexus
 
+The schema, tool names, resource catalog, and stale-index recovery are owned by
+`dhpk-gitnexus-guide`; this skill owns the ordered refactor workflow.
+
 ## When to Use
 
 - "Rename this function safely"
@@ -24,7 +27,8 @@ metadata:
 4. Plan update order: interfaces → implementations → callers → tests
 ```
 
-> If "Index is stale" → run `npx gitnexus analyze` in terminal.
+> If the context reports a stale index, follow `dhpk-gitnexus-guide` for the
+> single stale-index recovery path before continuing this workflow.
 
 ## Checklists
 

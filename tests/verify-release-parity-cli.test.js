@@ -28,6 +28,10 @@ function mkRepo(version) {
   fs.writeFileSync(path.join(root, 'plugins/dhpk-agy/provenance.json'), JSON.stringify({ sourceVersion: version }));
   fs.writeFileSync(path.join(root, 'plugins/dhpk-cursor/provenance.json'), JSON.stringify({ sourceVersion: version }));
   fs.writeFileSync(path.join(root, 'CHANGELOG.md'), `# Changelog\n\n## [Unreleased]\n\n## ${version} — 2026-07-27 — Summary\n\nNotes.\n`);
+  fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
+  const agyPin = `node scripts/ci/gen-agy-plugin-package.js plugins/dhpk-agy --version=${version}\n`;
+  fs.writeFileSync(path.join(root, 'docs', 'platform-installation.md'), agyPin);
+  fs.writeFileSync(path.join(root, 'docs', 'platform-installation.zh-TW.md'), agyPin);
   return root;
 }
 
@@ -51,6 +55,17 @@ test('fails and lists the AGY package when its provenance drifts from the tag', 
   const res = spawnSync('node', [CLI, '--repo-root', repo, '--version', '1.2.3'], { encoding: 'utf8' });
   assert.notStrictEqual(res.status, 0);
   assert.match(res.stderr, /plugins\/dhpk-agy\/provenance\.json/);
+});
+
+test('fails when the bilingual AGY generator pin lags the tag version', () => {
+  const repo = mkRepo('1.2.3');
+  fs.writeFileSync(
+    path.join(repo, 'docs', 'platform-installation.md'),
+    'node scripts/ci/gen-agy-plugin-package.js plugins/dhpk-agy --version=1.2.2\n',
+  );
+  const res = spawnSync('node', [CLI, '--repo-root', repo, '--version', '1.2.3'], { encoding: 'utf8' });
+  assert.notStrictEqual(res.status, 0);
+  assert.match(res.stderr, /docs\/platform-installation\.md/);
 });
 
 run('verify-release-parity-cli');

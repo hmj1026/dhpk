@@ -2,8 +2,9 @@
 'use strict';
 
 // One release preparation command: SemVer-validates a target version, checks
-// (or deterministically writes) parity across every version-bearing manifest
-// and the CHANGELOG.md release heading, and promotes changelog.d/ fragments.
+// (or deterministically writes) parity across every version-bearing manifest,
+// the CHANGELOG.md release heading, and the bilingual AGY generator pin, and
+// promotes changelog.d/ fragments.
 // Preserves git-flow authority (RELEASE.md): preparation runs on `develop`
 // only and never merges, tags, or pushes — release-runner.sh still owns the
 // commit/PR/tag mechanics once these files are correct.
@@ -16,7 +17,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const { SEMVER_PATTERN, MANIFEST_PATHS, checkParity } = require('../lib/release-parity');
+const { SEMVER_PATTERN, MANIFEST_PATHS, AGY_GENERATOR_DOC_PATHS, checkParity, writeAgyGeneratorDocPins } = require('../lib/release-parity');
 const { readFragments, validateFragments, promote } = require('../lib/changelog-fragments');
 const { materializeNativePackage } = require('../lib/codex-native-package');
 const { materializeAgentPluginPackage } = require('../lib/agent-plugin-package');
@@ -277,15 +278,27 @@ function main() {
       writeManifestVersion(stagedFiles, relPath, args.version);
     }
 
+    for (const relPath of AGY_GENERATOR_DOC_PATHS) {
+      const destination = path.join(stagedFiles, relPath);
+      fs.mkdirSync(path.dirname(destination), { recursive: true });
+      fs.copyFileSync(path.join(args.root, relPath), destination);
+    }
+    writeAgyGeneratorDocPins(stagedFiles, args.version);
+
     const changed = [];
     changed.push('CHANGELOG.md');
     for (const relPath of MANIFEST_PATHS) {
       if (NATIVE_PACKAGE_PATHS.has(relPath)) continue;
       changed.push(relPath);
     }
+    for (const relPath of AGY_GENERATOR_DOC_PATHS) changed.push(relPath);
     const replacements = [
       { target: changelogPath, source: stagedChangelog },
       ...MANIFEST_PATHS.filter((relPath) => !NATIVE_PACKAGE_PATHS.has(relPath)).map((relPath) => ({
+        target: path.join(args.root, relPath),
+        source: path.join(stagedFiles, relPath),
+      })),
+      ...AGY_GENERATOR_DOC_PATHS.map((relPath) => ({
         target: path.join(args.root, relPath),
         source: path.join(stagedFiles, relPath),
       })),

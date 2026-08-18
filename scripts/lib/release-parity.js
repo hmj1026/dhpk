@@ -3,8 +3,9 @@
 // Version-parity checks for one release target across every version-bearing
 // surface: the Claude plugin manifest, root Codex manifest, thin Codex
 // wrapper manifest, standard Agent Plugin, native AGY plugin, and Cursor
-// Plugin manifests plus owner-scoped receipts, marketplace descriptor, and
-// the CHANGELOG.md release heading. Composes (does not replace) the pairwise
+// Plugin manifests plus owner-scoped receipts, marketplace descriptor, the
+// CHANGELOG.md release heading, and the bilingual AGY generator pin in
+// platform-installation SSOT. Composes (does not replace) the pairwise
 // manifest parity already covered by tests/codex-plugin-manifest.test.js.
 
 const fs = require('fs');
@@ -25,6 +26,62 @@ const MANIFEST_PATHS = [
   'plugins/dhpk-cursor/.cursor-plugin/plugin.json',
   'plugins/dhpk-cursor/provenance.json',
 ];
+
+const AGY_GENERATOR_DOC_PATHS = [
+  'docs/platform-installation.md',
+  'docs/platform-installation.zh-TW.md',
+];
+
+const AGY_GENERATOR_PIN_RE = /gen-agy-plugin-package\.js plugins\/dhpk-agy --version=(\d+\.\d+\.\d+)/g;
+
+function agyGeneratorCommand(version) {
+  return `gen-agy-plugin-package.js plugins/dhpk-agy --version=${version}`;
+}
+
+function findAgyGeneratorPins(text) {
+  return [...text.matchAll(new RegExp(AGY_GENERATOR_PIN_RE))].map((match) => ({ pin: match[0], version: match[1] }));
+}
+
+function readAgyGeneratorPin(root, relPath) {
+  const abs = path.join(root, relPath);
+  let text;
+  try {
+    text = fs.readFileSync(abs, 'utf8');
+  } catch (error) {
+    throw new Error(`${relPath}: could not read AGY generator pin (${error.message})`);
+  }
+  const pins = findAgyGeneratorPins(text);
+  if (pins.length === 0) {
+    throw new Error(`${relPath}: missing AGY generator pin (expected ${agyGeneratorCommand('<X.Y.Z>')})`);
+  }
+  if (pins.length > 1) {
+    throw new Error(`${relPath}: expected exactly one AGY generator pin, found ${pins.length}`);
+  }
+  return { text, pin: pins[0].pin, version: pins[0].version };
+}
+
+function checkAgyGeneratorDocPins(root, targetVersion) {
+  const errors = [];
+  for (const relPath of AGY_GENERATOR_DOC_PATHS) {
+    try {
+      const { version } = readAgyGeneratorPin(root, relPath);
+      if (version !== targetVersion) {
+        errors.push(`${relPath}: AGY generator pin version '${version}' does not match target '${targetVersion}'`);
+      }
+    } catch (error) {
+      errors.push(error.message);
+    }
+  }
+  return errors;
+}
+
+function writeAgyGeneratorDocPins(root, version) {
+  const replacement = agyGeneratorCommand(version);
+  for (const relPath of AGY_GENERATOR_DOC_PATHS) {
+    const { text, pin } = readAgyGeneratorPin(root, relPath);
+    fs.writeFileSync(path.join(root, relPath), text.replace(pin, replacement));
+  }
+}
 
 function readManifestVersion(root, relPath) {
   const abs = path.join(root, relPath);
@@ -69,7 +126,16 @@ function checkParity(root, targetVersion) {
     errors.push(`CHANGELOG.md: no '## ${targetVersion} ' release heading found`);
   }
 
+  errors.push(...checkAgyGeneratorDocPins(root, targetVersion));
+
   return { ok: errors.length === 0, errors };
 }
 
-module.exports = { MANIFEST_PATHS, SEMVER_PATTERN, checkParity };
+module.exports = {
+  MANIFEST_PATHS,
+  AGY_GENERATOR_DOC_PATHS,
+  SEMVER_PATTERN,
+  agyGeneratorCommand,
+  checkParity,
+  writeAgyGeneratorDocPins,
+};

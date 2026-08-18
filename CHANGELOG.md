@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## 0.42.0 — 2026-08-18 — Retire continuous-learning-v2, enforce canonical skill counts, and sync AGY generator pin
+
+**BREAKING(skills)** — removed the dormant `dhpk-continuous-learning-v2` skill and its `/dhpk:evolve`, `/dhpk:promote`, `/dhpk:instinct-status`, `/dhpk:instinct-import`, and `/dhpk:instinct-export` commands; the observer was never registered in the shipped hooks and any local `~/.local/share/dhpk-homunculus` data is now orphaned and safe to delete by hand.
+**fix(release)** — prepare-release write now syncs the bilingual AGY generator version pin with the release target.
+**ci(count-integrity)** — catalog.js now enforces the canonical skill count and the Claude-published skill count across README, skills/INDEX.md, and the bilingual distribution/migration docs, so a retired skill can no longer leave a stale count behind.
+
 ## 0.41.2 — 2026-08-17 — Include native AGY package in release version parity
 
 **fix(release)** — Include the native AGY package in version-parity checks and regenerate it during release preparation.

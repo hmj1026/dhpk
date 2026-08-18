@@ -1,11 +1,6 @@
 ---
 name: dhpk-deploy-list
 description: 'Cross-project deploy file-list generator (schema=v1). Use when: building a deploy/release checklist from git history, listing which files to ship for a deploy, 部署清單, deploy list/checklist. Scope via --anchor (in-code markers), --deploy-commits (pinned commits), or whole base..head; filters dev-only paths (tests, docs, CI, AI harness) and groups by ecosystem preset (php-yii, laravel, node, python, generic, or a custom preset). Not for: plain commit lookup (git log), raw diffs (git diff), or actually running the deploy. Output: a deterministic deploy checklist (deploy-list.sh stdout, forwarded verbatim).'
-triggers:
-  - /dhpk:dhpk-deploy-list
-  - deploy list
-  - 部署清單
-  - deploy checklist
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---
