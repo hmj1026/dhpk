@@ -399,7 +399,7 @@ agent frontmatter and never rewrites `agents/`. Generate and validate it from
 the dhpk checkout:
 
 ```bash
-node scripts/ci/gen-agy-plugin-package.js plugins/dhpk-agy --version=0.41.2
+node scripts/ci/gen-agy-plugin-package.js plugins/dhpk-agy --version=0.42.0
 node scripts/ci/validate-agy-plugin-package.js plugins/dhpk-agy
 ```
 
