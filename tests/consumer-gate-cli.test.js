@@ -38,6 +38,46 @@ function runCli(env) {
   });
 }
 
+function recordingClaudeScript(logFile, {
+  listVersion = REAL_VERSION,
+  installExit = 0,
+  uninstallExit = 0,
+  marketplaceRemoveExit = 0,
+} = {}) {
+  return `#!/bin/sh
+LOG=${JSON.stringify(logFile)}
+printf '%s\\n' "$*" >> "$LOG"
+if [ "$1" = "--version" ]; then echo '2.1.223'; exit 0; fi
+if [ "$1 $2" = "plugin validate" ]; then exit 0; fi
+if [ "$1 $2 $3" = "plugin marketplace add" ]; then exit 0; fi
+if [ "$1 $2 $3" = "plugin marketplace remove" ] || [ "$1 $2 $3" = "plugin marketplace rm" ]; then
+  if [ ! -d "$PWD" ]; then echo 'MARKETPLACE_REMOVE_CWD_MISSING' >> "$LOG"; exit 1; fi
+  printf 'MARKETPLACE_REMOVE_CWD=%s\\n' "$PWD" >> "$LOG"
+  exit ${marketplaceRemoveExit}
+fi
+if [ "$1 $2" = "plugin install" ]; then exit ${installExit}; fi
+if [ "$1 $2" = "plugin uninstall" ] || [ "$1 $2" = "plugin remove" ]; then
+  if [ ! -d "$PWD" ]; then echo 'UNINSTALL_CWD_MISSING' >> "$LOG"; exit 1; fi
+  printf 'UNINSTALL_CWD=%s\\n' "$PWD" >> "$LOG"
+  exit ${uninstallExit}
+fi
+if [ "$1 $2" = "plugin list" ]; then echo '[{"id":"dhpk@dhpk","version":"${listVersion}"}]'; exit 0; fi
+exit 0
+`;
+}
+
+function assertClaudeProjectTeardown(logText, stage) {
+  assert.match(logText, /plugin uninstall dhpk@dhpk/, logText);
+  assert.match(logText, /plugin marketplace remove dhpk/, logText);
+  assert.match(logText, /--scope project/, logText);
+  assert.ok(stage.commands.some((c) => /plugin uninstall/.test(c.cmd)), JSON.stringify(stage.commands));
+  assert.ok(stage.commands.some((c) => /marketplace remove/.test(c.cmd)), JSON.stringify(stage.commands));
+  const uninstallCwd = /UNINSTALL_CWD=(.+)/.exec(logText);
+  assert.ok(uninstallCwd, logText);
+  assert.ok(!fs.existsSync(uninstallCwd[1].trim()), `temp project still exists: ${uninstallCwd[1]}`);
+  assert.doesNotMatch(logText, /UNINSTALL_CWD_MISSING|MARKETPLACE_REMOVE_CWD_MISSING/);
+}
+
 test('reports Codex sync PASS and Claude/native-marketplace as UNAVAILABLE when claude CLI is absent', () => {
   const res = runCli({ PATH: NODE_BASH_ONLY_PATH });
   const stage = JSON.parse(res.stdout);
@@ -351,6 +391,48 @@ test('consumer failure evidence redacts sandbox and repository paths', () => {
   assert.match(redacted, /<sandbox>/);
   assert.match(redacted, /<repo>/);
   assert.doesNotMatch(redacted, /AUTH_MARKER_SHOULD_NOT_LEAK|DB_MARKER/);
+});
+
+test('Claude consumer-gate uninstalls the project-scope plugin before deleting the temp project', () => {
+  const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-gate-bin-'));
+  const log = path.join(bin, 'claude-argv.log');
+  mkBinStub(bin, 'claude', recordingClaudeScript(log));
+  const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` });
+  const stage = JSON.parse(res.stdout);
+  assert.strictEqual(stage.verdict, 'PASS', JSON.stringify(stage));
+  assertClaudeProjectTeardown(fs.readFileSync(log, 'utf8'), stage);
+});
+
+test('Claude consumer-gate still tears down after a project-scope install failure', () => {
+  const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-gate-bin-'));
+  const log = path.join(bin, 'claude-argv.log');
+  mkBinStub(bin, 'claude', recordingClaudeScript(log, { installExit: 1 }));
+  const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` });
+  assert.notStrictEqual(res.status, 0);
+  const stage = JSON.parse(res.stdout);
+  assert.strictEqual(stage.verdict, 'FAIL', JSON.stringify(stage));
+  assert.ok(stage.failureReasons.some((r) => /plugin install exited/i.test(r)), JSON.stringify(stage));
+  assertClaudeProjectTeardown(fs.readFileSync(log, 'utf8'), stage);
+});
+
+test('Claude registry teardown failure keeps PASS and records WARN evidence', () => {
+  const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-gate-bin-'));
+  const log = path.join(bin, 'claude-argv.log');
+  mkBinStub(bin, 'claude', recordingClaudeScript(log, { uninstallExit: 1 }));
+  const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` });
+  const stage = JSON.parse(res.stdout);
+  assert.strictEqual(stage.verdict, 'PASS', JSON.stringify(stage));
+  assert.strictEqual(res.status, 0);
+  assertClaudeProjectTeardown(fs.readFileSync(log, 'utf8'), stage);
+  assert.ok(stage.commands.some((c) => /plugin uninstall/.test(c.cmd) && c.exitCode !== 0), JSON.stringify(stage.commands));
+  assert.ok(
+    (stage.artifacts || []).some((a) => /claude-registry-teardown: WARN/i.test(a)),
+    JSON.stringify(stage.artifacts),
+  );
+  assert.ok(
+    !(stage.failureReasons || []).some((r) => /uninstall|marketplace remove|teardown/i.test(r)),
+    JSON.stringify(stage.failureReasons),
+  );
 });
 
 run('consumer-gate-cli');
