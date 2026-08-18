@@ -17,35 +17,56 @@ The plugin SHALL ship two root agents, `agents/codex-fast-worker.md` and `agents
 ### Requirement: Codex invocation contract
 The `codex-fast-worker` agent SHALL invoke the codex CLI via the shared wrapper (`skills/codex-bridge/scripts/run-codex.sh`) extended with optional model/effort arguments, producing an invocation equivalent to `codex exec --skip-git-repo-check --sandbox workspace-write -c approval_policy="never" --cd <workdir> -m <model> -c model_reasoning_effort="<effort>" --output-last-message <out-file>` with the prompt fed via stdin from a temp file. When the model/effort arguments are empty the wrapper SHALL omit the `-m`/`-c model_reasoning_effort` flags entirely, preserving the existing inherit-from-config behavior for `codex-bridge`. On a verified wrapper timeout, the agent SHALL consume the `dhpk.codex.timeout.v1` envelope and SHALL not treat a non-empty salvaged report as independent verification.
 
+The wrapper SHALL pass `--output-schema FILE` bound to the worker report contract, additively with `--output-last-message`, when the resolved role is `codex-fast-worker`. Other roles (`codex-bridge`, `codex-deep-reasoner`) SHALL keep last-message capture and SHALL omit the worker schema so their stdout stays unconstrained. The schema SHALL be OpenAI-strict (`additionalProperties: false` on every object node, `required` listing every property key). `model_reasoning_effort=ultra` SHALL NOT be adopted. `--ephemeral` MAY be used for CI probes. `--ignore-user-config` MAY be used when a run must not inherit `~/.codex/config.toml`. Neither optional isolation flag SHALL become a silent default that changes `codex-bridge` inherit-from-config behavior.
+
 #### Scenario: Model and effort flags applied
 - **WHEN** the wrapper is called with model `gpt-5.6-luna` and effort `xhigh`
 - **THEN** the codex invocation includes `-m gpt-5.6-luna` and `-c model_reasoning_effort="xhigh"`
 
 #### Scenario: Backwards-compatible without model args
 - **WHEN** the wrapper is called with the original three arguments only
-- **THEN** no `-m` or `model_reasoning_effort` override is passed and behavior is byte-identical to the pre-change wrapper
+- **THEN** no `-m` or `model_reasoning_effort` override is passed and behavior is byte-identical to the pre-change wrapper aside from the additive structured-output flag when that path is active
 
 #### Scenario: Codex timeout report is salvaged
 - **WHEN** the shared wrapper exits `124` with `verified_wrapper_timeout=true`
 - **THEN** the agent forwards the envelope to its caller and records the report as timeout evidence
 - **AND** it independently checks the assigned diff before classifying any edits
 
-### Requirement: Agy invocation contract
-The `agy-fast-worker` agent SHALL invoke the agy CLI via a dedicated wrapper script (`skills/agy-fast-worker/scripts/run-agy.sh <workdir> <prompt-file> <model>`) implementing the non-interactive combination verified against the installed agy 1.1.8 binary (`agy --help`): plan-confirmation `Y` piped on stdin unconditionally, `--dangerously-skip-permissions` (auto-approves tool permission requests only), `--add-dir <workdir>` (repeatable; required — print mode ignores the shell cwd), `--model "<model>"`, and `-p`/`--print` (alias `--prompt`) with the prompt content, bounding the wait with `--print-timeout` (CLI default 5m0s). Live re-verification against the installed 1.1.8 binary (accept-edits mode, stdin from `/dev/null`) found stdin `Y` is **not** required by this version when `--dangerously-skip-permissions` is set — the "separate gate `--dangerously-skip-permissions` does not clear" characterization was itself stale 1.1.2-era text carried forward without re-verification across the 1.1.2 → 1.1.8 gap. The wrapper keeps piping `Y` regardless: harmless when unread, and possibly still required by a pre-1.1.8 binary on the degrade path.
+#### Scenario: Structured output schema is requested
+- **WHEN** `codex-fast-worker` dispatches through the wrapper
+- **THEN** the invocation includes `--output-schema` pointing at the worker report schema file
+- **AND** `--output-last-message` is still used for stdout capture
 
-The wrapper SHALL additionally set `--mode` to express the autonomy boundary (`plan` for inspect-and-report work, `accept-edits` for write-enabled work) and SHALL request structured output via `--output-format json` together with `--json-schema` bound to the worker's report contract. Where such a flag enforces a property, the composed prompt SHALL NOT restate it in prose.
+#### Scenario: Other Codex roles omit the worker schema
+- **WHEN** the resolved role is `codex-bridge` or `codex-deep-reasoner`
+- **THEN** the invocation omits `--output-schema` and still uses `--output-last-message`
+
+#### Scenario: Ultra is not adopted
+- **WHEN** the wrapper maps an effort argument
+- **THEN** it never passes `model_reasoning_effort=ultra`
+
+#### Scenario: Optional reproducibility flags stay explicit
+- **WHEN** a CI probe needs isolation from user config
+- **THEN** `--ignore-user-config` and/or `--ephemeral` are passed only on that path, and the default `codex-bridge` three-arg invocation still inherits config
+
+### Requirement: Agy invocation contract
+The `agy-fast-worker` agent SHALL invoke the agy CLI via a dedicated wrapper script (`skills/agy-fast-worker/scripts/run-agy.sh <workdir> <prompt-file> <model>`) implementing the non-interactive combination verified against the installed agy 1.1.13 binary (`agy --help`): `--add-dir <workdir>` (repeatable; required — print mode ignores the shell cwd), `--model "<model>"`, and `-p`/`--print` (alias `--prompt`) with the prompt content, bounding the wait with `--print-timeout` (CLI default 5m0s).
+
+From agy 1.1.13, headless print mode honors `settings.json` permissions (soft-deny plus a stderr allow-rule hint) instead of the prior skip-permissions-only model. The wrapper SHALL reshape the `--dangerously-skip-permissions` plus stdin-`Y` degrade path for that semantics: it SHALL still request skip-permissions for mechanical write work, SHALL keep piping `Y` for older binaries on the unstructured degrade path, and SHALL parse stderr allow-rule hints into the failure diagnostic rather than treating them as opaque CLI noise. Print mode from 1.1.11 SHALL return an explicit error when the prompt is an interactive slash command; the wrapper SHALL surface that error and SHALL NOT retry it as a permissions failure.
+
+The wrapper SHALL additionally set `--mode` to express the autonomy boundary (`plan` for inspect-and-report work, `accept-edits` for write-enabled work) and SHALL request structured output via `--output-format json` together with `--json-schema` bound to the worker's report contract. Official Antigravity CLI documentation SHALL be treated as the authority that this pair is supported. Where such a flag enforces a property, the composed prompt SHALL NOT restate it in prose.
 
 The wrapper SHALL NOT pass `--effort`: the agy model string already encodes the reasoning tier (`Gemini 3.6 Flash (High)` / `gemini-3.6-flash-high`), so a separate effort flag is redundant and a source of semantic conflict.
 
 The wrapper SHALL NOT use `--cwd`: the official Antigravity CLI docs (antigravity.google/docs/cli/best-practices, retrieved 2026-07-14) recommend `-p ... --cwd $(pwd)`, but no such flag exists in the installed binary. Installed `--help` / `agy models` / the CLI's own persisted `settings.json` are the ground truth over published or auto-generated documentation, **re-verified whenever the agy version changes**. The wrapper SHALL fail loudly (non-zero exit with the CLI's stderr) rather than hang past the print timeout.
 
-The wrapper SHALL record the exact agy version its flag combination was verified against. That recorded baseline SHALL be re-verified — not merely renumbered — whenever the installed agy version differs from it, because a version gap silently accumulates unadopted flags: the 1.1.2 → 1.1.8 gap hid `--output-format`, `--json-schema`, and `--mode` for six patch releases.
+The wrapper SHALL record the exact agy version its flag combination was verified against (`AGY_VERIFIED_BASELINE` 1.1.13). That recorded baseline SHALL be re-verified — not merely renumbered — whenever the installed agy version differs from it.
 
-Because the previous version of this clause failed for want of an observer rather than for want of wording, the wrapper SHALL compare the installed agy version against that recorded baseline at runtime and SHALL emit a one-line notice on mismatch. This reuses the version detection the structured-output gate already requires and introduces no separate synchronization tooling.
+The wrapper SHALL compare the installed agy version against that recorded baseline at runtime and SHALL emit a one-line notice on mismatch.
 
 Structured output requires agy ≥ 1.1.8. On an older binary the wrapper SHALL degrade to the unstructured path and SHALL say so explicitly; it SHALL NOT silently drop the schema.
 
-The feature floor and the verified baseline are **separate constants** that happen to coincide today. The floor is the lowest version providing the structured-output flags; the baseline is the version the flag combination was last verified against. They SHALL NOT share one variable: refreshing the baseline after a future release would otherwise raise the floor with it and silently stop requesting structured output on versions that support it.
+The feature floor and the verified baseline are **separate constants**. `AGY_STRUCTURED_OUTPUT_FLOOR` stays 1.1.8 and `AGY_VERIFIED_BASELINE` is 1.1.13. They SHALL NOT share one variable.
 
 #### Scenario: Non-interactive agy run
 - **WHEN** the wrapper runs with a workdir, prompt file, and model `Gemini 3.6 Flash (High)`
@@ -86,6 +107,14 @@ The feature floor and the verified baseline are **separate constants** that happ
 #### Scenario: Version gap triggers re-verification, not renumbering
 - **WHEN** the installed agy version differs from the version recorded in the wrapper's verification note
 - **THEN** the flag combination is re-verified against the installed binary's `--help` and the newly available flags are assessed for adoption, rather than the recorded version number being updated on its own
+
+#### Scenario: Soft-deny allow-rule is parsed into the diagnostic
+- **WHEN** agy 1.1.13+ headless soft-denies a tool and writes an allow-rule hint on stderr
+- **THEN** the wrapper's non-zero failure output includes that hint rather than only a generic stderr tail
+
+#### Scenario: Print-mode slash-command error is not retried as permissions
+- **WHEN** the prompt is an interactive slash command and print mode returns the 1.1.11+ explicit error
+- **THEN** the wrapper surfaces that error and does not degrade into `--dangerously-skip-permissions` retry
 
 ### Requirement: Backend availability fallback
 Both CLI-backed agents SHALL check backend availability before composing work and SHALL return `RESULT: BLOCKED` with the exact failure for missing CLI, authentication, authorization, rejected model, or execution errors. They SHALL not simulate or perform the edits themselves. A fallback to `fast-worker` is permitted only when explicitly configured and only for a missing backend executable; the report SHALL identify the requested and selected backends.

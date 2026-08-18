@@ -1,16 +1,17 @@
 # performance-analyzer — Swift traps
 
-Runtime perf for Swift / SwiftUI. Loaded when a `swift` stack is detected. Concurrency
-correctness / Sendable / retain cycles → `code-reviewer/swift.md`; this sheet owns
-allocation, collection cost, and render churn.
+Runtime perf for Swift / SwiftUI. Concurrency correctness / Sendable / retain
+cycles stay in `code-reviewer/swift.md`; this sheet owns allocation, collection
+cost, and render churn.
 
-| Lane | Flag | Fix |
+| Trigger | Action | Non-apply |
 |---|---|---|
-| Allocation hot path | object / array allocation inside a tight loop or per-frame closure | hoist out of the loop; reuse buffers; prefer value types that stay on the stack |
-| Collections | growing an `Array`/`Set`/`Dictionary` element-by-element to a known size; `array.contains` in a loop (O(n²)) | `reserveCapacity(n)` up front; index with a `Set`/`Dictionary` for O(1) lookup |
-| Strings | string interpolation / concatenation building a large result in a loop | accumulate into an array and `joined()`, or a single interpolation |
-| SwiftUI render | heavy compute inside `body`; an over-broad `@Observable` / `@Published` triggering whole-view invalidation; `ForEach` without a stable `id` | compute outside `body` / cache; split observable state so only the affected subview updates; stable `id` |
-| Lazy / IO | eager load of a large collection where `LazySequence` / pagination fits; sync file/network on the main actor | lazy/paginate; move IO off the main actor with `async` |
+| Allocation hot path: object / array allocation inside a tight loop or per-frame closure | hoist out of the loop; reuse buffers; prefer value types that stay on the stack | — |
+| Collections: growing an `Array`/`Set`/`Dictionary` element-by-element to a known size; `array.contains` in a loop (O(n²)) | `reserveCapacity(n)` up front; index with a `Set`/`Dictionary` for O(1) lookup | — |
+| Strings: string interpolation / concatenation building a large result in a loop | accumulate into an array and `joined()`, or a single interpolation | — |
+| SwiftUI render: heavy compute inside `body`; an over-broad `@Observable` / `@Published` triggering whole-view invalidation; `ForEach` without a stable `id` | compute outside `body` / cache; split observable state so only the affected subview updates; stable `id` | — |
+| Lazy / IO: eager load of a large collection where `LazySequence` / pagination fits; sync file/network on the main actor | lazy/paginate; move IO off the main actor with `async` | — |
+| `Self._printChanges()` left on a hot SwiftUI path in a Release / shipping build | remove it, or gate behind `#if DEBUG` | debug-only `_printChanges` left in a DEBUG compile flag |
 
 ## Worked example
 

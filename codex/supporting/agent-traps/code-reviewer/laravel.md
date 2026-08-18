@@ -1,11 +1,18 @@
 # code-reviewer — Laravel traps
 
-- Eloquent: prefer `Model::query()->...` over the raw `DB` facade for type safety.
-- Validation: form requests over inline `$request->validate()` for complex rules.
-- Mass assignment: confirm `$fillable` / `$guarded` is set on every model touched.
-- Migrations: every `up()` has a matching `down()` (irreversible migrations need an explicit comment).
-- **N+1**: a relationship accessed inside a loop / Blade `@foreach` without `with()` eager-loading. Flag `->get()` then `$row->relation` in a loop → `Model::with('relation')`. (Latency lane → `database-reviewer`; use the explicit performance capability gate for profiler/benchmark work.)
-- **`$casts`**: dates / json / bool / enum columns must be declared in `$casts` (or `casts()` on L11) — a raw string compared as a date/bool is a silent bug.
-- **Fat controller**: business logic (multi-step writes, external calls, money math) in a controller action → extract to a service / action / job; the controller orchestrates only.
-- **`strict_types`**: new `.php` files declare `declare(strict_types=1);` and type-hint params + returns where the floor allows (see `code-reviewer/php.md` for the version floor).
-- Security lanes (mass-assignment escalation of privileged columns, SQLi via `DB::raw`, unvalidated file upload) → `security-reviewer/php.md`.
+PHP language floor → `code-reviewer/php.md` (and the PHP coding-style
+reference that sheet points at). Security lanes (privileged
+`$fillable`, `DB::raw` SQLi, unvalidated upload) → `security-reviewer/php.md`.
+N+1 latency / query-count → `database-reviewer` (this sheet only flags the
+Eloquent shape).
+
+| Trigger | Action | Non-apply |
+|---|---|---|
+| Raw `DB::` facade in an application service for a typed Eloquent model | prefer `Model::query()->…` | migrations, seeders, and artisan commands that are intentionally table-level |
+| Complex validation rules inline in a controller (`$request->validate([...])` spanning many fields) | extract a Form Request | one- or two-field checks that already live next to the action |
+| Model touched by mass assignment without `$fillable` / `$guarded` | set one of them explicitly | `$guarded = []` is not an auto-PASS — still review privileged columns with security-reviewer |
+| Migration `up()` without a matching `down()` | add `down()` or an explicit irreversible comment | data backfills documented as one-way |
+| `$row->relation` inside a loop / Blade `@foreach` after `->get()` without `with()` | `Model::with('relation')` | the relation was already eager-loaded on that query |
+| Date / json / bool / enum column compared as a raw string | declare `$casts` (or `casts()` on L11) | a column that is stored and compared as a string by design |
+| Multi-step writes, money math, or external calls inside a controller action | extract a service / action / job; controller orchestrates | a thin action that only calls one service method |
+| New `.php` file missing `declare(strict_types=1)` where the PHP floor allows typed params/returns | add the declare and type hints | PHP 5.6 floor projects — follow `code-reviewer/php.md` instead |

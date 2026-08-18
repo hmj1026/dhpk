@@ -1,9 +1,9 @@
 # Writing-for-Agents Contract
 
-Use this page when editing any skill, agent, rule, command, `AGENTS.md`, or
-`CLAUDE.md`. It is a compact repository contract; detailed skill mechanics
-remain in the external `writing-for-agents` 1.2.x reference and the owning
-files. The pinned apply source is `/home/paul/projects/matt-pocock_skills`
+Use this page when editing any skill, agent, rule, command, trap sheet,
+`AGENTS.md`, or `CLAUDE.md`. It is a compact repository contract; detailed
+skill mechanics remain in the external `writing-for-agents` 1.2.x reference
+and the owning files. The pinned apply source is `/home/paul/projects/matt-pocock_skills`
 (`package.json` 1.2.3); the public mirror is
 `https://github.com/mattpocock/skills/tree/main/skills/productivity/writing-for-agents`.
 Do not vendor that upstream skill into this repository.
@@ -34,6 +34,11 @@ Do not vendor that upstream skill into this repository.
 - Root guidance: universal constraints plus links to the topic document; keep
   `AGENTS.md` and `CLAUDE.md` under 50 lines and keep Codex-specific details in
   `codex/AGENTS.md`.
+- Trap sheets: unique agent×stack traps in `agent-traps/<agent>/<stack>.md`;
+  shared loader, prompt-defense, build-resolver skeleton, and CLI prompt
+  composition live only in `agent-traps/_common/`; every canonical file needs a
+  disposition in [trap-sheet-disposition.md](trap-sheet-disposition.md). Do not
+  restate per-stack traps here.
 
 Run Markdownlint, the strict frontmatter/invocation validators, route and
 distribution checks, and the focused contract test before claiming completion.

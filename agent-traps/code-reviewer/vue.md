@@ -5,19 +5,20 @@ correctness → `code-reviewer/js.md` (load both on a `.vue` diff). ESLint-tier 
 facade → `frontend-reviewer`. Detect the major from `package.json` `vue` (the `vue-2`
 module pins Options-API conventions); confirm `eslint-plugin-vue` + `vue-tsc` exist.
 
-| Lane | Flag | Fix |
-|---|---|---|
-| **Reactivity** | destructuring `defineProps` in Vue < 3.5 (snapshot, not reactive); `reactive()` on a primitive; reassigning a whole `reactive()` object; `watch(() => myRef, …)` (watches the ref, not its value); `watch(count, …)` on a 3.5 destructured prop (compile error) | `toRefs()` / `props.x`; `ref()` for primitives; mutate fields or `Object.assign`; `watch(() => myRef.value, …)`; `watch(() => count, …)` |
-| `.value` | `ref()` object read without `.value` inside `<script>` | add `.value` (templates auto-unwrap; script does not) |
-| **Template** | `v-for` without `:key`; `:key="index"`; `v-if` + `v-for` on the same element; `v-model` to a computed without a setter; `v-bind="$attrs"` without `inheritAttrs:false` | stable id key; `<template v-for>` + inner `v-if` or a filtered computed; writable ref / get+set; disable inherit |
-| Composable | side effects in module scope; missing cleanup (`watch`/listener/interval/fetch); stores a `.value` snapshot of a passed ref; returns non-reactive data; not `use`-prefixed | move into `setup`/lifecycle; teardown via `onUnmounted`; keep the ref; return `ref`/`computed`; rename `useFoo` |
-| Component | SFC > 300 lines; mutating a prop; prop without `type`; raw `document.querySelector`/DOM ref | extract subcomponents/composables; `emit`/`v-model` up; typed `defineProps`; `useTemplateRef` |
-| Router | guard returns `false` with no redirect; `useRoute().params` destructured at top level; lazy route without error/loading fallback | redirect/explain; `toRefs`/`computed`; provide fallback |
-| Pinia | multi-field mutation outside an action/`$patch`; non-serializable state; action without error handling | move into actions; keep state serializable; guard async |
-| **SSR (Nuxt)** | `window`/`document`/`localStorage` without `process.client`/`onMounted`; `useAsyncData`/`useFetch` without `key`; secret in `useRuntimeConfig().public`; `<ClientOnly>` around SEO content | client-guard; add `key`; server-only config; render SEO content server-side |
-| Perf (MEDIUM) | expensive `computed` over large data; `ref()` on a giant immutable; `v-show` vs `v-if` misuse; `<KeepAlive>` without `:max` | memoize/watcher; `shallowRef`; pick by toggle frequency; bound the cache |
+| Lane | Trigger | Action | Non-apply |
+|---|---|---|---|
+| Reactivity | destructuring `defineProps` in Vue < 3.5; `reactive()` on a primitive; reassigning a whole `reactive()` object; `watch(() => myRef, …)` | `toRefs()` / `props.x`; `ref()` for primitives; mutate fields or `Object.assign`; `watch(() => myRef.value, …)` | Vue ≥ 3.5 reactive props destructure; a `computed` used instead of `watch` |
+| `.value` | `ref()` object read without `.value` inside `<script>` | add `.value` | templates (auto-unwrap); `v-once` static text |
+| Template | `v-for` without `:key`; `:key="index"`; `v-if` + `v-for` on the same element; `v-model` to a computed without a setter | stable id key; `<template v-for>` + inner `v-if`; writable get+set | a static list that never reorders |
+| Composable | side effects in module scope; missing cleanup; stores a `.value` snapshot of a passed ref | move into `setup`/lifecycle; teardown via `onUnmounted`; keep the ref | a pure helper that does not take refs |
+| Component | SFC > 300 lines; mutating a prop; raw `document.querySelector` | extract; `emit`/`v-model` up; `useTemplateRef` | generated SFCs |
+| Router | guard returns `false` with no redirect; `useRoute().params` destructured at top level | redirect/explain; `toRefs`/`computed` | a guard that already redirects |
+| Pinia | multi-field mutation outside an action/`$patch`; non-serializable state | move into actions; keep state serializable | a store used only in tests |
+| SSR (Nuxt) | `window`/`document`/`localStorage` without `process.client`/`onMounted` | client-guard | a `<ClientOnly>` island that is not SEO content |
+| Perf (MEDIUM) | expensive `computed` over large data; `<KeepAlive>` without `:max` | memoize/watcher; bound the cache | a computed over a tiny constant list |
 
-Security: `v-html` with unsanitized input (Vue's `dangerouslySetInnerHTML`) and `:href`/`:src` accepting `javascript:`/`data:` URLs are CRITICAL — sanitize (DOMPurify) at the call site / validate the URL scheme; the OWASP baseline lives in `security-reviewer`.
+Security: `v-html` with unsanitized input and `:href`/`:src` accepting `javascript:`/`data:`
+URLs → sanitize (DOMPurify) / validate the URL scheme. OWASP baseline → `security-reviewer/js.md`.
 
 ## Worked example
 
@@ -28,7 +29,7 @@ const { title } = defineProps(['title'])
 </script>
 <!-- GOOD — keep the reactive link -->
 <script setup>
-const props = defineProps(['title'])   // use props.title, or toRefs(props)
+const props = defineProps(['title'])
 </script>
 ```
 

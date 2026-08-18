@@ -33,8 +33,16 @@ The confirmed-valid no-action items from the official-docs drift review remain:
 - agy `--cwd`: absent from the installed binary; keep using `--add-dir` and do not cite
   the published example.
 
-Wrapper invocation and degrade-path changes are known-pending work for
-`adapt-cli-wrappers-to-new-behaviors`; this baseline refresh does not change argv.
+Wrapper degrade path (landed with `adapt-cli-wrappers-to-new-behaviors`):
+
+- **agy** — one invocation; classify stderr containing `allow rule` as a
+  `settings.json` permissions hint; classify print-mode slash-command errors as
+  not a permissions retry; emit version-drift when installed ≠
+  `AGY_VERIFIED_BASELINE` 1.1.13. Do not bump the baseline from a drift notice.
+- **Codex** — `--output-last-message` on every role; `--output-schema` (OpenAI-strict
+  `skills/dhpk-codex-bridge/scripts/report-schema.json`) only when
+  `DHPK_CODEX_ROLE=codex-fast-worker`. Do not adopt `ultra`. `--ephemeral` /
+  `--ignore-user-config` stay opt-in.
 
 ## GPT-5.x section (codex-fast-worker, codex-deep-reasoner, codex-bridge skill)
 
