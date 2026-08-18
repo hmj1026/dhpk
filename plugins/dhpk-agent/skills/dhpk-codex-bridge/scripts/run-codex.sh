@@ -17,6 +17,9 @@
 # --ask-for-approval flag; approval is set via `-c approval_policy="never"`; model via
 # `-m`, effort via `-c model_reasoning_effort="..."`. The 0.147.0 catalog includes
 # `model_reasoning_effort="ultra"`, but this wrapper intentionally leaves it unused.
+# `--output-schema` is additive with `--output-last-message` and is passed only when
+# the resolved role is `codex-fast-worker` (OpenAI-strict `report-schema.json`); other
+# roles keep last-message capture without the worker report contract.
 # Prompt is read from stdin.
 #
 # Wrapper-level hard timeout (seconds), mirroring run-agy.sh's backstop: a hung
@@ -162,10 +165,25 @@ emit_unavailable_timeout_envelope() {
 
 # Optional model/effort flags. Empty args → omit entirely, preserving the original
 # inherit-from-config behavior for codex-bridge (backwards-compatible; a dedicated test
-# covers both arg-present and arg-absent shapes).
+# covers both arg-present and arg-absent shapes). Effort exactly `ultra` is omitted
+# (never passed through); other efforts such as xhigh still pass.
 MODEL_ARGS=()
 [ -n "$MODEL" ] && MODEL_ARGS+=(-m "$MODEL")
-[ -n "$EFFORT" ] && MODEL_ARGS+=(-c "model_reasoning_effort=$EFFORT")
+if [ -n "$EFFORT" ] && [ "$EFFORT" != "ultra" ]; then
+  MODEL_ARGS+=(-c "model_reasoning_effort=$EFFORT")
+fi
+
+# Opt-in isolation flags. Exact `1` only; unset/empty/other values add neither flag,
+# and setting one env must not add the other.
+ISOLATION_ARGS=()
+[ "${DHPK_CODEX_EPHEMERAL:-}" = "1" ] && ISOLATION_ARGS+=(--ephemeral)
+[ "${DHPK_CODEX_IGNORE_USER_CONFIG:-}" = "1" ] && ISOLATION_ARGS+=(--ignore-user-config)
+
+# Fast-worker report contract only. --output-last-message stays on every role;
+# --output-schema is gated on the resolved role (not argument count) because the
+# schema is additionalProperties:false with required worker keys.
+SCHEMA_ARGS=()
+[ "$CODEX_ROLE" = "codex-fast-worker" ] && SCHEMA_ARGS+=(--output-schema "$SCRIPT_DIR/report-schema.json")
 
 # Optional wrapper-level timeout backstop (GNU `timeout` / BSD `gtimeout`), mirroring
 # run-agy.sh. Availability is reported but never fails the run — an unwrapped call can
@@ -202,6 +220,8 @@ if [ -n "$TIMEOUT_BIN" ]; then
       -c approval_policy="never" \
       --cd "$WORKDIR_ABS" \
       ${MODEL_ARGS[@]+"${MODEL_ARGS[@]}"} \
+      ${ISOLATION_ARGS[@]+"${ISOLATION_ARGS[@]}"} \
+      ${SCHEMA_ARGS[@]+"${SCHEMA_ARGS[@]}"} \
       --output-last-message "$OUT_FILE" \
       < "$PROMPT_FILE" \
       1> "$STDOUT_LOG" 2> "$ERR_LOG"
@@ -213,6 +233,8 @@ else
     -c approval_policy="never" \
     --cd "$WORKDIR_ABS" \
     ${MODEL_ARGS[@]+"${MODEL_ARGS[@]}"} \
+    ${ISOLATION_ARGS[@]+"${ISOLATION_ARGS[@]}"} \
+    ${SCHEMA_ARGS[@]+"${SCHEMA_ARGS[@]}"} \
     --output-last-message "$OUT_FILE" \
     < "$PROMPT_FILE" \
     1> "$STDOUT_LOG" 2> "$ERR_LOG"

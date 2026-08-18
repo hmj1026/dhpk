@@ -77,6 +77,16 @@ approximate the backend or fall back to editing the files yourself.
    after="$(git status --porcelain)"
    ```
 
+   When `DHPK_CODEX_ROLE=codex-fast-worker`, the wrapper also passes
+   `--output-schema` (shape-only
+   `skills/dhpk-codex-bridge/scripts/report-schema.json`) together with
+   `--output-last-message`. Do not drop last-message at this call site, and do
+   not unset the role — other roles omit the worker schema so bridge and
+   deep-reasoner stdout stay unconstrained. Isolation flags
+   `--ephemeral` / `--ignore-user-config` are opt-in via
+   `DHPK_CODEX_EPHEMERAL=1` / `DHPK_CODEX_IGNORE_USER_CONFIG=1` and are not
+   part of the default three-arg inherit-from-config path.
+
    When `Parallel: yes`, replace both captures with path-scoped equivalents limited to
    the assigned files — `run-codex.sh` itself takes no file-list argument (it is shared
    with the `codex-bridge` skill and its usage contract is not extended here), so scoping

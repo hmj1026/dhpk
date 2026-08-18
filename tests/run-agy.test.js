@@ -47,7 +47,8 @@ exec "$@"
 // own version-detection probe must never corrupt the capture of its real, later
 // invocation. Any other invocation records its argv to $ARGV_OUT and stdin to
 // $STDIN_OUT, then prints a non-empty response (so the wrapper's empty-output guard
-// passes) and exits with $STUB_EXIT (default 0).
+// passes), writes optional $STUB_STDERR to stderr (failure-classification fixtures),
+// and exits with $STUB_EXIT (default 0).
 const STUB = `#!/usr/bin/env bash
 if [ "$#" -eq 1 ] && [ "$1" = "--version" ]; then
   printf '%s\\n' "\${AGY_STUB_VERSION:-1.1.8}"
@@ -56,6 +57,7 @@ fi
 printf '%s\\n' "$@" > "$ARGV_OUT"
 cat > "$STDIN_OUT"
 printf 'agy-stub-response\\n'
+printf '%s' "\${STUB_STDERR:-}" >&2
 exit "\${STUB_EXIT:-0}"
 `;
 
@@ -94,6 +96,12 @@ function runWrapper({ binDir, argvOut, stdinOut, dir, stubExit }, args, extraEnv
     encoding: 'utf8',
     timeout: 10000,
   });
+}
+
+function wrapperDiagnosticLines(stderr) {
+  return String(stderr)
+    .split(/\r?\n/)
+    .filter((line) => line.includes('run-agy.sh:'));
 }
 
 test('non-interactive invocation carries the verified flag surface', () => {
@@ -136,6 +144,57 @@ test('agy non-zero exit is passed through loudly', () => {
     assert.strictEqual(res.status, 3, `expected passthrough exit 3, got ${res.status}: ${res.stderr}`);
     assert.ok(res.stderr.includes('agy exited with code 3'), `missing loud failure message:\n${res.stderr}`);
   }, { stubExit: 3 });
+});
+
+test('allow-rule stderr hint is named in the wrapper diagnostic', () => {
+  withStub((ctx) => {
+    const hint = 'soft-deny: add an allow rule in settings.json for this tool\n';
+    const res = runWrapper(
+      ctx,
+      [ctx.dir, ctx.promptFile, 'Gemini 3.6 Flash (High)'],
+      { AGY_STUB_VERSION: '1.1.13', STUB_STDERR: hint },
+    );
+    assert.strictEqual(res.status, 4, `expected passthrough exit 4, got ${res.status}: ${res.stderr}`);
+    assert.ok(res.stderr.includes('allow rule'), `wrapper must still tail the allow-rule stderr:\n${res.stderr}`);
+    const diag = wrapperDiagnosticLines(res.stderr);
+    assert.ok(
+      diag.some((line) => /allow[- ]rule/i.test(line) && /settings\.json/i.test(line)),
+      `missing wrapper diagnostic naming the allow-rule / settings.json permissions hint (not only 'agy exited with code N'):\n${res.stderr}`,
+    );
+  }, { stubExit: 4 });
+});
+
+test('print-mode slash-command error is surfaced and not retried as permissions', () => {
+  withStub((ctx) => {
+    const hint = 'interactive slash commands are not supported in print mode\n';
+    const res = runWrapper(
+      ctx,
+      [ctx.dir, ctx.promptFile, 'Gemini 3.6 Flash (High)'],
+      { AGY_STUB_VERSION: '1.1.13', STUB_STDERR: hint },
+    );
+    assert.strictEqual(res.status, 1, `expected passthrough exit 1, got ${res.status}: ${res.stderr}`);
+    assert.ok(
+      res.stderr.includes('interactive slash commands are not supported in print mode'),
+      `wrapper must still tail the print-mode slash-command stderr:\n${res.stderr}`,
+    );
+    const diag = wrapperDiagnosticLines(res.stderr);
+    assert.ok(
+      diag.some((line) => /slash[- ]command/i.test(line) && /print[- ]mode/i.test(line)),
+      `missing wrapper diagnostic that this is a print-mode slash-command error:\n${res.stderr}`,
+    );
+    assert.ok(
+      !/retry(?:ing)? with --dangerously-skip-permissions/i.test(res.stderr),
+      `must not suggest retrying with --dangerously-skip-permissions:\n${res.stderr}`,
+    );
+    assert.ok(
+      !diag.some((line) => {
+        if (!/permission/i.test(line)) return false;
+        if (/\bnot\b|\bnever\b|must not|do not|don't/i.test(line)) return false;
+        return true;
+      }),
+      `print-mode slash-command error must not be described as a permissions failure:\n${res.stderr}`,
+    );
+  }, { stubExit: 1 });
 });
 
 test('missing arguments exit 2 with usage', () => {
