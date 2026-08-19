@@ -46,10 +46,10 @@ function fakePlugin() {
   return plugin;
 }
 
-function runInstaller(project, args, pluginRoot) {
+function runInstaller(project, args, pluginRoot, extraEnv) {
   return spawnSync('bash', [HOOK, ...args], {
     cwd: project,
-    env: { ...process.env, CLAUDE_PLUGIN_ROOT: pluginRoot },
+    env: { ...process.env, CLAUDE_PLUGIN_ROOT: pluginRoot, ...(extraEnv || {}) },
     encoding: 'utf8',
     timeout: 20000,
   });
@@ -242,6 +242,49 @@ test('project-root heuristic requires a project marker unless --force is passed'
   } finally {
     fs.rmSync(empty, { recursive: true, force: true });
     fs.rmSync(plugin, { recursive: true, force: true });
+  }
+});
+
+test('--plan --json warns when marketplace hash cache version drifts from local packages', () => {
+  const scratch = projectRoot();
+  const plugin = fakePlugin();
+  const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ich-home-')));
+  try {
+    write(path.join(home, '.cursor', 'plugins', 'cache', 'dhpk', 'dhpk', 'deadbeefcafe', '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '0.38.2' }));
+    write(path.join(home, '.cursor', 'plugins', 'local', 'dhpk-agent', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '9.9.9' }));
+    write(path.join(home, '.cursor', 'plugins', 'local', 'dhpk-cursor', '.cursor-plugin', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '9.9.9' }));
+    const first = runInstaller(scratch, ['--copy', '--force'], plugin, { HOME: home });
+    assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+    const planned = runInstaller(scratch, ['--update', '--plan', '--json', '--force'], plugin, { HOME: home });
+    const report = JSON.parse(planned.stdout);
+    const warning = (report.warnings || []).find((entry) => entry.code === 'cursor_marketplace_hash_cache_drift');
+    assert.ok(warning, planned.stdout);
+    assert.strictEqual(warning.cache_version, '0.38.2');
+    assert.ok((warning.ssot_versions || []).includes('9.9.9'), JSON.stringify(warning));
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
+    fs.rmSync(home, { recursive: true, force: true });
+  }
+});
+
+test('--plan --json does not warn when hash cache version matches local packages', () => {
+  const scratch = projectRoot();
+  const plugin = fakePlugin();
+  const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ich-home-match-')));
+  try {
+    write(path.join(home, '.cursor', 'plugins', 'cache', 'dhpk', 'dhpk', 'cafebabe0001', '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '9.9.9' }));
+    write(path.join(home, '.cursor', 'plugins', 'local', 'dhpk-agent', 'plugin.json'), JSON.stringify({ name: 'dhpk', version: '9.9.9' }));
+    const first = runInstaller(scratch, ['--copy', '--force'], plugin, { HOME: home });
+    assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+    const planned = runInstaller(scratch, ['--update', '--plan', '--json', '--force'], plugin, { HOME: home });
+    const report = JSON.parse(planned.stdout);
+    const warning = (report.warnings || []).find((entry) => entry.code === 'cursor_marketplace_hash_cache_drift');
+    assert.ok(!warning, JSON.stringify(report.warnings || []));
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
+    fs.rmSync(home, { recursive: true, force: true });
   }
 });
 
