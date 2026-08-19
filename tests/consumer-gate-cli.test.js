@@ -21,6 +21,15 @@ function mkBinStub(dir, name, body) {
   fs.writeFileSync(path.join(dir, name), body, { mode: 0o755 });
 }
 
+function withConsumerGateBin(fn) {
+  const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-gate-bin-'));
+  try {
+    return fn(bin);
+  } finally {
+    fs.rmSync(bin, { recursive: true, force: true });
+  }
+}
+
 // PATH containing real node/bash but deliberately excluding wherever the
 // real `claude` CLI lives, so "claude absent" is genuinely absent rather
 // than relying on ordering against the host's real PATH.
@@ -88,41 +97,43 @@ test('reports Codex sync PASS and Claude/native-marketplace as UNAVAILABLE when 
 });
 
 test('reports overall PASS when the supported Codex sync check succeeds and a stubbed claude CLI reports the install', () => {
-  const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-gate-bin-'));
-  mkBinStub(bin, 'claude', `#!/bin/sh
+  withConsumerGateBin((bin) => {
+    mkBinStub(bin, 'claude', `#!/bin/sh
 if [ "$1 $2" = "plugin marketplace" ]; then exit 0; fi
 if [ "$1 $2" = "plugin install" ]; then exit 0; fi
 if [ "$1 $2" = "plugin validate" ]; then exit 0; fi
 if [ "$1 $2" = "plugin list" ]; then echo '[{"id":"dhpk@dhpk","version":"${REAL_VERSION}"}]'; exit 0; fi
 exit 0
 `);
-  const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` });
-  const stage = JSON.parse(res.stdout);
-  assert.strictEqual(stage.verdict, 'PASS', JSON.stringify(stage));
-  assert.strictEqual(res.status, 0);
-  assert.ok(stage.artifacts.some((a) => /claude.*official.*PASS|official.*PASS.*claude/i.test(a)), JSON.stringify(stage));
-  assert.ok(stage.commands.some((c) => /claude plugin validate .* --strict/.test(c.cmd) && c.exitCode === 0), JSON.stringify(stage));
+    const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` });
+    const stage = JSON.parse(res.stdout);
+    assert.strictEqual(stage.verdict, 'PASS', JSON.stringify(stage));
+    assert.strictEqual(res.status, 0);
+    assert.ok(stage.artifacts.some((a) => /claude.*official.*PASS|official.*PASS.*claude/i.test(a)), JSON.stringify(stage));
+    assert.ok(stage.commands.some((c) => /claude plugin validate .* --strict/.test(c.cmd) && c.exitCode === 0), JSON.stringify(stage));
+  });
 });
 
 test('fails when the stubbed claude CLI reports a version mismatch after install', () => {
-  const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-gate-bin-'));
-  mkBinStub(bin, 'claude', `#!/bin/sh
+  withConsumerGateBin((bin) => {
+    mkBinStub(bin, 'claude', `#!/bin/sh
 if [ "$1 $2" = "plugin marketplace" ]; then exit 0; fi
 if [ "$1 $2" = "plugin install" ]; then exit 0; fi
 if [ "$1 $2" = "plugin validate" ]; then exit 0; fi
 if [ "$1 $2" = "plugin list" ]; then echo '[{"id":"dhpk@dhpk","version":"0.0.1"}]'; exit 0; fi
 exit 0
 `);
-  const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` });
-  assert.notStrictEqual(res.status, 0);
-  const stage = JSON.parse(res.stdout);
-  assert.strictEqual(stage.verdict, 'FAIL');
-  assert.ok(stage.failureReasons.some((r) => /0\.0\.1/.test(r)));
+    const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` });
+    assert.notStrictEqual(res.status, 0);
+    const stage = JSON.parse(res.stdout);
+    assert.strictEqual(stage.verdict, 'FAIL');
+    assert.ok(stage.failureReasons.some((r) => /0\.0\.1/.test(r)));
+  });
 });
 
 test('blocks the consumer gate when official Claude strict validation fails', () => {
-  const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-gate-bin-'));
-  mkBinStub(bin, 'claude', `#!/bin/sh
+  withConsumerGateBin((bin) => {
+    mkBinStub(bin, 'claude', `#!/bin/sh
 if [ "$1" = "--version" ]; then echo '2.1.223'; exit 0; fi
 if [ "$1 $2" = "plugin marketplace" ]; then exit 0; fi
 if [ "$1 $2" = "plugin install" ]; then exit 0; fi
@@ -130,12 +141,13 @@ if [ "$1 $2" = "plugin validate" ]; then echo 'skills/dhpk-ios-platform/SKILL.md
 if [ "$1 $2" = "plugin list" ]; then echo '[{"id":"dhpk@dhpk","version":"${REAL_VERSION}"}]'; exit 0; fi
 exit 0
 `);
-  const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` });
-  assert.notStrictEqual(res.status, 0);
-  const stage = JSON.parse(res.stdout);
-  assert.strictEqual(stage.verdict, 'FAIL', JSON.stringify(stage));
-  assert.ok(stage.failureReasons.some((r) => /official.*strict|claude.*validate|ios-platform/i.test(r)), JSON.stringify(stage));
-  assert.ok(stage.commands.some((c) => /claude plugin validate .* --strict/.test(c.cmd) && c.exitCode !== 0), JSON.stringify(stage));
+    const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` });
+    assert.notStrictEqual(res.status, 0);
+    const stage = JSON.parse(res.stdout);
+    assert.strictEqual(stage.verdict, 'FAIL', JSON.stringify(stage));
+    assert.ok(stage.failureReasons.some((r) => /official.*strict|claude.*validate|ios-platform/i.test(r)), JSON.stringify(stage));
+    assert.ok(stage.commands.some((c) => /claude plugin validate .* --strict/.test(c.cmd) && c.exitCode !== 0), JSON.stringify(stage));
+  });
 });
 
 test('duplicate Codex surfaces use the deterministic PASS/WARN/BLOCKED matrix', () => {
@@ -394,45 +406,73 @@ test('consumer failure evidence redacts sandbox and repository paths', () => {
 });
 
 test('Claude consumer-gate uninstalls the project-scope plugin before deleting the temp project', () => {
-  const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-gate-bin-'));
-  const log = path.join(bin, 'claude-argv.log');
-  mkBinStub(bin, 'claude', recordingClaudeScript(log));
-  const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` });
-  const stage = JSON.parse(res.stdout);
-  assert.strictEqual(stage.verdict, 'PASS', JSON.stringify(stage));
-  assertClaudeProjectTeardown(fs.readFileSync(log, 'utf8'), stage);
+  withConsumerGateBin((bin) => {
+    const log = path.join(bin, 'claude-argv.log');
+    mkBinStub(bin, 'claude', recordingClaudeScript(log));
+    const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` });
+    const stage = JSON.parse(res.stdout);
+    assert.strictEqual(stage.verdict, 'PASS', JSON.stringify(stage));
+    assertClaudeProjectTeardown(fs.readFileSync(log, 'utf8'), stage);
+  });
 });
 
 test('Claude consumer-gate still tears down after a project-scope install failure', () => {
-  const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-gate-bin-'));
-  const log = path.join(bin, 'claude-argv.log');
-  mkBinStub(bin, 'claude', recordingClaudeScript(log, { installExit: 1 }));
-  const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` });
-  assert.notStrictEqual(res.status, 0);
-  const stage = JSON.parse(res.stdout);
-  assert.strictEqual(stage.verdict, 'FAIL', JSON.stringify(stage));
-  assert.ok(stage.failureReasons.some((r) => /plugin install exited/i.test(r)), JSON.stringify(stage));
-  assertClaudeProjectTeardown(fs.readFileSync(log, 'utf8'), stage);
+  withConsumerGateBin((bin) => {
+    const log = path.join(bin, 'claude-argv.log');
+    mkBinStub(bin, 'claude', recordingClaudeScript(log, { installExit: 1 }));
+    const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` });
+    assert.notStrictEqual(res.status, 0);
+    const stage = JSON.parse(res.stdout);
+    assert.strictEqual(stage.verdict, 'FAIL', JSON.stringify(stage));
+    assert.ok(stage.failureReasons.some((r) => /plugin install exited/i.test(r)), JSON.stringify(stage));
+    assertClaudeProjectTeardown(fs.readFileSync(log, 'utf8'), stage);
+  });
 });
 
 test('Claude registry teardown failure keeps PASS and records WARN evidence', () => {
-  const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-gate-bin-'));
-  const log = path.join(bin, 'claude-argv.log');
-  mkBinStub(bin, 'claude', recordingClaudeScript(log, { uninstallExit: 1 }));
-  const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` });
-  const stage = JSON.parse(res.stdout);
-  assert.strictEqual(stage.verdict, 'PASS', JSON.stringify(stage));
-  assert.strictEqual(res.status, 0);
-  assertClaudeProjectTeardown(fs.readFileSync(log, 'utf8'), stage);
-  assert.ok(stage.commands.some((c) => /plugin uninstall/.test(c.cmd) && c.exitCode !== 0), JSON.stringify(stage.commands));
-  assert.ok(
-    (stage.artifacts || []).some((a) => /claude-registry-teardown: WARN/i.test(a)),
-    JSON.stringify(stage.artifacts),
-  );
-  assert.ok(
-    !(stage.failureReasons || []).some((r) => /uninstall|marketplace remove|teardown/i.test(r)),
-    JSON.stringify(stage.failureReasons),
-  );
+  withConsumerGateBin((bin) => {
+    const log = path.join(bin, 'claude-argv.log');
+    mkBinStub(bin, 'claude', recordingClaudeScript(log, { uninstallExit: 1 }));
+    const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` });
+    const stage = JSON.parse(res.stdout);
+    assert.strictEqual(stage.verdict, 'PASS', JSON.stringify(stage));
+    assert.strictEqual(res.status, 0);
+    assertClaudeProjectTeardown(fs.readFileSync(log, 'utf8'), stage);
+    assert.ok(stage.commands.some((c) => /plugin uninstall/.test(c.cmd) && c.exitCode !== 0), JSON.stringify(stage.commands));
+    assert.ok(
+      (stage.artifacts || []).some((a) => /claude-registry-teardown: WARN/i.test(a)),
+      JSON.stringify(stage.artifacts),
+    );
+    assert.ok(
+      !(stage.failureReasons || []).some((r) => /uninstall|marketplace remove|teardown/i.test(r)),
+      JSON.stringify(stage.failureReasons),
+    );
+  });
+});
+
+test('withConsumerGateBin removes the stub PATH dir after success', () => {
+  let captured;
+  const result = withConsumerGateBin((bin) => {
+    captured = bin;
+    assert.ok(fs.existsSync(bin));
+    fs.writeFileSync(path.join(bin, 'marker'), 'x');
+    return 'ok';
+  });
+  assert.strictEqual(result, 'ok');
+  assert.ok(captured);
+  assert.ok(!fs.existsSync(captured), `leftover stub dir: ${captured}`);
+});
+
+test('withConsumerGateBin removes the stub PATH dir after a thrown error', () => {
+  let captured;
+  assert.throws(() => {
+    withConsumerGateBin((bin) => {
+      captured = bin;
+      throw new Error('boom');
+    });
+  }, /boom/);
+  assert.ok(captured);
+  assert.ok(!fs.existsSync(captured), `leftover stub dir after throw: ${captured}`);
 });
 
 run('consumer-gate-cli');
