@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.42.2 — 2026-08-19 — docs: treat Cursor marketplace hash cache as non-SSOT; fix consumer-gate CLI stub test cleanup
+
+**docs(cursor-install)** — Document that Cursor marketplace hash cache is not SSOT, and warn from install-cursor-harness --plan when it drifts.
+
 ## 0.42.1 — 2026-08-18 — Harden CLI wrappers and discovery probes, and rewrite agent traps
 
 **fix(cli-wrappers)** — Adapt run-agy.sh and run-codex.sh to agy 1.1.13 soft-deny diagnostics and Codex 0.147.0 additive --output-schema.
