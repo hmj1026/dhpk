@@ -42,7 +42,7 @@ function findAgyGeneratorPins(text) {
   return [...text.matchAll(new RegExp(AGY_GENERATOR_PIN_RE))].map((match) => ({ pin: match[0], version: match[1] }));
 }
 
-function readAgyGeneratorPin(root, relPath) {
+function readAgyGeneratorPins(root, relPath) {
   const abs = path.join(root, relPath);
   let text;
   try {
@@ -54,19 +54,18 @@ function readAgyGeneratorPin(root, relPath) {
   if (pins.length === 0) {
     throw new Error(`${relPath}: missing AGY generator pin (expected ${agyGeneratorCommand('<X.Y.Z>')})`);
   }
-  if (pins.length > 1) {
-    throw new Error(`${relPath}: expected exactly one AGY generator pin, found ${pins.length}`);
-  }
-  return { text, pin: pins[0].pin, version: pins[0].version };
+  return { text, pins };
 }
 
 function checkAgyGeneratorDocPins(root, targetVersion) {
   const errors = [];
   for (const relPath of AGY_GENERATOR_DOC_PATHS) {
     try {
-      const { version } = readAgyGeneratorPin(root, relPath);
-      if (version !== targetVersion) {
-        errors.push(`${relPath}: AGY generator pin version '${version}' does not match target '${targetVersion}'`);
+      const { pins } = readAgyGeneratorPins(root, relPath);
+      for (const { version } of pins) {
+        if (version !== targetVersion) {
+          errors.push(`${relPath}: AGY generator pin version '${version}' does not match target '${targetVersion}'`);
+        }
       }
     } catch (error) {
       errors.push(error.message);
@@ -78,8 +77,12 @@ function checkAgyGeneratorDocPins(root, targetVersion) {
 function writeAgyGeneratorDocPins(root, version) {
   const replacement = agyGeneratorCommand(version);
   for (const relPath of AGY_GENERATOR_DOC_PATHS) {
-    const { text, pin } = readAgyGeneratorPin(root, relPath);
-    fs.writeFileSync(path.join(root, relPath), text.replace(pin, replacement));
+    const { text, pins } = readAgyGeneratorPins(root, relPath);
+    let updated = text;
+    for (const { pin } of pins) {
+      updated = updated.split(pin).join(replacement);
+    }
+    fs.writeFileSync(path.join(root, relPath), updated);
   }
 }
 
