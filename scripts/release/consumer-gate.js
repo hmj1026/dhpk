@@ -40,6 +40,7 @@ const { fingerprintDir } = require('../lib/codex-native-package');
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('../lib/bounded-filesystem');
 const { collectCodexProjectionReferenceErrors } = require('../ci/_lib/codex-runtime');
 const { redactSensitiveText } = require('../lib/redaction');
+const { inspectCodexDiscovery } = require('../lib/codex-discovery-registry');
 
 const DEFAULT_ROOT = path.join(__dirname, '..', '..');
 const CODEX_SURFACE_VERDICTS = Object.freeze({ PASS: 'PASS', WARN: 'WARN', BLOCKED: 'BLOCKED' });
@@ -215,16 +216,64 @@ function evaluateCodexSurfaceMatrix({ project, native, precedence, nativeExperim
       reason: 'selected project-local surface is stale/unowned or precedence is missing',
     };
   }
-  if (project.fingerprint === native.fingerprint) {
+  const report = inspectCodexDiscovery({
+    project: [{
+      ...project,
+      kind: project.kind || 'skills',
+      surface: project.surface || 'project-local',
+    }],
+    native: [{
+      ...native,
+      kind: native.kind || 'skills',
+      surface: native.surface || 'native-experimental',
+      experimental: native.experimental === true || nativeExperimental === true,
+    }],
+    precedence: precedence ? [precedence] : [],
+  });
+  if (report.duplicates.length > 0) {
     return { verdict: CODEX_SURFACE_VERDICTS.PASS, reason: 'identical fingerprints with valid provenance' };
   }
-  if (precedence === 'project-local' && nativeExperimental) {
+  const conflict = report.conflicts[0];
+  if (!conflict) return { verdict: CODEX_SURFACE_VERDICTS.PASS, reason: 'no duplicate surface' };
+  if (report.verdict === CODEX_SURFACE_VERDICTS.WARN && precedence === 'project-local' && nativeExperimental) {
     return { verdict: CODEX_SURFACE_VERDICTS.WARN, reason: 'current receipt-owned fallback takes explicit precedence over experimental native surface' };
+  }
+  if (report.verdict === CODEX_SURFACE_VERDICTS.BLOCKED && /stale|unowned/i.test(conflict.reason)) {
+    return {
+      verdict: CODEX_SURFACE_VERDICTS.BLOCKED,
+      reason: 'selected project-local surface is stale/unowned or precedence is missing',
+    };
   }
   return { verdict: CODEX_SURFACE_VERDICTS.BLOCKED, reason: 'duplicate surfaces differ without an approved precedence' };
 }
 
-function discoverCodexSurfaces({ root, project, version }) {
+function summarizeCodexDiscovery(discovery) {
+  return {
+    effective: discovery.effective.map((entry) => ({
+      identity: entry.identity,
+      name: entry.name,
+      kind: entry.kind,
+      status: entry.status,
+      fingerprint: entry.fingerprint,
+      provider: entry.provider ? {
+        id: entry.provider.id,
+        surface: entry.provider.surface,
+        fingerprint: entry.provider.fingerprint,
+      } : null,
+      providerSurfaces: entry.providers.map((provider) => provider.surface),
+    })),
+    conflicts: discovery.conflicts.map((entry) => ({
+      identity: entry.identity,
+      name: entry.name,
+      kind: entry.kind,
+      reason: entry.reason,
+      resolvedBy: entry.resolvedBy || null,
+      providerSurfaces: entry.providers.map((provider) => provider.surface),
+    })),
+  };
+}
+
+function discoverCodexSurfaces({ root, project, version, nativeRoot = path.join(root, 'plugins', 'dhpk') }) {
   const manifestPath = path.join(project, '.codex', '.dhpk-installed.json');
   let manifest = null;
   if (fs.existsSync(manifestPath)) {
@@ -238,7 +287,6 @@ function discoverCodexSurfaces({ root, project, version }) {
     manifest,
     allowedRoots: [project, root],
   });
-  const nativeRoot = path.join(root, 'plugins', 'dhpk');
   let nativeVersion = version;
   const nativeManifestPath = path.join(nativeRoot, '.codex-plugin', 'plugin.json');
   if (fs.existsSync(nativeManifestPath)) {
@@ -408,12 +456,20 @@ function verifyCodexSync(root, version) {
         reasons: [`Codex surface discovery rejected an unsafe root: ${redactEvidence(error.message, root)}`],
       };
     }
-    const nativeByPublicName = new Map(surfaces.native.map((entry) => [`${entry.kind}:${entry.id}`, entry]));
+    const discovery = inspectCodexDiscovery({
+      project: surfaces.project,
+      native: surfaces.native.map((entry) => ({ ...entry, experimental: true })),
+      precedence: ['project-local'],
+    });
     const duplicateEvidence = [];
-    let surfaceVerdict = CODEX_SURFACE_VERDICTS.PASS;
-    for (const projectEntry of surfaces.project) {
-      const nativeEntry = nativeByPublicName.get(`${projectEntry.kind}:${projectEntry.id}`);
-      if (!nativeEntry) continue;
+    for (const finding of [...discovery.duplicates, ...discovery.conflicts]) {
+      const projectEntry = surfaces.project.find((entry) => (
+        entry.kind === finding.kind && entry.id === finding.name
+      ));
+      const nativeEntry = surfaces.native.find((entry) => (
+        entry.kind === finding.kind && entry.id === finding.name
+      ));
+      if (!projectEntry || !nativeEntry) continue;
       const matrix = evaluateCodexSurfaceMatrix({
         project: projectEntry,
         native: nativeEntry,
@@ -429,9 +485,9 @@ function verifyCodexSync(root, version) {
         verdict: matrix.verdict,
         reason: matrix.reason,
       });
-      if (matrix.verdict === CODEX_SURFACE_VERDICTS.BLOCKED) surfaceVerdict = CODEX_SURFACE_VERDICTS.BLOCKED;
-      else if (matrix.verdict === CODEX_SURFACE_VERDICTS.WARN && surfaceVerdict === CODEX_SURFACE_VERDICTS.PASS) surfaceVerdict = CODEX_SURFACE_VERDICTS.WARN;
     }
+    const surfaceVerdict = discovery.verdict;
+    const discoverySummary = summarizeCodexDiscovery(discovery);
     if (surfaceVerdict === CODEX_SURFACE_VERDICTS.BLOCKED) {
       return {
         verdict: VERDICTS.FAIL,
@@ -442,6 +498,8 @@ function verifyCodexSync(root, version) {
         surfaces: {
           project: surfaces.project,
           native: surfaces.native,
+          effective: discoverySummary.effective,
+          conflicts: discoverySummary.conflicts,
           receipt: {
             schema_version: manifest.schema_version,
             plugin_version: manifest.plugin_version,
@@ -464,6 +522,8 @@ function verifyCodexSync(root, version) {
       surfaces: {
         project: surfaces.project,
         native: surfaces.native,
+        effective: discoverySummary.effective,
+        conflicts: discoverySummary.conflicts,
         receipt: {
           schema_version: manifest.schema_version,
           plugin_version: manifest.plugin_version,
@@ -709,8 +769,9 @@ function runGate(args) {
 if (require.main === module) {
   const args = parseArgs(process.argv.slice(2));
   const stage = runGate(args);
-  console.log(JSON.stringify(stage, null, 2));
-  process.exit([VERDICTS.FAIL, VERDICTS.BLOCKED].includes(stage.verdict) ? 1 : 0);
+  const output = `${JSON.stringify(stage, null, 2)}\n`;
+  const exitCode = [VERDICTS.FAIL, VERDICTS.BLOCKED].includes(stage.verdict) ? 1 : 0;
+  process.stdout.write(output, () => process.exit(exitCode));
 }
 
 module.exports = {

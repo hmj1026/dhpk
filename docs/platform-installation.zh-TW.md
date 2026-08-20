@@ -144,6 +144,28 @@ node "$DHPK_ROOT/tests/install-codex-skills.test.js"
 Rollback 使用 `--uninstall` 或還原已保存的 `.codex/` receipt；不要刪除整個
 `.codex/` 目錄。
 
+### 檢查 Codex 重複 discovery
+
+Project-local sync 與 experimental native package 是兩條獨立 acquisition
+surface。host 若同時 discovery 兩者，即使內容是刻意配置，也可能讓同一個
+public skill name 顯示兩次。先設定 `DHPK_ROOT` 為 source checkout，再從
+consumer project root 執行下列唯讀檢查：
+
+```bash
+node "$DHPK_ROOT/scripts/ci/check-codex-discovery.js" \
+  --repo-root "$DHPK_ROOT" \
+  --project-root "$PWD" \
+  --native-root "$DHPK_ROOT/plugins/dhpk"
+```
+
+Registry 以 `kind:publicName` 聚合 entry。fingerprint 相同時會合併成一筆
+`effective` entry，但保留兩個 provider 證據；fingerprint 不同時，必須有
+current 且 receipt-owned 的 precedence，否則回傳 `BLOCKED`。current 的
+project-local entry 明確優先於 experimental native entry 時回傳 `WARN`。這個
+command 只回報證據，不會刪除 projection、cache 或 host registration。遇到
+`BLOCKED` 時，先檢查 receipt 並選定一條支援的 route，再執行 update 或
+uninstall。
+
 ## Codex legacy/native package（Experimental）
 
 Prerequisites：具 marketplace route 的實際 `codex` CLI、POSIX shell，以及已

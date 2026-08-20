@@ -235,6 +235,10 @@ identical fingerprints with valid provenance, and `WARN` only for a current
 receipt-owned project-local fallback explicitly taking precedence over an
 experimental native surface.
 
+For the executable duplicate-discovery check and its read-only remediation
+steps, use [Check for duplicate Codex discovery](./platform-installation.md#check-for-duplicate-codex-discovery)
+in the platform installation SSOT.
+
 **Structural safety.** Both `.codex-plugin/plugin.json` (root) and
 `plugins/dhpk/.codex-plugin/plugin.json` (marketplace-target wrapper) now
 resolve to the SAME physical `plugins/dhpk/skills/` tree — the root manifest
