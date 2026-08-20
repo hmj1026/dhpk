@@ -40,12 +40,12 @@ const FRONTMATTER_ALLOWLIST = new Set(['name', 'description', 'tools', 'model'])
 
 function usage() {
   return [
-    'Adapt agent frontmatter for Gemini CLI.',
+    'Adapt agent frontmatter for the native AGY plugin.',
     '',
     'Usage:',
-    '  node scripts/gemini-adapt-agents.js [agents-dir]',
+    '  node scripts/agy-adapt-agents.js [agents-dir]',
     '',
-    'Defaults to .gemini/agents under the current working directory.',
+    'Defaults to .gemini/config/plugins/dhpk/agents under the current working directory.',
     'Rewrites tools/model metadata to the AGY contract and removes unsupported Claude fields.'
   ].join('\n');
 }
@@ -62,7 +62,7 @@ function parseArgs(argv) {
 
   return {
     help: false,
-    agentsDir: path.resolve(positional[0] || path.join(process.cwd(), '.gemini', 'agents')),
+    agentsDir: path.resolve(positional[0] || path.join(process.cwd(), '.gemini', 'config', 'plugins', 'dhpk', 'agents')),
   };
 }
 

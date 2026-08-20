@@ -105,7 +105,7 @@ description: 'Navigation index for dhpk plugin skills. Internal documentation; n
 | [dhpk-harness-fill](dhpk-harness-fill/SKILL.md) | Explore-driven meta-workflow to fill in `.claude/` infrastructure |
 | [dhpk-harness-revise](dhpk-harness-revise/SKILL.md) | Trim, dedupe, and validate the project harness |
 | [dhpk-claude-health](dhpk-claude-health/SKILL.md) | `.claude/` config health check + plugin-version sync |
-| [dhpk-cross-agent-sync](dhpk-cross-agent-sync/SKILL.md) | Sync Claude-first config to Codex / Gemini / `.agent` |
+| [dhpk-cross-agent-sync](dhpk-cross-agent-sync/SKILL.md) | Sync Claude-first config to Codex / Antigravity / AGY / Cursor |
 | [dhpk-rules-distill](dhpk-rules-distill/SKILL.md) | Extract cross-cutting principles from skills into rules |
 
 ## Skill authoring & audit

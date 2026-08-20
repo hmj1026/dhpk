@@ -119,8 +119,8 @@ test('installation routes remain separate and point to the SSOT', () => {
   ]) assert.ok(english.includes(token), `SSOT missing ${token}`);
 });
 
-test('bilingual SSOT pins gen-agy-plugin-package.js to the current plugin version', () => {
-  const expected = `gen-agy-plugin-package.js plugins/dhpk-agy --version=${CURRENT_VERSION}`;
+test('bilingual SSOT pins the unified AGY generator to the current plugin version', () => {
+  const expected = `bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=${CURRENT_VERSION}`;
   for (const relative of ['docs/platform-installation.md', 'docs/platform-installation.zh-TW.md']) {
     const text = read(relative);
     assert.ok(

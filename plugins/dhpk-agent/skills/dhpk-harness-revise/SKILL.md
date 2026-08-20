@@ -1,13 +1,13 @@
 ---
 name: dhpk-harness-revise
-description: "Trims and validates the project harness (.claude/, .gemini/, or .codex/) for a harness audit request, after major rule additions, or as periodic maintenance. Detects the active environment and ensures consistency, hygiene, and trigger preservation. Not for: business code review. Output: inventory snapshot, gap list with severity, proposed fixes, validation results."
+description: "Trims and validates the project harness (.claude/ or .codex/) for a harness audit request, after major rule additions, or as periodic maintenance. Detects the active environment and ensures consistency, hygiene, and trigger preservation. Not for: business code review. Output: inventory snapshot, gap list with severity, proposed fixes, validation results."
 metadata:
   dhpk-invocation-class: "explicit-only"
 ---
 
 # Harness Revise Skill
 
-Methodology to trim, deduplicate, and validate the project harness without regressing trigger semantics. Supports Multiple LLM Environments (Claude, Gemini, Codex).
+Methodology to trim, deduplicate, and validate the project harness without regressing trigger semantics. Supports Claude and Codex project harnesses.
 
 ## When to Use
 
@@ -34,7 +34,7 @@ The shared resolution contract is
 3. **Script Boundary**: Pass the selected directory explicitly; the scripts'
    error for an ambiguous or missing directory is a blocking result.
 
-Use the skill directory as the source of truth for scripts. Resolution order: an explicit `CLAUDE_SKILL_DIR` (set when invoked via the Skill tool), then the dhpk plugin install path (`CLAUDE_PLUGIN_ROOT`, set for plugin commands/hooks), then the repo-relative cross-LLM location for Gemini / Codex:
+Use the skill directory as the source of truth for scripts. Resolution order: an explicit `CLAUDE_SKILL_DIR` (set when invoked via the Skill tool), then the dhpk plugin install path (`CLAUDE_PLUGIN_ROOT`, set for plugin commands/hooks), then the repo-relative location for Codex:
 
 ```bash
 SKILL_DIR="${CLAUDE_SKILL_DIR:-${CLAUDE_PLUGIN_ROOT:+${CLAUDE_PLUGIN_ROOT}/skills/dhpk-harness-revise}}"
@@ -55,7 +55,7 @@ bash "$SKILL_DIR/scripts/test-harness.sh" --dir .claude
 ```
 
 Acceptance gate before proposing fixes:
-- `harness-scenarios.sh` must report `FAIL=0` (target ceiling; new environments like Gemini may start with failures representing gaps).
+- `harness-scenarios.sh` must report `FAIL=0` (target ceiling; a newly adopted environment may start with failures representing gaps).
 - `test-harness.sh` must report `PASS: [Target Count]` (e.g., 71/71 for Claude with `--dir .claude`; SKIP entries for T5.4/T9.3 are acceptable).
 - `harness-inventory.sh` reports inform the report; handles missing `memory.md` or platform-specific configs.
 
@@ -129,7 +129,7 @@ Include, in order:
 
 ## Anti-Patterns
 
-- Hardcoding `.claude/` when running in `.gemini/` or vice-versa.
+- Hardcoding `.claude/` when running in `.codex/` or vice-versa.
 - Modifying business code instead of harness assets.
 - Inventing new IDs without updating the taxonomy.
 - Translating zh-TW in project communication files (PRs/commits).

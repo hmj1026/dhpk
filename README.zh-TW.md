@@ -287,7 +287,7 @@ dhpk/
 │   ├── hooks/                    # 核心 hook，含 post-edit-dispatch.sh、pre-bash-dispatch.sh、reap-stale-sentinels.sh、_lib/{payload,portable-sed,portable-timeout}.sh
 │   ├── statusline/statusline.sh
 │   ├── codemaps/、lib/、opsx-apply-resume/、validate/
-│   └── （harness-audit、precommit-runner、verify-runner、gemini-adapt-agents、dep-audit）
+│   └── （harness-audit、precommit-runner、verify-runner、agy-adapt-agents、dep-audit）
 ├── docs/
 │   ├── configuration.md、configuration.zh-TW.md      # 完整 userConfig 參考
 │   ├── basic-operations.md、basic-operations.zh-TW.md # 安裝與工作流生命週期

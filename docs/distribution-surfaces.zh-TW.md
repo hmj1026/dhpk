@@ -148,16 +148,20 @@ escape 失效模式目前已在正式 manifest/package 上通過結構與 consum
 **experimental**，直到另有獨立核准的 graduation decision。正式工作仍優先使用
 project-local sync。
 
+可執行的 duplicate-discovery 檢查與唯讀處理步驟，請以平台安裝 SSOT 的
+[檢查 Codex 重複 discovery](./platform-installation.zh-TW.md#檢查-codex-重複-discovery)
+為準。
+
 ## 維護與驗證
 
 只編輯 canonical `skills/dhpk-*/` 與 inventory，不直接手改 module/Codex symlink
 projection 或 native package。Native package 必須重新產生並與 source 一起提交：
 
 ```bash
-node scripts/ci/gen-codex-native-package.js plugins/dhpk --version=<version>
+bin/dhpk distribution codex-native generate --output plugins/dhpk --version=<version> --json
 node scripts/ci/validate-distribution.js
 node scripts/ci/validate-openai-metadata.js
-node scripts/ci/verify-codex-native-package.js plugins/dhpk
+bin/dhpk distribution codex-native verify --json
 node tests/run-all.js
 ```
 

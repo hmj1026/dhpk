@@ -59,11 +59,6 @@ function buildValidCodex(root, { agents = ['architect'] } = {}) {
   }
 }
 
-function buildValidGemini(root) {
-  writeFile(path.join(root, '.gemini/commands/demo.toml'), 'description = "demo"\nprompt = "demo"\n');
-  writeFile(path.join(root, '.gemini/skills/demo/SKILL.md'), '# Demo\n');
-}
-
 function buildValidAntigravity(root) {
   writeFile(path.join(root, '.agent/rules/demo.md'), 'trigger: demo\nBody\n');
   writeFile(path.join(root, '.agent/skills/demo/SKILL.md'), '# Demo\n');
@@ -106,12 +101,11 @@ function fixtureClaudeAndCodexOnly() {
   return root;
 }
 
-function fixtureAllTargetsConfigured() {
-  const root = mkTmp('all-targets');
+function fixtureRetainedTargetsConfigured() {
+  const root = mkTmp('retained-targets');
   buildValidClaude(root);
   buildValidCodex(root);
   buildParityManifest(root, ['architect']);
-  buildValidGemini(root);
   buildValidAntigravity(root);
   return root;
 }
@@ -119,7 +113,6 @@ function fixtureAllTargetsConfigured() {
 function fixtureMissingClaudeSource() {
   const root = mkTmp('missing-claude');
   buildValidCodex(root, { agents: [] });
-  buildValidGemini(root);
   buildValidAntigravity(root);
   return root;
 }
@@ -142,7 +135,7 @@ function fixtureParityManagedCodex() {
 test('task 1.1: five clean-repository fixtures build without error', () => {
   const builders = [
     fixtureClaudeAndCodexOnly,
-    fixtureAllTargetsConfigured,
+    fixtureRetainedTargetsConfigured,
     fixtureMissingClaudeSource,
     fixtureInstallerOnlyCodex,
     fixtureParityManagedCodex,
@@ -163,9 +156,8 @@ test('task 1.2 (RED): absent target platforms should report NOT_CONFIGURED, not 
     const res = runValidate(root);
     assert.ok(res.stdout, `expected JSON stdout, stderr=${res.stderr}`);
     const report = JSON.parse(res.stdout);
-    const gemini = report.results.find((r) => r.platform === 'gemini');
     const antigravity = report.results.find((r) => r.platform === 'antigravity');
-    assert.strictEqual(gemini.final_status, 'NOT_CONFIGURED', `expected gemini NOT_CONFIGURED, got ${gemini.final_status}`);
+    assert.ok(!report.results.some((r) => r.platform === 'gemini'), 'retired Gemini CLI must not appear in validation results');
     assert.strictEqual(
       antigravity.final_status,
       'NOT_CONFIGURED',
@@ -178,7 +170,7 @@ test('task 1.2 (RED): absent target platforms should report NOT_CONFIGURED, not 
 });
 
 test('task 1.3 (RED): a documented incompatible capability reports SKIP_INCOMPATIBLE with a reason, not FAIL/legacy PARTIAL', () => {
-  const root = fixtureAllTargetsConfigured();
+  const root = fixtureRetainedTargetsConfigured();
   try {
     const res = runValidate(root);
     assert.ok(res.stdout, `expected JSON stdout, stderr=${res.stderr}`);
@@ -232,9 +224,9 @@ test('task 1.5 (RED): installer-only Codex validates without requiring .codex/ag
 });
 
 test('task 1.6a (RED): validate has no --targets/--all-targets flag to distinguish an explicit request from auto-discovery', () => {
-  const root = fixtureAllTargetsConfigured();
+  const root = fixtureRetainedTargetsConfigured();
   try {
-    const res = runValidate(root, ['--targets', 'gemini']);
+    const res = runValidate(root, ['--targets', 'antigravity']);
     assert.ok(res.stdout, `expected JSON stdout, stderr=${res.stderr}`);
     const report = JSON.parse(res.stdout);
     assert.strictEqual(typeof report.gate, 'string');
@@ -247,11 +239,11 @@ test('task 1.6a (RED): validate has no --targets/--all-targets flag to distingui
 test('task 1.6b (RED): an explicitly requested but wholly absent target reports BLOCKED and a non-zero exit', () => {
   const root = fixtureClaudeAndCodexOnly();
   try {
-    const res = runValidate(root, ['--targets', 'gemini']);
+    const res = runValidate(root, ['--targets', 'agy']);
     const report = res.stdout ? JSON.parse(res.stdout) : null;
     assert.ok(report, `expected JSON output, stderr=${res.stderr}`);
-    const gemini = report.results.find((r) => r.platform === 'gemini');
-    assert.strictEqual(gemini.final_status, 'BLOCKED', `explicitly requested absent gemini must be BLOCKED, got ${gemini && gemini.final_status}`);
+    const agy = report.results.find((r) => r.platform === 'agy');
+    assert.strictEqual(agy.final_status, 'BLOCKED', `explicitly requested absent agy must be BLOCKED, got ${agy && agy.final_status}`);
     assert.strictEqual(report.gate, 'BLOCKED', `gate must be BLOCKED, got ${report.gate}`);
     assert.notStrictEqual(res.status, 0, 'BLOCKED must exit non-zero');
   } finally {
@@ -260,7 +252,7 @@ test('task 1.6b (RED): an explicitly requested but wholly absent target reports 
 });
 
 test('task 1.6c (RED): report carries a deprecated legacy_gate PASS/PARTIAL/FAIL compatibility field', () => {
-  const root = fixtureAllTargetsConfigured();
+  const root = fixtureRetainedTargetsConfigured();
   try {
     const res = runValidate(root);
     assert.ok(res.stdout, `expected JSON stdout, stderr=${res.stderr}`);
@@ -271,14 +263,13 @@ test('task 1.6c (RED): report carries a deprecated legacy_gate PASS/PARTIAL/FAIL
   }
 });
 
-test('task 1.3 baseline: fully unrequested Gemini/Antigravity multi-agent absence already reports skip today (regression guard)', () => {
-  const root = fixtureAllTargetsConfigured();
+test('task 1.3 baseline: retained target validation does not surface retired Gemini CLI', () => {
+  const root = fixtureRetainedTargetsConfigured();
   try {
     const res = runValidate(root);
     assert.ok(res.stdout, `expected JSON stdout, stderr=${res.stderr}`);
     const report = JSON.parse(res.stdout);
-    const gemini = report.results.find((r) => r.platform === 'gemini');
-    assert.notStrictEqual(gemini.final_status, 'FAIL', 'gemini multi-agent skip-incompatible must not be reported as FAIL');
+    assert.ok(!report.results.some((r) => r.platform === 'gemini'), 'retired Gemini CLI must not be reported');
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

@@ -74,6 +74,19 @@ diagnostic。尤其是 Codex project-local write 仍應使用既有
 `install-cursor-harness.sh`，直到這些 adapter 透過相同的 ArtifactStore
 transaction 遷移。
 
+## Unified distribution CLI
+
+`bin/dhpk distribution <surface> <operation>` 是保留 native package surface
+的唯一 deterministic package boundary：`agent-plugin`、`cursor-plugin`、
+`codex-native` 與 `agy-plugin`。operation 為 `generate`、`validate` 與
+`verify`；每個 JSON result 都記錄 structural evidence，除非另行執行
+client-specific probe，否則明確回傳 `runtime: NOT_RUN`。
+
+```bash
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.43.0 --json
+bin/dhpk distribution agy-plugin validate --json
+```
+
 ## Codex project-local sync（Supported）
 
 Prerequisites：Codex project-local loader、POSIX shell，以及上表第一列的
@@ -144,6 +157,28 @@ node "$DHPK_ROOT/tests/install-codex-skills.test.js"
 Rollback 使用 `--uninstall` 或還原已保存的 `.codex/` receipt；不要刪除整個
 `.codex/` 目錄。
 
+### 檢查 Codex 重複 discovery
+
+Project-local sync 與 experimental native package 是兩條獨立 acquisition
+surface。host 若同時 discovery 兩者，即使內容是刻意配置，也可能讓同一個
+public skill name 顯示兩次。先設定 `DHPK_ROOT` 為 source checkout，再從
+consumer project root 執行下列唯讀檢查：
+
+```bash
+node "$DHPK_ROOT/scripts/ci/check-codex-discovery.js" \
+  --repo-root "$DHPK_ROOT" \
+  --project-root "$PWD" \
+  --native-root "$DHPK_ROOT/plugins/dhpk"
+```
+
+Registry 以 `kind:publicName` 聚合 entry。fingerprint 相同時會合併成一筆
+`effective` entry，但保留兩個 provider 證據；fingerprint 不同時，必須有
+current 且 receipt-owned 的 precedence，否則回傳 `BLOCKED`。current 的
+project-local entry 明確優先於 experimental native entry 時回傳 `WARN`。這個
+command 只回報證據，不會刪除 projection、cache 或 host registration。遇到
+`BLOCKED` 時，先檢查 receipt 並選定一條支援的 route，再執行 update 或
+uninstall。
+
 ## Codex legacy/native package（Experimental）
 
 Prerequisites：具 marketplace route 的實際 `codex` CLI、POSIX shell，以及已
@@ -173,7 +208,7 @@ invocation policy 留在 client-owned metadata；portable skill frontmatter 只�
 standard fields 與 nested metadata。
 
 ```bash
-node scripts/ci/validate-agent-plugin-package.js plugins/dhpk-agent
+bin/dhpk distribution agent-plugin validate --json
 node scripts/ci/verify-platform-packages.js
 ```
 
@@ -393,8 +428,8 @@ AGY projection 是獨立的 owner-scoped package。它只轉換 canonical agent
 frontmatter，不會改寫 `agents/`。請從 dhpk checkout 產生與驗證：
 
 ```bash
-node scripts/ci/gen-agy-plugin-package.js plugins/dhpk-agy --version=0.42.2
-node scripts/ci/validate-agy-plugin-package.js plugins/dhpk-agy
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.43.0 --json
+bin/dhpk distribution agy-plugin validate --json
 ```
 
 只在文件化的 user path 安裝、更新與移除 receipt-owned package。若 target

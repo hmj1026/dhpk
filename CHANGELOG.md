@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## 0.43.0 — 2026-08-20 — Unify distribution contracts, retire Gemini CLI sync, and deduplicate Codex discovery surfaces
+
+**BREAKING(distribution)** — Replace per-platform package validation entrypoints with the unified `dhpk distribution` contract and retire Gemini CLI sync support while retaining native AGY packages.
+**fix(codex-discovery)** — Deduplicate identical project-local and native Codex skill discoveries while preserving conflict evidence and read-only remediation guidance.
+
 ## 0.42.2 — 2026-08-19 — docs: treat Cursor marketplace hash cache as non-SSOT; fix consumer-gate CLI stub test cleanup
 
 **docs(cursor-install)** — Document that Cursor marketplace hash cache is not SSOT, and warn from install-cursor-harness --plan when it drifts.

@@ -67,13 +67,14 @@ Apply policy:
 ```bash
 python3 -B "$SYNC_CLI" validate --format markdown
 # Explicit request (absent target reports BLOCKED, not NOT_CONFIGURED):
-python3 -B "$SYNC_CLI" validate --targets codex gemini --format markdown
+python3 -B "$SYNC_CLI" validate --targets codex agy --format markdown
 python3 -B "$SYNC_CLI" validate --all-targets --format markdown
 ```
 
 Omitting `--targets`/`--all-targets` auto-discovers the configured target set
-from documented markers (Codex: `.codex/config.toml`; Gemini:
-`.gemini/commands/**/*.toml`; Antigravity: `.agent/rules/*.md`); an absent,
+from documented markers (Codex: `.codex/config.toml`; Antigravity:
+`.agent/rules/*.md`; AGY native plugin: `plugins/dhpk-agy/plugin.json` or
+`.gemini/config/plugins/dhpk/plugin.json`); an absent,
 unrequested target reports `NOT_CONFIGURED` and never fails the gate.
 
 Validate config/frontmatter/TOML/JSON loadability, platform smoke, hooks, and

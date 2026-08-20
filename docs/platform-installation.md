@@ -75,6 +75,20 @@ the supported `install-codex-skills.sh` route for Codex project-local writes and
 `install-cursor-harness.sh` for Cursor project-local writes until those adapters
 are migrated through the same ArtifactStore transaction.
 
+## Unified distribution CLI
+
+`bin/dhpk distribution <surface> <operation>` is the single deterministic
+package boundary for the retained native package surfaces: `agent-plugin`,
+`cursor-plugin`, `codex-native`, and `agy-plugin`. Its operations are
+`generate`, `validate`, and `verify`; each JSON result records structural
+evidence and deliberately returns `runtime: NOT_RUN` unless a separate
+client-specific probe is executed.
+
+```bash
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.43.0 --json
+bin/dhpk distribution agy-plugin validate --json
+```
+
 ## Codex project-local sync (Supported)
 
 Prerequisites: the Codex project-local loader, a POSIX shell, and the
@@ -148,6 +162,29 @@ node "$DHPK_ROOT/tests/install-codex-skills.test.js"
 Rollback is `--uninstall` or restoration of a saved `.codex/` receipt. Do not
 delete the whole `.codex/` directory.
 
+### Check for duplicate Codex discovery
+
+Project-local sync and the experimental native package are separate acquisition
+surfaces. A host that discovers both can show one public skill name twice even
+when both entries are intentional. Run this read-only check from the consumer
+project root after setting `DHPK_ROOT` to the source checkout:
+
+```bash
+node "$DHPK_ROOT/scripts/ci/check-codex-discovery.js" \
+  --repo-root "$DHPK_ROOT" \
+  --project-root "$PWD" \
+  --native-root "$DHPK_ROOT/plugins/dhpk"
+```
+
+The registry groups entries by `kind:publicName`. Identical fingerprints are
+reported as one `effective` entry with both providers retained. Different
+fingerprints require a current, receipt-owned precedence; otherwise the check
+returns `BLOCKED`. A current project-local entry explicitly taking precedence
+over an experimental native entry returns `WARN`. The command only reports
+evidence; it does not delete a projection, cache, or host registration. Resolve
+a `BLOCKED` result by inspecting the receipt and choosing one supported route
+before running an update or uninstall action.
+
 ## Codex legacy/native package (Experimental)
 
 Prerequisites: a real `codex` CLI with the marketplace route, a POSIX shell,
@@ -180,7 +217,7 @@ portable skill frontmatter contains only standard fields and nested metadata.
 Install only through a route verified for the target client. Structural checks:
 
 ```bash
-node scripts/ci/validate-agent-plugin-package.js plugins/dhpk-agent
+bin/dhpk distribution agent-plugin validate --json
 node scripts/ci/verify-platform-packages.js
 ```
 
@@ -418,8 +455,8 @@ agent frontmatter and never rewrites `agents/`. Generate and validate it from
 the dhpk checkout:
 
 ```bash
-node scripts/ci/gen-agy-plugin-package.js plugins/dhpk-agy --version=0.42.2
-node scripts/ci/validate-agy-plugin-package.js plugins/dhpk-agy
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.43.0 --json
+bin/dhpk distribution agy-plugin validate --json
 ```
 
 Install, update, and remove only the receipt-owned package at the documented

@@ -1,6 +1,6 @@
 #!/bin/bash
 # test-harness.sh — verify all harness hooks trigger correctly
-# Usage: bash scripts/test-harness.sh [--dir .gemini]
+# Usage: bash scripts/test-harness.sh [--dir .claude]
 # Exit 0 = all PASS; non-zero = at least one rule not triggered correctly.
 set -uo pipefail
 
@@ -24,7 +24,6 @@ fi
 if [[ -z "$HARNESS_DIR" ]]; then
     _found=()
     [[ -d ".claude" ]] && _found+=(".claude")
-    [[ -d ".gemini" ]] && _found+=(".gemini")
     [[ -d ".codex"  ]] && _found+=(".codex")
     if [[ ${#_found[@]} -eq 0 ]]; then
         echo "[error] No harness directory found. Use --dir to specify." >&2; exit 1
@@ -35,9 +34,7 @@ if [[ -z "$HARNESS_DIR" ]]; then
 fi
 
 MAIN_RULE=""
-if [[ "$HARNESS_DIR" == ".gemini" ]]; then
-    MAIN_RULE="GEMINI.md"
-elif [[ "$HARNESS_DIR" == ".claude" ]]; then
+if [[ "$HARNESS_DIR" == ".claude" ]]; then
     MAIN_RULE="CLAUDE.md"
 elif [[ "$HARNESS_DIR" == ".codex" ]]; then
     MAIN_RULE=".codex/README.zh-TW.md"
@@ -53,9 +50,6 @@ detect_memory_dir() {
     slug=$(printf '%s' "$ROOT" | sed 's|/|-|g')
 
     case "$harness_dir" in
-        .gemini)
-            find "$HOME/.gemini/tmp" -maxdepth 2 -name "memory" -type d 2>/dev/null | head -n 1
-            ;;
         .claude|.codex)
             local candidate="$HOME/$harness_dir/projects/$slug/memory"
             if [[ -d "$candidate" ]]; then

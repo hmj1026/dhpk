@@ -9,7 +9,7 @@
 # contract tests — re-testing them from here would assert plugin internals, so they
 # are intentionally out of scope. See memory `harness-dhpk-hook-coexistence`.
 #
-# Usage: bash scripts/harness-scenarios.sh [--dir .gemini]
+# Usage: bash scripts/harness-scenarios.sh [--dir .claude]
 set -o pipefail
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
@@ -26,7 +26,6 @@ done
 if [[ -z "$HARNESS_DIR" ]]; then
     _found=()
     [[ -d ".claude" ]] && _found+=(".claude")
-    [[ -d ".gemini" ]] && _found+=(".gemini")
     [[ -d ".codex"  ]] && _found+=(".codex")
     if [[ ${#_found[@]} -eq 0 ]]; then
         echo "[error] No harness directory found. Use --dir to specify." >&2; exit 1

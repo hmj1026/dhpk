@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# check-cross-cli-drift.sh — detect when .claude/ is newer than .codex/ /
-# .gemini/ sibling harness directories.
+# check-cross-cli-drift.sh — detect when .claude/ is newer than the .codex/
+# sibling harness directory.
 #
 # Use case: projects maintaining parallel harnesses for multiple AI CLIs sync
 # them manually (e.g. /multi-ai-sync). When .claude/skills, .claude/commands
@@ -8,7 +8,7 @@
 # This script compares content first, then uses newest-file mtimes as a cheap
 # freshness signal for unchanged-but-not-recently-synced harnesses.
 #
-# Self-skipping: exits silently when neither .codex/ nor .gemini/ exists —
+# Self-skipping: exits silently when .codex/ does not exist —
 # zero cost for single-CLI projects.
 #
 # Threshold: DHPK_CROSS_CLI_DRIFT_THRESHOLD seconds (default 3600). The 1h
@@ -26,7 +26,7 @@ DRIFT_THRESHOLD="${DHPK_CROSS_CLI_DRIFT_THRESHOLD:-3600}"
 
 [ -d "$CLAUDE_DIR" ] || exit 0
 # Early skip: no sibling CLI harness → nothing to compare.
-[ -d "$ROOT/.codex" ] || [ -d "$ROOT/.gemini" ] || exit 0
+[ -d "$ROOT/.codex" ] || exit 0
 
 # Content-aware parity is the authoritative signal. Keep the mtime check below
 # as a compatibility/freshness advisory: some projects intentionally use the
@@ -34,7 +34,7 @@ DRIFT_THRESHOLD="${DHPK_CROSS_CLI_DRIFT_THRESHOLD:-3600}"
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 PARITY_SCRIPT="$PLUGIN_ROOT/scripts/lib/cross-cli-parity.js"
 if command -v node >/dev/null 2>&1 && [ -f "$PARITY_SCRIPT" ]; then
-    for target_name in .codex .gemini; do
+    for target_name in .codex; do
         [ -d "$ROOT/$target_name" ] || continue
         node "$PARITY_SCRIPT" --root "$ROOT" --source .claude --target "$target_name" 2>/dev/null || true
     done
@@ -70,7 +70,7 @@ claude_t="$(newest_mtime "$CLAUDE_DIR")"
 [ -z "$claude_t" ] || [ "$claude_t" = "0" ] && exit 0
 
 drift_targets=()
-for target_name in codex gemini; do
+for target_name in codex; do
     target_dir="$ROOT/.$target_name"
     [ -d "$target_dir" ] || continue
     target_t="$(newest_mtime "$target_dir")"
