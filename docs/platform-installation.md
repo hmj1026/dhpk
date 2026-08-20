@@ -148,6 +148,29 @@ node "$DHPK_ROOT/tests/install-codex-skills.test.js"
 Rollback is `--uninstall` or restoration of a saved `.codex/` receipt. Do not
 delete the whole `.codex/` directory.
 
+### Check for duplicate Codex discovery
+
+Project-local sync and the experimental native package are separate acquisition
+surfaces. A host that discovers both can show one public skill name twice even
+when both entries are intentional. Run this read-only check from the consumer
+project root after setting `DHPK_ROOT` to the source checkout:
+
+```bash
+node "$DHPK_ROOT/scripts/ci/check-codex-discovery.js" \
+  --repo-root "$DHPK_ROOT" \
+  --project-root "$PWD" \
+  --native-root "$DHPK_ROOT/plugins/dhpk"
+```
+
+The registry groups entries by `kind:publicName`. Identical fingerprints are
+reported as one `effective` entry with both providers retained. Different
+fingerprints require a current, receipt-owned precedence; otherwise the check
+returns `BLOCKED`. A current project-local entry explicitly taking precedence
+over an experimental native entry returns `WARN`. The command only reports
+evidence; it does not delete a projection, cache, or host registration. Resolve
+a `BLOCKED` result by inspecting the receipt and choosing one supported route
+before running an update or uninstall action.
+
 ## Codex legacy/native package (Experimental)
 
 Prerequisites: a real `codex` CLI with the marketplace route, a POSIX shell,
