@@ -176,8 +176,12 @@ function runCodex(operation, context) {
   if (operation === 'verify') {
     const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-codex-native-verify-'));
     try {
-      const compiledProjection = compileNativePackage({ inventory: context.inventory, root: context.root, outDir: temporary, name: 'dhpk', version: context.version, sourceCommit: context.sourceCommit });
-      materializeNativePackage({ inventory: context.inventory, root: context.root, outDir: temporary, name: 'dhpk', version: context.version, sourceCommit: context.sourceCommit, compiledProjection });
+      // A receipt records the commit that materialized this projection.  It is
+      // provenance, not source content: comparing it to the command's current
+      // HEAD would make every later commit look like package drift.
+      const sourceCommit = readJson(path.join(context.output, 'provenance.json')).sourceCommit;
+      const compiledProjection = compileNativePackage({ inventory: context.inventory, root: context.root, outDir: temporary, name: 'dhpk', version: context.version, sourceCommit });
+      materializeNativePackage({ inventory: context.inventory, root: context.root, outDir: temporary, name: 'dhpk', version: context.version, sourceCommit, compiledProjection });
       const validation = verifyNativePackage({ packageRoot: context.output, inventory: context.inventory, stage: 'structural' });
       const deterministic = fingerprintNative(temporary) === fingerprintNative(context.output);
       return mergeReceipt('codex-native', context.output, {
