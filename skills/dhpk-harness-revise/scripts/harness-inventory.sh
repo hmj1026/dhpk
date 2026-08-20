@@ -3,13 +3,13 @@
 #
 # Emits a single report (text or json via $1) covering:
 #   - File counts and line counts under [HARNESS_DIR]/{rules,agents,hooks,skills,commands,scripts}
-#   - Main rule file (CLAUDE.md / GEMINI.md) size; auto-loaded rule total
+#   - Main rule file (CLAUDE.md / Codex README) size; auto-loaded rule total
 #   - settings.json: schema validity, hook count, deny count, env block, profile
 #   - Hook executability matrix
 #   - Cross-reference integrity (deleted-file refs, dangling skill mentions)
 #
 # Usage:
-#   bash scripts/harness-inventory.sh [--dir .gemini] [--json]
+#   bash scripts/harness-inventory.sh [--dir .claude] [--json]
 set -o pipefail
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
@@ -32,7 +32,6 @@ done
 if [[ -z "$HARNESS_DIR" ]]; then
     _found=()
     [[ -d ".claude" ]] && _found+=(".claude")
-    [[ -d ".gemini" ]] && _found+=(".gemini")
     [[ -d ".codex"  ]] && _found+=(".codex")
     if [[ ${#_found[@]} -eq 0 ]]; then
         echo "[error] No harness directory found. Use --dir to specify." >&2; exit 1
@@ -42,9 +41,7 @@ if [[ -z "$HARNESS_DIR" ]]; then
     HARNESS_DIR="${_found[0]}"
 fi
 
-if [[ "$HARNESS_DIR" == ".gemini" ]]; then
-    MAIN_RULE="GEMINI.md"
-elif [[ "$HARNESS_DIR" == ".claude" ]]; then
+if [[ "$HARNESS_DIR" == ".claude" ]]; then
     MAIN_RULE="CLAUDE.md"
 elif [[ "$HARNESS_DIR" == ".codex" ]]; then
     MAIN_RULE=".codex/README.zh-TW.md"
@@ -135,7 +132,7 @@ DELETED_REFS=$(grep -rln 'clear-review-sentinel.sh\|clear-db-review-sentinel.sh\
     | wc -l | tr -d ' ')
 
 DANGLING_SKILLS=0
-# Scan both rules/ AND the main rule file (CLAUDE.md / GEMINI.md / codex README):
+# Scan both rules/ AND the main rule file (CLAUDE.md / codex README):
 # the main rule uses the same `skill `name`` reference pattern, so a skill deleted
 # from skills/ while still referenced there would otherwise go undetected.
 while read -r skill_name; do

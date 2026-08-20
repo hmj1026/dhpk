@@ -25,7 +25,6 @@ def resolve_configured_targets(repo_root):
     """
     return {
         "codex": safe_exists(os.path.join(repo_root, ".codex/config.toml")),
-        "gemini": bool(glob.glob(os.path.join(repo_root, ".gemini/commands/**/*.toml"), recursive=True)),
         "antigravity": bool(glob.glob(os.path.join(repo_root, ".agent/rules/*.md"))),
         "agy": any(safe_exists(os.path.join(repo_root, marker)) for marker in (
             "plugins/dhpk-agy/plugin.json",
@@ -68,25 +67,6 @@ def resolve_target_membership(repo_root, targets=None, all_targets=False):
     }
 
 
-def gemini_hook_surface_enabled(repo_root):
-    candidates = [
-        os.path.join(repo_root, ".gemini/hooks"),
-        os.path.join(repo_root, ".gemini/extensions"),
-    ]
-    for path in candidates:
-        if os.path.isdir(path):
-            return True
-    settings_json = os.path.join(repo_root, ".gemini/settings.json")
-    if safe_exists(settings_json):
-        try:
-            payload = json.loads(read_text(settings_json))
-            if isinstance(payload, dict) and payload.get("hooks"):
-                return True
-        except Exception:
-            return False
-    return False
-
-
 def split_source_urls(urls):
     context7 = []
     official = []
@@ -109,18 +89,14 @@ def evidence_sources(target, category):
             "https://developers.openai.com/codex",
             "https://github.com/openai/codex",
         ],
-        "gemini": [
-            "https://context7.com/google-gemini/gemini-cli",
-            "https://github.com/google-gemini/gemini-cli",
-        ],
         "antigravity": [
             "https://context7.com/websites/antigravity_google_home",
             "https://antigravity.google",
             "https://blog.google/intl/nl-nl/product/zoeken-kijken/een-nieuw-tijdperk-van-intelligentie-met-gemini-3/",
         ],
         "agy": [
-            "https://antigravity.google",
-            "https://github.com/hmj1026/dhpk/blob/main/docs/gemini-agy-subagent-plugin-guide.md",
+            "https://www.antigravity.google/docs/cli/plugins",
+            "https://github.com/hmj1026/dhpk/blob/main/docs/agy-subagent-plugin-guide.md",
         ],
         "cursor": [
             "https://cursor.com/docs/plugins",
@@ -128,8 +104,6 @@ def evidence_sources(target, category):
         ],
     }
     urls = list(common.get(target, []))
-    if category == "hooks" and target == "gemini":
-        urls.append("https://github.com/google-gemini/gemini-cli/blob/main/packages/sdk/SDK_DESIGN.md")
     context7_urls, official_urls = split_source_urls(urls)
     return {
         "all_urls": urls,

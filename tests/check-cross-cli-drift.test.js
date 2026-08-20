@@ -1,7 +1,7 @@
 'use strict';
 
 // Coverage for scripts/check-cross-cli-drift.sh — advisory drift detector
-// comparing newest-file mtimes under .claude/ vs sibling .codex/ / .gemini/
+// comparing newest-file mtimes under .claude/ versus sibling .codex/
 // harness dirs. Always exits 0; only stdout content varies.
 
 const path = require('node:path');
@@ -45,11 +45,25 @@ test('no .claude dir at all: exits 0 silently', () => {
   }
 });
 
-test('.claude present but no sibling .codex/.gemini: exits 0 silently', () => {
+test('.claude present but no sibling .codex: exits 0 silently', () => {
   const tmp = mkTmp();
   try {
     touch(path.join(tmp, '.claude', 'skills', 'a.md'), Math.floor(Date.now() / 1000));
     const res = runScript(tmp);
+    assert.strictEqual(res.status, 0, res.stderr);
+    assert.strictEqual(res.stdout.trim(), '');
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('does not treat a retired .gemini project harness as a drift target', () => {
+  const tmp = mkTmp();
+  try {
+    const now = Math.floor(Date.now() / 1000);
+    touch(path.join(tmp, '.claude', 'skills', 'a.md'), now);
+    touch(path.join(tmp, '.gemini', 'skills', 'a.md'), now - 3 * 3600 - 60);
+    const res = runScript(tmp, { DHPK_CROSS_CLI_DRIFT_THRESHOLD: '3600' });
     assert.strictEqual(res.status, 0, res.stderr);
     assert.strictEqual(res.stdout.trim(), '');
   } finally {

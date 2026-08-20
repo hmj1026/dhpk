@@ -127,7 +127,7 @@ Maintainers should run:
 ```bash
 node scripts/ci/validate-distribution.js
 node scripts/ci/validate-openai-metadata.js
-node scripts/ci/verify-codex-native-package.js plugins/dhpk
+bin/dhpk distribution codex-native verify --json
 node tests/documentation-platform-parity.test.js
 node tests/run-all.js
 ```

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+case "${1:-}" in
+  distribution)
+    shift
+    exec "$SCRIPT_DIR/dhpk-distribution" "$@"
+    ;;
+  *)
+    printf '%s\n' 'usage: dhpk distribution <surface> <generate|validate|verify> [--output <dir>] [--version <version>] [--json]' >&2
+    exit 64
+    ;;
+esac

@@ -1,6 +1,6 @@
 """Constants used by multi-ai-sync modules."""
 
-TARGETS_DEFAULT = ["codex", "gemini", "antigravity", "agy", "cursor"]
+TARGETS_DEFAULT = ["codex", "antigravity", "agy", "cursor"]
 
 STATUS_EQ = "equivalent"
 STATUS_ADAPT = "adapted"

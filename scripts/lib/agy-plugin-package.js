@@ -8,7 +8,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { adaptFrontmatter } = require('../gemini-adapt-agents');
+const { adaptFrontmatter } = require('../agy-adapt-agents');
 const {
   createSurfaceReceipt,
   validateSurfaceReceipt,

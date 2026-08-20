@@ -9,7 +9,6 @@ from .sources import (
     build_source_arbitration,
     evidence_sources,
     find_conflict_entry,
-    gemini_hook_surface_enabled,
     load_conflict_registry,
     mapping_result,
 )
@@ -90,12 +89,9 @@ def collect_claude_features(repo_root):
 def category_supported(target, category, repo_root):
     support = {
         "codex": set(["skills", "agents", "config", "multi-agents"]),
-        "gemini": set(["skills", "commands"]),
         "antigravity": set(["skills", "commands", "config", "multi-agents"]),
         "cursor": set(["skills", "commands", "agents", "config", "hooks", "multi-agents"]),
     }
-    if target == "gemini" and category == "hooks":
-        return gemini_hook_surface_enabled(repo_root)
     return category in support.get(target, set())
 
 
@@ -106,8 +102,6 @@ def map_target_path(feature, target):
     if cat == "skills":
         if target == "codex":
             return ".codex/skills/%s/SKILL.md" % name
-        if target == "gemini":
-            return ".gemini/skills/%s/SKILL.md" % name
         if target == "antigravity":
             return ".agent/skills/%s/SKILL.md" % name
         if target == "cursor":
@@ -116,16 +110,12 @@ def map_target_path(feature, target):
     if cat == "commands":
         if name.startswith("opsx/"):
             cmd = os.path.splitext(os.path.basename(name))[0]
-            if target == "gemini":
-                return ".gemini/commands/opsx/%s.toml" % cmd
             if target == "antigravity":
                 return ".agent/workflows/opsx-%s.md" % cmd
             if target == "cursor":
                 return ".cursor/commands/opsx-%s.md" % cmd
         else:
             cmd = os.path.splitext(os.path.basename(name))[0]
-            if target == "gemini":
-                return ".gemini/commands/%s.toml" % cmd
             if target == "antigravity":
                 return ".agent/workflows/%s.md" % cmd
             if target == "cursor":
@@ -147,8 +137,6 @@ def map_target_path(feature, target):
             return ".cursor/rules/project.md"
 
     if cat == "hooks":
-        if target == "gemini":
-            return ".gemini/hooks/%s" % name
         if target == "cursor":
             return ".cursor/hooks/%s" % name
 
@@ -187,8 +175,6 @@ def evaluate_mapping(feature, target, repo_root, conflict_registry):
 
     if not category_supported(target, cat, repo_root):
         reason = "target 平台對此 category 尚無穩定支援"
-        if target == "gemini" and cat == "hooks":
-            reason = "repository 尚未配置 Gemini hook parity（請新增 .gemini/hooks、.gemini/extensions，或在 .gemini/settings.json 設定 hooks）"
         mapping = mapping_result(feature, target, None, STATUS_SKIP, reason, evidence, source_arbitration)
         return apply_conflict_override(mapping, conflict_entry)
 

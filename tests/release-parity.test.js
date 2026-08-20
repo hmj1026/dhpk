@@ -15,7 +15,7 @@ const { MANIFEST_PATHS, checkParity } = require('../scripts/lib/release-parity')
 
 function writeAgyInstallDocs(root, version) {
   fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
-  const line = `node scripts/ci/gen-agy-plugin-package.js plugins/dhpk-agy --version=${version}\n`;
+  const line = `bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=${version} --json\n`;
   fs.writeFileSync(path.join(root, 'docs', 'platform-installation.md'), line);
   fs.writeFileSync(path.join(root, 'docs', 'platform-installation.zh-TW.md'), line);
 }

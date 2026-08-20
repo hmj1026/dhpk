@@ -38,8 +38,9 @@ jobs:
 
       - name: Verify generated platform packages
         run: |
-          node scripts/ci/validate-agent-plugin-package.js plugins/dhpk-agent
-          node scripts/ci/validate-cursor-plugin-package.js plugins/dhpk-cursor
+          for surface in agent-plugin cursor-plugin codex-native agy-plugin; do
+            bin/dhpk distribution "$surface" validate --json
+          done
           node scripts/ci/verify-platform-packages.js
 
       - name: Extract release notes from CHANGELOG.md

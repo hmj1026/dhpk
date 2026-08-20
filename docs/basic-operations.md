@@ -41,7 +41,7 @@ dhpk deliberately exposes several surfaces with different support tiers:
 | `install-codex-skills.sh` | Supported | Stable Codex project sync path. |
 | `install-cursor-harness.sh` | Supported | Stable Cursor project-local sync path (`.cursor/`). |
 | Codex plugin marketplace | Experimental | Physical publication package with a verified real-CLI install proof; tier stays Experimental until a separate graduation decision. |
-| Gemini / Antigravity sync | Adapter-only | Claude-first comparison or conversion; no native package or full agent-parity promise. |
+| Antigravity / AGY sync | Adapter/package | Antigravity uses `.agent` mappings; AGY uses its native plugin package and validator. |
 
 Plugin management commands (`claude plugin …`, `codex plugin …`) are separate
 from skill invocation. Claude workflows enter through `/dhpk:do` or an

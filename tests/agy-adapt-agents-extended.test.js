@@ -4,7 +4,7 @@
 // exported pure adapter, not the CLI's filesystem loop.
 
 const { test, run, assert } = require('./_lib/tinytest');
-const { adaptFrontmatter } = require('../scripts/gemini-adapt-agents');
+const { adaptFrontmatter } = require('../scripts/agy-adapt-agents');
 
 const SOURCE = [
   '---',
@@ -60,4 +60,4 @@ test('adaptation is idempotent', () => {
   assert.deepStrictEqual(second.droppedFields, []);
 });
 
-run('gemini-adapt-agents-extended');
+run('agy-adapt-agents-extended');

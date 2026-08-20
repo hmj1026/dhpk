@@ -258,7 +258,7 @@ Publishing does not update installed consumers automatically.
 - `scripts/hooks/install-codex-skills.sh` is the supported Codex project sync
   path.
 - Codex marketplace remains Experimental.
-- Gemini and Antigravity remain Adapter-only.
+- AGY native plugin remains Experimental; package/discovery evidence is separate from runtime support.
 - `claude --plugin-dir <path>` is Development-only and must not be used as
   proof that a published consumer version works.
 

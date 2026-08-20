@@ -1,6 +1,6 @@
 ---
 name: dhpk-cross-agent-sync
-description: "Compares Claude-first configuration across Codex, Gemini, and Antigravity to align cross-platform skills, commands, agents, hooks, or orchestration. Produces reviewable plans, OpenSpec tasks, dry-run/apply reports, and a configured-platform PASS/FAIL/BLOCKED validation gate (NOT_CONFIGURED/SKIP_INCOMPATIBLE stay visible without failing it; legacy PARTIAL is a deprecated compat field). Not for reverse sync, single-platform edits, or missing Claude source."
+description: "Compares Claude-first configuration across Codex, Antigravity, AGY native plugins, and Cursor to align cross-platform skills, commands, agents, hooks, or orchestration. Produces reviewable plans, OpenSpec tasks, dry-run/apply reports, and a configured-platform PASS/FAIL/BLOCKED validation gate (NOT_CONFIGURED/SKIP_INCOMPATIBLE stay visible without failing it; legacy PARTIAL is a deprecated compat field). Not for reverse sync, single-platform edits, or missing Claude source."
 disable-model-invocation: true
 metadata:
   dhpk-invocation-class: explicit-only
@@ -8,7 +8,7 @@ metadata:
 
 # Multi AI Sync (Claude First)
 
-以 `Claude` 為 source of truth，對齊 `Codex`、`Gemini`、`Antigravity (.agent)`。
+以 `Claude` 為 source of truth，對齊 `Codex`、`Antigravity (.agent)`、AGY native plugin 與 `Cursor`。
 
 ## When NOT to Use
 
