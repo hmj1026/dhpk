@@ -311,6 +311,20 @@ project-local 檔案只在 installer 執行後出現於 consumer `.cursor/`。na
 若 Third-party skills 開啟，Cursor 仍可能從 `.claude/settings.json` 載入
 Claude hooks——那是可選相容路徑，不是 v1 owner。
 
+支援路徑的版本 SSOT 是 local packages
+`~/.cursor/plugins/local/dhpk-agent` 與
+`~/.cursor/plugins/local/dhpk-cursor`，加上 project-local schema-v3
+receipt `.cursor/.dhpk-installed.json`。Cursor 也可能在
+`~/.cursor/plugins/cache/dhpk/dhpk/<hash>/` 留下 marketplace hash
+cache。local packages 更新後，該 cache 的 `plugin.json` 仍可能停在舊版；
+它不是 SSOT，不可當成已安裝版本。
+`install-cursor-harness.sh --update --plan --json` 在 cache manifest
+version 與 local packages 或 planned `plugin_version` 不一致時，會回報
+`warnings[].code = cursor_marketplace_hash_cache_drift`。請在 Cursor UI
+停用或移除 marketplace dhpk plugin，只保留 local packages 與
+project-local receipt。除非 Cursor 已卸載該 marketplace plugin，否則不要
+手刪 hash cache。
+
 請從 project root 執行 checkout 版本：
 
 ```bash
@@ -379,7 +393,7 @@ AGY projection 是獨立的 owner-scoped package。它只轉換 canonical agent
 frontmatter，不會改寫 `agents/`。請從 dhpk checkout 產生與驗證：
 
 ```bash
-node scripts/ci/gen-agy-plugin-package.js plugins/dhpk-agy --version=0.42.1
+node scripts/ci/gen-agy-plugin-package.js plugins/dhpk-agy --version=0.42.2
 node scripts/ci/validate-agy-plugin-package.js plugins/dhpk-agy
 ```
 

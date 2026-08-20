@@ -198,6 +198,23 @@ test('Cursor project-local verification commands declare consumer and checkout r
   }
 });
 
+test('bilingual SSOT says Cursor marketplace hash cache is not the installed version', () => {
+  const english = read('docs/platform-installation.md');
+  const chinese = read('docs/platform-installation.zh-TW.md');
+  assert.ok(english.includes('~/.cursor/plugins/cache/dhpk/dhpk/'),
+    'English SSOT must name the Cursor marketplace hash-cache path');
+  assert.ok(chinese.includes('~/.cursor/plugins/cache/dhpk/dhpk/'),
+    'Traditional Chinese SSOT must name the Cursor marketplace hash-cache path');
+  assert.ok(english.includes('not SSOT') || english.includes('is not SSOT'),
+    'English SSOT must say the hash cache is not SSOT');
+  assert.ok(chinese.includes('不是 SSOT') || chinese.includes('並非 SSOT'),
+    'Traditional Chinese SSOT must say the hash cache is not SSOT');
+  assert.ok(english.includes('cursor_marketplace_hash_cache_drift'),
+    'English SSOT must name the --plan warning code');
+  assert.ok(chinese.includes('cursor_marketplace_hash_cache_drift'),
+    'Traditional Chinese SSOT must name the --plan warning code');
+});
+
 test('current Codex operational docs match the projection role counts', () => {
   const { direct, generated } = currentCodexRoleCounts();
   for (const relative of [

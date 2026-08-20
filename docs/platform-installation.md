@@ -329,6 +329,21 @@ installer never writes `hooks.json`. Cursor may still load Claude hooks from
 `.claude/settings.json` when Third-party skills are enabled — that is an
 optional compatibility path, not the supported owner.
 
+The supported version SSOT is the local packages
+`~/.cursor/plugins/local/dhpk-agent` and
+`~/.cursor/plugins/local/dhpk-cursor` plus the project-local schema-v3
+receipt at `.cursor/.dhpk-installed.json`. Cursor may also keep a
+marketplace hash cache at `~/.cursor/plugins/cache/dhpk/dhpk/<hash>/`.
+That cache can remain on an older `plugin.json` version after local
+packages update; it is not SSOT. Do not treat it as the installed
+version. `install-cursor-harness.sh --update --plan --json` reports
+`warnings[].code = cursor_marketplace_hash_cache_drift` when a cache
+manifest version differs from the local packages or the planned
+`plugin_version`. Disable or remove the marketplace dhpk plugin in the
+Cursor UI and keep the local packages plus the project-local receipt.
+Do not hand-delete the hash cache unless Cursor has already uninstalled
+that marketplace plugin.
+
 Run from the project root. The standalone checkout form is:
 
 ```bash
@@ -403,7 +418,7 @@ agent frontmatter and never rewrites `agents/`. Generate and validate it from
 the dhpk checkout:
 
 ```bash
-node scripts/ci/gen-agy-plugin-package.js plugins/dhpk-agy --version=0.42.1
+node scripts/ci/gen-agy-plugin-package.js plugins/dhpk-agy --version=0.42.2
 node scripts/ci/validate-agy-plugin-package.js plugins/dhpk-agy
 ```
 
