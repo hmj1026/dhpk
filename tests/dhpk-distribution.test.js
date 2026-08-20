@@ -60,7 +60,7 @@ test('generates a disposable AGY package and validates that exact output', () =>
     assert.strictEqual(report(generated).verdict, 'PASS');
     assert.ok(fs.existsSync(path.join(outDir, 'plugin.json')));
 
-    const validated = invoke(['agy-plugin', 'validate', '--output', outDir, '--json']);
+    const validated = invoke(['agy-plugin', 'validate', '--output', outDir, '--version', '0.42.2', '--json']);
     assert.strictEqual(validated.status, 0, validated.stderr);
     assert.strictEqual(report(validated).verdict, 'PASS');
   } finally {
