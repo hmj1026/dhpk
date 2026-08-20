@@ -43,65 +43,6 @@ def _sync_directory(src_dir, dst_dir):
             shutil.copy2(src_path, dst_path)
 
 
-def _split_frontmatter(markdown):
-    if not markdown.startswith("---"):
-        return {}, markdown
-    parts = markdown.split("---", 2)
-    if len(parts) < 3:
-        return {}, markdown
-
-    frontmatter_raw = parts[1]
-    body = parts[2].lstrip("\r\n")
-    frontmatter = {}
-    for line in frontmatter_raw.splitlines():
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        match = re.match(r"^([A-Za-z0-9_-]+)\s*:\s*(.*)$", line)
-        if not match:
-            continue
-        key = match.group(1).strip()
-        value = match.group(2).strip().strip('"').strip("'")
-        frontmatter[key] = value
-    return frontmatter, body
-
-
-def _escape_toml_basic(value):
-    return value.replace("\\", "\\\\").replace('"', '\\"')
-
-
-def _render_gemini_command_toml(source_rel_path, source_markdown, sync_run_id):
-    frontmatter, body = _split_frontmatter(source_markdown)
-    description = frontmatter.get("description", "").strip()
-    if not description:
-        description = "Migrated from Claude command: %s" % os.path.basename(source_rel_path)
-
-    prompt = body.strip()
-    if not prompt:
-        prompt = "TODO: migrate prompt from `%s`" % source_rel_path
-
-    lines = []
-    lines.append('description = "%s"' % _escape_toml_basic(description))
-    lines.append("")
-    if "'''" in prompt:
-        prompt_escaped = prompt.replace("\\", "\\\\").replace('"""', '\\"""')
-        lines.append('prompt = """')
-        lines.append(prompt_escaped)
-        lines.append('"""')
-    else:
-        lines.append("prompt = '''")
-        lines.append(prompt)
-        lines.append("'''")
-    lines.append("")
-    lines.append("[meta]")
-    lines.append('source = "%s"' % _escape_toml_basic(source_rel_path))
-    lines.append('synced_by = "multi-ai-sync"')
-    lines.append('synced_at = "%s"' % now_iso())
-    lines.append('sync_run_id = "%s"' % _escape_toml_basic(sync_run_id))
-    lines.append("")
-    return "\n".join(lines)
-
-
 def _normalize_path(path):
     return path.replace("\\", "/")
 
@@ -260,15 +201,6 @@ def _apply_mapping(item, repo_root, dry_run, codex_skill_fallback_roots, sync_ru
             if used_fallback:
                 reason = "%s（%s）" % (reason, fallback_reason)
             return _apply_result(item, "applied", reason, target_path=effective_target_rel, used_fallback=used_fallback)
-
-        if category == "commands" and target == "gemini":
-            source_md = read_text(source_abs)
-            toml_content = _render_gemini_command_toml(source_rel, source_md, sync_run_id=sync_run_id)
-            if not dry_run:
-                _ensure_parent(target_abs)
-                with open(target_abs, "w") as fh:
-                    fh.write(toml_content)
-            return _apply_result(item, "applied", "已轉換為 Gemini command TOML")
 
         if category == "commands" and target == "antigravity":
             if not dry_run:
@@ -466,41 +398,7 @@ def _load_toml_from_string(content):
 def run_self_tests(repo_root):
     from .validation import check_codex_agent_role_fields
 
-    cases = [
-        {
-            "name": "basic-literal-prompt",
-            "source": ".claude/commands/sample.md",
-            "markdown": "---\ndescription: Sample Command\n---\nLine1\nPath: C:\\\\Temp\\\\a.txt\n",
-            "expect_desc": "Sample Command",
-        },
-        {
-            "name": "contains-triple-single-quote",
-            "source": ".claude/commands/sample2.md",
-            "markdown": "---\ndescription: Sample2\n---\nStart\n'''quoted'''\nEnd",
-            "expect_desc": "Sample2",
-        },
-    ]
     results = []
-    for case in cases:
-        try:
-            rendered = _render_gemini_command_toml(case["source"], case["markdown"], "self-test-run")
-            parsed = _load_toml_from_string(rendered)
-            ok = (
-                parsed.get("description") == case["expect_desc"]
-                and parsed.get("meta", {}).get("sync_run_id") == "self-test-run"
-                and "prompt" in parsed
-            )
-            results.append({
-                "name": case["name"],
-                "status": "pass" if ok else "fail",
-                "reason": "" if ok else "rendered TOML 欄位不符合預期",
-            })
-        except Exception as exc:
-            results.append({
-                "name": case["name"],
-                "status": "fail",
-                "reason": str(exc),
-            })
 
     agent_cases = [
         {

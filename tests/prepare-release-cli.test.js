@@ -61,7 +61,7 @@ function mkRepo({ branch = 'develop' } = {}) {
     })
   );
   fs.mkdirSync(path.join(root, 'docs'), { recursive: true });
-  const agyPin = 'node scripts/ci/gen-agy-plugin-package.js plugins/dhpk-agy --version=1.0.0\n';
+  const agyPin = 'bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=1.0.0 --json\n';
   fs.writeFileSync(path.join(root, 'docs', 'platform-installation.md'), agyPin);
   fs.writeFileSync(path.join(root, 'docs', 'platform-installation.zh-TW.md'), agyPin);
 
@@ -143,7 +143,7 @@ test('write mode updates every manifest, promotes fragments, and reports the ful
   assert.ok(changelog.includes('## 1.1.0 — 2026-07-27 — Add widget'));
   assert.ok(!fs.existsSync(path.join(repo, 'changelog.d', 'feat.widget.md')));
 
-  const expectedPin = 'gen-agy-plugin-package.js plugins/dhpk-agy --version=1.1.0';
+  const expectedPin = 'bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=1.1.0 --json';
   assert.match(res.stdout, /docs\/platform-installation\.md/);
   assert.match(res.stdout, /docs\/platform-installation\.zh-TW\.md/);
   assert.ok(fs.readFileSync(path.join(repo, 'docs', 'platform-installation.md'), 'utf8').includes(expectedPin));
@@ -158,7 +158,7 @@ test('write mode fails closed when the bilingual AGY generator pin is missing', 
   const before = JSON.parse(fs.readFileSync(path.join(repo, '.claude-plugin', 'plugin.json'), 'utf8')).version;
   const res = runCli(repo, ['write', '--version', '1.1.0', '--date', '2026-07-27', '--summary', 'Add widget']);
   assert.notStrictEqual(res.status, 0, res.stdout);
-  assert.match(res.stderr, /AGY generator pin|gen-agy-plugin-package/i);
+  assert.match(res.stderr, /AGY generator pin|dhpk distribution/i);
   assert.strictEqual(JSON.parse(fs.readFileSync(path.join(repo, '.claude-plugin', 'plugin.json'), 'utf8')).version, before);
 });
 

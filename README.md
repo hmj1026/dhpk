@@ -292,7 +292,7 @@ dhpk/
 │   ├── hooks/                    # core hooks incl. post-edit-dispatch.sh, pre-bash-dispatch.sh, reap-stale-sentinels.sh, _lib/{payload,portable-sed,portable-timeout}.sh
 │   ├── statusline/statusline.sh
 │   ├── codemaps/, lib/, opsx-apply-resume/, validate/
-│   └── (harness-audit, precommit-runner, verify-runner, gemini-adapt-agents, dep-audit)
+│   └── (harness-audit, precommit-runner, verify-runner, agy-adapt-agents, dep-audit)
 ├── docs/
 │   ├── configuration.md, configuration.zh-TW.md      # full userConfig reference
 │   ├── basic-operations.md, basic-operations.zh-TW.md # install + workflow lifecycle

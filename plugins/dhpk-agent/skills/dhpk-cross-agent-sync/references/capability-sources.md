@@ -13,10 +13,10 @@ Last verified: 2026-03-02
 - Official docs: `https://developers.openai.com/codex`
 - Official repo: `https://github.com/openai/codex`
 
-## Gemini CLI
+## AGY native plugin
 
-- Context7: `https://context7.com/google-gemini/gemini-cli`
-- Official repo/docs: `https://github.com/google-gemini/gemini-cli`
+- Official docs: `https://www.antigravity.google/docs/cli/plugins`
+- Repository guide: `docs/agy-subagent-plugin-guide.md`
 
 ## Antigravity
 

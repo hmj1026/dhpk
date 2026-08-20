@@ -5,11 +5,10 @@
 import json
 import errno
 import os
-import re
 import shutil
 
 from .constants import STATUS_ADAPT
-from .utils import now_iso, read_text
+from .utils import now_iso
 
 
 def _ensure_parent(path):
@@ -35,64 +34,6 @@ def _sync_directory(src_dir, dst_dir):
             src_path = os.path.join(root, name)
             dst_path = os.path.join(target_root, name)
             shutil.copy2(src_path, dst_path)
-
-
-def _split_frontmatter(markdown):
-    if not markdown.startswith("---"):
-        return {}, markdown
-    parts = markdown.split("---", 2)
-    if len(parts) < 3:
-        return {}, markdown
-
-    frontmatter_raw = parts[1]
-    body = parts[2].lstrip("\r\n")
-    frontmatter = {}
-    for line in frontmatter_raw.splitlines():
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        match = re.match(r"^([A-Za-z0-9_-]+)\s*:\s*(.*)$", line)
-        if not match:
-            continue
-        key = match.group(1).strip()
-        value = match.group(2).strip().strip('"').strip("'")
-        frontmatter[key] = value
-    return frontmatter, body
-
-
-def _escape_toml_basic(value):
-    return value.replace("\\", "\\\\").replace('"', '\\"')
-
-
-def _render_gemini_command_toml(source_rel_path, source_markdown):
-    frontmatter, body = _split_frontmatter(source_markdown)
-    description = frontmatter.get("description", "").strip()
-    if not description:
-        description = "Migrated from Claude command: %s" % os.path.basename(source_rel_path)
-
-    prompt = body.strip()
-    if not prompt:
-        prompt = "TODO: migrate prompt from `%s`" % source_rel_path
-
-    lines = []
-    lines.append('description = "%s"' % _escape_toml_basic(description))
-    lines.append("")
-    if "'''" in prompt:
-        prompt_escaped = prompt.replace("\\", "\\\\").replace('"""', '\\"""')
-        lines.append('prompt = """')
-        lines.append(prompt_escaped)
-        lines.append('"""')
-    else:
-        lines.append("prompt = '''")
-        lines.append(prompt)
-        lines.append("'''")
-    lines.append("")
-    lines.append('[meta]')
-    lines.append('source = "%s"' % _escape_toml_basic(source_rel_path))
-    lines.append('synced_by = "multi-ai-sync"')
-    lines.append('synced_at = "%s"' % now_iso())
-    lines.append("")
-    return "\n".join(lines)
 
 
 def _manual_result(item, reason):
@@ -154,15 +95,6 @@ def _apply_mapping(item, repo_root, dry_run):
             if not dry_run:
                 _sync_directory(src_dir, dst_dir)
             return _apply_result(item, "applied", "已同步整個 skill 目錄")
-
-        if category == "commands" and target == "gemini":
-            source_md = read_text(source_abs)
-            toml_content = _render_gemini_command_toml(source_rel, source_md)
-            if not dry_run:
-                _ensure_parent(target_abs)
-                with open(target_abs, "w") as fh:
-                    fh.write(toml_content)
-            return _apply_result(item, "applied", "已轉換為 Gemini command TOML")
 
         if category == "commands" and target == "antigravity":
             if not dry_run:

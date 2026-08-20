@@ -1,9 +1,9 @@
 'use strict';
 
-// Coverage for scripts/gemini-adapt-agents.js — rewrites agent frontmatter
-// `tools: [...]` lines to Gemini-compatible tool names and strips `color:`
+// Coverage for scripts/agy-adapt-agents.js — rewrites agent frontmatter
+// `tools: [...]` lines to AGY-compatible tool names and strips `color:`
 // metadata. Always run against a temp fixture dir, never the repo's real
-// .gemini/agents.
+// native plugin package.
 
 const path = require('node:path');
 const fs = require('node:fs');
@@ -12,10 +12,10 @@ const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const SCRIPT = path.join(ROOT, 'scripts', 'gemini-adapt-agents.js');
+const SCRIPT = path.join(ROOT, 'scripts', 'agy-adapt-agents.js');
 
 function mkTmp() {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'gemini-adapt-'));
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'agy-adapt-'));
 }
 
 function runScript(args) {
@@ -46,7 +46,7 @@ test('too many positional args throws and exits 1', () => {
   assert.ok(res.stderr.includes('at most one agents directory'), res.stderr);
 });
 
-test('rewrites tools list to Gemini names, dedupes, strips color, and reports counts', () => {
+test('rewrites tools list to AGY names, dedupes, strips color, and reports counts', () => {
   const tmp = mkTmp();
   try {
     const agentsDir = path.join(tmp, 'agents');
@@ -96,4 +96,4 @@ test('already-compatible tools line is left unchanged (idempotent, reported as u
   }
 });
 
-run('gemini-adapt-agents');
+run('agy-adapt-agents');

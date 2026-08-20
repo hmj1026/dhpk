@@ -1,4 +1,4 @@
-# dhpk Gemini / Antigravity CLI (agy) SubAgent 支援與升級指南
+# dhpk Antigravity CLI (agy) SubAgent 支援與升級指南
 
 本文件旨在說明 Antigravity CLI (`agy`) 對 SubAgent（子代理）的載入機制、現況診斷、差異對照，並提供 `dhpk` 未來完整升級支援 `agy-cli` 外掛安裝的規範與操作流程。
 
@@ -73,14 +73,14 @@ model: pro  # 可選值: inherit | flash_lite | flash | pro
 
 | Claude Code Model | 角色定位 | 建議 AGY Model Enum | 說明 |
 | :--- | :--- | :--- | :--- |
-| `opus` | 深度推論、架構規劃 | `pro` | 對應 Gemini 3.1 Pro / 高階推論 |
+| `opus` | 深度推論、架構規劃 | `pro` | 對應 AGY Pro backend / 高階推論 |
 | `sonnet` | 程式碼實作、嚴格審查 | `pro` 或 `inherit` | 主力模型，維持高品質輸出 |
 | `fable` | 快速架構諮詢 | `flash` 或 `inherit` | 輕量架構評估 |
 | `haiku` | 檔案檢索、文件更新、簡單掃描 | `flash` 或 `flash_lite` | 高通量、低成本 |
 
 ### 2.3 跨平台 Tools 映射規則
 
-| Claude Code Tool | Antigravity / Gemini CLI Tool | 說明 |
+| Claude Code Tool | Antigravity / AGY Tool | 說明 |
 | :--- | :--- | :--- |
 | `Read` | `view_file` / `read_file` | 檢視與讀取檔案 |
 | `Write` | `write_to_file` | 建立或複寫檔案 |
@@ -97,7 +97,7 @@ model: pro  # 可選值: inherit | flash_lite | flash | pro
 
 ## 3. dhpk 升級支援改造方案
 
-### 3.1 升級適配轉換腳本 (`scripts/gemini-adapt-agents.js`)
+### 3.1 升級適配轉換腳本 (`scripts/agy-adapt-agents.js`)
 
 改進現有腳本，使其具備完整的 Frontmatter 適配能力：
 1. 支援無中括號逗號分隔的 `tools:` 語法解析。
@@ -126,7 +126,7 @@ model: pro  # 可選值: inherit | flash_lite | flash | pro
 ### 步驟 1：執行 Agent 轉換腳本
 
 ```bash
-node scripts/gemini-adapt-agents.js ~/.gemini/config/plugins/dhpk/agents
+node scripts/agy-adapt-agents.js ~/.gemini/config/plugins/dhpk/agents
 ```
 
 ### 步驟 2：驗證外掛與 SubAgent 載入狀態

@@ -33,7 +33,7 @@ entry (one whose flag enables broad mutation) implicit-eligible.
 | `dhpk-git-smart-commit` | Groups and executes `git commit` across the working tree. |
 | `dhpk-harness-fill` | Already explicit-only. One-shot bulk `.claude/` infrastructure generation (batch governance). |
 | `dhpk-harness-revise` | Trims/rewrites the harness tree in bulk (batch governance); tools include `rm`, `chmod +x`. |
-| `dhpk-cross-agent-sync` | Applies cross-platform (Codex/Gemini/Antigravity) sync mutations — broad orchestration across surfaces. |
+| `dhpk-cross-agent-sync` | Applies cross-platform (Codex/Antigravity/AGY/Cursor) sync mutations — broad orchestration across surfaces. |
 | `dhpk-onepassword-session` | Initializes a 1Password CLI session — credentials/session configuration. |
 | `dhpk-opsx-apply-goal` | Generates an unattended OpenSpec-apply session — initiates a broad apply workflow. |
 | `dhpk-project-setup` | First-time project setup / CLAUDE.md initialization. |

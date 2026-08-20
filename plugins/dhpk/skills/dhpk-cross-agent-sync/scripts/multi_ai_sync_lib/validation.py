@@ -33,7 +33,7 @@ from .constants import (
     ROW_SKIP_INCOMPATIBLE,
     ROW_UNAVAILABLE,
 )
-from .sources import gemini_hook_surface_enabled, resolve_target_membership
+from .sources import resolve_target_membership
 from .utils import has_any_files, now_iso, parse_json_ok, parse_toml_like_ok, read_text, relpath, safe_exists
 
 try:
@@ -209,61 +209,6 @@ def validate_codex(repo_root, membership=None):
         multi_state = ROW_FAIL
 
     return result_row("codex", config_ok, smoke_ok, hook_state, multi_state, notes, hook_reason=hook_reason)
-
-
-def validate_gemini(repo_root, membership=None):
-    if membership is not None and not membership.get("present"):
-        requested = membership.get("requested")
-        status = ROW_BLOCKED if requested else ROW_NOT_CONFIGURED
-        reason = "找不到 .gemini/commands/**/*.toml（%s）" % (
-            "已明確以 --targets/--all-targets 指定" if requested else "未設定，屬 not-configured"
-        )
-        return not_participating_row("gemini", status, reason)
-
-    notes = []
-    cmd_files = sorted(glob.glob(os.path.join(repo_root, ".gemini/commands/**/*.toml"), recursive=True))
-    config_ok = True
-    if not cmd_files:
-        config_ok = False
-        notes.append("找不到 .gemini/commands/**/*.toml")
-    else:
-        for path in cmd_files:
-            try:
-                payload = parse_toml_file(path)
-            except Exception as exc:
-                config_ok = False
-                notes.append("Gemini command TOML 無法解析：%s (%s)" % (relpath(path, repo_root), exc))
-                break
-            if "description" not in payload or "prompt" not in payload:
-                config_ok = False
-                notes.append("Gemini command metadata 不完整：%s" % relpath(path, repo_root))
-                break
-
-    smoke_ok = bool(glob.glob(os.path.join(repo_root, ".gemini/skills/*/SKILL.md"))) and bool(cmd_files)
-    if not smoke_ok:
-        notes.append(".gemini 缺少核心 skills/commands")
-
-    hook_reason = None
-    if gemini_hook_surface_enabled(repo_root):
-        hook_root = os.path.join(repo_root, ".gemini/hooks")
-        ext_root = os.path.join(repo_root, ".gemini/extensions")
-        has_hook_files = has_any_files(hook_root) if os.path.isdir(hook_root) else False
-        has_extension_files = has_any_files(ext_root) if os.path.isdir(ext_root) else False
-        hook_state = ROW_PASS if (has_hook_files or has_extension_files) else ROW_FAIL
-        if hook_state == ROW_FAIL:
-            notes.append("Gemini hook surface 已啟用，但找不到代表性 hook artifacts")
-    else:
-        hook_state = ROW_SKIP_INCOMPATIBLE
-        hook_reason = "Gemini hook parity 屬 repository-specific；目前視為 skip-incompatible"
-        notes.append(hook_reason)
-
-    multi_state = ROW_SKIP_INCOMPATIBLE
-    multi_reason = "此 repository 佈局不提供 Gemini multi-agent parity；標記為 skip-incompatible"
-    notes.append(multi_reason)
-
-    return result_row(
-        "gemini", config_ok, smoke_ok, hook_state, multi_state, notes, hook_reason=hook_reason, multi_reason=multi_reason
-    )
 
 
 def validate_antigravity(repo_root, membership=None):
@@ -950,7 +895,6 @@ def run_policy_checks(repo_root, codex_present=True):
         os.path.join(repo_root, ".agent", "skills", "php-pro", "SKILL.md"),
         os.path.join(repo_root, ".codex", "skills", "php-pro", "SKILL.md"),
         os.path.join(repo_root, ".claude", "skills", "php-pro", "SKILL.md"),
-        os.path.join(repo_root, ".gemini", "skills", "php-pro", "SKILL.md"),
     ]
     profile_ok = True
     profile_issues = []
@@ -1089,7 +1033,7 @@ def run_validation(repo_root, change_id=None, targets=None, all_targets=False, a
     membership = resolve_target_membership(repo_root, targets=targets, all_targets=all_targets)
 
     rows = [validate_claude(repo_root)]
-    validators = {"codex": validate_codex, "gemini": validate_gemini, "antigravity": validate_antigravity, "agy": lambda root, entry: validate_agy(root, entry, runtime_probe=agy_runtime_probe), "cursor": validate_cursor}
+    validators = {"codex": validate_codex, "antigravity": validate_antigravity, "agy": lambda root, entry: validate_agy(root, entry, runtime_probe=agy_runtime_probe), "cursor": validate_cursor}
     for platform, entry in membership.items():
         rows.append(validators[platform](repo_root, entry))
 

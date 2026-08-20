@@ -74,6 +74,19 @@ diagnostic。尤其是 Codex project-local write 仍應使用既有
 `install-cursor-harness.sh`，直到這些 adapter 透過相同的 ArtifactStore
 transaction 遷移。
 
+## Unified distribution CLI
+
+`bin/dhpk distribution <surface> <operation>` 是保留 native package surface
+的唯一 deterministic package boundary：`agent-plugin`、`cursor-plugin`、
+`codex-native` 與 `agy-plugin`。operation 為 `generate`、`validate` 與
+`verify`；每個 JSON result 都記錄 structural evidence，除非另行執行
+client-specific probe，否則明確回傳 `runtime: NOT_RUN`。
+
+```bash
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.42.2 --json
+bin/dhpk distribution agy-plugin validate --json
+```
+
 ## Codex project-local sync（Supported）
 
 Prerequisites：Codex project-local loader、POSIX shell，以及上表第一列的
@@ -195,7 +208,7 @@ invocation policy 留在 client-owned metadata；portable skill frontmatter 只�
 standard fields 與 nested metadata。
 
 ```bash
-node scripts/ci/validate-agent-plugin-package.js plugins/dhpk-agent
+bin/dhpk distribution agent-plugin validate --json
 node scripts/ci/verify-platform-packages.js
 ```
 
@@ -415,8 +428,8 @@ AGY projection 是獨立的 owner-scoped package。它只轉換 canonical agent
 frontmatter，不會改寫 `agents/`。請從 dhpk checkout 產生與驗證：
 
 ```bash
-node scripts/ci/gen-agy-plugin-package.js plugins/dhpk-agy --version=0.42.2
-node scripts/ci/validate-agy-plugin-package.js plugins/dhpk-agy
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.42.2 --json
+bin/dhpk distribution agy-plugin validate --json
 ```
 
 只在文件化的 user path 安裝、更新與移除 receipt-owned package。若 target

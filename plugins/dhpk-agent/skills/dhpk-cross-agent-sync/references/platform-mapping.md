@@ -22,28 +22,26 @@
 
 ## Path Mapping Rules
 
-| Category | Claude Source | Codex Target | Gemini Target | Antigravity Target |
+| Category | Claude Source | Codex Target | Antigravity Target | Cursor Target |
 |---|---|---|---|---|
-| skills | `.claude/skills/<name>/SKILL.md` | `.codex/skills/<name>/SKILL.md` | `.gemini/skills/<name>/SKILL.md` | `.agent/skills/<name>/SKILL.md` |
-| commands (opsx) | `.claude/commands/opsx/<cmd>.md` | N/A (skip) | `.gemini/commands/opsx/<cmd>.toml` | `.agent/workflows/opsx-<cmd>.md` |
-| commands (non-opsx) | `.claude/commands/<cmd>.md` | N/A (skip) | `.gemini/commands/<cmd>.toml` (adapted, if command policy allows) | `.agent/workflows/<cmd>.md` (adapted, if workflow policy allows) |
-| agents | `.claude/agents/<role>.md` | `.codex/agents/<role>.toml` (+ optional md) | N/A (skip) | N/A (skip) |
-| config | `.claude/settings.local.json` | `.codex/config.toml` | N/A (skip) | `.agent/rules/project.md` |
-| hooks | `.claude/hooks/<path>` | N/A (skip) | Conditional: `.gemini/hooks/<path>` only when repository enables Gemini hook surface | N/A (skip) |
-| multi-agents | `.claude/agents/*` + rules | `.codex/config.toml` + `.codex/agents/*` | N/A (skip) | `.agent/workflows/*` (adapted) |
+| skills | `.claude/skills/<name>/SKILL.md` | `.codex/skills/<name>/SKILL.md` | `.agent/skills/<name>/SKILL.md` | `.cursor/skills/<name>/SKILL.md` |
+| commands (opsx) | `.claude/commands/opsx/<cmd>.md` | N/A (skip) | `.agent/workflows/opsx-<cmd>.md` | `.cursor/commands/opsx-<cmd>.md` |
+| commands (non-opsx) | `.claude/commands/<cmd>.md` | N/A (skip) | `.agent/workflows/<cmd>.md` (adapted, if workflow policy allows) | `.cursor/commands/<cmd>.md` (adapted, if command policy allows) |
+| agents | `.claude/agents/<role>.md` | `.codex/agents/<role>.toml` (+ optional md) | N/A (skip) | `.cursor/agents/<role>.md` |
+| config | `.claude/settings.local.json` | `.codex/config.toml` | `.agent/rules/project.md` | `.cursor/rules/project.md` |
+| hooks | `.claude/hooks/<path>` | N/A (skip) | N/A (skip) | `.cursor/hooks/<path>` |
+| multi-agents | `.claude/agents/*` + rules | `.codex/config.toml` + `.codex/agents/*` | `.agent/workflows/*` (adapted) | `.cursor/agents/review.md` |
+
+AGY native plugins are package projections, not Claude-first file-sync
+targets. Validate and install `plugins/dhpk-agy/` through the AGY package
+workflow; its consumer path is `~/.gemini/config/plugins/dhpk/`.
 
 ## Hooks Fine-Grained Mapping Policy
 
-Gemini hooks are treated as **conditionally available**:
-
-1. `adapted` only when at least one hook surface exists:
-- `.gemini/hooks/`
-- `.gemini/extensions/`
-- `.gemini/settings.json` with `hooks` configuration
-
-2. `skip-incompatible` when no hook surface is configured in repository.
-
-3. Codex and Antigravity remain `skip-incompatible` for direct Claude hook parity in current repository structure.
+Codex and Antigravity remain `skip-incompatible` for direct Claude hook parity
+in the current repository structure. Cursor owns its native hook projection;
+AGY hooks, when present, belong to the native package manifest rather than this
+sync matrix.
 
 ## Status Policy
 

@@ -82,7 +82,7 @@ The plugin SHALL ship under `scripts/` the following harness utilities, with no 
 - `lib/utils.js` — shared utilities
 - `opsx-apply-resume/*.sh` — 4 OpenSpec apply-resume helper scripts
 - `validate/validate-harness.sh` — harness layout validator
-- `gemini-adapt-agents.js` — adapts agent definitions to Gemini/Codex
+- `agy-adapt-agents.js` — adapts agent definitions to the native AGY contract
 - `harness-audit.js` — deterministic audit + scorecard
 - `precommit-runner.js` — precommit dispatcher (auto-detects yarn/pnpm/npm)
 - `verify-runner.js` — verification loop runner

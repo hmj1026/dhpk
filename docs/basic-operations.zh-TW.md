@@ -39,7 +39,7 @@ dhpk 刻意提供多個、支援等級不同的分發面：
 | `install-codex-skills.sh` | Supported | 穩定的 Codex 專案同步路徑。 |
 | `install-cursor-harness.sh` | Supported | 穩定的 Cursor project-local 同步路徑（`.cursor/`）。 |
 | Codex plugin marketplace | Experimental | 實體發布套件，附真實 CLI 安裝驗證；支援等級仍須另一次畢業決策才會改變。 |
-| Gemini / Antigravity sync | Adapter-only | Claude-first 比對或轉換，不承諾原生 plugin 或完整 agent parity。 |
+| Antigravity / AGY sync | Adapter/package | Antigravity 使用 `.agent` mapping；AGY 使用原生 plugin package 與 validator。 |
 
 Plugin 管理指令（`claude plugin …`、`codex plugin …`）與 skill 呼叫是兩個
 不同面。Claude 工作流從 `/dhpk:do` 或明確指定的 skill 進入；Codex 則使用

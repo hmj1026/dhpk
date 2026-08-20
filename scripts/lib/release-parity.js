@@ -32,10 +32,10 @@ const AGY_GENERATOR_DOC_PATHS = [
   'docs/platform-installation.zh-TW.md',
 ];
 
-const AGY_GENERATOR_PIN_RE = /gen-agy-plugin-package\.js plugins\/dhpk-agy --version=(\d+\.\d+\.\d+)/g;
+const AGY_GENERATOR_PIN_RE = /bin\/dhpk distribution agy-plugin generate --output plugins\/dhpk-agy --version=(\d+\.\d+\.\d+) --json/g;
 
 function agyGeneratorCommand(version) {
-  return `gen-agy-plugin-package.js plugins/dhpk-agy --version=${version}`;
+  return `bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=${version} --json`;
 }
 
 function findAgyGeneratorPins(text) {

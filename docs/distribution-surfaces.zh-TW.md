@@ -158,10 +158,10 @@ project-local sync。
 projection 或 native package。Native package 必須重新產生並與 source 一起提交：
 
 ```bash
-node scripts/ci/gen-codex-native-package.js plugins/dhpk --version=<version>
+bin/dhpk distribution codex-native generate --output plugins/dhpk --version=<version> --json
 node scripts/ci/validate-distribution.js
 node scripts/ci/validate-openai-metadata.js
-node scripts/ci/verify-codex-native-package.js plugins/dhpk
+bin/dhpk distribution codex-native verify --json
 node tests/run-all.js
 ```
 

@@ -11,7 +11,7 @@ consumer gate、發布與 rollback 流程。
 - **Supported**：Claude marketplace 與 `install-codex-skills.sh` project sync。
 - **Development-only**：`claude --plugin-dir`，不可當作發布驗證。
 - **Experimental**：Codex native marketplace；通過 gate 不會自動 graduation。
-- **Adapter-only**：Gemini/Antigravity，沒有 native plugin parity 承諾。
+- **Experimental**：AGY native plugin；package/discovery 證據與 runtime 支援分開判定。
 
 Release evidence 必須來自 immutable version/tag、CI run、GitHub Release 與實際
 consumer gate；working tree 或本機 live reload 只能作為開發證據。
@@ -67,7 +67,7 @@ node scripts/ci/catalog.js --check all
 bash scripts/validate/validate-harness.sh
 node scripts/ci/validate-distribution.js
 node scripts/ci/validate-openai-metadata.js
-node scripts/ci/verify-codex-native-package.js plugins/dhpk
+bin/dhpk distribution codex-native verify --json
 node scripts/ci/validate-references.js
 node scripts/ci/validate-changelog-fragments.js --diff-base develop
 node tests/run-all.js
