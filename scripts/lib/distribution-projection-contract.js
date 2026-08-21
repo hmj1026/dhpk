@@ -117,6 +117,27 @@ function createDistributionPlan(input = {}) {
   if (!Array.isArray(input.entries)) {
     return result(undefined, projectionError('INVALID_INPUT', 'compile', 'entries must be an array'));
   }
+  const profileSelection = input.profileSelection === undefined ? null : input.profileSelection;
+  if (surface === 'claude-profile' && (!profileSelection || typeof profileSelection !== 'object' || Array.isArray(profileSelection))) {
+    return result(undefined, projectionError('INCOMPLETE_PLAN', 'compile', 'claude-profile plans require explicit profile selection identity'));
+  }
+  if (profileSelection !== null && (typeof profileSelection.id !== 'string' || profileSelection.id.trim() === '')) {
+    return result(undefined, projectionError('INCOMPLETE_PLAN', 'compile', 'profile selection requires a normalized profile id'));
+  }
+  if (surface === 'claude-profile') {
+    if (!Array.isArray(profileSelection.modules) || typeof profileSelection.version !== 'string' || profileSelection.version.trim() === '') {
+      return result(undefined, projectionError('INCOMPLETE_PLAN', 'compile', 'claude-profile selection requires versioned module closure'));
+    }
+    if (typeof input.inventoryFingerprint !== 'string' || input.inventoryFingerprint.trim() === '') {
+      return result(undefined, projectionError('INCOMPLETE_PLAN', 'compile', 'claude-profile plans require an inventory fingerprint'));
+    }
+    if (typeof input.inputFingerprint !== 'string' || input.inputFingerprint.trim() === '') {
+      return result(undefined, projectionError('INCOMPLETE_PLAN', 'compile', 'claude-profile plans require a selection input fingerprint'));
+    }
+    if (!input.selectionPolicy || typeof input.selectionPolicy !== 'object' || typeof input.selectionPolicy.version !== 'string') {
+      return result(undefined, projectionError('INCOMPLETE_PLAN', 'compile', 'claude-profile plans require a versioned selection policy'));
+    }
+  }
   const entries = [];
   const ids = new Set();
   for (const [index, raw] of input.entries.entries()) {
@@ -180,6 +201,10 @@ function createDistributionPlan(input = {}) {
     selectionEntries,
     entries,
   };
+  if (profileSelection !== null) {
+    body.profile = clone(profileSelection);
+    body.compatibilityMode = input.compatibilityMode || profileSelection.mode || null;
+  }
   return result({ ...body, planFingerprint: fingerprint(body) });
 }
 

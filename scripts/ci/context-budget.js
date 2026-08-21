@@ -43,23 +43,33 @@ function budgetFor(budgets, lifecycle, surface) {
     || { words: 0, tokens: 0 };
 }
 
-function inspectDiscoveryContext({ root, inventory, readDescription = null, budgets = null } = {}) {
+function inspectDiscoveryContext({ root, inventory, readDescription = null, budgets = null, profileSelection = null, artifactIdentity = null, profileId = null, selectedStableIds = null, surface = null } = {}) {
+  const effectiveProfile = profileSelection || (profileId ? { id: profileId, selectedStableIds: selectedStableIds || [] } : null);
   const effectiveBudgets = budgets || loadDiscoveryBudgets(root);
   const reader = readDescription || ((entry) => defaultReadDescription(root, entry));
   const entries = [];
   const violations = [];
-  const skills = (inventory && inventory.skills) || [];
+  const selectedIds = effectiveProfile && Array.isArray(effectiveProfile.selectedStableIds)
+    ? new Set(effectiveProfile.selectedStableIds)
+    : null;
+  const configurationErrors = [];
+  if (effectiveProfile && (!effectiveProfile.id || !Array.isArray(effectiveProfile.selectedStableIds)
+    || !artifactIdentity || !artifactIdentity.planFingerprint || !artifactIdentity.artifactFingerprint)) {
+    configurationErrors.push('profile budget scope requires profile id, selected stable IDs, plan fingerprint, and artifact fingerprint');
+  }
+  const skills = ((inventory && inventory.skills) || []).filter((skill) => !selectedIds || selectedIds.has(skill.id));
   for (const skill of skills) {
     const description = reader(skill) || '';
     const measured = counts(description);
-    for (const surface of skill.surfaces || []) {
-      const limit = budgetFor(effectiveBudgets, skill.lifecycle, surface);
+    for (const entrySurface of skill.surfaces || []) {
+      if (surface && entrySurface !== surface) continue;
+      const limit = budgetFor(effectiveBudgets, skill.lifecycle, entrySurface);
       const discoveryVisible = true;
       const entry = {
         id: skill.id || skill.name,
         name: skill.name || skill.id,
         lifecycle: skill.lifecycle,
-        surface,
+        surface: entrySurface,
         description,
         words: measured.words,
         tokens: measured.tokens,
@@ -70,13 +80,18 @@ function inspectDiscoveryContext({ root, inventory, readDescription = null, budg
           ? 'discovery-visible; runtime/activation optional'
           : 'discovery-visible core metadata',
       };
+      if (effectiveProfile) {
+        entry.profile = effectiveProfile.id;
+        entry.planFingerprint = artifactIdentity && artifactIdentity.planFingerprint || null;
+        entry.artifactFingerprint = artifactIdentity && artifactIdentity.artifactFingerprint || null;
+      }
       entries.push(entry);
       if (measured.words > limit.words || measured.tokens > limit.tokens) {
         violations.push({ ...entry, reason: 'description exceeds discovery budget' });
       }
     }
   }
-  return {
+  const report = {
     schema: 'dhpk.discovery-report.v1',
     entries,
     violations,
@@ -87,6 +102,23 @@ function inspectDiscoveryContext({ root, inventory, readDescription = null, budg
       violations: violations.length,
     },
   };
+  if (effectiveProfile) {
+    report.scope = 'claude-profile';
+    report.profileId = effectiveProfile.id || null;
+    report.scopeDetails = {
+      kind: 'claude-profile',
+      profile: effectiveProfile.id || null,
+      planFingerprint: artifactIdentity && artifactIdentity.planFingerprint || null,
+      artifactFingerprint: artifactIdentity && artifactIdentity.artifactFingerprint || null,
+    };
+    report.configurationErrors = configurationErrors;
+    report.compatibilityCatalog = inspectDiscoveryContext({ root, inventory, readDescription, budgets, surface });
+    report.ok = configurationErrors.length === 0 && violations.length === 0;
+  } else {
+    report.scope = 'claude-compatibility';
+    report.profileId = null;
+  }
+  return report;
 }
 
 function renderBudgetReport(report) {
@@ -95,6 +127,9 @@ function renderBudgetReport(report) {
     `optional discovery-visible entries: ${report.totals.optionalDiscoveryVisible}`,
     `budget violations: ${report.totals.violations}`,
   ];
+  if (report.configurationErrors && report.configurationErrors.length) {
+    for (const error of report.configurationErrors) lines.push(`FAIL configuration: ${error}`);
+  }
   for (const entry of report.violations) {
     lines.push(`FAIL ${entry.id} [${entry.lifecycle}/${entry.surface}] discovery-visible ${entry.words}/${entry.wordBudget} words, ${entry.tokens}/${entry.tokenBudget} tokens`);
   }
