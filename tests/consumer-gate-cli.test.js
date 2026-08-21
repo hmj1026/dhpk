@@ -91,6 +91,9 @@ test('reports Codex sync PASS and Claude/native-marketplace as UNAVAILABLE when 
   const res = runCli({ PATH: NODE_BASH_ONLY_PATH });
   const stage = JSON.parse(res.stdout);
   assert.strictEqual(stage.verdict, 'UNAVAILABLE', JSON.stringify(stage));
+  assert.ok(Array.isArray(stage.surfaceResults));
+  assert.ok(stage.surfaceResults.some((result) => result.surface === 'claude' && result.status === 'UNAVAILABLE'));
+  assert.ok(stage.surfaceResults.some((result) => result.surface === 'codex-native'));
   assert.ok(stage.failureReasons.some((r) => /claude/i.test(r)));
   assert.ok(stage.artifacts.some((a) => /claude.*official.*NOT RUN|official.*NOT RUN.*claude/i.test(a)), JSON.stringify(stage));
   assert.ok(stage.artifacts.some((a) => /native.*experimental|experimental.*native/i.test(a)));
@@ -109,6 +112,8 @@ exit 0
     const stage = JSON.parse(res.stdout);
     assert.strictEqual(stage.verdict, 'PASS', JSON.stringify(stage));
     assert.strictEqual(res.status, 0);
+    assert.ok(stage.surfaceResults.every((result) => result.stage === 'CONSUMER'));
+    assert.ok(stage.surfaceResults.some((result) => result.surface === 'agent-plugin'));
     assert.ok(stage.artifacts.some((a) => /claude.*official.*PASS|official.*PASS.*claude/i.test(a)), JSON.stringify(stage));
     assert.ok(stage.commands.some((c) => /claude plugin validate .* --strict/.test(c.cmd) && c.exitCode === 0), JSON.stringify(stage));
   });

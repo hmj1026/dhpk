@@ -14,6 +14,7 @@ const { spawnSync } = require('node:child_process');
 const { validateAgentPluginPackage } = require('../lib/agent-plugin-package');
 const { validateCursorPackage } = require('../lib/cursor-plugin-package');
 const { redactSensitiveText } = require('../lib/redaction');
+const { normalizeConsumerEvidence } = require('../lib/release-evidence');
 
 const STATUSES = ['PASS', 'FAIL', 'NOT_RUN', 'NOT_CONFIGURED', 'SKIP_INCOMPATIBLE', 'BLOCKED', 'UNAVAILABLE'];
 
@@ -135,6 +136,31 @@ function validatePackage(platform, root) {
   return result;
 }
 
+function normalizedProbeEvidence(platform, manifest, result, version) {
+  const surface = platform === 'codex' ? 'codex-marketplace' : 'cursor-plugin';
+  const evidence = normalizeConsumerEvidence({
+    stage: 'CONSUMER',
+    producer: 'consumer-platform-probe',
+    adapter: { id: 'consumer-platform-probe', version: '1.0.0' },
+    surfaceResults: [{
+      surface,
+      status: result.status,
+      commands: result.commands || [],
+      environment: { network: 'disabled', packageRoot: '<repo-package>' },
+      artifacts: [
+        ...(manifest && manifest.path ? [{ path: `<repo-package>/${path.basename(manifest.path)}`, version: version || null }] : []),
+        ...(result.artifacts || []),
+      ],
+      diagnostics: result.diagnostics || result.diagnostic || [],
+      reasons: result.reasons || (result.reason ? [result.reason] : []),
+      checkedClaims: ['package-manifest', 'consumer-route'],
+      ...(result.planFingerprint ? { planFingerprint: result.planFingerprint } : {}),
+      ...(result.artifactFingerprint ? { artifactFingerprint: result.artifactFingerprint } : {}),
+    }],
+  });
+  return { surfaceEvidence: evidence.surfaceResults[0], surfaceResults: evidence.surfaceResults };
+}
+
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const root = path.resolve(args.packageRoot);
@@ -154,7 +180,13 @@ function main() {
     ? runCodexProbe(root, args.execute)
     : { status: 'UNAVAILABLE', reason: 'Cursor GUI/local loader is not available in this environment', commands: [] };
   if (!STATUSES.includes(result.status)) emit({ platform: args.platform, status: 'FAIL', packageRoot: root, reason: `unknown probe status ${result.status}` }, 1);
-  emit({ platform: args.platform, packageRoot: root, manifest: manifest.path, version: args.version || null, ...result }, ['FAIL', 'BLOCKED'].includes(result.status) ? 1 : 0);
+  let normalized;
+  try {
+    normalized = normalizedProbeEvidence(args.platform, manifest, result, args.version || null);
+  } catch (error) {
+    emit({ platform: args.platform, packageRoot: root, manifest: manifest.path, version: args.version || null, ...result, normalizationError: error.message }, 1);
+  }
+  emit({ platform: args.platform, packageRoot: root, manifest: manifest.path, version: args.version || null, ...result, ...normalized }, ['FAIL', 'BLOCKED'].includes(result.status) ? 1 : 0);
 }
 
 main();
