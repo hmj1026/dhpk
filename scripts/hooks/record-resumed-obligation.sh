@@ -101,13 +101,18 @@ fi
 
 if dhpk_resumed_obligation_record "$SESS" "$NAME" "${SENTINEL_LABELS[$SLOT]}" "$AGENT_BARE" "$SID" "$BASELINE_NAME" "$BASELINE_MTIME" \
     "$LIFECYCLE_TASK" "$LIFECYCLE_PRODUCER" "$LIFECYCLE_WAVE" "$LIFECYCLE_EVIDENCE_SCOPE" "$LIFECYCLE_ADAPTER" "$LIFECYCLE_STAGE" \
-    "$LIFECYCLE_PLAN" "$LIFECYCLE_ARTIFACT"; then
+    "$LIFECYCLE_PLAN" "$LIFECYCLE_ARTIFACT" "$LIFECYCLE_DIFF"; then
     echo "[$LABEL] resumed obligation recorded for $NAME (agent=$AGENT_BARE, baseline=${BASELINE_NAME:-none})"
     # The orchestrator must copy this exact envelope into the resumed
     # reviewer SendMessage. The reviewer then carries it into the new
     # canonical artifact frontmatter; reconciliation verifies the binding.
-    IDENTITY_ENVELOPE="task_id=$LIFECYCLE_TASK attempt_id=${LIFECYCLE_TASK}:attempt:$(dhpk_resumed_obligation_attempt "$SESS" "$NAME" "$SID" 2>/dev/null || printf '1')"
+    RESUMED_RECORD="$(dhpk_resumed_obligation_lookup "$SESS" "$NAME" "$SID" 2>/dev/null || true)"
+    RESUMED_ATTEMPT="$(printf '%s' "$RESUMED_RECORD" | python3 -c 'import json,sys; d=json.loads(sys.stdin.read()); print(d.get("dispatch_attempt", d.get("attempt", "1")))' 2>/dev/null || printf '1')"
+    RESUMED_DISPATCH="$(printf '%s' "$RESUMED_RECORD" | python3 -c 'import json,sys; print(json.loads(sys.stdin.read()).get("dispatch_id", ""))' 2>/dev/null || true)"
+    IDENTITY_ENVELOPE="task_id=$LIFECYCLE_TASK attempt_id=${LIFECYCLE_TASK}:attempt:$RESUMED_ATTEMPT session_id=$SID dispatch_attempt=$RESUMED_ATTEMPT"
+    [ -n "$RESUMED_DISPATCH" ] && IDENTITY_ENVELOPE="$IDENTITY_ENVELOPE dispatch_id=$RESUMED_DISPATCH"
     IDENTITY_ENVELOPE="$IDENTITY_ENVELOPE producer=$LIFECYCLE_PRODUCER wave=$LIFECYCLE_WAVE scope_id=$LIFECYCLE_EVIDENCE_SCOPE adapter=$LIFECYCLE_ADAPTER stage=$LIFECYCLE_STAGE"
+    [ -n "$LIFECYCLE_DIFF" ] && IDENTITY_ENVELOPE="$IDENTITY_ENVELOPE diff_id=$LIFECYCLE_DIFF"
     [ -n "$LIFECYCLE_PLAN" ] && IDENTITY_ENVELOPE="$IDENTITY_ENVELOPE plan_fingerprint=$LIFECYCLE_PLAN"
     [ -n "$LIFECYCLE_ARTIFACT" ] && IDENTITY_ENVELOPE="$IDENTITY_ENVELOPE artifact_fingerprint=$LIFECYCLE_ARTIFACT"
     printf 'RESUMED_REVIEW_IDENTITY %s\n' "$IDENTITY_ENVELOPE"

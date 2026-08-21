@@ -30,6 +30,9 @@
 [ -n "${_DHPK_RESUMED_OBLIGATION_LOADED:-}" ] && return 0
 _DHPK_RESUMED_OBLIGATION_LOADED=1
 
+_DHPK_RESUMED_OBLIGATION_DIR="$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "$_DHPK_RESUMED_OBLIGATION_DIR/review-lifecycle-identity.sh"
+
 _dhpk_resumed_file() { # <sess>
     printf '%s/%s' "$1" "$DHPK_SIDECAR_RESUMED_OBLIGATIONS"
 }
@@ -99,7 +102,7 @@ dhpk_resumed_obligation_attempt() {
 dhpk_resumed_obligation_record() {
     local sess="$1" sentinel="$2" slot="$3" agent="$4" sid="$5" baseline_name="$6" baseline_mtime="$7"
     local task_id="${8:-}" producer="${9:-}" wave="${10:-}" evidence_scope="${11:-}" adapter="${12:-}" stage="${13:-}"
-    local plan_fingerprint="${14:-}" artifact_fingerprint="${15:-}" file tmp now dispatch
+    local plan_fingerprint="${14:-}" artifact_fingerprint="${15:-}" diff_id="${16:-}" file tmp now dispatch
     [ -n "$sess" ] && [ -n "$sentinel" ] && [ -n "$sid" ] || return 1
     command -v python3 >/dev/null 2>&1 || return 1
     mkdir -p "$sess" 2>/dev/null || return 1
@@ -111,7 +114,7 @@ dhpk_resumed_obligation_record() {
     SID_IN="$sid" BASELINE_NAME_IN="$baseline_name" BASELINE_MTIME_IN="$baseline_mtime" \
     NOW_IN="$now" DISPATCH_IN="$dispatch" TASK_ID_IN="$task_id" PRODUCER_IN="$producer" WAVE_IN="$wave" \
     EVIDENCE_SCOPE_IN="$evidence_scope" ADAPTER_IN="$adapter" STAGE_IN="$stage" PLAN_FINGERPRINT_IN="$plan_fingerprint" \
-    ARTIFACT_FINGERPRINT_IN="$artifact_fingerprint" python3 -c '
+    ARTIFACT_FINGERPRINT_IN="$artifact_fingerprint" DIFF_ID_IN="$diff_id" python3 -c '
 import os, json
 
 path = os.environ["FILE_IN"]
@@ -151,6 +154,7 @@ record = {
     "artifact_baseline": os.environ["BASELINE_NAME_IN"],
     "artifact_baseline_mtime": os.environ["BASELINE_MTIME_IN"],
     "attempt": attempt,
+    "dispatch_attempt": attempt,
     "state": "pending",
 }
 task_value = os.environ.get("TASK_ID_IN", "")
@@ -168,6 +172,7 @@ optional = {
     "stage": os.environ.get("STAGE_IN", ""),
     "plan_fingerprint": os.environ.get("PLAN_FINGERPRINT_IN", ""),
     "artifact_fingerprint": os.environ.get("ARTIFACT_FINGERPRINT_IN", ""),
+    "diff_id": os.environ.get("DIFF_ID_IN", ""),
 }
 for key, value in optional.items():
     if not task_value:
@@ -254,41 +259,7 @@ _dhpk_resumed_fresh_artifact() {
 # without them retain the established freshness/verdict contract.
 _dhpk_resumed_artifact_matches_identity() {
     local record="$1" artifact="$2"
-    [ -f "$artifact" ] || return 1
-    command -v python3 >/dev/null 2>&1 || return 1
-    RECORD_IN="$record" ARTIFACT_IN="$artifact" python3 - <<'PY' 2>/dev/null
-import json, os
-
-try:
-    obligation = json.loads(os.environ["RECORD_IN"])
-    text = open(os.environ["ARTIFACT_IN"], encoding="utf-8", errors="replace").read()
-except Exception:
-    raise SystemExit(1)
-parts = text.split("---", 2) if text.startswith("---") else []
-front = parts[1] if len(parts) >= 3 else ""
-values = {}
-for line in front.splitlines():
-    if ":" in line:
-        key, value = line.split(":", 1)
-        values[key.strip().lower()] = value.strip().strip("'\"")
-aliases = {
-    "scope": ("scope", "scope_id"),
-    "artifact_fingerprint": ("artifact_fingerprint", "artifact_sha256"),
-    "task_id": ("task_id",),
-    "attempt_id": ("attempt_id",),
-    "producer": ("producer",),
-    "wave": ("wave", "wave_id"),
-    "adapter": ("adapter", "adapter_id"),
-    "stage": ("stage", "verification_stage"),
-    "plan_fingerprint": ("plan_fingerprint", "plan_id"),
-}
-for key, expected in obligation.items():
-    if key not in aliases or not expected:
-        continue
-    if not any(values.get(alias) == str(expected) for alias in aliases[key]):
-        raise SystemExit(1)
-raise SystemExit(0)
-PY
+    dhpk_identity_artifact_matches_record "$record" "$artifact"
 }
 
 # _dhpk_resumed_refresh_unresolved_verdict <sess> <sentinel> <agent-bare> <doc-path>

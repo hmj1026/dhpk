@@ -140,7 +140,8 @@ dhpk_stop_review_reconcile() {
         if dhpk_lifecycle_artifact_has_identity "$RECONCILE_DOC" 2>/dev/null && \
             ! dhpk_lifecycle_artifact_matches "$RECONCILE_DOC" "$lifecycle_scope" "$lifecycle_diff" \
                 "$lifecycle_producer" "$lifecycle_wave" "$lifecycle_evidence_scope" "$lifecycle_adapter" \
-                "$lifecycle_stage" "$lifecycle_plan" "$lifecycle_artifact" "$lifecycle_attempt_id" 2>/dev/null; then
+                "$lifecycle_stage" "$lifecycle_plan" "$lifecycle_artifact" "$lifecycle_attempt_id" \
+                "$sess_id" "$expected_attempt" "$expected_dispatch" "$lifecycle_task" 2>/dev/null; then
             continue
         fi
         dhpk_lifecycle_mark_artifact_ready "$lifecycle_task" "$agent_bare" "$sess_id" "$lifecycle_attempt" "$lifecycle_scope" "$lifecycle_diff" "$RECONCILE_DOC" \
