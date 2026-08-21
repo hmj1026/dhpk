@@ -337,7 +337,8 @@ function compileNativePackage({
   // Codex native packaging and Claude parity checks share the inventory-owned
   // family/alias view. Native currently publishes no claude-module aliases,
   // so the projection is an explicit empty selection rather than a second map.
-  const { buildSkillRoutingProjection, compareSkillRoutingProjections } = require('./skill-routing-projection');
+  const { buildSkillRoutingProjection } = require('./skill-routing-projection');
+  const { compareRoutingProjections } = require('./distribution-projection-parity');
   const routingProjection = buildSkillRoutingProjection({ inventory, surface: 'codex-native' });
   const traversalBudget = createTraversalBudget(traversalOptions);
 
@@ -453,7 +454,7 @@ function compileNativePackage({
     validate: (rendered, context) => {
       if (!context || !context.session || !context.session.stageRoot) return rendered;
       const expectedRouting = buildSkillRoutingProjection({ inventory, surface: 'codex-native' });
-      const metadataParity = compareSkillRoutingProjections({
+      const metadataParity = compareRoutingProjections({
         expected: expectedRouting,
         actual: rendered.metadata && rendered.metadata.routingProjection,
       });
@@ -467,7 +468,7 @@ function compileNativePackage({
       } catch (_) {
         throw new Error('Codex provenance output is not valid JSON');
       }
-      const artifactParity = compareSkillRoutingProjections({
+      const artifactParity = compareRoutingProjections({
         expected: expectedRouting,
         actual: publishedProvenance && publishedProvenance.routingProjection,
       });
@@ -623,8 +624,9 @@ function verifyNativePackage({
     };
     errors.push(...routingParity.diagnostics);
   } else if (provenance && Object.prototype.hasOwnProperty.call(provenance, 'routingProjection')) {
-    const { buildSkillRoutingProjection, compareSkillRoutingProjections } = require('./skill-routing-projection');
-    routingParity = compareSkillRoutingProjections({
+    const { buildSkillRoutingProjection } = require('./skill-routing-projection');
+    const { compareRoutingProjections } = require('./distribution-projection-parity');
+    routingParity = compareRoutingProjections({
       expected: buildSkillRoutingProjection({ inventory, surface: 'codex-native' }),
       actual: provenance.routingProjection,
     });

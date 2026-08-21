@@ -977,7 +977,8 @@ function compileClaudeProjection({ inventory, compilerVersion = 'claude-1' } = {
   // Keep Claude's generated metadata on the same normalized router view that
   // Codex and parity checks consume. The Claude host still registers roots;
   // this view records the per-alias contract without changing that host shape.
-  const { buildSkillRoutingProjection, compareSkillRoutingProjections } = require('./skill-routing-projection');
+  const { buildSkillRoutingProjection } = require('./skill-routing-projection');
+  const { compareRoutingProjections } = require('./distribution-projection-parity');
   const routingProjection = buildSkillRoutingProjection({ inventory, surface: 'claude-module' });
   const inventoryView = freezeProjectionValue({
     ...normalizedInventoryView(inventory, generated),
@@ -1024,7 +1025,7 @@ function compileClaudeProjection({ inventory, compilerVersion = 'claude-1' } = {
     }),
     validate: (rendered) => {
       const expected = buildSkillRoutingProjection({ inventory, surface: 'claude-module' });
-      const metadataParity = compareSkillRoutingProjections({
+      const metadataParity = compareRoutingProjections({
         expected,
         actual: rendered.metadata && rendered.metadata.routingProjection,
       });
@@ -1038,7 +1039,7 @@ function compileClaudeProjection({ inventory, compilerVersion = 'claude-1' } = {
       } catch (_) {
         throw new Error('Claude inventory-view output is not valid JSON');
       }
-      const artifactParity = compareSkillRoutingProjections({
+      const artifactParity = compareRoutingProjections({
         expected,
         actual: publishedView && publishedView.skillRoutingProjection,
       });
@@ -1061,8 +1062,8 @@ function compileClaudeProjection({ inventory, compilerVersion = 'claude-1' } = {
 function verifyClaudeProjection({ inventory, pluginSkills = [], stage = 'structural', observedAt, publishedInventoryView } = {}) {
   const compiled = compileClaudeProjection({ inventory });
   if (!compiled.ok) return compiled;
-  const { compareSkillRoutingProjections } = require('./skill-routing-projection');
-  const routingParity = compareSkillRoutingProjections({
+  const { compareRoutingProjections } = require('./distribution-projection-parity');
+  const routingParity = compareRoutingProjections({
     expected: compiled.routingProjection,
     actual: publishedInventoryView === undefined
       ? compiled.inventoryView.skillRoutingProjection
