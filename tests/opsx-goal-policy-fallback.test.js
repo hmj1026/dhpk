@@ -1,5 +1,9 @@
 'use strict';
 
+const fs = require('node:fs');
+const os = require('node:os');
+const path = require('node:path');
+const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const {
   DISPATCH_TRUE_FENCE,
@@ -17,9 +21,16 @@ const FENCES = { 'DISPATCH_ON=true': DISPATCH_TRUE_FENCE, 'DISPATCH_ON=false': D
 // two branches drifting apart.
 const FALLBACK_CLAUSE = 'never filesystem-scan; every reviewer dispatch (even\nconfirm-only) still gets a fresh .claude/artifacts/reviews/ artifact, never\nreply-only';
 
-test('both dispatch modes resolve policy through the same fixed candidate chain, in order', () => {
+function orientationCommand(fence) {
+  const start = fence.indexOf('`');
+  const end = fence.indexOf('`', start + 1);
+  assert.ok(start >= 0 && end > start, 'orientation command fence missing');
+  return fence.slice(start + 1, end);
+}
+
+test('both dispatch modes resolve the compact kernel through the same fixed candidate chain', () => {
   for (const [mode, fence] of Object.entries(FENCES)) {
-    const order = ['CLAUDE_PLUGIN_ROOT:-', 'ls -dt', './.claude-plugin/plugin.json', './rules/execution-policy.md', 'POLICY-UNRESOLVED'];
+    const order = ['CLAUDE_PLUGIN_ROOT:-', 'ls -dt', './.claude-plugin/plugin.json', 'q rules/execution-policy-kernel.md', 'POLICY-UNRESOLVED'];
     let cursor = -1;
     for (const token of order) {
       const idx = fence.indexOf(token);
@@ -35,13 +46,48 @@ test('the source-checkout candidate is root-bound and never scans the filesystem
     assert.ok(!/find\s/.test(fence), `${mode}: must not invoke find`);
     assert.ok(!fence.includes('..'), `${mode}: must not reference a parent directory`);
     assert.ok(!/\*\*/.test(fence), `${mode}: must not use a recursive glob`);
-    // The shell is *substantively* conjunctive even though only one literal
-    // `test -r` appears: `test -r ./.claude-plugin/plugin.json && cat
-    // ./rules/execution-policy.md` short-circuits on the first check, and `cat`
-    // itself fails (non-zero exit, silenced by 2>/dev/null) if the policy file
-    // is unreadable — so both markers gate the branch, not just the first.
-    assert.ok(fence.includes('test -r ./.claude-plugin/plugin.json &&'), `${mode}: missing plugin.json marker guard`);
-    assert.ok(fence.includes('cat ./rules/execution-policy.md; }'), `${mode}: missing source-checkout policy read guarded by the same &&`);
+    // The shared `q` helper gates both the cache/plugin-root candidate and the
+    // root-bound source-checkout fallback through the project marker.
+    assert.ok(fence.includes('test -r ./.claude-plugin/plugin.json&&'), `${mode}: missing plugin.json marker guard`);
+    assert.ok(fence.includes('cat "./$1"'), `${mode}: missing root-bound source-checkout read`);
+  }
+});
+
+test('dispatch-on orientation adds only the implementation route reference', () => {
+  assert.ok(FENCES['DISPATCH_ON=true'].includes('implementation-dispatch.md'));
+  assert.ok(!FENCES['DISPATCH_ON=false'].includes('implementation-dispatch.md'));
+  for (const fence of Object.values(FENCES)) {
+    assert.ok(!fence.includes('cat ./rules/execution-policy.md'), 'orientation must not cat the full policy');
+  }
+});
+
+test('orientation reads the kernel and selected route reference without loading full policy', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-goal-orientation-'));
+  try {
+    const plugin = path.join(tmp, 'plugin');
+    const project = path.join(tmp, 'project');
+    fs.mkdirSync(path.join(plugin, 'rules'), { recursive: true });
+    fs.mkdirSync(path.join(plugin, 'skills', 'dhpk-execution-policy', 'references'), { recursive: true });
+    fs.mkdirSync(path.join(project, '.claude-plugin'), { recursive: true });
+    fs.writeFileSync(path.join(project, '.claude-plugin', 'plugin.json'), '{}');
+    fs.writeFileSync(path.join(plugin, 'rules', 'execution-policy-kernel.md'), 'KERNEL\n');
+    fs.writeFileSync(path.join(plugin, 'skills', 'dhpk-execution-policy', 'references', 'implementation-dispatch.md'), 'DISPATCH\n');
+    fs.writeFileSync(path.join(plugin, 'rules', 'execution-policy.md'), 'FULL_POLICY\n');
+    const env = { ...process.env, CLAUDE_PLUGIN_ROOT: plugin };
+    const off = spawnSync('bash', ['-c', orientationCommand(FENCES['DISPATCH_ON=false'])], {
+      cwd: project, env, encoding: 'utf8',
+    });
+    const on = spawnSync('bash', ['-c', orientationCommand(FENCES['DISPATCH_ON=true'])], {
+      cwd: project, env, encoding: 'utf8',
+    });
+    assert.strictEqual(off.status, 0, off.stderr);
+    assert.strictEqual(on.status, 0, on.stderr);
+    assert.strictEqual(off.stdout, 'KERNEL\n');
+    assert.strictEqual(on.stdout, 'KERNEL\nDISPATCH\n');
+    assert.ok(!off.stdout.includes('FULL_POLICY'));
+    assert.ok(!on.stdout.includes('FULL_POLICY'));
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
 

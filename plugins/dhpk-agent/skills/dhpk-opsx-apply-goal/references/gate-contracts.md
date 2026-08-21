@@ -15,7 +15,7 @@ UTF-8 bytes, the unit produced by `wc -c`.
 | `VERDICT` | `.unresolved-verdict` is absent or explicitly reported as a blocker. |
 | `TURN` | The bounded turn checkpoint writes the resume note before stopping. |
 
-The fixed core must preserve orientation, self-locating policy lookup, the
+The fixed core must preserve orientation, self-locating kernel/route lookup, the
 `openspec-apply-change` kickoff, the hard-rule carve-out, the Unknown-skill
 fallback, the worker roster, and sentinel/unresolved-verdict gates. The normal target is
 `<=3,600` UTF-8 bytes (raised from 3,400 when the source-checkout policy

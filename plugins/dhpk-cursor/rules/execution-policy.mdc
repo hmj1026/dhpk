@@ -105,9 +105,30 @@ The CLI-backed Codex roles use the same normalized project-over-global configura
 
 ## Implementation dispatch
 
-SSOT for implement-phase routing while `userConfig.orchestration_dispatch=on` (default). Downstream skills (`feature-dev`, `bug-fix`, `adaptive-dev-workflow`, `opsx-apply-goal`) reference this table — they do not restate it. Unattended goal sessions bind this section by reading this policy during their orientation step (the `opsx-apply-goal` orientation command resolves and reads this file); the emitted `/goal` condition carries only the compact roster line and the self-locating pointer, never these elaborations.
+SSOT for implement-phase routing while `userConfig.orchestration_dispatch=on` (default). Downstream skills (`feature-dev`, `bug-fix`, `adaptive-dev-workflow`, `opsx-apply-goal`) reference this table — they do not restate it. Unattended goal sessions bind the safety kernel and the selected route reference during orientation; the emitted `/goal` condition carries only the compact roster line and self-locating pointers, never these elaborations.
 
 Goal-driven apply flows set `DHPK_ORCHESTRATION_DISPATCH=on`, enabling the runtime edit-batch gate: warn on the third distinct inline source file and block from the fourth unless `DHPK_INLINE_BATCH_OK=1` or a live fast-worker marker proves work is already dispatched.
+
+### Context tiers and dispatch packet
+
+Select the smallest context tier that preserves the settled decision:
+
+- **`cold`** — no parent-turn inheritance; use for independent reviewers,
+  workers, monitors, and peer checks.
+- **`bounded`** — inherit only the recent turns that contain unresolved user
+  decisions; use for architect/TDD continuation.
+- **`full`** — inherit the conversation only when the task is conversation-
+  dependent; record the reason in the handoff.
+
+Every `cold` handoff carries the same five-part packet: goal and non-goals;
+exact owned files; settled interfaces, invariants, and constraints;
+verification and acceptance; task/attempt identity plus required evidence
+pointers. The packet is the context boundary: do not require a worker to
+reconstruct it from parent history.
+
+File count remains a collision and safety gate. It does not by itself justify a
+`full` fork. When a task changes tier, packet, or inheritance mode, record the
+selected mode and the marginal context cost in the context ledger.
 
 ### Bash hygiene
 

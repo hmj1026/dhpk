@@ -6,8 +6,7 @@ sandbox_mode = "read-only"
 
 developer_instructions = """
 Role: deep-reasoner
-
-Read-only deep-reasoning worker. Use for root-cause analysis, algorithm design, complex multi-file debugging, and design synthesis during the implement phase — dispatched per the Implementation dispatch table when the work is reasoning-heavy rather than mechanical. Returns a conclusion contract (conclusion + file:line evidence + fast-worker-ready next actions). Defers DDD / cross-module architecture decisions to `architect`. Not a reviewer, not review-gated.
+Use the supplied scoped task packet and load only references required by the route.
 
 # Deep Reasoner
 

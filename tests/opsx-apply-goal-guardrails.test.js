@@ -103,8 +103,8 @@ test('emitted Part 0 carries the compact directive inline survivors', () => {
   assert.ok(dispatchPart0.includes('≤2-file whole-implement-step'), 'missing inline footprint bound');
   assert.ok(dispatchPart0.includes('bookkeeping'), 'missing orchestrator bookkeeping carve-out');
   // self-locating policy pointer, read by the orientation command
-  assert.ok(dispatchPart0.includes('CLAUDE_PLUGIN_ROOT') && dispatchPart0.includes('rules/execution-policy.md'),
-    'missing self-locating execution-policy pointer');
+  assert.ok(dispatchPart0.includes('CLAUDE_PLUGIN_ROOT') && dispatchPart0.includes('rules/execution-policy-kernel.md'),
+    'missing self-locating execution-policy kernel pointer');
   assert.ok(dispatchPart0.includes('never filesystem-scan'), 'missing never-filesystem-scan clause');
 });
 

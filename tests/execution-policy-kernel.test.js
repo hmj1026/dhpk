@@ -29,4 +29,16 @@ test('policy skill and rule bind the same kernel before conditional references',
   assert.ok(skill.includes('single source of truth'));
 });
 
+test('dispatch contract defines bounded context tiers and a complete cold packet', () => {
+  const policy = read('rules/execution-policy.md');
+  for (const tier of ['`cold`', '`bounded`', '`full`']) {
+    assert.ok(policy.includes(tier), `missing context tier ${tier}`);
+  }
+  for (const field of ['goal and non-goals', 'exact owned files', 'settled interfaces', 'verification and acceptance', 'task/attempt identity']) {
+    assert.ok(policy.includes(field), `cold packet missing ${field}`);
+  }
+  assert.ok(/File count remains a collision and safety gate/.test(policy));
+  assert.ok(/does not by itself justify a\s+`full` fork/.test(policy));
+});
+
 run('execution-policy-kernel');

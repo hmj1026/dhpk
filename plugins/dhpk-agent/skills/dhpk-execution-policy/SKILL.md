@@ -9,14 +9,21 @@ metadata:
 
 Read `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy-kernel.md` first. It is the
 always-visible safety, authorization, dirty-worktree, route-boundary, and
-completion kernel; the detailed rule remains the SSOT below.
+completion contract.
 
-This is the skill-form entry point to dhpk's canonical execution policy. Read the
-project's `.claude/rules/execution-policy.md` first when it exists; otherwise
-read `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`. That policy is the
-single source of truth for classification, OpenSpec routing, implementation
-dispatch, sentinels, anti-loop limits, git, and testing. This skill supplies
-routing and load-on-demand pointers; it does not copy those normative tables.
+Then load only the reference required by the selected branch. The canonical
+policy remains the single source of truth, but it is a route index rather than an unconditional
+second read:
+
+- classification or OpenSpec routing → `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §Change classification & OpenSpec routing;
+- implementation dispatch → `./references/implementation-dispatch.md`;
+- reviewer or sentinel closure → `./references/review-gate-mechanics.md`;
+- retry or anti-loop → `./references/anti-loop.md`;
+- explicit policy audit or an uncovered rule → the project policy, then the
+  plugin fallback `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`.
+
+This skill supplies routing and load-on-demand pointers; it does not copy
+normative tables or require the full policy for every invocation.
 
 The implementation posture is **decide → dispatch → verify** when orchestration
 dispatch is enabled. Inline work is the policy's small, unambiguous exception,
@@ -108,13 +115,12 @@ When blocked, use:
 
 `Blocker → Tried → Next viable option`
 
-This skill produces routing/closeout guidance, not a second copy of the
-execution-policy document.
+This skill produces routing/closeout guidance, not a second copy of the execution-policy document.
 
 ## Git pipeline
 
-Follow the SSOT section `Git pipeline` for the repository's branch and review
-flow. Do not auto-run `git add`, `commit`, `push`, or `stash`. Read
+Follow the SSOT section `Git pipeline` for the repository's branch/review flow.
+Do not auto-run `git add`, `commit`, `push`, or `stash`. Read
 `./references/squash-merge-hygiene.md` before reviewing a squash-merged branch.
 
 ## Verification
@@ -129,10 +135,13 @@ flow. Do not auto-run `git add`, `commit`, `push`, or `stash`. Read
 ## References
 
 - `./references/task-modes.md` — examples when the SSOT change mode is unclear.
+- `./references/invocation-classification.md` — classify explicit, implicit, or user-invoked entry points when precedence is unclear.
+- `./references/invocation-precedence.md` — resolve project, plugin, and user invocation precedence when a route has competing owners.
 - `./references/anti-loop.md` — retry classification and stop conditions when a loop is suspected.
 - `./references/output-shape.md` — full reply format when writing a summary or blocked response.
 - `./references/squash-merge-hygiene.md` — unrelated-change handling before reviewing a squash merge.
 - `./references/implementation-dispatch.md` — decide → dispatch → verify, worker selection, premise gates, and worker-output checks during implementation dispatch.
+- `./references/delivery-core.md` — shared feature/bug implementation contract and cold handoff packet.
 - `./references/review-gate-mechanics.md` — sentinel clear contract, triage, reviewer liveness, and back-stop mechanics.
 - `./references/deterministic-first.md` — collect → gate → judge and immutable tool output for audit, setup, inventory, or generation work.
 - `./references/premise-verification.md` — independent doubt, behavioral-premise checks, and premise-overturning reframes.

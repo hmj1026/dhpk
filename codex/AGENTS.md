@@ -85,12 +85,19 @@ dhpk ships 16 direct Codex agent roles under `codex/agents/` (synced into `.code
 
 Codex CLI has no `/dhpk:do` command or dhpk slash-command router. It does provide built-in commands such as `/hooks`; the workflows below are **instructions to follow manually**, invoking each role in turn with `/agent <role-name>`:
 
-- **Bug with unknown root cause**: invoke `bug-investigator` first (evidence → hypothesis → root cause), then `worker` to apply the patch, then `code-reviewer` to review the diff.
-- **New feature / cross-module design**: invoke `architect` to decide layer placement, then `tdd-guide` to write tests first, then `worker` to implement, then `code-reviewer`.
+- **Bug with unknown root cause**: use `bug-investigator` only for bounded intake triage; escalate confirmed reasoning-heavy cases to `deep-reasoner`, then invoke `worker` and `code-reviewer`.
+- **New feature / cross-module design**: invoke `architect` to decide layer placement, then `tdd-guide` to write tests first. If the settled GREEN footprint is ≤2 production files, `tdd-guide` may finish it and proceed to review; dispatch `worker` only for a larger-footprint handback, then invoke `code-reviewer`.
 - **Investigation / "how does X work?"**: invoke `explorer` (read-only, no edits).
 - **Deep root-cause analysis or algorithm design**: invoke `deep-reasoner`.
 
 These are sequencing guidelines, not enforced routes — nothing in Codex CLI checks that you followed them.
+
+### Context tiers and handoff packet
+
+Use the canonical `rules/execution-policy.md` §Context tiers and dispatch
+packet for `cold`, `bounded`, and `full` selection. The worker-facing packet
+schema and completion boundary live in `codex/agents/worker.toml`; do not
+reconstruct either contract from inherited parent history.
 
 ### Codex handoff boundary
 

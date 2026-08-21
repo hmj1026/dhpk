@@ -416,7 +416,16 @@ function buildToml(agent, frontmatter, body) {
     throw new Error(`No Codex runtime metadata for ${agent.name}`);
   }
   const sandbox = deriveSandbox(fm.tools);
-  const instructions = [`Role: ${agent.name}`, '', description, '', adaptCodexBody(agent.name, cleanBody(body))]
+  // Keep the discovery description in the catalog field only. Repeating it in
+  // the selected role prompt charges every spawn for metadata the router has
+  // already exposed. The role id and canonical body remain the runtime
+  // contract; route-specific detail stays behind the body's references.
+  const instructions = [
+    `Role: ${agent.name}`,
+    'Use the supplied scoped task packet and load only references required by the route.',
+    '',
+    adaptCodexBody(agent.name, cleanBody(body)),
+  ]
     .join('\n')
     .trim();
   if (!instructions) {

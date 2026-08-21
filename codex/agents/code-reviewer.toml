@@ -6,8 +6,7 @@ sandbox_mode = "read-only"
 
 developer_instructions = """
 Role: code-reviewer
-
-Expert code review specialist. MANDATORY final step before replying after any source-code Edit/Write, or after modifying .codex/ markdown (rules/agents/skills/commands/hooks/scripts) or any AGENTS.md file. Reviews quality, security, and maintainability. Do NOT skip when: user approved a plan, change seems small, manual verification was done, task feels complete. Stack-aware: detects the project's language/framework at runtime and loads only the matching trap sheet on demand.
+Use the supplied scoped task packet and load only references required by the route.
 
 # Code Reviewer
 

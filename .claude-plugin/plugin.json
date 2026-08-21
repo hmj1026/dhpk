@@ -131,7 +131,7 @@
     "subagent_quality_gate": {
       "type": "string",
       "title": "SubagentStop thin-report quality gate",
-      "description": "Enables scripts/hooks/subagent-stop-quality.sh, a SubagentStop hook that blocks-and-continues a subagent once when its final report is thin, a bare approval, an unresolved error with no next-step language, or an evidence-free review-shaped reply — wired ahead of subagent-stop-verify.sh so a blocked reviewer's sentinel is not auto-cleared. Default 'off' (no-op, no heuristic evaluation) — set to 'on'/'true'/'1' to enable. Extraction hit/miss is recorded to .claude/artifacts/sessions/.subagent-stop-quality-extraction.json to support a future data-driven default-on flip decision.",
+      "description": "Retained for an explicitly registered advisory scripts/hooks/subagent-stop-quality.sh hook. The shipped default hooks do not register it, so this setting has no default-lifecycle effect. When a consumer registers that hook, 'on'/'true'/'1' enables its one-retry thin-report check; 'off' keeps it inactive. Extraction hit/miss is recorded to .claude/artifacts/sessions/.subagent-stop-quality-extraction.json.",
       "default": "off"
     },
     "deep_reasoner_effort": {
@@ -414,7 +414,7 @@
     "agent_warmstart_enabled": {
       "type": "boolean",
       "title": "Enable subagent warmstart context",
-      "description": "When true, a PreToolUse (Task|Agent) hook injects parent-session context into subagent prompts: active review sentinels + reviewer slots, the most recent OpenSpec change + first tasks, the project's .claude/warmstart-context.md (first 800 chars), and a tool-routing reminder — capped at 2000 chars. Costs tokens on every subagent spawn. Default false (opt-in). Env DHPK_AGENT_WARMSTART=1/0 overrides for one-shot toggles.",
+      "description": "When true, a PreToolUse (Task|Agent) hook injects role-filtered parent context: reviewers receive sentinel scope, workers/TDD receive the supplied handoff plus bounded task context, explorers receive routing, and monitors receive process identity. Each role has its own cap; the hook remains default false (opt-in) because every injection costs tokens. Env DHPK_AGENT_WARMSTART=1/0 overrides for one-shot toggles.",
       "default": false
     },
     "harness_restore_hint": {
