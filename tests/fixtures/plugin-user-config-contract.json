@@ -1,0 +1,434 @@
+{
+  "schema": "dhpk.plugin-user-config-contract.fixture.v1",
+  "source": ".claude-plugin/plugin.json",
+  "count": 59,
+  "entries": [
+    {
+      "key": "hook_profile",
+      "type": "string",
+      "multiple": false,
+      "title": "Hook profile",
+      "default": "standard"
+    },
+    {
+      "key": "review_agents",
+      "type": "string",
+      "multiple": true,
+      "title": "Review agent names",
+      "default": [
+        "code-reviewer",
+        "database-reviewer",
+        "security-reviewer",
+        "frontend-reviewer",
+        "doc-reviewer",
+        "polyfill-reviewer",
+        "migration-reviewer"
+      ]
+    },
+    {
+      "key": "deep_reasoner_model",
+      "type": "string",
+      "multiple": false,
+      "title": "deep-reasoner model",
+      "default": "opus"
+    },
+    {
+      "key": "fast_worker_model",
+      "type": "string",
+      "multiple": false,
+      "title": "fast-worker model",
+      "default": "sonnet"
+    },
+    {
+      "key": "planner_model",
+      "type": "string",
+      "multiple": false,
+      "title": "planner model",
+      "default": "opus"
+    },
+    {
+      "key": "orchestration_dispatch",
+      "type": "string",
+      "multiple": false,
+      "title": "Implementation dispatch switch",
+      "default": "on"
+    },
+    {
+      "key": "fast_worker_backend",
+      "type": "string",
+      "multiple": false,
+      "title": "Fast-worker backend",
+      "default": "claude"
+    },
+    {
+      "key": "fast_worker_backend_order",
+      "type": "string",
+      "multiple": false,
+      "title": "Fast-worker auto order",
+      "default": "claude,codex,agy"
+    },
+    {
+      "key": "fast_worker_fallback",
+      "type": "string",
+      "multiple": false,
+      "title": "Fast-worker missing-executable fallback",
+      "default": "none"
+    },
+    {
+      "key": "subagent_quality_gate",
+      "type": "string",
+      "multiple": false,
+      "title": "SubagentStop thin-report quality gate",
+      "default": "off"
+    },
+    {
+      "key": "deep_reasoner_effort",
+      "type": "string",
+      "multiple": false,
+      "title": "deep-reasoner effort",
+      "default": "high"
+    },
+    {
+      "key": "fast_worker_effort",
+      "type": "string",
+      "multiple": false,
+      "title": "fast-worker effort",
+      "default": "medium"
+    },
+    {
+      "key": "codex_fast_worker_model",
+      "type": "string",
+      "multiple": false,
+      "title": "codex-fast-worker model",
+      "default": "gpt-5.6-luna"
+    },
+    {
+      "key": "codex_fast_worker_effort",
+      "type": "string",
+      "multiple": false,
+      "title": "codex-fast-worker effort",
+      "default": "xhigh"
+    },
+    {
+      "key": "codex_deep_reasoner_model",
+      "type": "string",
+      "multiple": false,
+      "title": "codex-deep-reasoner model",
+      "default": "gpt-5.6-sol"
+    },
+    {
+      "key": "codex_deep_reasoner_effort",
+      "type": "string",
+      "multiple": false,
+      "title": "codex-deep-reasoner effort",
+      "default": "high"
+    },
+    {
+      "key": "codex_timeout_secs",
+      "type": "string",
+      "multiple": false,
+      "title": "Codex shared timeout (seconds)",
+      "default": "360"
+    },
+    {
+      "key": "codex_fast_worker_timeout_secs",
+      "type": "string",
+      "multiple": false,
+      "title": "codex-fast-worker timeout (seconds)",
+      "default": "360"
+    },
+    {
+      "key": "codex_deep_reasoner_timeout_secs",
+      "type": "string",
+      "multiple": false,
+      "title": "codex-deep-reasoner timeout (seconds)",
+      "default": "360"
+    },
+    {
+      "key": "codex_bridge_timeout_secs",
+      "type": "string",
+      "multiple": false,
+      "title": "codex-bridge timeout (seconds)",
+      "default": "360"
+    },
+    {
+      "key": "architect_model",
+      "type": "string",
+      "multiple": false,
+      "title": "architect model",
+      "default": "fable"
+    },
+    {
+      "key": "architect_effort",
+      "type": "string",
+      "multiple": false,
+      "title": "architect effort",
+      "default": "low"
+    },
+    {
+      "key": "agy_fast_worker_model",
+      "type": "string",
+      "multiple": false,
+      "title": "agy-fast-worker model",
+      "default": "Gemini 3.6 Flash (High)"
+    },
+    {
+      "key": "planner_effort",
+      "type": "string",
+      "multiple": false,
+      "title": "planner effort",
+      "default": "high"
+    },
+    {
+      "key": "docker_containers",
+      "type": "string",
+      "multiple": true,
+      "title": "Docker containers",
+      "default": []
+    },
+    {
+      "key": "modules",
+      "type": "string",
+      "multiple": true,
+      "title": "Stack modules to enable",
+      "default": []
+    },
+    {
+      "key": "review_trigger_extra_paths",
+      "type": "string",
+      "multiple": true,
+      "title": "Extra review trigger paths",
+      "default": []
+    },
+    {
+      "key": "hot_tables",
+      "type": "string",
+      "multiple": true,
+      "title": "High-volume table names",
+      "default": []
+    },
+    {
+      "key": "js_lint_script",
+      "type": "string",
+      "multiple": false,
+      "title": "JS lint npm script name",
+      "default": "lint"
+    },
+    {
+      "key": "js_typecheck_script",
+      "type": "string",
+      "multiple": false,
+      "title": "JS typecheck npm script name",
+      "default": "typecheck"
+    },
+    {
+      "key": "js_check_path",
+      "type": "string",
+      "multiple": false,
+      "title": "JS @ts-check scan path",
+      "default": "js/"
+    },
+    {
+      "key": "python_project_roots",
+      "type": "string",
+      "multiple": true,
+      "title": "Python project roots",
+      "default": []
+    },
+    {
+      "key": "python_runner",
+      "type": "string",
+      "multiple": false,
+      "title": "Python tool runner prefix",
+      "default": "uv run"
+    },
+    {
+      "key": "ruff_bin",
+      "type": "string",
+      "multiple": false,
+      "title": "ruff binary name",
+      "default": "ruff"
+    },
+    {
+      "key": "python_typechecker",
+      "type": "string",
+      "multiple": false,
+      "title": "Python type checker",
+      "default": "pyright"
+    },
+    {
+      "key": "pyright_bin",
+      "type": "string",
+      "multiple": false,
+      "title": "pyright binary name",
+      "default": "pyright"
+    },
+    {
+      "key": "mypy_bin",
+      "type": "string",
+      "multiple": false,
+      "title": "mypy binary name",
+      "default": "mypy"
+    },
+    {
+      "key": "swiftlint_bin",
+      "type": "string",
+      "multiple": false,
+      "title": "SwiftLint binary path",
+      "default": "swiftlint"
+    },
+    {
+      "key": "xcode_scheme",
+      "type": "string",
+      "multiple": false,
+      "title": "Xcode scheme",
+      "default": ""
+    },
+    {
+      "key": "xcode_destination",
+      "type": "string",
+      "multiple": false,
+      "title": "Xcode test destination",
+      "default": ""
+    },
+    {
+      "key": "swift_build_skip_tests",
+      "type": "boolean",
+      "multiple": false,
+      "title": "Skip tests in the Swift pre-commit gate",
+      "default": false
+    },
+    {
+      "key": "php_cs_fixer_bin",
+      "type": "string",
+      "multiple": false,
+      "title": "php-cs-fixer binary path",
+      "default": "vendor/bin/php-cs-fixer"
+    },
+    {
+      "key": "phpstan_bin",
+      "type": "string",
+      "multiple": false,
+      "title": "phpstan binary path",
+      "default": "vendor/bin/phpstan"
+    },
+    {
+      "key": "psalm_bin",
+      "type": "string",
+      "multiple": false,
+      "title": "psalm binary path",
+      "default": "vendor/bin/psalm"
+    },
+    {
+      "key": "reap_stale_mcp_processes",
+      "type": "boolean",
+      "multiple": false,
+      "title": "Reap stale gitnexus MCP processes",
+      "default": false
+    },
+    {
+      "key": "sentinel_commit_gate",
+      "type": "string",
+      "multiple": false,
+      "title": "Sentinel commit gate mode",
+      "default": "warn"
+    },
+    {
+      "key": "branch_safety",
+      "type": "string",
+      "multiple": false,
+      "title": "Protected branch safety mode",
+      "default": "warn"
+    },
+    {
+      "key": "protected_branches",
+      "type": "string",
+      "multiple": true,
+      "title": "Protected branch names / globs",
+      "default": [
+        "main",
+        "master",
+        "develop",
+        "release/*",
+        "hotfix/*"
+      ]
+    },
+    {
+      "key": "skill_hint_enabled",
+      "type": "boolean",
+      "multiple": false,
+      "title": "Enable UserPromptSubmit skill hint",
+      "default": true
+    },
+    {
+      "key": "learning_db_enabled",
+      "type": "boolean",
+      "multiple": false,
+      "title": "Enable cross-session learning DB",
+      "default": false
+    },
+    {
+      "key": "graduation_scan_enabled",
+      "type": "boolean",
+      "multiple": false,
+      "title": "Enable knowledge graduation scan",
+      "default": false
+    },
+    {
+      "key": "lockfile_sync_commands",
+      "type": "string",
+      "multiple": true,
+      "title": "Lock-file sync commands",
+      "default": []
+    },
+    {
+      "key": "php_bin",
+      "type": "string",
+      "multiple": false,
+      "title": "PHP binary",
+      "default": "php"
+    },
+    {
+      "key": "completion_evidence_enabled",
+      "type": "boolean",
+      "multiple": false,
+      "title": "Enable completion-evidence Stop advisory",
+      "default": false
+    },
+    {
+      "key": "agent_warmstart_enabled",
+      "type": "boolean",
+      "multiple": false,
+      "title": "Enable subagent warmstart context",
+      "default": false
+    },
+    {
+      "key": "harness_restore_hint",
+      "type": "string",
+      "multiple": false,
+      "title": "Harness restore hint",
+      "default": ""
+    },
+    {
+      "key": "js_frontend_roots",
+      "type": "string",
+      "multiple": true,
+      "title": "JS frontend root directories",
+      "default": []
+    },
+    {
+      "key": "js_core_files",
+      "type": "string",
+      "multiple": true,
+      "title": "JS core files",
+      "default": []
+    },
+    {
+      "key": "js_vendor_globs",
+      "type": "string",
+      "multiple": true,
+      "title": "JS vendor globs",
+      "default": []
+    }
+  ]
+}
