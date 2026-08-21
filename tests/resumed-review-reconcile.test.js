@@ -105,7 +105,7 @@ function writeArtifact(reviews, name, body, mtime, { identity = true, identityVa
   if (identity) {
     const repo = path.resolve(reviews, '../../..');
     const obligation = readObligations(repo).find((item) => item.state === 'pending' && item.task_id);
-    const values = identityValues || obligation;
+    const values = { ...(obligation || {}), ...(identityValues || {}) };
     if (values) {
       const fields = [
         ['task_id', values.task_id],
@@ -117,6 +117,10 @@ function writeArtifact(reviews, name, body, mtime, { identity = true, identityVa
         ['stage', values.stage],
         ['plan_fingerprint', values.plan_fingerprint],
         ['artifact_fingerprint', values.artifact_fingerprint],
+        ['diff_id', values.diff_id],
+        ['session_id', values.session_id],
+        ['dispatch_attempt', values.attempt],
+        ['dispatch_id', values.dispatch_id],
       ].filter(([, value]) => value);
       if (fields.length > 0 && body.startsWith('---\n')) {
         const close = body.indexOf('\n---', 4);
