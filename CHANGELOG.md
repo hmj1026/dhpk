@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## 0.44.0 — 2026-08-21 — Add profile-scoped capability bundles, normalize consumer evidence, and optimize subagent warmstart context
+
+**feat(bundles)** — Add profile-scoped Claude capability bundles for tailored agent and skill exposure.
+**feat(consumer-gate)** — Normalize consumer evidence semantics across Claude, Codex, Cursor, and AGY with explicit execution states.
+**feat(review-lifecycle)** — Centralize review lifecycle identity and binding across orchestration hooks.
+**refactor(agent-context)** — Optimize subagent warmstart context budgets and deduplicate context fingerprints.
+
 ## 0.43.0 — 2026-08-20 — Unify distribution contracts, retire Gemini CLI sync, and deduplicate Codex discovery surfaces
 
 **BREAKING(distribution)** — Replace per-platform package validation entrypoints with the unified `dhpk distribution` contract and retire Gemini CLI sync support while retaining native AGY packages.
