@@ -2,6 +2,40 @@
   "schema": "dhpk.discovery-budgets.v1",
   "description": "Budgets for discovery-visible metadata. Optional entries remain host-discoverable and are runtime/activation optional.",
   "units": { "words": "whitespace-delimited words", "tokens": "conservative four-characters-per-token estimate" },
+  "estimator": {
+    "id": "dhpk-conservative-context-estimator",
+    "version": "1",
+    "words": "unicode-whitespace-delimited",
+    "tokens": "ceil-unicode-codepoints-divided-by-4",
+    "aggregation": "measure-each-entry-then-sum"
+  },
+  "visibility": {
+    "promoted": { "claude-core": true, "claude-module": true, "codex-sync": true, "codex-native": true },
+    "optional": { "claude-core": true, "claude-module": true, "codex-sync": true, "codex-native": true },
+    "experimental": { "claude-core": true, "claude-module": true, "codex-sync": true, "codex-native": true },
+    "deprecated": { "claude-core": true, "claude-module": true, "codex-sync": true, "codex-native": true }
+  },
+  "categories": {
+    "claude-skill-description": {
+      "scope": "claude-compatibility",
+      "estimator": "dhpk-conservative-context-estimator@1",
+      "artifactIdentity": "inventory-fingerprint"
+    },
+    "claude-profile-bundle": {
+      "scope": "claude-profile",
+      "estimator": "dhpk-conservative-context-estimator@1",
+      "artifactIdentity": "distribution-plan-and-artifact-fingerprint"
+    },
+    "claude-user-config": {
+      "scope": "claude-plugin.userConfig",
+      "estimator": "dhpk-conservative-context-estimator@1",
+      "artifactIdentity": "plugin-manifest-fingerprint",
+      "baseline": {
+        "fields": 59,
+        "status": "characterized-before-compaction"
+      }
+    }
+  },
   "budgets": {
     "promoted": {
       "claude-core": { "words": 120, "tokens": 180 },
