@@ -21,6 +21,10 @@ payload="$(dhpk_read_payload)"
 # Overlay project pluginConfigs so module selection respects per-project
 # .claude/settings.local.json (Claude Code only injects global pluginConfigs).
 . "$PLUGIN_ROOT/scripts/hooks/_lib/load-project-config.sh"
+# The composed Git/review gate runs as a child process below. Export a receipt
+# so it reuses this normalized project overlay instead of parsing settings a
+# second time; direct invocations still load the config themselves.
+export DHPK_PROJECT_CONFIG_LOADED=1
 . "$PLUGIN_ROOT/scripts/hooks/_lib/modules.sh"
 : "${DHPK_ACTIVE_MODULES:=$(dhpk_config_modules)}"
 

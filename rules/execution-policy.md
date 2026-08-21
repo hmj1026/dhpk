@@ -105,11 +105,32 @@ The CLI-backed Codex roles use the same normalized project-over-global configura
 
 ## Implementation dispatch
 
-SSOT for implement-phase routing while `userConfig.orchestration_dispatch=on` (default). Downstream skills (`feature-dev`, `bug-fix`, `adaptive-dev-workflow`, `opsx-apply-goal`) reference this table — they do not restate it. Unattended goal sessions bind this section by reading this policy during their orientation step (the `opsx-apply-goal` orientation command resolves and reads this file); the emitted `/goal` condition carries only the compact roster line and the self-locating pointer, never these elaborations.
+SSOT for implement-phase routing while `userConfig.orchestration_dispatch=on` (default). Downstream skills (`feature-dev`, `bug-fix`, `adaptive-dev-workflow`, `opsx-apply-goal`) reference this table — they do not restate it. Unattended goal sessions bind the safety kernel and the selected route reference during orientation; the emitted `/goal` condition carries only the compact roster line and self-locating pointers, never these elaborations.
 
 Goal-driven apply flows set `DHPK_ORCHESTRATION_DISPATCH=on`, enabling the runtime edit-batch gate: warn on the third distinct inline source file and block from the fourth unless `DHPK_INLINE_BATCH_OK=1` or a live fast-worker marker proves work is already dispatched.
 
 **Orchestration lifecycle acceptance:** orchestration owns dispatch/handoff identity, retries, and evidence presentation; the existing runtime hook/reconcile path owns Sentinel clearance. Each handoff uses one stable `task_id` and an attempt-specific `attempt_id`; optional producer, wave, scope, adapter/stage, and plan/artifact fingerprints are additive. Before a resumed `SendMessage`, capture and forward the complete `RESUMED_REVIEW_IDENTITY` envelope printed by `record-resumed-obligation.sh` (including any non-empty optional fingerprints); the reviewer must reproduce every declared field in the canonical artifact frontmatter. Legacy scope/diff-only evidence remains readable, but a new obligation with declared identity fails closed on missing or foreign fields. Completion requires both a terminal lifecycle result and every applicable matching Sentinel gate resolved through the hook-owned contract; a message, aggregate verdict, or lifecycle event alone is not completion. Detailed identity/presentation mechanics live in `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/implementation-dispatch.md` and `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/review-gate-mechanics.md`; this rule intentionally does not duplicate the dispatch table or clearance implementation.
+
+### Context tiers and dispatch packet
+
+Select the smallest context tier that preserves the settled decision:
+
+- **`cold`** — no parent-turn inheritance; use for independent reviewers,
+  workers, monitors, and peer checks.
+- **`bounded`** — inherit only the recent turns that contain unresolved user
+  decisions; use for architect/TDD continuation.
+- **`full`** — inherit the conversation only when the task is conversation-
+  dependent; record the reason in the handoff.
+
+Every `cold` handoff carries the same five-part packet: goal and non-goals;
+exact owned files; settled interfaces, invariants, and constraints;
+verification and acceptance; task/attempt identity plus required evidence
+pointers. The packet is the context boundary: do not require a worker to
+reconstruct it from parent history.
+
+File count remains a collision and safety gate. It does not by itself justify a
+`full` fork. When a task changes tier, packet, or inheritance mode, record the
+selected mode and the marginal context cost in the context ledger.
 
 ### Bash hygiene
 
@@ -179,7 +200,7 @@ reasoning tier and is unsupported. Model/effort resolve flag > backend-specific 
 missing codex executable falls back to `deep-reasoner`; authentication, model, and task
 failures remain `RESULT: BLOCKED` on the selected backend — never silently switched.
 
-**Orchestrator posture**: implement-phase work defaults to **decide → dispatch → verify**; inline work is the narrow exception. Measure the **whole implement-step footprint**, so multi-file doc-consistency work is one batch; when unsure between inline and a worker, dispatch. Verify runtime premises with the applicable E2E lane or a scratch executable probe. The orientation step binds unattended goals to this policy. Full routing, premise, verification, waiting, and plan-brief rules: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/implementation-dispatch.md`.
+**Orchestrator posture**: implement-phase work defaults to **decide → dispatch → verify**; inline work is the narrow exception. Measure the **whole implement-step footprint**, so multi-file doc-consistency work is one batch; when unsure between inline and a worker, dispatch. Verify runtime premises with the applicable E2E lane or a scratch executable probe. The orientation step binds unattended goals to the kernel and selected route reference. Full routing, premise, verification, waiting, and plan-brief rules: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/implementation-dispatch.md`.
 
 **Repository Discovery Gate**: before finalizing new DB, SQL, query-builder, criteria, model-persistence, or repository-like code, inspect and follow the established persistence boundary. Explicit project hard rules cannot be deferred; compliance is required unless the human records a human-approved exception. Full mechanics: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/implementation-dispatch.md`.
 

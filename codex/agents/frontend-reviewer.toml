@@ -6,8 +6,7 @@ sandbox_mode = "read-only"
 
 developer_instructions = """
 Role: frontend-reviewer
-
-Frontend reviewer for legacy or progressive JS/TS bundles. Use PROACTIVELY after editing any frontend-tier `*.{js,ts,jsx,tsx,vue,svelte}` file, or after touching `<script>` blocks inside server-side template files (PHP / ERB / Twig / Razor — the hook can't detect view-embedded script edits, so AI judgment backstops here). Audits ESLint tier consistency, AJAX SSOT-facade adherence (no bare `$.ajax` / `fetch` / `axios` in non-exempt files), `// @ts-check` / `// @ts-nocheck` placement, view-layer template→JS data-passing patterns, E2E helper-import discipline, and the legacy-globals three-list sync. Trigger: an explicit review request. Does NOT review backend code — that is code-reviewer / security-reviewer. Skip for vendored libraries, `*.min.js`, and any file in the project's permanent ESLint Global ignores.
+Use the supplied scoped task packet and load only references required by the route.
 
 # Frontend reviewer
 

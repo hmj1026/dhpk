@@ -194,10 +194,10 @@ test('characterizes the current unscoped Claude manifest and CLI outcome', () =>
       + '  roots:              1\n'
       + '  generated skill ids: 102 (excludes deprecated; host cannot hide within a shared root)\n',
   );
-  assert.strictEqual(pluginBytes.length, 30395, 'compatibility manifest byte count drifted');
+  assert.strictEqual(pluginBytes.length, 30206, 'compatibility manifest byte count drifted');
   assert.strictEqual(
     crypto.createHash('sha256').update(pluginBytes).digest('hex'),
-    'a0cf5386c9fa254495d4edb4b92899e638ebc3bcd48b80a8fe150e119c84be85',
+    'bb6575b0aa43a9ee064a6d9a5fce33544e8410d304c4c636020f8758a5740094',
     'compatibility manifest bytes drifted',
   );
 

@@ -66,23 +66,31 @@ function resolveSurfaceRoot(surfaceRoot, { allowedRoots = [], rejectSymlinkAnces
   return canonical;
 }
 
-function fingerprintPath(target, options = {}) {
-  const budget = createTraversalBudget(options);
-  const allowedRoots = canonicalAllowedRoots(options.allowedRoots);
-  const resolveCanonicalPath = (current) => {
-    const lexical = path.resolve(current);
-    const resolved = fs.realpathSync(current);
-    if (allowedRoots.length === 0 && lexical !== resolved) {
-      throw new Error(`symlinked path is not allowed without an approved root: ${current}`);
-    }
-    const contained = isContainedPath(resolved, allowedRoots);
-    if (allowedRoots.length > 0 && !contained) {
-      throw new Error(`symlink target is outside approved roots: ${current}`);
-    }
-    return resolved;
+function normalizeFingerprintOptions(options = {}) {
+  return {
+    ...options,
+    canonicalRoots: canonicalAllowedRoots(options.allowedRoots),
   };
+}
+
+function resolveCanonicalPath(current, { allowedRoots = [], canonicalRoots = null } = {}) {
+  const lexical = path.resolve(current);
+  const resolved = fs.realpathSync(current);
+  if (allowedRoots.length === 0 && lexical !== resolved) {
+    throw new Error(`symlinked path is not allowed without an approved root: ${current}`);
+  }
+  const roots = canonicalRoots || canonicalAllowedRoots(allowedRoots);
+  if (roots.length > 0 && !isContainedPath(resolved, roots)) {
+    throw new Error(`symlink target is outside approved roots: ${current}`);
+  }
+  return resolved;
+}
+
+function fingerprintPath(target, options = {}) {
+  const normalizedOptions = normalizeFingerprintOptions(options);
+  const budget = createTraversalBudget(normalizedOptions);
   const hashNode = (current, depth) => {
-    const canonical = resolveCanonicalPath(current);
+    const canonical = resolveCanonicalPath(current, normalizedOptions);
     const stat = fs.lstatSync(canonical);
     const nodeDigest = crypto.createHash('sha256');
     if (stat.isDirectory()) {
@@ -111,6 +119,18 @@ function fingerprintPath(target, options = {}) {
     if (error && error.code === 'ENOENT') return '';
     throw error;
   }
+}
+
+function fingerprintProjectSkill(target, options = {}) {
+  const normalizedOptions = normalizeFingerprintOptions(options);
+  const canonical = resolveCanonicalPath(target, normalizedOptions);
+  return fingerprintDir(canonical, normalizedOptions);
+}
+
+function fingerprintOptions(fingerprintFn, allowedRoots) {
+  return fingerprintFn === fingerprintPath || fingerprintFn === fingerprintProjectSkill
+    ? { allowedRoots }
+    : {};
 }
 
 function relativeEvidencePath(root, target, label) {
@@ -151,6 +171,8 @@ function discoverCodexSurface({
   expectedFingerprints = null,
   fingerprintFn = fingerprintPath,
   expectedFingerprintFn = fingerprintFn,
+  fingerprintFnByKind = {},
+  ownershipFingerprintFn = null,
   allowedRoots = [],
 }) {
   return ['skills', 'agents'].flatMap((kind) => {
@@ -163,9 +185,11 @@ function discoverCodexSurface({
     if (!kindStat.isDirectory() && !kindStat.isSymbolicLink()) {
       throw new Error(`surface root is not a directory: ${kindRoot}`);
     }
+    const contentFingerprintFn = fingerprintFnByKind[kind] || fingerprintFn;
+    const ownershipFn = ownershipFingerprintFn || contentFingerprintFn;
     const enumerationRoot = resolveSurfaceRoot(kindRoot, {
       allowedRoots,
-      rejectSymlinkAncestors: fingerprintFn === fingerprintDir,
+      rejectSymlinkAncestors: contentFingerprintFn === fingerprintDir,
     });
     const managed = manifest && manifest.managed_entries && manifest.managed_entries[kind];
     return readDirectoryEntries(enumerationRoot, { sort: true }).map((entry) => entry.name).flatMap((id) => {
@@ -174,18 +198,23 @@ function discoverCodexSurface({
       try { stat = fs.lstatSync(target); } catch (_) { return []; }
       if (!stat.isDirectory() && !stat.isSymbolicLink()) return [];
       let fingerprint = '';
+      let ownershipFingerprint = '';
       let expectedFingerprint = null;
       let fingerprintError = null;
       try {
-        const fingerprintOptions = fingerprintFn === fingerprintPath ? { allowedRoots } : {};
-        fingerprint = fingerprintFn(target, fingerprintOptions);
-        expectedFingerprint = expectedFingerprints ? expectedFingerprintFn(target, fingerprintOptions) : null;
+        fingerprint = contentFingerprintFn(target, fingerprintOptions(contentFingerprintFn, allowedRoots));
+        expectedFingerprint = expectedFingerprints
+          ? expectedFingerprintFn(target, fingerprintOptions(expectedFingerprintFn, allowedRoots))
+          : null;
+        ownershipFingerprint = ownershipFn === contentFingerprintFn
+          ? fingerprint
+          : ownershipFn(target, fingerprintOptions(ownershipFn, allowedRoots));
       } catch (error) {
         fingerprintError = error;
       }
       const receiptEntry = managed && managed[id];
       const owned = manifest
-        ? Boolean(receiptEntry && receiptEntry.destination_fingerprint === fingerprint)
+        ? Boolean(receiptEntry && receiptEntry.destination_fingerprint === ownershipFingerprint)
         : Boolean(provenance && provenance.valid && expectedFingerprints && expectedFingerprints[id] === expectedFingerprint);
       const current = manifest
         ? Boolean(manifest.plugin_version === version && manifest.schema_version >= 2)
@@ -286,6 +315,8 @@ function discoverCodexSurfaces({ root, project, version, nativeRoot = path.join(
     version,
     manifest,
     allowedRoots: [project, root],
+    fingerprintFnByKind: { skills: fingerprintProjectSkill },
+    ownershipFingerprintFn: fingerprintPath,
   });
   let nativeVersion = version;
   const nativeManifestPath = path.join(nativeRoot, '.codex-plugin', 'plugin.json');
@@ -856,6 +887,7 @@ module.exports = {
   evaluateCodexSurfaceMatrix,
   fingerprintDir,
   fingerprintPath,
+  fingerprintProjectSkill,
   redactEvidence,
   verifyCodexSync,
   verifyProjectedConsumer,

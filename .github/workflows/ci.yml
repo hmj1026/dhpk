@@ -57,6 +57,11 @@ jobs:
       - name: Validate invocation policy
         run: node scripts/ci/validate-invocation-policy.js
 
+      # Agent-spawn context ledger: static estimates are separate from runtime
+      # token telemetry, which is supplied by the host when available.
+      - name: Validate subagent context ledger
+        run: node scripts/ci/subagent-context-budget.js
+
       # Count SSOT: README / manifest exact claims must match reality.
       - name: Catalog count check
         run: node scripts/ci/catalog.js --check

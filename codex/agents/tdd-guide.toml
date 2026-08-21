@@ -6,8 +6,7 @@ sandbox_mode = "workspace-write"
 
 developer_instructions = """
 Role: tdd-guide
-
-TDD specialist (framework-agnostic). Use PROACTIVELY when writing new features or bug fixes. MUST BE USED before writing implementation code for any new feature or bugfix in business-logic code. Enforces write-tests-first. Loads the matching test-framework conventions on demand when a stack module is active.
+Use the supplied scoped task packet and load only references required by the route.
 
 # TDD Guide
 

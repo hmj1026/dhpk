@@ -5,13 +5,11 @@
 # false) — injecting context into every subagent costs tokens and other
 # consumers must ask for it explicitly.
 #
-# Injected sections (capped at 2000 chars total):
-#   1. Active review sentinels + chain order (derived from SENTINEL_LABELS)
-#   2. OpenSpec active change (most recent dir under openspec/changes/) +
-#      first 3 task checkboxes
-#   3. Project-supplied context: <project>/.claude/warmstart-context.md
-#      (first 800 chars) — put stack paths, container names, test commands here
-#   4. Tool-routing reminder
+# Role-filtered sections (default-off; each packet is capped separately):
+#   reviewer  — active sentinel/scope only
+#   worker/TDD — supplied handoff prompt plus bounded OpenSpec/project context
+#   explorer  — routing reminder only
+#   monitor   — process identity only
 #
 # One-shot override: DHPK_AGENT_WARMSTART=1/0.
 # Exit code: always 0 (advisory; any failure falls back to an empty JSON
@@ -39,6 +37,8 @@ if [ "$PROFILE" = "minimal" ]; then
 fi
 
 PAYLOAD="$(dhpk_read_payload)"
+SUBAGENT_TYPE="$(extract_tool_input subagent_type "$PAYLOAD")"
+HANDOFF_PACKET="$(extract_tool_input prompt "$PAYLOAD")"
 
 command -v python3 >/dev/null 2>&1 || { printf '{}'; exit 0; }
 
@@ -46,6 +46,9 @@ out="$(
     CLAUDE_PROJECT_DIR="$ROOT" \
     SENTINEL_NAMES="${SENTINEL_NAMES[*]}" \
     SENTINEL_LABELS="${SENTINEL_LABELS[*]}" \
+    SENTINEL_AGENTS="${SENTINEL_AGENTS[*]}" \
+    SUBAGENT_TYPE="$SUBAGENT_TYPE" \
+    HANDOFF_PACKET="$HANDOFF_PACKET" \
     python3 <<'PY' 2>/dev/null || printf '{}'
 import json, os
 from pathlib import Path
@@ -53,6 +56,16 @@ from pathlib import Path
 ROOT = Path(os.environ["CLAUDE_PROJECT_DIR"]).resolve()
 sentinels = os.environ.get("SENTINEL_NAMES", "").split()
 labels = os.environ.get("SENTINEL_LABELS", "").split()
+agents = [entry.split(":")[-1].strip().lower() for entry in os.environ.get("SENTINEL_AGENTS", "").split()]
+role = os.environ.get("SUBAGENT_TYPE", "").split(":")[-1].strip().lower()
+handoff = os.environ.get("HANDOFF_PACKET", "").strip()
+reviewer_roles = {
+    "code-reviewer", "database-reviewer", "security-reviewer",
+    "frontend-reviewer", "doc-reviewer", "polyfill-reviewer",
+    "migration-reviewer",
+}
+reviewer_roles.update(agent for agent in agents if agent)
+worker_roles = {"worker", "fast-worker", "tdd-guide", "e2e-runner"}
 
 def read_text_safe(p, max_chars=400):
     try:
@@ -70,14 +83,27 @@ if sess_dir.is_dir():
     for s in sentinels:
         if (sess_dir / s).is_file():
             active.append(s)
-if active:
+if role in reviewer_roles:
+    matching = [s for s, agent in zip(sentinels, agents) if agent == role and s in active]
+    if matching:
+        lines.append("Active review sentinel: " + ", ".join(matching))
+    else:
+        lines.append("Reviewer role: " + role + "; no matching active sentinel")
+elif active:
     lines.append("Active review sentinels: " + ", ".join(active))
-    if labels:
-        lines.append("Reviewer slots (SSOT: plugin _lib/payload.sh): " + " | ".join(labels))
 
-# === Section 2: OpenSpec active change (if any non-archived change exists) ===
+# === Role-specific early exits ===
+if role == "monitor":
+    lines.append("Agent role: monitor; preserve process identity and report state only")
+elif role == "explorer":
+    lines.append(
+        "Tool routing: prefer semantic code tools (cx / gitnexus) over raw Read "
+        "(see ${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md)"
+    )
+
+# === Section 2: OpenSpec active change (worker/TDD and generic roles only) ===
 opsx_changes = ROOT / "openspec" / "changes"
-if opsx_changes.is_dir():
+if role not in reviewer_roles and role not in {"monitor", "explorer"} and opsx_changes.is_dir():
     # Filter to real dirs before sorting so a broken symlink can't OSError the
     # sort key and take the whole hook down.
     candidates = []
@@ -107,22 +133,33 @@ if opsx_changes.is_dir():
             if todo:
                 lines.append("Tasks (first 3): " + " | ".join(todo))
 
-# === Section 3: Project-supplied context (.claude/warmstart-context.md) ===
+# === Section 3: Supplied handoff/project context (worker/TDD and generic roles) ===
+if role in worker_roles and handoff:
+    lines.append("Handoff packet: " + handoff[:1000])
+
 proj_ctx = ROOT / ".claude" / "warmstart-context.md"
-if proj_ctx.is_file():
-    body = read_text_safe(proj_ctx, max_chars=800).strip()
+if role not in reviewer_roles and role not in {"monitor", "explorer"} and proj_ctx.is_file():
+    body = read_text_safe(proj_ctx, max_chars=400 if role in worker_roles else 800).strip()
     if body:
         lines.append(body)
 
-# === Section 4: Tool-routing reminder ===
-lines.append(
-    "Tool routing: prefer semantic code tools (cx / gitnexus) over raw Read "
-    "(see ${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md)"
-)
+# === Section 4: Tool-routing reminder for implementation roles ===
+if role in worker_roles or not role:
+    lines.append(
+        "Tool routing: prefer semantic code tools (cx / gitnexus) over raw Read "
+        "(see ${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md)"
+    )
 
 body = "\n".join(lines)
-if len(body) > 2000:
-    body = body[:1997] + "..."
+budgets = {
+    "reviewer": 700,
+    "worker": 1400,
+    "explorer": 500,
+    "monitor": 300,
+}
+budget = budgets["reviewer"] if role in reviewer_roles else budgets.get(role, 1200)
+if len(body) > budget:
+    body = body[: budget - 3] + "..."
 
 ctx_block = (
     "<parent-session-context>\n"

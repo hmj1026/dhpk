@@ -34,7 +34,9 @@
 set -o pipefail
 
 . "$(dirname "$0")/_lib/session-env.sh"
-. "$(dirname "$0")/_lib/load-project-config.sh"
+if [ "${DHPK_PROJECT_CONFIG_LOADED:-}" != "1" ]; then
+    . "$(dirname "$0")/_lib/load-project-config.sh"
+fi
 . "$(dirname "$0")/_lib/payload.sh"
 . "$(dirname "$0")/_lib/json-out.sh"
 
