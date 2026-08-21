@@ -61,11 +61,11 @@ The coordinator SHALL distinguish quota blocks from failed starts, retain the ex
 
 ### Requirement: Evidence binds producer, artifact, stage, adapter, and obligation
 
-Every `EvidenceResult` consumed by orchestration SHALL identify the producer dispatch/session, current obligation or review-wave identity, verification stage, consumer adapter identity/version, `DistributionPlan` fingerprint when applicable, `DistributionArtifact` fingerprint when applicable, creation time, checked scope, and a canonical lifecycle identity record or an explicit legacy-compatibility marker. Missing, foreign, or mismatched binding fields MUST leave the obligation unresolved.
+Every `EvidenceResult` consumed by orchestration SHALL identify the producer dispatch/session, current obligation or review-wave identity, verification stage, consumer adapter identity/version, `DistributionPlan` fingerprint when applicable, `DistributionArtifact` fingerprint when applicable, creation time, checked scope, normalized per-surface results when the evidence covers multiple consumers, and parseable verdict. A result with no new identity fields MAY carry an explicit legacy-compatibility marker and use the characterized legacy path; once a new identity field is declared, missing or mismatched required binding fields MUST leave the obligation unresolved.
 
 #### Scenario: Current projection verification closes its obligation
 
-- **WHEN** evidence names the current dispatch/review wave, requested stage and adapter, exact plan/artifact fingerprints, and a matching canonical lifecycle identity with a passing verdict
+- **WHEN** evidence names the current dispatch/review wave, requested stage and adapter, exact plan/artifact fingerprints, normalized surface result, and a passing verdict
 - **THEN** orchestration may accept that verification boundary and record its durable evidence path
 
 #### Scenario: Evidence belongs to another artifact
@@ -78,6 +78,15 @@ Every `EvidenceResult` consumed by orchestration SHALL identify the producer dis
 - **WHEN** structural evidence is presented for an obligation that requires consumer-runtime verification
 - **THEN** orchestration records the structural result separately and does not close the runtime obligation
 
+#### Scenario: One surface is unavailable in a multi-surface result
+
+- **WHEN** normalized evidence includes a passing structural result for one surface and `UNAVAILABLE` or `NOT_RUN` consumer evidence for another
+- **THEN** orchestration retains both surface outcomes and does not treat the structural result as proof of the unavailable consumer
+
+#### Scenario: Legacy evidence uses the compatibility path
+
+- **WHEN** an evidence result has no new identity fields and carries an explicit legacy-compatibility marker
+- **THEN** orchestration applies the characterized legacy binding path and does not require fields that were not declared by that result
 ### Requirement: Handoffs preserve one traceable lifecycle identity
 
 Dispatch, follow-up handoff, corrected retry, artifact readiness, evidence production, and final acceptance SHALL remain linked by one canonical task identity plus explicit attempt identities. A handoff MUST preserve the prior context boundary and obligation identity; it MUST NOT create a false second completion or silently detach evidence from the originating task.

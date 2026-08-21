@@ -35,7 +35,7 @@ const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
 const { spawnSync } = require('child_process');
-const { VERDICTS } = require('../lib/release-evidence');
+const { VERDICTS, normalizeConsumerEvidence } = require('../lib/release-evidence');
 const { fingerprintDir } = require('../lib/codex-native-package');
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('../lib/bounded-filesystem');
 const { collectCodexProjectionReferenceErrors } = require('../ci/_lib/codex-runtime');
@@ -712,13 +712,73 @@ function verifyProjectedConsumer(root, platform, version) {
   try { payload = JSON.parse(res.stdout || '{}'); } catch (_) {
     payload = { status: 'FAIL', reason: `consumer probe emitted invalid JSON (exit ${res.status})` };
   }
+  const surface = platform === 'codex' ? 'agent-plugin' : 'cursor-plugin';
+  const childFailure = res.status !== 0 || payload.normalizationError;
+  const expectedFailureStatus = ['FAIL', 'BLOCKED'].includes(payload.status);
+  const forcedChildFailure = childFailure && !expectedFailureStatus;
+  const effectiveStatus = forcedChildFailure ? 'FAIL' : (payload.status || 'FAIL');
+  const effectiveReason = payload.normalizationError
+    ? `consumer probe normalization failed: ${payload.normalizationError}`
+    : (forcedChildFailure
+      ? `consumer probe exited ${res.status} with producer status ${payload.status || 'missing'}`
+      : payload.reason);
+  const surfaceResults = Array.isArray(payload.surfaceResults) && payload.surfaceResults.length > 0
+    ? payload.surfaceResults.map((entry) => ({
+      ...entry,
+      surface,
+      status: forcedChildFailure ? 'FAIL' : entry.status,
+      ...(childFailure && effectiveReason ? { reasons: [...(entry.reasons || []), effectiveReason] } : {}),
+    }))
+    : [{
+      surface,
+      status: effectiveStatus,
+      commands: payload.commands || [],
+      environment: process.env.CI ? 'ci' : 'local',
+      artifacts: payload.artifacts || [],
+      diagnostics: payload.diagnostics || payload.diagnostic || [],
+      reasons: payload.failureReasons || (effectiveReason ? [effectiveReason] : []),
+      checkedClaims: ['package-manifest', 'consumer-route'],
+    }];
+  const normalized = normalizeConsumerEvidence({
+    stage: 'CONSUMER',
+    producer: 'consumer-platform-probe',
+    adapter: { id: 'consumer-platform-probe', version: '1.0.0' },
+    surfaceResults,
+  });
   return {
-    status: payload.status || 'FAIL',
+    status: effectiveStatus,
     commands: Array.isArray(payload.commands) && payload.commands.length > 0
       ? payload.commands.map((cmd) => ({ cmd: redactEvidence(typeof cmd === 'string' ? cmd : cmd.cmd || `node scripts/release/consumer-platform-probe.js --platform ${platform}`, root), exitCode: typeof cmd === 'string' ? res.status : (cmd.exitCode === undefined ? res.status : cmd.exitCode) }))
       : [{ cmd: `node scripts/release/consumer-platform-probe.js --platform ${platform}`, exitCode: res.status }],
-    reason: payload.reason ? redactEvidence(payload.reason, root) : null,
+    reason: effectiveReason ? redactEvidence(effectiveReason, root) : null,
+    diagnostics: payload.diagnostics || payload.diagnostic || [],
+    artifacts: payload.artifacts || [],
+    surfaceResults: normalized.surfaceResults,
   };
+}
+
+function normalizeGateSurface(surface, producer, adapter, result, environment) {
+  const surfaceResults = result.surfaceResults || [{
+    surface,
+    status: result.status || result.verdict,
+    commands: result.commands || [],
+    environment,
+    artifacts: result.artifacts || [],
+    diagnostics: result.diagnostics || result.diagnostic || [],
+    reasons: result.failureReasons || result.reasons || [],
+    checkedClaims: result.checkedClaims || [],
+  }];
+  const normalized = normalizeConsumerEvidence({
+    stage: 'CONSUMER',
+    producer,
+    adapter,
+    surfaceResults,
+  });
+  return normalized.surfaceResults.map((entry) => ({
+    ...entry,
+    ...(result.surfaceVerdict ? { legacySurfaceStatus: result.surfaceVerdict } : {}),
+    ...(result.warnings && result.warnings.length > 0 ? { warnings: result.warnings } : {}),
+  }));
 }
 
 function runGate(args) {
@@ -727,6 +787,15 @@ function runGate(args) {
   const native = verifyCodexNative(args.root);
   const projectedCodex = verifyProjectedConsumer(args.root, 'codex', args.version);
   const projectedCursor = verifyProjectedConsumer(args.root, 'cursor', args.version);
+
+  const environment = process.env.CI ? 'ci' : 'local';
+  const surfaceResults = [
+    ...normalizeGateSurface('codex-sync', 'consumer-gate', { id: 'codex-sync-installer', version: '1.0.0' }, codex, environment),
+    ...normalizeGateSurface('claude', 'consumer-gate', { id: 'claude-plugin-cli', version: claude.cliVersion || 'unknown' }, claude, environment),
+    ...normalizeGateSurface('codex-native', 'consumer-gate', { id: 'codex-native-install-smoke', version: '1.0.0' }, native, environment),
+    ...projectedCodex.surfaceResults,
+    ...projectedCursor.surfaceResults,
+  ];
 
   const commands = [...codex.commands, ...claude.commands, ...native.commands, ...projectedCodex.commands, ...projectedCursor.commands];
   const failureReasons = [
@@ -746,7 +815,7 @@ function runGate(args) {
   const stage = {
     verdict,
     commands,
-    environment: process.env.CI ? 'ci' : 'local',
+    environment,
     artifacts: [
       `claude-official-strict: ${claude.officialValidation ? claude.officialValidation.verdict : 'NOT RUN'}${claude.officialValidation && claude.officialValidation.reason ? ` (${claude.officialValidation.reason})` : ''}`,
       `native-codex-marketplace: ${native.verdict} (experimental support tier; consumer proof does not itself graduate the support tier)`,
@@ -761,6 +830,12 @@ function runGate(args) {
     ],
     failureReasons,
     ...(codex.surfaces ? { codexSurfaces: { ...codex.surfaces, duplicates: codex.duplicateEvidence || [] } } : {}),
+    stage: 'CONSUMER',
+    producer: 'consumer-gate',
+    adapter: { id: 'consumer-gate', version: '1.0.0' },
+    surfaceResults,
+    ...(codex.surfaceVerdict ? { legacySurfaceStatus: codex.surfaceVerdict } : {}),
+    ...(codex.surfaceVerdict === 'WARN' ? { warnings: ['Codex duplicate-surface matrix returned WARN; compatibility status is not a canonical evidence verdict'] } : {}),
   };
 
   return stage;
@@ -784,5 +859,6 @@ module.exports = {
   redactEvidence,
   verifyCodexSync,
   verifyProjectedConsumer,
+  normalizeGateSurface,
   runGate,
 };

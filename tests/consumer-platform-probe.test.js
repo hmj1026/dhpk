@@ -66,7 +66,11 @@ test('Cursor probe is explicit UNAVAILABLE in a non-Cursor environment', () => {
   try {
     writeCursorPackage(root);
     const result = runProbe('cursor', root);
-    assert.strictEqual(JSON.parse(result.stdout).status, 'UNAVAILABLE');
+    const payload = JSON.parse(result.stdout);
+    assert.strictEqual(payload.status, 'UNAVAILABLE');
+    assert.strictEqual(payload.surfaceResults.length, 1);
+    assert.strictEqual(payload.surfaceResults[0].surface, 'cursor-plugin');
+    assert.strictEqual(payload.surfaceResults[0].status, 'UNAVAILABLE');
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -81,7 +85,11 @@ test('Codex --execute uses a sandboxed CODEX_HOME and reports PASS only after th
     const env = { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH || ''}`, DHPK_CONSUMER_PROBE_EXECUTE: '', DHPK_CONSUMER_PROBE_ALLOW_UNSANDBOXED_EXECUTION: '1' };
     const result = runProbe('codex', root, ['--execute'], env);
     assert.strictEqual(result.status, 0, result.stdout + result.stderr);
-    assert.strictEqual(JSON.parse(result.stdout).status, 'PASS');
+    const payload = JSON.parse(result.stdout);
+    assert.strictEqual(payload.status, 'PASS');
+    assert.strictEqual(payload.surfaceEvidence.status, 'PASS');
+    assert.strictEqual(payload.surfaceEvidence.surface, 'codex-marketplace');
+    assert.ok(payload.surfaceEvidence.commands.length > 0);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
     fs.rmSync(bin, { recursive: true, force: true });
