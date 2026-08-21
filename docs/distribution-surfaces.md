@@ -154,6 +154,31 @@ count-scoping construct, not a claim about what the Claude host actually
 lists. `scripts/ci/gen-claude-manifest.js --check` verifies the directory-root
 set only; it cannot and does not assert per-skill hiding.
 
+## Opt-in Claude profile bundles
+
+The compatibility package (`dhpk@dhpk`) remains the default and rollback path.
+Finite aliases declared in `manifests/install-profiles.json` can instead be
+compiled before discovery with:
+
+```bash
+node scripts/ci/gen-claude-profile-bundles.js --profile minimal --check
+node scripts/ci/gen-claude-profile-bundles.js --profile minimal --out /tmp/dhpk-profile
+```
+
+The generated package has its own physical `./skills/` root and a
+`bundle-receipt.json` containing the profile, selected stable IDs, plan
+fingerprint, and compatibility mode. Selection is inventory-owned and module
+closure is resolved from the profile and module catalogs; SessionStart remains
+runtime activation only. Arbitrary module combinations are not published as
+profile artifacts. The first rollout is opt-in and marketplace-oriented; a
+local `--plugin-dir` check is generation evidence, not consumer-runtime proof.
+
+When the configured Claude executable or installation mode is unavailable, the
+consumer result remains `NOT_CONFIGURED`, `NOT_RUN`, or `UNAVAILABLE` with a
+resume command. A generated package or context-budget report alone never
+claims a smaller live Claude context, and the bundle does not reduce
+`agents/`, `commands/`, `rules/`, or `userConfig` context.
+
 ## Two-stage deprecation
 
 1. Change the skill's lifecycle to `deprecated` in the distribution

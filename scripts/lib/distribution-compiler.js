@@ -143,6 +143,12 @@ function compileDistribution(inputs = {}) {
       error: projectionError('INVALID_INPUT', 'compile', 'inventory is required when entries are not supplied'),
     };
   }
+  if (inputs.surface === 'claude-profile' && (!inputs.profileSelection || typeof inputs.profileSelection !== 'object')) {
+    return {
+      ok: false,
+      error: projectionError('INCOMPLETE_PLAN', 'compile', 'claude-profile compilation requires explicit profile selection'),
+    };
+  }
   const planInput = { ...inputs, entries };
   const selectedStableIds = inputs.selectedStableIds || selection.selectedStableIds;
   const selectionPolicy = inputs.selectionPolicy || selection.selectionPolicy;
