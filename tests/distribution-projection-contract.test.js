@@ -23,6 +23,21 @@ function inventory() {
       { id: 'a', path: 'skills/a', surfaces: ['agent-plugin'] },
     ],
     modules: [],
+    surface_membership: { 'agent-plugin': ['b', 'a'] },
+    projection_contract: {
+      schema: 'dhpk.distribution-projection-contract.v1',
+      compiler: { id: 'distribution-compiler', version: '1' },
+      symlink_policies: ['forbid'],
+      surfaces: {
+        'agent-plugin': {
+          adapter: 'agent-plugin',
+          owner: 'agent-plugin',
+          symlink_policy: 'forbid',
+          verification_stages: ['structural'],
+          selection_policy: { source: 'surface_membership', precedence: ['surface_membership'] },
+        },
+      },
+    },
   };
 }
 
@@ -35,6 +50,88 @@ test('compileDistribution produces a frozen, deterministic plan from inventory p
   assert.deepStrictEqual(first.value.entries.map((entry) => entry.stableId), ['a', 'b']);
   assert.ok(Object.isFrozen(first.value));
   assert.ok(Object.isFrozen(first.value.entries));
+});
+
+test('compiler resolves declared surface membership and records selected IDs', () => {
+  const source = inventory();
+  source.surface_membership['agent-plugin'] = ['a'];
+  source.skills.push({ id: 'not-selected', path: 'skills/not-selected', surfaces: ['agent-plugin'] });
+  const compiled = compileDistribution({ inventory: source, surface: 'agent-plugin' });
+  assert.strictEqual(compiled.ok, true, compiled.error && compiled.error.message);
+  assert.deepStrictEqual(compiled.value.entries.map((entry) => entry.stableId), ['a']);
+  assert.deepStrictEqual(compiled.value.selectedStableIds, ['a']);
+});
+
+test('legacy inventory compilation keeps the requested surface filter', () => {
+  const source = {
+    skills: [
+      { id: 'agent', path: 'skills/agent', surfaces: ['agent-plugin'] },
+      { id: 'cursor', path: 'skills/cursor', surfaces: ['cursor-plugin'] },
+    ],
+    modules: [],
+  };
+  const compiled = compileDistribution({ inventory: source, surface: 'agent-plugin' });
+  assert.strictEqual(compiled.ok, true, compiled.error && compiled.error.message);
+  assert.deepStrictEqual(compiled.value.entries.map((entry) => entry.stableId), ['agent']);
+});
+
+test('output plans retain canonical selection identity separately from output intents', () => {
+  const compiled = compileDistribution({
+    surface: 'agent-plugin',
+    entries: [{ id: 'manifest:plugin', source: 'generated/plugin.json', destination: 'plugin.json' }],
+    selectedStableIds: ['canonical-skill'],
+    selectionPolicy: { source: 'surface_membership', precedence: ['surface_membership'] },
+    selectionEntries: [{ id: 'canonical-skill', source: 'skills/canonical', destination: 'skills/canonical' }],
+  });
+  assert.strictEqual(compiled.ok, true, compiled.error && compiled.error.message);
+  assert.deepStrictEqual(compiled.value.selectedStableIds, ['canonical-skill']);
+  assert.deepStrictEqual(compiled.value.selectionEntries.map((entry) => entry.stableId), ['canonical-skill']);
+  assert.strictEqual(compiled.value.selectionPolicy.source, 'surface_membership');
+  assert.deepStrictEqual(compiled.value.entries.map((entry) => entry.stableId), ['manifest:plugin']);
+});
+
+test('compiler fails closed when a migrated surface lacks a valid selection policy', () => {
+  const source = inventory();
+  delete source.projection_contract.surfaces['agent-plugin'].selection_policy;
+  const missing = compileDistribution({ inventory: source, surface: 'agent-plugin' });
+  assert.strictEqual(missing.ok, false);
+  assert.strictEqual(missing.error.code, 'INVALID_SELECTION_POLICY');
+
+  source.projection_contract.surfaces['agent-plugin'].selection_policy = {
+    source: 'ambient-directory',
+    precedence: ['ambient-directory'],
+  };
+  const unknown = compileDistribution({ inventory: source, surface: 'agent-plugin' });
+  assert.strictEqual(unknown.ok, false);
+  assert.strictEqual(unknown.error.code, 'INVALID_SELECTION_POLICY');
+});
+
+test('compiler preserves Native Codex entry allowlist over other membership maps', () => {
+  const source = {
+    skills: [
+      { id: 'native', path: 'skills/native', surfaces: ['codex-native'] },
+      { id: 'broadened', path: 'skills/broadened', surfaces: ['agent-plugin'] },
+    ],
+    modules: [],
+    surface_membership: { 'codex-native': ['native', 'broadened'] },
+    projection_contract: {
+      schema: 'dhpk.distribution-projection-contract.v1',
+      compiler: { id: 'distribution-compiler', version: '1' },
+      symlink_policies: ['forbid'],
+      surfaces: {
+        'codex-native': {
+          adapter: 'codex-native',
+          owner: 'codex-native',
+          symlink_policy: 'forbid',
+          verification_stages: ['structural'],
+          selection_policy: { source: 'entry_surfaces', precedence: ['entry_surfaces'] },
+        },
+      },
+    },
+  };
+  const compiled = compileDistribution({ inventory: source, surface: 'codex-native' });
+  assert.strictEqual(compiled.ok, true, compiled.error && compiled.error.message);
+  assert.deepStrictEqual(compiled.value.entries.map((entry) => entry.stableId), ['native']);
 });
 
 test('compileDistribution rejects duplicate IDs, invalid entries, and unsupported symlink policies', () => {

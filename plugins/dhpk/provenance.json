@@ -1,10 +1,11 @@
 {
   "schema": "dhpk.platform-provenance.v1",
   "surface": "codex-native",
+  "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.43.0",
-  "sourceCommit": "cb727bf6a88d0e7f08d33823404ab7f0056621e8",
-  "inventoryDigest": "f1b777dfcda7c0bd605162aec481afcac24ef94e6780504f47dee86959da8ad8",
+  "sourceCommit": "2e3ead7e619ed4ce5719985ab246eb50d7719009",
+  "inventoryDigest": "da31ac6d9bdded885c96e1395deaf066e15f05eedfe80fcd0da92be0d1ec1286",
   "generatorVersion": "2.2.0",
   "selectedSkillIds": [
     "agy-commit",

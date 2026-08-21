@@ -187,7 +187,13 @@
           "package",
           "consumer-runtime"
         ],
-        "symlink_policy": "forbid"
+        "symlink_policy": "forbid",
+        "selection_policy": {
+          "source": "entry_surfaces",
+          "precedence": [
+            "entry_surfaces"
+          ]
+        }
       },
       "agent-plugin": {
         "adapter": "agent-plugin",
@@ -197,7 +203,16 @@
           "package",
           "consumer-runtime"
         ],
-        "symlink_policy": "forbid"
+        "symlink_policy": "forbid",
+        "selection_policy": {
+          "source": "surface_membership",
+          "precedence": [
+            "surface_membership",
+            "projection",
+            "platform_matrix",
+            "entry_surfaces"
+          ]
+        }
       },
       "cursor-plugin": {
         "adapter": "cursor-plugin",
@@ -207,7 +222,16 @@
           "package",
           "consumer-runtime"
         ],
-        "symlink_policy": "forbid"
+        "symlink_policy": "forbid",
+        "selection_policy": {
+          "source": "surface_membership",
+          "precedence": [
+            "surface_membership",
+            "projection",
+            "platform_matrix",
+            "entry_surfaces"
+          ]
+        }
       },
       "agy-plugin": {
         "adapter": "agy-plugin",

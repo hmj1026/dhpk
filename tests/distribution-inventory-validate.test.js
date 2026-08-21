@@ -405,12 +405,14 @@ test('inventory bootstrap preserves projection contracts on regeneration', () =>
     surface_membership: { 'agent-plugin': ['stable'], 'cursor-plugin': ['stable'] },
     platform_matrix: { schema: 'dhpk.platform-capability-matrix.v1', entries: [] },
     portable_frontmatter: { allowlist: ['name'], client_owned: ['agents/openai.yaml'] },
+    projection_contract: { schema: 'dhpk.distribution-projection-contract.v1' },
   };
   const merged = preserveProjectionContract(generated, existing);
   assert.deepStrictEqual(merged.surfaces, existing.surfaces);
   assert.deepStrictEqual(merged.surface_membership, existing.surface_membership);
   assert.deepStrictEqual(merged.platform_matrix, existing.platform_matrix);
   assert.deepStrictEqual(merged.portable_frontmatter, existing.portable_frontmatter);
+  assert.deepStrictEqual(merged.projection_contract, existing.projection_contract);
 });
 
 run('distribution-inventory-validate');

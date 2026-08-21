@@ -189,9 +189,10 @@ function validateNativeSkillIdentity({ packageRoot, inventory, manifestSkillsFie
 // still carry `codex-native` — the two-stage deprecation window keeps a
 // deprecated skill's surfaces intact for compatibility, but it must not be
 // (re)published into a fresh native package.
-function selectNativeSkills(inventory) {
+function selectNativeSkills(inventory, selectedStableIds = null) {
+  const selected = Array.isArray(selectedStableIds) ? new Set(selectedStableIds) : null;
   return (inventory.skills || []).filter(
-    (s) => (s.surfaces || []).includes('codex-native') && s.lifecycle !== 'deprecated'
+    (s) => (s.surfaces || []).includes('codex-native') && s.lifecycle !== 'deprecated' && (!selected || selected.has(s.id) || selected.has(s.name))
   );
 }
 
@@ -203,7 +204,12 @@ function selectNativeSkills(inventory) {
 // that have not yet renamed their local variable; its values are directory
 // names, i.e. public names for v2 inventories.
 function validateNativeMembership({ candidateSkillNames, candidateSkillIds, inventory }) {
-  const selected = selectNativeSkills(inventory);
+  const selection = compileDistribution({ inventory, surface: 'codex-native' });
+  if (!selection.ok) throw new Error(selection.error.message);
+  const selected = selectNativeSkills(
+    inventory,
+    selection.value.selectionPolicy ? selection.value.selectedStableIds : null,
+  );
   const expected = new Map(selected.map((s) => [s.name || s.id, s.id]));
   const inventoryIdsByName = new Map((inventory.skills || []).map((s) => [s.name || s.id, s.id]));
   const candidateNames = candidateSkillNames || candidateSkillIds || [];
@@ -321,6 +327,7 @@ function compileNativePackage({
   sourceCommit = 'unknown',
   generatorVersion = GENERATOR_VERSION,
   traversalOptions = {},
+  selectionMode = 'compiler',
 } = {}) {
   if (!root || !outDir) throw new Error('compileNativePackage requires root and outDir');
   const resolvedRoot = path.resolve(root);
@@ -334,7 +341,12 @@ function compileNativePackage({
   const routingProjection = buildSkillRoutingProjection({ inventory, surface: 'codex-native' });
   const traversalBudget = createTraversalBudget(traversalOptions);
 
-  const selected = selectNativeSkills(inventory);
+  const selection = selectionMode === 'legacy' ? null : compileDistribution({ inventory, surface: 'codex-native' });
+  if (selection && !selection.ok) throw new Error(selection.error.message);
+  const selected = selectNativeSkills(
+    inventory,
+    selection && selection.value.selectionPolicy ? selection.value.selectedStableIds : null,
+  );
   const files = [];
   const fingerprints = {};
   const selectedEntries = [];
@@ -377,6 +389,7 @@ function compileNativePackage({
   const provenance = {
     schema: RECEIPT_SCHEMA,
     surface: 'codex-native',
+    selectionMode,
     owner: SURFACE_OWNERS['codex-native'],
     sourceVersion: version,
     sourceCommit,
@@ -418,6 +431,15 @@ function compileNativePackage({
     inventoryFingerprint: inventoryDigest,
     ownershipRoot: resolvedOut,
     entries,
+    selectedStableIds: selection && selection.ok && selection.value.selectionPolicy
+      ? selection.value.selectedStableIds
+      : undefined,
+    selectionPolicy: selection && selection.ok && selection.value.selectionPolicy
+      ? selection.value.selectionPolicy
+      : undefined,
+    selectionEntries: selection && selection.ok && selection.value.selectionPolicy
+      ? selection.value.entries
+      : undefined,
   });
   if (!compiled.ok) throw new Error(compiled.error.message);
   const adapter = {
