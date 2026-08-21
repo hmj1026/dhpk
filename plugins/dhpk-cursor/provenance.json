@@ -1,11 +1,12 @@
 {
   "schema": "dhpk.platform-provenance.v1",
   "surface": "cursor-plugin",
+  "selectionMode": "compiler",
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.43.0",
-  "sourceCommit": "cb727bf6a88d0e7f08d33823404ab7f0056621e8",
-  "inventoryDigest": "f1b777dfcda7c0bd605162aec481afcac24ef94e6780504f47dee86959da8ad8",
+  "sourceCommit": "2e3ead7e619ed4ce5719985ab246eb50d7719009",
+  "inventoryDigest": "da31ac6d9bdded885c96e1395deaf066e15f05eedfe80fcd0da92be0d1ec1286",
   "generatorVersion": "1.0.0",
   "selectedSkillIds": [],
   "selectedSkillNames": [],
@@ -626,5 +627,5 @@
     "status": "NOT_RUN",
     "reason": "Cursor client consumer probe is separate from structural generation."
   },
-  "planFingerprint": "35ea08b278d0da7a4b51f65075e022f0539ee4f30b74c4faf7723219227a4ab7"
+  "planFingerprint": "ddc114e5762fe6e8c6cd9f4788b0e024e8ed376bf505cda2bb23269b10735ab3"
 }

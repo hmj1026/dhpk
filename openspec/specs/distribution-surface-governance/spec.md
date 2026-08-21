@@ -155,11 +155,11 @@ stable-ID provenance linking it to the owner.
 
 ### Requirement: Distribution inventory is the projection selection SSOT
 
-`manifests/distribution-inventory.json` SHALL be the sole source of component selection, lifecycle, permitted surfaces, canonical source identity, physical ownership, transforms, and symlink policy supplied to `compileDistribution`. Generators, adapters, manifests, directory layouts, README lists, and installed artifacts MUST NOT independently add, remove, promote, or re-own a distribution entry.
+`manifests/distribution-inventory.json` SHALL be the sole source of component selection, lifecycle, permitted surfaces, canonical source identity, physical ownership, transforms, and symlink policy supplied to `compileDistribution`. The inventory-owned `projection_contract` MUST declare the selection source and precedence for every migrated surface. Generators, adapters, manifests, directory layouts, README lists, and installed artifacts MUST NOT independently add, remove, promote, or re-own a distribution entry. A surface MAY retain a distinct policy source, such as the explicit `entry.surfaces` `codex-native` allowlist, only when that source is declared and validated in the contract.
 
 #### Scenario: Surface adapter discovers an extra component
 
-- **WHEN** a surface-specific adapter finds a package in a conventional directory that is not selected for that surface by the inventory
+- **WHEN** a surface-specific adapter finds a package in a conventional directory that is not selected for that surface by the compiler-resolved inventory policy
 - **THEN** compilation or no-drift validation reports the extra component and excludes it from the accepted plan
 
 #### Scenario: Inventory declares a shared physical owner
@@ -172,19 +172,29 @@ stable-ID provenance linking it to the owner.
 - **WHEN** a generator-local default would choose a transform, output ownership, or symlink behavior not declared by the inventory
 - **THEN** distribution validation fails instead of treating the local default as policy
 
+#### Scenario: Native Codex uses its explicit allowlist
+
+- **WHEN** the Native Codex policy is declared as the `entry.surfaces` `codex-native` allowlist
+- **THEN** compiler selection includes exactly the non-deprecated entries allowed by that field and does not broaden membership from another surface map
+
 ### Requirement: Every migrated generated surface uses the shared projection pipeline
 
-After its characterization gate and cutover, each Agent Plugin, Codex native, Cursor, AGY, and Claude generated surface SHALL be planned through `compileDistribution`, materialized through `materializeDistribution` and `ProjectionArtifactStore`, and assessed through `verifyDistribution` for each supported verification stage. Before that per-surface cutover, the characterized legacy implementation remains authoritative as the rollback path. Surface adapters MAY render consumer-native syntax but MUST NOT bypass the shared selection, ownership, provenance, or evidence contracts after cutover.
+After its characterization gate and cutover, each Agent Plugin, Codex native, Cursor, AGY, and Claude generated surface SHALL be planned through `compileDistribution`, with the compiler resolving membership from the declared inventory policy, materialized through `materializeDistribution` and `ProjectionArtifactStore`, and assessed through `verifyDistribution` for each supported verification stage. Before that per-surface cutover, the characterized legacy implementation remains authoritative as the rollback path. Surface adapters MAY render consumer-native syntax and apply transforms to compiler-selected IDs but MUST NOT bypass the shared selection, ownership, provenance, or evidence contracts after cutover.
 
 #### Scenario: Consumer requires a native manifest format
 
-- **WHEN** a surface adapter renders consumer-specific metadata from a valid plan
+- **WHEN** a surface adapter renders consumer-specific metadata from a valid compiler-selected plan
 - **THEN** the output retains the plan's stable IDs, ownership, transforms, and fingerprints while using the consumer-native syntax
 
 #### Scenario: Legacy generator bypasses the compiler
 
 - **WHEN** a surface that has completed its characterized cutover attempts to derive its membership directly from directories or its existing manifest
 - **THEN** the distribution gate fails and identifies the bypassed projection stage
+
+#### Scenario: Adapter reselects an inventory entry
+
+- **WHEN** a cutover adapter emits a source ID that was not selected by the compiler's declared surface policy
+- **THEN** materialization rejects the output and the surface cannot claim a passing cutover
 
 ### Requirement: AGY projection uses one physical owner per selected source
 
@@ -206,7 +216,7 @@ must have its own inventory identity and lifecycle.
 
 ### Requirement: Surface migration preserves the current distribution contract
 
-Migration to the shared projection pipeline SHALL proceed surface by surface behind characterization evidence. The repository MUST maintain one public version of each generator/verifier contract; it MUST NOT expose parallel legacy and v2 CLIs to consumers. Until a surface passes equivalence and rollback tests, the existing implementation remains authoritative for that surface.
+Migration to the shared projection pipeline SHALL proceed surface by surface behind characterization evidence. The repository MUST maintain one public version of each generator/verifier contract; it MUST NOT expose parallel legacy and v2 CLIs to consumers. The first migration wave SHALL cut over Agent Plugin, then Cursor, then Native Codex, with AGY and Claude remaining on their current authoritative paths. Until a surface passes equivalence and rollback tests, the existing implementation remains authoritative for that surface.
 
 #### Scenario: First surface is ready independently
 
@@ -217,3 +227,8 @@ Migration to the shared projection pipeline SHALL proceed surface by surface beh
 
 - **WHEN** the new pipeline changes output bytes, ordering, diagnostics, or exit status for characterized inputs
 - **THEN** validation blocks cutover and the existing surface implementation remains active
+
+#### Scenario: Migration follows the approved order
+
+- **WHEN** the first wave is being scheduled or verified
+- **THEN** Agent Plugin is cut over before Cursor, Cursor before Native Codex, and neither AGY nor Claude is changed by this change

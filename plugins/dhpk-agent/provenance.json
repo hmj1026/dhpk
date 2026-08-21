@@ -1,10 +1,11 @@
 {
   "schema": "dhpk.platform-provenance.v1",
   "surface": "agent-plugin",
+  "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.43.0",
-  "sourceCommit": "cb727bf6a88d0e7f08d33823404ab7f0056621e8",
-  "inventoryDigest": "a6227c0aded0177eab869afa0abc7c8fb9eadcbb7589089dc84c63b320c12750",
+  "sourceCommit": "2e3ead7e619ed4ce5719985ab246eb50d7719009",
+  "inventoryDigest": "8d8910fb29b178e6491c5ad020ff0c64a4684fa2b08b56bc92abf1e665189d72",
   "generatorVersion": "1.0.0",
   "schemaVersion": "1.0.0",
   "selectedSkillIds": [

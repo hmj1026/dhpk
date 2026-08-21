@@ -4,41 +4,44 @@
 
 Define the deterministic, inventory-bound projection compiler, artifact-store,
 and stage-bound verification contracts used by generated distribution surfaces.
-
 ## Requirements
-
 ### Requirement: Distribution compilation is pure and deterministic
 
-The distribution layer SHALL expose a single `compileDistribution(inputs) -> DistributionPlan` contract. Compilation MUST validate boundary inputs, select entries only from the distribution inventory, resolve declared transforms and ownership, and return an immutable plan without reading undeclared ambient state or writing to the filesystem. Equivalent normalized inputs MUST produce the same plan fingerprint and ordered output intents.
+The distribution layer SHALL expose a single `compileDistribution(inputs) -> DistributionPlan` contract. Compilation MUST validate boundary inputs, resolve the inventory-declared selection policy for the target surface, select entries only from the distribution inventory, resolve declared transforms and ownership, and return an immutable plan without reading undeclared ambient state or writing to the filesystem. Equivalent normalized inputs MUST produce the same selected stable IDs, plan fingerprint, and ordered output intents.
 
 #### Scenario: Equivalent inputs compile identically
 
-- **WHEN** canonical source fingerprints, inventory data, projection rules, and compiler version are unchanged
-- **THEN** repeated compilation returns byte-equivalent normalized plans with the same plan fingerprint
+- **WHEN** canonical source fingerprints, inventory data, projection policy, and compiler version are unchanged
+- **THEN** repeated compilation returns byte-equivalent normalized plans with the same selected IDs and plan fingerprint
 
 #### Scenario: Compilation attempts an undeclared selection
 
-- **WHEN** an adapter, directory layout, or generated manifest implies a component that is absent from the selected inventory surface
+- **WHEN** an adapter, directory layout, or generated manifest implies a component that is absent from the compiler-selected inventory surface
 - **THEN** compilation returns a structured validation error naming the undeclared component and produces no materialization plan
 
 #### Scenario: Compiler observes ambient filesystem state
 
-- **WHEN** a projection would require an undeclared directory scan, host configuration, clock value, or environment value to determine its outputs
+- **WHEN** a projection would require an undeclared directory scan, host configuration, clock value, or environment value to determine its selection or outputs
 - **THEN** compilation fails until that value is supplied explicitly through `inputs`
 
 ### Requirement: Distribution plans carry complete projection intent
 
-A `DistributionPlan` SHALL carry its schema/compiler version, input and inventory fingerprints, target surface, ordered stable IDs, canonical source identities, transforms, physical ownership, normalized destination paths, content fingerprints, and symlink policy. The plan MUST contain enough information for materialization to execute without re-selecting packages or inventing projection policy.
+A `DistributionPlan` SHALL carry its schema/compiler version, input and inventory fingerprints, target surface, ordered selected stable IDs, canonical source identities, transforms, physical ownership, normalized destination paths, content fingerprints, and symlink policy. The plan MUST contain enough information for materialization to execute without re-selecting packages or inventing projection policy. All generated metadata required by the surface, including manifests, fingerprints, provenance, and readmes, MUST be represented as planned output intent before materialization.
 
 #### Scenario: Materializer receives a complete plan
 
 - **WHEN** a valid plan is passed to materialization
-- **THEN** every output path, owner, transform, expected content fingerprint, and link policy is already declared in the plan
+- **THEN** every output path, owner, transform, expected content fingerprint, link policy, and generated metadata record is already declared in the plan
 
 #### Scenario: Plan omits projection provenance
 
 - **WHEN** an output intent lacks a stable source ID, canonical source identity, transform identity, or expected fingerprint
 - **THEN** compilation returns a structured incomplete-plan error before any output can be written
+
+#### Scenario: Adapter emits metadata not in the plan
+
+- **WHEN** an adapter attempts to add a manifest, fingerprint, provenance, readme, or other generated output that has no corresponding plan intent
+- **THEN** materialization rejects the output as outside the closed-world plan
 
 ### Requirement: Materialization is isolated behind ProjectionArtifactStore
 
@@ -113,14 +116,38 @@ Compilation, materialization, and verification SHALL return explicit success or 
 
 ### Requirement: Projection migration is characterization-gated
 
-Each existing distribution surface SHALL be characterized before it is routed through the shared projection contracts. A migrated surface MUST preserve selected stable IDs, output paths, bytes, ordering, transforms, ownership, link behavior, diagnostics, and exit codes for the same inputs. A behavior difference SHALL block that surface's migration unless an additive or breaking contract change is separately approved.
+Each existing distribution surface SHALL be characterized before it is routed through the shared projection contracts. A migrated surface MUST preserve selected stable IDs, output paths, bytes, ordering, transforms, ownership, link behavior, diagnostics, and exit codes for the same inputs. A behavior difference SHALL block that surface's migration unless an additive or breaking contract change is separately approved. Each cutover MUST retain an independently exercisable rollback path until parity evidence is accepted.
 
 #### Scenario: Characterized surface is unchanged
 
-- **WHEN** the legacy and contract-based pipelines run against the same fixtures
-- **THEN** their normalized plans, materialized artifacts, diagnostics, and process outcomes match the characterized contract
+- **WHEN** the legacy and compiler-owned pipelines run against the same fixtures
+- **THEN** their selected IDs, normalized plans, materialized artifacts, diagnostics, and process outcomes match the characterized contract
 
 #### Scenario: One migrated surface drifts
 
 - **WHEN** a staged migration changes any characterized observable for one consumer surface
 - **THEN** that surface remains on the prior implementation while independently migrated surfaces remain shippable
+
+#### Scenario: Rollback is required
+
+- **WHEN** parity or verification fails during a surface cutover
+- **THEN** the prior selector remains authoritative through the existing public CLI and the new path does not publish an accepted artifact
+
+### Requirement: Surface selection policy is compiler-owned
+
+The distribution compiler SHALL resolve surface membership from the inventory-owned `projection_contract` policy before any surface adapter expands output. Each migrated surface MUST declare its selection source and precedence. Adapters MUST receive selected canonical IDs and MUST NOT reselect membership from directories, generated manifests, or consumer-native output.
+
+#### Scenario: Declared policy selects a surface
+
+- **WHEN** a migrated surface has a valid inventory policy and its referenced membership data resolves
+- **THEN** the compiler returns the deterministic selected canonical IDs and the adapter receives only those IDs for expansion
+
+#### Scenario: Adapter attempts independent selection
+
+- **WHEN** a migrated surface adapter discovers an inventory entry not present in the compiler-selected IDs
+- **THEN** the compiler or validation gate rejects the extra entry and no accepted artifact includes it
+
+#### Scenario: Policy is missing or unsupported
+
+- **WHEN** a migrated surface lacks a declared selection policy or names an unsupported policy source or precedence
+- **THEN** compilation returns a structured policy validation failure before materialization

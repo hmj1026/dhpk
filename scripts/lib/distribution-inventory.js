@@ -57,6 +57,8 @@ const CLIENT_METADATA_BOUNDARY = {
 const PROJECTION_CONTRACT_SCHEMA = 'dhpk.distribution-projection-contract.v1';
 const PROJECTION_SYMLINK_POLICIES = ['forbid', 'contained-relative', 'declared-source-relative'];
 const PROJECTION_STAGES = ['structural', 'package', 'consumer-runtime'];
+const MIGRATED_SELECTION_SURFACES = ['agent-plugin', 'cursor-plugin', 'codex-native'];
+const SELECTION_POLICY_SOURCES = ['surface_membership', 'projection', 'platform_matrix', 'entry_surfaces'];
 
 function skillIdFromPath(relPath) {
   return path.basename(path.dirname(relPath));
@@ -121,7 +123,7 @@ function classifyCanonicalInventory(root) {
 function preserveProjectionContract(generated, existing) {
   if (!existing || typeof existing !== 'object') return generated;
   const contract = {};
-  for (const key of ['surfaces', 'surface_membership', 'platform_matrix', 'portable_frontmatter']) {
+  for (const key of ['surfaces', 'surface_membership', 'platform_matrix', 'portable_frontmatter', 'projection_contract']) {
     if (Object.prototype.hasOwnProperty.call(existing, key)) contract[key] = existing[key];
   }
   return { ...generated, ...contract };
@@ -425,6 +427,8 @@ function validateDistributionInventoryV2(input = {}) {
   errors.push(...frontmatter.errors);
   const projection = validateProjectionContract(inventory.projection_contract);
   errors.push(...projection.errors);
+  const selection = validateSelectionPolicyAgainstInventory({ inventory });
+  errors.push(...selection.errors);
   const routing = validateSkillRoutingFamilies({ families: inventory.skill_routing_families, skillIds: ids, skills: inventory.skills });
   errors.push(...routing.errors);
 
@@ -775,9 +779,63 @@ function validateProjectionContract(contract) {
         }
       }
     }
+    if (MIGRATED_SELECTION_SURFACES.includes(surface)) {
+      const policy = rule.selection_policy;
+      if (!policy || typeof policy !== 'object' || Array.isArray(policy)) {
+        errors.push(`projection_contract.surfaces.${surface}.selection_policy must be an object`);
+      } else {
+        if (!SELECTION_POLICY_SOURCES.includes(policy.source)) {
+          errors.push(`projection_contract.surfaces.${surface}.selection_policy has unsupported selection policy source '${policy.source || '<missing>'}'`);
+        }
+        if (!Array.isArray(policy.precedence) || policy.precedence.length === 0) {
+          errors.push(`projection_contract.surfaces.${surface}.selection_policy.precedence must be a non-empty array`);
+        } else {
+          const seenPrecedence = new Set();
+          for (const source of policy.precedence) {
+            if (!SELECTION_POLICY_SOURCES.includes(source)) {
+              errors.push(`projection_contract.surfaces.${surface}.selection_policy.precedence contains unsupported source '${source}'`);
+            } else if (seenPrecedence.has(source)) {
+              errors.push(`projection_contract.surfaces.${surface}.selection_policy.precedence contains duplicate source '${source}'`);
+            }
+            seenPrecedence.add(source);
+          }
+          if (typeof policy.source === 'string' && !seenPrecedence.has(policy.source)) {
+            errors.push(`projection_contract.surfaces.${surface}.selection_policy source '${policy.source}' is absent from precedence`);
+          }
+          if (surface === 'codex-native' && (policy.source !== 'entry_surfaces' || policy.precedence.length !== 1 || policy.precedence[0] !== 'entry_surfaces')) {
+            errors.push('projection_contract.surfaces.codex-native selection policy cannot broaden beyond entry_surfaces');
+          }
+        }
+      }
+    }
   }
   for (const surface of Object.keys(contract.surfaces)) {
     if (!SURFACES.includes(surface)) errors.push(`projection_contract.surfaces declares unsupported surface '${surface}'`);
+  }
+  return { errors };
+}
+
+function validateSelectionPolicyAgainstInventory({ inventory } = {}) {
+  const errors = [];
+  const contract = inventory && inventory.projection_contract;
+  if (!contract || !contract.surfaces) return { errors };
+  for (const surface of MIGRATED_SELECTION_SURFACES) {
+    const policy = contract.surfaces[surface] && contract.surfaces[surface].selection_policy;
+    if (!policy || !Array.isArray(policy.precedence)) continue;
+    for (const source of policy.precedence) {
+      if (source === 'surface_membership' && (!inventory.surface_membership || !Object.prototype.hasOwnProperty.call(inventory.surface_membership, surface)) && policy.source === source) {
+        errors.push(`selection policy for '${surface}' requires surface_membership.${surface}`);
+      }
+      if (source === 'projection' && (!inventory.projections || !Object.prototype.hasOwnProperty.call(inventory.projections, surface)) && policy.source === source) {
+        errors.push(`selection policy for '${surface}' requires projections.${surface}`);
+      }
+      if (source === 'platform_matrix' && (!inventory.platform_matrix || !Array.isArray(inventory.platform_matrix.entries) || !inventory.platform_matrix.entries.some((entry) => entry && entry.surface === surface)) && policy.source === source) {
+        errors.push(`selection policy for '${surface}' requires platform_matrix entries`);
+      }
+    }
+    if (surface === 'codex-native' && inventory.surface_membership && Object.prototype.hasOwnProperty.call(inventory.surface_membership, surface)) {
+      errors.push('codex-native selection policy cannot declare a duplicate surface_membership allowlist');
+    }
   }
   return { errors };
 }
@@ -1110,6 +1168,9 @@ module.exports = {
   validatePlatformCapabilityMatrix,
   validatePortableFrontmatterContract,
   validateProjectionContract,
+  validateSelectionPolicyAgainstInventory,
+  MIGRATED_SELECTION_SURFACES,
+  SELECTION_POLICY_SOURCES,
   reconcileDistribution,
   generateClaudeSkillRoots,
   compileClaudeProjection,

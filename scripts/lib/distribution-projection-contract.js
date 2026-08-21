@@ -129,6 +129,45 @@ function createDistributionPlan(input = {}) {
     entries.push(normalized.value);
   }
   entries.sort((a, b) => a.stableId.localeCompare(b.stableId));
+  const entryIds = entries.map((entry) => entry.stableId);
+  let selectionEntries = null;
+  let selectedIds = entryIds;
+  if (input.selectionEntries !== undefined) {
+    if (!Array.isArray(input.selectionEntries)) {
+      return result(undefined, projectionError('INCOMPLETE_PLAN', 'compile', 'selection entries must be an array'));
+    }
+    const normalizedSelectionEntries = [];
+    const selectionIds = new Set();
+    for (const [index, raw] of input.selectionEntries.entries()) {
+      const normalized = normalizeEntry(raw, index);
+      if (normalized.error) return result(undefined, normalized.error);
+      if (selectionIds.has(normalized.value.stableId)) {
+        return result(undefined, projectionError('DUPLICATE_STABLE_ID', 'compile', `duplicate selection stable id '${normalized.value.stableId}'`, { stableIds: [normalized.value.stableId] }));
+      }
+      selectionIds.add(normalized.value.stableId);
+      normalizedSelectionEntries.push(normalized.value);
+    }
+    normalizedSelectionEntries.sort((a, b) => a.stableId.localeCompare(b.stableId));
+    selectionEntries = normalizedSelectionEntries;
+    selectedIds = normalizedSelectionEntries.map((entry) => entry.stableId);
+  }
+  if (input.selectedStableIds !== undefined) {
+    if (!Array.isArray(input.selectedStableIds) || input.selectedStableIds.some((id) => typeof id !== 'string' || id.trim() === '')) {
+      return result(undefined, projectionError('INCOMPLETE_PLAN', 'compile', 'selected stable IDs must be a non-empty string array'));
+    }
+    const declaredIds = [...new Set(input.selectedStableIds)].sort();
+    if (selectionEntries !== null) {
+      if (JSON.stringify(declaredIds) !== JSON.stringify(selectedIds)) {
+        return result(undefined, projectionError('INCOMPLETE_PLAN', 'compile', 'selected stable IDs do not match canonical selection entries', { stableIds: declaredIds }));
+      }
+      selectedIds = declaredIds;
+    } else {
+      if (JSON.stringify(declaredIds) !== JSON.stringify(entryIds)) {
+        return result(undefined, projectionError('INCOMPLETE_PLAN', 'compile', 'selected stable IDs do not match planned entries', { stableIds: declaredIds }));
+      }
+      selectedIds = declaredIds;
+    }
+  }
   const body = {
     schema: CONTRACT_SCHEMA,
     compilerVersion: input.compilerVersion || '1',
@@ -136,6 +175,9 @@ function createDistributionPlan(input = {}) {
     inputFingerprint: input.inputFingerprint || fingerprint({ surface, entries: input.entries }),
     inventoryFingerprint: input.inventoryFingerprint || null,
     ownershipRoot: input.ownershipRoot || null,
+    selectedStableIds: selectedIds,
+    selectionPolicy: input.selectionPolicy || null,
+    selectionEntries,
     entries,
   };
   return result({ ...body, planFingerprint: fingerprint(body) });
