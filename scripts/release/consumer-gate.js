@@ -35,7 +35,7 @@ const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
 const { spawnSync } = require('child_process');
-const { VERDICTS } = require('../lib/release-evidence');
+const { VERDICTS, normalizeConsumerEvidence } = require('../lib/release-evidence');
 const { fingerprintDir } = require('../lib/codex-native-package');
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('../lib/bounded-filesystem');
 const { collectCodexProjectionReferenceErrors } = require('../ci/_lib/codex-runtime');
@@ -66,23 +66,31 @@ function resolveSurfaceRoot(surfaceRoot, { allowedRoots = [], rejectSymlinkAnces
   return canonical;
 }
 
-function fingerprintPath(target, options = {}) {
-  const budget = createTraversalBudget(options);
-  const allowedRoots = canonicalAllowedRoots(options.allowedRoots);
-  const resolveCanonicalPath = (current) => {
-    const lexical = path.resolve(current);
-    const resolved = fs.realpathSync(current);
-    if (allowedRoots.length === 0 && lexical !== resolved) {
-      throw new Error(`symlinked path is not allowed without an approved root: ${current}`);
-    }
-    const contained = isContainedPath(resolved, allowedRoots);
-    if (allowedRoots.length > 0 && !contained) {
-      throw new Error(`symlink target is outside approved roots: ${current}`);
-    }
-    return resolved;
+function normalizeFingerprintOptions(options = {}) {
+  return {
+    ...options,
+    canonicalRoots: canonicalAllowedRoots(options.allowedRoots),
   };
+}
+
+function resolveCanonicalPath(current, { allowedRoots = [], canonicalRoots = null } = {}) {
+  const lexical = path.resolve(current);
+  const resolved = fs.realpathSync(current);
+  if (allowedRoots.length === 0 && lexical !== resolved) {
+    throw new Error(`symlinked path is not allowed without an approved root: ${current}`);
+  }
+  const roots = canonicalRoots || canonicalAllowedRoots(allowedRoots);
+  if (roots.length > 0 && !isContainedPath(resolved, roots)) {
+    throw new Error(`symlink target is outside approved roots: ${current}`);
+  }
+  return resolved;
+}
+
+function fingerprintPath(target, options = {}) {
+  const normalizedOptions = normalizeFingerprintOptions(options);
+  const budget = createTraversalBudget(normalizedOptions);
   const hashNode = (current, depth) => {
-    const canonical = resolveCanonicalPath(current);
+    const canonical = resolveCanonicalPath(current, normalizedOptions);
     const stat = fs.lstatSync(canonical);
     const nodeDigest = crypto.createHash('sha256');
     if (stat.isDirectory()) {
@@ -111,6 +119,18 @@ function fingerprintPath(target, options = {}) {
     if (error && error.code === 'ENOENT') return '';
     throw error;
   }
+}
+
+function fingerprintProjectSkill(target, options = {}) {
+  const normalizedOptions = normalizeFingerprintOptions(options);
+  const canonical = resolveCanonicalPath(target, normalizedOptions);
+  return fingerprintDir(canonical, normalizedOptions);
+}
+
+function fingerprintOptions(fingerprintFn, allowedRoots) {
+  return fingerprintFn === fingerprintPath || fingerprintFn === fingerprintProjectSkill
+    ? { allowedRoots }
+    : {};
 }
 
 function relativeEvidencePath(root, target, label) {
@@ -151,6 +171,8 @@ function discoverCodexSurface({
   expectedFingerprints = null,
   fingerprintFn = fingerprintPath,
   expectedFingerprintFn = fingerprintFn,
+  fingerprintFnByKind = {},
+  ownershipFingerprintFn = null,
   allowedRoots = [],
 }) {
   return ['skills', 'agents'].flatMap((kind) => {
@@ -163,9 +185,11 @@ function discoverCodexSurface({
     if (!kindStat.isDirectory() && !kindStat.isSymbolicLink()) {
       throw new Error(`surface root is not a directory: ${kindRoot}`);
     }
+    const contentFingerprintFn = fingerprintFnByKind[kind] || fingerprintFn;
+    const ownershipFn = ownershipFingerprintFn || contentFingerprintFn;
     const enumerationRoot = resolveSurfaceRoot(kindRoot, {
       allowedRoots,
-      rejectSymlinkAncestors: fingerprintFn === fingerprintDir,
+      rejectSymlinkAncestors: contentFingerprintFn === fingerprintDir,
     });
     const managed = manifest && manifest.managed_entries && manifest.managed_entries[kind];
     return readDirectoryEntries(enumerationRoot, { sort: true }).map((entry) => entry.name).flatMap((id) => {
@@ -174,18 +198,23 @@ function discoverCodexSurface({
       try { stat = fs.lstatSync(target); } catch (_) { return []; }
       if (!stat.isDirectory() && !stat.isSymbolicLink()) return [];
       let fingerprint = '';
+      let ownershipFingerprint = '';
       let expectedFingerprint = null;
       let fingerprintError = null;
       try {
-        const fingerprintOptions = fingerprintFn === fingerprintPath ? { allowedRoots } : {};
-        fingerprint = fingerprintFn(target, fingerprintOptions);
-        expectedFingerprint = expectedFingerprints ? expectedFingerprintFn(target, fingerprintOptions) : null;
+        fingerprint = contentFingerprintFn(target, fingerprintOptions(contentFingerprintFn, allowedRoots));
+        expectedFingerprint = expectedFingerprints
+          ? expectedFingerprintFn(target, fingerprintOptions(expectedFingerprintFn, allowedRoots))
+          : null;
+        ownershipFingerprint = ownershipFn === contentFingerprintFn
+          ? fingerprint
+          : ownershipFn(target, fingerprintOptions(ownershipFn, allowedRoots));
       } catch (error) {
         fingerprintError = error;
       }
       const receiptEntry = managed && managed[id];
       const owned = manifest
-        ? Boolean(receiptEntry && receiptEntry.destination_fingerprint === fingerprint)
+        ? Boolean(receiptEntry && receiptEntry.destination_fingerprint === ownershipFingerprint)
         : Boolean(provenance && provenance.valid && expectedFingerprints && expectedFingerprints[id] === expectedFingerprint);
       const current = manifest
         ? Boolean(manifest.plugin_version === version && manifest.schema_version >= 2)
@@ -286,6 +315,8 @@ function discoverCodexSurfaces({ root, project, version, nativeRoot = path.join(
     version,
     manifest,
     allowedRoots: [project, root],
+    fingerprintFnByKind: { skills: fingerprintProjectSkill },
+    ownershipFingerprintFn: fingerprintPath,
   });
   let nativeVersion = version;
   const nativeManifestPath = path.join(nativeRoot, '.codex-plugin', 'plugin.json');
@@ -712,13 +743,73 @@ function verifyProjectedConsumer(root, platform, version) {
   try { payload = JSON.parse(res.stdout || '{}'); } catch (_) {
     payload = { status: 'FAIL', reason: `consumer probe emitted invalid JSON (exit ${res.status})` };
   }
+  const surface = platform === 'codex' ? 'agent-plugin' : 'cursor-plugin';
+  const childFailure = res.status !== 0 || payload.normalizationError;
+  const expectedFailureStatus = ['FAIL', 'BLOCKED'].includes(payload.status);
+  const forcedChildFailure = childFailure && !expectedFailureStatus;
+  const effectiveStatus = forcedChildFailure ? 'FAIL' : (payload.status || 'FAIL');
+  const effectiveReason = payload.normalizationError
+    ? `consumer probe normalization failed: ${payload.normalizationError}`
+    : (forcedChildFailure
+      ? `consumer probe exited ${res.status} with producer status ${payload.status || 'missing'}`
+      : payload.reason);
+  const surfaceResults = Array.isArray(payload.surfaceResults) && payload.surfaceResults.length > 0
+    ? payload.surfaceResults.map((entry) => ({
+      ...entry,
+      surface,
+      status: forcedChildFailure ? 'FAIL' : entry.status,
+      ...(childFailure && effectiveReason ? { reasons: [...(entry.reasons || []), effectiveReason] } : {}),
+    }))
+    : [{
+      surface,
+      status: effectiveStatus,
+      commands: payload.commands || [],
+      environment: process.env.CI ? 'ci' : 'local',
+      artifacts: payload.artifacts || [],
+      diagnostics: payload.diagnostics || payload.diagnostic || [],
+      reasons: payload.failureReasons || (effectiveReason ? [effectiveReason] : []),
+      checkedClaims: ['package-manifest', 'consumer-route'],
+    }];
+  const normalized = normalizeConsumerEvidence({
+    stage: 'CONSUMER',
+    producer: 'consumer-platform-probe',
+    adapter: { id: 'consumer-platform-probe', version: '1.0.0' },
+    surfaceResults,
+  });
   return {
-    status: payload.status || 'FAIL',
+    status: effectiveStatus,
     commands: Array.isArray(payload.commands) && payload.commands.length > 0
       ? payload.commands.map((cmd) => ({ cmd: redactEvidence(typeof cmd === 'string' ? cmd : cmd.cmd || `node scripts/release/consumer-platform-probe.js --platform ${platform}`, root), exitCode: typeof cmd === 'string' ? res.status : (cmd.exitCode === undefined ? res.status : cmd.exitCode) }))
       : [{ cmd: `node scripts/release/consumer-platform-probe.js --platform ${platform}`, exitCode: res.status }],
-    reason: payload.reason ? redactEvidence(payload.reason, root) : null,
+    reason: effectiveReason ? redactEvidence(effectiveReason, root) : null,
+    diagnostics: payload.diagnostics || payload.diagnostic || [],
+    artifacts: payload.artifacts || [],
+    surfaceResults: normalized.surfaceResults,
   };
+}
+
+function normalizeGateSurface(surface, producer, adapter, result, environment) {
+  const surfaceResults = result.surfaceResults || [{
+    surface,
+    status: result.status || result.verdict,
+    commands: result.commands || [],
+    environment,
+    artifacts: result.artifacts || [],
+    diagnostics: result.diagnostics || result.diagnostic || [],
+    reasons: result.failureReasons || result.reasons || [],
+    checkedClaims: result.checkedClaims || [],
+  }];
+  const normalized = normalizeConsumerEvidence({
+    stage: 'CONSUMER',
+    producer,
+    adapter,
+    surfaceResults,
+  });
+  return normalized.surfaceResults.map((entry) => ({
+    ...entry,
+    ...(result.surfaceVerdict ? { legacySurfaceStatus: result.surfaceVerdict } : {}),
+    ...(result.warnings && result.warnings.length > 0 ? { warnings: result.warnings } : {}),
+  }));
 }
 
 function runGate(args) {
@@ -727,6 +818,15 @@ function runGate(args) {
   const native = verifyCodexNative(args.root);
   const projectedCodex = verifyProjectedConsumer(args.root, 'codex', args.version);
   const projectedCursor = verifyProjectedConsumer(args.root, 'cursor', args.version);
+
+  const environment = process.env.CI ? 'ci' : 'local';
+  const surfaceResults = [
+    ...normalizeGateSurface('codex-sync', 'consumer-gate', { id: 'codex-sync-installer', version: '1.0.0' }, codex, environment),
+    ...normalizeGateSurface('claude', 'consumer-gate', { id: 'claude-plugin-cli', version: claude.cliVersion || 'unknown' }, claude, environment),
+    ...normalizeGateSurface('codex-native', 'consumer-gate', { id: 'codex-native-install-smoke', version: '1.0.0' }, native, environment),
+    ...projectedCodex.surfaceResults,
+    ...projectedCursor.surfaceResults,
+  ];
 
   const commands = [...codex.commands, ...claude.commands, ...native.commands, ...projectedCodex.commands, ...projectedCursor.commands];
   const failureReasons = [
@@ -746,7 +846,7 @@ function runGate(args) {
   const stage = {
     verdict,
     commands,
-    environment: process.env.CI ? 'ci' : 'local',
+    environment,
     artifacts: [
       `claude-official-strict: ${claude.officialValidation ? claude.officialValidation.verdict : 'NOT RUN'}${claude.officialValidation && claude.officialValidation.reason ? ` (${claude.officialValidation.reason})` : ''}`,
       `native-codex-marketplace: ${native.verdict} (experimental support tier; consumer proof does not itself graduate the support tier)`,
@@ -761,6 +861,12 @@ function runGate(args) {
     ],
     failureReasons,
     ...(codex.surfaces ? { codexSurfaces: { ...codex.surfaces, duplicates: codex.duplicateEvidence || [] } } : {}),
+    stage: 'CONSUMER',
+    producer: 'consumer-gate',
+    adapter: { id: 'consumer-gate', version: '1.0.0' },
+    surfaceResults,
+    ...(codex.surfaceVerdict ? { legacySurfaceStatus: codex.surfaceVerdict } : {}),
+    ...(codex.surfaceVerdict === 'WARN' ? { warnings: ['Codex duplicate-surface matrix returned WARN; compatibility status is not a canonical evidence verdict'] } : {}),
   };
 
   return stage;
@@ -781,8 +887,10 @@ module.exports = {
   evaluateCodexSurfaceMatrix,
   fingerprintDir,
   fingerprintPath,
+  fingerprintProjectSkill,
   redactEvidence,
   verifyCodexSync,
   verifyProjectedConsumer,
+  normalizeGateSurface,
   runGate,
 };

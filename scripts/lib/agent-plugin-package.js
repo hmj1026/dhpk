@@ -496,10 +496,17 @@ function idsFromMatrixRow(row) {
   return values;
 }
 
-function selectPortableSkills(inventory, surface = 'agent-plugin') {
+function selectPortableSkills(inventory, surface = 'agent-plugin', selectedStableIds = null) {
   const entries = Array.isArray(inventory && inventory.skills) ? inventory.skills : [];
   const byId = new Map(entries.map((entry) => [entry && entry.id, entry]));
   const byName = new Map(entries.map((entry) => [entry && entry.name, entry]));
+  if (Array.isArray(selectedStableIds)) {
+    const selected = selectedStableIds.map((id) => byId.get(id) || byName.get(id)).filter(Boolean);
+    return selected
+      .filter((entry) => entry.lifecycle !== 'deprecated')
+      .filter((entry, index, all) => all.findIndex((candidate) => candidate.id === entry.id) === index)
+      .sort((a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id)));
+  }
   const membership = inventory && inventory.surface_membership && inventory.surface_membership[surface];
   const direct = entries.filter((entry) => {
     if (!entry || entry.lifecycle === 'deprecated') return false;
@@ -752,6 +759,7 @@ function buildAgentPluginProjection(options = {}) {
     mcpConfig,
     mcpServers,
     projectionLimits = {},
+    selectionMode = 'compiler',
   } = options;
   if (!root || !outDir) throw new Error('materializeAgentPluginPackage requires root and outDir');
   const resolvedRoot = path.resolve(root);
@@ -760,7 +768,13 @@ function buildAgentPluginProjection(options = {}) {
   assertProjectionDestination(resolvedRoot, resolvedOut, 'Agent Plugin');
 
   const allowlist = inventory.portable_frontmatter && inventory.portable_frontmatter.allowlist;
-  const selected = selectPortableSkills(inventory);
+  const selection = selectionMode === 'legacy' ? null : compileDistribution({ inventory, surface: 'agent-plugin' });
+  if (selection && !selection.ok) throw new Error(selection.error.message);
+  const selected = selectPortableSkills(
+    inventory,
+    'agent-plugin',
+    selection && selection.value.selectionPolicy ? selection.value.selectedStableIds : null,
+  );
   const files = [];
   const fingerprints = {};
   const selectedEntries = [];
@@ -853,6 +867,7 @@ function buildAgentPluginProjection(options = {}) {
   const provenance = {
     schema: RECEIPT_SCHEMA,
     surface: 'agent-plugin',
+    selectionMode,
     owner: SURFACE_OWNERS['agent-plugin'],
     sourceVersion: version,
     sourceCommit,
@@ -885,6 +900,15 @@ function buildAgentPluginProjection(options = {}) {
     inventoryFingerprint: digest(stableStringify(inventory)),
     ownershipRoot: resolvedOut,
     entries,
+    selectedStableIds: selection && selection.ok && selection.value.selectionPolicy
+      ? selection.value.selectedStableIds
+      : undefined,
+    selectionPolicy: selection && selection.ok && selection.value.selectionPolicy
+      ? selection.value.selectionPolicy
+      : undefined,
+    selectionEntries: selection && selection.ok && selection.value.selectionPolicy
+      ? selection.value.entries
+      : undefined,
   });
   if (!compiled.ok) throw new Error(compiled.error.message);
 

@@ -21,13 +21,14 @@ immediately, so the first thing Claude reads must be the action to take, not jus
 the stop condition.
 
 Part 0 is a bounded kickoff: the orientation instruction (which also reads the
-self-located execution-policy, best-effort), the opsx:apply kickoff sentence with
+self-located execution-policy kernel, best-effort), the opsx:apply kickoff sentence with
 the hard-rule carve-out and Unknown-skill fallback, and — when dispatch is on —
 the one-line dispatch roster and the inline hard-rule guardrail. The behavioral
 elaborations (dispatch-verify procedure, premise-verification routing, in-flight
 doubt cycle, CODEX=on high-stakes peer path and its session-end self-check) live
-in `rules/execution-policy.md` and bind the session through the orientation read;
-they are NOT restated here. When the policy file is unresolvable, the session
+in the kernel and selected route reference and bind the session through the
+orientation read;
+they are NOT restated here. When the kernel or selected reference is unresolvable, the session
 proceeds on this condition's own inline gates.
 
 The generator resolves CLI backend choice through the policy selector and
@@ -47,11 +48,8 @@ Part 0 without naming the agent to dispatch.
 
 **`DISPATCH_ON=false`** (`orchestration_dispatch=off`) — no dispatch clause:
 ```
-First run ONE Bash orientation command — `p=${CLAUDE_PLUGIN_ROOT:-$(ls -dt
-~/.claude/plugins/cache/dhpk/dhpk/* 2>/dev/null | head -1)}; cat
-"$p/rules/execution-policy.md" 2>/dev/null || { test -r ./.claude-plugin/plugin.json &&
-cat ./rules/execution-policy.md; } 2>/dev/null || echo POLICY-UNRESOLVED` — reads the
-dhpk execution-policy; never filesystem-scan; every reviewer dispatch (even
+First run ONE Bash orientation command — `p=${CLAUDE_PLUGIN_ROOT:-$(ls -dt ~/.claude/plugins/cache/dhpk/dhpk/* 2>/dev/null|head -1)}; q(){ cat "$p/$1" 2>/dev/null||{ test -r ./.claude-plugin/plugin.json&&cat "./$1";};}; q rules/execution-policy-kernel.md||echo POLICY-UNRESOLVED` — reads the
+compact dhpk execution-policy kernel; never filesystem-scan; every reviewer dispatch (even
 confirm-only) still gets a fresh .claude/artifacts/reviews/ artifact, never
 reply-only — then invoke the Skill tool
 with the canonical ID `openspec-apply-change` for change <CHANGE_ID> and
@@ -70,14 +68,11 @@ until all of the following hold,
 **`DISPATCH_ON=true`** (default) — the same kickoff with the bounded dispatch
 roster appended before the transition into the stop conditions:
 ```
-First run ONE Bash orientation command — `p=${CLAUDE_PLUGIN_ROOT:-$(ls -dt
-~/.claude/plugins/cache/dhpk/dhpk/* 2>/dev/null | head -1)}; cat
-"$p/rules/execution-policy.md" 2>/dev/null || { test -r ./.claude-plugin/plugin.json &&
-cat ./rules/execution-policy.md; } 2>/dev/null || echo POLICY-UNRESOLVED` — never filesystem-scan; every reviewer dispatch (even
+First run ONE Bash orientation command — `p=${CLAUDE_PLUGIN_ROOT:-$(ls -dt ~/.claude/plugins/cache/dhpk/dhpk/* 2>/dev/null|head -1)}; q(){ cat "$p/$1" 2>/dev/null||{ test -r ./.claude-plugin/plugin.json&&cat "./$1";};}; q rules/execution-policy-kernel.md||echo POLICY-UNRESOLVED; q skills/dhpk-execution-policy/references/implementation-dispatch.md` — never filesystem-scan; every reviewer dispatch (even
 confirm-only) still gets a fresh .claude/artifacts/reviews/ artifact, never
-reply-only, invoke openspec-apply-change <CHANGE_ID>; continue tasks. Tasks:
+reply-only, invoke openspec-apply-change <CHANGE_ID>; continue. Tasks:
 <TASK_DIGEST>. gitnexus repo="<project>".
-On "Unknown skill", retry once; implement directly under these gates.
+On "Unknown skill", retry once; implement under these gates.
 Set `DHPK_ORCHESTRATION_DISPATCH=on`. Bash resets cwd; use absolute paths, `npm --prefix`, or `git -C`.
 You are the orchestrator: mechanical → <FAST_WORKER_CLAUSE>; reasoning → dhpk:deep-reasoner;
 RED PHPUnit → dhpk:tdd-guide; <E2E_ROSTER_CLAUSE>never general-purpose.

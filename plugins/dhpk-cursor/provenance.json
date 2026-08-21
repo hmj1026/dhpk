@@ -1,11 +1,12 @@
 {
   "schema": "dhpk.platform-provenance.v1",
   "surface": "cursor-plugin",
+  "selectionMode": "compiler",
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
-  "sourceVersion": "0.43.0",
-  "sourceCommit": "cb727bf6a88d0e7f08d33823404ab7f0056621e8",
-  "inventoryDigest": "f1b777dfcda7c0bd605162aec481afcac24ef94e6780504f47dee86959da8ad8",
+  "sourceVersion": "0.44.0",
+  "sourceCommit": "c55b9ae672ada76f58227a2bb8b19b43929fe8b8",
+  "inventoryDigest": "df8828da7d502de2515a7343265bfbbc9596ef9c808d32169d082e5973153a71",
   "generatorVersion": "1.0.0",
   "selectedSkillIds": [],
   "selectedSkillNames": [],
@@ -617,7 +618,7 @@
     }
   ],
   "fingerprints": {
-    "rules": "d01dcae306083d19068284dd7870861d4019e5bec1941679f9183585b20526e6",
+    "rules": "c3e62b20f1b533baea46f8fc8d89f2901ae8809627b2b9dd80e1ab56d7baf512",
     "agents": "4dfbd9e2e49c57244860187df826a19f53a62b72f3f6d200a449ea31f8b9c948",
     "commands": "29ccd5d136137462f5261583480973054545bcf50d24ef29dd06004973b9ce02",
     "hooks/hooks.json": "1abe14baec6393d900554ebd4a84028ebd9748e0390f370813e9e32f664d0a8a"
@@ -626,5 +627,5 @@
     "status": "NOT_RUN",
     "reason": "Cursor client consumer probe is separate from structural generation."
   },
-  "planFingerprint": "35ea08b278d0da7a4b51f65075e022f0539ee4f30b74c4faf7723219227a4ab7"
+  "planFingerprint": "10be65626fd1748454bf96fd40c5f208d247fc1cffa87fe5ac84b971c847505c"
 }

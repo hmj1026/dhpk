@@ -16,11 +16,15 @@ metadata:
 
 ## Execution Policy
 
-Follow `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §Implementation dispatch for prohibited git actions, fast-worker override handling, and Codex isolation/mode selection. This skill does not commit; `/precommit` is only a quality gate.
+Load `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/delivery-core.md`
+for the shared implementation, context-tier, verification, and review contract.
+The route SSOT pointer is `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`
+§Implementation dispatch; load that section only when route selection needs it.
 
 <budget:token_budget>200000</budget:token_budget>
 
-The workflow tables show the `--codex` path. In default codex-free mode, use the substitutes defined by that policy section.
+The workflow tables show the `--codex` path. In default codex-free mode, use the
+policy's documented substitutes.
 
 ## Workflow
 

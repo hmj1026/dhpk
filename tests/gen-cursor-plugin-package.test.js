@@ -426,6 +426,48 @@ test('explicit Cursor overlay remains materialized alongside shared Agent Plugin
   }
 });
 
+test('deprecated explicit Cursor overlay remains materialized as a characterized exception', () => {
+  const root = makeFixture();
+  const out = tmpDir('dhpk-cursor-deprecated-overlay-');
+  try {
+    write(path.join(root, 'skills', 'dhpk-deprecated-overlay', 'SKILL.md'), [
+      '---',
+      'name: dhpk-deprecated-overlay',
+      "description: 'Deprecated overlay fixture.'",
+      '---',
+      '# Deprecated overlay fixture',
+      '',
+    ].join('\n'));
+    const inventory = fixtureInventory();
+    inventory.skills = [{
+      id: 'deprecated-overlay',
+      name: 'dhpk-deprecated-overlay',
+      path: 'skills/dhpk-deprecated-overlay',
+      lifecycle: 'deprecated',
+      surfaces: ['cursor-plugin'],
+    }];
+    inventory.surface_membership = { 'cursor-plugin': [] };
+    inventory.platform_matrix.entries = [{
+      id: 'dhpk.platform.cursor-plugin.deprecated-overlay',
+      public_name: 'cursor-plugin-deprecated-overlay',
+      surface: 'cursor-plugin',
+      source_paths: ['skills/dhpk-deprecated-overlay'],
+      destination: 'plugins/dhpk-cursor/skills/',
+      transform: 'cursor-native-adaptation',
+      fallback: 'SKIP_INCOMPATIBLE',
+      projection_mode: 'overlay',
+      stable_ids: ['deprecated-overlay'],
+      evidence: 'NOT_RUN',
+    }];
+    const result = materializeCursorPackage({ inventory, root, outDir: out });
+    assert.deepStrictEqual(result.skillIds, ['deprecated-overlay']);
+    assert.ok(fs.existsSync(path.join(out, 'skills', 'dhpk-deprecated-overlay', 'SKILL.md')));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
 test('manifest paths, marketplace source, hooks, and variables stay package-contained', () => {
     const root = makeFixture();
   const out = tmpDir('dhpk-cursor-boundary-');

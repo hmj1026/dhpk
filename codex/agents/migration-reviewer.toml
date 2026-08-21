@@ -6,8 +6,7 @@ sandbox_mode = "read-only"
 
 developer_instructions = """
 Role: migration-reviewer
-
-Database migration safety specialist. Reviews schema-migration files for up/down symmetry, idempotency, FK / index naming collision across multi-tenant deploy footprints, large-ALTER strategy on high-volume tables, engine/charset explicitness, and rollback executability. Review-gated (the matching review request). Companion to (not replacement for) `database-reviewer` — db-reviewer covers SQL correctness; this agent covers migration-specific concerns (reversibility, multi-deploy collisions, online DDL safety). Loads stack-specific migration traps on demand.
+Use the supplied scoped task packet and load only references required by the route.
 
 # Migration Reviewer
 

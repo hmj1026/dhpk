@@ -149,6 +149,25 @@ test('generated reviewer roles retain reachable Codex trap and contract referenc
   }
 });
 
+test('selected role prompts do not duplicate discovery descriptions', () => {
+  const tmp = mkTmp();
+  try {
+    const outDir = path.join(tmp, 'out');
+    const res = runScript([outDir]);
+    assert.strictEqual(res.status, 0, res.stderr);
+    const source = fs.readFileSync(path.join(ROOT, 'agents', 'code-reviewer.md'), 'utf8');
+    const description = source.match(/^description:\s*'([\s\S]*)'\s*$/m);
+    assert.ok(description, 'code-reviewer source description missing');
+    const value = description[1].replace(/''/g, "'").trim();
+    const generated = fs.readFileSync(path.join(outDir, 'code-reviewer.toml'), 'utf8');
+    const instructions = generated.slice(generated.indexOf('developer_instructions = """'));
+    assert.ok(!instructions.includes(value), 'description must not be repeated in developer_instructions');
+    assert.match(generated, /Use the supplied scoped task packet/);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('generated reviewer roles use Codex manual review and artifact semantics', () => {
   const tmp = mkTmp();
   try {

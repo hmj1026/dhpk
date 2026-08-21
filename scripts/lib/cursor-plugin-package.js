@@ -389,7 +389,13 @@ function projectionSelection(inventory, surface) {
   return new Set(ids.filter((id) => typeof id === 'string'));
 }
 
-function selectCursorSkills(inventory) {
+function selectCursorSkills(inventory, selectedStableIds = null) {
+  if (Array.isArray(selectedStableIds)) {
+    const selected = new Set(selectedStableIds);
+    return (inventory && inventory.skills || [])
+      .filter((skill) => skill && skill.lifecycle !== 'deprecated' && (selected.has(skill.id) || selected.has(skill.name)))
+      .sort((left, right) => String(left.name || left.id).localeCompare(String(right.name || right.id)));
+  }
   const explicit = surfaceIds(inventory, 'cursor-plugin');
   const projection = projectionSelection(inventory, 'cursor-plugin');
   const matrix = matrixSelection(inventory, 'cursor-plugin', 'skill');
@@ -422,20 +428,20 @@ function matrixEntryIds(entry) {
   return values.filter((value) => typeof value === 'string');
 }
 
-function cursorSkillProjection(inventory) {
+function cursorSkillProjection(inventory, selectedStableIds = null) {
   const rows = skillMatrixEntries(inventory);
   const projectionMode = (entry) => entry.projection_mode || (entry.shared_surface ? 'shared' : 'overlay');
   const sharedRows = rows.filter((entry) => projectionMode(entry) === 'shared');
   const overlayRows = rows.filter((entry) => projectionMode(entry) === 'overlay');
   const byId = new Map((inventory && inventory.skills || []).map((skill) => [skill && skill.id, skill]));
-  const agentSkills = selectPortableSkills(inventory, 'agent-plugin');
+  const agentSkills = selectPortableSkills(inventory, 'agent-plugin', selectedStableIds);
   const sharedIds = new Set(sharedRows.flatMap(matrixEntryIds));
   if (sharedRows.length > 0 && sharedIds.size === 0) agentSkills.forEach((skill) => sharedIds.add(skill.id));
   const overlayIds = new Set(overlayRows.flatMap(matrixEntryIds));
   const hasExplicitRows = rows.length > 0;
   const overlaySkills = hasExplicitRows && overlayIds.size > 0
     ? (inventory.skills || []).filter((skill) => overlayIds.has(skill.id) || overlayIds.has(skill.name))
-    : (hasExplicitRows && overlayRows.length === 0 ? [] : selectCursorSkills(inventory));
+    : (hasExplicitRows && overlayRows.length === 0 ? [] : selectCursorSkills(inventory, selectedStableIds));
   const sharedSurface = sharedRows.length > 0 ? sharedRows[0].shared_surface : null;
   return {
     mode: sharedRows.length > 0 && overlaySkills.length === 0 ? 'shared' : (overlaySkills.length > 0 ? 'overlay' : null),
@@ -709,13 +715,18 @@ function cursorReadmeContents() {
   };
 }
 
-function buildCursorProjection({ inventory, root, name, version, sourceCommit, generatorVersion, variables, traversalOptions = {} }) {
+function buildCursorProjection({ inventory, root, name, version, sourceCommit, generatorVersion, variables, traversalOptions = {}, selectionMode = 'compiler' }) {
   const resolvedRoot = path.resolve(root);
   const transformations = [];
   const skippedSkills = [];
   const files = [];
   const traversalBudget = createTraversalBudget(traversalOptions);
-  const skillProjection = cursorSkillProjection(inventory);
+  const selection = selectionMode === 'legacy' ? null : compileDistribution({ inventory, surface: 'cursor-plugin' });
+  if (selection && !selection.ok) throw new Error(selection.error.message);
+  const skillProjection = cursorSkillProjection(
+    inventory,
+    selection && selection.value.selectionPolicy ? selection.value.selectedStableIds : null,
+  );
   const selectedIds = [];
   const selectedNames = [];
   if (skillProjection.sharedSkills.length > 0) {
@@ -779,6 +790,7 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
   const provenance = {
     schema: RECEIPT_SCHEMA,
     surface: 'cursor-plugin',
+    selectionMode,
     owner: SURFACE_OWNERS['cursor-plugin'],
     packageRoot: 'plugins/dhpk-cursor',
     sourceVersion: version,
@@ -808,7 +820,18 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
     traversalBudget.accountBytes(output.content.byteLength, output.destination);
     files.push(output);
   }
-  return { files, manifest, marketplace, selectedSkillIds: [...selectedIds].sort(), selectedSkillNames: [...selectedNames].sort(), skippedSkills: provenance.skippedSkills, fingerprints, provenance, traversalBudget };
+  return {
+    files,
+    manifest,
+    marketplace,
+    selectedSkillIds: [...selectedIds].sort(),
+    selectedSkillNames: [...selectedNames].sort(),
+    skippedSkills: provenance.skippedSkills,
+    fingerprints,
+    provenance,
+    traversalBudget,
+    selection: selection && selection.ok ? selection.value : null,
+  };
 }
 
 function compileCursorPackage({
@@ -821,6 +844,7 @@ function compileCursorPackage({
   generatorVersion = GENERATOR_VERSION,
   variables = null,
   traversalOptions = {},
+  selectionMode = 'compiler',
 } = {}) {
   if (!inventory || typeof inventory !== 'object') throw new Error('Cursor package inventory is required');
   if (!root || !outDir) throw new Error('Cursor package root and outDir are required');
@@ -828,7 +852,7 @@ function compileCursorPackage({
   const resolvedOut = path.resolve(outDir);
   ensurePhysicalDirectory(resolvedRoot, 'canonical root');
   assertProjectionDestination(resolvedRoot, resolvedOut, 'Cursor Plugin');
-  const projection = buildCursorProjection({ inventory, root: resolvedRoot, name, version, sourceCommit, generatorVersion, variables, traversalOptions });
+  const projection = buildCursorProjection({ inventory, root: resolvedRoot, name, version, sourceCommit, generatorVersion, variables, traversalOptions, selectionMode });
   const entries = projection.files.map((file) => ({
       stableId: `cursor:${file.destination}`,
       source: file.source,
@@ -852,6 +876,15 @@ function compileCursorPackage({
       // Plan identity is a contract identity, not a host-specific temp path.
       ownershipRoot: 'plugins/dhpk-cursor',
       entries,
+      selectedStableIds: projection.selection && projection.selection.selectionPolicy
+        ? projection.selection.selectedStableIds
+        : undefined,
+      selectionPolicy: projection.selection && projection.selection.selectionPolicy
+        ? projection.selection.selectionPolicy
+        : undefined,
+      selectionEntries: projection.selection && projection.selection.selectionPolicy
+        ? projection.selection.entries
+        : undefined,
   });
   if (!compiled.ok) throw new Error(compiled.error.message);
   projection.provenance.planFingerprint = compiled.value.planFingerprint;

@@ -185,6 +185,8 @@ LIFECYCLE_STAGE=""
 LIFECYCLE_PLAN=""
 LIFECYCLE_ARTIFACT=""
 LIFECYCLE_ADAPTER_VERSION=""
+LIFECYCLE_DISPATCH_ATTEMPT=""
+LIFECYCLE_DISPATCH_ID=""
 LIFECYCLE_CONTEXT="$(dhpk_lifecycle_context "$SUBAGENT_BARE" "$STOP_SESSION_ID" 2>/dev/null || true)"
 if [ -n "$LIFECYCLE_CONTEXT" ]; then
     IFS=$'\t' read -r LIFECYCLE_TASK LIFECYCLE_ATTEMPT LIFECYCLE_SCOPE LIFECYCLE_DIFF _LIFECYCLE_SESSION \
@@ -197,6 +199,10 @@ if [ -z "$LIFECYCLE_TASK" ]; then
     LIFECYCLE_TASK="$(dhpk_lifecycle_task_id "$SENTINEL_NAME" "${STOP_SESSION_ID:-unknown}" "0" 2>/dev/null || true)"
 fi
 LIFECYCLE_ATTEMPT_ID="$(dhpk_lifecycle_attempt_id "$LIFECYCLE_TASK" "$LIFECYCLE_ATTEMPT" 2>/dev/null || true)"
+LIFECYCLE_DISPATCH_RECORD="$(dhpk_lifecycle_dispatch_record "$SENTINEL_NAME" "$SUBAGENT_BARE" "$STOP_SESSION_ID" 2>/dev/null || true)"
+if [ -n "$LIFECYCLE_DISPATCH_RECORD" ]; then
+    IFS=$'\t' read -r _dispatch_name _dispatch_baseline _dispatch_session LIFECYCLE_DISPATCH_ATTEMPT LIFECYCLE_DISPATCH_ID _dispatch_agent <<< "$LIFECYCLE_DISPATCH_RECORD"
+fi
 LIFECYCLE_LATEST_ARTIFACT="$(ls -t "$ROOT/.claude/artifacts/reviews/$SUBAGENT_BARE"-*.md 2>/dev/null | head -1 || true)"
 
 mkdir -p "$(dirname "$LOG")" 2>/dev/null || true
@@ -510,7 +516,8 @@ has_fresh_parseable_verdict() {
     if dhpk_lifecycle_artifact_has_identity "$latest" 2>/dev/null && \
         ! dhpk_lifecycle_artifact_matches "$latest" "$LIFECYCLE_SCOPE" "$LIFECYCLE_DIFF" \
             "$LIFECYCLE_PRODUCER" "$LIFECYCLE_WAVE" "$LIFECYCLE_EVIDENCE_SCOPE" "$LIFECYCLE_ADAPTER" \
-            "$LIFECYCLE_STAGE" "$LIFECYCLE_PLAN" "$LIFECYCLE_ARTIFACT" "$LIFECYCLE_ATTEMPT_ID" 2>/dev/null; then
+            "$LIFECYCLE_STAGE" "$LIFECYCLE_PLAN" "$LIFECYCLE_ARTIFACT" "$LIFECYCLE_ATTEMPT_ID" \
+            "$STOP_SESSION_ID" "$LIFECYCLE_DISPATCH_ATTEMPT" "$LIFECYCLE_DISPATCH_ID" "$LIFECYCLE_TASK" 2>/dev/null; then
         printf '0'
         return 0
     fi
@@ -618,7 +625,8 @@ elif [ -f "$SENTINEL_FILE" ]; then
         if dhpk_lifecycle_artifact_has_identity "$LIFECYCLE_LATEST_ARTIFACT" 2>/dev/null; then
             dhpk_lifecycle_artifact_matches "$LIFECYCLE_LATEST_ARTIFACT" "$LIFECYCLE_SCOPE" "$LIFECYCLE_DIFF" \
                 "$LIFECYCLE_PRODUCER" "$LIFECYCLE_WAVE" "$LIFECYCLE_EVIDENCE_SCOPE" "$LIFECYCLE_ADAPTER" \
-                "$LIFECYCLE_STAGE" "$LIFECYCLE_PLAN" "$LIFECYCLE_ARTIFACT" "$LIFECYCLE_ATTEMPT_ID" 2>/dev/null || _LIFECYCLE_IDENTITY_OK=0
+                "$LIFECYCLE_STAGE" "$LIFECYCLE_PLAN" "$LIFECYCLE_ARTIFACT" "$LIFECYCLE_ATTEMPT_ID" \
+                "$STOP_SESSION_ID" "$LIFECYCLE_DISPATCH_ATTEMPT" "$LIFECYCLE_DISPATCH_ID" "$LIFECYCLE_TASK" 2>/dev/null || _LIFECYCLE_IDENTITY_OK=0
         fi
         if [ "$_LIFECYCLE_IDENTITY_OK" -eq 1 ]; then
             dhpk_lifecycle_mark_artifact_ready "$LIFECYCLE_TASK" "$SUBAGENT_BARE" "$STOP_SESSION_ID" "$LIFECYCLE_ATTEMPT" "$LIFECYCLE_SCOPE" "$LIFECYCLE_DIFF" "$LIFECYCLE_LATEST_ARTIFACT" \

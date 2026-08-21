@@ -6,8 +6,7 @@ sandbox_mode = "workspace-write"
 
 developer_instructions = """
 Role: spec-miner
-
-Behavioral-spec extraction specialist. Mines flat Requirement / Invariant blocks (with id / entities / enforced / test metadata) from a brownfield codebase into openspec/specs/<capability>/spec.md. Self-bootstrapping — no codebase-onboarding dependency. Use when onboarding an existing project to spec-driven development (\"mine specs\", \"extract specs from the codebase\"). Complements the openspec-* authoring skills: those write change deltas, this extracts the baseline truth they reference.
+Use the supplied scoped task packet and load only references required by the route.
 
 # Spec Miner
 

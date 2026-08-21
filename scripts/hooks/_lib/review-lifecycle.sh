@@ -5,6 +5,9 @@
 [ -n "${_DHPK_REVIEW_LIFECYCLE_LOADED:-}" ] && return 0
 _DHPK_REVIEW_LIFECYCLE_LOADED=1
 
+_DHPK_REVIEW_LIFECYCLE_DIR="$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "$_DHPK_REVIEW_LIFECYCLE_DIR/review-lifecycle-identity.sh"
+
 : "${DHPK_SIDECAR_LIFECYCLE_EVENTS:=.lifecycle-events.jsonl}"
 : "${DHPK_SIDECAR_ARTIFACT_READY:=.producer-ready.jsonl}"
 : "${DHPK_SIDECAR_REVIEW_TELEMETRY:=.review-telemetry.jsonl}"
@@ -311,51 +314,11 @@ PY
 dhpk_lifecycle_artifact_matches() {
     local artifact="$1" scope="$2" diff="$3" expected_producer="${4:-}" expected_wave="${5:-}"
     local expected_scope="${6:-}" expected_adapter="${7:-}" expected_stage="${8:-}" expected_plan="${9:-}"
-    local expected_artifact="${10:-}" expected_attempt_id="${11:-}"
-    [ -f "$artifact" ] || return 1
-    command -v python3 >/dev/null 2>&1 || return 1
-    ARTIFACT_IN="$artifact" SCOPE_IN="$scope" DIFF_IN="$diff" PRODUCER_IN="$expected_producer" WAVE_IN="$expected_wave" \
-    EVIDENCE_SCOPE_IN="$expected_scope" ADAPTER_IN="$expected_adapter" STAGE_IN="$expected_stage" PLAN_IN="$expected_plan" \
-    ARTIFACT_FP_IN="$expected_artifact" ATTEMPT_ID_IN="$expected_attempt_id" python3 - <<'PY' 2>/dev/null
-import os
-text = open(os.environ['ARTIFACT_IN'], encoding='utf-8', errors='replace').read()
-parts = text.split('---', 2) if text.startswith('---') else []
-front = parts[1] if len(parts) >= 3 else ''
-values = {}
-for line in front.splitlines():
-    if ':' in line:
-        key, value = line.split(':', 1); values[key.strip().lower()] = value.strip().strip("'\"")
-expected = {
-    'producer': os.environ.get('PRODUCER_IN', ''),
-    'wave': os.environ.get('WAVE_IN', ''),
-    'scope': os.environ.get('EVIDENCE_SCOPE_IN', ''),
-    'adapter': os.environ.get('ADAPTER_IN', ''),
-    'stage': os.environ.get('STAGE_IN', ''),
-    'plan_fingerprint': os.environ.get('PLAN_IN', ''),
-    'artifact_fingerprint': os.environ.get('ARTIFACT_FP_IN', ''),
-    'attempt_id': os.environ.get('ATTEMPT_ID_IN', ''),
-}
-aliases = {
-    'scope': ('scope', 'scope_id'),
-    'artifact_fingerprint': ('artifact_fingerprint', 'artifact_sha256'),
-    'attempt_id': ('attempt_id',),
-    'producer': ('producer',),
-    'wave': ('wave', 'wave_id'),
-    'adapter': ('adapter', 'adapter_id'),
-    'stage': ('stage', 'verification_stage'),
-    'plan_fingerprint': ('plan_fingerprint', 'plan_id'),
-}
-# Optional identity fields are additive.  A legacy scope/diff-only artifact
-# remains consumable; once a producer writes one of the new fields, a value
-# supplied by the lifecycle context must still match (mismatch fails closed).
-identity_ok = all(
-    not expected_value
-    or not any(values.get(alias) for alias in aliases[key])
-    or any(values.get(alias) == expected_value for alias in aliases[key])
-    for key, expected_value in expected.items()
-)
-raise SystemExit(0 if values.get('scope_id') == os.environ['SCOPE_IN'] and values.get('diff_id') == os.environ['DIFF_IN'] and identity_ok else 1)
-PY
+    local expected_artifact="${10:-}" expected_attempt_id="${11:-}" expected_session="${12:-}"
+    local expected_dispatch_attempt="${13:-}" expected_dispatch_id="${14:-}" expected_task="${15:-}"
+    dhpk_identity_artifact_matches "$artifact" "$scope" "$diff" "$expected_producer" "$expected_wave" \
+        "$expected_scope" "$expected_adapter" "$expected_stage" "$expected_plan" "$expected_artifact" \
+        "$expected_attempt_id" "$expected_session" "$expected_dispatch_attempt" "$expected_dispatch_id" "$expected_task"
 }
 
 dhpk_lifecycle_artifact_verdict() {
@@ -443,34 +406,8 @@ dhpk_lifecycle_dispatch_record() {
 dhpk_lifecycle_artifact_matches_dispatch() {
     local artifact="$1" session="$2" attempt="$3" dispatch="$4"
     [ -f "$artifact" ] && [ -n "$session" ] && [ -n "$attempt" ] && [ -n "$dispatch" ] || return 1
-    command -v python3 >/dev/null 2>&1 || return 1
-    ARTIFACT_IN="$artifact" SESSION_IN="$session" ATTEMPT_IN="$attempt" DISPATCH_IN="$dispatch" python3 - <<'PY' 2>/dev/null
-import os
-
-text = open(os.environ['ARTIFACT_IN'], encoding='utf-8', errors='replace').read()
-parts = text.split('---', 2) if text.startswith('---') else []
-front = parts[1] if len(parts) >= 3 else ''
-values = {}
-for line in front.splitlines():
-    if ':' in line:
-        key, value = line.split(':', 1)
-        values[key.strip().lower()] = value.strip().strip("'\"")
-
-def first(*names):
-    for name in names:
-        if values.get(name):
-            return values[name]
-    return ''
-
-session = first('session_id', 'session', 'origin_session')
-attempt = first('dispatch_attempt', 'attempt')
-dispatch = first('dispatch_id', 'attempt_id', 'dispatch')
-raise SystemExit(0 if (
-    session == os.environ['SESSION_IN'] and
-    attempt == os.environ['ATTEMPT_IN'] and
-    dispatch == os.environ['DISPATCH_IN']
-) else 1)
-PY
+    dhpk_identity_artifact_matches "$artifact" "" "" "" "" "" "" "" "" "" "" \
+        "$session" "$attempt" "$dispatch"
 }
 
 dhpk_lifecycle_context() {

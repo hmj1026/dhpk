@@ -74,6 +74,7 @@ function scaffold(repo, {
         'generated_at: 2026-07-23T10:00:05+08:00',
         'commit: test-sha',
         'scope: [test/fixture]',
+        `task_id: review:.pending-review:${sessionId}`,
         'severity_summary: { critical: 0, high: 0, medium: 0, low: 0 }',
         ...provenance,
         `verdict: ${verdict}`,
