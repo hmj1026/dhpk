@@ -123,6 +123,33 @@ Nothing is removed from `plugin.json` in this phase (design.md Non-Goals:
 "Deleting canonical skills during the first migration"). The generator
 becomes load-bearing the first time a skill is deprecated — see below.
 
+## Claude userConfig metadata candidate and rollback
+
+`scripts/ci/gen-claude-user-config.js` generates compact descriptions from
+`manifests/claude-user-config-metadata.json`. It preserves all 59 characterized
+keys, types, defaults, validation-related fields, aliases, and module behavior;
+the only active-manifest field it changes is description text. Guidance remains
+in the canonical documentation and skills referenced by each compact pointer.
+
+The checked-in `.claude-plugin/plugin.json` remains the legacy rollback path
+until the focused contract, pointer, schema, behavior, deterministic-generation,
+and consumer gates pass. Inspect a candidate without enabling it with:
+
+```bash
+node scripts/ci/gen-claude-user-config.js
+node scripts/ci/gen-claude-user-config.js --check
+```
+
+Activation is explicit and gated by `DHPK_ENABLE_COMPACT_USER_CONFIG=1`; rollback
+uses `--rollback` and the characterized
+`manifests/claude-user-config-legacy.json` artifact. The `claude-user-config`
+category is measured separately from skill discovery, profile bundles, agents,
+commands, and runtime activation. Byte/word/token reduction is structural
+metadata evidence only. If the exact configured Claude probe cannot bind the
+observed consumer details to the generated manifest fingerprint, its result
+remains `NOT_RUN`, `NOT_CONFIGURED`, `BLOCKED`, or `UNAVAILABLE` with a resume
+command; no live context reduction is claimed.
+
 ## Host limitation: directory roots, not per-skill filtering
 
 Claude Code's plugin manifest registers skill **directories**, not
