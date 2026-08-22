@@ -36,6 +36,9 @@ jobs:
           VERSION="${GITHUB_REF_NAME#v}"
           node scripts/ci/verify-release-parity.js --version "$VERSION"
 
+      - name: Verify harness facade preflight
+        run: bin/dhpk harness preflight --json
+
       - name: Verify generated platform packages
         run: |
           for surface in agent-plugin cursor-plugin codex-native agy-plugin; do

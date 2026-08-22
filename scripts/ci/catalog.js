@@ -136,6 +136,10 @@ const COVERAGE_MAP = {
   'scripts/hooks/reconcile-resumed-review.sh': 'resumed-review-reconcile.test.js',
   'scripts/lib/reference-registry.js': 'reference-route-policy.test.js',
   'scripts/lib/route-result.js': 'reference-route-policy.test.js',
+  'scripts/lib/harness-receipt.js': 'harness-operation-receipts.test.js',
+  'scripts/lib/harness-result.js': 'harness-release-aggregation.test.js',
+  'scripts/lib/harness-surfaces.js': 'harness-surfaces.test.js',
+  'scripts/dhpk-harness.js': 'harness-facade-cli.test.js',
 };
 
 const SCRIPT_EXTS = new Set(['.sh', '.js', '.ts', '.py']);

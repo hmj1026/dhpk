@@ -43,6 +43,19 @@ jobs:
         run: node scripts/ci/validate-plugin.js --strict
       - name: Validate distribution inventory
         run: node scripts/ci/validate-distribution.js --strict
+      # Public facade smoke check. Exit 2 is an explicit non-pass evidence
+      # state (for example an unavailable local consumer), not a shell error;
+      # deterministic failures and usage errors still fail CI.
+      - name: Harness facade preflight
+        run: |
+          set +e
+          bin/dhpk harness preflight --json
+          status=$?
+          set -e
+          case "$status" in
+            0|2) exit 0 ;;
+            *) exit "$status" ;;
+          esac
       - name: Validate retained distribution packages
         run: |
           for surface in agent-plugin cursor-plugin codex-native agy-plugin; do

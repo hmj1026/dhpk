@@ -4,8 +4,8 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
   "sourceVersion": "0.44.0",
-  "sourceCommit": "c55b9ae672ada76f58227a2bb8b19b43929fe8b8",
-  "inventoryDigest": "cc9c32c7eb8925a864b4e0e75ada05f392cec6a844ceccb260281e5da26b304d",
+  "sourceCommit": "5db04f1aea4cee5df2f792cf5c786dd9ed153920",
+  "inventoryDigest": "8a9ae411298539a33bc15d5218a637fced05cf20a02891b7bc5eb9bd8fe6e8fa",
   "generatorVersion": "1.0.0",
   "schemaVersion": "1.0.0",
   "selectedSkillIds": [
