@@ -55,7 +55,19 @@ case "$phase" in
             exit 1
         fi
 
-        git add -- "${release_files[@]}"
+        for release_file in "${release_files[@]}"; do
+            if [ -e "$release_file" ]; then
+                git add -- "$release_file"
+            elif git diff --cached --quiet -- "$release_file"; then
+                git add -u -- "$release_file"
+            fi
+        done
+        for release_file in "${release_files[@]}"; do
+            if ! git diff --cached --name-only -- "$release_file" | grep -Fqx -- "$release_file"; then
+                echo "release-runner: release file was not staged: $release_file" >&2
+                exit 1
+            fi
+        done
         git commit -m "chore(release): bump version to $version and update changelog"
         git push origin "$base_branch"
         gh pr create --head "$base_branch" --base "$release_branch" --title "Release $tag" --body "Release version $version"

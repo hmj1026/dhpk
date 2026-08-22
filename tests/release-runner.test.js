@@ -3,7 +3,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
+const { execFileSync, spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
@@ -25,10 +25,13 @@ test('prepare creates the release PR and stops before tagging', () => {
     const bin = path.join(tmp, 'bin');
     const log = path.join(tmp, 'calls.log');
     fs.mkdirSync(bin);
+    fs.mkdirSync(path.join(tmp, '.claude-plugin'));
+    fs.writeFileSync(path.join(tmp, '.claude-plugin', 'plugin.json'), '{}\n');
+    fs.writeFileSync(path.join(tmp, 'CHANGELOG.md'), '# Changelog\n');
     for (const name of ['git', 'gh']) {
       const body = name === 'gh'
         ? '#!/bin/sh\nprintf "gh %s\\n" "$*" >> "$CALL_LOG"\n[ "$1 $2" = "run list" ] && printf "run-123\\n"\nexit 0\n'
-        : '#!/bin/sh\nprintf "git %s\\n" "$*" >> "$CALL_LOG"\n';
+        : '#!/bin/sh\nprintf "git %s\\n" "$*" >> "$CALL_LOG"\nif [ "$1" = "diff" ] && [ "$2" = "--cached" ] && [ "$3" = "--name-only" ]; then printf "%s\\n" "$5"; fi\n';
       fs.writeFileSync(path.join(bin, name), body, { mode: 0o755 });
     }
     const res = spawnSync('bash', [
@@ -42,7 +45,8 @@ test('prepare creates the release PR and stops before tagging', () => {
     assert.strictEqual(res.status, 0, res.stderr);
     const calls = fs.readFileSync(log, 'utf8');
     const ordered = [
-      'git checkout develop', 'git pull', 'git add -- .claude-plugin/plugin.json CHANGELOG.md',
+      'git checkout develop', 'git pull', 'git add -- .claude-plugin/plugin.json',
+      'git add -- CHANGELOG.md',
       'git commit -m chore(release): bump version to 1.2.3 and update changelog',
       'git push origin develop',
       'gh pr create --head develop --base main --title Release v1.2.3 --body Release version 1.2.3',
@@ -166,7 +170,10 @@ test('prepare stages only explicitly declared release files', () => {
     const bin = path.join(tmp, 'bin');
     const log = path.join(tmp, 'calls.log');
     fs.mkdirSync(bin);
-    fs.writeFileSync(path.join(bin, 'git'), '#!/bin/sh\nprintf "git %s\\n" "$*" >> "$CALL_LOG"\n', { mode: 0o755 });
+    fs.mkdirSync(path.join(tmp, '.claude-plugin'));
+    fs.writeFileSync(path.join(tmp, '.claude-plugin', 'plugin.json'), '{}\n');
+    fs.writeFileSync(path.join(tmp, 'CHANGELOG.md'), '# Changelog\n');
+    fs.writeFileSync(path.join(bin, 'git'), '#!/bin/sh\nprintf "git %s\\n" "$*" >> "$CALL_LOG"\nif [ "$1" = "diff" ] && [ "$2" = "--cached" ] && [ "$3" = "--name-only" ]; then printf "%s\\n" "$5"; fi\n', { mode: 0o755 });
     fs.writeFileSync(path.join(bin, 'gh'), '#!/bin/sh\nprintf "gh %s\\n" "$*" >> "$CALL_LOG"\n', { mode: 0o755 });
     const res = spawnSync('bash', [
       RUNNER, 'prepare', '1.2.4', 'develop', 'main', 'v', 'release.yml',
@@ -178,7 +185,8 @@ test('prepare stages only explicitly declared release files', () => {
     });
     assert.strictEqual(res.status, 0, res.stderr);
     const calls = fs.readFileSync(log, 'utf8');
-    assert.ok(calls.includes('git add -- .claude-plugin/plugin.json CHANGELOG.md'), calls);
+    assert.ok(calls.includes('git add -- .claude-plugin/plugin.json'), calls);
+    assert.ok(calls.includes('git add -- CHANGELOG.md'), calls);
     assert.ok(!calls.includes('git add -A'), calls);
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 });
@@ -205,6 +213,94 @@ if [ "$1 $2" = "status --porcelain" ]; then printf " M unrelated.md\\n"; fi
     assert.notStrictEqual(res.status, 0);
     assert.ok(res.stderr.includes('unexpected worktree changes'), res.stderr);
     assert.ok(!fs.readFileSync(log, 'utf8').includes('git commit'), fs.readFileSync(log, 'utf8'));
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('prepare stages explicitly declared release files that were deleted by changelog promotion', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-release-runner-'));
+  try {
+    const bin = path.join(tmp, 'bin');
+    const log = path.join(tmp, 'calls.log');
+    fs.mkdirSync(bin);
+    fs.mkdirSync(path.join(tmp, '.claude-plugin'), { recursive: true });
+    fs.writeFileSync(path.join(tmp, '.claude-plugin', 'plugin.json'), '{}\n');
+    fs.writeFileSync(path.join(tmp, 'CHANGELOG.md'), '# Changelog\n');
+    fs.writeFileSync(path.join(bin, 'git'), `#!/bin/sh
+printf "git %s\\n" "$*" >> "$CALL_LOG"
+if [ "$1" = "status" ]; then
+  printf " D changelog.d/promoted.md\\n"
+fi
+if [ "$1" = "diff" ] && [ "$2" = "--cached" ] && [ "$3" = "--quiet" ]; then
+  exit 0
+fi
+if [ "$1" = "diff" ] && [ "$2" = "--cached" ] && [ "$3" = "--name-only" ]; then
+  printf "%s\\n" "$5"
+fi
+`, { mode: 0o755 });
+    fs.writeFileSync(path.join(bin, 'gh'), '#!/bin/sh\nprintf "gh %s\\n" "$*" >> "$CALL_LOG"\n', { mode: 0o755 });
+    const res = spawnSync('bash', [
+      RUNNER, 'prepare', '1.2.6', 'develop', 'main', 'v', 'release.yml',
+      '.claude-plugin/plugin.json', 'CHANGELOG.md', 'changelog.d/promoted.md',
+    ], {
+      cwd: tmp,
+      encoding: 'utf8',
+      env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, CALL_LOG: log },
+    });
+    assert.strictEqual(res.status, 0, res.stderr);
+    const calls = fs.readFileSync(log, 'utf8');
+    assert.ok(calls.includes('git add -- .claude-plugin/plugin.json'), calls);
+    assert.ok(calls.includes('git add -- CHANGELOG.md'), calls);
+    assert.ok(calls.includes('git add -u -- changelog.d/promoted.md'), calls);
+    assert.ok(calls.includes('git commit -m chore(release): bump version to 1.2.6 and update changelog'), calls);
+    assert.ok(calls.includes('gh pr create --head develop --base main --title Release v1.2.6 --body Release version 1.2.6'), calls);
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('prepare commits an already-staged changelog deletion in a real git repository', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-release-runner-real-git-'));
+  const repo = path.join(tmp, 'repo');
+  const remote = path.join(tmp, 'remote.git');
+  const bin = path.join(tmp, 'bin');
+  const log = path.join(tmp, 'calls.log');
+  try {
+    fs.mkdirSync(repo, { recursive: true });
+    fs.mkdirSync(bin);
+    execFileSync('git', ['init', '--bare', remote], { encoding: 'utf8' });
+    execFileSync('git', ['init', '-b', 'develop', repo], { encoding: 'utf8' });
+    const git = (args) => execFileSync('git', args, { cwd: repo, encoding: 'utf8' });
+    git(['config', 'user.name', 'Release Runner Test']);
+    git(['config', 'user.email', 'release-runner@example.invalid']);
+    fs.mkdirSync(path.join(repo, '.claude-plugin'), { recursive: true });
+    fs.mkdirSync(path.join(repo, 'changelog.d'), { recursive: true });
+    fs.writeFileSync(path.join(repo, '.claude-plugin', 'plugin.json'), '{"version":"1.2.6"}\n');
+    fs.writeFileSync(path.join(repo, 'CHANGELOG.md'), '# Changelog\n');
+    fs.writeFileSync(path.join(repo, 'changelog.d', 'promoted.md'), 'promoted\n');
+    git(['add', '--', '.claude-plugin/plugin.json', 'CHANGELOG.md', 'changelog.d/promoted.md']);
+    git(['commit', '-m', 'seed release runner integration repository']);
+    git(['remote', 'add', 'origin', remote]);
+    git(['push', '--set-upstream', 'origin', 'develop']);
+
+    fs.writeFileSync(path.join(repo, '.claude-plugin', 'plugin.json'), '{"version":"1.2.7"}\n');
+    fs.writeFileSync(path.join(repo, 'CHANGELOG.md'), '# Changelog\n\n## 1.2.7\n');
+    fs.rmSync(path.join(repo, 'changelog.d', 'promoted.md'));
+    git(['add', '-u', '--', 'changelog.d/promoted.md']);
+    fs.writeFileSync(path.join(bin, 'gh'), '#!/bin/sh\nprintf "gh %s\\n" "$*" >> "$CALL_LOG"\n', { mode: 0o755 });
+
+    const res = spawnSync('bash', [
+      RUNNER, 'prepare', '1.2.7', 'develop', 'main', 'v', 'release.yml',
+      '.claude-plugin/plugin.json', 'CHANGELOG.md', 'changelog.d/promoted.md',
+    ], {
+      cwd: repo,
+      encoding: 'utf8',
+      env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, CALL_LOG: log },
+    });
+    assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+    const committed = git(['show', '--format=', '--name-status', 'HEAD']);
+    assert.ok(committed.includes('M\t.claude-plugin/plugin.json'), committed);
+    assert.ok(committed.includes('M\tCHANGELOG.md'), committed);
+    assert.ok(committed.includes('D\tchangelog.d/promoted.md'), committed);
+    assert.strictEqual(git(['status', '--porcelain']), '');
+    assert.ok(fs.readFileSync(log, 'utf8').includes('gh pr create --head develop --base main --title Release v1.2.7 --body Release version 1.2.7'));
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 });
 
