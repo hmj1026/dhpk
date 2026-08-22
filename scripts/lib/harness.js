@@ -139,9 +139,16 @@ function packageIdentity(root, payload, binding) {
     ? (rawPlanFingerprint.startsWith('sha256:') ? rawPlanFingerprint : `sha256:${rawPlanFingerprint}`)
     : null;
   if (!planFingerprint) errors.push('package provenance is missing plan/inventory fingerprint');
-  if (typeof provenance.sourceCommit !== 'string') errors.push('package provenance is missing source commit');
-  else if (binding && provenance.sourceCommit.toLowerCase() !== binding.sourceCommit.toLowerCase()) {
-    errors.push('package provenance source commit does not match current checkout');
+  if (typeof provenance.sourceCommit !== 'string' || !/^[a-f0-9]{40}$/i.test(provenance.sourceCommit)) {
+    errors.push('package provenance source commit is missing or invalid');
+  }
+  let packageSourceTree = null;
+  if (errors.length === 0) {
+    try {
+      packageSourceTree = receipts.resolveGitTree(root, provenance.sourceCommit);
+    } catch (error) {
+      errors.push(`package provenance source commit cannot be resolved: ${error.message}`);
+    }
   }
   let artifactFingerprint = null;
   try {
@@ -161,7 +168,9 @@ function packageIdentity(root, payload, binding) {
     provenancePath: path.relative(root, provenancePath).split(path.sep).join('/'),
     provenanceFingerprint,
     sourceCommit: provenance.sourceCommit || null,
-    sourceTree: binding && binding.sourceTree,
+    sourceTree: packageSourceTree,
+    currentSourceCommit: binding && binding.sourceCommit,
+    currentSourceTree: binding && binding.sourceTree,
     byteReferences: [
       ...(artifactFingerprint ? [{ path: output, kind: 'directory', fingerprint: artifactFingerprint }] : []),
       { path: provenancePath, kind: 'file', fingerprint: provenanceFingerprint },
