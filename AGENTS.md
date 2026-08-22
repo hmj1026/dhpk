@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **dhpk** (28029 symbols, 35304 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
+This project is indexed by GitNexus as **dhpk** (28367 symbols, 35828 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
 > If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
@@ -44,4 +44,6 @@ This project is indexed by GitNexus as **dhpk** (28029 symbols, 35304 relationsh
 
 ## Further guidance
 
-- [Agent guidance index](docs/agent-guidance/README.md), [plugin development](docs/agent-guidance/plugin-development.md), and [writing for agents](docs/agent-guidance/writing-for-agents.md); see [Codex guidance](codex/AGENTS.md).
+- [Agent guidance index](docs/agent-guidance/README.md), [plugin development](docs/agent-guidance/plugin-development.md), and [writing for agents](docs/agent-guidance/writing-for-agents.md); see [Codex guidance](codex/AGENTS.md) and [issue-tracker.md](docs/agents/issue-tracker.md).
+- Triage labels: use `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, and `wontfix`; see [triage-labels.md](docs/agents/triage-labels.md).
+- Domain context: read the root `CONTEXT.md` or `CONTEXT-MAP.md`, plus relevant ADRs; see [domain.md](docs/agents/domain.md).
