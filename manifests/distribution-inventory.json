@@ -2923,6 +2923,15 @@
   },
   "platform_matrix": {
     "schema": "dhpk.platform-capability-matrix.v1",
+    "required_surfaces": [
+      "claude-core",
+      "codex-sync",
+      "codex-native",
+      "cursor-sync",
+      "cursor-plugin",
+      "agent-plugin",
+      "agy-plugin"
+    ],
     "entries": [
       {
         "id": "dhpk.platform.agent-plugin.skills",

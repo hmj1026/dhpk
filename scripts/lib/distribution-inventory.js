@@ -17,6 +17,7 @@ const path = require('node:path');
 const { collectInventory, relativePosix } = require('./asset-inventory');
 const { compileDistribution, verifyDistribution } = require('./distribution-compiler');
 const { fingerprint, createDistributionArtifact, projectionError } = require('./distribution-projection-contract');
+const { REQUIRED_SURFACES } = require('./harness-surfaces');
 
 const LIFECYCLES = ['promoted', 'optional', 'experimental', 'deprecated'];
 const SURFACES = [
@@ -421,7 +422,10 @@ function validateDistributionInventoryV2(input = {}) {
 
   const membership = validateSurfaceMembership({ inventory, ids });
   errors.push(...membership.errors);
-  const matrix = validatePlatformCapabilityMatrix(inventory.platform_matrix);
+  const matrix = validatePlatformCapabilityMatrix(inventory.platform_matrix, {
+    requireRequiredSurfaces: inventory.platform_matrix !== undefined,
+    projectionContract: inventory.projection_contract,
+  });
   errors.push(...matrix.errors);
   const frontmatter = validatePortableFrontmatterContract(inventory.portable_frontmatter);
   errors.push(...frontmatter.errors);
@@ -647,9 +651,58 @@ function validateSurfaceMembership({ inventory, ids: skillIds = new Set() }) {
   return { errors };
 }
 
-function validatePlatformCapabilityMatrix(matrix) {
+function validateRequiredSurfaceList(requiredSurfaces, {
+  label = 'required_surfaces',
+  fullRelease = true,
+} = {}) {
   const errors = [];
-  if (matrix === undefined) return { errors };
+  if (!Array.isArray(requiredSurfaces) || requiredSurfaces.length === 0) {
+    errors.push(`${label} must be a non-empty array`);
+    return { errors, value: null };
+  }
+  const seen = new Set();
+  for (const surface of requiredSurfaces) {
+    if (typeof surface !== 'string' || !REQUIRED_SURFACES.includes(surface)) {
+      errors.push(`${label} contains unknown surface '${surface}'`);
+    } else if (seen.has(surface)) {
+      errors.push(`${label} contains duplicate surface '${surface}'`);
+    }
+    seen.add(surface);
+  }
+  if (fullRelease && errors.length === 0
+    && (requiredSurfaces.length !== REQUIRED_SURFACES.length
+      || requiredSurfaces.some((surface, index) => surface !== REQUIRED_SURFACES[index]))) {
+    errors.push(`${label} must exactly match the canonical required surface order: ${REQUIRED_SURFACES.join(', ')}`);
+  }
+  return { errors, value: errors.length === 0 ? [...requiredSurfaces] : null };
+}
+
+function validateRequiredSurfaceProjectionContracts(requiredSurfaces, projectionContract) {
+  const errors = [];
+  if (!projectionContract || typeof projectionContract !== 'object' || Array.isArray(projectionContract)) {
+    return { errors: ['projection_contract is required for required surface validation'] };
+  }
+  const surfaces = projectionContract.surfaces;
+  if (!surfaces || typeof surfaces !== 'object' || Array.isArray(surfaces)) {
+    return { errors: ['projection_contract.surfaces is required for required surface validation'] };
+  }
+  for (const surface of requiredSurfaces) {
+    if (!surfaces[surface] || typeof surfaces[surface] !== 'object' || Array.isArray(surfaces[surface])) {
+      errors.push(`required surface '${surface}' has no matching projection contract`);
+    }
+  }
+  return { errors };
+}
+
+function validatePlatformCapabilityMatrix(matrix, {
+  requireRequiredSurfaces = false,
+  projectionContract,
+} = {}) {
+  const errors = [];
+  if (matrix === undefined) {
+    if (requireRequiredSurfaces) errors.push('platform_matrix is required for required surface validation');
+    return { errors };
+  }
   if (!matrix || typeof matrix !== 'object' || Array.isArray(matrix)) {
     return { errors: ['platform_matrix must be an object when present'] };
   }
@@ -659,6 +712,20 @@ function validatePlatformCapabilityMatrix(matrix) {
   if (!Array.isArray(matrix.entries)) {
     errors.push('platform_matrix.entries must be an array');
     return { errors };
+  }
+  let requiredSurfaceValidation = { errors: [], value: null };
+  if (requireRequiredSurfaces || Object.prototype.hasOwnProperty.call(matrix, 'required_surfaces')) {
+    requiredSurfaceValidation = validateRequiredSurfaceList(matrix.required_surfaces, {
+      label: 'platform_matrix.required_surfaces',
+      fullRelease: true,
+    });
+    errors.push(...requiredSurfaceValidation.errors);
+    if (projectionContract !== undefined && requiredSurfaceValidation.value) {
+      errors.push(...validateRequiredSurfaceProjectionContracts(
+        requiredSurfaceValidation.value,
+        projectionContract,
+      ).errors);
+    }
   }
   const ids = new Set();
   for (const [index, entry] of matrix.entries.entries()) {
@@ -704,6 +771,49 @@ function validatePlatformCapabilityMatrix(matrix) {
     }
   }
   return { errors };
+}
+
+// Validate both the inventory-owned list and the copy carried by an upcoming
+// full/scoped plan. The helper is intentionally pure so preflight and release
+// aggregation can share it without creating another selection policy.
+function validateRequiredSurfacePlan({
+  inventory,
+  requiredSurfaces,
+  planRequiredSurfaces,
+  fullRelease = true,
+} = {}) {
+  const matrix = inventory && inventory.platform_matrix;
+  const projectionContract = inventory && inventory.projection_contract;
+  const matrixResult = validatePlatformCapabilityMatrix(matrix, {
+    requireRequiredSurfaces: true,
+    projectionContract,
+  });
+  const errors = [...matrixResult.errors];
+  const plan = planRequiredSurfaces === undefined ? requiredSurfaces : planRequiredSurfaces;
+  const matrixList = matrix && matrix.required_surfaces;
+  if (plan !== undefined) {
+    const planResult = validateRequiredSurfaceList(plan, {
+      label: 'plan.required_surfaces',
+      fullRelease,
+    });
+    errors.push(...planResult.errors);
+    if (planResult.value && Array.isArray(matrixList)) {
+      if (fullRelease && JSON.stringify(planResult.value) !== JSON.stringify(matrixList)) {
+        errors.push('plan.required_surfaces must exactly match platform_matrix.required_surfaces for a full release');
+      }
+      if (!fullRelease) {
+        const missing = planResult.value.filter((surface) => !matrixList.includes(surface));
+        if (missing.length > 0) {
+          errors.push(`plan.required_surfaces contains surfaces absent from platform_matrix.required_surfaces: ${missing.join(', ')}`);
+        }
+      }
+    }
+  }
+  return {
+    ok: errors.length === 0,
+    errors,
+    requiredSurfaces: Array.isArray(matrixList) ? [...matrixList] : null,
+  };
 }
 
 function validatePortableFrontmatterContract(contract) {
@@ -1146,6 +1256,7 @@ module.exports = {
   PUBLIC_SKILL_NAME,
   CAPABILITY_ID,
   PLATFORM_MATRIX_SCHEMA,
+  REQUIRED_SURFACES,
   PLATFORM_STATUSES,
   PORTABLE_FRONTMATTER_ALLOWLIST,
   CLIENT_METADATA_BOUNDARY,
@@ -1167,6 +1278,7 @@ module.exports = {
   validateInventoryV2: validateDistributionInventoryV2,
   validateSurfaceMembership,
   validatePlatformCapabilityMatrix,
+  validateRequiredSurfacePlan,
   validatePortableFrontmatterContract,
   validateProjectionContract,
   validateSelectionPolicyAgainstInventory,
