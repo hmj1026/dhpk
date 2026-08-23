@@ -26,10 +26,12 @@ canonical distribution/compiler and artifact-store owners. It delegates the
 repository test phase to the bounded test gate. A facade result must not be
 treated as proof that a consumer runtime probe ran.
 
-When a phase consumes a generated package, its provenance source commit and
-resolved source tree must match the current checkout exactly. Historical but
-resolvable package bytes remain `NO_SHIP` until the package is regenerated for
-that checkout.
+When a phase consumes a generated package, its receipt binds the exact target
+commit and resolved target tree of the current clean checkout. Package
+provenance records the generated-input commit/tree separately; a resolvable
+ancestor is eligible only when the canonical adapter proves that the package
+bytes match the current target inputs. Stale package bytes or a foreign
+generated-input identity remain `NOT_RUN` or `NO_SHIP` until regeneration.
 
 ## Result and exit contract
 

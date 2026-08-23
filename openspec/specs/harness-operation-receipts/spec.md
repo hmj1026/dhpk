@@ -74,7 +74,7 @@ Receipt matching SHALL treat task ID, attempt ID, scope or diff identity, sessio
 
 ### Requirement: Lifecycle transitions are monotonic and explicit
 
-Receipt lifecycle state SHALL use `PLANNED`, `RED`, `GREEN`, `REFACTOR`, `VERIFIED`, and `COMPLETE` for the normal path. The receipt outcome is a separate field using `PASS`, `FAIL`, `BLOCKED`, `NOT_RUN`, `NOT_CONFIGURED`, `SKIP_INCOMPATIBLE`, `UNAVAILABLE`, `NO_SHIP`, `PARTIAL`, `PUBLISHED_PENDING`, `PUBLISHED_UNHEALTHY`, or `OVERRIDDEN`. Invalid or backward transitions SHALL be rejected. An override SHALL remain visibly distinct from PASS and SHALL carry actor, reason, skipped gates, accepted risk, scope, and expiry metadata.
+Receipt lifecycle state SHALL use `PLANNED`, `RED`, `GREEN`, `REFACTOR`, `VERIFIED`, and `COMPLETE` for the normal path. The receipt outcome is a separate field using `PASS`, `FAIL`, `BLOCKED`, `NOT_RUN`, `NOT_CONFIGURED`, `SKIP_INCOMPATIBLE`, `UNAVAILABLE`, `NO_SHIP`, `PARTIAL`, `PUBLISHED_PENDING`, `PUBLISHED_UNHEALTHY`, `OVERRIDDEN`, or aggregate `COMPLETE`. Invalid or backward transitions SHALL be rejected. An override SHALL remain visibly distinct from PASS. This facade slice does not authorize or consume override evidence; an authorized override producer in a follow-up boundary SHALL attach actor, reason, skipped gates, accepted risk, scope, and expiry metadata before that evidence can be accepted.
 
 #### Scenario: Behavior change passes verification
 
@@ -86,9 +86,9 @@ Receipt lifecycle state SHALL use `PLANNED`, `RED`, `GREEN`, `REFACTOR`, `VERIFI
 - **WHEN** a native adapter cannot execute a requested phase
 - **THEN** the receipt records `NOT_CONFIGURED`, `UNAVAILABLE`, or `BLOCKED` with a resume reason and never transitions directly to `COMPLETE`
 
-#### Scenario: Authorized override is recorded
+#### Scenario: Authorized override is recorded by a supporting producer
 
-- **WHEN** an authorized human or reviewer accepts a bounded skipped gate
+- **WHEN** an authorized human or reviewer accepts a bounded skipped gate through a producer that supports override metadata
 - **THEN** the receipt records outcome `OVERRIDDEN` with actor, reason, skipped gates, risk, scope, and expiry, and does not convert the missing evidence to `PASS` or `COMPLETE`
 
 ### Requirement: Readiness requires revalidation of persisted bytes

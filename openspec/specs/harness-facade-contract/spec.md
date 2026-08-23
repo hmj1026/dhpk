@@ -22,7 +22,7 @@ The harness SHALL expose one public workflow command with phase subcommands for 
 
 ### Requirement: Harness results have stable status and exit semantics
 
-Every phase result SHALL expose a machine-readable outcome separate from the receipt lifecycle phase. The outcome vocabulary SHALL be `PASS`, `FAIL`, `BLOCKED`, `NOT_RUN`, `NOT_CONFIGURED`, `SKIP_INCOMPATIBLE`, `UNAVAILABLE`, `NO_SHIP`, `PARTIAL`, `PUBLISHED_PENDING`, `PUBLISHED_UNHEALTHY`, or aggregate `COMPLETE`. The receipt lifecycle phase SHALL be one of `PLANNED`, `RED`, `GREEN`, `REFACTOR`, `VERIFIED`, or terminal `COMPLETE`; `RED`, `GREEN`, `REFACTOR`, and `VERIFIED` SHALL never be emitted as result outcomes. `PASS` and aggregate `COMPLETE` SHALL exit `0`; deterministic `FAIL` SHALL exit `1`; every other non-pass outcome SHALL exit `2`; invalid usage SHALL exit `64`; and an unexpected harness failure SHALL exit `70`. A non-pass outcome MUST NOT be represented as a successful exit.
+Every phase result SHALL expose a machine-readable outcome separate from the receipt lifecycle phase. The outcome vocabulary SHALL be `PASS`, `FAIL`, `BLOCKED`, `NOT_RUN`, `NOT_CONFIGURED`, `SKIP_INCOMPATIBLE`, `UNAVAILABLE`, `NO_SHIP`, `PARTIAL`, `PUBLISHED_PENDING`, `PUBLISHED_UNHEALTHY`, `OVERRIDDEN`, or aggregate `COMPLETE`. The receipt lifecycle phase SHALL be one of `PLANNED`, `RED`, `GREEN`, `REFACTOR`, `VERIFIED`, or terminal `COMPLETE`; `RED`, `GREEN`, `REFACTOR`, and `VERIFIED` SHALL never be emitted as result outcomes. `PASS` and aggregate `COMPLETE` SHALL exit `0`; deterministic `FAIL` SHALL exit `1`; every other non-pass outcome SHALL exit `2`; invalid usage SHALL exit `64`; and an unexpected harness failure SHALL exit `70`. A non-pass outcome MUST NOT be represented as a successful exit.
 
 #### Scenario: Required evidence is absent
 
@@ -55,7 +55,7 @@ The harness SHALL support `--json` and emit exactly one machine-readable result 
 
 ### Requirement: Workflow phases follow one deterministic delegation order
 
-The release-capable workflow SHALL use the ordered phases `preflight -> plan -> generate -> validate -> test -> probe -> verify -> release`. A phase SHALL consume the preceding phase's identity-bound result, and the harness SHALL not silently skip a required phase or replace a missing runtime probe with structural package evidence.
+The release-capable workflow SHALL use the ordered phases `preflight -> plan -> generate -> validate -> test -> probe -> verify -> release`. Each phase result SHALL retain identity-bound evidence so a composing caller can validate a preceding handoff when one is supplied. The current public CLI executes one requested phase per invocation; it SHALL not silently skip required phase evidence or replace a missing runtime probe with structural package evidence. End-to-end receipt handoff across separate invocations remains a follow-up integration boundary.
 
 #### Scenario: Generation follows a valid plan
 
