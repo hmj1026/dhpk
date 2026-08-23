@@ -1417,11 +1417,47 @@ function packageLoaderProbe(packageRoot, challenge) {
 
 function networkSandboxProbe() {
   if (process.platform !== 'linux') return false;
-  const result = spawnSync('unshare', ['--net', '--', 'true'], {
+  const unshare = spawnSync('unshare', ['--net', '--', 'true'], {
     encoding: 'utf8',
     env: { PATH: process.env.PATH || '/usr/local/bin:/usr/bin:/bin' },
   });
-  return !result.error && result.status === 0;
+  if (!unshare.error && unshare.status === 0) return { command: 'unshare', prefix: ['--net', '--'] };
+
+  // Some hardened hosts deny unshare(2) while still permitting bubblewrap's
+  // user-namespace wrapper. Keep the root read-only and probe the exact
+  // network-disabled shape before accepting this backend.
+  const bwrap = spawnSync('bwrap', [
+    '--ro-bind', '/', '/',
+    '--dev', '/dev',
+    '--proc', '/proc',
+    '--unshare-net',
+    '--die-with-parent',
+    '--', 'true',
+  ], {
+    encoding: 'utf8',
+    env: { PATH: process.env.PATH || '/usr/local/bin:/usr/bin:/bin' },
+  });
+  if (!bwrap.error && bwrap.status === 0) {
+    return {
+      command: 'bwrap',
+      prefix: ['--ro-bind', '/', '/', '--dev', '/dev', '--proc', '/proc', '--unshare-net', '--die-with-parent'],
+    };
+  }
+  return null;
+}
+
+function existingAbsolutePaths(values) {
+  return [...new Set(values.filter((value) => (
+    typeof value === 'string' && path.isAbsolute(value) && fs.existsSync(value)
+  )))];
+}
+
+function sandboxInvocation(sandbox, command, args, writablePaths = []) {
+  if (sandbox.command === 'unshare') {
+    return [sandbox.command, [...sandbox.prefix, command, ...args]];
+  }
+  const bindArgs = existingAbsolutePaths(writablePaths).flatMap((directory) => ['--bind', directory, directory]);
+  return [sandbox.command, [...sandbox.prefix, ...bindArgs, '--', command, ...args]];
 }
 
 function runCursorConsumerProbe({
@@ -1480,7 +1516,8 @@ function runCursorConsumerProbe({
     };
     let result;
     if (networkMode === 'disabled') {
-      if (!networkSandboxProbe()) {
+      const sandbox = networkSandboxProbe();
+      if (!sandbox) {
         // Release promotion requires a technically disabled namespace. The
         // fixture-only override remains available to the legacy launch-scoped
         // wrapper, but package-owned release attestation must never promote an
@@ -1495,8 +1532,19 @@ function runCursorConsumerProbe({
           };
         }
       } else {
+        const writablePaths = [
+          spawnOptions.cwd,
+          spawnOptions.env && spawnOptions.env.HOME,
+          loaderProbe && loaderProbe.packageRoot,
+        ];
+        const [sandboxCommand, sandboxArgs] = sandboxInvocation(
+          sandbox,
+          client,
+          probeArgs,
+          writablePaths,
+        );
         result = {
-          ...spawnSync('unshare', ['--net', '--', client, ...probeArgs], spawnOptions),
+          ...spawnSync(sandboxCommand, sandboxArgs, spawnOptions),
           network: 'disabled',
         };
       }
