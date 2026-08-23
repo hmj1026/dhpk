@@ -27,7 +27,10 @@ repository test phase to the bounded test gate. A facade result must not be
 treated as proof that a consumer runtime probe ran.
 
 When a phase consumes a generated package, its receipt binds the exact target
-commit and resolved target tree of the current clean checkout. Package
+commit and resolved target tree of the current checkout, together with an
+explicit `CLEAN` or `DIRTY` worktree state. Release promotion and cross-phase
+handoff require `CLEAN`; diagnostic/test phases may retain `DIRTY` evidence but
+cannot promote it to release success. Package
 provenance records the generated-input commit/tree separately; a resolvable
 ancestor is eligible only when the canonical adapter proves that the package
 bytes match the current target inputs. Stale package bytes or a foreign
@@ -59,10 +62,21 @@ platform matrix: `claude-core`, `codex-sync`, `codex-native`, `cursor-sync`,
 Each attempt writes one append-only `dhpk.harness.receipt.v1` envelope under
 the runtime receipt store. The envelope is immutable; transition events are
 immutable, ordered files with `event_sha256` and rolling `chain_sha256` values.
-Retries use a new attempt ID and retain the prior receipt reference. Receipt
-values are bounded and redacted before persistence. A receipt records exact
-source commit/tree and plan/artifact fingerprints when a phase claims source
-or package evidence.
+Use `--previous-receipt <path>` to hand an exact validated phase receipt to the
+next phase, or `--retry-of <path>` for a new attempt linked to the prior one.
+`--operation-key` and `--idempotency-key` are append-only claims within the
+selected runtime receipt root: a matching terminal replay returns the original
+phase and evidence without executing a second mutation, while a phase mismatch
+is `BLOCKED`. Operation claims are reserved before the phase executor starts;
+conflicting concurrent attempts are `BLOCKED` without executing the phase.
+`--previous-receipt` accepts only a clean exact-checkout receipt from an earlier
+phase with an eligible PASS/COMPLETE outcome and matching surface scope. A plan
+fingerprint is required when the receiving phase consumes a generated plan
+(currently `generate`); package phases compare it before execution.
+`--retry-of` accepts a receipt from the same phase.
+Receipt values are bounded and redacted before persistence. A receipt records
+exact source commit/tree and plan/artifact fingerprints when a phase claims
+source or package evidence.
 
 The JSON result includes a receipt reference and a bounded resume command when
 available. Re-run the resume command only after checking the exact checkout and

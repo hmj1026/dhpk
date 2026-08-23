@@ -11,6 +11,7 @@
 
 const crypto = require('node:crypto');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { RECEIPT_SCHEMA, SURFACE_OWNERS, resolveGeneratedFromTree } = require('./platform-provenance');
@@ -1355,12 +1356,72 @@ function terminateProbeGroup(result) {
   try { process.kill(-result.pid, 'SIGKILL'); } catch (_) { /* child group already exited */ }
 }
 
-function cursorProbeEnvironment(packageRoot) {
+function cursorProbeEnvironment(packageRoot, { probeHome } = {}) {
   const env = {};
-  for (const key of CURSOR_PROBE_ENV_KEYS) if (process.env[key] !== undefined) env[key] = process.env[key];
+  for (const key of CURSOR_PROBE_ENV_KEYS) {
+    if (['HOME', 'USERPROFILE', 'APPDATA', 'LOCALAPPDATA', 'XDG_CONFIG_HOME', 'XDG_DATA_HOME', 'XDG_CACHE_HOME'].includes(key)) continue;
+    if (process.env[key] !== undefined) env[key] = process.env[key];
+  }
+  const home = probeHome || fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-home-'));
+  env.HOME = home;
+  env.USERPROFILE = home;
+  env.APPDATA = path.join(home, 'AppData', 'Roaming');
+  env.LOCALAPPDATA = path.join(home, 'AppData', 'Local');
+  env.XDG_CONFIG_HOME = path.join(home, 'config');
+  env.XDG_DATA_HOME = path.join(home, 'data');
+  env.XDG_CACHE_HOME = path.join(home, 'cache');
   env.CURSOR_PLUGIN_ROOT = path.resolve(packageRoot);
   env.DHPK_CURSOR_PLUGIN_ROOT = path.resolve(packageRoot);
   return env;
+}
+
+function packageLoaderProbe(packageRoot, challenge) {
+  const probePackageRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-package-'));
+  fs.cpSync(packageRoot, probePackageRoot, { recursive: true, dereference: true });
+  const hooksRoot = path.join(probePackageRoot, 'hooks');
+  const commandRoot = path.join(hooksRoot, 'commands');
+  const challengePath = path.join(hooksRoot, '.dhpk-probe-challenge.json');
+  const attestationPath = path.join(hooksRoot, '.dhpk-probe-attestation.json');
+  fs.mkdirSync(commandRoot, { recursive: true, mode: 0o700 });
+  fs.writeFileSync(challengePath, `${JSON.stringify(challenge)}\n`, { mode: 0o600 });
+  const loader = [
+    '#!/usr/bin/env node',
+    "'use strict';",
+    "const fs = require('node:fs');",
+    "const path = require('node:path');",
+    "const hooksRoot = path.resolve(__dirname, '..');",
+    "const challenge = JSON.parse(fs.readFileSync(path.join(hooksRoot, '.dhpk-probe-challenge.json'), 'utf8'));",
+    "const components = ['skills', 'commands', 'agents', 'rules'].filter((name) => fs.existsSync(path.join(path.resolve(hooksRoot, '..'), name)));",
+    "fs.writeFileSync(path.join(hooksRoot, '.dhpk-probe-attestation.json'), `${JSON.stringify({ challenge: challenge.challenge, packageFingerprint: challenge.packageFingerprint, loaded: true, components })}\\n`, { mode: 0o600 });",
+  ].join('\n') + '\n';
+  const loaderPath = path.join(commandRoot, 'dhpk-probe.js');
+  fs.writeFileSync(loaderPath, loader, { mode: 0o700 });
+  let hooks = { hooks: {} };
+  const hooksPath = path.join(hooksRoot, 'hooks.json');
+  try {
+    const parsed = JSON.parse(fs.readFileSync(hooksPath, 'utf8'));
+    if (parsed && parsed.hooks && typeof parsed.hooks === 'object' && !Array.isArray(parsed.hooks)) {
+      hooks = { hooks: { ...parsed.hooks } };
+    }
+  } catch (_) {
+    // The package validator owns malformed canonical hooks; the probe must
+    // fail closed rather than silently replacing them.
+  }
+  hooks.hooks.sessionStart = [
+    ...(Array.isArray(hooks.hooks.sessionStart) ? hooks.hooks.sessionStart : []),
+    { command: './hooks/commands/dhpk-probe.js' },
+  ];
+  fs.writeFileSync(hooksPath, `${JSON.stringify(hooks, null, 2)}\n`, { mode: 0o600 });
+  return { packageRoot: probePackageRoot, attestationPath, challengePath };
+}
+
+function networkSandboxProbe() {
+  if (process.platform !== 'linux') return false;
+  const result = spawnSync('unshare', ['--net', '--', 'true'], {
+    encoding: 'utf8',
+    env: { PATH: process.env.PATH || '/usr/local/bin:/usr/bin:/bin' },
+  });
+  return !result.error && result.status === 0;
 }
 
 function runCursorConsumerProbe({
@@ -1373,86 +1434,180 @@ function runCursorConsumerProbe({
   requireOutput = false,
   requireJson = false,
   requireDiscovery = false,
+  requirePackageChallenge = false,
+  networkMode = 'unrestricted',
+  cwd = null,
 } = {}) {
+  // The release consumer-platform route sets requirePackageChallenge=true.
+  // The legacy cursor-agent-probe wrapper remains launch-scoped and
+  // experimental; it cannot promote a release surface by itself.
   if (!packageRoot || !fs.existsSync(packageRoot)) return { surface: 'cursor-plugin', status: 'BLOCKED', reason: 'Cursor package is missing' };
+  if (requirePackageChallenge && networkMode !== 'disabled') {
+    return {
+      surface: 'cursor-plugin',
+      status: 'BLOCKED',
+      reason: 'Release Cursor consumer probes must request a disabled network namespace',
+      network: 'unknown',
+    };
+  }
   const client = executable || findExecutable(['cursor-agent', 'cursor'], pathValue);
   if (!client) return { surface: 'cursor-plugin', status: 'UNAVAILABLE', reason: 'Cursor client tooling (cursor-agent/cursor) is not available on PATH', packageRoot };
   if (!path.isAbsolute(client)) return { surface: 'cursor-plugin', status: 'UNAVAILABLE', reason: 'Cursor client executable must resolve to an absolute path', packageRoot, executable: client };
   if (!Array.isArray(args)) return { surface: 'cursor-plugin', status: 'NOT_RUN', reason: 'Cursor executable exists but no supported local plugin-loader command is configured', packageRoot, executable: client };
   const probeTimeoutMs = positiveProbeLimit(timeoutMs, DEFAULT_CURSOR_PROBE_TIMEOUT_MS, 'timeoutMs', MAX_CURSOR_PROBE_TIMEOUT_MS);
   const probeMaxOutputBytes = positiveProbeLimit(maxOutputBytes, DEFAULT_CURSOR_PROBE_MAX_OUTPUT_BYTES, 'maxOutputBytes', MAX_CURSOR_PROBE_OUTPUT_BYTES);
-  const result = spawnSync(client, args, {
-    cwd: packageRoot,
-    encoding: 'utf8',
-    timeout: probeTimeoutMs,
-    maxBuffer: probeMaxOutputBytes,
-    killSignal: 'SIGKILL',
-    detached: process.platform !== 'win32',
-    stdio: ['ignore', 'pipe', 'pipe'],
-    env: cursorProbeEnvironment(packageRoot),
-  });
-  const evidence = {
-    packageRoot,
-    executable: client,
-    timeout_ms: probeTimeoutMs,
-    output_limit_bytes: probeMaxOutputBytes,
-    exit_code: result.status === undefined ? null : result.status,
-    signal: result.signal || null,
-    diagnostic: probeDiagnostic(result),
-  };
-  if (result.error && result.error.code === 'ETIMEDOUT') {
-    terminateProbeGroup(result);
-    const noStdout = !evidence.diagnostic;
-    return {
-      surface: 'cursor-plugin',
-      status: noStdout ? 'SKIP_INCOMPATIBLE' : 'BLOCKED',
-      reason: noStdout
-        ? `Cursor consumer probe produced no stdout/stderr before timeout (${probeTimeoutMs} ms); CLI has no non-LLM plugin list`
-        : `Cursor consumer probe timed out after ${probeTimeoutMs} ms`,
-      timed_out: true,
-      no_stdout: noStdout,
-      ...evidence,
+  const challenge = requirePackageChallenge ? {
+    challenge: crypto.randomBytes(18).toString('hex'),
+    packageFingerprint: fingerprintDir(packageRoot),
+  } : null;
+  const probeHome = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-home-'));
+  let loaderProbe = null;
+  try {
+    loaderProbe = challenge ? packageLoaderProbe(packageRoot, challenge) : null;
+    const probeArgs = [...args].map((arg) => {
+      if (!loaderProbe || typeof arg !== 'string') return arg;
+      return path.resolve(arg) === path.resolve(packageRoot) ? loaderProbe.packageRoot : arg;
+    });
+    const spawnOptions = {
+      cwd: cwd || packageRoot,
+      encoding: 'utf8',
+      timeout: probeTimeoutMs,
+      maxBuffer: probeMaxOutputBytes,
+      killSignal: 'SIGKILL',
+      detached: process.platform !== 'win32',
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: cursorProbeEnvironment(loaderProbe ? loaderProbe.packageRoot : packageRoot, { probeHome }),
     };
-  }
-  if (result.error && result.error.code === 'ENOBUFS') {
-    terminateProbeGroup(result);
-    return {
-      surface: 'cursor-plugin',
-      status: 'BLOCKED',
-      reason: `Cursor consumer probe output exceeded ${probeMaxOutputBytes} bytes`,
-      output_limited: true,
-      ...evidence,
-    };
-  }
-  if (result.error) return { surface: 'cursor-plugin', status: 'UNAVAILABLE', reason: `Cursor consumer invocation unavailable: ${result.error.message}`, ...evidence };
-  if (result.status !== 0) return { surface: 'cursor-plugin', status: 'FAIL', reason: `Cursor consumer exited with status ${result.status}`, exit_code: result.status, ...evidence };
-  const output = `${result.stdout || ''}\n${result.stderr || ''}`.trim();
-  if (requireOutput && !output) {
-    return { surface: 'cursor-plugin', status: 'BLOCKED', reason: 'Cursor consumer returned success without a response payload', output_missing: true, ...evidence };
-  }
-  if (requireJson) {
-    try { JSON.parse(String(result.stdout || '').trim()); } catch (_) {
-      return { surface: 'cursor-plugin', status: 'BLOCKED', reason: 'Cursor consumer response was not valid JSON', response_invalid: true, ...evidence };
+    let result;
+    if (networkMode === 'disabled') {
+      if (!networkSandboxProbe()) {
+        // Release promotion requires a technically disabled namespace. The
+        // fixture-only override remains available to the legacy launch-scoped
+        // wrapper, but package-owned release attestation must never promote an
+        // unrestricted process to PASS.
+        if (!requirePackageChallenge && process.env.DHPK_CONSUMER_PROBE_ALLOW_UNSANDBOXED_EXECUTION === '1') {
+          result = { ...spawnSync(client, probeArgs, spawnOptions), network: 'unrestricted' };
+        } else {
+          result = {
+            status: 125,
+            error: Object.assign(new Error('OS network sandbox is unavailable'), { code: 'DHPK_NETWORK_SANDBOX_UNAVAILABLE' }),
+            network: 'unknown',
+          };
+        }
+      } else {
+        result = {
+          ...spawnSync('unshare', ['--net', '--', client, ...probeArgs], spawnOptions),
+          network: 'disabled',
+        };
+      }
+    } else {
+      result = { ...spawnSync(client, probeArgs, spawnOptions), network: 'unrestricted' };
     }
-  }
-  if (requireDiscovery) {
-    const normalized = output.toLowerCase();
-    const requestedCapabilities = ['dhpk', 'skill', 'command', 'agent', 'rule'];
-    const negative = NEGATIVE_CURSOR_DISCOVERY_PATTERNS.some((pattern) => pattern.test(output));
-    if (negative || !requestedCapabilities.every((term) => normalized.includes(term))) {
+    const evidence = {
+      packageRoot,
+      executable: client,
+      network: result.network || networkMode,
+      timeout_ms: probeTimeoutMs,
+      output_limit_bytes: probeMaxOutputBytes,
+      exit_code: result.status === undefined ? null : result.status,
+      signal: result.signal || null,
+      diagnostic: probeDiagnostic(result),
+    };
+    if (result.error && result.error.code === 'ETIMEDOUT') {
+      terminateProbeGroup(result);
+      const noStdout = !evidence.diagnostic;
       return {
         surface: 'cursor-plugin',
-        status: 'BLOCKED',
-        reason: negative
-          ? 'Cursor consumer response explicitly denied the requested dhpk capability evidence'
-          : 'Cursor consumer response did not contain the requested dhpk capability evidence',
-        discovery_missing: requestedCapabilities.filter((term) => !normalized.includes(term)),
-        discovery_negative: negative,
+        status: noStdout ? 'SKIP_INCOMPATIBLE' : 'BLOCKED',
+        reason: noStdout
+          ? `Cursor consumer probe produced no stdout/stderr before timeout (${probeTimeoutMs} ms); CLI has no non-LLM plugin list`
+          : `Cursor consumer probe timed out after ${probeTimeoutMs} ms`,
+        timed_out: true,
+        no_stdout: noStdout,
         ...evidence,
       };
     }
+    if (result.error && result.error.code === 'ENOBUFS') {
+      terminateProbeGroup(result);
+      return {
+        surface: 'cursor-plugin',
+        status: 'BLOCKED',
+        reason: `Cursor consumer probe output exceeded ${probeMaxOutputBytes} bytes`,
+        output_limited: true,
+        ...evidence,
+      };
+    }
+    if (result.error && result.error.code === 'DHPK_NETWORK_SANDBOX_UNAVAILABLE') {
+      return {
+        surface: 'cursor-plugin',
+        status: 'BLOCKED',
+        reason: 'Cursor consumer probe requires an OS network sandbox; actual network state is unknown',
+        ...evidence,
+      };
+    }
+    if (result.error) return { surface: 'cursor-plugin', status: 'UNAVAILABLE', reason: `Cursor consumer invocation unavailable: ${result.error.message}`, ...evidence };
+    if (result.status !== 0) return { surface: 'cursor-plugin', status: 'FAIL', reason: `Cursor consumer exited with status ${result.status}`, exit_code: result.status, ...evidence };
+    const output = `${result.stdout || ''}\n${result.stderr || ''}`.trim();
+    if (requireOutput && !output) {
+      return { surface: 'cursor-plugin', status: 'BLOCKED', reason: 'Cursor consumer returned success without a response payload', output_missing: true, ...evidence };
+    }
+    let parsed = null;
+    if (requireJson) {
+      try { parsed = JSON.parse(String(result.stdout || '').trim()); } catch (_) {
+        return { surface: 'cursor-plugin', status: 'BLOCKED', reason: 'Cursor consumer response was not valid JSON', response_invalid: true, ...evidence };
+      }
+    }
+    if (requireDiscovery) {
+      const normalized = output.toLowerCase();
+      const requestedCapabilities = ['dhpk', 'skill', 'command', 'agent', 'rule'];
+      const negative = NEGATIVE_CURSOR_DISCOVERY_PATTERNS.some((pattern) => pattern.test(output));
+      const probe = parsed && parsed.dhpkProbe;
+      let attestation = null;
+      if (requirePackageChallenge && loaderProbe) {
+        try { attestation = JSON.parse(fs.readFileSync(loaderProbe.attestationPath, 'utf8')); } catch (_) { /* hook did not run */ }
+      }
+      const components = probe && Array.isArray(probe.components) ? probe.components.map((value) => String(value).toLowerCase()) : [];
+      const attestedComponents = attestation && Array.isArray(attestation.components)
+        ? attestation.components.map((value) => String(value).toLowerCase())
+        : [];
+      const missingChallenge = requirePackageChallenge && (!attestation
+        || attestation.challenge !== challenge.challenge
+        || attestation.packageFingerprint !== challenge.packageFingerprint
+        || attestation.loaded !== true);
+      const missingComponents = requirePackageChallenge
+        ? requestedCapabilities.filter((term) => term !== 'dhpk' && !attestedComponents.includes(`${term}s`))
+        : [];
+      if (negative || missingChallenge || missingComponents.length > 0 || !requestedCapabilities.every((term) => normalized.includes(term))) {
+        return {
+          surface: 'cursor-plugin',
+          status: 'BLOCKED',
+          reason: negative
+            ? 'Cursor consumer response explicitly denied the requested dhpk capability evidence'
+            : missingChallenge
+              ? 'Cursor consumer did not execute the package-owned loader hook; plugin loading is unproven'
+              : 'Cursor consumer response did not contain the requested dhpk capability evidence',
+          discovery_missing: missingComponents,
+          discovery_negative: negative,
+          ...(requirePackageChallenge ? { challenge_verified: !missingChallenge, loader_attestation: Boolean(attestation) } : {}),
+          ...evidence,
+        };
+      }
+    }
+    return {
+      surface: 'cursor-plugin',
+      status: 'PASS',
+      reason: requirePackageChallenge
+        ? 'Cursor consumer probe loaded the package and returned matching challenge evidence'
+        : 'Cursor consumer probe discovered the package',
+      ...(requirePackageChallenge ? { challenge_verified: true, loader_attestation: true } : {}),
+      ...evidence,
+    };
+  } finally {
+    fs.rmSync(probeHome, { recursive: true, force: true });
+    if (loaderProbe) {
+      try { fs.rmSync(loaderProbe.packageRoot, { recursive: true, force: true }); } catch (_) { /* best-effort cleanup */ }
+    }
   }
-  return { surface: 'cursor-plugin', status: 'PASS', reason: 'Cursor consumer probe discovered the package', ...evidence };
 }
 
 module.exports = {

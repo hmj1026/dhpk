@@ -35,6 +35,7 @@ function writeCursorPackage(root) {
   fs.writeFileSync(path.join(root, '.cursor-plugin', 'marketplace.json'), JSON.stringify({
     name: 'test', owner: { name: 'test' }, plugins: [{ name: 'dhpk-cursor', source: '.' }],
   }));
+  for (const component of ['skills', 'commands', 'agents', 'rules']) fs.mkdirSync(path.join(root, component), { recursive: true });
 }
 
 test('missing package is BLOCKED without probing a client', () => {
@@ -71,6 +72,79 @@ test('Cursor probe is explicit UNAVAILABLE in a non-Cursor environment', () => {
     assert.strictEqual(payload.surfaceResults.length, 1);
     assert.strictEqual(payload.surfaceResults[0].surface, 'cursor-plugin');
     assert.strictEqual(payload.surfaceResults[0].status, 'UNAVAILABLE');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('Cursor --execute uses an isolated profile and package-specific challenge evidence', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-cursor-execute-'));
+  const agent = path.join(root, 'dhpk-agent');
+  const cursor = path.join(root, 'dhpk-cursor');
+  const bin = path.join(root, 'bin');
+  try {
+    fs.mkdirSync(agent, { recursive: true });
+    fs.mkdirSync(cursor, { recursive: true });
+    fs.mkdirSync(bin, { recursive: true });
+    writeAgentManifest(agent);
+    writeCursorPackage(cursor);
+    fs.writeFileSync(path.join(bin, 'cursor-agent'), [
+      '#!/usr/bin/env node',
+      "const fs = require('node:fs');",
+      "const path = require('node:path');",
+      "const cp = require('node:child_process');",
+      "const args = process.argv.slice(2);",
+      "for (let i = 0; i < args.length; i += 1) if (args[i] === '--plugin-dir' && args[i + 1]) { const root = args[++i]; try { const hooks = JSON.parse(fs.readFileSync(path.join(root, 'hooks', 'hooks.json'), 'utf8')); for (const hook of hooks.hooks.sessionStart || []) cp.execFileSync(path.resolve(root, hook.command), [], { cwd: root }); } catch (_) {} }",
+      "const roots = args.filter((arg, index) => args[index - 1] === '--plugin-dir');",
+      "const root = roots.find((candidate) => fs.existsSync(path.join(candidate, 'hooks', '.dhpk-probe-attestation.json')));",
+      "const attestation = JSON.parse(fs.readFileSync(path.join(root, 'hooks', '.dhpk-probe-attestation.json'), 'utf8'));",
+      "process.stdout.write(JSON.stringify({ response: 'dhpk skills commands agents rules were discovered.', dhpkProbe: { challenge: attestation.challenge, packageFingerprint: attestation.packageFingerprint, loaded: true, components: attestation.components } }));",
+      '',
+    ].join('\n'), { mode: 0o755 });
+    const result = runProbe('cursor', cursor, ['--execute', '--version', '1.0.0'], {
+      ...process.env,
+      PATH: `${bin}${path.delimiter}${process.env.PATH || ''}`,
+      DHPK_CONSUMER_PROBE_ALLOW_UNSANDBOXED_EXECUTION: '1',
+    });
+    assert.ok([0, 1].includes(result.status), result.stdout + result.stderr);
+    const payload = JSON.parse(result.stdout);
+    if (payload.status === 'PASS') {
+      assert.strictEqual(payload.network, 'disabled', JSON.stringify(payload));
+      assert.strictEqual(payload.surfaceResults[0].status, 'PASS', JSON.stringify(payload));
+    } else {
+      assert.strictEqual(payload.status, 'BLOCKED', JSON.stringify(payload));
+      assert.strictEqual(payload.network, 'unknown', JSON.stringify(payload));
+      assert.strictEqual(payload.surfaceResults[0].status, 'BLOCKED', JSON.stringify(payload));
+    }
+    assert.ok(payload.commands.some((command) => /cursor-agent/.test(command.cmd)), JSON.stringify(payload));
+    assert.match(payload.surfaceResults[0].reasons.join(' '), /challenge|package|network/i);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('Cursor --execute rejects output that only echoes the smoke prompt', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-cursor-echo-'));
+  const agent = path.join(root, 'dhpk-agent');
+  const cursor = path.join(root, 'dhpk-cursor');
+  const bin = path.join(root, 'bin');
+  try {
+    fs.mkdirSync(agent, { recursive: true });
+    fs.mkdirSync(cursor, { recursive: true });
+    fs.mkdirSync(bin, { recursive: true });
+    writeAgentManifest(agent);
+    writeCursorPackage(cursor);
+    fs.writeFileSync(path.join(bin, 'cursor-agent'), [
+      '#!/bin/sh',
+      'printf \'%s\\n\' \'{"response":"dhpk skills commands agents rules were discovered."}\'',
+      '',
+    ].join('\n'), { mode: 0o755 });
+    const result = runProbe('cursor', cursor, ['--execute', '--version', '1.0.0'], {
+      ...process.env,
+      PATH: `${bin}${path.delimiter}${process.env.PATH || ''}`,
+    });
+    assert.notStrictEqual(result.status, 0, result.stdout + result.stderr);
+    assert.strictEqual(JSON.parse(result.stdout).status, 'BLOCKED');
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

@@ -26,7 +26,7 @@ test('adapts bare tools and Claude model to the AGY contract', () => {
   const result = adaptFrontmatter(SOURCE);
   assert.strictEqual(result.changed, true);
   assert.ok(result.text.includes(
-    'tools: ["read_file", "write_to_file", "replace_file_content", "run_command", "grep_search", "glob", "search_web", "read_url_content", "invoke_subagent", "mcp_foo_bar"]',
+    'tools: ["read_file", "write_to_file", "replace_file_content", "run_command", "grep_search", "list_dir", "search_web", "read_url_content", "invoke_subagent", "mcp_foo_bar"]',
   ), result.text);
   assert.ok(result.text.includes('model: pro'), result.text);
   assert.ok(!result.text.includes('effort:'), result.text);

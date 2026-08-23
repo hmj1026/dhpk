@@ -51,6 +51,8 @@ const IDENTITY_FIELDS = Object.freeze([
   'adapter',
   'stage',
   'producer',
+  'previousReceipt',
+  'operationIntent',
 ]);
 const ROLLBACK_FIELDS = Object.freeze([
   'taskId',
@@ -282,12 +284,40 @@ function claimOperationKey(root, operationKey, identity) {
   if (fs.existsSync(claimPath)) {
     let existing = null;
     try { existing = JSON.parse(fs.readFileSync(claimPath, 'utf8')); } catch (_) { /* fail closed below */ }
-    if (!existing || existing.taskId !== identity.taskId || existing.attemptId !== identity.attemptId) {
-      throw new Error(`harness receipt: operation key already belongs to '${existing && existing.taskId}/${existing && existing.attemptId}'`);
-    }
-    return;
+    throw new Error(`harness receipt: operation key is already reserved by '${existing && existing.taskId}/${existing && existing.attemptId}'`);
   }
   writeImmutable(claimPath, `${JSON.stringify({ operationKey, ...identity }, null, 2)}\n`);
+}
+
+function verifyOperationReservation(reservation, root, operationKey, identity) {
+  if (typeof reservation !== 'string' || !reservation) {
+    throw new Error('harness receipt: operation reservation handle is required');
+  }
+  const expectedPath = operationClaimPath(root, operationKey);
+  if (path.resolve(reservation) !== path.resolve(expectedPath)) {
+    throw new Error('harness receipt: operation reservation path does not match the operation key');
+  }
+  let existing;
+  try { existing = JSON.parse(fs.readFileSync(expectedPath, 'utf8')); } catch (error) {
+    throw new Error(`harness receipt: operation reservation is unreadable: ${error.message}`);
+  }
+  if (!existing || existing.operationKey !== operationKey
+    || existing.taskId !== identity.taskId || existing.attemptId !== identity.attemptId) {
+    throw new Error('harness receipt: operation reservation identity does not match the attempt');
+  }
+}
+
+function reserveOperationKey(root, operationKey, identity = {}) {
+  ensureId(operationKey, 'operation key');
+  ensureId(identity.taskId, 'operation task id');
+  ensureId(identity.attemptId, 'operation attempt id');
+  try {
+    claimOperationKey(root, operationKey, identity);
+  } catch (error) {
+    error.code = 'HARNESS_BLOCKED';
+    throw error;
+  }
+  return operationClaimPath(root, operationKey);
 }
 
 function appendLockPath(attempt) {
@@ -373,6 +403,7 @@ function resolveGitWorktree(root) {
 function createAttempt({
   root,
   command,
+  phase = null,
   taskId,
   attemptId,
   sourceCommit,
@@ -382,11 +413,15 @@ function createAttempt({
   identity = {},
   operationKey = null,
   idempotencyKey = null,
+  operationReservation = null,
   retryOf = null,
   previousAttempt = null,
+  previousReceipt = null,
   backupReference = null,
   diagnostics = [],
   artifacts = [],
+  requiredSurfaces = null,
+  surfaceResults = null,
   resumeCommand = null,
   byteReferences = [],
   lifecyclePhase = 'PLANNED',
@@ -397,6 +432,9 @@ function createAttempt({
   ensureId(taskId, 'task id');
   ensureId(attemptId, 'attempt id');
   if (typeof command !== 'string' || !command.trim()) throw new Error('harness receipt: command is required');
+  if (phase !== null && phase !== undefined && (typeof phase !== 'string' || !phase.trim())) {
+    throw new Error('harness receipt: phase must be a non-empty string');
+  }
   if (!COMMIT.test(sourceCommit)) throw new Error('harness receipt: source commit must be a 40-character SHA');
   if (!TREE.test(sourceTree)) throw new Error('harness receipt: source tree must be a 40-character SHA');
   if (!LIFECYCLE_PHASES.includes(lifecyclePhase)) throw new Error(`harness receipt: invalid lifecycle phase '${lifecyclePhase}'`);
@@ -408,12 +446,9 @@ function createAttempt({
   }
   const resolvedOperationKey = operationKey || idempotencyKey;
   if (resolvedOperationKey) {
-    const existing = findAttemptByOperationKey(root, resolvedOperationKey);
-    if (existing && (existing.taskId !== taskId || existing.attemptId !== attemptId)) {
-      throw new Error(`harness receipt: operation key already belongs to '${existing.taskId}/${existing.attemptId}'`);
-    }
+    if (operationReservation) verifyOperationReservation(operationReservation, root, resolvedOperationKey, { taskId, attemptId });
+    else claimOperationKey(root, resolvedOperationKey, { taskId, attemptId });
   }
-  claimOperationKey(root, resolvedOperationKey, { taskId, attemptId });
   const retryReference = retryOf || previousAttempt;
   const suppliedIdentity = {
     ...(identity && typeof identity === 'object' && !Array.isArray(identity) ? identity : {}),
@@ -422,6 +457,7 @@ function createAttempt({
     ...(dispatch !== null && dispatch !== undefined ? { dispatch } : {}),
     ...(resolvedOperationKey ? { operationKey: resolvedOperationKey, idempotencyKey: resolvedOperationKey } : {}),
     ...(retryReference ? { retryOf: retryReference } : {}),
+    ...(previousReceipt ? { previousReceipt } : {}),
     ...(backupReference ? { backupReference } : {}),
   };
   for (const fingerprintField of ['planFingerprint', 'artifactFingerprint']) {
@@ -450,8 +486,11 @@ function createAttempt({
     dispatch: envelopeDispatch ? redact(envelopeDispatch) : null,
     lifecyclePhase,
     outcome,
+    phase: phase || null,
     diagnostics: redact(Array.isArray(diagnostics) ? diagnostics : [diagnostics]),
     artifacts: redact(Array.isArray(artifacts) ? artifacts : [artifacts]),
+    ...(Array.isArray(requiredSurfaces) ? { requiredSurfaces: redact(requiredSurfaces) } : {}),
+    ...(Array.isArray(surfaceResults) ? { surfaceResults: redact(surfaceResults) } : {}),
     resumeCommand: resumeCommand === null || resumeCommand === undefined ? null : redact(resumeCommand),
     byteReferences: redact(Array.isArray(byteReferences) ? byteReferences : [byteReferences]),
     createdAt: new Date().toISOString(),
@@ -700,6 +739,7 @@ function validateReceipt(attemptPath, {
   const files = eventFiles(path.join(attemptPath, 'events'));
   let previousChain = '';
   let previousLifecycle = null;
+  let lastEvent = null;
   files.forEach((file, index) => {
     let event;
     try { event = JSON.parse(fs.readFileSync(file, 'utf8')); } catch (error) {
@@ -729,6 +769,7 @@ function validateReceipt(attemptPath, {
     if (event.chain_sha256 !== chainSha) errors.push(`event ${expectedSequence} chain mismatch`);
     previousChain = event.chain_sha256;
     previousLifecycle = event.lifecyclePhase;
+    lastEvent = event;
   });
   const references = Array.isArray(byteReferences)
     ? byteReferences
@@ -738,7 +779,14 @@ function validateReceipt(attemptPath, {
     const checked = revalidateBytes(reference);
     if (!checked.ok) errors.push(...checked.errors.map((error) => `byte reference ${index + 1}: ${error}`));
   });
-  return { ok: errors.length === 0, errors, envelope, eventCount: files.length, chainSha256: previousChain || null };
+  return {
+    ok: errors.length === 0,
+    errors,
+    envelope,
+    eventCount: files.length,
+    lastEvent,
+    chainSha256: previousChain || null,
+  };
 }
 
 function validateRollbackOwnership(target, candidate) {
@@ -795,6 +843,7 @@ module.exports = {
   resolveGitBinding,
   resolveGitWorktree,
   createAttempt,
+  reserveOperationKey,
   findAttemptByOperationKey,
   appendEvent,
   validateGitBinding,

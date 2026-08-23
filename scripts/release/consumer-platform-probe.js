@@ -12,7 +12,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { validateAgentPluginPackage } = require('../lib/agent-plugin-package');
-const { validateCursorPackage } = require('../lib/cursor-plugin-package');
+const { runCursorConsumerProbe, validateCursorPackage } = require('../lib/cursor-plugin-package');
 const { redactSensitiveText } = require('../lib/redaction');
 const { normalizeConsumerEvidence } = require('../lib/release-evidence');
 
@@ -129,6 +129,67 @@ function runCodexProbe(root, execute = false) {
   }
 }
 
+function runCursorProbe(root, execute = false) {
+  if (!execute) {
+    return {
+      status: 'UNAVAILABLE',
+      reason: 'Cursor client runtime probe is opt-in; pass --execute on an isolated runner',
+      commands: [],
+    };
+  }
+
+  const agentRoot = path.join(path.dirname(root), 'dhpk-agent');
+  const agentPackage = validateAgentPluginPackage(agentRoot);
+  if (!agentPackage.ok) {
+    return {
+      status: 'BLOCKED',
+      reason: 'Cursor consumer probe requires the sibling Agent Plugin package',
+      diagnostics: agentPackage.errors,
+      commands: [],
+    };
+  }
+
+  const command = 'cursor-agent --plugin-dir <agent-package> --plugin-dir <cursor-package> --mode ask --trust --print <smoke-prompt> --output-format json';
+  const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-consumer-'));
+  const stagedAgent = path.join(sandbox, 'agent-plugin');
+  const stagedCursor = path.join(sandbox, 'cursor-plugin');
+  const workspace = path.join(sandbox, 'workspace');
+  try {
+    fs.cpSync(agentRoot, stagedAgent, { recursive: true, dereference: true });
+    fs.cpSync(root, stagedCursor, { recursive: true, dereference: true });
+    fs.mkdirSync(workspace, { recursive: true });
+    const result = runCursorConsumerProbe({
+      // The Cursor package is the consumer under test. The Agent package is a
+      // companion projection passed as a second plugin directory, but must
+      // not become the probe's working root or environment identity.
+      packageRoot: stagedCursor,
+      args: [
+        '--plugin-dir', stagedAgent,
+        '--plugin-dir', stagedCursor,
+        '--mode', 'ask',
+        '--trust',
+        '-p', 'List the dhpk skills, commands, agents, and rules you discover. Do not edit files.',
+        '--output-format', 'json',
+      ],
+      cwd: workspace,
+      requireOutput: true,
+      requireJson: true,
+      requireDiscovery: true,
+      requirePackageChallenge: true,
+      networkMode: 'disabled',
+    });
+    return {
+      ...result,
+      packageRoot: root,
+      commands: [{ cmd: command, exitCode: result.exit_code === undefined ? null : result.exit_code }],
+    };
+  } catch (error) {
+    return { status: 'BLOCKED', reason: `Cursor consumer probe could not start: ${error.message}`, commands: [{ cmd: command, exitCode: null }] };
+  } finally {
+    fs.rmSync(sandbox, { recursive: true, force: true });
+  }
+}
+
 function validatePackage(platform, root) {
   const result = platform === 'codex'
     ? validateAgentPluginPackage(root)
@@ -146,7 +207,7 @@ function normalizedProbeEvidence(platform, manifest, result, version) {
       surface,
       status: result.status,
       commands: result.commands || [],
-      environment: { network: 'disabled', packageRoot: '<repo-package>' },
+      environment: { network: result.network || 'unknown', packageRoot: '<repo-package>' },
       artifacts: [
         ...(manifest && manifest.path ? [{ path: `<repo-package>/${path.basename(manifest.path)}`, version: version || null }] : []),
         ...(result.artifacts || []),
@@ -178,7 +239,7 @@ function main() {
   }, 1);
   const result = args.platform === 'codex'
     ? runCodexProbe(root, args.execute)
-    : { status: 'UNAVAILABLE', reason: 'Cursor GUI/local loader is not available in this environment', commands: [] };
+    : runCursorProbe(root, args.execute);
   if (!STATUSES.includes(result.status)) emit({ platform: args.platform, status: 'FAIL', packageRoot: root, reason: `unknown probe status ${result.status}` }, 1);
   let normalized;
   try {

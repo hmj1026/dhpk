@@ -800,7 +800,15 @@ function verifyClaudeReinstall(root, version) {
     if (list.status !== 0) {
       return { verdict: VERDICTS.FAIL, commands, officialValidation, reasons: [`plugin list exited ${list.status}`], warnings };
     }
-    const installed = JSON.parse(list.stdout || '[]').find((p) => p.id === 'dhpk@dhpk');
+    const installedEntries = JSON.parse(list.stdout || '[]');
+    const matchingEntries = installedEntries.filter((p) => p.id === 'dhpk@dhpk');
+    const installed = matchingEntries.find((p) => {
+      if (p.scope !== 'project') return false;
+      // `claude plugin list --json` can include a stale user-scoped copy before
+      // the project-scoped install. When available, bind the row to this
+      // isolated project as an additional identity check.
+      return !p.projectPath || path.resolve(p.projectPath) === path.resolve(project);
+    }) || (matchingEntries.length === 1 && matchingEntries[0].scope === undefined ? matchingEntries[0] : null);
     if (!installed) {
       return { verdict: VERDICTS.FAIL, commands, officialValidation, reasons: ["'dhpk@dhpk' not present in 'claude plugin list --json' after install"], warnings };
     }
@@ -885,7 +893,11 @@ function verifyProjectedConsumer(root, platform, version) {
   if (platform === 'codex') return standardAgentPluginConsumer(version);
   const packageRoot = path.join(root, 'plugins', 'dhpk-cursor');
   const probe = path.join(root, 'scripts', 'release', 'consumer-platform-probe.js');
-  const res = spawnSync('node', [probe, '--platform', platform, '--package-root', packageRoot, '--version', version], {
+  const probeArgs = [probe, '--platform', platform, '--package-root', packageRoot, '--version', version];
+  if (platform === 'cursor' && (process.env.CI === '1' || process.env.CI === 'true' || process.env.DHPK_HARNESS_ALLOW_REAL_CONSUMER_PROBE === '1')) {
+    probeArgs.push('--execute');
+  }
+  const res = spawnSync('node', probeArgs, {
     cwd: root,
     encoding: 'utf8',
   });

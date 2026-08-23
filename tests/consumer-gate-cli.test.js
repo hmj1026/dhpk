@@ -192,6 +192,52 @@ exit 0
   });
 });
 
+test('selects the project-scoped Claude installation when a stale user installation is listed first', () => {
+  withConsumerGateBin((bin) => {
+    mkBinStub(bin, 'claude', `#!/bin/sh
+if [ "$1" = "--version" ]; then echo '2.1.223'; exit 0; fi
+if [ "$1 $2" = "plugin marketplace" ]; then exit 0; fi
+if [ "$1 $2" = "plugin install" ]; then exit 0; fi
+if [ "$1 $2" = "plugin validate" ]; then exit 0; fi
+if [ "$1 $2" = "plugin list" ]; then
+  echo '[{"id":"dhpk@dhpk","version":"0.44.0","scope":"user"},{"id":"dhpk@dhpk","version":"${REAL_VERSION}","scope":"project","projectPath":"'"$PWD"'"}]'
+  exit 0
+fi
+exit 0
+`);
+    const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` });
+    assert.strictEqual(res.status, 0, res.stdout + res.stderr);
+    const stage = JSON.parse(res.stdout);
+    assert.strictEqual(stage.verdict, 'PENDING', JSON.stringify(stage));
+    const claude = stage.surfaceResults.find((result) => result.surface === 'claude');
+    assert.ok(claude, JSON.stringify(stage));
+    assert.strictEqual(claude.status, 'PASS', JSON.stringify(claude));
+  });
+});
+
+test('rejects an explicitly user-scoped Claude installation when project scope is absent', () => {
+  withConsumerGateBin((bin) => {
+    mkBinStub(bin, 'claude', `#!/bin/sh
+if [ "$1" = "--version" ]; then echo '2.1.223'; exit 0; fi
+if [ "$1 $2" = "plugin marketplace" ]; then exit 0; fi
+if [ "$1 $2" = "plugin install" ]; then exit 0; fi
+if [ "$1 $2" = "plugin validate" ]; then exit 0; fi
+if [ "$1 $2" = "plugin list" ]; then
+  echo '[{"id":"dhpk@dhpk","version":"${REAL_VERSION}","scope":"user"}]'
+  exit 0
+fi
+exit 0
+`);
+    const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` });
+    assert.notStrictEqual(res.status, 0, res.stdout + res.stderr);
+    const stage = JSON.parse(res.stdout);
+    const claude = stage.surfaceResults.find((result) => result.surface === 'claude');
+    assert.ok(claude, JSON.stringify(stage));
+    assert.strictEqual(claude.status, 'FAIL', JSON.stringify(stage));
+    assert.match(claude.reasons.join('\n'), /not present|scope|project/i);
+  });
+});
+
 test('blocks the consumer gate when official Claude strict validation fails', () => {
   withConsumerGateBin((bin) => {
     mkBinStub(bin, 'claude', `#!/bin/sh
