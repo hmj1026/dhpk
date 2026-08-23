@@ -274,11 +274,6 @@ function runDistribution(root, parsed, binding) {
 }
 
 const PROBE_ADAPTERS = Object.freeze({
-  'agent-plugin': Object.freeze({
-    platform: 'codex',
-    consumerSurface: 'codex-marketplace',
-    packagePath: ['plugins', 'dhpk-agent'],
-  }),
   'cursor-plugin': Object.freeze({
     platform: 'cursor',
     consumerSurface: 'cursor-plugin',
@@ -290,6 +285,7 @@ const CONSUMER_GATE_ADAPTERS = Object.freeze({
   'claude-core': Object.freeze({ gateSurface: 'claude-core', producerSurface: 'claude', adapterId: 'claude-plugin-cli' }),
   'codex-sync': Object.freeze({ gateSurface: 'codex-sync', producerSurface: 'codex-sync', adapterId: 'codex-sync-installer' }),
   'codex-native': Object.freeze({ gateSurface: 'codex-native', producerSurface: 'codex-native', adapterId: 'codex-native-install-smoke' }),
+  'cursor-sync': Object.freeze({ gateSurface: 'cursor-sync', producerSurface: 'cursor-sync', adapterId: 'cursor-sync-installer' }),
 });
 
 const PROBE_STATUSES = new Set([
@@ -635,7 +631,9 @@ function runConsumerProbe(root, parsed) {
     };
   }
   if (!adapter) {
-    const reason = `consumer probe adapter is not configured for ${surface}`;
+    const reason = surface === 'agent-plugin'
+      ? 'standard Agent Plugin has no verified consumer loader; Codex marketplace proof is reserved for codex-native'
+      : `consumer probe adapter is not configured for ${surface}`;
     const row = {
       surface,
       status: 'NOT_CONFIGURED',

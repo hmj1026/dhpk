@@ -321,6 +321,10 @@ test('release JSON preserves every required surface result at the public boundar
     );
     assert.ok(payload.surfaceResults.every((entry) => entry.stage === 'CONSUMER'));
     assert.ok(payload.surfaceResults.every((entry) => typeof entry.producer === 'string' && entry.producer.length > 0));
+    const cursorSync = payload.surfaceResults.find((entry) => entry.surface === 'cursor-sync');
+    assert.strictEqual(cursorSync.status, 'NOT_RUN', JSON.stringify(cursorSync));
+    assert.strictEqual(cursorSync.producer, 'consumer-gate');
+    assert.strictEqual(cursorSync.adapter.id, 'cursor-sync-installer');
     assert.strictEqual(payload.outcome, 'PUBLISHED_PENDING');
     assert.strictEqual(payload.exitCode, 2);
     const attempt = JSON.parse(fs.readFileSync(path.join(payload.receiptReference, 'attempt.json'), 'utf8'));
@@ -425,7 +429,26 @@ test('probe JSON preserves a consumer surface row when its runtime is unavailabl
   }
 });
 
-test('trusted release probes execute the Codex consumer route', () => {
+test('probe facade delegates the Cursor project-local sync route to the consumer gate', () => {
+  const receiptRoot = temporaryReceiptRoot();
+  try {
+    const result = invoke(['probe', '--surface', 'cursor-sync', '--task-id', 'facade-cursor-sync-probe', '--json'], {
+      DHPK_HARNESS_RECEIPT_ROOT: receiptRoot,
+    });
+    assert.strictEqual(result.status, 2, result.stderr);
+    const payload = parseSingleJson(result.stdout);
+    assert.strictEqual(payload.outcome, 'NOT_RUN');
+    assert.strictEqual(payload.surfaceResults.length, 1);
+    assert.strictEqual(payload.surfaceResults[0].surface, 'cursor-sync');
+    assert.strictEqual(payload.surfaceResults[0].status, 'NOT_RUN');
+    assert.strictEqual(payload.surfaceResults[0].producer, 'consumer-gate');
+    assert.strictEqual(payload.surfaceResults[0].adapter.id, 'cursor-sync-installer');
+  } finally {
+    fs.rmSync(receiptRoot, { recursive: true, force: true });
+  }
+});
+
+test('standard Agent Plugin remains closed until a verified loader is configured', () => {
   const root = temporaryProbeFixture({
     surfaceResults: [{
       surface: 'codex-marketplace',
@@ -466,10 +489,13 @@ test('trusted release probes execute the Codex consumer route', () => {
       }),
       DHPK_HARNESS_RECEIPT_ROOT: receiptRoot,
     });
-    assert.strictEqual(result.status, 0, result.stderr);
+    assert.strictEqual(result.status, 2, result.stderr);
     const payload = parseSingleJson(result.stdout);
     assert.strictEqual(payload.surfaceResults[0].surface, 'agent-plugin');
-    assert.strictEqual(payload.surfaceResults[0].status, 'PASS');
+    assert.strictEqual(payload.surfaceResults[0].status, 'NOT_CONFIGURED');
+    assert.strictEqual(payload.surfaceResults[0].producer, 'harness-facade');
+    assert.strictEqual(payload.surfaceResults[0].adapter.id, 'not-configured');
+    assert.match(payload.surfaceResults[0].reasons.join('\n'), /standard Agent Plugin|verified loader|Codex marketplace/i);
   } finally {
     fs.rmSync(receiptRoot, { recursive: true, force: true });
     fs.rmSync(root, { recursive: true, force: true });
