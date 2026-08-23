@@ -84,15 +84,18 @@ function temporaryPackageFixture() {
   return root;
 }
 
-function temporaryProbeFixture(payload) {
+function temporaryProbeFixture(payload, platform = 'cursor') {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-harness-probe-fixture-'));
   fs.mkdirSync(path.join(root, 'bin'), { recursive: true });
   fs.mkdirSync(path.join(root, 'manifests'), { recursive: true });
-  fs.mkdirSync(path.join(root, 'plugins', 'dhpk-cursor', '.cursor-plugin'), { recursive: true });
+  const packageRoot = platform === 'agent'
+    ? path.join(root, 'plugins', 'dhpk-agent')
+    : path.join(root, 'plugins', 'dhpk-cursor', '.cursor-plugin');
+  fs.mkdirSync(packageRoot, { recursive: true });
   fs.mkdirSync(path.join(root, 'scripts', 'release'), { recursive: true });
   fs.writeFileSync(path.join(root, 'manifests', 'distribution-inventory.json'), '{}\n');
-  fs.writeFileSync(path.join(root, 'plugins', 'dhpk-cursor', '.cursor-plugin', 'plugin.json'), JSON.stringify({
-    name: 'dhpk-cursor',
+  fs.writeFileSync(path.join(packageRoot, 'plugin.json'), JSON.stringify({
+    name: platform === 'agent' ? 'dhpk-agent' : 'dhpk-cursor',
     version: '0.45.0',
   }) + '\n');
   fs.writeFileSync(path.join(root, 'scripts', 'release', 'consumer-platform-probe.js'), [
@@ -100,7 +103,9 @@ function temporaryProbeFixture(payload) {
     "const index = process.argv.indexOf('--package-root');",
     "const packageRoot = index === -1 ? null : process.argv[index + 1];",
     "const missing = !packageRoot || !fs.existsSync(packageRoot);",
-    "const payload = missing ? { status: 'BLOCKED', reason: 'package manifest is missing', commands: [] } : JSON.parse(process.env.PROBE_PAYLOAD);",
+    "const configured = process.argv.includes('--execute');",
+    "const source = missing ? { status: 'BLOCKED', reason: 'package manifest is missing', commands: [] } : JSON.parse(process.env.PROBE_PAYLOAD);",
+    "const payload = !missing && process.env.REQUIRE_EXECUTE === '1' && !configured ? { ...source, status: 'NOT_RUN', surfaceResults: (source.surfaceResults || []).map((entry) => ({ ...entry, status: 'NOT_RUN', reasons: ['execute required'] })) } : source;",
     'process.stdout.write(JSON.stringify(payload));',
     'if (missing) process.exit(1);',
   ].join('\n') + '\n');
@@ -314,6 +319,8 @@ test('release JSON preserves every required surface result at the public boundar
       payload.surfaceResults.map((entry) => entry.surface),
       payload.requiredSurfaces,
     );
+    assert.ok(payload.surfaceResults.every((entry) => entry.stage === 'CONSUMER'));
+    assert.ok(payload.surfaceResults.every((entry) => typeof entry.producer === 'string' && entry.producer.length > 0));
     assert.strictEqual(payload.outcome, 'PUBLISHED_PENDING');
     assert.strictEqual(payload.exitCode, 2);
     const attempt = JSON.parse(fs.readFileSync(path.join(payload.receiptReference, 'attempt.json'), 'utf8'));
@@ -415,6 +422,57 @@ test('probe JSON preserves a consumer surface row when its runtime is unavailabl
     assert.strictEqual(attempt.producer, 'consumer-platform-probe');
   } finally {
     fs.rmSync(receiptRoot, { recursive: true, force: true });
+  }
+});
+
+test('trusted release probes execute the Codex consumer route', () => {
+  const root = temporaryProbeFixture({
+    surfaceResults: [{
+      surface: 'codex-marketplace',
+      status: 'PASS',
+      stage: 'CONSUMER',
+      commands: [],
+      environment: { network: 'disabled' },
+      artifacts: [],
+      diagnostics: [],
+      reasons: [],
+      checkedClaims: ['consumer-route'],
+    }],
+  }, 'agent');
+  const receiptRoot = temporaryReceiptRoot();
+  try {
+    const result = invokeAt(root, [
+      'probe',
+      '--surface',
+      'agent-plugin',
+      '--task-id',
+      'facade-agent-execute',
+      '--json',
+    ], {
+      CI: '1',
+      REQUIRE_EXECUTE: '1',
+      PROBE_PAYLOAD: JSON.stringify({
+        surfaceResults: [{
+          surface: 'codex-marketplace',
+          status: 'PASS',
+          stage: 'CONSUMER',
+          commands: [],
+          environment: { network: 'disabled' },
+          artifacts: [],
+          diagnostics: [],
+          reasons: [],
+          checkedClaims: ['consumer-route'],
+        }],
+      }),
+      DHPK_HARNESS_RECEIPT_ROOT: receiptRoot,
+    });
+    assert.strictEqual(result.status, 0, result.stderr);
+    const payload = parseSingleJson(result.stdout);
+    assert.strictEqual(payload.surfaceResults[0].surface, 'agent-plugin');
+    assert.strictEqual(payload.surfaceResults[0].status, 'PASS');
+  } finally {
+    fs.rmSync(receiptRoot, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
   }
 });
 

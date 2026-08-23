@@ -19,10 +19,10 @@ test('CI invokes the harness facade and keeps compatibility adapters', () => {
   assert.match(workflow, /bin\/dhpk distribution/);
 });
 
-test('release invokes the harness facade before publish and retains consumer gate', () => {
+test('release invokes the harness facade for the full consumer surface plan', () => {
   const workflow = read('.github/workflows/release.yml');
-  assert.match(workflow, /bin\/dhpk harness/);
-  assert.match(workflow, /consumer-gate\.js/);
+  assert.match(workflow, /bin\/dhpk harness release/);
+  assert.match(workflow, /surfaceResults/);
 });
 
 run('harness-workflow-config');
