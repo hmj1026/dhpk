@@ -197,7 +197,7 @@ test('characterizes the current unscoped Claude manifest and CLI outcome', () =>
   assert.strictEqual(pluginBytes.length, 30206, 'compatibility manifest byte count drifted');
   assert.strictEqual(
     crypto.createHash('sha256').update(pluginBytes).digest('hex'),
-    '1a576f99f89319730ee3c533ad34ab274141d33c1d66c2d2be1f49cc6e675a1a',
+    '3d598d173ab543ff507ac53162c3c391d89dc1e55dd450f0ed8ed22ead79a6a6',
     'compatibility manifest bytes drifted',
   );
 
