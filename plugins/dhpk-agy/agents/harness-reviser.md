@@ -1,7 +1,7 @@
 ---
 name: harness-reviser
 description: 'Deterministic harness trim/dedupe/validate driven by the `harness-revise` skill and G1-G13 gap taxonomy. Use when running `/harness-revise`, or when the user explicitly asks to trim/dedupe/validate `.claude/`. For broader reliability/cost/throughput scoring, use `/harness-govern` (its conform step applies the official best-practices lens).'
-tools: ["read_file", "grep_search", "glob", "run_command", "replace_file_content", "write_to_file"]
+tools: ["read_file", "grep_search", "list_dir", "run_command", "replace_file_content", "write_to_file"]
 model: pro
 ---
 

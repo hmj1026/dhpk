@@ -1,7 +1,7 @@
 ---
 name: ui-ux-verifier
 description: 'UI/UX verification specialist. Drives playwright-cli to capture live A11y snapshots, compares with OpenSpec specs, produces ranked findings, and (with explicit user consent) calls /opsx:new to create a fix change. Requires the external OpenSpec plugin to be installed for the spec-lookup and fix-plan flow. Use PROACTIVELY when the user asks verify UI, check page matches spec, audit a controller/action, or review the front-end view. Audits only — does not modify business code directly.'
-tools: ["read_file", "grep_search", "glob", "run_command", "invoke_subagent", "write_to_file", "mcp_gitnexus_impact"]
+tools: ["read_file", "grep_search", "list_dir", "run_command", "invoke_subagent", "write_to_file", "mcp_gitnexus_impact"]
 model: pro
 ---
 

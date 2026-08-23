@@ -1,7 +1,7 @@
 ---
 name: e2e-runner
 description: 'End-to-end test specialist. Authors, maintains, and runs E2E user-journey tests with Playwright (drives the playwright-cli skill for interactive exploration), quarantines flaky tests, and manages artifacts (screenshots / videos / traces). Use PROACTIVELY when the user asks to write, run, or stabilize E2E tests for critical user flows. Distinct from ui-ux-verifier, which audits one rendered page against an OpenSpec spec — this authors and runs whole test journeys.'
-tools: ["read_file", "write_to_file", "replace_file_content", "run_command", "grep_search", "glob", "invoke_subagent"]
+tools: ["read_file", "write_to_file", "replace_file_content", "run_command", "grep_search", "list_dir", "invoke_subagent"]
 model: pro
 ---
 

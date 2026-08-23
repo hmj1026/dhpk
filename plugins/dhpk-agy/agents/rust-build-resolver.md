@@ -1,7 +1,7 @@
 ---
 name: rust-build-resolver
 description: 'Rust / Cargo build-error resolution specialist. Use PROACTIVELY when `cargo build` / `cargo test` / `cargo clippy` or dependency resolution fails — rustc type / borrow / lifetime errors, trait-bound and `Send` / `Sync` errors, async / tokio task issues, macro errors, or `Cargo.toml` version conflicts. Applies the smallest fix that preserves intent and re-runs the command to verify. Stops and escalates after 3 failed attempts or when the fix needs an architectural redesign. Hands a green build to code-reviewer.'
-tools: ["read_file", "write_to_file", "replace_file_content", "run_command", "grep_search", "glob", "mcp_gitnexus_impact"]
+tools: ["read_file", "write_to_file", "replace_file_content", "run_command", "grep_search", "list_dir", "mcp_gitnexus_impact"]
 model: pro
 ---
 

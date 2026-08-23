@@ -1,7 +1,7 @@
 ---
 name: silent-failure-hunter
 description: 'Error-handling specialist — hunts silent failures: empty catch blocks, swallowed exceptions, error-hiding fallbacks, lost stack traces, and missing error handling around I/O / network / DB / transactions. Situational deep-dive that COMPLEMENTS code-reviewer (the broad quality gate) — invoke when a diff touches error-handling / try-catch / Promise chains / async paths, or when the user asks for an error-handling / robustness audit. Not a sentinel; not a replacement for code-reviewer or security-reviewer. Read-only.'
-tools: ["read_file", "grep_search", "glob", "run_command", "mcp_gitnexus_impact"]
+tools: ["read_file", "grep_search", "list_dir", "run_command", "mcp_gitnexus_impact"]
 model: pro
 ---
 
