@@ -11,6 +11,7 @@ const crypto = require('node:crypto');
 const { adaptFrontmatter } = require('../agy-adapt-agents');
 const {
   createSurfaceReceipt,
+  resolveGeneratedFromTree,
   validateSurfaceReceipt,
 } = require('./platform-provenance');
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
@@ -390,6 +391,7 @@ function materializeAgyPluginPackage({
     surface: SURFACE,
     sourceVersion,
     sourceCommit,
+    generatedFromTree: resolveGeneratedFromTree(root, sourceCommit),
     inventoryDigest: digest(stableStringify(inventory)),
     fingerprints,
     route: { sourceRoot: 'agents/, rules/, skills/', packageRoot: 'plugins/dhpk-agy/' },

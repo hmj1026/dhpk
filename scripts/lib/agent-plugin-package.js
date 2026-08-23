@@ -11,7 +11,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { RECEIPT_SCHEMA, SURFACE_OWNERS } = require('./platform-provenance');
+const { RECEIPT_SCHEMA, SURFACE_OWNERS, resolveGeneratedFromTree } = require('./platform-provenance');
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
 const { compileDistribution, materializeDistribution, verifyDistribution } = require('./distribution-compiler');
 const { ProjectionArtifactStore } = require('./projection-artifact-store');
@@ -864,6 +864,7 @@ function buildAgentPluginProjection(options = {}) {
   const selectedSkillIds = selectedEntries.map((entry) => entry.id).sort();
   const selectedSkillNames = selectedEntries.map((entry) => entry.name || entry.id).sort();
   const selectedMatrixIds = matrixEntries(inventory, 'agent-plugin').map((entry) => entry.id).filter(Boolean).sort();
+  const generatedFromTree = resolveGeneratedFromTree(resolvedRoot, sourceCommit);
   const provenance = {
     schema: RECEIPT_SCHEMA,
     surface: 'agent-plugin',
@@ -871,6 +872,8 @@ function buildAgentPluginProjection(options = {}) {
     owner: SURFACE_OWNERS['agent-plugin'],
     sourceVersion: version,
     sourceCommit,
+    generatedFromCommit: sourceCommit,
+    ...(generatedFromTree ? { generatedFromTree } : {}),
     inventoryDigest: digest(stableStringify(inventory)),
     generatorVersion,
     schemaVersion: AGENT_PLUGIN_VERSION,

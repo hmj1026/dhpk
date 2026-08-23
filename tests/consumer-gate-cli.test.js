@@ -208,6 +208,16 @@ test('consumer gate resolves a relative repository root before entering its sand
   assert.ok(['PASS', 'UNAVAILABLE'].includes(stage.verdict), JSON.stringify(stage));
 });
 
+test('consumer gate rejects a missing --surface value instead of running every probe', () => {
+  const res = spawnSync('node', [CLI, '--version', REAL_VERSION, '--surface'], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    env: { ...process.env, PATH: NODE_BASH_ONLY_PATH },
+  });
+  assert.strictEqual(res.status, 2, `${res.stdout}\n${res.stderr}`);
+  assert.match(res.stderr, /surface|value|required/i);
+});
+
 test('Codex surface discovery includes both skill and agent inventories', () => {
   const surfaceRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-consumer-surface-'));
   try {
