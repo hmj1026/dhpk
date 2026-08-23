@@ -767,7 +767,18 @@ function normalizeReleaseProbeResult(root, surface, execution) {
       row.commands,
     );
   }
-  if (execution && execution.outcome !== undefined && execution.outcome !== row.status) {
+  if (!execution || !PROBE_STATUSES.has(execution.outcome)) {
+    return failedProbeRow(
+      surface,
+      'FAIL',
+      execution && execution.outcome === undefined
+        ? `consumer probe omitted a canonical outcome for '${surface}'`
+        : `consumer probe emitted invalid outcome '${execution && execution.outcome}' for '${surface}'`,
+      root,
+      row.commands,
+    );
+  }
+  if (execution.outcome !== row.status) {
     return failedProbeRow(
       surface,
       'FAIL',

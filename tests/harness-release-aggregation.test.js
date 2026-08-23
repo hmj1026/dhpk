@@ -120,6 +120,39 @@ test('release execution rejects foreign rows and conflicting producer outcomes',
   assert.match(malformed.reasons.join('\n'), /exactly one|foreign|result/i);
 });
 
+test('release execution rejects missing top-level probe outcomes', () => {
+  const result = harness.runReleaseProbes('/tmp/dhpk-release-fixture', REQUIRED, (root, parsed) => ({
+    surfaceResults: [{
+      surface: parsed.surface,
+      status: 'PASS',
+      stage: 'CONSUMER',
+      producer: 'fixture-probe',
+    }],
+  }));
+
+  assert.strictEqual(result.outcome, 'PUBLISHED_UNHEALTHY');
+  const malformed = result.surfaceResults.find((entry) => entry.surface === 'cursor-plugin');
+  assert.strictEqual(malformed.status, 'FAIL');
+  assert.match(malformed.reasons.join('\n'), /outcome/i);
+});
+
+test('release execution rejects a conflicting top-level probe outcome', () => {
+  const result = harness.runReleaseProbes('/tmp/dhpk-release-fixture', REQUIRED, (root, parsed) => ({
+    outcome: 'FAIL',
+    surfaceResults: [{
+      surface: parsed.surface,
+      status: 'PASS',
+      stage: 'CONSUMER',
+      producer: 'fixture-probe',
+    }],
+  }));
+
+  assert.strictEqual(result.outcome, 'PUBLISHED_UNHEALTHY');
+  const malformed = result.surfaceResults.find((entry) => entry.surface === 'cursor-plugin');
+  assert.strictEqual(malformed.status, 'FAIL');
+  assert.match(malformed.reasons.join('\n'), /disagrees|outcome/i);
+});
+
 test('missing or unknown required surfaces fail closed', () => {
   assert.throws(() => harnessResult.aggregateRequiredSurfaces({
     requiredSurfaces: REQUIRED.slice(0, -1),
