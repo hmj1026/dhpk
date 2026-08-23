@@ -25,8 +25,21 @@ function sourceBinding(revision = 'HEAD') {
   return { sourceCommit, sourceTree: receipts.resolveGitTree(ROOT, sourceCommit) };
 }
 
+function temporaryDirtyCheckout() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-harness-checkout-'));
+  fs.writeFileSync(path.join(root, 'tracked.txt'), 'initial\n');
+  execFileSync('git', ['init', '-q'], { cwd: root });
+  execFileSync('git', ['config', 'user.email', 'harness-test@example.invalid'], { cwd: root });
+  execFileSync('git', ['config', 'user.name', 'Harness Test'], { cwd: root });
+  execFileSync('git', ['add', 'tracked.txt'], { cwd: root });
+  execFileSync('git', ['commit', '-qm', 'fixture initial'], { cwd: root });
+  fs.writeFileSync(path.join(root, 'tracked.txt'), 'dirty\n');
+  return root;
+}
+
 function makeAttempt(root, options = {}) {
   const binding = sourceBinding(options.revision || 'HEAD');
+  const current = sourceBinding('HEAD');
   return receipts.createAttempt({
     root,
     command: 'harness verify --json',
@@ -44,6 +57,11 @@ function makeAttempt(root, options = {}) {
     adapter: 'codex-sync',
     stage: 'verify',
     producer: 'harness-test',
+    identity: {
+      targetCommit: current.sourceCommit,
+      targetTree: current.sourceTree,
+      worktree: receipts.resolveGitWorktree(ROOT),
+    },
     operationKey: options.operationKey,
     retryOf: options.retryOf,
     backupReference: options.backupReference,
@@ -72,6 +90,122 @@ test('exact source commit and resolved tree must match the consuming checkout', 
     assert.match(rejected.errors.join('\n'), /commit|tree|current|expected/i);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('final target receipt identity must match the checkout independently of generated-input identity', () => {
+  const root = temporaryReceiptRoot();
+  try {
+    const current = sourceBinding('HEAD');
+    const generated = sourceBinding('HEAD^');
+    const attempt = receipts.createAttempt({
+      root,
+      command: 'harness verify --json',
+      taskId: 'task-target',
+      attemptId: 'attempt-1',
+      sourceCommit: current.sourceCommit,
+      sourceTree: current.sourceTree,
+      identity: {
+        generatedFromCommit: generated.sourceCommit,
+        generatedFromTree: generated.sourceTree,
+        targetCommit: current.sourceCommit,
+        targetTree: current.sourceTree,
+        worktree: receipts.resolveGitWorktree(ROOT),
+      },
+    });
+    assert.strictEqual(receipts.validateReceipt(attempt.path, { root: ROOT }).ok, true);
+
+    const envelopePath = path.join(attempt.path, 'attempt.json');
+    const tampered = JSON.parse(fs.readFileSync(envelopePath, 'utf8'));
+    tampered.targetCommit = generated.sourceCommit;
+    tampered.targetTree = generated.sourceTree;
+    fs.writeFileSync(envelopePath, JSON.stringify(tampered, null, 2) + '\n');
+    const rejected = receipts.validateReceipt(attempt.path, { root: ROOT });
+    assert.strictEqual(rejected.ok, false);
+    assert.match(rejected.errors.join('\n'), /target (commit|tree)|current checkout/i);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('generated-input commit and tree must be a matching pair', () => {
+  const root = temporaryReceiptRoot();
+  try {
+    const current = sourceBinding('HEAD');
+    const generated = sourceBinding('HEAD^');
+    const attempt = receipts.createAttempt({
+      root,
+      command: 'harness verify --json',
+      taskId: 'task-generated-pair',
+      attemptId: 'attempt-1',
+      sourceCommit: current.sourceCommit,
+      sourceTree: current.sourceTree,
+      identity: {
+        generatedFromCommit: generated.sourceCommit,
+        generatedFromTree: current.sourceTree,
+        targetCommit: current.sourceCommit,
+        targetTree: current.sourceTree,
+        worktree: 'DIRTY',
+      },
+    });
+    const mismatchedTree = receipts.validateReceipt(attempt.path, { root: ROOT });
+    assert.strictEqual(mismatchedTree.ok, false);
+    assert.match(mismatchedTree.errors.join('\n'), /generated|tree|commit/i);
+
+    const missingTree = receipts.createAttempt({
+      root,
+      command: 'harness verify --json',
+      taskId: 'task-generated-pair-missing',
+      attemptId: 'attempt-1',
+      sourceCommit: current.sourceCommit,
+      sourceTree: current.sourceTree,
+      identity: {
+        generatedFromCommit: generated.sourceCommit,
+        targetCommit: current.sourceCommit,
+        targetTree: current.sourceTree,
+        worktree: 'DIRTY',
+      },
+    });
+    const missing = receipts.validateReceipt(missingTree.path, { root: ROOT });
+    assert.strictEqual(missing.ok, false);
+    assert.match(missing.errors.join('\n'), /generated.*tree|pair|missing/i);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('receipt validation rejects a forged CLEAN declaration on a dirty checkout', () => {
+  const root = temporaryReceiptRoot();
+  const checkoutRoot = temporaryDirtyCheckout();
+  try {
+    const current = {
+      sourceCommit: execFileSync('git', ['rev-parse', 'HEAD^{commit}'], {
+        cwd: checkoutRoot,
+        encoding: 'utf8',
+      }).trim(),
+    };
+    current.sourceTree = receipts.resolveGitTree(checkoutRoot, current.sourceCommit);
+    const attempt = receipts.createAttempt({
+      root,
+      command: 'harness verify --json',
+      taskId: 'task-forged-clean',
+      attemptId: 'attempt-1',
+      sourceCommit: current.sourceCommit,
+      sourceTree: current.sourceTree,
+      identity: {
+        targetCommit: current.sourceCommit,
+        targetTree: current.sourceTree,
+        worktree: 'CLEAN',
+      },
+      outcome: 'COMPLETE',
+      lifecyclePhase: 'COMPLETE',
+    });
+    const rejected = receipts.validateReceipt(attempt.path, { root: checkoutRoot });
+    assert.strictEqual(rejected.ok, false);
+    assert.match(rejected.errors.join('\n'), /worktree|clean|dirty/i);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(checkoutRoot, { recursive: true, force: true });
   }
 });
 

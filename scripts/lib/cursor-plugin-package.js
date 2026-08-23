@@ -13,7 +13,7 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const { RECEIPT_SCHEMA, SURFACE_OWNERS } = require('./platform-provenance');
+const { RECEIPT_SCHEMA, SURFACE_OWNERS, resolveGeneratedFromTree } = require('./platform-provenance');
 const { selectPortableSkills } = require('./agent-plugin-package');
 const {
   compileDistribution,
@@ -787,6 +787,7 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
     const value = cursorVirtualFingerprint(files, relative);
     if (value) fingerprints[relative] = value;
   }
+  const generatedFromTree = resolveGeneratedFromTree(resolvedRoot, sourceCommit);
   const provenance = {
     schema: RECEIPT_SCHEMA,
     surface: 'cursor-plugin',
@@ -795,6 +796,8 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
     packageRoot: 'plugins/dhpk-cursor',
     sourceVersion: version,
     sourceCommit,
+    generatedFromCommit: sourceCommit,
+    ...(generatedFromTree ? { generatedFromTree } : {}),
     inventoryDigest: stableInventoryDigest(inventory),
     generatorVersion,
     selectedSkillIds: [...selectedIds].sort(),

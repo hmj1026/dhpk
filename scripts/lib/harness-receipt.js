@@ -39,8 +39,12 @@ const IDENTITY_FIELDS = Object.freeze([
   'dispatchId',
   'sourceCommit',
   'sourceTree',
+  'generatedFromCommit',
+  'generatedFromTree',
   'baseCommit',
   'targetCommit',
+  'targetTree',
+  'worktree',
   'planFingerprint',
   'artifactFingerprint',
   'surface',
@@ -82,7 +86,10 @@ function isFingerprint(value) {
 }
 
 function normalizeComparable(field, value) {
-  if (typeof value === 'string' && (field === 'sourceCommit' || field === 'sourceTree' || /Fingerprint$/.test(field))) {
+  if (typeof value === 'string' && (field === 'sourceCommit' || field === 'sourceTree'
+    || field === 'generatedFromCommit' || field === 'generatedFromTree'
+    || field === 'baseCommit' || field === 'targetCommit' || field === 'targetTree'
+    || /Fingerprint$/.test(field))) {
     return value.toLowerCase();
   }
   return value;
@@ -350,6 +357,19 @@ function resolveGitBinding(root, revision = 'HEAD') {
   return { sourceCommit: commit, sourceTree: resolveGitTree(root, commit) };
 }
 
+function resolveGitWorktree(root) {
+  if (typeof root !== 'string' || !root) throw new Error('harness receipt: git root is required');
+  try {
+    const status = execFileSync('git', ['status', '--porcelain', '--untracked-files=all'], {
+      cwd: root,
+      encoding: 'utf8',
+    });
+    return status.trim().length === 0 ? 'CLEAN' : 'DIRTY';
+  } catch (error) {
+    throw new Error(`harness receipt: cannot resolve worktree status: ${error.message}`);
+  }
+}
+
 function createAttempt({
   root,
   command,
@@ -577,6 +597,25 @@ function validateReceipt(attemptPath, {
   if (!Array.isArray(envelope.artifacts)) errors.push('receipt artifacts must be an array');
   if (envelope.resumeCommand !== null && typeof envelope.resumeCommand !== 'string') errors.push('receipt resumeCommand must be a string or null');
   if (!Array.isArray(envelope.byteReferences)) errors.push('receipt byteReferences must be an array');
+  for (const field of ['targetCommit', 'generatedFromCommit']) {
+    if (envelope[field] !== undefined && !COMMIT.test(envelope[field])) errors.push(`receipt ${field} is not a valid commit SHA`);
+  }
+  for (const field of ['targetTree', 'generatedFromTree']) {
+    if (envelope[field] !== undefined && !TREE.test(envelope[field])) errors.push(`receipt ${field} is not a valid tree SHA`);
+  }
+  const targetCommitPresent = envelope.targetCommit !== undefined;
+  const targetTreePresent = envelope.targetTree !== undefined;
+  if (targetCommitPresent !== targetTreePresent) {
+    errors.push('receipt target commit/tree pair is incomplete');
+  }
+  if (envelope.worktree !== undefined && !['CLEAN', 'DIRTY'].includes(envelope.worktree)) {
+    errors.push('receipt worktree must be CLEAN or DIRTY');
+  }
+  const generatedCommitPresent = envelope.generatedFromCommit !== undefined;
+  const generatedTreePresent = envelope.generatedFromTree !== undefined;
+  if (generatedCommitPresent !== generatedTreePresent) {
+    errors.push('receipt generated-input commit/tree pair is incomplete');
+  }
   const expectedContext = expected && typeof expected === 'object' ? expected : {};
   const expectedCommit = expectedSourceCommit || expectedContext.sourceCommit || null;
   const expectedTree = expectedSourceTree || expectedContext.sourceTree || null;
@@ -584,6 +623,58 @@ function validateReceipt(attemptPath, {
     expectedSourceCommit: expectedCommit,
     expectedSourceTree: expectedTree,
   }).errors);
+  if (root && (!targetCommitPresent || !targetTreePresent)) {
+    errors.push('receipt target commit/tree pair is required when validating against a checkout');
+  }
+  if (root && envelope.worktree === undefined) {
+    errors.push('receipt worktree is required when validating against a checkout');
+  }
+  if (root) {
+    try {
+      const current = resolveGitBinding(root);
+      if (targetCommitPresent && COMMIT.test(envelope.targetCommit)
+        && current.sourceCommit.toLowerCase() !== envelope.targetCommit.toLowerCase()) {
+        errors.push('target commit does not match current checkout');
+      }
+      if (targetTreePresent && TREE.test(envelope.targetTree)
+        && current.sourceTree.toLowerCase() !== envelope.targetTree.toLowerCase()) {
+        errors.push('target tree does not match current checkout');
+      }
+      if (envelope.worktree !== undefined) {
+        const actualWorktree = resolveGitWorktree(root);
+        if (actualWorktree !== envelope.worktree) {
+          errors.push(`receipt worktree '${envelope.worktree}' does not match current checkout '${actualWorktree}'`);
+        }
+      }
+    } catch (error) {
+      errors.push(`target checkout cannot be resolved: ${error.message}`);
+    }
+  }
+  if (envelope.outcome === 'COMPLETE' && envelope.worktree !== 'CLEAN') {
+    errors.push('COMPLETE receipt requires a clean worktree');
+  }
+  if (root && generatedCommitPresent && generatedTreePresent && COMMIT.test(envelope.generatedFromCommit) && TREE.test(envelope.generatedFromTree)) {
+    try {
+      const generatedTree = resolveGitTree(root, envelope.generatedFromCommit);
+      if (generatedTree.toLowerCase() !== envelope.generatedFromTree.toLowerCase()) {
+        errors.push('generated-input tree does not match generated-input commit');
+      }
+      if (envelope.targetCommit && COMMIT.test(envelope.targetCommit)) {
+        try {
+          execFileSync('git', ['merge-base', '--is-ancestor', envelope.generatedFromCommit, envelope.targetCommit], {
+            cwd: root,
+            encoding: 'utf8',
+            stdio: ['ignore', 'ignore', 'ignore'],
+          });
+        } catch (error) {
+          if (error && error.status === 1) errors.push('generated-input commit is not an ancestor of target commit');
+          else throw error;
+        }
+      }
+    } catch (error) {
+      errors.push(`generated-input identity cannot be resolved: ${error.message}`);
+    }
+  }
   for (const fingerprintField of ['planFingerprint', 'artifactFingerprint']) {
     if (envelope[fingerprintField] !== undefined && !isFingerprint(envelope[fingerprintField])) {
       errors.push(`receipt ${fingerprintField} is not a SHA-256 digest`);
@@ -702,6 +793,7 @@ module.exports = {
   resolveGitTree,
   resolveGitCommit,
   resolveGitBinding,
+  resolveGitWorktree,
   createAttempt,
   findAttemptByOperationKey,
   appendEvent,

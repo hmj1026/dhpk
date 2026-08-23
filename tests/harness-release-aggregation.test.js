@@ -4,6 +4,7 @@
 
 const { test, run, assert } = require('./_lib/tinytest');
 const harnessResult = require('../scripts/lib/harness-result');
+const harness = require('../scripts/lib/harness');
 
 const REQUIRED = [
   'claude-core',
@@ -27,6 +28,7 @@ test('full-release aggregation requires exactly the seven canonical surfaces', (
     fullRelease: true,
   });
   assert.strictEqual(result.outcome, 'COMPLETE');
+  assert.strictEqual(harness.lifecyclePhaseForOutcome(result.outcome), 'COMPLETE');
 });
 
 test('unavailable and failed surfaces remain non-complete', () => {

@@ -44,6 +44,13 @@ const { inspectCodexDiscovery } = require('../lib/codex-discovery-registry');
 
 const DEFAULT_ROOT = path.join(__dirname, '..', '..');
 const CODEX_SURFACE_VERDICTS = Object.freeze({ PASS: 'PASS', WARN: 'WARN', BLOCKED: 'BLOCKED' });
+const CONSUMER_SURFACES = Object.freeze([
+  'claude-core',
+  'codex-sync',
+  'codex-native',
+  'agent-plugin',
+  'cursor-plugin',
+]);
 
 function canonicalAllowedRoots(roots) {
   return Array.isArray(roots) ? roots.map((root) => fs.realpathSync(path.resolve(root))) : [];
@@ -388,13 +395,25 @@ function parseArgs(argv) {
     const arg = argv[i];
     if (arg === '--version') args.version = argv[++i];
     else if (arg === '--repo-root') args.root = argv[++i];
+    else if (arg === '--surface') {
+      const value = argv[++i];
+      if (!value || value.startsWith('--')) {
+        console.error('consumer-gate: a value is required for --surface');
+        process.exit(2);
+      }
+      args.surface = value;
+    }
     else {
       console.error(`consumer-gate: unknown argument '${arg}'`);
       process.exit(2);
     }
   }
   if (!args.version) {
-    console.error('usage: consumer-gate.js --version X.Y.Z [--repo-root <path>]');
+    console.error('usage: consumer-gate.js --version X.Y.Z [--repo-root <path>] [--surface <surface>]');
+    process.exit(2);
+  }
+  if (args.surface && !CONSUMER_SURFACES.includes(args.surface)) {
+    console.error(`consumer-gate: unknown surface '${args.surface}'`);
     process.exit(2);
   }
   args.root = path.resolve(args.root);
@@ -813,32 +832,51 @@ function normalizeGateSurface(surface, producer, adapter, result, environment) {
 }
 
 function runGate(args) {
-  const codex = verifyCodexSync(args.root, args.version);
-  const claude = verifyClaudeReinstall(args.root, args.version);
-  const native = verifyCodexNative(args.root);
-  const projectedCodex = verifyProjectedConsumer(args.root, 'codex', args.version);
-  const projectedCursor = verifyProjectedConsumer(args.root, 'cursor', args.version);
+  const selected = args.surface || null;
+  const selectedOrAll = (surface) => selected === null || selected === surface;
+  const codex = selectedOrAll('codex-sync') ? verifyCodexSync(args.root, args.version) : null;
+  const claude = selectedOrAll('claude-core') ? verifyClaudeReinstall(args.root, args.version) : null;
+  const native = selectedOrAll('codex-native') ? verifyCodexNative(args.root) : null;
+  const projectedCodex = selectedOrAll('agent-plugin')
+    ? verifyProjectedConsumer(args.root, 'codex', args.version)
+    : null;
+  const projectedCursor = selectedOrAll('cursor-plugin')
+    ? verifyProjectedConsumer(args.root, 'cursor', args.version)
+    : null;
 
   const environment = process.env.CI ? 'ci' : 'local';
   const surfaceResults = [
-    ...normalizeGateSurface('codex-sync', 'consumer-gate', { id: 'codex-sync-installer', version: '1.0.0' }, codex, environment),
-    ...normalizeGateSurface('claude', 'consumer-gate', { id: 'claude-plugin-cli', version: claude.cliVersion || 'unknown' }, claude, environment),
-    ...normalizeGateSurface('codex-native', 'consumer-gate', { id: 'codex-native-install-smoke', version: '1.0.0' }, native, environment),
-    ...projectedCodex.surfaceResults,
-    ...projectedCursor.surfaceResults,
+    ...(codex ? normalizeGateSurface('codex-sync', 'consumer-gate', { id: 'codex-sync-installer', version: '1.0.0' }, codex, environment) : []),
+    ...(claude ? normalizeGateSurface('claude', 'consumer-gate', { id: 'claude-plugin-cli', version: claude.cliVersion || 'unknown' }, claude, environment) : []),
+    ...(native ? normalizeGateSurface('codex-native', 'consumer-gate', { id: 'codex-native-install-smoke', version: '1.0.0' }, native, environment) : []),
+    ...(projectedCodex ? projectedCodex.surfaceResults : []),
+    ...(projectedCursor ? projectedCursor.surfaceResults : []),
   ];
 
-  const commands = [...codex.commands, ...claude.commands, ...native.commands, ...projectedCodex.commands, ...projectedCursor.commands];
+  const commands = [
+    ...(codex ? codex.commands : []),
+    ...(claude ? claude.commands : []),
+    ...(native ? native.commands : []),
+    ...(projectedCodex ? projectedCodex.commands : []),
+    ...(projectedCursor ? projectedCursor.commands : []),
+  ];
   const failureReasons = [
-    ...codex.reasons.map((r) => `codex-sync: ${r}`),
-    ...claude.reasons.map((r) => `claude-reinstall: ${r}`),
-    ...native.reasons.map((r) => `native-codex-marketplace: ${r}`),
-    ...(['FAIL', 'BLOCKED'].includes(projectedCodex.status) ? [`agent-plugin-consumer: ${projectedCodex.reason || projectedCodex.status.toLowerCase()}`] : []),
-    ...(['FAIL', 'BLOCKED'].includes(projectedCursor.status) ? [`cursor-plugin-consumer: ${projectedCursor.reason || projectedCursor.status.toLowerCase()}`] : []),
+    ...(codex ? codex.reasons.map((r) => `codex-sync: ${r}`) : []),
+    ...(claude ? claude.reasons.map((r) => `claude-reinstall: ${r}`) : []),
+    ...(native ? native.reasons.map((r) => `native-codex-marketplace: ${r}`) : []),
+    ...(projectedCodex && ['FAIL', 'BLOCKED'].includes(projectedCodex.status)
+      ? [`agent-plugin-consumer: ${projectedCodex.reason || projectedCodex.status.toLowerCase()}`]
+      : []),
+    ...(projectedCursor && ['FAIL', 'BLOCKED'].includes(projectedCursor.status)
+      ? [`cursor-plugin-consumer: ${projectedCursor.reason || projectedCursor.status.toLowerCase()}`]
+      : []),
   ];
 
   let verdict;
-  if (codex.verdict === VERDICTS.FAIL || claude.verdict === VERDICTS.FAIL || projectedCodex.status === 'FAIL' || projectedCursor.status === 'FAIL') verdict = VERDICTS.FAIL;
+  if (selected) {
+    const row = surfaceResults[0];
+    verdict = row && row.status ? row.status : VERDICTS.FAIL;
+  } else if (codex.verdict === VERDICTS.FAIL || claude.verdict === VERDICTS.FAIL || projectedCodex.status === 'FAIL' || projectedCursor.status === 'FAIL') verdict = VERDICTS.FAIL;
   else if (projectedCodex.status === 'BLOCKED' || projectedCursor.status === 'BLOCKED') verdict = VERDICTS.BLOCKED;
   else if (claude.verdict === VERDICTS.UNAVAILABLE) verdict = VERDICTS.UNAVAILABLE;
   else verdict = VERDICTS.PASS;
@@ -847,7 +885,9 @@ function runGate(args) {
     verdict,
     commands,
     environment,
-    artifacts: [
+    artifacts: selected
+      ? []
+      : [
       `claude-official-strict: ${claude.officialValidation ? claude.officialValidation.verdict : 'NOT RUN'}${claude.officialValidation && claude.officialValidation.reason ? ` (${claude.officialValidation.reason})` : ''}`,
       `native-codex-marketplace: ${native.verdict} (experimental support tier; consumer proof does not itself graduate the support tier)`,
       `agent-plugin-consumer: ${projectedCodex.status}${projectedCodex.reason ? ` (${projectedCodex.reason})` : ''}`,
@@ -860,13 +900,13 @@ function runGate(args) {
           : []),
     ],
     failureReasons,
-    ...(codex.surfaces ? { codexSurfaces: { ...codex.surfaces, duplicates: codex.duplicateEvidence || [] } } : {}),
+    ...(codex && codex.surfaces ? { codexSurfaces: { ...codex.surfaces, duplicates: codex.duplicateEvidence || [] } } : {}),
     stage: 'CONSUMER',
     producer: 'consumer-gate',
     adapter: { id: 'consumer-gate', version: '1.0.0' },
     surfaceResults,
-    ...(codex.surfaceVerdict ? { legacySurfaceStatus: codex.surfaceVerdict } : {}),
-    ...(codex.surfaceVerdict === 'WARN' ? { warnings: ['Codex duplicate-surface matrix returned WARN; compatibility status is not a canonical evidence verdict'] } : {}),
+    ...(codex && codex.surfaceVerdict ? { legacySurfaceStatus: codex.surfaceVerdict } : {}),
+    ...(codex && codex.surfaceVerdict === 'WARN' ? { warnings: ['Codex duplicate-surface matrix returned WARN; compatibility status is not a canonical evidence verdict'] } : {}),
   };
 
   return stage;

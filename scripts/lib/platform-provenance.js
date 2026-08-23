@@ -6,6 +6,7 @@
 // another surface.
 
 const crypto = require('node:crypto');
+const { execFileSync } = require('node:child_process');
 
 const RECEIPT_SCHEMA = 'dhpk.platform-provenance.v1';
 const SURFACE_OWNERS = Object.freeze({
@@ -29,6 +30,8 @@ function createSurfaceReceipt({
   surface,
   sourceVersion,
   sourceCommit,
+  generatedFromCommit = sourceCommit,
+  generatedFromTree = null,
   inventoryDigest,
   fingerprints = {},
   route = null,
@@ -47,6 +50,8 @@ function createSurfaceReceipt({
     owner: SURFACE_OWNERS[surface],
     sourceVersion,
     sourceCommit,
+    generatedFromCommit,
+    ...(generatedFromTree ? { generatedFromTree } : {}),
     inventoryDigest,
     fingerprints: normalizedFingerprints,
     ...(route ? { route } : {}),
@@ -73,6 +78,14 @@ function validateSurfaceReceipt(receipt, expectedSurface = null) {
   }
   if (typeof receipt.sourceVersion !== 'string' || !VERSION.test(receipt.sourceVersion)) errors.push('provenance sourceVersion must be SemVer');
   if (typeof receipt.sourceCommit !== 'string' || !COMMIT.test(receipt.sourceCommit)) errors.push('provenance sourceCommit must be a 40-character commit SHA');
+  if (receipt.generatedFromCommit !== undefined
+    && (typeof receipt.generatedFromCommit !== 'string' || !COMMIT.test(receipt.generatedFromCommit))) {
+    errors.push('provenance generatedFromCommit must be a 40-character commit SHA');
+  }
+  if (receipt.generatedFromTree !== undefined
+    && (typeof receipt.generatedFromTree !== 'string' || !COMMIT.test(receipt.generatedFromTree))) {
+    errors.push('provenance generatedFromTree must be a 40-character tree SHA');
+  }
   if (typeof receipt.inventoryDigest !== 'string' || !SHA256.test(receipt.inventoryDigest)) errors.push('provenance inventoryDigest must be a SHA-256 digest');
   if (!receipt.fingerprints || typeof receipt.fingerprints !== 'object' || Array.isArray(receipt.fingerprints)) {
     errors.push('provenance fingerprints must be an object');
@@ -82,6 +95,19 @@ function validateSurfaceReceipt(receipt, expectedSurface = null) {
     }
   }
   return { ok: errors.length === 0, errors };
+}
+
+function resolveGeneratedFromTree(root, commit) {
+  if (typeof root !== 'string' || !root || typeof commit !== 'string' || !COMMIT.test(commit)) return null;
+  try {
+    return execFileSync('git', ['rev-parse', '--verify', `${commit}^{tree}`], {
+      cwd: root,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim().toLowerCase();
+  } catch (_) {
+    return null;
+  }
 }
 
 function assertRollbackOwnership(receipt, targetSurface) {
@@ -94,6 +120,7 @@ module.exports = {
   RECEIPT_SCHEMA,
   SURFACE_OWNERS,
   digest,
+  resolveGeneratedFromTree,
   createSurfaceReceipt,
   validateSurfaceReceipt,
   assertRollbackOwnership,
