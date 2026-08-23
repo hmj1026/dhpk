@@ -25,6 +25,18 @@ function sourceBinding(revision = 'HEAD') {
   return { sourceCommit, sourceTree: receipts.resolveGitTree(ROOT, sourceCommit) };
 }
 
+function temporaryDirtyCheckout() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-harness-checkout-'));
+  fs.writeFileSync(path.join(root, 'tracked.txt'), 'initial\n');
+  execFileSync('git', ['init', '-q'], { cwd: root });
+  execFileSync('git', ['config', 'user.email', 'harness-test@example.invalid'], { cwd: root });
+  execFileSync('git', ['config', 'user.name', 'Harness Test'], { cwd: root });
+  execFileSync('git', ['add', 'tracked.txt'], { cwd: root });
+  execFileSync('git', ['commit', '-qm', 'fixture initial'], { cwd: root });
+  fs.writeFileSync(path.join(root, 'tracked.txt'), 'dirty\n');
+  return root;
+}
+
 function makeAttempt(root, options = {}) {
   const binding = sourceBinding(options.revision || 'HEAD');
   const current = sourceBinding('HEAD');
@@ -48,7 +60,7 @@ function makeAttempt(root, options = {}) {
     identity: {
       targetCommit: current.sourceCommit,
       targetTree: current.sourceTree,
-      worktree: 'DIRTY',
+      worktree: receipts.resolveGitWorktree(ROOT),
     },
     operationKey: options.operationKey,
     retryOf: options.retryOf,
@@ -98,7 +110,7 @@ test('final target receipt identity must match the checkout independently of gen
         generatedFromTree: generated.sourceTree,
         targetCommit: current.sourceCommit,
         targetTree: current.sourceTree,
-        worktree: 'DIRTY',
+        worktree: receipts.resolveGitWorktree(ROOT),
       },
     });
     assert.strictEqual(receipts.validateReceipt(attempt.path, { root: ROOT }).ok, true);
@@ -164,8 +176,15 @@ test('generated-input commit and tree must be a matching pair', () => {
 
 test('receipt validation rejects a forged CLEAN declaration on a dirty checkout', () => {
   const root = temporaryReceiptRoot();
+  const checkoutRoot = temporaryDirtyCheckout();
   try {
-    const current = sourceBinding('HEAD');
+    const current = {
+      sourceCommit: execFileSync('git', ['rev-parse', 'HEAD^{commit}'], {
+        cwd: checkoutRoot,
+        encoding: 'utf8',
+      }).trim(),
+    };
+    current.sourceTree = receipts.resolveGitTree(checkoutRoot, current.sourceCommit);
     const attempt = receipts.createAttempt({
       root,
       command: 'harness verify --json',
@@ -181,11 +200,12 @@ test('receipt validation rejects a forged CLEAN declaration on a dirty checkout'
       outcome: 'COMPLETE',
       lifecyclePhase: 'COMPLETE',
     });
-    const rejected = receipts.validateReceipt(attempt.path, { root: ROOT });
+    const rejected = receipts.validateReceipt(attempt.path, { root: checkoutRoot });
     assert.strictEqual(rejected.ok, false);
     assert.match(rejected.errors.join('\n'), /worktree|clean|dirty/i);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(checkoutRoot, { recursive: true, force: true });
   }
 });
 

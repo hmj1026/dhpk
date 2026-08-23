@@ -363,9 +363,11 @@ test('clean aggregate receipt keeps terminal lifecycle COMPLETE and target ident
 
 test('dirty aggregate receipt cannot promote COMPLETE or omit target identity', () => {
   const receiptRoot = temporaryReceiptRoot();
+  const fixtureRoot = temporaryPackageFixture();
+  fs.appendFileSync(path.join(fixtureRoot, 'manifests', 'distribution-inventory.json'), '\n');
   try {
     const invocation = harness.execute(['release', '--task-id', 'facade-dirty-complete', '--json'], {
-      root: ROOT,
+      root: fixtureRoot,
       env: { ...process.env, DHPK_HARNESS_RECEIPT_ROOT: receiptRoot },
       phaseExecutor: () => ({
         outcome: 'COMPLETE',
@@ -388,6 +390,7 @@ test('dirty aggregate receipt cannot promote COMPLETE or omit target identity', 
     assert.strictEqual(attempt.targetTree, invocation.result.targetTree);
   } finally {
     fs.rmSync(receiptRoot, { recursive: true, force: true });
+    fs.rmSync(fixtureRoot, { recursive: true, force: true });
   }
 });
 
