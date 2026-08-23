@@ -667,6 +667,7 @@ function runConsumerProbe(root, parsed) {
   const version = probePackageVersion(packageRoot, adapter.platform);
   const args = [probeScript, '--platform', adapter.platform, '--package-root', packageRoot];
   if (version) args.push('--version', version);
+  if (surface === 'agent-plugin' && allowsRealConsumerProbe()) args.push('--execute');
   const child = spawnSync(process.execPath, args, {
     cwd: root,
     encoding: 'utf8',
@@ -707,6 +708,113 @@ function runConsumerProbe(root, parsed) {
   };
 }
 
+function normalizeReleaseProbeResult(root, surface, execution) {
+  const rows = execution && Array.isArray(execution.surfaceResults)
+    ? execution.surfaceResults
+    : [];
+  if (rows.length !== 1) {
+    return failedProbeRow(
+      surface,
+      'FAIL',
+      rows.length === 0
+        ? `consumer probe did not emit a result for '${surface}'`
+        : `consumer probe emitted ${rows.length} surface results; expected exactly one for '${surface}'`,
+      root,
+    );
+  }
+  const row = rows[0];
+  if (!row || typeof row !== 'object' || Array.isArray(row)) {
+    return failedProbeRow(
+      surface,
+      'FAIL',
+      `consumer probe emitted an invalid result for '${surface}'`,
+      root,
+    );
+  }
+  if (row.surface !== surface) {
+    return failedProbeRow(
+      surface,
+      'FAIL',
+      `consumer probe emitted unexpected surface '${row.surface || '<missing>'}' for '${surface}'`,
+      root,
+      row.commands,
+    );
+  }
+  if (row.stage !== 'CONSUMER') {
+    return failedProbeRow(
+      surface,
+      'FAIL',
+      `consumer probe result for '${surface}' is not CONSUMER evidence`,
+      root,
+      row.commands,
+    );
+  }
+  if (!PROBE_STATUSES.has(row.status)) {
+    return failedProbeRow(
+      surface,
+      'FAIL',
+      `consumer probe result for '${surface}' has invalid status '${row.status || '<missing>'}'`,
+      root,
+      row.commands,
+    );
+  }
+  if (typeof row.producer !== 'string' || row.producer.length === 0) {
+    return failedProbeRow(
+      surface,
+      'FAIL',
+      `consumer probe result for '${surface}' is missing a producer identity`,
+      root,
+      row.commands,
+    );
+  }
+  if (!execution || !PROBE_STATUSES.has(execution.outcome)) {
+    return failedProbeRow(
+      surface,
+      'FAIL',
+      execution && execution.outcome === undefined
+        ? `consumer probe omitted a canonical outcome for '${surface}'`
+        : `consumer probe emitted invalid outcome '${execution && execution.outcome}' for '${surface}'`,
+      root,
+      row.commands,
+    );
+  }
+  if (execution.outcome !== row.status) {
+    return failedProbeRow(
+      surface,
+      'FAIL',
+      `consumer probe outcome '${execution.outcome}' disagrees with surface status '${row.status}'`,
+      root,
+      row.commands,
+    );
+  }
+  return row;
+}
+
+function runReleaseProbes(root, requiredSurfaces, probeExecutor = runConsumerProbe) {
+  const surfaceResults = requiredSurfaces.map((surface) => {
+    let execution;
+    try {
+      execution = probeExecutor(root, { surface });
+    } catch (error) {
+      return failedProbeRow(surface, 'FAIL', `consumer probe failed before emitting evidence: ${error.message}`, root);
+    }
+    return normalizeReleaseProbeResult(root, surface, execution);
+  });
+  const aggregate = aggregateRequiredSurfaces({
+    requiredSurfaces,
+    surfaceResults,
+    fullRelease: true,
+  });
+  const diagnostics = surfaceResults.flatMap((entry) => [
+    ...(Array.isArray(entry.reasons) ? entry.reasons : []),
+    ...(Array.isArray(entry.diagnostics) ? entry.diagnostics : []),
+  ]).filter(Boolean).slice(0, 50);
+  return {
+    ...aggregate,
+    diagnostics,
+  };
+}
+
 function phaseExecution(root, parsed, inventory, binding) {
   if (parsed.phase === 'test') return runBoundedTest(root, parsed.testFile);
   if (parsed.phase === 'generate' || parsed.phase === 'validate' || parsed.phase === 'verify') return runDistribution(root, parsed, binding);
@@ -714,8 +822,7 @@ function phaseExecution(root, parsed, inventory, binding) {
   if (parsed.phase === 'release') {
     const required = inventoryApi.validateRequiredSurfacePlan({ inventory, fullRelease: true });
     if (required.errors.length > 0) return { outcome: 'BLOCKED', diagnostics: required.errors.slice(0, 20) };
-    const surfaceResults = required.requiredSurfaces.map((surface) => ({ surface, status: 'NOT_RUN' }));
-    return aggregateRequiredSurfaces({ requiredSurfaces: required.requiredSurfaces, surfaceResults, fullRelease: true });
+    return runReleaseProbes(root, required.requiredSurfaces);
   }
   if (parsed.phase === 'preflight') {
     const errors = [];
@@ -856,4 +963,5 @@ module.exports = {
   execute,
   lifecyclePhaseForOutcome,
   exitCodeForOutcome,
+  runReleaseProbes,
 };

@@ -75,9 +75,9 @@ jobs:
 
   # Post-publish CONSUMER verification (task 4.2). Runs on a fresh, ephemeral
   # runner — the only place it's safe to run `claude plugin install` for real
-  # (a dev machine's install writes to the shared global plugin cache; see
-  # scripts/release/consumer-gate.js). Reports via the job summary only —
-  # never edits the immutable GitHub Release notes.
+  # (a dev machine's install writes to the shared global plugin cache; the
+  # harness delegates Claude and Codex adapters to consumer-gate.js). Reports
+  # via the job summary only — never edits the immutable GitHub Release notes.
   consumer-verify:
     needs: release
     runs-on: ubuntu-latest
@@ -91,26 +91,33 @@ jobs:
           node-version: '20'
 
       # Installs the real `claude` CLI so the supported Claude
-      # marketplace-add/install/list check in consumer-gate.js runs for
-      # real here (this ephemeral runner is the only place that's safe —
-      # see the job comment above). If this install step itself fails,
-      # consumer-gate.js still reports UNAVAILABLE for that dimension
-      # rather than crashing.
+      # marketplace-add/install/list check runs for real here (this ephemeral
+      # runner is the only place that's safe — see the job comment above). If
+      # this install step itself fails, the facade records UNAVAILABLE for
+      # that dimension rather than crashing.
       - name: Install claude CLI
         run: npm install -g @anthropic-ai/claude-code
         continue-on-error: true
 
       - name: Run CONSUMER gate
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          node scripts/release/consumer-gate.js --version "$VERSION" | tee consumer-gate-result.json
+          set +e
+          bin/dhpk harness release --json \
+            --task-id "release-consumer-${GITHUB_REF_NAME#v}" \
+            | tee harness-release-result.json
+          probe_exit="${PIPESTATUS[0]}"
+          set -e
+          outcome="$(node -e "console.log(JSON.parse(require('fs').readFileSync('harness-release-result.json','utf8')).outcome)")"
           {
             echo "## Consumer verification — ${GITHUB_REF_NAME}"
             echo ""
-            echo "Verdict: \`$(node -e "console.log(JSON.parse(require('fs').readFileSync('consumer-gate-result.json','utf8')).verdict)")\`"
+            echo "Outcome: \`$outcome\`"
             echo ""
-            echo "Tag \`${GITHUB_REF_NAME}\` is PUBLISHED. Overall release status is COMPLETE only when this verdict is PASS; PENDING/UNAVAILABLE means consumer proof did not fully resolve and the release remains PUBLISHED/PENDING."
+            node -e "const result=JSON.parse(require('fs').readFileSync('harness-release-result.json','utf8')); for (const row of (result.surfaceResults || [])) console.log('- ' + row.surface + ': ' + row.status);" >> "$GITHUB_STEP_SUMMARY"
+            echo ""
+            echo "Tag \`${GITHUB_REF_NAME}\` is PUBLISHED. Overall release status is COMPLETE only when all seven consumer rows are PASS; non-pass evidence keeps the release PUBLISHED/PENDING or PUBLISHED/UNHEALTHY and never edits the immutable tag."
           } >> "$GITHUB_STEP_SUMMARY"
+          exit "$probe_exit"
 
   # git flow back-merge: after a release lands on main + tag, sync main into
   # develop so develop never falls behind. This automates the step that was

@@ -44,9 +44,10 @@ test('release workflow verifies manifest/changelog parity for the tag version be
   assert.ok(parityIdx < createIdx, 'parity must be verified before creating the GitHub release');
 });
 
-test('a post-publish consumer-verify job runs consumer-gate.js and reports via the job summary, never editing the release', () => {
+test('a post-publish consumer-verify job runs the full harness release probe and reports via the job summary, never editing the release', () => {
   assert.ok(raw.includes('consumer-verify:'), 'missing consumer-verify job');
-  assert.ok(raw.includes('consumer-gate.js'), 'consumer-verify must run scripts/release/consumer-gate.js');
+  assert.ok(raw.includes('bin/dhpk harness release'), 'consumer-verify must run the public release facade');
+  assert.ok(raw.includes('surfaceResults'), 'consumer-verify must report all consumer surface rows');
   assert.ok(raw.includes('GITHUB_STEP_SUMMARY'), 'consumer-verify must report via the job summary');
   assert.ok(!raw.includes('gh release edit'), 'consumer-verify must never edit the immutable release');
 });
@@ -90,10 +91,10 @@ test('consumer-verify installs the real claude CLI so the supported Claude check
   const nextJobIdx = raw.indexOf('sync-develop:');
   const consumerBlock = raw.slice(verifyIdx, nextJobIdx);
   const installIdx = consumerBlock.indexOf('@anthropic-ai/claude-code');
-  const gateInvocationIdx = consumerBlock.indexOf('node scripts/release/consumer-gate.js');
+  const gateInvocationIdx = consumerBlock.indexOf('bin/dhpk harness release');
   assert.ok(installIdx !== -1, 'missing claude CLI install step');
-  assert.ok(gateInvocationIdx !== -1, 'missing consumer-gate.js invocation');
-  assert.ok(installIdx < gateInvocationIdx, 'claude CLI must be installed before consumer-gate.js runs');
+  assert.ok(gateInvocationIdx !== -1, 'missing harness release invocation');
+  assert.ok(installIdx < gateInvocationIdx, 'claude CLI must be installed before the harness release probe runs');
 });
 
 run('release-workflow');
