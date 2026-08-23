@@ -1,7 +1,7 @@
 ---
 name: fast-worker
 description: 'Write-capable mechanical implementer. Use for boilerplate implementation, test scaffolds, rename sweeps, or applying an already-approved plan/fix-spec — dispatched per the Implementation dispatch table when the task has a clear, precise spec. Accepts a task spec (target files + exact change intent + verification command), applies surgical edits only, runs the verification command, and reports pass/fail plus the complete edited-file list. Escalates on ambiguous specs instead of guessing. Stops after 3 failed verification attempts.'
-tools: ["read_file", "replace_file_content", "write_to_file", "run_command", "grep_search", "glob"]
+tools: ["read_file", "replace_file_content", "write_to_file", "run_command", "grep_search", "list_dir"]
 model: pro
 ---
 

@@ -1,7 +1,7 @@
 ---
 name: deep-reasoner
 description: 'Read-only deep-reasoning worker. Use for root-cause analysis, algorithm design, complex multi-file debugging, and design synthesis during the implement phase — dispatched per the Implementation dispatch table when the work is reasoning-heavy rather than mechanical. Returns a conclusion contract (conclusion + file:line evidence + fast-worker-ready next actions). Defers DDD / cross-module architecture decisions to `architect`. Not a reviewer, not sentinel-driven.'
-tools: ["read_file", "grep_search", "glob", "run_command", "mcp_gitnexus_impact", "mcp_gitnexus_query"]
+tools: ["read_file", "grep_search", "list_dir", "run_command", "mcp_gitnexus_impact", "mcp_gitnexus_query"]
 model: pro
 ---
 

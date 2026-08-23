@@ -3,6 +3,8 @@
 
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
+const crypto = require('crypto');
 
 const TOOL_NAME_MAP = new Map([
   ['Read', 'read_file'],
@@ -10,7 +12,11 @@ const TOOL_NAME_MAP = new Map([
   ['Edit', 'replace_file_content'],
   ['Bash', 'run_command'],
   ['Grep', 'grep_search'],
-  ['Glob', 'glob'],
+  // AGY 1.1.x exposes directory enumeration as `list_dir`; its older
+  // `glob` alias is not registered by the current runtime and makes an
+  // otherwise valid agent fail before execution.
+  ['Glob', 'list_dir'],
+  ['glob', 'list_dir'],
   ['WebSearch', 'search_web'],
   ['WebFetch', 'read_url_content'],
   ['Agent', 'invoke_subagent'],
@@ -40,12 +46,13 @@ const FRONTMATTER_ALLOWLIST = new Set(['name', 'description', 'tools', 'model'])
 
 function usage() {
   return [
-    'Adapt agent frontmatter for the native AGY plugin.',
+    'Adapt agent frontmatter in an owner-controlled AGY package staging tree.',
     '',
     'Usage:',
-    '  node scripts/agy-adapt-agents.js [agents-dir]',
+    '  node scripts/agy-adapt-agents.js --staging-root <package-dir>',
     '',
-    'Defaults to .gemini/config/plugins/dhpk/agents under the current working directory.',
+    'The package dir must contain plugin.json, provenance.json, fingerprints.json, and agents/.',
+    'The installed ~/.gemini/config/plugins/dhpk tree is never a valid adapter target.',
     'Rewrites tools/model metadata to the AGY contract and removes unsupported Claude fields.'
   ].join('\n');
 }
@@ -55,18 +62,35 @@ function parseArgs(argv) {
     return { help: true };
   }
 
-  const positional = argv.filter(arg => !arg.startsWith('-'));
-  if (positional.length > 1) {
-    throw new Error('Expected at most one agents directory argument');
+  const positional = [];
+  let stagingRoot = null;
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    if (arg === '--staging-root') {
+      const value = argv[++index];
+      if (!value || value.startsWith('-')) throw new Error('--staging-root requires a package directory');
+      stagingRoot = value;
+    } else if (arg.startsWith('--')) {
+      throw new Error(`Unknown option: ${arg}`);
+    } else {
+      positional.push(arg);
+    }
+  }
+  if (positional.length > 0) {
+    throw new Error('Direct agents-directory arguments are disabled; use --staging-root <package-dir>');
+  }
+  if (!stagingRoot) {
+    throw new Error('--staging-root <package-dir> is required');
   }
 
   return {
     help: false,
-    agentsDir: path.resolve(positional[0] || path.join(process.cwd(), '.gemini', 'config', 'plugins', 'dhpk', 'agents')),
+    stagingRoot: path.resolve(stagingRoot),
   };
 }
 
 function ensureDirectory(dirPath) {
+  assertPhysicalAncestors(dirPath, 'staging package');
   if (!fs.existsSync(dirPath)) {
     throw new Error(`Agents directory not found: ${dirPath}`);
   }
@@ -74,6 +98,137 @@ function ensureDirectory(dirPath) {
   if (!fs.statSync(dirPath).isDirectory()) {
     throw new Error(`Expected a directory: ${dirPath}`);
   }
+}
+
+function isInside(parent, candidate) {
+  const relative = path.relative(path.resolve(parent), path.resolve(candidate));
+  return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
+}
+
+function assertPhysicalAncestors(directory, label) {
+  let current = path.resolve(directory);
+  while (true) {
+    let stat = null;
+    try {
+      stat = fs.lstatSync(current);
+    } catch (error) {
+      if (!error || error.code !== 'ENOENT') throw error;
+    }
+    if (stat) {
+      if (stat.isSymbolicLink()) throw new Error(`symlinked ${label}: ${current}`);
+      if (!stat.isDirectory()) throw new Error(`${label} must be a directory: ${current}`);
+    }
+    const parent = path.dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
+}
+
+function assertRegularFile(filePath, label) {
+  let stat;
+  try {
+    stat = fs.lstatSync(filePath);
+  } catch (error) {
+    if (error && error.code === 'ENOENT') throw new Error(`${label} not found: ${filePath}`);
+    throw error;
+  }
+  if (!stat.isFile() || stat.isSymbolicLink()) throw new Error(`${label} must be a regular file: ${filePath}`);
+}
+
+function readJsonObject(filePath, label) {
+  assertRegularFile(filePath, label);
+  let value;
+  try {
+    value = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch (error) {
+    throw new Error(`${label} is not valid JSON: ${error.message}`);
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error(`${label} must be a JSON object`);
+  return value;
+}
+
+function packageFiles(packageRoot) {
+  const files = [];
+  const walk = (directory, relative = '') => {
+    assertPhysicalAncestors(directory, 'staging package');
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true }).sort((left, right) => left.name.localeCompare(right.name))) {
+      const child = path.join(directory, entry.name);
+      const childRelative = path.posix.join(relative, entry.name);
+      const stat = fs.lstatSync(child);
+      if (stat.isSymbolicLink()) throw new Error(`symlinked staging package entry: ${child}`);
+      if (stat.isDirectory()) walk(child, childRelative);
+      else if (stat.isFile()) files.push(childRelative);
+      else throw new Error(`unsupported staging package entry: ${child}`);
+    }
+  };
+  walk(packageRoot);
+  return files.sort();
+}
+
+function verifyStagingReceipt(packageRoot) {
+  const manifest = readJsonObject(path.join(packageRoot, 'plugin.json'), 'staging package plugin.json');
+  if (manifest.name !== 'dhpk') throw new Error('staging package plugin.json must declare name dhpk');
+  const provenance = readJsonObject(path.join(packageRoot, 'provenance.json'), 'staging package provenance.json');
+  if (provenance.schema !== 'dhpk.agy-plugin.v1' || provenance.provenanceSchema !== 'dhpk.platform-provenance.v1') {
+    throw new Error('staging package provenance has an unsupported schema');
+  }
+  if (provenance.owner !== 'plugins/dhpk-agy' || provenance.packageRoot !== 'plugins/dhpk-agy') {
+    throw new Error('staging package provenance is not owned by plugins/dhpk-agy');
+  }
+  const fingerprints = readJsonObject(path.join(packageRoot, 'fingerprints.json'), 'staging package fingerprints.json');
+  if (fingerprints.schema !== 'dhpk.agy-plugin.v1' || !fingerprints.files || typeof fingerprints.files !== 'object') {
+    throw new Error('staging package fingerprints are invalid');
+  }
+  const expected = provenance.fingerprints;
+  if (!expected || typeof expected !== 'object' || Array.isArray(expected)) throw new Error('staging package provenance fingerprints are missing');
+  if (JSON.stringify(fingerprints.files) !== JSON.stringify(expected)) throw new Error('staging package fingerprint receipts disagree');
+  const dataFiles = packageFiles(packageRoot).filter((relative) => !['provenance.json', 'fingerprints.json'].includes(relative));
+  const expectedFiles = Object.keys(expected).sort();
+  if (JSON.stringify(dataFiles) !== JSON.stringify(expectedFiles)) throw new Error('staging package fingerprints do not cover every package file');
+  for (const relative of dataFiles) {
+    const digest = crypto.createHash('sha256').update(fs.readFileSync(path.join(packageRoot, relative))).digest('hex');
+    if (digest !== expected[relative]) throw new Error(`staging package fingerprint mismatch: ${relative}`);
+  }
+}
+
+function refreshStagingReceipt(packageRoot) {
+  const fingerprints = {};
+  for (const relative of packageFiles(packageRoot).filter((value) => !['provenance.json', 'fingerprints.json'].includes(value))) {
+    fingerprints[relative] = crypto.createHash('sha256').update(fs.readFileSync(path.join(packageRoot, relative))).digest('hex');
+  }
+  const provenancePath = path.join(packageRoot, 'provenance.json');
+  const provenance = readJsonObject(provenancePath, 'staging package provenance.json');
+  provenance.fingerprints = fingerprints;
+  fs.writeFileSync(provenancePath, `${JSON.stringify(provenance)}\n`);
+  fs.writeFileSync(path.join(packageRoot, 'fingerprints.json'), `${JSON.stringify({ schema: 'dhpk.agy-plugin.v1', files: fingerprints })}\n`);
+  verifyStagingReceipt(packageRoot);
+}
+
+function resolveStagingAgentsDir(stagingRoot) {
+  const packageRoot = path.resolve(stagingRoot);
+  const userPluginRoots = [
+    path.join(os.homedir(), '.gemini', 'config', 'plugins'),
+    process.env.HOME ? path.join(process.env.HOME, '.gemini', 'config', 'plugins') : null,
+  ].filter(Boolean);
+  if (userPluginRoots.some((root) => isInside(root, packageRoot))) {
+    throw new Error(`installation target is not an adapter staging package: ${packageRoot}`);
+  }
+  if (/(?:^|[\\/])\.gemini[\\/]config[\\/]plugins(?:[\\/]|$)/.test(packageRoot)) {
+    throw new Error(`installation target is not an adapter staging package: ${packageRoot}`);
+  }
+  if (!fs.existsSync(packageRoot)) {
+    throw new Error(`staging package directory not found: ${packageRoot}`);
+  }
+  assertPhysicalAncestors(packageRoot, 'staging package');
+  ensureDirectory(packageRoot);
+  for (const file of ['plugin.json', 'provenance.json', 'fingerprints.json']) {
+    assertRegularFile(path.join(packageRoot, file), `staging package ${file}`);
+  }
+  const agentsDir = path.join(packageRoot, 'agents');
+  ensureDirectory(agentsDir);
+  if (!isInside(packageRoot, agentsDir)) throw new Error(`agents directory escapes staging package: ${agentsDir}`);
+  verifyStagingReceipt(packageRoot);
+  return agentsDir;
 }
 
 function stripQuotes(value) {
@@ -247,17 +402,20 @@ function adaptFrontmatter(text, options = {}) {
 }
 
 function adaptAgents(dirPath) {
-  ensureDirectory(dirPath);
+  const agentsDir = path.resolve(dirPath);
+  const packageRoot = path.dirname(agentsDir);
+  const validatedAgentsDir = resolveStagingAgentsDir(packageRoot);
+  if (validatedAgentsDir !== agentsDir) throw new Error(`agents directory must be the direct staging package child: ${agentsDir}`);
 
   let updated = 0;
   let unchanged = 0;
 
-  for (const entry of fs.readdirSync(dirPath, { withFileTypes: true })) {
+  for (const entry of fs.readdirSync(agentsDir, { withFileTypes: true })) {
     if (!entry.isFile() || !entry.name.endsWith('.md')) {
       continue;
     }
 
-    const filePath = path.join(dirPath, entry.name);
+    const filePath = path.join(agentsDir, entry.name);
     const original = fs.readFileSync(filePath, 'utf8');
     const adapted = adaptFrontmatter(original, { filePath });
 
@@ -269,6 +427,8 @@ function adaptAgents(dirPath) {
     }
   }
 
+  if (updated > 0) refreshStagingReceipt(packageRoot);
+
   return { updated, unchanged };
 }
 
@@ -279,7 +439,7 @@ function main() {
     return;
   }
 
-  const result = adaptAgents(options.agentsDir);
+  const result = adaptAgents(resolveStagingAgentsDir(options.stagingRoot));
   console.log(`Updated ${result.updated} agent file(s); ${result.unchanged} already compatible`);
 }
 

@@ -55,7 +55,7 @@ The harness SHALL support `--json` and emit exactly one machine-readable result 
 
 ### Requirement: Workflow phases follow one deterministic delegation order
 
-The release-capable workflow SHALL use the ordered phases `preflight -> plan -> generate -> validate -> test -> probe -> verify -> release`. Each phase result SHALL retain identity-bound evidence so a composing caller can validate a preceding handoff when one is supplied. The current public CLI executes one requested phase per invocation; it SHALL not silently skip required phase evidence or replace a missing runtime probe with structural package evidence. End-to-end receipt handoff across separate invocations remains a follow-up integration boundary.
+The release-capable workflow SHALL use the ordered phases `preflight -> plan -> generate -> validate -> test -> probe -> verify -> release`. Each phase result SHALL retain identity-bound evidence so a composing caller can validate a preceding handoff when one is supplied. The public CLI SHALL validate `--previous-receipt` and `--retry-of` against the current exact checkout before executing a phase, SHALL require a clean exact-checkout predecessor with an eligible PASS/COMPLETE outcome for cross-phase handoff, SHALL enforce predecessor phase order and surface scope, and SHALL require a plan fingerprint when the receiving phase consumes a generated plan (including `generate`). It SHALL resolve a terminal `--operation-key` replay (with `--idempotency-key` as its alias) only when phase, surface, and operation intent match, without running the phase again. It SHALL not silently skip required phase evidence or replace a missing runtime probe with structural package evidence.
 
 #### Scenario: Generation follows a valid plan
 
@@ -66,6 +66,11 @@ The release-capable workflow SHALL use the ordered phases `preflight -> plan -> 
 
 - **WHEN** package validation passes but a required consumer runtime probe is unavailable
 - **THEN** the workflow preserves package PASS separately and records the consumer outcome as `UNAVAILABLE`, `NOT_RUN`, or another applicable non-pass state
+
+#### Scenario: Idempotency key is replayed for another phase
+
+- **WHEN** a caller reuses an operation or idempotency key with a phase different from the receipt's original phase
+- **THEN** the harness returns `BLOCKED` with the prior phase identity and does not execute the requested phase
 
 ### Requirement: Projection and test execution retain their canonical owners
 

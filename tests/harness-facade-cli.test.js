@@ -243,6 +243,357 @@ test('JSON and diagnostics are redacted and the receipt is linked to the result'
   }
 });
 
+test('cross-phase receipt handoff is validated and operation keys replay the original attempt', () => {
+  const fixtureRoot = temporaryPackageFixture();
+  const receiptRoot = temporaryReceiptRoot();
+  let executions = 0;
+  const env = { ...process.env, DHPK_HARNESS_RECEIPT_ROOT: receiptRoot };
+  try {
+    const planned = harness.execute(['plan', '--task-id', 'handoff-task', '--operation-key', 'handoff-plan', '--json'], {
+      root: fixtureRoot,
+      env,
+      phaseExecutor: () => {
+        executions += 1;
+        return { outcome: 'PASS', requiredSurfaces: ['claude-core'] };
+      },
+    });
+    assert.strictEqual(planned.status, 0);
+    assert.strictEqual(executions, 1);
+    const plannedAttempt = JSON.parse(fs.readFileSync(path.join(planned.result.receiptReference, 'attempt.json'), 'utf8'));
+    assert.strictEqual(plannedAttempt.operationKey, 'handoff-plan');
+    assert.strictEqual(plannedAttempt.idempotencyKey, 'handoff-plan');
+
+    const verified = harness.execute([
+      'verify', '--surface', 'agent-plugin', '--task-id', 'handoff-task',
+      '--previous-receipt', planned.result.receiptReference,
+      '--operation-key', 'handoff-verify', '--json',
+    ], {
+      root: fixtureRoot,
+      env,
+      phaseExecutor: () => {
+        executions += 1;
+        return { outcome: 'PASS', identity: { surface: 'agent-plugin', stage: 'structural' } };
+      },
+    });
+    assert.strictEqual(verified.status, 0);
+    assert.strictEqual(executions, 2);
+    const verifiedAttempt = JSON.parse(fs.readFileSync(path.join(verified.result.receiptReference, 'attempt.json'), 'utf8'));
+    assert.strictEqual(verifiedAttempt.previousReceipt.taskId, 'handoff-task');
+    assert.strictEqual(verifiedAttempt.previousReceipt.attemptId, plannedAttempt.attemptId);
+    assert.strictEqual(verifiedAttempt.previousReceipt.phase, 'plan');
+    assert.strictEqual(verifiedAttempt.previousReceipt.outcome, 'PASS');
+
+    const replay = harness.execute([
+      'verify', '--surface', 'agent-plugin', '--task-id', 'handoff-task',
+      '--operation-key', 'handoff-verify', '--json',
+    ], {
+      root: fixtureRoot,
+      env,
+      phaseExecutor: () => {
+        executions += 1;
+        return { outcome: 'FAIL' };
+      },
+    });
+    assert.strictEqual(replay.status, 0);
+    assert.strictEqual(replay.result.receiptReference, verified.result.receiptReference);
+    assert.strictEqual(executions, 2, 'idempotent replay must not rerun the phase');
+  } finally {
+    fs.rmSync(receiptRoot, { recursive: true, force: true });
+    fs.rmSync(fixtureRoot, { recursive: true, force: true });
+  }
+});
+
+test('receipt handoff mismatches are BLOCKED instead of internal failures', () => {
+  const receiptRoot = temporaryReceiptRoot();
+  const env = { ...process.env, DHPK_HARNESS_RECEIPT_ROOT: receiptRoot };
+  try {
+    const planned = harness.execute(['plan', '--task-id', 'handoff-owner', '--json'], {
+      root: ROOT,
+      env,
+      phaseExecutor: () => ({ outcome: 'PASS' }),
+    });
+    assert.strictEqual(planned.status, 0);
+    const blocked = harness.execute([
+      'verify', '--surface', 'agent-plugin', '--task-id', 'different-task',
+      '--previous-receipt', planned.result.receiptReference, '--json',
+    ], {
+      root: ROOT,
+      env,
+      phaseExecutor: () => { throw new Error('phase executor must not run'); },
+    });
+    assert.strictEqual(blocked.status, 2);
+    assert.strictEqual(blocked.result.outcome, 'BLOCKED');
+    assert.strictEqual(blocked.result.internalError, undefined);
+    assert.match(blocked.result.diagnostics.join(' '), /belongs to task/i);
+  } finally { fs.rmSync(receiptRoot, { recursive: true, force: true }); }
+});
+
+test('cross-phase handoff enforces predecessor order, eligible outcome, and surface scope', () => {
+  const fixtureRoot = temporaryPackageFixture();
+  const receiptRoot = temporaryReceiptRoot();
+  const env = { ...process.env, DHPK_HARNESS_RECEIPT_ROOT: receiptRoot };
+  try {
+    const failedPlan = harness.execute(['plan', '--task-id', 'handoff-contract', '--attempt-id', 'failed-plan', '--json'], {
+      root: fixtureRoot,
+      env,
+      phaseExecutor: () => ({ outcome: 'FAIL' }),
+    });
+    assert.strictEqual(failedPlan.status, 1);
+    const failedOutcome = harness.execute([
+      'generate', '--surface', 'agent-plugin', '--task-id', 'handoff-contract',
+      '--previous-receipt', failedPlan.result.receiptReference, '--json',
+    ], {
+      root: fixtureRoot,
+      env,
+      phaseExecutor: () => { throw new Error('ineligible handoff must not execute'); },
+    });
+    assert.strictEqual(failedOutcome.status, 2);
+    assert.match(failedOutcome.result.diagnostics.join(' '), /outcome|pass|eligible/i);
+
+    const verify = harness.execute(['verify', '--surface', 'agent-plugin', '--task-id', 'handoff-contract', '--attempt-id', 'verify-attempt', '--json'], {
+      root: fixtureRoot,
+      env,
+      phaseExecutor: () => ({ outcome: 'PASS', identity: { surface: 'agent-plugin', planFingerprint: `sha256:${'a'.repeat(64)}` } }),
+    });
+    assert.strictEqual(verify.status, 0);
+    const wrongOrder = harness.execute([
+      'generate', '--surface', 'cursor-plugin', '--task-id', 'handoff-contract',
+      '--previous-receipt', verify.result.receiptReference, '--json',
+    ], {
+      root: fixtureRoot,
+      env,
+      phaseExecutor: () => { throw new Error('wrong-order handoff must not execute'); },
+    });
+    assert.strictEqual(wrongOrder.status, 2);
+    assert.match(wrongOrder.result.diagnostics.join(' '), /phase|order|prior/i);
+  } finally {
+    fs.rmSync(receiptRoot, { recursive: true, force: true });
+    fs.rmSync(fixtureRoot, { recursive: true, force: true });
+  }
+});
+
+test('idempotent replay preserves release evidence and rejects a phase mismatch', () => {
+  const fixtureRoot = temporaryPackageFixture();
+  const receiptRoot = temporaryReceiptRoot();
+  const requiredSurfaces = [
+    'claude-core', 'codex-sync', 'codex-native', 'cursor-sync',
+    'cursor-plugin', 'agent-plugin', 'agy-plugin',
+  ];
+  const env = { ...process.env, DHPK_HARNESS_RECEIPT_ROOT: receiptRoot };
+  let executions = 0;
+  const phaseExecutor = () => {
+    executions += 1;
+    return {
+      outcome: 'PASS',
+      requiredSurfaces,
+      surfaceResults: requiredSurfaces.map((surface) => ({ surface, status: 'PASS' })),
+    };
+  };
+  try {
+    const first = harness.execute(['release', '--task-id', 'replay-shape', '--operation-key', 'replay-shape-key', '--json'], {
+      root: fixtureRoot, env, phaseExecutor,
+    });
+    assert.strictEqual(first.status, 0);
+    const replay = harness.execute(['release', '--task-id', 'replay-shape', '--operation-key', 'replay-shape-key', '--json'], {
+      root: fixtureRoot, env, phaseExecutor: () => { throw new Error('replay must not execute the phase'); },
+    });
+    assert.strictEqual(replay.status, 0);
+    assert.strictEqual(replay.result.phase, 'release');
+    assert.deepStrictEqual(replay.result.requiredSurfaces, first.result.requiredSurfaces);
+    assert.deepStrictEqual(replay.result.surfaceResults, first.result.surfaceResults);
+    assert.strictEqual(executions, 1);
+
+    const wrongPhase = harness.execute(['plan', '--task-id', 'replay-shape', '--operation-key', 'replay-shape-key', '--json'], {
+      root: fixtureRoot, env, phaseExecutor: () => { throw new Error('phase mismatch must not execute'); },
+    });
+    assert.strictEqual(wrongPhase.status, 2);
+    assert.strictEqual(wrongPhase.result.outcome, 'BLOCKED');
+    assert.match(wrongPhase.result.diagnostics.join(' '), /phase/i);
+  } finally {
+    fs.rmSync(receiptRoot, { recursive: true, force: true });
+    fs.rmSync(fixtureRoot, { recursive: true, force: true });
+  }
+});
+
+test('operation claims are reserved before a conflicting phase can execute', () => {
+  const fixtureRoot = temporaryPackageFixture();
+  const receiptRoot = temporaryReceiptRoot();
+  const env = { ...process.env, DHPK_HARNESS_RECEIPT_ROOT: receiptRoot };
+  let executions = 0;
+  try {
+    receipts.reserveOperationKey(receiptRoot, 'reserved-before-execution', {
+      taskId: 'owner-task',
+      attemptId: 'owner-attempt',
+    });
+    const blocked = harness.execute([
+      'release', '--task-id', 'other-task', '--attempt-id', 'other-attempt',
+      '--operation-key', 'reserved-before-execution', '--json',
+    ], {
+      root: fixtureRoot,
+      env,
+      phaseExecutor: () => {
+        executions += 1;
+        return { outcome: 'PASS' };
+      },
+    });
+    assert.strictEqual(blocked.status, 2);
+    assert.strictEqual(blocked.result.outcome, 'BLOCKED');
+    assert.strictEqual(executions, 0, 'a conflicting operation must be blocked before phase execution');
+  } finally {
+    fs.rmSync(receiptRoot, { recursive: true, force: true });
+    fs.rmSync(fixtureRoot, { recursive: true, force: true });
+  }
+});
+
+test('operation reservations are exclusive even when public task and attempt IDs repeat', () => {
+  const fixtureRoot = temporaryPackageFixture();
+  const receiptRoot = temporaryReceiptRoot();
+  const env = { ...process.env, DHPK_HARNESS_RECEIPT_ROOT: receiptRoot };
+  let executions = 0;
+  try {
+    receipts.reserveOperationKey(receiptRoot, 'same-public-identity', {
+      taskId: 'same-task',
+      attemptId: 'same-attempt',
+    });
+    const blocked = harness.execute([
+      'release', '--task-id', 'same-task', '--attempt-id', 'same-attempt',
+      '--operation-key', 'same-public-identity', '--json',
+    ], {
+      root: fixtureRoot,
+      env,
+      phaseExecutor: () => {
+        executions += 1;
+        return { outcome: 'PASS' };
+      },
+    });
+    assert.strictEqual(blocked.status, 2);
+    assert.strictEqual(blocked.result.outcome, 'BLOCKED');
+    assert.strictEqual(executions, 0);
+  } finally {
+    fs.rmSync(receiptRoot, { recursive: true, force: true });
+    fs.rmSync(fixtureRoot, { recursive: true, force: true });
+  }
+});
+
+test('operation replay rejects a different surface intent', () => {
+  const fixtureRoot = temporaryPackageFixture();
+  const receiptRoot = temporaryReceiptRoot();
+  const env = { ...process.env, DHPK_HARNESS_RECEIPT_ROOT: receiptRoot };
+  let executions = 0;
+  try {
+    const first = harness.execute([
+      'verify', '--surface', 'agent-plugin', '--task-id', 'surface-replay',
+      '--operation-key', 'surface-replay-key', '--json',
+    ], {
+      root: fixtureRoot,
+      env,
+      phaseExecutor: () => {
+        executions += 1;
+        return { outcome: 'PASS', identity: { surface: 'agent-plugin' } };
+      },
+    });
+    assert.strictEqual(first.status, 0);
+    const blocked = harness.execute([
+      'verify', '--surface', 'cursor-plugin', '--task-id', 'surface-replay',
+      '--operation-key', 'surface-replay-key', '--json',
+    ], {
+      root: fixtureRoot,
+      env,
+      phaseExecutor: () => {
+        executions += 1;
+        return { outcome: 'FAIL' };
+      },
+    });
+    assert.strictEqual(blocked.status, 2);
+    assert.strictEqual(blocked.result.outcome, 'BLOCKED');
+    assert.strictEqual(executions, 1);
+  } finally {
+    fs.rmSync(receiptRoot, { recursive: true, force: true });
+    fs.rmSync(fixtureRoot, { recursive: true, force: true });
+  }
+});
+
+test('operation replay rejects an incomplete receipt envelope', () => {
+  const fixtureRoot = temporaryPackageFixture();
+  const receiptRoot = temporaryReceiptRoot();
+  const env = { ...process.env, DHPK_HARNESS_RECEIPT_ROOT: receiptRoot };
+  let executions = 0;
+  try {
+    const sourceCommit = git(fixtureRoot, ['rev-parse', 'HEAD']).trim();
+    receipts.createAttempt({
+      root: receiptRoot,
+      command: 'harness release --operation-key incomplete-replay',
+      phase: 'release',
+      taskId: 'incomplete-replay',
+      attemptId: 'attempt-1',
+      sourceCommit,
+      sourceTree: receipts.resolveGitTree(fixtureRoot, sourceCommit),
+      targetCommit: sourceCommit,
+      targetTree: receipts.resolveGitTree(fixtureRoot, sourceCommit),
+      worktree: 'CLEAN',
+      operationKey: 'incomplete-replay',
+      identity: { operationIntent: { phase: 'release', surface: null, testFile: null } },
+      outcome: 'PASS',
+      lifecyclePhase: 'VERIFIED',
+    });
+    const blocked = harness.execute([
+      'release', '--task-id', 'incomplete-replay', '--operation-key', 'incomplete-replay', '--json',
+    ], {
+      root: fixtureRoot,
+      env,
+      phaseExecutor: () => {
+        executions += 1;
+        return { outcome: 'FAIL' };
+      },
+    });
+    assert.strictEqual(blocked.status, 2);
+    assert.strictEqual(blocked.result.outcome, 'BLOCKED');
+    assert.strictEqual(executions, 0);
+  } finally {
+    fs.rmSync(receiptRoot, { recursive: true, force: true });
+    fs.rmSync(fixtureRoot, { recursive: true, force: true });
+  }
+});
+
+test('dirty operation receipts cannot be replayed as exact checkout evidence', () => {
+  const fixtureRoot = temporaryPackageFixture();
+  const receiptRoot = temporaryReceiptRoot();
+  const env = { ...process.env, DHPK_HARNESS_RECEIPT_ROOT: receiptRoot };
+  let executions = 0;
+  try {
+    fs.writeFileSync(path.join(fixtureRoot, 'dirty.txt'), 'dirty bytes\n');
+    const first = harness.execute([
+      'release', '--task-id', 'dirty-replay', '--operation-key', 'dirty-replay-key', '--json',
+    ], {
+      root: fixtureRoot,
+      env,
+      phaseExecutor: () => {
+        executions += 1;
+        return { outcome: 'PASS' };
+      },
+    });
+    assert.strictEqual(first.status, 0);
+    assert.strictEqual(first.result.worktree, 'DIRTY');
+    const replay = harness.execute([
+      'release', '--task-id', 'dirty-replay', '--operation-key', 'dirty-replay-key', '--json',
+    ], {
+      root: fixtureRoot,
+      env,
+      phaseExecutor: () => {
+        executions += 1;
+        return { outcome: 'FAIL' };
+      },
+    });
+    assert.strictEqual(replay.status, 2);
+    assert.strictEqual(replay.result.outcome, 'BLOCKED');
+    assert.strictEqual(executions, 1);
+    assert.match(replay.result.diagnostics.join(' '), /clean|dirty|exact/i);
+  } finally {
+    fs.rmSync(receiptRoot, { recursive: true, force: true });
+    fs.rmSync(fixtureRoot, { recursive: true, force: true });
+  }
+});
+
 test('public distribution evidence accepts a retained package from an ancestor checkout when adapter bytes pass', () => {
   const root = temporaryPackageFixture();
   const receiptRoot = temporaryReceiptRoot();

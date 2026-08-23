@@ -15,7 +15,7 @@ description: >-
   the diff. Do NOT skip when the change seems small, the doc looks
   self-contained, or a manual scan was done — the agent's value is the
   cross-file SSOT and link-validity checks.
-tools: ["read_file", "grep_search", "glob", "run_command"]
+tools: ["read_file", "grep_search", "list_dir", "run_command"]
 model: flash_lite
 ---
 

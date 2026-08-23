@@ -1,7 +1,7 @@
 ---
 name: type-design-analyzer
 description: 'Type-design analysis specialist. Scores type design on encapsulation, invariant expression, invariant usefulness, and enforcement ("make illegal states unrepresentable"). Read-only. Use when reviewing a domain type, value object, enum, struct, or data model — or when the user asks whether the types prevent invalid states from being constructed.'
-tools: ["read_file", "grep_search", "glob"]
+tools: ["read_file", "grep_search", "list_dir"]
 model: pro
 ---
 

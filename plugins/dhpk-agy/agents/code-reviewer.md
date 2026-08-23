@@ -1,7 +1,7 @@
 ---
 name: code-reviewer
 description: 'Expert code review specialist. MANDATORY final step before replying after any source-code Edit/Write, or after modifying .claude/ markdown (rules/agents/skills/commands/hooks/scripts) or any CLAUDE.md file. Reviews quality, security, and maintainability. Do NOT skip when: user approved a plan, change seems small, manual verification was done, task feels complete. Stack-aware: detects the project''s language/framework at runtime and loads only the matching trap sheet on demand.'
-tools: ["read_file", "grep_search", "glob", "run_command", "mcp_gitnexus_impact"]
+tools: ["read_file", "grep_search", "list_dir", "run_command", "mcp_gitnexus_impact"]
 model: pro
 ---
 

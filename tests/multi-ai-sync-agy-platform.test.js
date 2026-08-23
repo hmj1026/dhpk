@@ -158,7 +158,7 @@ test('stubbed agy plugins/agents and bounded runtime probes remain distinct', ()
       '#!/bin/sh',
       'if [ "$1" = "plugins" ] && [ "$2" = "list" ]; then echo "dhpk 0.39.0"; exit 0; fi',
       'if [ "$1" = "agents" ]; then echo "sample"; exit 0; fi',
-      'if [ "$1" = "subagent" ]; then',
+      'if [ "$1" = "--agent" ] && [ "$2" = "agy-fast-worker" ] && [ "$3" = "--print" ]; then',
       '  if [ -e /var/run/docker.sock ] || [ -e /run/user/1000/bus ]; then exit 91; fi',
       '  if touch /workspace/plugins/dhpk-agy/agents/sandbox-write 2>/dev/null; then exit 92; fi',
       '  echo "AGY_SMOKE_OK"; exit 0;',
@@ -178,6 +178,29 @@ test('stubbed agy plugins/agents and bounded runtime probes remain distinct', ()
     const runtimeStatus = runtime.capabilities.find((item) => item.id === 'agy.runtime.subagent').status;
     assert.ok(['PASS', 'UNAVAILABLE'].includes(runtimeStatus), `unexpected runtime probe status: ${runtimeStatus}`);
     assert.strictEqual(runtime.final_status, runtimeStatus === 'PASS' ? 'PASS' : 'UNAVAILABLE');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('isolated AGY authentication failures remain unavailable instead of package failures', () => {
+  const root = tempRoot('agy-auth-unavailable');
+  const bin = path.join(root, 'bin');
+  try {
+    agyPackage(root);
+    write(path.join(bin, 'agy'), [
+      '#!/bin/sh',
+      'if [ "$1" = "plugins" ] && [ "$2" = "list" ]; then echo "dhpk 0.39.0"; exit 0; fi',
+      'if [ "$1" = "agents" ]; then echo "sample"; exit 0; fi',
+      'if [ "$1" = "--agent" ] && [ "$2" = "agy-fast-worker" ]; then echo "authentication required" >&2; exit 1; fi',
+      'exit 2',
+      '',
+    ].join('\n'), 0o755);
+    const env = { ...process.env, PATH: `${bin}:/usr/bin:/bin` };
+    const runtime = JSON.parse(validate(root, ['--agy-runtime-probe'], env).stdout).results.find((item) => item.platform === 'agy');
+    const runtimeStatus = runtime.capabilities.find((item) => item.id === 'agy.runtime.subagent').status;
+    assert.strictEqual(runtimeStatus, 'UNAVAILABLE', JSON.stringify(runtime));
+    assert.strictEqual(runtime.final_status, 'UNAVAILABLE', JSON.stringify(runtime));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

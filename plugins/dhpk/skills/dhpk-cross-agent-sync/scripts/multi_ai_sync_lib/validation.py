@@ -253,7 +253,7 @@ def validate_antigravity(repo_root, membership=None):
 AGY_MODELS = {"inherit", "flash_lite", "flash", "pro"}
 AGY_TOOLS = {
     "read_file", "view_file", "write_to_file", "replace_file_content",
-    "multi_replace_file_content", "run_command", "grep_search", "glob",
+    "multi_replace_file_content", "run_command", "grep_search",
     "list_dir", "search_web", "read_url_content", "invoke_subagent",
 }
 AGY_FRONTMATTER_KEYS = {"name", "description", "tools", "model"}
@@ -647,12 +647,21 @@ def _agy_discovery_probe(repo_root, package_root, agents):
 
 def _agy_runtime_probe(repo_root):
     code, output = _run_agy_command([
-        "subagent", "--agent", "agy-fast-worker", "--prompt",
+        "--agent", "agy-fast-worker", "--print",
         "Read-only smoke check. Return exactly AGY_SMOKE_OK and do not modify files.",
+        "--output-format", "text",
     ], repo_root, timeout=30, read_only=True)
     if code is None:
         return ROW_UNAVAILABLE, output
     if code != 0:
+        lowered = (output or "").lower()
+        if any(marker in lowered for marker in (
+            "authentication", "unauthorized", "api key", "credential", "login",
+            "network", "connection", "timed out", "timeout", "permission denied",
+        )):
+            return ROW_UNAVAILABLE, "agy Subagent probe is unavailable in the isolated runtime (credentials or connectivity are not available)"
+        if any(marker in lowered for marker in ("unknown argument", "unknown command", "flag provided but not defined")):
+            return ROW_SKIP_INCOMPATIBLE, "agy CLI does not support the bounded --agent/--print runtime route"
         return ROW_FAIL, "agy Subagent probe exited with status %s" % code
     if output.strip() != "AGY_SMOKE_OK":
         return ROW_FAIL, "agy Subagent probe did not return the exact AGY_SMOKE_OK marker"

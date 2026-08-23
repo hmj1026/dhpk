@@ -685,6 +685,25 @@ test('consumer probe only reports PASS for an explicitly supplied loader command
   }
 });
 
+test('release Cursor probe rejects unrestricted network mode before invoking the client', () => {
+  const out = tmpDir('dhpk-cursor-consumer-release-network-');
+  try {
+    const probe = runCursorConsumerProbe({
+      packageRoot: out,
+      executable: process.execPath,
+      args: ['-e', 'process.exit(0)'],
+      pathValue: '',
+      requirePackageChallenge: true,
+      networkMode: 'unrestricted',
+    });
+    assert.strictEqual(probe.status, 'BLOCKED');
+    assert.strictEqual(probe.network, 'unknown');
+    assert.match(probe.reason, /disabled network namespace/i);
+  } finally {
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
 test('hung Cursor consumer probes return BLOCKED timeout evidence when they already emitted output', () => {
   const out = tmpDir('dhpk-cursor-consumer-timeout-output-');
   try {

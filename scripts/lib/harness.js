@@ -19,9 +19,15 @@ const inventoryApi = require('./distribution-inventory');
 const { normalizeConsumerEvidence } = require('./release-evidence');
 
 const PHASES = Object.freeze(['preflight', 'plan', 'generate', 'validate', 'test', 'probe', 'verify', 'release']);
-const OPTIONS_WITH_VALUE = new Set(['--task-id', '--attempt-id', '--surface', '--test-file', '--diagnostic', '--receipt-root']);
+const PHASE_INDEX = new Map(PHASES.map((phase, index) => [phase, index]));
+const HANDOFF_OUTCOMES = new Set(['PASS', 'COMPLETE']);
+const OPTIONS_WITH_VALUE = new Set([
+  '--task-id', '--attempt-id', '--surface', '--test-file', '--diagnostic', '--receipt-root',
+  '--operation-key', '--idempotency-key', '--previous-receipt', '--retry-of',
+]);
 const HELP = 'usage: bin/dhpk harness <preflight|plan|generate|validate|test|probe|verify|release> [options]\n'
-  + 'options: --json --task-id <id> --attempt-id <id> --surface <surface> --test-file <file> --diagnostic <text>\n';
+  + 'options: --json --task-id <id> --attempt-id <id> --surface <surface> --test-file <file> --diagnostic <text>\n'
+  + 'handoff: --operation-key <id> --idempotency-key <id> --previous-receipt <path> --retry-of <path>\n';
 
 function isTrustedCiEnvironment(env = process.env) {
   return env.CI === '1' || env.CI === 'true';
@@ -46,11 +52,17 @@ function parseArgs(argv = []) {
     } else if (OPTIONS_WITH_VALUE.has(arg)) {
       const value = rest[++index];
       if (!value || value.startsWith('--')) throw new Error(`option value is required for '${arg}'`);
-      parsed[arg.slice(2).replaceAll('-', '') === 'taskid' ? 'taskId'
-        : arg.slice(2).replaceAll('-', '') === 'attemptid' ? 'attemptId'
-          : arg.slice(2).replaceAll('-', '') === 'testfile' ? 'testFile'
-            : arg.slice(2).replaceAll('-', '') === 'receiptroot' ? 'receiptRoot'
-              : arg.slice(2)] = value;
+      const optionName = {
+        '--task-id': 'taskId',
+        '--attempt-id': 'attemptId',
+        '--test-file': 'testFile',
+        '--receipt-root': 'receiptRoot',
+        '--operation-key': 'operationKey',
+        '--idempotency-key': 'idempotencyKey',
+        '--previous-receipt': 'previousReceipt',
+        '--retry-of': 'retryOf',
+      }[arg] || arg.slice(2);
+      parsed[optionName] = value;
     } else if (arg.startsWith('--')) {
       throw new Error(`unknown option '${arg}'`);
     } else {
@@ -63,6 +75,9 @@ function parseArgs(argv = []) {
   }
   if (['generate', 'validate', 'verify', 'probe'].includes(parsed.phase) && !parsed.surface) {
     throw new Error(`--surface is required for '${parsed.phase}'`);
+  }
+  if (parsed.operationKey && parsed.idempotencyKey && parsed.operationKey !== parsed.idempotencyKey) {
+    throw new Error('--operation-key and --idempotency-key must match when both are supplied');
   }
   if (parsed.phase === 'probe' && !REQUIRED_SURFACES.includes(parsed.surface)) {
     throw new Error(`unknown consumer surface '${parsed.surface}'`);
@@ -256,6 +271,9 @@ function runDistribution(root, parsed, binding) {
   let payload = null;
   try { payload = JSON.parse(child.stdout || '{}'); } catch (_) { /* normalized below */ }
   const identity = packageIdentity(root, payload, binding);
+  if (parsed.handoffPlanFingerprint && identity.planFingerprint !== parsed.handoffPlanFingerprint) {
+    identity.errors.push(`handoff plan fingerprint '${parsed.handoffPlanFingerprint}' does not match generated package plan '${identity.planFingerprint || '<missing>'}'`);
+  }
   const diagnostics = sanitizeDiagnostics([
     child.stderr,
     payload && payload.errors && payload.errors.join('; '),
@@ -665,7 +683,7 @@ function runConsumerProbe(root, parsed) {
   const version = probePackageVersion(packageRoot, adapter.platform);
   const args = [probeScript, '--platform', adapter.platform, '--package-root', packageRoot];
   if (version) args.push('--version', version);
-  if (surface === 'agent-plugin' && allowsRealConsumerProbe()) args.push('--execute');
+  if (['agent-plugin', 'cursor-plugin'].includes(surface) && allowsRealConsumerProbe()) args.push('--execute');
   const child = spawnSync(process.execPath, args, {
     cwd: root,
     encoding: 'utf8',
@@ -842,6 +860,137 @@ function phaseExecution(root, parsed, inventory, binding) {
   return { outcome: 'NOT_RUN', diagnostics: [`phase '${parsed.phase}' has no configured adapter`] };
 }
 
+function attemptPathFromReference(reference) {
+  if (typeof reference !== 'string' || !reference.trim()) throw new Error('receipt handoff reference is required');
+  const resolved = path.resolve(reference);
+  try {
+    if (fs.statSync(resolved).isFile() && path.basename(resolved) === 'attempt.json') return path.dirname(resolved);
+  } catch (_) {
+    // The validator below reports a bounded unreadable-receipt diagnostic.
+  }
+  return resolved;
+}
+
+function blockedHandoffError(message) {
+  const error = new Error(message);
+  error.code = 'HARNESS_BLOCKED';
+  return error;
+}
+
+function operationIntent(parsed) {
+  return {
+    phase: parsed.phase,
+    surface: parsed.surface || null,
+    testFile: parsed.testFile || null,
+  };
+}
+
+function assertReplayIntent(parsed, envelope) {
+  const requested = operationIntent(parsed);
+  if (envelope.operationIntent !== undefined) {
+    if (receipts.canonicalJson(envelope.operationIntent) !== receipts.canonicalJson(requested)) {
+      throw blockedHandoffError('operation key replay does not match the original phase/surface/operation intent');
+    }
+    return;
+  }
+  // Receipts written before operationIntent was introduced still receive the
+  // strict surface guard. Any other mutating option is unsafe to infer.
+  if (requested.surface !== null && envelope.surface !== requested.surface) {
+    throw blockedHandoffError(`operation key belongs to surface '${envelope.surface || '<missing>'}', not '${requested.surface}'`);
+  }
+  if (requested.testFile !== null) {
+    throw blockedHandoffError('operation key replay cannot prove the original operation intent from a legacy receipt');
+  }
+}
+
+function receiptReferenceIdentity(receiptRoot, reference, root, binding, taskId, phase, mode, surface = null) {
+  let attemptPath;
+  try {
+    attemptPath = attemptPathFromReference(reference);
+  } catch (error) {
+    throw blockedHandoffError(error.message);
+  }
+  const resolvedRoot = path.resolve(receiptRoot);
+  if (!(attemptPath === resolvedRoot || attemptPath.startsWith(`${resolvedRoot}${path.sep}`))) {
+    throw blockedHandoffError('previous receipt must be under the current runtime receipt root');
+  }
+  const checked = receipts.validateReceipt(attemptPath, {
+    root,
+    expectedSourceCommit: binding.sourceCommit,
+    expectedSourceTree: binding.sourceTree,
+  });
+  if (!checked.ok) throw blockedHandoffError(`previous receipt is invalid: ${checked.errors.slice(0, 8).join('; ')}`);
+  const envelope = checked.envelope;
+  if (envelope.taskId !== taskId) {
+    throw blockedHandoffError(`previous receipt belongs to task '${envelope.taskId}', expected '${taskId}'`);
+  }
+  if (binding.dirty || envelope.worktree === 'DIRTY') {
+    throw blockedHandoffError('previous receipt handoff requires a clean exact checkout; dirty evidence cannot be replayed');
+  }
+  if (!PHASE_INDEX.has(envelope.phase)) {
+    throw blockedHandoffError('previous receipt does not identify a supported predecessor phase');
+  }
+  if (mode === 'retry' && envelope.phase !== phase) {
+    throw blockedHandoffError(`retry receipt belongs to phase '${envelope.phase}', expected '${phase}'`);
+  }
+  if (mode === 'handoff') {
+    if (PHASE_INDEX.get(envelope.phase) >= PHASE_INDEX.get(phase)) {
+      throw blockedHandoffError(`previous receipt phase '${envelope.phase}' must precede '${phase}'`);
+    }
+    if (!HANDOFF_OUTCOMES.has(envelope.outcome)) {
+      throw blockedHandoffError(`previous receipt outcome '${envelope.outcome}' is not eligible for phase handoff`);
+    }
+  }
+  if (surface && envelope.surface && envelope.surface !== surface) {
+    throw blockedHandoffError(`previous receipt surface '${envelope.surface}' does not match requested surface '${surface}'`);
+  }
+  if (phase === 'generate' && !envelope.planFingerprint) {
+    throw blockedHandoffError('generate handoff requires a predecessor plan fingerprint');
+  }
+  return {
+    path: attemptPath,
+    identity: {
+      taskId: envelope.taskId,
+      attemptId: envelope.attemptId,
+      phase: envelope.phase,
+      outcome: envelope.outcome,
+      ...(envelope.surface ? { surface: envelope.surface } : {}),
+      ...(envelope.planFingerprint ? { planFingerprint: envelope.planFingerprint } : {}),
+      ...(envelope.artifactFingerprint ? { artifactFingerprint: envelope.artifactFingerprint } : {}),
+    },
+    envelope,
+  };
+}
+
+function replayAttempt(phase, attempt, parsed) {
+  const envelope = attempt.envelope;
+  if (envelope.phase && envelope.phase !== phase) {
+    throw blockedHandoffError(`operation key belongs to phase '${envelope.phase}', not '${phase}'`);
+  }
+  assertReplayIntent(parsed, envelope);
+  const result = createResult({
+    phase,
+    lifecyclePhase: envelope.lifecyclePhase,
+    outcome: envelope.outcome,
+    diagnostics: envelope.diagnostics || [],
+    artifacts: envelope.artifacts || [],
+    sourceCommit: envelope.sourceCommit,
+    sourceTree: envelope.sourceTree,
+    targetCommit: envelope.targetCommit,
+    targetTree: envelope.targetTree,
+    worktree: envelope.worktree,
+    receiptReference: attempt.path,
+    resumeCommand: envelope.resumeCommand,
+    ...(Array.isArray(envelope.requiredSurfaces) ? { requiredSurfaces: envelope.requiredSurfaces } : {}),
+    ...(Array.isArray(envelope.surfaceResults) ? { surfaceResults: envelope.surfaceResults } : {}),
+    ...(envelope.surface ? { surface: envelope.surface } : {}),
+    ...(envelope.stage ? { stage: envelope.stage } : {}),
+    ...(envelope.producer ? { producer: envelope.producer } : {}),
+  });
+  result.exitCode = exitCodeForOutcome(result.outcome);
+  return { status: result.exitCode, result, replayed: true };
+}
+
 function execute(argv = [], {
   root = path.resolve(__dirname, '..'),
   env = process.env,
@@ -867,6 +1016,49 @@ function execute(argv = [], {
     }
     const inventory = readInventory(root);
     const binding = resolveSourceBinding(root);
+    const operationKey = parsed.operationKey || parsed.idempotencyKey || null;
+    if (operationKey) {
+      const existing = receipts.findAttemptByOperationKey(resolvedReceiptRoot, operationKey);
+      if (existing) {
+        if (existing.taskId !== taskId) throw blockedHandoffError(`operation key already belongs to task '${existing.taskId}'`);
+        const checked = receipts.validateReceipt(existing.path, {
+          root,
+          expectedSourceCommit: binding.sourceCommit,
+          expectedSourceTree: binding.sourceTree,
+        });
+        if (!checked.ok) throw blockedHandoffError(`idempotent receipt is stale or invalid: ${checked.errors.slice(0, 8).join('; ')}`);
+        if (binding.dirty || checked.envelope.worktree === 'DIRTY') {
+          throw blockedHandoffError('idempotent replay requires a clean exact checkout; dirty evidence cannot be replayed');
+        }
+        if (!checked.eventCount || !checked.lastEvent) {
+          throw blockedHandoffError('idempotent replay requires a finalized receipt event');
+        }
+        if (checked.lastEvent.outcome !== checked.envelope.outcome
+          || checked.lastEvent.lifecyclePhase !== checked.envelope.lifecyclePhase) {
+          throw blockedHandoffError('idempotent replay requires a terminal event matching the receipt envelope');
+        }
+        return replayAttempt(parsed.phase, { ...existing, envelope: checked.envelope }, parsed);
+      }
+    }
+    let previousReceipt = null;
+    const previousReference = parsed.previousReceipt || parsed.retryOf || null;
+    if (previousReference) {
+      previousReceipt = receiptReferenceIdentity(
+        resolvedReceiptRoot,
+        previousReference,
+        root,
+        binding,
+        taskId,
+        parsed.phase,
+        parsed.retryOf ? 'retry' : 'handoff',
+        parsed.surface || null,
+      );
+      parsed.handoff = previousReceipt.envelope;
+      if (previousReceipt.envelope.planFingerprint) parsed.handoffPlanFingerprint = previousReceipt.envelope.planFingerprint;
+    }
+    const operationReservation = operationKey
+      ? receipts.reserveOperationKey(resolvedReceiptRoot, operationKey, { taskId, attemptId })
+      : null;
     let execution = phaseExecutor(root, parsed, inventory, binding);
     if (execution && execution.outcome === 'COMPLETE' && binding.dirty) {
       execution = {
@@ -899,18 +1091,29 @@ function execute(argv = [], {
     const attempt = receipts.createAttempt({
       root: resolvedReceiptRoot,
       command: `harness ${argv.join(' ')}`,
+      phase: parsed.phase,
       taskId,
       attemptId,
       sourceCommit: binding.sourceCommit,
       sourceTree: binding.sourceTree,
       sessionId: env.DHPK_SESSION_ID || null,
       dispatch: env.DHPK_DISPATCH_ID ? { dispatchId: env.DHPK_DISPATCH_ID } : null,
-      identity: receiptIdentity,
       diagnostics: execution.diagnostics || [],
       artifacts: evidenceArtifacts,
+      requiredSurfaces: execution.requiredSurfaces || null,
+      surfaceResults: execution.surfaceResults || null,
       byteReferences: execution.byteReferences || [],
       lifecyclePhase,
       outcome: execution.outcome,
+      operationKey: parsed.operationKey || null,
+      idempotencyKey: parsed.idempotencyKey || null,
+      operationReservation,
+      identity: {
+        ...receiptIdentity,
+        operationIntent: operationIntent(parsed),
+      },
+      retryOf: parsed.retryOf && previousReceipt ? previousReceipt.identity : null,
+      previousReceipt: parsed.previousReceipt && previousReceipt ? previousReceipt.identity : null,
       resumeCommand: resumeCommand(argv),
     });
     const result = createResult({
@@ -941,16 +1144,17 @@ function execute(argv = [], {
     result.exitCode = exitCodeForOutcome(result.outcome);
     return { status: result.exitCode, result };
   } catch (error) {
+    const blocked = error && error.code === 'HARNESS_BLOCKED';
     const result = createResult({
       phase: parsed.phase,
       lifecyclePhase: 'RED',
-      outcome: 'FAIL',
-      internalError: true,
+      outcome: blocked ? 'BLOCKED' : 'FAIL',
+      ...(blocked ? {} : { internalError: true }),
       diagnostics: [sanitizeDiagnostics(error.message)],
       resumeCommand: resumeCommand(argv),
     });
-    result.exitCode = 70;
-    return { status: 70, result };
+    result.exitCode = exitCodeForOutcome(result.outcome);
+    return { status: result.exitCode, result };
   }
 }
 
