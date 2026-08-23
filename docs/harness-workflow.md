@@ -26,6 +26,11 @@ canonical distribution/compiler and artifact-store owners. It delegates the
 repository test phase to the bounded test gate. A facade result must not be
 treated as proof that a consumer runtime probe ran.
 
+When a phase consumes a generated package, its provenance source commit and
+resolved source tree must match the current checkout exactly. Historical but
+resolvable package bytes remain `NO_SHIP` until the package is regenerated for
+that checkout.
+
 ## Result and exit contract
 
 `lifecyclePhase` describes the TDD state (`PLANNED`, `RED`, `GREEN`,
