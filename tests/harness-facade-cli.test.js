@@ -7,20 +7,23 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
+const { execFileSync, spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const receipts = require('../scripts/lib/harness-receipt');
 
 const ROOT = path.join(__dirname, '..');
-const CLI = path.join(ROOT, 'bin', 'dhpk');
 
-function invoke(args, env = {}) {
-  return spawnSync('bash', [CLI, 'harness', ...args], {
-    cwd: ROOT,
+function invokeAt(root, args, env = {}) {
+  return spawnSync('bash', [path.join(root, 'bin', 'dhpk'), 'harness', ...args], {
+    cwd: root,
     encoding: 'utf8',
     timeout: 30000,
     env: { ...process.env, DHPK_BOUNDED_REQUIRE_CGROUP: '0', DHPK_BOUNDED_ALLOW_FALLBACK: '1', ...env },
   });
+}
+
+function invoke(args, env = {}) {
+  return invokeAt(ROOT, args, env);
 }
 
 function temporaryReceiptRoot() {
@@ -31,6 +34,53 @@ function parseSingleJson(stdout) {
   const lines = stdout.trim().split(/\r?\n/).filter(Boolean);
   assert.strictEqual(lines.length, 1, `expected one JSON line, got ${lines.length}: ${stdout}`);
   return JSON.parse(lines[0]);
+}
+
+function git(root, args) {
+  return execFileSync('git', args, { cwd: root, encoding: 'utf8' });
+}
+
+function temporaryPackageFixture() {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-harness-package-fixture-'));
+  fs.mkdirSync(path.join(root, 'bin'), { recursive: true });
+  fs.mkdirSync(path.join(root, 'manifests'), { recursive: true });
+  fs.mkdirSync(path.join(root, 'plugins', 'dhpk-agent'), { recursive: true });
+  fs.writeFileSync(path.join(root, 'manifests', 'distribution-inventory.json'), '{}\n');
+  fs.writeFileSync(path.join(root, 'harness-entry.js'), [
+    "'use strict';",
+    `const { execute } = require(${JSON.stringify(path.join(ROOT, 'scripts', 'lib', 'harness'))});`,
+    'const invocation = execute(process.argv.slice(2), { root: __dirname });',
+    'if (invocation.help) process.stdout.write(invocation.help);',
+    "else process.stdout.write(`${JSON.stringify(invocation.result || { phase: null, outcome: 'INTERNAL_ERROR' })}\\n`);",
+    'process.exit(invocation.status);',
+  ].join('\n') + '\n');
+  fs.writeFileSync(path.join(root, 'bin', 'dhpk'), [
+    '#!/usr/bin/env bash',
+    'set -euo pipefail',
+    'root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"',
+    'case "${1:-}" in',
+    '  harness) shift; exec node "$root/harness-entry.js" "$@" ;;',
+    '  distribution) shift; printf \'{"surface":"agent-plugin","output":"%s"}\\n\' "$root/plugins/dhpk-agent" ;;',
+    '  *) exit 64 ;;',
+    'esac',
+  ].join('\n') + '\n', { mode: 0o755 });
+  fs.writeFileSync(path.join(root, 'plugins', 'dhpk-agent', 'provenance.json'), JSON.stringify({
+    planFingerprint: `sha256:${'1'.repeat(64)}`,
+    sourceCommit: '0'.repeat(40),
+  }) + '\n');
+  git(root, ['init', '-q']);
+  git(root, ['config', 'user.email', 'harness-test@example.invalid']);
+  git(root, ['config', 'user.name', 'Harness Test']);
+  git(root, ['add', 'bin/dhpk', 'manifests/distribution-inventory.json', 'plugins/dhpk-agent/provenance.json']);
+  git(root, ['commit', '-qm', 'fixture initial']);
+  const initial = git(root, ['rev-parse', 'HEAD']).trim();
+  fs.writeFileSync(path.join(root, 'plugins', 'dhpk-agent', 'provenance.json'), JSON.stringify({
+    planFingerprint: `sha256:${'1'.repeat(64)}`,
+    sourceCommit: initial,
+  }) + '\n');
+  git(root, ['add', 'plugins/dhpk-agent/provenance.json']);
+  git(root, ['commit', '-qm', 'fixture current']);
+  return root;
 }
 
 test('dispatches every public phase and rejects unknown options before execution', () => {
@@ -107,10 +157,11 @@ test('JSON and diagnostics are redacted and the receipt is linked to the result'
   }
 });
 
-test('distribution evidence is identity-bound and revalidates package bytes', () => {
+test('public distribution evidence refuses a retained package from an older checkout', () => {
+  const root = temporaryPackageFixture();
   const receiptRoot = temporaryReceiptRoot();
   try {
-    const result = invoke([
+    const result = invokeAt(root, [
       'validate',
       '--surface',
       'agent-plugin',
@@ -118,18 +169,21 @@ test('distribution evidence is identity-bound and revalidates package bytes', ()
       'facade-package-identity',
       '--json',
     ], { DHPK_HARNESS_RECEIPT_ROOT: receiptRoot });
-    assert.strictEqual(result.status, 0, result.stderr);
+    assert.strictEqual(result.status, 2, result.stderr);
     const payload = parseSingleJson(result.stdout);
-    assert.strictEqual(payload.outcome, 'PASS');
+    assert.strictEqual(payload.outcome, 'NO_SHIP');
+    assert.match(payload.diagnostics.join('\n'), /source commit does not match current checkout/i);
+    assert.match(payload.diagnostics.join('\n'), /source tree does not match current checkout/i);
     assert.match(JSON.stringify(payload.artifacts), /artifactFingerprint/);
     assert.match(JSON.stringify(payload.artifacts), /provenanceFingerprint/);
     const checked = receipts.validateReceipt(payload.receiptReference, {
-      root: ROOT,
+      root,
       expectedIdentity: { surface: 'agent-plugin', stage: 'structural', producer: 'distribution-adapter' },
     });
     assert.strictEqual(checked.ok, true, checked.errors.join('; '));
   } finally {
     fs.rmSync(receiptRoot, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
   }
 });
 

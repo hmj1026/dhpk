@@ -150,6 +150,13 @@ function packageIdentity(root, payload, binding) {
       errors.push(`package provenance source commit cannot be resolved: ${error.message}`);
     }
   }
+  if (binding && typeof provenance.sourceCommit === 'string'
+    && provenance.sourceCommit.toLowerCase() !== binding.sourceCommit.toLowerCase()) {
+    errors.push('package provenance source commit does not match current checkout');
+  }
+  if (binding && packageSourceTree && packageSourceTree !== binding.sourceTree) {
+    errors.push('package provenance source tree does not match current checkout');
+  }
   let artifactFingerprint = null;
   try {
     artifactFingerprint = receipts.fingerprintDirectory(output);
@@ -214,9 +221,10 @@ function runDistribution(root, parsed, binding) {
     payload && payload.errors && payload.errors.join('; '),
     ...identity.errors,
   ].filter(Boolean).join('\n'));
+  const exactHeadMismatch = identity.errors.some((error) => /source (?:commit|tree) does not match current checkout/i.test(error));
   return {
     outcome: child.status === 0
-      ? (identity.errors.length > 0 ? 'BLOCKED' : 'PASS')
+      ? (identity.errors.length > 0 ? (exactHeadMismatch ? 'NO_SHIP' : 'BLOCKED') : 'PASS')
       : child.status === 64 ? 'NOT_RUN' : 'FAIL',
     diagnostics: diagnostics ? [diagnostics] : [],
     artifacts: payload ? [artifactReference({ ...payload, ...identity })] : [],
