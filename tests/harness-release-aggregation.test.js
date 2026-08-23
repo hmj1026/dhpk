@@ -92,6 +92,34 @@ test('release execution fails closed when a probe emits malformed consumer evide
   assert.match(malformed.reasons.join('\n'), /invalid status/i);
 });
 
+test('release execution rejects foreign rows and conflicting producer outcomes', () => {
+  const result = harness.runReleaseProbes('/tmp/dhpk-release-fixture', REQUIRED, (root, parsed) => {
+    if (parsed.surface !== 'cursor-plugin') {
+      return {
+        outcome: 'PASS',
+        surfaceResults: [{
+          surface: parsed.surface,
+          status: 'PASS',
+          stage: 'CONSUMER',
+          producer: 'fixture-probe',
+        }],
+      };
+    }
+    return {
+      outcome: 'FAIL',
+      surfaceResults: [
+        { surface: 'cursor-plugin', status: 'PASS', stage: 'CONSUMER', producer: 'fixture-probe' },
+        { surface: 'agent-plugin', status: 'FAIL', stage: 'CONSUMER', producer: 'fixture-probe' },
+      ],
+    };
+  });
+
+  assert.strictEqual(result.outcome, 'PUBLISHED_UNHEALTHY');
+  const malformed = result.surfaceResults.find((entry) => entry.surface === 'cursor-plugin');
+  assert.strictEqual(malformed.status, 'FAIL');
+  assert.match(malformed.reasons.join('\n'), /exactly one|foreign|result/i);
+});
+
 test('missing or unknown required surfaces fail closed', () => {
   assert.throws(() => harnessResult.aggregateRequiredSurfaces({
     requiredSurfaces: REQUIRED.slice(0, -1),

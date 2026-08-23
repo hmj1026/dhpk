@@ -710,7 +710,7 @@ function runConsumerProbe(root, parsed) {
 
 function normalizeReleaseProbeResult(root, surface, execution) {
   const rows = execution && Array.isArray(execution.surfaceResults)
-    ? execution.surfaceResults.filter((entry) => entry && entry.surface === surface)
+    ? execution.surfaceResults
     : [];
   if (rows.length !== 1) {
     return failedProbeRow(
@@ -718,11 +718,28 @@ function normalizeReleaseProbeResult(root, surface, execution) {
       'FAIL',
       rows.length === 0
         ? `consumer probe did not emit a result for '${surface}'`
-        : `consumer probe emitted ${rows.length} results for '${surface}'`,
+        : `consumer probe emitted ${rows.length} surface results; expected exactly one for '${surface}'`,
       root,
     );
   }
   const row = rows[0];
+  if (!row || typeof row !== 'object' || Array.isArray(row)) {
+    return failedProbeRow(
+      surface,
+      'FAIL',
+      `consumer probe emitted an invalid result for '${surface}'`,
+      root,
+    );
+  }
+  if (row.surface !== surface) {
+    return failedProbeRow(
+      surface,
+      'FAIL',
+      `consumer probe emitted unexpected surface '${row.surface || '<missing>'}' for '${surface}'`,
+      root,
+      row.commands,
+    );
+  }
   if (row.stage !== 'CONSUMER') {
     return failedProbeRow(
       surface,
@@ -746,6 +763,15 @@ function normalizeReleaseProbeResult(root, surface, execution) {
       surface,
       'FAIL',
       `consumer probe result for '${surface}' is missing a producer identity`,
+      root,
+      row.commands,
+    );
+  }
+  if (execution && execution.outcome !== undefined && execution.outcome !== row.status) {
+    return failedProbeRow(
+      surface,
+      'FAIL',
+      `consumer probe outcome '${execution.outcome}' disagrees with surface status '${row.status}'`,
       root,
       row.commands,
     );
