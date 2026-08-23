@@ -48,6 +48,7 @@ const CONSUMER_SURFACES = Object.freeze([
   'claude-core',
   'codex-sync',
   'codex-native',
+  'cursor-sync',
   'agent-plugin',
   'cursor-plugin',
 ]);
@@ -588,6 +589,110 @@ function verifyCodexSync(root, version) {
   }
 }
 
+function verifyCursorSync(root, version) {
+  const commands = [];
+  const validator = path.join(root, 'scripts', 'ci', 'validate-cursor-sync.js');
+  const validation = spawnSync(process.execPath, [validator], { cwd: root, encoding: 'utf8' });
+  commands.push({ cmd: 'node scripts/ci/validate-cursor-sync.js', exitCode: validation.status });
+  if (validation.status !== 0) {
+    return {
+      verdict: VERDICTS.FAIL,
+      status: 'FAIL',
+      commands,
+      reasons: [`checked-in Cursor sync projection validation failed: ${redactEvidence((validation.stdout || validation.stderr || '').trim(), root)}`],
+    };
+  }
+
+  const project = mkTempProject();
+  try {
+    const installer = path.join(root, 'scripts', 'hooks', 'install-cursor-harness.sh');
+    const install = spawnSync('bash', [installer, '--copy', '--force'], {
+      cwd: project,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        CLAUDE_PLUGIN_ROOT: root,
+        DHPK_HARNESS_KIND: 'cursor',
+        DHPK_SRC_REL: 'cursor',
+        DHPK_DEST_REL: '.cursor',
+        DHPK_SOURCE_KINDS: 'skills,agents,rules,commands',
+        DHPK_INSTALLER_NAME: 'install-cursor-harness',
+      },
+    });
+    commands.push({ cmd: 'bash scripts/hooks/install-cursor-harness.sh --copy --force (in clean project)', exitCode: install.status });
+    if (install.status !== 0) {
+      return {
+        verdict: VERDICTS.FAIL,
+        status: 'FAIL',
+        commands,
+        reasons: [`install-cursor-harness.sh exited ${install.status}: ${redactEvidence((install.stderr || install.stdout || '').trim(), root)}`],
+      };
+    }
+
+    const receiptPath = path.join(project, '.cursor', '.dhpk-installed.json');
+    let receipt;
+    try {
+      receipt = JSON.parse(readFileBounded(receiptPath).toString('utf8'));
+    } catch (error) {
+      return {
+        verdict: VERDICTS.FAIL,
+        status: 'FAIL',
+        commands,
+        reasons: [`Cursor sync receipt is unreadable: ${error.message}`],
+      };
+    }
+    const managedEntries = receipt.managed_entries;
+    const requiredKinds = ['skills', 'agents', 'rules', 'commands', 'supporting_assets'];
+    const missingKinds = requiredKinds.filter((kind) => !managedEntries || !managedEntries[kind] || Object.keys(managedEntries[kind]).length === 0);
+    const unsafeEntries = [];
+    const isSafeRelative = (value) => typeof value === 'string'
+      && value.length > 0
+      && !path.isAbsolute(value)
+      && !value.includes('\\')
+      && path.posix.normalize(value) === value
+      && value !== '.'
+      && value !== '..'
+      && !value.startsWith('../');
+    for (const kind of requiredKinds) {
+      for (const [name, entry] of Object.entries((managedEntries && managedEntries[kind]) || {})) {
+        if (!entry || !isSafeRelative(entry.source) || !isSafeRelative(entry.destination)
+          || !/^[a-f0-9]{64}$/i.test(entry.source_fingerprint || '')
+          || !/^[a-f0-9]{64}$/i.test(entry.destination_fingerprint || '')) {
+          unsafeEntries.push(`${kind}/${name}`);
+        }
+      }
+    }
+    if (receipt.schema_version !== 3 || receipt.state !== 'current' || receipt.plugin_version !== version
+      || !/^[a-f0-9]{64}$/i.test(receipt.source_fingerprint || '') || missingKinds.length > 0 || unsafeEntries.length > 0) {
+      return {
+        verdict: VERDICTS.FAIL,
+        status: 'FAIL',
+        commands,
+        reasons: [`Cursor sync receipt failed schema/version/ownership checks${missingKinds.length > 0 ? `; missing managed entries: ${missingKinds.join(', ')}` : ''}${unsafeEntries.length > 0 ? `; unsafe or incomplete entries: ${unsafeEntries.slice(0, 10).join(', ')}` : ''}`],
+      };
+    }
+
+    // The installer proves isolated project-local synchronization only.  No
+    // Cursor client/GUI loader is invoked here, so this row must remain
+    // NOT_RUN rather than being promoted to consumer-runtime PASS.
+    return {
+      verdict: VERDICTS.PENDING,
+      status: 'NOT_RUN',
+      commands,
+      artifacts: [{
+        receipt: '<sandbox>/.cursor/.dhpk-installed.json',
+        schemaVersion: receipt.schema_version,
+        pluginVersion: receipt.plugin_version,
+        sourceFingerprint: receipt.source_fingerprint,
+        managedCounts: Object.fromEntries(requiredKinds.map((kind) => [kind, Object.keys(managedEntries[kind]).length])),
+      }],
+      reasons: ['isolated Cursor project-local sync receipt verified; Cursor client runtime/loader was not invoked'],
+    };
+  } finally {
+    fs.rmSync(project, { recursive: true, force: true });
+  }
+}
+
 function claudeAvailable() {
   return spawnSync('claude', ['--version'], { encoding: 'utf8' }).status === 0;
 }
@@ -749,10 +854,36 @@ function verifyCodexNative(root) {
   return { verdict: VERDICTS.PASS, commands, reasons: [] };
 }
 
+function standardAgentPluginConsumer(version) {
+  const reason = 'standard Agent Plugin has no verified consumer loader; Codex marketplace proof is reserved for codex-native';
+  const surfaceResults = normalizeConsumerEvidence({
+    stage: 'CONSUMER',
+    producer: 'consumer-gate',
+    adapter: { id: 'standard-agent-plugin-loader', version: '1.0.0' },
+    surfaceResults: [{
+      surface: 'agent-plugin',
+      status: 'NOT_CONFIGURED',
+      commands: [],
+      environment: process.env.CI ? 'ci' : 'local',
+      artifacts: version ? [{ path: '<repo-package>/plugin.json', version }] : [],
+      diagnostics: [],
+      reasons: [reason],
+      checkedClaims: ['package-manifest', 'consumer-route'],
+    }],
+  }).surfaceResults;
+  return {
+    status: 'NOT_CONFIGURED',
+    commands: [],
+    reason,
+    diagnostics: [],
+    artifacts: [],
+    surfaceResults,
+  };
+}
+
 function verifyProjectedConsumer(root, platform, version) {
-  const packageRoot = platform === 'codex'
-    ? path.join(root, 'plugins', 'dhpk-agent')
-    : path.join(root, 'plugins', 'dhpk-cursor');
+  if (platform === 'codex') return standardAgentPluginConsumer(version);
+  const packageRoot = path.join(root, 'plugins', 'dhpk-cursor');
   const probe = path.join(root, 'scripts', 'release', 'consumer-platform-probe.js');
   const res = spawnSync('node', [probe, '--platform', platform, '--package-root', packageRoot, '--version', version], {
     cwd: root,
@@ -837,6 +968,7 @@ function runGate(args) {
   const codex = selectedOrAll('codex-sync') ? verifyCodexSync(args.root, args.version) : null;
   const claude = selectedOrAll('claude-core') ? verifyClaudeReinstall(args.root, args.version) : null;
   const native = selectedOrAll('codex-native') ? verifyCodexNative(args.root) : null;
+  const cursorSync = selectedOrAll('cursor-sync') ? verifyCursorSync(args.root, args.version) : null;
   const projectedCodex = selectedOrAll('agent-plugin')
     ? verifyProjectedConsumer(args.root, 'codex', args.version)
     : null;
@@ -849,6 +981,7 @@ function runGate(args) {
     ...(codex ? normalizeGateSurface('codex-sync', 'consumer-gate', { id: 'codex-sync-installer', version: '1.0.0' }, codex, environment) : []),
     ...(claude ? normalizeGateSurface('claude', 'consumer-gate', { id: 'claude-plugin-cli', version: claude.cliVersion || 'unknown' }, claude, environment) : []),
     ...(native ? normalizeGateSurface('codex-native', 'consumer-gate', { id: 'codex-native-install-smoke', version: '1.0.0' }, native, environment) : []),
+    ...(cursorSync ? normalizeGateSurface('cursor-sync', 'consumer-gate', { id: 'cursor-sync-installer', version: '1.0.0' }, cursorSync, environment) : []),
     ...(projectedCodex ? projectedCodex.surfaceResults : []),
     ...(projectedCursor ? projectedCursor.surfaceResults : []),
   ];
@@ -857,6 +990,7 @@ function runGate(args) {
     ...(codex ? codex.commands : []),
     ...(claude ? claude.commands : []),
     ...(native ? native.commands : []),
+    ...(cursorSync ? cursorSync.commands : []),
     ...(projectedCodex ? projectedCodex.commands : []),
     ...(projectedCursor ? projectedCursor.commands : []),
   ];
@@ -864,6 +998,9 @@ function runGate(args) {
     ...(codex ? codex.reasons.map((r) => `codex-sync: ${r}`) : []),
     ...(claude ? claude.reasons.map((r) => `claude-reinstall: ${r}`) : []),
     ...(native ? native.reasons.map((r) => `native-codex-marketplace: ${r}`) : []),
+    ...(cursorSync && ['FAIL', 'BLOCKED'].includes(cursorSync.status)
+      ? [`cursor-sync: ${cursorSync.reasons && cursorSync.reasons[0] ? cursorSync.reasons[0] : cursorSync.status.toLowerCase()}`]
+      : []),
     ...(projectedCodex && ['FAIL', 'BLOCKED'].includes(projectedCodex.status)
       ? [`agent-plugin-consumer: ${projectedCodex.reason || projectedCodex.status.toLowerCase()}`]
       : []),
@@ -875,10 +1012,12 @@ function runGate(args) {
   let verdict;
   if (selected) {
     const row = surfaceResults[0];
-    verdict = row && row.status ? row.status : VERDICTS.FAIL;
-  } else if (codex.verdict === VERDICTS.FAIL || claude.verdict === VERDICTS.FAIL || projectedCodex.status === 'FAIL' || projectedCursor.status === 'FAIL') verdict = VERDICTS.FAIL;
-  else if (projectedCodex.status === 'BLOCKED' || projectedCursor.status === 'BLOCKED') verdict = VERDICTS.BLOCKED;
+    const pendingStatuses = new Set(['NOT_RUN', 'NOT_CONFIGURED', 'SKIP_INCOMPATIBLE']);
+    verdict = row && pendingStatuses.has(row.status) ? VERDICTS.PENDING : (row && row.status ? row.status : VERDICTS.FAIL);
+  } else if (codex.verdict === VERDICTS.FAIL || claude.verdict === VERDICTS.FAIL || cursorSync.status === 'FAIL' || projectedCodex.status === 'FAIL' || projectedCursor.status === 'FAIL') verdict = VERDICTS.FAIL;
+  else if (cursorSync.status === 'BLOCKED' || projectedCodex.status === 'BLOCKED' || projectedCursor.status === 'BLOCKED') verdict = VERDICTS.BLOCKED;
   else if (claude.verdict === VERDICTS.UNAVAILABLE) verdict = VERDICTS.UNAVAILABLE;
+  else if (cursorSync.status === 'NOT_RUN') verdict = VERDICTS.PENDING;
   else verdict = VERDICTS.PASS;
 
   const stage = {
@@ -890,6 +1029,7 @@ function runGate(args) {
       : [
       `claude-official-strict: ${claude.officialValidation ? claude.officialValidation.verdict : 'NOT RUN'}${claude.officialValidation && claude.officialValidation.reason ? ` (${claude.officialValidation.reason})` : ''}`,
       `native-codex-marketplace: ${native.verdict} (experimental support tier; consumer proof does not itself graduate the support tier)`,
+      `cursor-sync: ${cursorSync.status}${cursorSync.reasons && cursorSync.reasons.length > 0 ? ` (${cursorSync.reasons[0]})` : ''}`,
       `agent-plugin-consumer: ${projectedCodex.status}${projectedCodex.reason ? ` (${projectedCodex.reason})` : ''}`,
       `cursor-plugin-consumer: ${projectedCursor.status}${projectedCursor.reason ? ` (${projectedCursor.reason})` : ''}`,
       ...(codex.surfaceVerdict ? [`codex-surface: ${codex.surfaceVerdict}`] : []),
@@ -930,6 +1070,7 @@ module.exports = {
   fingerprintProjectSkill,
   redactEvidence,
   verifyCodexSync,
+  verifyCursorSync,
   verifyProjectedConsumer,
   normalizeGateSurface,
   runGate,
