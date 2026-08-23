@@ -1,26 +1,49 @@
 <!-- gitnexus:start -->
-# dhpk Agent Guidance
+# GitNexus — Code Intelligence
 
-This checkout is the dhpk plugin source. Use the GitNexus gates before symbol
-edits and commits; use the linked topic pages for branch-specific mechanics.
+This project is indexed by GitNexus as **dhpk** (28367 symbols, 35828 relationships, 300 execution flows). Use the GitNexus MCP tools to understand code, assess impact, and navigate safely.
 
-## Universal gates
+> If any GitNexus tool warns the index is stale, run `npx gitnexus analyze` in terminal first.
 
-- Before editing a function, class, method, or indexed symbol, run upstream
-  GitNexus impact and report direct callers, processes, and risk.
-- Warn before HIGH/CRITICAL impact; before committing, run
-  `gitnexus_detect_changes()` against the actual worktree.
-- Prefer `cx` overview/definition/references, then GitNexus query/context, then
-  focused `rg`/Read fallback. Never blind-rename an indexed symbol.
+## Always Do
 
-## Detailed guidance
+- **MUST run impact analysis before editing any symbol.** Before modifying a function, class, or method, run `gitnexus_impact({target: "symbolName", direction: "upstream"})` and report the blast radius (direct callers, affected processes, risk level) to the user.
+- **MUST run `gitnexus_detect_changes()` before committing** to verify your changes only affect expected symbols and execution flows.
+- **MUST warn the user** if impact analysis returns HIGH or CRITICAL risk before proceeding with edits.
+- When exploring unfamiliar code, use `gitnexus_query({query: "concept"})` to find execution flows instead of grepping. It returns process-grouped results ranked by relevance.
+- When you need full context on a specific symbol — callers, callees, which execution flows it participates in — use `gitnexus_context({name: "symbolName"})`.
 
-- [Agent guidance index](docs/agent-guidance/README.md)
-- [GitNexus and exploration](docs/agent-guidance/gitnexus.md)
-- [Plugin development and release gates](docs/agent-guidance/plugin-development.md)
-- [Writing for agents](docs/agent-guidance/writing-for-agents.md)
-- [Codex projection contract](codex/AGENTS.md)
+## Never Do
 
-If GitNexus reports a stale index, run `npx gitnexus analyze` before relying on
-impact or process results.
+- NEVER edit a function, class, or method without first running `gitnexus_impact` on it.
+- NEVER ignore HIGH or CRITICAL risk warnings from impact analysis.
+- NEVER rename symbols with find-and-replace — use `gitnexus_rename` which understands the call graph.
+- NEVER commit changes without running `gitnexus_detect_changes()` to check affected scope.
+
+## Resources
+
+| Resource | Use for |
+|----------|---------|
+| `gitnexus://repo/dhpk/context` | Codebase overview, check index freshness |
+| `gitnexus://repo/dhpk/clusters` | All functional areas |
+| `gitnexus://repo/dhpk/processes` | All execution flows |
+| `gitnexus://repo/dhpk/process/{name}` | Step-by-step execution trace |
+
+## CLI
+
+| Task | Read this skill file |
+|------|---------------------|
+| Understand architecture / "How does X work?" | `.claude/skills/gitnexus/gitnexus-exploring/SKILL.md` |
+| Blast radius / "What breaks if I change X?" | `.claude/skills/gitnexus/gitnexus-impact-analysis/SKILL.md` |
+| Trace bugs / "Why is X failing?" | `.claude/skills/gitnexus/gitnexus-debugging/SKILL.md` |
+| Rename / extract / split / refactor | `.claude/skills/gitnexus/gitnexus-refactoring/SKILL.md` |
+| Tools, resources, schema reference | `.claude/skills/gitnexus/gitnexus-guide/SKILL.md` |
+| Index, status, clean, wiki CLI commands | `.claude/skills/gitnexus/gitnexus-cli/SKILL.md` |
+
 <!-- gitnexus:end -->
+
+## Agent docs
+
+- GitHub issues and specs: use `gh`; see `docs/agents/issue-tracker.md`, the [guidance index](docs/agent-guidance/README.md), and [plugin development](docs/agent-guidance/plugin-development.md).
+- Triage labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`; see `docs/agents/triage-labels.md`, [writing for agents](docs/agent-guidance/writing-for-agents.md), and [Codex guidance](codex/AGENTS.md).
+- Domain context: read root `CONTEXT.md` and relevant `docs/adr/`; see `docs/agents/domain.md`.

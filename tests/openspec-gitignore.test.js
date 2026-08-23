@@ -25,4 +25,19 @@ test('Git index contains specs only under openspec', () => {
   assert.ok(trackedSpecs.stdout.trim().length > 0, 'accepted openspec/specs files must stay tracked');
 });
 
+test('External agent skill installs are ignored without hiding project surfaces', () => {
+  assert.strictEqual(checkIgnore('.agents/skills/openspec-new-change/SKILL.md').status, 0,
+    'external OpenSpec skills must be ignored');
+  assert.strictEqual(checkIgnore('.agents/skills/.openspec-target').status, 0,
+    'external OpenSpec installation metadata must be ignored');
+  assert.notStrictEqual(checkIgnore('.agents/plugins/marketplace.json').status, 0,
+    'repo-scoped marketplace metadata must remain trackable');
+  assert.notStrictEqual(checkIgnore('docs/agents/domain.md').status, 0,
+    'project agent documentation must remain trackable');
+  assert.notStrictEqual(checkIgnore('skills/dhpk-openspec-artifact-guard/SKILL.md').status, 0,
+    'first-party OpenSpec adapter skills must remain trackable');
+  assert.notStrictEqual(checkIgnore('openspec/specs/example/spec.md').status, 0,
+    'accepted OpenSpec specs must remain trackable');
+});
+
 run('openspec-gitignore');

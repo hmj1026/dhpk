@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## 0.45.0 — 2026-08-23 — Add harness receipt verification, agent workflow guidance, and safe release staging
+
+**feat(harness)** — Add a unified cross-platform harness facade with identity-bound receipts and deterministic workflow evidence.
+**docs(agent-guidance)** — Document GitHub issue triage, domain context, and canonical agent guidance for repository workflows.
+
 ## 0.44.0 — 2026-08-21 — Add profile-scoped capability bundles, normalize consumer evidence, and optimize subagent warmstart context
 
 **feat(bundles)** — Add profile-scoped Claude capability bundles for tailored agent and skill exposure.
