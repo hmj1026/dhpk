@@ -1,6 +1,7 @@
 # harness-operation-receipts Specification
 
 ## Purpose
+
 Provide a durable, identity-bound operation receipt that makes workflow phases, retries, evidence readiness, exact checkout provenance, and rollback decisions auditable without treating stale metadata as current runtime proof.
 
 ## Requirements

@@ -1,6 +1,7 @@
 # harness-facade-contract Specification
 
 ## Purpose
+
 Provide one observable command contract for the dhpk workflow so routing, package generation, testing, consumer probing, and release decisions are deterministic, resumable, and consistent across supported host adapters.
 
 ## Requirements
