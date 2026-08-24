@@ -1060,7 +1060,9 @@ function execute(argv = [], {
       ? receipts.reserveOperationKey(resolvedReceiptRoot, operationKey, { taskId, attemptId })
       : null;
     let execution = phaseExecutor(root, parsed, inventory, binding);
-    if (execution && execution.outcome === 'COMPLETE' && binding.dirty) {
+    const postExecutionBinding = resolveSourceBinding(root);
+    const worktreeDirty = binding.dirty || postExecutionBinding.dirty;
+    if (execution && execution.outcome === 'COMPLETE' && worktreeDirty) {
       execution = {
         ...execution,
         outcome: 'NO_SHIP',
@@ -1074,9 +1076,9 @@ function execute(argv = [], {
     const identity = execution.identity && typeof execution.identity === 'object' ? execution.identity : {};
     const receiptIdentitySource = {
       ...identity,
-      targetCommit: binding.targetCommit,
-      targetTree: binding.targetTree,
-      worktree: binding.dirty ? 'DIRTY' : 'CLEAN',
+      targetCommit: postExecutionBinding.targetCommit,
+      targetTree: postExecutionBinding.targetTree,
+      worktree: worktreeDirty ? 'DIRTY' : 'CLEAN',
     };
     const receiptIdentity = Object.fromEntries(
       ['planFingerprint', 'artifactFingerprint', 'surface', 'adapter', 'stage', 'producer',
@@ -1124,9 +1126,9 @@ function execute(argv = [], {
       artifacts: evidenceArtifacts,
       sourceCommit: binding.sourceCommit,
       sourceTree: binding.sourceTree,
-      targetCommit: binding.targetCommit,
-      targetTree: binding.targetTree,
-      worktree: binding.dirty ? 'DIRTY' : 'CLEAN',
+      targetCommit: postExecutionBinding.targetCommit,
+      targetTree: postExecutionBinding.targetTree,
+      worktree: worktreeDirty ? 'DIRTY' : 'CLEAN',
       receiptReference: attempt.path,
       resumeCommand: resumeCommand(argv),
       ...(Array.isArray(execution.requiredSurfaces) ? { requiredSurfaces: execution.requiredSurfaces } : {}),

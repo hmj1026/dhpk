@@ -41,7 +41,7 @@ function git(root, args) {
   return execFileSync('git', args, { cwd: root, encoding: 'utf8' });
 }
 
-function temporaryPackageFixture() {
+function temporaryPackageFixture({ mutateDistribution = false } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-harness-package-fixture-'));
   fs.mkdirSync(path.join(root, 'bin'), { recursive: true });
   fs.mkdirSync(path.join(root, 'manifests'), { recursive: true });
@@ -61,7 +61,7 @@ function temporaryPackageFixture() {
     'root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"',
     'case "${1:-}" in',
     '  harness) shift; exec node "$root/harness-entry.js" "$@" ;;',
-    '  distribution) shift; printf \'{"surface":"agent-plugin","output":"%s"}\\n\' "$root/plugins/dhpk-agent" ;;',
+    `  distribution) shift; ${mutateDistribution ? 'printf \'\\n\' >> "$root/plugins/dhpk-agent/provenance.json"; ' : ''}printf \'{"surface":"agent-plugin","output":"%s"}\\n\' "$root/plugins/dhpk-agent" ;;`,
     '  *) exit 64 ;;',
     'esac',
   ].join('\n') + '\n', { mode: 0o755 });
@@ -653,6 +653,50 @@ test('package provenance keeps generated-input identity separate from final targ
   }
 });
 
+test('generation records post-generation DIRTY binding and blocks a previous-receipt handoff', () => {
+  const root = temporaryPackageFixture({ mutateDistribution: true });
+  const receiptRoot = temporaryReceiptRoot();
+  const provenancePath = path.join(root, 'plugins', 'dhpk-agent', 'provenance.json');
+  const cleanProvenance = fs.readFileSync(provenancePath, 'utf8');
+  try {
+    const generated = invokeAt(root, [
+      'generate',
+      '--surface',
+      'agent-plugin',
+      '--task-id',
+      'facade-post-generation-dirty',
+      '--attempt-id',
+      'generate-attempt',
+      '--json',
+    ], { DHPK_HARNESS_RECEIPT_ROOT: receiptRoot });
+    assert.strictEqual(generated.status, 0, generated.stderr);
+    const generatedPayload = parseSingleJson(generated.stdout);
+    assert.strictEqual(generatedPayload.outcome, 'PASS');
+    assert.strictEqual(generatedPayload.worktree, 'DIRTY');
+    const generatedAttempt = JSON.parse(fs.readFileSync(path.join(generatedPayload.receiptReference, 'attempt.json'), 'utf8'));
+    assert.strictEqual(generatedAttempt.worktree, 'DIRTY');
+
+    fs.writeFileSync(provenancePath, cleanProvenance);
+    const handoff = invokeAt(root, [
+      'verify',
+      '--surface',
+      'agent-plugin',
+      '--task-id',
+      'facade-post-generation-dirty',
+      '--previous-receipt',
+      generatedPayload.receiptReference,
+      '--json',
+    ], { DHPK_HARNESS_RECEIPT_ROOT: receiptRoot });
+    assert.strictEqual(handoff.status, 2);
+    const handoffPayload = parseSingleJson(handoff.stdout);
+    assert.strictEqual(handoffPayload.outcome, 'BLOCKED');
+    assert.match(handoffPayload.diagnostics.join(' '), /clean|dirty|worktree/i);
+  } finally {
+    fs.rmSync(receiptRoot, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('release JSON preserves every required surface result at the public boundary', () => {
   const receiptRoot = temporaryReceiptRoot();
   try {
@@ -747,6 +791,42 @@ test('dirty aggregate receipt cannot promote COMPLETE or omit target identity', 
     assert.strictEqual(invocation.result.outcome, 'NO_SHIP');
     assert.strictEqual(invocation.result.worktree, 'DIRTY');
     const attempt = JSON.parse(fs.readFileSync(path.join(invocation.result.receiptReference, 'attempt.json'), 'utf8'));
+    assert.strictEqual(attempt.worktree, 'DIRTY');
+    assert.strictEqual(attempt.targetCommit, invocation.result.targetCommit);
+    assert.strictEqual(attempt.targetTree, invocation.result.targetTree);
+  } finally {
+    fs.rmSync(receiptRoot, { recursive: true, force: true });
+    fs.rmSync(fixtureRoot, { recursive: true, force: true });
+  }
+});
+
+test('dirty-at-start receipt remains DIRTY when phase execution restores a clean checkout', () => {
+  const receiptRoot = temporaryReceiptRoot();
+  const fixtureRoot = temporaryPackageFixture();
+  const dirtyPath = path.join(fixtureRoot, 'dirty-before-execution.txt');
+  const requiredSurfaces = [
+    'claude-core', 'codex-sync', 'codex-native', 'cursor-sync',
+    'cursor-plugin', 'agent-plugin', 'agy-plugin',
+  ];
+  fs.writeFileSync(dirtyPath, 'dirty before execution\n');
+  try {
+    const invocation = harness.execute(['release', '--task-id', 'facade-dirty-before-clean-after', '--json'], {
+      root: fixtureRoot,
+      env: { ...process.env, DHPK_HARNESS_RECEIPT_ROOT: receiptRoot },
+      phaseExecutor: () => {
+        fs.rmSync(dirtyPath);
+        return {
+          outcome: 'COMPLETE',
+          requiredSurfaces,
+          surfaceResults: requiredSurfaces.map((surface) => ({ surface, status: 'PASS' })),
+        };
+      },
+    });
+    assert.strictEqual(invocation.status, 2);
+    assert.strictEqual(invocation.result.outcome, 'NO_SHIP');
+    assert.strictEqual(invocation.result.worktree, 'DIRTY');
+    const attempt = JSON.parse(fs.readFileSync(path.join(invocation.result.receiptReference, 'attempt.json'), 'utf8'));
+    assert.strictEqual(attempt.outcome, 'NO_SHIP');
     assert.strictEqual(attempt.worktree, 'DIRTY');
     assert.strictEqual(attempt.targetCommit, invocation.result.targetCommit);
     assert.strictEqual(attempt.targetTree, invocation.result.targetTree);
