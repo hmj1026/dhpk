@@ -1,1 +1,1 @@
-{"agents":["./agents/"],"description":"dhpk native Antigravity CLI plugin","name":"dhpk","rules":["./rules/"],"skills":["./skills/"],"version":"0.45.0"}
+{"agents":["./agents/"],"description":"dhpk native Antigravity CLI plugin","name":"dhpk","rules":["./rules/"],"skills":["./skills/"],"version":"0.46.0"}

@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.46.0 — 2026-08-24 — Run consumer probes during release aggregation, isolate Cursor probes with bubblewrap, and bind harness receipts to execution identity
+
+No user-visible changes in this release.
+
 ## 0.45.0 — 2026-08-23 — Add harness receipt verification, agent workflow guidance, and safe release staging
 
 **feat(harness)** — Add a unified cross-platform harness facade with identity-bound receipts and deterministic workflow evidence.
