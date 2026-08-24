@@ -129,13 +129,16 @@ exit 0
 });
 
 test('routes the portable Agent Plugin package through its dedicated probe', () => {
-  const res = runCli({ PATH: NODE_BASH_ONLY_PATH });
+  const res = runCli({ PATH: NODE_BASH_ONLY_PATH, CI: 'true' });
   const stage = JSON.parse(res.stdout);
   const agent = stage.surfaceResults.find((result) => result.surface === 'agent-plugin');
   assert.ok(agent, JSON.stringify(stage));
   assert.notStrictEqual(agent.status, 'NOT_CONFIGURED', JSON.stringify(agent));
   assert.strictEqual(agent.status, 'UNAVAILABLE', JSON.stringify(agent));
-  assert.match(agent.reasons.join('\n'), /Agent Plugin consumer runtime probe|opt-in/i);
+  const agentCommands = agent.commands.map((command) => command.cmd).join('\n');
+  assert.match(agentCommands, /cursor-agent --plugin-dir <agent-package> --mode ask --trust/);
+  assert.strictEqual((agentCommands.match(/--plugin-dir/g) || []).length, 1, agentCommands);
+  assert.match(agent.reasons.join('\n'), /Agent Plugin consumer runtime probe|opt-in|Cursor client tooling/i);
 });
 
 test('selected Agent Plugin evidence reports the portable runtime as unavailable when not executed', () => {

@@ -19,6 +19,10 @@ function write(filePath, content, mode) {
   fs.writeFileSync(filePath, content, mode ? { mode } : undefined);
 }
 
+function writePythonShim(root) {
+  write(path.join(root, 'bin/python3'), '#!/bin/sh\nexec /usr/bin/python3 "$@"\n', 0o755);
+}
+
 function agyPackage(root) {
   const packageRoot = path.join(root, 'plugins/dhpk-agy');
   write(path.join(packageRoot, 'plugin.json'), JSON.stringify({
@@ -251,6 +255,7 @@ test('stubbed agy plugins/agents and bounded runtime probes remain distinct', ()
   try {
     agyPackage(root);
     const hostHome = agySessionHome(root);
+    const stub = writeBwrapStub(root);
     write(path.join(bin, 'agy'), [
       '#!/bin/sh',
       'if [ "$1" = "plugins" ] && [ "$2" = "list" ]; then test ! -e /home/agy/.gemini/oauth_creds.json || exit 96; echo "dhpk 0.39.0"; exit 0; fi',
@@ -266,7 +271,7 @@ test('stubbed agy plugins/agents and bounded runtime probes remain distinct', ()
       'exit 2',
       '',
     ].join('\n'), 0o755);
-    const env = { ...process.env, PATH: `${bin}:/usr/bin:/bin`, DHPK_AGY_HOST_HOME: hostHome };
+    const env = { ...process.env, PATH: `${stub.bin}:/usr/bin:/bin`, DHPK_AGY_HOST_HOME: hostHome };
     const discovery = JSON.parse(validate(root, [], env).stdout).results.find((item) => item.platform === 'agy');
     const discoveryPluginsStatus = discovery.capabilities.find((item) => item.id === 'agy.discovery.plugins').status;
     const discoveryAgentsStatus = discovery.capabilities.find((item) => item.id === 'agy.discovery.agents').status;
@@ -289,6 +294,7 @@ test('isolated AGY authentication failures remain blocked instead of package fai
   try {
     agyPackage(root);
     const hostHome = agySessionHome(root);
+    const stub = writeBwrapStub(root, { runtime: 'auth' });
     write(path.join(bin, 'agy'), [
       '#!/bin/sh',
       'if [ "$1" = "plugins" ] && [ "$2" = "list" ]; then echo "dhpk 0.39.0"; exit 0; fi',
@@ -297,7 +303,7 @@ test('isolated AGY authentication failures remain blocked instead of package fai
       'exit 2',
       '',
     ].join('\n'), 0o755);
-    const env = { ...process.env, PATH: `${bin}:/usr/bin:/bin`, DHPK_AGY_HOST_HOME: hostHome };
+    const env = { ...process.env, PATH: `${stub.bin}:/usr/bin:/bin`, DHPK_AGY_HOST_HOME: hostHome };
     const runtime = JSON.parse(validate(root, ['--agy-runtime-probe'], env).stdout).results.find((item) => item.platform === 'agy');
     const runtimeStatus = runtime.capabilities.find((item) => item.id === 'agy.runtime.subagent').status;
     assert.strictEqual(runtimeStatus, 'BLOCKED', JSON.stringify(runtime));
@@ -343,7 +349,7 @@ test('AGY discovery uses an empty HOME and never shares the network', () => {
     const stub = writeBwrapStub(root);
     const result = validate(root, [], {
       ...process.env,
-      PATH: `${stub.bin}:/home/linuxbrew/.linuxbrew/bin`,
+      PATH: `${stub.bin}:/usr/bin:/bin`,
       DHPK_AGY_HOST_HOME: hostHome,
     });
     assert.ok(result.stdout, `${result.stdout}\n${result.stderr}`);
@@ -370,7 +376,7 @@ test('AGY runtime clones only allowlisted session files at 0600 and shares netwo
     const stub = writeBwrapStub(root);
     const result = validate(root, ['--agy-runtime-probe'], {
       ...process.env,
-      PATH: `${stub.bin}:/home/linuxbrew/.linuxbrew/bin`,
+      PATH: `${stub.bin}:/usr/bin:/bin`,
       DHPK_AGY_HOST_HOME: hostHome,
     });
     assert.ok(result.stdout, `${result.stdout}\n${result.stderr}`);
@@ -412,7 +418,7 @@ test('AGY missing login is BLOCKED with redacted diagnostics', () => {
     const stub = writeBwrapStub(root, { runtime: 'auth' });
     const result = validate(root, ['--agy-runtime-probe'], {
       ...process.env,
-      PATH: `${stub.bin}:/home/linuxbrew/.linuxbrew/bin`,
+      PATH: `${stub.bin}:/usr/bin:/bin`,
       DHPK_AGY_HOST_HOME: hostHome,
     });
     assert.ok(result.stdout, 'BLOCKED is a classified result, not a CLI crash');
@@ -437,7 +443,7 @@ test('AGY missing CLI and sandbox remain UNAVAILABLE', () => {
     fs.rmSync(path.join(cliStub.bin, 'agy'));
     const noCli = validate(missingCliRoot, ['--agy-runtime-probe'], {
       ...process.env,
-      PATH: `${cliStub.bin}:/home/linuxbrew/.linuxbrew/bin`,
+      PATH: `${cliStub.bin}:/usr/bin:/bin`,
     });
     const cliRow = JSON.parse(noCli.stdout).results.find((item) => item.platform === 'agy');
     assert.strictEqual(cliRow.capabilities.find((item) => item.id === 'agy.discovery.plugins').status, 'UNAVAILABLE');
@@ -446,9 +452,10 @@ test('AGY missing CLI and sandbox remain UNAVAILABLE', () => {
 
     agyPackage(missingSandboxRoot);
     write(path.join(missingSandboxRoot, 'bin/agy'), '#!/bin/sh\nexit 0\n', 0o755);
+    writePythonShim(missingSandboxRoot);
     const noSandbox = validate(missingSandboxRoot, ['--agy-runtime-probe'], {
       ...process.env,
-      PATH: `${path.join(missingSandboxRoot, 'bin')}:/home/linuxbrew/.linuxbrew/bin`,
+      PATH: path.join(missingSandboxRoot, 'bin'),
     });
     const sandboxRow = JSON.parse(noSandbox.stdout).results.find((item) => item.platform === 'agy');
     assert.strictEqual(sandboxRow.capabilities.find((item) => item.id === 'agy.discovery.plugins').status, 'UNAVAILABLE');
@@ -474,7 +481,7 @@ test('AGY rejects a symlinked bwrap sandbox before executing the stub', () => {
 
     const result = validate(root, ['--agy-runtime-probe'], {
       ...process.env,
-      PATH: `${bin}:/home/linuxbrew/.linuxbrew/bin`,
+      PATH: `${bin}:/usr/bin:/bin`,
       DHPK_AGY_HOST_HOME: hostHome,
     });
     assert.ok(result.stdout, `${result.stdout}\n${result.stderr}`);

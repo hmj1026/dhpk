@@ -13,8 +13,20 @@ function temp(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 }
 
+function fixtureHome(args) {
+  const packageIndex = args.indexOf('--agent-package');
+  const packageRoot = packageIndex >= 0 ? path.resolve(args[packageIndex + 1]) : null;
+  const home = path.join(packageRoot ? path.dirname(packageRoot) : os.tmpdir(), 'cursor-home');
+  fs.mkdirSync(path.join(home, '.config', 'cursor'), { recursive: true });
+  fs.writeFileSync(path.join(home, '.config', 'cursor', 'auth.json'), '{"token":"fixture"}\n', { mode: 0o600 });
+  return home;
+}
+
 function invoke(args, env = process.env) {
-  return spawnSync(process.execPath, [SCRIPT, ...args], { encoding: 'utf8', env });
+  return spawnSync(process.execPath, [SCRIPT, ...args], {
+    encoding: 'utf8',
+    env: { ...env, HOME: fixtureHome(args) },
+  });
 }
 
 test('Cursor CLI wrapper emits bounded launch-scoped PASS evidence', () => {

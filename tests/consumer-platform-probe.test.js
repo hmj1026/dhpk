@@ -39,6 +39,19 @@ function writeCursorPackage(root) {
   for (const component of ['skills', 'commands', 'agents', 'rules']) fs.mkdirSync(path.join(root, component), { recursive: true });
 }
 
+function writeCursorAuthHome(root) {
+  const home = path.join(root, 'cursor-home');
+  fs.mkdirSync(path.join(home, '.config', 'cursor'), { recursive: true });
+  fs.writeFileSync(path.join(home, '.config', 'cursor', 'auth.json'), '{"token":"fixture"}\n', { mode: 0o600 });
+  return home;
+}
+
+function writeSandboxUnavailable(bin) {
+  for (const name of ['unshare', 'bwrap']) {
+    fs.writeFileSync(path.join(bin, name), '#!/bin/sh\nexit 125\n', { mode: 0o755 });
+  }
+}
+
 test('missing package is BLOCKED without probing a client', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-missing-'));
   try {
@@ -71,6 +84,7 @@ test('agent-plugin runtime probe uses exactly one portable plugin directory', ()
     fs.mkdirSync(bin, { recursive: true });
     fs.mkdirSync(path.join(hostHome, '.config', 'cursor'), { recursive: true });
     fs.writeFileSync(path.join(hostHome, '.config', 'cursor', 'auth.json'), '{"token":"fixture"}\n');
+    writeSandboxUnavailable(bin);
     writeAgentManifest(root);
     fs.mkdirSync(path.join(root, 'skills'), { recursive: true });
     fs.writeFileSync(path.join(bin, 'cursor-agent'), [
@@ -90,12 +104,13 @@ test('agent-plugin runtime probe uses exactly one portable plugin directory', ()
       ...process.env,
       HOME: hostHome,
       PATH: `${bin}${path.delimiter}${process.env.PATH || ''}`,
-      DHPK_CONSUMER_PROBE_ALLOW_UNSANDBOXED_EXECUTION: '1',
     });
-    assert.strictEqual(result.status, 0, result.stdout + result.stderr);
+    assert.strictEqual(result.status, 1, result.stdout + result.stderr);
     const payload = JSON.parse(result.stdout);
-    assert.strictEqual(payload.status, 'PASS', JSON.stringify(payload));
+    assert.strictEqual(payload.status, 'BLOCKED', JSON.stringify(payload));
     assert.strictEqual(payload.surfaceResults[0].surface, 'agent-plugin', JSON.stringify(payload));
+    assert.strictEqual(payload.surfaceResults[0].status, 'BLOCKED', JSON.stringify(payload));
+    assert.strictEqual(payload.network, 'unknown', JSON.stringify(payload));
     assert.strictEqual(
       (payload.commands[0].cmd.match(/--plugin-dir/g) || []).length,
       1,
@@ -122,7 +137,7 @@ test('Cursor probe is explicit UNAVAILABLE in a non-Cursor environment', () => {
   }
 });
 
-test('Cursor --execute uses an isolated profile and package-specific challenge evidence', () => {
+test('Cursor --execute keeps an isolated profile and blocks without a real network sandbox', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-cursor-execute-'));
   const agent = path.join(root, 'dhpk-agent');
   const cursor = path.join(root, 'dhpk-cursor');
@@ -131,6 +146,8 @@ test('Cursor --execute uses an isolated profile and package-specific challenge e
     fs.mkdirSync(agent, { recursive: true });
     fs.mkdirSync(cursor, { recursive: true });
     fs.mkdirSync(bin, { recursive: true });
+    const hostHome = writeCursorAuthHome(root);
+    writeSandboxUnavailable(bin);
     writeAgentManifest(agent);
     writeCursorPackage(cursor);
     fs.writeFileSync(path.join(bin, 'cursor-agent'), [
@@ -148,19 +165,15 @@ test('Cursor --execute uses an isolated profile and package-specific challenge e
     ].join('\n'), { mode: 0o755 });
     const result = runProbe('cursor', cursor, ['--execute', '--version', '1.0.0'], {
       ...process.env,
+      HOME: hostHome,
       PATH: `${bin}${path.delimiter}${process.env.PATH || ''}`,
-      DHPK_CONSUMER_PROBE_ALLOW_UNSANDBOXED_EXECUTION: '1',
     });
-    assert.ok([0, 1].includes(result.status), result.stdout + result.stderr);
+    assert.strictEqual(result.status, 1, result.stdout + result.stderr);
     const payload = JSON.parse(result.stdout);
-    if (payload.status === 'PASS') {
-      assert.strictEqual(payload.network, 'disabled', JSON.stringify(payload));
-      assert.strictEqual(payload.surfaceResults[0].status, 'PASS', JSON.stringify(payload));
-    } else {
-      assert.strictEqual(payload.status, 'BLOCKED', JSON.stringify(payload));
-      assert.strictEqual(payload.network, 'unknown', JSON.stringify(payload));
-      assert.strictEqual(payload.surfaceResults[0].status, 'BLOCKED', JSON.stringify(payload));
-    }
+    assert.strictEqual(payload.status, 'BLOCKED', JSON.stringify(payload));
+    assert.strictEqual(payload.network, 'unknown', JSON.stringify(payload));
+    assert.strictEqual(payload.surfaceResults[0].status, 'BLOCKED', JSON.stringify(payload));
+    assert.ok(payload.session_files.includes('.config/cursor/auth.json'), JSON.stringify(payload));
     assert.ok(payload.commands.some((command) => /cursor-agent/.test(command.cmd)), JSON.stringify(payload));
     assert.match(payload.surfaceResults[0].reasons.join(' '), /challenge|package|network/i);
   } finally {
@@ -177,6 +190,7 @@ test('Cursor --execute falls back to a bwrap network sandbox when unshare is una
     fs.mkdirSync(agent, { recursive: true });
     fs.mkdirSync(cursor, { recursive: true });
     fs.mkdirSync(bin, { recursive: true });
+    const hostHome = writeCursorAuthHome(root);
     writeAgentManifest(agent);
     writeCursorPackage(cursor);
     fs.writeFileSync(path.join(bin, 'unshare'), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
@@ -209,7 +223,7 @@ test('Cursor --execute falls back to a bwrap network sandbox when unshare is una
       '',
     ].join('\n'), { mode: 0o755 });
 
-    const env = { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH || ''}` };
+    const env = { ...process.env, HOME: hostHome, PATH: `${bin}${path.delimiter}${process.env.PATH || ''}` };
     delete env.DHPK_CONSUMER_PROBE_ALLOW_UNSANDBOXED_EXECUTION;
     const result = runProbe('cursor', cursor, ['--execute', '--version', '1.0.0'], env);
     assert.strictEqual(result.status, 0, result.stdout + result.stderr);
@@ -274,6 +288,7 @@ test('Cursor bwrap probes retain timeout bounds and die-with-parent protection',
   try {
     fs.mkdirSync(packageRoot, { recursive: true });
     fs.mkdirSync(bin, { recursive: true });
+    const hostHome = writeCursorAuthHome(root);
     fs.writeFileSync(path.join(bin, 'unshare'), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
     fs.writeFileSync(path.join(bin, 'bwrap'), [
       '#!/usr/bin/env node',
@@ -301,6 +316,7 @@ test('Cursor bwrap probes retain timeout bounds and die-with-parent protection',
       timeoutMs: 50,
       requirePackageChallenge: true,
       networkMode: 'disabled',
+      hostHome,
     });
     assert.strictEqual(probe.status, 'SKIP_INCOMPATIBLE', JSON.stringify(probe));
     assert.strictEqual(probe.timed_out, true, JSON.stringify(probe));
@@ -322,6 +338,20 @@ test('Cursor --execute rejects output that only echoes the smoke prompt', () => 
     fs.mkdirSync(agent, { recursive: true });
     fs.mkdirSync(cursor, { recursive: true });
     fs.mkdirSync(bin, { recursive: true });
+    const hostHome = writeCursorAuthHome(root);
+    fs.writeFileSync(path.join(bin, 'unshare'), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
+    fs.writeFileSync(path.join(bin, 'bwrap'), [
+      '#!/usr/bin/env node',
+      "const cp = require('node:child_process');",
+      'const args = process.argv.slice(2);',
+      "const separator = args.indexOf('--');",
+      'if (separator < 0 || !args[separator + 1]) process.exit(97);',
+      "const result = cp.spawnSync(args[separator + 1], args.slice(separator + 2), { encoding: 'utf8', env: process.env });",
+      'if (result.stdout) process.stdout.write(result.stdout);',
+      'if (result.stderr) process.stderr.write(result.stderr);',
+      'process.exit(result.status === null ? 98 : result.status);',
+      '',
+    ].join('\n'), { mode: 0o755 });
     writeAgentManifest(agent);
     writeCursorPackage(cursor);
     fs.writeFileSync(path.join(bin, 'cursor-agent'), [
@@ -331,6 +361,7 @@ test('Cursor --execute rejects output that only echoes the smoke prompt', () => 
     ].join('\n'), { mode: 0o755 });
     const result = runProbe('cursor', cursor, ['--execute', '--version', '1.0.0'], {
       ...process.env,
+      HOME: hostHome,
       PATH: `${bin}${path.delimiter}${process.env.PATH || ''}`,
     });
     assert.notStrictEqual(result.status, 0, result.stdout + result.stderr);
