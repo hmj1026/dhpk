@@ -862,39 +862,13 @@ function verifyCodexNative(root) {
   return { verdict: VERDICTS.PASS, commands, reasons: [] };
 }
 
-function standardAgentPluginConsumer(version) {
-  const reason = 'standard Agent Plugin has no verified consumer loader; Codex marketplace proof is reserved for codex-native';
-  const surfaceResults = normalizeConsumerEvidence({
-    stage: 'CONSUMER',
-    producer: 'consumer-gate',
-    adapter: { id: 'standard-agent-plugin-loader', version: '1.0.0' },
-    surfaceResults: [{
-      surface: 'agent-plugin',
-      status: 'NOT_CONFIGURED',
-      commands: [],
-      environment: process.env.CI ? 'ci' : 'local',
-      artifacts: version ? [{ path: '<repo-package>/plugin.json', version }] : [],
-      diagnostics: [],
-      reasons: [reason],
-      checkedClaims: ['package-manifest', 'consumer-route'],
-    }],
-  }).surfaceResults;
-  return {
-    status: 'NOT_CONFIGURED',
-    commands: [],
-    reason,
-    diagnostics: [],
-    artifacts: [],
-    surfaceResults,
-  };
-}
-
 function verifyProjectedConsumer(root, platform, version) {
-  if (platform === 'codex') return standardAgentPluginConsumer(version);
-  const packageRoot = path.join(root, 'plugins', 'dhpk-cursor');
+  const agentPlugin = platform === 'agent-plugin' || platform === 'codex';
+  const packageRoot = path.join(root, 'plugins', agentPlugin ? 'dhpk-agent' : 'dhpk-cursor');
   const probe = path.join(root, 'scripts', 'release', 'consumer-platform-probe.js');
-  const probeArgs = [probe, '--platform', platform, '--package-root', packageRoot, '--version', version];
-  if (platform === 'cursor' && (process.env.CI === '1' || process.env.CI === 'true' || process.env.DHPK_HARNESS_ALLOW_REAL_CONSUMER_PROBE === '1')) {
+  const probePlatform = agentPlugin ? 'agent-plugin' : 'cursor';
+  const probeArgs = [probe, '--platform', probePlatform, '--package-root', packageRoot, '--version', version];
+  if ((agentPlugin || platform === 'cursor') && (process.env.CI === '1' || process.env.CI === 'true' || process.env.DHPK_HARNESS_ALLOW_REAL_CONSUMER_PROBE === '1')) {
     probeArgs.push('--execute');
   }
   const res = spawnSync('node', probeArgs, {
@@ -905,7 +879,7 @@ function verifyProjectedConsumer(root, platform, version) {
   try { payload = JSON.parse(res.stdout || '{}'); } catch (_) {
     payload = { status: 'FAIL', reason: `consumer probe emitted invalid JSON (exit ${res.status})` };
   }
-  const surface = platform === 'codex' ? 'agent-plugin' : 'cursor-plugin';
+  const surface = agentPlugin ? 'agent-plugin' : 'cursor-plugin';
   const childFailure = res.status !== 0 || payload.normalizationError;
   const expectedFailureStatus = ['FAIL', 'BLOCKED'].includes(payload.status);
   const forcedChildFailure = childFailure && !expectedFailureStatus;
@@ -982,7 +956,7 @@ function runGate(args) {
   const native = selectedOrAll('codex-native') ? verifyCodexNative(args.root) : null;
   const cursorSync = selectedOrAll('cursor-sync') ? verifyCursorSync(args.root, args.version) : null;
   const projectedCodex = selectedOrAll('agent-plugin')
-    ? verifyProjectedConsumer(args.root, 'codex', args.version)
+    ? verifyProjectedConsumer(args.root, 'agent-plugin', args.version)
     : null;
   const projectedCursor = selectedOrAll('cursor-plugin')
     ? verifyProjectedConsumer(args.root, 'cursor', args.version)

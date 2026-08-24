@@ -88,24 +88,36 @@ The harness SHALL delegate projection selection/materialization to the canonical
 
 ### Requirement: Release aggregation requires required consumer evidence
 
-The release phase SHALL retain independent evidence rows for the seven canonical Q239 surface IDs: `claude-core`, `codex-sync`, `codex-native`, `cursor-sync`, `cursor-plugin`, `agent-plugin`, and `agy-plugin`. The inventory platform matrix SHALL expose an explicit `required_surfaces` list containing those IDs, and a full-release plan SHALL copy and identity-check that list; no implicit directory discovery or adapter default may add or remove a required row. If the inventory list is absent, incomplete, duplicated, or names a surface without a matching projection contract, preflight SHALL return `BLOCKED` and no full-release result may be emitted. A scoped non-full-release plan MAY select a subset, but its result SHALL identify the scope and MUST NOT claim full-platform `COMPLETE`. Structural/package PASS SHALL NOT promote a surface to runtime PASS. Required consumer `NOT_RUN` or `UNAVAILABLE` SHALL produce a non-complete release outcome, required consumer FAIL SHALL produce an unhealthy/non-ship outcome, and only all required consumer PASS results SHALL produce `COMPLETE`.
+The release phase SHALL retain independent evidence rows for the seven canonical Q239 surface IDs: `claude-core`, `codex-sync`, `codex-native`, `cursor-sync`, `cursor-plugin`, `agent-plugin`, and `agy-plugin`. The inventory platform matrix SHALL expose an explicit `required_surfaces` list containing those IDs, and a full-release plan SHALL copy and identity-check that list; no implicit directory discovery or adapter default may add or remove a required row. If the inventory list is absent, incomplete, duplicated, or names a surface without a matching projection contract, preflight SHALL return `BLOCKED` and no full-release result may be emitted. A scoped non-full-release plan MAY select a subset, but its result SHALL identify the scope and MUST NOT claim full-platform `COMPLETE`. Structural/package PASS SHALL NOT promote a surface to runtime PASS.
+
+The inventory platform matrix SHALL also expose an explicit `required_runtime_surfaces` list that is an ordered subset of `required_surfaces`. A full-release `COMPLETE` outcome SHALL require fresh matching consumer-runtime PASS evidence for every ID in `required_runtime_surfaces`. `required_runtime_surfaces` SHALL include `claude-core`, `codex-sync`, `codex-native`, `cursor-plugin`, `agent-plugin`, and `agy-plugin`, and SHALL NOT include `cursor-sync`. Installer `NOT_RUN` on the `cursor-sync` identity row MUST NOT by itself produce `NO_SHIP` or block `COMPLETE`. `FAIL` on the `cursor-sync` installer path SHALL remain unhealthy and MUST NOT produce `COMPLETE`. Required-runtime consumer `NOT_RUN` or `UNAVAILABLE` SHALL produce a non-complete release outcome, required-runtime consumer FAIL SHALL produce an unhealthy/non-ship outcome, and only all required-runtime consumer PASS results SHALL produce `COMPLETE`.
 
 #### Scenario: One required surface is unavailable
 
 - **WHEN** source and package gates pass but one required consumer probe returns `UNAVAILABLE`
 - **THEN** the release result remains non-complete and records the affected surface and resume evidence
 
-#### Scenario: All required surfaces pass
+#### Scenario: All required runtime surfaces pass
 
-- **WHEN** source, package, and every required consumer row have fresh matching PASS evidence
-- **THEN** the release result records `COMPLETE` and retains the independent per-surface evidence
+- **WHEN** source, package, and every required-runtime consumer row have fresh matching PASS evidence, and `cursor-sync` is installer `NOT_RUN` rather than `FAIL`
+- **THEN** the release result records `COMPLETE` and retains the independent per-surface evidence including the `cursor-sync` identity row
 
 #### Scenario: Required surface list is incomplete
 
 - **WHEN** a full-release plan omits one of the seven canonical surface IDs or names an ID absent from the inventory platform matrix
 - **THEN** preflight rejects the plan as invalid or `BLOCKED` and the release cannot claim `COMPLETE`
 
+#### Scenario: Required runtime surface list is invalid
+
+- **WHEN** the inventory platform matrix does not expose the explicit `required_runtime_surfaces` list, the list is not an ordered subset of `required_surfaces`, or it includes `cursor-sync`
+- **THEN** preflight returns `BLOCKED` and no release result may claim `COMPLETE`
+
+#### Scenario: cursor-sync installer FAIL remains unhealthy
+
+- **WHEN** required-runtime consumer rows are PASS but the `cursor-sync` installer path returns `FAIL`
+- **THEN** the release result is unhealthy/non-ship and does not claim `COMPLETE`
+
 #### Scenario: Inventory required-surface SSOT is missing
 
-- **WHEN** the inventory platform matrix does not expose the explicit `required_surfaces` list or a listed ID lacks a projection contract
+- **WHEN** the inventory platform matrix does not expose the explicit `required_surfaces` or `required_runtime_surfaces` list, or a listed ID lacks a projection contract
 - **THEN** preflight returns `BLOCKED` and does not infer the list from directory contents or adapter defaults

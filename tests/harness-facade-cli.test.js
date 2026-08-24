@@ -709,6 +709,10 @@ test('release JSON preserves every required surface result at the public boundar
       'claude-core', 'codex-sync', 'codex-native', 'cursor-sync',
       'cursor-plugin', 'agent-plugin', 'agy-plugin',
     ]);
+    assert.deepStrictEqual(payload.requiredRuntimeSurfaces, [
+      'claude-core', 'codex-sync', 'codex-native', 'cursor-plugin',
+      'agent-plugin', 'agy-plugin',
+    ]);
     assert.strictEqual(payload.surfaceResults.length, 7);
     assert.deepStrictEqual(
       payload.surfaceResults.map((entry) => entry.surface),
@@ -725,8 +729,30 @@ test('release JSON preserves every required surface result at the public boundar
     const attempt = JSON.parse(fs.readFileSync(path.join(payload.receiptReference, 'attempt.json'), 'utf8'));
     const event = JSON.parse(fs.readFileSync(path.join(payload.receiptReference, 'events', '0001.json'), 'utf8'));
     assert.strictEqual(attempt.outcome, payload.outcome);
+    assert.deepStrictEqual(attempt.requiredRuntimeSurfaces, payload.requiredRuntimeSurfaces);
     assert.strictEqual(attempt.artifacts.length, 7);
     assert.strictEqual(event.artifacts.length, 7);
+  } finally {
+    fs.rmSync(receiptRoot, { recursive: true, force: true });
+  }
+});
+
+test('preflight and plan receipts preserve the required runtime surface list', () => {
+  const receiptRoot = temporaryReceiptRoot();
+  try {
+    for (const phase of ['preflight', 'plan']) {
+      const result = invoke([phase, '--task-id', `facade-${phase}-runtime-list`, '--json'], {
+        DHPK_HARNESS_RECEIPT_ROOT: receiptRoot,
+      });
+      assert.strictEqual(result.status, phase === 'preflight' ? 2 : 0, `${phase}: ${result.stderr}`);
+      const payload = parseSingleJson(result.stdout);
+      assert.deepStrictEqual(payload.requiredRuntimeSurfaces, [
+        'claude-core', 'codex-sync', 'codex-native', 'cursor-plugin',
+        'agent-plugin', 'agy-plugin',
+      ]);
+      const attempt = JSON.parse(fs.readFileSync(path.join(payload.receiptReference, 'attempt.json'), 'utf8'));
+      assert.deepStrictEqual(attempt.requiredRuntimeSurfaces, payload.requiredRuntimeSurfaces);
+    }
   } finally {
     fs.rmSync(receiptRoot, { recursive: true, force: true });
   }
@@ -879,7 +905,7 @@ test('probe facade delegates the Cursor project-local sync route to the consumer
   }
 });
 
-test('standard Agent Plugin remains closed until a verified loader is configured', () => {
+test('standard Agent Plugin rejects Codex marketplace evidence without a portable loader result', () => {
   const root = temporaryProbeFixture({
     surfaceResults: [{
       surface: 'codex-marketplace',
@@ -920,13 +946,13 @@ test('standard Agent Plugin remains closed until a verified loader is configured
       }),
       DHPK_HARNESS_RECEIPT_ROOT: receiptRoot,
     });
-    assert.strictEqual(result.status, 2, result.stderr);
+    assert.strictEqual(result.status, 1, result.stderr);
     const payload = parseSingleJson(result.stdout);
     assert.strictEqual(payload.surfaceResults[0].surface, 'agent-plugin');
-    assert.strictEqual(payload.surfaceResults[0].status, 'NOT_CONFIGURED');
-    assert.strictEqual(payload.surfaceResults[0].producer, 'harness-facade');
-    assert.strictEqual(payload.surfaceResults[0].adapter.id, 'not-configured');
-    assert.match(payload.surfaceResults[0].reasons.join('\n'), /standard Agent Plugin|verified loader|Codex marketplace/i);
+    assert.strictEqual(payload.surfaceResults[0].status, 'FAIL');
+    assert.strictEqual(payload.surfaceResults[0].producer, 'consumer-platform-probe');
+    assert.strictEqual(payload.surfaceResults[0].adapter.id, 'consumer-platform-probe');
+    assert.match(payload.surfaceResults[0].reasons.join('\n'), /unexpected surface|codex-marketplace/i);
   } finally {
     fs.rmSync(receiptRoot, { recursive: true, force: true });
     fs.rmSync(root, { recursive: true, force: true });

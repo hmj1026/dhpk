@@ -224,6 +224,16 @@ node scripts/ci/verify-platform-packages.js
 These checks prove package shape, containment, deterministic fingerprints, and
 provenance. They do not prove Codex or Cursor runtime discovery.
 
+For Cursor consumer-runtime evidence, use the `cursor-agent` CLI only. The
+portable Agent Plugin route is a single plugin directory:
+
+```bash
+cursor-agent --plugin-dir <agent-package> --mode ask --trust -p <smoke-prompt> --output-format json
+```
+
+Do not add a Cursor-native directory, Codex marketplace command, or
+agent-plugins.org argument to this portable route.
+
 ## Cursor standard Agent Plugin
 
 Prerequisites: a Cursor desktop client with the local plugin loader and a
@@ -239,6 +249,9 @@ Cursor can consume `plugins/dhpk-agent/` for portable skills and optional MCP:
 Record the Cursor version and probe output. Without a supported local loader or
 CLI, keep the result `UNAVAILABLE`/`BLOCKED`; never claim native rules,
 commands, agents, or hooks from this package.
+Cursor desktop GUI, **Customize → Plugins**, the desktop `cursor` binary, and
+project-local `.cursor/` files are separate installation paths and are not
+`cursor-agent` runtime proof.
 
 ## Cursor CLI (launch-scoped probe)
 
@@ -252,9 +265,10 @@ is experimental/conditional until a versioned consumer probe succeeds. Its
 Do not describe `cursor-agent plugin marketplace add` as an installation of
 dhpk; it only adds or updates a marketplace index.
 
-Prerequisites: a recorded `cursor-agent --version`, a logged-in Cursor CLI (or
-an API key), and both dhpk packages available locally. Check authentication
-before the probe:
+Prerequisites: a recorded `cursor-agent --version`, an already logged-in
+Cursor CLI session, and both dhpk packages available locally. API-key-only
+authentication is not consumer-runtime proof. Check authentication before the
+probe:
 
 ```bash
 cursor-agent --version
@@ -286,6 +300,17 @@ cursor-agent \
   --output-format json
 ```
 
+The portable Agent Plugin probe uses exactly one directory:
+
+```bash
+cursor-agent \
+  --plugin-dir <agent-package> \
+  --mode ask \
+  --trust \
+  -p <smoke-prompt> \
+  --output-format json
+```
+
 The wrapper also passes `--trust` so a launch-scoped probe does not wait for
 an interactive workspace-confirmation prompt, and it ignores stdin so the
 child does not inherit a caller TTY. Do not paste the equivalent `cursor-agent`
@@ -293,9 +318,14 @@ argv into an interactive shell if you need the same hang-free evidence.
 
 Record the exact CLI version, authentication status, package paths, and probe
 output. A successful package validator proves structure and provenance only;
-runtime `PASS` requires the CLI or Cursor UI to discover the projected content;
+runtime `PASS` requires the logged-in `cursor-agent` CLI to discover the projected content;
 until then keep the CLI route `NOT_RUN` or `BLOCKED`. If the CLI reports
 `Authentication required`, the evidence is `BLOCKED` until login is completed.
+If `cursor-agent` is missing, record `UNAVAILABLE`; the desktop `cursor`
+binary, GUI discovery, and project-local `.cursor/` installer are not a
+substitute. The `cursor-sync` installer identity row is expected to be
+`NOT_RUN` when no installer runtime was executed; that state is not a Cursor
+consumer-runtime PASS.
 The probe enforces a 5-minute timeout ceiling and a 4 MiB output ceiling even
 when larger values are requested.
 If the wrapper reports `SKIP_INCOMPATIBLE` with `timed_out: true` and
@@ -308,8 +338,10 @@ redacted diagnostic and rerun only with another finite limit.
 The wrapper also blocks an empty, invalid, or capability-negative response;
 only a response containing the requested dhpk skills, commands, agents, and
 rules evidence can be recorded as a completed probe.
-If the installed CLI has no `--plugin-dir`, record `UNAVAILABLE` and use the
-Cursor UI/local-plugin route instead.
+If the installed CLI has no `--plugin-dir`, record `UNAVAILABLE`. Cursor
+desktop GUI, Customize → Plugins, the desktop `cursor` binary, and
+project-local `.cursor/` installation remain setup or installer evidence only;
+they do not substitute for logged-in `cursor-agent` runtime proof.
 
 For a persistent local setup for Cursor desktop, use symlinks or copies under
 `~/.cursor/plugins/local/`. The CLI probe still passes these paths explicitly;
@@ -496,6 +528,15 @@ agy --version
 agy plugins list
 agy agents
 ```
+
+AGY runtime prerequisites are an `agy` CLI, the currently supported `bwrap`
+POSIX sandbox backend, and an explicitly supplied `DHPK_AGY_HOST_HOME` that
+contains one of the allowlisted login files. The runtime probe clones only
+those files into a disposable HOME, mounts the package read-only, and enables
+network sharing only for the runtime invocation. Missing login is `BLOCKED`;
+missing `agy` or `bwrap` is `UNAVAILABLE`; runtime is `NOT_RUN` unless
+`--agy-runtime-probe` is explicitly used. Runtime diagnostics are bounded and
+redacted, and no host credential contents are recorded.
 
 `agy plugins list` reports import records only. A native receipt-owned package
 at `~/.gemini/config/plugins/dhpk` is discovered by isolated `agy agents`, not

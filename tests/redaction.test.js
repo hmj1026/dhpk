@@ -31,4 +31,18 @@ test('redacts JSON-shaped quoted secret keys', () => {
   assert.doesNotMatch(output, /JSON_SECRET_MARKER/);
 });
 
+test('redacts Cursor session token field names', () => {
+  const marker = 'CURSOR_SESSION_SECRET_MARKER_SHOULD_NOT_LEAK_123456789';
+  const output = redactSensitiveText(JSON.stringify({
+    accessToken: marker,
+    refreshToken: marker,
+    oauthToken: marker,
+    token: marker,
+  }));
+  assert.doesNotMatch(output, new RegExp(marker));
+  assert.match(output, /accessToken:\s*<redacted>/i);
+  assert.match(output, /refreshToken:\s*<redacted>/i);
+  assert.match(output, /oauthToken:\s*<redacted>/i);
+});
+
 run('redaction');

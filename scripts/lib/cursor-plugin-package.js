@@ -31,6 +31,7 @@ const {
   cursorDocumentDestinationName,
   retainsClaudePluginRoot,
 } = require('./cursor-harness-adapt');
+const { cloneCursorSessionFiles } = require('./cursor-session-home');
 
 const GENERATOR_VERSION = '1.0.0';
 const DEFAULT_CURSOR_PROBE_TIMEOUT_MS = 30_000;
@@ -1350,6 +1351,11 @@ function probeDiagnostic(result) {
   return output ? redactSensitiveText(output, { maxLength: CURSOR_PROBE_DIAGNOSTIC_MAX_LENGTH }) : null;
 }
 
+function cursorAuthenticationRequired(result) {
+  const output = `${result && result.stdout ? result.stdout : ''}\n${result && result.stderr ? result.stderr : ''}`;
+  return /authentication required|login required|not logged in|please log in|unauthenticated/i.test(output);
+}
+
 function terminateProbeGroup(result) {
   if (process.platform === 'win32' || !result || !result.pid) return;
   try { process.kill(-result.pid, 'SIGTERM'); } catch (_) { /* child group already exited */ }
@@ -1367,7 +1373,10 @@ function cursorProbeEnvironment(packageRoot, { probeHome } = {}) {
   env.USERPROFILE = home;
   env.APPDATA = path.join(home, 'AppData', 'Roaming');
   env.LOCALAPPDATA = path.join(home, 'AppData', 'Local');
-  env.XDG_CONFIG_HOME = path.join(home, 'config');
+  // Session cloning uses the standard HOME-relative `.config/cursor` path.
+  // Keep XDG_CONFIG_HOME aligned with that directory so XDG-aware clients
+  // observe the same allowlisted login without widening the copied surface.
+  env.XDG_CONFIG_HOME = path.join(home, '.config');
   env.XDG_DATA_HOME = path.join(home, 'data');
   env.XDG_CACHE_HOME = path.join(home, 'cache');
   env.CURSOR_PLUGIN_ROOT = path.resolve(packageRoot);
@@ -1470,9 +1479,13 @@ function runCursorConsumerProbe({
   requireOutput = false,
   requireJson = false,
   requireDiscovery = false,
+  requiredDiscoveryCapabilities = null,
+  requiredLoaderComponents = null,
   requirePackageChallenge = false,
+  allowUnauthenticatedFixture = false,
   networkMode = 'unrestricted',
   cwd = null,
+  hostHome = process.env.HOME,
 } = {}) {
   // The release consumer-platform route sets requirePackageChallenge=true.
   // The legacy cursor-agent-probe wrapper remains launch-scoped and
@@ -1486,9 +1499,12 @@ function runCursorConsumerProbe({
       network: 'unknown',
     };
   }
-  const client = executable || findExecutable(['cursor-agent', 'cursor'], pathValue);
-  if (!client) return { surface: 'cursor-plugin', status: 'UNAVAILABLE', reason: 'Cursor client tooling (cursor-agent/cursor) is not available on PATH', packageRoot };
+  const client = executable || findExecutable(['cursor-agent'], pathValue);
+  if (!client) return { surface: 'cursor-plugin', status: 'UNAVAILABLE', reason: 'Cursor client tooling (cursor-agent) is not available on PATH', packageRoot };
   if (!path.isAbsolute(client)) return { surface: 'cursor-plugin', status: 'UNAVAILABLE', reason: 'Cursor client executable must resolve to an absolute path', packageRoot, executable: client };
+  if (/^cursor(?:\.exe)?$/i.test(path.basename(client))) {
+    return { surface: 'cursor-plugin', status: 'UNAVAILABLE', reason: 'Desktop cursor binary is not a cursor-agent consumer runtime', packageRoot, executable: client };
+  }
   if (!Array.isArray(args)) return { surface: 'cursor-plugin', status: 'NOT_RUN', reason: 'Cursor executable exists but no supported local plugin-loader command is configured', packageRoot, executable: client };
   const probeTimeoutMs = positiveProbeLimit(timeoutMs, DEFAULT_CURSOR_PROBE_TIMEOUT_MS, 'timeoutMs', MAX_CURSOR_PROBE_TIMEOUT_MS);
   const probeMaxOutputBytes = positiveProbeLimit(maxOutputBytes, DEFAULT_CURSOR_PROBE_MAX_OUTPUT_BYTES, 'maxOutputBytes', MAX_CURSOR_PROBE_OUTPUT_BYTES);
@@ -1497,8 +1513,19 @@ function runCursorConsumerProbe({
     packageFingerprint: fingerprintDir(packageRoot),
   } : null;
   const probeHome = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-home-'));
+  let session = { copiedFiles: [] };
   let loaderProbe = null;
   try {
+    session = cloneCursorSessionFiles({ hostHome, probeHome });
+    if (requirePackageChallenge && !session.copiedFiles.includes('.config/cursor/auth.json')) {
+      return {
+        surface: 'cursor-plugin',
+        status: 'BLOCKED',
+        reason: 'Cursor consumer login session is unavailable; auth.json is required',
+        network: networkMode === 'disabled' ? 'unknown' : networkMode,
+        session_files: session.copiedFiles,
+      };
+    }
     loaderProbe = challenge ? packageLoaderProbe(packageRoot, challenge) : null;
     const probeArgs = [...args].map((arg) => {
       if (!loaderProbe || typeof arg !== 'string') return arg;
@@ -1557,6 +1584,7 @@ function runCursorConsumerProbe({
       network: result.network || networkMode,
       timeout_ms: probeTimeoutMs,
       output_limit_bytes: probeMaxOutputBytes,
+      session_files: session.copiedFiles,
       exit_code: result.status === undefined ? null : result.status,
       signal: result.signal || null,
       diagnostic: probeDiagnostic(result),
@@ -1594,7 +1622,18 @@ function runCursorConsumerProbe({
       };
     }
     if (result.error) return { surface: 'cursor-plugin', status: 'UNAVAILABLE', reason: `Cursor consumer invocation unavailable: ${result.error.message}`, ...evidence };
-    if (result.status !== 0) return { surface: 'cursor-plugin', status: 'FAIL', reason: `Cursor consumer exited with status ${result.status}`, exit_code: result.status, ...evidence };
+    if (requirePackageChallenge && !session.copiedFiles.includes('.config/cursor/auth.json')) {
+      return { surface: 'cursor-plugin', status: 'BLOCKED', reason: 'Cursor consumer login session is unavailable; auth.json is required', ...evidence };
+    }
+    if (!allowUnauthenticatedFixture && session.copiedFiles.length === 0) {
+      return { surface: 'cursor-plugin', status: 'BLOCKED', reason: 'Cursor consumer login session is unavailable', ...evidence };
+    }
+    if (result.status !== 0) {
+      if (cursorAuthenticationRequired(result)) {
+        return { surface: 'cursor-plugin', status: 'BLOCKED', reason: 'Cursor consumer requires authentication; use an already-logged-in session', exit_code: result.status, ...evidence };
+      }
+      return { surface: 'cursor-plugin', status: 'FAIL', reason: `Cursor consumer exited with status ${result.status}`, exit_code: result.status, ...evidence };
+    }
     const output = `${result.stdout || ''}\n${result.stderr || ''}`.trim();
     if (requireOutput && !output) {
       return { surface: 'cursor-plugin', status: 'BLOCKED', reason: 'Cursor consumer returned success without a response payload', output_missing: true, ...evidence };
@@ -1607,7 +1646,9 @@ function runCursorConsumerProbe({
     }
     if (requireDiscovery) {
       const normalized = output.toLowerCase();
-      const requestedCapabilities = ['dhpk', 'skill', 'command', 'agent', 'rule'];
+      const requestedCapabilities = Array.isArray(requiredDiscoveryCapabilities) && requiredDiscoveryCapabilities.length > 0
+        ? requiredDiscoveryCapabilities.map((value) => String(value).toLowerCase())
+        : ['dhpk', 'skill', 'command', 'agent', 'rule'];
       const negative = NEGATIVE_CURSOR_DISCOVERY_PATTERNS.some((pattern) => pattern.test(output));
       const probe = parsed && parsed.dhpkProbe;
       let attestation = null;
@@ -1622,8 +1663,11 @@ function runCursorConsumerProbe({
         || attestation.challenge !== challenge.challenge
         || attestation.packageFingerprint !== challenge.packageFingerprint
         || attestation.loaded !== true);
+      const loaderComponents = Array.isArray(requiredLoaderComponents) && requiredLoaderComponents.length > 0
+        ? requiredLoaderComponents.map((value) => String(value).toLowerCase())
+        : requestedCapabilities.filter((term) => term !== 'dhpk').map((term) => `${term}s`);
       const missingComponents = requirePackageChallenge
-        ? requestedCapabilities.filter((term) => term !== 'dhpk' && !attestedComponents.includes(`${term}s`))
+        ? loaderComponents.filter((component) => !attestedComponents.includes(component))
         : [];
       if (negative || missingChallenge || missingComponents.length > 0 || !requestedCapabilities.every((term) => normalized.includes(term))) {
         return {

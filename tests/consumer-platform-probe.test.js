@@ -63,6 +63,50 @@ test('present package reports UNAVAILABLE or NOT_RUN, never static PASS, when co
   }
 });
 
+test('agent-plugin runtime probe uses exactly one portable plugin directory', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-agent-plugin-'));
+  const hostHome = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-agent-home-'));
+  const bin = path.join(root, 'bin');
+  try {
+    fs.mkdirSync(bin, { recursive: true });
+    fs.mkdirSync(path.join(hostHome, '.config', 'cursor'), { recursive: true });
+    fs.writeFileSync(path.join(hostHome, '.config', 'cursor', 'auth.json'), '{"token":"fixture"}\n');
+    writeAgentManifest(root);
+    fs.mkdirSync(path.join(root, 'skills'), { recursive: true });
+    fs.writeFileSync(path.join(bin, 'cursor-agent'), [
+      '#!/usr/bin/env node',
+      "const fs = require('node:fs');",
+      "const path = require('node:path');",
+      "const cp = require('node:child_process');",
+      "const args = process.argv.slice(2);",
+      "const roots = args.filter((arg, index) => args[index - 1] === '--plugin-dir');",
+      "for (const candidate of roots) { try { const hooks = JSON.parse(fs.readFileSync(path.join(candidate, 'hooks', 'hooks.json'), 'utf8')); for (const hook of hooks.hooks.sessionStart || []) cp.execFileSync(path.resolve(candidate, hook.command), [], { cwd: candidate }); } catch (_) {} }",
+      "const rootWithAttestation = roots.find((candidate) => fs.existsSync(path.join(candidate, 'hooks', '.dhpk-probe-attestation.json')));",
+      "const attestation = JSON.parse(fs.readFileSync(path.join(rootWithAttestation, 'hooks', '.dhpk-probe-attestation.json'), 'utf8'));",
+      "process.stdout.write(JSON.stringify({ response: 'dhpk skills commands agents rules were discovered.', dhpkProbe: { challenge: attestation.challenge, packageFingerprint: attestation.packageFingerprint, loaded: true, components: attestation.components } }));",
+      '',
+    ].join('\n'), { mode: 0o755 });
+    const result = runProbe('agent-plugin', root, ['--execute', '--version', '1.0.0'], {
+      ...process.env,
+      HOME: hostHome,
+      PATH: `${bin}${path.delimiter}${process.env.PATH || ''}`,
+      DHPK_CONSUMER_PROBE_ALLOW_UNSANDBOXED_EXECUTION: '1',
+    });
+    assert.strictEqual(result.status, 0, result.stdout + result.stderr);
+    const payload = JSON.parse(result.stdout);
+    assert.strictEqual(payload.status, 'PASS', JSON.stringify(payload));
+    assert.strictEqual(payload.surfaceResults[0].surface, 'agent-plugin', JSON.stringify(payload));
+    assert.strictEqual(
+      (payload.commands[0].cmd.match(/--plugin-dir/g) || []).length,
+      1,
+      JSON.stringify(payload),
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(hostHome, { recursive: true, force: true });
+  }
+});
+
 test('Cursor probe is explicit UNAVAILABLE in a non-Cursor environment', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-cursor-'));
   try {

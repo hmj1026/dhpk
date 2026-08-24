@@ -23,11 +23,20 @@ const REQUIRED = [
   'agent-plugin',
   'agy-plugin',
 ];
+const REQUIRED_RUNTIME = [
+  'claude-core',
+  'codex-sync',
+  'codex-native',
+  'cursor-plugin',
+  'agent-plugin',
+  'agy-plugin',
+];
 
 function matrix(overrides = {}) {
   return {
     schema: 'dhpk.platform-capability-matrix.v1',
     required_surfaces: [...REQUIRED],
+    required_runtime_surfaces: [...REQUIRED_RUNTIME],
     entries: [],
     ...overrides,
   };
@@ -53,8 +62,10 @@ test('checked-in inventory owns the seven canonical required surfaces and projec
   assert.deepStrictEqual(REQUIRED_SURFACES, REQUIRED);
   const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests/distribution-inventory.json'), 'utf8'));
   assert.deepStrictEqual(inventory.platform_matrix.required_surfaces, REQUIRED);
+  assert.deepStrictEqual(inventory.platform_matrix.required_runtime_surfaces, REQUIRED_RUNTIME);
   const result = validateRequiredSurfacePlan({ inventory, fullRelease: true });
   assert.deepStrictEqual(result.errors, [], result.errors.join('\n'));
+  assert.deepStrictEqual(result.requiredRuntimeSurfaces, REQUIRED_RUNTIME);
 });
 
 test('platform matrix rejects missing, duplicate, unknown, and reordered required lists', () => {
@@ -117,6 +128,22 @@ test('required surfaces must have matching projection contracts without upgradin
   assert.strictEqual(structuralPass.status, 'PASS');
   assert.strictEqual(runtimeUnavailable.status, 'UNAVAILABLE');
   assert.notStrictEqual(structuralPass.status, runtimeUnavailable.status);
+});
+
+test('required runtime surfaces are an ordered subset and exclude cursor-sync', () => {
+  for (const required_runtime_surfaces of [
+    undefined,
+    [...REQUIRED_RUNTIME.slice(0, -1), 'agy-plugin', 'agy-plugin'],
+    ['cursor-sync', ...REQUIRED_RUNTIME.slice(1)],
+    ['agent-plugin', 'codex-native', 'codex-sync', 'claude-core', 'cursor-plugin', 'agy-plugin'],
+    [...REQUIRED_RUNTIME.slice(0, -1)],
+  ]) {
+    const result = validatePlatformCapabilityMatrix(matrix({ required_runtime_surfaces }), {
+      requireRequiredSurfaces: true,
+    });
+    assert.ok(result.errors.length > 0, JSON.stringify(required_runtime_surfaces));
+    assert.match(result.errors.join('\n'), /required_runtime_surfaces|duplicate|cursor-sync|canonical|order|include/i);
+  }
 });
 
 run('harness-platform-matrix');

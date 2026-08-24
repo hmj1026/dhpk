@@ -292,6 +292,11 @@ function runDistribution(root, parsed, binding) {
 }
 
 const PROBE_ADAPTERS = Object.freeze({
+  'agent-plugin': Object.freeze({
+    platform: 'agent-plugin',
+    consumerSurface: 'agent-plugin',
+    packagePath: ['plugins', 'dhpk-agent'],
+  }),
   'cursor-plugin': Object.freeze({
     platform: 'cursor',
     consumerSurface: 'cursor-plugin',
@@ -317,7 +322,7 @@ const PROBE_STATUSES = new Set([
 ]);
 
 function probePackageVersion(packageRoot, platform) {
-  const candidates = platform === 'codex'
+  const candidates = platform === 'codex' || platform === 'agent-plugin'
     ? ['plugin.json', '.codex-plugin/plugin.json']
     : ['.cursor-plugin/plugin.json', 'plugin.json'];
   for (const relative of candidates) {
@@ -806,7 +811,10 @@ function normalizeReleaseProbeResult(root, surface, execution) {
   return row;
 }
 
-function runReleaseProbes(root, requiredSurfaces, probeExecutor = runConsumerProbe) {
+function runReleaseProbes(root, requiredSurfaces, requiredRuntimeSurfacesOrExecutor, probeExecutor = runConsumerProbe) {
+  const legacyExecutorCall = typeof requiredRuntimeSurfacesOrExecutor === 'function';
+  const requiredRuntimeSurfaces = legacyExecutorCall ? undefined : requiredRuntimeSurfacesOrExecutor;
+  if (legacyExecutorCall) probeExecutor = requiredRuntimeSurfacesOrExecutor;
   const surfaceResults = requiredSurfaces.map((surface) => {
     let execution;
     try {
@@ -818,6 +826,7 @@ function runReleaseProbes(root, requiredSurfaces, probeExecutor = runConsumerPro
   });
   const aggregate = aggregateRequiredSurfaces({
     requiredSurfaces,
+    requiredRuntimeSurfaces,
     surfaceResults,
     fullRelease: true,
   });
@@ -838,7 +847,7 @@ function phaseExecution(root, parsed, inventory, binding) {
   if (parsed.phase === 'release') {
     const required = inventoryApi.validateRequiredSurfacePlan({ inventory, fullRelease: true });
     if (required.errors.length > 0) return { outcome: 'BLOCKED', diagnostics: required.errors.slice(0, 20) };
-    return runReleaseProbes(root, required.requiredSurfaces);
+    return runReleaseProbes(root, required.requiredSurfaces, required.requiredRuntimeSurfaces);
   }
   if (parsed.phase === 'preflight') {
     const errors = [];
@@ -847,15 +856,27 @@ function phaseExecution(root, parsed, inventory, binding) {
     errors.push(...v2.errors);
     const required = inventoryApi.validateRequiredSurfacePlan({ inventory, fullRelease: true });
     errors.push(...required.errors);
+    const identity = {
+      ...(Array.isArray(required.requiredSurfaces) ? { requiredSurfaces: required.requiredSurfaces } : {}),
+      ...(Array.isArray(required.requiredRuntimeSurfaces) ? { requiredRuntimeSurfaces: required.requiredRuntimeSurfaces } : {}),
+    };
     return errors.length > 0
-      ? { outcome: 'BLOCKED', diagnostics: errors.slice(0, 20) }
-      : { outcome: 'PASS', diagnostics: [], requiredSurfaces: required.requiredSurfaces };
+      ? { outcome: 'BLOCKED', diagnostics: errors.slice(0, 20), ...identity }
+      : { outcome: 'PASS', diagnostics: [], ...identity };
   }
   if (parsed.phase === 'plan') {
     const required = inventoryApi.validateRequiredSurfacePlan({ inventory, fullRelease: true });
     return required.errors.length > 0
       ? { outcome: 'BLOCKED', diagnostics: required.errors.slice(0, 20) }
-      : { outcome: 'PASS', requiredSurfaces: required.requiredSurfaces, planFingerprint: `sha256:${receipts.sha256(JSON.stringify(required.requiredSurfaces))}` };
+      : {
+        outcome: 'PASS',
+        requiredSurfaces: required.requiredSurfaces,
+        requiredRuntimeSurfaces: required.requiredRuntimeSurfaces,
+        planFingerprint: `sha256:${receipts.sha256(JSON.stringify({
+          requiredSurfaces: required.requiredSurfaces,
+          requiredRuntimeSurfaces: required.requiredRuntimeSurfaces,
+        }))}`,
+      };
   }
   return { outcome: 'NOT_RUN', diagnostics: [`phase '${parsed.phase}' has no configured adapter`] };
 }
@@ -982,6 +1003,7 @@ function replayAttempt(phase, attempt, parsed) {
     receiptReference: attempt.path,
     resumeCommand: envelope.resumeCommand,
     ...(Array.isArray(envelope.requiredSurfaces) ? { requiredSurfaces: envelope.requiredSurfaces } : {}),
+    ...(Array.isArray(envelope.requiredRuntimeSurfaces) ? { requiredRuntimeSurfaces: envelope.requiredRuntimeSurfaces } : {}),
     ...(Array.isArray(envelope.surfaceResults) ? { surfaceResults: envelope.surfaceResults } : {}),
     ...(envelope.surface ? { surface: envelope.surface } : {}),
     ...(envelope.stage ? { stage: envelope.stage } : {}),
@@ -1103,6 +1125,7 @@ function execute(argv = [], {
       diagnostics: execution.diagnostics || [],
       artifacts: evidenceArtifacts,
       requiredSurfaces: execution.requiredSurfaces || null,
+      requiredRuntimeSurfaces: execution.requiredRuntimeSurfaces || null,
       surfaceResults: execution.surfaceResults || null,
       byteReferences: execution.byteReferences || [],
       lifecyclePhase,
@@ -1132,6 +1155,7 @@ function execute(argv = [], {
       receiptReference: attempt.path,
       resumeCommand: resumeCommand(argv),
       ...(Array.isArray(execution.requiredSurfaces) ? { requiredSurfaces: execution.requiredSurfaces } : {}),
+      ...(Array.isArray(execution.requiredRuntimeSurfaces) ? { requiredRuntimeSurfaces: execution.requiredRuntimeSurfaces } : {}),
       ...(Array.isArray(execution.surfaceResults) ? { surfaceResults: execution.surfaceResults } : {}),
     });
     receipts.appendEvent(attempt, {

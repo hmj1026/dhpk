@@ -355,6 +355,7 @@ test('accepts explicit portable and Cursor surface membership with capability ev
     platform_matrix: {
       schema: 'dhpk.platform-capability-matrix.v1',
       required_surfaces: ['claude-core', 'codex-sync', 'codex-native', 'cursor-sync', 'cursor-plugin', 'agent-plugin', 'agy-plugin'],
+      required_runtime_surfaces: ['claude-core', 'codex-sync', 'codex-native', 'cursor-plugin', 'agent-plugin', 'agy-plugin'],
       entries: [{
         id: 'dhpk.platform.agent-plugin.skills',
         public_name: 'agent-plugin-portable-skills',
