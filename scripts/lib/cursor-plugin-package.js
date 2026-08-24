@@ -1424,18 +1424,39 @@ function packageLoaderProbe(packageRoot, challenge) {
   return { packageRoot: probePackageRoot, attestationPath, challengePath };
 }
 
-function networkSandboxProbe() {
+function verifiedSandboxExecutable(name, pathValue = process.env.PATH) {
+  const candidate = findExecutable([name], pathValue);
+  if (!candidate || !path.isAbsolute(candidate)) return null;
+  try {
+    const lexical = path.resolve(candidate);
+    const lexicalStat = fs.lstatSync(lexical);
+    if (lexicalStat.isSymbolicLink() || !lexicalStat.isFile() || !(lexicalStat.mode & 0o111)) return null;
+    const resolved = fs.realpathSync(lexical);
+    const resolvedStat = fs.statSync(resolved);
+    if (!resolvedStat.isFile() || !(resolvedStat.mode & 0o111)) return null;
+    return resolved;
+  } catch (_) {
+    return null;
+  }
+}
+
+function networkSandboxProbe(pathValue = process.env.PATH) {
   if (process.platform !== 'linux') return false;
-  const unshare = spawnSync('unshare', ['--net', '--', 'true'], {
-    encoding: 'utf8',
-    env: { PATH: process.env.PATH || '/usr/local/bin:/usr/bin:/bin' },
-  });
-  if (!unshare.error && unshare.status === 0) return { command: 'unshare', prefix: ['--net', '--'] };
+  const unshare = verifiedSandboxExecutable('unshare', pathValue);
+  if (unshare) {
+    const result = spawnSync(unshare, ['--net', '--', 'true'], {
+      encoding: 'utf8',
+      env: { PATH: pathValue || '/usr/local/bin:/usr/bin:/bin' },
+    });
+    if (!result.error && result.status === 0) return { command: unshare, prefix: ['--net', '--'] };
+  }
 
   // Some hardened hosts deny unshare(2) while still permitting bubblewrap's
   // user-namespace wrapper. Keep the root read-only and probe the exact
   // network-disabled shape before accepting this backend.
-  const bwrap = spawnSync('bwrap', [
+  const bwrap = verifiedSandboxExecutable('bwrap', pathValue);
+  if (!bwrap) return null;
+  const result = spawnSync(bwrap, [
     '--ro-bind', '/', '/',
     '--dev', '/dev',
     '--proc', '/proc',
@@ -1444,11 +1465,11 @@ function networkSandboxProbe() {
     '--', 'true',
   ], {
     encoding: 'utf8',
-    env: { PATH: process.env.PATH || '/usr/local/bin:/usr/bin:/bin' },
+    env: { PATH: pathValue || '/usr/local/bin:/usr/bin:/bin' },
   });
-  if (!bwrap.error && bwrap.status === 0) {
+  if (!result.error && result.status === 0) {
     return {
-      command: 'bwrap',
+      command: bwrap,
       prefix: ['--ro-bind', '/', '/', '--dev', '/dev', '--proc', '/proc', '--unshare-net', '--die-with-parent'],
     };
   }
@@ -1462,7 +1483,7 @@ function existingAbsolutePaths(values) {
 }
 
 function sandboxInvocation(sandbox, command, args, writablePaths = []) {
-  if (sandbox.command === 'unshare') {
+  if (path.basename(sandbox.command).replace(/\.exe$/i, '') === 'unshare') {
     return [sandbox.command, [...sandbox.prefix, command, ...args]];
   }
   const bindArgs = existingAbsolutePaths(writablePaths).flatMap((directory) => ['--bind', directory, directory]);
@@ -1543,7 +1564,7 @@ function runCursorConsumerProbe({
     };
     let result;
     if (networkMode === 'disabled') {
-      const sandbox = networkSandboxProbe();
+      const sandbox = networkSandboxProbe(pathValue);
       if (!sandbox) {
         // Release promotion requires a technically disabled namespace. The
         // fixture-only override remains available to the legacy launch-scoped

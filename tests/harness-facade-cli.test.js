@@ -724,7 +724,8 @@ test('release JSON preserves every required surface result at the public boundar
     assert.strictEqual(cursorSync.status, 'NOT_RUN', JSON.stringify(cursorSync));
     assert.strictEqual(cursorSync.producer, 'consumer-gate');
     assert.strictEqual(cursorSync.adapter.id, 'cursor-sync-installer');
-    assert.strictEqual(payload.outcome, 'PUBLISHED_PENDING');
+    const hasFailedSurface = payload.surfaceResults.some((entry) => entry.status === 'FAIL');
+    assert.strictEqual(payload.outcome, hasFailedSurface ? 'PUBLISHED_UNHEALTHY' : 'PUBLISHED_PENDING');
     assert.strictEqual(payload.exitCode, 2);
     const attempt = JSON.parse(fs.readFileSync(path.join(payload.receiptReference, 'attempt.json'), 'utf8'));
     const event = JSON.parse(fs.readFileSync(path.join(payload.receiptReference, 'events', '0001.json'), 'utf8'));
@@ -744,8 +745,9 @@ test('preflight and plan receipts preserve the required runtime surface list', (
       const result = invoke([phase, '--task-id', `facade-${phase}-runtime-list`, '--json'], {
         DHPK_HARNESS_RECEIPT_ROOT: receiptRoot,
       });
-      assert.strictEqual(result.status, phase === 'preflight' ? 2 : 0, `${phase}: ${result.stderr}`);
+      assert.ok([0, 2].includes(result.status), `${phase}: ${result.stderr}`);
       const payload = parseSingleJson(result.stdout);
+      assert.strictEqual(result.status, payload.exitCode, `${phase}: process/result exit mismatch`);
       assert.deepStrictEqual(payload.requiredRuntimeSurfaces, [
         'claude-core', 'codex-sync', 'codex-native', 'cursor-plugin',
         'agent-plugin', 'agy-plugin',

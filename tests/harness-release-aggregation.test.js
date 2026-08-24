@@ -85,6 +85,15 @@ test('full release keeps cursor-sync FAIL unhealthy even outside the runtime lis
   assert.strictEqual(result.outcome, 'PUBLISHED_UNHEALTHY');
 });
 
+test('full-release aggregation rejects a non-canonical required runtime subset', () => {
+  assert.throws(() => harnessResult.aggregateRequiredSurfaces({
+    requiredSurfaces: REQUIRED,
+    requiredRuntimeSurfaces: ['claude-core'],
+    surfaceResults: all(),
+    fullRelease: true,
+  }), /runtime|required|canonical/i);
+});
+
 test('release execution invokes each required consumer probe and preserves its evidence', () => {
   const calls = [];
   const result = harness.runReleaseProbes('/tmp/dhpk-release-fixture', REQUIRED, (root, parsed) => {
@@ -123,6 +132,23 @@ test('release execution aggregates the explicit runtime list separately from ide
   assert.strictEqual(result.outcome, 'COMPLETE');
   assert.deepStrictEqual(result.requiredRuntimeSurfaces, REQUIRED_RUNTIME);
   assert.deepStrictEqual(result.surfaceResults.map((entry) => entry.surface), REQUIRED);
+});
+
+test('release execution rejects a non-canonical required runtime subset before COMPLETE', () => {
+  assert.throws(() => harness.runReleaseProbes(
+    '/tmp/dhpk-release-fixture',
+    REQUIRED,
+    ['claude-core'],
+    (root, parsed) => ({
+      outcome: 'PASS',
+      surfaceResults: [{
+        surface: parsed.surface,
+        status: 'PASS',
+        stage: 'CONSUMER',
+        producer: 'fixture-probe',
+      }],
+    }),
+  ), /runtime|required|canonical/i);
 });
 
 test('release execution fails closed when a probe emits malformed consumer evidence', () => {

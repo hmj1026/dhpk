@@ -460,6 +460,35 @@ test('AGY missing CLI and sandbox remain UNAVAILABLE', () => {
   }
 });
 
+test('AGY rejects a symlinked bwrap sandbox before executing the stub', () => {
+  const root = tempRoot('agy-symlinked-bwrap');
+  try {
+    agyPackage(root);
+    const hostHome = agyHostSession(root);
+    const bin = path.join(root, 'bin');
+    const sentinel = path.join(root, 'bwrap-must-not-run');
+    const target = path.join(bin, 'bwrap-target');
+    write(target, `#!/bin/sh\nprintf '%s' executed > ${sentinel}\nexit 0\n`, 0o755);
+    fs.symlinkSync(target, path.join(bin, 'bwrap'));
+    write(path.join(bin, 'agy'), '#!/bin/sh\nexit 0\n', 0o755);
+
+    const result = validate(root, ['--agy-runtime-probe'], {
+      ...process.env,
+      PATH: `${bin}:/home/linuxbrew/.linuxbrew/bin`,
+      DHPK_AGY_HOST_HOME: hostHome,
+    });
+    assert.ok(result.stdout, `${result.stdout}\n${result.stderr}`);
+    assert.ok(!fs.existsSync(sentinel), 'the symlinked bwrap target must never execute');
+    const row = JSON.parse(result.stdout).results.find((item) => item.platform === 'agy');
+    assert.strictEqual(row.capabilities.find((item) => item.id === 'agy.discovery.plugins').status, 'UNAVAILABLE', JSON.stringify(row));
+    assert.strictEqual(row.capabilities.find((item) => item.id === 'agy.discovery.agents').status, 'UNAVAILABLE', JSON.stringify(row));
+    assert.strictEqual(row.capabilities.find((item) => item.id === 'agy.runtime.subagent').status, 'UNAVAILABLE', JSON.stringify(row));
+    assert.ok(['UNAVAILABLE', 'BLOCKED'].includes(row.final_status), JSON.stringify(row));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('AGY sandbox binds the native package at the consumer plugin path', () => {
   const source = fs.readFileSync(path.join(ROOT, 'skills/dhpk-cross-agent-sync/scripts/multi_ai_sync_lib/validation.py'), 'utf8');
   assert.match(

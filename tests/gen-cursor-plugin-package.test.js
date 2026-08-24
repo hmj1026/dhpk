@@ -705,6 +705,60 @@ test('release Cursor probe rejects unrestricted network mode before invoking the
   }
 });
 
+test('Cursor network-disabled probes reject symlinked or non-regular sandbox wrappers', () => {
+  if (process.platform !== 'linux') return;
+  const root = tmpDir('dhpk-cursor-sandbox-trust-');
+  const hostHome = tmpDir('dhpk-cursor-sandbox-host-');
+  const previousPath = process.env.PATH;
+  const cases = [
+    {
+      name: 'symlinked unshare',
+      setup(bin, sentinel) {
+        const target = path.join(bin, 'unshare-target');
+        write(target, `#!/bin/sh\nprintf executed > ${JSON.stringify(sentinel)}\nexit 0\n`, 0o755);
+        fs.symlinkSync(target, path.join(bin, 'unshare'));
+      },
+    },
+    {
+      name: 'non-regular unshare with symlinked bwrap',
+      setup(bin, sentinel) {
+        fs.mkdirSync(path.join(bin, 'unshare'));
+        const target = path.join(bin, 'bwrap-target');
+        write(target, `#!/bin/sh\nprintf executed > ${JSON.stringify(sentinel)}\nexit 0\n`, 0o755);
+        fs.symlinkSync(target, path.join(bin, 'bwrap'));
+      },
+    },
+  ];
+  try {
+    for (const scenario of cases) {
+      const fixture = path.join(root, scenario.name.replace(/[^a-z0-9]+/gi, '-'));
+      const bin = path.join(fixture, 'bin');
+      const sentinel = path.join(fixture, 'sandbox-wrapper-executed');
+      fs.mkdirSync(bin, { recursive: true });
+      scenario.setup(bin, sentinel);
+      process.env.PATH = bin;
+      const probe = runCursorConsumerProbe({
+        packageRoot: fixture,
+        executable: process.execPath,
+        args: ['-e', "process.stdout.write('fixture response')"],
+        pathValue: bin,
+        hostHome,
+        allowUnauthenticatedFixture: true,
+        networkMode: 'disabled',
+        timeoutMs: 500,
+      });
+      assert.ok(['BLOCKED', 'UNAVAILABLE'].includes(probe.status), `${scenario.name}: ${JSON.stringify(probe)}`);
+      assert.notStrictEqual(probe.network, 'disabled', `${scenario.name}: ${JSON.stringify(probe)}`);
+      assert.strictEqual(fs.existsSync(sentinel), false, `${scenario.name} sandbox wrapper was executed`);
+    }
+  } finally {
+    if (previousPath === undefined) delete process.env.PATH;
+    else process.env.PATH = previousPath;
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(hostHome, { recursive: true, force: true });
+  }
+});
+
 test('hung Cursor consumer probes return BLOCKED timeout evidence when they already emitted output', () => {
   const out = tmpDir('dhpk-cursor-consumer-timeout-output-');
   try {

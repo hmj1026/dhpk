@@ -95,6 +95,11 @@ function aggregateRequiredSurfaces({ requiredSurfaces, requiredRuntimeSurfaces, 
   const foreignRuntime = runtime.filter((surface) => !selectedSet.has(surface));
   if (foreignRuntime.length > 0) throw new Error(`harness: runtime surfaces must be a subset of required surfaces: ${foreignRuntime.join(', ')}`);
   if (explicitRuntimeList && runtime.includes('cursor-sync')) throw new Error('harness: required runtime surfaces must not include cursor-sync');
+  if (fullRelease && explicitRuntimeList
+    && (runtime.length !== REQUIRED_RUNTIME_SURFACES.length
+      || runtime.some((surface, index) => surface !== REQUIRED_RUNTIME_SURFACES[index]))) {
+    throw new Error('harness: full release must use the canonical required runtime surface list');
+  }
   if (!Array.isArray(surfaceResults)) throw new Error('harness: surface results must be an array');
 
   const bySurface = new Map();

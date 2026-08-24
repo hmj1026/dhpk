@@ -583,29 +583,41 @@ def _agy_clone_session(host_home):
         raise
 
 
+def _verified_executable(name):
+    candidate = shutil.which(name)
+    if not candidate:
+        return None
+    candidate = os.path.abspath(candidate)
+    try:
+        link_stat = os.lstat(candidate)
+        if stat.S_ISLNK(link_stat.st_mode) or not stat.S_ISREG(link_stat.st_mode):
+            return None
+        resolved = os.path.realpath(candidate)
+        resolved_stat = os.stat(resolved)
+        if not stat.S_ISREG(resolved_stat.st_mode) or not os.access(resolved, os.X_OK):
+            return None
+        return resolved
+    except OSError:
+        return None
+
+
 def _agy_probe_tools():
-    executable = shutil.which("agy")
-    sandbox = shutil.which("bwrap")
+    executable = _verified_executable("agy")
+    sandbox = _verified_executable("bwrap")
     if not executable:
         return None, "agy executable is unavailable"
     if not sandbox:
         return None, "read-only AGY probe sandbox (bwrap) is unavailable"
-    if os.path.islink(executable) or not os.path.isfile(executable):
-        return None, "AGY executable must be a regular file for the sandbox"
     return (executable, sandbox), None
 
 
 def _run_agy_command(args, repo_root, timeout=15, read_only=False, session_home=None, share_network=False):
-    executable = shutil.which("agy")
-    if not executable:
-        return None, "agy executable is unavailable"
     if not read_only:
         return None, "AGY probes must run in the read-only sandbox"
-    sandbox = shutil.which("bwrap")
-    if not sandbox:
-        return None, "read-only AGY probe sandbox (bwrap) is unavailable"
-    if os.path.islink(executable) or not os.path.isfile(executable):
-        return None, "AGY executable must be a regular file for the sandbox"
+    tools, unavailable_reason = _agy_probe_tools()
+    if unavailable_reason:
+        return None, unavailable_reason
+    executable, sandbox = tools
 
     # Never bind the host root or the caller's home into a probe.  A
     # command-capable AGY agent must not be able to reach Docker, DBus, SSH
