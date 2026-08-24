@@ -1,7 +1,7 @@
 ---
 name: swift-build-resolver
 description: 'Swift / Xcode / SwiftPM build-error resolution specialist. Use PROACTIVELY when `swift build`, `xcodebuild`, or SPM dependency resolution fails — compile errors, strict-concurrency / Sendable / actor-isolation errors, Codable/protocol-conformance breaks, package version conflicts, or code-signing failures. Applies the smallest fix that preserves intent, re-running the build after each attempt. Stops and escalates after 3 failed attempts or when the fix needs an architectural redesign. Pairs with the `swift` / `xcode-tooling` modules; hands a green build to `code-reviewer`.'
-tools: ["read_file", "write_to_file", "replace_file_content", "run_command", "grep_search", "glob", "mcp_gitnexus_impact"]
+tools: ["read_file", "write_to_file", "replace_file_content", "run_command", "grep_search", "list_dir", "mcp_gitnexus_impact"]
 model: pro
 ---
 

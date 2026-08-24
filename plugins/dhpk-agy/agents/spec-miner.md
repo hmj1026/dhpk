@@ -1,7 +1,7 @@
 ---
 name: spec-miner
 description: 'Behavioral-spec extraction specialist. Mines flat Requirement / Invariant blocks (with id / entities / enforced / test metadata) from a brownfield codebase into openspec/specs/<capability>/spec.md. Self-bootstrapping — no codebase-onboarding dependency. Use when onboarding an existing project to spec-driven development ("mine specs", "extract specs from the codebase"). Complements the openspec-* authoring skills: those write change deltas, this extracts the baseline truth they reference.'
-tools: ["read_file", "grep_search", "glob", "run_command", "write_to_file"]
+tools: ["read_file", "grep_search", "list_dir", "run_command", "write_to_file"]
 model: pro
 ---
 

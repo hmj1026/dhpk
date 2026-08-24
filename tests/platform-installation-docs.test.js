@@ -166,6 +166,21 @@ test('Cursor CLI documentation keeps authentication, launch scope, and UI routes
   }
 });
 
+test('Cursor runtime documentation pins cursor-agent evidence and required status boundaries', () => {
+  for (const relative of ['docs/platform-installation.md', 'docs/platform-installation.zh-TW.md']) {
+    const compact = read(relative).replace(/\s+/g, ' ');
+    assert.ok(compact.includes('cursor-agent --plugin-dir <agent-package>'), `${relative} must document the portable single-directory probe shape`);
+    assert.ok(compact.includes('cursor-agent --plugin-dir <agent-package> --plugin-dir <cursor-package>'), `${relative} must document the dual-directory Cursor probe shape`);
+    assert.ok(compact.includes('--mode ask --trust -p <smoke-prompt> --output-format json'), `${relative} must document the exact bounded probe flag shape`);
+    assert.ok(compact.includes('cursor-sync') && compact.includes('NOT_RUN'), `${relative} must document the expected cursor-sync installer state`);
+    assert.ok(compact.includes('cursor desktop') || compact.includes('Cursor desktop'), `${relative} must identify desktop/UI paths as separate from CLI proof`);
+    assert.ok(compact.includes('`cursor`') || compact.includes('cursor binary'), `${relative} must reject the desktop cursor binary as runtime evidence`);
+    assert.ok(compact.includes('Authentication required') && compact.includes('BLOCKED'), `${relative} must classify unauthenticated Cursor output as BLOCKED`);
+    assert.ok(compact.includes('missing CLI') && compact.includes('UNAVAILABLE'), `${relative} must classify missing cursor-agent as UNAVAILABLE`);
+    assert.ok(!compact.includes('logged-in Cursor CLI (or an API key)') && !compact.includes('已登入 Cursor CLI（或 API key）'), `${relative} must not treat API-key-only auth as runtime proof`);
+  }
+});
+
 test('Codex verification commands declare consumer and checkout roots', () => {
   for (const relative of ['docs/platform-installation.md', 'docs/platform-installation.zh-TW.md']) {
     const text = read(relative);

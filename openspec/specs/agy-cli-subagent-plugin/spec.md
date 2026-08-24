@@ -57,7 +57,7 @@ The AGY adapter SHALL accept `tools:` as either a YAML/JSON array or a
 comma-separated scalar and SHALL emit one deterministic array. It SHALL map
 `Read` to `read_file`, `Write` to `write_to_file`, `Edit` to
 `replace_file_content`, `Bash` to `run_command`, `Grep` to `grep_search`,
-`Glob` to `glob`, `WebSearch` to `search_web`, `WebFetch` to
+`Glob` to `list_dir`, `WebSearch` to `search_web`, `WebFetch` to
 `read_url_content`, `Agent` and `Skill` to `invoke_subagent`, and normalize
 `mcp__server__tool` to `mcp_server_tool`. The adapter SHALL map models as
 `opus → pro`, `sonnet → pro`, `fable → flash`, `haiku → flash_lite`, preserve

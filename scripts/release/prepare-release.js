@@ -12,10 +12,12 @@
 // Usage:
 //   node scripts/release/prepare-release.js check --version X.Y.Z
 //   node scripts/release/prepare-release.js write --version X.Y.Z --date YYYY-MM-DD [--summary "..."]
+//   node scripts/release/prepare-release.js rollback --backup-reference <manifest>
 
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const crypto = require('crypto');
 const { execFileSync } = require('child_process');
 const { SEMVER_PATTERN, MANIFEST_PATHS, AGY_GENERATOR_DOC_PATHS, checkParity, writeAgyGeneratorDocPins } = require('../lib/release-parity');
 const { readFragments, validateFragments, promote } = require('../lib/changelog-fragments');
@@ -50,10 +52,12 @@ function parseArgs(argv) {
   const args = { root: DEFAULT_ROOT };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
-    if (arg === 'check' || arg === 'write') args.mode = arg;
+    if (arg === 'check' || arg === 'write' || arg === 'rollback') args.mode = arg;
     else if (arg === '--version') args.version = argv[++i];
     else if (arg === '--date') args.date = argv[++i];
     else if (arg === '--summary') args.summary = argv[++i];
+    else if (arg === '--operation-key') args.operationKey = argv[++i];
+    else if (arg === '--backup-reference') args.backupReference = argv[++i];
     // Test-only override; production always prepares the plugin's own repo.
     else if (arg === '--repo-root') args.root = argv[++i];
     else {
@@ -62,7 +66,7 @@ function parseArgs(argv) {
     }
   }
   if (!args.mode) {
-    console.error('usage: prepare-release.js <check|write> --version X.Y.Z [--date YYYY-MM-DD] [--summary "..."] [--repo-root <path>]');
+    console.error('usage: prepare-release.js <check|write|rollback> --version X.Y.Z [--date YYYY-MM-DD] [--summary "..."] [--operation-key <id>] [--backup-reference <manifest>] [--repo-root <path>]');
     process.exit(2);
   }
   return args;
@@ -116,6 +120,45 @@ function assertReleaseTarget(target) {
   if (existing && existing.isSymbolicLink()) throw new Error(`release target must not be a symlink: ${target}`);
 }
 
+function isCanonicalReleaseTarget(root, target) {
+  const resolvedRoot = path.resolve(root);
+  const resolvedTarget = path.resolve(target);
+  const canonicalFiles = new Set([
+    path.join(resolvedRoot, 'CHANGELOG.md'),
+    ...MANIFEST_PATHS.filter((relPath) => !NATIVE_PACKAGE_PATHS.has(relPath)).map((relPath) => path.join(resolvedRoot, relPath)),
+    ...AGY_GENERATOR_DOC_PATHS.map((relPath) => path.join(resolvedRoot, relPath)),
+  ]);
+  const canonicalDirectories = new Set([
+    path.join(resolvedRoot, 'plugins', 'dhpk'),
+    path.join(resolvedRoot, 'plugins', 'dhpk-agent'),
+    path.join(resolvedRoot, 'plugins', 'dhpk-cursor'),
+    path.join(resolvedRoot, 'plugins', 'dhpk-agy'),
+  ]);
+  if (canonicalFiles.has(resolvedTarget) || canonicalDirectories.has(resolvedTarget)) return true;
+  const fragmentDirectory = path.join(resolvedRoot, 'changelog.d');
+  return path.dirname(resolvedTarget) === fragmentDirectory
+    && /^(?:[a-z0-9]+(?:-[a-z0-9]+)*\.[a-z0-9]+(?:-[a-z0-9]+)*\.md|[a-z0-9]+(?:-[a-z0-9]+)*\.none)$/i.test(path.basename(resolvedTarget));
+}
+
+function assertCanonicalReleaseTarget(root, target) {
+  if (!isCanonicalReleaseTarget(root, target)) {
+    throw new Error(`release target is not a canonical release target: ${target}`);
+  }
+}
+
+function assertPhysicalPathAncestors(root, target, label) {
+  const resolvedRoot = path.resolve(root);
+  let current = path.resolve(target);
+  while (isWithinPath(resolvedRoot, current)) {
+    const stat = lstatOrNull(current);
+    if (stat && stat.isSymbolicLink()) throw new Error(`${label} path contains a symlink ancestor: ${current}`);
+    if (current === resolvedRoot) return;
+    const parent = path.dirname(current);
+    if (parent === current) break;
+    current = parent;
+  }
+}
+
 function uniqueBackupPath(target, index) {
   let candidate = `${target}.dhpk-release-backup-${process.pid}-${index}`;
   let suffix = 0;
@@ -123,22 +166,93 @@ function uniqueBackupPath(target, index) {
   return candidate;
 }
 
-function applyReleaseTransaction(replacements) {
+function digestPath(target) {
+  const stat = lstatOrNull(target);
+  if (!stat) return 'absent';
+  if (stat.isSymbolicLink()) throw new Error(`rollback fingerprint refuses symlink: ${target}`);
+  if (stat.isFile()) return `file:${crypto.createHash('sha256').update(fs.readFileSync(target)).digest('hex')}`;
+  if (!stat.isDirectory()) throw new Error(`rollback fingerprint refuses special path: ${target}`);
+  const hash = crypto.createHash('sha256');
+  const visit = (current, relative) => {
+    for (const entry of fs.readdirSync(current, { withFileTypes: true }).sort((a, b) => a.name.localeCompare(b.name))) {
+      const absolute = path.join(current, entry.name);
+      const child = relative ? path.join(relative, entry.name) : entry.name;
+      if (entry.isSymbolicLink()) throw new Error(`rollback fingerprint refuses symlink: ${child}`);
+      if (entry.isDirectory()) {
+        hash.update(`D:${child}\n`);
+        visit(absolute, child);
+      } else if (entry.isFile()) {
+        hash.update(`F:${child}:${crypto.createHash('sha256').update(fs.readFileSync(absolute)).digest('hex')}\n`);
+      } else {
+        throw new Error(`rollback fingerprint refuses special path: ${child}`);
+      }
+    }
+  };
+  visit(target, '');
+  return `directory:${hash.digest('hex')}`;
+}
+
+function writeRollbackManifest(manifestPath, manifest) {
+  const temporary = `${manifestPath}.${process.pid}.${crypto.randomBytes(6).toString('hex')}.tmp`;
+  fs.writeFileSync(temporary, `${JSON.stringify(manifest, null, 2)}\n`, { mode: 0o600 });
+  try {
+    fs.renameSync(temporary, manifestPath);
+  } catch (error) {
+    try { fs.rmSync(temporary, { force: true }); } catch (_) { /* preserve the original failure */ }
+    throw error;
+  }
+}
+
+function ensureBackupRoot(backupRoot, operationKey) {
+  if (!backupRoot || !operationKey) return null;
+  if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(operationKey)) throw new Error('release operation key is invalid');
+  const root = path.resolve(backupRoot);
+  fs.mkdirSync(root, { recursive: true, mode: 0o700 });
+  const rootStat = lstatOrNull(root);
+  if (!rootStat || !rootStat.isDirectory() || rootStat.isSymbolicLink()) throw new Error(`release backup root is unsafe: ${root}`);
+  const directory = path.join(root, operationKey);
+  const manifest = path.join(root, `${operationKey}.json`);
+  if (lstatOrNull(directory)) throw new Error(`release backup operation already exists: ${operationKey}`);
+  if (lstatOrNull(manifest)) throw new Error(`release backup manifest already exists: ${operationKey}`);
+  fs.mkdirSync(directory, { mode: 0o700 });
+  return { directory, manifest };
+}
+
+function restoreReleaseStates(states) {
+  const errors = [];
+  for (const state of states.slice().reverse()) {
+    try {
+      if (state.temp && lstatOrNull(state.temp)) fs.rmSync(state.temp, { recursive: true, force: true });
+      if (state.installed && lstatOrNull(state.replacement.target)) fs.rmSync(state.replacement.target, { recursive: true, force: true });
+      if (state.backup && lstatOrNull(state.backup) && !lstatOrNull(state.replacement.target)) fs.renameSync(state.backup, state.replacement.target);
+    } catch (error) {
+      errors.push(`${state.replacement.target}: ${error.message}`);
+    }
+  }
+  return errors;
+}
+
+function applyReleaseTransaction(replacements, { backupRoot = null, operationKey = null, root = null } = {}) {
   const targets = new Set();
   for (const replacement of replacements) {
     if (targets.has(replacement.target)) throw new Error(`release transaction contains duplicate target: ${replacement.target}`);
     targets.add(replacement.target);
+    if (root) assertCanonicalReleaseTarget(root, replacement.target);
     assertReleaseTarget(replacement.target);
     if (replacement.source && !lstatOrNull(replacement.source)) throw new Error(`release transaction source is missing: ${replacement.source}`);
   }
 
-  const states = replacements.map((replacement, index) => ({ replacement, index, backup: null, temp: null, installed: false }));
+  const durable = ensureBackupRoot(backupRoot, operationKey);
+  const states = replacements.map((replacement, index) => ({ replacement, index, backup: null, temp: null, installed: false, existed: false }));
   try {
     for (const state of states) {
       const { replacement } = state;
       const existing = lstatOrNull(replacement.target);
       if (existing) {
-        state.backup = uniqueBackupPath(replacement.target, state.index);
+        state.existed = true;
+        state.backup = durable
+          ? path.join(durable.directory, `${String(state.index).padStart(4, '0')}-${path.basename(replacement.target)}`)
+          : uniqueBackupPath(replacement.target, state.index);
         fs.renameSync(replacement.target, state.backup);
       }
       if (!replacement.source) {
@@ -155,23 +269,226 @@ function applyReleaseTransaction(replacements) {
       state.installed = true;
     }
   } catch (error) {
-    for (const state of states.slice().reverse()) {
-      try {
-        if (state.temp && lstatOrNull(state.temp)) fs.rmSync(state.temp, { recursive: true, force: true });
-        if (state.installed && lstatOrNull(state.replacement.target)) fs.rmSync(state.replacement.target, { recursive: true, force: true });
-        if (state.backup && lstatOrNull(state.backup) && !lstatOrNull(state.replacement.target)) fs.renameSync(state.backup, state.replacement.target);
-      } catch (_) { /* retain the original failure; caller receives the failed transaction */ }
+    const restoreErrors = restoreReleaseStates(states);
+    if (durable && restoreErrors.length === 0) {
+      try { fs.rmSync(durable.directory, { recursive: true, force: true }); } catch (_) { /* retain original failure */ }
+      try { fs.rmSync(durable.manifest, { force: true }); } catch (_) { /* retain original failure */ }
+    }
+    if (restoreErrors.length > 0) {
+      error.message = `${error.message}; rollback backup retained at ${durable ? durable.directory : 'ephemeral paths'}; restore failures: ${restoreErrors.join('; ')}`;
     }
     throw error;
   }
 
-  for (const state of states) if (state.backup && lstatOrNull(state.backup)) fs.rmSync(state.backup, { recursive: true, force: true });
+  if (!durable) {
+    for (const state of states) if (state.backup && lstatOrNull(state.backup)) fs.rmSync(state.backup, { recursive: true, force: true });
+    return { backupReference: null };
+  }
+  try {
+    const manifest = {
+      schema: 'dhpk.release.rollback.v1',
+      operationKey,
+      createdAt: new Date().toISOString(),
+      backupDirectory: durable.directory,
+      entries: states.map((state) => ({
+        target: state.replacement.target,
+        backup: state.backup,
+        existed: state.existed,
+        recovery: path.join(durable.directory, `.target-${String(state.index).padStart(4, '0')}`),
+        publishedFingerprint: digestPath(state.replacement.target),
+        backupFingerprint: state.backup ? digestPath(state.backup) : null,
+        rollbackStatus: 'PENDING',
+      })),
+    };
+    writeRollbackManifest(durable.manifest, manifest);
+    return { backupReference: durable.manifest, manifest };
+  } catch (error) {
+    const restoreErrors = restoreReleaseStates(states);
+    if (restoreErrors.length === 0) {
+      try { fs.rmSync(durable.directory, { recursive: true, force: true }); } catch (_) { /* retain original failure */ }
+      try { fs.rmSync(durable.manifest, { force: true }); } catch (_) { /* retain original failure */ }
+    } else {
+      error.message = `${error.message}; rollback backup retained at ${durable.directory}; restore failures: ${restoreErrors.join('; ')}`;
+    }
+    throw error;
+  }
+}
+
+function isWithinPath(root, candidate) {
+  const relative = path.relative(path.resolve(root), path.resolve(candidate));
+  return relative === '' || (!relative.startsWith(`..${path.sep}`) && relative !== '..' && !path.isAbsolute(relative));
+}
+
+function rollbackReleaseTransaction(reference, { root = null } = {}) {
+  const manifestPath = path.resolve(reference || '');
+  const manifestStat = lstatOrNull(manifestPath);
+  if (!manifestStat || !manifestStat.isFile() || manifestStat.isSymbolicLink()) {
+    throw new Error('release rollback manifest must be a regular file');
+  }
+  if (root) {
+    const expectedRoot = path.resolve(root, '.claude', 'artifacts', 'release-backups');
+    if (!isWithinPath(expectedRoot, manifestPath) || path.dirname(manifestPath) !== expectedRoot) {
+      throw new Error('release rollback manifest must be under the repository backup root');
+    }
+  }
+  const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  if (!manifest || manifest.schema !== 'dhpk.release.rollback.v1' || !Array.isArray(manifest.entries)) {
+    throw new Error('release rollback manifest is invalid');
+  }
+  if (manifest.rolledBackAt || manifest.rollbackStatus === 'COMPLETE') {
+    throw new Error(`release rollback operation '${manifest.operationKey}' was already applied`);
+  }
+  if (typeof manifest.operationKey !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(manifest.operationKey)
+    || path.basename(manifestPath) !== `${manifest.operationKey}.json`) {
+    throw new Error('release rollback manifest operation identity is invalid');
+  }
+  const backupDirectory = path.resolve(manifest.backupDirectory || '');
+  const backupDirectoryStat = lstatOrNull(backupDirectory);
+  if (!backupDirectoryStat || !backupDirectoryStat.isDirectory() || backupDirectoryStat.isSymbolicLink()) {
+    throw new Error('release rollback backup directory is missing or unsafe');
+  }
+  if (path.dirname(backupDirectory) !== path.dirname(manifestPath)) {
+    throw new Error('release rollback backup directory is not beside its manifest');
+  }
+  if (path.basename(backupDirectory) !== manifest.operationKey) {
+    throw new Error('release rollback backup directory does not match the manifest operation key');
+  }
+  const repositoryRoot = path.resolve(root || manifestPath, ...(root ? [] : ['..', '..', '..', '..']));
+  assertPhysicalPathAncestors(repositoryRoot, backupDirectory, 'release rollback backup');
+  const seenTargets = new Set();
+  const seenBackups = new Set();
+  const seenRecovery = new Set();
+  for (const [entryIndex, entry] of manifest.entries.entries()) {
+    if (!entry || typeof entry !== 'object' || typeof entry.target !== 'string' || typeof entry.existed !== 'boolean') {
+      throw new Error('release rollback manifest entry is invalid');
+    }
+    const rollbackStatus = entry.rollbackStatus || 'PENDING';
+    if (!['PENDING', 'RESTORED'].includes(rollbackStatus)) {
+      throw new Error(`release rollback manifest entry has invalid rollback status: ${rollbackStatus}`);
+    }
+    const target = path.resolve(entry.target);
+    const backup = entry.backup ? path.resolve(entry.backup) : null;
+    const recovery = path.resolve(entry.recovery || path.join(backupDirectory, `.target-${String(entryIndex).padStart(4, '0')}`));
+    if (!isWithinPath(repositoryRoot, target)) throw new Error('release rollback target escapes the repository root');
+    assertCanonicalReleaseTarget(repositoryRoot, target);
+    assertPhysicalPathAncestors(repositoryRoot, target, 'release rollback target');
+    if (seenTargets.has(target)) throw new Error(`release rollback manifest contains a duplicate target: ${target}`);
+    seenTargets.add(target);
+    assertReleaseTarget(target);
+    if (entry.existed && !backup) throw new Error(`release rollback backup is missing for ${target}`);
+    if (!entry.existed && backup) throw new Error(`release rollback absent target has an unexpected backup: ${target}`);
+    if (backup && !isWithinPath(backupDirectory, backup)) throw new Error('release rollback backup path is invalid');
+    if (backup && path.dirname(backup) !== backupDirectory) throw new Error('release rollback backup must be a direct operation child');
+    if (backup && seenBackups.has(backup)) throw new Error(`release rollback manifest contains a duplicate backup: ${backup}`);
+    const backupStat = backup ? lstatOrNull(backup) : null;
+    if (backup) {
+      seenBackups.add(backup);
+      assertPhysicalPathAncestors(backupDirectory, backup, 'release rollback backup');
+      if (backupStat && backupStat.isSymbolicLink()) throw new Error(`release rollback backup is missing or unsafe: ${backup}`);
+      if (rollbackStatus === 'RESTORED' && backupStat) throw new Error(`restored release rollback entry still has a backup: ${backup}`);
+    }
+    if (!isWithinPath(backupDirectory, recovery) || path.dirname(recovery) !== backupDirectory) {
+      throw new Error('release rollback recovery path is invalid');
+    }
+    if (seenRecovery.has(recovery) || recovery === backup) throw new Error(`release rollback manifest contains a duplicate recovery path: ${recovery}`);
+    seenRecovery.add(recovery);
+    const recoveryStat = lstatOrNull(recovery);
+    if (rollbackStatus === 'RESTORED' && recoveryStat) {
+      if (digestPath(recovery) !== entry.publishedFingerprint) throw new Error(`restored release rollback recovery slot changed: ${recovery}`);
+    }
+    if (rollbackStatus === 'PENDING') {
+      const targetFingerprint = digestPath(target);
+      const recoveryFingerprint = recoveryStat ? digestPath(recovery) : null;
+      const targetAlreadyRestored = Boolean(recoveryStat && backup && !backupStat
+        && entry.backupFingerprint && targetFingerprint === entry.backupFingerprint
+        && recoveryFingerprint === entry.publishedFingerprint);
+      if (recoveryStat) {
+        if ((!lstatOrNull(target) && recoveryFingerprint !== entry.publishedFingerprint)
+          || (lstatOrNull(target) && !targetAlreadyRestored)) {
+          throw new Error(`release rollback recovery slot is inconsistent: ${recovery}`);
+        }
+      } else if (targetFingerprint !== entry.publishedFingerprint) {
+        throw new Error(`release rollback target changed after publication: ${target}`);
+      }
+      if (backup && !targetAlreadyRestored
+        && (!backupStat || !entry.backupFingerprint || digestPath(backup) !== entry.backupFingerprint)) {
+        throw new Error(`release rollback backup changed: ${backup}`);
+      }
+    } else {
+      const restored = digestPath(target);
+      if (typeof entry.restoredFingerprint !== 'string' || restored !== entry.restoredFingerprint) {
+        throw new Error(`restored release rollback target no longer matches its persisted state: ${target}`);
+      }
+    }
+  }
+  const persistProgress = () => writeRollbackManifest(manifestPath, manifest);
+  try {
+    manifest.rollbackStatus = 'IN_PROGRESS';
+    persistProgress();
+    for (const [entryIndex, entry] of manifest.entries.map((value, index) => [index, value]).reverse()) {
+      if ((entry.rollbackStatus || 'PENDING') === 'RESTORED') continue;
+      const target = path.resolve(entry.target);
+      const backup = entry.backup ? path.resolve(entry.backup) : null;
+      const recovery = path.resolve(entry.recovery || path.join(backupDirectory, `.target-${String(entryIndex).padStart(4, '0')}`));
+      if (lstatOrNull(recovery)) {
+        const targetStat = lstatOrNull(target);
+        const backupStat = backup ? lstatOrNull(backup) : null;
+        const targetAlreadyRestored = Boolean(targetStat && !backupStat && entry.backupFingerprint
+          && digestPath(target) === entry.backupFingerprint
+          && digestPath(recovery) === entry.publishedFingerprint);
+        if (targetAlreadyRestored) {
+          entry.rollbackStatus = 'RESTORED';
+          entry.restoredFingerprint = digestPath(target);
+          manifest.rollbackStatus = 'PARTIAL';
+          // Persist before removing the recovery slot so a crash during
+          // cleanup leaves a resumable RESTORED entry, not a PENDING entry
+          // with a missing backup.
+          persistProgress();
+          fs.rmSync(recovery, { recursive: true, force: true });
+          continue;
+        }
+        if (targetStat) throw new Error(`release rollback recovery slot has a conflicting target: ${target}`);
+        fs.renameSync(recovery, target);
+      }
+      if (lstatOrNull(target)) fs.renameSync(target, recovery);
+      try {
+        if (backup && lstatOrNull(backup)) fs.renameSync(backup, target);
+        entry.rollbackStatus = 'RESTORED';
+        entry.restoredFingerprint = digestPath(target);
+        manifest.rollbackStatus = 'PARTIAL';
+        // Persist the new target state before deleting the recovery slot. A
+        // crash after publication can then resume by cleaning that slot.
+        persistProgress();
+        if (lstatOrNull(recovery)) fs.rmSync(recovery, { recursive: true, force: true });
+      } catch (error) {
+        try {
+          if (!lstatOrNull(target) && lstatOrNull(recovery)) fs.renameSync(recovery, target);
+        } catch (restoreError) {
+          error.message = `${error.message}; recovery compensation failed: ${restoreError.message}`;
+        }
+        throw error;
+      }
+    }
+    manifest.rollbackStatus = 'COMPLETE';
+    manifest.rolledBackAt = new Date().toISOString();
+    persistProgress();
+    fs.rmSync(backupDirectory, { recursive: true, force: true });
+    return manifest;
+  } catch (error) {
+    error.message = `${error.message}; resumable rollback manifest and remaining backups were retained at ${manifestPath}`;
+    throw error;
+  }
 }
 
 function main() {
   const args = parseArgs(process.argv.slice(2));
 
-  if (!args.version || !SEMVER_PATTERN.test(args.version)) {
+  if (args.mode === 'rollback') {
+    if (!args.backupReference) {
+      console.error('prepare-release: rollback requires --backup-reference <manifest>');
+      process.exit(2);
+    }
+  } else if (!args.version || !SEMVER_PATTERN.test(args.version)) {
     console.error(`prepare-release: version '${args.version}' is not valid semver (X.Y.Z)`);
     process.exit(2);
   }
@@ -180,6 +497,17 @@ function main() {
   if (branch !== REQUIRED_BRANCH) {
     console.error(`prepare-release: must run on '${REQUIRED_BRANCH}' (current: '${branch}'); the develop -> main PR is the release candidate boundary`);
     process.exit(1);
+  }
+
+  if (args.mode === 'rollback') {
+    try {
+      const manifest = rollbackReleaseTransaction(args.backupReference, { root: args.root });
+      console.log(`prepare-release: rollback PASS (operation ${manifest.operationKey})`);
+    } catch (error) {
+      console.error(`prepare-release: rollback FAIL: ${error.message}`);
+      process.exitCode = 1;
+    }
+    return;
   }
 
   if (args.mode === 'check') {
@@ -308,7 +636,12 @@ function main() {
       { target: path.join(args.root, 'plugins', 'dhpk-agy'), source: stagedAgy },
       ...promoted.consumed.map((relative) => ({ target: path.join(fragmentDir, relative), source: null })),
     ];
-    applyReleaseTransaction(replacements);
+    const operationKey = args.operationKey || `release-${args.version}-${Date.now()}`;
+    const transaction = applyReleaseTransaction(replacements, {
+      backupRoot: path.join(args.root, '.claude', 'artifacts', 'release-backups'),
+      operationKey,
+      root: args.root,
+    });
     changed.push('plugins/dhpk/ (regenerated codex-native package: manifest, skills/, fingerprints.json, provenance.json)');
     changed.push('plugins/dhpk-agent/ (regenerated standard Agent Plugin package)');
     changed.push('plugins/dhpk-cursor/ (regenerated Cursor Plugin package)');
@@ -316,6 +649,7 @@ function main() {
 
     console.log(`prepare-release: write PASS (target ${args.version}); changed files:`);
     for (const f of changed) console.log(`  - ${f}`);
+    console.log(`  - rollback-reference: ${transaction.backupReference}`);
   } catch (error) {
     console.error(`prepare-release: write FAIL (generated package validation or atomic replacement): ${error.message}`);
     process.exitCode = 1;

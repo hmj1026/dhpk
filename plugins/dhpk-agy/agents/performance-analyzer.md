@@ -1,7 +1,7 @@
 ---
 name: performance-analyzer
 description: 'Performance specialist. Owns latency / index usage / query count for relational data-access (N+1, EXPLAIN, index coverage, query-count regressions) AND — when a frontend or native trap sheet is active — client/runtime performance (bundle size, render / re-render, memory leaks, Web Vitals). Use proactively on data-access methods touching high-volume tables, or on hot frontend / native paths. Does NOT duplicate database-reviewer (correctness — bind parameters, IN-clauses, schema).'
-tools: ["read_file", "grep_search", "glob", "run_command", "mcp_gitnexus_impact"]
+tools: ["read_file", "grep_search", "list_dir", "run_command", "mcp_gitnexus_impact"]
 model: pro
 ---
 

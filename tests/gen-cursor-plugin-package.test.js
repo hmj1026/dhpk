@@ -678,10 +678,84 @@ test('consumer probe only reports PASS for an explicitly supplied loader command
       executable: process.platform === 'win32' ? 'cmd.exe' : '/bin/sh',
       args: process.platform === 'win32' ? ['/c', 'if not "%CURSOR_PLUGIN_ROOT%"=="" exit 0'] : ['-c', 'test -n "$CURSOR_PLUGIN_ROOT"'],
       pathValue: '',
+      allowUnauthenticatedFixture: true,
     });
     assert.strictEqual(probe.status, 'PASS');
   } finally {
     fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test('release Cursor probe rejects unrestricted network mode before invoking the client', () => {
+  const out = tmpDir('dhpk-cursor-consumer-release-network-');
+  try {
+    const probe = runCursorConsumerProbe({
+      packageRoot: out,
+      executable: process.execPath,
+      args: ['-e', 'process.exit(0)'],
+      pathValue: '',
+      requirePackageChallenge: true,
+      networkMode: 'unrestricted',
+    });
+    assert.strictEqual(probe.status, 'BLOCKED');
+    assert.strictEqual(probe.network, 'unknown');
+    assert.match(probe.reason, /disabled network namespace/i);
+  } finally {
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test('Cursor network-disabled probes reject symlinked or non-regular sandbox wrappers', () => {
+  if (process.platform !== 'linux') return;
+  const root = tmpDir('dhpk-cursor-sandbox-trust-');
+  const hostHome = tmpDir('dhpk-cursor-sandbox-host-');
+  const previousPath = process.env.PATH;
+  const cases = [
+    {
+      name: 'symlinked unshare',
+      setup(bin, sentinel) {
+        const target = path.join(bin, 'unshare-target');
+        write(target, `#!/bin/sh\nprintf executed > ${JSON.stringify(sentinel)}\nexit 0\n`, 0o755);
+        fs.symlinkSync(target, path.join(bin, 'unshare'));
+      },
+    },
+    {
+      name: 'non-regular unshare with symlinked bwrap',
+      setup(bin, sentinel) {
+        fs.mkdirSync(path.join(bin, 'unshare'));
+        const target = path.join(bin, 'bwrap-target');
+        write(target, `#!/bin/sh\nprintf executed > ${JSON.stringify(sentinel)}\nexit 0\n`, 0o755);
+        fs.symlinkSync(target, path.join(bin, 'bwrap'));
+      },
+    },
+  ];
+  try {
+    for (const scenario of cases) {
+      const fixture = path.join(root, scenario.name.replace(/[^a-z0-9]+/gi, '-'));
+      const bin = path.join(fixture, 'bin');
+      const sentinel = path.join(fixture, 'sandbox-wrapper-executed');
+      fs.mkdirSync(bin, { recursive: true });
+      scenario.setup(bin, sentinel);
+      process.env.PATH = bin;
+      const probe = runCursorConsumerProbe({
+        packageRoot: fixture,
+        executable: process.execPath,
+        args: ['-e', "process.stdout.write('fixture response')"],
+        pathValue: bin,
+        hostHome,
+        allowUnauthenticatedFixture: true,
+        networkMode: 'disabled',
+        timeoutMs: 500,
+      });
+      assert.ok(['BLOCKED', 'UNAVAILABLE'].includes(probe.status), `${scenario.name}: ${JSON.stringify(probe)}`);
+      assert.notStrictEqual(probe.network, 'disabled', `${scenario.name}: ${JSON.stringify(probe)}`);
+      assert.strictEqual(fs.existsSync(sentinel), false, `${scenario.name} sandbox wrapper was executed`);
+    }
+  } finally {
+    if (previousPath === undefined) delete process.env.PATH;
+    else process.env.PATH = previousPath;
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(hostHome, { recursive: true, force: true });
   }
 });
 
@@ -795,6 +869,7 @@ test('Cursor consumer probe rejects invalid limits and bounds redacted output', 
       pathValue: '',
       timeoutMs: 500,
       maxOutputBytes: 32,
+      allowUnauthenticatedFixture: true,
     });
     assert.strictEqual(probe.status, 'BLOCKED');
     assert.strictEqual(probe.output_limited, true);
@@ -816,6 +891,7 @@ test('Cursor consumer probe does not inherit arbitrary credential environment', 
       executable: process.execPath,
       args: ['-e', `process.stdout.write(process.env.${key} || 'absent')`],
       timeoutMs: 500,
+      allowUnauthenticatedFixture: true,
     });
     assert.strictEqual(probe.status, 'PASS');
     assert.doesNotMatch(JSON.stringify(probe), /credential-value-should-not-cross-boundary/);
@@ -824,6 +900,140 @@ test('Cursor consumer probe does not inherit arbitrary credential environment', 
     if (previous === undefined) delete process.env[key];
     else process.env[key] = previous;
     fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test('Cursor consumer probe clones only allowlisted login files into a disposable HOME', () => {
+  const out = tmpDir('dhpk-cursor-session-clone-');
+  const hostHome = tmpDir('dhpk-cursor-session-host-');
+  const observation = path.join(out, 'session-observation.json');
+  try {
+    fs.mkdirSync(path.join(hostHome, '.config', 'cursor'), { recursive: true });
+    fs.mkdirSync(path.join(hostHome, '.cursor'), { recursive: true });
+    fs.writeFileSync(path.join(hostHome, '.config', 'cursor', 'auth.json'), '{"token":"fixture"}\n');
+    fs.writeFileSync(path.join(hostHome, '.cursor', 'cli-config.json'), '{"account":"fixture"}\n');
+    fs.writeFileSync(path.join(hostHome, '.config', 'cursor', 'unlisted.json'), 'must-not-copy\n');
+    const probe = runCursorConsumerProbe({
+      packageRoot: out,
+      hostHome,
+      executable: process.execPath,
+      args: ['-e', [
+        "const fs = require('node:fs');",
+        "const path = require('node:path');",
+        "const home = process.env.HOME;",
+        `const xdgConfigHome = process.env.XDG_CONFIG_HOME; const result = { home, hostHome: ${JSON.stringify(hostHome)}, xdgConfigHome, auth: fs.existsSync(path.join(home, '.config/cursor/auth.json')), xdgAuth: fs.existsSync(path.join(xdgConfigHome, 'cursor/auth.json')), cli: fs.existsSync(path.join(home, '.cursor/cli-config.json')), unlisted: fs.existsSync(path.join(home, '.config/cursor/unlisted.json')), authMode: fs.statSync(path.join(home, '.config/cursor/auth.json')).mode & 0o777, cliMode: fs.statSync(path.join(home, '.cursor/cli-config.json')).mode & 0o777 };`,
+        `fs.writeFileSync(${JSON.stringify(observation)}, JSON.stringify(result));`,
+      ].join('')],
+      pathValue: '',
+      cwd: out,
+      timeoutMs: 500,
+    });
+    assert.strictEqual(probe.status, 'PASS', JSON.stringify(probe));
+    const result = JSON.parse(fs.readFileSync(observation, 'utf8'));
+    assert.notStrictEqual(result.home, hostHome);
+    assert.strictEqual(result.xdgConfigHome, path.join(result.home, '.config'));
+    assert.strictEqual(result.auth, true);
+    assert.strictEqual(result.xdgAuth, true);
+    assert.strictEqual(result.cli, true);
+    assert.strictEqual(result.unlisted, false);
+    assert.strictEqual(result.authMode, 0o600);
+    assert.strictEqual(result.cliMode, 0o600);
+    assert.doesNotMatch(JSON.stringify(probe), /fixture/);
+    assert.strictEqual(fs.existsSync(result.home), false, 'disposable Cursor HOME survived the probe');
+  } finally {
+    fs.rmSync(out, { recursive: true, force: true });
+    fs.rmSync(hostHome, { recursive: true, force: true });
+  }
+});
+
+test('Cursor authentication-required output is BLOCKED and API-key-only auth is ignored', () => {
+  const out = tmpDir('dhpk-cursor-auth-required-');
+  const hostHome = tmpDir('dhpk-cursor-auth-host-');
+  const previous = process.env.CURSOR_API_KEY;
+  process.env.CURSOR_API_KEY = 'api-key-must-not-authenticate';
+  try {
+    const probe = runCursorConsumerProbe({
+      packageRoot: out,
+      hostHome,
+      executable: process.execPath,
+      args: ['-e', "process.stderr.write('Authentication required\\n'); process.exit(1)"],
+      pathValue: '',
+      timeoutMs: 500,
+    });
+    assert.strictEqual(probe.status, 'BLOCKED', JSON.stringify(probe));
+    assert.match(probe.reason, /authentication|login/i);
+    assert.doesNotMatch(JSON.stringify(probe), /api-key-must-not-authenticate/);
+  } finally {
+    if (previous === undefined) delete process.env.CURSOR_API_KEY;
+    else process.env.CURSOR_API_KEY = previous;
+    fs.rmSync(out, { recursive: true, force: true });
+    fs.rmSync(hostHome, { recursive: true, force: true });
+  }
+});
+
+test('release Cursor probes cannot bypass authentication with fixture overrides', () => {
+  const out = tmpDir('dhpk-cursor-auth-fixture-');
+  const hostHome = tmpDir('dhpk-cursor-auth-fixture-host-');
+  try {
+    const probe = runCursorConsumerProbe({
+      packageRoot: out,
+      hostHome,
+      executable: process.execPath,
+      args: ['-e', "process.stdout.write('fixture response')"],
+      allowUnauthenticatedFixture: true,
+      requirePackageChallenge: true,
+      networkMode: 'disabled',
+      timeoutMs: 500,
+    });
+    assert.strictEqual(probe.status, 'BLOCKED', JSON.stringify(probe));
+    assert.match(probe.reason, /login|auth\.json/i);
+  } finally {
+    fs.rmSync(out, { recursive: true, force: true });
+    fs.rmSync(hostHome, { recursive: true, force: true });
+  }
+});
+
+test('release Cursor probes require auth.json even when cli-config.json exists', () => {
+  const out = tmpDir('dhpk-cursor-partial-auth-');
+  const hostHome = tmpDir('dhpk-cursor-partial-auth-host-');
+  try {
+    fs.mkdirSync(path.join(hostHome, '.cursor'), { recursive: true });
+    fs.writeFileSync(path.join(hostHome, '.cursor', 'cli-config.json'), '{"account":"fixture"}\n');
+    const probe = runCursorConsumerProbe({
+      packageRoot: out,
+      hostHome,
+      executable: process.execPath,
+      args: ['-e', "process.stdout.write('fixture response')"],
+      requirePackageChallenge: true,
+      networkMode: 'disabled',
+      timeoutMs: 500,
+    });
+    assert.strictEqual(probe.status, 'BLOCKED', JSON.stringify(probe));
+    assert.match(probe.reason, /auth\.json|login/i);
+  } finally {
+    fs.rmSync(out, { recursive: true, force: true });
+    fs.rmSync(hostHome, { recursive: true, force: true });
+  }
+});
+
+test('release Cursor probes classify a silent client as BLOCKED before the timeout when auth is missing', () => {
+  const out = tmpDir('dhpk-cursor-silent-auth-');
+  const hostHome = tmpDir('dhpk-cursor-silent-auth-host-');
+  try {
+    const probe = runCursorConsumerProbe({
+      packageRoot: out,
+      hostHome,
+      executable: process.execPath,
+      args: ['-e', 'setTimeout(() => {}, 1000)'],
+      requirePackageChallenge: true,
+      networkMode: 'disabled',
+      timeoutMs: 40,
+    });
+    assert.strictEqual(probe.status, 'BLOCKED', JSON.stringify(probe));
+    assert.match(probe.reason, /auth\.json|login/i);
+  } finally {
+    fs.rmSync(out, { recursive: true, force: true });
+    fs.rmSync(hostHome, { recursive: true, force: true });
   }
 });
 
@@ -838,6 +1048,24 @@ test('Cursor consumer probe rejects relative executable paths', () => {
     });
     assert.strictEqual(probe.status, 'UNAVAILABLE');
     assert.match(probe.reason, /absolute path/i);
+  } finally {
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test('Cursor consumer probe rejects an explicit desktop cursor executable', () => {
+  const out = tmpDir('dhpk-cursor-explicit-desktop-');
+  const desktop = path.join(out, 'cursor');
+  fs.writeFileSync(desktop, '#!/bin/sh\nprintf desktop\n', { mode: 0o755 });
+  try {
+    const probe = runCursorConsumerProbe({
+      packageRoot: out,
+      executable: desktop,
+      args: ['--version'],
+      timeoutMs: 500,
+    });
+    assert.strictEqual(probe.status, 'UNAVAILABLE', JSON.stringify(probe));
+    assert.match(probe.reason, /desktop|cursor-agent/i);
   } finally {
     fs.rmSync(out, { recursive: true, force: true });
   }
@@ -861,6 +1089,7 @@ test('Cursor PATH resolution is anchored before the probe changes cwd', () => {
       pathValue: 'trusted-bin',
       args: ['--version'],
       timeoutMs: 500,
+      allowUnauthenticatedFixture: true,
     });
     assert.strictEqual(probe.status, 'PASS');
     assert.match(probe.diagnostic, /trusted/);
@@ -868,6 +1097,44 @@ test('Cursor PATH resolution is anchored before the probe changes cwd', () => {
   } finally {
     process.chdir(previousCwd);
     fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('Cursor consumer runtime resolution ignores the desktop cursor binary', () => {
+  const root = tmpDir('dhpk-cursor-desktop-only-');
+  const bin = path.join(root, 'bin');
+  fs.mkdirSync(bin);
+  fs.writeFileSync(path.join(bin, 'cursor'), '#!/bin/sh\nprintf desktop\n', { mode: 0o755 });
+  try {
+    const probe = runCursorConsumerProbe({ packageRoot: root, pathValue: bin, args: ['--version'] });
+    assert.strictEqual(probe.status, 'UNAVAILABLE');
+    assert.match(probe.reason, /cursor-agent/i);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+test('Cursor session cloning rejects symlinked allowlist ancestors', () => {
+  const out = tmpDir('dhpk-cursor-session-symlink-');
+  const hostHome = tmpDir('dhpk-cursor-session-symlink-host-');
+  const outside = tmpDir('dhpk-cursor-session-symlink-outside-');
+  try {
+    fs.mkdirSync(path.join(outside, 'cursor'), { recursive: true });
+    fs.writeFileSync(path.join(outside, 'cursor', 'auth.json'), '{"token":"outside"}\n');
+    fs.symlinkSync(path.join(outside, 'cursor'), path.join(hostHome, '.config'), 'dir');
+    const probe = runCursorConsumerProbe({
+      packageRoot: out,
+      hostHome,
+      executable: process.execPath,
+      args: ['-e', "process.stdout.write('ok')"],
+      pathValue: '',
+      allowUnauthenticatedFixture: true,
+      timeoutMs: 500,
+    });
+    assert.strictEqual(probe.status, 'PASS', JSON.stringify(probe));
+    assert.deepStrictEqual(probe.session_files, []);
+  } finally {
+    fs.rmSync(out, { recursive: true, force: true });
+    fs.rmSync(hostHome, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
   }
 });
 

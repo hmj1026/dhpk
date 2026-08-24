@@ -1,7 +1,7 @@
 ---
 name: architect
 description: 'DDD architecture specialist (framework-agnostic). Use for cross-module design decisions, DDD layer placement (Interface → Domain → Infrastructure, or your stack equivalent), refactoring strategy, and technical-debt analysis. Loads stack-specific layering examples on demand when a matching module is active.'
-tools: ["read_file", "grep_search", "glob", "run_command", "mcp_gitnexus_impact", "mcp_gitnexus_query"]
+tools: ["read_file", "grep_search", "list_dir", "run_command", "mcp_gitnexus_impact", "mcp_gitnexus_query"]
 model: flash
 ---
 

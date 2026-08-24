@@ -7,6 +7,7 @@ const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const { AGENT_PLUGIN_SCHEMA } = require('../scripts/lib/agent-plugin-package');
 const { redactSensitiveText } = require('../scripts/lib/redaction');
+const { runCursorConsumerProbe } = require('../scripts/lib/cursor-plugin-package');
 
 const ROOT = path.join(__dirname, '..');
 const SCRIPT = path.join(ROOT, 'scripts/release/consumer-platform-probe.js');
@@ -35,6 +36,20 @@ function writeCursorPackage(root) {
   fs.writeFileSync(path.join(root, '.cursor-plugin', 'marketplace.json'), JSON.stringify({
     name: 'test', owner: { name: 'test' }, plugins: [{ name: 'dhpk-cursor', source: '.' }],
   }));
+  for (const component of ['skills', 'commands', 'agents', 'rules']) fs.mkdirSync(path.join(root, component), { recursive: true });
+}
+
+function writeCursorAuthHome(root) {
+  const home = path.join(root, 'cursor-home');
+  fs.mkdirSync(path.join(home, '.config', 'cursor'), { recursive: true });
+  fs.writeFileSync(path.join(home, '.config', 'cursor', 'auth.json'), '{"token":"fixture"}\n', { mode: 0o600 });
+  return home;
+}
+
+function writeSandboxUnavailable(bin) {
+  for (const name of ['unshare', 'bwrap']) {
+    fs.writeFileSync(path.join(bin, name), '#!/bin/sh\nexit 125\n', { mode: 0o755 });
+  }
 }
 
 test('missing package is BLOCKED without probing a client', () => {
@@ -61,6 +76,52 @@ test('present package reports UNAVAILABLE or NOT_RUN, never static PASS, when co
   }
 });
 
+test('agent-plugin runtime probe uses exactly one portable plugin directory', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-agent-plugin-'));
+  const hostHome = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-agent-home-'));
+  const bin = path.join(root, 'bin');
+  try {
+    fs.mkdirSync(bin, { recursive: true });
+    fs.mkdirSync(path.join(hostHome, '.config', 'cursor'), { recursive: true });
+    fs.writeFileSync(path.join(hostHome, '.config', 'cursor', 'auth.json'), '{"token":"fixture"}\n');
+    writeSandboxUnavailable(bin);
+    writeAgentManifest(root);
+    fs.mkdirSync(path.join(root, 'skills'), { recursive: true });
+    fs.writeFileSync(path.join(bin, 'cursor-agent'), [
+      '#!/usr/bin/env node',
+      "const fs = require('node:fs');",
+      "const path = require('node:path');",
+      "const cp = require('node:child_process');",
+      "const args = process.argv.slice(2);",
+      "const roots = args.filter((arg, index) => args[index - 1] === '--plugin-dir');",
+      "for (const candidate of roots) { try { const hooks = JSON.parse(fs.readFileSync(path.join(candidate, 'hooks', 'hooks.json'), 'utf8')); for (const hook of hooks.hooks.sessionStart || []) cp.execFileSync(path.resolve(candidate, hook.command), [], { cwd: candidate }); } catch (_) {} }",
+      "const rootWithAttestation = roots.find((candidate) => fs.existsSync(path.join(candidate, 'hooks', '.dhpk-probe-attestation.json')));",
+      "const attestation = JSON.parse(fs.readFileSync(path.join(rootWithAttestation, 'hooks', '.dhpk-probe-attestation.json'), 'utf8'));",
+      "process.stdout.write(JSON.stringify({ response: 'dhpk skills commands agents rules were discovered.', dhpkProbe: { challenge: attestation.challenge, packageFingerprint: attestation.packageFingerprint, loaded: true, components: attestation.components } }));",
+      '',
+    ].join('\n'), { mode: 0o755 });
+    const result = runProbe('agent-plugin', root, ['--execute', '--version', '1.0.0'], {
+      ...process.env,
+      HOME: hostHome,
+      PATH: `${bin}${path.delimiter}${process.env.PATH || ''}`,
+    });
+    assert.strictEqual(result.status, 1, result.stdout + result.stderr);
+    const payload = JSON.parse(result.stdout);
+    assert.strictEqual(payload.status, 'BLOCKED', JSON.stringify(payload));
+    assert.strictEqual(payload.surfaceResults[0].surface, 'agent-plugin', JSON.stringify(payload));
+    assert.strictEqual(payload.surfaceResults[0].status, 'BLOCKED', JSON.stringify(payload));
+    assert.strictEqual(payload.network, 'unknown', JSON.stringify(payload));
+    assert.strictEqual(
+      (payload.commands[0].cmd.match(/--plugin-dir/g) || []).length,
+      1,
+      JSON.stringify(payload),
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(hostHome, { recursive: true, force: true });
+  }
+});
+
 test('Cursor probe is explicit UNAVAILABLE in a non-Cursor environment', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-cursor-'));
   try {
@@ -71,6 +132,240 @@ test('Cursor probe is explicit UNAVAILABLE in a non-Cursor environment', () => {
     assert.strictEqual(payload.surfaceResults.length, 1);
     assert.strictEqual(payload.surfaceResults[0].surface, 'cursor-plugin');
     assert.strictEqual(payload.surfaceResults[0].status, 'UNAVAILABLE');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('Cursor --execute keeps an isolated profile and blocks without a real network sandbox', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-cursor-execute-'));
+  const agent = path.join(root, 'dhpk-agent');
+  const cursor = path.join(root, 'dhpk-cursor');
+  const bin = path.join(root, 'bin');
+  try {
+    fs.mkdirSync(agent, { recursive: true });
+    fs.mkdirSync(cursor, { recursive: true });
+    fs.mkdirSync(bin, { recursive: true });
+    const hostHome = writeCursorAuthHome(root);
+    writeSandboxUnavailable(bin);
+    writeAgentManifest(agent);
+    writeCursorPackage(cursor);
+    fs.writeFileSync(path.join(bin, 'cursor-agent'), [
+      '#!/usr/bin/env node',
+      "const fs = require('node:fs');",
+      "const path = require('node:path');",
+      "const cp = require('node:child_process');",
+      "const args = process.argv.slice(2);",
+      "for (let i = 0; i < args.length; i += 1) if (args[i] === '--plugin-dir' && args[i + 1]) { const root = args[++i]; try { const hooks = JSON.parse(fs.readFileSync(path.join(root, 'hooks', 'hooks.json'), 'utf8')); for (const hook of hooks.hooks.sessionStart || []) cp.execFileSync(path.resolve(root, hook.command), [], { cwd: root }); } catch (_) {} }",
+      "const roots = args.filter((arg, index) => args[index - 1] === '--plugin-dir');",
+      "const root = roots.find((candidate) => fs.existsSync(path.join(candidate, 'hooks', '.dhpk-probe-attestation.json')));",
+      "const attestation = JSON.parse(fs.readFileSync(path.join(root, 'hooks', '.dhpk-probe-attestation.json'), 'utf8'));",
+      "process.stdout.write(JSON.stringify({ response: 'dhpk skills commands agents rules were discovered.', dhpkProbe: { challenge: attestation.challenge, packageFingerprint: attestation.packageFingerprint, loaded: true, components: attestation.components } }));",
+      '',
+    ].join('\n'), { mode: 0o755 });
+    const result = runProbe('cursor', cursor, ['--execute', '--version', '1.0.0'], {
+      ...process.env,
+      HOME: hostHome,
+      PATH: `${bin}${path.delimiter}${process.env.PATH || ''}`,
+    });
+    assert.strictEqual(result.status, 1, result.stdout + result.stderr);
+    const payload = JSON.parse(result.stdout);
+    assert.strictEqual(payload.status, 'BLOCKED', JSON.stringify(payload));
+    assert.strictEqual(payload.network, 'unknown', JSON.stringify(payload));
+    assert.strictEqual(payload.surfaceResults[0].status, 'BLOCKED', JSON.stringify(payload));
+    assert.ok(payload.session_files.includes('.config/cursor/auth.json'), JSON.stringify(payload));
+    assert.ok(payload.commands.some((command) => /cursor-agent/.test(command.cmd)), JSON.stringify(payload));
+    assert.match(payload.surfaceResults[0].reasons.join(' '), /challenge|package|network/i);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('Cursor --execute falls back to a bwrap network sandbox when unshare is unavailable', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-cursor-bwrap-'));
+  const agent = path.join(root, 'dhpk-agent');
+  const cursor = path.join(root, 'dhpk-cursor');
+  const bin = path.join(root, 'bin');
+  try {
+    fs.mkdirSync(agent, { recursive: true });
+    fs.mkdirSync(cursor, { recursive: true });
+    fs.mkdirSync(bin, { recursive: true });
+    const hostHome = writeCursorAuthHome(root);
+    writeAgentManifest(agent);
+    writeCursorPackage(cursor);
+    fs.writeFileSync(path.join(bin, 'unshare'), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
+    fs.writeFileSync(path.join(bin, 'bwrap'), [
+      '#!/usr/bin/env node',
+      "const fs = require('node:fs');",
+      "const path = require('node:path');",
+      "const cp = require('node:child_process');",
+      "const args = process.argv.slice(2);",
+      "fs.writeFileSync(path.join(__dirname, 'bwrap-args.json'), JSON.stringify(args));",
+      "const separator = args.indexOf('--');",
+      "if (separator < 0 || !args[separator + 1]) process.exit(97);",
+      "const result = cp.spawnSync(args[separator + 1], args.slice(separator + 2), { encoding: 'utf8', env: process.env });",
+      "if (result.stdout) process.stdout.write(result.stdout);",
+      "if (result.stderr) process.stderr.write(result.stderr);",
+      "process.exit(result.status === null ? 98 : result.status);",
+      '',
+    ].join('\n'), { mode: 0o755 });
+    fs.writeFileSync(path.join(bin, 'cursor-agent'), [
+      '#!/usr/bin/env node',
+      "const fs = require('node:fs');",
+      "const path = require('node:path');",
+      "const cp = require('node:child_process');",
+      "const args = process.argv.slice(2);",
+      "for (let i = 0; i < args.length; i += 1) if (args[i] === '--plugin-dir' && args[i + 1]) { const root = args[++i]; try { const hooks = JSON.parse(fs.readFileSync(path.join(root, 'hooks', 'hooks.json'), 'utf8')); for (const hook of hooks.hooks.sessionStart || []) cp.execFileSync(path.resolve(root, hook.command), [], { cwd: root }); } catch (_) {} }",
+      "const roots = args.filter((arg, index) => args[index - 1] === '--plugin-dir');",
+      "const root = roots.find((candidate) => fs.existsSync(path.join(candidate, 'hooks', '.dhpk-probe-attestation.json')));",
+      "const attestation = JSON.parse(fs.readFileSync(path.join(root, 'hooks', '.dhpk-probe-attestation.json'), 'utf8'));",
+      "process.stdout.write(JSON.stringify({ response: 'dhpk skills commands agents rules were discovered.', dhpkProbe: { challenge: attestation.challenge, packageFingerprint: attestation.packageFingerprint, loaded: true, components: attestation.components } }));",
+      '',
+    ].join('\n'), { mode: 0o755 });
+
+    const env = { ...process.env, HOME: hostHome, PATH: `${bin}${path.delimiter}${process.env.PATH || ''}` };
+    delete env.DHPK_CONSUMER_PROBE_ALLOW_UNSANDBOXED_EXECUTION;
+    const result = runProbe('cursor', cursor, ['--execute', '--version', '1.0.0'], env);
+    assert.strictEqual(result.status, 0, result.stdout + result.stderr);
+    const payload = JSON.parse(result.stdout);
+    assert.strictEqual(payload.status, 'PASS', JSON.stringify(payload));
+    assert.strictEqual(payload.network, 'disabled', JSON.stringify(payload));
+    const bwrapArgs = JSON.parse(fs.readFileSync(path.join(bin, 'bwrap-args.json'), 'utf8'));
+    assert.deepStrictEqual(
+      bwrapArgs.slice(0, 9),
+      ['--ro-bind', '/', '/', '--dev', '/dev', '--proc', '/proc', '--unshare-net', '--die-with-parent'],
+      JSON.stringify(bwrapArgs),
+    );
+    const separator = bwrapArgs.indexOf('--');
+    assert.ok(separator > 9, JSON.stringify(bwrapArgs));
+    const writablePaths = [];
+    for (let index = 9; index < separator; index += 1) {
+      assert.strictEqual(bwrapArgs[index], '--bind', JSON.stringify(bwrapArgs));
+      assert.strictEqual(bwrapArgs[index + 1], bwrapArgs[index + 2], JSON.stringify(bwrapArgs));
+      writablePaths.push(bwrapArgs[index + 1]);
+      index += 2;
+    }
+    assert.ok(writablePaths.length >= 3, JSON.stringify(bwrapArgs));
+    assert.ok(writablePaths.every((value) => value.startsWith(`${os.tmpdir()}${path.sep}`)), JSON.stringify(writablePaths));
+    assert.match(bwrapArgs[separator + 1], /cursor-agent$/, JSON.stringify(bwrapArgs));
+
+    fs.writeFileSync(path.join(bin, 'unshare'), [
+      '#!/usr/bin/env node',
+      "const fs = require('node:fs');",
+      "const path = require('node:path');",
+      "const cp = require('node:child_process');",
+      "const args = process.argv.slice(2);",
+      "fs.writeFileSync(path.join(__dirname, 'unshare-args.json'), JSON.stringify(args));",
+      "const index = args.indexOf('--');",
+      "const child = cp.spawnSync(args[index + 1], args.slice(index + 2), { encoding: 'utf8', env: process.env });",
+      "if (child.stdout) process.stdout.write(child.stdout);",
+      "if (child.stderr) process.stderr.write(child.stderr);",
+      "process.exit(child.status === null ? 98 : child.status);",
+      '',
+    ].join('\n'), { mode: 0o755 });
+    fs.writeFileSync(path.join(bin, 'bwrap'), [
+      '#!/bin/sh',
+      `printf '%s' called > '${path.join(bin, 'bwrap-second-called')}'`,
+      'exit 99',
+      '',
+    ].join('\n'), { mode: 0o755 });
+    const unshareResult = runProbe('cursor', cursor, ['--execute', '--version', '1.0.0'], env);
+    assert.strictEqual(unshareResult.status, 0, unshareResult.stdout + unshareResult.stderr);
+    assert.strictEqual(JSON.parse(unshareResult.stdout).status, 'PASS', unshareResult.stdout);
+    assert.ok(fs.existsSync(path.join(bin, 'unshare-args.json')));
+    assert.strictEqual(fs.existsSync(path.join(bin, 'bwrap-second-called')), false);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('Cursor bwrap probes retain timeout bounds and die-with-parent protection', () => {
+  if (process.platform !== 'linux') return;
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-cursor-bwrap-timeout-'));
+  const packageRoot = path.join(root, 'package');
+  const bin = path.join(root, 'bin');
+  const previousPath = process.env.PATH;
+  try {
+    fs.mkdirSync(packageRoot, { recursive: true });
+    fs.mkdirSync(bin, { recursive: true });
+    const hostHome = writeCursorAuthHome(root);
+    fs.writeFileSync(path.join(bin, 'unshare'), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
+    fs.writeFileSync(path.join(bin, 'bwrap'), [
+      '#!/usr/bin/env node',
+      "const fs = require('node:fs');",
+      "const path = require('node:path');",
+      "const cp = require('node:child_process');",
+      "const args = process.argv.slice(2);",
+      "const log = path.join(__dirname, 'bwrap-timeout-args.json');",
+      "const calls = fs.existsSync(log) ? JSON.parse(fs.readFileSync(log, 'utf8')) : [];",
+      'calls.push(args);',
+      "fs.writeFileSync(log, JSON.stringify(calls));",
+      "const separator = args.indexOf('--');",
+      'if (separator < 0 || !args[separator + 1]) process.exit(97);',
+      "const child = cp.spawnSync(args[separator + 1], args.slice(separator + 2), { encoding: 'utf8', env: process.env });",
+      "if (child.stdout) process.stdout.write(child.stdout);",
+      "if (child.stderr) process.stderr.write(child.stderr);",
+      'process.exit(child.status === null ? 98 : child.status);',
+      '',
+    ].join('\n'), { mode: 0o755 });
+    process.env.PATH = `${bin}${path.delimiter}${previousPath || ''}`;
+    const probe = runCursorConsumerProbe({
+      packageRoot,
+      executable: process.execPath,
+      args: ['-e', 'setTimeout(() => {}, 1000)'],
+      timeoutMs: 50,
+      requirePackageChallenge: true,
+      networkMode: 'disabled',
+      hostHome,
+    });
+    assert.strictEqual(probe.status, 'SKIP_INCOMPATIBLE', JSON.stringify(probe));
+    assert.strictEqual(probe.timed_out, true, JSON.stringify(probe));
+    const calls = JSON.parse(fs.readFileSync(path.join(bin, 'bwrap-timeout-args.json'), 'utf8'));
+    assert.ok(calls.some((args) => args.includes('--die-with-parent')), JSON.stringify(calls));
+  } finally {
+    if (previousPath === undefined) delete process.env.PATH;
+    else process.env.PATH = previousPath;
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('Cursor --execute rejects output that only echoes the smoke prompt', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-cursor-echo-'));
+  const agent = path.join(root, 'dhpk-agent');
+  const cursor = path.join(root, 'dhpk-cursor');
+  const bin = path.join(root, 'bin');
+  try {
+    fs.mkdirSync(agent, { recursive: true });
+    fs.mkdirSync(cursor, { recursive: true });
+    fs.mkdirSync(bin, { recursive: true });
+    const hostHome = writeCursorAuthHome(root);
+    fs.writeFileSync(path.join(bin, 'unshare'), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
+    fs.writeFileSync(path.join(bin, 'bwrap'), [
+      '#!/usr/bin/env node',
+      "const cp = require('node:child_process');",
+      'const args = process.argv.slice(2);',
+      "const separator = args.indexOf('--');",
+      'if (separator < 0 || !args[separator + 1]) process.exit(97);',
+      "const result = cp.spawnSync(args[separator + 1], args.slice(separator + 2), { encoding: 'utf8', env: process.env });",
+      'if (result.stdout) process.stdout.write(result.stdout);',
+      'if (result.stderr) process.stderr.write(result.stderr);',
+      'process.exit(result.status === null ? 98 : result.status);',
+      '',
+    ].join('\n'), { mode: 0o755 });
+    writeAgentManifest(agent);
+    writeCursorPackage(cursor);
+    fs.writeFileSync(path.join(bin, 'cursor-agent'), [
+      '#!/bin/sh',
+      'printf \'%s\\n\' \'{"response":"dhpk skills commands agents rules were discovered."}\'',
+      '',
+    ].join('\n'), { mode: 0o755 });
+    const result = runProbe('cursor', cursor, ['--execute', '--version', '1.0.0'], {
+      ...process.env,
+      HOME: hostHome,
+      PATH: `${bin}${path.delimiter}${process.env.PATH || ''}`,
+    });
+    assert.notStrictEqual(result.status, 0, result.stdout + result.stderr);
+    assert.strictEqual(JSON.parse(result.stdout).status, 'BLOCKED');
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

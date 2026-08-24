@@ -19,6 +19,10 @@ function write(filePath, content, mode) {
   fs.writeFileSync(filePath, content, mode ? { mode } : undefined);
 }
 
+function writePythonShim(root) {
+  write(path.join(root, 'bin/python3'), '#!/bin/sh\nexec /usr/bin/python3 "$@"\n', 0o755);
+}
+
 function agyPackage(root) {
   const packageRoot = path.join(root, 'plugins/dhpk-agy');
   write(path.join(packageRoot, 'plugin.json'), JSON.stringify({
@@ -73,12 +77,108 @@ function agyPackage(root) {
   }));
 }
 
+function agySessionHome(root) {
+  const home = path.join(root, 'agy-home');
+  write(path.join(home, '.gemini/oauth_creds.json'), '{"accessToken":"AGY_ACCESS_MARKER"}\n', 0o600);
+  write(path.join(home, '.gemini/google_accounts.json'), '{"refreshToken":"AGY_REFRESH_MARKER"}\n', 0o600);
+  write(path.join(home, '.gemini/antigravity-cli/antigravity-oauth-token'), 'AGY_OAUTH_MARKER\n', 0o600);
+  write(path.join(home, '.gemini/unlisted.json'), 'must-not-copy\n', 0o600);
+  return home;
+}
+
 function validate(root, extra = [], env = process.env) {
   return spawnSync('python3', ['-B', SCRIPT, '--root', root, 'validate', '--targets', 'agy', '--format', 'json', ...extra], {
     encoding: 'utf8',
     timeout: 20000,
     env,
   });
+}
+
+function writeBwrapStub(root, { runtime = 'pass' } = {}) {
+  const bin = path.join(root, 'bin');
+  const log = path.join(root, 'bwrap-argv.log');
+  const modes = path.join(root, 'bwrap-source-modes.log');
+  fs.mkdirSync(bin, { recursive: true });
+  const logLiteral = JSON.stringify(log);
+  const modesLiteral = JSON.stringify(modes);
+  const runtimeBranch = runtime === 'auth'
+    ? [
+      "    printf '%s\\n' 'authentication required Authorization: Bearer AGY_SESSION_SECRET_MARKER Authorization=Bearer AGY_EQUAL_SECRET_MARKER {\"Authorization\":\"Bearer AGY_JSON_SECRET_MARKER\"}' >&2",
+      '    exit 1',
+    ]
+    : [
+      "    printf '%s\\n' 'AGY_SMOKE_OK'",
+      '    exit 0',
+    ];
+  write(path.join(bin, 'bwrap'), [
+    '#!/bin/sh',
+    'set -eu',
+    '{',
+    '  printf \'%s\\n\' "$@"',
+    "  printf '\\n'",
+    `} >> ${logLiteral}`,
+    'has_plugins=0',
+    'has_agents=0',
+    'has_runtime=0',
+    'for argument in "$@"; do',
+    '  case "$argument" in',
+    '    plugins) has_plugins=1 ;;',
+    '    agents) has_agents=1 ;;',
+    '    --agent) has_runtime=1 ;;',
+    '  esac',
+    'done',
+    'previous=',
+    'for argument in "$@"; do',
+    '  case "$previous" in',
+    '    --ro-bind|--ro-bind-try|--bind)',
+    `      mode=$(/usr/bin/stat -c '%a' "$argument" 2>/dev/null || printf '%s' missing)`,
+    `      printf '%s|%s\\n' "$argument" "$mode" >> ${modesLiteral}`,
+    '      ;;',
+    '  esac',
+    '  previous="$argument"',
+    'done',
+    'if [ "$has_plugins" = 1 ]; then printf \'%s\\n\' \'dhpk 0.39.0\'; exit 0; fi',
+    'if [ "$has_agents" = 1 ]; then printf \'%s\\n\' sample; exit 0; fi',
+    'if [ "$has_runtime" = 1 ]; then',
+    ...runtimeBranch,
+    'fi',
+    'exit 2',
+    '',
+  ].join('\n'), 0o755);
+  write(path.join(bin, 'agy'), '#!/bin/sh\nexit 0\n', 0o755);
+  return { bin, log, modes };
+}
+
+function bwrapInvocations(logPath) {
+  return fs.readFileSync(logPath, 'utf8')
+    .trim()
+    .split(/\n\n+/)
+    .filter(Boolean)
+    .map((chunk) => chunk.split(/\r?\n/));
+}
+
+function agyHostSession(root, { includeSession = true } = {}) {
+  const hostHome = path.join(root, 'agy-host-home');
+  if (includeSession) {
+    write(path.join(hostHome, '.gemini/oauth_creds.json'), '{"refresh_token":"AGY_REFRESH_SECRET_MARKER"}\n', 0o644);
+    write(path.join(hostHome, '.gemini/google_accounts.json'), '{"email":"agent@example.test"}\n', 0o644);
+    write(path.join(hostHome, '.gemini/antigravity-cli/antigravity-oauth-token'), 'AGY_OAUTH_TOKEN_SECRET_MARKER\n', 0o644);
+  }
+  write(path.join(hostHome, '.gemini/unlisted.json'), 'UNLISTED_HOST_STATE\n', 0o644);
+  write(path.join(hostHome, '.gemini/config/plugins/dhpk/host-plugin.txt'), 'HOST_PLUGIN_OVERLAY\n', 0o644);
+  return hostHome;
+}
+
+function invocationContains(invocation, value) {
+  return invocation.includes(value);
+}
+
+function boundSource(invocation, destination) {
+  for (let index = 0; index < invocation.length - 2; index += 1) {
+    if (!['--ro-bind', '--ro-bind-try', '--bind'].includes(invocation[index])) continue;
+    if (invocation[index + 2] === destination) return invocation[index + 1];
+  }
+  return null;
 }
 
 test('explicit AGY target without a marker is BLOCKED', () => {
@@ -154,11 +254,16 @@ test('stubbed agy plugins/agents and bounded runtime probes remain distinct', ()
   const bin = path.join(root, 'bin');
   try {
     agyPackage(root);
+    const hostHome = agySessionHome(root);
+    const stub = writeBwrapStub(root);
     write(path.join(bin, 'agy'), [
       '#!/bin/sh',
-      'if [ "$1" = "plugins" ] && [ "$2" = "list" ]; then echo "dhpk 0.39.0"; exit 0; fi',
-      'if [ "$1" = "agents" ]; then echo "sample"; exit 0; fi',
-      'if [ "$1" = "subagent" ]; then',
+      'if [ "$1" = "plugins" ] && [ "$2" = "list" ]; then test ! -e /home/agy/.gemini/oauth_creds.json || exit 96; echo "dhpk 0.39.0"; exit 0; fi',
+      'if [ "$1" = "agents" ]; then test ! -e /home/agy/.gemini/oauth_creds.json || exit 97; echo "sample"; exit 0; fi',
+      'if [ "$1" = "--agent" ] && [ "$2" = "agy-fast-worker" ] && [ "$3" = "--print" ]; then',
+      '  test -f /home/agy/.gemini/oauth_creds.json || exit 93',
+      '  test "$(stat -c %a /home/agy/.gemini/oauth_creds.json)" = "600" || exit 94',
+      '  test ! -e /home/agy/.gemini/unlisted.json || exit 95',
       '  if [ -e /var/run/docker.sock ] || [ -e /run/user/1000/bus ]; then exit 91; fi',
       '  if touch /workspace/plugins/dhpk-agy/agents/sandbox-write 2>/dev/null; then exit 92; fi',
       '  echo "AGY_SMOKE_OK"; exit 0;',
@@ -166,7 +271,7 @@ test('stubbed agy plugins/agents and bounded runtime probes remain distinct', ()
       'exit 2',
       '',
     ].join('\n'), 0o755);
-    const env = { ...process.env, PATH: `${bin}:/usr/bin:/bin` };
+    const env = { ...process.env, PATH: `${stub.bin}:/usr/bin:/bin`, DHPK_AGY_HOST_HOME: hostHome };
     const discovery = JSON.parse(validate(root, [], env).stdout).results.find((item) => item.platform === 'agy');
     const discoveryPluginsStatus = discovery.capabilities.find((item) => item.id === 'agy.discovery.plugins').status;
     const discoveryAgentsStatus = discovery.capabilities.find((item) => item.id === 'agy.discovery.agents').status;
@@ -178,6 +283,31 @@ test('stubbed agy plugins/agents and bounded runtime probes remain distinct', ()
     const runtimeStatus = runtime.capabilities.find((item) => item.id === 'agy.runtime.subagent').status;
     assert.ok(['PASS', 'UNAVAILABLE'].includes(runtimeStatus), `unexpected runtime probe status: ${runtimeStatus}`);
     assert.strictEqual(runtime.final_status, runtimeStatus === 'PASS' ? 'PASS' : 'UNAVAILABLE');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('isolated AGY authentication failures remain blocked instead of package failures', () => {
+  const root = tempRoot('agy-auth-unavailable');
+  const bin = path.join(root, 'bin');
+  try {
+    agyPackage(root);
+    const hostHome = agySessionHome(root);
+    const stub = writeBwrapStub(root, { runtime: 'auth' });
+    write(path.join(bin, 'agy'), [
+      '#!/bin/sh',
+      'if [ "$1" = "plugins" ] && [ "$2" = "list" ]; then echo "dhpk 0.39.0"; exit 0; fi',
+      'if [ "$1" = "agents" ]; then echo "sample"; exit 0; fi',
+      'if [ "$1" = "--agent" ] && [ "$2" = "agy-fast-worker" ]; then echo "authentication required" >&2; exit 1; fi',
+      'exit 2',
+      '',
+    ].join('\n'), 0o755);
+    const env = { ...process.env, PATH: `${stub.bin}:/usr/bin:/bin`, DHPK_AGY_HOST_HOME: hostHome };
+    const runtime = JSON.parse(validate(root, ['--agy-runtime-probe'], env).stdout).results.find((item) => item.platform === 'agy');
+    const runtimeStatus = runtime.capabilities.find((item) => item.id === 'agy.runtime.subagent').status;
+    assert.strictEqual(runtimeStatus, 'BLOCKED', JSON.stringify(runtime));
+    assert.strictEqual(runtime.final_status, 'BLOCKED', JSON.stringify(runtime));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -206,6 +336,161 @@ test('import-only agy plugins list is not native plugin discovery PASS', () => {
     assert.ok(['SKIP_INCOMPATIBLE', 'UNAVAILABLE'].includes(agents), `unrelated agents must not PASS: ${agents}`);
     assert.notStrictEqual(plugins, 'PASS');
     assert.notStrictEqual(row.final_status, 'FAIL', JSON.stringify(row));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('AGY discovery uses an empty HOME and never shares the network', () => {
+  const root = tempRoot('agy-discovery-isolation');
+  try {
+    agyPackage(root);
+    const hostHome = agyHostSession(root);
+    const stub = writeBwrapStub(root);
+    const result = validate(root, [], {
+      ...process.env,
+      PATH: `${stub.bin}:/usr/bin:/bin`,
+      DHPK_AGY_HOST_HOME: hostHome,
+    });
+    assert.ok(result.stdout, `${result.stdout}\n${result.stderr}`);
+    const invocations = bwrapInvocations(stub.log);
+    assert.strictEqual(invocations.length, 2, 'discovery should invoke plugins and agents only');
+    for (const invocation of invocations) {
+      assert.ok(invocationContains(invocation, '--unshare-all'));
+      assert.ok(!invocationContains(invocation, '--share-net'));
+      assert.ok(invocationContains(invocation, '--setenv'));
+      assert.ok(invocationContains(invocation, '/home/agy'));
+      assert.ok(!invocation.some((argument) => argument.includes(hostHome)));
+      assert.ok(!invocation.some((argument) => /oauth_creds|google_accounts|antigravity-oauth-token/.test(argument)));
+    }
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('AGY runtime clones only allowlisted session files at 0600 and shares network after unshare', () => {
+  const root = tempRoot('agy-runtime-session');
+  try {
+    agyPackage(root);
+    const hostHome = agyHostSession(root);
+    const stub = writeBwrapStub(root);
+    const result = validate(root, ['--agy-runtime-probe'], {
+      ...process.env,
+      PATH: `${stub.bin}:/usr/bin:/bin`,
+      DHPK_AGY_HOST_HOME: hostHome,
+    });
+    assert.ok(result.stdout, `${result.stdout}\n${result.stderr}`);
+    const invocations = bwrapInvocations(stub.log);
+    assert.strictEqual(invocations.length, 3, 'runtime probe should follow the two discovery probes');
+    const [discoveryPlugins, discoveryAgents, runtime] = invocations;
+    for (const discovery of [discoveryPlugins, discoveryAgents]) {
+      assert.ok(invocationContains(discovery, '--unshare-all'));
+      assert.ok(!invocationContains(discovery, '--share-net'));
+    }
+    const unshareIndex = runtime.indexOf('--unshare-all');
+    const shareIndex = runtime.indexOf('--share-net');
+    assert.ok(unshareIndex >= 0, 'runtime probe must unshare all namespaces');
+    assert.ok(shareIndex > unshareIndex, 'runtime network sharing must follow --unshare-all');
+    for (const relative of [
+      '.gemini/oauth_creds.json',
+      '.gemini/google_accounts.json',
+      '.gemini/antigravity-cli/antigravity-oauth-token',
+    ]) {
+      const destination = `/home/agy/${relative}`;
+      const source = boundSource(runtime, destination);
+      assert.ok(source, `missing runtime bind for ${relative}`);
+      assert.notStrictEqual(source, path.join(hostHome, relative), 'runtime must clone, not bind the host session file');
+      const sourceModes = fs.readFileSync(stub.modes, 'utf8');
+      assert.match(sourceModes, new RegExp(`${source.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\|600(?:\\n|$)`));
+    }
+    assert.ok(!runtime.some((argument) => argument.includes(path.join(hostHome, '.gemini/unlisted.json'))));
+    assert.ok(!runtime.some((argument) => argument.includes(path.join(hostHome, '.gemini/config/plugins'))));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('AGY missing login is BLOCKED with redacted diagnostics', () => {
+  const root = tempRoot('agy-runtime-auth-blocked');
+  try {
+    agyPackage(root);
+    const hostHome = agyHostSession(root, { includeSession: false });
+    const stub = writeBwrapStub(root, { runtime: 'auth' });
+    const result = validate(root, ['--agy-runtime-probe'], {
+      ...process.env,
+      PATH: `${stub.bin}:/usr/bin:/bin`,
+      DHPK_AGY_HOST_HOME: hostHome,
+    });
+    assert.ok(result.stdout, 'BLOCKED is a classified result, not a CLI crash');
+    const report = JSON.parse(result.stdout);
+    const row = report.results.find((item) => item.platform === 'agy');
+    const runtime = row.capabilities.find((item) => item.id === 'agy.runtime.subagent');
+    assert.strictEqual(runtime.status, 'BLOCKED', JSON.stringify(row));
+    assert.strictEqual(row.final_status, 'BLOCKED', JSON.stringify(row));
+    assert.doesNotMatch(JSON.stringify(report), /AGY_SESSION_SECRET_MARKER|AGY_EQUAL_SECRET_MARKER|AGY_JSON_SECRET_MARKER|AGY_REFRESH_SECRET_MARKER/);
+    assert.doesNotMatch(JSON.stringify(report), new RegExp(hostHome.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('AGY missing CLI and sandbox remain UNAVAILABLE', () => {
+  const missingCliRoot = tempRoot('agy-no-cli');
+  const missingSandboxRoot = tempRoot('agy-no-bwrap');
+  try {
+    agyPackage(missingCliRoot);
+    const cliStub = writeBwrapStub(missingCliRoot);
+    fs.rmSync(path.join(cliStub.bin, 'agy'));
+    const noCli = validate(missingCliRoot, ['--agy-runtime-probe'], {
+      ...process.env,
+      PATH: `${cliStub.bin}:/usr/bin:/bin`,
+    });
+    const cliRow = JSON.parse(noCli.stdout).results.find((item) => item.platform === 'agy');
+    assert.strictEqual(cliRow.capabilities.find((item) => item.id === 'agy.discovery.plugins').status, 'UNAVAILABLE');
+    assert.strictEqual(cliRow.capabilities.find((item) => item.id === 'agy.runtime.subagent').status, 'UNAVAILABLE');
+    assert.strictEqual(cliRow.final_status, 'UNAVAILABLE');
+
+    agyPackage(missingSandboxRoot);
+    write(path.join(missingSandboxRoot, 'bin/agy'), '#!/bin/sh\nexit 0\n', 0o755);
+    writePythonShim(missingSandboxRoot);
+    const noSandbox = validate(missingSandboxRoot, ['--agy-runtime-probe'], {
+      ...process.env,
+      PATH: path.join(missingSandboxRoot, 'bin'),
+    });
+    const sandboxRow = JSON.parse(noSandbox.stdout).results.find((item) => item.platform === 'agy');
+    assert.strictEqual(sandboxRow.capabilities.find((item) => item.id === 'agy.discovery.plugins').status, 'UNAVAILABLE');
+    assert.strictEqual(sandboxRow.capabilities.find((item) => item.id === 'agy.runtime.subagent').status, 'UNAVAILABLE');
+    assert.strictEqual(sandboxRow.final_status, 'UNAVAILABLE');
+  } finally {
+    fs.rmSync(missingCliRoot, { recursive: true, force: true });
+    fs.rmSync(missingSandboxRoot, { recursive: true, force: true });
+  }
+});
+
+test('AGY rejects a symlinked bwrap sandbox before executing the stub', () => {
+  const root = tempRoot('agy-symlinked-bwrap');
+  try {
+    agyPackage(root);
+    const hostHome = agyHostSession(root);
+    const bin = path.join(root, 'bin');
+    const sentinel = path.join(root, 'bwrap-must-not-run');
+    const target = path.join(bin, 'bwrap-target');
+    write(target, `#!/bin/sh\nprintf '%s' executed > ${sentinel}\nexit 0\n`, 0o755);
+    fs.symlinkSync(target, path.join(bin, 'bwrap'));
+    write(path.join(bin, 'agy'), '#!/bin/sh\nexit 0\n', 0o755);
+
+    const result = validate(root, ['--agy-runtime-probe'], {
+      ...process.env,
+      PATH: `${bin}:/usr/bin:/bin`,
+      DHPK_AGY_HOST_HOME: hostHome,
+    });
+    assert.ok(result.stdout, `${result.stdout}\n${result.stderr}`);
+    assert.ok(!fs.existsSync(sentinel), 'the symlinked bwrap target must never execute');
+    const row = JSON.parse(result.stdout).results.find((item) => item.platform === 'agy');
+    assert.strictEqual(row.capabilities.find((item) => item.id === 'agy.discovery.plugins').status, 'UNAVAILABLE', JSON.stringify(row));
+    assert.strictEqual(row.capabilities.find((item) => item.id === 'agy.discovery.agents').status, 'UNAVAILABLE', JSON.stringify(row));
+    assert.strictEqual(row.capabilities.find((item) => item.id === 'agy.runtime.subagent').status, 'UNAVAILABLE', JSON.stringify(row));
+    assert.ok(['UNAVAILABLE', 'BLOCKED'].includes(row.final_status), JSON.stringify(row));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

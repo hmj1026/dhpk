@@ -25,6 +25,21 @@ test('surface receipts carry an owner that is independent per publication surfac
   assert.strictEqual(validateSurfaceReceipt(receipt, 'cursor-plugin').ok, false);
 });
 
+test('surface receipts expose generated-input identity separately from the release target', () => {
+  const receipt = createSurfaceReceipt({
+    surface: 'agent-plugin',
+    sourceVersion: '1.2.3',
+    sourceCommit: 'a'.repeat(40),
+    generatedFromCommit: 'a'.repeat(40),
+    generatedFromTree: 'd'.repeat(40),
+    inventoryDigest: 'b'.repeat(64),
+    fingerprints: { 'dhpk-example': 'c'.repeat(64) },
+  });
+  assert.strictEqual(receipt.generatedFromCommit, 'a'.repeat(40));
+  assert.strictEqual(receipt.generatedFromTree, 'd'.repeat(40));
+  assert.strictEqual(validateSurfaceReceipt(receipt, 'agent-plugin').ok, true);
+});
+
 test('receipt validation rejects an owner or surface swap', () => {
   const receipt = createSurfaceReceipt({
     surface: 'cursor-plugin',

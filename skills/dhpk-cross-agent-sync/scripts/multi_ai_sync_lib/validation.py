@@ -6,7 +6,9 @@ import json
 import os
 import re
 import shutil
+import stat
 import subprocess
+import tempfile
 
 from .agent_sync import (
     CLAUDE_PARITY_COVERAGE_KEYWORDS,
@@ -253,7 +255,7 @@ def validate_antigravity(repo_root, membership=None):
 AGY_MODELS = {"inherit", "flash_lite", "flash", "pro"}
 AGY_TOOLS = {
     "read_file", "view_file", "write_to_file", "replace_file_content",
-    "multi_replace_file_content", "run_command", "grep_search", "glob",
+    "multi_replace_file_content", "run_command", "grep_search",
     "list_dir", "search_web", "read_url_content", "invoke_subagent",
 }
 AGY_FRONTMATTER_KEYS = {"name", "description", "tools", "model"}
@@ -270,12 +272,31 @@ AGY_SECRET_PATTERNS = (
     re.compile(r"\b(?:gh[pousr]|github_pat)_[A-Za-z0-9_]{20,}\b", re.IGNORECASE),
     re.compile(r"\bsk-[A-Za-z0-9_-]{20,}\b", re.IGNORECASE),
     re.compile(r"\b(?:https?|postgres(?:ql)?|mysql|mariadb|redis|mongodb(?:\+srv)?):\/\/[^\s/@:]+:[^\s/@]+@", re.IGNORECASE),
+    re.compile(r"[\"']?(?:authorization|proxy-authorization)[\"']?\s*[:=]\s*[\"']?(?:bearer|basic)\s+[\"']?[^\"'\s,}]+", re.IGNORECASE),
+)
+AGY_SESSION_ALLOWLIST = (
+    ".gemini/oauth_creds.json",
+    ".gemini/google_accounts.json",
+    ".gemini/antigravity-cli/antigravity-oauth-token",
+)
+AGY_SENSITIVE_ASSIGNMENT = re.compile(
+    r"([\"']?)(?:access[_-]?token|refresh[_-]?token|oauth[_-]?token|token|password|secret|api[_-]?key|credential)\1\s*[:=]\s*"
+    r"(?:\"[^\"\r\n]*\"|'[^'\r\n]*'|[^\s,;}\]]+)",
+    re.IGNORECASE,
 )
 
 
 def _agy_contains_secret(content):
     text = content.decode("utf-8", errors="replace") if isinstance(content, bytes) else str(content)
     return any(pattern.search(text) for pattern in AGY_SECRET_PATTERNS)
+
+
+def _agy_redact_diagnostic(value):
+    text = "" if value is None else str(value)
+    text = AGY_SENSITIVE_ASSIGNMENT.sub(lambda match: "%s: <redacted>" % match.group(0).split(":", 1)[0].split("=", 1)[0].strip(" \"'"), text)
+    for pattern in AGY_SECRET_PATTERNS:
+        text = pattern.sub("<redacted>", text)
+    return text[-800:]
 
 
 def _agy_package_root(repo_root):
@@ -503,17 +524,100 @@ def _validate_agy_package_structure(package_root):
     return len(errors) == 0, errors, agents
 
 
-def _run_agy_command(args, repo_root, timeout=15, read_only=False):
-    executable = shutil.which("agy")
+def _agy_clone_session(host_home):
+    if not isinstance(host_home, str) or not os.path.isabs(host_home):
+        return None, []
+    probe_home = tempfile.mkdtemp(prefix="dhpk-agy-home-")
+    copied = []
+    try:
+        for relative in AGY_SESSION_ALLOWLIST:
+            source = os.path.join(host_home, relative)
+            source_parts = relative.replace("/", os.sep).split(os.sep)
+            current = os.path.abspath(host_home)
+            try:
+                if os.path.islink(current):
+                    continue
+                for part in source_parts:
+                    current = os.path.join(current, part)
+                    if os.path.islink(current):
+                        current = None
+                        break
+                if current is None or not os.path.isfile(source) or os.path.islink(source):
+                    continue
+                expected_realpath = os.path.realpath(source)
+                destination = os.path.join(probe_home, relative)
+                os.makedirs(os.path.dirname(destination), mode=0o700, exist_ok=True)
+                nofollow = getattr(os, "O_NOFOLLOW", 0)
+                source_fd = os.open(source, os.O_RDONLY | nofollow)
+                try:
+                    source_stat = os.fstat(source_fd)
+                    if not stat.S_ISREG(source_stat.st_mode):
+                        continue
+                    source_lstat = os.lstat(source)
+                    if (getattr(source_lstat, "st_dev", None) != getattr(source_stat, "st_dev", None)
+                            or getattr(source_lstat, "st_ino", None) != getattr(source_stat, "st_ino", None)):
+                        continue
+                    if os.path.realpath(source) != expected_realpath:
+                        continue
+                    with os.fdopen(source_fd, "rb", closefd=False) as source_stream:
+                        content = source_stream.read()
+                finally:
+                    os.close(source_fd)
+                destination_fd = os.open(
+                    destination,
+                    os.O_WRONLY | os.O_CREAT | os.O_TRUNC | nofollow,
+                    0o600,
+                )
+                try:
+                    with os.fdopen(destination_fd, "wb", closefd=False) as destination_stream:
+                        destination_stream.write(content)
+                finally:
+                    os.close(destination_fd)
+                os.chmod(destination, 0o600)
+                copied.append(relative)
+            except (OSError, ValueError):
+                continue
+        return probe_home, copied
+    except Exception:
+        shutil.rmtree(probe_home, ignore_errors=True)
+        raise
+
+
+def _verified_executable(name):
+    candidate = shutil.which(name)
+    if not candidate:
+        return None
+    candidate = os.path.abspath(candidate)
+    try:
+        link_stat = os.lstat(candidate)
+        if stat.S_ISLNK(link_stat.st_mode) or not stat.S_ISREG(link_stat.st_mode):
+            return None
+        resolved = os.path.realpath(candidate)
+        resolved_stat = os.stat(resolved)
+        if not stat.S_ISREG(resolved_stat.st_mode) or not os.access(resolved, os.X_OK):
+            return None
+        return resolved
+    except OSError:
+        return None
+
+
+def _agy_probe_tools():
+    executable = _verified_executable("agy")
+    sandbox = _verified_executable("bwrap")
     if not executable:
         return None, "agy executable is unavailable"
-    if not read_only:
-        return None, "AGY probes must run in the read-only sandbox"
-    sandbox = shutil.which("bwrap")
     if not sandbox:
         return None, "read-only AGY probe sandbox (bwrap) is unavailable"
-    if os.path.islink(executable) or not os.path.isfile(executable):
-        return None, "AGY executable must be a regular file for the sandbox"
+    return (executable, sandbox), None
+
+
+def _run_agy_command(args, repo_root, timeout=15, read_only=False, session_home=None, share_network=False):
+    if not read_only:
+        return None, "AGY probes must run in the read-only sandbox"
+    tools, unavailable_reason = _agy_probe_tools()
+    if unavailable_reason:
+        return None, unavailable_reason
+    executable, sandbox = tools
 
     # Never bind the host root or the caller's home into a probe.  A
     # command-capable AGY agent must not be able to reach Docker, DBus, SSH
@@ -525,7 +629,12 @@ def _run_agy_command(args, repo_root, timeout=15, read_only=False):
     # a privileged probe process.
     package_root = _agy_package_root(repo_root)
     command = [
-        sandbox, "--unshare-user", "--unshare-all", "--disable-userns", "--cap-drop", "ALL",
+        sandbox, "--unshare-user", "--unshare-all",
+    ]
+    if share_network:
+        command.append("--share-net")
+    command.extend([
+        "--disable-userns", "--cap-drop", "ALL",
         "--die-with-parent", "--clearenv",
         "--setenv", "PATH", "/workspace/bin:/usr/bin:/bin",
         "--setenv", "HOME", "/home/agy",
@@ -546,6 +655,7 @@ def _run_agy_command(args, repo_root, timeout=15, read_only=False):
         "--dir", "/home/agy",
         "--dir", "/home/agy/.config",
         "--dir", "/home/agy/.gemini",
+        "--dir", "/home/agy/.gemini/antigravity-cli",
         "--dir", "/home/agy/.gemini/config",
         "--dir", "/home/agy/.gemini/config/plugins",
         "--tmpfs", "/tmp",
@@ -559,7 +669,14 @@ def _run_agy_command(args, repo_root, timeout=15, read_only=False):
         "--dev", "/dev",
         "--chdir", "/workspace",
         "/workspace/bin/agy",
-    ]
+    ])
+    if session_home:
+        for relative in AGY_SESSION_ALLOWLIST:
+            source = os.path.join(session_home, relative)
+            if os.path.isfile(source) and not os.path.islink(source):
+                target = os.path.join("/home/agy", relative)
+                insert_at = command.index("--tmpfs")
+                command[insert_at:insert_at] = ["--ro-bind", source, target]
     if os.path.isdir(package_root) and not os.path.islink(package_root):
         # Mount the structurally validated package at the documented consumer
         # path. AGY discovers native plugins from ~/.gemini/config/plugins/<name>,
@@ -646,13 +763,33 @@ def _agy_discovery_probe(repo_root, package_root, agents):
 
 
 def _agy_runtime_probe(repo_root):
-    code, output = _run_agy_command([
-        "subagent", "--agent", "agy-fast-worker", "--prompt",
-        "Read-only smoke check. Return exactly AGY_SMOKE_OK and do not modify files.",
-    ], repo_root, timeout=30, read_only=True)
+    _, unavailable_reason = _agy_probe_tools()
+    if unavailable_reason:
+        return ROW_UNAVAILABLE, unavailable_reason
+    host_home = os.environ.get("DHPK_AGY_HOST_HOME")
+    session_home, copied = _agy_clone_session(host_home)
+    if not copied:
+        if session_home:
+            shutil.rmtree(session_home, ignore_errors=True)
+        return ROW_BLOCKED, "agy Subagent probe requires an allowlisted logged-in session"
+    try:
+        code, output = _run_agy_command([
+            "--agent", "agy-fast-worker", "--print",
+            "Read-only smoke check. Return exactly AGY_SMOKE_OK and do not modify files.",
+            "--output-format", "text",
+        ], repo_root, timeout=30, read_only=True, session_home=session_home, share_network=True)
+    finally:
+        shutil.rmtree(session_home, ignore_errors=True)
     if code is None:
-        return ROW_UNAVAILABLE, output
+        return ROW_UNAVAILABLE, _agy_redact_diagnostic(output)
     if code != 0:
+        lowered = (output or "").lower()
+        if any(marker in lowered for marker in ("authentication", "unauthorized", "api key", "credential", "login")):
+            return ROW_BLOCKED, "agy Subagent probe requires authentication; use an already-logged-in session"
+        if any(marker in lowered for marker in ("network", "connection", "timed out", "timeout", "permission denied")):
+            return ROW_UNAVAILABLE, "agy Subagent probe is unavailable in the isolated runtime (credentials or connectivity are not available)"
+        if any(marker in lowered for marker in ("unknown argument", "unknown command", "flag provided but not defined")):
+            return ROW_SKIP_INCOMPATIBLE, "agy CLI does not support the bounded --agent/--print runtime route"
         return ROW_FAIL, "agy Subagent probe exited with status %s" % code
     if output.strip() != "AGY_SMOKE_OK":
         return ROW_FAIL, "agy Subagent probe did not return the exact AGY_SMOKE_OK marker"
@@ -701,6 +838,8 @@ def validate_agy(repo_root, membership=None, runtime_probe=False):
     ]
     if runtime_status == ROW_FAIL:
         row["final_status"] = ROW_FAIL
+    elif runtime_status == ROW_BLOCKED and row["final_status"] == ROW_PASS:
+        row["final_status"] = ROW_BLOCKED
     elif runtime_status == ROW_UNAVAILABLE and row["final_status"] == ROW_PASS:
         row["final_status"] = ROW_UNAVAILABLE
     return row

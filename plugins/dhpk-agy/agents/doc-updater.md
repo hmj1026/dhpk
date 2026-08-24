@@ -1,7 +1,7 @@
 ---
 name: doc-updater
 description: 'Documentation and codemap specialist. Use PROACTIVELY for updating codemaps and documentation. Use immediately after structural code changes (new modules, renamed/moved directories, new public services) so docs/CODEMAPS stay in sync. Runs /update-codemaps and /update-docs, generates docs/CODEMAPS/*, updates READMEs and guides.'
-tools: ["read_file", "write_to_file", "replace_file_content", "run_command", "grep_search", "glob"]
+tools: ["read_file", "write_to_file", "replace_file_content", "run_command", "grep_search", "list_dir"]
 model: flash_lite
 ---
 

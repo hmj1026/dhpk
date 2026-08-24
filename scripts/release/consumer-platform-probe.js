@@ -12,7 +12,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { validateAgentPluginPackage } = require('../lib/agent-plugin-package');
-const { validateCursorPackage } = require('../lib/cursor-plugin-package');
+const { runCursorConsumerProbe, validateCursorPackage } = require('../lib/cursor-plugin-package');
 const { redactSensitiveText } = require('../lib/redaction');
 const { normalizeConsumerEvidence } = require('../lib/release-evidence');
 
@@ -27,15 +27,15 @@ function parseArgs(argv) {
     else if (arg === '--execute') args.execute = true;
     else if (arg === '--version') args.version = argv[++i];
     else if (arg === '--help') {
-      console.log('usage: consumer-platform-probe.js --platform codex|cursor --package-root <path> [--execute] [--version X.Y.Z]');
+      console.log('usage: consumer-platform-probe.js --platform codex|agent-plugin|cursor --package-root <path> [--execute] [--version X.Y.Z]');
       process.exit(0);
     } else {
       console.error(`consumer-platform-probe: unknown argument '${arg}'`);
       process.exit(2);
     }
   }
-  if (!['codex', 'cursor'].includes(args.platform) || !args.packageRoot) {
-    console.error('usage: consumer-platform-probe.js --platform codex|cursor --package-root <path> [--execute] [--version X.Y.Z]');
+  if (!['codex', 'agent-plugin', 'cursor'].includes(args.platform) || !args.packageRoot) {
+    console.error('usage: consumer-platform-probe.js --platform codex|agent-plugin|cursor --package-root <path> [--execute] [--version X.Y.Z]');
     process.exit(2);
   }
   return args;
@@ -84,7 +84,7 @@ function executeWithSandbox(command, args, options) {
 }
 
 function packageManifest(platform, root) {
-  const rel = platform === 'codex' ? ['plugin.json', '.codex-plugin/plugin.json'] : ['plugin.json', '.cursor-plugin/plugin.json'];
+  const rel = platform === 'cursor' ? ['.cursor-plugin/plugin.json', 'plugin.json'] : ['plugin.json', '.codex-plugin/plugin.json'];
   for (const candidate of rel) {
     const file = path.join(root, candidate);
     if (!fs.existsSync(file)) continue;
@@ -129,15 +129,122 @@ function runCodexProbe(root, execute = false) {
   }
 }
 
+function runCursorProbe(root, execute = false) {
+  if (!execute) {
+    return {
+      status: 'UNAVAILABLE',
+      reason: 'Cursor client runtime probe is opt-in; pass --execute on an isolated runner',
+      commands: [],
+    };
+  }
+
+  const agentRoot = path.join(path.dirname(root), 'dhpk-agent');
+  const agentPackage = validateAgentPluginPackage(agentRoot);
+  if (!agentPackage.ok) {
+    return {
+      status: 'BLOCKED',
+      reason: 'Cursor consumer probe requires the sibling Agent Plugin package',
+      diagnostics: agentPackage.errors,
+      commands: [],
+    };
+  }
+
+  const command = 'cursor-agent --plugin-dir <agent-package> --plugin-dir <cursor-package> --mode ask --trust -p <smoke-prompt> --output-format json';
+  const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-consumer-'));
+  const stagedAgent = path.join(sandbox, 'agent-plugin');
+  const stagedCursor = path.join(sandbox, 'cursor-plugin');
+  const workspace = path.join(sandbox, 'workspace');
+  try {
+    fs.cpSync(agentRoot, stagedAgent, { recursive: true, dereference: true });
+    fs.cpSync(root, stagedCursor, { recursive: true, dereference: true });
+    fs.mkdirSync(workspace, { recursive: true });
+    const result = runCursorConsumerProbe({
+      // The Cursor package is the consumer under test. The Agent package is a
+      // companion projection passed as a second plugin directory, but must
+      // not become the probe's working root or environment identity.
+      packageRoot: stagedCursor,
+      args: [
+        '--plugin-dir', stagedAgent,
+        '--plugin-dir', stagedCursor,
+        '--mode', 'ask',
+        '--trust',
+        '-p', 'List the dhpk skills, commands, agents, and rules you discover. Do not edit files.',
+        '--output-format', 'json',
+      ],
+      cwd: workspace,
+      requireOutput: true,
+      requireJson: true,
+      requireDiscovery: true,
+      requirePackageChallenge: true,
+      networkMode: 'disabled',
+    });
+    return {
+      ...result,
+      packageRoot: root,
+      commands: [{ cmd: command, exitCode: result.exit_code === undefined ? null : result.exit_code }],
+    };
+  } catch (error) {
+    return { status: 'BLOCKED', reason: `Cursor consumer probe could not start: ${error.message}`, commands: [{ cmd: command, exitCode: null }] };
+  } finally {
+    fs.rmSync(sandbox, { recursive: true, force: true });
+  }
+}
+
+function runAgentPluginProbe(root, execute = false) {
+  if (!execute) {
+    return {
+      status: 'UNAVAILABLE',
+      reason: 'Agent Plugin consumer runtime probe is opt-in; pass --execute on an isolated runner',
+      commands: [],
+    };
+  }
+
+  const command = 'cursor-agent --plugin-dir <agent-package> --mode ask --trust -p <smoke-prompt> --output-format json';
+  const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-agent-consumer-'));
+  const stagedRoot = path.join(sandbox, 'agent-plugin');
+  const workspace = path.join(sandbox, 'workspace');
+  try {
+    fs.cpSync(root, stagedRoot, { recursive: true, dereference: true });
+    fs.mkdirSync(workspace, { recursive: true });
+    const result = runCursorConsumerProbe({
+      packageRoot: stagedRoot,
+      args: [
+        '--plugin-dir', stagedRoot,
+        '--mode', 'ask',
+        '--trust',
+        '-p', 'Read the portable dhpk Agent Plugin package and return a bounded smoke response. Do not edit files.',
+        '--output-format', 'json',
+      ],
+      cwd: workspace,
+      requireOutput: true,
+      requireJson: true,
+      requireDiscovery: true,
+      requiredDiscoveryCapabilities: ['dhpk', 'skill'],
+      requiredLoaderComponents: ['skills'],
+      requirePackageChallenge: true,
+      networkMode: 'disabled',
+    });
+    return {
+      ...result,
+      packageRoot: root,
+      commands: [{ cmd: command, exitCode: result.exit_code === undefined ? null : result.exit_code }],
+    };
+  } catch (error) {
+    return { status: 'BLOCKED', reason: `Agent Plugin consumer probe could not start: ${error.message}`, commands: [{ cmd: command, exitCode: null }] };
+  } finally {
+    fs.rmSync(sandbox, { recursive: true, force: true });
+  }
+}
+
 function validatePackage(platform, root) {
-  const result = platform === 'codex'
+  const result = platform === 'codex' || platform === 'agent-plugin'
     ? validateAgentPluginPackage(root)
     : validateCursorPackage({ packageRoot: root, expectedManifestName: 'dhpk-cursor' });
   return result;
 }
 
 function normalizedProbeEvidence(platform, manifest, result, version) {
-  const surface = platform === 'codex' ? 'codex-marketplace' : 'cursor-plugin';
+  const surface = platform === 'codex' ? 'codex-marketplace' : platform === 'agent-plugin' ? 'agent-plugin' : 'cursor-plugin';
   const evidence = normalizeConsumerEvidence({
     stage: 'CONSUMER',
     producer: 'consumer-platform-probe',
@@ -146,7 +253,7 @@ function normalizedProbeEvidence(platform, manifest, result, version) {
       surface,
       status: result.status,
       commands: result.commands || [],
-      environment: { network: 'disabled', packageRoot: '<repo-package>' },
+      environment: { network: result.network || 'unknown', packageRoot: '<repo-package>' },
       artifacts: [
         ...(manifest && manifest.path ? [{ path: `<repo-package>/${path.basename(manifest.path)}`, version: version || null }] : []),
         ...(result.artifacts || []),
@@ -178,7 +285,9 @@ function main() {
   }, 1);
   const result = args.platform === 'codex'
     ? runCodexProbe(root, args.execute)
-    : { status: 'UNAVAILABLE', reason: 'Cursor GUI/local loader is not available in this environment', commands: [] };
+    : args.platform === 'agent-plugin'
+      ? runAgentPluginProbe(root, args.execute)
+      : runCursorProbe(root, args.execute);
   if (!STATUSES.includes(result.status)) emit({ platform: args.platform, status: 'FAIL', packageRoot: root, reason: `unknown probe status ${result.status}` }, 1);
   let normalized;
   try {

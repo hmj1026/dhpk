@@ -13,4 +13,13 @@ const REQUIRED_SURFACES = Object.freeze([
   'agy-plugin',
 ]);
 
-module.exports = { REQUIRED_SURFACES };
+const REQUIRED_RUNTIME_SURFACES = Object.freeze([
+  'claude-core',
+  'codex-sync',
+  'codex-native',
+  'cursor-plugin',
+  'agent-plugin',
+  'agy-plugin',
+]);
+
+module.exports = { REQUIRED_SURFACES, REQUIRED_RUNTIME_SURFACES };

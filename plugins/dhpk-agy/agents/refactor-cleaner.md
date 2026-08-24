@@ -1,7 +1,7 @@
 ---
 name: refactor-cleaner
 description: 'Dead-code removal specialist (language-agnostic). Use when files exceed 800 lines, when user explicitly asks to "dedupe" / "remove dead code" / "split file", or during refactor-pass after large feature work. Removes unused functions, merges duplicate logic, splits oversized files, and consolidates scattered patterns.'
-tools: ["read_file", "write_to_file", "replace_file_content", "grep_search", "glob", "run_command", "mcp_gitnexus_impact", "mcp_gitnexus_rename"]
+tools: ["read_file", "write_to_file", "replace_file_content", "grep_search", "list_dir", "run_command", "mcp_gitnexus_impact", "mcp_gitnexus_rename"]
 model: pro
 ---
 

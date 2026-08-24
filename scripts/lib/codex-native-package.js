@@ -14,7 +14,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
-const { RECEIPT_SCHEMA, SURFACE_OWNERS } = require('./platform-provenance');
+const { RECEIPT_SCHEMA, SURFACE_OWNERS, resolveGeneratedFromTree } = require('./platform-provenance');
 const {
   compileDistribution,
   materializeDistribution,
@@ -387,6 +387,7 @@ function compileNativePackage({
   const skillIds = selectedEntries.map((entry) => entry.id).sort();
   const skillNames = selectedEntries.map((entry) => entry.name || entry.id).sort();
   const inventoryDigest = crypto.createHash('sha256').update(JSON.stringify(inventory)).digest('hex');
+  const generatedFromTree = resolveGeneratedFromTree(resolvedRoot, sourceCommit);
   const provenance = {
     schema: RECEIPT_SCHEMA,
     surface: 'codex-native',
@@ -394,6 +395,8 @@ function compileNativePackage({
     owner: SURFACE_OWNERS['codex-native'],
     sourceVersion: version,
     sourceCommit,
+    generatedFromCommit: sourceCommit,
+    ...(generatedFromTree ? { generatedFromTree } : {}),
     inventoryDigest,
     generatorVersion,
     selectedSkillIds: skillIds,

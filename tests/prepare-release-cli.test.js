@@ -16,6 +16,10 @@ const { test, run, assert } = require('./_lib/tinytest');
 const ROOT = path.join(__dirname, '..');
 const CLI = path.join(ROOT, 'scripts', 'release', 'prepare-release.js');
 
+function fileFingerprint(file) {
+  return `file:${require('node:crypto').createHash('sha256').update(fs.readFileSync(file)).digest('hex')}`;
+}
+
 function mkRepo({ branch = 'develop' } = {}) {
   const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-prepare-release-')));
   for (const rel of ['.claude-plugin', '.codex-plugin', 'plugins/dhpk/.codex-plugin', '.agents/plugins', 'changelog.d', 'manifests', 'skills/dhpk-tdd-workflow', 'skills/dhpk-sample', 'agents', 'rules']) {
@@ -148,6 +152,184 @@ test('write mode updates every manifest, promotes fragments, and reports the ful
   assert.match(res.stdout, /docs\/platform-installation\.zh-TW\.md/);
   assert.ok(fs.readFileSync(path.join(repo, 'docs', 'platform-installation.md'), 'utf8').includes(expectedPin));
   assert.ok(fs.readFileSync(path.join(repo, 'docs', 'platform-installation.zh-TW.md'), 'utf8').includes(expectedPin));
+});
+
+test('write mode retains a durable rollback manifest and rollback restores the prior release tree', () => {
+  const repo = mkRepo();
+  fs.writeFileSync(path.join(repo, 'changelog.d', 'feat.widget.md'), 'scope: widget\nnote: Add the widget.\n');
+  try {
+    const write = runCli(repo, ['write', '--version', '1.1.0', '--date', '2026-07-27', '--summary', 'Add widget', '--operation-key', 'release-test-1']);
+    assert.strictEqual(write.status, 0, write.stderr);
+    const backupRoot = path.join(repo, '.claude', 'artifacts', 'release-backups');
+    const manifests = fs.readdirSync(backupRoot).filter((name) => name.endsWith('.json'));
+    assert.strictEqual(manifests.length, 1, `expected one durable rollback manifest in ${backupRoot}`);
+    const reference = path.join(backupRoot, manifests[0]);
+    const manifest = JSON.parse(fs.readFileSync(reference, 'utf8'));
+    assert.strictEqual(manifest.operationKey, 'release-test-1');
+    assert.ok(manifest.entries.length > 0);
+    assert.strictEqual(JSON.parse(fs.readFileSync(path.join(repo, '.claude-plugin', 'plugin.json'), 'utf8')).version, '1.1.0');
+
+    const rollback = runCli(repo, ['rollback', '--backup-reference', reference]);
+    assert.strictEqual(rollback.status, 0, rollback.stderr);
+    assert.strictEqual(JSON.parse(fs.readFileSync(path.join(repo, '.claude-plugin', 'plugin.json'), 'utf8')).version, '1.0.0');
+    assert.match(fs.readFileSync(path.join(repo, 'CHANGELOG.md'), 'utf8'), /## 1\.0\.0/);
+    const rolledBack = JSON.parse(fs.readFileSync(reference, 'utf8'));
+    assert.ok(rolledBack.rolledBackAt);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
+test('rollback resumes safely after an earlier entry was already restored', () => {
+  const repo = mkRepo();
+  fs.writeFileSync(path.join(repo, 'changelog.d', 'feat.widget.md'), 'scope: widget\nnote: Add the widget.\n');
+  try {
+    const write = runCli(repo, ['write', '--version', '1.1.0', '--date', '2026-07-27', '--summary', 'Add widget', '--operation-key', 'resume-rollback']);
+    assert.strictEqual(write.status, 0, write.stderr);
+    const reference = path.join(repo, '.claude', 'artifacts', 'release-backups', 'resume-rollback.json');
+    const manifest = JSON.parse(fs.readFileSync(reference, 'utf8'));
+    const index = manifest.entries.findIndex((entry) => entry.target.endsWith(path.join('.claude-plugin', 'plugin.json')));
+    assert.ok(index >= 0);
+    const entry = manifest.entries[index];
+    fs.rmSync(entry.target, { recursive: true, force: true });
+    fs.renameSync(entry.backup, entry.target);
+    entry.backup = entry.backup;
+    entry.rollbackStatus = 'RESTORED';
+    entry.restoredFingerprint = fileFingerprint(entry.target);
+    manifest.rollbackStatus = 'PARTIAL';
+    fs.writeFileSync(reference, `${JSON.stringify(manifest, null, 2)}\n`);
+
+    const rollback = runCli(repo, ['rollback', '--backup-reference', reference]);
+    assert.strictEqual(rollback.status, 0, rollback.stderr);
+    assert.ok(JSON.parse(fs.readFileSync(reference, 'utf8')).rolledBackAt);
+    assert.strictEqual(JSON.parse(fs.readFileSync(path.join(repo, '.claude-plugin', 'plugin.json'), 'utf8')).version, '1.0.0');
+  } finally { fs.rmSync(repo, { recursive: true, force: true }); }
+});
+
+test('rollback recovers a publication interrupted before progress persistence', () => {
+  const repo = mkRepo();
+  fs.writeFileSync(path.join(repo, 'changelog.d', 'feat.widget.md'), 'scope: widget\nnote: Add the widget.\n');
+  try {
+    const write = runCli(repo, ['write', '--version', '1.1.0', '--date', '2026-07-27', '--summary', 'Add widget', '--operation-key', 'crash-window']);
+    assert.strictEqual(write.status, 0, write.stderr);
+    const reference = path.join(repo, '.claude', 'artifacts', 'release-backups', 'crash-window.json');
+    const manifest = JSON.parse(fs.readFileSync(reference, 'utf8'));
+    const index = manifest.entries.findIndex((entry) => entry.target.endsWith(path.join('.claude-plugin', 'plugin.json')));
+    assert.ok(index >= 0);
+    const entry = manifest.entries[index];
+    const recovery = entry.recovery;
+    fs.renameSync(entry.target, recovery);
+    fs.renameSync(entry.backup, entry.target);
+    manifest.rollbackStatus = 'IN_PROGRESS';
+    fs.writeFileSync(reference, `${JSON.stringify(manifest, null, 2)}\n`);
+
+    const rollback = runCli(repo, ['rollback', '--backup-reference', reference]);
+    assert.strictEqual(rollback.status, 0, rollback.stderr);
+    assert.ok(JSON.parse(fs.readFileSync(reference, 'utf8')).rolledBackAt);
+    assert.strictEqual(JSON.parse(fs.readFileSync(path.join(repo, '.claude-plugin', 'plugin.json'), 'utf8')).version, '1.0.0');
+  } finally { fs.rmSync(repo, { recursive: true, force: true }); }
+});
+
+test('rollback cleans a recovery slot left after RESTORED progress was persisted', () => {
+  const repo = mkRepo();
+  fs.writeFileSync(path.join(repo, 'changelog.d', 'feat.widget.md'), 'scope: widget\nnote: Add the widget.\n');
+  try {
+    const write = runCli(repo, ['write', '--version', '1.1.0', '--date', '2026-07-27', '--summary', 'Add widget', '--operation-key', 'cleanup-window']);
+    assert.strictEqual(write.status, 0, write.stderr);
+    const reference = path.join(repo, '.claude', 'artifacts', 'release-backups', 'cleanup-window.json');
+    const manifest = JSON.parse(fs.readFileSync(reference, 'utf8'));
+    const index = manifest.entries.findIndex((entry) => entry.target.endsWith(path.join('.claude-plugin', 'plugin.json')));
+    assert.ok(index >= 0);
+    const entry = manifest.entries[index];
+    fs.renameSync(entry.target, entry.recovery);
+    fs.renameSync(entry.backup, entry.target);
+    entry.rollbackStatus = 'RESTORED';
+    entry.restoredFingerprint = fileFingerprint(entry.target);
+    manifest.rollbackStatus = 'PARTIAL';
+    fs.writeFileSync(reference, `${JSON.stringify(manifest, null, 2)}\n`);
+
+    const rollback = runCli(repo, ['rollback', '--backup-reference', reference]);
+    assert.strictEqual(rollback.status, 0, rollback.stderr);
+    assert.ok(JSON.parse(fs.readFileSync(reference, 'utf8')).rolledBackAt);
+    assert.strictEqual(fs.existsSync(entry.recovery), false);
+  } finally { fs.rmSync(repo, { recursive: true, force: true }); }
+});
+
+test('write mode refuses to replace an existing rollback manifest for the same operation key', () => {
+  const repo = mkRepo();
+  fs.writeFileSync(path.join(repo, 'changelog.d', 'feat.widget.md'), 'scope: widget\nnote: Add the widget.\n');
+  const backupRoot = path.join(repo, '.claude', 'artifacts', 'release-backups');
+  fs.mkdirSync(backupRoot, { recursive: true });
+  const reference = path.join(backupRoot, 'release-collision.json');
+  fs.writeFileSync(reference, '{"sentinel":true}\n');
+  try {
+    const res = runCli(repo, [
+      'write', '--version', '1.1.0', '--date', '2026-07-27',
+      '--summary', 'Add widget', '--operation-key', 'release-collision',
+    ]);
+    assert.notStrictEqual(res.status, 0, res.stdout);
+    assert.match(res.stderr, /already exists|operation/i);
+    assert.strictEqual(fs.readFileSync(reference, 'utf8'), '{"sentinel":true}\n');
+    assert.strictEqual(JSON.parse(fs.readFileSync(path.join(repo, '.claude-plugin', 'plugin.json'), 'utf8')).version, '1.0.0');
+  } finally { fs.rmSync(repo, { recursive: true, force: true }); }
+});
+
+test('rollback rejects a manifest target outside the canonical release target set', () => {
+  const repo = mkRepo();
+  fs.writeFileSync(path.join(repo, 'changelog.d', 'feat.widget.md'), 'scope: widget\nnote: Add the widget.\n');
+  try {
+    const write = runCli(repo, ['write', '--version', '1.1.0', '--date', '2026-07-27', '--summary', 'Add widget', '--operation-key', 'target-allowlist']);
+    assert.strictEqual(write.status, 0, write.stderr);
+    const reference = path.join(repo, '.claude', 'artifacts', 'release-backups', 'target-allowlist.json');
+    const manifest = JSON.parse(fs.readFileSync(reference, 'utf8'));
+    const config = path.join(repo, '.git', 'config');
+    manifest.entries[0].target = config;
+    manifest.entries[0].publishedFingerprint = fileFingerprint(config);
+    fs.writeFileSync(reference, `${JSON.stringify(manifest, null, 2)}\n`);
+    const rollback = runCli(repo, ['rollback', '--backup-reference', reference]);
+    assert.notStrictEqual(rollback.status, 0, rollback.stdout);
+    assert.match(rollback.stderr, /canonical|release target|allowlist|target/i);
+    assert.ok(fs.existsSync(config), 'rollback must not remove arbitrary repository files');
+  } finally { fs.rmSync(repo, { recursive: true, force: true }); }
+});
+
+test('rollback rejects duplicate target or backup entries before mutating the tree', () => {
+  const repo = mkRepo();
+  fs.writeFileSync(path.join(repo, 'changelog.d', 'feat.widget.md'), 'scope: widget\nnote: Add the widget.\n');
+  try {
+    const write = runCli(repo, ['write', '--version', '1.1.0', '--date', '2026-07-27', '--summary', 'Add widget', '--operation-key', 'duplicate-entry']);
+    assert.strictEqual(write.status, 0, write.stderr);
+    const reference = path.join(repo, '.claude', 'artifacts', 'release-backups', 'duplicate-entry.json');
+    const manifest = JSON.parse(fs.readFileSync(reference, 'utf8'));
+    const duplicate = { ...manifest.entries[0] };
+    manifest.entries.push(duplicate);
+    fs.writeFileSync(reference, `${JSON.stringify(manifest, null, 2)}\n`);
+    const rollback = runCli(repo, ['rollback', '--backup-reference', reference]);
+    assert.notStrictEqual(rollback.status, 0, rollback.stdout);
+    assert.match(rollback.stderr, /duplicate|target|backup/i);
+    assert.strictEqual(JSON.parse(fs.readFileSync(path.join(repo, '.claude-plugin', 'plugin.json'), 'utf8')).version, '1.1.0');
+  } finally { fs.rmSync(repo, { recursive: true, force: true }); }
+});
+
+test('rollback refuses a manifest outside the repository backup root', () => {
+  const repo = mkRepo();
+  const externalRoot = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-external-rollback-')));
+  const reference = path.join(externalRoot, 'external.json');
+  fs.writeFileSync(reference, JSON.stringify({
+    schema: 'dhpk.release.rollback.v1',
+    operationKey: 'external',
+    backupDirectory: path.join(externalRoot, 'external'),
+    entries: [],
+  }));
+  fs.mkdirSync(path.join(externalRoot, 'external'));
+  try {
+    const res = runCli(repo, ['rollback', '--backup-reference', reference]);
+    assert.notStrictEqual(res.status, 0, res.stdout);
+    assert.match(res.stderr, /repository backup root/i);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+    fs.rmSync(externalRoot, { recursive: true, force: true });
+  }
 });
 
 test('write mode fails closed when the bilingual AGY generator pin is missing', () => {

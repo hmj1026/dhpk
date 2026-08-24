@@ -8,12 +8,17 @@
 
 ### 1.1 現況診斷
 
-透過 `agy agents` 進行掃描時，目前系統中 **僅有 1 個代理 (`dhpk-agents-index`) 被識別，其餘 31 個角色 Agent 全數未被載入**。
+在舊版 AGY adapter 尚未轉譯 Frontmatter 時，`agy agents` 曾只識別
+`dhpk-agents-index`，其餘 31 個角色 Agent 無法載入；這是歷史 baseline，
+不是目前產物的狀態。使用目前的 `plugins/dhpk-agy` 產物與 AGY 1.1.19
+驗證時，`agy agents` 可列出 31 個適配後的角色 Agent；但隔離的 harness
+runtime probe 仍可能因認證、連線或 CLI loader 能力不足而回報
+`UNAVAILABLE`/`SKIP_INCOMPATIBLE`，不能把 discovery 數量當成 runtime PASS。
 
 ```bash
 $ agy agents
 Available agents:
-dhpk-agents-index
+agent-evaluator, agy-fast-worker, architect, ... (31 agents)
 ```
 
 ### 1.2 為什麼 `dhpk-agents-index` 能被載入？
@@ -25,7 +30,7 @@ name: dhpk-agents-index
 description: 'Reference index for the agents shipped by the dhpk plugin.'
 ---
 ```
-由於 `INDEX.md` 僅包含基本的 `name` 與 `description`，未包含任何平台專屬的未相容欄位，因此符合 `agy` 的基本解析器規則。
+舊版的 `INDEX.md` 僅包含基本的 `name` 與 `description`，未包含任何平台專屬的未相容欄位，因此符合 `agy` 的基本解析器規則。
 
 ### 1.3 其餘 31 個 Agent 載入失敗的原因
 
@@ -87,7 +92,7 @@ model: pro  # 可選值: inherit | flash_lite | flash | pro
 | `Edit` | `replace_file_content` / `multi_replace_file_content` | 區塊取代或多重修改 |
 | `Bash` | `run_command` | 執行 Shell 指令 |
 | `Grep` | `grep_search` | 正則或關鍵字搜尋 |
-| `Glob` | `list_dir` / `glob` | 目錄與檔案結構清單 |
+| `Glob` | `list_dir` | AGY 1.1.x 的目錄與檔案結構清單工具；不要輸出未註冊的 `glob` alias |
 | `WebSearch` | `search_web` | 網路搜尋 |
 | `WebFetch` | `read_url_content` | 網頁靜態內容抓取 |
 | `Agent` | `invoke_subagent` | 派發子代理 |
@@ -102,7 +107,7 @@ model: pro  # 可選值: inherit | flash_lite | flash | pro
 改進現有腳本，使其具備完整的 Frontmatter 適配能力：
 1. 支援無中括號逗號分隔的 `tools:` 語法解析。
 2. 自動將 `Read`, `Write`, `Edit`, `Bash`, `Grep`, `Glob` 映射至 AGY 內建名稱。
-3. 自動將 `model: sonnet/opus` 映射至 `pro`，`haiku` 映射至 `flash`。
+3. 自動將 `model: sonnet/opus` 映射至 `pro`，`haiku` 映射至 `flash_lite`。
 4. 移除 `color:`, `effort:`, `maxTurns:` 等 Claude 專屬屬性。
 
 ### 3.2 外掛安裝與結構佈局
@@ -112,8 +117,8 @@ model: pro  # 可選值: inherit | flash_lite | flash | pro
 ```text
 ~/.gemini/config/plugins/dhpk/
 ├── plugin.json               # 必須包含 name: "dhpk"
-├── mcp_config.json           # MCP 伺服器配置（如 gitnexus 等）
-├── hooks.json                # 生命週期鉤子
+├── mcp_config.json           # optional：MCP 伺服器配置（如 gitnexus 等）
+├── hooks.json                # optional：生命週期鉤子
 ├── rules/                    # 規則目錄 (*.md)
 ├── skills/                   # 技能目錄 (<skill>/SKILL.md)
 └── agents/                   # 適配後的 SubAgents (*.md)
@@ -123,10 +128,32 @@ model: pro  # 可選值: inherit | flash_lite | flash | pro
 
 ## 4. 升級後安裝與驗證流程
 
-### 步驟 1：執行 Agent 轉換腳本
+### 步驟 1：由 canonical generator 建立並驗證同一個 staging package
 
 ```bash
-node scripts/agy-adapt-agents.js ~/.gemini/config/plugins/dhpk/agents
+bin/dhpk distribution agy-plugin generate \
+  --output /tmp/dhpk-agy-staging \
+  --version=0.45.0 --json
+bin/dhpk distribution agy-plugin validate \
+  --output /tmp/dhpk-agy-staging --json
+```
+
+`scripts/agy-adapt-agents.js` 是 generator 內部使用的 transform；若需要單獨重跑，
+只能使用帶有 `plugin.json`、`provenance.json`、`fingerprints.json` 與 `agents/`
+的 owner-controlled package staging root：
+
+```bash
+node scripts/agy-adapt-agents.js --staging-root /tmp/dhpk-agy-staging
+```
+
+不得把 adapter 指向 `~/.gemini/config/plugins/dhpk` 或其子目錄。完成 structural
+validation 後，安裝必須使用同一個已驗證的 staging package；這樣 canonical receipt、
+collision 與 rollback ownership 才會沿著同一份產物傳遞：
+
+```bash
+node scripts/ci/install-agy-plugin.js install \
+  --source /tmp/dhpk-agy-staging \
+  --target ~/.gemini/config/plugins/dhpk
 ```
 
 ### 步驟 2：驗證外掛與 SubAgent 載入狀態
@@ -135,11 +162,14 @@ node scripts/agy-adapt-agents.js ~/.gemini/config/plugins/dhpk/agents
 # 檢查 SubAgents 是否全數識別
 agy agents
 
-# 檢查 Plugin 是否啟用
+# 檢查 import record（不等於 native discovery）
 agy plugins list
 ```
 
-預期輸出應包含所有 dhpk 註冊之 agents（例如 `code-reviewer`, `fast-worker`, `architect`, `planner` 等）。
+`agy plugins list` 只能確認 import record；native discovery 必須由隔離 HOME 的
+`agy agents` 證據判定。預期輸出應包含目前產物註冊的 31 個 dhpk agents（例如
+`code-reviewer`, `fast-worker`, `architect`, `planner` 等）。若隔離 runtime 仍無法載入，
+應保留 `SKIP_INCOMPATIBLE` 或 `UNAVAILABLE` 證據，不得以靜態結構 PASS 取代。
 
 ### 步驟 3：在對話中呼叫測試
 

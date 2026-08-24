@@ -2,7 +2,9 @@
 
 ## Purpose
 TBD - created by archiving change curate-dhpk-distribution-surfaces. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Every consumer-reachable package has a lifecycle
 The distribution inventory SHALL assign each consumer-reachable skill and module exactly one lifecycle state from `promoted`, `optional`, `experimental`, or `deprecated`, and SHALL identify every publication surface on which the package is permitted to appear.
 
@@ -26,23 +28,33 @@ The Claude plugin skill registrations and every generated Codex publication tree
 - **THEN** both runs produce byte-identical publication metadata and package contents
 
 ### Requirement: Core and optional surfaces are distinguishable
-The distribution model SHALL distinguish broadly applicable core workflow skills from opt-in stack skills, and documentation SHALL state whether the current host truly gates discovery or merely gates runtime hooks and activation. The catalog SHALL report description word/token totals separately for promoted, optional, experimental, and deprecated entries. An `optional` lifecycle SHALL NOT be described as hidden from discovery when the host still publishes its description.
+
+The distribution model SHALL distinguish broadly applicable core workflow skills from opt-in stack skills, and documentation SHALL state whether the current host truly gates discovery or merely gates runtime hooks and activation. A profile-scoped Claude package SHALL be identified as a pre-discovery selected artifact, while the unscoped compatibility package SHALL be identified separately. The catalog SHALL report description word/token totals separately for promoted, optional, experimental, and deprecated entries and separately for each selected profile artifact. An `optional` lifecycle SHALL NOT be described as hidden from discovery when the host still publishes its description.
 
 #### Scenario: Host cannot hide optional skill descriptions
-- **WHEN** the Claude plugin host registers optional module skill descriptions regardless of selected modules
+
+- **WHEN** the unscoped Claude plugin host registers optional module skill descriptions regardless of selected modules
 - **THEN** documentation reports that limitation and SHALL NOT describe the optional set as hidden at discovery time
 
+#### Scenario: Profile artifact excludes optional metadata
+
+- **WHEN** a profile bundle is generated before Claude discovery
+- **THEN** its scoped root contains only the selected core and module entries, and its report labels the excluded optional entries as absent rather than runtime-hidden
+
 #### Scenario: Optional metadata is discovery-visible
-- **WHEN** optional skills are published in the host's discovery manifest
+
+- **WHEN** optional skills are published in any host discovery manifest
 - **THEN** catalog output labels them discovery-visible and runtime- or activation-optional
 
 #### Scenario: Description budget is exceeded
-- **WHEN** a discovery-visible skill or agent description exceeds the configured always-visible word/token budget
+
+- **WHEN** a discovery-visible skill or agent description exceeds the configured always-visible word/token budget for its lifecycle, surface, or selected profile
 - **THEN** validation reports the entry and fails or requires an explicit reviewed exemption
 
 #### Scenario: Metadata is within budget
+
 - **WHEN** all discovery-visible descriptions meet their scoped budgets
-- **THEN** validation passes and reports the budget totals by publication surface
+- **THEN** validation passes and reports the budget totals by publication surface and selected profile artifact
 
 ### Requirement: Deprecation precedes source deletion
 A deprecated package SHALL first be removed from promoted publication surfaces while retaining its canonical source, replacement or migration guidance, and compatibility-window metadata. Canonical deletion SHALL require a later reviewed change and a passing repository reference scan.
@@ -90,24 +102,17 @@ directory, README list, or manifest presence.
 
 ### Requirement: Cross-surface projections have one canonical source
 
-All generated Agent Plugins, Codex, Cursor, AGY, and Claude projections SHALL be
-derived from canonical sources plus explicit adaptation rules. Generated files
-MUST NOT become an independently authored source of behavior, and identical
-portable skill content across surfaces SHALL share a fingerprint or a recorded
-intentional transform.
+All generated Agent Plugins, Codex, Cursor, AGY, and Claude projections, including profile-scoped Claude bundles, SHALL be derived from canonical sources plus explicit adaptation rules. Generated files MUST NOT become an independently authored source of behavior, and identical portable skill content across surfaces SHALL share a fingerprint or a recorded intentional transform. A profile identity and selected stable-ID set SHALL be part of Claude projection provenance.
 
 #### Scenario: Generated package contains an undeclared skill
 
-- **WHEN** any generated surface contains a public name absent from its
-  inventory surface
+- **WHEN** any generated surface or Claude profile bundle contains a public name absent from its inventory surface and selected profile
 - **THEN** the distribution gate fails and names the extra entry
 
 #### Scenario: Native adaptation is intentional
 
-- **WHEN** a Cursor or Codex projection differs from canonical content because
-  its client contract requires an adaptation
-- **THEN** the inventory/projection matrix records the rule, source ID, output
-  fingerprint, and compatibility rationale
+- **WHEN** a Cursor, Codex, AGY, or Claude profile projection differs from canonical content because its client contract requires an adaptation
+- **THEN** the inventory/projection matrix records the rule, source ID, output fingerprint, profile where applicable, and compatibility rationale
 
 ### Requirement: Support tiers are reported per surface
 
@@ -155,11 +160,11 @@ stable-ID provenance linking it to the owner.
 
 ### Requirement: Distribution inventory is the projection selection SSOT
 
-`manifests/distribution-inventory.json` SHALL be the sole source of component selection, lifecycle, permitted surfaces, canonical source identity, physical ownership, transforms, and symlink policy supplied to `compileDistribution`. The inventory-owned `projection_contract` MUST declare the selection source and precedence for every migrated surface. Generators, adapters, manifests, directory layouts, README lists, and installed artifacts MUST NOT independently add, remove, promote, or re-own a distribution entry. A surface MAY retain a distinct policy source, such as the explicit `entry.surfaces` `codex-native` allowlist, only when that source is declared and validated in the contract.
+`manifests/distribution-inventory.json` SHALL be the sole source of component selection, lifecycle, permitted surfaces, canonical source identity, physical ownership, transforms, and symlink policy supplied to `compileDistribution`. Install profiles and module catalogs MAY provide normalized selection inputs, but generators, adapters, manifests, directory layouts, README lists, and installed artifacts MUST NOT independently add, remove, promote, or re-own a distribution entry.
 
 #### Scenario: Surface adapter discovers an extra component
 
-- **WHEN** a surface-specific adapter finds a package in a conventional directory that is not selected for that surface by the compiler-resolved inventory policy
+- **WHEN** a surface-specific adapter or Claude profile generator finds a package in a conventional directory that is not selected for that surface by the inventory and explicit profile input
 - **THEN** compilation or no-drift validation reports the extra component and excludes it from the accepted plan
 
 #### Scenario: Inventory declares a shared physical owner
@@ -169,32 +174,37 @@ stable-ID provenance linking it to the owner.
 
 #### Scenario: Projection rule has no inventory owner
 
-- **WHEN** a generator-local default would choose a transform, output ownership, or symlink behavior not declared by the inventory
+- **WHEN** a generator-local default would choose a transform, output ownership, profile membership, or symlink behavior not declared by the inventory and normalized selection inputs
 - **THEN** distribution validation fails instead of treating the local default as policy
 
 #### Scenario: Native Codex uses its explicit allowlist
 
-- **WHEN** the Native Codex policy is declared as the `entry.surfaces` `codex-native` allowlist
-- **THEN** compiler selection includes exactly the non-deprecated entries allowed by that field and does not broaden membership from another surface map
+- **WHEN** the Codex-native adapter materializes a package
+- **THEN** it emits only the entries selected by the inventory-owned allowlist and reports any unlisted entry as a validation error
 
 ### Requirement: Every migrated generated surface uses the shared projection pipeline
 
-After its characterization gate and cutover, each Agent Plugin, Codex native, Cursor, AGY, and Claude generated surface SHALL be planned through `compileDistribution`, with the compiler resolving membership from the declared inventory policy, materialized through `materializeDistribution` and `ProjectionArtifactStore`, and assessed through `verifyDistribution` for each supported verification stage. Before that per-surface cutover, the characterized legacy implementation remains authoritative as the rollback path. Surface adapters MAY render consumer-native syntax and apply transforms to compiler-selected IDs but MUST NOT bypass the shared selection, ownership, provenance, or evidence contracts after cutover.
+After its characterization gate and cutover, each Agent Plugin, Codex native, Cursor, AGY, and Claude generated surface SHALL be planned through `compileDistribution`, materialized through `materializeDistribution` and `ProjectionArtifactStore`, and assessed through `verifyDistribution` for each supported verification stage. A profile-scoped Claude artifact SHALL be planned before host discovery and SHALL retain a separate unscoped compatibility path until its migration gates pass. Before that per-surface cutover, the characterized legacy implementation remains authoritative as the rollback path. Surface adapters MAY render consumer-native syntax but MUST NOT bypass the shared selection, ownership, provenance, or evidence contracts after cutover.
 
 #### Scenario: Consumer requires a native manifest format
 
-- **WHEN** a surface adapter renders consumer-specific metadata from a valid compiler-selected plan
-- **THEN** the output retains the plan's stable IDs, ownership, transforms, and fingerprints while using the consumer-native syntax
+- **WHEN** a surface adapter renders consumer-specific metadata from a valid plan
+- **THEN** the output retains the plan's stable IDs, ownership, transforms, profile identity where applicable, and fingerprints while using the consumer-native syntax
+
+#### Scenario: Profile is selected after discovery
+
+- **WHEN** a Claude profile adapter relies on SessionStart to remove entries after the host has loaded the plugin manifest
+- **THEN** the distribution gate rejects the path as a runtime filter and the compatibility implementation remains authoritative
 
 #### Scenario: Legacy generator bypasses the compiler
 
-- **WHEN** a surface that has completed its characterized cutover attempts to derive its membership directly from directories or its existing manifest
+- **WHEN** a surface that has completed its characterized cutover attempts to derive its membership directly from directories, its existing manifest, or ambient profile state
 - **THEN** the distribution gate fails and identifies the bypassed projection stage
 
 #### Scenario: Adapter reselects an inventory entry
 
-- **WHEN** a cutover adapter emits a source ID that was not selected by the compiler's declared surface policy
-- **THEN** materialization rejects the output and the surface cannot claim a passing cutover
+- **WHEN** a surface adapter changes selected membership after receiving a compiled distribution plan
+- **THEN** validation rejects the adapter output because selection is compiler-owned
 
 ### Requirement: AGY projection uses one physical owner per selected source
 
@@ -216,19 +226,19 @@ must have its own inventory identity and lifecycle.
 
 ### Requirement: Surface migration preserves the current distribution contract
 
-Migration to the shared projection pipeline SHALL proceed surface by surface behind characterization evidence. The repository MUST maintain one public version of each generator/verifier contract; it MUST NOT expose parallel legacy and v2 CLIs to consumers. The first migration wave SHALL cut over Agent Plugin, then Cursor, then Native Codex, with AGY and Claude remaining on their current authoritative paths. Until a surface passes equivalence and rollback tests, the existing implementation remains authoritative for that surface.
+Migration to the shared projection pipeline SHALL proceed surface by surface behind characterization evidence. The repository MUST maintain one public version of each generator/verifier contract; it MUST NOT expose parallel legacy and profile-aware CLIs to consumers. Until a surface passes equivalence and rollback tests, the existing implementation remains authoritative for that surface. A profile-aware Claude rollout SHALL be opt-in until consumer evidence supports any default change.
 
 #### Scenario: First surface is ready independently
 
-- **WHEN** one surface passes its characterization, projection, validation, and rollback tests while another surface has not migrated
-- **THEN** the ready surface can ship through the existing CLI contract without requiring the unfinished surface
+- **WHEN** one surface or Claude profile passes its characterization, projection, validation, and rollback tests while another surface/profile has not migrated
+- **THEN** the ready surface can ship through the existing CLI/install contract without requiring the unfinished surface/profile
 
 #### Scenario: Migration changes an observable CLI behavior
 
-- **WHEN** the new pipeline changes output bytes, ordering, diagnostics, or exit status for characterized inputs
+- **WHEN** the new pipeline changes output bytes, ordering, diagnostics, selected IDs, or exit status for characterized inputs
 - **THEN** validation blocks cutover and the existing surface implementation remains active
 
 #### Scenario: Migration follows the approved order
 
-- **WHEN** the first wave is being scheduled or verified
-- **THEN** Agent Plugin is cut over before Cursor, Cursor before Native Codex, and neither AGY nor Claude is changed by this change
+- **WHEN** surfaces are migrated through the approved characterization and rollback sequence
+- **THEN** each accepted surface can ship independently while unfinished surfaces retain their prior implementation

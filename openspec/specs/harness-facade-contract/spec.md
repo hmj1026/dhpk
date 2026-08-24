@@ -1,0 +1,123 @@
+# harness-facade-contract Specification
+
+## Purpose
+
+Provide one observable command contract for the dhpk workflow so routing, package generation, testing, consumer probing, and release decisions are deterministic, resumable, and consistent across supported host adapters.
+
+## Requirements
+
+### Requirement: Harness exposes one stable workflow command
+
+The harness SHALL expose one public workflow command with phase subcommands for `preflight`, `plan`, `generate`, `validate`, `test`, `probe`, `verify`, and `release`. Each subcommand SHALL declare its required arguments, reject unknown arguments, and use the same invocation context for the complete attempt.
+
+#### Scenario: Valid phase invocation
+
+- **WHEN** a caller invokes a supported phase with all required arguments
+- **THEN** the harness runs that phase using the declared context and returns a structured result for the same attempt
+
+#### Scenario: Invalid phase invocation
+
+- **WHEN** a caller supplies an unknown phase, missing required argument, or unknown option
+- **THEN** the harness emits a bounded usage diagnostic and returns the usage exit code without running a workflow phase
+
+### Requirement: Harness results have stable status and exit semantics
+
+Every phase result SHALL expose a machine-readable outcome separate from the receipt lifecycle phase. The outcome vocabulary SHALL be `PASS`, `FAIL`, `BLOCKED`, `NOT_RUN`, `NOT_CONFIGURED`, `SKIP_INCOMPATIBLE`, `UNAVAILABLE`, `NO_SHIP`, `PARTIAL`, `PUBLISHED_PENDING`, `PUBLISHED_UNHEALTHY`, `OVERRIDDEN`, or aggregate `COMPLETE`. The receipt lifecycle phase SHALL be one of `PLANNED`, `RED`, `GREEN`, `REFACTOR`, `VERIFIED`, or terminal `COMPLETE`; `RED`, `GREEN`, `REFACTOR`, and `VERIFIED` SHALL never be emitted as result outcomes. `PASS` and aggregate `COMPLETE` SHALL exit `0`; deterministic `FAIL` SHALL exit `1`; every other non-pass outcome SHALL exit `2`; invalid usage SHALL exit `64`; and an unexpected harness failure SHALL exit `70`. A non-pass outcome MUST NOT be represented as a successful exit.
+
+#### Scenario: Required evidence is absent
+
+- **WHEN** a required phase cannot run or lacks required evidence
+- **THEN** the result records the applicable non-pass status and exits `2`
+
+#### Scenario: Phase fails deterministically
+
+- **WHEN** a phase executes and a deterministic assertion or gate fails
+- **THEN** the result records `FAIL`, includes bounded diagnostics, and exits `1`
+
+#### Scenario: Lifecycle phase is not an outcome
+
+- **WHEN** a behavior change is currently in `RED`, `GREEN`, `REFACTOR`, or `VERIFIED`
+- **THEN** the receipt records that lifecycle phase separately while the command result uses its applicable evidence outcome and exit mapping
+
+### Requirement: JSON output is compact, bounded, and redacted
+
+The harness SHALL support `--json` and emit exactly one machine-readable result on stdout. Human-readable summaries MAY be emitted only through the documented human mode. Diagnostics, command details, environment values, and resume instructions SHALL be bounded and redacted so secrets are not emitted in stdout or persisted evidence.
+
+#### Scenario: JSON result is consumed by automation
+
+- **WHEN** a caller invokes a phase with `--json`
+- **THEN** stdout contains one parseable result with status, phase, evidence references, and exit-compatible outcome
+
+#### Scenario: Diagnostic contains a secret-like value
+
+- **WHEN** a phase failure includes a credential, token, or sensitive path in a producer diagnostic
+- **THEN** the harness redacts the value before returning or persisting the result
+
+### Requirement: Workflow phases follow one deterministic delegation order
+
+The release-capable workflow SHALL use the ordered phases `preflight -> plan -> generate -> validate -> test -> probe -> verify -> release`. Each phase result SHALL retain identity-bound evidence so a composing caller can validate a preceding handoff when one is supplied. The public CLI SHALL validate `--previous-receipt` and `--retry-of` against the current exact checkout before executing a phase, SHALL require a clean exact-checkout predecessor with an eligible PASS/COMPLETE outcome for cross-phase handoff, SHALL enforce predecessor phase order and surface scope, and SHALL require a plan fingerprint when the receiving phase consumes a generated plan (including `generate`). It SHALL resolve a terminal `--operation-key` replay (with `--idempotency-key` as its alias) only when phase, surface, and operation intent match, without running the phase again. It SHALL not silently skip required phase evidence or replace a missing runtime probe with structural package evidence.
+
+#### Scenario: Generation follows a valid plan
+
+- **WHEN** `generate` receives a plan produced by the current `plan` phase
+- **THEN** it uses that plan identity and produces evidence that can be consumed by validation without reselecting surface membership
+
+#### Scenario: Runtime probe is unavailable
+
+- **WHEN** package validation passes but a required consumer runtime probe is unavailable
+- **THEN** the workflow preserves package PASS separately and records the consumer outcome as `UNAVAILABLE`, `NOT_RUN`, or another applicable non-pass state
+
+#### Scenario: Idempotency key is replayed for another phase
+
+- **WHEN** a caller reuses an operation or idempotency key with a phase different from the receipt's original phase
+- **THEN** the harness returns `BLOCKED` with the prior phase identity and does not execute the requested phase
+
+### Requirement: Projection and test execution retain their canonical owners
+
+The harness SHALL delegate projection selection/materialization to the canonical distribution contract and its artifact writer, and SHALL delegate repository tests to the bounded test gate. The facade MUST NOT create a second inventory, projection selection policy, or unbounded test path.
+
+#### Scenario: Generated package is requested
+
+- **WHEN** `generate` runs for a distribution surface
+- **THEN** the result is bound to the canonical inventory/plan and generated through the approved artifact-writing boundary, with no direct projection edit accepted as a successful generation
+
+#### Scenario: Test gate is requested
+
+- **WHEN** `test` runs the repository suite
+- **THEN** it uses the bounded test contract and propagates its characterized child, timeout, or configuration outcome into the harness result
+
+### Requirement: Release aggregation requires required consumer evidence
+
+The release phase SHALL retain independent evidence rows for the seven canonical Q239 surface IDs: `claude-core`, `codex-sync`, `codex-native`, `cursor-sync`, `cursor-plugin`, `agent-plugin`, and `agy-plugin`. The inventory platform matrix SHALL expose an explicit `required_surfaces` list containing those IDs, and a full-release plan SHALL copy and identity-check that list; no implicit directory discovery or adapter default may add or remove a required row. If the inventory list is absent, incomplete, duplicated, or names a surface without a matching projection contract, preflight SHALL return `BLOCKED` and no full-release result may be emitted. A scoped non-full-release plan MAY select a subset, but its result SHALL identify the scope and MUST NOT claim full-platform `COMPLETE`. Structural/package PASS SHALL NOT promote a surface to runtime PASS.
+
+The inventory platform matrix SHALL also expose an explicit `required_runtime_surfaces` list that is an ordered subset of `required_surfaces`. A full-release `COMPLETE` outcome SHALL require fresh matching consumer-runtime PASS evidence for every ID in `required_runtime_surfaces`. `required_runtime_surfaces` SHALL include `claude-core`, `codex-sync`, `codex-native`, `cursor-plugin`, `agent-plugin`, and `agy-plugin`, and SHALL NOT include `cursor-sync`. Installer `NOT_RUN` on the `cursor-sync` identity row MUST NOT by itself produce `NO_SHIP` or block `COMPLETE`. `FAIL` on the `cursor-sync` installer path SHALL remain unhealthy and MUST NOT produce `COMPLETE`. Required-runtime consumer `NOT_RUN` or `UNAVAILABLE` SHALL produce a non-complete release outcome, required-runtime consumer FAIL SHALL produce an unhealthy/non-ship outcome, and only all required-runtime consumer PASS results SHALL produce `COMPLETE`.
+
+#### Scenario: One required surface is unavailable
+
+- **WHEN** source and package gates pass but one required consumer probe returns `UNAVAILABLE`
+- **THEN** the release result remains non-complete and records the affected surface and resume evidence
+
+#### Scenario: All required runtime surfaces pass
+
+- **WHEN** source, package, and every required-runtime consumer row have fresh matching PASS evidence, and `cursor-sync` is installer `NOT_RUN` rather than `FAIL`
+- **THEN** the release result records `COMPLETE` and retains the independent per-surface evidence including the `cursor-sync` identity row
+
+#### Scenario: Required surface list is incomplete
+
+- **WHEN** a full-release plan omits one of the seven canonical surface IDs or names an ID absent from the inventory platform matrix
+- **THEN** preflight rejects the plan as invalid or `BLOCKED` and the release cannot claim `COMPLETE`
+
+#### Scenario: Required runtime surface list is invalid
+
+- **WHEN** the inventory platform matrix does not expose the explicit `required_runtime_surfaces` list, the list is not an ordered subset of `required_surfaces`, or it includes `cursor-sync`
+- **THEN** preflight returns `BLOCKED` and no release result may claim `COMPLETE`
+
+#### Scenario: cursor-sync installer FAIL remains unhealthy
+
+- **WHEN** required-runtime consumer rows are PASS but the `cursor-sync` installer path returns `FAIL`
+- **THEN** the release result is unhealthy/non-ship and does not claim `COMPLETE`
+
+#### Scenario: Inventory required-surface SSOT is missing
+
+- **WHEN** the inventory platform matrix does not expose the explicit `required_surfaces` or `required_runtime_surfaces` list, or a listed ID lacks a projection contract
+- **THEN** preflight returns `BLOCKED` and does not infer the list from directory contents or adapter defaults

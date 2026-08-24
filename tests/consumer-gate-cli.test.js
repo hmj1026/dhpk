@@ -107,7 +107,7 @@ test('reports Codex sync PASS and Claude/native-marketplace as UNAVAILABLE when 
   assert.ok(stage.artifacts.some((a) => /native.*experimental|experimental.*native/i.test(a)));
 });
 
-test('reports overall PASS when the supported Codex sync check succeeds and a stubbed claude CLI reports the install', () => {
+test('reports overall PENDING when supported checks pass but Cursor runtime is not invoked', () => {
   withConsumerGateBin((bin) => {
     mkBinStub(bin, 'claude', `#!/bin/sh
 if [ "$1 $2" = "plugin marketplace" ]; then exit 0; fi
@@ -118,13 +118,65 @@ exit 0
 `);
     const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` });
     const stage = JSON.parse(res.stdout);
-    assert.strictEqual(stage.verdict, 'PASS', JSON.stringify(stage));
+    assert.strictEqual(stage.verdict, 'PENDING', JSON.stringify(stage));
     assert.strictEqual(res.status, 0);
     assert.ok(stage.surfaceResults.every((result) => result.stage === 'CONSUMER'));
     assert.ok(stage.surfaceResults.some((result) => result.surface === 'agent-plugin'));
+    assert.strictEqual(stage.surfaceResults.find((result) => result.surface === 'cursor-sync').status, 'NOT_RUN');
     assert.ok(stage.artifacts.some((a) => /claude.*official.*PASS|official.*PASS.*claude/i.test(a)), JSON.stringify(stage));
     assert.ok(stage.commands.some((c) => /claude plugin validate .* --strict/.test(c.cmd) && c.exitCode === 0), JSON.stringify(stage));
   });
+});
+
+test('routes the portable Agent Plugin package through its dedicated probe', () => {
+  const res = runCli({ PATH: NODE_BASH_ONLY_PATH, CI: 'true' });
+  const stage = JSON.parse(res.stdout);
+  const agent = stage.surfaceResults.find((result) => result.surface === 'agent-plugin');
+  assert.ok(agent, JSON.stringify(stage));
+  assert.notStrictEqual(agent.status, 'NOT_CONFIGURED', JSON.stringify(agent));
+  assert.strictEqual(agent.status, 'UNAVAILABLE', JSON.stringify(agent));
+  const agentCommands = agent.commands.map((command) => command.cmd).join('\n');
+  assert.match(agentCommands, /cursor-agent --plugin-dir <agent-package> --mode ask --trust/);
+  assert.strictEqual((agentCommands.match(/--plugin-dir/g) || []).length, 1, agentCommands);
+  assert.match(agent.reasons.join('\n'), /Agent Plugin consumer runtime probe|opt-in|Cursor client tooling/i);
+});
+
+test('selected Agent Plugin evidence reports the portable runtime as unavailable when not executed', () => {
+  const res = spawnSync('node', [CLI, '--version', REAL_VERSION, '--repo-root', ROOT, '--surface', 'agent-plugin'], {
+    encoding: 'utf8',
+    env: { ...process.env, PATH: NODE_BASH_ONLY_PATH },
+  });
+  assert.strictEqual(res.status, 0, res.stdout + res.stderr);
+  const stage = JSON.parse(res.stdout);
+  assert.strictEqual(stage.verdict, 'UNAVAILABLE', JSON.stringify(stage));
+  assert.strictEqual(stage.surfaceResults.length, 1, JSON.stringify(stage));
+  assert.strictEqual(stage.surfaceResults[0].surface, 'agent-plugin');
+  assert.strictEqual(stage.surfaceResults[0].status, 'UNAVAILABLE');
+});
+
+test('verifies the Cursor project-local sync route in an isolated project', () => {
+  const res = runCli({ PATH: NODE_BASH_ONLY_PATH });
+  const stage = JSON.parse(res.stdout);
+  const cursorSync = stage.surfaceResults.find((result) => result.surface === 'cursor-sync');
+  assert.ok(cursorSync, JSON.stringify(stage));
+  assert.strictEqual(cursorSync.status, 'NOT_RUN', JSON.stringify(cursorSync));
+  assert.strictEqual(cursorSync.stage, 'CONSUMER');
+  assert.strictEqual(cursorSync.adapter.id, 'cursor-sync-installer');
+  assert.ok(cursorSync.artifacts.some((artifact) => artifact.receipt === '<sandbox>/.cursor/.dhpk-installed.json'), JSON.stringify(cursorSync));
+});
+
+test('selected Cursor sync evidence keeps the gate pending without a Cursor client probe', () => {
+  const res = spawnSync('node', [CLI, '--version', REAL_VERSION, '--repo-root', ROOT, '--surface', 'cursor-sync'], {
+    encoding: 'utf8',
+    env: { ...process.env, PATH: NODE_BASH_ONLY_PATH },
+  });
+  assert.strictEqual(res.status, 0, res.stdout + res.stderr);
+  const stage = JSON.parse(res.stdout);
+  assert.strictEqual(stage.verdict, 'PENDING', JSON.stringify(stage));
+  assert.strictEqual(stage.surfaceResults.length, 1, JSON.stringify(stage));
+  assert.strictEqual(stage.surfaceResults[0].surface, 'cursor-sync');
+  assert.strictEqual(stage.surfaceResults[0].status, 'NOT_RUN');
+  assert.ok(stage.commands.some((command) => /install-cursor-harness/.test(command.cmd)), JSON.stringify(stage.commands));
 });
 
 test('fails when the stubbed claude CLI reports a version mismatch after install', () => {
@@ -141,6 +193,52 @@ exit 0
     const stage = JSON.parse(res.stdout);
     assert.strictEqual(stage.verdict, 'FAIL');
     assert.ok(stage.failureReasons.some((r) => /0\.0\.1/.test(r)));
+  });
+});
+
+test('selects the project-scoped Claude installation when a stale user installation is listed first', () => {
+  withConsumerGateBin((bin) => {
+    mkBinStub(bin, 'claude', `#!/bin/sh
+if [ "$1" = "--version" ]; then echo '2.1.223'; exit 0; fi
+if [ "$1 $2" = "plugin marketplace" ]; then exit 0; fi
+if [ "$1 $2" = "plugin install" ]; then exit 0; fi
+if [ "$1 $2" = "plugin validate" ]; then exit 0; fi
+if [ "$1 $2" = "plugin list" ]; then
+  echo '[{"id":"dhpk@dhpk","version":"0.44.0","scope":"user"},{"id":"dhpk@dhpk","version":"${REAL_VERSION}","scope":"project","projectPath":"'"$PWD"'"}]'
+  exit 0
+fi
+exit 0
+`);
+    const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` });
+    assert.strictEqual(res.status, 0, res.stdout + res.stderr);
+    const stage = JSON.parse(res.stdout);
+    assert.strictEqual(stage.verdict, 'PENDING', JSON.stringify(stage));
+    const claude = stage.surfaceResults.find((result) => result.surface === 'claude');
+    assert.ok(claude, JSON.stringify(stage));
+    assert.strictEqual(claude.status, 'PASS', JSON.stringify(claude));
+  });
+});
+
+test('rejects an explicitly user-scoped Claude installation when project scope is absent', () => {
+  withConsumerGateBin((bin) => {
+    mkBinStub(bin, 'claude', `#!/bin/sh
+if [ "$1" = "--version" ]; then echo '2.1.223'; exit 0; fi
+if [ "$1 $2" = "plugin marketplace" ]; then exit 0; fi
+if [ "$1 $2" = "plugin install" ]; then exit 0; fi
+if [ "$1 $2" = "plugin validate" ]; then exit 0; fi
+if [ "$1 $2" = "plugin list" ]; then
+  echo '[{"id":"dhpk@dhpk","version":"${REAL_VERSION}","scope":"user"}]'
+  exit 0
+fi
+exit 0
+`);
+    const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` });
+    assert.notStrictEqual(res.status, 0, res.stdout + res.stderr);
+    const stage = JSON.parse(res.stdout);
+    const claude = stage.surfaceResults.find((result) => result.surface === 'claude');
+    assert.ok(claude, JSON.stringify(stage));
+    assert.strictEqual(claude.status, 'FAIL', JSON.stringify(stage));
+    assert.match(claude.reasons.join('\n'), /not present|scope|project/i);
   });
 });
 
@@ -206,6 +304,16 @@ test('consumer gate resolves a relative repository root before entering its sand
   assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
   const stage = JSON.parse(res.stdout);
   assert.ok(['PASS', 'UNAVAILABLE'].includes(stage.verdict), JSON.stringify(stage));
+});
+
+test('consumer gate rejects a missing --surface value instead of running every probe', () => {
+  const res = spawnSync('node', [CLI, '--version', REAL_VERSION, '--surface'], {
+    cwd: ROOT,
+    encoding: 'utf8',
+    env: { ...process.env, PATH: NODE_BASH_ONLY_PATH },
+  });
+  assert.strictEqual(res.status, 2, `${res.stdout}\n${res.stderr}`);
+  assert.match(res.stderr, /surface|value|required/i);
 });
 
 test('Codex surface discovery includes both skill and agent inventories', () => {
@@ -489,7 +597,7 @@ test('Claude consumer-gate uninstalls the project-scope plugin before deleting t
     mkBinStub(bin, 'claude', recordingClaudeScript(log));
     const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` });
     const stage = JSON.parse(res.stdout);
-    assert.strictEqual(stage.verdict, 'PASS', JSON.stringify(stage));
+    assert.strictEqual(stage.verdict, 'PENDING', JSON.stringify(stage));
     assertClaudeProjectTeardown(fs.readFileSync(log, 'utf8'), stage);
   });
 });
@@ -507,13 +615,13 @@ test('Claude consumer-gate still tears down after a project-scope install failur
   });
 });
 
-test('Claude registry teardown failure keeps PASS and records WARN evidence', () => {
+test('Claude registry teardown failure keeps PENDING and records WARN evidence', () => {
   withConsumerGateBin((bin) => {
     const log = path.join(bin, 'claude-argv.log');
     mkBinStub(bin, 'claude', recordingClaudeScript(log, { uninstallExit: 1 }));
     const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` });
     const stage = JSON.parse(res.stdout);
-    assert.strictEqual(stage.verdict, 'PASS', JSON.stringify(stage));
+    assert.strictEqual(stage.verdict, 'PENDING', JSON.stringify(stage));
     assert.strictEqual(res.status, 0);
     assertClaudeProjectTeardown(fs.readFileSync(log, 'utf8'), stage);
     assert.ok(stage.commands.some((c) => /plugin uninstall/.test(c.cmd) && c.exitCode !== 0), JSON.stringify(stage.commands));

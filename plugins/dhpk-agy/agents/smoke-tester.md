@@ -1,7 +1,7 @@
 ---
 name: smoke-tester
 description: Read-only live-runtime smoke probe. Drives the REAL running system (deployed daemon, live server, real CLI) with ONE orchestrator-supplied concrete scenario (setup -> trigger -> expected observable outcome -> timeout) and asserts on actual observed values (log lines, API responses, exit codes) — proving a change works live, not just in unit tests. Use PROACTIVELY as a post-implementation live-proof gate when a change claims user-visible runtime behavior. NOT for authoring or running Playwright specs (use e2e-runner — write-capable, web-scoped); NOT for the heavyweight main-context P0-P5 feature-verify skill (not a dispatchable isolated agent); NOT for running test suites or modifying code.
-tools: ["read_file", "run_command", "grep_search", "glob"]
+tools: ["read_file", "run_command", "grep_search", "list_dir"]
 model: pro
 ---
 

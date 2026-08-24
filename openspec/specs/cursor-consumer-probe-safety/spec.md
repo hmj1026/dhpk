@@ -62,6 +62,16 @@ responses SHALL remain `BLOCKED`. The probe child SHALL receive an allowlisted
 environment and MUST NOT inherit arbitrary credential variables. The documented
 launch-scoped wrapper MUST pass `--trust` so the client does not wait for an
 interactive workspace-confirmation prompt, and POSIX probes MUST ignore stdin.
+The release consumer route SHALL additionally run from a disposable package
+workspace and profile, with the network state either technically disabled or
+reported as unknown. If the OS network namespace cannot be established, the
+release route SHALL return `BLOCKED` with `network: unknown`; fixture-only
+unsandboxed overrides MUST NOT be eligible for release `PASS`. It SHALL require
+a package-owned loader boundary (the
+temporary package hook/command) to emit an attestation containing a matching
+package fingerprint and loaded component list. A challenge file, launcher
+environment variable, prompt echo, or model-reported fields alone SHALL never
+be sufficient for runtime `PASS`.
 
 #### Scenario: Launch-scoped probe skips workspace confirmation
 
@@ -88,3 +98,23 @@ interactive workspace-confirmation prompt, and POSIX probes MUST ignore stdin.
   dhpk skills, commands, agents, or rules were not discovered
 - **THEN** the wrapper returns `BLOCKED` rather than treating keyword presence
   as positive discovery evidence
+
+#### Scenario: Prompt echo cannot satisfy the release consumer probe
+
+- **WHEN** a Cursor process returns the requested capability words but the
+  package-owned loader hook does not emit the matching attestation
+- **THEN** the release consumer route returns `BLOCKED` and records that plugin
+  loading is unproven
+
+#### Scenario: Cursor network state is not falsely reported
+
+- **WHEN** the release consumer route cannot establish an OS network namespace
+- **THEN** the result is `BLOCKED` with network state `unknown`, rather than a
+  false `disabled` claim
+
+#### Scenario: Release consumer probe uses disposable state
+
+- **WHEN** the release consumer route invokes Cursor with `--execute`
+- **THEN** it stages the Agent/Cursor packages into a disposable workspace,
+  assigns a temporary profile/config/cache root, and removes those paths after
+  the bounded invocation

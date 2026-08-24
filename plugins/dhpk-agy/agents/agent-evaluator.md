@@ -1,7 +1,7 @@
 ---
 name: agent-evaluator
 description: 'Output-quality evaluator. Scores a completed agent run on a 5-axis rubric (accuracy, completeness, clarity, actionability, conciseness) with grep-verified evidence and a deliver / fix / redo verdict. Use when the user wants an objective quality assessment of a finished task. Scores run OUTPUT — distinct from skill-judge / skill-health-check, which score skill definitions, and from code-reviewer, which scores the code itself.'
-tools: ["read_file", "grep_search", "glob", "run_command"]
+tools: ["read_file", "grep_search", "list_dir", "run_command"]
 model: pro
 ---
 
