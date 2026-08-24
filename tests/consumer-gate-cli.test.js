@@ -128,26 +128,30 @@ exit 0
   });
 });
 
-test('does not route the standard Agent Plugin package through the Codex marketplace probe', () => {
-  const res = runCli({ PATH: NODE_BASH_ONLY_PATH });
+test('routes the portable Agent Plugin package through its dedicated probe', () => {
+  const res = runCli({ PATH: NODE_BASH_ONLY_PATH, CI: 'true' });
   const stage = JSON.parse(res.stdout);
   const agent = stage.surfaceResults.find((result) => result.surface === 'agent-plugin');
   assert.ok(agent, JSON.stringify(stage));
-  assert.strictEqual(agent.status, 'NOT_CONFIGURED', JSON.stringify(agent));
-  assert.match(agent.reasons.join('\n'), /standard Agent Plugin|verified loader|Codex marketplace/i);
+  assert.notStrictEqual(agent.status, 'NOT_CONFIGURED', JSON.stringify(agent));
+  assert.strictEqual(agent.status, 'UNAVAILABLE', JSON.stringify(agent));
+  const agentCommands = agent.commands.map((command) => command.cmd).join('\n');
+  assert.match(agentCommands, /cursor-agent --plugin-dir <agent-package> --mode ask --trust/);
+  assert.strictEqual((agentCommands.match(/--plugin-dir/g) || []).length, 1, agentCommands);
+  assert.match(agent.reasons.join('\n'), /Agent Plugin consumer runtime probe|opt-in|Cursor client tooling/i);
 });
 
-test('selected Agent Plugin evidence keeps the stage verdict valid while preserving NOT_CONFIGURED row status', () => {
+test('selected Agent Plugin evidence reports the portable runtime as unavailable when not executed', () => {
   const res = spawnSync('node', [CLI, '--version', REAL_VERSION, '--repo-root', ROOT, '--surface', 'agent-plugin'], {
     encoding: 'utf8',
     env: { ...process.env, PATH: NODE_BASH_ONLY_PATH },
   });
   assert.strictEqual(res.status, 0, res.stdout + res.stderr);
   const stage = JSON.parse(res.stdout);
-  assert.strictEqual(stage.verdict, 'PENDING', JSON.stringify(stage));
+  assert.strictEqual(stage.verdict, 'UNAVAILABLE', JSON.stringify(stage));
   assert.strictEqual(stage.surfaceResults.length, 1, JSON.stringify(stage));
   assert.strictEqual(stage.surfaceResults[0].surface, 'agent-plugin');
-  assert.strictEqual(stage.surfaceResults[0].status, 'NOT_CONFIGURED');
+  assert.strictEqual(stage.surfaceResults[0].status, 'UNAVAILABLE');
 });
 
 test('verifies the Cursor project-local sync route in an isolated project', () => {

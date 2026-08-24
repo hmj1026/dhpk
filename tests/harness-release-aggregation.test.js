@@ -15,6 +15,14 @@ const REQUIRED = [
   'agent-plugin',
   'agy-plugin',
 ];
+const REQUIRED_RUNTIME = [
+  'claude-core',
+  'codex-sync',
+  'codex-native',
+  'cursor-plugin',
+  'agent-plugin',
+  'agy-plugin',
+];
 
 function all(status = 'PASS') {
   return REQUIRED.map((surface) => ({ surface, status }));
@@ -51,6 +59,41 @@ test('unavailable and failed surfaces remain non-complete', () => {
   assert.strictEqual(unhealthy.outcome, 'PUBLISHED_UNHEALTHY');
 });
 
+test('full release ignores cursor-sync NOT_RUN for COMPLETE but retains its identity row', () => {
+  const result = harnessResult.aggregateRequiredSurfaces({
+    requiredSurfaces: REQUIRED,
+    requiredRuntimeSurfaces: REQUIRED_RUNTIME,
+    surfaceResults: all().map((entry) => entry.surface === 'cursor-sync'
+      ? { ...entry, status: 'NOT_RUN' }
+      : entry),
+    fullRelease: true,
+  });
+  assert.strictEqual(result.outcome, 'COMPLETE');
+  assert.deepStrictEqual(result.requiredRuntimeSurfaces, REQUIRED_RUNTIME);
+  assert.deepStrictEqual(result.surfaceResults.map((entry) => entry.surface), REQUIRED);
+});
+
+test('full release keeps cursor-sync FAIL unhealthy even outside the runtime list', () => {
+  const result = harnessResult.aggregateRequiredSurfaces({
+    requiredSurfaces: REQUIRED,
+    requiredRuntimeSurfaces: REQUIRED_RUNTIME,
+    surfaceResults: all().map((entry) => entry.surface === 'cursor-sync'
+      ? { ...entry, status: 'FAIL' }
+      : entry),
+    fullRelease: true,
+  });
+  assert.strictEqual(result.outcome, 'PUBLISHED_UNHEALTHY');
+});
+
+test('full-release aggregation rejects a non-canonical required runtime subset', () => {
+  assert.throws(() => harnessResult.aggregateRequiredSurfaces({
+    requiredSurfaces: REQUIRED,
+    requiredRuntimeSurfaces: ['claude-core'],
+    surfaceResults: all(),
+    fullRelease: true,
+  }), /runtime|required|canonical/i);
+});
+
 test('release execution invokes each required consumer probe and preserves its evidence', () => {
   const calls = [];
   const result = harness.runReleaseProbes('/tmp/dhpk-release-fixture', REQUIRED, (root, parsed) => {
@@ -74,6 +117,38 @@ test('release execution invokes each required consumer probe and preserves its e
   assert.deepStrictEqual(result.surfaceResults.map((entry) => entry.surface), REQUIRED);
   assert.ok(result.surfaceResults.every((entry) => entry.stage === 'CONSUMER'));
   assert.ok(result.surfaceResults.every((entry) => entry.producer === 'fixture-probe'));
+});
+
+test('release execution aggregates the explicit runtime list separately from identity rows', () => {
+  const result = harness.runReleaseProbes('/tmp/dhpk-release-fixture', REQUIRED, REQUIRED_RUNTIME, (root, parsed) => ({
+    outcome: parsed.surface === 'cursor-sync' ? 'NOT_RUN' : 'PASS',
+    surfaceResults: [{
+      surface: parsed.surface,
+      status: parsed.surface === 'cursor-sync' ? 'NOT_RUN' : 'PASS',
+      stage: 'CONSUMER',
+      producer: 'fixture-probe',
+    }],
+  }));
+  assert.strictEqual(result.outcome, 'COMPLETE');
+  assert.deepStrictEqual(result.requiredRuntimeSurfaces, REQUIRED_RUNTIME);
+  assert.deepStrictEqual(result.surfaceResults.map((entry) => entry.surface), REQUIRED);
+});
+
+test('release execution rejects a non-canonical required runtime subset before COMPLETE', () => {
+  assert.throws(() => harness.runReleaseProbes(
+    '/tmp/dhpk-release-fixture',
+    REQUIRED,
+    ['claude-core'],
+    (root, parsed) => ({
+      outcome: 'PASS',
+      surfaceResults: [{
+        surface: parsed.surface,
+        status: 'PASS',
+        stage: 'CONSUMER',
+        producer: 'fixture-probe',
+      }],
+    }),
+  ), /runtime|required|canonical/i);
 });
 
 test('release execution fails closed when a probe emits malformed consumer evidence', () => {

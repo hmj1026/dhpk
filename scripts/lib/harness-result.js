@@ -1,6 +1,6 @@
 'use strict';
 
-const { REQUIRED_SURFACES } = require('./harness-surfaces');
+const { REQUIRED_SURFACES, REQUIRED_RUNTIME_SURFACES } = require('./harness-surfaces');
 
 const OUTCOMES = Object.freeze([
   'PASS',
@@ -87,8 +87,19 @@ function assertSurfaceList(requiredSurfaces, { fullRelease = true } = {}) {
   return [...requiredSurfaces];
 }
 
-function aggregateRequiredSurfaces({ requiredSurfaces, surfaceResults, fullRelease = true } = {}) {
+function aggregateRequiredSurfaces({ requiredSurfaces, requiredRuntimeSurfaces, surfaceResults, fullRelease = true } = {}) {
   const selected = assertSurfaceList(requiredSurfaces, { fullRelease });
+  const explicitRuntimeList = requiredRuntimeSurfaces !== undefined;
+  const runtime = assertSurfaceList(explicitRuntimeList ? requiredRuntimeSurfaces : selected, { fullRelease: false });
+  const selectedSet = new Set(selected);
+  const foreignRuntime = runtime.filter((surface) => !selectedSet.has(surface));
+  if (foreignRuntime.length > 0) throw new Error(`harness: runtime surfaces must be a subset of required surfaces: ${foreignRuntime.join(', ')}`);
+  if (explicitRuntimeList && runtime.includes('cursor-sync')) throw new Error('harness: required runtime surfaces must not include cursor-sync');
+  if (fullRelease && explicitRuntimeList
+    && (runtime.length !== REQUIRED_RUNTIME_SURFACES.length
+      || runtime.some((surface, index) => surface !== REQUIRED_RUNTIME_SURFACES[index]))) {
+    throw new Error('harness: full release must use the canonical required runtime surface list');
+  }
   if (!Array.isArray(surfaceResults)) throw new Error('harness: surface results must be an array');
 
   const bySurface = new Map();
@@ -101,7 +112,13 @@ function aggregateRequiredSurfaces({ requiredSurfaces, surfaceResults, fullRelea
   if (missing.length > 0) throw new Error(`harness: missing required surface results: ${missing.join(', ')}`);
 
   const selectedResults = selected.map((surface) => bySurface.get(surface));
-  const statuses = selectedResults.map((result) => result.status || result.outcome || result.verdict);
+  const runtimeResults = runtime.map((surface) => bySurface.get(surface));
+  const statuses = runtimeResults.map((result) => result.status || result.outcome || result.verdict);
+  const excludedFailures = selectedResults
+    .filter((result) => !runtime.includes(result.surface))
+    .map((result) => result.status || result.outcome || result.verdict)
+    .filter((status) => status === 'FAIL');
+  statuses.push(...excludedFailures);
   let outcome = fullRelease ? 'COMPLETE' : 'PASS';
   if (statuses.some((status) => status === 'FAIL')) outcome = 'PUBLISHED_UNHEALTHY';
   else if (statuses.some((status) => status === 'BLOCKED')) outcome = 'BLOCKED';
@@ -110,6 +127,7 @@ function aggregateRequiredSurfaces({ requiredSurfaces, surfaceResults, fullRelea
   return {
     schema: 'dhpk.harness.surface-aggregate.v1',
     requiredSurfaces: selected,
+    requiredRuntimeSurfaces: runtime,
     fullRelease,
     surfaceResults: selectedResults,
     outcome,
@@ -119,6 +137,7 @@ function aggregateRequiredSurfaces({ requiredSurfaces, surfaceResults, fullRelea
 
 module.exports = {
   REQUIRED_SURFACES,
+  REQUIRED_RUNTIME_SURFACES,
   OUTCOMES,
   LIFECYCLE_PHASES,
   EXIT_CODES,

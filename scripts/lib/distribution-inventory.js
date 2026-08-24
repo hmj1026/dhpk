@@ -17,7 +17,7 @@ const path = require('node:path');
 const { collectInventory, relativePosix } = require('./asset-inventory');
 const { compileDistribution, verifyDistribution } = require('./distribution-compiler');
 const { fingerprint, createDistributionArtifact, projectionError } = require('./distribution-projection-contract');
-const { REQUIRED_SURFACES } = require('./harness-surfaces');
+const { REQUIRED_SURFACES, REQUIRED_RUNTIME_SURFACES } = require('./harness-surfaces');
 
 const LIFECYCLES = ['promoted', 'optional', 'experimental', 'deprecated'];
 const SURFACES = [
@@ -677,6 +677,41 @@ function validateRequiredSurfaceList(requiredSurfaces, {
   return { errors, value: errors.length === 0 ? [...requiredSurfaces] : null };
 }
 
+function validateRequiredRuntimeSurfaceList(requiredRuntimeSurfaces, requiredSurfaces, {
+  label = 'required_runtime_surfaces',
+  fullRelease = true,
+} = {}) {
+  const errors = [];
+  if (!Array.isArray(requiredRuntimeSurfaces) || requiredRuntimeSurfaces.length === 0) {
+    errors.push(`${label} must be a non-empty array`);
+    return { errors, value: null };
+  }
+  const seen = new Set();
+  const allowed = Array.isArray(requiredSurfaces) ? new Set(requiredSurfaces) : new Set(REQUIRED_SURFACES);
+  let previousIndex = -1;
+  for (const surface of requiredRuntimeSurfaces) {
+    if (typeof surface !== 'string' || !REQUIRED_SURFACES.includes(surface)) {
+      errors.push(`${label} contains unknown surface '${surface}'`);
+    } else if (surface === 'cursor-sync') {
+      errors.push(`${label} must not include cursor-sync`);
+    } else if (!allowed.has(surface)) {
+      errors.push(`${label} contains surface '${surface}' outside required_surfaces`);
+    } else if (seen.has(surface)) {
+      errors.push(`${label} contains duplicate surface '${surface}'`);
+    }
+    const index = REQUIRED_SURFACES.indexOf(surface);
+    if (index >= 0 && index < previousIndex) errors.push(`${label} must preserve required surface order`);
+    if (index >= 0) previousIndex = index;
+    seen.add(surface);
+  }
+  if (fullRelease && errors.length === 0
+    && (requiredRuntimeSurfaces.length !== REQUIRED_RUNTIME_SURFACES.length
+      || requiredRuntimeSurfaces.some((surface, index) => surface !== REQUIRED_RUNTIME_SURFACES[index]))) {
+    errors.push(`${label} must exactly match the canonical required runtime surface order: ${REQUIRED_RUNTIME_SURFACES.join(', ')}`);
+  }
+  return { errors, value: errors.length === 0 ? [...requiredRuntimeSurfaces] : null };
+}
+
 function validateRequiredSurfaceProjectionContracts(requiredSurfaces, projectionContract) {
   const errors = [];
   if (!projectionContract || typeof projectionContract !== 'object' || Array.isArray(projectionContract)) {
@@ -726,6 +761,15 @@ function validatePlatformCapabilityMatrix(matrix, {
         projectionContract,
       ).errors);
     }
+  }
+  const runtimeLabel = 'platform_matrix.required_runtime_surfaces';
+  const runtimeSurfaceValidation = validateRequiredRuntimeSurfaceList(
+    matrix.required_runtime_surfaces,
+    requiredSurfaceValidation.value || matrix.required_surfaces,
+    { label: runtimeLabel, fullRelease: true },
+  );
+  if (requireRequiredSurfaces || Object.prototype.hasOwnProperty.call(matrix, 'required_runtime_surfaces')) {
+    errors.push(...runtimeSurfaceValidation.errors);
   }
   const ids = new Set();
   for (const [index, entry] of matrix.entries.entries()) {
@@ -780,6 +824,8 @@ function validateRequiredSurfacePlan({
   inventory,
   requiredSurfaces,
   planRequiredSurfaces,
+  requiredRuntimeSurfaces,
+  planRequiredRuntimeSurfaces,
   fullRelease = true,
 } = {}) {
   const matrix = inventory && inventory.platform_matrix;
@@ -791,6 +837,7 @@ function validateRequiredSurfacePlan({
   const errors = [...matrixResult.errors];
   const plan = planRequiredSurfaces === undefined ? requiredSurfaces : planRequiredSurfaces;
   const matrixList = matrix && matrix.required_surfaces;
+  const matrixRuntimeList = matrix && matrix.required_runtime_surfaces;
   if (plan !== undefined) {
     const planResult = validateRequiredSurfaceList(plan, {
       label: 'plan.required_surfaces',
@@ -809,10 +856,30 @@ function validateRequiredSurfacePlan({
       }
     }
   }
+  const runtimePlan = planRequiredRuntimeSurfaces === undefined
+    ? requiredRuntimeSurfaces
+    : planRequiredRuntimeSurfaces;
+  if (runtimePlan !== undefined) {
+    const runtimeResult = validateRequiredRuntimeSurfaceList(runtimePlan, matrixList, {
+      label: 'plan.required_runtime_surfaces',
+      fullRelease,
+    });
+    errors.push(...runtimeResult.errors);
+    if (runtimeResult.value && Array.isArray(matrixRuntimeList)) {
+      if (fullRelease && JSON.stringify(runtimeResult.value) !== JSON.stringify(matrixRuntimeList)) {
+        errors.push('plan.required_runtime_surfaces must exactly match platform_matrix.required_runtime_surfaces for a full release');
+      }
+      if (!fullRelease) {
+        const missing = runtimeResult.value.filter((surface) => !matrixRuntimeList.includes(surface));
+        if (missing.length > 0) errors.push(`plan.required_runtime_surfaces contains surfaces absent from platform_matrix.required_runtime_surfaces: ${missing.join(', ')}`);
+      }
+    }
+  }
   return {
     ok: errors.length === 0,
     errors,
     requiredSurfaces: Array.isArray(matrixList) ? [...matrixList] : null,
+    requiredRuntimeSurfaces: Array.isArray(matrixRuntimeList) ? [...matrixRuntimeList] : null,
   };
 }
 
@@ -1257,6 +1324,7 @@ module.exports = {
   CAPABILITY_ID,
   PLATFORM_MATRIX_SCHEMA,
   REQUIRED_SURFACES,
+  REQUIRED_RUNTIME_SURFACES,
   PLATFORM_STATUSES,
   PORTABLE_FRONTMATTER_ALLOWLIST,
   CLIENT_METADATA_BOUNDARY,
@@ -1278,6 +1346,7 @@ module.exports = {
   validateInventoryV2: validateDistributionInventoryV2,
   validateSurfaceMembership,
   validatePlatformCapabilityMatrix,
+  validateRequiredRuntimeSurfaceList,
   validateRequiredSurfacePlan,
   validatePortableFrontmatterContract,
   validateProjectionContract,

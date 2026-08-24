@@ -4,44 +4,51 @@
 
 Define the deterministic, inventory-bound projection compiler, artifact-store,
 and stage-bound verification contracts used by generated distribution surfaces.
+
 ## Requirements
+
 ### Requirement: Distribution compilation is pure and deterministic
 
-The distribution layer SHALL expose a single `compileDistribution(inputs) -> DistributionPlan` contract. Compilation MUST validate boundary inputs, resolve the inventory-declared selection policy for the target surface, select entries only from the distribution inventory, resolve declared transforms and ownership, and return an immutable plan without reading undeclared ambient state or writing to the filesystem. Equivalent normalized inputs MUST produce the same selected stable IDs, plan fingerprint, and ordered output intents.
+The distribution layer SHALL expose a single `compileDistribution(inputs) -> DistributionPlan` contract. Compilation MUST validate boundary inputs, accept all selection context explicitly (including an optional profile selector), select entries only from the distribution inventory, resolve declared transforms and ownership, and return an immutable plan without reading undeclared ambient state or writing to the filesystem. Equivalent normalized inputs MUST produce the same plan fingerprint and ordered output intents.
 
 #### Scenario: Equivalent inputs compile identically
 
-- **WHEN** canonical source fingerprints, inventory data, projection policy, and compiler version are unchanged
-- **THEN** repeated compilation returns byte-equivalent normalized plans with the same selected IDs and plan fingerprint
+- **WHEN** canonical source fingerprints, inventory data, projection rules, profile selection, and compiler version are unchanged
+- **THEN** repeated compilation returns byte-equivalent normalized plans with the same plan fingerprint
+
+#### Scenario: Profile selection is undeclared
+
+- **WHEN** a profile-aware adapter chooses membership without passing the normalized profile selector and its closure to compilation
+- **THEN** compilation rejects the boundary input and produces no materialization plan
 
 #### Scenario: Compilation attempts an undeclared selection
 
-- **WHEN** an adapter, directory layout, or generated manifest implies a component that is absent from the compiler-selected inventory surface
+- **WHEN** an adapter, directory layout, generated manifest, or profile alias implies a component that is absent from the selected inventory surface
 - **THEN** compilation returns a structured validation error naming the undeclared component and produces no materialization plan
 
 #### Scenario: Compiler observes ambient filesystem state
 
-- **WHEN** a projection would require an undeclared directory scan, host configuration, clock value, or environment value to determine its selection or outputs
+- **WHEN** a projection would require an undeclared directory scan, host configuration, clock value, or environment value to determine its outputs
 - **THEN** compilation fails until that value is supplied explicitly through `inputs`
 
 ### Requirement: Distribution plans carry complete projection intent
 
-A `DistributionPlan` SHALL carry its schema/compiler version, input and inventory fingerprints, target surface, ordered selected stable IDs, canonical source identities, transforms, physical ownership, normalized destination paths, content fingerprints, and symlink policy. The plan MUST contain enough information for materialization to execute without re-selecting packages or inventing projection policy. All generated metadata required by the surface, including manifests, fingerprints, provenance, and readmes, MUST be represented as planned output intent before materialization.
+A `DistributionPlan` SHALL carry its schema/compiler version, input and inventory fingerprints, target surface, normalized selection/profile identity, ordered stable IDs, canonical source identities, transforms, physical ownership, normalized destination paths, content fingerprints, and symlink policy. The plan MUST contain enough information for materialization to execute without re-selecting packages or inventing projection policy.
 
 #### Scenario: Materializer receives a complete plan
 
-- **WHEN** a valid plan is passed to materialization
-- **THEN** every output path, owner, transform, expected content fingerprint, link policy, and generated metadata record is already declared in the plan
+- **WHEN** a valid profile or unscoped plan is passed to materialization
+- **THEN** every output path, owner, transform, selected stable ID, expected content fingerprint, profile identity, and link policy is already declared in the plan
 
 #### Scenario: Plan omits projection provenance
 
-- **WHEN** an output intent lacks a stable source ID, canonical source identity, transform identity, or expected fingerprint
+- **WHEN** an output intent lacks a stable source ID, canonical source identity, selection/profile identity, transform identity, or expected fingerprint
 - **THEN** compilation returns a structured incomplete-plan error before any output can be written
 
 #### Scenario: Adapter emits metadata not in the plan
 
-- **WHEN** an adapter attempts to add a manifest, fingerprint, provenance, readme, or other generated output that has no corresponding plan intent
-- **THEN** materialization rejects the output as outside the closed-world plan
+- **WHEN** a materializer or adapter emits metadata that is not declared by the accepted distribution plan
+- **THEN** the projection gate rejects the output and reports the undeclared metadata without publishing it
 
 ### Requirement: Materialization is isolated behind ProjectionArtifactStore
 
@@ -83,16 +90,16 @@ Every projection SHALL declare a symlink policy in inventory-owned projection ru
 
 ### Requirement: Verification returns stage-bound evidence
 
-The distribution layer SHALL expose `verifyDistribution(stage, artifact, consumerAdapter) -> EvidenceResult`. Verification MUST use a declared verification stage and consumer adapter, MUST NOT mutate the accepted artifact, and MUST return structured evidence binding the stage, adapter identity/version, plan and artifact fingerprints, checked claims, observed outputs, verdict, and diagnostics. `EvidenceResult.verdict` MUST remain exactly `PASS`, `FAIL`, `NOT_RUN`, `NOT_CONFIGURED`, `SKIP_INCOMPATIBLE`, `BLOCKED`, or `UNAVAILABLE`; lifecycle summary codes are not valid projection verdicts.
+The distribution layer SHALL expose `verifyDistribution(stage, artifact, consumerAdapter) -> EvidenceResult`. Verification MUST use a declared verification stage and consumer adapter, MUST NOT mutate the accepted artifact, and MUST return structured evidence binding the stage, adapter identity/version, target surface, selection/profile identity, plan and artifact fingerprints, checked claims, observed outputs, verdict, and diagnostics. `EvidenceResult.verdict` MUST remain exactly `PASS`, `FAIL`, `NOT_RUN`, `NOT_CONFIGURED`, `SKIP_INCOMPATIBLE`, `BLOCKED`, or `UNAVAILABLE`; lifecycle summary codes are not valid projection verdicts.
 
 #### Scenario: Structural verification passes
 
-- **WHEN** the requested structural stage confirms the materialized output manifest and fingerprints against the plan
+- **WHEN** the requested structural stage confirms a profile materialized output manifest and fingerprints against the plan
 - **THEN** the evidence result records a passing structural verdict without upgrading any runtime support tier
 
 #### Scenario: Consumer verification uses stale artifact identity
 
-- **WHEN** the requested artifact fingerprint differs from the artifact identity observed by the consumer adapter
+- **WHEN** the requested profile or artifact fingerprint differs from the artifact identity observed by the consumer adapter
 - **THEN** verification returns a stale-evidence failure and does not reuse an earlier passing verdict
 
 #### Scenario: Adapter does not support a requested stage
@@ -116,22 +123,27 @@ Compilation, materialization, and verification SHALL return explicit success or 
 
 ### Requirement: Projection migration is characterization-gated
 
-Each existing distribution surface SHALL be characterized before it is routed through the shared projection contracts. A migrated surface MUST preserve selected stable IDs, output paths, bytes, ordering, transforms, ownership, link behavior, diagnostics, and exit codes for the same inputs. A behavior difference SHALL block that surface's migration unless an additive or breaking contract change is separately approved. Each cutover MUST retain an independently exercisable rollback path until parity evidence is accepted.
+Each existing distribution surface SHALL be characterized before it is routed through the shared projection contracts. A migrated surface MUST preserve selected stable IDs, output paths, bytes, ordering, transforms, ownership, link behavior, diagnostics, and exit codes for the same inputs. A profile-scoped Claude surface MUST additionally characterize profile closure, scoped roots, compatibility output, and rollback behavior. A behavior difference SHALL block that surface's migration unless an additive or breaking contract change is separately approved.
 
-#### Scenario: Characterized surface is unchanged
+#### Scenario: Characterized profile surface is unchanged
 
-- **WHEN** the legacy and compiler-owned pipelines run against the same fixtures
-- **THEN** their selected IDs, normalized plans, materialized artifacts, diagnostics, and process outcomes match the characterized contract
+- **WHEN** the legacy unscoped Claude path and the contract-based profile pipeline run against the same compatibility fixture
+- **THEN** their normalized plans, materialized artifacts, diagnostics, and process outcomes match the characterized compatibility contract
 
 #### Scenario: One migrated surface drifts
 
-- **WHEN** a staged migration changes any characterized observable for one consumer surface
-- **THEN** that surface remains on the prior implementation while independently migrated surfaces remain shippable
+- **WHEN** a staged migration changes any characterized observable for one consumer surface or profile
+- **THEN** that surface/profile remains on the prior implementation while independently migrated surfaces remain shippable
+
+#### Scenario: Characterized surface is unchanged
+
+- **WHEN** a migrated surface produces the same selected IDs, output paths, bytes, ordering, transforms, ownership, diagnostics, and exit status as its characterization fixture
+- **THEN** the surface passes the equivalence gate and may proceed to the shared projection pipeline
 
 #### Scenario: Rollback is required
 
-- **WHEN** parity or verification fails during a surface cutover
-- **THEN** the prior selector remains authoritative through the existing public CLI and the new path does not publish an accepted artifact
+- **WHEN** a migrated surface fails equivalence, verification, or publication checks
+- **THEN** the prior characterized implementation remains authoritative and the migration can be rolled back without mutating canonical sources
 
 ### Requirement: Surface selection policy is compiler-owned
 

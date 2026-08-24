@@ -215,6 +215,16 @@ node scripts/ci/verify-platform-packages.js
 這些檢查證明 package shape、containment、deterministic fingerprints 與
 provenance，不證明 Codex 或 Cursor runtime discovery。
 
+Cursor consumer-runtime evidence 只接受 `cursor-agent` CLI。portable Agent
+Plugin route 只允許一個 plugin directory：
+
+```bash
+cursor-agent --plugin-dir <agent-package> --mode ask --trust -p <smoke-prompt> --output-format json
+```
+
+這條 portable route 不得加入 Cursor-native directory、Codex marketplace
+命令或 agent-plugins.org 參數。
+
 ## Cursor standard Agent Plugin
 
 Prerequisites：具 local plugin loader 的 Cursor desktop client，以及已記錄的
@@ -229,7 +239,9 @@ Cursor 可用 `plugins/dhpk-agent/` 取得 portable skills 與 optional MCP：
 
 記錄 Cursor version 與 probe output。沒有 supported local loader 或 CLI 時，
 維持 `UNAVAILABLE`／`BLOCKED`；不可從此 package 宣稱 native rules、commands、
-agents 或 hooks。
+agents 或 hooks。Cursor desktop GUI、**Customize → Plugins**、desktop
+`cursor` binary 與 project-local `.cursor/` 檔案是不同安裝路徑，不是
+`cursor-agent` runtime proof。
 
 ## Cursor CLI（launch-scoped probe）
 
@@ -242,8 +254,9 @@ experimental/conditional。`plugin` subcommand 也沒有 non-interactive
 `plugin install` 命令。不可把 `cursor-agent plugin marketplace add` 說成
 dhpk 安裝；它只會加入或更新 marketplace index。
 
-Prerequisites：記錄 `cursor-agent --version`、已登入 Cursor CLI（或 API key），
-以及本機可讀取兩個 dhpk package。先確認 authentication：
+Prerequisites：記錄 `cursor-agent --version`、已登入的 Cursor CLI session，
+以及本機可讀取兩個 dhpk package。只使用 API key 不構成 consumer-runtime
+proof。先確認 authentication：
 
 ```bash
 cursor-agent --version
@@ -274,16 +287,32 @@ cursor-agent \
   --output-format json
 ```
 
+portable Agent Plugin probe 只使用一個 directory：
+
+```bash
+cursor-agent \
+  --plugin-dir <agent-package> \
+  --mode ask \
+  --trust \
+  -p <smoke-prompt> \
+  --output-format json
+```
+
 wrapper 也會傳 `--trust`，避免 launch-scoped probe 卡在互動式 workspace
 確認提示，並忽略 stdin，避免子行程繼承呼叫端 TTY。若要同等的不卡住證據，
 不要把等同的 `cursor-agent` argv 貼進互動式 shell。
 
 記錄 exact CLI version、authentication status、package paths 與 probe output。
-package validator 只證明 structure 與 provenance；runtime `PASS` 必須由 CLI
-或 Cursor UI 實際 discover projection content；在此之前 CLI route 維持
+package validator 只證明 structure 與 provenance；runtime `PASS` 必須由已登入的
+`cursor-agent` CLI 實際 discover projection content；在此之前 CLI route 維持
 `NOT_RUN` 或 `BLOCKED`。若 CLI 回報 `Authentication required`，在完成 login
-前證據是 `BLOCKED`。若安裝的 CLI 沒有 `--plugin-dir`，記錄 `UNAVAILABLE`，
-改用 Cursor UI/local-plugin route。
+前證據是 `BLOCKED`。若缺少 `cursor-agent`，記錄 `UNAVAILABLE`；desktop
+`cursor` binary、GUI discovery 與 project-local `.cursor/` installer 都不是
+替代證據。missing CLI（缺少 `cursor-agent`）記錄為 `UNAVAILABLE`。`cursor-sync` installer identity row 在未執行 installer runtime
+時預期為 `NOT_RUN`，不等於 Cursor consumer-runtime PASS。若安裝的 CLI 沒有 `--plugin-dir`，記錄 `UNAVAILABLE`，
+Cursor desktop GUI、Customize → Plugins、desktop `cursor` binary 與
+project-local `.cursor/` 安裝只屬於 setup 或 installer evidence，不能替代已登入
+`cursor-agent` 的 runtime proof。
 即使要求更大的值，probe 仍強制 5 分鐘 timeout 上限與 4 MiB output 上限。
 若 wrapper 回報 `SKIP_INCOMPATIBLE` 且 `timed_out: true`、`no_stdout: true`，
 代表 CLI 在期限內沒有任何輸出。目前 `cursor-agent` 沒有非 LLM 的 plugin
@@ -477,6 +506,14 @@ AGY 1.1.13 沒有 native filesystem plugin loader，所以隔離 HOME 的
 `agy agents` 會是空的；這組結果是 `SKIP_INCOMPATIBLE`，不是 package-shape
 `FAIL`。不要對 receipt-owned target 跑 `agy plugin install`：那不是 native
 registration 步驟，而且可能把 `plugin.json` 截成空檔。
+
+AGY runtime prerequisites 是 `agy` CLI、目前支援的 `bwrap` POSIX sandbox
+backend，以及明確指定的 `DHPK_AGY_HOST_HOME`，其中必須有 allowlisted
+login file。runtime probe 只把 allowlisted files 複製到 disposable HOME，
+以 read-only 方式 mount package，並只在 runtime invocation 開啟 network。
+缺少 login 是 `BLOCKED`；缺少 `agy` 或 `bwrap` 是 `UNAVAILABLE`；未明確使用
+`--agy-runtime-probe` 時 runtime 是 `NOT_RUN`。runtime diagnostics 有界且已
+redact，不記錄 host credential 內容。
 
 報告分開記錄 package structure、plugin/agent discovery 與 Subagent runtime。
 若 `agy` 不在 `PATH`，discovery 是 `UNAVAILABLE`；未使用
