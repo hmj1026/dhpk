@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.47.1 — 2026-08-25 — Allow skill references during AGY package structure validation
+
+**fix(agy-plugin)** — Allow skill references subdirectories during AGY package structure validation so nested supporting assets do not cause false-positive consumer gate failures.
+
 ## 0.47.0 — 2026-08-25 — Consolidate canonical skill portfolio and scope default workflow capability bundles
 
 **feat(skill-portfolio)** — Consolidate the canonical skill portfolio with explicit successor routes, retirement diagnostics, and safe cross-platform projections.
