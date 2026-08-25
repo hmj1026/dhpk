@@ -132,7 +132,13 @@ test('generated-input commit and tree must be a matching pair', () => {
   const root = temporaryReceiptRoot();
   try {
     const current = sourceBinding('HEAD');
-    const generated = sourceBinding('HEAD^');
+    // Release back-merges can make HEAD^ tree-identical to HEAD. Pick the
+    // nearest distinct-tree ancestor so this fixture always exercises the
+    // generated-input pair mismatch rather than a coincidental equal tree.
+    const directParent = sourceBinding('HEAD^');
+    const generated = directParent.sourceTree === current.sourceTree
+      ? sourceBinding('HEAD^^')
+      : directParent;
     const attempt = receipts.createAttempt({
       root,
       command: 'harness verify --json',

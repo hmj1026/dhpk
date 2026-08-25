@@ -131,7 +131,7 @@ test('Cursor CLI wrapper passes --trust so launch-scoped probes do not wait for 
   const agent = path.join(root, 'agent');
   const cursor = path.join(root, 'cursor');
   const bin = path.join(root, 'bin');
-  const argvFile = path.join(root, 'argv.txt');
+  const argvFile = path.join(agent, 'argv.txt');
   fs.mkdirSync(agent);
   fs.mkdirSync(cursor);
   fs.mkdirSync(bin);
@@ -175,6 +175,28 @@ test('Cursor CLI wrapper blocks valid JSON without requested capability evidence
     const report = JSON.parse(result.stdout);
     assert.strictEqual(report.status, 'BLOCKED');
     assert.strictEqual(report.discovery_negative, true);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('Cursor CLI wrapper rejects symlinked package content before staging', () => {
+  const root = fs.mkdtempSync(path.join('/var/tmp', 'dhpk-cursor-cli-symlink-'));
+  const agent = path.join(root, 'agent');
+  const cursor = path.join(root, 'cursor');
+  fs.mkdirSync(agent);
+  fs.mkdirSync(cursor);
+  fs.symlinkSync('/etc/hostname', path.join(agent, 'host-secret-link'));
+  try {
+    const result = invoke([
+      '--agent-package', agent,
+      '--cursor-package', cursor,
+      '--timeout-ms', '1000',
+    ], { ...process.env, PATH: process.env.PATH || '' });
+    assert.strictEqual(result.status, 1, result.stdout + result.stderr);
+    const report = JSON.parse(result.stdout);
+    assert.strictEqual(report.status, 'BLOCKED');
+    assert.match(report.reason, /symlink/i);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

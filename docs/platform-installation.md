@@ -16,7 +16,7 @@ callable only after the named consumer probe discovers the projected content.
 | Cursor standard Agent Plugin | Cursor Customize/Plugins, or local `~/.cursor/plugins/local/dhpk-agent` | Cursor reload/update/remove or replace that local package | Root `plugin.json`, discovered portable skills/MCP, client version | Portable skills/MCP only; no Cursor-native parity claim |
 | Cursor Plugin | Local `~/.cursor/plugins/local/dhpk-cursor`, or reviewed `.cursor-plugin/marketplace.json` source; install `plugins/dhpk-agent/` alongside it for shared portable skills | Cursor refresh/update/remove; rollback Cursor-owned files only; update the shared Agent package separately | `.cursor-plugin/plugin.json`, rules, agents, commands, hooks, variables, shared-skill IDs | Native components require Cursor evidence; shared portable skills are owned by `dhpk-agent`; gaps are `SKIP_INCOMPATIBLE` |
 | Cursor project-local sync | From a checkout: `bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh`; inside a Claude plugin: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh"` | `--update`, `--migrate`, `--uninstall`; `--force` only bypasses the project-root heuristic | `.cursor/.dhpk-installed.json` schema-v3, `.mdc` rules, managed entries | Supported Cursor project-local path; native hooks are out of v1; install does not prove runtime callability |
-| Cursor CLI launch-scoped probe | `cursor-agent --plugin-dir <agent-package> --plugin-dir <cursor-package>` after login | No persistent CLI install; update the source package or local symlink, then start a new session | `cursor-agent --version`, `cursor-agent status`, and a read-only `--mode ask` probe | Experimental/conditional: CLI help exposes the flag, but official CLI docs do not establish plugin component discovery; marketplace indexing is not a non-interactive install command |
+| Cursor CLI launch-scoped probe | `cursor-agent --plugin-dir <agent-package> --plugin-dir <cursor-package>` after login | No persistent CLI install; update the source package or local symlink, then start a new session | `cursor-agent --version`, `cursor-agent status`, and a read-only `--mode ask` probe | Experimental/conditional: CLI help exposes the flag, but official CLI docs do not establish plugin component discovery; release probes use an isolated shared-network bubblewrap namespace, never unrestricted execution |
 | AGY native plugin | Generate `plugins/dhpk-agy/`, then receipt-owned install to `~/.gemini/config/plugins/dhpk/` | `install-agy-plugin.js update`, `uninstall`, or `rollback`; foreign files are preserved and collisions fail closed | AGY package validator; `agy plugins list` is import-only; isolated `agy agents` is native load; optional bounded Subagent probe | Experimental: package/discovery evidence is separate from runtime; absent `agy` is `UNAVAILABLE` |
 
 ## Prerequisites and version assumptions
@@ -34,7 +34,7 @@ result; do not infer a runtime `PASS` from a package check.
 | Cursor standard Agent Plugin | Cursor desktop/plugin loader that accepts the portable package; record Cursor version; minimum version not established | A Cursor-supported desktop OS; local path is `~/.cursor/plugins/local/` | Cursor Customize → Plugins or its local loader; Node.js for validation only | Observe discovered skills/MCP after reload; no loader is `UNAVAILABLE` or `BLOCKED` |
 | Cursor Plugin (native) | Cursor plugin loader supporting `.cursor-plugin/plugin.json`; record Cursor version; install the standard `dhpk-agent` package for shared portable skills; minimum version not established | A Cursor-supported desktop OS; local path is `~/.cursor/plugins/local/` | Cursor reload/UI, local filesystem, and secret-free variable configuration; compare shared IDs with Agent provenance | Observe each selected native component and hook behavior after reload; an explicit matrix overlay is the only reason for a Cursor `skills/` directory |
 | Cursor project-local sync | Cursor project-local loader; schema-v3 receipt; minimum Cursor version not established | Linux, macOS, or WSL with a POSIX shell, run from the project root | `bash`, `git`; Node.js is needed only for validators | Run the installer, inspect `.cursor/.dhpk-installed.json`, and run the listed installer test; do not treat a missing live Cursor client as a runtime `PASS` |
-| Cursor CLI launch-scoped probe | `cursor-agent` available on `PATH`; record `cursor-agent --version`; authenticate with `cursor-agent login`; minimum version not established | Linux, macOS, or WSL POSIX shell | `cursor-agent`, `--plugin-dir`, and a Cursor account/API key; Node.js only for package validation | Experimental/conditional: run `cursor-agent status`, then a read-only probe; unauthenticated output is `BLOCKED`, missing CLI is `UNAVAILABLE`, and discovery must be recorded separately |
+| Cursor CLI launch-scoped probe | `cursor-agent` available on `PATH`; record `cursor-agent --version`; authenticate with `cursor-agent login`; minimum version not established | Linux, macOS, or WSL POSIX shell | `cursor-agent`, `--plugin-dir`, a logged-in Cursor session, and verified bubblewrap on Linux; Node.js only for package validation | Experimental/conditional: run `cursor-agent status`, then a read-only probe; unauthenticated output is `BLOCKED`, missing CLI/sandbox is `UNAVAILABLE`/`BLOCKED`, and discovery must be recorded separately; API-key-only auth is not accepted |
 | AGY native plugin | `agy` version and supported AGY model/tool enum are not pinned; record `agy --version` when available | Linux, macOS, or WSL POSIX shell; install root is user-scoped | Node.js, `git`, generated package, and optional `agy` CLI | Run structural validation first; `agy plugins list` is import-only and isolated `agy agents` is native load; runtime remains `NOT_RUN` unless `--agy-runtime-probe` is explicitly used |
 
 ## Status vocabulary
@@ -300,6 +300,19 @@ cursor-agent \
   --output-format json
 ```
 
+The release `--execute` route clones only the allowlisted Cursor login files into
+a disposable HOME and runs the bounded client in a verified bubblewrap namespace.
+It uses `--unshare-all` followed by `--share-net` so the `--mode ask` request can
+reach the service while the filesystem, HOME, and process remain isolated. An
+unrestricted release request is rejected; if bubblewrap is unavailable the result
+is `BLOCKED`, and DNS/transport failures are `UNAVAILABLE` rather than product
+`FAIL`. Offline fixtures may request `networkMode: disabled`, which remains
+network-isolated and cannot be promoted to a live runtime PASS.
+For clients installed under a home directory, the namespace binds only the
+physical executable directory; a trusted Homebrew-style `.linuxbrew` prefix is
+the explicit exception when absolute sibling libraries require that self-contained
+runtime tree, while direct home-root and direct `.local` executables are blocked.
+
 The portable Agent Plugin probe uses exactly one directory:
 
 ```bash
@@ -325,7 +338,8 @@ If `cursor-agent` is missing, record `UNAVAILABLE`; the desktop `cursor`
 binary, GUI discovery, and project-local `.cursor/` installer are not a
 substitute. The `cursor-sync` installer identity row is expected to be
 `NOT_RUN` when no installer runtime was executed; that state is not a Cursor
-consumer-runtime PASS.
+consumer-runtime PASS, and it is not by itself a `NO-SHIP` result. An installer
+`FAIL` remains unhealthy and must be investigated.
 The probe enforces a 5-minute timeout ceiling and a 4 MiB output ceiling even
 when larger values are requested.
 If the wrapper reports `SKIP_INCOMPATIBLE` with `timed_out: true` and

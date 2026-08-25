@@ -4,8 +4,11 @@
 // Bounded, launch-scoped Cursor CLI probe. This wrapper is the documented
 // operator route; it never installs or edits a Cursor package.
 
+const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
-const { runCursorConsumerProbe } = require('../lib/cursor-plugin-package');
+const { assertPhysicalPackageRoot, runCursorConsumerProbe } = require('../lib/cursor-plugin-package');
+const { redactSensitiveText } = require('../lib/redaction');
 
 const DEFAULT_PROMPT = 'List the dhpk skills, commands, agents, and rules you discover. Do not edit files.';
 
@@ -39,36 +42,59 @@ function main() {
   try {
     args = parseArgs(process.argv.slice(2));
   } catch (error) {
-    console.error(`cursor-agent-probe: ${error.message}`);
+    console.error(`cursor-agent-probe: ${redactSensitiveText(String(error && error.message ? error.message : error), { maxLength: 800 })}`);
     process.exit(2);
   }
   const agentPackage = path.resolve(args.agentPackage);
   const cursorPackage = path.resolve(args.cursorPackage);
+  const tempRoot = path.resolve(os.tmpdir());
+  const privateTempPath = (value) => {
+    const resolved = path.resolve(value);
+    return resolved === tempRoot || resolved.startsWith(`${tempRoot}${path.sep}`);
+  };
+  let stagingRoot = null;
+  let probeAgentPackage = agentPackage;
+  let probeCursorPackage = cursorPackage;
   let result;
   try {
+    assertPhysicalPackageRoot(agentPackage, 'Agent package');
+    assertPhysicalPackageRoot(cursorPackage, 'Cursor package');
+    if (!privateTempPath(agentPackage) || !privateTempPath(cursorPackage)) {
+      stagingRoot = fs.mkdtempSync(path.join(tempRoot, 'dhpk-cursor-cli-stage-'));
+      probeAgentPackage = path.join(stagingRoot, 'agent-package');
+      probeCursorPackage = path.join(stagingRoot, 'cursor-package');
+      fs.cpSync(agentPackage, probeAgentPackage, { recursive: true, dereference: false });
+      fs.cpSync(cursorPackage, probeCursorPackage, { recursive: true, dereference: false });
+      assertPhysicalPackageRoot(probeAgentPackage, 'staged Agent package');
+      assertPhysicalPackageRoot(probeCursorPackage, 'staged Cursor package');
+    }
     result = runCursorConsumerProbe({
-      packageRoot: agentPackage,
+      packageRoot: probeAgentPackage,
       timeoutMs: args.timeoutMs === undefined ? undefined : Number(args.timeoutMs),
       maxOutputBytes: args.maxOutputBytes === undefined ? undefined : Number(args.maxOutputBytes),
       requireOutput: true,
       requireJson: true,
       requireDiscovery: true,
+      networkMode: 'shared',
       args: [
-        '--plugin-dir', agentPackage,
-        '--plugin-dir', cursorPackage,
+        '--plugin-dir', probeAgentPackage,
+        '--plugin-dir', probeCursorPackage,
         '--mode', 'ask',
         '--trust',
         '-p', args.prompt,
         '--output-format', 'json',
       ],
     });
+    result = { ...result, packageRoot: agentPackage };
   } catch (error) {
     result = {
       status: 'BLOCKED',
-      reason: error.message,
+      reason: redactSensitiveText(String(error && error.message ? error.message : 'unknown probe setup error'), { maxLength: 800 }),
       packageRoot: agentPackage,
       timed_out: false,
     };
+  } finally {
+    if (stagingRoot) fs.rmSync(stagingRoot, { recursive: true, force: true });
   }
   console.log(JSON.stringify({
     ...result,
