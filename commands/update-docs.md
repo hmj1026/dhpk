@@ -1,158 +1,163 @@
 ---
-description: 'Research current code state then update corresponding docs, ensuring docs stay in sync with code.'
-argument-hint: '<docs-path | feature-keyword>'
-allowed-tools: 'Read, Write, Edit, Grep, Glob, Bash(ls:*), Bash(git:*), Bash(find:*)'
+description: 'Research the current dhpk implementation and update user or agent docs without changing source semantics.'
+argument-hint: '<docs-path | workflow-keyword>'
+allowed-tools: 'Read, Write, Edit, Grep, Glob, Bash(bash:*), Bash(cx:*), Bash(git:*), Bash(ls:*), Bash(node:*)'
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---
 
-## Auto-Trigger
+# `/dhpk:update-docs`
 
-Auto-triggered after precommit Pass, only when the change maps to a feature under `docs/features/`. Can also be invoked manually.
+## Contract
 
-Proactive orchestration: the `doc-updater` agent runs this command after structural code changes — see the back-stop in `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`.
+Use this command after a public workflow, route, setup, distribution, or
+configuration change makes a document stale. It may also be invoked with a
+document path or workflow keyword for a bounded refresh. It updates Markdown
+and other documentation only; it does not edit application source, tests, the
+route table, or generated runtime projections.
 
-## Context
+Do not use it for codemap generation (`/dhpk:update-codemaps`), a policy or
+link/frontmatter review (`/dhpk:codex-review-doc` or `dhpk-doc-review`), or
+external-library research (`docs-lookup`). The `doc-updater` agent owns the
+same contract when structural changes require a proactive handoff; this command
+is its user-facing entry point.
 
-- Goal: Update docs based on current code state, ensuring docs stay in sync with implementation.
-- Input: Document path (e.g. `docs/features/auth`) or feature keyword (e.g. `auth`)
+Read the nearest policy before editing:
 
-## Task
+- [`docs/agent-guidance/writing-for-agents.md`](../docs/agent-guidance/writing-for-agents.md)
+  defines pointer, hierarchy, completion, pruning, and boundary checks.
+- [`docs/agent-guidance/command-contract.md`](../docs/agent-guidance/command-contract.md)
+  defines command-level evidence and handoff expectations.
+- [`rules/execution-policy.md`](../rules/execution-policy.md) owns dispatch,
+  reviewer, and dirty-worktree boundaries.
 
-### Step 1: Locate Docs and Related Code (3-Level Fallback)
+The implementation and distribution SSOT map is:
 
-**Key principle: can't find target → `## Gate: ⚠️ Need Human` — don't guess.**
+| Fact | Prefer this owner |
+|---|---|
+| Public names, surfaces, counts | [`manifests/distribution-inventory.json`](../manifests/distribution-inventory.json) |
+| Route matching and invocation class | `scripts/lib/route-table.json`, `scripts/lib/route-result.js`, and `commands/do.md` |
+| Effective configuration | [`docs/configuration.md`](../docs/configuration.md) and its Traditional Chinese pair |
+| Install, update, migration, rollback | [`docs/platform-installation.md`](../docs/platform-installation.md), [`docs/skill-platform-migration.md`](../docs/skill-platform-migration.md) |
+| Runtime workflow, receipts, and gate outcomes | [`docs/harness-workflow.md`](../docs/harness-workflow.md) and the owning harness scripts |
+| Agent-writing rules | [`docs/agent-guidance/writing-for-agents.md`](../docs/agent-guidance/writing-for-agents.md) |
 
-| Level | Method | How |
-|-------|--------|-----|
-| 1. Context inference | feature-dev parameter or conversation feature name | Extract feature keyword from current context |
-| 2. Git diff inference | `git merge-base` + changed paths | Match changed `src/` paths against `docs/features/` directories |
-| 3. Not found | Stop and ask | Output `## Gate: ⚠️ Need Human` — do not guess or create new docs |
+## Workflow
+
+### 1. Bound the target
+
+Treat `$ARGUMENTS` as either an existing documentation path or a workflow
+keyword. Confirm the path with `ls`; for a keyword, search `docs/`, `README*.md`,
+`commands/`, `agents/`, and `codex/` with `rg`. If no target or owner can be
+identified, stop with `## Gate: Need Human`, explain the missing decision, and
+do not create a guessed file.
 
 ```bash
-# Level 1: If document path provided
-ls $ARGUMENTS 2>/dev/null
-
-# Level 1: If keyword, search related docs
-find docs -name "*.md" | xargs grep -l "<keyword>" 2>/dev/null
-
-# Level 2: Git diff inference
-git diff --name-only $(git merge-base HEAD main)..HEAD -- src/ | head -20
-# Match changed src/ paths against docs/features/ directories
-ls docs/features/ 2>/dev/null
+ls "$ARGUMENTS" 2>/dev/null
+rg -n -i --glob '*.md' "$ARGUMENTS" docs README*.md commands agents codex
 ```
 
-Extract from docs:
+Record the exact target files and whether the English and
+`*.zh-TW.md` counterpart both need review. A single writer owns each shared
+document pair; do not have parallel workers edit the same file.
 
-- Feature scope described in the document
-- Involved Service / Provider / Entity
+### 2. Inspect the live implementation
 
-### Step 2: Research Current Code State
+Start from the current checkout and its dirty-worktree inventory. For a symbol,
+class, method, or call relationship, use `cx overview <file>` first, then
+`cx definition` and `cx references`; use `rg` or a focused `Read` only when cx
+cannot answer. For a workflow or cross-file flow, use the GitNexus query/context
+surface when available. Fall back to narrow `rg`, `git log`, and `git diff`
+evidence when those tools are unavailable.
 
-```bash
-# Check related source code
-ls src/service/ | grep -i "<keyword>"
-ls src/provider/ | grep -i "<keyword>"
-ls src/entity/ | grep -i "<keyword>"
+Do not infer facts from an old branch, an unresolvable `sourceCommit`, or a
+generated projection without checking its canonical owner. Capture the relevant
+file, symbol, route, manifest entry, command flag, or test as evidence.
 
-# Check recent changes
-git log --oneline -20 --all -- "src/**/*<keyword>*"
-git diff HEAD~10 --stat -- "src/**/*<keyword>*"
-```
+### 3. Map facts to the owning document
 
-Key research items:
+Build a small before/after table before editing:
 
-- [ ] Any new Service / Method added?
-- [ ] Any modified logic?
-- [ ] Any new Entity / Field added?
-- [ ] Any API changes?
+| Area | Current evidence | Document consequence |
+|---|---|---|
+| Entry / route | command, route rule, invocation class | update the user entry point and direct-invocation boundary |
+| Workflow | implementation flow, agent handoff, flags | update the shortest primary path and link branch mechanics |
+| Completion | test, receipt, sentinel, or harness outcome | state the observable PASS, `NOT_RUN`, `BLOCKED`, or `NO_SHIP` boundary |
+| Distribution | canonical inventory and projection/package contract | keep supported, experimental, and unavailable surfaces distinct |
+| Locale | English document and Traditional Chinese pair | update both or explain the explicit follow-up |
 
-### Step 3: Compare Docs vs Code Differences
+Keep one meaning in one SSOT. A guide may summarize a contract, but it must link
+to the route table, manifest, configuration, or harness document that owns the
+details. Never invent framework-shaped paths; use the directories that exist in
+this repository.
 
-| Item       | Doc Description | Current Code | Status         |
-| ---------- | --------------- | ------------ | -------------- |
-| Service    | ...             | ...          | ✅/⚠️ Outdated |
-| API        | ...             | ...          | ✅/⚠️ Outdated |
-| Data Model | ...             | ...          | ✅/⚠️ Outdated |
-| Flow Chart | ...             | ...          | ✅/⚠️ Outdated |
-| Test Paths | ...             | ...          | ✅/⚠️ Outdated |
+### 4. Apply the writing-for-agents checks
 
-### Step 4: Update Docs
+Before saving, verify all five checks from the repository guidance:
 
-Update document content based on differences:
+1. **Pointer** — trigger and nearest non-use boundary appear before detailed mechanics.
+2. **Hierarchy** — the main user path is local; branch-only details are linked or co-located once.
+3. **Completion** — the document names observable evidence, handoff state, and plan/apply/archive boundaries.
+4. **Pruning** — stale aliases, duplicate prose, cache paths, and no-op instructions are removed.
+5. **Boundary** — invocation class, route target, flags, tool/model support, precedence, and support tier remain exact.
 
-1. **Architecture diagrams**: If changed, update Mermaid sequenceDiagram / flowchart
-2. **Core service table**: Added/removed/renamed Services
-3. **API description**: Added/modified API endpoints
-4. **Data model**: Added/modified Entity / Field
-5. **Test paths**: Update test file paths
+For user guides, prefer a decision ladder, an entry table, exact command
+examples, and one next action. For agent or command docs, prefer an explicit
+contract, non-use boundary, evidence checklist, and failure/handoff output.
 
-### Step 5: Produce Change Summary
+### 5. Edit documentation only
+
+Preserve unrelated dirty WIP. Before editing, save `git status --short` and a
+targeted diff summary. During the edit:
+
+- update the English/Traditional Chinese pair together when both exist;
+- retain links to canonical files instead of copying implementation policy;
+- preserve command namespaces (`/dhpk:...`, `$dhpk:...`) and exact flags;
+- do not commit, stage, push, reset, stash, or overwrite unrelated changes;
+- do not change source, tests, manifests, route rules, or generated projections.
+
+### 6. Validate and hand off
+
+Run the smallest relevant checks first, then the repository documentation and
+route validators. At minimum, use the focused contract test and the existing
+parity/frontmatter checks when those files are in scope. Confirm every new
+relative link resolves, both locales keep heading and command-shape parity, and
+the diff contains documentation changes only.
+
+Completion requires all of the following:
+
+- the target document(s) and their locale pair are named;
+- implementation evidence and the SSOT owner are listed;
+- validation commands have an exit result, or are explicitly `NOT_RUN` with a reason;
+- unresolved work is `BLOCKED`/`Need Human`, not silently omitted;
+- the handoff ends with exactly one recommended next command.
 
 ## Output
 
 ```markdown
 # Document Update Report
 
-## Update Scope
+## Scope
+- Requested target: <path or keyword>
+- Changed docs: <paths>
+- Unchanged dirty WIP: <paths preserved>
 
-- Document path: $ARGUMENTS
-- Research time: <timestamp>
+## Evidence
+- Implementation / route / manifest: <file:line or command>
+- SSOT owner: <path>
+- Locale pair: <English and Traditional Chinese status>
 
-## Research Findings
+## Validation
+- <command>: PASS | NOT_RUN | BLOCKED
+- Link / heading / command parity: PASS | BLOCKED
+- Source diff unchanged: PASS | BLOCKED
 
-### Code Changes
-
-| Change Type | File           | Description |
-| ----------- | -------------- | ----------- |
-| Added       | src/service/.. | ...         |
-| Modified    | src/entity/... | New field   |
-
-### Document Differences
-
-| Item       | Before   | After    |
-| ---------- | -------- | -------- |
-| Service    | A, B     | A, B, C  |
-| API        | /v1/...  | /v2/...  |
-| Test Paths | test/... | test/... |
-
-## Updated Content
-
-<specific document change diff>
-
-## Suggested Follow-ups
-
-- [ ] <items needing further updates>
+## Handoff
+- Next command: `<one command>`
+- Remaining blocker: <none or exact reason>
 ```
 
-## Safety Valve
-
-Before doc sync, snapshot the full code diff hash. After doc sync, compare to detect any code change (new files or additional hunks in existing files):
-
-```bash
-# Before doc sync: hash the full code diff content
-PRE_HASH=$(git diff -- '*.ts' '*.js' '*.tsx' '*.jsx' | md5sum | cut -d' ' -f1)
-
-# ... run /update-docs + /create-request --update ...
-
-# After doc sync: compare diff hash
-POST_HASH=$(git diff -- '*.ts' '*.js' '*.tsx' '*.jsx' | md5sum | cut -d' ' -f1)
-```
-
-If `PRE_HASH != POST_HASH` (code diff changed during doc sync), return to the review loop (per @rules/execution-policy.md §Post-implementation agent gate). Doc-only changes (`.md`) do not re-trigger the code review loop.
-
-## Usage Examples
-
-```bash
-# Update related docs
-/update-docs docs/features/auth
-
-# Find and update docs by keyword
-/update-docs auth
-
-# Update a specific document
-/update-docs docs/features/auth/auth-implementation-architecture.md
-
-# Auto-triggered after precommit Pass (feature-dev workflow)
-# Claude auto-detects target via 3-level fallback
-```
+If target discovery, evidence, or validation is blocked, return the same report
+with `## Gate: Need Human` or `BLOCKED` and the exact decision required. A green
+documentation validator does not prove a source change, live consumer, release,
+or archived OpenSpec change.

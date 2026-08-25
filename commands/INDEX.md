@@ -12,8 +12,8 @@ description: 'Navigation index for dhpk plugin commands. Internal documentation;
 
 | Command | 用途 |
 |---------|------|
-| `/dhpk:do` | Smart Router：把自然語言任務路由到適用的 `dhpk-*` workflow。 |
-| `/dhpk:create-dev` | 開始受引導的開發工作。 |
+| `/dhpk:do` | Smart Router：把自然語言任務路由到適用的 `dhpk-*` workflow；`--route-only` 只輸出 `Route only: /...`（底層 `MATCH`／`NO_MATCH`／`NO_QUERY`），不執行 downstream。 |
+| `/dhpk:create-dev` | 舊版相容性 alias；新工作請使用 `/dhpk:do`。 |
 | `/dhpk:deep-analyze` | 深入分析提案並產出 roadmap。 |
 | `/dhpk:spec-mine` | 從既有程式碼萃取 behavioral specification。 |
 | `/dhpk:opsx-apply-resume` | 長時間 `opsx:apply` 的 context handoff。 |
@@ -46,7 +46,7 @@ description: 'Navigation index for dhpk plugin commands. Internal documentation;
 |---------|------|
 | `/dhpk:harness-audit` / `/dhpk:harness-govern` | Harness 的單次評估與 measure→conform→fix→verify 迴圈。 |
 | `/dhpk:check-skill` | 結構化 skill 健康檢查。 |
-| `/dhpk:update-docs` / `/dhpk:update-codemaps` / `/dhpk:doc-refactor` | 更新、產生或精簡文件。 |
+| `/dhpk:update-docs` / `/dhpk:update-codemaps` / `/dhpk:doc-refactor` | 更新、產生或精簡文件；`update-docs` 以實作證據與 writing-for-agents 契約為準。 |
 | `/dhpk:project-brief` | 將技術內容整理為 PM/CTO 摘要。 |
 | `/dhpk:setup` | 設定 plugin；用 `--install hooks\|rules\|scripts\|all` 安裝資產。 |
 | `/dhpk:install-hooks` / `/dhpk:install-rules` / `/dhpk:install-scripts` | 已棄用的一個 minor-release forwarding alias；新文件與新流程不得使用。 |
@@ -69,4 +69,4 @@ description: 'Navigation index for dhpk plugin commands. Internal documentation;
 ## 修改本檔時
 
 - 新增或移除 command → 與 `commands/` 目錄及 `commands/INDEX.md` 同步，避免在索引宣稱未註冊的 command。
-- 命令行為變更 → 檢查是否影響 `/dhpk:create-dev`、`/dhpk:do` 或相關 skill handoff。
+- 命令行為變更 → 檢查是否影響 `/dhpk:create-dev`（相容性 alias）、`/dhpk:do` 或相關 skill handoff。

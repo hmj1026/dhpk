@@ -6,7 +6,7 @@
 >
 > Platform installation SSOT: [English](./docs/platform-installation.md) · [繁體中文](./docs/platform-installation.zh-TW.md)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE) [![Version](https://img.shields.io/github/v/tag/hmj1026/dhpk?label=version&sort=semver)](https://github.com/hmj1026/dhpk/tags) [![CI](https://img.shields.io/github/actions/workflow/status/hmj1026/dhpk/ci.yml?branch=main&label=CI)](https://github.com/hmj1026/dhpk/actions/workflows/ci.yml) [![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A63D2)](https://docs.claude.com/en/docs/claude-code/plugins)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE) [![Version](https://img.shields.io/github/v/tag/hmj1026/dhpk?label=version&sort=semver)](https://github.com/hmj1026/dhpk/tags) [![CI](https://img.shields.io/github/actions/workflow/status/hmj1026/dhpk/ci.yml?branch=main&label=CI)](https://github.com/hmj1026/dhpk/actions/workflows/ci.yml) [![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A63D2)](https://docs.claude.com/en/docs/claude-code/plugins) [![Codex project sync](https://img.shields.io/badge/Codex%20project%20sync-supported-412991)](./docs/platform-installation.md#codex-project-local-sync-supported) [![Cursor project sync](https://img.shields.io/badge/Cursor%20project%20sync-supported-F2A900)](./docs/platform-installation.md#cursor-project-local-sync-supported) [![Native packages](https://img.shields.io/badge/native%20packages-experimental-orange)](./docs/platform-installation.md#surface-matrix)
 
 A generic, install-and-go Claude Code harness. It ships **32 role-based agents** (31 root-level agents plus one module-scoped reviewer), registered dhpk commands, core skills, the **`/dhpk:do` Smart Router** (natural-language task routing via a bilingual route table + LLM fallback), a cross-session learning DB (opt-in), **7-slot sentinel-driven review hooks** (code / db / sec / frontend / doc / polyfill / migration), statusline, harness scripts, and **31 opt-in stack modules** across PHP, Yii, PHPUnit, Laravel, JavaScript, Vue, Laravel Mix, Next.js, React, Python, and iOS/Swift. Modules contribute hooks at runtime via the **wrapper-dispatch** model (see [`docs/hook-extension.md`](./docs/hook-extension.md)). A curated Codex CLI projection is included for dual-assistant projects.
 
@@ -80,6 +80,7 @@ Lifecycle, public names, and publication surfaces are owned by
 Everything is reachable through `/dhpk:do` — one entry point that routes natural-language task descriptions to the right skill: feature development, bug fixes, the automatic post-edit review cycle, commit/PR, unattended OpenSpec sessions, spec mining, E2E test authoring, harness health checks, and Implementation dispatch (reasoning-heavy work → `deep-reasoner`, mechanical work → a selector-resolved Claude/Codex/agy fast worker). Full walkthrough with worked examples for each: **[`docs/basic-operations.md`](./docs/basic-operations.md)**.
 
 ```text
+/dhpk:do --route-only implement a password-reset email flow # inspect the route only
 /dhpk:do implement a password-reset email flow   # feature (TDD + review gates)
 /dhpk:do --worker=codex implement the plan   # invocation-only worker override
 /dhpk:do fix the login redirect loop              # bug fix (root cause + regression test)
@@ -87,6 +88,14 @@ Everything is reachable through `/dhpk:do` — one entry point that routes natur
 /dhpk:smart-commit && /dhpk:create-pr             # commit + PR
 /dhpk:harness-audit                              # harness health scorecard
 ```
+
+`--route-only` prints a user-facing `Route only: /...` result (or a bounded
+classification/task prompt) and stops before planner, worker, OpenSpec, or skill
+execution. Its underlying helper exposes the machine-readable `MATCH`,
+`NO_MATCH`, and `NO_QUERY` statuses. If the selected target is `explicit-only`,
+the router prints the direct invocation and stops; it does not silently bypass
+that boundary. Use the [basic operations guide](./docs/basic-operations.md) for
+the full inspect → route → implement → review → verify → handoff flow.
 
 ---
 
@@ -114,9 +123,9 @@ dhpk's core — hooks, sentinel reviewers, the Smart Router, and the non-Codex w
 | 7 commands | `/dhpk:codex-review`, `-review-branch`, `-review-doc`, `-review-fast`, `-security`, `-test-gen`, `-test-review` | Codex MCP | Tool-permission error — Codex-free routes: `/dhpk:dhpk-security-review`, `/dhpk:precommit`, sentinel review hooks |
 | `CODEX=on` | Dual-assistant peer path in Implementation dispatch | Codex MCP | Nothing breaks — dispatch stays in its default single-assistant mode |
 
-Codex-free counterparts: `dhpk-security-review` ↔ `/dhpk:codex-security`, `dhpk-codebase-exploration` ↔ `dhpk-change-review`, sentinel reviewer agents ↔ `dhpk-change-review`, and `/dhpk:create-dev` (Codex-free by default; `--codex` opts in).
+Codex-free counterparts: `dhpk-security-review` ↔ `/dhpk:codex-security`, `dhpk-codebase-exploration` ↔ `dhpk-change-review`, sentinel reviewer agents ↔ `dhpk-change-review`, and `/dhpk:do` (Codex-free by default; `--codex` opts in). `/dhpk:create-dev` remains a compatibility alias.
 
-One-time setup: register the Codex MCP server with `claude mcp add --transport stdio codex -- codex mcp-server`, then verify with `claude mcp list` and `/mcp` (look for a connected `codex` entry). Full verification steps, the MCP-vs-Skill surface distinction, and the separate `openai/codex-plugin-cc` collaboration surface: **[`docs/configuration.md`](./docs/configuration.md#codex-mcp-dependency-not-a-userconfig-knob)** / **[`docs/basic-operations.md`](./docs/basic-operations.md#10-codex-dual-assistant-collaboration)**.
+One-time setup: register the Codex MCP server with `claude mcp add --transport stdio codex -- codex mcp-server`, then verify with `claude mcp list` and `/mcp` (look for a connected `codex` entry). Full verification steps, the MCP-vs-Skill surface distinction, and the separate `openai/codex-plugin-cc` collaboration surface: **[`docs/configuration.md`](./docs/configuration.md#codex-mcp-dependency-not-a-userconfig-knob)** / **[`docs/basic-operations.md`](./docs/basic-operations.md#codex-dual-assistant-collaboration)**.
 
 ## External code-navigation tools
 
@@ -272,7 +281,7 @@ dhpk/
 │   ├── marketplace.json          # one-entry marketplace (plugins[0].source: "./")
 │   └── plugin.json               # plugin manifest with userConfig
 ├── agents/                       # 32 role-based agents (INDEX.md is navigation)
-├── commands/                     # slash commands (do, create-dev, codex-*, smart-commit, opsx-apply-resume, matrix-cell-onboard, ...)
+├── commands/                     # slash commands (do, review, setup, codex-*, smart-commit, opsx-apply-resume, ...; create-dev is a compatibility alias)
 ├── skills/                       # SSOT: 102 flat canonical skills, each skills/dhpk-<name>/
 ├── templates/                    # hook-bootstrap templates (graduation-candidates.md — copied to .claude/artifacts/ on first graduation run)
 ├── rules/                        # plain-markdown governance rules (execution-policy, tool-routing, anti-rationalization) — not in plugin.json; opt-in via ${CLAUDE_PLUGIN_ROOT}/rules/*.md from a consuming project's CLAUDE.md
