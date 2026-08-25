@@ -97,4 +97,20 @@ test('consumer-verify installs the real claude CLI so the supported Claude check
   assert.ok(installIdx < gateInvocationIdx, 'claude CLI must be installed before the harness release probe runs');
 });
 
+test('consumer-verify keeps pending evidence green but fails unhealthy or blocked outcomes', () => {
+  const verifyIdx = raw.indexOf('consumer-verify:');
+  const nextJobIdx = raw.indexOf('sync-develop:');
+  const consumerBlock = raw.slice(verifyIdx, nextJobIdx);
+  const pendingIdx = consumerBlock.indexOf('PUBLISHED_PENDING');
+  const unhealthyIdx = consumerBlock.indexOf('PUBLISHED_UNHEALTHY');
+  const blockedIdx = consumerBlock.indexOf('BLOCKED');
+  assert.ok(pendingIdx !== -1, 'pending consumer evidence must be classified explicitly');
+  assert.ok(unhealthyIdx !== -1, 'unhealthy consumer evidence must remain a failing outcome');
+  assert.ok(blockedIdx !== -1, 'blocked consumer evidence must remain a failing outcome');
+  assert.ok(/PUBLISHED_PENDING[\s\S]{0,240}exit 0/.test(consumerBlock), 'pending evidence must not fail the workflow job');
+  assert.ok(/PUBLISHED_UNHEALTHY[\s\S]{0,240}exit 1/.test(consumerBlock), 'unhealthy evidence must fail the workflow job');
+  assert.ok(/BLOCKED[\s\S]{0,240}exit 1/.test(consumerBlock), 'blocked evidence must fail the workflow job');
+  assert.ok(/Unexpected consumer verification outcome[\s\S]{0,120}exit 1/.test(consumerBlock), 'unknown evidence must fail closed');
+});
+
 run('release-workflow');

@@ -5,6 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
+const { networkSandboxProbe } = require('../scripts/lib/cursor-plugin-package');
 
 const ROOT = path.join(__dirname, '..');
 const SCRIPT = path.join(ROOT, 'scripts', 'release', 'cursor-agent-probe.js');
@@ -29,7 +30,10 @@ function invoke(args, env = process.env) {
   });
 }
 
+const HAS_SHARED_SANDBOX = process.platform === 'linux' && Boolean(networkSandboxProbe(process.env.PATH, 'shared', true));
+
 test('Cursor CLI wrapper emits bounded launch-scoped PASS evidence', () => {
+  if (!HAS_SHARED_SANDBOX) return;
   const root = temp('dhpk-cursor-cli-probe-');
   const agent = path.join(root, 'agent');
   const cursor = path.join(root, 'cursor');
@@ -59,6 +63,7 @@ test('Cursor CLI wrapper emits bounded launch-scoped PASS evidence', () => {
 });
 
 test('Cursor CLI wrapper maps a silent hang to SKIP_INCOMPATIBLE', () => {
+  if (!HAS_SHARED_SANDBOX) return;
   const root = temp('dhpk-cursor-cli-probe-hang-');
   const bin = path.join(root, 'bin');
   fs.mkdirSync(path.join(root, 'agent'));
@@ -105,6 +110,7 @@ test('Cursor CLI wrapper rejects malformed bounds before invoking the client', (
 });
 
 test('Cursor CLI wrapper blocks a successful client with no JSON response', () => {
+  if (!HAS_SHARED_SANDBOX) return;
   const root = temp('dhpk-cursor-cli-probe-empty-');
   const bin = path.join(root, 'bin');
   fs.mkdirSync(path.join(root, 'agent'));
@@ -127,11 +133,12 @@ test('Cursor CLI wrapper blocks a successful client with no JSON response', () =
 });
 
 test('Cursor CLI wrapper passes --trust so launch-scoped probes do not wait for workspace confirmation', () => {
+  if (!HAS_SHARED_SANDBOX) return;
   const root = temp('dhpk-cursor-cli-probe-trust-');
   const agent = path.join(root, 'agent');
   const cursor = path.join(root, 'cursor');
   const bin = path.join(root, 'bin');
-  const argvFile = path.join(root, 'argv.txt');
+  const argvFile = path.join(agent, 'argv.txt');
   fs.mkdirSync(agent);
   fs.mkdirSync(cursor);
   fs.mkdirSync(bin);
@@ -159,6 +166,7 @@ test('Cursor CLI wrapper passes --trust so launch-scoped probes do not wait for 
 });
 
 test('Cursor CLI wrapper blocks valid JSON without requested capability evidence', () => {
+  if (!HAS_SHARED_SANDBOX) return;
   const root = temp('dhpk-cursor-cli-probe-negative-');
   const bin = path.join(root, 'bin');
   fs.mkdirSync(path.join(root, 'agent'));
@@ -175,6 +183,28 @@ test('Cursor CLI wrapper blocks valid JSON without requested capability evidence
     const report = JSON.parse(result.stdout);
     assert.strictEqual(report.status, 'BLOCKED');
     assert.strictEqual(report.discovery_negative, true);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('Cursor CLI wrapper rejects symlinked package content before staging', () => {
+  const root = fs.mkdtempSync(path.join('/var/tmp', 'dhpk-cursor-cli-symlink-'));
+  const agent = path.join(root, 'agent');
+  const cursor = path.join(root, 'cursor');
+  fs.mkdirSync(agent);
+  fs.mkdirSync(cursor);
+  fs.symlinkSync('/etc/hostname', path.join(agent, 'host-secret-link'));
+  try {
+    const result = invoke([
+      '--agent-package', agent,
+      '--cursor-package', cursor,
+      '--timeout-ms', '1000',
+    ], { ...process.env, PATH: process.env.PATH || '' });
+    assert.strictEqual(result.status, 1, result.stdout + result.stderr);
+    const report = JSON.parse(result.stdout);
+    assert.strictEqual(report.status, 'BLOCKED');
+    assert.match(report.reason, /symlink/i);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

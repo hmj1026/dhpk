@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## 0.46.1 — 2026-08-25 — Keep pending consumer evidence non-blocking and make release manifest checks version-flexible
+
+**fix(release-consumer-verification)** — Keep expected PUBLISHED_PENDING consumer evidence visible without failing the release CI job, while retaining failures for unhealthy or blocked verification.
+**fix(release-workflow)** — Make release manifest characterization checks ignore only version metadata changes while retaining non-version drift detection, and refresh the bilingual agent workflow guidance and platform support badges.
+
 ## 0.46.0 — 2026-08-24 — Run consumer probes during release aggregation, isolate Cursor probes with bubblewrap, and bind harness receipts to execution identity
 
 No user-visible changes in this release.
