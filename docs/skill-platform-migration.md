@@ -14,7 +14,7 @@ Current Codex/Cursor installation routes and rollback boundaries live in the
 
 | Concern | Current implementation |
 |---|---|
-| Canonical source | 102 flat packages at `skills/dhpk-<name>/` |
+| Canonical source | 97 flat packages at `skills/dhpk-<name>/` |
 | Public identity | Every dhpk skill name begins with `dhpk-` |
 | Inventory SSOT | `manifests/distribution-inventory.json` schema v2 |
 | Module projection | 37 relative symlinks under `modules/*/skills/` |
@@ -40,6 +40,42 @@ Names are deliberately different across host surfaces:
 The repeated `dhpk` in a Claude skill invocation is intentional. The first is
 the Claude plugin namespace; the second is part of the globally collision-safe
 skill name. A command uses only the plugin namespace and command filename.
+
+## Alias-free retirement ledger (0.47.0)
+
+`manifests/distribution-inventory.json` is the source of truth for retirement
+identity. It contains exactly five rows under `retired_skills`; the table below
+is the documentation projection of each row's former identity, `reasonCode`,
+replacement guidance, and rollback pin. Retirement rows are diagnostic
+metadata only: they are not active skills, materialized packages, discovery
+aliases, or entries in any generated projection.
+
+| Former stable ID | Former public name | `reasonCode` | Replacement guidance | `rollback.release` |
+|---|---|---|---|---|
+| `bug-fix` | `dhpk-bug-fix` | `merged-into-adaptive-workflow` | stable ID `adaptive-dev-workflow`; Claude `/dhpk:dhpk-adaptive-dev-workflow`; Codex `$dhpk-adaptive-dev-workflow` (`bug` mode) | `0.46.1` |
+| `feature-dev` | `dhpk-feature-dev` | `merged-into-adaptive-workflow` | stable ID `adaptive-dev-workflow`; Claude `/dhpk:dhpk-adaptive-dev-workflow`; Codex `$dhpk-adaptive-dev-workflow` (`feature` mode) | `0.46.1` |
+| `post-dev-test` | `dhpk-post-dev-test` | `split-by-test-level` | stable ID `tdd`; Claude `/dhpk:dhpk-tdd-workflow`; Codex `$dhpk-tdd-workflow` (`unit-integration` mode); agent `e2e-runner` (`playwright-journey` mode) | `0.46.1` |
+| `codex-brainstorm` | `dhpk-codex-brainstorm` | `merged-into-architect-mode` | stable ID `codex-architect`; Claude `/dhpk:dhpk-codex-architect`; Codex `$dhpk-codex-architect` (`adversarial` mode) | `0.46.1` |
+| `de-ai-flavor` | `dhpk-de-ai-flavor` | `model-default-capability-removal` | `model-default` guidance; no successor package | `0.46.1` |
+
+### Direct-host invocation boundary
+
+This is release-prep documentation: the checked-in package/provenance metadata
+still targets `0.46.1` until a final clean release commit publishes `0.47.0`.
+
+Dhpk-owned helper, package, and receipt-bound installation interfaces that
+accept a skill identity can intercept these rows and return a stable non-zero
+retirement diagnostic with the release, reason, and successor or
+model-default guidance. The `scripts/run-skill.sh` seam is one such helper;
+receipt-bound planning/update reports retirement evidence without materializing
+an alias. An external host that invokes a Skill directly bypasses these
+dhpk-owned seams. Its response remains host-owned and may be `unknown-skill`;
+dhpk does not claim that unsupported direct invocation is interceptable or that
+the former name remains resolvable.
+
+Rollback is version pinning, not hidden aliasing: pin and reinstall the last
+compatible `0.46.1` release through its receipt-bound installation path rather
+than reconstructing a retired package or discovery alias in `0.47.0`.
 
 ## Consolidated capabilities
 
@@ -78,9 +114,10 @@ primary entry points:
 - `/dhpk:precommit` with `--fast` where applicable.
 - `/dhpk:setup --install hooks|rules|scripts|all` for configuration and assets.
 
-Thin compatibility aliases remain for one minor release where shipped; the
-command index marks retired install aliases and they must not be used in new
-documentation.
+No discovery or compatibility alias is published for the five `0.47.0`
+retirements above. Any unrelated command alias that remains for a separately
+documented compatibility window is not a retired skill record and must not be
+used as a replacement for one of these names.
 
 ## Upgrade a Claude marketplace installation
 
@@ -132,7 +169,7 @@ node tests/documentation-platform-parity.test.js
 node tests/run-all.js
 ```
 
-Expected topology is 102 canonical skills, 31 modules, 15 Codex project/native
+Expected topology is 97 canonical skills, 31 modules, 15 Codex project/native
 skills, relative symlinks only in module/Codex projections, and no symlinks in
 the native package.
 

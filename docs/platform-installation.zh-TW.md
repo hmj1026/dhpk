@@ -83,7 +83,7 @@ transaction 遷移。
 client-specific probe，否則明確回傳 `runtime: NOT_RUN`。
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.46.1 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.47.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -109,6 +109,20 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --update
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --migrate --update
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --uninstall
 ```
+
+Unified distribution/lifecycle installer 使用 inventory-owned `minimal` profile
+（九個 required core ID）。保留的 project-local Codex compatibility route 預設維持
+`compat-v1`；migration 時明確選 `minimal`，或加入 stable-ID overlay：
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --profile minimal
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --profile full --skill git-smart-commit
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --profile minimal --skill bug-investigation --skill tdd
+```
+
+沒有 profile metadata 的既有 receipt 維持 `compat-v1`；切換到較小 profile 必須
+使用 `--migrate --update`。Receipt 會記錄 canonical/surface-emitted IDs 與 selection
+fingerprint；無法使用的 consumer probe 維持 non-pass evidence。
 
 `--force` 只繞過 project-root heuristic，不繞過 ownership 或 filesystem
 safety。schema-v3 receipt 記錄 stable ID、public name、destination、source、
@@ -417,6 +431,10 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" --migrate -
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" --uninstall
 ```
 
+Cursor sync 同樣支援 profile 與 additive overlay flags。新安裝預設為 `minimal`；
+未標註舊 receipt 會維持 `compat-v1`，直到明確使用 `--migrate`。unknown、retired、
+deprecated、duplicate 或 surface 不相容 ID 會在修改 `.cursor/` 前拒絕。
+
 `--force` 只繞過 project-root heuristic，不會繞過 receipt ownership 或 path
 safety。schema-v3 receipt 記錄 stable ID、public name、destination、source、
 mode 與 fingerprint。已編輯、user-owned、retargeted、malformed、ambiguous 或
@@ -469,7 +487,7 @@ AGY projection 是獨立的 owner-scoped package。它只轉換 canonical agent
 frontmatter，不會改寫 `agents/`。請從 dhpk checkout 產生與驗證：
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.46.1 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.47.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 

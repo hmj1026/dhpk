@@ -108,6 +108,6 @@ When creating or updating documents, enforce bidirectional links:
 
 | Workflow | How it uses context |
 |----------|-------------------|
-| `/dhpk:dhpk-feature-dev` doc sync | After precommit pass, auto-detect feature for `/update-docs` + `/dhpk:dhpk-create-request --update` |
+| `/dhpk:dhpk-adaptive-dev-workflow` feature branch doc sync | After precommit pass, auto-detect feature for `/update-docs` + `/dhpk:dhpk-create-request --update` |
 | `/dhpk:dhpk-next-step` | `analyze.js` uses same resolver for doc-sync and request-stale suggestions |
 | Auto-loop | Doc sync target detection uses this cascade (replaces ad-hoc 3-level fallback) |

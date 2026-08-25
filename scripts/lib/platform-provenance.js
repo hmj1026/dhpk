@@ -37,6 +37,15 @@ function createSurfaceReceipt({
   route = null,
   evidence = {},
   generatorVersion = null,
+  profileId = null,
+  selectedStableIds = null,
+  emittedStableIds = null,
+  compatibilityMode = null,
+  selectionPolicyVersion = null,
+  selectionFingerprint = null,
+  surfaceSelectionFingerprint = null,
+  migration = null,
+  activation = null,
 } = {}) {
   if (!Object.prototype.hasOwnProperty.call(SURFACE_OWNERS, surface)) {
     throw new Error(`unknown provenance surface: ${surface}`);
@@ -56,6 +65,15 @@ function createSurfaceReceipt({
     fingerprints: normalizedFingerprints,
     ...(route ? { route } : {}),
     ...(generatorVersion ? { generatorVersion } : {}),
+    ...(profileId ? { profileId } : {}),
+    ...(Array.isArray(selectedStableIds) ? { selectedStableIds: [...selectedStableIds] } : {}),
+    ...(Array.isArray(emittedStableIds) ? { emittedStableIds: [...emittedStableIds] } : {}),
+    ...(compatibilityMode ? { compatibilityMode } : {}),
+    ...(selectionPolicyVersion ? { selectionPolicyVersion } : {}),
+    ...(selectionFingerprint ? { selectionFingerprint } : {}),
+    ...(surfaceSelectionFingerprint ? { surfaceSelectionFingerprint } : {}),
+    ...(migration ? { migration } : {}),
+    ...(activation ? { activation } : {}),
     evidence,
   };
 }
@@ -93,6 +111,43 @@ function validateSurfaceReceipt(receipt, expectedSurface = null) {
     for (const [name, fingerprint] of Object.entries(receipt.fingerprints)) {
       if (!name || typeof fingerprint !== 'string' || !SHA256.test(fingerprint)) errors.push(`provenance fingerprint '${name}' is not a SHA-256 digest`);
     }
+  }
+  const hasSelectionIdentity = receipt.profileId !== undefined
+    || receipt.selectedStableIds !== undefined
+    || receipt.selectionFingerprint !== undefined;
+  if (hasSelectionIdentity) {
+    if (typeof receipt.profileId !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(receipt.profileId)) {
+      errors.push('provenance profileId must be a safe non-empty profile alias');
+    }
+    if (!Array.isArray(receipt.selectedStableIds) || receipt.selectedStableIds.length === 0
+      || receipt.selectedStableIds.some((id) => typeof id !== 'string' || id.trim() === '')) {
+      errors.push('provenance selectedStableIds must be a non-empty string array');
+    } else if (new Set(receipt.selectedStableIds).size !== receipt.selectedStableIds.length) {
+      errors.push('provenance selectedStableIds must not contain duplicates');
+    }
+    if (receipt.emittedStableIds !== undefined) {
+      if (!Array.isArray(receipt.emittedStableIds) || receipt.emittedStableIds.some((id) => typeof id !== 'string' || id.trim() === '')) {
+        errors.push('provenance emittedStableIds must be a string array');
+      } else if (Array.isArray(receipt.selectedStableIds) && receipt.emittedStableIds.some((id) => !receipt.selectedStableIds.includes(id))) {
+        errors.push('provenance emittedStableIds must be a subset of selectedStableIds');
+      }
+    }
+    if (typeof receipt.compatibilityMode !== 'string' || !['profile', 'compat-v1', 'compatibility'].includes(receipt.compatibilityMode)) {
+      errors.push('provenance compatibilityMode must be profile or compat-v1');
+    }
+    if (typeof receipt.selectionPolicyVersion !== 'string' || receipt.selectionPolicyVersion.trim() === '') {
+      errors.push('provenance selectionPolicyVersion must be a non-empty string');
+    }
+    if (typeof receipt.selectionFingerprint !== 'string' || !SHA256.test(receipt.selectionFingerprint)) {
+      errors.push('provenance selectionFingerprint must be a SHA-256 digest');
+    }
+    if (receipt.surfaceSelectionFingerprint !== undefined
+      && (typeof receipt.surfaceSelectionFingerprint !== 'string' || !SHA256.test(receipt.surfaceSelectionFingerprint))) {
+      errors.push('provenance surfaceSelectionFingerprint must be a SHA-256 digest');
+    }
+  }
+  if (receipt.migration !== undefined && (!receipt.migration || typeof receipt.migration !== 'object' || Array.isArray(receipt.migration))) {
+    errors.push('provenance migration must be an object when present');
   }
   return { ok: errors.length === 0, errors };
 }

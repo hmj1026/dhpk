@@ -1,6 +1,34 @@
 {
   "schema": "dhpk.distribution-inventory.v2",
   "description": "Machine-readable lifecycle and publication-surface assignment for every consumer-reachable dhpk skill and module. Generators derive Claude/Codex publication surfaces from this file; directory placement and README prose are not authoritative. See openspec/changes/curate-dhpk-distribution-surfaces.",
+  "profile_policy": {
+    "version": "dhpk.capability-bundle-selection.v1",
+    "required_core_ids": [
+      "adaptive-dev-workflow",
+      "bug-investigation",
+      "code-explore",
+      "dhpk-execution-policy",
+      "git-smart-commit",
+      "pr-review",
+      "security-review",
+      "tdd",
+      "tool-routing"
+    ],
+    "profiles": {
+      "minimal": {
+        "selection": "required-core",
+        "compatibilityMode": "profile"
+      },
+      "full": {
+        "selection": "conflict-aware-module-closure",
+        "compatibilityMode": "profile"
+      },
+      "compat-v1": {
+        "selection": "all-live-stable-ids",
+        "compatibilityMode": "compat-v1"
+      }
+    }
+  },
   "lifecycles": [
     "promoted",
     "optional",
@@ -16,6 +44,39 @@
     "cursor-plugin",
     "cursor-sync",
     "agy-plugin"
+  ],
+  "agent_roster": [
+    "agent-evaluator",
+    "agy-fast-worker",
+    "architect",
+    "code-reviewer",
+    "codex-bridge",
+    "codex-deep-reasoner",
+    "codex-fast-worker",
+    "database-reviewer",
+    "deep-reasoner",
+    "doc-reviewer",
+    "doc-updater",
+    "docs-lookup",
+    "e2e-runner",
+    "fast-worker",
+    "frontend-reviewer",
+    "harness-reviser",
+    "migration-reviewer",
+    "performance-analyzer",
+    "planner",
+    "python-build-resolver",
+    "refactor-cleaner",
+    "rust-build-resolver",
+    "security-reviewer",
+    "silent-failure-hunter",
+    "smoke-tester",
+    "spec-miner",
+    "swift-build-resolver",
+    "tdd-guide",
+    "type-design-analyzer",
+    "ui-ux-verifier",
+    "version-matrix-impact-reviewer"
   ],
   "skill_routing_families": [
     {
@@ -462,7 +523,7 @@
       "id": "codex-supporting-policies-execution-policy-md",
       "source": "codex/supporting/policies/execution-policy.md",
       "canonical_source": "rules/execution-policy.md",
-      "canonical_digest": "4db9beab51be678f559a8a815cce48e02ea1fa4296162d11c8e9fff993f9e104",
+      "canonical_digest": "7af8a483f5f66e0ada063262a130e78b72047cecd6113d425e3ce96f8397c4f1",
       "projection_digest": "beb63d7382fbe7ff2b350221ed3b3c34dd69e86cb1a4e5b89e6a4b52232ddc12",
       "destination": "dhpk/policies/execution-policy.md"
     },
@@ -1214,24 +1275,6 @@
       ]
     },
     {
-      "id": "bug-fix",
-      "name": "dhpk-bug-fix",
-      "path": "skills/dhpk-bug-fix",
-      "capability_id": "dhpk.skill.bug-fix",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "bug-fix"
-      ]
-    },
-    {
       "id": "bug-investigation",
       "name": "dhpk-root-cause-investigation",
       "path": "skills/dhpk-root-cause-investigation",
@@ -1305,24 +1348,6 @@
       ],
       "legacy_names": [
         "codex-architect"
-      ]
-    },
-    {
-      "id": "codex-brainstorm",
-      "name": "dhpk-codex-brainstorm",
-      "path": "skills/dhpk-codex-brainstorm",
-      "capability_id": "dhpk.skill.codex-brainstorm",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "codex-brainstorm"
       ]
     },
     {
@@ -1435,24 +1460,6 @@
       ]
     },
     {
-      "id": "de-ai-flavor",
-      "name": "dhpk-de-ai-flavor",
-      "path": "skills/dhpk-de-ai-flavor",
-      "capability_id": "dhpk.skill.de-ai-flavor",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "de-ai-flavor"
-      ]
-    },
-    {
       "id": "deploy-list",
       "name": "dhpk-deploy-list",
       "path": "skills/dhpk-deploy-list",
@@ -1537,24 +1544,6 @@
       ],
       "legacy_names": [
         "feasibility-study"
-      ]
-    },
-    {
-      "id": "feature-dev",
-      "name": "dhpk-feature-dev",
-      "path": "skills/dhpk-feature-dev",
-      "capability_id": "dhpk.skill.feature-dev",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "feature-dev"
       ]
     },
     {
@@ -1963,24 +1952,6 @@
       ],
       "legacy_names": [
         "polyfill-version-matrix-audit"
-      ]
-    },
-    {
-      "id": "post-dev-test",
-      "name": "dhpk-post-dev-test",
-      "path": "skills/dhpk-post-dev-test",
-      "capability_id": "dhpk.skill.post-dev-test",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "post-dev-test"
       ]
     },
     {
@@ -2588,25 +2559,21 @@
       "agent-architecture-audit",
       "agy-commit",
       "agy-fast-worker",
-      "bug-fix",
       "bug-investigation",
       "claude-health",
       "code-explore",
       "codex-architect",
-      "codex-brainstorm",
       "codex-bridge",
       "codex-code-review",
       "codex-implement",
       "composer-package-hygiene",
       "create-request",
       "create-skill",
-      "de-ai-flavor",
       "deploy-list",
       "dhpk-execution-policy",
       "doc-review",
       "execution-checklist",
       "feasibility-study",
-      "feature-dev",
       "feature-verify",
       "git-investigate",
       "git-smart-commit",
@@ -2629,7 +2596,6 @@
       "opsx-load-context",
       "opsx-post-obs",
       "polyfill-version-matrix-audit",
-      "post-dev-test",
       "pr-review",
       "project-audit",
       "project-setup",
@@ -2655,25 +2621,21 @@
       "agent-architecture-audit",
       "agy-commit",
       "agy-fast-worker",
-      "bug-fix",
       "bug-investigation",
       "claude-health",
       "code-explore",
       "codex-architect",
-      "codex-brainstorm",
       "codex-bridge",
       "codex-code-review",
       "codex-implement",
       "composer-package-hygiene",
       "create-request",
       "create-skill",
-      "de-ai-flavor",
       "deploy-list",
       "dhpk-execution-policy",
       "doc-review",
       "execution-checklist",
       "feasibility-study",
-      "feature-dev",
       "feature-verify",
       "git-investigate",
       "git-smart-commit",
@@ -2696,7 +2658,6 @@
       "opsx-load-context",
       "opsx-post-obs",
       "polyfill-version-matrix-audit",
-      "post-dev-test",
       "pr-review",
       "project-audit",
       "project-setup",
@@ -2722,25 +2683,21 @@
       "agent-architecture-audit",
       "agy-commit",
       "agy-fast-worker",
-      "bug-fix",
       "bug-investigation",
       "claude-health",
       "code-explore",
       "codex-architect",
-      "codex-brainstorm",
       "codex-bridge",
       "codex-code-review",
       "codex-implement",
       "composer-package-hygiene",
       "create-request",
       "create-skill",
-      "de-ai-flavor",
       "deploy-list",
       "dhpk-execution-policy",
       "doc-review",
       "execution-checklist",
       "feasibility-study",
-      "feature-dev",
       "feature-verify",
       "git-investigate",
       "git-smart-commit",
@@ -2763,7 +2720,6 @@
       "opsx-load-context",
       "opsx-post-obs",
       "polyfill-version-matrix-audit",
-      "post-dev-test",
       "pr-review",
       "project-audit",
       "project-setup",
@@ -2789,25 +2745,21 @@
       "agent-architecture-audit",
       "agy-commit",
       "agy-fast-worker",
-      "bug-fix",
       "bug-investigation",
       "claude-health",
       "code-explore",
       "codex-architect",
-      "codex-brainstorm",
       "codex-bridge",
       "codex-code-review",
       "codex-implement",
       "composer-package-hygiene",
       "create-request",
       "create-skill",
-      "de-ai-flavor",
       "deploy-list",
       "dhpk-execution-policy",
       "doc-review",
       "execution-checklist",
       "feasibility-study",
-      "feature-dev",
       "feature-verify",
       "git-investigate",
       "git-smart-commit",
@@ -2830,7 +2782,6 @@
       "opsx-load-context",
       "opsx-post-obs",
       "polyfill-version-matrix-audit",
-      "post-dev-test",
       "pr-review",
       "project-audit",
       "project-setup",
@@ -3042,5 +2993,115 @@
         "evidence": "NOT_RUN"
       }
     ]
-  }
+  },
+  "retired_skills": [
+    {
+      "id": "bug-fix",
+      "name": "dhpk-bug-fix",
+      "canonicalPath": "skills/dhpk-bug-fix",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.47.0",
+      "reasonCode": "merged-into-adaptive-workflow",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "adaptive-dev-workflow",
+          "mode": "bug"
+        }
+      ],
+      "rollback": {
+        "release": "0.46.1"
+      }
+    },
+    {
+      "id": "feature-dev",
+      "name": "dhpk-feature-dev",
+      "canonicalPath": "skills/dhpk-feature-dev",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.47.0",
+      "reasonCode": "merged-into-adaptive-workflow",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "adaptive-dev-workflow",
+          "mode": "feature"
+        }
+      ],
+      "rollback": {
+        "release": "0.46.1"
+      }
+    },
+    {
+      "id": "post-dev-test",
+      "name": "dhpk-post-dev-test",
+      "canonicalPath": "skills/dhpk-post-dev-test",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.47.0",
+      "reasonCode": "split-by-test-level",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "tdd",
+          "mode": "unit-integration"
+        },
+        {
+          "kind": "agent",
+          "id": "e2e-runner",
+          "mode": "playwright-journey"
+        }
+      ],
+      "rollback": {
+        "release": "0.46.1"
+      }
+    },
+    {
+      "id": "codex-brainstorm",
+      "name": "dhpk-codex-brainstorm",
+      "canonicalPath": "skills/dhpk-codex-brainstorm",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.47.0",
+      "reasonCode": "merged-into-architect-mode",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "codex-architect",
+          "mode": "adversarial"
+        }
+      ],
+      "rollback": {
+        "release": "0.46.1"
+      }
+    },
+    {
+      "id": "de-ai-flavor",
+      "name": "dhpk-de-ai-flavor",
+      "canonicalPath": "skills/dhpk-de-ai-flavor",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.47.0",
+      "reasonCode": "model-default-capability-removal",
+      "replacements": [
+        {
+          "kind": "model-default"
+        }
+      ],
+      "rollback": {
+        "release": "0.46.1"
+      }
+    }
+  ]
 }

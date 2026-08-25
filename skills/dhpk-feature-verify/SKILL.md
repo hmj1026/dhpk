@@ -1,6 +1,6 @@
 ---
 name: dhpk-feature-verify
-description: 'Feature verification (READ-ONLY, P0-P5). Use when: verifying feature behavior after deployment, validating API responses, diagnosing production issues, post-deploy smoke test. Not for: modifying data (use dhpk-feature-dev), code review (use dhpk-change-review), writing tests (use dhpk-tdd-workflow), security audit (use dhpk-security-review). Output: a P0-P5 verification report with pass/fail evidence per check.'
+description: 'Feature verification (READ-ONLY, P0-P5). Use when: verifying feature behavior after deployment, validating API responses, diagnosing production issues, post-deploy smoke test. Not for: modifying data (use dhpk-adaptive-dev-workflow in feature mode), code review (use dhpk-change-review), writing tests (use dhpk-tdd-workflow), security audit (use dhpk-security-review). Output: a P0-P5 verification report with pass/fail evidence per check.'
 allowed-tools: 'Read, Grep, Glob, Bash, WebFetch, Task, Skill, mcp__codex__codex, mcp__codex__codex-reply'
 context: fork
 metadata:
@@ -15,12 +15,14 @@ Verify deployed behavior with read-only runtime evidence:
 
 Use this for post-deploy checks, smoke tests, and production diagnosis. For
 local tests use the repository verification route; for changes use
-`dhpk-feature-dev`; for code review use `dhpk-change-review`.
+`dhpk-adaptive-dev-workflow` in feature mode; for code review use
+`dhpk-change-review`.
 
 ## When NOT to Use
 
 - The requested action changes application data, configuration, or deployment state.
-- The task is to implement or modify a feature; use `dhpk-feature-dev`.
+- The task is to implement or modify a feature; use
+  `dhpk-adaptive-dev-workflow` in feature mode.
 - The task is a code, security, or test review rather than runtime behavior
   verification.
 - There is no read-only endpoint, observation path, or approved test environment that
@@ -80,7 +82,7 @@ For L2-OBS use deploy time → now, a user-provided window, or the last 30 minut
 ## P5 — Independent Verdict
 
 1. Claude forms a conclusion from P3/P4 evidence.
-2. Codex independently reviews scope, commands, allowlist compliance, evidence, blind spots, and confidence using [blackbox-testing.md § P5](references/blackbox-testing.md#p5-codex-brainstorm-prompt).
+2. Codex independently reviews scope, commands, allowlist compliance, evidence, blind spots, and confidence using [blackbox-testing.md § P5](references/blackbox-testing.md#p5-codex-independent-review-prompt).
 3. Integrate both conclusions using the verdict/confidence rules in the playbook.
 4. Render [output-template.md](references/output-template.md).
 

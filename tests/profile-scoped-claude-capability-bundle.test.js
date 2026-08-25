@@ -219,7 +219,7 @@ test('characterizes the current unscoped Claude manifest and CLI outcome', () =>
     summary.stdout,
     'dhpk Claude publication surface (generated from distribution inventory):\n'
       + '  roots:              1\n'
-      + '  generated skill ids: 102 (excludes deprecated; host cannot hide within a shared root)\n',
+      + '  generated skill ids: 97 (excludes deprecated; host cannot hide within a shared root)\n',
   );
   const normalizedPluginBytes = normalizeReleaseVersion(pluginBytes);
   assert.strictEqual(
@@ -236,7 +236,7 @@ test('characterizes the current unscoped Claude manifest and CLI outcome', () =>
   const compiled = inventoryApi.compileClaudeProjection({ inventory });
   assert.strictEqual(compiled.ok, true, compiled.error && compiled.error.message);
   assert.deepStrictEqual(compiled.generated.roots, ['./skills/']);
-  assert.strictEqual(compiled.generated.generatedSkillIds.length, 102);
+  assert.strictEqual(compiled.generated.generatedSkillIds.length, 97);
   assert.strictEqual(compiled.plan.surface, 'claude-core');
 });
 

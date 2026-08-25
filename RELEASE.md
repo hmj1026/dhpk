@@ -27,6 +27,21 @@ created only after that pull request is merged.
 - **Immutable tag** — a tag that is never moved, deleted, or reused. A
   correction requires a new patch version.
 
+## Current skill-platform topology (release preparation)
+
+The current release-preparation topology is 97 active canonical skills (60
+promoted to the Agent Plugin surface), 31 Codex project modules, and 15
+Codex-native/sync skills. Five alias-free rows remain in the `retired_skills`
+ledger and are excluded from discovery. Module and Codex project projections
+use relative symlinks; the native package contains no symlinks.
+
+This change set's structural and package checks are the source/package
+evidence only. The checked-in package and provenance still identify the
+0.46.1 release until the final clean 0.47.0 release-preparation commit is
+created. Claude, Codex, and other consumer runtime probes must therefore be
+reported separately as `PASS`, `NOT_RUN`, `UNAVAILABLE`, or `BLOCKED`; package
+generation alone is not consumer-runtime proof.
+
 ## Branch rules
 
 - **`main`** — released line. It receives changes through pull requests only.

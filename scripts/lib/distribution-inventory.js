@@ -124,7 +124,7 @@ function classifyCanonicalInventory(root) {
 function preserveProjectionContract(generated, existing) {
   if (!existing || typeof existing !== 'object') return generated;
   const contract = {};
-  for (const key of ['surfaces', 'surface_membership', 'platform_matrix', 'portable_frontmatter', 'projection_contract']) {
+  for (const key of ['surfaces', 'surface_membership', 'platform_matrix', 'portable_frontmatter', 'projection_contract', 'retired_skills', 'agent_roster']) {
     if (Object.prototype.hasOwnProperty.call(existing, key)) contract[key] = existing[key];
   }
   return { ...generated, ...contract };
@@ -316,6 +316,150 @@ function validateDistributionInventory({
   return { errors };
 }
 
+// Retirement rows are deliberately separate from active skill entries. They
+// are identity and migration evidence only: no projection compiler is allowed
+// to treat them as materializable skills or discovery aliases.
+function validateSkillRetirements({ inventory } = {}) {
+  const errors = [];
+  if (!inventory || typeof inventory !== 'object' || Array.isArray(inventory)) return { errors };
+
+  const rows = inventory.retired_skills;
+  if (rows === undefined) return { errors };
+  if (!Array.isArray(rows)) return { errors: ['distribution inventory retired_skills must be an array'] };
+
+  const activeSkills = Array.isArray(inventory.skills) ? inventory.skills : [];
+  const activeIds = new Set(activeSkills.map((entry) => entry && entry.id).filter((value) => typeof value === 'string'));
+  const activeNames = new Set(activeSkills.map((entry) => entry && entry.name).filter((value) => typeof value === 'string'));
+  const retiredIds = new Set();
+  const retiredNames = new Set();
+  const allowedSurfaces = new Set(SURFACES);
+  const agentRoster = new Set(
+    Array.isArray(inventory.agent_roster)
+      ? inventory.agent_roster.filter((id) => typeof id === 'string')
+      : [],
+  );
+
+  rows.forEach((entry, index) => {
+    const prefix = `retired_skills[${index}]`;
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      errors.push(`${prefix} must be an object`);
+      return;
+    }
+
+    for (const field of ['id', 'name', 'canonicalPath', 'priorSurfaces', 'retiredIn', 'reasonCode', 'replacements', 'rollback']) {
+      if (!Object.prototype.hasOwnProperty.call(entry, field)) errors.push(`${prefix} is missing required field '${field}'`);
+    }
+    const allowedFields = new Set([
+      'id', 'name', 'canonicalPath', 'priorSurfaces', 'retiredIn', 'reasonCode',
+      'replacements', 'rollback',
+    ]);
+    for (const field of Object.keys(entry)) {
+      if (!allowedFields.has(field)) errors.push(`${prefix}.${field} is not allowed for alias-free retirement rows`);
+    }
+
+    if (typeof entry.id !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(entry.id)) {
+      errors.push(`${prefix}.id must be a safe non-empty identifier (letters, digits, dot, underscore, hyphen; max 128 characters)`);
+    } else if (retiredIds.has(entry.id)) {
+      errors.push(`duplicate retired stable id: ${entry.id}`);
+    } else if (activeIds.has(entry.id)) {
+      errors.push(`retired stable id overlaps active skill: ${entry.id}`);
+    } else {
+      retiredIds.add(entry.id);
+    }
+
+    if (typeof entry.name !== 'string' || !PUBLIC_SKILL_NAME.test(entry.name) || entry.name.length > 63) {
+      errors.push(`${prefix}.name must match ^dhpk-[a-z0-9]+(?:-[a-z0-9]+)*$ and be at most 63 characters: '${entry.name}'`);
+    } else if (retiredNames.has(entry.name)) {
+      errors.push(`duplicate retired public skill name: ${entry.name}`);
+    } else if (activeNames.has(entry.name)) {
+      errors.push(`retired public skill name overlaps active skill: ${entry.name}`);
+    } else {
+      retiredNames.add(entry.name);
+    }
+
+    const expectedPath = typeof entry.name === 'string' ? `skills/${entry.name}` : null;
+    if (entry.canonicalPath !== expectedPath || !/^skills\/[^/]+$/.test(entry.canonicalPath || '')) {
+      errors.push(`${prefix}.canonicalPath must be the flat canonical path '${expectedPath || 'skills/<name>'}'; got '${entry.canonicalPath}'`);
+    }
+
+    if (!Array.isArray(entry.priorSurfaces) || entry.priorSurfaces.length === 0) {
+      errors.push(`${prefix}.priorSurfaces must be a non-empty surface array`);
+    } else {
+      const seen = new Set();
+      for (const surface of entry.priorSurfaces) {
+        if (typeof surface !== 'string' || !allowedSurfaces.has(surface)) errors.push(`${prefix}.priorSurfaces contains invalid surface '${surface}'`);
+        else if (seen.has(surface)) errors.push(`${prefix}.priorSurfaces contains duplicate surface '${surface}'`);
+        seen.add(surface);
+      }
+    }
+
+    if (typeof entry.retiredIn !== 'string' || !/^\d+\.\d+\.\d+$/.test(entry.retiredIn)) {
+      errors.push(`${prefix}.retiredIn must be a semantic version string`);
+    }
+    if (typeof entry.reasonCode !== 'string' || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(entry.reasonCode)) {
+      errors.push(`${prefix}.reasonCode must be a lowercase hyphenated code`);
+    }
+    if (Object.prototype.hasOwnProperty.call(entry, 'legacy_names')) {
+      errors.push(`${prefix}.legacy_names is forbidden for alias-free retirements`);
+    }
+
+    if (!Array.isArray(entry.replacements) || entry.replacements.length === 0) {
+      errors.push(`${prefix}.replacements must be a non-empty array`);
+    } else {
+      entry.replacements.forEach((replacement, replacementIndex) => {
+        const replacementPrefix = `${prefix}.replacements[${replacementIndex}]`;
+        if (!replacement || typeof replacement !== 'object' || Array.isArray(replacement)) {
+          errors.push(`${replacementPrefix} must be an object`);
+          return;
+        }
+        const replacementFields = replacement.kind === 'model-default'
+          ? new Set(['kind'])
+          : new Set(['kind', 'id', 'mode']);
+        for (const field of Object.keys(replacement)) {
+          if (!replacementFields.has(field)) errors.push(`${replacementPrefix}.${field} is not allowed for ${replacement.kind || 'unknown'} replacements`);
+        }
+        if (!['skill', 'agent', 'model-default'].includes(replacement.kind)) {
+          errors.push(`${replacementPrefix}.kind must be skill, agent, or model-default`);
+        }
+        if (replacement.kind === 'model-default') {
+          if (replacement.id !== undefined || replacement.mode !== undefined) {
+            errors.push(`${replacementPrefix} model-default replacement must not declare id or mode`);
+          }
+        } else if (typeof replacement.id !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(replacement.id)) {
+          errors.push(`${replacementPrefix}.id must be a safe non-empty identifier for ${replacement.kind} replacements`);
+        } else if (replacement.kind === 'skill' && !activeIds.has(replacement.id)) {
+          errors.push(`${replacementPrefix}.id must reference an active skill: '${replacement.id}'`);
+        } else if (replacement.kind === 'agent'
+            && (!Array.isArray(inventory.agent_roster) || !agentRoster.has(replacement.id))) {
+          errors.push(`${replacementPrefix}.id must reference an inventory-owned active agent: '${replacement.id}'`);
+        }
+        if (replacement.mode !== undefined && (typeof replacement.mode !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(replacement.mode))) {
+          errors.push(`${replacementPrefix}.mode must be a safe non-empty identifier when present`);
+        }
+      });
+    }
+
+    if (!entry.rollback || typeof entry.rollback !== 'object' || Array.isArray(entry.rollback)) {
+      errors.push(`${prefix}.rollback must be an object`);
+    } else if (Object.keys(entry.rollback).some((field) => field !== 'release')) {
+      errors.push(`${prefix}.rollback may only declare release`);
+    } else if (typeof entry.rollback.release !== 'string' || !/^\d+\.\d+\.\d+$/.test(entry.rollback.release)) {
+      errors.push(`${prefix}.rollback.release must be a semantic version string`);
+    }
+
+    const memberships = inventory.surface_membership;
+    if (memberships && typeof memberships === 'object' && !Array.isArray(memberships) && typeof entry.id === 'string') {
+      for (const [surface, values] of Object.entries(memberships)) {
+        if (Array.isArray(values) && values.includes(entry.id)) {
+          errors.push(`${prefix}.id '${entry.id}' must not remain in active surface_membership.${surface}`);
+        }
+      }
+    }
+  });
+
+  return { errors };
+}
+
 // Task 1 naming/topology contract. Kept separate from the v1 lifecycle
 // validator above so the existing release manifest can remain readable and
 // backwards-compatible until the package migration task changes its schema.
@@ -420,6 +564,8 @@ function validateDistributionInventoryV2(input = {}) {
     }
   });
 
+  const retirements = validateSkillRetirements({ inventory });
+  errors.push(...retirements.errors);
   const membership = validateSurfaceMembership({ inventory, ids });
   errors.push(...membership.errors);
   const matrix = validatePlatformCapabilityMatrix(inventory.platform_matrix, {
@@ -433,6 +579,8 @@ function validateDistributionInventoryV2(input = {}) {
   errors.push(...projection.errors);
   const selection = validateSelectionPolicyAgainstInventory({ inventory });
   errors.push(...selection.errors);
+  const profilePolicy = validateCapabilityProfilePolicy({ inventory });
+  errors.push(...profilePolicy.errors);
   const routing = validateSkillRoutingFamilies({ families: inventory.skill_routing_families, skillIds: ids, skills: inventory.skills });
   errors.push(...routing.errors);
 
@@ -612,6 +760,78 @@ function resolveSkillRoutingAlias({ families = [], id } = {}) {
     }
   }
   return null;
+}
+
+// Resolve an identifier without introducing compatibility aliases. Active
+// inventory entries win; retired rows are consulted only after active lookup
+// fails, and unknown identifiers retain their original input for diagnostics.
+function resolveSkillIdentity({ inventory, identifier } = {}) {
+  const skills = inventory && Array.isArray(inventory.skills) ? inventory.skills : [];
+  const active = skills.find((entry) => entry && (
+    entry.id === identifier
+    || entry.name === identifier
+    || (Array.isArray(entry.legacy_names) && entry.legacy_names.includes(identifier))
+  ));
+  if (active) {
+    return {
+      state: 'active',
+      stableId: active.id,
+      publicName: active.name || active.id,
+    };
+  }
+
+  const retirementValidation = validateSkillRetirements({ inventory });
+  if (retirementValidation.errors.length > 0) return { state: 'unknown', identifier };
+
+  const retired = inventory && Array.isArray(inventory.retired_skills) ? inventory.retired_skills : [];
+  const retiredEntry = retired.find((entry) => entry && (
+    entry.id === identifier
+    || entry.name === identifier
+  ));
+  if (retiredEntry) {
+    return {
+      state: 'retired',
+      stableId: retiredEntry.id,
+      publicName: retiredEntry.name,
+      retiredIn: retiredEntry.retiredIn,
+      reasonCode: retiredEntry.reasonCode,
+      replacements: Array.isArray(retiredEntry.replacements)
+        ? retiredEntry.replacements.map((replacement) => ({ ...replacement }))
+        : [],
+    };
+  }
+
+  return { state: 'unknown', identifier };
+}
+
+function formatSkillIdentityDiagnostic({ inventory, resolution } = {}) {
+  if (!resolution || resolution.state !== 'retired'
+    || typeof resolution.retiredIn !== 'string'
+    || typeof resolution.reasonCode !== 'string'
+    || !Array.isArray(resolution.replacements)) return '';
+  const retirementValidation = validateSkillRetirements({ inventory });
+  if (retirementValidation.errors.length > 0) return '';
+  const retiredRows = inventory && Array.isArray(inventory.retired_skills) ? inventory.retired_skills : [];
+  const retiredEntry = retiredRows.find((entry) => entry
+    && entry.id === resolution.stableId
+    && entry.name === resolution.publicName
+    && entry.retiredIn === resolution.retiredIn
+    && entry.reasonCode === resolution.reasonCode
+    && JSON.stringify(entry.replacements) === JSON.stringify(resolution.replacements));
+  if (!retiredEntry) return '';
+  const skills = inventory && Array.isArray(inventory.skills) ? inventory.skills : [];
+  const replacements = (resolution.replacements || []).map((replacement) => {
+    if (replacement.kind === 'model-default') return 'model-default guidance';
+    let identity = replacement.id || '<missing successor>';
+    if (replacement.kind === 'skill') {
+      const successor = skills.find((entry) => entry && entry.id === replacement.id);
+      identity = successor && successor.name ? successor.name : `dhpk-${identity}`;
+    }
+    const mode = replacement.mode ? ` (${replacement.mode})` : '';
+    return `${replacement.kind} ${identity}${mode}`;
+  });
+  const guidance = replacements.length > 0 ? replacements.join(', ') : 'no successor guidance';
+  return `run-skill: skill '${resolution.publicName || resolution.stableId}' retired in ${resolution.retiredIn || 'an earlier release'} (reason: ${resolution.reasonCode || 'unspecified'}); use ${guidance}.`;
 }
 
 function validateSurfaceMembership({ inventory, ids: skillIds = new Set() }) {
@@ -1017,6 +1237,38 @@ function validateSelectionPolicyAgainstInventory({ inventory } = {}) {
   return { errors };
 }
 
+function validateCapabilityProfilePolicy({ inventory } = {}) {
+  const errors = [];
+  const policy = inventory && inventory.profile_policy;
+  if (policy === undefined) return { errors };
+  if (!policy || typeof policy !== 'object' || Array.isArray(policy)) return { errors: ['profile_policy must be an object when present'] };
+  if (typeof policy.version !== 'string' || policy.version.trim() === '') errors.push('profile_policy.version must be a non-empty string');
+  const active = new Set((inventory.skills || []).filter((entry) => entry && entry.lifecycle !== 'deprecated').map((entry) => entry.id));
+  const retired = new Set((inventory.retired_skills || []).map((entry) => entry && entry.id).filter(Boolean));
+  if (!Array.isArray(policy.required_core_ids) || policy.required_core_ids.length !== 9) {
+    errors.push('profile_policy.required_core_ids must contain exactly nine stable IDs');
+  } else {
+    if (new Set(policy.required_core_ids).size !== policy.required_core_ids.length) errors.push('profile_policy.required_core_ids must not contain duplicates');
+    for (const id of policy.required_core_ids) {
+      if (typeof id !== 'string' || id.trim() === '') errors.push('profile_policy.required_core_ids contains a missing stable ID');
+      else if (!active.has(id)) errors.push(`profile_policy.required_core_ids references inactive stable ID '${id}'`);
+      else if (retired.has(id)) errors.push(`profile_policy.required_core_ids references retired stable ID '${id}'`);
+      const entry = (inventory.skills || []).find((skill) => skill && skill.id === id);
+      if (entry && entry.tier !== 'core' && entry.lifecycle !== 'promoted') errors.push(`profile_policy.required_core_ids stable ID '${id}' is not promoted/core`);
+    }
+  }
+  if (!policy.profiles || typeof policy.profiles !== 'object' || Array.isArray(policy.profiles)) {
+    errors.push('profile_policy.profiles must be an object');
+  } else {
+    for (const id of ['minimal', 'full', 'compat-v1']) {
+      const profile = policy.profiles[id];
+      if (!profile || typeof profile !== 'object' || Array.isArray(profile)) errors.push(`profile_policy.profiles.${id} is required`);
+      else if (typeof profile.selection !== 'string' || profile.selection.trim() === '') errors.push(`profile_policy.profiles.${id}.selection must be a non-empty string`);
+    }
+  }
+  return { errors };
+}
+
 // Task 1.4: reconcile the inventory against canonical packages, the module
 // catalog, install profiles, and per-skill Codex (agents/openai.yaml)
 // metadata. Distinct from validateDistributionInventory's structural checks
@@ -1118,12 +1370,33 @@ function normalizedInventoryView(inventory, generated) {
       surfaces: [...(entry.surfaces || [])].sort(),
     }))
     .sort((left, right) => String(left.id).localeCompare(String(right.id)));
+  const normalizeRetirements = (entries) => (entries || [])
+    .map((entry) => ({
+      id: entry.id,
+      name: entry.name,
+      canonicalPath: entry.canonicalPath,
+      priorSurfaces: [...(entry.priorSurfaces || [])].sort(),
+      retiredIn: entry.retiredIn,
+      reasonCode: entry.reasonCode,
+      replacements: (entry.replacements || [])
+        .map((replacement) => ({
+          kind: replacement.kind,
+          ...(replacement.id === undefined ? {} : { id: replacement.id }),
+          ...(replacement.mode === undefined ? {} : { mode: replacement.mode }),
+        }))
+        .sort((left, right) => `${left.kind}:${left.id || ''}:${left.mode || ''}`.localeCompare(`${right.kind}:${right.id || ''}:${right.mode || ''}`)),
+      rollback: entry.rollback && typeof entry.rollback === 'object'
+        ? { release: entry.rollback.release }
+        : null,
+    }))
+    .sort((left, right) => String(left.id).localeCompare(String(right.id)));
   return freezeProjectionValue({
     schema: inventory && inventory.schema ? inventory.schema : null,
     roots: [...generated.roots],
     generatedSkillIds: [...generated.generatedSkillIds],
     skills: normalize(inventory && inventory.skills),
     modules: normalize(inventory && inventory.modules),
+    retiredSkills: normalizeRetirements(inventory && inventory.retired_skills),
   });
 }
 
@@ -1338,11 +1611,14 @@ module.exports = {
   validateSupportingAssets,
   refreshSupportingDigests,
   validateDistributionInventory,
+  validateSkillRetirements,
   validateDistributionInventoryV2,
   validateSkillRoutingFamilies,
   normalizeSkillRoutingFamilies,
   resolveSkillRoutingReference,
   resolveSkillRoutingAlias,
+  resolveSkillIdentity,
+  formatSkillIdentityDiagnostic,
   validateInventoryV2: validateDistributionInventoryV2,
   validateSurfaceMembership,
   validatePlatformCapabilityMatrix,
@@ -1351,6 +1627,7 @@ module.exports = {
   validatePortableFrontmatterContract,
   validateProjectionContract,
   validateSelectionPolicyAgainstInventory,
+  validateCapabilityProfilePolicy,
   MIGRATED_SELECTION_SURFACES,
   SELECTION_POLICY_SOURCES,
   reconcileDistribution,

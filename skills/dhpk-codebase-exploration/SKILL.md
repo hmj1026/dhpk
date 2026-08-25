@@ -39,7 +39,7 @@ use `normal`.
 
 ## When NOT to Use
 
-- Implementing or fixing code (use `dhpk-feature-dev` or the confirmed
+- Implementing or fixing code (use `dhpk-adaptive-dev-workflow` or the confirmed
   OpenSpec apply route).
 - Reviewing a proposed diff (use `dhpk-change-review`).
 - Security-specific analysis (use `dhpk-security-review`).

@@ -14,8 +14,8 @@
 | Phase | Codex-free（預設） | `--codex` |
 |------|--------------------|-----------|
 | Planning（跨模組 / DDD） | `dhpk:architect` agent | `/dhpk:dhpk-codex-architect` |
-| Planning（根因未知） | `dhpk-root-cause-investigation` skill | `/dhpk:dhpk-codex-brainstorm` 或 `/dhpk:dhpk-codebase-exploration --dual` |
-| 實作 hand-off | `dhpk:dhpk-bug-fix` / `dhpk:dhpk-feature-dev` | 同上 `… --codex` |
+| Planning（根因未知） | `dhpk-root-cause-investigation` skill | `/dhpk:dhpk-codex-architect "<question>" --mode adversarial` 或 `/dhpk:dhpk-codebase-exploration --dual` |
+| 實作 hand-off | Adaptive Feature / Bug branch | 同上 `… --codex` |
 | Test gate | `dhpk:tdd-guide` agent + `/check-coverage` | `/codex-test-review` |
 | Review gate | `dhpk:code-reviewer`（`/review-pending`） | `/codex-review-fast` |
 | Security gate | `dhpk:dhpk-security-review`（inline OWASP） | `/codex-security` |

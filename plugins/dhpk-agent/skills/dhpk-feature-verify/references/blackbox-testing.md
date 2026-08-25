@@ -3,7 +3,7 @@
 - [P1: Diff-Lite Scoping](#p1-diff-lite-scoping)
 - [P2: Test Charter Design](#p2-test-charter-design)
 - [P4: Log Verification Flow](#p4-log-verification-flow)
-- [P5: Codex Brainstorm Prompt](#p5-codex-brainstorm-prompt)
+- [P5: Codex Independent Review Prompt](#p5-codex-independent-review-prompt)
 - [Blind Spot Analysis](#blind-spot-analysis)
 
 ---
@@ -186,12 +186,12 @@ When API is unreachable but Log System is configured, operate in observation-onl
 
 ---
 
-## P5: Codex Brainstorm Prompt
+## P5: Codex Independent Review Prompt
 
 Provide P1 scope + P3 results + P4 observations to Codex for independent review:
 
 ```
-/dhpk:dhpk-codex-brainstorm
+/dhpk:dhpk-codex-architect --mode adversarial
 
 ## Context
 Runtime verification of [FEATURE/BRANCH] after deployment.

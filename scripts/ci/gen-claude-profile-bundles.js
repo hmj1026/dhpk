@@ -19,15 +19,25 @@ function readJson(relative) {
 }
 
 function usage() {
-  console.error('usage: node scripts/ci/gen-claude-profile-bundles.js --profile <alias> [--out <directory>] [--check]');
+  console.error('usage: node scripts/ci/gen-claude-profile-bundles.js --profile <alias> [--skill <stable-id>] [--out <directory>] [--check]');
 }
 
 function parseArgs(argv) {
-  const result = { profile: null, out: null, check: false };
+  const result = { profile: null, skillIds: [], out: null, check: false };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === '--check') result.check = true;
     else if (arg === '--profile' || arg === '-p') result.profile = argv[++i] || null;
+    else if (arg === '--skill') {
+      const value = argv[++i];
+      if (!value || value.startsWith('--')) return { error: '--skill requires a value' };
+      result.skillIds.push(value);
+    }
+    else if (arg.startsWith('--skill=')) {
+      const value = arg.slice('--skill='.length);
+      if (!value) return { error: '--skill requires a value' };
+      result.skillIds.push(value);
+    }
     else if (arg === '--out' || arg === '-o') result.out = argv[++i] || null;
     else if (arg === '--help' || arg === '-h') return { help: true };
     else return { error: `unknown argument '${arg}'` };
@@ -46,6 +56,7 @@ function main(argv = process.argv.slice(2)) {
     profiles: readJson('manifests/install-profiles.json'),
     moduleCatalog: readJson('manifests/module-catalog.json'),
     profileId: args.profile,
+    skillIds: args.skillIds,
   });
   if (!compiled.ok) {
     console.error(`FAIL [gen-claude-profile-bundles]: ${compiled.error.message}`);
@@ -84,7 +95,7 @@ function main(argv = process.argv.slice(2)) {
     selectedCount: compiled.value.plan.selectedStableIds.length,
     compatibilityMode: compiled.value.plan.compatibilityMode,
     consumerRuntime: 'NOT_CONFIGURED',
-    resumeCommand: `node scripts/ci/gen-claude-profile-bundles.js --profile ${args.profile} --out ${outputRoot}`,
+    resumeCommand: `node scripts/ci/gen-claude-profile-bundles.js --profile ${args.profile} ${args.skillIds.map((id) => `--skill ${id}`).join(' ')} --out ${outputRoot}`.replace(/  +/g, ' ').trim(),
   }, null, 2));
   return 0;
 }

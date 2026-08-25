@@ -1,6 +1,6 @@
 {
   "name": "dhpk-cursor",
-  "version": "0.46.1",
+  "version": "0.47.0",
   "description": "dhpk Cursor Plugin projection (generated from canonical sources).",
   "author": {
     "name": "hmj1026"

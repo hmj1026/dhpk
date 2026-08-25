@@ -112,17 +112,28 @@ function categoryFor(skill, entrySurface, effectiveProfile) {
 }
 
 function inspectDiscoveryContext({ root, inventory, readDescription = null, budgets = null, profileSelection = null, artifactIdentity = null, profileId = null, selectedStableIds = null, surface = null, legacyCli = false, estimator = null, category: requestedCategory = null } = {}) {
-  const effectiveProfile = profileSelection || (profileId ? { id: profileId, selectedStableIds: selectedStableIds || [] } : null);
+  const effectiveProfile = profileSelection || (profileId ? { id: profileId, profileId, selectedStableIds: selectedStableIds || [] } : null);
   const manifest = budgets ? { budgets } : loadDiscoveryBudgetManifest(root);
   const effectiveBudgets = manifest.budgets || {};
   const reader = readDescription || ((entry) => defaultReadDescription(root, entry));
   const selectedIds = effectiveProfile && Array.isArray(effectiveProfile.selectedStableIds)
     ? new Set(effectiveProfile.selectedStableIds)
     : null;
-  const scope = effectiveProfile ? { kind: 'claude-profile', profile: effectiveProfile.id || null } : null;
+  const profileName = effectiveProfile && (effectiveProfile.id || effectiveProfile.profileId) || null;
+  const scope = effectiveProfile ? { kind: 'claude-profile', profile: profileName } : null;
   const identity = artifactIdentity && typeof artifactIdentity === 'object'
-    ? { planFingerprint: artifactIdentity.planFingerprint || null, artifactFingerprint: artifactIdentity.artifactFingerprint || null }
-    : null;
+    ? {
+      planFingerprint: artifactIdentity.planFingerprint || null,
+      artifactFingerprint: artifactIdentity.artifactFingerprint || null,
+      selectionFingerprint: artifactIdentity.selectionFingerprint || effectiveProfile && effectiveProfile.selectionFingerprint || null,
+      surfaceSelectionFingerprint: artifactIdentity.surfaceSelectionFingerprint || effectiveProfile && effectiveProfile.surfaceSelectionFingerprint || null,
+    }
+    : (effectiveProfile ? {
+      planFingerprint: null,
+      artifactFingerprint: null,
+      selectionFingerprint: effectiveProfile.selectionFingerprint || null,
+      surfaceSelectionFingerprint: effectiveProfile.surfaceSelectionFingerprint || null,
+    } : null);
   const skills = ((inventory && inventory.skills) || []).filter((skill) => !selectedIds || selectedIds.has(skill.id));
   const items = [];
   for (const skill of skills) {
@@ -149,7 +160,7 @@ function inspectDiscoveryContext({ root, inventory, readDescription = null, budg
         limits: limit,
         discoveryVisible: visibility.value,
         visibilityReason: visibility.reason,
-        profile: effectiveProfile && effectiveProfile.id || null,
+        profile: profileName,
       });
     }
   }
@@ -192,12 +203,14 @@ function inspectDiscoveryContext({ root, inventory, readDescription = null, budg
   };
   if (effectiveProfile) {
     report.scope = 'claude-profile';
-    report.profileId = effectiveProfile.id || null;
+    report.profileId = profileName;
     report.scopeDetails = {
       kind: 'claude-profile',
-      profile: effectiveProfile.id || null,
+      profile: profileName,
       planFingerprint: artifactIdentity && artifactIdentity.planFingerprint || null,
       artifactFingerprint: artifactIdentity && artifactIdentity.artifactFingerprint || null,
+      selectionFingerprint: artifactIdentity && artifactIdentity.selectionFingerprint || effectiveProfile.selectionFingerprint || null,
+      surfaceSelectionFingerprint: artifactIdentity && artifactIdentity.surfaceSelectionFingerprint || effectiveProfile.surfaceSelectionFingerprint || null,
     };
     report.compatibilityCatalog = inspectDiscoveryContext({ root, inventory, readDescription, budgets, surface, estimator, legacyCli });
   } else {

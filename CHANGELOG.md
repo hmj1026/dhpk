@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.47.0 — 2026-08-25 — Consolidate canonical skill portfolio and scope default workflow capability bundles
+
+**feat(skill-portfolio)** — Consolidate the canonical skill portfolio with explicit successor routes, retirement diagnostics, and safe cross-platform projections.
+
 ## 0.46.1 — 2026-08-25 — Keep pending consumer evidence non-blocking and make release manifest checks version-flexible
 
 **fix(release-consumer-verification)** — Keep expected PUBLISHED_PENDING consumer evidence visible without failing the release CI job, while retaining failures for unhealthy or blocked verification.

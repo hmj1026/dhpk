@@ -99,4 +99,26 @@ test('create-pr command carries deterministic ahead-count abort before gh pr cre
   assert.ok(!command.includes('Follow the `create-pr` skill workflow'));
 });
 
+test('specific security, bug, and Playwright routes outrank broad unit/integration matches', () => {
+  const cases = [
+    ['write unit tests for the changed behavior', 'dhpk:dhpk-tdd-workflow'],
+    ['add integration tests for the endpoint', 'dhpk:dhpk-tdd-workflow'],
+    ['close the integration coverage gap', 'dhpk:dhpk-tdd-workflow'],
+    ['author a Playwright journey for checkout', 'agent:e2e-runner'],
+    ['fix the checkout bug and add integration tests', 'dhpk:dhpk-adaptive-dev-workflow'],
+    ['run a security audit and add unit tests', 'dhpk:dhpk-security-review'],
+    ['author a Playwright integration test for checkout', 'agent:e2e-runner'],
+  ];
+  for (const [query, target] of cases) {
+    const res = runRoute([query], {});
+    assert.strictEqual(res.status, 0, res.stderr);
+    const parts = res.stdout.trim().split('\t');
+    assert.strictEqual(parts[0], 'MATCH', `${query}: ${res.stdout}`);
+    assert.strictEqual(parts[1], target, `${query}: ${res.stdout}`);
+    if (target === 'dhpk:dhpk-tdd-workflow' || target === 'agent:e2e-runner') {
+      assert.match(parts[2], /UNAVAILABLE/);
+    }
+  }
+});
+
 run('pre-route');

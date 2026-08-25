@@ -38,10 +38,10 @@ test('--help invocation is a safe no-op (no .codex/ created, exit 0)', () => {
   }
 });
 
-function runInstaller(project, args, pluginRoot = ROOT) {
+function runInstaller(project, args, pluginRoot = ROOT, envOverrides = {}) {
   return spawnSync('bash', [HOOK, ...args], {
     cwd: project,
-    env: { ...process.env, CLAUDE_PLUGIN_ROOT: pluginRoot },
+    env: { ...process.env, CLAUDE_PLUGIN_ROOT: pluginRoot, ...envOverrides },
     encoding: 'utf8',
     timeout: 20000,
   });
@@ -234,6 +234,236 @@ test('skill sources fail closed when distribution metadata is incomplete', () =>
     assert.match(`${res.stdout}\n${res.stderr}`, /skill metadata|id|incomplete|distribution inventory/i);
     assert.ok(!fs.existsSync(path.join(scratch, '.codex', '.dhpk-installed.json')),
       'incomplete metadata must fail before writing a schema-v3 receipt');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(fakePlugin, { recursive: true, force: true });
+  }
+});
+
+test('external source symlink is rejected before an owned retirement prune', () => {
+  const scratch = projectRoot();
+  const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-source-symlink-plugin-')));
+  const outside = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-source-symlink-outside-')));
+  try {
+    fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
+    fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
+    fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
+    copyDistributionInventory(fakePlugin);
+
+    const first = runInstaller(scratch, ['--copy', '--force'], fakePlugin);
+    assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+    const sourceNames = fs.readdirSync(path.join(fakePlugin, 'codex', 'skills')).sort();
+    assert.ok(sourceNames.length >= 2, 'fixture needs a retired and active skill');
+    const retired = sourceNames[0];
+    const malicious = sourceNames[1];
+    const inventoryPath = path.join(fakePlugin, 'manifests', 'distribution-inventory.json');
+    const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
+    const retiredEntry = inventory.skills.find((entry) => entry.name === retired);
+    assert.ok(retiredEntry, `missing fixture inventory entry for ${retired}`);
+    inventory.skills = inventory.skills.filter((entry) => entry.name !== retired);
+    inventory.retired_skills = [{
+      id: retiredEntry.id,
+      name: retiredEntry.name,
+      canonicalPath: retiredEntry.path,
+      retiredIn: '0.47.0',
+      reasonCode: 'test-retirement',
+      priorSurfaces: retiredEntry.surfaces,
+      replacements: [{ kind: 'skill', id: 'tdd', mode: 'test-successor' }],
+      rollback: { release: '0.46.1' },
+    }];
+    fs.writeFileSync(inventoryPath, `${JSON.stringify(inventory, null, 2)}\n`);
+    fs.rmSync(path.join(fakePlugin, 'codex', 'skills', retired), { recursive: true, force: true });
+
+    const outsideSource = path.join(outside, malicious);
+    fs.mkdirSync(outsideSource, { recursive: true });
+    fs.writeFileSync(path.join(outsideSource, 'escaped.txt'), 'outside source\n');
+    const maliciousSource = path.join(fakePlugin, 'codex', 'skills', malicious);
+    fs.rmSync(maliciousSource, { recursive: true, force: true });
+    fs.symlinkSync(outsideSource, maliciousSource, 'dir');
+
+    const retiredTarget = path.join(scratch, '.codex', 'skills', retired);
+    const receiptBefore = fs.readFileSync(path.join(scratch, '.codex', '.dhpk-installed.json'), 'utf8');
+    const updated = runInstaller(scratch, ['--copy', '--update', '--force'], fakePlugin);
+    assert.notStrictEqual(updated.status, 0, `${updated.stdout}\n${updated.stderr}`);
+    assert.match(`${updated.stdout}\n${updated.stderr}`, /(source|symlink|outside|escape)/i);
+    assert.ok(fs.existsSync(retiredTarget), 'retirement target must remain when source validation fails');
+    assert.strictEqual(
+      fs.readFileSync(path.join(scratch, '.codex', '.dhpk-installed.json'), 'utf8'),
+      receiptBefore,
+      'source validation must fail before receipt mutation',
+    );
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(fakePlugin, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
+});
+
+test('malformed retirement metadata fails closed before receipt mutation', () => {
+  const scratch = projectRoot();
+  const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-retirement-metadata-plugin-')));
+  try {
+    fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
+    fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
+    fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
+    copyDistributionInventory(fakePlugin);
+    const first = runInstaller(scratch, ['--copy', '--force'], fakePlugin);
+    assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+
+    const inventoryPath = path.join(fakePlugin, 'manifests', 'distribution-inventory.json');
+    const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
+    inventory.retired_skills = [{
+      id: 'retired-helper',
+      name: 'dhpk-retired-helper',
+      canonicalPath: 'skills/dhpk-retired-helper',
+      retiredIn: '0.47.0',
+      reasonCode: 'test-retirement',
+      priorSurfaces: ['claude-core'],
+      replacements: [{ kind: 'skill', id: 'tdd', mode: 'test-successor', unexpected: 'must-not-leak' }],
+      rollback: { release: '0.46.1' },
+    }];
+    fs.writeFileSync(inventoryPath, `${JSON.stringify(inventory, null, 2)}\n`);
+
+    const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
+    const receiptBefore = fs.readFileSync(receiptPath, 'utf8');
+    const updated = runInstaller(scratch, ['--copy', '--update', '--force'], fakePlugin);
+    assert.notStrictEqual(updated.status, 0, `${updated.stdout}\n${updated.stderr}`);
+    assert.match(`${updated.stdout}\n${updated.stderr}`, /(retirement|metadata|unknown|not allowed)/i);
+    assert.strictEqual(fs.readFileSync(receiptPath, 'utf8'), receiptBefore, 'malformed metadata must not mutate the receipt');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(fakePlugin, { recursive: true, force: true });
+  }
+});
+
+test('agent retirement successors must exist in the inventory-owned roster', () => {
+  const scratch = projectRoot();
+  const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-agent-roster-plugin-')));
+  try {
+    fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
+    fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
+    fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
+    copyDistributionInventory(fakePlugin);
+    const first = runInstaller(scratch, ['--copy', '--force'], fakePlugin);
+    assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+
+    const inventoryPath = path.join(fakePlugin, 'manifests', 'distribution-inventory.json');
+    const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
+    inventory.retired_skills = [{
+      id: 'retired-helper',
+      name: 'dhpk-retired-helper',
+      canonicalPath: 'skills/dhpk-retired-helper',
+      retiredIn: '0.47.0',
+      reasonCode: 'test-retirement',
+      priorSurfaces: ['claude-core'],
+      replacements: [{ kind: 'agent', id: 'not-an-agent', mode: 'playwright-journey' }],
+      rollback: { release: '0.46.1' },
+    }];
+    fs.writeFileSync(inventoryPath, `${JSON.stringify(inventory, null, 2)}\n`);
+
+    const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
+    const receiptBefore = fs.readFileSync(receiptPath, 'utf8');
+    const updated = runInstaller(scratch, ['--copy', '--update', '--force'], fakePlugin);
+    assert.notStrictEqual(updated.status, 0, `${updated.stdout}\n${updated.stderr}`);
+    assert.match(`${updated.stdout}\n${updated.stderr}`, /inventory-owned active agent|agent.*roster/i);
+    assert.strictEqual(fs.readFileSync(receiptPath, 'utf8'), receiptBefore, 'invalid agent successor must not mutate the receipt');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(fakePlugin, { recursive: true, force: true });
+  }
+});
+
+test('retirement prune rolls back when a later destination path fails preflight', () => {
+  const scratch = projectRoot();
+  const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-prune-rollback-plugin-')));
+  const external = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-prune-rollback-outside-')));
+  try {
+    fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
+    fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
+    fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
+    copyDistributionInventory(fakePlugin);
+    const first = runInstaller(scratch, ['--copy', '--force'], fakePlugin);
+    assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+
+    const retired = fs.readdirSync(path.join(fakePlugin, 'codex', 'skills')).sort()[0];
+    const inventoryPath = path.join(fakePlugin, 'manifests', 'distribution-inventory.json');
+    const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
+    const retiredEntry = inventory.skills.find((entry) => entry.name === retired);
+    inventory.skills = inventory.skills.filter((entry) => entry.name !== retired);
+    inventory.retired_skills = [{
+      id: retiredEntry.id,
+      name: retiredEntry.name,
+      canonicalPath: retiredEntry.path,
+      retiredIn: '0.47.0',
+      reasonCode: 'test-retirement',
+      priorSurfaces: retiredEntry.surfaces,
+      replacements: [{ kind: 'skill', id: 'tdd', mode: 'test-successor' }],
+      rollback: { release: '0.46.1' },
+    }];
+    fs.writeFileSync(inventoryPath, `${JSON.stringify(inventory, null, 2)}\n`);
+    fs.rmSync(path.join(fakePlugin, 'codex', 'skills', retired), { recursive: true, force: true });
+
+    const externalDhpk = path.join(external, 'dhpk');
+    fs.mkdirSync(externalDhpk, { recursive: true });
+    fs.writeFileSync(path.join(externalDhpk, 'keep.txt'), 'external keep\n');
+    fs.rmSync(path.join(scratch, '.codex', 'dhpk'), { recursive: true, force: true });
+    fs.symlinkSync(externalDhpk, path.join(scratch, '.codex', 'dhpk'), 'dir');
+    const retiredTarget = path.join(scratch, '.codex', 'skills', retired);
+    const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
+    const receiptBefore = fs.readFileSync(receiptPath, 'utf8');
+
+    const updated = runInstaller(scratch, ['--copy', '--update', '--force'], fakePlugin);
+    assert.notStrictEqual(updated.status, 0, `${updated.stdout}\n${updated.stderr}`);
+    assert.ok(fs.existsSync(retiredTarget), 'retirement target must be restored after later preflight failure');
+    assert.strictEqual(fs.readFileSync(receiptPath, 'utf8'), receiptBefore, 'failed transaction must retain the prior receipt');
+    assert.strictEqual(fs.readFileSync(path.join(externalDhpk, 'keep.txt'), 'utf8'), 'external keep\n');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(fakePlugin, { recursive: true, force: true });
+    fs.rmSync(external, { recursive: true, force: true });
+  }
+});
+
+test('receipt failure rolls back ordinary updates and recovers the transaction journal', () => {
+  const scratch = projectRoot();
+  const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-receipt-rollback-plugin-')));
+  try {
+    fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
+    fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
+    fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
+    copyDistributionInventory(fakePlugin);
+    const first = runInstaller(scratch, ['--copy', '--force'], fakePlugin);
+    assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+
+    const changed = fs.readdirSync(path.join(fakePlugin, 'codex', 'skills')).sort()[0];
+    const changedSource = path.join(fakePlugin, 'codex', 'skills', changed);
+    // The canonical Codex tree contains symlink projections. Materialize this
+    // fixture entry before mutating it so the test never edits the canonical
+    // source skill through a symlink.
+    if (fs.lstatSync(changedSource).isSymbolicLink()) {
+      const canonicalSource = fs.realpathSync(changedSource);
+      fs.rmSync(changedSource, { recursive: true, force: true });
+      fs.cpSync(canonicalSource, changedSource, { recursive: true, dereference: true });
+    }
+    fs.appendFileSync(path.join(changedSource, 'SKILL.md'), '\nreceipt rollback fixture\n');
+    const target = path.join(scratch, '.codex', 'skills', changed);
+    const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
+    const targetBefore = completeTreeFingerprint(target);
+    const receiptBefore = fs.readFileSync(receiptPath, 'utf8');
+    const failed = runInstaller(
+      scratch,
+      ['--copy', '--update', '--force'],
+      fakePlugin,
+      { DHPK_TEST_FAIL_RECEIPT: '1' },
+    );
+    assert.notStrictEqual(failed.status, 0, `${failed.stdout}\n${failed.stderr}`);
+    assert.match(`${failed.stdout}\n${failed.stderr}`, /receipt|rollback/i);
+    assert.strictEqual(completeTreeFingerprint(target), targetBefore, 'failed receipt must restore the prior target');
+    assert.strictEqual(fs.readFileSync(receiptPath, 'utf8'), receiptBefore, 'failed receipt must retain the prior manifest');
+
+    const recovered = runInstaller(scratch, ['--copy', '--update', '--force'], fakePlugin);
+    assert.strictEqual(recovered.status, 0, `${recovered.stdout}\n${recovered.stderr}`);
+    assert.match(`${recovered.stdout}\n${recovered.stderr}`, /synced|reconcili/i);
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
     fs.rmSync(fakePlugin, { recursive: true, force: true });
@@ -884,11 +1114,33 @@ test('reconciliation evidence records updates, retired entries, backups, and uno
     const first = runInstaller(scratch, ['--copy', '--force'], fakePlugin);
     assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
     const sourceSkills = fs.readdirSync(path.join(fakePlugin, 'codex', 'skills')).sort();
-    assert.ok(sourceSkills.length >= 3, 'fixture needs retired, updated, and colliding skills');
+    assert.ok(sourceSkills.length >= 4, 'fixture needs owned/modified retired, updated, and colliding skills');
     const retired = sourceSkills[0];
-    const updated = sourceSkills[1];
-    const collision = sourceSkills[2];
+    const modifiedRetired = sourceSkills[1];
+    const updated = sourceSkills[2];
+    const collision = sourceSkills[3];
     fs.rmSync(path.join(fakePlugin, 'codex', 'skills', retired), { recursive: true, force: true });
+    fs.rmSync(path.join(fakePlugin, 'codex', 'skills', modifiedRetired), { recursive: true, force: true });
+
+    const inventoryPath = path.join(fakePlugin, 'manifests', 'distribution-inventory.json');
+    const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
+    const retiredRows = inventory.skills.filter((entry) => entry.name === retired || entry.name === modifiedRetired);
+    inventory.skills = inventory.skills.filter((entry) => entry.name !== retired && entry.name !== modifiedRetired);
+    inventory.retired_skills = retiredRows.map((entry) => ({
+      id: entry.id,
+      name: entry.name,
+      canonicalPath: entry.path,
+      retiredIn: '0.47.0',
+      reasonCode: 'test-retirement',
+      priorSurfaces: entry.surfaces,
+      replacements: [{ kind: 'skill', id: 'tdd', mode: 'test-successor' }],
+      rollback: { release: '0.46.1' },
+    }));
+    fs.writeFileSync(inventoryPath, `${JSON.stringify(inventory, null, 2)}\n`);
+
+    const modifiedRetiredTarget = path.join(scratch, '.codex', 'skills', modifiedRetired);
+    const retiredUserMarker = path.join(modifiedRetiredTarget, 'user-retired-edit.txt');
+    fs.writeFileSync(retiredUserMarker, 'preserve retired edit\n');
     const updatedPath = path.join(fakePlugin, 'codex', 'skills', updated);
     if (fs.lstatSync(updatedPath).isSymbolicLink()) {
       fs.rmSync(updatedPath, { recursive: true, force: true });
@@ -904,10 +1156,26 @@ test('reconciliation evidence records updates, retired entries, backups, and uno
     const userMarker = path.join(collisionTarget, 'user-owned.txt');
     fs.writeFileSync(userMarker, 'do not overwrite\n');
 
+    const receiptBeforePlan = fs.readFileSync(receiptPath, 'utf8');
+    const planRun = runInstaller(scratch, ['--copy', '--update', '--plan', '--json', '--force'], fakePlugin);
+    assert.notStrictEqual(planRun.status, 0, 'plan remains non-pass while an unowned collision requires adoption');
+    const plan = JSON.parse(planRun.stdout);
+    for (const name of [retired, modifiedRetired]) {
+      const item = plan.retired.find((entry) => entry.name === name);
+      assert.ok(item, `missing retired plan row for ${name}`);
+      assert.strictEqual(item.retirement.retiredIn, '0.47.0');
+      assert.strictEqual(item.retirement.reasonCode, 'test-retirement');
+      assert.deepStrictEqual(item.retirement.replacements, [{ kind: 'skill', id: 'tdd', mode: 'test-successor' }]);
+    }
+    assert.strictEqual(fs.readFileSync(receiptPath, 'utf8'), receiptBeforePlan, 'retirement plan must not mutate receipt');
+    assert.strictEqual(fs.readFileSync(retiredUserMarker, 'utf8'), 'preserve retired edit\n', 'retirement plan must not mutate destination');
+
     const updatedRun = runInstaller(scratch, ['--copy', '--update', '--force'], fakePlugin);
     assert.notStrictEqual(updatedRun.status, 0, `${updatedRun.stdout}\n${updatedRun.stderr}`);
     assert.match(`${updatedRun.stdout}\n${updatedRun.stderr}`, /--adopt/);
     assert.strictEqual(fs.readFileSync(userMarker, 'utf8'), 'do not overwrite\n');
+    assert.ok(!fs.existsSync(path.join(scratch, '.codex', 'skills', retired)), 'unchanged receipt-owned retired entry must prune');
+    assert.strictEqual(fs.readFileSync(retiredUserMarker, 'utf8'), 'preserve retired edit\n', 'modified retired entry must be preserved');
     const after = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
     const reconciliation = after.reconciliation;
     assert.ok(reconciliation.updated >= 1, JSON.stringify(reconciliation));
@@ -931,6 +1199,7 @@ test('reconciliation evidence records updates, retired entries, backups, and uno
       assert.ok(fs.existsSync(path.join(scratch, backup.path)), `backup path missing: ${backup.path}`);
     }
     assert.ok(!after.managed_entries.skills[collision], 'unowned collision must remain outside receipt ownership');
+    assert.ok(after.orphaned_entries[`skills/${modifiedRetired}`], 'modified retired path must be receipt-tracked as orphaned');
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
     fs.rmSync(fakePlugin, { recursive: true, force: true });
@@ -1042,6 +1311,86 @@ test('--plan --json reports a current projection without mutation', () => {
   }
 });
 
+test('--plan blocks on an interrupted transaction without recovering or mutating state', () => {
+  const scratch = projectRoot();
+  try {
+    const first = runInstaller(scratch, ['--copy', '--force']);
+    assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+    const codexRoot = path.join(scratch, '.codex');
+    const receiptPath = path.join(codexRoot, '.dhpk-installed.json');
+    const target = path.join(codexRoot, 'skills', 'dhpk-tdd-workflow');
+    const receiptBefore = fs.readFileSync(receiptPath, 'utf8');
+    const targetBefore = completeTreeFingerprint(target);
+    const receipt = JSON.parse(receiptBefore);
+    const run = '20990101T000000Z-999999999';
+    const journalPath = path.join(codexRoot, `.dhpk-transaction-${run}.json`);
+    const journal = {
+      run,
+      pid: 2147483647,
+      relative: `.dhpk-transaction-${run}.json`,
+      phase: 'active',
+      started: true,
+      plugin_version: receipt.plugin_version,
+      source_fingerprint: receipt.source_fingerprint,
+      receipt_snapshot_present: true,
+      receipt_snapshot: receipt,
+      prunes: [],
+      mutations: [],
+      adoptions: [],
+    };
+    const journalBefore = `${JSON.stringify(journal, null, 2)}\n`;
+    fs.writeFileSync(journalPath, journalBefore);
+
+    const planned = runInstaller(scratch, ['--copy', '--update', '--plan', '--json', '--force']);
+    assert.strictEqual(planned.status, 2, `${planned.stdout}\n${planned.stderr}`);
+    const report = JSON.parse(planned.stdout);
+    assert.strictEqual(report.state, 'blocked');
+    assert.match(report.blocking_recovery.join('\n'), /interrupted transaction|recovery/i);
+    assert.strictEqual(fs.readFileSync(receiptPath, 'utf8'), receiptBefore);
+    assert.strictEqual(completeTreeFingerprint(target), targetBefore);
+    assert.strictEqual(fs.readFileSync(journalPath, 'utf8'), journalBefore);
+
+    const recovered = runInstaller(scratch, ['--copy', '--update', '--force']);
+    assert.strictEqual(recovered.status, 0, `${recovered.stdout}\n${recovered.stderr}`);
+    const recoveredJournal = JSON.parse(fs.readFileSync(journalPath, 'utf8'));
+    assert.strictEqual(recoveredJournal.phase, 'rolled_back');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('--plan blocks on malformed terminal transaction metadata without mutation', () => {
+  const scratch = projectRoot();
+  try {
+    const first = runInstaller(scratch, ['--copy', '--force']);
+    assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+    const codexRoot = path.join(scratch, '.codex');
+    const receiptPath = path.join(codexRoot, '.dhpk-installed.json');
+    const target = path.join(codexRoot, 'skills', 'dhpk-tdd-workflow');
+    const receiptBefore = fs.readFileSync(receiptPath, 'utf8');
+    const targetBefore = completeTreeFingerprint(target);
+    const run = '20990101T000001Z-999999998';
+    const journalPath = path.join(codexRoot, `.dhpk-transaction-${run}.json`);
+    const journalBefore = `${JSON.stringify({
+      run: 'different-run',
+      relative: `.dhpk-transaction-${run}.json`,
+      phase: 'committed',
+    }, null, 2)}\n`;
+    fs.writeFileSync(journalPath, journalBefore);
+
+    const planned = runInstaller(scratch, ['--copy', '--update', '--plan', '--json', '--force']);
+    assert.strictEqual(planned.status, 2, `${planned.stdout}\n${planned.stderr}`);
+    const report = JSON.parse(planned.stdout);
+    assert.strictEqual(report.state, 'blocked');
+    assert.match(report.blocking_recovery.join('\n'), /malformed|self-bound|metadata/i);
+    assert.strictEqual(fs.readFileSync(receiptPath, 'utf8'), receiptBefore);
+    assert.strictEqual(completeTreeFingerprint(target), targetBefore);
+    assert.strictEqual(fs.readFileSync(journalPath, 'utf8'), journalBefore);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
 test('explicit adoption backs up and receipt-owns only the selected collision', () => {
   const fixture = collisionFixture();
   try {
@@ -1067,6 +1416,80 @@ test('explicit adoption backs up and receipt-owns only the selected collision', 
     assert.strictEqual(backup.reason, 'explicit-adoption');
     assert.ok(fs.existsSync(path.join(fixture.scratch, backup.path)), `backup path missing: ${backup.path}`);
     assert.strictEqual(fs.readFileSync(path.join(fixture.scratch, backup.path, 'user-owned.txt'), 'utf8'), 'keep me\n');
+  } finally {
+    fs.rmSync(fixture.scratch, { recursive: true, force: true });
+    fs.rmSync(fixture.fakePlugin, { recursive: true, force: true });
+  }
+});
+
+test('adoption journal recovers a crash after quarantine before retrying the selected collision', () => {
+  const fixture = collisionFixture();
+  try {
+    const plan = runInstaller(fixture.scratch, ['--copy', '--update', '--plan', '--json', '--force'], fixture.fakePlugin);
+    assert.notStrictEqual(plan.status, 0);
+    const collision = JSON.parse(plan.stdout).collisions.find((entry) => entry.path === `skills/${fixture.collision}`);
+    const crashed = runInstaller(fixture.scratch, [
+      '--copy', '--update', `--adopt=skills/${fixture.collision}@${collision.destination_fingerprint}@${collision.source_fingerprint}`, '--force',
+    ], fixture.fakePlugin, { DHPK_TEST_ABORT_ADOPTION_PHASE: 'quarantine' });
+    assert.strictEqual(crashed.status, 73, `${crashed.stdout}\n${crashed.stderr}`);
+    assert.ok(!fs.existsSync(fixture.target), 'crash point should leave the target quarantined for recovery');
+    const retried = runInstaller(fixture.scratch, [
+      '--copy', '--update', `--adopt=skills/${fixture.collision}@${collision.destination_fingerprint}@${collision.source_fingerprint}`, '--force',
+    ], fixture.fakePlugin);
+    assert.strictEqual(retried.status, 0, `${retried.stdout}\n${retried.stderr}`);
+    const receipt = JSON.parse(fs.readFileSync(fixture.receiptPath, 'utf8'));
+    assert.ok(receipt.managed_entries.skills[fixture.collision], 'retry should publish ownership after recovery');
+    assert.ok(!fs.existsSync(path.join(fixture.target, 'user-owned.txt')), 'recovered adoption should replace the selected collision');
+  } finally {
+    fs.rmSync(fixture.scratch, { recursive: true, force: true });
+    fs.rmSync(fixture.fakePlugin, { recursive: true, force: true });
+  }
+});
+
+test('adoption journal rolls back a crash after publication when the receipt still proves the old projection', () => {
+  const fixture = collisionFixture();
+  try {
+    const plan = runInstaller(fixture.scratch, ['--copy', '--update', '--plan', '--json', '--force'], fixture.fakePlugin);
+    assert.notStrictEqual(plan.status, 0);
+    const collision = JSON.parse(plan.stdout).collisions.find((entry) => entry.path === `skills/${fixture.collision}`);
+    const crashed = runInstaller(fixture.scratch, [
+      '--copy', '--update', `--adopt=skills/${fixture.collision}@${collision.destination_fingerprint}@${collision.source_fingerprint}`, '--force',
+    ], fixture.fakePlugin, { DHPK_TEST_ABORT_ADOPTION_PHASE: 'published' });
+    assert.strictEqual(crashed.status, 73, `${crashed.stdout}\n${crashed.stderr}`);
+    const retried = runInstaller(fixture.scratch, [
+      '--copy', '--update', `--adopt=skills/${fixture.collision}@${collision.destination_fingerprint}@${collision.source_fingerprint}`, '--force',
+    ], fixture.fakePlugin);
+    assert.strictEqual(retried.status, 0, `${retried.stdout}\n${retried.stderr}`);
+    const receipt = JSON.parse(fs.readFileSync(fixture.receiptPath, 'utf8'));
+    assert.ok(receipt.managed_entries.skills[fixture.collision]);
+    assert.strictEqual(receipt.transaction_final, true);
+  } finally {
+    fs.rmSync(fixture.scratch, { recursive: true, force: true });
+    fs.rmSync(fixture.fakePlugin, { recursive: true, force: true });
+  }
+});
+
+test('adoption recovery rolls forward a durable partial receipt after a receipt-persisted crash', () => {
+  const fixture = collisionFixture();
+  try {
+    const plan = runInstaller(fixture.scratch, ['--copy', '--update', '--plan', '--json', '--force'], fixture.fakePlugin);
+    assert.notStrictEqual(plan.status, 0);
+    const collision = JSON.parse(plan.stdout).collisions.find((entry) => entry.path === `skills/${fixture.collision}`);
+    const crashed = runInstaller(fixture.scratch, [
+      '--copy', '--update', `--adopt=skills/${fixture.collision}@${collision.destination_fingerprint}@${collision.source_fingerprint}`, '--force',
+    ], fixture.fakePlugin, { DHPK_TEST_ABORT_ADOPTION_PHASE: 'receipt_persisted' });
+    assert.strictEqual(crashed.status, 73, `${crashed.stdout}\n${crashed.stderr}`);
+    const partial = JSON.parse(fs.readFileSync(fixture.receiptPath, 'utf8'));
+    assert.strictEqual(partial.transaction_final, false);
+    assert.ok(partial.managed_entries.skills[fixture.collision]);
+    const recovered = runInstaller(fixture.scratch, [
+      '--copy', '--update', '--force',
+    ], fixture.fakePlugin);
+    assert.strictEqual(recovered.status, 0, `${recovered.stdout}\n${recovered.stderr}`);
+    const receipt = JSON.parse(fs.readFileSync(fixture.receiptPath, 'utf8'));
+    assert.strictEqual(receipt.transaction_final, true, 'recovery must finalize the proven partial receipt');
+    assert.ok(receipt.managed_entries.skills[fixture.collision]);
+    assert.ok(!fs.existsSync(path.join(fixture.target, 'user-owned.txt')));
   } finally {
     fs.rmSync(fixture.scratch, { recursive: true, force: true });
     fs.rmSync(fixture.fakePlugin, { recursive: true, force: true });
@@ -1313,10 +1736,44 @@ test('a normal install repopulates the project after uninstall', () => {
     const removed = runInstaller(scratch, ['--uninstall', '--force']);
     assert.strictEqual(removed.status, 0, `${removed.stdout}\n${removed.stderr}`);
     assert.strictEqual(fs.readdirSync(path.join(scratch, '.codex', 'skills')).length, 0);
+    assert.ok(!fs.existsSync(path.join(scratch, '.codex', '.dhpk-installed.json')),
+      'complete uninstall must remove the live receipt');
+    const receiptBackups = fs.readdirSync(path.join(scratch, '.codex', '.dhpk-backups'))
+      .map((run) => path.join(scratch, '.codex', '.dhpk-backups', run, 'receipt.json'))
+      .filter((candidate) => fs.existsSync(candidate));
+    assert.ok(receiptBackups.length >= 1, 'complete uninstall must retain an fsynced receipt quarantine');
     const restored = runInstaller(scratch, ['--copy', '--force']);
     assert.strictEqual(restored.status, 0, `${restored.stdout}\n${restored.stderr}`);
     assert.ok(fs.readdirSync(path.join(scratch, '.codex', 'skills')).length > 0);
     assert.doesNotMatch(restored.stdout, /already up-to-date/);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('complete uninstall restores the receipt when its quarantine fsync fails', () => {
+  const scratch = projectRoot();
+  try {
+    const first = runInstaller(scratch, ['--copy', '--force']);
+    assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+    const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
+    const failed = runInstaller(
+      scratch,
+      ['--uninstall', '--force'],
+      ROOT,
+      { DHPK_TEST_FAIL_UNINSTALL_RECEIPT_FSYNC: '1' },
+    );
+    assert.notStrictEqual(failed.status, 0, `${failed.stdout}\n${failed.stderr}`);
+    assert.ok(fs.existsSync(receiptPath), 'failed uninstall must restore the live receipt');
+    const managed = JSON.parse(fs.readFileSync(receiptPath, 'utf8')).managed_entries.skills;
+    const restoredTarget = Object.values(managed)
+      .map((entry) => path.join(scratch, '.codex', entry.destination))
+      .find((candidate) => fs.existsSync(candidate));
+    assert.ok(restoredTarget, 'failed uninstall must restore at least one managed target');
+
+    const recovered = runInstaller(scratch, ['--uninstall', '--force']);
+    assert.strictEqual(recovered.status, 0, `${recovered.stdout}\n${recovered.stderr}`);
+    assert.ok(!fs.existsSync(receiptPath), 'recovered uninstall must remove the receipt');
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
   }

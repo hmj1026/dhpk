@@ -45,9 +45,10 @@ blocked handoff rather than exposing the secret.
 
 ## When NOT to Use
 
-- Root cause is confirmed and the user wants implementation: hand off to `dhpk-bug-fix`.
+- Root cause is confirmed and the user wants implementation: hand off to
+  `dhpk-adaptive-dev-workflow` in bug mode.
 - The task is ordinary code or document review: use the relevant review skill.
-- The task is pure feature development with no failure, regression, or inconsistency: use `dhpk-adaptive-dev-workflow` / `dhpk-feature-dev`.
+- The task is pure feature development with no failure, regression, or inconsistency: use `dhpk-adaptive-dev-workflow` in feature mode.
 
 ## Core Contract
 

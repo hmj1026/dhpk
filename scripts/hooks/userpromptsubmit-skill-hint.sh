@@ -132,6 +132,10 @@ case "$HINT" in
                     emit_additional_context "UserPromptSubmit" \
                         "[skill-hint] This prompt looks like a $label task — run /dhpk:$bare_skill directly; do not call the generic Skill tool."
                     ;;
+                agent)
+                    emit_additional_context "UserPromptSubmit" \
+                        "[skill-hint] This prompt looks like a $label task — dispatch $skill when available; if that capability is unavailable, report UNAVAILABLE and do not remap it to another workflow."
+                    ;;
                 implicit-eligible)
                     emit_additional_context "UserPromptSubmit" \
                         "[skill-hint] This prompt looks like a $label task — the /$skill workflow may fit. Suggest it (or run it) if appropriate."
