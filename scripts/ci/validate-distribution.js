@@ -23,6 +23,7 @@ const {
   reconcileDistribution,
   verifyClaudeProjection,
 } = require('../lib/distribution-inventory');
+const { validateProfileDefinitions } = require('../lib/capability-bundle-selection');
 
 const ROOT = path.join(__dirname, '..', '..');
 const MANIFEST = path.join(ROOT, 'manifests', 'distribution-inventory.json');
@@ -54,6 +55,9 @@ const codexSkillsDir = path.join(ROOT, 'codex', 'skills');
 const codexMirrorNames = fs.existsSync(codexSkillsDir) ? fs.readdirSync(codexSkillsDir) : [];
 
 const moduleCatalog = readJson(ROOT, 'manifests/module-catalog.json');
+const installProfiles = readJson(ROOT, 'manifests/install-profiles.json');
+const profileValidation = validateProfileDefinitions({ inventory, profiles: installProfiles, moduleCatalog });
+for (const msg of profileValidation.errors) r.err(msg);
 const moduleCatalogIds = [];
 if (moduleCatalog && Array.isArray(moduleCatalog.stacks)) {
   for (const st of moduleCatalog.stacks) {

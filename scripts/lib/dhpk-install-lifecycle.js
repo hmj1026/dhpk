@@ -6,6 +6,7 @@
 const crypto = require('node:crypto');
 const { compileDistribution } = require('./distribution-compiler');
 const { createEvidenceResult, VERDICTS } = require('./distribution-projection-contract');
+const { resolveCapabilitySelection } = require('./capability-bundle-selection');
 
 const SURFACES = Object.freeze(['claude', 'codex-sync', 'codex-native', 'agent-plugin', 'cursor', 'agy-plugin']);
 const ACTIONS = Object.freeze(['plan', 'install', 'verify', 'update', 'uninstall', 'rollback', 'status']);
@@ -47,6 +48,8 @@ function parseRequest(argv) {
     json: false,
     agentProfile: null,
     agents: [],
+    profileId: null,
+    skillIds: [],
   };
   for (let index = 0; index < rest.length; index += 1) {
     const option = rest[index];
@@ -63,6 +66,20 @@ function parseRequest(argv) {
       else if (option === '--source') request.source = value;
       else if (option === '--agent-profile') request.agentProfile = value;
       else request.agents.push(value);
+    } else if (option === '--profile' || option === '--skill') {
+      const value = rest[index + 1];
+      if (!value || value.startsWith('--')) throw failure(`${option} requires a value`);
+      index += 1;
+      if (option === '--profile') request.profileId = value;
+      else request.skillIds.push(value);
+    } else if (option.startsWith('--profile=')) {
+      const value = option.slice('--profile='.length);
+      if (!value) throw failure('--profile requires a value');
+      request.profileId = value;
+    } else if (option.startsWith('--skill=')) {
+      const value = option.slice('--skill='.length);
+      if (!value) throw failure('--skill requires a value');
+      request.skillIds.push(value);
     } else throw failure(`unknown option '${option}'`);
   }
   request.scope = request.scope || defaultScope(surface);
@@ -77,7 +94,14 @@ function parseRequest(argv) {
   } else if (request.agentProfile || request.agents.length > 0) {
     throw failure('--agent-profile and --agent are only valid for cursor');
   }
-  return Object.freeze(request);
+  // Preserve repeated overlays so the centralized resolver can reject them
+  // before planning or mutation instead of silently changing the request.
+  request.skillIds = request.skillIds.slice().sort();
+  const normalized = { ...request };
+  if (!normalized.profileId) delete normalized.profileId;
+  if (normalized.skillIds.length === 0) delete normalized.skillIds;
+  else normalized.skillIds = Object.freeze(normalized.skillIds);
+  return Object.freeze(normalized);
 }
 
 function inventoryEntries(inventory, surface) {
@@ -108,7 +132,7 @@ function inventoryFingerprint(inventory) {
   return crypto.createHash('sha256').update(JSON.stringify(inventory)).digest('hex');
 }
 
-function compileLifecyclePlan(request, inventory) {
+function compileLifecyclePlan(request, inventory, { profiles = null, moduleCatalog = null } = {}) {
   if (request.surface === 'cursor' && request.agents.length > 0) {
     return { ok: false, error: { code: 'UNSUPPORTED_AGENT_SELECTION', message: 'Cursor native agent selection is blocked until the inventory-owned agent profile contract is implemented' } };
   }
@@ -117,13 +141,39 @@ function compileLifecyclePlan(request, inventory) {
   try { entries = inventoryEntries(inventory, surface); } catch (error) {
     return { ok: false, error: { code: error.code || 'INVALID_INVENTORY', message: error.message } };
   }
-  const compiled = compileDistribution({
-    surface,
-    entries,
-    compilerVersion: 'dhpk-install-lifecycle-v1',
-    inventoryFingerprint: inventoryFingerprint(inventory),
-    inputFingerprint: crypto.createHash('sha256').update(JSON.stringify(request)).digest('hex'),
-  });
+  let profileSelection = null;
+  if (profiles && moduleCatalog && inventory && inventory.profile_policy) {
+    const selectedProfileId = request.profileId || 'minimal';
+    const skillIds = Array.isArray(request.skillIds) ? request.skillIds : [];
+    const resolved = resolveCapabilitySelection({
+      inventory,
+      profiles,
+      moduleCatalog,
+      profileId: selectedProfileId,
+      skillIds,
+      surface,
+      sourceInputs: { request: { profileId: selectedProfileId, skillIds } },
+      policyVersion: inventory.profile_policy.version,
+    });
+    if (!resolved.ok) return resolved;
+    profileSelection = resolved.value;
+  }
+  const compiled = profileSelection
+    ? compileDistribution({
+      inventory,
+      surface,
+      profileSelection,
+      compilerVersion: 'dhpk-install-lifecycle-v1',
+      inventoryFingerprint: inventoryFingerprint(inventory),
+      inputFingerprint: crypto.createHash('sha256').update(JSON.stringify(request)).digest('hex'),
+    })
+    : compileDistribution({
+      surface,
+      entries,
+      compilerVersion: 'dhpk-install-lifecycle-v1',
+      inventoryFingerprint: inventoryFingerprint(inventory),
+      inputFingerprint: crypto.createHash('sha256').update(JSON.stringify(request)).digest('hex'),
+    });
   if (!compiled.ok) return compiled;
   return {
     ok: true,
@@ -132,6 +182,8 @@ function compileLifecyclePlan(request, inventory) {
       distribution: compiled.value,
       selectedIds: compiled.value.entries.map((entry) => entry.stableId),
       selectedNames: compiled.value.entries.map((entry) => entry.stableId),
+      profileSelection,
+      compatibilityState: profileSelection && profileSelection.preservedCompatibility ? 'compat-v1-preserved' : null,
     }),
   };
 }
@@ -147,8 +199,8 @@ function createLifecycleResult({ lifecycleVerdict, request = null, plan = null, 
   });
 }
 
-function readOnlyResult(request, inventory) {
-  const plan = compileLifecyclePlan(request, inventory);
+function readOnlyResult(request, inventory, selectionConfig) {
+  const plan = compileLifecyclePlan(request, inventory, selectionConfig);
   if (!plan.ok) {
     return createLifecycleResult({
       lifecycleVerdict: 'BLOCKED', request,
@@ -181,8 +233,8 @@ function unsupportedWriteResult(request) {
   });
 }
 
-function execute(request, inventory) {
-  if (request.action === 'plan' || request.action === 'status' || request.action === 'verify') return readOnlyResult(request, inventory);
+function execute(request, inventory, selectionConfig = {}) {
+  if (request.action === 'plan' || request.action === 'status' || request.action === 'verify') return readOnlyResult(request, inventory, selectionConfig);
   return unsupportedWriteResult(request);
 }
 

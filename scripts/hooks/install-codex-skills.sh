@@ -9,6 +9,8 @@
 #   install-codex-skills.sh --migrate        adopt exact legacy destinations
 #   install-codex-skills.sh --plan --json    report reconciliation evidence without writing
 #   install-codex-skills.sh --adopt <path>@<destination-fingerprint>@<source-fingerprint> explicitly adopt one reported collision
+#   install-codex-skills.sh --profile <id>    select an inventory-owned capability profile
+#   install-codex-skills.sh --skill <stable-id> repeat an additive stable-ID overlay
 #   install-codex-skills.sh --uninstall       remove unchanged owned entries
 #   install-codex-skills.sh --force          bypass project-root heuristic
 #
@@ -16,6 +18,8 @@
 # supporting asset.  The embedded Python program is deliberately static: all
 # filesystem paths arrive through environment variables so apostrophes and
 # other valid path characters cannot become generated Python syntax.
+# The retained project-local Codex sync route defaults to compat-v1; use
+# --profile minimal for an explicit profile migration.
 
 set -euo pipefail
 
@@ -28,6 +32,9 @@ UNINSTALL=0
 PLAN=0
 JSON_OUTPUT=0
 ADOPT_PATHS=""
+PROFILE_ID=""
+PROFILE_EXPLICIT=0
+SKILL_IDS=""
 while [ "$#" -gt 0 ]; do
     arg="$1"
     case "$arg" in
@@ -37,6 +44,38 @@ while [ "$#" -gt 0 ]; do
         --uninstall) UNINSTALL=1 ;;
         --plan) PLAN=1 ;;
         --json) JSON_OUTPUT=1 ;;
+        --profile)
+            shift
+            if [ "$#" -eq 0 ] || [[ "$1" == --* ]]; then
+                echo "[${DHPK_INSTALLER_NAME:-install-codex-skills}] --profile requires a value" >&2
+                exit 2
+            fi
+            PROFILE_ID="$1"
+            PROFILE_EXPLICIT=1
+            ;;
+        --profile=*)
+            PROFILE_ID="${arg#--profile=}"
+            if [ -z "$PROFILE_ID" ]; then
+                echo "[${DHPK_INSTALLER_NAME:-install-codex-skills}] --profile requires a value" >&2
+                exit 2
+            fi
+            PROFILE_EXPLICIT=1
+            ;;
+        --skill)
+            shift
+            if [ "$#" -eq 0 ] || [[ "$1" == --* ]]; then
+                echo "[${DHPK_INSTALLER_NAME:-install-codex-skills}] --skill requires a stable ID" >&2
+                exit 2
+            fi
+            SKILL_IDS="${SKILL_IDS}${1}"$'\n'
+            ;;
+        --skill=*)
+            if [ -z "${arg#--skill=}" ]; then
+                echo "[${DHPK_INSTALLER_NAME:-install-codex-skills}] --skill requires a stable ID" >&2
+                exit 2
+            fi
+            SKILL_IDS="${SKILL_IDS}${arg#--skill=}"$'\n'
+            ;;
         --adopt)
             shift
             if [ "$#" -eq 0 ]; then
@@ -106,6 +145,9 @@ export DHPK_UNINSTALL="$UNINSTALL"
 export DHPK_PLAN="$PLAN"
 export DHPK_JSON_OUTPUT="$JSON_OUTPUT"
 export DHPK_ADOPT_PATHS="$ADOPT_PATHS"
+export DHPK_PROFILE_ID="$PROFILE_ID"
+export DHPK_PROFILE_EXPLICIT="$PROFILE_EXPLICIT"
+export DHPK_SKILL_IDS="$SKILL_IDS"
 
 python3 - <<'PY'
 import datetime
@@ -146,6 +188,9 @@ UNINSTALL = os.environ.get('DHPK_UNINSTALL') == '1'
 PLAN = os.environ.get('DHPK_PLAN') == '1'
 JSON_OUTPUT = os.environ.get('DHPK_JSON_OUTPUT') == '1'
 ADOPT_PATHS = [path for path in os.environ.get('DHPK_ADOPT_PATHS', '').splitlines() if path]
+REQUESTED_PROFILE_ID = os.environ.get('DHPK_PROFILE_ID', '').strip() or None
+PROFILE_EXPLICIT = os.environ.get('DHPK_PROFILE_EXPLICIT') == '1'
+REQUESTED_SKILL_IDS = [value for value in os.environ.get('DHPK_SKILL_IDS', '').splitlines() if value]
 # Test-only fault injection lets the reconciliation suite exercise the
 # receipt-failure rollback path without relying on host permissions.
 FAIL_RECEIPT_FOR_TEST = os.environ.get('DHPK_TEST_FAIL_RECEIPT') == '1'
@@ -176,6 +221,21 @@ pending_adoptions = []
 TRANSACTION_JOURNAL = None
 TRANSACTION_RECEIPT_FINAL = True
 INSTALL_LOCK_FD = None
+
+# Selection is resolved before source discovery and is carried into every
+# receipt.  The installer deliberately keeps this small Python mirror of the
+# inventory-owned contract because project-local sync must remain usable on
+# hosts that have Python but no Node runtime.  It does not mutate the profile
+# manifest; it only derives a frozen per-run selection and filters the
+# physical surface projection.
+SELECTION_PROFILE_ID = None
+SELECTION_COMPATIBILITY = None
+SELECTION_POLICY_VERSION = None
+SELECTION_CANONICAL_IDS = None
+SELECTION_EMITTED_IDS = None
+SELECTION_FINGERPRINT = None
+SELECTION_SURFACE_FINGERPRINT = None
+SELECTION_MIGRATION = None
 
 
 def record_path(kind, relative):
@@ -1773,6 +1833,11 @@ def source_fingerprint():
         for name in sorted(os.listdir(root)):
             if is_ignored_distribution_name(name):
                 continue
+            metadata = inventory_skill_metadata() if root_name == 'skills' else {}
+            if root_name == 'skills' and SELECTION_EMITTED_IDS is not None:
+                stable_id = metadata.get(name, {}).get('id') if isinstance(metadata.get(name), dict) else None
+                if stable_id not in SELECTION_EMITTED_IDS:
+                    continue
             child = os.path.join(root, name)
             validate_source_tree(child, f'{root_name} source', allowed_roots=(PLUGIN_ROOT, INSTALLER_ROOT))
             digest.update(f'{root_name}/{name}'.encode('utf-8'))
@@ -1824,8 +1889,184 @@ def inventory_skill_metadata():
             'id': skill.get('id'),
             'name': name,
             'legacy_names': [legacy for legacy in (skill.get('legacy_names') or []) if isinstance(legacy, str) and legacy],
+            'lifecycle': skill.get('lifecycle'),
+            'tier': skill.get('tier'),
+            'profiles': [value for value in (skill.get('profiles') or []) if isinstance(value, str)],
+            'surfaces': [value for value in (skill.get('surfaces') or []) if isinstance(value, str)],
         }
     return result
+
+
+def read_inventory_document():
+    inventory_path = os.path.join(PLUGIN_ROOT, 'manifests', 'distribution-inventory.json')
+    if not os.path.isfile(inventory_path):
+        return None
+    try:
+        with open(inventory_path, encoding='utf-8') as fh:
+            inventory = json.load(fh)
+    except Exception as exc:
+        raise ValueError(f'cannot read distribution inventory for capability selection: {exc}')
+    if not isinstance(inventory, dict):
+        raise ValueError('distribution inventory must be an object for capability selection')
+    return inventory
+
+
+def read_install_profiles():
+    profiles_path = os.path.join(PLUGIN_ROOT, 'manifests', 'install-profiles.json')
+    if not os.path.isfile(profiles_path):
+        return None, None
+    try:
+        with open(profiles_path, encoding='utf-8') as fh:
+            document = json.load(fh)
+    except Exception as exc:
+        raise ValueError(f'cannot read install profiles for capability selection: {exc}')
+    table = document.get('profiles') if isinstance(document, dict) else None
+    if not isinstance(table, dict):
+        raise ValueError('install profiles must declare a profiles object')
+    return document, table
+
+
+def selection_digest(value):
+    encoded = json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(',', ':'))
+    return hashlib.sha256(encoded.encode('utf-8')).hexdigest()
+
+
+def resolve_installer_selection(receipt, metadata):
+    """Resolve profile/overlay identity before any destination mutation.
+
+    A clean install defaults to minimal.  A receipt without explicit profile
+    metadata is intentionally treated as compat-v1, so merely running an
+    update cannot shrink an existing projection.  Only --profile (and the
+    accompanying --migrate gate below) may request a smaller replacement.
+    """
+    global SELECTION_PROFILE_ID, SELECTION_COMPATIBILITY, SELECTION_POLICY_VERSION
+    global SELECTION_CANONICAL_IDS, SELECTION_EMITTED_IDS, SELECTION_FINGERPRINT
+    global SELECTION_SURFACE_FINGERPRINT, SELECTION_MIGRATION
+    inventory = read_inventory_document()
+    profiles_document, profiles = read_install_profiles()
+    if inventory is None or profiles is None:
+        if PROFILE_EXPLICIT or REQUESTED_SKILL_IDS:
+            raise ValueError('profile and skill selection requires distribution inventory and install profiles')
+        return
+    policy = inventory.get('profile_policy') if isinstance(inventory.get('profile_policy'), dict) else {}
+    if not policy and not PROFILE_EXPLICIT and not REQUESTED_SKILL_IDS:
+        return
+    policy_version = policy.get('version') or profiles_document.get('selectionPolicyVersion') or 'dhpk.capability-bundle-selection.v1'
+    by_id = {
+        value.get('id'): value
+        for value in metadata.values()
+        if isinstance(value, dict) and isinstance(value.get('id'), str) and value.get('id')
+    }
+    retired = {
+        row.get('id'): row
+        for row in inventory.get('retired_skills') or []
+        if isinstance(row, dict) and isinstance(row.get('id'), str)
+    }
+    if receipt and isinstance(receipt, dict) and isinstance(receipt.get('profileId'), str) and receipt.get('profileId'):
+        default_profile = receipt.get('profileId')
+    elif PROFILE_EXPLICIT:
+        default_profile = REQUESTED_PROFILE_ID
+    elif receipt or legacy:
+        default_profile = 'compat-v1'
+    else:
+        # The long-lived project-local Codex sync route is a compatibility
+        # surface.  Its clean default remains compat-v1 so existing projects
+        # do not lose native Codex skills; callers can opt into the new
+        # minimal bundle explicitly with --profile minimal.  The unified
+        # distribution/lifecycle entry points default new package installs to
+        # minimal.
+        default_profile = 'compat-v1' if HARNESS_KIND == 'codex' else 'minimal'
+    profile_id = REQUESTED_PROFILE_ID if PROFILE_EXPLICIT else default_profile
+    if not isinstance(profile_id, str) or not re.match(r'^[A-Za-z0-9][A-Za-z0-9._-]*$', profile_id):
+        raise ValueError('profile id must use a finite safe alias')
+    profile = profiles.get(profile_id)
+    if not isinstance(profile, dict):
+        raise ValueError(f"unknown profile '{profile_id}'")
+    declared = profile.get('skillIds')
+    if profile_id == 'compat-v1':
+        selected = sorted(by_id.keys())
+    elif isinstance(declared, list):
+        selected = list(declared)
+    else:
+        raise ValueError(f"profile '{profile_id}' must declare skillIds")
+    if profile_id == 'minimal':
+        required = policy.get('required_core_ids') if isinstance(policy.get('required_core_ids'), list) else []
+        if len(selected) != 9 or len(required) != 9 or sorted(selected) != sorted(required):
+            raise ValueError('minimal profile must declare exactly the nine inventory required core stable IDs')
+    if len(set(selected)) != len(selected):
+        raise ValueError(f"profile '{profile_id}' declares duplicate stable IDs")
+    overlays = list(REQUESTED_SKILL_IDS)
+    if len(set(overlays)) != len(overlays):
+        raise ValueError('skill overlay contains duplicate stable IDs')
+    surface_name = 'cursor-sync' if HARNESS_KIND == 'cursor' else 'codex-native'
+    allowed = {
+        key for key, value in by_id.items()
+        if surface_name in (value.get('surfaces') or [])
+    }
+    for stable_id in selected:
+        if stable_id in retired:
+            raise ValueError(f"stable ID '{stable_id}' is retired")
+        if stable_id not in by_id:
+            raise ValueError(f"unknown stable ID '{stable_id}'")
+        if by_id[stable_id].get('lifecycle') == 'deprecated':
+            raise ValueError(f"stable ID '{stable_id}' is deprecated")
+    for stable_id in overlays:
+        if stable_id in retired:
+            raise ValueError(f"stable ID '{stable_id}' is retired")
+        if stable_id not in by_id:
+            raise ValueError(f"unknown stable ID '{stable_id}'")
+        if by_id[stable_id].get('lifecycle') == 'deprecated':
+            raise ValueError(f"stable ID '{stable_id}' is deprecated")
+        if stable_id not in allowed:
+            raise ValueError(f"stable ID '{stable_id}' is not available on surface '{surface_name}'")
+        excludes = set((profile.get('excludes') or {}).keys())
+        if stable_id in excludes or excludes.intersection(set(by_id[stable_id].get('profiles') or [])):
+            raise ValueError(f"stable ID '{stable_id}' is excluded by profile '{profile_id}'")
+        selected.append(stable_id)
+    # Preserve declared ordering for canonical identity.  Profile manifests
+    # are authored in deterministic order; additive overlays append in CLI
+    # order and therefore remain observable in the fingerprint.
+    canonical = []
+    for stable_id in selected:
+        if stable_id not in canonical:
+            canonical.append(stable_id)
+    emitted = [stable_id for stable_id in canonical if stable_id in allowed]
+    identity = {
+        'schema': policy_version,
+        'profileId': profile_id,
+        'selectedStableIds': canonical,
+        'compatibilityMode': 'compat-v1' if profile_id == 'compat-v1' else profile.get('compatibilityMode', 'profile'),
+        'selectionPolicyVersion': policy_version,
+        'sourceFingerprint': selection_digest({'profileId': profile_id, 'skillIds': overlays}),
+        'profileFingerprint': selection_digest(profile),
+        'inventoryFingerprint': selection_digest({
+            'skills': list(metadata.values()),
+            'retired_skills': inventory.get('retired_skills') or [],
+        }),
+    }
+    selection_fingerprint = selection_digest(identity)
+    surface_fingerprint = selection_digest({
+        'selectionFingerprint': selection_fingerprint,
+        'surface': surface_name,
+        'emittedStableIds': emitted,
+        'transform': {'id': 'identity', 'version': '1'},
+    })
+    SELECTION_PROFILE_ID = profile_id
+    SELECTION_COMPATIBILITY = identity['compatibilityMode']
+    SELECTION_POLICY_VERSION = policy_version
+    SELECTION_CANONICAL_IDS = canonical
+    SELECTION_EMITTED_IDS = emitted
+    SELECTION_FINGERPRINT = selection_fingerprint
+    SELECTION_SURFACE_FINGERPRINT = surface_fingerprint
+    old_profile = receipt.get('profileId') if isinstance(receipt, dict) else None
+    old_fingerprint = receipt.get('selectionFingerprint') if isinstance(receipt, dict) else None
+    if PROFILE_EXPLICIT and (old_profile or old_fingerprint):
+        SELECTION_MIGRATION = {
+            'fromProfileId': old_profile or 'compat-v1',
+            'toProfileId': profile_id,
+            'fromSelectionFingerprint': old_fingerprint,
+            'toSelectionFingerprint': selection_fingerprint,
+        }
 
 
 def inventory_retirement_metadata(active_metadata=None):
@@ -2102,6 +2343,21 @@ def classify_receipt(receipt, malformed, sources, metadata, plugin_version, fing
         reasons.append(f"receipt plugin version {receipt.get('plugin_version', '<missing>')} differs from source {plugin_version}")
     if isinstance(receipt, dict) and receipt.get('source_fingerprint') != fingerprint:
         reasons.append('receipt source fingerprint differs from the current Codex source')
+    if isinstance(receipt, dict) and receipt.get('profileId') is not None:
+        if receipt.get('profileId') != SELECTION_PROFILE_ID:
+            requires_migration = True
+            reasons.append('receipt capability profile differs from the requested profile')
+        if receipt.get('selectionFingerprint') != SELECTION_FINGERPRINT:
+            if not (SELECTION_PROFILE_ID == 'compat-v1' and not PROFILE_EXPLICIT):
+                requires_migration = True
+                reasons.append('receipt capability selection fingerprint differs from the current selection')
+    elif isinstance(receipt, dict) and receipt and PROFILE_EXPLICIT and SELECTION_PROFILE_ID != 'compat-v1':
+        requires_migration = True
+        reasons.append('explicit profile migration is required for an unannotated compatibility receipt')
+    elif isinstance(receipt, dict) and SELECTION_PROFILE_ID == 'compat-v1':
+        # An unannotated schema-v3 receipt is deliberately retained as
+        # compatibility state.  It is not a reason to prune or shrink output.
+        pass
     return {
         'state': 'stale' if reasons else 'current',
         'requires_migration': requires_migration,
@@ -2120,6 +2376,11 @@ def current_sources():
         for name in sorted(os.listdir(root)):
             if is_ignored_distribution_name(name):
                 continue
+            metadata = inventory_skill_metadata() if kind == 'skills' else {}
+            if kind == 'skills' and SELECTION_EMITTED_IDS is not None:
+                stable_id = metadata.get(name, {}).get('id') if isinstance(metadata.get(name), dict) else None
+                if stable_id not in SELECTION_EMITTED_IDS:
+                    continue
             source = os.path.join(root, name)
             if not lexists(source):
                 continue
@@ -2514,6 +2775,13 @@ def build_plan(receipt, classification, sources, metadata, plugin_version, finge
     return {
         'schema_version': SCHEMA_VERSION,
         'plugin_version': plugin_version,
+        'profileId': SELECTION_PROFILE_ID,
+        'selectedStableIds': list(SELECTION_CANONICAL_IDS or []),
+        'emittedStableIds': list(SELECTION_EMITTED_IDS or []),
+        'compatibilityMode': SELECTION_COMPATIBILITY,
+        'selectionPolicyVersion': SELECTION_POLICY_VERSION,
+        'selectionFingerprint': SELECTION_FINGERPRINT,
+        'surfaceSelectionFingerprint': SELECTION_SURFACE_FINGERPRINT,
         'receipt_state': reconciliation_state,
         'reconciliation_state': reconciliation_state,
         'state': state,
@@ -2650,7 +2918,7 @@ def build_evidence(plugin_version, fingerprint, entries, counts, state):
     }
     for kind, values in evidence_paths.items():
         paths[kind] = sorted(set(values))
-    return {
+    evidence = {
         'schema_version': SCHEMA_VERSION,
         'plugin_version': plugin_version,
         'state': state,
@@ -2663,6 +2931,17 @@ def build_evidence(plugin_version, fingerprint, entries, counts, state):
         },
         'backups': list(backup_records),
     }
+    if SELECTION_PROFILE_ID:
+        evidence['selection'] = {
+            'profileId': SELECTION_PROFILE_ID,
+            'selectedStableIds': list(SELECTION_CANONICAL_IDS or []),
+            'emittedStableIds': list(SELECTION_EMITTED_IDS or []),
+            'compatibilityMode': SELECTION_COMPATIBILITY,
+            'selectionPolicyVersion': SELECTION_POLICY_VERSION,
+            'selectionFingerprint': SELECTION_FINGERPRINT,
+            'surfaceSelectionFingerprint': SELECTION_SURFACE_FINGERPRINT,
+        }
+    return evidence
 
 
 def save_receipt(plugin_version, fingerprint, entries, orphaned, counts, legacy_pending=False, state=None):
@@ -2695,6 +2974,18 @@ def save_receipt(plugin_version, fingerprint, entries, orphaned, counts, legacy_
         'reconciliation': durable_counts,
         'state': state,
     }
+    if SELECTION_PROFILE_ID:
+        receipt.update({
+            'profileId': SELECTION_PROFILE_ID,
+            'selectedStableIds': list(SELECTION_CANONICAL_IDS or []),
+            'emittedStableIds': list(SELECTION_EMITTED_IDS or []),
+            'compatibilityMode': SELECTION_COMPATIBILITY,
+            'selectionPolicyVersion': SELECTION_POLICY_VERSION,
+            'selectionFingerprint': SELECTION_FINGERPRINT,
+            'surfaceSelectionFingerprint': SELECTION_SURFACE_FINGERPRINT,
+        })
+        if SELECTION_MIGRATION:
+            receipt['migration'] = dict(SELECTION_MIGRATION)
     if isinstance(TRANSACTION_JOURNAL, dict):
         receipt['transaction_id'] = TRANSACTION_JOURNAL.get('run')
         receipt['transaction_final'] = TRANSACTION_RECEIPT_FINAL
@@ -2940,20 +3231,21 @@ except (OSError, ValueError) as error:
     sys.exit(2)
 
 plugin_version = read_plugin_version()
-fingerprint = source_fingerprint()
 try:
     receipt, legacy = read_receipt()
 except ValueError as error:
     print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
     sys.exit(2)
 try:
-    sources = current_sources()
     skill_metadata = inventory_skill_metadata()
+    resolve_installer_selection(receipt, skill_metadata)
+    sources = current_sources()
     skill_retirements = inventory_retirement_metadata(skill_metadata)
     validate_skill_metadata(sources, skill_metadata)
 except ValueError as error:
     print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
     sys.exit(2)
+fingerprint = source_fingerprint()
 
 if ADOPT_PATHS:
     recorded_mode = receipt.get('mode') if isinstance(receipt, dict) else None

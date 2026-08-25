@@ -117,16 +117,22 @@ function createDistributionPlan(input = {}) {
   if (!Array.isArray(input.entries)) {
     return result(undefined, projectionError('INVALID_INPUT', 'compile', 'entries must be an array'));
   }
-  const profileSelection = input.profileSelection === undefined ? null : input.profileSelection;
+  const profileSelection = input.profileSelection === undefined
+    ? (input.selection === undefined ? null : input.selection)
+    : input.profileSelection;
   if (surface === 'claude-profile' && (!profileSelection || typeof profileSelection !== 'object' || Array.isArray(profileSelection))) {
     return result(undefined, projectionError('INCOMPLETE_PLAN', 'compile', 'claude-profile plans require explicit profile selection identity'));
   }
-  if (profileSelection !== null && (typeof profileSelection.id !== 'string' || profileSelection.id.trim() === '')) {
+  const profileId = profileSelection && (profileSelection.profileId || profileSelection.id);
+  if (profileSelection !== null && (typeof profileId !== 'string' || profileId.trim() === '')) {
     return result(undefined, projectionError('INCOMPLETE_PLAN', 'compile', 'profile selection requires a normalized profile id'));
   }
   if (surface === 'claude-profile') {
-    if (!Array.isArray(profileSelection.modules) || typeof profileSelection.version !== 'string' || profileSelection.version.trim() === '') {
-      return result(undefined, projectionError('INCOMPLETE_PLAN', 'compile', 'claude-profile selection requires versioned module closure'));
+    if (!Array.isArray(profileSelection.modules) && !Array.isArray(profileSelection.moduleClosure)) {
+      return result(undefined, projectionError('INCOMPLETE_PLAN', 'compile', 'claude-profile selection requires a module closure'));
+    }
+    if (!profileSelection.version && !profileSelection.selectionPolicyVersion) {
+      return result(undefined, projectionError('INCOMPLETE_PLAN', 'compile', 'claude-profile selection requires a versioned selection policy'));
     }
     if (typeof input.inventoryFingerprint !== 'string' || input.inventoryFingerprint.trim() === '') {
       return result(undefined, projectionError('INCOMPLETE_PLAN', 'compile', 'claude-profile plans require an inventory fingerprint'));
@@ -203,7 +209,17 @@ function createDistributionPlan(input = {}) {
   };
   if (profileSelection !== null) {
     body.profile = clone(profileSelection);
-    body.compatibilityMode = input.compatibilityMode || profileSelection.mode || null;
+    body.profileId = profileId;
+    body.compatibilityMode = input.compatibilityMode || profileSelection.compatibilityMode || profileSelection.mode || null;
+    body.selectionPolicyVersion = input.selectionPolicyVersion
+      || profileSelection.selectionPolicyVersion
+      || (input.selectionPolicy && input.selectionPolicy.version)
+      || null;
+    body.selectionFingerprint = input.selectionFingerprint || profileSelection.selectionFingerprint || null;
+    body.surfaceSelectionFingerprint = input.surfaceSelectionFingerprint || profileSelection.surfaceSelectionFingerprint || profileSelection.surfaceFingerprint || null;
+    body.emittedStableIds = Array.isArray(input.emittedStableIds)
+      ? [...new Set(input.emittedStableIds)]
+      : (Array.isArray(profileSelection.emittedStableIds) ? [...new Set(profileSelection.emittedStableIds)] : null);
   }
   return result({ ...body, planFingerprint: fingerprint(body) });
 }

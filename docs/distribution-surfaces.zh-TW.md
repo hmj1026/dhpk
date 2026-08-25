@@ -116,6 +116,29 @@ Claude manifest 註冊的是 skill **directory root**，不是逐 skill allowlis
 
 與相容期一樣，這是人工審查閘門；CI 不會驗證這三個前置條件。
 
+## Capability profile 與相容性 migration
+
+`manifests/install-profiles.json` 是 inventory-owned 的三種選擇：
+
+| Profile | 意義 |
+|---|---|
+| `minimal` | 九個 required core workflow ID；clean install 的預設。 |
+| `full` | 既有 conflict-aware module closure 加上明確 stable IDs；不代表完整 catalog。 |
+| `compat-v1` | Change A 後全部 97 個 live、non-retired ID；未標註舊 receipt 的相容 fallback。 |
+
+Distribution 與 project-local installer 支援 `--profile <id>` 及可重複的
+`--skill <stable-id>` additive overlay。unknown、retired、deprecated、surface
+不相容、重複或 conflict-excluded ID 都會在 plan 或 filesystem mutation 前 fail
+closed。Claude、Cursor、Agent Plugin 與 AGY 共用 normalized selection fingerprint；
+Codex 保存相同 canonical identity，但只輸出 inventory-owned native allowlist 的
+intersection。
+
+Receipt 會記錄 profile、canonical/emitted IDs、compatibility mode、policy 與
+selection fingerprints。沒有 profile metadata 的既有 receipt 維持 `compat-v1`，不能
+靜默縮小；切換到 `minimal` 或其他 profile 必須明確使用 `--migrate`，並記錄新舊
+identity、保留 modified 或 unowned destination。structural、package、budget、rollback
+與 consumer-runtime evidence 分開；static `PASS` 永遠不是 runtime proof。
+
 ## Codex project sync
 
 支援的 Codex consumer 路徑是：
