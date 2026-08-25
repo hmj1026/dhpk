@@ -1786,8 +1786,20 @@ function runCursorConsumerProbe({
       stdio: ['ignore', 'pipe', 'pipe'],
       env: cursorProbeEnvironment(loaderProbe ? loaderProbe.packageRoot : packageRoot, { probeHome }),
     };
+    const writablePaths = [
+      spawnOptions.cwd,
+      spawnOptions.env && spawnOptions.env.HOME,
+      loaderProbe && loaderProbe.packageRoot,
+    ];
+    const privateRoot = ['disabled', 'shared'].includes(networkMode) || requirePackageChallenge ? os.tmpdir() : null;
     let result;
-    if (networkMode === 'disabled' || networkMode === 'shared') {
+    if (privateRoot && !safeWritablePaths(writablePaths, privateRoot)) {
+      result = {
+        status: 125,
+        error: Object.assign(new Error('sandbox paths are outside the private temporary root'), { code: 'DHPK_SANDBOX_PATH_UNSAFE' }),
+        network: 'unknown',
+      };
+    } else if (networkMode === 'disabled' || networkMode === 'shared') {
       // Even offline fixtures use the verified bubblewrap filesystem boundary;
       // an unshare-only backend is never accepted for consumer execution.
       const sandbox = networkSandboxProbe(pathValue, networkMode, true);
@@ -1806,17 +1818,12 @@ function runCursorConsumerProbe({
           };
         }
       } else {
-        const writablePaths = [
-          spawnOptions.cwd,
-          spawnOptions.env && spawnOptions.env.HOME,
-          loaderProbe && loaderProbe.packageRoot,
-        ];
         const sandboxInvocationResult = sandboxInvocation(
           sandbox,
           client,
           probeArgs,
           writablePaths,
-          ['disabled', 'shared'].includes(networkMode) || requirePackageChallenge ? os.tmpdir() : null,
+          privateRoot,
         );
         if (!sandboxInvocationResult) {
           result = {

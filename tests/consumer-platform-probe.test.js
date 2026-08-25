@@ -235,7 +235,7 @@ test('Cursor --execute keeps an isolated profile and uses the verified shared ne
 });
 
 test('Cursor --execute uses a bwrap shared-network sandbox with an isolated filesystem', () => {
-  if (process.platform !== 'linux' || !fs.existsSync('/usr/bin/bwrap')) return;
+  if (process.platform !== 'linux' || !networkSandboxProbe(process.env.PATH, 'shared', true)) return;
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-cursor-bwrap-'));
   const agent = path.join(root, 'dhpk-agent');
   const cursor = path.join(root, 'dhpk-cursor');
@@ -275,7 +275,7 @@ test('Cursor --execute uses a bwrap shared-network sandbox with an isolated file
 });
 
 test('Cursor bwrap probes retain timeout bounds and die-with-parent protection', () => {
-  if (process.platform !== 'linux' || !fs.existsSync('/usr/bin/bwrap')) return;
+  if (process.platform !== 'linux' || !networkSandboxProbe(process.env.PATH, 'disabled', true)) return;
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-cursor-bwrap-timeout-'));
   const packageRoot = path.join(root, 'package');
   const bin = path.join(root, 'bin');
@@ -304,7 +304,7 @@ test('Cursor bwrap probes retain timeout bounds and die-with-parent protection',
 });
 
 test('shared sandbox argv keeps namespace, secret masks, and private binds ordered', () => {
-  if (process.platform !== 'linux' || !fs.existsSync('/usr/bin/bwrap')) return;
+  if (process.platform !== 'linux' || !networkSandboxProbe(process.env.PATH, 'shared', true)) return;
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-argv-'));
   try {
     const sandbox = networkSandboxProbe(process.env.PATH, 'shared', true);
@@ -404,6 +404,7 @@ test('Cursor --execute rejects output that only echoes the smoke prompt', () => 
 });
 
 test('Codex --execute uses a sandboxed CODEX_HOME and reports PASS only after the route exits zero', () => {
+  if (process.platform !== 'linux' || !networkSandboxProbe(process.env.PATH, 'disabled', true)) return;
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-execute-'));
   const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-bin-'));
   try {
@@ -424,7 +425,7 @@ test('Codex --execute uses a sandboxed CODEX_HOME and reports PASS only after th
 });
 
 test('Codex route never executes a user-owned unshare shim or unsandboxed fallback', () => {
-  if (process.platform !== 'linux' || !fs.existsSync('/usr/bin/bwrap')) return;
+  if (process.platform !== 'linux' || !networkSandboxProbe(process.env.PATH, 'disabled', true)) return;
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-codex-shim-'));
   const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-codex-shim-bin-'));
   const sentinel = path.join(bin, 'unshare-executed');
@@ -450,7 +451,7 @@ test('Codex route never executes a user-owned unshare shim or unsandboxed fallba
 });
 
 test('Codex version check runs inside the trusted sandbox and cannot write the host', () => {
-  if (process.platform !== 'linux' || !fs.existsSync('/usr/bin/bwrap')) return;
+  if (process.platform !== 'linux' || !networkSandboxProbe(process.env.PATH, 'disabled', true)) return;
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-codex-version-sandbox-'));
   const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-codex-version-bin-'));
   const sentinel = path.join(os.tmpdir(), `dhpk-codex-version-host-${process.pid}`);
@@ -475,7 +476,7 @@ test('Codex version check runs inside the trusted sandbox and cannot write the h
 });
 
 test('Codex version probe applies timeout and output bounds before marketplace execution', () => {
-  if (process.platform !== 'linux' || !fs.existsSync('/usr/bin/bwrap')) return;
+  if (process.platform !== 'linux' || !networkSandboxProbe(process.env.PATH, 'disabled', true)) return;
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-codex-version-timeout-'));
   const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-codex-version-timeout-bin-'));
   try {
@@ -500,7 +501,7 @@ test('Codex version probe applies timeout and output bounds before marketplace e
 });
 
 test('Codex version output cap blocks oversized diagnostics before marketplace execution', () => {
-  if (process.platform !== 'linux' || !fs.existsSync('/usr/bin/bwrap')) return;
+  if (process.platform !== 'linux' || !networkSandboxProbe(process.env.PATH, 'disabled', true)) return;
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-codex-version-output-'));
   const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-codex-version-output-bin-'));
   try {

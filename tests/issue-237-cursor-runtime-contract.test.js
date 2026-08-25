@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
-const { runCursorConsumerProbe } = require('../scripts/lib/cursor-plugin-package');
+const { networkSandboxProbe, runCursorConsumerProbe } = require('../scripts/lib/cursor-plugin-package');
 
 function tempDir(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -47,6 +47,7 @@ function writeCursorAgent(bin) {
 }
 
 test('Cursor authenticated shared-network runtime probes use bwrap --share-net with a disposable session HOME', () => {
+  if (process.platform !== 'linux' || !networkSandboxProbe(process.env.PATH, 'shared', true)) return;
   const root = tempDir('dhpk-issue-237-cursor-shared-network-');
   const packageRoot = path.join(root, 'cursor-package');
   const bin = path.join(root, 'bin');

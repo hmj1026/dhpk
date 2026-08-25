@@ -20,6 +20,7 @@ const {
   assertPhysicalPackageRoot,
   fingerprintDir,
   fingerprintPath,
+  networkSandboxProbe,
 } = require('../scripts/lib/cursor-plugin-package');
 
 function tmpDir(prefix) {
@@ -973,7 +974,7 @@ test('Cursor network-disabled probes reject symlinked or non-regular sandbox wra
 
 test('Cursor network-disabled fixtures retain a verified disabled-network backend', () => {
   if (process.platform !== 'linux') return;
-  if (!fs.existsSync('/usr/bin/bwrap') && !fs.existsSync('/usr/bin/unshare')) return;
+  if (!networkSandboxProbe(process.env.PATH, 'disabled', true)) return;
   const out = tmpDir('dhpk-cursor-disabled-runtime-');
   const observation = path.join(out, 'disabled-runtime.txt');
   try {
