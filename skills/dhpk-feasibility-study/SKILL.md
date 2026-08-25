@@ -1,6 +1,6 @@
 ---
 name: dhpk-feasibility-study
-description: 'Feasibility analysis from first principles. Use when: evaluating solutions before dhpk-tech-spec, comparing approaches, risk assessment. Not for: implementation (use dhpk-feature-dev), architecture advice (use dhpk-codex-architect). Output: quantitative comparison + recommendation.'
+description: 'Feasibility analysis from first principles. Use when: evaluating solutions before dhpk-tech-spec, comparing approaches, risk assessment. Not for: implementation (use dhpk-adaptive-dev-workflow in feature mode), architecture advice (use dhpk-codex-architect). Output: quantitative comparison + recommendation.'
 allowed-tools: 'Read, Grep, Glob, Bash(git:*), Bash(codex:*), Bash(bash:*), Write, mcp__codex__codex, mcp__codex__codex-reply, Agent'
 metadata:
   dhpk-invocation-class: implicit-eligible
@@ -69,8 +69,8 @@ See `references/codex-discussion-guide.md` for full rules and examples.
 
 | Tool | Purpose | When |
 |------|---------|------|
-| `/dhpk:dhpk-codex-brainstorm` | Enumerate all options | At start |
-| `/dhpk:dhpk-codex-architect` | Evaluate design | After proposal forms |
+| `/dhpk:dhpk-codex-architect --mode adversarial` | Independently enumerate and critique options | At start |
+| `/dhpk:dhpk-codex-architect --mode review` | Evaluate design | After proposal forms |
 | `mcp__codex__codex-reply` | Ask details | Anytime |
 
 ### Phase 6: Comparative Decision

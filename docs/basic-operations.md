@@ -335,8 +335,9 @@ rules live in [`rules/execution-policy.md`](../rules/execution-policy.md).
 
 dhpk is **codex-free by default**. `CODEX=on` adds a blind independent Codex peer
 to high-stakes implementation decisions and supported review skills. Direct
-Codex-delegation skills (`dhpk-codex-architect`, `dhpk-codex-brainstorm`,
-`dhpk-codex-implement`, `dhpk-change-review`) can be invoked without `/dhpk:do`.
+Codex-delegation skills (`dhpk-codex-architect` (including
+`--mode adversarial`), `dhpk-codex-implement`, `dhpk-change-review`) can be
+invoked without `/dhpk:do`.
 The MCP backend needs `mcp__codex__codex` / `mcp__codex__codex-reply`; the optional
 CLI backend needs only the `codex` executable. Setup and failure boundaries are
 in [`docs/configuration.md`](./configuration.md#codex-mcp-dependency-not-a-userconfig-knob).

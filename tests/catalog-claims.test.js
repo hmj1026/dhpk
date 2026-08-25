@@ -136,9 +136,9 @@ for (const r of ROUND_TRIPS) {
 }
 
 // The canonical-skill claims expect skillsBase, not skillsTotal. In the real repo
-// skillsModule is 0, so both values are 102 and every other case here passes under
-// either choice. Planting a real module-owned SKILL.md makes them differ (base 102,
-// total 103) and is the only thing that can tell the two apart.
+// skillsModule is 0, so both values are 97 and every other case here passes under
+// either choice. Planting a real module-owned SKILL.md makes them differ (base 97,
+// total 98) and is the only thing that can tell the two apart.
 test('canonical skill claims track skillsBase, so a module-owned skill does not inflate them', () => {
   // Plant inside an EXISTING module: a new modules/<name>/ directory would also bump the
   // module count and trip the "opt-in stack modules" claim, masking what this asserts.
@@ -167,7 +167,7 @@ test('canonical skill claims track skillsBase, so a module-owned skill does not 
 });
 
 // The canonical and Claude-published counts are separate labelled claims. They are equal
-// at 102 in the real repo, so only a deprecated entry can prove they are evaluated
+// at 97 in the real repo, so only a deprecated entry can prove they are evaluated
 // independently rather than reconciled against one value.
 test('canonical and Claude-published claims are evaluated against their own counts when they diverge', () => {
   const invPath = path.join(repo, 'manifests', 'distribution-inventory.json');

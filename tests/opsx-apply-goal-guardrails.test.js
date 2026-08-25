@@ -124,8 +124,11 @@ test('goal generator documents fast-worker override, task digest, and conditiona
 
 test('/dhpk:do carries fast-worker override through every implementation-class route', () => {
   const command = fs.readFileSync(path.join(ROOT, 'commands', 'do.md'), 'utf8');
-  for (const route of ['dhpk:dhpk-adaptive-dev-workflow', 'dhpk:dhpk-bug-fix', 'dhpk:dhpk-feature-dev', 'dhpk:dhpk-opsx-apply-goal']) {
+  for (const route of ['dhpk:dhpk-adaptive-dev-workflow', 'dhpk:dhpk-opsx-apply-goal']) {
     assert.ok(command.includes(route), `do command missing implementation route ${route}`);
+  }
+  for (const retiredRoute of ['dhpk:dhpk-bug-fix', 'dhpk:dhpk-feature-dev']) {
+    assert.strictEqual(command.includes(retiredRoute), false, `do command must not route to retired ${retiredRoute}`);
   }
   assert.ok(command.includes('forward the invocation override to every implementation-class route'));
   assert.ok(command.includes('downstream route MUST call the shared fast-worker backend selector'));
@@ -137,12 +140,9 @@ test('/dhpk:do carries fast-worker override through every implementation-class r
   assert.ok(adaptive.includes('WORKER_OVERRIDE'));
   assert.ok(adaptive.includes('scripts/fast-worker-selector.js'));
   assert.ok(adaptive.includes('--backend "$WORKER_OVERRIDE"'));
-  for (const skillName of ['dhpk-bug-fix', 'dhpk-feature-dev']) {
-    const downstream = fs.readFileSync(path.join(ROOT, 'skills', skillName, 'SKILL.md'), 'utf8');
-    assert.ok(downstream.includes('§Implementation dispatch'), `${skillName} must cite dispatch SSOT`);
-    assert.ok(!downstream.includes('--backend "$WORKER_OVERRIDE"'),
-      `${skillName} must not restate selector mechanics`);
-  }
+  assert.match(adaptive, /Feature branch[\s\S]*Bug branch/);
+  assert.match(adaptive, /delivery-loop-gate/);
+  assert.doesNotMatch(adaptive, /dhpk-(bug-fix|feature-dev)/);
 });
 
 test('Part 0 and verification checklist carve hard-rule conflicts out of unattended confirmation', () => {

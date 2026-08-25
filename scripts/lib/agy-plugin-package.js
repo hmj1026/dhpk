@@ -375,6 +375,11 @@ function materializeAgyPluginPackage({
     ensureDirectory(path.dirname(target), 'AGY skill parent');
     const sourceContent = readFileBounded(source).toString('utf8');
     fs.writeFileSync(target, adaptAgySkillContent(sourceContent, selectedSkillIds), { mode: 0o644 });
+    const referencesSource = path.join(sourceRoot, skill.path, 'references');
+    if (lstatOrNull(referencesSource)) {
+      const referencesTarget = path.join(skillsDestination, skillPath, 'references');
+      copyDirectory(referencesSource, referencesTarget, sourceRoot, outputRoot);
+    }
   }
 
   // AGY-specific optional files are opt-in under an explicit agy/ source
@@ -447,6 +452,9 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
   const expectedAgentFiles = selected ? new Set(selected.agents.map((name) => `agents/${name}`)) : null;
   const expectedRuleFiles = selected ? new Set(selected.rules) : null;
   const expectedSkillFiles = selected ? new Set(selected.skills.map((skill) => `skills/${skill.path.replace(/^skills\//, '')}/SKILL.md`)) : null;
+  const expectedSkillReferenceRoots = selected
+    ? selected.skills.map((skill) => `skills/${skill.path.replace(/^skills\//, '')}/references/`)
+    : [];
   const expectedComponentFiles = selected
     ? new Set([...expectedAgentFiles, ...expectedRuleFiles, ...expectedSkillFiles])
     : null;
@@ -459,7 +467,9 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
     if (!PACKAGE_FILES.has(relative) && !COMPONENT_ROOTS.has(base) && !OPTIONAL_FILES.has(relative)) {
       errors.push(`undeclared AGY package component: ${relative}`);
     }
-    if (expectedComponentFiles && COMPONENT_ROOTS.has(base) && !expectedComponentFiles.has(relative)) {
+    const isExpectedSkillReference = expectedSkillReferenceRoots.some((prefix) => relative.startsWith(prefix));
+    if (expectedComponentFiles && COMPONENT_ROOTS.has(base)
+      && !expectedComponentFiles.has(relative) && !isExpectedSkillReference) {
       errors.push(`undeclared AGY package file: ${relative}`);
     }
     const absolute = path.join(root, relative);

@@ -11,7 +11,7 @@ metadata:
 
 - Architecture advice only (use `/dhpk:dhpk-codex-architect`)
 - Code review (use `/codex-review-fast`)
-- Bug fix (use `/dhpk:dhpk-bug-fix`)
+- Bug fix (use `/dhpk:dhpk-adaptive-dev-workflow` and select the Bug branch)
 - Simple one-line change (edit directly)
 
 ## Workflow

@@ -315,7 +315,7 @@ work 透過 shared selector 交給 `fast-worker`、`codex-fast-worker` 或 `agy-
 
 dhpk **預設不使用 Codex**。`CODEX=on` 會在高風險 implementation decision 與支援的 Review
 skill 加入 blind independent Codex peer。Direct Codex-delegation skill
-（`dhpk-codex-architect`、`dhpk-codex-brainstorm`、`dhpk-codex-implement`、`dhpk-change-review`）
+（`dhpk-codex-architect`（含 `--mode adversarial`）、`dhpk-codex-implement`、`dhpk-change-review`）
 不需 `/dhpk:do` 也可直接呼叫。MCP backend 需要 `mcp__codex__codex`／
 `mcp__codex__codex-reply`；可選 CLI backend 只需要 `codex` executable。設定與 failure boundary
 在 [`docs/configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕`](./configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕)。

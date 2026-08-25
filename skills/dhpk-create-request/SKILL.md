@@ -1,6 +1,6 @@
 ---
 name: dhpk-create-request
-description: 'Create, update, or scan per-task request tickets for progress tracking. These are date-prefixed non-lifecycle docs under requests/, NOT feature-level requirements (use /dhpk:deep-analyze for those). Use when: tracking task progress, updating completion status, scanning incomplete requests, checking request status dashboard. Not for: feature-level problem-space analysis (use /dhpk:deep-analyze for 1-requirements.md lifecycle doc), tech specs (use dhpk-tech-spec), code implementation (use dhpk-feature-dev). Output: request ticket with status tracking, referencing parent dhpk-tech-spec.'
+description: 'Create, update, or scan per-task request tickets for progress tracking. These are date-prefixed non-lifecycle docs under requests/, NOT feature-level requirements (use /dhpk:deep-analyze for those). Use when: tracking task progress, updating completion status, scanning incomplete requests, checking request status dashboard. Not for: feature-level problem-space analysis (use /dhpk:deep-analyze for 1-requirements.md lifecycle doc), tech specs (use dhpk-tech-spec), code implementation (use dhpk-adaptive-dev-workflow in feature mode). Output: request ticket with status tracking, referencing parent dhpk-tech-spec.'
 allowed-tools: 'Read, Grep, Glob, Write, Bash, AskUserQuestion, Agent'
 metadata:
   dhpk-invocation-class: implicit-eligible
@@ -39,9 +39,9 @@ flowchart LR
 - **Feature-level requirements analysis** (use `/req-analyze` — produces `1-requirements.md`, a Phase 1 lifecycle doc for problem-space analysis; see `references/req-analyze-relationship.md`)
 - Viewing request structure (use request-tracking)
 - Writing tech spec (use /dhpk:dhpk-tech-spec)
-- Code development (use feature-dev)
+- Code development (use `dhpk-adaptive-dev-workflow` in feature mode)
 
-Request tickets are **work breakdown units** derived from `/dhpk:dhpk-tech-spec`, not requirements documents themselves — a different document class (Request tickets are date-prefixed, non-lifecycle; requirements docs are numeric-prefix lifecycle docs). Workflow position: `/req-analyze` → `/dhpk:dhpk-tech-spec` → `/dhpk:dhpk-create-request` → `/dhpk:dhpk-feature-dev`. See `references/req-analyze-relationship.md` for the full comparison and anti-patterns.
+Request tickets are **work breakdown units** derived from `/dhpk:dhpk-tech-spec`, not requirements documents themselves — a different document class (Request tickets are date-prefixed, non-lifecycle; requirements docs are numeric-prefix lifecycle docs). Workflow position: `/req-analyze` → `/dhpk:dhpk-tech-spec` → `/dhpk:dhpk-create-request` → `/dhpk:dhpk-adaptive-dev-workflow` (Feature branch). See `references/req-analyze-relationship.md` for the full comparison and anti-patterns.
 
 ---
 
@@ -155,7 +155,7 @@ Evidence priority: Related Files from the doc first, feature-slug heuristic as f
 
 Request tickets are created **after** `/dhpk:dhpk-tech-spec` exists. Suggest execution-oriented next steps:
 
-1. `/dhpk:dhpk-feature-dev` — Start implementation following the ticket's Acceptance Criteria
+1. `/dhpk:dhpk-adaptive-dev-workflow` (Feature branch) — Start implementation following the ticket's Acceptance Criteria
 2. `/verify` — Run tests after implementation
 3. `/dhpk:dhpk-create-request --update` — Sync progress as work completes
 
@@ -178,4 +178,4 @@ Request tickets are created **after** `/dhpk:dhpk-tech-spec` exists. Suggest exe
 | ------------------ | ------------------------- |
 | `request-tracking` | Request structure knowledge base |
 | `dhpk-tech-spec`        | Tech spec writing         |
-| `dhpk-feature-dev`      | Development workflow      |
+| `dhpk-adaptive-dev-workflow` | Development workflow      |

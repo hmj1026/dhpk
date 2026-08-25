@@ -12,7 +12,7 @@ Pocock 或其他全域 skill 的使用者。
 
 | 關注點 | 目前實作 |
 |---|---|
-| Canonical source | `skills/dhpk-<name>/` 下 102 個扁平 package |
+| Canonical source | `skills/dhpk-<name>/` 下 97 個扁平 package |
 | Public identity | 每個 dhpk skill 名稱都以 `dhpk-` 開頭 |
 | Inventory SSOT | `manifests/distribution-inventory.json` schema v2 |
 | Module projection | `modules/*/skills/` 下 37 個相對 symlink |
@@ -37,6 +37,41 @@ lifecycle、module 與 publication surface；validator 會將每個 projection �
 Claude skill invocation 中重複的 `dhpk` 是刻意的。第一個是 Claude plugin
 namespace；第二個是全球 collision-safe skill 名稱的一部分。Command 只使用 plugin
 namespace 與 command 檔名。
+
+<a id="alias-free-retirement-ledger-0470"></a>
+
+## Alias-free retirement ledger（0.47.0）
+
+`manifests/distribution-inventory.json` 是 retirement identity 的 SSOT。
+`retired_skills` 恰好包含五筆；下表是每筆的原 stable identity、`reasonCode`、
+replacement 指引與 rollback pin 的文件投影。Retirement row 只供診斷 metadata 使用：
+不是 active skill、materialized package、discovery alias，也不會進入任何 generated
+projection。
+
+| Former stable ID | Former public name | `reasonCode` | Replacement guidance | `rollback.release` |
+|---|---|---|---|---|
+| `bug-fix` | `dhpk-bug-fix` | `merged-into-adaptive-workflow` | stable ID `adaptive-dev-workflow`；Claude `/dhpk:dhpk-adaptive-dev-workflow`；Codex `$dhpk-adaptive-dev-workflow`（`bug` mode） | `0.46.1` |
+| `feature-dev` | `dhpk-feature-dev` | `merged-into-adaptive-workflow` | stable ID `adaptive-dev-workflow`；Claude `/dhpk:dhpk-adaptive-dev-workflow`；Codex `$dhpk-adaptive-dev-workflow`（`feature` mode） | `0.46.1` |
+| `post-dev-test` | `dhpk-post-dev-test` | `split-by-test-level` | stable ID `tdd`；Claude `/dhpk:dhpk-tdd-workflow`；Codex `$dhpk-tdd-workflow`（`unit-integration` mode）；agent `e2e-runner`（`playwright-journey` mode） | `0.46.1` |
+| `codex-brainstorm` | `dhpk-codex-brainstorm` | `merged-into-architect-mode` | stable ID `codex-architect`；Claude `/dhpk:dhpk-codex-architect`；Codex `$dhpk-codex-architect`（`adversarial` mode） | `0.46.1` |
+| `de-ai-flavor` | `dhpk-de-ai-flavor` | `model-default-capability-removal` | `model-default` 指引；沒有 successor package | `0.46.1` |
+
+### Direct-host 呼叫邊界
+
+這是 release-prep 文件：checked-in package/provenance metadata 在最終 clean release
+commit 發布 `0.47.0` 前仍綁定 `0.46.1`。
+
+能接收 skill identity 的 dhpk-owned helper、package 與 receipt-bound installation
+interface 可以攔截上述 row，回報包含 release、reason 及 successor 或 model-default
+指引的穩定非零 retirement diagnostic。`scripts/run-skill.sh` 是其中一個 helper seam；
+receipt-bound planning/update 會回報 retirement evidence，但不會 materialize alias。外部
+host 直接呼叫 Skill 時會繞過這些 dhpk-owned seam；回應仍由 host 擁有，可以是
+`unknown-skill`。dhpk 不宣稱 unsupported direct invocation 可被攔截，也不宣稱舊名稱
+仍可解析。
+
+Rollback 是 version pinning，不是 hidden aliasing：請透過 receipt-bound installation
+path pin 並重新安裝最後相容的 `0.46.1` release，不要在 `0.47.0` 重建退休 package 或
+discovery alias。
 
 ## 已整併的能力
 
@@ -72,8 +107,8 @@ Command 一律保留 `/dhpk:<name>` namespace。重疊工作流收斂到四個�
 - `/dhpk:precommit`，需要時搭配 `--fast`。
 - `/dhpk:setup --install hooks|rules|scripts|all`：設定與 asset 安裝。
 
-若仍內附薄的相容 alias，只保留一個 minor release；command index 會標記已退休的
-install alias，新文件不得再使用。
+上述五個 `0.47.0` retirement 不發布 discovery 或 compatibility alias。若另有文件化的
+相容期限而保留無關 command alias，它不是 retired skill record，也不能取代上述任何名稱。
 
 ## 升級 Claude marketplace 安裝
 
@@ -122,7 +157,8 @@ node tests/documentation-platform-parity.test.js
 node tests/run-all.js
 ```
 
-預期拓撲為 102 個 canonical skill、31 個 module、15 個 Codex project/native skill；
+預期拓撲為 97 個 active canonical skill（其中 60 個 promoted core）、31 個 module、
+15 個 Codex project/native skill；另有五筆不進入 discovery 的 `retired_skills` ledger row；
 相對 symlink 只能出現在 module/Codex projection，native package 必須零 symlink。
 
 ## Rollback

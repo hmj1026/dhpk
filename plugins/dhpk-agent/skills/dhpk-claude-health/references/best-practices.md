@@ -47,7 +47,7 @@ cache/
 
 | Skill Type | Structure | Notes |
 |------------|-----------|-------|
-| Workflow skill | `skills/<name>/SKILL.md` | `dhpk-feature-dev`, `dhpk-bug-fix`, etc. |
+| Workflow skill | `skills/<name>/SKILL.md` | `dhpk-adaptive-dev-workflow`, etc. |
 | Review skill | `skills/<name>/SKILL.md` | `dhpk-change-review`, etc. |
 | Domain KB | `skills/<name>/SKILL.md` | `portfolio`, `aum` — referenced by other skills |
 | External | N/A | `agent-browser` — not maintained here |

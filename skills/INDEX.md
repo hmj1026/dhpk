@@ -4,7 +4,7 @@ description: 'Navigation index for dhpk plugin skills. Internal documentation; n
 
 # Skills Index (dhpk plugin)
 
-> Navigation for the 102 canonical skill packages shipped by the dhpk plugin. Every
+> Navigation for the 97 canonical skill packages shipped by the dhpk plugin. Every
 > package lives flat under `skills/dhpk-<name>/SKILL.md` and is invoked with its
 > public name (for example, `/dhpk:dhpk-tdd-workflow`) or auto-triggered by its
 > `description`. Stack modules expose
@@ -32,11 +32,8 @@ description: 'Navigation index for dhpk plugin skills. Internal documentation; n
 
 | Skill | Purpose |
 |-------|---------|
-| [dhpk-feature-dev](dhpk-feature-dev/SKILL.md) | Feature development loop (design → implement → verify → review) |
-| [dhpk-bug-fix](dhpk-bug-fix/SKILL.md) | Bug fix workflow — fix + regression test + review gate |
 | [dhpk-root-cause-investigation](dhpk-root-cause-investigation/SKILL.md) | Systematic 5-phase root-cause investigation |
 | [dhpk-feature-verify](dhpk-feature-verify/SKILL.md) | Read-only post-deploy behavior verification (P0–P5) |
-| [dhpk-post-dev-test](dhpk-post-dev-test/SKILL.md) | Backfill missing integration / E2E tests after feature work |
 | [dhpk-tdd-workflow](dhpk-tdd-workflow/SKILL.md) | Behavior-first RED-GREEN-REFACTOR guidance for test-bearing work |
 
 ## Code exploration & architecture
@@ -54,7 +51,6 @@ description: 'Navigation index for dhpk plugin skills. Internal documentation; n
 | Skill | Purpose |
 |-------|---------|
 | [dhpk-codex-architect](dhpk-codex-architect/SKILL.md) | Codex architecture consulting / design second opinion |
-| [dhpk-codex-brainstorm](dhpk-codex-brainstorm/SKILL.md) | Adversarial Claude + Codex brainstorming to consensus |
 | [dhpk-codex-implement](dhpk-codex-implement/SKILL.md) | Implement features via Codex MCP |
 | [dhpk-change-review](dhpk-change-review/SKILL.md) | Code review via MCP or the hardened Codex CLI backend |
 | [dhpk-doc-review](dhpk-doc-review/SKILL.md) | Document review via Codex MCP (5-dimension rating) |
@@ -77,7 +73,6 @@ description: 'Navigation index for dhpk plugin skills. Internal documentation; n
 |-------|---------|
 | [dhpk-tech-spec](dhpk-tech-spec/SKILL.md) | Tech-spec generation and review |
 | [dhpk-feasibility-study](dhpk-feasibility-study/SKILL.md) | First-principles feasibility comparison |
-| [dhpk-de-ai-flavor](dhpk-de-ai-flavor/SKILL.md) | Strip AI artifacts from documents, preserving intent |
 | [dhpk-create-request](dhpk-create-request/SKILL.md) | Per-task request tickets for progress tracking |
 
 ## Git, commit & deploy

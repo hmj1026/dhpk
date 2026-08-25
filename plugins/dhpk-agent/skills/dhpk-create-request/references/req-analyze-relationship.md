@@ -15,7 +15,7 @@ Request tickets are **work breakdown units** derived from `/dhpk:dhpk-tech-spec`
 ## Workflow ordering
 
 ```
-/req-analyze → /dhpk:dhpk-tech-spec → /dhpk:dhpk-create-request → /dhpk:dhpk-feature-dev
+/req-analyze → /dhpk:dhpk-tech-spec → /dhpk:dhpk-create-request → /dhpk:dhpk-adaptive-dev-workflow (Feature branch)
    (Phase 1)    (Phase 2)    (ticket per task)    (implement)
 ```
 

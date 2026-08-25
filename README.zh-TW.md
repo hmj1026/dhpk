@@ -23,7 +23,7 @@ OpenSpec 是**可選的外部整合**——若需要 OpenSpec 工作流指令，
 | `python3` | 啟用 `modules` 時為必要 | 為選用模組啟用與路由解析 `module.yaml` |
 | `jq` | 選用（有 python3 後援） | 較快的 JSON payload 擷取 |
 | `docker` | 選用 | 僅由以 `userConfig.docker_containers` 明確註冊的 Docker workflow 使用 |
-| Codex MCP server | 選用 | 僅在你使用 4 個 MCP-backed `codex-*` skill、7 個 `/dhpk:codex-*` 指令，或啟用 `CODEX=on` 時才需要——透過將 Claude Code 指向 Codex CLI 的 `codex mcp-server` 子指令來註冊，見 [`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕) |
+| Codex MCP server | 選用 | 僅在你使用 3 個 MCP-backed `codex-*` skill、7 個 `/dhpk:codex-*` 指令，或啟用 `CODEX=on` 時才需要——透過將 Claude Code 指向 Codex CLI 的 `codex mcp-server` 子指令來註冊，見 [`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕) |
 | Codex CLI 執行檔 | 選用 | 僅在執行 `install-codex-skills.sh` 且希望 Codex 真正載入同步內容時才需要 |
 | Cursor | 選用 | 僅在執行 `install-cursor-harness.sh` 且希望 Cursor 載入專案本地 `.cursor/` harness 時才需要 |
 | `cx` CLI | 選用 | 語意化程式碼導覽。`rules/tool-routing.md` 將 `cx overview` / `cx definition` / `cx references` 列為首選工具；6 個 reviewer agent 與 `harness-fill` skill 會引用。未安裝時 → 降級為 `Grep` / `Read`。 |
@@ -53,7 +53,7 @@ claude plugin install dhpk@dhpk --config modules=php-8.x,laravel-11 --config hoo
 |------|----:|------|
 | Agents | Role-based agents | Sentinel 驅動的 reviewer，以及架構、測試、安全、文件、平台與 runtime 等情境型角色。 |
 | Commands | 已註冊的 command surface | `/dhpk:do`、`/dhpk:codex-review`、`/dhpk:precommit`、`/dhpk:setup`、`/dhpk:review-pending`、`/dhpk:smart-commit`、`/dhpk:opsx-apply-resume`、`/dhpk:harness-audit`、`/dhpk:harness-govern`、`/dhpk:ui-ux-verify` 等 |
-| Canonical skills | 102 個扁平 `dhpk-*` package | 每個 capability 只有一個公開名稱，來源固定在 `skills/dhpk-*/`；module 與 Codex 專案面只做 projection，不是第二份來源。 |
+| Canonical skills | 97 個扁平 `dhpk-*` package | 每個 capability 只有一個公開名稱，來源固定在 `skills/dhpk-*/`；module 與 Codex 專案面只做 projection，不是第二份來源。 |
 | 技術棧模組 | 可選技術棧模組 | PHP、Yii、PHPUnit、Laravel、JavaScript、Vue、Laravel Mix、Next.js、React、Python、`library-author` 與 iOS/Swift 模組 |
 | Hooks | 4 個事件 | PreToolUse（Edit guard 與合併 Bash safety/Git gate）、PostToolUse（sentinel routing）、SessionStart（module activation）、SubagentStop（strict reviewer reconciliation） |
 | Hook dispatchers | 2 | `post-edit-dispatch.sh` 負責 sentinel routing；`pre-bash-dispatch.sh` 合併 deterministic shell 與 Git/review-debt gate |
@@ -116,7 +116,7 @@ dhpk 的核心——hooks、sentinel reviewers、Smart Router，以及非 Codex 
 
 | Surface | 名稱 | 需要 | 缺少時 |
 |---------|------|------|--------|
-| 4 個 skill | `dhpk-codex-architect` · `dhpk-codex-brainstorm` · `dhpk-codex-implement` · `dhpk-change-review`（MCP backend） | Codex MCP（`mcp__codex__codex`、`mcp__codex__codex-reply`） | 工具權限錯誤——無自動 fallback；改用下方的 Codex-free 對應品 |
+| 3 個 skill | `dhpk-codex-architect`（含 `--mode adversarial`） · `dhpk-codex-implement` · `dhpk-change-review`（MCP backend） | Codex MCP（`mcp__codex__codex`、`mcp__codex__codex-reply`） | 工具權限錯誤——無自動 fallback；改用下方的 Codex-free 對應品 |
 | 1 個 backend | `dhpk-change-review --backend cli` | 僅需 Codex CLI 執行檔（透過 hardened wrapper shell out） | `codex: command not found`；改用 MCP backend 或 sentinel `code-reviewer` |
 | 7 個指令 | `/dhpk:codex-review`、`-review-branch`、`-review-doc`、`-review-fast`、`-security`、`-test-gen`、`-test-review` | Codex MCP | 工具權限錯誤——Codex-free 路徑：`/dhpk:dhpk-security-review`、`/dhpk:precommit`、sentinel review hooks |
 | `CODEX=on` | Implementation dispatch 的雙助理 peer 路徑 | Codex MCP | 不會壞——dispatch 維持預設的單助理模式 |
@@ -277,7 +277,7 @@ dhpk/
 │   └── plugin.json               # 含 userConfig 的插件 manifest
 ├── agents/                       # 32 個角色 agent（31 root + 1 模組 reviewer；INDEX.md 為導覽用）
 ├── commands/                     # slash 指令（do、review、setup、codex-*、smart-commit、opsx-apply-resume 等；create-dev 為相容性 alias）
-├── skills/                       # SSOT：102 個扁平 canonical skill，皆為 skills/dhpk-<name>/
+├── skills/                       # SSOT：97 個扁平 canonical skill，皆為 skills/dhpk-<name>/
 ├── templates/                    # hook 引導用範本（graduation-candidates.md — 首次 graduation 執行時複製到 .claude/artifacts/）
 ├── modules/                      # 31 個可選用模組；skills/ 項目為相對 symlink projection
 │   ├── php-5.6/, php-7.4/, php-8.x/        # {module.yaml, skills/, references/, hooks/（僅 php-7.4）}

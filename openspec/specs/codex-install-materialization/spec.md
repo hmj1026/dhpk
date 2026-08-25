@@ -4,7 +4,9 @@
 
 Define deterministic, reversible Codex projection materialization, including
 receipt reconciliation, managed-target safety, and source filtering.
+
 ## Requirements
+
 ### Requirement: Legacy receipts and projections reconcile explicitly
 
 The supported Codex installer SHALL compare the receipt schema/version, source fingerprint, canonical managed names, and destination entries before declaring a project up to date. A pre-consolidation receipt or legacy fallback name set SHALL produce an explicit migration/update state with an actionable command and SHALL not be silently treated as current.
@@ -20,28 +22,31 @@ The supported Codex installer SHALL compare the receipt schema/version, source f
 - **THEN** the installer does not report up to date and schedules only dhpk-managed targets for update
 
 ### Requirement: Reconciliation preserves unowned collisions
-
-Update and migration SHALL classify destination collisions by ownership and exact source match. Only proven dhpk-managed targets may be replaced or pruned; an unowned same-name file, directory, or link SHALL receive a safe collision diagnostic and SHALL remain recoverable. The installer SHALL additionally provide a read-only JSON planning mode and an explicit path-scoped adoption mode. Planning SHALL not mutate the projection; adoption SHALL require an exact reported path, matching source and destination preflight fingerprints, and a rollback-addressable backup before ownership is changed. When no mode is explicitly supplied for adoption, the receipt's recorded mode SHALL be preserved.
+Update and migration SHALL classify destination collisions by ownership and exact source match. Only proven dhpk-managed targets may be replaced or pruned; an unowned same-name file, directory, or link SHALL receive a safe collision diagnostic and SHALL remain recoverable. The installer SHALL additionally provide a read-only JSON planning mode and an explicit path-scoped adoption mode. Planning SHALL not mutate the projection; adoption SHALL require an exact reported path, matching source and destination preflight fingerprints, and a rollback-addressable backup before ownership is changed. When no mode is explicitly supplied for adoption, the receipt's recorded mode SHALL be preserved. When a receipt entry matches an inventory retirement record, plan and update evidence SHALL annotate the retired path with its retirement release, reason, replacement kind, and replacement identity or mode when present.
 
 #### Scenario: Unowned legacy file collides with a canonical name
-
 - **WHEN** migration encounters a same-name destination that is not proven dhpk-managed
 - **THEN** the installer reports the collision, does not overwrite or delete it implicitly, and records the blocked entry for an explicit owner decision
 
 #### Scenario: Owner explicitly adopts a collision
-
 - **WHEN** an owner supplies an exact collision path and both fingerprints from a fresh planning report and they remain unchanged
 - **THEN** the installer creates a rollback-addressable backup, reconciles only that path into receipt ownership, and records the adoption evidence
 
 #### Scenario: Adoption preflight is stale
-
 - **WHEN** the selected collision or its source differs from the planning fingerprints before adoption
 - **THEN** the installer exits before mutation and requires a new plan and explicit confirmation
 
 #### Scenario: Managed entry is retired
+- **WHEN** update finds a retired entry recorded as dhpk-managed, absent from active inventory, and unchanged from its receipt fingerprint
+- **THEN** the installer removes or archives only that managed entry and reports the reconciliation count plus ledger-backed successor/reason evidence
 
-- **WHEN** update finds a retired entry recorded as dhpk-managed and no longer present in the canonical inventory
-- **THEN** the installer may remove or archive only that managed entry and reports the reconciliation count
+#### Scenario: Retired entry is modified or unowned
+- **WHEN** a retired destination is modified, retargeted, unsafe, or not proven dhpk-managed
+- **THEN** plan and update preserve it, classify it as an orphan or collision, and report ledger-backed retirement guidance without claiming it was pruned
+
+#### Scenario: Retirement planning is read-only
+- **WHEN** an operator requests a JSON plan containing retired receipt entries
+- **THEN** the plan includes ownership, source/destination fingerprints, and retirement guidance while projection and receipt hashes remain unchanged
 
 ### Requirement: Projection evidence is deterministic and reversible
 

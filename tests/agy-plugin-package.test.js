@@ -19,6 +19,7 @@ function writeFixture(root, { includeHarnessReference = false } = {}) {
   fs.mkdirSync(path.join(root, 'agents'), { recursive: true });
   fs.mkdirSync(path.join(root, 'rules'), { recursive: true });
   fs.mkdirSync(path.join(root, 'skills', 'dhpk-sample'), { recursive: true });
+  fs.mkdirSync(path.join(root, 'skills', 'dhpk-sample', 'references'), { recursive: true });
   fs.writeFileSync(path.join(root, 'agents', 'sample.md'), [
     '---',
     'name: sample',
@@ -32,6 +33,7 @@ function writeFixture(root, { includeHarnessReference = false } = {}) {
     '',
   ].join('\n'));
   fs.writeFileSync(path.join(root, 'rules', 'sample.md'), '# Rule\n');
+  fs.writeFileSync(path.join(root, 'skills', 'dhpk-sample', 'references', 'guide.md'), '# Guide\n');
   const skillLines = [
     '---',
     'name: dhpk-sample',
@@ -107,6 +109,21 @@ test('rewrites source-tree harness references to an AGY skill target', () => {
     const projected = fs.readFileSync(path.join(outDir, 'skills', 'dhpk-sample', 'SKILL.md'), 'utf8');
     assert.ok(projected.includes('dhpk-harness-revise'));
     assert.ok(!projected.includes('@skills/dhpk-harness-revise/references/harness-directory-contract.md'));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('copies selected skill reference assets so relative links stay reachable', () => {
+  const root = tempRoot();
+  const outDir = path.join(root, 'package');
+  try {
+    const result = materializeFixture(root, outDir);
+    assert.ok(result.files.includes('skills/dhpk-sample/references/guide.md'));
+    assert.strictEqual(
+      fs.readFileSync(path.join(outDir, 'skills', 'dhpk-sample', 'references', 'guide.md'), 'utf8'),
+      '# Guide\n',
+    );
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

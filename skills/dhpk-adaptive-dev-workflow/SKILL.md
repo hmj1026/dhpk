@@ -1,6 +1,6 @@
 ---
 name: dhpk-adaptive-dev-workflow
-description: 'Workflow router for substantial changes. Use when: a feature, bugfix, refactor, security, perf, or OpenSpec change needs classifying into Feature Delivery, Bug Investigation & Fix, or Lightweight Maintenance before heavy context loads. Not for tiny edits, investigation already underway, code review, or apply-ready OpenSpec tasks. Output: workflow classification + required artifacts + gate checklist.'
+description: 'Adaptive delivery workflow for substantial changes. Use when: a feature, bugfix, refactor, security, perf, or OpenSpec change needs one classification into Feature Delivery, Bug Investigation & Fix, or Lightweight Maintenance, with branch behavior and gates before heavy context loads. Not for tiny edits, investigation already underway, code review, or apply-ready OpenSpec tasks. Output: workflow classification + branch artifacts + delivery-loop gate checklist.'
 argument-hint: '[--codex] <change description or current state>'
 allowed-tools: 'Read, Grep, Glob, Bash, Skill, Agent'
 metadata:
@@ -29,27 +29,22 @@ metadata:
 2. 以 repo 權威規範（例如 `CLAUDE.md`、`AGENTS.md`）為 SSOT；本技能只補 workflow 缺口。
 3. `Lightweight Maintenance` 只做 targeted verification；`Feature Delivery` / `Bug Investigation & Fix` 才建立 heavy artifacts。
 4. 缺件時回報 blocker；apply-ready 時直接 hand off，不重跑前置。
+5. Feature and Bug work stay on their selected branch through implementation;
+   shared test, freshness, review, and handoff rules live in the execution-policy
+   delivery-loop reference。
 
 ## Wayfinder checkpoint
 
-Use a short decision map only when both conditions hold: the destination or
-owning workflow is unclear, and the work will span more than one session or
-agent. Record three fields before implementation: destination candidates, the
-current frontier (settled evidence), and the next decision that unblocks one
-route. Clear work that fits one session skips this checkpoint.
-
-Each map ticket asks one bounded question. Record the decision, evidence, and
-next destination; do not turn a list of open questions into an implementation
-plan. Once the owner resolves the destination, hand off to `/opsx:new` (or the
-verified `$dhpk:openspec-new-change` entry) and preserve the decision record.
-A map, proposal, design, or task list is planning evidence only: it is not an
-applied implementation, verified change, pull request, or archive.
+When the destination is unclear and work spans sessions or agents, load
+[workflow-analysis](references/workflow-analysis.md) and record its bounded
+decision-map fields before implementation; clear one-session work skips it.
 
 ## Fast-worker invocation context
 
-When `/dhpk:do` supplies `WORKER_OVERRIDE`, preserve that exact invocation-only value through hand-off to
-`dhpk-bug-fix` / `dhpk-feature-dev`. Before the first mechanical dispatch, consume it with the shared selector at
-`scripts/fast-worker-selector.js` using `--backend "$WORKER_OVERRIDE"`.
+When `/dhpk:do` supplies `WORKER_OVERRIDE`, preserve that exact invocation-only
+value through the selected Feature or Bug branch. Before the first mechanical
+dispatch, consume it with the shared selector at `scripts/fast-worker-selector.js`
+using `--backend "$WORKER_OVERRIDE"`.
 `unset` means omit the explicit backend argument and let the selector apply userConfig/default precedence; never infer it from cleaned task text.
 
 ## Codex mode (opt-in)
@@ -59,19 +54,25 @@ When `/dhpk:do` supplies `WORKER_OVERRIDE`, preserve that exact invocation-only 
 
 ## Workflow Decision
 
-### Feature Delivery
+### Feature branch — Feature Delivery
 
-新能力、行為變更、跨模組契約調整，或需要完整前置治理的變更。
+新能力、行為變更或跨模組契約調整；讀
+[workflow-feature-delivery](references/workflow-feature-delivery.md) 依
+**requirements → design → artifacts → RED → implement**，再走 shared
+delivery loop (`dhpk-tdd-workflow`, `dhpk-change-review`)。實作留在本 branch。
 
-### Bug Investigation & Fix
+### Bug branch — Bug Investigation & Fix
 
-錯誤、效能、安全、資料異常等問題；先確認 evidence、root cause 與 regression path。`profile` 可選，但 work-item、legacy、RED 仍是 blocker。
+錯誤、效能、安全或資料異常；讀
+[workflow-bugfix](references/workflow-bugfix.md) 依 **evidence → root cause →
+regression test → minimal fix**，再走 shared delivery loop
+(`dhpk-tdd-workflow`, `dhpk-change-review`)。已確認根因不重複調查，未知根因才 hand off。
 
 ### Lightweight Maintenance
 
 不改行為的小修、純整理或局部重構；跳過 heavy artifacts，只保留 targeted verification 與 next step。
 
-三個 bucket 對應 `@rules/execution-policy.md` 的六種 change type：Feature 對應兩種 Feature Delivery；Bug 對應 known/unknown root cause（known root cause 跳過 investigation，直接 inspect → tdd-guide RED → patch）；Medium change 落在 Lightweight，但多一步 brief plan。SSOT 表格優先。
+三個 bucket 對應 `@rules/execution-policy.md` 的六種 change type：Feature 對應兩種 Feature Delivery；Bug 對應 known/unknown root cause（known root cause 跳過重複調查，直接 evidence → tdd-guide RED → patch）；Medium change 落在 Lightweight，但多一步 brief plan。SSOT 表格優先。
 
 ## Progressive Loading Rules
 
@@ -82,6 +83,7 @@ When `/dhpk:do` supplies `WORKER_OVERRIDE`, preserve that exact invocation-only 
    - Feature： [workflow-feature-delivery](references/workflow-feature-delivery.md)
    - Bug： [workflow-bugfix](references/workflow-bugfix.md)
    - Lightweight： [workflow-lightweight](references/workflow-lightweight.md)
+   - shared Feature/Bug delivery loop： `@skills/dhpk-execution-policy/references/delivery-loop-gate.md`
    - handoff/verification： [handoff-and-verification](references/handoff-and-verification.md)
    - planning、implementation 或 post-implementation gate： [dispatch-and-gates](references/dispatch-and-gates.md)
    - concrete commands： [script-operations](references/script-operations.md)
@@ -91,16 +93,18 @@ When `/dhpk:do` supplies `WORKER_OVERRIDE`, preserve that exact invocation-only 
 
 ## Execution Order
 
-1. **Triage**：確認請求是前置決策問題；否則指出正確 handoff。完成條件：已決定繼續或離開本技能。
-2. **Classify**：選出恰好一個 workflow type。完成條件：類型與理由都可用請求內容解釋。
-3. **Load**：只載入該類型和請求明確需要的 reference。完成條件：每個 required/skipped artifact 都有狀態。
-4. **Plan**：分類後立即執行必要 planning dispatch，不等待確認；完整 dispatch 規則見 [dispatch-and-gates](references/dispatch-and-gates.md)。完成條件：dispatch 結果已記錄，或明確標示不需要。
-5. **Report**：輸出 workflow、理由、artifact、gate、next step 與適用的 post-implementation checklist。完成條件：所有 Output 欄位均已填寫。
-6. **Handoff**：若已 apply-ready，直接指向下一流程；若有 blocker，停止在實作前。完成條件：只有一個清楚的 next skill/command。
+1. **Triage**：確認是前置決策問題，否則指出正確 handoff。
+2. **Classify**：選出恰好一個 workflow type，並記錄理由。
+3. **Load**：只載入該類型和請求需要的 references，標記 required/skipped artifacts。
+4. **Plan**：立即執行必要 planning dispatch；規則見 [dispatch-and-gates](references/dispatch-and-gates.md)。
+5. **Execute**：依選定 branch reference；Feature/Bug 共用 `delivery-loop-gate`，Lightweight 直接 inspect → patch。
+6. **Report**：輸出 workflow、理由、artifacts、gates、next step 與 post-implementation checklist。
+7. **Handoff**：apply-ready 指向下一流程；blocker 停在實作前並給唯一 next skill/command。
 
-Handoffs stay named: feature work goes to `dhpk-feature-dev`, confirmed bugs to
-`dhpk-bug-fix`, unknown causes to `dhpk-root-cause-investigation`, architecture
-decisions to `dhpk-module-design`, and test strategy to `dhpk-tdd-workflow`.
+Feature and confirmed Bug implementation remain within this skill. Unknown
+causes hand off to `dhpk-root-cause-investigation`, architecture decisions to
+`architect`, test strategy to `dhpk-tdd-workflow`, and code review to
+`dhpk-change-review`.
 
 ## Planning-Phase Agent
 
@@ -116,7 +120,7 @@ decisions to `dhpk-module-design`, and test strategy to `dhpk-tdd-workflow`.
 
 ## Implementation and Post-Implementation Gates
 
-需要 implementation dispatch、reviewer batching、failure handling、next command 或流程圖時，讀 [dispatch-and-gates](references/dispatch-and-gates.md)。每次回覆都必須輸出適用的 Post-Implementation Agent Gate checklist；其順序與觸發定義以 `@rules/execution-policy.md` SSOT 為準。
+需要 implementation dispatch、reviewer batching、failure handling、next command 或流程圖時，讀 [dispatch-and-gates](references/dispatch-and-gates.md)；需要測試、adequacy、freshness、review 與 handoff 狀態時，讀 execution-policy 的 `@skills/dhpk-execution-policy/references/delivery-loop-gate.md`。每次回覆都必須輸出適用的 Post-Implementation Agent Gate checklist；其順序與觸發定義以 `@rules/execution-policy.md` SSOT 為準。
 
 ## Script Entry Points
 
@@ -132,12 +136,14 @@ decisions to `dhpk-module-design`, and test strategy to `dhpk-tdd-workflow`.
 - `next step` 或 `next skill`
 - 適用的 post-implementation gate checklist
 
-分支最低要求：Feature 要交代 profile/work-item/legacy/RED；Bug 要交代 evidence/root-cause path/work-item/legacy/RED，缺 profile 不得單獨擋住；Lightweight 要列出 heavy skip 項目並保留 targeted verification。
+分支最低要求：Feature 要交代 requirements/design/profile/work-item/legacy/RED；Bug 要交代 evidence/root-cause path/work-item/legacy/RED，缺 profile 不得單獨擋住；兩者都要交代 delivery-loop 的 test/adequacy/freshness/review 狀態；Lightweight 要列出 heavy skip 項目並保留 targeted verification。
 
 ## Verification
 
 - [ ] 恰好選出一個 workflow type，理由與請求一致
+- [ ] Feature 或 Bug branch 的 requirements/evidence、設計/root-cause、RED/regression 與實作狀態已交代
 - [ ] 未載入不必要的 heavy context
 - [ ] required/skipped artifacts 與 gate status 清楚
+- [ ] delivery-loop 的測試、adequacy、freshness、review 與 handoff 狀態清楚
 - [ ] 必要 planning dispatch 已完成或標示不需要
 - [ ] 已指出唯一的 next skill/command 與適用 gate checklist

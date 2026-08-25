@@ -5,12 +5,12 @@ TBD - created by archiving change readme-doc-optimization. Update Purpose after 
 ## Requirements
 ### Requirement: Codex surfaces are documented per-surface with accurate dependencies
 
-`README.md` SHALL document the Codex integration as four distinct surfaces in a single table — MCP-backed skills (5: `codex-architect`, `codex-brainstorm`, `codex-code-review`, `codex-explain`, `codex-implement`), the CLI-only skill (`codex-cli-review`, which shells out to the `codex` binary and needs no MCP server), the 7 MCP-backed `/dhpk:codex-*` commands, and the `CODEX=on` dispatch path — each row stating what the surface needs and what happens without it. No dhpk doc SHALL claim that 6 skills require the Codex MCP server. The table's mechanics statement MUST attribute the `mcp__codex__*` tools to direct `codex mcp-server` registration (see Requirement: Codex MCP server setup is documented accurately as direct registration), not to `openai/codex-plugin-cc`.
+`README.md` SHALL document the Codex integration as four distinct surfaces in a single table — MCP-backed skills (3: `dhpk-codex-architect`, including adversarial mode, `dhpk-codex-implement`, and `dhpk-change-review`), the CLI-only `dhpk-change-review --backend cli` path (which shells out to the `codex` binary and needs no MCP server), the 7 MCP-backed `/dhpk:codex-*` commands, and the `CODEX=on` dispatch path — each row stating what the surface needs and what happens without it. No dhpk doc SHALL claim that 6 skills require the Codex MCP server. The table's mechanics statement MUST attribute the `mcp__codex__*` tools to direct `codex mcp-server` registration (see Requirement: Codex MCP server setup is documented accurately as direct registration), not to `openai/codex-plugin-cc`.
 
-#### Scenario: Reader checks what codex-cli-review needs
+#### Scenario: Reader checks what the CLI review backend needs
 
-- **WHEN** a reader consults the README Codex section for `codex-cli-review`
-- **THEN** the table states it requires only the Codex CLI binary (Bash shell-out, no MCP server) and names a fallback (`codex-code-review` or the sentinel `code-reviewer`)
+- **WHEN** a reader consults the README Codex section for `dhpk-change-review --backend cli`
+- **THEN** the table states it requires only the Codex CLI binary (Bash shell-out, no MCP server) and names the Codex-free sentinel `code-reviewer` as a fallback
 
 #### Scenario: Stale 6-skills claim is gone
 

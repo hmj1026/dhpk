@@ -40,11 +40,11 @@ Valid model values are the Agent-call model names supported by the running Claud
 - **THEN** the session warns once and fast-worker dispatches run on the frontmatter default (sonnet)
 
 ### Requirement: Kill switch restores pre-change behavior
-When `orchestration_dispatch=off`, all touched flows (feature-dev, bug-fix, adaptive-dev-workflow, opsx-apply-goal output) SHALL behave exactly as before this change: inline implementation, no worker dispatch prohibition, no opsx-apply-goal directive line.
+When `orchestration_dispatch=off`, all touched flows (adaptive-dev-workflow and opsx-apply-goal output) SHALL behave exactly as before this change: inline implementation, no worker dispatch prohibition, no opsx-apply-goal directive line.
 
 #### Scenario: Off switch regression check
 - **WHEN** `orchestration_dispatch=off`
-- **THEN** feature-dev's Implement step is "write code directly (TDD)" and opsx-apply-goal `/goal` Part 0 matches pre-change output
+- **THEN** adaptive-dev-workflow's Implement step is "write code directly (TDD)" and opsx-apply-goal `/goal` Part 0 matches pre-change output
 
 ### Requirement: userConfig keys for CLI-backed fast-worker models
 `.claude-plugin/plugin.json` `userConfig` SHALL define the existing CLI-worker model keys and the selector keys `fast_worker_backend` (`claude|codex|agy|auto`, default `claude`), `fast_worker_backend_order` (comma-separated backend names, default `claude,codex,agy`), and `fast_worker_fallback` (`none|claude`, default `none`). It SHALL additionally define the shared and role-specific Codex timeout keys `codex_timeout_secs` (default `360`), `codex_fast_worker_timeout_secs`, `codex_deep_reasoner_timeout_secs`, and `codex_bridge_timeout_secs`. The generic pass-through loader SHALL export them with project-over-global-shipped layering, and its known-keys comment SHALL mention them. Session-start SHALL surface non-default selector or timeout values in one concise line. Invalid selector values SHALL warn once and use shipped defaults; invalid timeout values SHALL fail closed before the affected Codex dispatch.

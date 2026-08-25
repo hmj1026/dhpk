@@ -1,6 +1,13 @@
 # Canonical skill disposition
 
-Apply evidence for `rewrite-canonical-skills-for-agents`. Source pin: local `/home/paul/projects/matt-pocock_skills/package.json` version `1.2.3` (checked 2026-08-17). Canonical count: 102 `skills/*/SKILL.md` packages. Generated projections are not disposition rows.
+Apply evidence for `rewrite-canonical-skills-for-agents`. Source pin: local `/home/paul/projects/matt-pocock_skills/package.json` version `1.2.3` (checked 2026-08-17). Historical baseline: 102 `skills/*/SKILL.md` packages; current inventory: 97 active canonical packages. Generated projections are not disposition rows.
+
+This is a historical disposition snapshot, not a live route registry. The five
+workflow identities marked `Retired in 0.47.0` remain here for audit history;
+active routing uses the successor modes and the inventory-owned retirement
+ledger. The authoritative reason codes, replacement rows, rollback pin, and
+direct-host boundary are documented in [`docs/skill-platform-migration.md`](../skill-platform-migration.md#alias-free-retirement-ledger-0470);
+this table must not be read as a discovery alias list.
 
 The pass originally covered 103 packages. `dhpk-continuous-learning-v2` was retired by `retire-continuous-learning-v2` before this evidence shipped, so its row is removed rather than carried as a stale `Keep`.
 
@@ -10,26 +17,26 @@ The pass originally covered 103 packages. `dhpk-continuous-learning-v2` was reti
 | `skills/dhpk-agent-architecture-audit/SKILL.md` | Other promoted | implicit-eligible | Keep | Owns its public workflow or domain-specific guidance; no duplicate SSOT identified in this pass. |
 | `skills/dhpk-agy-commit/SKILL.md` | Other promoted | explicit-only | Keep | Owns its public workflow or domain-specific guidance; no duplicate SSOT identified in this pass. |
 | `skills/dhpk-agy-fast-worker/SKILL.md` | Other promoted | implicit-eligible | Keep | Owns its public workflow or domain-specific guidance; no duplicate SSOT identified in this pass. |
-| `skills/dhpk-bug-fix/SKILL.md` | Feature/bug loop | implicit-eligible | Merge-pointer | `skills/dhpk-feature-dev/references/dev-loop-gate.md` owns the shared test/review gate; this file keeps bug investigation and fix phases. |
+| `skills/dhpk-bug-fix/SKILL.md` | Feature/bug loop | — | Retired in 0.47.0 | Historical row; bug delivery is now `skills/dhpk-adaptive-dev-workflow/SKILL.md` (`bug` mode). |
 | `skills/dhpk-change-review/SKILL.md` | Other promoted | implicit-eligible | Keep | Owns its public workflow or domain-specific guidance; no duplicate SSOT identified in this pass. |
 | `skills/dhpk-claude-health/SKILL.md` | Harness | explicit-only | Merge-pointer | `skills/dhpk-harness-revise/references/harness-directory-contract.md` owns active harness resolution; this file keeps health checks. |
 | `skills/dhpk-codebase-exploration/SKILL.md` | Other promoted | implicit-eligible | Keep | Owns its public workflow or domain-specific guidance; no duplicate SSOT identified in this pass. |
 | `skills/dhpk-codex-architect/SKILL.md` | Other promoted | implicit-eligible | Keep | Owns its public workflow or domain-specific guidance; no duplicate SSOT identified in this pass. |
-| `skills/dhpk-codex-brainstorm/SKILL.md` | Other promoted | implicit-eligible | Keep | Owns its public workflow or domain-specific guidance; no duplicate SSOT identified in this pass. |
+| `skills/dhpk-codex-brainstorm/SKILL.md` | Other promoted | — | Retired in 0.47.0 | Historical row; use `skills/dhpk-codex-architect/SKILL.md --mode adversarial`. |
 | `skills/dhpk-codex-bridge/SKILL.md` | Other promoted | implicit-eligible | Keep | Owns its public workflow or domain-specific guidance; no duplicate SSOT identified in this pass. |
 | `skills/dhpk-codex-implement/SKILL.md` | Other promoted | implicit-eligible | Keep | Owns its public workflow or domain-specific guidance; no duplicate SSOT identified in this pass. |
 | `skills/dhpk-composer-package-hygiene/SKILL.md` | Other promoted | implicit-eligible | Keep | Owns its public workflow or domain-specific guidance; no duplicate SSOT identified in this pass. |
 | `skills/dhpk-create-request/SKILL.md` | Other promoted | implicit-eligible | Keep | Vertical tracer-bullet request workflow; owns ticket granularity and blocking edges. |
 | `skills/dhpk-create-skill/SKILL.md` | Skill authoring | explicit-only | Merge-pointer | `docs/agent-guidance/writing-for-agents.md` and external 1.2.x source own universal writing levers; this file keeps dhpk packaging. |
 | `skills/dhpk-cross-agent-sync/SKILL.md` | Harness | explicit-only | Merge-pointer | `skills/dhpk-harness-revise/references/harness-directory-contract.md` owns active harness resolution; this file keeps cross-platform sync. |
-| `skills/dhpk-de-ai-flavor/SKILL.md` | Other promoted | implicit-eligible | Keep | Owns its public workflow or domain-specific guidance; no duplicate SSOT identified in this pass. |
+| `skills/dhpk-de-ai-flavor/SKILL.md` | Other promoted | — | Retired in 0.47.0 | Historical row; intentional model-default retirement with no successor package. |
 | `skills/dhpk-deploy-list/SKILL.md` | Other promoted | implicit-eligible | Keep | Owns its public workflow or domain-specific guidance; no duplicate SSOT identified in this pass. |
 | `skills/dhpk-doc-review/SKILL.md` | Other promoted | implicit-eligible | Keep | Owns its public workflow or domain-specific guidance; no duplicate SSOT identified in this pass. |
 | `skills/dhpk-execution-checklist/SKILL.md` | Other promoted | implicit-eligible | Keep | Owns its public workflow or domain-specific guidance; no duplicate SSOT identified in this pass. |
 | `skills/dhpk-execution-policy/SKILL.md` | Other promoted | implicit-eligible | Keep | Owns its public workflow or domain-specific guidance; no duplicate SSOT identified in this pass. |
 | `skills/dhpk-fastapi-pro/SKILL.md` | Other promoted | implicit-eligible | Keep | Owns its public workflow or domain-specific guidance; no duplicate SSOT identified in this pass. |
 | `skills/dhpk-feasibility-study/SKILL.md` | Other promoted | implicit-eligible | Keep | Owns its public workflow or domain-specific guidance; no duplicate SSOT identified in this pass. |
-| `skills/dhpk-feature-dev/SKILL.md` | Feature/bug loop | implicit-eligible | Keep | Owns its public workflow or domain-specific guidance; no duplicate SSOT identified in this pass. |
+| `skills/dhpk-feature-dev/SKILL.md` | Feature/bug loop | — | Retired in 0.47.0 | Historical row; feature delivery is now `skills/dhpk-adaptive-dev-workflow/SKILL.md` (`feature` mode). |
 | `skills/dhpk-feature-verify/SKILL.md` | Feature/bug loop | implicit-eligible | Keep | Owns its public workflow or domain-specific guidance; no duplicate SSOT identified in this pass. |
 | `skills/dhpk-git-history-investigation/SKILL.md` | Other promoted | implicit-eligible | Keep | Owns its public workflow or domain-specific guidance; no duplicate SSOT identified in this pass. |
 | `skills/dhpk-git-smart-commit/SKILL.md` | Other promoted | explicit-only | Keep | Owns its public workflow or domain-specific guidance; no duplicate SSOT identified in this pass. |
@@ -76,7 +83,7 @@ The pass originally covered 103 packages. `dhpk-continuous-learning-v2` was reti
 | `skills/dhpk-phpunit-11-notes/SKILL.md` | Versioned notes | implicit-eligible | Keep | Version-specific notes remain separate IDs and point at the family router/counterpart; no ID merge. |
 | `skills/dhpk-phpunit-9-modern/SKILL.md` | Versioned notes | implicit-eligible | Keep | Version-specific notes remain separate IDs and point at the family router/counterpart; no ID merge. |
 | `skills/dhpk-polyfill-version-matrix-audit/SKILL.md` | Other promoted | implicit-eligible | Keep | Owns its public workflow or domain-specific guidance; no duplicate SSOT identified in this pass. |
-| `skills/dhpk-post-dev-test/SKILL.md` | Feature/bug loop | implicit-eligible | Keep | Owns its public workflow or domain-specific guidance; no duplicate SSOT identified in this pass. |
+| `skills/dhpk-post-dev-test/SKILL.md` | Feature/bug loop | — | Retired in 0.47.0 | Historical row; unit/integration work uses `dhpk-tdd-workflow`, and Playwright journeys use the `e2e-runner` agent. |
 | `skills/dhpk-pr-review/SKILL.md` | Other promoted | implicit-eligible | Keep | PR self-review workflow; OWASP is a named pointer, not a copied checklist. |
 | `skills/dhpk-project-audit/SKILL.md` | Other promoted | implicit-eligible | Keep | Owns its public workflow or domain-specific guidance; no duplicate SSOT identified in this pass. |
 | `skills/dhpk-project-setup/SKILL.md` | Other promoted | explicit-only | Keep | Owns its public workflow or domain-specific guidance; no duplicate SSOT identified in this pass. |

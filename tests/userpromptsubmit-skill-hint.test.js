@@ -10,6 +10,8 @@
 //   - A prompt shorter than 8 chars → no hint (noise floor).
 //   - DHPK_DISABLE_SKILL_HINT=1 → no hint (one-shot opt-out).
 //   - CLAUDE_PLUGIN_OPTION_SKILL_HINT_ENABLED=false → no hint.
+//   - A Playwright agent route → explicit UNAVAILABLE-aware dispatch hint.
+//   - Unknown agent targets → no hint (fail closed).
 //   - Always exits 0.
 
 const fs = require('node:fs');
@@ -38,6 +40,17 @@ function mkUnknownRouteTable() {
   fs.writeFileSync(file, JSON.stringify({
     rules: [
       { pattern: 'deploy.{0,20}(prod|production)', skill: 'dhpk:deploy-prod', label: 'production deploy' },
+    ],
+  }));
+  return { dir, file };
+}
+
+function mkUnknownAgentRouteTable() {
+  const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-uph-unknown-agent-')));
+  const file = path.join(dir, 'route-table.json');
+  fs.writeFileSync(file, JSON.stringify({
+    rules: [
+      { pattern: 'playwright', skill: 'agent:missing-role', label: 'missing Playwright agent' },
     ],
   }));
   return { dir, file };
@@ -178,11 +191,29 @@ test('real implicit-eligible route retains generic advisory wording', () => {
   assert.ok(!/do not call the generic Skill tool/i.test(res.stdout), `implicit route must not get explicit-only restriction: ${res.stdout}`);
 });
 
+test('real Playwright route emits an explicit unavailable agent dispatch hint without remapping', () => {
+  const res = runHookAgainstRealRoutes('please author a Playwright journey for checkout');
+  assert.strictEqual(res.status, 0, `agent:e2e-runner expected exit 0: ${res.stderr}`);
+  assert.ok(res.stdout.includes('agent:e2e-runner'), `expected agent target in hint: ${res.stdout}`);
+  assert.match(res.stdout, /UNAVAILABLE/);
+  assert.match(res.stdout, /dispatch|agent/i, `expected an agent dispatch hint: ${res.stdout}`);
+  assert.ok(!res.stdout.includes('dhpk-post-dev-test'), `retired route must not be suggested: ${res.stdout}`);
+  assert.ok(!res.stdout.includes('dhpk-tdd-workflow'), `Playwright route must not remap to TDD: ${res.stdout}`);
+  assert.ok(!/generic Skill tool/i.test(res.stdout), `agent route must not suggest Skill-tool invocation: ${res.stdout}`);
+});
+
 test('matching a route with missing canonical metadata fails closed', () => {
   const rt = mkUnknownRouteTable();
   const res = runHookWithRoute('please deploy to production now', rt.file);
   assert.strictEqual(res.status, 0, `expected exit 0: ${res.stderr}`);
   assert.strictEqual(res.stdout.trim(), '', `missing target metadata must suppress hint: ${res.stdout}`);
+});
+
+test('matching an unknown agent route fails closed without an unavailable fallback target', () => {
+  const rt = mkUnknownAgentRouteTable();
+  const res = runHookWithRoute('please use Playwright now', rt.file);
+  assert.strictEqual(res.status, 0, `unknown agent expected exit 0: ${res.stderr}`);
+  assert.strictEqual(res.stdout.trim(), '', `unknown agent target must suppress hint: ${res.stdout}`);
 });
 
 run('userpromptsubmit-skill-hint');

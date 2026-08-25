@@ -5,14 +5,14 @@ TBD - created by archiving change add-planner-agent-do-plan-dispatch. Update Pur
 ## Requirements
 ### Requirement: `/dhpk:do --plan` parsing and scope gate
 
-`commands/do.md` Step 0 SHALL parse an optional `--plan[=<model>[:<effort>]]` flag from the incoming request the same way it parses `--codex` today: detected, stripped from the request text before route-table matching, and carried forward as `PLAN=on` (with any explicit `<model>`/`<effort>` override) into Step 3. Planner dispatch SHALL activate only when the resolved route target is one of the four implementation-class skills — `dhpk:adaptive-dev-workflow`, `dhpk:bug-fix`, `dhpk:feature-dev`, `dhpk:opsx-apply-goal`. When `PLAN=on` resolves to any other route, `/dhpk:do` SHALL print a one-line ignore message and proceed with that route unaffected; `scripts/lib/route-table.json` and `scripts/lib/pre-route.sh` SHALL remain unchanged.
+`commands/do.md` Step 0 SHALL parse an optional `--plan[=<model>[:<effort>]]` flag from the incoming request the same way it parses `--codex` today: detected, stripped from the request text before route-table matching, and carried forward as `PLAN=on` (with any explicit `<model>`/`<effort>` override) into Step 3. Planner dispatch SHALL activate only when the resolved route target is one of the implementation-class routes — `dhpk:adaptive-dev-workflow` or `dhpk:opsx-apply-goal`. When `PLAN=on` resolves to any other route, `/dhpk:do` SHALL print a one-line ignore message and proceed with that route unaffected; `scripts/lib/route-table.json` and `scripts/lib/pre-route.sh` SHALL remain unchanged.
 
 #### Scenario: --plan flag is stripped before route matching
 - **WHEN** a user runs `/dhpk:do --plan "implement feature X"`
 - **THEN** the route-table matcher receives the cleaned query without the `--plan` token, and the route resolves exactly as it would without the flag present
 
 #### Scenario: --plan activates on an implementation-class route
-- **WHEN** `--plan` is set and the resolved route target is `dhpk:feature-dev`, `dhpk:bug-fix`, `dhpk:adaptive-dev-workflow`, or `dhpk:opsx-apply-goal`
+- **WHEN** `--plan` is set and the resolved route target is `dhpk:adaptive-dev-workflow` or `dhpk:opsx-apply-goal`
 - **THEN** `/dhpk:do` carries `PLAN=on` forward into Step 3 and assembles a plan brief for `dhpk:planner` before invoking the target skill
 
 #### Scenario: --plan is ignored on a non-implementation route
@@ -20,7 +20,7 @@ TBD - created by archiving change add-planner-agent-do-plan-dispatch. Update Pur
 - **THEN** `/dhpk:do` prints a one-line message stating the flag was ignored and proceeds with the resolved route unaffected, with no `dhpk:planner` dispatch
 
 #### Scenario: Model/effort override syntax is parsed
-- **WHEN** a user runs `/dhpk:do --plan=fable:medium "fix bug Y"` and the route resolves to `dhpk:bug-fix`
+- **WHEN** a user runs `/dhpk:do --plan=fable:medium "fix bug Y"` and the route resolves to `dhpk:adaptive-dev-workflow`
 - **THEN** `/dhpk:do` parses `fable` as the model override and `medium` as the effort override and carries both forward for the `dhpk:planner` dispatch
 
 ### Requirement: Planner reply contract — verdict-first-line, coded findings, token cap, END sentinel

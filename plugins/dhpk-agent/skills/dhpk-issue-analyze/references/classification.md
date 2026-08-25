@@ -19,7 +19,7 @@
 | Regression     | Intermittent | -          | `/dhpk:dhpk-codebase-exploration --dual`                      |
 | Always existed | Reproducible | Low        | `/dhpk:dhpk-codebase-exploration`                          |
 | Always existed | Reproducible | High       | `/dhpk:dhpk-codebase-exploration --dual`                      |
-| Always existed | Intermittent | -          | `/dhpk:dhpk-codex-brainstorm`                      |
+| Always existed | Intermittent | -          | `/dhpk:dhpk-codex-architect --mode adversarial`    |
 | Uncertain      | -            | -          | `/dhpk:dhpk-codebase-exploration` first                    |
 
 ## Keyword Triggers
@@ -39,7 +39,7 @@
 - "Need confirmation" "somewhat complex" "unsure of the cause"
 - "Intermittent" "sometimes happens" "random"
 
-### -> `/dhpk:dhpk-codex-brainstorm`
+### -> `/dhpk:dhpk-codex-architect --mode adversarial`
 
 - "Many possible causes" "how to determine" "exhaust possibilities"
 - "What are the possibilities" "not sure what the problem is"
@@ -52,7 +52,7 @@ When the problem is complex, combine strategies:
 1. /dhpk:dhpk-codebase-exploration -> Establish baseline understanding first
 2. /dhpk:dhpk-git-history-investigation -> If regression is suspected
 3. /dhpk:dhpk-codebase-exploration --dual -> When dual confirmation is needed
-4. /dhpk:dhpk-codex-brainstorm -> Exhaust all possible causes
+4. /dhpk:dhpk-codex-architect --mode adversarial -> Exhaust all possible causes
 ```
 
 ## Review Thread Classification
@@ -96,5 +96,5 @@ Initial investigation insufficient -> Escalate strategy
     -> Combine with /dhpk:dhpk-codebase-exploration (understand change logic)
 
 /dhpk:dhpk-codebase-exploration --dual views diverge
-    -> Escalate to /dhpk:dhpk-codex-brainstorm (adversarial debate)
+    -> Escalate to /dhpk:dhpk-codex-architect --mode adversarial (bounded debate)
 ```

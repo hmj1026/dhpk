@@ -33,3 +33,12 @@
   - planning、implementation、review gate 與 workflow diagram
 
 專案特化的 pack 不放在本 skill 內，而是由使用端專案提供 `@rules/dev-workflow-project.md`（見 `projects-index.md`）。
+
+## Wayfinder Decision Map
+
+Use this only when the destination or owning workflow is unclear and the work
+spans more than one session or agent. Record one bounded question, destination
+candidates, the settled evidence frontier, and the next decision that unblocks
+one route. Preserve the decision record when handing off to `/opsx:new`; a map,
+proposal, design, or task list is planning evidence, not an applied,
+verified, pull-request, or archived change.

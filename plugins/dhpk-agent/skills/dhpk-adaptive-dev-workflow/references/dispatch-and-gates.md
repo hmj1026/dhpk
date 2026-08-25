@@ -16,7 +16,9 @@ SSOT 是 `@rules/execution-policy.md` 的 *Implementation dispatch*；本表只�
 | Feature / Bug Fix | 約 ≤2 檔且無歧義 | 無，inline |
 | Lightweight Maintenance | — | 無，inline patch |
 
-禁止用 `general-purpose` 做實作 dispatch。`orchestration_dispatch=off` 時回到 `dhpk:dhpk-bug-fix` / `dhpk:dhpk-feature-dev` 內直接實作。
+禁止用 `general-purpose` 做實作 dispatch。`orchestration_dispatch=off` 時仍在
+本技能選定的 Feature 或 Bug branch 內直接實作，並保留相同的 RED、驗證與
+review gate。
 
 ## Post-Implementation Agent Gates
 
