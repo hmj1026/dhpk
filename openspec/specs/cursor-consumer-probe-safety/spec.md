@@ -63,15 +63,26 @@ environment and MUST NOT inherit arbitrary credential variables. The documented
 launch-scoped wrapper MUST pass `--trust` so the client does not wait for an
 interactive workspace-confirmation prompt, and POSIX probes MUST ignore stdin.
 The release consumer route SHALL additionally run from a disposable package
-workspace and profile, with the network state either technically disabled or
-reported as unknown. If the OS network namespace cannot be established, the
-release route SHALL return `BLOCKED` with `network: unknown`; fixture-only
-unsandboxed overrides MUST NOT be eligible for release `PASS`. It SHALL require
+workspace and profile. Authenticated release probes SHALL use a verified
+bubblewrap namespace with a read-only root, masked host secret roots, a
+read-only bind for only the required client runtime root, and writable paths
+contained below a private temporary root. The authenticated release network
+mode SHALL be controlled shared networking (`--unshare-all` followed by
+`--share-net`); unrestricted execution MUST NOT be used. Offline/fixture
+probes MAY use technically disabled networking. If the requested OS network
+namespace cannot be established, the route SHALL return `BLOCKED` with
+`network: unknown`; fixture-only unsandboxed overrides MUST NOT be eligible for
+release `PASS`. DNS or transport failures SHALL be `UNAVAILABLE`, not product
+`FAIL`. It SHALL require
 a package-owned loader boundary (the
 temporary package hook/command) to emit an attestation containing a matching
 package fingerprint and loaded component list. A challenge file, launcher
 environment variable, prompt echo, or model-reported fields alone SHALL never
-be sufficient for runtime `PASS`.
+be sufficient for runtime `PASS`. For a client under a home directory, normal
+installations SHALL bind only the physical directory containing the resolved
+executable; a trusted Homebrew-style `.linuxbrew` prefix MAY be rebound as an
+explicit runtime exception when absolute sibling libraries require that prefix.
+Direct home-root and direct `.local` executables SHALL be rejected.
 
 #### Scenario: Launch-scoped probe skips workspace confirmation
 
@@ -118,3 +129,107 @@ be sufficient for runtime `PASS`.
 - **THEN** it stages the Agent/Cursor packages into a disposable workspace,
   assigns a temporary profile/config/cache root, and removes those paths after
   the bounded invocation
+
+### Requirement: Cursor probes clone an allowlisted login session into disposable HOME
+
+The Cursor consumer probe SHALL create a disposable probe HOME and SHALL copy
+only allowlisted already-logged-in session files from the host into that HOME:
+`$HOME/.config/cursor/auth.json` and, when present,
+`$HOME/.cursor/cli-config.json`. Copied files MUST use mode `0600`. The probe
+MUST NOT inherit the host HOME, MUST NOT copy the rest of the host
+Cursor/config tree, and MUST NOT use `CURSOR_API_KEY` or any other API key as
+consumer authentication. Probe diagnostics and receipts MUST redact session
+contents. The disposable HOME MUST be deleted after the bounded invocation.
+The probe SHALL expose explicit `disabled`, `shared`, and legacy
+fixture-only `unrestricted` network modes. Unrestricted mode MUST be rejected
+unless the caller explicitly opts into the fixture-only path; it MUST NOT be
+the default for an authenticated or release route. Authenticated release
+probes MUST use a verified bubblewrap namespace with a read-only root,
+writable temporary probe paths, `--unshare-all` followed by `--share-net`, and
+MUST NOT use unrestricted execution. A verified sandbox executable MUST be a
+non-symlink, root-owned executable under non-writable ancestors. The namespace
+MUST mask host secret roots and bind only the required client runtime root.
+Writable probe paths MUST be real non-symlink directories contained below the
+private temporary root. Normal home installations SHALL bind only the physical
+directory containing the resolved client executable; a trusted Homebrew-style
+`.linuxbrew` prefix MAY be rebound only when absolute sibling libraries require
+that self-contained runtime tree. Direct home-root and direct `.local`
+executables SHALL be rejected. Offline/fixture probes MAY use `disabled`; inability
+to establish the requested sandbox SHALL remain `BLOCKED` with
+`network: unknown`. DNS or transport failures SHALL be `UNAVAILABLE`, not
+product `FAIL`.
+
+#### Scenario: Host session files are cloned without inheriting HOME
+
+- **WHEN** the host has the allowlisted Cursor session files and the release
+  consumer probe runs
+- **THEN** the child runs with a disposable HOME containing only those copied
+  files at `0600`, and the host HOME is not the child HOME
+
+#### Scenario: Missing login is BLOCKED
+
+- **WHEN** the allowlisted session files are absent or the Cursor CLI reports
+  that authentication is required
+- **THEN** the consumer result is `BLOCKED` with a redacted diagnostic, and
+  MUST NOT be `FAIL` or `PASS`
+
+#### Scenario: API key authentication is rejected
+
+- **WHEN** a caller supplies `CURSOR_API_KEY` or another API-key environment
+  variable as the only Cursor credential
+- **THEN** the probe does not treat that as login evidence and remains
+  `BLOCKED` unless allowlisted session files were cloned
+
+#### Scenario: Network policy is explicit and fail-closed
+
+- **WHEN** an authenticated release consumer probe runs after cloning session
+  files
+- **THEN** the child runs in the controlled shared-network bubblewrap
+  namespace, with `--share-net` after `--unshare-all`; a missing sandbox is
+  `BLOCKED` with `network: unknown`, and an unrestricted release request is
+  rejected before invoking the client
+
+#### Scenario: Offline probes remain network-disabled
+
+- **WHEN** a fixture or explicitly offline probe requests `networkMode:
+  disabled`
+- **THEN** the child runs with network isolation disabled, and the result
+  records `network: disabled` only after the sandbox wrapper succeeds
+
+#### Scenario: Host secrets and caller paths stay outside the release namespace
+
+- **WHEN** a release probe runs with a client under the host home directory or
+  a caller-supplied `cwd` outside the temporary root
+- **THEN** host secret roots remain masked, only the client runtime subtree is
+  rebound read-only, and the probe is `BLOCKED` instead of creating a
+  writable bind outside the private temporary root
+
+#### Scenario: PATH shims cannot become sandbox backends
+
+- **WHEN** a regular user-owned `bwrap` or `unshare` shim appears before the
+  system executable on `PATH`
+- **THEN** the shim is ignored, the probe uses a verified trusted executable,
+  or the requested sandbox remains unavailable; the shim MUST NOT be executed
+  as the release backend
+
+### Requirement: Cursor runtime evidence is the cursor-agent CLI
+
+Cursor consumer-runtime `PASS` SHALL be produced only by a bounded
+`cursor-agent` invocation. Desktop GUI flows, the `cursor` desktop binary,
+Customize → Plugins, and project-local `.cursor/` trees SHALL NOT satisfy
+Cursor runtime `PASS`. `cursor-plugin` SHALL invoke `cursor-agent` with both
+the portable Agent Plugin directory and the Cursor-native package directory.
+`agent-plugin` SHALL use a separate single-directory invocation defined by the
+portable-package consumer contract.
+
+#### Scenario: Desktop client is not runtime evidence
+
+- **WHEN** only a Cursor desktop GUI, hanging `cursor` binary, or project-local
+  `.cursor/` tree is observed
+- **THEN** the Cursor consumer-runtime row MUST NOT become `PASS`
+
+#### Scenario: cursor-plugin uses dual plugin directories
+
+- **WHEN** the `cursor-plugin` consumer probe runs
+- **THEN** it launches `cursor-agent` with `--plugin-dir` for the portable
+  Agent Plugin package and `--plugin-dir` for the Cursor-native package

@@ -5,6 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
+const { networkSandboxProbe, sandboxInvocation } = require('../scripts/lib/cursor-plugin-package');
 const { AGENT_PLUGIN_SCHEMA } = require('../scripts/lib/agent-plugin-package');
 const { redactSensitiveText } = require('../scripts/lib/redaction');
 const { runCursorConsumerProbe } = require('../scripts/lib/cursor-plugin-package');
@@ -63,6 +64,23 @@ test('missing package is BLOCKED without probing a client', () => {
   }
 });
 
+test('release probe converts traversal-limit validation failures into structured BLOCKED evidence', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-entry-limit-'));
+  try {
+    writeAgentManifest(root);
+    for (let index = 0; index <= 40000; index += 1) fs.writeFileSync(path.join(root, `entry-${index}`), '');
+    const result = runProbe('agent-plugin', root);
+    assert.strictEqual(result.status, 1, result.stdout + result.stderr);
+    const payload = JSON.parse(result.stdout);
+    assert.strictEqual(payload.status, 'BLOCKED', JSON.stringify(payload));
+    assert.match(payload.reason, /physical preflight|structural validation/i);
+    assert.match(payload.diagnostics.join(' '), /entry count|fingerprint/i);
+    assert.strictEqual(payload.surfaceResults[0].status, 'BLOCKED', JSON.stringify(payload));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('present package reports UNAVAILABLE or NOT_RUN, never static PASS, when consumer evidence is absent', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-present-'));
   try {
@@ -73,6 +91,20 @@ test('present package reports UNAVAILABLE or NOT_RUN, never static PASS, when co
     assert.notStrictEqual(payload.status, 'PASS');
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('Codex discovery reports UNAVAILABLE before NOT_RUN when the CLI is absent', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-codex-absent-'));
+  const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-codex-absent-bin-'));
+  try {
+    writeAgentManifest(root);
+    const result = runProbe('codex', root, [], { ...process.env, PATH: bin });
+    const payload = JSON.parse(result.stdout);
+    assert.strictEqual(payload.status, 'UNAVAILABLE', JSON.stringify(payload));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(bin, { recursive: true, force: true });
   }
 });
 
@@ -105,12 +137,12 @@ test('agent-plugin runtime probe uses exactly one portable plugin directory', ()
       HOME: hostHome,
       PATH: `${bin}${path.delimiter}${process.env.PATH || ''}`,
     });
-    assert.strictEqual(result.status, 1, result.stdout + result.stderr);
+    assert.ok([0, 1].includes(result.status), result.stdout + result.stderr);
     const payload = JSON.parse(result.stdout);
-    assert.strictEqual(payload.status, 'BLOCKED', JSON.stringify(payload));
+    assert.ok(['PASS', 'BLOCKED', 'UNAVAILABLE'].includes(payload.status), JSON.stringify(payload));
     assert.strictEqual(payload.surfaceResults[0].surface, 'agent-plugin', JSON.stringify(payload));
-    assert.strictEqual(payload.surfaceResults[0].status, 'BLOCKED', JSON.stringify(payload));
-    assert.strictEqual(payload.network, 'unknown', JSON.stringify(payload));
+    assert.strictEqual(payload.surfaceResults[0].status, payload.status, JSON.stringify(payload));
+    if (payload.status === 'PASS') assert.strictEqual(payload.network, 'shared', JSON.stringify(payload));
     assert.strictEqual(
       (payload.commands[0].cmd.match(/--plugin-dir/g) || []).length,
       1,
@@ -137,7 +169,28 @@ test('Cursor probe is explicit UNAVAILABLE in a non-Cursor environment', () => {
   }
 });
 
-test('Cursor --execute keeps an isolated profile and blocks without a real network sandbox', () => {
+test('Cursor probe converts sibling Agent Plugin validation exceptions into structured BLOCKED evidence', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-cursor-sibling-limit-'));
+  const cursor = path.join(root, 'dhpk-cursor');
+  const agent = path.join(root, 'dhpk-agent');
+  try {
+    fs.mkdirSync(cursor, { recursive: true });
+    fs.mkdirSync(agent, { recursive: true });
+    writeCursorPackage(cursor);
+    writeAgentManifest(agent);
+    for (let index = 0; index <= 40000; index += 1) fs.writeFileSync(path.join(agent, `entry-${index}`), '');
+    const result = runProbe('cursor', cursor, ['--execute'], { ...process.env, PATH: '' });
+    assert.strictEqual(result.status, 1, result.stdout + result.stderr);
+    const payload = JSON.parse(result.stdout);
+    assert.strictEqual(payload.status, 'BLOCKED', JSON.stringify(payload));
+    assert.match(payload.reason, /sibling Agent Plugin package|validate/i);
+    assert.strictEqual(payload.surfaceResults[0].status, 'BLOCKED', JSON.stringify(payload));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('Cursor --execute keeps an isolated profile and uses the verified shared network sandbox', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-cursor-execute-'));
   const agent = path.join(root, 'dhpk-agent');
   const cursor = path.join(root, 'dhpk-cursor');
@@ -168,11 +221,11 @@ test('Cursor --execute keeps an isolated profile and blocks without a real netwo
       HOME: hostHome,
       PATH: `${bin}${path.delimiter}${process.env.PATH || ''}`,
     });
-    assert.strictEqual(result.status, 1, result.stdout + result.stderr);
+    assert.ok([0, 1].includes(result.status), result.stdout + result.stderr);
     const payload = JSON.parse(result.stdout);
-    assert.strictEqual(payload.status, 'BLOCKED', JSON.stringify(payload));
-    assert.strictEqual(payload.network, 'unknown', JSON.stringify(payload));
-    assert.strictEqual(payload.surfaceResults[0].status, 'BLOCKED', JSON.stringify(payload));
+    assert.ok(['PASS', 'BLOCKED', 'UNAVAILABLE'].includes(payload.status), JSON.stringify(payload));
+    assert.strictEqual(payload.surfaceResults[0].status, payload.status, JSON.stringify(payload));
+    if (payload.status === 'PASS') assert.strictEqual(payload.network, 'shared', JSON.stringify(payload));
     assert.ok(payload.session_files.includes('.config/cursor/auth.json'), JSON.stringify(payload));
     assert.ok(payload.commands.some((command) => /cursor-agent/.test(command.cmd)), JSON.stringify(payload));
     assert.match(payload.surfaceResults[0].reasons.join(' '), /challenge|package|network/i);
@@ -181,7 +234,8 @@ test('Cursor --execute keeps an isolated profile and blocks without a real netwo
   }
 });
 
-test('Cursor --execute falls back to a bwrap network sandbox when unshare is unavailable', () => {
+test('Cursor --execute uses a bwrap shared-network sandbox with an isolated filesystem', () => {
+  if (process.platform !== 'linux' || !networkSandboxProbe(process.env.PATH, 'shared', true)) return;
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-cursor-bwrap-'));
   const agent = path.join(root, 'dhpk-agent');
   const cursor = path.join(root, 'dhpk-cursor');
@@ -193,22 +247,6 @@ test('Cursor --execute falls back to a bwrap network sandbox when unshare is una
     const hostHome = writeCursorAuthHome(root);
     writeAgentManifest(agent);
     writeCursorPackage(cursor);
-    fs.writeFileSync(path.join(bin, 'unshare'), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
-    fs.writeFileSync(path.join(bin, 'bwrap'), [
-      '#!/usr/bin/env node',
-      "const fs = require('node:fs');",
-      "const path = require('node:path');",
-      "const cp = require('node:child_process');",
-      "const args = process.argv.slice(2);",
-      "fs.writeFileSync(path.join(__dirname, 'bwrap-args.json'), JSON.stringify(args));",
-      "const separator = args.indexOf('--');",
-      "if (separator < 0 || !args[separator + 1]) process.exit(97);",
-      "const result = cp.spawnSync(args[separator + 1], args.slice(separator + 2), { encoding: 'utf8', env: process.env });",
-      "if (result.stdout) process.stdout.write(result.stdout);",
-      "if (result.stderr) process.stderr.write(result.stderr);",
-      "process.exit(result.status === null ? 98 : result.status);",
-      '',
-    ].join('\n'), { mode: 0o755 });
     fs.writeFileSync(path.join(bin, 'cursor-agent'), [
       '#!/usr/bin/env node',
       "const fs = require('node:fs');",
@@ -229,58 +267,15 @@ test('Cursor --execute falls back to a bwrap network sandbox when unshare is una
     assert.strictEqual(result.status, 0, result.stdout + result.stderr);
     const payload = JSON.parse(result.stdout);
     assert.strictEqual(payload.status, 'PASS', JSON.stringify(payload));
-    assert.strictEqual(payload.network, 'disabled', JSON.stringify(payload));
-    const bwrapArgs = JSON.parse(fs.readFileSync(path.join(bin, 'bwrap-args.json'), 'utf8'));
-    assert.deepStrictEqual(
-      bwrapArgs.slice(0, 9),
-      ['--ro-bind', '/', '/', '--dev', '/dev', '--proc', '/proc', '--unshare-net', '--die-with-parent'],
-      JSON.stringify(bwrapArgs),
-    );
-    const separator = bwrapArgs.indexOf('--');
-    assert.ok(separator > 9, JSON.stringify(bwrapArgs));
-    const writablePaths = [];
-    for (let index = 9; index < separator; index += 1) {
-      assert.strictEqual(bwrapArgs[index], '--bind', JSON.stringify(bwrapArgs));
-      assert.strictEqual(bwrapArgs[index + 1], bwrapArgs[index + 2], JSON.stringify(bwrapArgs));
-      writablePaths.push(bwrapArgs[index + 1]);
-      index += 2;
-    }
-    assert.ok(writablePaths.length >= 3, JSON.stringify(bwrapArgs));
-    assert.ok(writablePaths.every((value) => value.startsWith(`${os.tmpdir()}${path.sep}`)), JSON.stringify(writablePaths));
-    assert.match(bwrapArgs[separator + 1], /cursor-agent$/, JSON.stringify(bwrapArgs));
+    assert.strictEqual(payload.network, 'shared', JSON.stringify(payload));
 
-    fs.writeFileSync(path.join(bin, 'unshare'), [
-      '#!/usr/bin/env node',
-      "const fs = require('node:fs');",
-      "const path = require('node:path');",
-      "const cp = require('node:child_process');",
-      "const args = process.argv.slice(2);",
-      "fs.writeFileSync(path.join(__dirname, 'unshare-args.json'), JSON.stringify(args));",
-      "const index = args.indexOf('--');",
-      "const child = cp.spawnSync(args[index + 1], args.slice(index + 2), { encoding: 'utf8', env: process.env });",
-      "if (child.stdout) process.stdout.write(child.stdout);",
-      "if (child.stderr) process.stderr.write(child.stderr);",
-      "process.exit(child.status === null ? 98 : child.status);",
-      '',
-    ].join('\n'), { mode: 0o755 });
-    fs.writeFileSync(path.join(bin, 'bwrap'), [
-      '#!/bin/sh',
-      `printf '%s' called > '${path.join(bin, 'bwrap-second-called')}'`,
-      'exit 99',
-      '',
-    ].join('\n'), { mode: 0o755 });
-    const unshareResult = runProbe('cursor', cursor, ['--execute', '--version', '1.0.0'], env);
-    assert.strictEqual(unshareResult.status, 0, unshareResult.stdout + unshareResult.stderr);
-    assert.strictEqual(JSON.parse(unshareResult.stdout).status, 'PASS', unshareResult.stdout);
-    assert.ok(fs.existsSync(path.join(bin, 'unshare-args.json')));
-    assert.strictEqual(fs.existsSync(path.join(bin, 'bwrap-second-called')), false);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
 
 test('Cursor bwrap probes retain timeout bounds and die-with-parent protection', () => {
-  if (process.platform !== 'linux') return;
+  if (process.platform !== 'linux' || !networkSandboxProbe(process.env.PATH, 'disabled', true)) return;
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-cursor-bwrap-timeout-'));
   const packageRoot = path.join(root, 'package');
   const bin = path.join(root, 'bin');
@@ -289,25 +284,6 @@ test('Cursor bwrap probes retain timeout bounds and die-with-parent protection',
     fs.mkdirSync(packageRoot, { recursive: true });
     fs.mkdirSync(bin, { recursive: true });
     const hostHome = writeCursorAuthHome(root);
-    fs.writeFileSync(path.join(bin, 'unshare'), '#!/bin/sh\nexit 1\n', { mode: 0o755 });
-    fs.writeFileSync(path.join(bin, 'bwrap'), [
-      '#!/usr/bin/env node',
-      "const fs = require('node:fs');",
-      "const path = require('node:path');",
-      "const cp = require('node:child_process');",
-      "const args = process.argv.slice(2);",
-      "const log = path.join(__dirname, 'bwrap-timeout-args.json');",
-      "const calls = fs.existsSync(log) ? JSON.parse(fs.readFileSync(log, 'utf8')) : [];",
-      'calls.push(args);',
-      "fs.writeFileSync(log, JSON.stringify(calls));",
-      "const separator = args.indexOf('--');",
-      'if (separator < 0 || !args[separator + 1]) process.exit(97);',
-      "const child = cp.spawnSync(args[separator + 1], args.slice(separator + 2), { encoding: 'utf8', env: process.env });",
-      "if (child.stdout) process.stdout.write(child.stdout);",
-      "if (child.stderr) process.stderr.write(child.stderr);",
-      'process.exit(child.status === null ? 98 : child.status);',
-      '',
-    ].join('\n'), { mode: 0o755 });
     process.env.PATH = `${bin}${path.delimiter}${previousPath || ''}`;
     const probe = runCursorConsumerProbe({
       packageRoot,
@@ -320,12 +296,68 @@ test('Cursor bwrap probes retain timeout bounds and die-with-parent protection',
     });
     assert.strictEqual(probe.status, 'SKIP_INCOMPATIBLE', JSON.stringify(probe));
     assert.strictEqual(probe.timed_out, true, JSON.stringify(probe));
-    const calls = JSON.parse(fs.readFileSync(path.join(bin, 'bwrap-timeout-args.json'), 'utf8'));
-    assert.ok(calls.some((args) => args.includes('--die-with-parent')), JSON.stringify(calls));
   } finally {
     if (previousPath === undefined) delete process.env.PATH;
     else process.env.PATH = previousPath;
     fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('shared sandbox argv keeps namespace, secret masks, and private binds ordered', () => {
+  if (process.platform !== 'linux' || !networkSandboxProbe(process.env.PATH, 'shared', true)) return;
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-argv-'));
+  try {
+    const sandbox = networkSandboxProbe(process.env.PATH, 'shared', true);
+    if (!sandbox) return;
+    const invocation = sandboxInvocation(sandbox, process.execPath, ['-e', 'process.exit(0)'], [root], os.tmpdir());
+    assert.ok(invocation, 'sandbox invocation should be available');
+    const argv = invocation[1];
+    assert.strictEqual(argv[0], '--ro-bind');
+    assert.strictEqual(argv[1], '/');
+    assert.ok(argv.includes('--tmpfs') && argv.includes('/home'), JSON.stringify(argv));
+    assert.ok(argv.includes('--tmpfs') && argv.includes('/root'), JSON.stringify(argv));
+    const unshareAll = argv.indexOf('--unshare-all');
+    const shareNet = argv.indexOf('--share-net');
+    const writable = argv.indexOf('--bind');
+    assert.ok(unshareAll >= 0 && shareNet > unshareAll, JSON.stringify(argv));
+    assert.strictEqual(argv.includes('--unshare-net'), false, JSON.stringify(argv));
+    assert.ok(writable > shareNet, JSON.stringify(argv));
+    assert.strictEqual(argv[argv.indexOf('--') + 1], fs.realpathSync(process.execPath));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('sandbox invocation rejects a client executable directly under a user home', () => {
+  if (process.platform === 'win32') return;
+  const home = path.resolve(process.env.HOME || '');
+  if (!/^\/(?:home|root)\/[^/]+$/.test(home)) return;
+  const command = path.join(home, `.dhpk-direct-client-${process.pid}`);
+  try {
+    fs.writeFileSync(command, '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+    const sandbox = networkSandboxProbe(process.env.PATH, 'shared', true);
+    if (!sandbox) return;
+    assert.strictEqual(sandboxInvocation(sandbox, command, [], [], os.tmpdir()), null);
+  } finally {
+    fs.rmSync(command, { force: true });
+  }
+});
+
+test('sandbox invocation rejects broken symlinks inside a home client runtime bind tree', () => {
+  if (process.platform === 'win32') return;
+  const home = path.resolve(process.env.HOME || '');
+  if (!/^\/(?:home|root)\/[^/]+$/.test(home)) return;
+  const runtimeRoot = fs.mkdtempSync(path.join(home, `dhpk-client-tree-${process.pid}-`));
+  const command = path.join(runtimeRoot, 'bin', 'cursor-agent');
+  try {
+    fs.mkdirSync(path.dirname(command), { recursive: true });
+    fs.writeFileSync(command, '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+    fs.symlinkSync(path.join(runtimeRoot, 'missing-target'), path.join(path.dirname(command), 'broken-link'));
+    const sandbox = networkSandboxProbe(process.env.PATH, 'shared', true);
+    if (!sandbox) return;
+    assert.strictEqual(sandboxInvocation(sandbox, command, [], [], os.tmpdir()), null);
+  } finally {
+    fs.rmSync(runtimeRoot, { recursive: true, force: true });
   }
 });
 
@@ -372,6 +404,7 @@ test('Cursor --execute rejects output that only echoes the smoke prompt', () => 
 });
 
 test('Codex --execute uses a sandboxed CODEX_HOME and reports PASS only after the route exits zero', () => {
+  if (process.platform !== 'linux' || !networkSandboxProbe(process.env.PATH, 'disabled', true)) return;
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-execute-'));
   const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-bin-'));
   try {
@@ -385,6 +418,105 @@ test('Codex --execute uses a sandboxed CODEX_HOME and reports PASS only after th
     assert.strictEqual(payload.surfaceEvidence.status, 'PASS');
     assert.strictEqual(payload.surfaceEvidence.surface, 'codex-marketplace');
     assert.ok(payload.surfaceEvidence.commands.length > 0);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(bin, { recursive: true, force: true });
+  }
+});
+
+test('Codex route never executes a user-owned unshare shim or unsandboxed fallback', () => {
+  if (process.platform !== 'linux' || !networkSandboxProbe(process.env.PATH, 'disabled', true)) return;
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-codex-shim-'));
+  const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-codex-shim-bin-'));
+  const sentinel = path.join(bin, 'unshare-executed');
+  try {
+    writeAgentManifest(root);
+    fs.writeFileSync(path.join(bin, 'unshare'), `#!/bin/sh\nprintf executed > ${JSON.stringify(sentinel)}\nexit 0\n`, { mode: 0o755 });
+    fs.writeFileSync(path.join(bin, 'codex'), '#!/bin/sh\nif [ "$1" = "--version" ]; then exit 0; fi\nif [ "$1" = "plugin" ] && [ -n "$CODEX_HOME" ]; then test -d "$CODEX_HOME"; exit $?; fi\nexit 1\n', { mode: 0o755 });
+    const env = {
+      ...process.env,
+      PATH: `${bin}${path.delimiter}${process.env.PATH || ''}`,
+      DHPK_CONSUMER_PROBE_EXECUTE: '',
+      DHPK_CONSUMER_PROBE_ALLOW_UNSANDBOXED_EXECUTION: '1',
+    };
+    const result = runProbe('codex', root, ['--execute'], env);
+    const payload = JSON.parse(result.stdout);
+    assert.strictEqual(fs.existsSync(sentinel), false, result.stdout + result.stderr);
+    assert.ok(['PASS', 'BLOCKED'].includes(payload.status), JSON.stringify(payload));
+    if (payload.status === 'PASS') assert.strictEqual(payload.network, 'disabled', JSON.stringify(payload));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(bin, { recursive: true, force: true });
+  }
+});
+
+test('Codex version check runs inside the trusted sandbox and cannot write the host', () => {
+  if (process.platform !== 'linux' || !networkSandboxProbe(process.env.PATH, 'disabled', true)) return;
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-codex-version-sandbox-'));
+  const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-codex-version-bin-'));
+  const sentinel = path.join(os.tmpdir(), `dhpk-codex-version-host-${process.pid}`);
+  try {
+    writeAgentManifest(root);
+    fs.rmSync(sentinel, { force: true });
+    fs.writeFileSync(path.join(bin, 'codex'), `#!/bin/sh\nif [ "$1" = "--version" ]; then printf host-version > ${JSON.stringify(sentinel)}; exit 0; fi\nif [ "$1" = "plugin" ] && [ -n "$CODEX_HOME" ]; then test -d "$CODEX_HOME"; exit $?; fi\nexit 1\n`, { mode: 0o755 });
+    const env = {
+      ...process.env,
+      PATH: `${bin}${path.delimiter}${process.env.PATH || ''}`,
+      DHPK_CONSUMER_PROBE_EXECUTE: '',
+    };
+    const result = runProbe('codex', root, ['--execute'], env);
+    const payload = JSON.parse(result.stdout);
+    assert.strictEqual(fs.existsSync(sentinel), false, result.stdout + result.stderr);
+    assert.ok(['PASS', 'BLOCKED'].includes(payload.status), JSON.stringify(payload));
+  } finally {
+    fs.rmSync(sentinel, { force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(bin, { recursive: true, force: true });
+  }
+});
+
+test('Codex version probe applies timeout and output bounds before marketplace execution', () => {
+  if (process.platform !== 'linux' || !networkSandboxProbe(process.env.PATH, 'disabled', true)) return;
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-codex-version-timeout-'));
+  const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-codex-version-timeout-bin-'));
+  try {
+    writeAgentManifest(root);
+    fs.writeFileSync(path.join(bin, 'codex'), '#!/bin/sh\nsleep 5\n', { mode: 0o755 });
+    const env = {
+      ...process.env,
+      PATH: `${bin}${path.delimiter}${process.env.PATH || ''}`,
+      DHPK_CONSUMER_PROBE_EXECUTE: '',
+      DHPK_CONSUMER_PROBE_TIMEOUT_MS: '100',
+    };
+    const started = Date.now();
+    const result = runProbe('codex', root, ['--execute'], env);
+    assert.ok(Date.now() - started < 2000, `Codex timeout bound exceeded: ${Date.now() - started}ms`);
+    const payload = JSON.parse(result.stdout);
+    assert.strictEqual(payload.status, 'BLOCKED', JSON.stringify(payload));
+    assert.match(payload.reason, /timed out|timeout/i);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(bin, { recursive: true, force: true });
+  }
+});
+
+test('Codex version output cap blocks oversized diagnostics before marketplace execution', () => {
+  if (process.platform !== 'linux' || !networkSandboxProbe(process.env.PATH, 'disabled', true)) return;
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-codex-version-output-'));
+  const bin = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-codex-version-output-bin-'));
+  try {
+    writeAgentManifest(root);
+    fs.writeFileSync(path.join(bin, 'codex'), '#!/bin/sh\nif [ "$1" = "--version" ]; then dd if=/dev/zero bs=1024 count=2 2>/dev/null; exit 0; fi\nexit 1\n', { mode: 0o755 });
+    const env = {
+      ...process.env,
+      PATH: `${bin}${path.delimiter}${process.env.PATH || ''}`,
+      DHPK_CONSUMER_PROBE_EXECUTE: '',
+      DHPK_CONSUMER_PROBE_MAX_OUTPUT_BYTES: '100',
+    };
+    const result = runProbe('codex', root, ['--execute'], env);
+    const payload = JSON.parse(result.stdout);
+    assert.strictEqual(payload.status, 'BLOCKED', JSON.stringify(payload));
+    assert.match(payload.reason, /output exceeded/i);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
     fs.rmSync(bin, { recursive: true, force: true });

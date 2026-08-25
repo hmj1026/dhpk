@@ -16,7 +16,7 @@ projection 內容後，才能宣稱 client 可呼叫。
 | Cursor standard Agent Plugin | Cursor Customize/Plugins，或 local `~/.cursor/plugins/local/dhpk-agent` | Cursor reload/update/remove，或替換該 local package | root `plugin.json`、portable skills/MCP discovery、client version | 僅 portable skills/MCP；不宣稱 Cursor-native parity |
 | Cursor Plugin | local `~/.cursor/plugins/local/dhpk-cursor`，或 reviewed `.cursor-plugin/marketplace.json`；另安裝 `plugins/dhpk-agent/` 供 shared portable skills 使用 | Cursor refresh/update/remove；只 rollback Cursor-owned files；shared Agent package 另行更新 | `.cursor-plugin/plugin.json`、rules、agents、commands、hooks、variables、shared-skill IDs | native components 需 Cursor evidence；shared portable skills 由 `dhpk-agent` 單獨擁有；缺口為 `SKIP_INCOMPATIBLE` |
 | Cursor project-local sync | checkout：`bash /path/to/dhpk/scripts/hooks/install-cursor-harness.sh`；Claude plugin runtime：`bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh"` | `--update`、`--migrate`、`--uninstall`；`--force` 只繞過 project-root heuristic | `.cursor/.dhpk-installed.json` schema-v3、`.mdc` rules、managed entries | Supported Cursor project-local path；native hooks 不在 v1；安裝不等於 runtime callable |
-| Cursor CLI launch-scoped probe | 登入後執行 `cursor-agent --plugin-dir <agent-package> --plugin-dir <cursor-package>` | CLI 沒有 persistent install；更新 source package 或 local symlink 後重開 session | `cursor-agent --version`、`cursor-agent status` 與 read-only `--mode ask` probe | Experimental/conditional：CLI help 有此 flag，但官方 CLI 文件尚未建立 plugin component discovery；marketplace indexing 不是 non-interactive install command |
+| Cursor CLI launch-scoped probe | 登入後執行 `cursor-agent --plugin-dir <agent-package> --plugin-dir <cursor-package>` | CLI 沒有 persistent install；更新 source package 或 local symlink 後重開 session | `cursor-agent --version`、`cursor-agent status` 與 read-only `--mode ask` probe | Experimental/conditional：CLI help 有此 flag，但官方 CLI 文件尚未建立 plugin component discovery；release probe 使用隔離的 shared-network bubblewrap namespace，不得 unrestricted 執行 |
 | AGY native plugin | 產生 `plugins/dhpk-agy/`，再由 receipt-owned installer 安裝至 `~/.gemini/config/plugins/dhpk/` | `install-agy-plugin.js update`、`uninstall` 或 `rollback`；foreign files 保留，collision fail closed | AGY package validator；`agy plugins list` 只列 import；隔離 HOME 的 `agy agents` 才是 native load；以及 optional bounded Subagent probe | Experimental：package/discovery 與 runtime 分開；缺少 `agy` 為 `UNAVAILABLE` |
 
 ## Prerequisites 與版本假設
@@ -34,7 +34,7 @@ projection 內容後，才能宣稱 client 可呼叫。
 | Cursor standard Agent Plugin | 接受 portable package 的 Cursor desktop/plugin loader；記錄 Cursor version；最低版本尚未建立 | Cursor 支援的 desktop OS；local path 為 `~/.cursor/plugins/local/` | Cursor Customize → Plugins 或 local loader；Node.js 僅供 validation | reload 後觀察 discovered skills/MCP；無 loader 為 `UNAVAILABLE` 或 `BLOCKED` |
 | Cursor Plugin（native） | 支援 `.cursor-plugin/plugin.json` 的 Cursor plugin loader；記錄 Cursor version；shared portable skills 另安裝 standard `dhpk-agent` package；最低版本尚未建立 | Cursor 支援的 desktop OS；local path 為 `~/.cursor/plugins/local/` | Cursor reload/UI、local filesystem、無 secret 的 variable 設定；以 Agent provenance 比對 shared IDs | reload 後觀察每個 selected native component 與 hook 行為；只有明確 matrix overlay 才能有 Cursor `skills/` |
 | Cursor project-local sync | Cursor project-local loader；schema-v3 receipt；最低 Cursor version 尚未建立 | Linux、macOS 或 WSL POSIX shell，從 project root 執行 | `bash`、`git`；Node.js 僅供 validator 使用 | 執行 installer、檢查 `.cursor/.dhpk-installed.json`，並執行列出的 installer 測試；缺少 live Cursor client 不得視為 runtime `PASS` |
-| Cursor CLI launch-scoped probe | `cursor-agent` 在 `PATH`；記錄 `cursor-agent --version`；使用 `cursor-agent login` 驗證；最低版本尚未建立 | Linux、macOS 或 WSL POSIX shell | `cursor-agent`、`--plugin-dir`、Cursor account/API key；Node.js 僅供 package validation | Experimental/conditional：先執行 `cursor-agent status` 再做 read-only probe；未登入為 `BLOCKED`、缺 CLI 為 `UNAVAILABLE`，discovery 另行記錄 |
+| Cursor CLI launch-scoped probe | `cursor-agent` 在 `PATH`；記錄 `cursor-agent --version`；使用 `cursor-agent login` 驗證；最低版本尚未建立 | Linux、macOS 或 WSL POSIX shell | `cursor-agent`、`--plugin-dir`、已登入 Cursor session，以及 Linux 上已驗證的 bubblewrap；Node.js 僅供 package validation | Experimental/conditional：先執行 `cursor-agent status` 再做 read-only probe；未登入為 `BLOCKED`、缺 CLI／sandbox 為 `UNAVAILABLE`／`BLOCKED`，discovery 另行記錄；只提供 API key 不接受 |
 | AGY native plugin | `agy` version 與 AGY model/tool enum 尚未鎖定；可用時記錄 `agy --version` | Linux、macOS 或 WSL POSIX shell；install root 為 user scope | Node.js、`git`、generated package，以及 optional `agy` CLI | 先做 structural validation；`agy plugins list` 只列 import，隔離 HOME 的 `agy agents` 才是 native load；除非明確使用 `--agy-runtime-probe`，runtime 保持 `NOT_RUN` |
 
 ## Status vocabulary
@@ -264,6 +264,17 @@ cursor-agent status
 cursor-agent login  # 只有 status 顯示 Not logged in 時才執行
 ```
 
+release `--execute` route 只會把 allowlisted Cursor login files 複製到
+disposable HOME，並在已驗證的 bubblewrap namespace 中執行有界 client；它在
+`--unshare-all` 後加上 `--share-net`，讓 `--mode ask` 能連線，同時隔離 filesystem、
+HOME 與 process。不得以 unrestricted execution 取代這條路徑；缺少 bubblewrap
+時為 `BLOCKED`，DNS／transport 失敗為 `UNAVAILABLE`，不可誤報成 product
+`FAIL`。offline fixture 可要求 `networkMode: disabled`，此時保持斷網，不能升格為
+live runtime `PASS`。
+若 client 安裝在 home 目錄下，namespace 只 bind 實體 executable directory；只有
+需要 absolute sibling library 的可信 Homebrew-style `.linuxbrew` prefix 可作明確例外，
+直接位於 home root 或 `.local` 的 executable 會被阻擋。
+
 執行 launch-scoped、read-only probe 時，使用有界 wrapper 並明確傳入兩個
 package directory。wrapper 會以有限 timeout 與 output cap 執行下列命令：
 
@@ -309,7 +320,8 @@ package validator 只證明 structure 與 provenance；runtime `PASS` 必須由�
 前證據是 `BLOCKED`。若缺少 `cursor-agent`，記錄 `UNAVAILABLE`；desktop
 `cursor` binary、GUI discovery 與 project-local `.cursor/` installer 都不是
 替代證據。missing CLI（缺少 `cursor-agent`）記錄為 `UNAVAILABLE`。`cursor-sync` installer identity row 在未執行 installer runtime
-時預期為 `NOT_RUN`，不等於 Cursor consumer-runtime PASS。若安裝的 CLI 沒有 `--plugin-dir`，記錄 `UNAVAILABLE`，
+時預期為 `NOT_RUN`，不等於 Cursor consumer-runtime PASS，也不會單獨造成
+`NO-SHIP`。但 installer `FAIL` 仍代表 unhealthy，必須調查。若安裝的 CLI 沒有 `--plugin-dir`，記錄 `UNAVAILABLE`，
 Cursor desktop GUI、Customize → Plugins、desktop `cursor` binary 與
 project-local `.cursor/` 安裝只屬於 setup 或 installer evidence，不能替代已登入
 `cursor-agent` 的 runtime proof。
