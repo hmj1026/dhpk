@@ -6,7 +6,8 @@
 // Claude package.  The remaining tests describe the compiler-owned profile
 // selector and the pre-discovery bundle seam.  They intentionally exercise
 // public compiler/projection boundaries; no SessionStart state or directory
-// scan is allowed to decide membership.
+// scan is allowed to decide membership.  The manifest fingerprint normalizes
+// only the release version because release parity owns tag/version agreement.
 
 const fs = require('node:fs');
 const path = require('node:path');
@@ -20,6 +21,32 @@ const { ProjectionArtifactStore } = require('../scripts/lib/projection-artifact-
 const { runClaudeProfileProbe } = require('../scripts/release/claude-profile-probe');
 
 const ROOT = path.join(__dirname, '..');
+const RELEASE_VERSION_SENTINEL = '<release-version>';
+const EXPECTED_NORMALIZED_MANIFEST_BYTES = 30217;
+const EXPECTED_NORMALIZED_MANIFEST_SHA256 = '046c341b97f6ba95faf220720b5ef6e1660b0a9fb3f08015e085c4273b327a7c';
+
+function normalizeReleaseVersion(pluginBytes) {
+  const text = Buffer.from(pluginBytes).toString('utf8');
+  const plugin = JSON.parse(text);
+  assert.match(
+    plugin.version,
+    /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/,
+    `manifest version must be valid semver, got '${plugin.version}'`,
+  );
+  const escapedVersion = JSON.stringify(plugin.version).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const versionEntry = new RegExp(`("version"\\s*:\\s*)${escapedVersion}`, 'g');
+  assert.strictEqual(
+    (text.match(versionEntry) || []).length,
+    1,
+    'manifest must contain exactly one version entry in the source bytes',
+  );
+  return Buffer.from(text.replace(versionEntry, `$1${JSON.stringify(RELEASE_VERSION_SENTINEL)}`), 'utf8');
+}
+
+function normalizedManifestFingerprint(pluginBytes) {
+  const normalized = normalizeReleaseVersion(pluginBytes);
+  return crypto.createHash('sha256').update(normalized).digest('hex');
+}
 
 function profileFixture() {
   return {
@@ -194,11 +221,16 @@ test('characterizes the current unscoped Claude manifest and CLI outcome', () =>
       + '  roots:              1\n'
       + '  generated skill ids: 102 (excludes deprecated; host cannot hide within a shared root)\n',
   );
-  assert.strictEqual(pluginBytes.length, 30206, 'compatibility manifest byte count drifted');
+  const normalizedPluginBytes = normalizeReleaseVersion(pluginBytes);
   assert.strictEqual(
-    crypto.createHash('sha256').update(pluginBytes).digest('hex'),
-    '9a0abfb8350236a6c4ac159731a7d5060efeb1893f7d95b5d7a1d371660f5d35',
-    'compatibility manifest bytes drifted',
+    normalizedPluginBytes.length,
+    EXPECTED_NORMALIZED_MANIFEST_BYTES,
+    'compatibility manifest bytes drifted outside the release version field',
+  );
+  assert.strictEqual(
+    normalizedManifestFingerprint(pluginBytes),
+    EXPECTED_NORMALIZED_MANIFEST_SHA256,
+    'compatibility manifest bytes drifted outside the release version field',
   );
 
   const compiled = inventoryApi.compileClaudeProjection({ inventory });
@@ -206,6 +238,28 @@ test('characterizes the current unscoped Claude manifest and CLI outcome', () =>
   assert.deepStrictEqual(compiled.generated.roots, ['./skills/']);
   assert.strictEqual(compiled.generated.generatedSkillIds.length, 102);
   assert.strictEqual(compiled.plan.surface, 'claude-core');
+});
+
+test('compatibility fingerprint ignores only release version changes', () => {
+  const manifest = (version, description = 'fixture manifest') => Buffer.from(JSON.stringify({
+    name: 'dhpk',
+    version,
+    description,
+  }, null, 2) + '\n');
+  const current = manifest('0.46.0');
+  const next = manifest('1.0.0-rc.1');
+  const drifted = manifest('1.0.0-rc.1', 'fixture manifest changed');
+
+  assert.strictEqual(
+    normalizedManifestFingerprint(current),
+    normalizedManifestFingerprint(next),
+    'release version changes must not invalidate the compatibility fingerprint',
+  );
+  assert.notStrictEqual(
+    normalizedManifestFingerprint(next),
+    normalizedManifestFingerprint(drifted),
+    'non-version manifest drift must invalidate the compatibility fingerprint',
+  );
 });
 
 test('characterizes SessionStart as post-discovery runtime activation only', () => {

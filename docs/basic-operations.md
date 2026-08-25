@@ -184,180 +184,165 @@ and is also the safe order for copy mode.
 
 ## Common workflows
 
-Everything is reachable through `/dhpk:do` — one entry point that routes natural-language task descriptions to the right skill. The examples below show what actually happens after you type a command, grouped into the main delivery flow, situational on-ramps, and standalone tools; each keeps its exact invocation syntax.
+The user-facing workflow has one safe front door and several explicit exits:
 
-### Main flow — feature and bug delivery
+```text
+inspect → verify surface → route → plan/classify → implement → review → verify → handoff
+```
 
-### 1. Feature development
+Use `/dhpk:do` when you know the outcome but not the right skill. Use a direct
+command or skill when you already know the exact workflow. Plugin management
+(`claude plugin …`, `codex plugin …`) installs or updates a surface; it does not
+invoke a workflow.
+
+### Choose an entry
+
+| Need | Entry | Completion signal |
+|---|---|---|
+| See what would run | `/dhpk:do --route-only <task>` | `Route only: /...` (or a bounded classification / task prompt); no downstream work runs. |
+| Feature, bug, refactor, or other substantial change | `/dhpk:do <task>` | One workflow classification and one named next route. |
+| Inspect code or execution flow | `/dhpk:do trace the <area> flow` or `dhpk-codebase-exploration` | Evidence-backed explanation with file/symbol references. |
+| Review existing edits | `/dhpk:review-pending` or `/dhpk:dhpk-change-review` | Reviewer verdict plus fresh artifact or an explicit blocker. |
+| Commit, PR, or release | `/dhpk:smart-commit`, `/dhpk:create-pr`, or `/dhpk:dhpk-release-creator` | Explicit command result; no automatic commit, push, or merge. |
+
+`/dhpk:do` may invoke an `implicit-eligible` target. If routing selects an
+`explicit-only` target, it prints the exact direct invocation and stops; routing
+confidence never bypasses the target's invocation class. The route table is the
+deterministic fast path, while ambiguous compound requests use bounded
+classification rather than a guessed match.
+
+### Inspect routing before execution
+
+```text
+/dhpk:do --route-only implement a password-reset email flow
+/dhpk:do --route-only fix the login redirect loop
+```
+
+`--route-only` strips itself and any supported mode flags before matching. The
+user-facing command prints `Route only: /<skill> (<label>).` for a deterministic
+match, or `Route only: /<chosen> because <reason>.` after bounded classification;
+empty input asks for a task description. The underlying route helper exposes
+the machine-readable `MATCH<TAB>skill<TAB>label`, `NO_MATCH`, and `NO_QUERY`
+tokens used by validators. In either form it never invokes OpenSpec, planner,
+architect, worker, or the selected skill.
+
+### Main delivery flow — feature and bug work
 
 ```text
 /dhpk:do implement a password-reset email flow
-```
-
-The Smart Router matches "implement … feature" → `dhpk:dhpk-adaptive-dev-workflow` → **Feature Delivery** path. The skill loads TDD guide, runs the RED→GREEN→REFACTOR cycle, and closes with code-review and security gates. The default post-edit hook routes sentinel-backed review debt after each relevant file write; consumers explicitly register any additional advisory hook behavior.
-
-### 2. Bug fix
-
-```text
 /dhpk:do fix the login redirect loop
 ```
 
-Matches "fix … bug" → `dhpk:dhpk-adaptive-dev-workflow` → **Bug Investigation & Fix**: root-cause evidence, regression test, RED gate before writing the fix.
+The adaptive workflow classifies the request before loading branch-specific
+context. Feature work enters TDD RED → GREEN → REFACTOR; bug work records root
+cause evidence and a regression-test RED gate before the fix. Existing symbols
+receive pre-edit impact analysis when the repository provides GitNexus; `cx`
+overview/definition/references remain the primary navigation fallback.
 
-**`--openspec` / `--opsx` flag:** pass `--openspec` (alias `--opsx`) to `/dhpk:do` to force the OpenSpec authoring flow (`opsx:new` → `opsx:ff`, then stop for human review) instead of routing straight to implementation. It applies to the 3 change-authoring routes — `dhpk:dhpk-adaptive-dev-workflow`, `dhpk:dhpk-bug-fix`, `dhpk:dhpk-feature-dev` — and supersedes `--plan`. On every other route, including `dhpk:dhpk-opsx-apply-goal`, the flag is a no-op: it prints `--openspec ignored: ...` and the route proceeds normally.
+Use these invocation-only modifiers when they change the decision for this run:
 
-**`--worker=<claude|codex|agy|auto>` flag:** choose the mechanical worker for this invocation without changing project configuration. `/dhpk:do` parses and strips the flag before route matching, then forwards its exact value as `WORKER_OVERRIDE` only to implementation-class routes (`adaptive-dev-workflow`, `bug-fix`, `feature-dev`, and `opsx-apply-goal`). Precedence is flag > `fast_worker_backend` userConfig > shipped `claude`; an invalid flag warns once and falls through to userConfig/default. Downstream workflows call the shared selector rather than reimplementing availability, order, or fallback logic.
+| Modifier | Effect and boundary |
+|---|---|
+| `--plan[=<model>[:<effort>]]` | Adds a planner critique only to implementation-class routes. `--openspec` supersedes it on authoring routes. |
+| `--openspec` / `--opsx` | Sends feature/bug authoring routes to external OpenSpec artifact creation, then stops at human review. It is ignored on non-authoring routes. |
+| `--worker=<claude\|codex\|agy\|auto>` | Selects the mechanical worker for this invocation; precedence is flag → `fast_worker_backend` → shipped `claude`. It does not persist configuration. |
+| `--reasoner=<claude\|codex>[:<model>[:<effort>]]` | Selects the reasoning backend for implementation-class routes; ignored elsewhere with an explicit message. |
+| `--codex` | Enables the session's Codex peer path where the selected workflow supports it. It is distinct from the worker selector. |
 
-### OpenSpec completion boundary
+`--worker=codex` chooses a Codex CLI mechanical worker. `CODEX=on` adds an
+independent Codex MCP peer for high-stakes reasoning/review. Only a missing
+selected executable may use the configured Claude fallback; authentication,
+task, execution, and verification failures remain blocked.
 
-For unclear multi-session work, use the wayfinder checkpoint and then
-`/opsx:new` or `/opsx:ff` to author a proposal/specification. For a confirmed
-change, `$dhpk:openspec-apply-change <change>` is the implementation entry;
-follow it with verify, review, and the required consumer evidence. A complete
-plan or all-green tests do not close the lifecycle while task checkboxes,
-verification, or archive evidence are missing. Archive only after apply and
-consumer validation are recorded; issue closure and release publication are
-separate explicit steps.
+### OpenSpec lifecycle boundary
 
-### Situational on-ramps
+For unclear or multi-session work, record a wayfinder checkpoint, then use
+`/opsx:new` or `/opsx:ff` to author `openspec/changes/<change-id>/` artifacts.
+After the Planning Review Gate, apply with `$dhpk:openspec-apply-change <change>`
+or the repository's external OpenSpec apply entry. A plan, passing validator, or
+all-green test run is not archival evidence. Completion requires task checkboxes,
+applicable verification gates, review obligations, and human-only actions to be
+resolved; archive, issue closure, and release publication remain separate steps.
 
-### 3. Review on-ramp (automatic, with a manual trigger)
+### Review, verify, and handoff
 
-No command needed. After any file edit the hooks automatically:
-
-1. Drop a `.pending-*` sentinel for each relevant reviewer slot (code / db / sec / frontend / doc)
-2. Keep the resulting review debt armed until each reviewer supplies valid evidence
-3. Warn or block `git commit` while sentinels are open (configurable via `sentinel_commit_gate`: `warn` / `block` / `off` — see [`docs/configuration.md`](./configuration.md))
-
-The default post-edit hook creates and routes pending-review sentinels only. It does not run formatting, lockfile, lint, or Stop advisory work; register those optional scripts explicitly when a consumer needs them.
-
-To trigger reviews immediately without waiting for Stop: `/dhpk:review-pending`
-
-### 4. Commit and PR
+After an Edit/Write/MultiEdit, the default hooks create only the applicable
+`.pending-*` review sentinels and keep review debt visible. They do not silently
+run formatting, lint, lockfile, or Stop advisory scripts. `/dhpk:review-pending`
+starts the pending reviewers immediately; `sentinel_commit_gate` controls whether
+open sentinels warn or block a commit.
 
 ```text
-/dhpk:smart-commit        # stages changed files, generates a conventional commit message, runs pre-commit gates
-/dhpk:create-pr           # drafts PR title + summary from the branch commit log
+/dhpk:review-pending
+/dhpk:precommit
+/dhpk:verify
+/dhpk:smart-commit
+/dhpk:create-pr
 ```
 
-Or describe it in plain language:
+Every handoff reports exactly one next command, the files/evidence it covers,
+and any `BLOCKED`, `NOT_RUN`, `UNAVAILABLE`, or `NO_SHIP` condition. A release
+or consumer result must keep structural/package evidence separate from live
+runtime proof; see [`docs/harness-workflow.md`](./harness-workflow.md).
 
-```text
-/dhpk:do 幫我提交並建立 PR
-```
+<a id="6-unattended-openspec-session-large-uncertainty-on-ramp"></a>
 
-For an actual version release (not just a commit/PR) — version files, changelog, and the fixed git/PR/tag/CI sequence — see `/dhpk:dhpk-release-creator <version>` (explicit-only; run it directly, it is never auto-invoked).
+### Explicit long-running OpenSpec session
 
-### 5. Setup on-ramp
-
-Re-run or inspect configuration any time, without reinstalling — see [§ Install](#install): `/dhpk:setup` / `/dhpk:setup --show`.
-
-### 6. Unattended OpenSpec session (large-uncertainty on-ramp)
-
-For a long-running change that should run without supervision — generates a single `/goal` command (with the `/opsx:apply` kickoff embedded), ready to paste into a fresh session:
+Use this only when an existing change should generate a bounded paste-ready
+`/goal` session:
 
 ```text
 /dhpk:dhpk-opsx-apply-goal my-change-id --max-duration 2h
 ```
 
-**Flags:**
+`<change-id>` is the directory name under `openspec/changes/`, not free text.
+`--turns N`, `--max-duration`, `--min-coverage`, `--codex`, `--smoke`,
+`--no-smoke`, and `--dry-run` constrain the generated session. Turn/time limits
+write `.resume-note.md`; human-only work is `[blocked: <reason>]`; hard-rule
+conflicts write `.hard-rule-escalation.md` with file:line evidence. The generated
+goal keeps the selector-resolved worker, applicable specialist reviewers, and
+completion gates; it never removes required gates to fit the roughly 4,000
+UTF-8-byte paste ceiling.
 
-| Flag | Meaning |
-|---|---|
-| `<change-id>` | Required. The OpenSpec change directory name under `openspec/changes/` — not free text; this is the one route where `/dhpk:do`'s task description becomes an id + flags, not a task description (see item 1's routing notes). |
-| `--turns N` | Overrides the auto-calculated turn budget (default: `max(20, min(120, open_tasks × 4 + 20))`). At the budget the session writes `.resume-note.md` and stops — a hard checkpoint, not advisory. |
-| `--max-duration <Nm\|Nh>` | Adds a wall-clock stop condition (e.g. `30m`, `2h`). Omit for no time limit — only the turn budget bounds the session. |
-| `--min-coverage N` | Forces a coverage gate at `N`% even when the project has no native coverage config. Requires a detected test runner; ignored (with a note) otherwise. |
-| `--codex` | Opts this session into the `CODEX=on` cross-model doubt-cycle / high-stakes-peer-review clause inside the pasted `/goal` string. Independent of `/dhpk:do`'s own `--codex` — passing `--codex` to `/dhpk:do` does **not** forward into this flag; pass it directly if you want it. |
-| `--smoke` / `--no-smoke` | Force the read-only live-runtime smoke gate on or off. Without either, it auto-detects: on only for a strong signal (explicit runtime-verification task, dispatched `e2e-runner`, or a derivable launch command), off otherwise. |
-| `--dry-run` | Prints the analysis + goal string without the "ready to paste" session-setup framing — use it to preview before committing to an unattended run. |
-
-**What the pasted `/goal` string actually contains:** an orientation-first kickoff that locates `rules/execution-policy.md`, then invokes `opsx:apply` (with the bounded unknown-skill fallback). Part 0 carries the selector-resolved fast-worker clause and a UTF-8-safe task digest capped at 200 bytes; the `e2e-runner` roster clause appears only when the change actually has an E2E signal. Review is one consolidated parallel reviewer batch per contiguous implementation wave, with at most one confirm-only pass for known findings. Completion still requires every task checkbox, applicable test/build/lint/coverage/smoke gates, and no pending sentinels. Turn/time checkpoints write `.resume-note.md`; human-only remaining work is annotated `[blocked: <reason>]`; a hard-rule conflict writes `.hard-rule-escalation.md` with file:line evidence and stops instead of guessing. Full structure: `skills/dhpk-opsx-apply-goal/SKILL.md` Steps 3-4 and Output (Parts 0-4).
-
-When `orchestration_dispatch=on` (default), the generated `/goal` condition embeds the compact selector-resolved mechanical-worker clause plus the specialist clauses that apply to the detected work; the E2E clause is omitted when no browser surface is detected. Set `orchestration_dispatch=off` to remove the dispatch directive entirely — implementation stays inline instead of being routed through worker agents.
-
-**4,000 UTF-8-byte hard stop:** Claude Code's `/goal` input has a practical paste ceiling around 4,000 UTF-8 bytes, measured with `wc -c`. The normal target is 3,400 bytes, leaving a 600-byte reserve for variable gate tokens. If the composed goal string would exceed 4,000 bytes, that's treated as a should-never-fire template regression, not a routine condition: no `/goal` command is emitted at all — instead you get the measured byte count and which setting or flag to adjust (turn off the `orchestration_dispatch` project setting, or drop `--codex` / `--smoke`) before re-running. Required safety and verification gates are never removed to fit.
-
-### Standalone tools
-
-### 7. Mine specs from existing code
-
-Extracts behavioral requirements from an existing module into `openspec/specs/<capability>/spec.md` (brownfield onboarding):
+### Standalone assistance workflows
 
 ```text
 /dhpk:spec-mine user-authentication
-```
-
-Delegates to the `spec-miner` (Opus) agent. Omit the capability name to get a prompted list.
-
-### 8. E2E test authoring
-
-```text
 /dhpk:do write E2E tests for the checkout flow
-```
-
-Routes to `dhpk:dhpk-post-dev-test`, which delegates Playwright suite authoring to the `e2e-runner` agent. Its write boundary is test specs, shared helpers, fixtures, and artifacts only. An application-code failure returns a fast-worker-ready fix spec; after that fix lands, `e2e-runner` reruns the originating journey. It reuses existing project helpers and cleans synthetic shared-DB rows in teardown.
-
-### 9. Harness health check and repair
-
-The harness-* family covers four distinct concerns — use the right tool for each:
-
-| Command / Skill | Concern | Mutates? |
-|---|---|---|
-| `/dhpk:harness-audit` | Deterministic 7-category scorecard | No |
-| `dhpk:dhpk-harness-budget` | Context-window token accounting | No |
-| `dhpk:dhpk-claude-health` | `.claude/` config health, naming, plugin sync | No |
-| `/dhpk:harness-govern` | End-to-end measure → conform → fix → verify loop | No (add `--fix` to apply) |
-| `dhpk:dhpk-harness-revise` | Trim, dedupe, validate (G1–G13 gap taxonomy) | Yes |
-| `dhpk:dhpk-harness-fill` | Backfill missing `.claude/` infrastructure | Yes |
-
-**Typical flow:**
-
-```text
-# 1. Quick diagnostic — see what's wrong
 /dhpk:harness-audit
-
-# 2. Check context-window overhead (token budget)
-/dhpk:dhpk-harness-budget
-
-# 3. End-to-end governance loop (read-only by default)
 /dhpk:harness-govern
-
-# 4. Apply fixes (trim, dedupe, validate)
 /dhpk:harness-govern --fix
-
-# 5. If .claude/ is missing skills/agents/rules (new project onboarding)
-/dhpk:dhpk-harness-fill
 ```
 
-`/dhpk:harness-govern` is the single command front door: it sequences
-`/dhpk:harness-audit` (score) → conform (best-practices lens) → the
-`dhpk-harness-revise` skill (fix, only with `--fix`) → verify. It is safe to run
-as `/loop /dhpk:harness-govern` for ongoing monitoring.
-
-### Automatic (no direct invocation)
+`spec-mine` writes brownfield behavioral specs to `openspec/specs/`. E2E work is
+owned by `e2e-runner` and may write only specs, helpers, fixtures, and artifacts;
+application failures return a worker-ready fix spec. Harness audit is read-only;
+govern is read-only unless `--fix` is supplied. Structural changes also route
+`doc-updater` to refresh codemaps and user-facing docs.
 
 ### Implementation dispatch
 
-During the implement phase of `feature-dev`, `bug-fix`, `adaptive-dev-workflow`, and `opsx-apply-goal`, reasoning-heavy work goes to `deep-reasoner`; mechanical work goes through the shared selector to `fast-worker`, `codex-fast-worker`, or `agy-fast-worker`. `auto` follows `fast_worker_backend_order`; fallback to Claude is allowed only for a missing selected CLI executable, never for auth, model, execution, task, or verification failures. `--worker=codex` is independent of `CODEX=on`: the former selects a Codex CLI mechanical worker, while the latter enables the Codex MCP peer path. Small diffs totaling ≤2 files across the whole implementation step may stay inline; `general-purpose` is prohibited while dispatch is on. Full table: [`rules/execution-policy.md`](../rules/execution-policy.md) §"Implementation dispatch".
+With `orchestration_dispatch=on` (default), reasoning-heavy work goes to
+`deep-reasoner` and mechanical work goes through the shared selector to
+`fast-worker`, `codex-fast-worker`, or `agy-fast-worker`. A whole implementation
+step touching at most two files may remain inline; larger clear-spec batches use
+one assigned worker scope. TDD owns RED and scoped verification; the full
+applicable suite runs at phase exit. The complete dispatch and reviewer batching
+rules live in [`rules/execution-policy.md`](../rules/execution-policy.md).
 
-The TDD specialist owns RED and scoped test-first work. It implements GREEN only when the whole production footprint is ≤2 files; larger changes stop after RED and return a fast-worker-ready fix spec. Iteration uses one filtered test or affected suite, with the full applicable suite once at phase exit; a minimal GREEN diff may report `REFACTOR: skipped (minimal diff)`. Concurrent ownership of the same test or production files is a hard collision, not a race.
+### Codex dual-assistant collaboration
 
-Model overrides: `deep_reasoner_model` (default `opus`), `fast_worker_model` (default `sonnet`) — see [`docs/configuration.md`](./configuration.md). Set `orchestration_dispatch=off` to fully restore pre-v0.22.0 behavior.
+dhpk is **codex-free by default**. `CODEX=on` adds a blind independent Codex peer
+to high-stakes implementation decisions and supported review skills. Direct
+Codex-delegation skills (`dhpk-codex-architect`, `dhpk-codex-brainstorm`,
+`dhpk-codex-implement`, `dhpk-change-review`) can be invoked without `/dhpk:do`.
+The MCP backend needs `mcp__codex__codex` / `mcp__codex__codex-reply`; the optional
+CLI backend needs only the `codex` executable. Setup and failure boundaries are
+in [`docs/configuration.md`](./configuration.md#codex-mcp-dependency-not-a-userconfig-knob).
 
-**`CODEX=on` high-stakes parallel peer path**: for a high-stakes implement-phase design/diagnosis decision, this same dispatch step can add Codex as a second, independent peer alongside `deep-reasoner` — see item 10 below for how to opt in and what "independent" means in practice.
-
-### 10. Codex dual-assistant collaboration
-
-dhpk runs **codex-free by default**. Opting in unlocks two related but distinct things:
-
-**A. The Codex peer in Implementation dispatch.** With `CODEX=on`, a high-stakes implement-phase decision (root-cause diagnosis, architecture choice) is no longer `deep-reasoner`-only: dhpk dispatches `deep-reasoner` and Codex (via `mcp__codex__codex`) **in parallel, each blind to the other's findings** — neither side's prompt is seeded with the other's conclusion, verdict, or theory — then compares the two independent results and flags any divergence in the report. This blind-independence rule also governs the `dhpk-codex-architect`, `dhpk-codex-brainstorm`, `dhpk-codex-implement`, and `dhpk-change-review` skills, plus `dhpk-cross-agent-sync`, `dhpk-feature-verify`, `dhpk-test-review`, `dhpk-codebase-exploration --dual`, and `dhpk-issue-analyze`. Full rule: [`rules/execution-policy.md`](../rules/execution-policy.md) §"Multi-AI / dual-perspective independence".
-
-**B. Four direct Codex-delegation skills plus one CLI backend** — `dhpk-codex-architect`, `dhpk-codex-brainstorm`, `dhpk-codex-implement`, and `dhpk-change-review` (MCP or `--backend cli`) — invocable directly whenever you want Codex's take without going through `/dhpk:do`.
-
-The MCP backend requires the `mcp__codex__codex` / `mcp__codex__codex-reply` tools. The optional CLI backend shells out to the `codex` binary through the hardened wrapper and needs no MCP server. Setup steps and the `CODEX=on` opt-in mechanics (the `--codex` flag / natural-language trigger on `/dhpk:do`) live in [`docs/configuration.md`](./configuration.md#codex-mcp-dependency-not-a-userconfig-knob).
-
-This is unrelated to **syncing Codex CLI content** (below) — that mirrors dhpk's own skills into a project's `.codex/` directory for the standalone `codex` CLI tool, no MCP server involved.
+This is separate from syncing Codex CLI content below, which mirrors the curated
+projection into `.codex/` and does not require an MCP server.
 
 ## Sync Codex CLI content
 

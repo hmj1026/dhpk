@@ -6,7 +6,7 @@
 >
 > 平台安裝 SSOT：[English](./docs/platform-installation.md) · [繁體中文](./docs/platform-installation.zh-TW.md)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE) [![Version](https://img.shields.io/github/v/tag/hmj1026/dhpk?label=version&sort=semver)](https://github.com/hmj1026/dhpk/tags) [![CI](https://img.shields.io/github/actions/workflow/status/hmj1026/dhpk/ci.yml?branch=main&label=CI)](https://github.com/hmj1026/dhpk/actions/workflows/ci.yml) [![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A63D2)](https://docs.claude.com/en/docs/claude-code/plugins)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE) [![Version](https://img.shields.io/github/v/tag/hmj1026/dhpk?label=version&sort=semver)](https://github.com/hmj1026/dhpk/tags) [![CI](https://img.shields.io/github/actions/workflow/status/hmj1026/dhpk/ci.yml?branch=main&label=CI)](https://github.com/hmj1026/dhpk/actions/workflows/ci.yml) [![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A63D2)](https://docs.claude.com/en/docs/claude-code/plugins) [![Codex project sync](https://img.shields.io/badge/Codex%20project%20sync-supported-412991)](./docs/platform-installation.zh-TW.md#codex-project-local-syncsupported) [![Cursor project sync](https://img.shields.io/badge/Cursor%20project%20sync-supported-F2A900)](./docs/platform-installation.zh-TW.md#cursor-project-local-syncsupported) [![Native packages](https://img.shields.io/badge/native%20packages-experimental-orange)](./docs/platform-installation.zh-TW.md#surface-matrix)
 
 通用、安裝即用的 Claude Code harness。內含 **32 個角色導向 agent**（31 個 root-level agent 加 1 個模組範圍 reviewer）、已註冊的 dhpk 指令、核心 skill、**`/dhpk:do` Smart Router**（透過雙語 route-table 與 LLM fallback 進行自然語言任務路由）、跨 session 學習 DB（預設關閉）、**7-slot sentinel 驅動的 review hook**（code / db / sec / frontend / doc / polyfill / migration）、statusline、harness 腳本，以及 **31 個可選技術棧模組**，涵蓋 PHP、Yii、PHPUnit、Laravel、JavaScript、Vue、Laravel Mix、Next.js、React、Python 與 iOS/Swift。模組可透過 **wrapper-dispatch** 模型在 runtime 提供 hook（詳見 [`docs/hook-extension.zh-TW.md`](./docs/hook-extension.zh-TW.md)）。內附策展過的 Codex CLI projection，適用於雙助理（Claude + Codex）專案。
 
@@ -79,6 +79,7 @@ Lifecycle、public name 與 publication surface 以
 所有功能都能透過 `/dhpk:do` 進入——一個接收自然語言任務描述、並路由到正確 skill 的單一入口：新功能開發、修 bug、自動 post-edit review 循環、提交與 PR、無人值守 OpenSpec session、萃取規格、E2E 測試撰寫、harness 健康檢測，以及 Implementation dispatch（推理密集工作 → `deep-reasoner`，機械式工作 → selector 選出的 Claude／Codex／agy fast worker）。每項的完整說明與範例見 **[`docs/basic-operations.zh-TW.md`](./docs/basic-operations.zh-TW.md)**。
 
 ```text
+/dhpk:do --route-only implement a password-reset email flow # 只檢查路由
 /dhpk:do implement a password-reset email flow   # 新功能（TDD + review gate）
 /dhpk:do --worker=codex implement the plan   # 僅本次呼叫的 worker 覆寫
 /dhpk:do fix the login redirect loop              # 修 bug（根因證據 + 回歸測試）
@@ -86,6 +87,13 @@ Lifecycle、public name 與 publication surface 以
 /dhpk:smart-commit && /dhpk:create-pr             # 提交 + 建 PR
 /dhpk:harness-audit                              # harness 健康評分
 ```
+
+`--route-only` 會顯示使用者可讀的 `Route only: /...` 結果（或 bounded
+classification／task prompt），並在 planner、worker、OpenSpec 或 skill 執行前停止。
+底層 helper 另外提供 machine-readable 的 `MATCH`、`NO_MATCH`、`NO_QUERY` status。
+若選定 target 是 `explicit-only`，router 會印出直接 invocation 後停止，不會默默越過
+該邊界。完整的 inspect → route → implement → review → verify → handoff 流程請看
+[基本操作指南](./docs/basic-operations.zh-TW.md)。
 
 ---
 
@@ -113,9 +121,9 @@ dhpk 的核心——hooks、sentinel reviewers、Smart Router，以及非 Codex 
 | 7 個指令 | `/dhpk:codex-review`、`-review-branch`、`-review-doc`、`-review-fast`、`-security`、`-test-gen`、`-test-review` | Codex MCP | 工具權限錯誤——Codex-free 路徑：`/dhpk:dhpk-security-review`、`/dhpk:precommit`、sentinel review hooks |
 | `CODEX=on` | Implementation dispatch 的雙助理 peer 路徑 | Codex MCP | 不會壞——dispatch 維持預設的單助理模式 |
 
-Codex-free 對應品：`dhpk-security-review` ↔ `/dhpk:codex-security`、`dhpk-codebase-exploration` ↔ `dhpk-change-review`、sentinel reviewer agents ↔ `dhpk-change-review`，以及 `/dhpk:create-dev`（預設 Codex-free；`--codex` 才啟用）。
+Codex-free 對應品：`dhpk-security-review` ↔ `/dhpk:codex-security`、`dhpk-codebase-exploration` ↔ `dhpk-change-review`、sentinel reviewer agents ↔ `dhpk-change-review`，以及 `/dhpk:do`（預設 Codex-free；`--codex` 才啟用）。`/dhpk:create-dev` 保留為相容性 alias。
 
-一次性設定：以 `claude mcp add --transport stdio codex -- codex mcp-server` 註冊 Codex MCP server，再用 `claude mcp list` 與 `/mcp` 驗證（找到已連線的 `codex` 項目）。完整驗證步驟、MCP-vs-Skill surface 區別，以及獨立的 `openai/codex-plugin-cc` 協作 surface：**[`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕)** / **[`docs/basic-operations.zh-TW.md`](./docs/basic-operations.zh-TW.md#10-codex-雙助理協作)**。
+一次性設定：以 `claude mcp add --transport stdio codex -- codex mcp-server` 註冊 Codex MCP server，再用 `claude mcp list` 與 `/mcp` 驗證（找到已連線的 `codex` 項目）。完整驗證步驟、MCP-vs-Skill surface 區別，以及獨立的 `openai/codex-plugin-cc` 協作 surface：**[`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕)** / **[`docs/basic-operations.zh-TW.md`](./docs/basic-operations.zh-TW.md#codex-雙助理協作)**。
 
 ## 外部 code-navigation 工具
 
@@ -268,7 +276,7 @@ dhpk/
 │   ├── marketplace.json          # 單一條目的 marketplace（plugins[0].source: "./"）
 │   └── plugin.json               # 含 userConfig 的插件 manifest
 ├── agents/                       # 32 個角色 agent（31 root + 1 模組 reviewer；INDEX.md 為導覽用）
-├── commands/                     # slash 指令（do、create-dev、codex-*、smart-commit、opsx-apply-resume、matrix-cell-onboard 等）
+├── commands/                     # slash 指令（do、review、setup、codex-*、smart-commit、opsx-apply-resume 等；create-dev 為相容性 alias）
 ├── skills/                       # SSOT：102 個扁平 canonical skill，皆為 skills/dhpk-<name>/
 ├── templates/                    # hook 引導用範本（graduation-candidates.md — 首次 graduation 執行時複製到 .claude/artifacts/）
 ├── modules/                      # 31 個可選用模組；skills/ 項目為相對 symlink projection
