@@ -179,7 +179,8 @@ class ProjectionArtifactStore {
     const entries = new Map(plan.entries.map((entry) => [entry.stableId, entry]));
     const written = [];
     const links = [];
-    let published = false;
+    let staged = false;
+    let activated = false;
 
     const fail = (code, message, details = {}) => {
       throw Object.assign(new Error(message), { projectionCode: code, projectionDetails: details });
@@ -202,8 +203,10 @@ class ProjectionArtifactStore {
 
     const session = {
       // The stage root is exposed only for adapter-side structural validation.
-      // publish() audits the complete staged manifest before the atomic rename,
-      // so direct adapter mutations cannot bypass the store writer.
+      // stage() audits the complete staged manifest before returning a
+      // candidate; activate() is the only operation that replaces the active
+      // root. publish() remains a compatibility convenience for callers that
+      // intentionally request both phases.
       stageRoot,
       write: (output) => {
         const entry = entryFor(output);
@@ -244,16 +247,22 @@ class ProjectionArtifactStore {
         fs.symlinkSync(targetText, target);
         links.push({ stableId: entry.stableId, destination: entry.destination, target: targetText, policy });
       },
-      publish: () => {
-        if (published) fail('ALREADY_PUBLISHED', 'artifact has already been published');
+      stage: () => {
+        if (staged) fail('ALREADY_STAGED', 'artifact has already been staged');
         assertStagedManifest(plan, stageRoot, written, links, fail);
+        staged = true;
+        return { outputs: written, links, stageRoot, artifactFingerprint: digestManifest(written, links) };
+      },
+      activate: () => {
+        if (!staged) fail('NOT_STAGED', 'artifact must be staged before activation');
+        if (activated) fail('ALREADY_ACTIVATED', 'artifact has already been activated');
         const publishRoot = this.publishRoot;
         const backupRoot = path.join(this.root, `.projection-backup-${process.pid}-${Date.now()}`);
         try {
           if (fs.existsSync(publishRoot)) fs.renameSync(publishRoot, backupRoot);
           fs.renameSync(stageRoot, publishRoot);
           if (fs.existsSync(backupRoot)) fs.rmSync(backupRoot, { recursive: true, force: true });
-          published = true;
+          activated = true;
           return { outputs: written, links, artifactFingerprint: digestManifest(written, links) };
         } catch (error) {
           if (fs.existsSync(publishRoot) && !fs.existsSync(stageRoot)) fs.renameSync(publishRoot, stageRoot);
@@ -261,8 +270,12 @@ class ProjectionArtifactStore {
           throw error;
         }
       },
+      publish: () => {
+        if (!staged) session.stage();
+        return session.activate();
+      },
       abort: () => {
-        if (!published && fs.existsSync(stageRoot)) fs.rmSync(stageRoot, { recursive: true, force: true });
+        if (!activated && fs.existsSync(stageRoot)) fs.rmSync(stageRoot, { recursive: true, force: true });
       },
     };
     return session;

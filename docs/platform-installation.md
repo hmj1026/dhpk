@@ -112,6 +112,22 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --migrate --u
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --uninstall
 ```
 
+The unified distribution/lifecycle installers use the inventory-owned
+`minimal` profile (nine required core IDs). The retained project-local Codex
+compatibility route keeps `compat-v1` by default; select `minimal` explicitly
+when migrating that route or add stable-ID overlays:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --profile minimal
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --profile full --skill git-smart-commit
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --profile minimal --skill bug-investigation --skill tdd
+```
+
+An existing receipt without profile metadata remains `compat-v1`; changing it
+to a smaller profile requires `--migrate --update`. The receipt records the
+canonical and surface-emitted IDs plus selection fingerprints, while unavailable
+consumer probes remain non-pass evidence.
+
 `--force` bypasses only the project-root heuristic. It never bypasses receipt
 ownership or path safety. The schema-v3 receipt records stable ID, public name,
 destination, source, mode, and fingerprint. Edited, user-owned, retargeted,
@@ -443,6 +459,11 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" --update
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" --migrate --update
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" --uninstall
 ```
+
+Cursor sync accepts the same profile and additive overlay flags. New installs
+default to `minimal`; an unannotated existing receipt stays on `compat-v1` until
+an explicit `--migrate` is supplied. The installer rejects unknown, retired,
+deprecated, duplicate, or surface-incompatible IDs before changing `.cursor/`.
 
 `--force` bypasses only the project-root heuristic. It never bypasses receipt
 ownership or path safety. The schema-v3 receipt records stable ID, public name,

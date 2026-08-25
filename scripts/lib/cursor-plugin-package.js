@@ -22,6 +22,7 @@ const {
   verifyDistribution,
 } = require('./distribution-compiler');
 const { ProjectionArtifactStore } = require('./projection-artifact-store');
+const { bindSurfaceSelection } = require('./capability-bundle-selection');
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
 const { redactSensitiveText } = require('./redaction');
 const {
@@ -395,7 +396,9 @@ function adaptNativeDocument(content, kind, basename, sourceFile = null, canonic
 }
 
 function stableInventoryDigest(inventory) {
-  return crypto.createHash('sha256').update(JSON.stringify(inventory || {})).digest('hex');
+  const source = { ...(inventory || {}) };
+  delete source.profile_policy;
+  return crypto.createHash('sha256').update(JSON.stringify(source)).digest('hex');
 }
 
 function listComponentFiles(directory, extensions) {
@@ -775,13 +778,18 @@ function cursorReadmeContents() {
   };
 }
 
-function buildCursorProjection({ inventory, root, name, version, sourceCommit, generatorVersion, variables, traversalOptions = {}, selectionMode = 'compiler' }) {
+function buildCursorProjection({ inventory, root, name, version, sourceCommit, generatorVersion, variables, traversalOptions = {}, selectionMode = 'compiler', profileSelection = null }) {
+  if (profileSelection) {
+    const bound = bindSurfaceSelection({ selection: profileSelection, surface: 'cursor-plugin' });
+    if (!bound.ok) throw new Error(bound.error.message);
+    profileSelection = bound.value;
+  }
   const resolvedRoot = path.resolve(root);
   const transformations = [];
   const skippedSkills = [];
   const files = [];
   const traversalBudget = createTraversalBudget(traversalOptions);
-  const selection = selectionMode === 'legacy' ? null : compileDistribution({ inventory, surface: 'cursor-plugin' });
+  const selection = selectionMode === 'legacy' ? null : compileDistribution({ inventory, surface: 'cursor-plugin', profileSelection });
   if (selection && !selection.ok) throw new Error(selection.error.message);
   const skillProjection = cursorSkillProjection(
     inventory,
@@ -871,6 +879,16 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
     transformations: transformations.slice().sort((a, b) => `${a.source || ''}:${a.destination || ''}`.localeCompare(`${b.source || ''}:${b.destination || ''}`)),
     fingerprints,
     consumer: { status: 'NOT_RUN', reason: 'Cursor client consumer probe is separate from structural generation.' },
+    ...(profileSelection ? {
+      profileId: profileSelection.profileId || profileSelection.id,
+      selectedStableIds: profileSelection.selectedStableIds,
+      canonicalSelectedStableIds: profileSelection.selectedStableIds,
+      emittedStableIds: profileSelection.emittedStableIds || profileSelection.selectedStableIds,
+      compatibilityMode: profileSelection.compatibilityMode || profileSelection.mode || null,
+      selectionPolicyVersion: profileSelection.selectionPolicyVersion || null,
+      selectionFingerprint: profileSelection.selectionFingerprint || null,
+      surfaceSelectionFingerprint: profileSelection.surfaceSelectionFingerprint || null,
+    } : {}),
   };
   const fingerprintsOutput = { source: 'generated/fingerprints.json', destination: 'fingerprints.json', content: Buffer.from(`${JSON.stringify(fingerprints, null, 2)}\n`), mode: 0o644 };
   const provenanceOutput = { source: 'generated/provenance.json', destination: 'provenance.json', content: Buffer.from(`${JSON.stringify(provenance, null, 2)}\n`), mode: 0o644 };
@@ -908,6 +926,7 @@ function compileCursorPackage({
   variables = null,
   traversalOptions = {},
   selectionMode = 'compiler',
+  profileSelection = null,
 } = {}) {
   if (!inventory || typeof inventory !== 'object') throw new Error('Cursor package inventory is required');
   if (!root || !outDir) throw new Error('Cursor package root and outDir are required');
@@ -915,7 +934,7 @@ function compileCursorPackage({
   const resolvedOut = path.resolve(outDir);
   ensurePhysicalDirectory(resolvedRoot, 'canonical root');
   assertProjectionDestination(resolvedRoot, resolvedOut, 'Cursor Plugin');
-  const projection = buildCursorProjection({ inventory, root: resolvedRoot, name, version, sourceCommit, generatorVersion, variables, traversalOptions, selectionMode });
+  const projection = buildCursorProjection({ inventory, root: resolvedRoot, name, version, sourceCommit, generatorVersion, variables, traversalOptions, selectionMode, profileSelection });
   const entries = projection.files.map((file) => ({
       stableId: `cursor:${file.destination}`,
       source: file.source,
@@ -946,8 +965,11 @@ function compileCursorPackage({
         ? projection.selection.selectionPolicy
         : undefined,
       selectionEntries: projection.selection && projection.selection.selectionPolicy
-        ? projection.selection.entries
+        ? (projection.selection.selectionEntries || projection.selection.entries)
         : undefined,
+      profileSelection,
+      selectionFingerprint: profileSelection && profileSelection.selectionFingerprint,
+      surfaceSelectionFingerprint: profileSelection && profileSelection.surfaceSelectionFingerprint,
   });
   if (!compiled.ok) throw new Error(compiled.error.message);
   projection.provenance.planFingerprint = compiled.value.planFingerprint;

@@ -350,8 +350,18 @@ function discoverCodexSurfaces({ root, project, version, nativeRoot = path.join(
       const validCommit = typeof provenance.sourceCommit === 'string' && /^[a-f0-9]{40}$/i.test(provenance.sourceCommit);
       const validDigest = typeof provenance.inventoryDigest === 'string' && /^[a-f0-9]{64}$/i.test(provenance.inventoryDigest);
       const validVersion = provenance.sourceVersion === nativeVersion && nativeVersion === version;
+      const selectedStableIds = Array.isArray(provenance.emittedStableIds)
+        ? provenance.emittedStableIds
+        : Array.isArray(provenance.selectedStableIds)
+          ? provenance.selectedStableIds
+          : null;
+      const selectedSet = selectedStableIds ? new Set(selectedStableIds) : null;
       const expectedNativeSkills = inventory && Array.isArray(inventory.skills)
-        ? inventory.skills.filter((skill) => (skill.surfaces || []).includes('codex-native') && skill.lifecycle !== 'deprecated')
+        ? inventory.skills.filter((skill) => (
+          (skill.surfaces || []).includes('codex-native')
+          && skill.lifecycle !== 'deprecated'
+          && (!selectedSet || selectedSet.has(skill.id))
+        ))
         : [];
       const expectedNativeIds = expectedNativeSkills.map((skill) => skill.id).sort();
       const expectedNativeNames = expectedNativeSkills.map((skill) => skill.name || skill.id).sort();
@@ -363,7 +373,19 @@ function discoverCodexSurfaces({ root, project, version, nativeRoot = path.join(
       const expectedInventoryDigest = inventory
         ? crypto.createHash('sha256').update(JSON.stringify(inventory)).digest('hex')
         : null;
-      const inventoryMatches = Boolean(expectedInventoryDigest && provenance.inventoryDigest === expectedInventoryDigest);
+      // Pre-profile packages deliberately bind the legacy inventory contract,
+      // which excludes profile_policy. Accept that digest while the package
+      // carries no selection identity; profile-aware packages use the same
+      // source digest and are checked against their selected/emitted IDs above.
+      const legacyInventory = inventory ? { ...inventory } : null;
+      if (legacyInventory) delete legacyInventory.profile_policy;
+      const legacyInventoryDigest = legacyInventory
+        ? crypto.createHash('sha256').update(JSON.stringify(legacyInventory)).digest('hex')
+        : null;
+      const inventoryMatches = Boolean(
+        (expectedInventoryDigest && provenance.inventoryDigest === expectedInventoryDigest)
+        || (legacyInventoryDigest && provenance.inventoryDigest === legacyInventoryDigest),
+      );
       const fingerprintsWellFormed = expectedNativeNames.every((name) => /^[a-f0-9]{64}$/i.test(nativeFingerprints[name] || ''));
       nativeProvenance = {
         valid: Boolean(validCommit && validDigest && validVersion && inventoryMatches && membershipMatches && fingerprintsWellFormed),

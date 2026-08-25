@@ -15,6 +15,7 @@ const { RECEIPT_SCHEMA, SURFACE_OWNERS, resolveGeneratedFromTree } = require('./
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
 const { compileDistribution, materializeDistribution, verifyDistribution } = require('./distribution-compiler');
 const { ProjectionArtifactStore } = require('./projection-artifact-store');
+const { bindSurfaceSelection } = require('./capability-bundle-selection');
 
 const AGENT_PLUGIN_VERSION = '1.0.0';
 const AGENT_PLUGIN_SCHEMA = `https://agent-plugins.org/schemas/${AGENT_PLUGIN_VERSION}/plugin.schema.json`;
@@ -56,6 +57,12 @@ function stableStringify(value) {
 
 function digest(value) {
   return crypto.createHash('sha256').update(value).digest('hex');
+}
+
+function legacyInventoryDigest(inventory) {
+  const source = { ...(inventory || {}) };
+  delete source.profile_policy;
+  return digest(stableStringify(source));
 }
 
 function lstatOrNull(candidate) {
@@ -502,8 +509,11 @@ function selectPortableSkills(inventory, surface = 'agent-plugin', selectedStabl
   const byName = new Map(entries.map((entry) => [entry && entry.name, entry]));
   if (Array.isArray(selectedStableIds)) {
     const selected = selectedStableIds.map((id) => byId.get(id) || byName.get(id)).filter(Boolean);
+    const membership = inventory && inventory.surface_membership && inventory.surface_membership[surface];
+    const allowed = Array.isArray(membership) ? new Set(membership) : null;
     return selected
       .filter((entry) => entry.lifecycle !== 'deprecated')
+      .filter((entry) => !allowed || allowed.has(entry.id))
       .filter((entry, index, all) => all.findIndex((candidate) => candidate.id === entry.id) === index)
       .sort((a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id)));
   }
@@ -760,15 +770,26 @@ function buildAgentPluginProjection(options = {}) {
     mcpServers,
     projectionLimits = {},
     selectionMode = 'compiler',
+    profileSelection: initialProfileSelection = null,
   } = options;
+  let profileSelection = initialProfileSelection;
   if (!root || !outDir) throw new Error('materializeAgentPluginPackage requires root and outDir');
+  if (profileSelection) {
+    const bound = bindSurfaceSelection({ selection: profileSelection, surface: 'agent-plugin' });
+    if (!bound.ok) throw new Error(bound.error.message);
+    profileSelection = bound.value;
+  }
   const resolvedRoot = path.resolve(root);
   const resolvedOut = path.resolve(outDir);
   ensurePhysicalDirectory(resolvedRoot, 'canonical root');
   assertProjectionDestination(resolvedRoot, resolvedOut, 'Agent Plugin');
 
   const allowlist = inventory.portable_frontmatter && inventory.portable_frontmatter.allowlist;
-  const selection = selectionMode === 'legacy' ? null : compileDistribution({ inventory, surface: 'agent-plugin' });
+  const selection = selectionMode === 'legacy' ? null : compileDistribution({
+    inventory,
+    surface: 'agent-plugin',
+    profileSelection,
+  });
   if (selection && !selection.ok) throw new Error(selection.error.message);
   const selected = selectPortableSkills(
     inventory,
@@ -874,7 +895,7 @@ function buildAgentPluginProjection(options = {}) {
     sourceCommit,
     generatedFromCommit: sourceCommit,
     ...(generatedFromTree ? { generatedFromTree } : {}),
-    inventoryDigest: digest(stableStringify(inventory)),
+    inventoryDigest: legacyInventoryDigest(inventory),
     generatorVersion,
     schemaVersion: AGENT_PLUGIN_VERSION,
     selectedSkillIds,
@@ -883,6 +904,15 @@ function buildAgentPluginProjection(options = {}) {
     skippedSkills: skipped,
     mcpServerNames: mcp.valid.map((entry) => entry.name).sort(),
     fingerprints,
+    ...(profileSelection ? {
+      profileId: profileSelection.profileId || profileSelection.id,
+      selectedStableIds: profileSelection.selectedStableIds,
+      emittedStableIds: profileSelection.emittedStableIds || selectedSkillIds,
+      compatibilityMode: profileSelection.compatibilityMode || profileSelection.mode || null,
+      selectionPolicyVersion: profileSelection.selectionPolicyVersion || null,
+      selectionFingerprint: profileSelection.selectionFingerprint || null,
+      surfaceSelectionFingerprint: profileSelection.surfaceSelectionFingerprint || null,
+    } : {}),
   };
   files.push(outputRecord('manifest:provenance', 'provenance.json', `${JSON.stringify(provenance, null, 2)}\n`));
   files.push(outputRecord('manifest:fingerprints', 'fingerprints.json', `${JSON.stringify({ generatorVersion, surface: 'agent-plugin', skills: fingerprints }, null, 2)}\n`));
@@ -900,7 +930,7 @@ function buildAgentPluginProjection(options = {}) {
   const compiled = compileDistribution({
     surface: 'agent-plugin',
     compilerVersion: `agent-plugin-${generatorVersion}`,
-    inventoryFingerprint: digest(stableStringify(inventory)),
+    inventoryFingerprint: legacyInventoryDigest(inventory),
     ownershipRoot: resolvedOut,
     entries,
     selectedStableIds: selection && selection.ok && selection.value.selectionPolicy
@@ -910,8 +940,11 @@ function buildAgentPluginProjection(options = {}) {
       ? selection.value.selectionPolicy
       : undefined,
     selectionEntries: selection && selection.ok && selection.value.selectionPolicy
-      ? selection.value.entries
+      ? (selection.value.selectionEntries || selection.value.entries)
       : undefined,
+    profileSelection,
+    selectionFingerprint: profileSelection && profileSelection.selectionFingerprint,
+    surfaceSelectionFingerprint: profileSelection && profileSelection.surfaceSelectionFingerprint,
   });
   if (!compiled.ok) throw new Error(compiled.error.message);
 

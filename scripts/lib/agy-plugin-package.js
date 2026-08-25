@@ -15,6 +15,7 @@ const {
   validateSurfaceReceipt,
 } = require('./platform-provenance');
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
+const { bindSurfaceSelection } = require('./capability-bundle-selection');
 
 const SURFACE = 'agy-plugin';
 const GENERATOR_VERSION = '1.0.0';
@@ -54,6 +55,12 @@ function stableStringify(value) {
 
 function digest(value) {
   return crypto.createHash('sha256').update(String(value)).digest('hex');
+}
+
+function legacyInventoryDigest(inventory) {
+  const source = { ...(inventory || {}) };
+  delete source.profile_policy;
+  return digest(stableStringify(source));
 }
 
 function lstatOrNull(filePath) {
@@ -186,11 +193,15 @@ function inventorySkillMap(inventory) {
   return new Map([...(inventory && inventory.skills || []), ...(inventory && inventory.modules || [])].map((entry) => [entry.id, entry]));
 }
 
-function selectedConfiguration(inventory) {
+function selectedConfiguration(inventory, profileSelection = null) {
   const configuration = inventory && inventory.agy_plugin;
   if (!configuration || typeof configuration !== 'object') throw new Error('inventory.agy_plugin is required');
-  const skillIds = inventory.surface_membership && inventory.surface_membership[SURFACE];
-  if (!Array.isArray(skillIds)) throw new Error(`inventory.surface_membership.${SURFACE} must be a string array`);
+  const membershipIds = inventory.surface_membership && inventory.surface_membership[SURFACE];
+  if (!Array.isArray(membershipIds)) throw new Error(`inventory.surface_membership.${SURFACE} must be a string array`);
+  const selectedSet = profileSelection && Array.isArray(profileSelection.selectedStableIds)
+    ? new Set(profileSelection.selectedStableIds)
+    : null;
+  const skillIds = selectedSet ? membershipIds.filter((id) => selectedSet.has(id)) : membershipIds;
   if (!Array.isArray(configuration.agents) || !Array.isArray(configuration.rules)) {
     throw new Error('inventory.agy_plugin agents and rules must be arrays');
   }
@@ -314,12 +325,18 @@ function materializeAgyPluginPackage({
   sourceVersion = version,
   sourceCommit,
   generatorVersion = GENERATOR_VERSION,
+  profileSelection = null,
 } = {}) {
   if (!root || !inventory || !outDir) throw new Error('root, inventory, and outDir are required');
   if (!SEMVER.test(version) || !SEMVER.test(sourceVersion)) throw new Error('AGY package version and sourceVersion must be SemVer');
   if (typeof sourceCommit !== 'string' || !COMMIT.test(sourceCommit)) throw new Error('AGY sourceCommit must be a 40-character commit SHA');
+  if (profileSelection) {
+    const bound = bindSurfaceSelection({ selection: profileSelection, surface: 'agy-plugin' });
+    if (!bound.ok) throw new Error(bound.error.message);
+    profileSelection = bound.value;
+  }
   const sourceRoot = assertPhysicalDirectory(root, 'canonical root');
-  const selected = selectedConfiguration(inventory);
+  const selected = selectedConfiguration(inventory, profileSelection);
   const destination = path.resolve(outDir);
   const parent = ensureDirectory(path.dirname(destination), 'AGY output parent');
   if (!isInside(parent, destination)) throw new Error(`AGY output escapes its parent: ${destination}`);
@@ -397,10 +414,17 @@ function materializeAgyPluginPackage({
     sourceVersion,
     sourceCommit,
     generatedFromTree: resolveGeneratedFromTree(root, sourceCommit),
-    inventoryDigest: digest(stableStringify(inventory)),
+    inventoryDigest: legacyInventoryDigest(inventory),
     fingerprints,
     route: { sourceRoot: 'agents/, rules/, skills/', packageRoot: 'plugins/dhpk-agy/' },
     generatorVersion,
+    profileId: profileSelection && (profileSelection.profileId || profileSelection.id),
+    selectedStableIds: profileSelection && profileSelection.selectedStableIds,
+    emittedStableIds: profileSelection && (profileSelection.emittedStableIds || profileSelection.selectedStableIds),
+    compatibilityMode: profileSelection && (profileSelection.compatibilityMode || profileSelection.mode),
+    selectionPolicyVersion: profileSelection && profileSelection.selectionPolicyVersion,
+    selectionFingerprint: profileSelection && profileSelection.selectionFingerprint,
+    surfaceSelectionFingerprint: profileSelection && profileSelection.surfaceSelectionFingerprint,
   });
   receipt.schema = PACKAGE_SCHEMA;
   receipt.provenanceSchema = 'dhpk.platform-provenance.v1';
@@ -413,7 +437,7 @@ function materializeAgyPluginPackage({
   receipt.packageRoot = 'plugins/dhpk-agy';
   writeJson(path.join(outputRoot, 'fingerprints.json'), { schema: PACKAGE_SCHEMA, files: fingerprints });
   writeJson(path.join(outputRoot, 'provenance.json'), receipt);
-  const checked = validateAgyPluginPackage(outputRoot, { expectedVersion: version, inventory });
+  const checked = validateAgyPluginPackage(outputRoot, { expectedVersion: version, inventory, profileSelection });
   if (!checked.ok) throw new Error(`generated AGY package failed validation: ${checked.errors.join('; ')}`);
   promoteOutputRoot(outputRoot, destination);
   promoted = true;
@@ -423,7 +447,7 @@ function materializeAgyPluginPackage({
   }
 }
 
-function validateAgyPluginPackage(packageRoot, { expectedVersion = null, inventory = null } = {}) {
+function validateAgyPluginPackage(packageRoot, { expectedVersion = null, inventory = null, profileSelection = null } = {}) {
   const errors = [];
   const warnings = [];
   const root = path.resolve(packageRoot || '');
@@ -447,7 +471,7 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
 
   let selected = null;
   if (inventory) {
-    try { selected = selectedConfiguration(inventory); } catch (error) { errors.push(error.message); }
+    try { selected = selectedConfiguration(inventory, profileSelection); } catch (error) { errors.push(error.message); }
   }
   const expectedAgentFiles = selected ? new Set(selected.agents.map((name) => `agents/${name}`)) : null;
   const expectedRuleFiles = selected ? new Set(selected.rules) : null;

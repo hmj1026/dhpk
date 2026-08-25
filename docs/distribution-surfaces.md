@@ -204,6 +204,30 @@ resume command. A generated package or context-budget report alone never
 claims a smaller live Claude context, and the bundle does not reduce
 `agents/`, `commands/`, `rules/`, or `userConfig` context.
 
+## Capability profiles and compatibility migration
+
+`manifests/install-profiles.json` defines three inventory-owned selections:
+
+| Profile | Meaning |
+|---|---|
+| `minimal` | The nine required core workflow IDs; the default for a clean install. |
+| `full` | The existing conflict-aware module closure plus its explicit stable IDs; it is not the complete catalog. |
+| `compat-v1` | All 97 live, non-retired IDs; this is the compatibility fallback for an unannotated existing receipt. |
+
+Distribution and project-local installers accept `--profile <id>` and repeatable
+additive `--skill <stable-id>` overlays. Unknown, retired, deprecated,
+surface-incompatible, duplicate, or conflict-excluded IDs fail before a plan or
+filesystem mutation. The normalized selection fingerprint is shared across
+Claude, Cursor, Agent Plugin, and AGY; Codex records the same canonical identity
+but emits only the intersection with its inventory-owned native allowlist.
+
+Receipts record profile, canonical/emitted IDs, compatibility mode, policy and
+selection fingerprints. A receipt without profile metadata remains `compat-v1`
+and cannot silently shrink. Moving it to `minimal` or another profile requires
+an explicit `--migrate`; migration records old/new identity and preserves
+modified or unowned destinations. Structural, package, budget, rollback, and
+consumer-runtime evidence remain separate; static `PASS` is never runtime proof.
+
 ## Two-stage deprecation
 
 1. Change the skill's lifecycle to `deprecated` in the distribution

@@ -129,6 +129,7 @@ function compileDistribution(inputs = {}) {
   // caller must already have selected a complete output set. Surface adapters
   // cannot use it to decide inventory membership; inventory-backed calls below
   // are the only public selection path for migrated surfaces.
+  const profileSelection = inputs.profileSelection || inputs.selection || null;
   let entries = inputs.entries;
   let selection = { selectedStableIds: null, selectionPolicy: null };
   if (!inputs.entries) {
@@ -136,6 +137,10 @@ function compileDistribution(inputs = {}) {
     if (resolved && resolved.error) return { ok: false, error: resolved.error };
     entries = resolved.entries;
     selection = { selectedStableIds: resolved.selectedStableIds, selectionPolicy: resolved.selectionPolicy };
+    if (profileSelection && Array.isArray(profileSelection.selectedStableIds)) {
+      const selected = new Set(profileSelection.emittedStableIds || profileSelection.selectedStableIds);
+      entries = entries.filter((entry) => selected.has(entry.stableId));
+    }
   }
   if (!inputs.entries && (!inputs.inventory || typeof inputs.inventory !== 'object')) {
     return {
@@ -150,14 +155,40 @@ function compileDistribution(inputs = {}) {
     };
   }
   const planInput = { ...inputs, entries };
-  const selectedStableIds = inputs.selectedStableIds || selection.selectedStableIds;
+  const selectedStableIds = inputs.selectedStableIds
+    || (profileSelection && Array.isArray(profileSelection.selectedStableIds) ? profileSelection.selectedStableIds : selection.selectedStableIds);
   const selectionPolicy = inputs.selectionPolicy || selection.selectionPolicy;
   if (selectedStableIds !== null && selectedStableIds !== undefined) planInput.selectedStableIds = selectedStableIds;
   if (selectionPolicy !== null && selectionPolicy !== undefined) planInput.selectionPolicy = selectionPolicy;
+  if (profileSelection) {
+    planInput.profileSelection = profileSelection;
+    if (!inputs.entries && Array.isArray(profileSelection.selectedStableIds)) {
+      const canonicalIds = new Set(profileSelection.selectedStableIds);
+      planInput.selectionEntries = allInventoryEntries(inputs.inventory)
+        .filter((entry) => canonicalIds.has(entry.id) && entry.lifecycle !== 'deprecated')
+        .map((entry) => ({
+          id: entry.id,
+          source: entry.path,
+          destination: entry.destination || entry.path,
+          owner: entry.owner || entry.id,
+          transform: entry.transform || { id: 'identity', version: '1' },
+          symlinkPolicy: entry.symlink_policy || entry.symlinkPolicy || 'forbid',
+        }));
+    }
+    if (profileSelection.selectionFingerprint) planInput.selectionFingerprint = profileSelection.selectionFingerprint;
+    if (profileSelection.surfaceSelectionFingerprint) planInput.surfaceSelectionFingerprint = profileSelection.surfaceSelectionFingerprint;
+    if (profileSelection.emittedStableIds) planInput.emittedStableIds = profileSelection.emittedStableIds;
+    if (!planInput.selectionPolicy) {
+      planInput.selectionPolicy = {
+        source: 'profile',
+        version: profileSelection.selectionPolicyVersion || 'dhpk.capability-bundle-selection.v1',
+      };
+    }
+  }
   return createDistributionPlan(planInput);
 }
 
-function materializeDistribution(plan, adapter, artifactStore) {
+function materializeDistribution(plan, adapter, artifactStore, { activate = true, activationGate = null } = {}) {
   if (!plan || typeof plan !== 'object' || !plan.planFingerprint) {
     return { ok: false, error: projectionError('INVALID_PLAN', 'materialize', 'a compiled plan is required') };
   }
@@ -178,8 +209,8 @@ function materializeDistribution(plan, adapter, artifactStore) {
     if (rendered.links !== undefined && !Array.isArray(rendered.links)) {
       throw new Error('projection adapter links must be an array when present');
     }
-    if (typeof session.write !== 'function' || typeof session.publish !== 'function') {
-      throw new Error('artifact store session must expose write(output) and publish()');
+    if (typeof session.write !== 'function' || (typeof session.stage !== 'function' && typeof session.publish !== 'function')) {
+      throw new Error('artifact store session must expose write(output) and stage()/publish()');
     }
     const links = rendered.links || [];
     const expectedIds = new Set(plan.entries.map((entry) => entry.stableId));
@@ -223,7 +254,17 @@ function materializeDistribution(plan, adapter, artifactStore) {
     if (typeof adapter.validate === 'function') {
       adapter.validate(rendered, { plan, session });
     }
-    const published = session.publish();
+    const staged = typeof session.stage === 'function' ? session.stage() : session.publish();
+    let published = staged;
+    if (activationGate) {
+      const gate = activationGate({ plan, staged, session });
+      if (!gate || gate.ok !== true) {
+        const error = new Error(gate && gate.error ? gate.error.message : 'candidate activation gate rejected the staged artifact');
+        error.projectionCode = gate && gate.error && gate.error.code || 'ACTIVATION_BLOCKED';
+        throw error;
+      }
+    }
+    if (activate && typeof session.activate === 'function') published = session.activate();
     const artifact = createDistributionArtifact({
       planFingerprint: plan.planFingerprint,
       adapter: rendered.adapter || adapter.identity || { id: 'unknown', version: 'unknown' },

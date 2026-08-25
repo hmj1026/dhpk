@@ -579,6 +579,8 @@ function validateDistributionInventoryV2(input = {}) {
   errors.push(...projection.errors);
   const selection = validateSelectionPolicyAgainstInventory({ inventory });
   errors.push(...selection.errors);
+  const profilePolicy = validateCapabilityProfilePolicy({ inventory });
+  errors.push(...profilePolicy.errors);
   const routing = validateSkillRoutingFamilies({ families: inventory.skill_routing_families, skillIds: ids, skills: inventory.skills });
   errors.push(...routing.errors);
 
@@ -1235,6 +1237,38 @@ function validateSelectionPolicyAgainstInventory({ inventory } = {}) {
   return { errors };
 }
 
+function validateCapabilityProfilePolicy({ inventory } = {}) {
+  const errors = [];
+  const policy = inventory && inventory.profile_policy;
+  if (policy === undefined) return { errors };
+  if (!policy || typeof policy !== 'object' || Array.isArray(policy)) return { errors: ['profile_policy must be an object when present'] };
+  if (typeof policy.version !== 'string' || policy.version.trim() === '') errors.push('profile_policy.version must be a non-empty string');
+  const active = new Set((inventory.skills || []).filter((entry) => entry && entry.lifecycle !== 'deprecated').map((entry) => entry.id));
+  const retired = new Set((inventory.retired_skills || []).map((entry) => entry && entry.id).filter(Boolean));
+  if (!Array.isArray(policy.required_core_ids) || policy.required_core_ids.length !== 9) {
+    errors.push('profile_policy.required_core_ids must contain exactly nine stable IDs');
+  } else {
+    if (new Set(policy.required_core_ids).size !== policy.required_core_ids.length) errors.push('profile_policy.required_core_ids must not contain duplicates');
+    for (const id of policy.required_core_ids) {
+      if (typeof id !== 'string' || id.trim() === '') errors.push('profile_policy.required_core_ids contains a missing stable ID');
+      else if (!active.has(id)) errors.push(`profile_policy.required_core_ids references inactive stable ID '${id}'`);
+      else if (retired.has(id)) errors.push(`profile_policy.required_core_ids references retired stable ID '${id}'`);
+      const entry = (inventory.skills || []).find((skill) => skill && skill.id === id);
+      if (entry && entry.tier !== 'core' && entry.lifecycle !== 'promoted') errors.push(`profile_policy.required_core_ids stable ID '${id}' is not promoted/core`);
+    }
+  }
+  if (!policy.profiles || typeof policy.profiles !== 'object' || Array.isArray(policy.profiles)) {
+    errors.push('profile_policy.profiles must be an object');
+  } else {
+    for (const id of ['minimal', 'full', 'compat-v1']) {
+      const profile = policy.profiles[id];
+      if (!profile || typeof profile !== 'object' || Array.isArray(profile)) errors.push(`profile_policy.profiles.${id} is required`);
+      else if (typeof profile.selection !== 'string' || profile.selection.trim() === '') errors.push(`profile_policy.profiles.${id}.selection must be a non-empty string`);
+    }
+  }
+  return { errors };
+}
+
 // Task 1.4: reconcile the inventory against canonical packages, the module
 // catalog, install profiles, and per-skill Codex (agents/openai.yaml)
 // metadata. Distinct from validateDistributionInventory's structural checks
@@ -1593,6 +1627,7 @@ module.exports = {
   validatePortableFrontmatterContract,
   validateProjectionContract,
   validateSelectionPolicyAgainstInventory,
+  validateCapabilityProfilePolicy,
   MIGRATED_SELECTION_SURFACES,
   SELECTION_POLICY_SOURCES,
   reconcileDistribution,

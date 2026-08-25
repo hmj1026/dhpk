@@ -1,6 +1,34 @@
 {
   "schema": "dhpk.distribution-inventory.v2",
   "description": "Machine-readable lifecycle and publication-surface assignment for every consumer-reachable dhpk skill and module. Generators derive Claude/Codex publication surfaces from this file; directory placement and README prose are not authoritative. See openspec/changes/curate-dhpk-distribution-surfaces.",
+  "profile_policy": {
+    "version": "dhpk.capability-bundle-selection.v1",
+    "required_core_ids": [
+      "adaptive-dev-workflow",
+      "bug-investigation",
+      "code-explore",
+      "dhpk-execution-policy",
+      "git-smart-commit",
+      "pr-review",
+      "security-review",
+      "tdd",
+      "tool-routing"
+    ],
+    "profiles": {
+      "minimal": {
+        "selection": "required-core",
+        "compatibilityMode": "profile"
+      },
+      "full": {
+        "selection": "conflict-aware-module-closure",
+        "compatibilityMode": "profile"
+      },
+      "compat-v1": {
+        "selection": "all-live-stable-ids",
+        "compatibilityMode": "compat-v1"
+      }
+    }
+  },
   "lifecycles": [
     "promoted",
     "optional",

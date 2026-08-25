@@ -22,6 +22,7 @@ const {
 } = require('./distribution-compiler');
 const { ProjectionArtifactStore } = require('./projection-artifact-store');
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
+const { bindSurfaceSelection } = require('./capability-bundle-selection');
 
 // Bump when the generation algorithm (selection, layout, or manifest-merge
 // logic) changes in a way that could produce a different package from the
@@ -203,12 +204,14 @@ function selectNativeSkills(inventory, selectedStableIds = null) {
 // `candidateSkillIds` remains accepted as a compatibility alias for callers
 // that have not yet renamed their local variable; its values are directory
 // names, i.e. public names for v2 inventories.
-function validateNativeMembership({ candidateSkillNames, candidateSkillIds, inventory }) {
+function validateNativeMembership({ candidateSkillNames, candidateSkillIds, inventory, selectedStableIds = null }) {
   const selection = compileDistribution({ inventory, surface: 'codex-native' });
   if (!selection.ok) throw new Error(selection.error.message);
   const selected = selectNativeSkills(
     inventory,
-    selection.value.selectionPolicy ? selection.value.selectedStableIds : null,
+    Array.isArray(selectedStableIds)
+      ? selectedStableIds
+      : (selection.value.selectionPolicy ? selection.value.selectedStableIds : null),
   );
   const expected = new Map(selected.map((s) => [s.name || s.id, s.id]));
   const inventoryIdsByName = new Map((inventory.skills || []).map((s) => [s.name || s.id, s.id]));
@@ -307,6 +310,16 @@ function nativeSkillFingerprint(files) {
   return hash.digest('hex');
 }
 
+// The pre-profile native package receipt used the inventory lifecycle and
+// surface contract as its source identity. Profile policy metadata is bound
+// separately through selectionFingerprint, so adding the policy must not
+// invalidate the legacy compatibility package byte identity.
+function legacyInventoryDigest(inventory) {
+  const source = { ...(inventory || {}) };
+  delete source.profile_policy;
+  return crypto.createHash('sha256').update(JSON.stringify(source)).digest('hex');
+}
+
 function nativeOutputRecord(stableId, source, destination, content, transform, mode = 0o644) {
   return {
     stableId,
@@ -328,8 +341,17 @@ function compileNativePackage({
   generatorVersion = GENERATOR_VERSION,
   traversalOptions = {},
   selectionMode = 'compiler',
+  profileSelection = null,
 } = {}) {
   if (!root || !outDir) throw new Error('compileNativePackage requires root and outDir');
+  if (profileSelection) {
+    const supportedStableIds = (inventory.skills || [])
+      .filter((entry) => Array.isArray(entry.surfaces) && entry.surfaces.includes('codex-native'))
+      .map((entry) => entry.id);
+    const bound = bindSurfaceSelection({ selection: profileSelection, surface: 'codex-native', supportedStableIds });
+    if (!bound.ok) throw new Error(bound.error.message);
+    profileSelection = bound.value;
+  }
   const resolvedRoot = path.resolve(root);
   const resolvedOut = path.resolve(outDir);
   assertPhysicalDirectory(resolvedRoot, 'canonical root');
@@ -342,7 +364,7 @@ function compileNativePackage({
   const routingProjection = buildSkillRoutingProjection({ inventory, surface: 'codex-native' });
   const traversalBudget = createTraversalBudget(traversalOptions);
 
-  const selection = selectionMode === 'legacy' ? null : compileDistribution({ inventory, surface: 'codex-native' });
+  const selection = selectionMode === 'legacy' ? null : compileDistribution({ inventory, surface: 'codex-native', profileSelection });
   if (selection && !selection.ok) throw new Error(selection.error.message);
   const selected = selectNativeSkills(
     inventory,
@@ -386,7 +408,7 @@ function compileNativePackage({
 
   const skillIds = selectedEntries.map((entry) => entry.id).sort();
   const skillNames = selectedEntries.map((entry) => entry.name || entry.id).sort();
-  const inventoryDigest = crypto.createHash('sha256').update(JSON.stringify(inventory)).digest('hex');
+  const inventoryDigest = legacyInventoryDigest(inventory);
   const generatedFromTree = resolveGeneratedFromTree(resolvedRoot, sourceCommit);
   const provenance = {
     schema: RECEIPT_SCHEMA,
@@ -403,6 +425,16 @@ function compileNativePackage({
     selectedSkillNames: skillNames,
     fingerprints,
     routingProjection,
+    ...(profileSelection ? {
+      profileId: profileSelection.profileId || profileSelection.id,
+      selectedStableIds: profileSelection.selectedStableIds,
+      canonicalSelectedStableIds: profileSelection.selectedStableIds,
+      emittedStableIds: skillIds,
+      compatibilityMode: profileSelection.compatibilityMode || profileSelection.mode || null,
+      selectionPolicyVersion: profileSelection.selectionPolicyVersion || null,
+      selectionFingerprint: profileSelection.selectionFingerprint || null,
+      surfaceSelectionFingerprint: profileSelection.surfaceSelectionFingerprint || null,
+    } : {}),
   };
   const fingerprintsContent = `${JSON.stringify(fingerprints, null, 2)}\n`;
   const provenanceContent = `${JSON.stringify(provenance, null, 2)}\n`;
@@ -442,8 +474,12 @@ function compileNativePackage({
       ? selection.value.selectionPolicy
       : undefined,
     selectionEntries: selection && selection.ok && selection.value.selectionPolicy
-      ? selection.value.entries
+      ? (selection.value.selectionEntries || selection.value.entries)
       : undefined,
+    profileSelection: profileSelection ? { ...profileSelection, emittedStableIds: skillIds } : null,
+    emittedStableIds: profileSelection ? skillIds : undefined,
+    selectionFingerprint: profileSelection && profileSelection.selectionFingerprint,
+    surfaceSelectionFingerprint: profileSelection && profileSelection.surfaceSelectionFingerprint,
   });
   if (!compiled.ok) throw new Error(compiled.error.message);
   const adapter = {
@@ -486,6 +522,7 @@ function compileNativePackage({
           ? readDirectoryEntries(stagedSkillsRoot, { sort: true }).map((entry) => entry.name)
           : [],
         inventory,
+        selectedStableIds: profileSelection ? skillIds : null,
       });
       const identity = validateNativeSkillIdentity({
         manifestSkillsField: rendered.metadata.manifestSkillsField,
@@ -523,6 +560,7 @@ function materializeNativePackage({
   compiledProjection,
   artifactStore,
   traversalOptions = {},
+  profileSelection = null,
 }) {
   if (!root || !outDir) throw new Error('materializeNativePackage requires root and outDir');
   const resolvedRoot = path.resolve(root);
@@ -542,6 +580,7 @@ function materializeNativePackage({
     sourceCommit,
     generatorVersion,
     traversalOptions,
+    profileSelection,
   });
   const parent = path.dirname(resolvedOut);
   const store = artifactStore || new ProjectionArtifactStore({
@@ -591,6 +630,7 @@ function verifyNativePackage({
   stage = 'structural',
   observedAt,
   consumerAdapter,
+  profileSelection = null,
 } = {}) {
   if (!packageRoot) {
     return { ok: false, errors: ['package root is required'], evidence: { ok: false, error: { code: 'INVALID_INPUT' } } };
@@ -614,7 +654,11 @@ function verifyNativePackage({
     && lstatOrNull(skillsRoot).isDirectory()
     ? readDirectoryEntries(skillsRoot, { sort: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name)
     : [];
-  const membership = validateNativeMembership({ candidateSkillNames, inventory });
+  const membership = validateNativeMembership({
+    candidateSkillNames,
+    inventory,
+    selectedStableIds: profileSelection && profileSelection.selectedStableIds,
+  });
   const identity = validateNativeSkillIdentity({ manifestSkillsField, packageRoot: resolvedPackageRoot, inventory });
   const errors = [...structural.errors, ...membership.errors, ...identity.errors];
   const provenance = readNativeProvenance(resolvedPackageRoot);

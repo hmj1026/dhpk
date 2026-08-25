@@ -17,6 +17,10 @@ const {
   fingerprint,
   projectionError,
 } = require('./distribution-projection-contract');
+const {
+  resolveCapabilitySelection,
+  bindSurfaceSelection,
+} = require('./capability-bundle-selection');
 
 const BUNDLE_VERSION = 'claude-profile-v1';
 const CLAUDE_SURFACE = 'claude-profile';
@@ -117,7 +121,7 @@ function claudeEntry(entry) {
     && entry.lifecycle !== 'deprecated';
 }
 
-function resolveClaudeProfile({ profileId, profiles, moduleCatalog, inventory } = {}) {
+function resolveClaudeProfile({ profileId, profiles, moduleCatalog, inventory, skillIds } = {}) {
   const inventoryResult = inventoryEntries(inventory);
   if (inventoryResult.error) return fail(inventoryResult.error.code, inventoryResult.error.message);
   const profileTable = profiles && profiles.profiles ? profiles.profiles : profiles;
@@ -131,6 +135,62 @@ function resolveClaudeProfile({ profileId, profiles, moduleCatalog, inventory } 
   }
   const profile = requested === null ? null : profileTable[requested];
   if (profile && !Array.isArray(profile.modules)) return fail('INVALID_PROFILE', `profile '${requested}' modules must be an array`);
+
+  // Profiles with an inventory-owned stable-ID allowlist use the shared
+  // capability selector. Legacy fixture/compatibility profiles without that
+  // metadata retain the module-only characterization below until they opt in.
+  const canonicalProfile = profile && Array.isArray(profile.skillIds)
+    && inventory && inventory.profile_policy;
+  if (canonicalProfile) {
+    const normalized = resolveCapabilitySelection({
+      inventory,
+      profiles,
+      moduleCatalog,
+      profileId: requested,
+      surface: CLAUDE_SURFACE,
+      skillIds,
+      sourceInputs: { profileId: requested, profiles, moduleCatalog },
+      policyVersion: inventory.profile_policy.version,
+    });
+    if (!normalized.ok) return normalized;
+    const bound = bindSurfaceSelection({ selection: normalized.value, surface: CLAUDE_SURFACE });
+    if (!bound.ok) return bound;
+    const canonical = bound.value;
+    const selectedSet = new Set(canonical.selectedStableIds);
+    const selectedEntries = inventoryResult.entries.filter((entry) => selectedSet.has(entry.id));
+    const ownership = selectedEntries.filter((entry) => !claudeEntry(entry));
+    if (ownership.length > 0) return fail('UNOWNED_ENTRY', 'profile selected entries outside the Claude projection', { stableIds: ownership.map((entry) => entry.id) });
+    const optionalIds = inventoryResult.entries
+      .filter((entry) => (entry.lifecycle === 'optional' || entry.tier === 'optional') && entry.lifecycle !== 'deprecated')
+      .map((entry) => entry.id);
+    const identity = {
+      version: BUNDLE_VERSION,
+      id: requested,
+      profileId: requested,
+      modules: canonical.moduleClosure,
+      excludes: Object.keys(profile.excludes || {}).sort(),
+      mode: canonical.compatibilityMode,
+      selectionPolicyVersion: canonical.selectionPolicyVersion,
+      sourceFingerprint: canonical.sourceFingerprint,
+      inventoryFingerprint: canonical.inventoryFingerprint,
+      profileFingerprint: canonical.profileFingerprint,
+      selectionFingerprint: canonical.selectionFingerprint,
+      surfaceSelectionFingerprint: canonical.surfaceSelectionFingerprint,
+    };
+    return {
+      ok: true,
+      value: Object.freeze({
+        ...canonical,
+        ...identity,
+        identity: Object.freeze(identity),
+        selectedEntries: selectedEntries.sort((a, b) => a.id.localeCompare(b.id)),
+        unavailableOptionalIds: optionalIds.filter((id) => !selectedSet.has(id)).sort(),
+        excludedStableIds: optionalIds.filter((id) => !selectedSet.has(id)).sort(),
+        inputFingerprint: canonical.sourceFingerprint,
+      }),
+    };
+  }
+
   const selected = profile ? profile.modules : [];
   if (new Set(selected).size !== selected.length) return fail('DUPLICATE_MODULE', `profile '${requested}' declares duplicate modules`);
   const modules = catalogModules(moduleCatalog);
@@ -295,9 +355,9 @@ function readPlugin(root) {
   return { ...plugin, skills: ['./skills/'] };
 }
 
-function compileClaudeCapabilityBundle({ root, inventory, profiles, moduleCatalog, profileId, compilerVersion = BUNDLE_VERSION } = {}) {
+function compileClaudeCapabilityBundle({ root, inventory, profiles, moduleCatalog, profileId, skillIds, compilerVersion = BUNDLE_VERSION } = {}) {
   if (!inventory || !profiles || !moduleCatalog) return fail('INVALID_INPUT', 'inventory, install profiles, and module catalog are required');
-  const selection = resolveClaudeProfile({ profileId, profiles, moduleCatalog, inventory });
+  const selection = resolveClaudeProfile({ profileId, skillIds, profiles, moduleCatalog, inventory });
   if (!selection.ok) return selection;
   const rootPath = root || process.cwd();
   const entryResult = createBundleEntries(selection.value, rootPath);

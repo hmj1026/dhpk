@@ -30,6 +30,7 @@ const {
   validateAgyPluginPackage,
 } = require('./agy-plugin-package');
 const { validateSurfaceReceipt } = require('./platform-provenance');
+const { resolveCapabilitySelection, bindSurfaceSelection } = require('./capability-bundle-selection');
 
 const OPERATIONS = Object.freeze(['generate', 'validate', 'verify']);
 const SURFACES = Object.freeze({
@@ -52,7 +53,7 @@ function resolveSourceCommit(root) {
 
 function parseRequest(argv) {
   const positional = [];
-  const options = { json: false, output: null, version: null };
+  const options = { json: false, output: null, version: null, profileId: null, skillIds: [], profileExplicit: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--json') options.json = true;
@@ -76,6 +77,28 @@ function parseRequest(argv) {
       if (!value || value.startsWith('--')) return { ok: false, status: 64, error: 'an option value is required' };
       options.version = value;
     }
+    else if (arg === '--profile') {
+      const value = argv[++index];
+      if (!value || value.startsWith('--')) return { ok: false, status: 64, error: 'an option value is required' };
+      options.profileId = value;
+      options.profileExplicit = true;
+    }
+    else if (arg.startsWith('--profile=')) {
+      const value = arg.slice('--profile='.length);
+      if (!value || value.startsWith('--')) return { ok: false, status: 64, error: 'an option value is required' };
+      options.profileId = value;
+      options.profileExplicit = true;
+    }
+    else if (arg === '--skill') {
+      const value = argv[++index];
+      if (!value || value.startsWith('--')) return { ok: false, status: 64, error: 'an option value is required' };
+      options.skillIds.push(value);
+    }
+    else if (arg.startsWith('--skill=')) {
+      const value = arg.slice('--skill='.length);
+      if (!value || value.startsWith('--')) return { ok: false, status: 64, error: 'an option value is required' };
+      options.skillIds.push(value);
+    }
     else if (arg.startsWith('--')) return { ok: false, status: 64, error: `unknown option '${arg}'` };
     else positional.push(arg);
   }
@@ -83,19 +106,53 @@ function parseRequest(argv) {
   if (!SURFACES[surface]) return { ok: false, status: 64, error: `unknown surface '${surface || ''}'` };
   if (!OPERATIONS.includes(operation)) return { ok: false, status: 64, error: `unknown operation '${operation || ''}'` };
   if (positional.length !== 2) return { ok: false, status: 64, error: 'usage: dhpk distribution <surface> <generate|validate|verify> [--output <dir>] [--version <version>] [--json]' };
-  return { ok: true, surface, operation, options };
+  return { ok: true, surface, operation, options: Object.freeze({ ...options, skillIds: Object.freeze(options.skillIds.slice()) }) };
 }
 
 function runtime(root, request) {
   const inventory = readJson(path.join(root, 'manifests', 'distribution-inventory.json'));
   const manifest = readJson(path.join(root, '.claude-plugin', 'plugin.json'));
+  const profiles = readJson(path.join(root, 'manifests', 'install-profiles.json'));
+  const moduleCatalog = readJson(path.join(root, 'manifests', 'module-catalog.json'));
+  const output = path.resolve(root, request.options.output || SURFACES[request.surface].output);
+  let receiptProfileId = null;
+  if (request.operation !== 'generate') {
+    try {
+      const receipt = readJson(path.join(output, 'provenance.json'));
+      receiptProfileId = typeof receipt.profileId === 'string' ? receipt.profileId : null;
+    } catch (_) { /* validation reports the missing/invalid receipt later */ }
+  }
+  const profileId = request.options.profileId || (request.operation === 'generate' ? 'minimal' : receiptProfileId);
+  let profileSelection = null;
+  if (profileId || request.options.skillIds.length > 0) {
+    const resolved = resolveCapabilitySelection({
+      inventory,
+      profiles,
+      moduleCatalog,
+      profileId: profileId || 'minimal',
+      skillIds: request.options.skillIds,
+      surface: request.surface,
+      sourceInputs: { profileId: profileId || 'minimal', skillIds: request.options.skillIds },
+      policyVersion: inventory.profile_policy && inventory.profile_policy.version,
+    });
+    if (!resolved.ok) throw new Error(resolved.error.message);
+    const supportedStableIds = request.surface === 'codex-native'
+      ? inventory.skills.filter((entry) => Array.isArray(entry.surfaces) && entry.surfaces.includes('codex-native')).map((entry) => entry.id)
+      : null;
+    const bound = bindSurfaceSelection({ selection: resolved.value, surface: request.surface, supportedStableIds });
+    if (!bound.ok) throw new Error(bound.error.message);
+    profileSelection = bound.value;
+  }
   return {
     root,
     inventory,
     version: request.options.version || manifest.version,
     sourceCommit: resolveSourceCommit(root),
-    output: path.resolve(root, request.options.output || SURFACES[request.surface].output),
+    output,
     manifest,
+    profiles,
+    moduleCatalog,
+    profileSelection,
   };
 }
 
@@ -143,22 +200,24 @@ function runAgent(operation, context) {
     const compiledProjection = compileAgentPluginPackage({
       inventory: context.inventory, root: context.root, outDir: context.output, name: 'dhpk', version: context.version,
       sourceCommit: context.sourceCommit, manifestMetadata: context.manifest,
+      profileSelection: context.profileSelection,
     });
     const result = materializeAgentPluginPackage({
       inventory: context.inventory, root: context.root, outDir: context.output, name: 'dhpk', version: context.version,
       sourceCommit: context.sourceCommit, manifestMetadata: context.manifest, compiledProjection,
+      profileSelection: context.profileSelection,
     });
-    const validation = validateAgentPluginPackage(context.output, { allowlist: context.inventory.portable_frontmatter && context.inventory.portable_frontmatter.allowlist });
+    const validation = validateAgentPluginPackage(context.output, { allowlist: context.inventory.portable_frontmatter && context.inventory.portable_frontmatter.allowlist, inventory: context.inventory, profileSelection: context.profileSelection });
     return mergeReceipt('agent-plugin', context.output, { ok: validation.ok, details: { skillCount: result.skillIds.length, warnings: validation.warnings, errors: validation.errors } });
   }
-  const validation = validateAgentPluginPackage(context.output, { allowlist: context.inventory.portable_frontmatter && context.inventory.portable_frontmatter.allowlist });
+  const validation = validateAgentPluginPackage(context.output, { allowlist: context.inventory.portable_frontmatter && context.inventory.portable_frontmatter.allowlist, inventory: context.inventory, profileSelection: context.profileSelection });
   return mergeReceipt('agent-plugin', context.output, { ok: validation.ok, details: { warnings: validation.warnings, errors: validation.errors } });
 }
 
 function runCursor(operation, context) {
   if (operation === 'generate') {
-    const compiledProjection = compileCursorPackage({ inventory: context.inventory, root: context.root, outDir: context.output, version: context.version, sourceCommit: context.sourceCommit });
-    const result = materializeCursorPackage({ inventory: context.inventory, root: context.root, outDir: context.output, version: context.version, sourceCommit: context.sourceCommit, compiledProjection });
+    const compiledProjection = compileCursorPackage({ inventory: context.inventory, root: context.root, outDir: context.output, version: context.version, sourceCommit: context.sourceCommit, profileSelection: context.profileSelection });
+    const result = materializeCursorPackage({ inventory: context.inventory, root: context.root, outDir: context.output, version: context.version, sourceCommit: context.sourceCommit, compiledProjection, profileSelection: context.profileSelection });
     const validation = verifyCursorPackage({ packageRoot: context.output, stage: 'structural' }).structural;
     return mergeReceipt('cursor-plugin', context.output, { ok: validation.ok, details: { skillCount: result.skillNames.length, warnings: validation.warnings, errors: validation.errors } });
   }
@@ -168,9 +227,9 @@ function runCursor(operation, context) {
 
 function runCodex(operation, context) {
   if (operation === 'generate') {
-    const compiledProjection = compileNativePackage({ inventory: context.inventory, root: context.root, outDir: context.output, name: 'dhpk', version: context.version, sourceCommit: context.sourceCommit });
-    const result = materializeNativePackage({ inventory: context.inventory, root: context.root, outDir: context.output, name: 'dhpk', version: context.version, sourceCommit: context.sourceCommit, compiledProjection });
-    const validation = verifyNativePackage({ packageRoot: context.output, inventory: context.inventory, stage: 'structural' });
+    const compiledProjection = compileNativePackage({ inventory: context.inventory, root: context.root, outDir: context.output, name: 'dhpk', version: context.version, sourceCommit: context.sourceCommit, profileSelection: context.profileSelection });
+    const result = materializeNativePackage({ inventory: context.inventory, root: context.root, outDir: context.output, name: 'dhpk', version: context.version, sourceCommit: context.sourceCommit, compiledProjection, profileSelection: context.profileSelection });
+    const validation = verifyNativePackage({ packageRoot: context.output, inventory: context.inventory, stage: 'structural', profileSelection: context.profileSelection });
     return mergeReceipt('codex-native', context.output, { ok: validation.ok, details: { skillCount: result.skillIds.length, errors: validation.errors } });
   }
   if (operation === 'verify') {
@@ -180,9 +239,9 @@ function runCodex(operation, context) {
       // provenance, not source content: comparing it to the command's current
       // HEAD would make every later commit look like package drift.
       const sourceCommit = readJson(path.join(context.output, 'provenance.json')).sourceCommit;
-      const compiledProjection = compileNativePackage({ inventory: context.inventory, root: context.root, outDir: temporary, name: 'dhpk', version: context.version, sourceCommit });
-      materializeNativePackage({ inventory: context.inventory, root: context.root, outDir: temporary, name: 'dhpk', version: context.version, sourceCommit, compiledProjection });
-      const validation = verifyNativePackage({ packageRoot: context.output, inventory: context.inventory, stage: 'structural' });
+      const compiledProjection = compileNativePackage({ inventory: context.inventory, root: context.root, outDir: temporary, name: 'dhpk', version: context.version, sourceCommit, profileSelection: context.profileSelection });
+      materializeNativePackage({ inventory: context.inventory, root: context.root, outDir: temporary, name: 'dhpk', version: context.version, sourceCommit, compiledProjection, profileSelection: context.profileSelection });
+      const validation = verifyNativePackage({ packageRoot: context.output, inventory: context.inventory, stage: 'structural', profileSelection: context.profileSelection });
       const deterministic = fingerprintNative(temporary) === fingerprintNative(context.output);
       return mergeReceipt('codex-native', context.output, {
         ok: validation.ok && deterministic,
@@ -192,7 +251,7 @@ function runCodex(operation, context) {
       fs.rmSync(temporary, { recursive: true, force: true });
     }
   }
-  const validation = verifyNativePackage({ packageRoot: context.output, inventory: context.inventory, stage: 'structural' });
+  const validation = verifyNativePackage({ packageRoot: context.output, inventory: context.inventory, stage: 'structural', profileSelection: context.profileSelection });
   return mergeReceipt('codex-native', context.output, { ok: validation.ok, details: { errors: validation.errors } });
 }
 
@@ -201,11 +260,12 @@ function runAgy(operation, context) {
     const result = materializeAgyPluginPackage({
       root: context.root, inventory: context.inventory, outDir: context.output, version: context.version,
       sourceVersion: context.manifest.version, sourceCommit: context.sourceCommit, generatorVersion: AGY_GENERATOR_VERSION,
+      profileSelection: context.profileSelection,
     });
-    const validation = validateAgyPluginPackage(context.output, { inventory: context.inventory, expectedVersion: context.version });
+    const validation = validateAgyPluginPackage(context.output, { inventory: context.inventory, expectedVersion: context.version, profileSelection: context.profileSelection });
     return mergeReceipt('agy-plugin', context.output, { ok: validation.ok, details: { agentCount: result.selected.agents.length, skillCount: result.selected.skills.length, warnings: validation.warnings, errors: validation.errors } });
   }
-  const validation = validateAgyPluginPackage(context.output, { inventory: context.inventory, expectedVersion: context.version });
+  const validation = validateAgyPluginPackage(context.output, { inventory: context.inventory, expectedVersion: context.version, profileSelection: context.profileSelection });
   return mergeReceipt('agy-plugin', context.output, { ok: validation.ok, details: { warnings: validation.warnings, errors: validation.errors } });
 }
 
