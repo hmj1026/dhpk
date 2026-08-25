@@ -3,7 +3,7 @@
 只在需要 project-specific 範例、shortcut、預填值或覆寫規則時讀取本檔。
 
 本 skill 由 dhpk plugin 提供（read-only），因此專案特化內容不放在 skill 目錄內，而是由使用端
-專案提供一份覆寫檔。沿用 dhpk 既有的 `@rules/<x>-project.md` 慣例（例如 `dhpk-feature-dev` 用
+專案提供一份覆寫檔。沿用 dhpk 既有的 `@rules/<x>-project.md` 慣例（Adaptive Feature/Bug branch 用
 `@rules/testing.md` + `@rules/testing-project.md`）。
 
 ## Load Order

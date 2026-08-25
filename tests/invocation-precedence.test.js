@@ -35,6 +35,13 @@ function resolveInvocationClass(name) {
   return m ? m[1] : null;
 }
 
+function resolveAgentRoute(name) {
+  const match = String(name || '').match(/^agent:([a-z0-9][a-z0-9-]*)$/);
+  if (!match) return null;
+  const file = path.join(ROOT, 'agents', `${match[1]}.md`);
+  return fs.existsSync(file) ? match[1] : null;
+}
+
 test('the precedence SSOT reference file exists and states the fixed order', () => {
   assert.ok(precedenceSSOT.includes('Exact explicit command or skill invocation'));
   assert.ok(precedenceSSOT.includes('Implementation dispatch'));
@@ -90,9 +97,14 @@ test('issue #87 regression: opsx-apply-resume.md dispatches the canonical Skill-
   assert.ok(resumeCmd.includes('never pass the `opsx:apply` human-command alias to the Skill tool'));
 });
 
-test('every scripts/lib/route-table.json target resolves and has a known invocation class', () => {
+test('every scripts/lib/route-table.json target resolves to an invocation class or known agent route', () => {
   const routeTable = JSON.parse(read('scripts/lib/route-table.json'));
   for (const rule of routeTable.rules) {
+    const agent = resolveAgentRoute(rule.skill);
+    if (agent) {
+      assert.strictEqual(agent, 'e2e-runner', `route-table agent target '${rule.skill}' must be the Playwright e2e-runner role`);
+      continue;
+    }
     const name = rule.skill.replace(/^dhpk:/, '');
     const cls = resolveInvocationClass(name);
     assert.ok(cls, `route-table rule [${rule.label}] target '${rule.skill}' did not resolve to a skill or command`);

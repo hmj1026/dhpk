@@ -17,7 +17,7 @@ Resolve the active harness directory with `@skills/dhpk-harness-revise/reference
 | New-team onboard / `.claude/` infrastructure not yet built | ✅ | `/dhpk:dhpk-repo-intake` (run project map cache first) |
 | `.claude/` is outdated after a large refactor | ✅ | `/dhpk:dhpk-harness-revise` (trim first, then consider backfill) |
 | Fill in one specific layer's CLAUDE.md (e.g. `domain/CLAUDE.md` missing) | ✅ (`--layers domain`) | Manual Edit (if content is already known) |
-| Fix one controller action / bug | ❌ | `/dhpk:dhpk-bug-fix` / `/dhpk:dhpk-feature-dev` |
+| Fix one controller action / bug | ❌ | `/dhpk:dhpk-adaptive-dev-workflow` (Bug branch) |
 | Look up a specific function / usage | ❌ | `cx definition` / `gitnexus_query` |
 | Change is known to affect only 1-2 skills | ❌ | Edit the matching SKILL.md directly |
 | `.claude/` is already saturated, no real gaps | ❌ | `dhpk-harness-budget` to read the score |

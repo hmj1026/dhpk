@@ -57,7 +57,7 @@ The distribution model SHALL distinguish broadly applicable core workflow skills
 - **THEN** validation passes and reports the budget totals by publication surface and selected profile artifact
 
 ### Requirement: Deprecation precedes source deletion
-A deprecated package SHALL first be removed from promoted publication surfaces while retaining its canonical source, replacement or migration guidance, and compatibility-window metadata. Canonical deletion SHALL require a later reviewed change and a passing repository reference scan.
+A package SHALL normally be deprecated before source deletion: promoted surfaces omit it while canonical source, replacement guidance, and compatibility-window metadata remain. A reviewed breaking retirement MAY remove canonical source in one change only when an inventory-owned retirement record exists, unique behavior has migrated or is explicitly classified as model-default, all live references and generated projections are closed, receipt-owned reconciliation is fingerprint-safe, and rollback pins the last compatible release.
 
 #### Scenario: A promoted skill is deprecated
 - **WHEN** a skill lifecycle changes from `promoted` to `deprecated`
@@ -66,6 +66,14 @@ A deprecated package SHALL first be removed from promoted publication surfaces w
 #### Scenario: Deprecated source is deleted too early
 - **WHEN** a change deletes a deprecated canonical source before its compatibility window expires or while live references remain
 - **THEN** distribution validation fails with the blocking condition
+
+#### Scenario: Reviewed breaking retirement removes source atomically
+- **WHEN** a reviewed change declares an alias-free breaking retirement and all retirement identity, successor behavior, reference closure, ownership-safe reconciliation, deterministic projection, and rollback gates pass
+- **THEN** canonical source may be removed in that change and the former identity remains available only through the non-discovery-visible retirement ledger
+
+#### Scenario: Breaking retirement lacks a closure gate
+- **WHEN** any required migration, reference, ownership, projection, or rollback evidence is missing
+- **THEN** distribution validation rejects canonical deletion and names the missing gate
 
 ### Requirement: Always-visible and conditional context are distinguishable
 Publication and manifest generation SHALL expose which safety/routing contracts are always visible and which stack/version/review mechanics are conditional references. The generator SHALL not duplicate full description prose in developer instructions when a short trigger and pointer are sufficient.

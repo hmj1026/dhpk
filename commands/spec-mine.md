@@ -8,7 +8,7 @@ metadata:
 
 # /spec-mine
 
-Front door for behavioral-spec extraction. This command does **not** mine inline — it dispatches the `spec-miner` agent (opus), which owns the sampling budget, metadata rules, and the flat Requirement / Invariant output format. Mirrors how `/post-dev-test` delegates Playwright suites to `e2e-runner`.
+Front door for behavioral-spec extraction. This command does **not** mine inline — it dispatches the `spec-miner` agent (opus), which owns the sampling budget, metadata rules, and the flat Requirement / Invariant output format. Mirrors how the Playwright route delegates journeys directly to the `agent:e2e-runner` capability (an unavailable browser/agent is reported as `UNAVAILABLE`, not remapped to another test workflow).
 
 ## When to use
 

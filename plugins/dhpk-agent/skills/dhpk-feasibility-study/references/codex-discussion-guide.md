@@ -8,7 +8,7 @@
 
 | Timing                   | Action                                           |
 | ------------------------ | ------------------------------------------------ |
-| Before starting analysis | `/dhpk:dhpk-codex-brainstorm` to enumerate all possibilities |
+| Before starting analysis | `/dhpk:dhpk-codex-architect --mode adversarial` to enumerate and critique possibilities |
 | When new idea emerges    | `mcp__codex__codex-reply` to ask Codex's opinion |
 | After proposal forms     | `/dhpk:dhpk-codex-architect --mode review` to evaluate     |
 | Comparing proposals      | `/dhpk:dhpk-codex-architect --mode compare` to compare     |
@@ -19,15 +19,15 @@
 
 | Tool                      | Purpose                            | When to Use               |
 | ------------------------- | ---------------------------------- | ------------------------- |
-| `/dhpk:dhpk-codex-brainstorm`       | Enumerate all options              | **Required** — at start   |
-| `/dhpk:dhpk-codex-architect`        | Architecture advice, evaluate design | **Required** — after proposal |
+| `/dhpk:dhpk-codex-architect --mode adversarial` | Enumerate all options and bounded critique | **Required** — at start   |
+| `/dhpk:dhpk-codex-architect --mode review`      | Architecture advice, evaluate design        | **Required** — after proposal |
 | `mcp__codex__codex-reply` | Continue conversation, ask details | **Anytime** — ask whenever |
 
 ## Discussion Flow
 
 ```mermaid
 flowchart LR
-    A[Start Analysis] --> B[/dhpk:dhpk-codex-brainstorm]
+    A[Start Analysis] --> B[/dhpk:dhpk-codex-architect --mode adversarial]
     B --> C{New idea?}
     C -->|Yes| D[Ask Codex]
     D --> C
@@ -40,8 +40,8 @@ flowchart LR
 ## Discussion Examples
 
 ```bash
-# 1. At start: enumerate all possible solutions
-/dhpk:dhpk-codex-brainstorm "requirement summary + constraints"
+# 1. At start: enumerate all possible solutions with bounded critique
+/dhpk:dhpk-codex-architect "requirement summary + constraints" --mode adversarial
 
 # 2. New idea: ask Codex
 mcp__codex__codex-reply({

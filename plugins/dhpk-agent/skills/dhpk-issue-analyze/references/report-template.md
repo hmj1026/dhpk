@@ -38,7 +38,7 @@
 | Complexity  | Low / Medium / High                       |
 | Type        | Logic error / Performance / Data / Other  |
 
-**Selected Strategy**: `/dhpk:dhpk-codebase-exploration` | `/dhpk:dhpk-git-history-investigation` | `/dhpk:dhpk-codebase-exploration --dual` | `/dhpk:dhpk-codex-brainstorm`
+**Selected Strategy**: `/dhpk:dhpk-codebase-exploration` | `/dhpk:dhpk-git-history-investigation` | `/dhpk:dhpk-codebase-exploration --dual` | `/dhpk:dhpk-codex-architect --mode adversarial`
 
 ## Investigation Process
 
@@ -111,7 +111,7 @@
 **Related Files**: `src/xxx.ts:123`
 ```
 
-## Divergence Report (For /dhpk:dhpk-codex-brainstorm results)
+## Divergence Report (For /dhpk:dhpk-codex-architect --mode adversarial results)
 
 ```markdown
 # Issue #<number> Analysis Report (Multi-perspective)

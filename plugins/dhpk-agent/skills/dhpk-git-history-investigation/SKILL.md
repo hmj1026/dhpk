@@ -10,7 +10,7 @@ metadata:
 ## When NOT to Use
 
 - Code review (use codex-review)
-- Feature development (use feature-dev)
+- Feature development (use `dhpk-adaptive-dev-workflow` in feature mode)
 - Just want to read code (use Read directly)
 
 ## Command

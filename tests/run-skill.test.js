@@ -6,6 +6,8 @@
 // unknown script types/missing files with exit 2.
 
 const path = require('node:path');
+const fs = require('node:fs');
+const os = require('node:os');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
@@ -14,6 +16,34 @@ const SCRIPT = path.join(ROOT, 'scripts', 'run-skill.sh');
 
 function runScript(args) {
   return spawnSync('bash', [SCRIPT, ...args], { cwd: ROOT, encoding: 'utf8', timeout: 10000 });
+}
+
+function isolatedRunSkill({ inventory, helper, target }) {
+  const scratch = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-run-skill-security-')));
+  const outside = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-run-skill-outside-')));
+  try {
+    fs.cpSync(path.join(ROOT, 'scripts'), path.join(scratch, 'scripts'), { recursive: true, dereference: true });
+    fs.mkdirSync(path.join(scratch, 'manifests'), { recursive: true });
+    if (inventory !== undefined) {
+      fs.writeFileSync(path.join(scratch, 'manifests', 'distribution-inventory.json'), inventory);
+    }
+    const helperPath = path.join(scratch, 'skills', helper.skill, 'scripts', helper.file);
+    fs.mkdirSync(path.dirname(helperPath), { recursive: true });
+    const outsidePath = path.join(outside, 'retained-helper.js');
+    fs.writeFileSync(outsidePath, 'process.stdout.write("outside-helper-executed\\n");\n');
+    if (target === 'symlink') fs.symlinkSync(outsidePath, helperPath);
+    else fs.writeFileSync(helperPath, 'process.stdout.write("retained-helper-executed\\n");\n');
+    const result = spawnSync('bash', [path.join(scratch, 'scripts', 'run-skill.sh'), helper.skill, helper.file], {
+      cwd: scratch,
+      encoding: 'utf8',
+      timeout: 10000,
+    });
+    return { result, scratch, outside };
+  } catch (error) {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
+    throw error;
+  }
 }
 
 test('bash -n syntax check passes', () => {
@@ -50,6 +80,46 @@ test('unknown skill/script combination reports script not found (exit 2)', () =>
   const res = runScript(['nonexistent-skill-xyz', 'nope.js']);
   assert.strictEqual(res.status, 2);
   assert.ok(res.stderr.includes('script not found'), res.stderr);
+});
+
+test('malformed inventory fails closed before a retained helper can execute', () => {
+  const helper = { skill: 'dhpk-retired-helper', file: 'retained.js' };
+  const { result, scratch, outside } = isolatedRunSkill({ inventory: '{malformed', helper });
+  try {
+    assert.strictEqual(result.status, 2, result.stderr);
+    assert.match(result.stderr, /distribution inventory.*(malformed|unavailable|invalid)/i);
+    assert.strictEqual(result.stdout, '');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
+});
+
+test('unavailable inventory fails closed before a retained helper can execute', () => {
+  const helper = { skill: 'dhpk-retired-helper', file: 'retained.js' };
+  const { result, scratch, outside } = isolatedRunSkill({ inventory: undefined, helper });
+  try {
+    assert.strictEqual(result.status, 2, result.stderr);
+    assert.match(result.stderr, /distribution inventory.*(malformed|unavailable|invalid)/i);
+    assert.strictEqual(result.stdout, '');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
+});
+
+test('rejects a script symlink that resolves outside the canonical skills root', () => {
+  const helper = { skill: 'dhpk-retained-helper', file: 'retained.js' };
+  const inventory = fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8');
+  const { result, scratch, outside } = isolatedRunSkill({ inventory, helper, target: 'symlink' });
+  try {
+    assert.strictEqual(result.status, 2, result.stderr);
+    assert.match(result.stderr, /(symlink|canonical|outside|containment)/i);
+    assert.strictEqual(result.stdout, '');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(outside, { recursive: true, force: true });
+  }
 });
 
 test('unsupported script extension on an existing file is rejected as unsupported type', () => {

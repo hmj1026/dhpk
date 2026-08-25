@@ -6,8 +6,8 @@ Used when script shows P0 gate issues or when determining which workflow step co
 
 | Branch Pattern | Work Type |
 |----------------|-----------|
-| `feat/*` | feature-dev |
-| `fix/*`, `hotfix/*` | bug-fix |
+| `feat/*` | adaptive-dev-workflow (feature mode) |
+| `fix/*`, `hotfix/*` | adaptive-dev-workflow (bug mode) |
 | `docs/*` | documentation |
 | `refactor/*`, `perf/*` | refactor |
 | `chore/*`, `ci/*`, `test/*` | Infer from conversation |
@@ -31,7 +31,7 @@ Used when script shows P0 gate issues or when determining which workflow step co
 
 | Last Completed | Next Step |
 |----------------|-----------|
-| (nothing yet) | `/dhpk:dhpk-issue-analyze` or `/dhpk:dhpk-bug-fix` |
+| (nothing yet) | `/dhpk:dhpk-issue-analyze` or `/dhpk:dhpk-adaptive-dev-workflow` (Bug branch) |
 | Root cause identified | Fix code + write regression test |
 | Fix applied | `/verify` |
 | `/verify` pass | `/codex-review-fast` |
@@ -61,5 +61,5 @@ Used when script shows P0 gate issues or when determining which workflow step co
 | Want to understand code | `/dhpk:dhpk-codebase-exploration` |
 | Track a specific change | `/dhpk:dhpk-git-history-investigation` |
 | Analyze a GitHub issue | `/dhpk:dhpk-issue-analyze` |
-| Need architecture advice | `/dhpk:dhpk-codex-architect` or `/dhpk:dhpk-codex-brainstorm` |
+| Need architecture advice | `/dhpk:dhpk-codex-architect` or `/dhpk:dhpk-codex-architect --mode adversarial` |
 | Evaluate feasibility | `/dhpk:dhpk-feasibility-study` |

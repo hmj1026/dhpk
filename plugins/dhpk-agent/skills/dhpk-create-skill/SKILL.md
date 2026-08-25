@@ -45,7 +45,7 @@ skills/<name>/
 ```
 
 - **name**: kebab-case, matches the directory, ≤ 40 chars, verb-led where it reads
-  naturally (`dhpk-create-skill`, `dhpk-bug-fix`).
+naturally (`dhpk-create-skill`, `dhpk-adaptive-dev-workflow`).
 - **description** (the single most important field — it is how the skill gets
   selected): third person, one sentence of *what it does* + explicit **triggers**
   (the phrases a user would say) + a **"Not for:"** clause that fences it off from

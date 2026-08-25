@@ -25,7 +25,7 @@ present, it SHALL set `OPENSPEC=on`; otherwise `OPENSPEC=off`.
 ### Requirement: --openspec forces the artifact-then-review flow on implementation routes
 
 `/dhpk:do` SHALL, when `OPENSPEC=on` and the resolved route is one of the
-change-authoring routes (`adaptive-dev-workflow`, `bug-fix`, `feature-dev`), discover
+change-authoring route (`adaptive-dev-workflow`), discover
 whether the external OpenSpec authoring entries are available to Claude's Skill tool.
 When both are model-callable, it SHALL invoke `openspec-new-change` followed by
 `openspec-ff-change`. When either is explicit-only or unavailable to model invocation,
@@ -44,7 +44,7 @@ route, including `opsx-apply-goal`, `/dhpk:do` SHALL print a single literal
 `--openspec ignored: ...` line and proceed unaffected.
 
 #### Scenario: Implementation route uses canonical Skill IDs and stops
-- **WHEN** `OPENSPEC=on` and the route resolves to `feature-dev`
+- **WHEN** `OPENSPEC=on` and the route resolves to `adaptive-dev-workflow`
 - **AND** both OpenSpec authoring entries are available to the Skill tool
 - **THEN** `/dhpk:do` invokes `openspec-new-change` then `openspec-ff-change` through Claude's Skill tool
 - **AND** it does not pass `opsx:new` or `opsx:ff` to the Skill tool

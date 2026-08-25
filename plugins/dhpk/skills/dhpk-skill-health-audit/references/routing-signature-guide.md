@@ -30,9 +30,9 @@ description: "Code review using Codex MCP. Use when: PR review, code audit, seco
 
 | Skill | Before | After |
 |-------|--------|-------|
-| feature-dev | Feature development workflow. Covers implementation, verification, pre-commit checks. | Feature development workflow. Use when: implementing features, writing code, running dev loop. Not for: understanding code (use code-explore), reviewing code (use codex-code-review). Output: implemented feature with tests + review gate. |
-| bug-fix | Bug/Issue fix workflow. Investigate, locate, fix, test, review. | Bug fix workflow. Use when: fixing bugs, resolving issues, regression fixes. Not for: new features (use feature-dev), understanding code (use code-explore). Output: fix + regression test + review gate. |
-| tech-spec | Tech spec knowledge base. Full workflow from requirement analysis to spec output. | Tech spec generation and review. Use when: designing features, writing specs, reviewing specs. Not for: implementation (use feature-dev), architecture advice only (use codex-architect). Output: numbered tech spec document. |
+| adaptive-dev-workflow (feature mode) | Feature development workflow. Covers implementation, verification, pre-commit checks. | Feature development workflow. Use when: implementing features, writing code, running dev loop. Not for: understanding code (use code-explore), reviewing code (use codex-code-review). Output: implemented feature with tests + review gate. |
+| adaptive-dev-workflow (bug mode) | Bug/Issue fix workflow. Investigate, locate, fix, test, review. | Bug fix workflow. Use when: fixing bugs, resolving issues, regression fixes. Not for: new features (use adaptive-dev-workflow in feature mode), understanding code (use code-explore). Output: fix + regression test + review gate. |
+| tech-spec | Tech spec knowledge base. Full workflow from requirement analysis to spec output. | Tech spec generation and review. Use when: designing features, writing specs, reviewing specs. Not for: implementation (use adaptive-dev-workflow in feature mode), architecture advice only (use codex-architect). Output: numbered tech spec document. |
 
 ## Checklist
 

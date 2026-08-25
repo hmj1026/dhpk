@@ -1,6 +1,6 @@
 ---
 name: dhpk-codex-architect
-description: "Codex architecture consulting. Use when: designing features, evaluating architecture, getting second opinion on design. Not for: implementation (use dhpk-codex-implement), code review (use dhpk-change-review). Output: architecture advice + design recommendations."
+description: "Codex architecture consulting, including bounded adversarial option convergence. Use when: designing features, evaluating architecture, comparing options, or running independent proposal and critique rounds. Not for: implementation (use dhpk-codex-implement), code review (use dhpk-change-review). Output: architecture advice + design recommendations."
 metadata:
   dhpk-invocation-class: "implicit-eligible"
 ---
@@ -11,7 +11,6 @@ metadata:
 
 - Code implementation (use /dhpk:dhpk-codex-implement)
 - Code review (use /codex-review)
-- Deep discussion/exhaustive exploration (use /dhpk:dhpk-codex-brainstorm)
 
 ## Usage
 
@@ -19,6 +18,7 @@ metadata:
 /dhpk:dhpk-codex-architect "<question>"
 /dhpk:dhpk-codex-architect "Evaluate this design" --context src/xxx.ts --mode review
 /dhpk:dhpk-codex-architect "Redis vs MongoDB?" --mode compare
+/dhpk:dhpk-codex-architect "Which design should we ship?" --mode adversarial
 ```
 
 ## Modes
@@ -28,6 +28,11 @@ metadata:
 | design  | Provide design advice   | Starting from scratch (default) |
 | review  | Evaluate existing design | Validate solution, find issues |
 | compare | Compare multiple options | Tech selection             |
+| adversarial | Run independent proposals and bounded critique rounds | Former brainstorm-style exploration with explicit decision criteria |
+
+## Adversarial Mode
+
+`--mode adversarial` is the successor route for brainstorm-style architecture exploration. Load [`references/adversarial-option-convergence.md`](references/adversarial-option-convergence.md) before research; it owns the independent-proposal, critique-round, decision-criteria, unresolved-disagreement, and final-recommendation contract. Keep the rounds bounded and report disagreement when the evidence does not support convergence.
 
 ## Core Principle
 
@@ -49,7 +54,15 @@ mcp__codex__codex({
 ${QUESTION}
 
 ## Mode
-${MODE} (design/review/compare)
+${MODE} (design/review/compare/adversarial)
+
+## Mode contract
+When `${MODE}` is `adversarial`, produce an independent Proposal B without
+Claude's proposal, including the research summary, assumptions,
+decision-criteria score, and failure modes that could overturn it. The
+bounded integrated report uses three critique rounds by default and never
+more than five; it must preserve any material unresolved disagreement and
+end with a final recommendation rather than implying convergence.
 
 ## IMPORTANT: You must independently research the project
 
@@ -90,10 +103,12 @@ Before providing architecture advice, you **must** perform the following researc
 - Report includes Codex advice + Claude perspective
 - Consensus and divergence points clearly marked
 - Final recommendation integrates both perspectives
+- In adversarial mode, report each independent proposal, critique round, decision criteria, unresolved disagreement, and final recommendation; do not claim convergence when the evidence leaves a material disagreement.
 
 ## References
 
 - `references/project-knowledge.md` - Project architecture knowledge + report template
+- `references/adversarial-option-convergence.md` - Adversarial mode procedure and report contract
 
 ## Examples
 

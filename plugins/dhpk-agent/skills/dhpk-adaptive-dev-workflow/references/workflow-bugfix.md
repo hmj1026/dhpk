@@ -10,12 +10,19 @@
 
 ## Required Steps
 
-1. 先重現並收集證據
-2. 定義 root cause、影響範圍、non-goals
-3. 確認 work-item readiness
-4. 建立或確認 legacy-reference
-5. 先寫 failing regression test，再修復
-6. 做回歸、觀測、驗證與收尾
+1. **Evidence**：重現問題並收集錯誤輸出、輸入條件、影響範圍與目前樹狀
+   狀態。
+2. **Root cause**：根因未知時 hand off 給 `dhpk-root-cause-investigation`；
+   已知時記錄檔案/行號、影響與 non-goals。
+3. **Artifacts**：確認 work-item ready，建立或確認 `legacy-reference`；
+   `profile` 可選但不取代 evidence。
+4. **Regression-first fix**：先以 `dhpk-tdd-workflow` / `tdd-guide` 寫出
+   failing regression test，再做最小修復。
+5. **Delivery loop**：依
+   `@skills/dhpk-execution-policy/references/delivery-loop-gate.md` 完成
+   `/verify`、`dhpk-test-review`、freshness、`dhpk-change-review` 與
+   `/precommit`。
+6. **Handoff**：回報 root cause、fix、regression evidence 與唯一 next step。
 
 ## Blocking Rules
 
@@ -23,5 +30,7 @@
 - 缺 work-item：不可進入實作
 - 缺 legacy-reference：不可進入實作
 - 缺 RED / regression 證據：不可進入實作
+- delivery-loop 的 test、adequacy、freshness 或 change-review 尚未 PASS：
+  不得宣稱 ready
 
 若根因調查已在進行中，應優先 hand off 給 `dhpk-root-cause-investigation`，不要在本技能內重複展開完整調查流程。

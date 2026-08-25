@@ -13,7 +13,7 @@ TBD - created by archiving change dhpk-orchestration-workers. Update Purpose aft
 - Small diffs (roughly ≤2 files with unambiguous intent) → inline in the main loop
 - Complex implementation → `deep-reasoner` produces the fix spec, then `fast-worker` applies it
 - RED PHPUnit unit/integration test that must be authored test-first and run against a live DB (e.g. Testbench / docker MySQL) → `tdd-guide` — distinct from `e2e-runner` (Playwright), read-only `deep-reasoner` (cannot run a test), and `fast-worker` (whose "make verification pass" contract conflicts with authoring a failing RED test)
-- Plan critique / blind-sketch / dual-plan before implementation, or a warm diff review at task end → `dhpk:planner`, opt-in via `/dhpk:do --plan` on the four implementation-class routes (`dhpk:adaptive-dev-workflow`, `dhpk:bug-fix`, `dhpk:feature-dev`, `dhpk:opsx-apply-goal`)
+- Plan critique / blind-sketch / dual-plan before implementation, or a warm diff review at task end → `dhpk:planner`, opt-in via `/dhpk:do --plan` on the implementation-class routes (`dhpk:adaptive-dev-workflow`, `dhpk:opsx-apply-goal`)
 - Dispatching `general-purpose` for implementation is prohibited while `orchestration_dispatch=on`
 
 For a parallel mechanical batch, the section SHALL require every worker task spec to declare `Parallel: yes`, exact assigned repo-relative file paths, per-file intent, and a path-scoped verification command or explicit report-only outcome. Globs, directory guesses, and unlisted generated files are not valid scope; a worker that needs another file SHALL return `BLOCKED` rather than expand the list. A worker SHALL treat that assigned list as its write, diff, and verification boundary. Shared validators and ratchet/configuration files are reconciled once by the orchestrator after the batch.
@@ -27,7 +27,7 @@ The section SHALL additionally state an **orchestrator posture**: the main sessi
 Downstream skills SHALL reference this section, not restate it.
 
 #### Scenario: Mechanical task routed to fast-worker
-- **WHEN** feature-dev reaches Implement with an approved, precise plan
+- **WHEN** adaptive-dev-workflow reaches Implement with an approved, precise plan
 - **THEN** the orchestrator dispatches the selector-resolved fast-worker, not `general-purpose`
 
 #### Scenario: Judgment-dense batch routes to the in-process fast-worker
@@ -63,14 +63,14 @@ Downstream skills SHALL reference this section, not restate it.
 - **THEN** the brief follows conclusions-not-context, a bounded token budget, and a lookup fence, per the dispatch-table's plan-brief discipline sentence
 
 ### Requirement: Skill wiring in dhpk:do downstream flows
-`skills/feature-dev/SKILL.md` (codex-free Implement row), `skills/bug-fix/SKILL.md` (investigation and patch steps), and `skills/adaptive-dev-workflow/SKILL.md` (classification table) SHALL route the implement phase through the Implementation dispatch table. `commands/do.md` SHALL remain unchanged (router only) EXCEPT the opt-in `--plan` flow added by this change: brief assembly, `dhpk:planner` dispatch, verdict fold-in, and warm-review obligation recording — no implementation logic beyond that carve-out.
+`skills/dhpk-adaptive-dev-workflow/SKILL.md` (bug/feature classification and implement rows) SHALL route the implement phase through the Implementation dispatch table. `commands/do.md` SHALL remain unchanged (router only) EXCEPT the opt-in `--plan` flow added by this change: brief assembly, `dhpk:planner` dispatch, verdict fold-in, and warm-review obligation recording — no implementation logic beyond that carve-out.
 
 #### Scenario: /dhpk:do feature request end-to-end
-- **WHEN** `/dhpk:do "implement <feature>"` routes to feature-dev in a session with `orchestration_dispatch=on`
+- **WHEN** `/dhpk:do "implement <feature>"` routes to adaptive-dev-workflow in a session with `orchestration_dispatch=on`
 - **THEN** mechanical implement steps dispatch `dhpk:fast-worker` and reasoning-heavy steps dispatch `dhpk:deep-reasoner`
 
 #### Scenario: Bug with unknown root cause
-- **WHEN** bug-fix runs with no confirmed root cause
+- **WHEN** adaptive-dev-workflow runs a bug branch with no confirmed root cause
 - **THEN** the investigation step dispatches `dhpk:deep-reasoner`, and the resulting fix spec is applied by `dhpk:fast-worker` or inline per the table
 
 #### Scenario: /dhpk:do without --plan is unchanged router-only behavior

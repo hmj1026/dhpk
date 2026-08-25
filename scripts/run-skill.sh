@@ -33,9 +33,69 @@ for arg in "$skill" "$file"; do
   esac
 done
 
-target="$ROOT/skills/$skill/scripts/$file"
+# Retired identities are kept in the inventory as migration evidence, not as
+# compatibility aliases. Intercept them at this dhpk-owned seam so callers get
+# stable successor guidance; unknown identifiers continue to use the historical
+# script-not-found behavior below. Inventory errors fail closed: a stale or
+# unavailable ledger must never allow a retained retired helper to execute.
+if node - "$ROOT" "$skill" <<'NODE'
+const fs = require('node:fs');
+const path = require('node:path');
+
+const root = process.argv[2];
+const identifier = process.argv[3];
+try {
+  const inventory = JSON.parse(fs.readFileSync(path.join(root, 'manifests', 'distribution-inventory.json'), 'utf8'));
+  const api = require(path.join(root, 'scripts', 'lib', 'distribution-inventory.js'));
+  const validation = api.validateDistributionInventoryV2({ inventory });
+  const retirementValidation = api.validateSkillRetirements({ inventory });
+  const errors = [
+    ...(validation && Array.isArray(validation.errors) ? validation.errors : ['inventory validation did not return diagnostics']),
+    ...(retirementValidation && Array.isArray(retirementValidation.errors) ? retirementValidation.errors : ['retirement validation did not return diagnostics']),
+  ];
+  if (errors.length > 0) {
+    process.stderr.write(`run-skill: distribution inventory is malformed or unavailable; refusing to execute: ${errors.join('; ')}\n`);
+    process.exit(3);
+  }
+  const resolution = api.resolveSkillIdentity({ inventory, identifier });
+  if (resolution.state === 'retired') {
+    process.stderr.write(`${api.formatSkillIdentityDiagnostic({ inventory, resolution })}\n`);
+    process.exit(2);
+  }
+} catch (error) {
+  process.stderr.write(`run-skill: distribution inventory is malformed or unavailable; refusing to execute: ${error.message}\n`);
+  process.exit(3);
+}
+NODE
+then
+  :
+else
+  status=$?
+  # Retirements and inventory failures both use the wrapper's bad-usage class;
+  # keep the distinction in stderr while preserving the stable exit contract.
+  exit 2
+fi
+
+skills_root="$(realpath -e -- "$ROOT/skills" 2>/dev/null)" || {
+  echo "run-skill: canonical skills root is unavailable; refusing to execute" >&2
+  exit 2
+}
+target="$skills_root/$skill/scripts/$file"
 if [ ! -f "$target" ]; then
   echo "run-skill: script not found: $target" >&2
+  exit 2
+fi
+
+canonical_target="$(realpath -e -- "$target" 2>/dev/null)" || {
+  echo "run-skill: script target is unavailable or cannot be canonicalized: $target" >&2
+  exit 2
+}
+case "$canonical_target" in
+  "$skills_root"/*) ;;
+  *) echo "run-skill: script target escapes the canonical skills root: $target" >&2; exit 2 ;;
+esac
+if [ "$canonical_target" != "$target" ]; then
+  echo "run-skill: symlinked script targets are not executable: $target" >&2
   exit 2
 fi
 

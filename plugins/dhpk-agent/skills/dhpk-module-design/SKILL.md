@@ -54,7 +54,7 @@ routine local choices belong in the implementation plan or tests.
 
 - Tracing an existing execution path without a boundary decision (use
   `dhpk-codebase-exploration`).
-- Implementing an already-confirmed design (use `dhpk-feature-dev` or the
+- Implementing an already-confirmed design (use `dhpk-adaptive-dev-workflow` or the
   matching OpenSpec apply route).
 - Reviewing code or security controls (use `dhpk-change-review` or
   `dhpk-security-review`).

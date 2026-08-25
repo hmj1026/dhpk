@@ -114,14 +114,12 @@ node scripts/ci/gen-claude-manifest.js
 node scripts/ci/gen-distribution-inventory.js
 ```
 
-The current commands report one registered Claude directory root, 102
-inventory-eligible Claude skill IDs, 102 canonical skills, and 15 Codex-sync
+The current commands report one registered Claude directory root, 97
+inventory-eligible Claude skill IDs, 97 canonical skills, and 15 Codex-sync
 skills. These are independently derived scopes; a canonical total is not a
-default-install or runtime count.
-
-Nothing is removed from `plugin.json` in this phase (design.md Non-Goals:
-"Deleting canonical skills during the first migration"). The generator
-becomes load-bearing the first time a skill is deprecated — see below.
+default-install or runtime count. The five `0.47.0` retirement rows are
+diagnostic ledger entries and are not materialized as packages or aliases;
+see the [alias-free retirement guidance](./skill-platform-migration.md#alias-free-retirement-ledger-0470).
 
 ## Claude userConfig metadata candidate and rollback
 

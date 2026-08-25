@@ -34,7 +34,10 @@ if (!env.NODE_OPTIONS || !env.NODE_OPTIONS.includes('--max-old-space-size')) {
 }
 
 const files = findTests(TESTS_DIR).sort();
-const timeoutMs = Number(env.DHPK_TEST_TIMEOUT_MS || 60000);
+// Integration-heavy suites may legitimately need more than one minute while
+// still remaining bounded. Keep the override for environments with a tighter
+// budget, but make the default large enough for the standard CI suite.
+const timeoutMs = Number(env.DHPK_TEST_TIMEOUT_MS || 180000);
 if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) {
   console.error(`Invalid DHPK_TEST_TIMEOUT_MS: ${env.DHPK_TEST_TIMEOUT_MS}`);
   process.exit(2);

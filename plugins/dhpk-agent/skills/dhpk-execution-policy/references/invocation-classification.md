@@ -21,7 +21,7 @@ Class reflects maximum authority and does not change with flags — a
 lower-authority mode (e.g. a read-only default) does not make a high-authority
 entry (one whose flag enables broad mutation) implicit-eligible.
 
-## Root skills (`skills/*/SKILL.md`) — 65 entries
+## Root skills (`skills/*/SKILL.md`) — 65 source entries (60 active; 5 retiring)
 
 ### explicit-only (14)
 
@@ -42,23 +42,29 @@ entry (one whose flag enables broad mutation) implicit-eligible.
 | `dhpk-rules-distill` | Writes/revises repo-wide policy rule files (batch governance). |
 | `dhpk-session-usage-audit` | Reads dhpk session evidence across the user's home directory (outside the current project) and prepares GitHub issue submissions — external-system write. |
 
-### implicit-eligible (51)
+### implicit-eligible (46 active)
 
-All other root skills: `dhpk-adaptive-dev-workflow`, `dhpk-agent-architecture-audit`,
-`dhpk-agy-fast-worker`, `dhpk-bug-fix`, `dhpk-root-cause-investigation`, `dhpk-codebase-exploration`,
-`dhpk-codex-architect`, `dhpk-codex-brainstorm`, `dhpk-codex-bridge`, `dhpk-change-review`,
-`dhpk-codex-implement`,
-`dhpk-composer-package-hygiene`, `dhpk-create-request`, `dhpk-de-ai-flavor`, `dhpk-deploy-list`,
+All other active root skills: `dhpk-adaptive-dev-workflow`, `dhpk-agent-architecture-audit`,
+`dhpk-agy-fast-worker`, `dhpk-root-cause-investigation`, `dhpk-codebase-exploration`,
+`dhpk-codex-architect`, `dhpk-codex-bridge`, `dhpk-change-review`, `dhpk-codex-implement`,
+`dhpk-composer-package-hygiene`, `dhpk-create-request`, `dhpk-deploy-list`,
 `dhpk-execution-policy`, `dhpk-doc-review`, `dhpk-execution-checklist`,
-`dhpk-feasibility-study`, `dhpk-feature-dev`, `dhpk-feature-verify`, `dhpk-git-history-investigation`,
+`dhpk-feasibility-study`, `dhpk-feature-verify`, `dhpk-git-history-investigation`,
 `dhpk-gitnexus-cli`, `dhpk-gitnexus-debugging`, `dhpk-gitnexus-exploring`, `dhpk-gitnexus-guide`,
 `dhpk-gitnexus-impact-analysis`, `dhpk-gitnexus-refactoring`, `dhpk-harness-budget`,
 `dhpk-issue-analyze`, `dhpk-laravel-package-author`, `dhpk-laravel-testbench-matrix`,
 `dhpk-next-step`, `dhpk-opsx-load-context`, `dhpk-opsx-post-observation`,
-`dhpk-polyfill-version-matrix-audit`, `dhpk-post-dev-test`, `dhpk-pr-review`,
+`dhpk-polyfill-version-matrix-audit`, `dhpk-pr-review`,
 `dhpk-project-audit`, `dhpk-prompt-optimize`, `dhpk-risk-assess`, `dhpk-security-review`,
 `dhpk-skill-health-audit`, `dhpk-skill-quality-judge`, `dhpk-skill-scout`, `dhpk-skill-stocktake`,
 `dhpk-module-design`, `dhpk-tdd-workflow`, `dhpk-tech-spec`, `dhpk-test-review`, `dhpk-tool-routing`.
+
+Retiring workflow identities are intentionally absent from live classification.
+Their replacement modes are `dhpk-adaptive-dev-workflow` (bug/feature),
+`dhpk-tdd-workflow` plus the `e2e-runner` agent,
+`dhpk-codex-architect --mode adversarial`, and the model-default path; consult
+the inventory-owned retirement ledger for the exact former identities and
+release guidance.
 
 Notes on close calls:
 - `dhpk-codex-bridge` implements/reviews within an already-authorized task (like
