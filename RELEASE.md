@@ -223,7 +223,9 @@ A release is complete only when all of these states hold:
 1. the release PR is merged;
 2. the immutable tag exists;
 3. the Release workflow and GitHub Release succeed; and
-4. the `sync-develop` job successfully back-merges `main` into `develop`.
+4. `consumer-verify` reports `COMPLETE`; `PUBLISHED_PENDING` is a successful
+   non-blocking evidence collection job, but it is not release completion; and
+5. the `sync-develop` job successfully back-merges `main` into `develop`.
 
 The back-merge uses `--no-ff`. Conflicts or branch-protection failures remain
 blocking — the `sync-develop` job fails loudly, preserves both `main` and
@@ -238,6 +240,12 @@ recovery:
 
 Never resolve a failed back-merge by force-pushing `develop` or resetting
 either branch.
+
+The consumer job keeps the published tag immutable. Missing or unavailable
+runtime clients produce `PUBLISHED_PENDING` and leave the job green while the
+summary records each unresolved surface. `PUBLISHED_UNHEALTHY`
+or `BLOCKED` remains a failed verification and requires diagnosis before a new
+patch release is shipped.
 
 Do not move, delete, or reuse a published tag. If the `consumer-verify` job
 reports a CONSUMER verification failure (see the job summary), the published

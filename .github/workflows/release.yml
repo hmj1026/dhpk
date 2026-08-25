@@ -117,7 +117,25 @@ jobs:
             echo ""
             echo "Tag \`${GITHUB_REF_NAME}\` is PUBLISHED. Overall release status is COMPLETE only when all seven consumer rows are PASS; non-pass evidence keeps the release PUBLISHED/PENDING or PUBLISHED/UNHEALTHY and never edits the immutable tag."
           } >> "$GITHUB_STEP_SUMMARY"
-          exit "$probe_exit"
+          case "$outcome" in
+            COMPLETE)
+              [ "$probe_exit" -eq 0 ] || exit 1
+              exit 0
+              ;;
+            PUBLISHED_PENDING)
+              [ "$probe_exit" -eq 2 ] || exit 1
+              echo "Consumer runtime evidence is pending; keeping the published tag immutable and the CI job non-blocking."
+              exit 0
+              ;;
+            PUBLISHED_UNHEALTHY|BLOCKED)
+              echo "::error::Consumer verification outcome is $outcome; inspect the emitted surface evidence." >&2
+              exit 1
+              ;;
+            *)
+              echo "::error::Unexpected consumer verification outcome: $outcome" >&2
+              exit 1
+              ;;
+          esac
 
   # git flow back-merge: after a release lands on main + tag, sync main into
   # develop so develop never falls behind. This automates the step that was
