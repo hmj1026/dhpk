@@ -40,10 +40,17 @@ This agent does **not** own DDD-layer placement or cross-module architecture dec
 
 ## Conclusion contract (output — MUST)
 
-Every reply leads with these three parts, in order, starting with `## Conclusion` as the FIRST line of the reply — no preamble before it:
+Every reply leads with these three parts, in order, starting with `## Conclusion` as the FIRST line of the reply — no preamble before it. The second line immediately after that heading MUST record exactly one reasoner decision. Use one and only one of these valid lines:
+
+- `Reasoner result: READY_FOR_DISPATCH`
+- `Reasoner result: DECISION_FOR_USER`
+- `Reasoner result: BLOCKED`
+
+Do not emit the pipe-separated notation `Reasoner result: READY_FOR_DISPATCH | DECISION_FOR_USER | BLOCKED`; that is a contract description, not a valid classification. The reasoner result is distinct from any transport or process status.
 
 ```
 ## Conclusion
+Reasoner result: READY_FOR_DISPATCH
 <one paragraph — the root cause / design / algorithm, stated as fact, not a hedge>
 
 ## Evidence

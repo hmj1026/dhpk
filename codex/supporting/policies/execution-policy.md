@@ -33,6 +33,33 @@ paths, and unresolved findings in the final handoff. If a required supporting
 asset is absent, stop with a BLOCKED result instead of silently dropping the
 contract.
 
+## Orchestration decision gate
+
+Every implementation step records `Decision: CLEAR | REASONER_REQUIRED |
+HUMAN_REQUIRED | BLOCKED`. `CLEAR` means the behavior and choice are settled;
+the existing footprint rule still decides inline versus worker. An unresolved
+root cause, algorithm, architecture, cross-file/data-shape, behavior/runtime,
+or public-contract choice is `REASONER_REQUIRED` and must use a read-only
+reasoner before a writer. A domain-boundary decision requiring architectural
+ownership consults `architect` first; that consultation does not replace the
+reasoner gate when uncertainty remains. Record `Reasoner result:
+READY_FOR_DISPATCH | DECISION_FOR_USER | BLOCKED`, preserving `## Conclusion`,
+file-and-line evidence, and `## Next actions`; only `READY_FOR_DISPATCH` permits
+a bounded worker, while the other results pause or stop.
+
+An OpenSpec apply with two or more unchecked tasks runs the planner before the
+first write wave. Its result states dependency order, each task's exact owner and
+write scope, and the next checkpoint; one clear task records `planner=skipped`.
+Each wave has one consolidated review and bounded fix loop: `BLOCK`, `CRITICAL`,
+or `HIGH` findings require a dedicated confirm-only reviewer, while
+LOW/WARNING-only findings may close with worker verification plus a diff-scope
+recheck. Delivery order is: verify all tasks and gates → archive/sync OpenSpec →
+add a valid changelog fragment → open a Draft PR targeting `develop` → monitor
+that PR's actual CI to a completed conclusion → human merge gate. Queued or
+partial CI is not completion. Required consumer evidence marked `NOT RUN` or
+`UNAVAILABLE` is non-terminal and cannot count as completed CI. The external
+`/opsx:apply` flow remains unchanged.
+
 ## Orchestration lifecycle acceptance
 
 The orchestrator owns dispatch and handoff identity, retries, and evidence

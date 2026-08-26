@@ -264,6 +264,24 @@ all-green test run is not archival evidence. Completion requires task checkboxes
 applicable verification gates, review obligations, and human-only actions to be
 resolved; archive, issue closure, and release publication remain separate steps.
 
+Before implementation, record `Decision: CLEAR`, `REASONER_REQUIRED`,
+`HUMAN_REQUIRED`, or `BLOCKED`. A domain-boundary ownership question consults
+`architect` first; if uncertainty remains, record `REASONER_REQUIRED` and obtain
+a read-only reasoner result before any writer. Two or more unchecked OpenSpec
+tasks require a planner before the first write wave. Its result states dependency
+order, each task's exact owner and write scope, and the next checkpoint. For one
+clear task, record `planner=skipped`. The external `/opsx:apply` workflow is
+unchanged.
+
+Each implementation wave ends with one consolidated review and a bounded fix
+loop: `BLOCK`, `CRITICAL`, and `HIGH` findings require a dedicated confirm-only
+reviewer; LOW/WARNING-only findings may close with worker verification plus a
+diff-scope recheck. Delivery order is: verify all tasks and gates → archive/sync
+OpenSpec → add a valid changelog fragment → open a Draft PR targeting `develop`
+→ monitor that PR's actual CI with `gh run watch` to a completed conclusion → human
+merge gate.
+Queued or partial CI is not completion.
+
 ### Review, verify, and handoff
 
 After an Edit/Write/MultiEdit, the default hooks create only the applicable

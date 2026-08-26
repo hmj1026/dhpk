@@ -107,7 +107,7 @@
     "orchestration_dispatch": {
       "type": "string",
       "title": "Implementation dispatch switch",
-      "description": "'on' (default) routes implement-phase work through the Implementation dispatch decision table in rules/execution-policy.md — deep-reasoner for reasoning-heavy work, fast-worker for mechanical work with a clear spec, inline for small (~2-file) diffs; dispatching general-purpose for implementation is prohibited while this is on. 'off' is a full kill switch restoring pre-change behavior exactly: inline implementation, no dispatch prohibition, no opsx-apply-goal directive line.",
+      "description": "'on' (default) routes implement-phase work through the Implementation dispatch decision table in rules/execution-policy.md — deep-reasoner for reasoning-heavy work, fast-worker for mechanical work with a clear spec, inline for small (~2-file) diffs; dispatching general-purpose for implementation is prohibited while this is on. 'off' is a full kill switch for implementation worker/reasoner routing, restoring inline implementation and removing the opsx-apply-goal directive line; the mandatory multi-task OpenSpec planner and verification gates remain active.",
       "default": "on"
     },
     "fast_worker_backend": {

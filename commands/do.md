@@ -138,7 +138,9 @@ reasoner backend/model/effort. Then apply the codex-mode rule below to decide th
 codex flag, the plan-mode rule below to decide whether a `dhpk:planner` consult
 runs first, and the openspec-mode rule below to decide whether the resolved route
 is diverted into the OpenSpec artifact-then-review flow (which supersedes the
-plan consult).
+plan consult). The canonical execution-policy orchestration decision policy still
+requires a planner before an existing OpenSpec apply with two or more unchecked
+tasks; `/dhpk:do --plan` is optional and never suppresses that mandatory gate.
 
 - **`MATCH`** → when the target is `agent:<name>`, dispatch the named agent and
   apply its availability contract. Otherwise resolve `<skill>`'s invocation
@@ -224,7 +226,9 @@ the `dhpk:planner` consult (PLAN) or the artifact-then-review flow (OPENSPEC).
 ### Plan-mode rule (how `PLAN` shapes the invocation)
 
 - **`PLAN=off` (default):** invoke the target normally, no `dhpk:planner`
-  consult.
+  consult, except that an existing OpenSpec apply with two or more unchecked
+  tasks must run the canonical planner gate. One clear unchecked task records
+  `planner=skipped`.
 - **`PLAN=on`:** a pre-implementation `dhpk:planner` consult activates **only**
   when the resolved route target is one of the two implementation-class
   skills — `dhpk:dhpk-adaptive-dev-workflow` or `dhpk:dhpk-opsx-apply-goal`.
@@ -267,6 +271,11 @@ the `dhpk:planner` consult (PLAN) or the artifact-then-review flow (OPENSPEC).
      surfaces that obligation — honoring it requires the orchestrator to
      **manually re-invoke `dhpk:planner`** at task end with the warm-review
      brief; there is no automatic resume that fires this on its own.
+
+For an existing OpenSpec apply, count unchecked tasks before implementation. Two
+or more unchecked tasks require the same planner consult even without `--plan`;
+one clear task records `planner=skipped`. This is the canonical execution-policy
+decision policy, not a change-authoring `--openspec` diversion.
 
 ### Openspec-mode rule (how `OPENSPEC` shapes the invocation)
 

@@ -253,6 +253,20 @@ Plan、validator 通過或全綠測試都不是 archive evidence。完成仍需 
 verification gate、Review obligation 與 human-only action 都已解決；archive、issue closure
 與 release publication 仍是分開的步驟。
 
+開始 implementation 前，記錄 `Decision: CLEAR`、`REASONER_REQUIRED`、`HUMAN_REQUIRED` 或
+`BLOCKED`。domain-boundary ownership 問題先諮詢 `architect`；若仍有不確定性，記錄
+`REASONER_REQUIRED`，並在任何 writer 前取得 read-only reasoner result。有兩個以上
+unchecked OpenSpec task 時，必須在第一個 write wave 前使用 planner；其 result 必須說明
+dependency order、每個 task 的 exact owner 與 write scope，以及下一個 checkpoint。只有一個
+clear task 時，記錄 `planner=skipped`。外部 `/opsx:apply` workflow 維持不變。
+
+每個 implementation wave 結束時，執行一次 consolidated review 與有界的 fix loop：
+`BLOCK`、`CRITICAL`、`HIGH` finding 修復後必須有 dedicated confirm-only reviewer；只有
+LOW/WARNING finding 時，可用 worker verification 加上 diff-scope recheck 結案。delivery order
+為：verify all tasks and gates → archive/sync OpenSpec → add a valid changelog fragment → open a
+Draft PR targeting `develop` → 使用 `gh run watch` 監視該 PR 的 actual CI 到 completed conclusion → human
+merge gate。queued 或 partial CI 都不是 completion。
+
 ### Review、驗證與交接
 
 每次 Edit／Write／MultiEdit 後，default hooks 只建立適用的 `.pending-*` review sentinel
