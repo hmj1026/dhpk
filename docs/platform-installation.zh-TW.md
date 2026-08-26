@@ -118,7 +118,7 @@ transaction 遷移。
 client-specific probe，否則明確回傳 `runtime: NOT_RUN`。
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.48.2 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.48.3 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -268,11 +268,18 @@ Cursor consumer-runtime evidence 只接受 `cursor-agent` CLI。portable Agent
 Plugin route 只允許一個 plugin directory：
 
 ```bash
-cursor-agent --plugin-dir <agent-package> --mode ask --trust -p <smoke-prompt> --output-format json
+cursor-agent --plugin-dir <agent-package> --mode ask --trust -p <smoke-prompt> --output-format stream-json --stream-partial-output
 ```
 
 這條 portable route 不得加入 Cursor-native directory、Codex marketplace
 命令或 agent-plugins.org 參數。
+
+authenticated release probe 只會在 disposable copy 內暫時加入通過 schema
+驗證、由 probe 擁有的 Cursor manifest 與 hook overlay，用來證明單一 package
+directory 確實被載入。已發布的 Agent Plugin 仍是 portable `plugin.json` 加上
+`skills/` tree，probe 結束時會移除 overlay。若 Agent package 另含 optional
+`mcp.json`，Cursor-only attestation copy 會省略這個 Agent-owned 檔案；因此
+probe 不宣稱 MCP runtime proof，也不會修改已發布 package。
 
 ## Cursor standard Agent Plugin
 
@@ -343,9 +350,14 @@ cursor-agent \
   --plugin-dir "$HOME/.cursor/plugins/local/dhpk-cursor" \
   --mode ask \
   --trust \
-  -p 'List the dhpk skills, commands, agents, and rules you discover. Do not edit files.' \
-  --output-format json
+  -p 'Read only. Return exactly: dhpk skills commands agents rules loaded. CURSOR_SMOKE_OK. Do not call tools or edit files.' \
+  --output-format stream-json \
+  --stream-partial-output
 ```
+
+`stream-json` 是 newline-delimited 的 machine-readable output。probe 只從 terminal
+response event 判定 discovery；prompt/tool frames 僅保留為有界且已 redacted 的
+timeout 診斷，不能單獨滿足 runtime `PASS`。
 
 portable Agent Plugin probe 只使用一個 directory：
 
@@ -355,7 +367,8 @@ cursor-agent \
   --mode ask \
   --trust \
   -p <smoke-prompt> \
-  --output-format json
+  --output-format stream-json \
+  --stream-partial-output
 ```
 
 wrapper 也會傳 `--trust`，避免 launch-scoped probe 卡在互動式 workspace
@@ -522,7 +535,7 @@ AGY projection 是獨立的 owner-scoped package。它只轉換 canonical agent
 frontmatter，不會改寫 `agents/`。請從 dhpk checkout 產生與驗證：
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.48.2 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.48.3 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -578,7 +591,9 @@ login file。runtime probe 只把 allowlisted files 複製到 disposable HOME，
 以 read-only 方式 mount package，並只在 runtime invocation 開啟 network。
 缺少 login 是 `BLOCKED`；缺少 `agy` 或 `bwrap` 是 `UNAVAILABLE`；未明確使用
 `--agy-runtime-probe` 時 runtime 是 `NOT_RUN`。runtime diagnostics 有界且已
-redact，不記錄 host credential 內容。
+redact，不記錄 host credential 內容。AGY free-form client output 會收斂為
+固定的 reason-class placeholder，因此不會保存 private path、prompt、tool
+payload 或 host overlay marker。
 
 報告分開記錄 package structure、plugin/agent discovery 與 Subagent runtime。
 若 `agy` 不在 `PATH`，discovery 是 `UNAVAILABLE`；未使用

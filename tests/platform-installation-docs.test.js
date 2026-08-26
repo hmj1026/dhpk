@@ -155,9 +155,10 @@ test('Cursor CLI documentation keeps authentication, launch scope, and UI routes
     assert.ok(cli.includes('--mode ask'), 'Cursor CLI route must be read-only for the verification probe');
     assert.ok(cli.includes('--trust'), 'Cursor CLI probe must skip the workspace trust prompt');
     assert.ok(cli.includes('stdin') || cli.includes('TTY'), 'Cursor CLI probe must document ignored stdin / no inherited TTY');
-    assert.ok(cli.includes("-p 'List the dhpk skills, commands, agents, and rules you discover. Do not edit files.'"),
+    assert.ok(cli.includes("-p 'Read only. Return exactly: dhpk skills commands agents rules loaded. CURSOR_SMOKE_OK. Do not call tools or edit files.'"),
       'Cursor CLI probe must state its read-only discovery prompt');
-    assert.ok(cli.includes('--output-format json'), 'Cursor CLI route must preserve machine-readable evidence');
+    assert.ok(cli.includes('--output-format stream-json'), 'Cursor CLI route must preserve machine-readable stream evidence');
+    assert.ok(cli.includes('--stream-partial-output'), 'Cursor CLI route must expose bounded partial output');
     assert.ok(cli.includes('cursor-agent login'), 'Cursor CLI route must document authentication');
     assert.ok(cli.includes('cursor-agent status'), 'Cursor CLI route must document auth status');
     assert.ok(cli.includes('~/.cursor/plugins/local/'), 'Cursor persistent local route must remain documented');
@@ -171,7 +172,7 @@ test('Cursor runtime documentation pins cursor-agent evidence and required statu
     const compact = read(relative).replace(/\s+/g, ' ');
     assert.ok(compact.includes('cursor-agent --plugin-dir <agent-package>'), `${relative} must document the portable single-directory probe shape`);
     assert.ok(compact.includes('cursor-agent --plugin-dir <agent-package> --plugin-dir <cursor-package>'), `${relative} must document the dual-directory Cursor probe shape`);
-    assert.ok(compact.includes('--mode ask --trust -p <smoke-prompt> --output-format json'), `${relative} must document the exact bounded probe flag shape`);
+    assert.ok(compact.includes('--mode ask --trust -p <smoke-prompt> --output-format stream-json --stream-partial-output'), `${relative} must document the exact bounded probe flag shape`);
     assert.ok(compact.includes('cursor-sync') && compact.includes('NOT_RUN'), `${relative} must document the expected cursor-sync installer state`);
     assert.ok(compact.includes('cursor desktop') || compact.includes('Cursor desktop'), `${relative} must identify desktop/UI paths as separate from CLI proof`);
     assert.ok(compact.includes('`cursor`') || compact.includes('cursor binary'), `${relative} must reject the desktop cursor binary as runtime evidence`);

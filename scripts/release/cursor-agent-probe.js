@@ -10,7 +10,7 @@ const path = require('node:path');
 const { assertPhysicalPackageRoot, runCursorConsumerProbe } = require('../lib/cursor-plugin-package');
 const { redactSensitiveText } = require('../lib/redaction');
 
-const DEFAULT_PROMPT = 'List the dhpk skills, commands, agents, and rules you discover. Do not edit files.';
+const DEFAULT_PROMPT = 'Read only. Return exactly: dhpk skills commands agents rules loaded. CURSOR_SMOKE_OK. Do not call tools or edit files.';
 
 function usage() {
   return 'usage: cursor-agent-probe.js --agent-package <dir> --cursor-package <dir> [--timeout-ms <n>] [--max-output-bytes <n>] [--prompt <text>]';
@@ -82,7 +82,8 @@ function main() {
         '--mode', 'ask',
         '--trust',
         '-p', args.prompt,
-        '--output-format', 'json',
+        '--output-format', 'stream-json',
+        '--stream-partial-output',
       ],
     });
     result = { ...result, packageRoot: agentPackage };

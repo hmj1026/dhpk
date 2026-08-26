@@ -21,6 +21,8 @@ const {
   fingerprintDir,
   fingerprintPath,
   networkSandboxProbe,
+  cursorStreamFrame,
+  parseCursorStreamOutput,
 } = require('../scripts/lib/cursor-plugin-package');
 
 function tmpDir(prefix) {
@@ -703,6 +705,130 @@ test('consumer probe only reports PASS for an explicitly supplied loader command
   }
 });
 
+test('Cursor stream parser keeps prompt/tool frames out of the terminal response', () => {
+  const stream = [
+    JSON.stringify({ type: 'user', message: { content: 'dhpk skills commands agents rules' } }),
+    JSON.stringify({ type: 'tool_call', call_id: 'redacted-call', name: 'read_file' }),
+    JSON.stringify({ type: 'result', subtype: 'success', result: 'No package capability evidence.' }),
+  ].join('\n');
+  const parsed = parseCursorStreamOutput(stream);
+  assert.strictEqual(parsed.parsed.type, 'result');
+  assert.strictEqual(parsed.responseText, 'No package capability evidence.');
+  assert.doesNotMatch(parsed.responseText, /dhpk skills commands agents rules/);
+});
+
+test('Cursor stream frames recognize the native NDJSON event types', () => {
+  assert.strictEqual(cursorStreamFrame(JSON.stringify({ type: 'assistant', message: { content: [] } })), true);
+  assert.strictEqual(cursorStreamFrame(JSON.stringify({ type: 'tool_call', call_id: 'redacted-call' })), true);
+  assert.strictEqual(cursorStreamFrame(JSON.stringify({ type: 'result', subtype: 'success', result: 'done' })), true);
+});
+
+test('Cursor stream discovery ignores prompt frames that mention every capability', () => {
+  const out = tmpDir('dhpk-cursor-stream-discovery-');
+  try {
+    const script = [
+      "process.stdout.write(JSON.stringify({ type: 'user', message: { content: 'dhpk skills commands agents rules' } }) + '\\n');",
+      "process.stdout.write(JSON.stringify({ type: 'result', subtype: 'success', result: 'No package capability evidence.' }));",
+    ].join('');
+    const probe = runCursorConsumerProbe({
+      packageRoot: out,
+      executable: process.execPath,
+      args: ['-e', script, '--', '--output-format', 'stream-json'],
+      pathValue: '',
+      allowUnauthenticatedFixture: true,
+      requireOutput: true,
+      requireJson: true,
+      requireDiscovery: true,
+      networkMode: 'unrestricted',
+    });
+    assert.strictEqual(probe.status, 'BLOCKED', JSON.stringify(probe));
+    assert.strictEqual(probe.response_invalid, undefined, JSON.stringify(probe));
+    assert.match(probe.reason, /requested dhpk capability evidence/i);
+  } finally {
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test('Cursor stream discovery rejects a lone prompt frame without a terminal result', () => {
+  const out = tmpDir('dhpk-cursor-stream-lone-prompt-');
+  try {
+    const script = [
+      "process.stdout.write(JSON.stringify({ type: 'user', message: { content: 'dhpk skills commands agents rules' } }));",
+    ].join('');
+    const probe = runCursorConsumerProbe({
+      packageRoot: out,
+      executable: process.execPath,
+      args: ['-e', script, '--', '--output-format', 'stream-json'],
+      pathValue: '',
+      allowUnauthenticatedFixture: true,
+      requireJson: true,
+      requireDiscovery: true,
+      networkMode: 'unrestricted',
+    });
+    assert.strictEqual(probe.status, 'BLOCKED', JSON.stringify(probe));
+    assert.strictEqual(probe.response_invalid, true, JSON.stringify(probe));
+  } finally {
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test('Cursor diagnostics redact stream metadata and arbitrary response content', () => {
+  const out = tmpDir('dhpk-cursor-diagnostic-redaction-');
+  const marker = 'CURSOR_DIAGNOSTIC_SECRET_MARKER_123456789';
+  try {
+    const script = [
+      `process.stdout.write(JSON.stringify({ type: 'user', session_id: '${marker}', message: { content: '${marker}' } }) + '\\n');`,
+      `process.stdout.write(JSON.stringify({ type: 'tool_call', request_id: '${marker}', call_id: '${marker}', cwd: '${marker}', text: '${marker}', arguments: { prompt: '${marker}' } }) + '\\n');`,
+      `process.stdout.write(JSON.stringify({ type: 'result', timestamp_ms: 1730000000, duration_ms: 1730000001, result: '${marker}' }));`,
+      'process.exit(1);',
+    ].join('');
+    const probe = runCursorConsumerProbe({
+      packageRoot: out,
+      executable: process.execPath,
+      args: ['-e', script, '--', '--output-format', 'stream-json'],
+      pathValue: '',
+      allowUnauthenticatedFixture: true,
+      requireOutput: true,
+      networkMode: 'unrestricted',
+    });
+    assert.strictEqual(probe.status, 'FAIL', JSON.stringify(probe));
+    assert.doesNotMatch(JSON.stringify(probe), new RegExp(marker));
+    assert.doesNotMatch(JSON.stringify(probe), /session_id[^<]*>[^<]*CURSOR_DIAGNOSTIC_SECRET|request_id[^<]*>[^<]*CURSOR_DIAGNOSTIC_SECRET/);
+    assert.doesNotMatch(probe.diagnostic || '', /1730000000/);
+    assert.doesNotMatch(probe.diagnostic || '', /1730000001/);
+    assert.ok(!probe.diagnostic || probe.diagnostic.length <= 800);
+  } finally {
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
+test('Cursor diagnostics replace non-object and malformed client output with a fixed placeholder', () => {
+  const out = tmpDir('dhpk-cursor-diagnostic-shape-');
+  const marker = 'CURSOR_DIAGNOSTIC_SHAPE_SECRET_MARKER_123456789';
+  try {
+    const script = [
+      `process.stdout.write(JSON.stringify(['${marker}']) + '\\n');`,
+      `process.stdout.write(JSON.stringify('${marker}') + '\\n');`,
+      `process.stdout.write('plain ${marker}\\n');`,
+      'process.exit(1);',
+    ].join('');
+    const probe = runCursorConsumerProbe({
+      packageRoot: out,
+      executable: process.execPath,
+      args: ['-e', script, '--', '--output-format', 'stream-json'],
+      pathValue: '',
+      allowUnauthenticatedFixture: true,
+      requireOutput: true,
+      networkMode: 'unrestricted',
+    });
+    assert.strictEqual(probe.status, 'FAIL', JSON.stringify(probe));
+    assert.doesNotMatch(JSON.stringify(probe), new RegExp(marker));
+    assert.strictEqual(probe.diagnostic, '<redacted-client-output>\n<redacted-client-output>\n<redacted-client-output>');
+  } finally {
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
 test('release Cursor probe rejects unrestricted network mode before invoking the client', () => {
   const out = tmpDir('dhpk-cursor-consumer-release-network-');
   try {
@@ -1130,7 +1256,7 @@ test('Cursor consumer probe does not inherit arbitrary credential environment', 
     const probe = runCursorConsumerProbe({
       packageRoot: out,
       executable: process.execPath,
-      args: ['-e', `process.stdout.write(process.env.${key} || 'absent')`],
+      args: ['-e', `process.stdout.write(JSON.stringify({ type: 'status', code: process.env.${key} ? 'present' : 'absent' }))`],
       timeoutMs: 500,
       allowUnauthenticatedFixture: true,
     });
@@ -1323,8 +1449,8 @@ test('Cursor PATH resolution is anchored before the probe changes cwd', () => {
   const previousCwd = process.cwd();
   fs.mkdirSync(packageBin, { recursive: true });
   fs.mkdirSync(trustedBin);
-  fs.writeFileSync(path.join(trustedBin, 'cursor-agent'), '#!/bin/sh\nprintf trusted\n', { mode: 0o755 });
-  fs.writeFileSync(path.join(packageBin, 'cursor-agent'), '#!/bin/sh\nprintf package-controlled\n', { mode: 0o755 });
+  fs.writeFileSync(path.join(trustedBin, 'cursor-agent'), "#!/bin/sh\nprintf '%s\\n' '{\"type\":\"status\",\"code\":\"trusted\"}'\n", { mode: 0o755 });
+  fs.writeFileSync(path.join(packageBin, 'cursor-agent'), "#!/bin/sh\nprintf '%s\\n' '{\"type\":\"status\",\"code\":\"package-controlled\"}'\n", { mode: 0o755 });
   try {
     process.chdir(root);
     const probe = runCursorConsumerProbe({

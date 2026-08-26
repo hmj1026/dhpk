@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.48.3 — 2026-08-26 — Harden Cursor and AGY consumer probes with exact terminal evidence, isolated loader attestation, and redacted diagnostics
+
+**fix(consumer-runtime)** — Harden Cursor and AGY consumer probes with exact terminal evidence, isolated loader attestation, and redacted diagnostics.
+
 ## 0.48.2 — 2026-08-26 — Run harness preflight and consumer verification without creating untracked files in the working directory
 
 **fix(release-workflow)** — Run harness preflight and consumer verification without creating untracked files in the working directory.
