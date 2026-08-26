@@ -51,6 +51,43 @@ result; do not infer a runtime `PASS` from a package check.
 Never turn a static manifest, marketplace entry, generated file, or enabled
 flag into a runtime `PASS`.
 
+## Controlled authenticated runner preflight
+
+Issue #237 release evidence starts on a clean checkout of the exact merged
+commit. Run the bounded preflight before any consumer probe:
+
+```bash
+node scripts/release/consumer-runtime-preflight.js \
+  --root /absolute/path/to/dhpk \
+  --task-id issue-237-runtime \
+  --attempt-id attempt-<unique> --json
+```
+
+The command records only task/attempt, source and target commit/tree, clean
+worktree state, selected surfaces, tool versions, sandbox/network status, and
+allowlisted session file names/counts. It never records token values, OAuth
+payloads, cookies, private paths, or arbitrary HOME files. `PASS` means the
+runner is ready; it is not consumer-runtime proof. A missing client or
+`bwrap` is `UNAVAILABLE`, a missing allowlisted login is `BLOCKED`, and a
+foreign/stale identity is `BLOCKED` with `IDENTITY_INVALID` or
+`FOREIGN_PREFLIGHT`.
+
+Provision the runner with a disposable workspace and an explicit session
+source (`DHPK_CURSOR_HOST_HOME` or `DHPK_AGY_HOST_HOME`). Refresh the session
+through the provider's login flow before the run; do not copy a developer HOME
+or place credentials in command arguments, logs, or receipts. Cursor and AGY
+probes keep the package read-only, use a disposable HOME, and require the
+controlled bubblewrap namespace. AGY runtime uses `--unshare-all` before
+`--share-net`; DNS/proxy failures are reported as `DNS_UNAVAILABLE` or
+`TRANSPORT_UNAVAILABLE`, and bounded timeout output remains non-PASS.
+
+The supervised sequence is: preflight the exact tree, deploy that same tree,
+run all seven identity rows, verify the six required-runtime rows, and retain
+the receipt. On failure, preserve the receipt, remove only receipt-owned
+temporary files, revoke/refresh the session through the provider, and roll
+back the deployment before retrying. Never reuse a dirty checkout or promote
+preflight `PASS` to `COMPLETE`.
+
 ## Unified lifecycle CLI (read-only slice)
 
 `dhpk-install <surface> <action>` is the common lifecycle entrypoint. The

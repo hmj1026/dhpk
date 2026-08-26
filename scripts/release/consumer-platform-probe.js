@@ -396,6 +396,8 @@ function normalizedProbeEvidence(platform, manifest, result, version) {
       checkedClaims: ['package-manifest', 'consumer-route'],
       ...(result.planFingerprint ? { planFingerprint: result.planFingerprint } : {}),
       ...(result.artifactFingerprint ? { artifactFingerprint: result.artifactFingerprint } : {}),
+      ...(result.reason_code ? { reason_code: result.reason_code } : {}),
+      ...(result.reasonCode ? { reasonCode: result.reasonCode } : {}),
     }],
   });
   return { surfaceEvidence: evidence.surfaceResults[0], surfaceResults: evidence.surfaceResults };

@@ -279,6 +279,25 @@ AGY_SESSION_ALLOWLIST = (
     ".gemini/google_accounts.json",
     ".gemini/antigravity-cli/antigravity-oauth-token",
 )
+AGY_REASON_CODES = frozenset({
+    "READY",
+    "PACKAGE_INVALID",
+    "PACKAGE_UNAVAILABLE",
+    "TOOL_UNAVAILABLE",
+    "SANDBOX_UNAVAILABLE",
+    "SESSION_UNAVAILABLE",
+    "AUTH_REQUIRED",
+    "DNS_UNAVAILABLE",
+    "TRANSPORT_UNAVAILABLE",
+    "TIMEOUT",
+    "CLI_INCOMPATIBLE",
+    "OUTPUT_LIMIT",
+    "PROBE_NOT_RUN",
+    "PROBE_FAILED",
+})
+AGY_MAX_DIAGNOSTIC_LENGTH = 800
+AGY_MAX_OUTPUT_BYTES = 256 * 1024
+AGY_OUTPUT_LIMIT_MARKER = "__DHPK_AGY_OUTPUT_LIMIT__"
 AGY_SENSITIVE_ASSIGNMENT = re.compile(
     r"([\"']?)(?:access[_-]?token|refresh[_-]?token|oauth[_-]?token|token|password|secret|api[_-]?key|credential)\1\s*[:=]\s*"
     r"(?:\"[^\"\r\n]*\"|'[^'\r\n]*'|[^\s,;}\]]+)",
@@ -296,7 +315,50 @@ def _agy_redact_diagnostic(value):
     text = AGY_SENSITIVE_ASSIGNMENT.sub(lambda match: "%s: <redacted>" % match.group(0).split(":", 1)[0].split("=", 1)[0].strip(" \"'"), text)
     for pattern in AGY_SECRET_PATTERNS:
         text = pattern.sub("<redacted>", text)
-    return text[-800:]
+    return text[-AGY_MAX_DIAGNOSTIC_LENGTH:]
+
+
+def _agy_reason_code(status, reason):
+    """Map bounded AGY diagnostics to a stable, non-sensitive reason class."""
+    text = ("" if reason is None else str(reason)).lower()
+    if status == ROW_PASS:
+        return "READY"
+    if status == ROW_NOT_RUN:
+        return "PROBE_NOT_RUN"
+    if status == ROW_SKIP_INCOMPATIBLE:
+        return "CLI_INCOMPATIBLE"
+    if "authentication" in text or "unauthorized" in text or "credential" in text:
+        return "AUTH_REQUIRED"
+    if "session" in text or "logged-in" in text or "login" in text:
+        return "SESSION_UNAVAILABLE"
+    if "dns" in text or "resolve" in text or "eai_" in text or "name resolution" in text:
+        return "DNS_UNAVAILABLE"
+    if "timed out" in text or "timeout" in text:
+        return "TIMEOUT"
+    if "network" in text or "connection" in text or "transport" in text or "socket" in text:
+        return "TRANSPORT_UNAVAILABLE"
+    if "unknown argument" in text or "unknown command" in text or "not defined" in text:
+        return "CLI_INCOMPATIBLE"
+    if "sandbox" in text or "bwrap" in text or "namespace" in text:
+        return "SANDBOX_UNAVAILABLE"
+    if "output" in text and ("limit" in text or "exceed" in text):
+        return "OUTPUT_LIMIT"
+    if "package" in text and ("missing" in text or "failed" in text or "invalid" in text):
+        return "PACKAGE_INVALID"
+    if status == ROW_UNAVAILABLE:
+        return "TOOL_UNAVAILABLE"
+    return "PROBE_FAILED"
+
+
+def _agy_runtime_details(session_files, reason_code=None):
+    """Return bounded session metadata with an optional stable reason code."""
+    details = {
+        "session_files": list(session_files or [])[:len(AGY_SESSION_ALLOWLIST)],
+        "session_file_count": len(session_files or []),
+    }
+    if reason_code in AGY_REASON_CODES:
+        details["reason_code"] = reason_code
+    return details
 
 
 def _agy_package_root(repo_root):
@@ -697,6 +759,11 @@ def _run_agy_command(args, repo_root, timeout=15, read_only=False, session_home=
     except (OSError, subprocess.SubprocessError) as exc:
         return None, "agy command unavailable: %s" % exc
     output = (result.stdout or "") + (result.stderr or "")
+    output_bytes = output.encode("utf-8", "replace")
+    if len(output_bytes) > AGY_MAX_OUTPUT_BYTES:
+        marker = (AGY_OUTPUT_LIMIT_MARKER + "\n").encode("utf-8")
+        tail_size = max(0, AGY_MAX_OUTPUT_BYTES - len(marker))
+        output = (marker + output_bytes[-tail_size:]).decode("utf-8", "replace")
     return result.returncode, output
 
 
@@ -765,16 +832,18 @@ def _agy_discovery_probe(repo_root, package_root, agents):
     return plugin_status, agent_status, notes
 
 
-def _agy_runtime_probe(repo_root):
+def _agy_runtime_probe(repo_root, return_details=False):
     _, unavailable_reason = _agy_probe_tools()
     if unavailable_reason:
-        return ROW_UNAVAILABLE, unavailable_reason
+        result = (ROW_UNAVAILABLE, unavailable_reason, _agy_runtime_details([], _agy_reason_code(ROW_UNAVAILABLE, unavailable_reason)))
+        return result if return_details else result[:2]
     host_home = os.environ.get("DHPK_AGY_HOST_HOME")
     session_home, copied = _agy_clone_session(host_home)
     if not copied:
         if session_home:
             shutil.rmtree(session_home, ignore_errors=True)
-        return ROW_BLOCKED, "agy Subagent probe requires an allowlisted logged-in session"
+        result = (ROW_BLOCKED, "agy Subagent probe requires an allowlisted logged-in session", _agy_runtime_details([], "SESSION_UNAVAILABLE"))
+        return result if return_details else result[:2]
     try:
         code, output = _run_agy_command([
             "--agent", "agy-fast-worker", "--print",
@@ -784,19 +853,28 @@ def _agy_runtime_probe(repo_root):
     finally:
         shutil.rmtree(session_home, ignore_errors=True)
     if code is None:
-        return ROW_UNAVAILABLE, _agy_redact_diagnostic(output)
+        result = (ROW_UNAVAILABLE, _agy_redact_diagnostic(output), _agy_runtime_details(copied, _agy_reason_code(ROW_UNAVAILABLE, output)))
+        return result if return_details else result[:2]
     if code != 0:
         lowered = (output or "").lower()
         if any(marker in lowered for marker in ("authentication", "unauthorized", "api key", "credential", "login")):
-            return ROW_BLOCKED, "agy Subagent probe requires authentication; use an already-logged-in session"
-        if any(marker in lowered for marker in ("network", "connection", "timed out", "timeout", "permission denied")):
-            return ROW_UNAVAILABLE, "agy Subagent probe is unavailable in the isolated runtime (credentials or connectivity are not available)"
+            result = (ROW_BLOCKED, "agy Subagent probe requires authentication; use an already-logged-in session", _agy_runtime_details(copied, "AUTH_REQUIRED"))
+            return result if return_details else result[:2]
+        if any(marker in lowered for marker in ("network", "connection", "timed out", "timeout", "permission denied", "dns", "resolve")):
+            result = (ROW_UNAVAILABLE, "agy Subagent probe is unavailable in the isolated runtime (credentials or connectivity are not available)", _agy_runtime_details(copied, _agy_reason_code(ROW_UNAVAILABLE, output)))
+            return result if return_details else result[:2]
         if any(marker in lowered for marker in ("unknown argument", "unknown command", "flag provided but not defined")):
-            return ROW_SKIP_INCOMPATIBLE, "agy CLI does not support the bounded --agent/--print runtime route"
-        return ROW_FAIL, "agy Subagent probe exited with status %s" % code
+            result = (ROW_SKIP_INCOMPATIBLE, "agy CLI does not support the bounded --agent/--print runtime route", _agy_runtime_details(copied, "CLI_INCOMPATIBLE"))
+            return result if return_details else result[:2]
+        result = (ROW_FAIL, "agy Subagent probe exited with status %s" % code, _agy_runtime_details(copied, "PROBE_FAILED"))
+        return result if return_details else result[:2]
     if output.strip() != "AGY_SMOKE_OK":
-        return ROW_FAIL, "agy Subagent probe did not return the exact AGY_SMOKE_OK marker"
-    return ROW_PASS, "bounded read-only Subagent probe returned AGY_SMOKE_OK"
+        limited = AGY_OUTPUT_LIMIT_MARKER in (output or "")
+        reason = "agy Subagent probe output exceeded the bounded diagnostic limit" if limited else "agy Subagent probe did not return the exact AGY_SMOKE_OK marker"
+        result = (ROW_FAIL, reason, _agy_runtime_details(copied, "OUTPUT_LIMIT" if limited else "PROBE_FAILED"))
+        return result if return_details else result[:2]
+    result = (ROW_PASS, "bounded read-only Subagent probe returned AGY_SMOKE_OK", _agy_runtime_details(copied, "READY"))
+    return result if return_details else result[:2]
 
 
 def validate_agy(repo_root, membership=None, runtime_probe=False):
@@ -816,9 +894,9 @@ def validate_agy(repo_root, membership=None, runtime_probe=False):
         row = result_row("agy", False, False, ROW_FAIL, ROW_FAIL, notes)
         row["capabilities"] = [
             {"id": "agy.package.structure", "status": ROW_FAIL, "fallback": "none", "reason": "inventory-owned AGY package"},
-            {"id": "agy.discovery.plugins", "status": ROW_NOT_RUN, "fallback": "package-structure", "reason": "package structure failed"},
-            {"id": "agy.discovery.agents", "status": ROW_NOT_RUN, "fallback": "package-structure", "reason": "package structure failed"},
-            {"id": "agy.runtime.subagent", "status": ROW_NOT_RUN, "fallback": "NOT_RUN", "reason": "package structure failed"},
+            {"id": "agy.discovery.plugins", "status": ROW_NOT_RUN, "fallback": "package-structure", "reason": "package structure failed", "reason_code": "PACKAGE_INVALID"},
+            {"id": "agy.discovery.agents", "status": ROW_NOT_RUN, "fallback": "package-structure", "reason": "package structure failed", "reason_code": "PACKAGE_INVALID"},
+            {"id": "agy.runtime.subagent", "status": ROW_NOT_RUN, "fallback": "NOT_RUN", "reason": "package structure failed", "reason_code": "PACKAGE_INVALID", "session_files": [], "session_file_count": 0},
         ]
         return row
 
@@ -826,18 +904,19 @@ def validate_agy(repo_root, membership=None, runtime_probe=False):
     notes.extend(discovery_notes)
     runtime_status = ROW_NOT_RUN
     runtime_reason = "runtime Subagent invocation was not requested"
+    runtime_details = _agy_runtime_details([], "PROBE_NOT_RUN")
     if runtime_probe:
-        runtime_status, runtime_reason = _agy_runtime_probe(repo_root)
+        runtime_status, runtime_reason, runtime_details = _agy_runtime_probe(repo_root, return_details=True)
         notes.append(runtime_reason)
     hook_state = plugin_status
     multi_state = agent_status
     row = result_row("agy", True, bool(agents), hook_state, multi_state, notes,
                      hook_reason="agy plugins list discovery", multi_reason="agy agents discovery")
     row["capabilities"] = [
-        {"id": "agy.package.structure", "status": ROW_PASS if structural_ok else ROW_FAIL, "fallback": "none", "reason": "inventory-owned AGY package"},
-        {"id": "agy.discovery.plugins", "status": plugin_status, "fallback": "package-structure", "reason": "agy plugins list"},
-        {"id": "agy.discovery.agents", "status": agent_status, "fallback": "package-structure", "reason": "agy agents"},
-        {"id": "agy.runtime.subagent", "status": runtime_status, "fallback": "NOT_RUN", "reason": runtime_reason},
+        {"id": "agy.package.structure", "status": ROW_PASS if structural_ok else ROW_FAIL, "fallback": "none", "reason": "inventory-owned AGY package", "reason_code": "READY" if structural_ok else "PACKAGE_INVALID"},
+        {"id": "agy.discovery.plugins", "status": plugin_status, "fallback": "package-structure", "reason": "agy plugins list", "reason_code": _agy_reason_code(plugin_status, "agy plugins list")},
+        {"id": "agy.discovery.agents", "status": agent_status, "fallback": "package-structure", "reason": "agy agents", "reason_code": _agy_reason_code(agent_status, "agy agents")},
+        {"id": "agy.runtime.subagent", "status": runtime_status, "fallback": "NOT_RUN", "reason": runtime_reason, "reason_code": runtime_details.get("reason_code", _agy_reason_code(runtime_status, runtime_reason)), **runtime_details},
     ]
     if runtime_status == ROW_FAIL:
         row["final_status"] = ROW_FAIL

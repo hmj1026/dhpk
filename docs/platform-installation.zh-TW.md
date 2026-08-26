@@ -50,6 +50,41 @@ projection 內容後，才能宣稱 client 可呼叫。
 不可把 static manifest、marketplace entry、generated file 或 enabled flag
 直接轉成 runtime `PASS`。
 
+## 受控 authenticated runner preflight
+
+Issue #237 release evidence 必須從 exact merged commit 的 clean checkout 開始。
+任何 consumer probe 前先執行有界 preflight：
+
+```bash
+node scripts/release/consumer-runtime-preflight.js \
+  --root /absolute/path/to/dhpk \
+  --task-id issue-237-runtime \
+  --attempt-id attempt-<unique> --json
+```
+
+命令只記錄 task/attempt、source 與 target commit/tree、clean worktree、selected
+surfaces、tool versions、sandbox/network status，以及 allowlisted session
+file 名稱／數量。它不記錄 token、OAuth payload、cookie、private path 或任意
+HOME 檔案。`PASS` 只代表 runner ready，不是 consumer-runtime proof；缺少
+client 或 `bwrap` 為 `UNAVAILABLE`，缺少 allowlisted login 為 `BLOCKED`，
+foreign/stale identity 則以 `IDENTITY_INVALID` 或 `FOREIGN_PREFLIGHT` 的
+`BLOCKED` 表示。
+
+Runner 應使用 disposable workspace 與明確 session source
+（`DHPK_CURSOR_HOST_HOME` 或 `DHPK_AGY_HOST_HOME`）。執行前透過 provider
+login flow refresh session；不要複製 developer HOME，也不要把 credentials
+放進 command arguments、logs 或 receipts。Cursor 與 AGY probe 維持
+read-only package、disposable HOME，並要求受控 bubblewrap namespace。AGY
+runtime 先使用 `--unshare-all` 再使用 `--share-net`；DNS/proxy 失敗分類為
+`DNS_UNAVAILABLE` 或 `TRANSPORT_UNAVAILABLE`，有界 timeout output 維持
+non-PASS。
+
+受監督的順序是：先 preflight exact tree，再 deploy 同一棵 tree，執行七個
+identity rows，驗證六個 required-runtime rows，並保留 receipt。失敗時保留
+receipt，只移除 receipt-owned temporary files，透過 provider refresh/revoke
+session，再 rollback deployment 後重試。不可重用 dirty checkout，也不可把
+preflight `PASS` 升級成 `COMPLETE`。
+
 ## Unified lifecycle CLI（唯讀 slice）
 
 `dhpk-install <surface> <action>` 是共同 lifecycle entrypoint。允許的 surface
