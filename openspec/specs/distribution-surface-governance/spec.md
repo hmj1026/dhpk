@@ -29,7 +29,7 @@ The Claude plugin skill registrations and every generated Codex publication tree
 
 ### Requirement: Core and optional surfaces are distinguishable
 
-The distribution model SHALL distinguish broadly applicable core workflow skills from opt-in stack skills, and documentation SHALL state whether the current host truly gates discovery or merely gates runtime hooks and activation. A profile-scoped Claude package SHALL be identified as a pre-discovery selected artifact, while the unscoped compatibility package SHALL be identified separately. The catalog SHALL report description word/token totals separately for promoted, optional, experimental, and deprecated entries and separately for each selected profile artifact. An `optional` lifecycle SHALL NOT be described as hidden from discovery when the host still publishes its description.
+The distribution model SHALL distinguish broadly applicable core workflow skills from opt-in stack skills, and documentation SHALL state whether the current host truly gates discovery or merely gates runtime hooks and activation. A profile-scoped package SHALL be identified as a pre-discovery selected artifact, while `compat-v1` SHALL be identified separately from the conflict-aware `full` module closure. The catalog SHALL report description word/token totals separately for promoted, optional, experimental, and deprecated entries and separately for each selected profile artifact. An `optional` lifecycle SHALL NOT be described as hidden from discovery when the host still publishes its description.
 
 #### Scenario: Host cannot hide optional skill descriptions
 
@@ -38,8 +38,13 @@ The distribution model SHALL distinguish broadly applicable core workflow skills
 
 #### Scenario: Profile artifact excludes optional metadata
 
-- **WHEN** a profile bundle is generated before Claude discovery
-- **THEN** its scoped root contains only the selected core and module entries, and its report labels the excluded optional entries as absent rather than runtime-hidden
+- **WHEN** a `minimal` or stack profile bundle is generated before Claude discovery
+- **THEN** its scoped root contains only the selected core and module entries, and its report labels excluded optional entries as absent rather than runtime-hidden
+
+#### Scenario: Compatibility and full profiles are reported separately
+
+- **WHEN** a report compares `minimal`, `full`, and `compat-v1`
+- **THEN** it identifies `full` as conflict-aware module closure, `compat-v1` as the legacy all-live-ID bundle, and does not combine their counts into one discovery claim
 
 #### Scenario: Optional metadata is discovery-visible
 
@@ -54,7 +59,7 @@ The distribution model SHALL distinguish broadly applicable core workflow skills
 #### Scenario: Metadata is within budget
 
 - **WHEN** all discovery-visible descriptions meet their scoped budgets
-- **THEN** validation passes and reports the budget totals by publication surface and selected profile artifact
+- **THEN** validation passes and reports budget totals by publication surface and selected profile artifact
 
 ### Requirement: Deprecation precedes source deletion
 A package SHALL normally be deprecated before source deletion: promoted surfaces omit it while canonical source, replacement guidance, and compatibility-window metadata remain. A reviewed breaking retirement MAY remove canonical source in one change only when an inventory-owned retirement record exists, unique behavior has migrated or is explicitly classified as model-default, all live references and generated projections are closed, receipt-owned reconciliation is fingerprint-safe, and rollback pins the last compatible release.
@@ -110,17 +115,22 @@ directory, README list, or manifest presence.
 
 ### Requirement: Cross-surface projections have one canonical source
 
-All generated Agent Plugins, Codex, Cursor, AGY, and Claude projections, including profile-scoped Claude bundles, SHALL be derived from canonical sources plus explicit adaptation rules. Generated files MUST NOT become an independently authored source of behavior, and identical portable skill content across surfaces SHALL share a fingerprint or a recorded intentional transform. A profile identity and selected stable-ID set SHALL be part of Claude projection provenance.
+All generated Agent Plugins, Codex, Cursor, AGY, and Claude projections, including profile-scoped bundles, SHALL be derived from canonical sources plus explicit adaptation rules and one inventory-owned canonical selection identity. Generated files MUST NOT become an independently authored source of behavior, and identical portable skill content across surfaces SHALL share a fingerprint or a recorded intentional transform. The canonical profile ID, ordered canonical stable-ID set, and canonical selection fingerprint SHALL be part of projection provenance. A surface MAY additionally record emitted stable IDs and a surface selection fingerprint only for a declared transform; Codex's emitted set SHALL be the canonical selection intersected with its existing supported allowlist.
 
 #### Scenario: Generated package contains an undeclared skill
 
-- **WHEN** any generated surface or Claude profile bundle contains a public name absent from its inventory surface and selected profile
+- **WHEN** any generated surface or profile bundle contains a public name absent from its inventory surface and selected profile
 - **THEN** the distribution gate fails and names the extra entry
 
 #### Scenario: Native adaptation is intentional
 
 - **WHEN** a Cursor, Codex, AGY, or Claude profile projection differs from canonical content because its client contract requires an adaptation
-- **THEN** the inventory/projection matrix records the rule, source ID, output fingerprint, profile where applicable, and compatibility rationale
+- **THEN** the inventory/projection matrix records the canonical selection identity, any emitted-ID/surface fingerprint, source ID, output fingerprint, profile where applicable, and compatibility rationale
+
+#### Scenario: Two surfaces diverge in selected IDs
+
+- **WHEN** equivalent inputs produce different selected stable-ID sets outside the declared Codex supported-set intersection
+- **THEN** parity fails with the surface and canonical or emitted selection-fingerprint mismatch before publication, except for the declared Codex intersection
 
 ### Requirement: Support tiers are reported per surface
 
@@ -168,17 +178,22 @@ stable-ID provenance linking it to the owner.
 
 ### Requirement: Distribution inventory is the projection selection SSOT
 
-`manifests/distribution-inventory.json` SHALL be the sole source of component selection, lifecycle, permitted surfaces, canonical source identity, physical ownership, transforms, and symlink policy supplied to `compileDistribution`. Install profiles and module catalogs MAY provide normalized selection inputs, but generators, adapters, manifests, directory layouts, README lists, and installed artifacts MUST NOT independently add, remove, promote, or re-own a distribution entry.
+`manifests/distribution-inventory.json` SHALL be the sole source of component selection, lifecycle, permitted surfaces, canonical source identity, physical ownership, transforms, symlink policy, and profile membership supplied to `compileDistribution`. Install profiles and module catalogs MAY provide normalized selection inputs, but generators, adapters, manifests, directory layouts, README lists, and installed artifacts MUST NOT independently add, remove, promote, or re-own a distribution entry. Retirement rows from Change A are never selectable entries.
 
 #### Scenario: Surface adapter discovers an extra component
 
-- **WHEN** a surface-specific adapter or Claude profile generator finds a package in a conventional directory that is not selected for that surface by the inventory and explicit profile input
+- **WHEN** a surface-specific adapter or profile generator finds a package in a conventional directory that is not selected for that surface by the inventory and explicit profile input
 - **THEN** compilation or no-drift validation reports the extra component and excludes it from the accepted plan
 
 #### Scenario: Inventory declares a shared physical owner
 
 - **WHEN** two consumer surfaces select one portable entry and the inventory assigns one shared owner
-- **THEN** both projections reference that ownership decision and no adapter creates a second implicit physical copy
+- **THEN** both projections reference that ownership and no adapter creates a second implicit physical copy
+
+#### Scenario: Profile input names a retired or unsupported ID
+
+- **WHEN** explicit selection includes an ID present only in the retirement ledger or not permitted on the target surface
+- **THEN** the inventory resolver rejects the selection before any surface plan or artifact is created
 
 #### Scenario: Projection rule has no inventory owner
 
@@ -187,8 +202,8 @@ stable-ID provenance linking it to the owner.
 
 #### Scenario: Native Codex uses its explicit allowlist
 
-- **WHEN** the Codex-native adapter materializes a package
-- **THEN** it emits only the entries selected by the inventory-owned allowlist and reports any unlisted entry as a validation error
+- **WHEN** the Codex-native adapter materializes a package from a selected profile
+- **THEN** it emits only the intersection of inventory/profile selection and its existing Codex-supported allowlist and reports any unlisted entry as a validation error
 
 ### Requirement: Every migrated generated surface uses the shared projection pipeline
 
