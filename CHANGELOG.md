@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## 0.48.0 — 2026-08-26 — Add exact-head consumer-runner preflight diagnostics and embed opsx orchestration decision policy
+
+**feat(consumer-runtime)** — Add exact-head consumer-runner preflight diagnostics while keeping authenticated runtime evidence fail-closed.
+**feat(orchestration-policy)** — Add a project-owned orchestration gate for reasoner, planner, review, archive, Draft PR, and completed-CI delivery decisions.
+
 ## 0.47.1 — 2026-08-25 — Allow skill references during AGY package structure validation
 
 **fix(agy-plugin)** — Allow skill references subdirectories during AGY package structure validation so nested supporting assets do not cause false-positive consumer gate failures.
