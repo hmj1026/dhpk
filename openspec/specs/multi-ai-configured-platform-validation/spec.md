@@ -2,7 +2,9 @@
 
 ## Purpose
 TBD - created by archiving change scope-multi-ai-sync-validation-to-configured-platforms. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Validation derives the configured target set before checking parity
 `multi-ai-sync validate` SHALL validate the canonical Claude source first and then derive the configured Codex, Gemini, Antigravity, AGY, and Cursor target set from documented platform markers, using one shared resolver. The resolver SHALL be implemented as a reusable function so `plan`/`apply`/discovery can adopt it in a later change; this requirement binds `validate` only.
 
@@ -134,16 +136,34 @@ absence SHALL be `NOT_CONFIGURED`. Structural package validation,
 MUST be separate report capabilities. Missing `agy` tooling SHALL be
 `UNAVAILABLE`, and discovery SHALL NOT upgrade runtime support.
 
+When the bounded runtime probe is requested, the selected session home SHALL be
+explicit, absolute, and allowlist-based. Missing session selection SHALL be
+`BLOCKED` with a non-sensitive session reason code. Runtime authentication
+failures SHALL remain `BLOCKED`, while DNS, transport, or timeout failures SHALL
+be `UNAVAILABLE`; each status SHALL include a bounded redacted reason code and
+MUST NOT expose session contents.
+
 #### Scenario: AGY package is configured without a client
 
-- **WHEN** `plugins/dhpk-agy/plugin.json` and adapted agents are valid but
-  `agy` is not on `PATH`
-- **THEN** package evidence is `PASS`, consumer discovery is `UNAVAILABLE`,
-  and runtime remains `NOT_RUN`
+- **WHEN** `plugins/dhpk-agy/plugin.json` and adapted agents are valid but `agy` is not on `PATH`
+- **THEN** package evidence is `PASS`, consumer discovery is `UNAVAILABLE`, and runtime remains `NOT_RUN`
 
 #### Scenario: AGY runtime probe is explicitly requested
 
-- **WHEN** `--targets agy --agy-runtime-probe` runs with a configured client
-  and the bounded read-only smoke prompt returns its sentinel
-- **THEN** the runtime capability is `PASS` independently of package and
-  discovery rows
+- **WHEN** `--targets agy --agy-runtime-probe` runs with a configured client and the bounded read-only smoke prompt returns its sentinel
+- **THEN** the runtime capability is `PASS` independently of package and discovery rows
+
+#### Scenario: AGY runtime session is not selected
+
+- **WHEN** the runtime probe is requested without an absolute `DHPK_AGY_HOST_HOME` that contains an allowlisted session file
+- **THEN** the runtime capability is `BLOCKED` with a redacted session-unavailable reason code and no credential content is persisted
+
+#### Scenario: AGY runtime authentication fails
+
+- **WHEN** an allowlisted session is cloned but the bounded Subagent invocation reports authentication or authorization failure
+- **THEN** the runtime capability is `BLOCKED` with an authentication reason code and discovery/package rows remain independent
+
+#### Scenario: AGY runtime connectivity fails
+
+- **WHEN** an allowlisted session is cloned but the bounded Subagent invocation reports DNS, transport, or timeout failure inside the controlled shared-network sandbox
+- **THEN** the runtime capability is `UNAVAILABLE` with a connectivity reason code and the release remains non-complete

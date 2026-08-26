@@ -295,6 +295,22 @@ AGY_REASON_CODES = frozenset({
     "PROBE_NOT_RUN",
     "PROBE_FAILED",
 })
+AGY_DIAGNOSTIC_MESSAGES = {
+    "AUTH_REQUIRED": "<redacted-client-output> (authentication required)",
+    "DNS_UNAVAILABLE": "<redacted-client-output> (dns resolution failed)",
+    "TIMEOUT": "<redacted-client-output> (request timed out)",
+    "TRANSPORT_UNAVAILABLE": "<redacted-client-output> (network transport unavailable)",
+    "SANDBOX_UNAVAILABLE": "<redacted-client-output> (sandbox unavailable)",
+    "SESSION_UNAVAILABLE": "<redacted-client-output> (session unavailable)",
+    "CLI_INCOMPATIBLE": "<redacted-client-output> (unsupported CLI route)",
+    "OUTPUT_LIMIT": "<redacted-client-output> (output limit exceeded)",
+    "PACKAGE_INVALID": "<redacted-client-output> (package invalid)",
+    "PACKAGE_UNAVAILABLE": "<redacted-client-output> (package unavailable)",
+    "TOOL_UNAVAILABLE": "<redacted-client-output> (tool unavailable)",
+    "PROBE_NOT_RUN": "<redacted-client-output> (probe not run)",
+    "READY": "<redacted-client-output> (ready)",
+    "PROBE_FAILED": "<redacted-client-output>",
+}
 AGY_MAX_DIAGNOSTIC_LENGTH = 800
 AGY_MAX_OUTPUT_BYTES = 256 * 1024
 AGY_OUTPUT_LIMIT_MARKER = "__DHPK_AGY_OUTPUT_LIMIT__"
@@ -310,12 +326,16 @@ def _agy_contains_secret(content):
     return any(pattern.search(text) for pattern in AGY_SECRET_PATTERNS)
 
 
-def _agy_redact_diagnostic(value):
-    text = "" if value is None else str(value)
-    text = AGY_SENSITIVE_ASSIGNMENT.sub(lambda match: "%s: <redacted>" % match.group(0).split(":", 1)[0].split("=", 1)[0].strip(" \"'"), text)
-    for pattern in AGY_SECRET_PATTERNS:
-        text = pattern.sub("<redacted>", text)
-    return text[-AGY_MAX_DIAGNOSTIC_LENGTH:]
+def _agy_redact_diagnostic(value, reason_code=None):
+    """Return only a fixed reason-class diagnostic, never client output.
+
+    AGY emits free-form stderr that may contain private paths, host overlays,
+    prompts, tool payloads, or credentials. Token substitution is not a
+    sufficient boundary, so persist a bounded placeholder plus the already
+    classified reason code instead of retaining any part of the raw text.
+    """
+    code = str(reason_code or "PROBE_FAILED").upper()
+    return AGY_DIAGNOSTIC_MESSAGES.get(code, AGY_DIAGNOSTIC_MESSAGES["PROBE_FAILED"])[-AGY_MAX_DIAGNOSTIC_LENGTH:]
 
 
 def _agy_reason_code(status, reason):
@@ -350,14 +370,18 @@ def _agy_reason_code(status, reason):
     return "PROBE_FAILED"
 
 
-def _agy_runtime_details(session_files, reason_code=None):
-    """Return bounded session metadata with an optional stable reason code."""
+def _agy_runtime_details(session_files, reason_code=None, diagnostic=None):
+    """Return bounded session metadata, reason code, and redacted diagnostics."""
     details = {
         "session_files": list(session_files or [])[:len(AGY_SESSION_ALLOWLIST)],
         "session_file_count": len(session_files or []),
     }
     if reason_code in AGY_REASON_CODES:
         details["reason_code"] = reason_code
+    if diagnostic:
+        safe_diagnostic = _agy_redact_diagnostic(diagnostic, reason_code)
+        if safe_diagnostic:
+            details["diagnostic"] = safe_diagnostic
     return details
 
 
@@ -726,6 +750,13 @@ def _run_agy_command(args, repo_root, timeout=15, read_only=False, session_home=
         "--tmpfs", "/tmp",
         "--tmpfs", "/run",
         "--tmpfs", "/etc",
+        # Keep /etc masked while projecting only the resolver and public CA
+        # bundle required by the shared-network AGY runtime. Private keys and
+        # unrelated host configuration remain outside the namespace.
+        "--dir", "/etc/ssl",
+        "--dir", "/etc/ssl/certs",
+        "--ro-bind-try", "/etc/resolv.conf", "/etc/resolv.conf",
+        "--ro-bind-try", "/etc/ssl/certs/ca-certificates.crt", "/etc/ssl/certs/ca-certificates.crt",
         "--ro-bind-try", "/etc/passwd", "/etc/passwd",
         "--ro-bind-try", "/etc/group", "/etc/group",
         "--ro-bind-try", "/etc/nsswitch.conf", "/etc/nsswitch.conf",
@@ -846,32 +877,34 @@ def _agy_runtime_probe(repo_root, return_details=False):
         return result if return_details else result[:2]
     try:
         code, output = _run_agy_command([
+            "--mode", "plan",
             "--agent", "agy-fast-worker", "--print",
-            "Read-only smoke check. Return exactly AGY_SMOKE_OK and do not modify files.",
+            "Read-only smoke check. Return exactly AGY_SMOKE_OK and do not modify files. Do not call tools.",
             "--output-format", "text",
         ], repo_root, timeout=30, read_only=True, session_home=session_home, share_network=True)
     finally:
         shutil.rmtree(session_home, ignore_errors=True)
     if code is None:
-        result = (ROW_UNAVAILABLE, _agy_redact_diagnostic(output), _agy_runtime_details(copied, _agy_reason_code(ROW_UNAVAILABLE, output)))
+        reason_code = _agy_reason_code(ROW_UNAVAILABLE, output)
+        result = (ROW_UNAVAILABLE, _agy_redact_diagnostic(output, reason_code), _agy_runtime_details(copied, reason_code, output))
         return result if return_details else result[:2]
     if code != 0:
         lowered = (output or "").lower()
         if any(marker in lowered for marker in ("authentication", "unauthorized", "api key", "credential", "login")):
-            result = (ROW_BLOCKED, "agy Subagent probe requires authentication; use an already-logged-in session", _agy_runtime_details(copied, "AUTH_REQUIRED"))
+            result = (ROW_BLOCKED, "agy Subagent probe requires authentication; use an already-logged-in session", _agy_runtime_details(copied, "AUTH_REQUIRED", output))
             return result if return_details else result[:2]
         if any(marker in lowered for marker in ("network", "connection", "timed out", "timeout", "permission denied", "dns", "resolve")):
-            result = (ROW_UNAVAILABLE, "agy Subagent probe is unavailable in the isolated runtime (credentials or connectivity are not available)", _agy_runtime_details(copied, _agy_reason_code(ROW_UNAVAILABLE, output)))
+            result = (ROW_UNAVAILABLE, "agy Subagent probe is unavailable in the isolated runtime (credentials or connectivity are not available)", _agy_runtime_details(copied, _agy_reason_code(ROW_UNAVAILABLE, output), output))
             return result if return_details else result[:2]
         if any(marker in lowered for marker in ("unknown argument", "unknown command", "flag provided but not defined")):
-            result = (ROW_SKIP_INCOMPATIBLE, "agy CLI does not support the bounded --agent/--print runtime route", _agy_runtime_details(copied, "CLI_INCOMPATIBLE"))
+            result = (ROW_SKIP_INCOMPATIBLE, "agy CLI does not support the bounded --agent/--print runtime route", _agy_runtime_details(copied, "CLI_INCOMPATIBLE", output))
             return result if return_details else result[:2]
-        result = (ROW_FAIL, "agy Subagent probe exited with status %s" % code, _agy_runtime_details(copied, "PROBE_FAILED"))
+        result = (ROW_FAIL, "agy Subagent probe exited with status %s" % code, _agy_runtime_details(copied, "PROBE_FAILED", output))
         return result if return_details else result[:2]
     if output.strip() != "AGY_SMOKE_OK":
         limited = AGY_OUTPUT_LIMIT_MARKER in (output or "")
         reason = "agy Subagent probe output exceeded the bounded diagnostic limit" if limited else "agy Subagent probe did not return the exact AGY_SMOKE_OK marker"
-        result = (ROW_FAIL, reason, _agy_runtime_details(copied, "OUTPUT_LIMIT" if limited else "PROBE_FAILED"))
+        result = (ROW_FAIL, reason, _agy_runtime_details(copied, "OUTPUT_LIMIT" if limited else "PROBE_FAILED", output))
         return result if return_details else result[:2]
     result = (ROW_PASS, "bounded read-only Subagent probe returned AGY_SMOKE_OK", _agy_runtime_details(copied, "READY"))
     return result if return_details else result[:2]

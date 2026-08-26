@@ -60,7 +60,11 @@ Each receipt event SHALL expose an `event_sha256` over its canonical serialized 
 
 ### Requirement: Receipt identity is strong enough for evidence matching
 
-Receipt matching SHALL treat task ID, attempt ID, scope or diff identity, session identity, and the dispatch tuple as strong bindings when declared. Plan fingerprint, artifact fingerprint, surface, adapter, stage, and producer SHALL be retained as context bindings whose applicability is checked by the consuming phase. A mismatch SHALL fail closed rather than reuse an earlier passing result.
+Receipt matching SHALL treat task ID, attempt ID, scope or diff identity, session identity, and the dispatch tuple as strong bindings when declared. Plan fingerprint, artifact fingerprint, surface, adapter, stage, and producer SHALL be retained as context bindings whose applicability is checked by the consuming phase. Deployment, preflight, and consumer probe evidence SHALL additionally bind the exact source commit/tree, target commit/tree, clean-worktree state, and selected surface set when those fields are available. A mismatch SHALL fail closed rather than reuse an earlier passing result.
+
+Receipts SHALL persist only bounded, redacted diagnostics and session allowlist
+metadata. They MUST NOT contain credential values, OAuth payloads, cookies,
+private keys, arbitrary host HOME contents, or unredacted client output.
 
 #### Scenario: Evidence has a foreign attempt
 
@@ -71,6 +75,16 @@ Receipt matching SHALL treat task ID, attempt ID, scope or diff identity, sessio
 
 - **WHEN** the evidence artifact fingerprint differs from the candidate artifact under verification
 - **THEN** the phase records a stale-evidence failure and does not promote the earlier verdict
+
+#### Scenario: Deployment and probe trees differ
+
+- **WHEN** a consumer probe receipt has a source or target commit/tree that differs from the deployed exact-head receipt
+- **THEN** the probe evidence is rejected as stale and cannot satisfy required-runtime completion
+
+#### Scenario: Receipt contains sensitive runtime output
+
+- **WHEN** a preflight or consumer client emits a credential, OAuth payload, private path, or host overlay marker
+- **THEN** the persisted receipt replaces the sensitive value with a redaction marker and retains only the bounded reason class
 
 ### Requirement: Lifecycle transitions are monotonic and explicit
 

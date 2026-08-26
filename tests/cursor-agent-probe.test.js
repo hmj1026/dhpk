@@ -56,7 +56,8 @@ test('Cursor CLI wrapper emits bounded launch-scoped PASS evidence', () => {
     assert.strictEqual(report.status, 'PASS');
     assert.strictEqual(report.timeout_ms, 1000);
     assert.strictEqual(report.output_limit_bytes, 1024);
-    assert.match(report.diagnostic, /dhpk skills commands agents rules/);
+    assert.match(report.diagnostic, /response.*<redacted>/i);
+    assert.doesNotMatch(report.diagnostic, /dhpk skills commands agents rules/);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

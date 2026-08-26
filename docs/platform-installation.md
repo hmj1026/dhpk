@@ -281,11 +281,20 @@ For Cursor consumer-runtime evidence, use the `cursor-agent` CLI only. The
 portable Agent Plugin route is a single plugin directory:
 
 ```bash
-cursor-agent --plugin-dir <agent-package> --mode ask --trust -p <smoke-prompt> --output-format json
+cursor-agent --plugin-dir <agent-package> --mode ask --trust -p <smoke-prompt> --output-format stream-json --stream-partial-output
 ```
 
 Do not add a Cursor-native directory, Codex marketplace command, or
 agent-plugins.org argument to this portable route.
+
+The authenticated release probe may stage a schema-validated, probe-owned
+Cursor manifest and hook overlay inside its disposable copy solely to attest
+that the single package directory was loaded. The published Agent Plugin
+package remains the portable `plugin.json` plus `skills/` tree, and the overlay
+is removed during probe cleanup. If the Agent package also has optional
+`mcp.json`, that Agent-owned file is omitted from this Cursor-only attestation
+copy; the probe therefore makes no MCP runtime claim and never changes the
+published package.
 
 ## Cursor standard Agent Plugin
 
@@ -349,9 +358,15 @@ cursor-agent \
   --plugin-dir "$HOME/.cursor/plugins/local/dhpk-cursor" \
   --mode ask \
   --trust \
-  -p 'List the dhpk skills, commands, agents, and rules you discover. Do not edit files.' \
-  --output-format json
+  -p 'Read only. Return exactly: dhpk skills commands agents rules loaded. CURSOR_SMOKE_OK. Do not call tools or edit files.' \
+  --output-format stream-json \
+  --stream-partial-output
 ```
+
+`stream-json` is newline-delimited machine-readable output. The probe evaluates
+discovery only from the terminal response event; prompt/tool frames are retained
+as bounded redacted diagnostics for timeout diagnosis and cannot satisfy a
+runtime `PASS` on their own.
 
 The release `--execute` route clones only the allowlisted Cursor login files into
 a disposable HOME and runs the bounded client in a verified bubblewrap namespace.
@@ -374,7 +389,8 @@ cursor-agent \
   --mode ask \
   --trust \
   -p <smoke-prompt> \
-  --output-format json
+  --output-format stream-json \
+  --stream-partial-output
 ```
 
 The wrapper also passes `--trust` so a launch-scoped probe does not wait for
@@ -608,7 +624,9 @@ those files into a disposable HOME, mounts the package read-only, and enables
 network sharing only for the runtime invocation. Missing login is `BLOCKED`;
 missing `agy` or `bwrap` is `UNAVAILABLE`; runtime is `NOT_RUN` unless
 `--agy-runtime-probe` is explicitly used. Runtime diagnostics are bounded and
-redacted, and no host credential contents are recorded.
+redacted, and no host credential contents are recorded. AGY free-form client
+output is reduced to a fixed reason-class placeholder, so private paths,
+prompts, tool payloads, and host overlay markers are not persisted.
 
 `agy plugins list` reports import records only. A native receipt-owned package
 at `~/.gemini/config/plugins/dhpk` is discovered by isolated `agy agents`, not

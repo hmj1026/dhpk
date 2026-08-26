@@ -27,6 +27,8 @@ const DEFAULT_CODEX_PROBE_TIMEOUT_MS = 30_000;
 const MAX_CODEX_PROBE_TIMEOUT_MS = 5 * 60 * 1000;
 const DEFAULT_CODEX_PROBE_MAX_OUTPUT_BYTES = 256 * 1024;
 const MAX_CODEX_PROBE_OUTPUT_BYTES = 4 * 1024 * 1024;
+const CURSOR_DISCOVERY_PROMPT = 'Read only. Return exactly: dhpk skills commands agents rules loaded. CURSOR_SMOKE_OK. Do not call tools or edit files.';
+const CURSOR_STREAM_OUTPUT_FLAGS = ['--output-format', 'stream-json', '--stream-partial-output'];
 
 function parseArgs(argv) {
   const args = { execute: false };
@@ -258,7 +260,7 @@ function runCursorProbe(root, execute = false) {
     };
   }
 
-  const command = 'cursor-agent --plugin-dir <agent-package> --plugin-dir <cursor-package> --mode ask --trust -p <smoke-prompt> --output-format json';
+  const command = 'cursor-agent --plugin-dir <agent-package> --plugin-dir <cursor-package> --mode ask --trust -p <smoke-prompt> --output-format stream-json --stream-partial-output';
   const agentRoot = path.join(path.dirname(root), 'dhpk-agent');
   const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-consumer-'));
   const stagedAgent = path.join(sandbox, 'agent-plugin');
@@ -297,13 +299,16 @@ function runCursorProbe(root, execute = false) {
         '--plugin-dir', stagedCursor,
         '--mode', 'ask',
         '--trust',
-        '-p', 'List the dhpk skills, commands, agents, and rules you discover. Do not edit files.',
-        '--output-format', 'json',
+        '-p', CURSOR_DISCOVERY_PROMPT,
+        ...CURSOR_STREAM_OUTPUT_FLAGS,
       ],
       cwd: workspace,
       requireOutput: true,
       requireJson: true,
       requireDiscovery: true,
+      // Cursor owns agents/commands/rules here; skills are intentionally
+      // supplied by the companion Agent Plugin projection.
+      requiredLoaderComponents: ['agents', 'commands', 'rules'],
       requirePackageChallenge: true,
       networkMode: 'shared',
     });
@@ -329,7 +334,7 @@ function runAgentPluginProbe(root, execute = false) {
     };
   }
 
-  const command = 'cursor-agent --plugin-dir <agent-package> --mode ask --trust -p <smoke-prompt> --output-format json';
+  const command = 'cursor-agent --plugin-dir <agent-package> --mode ask --trust -p <smoke-prompt> --output-format stream-json --stream-partial-output';
   const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-agent-consumer-'));
   const stagedRoot = path.join(sandbox, 'agent-plugin');
   const workspace = path.join(sandbox, 'workspace');
@@ -344,16 +349,19 @@ function runAgentPluginProbe(root, execute = false) {
         '--plugin-dir', stagedRoot,
         '--mode', 'ask',
         '--trust',
-        '-p', 'Read the portable dhpk Agent Plugin package and return a bounded smoke response. Do not edit files.',
-        '--output-format', 'json',
+        '-p', CURSOR_DISCOVERY_PROMPT,
+        ...CURSOR_STREAM_OUTPUT_FLAGS,
       ],
       cwd: workspace,
       requireOutput: true,
       requireJson: true,
       requireDiscovery: true,
       requiredDiscoveryCapabilities: ['dhpk', 'skill'],
-      requiredLoaderComponents: ['skills'],
+      // The portable package has no native Cursor manifest. The probe stages
+      // a validated, temporary Cursor manifest solely for loader attestation;
+      // the client still receives exactly one --plugin-dir.
       requirePackageChallenge: true,
+      loaderOverlay: true,
       networkMode: 'shared',
     });
     return {

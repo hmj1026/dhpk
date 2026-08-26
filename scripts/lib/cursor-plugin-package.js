@@ -58,6 +58,16 @@ const CURSOR_PROBE_REASON_CODES = Object.freeze([
   'NO_OUTPUT',
   'PROBE_FAILED',
 ]);
+const CURSOR_STREAM_EVENT_TYPES = Object.freeze([
+  'system', 'user', 'assistant', 'thinking', 'tool_call', 'tool_result', 'result',
+]);
+const CURSOR_STREAM_FRAME_KEYS = Object.freeze([
+  'progress', 'stream', 'delta', 'partial', 'event', 'chunk',
+]);
+const CURSOR_DIAGNOSTIC_SAFE_KEYS = new Set([
+  'type', 'subtype', 'status', 'code', 'is_error', 'signal', 'exit_code', 'reason_code', 'response',
+]);
+const CURSOR_DIAGNOSTIC_SENSITIVE_KEYS = /^(?:session[_-]?id|request[_-]?id|event[_-]?id|timestamp(?:[_-]?(?:ms|us|ns))?|created[_-]?at|updated[_-]?at|prompt|message|content|input|arguments|tool|tool[_-]?(?:call|result)|result|response|output|stdout|stderr)$/i;
 const SANDBOX_PREFLIGHT_TIMEOUT_MS = 2_000;
 const MAX_OPERATOR_STAGE_ENTRIES = 20_000;
 const MAX_OPERATOR_STAGE_BYTES = 128 * 1024 * 1024;
@@ -1444,6 +1454,12 @@ function positiveProbeLimit(value, fallback, label, maximum) {
   return numeric;
 }
 
+function isCursorStreamEvent(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  return CURSOR_STREAM_FRAME_KEYS.some((key) => Object.prototype.hasOwnProperty.call(value, key))
+    || CURSOR_STREAM_EVENT_TYPES.includes(String(value.type || '').toLowerCase());
+}
+
 function cursorStreamFrame(output) {
   const text = String(output || '').trim();
   if (!text) return false;
@@ -1452,8 +1468,7 @@ function cursorStreamFrame(output) {
     if (!trimmed) continue;
     try {
       const parsed = JSON.parse(trimmed);
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)
-        && ['progress', 'stream', 'delta', 'partial', 'event', 'chunk'].some((key) => Object.prototype.hasOwnProperty.call(parsed, key))) {
+      if (isCursorStreamEvent(parsed)) {
         return true;
       }
     } catch (_) {
@@ -1461,6 +1476,40 @@ function cursorStreamFrame(output) {
     }
   }
   return false;
+}
+
+function parseCursorStreamOutput(output) {
+  const text = String(output || '').trim();
+  const events = [];
+  for (const line of text.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) events.push(parsed);
+    } catch (_) {
+      // Stream mode is line-delimited JSON; malformed progress is retained in
+      // the bounded diagnostic but cannot satisfy a JSON response contract.
+    }
+  }
+  const terminal = events.slice().reverse().find((event) => (
+    String(event.type || '').toLowerCase() === 'result'
+  ));
+  if (terminal) {
+    const responseText = typeof terminal.result === 'string'
+      ? terminal.result
+      : terminal.result === undefined || terminal.result === null
+        ? ''
+        : JSON.stringify(terminal.result);
+    return { events, parsed: terminal, responseText };
+  }
+  // A few older/fixture clients accept the stream flag but still emit one
+  // JSON object. Keep that compatibility path without treating arbitrary
+  // prompt/tool frames as the response.
+  if (events.length === 1 && text && !isCursorStreamEvent(events[0])) {
+    return { events, parsed: events[0], responseText: text };
+  }
+  return { events, parsed: null, responseText: '' };
 }
 
 function cursorReasonCode(result) {
@@ -1543,9 +1592,44 @@ function commandVersionForProbe(executable) {
   }
 }
 
+function scrubCursorDiagnosticValue(value, key = '', depth = 0) {
+  if (CURSOR_DIAGNOSTIC_SENSITIVE_KEYS.test(String(key))) return '<redacted>';
+  if (depth > 4) return '<redacted-depth>';
+  if (Array.isArray(value)) return value.slice(0, 32).map((entry) => scrubCursorDiagnosticValue(entry, key, depth + 1));
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.keys(value)
+      .filter((childKey) => CURSOR_DIAGNOSTIC_SAFE_KEYS.has(childKey))
+      .map((childKey) => [childKey, scrubCursorDiagnosticValue(value[childKey], childKey, depth + 1)]));
+  }
+  if (typeof value === 'string') return redactSensitiveText(value, { maxLength: 160 });
+  return value;
+}
+
+function redactCursorDiagnostic(value, { maxLength = CURSOR_PROBE_DIAGNOSTIC_MAX_LENGTH } = {}) {
+  if (value === undefined || value === null) return null;
+  const text = String(value).trim();
+  if (!text) return null;
+  const lines = text.split(/\r?\n/).filter((line) => line.trim());
+  const sanitized = lines.map((line) => {
+    const trimmed = line.trim();
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        return JSON.stringify(scrubCursorDiagnosticValue(parsed));
+      }
+    } catch (_) {
+      // Non-JSON client output is not an observable contract. Do not preserve
+      // arbitrary plain text after token redaction because it may still carry
+      // prompts, tool payloads, paths, or provider metadata.
+    }
+    return '<redacted-client-output>';
+  }).join('\n');
+  return redactSensitiveText(sanitized, { maxLength });
+}
+
 function probeDiagnostic(result) {
   const output = `${result && result.stdout ? result.stdout : ''}\n${result && result.stderr ? result.stderr : ''}`.trim();
-  return output ? redactSensitiveText(output, { maxLength: CURSOR_PROBE_DIAGNOSTIC_MAX_LENGTH }) : null;
+  return output ? redactCursorDiagnostic(output) : null;
 }
 
 function cursorAuthenticationRequired(result) {
@@ -1586,9 +1670,14 @@ function cursorProbeEnvironment(packageRoot, { probeHome } = {}) {
   return env;
 }
 
-function packageLoaderProbe(packageRoot, challenge) {
-  const probePackageRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-package-'));
+function packageLoaderProbe(packageRoot, challenge, { addCursorManifest = false } = {}) {
+  // Cursor refuses to load plugins whose root is directly under the shared
+  // system temporary directory. Keep both the container and staged package
+  // private so the real CLI can execute the probe-owned hook.
+  const probeContainerRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-package-'));
+  const probePackageRoot = path.join(probeContainerRoot, 'package');
   try {
+    fs.mkdirSync(probePackageRoot, { recursive: true, mode: 0o700 });
     assertPhysicalPackageRoot(packageRoot, 'Cursor probe package');
     fs.cpSync(packageRoot, probePackageRoot, { recursive: true, dereference: false });
     assertPhysicalPackageRoot(probePackageRoot, 'staged Cursor probe package');
@@ -1610,12 +1699,15 @@ function packageLoaderProbe(packageRoot, challenge) {
     ].join('\n') + '\n';
     const loaderPath = path.join(commandRoot, 'dhpk-probe.js');
     fs.writeFileSync(loaderPath, loader, { mode: 0o700 });
-    let hooks = { hooks: {} };
+    // Cursor's plugin hook loader requires the explicit v1 schema marker when
+    // it parses a generated hooks file.  Keep the probe-owned overlay in that
+    // format even when the canonical package omits hooks or uses Claude shape.
+    let hooks = { version: 1, hooks: {} };
     const hooksPath = path.join(hooksRoot, 'hooks.json');
     try {
       const parsed = JSON.parse(fs.readFileSync(hooksPath, 'utf8'));
       if (parsed && parsed.hooks && typeof parsed.hooks === 'object' && !Array.isArray(parsed.hooks)) {
-        hooks = { hooks: { ...parsed.hooks } };
+        hooks = { version: 1, hooks: { ...parsed.hooks } };
       }
     } catch (_) {
       // The package validator owns malformed canonical hooks; the probe must
@@ -1626,9 +1718,32 @@ function packageLoaderProbe(packageRoot, challenge) {
       { command: './hooks/commands/dhpk-probe.js' },
     ];
     fs.writeFileSync(hooksPath, `${JSON.stringify(hooks, null, 2)}\n`, { mode: 0o600 });
-    return { packageRoot: probePackageRoot, attestationPath, challengePath };
+    if (addCursorManifest) {
+      // `mcp.json` is an Agent Plugin-owned optional surface. Cursor's native
+      // validator intentionally rejects that file until its transport schema
+      // is closed, so keep it out of the disposable Cursor attestation copy;
+      // the published Agent package is never modified or stripped.
+      const portableMcpPath = path.join(probePackageRoot, 'mcp.json');
+      if (fs.existsSync(portableMcpPath)) fs.rmSync(portableMcpPath, { force: true });
+      const cursorManifestRoot = path.join(probePackageRoot, '.cursor-plugin');
+      fs.mkdirSync(cursorManifestRoot, { recursive: true, mode: 0o700 });
+      fs.writeFileSync(path.join(cursorManifestRoot, 'plugin.json'), `${JSON.stringify({
+        name: 'dhpk-probe-agent',
+        version: '1.0.0',
+        description: 'Temporary Cursor loader attestation overlay for the portable Agent Plugin probe.',
+        hooks: './hooks/hooks.json',
+      }, null, 2)}\n`, { mode: 0o600 });
+      fs.writeFileSync(path.join(cursorManifestRoot, 'marketplace.json'), `${JSON.stringify({
+        name: 'dhpk-probe',
+        owner: { name: 'dhpk' },
+        plugins: [{ name: 'dhpk-probe-agent', source: '.' }],
+      }, null, 2)}\n`, { mode: 0o600 });
+      const validation = validateCursorPackage({ packageRoot: probePackageRoot, expectedManifestName: 'dhpk-probe-agent' });
+      if (!validation.ok) throw new Error(`probe Cursor loader overlay is invalid: ${validation.errors.join('; ')}`);
+    }
+    return { packageRoot: probePackageRoot, attestationPath, challengePath, cleanupRoot: probeContainerRoot };
   } catch (error) {
-    fs.rmSync(probePackageRoot, { recursive: true, force: true });
+    fs.rmSync(probeContainerRoot, { recursive: true, force: true });
     throw error;
   }
 }
@@ -1820,6 +1935,7 @@ function runCursorConsumerProbeRaw({
   requiredDiscoveryCapabilities = null,
   requiredLoaderComponents = null,
   requirePackageChallenge = false,
+  loaderOverlay = false,
   allowUnauthenticatedFixture = false,
   networkMode = 'unrestricted',
   cwd = null,
@@ -1831,8 +1947,12 @@ function runCursorConsumerProbeRaw({
   // Validate caller-controlled limits before resolving/invoking any client.
   const probeTimeoutMs = positiveProbeLimit(timeoutMs, DEFAULT_CURSOR_PROBE_TIMEOUT_MS, 'timeoutMs', MAX_CURSOR_PROBE_TIMEOUT_MS);
   const probeMaxOutputBytes = positiveProbeLimit(maxOutputBytes, DEFAULT_CURSOR_PROBE_MAX_OUTPUT_BYTES, 'maxOutputBytes', MAX_CURSOR_PROBE_OUTPUT_BYTES);
+  const outputFormatIndex = Array.isArray(args) ? args.indexOf('--output-format') : -1;
+  const outputFormat = outputFormatIndex >= 0 ? String(args[outputFormatIndex + 1] || '').toLowerCase() : '';
+  const streamOutput = outputFormat === 'stream-json';
   if (!packageRoot || !fs.existsSync(packageRoot)) return { surface: 'cursor-plugin', status: 'BLOCKED', reason: 'Cursor package is missing' };
-  if (requirePackageChallenge) {
+  const authenticatedSessionRequired = requirePackageChallenge;
+  if (authenticatedSessionRequired) {
     try {
       assertPhysicalPackageRoot(path.resolve(packageRoot), 'Cursor consumer package');
     } catch (error) {
@@ -1868,7 +1988,7 @@ function runCursorConsumerProbeRaw({
       network: 'unknown',
     };
   }
-  if (requirePackageChallenge && !['disabled', 'shared'].includes(networkMode)) {
+  if (authenticatedSessionRequired && !['disabled', 'shared'].includes(networkMode)) {
     return {
       surface: 'cursor-plugin',
       status: 'BLOCKED',
@@ -1902,7 +2022,7 @@ function runCursorConsumerProbeRaw({
   let loaderProbe = null;
   try {
     session = cloneCursorSessionFiles({ hostHome, probeHome });
-    if (requirePackageChallenge && !session.copiedFiles.includes('.config/cursor/auth.json')) {
+    if (authenticatedSessionRequired && !session.copiedFiles.includes('.config/cursor/auth.json')) {
       return {
         surface: 'cursor-plugin',
         status: 'BLOCKED',
@@ -1911,7 +2031,7 @@ function runCursorConsumerProbeRaw({
         session_files: session.copiedFiles,
       };
     }
-    loaderProbe = challenge ? packageLoaderProbe(packageRoot, challenge) : null;
+    loaderProbe = challenge ? packageLoaderProbe(packageRoot, challenge, { addCursorManifest: loaderOverlay }) : null;
     const probeArgs = [...args].map((arg) => {
       if (!loaderProbe || typeof arg !== 'string') return arg;
       return path.resolve(arg) === path.resolve(packageRoot) ? loaderProbe.packageRoot : arg;
@@ -1931,7 +2051,7 @@ function runCursorConsumerProbeRaw({
       spawnOptions.env && spawnOptions.env.HOME,
       loaderProbe && loaderProbe.packageRoot,
     ];
-    const privateRoot = ['disabled', 'shared'].includes(networkMode) || requirePackageChallenge ? os.tmpdir() : null;
+    const privateRoot = ['disabled', 'shared'].includes(networkMode) || authenticatedSessionRequired ? os.tmpdir() : null;
     let result;
     if (privateRoot && !safeWritablePaths(writablePaths, privateRoot)) {
       result = {
@@ -1948,7 +2068,7 @@ function runCursorConsumerProbeRaw({
         // fixture-only override remains available only for the legacy
         // network-disabled route; a shared-network request must never fall
         // back to an unrestricted process.
-        if (networkMode === 'disabled' && !requirePackageChallenge && process.env.DHPK_CONSUMER_PROBE_ALLOW_UNSANDBOXED_EXECUTION === '1') {
+        if (networkMode === 'disabled' && !authenticatedSessionRequired && process.env.DHPK_CONSUMER_PROBE_ALLOW_UNSANDBOXED_EXECUTION === '1') {
           result = { ...spawnSync(client, probeArgs, spawnOptions), network: 'unrestricted' };
         } else {
           result = {
@@ -1988,6 +2108,7 @@ function runCursorConsumerProbeRaw({
       network: result.network || networkMode,
       timeout_ms: probeTimeoutMs,
       output_limit_bytes: probeMaxOutputBytes,
+      output_format: outputFormat || null,
       session_files: session.copiedFiles,
       exit_code: result.status === undefined ? null : result.status,
       signal: result.signal || null,
@@ -2039,7 +2160,7 @@ function runCursorConsumerProbeRaw({
       const diagnostic = probeDiagnostic({ stderr: result.error.message }) || 'unknown invocation error';
       return { surface: 'cursor-plugin', status: 'UNAVAILABLE', reason: `Cursor consumer invocation unavailable: ${diagnostic}`, ...evidence };
     }
-    if (requirePackageChallenge && !session.copiedFiles.includes('.config/cursor/auth.json')) {
+    if (authenticatedSessionRequired && !session.copiedFiles.includes('.config/cursor/auth.json')) {
       return { surface: 'cursor-plugin', status: 'BLOCKED', reason: 'Cursor consumer login session is unavailable; auth.json is required', ...evidence };
     }
     if (!allowUnauthenticatedFixture && session.copiedFiles.length === 0) {
@@ -2054,13 +2175,25 @@ function runCursorConsumerProbeRaw({
       }
       return { surface: 'cursor-plugin', status: 'FAIL', reason: `Cursor consumer exited with status ${result.status}`, exit_code: result.status, ...evidence };
     }
-    const output = `${result.stdout || ''}\n${result.stderr || ''}`.trim();
+    const streamResponse = streamOutput ? parseCursorStreamOutput(result.stdout || '') : null;
+    const responseText = streamOutput && streamResponse
+      ? streamResponse.responseText
+      : String(result.stdout || '').trim();
+    // Discovery is evaluated against the assistant's response, not raw
+    // stream frames. Cursor NDJSON includes the user's prompt and tool calls;
+    // counting those would allow an unloaded package to look discovered.
+    const output = `${responseText}\n${result.stderr || ''}`.trim();
     if (requireOutput && !output) {
       return { surface: 'cursor-plugin', status: 'BLOCKED', reason: 'Cursor consumer returned success without a response payload', output_missing: true, ...evidence };
     }
     let parsed = null;
     if (requireJson) {
-      try { parsed = JSON.parse(String(result.stdout || '').trim()); } catch (_) {
+      try {
+        parsed = streamOutput && streamResponse
+          ? streamResponse.parsed
+          : JSON.parse(String(result.stdout || '').trim());
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('missing JSON response');
+      } catch (_) {
         return { surface: 'cursor-plugin', status: 'BLOCKED', reason: 'Cursor consumer response was not valid JSON', response_invalid: true, ...evidence };
       }
     }
@@ -2117,7 +2250,7 @@ function runCursorConsumerProbeRaw({
   } finally {
     fs.rmSync(probeHome, { recursive: true, force: true });
     if (loaderProbe) {
-      try { fs.rmSync(loaderProbe.packageRoot, { recursive: true, force: true }); } catch (_) { /* best-effort cleanup */ }
+      try { fs.rmSync(loaderProbe.cleanupRoot || loaderProbe.packageRoot, { recursive: true, force: true }); } catch (_) { /* best-effort cleanup */ }
     }
   }
 }
@@ -2152,6 +2285,7 @@ module.exports = {
   CURSOR_PROBE_REASON_CODES,
   cursorReasonCode,
   cursorStreamFrame,
+  parseCursorStreamOutput,
   preflightCursorConsumer,
   runCursorConsumerProbe,
   isSafeRelativePath,
