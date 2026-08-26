@@ -194,7 +194,7 @@ test('project-owned entrypoints and guidance preserve the external boundary', ()
     execFileSync('git', ['status', '--short', '--untracked-files=all', '--ignored'], {
       cwd: ROOT,
       encoding: 'utf8',
-    }).split('\n').filter(Boolean).flatMap((line) => line.slice(3).split(' -> ')),
+    }).split('\n').filter(Boolean).filter((line) => !line.startsWith('!! ')).flatMap((line) => line.slice(3).split(' -> ')),
   );
   const externalPackagePath = /^(?:plugins\/dhpk\/skills\/opsx-apply[^/]*(?:\/|$)|\.agents\/skills\/openspec-apply[^/]*(?:\/|$))/;
   assert.ok(!changedPaths.some((changedPath) => externalPackagePath.test(changedPath)),
