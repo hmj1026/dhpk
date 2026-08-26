@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.48.1 — 2026-08-26 — Handle unavailable harness facade preflight outcomes as non-blocking in the release workflow
+
+**fix(ci)** — Handle unavailable harness facade preflight outcomes as non-blocking in the release workflow.
+
 ## 0.48.0 — 2026-08-26 — Add exact-head consumer-runner preflight diagnostics and embed opsx orchestration decision policy
 
 **feat(consumer-runtime)** — Add exact-head consumer-runner preflight diagnostics while keeping authenticated runtime evidence fail-closed.
