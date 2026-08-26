@@ -113,4 +113,15 @@ test('consumer-verify keeps pending evidence green but fails unhealthy or blocke
   assert.ok(/Unexpected consumer verification outcome[\s\S]{0,120}exit 1/.test(consumerBlock), 'unknown evidence must fail closed');
 });
 
+test('release preflight step classifies UNAVAILABLE outcome as non-blocking on standard runner', () => {
+  const preflightIdx = raw.indexOf('Verify harness facade preflight');
+  assert.ok(preflightIdx !== -1, 'missing Verify harness facade preflight step');
+  const createIdx = raw.indexOf('gh release create');
+  assert.ok(preflightIdx < createIdx, 'preflight must run before creating the GitHub release');
+  const preflightBlock = raw.slice(preflightIdx, raw.indexOf('Verify generated platform packages'));
+  assert.ok(preflightBlock.includes('UNAVAILABLE'), 'preflight step must explicitly handle UNAVAILABLE outcome');
+  assert.ok(preflightBlock.includes('BLOCKED'), 'preflight step must explicitly handle BLOCKED outcome');
+  assert.ok(preflightBlock.includes('PIPESTATUS'), 'preflight step must capture exit code from pipe');
+});
+
 run('release-workflow');
