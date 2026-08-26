@@ -44,6 +44,6 @@ This project is indexed by GitNexus as **dhpk** (28808 symbols, 36453 relationsh
 
 ## Further guidance
 
-- [Agent guidance index](docs/agent-guidance/README.md), [plugin development](docs/agent-guidance/plugin-development.md), and [writing for agents](docs/agent-guidance/writing-for-agents.md); see [Codex guidance](codex/AGENTS.md) and [issue-tracker.md](docs/agents/issue-tracker.md).
+- [Agent guidance index](docs/agent-guidance/README.md), [plugin development](docs/agent-guidance/plugin-development.md), and [writing for agents](docs/agent-guidance/writing-for-agents.md); see [Codex guidance](codex/AGENTS.md) and [issue-tracker.md](docs/agents/issue-tracker.md). Implementation orchestration follows the canonical [execution policy](rules/execution-policy.md): record decision state, use the read-only reasoner contract before a writer when required, preserve planner/review/CI/archive/PR checkpoints, and leave external `/opsx:apply` unchanged.
 - Triage labels: use `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, and `wontfix`; see [triage-labels.md](docs/agents/triage-labels.md).
 - Domain context: read the root `CONTEXT.md` or `CONTEXT-MAP.md`, plus relevant ADRs; see [domain.md](docs/agents/domain.md).

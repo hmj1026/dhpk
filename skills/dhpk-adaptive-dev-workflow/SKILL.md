@@ -32,6 +32,7 @@ metadata:
 5. Feature and Bug work stay on their selected branch through implementation;
    shared test, freshness, review, and handoff rules live in the execution-policy
    delivery-loop reference。
+6. Follow `rules/execution-policy.md` §Orchestration decision policy: unresolved non-trivial choices require the read-only reasoner contract before a writer; OpenSpec applies with two or more unchecked tasks require a planner, while one clear task records `planner=skipped`.
 
 ## Wayfinder checkpoint
 
@@ -96,7 +97,7 @@ regression test → minimal fix**，再走 shared delivery loop
 1. **Triage**：確認是前置決策問題，否則指出正確 handoff。
 2. **Classify**：選出恰好一個 workflow type，並記錄理由。
 3. **Load**：只載入該類型和請求需要的 references，標記 required/skipped artifacts。
-4. **Plan**：立即執行必要 planning dispatch；規則見 [dispatch-and-gates](references/dispatch-and-gates.md)。
+4. **Plan**：立即執行必要 planning dispatch；OpenSpec 有兩個以上未勾選 task 時 planner 必要，單一 clear task 記錄 `planner=skipped`；規則見 [dispatch-and-gates](references/dispatch-and-gates.md) 與 canonical execution-policy。
 5. **Execute**：依選定 branch reference；Feature/Bug 共用 `delivery-loop-gate`，Lightweight 直接 inspect → patch。
 6. **Report**：輸出 workflow、理由、artifacts、gates、next step 與 post-implementation checklist。
 7. **Handoff**：apply-ready 指向下一流程；blocker 停在實作前並給唯一 next skill/command。

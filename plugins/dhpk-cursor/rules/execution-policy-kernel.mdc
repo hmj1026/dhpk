@@ -39,6 +39,20 @@ evidence, and an explicit record of skipped, unavailable, blocked, or
 environment-dependent checks. A pending reviewer, unresolved gate, or
 unverified runtime premise remains open.
 
+## OpenSpec planner gate
+
+Before the first write wave of an existing OpenSpec apply, count the unchecked
+tasks in the task artifact. If there are `>=2` unchecked tasks (two or more), a
+`planner` dispatch is mandatory before any writer starts. Record the planner's
+actionable handoff with the dependency order, the exact owner and write scope
+for each task, and the next checkpoint; an unrecorded or incomplete planner
+handoff does not authorize a write wave. If exactly one clear task remains,
+record `planner=skipped` and continue through the normal decision, writer, and
+verification gates. This planner gate is a lifecycle invariant: it remains
+active when `orchestration_dispatch=off`, which disables implementation
+worker/reasoner routing but does not bypass mandatory pre-write planning or
+verification.
+
 ## Conditional references
 
 Load only the references needed by the selected route:

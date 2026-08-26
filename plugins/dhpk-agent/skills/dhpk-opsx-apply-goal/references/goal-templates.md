@@ -31,6 +31,10 @@ orientation read;
 they are NOT restated here. When the kernel or selected reference is unresolvable, the session
 proceeds on this condition's own inline gates.
 
+The orientation binds the project-owned orchestration decision policy, including
+the planner and reasoner gates, through the execution-policy kernel and selected
+route reference.
+
 The generator resolves CLI backend choice through the policy selector and
 substitutes a compact `<FAST_WORKER_CLAUSE>` that states the effective backend
 and fallback order in every generated `DISPATCH_ON=true` goal. The clause — and
@@ -46,10 +50,12 @@ journey rarely appears mid-session, whereas mechanical work routinely does, and
 dropping the segment left the goal stating the ≥3 files → one batch rule from
 Part 0 without naming the agent to dispatch.
 
-**`DISPATCH_ON=false`** (`orchestration_dispatch=off`) — no dispatch clause:
+**`DISPATCH_ON=false`** (`orchestration_dispatch=off`) — no implementation
+dispatch clause; the mandatory multi-task OpenSpec planner gate remains active:
 ```
 First run ONE Bash orientation command — `p=${CLAUDE_PLUGIN_ROOT:-$(ls -dt ~/.claude/plugins/cache/dhpk/dhpk/* 2>/dev/null|head -1)}; q(){ cat "$p/$1" 2>/dev/null||{ test -r ./.claude-plugin/plugin.json&&cat "./$1";};}; q rules/execution-policy-kernel.md||echo POLICY-UNRESOLVED` — reads the
-compact dhpk execution-policy kernel; never filesystem-scan; every reviewer dispatch (even
+compact dhpk execution-policy kernel (including the mandatory planner gate that
+remains active in off mode); never filesystem-scan; every reviewer dispatch (even
 confirm-only) still gets a fresh .claude/artifacts/reviews/ artifact, never
 reply-only — then invoke the Skill tool
 with the canonical ID `openspec-apply-change` for change <CHANGE_ID> and
