@@ -121,7 +121,7 @@ test('release preflight step classifies UNAVAILABLE outcome as non-blocking on s
   const preflightBlock = raw.slice(preflightIdx, raw.indexOf('Verify generated platform packages'));
   assert.ok(preflightBlock.includes('UNAVAILABLE'), 'preflight step must explicitly handle UNAVAILABLE outcome');
   assert.ok(preflightBlock.includes('BLOCKED'), 'preflight step must explicitly handle BLOCKED outcome');
-  assert.ok(preflightBlock.includes('PIPESTATUS'), 'preflight step must capture exit code from pipe');
+  assert.ok(preflightBlock.includes('preflight_exit'), 'preflight step must capture exit code');
 });
 
 run('release-workflow');

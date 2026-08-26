@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.48.2 — 2026-08-26 — Run harness preflight and consumer verification without creating untracked files in the working directory
+
+**fix(release-workflow)** — Run harness preflight and consumer verification without creating untracked files in the working directory.
+
 ## 0.48.1 — 2026-08-26 — Handle unavailable harness facade preflight outcomes as non-blocking in the release workflow
 
 **fix(ci)** — Handle unavailable harness facade preflight outcomes as non-blocking in the release workflow.

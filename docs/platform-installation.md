@@ -122,7 +122,7 @@ evidence and deliberately returns `runtime: NOT_RUN` unless a separate
 client-specific probe is executed.
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.48.1 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.48.2 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -559,7 +559,7 @@ agent frontmatter and never rewrites `agents/`. Generate and validate it from
 the dhpk checkout:
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.48.1 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.48.2 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
