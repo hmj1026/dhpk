@@ -9,16 +9,16 @@ and stage-bound verification contracts used by generated distribution surfaces.
 
 ### Requirement: Distribution compilation is pure and deterministic
 
-The distribution layer SHALL expose a single `compileDistribution(inputs) -> DistributionPlan` contract. Compilation MUST validate boundary inputs, accept all selection context explicitly (including an optional profile selector), select entries only from the distribution inventory, resolve declared transforms and ownership, and return an immutable plan without reading undeclared ambient state or writing to the filesystem. Equivalent normalized inputs MUST produce the same plan fingerprint and ordered output intents.
+The distribution layer SHALL expose a single `compileDistribution(inputs) -> DistributionPlan` contract. Compilation MUST validate boundary inputs, accept all selection context explicitly (including profile ID, stable-ID allowlist, compatibility mode, and selection-policy version), select entries only from the distribution inventory, resolve declared transforms and ownership, and return an immutable plan without reading undeclared ambient state or writing to the filesystem. Equivalent normalized inputs MUST produce the same plan and selection fingerprints and ordered output intents.
 
 #### Scenario: Equivalent inputs compile identically
 
-- **WHEN** canonical source fingerprints, inventory data, projection rules, profile selection, and compiler version are unchanged
-- **THEN** repeated compilation returns byte-equivalent normalized plans with the same plan fingerprint
+- **WHEN** canonical source fingerprints, inventory data, projection rules, profile selection, compatibility mode, and compiler version are unchanged
+- **THEN** repeated compilation returns byte-equivalent normalized plans with the same plan and selection fingerprints
 
 #### Scenario: Profile selection is undeclared
 
-- **WHEN** a profile-aware adapter chooses membership without passing the normalized profile selector and its closure to compilation
+- **WHEN** a profile-aware adapter chooses membership without passing the normalized profile selector, stable-ID allowlist, and its closure to compilation
 - **THEN** compilation rejects the boundary input and produces no materialization plan
 
 #### Scenario: Compilation attempts an undeclared selection
@@ -33,16 +33,16 @@ The distribution layer SHALL expose a single `compileDistribution(inputs) -> Dis
 
 ### Requirement: Distribution plans carry complete projection intent
 
-A `DistributionPlan` SHALL carry its schema/compiler version, input and inventory fingerprints, target surface, normalized selection/profile identity, ordered stable IDs, canonical source identities, transforms, physical ownership, normalized destination paths, content fingerprints, and symlink policy. The plan MUST contain enough information for materialization to execute without re-selecting packages or inventing projection policy.
+A `DistributionPlan` SHALL carry its schema/compiler version, input and inventory fingerprints, target surface, normalized profile/compatibility identity, ordered canonical selected stable IDs, any declared emitted stable-ID set, selection-policy and selection fingerprints, canonical source identities, transforms, physical ownership, normalized destination paths, content fingerprints, and symlink policy. The canonical selection fingerprint SHALL subsume the normalized profile definition, inventory/source inputs, policy version, and canonical ordered IDs; a surface selection fingerprint MAY additionally bind emitted IDs and the surface transform. The plan MUST contain enough information for materialization and atomic activation to execute without re-selecting packages or inventing projection policy.
 
 #### Scenario: Materializer receives a complete plan
 
-- **WHEN** a valid profile or unscoped plan is passed to materialization
-- **THEN** every output path, owner, transform, selected stable ID, expected content fingerprint, profile identity, and link policy is already declared in the plan
+- **WHEN** a valid profile or compatibility plan is passed to materialization
+- **THEN** every output path, owner, transform, canonical/emitted stable ID, expected content fingerprint, profile/selection identity, and link policy is already declared in the plan
 
 #### Scenario: Plan omits projection provenance
 
-- **WHEN** an output intent lacks a stable source ID, canonical source identity, selection/profile identity, transform identity, or expected fingerprint
+- **WHEN** an output intent lacks a stable source ID, canonical source identity, profile/selection identity, transform identity, or expected fingerprint
 - **THEN** compilation returns a structured incomplete-plan error before any output can be written
 
 #### Scenario: Adapter emits metadata not in the plan
@@ -52,12 +52,12 @@ A `DistributionPlan` SHALL carry its schema/compiler version, input and inventor
 
 ### Requirement: Materialization is isolated behind ProjectionArtifactStore
 
-The distribution layer SHALL expose `materializeDistribution(plan, adapter, artifactStore) -> DistributionArtifact`. `ProjectionArtifactStore` SHALL be the only projection-pipeline port permitted to create directories, write files, create permitted links, stage outputs, replace generated roots, or calculate post-write filesystem observations. The materializer MUST follow the plan exactly; it MUST NOT perform inventory selection, consumer verification, or direct filesystem mutation outside the artifact store.
+The distribution layer SHALL expose `materializeDistribution(plan, adapter, artifactStore) -> DistributionArtifact`. `ProjectionArtifactStore` SHALL be the only projection-pipeline port permitted to create directories, write files, create permitted links, stage outputs, replace generated roots, or calculate post-write filesystem observations. The materializer MUST follow the plan exactly, MUST NOT perform inventory selection, consumer verification, or active-root replacement, and MUST return a complete staged candidate for a separate activation gate to evaluate.
 
 #### Scenario: Plan materializes successfully
 
 - **WHEN** the adapter renders every planned output and the artifact store confirms the staged writes match the plan
-- **THEN** materialization returns a `DistributionArtifact` bound to the plan fingerprint and containing the physical output manifest and observed fingerprints
+- **THEN** materialization returns a staged `DistributionArtifact` bound to the plan and selection fingerprints and containing the physical output manifest and observed fingerprints without changing the active root
 
 #### Scenario: Adapter emits an unplanned output
 
@@ -66,8 +66,13 @@ The distribution layer SHALL expose `materializeDistribution(plan, adapter, arti
 
 #### Scenario: Materialization fails before publication
 
-- **WHEN** a write, link, digest, or atomic replacement fails in the staging area
-- **THEN** the previously accepted generated surface remains intact and the result identifies the failed planned output
+- **WHEN** a write, link, digest, receipt, or atomic replacement fails in the staging area
+- **THEN** the previously accepted generated surface and active receipt remain intact and the result identifies the failed planned output
+
+#### Scenario: Activation waits for required evidence
+
+- **WHEN** a staged artifact has not yet received `PASS` evidence for every inventory-declared required runtime surface
+- **THEN** the separate activation gate leaves the prior active root and receipt unchanged and reports the missing or non-pass surface rows
 
 ### Requirement: Symlink behavior is explicit and fail-closed
 
@@ -90,7 +95,7 @@ Every projection SHALL declare a symlink policy in inventory-owned projection ru
 
 ### Requirement: Verification returns stage-bound evidence
 
-The distribution layer SHALL expose `verifyDistribution(stage, artifact, consumerAdapter) -> EvidenceResult`. Verification MUST use a declared verification stage and consumer adapter, MUST NOT mutate the accepted artifact, and MUST return structured evidence binding the stage, adapter identity/version, target surface, selection/profile identity, plan and artifact fingerprints, checked claims, observed outputs, verdict, and diagnostics. `EvidenceResult.verdict` MUST remain exactly `PASS`, `FAIL`, `NOT_RUN`, `NOT_CONFIGURED`, `SKIP_INCOMPATIBLE`, `BLOCKED`, or `UNAVAILABLE`; lifecycle summary codes are not valid projection verdicts.
+The distribution layer SHALL expose `verifyDistribution(stage, artifact, consumerAdapter) -> EvidenceResult`. Verification MUST use a declared verification stage and consumer adapter, MUST NOT mutate the accepted artifact, and MUST return structured evidence binding the stage, adapter identity/version, target surface, profile/compatibility identity, selected stable IDs, plan, artifact, and selection fingerprints, checked claims, observed outputs, verdict, and diagnostics. `EvidenceResult.verdict` MUST remain exactly `PASS`, `FAIL`, `NOT_RUN`, `NOT_CONFIGURED`, `SKIP_INCOMPATIBLE`, `BLOCKED`, or `UNAVAILABLE`; lifecycle summary codes are not valid projection verdicts.
 
 #### Scenario: Structural verification passes
 
@@ -99,7 +104,7 @@ The distribution layer SHALL expose `verifyDistribution(stage, artifact, consume
 
 #### Scenario: Consumer verification uses stale artifact identity
 
-- **WHEN** the requested profile or artifact fingerprint differs from the artifact identity observed by the consumer adapter
+- **WHEN** the requested profile, selection, or artifact fingerprint differs from the artifact identity observed by the consumer adapter
 - **THEN** verification returns a stale-evidence failure and does not reuse an earlier passing verdict
 
 #### Scenario: Adapter does not support a requested stage
