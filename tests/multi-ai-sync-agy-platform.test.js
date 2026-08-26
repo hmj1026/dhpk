@@ -116,6 +116,11 @@ function writeBwrapStub(root, { runtime = 'pass' } = {}) {
           "    printf '%s\\n' 'connection timed out' >&2",
           '    exit 1',
         ]
+        : runtime === 'unsafe-diagnostic'
+          ? [
+            "    printf '%s\\n' 'client failure /home/paul/private AGY_HOST_OVERLAY_MARKER prompt=AGY_PROMPT_MARKER tool=AGY_TOOL_MARKER' >&2",
+            '    exit 1',
+          ]
     : [
       "    printf '%s\\n' 'AGY_SMOKE_OK'",
       '    exit 0',
@@ -318,7 +323,40 @@ test('isolated AGY authentication failures remain blocked instead of package fai
     const runtimeStatus = runtime.capabilities.find((item) => item.id === 'agy.runtime.subagent').status;
     assert.strictEqual(runtimeStatus, 'BLOCKED', JSON.stringify(runtime));
     assert.strictEqual(runtime.capabilities.find((item) => item.id === 'agy.runtime.subagent').reason_code, 'AUTH_REQUIRED', JSON.stringify(runtime));
+    const capability = runtime.capabilities.find((item) => item.id === 'agy.runtime.subagent');
+    assert.ok(capability.diagnostic, JSON.stringify(runtime));
+    assert.match(capability.diagnostic, /authentication required/i);
+    assert.doesNotMatch(capability.diagnostic, /AGY_SESSION_SECRET_MARKER|AGY_EQUAL_SECRET_MARKER|AGY_JSON_SECRET_MARKER/);
     assert.strictEqual(runtime.final_status, 'BLOCKED', JSON.stringify(runtime));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('AGY diagnostics redact private paths and arbitrary client payloads', () => {
+  const root = tempRoot('agy-runtime-unsafe-diagnostic');
+  const bin = path.join(root, 'bin');
+  try {
+    agyPackage(root);
+    const hostHome = agyHostSession(root);
+    const stub = writeBwrapStub(root, { runtime: 'unsafe-diagnostic' });
+    write(path.join(bin, 'agy'), [
+      '#!/bin/sh',
+      'if [ "$1" = "plugins" ] && [ "$2" = "list" ]; then echo "dhpk 0.39.0"; exit 0; fi',
+      'if [ "$1" = "agents" ]; then echo "sample"; exit 0; fi',
+      'exit 2',
+      '',
+    ].join('\n'), 0o755);
+    const report = JSON.parse(validate(root, ['--agy-runtime-probe'], {
+      ...process.env,
+      PATH: `${stub.bin}:/usr/bin:/bin`,
+      DHPK_AGY_HOST_HOME: hostHome,
+    }).stdout);
+    const runtime = report.results.find((item) => item.platform === 'agy');
+    const capability = runtime.capabilities.find((item) => item.id === 'agy.runtime.subagent');
+    assert.strictEqual(capability.status, 'FAIL', JSON.stringify(runtime));
+    assert.doesNotMatch(JSON.stringify(capability), /\/home\/paul\/private|AGY_HOST_OVERLAY_MARKER|AGY_PROMPT_MARKER|AGY_TOOL_MARKER/);
+    assert.strictEqual(capability.diagnostic, '<redacted-client-output>', JSON.stringify(capability));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -379,6 +417,30 @@ test('AGY discovery uses an empty HOME and never shares the network', () => {
   }
 });
 
+test('AGY sandbox projects resolver and CA bundle without reopening masked host roots', () => {
+  const root = tempRoot('agy-runtime-system-roots');
+  try {
+    agyPackage(root);
+    const stub = writeBwrapStub(root);
+    const result = validate(root, [], {
+      ...process.env,
+      PATH: `${stub.bin}:/usr/bin:/bin`,
+    });
+    assert.ok(result.stdout, `${result.stdout}\n${result.stderr}`);
+    const invocations = bwrapInvocations(stub.log);
+    assert.strictEqual(invocations.length, 2, 'discovery should invoke plugins and agents only');
+    for (const invocation of invocations) {
+      assert.strictEqual(boundSource(invocation, '/etc/resolv.conf'), '/etc/resolv.conf');
+      assert.strictEqual(boundSource(invocation, '/etc/ssl/certs/ca-certificates.crt'), '/etc/ssl/certs/ca-certificates.crt');
+      assert.ok(invocationContains(invocation, '/etc/ssl'));
+      assert.ok(invocationContains(invocation, '/etc/ssl/certs'));
+      assert.ok(!invocationContains(invocation, '/etc/ssl/private'));
+    }
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('AGY runtime clones only allowlisted session files at 0600 and shares network after unshare', () => {
   const root = tempRoot('agy-runtime-session');
   try {
@@ -402,6 +464,10 @@ test('AGY runtime clones only allowlisted session files at 0600 and shares netwo
     const shareIndex = runtime.indexOf('--share-net');
     assert.ok(unshareIndex >= 0, 'runtime probe must unshare all namespaces');
     assert.ok(shareIndex > unshareIndex, 'runtime network sharing must follow --unshare-all');
+    const modeIndex = runtime.indexOf('--mode');
+    assert.ok(modeIndex >= 0, 'runtime probe must select AGY plan mode');
+    assert.strictEqual(runtime[modeIndex + 1], 'plan', 'runtime probe must stay read-only in plan mode');
+    assert.match(runtime.join(' '), /Do not call tools\./, 'runtime prompt must avoid permission-gated tool calls');
     for (const relative of [
       '.gemini/oauth_creds.json',
       '.gemini/google_accounts.json',
@@ -465,6 +531,8 @@ test('AGY runtime connectivity reason codes distinguish DNS and timeout', () => 
       const capability = runtimeResult.capabilities.find((item) => item.id === 'agy.runtime.subagent');
       assert.strictEqual(capability.status, 'UNAVAILABLE', JSON.stringify(runtimeResult));
       assert.strictEqual(capability.reason_code, expectedReason, JSON.stringify(capability));
+      assert.ok(capability.diagnostic, JSON.stringify(capability));
+      assert.match(capability.diagnostic, /resolution failed|timed out/i);
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }

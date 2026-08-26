@@ -92,6 +92,12 @@ The release phase SHALL retain independent evidence rows for the seven canonical
 
 The inventory platform matrix SHALL also expose an explicit `required_runtime_surfaces` list that is an ordered subset of `required_surfaces`. A full-release `COMPLETE` outcome SHALL require fresh matching consumer-runtime PASS evidence for every ID in `required_runtime_surfaces`. `required_runtime_surfaces` SHALL include `claude-core`, `codex-sync`, `codex-native`, `cursor-plugin`, `agent-plugin`, and `agy-plugin`, and SHALL NOT include `cursor-sync`. Installer `NOT_RUN` on the `cursor-sync` identity row MUST NOT by itself produce `NO_SHIP` or block `COMPLETE`. `FAIL` on the `cursor-sync` installer path SHALL remain unhealthy and MUST NOT produce `COMPLETE`. Required-runtime consumer `NOT_RUN` or `UNAVAILABLE` SHALL produce a non-complete release outcome, required-runtime consumer FAIL SHALL produce an unhealthy/non-ship outcome, and only all required-runtime consumer PASS results SHALL produce `COMPLETE`.
 
+When a consumer-runtime preflight is attached to a full-release plan, the
+preflight SHALL use the same task, attempt, source/tree, target/tree, and
+surface identity as the deployment and consumer rows. A preflight `PASS` SHALL
+remain runner-readiness evidence and MUST NOT replace fresh consumer-runtime
+`PASS` evidence.
+
 #### Scenario: One required surface is unavailable
 
 - **WHEN** source and package gates pass but one required consumer probe returns `UNAVAILABLE`
@@ -121,3 +127,13 @@ The inventory platform matrix SHALL also expose an explicit `required_runtime_su
 
 - **WHEN** the inventory platform matrix does not expose the explicit `required_surfaces` or `required_runtime_surfaces` list, or a listed ID lacks a projection contract
 - **THEN** preflight returns `BLOCKED` and does not infer the list from directory contents or adapter defaults
+
+#### Scenario: Preflight is foreign to the release attempt
+
+- **WHEN** a full-release plan presents preflight evidence with a different task, attempt, source/tree, target/tree, or surface identity
+- **THEN** the plan is rejected as stale or `BLOCKED` and no consumer row is promoted from that evidence
+
+#### Scenario: Preflight passes while a required runtime remains non-pass
+
+- **WHEN** the preflight reports runner readiness but a required consumer row is `NOT_RUN`, `UNAVAILABLE`, or `SKIP_INCOMPATIBLE`
+- **THEN** the release remains non-complete and records the consumer row as the blocking resume condition

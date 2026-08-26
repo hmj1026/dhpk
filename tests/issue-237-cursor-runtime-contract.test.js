@@ -37,6 +37,8 @@ function writeCursorAgent(bin) {
     "const roots = args.filter((arg, index) => args[index - 1] === '--plugin-dir');",
     'for (const root of roots) {',
     '  const hooks = JSON.parse(fs.readFileSync(path.join(root, \'hooks\', \'hooks.json\'), \'utf8\'));',
+    "  if (hooks.version !== 1) { process.stderr.write('probe hooks must declare Cursor hook schema version 1\\n'); process.exit(4); }",
+    "  if (path.dirname(root) === require('node:os').tmpdir()) { process.stderr.write('probe package must be nested under a private temporary directory\\n'); process.exit(5); }",
     '  for (const hook of hooks.hooks.sessionStart || []) cp.execFileSync(path.resolve(root, hook.command), [], { cwd: root });',
     '}',
     "const root = roots[0];",

@@ -15,38 +15,35 @@ and cap captured child output below a fixed hard maximum. A timeout with
 captured output or an output-limit event MUST return a machine-readable
 `BLOCKED` result with `exit_code`, `signal`, and `PASS`-ineligible evidence.
 A timeout with no stdout or stderr MUST return `SKIP_INCOMPATIBLE` with
-`no_stdout: true` and MUST NOT claim discovery `PASS`. The probe MUST NOT
-mutate package or Cursor state. On POSIX, ordinary descendants SHALL be
-terminated with the probe process group; deliberately detached descendants
-are outside the guarantee.
+`no_stdout: true`, a bounded non-sensitive reason code, and MUST NOT claim
+discovery `PASS`. The probe MUST NOT mutate package or Cursor state. On POSIX,
+ordinary descendants SHALL be terminated with the probe process group;
+deliberately detached descendants are outside the guarantee.
 
 #### Scenario: Hung Cursor client is blocked after the deadline
 
-- **WHEN** an explicitly configured Cursor probe does not exit before its
-  finite timeout and has already emitted captured output
-- **THEN** the result is `BLOCKED`, includes `timed_out: true` and the timeout
-  duration plus exit/signal evidence, and does not claim consumer discovery
-  `PASS`
+- **WHEN** an explicitly configured Cursor probe does not exit before its finite timeout and has already emitted captured output
+- **THEN** the result is `BLOCKED`, includes `timed_out: true` and the timeout duration plus exit/signal evidence, records a bounded timeout reason code, and does not claim consumer discovery `PASS`
 
 #### Scenario: Silent hung Cursor client is CLI-incompatible
 
-- **WHEN** an explicitly configured Cursor probe does not exit before its
-  finite timeout and emits no stdout or stderr
-- **THEN** the result is `SKIP_INCOMPATIBLE`, includes `timed_out: true` and
-  `no_stdout: true`, names that the CLI has no non-LLM plugin list, and does
-  not claim consumer discovery `PASS`
+- **WHEN** an explicitly configured Cursor probe does not exit before its finite timeout and emits no stdout or stderr
+- **THEN** the result is `SKIP_INCOMPATIBLE`, includes `timed_out: true`, `no_stdout: true`, a bounded no-output reason code, names that the CLI has no non-LLM plugin list, and does not claim consumer discovery `PASS`
+
+#### Scenario: Bounded stream output distinguishes a slow response
+
+- **WHEN** a Cursor client emits a valid bounded progress or stream frame before the final response but does not complete before the deadline
+- **THEN** the result is `BLOCKED` with redacted partial-output evidence and a timeout reason code rather than being classified as a silent CLI-incompatible result
 
 #### Scenario: Invalid timeout fails closed
 
-- **WHEN** a caller supplies zero, a negative value, or a non-safe integer as
-  the probe timeout
+- **WHEN** a caller supplies zero, a negative value, or a non-safe integer as the probe timeout
 - **THEN** the probe rejects the configuration before invoking the client
 
 #### Scenario: Probe output is bounded and redacted
 
 - **WHEN** the client emits output during a probe
-- **THEN** returned diagnostics are capped and redacted, and an output-limit
-  result is `BLOCKED` rather than an unbounded successful capture
+- **THEN** returned diagnostics are capped and redacted, and an output-limit result is `BLOCKED` rather than an unbounded successful capture
 
 ### Requirement: Probe outcomes remain separate from package validation
 

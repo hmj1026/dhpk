@@ -6,7 +6,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 const { networkSandboxProbe, sandboxInvocation } = require('../scripts/lib/cursor-plugin-package');
-const { AGENT_PLUGIN_SCHEMA } = require('../scripts/lib/agent-plugin-package');
+const { AGENT_PLUGIN_SCHEMA, MCP_SCHEMA } = require('../scripts/lib/agent-plugin-package');
 const { redactSensitiveText } = require('../scripts/lib/redaction');
 const { runCursorConsumerProbe } = require('../scripts/lib/cursor-plugin-package');
 
@@ -109,6 +109,7 @@ test('Codex discovery reports UNAVAILABLE before NOT_RUN when the CLI is absent'
 });
 
 test('agent-plugin runtime probe uses exactly one portable plugin directory', () => {
+  if (process.platform !== 'linux' || !networkSandboxProbe(process.env.PATH, 'shared', true)) return;
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-agent-plugin-'));
   const hostHome = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-agent-home-'));
   const bin = path.join(root, 'bin');
@@ -118,17 +119,25 @@ test('agent-plugin runtime probe uses exactly one portable plugin directory', ()
     fs.writeFileSync(path.join(hostHome, '.config', 'cursor', 'auth.json'), '{"token":"fixture"}\n');
     writeSandboxUnavailable(bin);
     writeAgentManifest(root);
+    fs.writeFileSync(path.join(root, 'mcp.json'), JSON.stringify({
+      $schema: MCP_SCHEMA,
+      mcpServers: { fixture: { type: 'streamable-http', url: 'https://example.com/mcp' } },
+    }));
     fs.mkdirSync(path.join(root, 'skills'), { recursive: true });
     fs.writeFileSync(path.join(bin, 'cursor-agent'), [
       '#!/usr/bin/env node',
       "const fs = require('node:fs');",
       "const path = require('node:path');",
-      "const cp = require('node:child_process');",
       "const args = process.argv.slice(2);",
       "const roots = args.filter((arg, index) => args[index - 1] === '--plugin-dir');",
-      "for (const candidate of roots) { try { const hooks = JSON.parse(fs.readFileSync(path.join(candidate, 'hooks', 'hooks.json'), 'utf8')); for (const hook of hooks.hooks.sessionStart || []) cp.execFileSync(path.resolve(candidate, hook.command), [], { cwd: candidate }); } catch (_) {} }",
-      "const rootWithAttestation = roots.find((candidate) => fs.existsSync(path.join(candidate, 'hooks', '.dhpk-probe-attestation.json')));",
-      "const attestation = JSON.parse(fs.readFileSync(path.join(rootWithAttestation, 'hooks', '.dhpk-probe-attestation.json'), 'utf8'));",
+      "if (roots.length !== 1) process.exit(4);",
+      "const root = roots[0];",
+      "const manifest = JSON.parse(fs.readFileSync(path.join(root, '.cursor-plugin', 'plugin.json'), 'utf8'));",
+      "if (manifest.hooks !== './hooks/hooks.json') process.exit(5);",
+      "const hooks = JSON.parse(fs.readFileSync(path.join(root, 'hooks', 'hooks.json'), 'utf8'));",
+      "if (hooks.version !== 1) process.exit(6);",
+      "for (const hook of hooks.hooks.sessionStart || []) require('node:child_process').execFileSync(path.resolve(root, hook.command), [], { cwd: root });",
+      "const attestation = JSON.parse(fs.readFileSync(path.join(root, 'hooks', '.dhpk-probe-attestation.json'), 'utf8'));",
       "process.stdout.write(JSON.stringify({ response: 'dhpk skills commands agents rules were discovered.', dhpkProbe: { challenge: attestation.challenge, packageFingerprint: attestation.packageFingerprint, loaded: true, components: attestation.components } }));",
       '',
     ].join('\n'), { mode: 0o755 });
@@ -139,7 +148,7 @@ test('agent-plugin runtime probe uses exactly one portable plugin directory', ()
     });
     assert.ok([0, 1].includes(result.status), result.stdout + result.stderr);
     const payload = JSON.parse(result.stdout);
-    assert.ok(['PASS', 'BLOCKED', 'UNAVAILABLE'].includes(payload.status), JSON.stringify(payload));
+    assert.strictEqual(payload.status, 'PASS', JSON.stringify(payload));
     assert.strictEqual(payload.surfaceResults[0].surface, 'agent-plugin', JSON.stringify(payload));
     assert.strictEqual(payload.surfaceResults[0].status, payload.status, JSON.stringify(payload));
     if (payload.status === 'PASS') assert.strictEqual(payload.network, 'shared', JSON.stringify(payload));
@@ -148,6 +157,7 @@ test('agent-plugin runtime probe uses exactly one portable plugin directory', ()
       1,
       JSON.stringify(payload),
     );
+    assert.ok(fs.existsSync(path.join(root, 'mcp.json')), 'the published Agent package keeps its optional MCP file');
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
     fs.rmSync(hostHome, { recursive: true, force: true });
@@ -228,7 +238,55 @@ test('Cursor --execute keeps an isolated profile and uses the verified shared ne
     if (payload.status === 'PASS') assert.strictEqual(payload.network, 'shared', JSON.stringify(payload));
     assert.ok(payload.session_files.includes('.config/cursor/auth.json'), JSON.stringify(payload));
     assert.ok(payload.commands.some((command) => /cursor-agent/.test(command.cmd)), JSON.stringify(payload));
+    const command = payload.commands.map((entry) => entry.cmd || '').join('\n');
+    assert.match(command, /--output-format stream-json/);
+    assert.match(command, /--stream-partial-output/);
     assert.match(payload.surfaceResults[0].reasons.join(' '), /challenge|package|network/i);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('Cursor --execute checks only Cursor-owned loader components', () => {
+  if (process.platform !== 'linux' || !networkSandboxProbe(process.env.PATH, 'shared', true)) return;
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-probe-cursor-owned-components-'));
+  const agent = path.join(root, 'dhpk-agent');
+  const cursor = path.join(root, 'dhpk-cursor');
+  const bin = path.join(root, 'bin');
+  try {
+    fs.mkdirSync(agent, { recursive: true });
+    fs.mkdirSync(cursor, { recursive: true });
+    fs.mkdirSync(bin, { recursive: true });
+    const hostHome = writeCursorAuthHome(root);
+    writeAgentManifest(agent);
+    fs.mkdirSync(path.join(agent, 'skills'), { recursive: true });
+    writeCursorPackage(cursor);
+    // Skills are owned by the companion Agent Plugin projection; the Cursor
+    // package must not fail merely because its own package omits that shared
+    // component.
+    fs.rmSync(path.join(cursor, 'skills'), { recursive: true, force: true });
+    fs.writeFileSync(path.join(bin, 'cursor-agent'), [
+      '#!/usr/bin/env node',
+      "const fs = require('node:fs');",
+      "const path = require('node:path');",
+      "const cp = require('node:child_process');",
+      "const args = process.argv.slice(2);",
+      "for (let i = 0; i < args.length; i += 1) if (args[i] === '--plugin-dir' && args[i + 1]) { const root = args[++i]; try { const hooks = JSON.parse(fs.readFileSync(path.join(root, 'hooks', 'hooks.json'), 'utf8')); for (const hook of hooks.hooks.sessionStart || []) cp.execFileSync(path.resolve(root, hook.command), [], { cwd: root }); } catch (_) {} }",
+      "const roots = args.filter((arg, index) => args[index - 1] === '--plugin-dir');",
+      "const root = roots.find((candidate) => fs.existsSync(path.join(candidate, 'hooks', '.dhpk-probe-attestation.json')));",
+      "const attestation = JSON.parse(fs.readFileSync(path.join(root, 'hooks', '.dhpk-probe-attestation.json'), 'utf8'));",
+      "process.stdout.write(JSON.stringify({ response: 'dhpk skills commands agents rules were discovered.', dhpkProbe: { challenge: attestation.challenge, packageFingerprint: attestation.packageFingerprint, loaded: true, components: attestation.components } }));",
+      '',
+    ].join('\n'), { mode: 0o755 });
+    const result = runProbe('cursor', cursor, ['--execute'], {
+      ...process.env,
+      HOME: hostHome,
+      PATH: `${bin}${path.delimiter}${process.env.PATH || ''}`,
+    });
+    assert.strictEqual(result.status, 0, result.stdout + result.stderr);
+    const payload = JSON.parse(result.stdout);
+    assert.strictEqual(payload.status, 'PASS', JSON.stringify(payload));
+    assert.strictEqual(payload.surfaceResults[0].status, 'PASS', JSON.stringify(payload));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
