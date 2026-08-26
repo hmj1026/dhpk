@@ -17,6 +17,7 @@ const {
 const receipts = require('./harness-receipt');
 const inventoryApi = require('./distribution-inventory');
 const { normalizeConsumerEvidence } = require('./release-evidence');
+const runtimePreflight = require('./consumer-runtime-preflight');
 
 const PHASES = Object.freeze(['preflight', 'plan', 'generate', 'validate', 'test', 'probe', 'verify', 'release']);
 const PHASE_INDEX = new Map(PHASES.map((phase, index) => [phase, index]));
@@ -24,9 +25,11 @@ const HANDOFF_OUTCOMES = new Set(['PASS', 'COMPLETE']);
 const OPTIONS_WITH_VALUE = new Set([
   '--task-id', '--attempt-id', '--surface', '--test-file', '--diagnostic', '--receipt-root',
   '--operation-key', '--idempotency-key', '--previous-receipt', '--retry-of',
+  '--source-commit', '--source-tree', '--target-commit', '--target-tree', '--surfaces',
 ]);
 const HELP = 'usage: bin/dhpk harness <preflight|plan|generate|validate|test|probe|verify|release> [options]\n'
   + 'options: --json --task-id <id> --attempt-id <id> --surface <surface> --test-file <file> --diagnostic <text>\n'
+  + 'identity: --source-commit <sha> --source-tree <sha> --target-commit <sha> --target-tree <sha> --surfaces <id,id,...>\n'
   + 'handoff: --operation-key <id> --idempotency-key <id> --previous-receipt <path> --retry-of <path>\n';
 
 function isTrustedCiEnvironment(env = process.env) {
@@ -61,6 +64,11 @@ function parseArgs(argv = []) {
         '--idempotency-key': 'idempotencyKey',
         '--previous-receipt': 'previousReceipt',
         '--retry-of': 'retryOf',
+        '--source-commit': 'sourceCommit',
+        '--source-tree': 'sourceTree',
+        '--target-commit': 'targetCommit',
+        '--target-tree': 'targetTree',
+        '--surfaces': 'surfaces',
       }[arg] || arg.slice(2);
       parsed[optionName] = value;
     } else if (arg.startsWith('--')) {
@@ -81,6 +89,10 @@ function parseArgs(argv = []) {
   }
   if (parsed.phase === 'probe' && !REQUIRED_SURFACES.includes(parsed.surface)) {
     throw new Error(`unknown consumer surface '${parsed.surface}'`);
+  }
+  if (parsed.surfaces !== undefined) {
+    parsed.surfaces = parsed.surfaces.split(',').map((surface) => surface.trim()).filter(Boolean);
+    if (parsed.surfaces.length === 0) throw new Error('--surfaces must contain at least one surface');
   }
   return parsed;
 }
@@ -370,6 +382,7 @@ function failedProbeRow(
     artifacts: [],
     diagnostics: [],
     reasons: [sanitizeDiagnostics(reason)].filter(Boolean),
+    reason_code: runtimePreflight.reasonCodeForDiagnostic(status, reason),
     checkedClaims: ['package-manifest', 'consumer-route'],
   };
 }
@@ -485,6 +498,9 @@ function runAgyConsumerProbe(root) {
     platform.hook_case_reason,
     platform.multi_agent_case_reason,
   ].filter(Boolean).map((reason) => sanitizeDiagnostics(reason));
+  const runtimeCapability = Array.isArray(platform.capabilities)
+    ? platform.capabilities.find((entry) => entry && entry.id === 'agy.runtime.subagent')
+    : null;
   let row;
   try {
     const normalized = normalizeConsumerEvidence({
@@ -499,6 +515,7 @@ function runAgyConsumerProbe(root) {
         artifacts: [{ platform: 'agy', finalStatus: platform.final_status, capabilities: platform.capabilities || [] }],
         diagnostics: [],
         reasons,
+        ...(runtimeCapability && runtimeCapability.reason_code ? { reason_code: runtimeCapability.reason_code } : {}),
         checkedClaims: ['agy.package.structure', 'agy.runtime.subagent'],
       }],
     }).surfaceResults[0];
@@ -811,10 +828,36 @@ function normalizeReleaseProbeResult(root, surface, execution) {
   return row;
 }
 
-function runReleaseProbes(root, requiredSurfaces, requiredRuntimeSurfacesOrExecutor, probeExecutor = runConsumerProbe) {
+function runReleaseProbes(root, requiredSurfaces, requiredRuntimeSurfacesOrExecutor, probeExecutor = runConsumerProbe, options = {}) {
   const legacyExecutorCall = typeof requiredRuntimeSurfacesOrExecutor === 'function';
   const requiredRuntimeSurfaces = legacyExecutorCall ? undefined : requiredRuntimeSurfacesOrExecutor;
   if (legacyExecutorCall) probeExecutor = requiredRuntimeSurfacesOrExecutor;
+  if (probeExecutor && typeof probeExecutor === 'object') {
+    options = probeExecutor;
+    probeExecutor = runConsumerProbe;
+  }
+  const preflight = options && Object.prototype.hasOwnProperty.call(options, 'preflight')
+    ? options.preflight
+    : null;
+  const preflightIdentity = preflight && typeof preflight === 'object' && preflight.identity
+    ? preflight.identity
+    : null;
+  const identityErrors = [];
+  if (preflight !== null) {
+    const checkedPreflight = runtimePreflight.aggregatePreflight({
+      preflight,
+      expectedIdentity: options.expectedIdentity || null,
+      requiredRuntimeSurfaces,
+      surfaceResults: [],
+    });
+    if (checkedPreflight.diagnostics.length > 0) {
+      identityErrors.push(...checkedPreflight.diagnostics.map((error) => `invalid preflight: ${error}`));
+    }
+  }
+  if (preflight && preflightIdentity && options.expectedIdentity) {
+    const checked = runtimePreflight.comparePreflightIdentity(options.expectedIdentity, preflightIdentity);
+    if (!checked.ok) identityErrors.push(...checked.errors.map((error) => `foreign or stale preflight: ${error}`));
+  }
   const surfaceResults = requiredSurfaces.map((surface) => {
     let execution;
     try {
@@ -822,7 +865,17 @@ function runReleaseProbes(root, requiredSurfaces, requiredRuntimeSurfacesOrExecu
     } catch (error) {
       return failedProbeRow(surface, 'FAIL', `consumer probe failed before emitting evidence: ${error.message}`, root);
     }
-    return normalizeReleaseProbeResult(root, surface, execution);
+    const normalized = normalizeReleaseProbeResult(root, surface, execution);
+    const rowIdentity = normalized.preflightIdentity
+      || (execution && execution.preflightIdentity)
+      || (execution && execution.preflight && execution.preflight.identity);
+    if (preflightIdentity && rowIdentity) {
+      const checked = runtimePreflight.comparePreflightIdentity(preflightIdentity, rowIdentity);
+      if (!checked.ok) identityErrors.push(...checked.errors.map((error) => `consumer row '${surface}' has foreign preflight: ${error}`));
+    }
+    return preflightIdentity
+      ? { ...normalized, preflightIdentity: rowIdentity || preflightIdentity }
+      : normalized;
   });
   const aggregate = aggregateRequiredSurfaces({
     requiredSurfaces,
@@ -834,20 +887,62 @@ function runReleaseProbes(root, requiredSurfaces, requiredRuntimeSurfacesOrExecu
     ...(Array.isArray(entry.reasons) ? entry.reasons : []),
     ...(Array.isArray(entry.diagnostics) ? entry.diagnostics : []),
   ]).filter(Boolean).slice(0, 50);
+  let outcome = aggregate.outcome;
+  if (identityErrors.length > 0) outcome = 'BLOCKED';
+  else if (preflight && preflight.status !== 'PASS' && outcome === 'COMPLETE') {
+    outcome = preflight.status === 'BLOCKED' ? 'BLOCKED' : 'PUBLISHED_PENDING';
+  }
+  const allDiagnostics = [...identityErrors, ...diagnostics].slice(0, 50);
   return {
     ...aggregate,
-    diagnostics,
+    outcome,
+    exitCode: exitCodeForOutcome(outcome),
+    ...(preflight ? { preflight, runnerCapabilities: preflight.runner } : {}),
+    diagnostics: allDiagnostics,
   };
 }
 
-function phaseExecution(root, parsed, inventory, binding) {
+function phaseExecution(root, parsed, inventory, binding, runtimeEnv = process.env) {
   if (parsed.phase === 'test') return runBoundedTest(root, parsed.testFile);
   if (parsed.phase === 'generate' || parsed.phase === 'validate' || parsed.phase === 'verify') return runDistribution(root, parsed, binding);
   if (parsed.phase === 'probe') return runConsumerProbe(root, parsed);
   if (parsed.phase === 'release') {
     const required = inventoryApi.validateRequiredSurfacePlan({ inventory, fullRelease: true });
     if (required.errors.length > 0) return { outcome: 'BLOCKED', diagnostics: required.errors.slice(0, 20) };
-    return runReleaseProbes(root, required.requiredSurfaces, required.requiredRuntimeSurfaces);
+    const preflight = runtimePreflight.preflightForCheckout({
+      root,
+      env: runtimeEnv,
+      identity: {
+        taskId: parsed.taskId,
+        attemptId: parsed.attemptId,
+        sourceCommit: binding.sourceCommit,
+        sourceTree: binding.sourceTree,
+        targetCommit: binding.targetCommit,
+        targetTree: binding.targetTree,
+        worktree: binding.dirty ? 'DIRTY' : 'CLEAN',
+        selectedSurfaces: required.requiredSurfaces,
+        requiredRuntimeSurfaces: required.requiredRuntimeSurfaces,
+      },
+    });
+    const release = runReleaseProbes(root, required.requiredSurfaces, required.requiredRuntimeSurfaces, runConsumerProbe, {
+      preflight,
+      expectedIdentity: preflight.identity,
+    });
+    const blockedByPreflight = preflight.status === 'BLOCKED' || preflight.status === 'UNAVAILABLE' || preflight.status === 'FAIL';
+    const outcome = blockedByPreflight && release.outcome === 'COMPLETE'
+      ? (preflight.status === 'BLOCKED' ? 'BLOCKED' : 'PUBLISHED_PENDING')
+      : release.outcome;
+    return {
+      ...release,
+      outcome,
+      preflight,
+      runnerCapabilities: preflight.runner,
+      identity: preflight.identity,
+      diagnostics: [
+        ...(Array.isArray(release.diagnostics) ? release.diagnostics : []),
+        ...(Array.isArray(preflight.diagnostics) ? preflight.diagnostics : []),
+      ].slice(0, 50),
+    };
   }
   if (parsed.phase === 'preflight') {
     const errors = [];
@@ -856,13 +951,49 @@ function phaseExecution(root, parsed, inventory, binding) {
     errors.push(...v2.errors);
     const required = inventoryApi.validateRequiredSurfacePlan({ inventory, fullRelease: true });
     errors.push(...required.errors);
+    const selectedSurfaces = parsed.surfaces || required.requiredSurfaces;
+    if (selectedSurfaces.some((surface) => !REQUIRED_SURFACES.includes(surface))) {
+      errors.push('selected preflight surfaces contain an unknown surface');
+    }
+    if (selectedSurfaces.length !== required.requiredSurfaces.length
+      || selectedSurfaces.some((surface, index) => surface !== required.requiredSurfaces[index])) {
+      errors.push('full-release preflight must use the canonical required surface list');
+    }
     const identity = {
-      ...(Array.isArray(required.requiredSurfaces) ? { requiredSurfaces: required.requiredSurfaces } : {}),
-      ...(Array.isArray(required.requiredRuntimeSurfaces) ? { requiredRuntimeSurfaces: required.requiredRuntimeSurfaces } : {}),
+      taskId: parsed.taskId,
+      attemptId: parsed.attemptId,
+      sourceCommit: parsed.sourceCommit || binding.sourceCommit,
+      sourceTree: parsed.sourceTree || binding.sourceTree,
+      targetCommit: parsed.targetCommit || binding.targetCommit,
+      targetTree: parsed.targetTree || binding.targetTree,
+      worktree: binding.dirty ? 'DIRTY' : 'CLEAN',
+      selectedSurfaces,
+      requiredRuntimeSurfaces: required.requiredRuntimeSurfaces,
     };
-    return errors.length > 0
-      ? { outcome: 'BLOCKED', diagnostics: errors.slice(0, 20), ...identity }
-      : { outcome: 'PASS', diagnostics: [], ...identity };
+    for (const field of ['sourceCommit', 'sourceTree', 'targetCommit', 'targetTree']) {
+      if (identity[field] !== binding[field]) errors.push(`${field} does not match current checkout`);
+    }
+    const readiness = runtimePreflight.preflightForCheckout({ root, env: runtimeEnv, identity });
+    const preflight = errors.length > 0
+      ? runtimePreflight.createPreflightResult({
+        identity,
+        status: 'BLOCKED',
+        runner: readiness.runner,
+        surfaces: readiness.surfaces,
+        diagnostics: errors,
+        reasonCode: 'IDENTITY_INVALID',
+      })
+      : readiness;
+    return {
+      outcome: preflight.status,
+      diagnostics: [...(preflight.diagnostics || []), ...(preflight.errors || [])].slice(0, 20),
+      requiredSurfaces: required.requiredSurfaces,
+      requiredRuntimeSurfaces: required.requiredRuntimeSurfaces,
+      selectedSurfaces,
+      preflight,
+      runnerCapabilities: preflight.runner,
+      identity: preflight.identity,
+    };
   }
   if (parsed.phase === 'plan') {
     const required = inventoryApi.validateRequiredSurfacePlan({ inventory, fullRelease: true });
@@ -1005,6 +1136,8 @@ function replayAttempt(phase, attempt, parsed) {
     ...(Array.isArray(envelope.requiredSurfaces) ? { requiredSurfaces: envelope.requiredSurfaces } : {}),
     ...(Array.isArray(envelope.requiredRuntimeSurfaces) ? { requiredRuntimeSurfaces: envelope.requiredRuntimeSurfaces } : {}),
     ...(Array.isArray(envelope.surfaceResults) ? { surfaceResults: envelope.surfaceResults } : {}),
+    ...(envelope.preflight ? { preflight: envelope.preflight } : {}),
+    ...(envelope.runnerCapabilities ? { runnerCapabilities: envelope.runnerCapabilities } : {}),
     ...(envelope.surface ? { surface: envelope.surface } : {}),
     ...(envelope.stage ? { stage: envelope.stage } : {}),
     ...(envelope.producer ? { producer: envelope.producer } : {}),
@@ -1081,7 +1214,9 @@ function execute(argv = [], {
     const operationReservation = operationKey
       ? receipts.reserveOperationKey(resolvedReceiptRoot, operationKey, { taskId, attemptId })
       : null;
-    let execution = phaseExecutor(root, parsed, inventory, binding);
+    parsed.taskId = taskId;
+    parsed.attemptId = attemptId;
+    let execution = phaseExecutor(root, parsed, inventory, binding, env);
     const postExecutionBinding = resolveSourceBinding(root);
     const worktreeDirty = binding.dirty || postExecutionBinding.dirty;
     if (execution && execution.outcome === 'COMPLETE' && worktreeDirty) {
@@ -1098,6 +1233,8 @@ function execute(argv = [], {
     const identity = execution.identity && typeof execution.identity === 'object' ? execution.identity : {};
     const receiptIdentitySource = {
       ...identity,
+      ...(execution.preflight ? { preflight: execution.preflight } : {}),
+      ...(execution.runnerCapabilities ? { runnerCapabilities: execution.runnerCapabilities } : {}),
       targetCommit: postExecutionBinding.targetCommit,
       targetTree: postExecutionBinding.targetTree,
       worktree: worktreeDirty ? 'DIRTY' : 'CLEAN',
@@ -1136,6 +1273,8 @@ function execute(argv = [], {
       identity: {
         ...receiptIdentity,
         operationIntent: operationIntent(parsed),
+        preflight: execution.preflight || null,
+        runnerCapabilities: execution.runnerCapabilities || null,
       },
       retryOf: parsed.retryOf && previousReceipt ? previousReceipt.identity : null,
       previousReceipt: parsed.previousReceipt && previousReceipt ? previousReceipt.identity : null,
@@ -1157,6 +1296,8 @@ function execute(argv = [], {
       ...(Array.isArray(execution.requiredSurfaces) ? { requiredSurfaces: execution.requiredSurfaces } : {}),
       ...(Array.isArray(execution.requiredRuntimeSurfaces) ? { requiredRuntimeSurfaces: execution.requiredRuntimeSurfaces } : {}),
       ...(Array.isArray(execution.surfaceResults) ? { surfaceResults: execution.surfaceResults } : {}),
+      ...(execution.preflight ? { preflight: execution.preflight } : {}),
+      ...(execution.runnerCapabilities ? { runnerCapabilities: execution.runnerCapabilities } : {}),
     });
     receipts.appendEvent(attempt, {
       command: result.resumeCommand,
@@ -1164,6 +1305,7 @@ function execute(argv = [], {
       outcome: result.outcome,
       diagnostics: result.diagnostics,
       artifacts: result.artifacts,
+      preflight: result.preflight || null,
       byteReferences: execution.byteReferences || [],
       resumeCommand: result.resumeCommand,
     });

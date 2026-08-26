@@ -134,6 +134,46 @@ selected mode and the marginal context cost in the context ledger.
 
 Each Bash tool call starts from its declared/default working directory; never assume a prior call's `cd` persists. Prefer absolute paths, `npm --prefix <dir>`, or `git -C <dir>`, and avoid command chains whose correctness depends on a directory change carrying across calls.
 
+## Orchestration decision policy (canonical SSOT)
+
+Every implement-step records exactly one outcome:
+`Decision: CLEAR | REASONER_REQUIRED | HUMAN_REQUIRED | BLOCKED`.
+
+`CLEAR` applies only when the requested behavior and implementation choice are
+settled. A static fact that an inline Read settles may be `CLEAR`, but it still
+uses the normal whole-step footprint dispatch rule. `REASONER_REQUIRED` applies
+before any writer when a non-trivial unresolved choice concerns root cause,
+algorithm, architecture, cross-file interaction, data shape, behavior, runtime,
+or a public contract. A domain-boundary decision that requires architectural
+ownership consults `architect` first; that consultation does not replace the
+reasoner evidence gate when uncertainty remains. `HUMAN_REQUIRED` is a decision
+the repository evidence cannot make; `BLOCKED` is an unavailable prerequisite,
+conflicting hard rule, or other stop condition.
+
+For `REASONER_REQUIRED`, dispatch a read-only reasoner before a writer. Its
+response must record exactly `Reasoner result: READY_FOR_DISPATCH | DECISION_FOR_USER | BLOCKED`, preserve `## Conclusion`, file-and-line evidence, and
+`## Next actions`. `READY_FOR_DISPATCH` alone permits a bounded writer dispatch;
+`DECISION_FOR_USER` maps to `HUMAN_REQUIRED` and pauses; `BLOCKED` stops and does
+not dispatch a write worker. A vague, evidence-free, or incomplete reasoner
+response is not ready for dispatch.
+
+For an OpenSpec apply with two or more unchecked tasks, a planner runs before
+the first write wave, regardless of whether `/dhpk:do --plan` was passed. Its
+result MUST state dependency order, each task's exact owner and write scope, and
+the next checkpoint. For one clear unchecked task, record `planner=skipped`.
+This planner gate is a lifecycle invariant and remains active when
+`orchestration_dispatch=off`; that switch changes implementation worker/reasoner
+routing. The mandatory pre-write planner and verification gates remain active.
+Each implementation wave ends in one consolidated review checkpoint and a
+bounded fix loop: `BLOCK`, `CRITICAL`, or `HIGH` findings require a dedicated
+confirm-only reviewer after the repair; LOW/WARNING-only findings may close with
+the worker's scoped verification plus a diff-scope recheck. Delivery order is:
+verify all tasks and gates → archive/sync OpenSpec → add a valid changelog
+fragment → open a Draft PR targeting `develop` → monitor that PR's actual CI with
+`gh run watch` to a terminal completed CI conclusion → human merge gate. Queued
+or partial CI is not completion. Required consumer evidence marked `NOT RUN` or
+`UNAVAILABLE` is non-terminal and cannot count as completed CI. The external `/opsx:apply` flow remains unchanged; this policy governs the project-owned orchestration around it.
+
 | Work shape | Dispatch |
 |---|---|
 | Reasoning-heavy (unknown root cause, algorithm design, cross-file complex analysis) | `deep-reasoner` (Claude, default) |
@@ -150,7 +190,7 @@ Each Bash tool call starts from its declared/default working directory; never as
 | RED PHPUnit unit/integration test authored test-first and run against a live DB (Testbench / docker MySQL) — Playwright-scoped `e2e-runner` doesn't fit, read-only `deep-reasoner` can't run it, and `fast-worker`'s "make verification pass" contract conflicts with a deliberately-failing RED test | `tdd-guide` |
 | RED Vitest/Jest unit/integration test authored test-first — same semantics as the RED PHPUnit row: `e2e-runner` is Playwright-journey-scoped, read-only `deep-reasoner` can't run it, and `fast-worker`'s "make verification pass" contract conflicts with a deliberately-failing RED test; inline permitted when the step's whole footprint is ≤2 files | `tdd-guide` |
 | A read-only, scenario-driven live-runtime probe (drive the real running system with one concrete scenario, observe rather than infer) — distinct from `e2e-runner` (authors/runs Playwright specs, write-capable, web-scoped) and the `feature-verify` skill (main-context, heavyweight P0–P5 scope, not a dispatchable isolated agent) | `dhpk:smoke-tester` |
-| Plan critique / blind-sketch / dual-plan before implementation, or a warm diff review at task end | `dhpk:planner` — opt-in via `/dhpk:do --plan` on the two implementation-class routes (`dhpk:adaptive-dev-workflow`, `dhpk:opsx-apply-goal`) |
+| Plan critique / blind-sketch / dual-plan before implementation, or a warm diff review at task end | `dhpk:planner` — optional via `/dhpk:do --plan` on implementation-class routes; mandatory before an OpenSpec apply with two or more unchecked tasks |
 | Independent second opinion, or an offloaded self-contained clear-spec task — **CODEX=on only** | `codex-bridge` (subagent; one-shot bash `codex exec`, output isolated + relayed verbatim) |
 | Live CI/deploy verification (`gh run watch`, run-log triage, retry babysitting) — main context keeps only merge/fix decisions | `dhpk:smoke-tester` (read-only probe) or background `fast-worker` |
 
@@ -190,8 +230,8 @@ Reasoning-heavy dispatches default to the in-process `deep-reasoner` (Claude). T
 `/dhpk:do --reasoner=<claude|codex>[:<model>[:<effort>]]` flag (or its userConfig chain)
 picks the backend for that invocation: `claude` → `dhpk:deep-reasoner`; `codex` →
 `dhpk:codex-deep-reasoner` (codex CLI, read-only sandbox, default `gpt-5.6-sol` @ `high`).
-Both backends receive the **same** reasoning brief and return the **same** conclusion
-contract (conclusion + file:line evidence + fast-worker-ready next actions). `agy` has no
+Both backends receive the **same** reasoning brief and return the canonical
+reasoner contract above (`## Conclusion` + file-and-line evidence + `## Next actions`). `agy` has no
 reasoning tier and is unsupported. Model/effort resolve flag > backend-specific userConfig
 (`deep_reasoner_*` for claude; `codex_deep_reasoner_*` for codex) > built-in default. Only a
 missing codex executable falls back to `deep-reasoner`; authentication, model, and task
@@ -213,9 +253,11 @@ not unconditional post-edit reviewers: invoke them only when the work requires
 their RED or browser-journey ownership contract.
 
 Actionable findings become one clear fix-spec. If the whole fix batch exceeds the
-≤2-file inline bound, hand it to one selector-resolved fast worker, then run one
-bounded confirm-only re-review naming the findings being checked. Do not start a
-fresh broad review for the same wave or measure the inline bound per finding.
+≤2-file inline bound, hand it to one selector-resolved fast worker. The bounded
+fix loop then requires one dedicated confirm-only reviewer for `BLOCK`,
+`CRITICAL`, or `HIGH` findings; a LOW/WARNING-only set may close on worker
+verification plus a diff-scope recheck. Do not start a fresh broad review for
+the same wave or measure the inline bound per finding.
 When the fix originated from `tdd-guide` or `e2e-runner`, acceptance returns to
 that specialist's scoped verification command or originating journey. A new
 implementation wave receives a new consolidated review batch. The prompt/output
@@ -238,7 +280,7 @@ shape is canonicalized in `docs/contracts/reviewer-contract.md`.
 
 ### Reviewer dispatch (when multiple sentinels coexist)
 
-**Reviewer economy**: hold the review dispatch until the wave's edit batch is edit-complete — do not dispatch mid-batch and then re-review each micro-fix as its own round. Batch any post-confirm micro-edits together before a single confirm dispatch. A findings set that is LOW/WARNING-only (no BLOCK/CRITICAL/HIGH) may be closed on the fast-worker's own verification output plus a diff-scope recheck, without a dedicated confirm-only reviewer dispatch; reserve a re-review round for BLOCK/CRITICAL/HIGH findings. Split waves and confirm-only rounds are the dominant reviewer overspend — batching before dispatch is the primary lever.
+**Reviewer economy**: hold the review dispatch until the wave's edit batch is edit-complete — do not dispatch mid-batch and then re-review each micro-fix as its own round. The bounded fix loop batches a repair scope, runs worker verification, and rechecks diff scope. A findings set that is LOW/WARNING-only (no BLOCK/CRITICAL/HIGH) may close there without a dedicated confirm-only reviewer; BLOCK/CRITICAL/HIGH findings require that dedicated re-review. Batch any post-confirm micro-edits together before a single confirm dispatch. Split waves and confirm-only rounds are the dominant reviewer overspend — batching before dispatch is the primary lever.
 
 ### Hook lifecycle classes
 

@@ -6,9 +6,42 @@ Operational detail for `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §Imple
 
 The main session is the expensive, high-capability orchestrator; its implement-phase job is **decide → dispatch → verify**, not hand-typing mechanical edits. Dispatch to a worker is the **default**; inline is a **narrow exception**, not a co-equal option. The economic reason is the point, not a nicety — the orchestrator runs on the expensive tier and `fast-worker` on a cheaper one, so routing mechanical work to `fast-worker` is why this policy exists and the default bias is to dispatch. Unattended goal sessions (`dhpk-opsx-apply-goal`) bind this posture by reading the execution policy during their orientation step; the emitted `/goal` condition carries only the compact roster line and the self-locating policy pointer, never these elaborations.
 
+Apply the canonical `Decision: CLEAR | REASONER_REQUIRED | HUMAN_REQUIRED |
+BLOCKED` contract in `rules/execution-policy.md` before selecting a writer. A
+settled static fact may be `CLEAR`; the whole-step footprint still decides inline
+versus worker. A non-trivial unresolved root cause, algorithm, architecture,
+cross-file, data-shape, behavioral, runtime, or public-contract choice is
+`REASONER_REQUIRED`: use a read-only reasoner first. A domain-boundary decision
+requiring architectural ownership consults `architect` first; if uncertainty
+remains, record `REASONER_REQUIRED` and obtain the reasoner result before any
+writer. Its exact result is
+`Reasoner result: READY_FOR_DISPATCH | DECISION_FOR_USER | BLOCKED`; retain `##
+Conclusion`, file-and-line evidence, and `## Next actions`. Only
+`READY_FOR_DISPATCH` permits a bounded writer, `DECISION_FOR_USER` becomes
+`HUMAN_REQUIRED` and pauses, and `BLOCKED` stops.
+
+## OpenSpec planner gate
+
+Before the first write wave of an existing OpenSpec apply, the orchestrator
+counts unchecked tasks in the task artifact. With `>=2` unchecked tasks (two or
+more), `planner` is mandatory and runs before any writer. The planner handoff is
+actionable only when it records the dependency order, exact owner and explicit
+write scope for each task, and the next checkpoint; the orchestrator owns that
+record and uses it as the writer dispatch boundary. With exactly one clear task,
+record `planner=skipped` and continue through the canonical decision and writer
+gates.
+
 **The "≤2 files" inline bound is measured on the whole implement-step footprint, not each individual Edit.** A run of individually-small mechanical edits that together touch more than two files — e.g. a multi-file doc-consistency fix across ≥3 files — is **one `fast-worker` dispatch** (batched into a single fix-spec), not a salami-sliced sequence of "small" inline diffs. When the choice between inline and `fast-worker` is unclear, **dispatch**.
 
-**Review-fix waves follow the same posture.** After a consolidated review batch, combine actionable findings into one fix-spec and measure the whole fix footprint against the inline bound. A batch exceeding two files goes to the selector-resolved fast-worker. Applying production fixes inline one finding at a time after review is the audited anti-pattern: it salami-slices one mechanical wave and expands the orchestrator's replay context.
+**Review-fix waves follow the same posture.** After a consolidated review batch,
+combine actionable findings into one fix-spec and measure the whole fix footprint
+against the inline bound. A batch exceeding two files goes to the
+selector-resolved fast-worker. The bounded fix loop is worker verification plus a
+diff-scope recheck for LOW/WARNING-only findings; `BLOCK`, `CRITICAL`, and `HIGH`
+findings additionally require a dedicated confirm-only reviewer. Applying
+production fixes inline one finding at a time after review is the audited
+anti-pattern: it salami-slices one mechanical wave and expands the orchestrator's
+replay context.
 
 **`general-purpose` is prohibited for implementation while `orchestration_dispatch=on`.** It carries no dhpk policy context, inherits the main-session model regardless of task cost, and has no defined input/output contract — use `deep-reasoner` / `fast-worker` / inline per the dispatch table instead.
 
@@ -93,17 +126,30 @@ Anti-rationalization handling is mandatory here. If the reason for bypassing a r
 
 The dispatch table governs the **implement phase**. OpenSpec artifact authoring (proposal / specs / design / tasks) is orchestrator-inline reasoning work — it is NOT mechanical and is never dispatched to `fast-worker`; the orchestrator authors it, seeded by any preceding investigation. Root-cause investigation dispatches read-only `deep-reasoner`, whose conclusion contract seeds the fix-spec or the authored artifacts. In plan mode only read-only workers (`deep-reasoner`, `Explore`) may be dispatched — `fast-worker` cannot apply edits until plan mode is exited; `deep-reasoner` **is** permitted in plan mode because it is read-only.
 
-## Verify an unverified behavioral premise before dispatching a write worker
+## Decision gate before dispatching a write worker
 
-When a `fast-worker` task rests on an unverified *behavioral premise* — that a bug reproduces under the given fixture/data, that an algorithm or formula is correct, or that an assumed data-shape / plan dependency holds — dispatch read-only `deep-reasoner` to confirm the premise **first**, and dispatch `fast-worker` only once it holds. Scope this by premise *type*: a **static / structural** premise — whether a specific line lists a given type, whether a column is unique in a query, whether two code paths share a guard condition — is settled by a single inline Read, so spending a `deep-reasoner` dispatch on it is waste; verify it inline and move on. Reserve the gate for **behavioral / runtime / non-deterministic** premises — does the bug actually reproduce under this fixture, is a timing- or order-dependent path hit, does a plan-dependent value land in the branch under test — where reading the code is not enough to know. (Don't over-correct from a prior "always deep-reasoner first" lesson into dispatching for facts a Read settles.) Writing a RED regression test or a non-obvious fix on top of an unverified premise can hand `fast-worker` an impossible spec: a full apply-and-fail (or a multi-attempt escalation costing ~100k+ subagent tokens) that verifying the premise up front would have avoided. Route the gate to the probe that can actually settle it: a **code/algorithm/data-shape** premise (settleable by reading and reasoning over code) goes to read-only `deep-reasoner`; a **runtime/browser/environment behavior** premise (scroll position, render timing, an environment-dependent effect — not settleable by reading code alone) goes to `e2e-runner` or a scratch executable probe, since `deep-reasoner` cannot itself execute or observe such behavior. **Cross-file load-order / script-registration timing is a runtime premise, not a structural one** — extracting an inline `<script>` block into a separately-registered page asset can look like a mechanical file-move, but it changes *when* that code runs relative to state it depends on (a `const` the page defines inline, a third-party widget's own ready/draw sequence); verify the new load position against that dependency **before** writing the extraction, with a scratch probe or `e2e-runner`, not by shipping a first attempt and diagnosing the failure after. This is distinct from the conclusion sanity-check below — that checks a `deep-reasoner` *conclusion* is precise enough to apply; this checks the *premise the task is built on* before any fix-spec exists. (`deep-reasoner` is read-only, so this applies in plan mode too.)
+For a `REASONER_REQUIRED` decision, the read-only reasoner runs before a writer.
+Static / structural facts a Read settles are `CLEAR`, but a behavioral, runtime,
+algorithm, data-shape, cross-file, or public-contract choice is not. Route a
+runtime observation to the executable probe or `e2e-runner` the reasoner names;
+do not turn an unobserved runtime claim into a writer task. The reasoner must
+return the exact canonical result and preserve its `## Conclusion`, file-and-line
+evidence, and `## Next actions`; only `READY_FOR_DISPATCH` supplies a bounded
+writer spec. `DECISION_FOR_USER` is `HUMAN_REQUIRED`; `BLOCKED` stops.
 
 ## Sanity-check a `deep-reasoner` conclusion before `fast-worker` applies it
 
-Before dispatching `fast-worker` to apply a conclusion contract, confirm it carries file:line evidence and next-actions precise enough to serve as a task spec. Re-work a vague or evidence-free conclusion (return it to `deep-reasoner`, or resolve it inline) rather than dispatching it for application — a wrong confident conclusion otherwise costs a full 3-attempt apply-and-fail cycle.
+Before dispatching `fast-worker` to apply a conclusion contract, confirm it carries file-and-line evidence and next-actions precise enough to serve as a task spec. Re-work a vague or evidence-free conclusion (return it to `deep-reasoner`, or resolve it inline) rather than dispatching it for application — a wrong confident conclusion otherwise costs a full 3-attempt apply-and-fail cycle.
 
 ## Kill switch
 
-`orchestration_dispatch=off` restores pre-change behavior exactly — inline implementation everywhere touched by this policy, no dispatch prohibition, no `dhpk-opsx-apply-goal` directive line (see that skill's wiring). This is a full opt-out, not a partial degrade.
+`orchestration_dispatch=off` restores pre-change implementation behavior
+exactly: inline implementation, no implementation-worker/reasoner dispatch
+prohibition, and no `dhpk-opsx-apply-goal` directive line (see that skill's
+wiring). The mandatory multi-task OpenSpec planner is an independent lifecycle
+gate and remains active in off mode; it may dispatch `planner` before inline
+writes. This is a full opt-out of implementation routing, not a bypass of
+planner or verification gates.
 
 ## No block-polling a running worker
 

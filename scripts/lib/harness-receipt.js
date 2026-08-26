@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const { redactSensitiveText } = require('./redaction');
+const runtimePreflight = require('./consumer-runtime-preflight');
 
 const RECEIPT_SCHEMA = 'dhpk.harness.receipt.v1';
 const EVENT_SCHEMA = 'dhpk.harness.receipt-event.v1';
@@ -51,6 +52,8 @@ const IDENTITY_FIELDS = Object.freeze([
   'adapter',
   'stage',
   'producer',
+  'preflight',
+  'runnerCapabilities',
   'previousReceipt',
   'operationIntent',
 ]);
@@ -652,6 +655,47 @@ function validateReceipt(attemptPath, {
   if (envelope.worktree !== undefined && !['CLEAN', 'DIRTY'].includes(envelope.worktree)) {
     errors.push('receipt worktree must be CLEAN or DIRTY');
   }
+  if (envelope.preflight !== undefined) {
+    if (!envelope.preflight || typeof envelope.preflight !== 'object' || Array.isArray(envelope.preflight)) {
+      errors.push('receipt preflight must be an object');
+    } else {
+      if (envelope.preflight.schema !== 'dhpk.consumer-runtime-preflight.v1') errors.push('receipt preflight schema is invalid');
+      if (envelope.preflight.stage !== 'PREFLIGHT') errors.push('receipt preflight stage is invalid');
+      if (!runtimePreflight.PREFLIGHT_STATUSES.includes(envelope.preflight.status)) errors.push('receipt preflight status is invalid');
+      const preflightIdentity = envelope.preflight.identity;
+      if (!preflightIdentity || typeof preflightIdentity !== 'object' || Array.isArray(preflightIdentity)) {
+        errors.push('receipt preflight identity is missing');
+      } else {
+        const identityFields = {
+          taskId: envelope.taskId,
+          attemptId: envelope.attemptId,
+          sourceCommit: envelope.sourceCommit,
+          sourceTree: envelope.sourceTree,
+          ...(envelope.targetCommit ? { targetCommit: envelope.targetCommit } : {}),
+          ...(envelope.targetTree ? { targetTree: envelope.targetTree } : {}),
+          ...(envelope.worktree ? { worktree: envelope.worktree } : {}),
+        };
+        const bound = runtimePreflight.normalizePreflightIdentity(preflightIdentity);
+        if (!bound.ok) {
+          errors.push(...bound.errors.map((error) => `receipt preflight identity: ${error}`));
+        } else {
+          // Validate the preflight as supplied before comparing the envelope
+          // anchors.  Spreading envelope fields over the preflight would turn
+          // a foreign task/attempt/tree into apparently matching evidence.
+          const expectedPreflightIdentity = { ...bound.identity, ...identityFields };
+          const compared = runtimePreflight.comparePreflightIdentity(
+            expectedPreflightIdentity,
+            preflightIdentity,
+          );
+          if (!compared.ok) {
+            errors.push(...compared.errors.map((error) => `receipt preflight identity: ${error}`));
+          }
+        }
+        const redacted = redact(envelope.preflight);
+        if (canonicalJson(redacted) !== canonicalJson(envelope.preflight)) errors.push('receipt preflight contains unredacted sensitive data');
+      }
+    }
+  }
   const generatedCommitPresent = envelope.generatedFromCommit !== undefined;
   const generatedTreePresent = envelope.generatedFromTree !== undefined;
   if (generatedCommitPresent !== generatedTreePresent) {
@@ -762,6 +806,9 @@ function validateReceipt(attemptPath, {
     if (canonicalJson(event.dispatch || null) !== canonicalJson(envelope.dispatch || null)) errors.push(`event ${expectedSequence} dispatch identity mismatch`);
     if (event.sourceCommit !== envelope.sourceCommit) errors.push(`event ${expectedSequence} source commit identity mismatch`);
     if (event.sourceTree !== envelope.sourceTree) errors.push(`event ${expectedSequence} source tree identity mismatch`);
+    if (envelope.preflight !== undefined && canonicalJson(event.preflight || null) !== canonicalJson(envelope.preflight)) {
+      errors.push(`event ${expectedSequence} preflight identity mismatch`);
+    }
     const transition = lifecycleTransition(previousLifecycle, event.lifecyclePhase);
     errors.push(...transition.errors.map((error) => `event ${expectedSequence} ${error}`));
     if (!OUTCOMES.includes(event.outcome)) errors.push(`event ${expectedSequence} has invalid outcome`);

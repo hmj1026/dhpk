@@ -44,6 +44,6 @@ This project is indexed by GitNexus as **dhpk** (28808 symbols, 36453 relationsh
 
 ## Agent docs
 
-- GitHub issues and specs: use `gh`; see `docs/agents/issue-tracker.md`, the [guidance index](docs/agent-guidance/README.md), and [plugin development](docs/agent-guidance/plugin-development.md).
+- GitHub issues and specs: use `gh`; see `docs/agents/issue-tracker.md`, the [guidance index](docs/agent-guidance/README.md), [plugin development](docs/agent-guidance/plugin-development.md), and the canonical [execution policy](rules/execution-policy.md) for decision state, reasoner-before-writer routing, planner/review/CI/archive/PR checkpoints, and the unchanged external `/opsx:apply` boundary.
 - Triage labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`; see `docs/agents/triage-labels.md`, [writing for agents](docs/agent-guidance/writing-for-agents.md), and [Codex guidance](codex/AGENTS.md).
 - Domain context: read root `CONTEXT.md` and relevant `docs/adr/`; see `docs/agents/domain.md`.

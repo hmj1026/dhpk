@@ -89,6 +89,8 @@ function main() {
   } catch (error) {
     result = {
       status: 'BLOCKED',
+      reason_code: 'PACKAGE_INVALID',
+      reasonCode: 'PACKAGE_INVALID',
       reason: redactSensitiveText(String(error && error.message ? error.message : 'unknown probe setup error'), { maxLength: 800 }),
       packageRoot: agentPackage,
       timed_out: false,

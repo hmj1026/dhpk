@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "dhpk",
   "displayName": "DHPK Dev Harness",
-  "version": "0.47.1",
+  "version": "0.48.0",
   "description": "Reusable Claude Code harness with role-based agents, routed commands, sentinel-driven review hooks, opt-in PHP, Yii, PHPUnit, Laravel, JavaScript, Python, React, Next.js, and iOS/Swift modules, plus a parallel Codex CLI projection.",
   "author": {
     "name": "hmj1026",
@@ -107,7 +107,7 @@
     "orchestration_dispatch": {
       "type": "string",
       "title": "Implementation dispatch switch",
-      "description": "'on' (default) routes implement-phase work through the Implementation dispatch decision table in rules/execution-policy.md — deep-reasoner for reasoning-heavy work, fast-worker for mechanical work with a clear spec, inline for small (~2-file) diffs; dispatching general-purpose for implementation is prohibited while this is on. 'off' is a full kill switch restoring pre-change behavior exactly: inline implementation, no dispatch prohibition, no opsx-apply-goal directive line.",
+      "description": "'on' (default) routes implement-phase work through the Implementation dispatch decision table in rules/execution-policy.md — deep-reasoner for reasoning-heavy work, fast-worker for mechanical work with a clear spec, inline for small (~2-file) diffs; dispatching general-purpose for implementation is prohibited while this is on. 'off' is a full kill switch for implementation worker/reasoner routing, restoring inline implementation and removing the opsx-apply-goal directive line; the mandatory multi-task OpenSpec planner and verification gates remain active.",
       "default": "on"
     },
     "fast_worker_backend": {

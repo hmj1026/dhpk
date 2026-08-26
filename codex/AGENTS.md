@@ -83,14 +83,17 @@ unrelated project assets.
 
 dhpk ships 16 direct Codex agent roles under `codex/agents/` (synced into `.codex/agents/`): 4 hand-maintained generic roles — `explorer` (read-only investigation), `worker` (generic scoped implementer), `monitor` (long-running task watcher), `bug-investigator` (root-cause investigation) — plus 12 roles generated from the canonical agents — `architect`, `code-reviewer`, `security-reviewer`, `database-reviewer`, `tdd-guide`, `deep-reasoner`, `doc-reviewer`, `planner`, `spec-miner`, `frontend-reviewer`, `migration-reviewer`, `e2e-runner`.
 
-Codex CLI has no `/dhpk:do` command or dhpk slash-command router. It does provide built-in commands such as `/hooks`; the workflows below are **instructions to follow manually**, invoking each role in turn with `/agent <role-name>`:
+Codex CLI has no `/dhpk:do` command or dhpk slash-command router. It does provide built-in commands such as `/hooks`; invoke the roles below manually with `/agent <role-name>`, while treating the canonical [execution policy](../rules/execution-policy.md) as the required routing contract:
 
 - **Bug with unknown root cause**: use `bug-investigator` only for bounded intake triage; escalate confirmed reasoning-heavy cases to `deep-reasoner`, then invoke `worker` and `code-reviewer`.
 - **New feature / cross-module design**: invoke `architect` to decide layer placement, then `tdd-guide` to write tests first. If the settled GREEN footprint is ≤2 production files, `tdd-guide` may finish it and proceed to review; dispatch `worker` only for a larger-footprint handback, then invoke `code-reviewer`.
 - **Investigation / "how does X work?"**: invoke `explorer` (read-only, no edits).
 - **Deep root-cause analysis or algorithm design**: invoke `deep-reasoner`.
 
-These are sequencing guidelines, not enforced routes — nothing in Codex CLI checks that you followed them.
+The CLI does not mechanically enforce this sequence, but agents must: record the
+canonical decision state, obtain the read-only reasoner result before a writer
+when required, and preserve the planner/review/CI/archive/PR checkpoints. The
+external `/opsx:apply` flow remains unchanged.
 
 ### Context tiers and handoff packet
 
