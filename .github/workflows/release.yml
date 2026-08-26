@@ -37,7 +37,29 @@ jobs:
           node scripts/ci/verify-release-parity.js --version "$VERSION"
 
       - name: Verify harness facade preflight
-        run: bin/dhpk harness preflight --json
+        run: |
+          set +e
+          bin/dhpk harness preflight --json | tee harness-preflight-result.json
+          preflight_exit="${PIPESTATUS[0]}"
+          set -e
+          outcome="$(node -e "console.log(JSON.parse(require('fs').readFileSync('harness-preflight-result.json','utf8')).outcome)")"
+          case "$outcome" in
+            PASS)
+              [ "$preflight_exit" -eq 0 ] || exit 1
+              ;;
+            UNAVAILABLE)
+              [ "$preflight_exit" -eq 2 ] || exit 1
+              echo "Harness facade preflight is UNAVAILABLE on standard runner; keeping CI job non-blocking."
+              ;;
+            BLOCKED|FAIL)
+              echo "::error::Harness facade preflight outcome is $outcome" >&2
+              exit 1
+              ;;
+            *)
+              echo "::error::Unexpected harness facade preflight outcome: $outcome" >&2
+              exit 1
+              ;;
+          esac
 
       - name: Verify generated platform packages
         run: |
