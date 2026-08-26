@@ -32,7 +32,7 @@ const {
   cursorDocumentDestinationName,
   retainsClaudePluginRoot,
 } = require('./cursor-harness-adapt');
-const { cloneCursorSessionFiles } = require('./cursor-session-home');
+const { CURSOR_SESSION_ALLOWLIST, cloneCursorSessionFiles } = require('./cursor-session-home');
 
 const GENERATOR_VERSION = '1.0.0';
 const DEFAULT_CURSOR_PROBE_TIMEOUT_MS = 30_000;
@@ -40,6 +40,24 @@ const DEFAULT_CURSOR_PROBE_MAX_OUTPUT_BYTES = 256 * 1024;
 const MAX_CURSOR_PROBE_TIMEOUT_MS = 5 * 60 * 1000;
 const MAX_CURSOR_PROBE_OUTPUT_BYTES = 4 * 1024 * 1024;
 const CURSOR_PROBE_DIAGNOSTIC_MAX_LENGTH = 800;
+const CURSOR_PROBE_REASON_CODES = Object.freeze([
+  'READY',
+  'PACKAGE_INVALID',
+  'PACKAGE_UNAVAILABLE',
+  'TOOL_UNAVAILABLE',
+  'CLI_INCOMPATIBLE',
+  'INVOCATION_INVALID',
+  'AUTH_REQUIRED',
+  'SESSION_UNAVAILABLE',
+  'NETWORK_UNAVAILABLE',
+  'SANDBOX_UNAVAILABLE',
+  'SANDBOX_PATH_UNSAFE',
+  'TIMEOUT_SILENT',
+  'TIMEOUT_PARTIAL_OUTPUT',
+  'OUTPUT_LIMIT',
+  'NO_OUTPUT',
+  'PROBE_FAILED',
+]);
 const SANDBOX_PREFLIGHT_TIMEOUT_MS = 2_000;
 const MAX_OPERATOR_STAGE_ENTRIES = 20_000;
 const MAX_OPERATOR_STAGE_BYTES = 128 * 1024 * 1024;
@@ -1426,6 +1444,105 @@ function positiveProbeLimit(value, fallback, label, maximum) {
   return numeric;
 }
 
+function cursorStreamFrame(output) {
+  const text = String(output || '').trim();
+  if (!text) return false;
+  for (const line of text.split(/\r?\n/).slice(-200)) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+        && ['progress', 'stream', 'delta', 'partial', 'event', 'chunk'].some((key) => Object.prototype.hasOwnProperty.call(parsed, key))) {
+        return true;
+      }
+    } catch (_) {
+      if (/\b(?:progress|stream|delta|chunk|partial)\b\s*[:=]/i.test(trimmed)) return true;
+    }
+  }
+  return false;
+}
+
+function cursorReasonCode(result) {
+  if (!result || typeof result !== 'object') return 'PROBE_FAILED';
+  const explicitReason = String(result.reason_code || result.reasonCode || '').trim().toUpperCase();
+  if (CURSOR_PROBE_REASON_CODES.includes(explicitReason)) return explicitReason;
+  if (result.status === 'PASS') return 'READY';
+  if (result.timed_out) return result.no_stdout ? 'TIMEOUT_SILENT' : 'TIMEOUT_PARTIAL_OUTPUT';
+  if (result.output_limited) return 'OUTPUT_LIMIT';
+  if (result.no_stdout || result.output_missing) return 'NO_OUTPUT';
+  if (result.response_invalid || /response payload|not valid json/.test(String(result.reason || '').toLowerCase())) return 'CLI_INCOMPATIBLE';
+  const reason = String(result.reason || '').toLowerCase();
+  if (/package (?:is )?missing|package .*invalid|physical package|structural/.test(reason)) return 'PACKAGE_INVALID';
+  if (/not available on path|tooling .*not available|cli .*unavailable/.test(reason)) return 'TOOL_UNAVAILABLE';
+  if (/auth|login|logged-in|unauthenticated/.test(reason)) return 'AUTH_REQUIRED';
+  if (/sandbox paths|outside .*temporary|path .*unsafe/.test(reason)) return 'SANDBOX_PATH_UNSAFE';
+  if (/sandbox|namespace|network mode/.test(reason)) return 'SANDBOX_UNAVAILABLE';
+  if (/network|transport|dns|connection/.test(reason)) return 'NETWORK_UNAVAILABLE';
+  if (/no stdout|no .*payload|not valid json|no supported|loader|discovery/.test(reason)) return 'CLI_INCOMPATIBLE';
+  if (result.status === 'NOT_RUN') return 'CLI_INCOMPATIBLE';
+  if (result.status === 'UNAVAILABLE') return 'TOOL_UNAVAILABLE';
+  return 'PROBE_FAILED';
+}
+
+function withCursorReasonCode(result) {
+  if (!result || typeof result !== 'object') return result;
+  const reasonCode = cursorReasonCode(result);
+  const output = `${result.diagnostic || ''}`;
+  return {
+    ...result,
+    reason_code: reasonCode,
+    reasonCode,
+    ...(result.timed_out && !result.no_stdout ? { partial_output: Boolean(result.partial_output || output || cursorStreamFrame(output)) } : {}),
+    ...(result.timed_out ? { pass_ineligible: true } : {}),
+  };
+}
+
+function preflightCursorConsumer({
+  pathValue = process.env.PATH,
+  executable = null,
+  args = null,
+  hostHome = process.env.HOME,
+  networkMode = 'shared',
+} = {}) {
+  const client = executable || findExecutable(['cursor-agent'], pathValue);
+  if (!client) return { status: 'UNAVAILABLE', reasonCode: 'TOOL_UNAVAILABLE', reason: 'Cursor client tooling is not available on PATH' };
+  if (!path.isAbsolute(client)) return { status: 'UNAVAILABLE', reasonCode: 'INVOCATION_INVALID', reason: 'Cursor client executable must resolve to an absolute path' };
+  const version = commandVersionForProbe(client);
+  if (!Array.isArray(args)) return { status: 'NOT_RUN', reasonCode: 'CLI_INCOMPATIBLE', version, reason: 'Cursor executable has no supported plugin-loader invocation' };
+  const pluginDirs = args.filter((arg, index) => args[index - 1] === '--plugin-dir');
+  if (pluginDirs.length === 0 || pluginDirs.some((directory) => typeof directory !== 'string' || !path.isAbsolute(directory))) {
+    return { status: 'BLOCKED', reasonCode: 'INVOCATION_INVALID', version, reason: 'Cursor invocation must use absolute --plugin-dir paths' };
+  }
+  const sessionFiles = [];
+  if (typeof hostHome === 'string' && path.isAbsolute(hostHome)) {
+    for (const relative of CURSOR_SESSION_ALLOWLIST) {
+      try {
+        const stat = fs.lstatSync(path.join(hostHome, relative));
+        if (stat.isFile() && !stat.isSymbolicLink()) sessionFiles.push(relative);
+      } catch (_) { /* absence is reported as AUTH_REQUIRED */ }
+    }
+  }
+  if (!sessionFiles.includes('.config/cursor/auth.json')) {
+    return { status: 'BLOCKED', reasonCode: 'AUTH_REQUIRED', version, sessionFiles, sessionFileCount: sessionFiles.length, reason: 'Cursor login session is unavailable' };
+  }
+  if (!['disabled', 'shared'].includes(networkMode)) {
+    return { status: 'BLOCKED', reasonCode: 'SANDBOX_UNAVAILABLE', version, sessionFiles, sessionFileCount: sessionFiles.length, reason: 'Cursor preflight requires a controlled network mode' };
+  }
+  return { status: 'PASS', reasonCode: 'READY', version, sessionFiles, sessionFileCount: sessionFiles.length, network: networkMode };
+}
+
+function commandVersionForProbe(executable) {
+  try {
+    const result = spawnSync(executable, ['--version'], { encoding: 'utf8', timeout: 5000, maxBuffer: 16 * 1024 });
+    if (result.error || result.status !== 0) return null;
+    const output = `${result.stdout || ''}\n${result.stderr || ''}`.trim().split(/\r?\n/, 1)[0];
+    return output ? redactSensitiveText(output, { maxLength: 128 }) : null;
+  } catch (_) {
+    return null;
+  }
+}
+
 function probeDiagnostic(result) {
   const output = `${result && result.stdout ? result.stdout : ''}\n${result && result.stderr ? result.stderr : ''}`.trim();
   return output ? redactSensitiveText(output, { maxLength: CURSOR_PROBE_DIAGNOSTIC_MAX_LENGTH }) : null;
@@ -1690,7 +1807,7 @@ function sandboxInvocation(sandbox, command, args, writablePaths = [], privateRo
   return [sandbox.command, [...sandbox.prefix, ...clientBinds, ...bindArgs, '--', commandForNamespace, ...args]];
 }
 
-function runCursorConsumerProbe({
+function runCursorConsumerProbeRaw({
   packageRoot,
   pathValue = process.env.PATH,
   executable = null,
@@ -1706,11 +1823,14 @@ function runCursorConsumerProbe({
   allowUnauthenticatedFixture = false,
   networkMode = 'unrestricted',
   cwd = null,
-  hostHome = process.env.HOME,
+  hostHome = process.env.DHPK_CURSOR_HOST_HOME || process.env.HOME,
 } = {}) {
   // The release consumer-platform route sets requirePackageChallenge=true.
   // The legacy cursor-agent-probe wrapper remains launch-scoped and
   // experimental; it cannot promote a release surface by itself.
+  // Validate caller-controlled limits before resolving/invoking any client.
+  const probeTimeoutMs = positiveProbeLimit(timeoutMs, DEFAULT_CURSOR_PROBE_TIMEOUT_MS, 'timeoutMs', MAX_CURSOR_PROBE_TIMEOUT_MS);
+  const probeMaxOutputBytes = positiveProbeLimit(maxOutputBytes, DEFAULT_CURSOR_PROBE_MAX_OUTPUT_BYTES, 'maxOutputBytes', MAX_CURSOR_PROBE_OUTPUT_BYTES);
   if (!packageRoot || !fs.existsSync(packageRoot)) return { surface: 'cursor-plugin', status: 'BLOCKED', reason: 'Cursor package is missing' };
   if (requirePackageChallenge) {
     try {
@@ -1773,8 +1893,6 @@ function runCursorConsumerProbe({
       executable: client,
     };
   }
-  const probeTimeoutMs = positiveProbeLimit(timeoutMs, DEFAULT_CURSOR_PROBE_TIMEOUT_MS, 'timeoutMs', MAX_CURSOR_PROBE_TIMEOUT_MS);
-  const probeMaxOutputBytes = positiveProbeLimit(maxOutputBytes, DEFAULT_CURSOR_PROBE_MAX_OUTPUT_BYTES, 'maxOutputBytes', MAX_CURSOR_PROBE_OUTPUT_BYTES);
   const challenge = requirePackageChallenge ? {
     challenge: crypto.randomBytes(18).toString('hex'),
     packageFingerprint: fingerprintDir(packageRoot),
@@ -1878,6 +1996,7 @@ function runCursorConsumerProbe({
     if (result.error && result.error.code === 'ETIMEDOUT') {
       terminateProbeGroup(result);
       const noStdout = !evidence.diagnostic;
+      const streamObserved = cursorStreamFrame(evidence.diagnostic);
       return {
         surface: 'cursor-plugin',
         status: noStdout ? 'SKIP_INCOMPATIBLE' : 'BLOCKED',
@@ -1886,6 +2005,7 @@ function runCursorConsumerProbe({
           : `Cursor consumer probe timed out after ${probeTimeoutMs} ms`,
         timed_out: true,
         no_stdout: noStdout,
+        stream_observed: streamObserved,
         ...evidence,
       };
     }
@@ -2002,6 +2122,10 @@ function runCursorConsumerProbe({
   }
 }
 
+function runCursorConsumerProbe(options = {}) {
+  return withCursorReasonCode(runCursorConsumerProbeRaw(options));
+}
+
 module.exports = {
   GENERATOR_VERSION,
   CURSOR_MANIFEST_FIELDS,
@@ -2025,6 +2149,10 @@ module.exports = {
   findSymlinks,
   networkSandboxProbe,
   sandboxInvocation,
+  CURSOR_PROBE_REASON_CODES,
+  cursorReasonCode,
+  cursorStreamFrame,
+  preflightCursorConsumer,
   runCursorConsumerProbe,
   isSafeRelativePath,
   resolveContained,

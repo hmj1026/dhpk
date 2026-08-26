@@ -106,6 +106,16 @@ function writeBwrapStub(root, { runtime = 'pass' } = {}) {
       "    printf '%s\\n' 'authentication required Authorization: Bearer AGY_SESSION_SECRET_MARKER Authorization=Bearer AGY_EQUAL_SECRET_MARKER {\"Authorization\":\"Bearer AGY_JSON_SECRET_MARKER\"}' >&2",
       '    exit 1',
     ]
+    : runtime === 'dns'
+      ? [
+        "    printf '%s\\n' 'dns resolution failed EAI_AGY_SECRET_MARKER' >&2",
+        '    exit 1',
+      ]
+      : runtime === 'timeout'
+        ? [
+          "    printf '%s\\n' 'connection timed out' >&2",
+          '    exit 1',
+        ]
     : [
       "    printf '%s\\n' 'AGY_SMOKE_OK'",
       '    exit 0',
@@ -307,6 +317,7 @@ test('isolated AGY authentication failures remain blocked instead of package fai
     const runtime = JSON.parse(validate(root, ['--agy-runtime-probe'], env).stdout).results.find((item) => item.platform === 'agy');
     const runtimeStatus = runtime.capabilities.find((item) => item.id === 'agy.runtime.subagent').status;
     assert.strictEqual(runtimeStatus, 'BLOCKED', JSON.stringify(runtime));
+    assert.strictEqual(runtime.capabilities.find((item) => item.id === 'agy.runtime.subagent').reason_code, 'AUTH_REQUIRED', JSON.stringify(runtime));
     assert.strictEqual(runtime.final_status, 'BLOCKED', JSON.stringify(runtime));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
@@ -426,11 +437,37 @@ test('AGY missing login is BLOCKED with redacted diagnostics', () => {
     const row = report.results.find((item) => item.platform === 'agy');
     const runtime = row.capabilities.find((item) => item.id === 'agy.runtime.subagent');
     assert.strictEqual(runtime.status, 'BLOCKED', JSON.stringify(row));
+    assert.strictEqual(runtime.reason_code, 'SESSION_UNAVAILABLE', JSON.stringify(runtime));
     assert.strictEqual(row.final_status, 'BLOCKED', JSON.stringify(row));
     assert.doesNotMatch(JSON.stringify(report), /AGY_SESSION_SECRET_MARKER|AGY_EQUAL_SECRET_MARKER|AGY_JSON_SECRET_MARKER|AGY_REFRESH_SECRET_MARKER/);
     assert.doesNotMatch(JSON.stringify(report), new RegExp(hostHome.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('AGY runtime connectivity reason codes distinguish DNS and timeout', () => {
+  for (const [runtime, expectedReason] of [['dns', 'DNS_UNAVAILABLE'], ['timeout', 'TIMEOUT']]) {
+    const root = tempRoot(`agy-runtime-${runtime}`);
+    try {
+      agyPackage(root);
+      const hostHome = agyHostSession(root);
+      const stub = writeBwrapStub(root, { runtime });
+      write(path.join(stub.bin, 'agy'), [
+        '#!/bin/sh',
+        'if [ "$1" = "plugins" ] && [ "$2" = "list" ]; then echo "dhpk 0.39.0"; exit 0; fi',
+        'if [ "$1" = "agents" ]; then echo "sample"; exit 0; fi',
+        'exit 2',
+        '',
+      ].join('\n'), 0o755);
+      const env = { ...process.env, PATH: `${stub.bin}:/usr/bin:/bin`, DHPK_AGY_HOST_HOME: hostHome };
+      const runtimeResult = JSON.parse(validate(root, ['--agy-runtime-probe'], env).stdout).results.find((item) => item.platform === 'agy');
+      const capability = runtimeResult.capabilities.find((item) => item.id === 'agy.runtime.subagent');
+      assert.strictEqual(capability.status, 'UNAVAILABLE', JSON.stringify(runtimeResult));
+      assert.strictEqual(capability.reason_code, expectedReason, JSON.stringify(capability));
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   }
 });
 
