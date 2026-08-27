@@ -23,6 +23,8 @@ test('internal transport is registered everywhere but excluded from invokable ge
       `${surface} must explicitly carry the non-invokable transport runtime`,
     );
   }
+  assert.deepStrictEqual(inventory.internal_runtime_skills['codex-native'], ['cli-transport'],
+    'Codex sync must materialize its transport runtime outside capability selection');
 
   const unknownSupport = JSON.parse(JSON.stringify(inventory));
   unknownSupport.internal_runtime_skills['agent-plugin'] = ['missing-runtime'];

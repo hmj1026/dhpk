@@ -457,6 +457,14 @@ test('compiler-backed Agent Plugin generation is byte-equivalent to the accepted
     const inventory = JSON.parse(fs.readFileSync(MANIFEST, 'utf8'));
     const sourceManifest = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), 'utf8'));
     const priorReceipt = JSON.parse(fs.readFileSync(path.join(ROOT, 'plugins', 'dhpk-agent', 'provenance.json'), 'utf8'));
+    const profileSelection = priorReceipt.profileId ? {
+      profileId: priorReceipt.profileId,
+      selectedStableIds: priorReceipt.selectedStableIds,
+      emittedStableIds: priorReceipt.emittedStableIds,
+      compatibilityMode: priorReceipt.compatibilityMode,
+      selectionPolicyVersion: priorReceipt.selectionPolicyVersion,
+      selectionFingerprint: priorReceipt.selectionFingerprint,
+    } : undefined;
     materializeAgentPluginPackage({
       inventory,
       root: ROOT,
@@ -465,14 +473,7 @@ test('compiler-backed Agent Plugin generation is byte-equivalent to the accepted
       version: sourceManifest.version,
       sourceCommit: priorReceipt.sourceCommit,
       manifestMetadata: sourceManifest,
-      profileSelection: {
-        profileId: priorReceipt.profileId,
-        selectedStableIds: priorReceipt.selectedStableIds,
-        emittedStableIds: priorReceipt.emittedStableIds,
-        compatibilityMode: priorReceipt.compatibilityMode,
-        selectionPolicyVersion: priorReceipt.selectionPolicyVersion,
-        selectionFingerprint: priorReceipt.selectionFingerprint,
-      },
+      profileSelection,
     });
     assertPackageFilesEquivalent(packageFiles(out), packageFiles(path.join(ROOT, 'plugins', 'dhpk-agent')));
   } finally { fs.rmSync(out, { recursive: true, force: true }); }

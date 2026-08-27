@@ -1,12 +1,12 @@
 ---
 name: dhpk-codex-bridge
-description: "Use when CODEX=on and a self-contained bulk task or blind second opinion should go to gpt-5.5 through one-shot codex exec. Not for context-dependent or iterative work, or structured MCP codex-* review loops. Output: the relayed codex exec result, verbatim."
+description: "Use when CODEX=on and a self-contained bulk task or blind second opinion should go to gpt-5.5 through one-shot codex exec. Not for context-dependent or iterative work, or structured MCP codex-* review loops. Output: the bounded, redacted codex exec result."
 ---
 # Codex Bridge
 
 Use this skill only after routing has selected `CODEX=on`. The dedicated `dhpk-codex-bridge`
 subagent hands a **self-contained** task to gpt-5.5 through the Codex CLI (`codex exec`) and
-relays its **verbatim** output. The bundled `scripts/run-codex.sh` owns sandbox selection,
+relays its bounded, redacted output. The bundled `scripts/run-codex.sh` owns sandbox selection,
 approval policy, and output capture; this skill defines when to outsource, how to compose
 the prompt, and how to report the result.
 
@@ -31,7 +31,7 @@ the prompt, and how to report the result.
 |------|--------------------|-----------|
 | dhpk `codex-*` MCP skills | in-session Codex MCP tools, output in the main context | structured review / implement / architecture with a review-loop |
 | external `codex:` plugin | Codex app-server (persistent JSON-RPC broker) | rescue / long-running handoff via a persistent runtime |
-| **codex-bridge (this skill)** | one-shot `codex exec` bash wrapper, fresh session, output **quarantined in a subagent**, relayed verbatim | outsource a self-contained bulk task, or a **blind** second opinion |
+| **codex-bridge (this skill)** | one-shot `codex exec` bash wrapper, fresh session, output **quarantined in a subagent**, relayed with bounded redaction | outsource a self-contained bulk task, or a **blind** second opinion |
 
 codex-bridge is the thinnest, most isolated path — no MCP, no persistent broker, no in-context output.
 
@@ -95,14 +95,14 @@ Success:
 
 ```text
 sandbox=<mode> exit=0
-<Codex final message, unchanged>
+<bounded, redacted Codex final message>
 ```
 
 Failure:
 
 ```text
 sandbox=<mode> exit=<non-zero code>
-<wrapper stderr tail, unchanged>
+<bounded, redacted wrapper stderr tail>
 ```
 
 Verified timeout (non-success):
@@ -115,14 +115,14 @@ sandbox=<mode> exit=124
 When receipt containment or redaction cannot be verified, callers report
 `BLOCKED`.
 
-The first line is bridge metadata. Keep the following Codex or wrapper payload verbatim. An
+The first line is bridge metadata. Preserve the following bounded, redacted Codex or wrapper payload without reinterpretation. An
 empty final message is a failure, not a successful result. Preserve the wrapper's `401`
 login hint when present.
 
 ## Relay the result
 
-- On success: add only the `sandbox=<mode> exit=0` metadata line, then return Codex's output
-  **verbatim**. Do not polish, summarize away, or soften its conclusions.
+- On success: add only the `sandbox=<mode> exit=0` metadata line, then return Codex's bounded,
+  redacted output without polishing, summarising away, or softening its conclusions.
 - On failure (non-zero exit / empty output): return the failure envelope with the mode, exit
   code, and wrapper stderr tail. **Never fabricate** a result. A `401` means Codex is not
   logged in (`codex login`).
@@ -136,4 +136,4 @@ not alter the payload before returning it.
 - [ ] Correct sandbox mode (`read-only` for review, `workspace-write` only when edits are needed).
 - [ ] Wrapper completed with a non-empty final message, or failure was reported with mode, exit code, and stderr tail.
 - [ ] Exit `124` has a contained `dhpk.cli.receipt.v1` terminal `TIMEOUT` receipt; any salvage has independent path-scoped diff evidence and a reconciliation action.
-- [ ] Result was relayed verbatim, or failure was reported honestly — nothing invented.
+- [ ] Result was relayed with bounded redaction, or failure was reported honestly — nothing invented.

@@ -187,15 +187,16 @@ test('canonical and Claude-published claims are evaluated against their own coun
     fs.writeFileSync(invPath, `${JSON.stringify(inv, null, 2)}\n`);
 
     // Canonical is unchanged by a lifecycle move; only the published count drops.
-    const before = JSON.parse(originals[0][1]).skills.length;
+    const { computeScopedCounts } = require(path.join(repo, 'scripts', 'lib', 'distribution-inventory'));
+    const published = computeScopedCounts(inv).claudePublished;
     fs.writeFileSync(surfaces, originals[1][1]
-      .replace(/(\d+)(\s+inventory-eligible Claude skill IDs)/, `${before - 1}$2`));
+      .replace(/(\d+)(\s+inventory-eligible Claude skill IDs)/, `${published}$2`));
     fs.writeFileSync(surfacesZh, originals[2][1]
-      .replace(/(\d+)(\s*個 inventory-eligible skill ID)/, `${before - 1}$2`));
+      .replace(/(\d+)(\s*個 inventory-eligible skill ID)/, `${published}$2`));
 
     const { status, out } = runCheck(repo);
     assert.strictEqual(status, 0,
-      `canonical claims (${before}) and published claims (${before - 1}) must each check against their own count; got:\n${out}`);
+      `canonical claims (${inv.skills.length}) and published claims (${published}) must each check against their own count; got:\n${out}`);
   } finally {
     for (const [f, text] of originals) fs.writeFileSync(f, text);
   }

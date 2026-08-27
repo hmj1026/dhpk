@@ -68,6 +68,28 @@ test('native compiler plan preserves explicit selection, public identity, and ge
   }
 });
 
+test('native compiler materializes a non-invokable transport runtime without granting capability selection', () => {
+  const inventory = {
+    skills: [
+      { id: 'tdd', name: 'dhpk-tdd-workflow', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['codex-native'] },
+      { id: 'cli-transport', name: 'dhpk-cli-transport', path: 'skills/dhpk-cli-transport', lifecycle: 'optional', invokable: false, surfaces: ['codex-native'] },
+    ],
+    internal_runtime_skills: { 'codex-native': ['cli-transport'] },
+  };
+  const out = tmpDir('dhpk-native-runtime-support-');
+  try {
+    const projection = compileNativePackage({ inventory, root: ROOT, outDir: out, version: '1.2.3', sourceCommit: 'abc123' });
+    assert.deepStrictEqual(projection.selectedSkillIds, ['tdd']);
+    assert.deepStrictEqual(projection.materializedSkillIds, ['cli-transport', 'tdd']);
+    assert.deepStrictEqual(projection.provenance.selectedSkillIds, ['tdd']);
+    assert.deepStrictEqual(projection.provenance.runtimeSupportStableIds, ['cli-transport']);
+    assert.ok(projection.plan.entries.some((entry) => entry.destination === 'skills/dhpk-cli-transport/SKILL.md'));
+    assert.ok(!projection.plan.selectedStableIds.includes('cli-transport'));
+  } finally {
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
 test('compiler-backed native generation preserves the accepted package bytes', () => {
   const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
   const tracked = path.join(ROOT, 'plugins', 'dhpk');
@@ -410,12 +432,15 @@ test('CLI generates the real repo codex-native set with zero symlinks and proven
     assert.strictEqual(manifest.skills, './skills/');
 
     const provenance = JSON.parse(fs.readFileSync(path.join(out, 'provenance.json'), 'utf8'));
-    assert.strictEqual(provenance.selectedSkillIds.length, 16);
-    assert.strictEqual(provenance.selectedSkillNames.length, 16);
+    assert.strictEqual(provenance.selectedSkillIds.length, 15);
+    assert.strictEqual(provenance.selectedSkillNames.length, 15);
+    assert.deepStrictEqual(provenance.runtimeSupportStableIds, ['cli-transport']);
+    assert.strictEqual(provenance.materializedSkillIds.length, 16);
+    assert.strictEqual(provenance.materializedSkillNames.length, 16);
     assert.deepStrictEqual(
       fs.readdirSync(path.join(out, 'skills')).sort(),
-      provenance.selectedSkillNames,
-      'native directory names must equal sorted public names from provenance'
+      provenance.materializedSkillNames,
+      'native directory names must equal sorted public names from materialized provenance'
     );
     assert.ok(provenance.sourceCommit && provenance.sourceCommit !== 'unknown');
     assert.ok(provenance.inventoryDigest);

@@ -53,12 +53,12 @@ claude plugin install dhpk@dhpk --config modules=php-8.x,laravel-11 --config hoo
 |------|----:|------|
 | Agents | Role-based agents | Sentinel 驅動的 reviewer，以及架構、測試、安全、文件、平台與 runtime 等情境型角色。 |
 | Commands | 已註冊的 command surface | `/dhpk:do`、`/dhpk:codex-review`、`/dhpk:precommit`、`/dhpk:setup`、`/dhpk:review-pending`、`/dhpk:smart-commit`、`/dhpk:opsx-apply-resume`、`/dhpk:harness-audit`、`/dhpk:harness-govern`、`/dhpk:ui-ux-verify` 等 |
-| Canonical skills | 98 個扁平 `dhpk-*` package | 每個 capability 只有一個公開名稱，來源固定在 `skills/dhpk-*/`；module 與 Codex 專案面只做 projection，不是第二份來源。 |
+| Canonical skills | 98 個扁平 `dhpk-*` package | 每個 capability 只有一個具名 package，來源固定在 `skills/dhpk-*/`；內部 runtime package 不可呼叫，module 與 Codex 專案面只做 projection，不是第二份來源。 |
 | 技術棧模組 | 可選技術棧模組 | PHP、Yii、PHPUnit、Laravel、JavaScript、Vue、Laravel Mix、Next.js、React、Python、`library-author` 與 iOS/Swift 模組 |
 | Hooks | 4 個事件 | PreToolUse（Edit guard 與合併 Bash safety/Git gate）、PostToolUse（sentinel routing）、SessionStart（module activation）、SubagentStop（strict reviewer reconciliation） |
 | Hook dispatchers | 2 | `post-edit-dispatch.sh` 負責 sentinel routing；`pre-bash-dispatch.sh` 合併 deterministic shell 與 Git/review-debt gate |
 | Harness 腳本 | 5 | precommit-runner、verify-runner、harness-audit、codemap generator、dep-audit |
-| Codex 雙軌 | 15 個精選 skill | 專案同步使用 receipt 管理的 projection；實驗性 native package 則以實體檔發布同一組技能。 |
+| Codex 雙軌 | 16 筆項目（15 個可呼叫） | 專案同步使用 receipt 管理的 projection；實驗性 native package 則以實體檔發布同一組技能與內部 transport runtime。 |
 
 呼叫語法會依 surface 不同：
 
@@ -311,10 +311,10 @@ dhpk/
 ├── codex/                        # Codex CLI 雙軌（Claude Code 不會自動載入）
 │   ├── AGENTS.md                 # Codex 專屬指引
 │   ├── README.md、README.zh-TW.md # 如何同步進專案
-│   ├── skills/                   # 15 個指向 canonical skills/ 的相對 symlink
+│   ├── skills/                   # 16 個相對 symlink（15 個可呼叫加內部 transport runtime）
 │   ├── agents/、config.toml.example
 ├── .codex-plugin/plugin.json     # Codex plugin manifest（marketplace 可安裝，實驗性）
-├── plugins/dhpk/                 # 追蹤中的 Codex-native package：15 個實體 skill、零 symlink
+├── plugins/dhpk/                 # 追蹤中的 Codex-native package：16 個實體項目、零 symlink
 │   ├── .codex-plugin/plugin.json
 │   ├── README.md
 ├── .agents/plugins/marketplace.json  # repo-scoped Codex marketplace descriptor

@@ -121,6 +121,48 @@ test('Cursor projects declared runtime support as local overlay even when the se
   assert.deepStrictEqual(projection.overlaySkills.map((skill) => skill.id), ['portable', 'runtime']);
 });
 
+test('Cursor permits only inventory-attested runtime support to overlap its shared physical skill source', () => {
+  const root = makeFixture();
+  const out = tmpDir('dhpk-cursor-runtime-shared-overlap-');
+  const inventory = {
+    skills: [{
+      id: 'runtime',
+      name: 'dhpk-runtime',
+      path: 'skills/dhpk-runtime',
+      lifecycle: 'optional',
+      invokable: false,
+      surfaces: ['agent-plugin', 'cursor-plugin'],
+    }],
+    surface_membership: { 'agent-plugin': ['runtime'], 'cursor-plugin': ['runtime'] },
+    internal_runtime_skills: { 'cursor-plugin': ['runtime'] },
+    platform_matrix: {
+      schema: 'dhpk.platform-capability-matrix.v1',
+      entries: [{
+        id: 'dhpk.platform.cursor-plugin.shared-runtime',
+        public_name: 'cursor-plugin-shared-runtime',
+        surface: 'cursor-plugin',
+        source_paths: ['skills/'],
+        destination: 'plugins/dhpk-agent/skills/',
+        transform: 'shared-agent-plugin-skills',
+        fallback: 'agent-plugin',
+        projection_mode: 'shared',
+        shared_surface: 'agent-plugin',
+        stable_ids: ['runtime'],
+        evidence: 'NOT_RUN',
+      }],
+    },
+  };
+  try {
+    const result = materializeCursorPackage({ inventory, root, outDir: out });
+    assert.deepStrictEqual(result.provenance.runtimeSupportStableIds, ['runtime']);
+    assert.deepStrictEqual(validateCursorPackage({ packageRoot: out, inventory }).errors, []);
+    assert.ok(validateCursorPackage({ packageRoot: out }).errors.some((error) => /repeats shared skill IDs/i.test(error)));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
 test('Cursor compiler freezes shared/overlay intent before materialization', () => {
   const root = makeFixture();
   const out = tmpDir('dhpk-cursor-compile-');

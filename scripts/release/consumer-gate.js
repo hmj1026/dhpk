@@ -354,19 +354,28 @@ function discoverCodexSurfaces({ root, project, version, nativeRoot = path.join(
         ? provenance.emittedStableIds
         : Array.isArray(provenance.selectedStableIds)
           ? provenance.selectedStableIds
-          : null;
+          : Array.isArray(provenance.selectedSkillIds)
+            ? provenance.selectedSkillIds
+            : null;
       const selectedSet = selectedStableIds ? new Set(selectedStableIds) : null;
+      const runtimeSupportSet = new Set(Array.isArray(provenance.runtimeSupportStableIds)
+        ? provenance.runtimeSupportStableIds
+        : []);
       const expectedNativeSkills = inventory && Array.isArray(inventory.skills)
         ? inventory.skills.filter((skill) => (
           (skill.surfaces || []).includes('codex-native')
           && skill.lifecycle !== 'deprecated'
-          && (!selectedSet || selectedSet.has(skill.id))
+          && (!selectedSet || selectedSet.has(skill.id) || runtimeSupportSet.has(skill.id))
         ))
         : [];
       const expectedNativeIds = expectedNativeSkills.map((skill) => skill.id).sort();
       const expectedNativeNames = expectedNativeSkills.map((skill) => skill.name || skill.id).sort();
-      const selectedNativeIds = Array.isArray(provenance.selectedSkillIds) ? [...provenance.selectedSkillIds].sort() : [];
-      const selectedNativeNames = Array.isArray(provenance.selectedSkillNames) ? [...provenance.selectedSkillNames].sort() : [];
+      const selectedNativeIds = Array.isArray(provenance.materializedSkillIds)
+        ? [...provenance.materializedSkillIds].sort()
+        : Array.isArray(provenance.selectedSkillIds) ? [...provenance.selectedSkillIds].sort() : [];
+      const selectedNativeNames = Array.isArray(provenance.materializedSkillNames)
+        ? [...provenance.materializedSkillNames].sort()
+        : Array.isArray(provenance.selectedSkillNames) ? [...provenance.selectedSkillNames].sort() : [];
       const membershipMatches = JSON.stringify(selectedNativeIds) === JSON.stringify(expectedNativeIds)
         && JSON.stringify(selectedNativeNames) === JSON.stringify(expectedNativeNames)
         && JSON.stringify(Object.keys(nativeFingerprints).sort()) === JSON.stringify(expectedNativeNames);
@@ -409,7 +418,10 @@ function discoverCodexSurfaces({ root, project, version, nativeRoot = path.join(
     fingerprintFn: fingerprintDir,
     expectedFingerprintFn: fingerprintDir,
   });
-  return { project: projectEntries, native: nativeEntries, manifest };
+  const nonInvokableSkillNames = inventory && Array.isArray(inventory.skills)
+    ? inventory.skills.filter((skill) => skill.invokable === false).map((skill) => skill.name || skill.id).sort()
+    : [];
+  return { project: projectEntries, native: nativeEntries, manifest, nonInvokableSkillNames };
 }
 
 function parseArgs(argv) {
@@ -529,9 +541,12 @@ function verifyCodexSync(root, version) {
         reasons: [`Codex surface discovery rejected an unsafe root: ${redactEvidence(error.message, root)}`],
       };
     }
+    const capabilityEntries = (entries) => entries.filter((entry) => (
+      entry.kind !== 'skills' || !surfaces.nonInvokableSkillNames.includes(entry.id)
+    ));
     const discovery = inspectCodexDiscovery({
-      project: surfaces.project,
-      native: surfaces.native.map((entry) => ({ ...entry, experimental: true })),
+      project: capabilityEntries(surfaces.project),
+      native: capabilityEntries(surfaces.native).map((entry) => ({ ...entry, experimental: true })),
       precedence: ['project-local'],
     });
     const duplicateEvidence = [];
@@ -889,7 +904,7 @@ function verifyProjectedConsumer(root, platform, version) {
   const packageRoot = path.join(root, 'plugins', agentPlugin ? 'dhpk-agent' : 'dhpk-cursor');
   const probe = path.join(root, 'scripts', 'release', 'consumer-platform-probe.js');
   const probePlatform = agentPlugin ? 'agent-plugin' : 'cursor';
-  const probeArgs = [probe, '--platform', probePlatform, '--package-root', packageRoot, '--version', version];
+  const probeArgs = [probe, '--platform', probePlatform, '--package-root', packageRoot, '--inventory', path.join(root, 'manifests', 'distribution-inventory.json'), '--version', version];
   if ((agentPlugin || platform === 'cursor') && (process.env.CI === '1' || process.env.CI === 'true' || process.env.DHPK_HARNESS_ALLOW_REAL_CONSUMER_PROBE === '1')) {
     probeArgs.push('--execute');
   }

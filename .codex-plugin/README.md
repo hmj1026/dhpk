@@ -21,12 +21,13 @@ the tracked native package, not the `codex/skills/` symlink mirror.
 
 ## What This Provides
 
-- The tracked `codex-native` package at `plugins/dhpk/` (15 entries) — an
-  explicitly allowlisted, physical subset generated from
-  `manifests/distribution-inventory.json`. Distinct from the
-  `codex/skills/` mirror (15 entries) that `scripts/hooks/install-codex-skills.sh`
-  ships under the separate `codex-sync` surface: same starting 15 skills
-  today, but its own acquisition/update/verification contract — see
+- The tracked `codex-native` package at `plugins/dhpk/` (16 entries: 15
+  invokable skills plus one internal transport runtime) — an explicitly
+  allowlisted, physical subset generated from
+  `manifests/distribution-inventory.json`. Distinct from the `codex/skills/` mirror (16 entries)
+  that `scripts/hooks/install-codex-skills.sh` ships under
+  the separate `codex-sync` surface: the same 15 invokable skills and internal
+  runtime today, but its own acquisition/update/verification contract — see
   `plugins/dhpk/README.md`.
 
 No MCP servers are declared — dhpk ships no root `.mcp.json`. Codex-side MCP

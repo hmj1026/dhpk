@@ -9,6 +9,7 @@ const INTERNAL_RUNTIME_SURFACES = Object.freeze([
   'agent-plugin',
   'cursor-plugin',
   'agy-plugin',
+  'codex-native',
 ]);
 
 function runtimeSupportSkillIds(inventory, surface) {
@@ -22,7 +23,12 @@ function runtimeSupportSkillIds(inventory, surface) {
   if (!Array.isArray(values)) throw new Error(`internal_runtime_skills.${surface} must be a string array`);
 
   const entries = new Map((inventory.skills || []).map((entry) => [entry && entry.id, entry]));
-  const membership = inventory.surface_membership && inventory.surface_membership[surface];
+  const declaredMembership = inventory.surface_membership && inventory.surface_membership[surface];
+  const membership = Array.isArray(declaredMembership)
+    ? declaredMembership
+    : surface === 'codex-native'
+      ? [...entries.values()].filter((entry) => (entry.surfaces || []).includes(surface)).map((entry) => entry.id)
+      : null;
   if (!Array.isArray(membership)) throw new Error(`internal runtime support requires surface_membership.${surface}`);
   const seen = new Set();
   return values.map((id) => {

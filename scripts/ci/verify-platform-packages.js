@@ -106,7 +106,7 @@ function verifyCursor({ inventory, profiles, moduleCatalog, version, tracked, te
     sourceCommit: trackedProvenance.sourceCommit || sourceCommit(ROOT, 'unknown'),
     profileSelection: profileSelectionFromReceipt({ receipt: trackedProvenance, surface: 'cursor-plugin', inventory, profiles, moduleCatalog }),
   });
-  const structural = validateCursorPackage({ packageRoot: temp });
+  const structural = validateCursorPackage({ packageRoot: temp, inventory });
   const receipt = validateSurfaceReceipt(readJson(path.join(tracked, 'provenance.json')), 'cursor-plugin');
   const fingerprintMatches = fingerprintCursor(temp) === fingerprintCursor(tracked);
   return {

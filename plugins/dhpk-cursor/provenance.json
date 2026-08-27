@@ -5,10 +5,10 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.48.3",
-  "sourceCommit": "0cfcb5c54552d1bdf754de5a102822c471fa7356",
-  "generatedFromCommit": "0cfcb5c54552d1bdf754de5a102822c471fa7356",
-  "generatedFromTree": "924eabc899247dde48c89673e994b3c5f0444524",
-  "inventoryDigest": "a73b2f405018743bba1f92cbc91921381cb2fdc76c31943143ddd44a82860b7c",
+  "sourceCommit": "ea8cd36253cef0b505ab4ba1856c44323aacb467",
+  "generatedFromCommit": "ea8cd36253cef0b505ab4ba1856c44323aacb467",
+  "generatedFromTree": "2cff86efc59c59b4994a7041b7074d56ced83faf",
+  "inventoryDigest": "310c6a7aada84c5ab974f9ad78920f4dfaaa6b466f24224303aa0b4b9a27f397",
   "generatorVersion": "1.0.0",
   "selectedSkillIds": [
     "agy-fast-worker",
@@ -19,6 +19,11 @@
     "dhpk-agy-fast-worker",
     "dhpk-cli-transport",
     "dhpk-codex-bridge"
+  ],
+  "runtimeSupportStableIds": [
+    "agy-fast-worker",
+    "cli-transport",
+    "codex-bridge"
   ],
   "skillProjectionMode": "overlay",
   "sharedSkillSurface": "agent-plugin",
@@ -475,9 +480,9 @@
     }
   ],
   "fingerprints": {
-    "skills": "0e73c6138bbab9d4f005e29ff67f0468e47647dd4d84476a56fe0a87ab647f5f",
+    "skills": "1c888ce07a0a5e1424420f50c3baf839b392c9f6523a95d4b8a04abf1177eb24",
     "rules": "8ad6e28d1d9d7c740c985c0328c787d47b4d51abeef74017a4281e5b87598bc1",
-    "agents": "aa318799be476efbcc26351ae5fa8ac650f4d4cadfc2b6dbba61988b95c1b7ef",
+    "agents": "148b229a89c2c404c1ea57f4786ccaa5bb08babd397451f6d5027ba980fbae7f",
     "commands": "83fdc5448b9d8d088f6a5a73db2bfc6bdf5ecbfa2dfa3d63f47122f03fbd6ff8",
     "hooks/hooks.json": "1abe14baec6393d900554ebd4a84028ebd9748e0390f370813e9e32f664d0a8a"
   },
@@ -521,7 +526,7 @@
   ],
   "compatibilityMode": "profile",
   "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
-  "selectionFingerprint": "0e678397ba7732a5630a2ae59e4c7f41dc5dc7511296fa612b57d3650bae60d1",
-  "surfaceSelectionFingerprint": "796394b02cf60c680baf4e01cdc1861293c6aceda6e1093ee3a3594eaa5ce31d",
-  "planFingerprint": "40b6dac9b6855ceaee5216374f64c7ac48941e19b554dc6d80db34a16c53abf0"
+  "selectionFingerprint": "659aeeb7a9e89e08f7a3d042cfd01c432390f8d7919ccf50949599e557549a2f",
+  "surfaceSelectionFingerprint": "2cad7842c0795f369487dda0d275ecf4e7f3791085d8f8f2e32587f1e19217be",
+  "planFingerprint": "7c66d13ed26db51cb421d8baaf2c8923480287989705580eb294e1aeef1431ab"
 }

@@ -905,6 +905,7 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
     generatorVersion,
     selectedSkillIds: [...selectedIds].sort(),
     selectedSkillNames: [...selectedNames].sort(),
+    runtimeSupportStableIds: runtimeSupportSkillIds(inventory, 'cursor-plugin').slice().sort(),
     skillProjectionMode: skillProjection.mode,
     sharedSkillSurface: skillProjection.sharedSurface,
     sharedSkillSource: skillProjection.sharedSkills.length > 0 ? 'plugins/dhpk-agent/skills/' : null,
@@ -1042,6 +1043,7 @@ function compileCursorPackage({
         const validation = validateCursorPackage({
           packageRoot: context.session.stageRoot,
           expectedManifestName: rendered.metadata.manifest.name,
+          inventory,
         });
         if (!validation.ok) throw new Error(`generated Cursor Plugin failed validation: ${validation.errors.join('; ')}`);
         return rendered;
@@ -1372,6 +1374,7 @@ function validateMarketplace(packageRoot, errors) {
 function validateCursorPackage(input = {}) {
   const packageRoot = typeof input === 'string' ? input : input.packageRoot;
   const expectedManifestName = typeof input === 'string' ? null : input.expectedManifestName || null;
+  const inventory = typeof input === 'string' ? null : input.inventory || null;
   const errors = [];
   const skippedSkills = [];
   if (!packageRoot) return { ok: false, errors: ['Cursor packageRoot is required'], skippedSkills };
@@ -1424,6 +1427,9 @@ function validateCursorPackage(input = {}) {
       const provenance = JSON.parse(readFileBounded(provenancePath).toString('utf8'));
       const sharedIds = Array.isArray(provenance.sharedSkillIds) ? provenance.sharedSkillIds : [];
       const selectedIds = Array.isArray(provenance.selectedSkillIds) ? provenance.selectedSkillIds : [];
+      const declaredRuntimeSupportIds = Array.isArray(provenance.runtimeSupportStableIds)
+        ? [...provenance.runtimeSupportStableIds].sort()
+        : [];
       if (provenance.skillProjectionMode !== undefined && !['shared', 'overlay', null].includes(provenance.skillProjectionMode)) {
         errors.push('Cursor provenance skillProjectionMode must be shared, overlay, or null');
       }
@@ -1436,7 +1442,23 @@ function validateCursorPackage(input = {}) {
       if (sharedIds.length > 0 && provenance.sharedSkillSource !== 'plugins/dhpk-agent/skills/') {
         errors.push('shared Cursor skills must identify plugins/dhpk-agent/skills/ as their physical source');
       }
-      const overlap = selectedIds.filter((id) => sharedIds.includes(id));
+      let allowedRuntimeSupportIds = new Set();
+      if (inventory) {
+        let expectedRuntimeSupportIds = [];
+        try {
+          expectedRuntimeSupportIds = runtimeSupportSkillIds(inventory, 'cursor-plugin').slice().sort();
+        } catch (error) {
+          errors.push(`Cursor runtime support inventory is invalid: ${error.message}`);
+        }
+        if (provenance.inventoryDigest !== stableInventoryDigest(inventory)) {
+          errors.push('Cursor provenance inventoryDigest does not match the validation inventory');
+        } else if (JSON.stringify(declaredRuntimeSupportIds) !== JSON.stringify(expectedRuntimeSupportIds)) {
+          errors.push('Cursor provenance runtime support IDs do not match the validation inventory');
+        } else {
+          allowedRuntimeSupportIds = new Set(expectedRuntimeSupportIds);
+        }
+      }
+      const overlap = selectedIds.filter((id) => sharedIds.includes(id) && !allowedRuntimeSupportIds.has(id));
       if (overlap.length > 0) errors.push(`Cursor overlay repeats shared skill IDs: ${overlap.sort().join(', ')}`);
     } catch (error) { errors.push(`provenance.json is invalid JSON: ${error.message}`); }
   }

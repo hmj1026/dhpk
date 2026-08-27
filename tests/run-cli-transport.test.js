@@ -24,8 +24,8 @@ function commandPath(name) {
 }
 
 function digest(file) { return crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex'); }
-function roleContract(role, authority) {
-  const fields = { requested_role: role, effective_role: role, authority, source_id: 'test.role-map' };
+function roleContract(effectiveRole, authority, requestedRole = effectiveRole) {
+  const fields = { requested_role: requestedRole, effective_role: effectiveRole, authority, source_id: 'test.role-map' };
   return { schema: 'dhpk.role-contract.v1', ...fields, evidence_sha256: crypto.createHash('sha256').update(JSON.stringify(fields, Object.keys(fields).sort())).digest('hex') };
 }
 function promptEvidence(file) {
@@ -105,6 +105,30 @@ test('read-only role cannot be widened and blocks before provider launch', () =>
     request.role_contract = roleContract('codex-deep-reasoner', 'read-only');
     const result = invoke(root, request);
     assert.strictEqual(result.status, 65, result.stderr);
+    assert.ok(!fs.existsSync(path.join(root, 'allowed.txt')));
+  });
+});
+
+test('effective role labels cannot widen an already-attested request', () => {
+  withRequest(({ root, request }) => {
+    request.requested_role = 'codex-deep-reasoner';
+    request.effective_role = 'codex-bridge';
+    request.role_contract = roleContract('codex-bridge', 'read-only', 'codex-deep-reasoner');
+    request.mode = 'read-only';
+    request.command = request.command.map((value) => value === 'workspace-write' ? 'read-only' : value);
+    const result = invoke(root, request);
+    assert.strictEqual(result.status, 65, result.stderr);
+    assert.ok(!fs.existsSync(path.join(root, 'allowed.txt')));
+  });
+});
+
+test('a pre-existing immutable receipt blocks before provider launch', () => {
+  withRequest(({ root, request }) => {
+    const existing = '{"prior":"receipt"}\n';
+    fs.writeFileSync(request.receipt_path, existing, { mode: 0o600 });
+    const result = invoke(root, request);
+    assert.strictEqual(result.status, 65, result.stderr);
+    assert.strictEqual(fs.readFileSync(request.receipt_path, 'utf8'), existing);
     assert.ok(!fs.existsSync(path.join(root, 'allowed.txt')));
   });
 });
@@ -293,6 +317,28 @@ test('receipt is 0600, immutable, and embeds its follow-up record atomically', (
     const repeat = invoke(root, request);
     assert.strictEqual(repeat.status, 65, repeat.stderr);
   });
+});
+
+test('process-group liveness treats an unreaped zombie member as terminated', () => {
+  const script = [
+    'import importlib.util, os, signal, subprocess, sys, time',
+    `spec = importlib.util.spec_from_file_location('cli_transport_zombie_test', ${JSON.stringify(RUNNER)})`,
+    'module = importlib.util.module_from_spec(spec)',
+    'spec.loader.exec_module(module)',
+    "child = subprocess.Popen(['/bin/sleep', '10'], start_new_session=True)",
+    'os.kill(child.pid, signal.SIGKILL)',
+    'deadline = time.time() + 2',
+    'while time.time() < deadline:',
+    '    try:',
+    "        if open('/proc/%d/stat' % child.pid, 'r').read().rsplit(')', 1)[1].split()[0] == 'Z': break",
+    '    except OSError: pass',
+    '    time.sleep(0.01)',
+    "else: raise RuntimeError('child did not become zombie')",
+    'print(module.process_group_has_live_members(child.pid))',
+  ].join('\n');
+  const result = spawnSync(commandPath('python3'), ['-c', script], { encoding: 'utf8', timeout: 5000 });
+  assert.strictEqual(result.status, 0, result.stderr);
+  assert.strictEqual(result.stdout.trim(), 'False');
 });
 
 test('runner timeout is terminal and quoted JSON-like secrets are redacted', () => {

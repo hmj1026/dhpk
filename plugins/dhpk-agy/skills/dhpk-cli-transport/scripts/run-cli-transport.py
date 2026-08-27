@@ -520,6 +520,8 @@ def role_validation(request):
     effective_maximum = MAX_AUTHORITY.get(role)
     if requested_maximum is None or effective_maximum is None:
         raise Blocked("role contract role is unknown")
+    if request.get("requested_role") != role:
+        raise Blocked("role labels must be canonicalized before the contained runner")
     maximum = min(AUTHORITY_RANK[requested_maximum], AUTHORITY_RANK[effective_maximum])
     if AUTHORITY_RANK[fields["authority"]] > maximum:
         raise Blocked("role contract authority exceeds or contradicts role maximum")
@@ -671,6 +673,35 @@ def drain_bounded(handle, destination):
         handle.close()
 
 
+def process_group_has_live_members(group_id):
+    """Return true only while a process group has a non-zombie member.
+
+    Linux can retain a killed descendant as a zombie briefly after its leader
+    has been reaped.  `killpg(group_id, 0)` treats that already-terminated
+    process as group liveness, so inspect `/proc` when available.  If the
+    process table cannot be inspected, retain the conservative signal probe.
+    """
+    try:
+        members = os.listdir("/proc")
+    except OSError:
+        try:
+            os.killpg(group_id, 0)
+        except OSError:
+            return False
+        return True
+    for member in members:
+        if not member.isdigit():
+            continue
+        try:
+            with open(os.path.join("/proc", member, "stat"), "r") as handle:
+                fields = handle.read().rsplit(")", 1)[1].split()
+            if len(fields) >= 3 and fields[0] != "Z" and int(fields[2]) == group_id:
+                return True
+        except (OSError, IndexError, ValueError):
+            continue
+    return False
+
+
 def write_stdin(handle, payload):
     try:
         if payload:
@@ -714,6 +745,8 @@ def main():
     contract = None
     try:
         workdir, artifact_root, receipt_path, prompt, contract, runtime_path, workdir_fd, artifact_fd = validate(request)
+        if os.path.lexists(receipt_path):
+            raise Blocked("immutable receipt target already exists")
         before = snapshot(workdir)
         preexisting_symlinks = symlink_paths(before)
         if preexisting_symlinks:
@@ -772,12 +805,15 @@ def main():
                             process.kill()
                         try:
                             process.wait(timeout=5)
-                            os.killpg(process.pid, 0)
-                            raise Blocked("provider process group did not terminate after timeout")
                         except OSError:
-                            pass
+                            raise Blocked("provider did not terminate after timeout")
                         except subprocess.TimeoutExpired:
                             raise Blocked("provider did not terminate after timeout")
+                        deadline = time.monotonic() + 5
+                        while process_group_has_live_members(process.pid) and time.monotonic() < deadline:
+                            time.sleep(0.02)
+                        if process_group_has_live_members(process.pid):
+                            raise Blocked("provider process group did not terminate after timeout")
                         timed_out = True
                 finally:
                     for thread in (stdin_thread, stdout_thread, stderr_thread):

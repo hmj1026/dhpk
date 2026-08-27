@@ -572,7 +572,7 @@ function main() {
     const stagedAgentValidation = validateAgentPluginPackage(stagedAgent, {
       allowlist: inventory.portable_frontmatter && inventory.portable_frontmatter.allowlist,
     });
-    const stagedCursorValidation = validateCursorPackage({ packageRoot: stagedCursor, expectedManifestName: 'dhpk-cursor' });
+    const stagedCursorValidation = validateCursorPackage({ packageRoot: stagedCursor, expectedManifestName: 'dhpk-cursor', inventory });
     const agentReceipt = validateSurfaceReceipt(JSON.parse(fs.readFileSync(path.join(stagedAgent, 'provenance.json'), 'utf8')), 'agent-plugin');
     const cursorReceipt = validateSurfaceReceipt(JSON.parse(fs.readFileSync(path.join(stagedCursor, 'provenance.json'), 'utf8')), 'cursor-plugin');
     const validationErrors = [

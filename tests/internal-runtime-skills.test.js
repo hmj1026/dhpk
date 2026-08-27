@@ -14,11 +14,11 @@ function inventory() {
 test('resolves declared runtime support without making it an invokable selection', () => {
   const source = inventory();
   const expected = ['agy-fast-worker', 'cli-transport', 'codex-bridge'];
-  assert.deepStrictEqual(INTERNAL_RUNTIME_SURFACES, ['agent-plugin', 'cursor-plugin', 'agy-plugin']);
-  for (const surface of INTERNAL_RUNTIME_SURFACES) {
+  assert.deepStrictEqual(INTERNAL_RUNTIME_SURFACES, ['agent-plugin', 'cursor-plugin', 'agy-plugin', 'codex-native']);
+  for (const surface of ['agent-plugin', 'cursor-plugin', 'agy-plugin']) {
     assert.deepStrictEqual(runtimeSupportSkillIds(source, surface), expected);
   }
-  assert.deepStrictEqual(runtimeSupportSkillIds(source, 'codex-native'), []);
+  assert.deepStrictEqual(runtimeSupportSkillIds(source, 'codex-native'), ['cli-transport']);
 });
 
 test('rejects malformed and unsupported runtime-support declarations', () => {
@@ -27,9 +27,9 @@ test('rejects malformed and unsupported runtime-support declarations', () => {
   assert.throws(() => runtimeSupportSkillIds(duplicate, 'agent-plugin'), /duplicate stable id/);
 
   const unsupported = inventory();
-  unsupported.internal_runtime_skills['codex-native'] = ['cli-transport'];
+  unsupported.internal_runtime_skills['unsupported-surface'] = ['cli-transport'];
   const validation = validateInternalRuntimeSkills({ inventory: unsupported });
-  assert.ok(validation.errors.some((error) => error.includes("unsupported surface 'codex-native'")));
+  assert.ok(validation.errors.some((error) => error.includes("unsupported surface 'unsupported-surface'")));
 });
 
 run('internal-runtime-skills');

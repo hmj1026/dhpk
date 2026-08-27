@@ -72,6 +72,21 @@ test('successful update emits no deprecation warning and preserves UTC receipt t
   }
 });
 
+test('Codex sync installs its transport runtime without granting it profile capability', () => {
+  const scratch = projectRoot();
+  try {
+    const result = runInstaller(scratch, ['--copy', '--force']);
+    assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    const receipt = JSON.parse(fs.readFileSync(path.join(scratch, '.codex', '.dhpk-installed.json'), 'utf8'));
+    assert.ok(!receipt.selectedStableIds.includes('cli-transport'));
+    assert.ok(!receipt.emittedStableIds.includes('cli-transport'));
+    assert.deepStrictEqual(receipt.runtimeSupportStableIds, ['cli-transport']);
+    assert.ok(receipt.managed_entries.skills['dhpk-cli-transport']);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
 function projectRoot() {
   const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-behavior-')));
   fs.mkdirSync(path.join(dir, '.git'));
@@ -1113,7 +1128,15 @@ test('reconciliation evidence records updates, retired entries, backups, and uno
 
     const first = runInstaller(scratch, ['--copy', '--force'], fakePlugin);
     assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
-    const sourceSkills = fs.readdirSync(path.join(fakePlugin, 'codex', 'skills')).sort();
+    const inventoryPath = path.join(fakePlugin, 'manifests', 'distribution-inventory.json');
+    const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
+    const codexRuntimeNames = new Set((inventory.internal_runtime_skills['codex-native'] || [])
+      .map((stableId) => inventory.skills.find((entry) => entry.id === stableId))
+      .filter(Boolean)
+      .map((entry) => entry.name));
+    const sourceSkills = fs.readdirSync(path.join(fakePlugin, 'codex', 'skills'))
+      .filter((name) => !codexRuntimeNames.has(name))
+      .sort();
     assert.ok(sourceSkills.length >= 4, 'fixture needs owned/modified retired, updated, and colliding skills');
     const retired = sourceSkills[0];
     const modifiedRetired = sourceSkills[1];
@@ -1122,8 +1145,6 @@ test('reconciliation evidence records updates, retired entries, backups, and uno
     fs.rmSync(path.join(fakePlugin, 'codex', 'skills', retired), { recursive: true, force: true });
     fs.rmSync(path.join(fakePlugin, 'codex', 'skills', modifiedRetired), { recursive: true, force: true });
 
-    const inventoryPath = path.join(fakePlugin, 'manifests', 'distribution-inventory.json');
-    const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
     const retiredRows = inventory.skills.filter((entry) => entry.name === retired || entry.name === modifiedRetired);
     inventory.skills = inventory.skills.filter((entry) => entry.name !== retired && entry.name !== modifiedRetired);
     inventory.retired_skills = retiredRows.map((entry) => ({

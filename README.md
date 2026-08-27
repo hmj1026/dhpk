@@ -53,12 +53,12 @@ Reconfigure any time with `/dhpk:setup` (or `/dhpk:setup --show` to print the cu
 |-----------|------:|-------|
 | Agents | Role-based agents | Sentinel-driven reviewers plus situational architecture, testing, security, documentation, platform, and runtime roles. |
 | Commands | Registered command surface | `/dhpk:do`, `/dhpk:codex-review`, `/dhpk:precommit`, `/dhpk:setup`, `/dhpk:review-pending`, `/dhpk:smart-commit`, `/dhpk:opsx-apply-resume`, `/dhpk:harness-audit`, `/dhpk:harness-govern`, `/dhpk:ui-ux-verify`, etc. |
-| Canonical skills | 98 flat `dhpk-*` packages | One public name per capability, rooted at `skills/dhpk-*/`; module and Codex project surfaces are projections, not additional sources. |
+| Canonical skills | 98 flat `dhpk-*` packages | One named package per capability, rooted at `skills/dhpk-*/`; internal runtime packages are non-invokable, while module and Codex project surfaces are projections, not additional sources. |
 | Stack modules | Opt-in stack modules | PHP, Yii, PHPUnit, Laravel, JavaScript, Vue, Laravel Mix, Next.js, React, Python, `library-author`, and iOS/Swift modules. |
 | Hooks | 4 events | PreToolUse (Edit guard and combined Bash safety/Git gate), PostToolUse (sentinel routing), SessionStart (module activation), SubagentStop (strict reviewer reconciliation) |
 | Hook dispatchers | 2 | `post-edit-dispatch.sh` routes sentinels; `pre-bash-dispatch.sh` combines deterministic shell and Git/review-debt gates |
 | Harness scripts | 5 | precommit-runner, verify-runner, harness-audit, codemap generator, dep-audit |
-| Codex dual-track | 15 curated skills | Project sync uses receipt-owned projections; the experimental native package publishes the same selected set as physical files. |
+| Codex dual-track | 16 entries (15 invokable) | Project sync uses receipt-owned projections; the experimental native package publishes the same invokable set plus the internal transport runtime as physical files. |
 
 Invocation syntax is surface-specific:
 
@@ -317,10 +317,10 @@ dhpk/
 ├── codex/                        # Codex CLI dual-track (Claude Code does NOT auto-load)
 │   ├── AGENTS.md                 # Codex-specific guidance
 │   ├── README.md, README.zh-TW.md # how to sync into a project
-│   ├── skills/                   # 15 relative symlinks to canonical skills/
+│   ├── skills/                   # 16 relative symlinks (15 invokable + internal transport runtime)
 │   ├── agents/, config.toml.example
 ├── .codex-plugin/plugin.json     # Codex plugin manifest (marketplace-installable, experimental)
-├── plugins/dhpk/                 # tracked Codex-native package: 15 physical skills, zero symlinks
+├── plugins/dhpk/                 # tracked Codex-native package: 16 physical entries, zero symlinks
 │   ├── .codex-plugin/plugin.json
 │   ├── README.md
 ├── .agents/plugins/marketplace.json  # repo-scoped Codex marketplace descriptor

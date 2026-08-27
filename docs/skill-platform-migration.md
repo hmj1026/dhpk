@@ -15,11 +15,11 @@ Current Codex/Cursor installation routes and rollback boundaries live in the
 | Concern | Current implementation |
 |---|---|
 | Canonical source | 98 flat packages at `skills/dhpk-<name>/` |
-| Public identity | Every dhpk skill name begins with `dhpk-` |
+| Public identity | Every invokable dhpk skill name begins with `dhpk-` |
 | Inventory SSOT | `manifests/distribution-inventory.json` schema v2 |
 | Module projection | 37 relative symlinks under `modules/*/skills/` |
-| Codex project projection | 15 relative symlinks under `codex/skills/` |
-| Codex native package | 15 physical packages under `plugins/dhpk/skills/`; zero symlinks |
+| Codex project projection | 16 relative symlinks under `codex/skills/` (15 invokable plus internal transport runtime) |
+| Codex native package | 16 physical packages under `plugins/dhpk/skills/`; zero symlinks |
 | Codex project receipt | `.codex/.dhpk-installed.json` schema v3 |
 | Default hooks | `PreToolUse`, `PostToolUse`, `SessionStart`, `SubagentStop` |
 
@@ -169,9 +169,10 @@ node tests/documentation-platform-parity.test.js
 node tests/run-all.js
 ```
 
-Expected topology is 98 canonical skills, 31 modules, 15 Codex project/native
-skills, relative symlinks only in module/Codex projections, and no symlinks in
-the native package.
+Expected topology is 98 canonical packages, 31 modules, and 16 Codex
+project/native entries (15 invokable skills plus the internal transport
+runtime), with relative symlinks only in module/Codex projections and no
+symlinks in the native package.
 
 ## Rollback
 

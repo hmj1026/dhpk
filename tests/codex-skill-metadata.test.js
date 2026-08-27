@@ -5,6 +5,8 @@ const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
+const INVENTORY = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
+const INVENTORY_BY_NAME = new Map(INVENTORY.skills.map((entry) => [entry.name, entry]));
 
 function findSkillDirs(root) {
   const result = [];
@@ -44,24 +46,31 @@ function parseInterface(metadataPath) {
   return values;
 }
 
-test('all 97 canonical skill packages have valid Codex interface metadata', () => {
+test('all 98 canonical skill packages have valid Codex interface metadata', () => {
   const canonicalDirs = [
     ...findSkillDirs(path.join(ROOT, 'skills')),
     ...findSkillDirs(path.join(ROOT, 'modules')),
   ].filter((dir) => dir.includes(`${path.sep}modules${path.sep}`) || dir.includes(`${path.sep}skills${path.sep}`));
 
-  assert.strictEqual(canonicalDirs.length, 97, 'canonical package count changed');
+  assert.strictEqual(canonicalDirs.length, 98, 'canonical package count changed');
 
   for (const skillDir of canonicalDirs) {
     const metadataPath = path.join(skillDir, 'agents', 'openai.yaml');
     assert.ok(fs.existsSync(metadataPath), `${skillDir} missing agents/openai.yaml`);
     const metadata = parseInterface(metadataPath);
     const skillName = parseSkillName(skillDir);
+    const inventoryEntry = INVENTORY_BY_NAME.get(skillName);
 
+    assert.ok(inventoryEntry, `${skillDir} is not registered in the inventory`);
     assert.ok(metadata.display_name.length > 0, `${skillDir} display_name is empty`);
     assert.ok(metadata.short_description.length >= 25, `${skillDir} short_description is too short`);
     assert.ok(metadata.short_description.length <= 64, `${skillDir} short_description is too long`);
-    assert.ok(metadata.default_prompt.includes(`$${skillName}`), `${skillDir} default_prompt must invoke $${skillName}`);
+    if (inventoryEntry.invokable === false) {
+      assert.ok(!metadata.default_prompt.includes(`$${skillName}`), `${skillDir} internal runtime prompt must not invite direct invocation`);
+      assert.match(metadata.default_prompt, /internal|do not invoke/i, `${skillDir} internal runtime prompt must explain its boundary`);
+    } else {
+      assert.ok(metadata.default_prompt.includes(`$${skillName}`), `${skillDir} default_prompt must invoke $${skillName}`);
+    }
   }
 });
 

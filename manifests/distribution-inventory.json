@@ -523,7 +523,7 @@
       "id": "codex-supporting-policies-execution-policy-md",
       "source": "codex/supporting/policies/execution-policy.md",
       "canonical_source": "rules/execution-policy.md",
-      "canonical_digest": "e1f4887d09584ec77c5f1ae0e557e89057b5ecb30da2ad02c53395e3f09474e1",
+      "canonical_digest": "770dc3f1062ffcb212581bcb7ca0deae1f89f4facde5a0f071b4a79c999e0c7f",
       "projection_digest": "b8d7c1ce6c681acc3a005dc3959072bc95b3c5d52e1b2c8a5be9dc18cb0d6ffe",
       "destination": "dhpk/policies/execution-policy.md"
     },
@@ -1352,7 +1352,8 @@
         "cursor-sync",
         "agy-plugin"
       ],
-      "invokable": false
+      "invokable": false,
+      "discoveryVisible": false
     },
     {
       "id": "codex-architect",
@@ -2844,6 +2845,9 @@
       "agy-fast-worker",
       "cli-transport",
       "codex-bridge"
+    ],
+    "codex-native": [
+      "cli-transport"
     ]
   },
   "agy_plugin": {
