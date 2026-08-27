@@ -155,6 +155,7 @@ import atexit
 import fcntl
 import hashlib
 import json
+import math
 import os
 import re
 import shutil
@@ -413,6 +414,17 @@ def release_install_lock():
 atexit.register(release_install_lock)
 
 
+def reject_non_finite_json_constant(value):
+    raise ValueError(f'non-finite JSON constant is not allowed: {value}')
+
+
+def parse_finite_json_float(value):
+    parsed = float(value)
+    if not math.isfinite(parsed):
+        raise ValueError(f'non-finite JSON number is not allowed: {value}')
+    return parsed
+
+
 def read_manifest_document():
     """Read the receipt through a pinned `.codex` directory and no-follow leaf."""
     root_fd = open_relative_directory('', create=False)
@@ -426,7 +438,11 @@ def read_manifest_document():
             os.close(fd)
             raise ValueError('project .codex receipt is not a regular file')
         with os.fdopen(fd, encoding='utf-8') as receipt_file:
-            return json.load(receipt_file)
+            return json.load(
+                receipt_file,
+                parse_constant=reject_non_finite_json_constant,
+                parse_float=parse_finite_json_float,
+            )
     finally:
         os.close(root_fd)
 
@@ -2303,6 +2319,7 @@ def classify_receipt(receipt, malformed, sources, metadata, plugin_version, fing
         return {
             'state': 'new',
             'requires_migration': False,
+            'requires_structural_migration': False,
             'reasons': [],
             'legacy_names': [],
             'retired_names': [],
@@ -2339,20 +2356,26 @@ def classify_receipt(receipt, malformed, sources, metadata, plugin_version, fing
     if isinstance(receipt, dict) and receipt.get('legacy_pending'):
         requires_migration = True
         reasons.append('receipt has a pending legacy migration')
+    requires_structural_migration = requires_migration
     if isinstance(receipt, dict) and receipt.get('plugin_version') != plugin_version:
-        reasons.append(f"receipt plugin version {receipt.get('plugin_version', '<missing>')} differs from source {plugin_version}")
+        requires_migration = True
+        reasons.append('receipt plugin version differs from source')
     if isinstance(receipt, dict) and receipt.get('source_fingerprint') != fingerprint:
+        requires_migration = True
         reasons.append('receipt source fingerprint differs from the current Codex source')
     if isinstance(receipt, dict) and receipt.get('profileId') is not None:
         if receipt.get('profileId') != SELECTION_PROFILE_ID:
             requires_migration = True
+            requires_structural_migration = True
             reasons.append('receipt capability profile differs from the requested profile')
         if receipt.get('selectionFingerprint') != SELECTION_FINGERPRINT:
             if not (SELECTION_PROFILE_ID == 'compat-v1' and not PROFILE_EXPLICIT):
                 requires_migration = True
+                requires_structural_migration = True
                 reasons.append('receipt capability selection fingerprint differs from the current selection')
     elif isinstance(receipt, dict) and receipt and PROFILE_EXPLICIT and SELECTION_PROFILE_ID != 'compat-v1':
         requires_migration = True
+        requires_structural_migration = True
         reasons.append('explicit profile migration is required for an unannotated compatibility receipt')
     elif isinstance(receipt, dict) and SELECTION_PROFILE_ID == 'compat-v1':
         # An unannotated schema-v3 receipt is deliberately retained as
@@ -2361,6 +2384,7 @@ def classify_receipt(receipt, malformed, sources, metadata, plugin_version, fing
     return {
         'state': 'stale' if reasons else 'current',
         'requires_migration': requires_migration,
+        'requires_structural_migration': requires_structural_migration,
         'reasons': reasons,
         'legacy_names': sorted(set(legacy_names)),
         'retired_names': sorted(set(retired_names)),
@@ -2565,6 +2589,10 @@ def safe_destination_fingerprint(destination, include_ignored=True):
 def build_plan(receipt, classification, sources, metadata, plugin_version, fingerprint, retirements=None):
     """Build a relative-path-only reconciliation report without writing state."""
     entries = entry_map(receipt)
+    classification_reasons = [
+        reason for reason in classification.get('reasons', [])
+        if isinstance(reason, str)
+    ]
     collisions = []
     missing = []
     updates = []
@@ -2763,13 +2791,18 @@ def build_plan(receipt, classification, sources, metadata, plugin_version, finge
         reconciliation_state = classification.get('state')
     if collisions:
         state = 'requires_adoption'
-    elif classification.get('requires_migration') or reconciliation_state in ('partial', 'stale') or missing or updates or retired:
+    elif (classification.get('requires_migration')
+          or classification.get('state') == 'stale'
+          or reconciliation_state in ('partial', 'stale')
+          or missing or updates or retired):
         state = 'stale'
     else:
         state = 'current'
     next_action = None
     if collisions:
         next_action = 'review collision evidence, then re-run with --update --adopt=<reported-relative-path>@<destination-fingerprint>@<source-fingerprint>'
+    elif classification.get('requires_migration'):
+        next_action = 're-run with --migrate --update'
     elif state != 'current':
         next_action = 're-run with --update (and --migrate when the receipt is legacy)'
     return {
@@ -2785,7 +2818,10 @@ def build_plan(receipt, classification, sources, metadata, plugin_version, finge
         'receipt_state': reconciliation_state,
         'reconciliation_state': reconciliation_state,
         'state': state,
+        'receipt_plugin_version': receipt.get('plugin_version') if isinstance(receipt, dict) else None,
+        'receipt_source_fingerprint': receipt.get('source_fingerprint') if isinstance(receipt, dict) else None,
         'source_fingerprint': fingerprint,
+        'reasons': classification_reasons,
         'collisions': sorted(collisions, key=lambda item: item.get('path', '')),
         'missing': sorted(missing, key=lambda item: item.get('path', '')),
         'updates': sorted(updates, key=lambda item: item.get('path', '')),
@@ -3266,7 +3302,7 @@ if ADOPT_PATHS:
 classification = classify_receipt(receipt, legacy, sources, skill_metadata, plugin_version, fingerprint)
 legacy_pending = bool(
     legacy
-    or classification.get('requires_migration')
+    or classification.get('requires_structural_migration')
     or (isinstance(receipt, dict) and receipt.get('legacy_pending'))
 )
 entries = entry_map(receipt)
@@ -3293,7 +3329,7 @@ except ValueError as error:
     print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
     sys.exit(2)
 
-if classification.get('requires_migration') and not MIGRATE and UNINSTALL is False:
+if classification.get('requires_structural_migration') and not MIGRATE and UNINSTALL is False:
     print('[install-codex-skills] state=stale_receipt: explicit migration is required before changing this projection', file=sys.stderr)
     for reason in classification.get('reasons') or []:
         print(f'[install-codex-skills] stale evidence: {reason}', file=sys.stderr)
