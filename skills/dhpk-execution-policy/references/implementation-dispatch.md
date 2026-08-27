@@ -76,19 +76,16 @@ If a validator reads or updates shared ratchet/configuration state, the worker u
 
 ## CLI worker mid-batch timeout recovery
 
-Applies only to a CLI-backed multi-file dispatch (`codex-fast-worker` / `dhpk-agy-fast-worker`) that reports a wrapper-level timeout (see each worker's Backend availability section) — never to a single-file dispatch, a non-timeout failure, or a missing-executable/auth/model failure, which keep their existing semantics unchanged.
+Applies only to a CLI-backed multi-file dispatch (`codex-fast-worker` / `dhpk-agy-fast-worker`) that reports a contained runner timeout (see each worker's Backend availability section) — never to a single-file dispatch, a non-timeout failure, or a missing-executable/auth/model failure, which keep their existing semantics unchanged.
 
-For Codex, `run-codex.sh` emits one `dhpk.codex.timeout.v1` JSON envelope on a
-verified wrapper timeout before cleanup and retains exit `124`. The dispatcher
-validates the unchanged object with
-`node skills/dhpk-codex-bridge/scripts/codex-timeout-envelope.js --parse`, then
-parses and records that envelope before interpreting the exit code; its
-base64-encoded report and bounded diagnostics are timeout evidence only; a
-`redaction=unavailable` envelope has no payload and is always `BLOCKED`. A
-non-empty report never proves edits or success without independent path-scoped
-diff verification, and the envelope is forwarded unchanged for reconciliation.
+The portable runner returns exit `124` only with the dispatcher-selected,
+contained `0600` `dhpk.cli.receipt.v1` terminal `TIMEOUT` receipt. The
+dispatcher verifies the receipt path, owner/mode, immutable launch identity,
+and terminal status before interpreting the exit code. A missing, invalid, or
+uncontained receipt is `BLOCKED`; a non-empty report never proves edits or
+success without independent path-scoped diff verification.
 
-**Path-scoped completion ledger.** Before dispatch, the dispatcher records the exact assigned file list and a path-scoped `git status --porcelain -- <assigned files>` baseline. After a verified wrapper timeout, the worker derives three disjoint sets covering the assigned list:
+**Path-scoped completion ledger.** Before dispatch, the dispatcher records the exact assigned file list and a path-scoped `git status --porcelain -- <assigned files>` baseline. After a verified runner timeout, the worker derives three disjoint sets covering the assigned list:
 
 - `confirmed` — intersection of the backend's own reported files and path-scoped diff evidence attributable to this dispatch.
 - `unconfirmed` — assigned files with changed or claimed work whose report or ownership evidence is incomplete.
@@ -96,9 +93,9 @@ diff verification, and the envelope is forwarded unchanged for reconciliation.
 
 A global (non-path-scoped) `git status` is never completion or ownership evidence in parallel mode.
 
-**One scoped same-backend retry.** After the first verified wrapper timeout on a multi-file dispatch, the orchestrator may dispatch exactly one recovery invocation: same backend, same model/effort, same original intent, and write scope limited to `remaining ∪ unconfirmed` — confirmed files are not repeated. The worker never edits the unresolved files inline and never falls back to another backend because of a timeout (the existing missing-executable fallback carve-out is unrelated and unaffected).
+**One scoped same-backend retry.** After the first verified runner timeout on a multi-file dispatch, the orchestrator may dispatch exactly one recovery invocation: same backend, same model/effort, same original intent, and write scope limited to `remaining ∪ unconfirmed` — confirmed files are not repeated. The worker never edits the unresolved files inline and never falls back to another backend because of a timeout (the existing missing-executable fallback carve-out is unrelated and unaffected).
 
-**Second timeout is terminal.** If the recovery invocation also has a verified wrapper timeout, the worker stops and reports `RESULT: PARTIAL` (at least one assigned file confirmed) or `RESULT: BLOCKED` (none confirmed), naming both timeout observations, the backend identity, all three ledger sets, and the next action.
+**Second timeout is terminal.** If the recovery invocation also has a verified runner timeout, the worker stops and reports `RESULT: PARTIAL` (at least one assigned file confirmed) or `RESULT: BLOCKED` (none confirmed), naming both timeout observations, the backend identity, all three ledger sets, and the next action.
 
 **PARTIAL marker (control-plane, not a product edit).** Before returning `RESULT: PARTIAL`, the worker writes one JSON marker at a dispatcher-preallocated path: `.claude/artifacts/sessions/.partial-cli-batch-<backend>-<session-id>-<dispatch-id>.json`, where `<session-id>`/`<dispatch-id>` are safe slugs the dispatcher allocates before dispatch (never a raw timestamp, to avoid collisions). The marker records backend, session/dispatch identity, the `assigned`/`confirmed`/`remaining`/`unconfirmed` sets, both timeout observations, and the next action. It is reported as a separate control-plane output, never counted in the assigned-scope edited-file list, never matches `.pending-*`, and is never auto-cleared by the worker or by a reviewer sweep — it stays until a human or the orchestrator explicitly reconciles it. An unresolved PARTIAL marker blocks marking the implementation task complete, but it is not itself a reviewer sentinel and does not gate on reviewer approval.
 

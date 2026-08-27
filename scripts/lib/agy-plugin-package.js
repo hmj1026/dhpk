@@ -16,6 +16,7 @@ const {
 } = require('./platform-provenance');
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
 const { bindSurfaceSelection } = require('./capability-bundle-selection');
+const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
 
 const SURFACE = 'agy-plugin';
 const GENERATOR_VERSION = '1.0.0';
@@ -201,7 +202,9 @@ function selectedConfiguration(inventory, profileSelection = null) {
   const selectedSet = profileSelection && Array.isArray(profileSelection.selectedStableIds)
     ? new Set(profileSelection.selectedStableIds)
     : null;
-  const skillIds = selectedSet ? membershipIds.filter((id) => selectedSet.has(id)) : membershipIds;
+  const profileSkillIds = selectedSet ? membershipIds.filter((id) => selectedSet.has(id)) : membershipIds;
+  const runtimeSkillIds = runtimeSupportSkillIds(inventory, SURFACE);
+  const skillIds = [...new Set([...profileSkillIds, ...runtimeSkillIds])];
   if (!Array.isArray(configuration.agents) || !Array.isArray(configuration.rules)) {
     throw new Error('inventory.agy_plugin agents and rules must be arrays');
   }
@@ -216,7 +219,7 @@ function selectedConfiguration(inventory, profileSelection = null) {
   });
   const agents = [...new Set(configuration.agents)].sort();
   const rules = [...new Set(configuration.rules)].sort();
-  return { agents, rules, skills };
+  return { agents, rules, skills, runtimeSkillIds };
 }
 
 function outputFiles(packageRoot, options = {}) {
@@ -381,6 +384,7 @@ function materializeAgyPluginPackage({
 
   const skillsDestination = ensureDirectory(path.join(outputRoot, 'skills'), 'AGY skills directory');
   const selectedSkillIds = new Set(selected.skills.map((skill) => skill.id));
+  const runtimeSkillIds = new Set(selected.runtimeSkillIds);
   for (const skill of selected.skills) {
     const skillPath = skill.path.replace(/^skills\//, '');
     assertSafeRelative(skillPath, `AGY skill '${skill.id}'`);
@@ -396,6 +400,11 @@ function materializeAgyPluginPackage({
     if (lstatOrNull(referencesSource)) {
       const referencesTarget = path.join(skillsDestination, skillPath, 'references');
       copyDirectory(referencesSource, referencesTarget, sourceRoot, outputRoot);
+    }
+    if (runtimeSkillIds.has(skill.id)) {
+      const scriptsSource = path.join(sourceRoot, skill.path, 'scripts');
+      const scriptsTarget = path.join(skillsDestination, skillPath, 'scripts');
+      copyDirectory(scriptsSource, scriptsTarget, sourceRoot, outputRoot);
     }
   }
 
@@ -479,6 +488,11 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
   const expectedSkillReferenceRoots = selected
     ? selected.skills.map((skill) => `skills/${skill.path.replace(/^skills\//, '')}/references/`)
     : [];
+  const expectedSkillRuntimeScriptRoots = selected
+    ? selected.skills
+      .filter((skill) => selected.runtimeSkillIds.includes(skill.id))
+      .map((skill) => `skills/${skill.path.replace(/^skills\//, '')}/scripts/`)
+    : [];
   const expectedComponentFiles = selected
     ? new Set([...expectedAgentFiles, ...expectedRuleFiles, ...expectedSkillFiles])
     : null;
@@ -492,8 +506,9 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
       errors.push(`undeclared AGY package component: ${relative}`);
     }
     const isExpectedSkillReference = expectedSkillReferenceRoots.some((prefix) => relative.startsWith(prefix));
+    const isExpectedRuntimeScript = expectedSkillRuntimeScriptRoots.some((prefix) => relative.startsWith(prefix));
     if (expectedComponentFiles && COMPONENT_ROOTS.has(base)
-      && !expectedComponentFiles.has(relative) && !isExpectedSkillReference) {
+      && !expectedComponentFiles.has(relative) && !isExpectedSkillReference && !isExpectedRuntimeScript) {
       errors.push(`undeclared AGY package file: ${relative}`);
     }
     const absolute = path.join(root, relative);
@@ -513,6 +528,9 @@ function validateAgyPluginPackage(packageRoot, { expectedVersion = null, invento
   }
   if (expectedRuleFiles) for (const relative of expectedRuleFiles) if (!files.includes(relative)) errors.push(`selected AGY rule is missing: ${relative}`);
   if (expectedSkillFiles) for (const relative of expectedSkillFiles) if (!files.includes(relative)) errors.push(`selected AGY skill is missing: ${relative}`);
+  for (const rootPrefix of expectedSkillRuntimeScriptRoots) {
+    if (!files.some((relative) => relative.startsWith(rootPrefix))) errors.push(`selected AGY runtime scripts are missing: ${rootPrefix}`);
+  }
 
   let fingerprints = null;
   try { fingerprints = readJson(path.join(root, 'fingerprints.json'), 'fingerprints.json'); } catch (error) { errors.push(error.message); }

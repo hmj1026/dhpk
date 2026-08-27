@@ -23,6 +23,7 @@ const {
 } = require('./distribution-compiler');
 const { ProjectionArtifactStore } = require('./projection-artifact-store');
 const { bindSurfaceSelection } = require('./capability-bundle-selection');
+const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
 const { redactSensitiveText } = require('./redaction');
 const {
@@ -382,7 +383,9 @@ function adaptSkill(content, publicName) {
   if (!parsed.present || !name || !description) return { ok: false, reason: 'requires name and description frontmatter' };
   if (name !== publicName) return { ok: false, reason: `frontmatter name '${name}' does not match public name '${publicName}'` };
   if (!NAME_PATTERN.test(name)) return { ok: false, reason: `frontmatter name '${name}' is not Cursor-safe` };
-  return { ok: true, content: renderFrontmatter({ name, description }, parsed.body), transform: 'agent-skills-frontmatter' };
+  const body = rewriteCursorHarnessBody(parsed.body);
+  if (retainsClaudePluginRoot(body)) return { ok: false, reason: 'retains unsupported Claude plugin-root interpolation' };
+  return { ok: true, content: renderFrontmatter({ name, description }, body), transform: 'agent-skills-frontmatter' };
 }
 
 function sanitizeMarkdownLinks(content, sourceFile, canonicalRoot) {
@@ -530,15 +533,19 @@ function cursorSkillProjection(inventory, selectedStableIds = null) {
   if (sharedRows.length > 0 && sharedIds.size === 0) agentSkills.forEach((skill) => sharedIds.add(skill.id));
   const overlayIds = new Set(overlayRows.flatMap(matrixEntryIds));
   const hasExplicitRows = rows.length > 0;
-  const overlaySkills = hasExplicitRows && overlayIds.size > 0
+  const profileOverlaySkills = hasExplicitRows && overlayIds.size > 0
     ? (inventory.skills || []).filter((skill) => overlayIds.has(skill.id) || overlayIds.has(skill.name))
     : (hasExplicitRows && overlayRows.length === 0 ? [] : selectCursorSkills(inventory, selectedStableIds));
+  const runtimeSupport = runtimeSupportSkillIds(inventory, 'cursor-plugin').map((id) => byId.get(id));
+  const overlaySkills = [...profileOverlaySkills, ...runtimeSupport]
+    .filter((skill, index, all) => skill && all.findIndex((candidate) => candidate.id === skill.id) === index)
+    .sort((left, right) => String(left.name || left.id).localeCompare(String(right.name || right.id)));
   const sharedSurface = sharedRows.length > 0 ? sharedRows[0].shared_surface : null;
   return {
     mode: sharedRows.length > 0 && overlaySkills.length === 0 ? 'shared' : (overlaySkills.length > 0 ? 'overlay' : null),
     sharedSurface,
     sharedSkills: [...sharedIds].map((id) => byId.get(id)).filter(Boolean).sort((left, right) => String(left.name || left.id).localeCompare(String(right.name || right.id))),
-    overlaySkills: overlaySkills.filter((skill, index, all) => all.findIndex((candidate) => candidate.id === skill.id) === index).sort((left, right) => String(left.name || left.id).localeCompare(String(right.name || right.id))),
+    overlaySkills,
   };
 }
 
@@ -898,6 +905,7 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
     generatorVersion,
     selectedSkillIds: [...selectedIds].sort(),
     selectedSkillNames: [...selectedNames].sort(),
+    runtimeSupportStableIds: runtimeSupportSkillIds(inventory, 'cursor-plugin').slice().sort(),
     skillProjectionMode: skillProjection.mode,
     sharedSkillSurface: skillProjection.sharedSurface,
     sharedSkillSource: skillProjection.sharedSkills.length > 0 ? 'plugins/dhpk-agent/skills/' : null,
@@ -1035,6 +1043,7 @@ function compileCursorPackage({
         const validation = validateCursorPackage({
           packageRoot: context.session.stageRoot,
           expectedManifestName: rendered.metadata.manifest.name,
+          inventory,
         });
         if (!validation.ok) throw new Error(`generated Cursor Plugin failed validation: ${validation.errors.join('; ')}`);
         return rendered;
@@ -1264,11 +1273,16 @@ function validateSkills(packageRoot, skillRoots, errors, skippedSkills) {
         errors.push(`${relative} is invalid: missing SKILL.md`);
         continue;
       }
-      const parsed = parseFrontmatter(readFileBounded(skillPath).toString('utf8'));
+      const content = readFileBounded(skillPath).toString('utf8');
+      const parsed = parseFrontmatter(content);
       if (!parsed.present || !parsed.fields.name || !parsed.fields.description || parsed.fields.name !== entry.name || !NAME_PATTERN.test(parsed.fields.name)) {
         const relative = path.relative(packageRoot, skillPath).split(path.sep).join('/');
         skippedSkills.push({ path: relative, reason: 'invalid Cursor skill frontmatter' });
         errors.push(`${relative} is invalid: invalid Cursor skill frontmatter`);
+      }
+      if (retainsClaudePluginRoot(content)) {
+        const relative = path.relative(packageRoot, skillPath).split(path.sep).join('/');
+        errors.push(`${relative} retains Claude plugin-root interpolation`);
       }
     }
   }
@@ -1360,6 +1374,7 @@ function validateMarketplace(packageRoot, errors) {
 function validateCursorPackage(input = {}) {
   const packageRoot = typeof input === 'string' ? input : input.packageRoot;
   const expectedManifestName = typeof input === 'string' ? null : input.expectedManifestName || null;
+  const inventory = typeof input === 'string' ? null : input.inventory || null;
   const errors = [];
   const skippedSkills = [];
   if (!packageRoot) return { ok: false, errors: ['Cursor packageRoot is required'], skippedSkills };
@@ -1412,6 +1427,9 @@ function validateCursorPackage(input = {}) {
       const provenance = JSON.parse(readFileBounded(provenancePath).toString('utf8'));
       const sharedIds = Array.isArray(provenance.sharedSkillIds) ? provenance.sharedSkillIds : [];
       const selectedIds = Array.isArray(provenance.selectedSkillIds) ? provenance.selectedSkillIds : [];
+      const declaredRuntimeSupportIds = Array.isArray(provenance.runtimeSupportStableIds)
+        ? [...provenance.runtimeSupportStableIds].sort()
+        : [];
       if (provenance.skillProjectionMode !== undefined && !['shared', 'overlay', null].includes(provenance.skillProjectionMode)) {
         errors.push('Cursor provenance skillProjectionMode must be shared, overlay, or null');
       }
@@ -1424,7 +1442,23 @@ function validateCursorPackage(input = {}) {
       if (sharedIds.length > 0 && provenance.sharedSkillSource !== 'plugins/dhpk-agent/skills/') {
         errors.push('shared Cursor skills must identify plugins/dhpk-agent/skills/ as their physical source');
       }
-      const overlap = selectedIds.filter((id) => sharedIds.includes(id));
+      let allowedRuntimeSupportIds = new Set();
+      if (inventory) {
+        let expectedRuntimeSupportIds = [];
+        try {
+          expectedRuntimeSupportIds = runtimeSupportSkillIds(inventory, 'cursor-plugin').slice().sort();
+        } catch (error) {
+          errors.push(`Cursor runtime support inventory is invalid: ${error.message}`);
+        }
+        if (provenance.inventoryDigest !== stableInventoryDigest(inventory)) {
+          errors.push('Cursor provenance inventoryDigest does not match the validation inventory');
+        } else if (JSON.stringify(declaredRuntimeSupportIds) !== JSON.stringify(expectedRuntimeSupportIds)) {
+          errors.push('Cursor provenance runtime support IDs do not match the validation inventory');
+        } else {
+          allowedRuntimeSupportIds = new Set(expectedRuntimeSupportIds);
+        }
+      }
+      const overlap = selectedIds.filter((id) => sharedIds.includes(id) && !allowedRuntimeSupportIds.has(id));
       if (overlap.length > 0) errors.push(`Cursor overlay repeats shared skill IDs: ${overlap.sort().join(', ')}`);
     } catch (error) { errors.push(`provenance.json is invalid JSON: ${error.message}`); }
   }

@@ -73,6 +73,9 @@ function budgetFor(budgets, lifecycle, surface) {
 }
 
 function visibilityFor(skill, entrySurface, manifest, legacyCli) {
+  if (skill.invokable === false) {
+    return { value: false, reason: 'internal runtime support is host-invisible' };
+  }
   if (legacyCli) return { value: true, reason: 'legacy CLI compatibility: discovery-visible surface' };
   if (typeof skill.discoveryVisible === 'boolean') {
     return {

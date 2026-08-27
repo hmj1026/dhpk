@@ -115,9 +115,11 @@ node scripts/ci/gen-distribution-inventory.js
 ```
 
 The current commands report one registered Claude directory root, 97
-inventory-eligible Claude skill IDs, 97 canonical skills, and 15 Codex-sync
-skills. These are independently derived scopes; a canonical total is not a
-default-install or runtime count. The five `0.47.0` retirement rows are
+inventory-eligible Claude skill IDs, 98 canonical skills (including one
+non-invokable internal runtime package), and 16 Codex-sync entries (15
+invokable skills plus one internal transport runtime). These are independently
+derived scopes; a canonical total is not a default-install or runtime count.
+The five `0.47.0` retirement rows are
 diagnostic ledger entries and are not materialized as packages or aliases;
 see the [alias-free retirement guidance](./skill-platform-migration.md#alias-free-retirement-ledger-0470).
 
@@ -294,13 +296,14 @@ from the distribution inventory's explicit `codex-native` surface — not from
 (see [ADR-0006](adr/0006-codex-native-publication-artifact.md)),
 never generated fresh at install time.
 
-**Native package membership.** The initial native allowlist is the same
+**Native package membership.** The native public allowlist is the same
 15-entry Codex subset that already had `codex-sync` (11 promoted root skills
 plus 4 approved optional-module exceptions: `php-pro`,
 `legacy-code-characterization`, `php56-yii-dev`, `yii1-security-audit`).
-`codex-sync` and `codex-native` are independent surfaces with independent
-acquisition/update/verification contracts — adding a skill to one does not
-add it to the other.
+Both surfaces also carry the non-invokable `cli-transport` runtime package for
+their adapters. `codex-sync` and `codex-native` are independent surfaces with
+independent acquisition/update/verification contracts — adding an invokable
+skill to one does not add it to the other.
 
 When both surfaces expose the same public name, the consumer gate records both source
 paths, versions, fingerprints, and receipt ownership. The deterministic matrix

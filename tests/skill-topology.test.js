@@ -133,11 +133,12 @@ test('Claude generator publishes one flat skill root and all live ids for v2 inv
     skill({ id: 'optional', name: 'dhpk-optional', path: 'skills/dhpk-optional', capability_id: 'dhpk.optional', tier: 'optional', lifecycle: 'optional' }),
   ])), {
     roots: ['./skills/'],
+    registeredSkillIds: ['optional', 'tdd'],
     generatedSkillIds: ['optional', 'tdd'],
   });
   assert.deepStrictEqual(generateClaudeSkillRoots(inventory([
     skill({ lifecycle: 'deprecated' }),
-  ])), { roots: [], generatedSkillIds: [] });
+  ])), { roots: [], registeredSkillIds: [], generatedSkillIds: [] });
 });
 
 test('topology accepts one physical canonical package with relative module and Codex projections and a physical native package', () => {

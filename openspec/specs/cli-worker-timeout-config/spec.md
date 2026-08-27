@@ -1,8 +1,10 @@
 # cli-worker-timeout-config Specification
 
 ## Purpose
-TBD - created by archiving change issue-122-role-aware-codex-timeout. Update Purpose after archive.
+Define dispatcher-resolved deadline configuration for the contained CLI runner.
+
 ## Requirements
+
 ### Requirement: Codex timeout budgets are first-class layered configuration
 The plugin SHALL expose `codex_timeout_secs` with default `360`, plus role-specific `codex_fast_worker_timeout_secs`, `codex_deep_reasoner_timeout_secs`, and `codex_bridge_timeout_secs`. Effective configuration SHALL resolve scope first: project pluginConfigs (role-specific over shared) over global pluginConfigs (role-specific over shared) over shipped defaults. An absent role-specific key SHALL inherit the shared value in its selected scope.
 
@@ -31,11 +33,11 @@ The plugin SHALL expose `codex_timeout_secs` with default `360`, plus role-speci
 - **THEN** every role without a more specific value receives `900`
 
 ### Requirement: Timeout values are validated before dispatch
-The configuration seam SHALL accept only integer seconds greater than or equal to zero. The integer `0` SHALL explicitly disable the wrapper backstop. Empty, fractional, negative, non-integer, or malformed values SHALL emit a clear configuration error and prevent the affected Codex dispatch; they SHALL never silently become an unbounded or guessed budget.
+The configuration seam SHALL accept only integer seconds greater than or equal to zero. The integer `0` SHALL explicitly disable the portable runner deadline. Empty, fractional, negative, non-integer, or malformed values SHALL emit a clear configuration error and prevent the affected Codex dispatch; they SHALL never silently become an unbounded or guessed budget.
 
 #### Scenario: Zero disables the backstop
 - **WHEN** a role timeout is configured as `0`
-- **THEN** the wrapper runs without a timeout command for that invocation
+- **THEN** the immutable context records an intentional no-deadline invocation
 - **AND** diagnostics identify the intentional disabled state
 
 #### Scenario: Invalid timeout is rejected
@@ -43,8 +45,10 @@ The configuration seam SHALL accept only integer seconds greater than or equal t
 - **THEN** configuration validation fails before Codex starts
 - **AND** the error names the key, value, and accepted form
 
-### Requirement: Legacy environment override remains explicit and validated
-`CODEX_WRAP_TIMEOUT_SECS` SHALL remain available as a highest-precedence explicit test/operation override. Its value SHALL pass the same validation as userConfig values, and an invalid override SHALL fail closed rather than silently disabling the backstop.
+### Requirement: Legacy environment override remains dispatcher-only and validated
+`CODEX_WRAP_TIMEOUT_SECS` MAY remain an explicit test/operation input to the
+dispatcher resolver. Its value SHALL pass the same validation as userConfig
+values; adapters and runners SHALL never read it directly.
 
 #### Scenario: Valid environment override
 - **WHEN** userConfig resolves to `900` and `CODEX_WRAP_TIMEOUT_SECS=30` is explicitly supplied
@@ -53,18 +57,21 @@ The configuration seam SHALL accept only integer seconds greater than or equal t
 
 #### Scenario: Invalid environment override
 - **WHEN** `CODEX_WRAP_TIMEOUT_SECS=abc`
-- **THEN** the wrapper exits with a clear configuration error before invoking Codex
+- **THEN** dispatch context construction fails before invoking Codex
 
-### Requirement: Role and effective budget propagate to the shared wrapper
-Codex fast-worker, deep-reasoner, and bridge dispatches SHALL pass a validated role marker and effective budget to `run-codex.sh`. The existing three-argument bridge invocation SHALL remain valid for callers that inherit defaults.
+### Requirement: Role and effective budget bind into immutable transport context
+Codex fast-worker, deep-reasoner, and bridge dispatches SHALL bind a validated
+role marker and effective budget into `dhpk.cli.context.v1` before invoking the
+compatibility wrapper. The existing three-argument bridge invocation remains
+callable only when that attested context is supplied.
 
 #### Scenario: Fast-worker receives role budget
 - **WHEN** codex-fast-worker resolves a role-specific budget
-- **THEN** the wrapper receives the fast-worker role and that budget
+- **THEN** the context carries the fast-worker role and that budget
 
 #### Scenario: Bridge retains legacy shape
 - **WHEN** codex-bridge is invoked with its original three arguments and no override
-- **THEN** it remains callable and receives the shipped shared default through the config seam
+- **THEN** it remains callable only with dispatcher-created context carrying the resolved default
 
 ### Requirement: Effective timeout diagnostics disclose alignment limits
 Session-start and worker diagnostics SHALL disclose a non-default effective budget and its source without secrets. When a trusted outer wait budget is available, diagnostics SHALL compare it with the inner budget and warn if the outer wait is shorter or equal. When no outer budget is available, diagnostics SHALL state `outer_budget=unknown` rather than claiming alignment.
@@ -88,3 +95,12 @@ The plugin manifest, English and Traditional Chinese configuration docs, loader 
 #### Scenario: Configuration documentation is checked
 - **WHEN** the timeout keys are added
 - **THEN** the catalog and configuration tests verify exact key coverage and count parity
+
+### Requirement: Resolved timeout is runner-observed evidence
+The resolved timeout SHALL enter the normalized request and be
+observed/classified by the shared runner. `0` remains an explicit disabled backstop.
+
+#### Scenario: Backend-native 124 is not a timeout
+
+- **WHEN** a provider exits 124 before the runner deadline
+- **THEN** the receipt status is `FAILED`, not `TIMEOUT`

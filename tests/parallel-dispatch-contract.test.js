@@ -38,15 +38,10 @@ test('the shared codex wrapper script contains no forbidden cleanup invocation a
   for (const cmd of FORBIDDEN_CLEANUP) {
     assert.ok(!wrapper.includes(cmd), `run-codex.sh must never itself invoke '${cmd}'`);
   }
-  // The wrapper legitimately `rm -rf`s its OWN private mktemp scratch dir on
-  // exit (standard temp-file hygiene) — that is not sibling-file cleanup
-  // authority. Assert every `rm -rf` occurrence targets only that private var,
-  // never the workdir or an assigned/sibling path.
-  const rmMatches = wrapper.match(/rm\s+-rf\s+\S+/g) || [];
-  assert.ok(rmMatches.length > 0, 'sanity check: run-codex.sh is expected to clean its own temp dir');
-  for (const m of rmMatches) {
-    assert.ok(/WORK_TMP/.test(m), `run-codex.sh 'rm -rf' must target only its own scratch dir, found: ${m}`);
-  }
+  // The wrapper owns one private request file and removes it with `rm -f` on
+  // exit. Recursive deletion would broaden cleanup authority unnecessarily.
+  assert.match(wrapper, /trap 'rm -f "\$REQUEST_FILE"' EXIT/);
+  assert.doesNotMatch(wrapper, /rm\s+-rf\b/);
 });
 
 // 1.4 — routing fixtures distinguishing judgment-dense (>=3 files) work from

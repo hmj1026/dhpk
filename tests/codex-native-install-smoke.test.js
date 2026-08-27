@@ -48,7 +48,7 @@ if (!codexAvailable()) {
 const trackedPluginDir = path.join(ROOT, 'plugins', 'dhpk');
 const trackedManifest = JSON.parse(fs.readFileSync(path.join(trackedPluginDir, '.codex-plugin', 'plugin.json'), 'utf8'));
 const trackedProvenance = JSON.parse(fs.readFileSync(path.join(trackedPluginDir, 'provenance.json'), 'utf8'));
-const expectedSkillNames = [...trackedProvenance.selectedSkillNames].sort();
+const expectedSkillNames = [...trackedProvenance.materializedSkillNames].sort();
 
 const stageRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-codex-smoke-stage-'));
 const codexHome = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-codex-smoke-home-'));

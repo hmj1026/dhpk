@@ -231,7 +231,7 @@ function parseOpenaiYaml(metadataFile, reporter) {
   return { values, policy };
 }
 
-function validateMetadata(skillDir, skillName, reporter) {
+function validateMetadata(skillDir, skillName, reporter, invokable = true) {
   const metadataFile = path.join(skillDir, 'agents', 'openai.yaml');
   if (!fs.existsSync(metadataFile)) {
     reporter.err(`${skillDir} — missing agents/openai.yaml`);
@@ -254,8 +254,12 @@ function validateMetadata(skillDir, skillName, reporter) {
     reporter.err(`${skillDir} — interface.short_description must be 25-64 characters`);
     valid = false;
   }
-  if (typeof metadata.default_prompt !== 'string' || !metadata.default_prompt.includes(`$${skillName}`)) {
+  if (typeof metadata.default_prompt !== 'string' || (invokable && !metadata.default_prompt.includes(`$${skillName}`))) {
     reporter.err(`${skillDir} — interface.default_prompt must invoke $${skillName}`);
+    valid = false;
+  }
+  if (!invokable && (!parsed.policy || parsed.policy.allow_implicit_invocation !== false)) {
+    reporter.err(`${skillDir} — non-invokable inventory skill requires policy.allow_implicit_invocation: false`);
     valid = false;
   }
   return { valid, policy: parsed.policy };
@@ -437,6 +441,14 @@ function validateRepository(root) {
   const errors = [];
   const reporter = { err: (message) => errors.push(message) };
   const inventory = collectInventory(root);
+  let invokableByPath = new Map();
+  try {
+    const manifest = JSON.parse(readFileBounded(path.join(root, 'manifests', 'distribution-inventory.json')).toString('utf8'));
+    invokableByPath = new Map((manifest.skills || []).map((entry) => [entry.path, entry.invokable !== false]));
+  } catch (_) {
+    // The inventory validator owns malformed-manifest diagnostics; metadata
+    // validation remains backwards compatible when run in a partial checkout.
+  }
   const canonicalByName = new Map();
   const duplicateNames = new Set();
   let metadataCount = 0;
@@ -447,7 +459,8 @@ function validateRepository(root) {
     if (!skillName) continue;
     if (canonicalByName.has(skillName)) duplicateNames.add(skillName);
     else canonicalByName.set(skillName, skillDir);
-    const { valid, policy } = validateMetadata(skillDir, skillName, reporter);
+    const relativeSkillDir = relativePosix(root, skillDir);
+    const { valid, policy } = validateMetadata(skillDir, skillName, reporter, invokableByPath.get(relativeSkillDir) !== false);
     if (valid) metadataCount += 1;
     checkInvocationParity(skillFile, policy, reporter);
   }

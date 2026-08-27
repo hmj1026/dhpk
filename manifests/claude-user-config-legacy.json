@@ -173,25 +173,25 @@
     "codex_timeout_secs": {
       "type": "string",
       "title": "Codex shared timeout (seconds)",
-      "description": "Shared wrapper backstop for codex-fast-worker, codex-deep-reasoner, and codex-bridge. Must be an integer number of seconds >= 0; 0 intentionally disables the wrapper backstop. Precedence is project role-specific > project shared > global role-specific > global shared > this shipped default. Invalid values fail closed before dispatch. This does not control Claude's external tool wait. Default '360'.",
+      "description": "Shared dispatcher deadline for codex-fast-worker, codex-deep-reasoner, and codex-bridge. Must be an integer number of seconds >= 0; 0 intentionally disables the portable runner deadline. The dispatcher writes the resolved value into immutable transport context; adapters do not read it from their environment. Precedence is project role-specific > project shared > global role-specific > global shared > this shipped default. Invalid values fail closed before dispatch. Default '360'.",
       "default": "360"
     },
     "codex_fast_worker_timeout_secs": {
       "type": "string",
       "title": "codex-fast-worker timeout (seconds)",
-      "description": "Role-specific wrapper backstop for codex-fast-worker. Must be an integer number of seconds >= 0; 0 intentionally disables it. Project configuration wins over global configuration, and this role-specific value wins over the shared value in the same scope; invalid values fail closed. Default inherits the shared 360-second budget.",
+      "description": "Role-specific dispatcher deadline for codex-fast-worker. Must be an integer number of seconds >= 0; 0 intentionally disables the portable runner deadline. Project configuration wins over global configuration, and this role-specific value wins over the shared value in the same scope; invalid values fail closed. Default inherits the shared 360-second budget.",
       "default": "360"
     },
     "codex_deep_reasoner_timeout_secs": {
       "type": "string",
       "title": "codex-deep-reasoner timeout (seconds)",
-      "description": "Role-specific wrapper backstop for codex-deep-reasoner. Must be an integer number of seconds >= 0; 0 intentionally disables it. Project configuration wins over global configuration, and this role-specific value wins over the shared value in the same scope; invalid values fail closed. Default inherits the shared 360-second budget.",
+      "description": "Role-specific dispatcher deadline for codex-deep-reasoner. Must be an integer number of seconds >= 0; 0 intentionally disables the portable runner deadline. Project configuration wins over global configuration, and this role-specific value wins over the shared value in the same scope; invalid values fail closed. Default inherits the shared 360-second budget.",
       "default": "360"
     },
     "codex_bridge_timeout_secs": {
       "type": "string",
       "title": "codex-bridge timeout (seconds)",
-      "description": "Role-specific wrapper backstop for codex-bridge. Must be an integer number of seconds >= 0; 0 intentionally disables it. Project configuration wins over global configuration, and this role-specific value wins over the shared value in the same scope; invalid values fail closed. The legacy three-argument wrapper invocation remains supported. Default inherits the shared 360-second budget.",
+      "description": "Role-specific dispatcher deadline for codex-bridge. Must be an integer number of seconds >= 0; 0 intentionally disables the portable runner deadline. Project configuration wins over global configuration, and this role-specific value wins over the shared value in the same scope; invalid values fail closed. The legacy three-argument wrapper invocation remains supported only with immutable transport context. Default inherits the shared 360-second budget.",
       "default": "360"
     },
     "architect_model": {

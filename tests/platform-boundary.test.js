@@ -8,6 +8,7 @@ const { validateAgentPluginPackage } = require('../scripts/lib/agent-plugin-pack
 const { validateCursorPackage } = require('../scripts/lib/cursor-plugin-package');
 
 const ROOT = path.join(__dirname, '..');
+const INVENTORY = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests/distribution-inventory.json'), 'utf8'));
 
 test('legacy Codex package is not counted as standard Agent Plugin conformance', () => {
   const result = validateAgentPluginPackage(path.join(ROOT, 'plugins/dhpk'));
@@ -22,7 +23,7 @@ test('Cursor native package is not accepted as a portable Agent Plugin package',
   const result = validateAgentPluginPackage(path.join(ROOT, 'plugins/dhpk-cursor'));
   assert.strictEqual(result.ok, false);
   assert.ok(result.errors.some((error) => /plugin\.json|skills/i.test(error)));
-  const cursor = validateCursorPackage({ packageRoot: path.join(ROOT, 'plugins/dhpk-cursor') });
+  const cursor = validateCursorPackage({ packageRoot: path.join(ROOT, 'plugins/dhpk-cursor'), inventory: INVENTORY });
   assert.strictEqual(cursor.ok, true, cursor.errors.join('\n'));
 });
 

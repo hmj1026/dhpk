@@ -234,6 +234,7 @@ SELECTION_COMPATIBILITY = None
 SELECTION_POLICY_VERSION = None
 SELECTION_CANONICAL_IDS = None
 SELECTION_EMITTED_IDS = None
+SELECTION_RUNTIME_IDS = None
 SELECTION_FINGERPRINT = None
 SELECTION_SURFACE_FINGERPRINT = None
 SELECTION_MIGRATION = None
@@ -1852,7 +1853,7 @@ def source_fingerprint():
             metadata = inventory_skill_metadata() if root_name == 'skills' else {}
             if root_name == 'skills' and SELECTION_EMITTED_IDS is not None:
                 stable_id = metadata.get(name, {}).get('id') if isinstance(metadata.get(name), dict) else None
-                if stable_id not in SELECTION_EMITTED_IDS:
+                if stable_id not in set(SELECTION_EMITTED_IDS or []) | set(SELECTION_RUNTIME_IDS or []):
                     continue
             child = os.path.join(root, name)
             validate_source_tree(child, f'{root_name} source', allowed_roots=(PLUGIN_ROOT, INSTALLER_ROOT))
@@ -1907,6 +1908,7 @@ def inventory_skill_metadata():
             'legacy_names': [legacy for legacy in (skill.get('legacy_names') or []) if isinstance(legacy, str) and legacy],
             'lifecycle': skill.get('lifecycle'),
             'tier': skill.get('tier'),
+            'invokable': skill.get('invokable'),
             'profiles': [value for value in (skill.get('profiles') or []) if isinstance(value, str)],
             'surfaces': [value for value in (skill.get('surfaces') or []) if isinstance(value, str)],
         }
@@ -1956,7 +1958,7 @@ def resolve_installer_selection(receipt, metadata):
     accompanying --migrate gate below) may request a smaller replacement.
     """
     global SELECTION_PROFILE_ID, SELECTION_COMPATIBILITY, SELECTION_POLICY_VERSION
-    global SELECTION_CANONICAL_IDS, SELECTION_EMITTED_IDS, SELECTION_FINGERPRINT
+    global SELECTION_CANONICAL_IDS, SELECTION_EMITTED_IDS, SELECTION_RUNTIME_IDS, SELECTION_FINGERPRINT
     global SELECTION_SURFACE_FINGERPRINT, SELECTION_MIGRATION
     inventory = read_inventory_document()
     profiles_document, profiles = read_install_profiles()
@@ -2000,7 +2002,8 @@ def resolve_installer_selection(receipt, metadata):
         raise ValueError(f"unknown profile '{profile_id}'")
     declared = profile.get('skillIds')
     if profile_id == 'compat-v1':
-        selected = sorted(by_id.keys())
+        selected = sorted(key for key, value in by_id.items()
+                          if value.get('lifecycle') != 'deprecated' and value.get('invokable') is not False)
     elif isinstance(declared, list):
         selected = list(declared)
     else:
@@ -2019,6 +2022,21 @@ def resolve_installer_selection(receipt, metadata):
         key for key, value in by_id.items()
         if surface_name in (value.get('surfaces') or [])
     }
+    runtime_mapping = inventory.get('internal_runtime_skills')
+    if not isinstance(runtime_mapping, dict):
+        raise ValueError('internal_runtime_skills must be an object for runtime support selection')
+    runtime_ids = list(runtime_mapping.get(surface_name) or [])
+    if HARNESS_KIND == 'codex' and surface_name not in runtime_mapping:
+        raise ValueError(f"internal_runtime_skills must declare '{surface_name}' runtime support")
+    if len(set(runtime_ids)) != len(runtime_ids):
+        raise ValueError(f"internal_runtime_skills.{surface_name} declares duplicate stable IDs")
+    for stable_id in runtime_ids:
+        if not isinstance(stable_id, str) or not stable_id:
+            raise ValueError(f"internal_runtime_skills.{surface_name} contains an invalid stable ID")
+        if stable_id in retired or stable_id not in by_id or by_id[stable_id].get('lifecycle') == 'deprecated':
+            raise ValueError(f"internal runtime stable ID '{stable_id}' is unavailable")
+        if stable_id not in allowed:
+            raise ValueError(f"internal runtime stable ID '{stable_id}' is not available on surface '{surface_name}'")
     for stable_id in selected:
         if stable_id in retired:
             raise ValueError(f"stable ID '{stable_id}' is retired")
@@ -2026,6 +2044,8 @@ def resolve_installer_selection(receipt, metadata):
             raise ValueError(f"unknown stable ID '{stable_id}'")
         if by_id[stable_id].get('lifecycle') == 'deprecated':
             raise ValueError(f"stable ID '{stable_id}' is deprecated")
+        if by_id[stable_id].get('invokable') is False:
+            raise ValueError(f"stable ID '{stable_id}' is internal runtime support and cannot be selected")
     for stable_id in overlays:
         if stable_id in retired:
             raise ValueError(f"stable ID '{stable_id}' is retired")
@@ -2033,6 +2053,8 @@ def resolve_installer_selection(receipt, metadata):
             raise ValueError(f"unknown stable ID '{stable_id}'")
         if by_id[stable_id].get('lifecycle') == 'deprecated':
             raise ValueError(f"stable ID '{stable_id}' is deprecated")
+        if by_id[stable_id].get('invokable') is False:
+            raise ValueError(f"stable ID '{stable_id}' is internal runtime support and cannot be selected")
         if stable_id not in allowed:
             raise ValueError(f"stable ID '{stable_id}' is not available on surface '{surface_name}'")
         excludes = set((profile.get('excludes') or {}).keys())
@@ -2065,6 +2087,7 @@ def resolve_installer_selection(receipt, metadata):
         'selectionFingerprint': selection_fingerprint,
         'surface': surface_name,
         'emittedStableIds': emitted,
+        'runtimeSupportStableIds': runtime_ids,
         'transform': {'id': 'identity', 'version': '1'},
     })
     SELECTION_PROFILE_ID = profile_id
@@ -2072,6 +2095,7 @@ def resolve_installer_selection(receipt, metadata):
     SELECTION_POLICY_VERSION = policy_version
     SELECTION_CANONICAL_IDS = canonical
     SELECTION_EMITTED_IDS = emitted
+    SELECTION_RUNTIME_IDS = runtime_ids
     SELECTION_FINGERPRINT = selection_fingerprint
     SELECTION_SURFACE_FINGERPRINT = surface_fingerprint
     old_profile = receipt.get('profileId') if isinstance(receipt, dict) else None
@@ -2403,7 +2427,7 @@ def current_sources():
             metadata = inventory_skill_metadata() if kind == 'skills' else {}
             if kind == 'skills' and SELECTION_EMITTED_IDS is not None:
                 stable_id = metadata.get(name, {}).get('id') if isinstance(metadata.get(name), dict) else None
-                if stable_id not in SELECTION_EMITTED_IDS:
+                if stable_id not in set(SELECTION_EMITTED_IDS or []) | set(SELECTION_RUNTIME_IDS or []):
                     continue
             source = os.path.join(root, name)
             if not lexists(source):
@@ -2811,6 +2835,7 @@ def build_plan(receipt, classification, sources, metadata, plugin_version, finge
         'profileId': SELECTION_PROFILE_ID,
         'selectedStableIds': list(SELECTION_CANONICAL_IDS or []),
         'emittedStableIds': list(SELECTION_EMITTED_IDS or []),
+        'runtimeSupportStableIds': list(SELECTION_RUNTIME_IDS or []),
         'compatibilityMode': SELECTION_COMPATIBILITY,
         'selectionPolicyVersion': SELECTION_POLICY_VERSION,
         'selectionFingerprint': SELECTION_FINGERPRINT,
@@ -2972,6 +2997,7 @@ def build_evidence(plugin_version, fingerprint, entries, counts, state):
             'profileId': SELECTION_PROFILE_ID,
             'selectedStableIds': list(SELECTION_CANONICAL_IDS or []),
             'emittedStableIds': list(SELECTION_EMITTED_IDS or []),
+            'runtimeSupportStableIds': list(SELECTION_RUNTIME_IDS or []),
             'compatibilityMode': SELECTION_COMPATIBILITY,
             'selectionPolicyVersion': SELECTION_POLICY_VERSION,
             'selectionFingerprint': SELECTION_FINGERPRINT,
@@ -3015,6 +3041,7 @@ def save_receipt(plugin_version, fingerprint, entries, orphaned, counts, legacy_
             'profileId': SELECTION_PROFILE_ID,
             'selectedStableIds': list(SELECTION_CANONICAL_IDS or []),
             'emittedStableIds': list(SELECTION_EMITTED_IDS or []),
+            'runtimeSupportStableIds': list(SELECTION_RUNTIME_IDS or []),
             'compatibilityMode': SELECTION_COMPATIBILITY,
             'selectionPolicyVersion': SELECTION_POLICY_VERSION,
             'selectionFingerprint': SELECTION_FINGERPRINT,

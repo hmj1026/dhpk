@@ -5,9 +5,10 @@ const { test, run, assert } = require('./_lib/tinytest');
 const { validateCursorPackage } = require('../scripts/lib/cursor-plugin-package');
 
 const ROOT = path.join(__dirname, '..');
+const INVENTORY = JSON.parse(require('node:fs').readFileSync(path.join(ROOT, 'manifests/distribution-inventory.json'), 'utf8'));
 
 test('tracked Cursor package exposes physical native components and no symlinks', () => {
-  const result = validateCursorPackage({ packageRoot: path.join(ROOT, 'plugins/dhpk-cursor') });
+  const result = validateCursorPackage({ packageRoot: path.join(ROOT, 'plugins/dhpk-cursor'), inventory: INVENTORY });
   assert.strictEqual(result.ok, true, result.errors.join('\n'));
   assert.strictEqual(result.skippedSkills.length, 0);
 });

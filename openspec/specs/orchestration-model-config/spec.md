@@ -75,7 +75,7 @@ When `orchestration_dispatch=off`, all touched flows (adaptive-dev-workflow and 
 
 #### Scenario: Disabled timeout is explicit
 - **WHEN** a Codex timeout key is `0`
-- **THEN** the affected wrapper backstop is intentionally disabled and the effective diagnostic states that fact
+- **THEN** the dispatcher intentionally attests no portable runner deadline and the effective diagnostic states that fact; it SHALL NOT substitute a shell timeout tool
 
 ### Requirement: CLI-backed worker model defaults are lockstep across all declaration sites
 A CLI-backed worker's default model string is declared in more than one file — the `userConfig` schema, the agent definition and its index entry, the wrapper script's usage text, the economics rule table, the configuration docs in every shipped language, the session-start default-detection expression, the test fixtures, **and any spec requirement that quotes the shipped default as normative text** (see the `model-economics` capability, whose tier-map requirement names the default inline). When that default changes, every declaration site SHALL be updated in the same change.

@@ -37,9 +37,9 @@ Follow `agents/deep-reasoner.md` for the shared reasoning contract (conclusion +
 
 ## Backend availability (check first — never simulate)
 
-```bash
-command -v codex >/dev/null 2>&1 || { echo "codex CLI not found"; }
-```
+The dispatcher provides the exact named `codex`, `python3`, and `bash` entries
+in the restricted context runtime. The wrapper verifies their evidence; do not
+probe or substitute an ambient `PATH` entry.
 
 On a missing CLI, an authentication failure (`401` → `codex login`), or a rejected model
 name, return `RESULT: BLOCKED` naming the exact failure (quote the CLI error verbatim for
@@ -70,9 +70,8 @@ result from your own analysis when the CLI is unavailable.
    `codex_deep_reasoner_model` / `codex_deep_reasoner_effort` or `--reasoner` segments):
 
    ```bash
-   export ROOT="<workdir>" DHPK_CODEX_ROLE=codex-deep-reasoner
-   . "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/_lib/load-project-config.sh"
-   dhpk_codex_timeout_export "$DHPK_CODEX_ROLE" || exit 78
+   # The dispatcher created this 0600 context; this role must not fabricate it.
+   export DHPK_CLI_TRANSPORT_CONTEXT="<attested-context-0600.json>"
    bash "${CLAUDE_PLUGIN_ROOT}/skills/dhpk-codex-bridge/scripts/run-codex.sh" \
      read-only "<workdir>" "$prompt_file" "<model>" "<effort>"
    ```
@@ -80,21 +79,13 @@ result from your own analysis when the CLI is unavailable.
    The `read-only` sandbox guarantees codex cannot write the working tree. Confirm with a
    `git status --porcelain` before/after if in doubt — the diff must be empty.
 
-### Verified Codex timeout evidence
+### Contained Codex timeout evidence
 
-When the wrapper exits `124`, parse the timeout envelope before interpreting the
-exit code; parse stdout with the shared
-`${CLAUDE_PLUGIN_ROOT}/skills/dhpk-codex-bridge/scripts/codex-timeout-envelope.js`
-parser. Accept only a
-`dhpk.codex.timeout.v1` object with `verified_wrapper_timeout=true`; forward the
-envelope and decode its report as evidence, never as `DONE` or independent
-verification. Run an independent path-scoped diff check when the report claims
-edits: classify `TIMEOUT_SALVAGED` only when attributable edits are confirmed,
-otherwise `BLOCKED`, and request reconciliation. Deep-reasoner is read-only, so
-there is no automatic retry, no inline edits, and no backend fallback for a timeout.
-If the helper is unavailable, accept only the wrapper's no-payload envelope with
-`redaction=unavailable` and classify the timeout as `BLOCKED`; an invalid
-envelope is also `BLOCKED`.
+When the wrapper exits `124`, read the `dhpk.cli.receipt.v1` at the contained
+attested receipt path. Accept only terminal `TIMEOUT` as timeout evidence,
+never as `DONE` or independent verification. Deep-reasoner is read-only, so
+there is no automatic retry, no inline edits, and no backend fallback; a
+missing, invalid, or uncontained receipt is `BLOCKED`.
 
 ## Read-only discipline
 
@@ -115,13 +106,13 @@ the shared contract. On `RESULT: DONE`, the body IS the conclusion contract from
 `agents/deep-reasoner.md` (Conclusion / Evidence / Next actions), preceded by a
 one-line backend header:
 `Backend: codex exec -m <model> -c model_reasoning_effort=<effort> (read-only)`.
-`Timeout budget: <seconds> (source=<project role|project shared|global role|global shared|env override|default>; disabled=<true|false>; outer=<unknown|warning|aligned>)`.
+`Timeout budget: <attested seconds>; receipt=<contained 0600 path>`.
 The conclusion body must preserve exactly one of `Reasoner result:
 READY_FOR_DISPATCH`, `Reasoner result: DECISION_FOR_USER`, or `Reasoner result:
 BLOCKED` immediately after `## Conclusion`. `DECISION_FOR_USER` is a valid
 completed reasoning decision and must remain distinct from `READY_FOR_DISPATCH`;
 only the latter authorizes a bounded writer.
-On `RESULT: TIMEOUT_SALVAGED`, include the parsed envelope, the independently verified
+On `RESULT: TIMEOUT_SALVAGED`, include the contained receipt, the independently verified
 path-scoped diff, and the explicit reconciliation next action; this is not success. On
 `RESULT: BLOCKED`, the transport failure must still be represented by a conclusion
 body whose first two lines are `## Conclusion` followed immediately by

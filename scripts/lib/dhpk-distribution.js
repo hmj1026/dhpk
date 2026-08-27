@@ -122,17 +122,18 @@ function runtime(root, request) {
       receiptProfileId = typeof receipt.profileId === 'string' ? receipt.profileId : null;
     } catch (_) { /* validation reports the missing/invalid receipt later */ }
   }
-  const profileId = request.options.profileId || (request.operation === 'generate' ? 'minimal' : receiptProfileId);
+  const profileId = request.options.profileId || receiptProfileId;
   let profileSelection = null;
   if (profileId || request.options.skillIds.length > 0) {
+    const selectionProfileId = profileId || 'minimal';
     const resolved = resolveCapabilitySelection({
       inventory,
       profiles,
       moduleCatalog,
-      profileId: profileId || 'minimal',
+      profileId: selectionProfileId,
       skillIds: request.options.skillIds,
       surface: request.surface,
-      sourceInputs: { profileId: profileId || 'minimal', skillIds: request.options.skillIds },
+      sourceInputs: { profileId: selectionProfileId, skillIds: request.options.skillIds },
       policyVersion: inventory.profile_policy && inventory.profile_policy.version,
     });
     if (!resolved.ok) throw new Error(resolved.error.message);
@@ -218,10 +219,10 @@ function runCursor(operation, context) {
   if (operation === 'generate') {
     const compiledProjection = compileCursorPackage({ inventory: context.inventory, root: context.root, outDir: context.output, version: context.version, sourceCommit: context.sourceCommit, profileSelection: context.profileSelection });
     const result = materializeCursorPackage({ inventory: context.inventory, root: context.root, outDir: context.output, version: context.version, sourceCommit: context.sourceCommit, compiledProjection, profileSelection: context.profileSelection });
-    const validation = verifyCursorPackage({ packageRoot: context.output, stage: 'structural' }).structural;
+    const validation = verifyCursorPackage({ packageRoot: context.output, stage: 'structural', inventory: context.inventory }).structural;
     return mergeReceipt('cursor-plugin', context.output, { ok: validation.ok, details: { skillCount: result.skillNames.length, warnings: validation.warnings, errors: validation.errors } });
   }
-  const validation = verifyCursorPackage({ packageRoot: context.output, stage: 'structural' }).structural;
+  const validation = verifyCursorPackage({ packageRoot: context.output, stage: 'structural', inventory: context.inventory }).structural;
   return mergeReceipt('cursor-plugin', context.output, { ok: validation.ok, details: { warnings: validation.warnings, errors: validation.errors } });
 }
 

@@ -56,10 +56,10 @@ dhpk 在 `.claude-plugin/plugin.json` 中暴露 **59 個 `userConfig` 旋鈕**�
 | `codex_fast_worker_effort` | string | `xhigh` | codex CLI 接受的任何強度（如 `low` \| `medium` \| `high` \| `xhigh`） | `dhpk:codex-fast-worker` 派發時傳給 codex CLI 後端的 `model_reasoning_effort`——強力機械層。 |
 | `codex_deep_reasoner_model` | string | `gpt-5.6-sol` | codex CLI 接受的任何模型 | `dhpk:codex-deep-reasoner` 派發時傳給 codex CLI 後端的模型，透過 `--reasoner=codex` 使用唯讀 sandbox。 |
 | `codex_deep_reasoner_effort` | string | `high` | codex CLI 接受的任何強度 | `dhpk:codex-deep-reasoner` 派發時傳給 codex CLI 後端的 `model_reasoning_effort`。 |
-| `codex_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | 三種 Codex CLI role 共用的 `run-codex.sh` wrapper backstop。優先序為專案 role-specific > 專案 shared > 全域 role-specific > 全域 shared > 出廠預設；值格式錯誤時在派發前 fail closed。本設定不改變 Claude 的外部工具等待時間。 |
-| `codex_fast_worker_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | `dhpk:codex-fast-worker` 專用 wrapper 預算。同一 scope 內優先於 shared 值；專案值優先於全域值。`CODEX_WRAP_TIMEOUT_SECS` legacy 環境覆寫在受控／測試呼叫時具有更高優先序。 |
-| `codex_deep_reasoner_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | `dhpk:codex-deep-reasoner` 專用 wrapper 預算。同一 scope 內優先於 shared 值；專案值優先於全域值。值格式錯誤時 fail closed，並在 SessionStart 回報。 |
-| `codex_bridge_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | `dhpk:dhpk-codex-bridge` 專用 wrapper 預算；既有三參數 wrapper 呼叫形狀仍受支援。同一 scope 內優先於 shared 值；專案值優先於全域值。 |
+| `codex_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | 三種 Codex CLI role 共用的 dispatcher deadline。優先序為專案 role-specific > 專案 shared > 全域 role-specific > 全域 shared > 出廠預設；值格式錯誤時在派發前 fail closed。解析後的值會寫入 immutable transport context，wrapper 不會從環境讀取它。 |
+| `codex_fast_worker_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | `dhpk:codex-fast-worker` 專用 dispatcher deadline。同一 scope 內優先於 shared 值；專案值優先於全域值。 |
+| `codex_deep_reasoner_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | `dhpk:codex-deep-reasoner` 專用 dispatcher deadline。同一 scope 內優先於 shared 值；專案值優先於全域值。值格式錯誤時 fail closed，並在 SessionStart 回報。 |
+| `codex_bridge_timeout_secs` | string | `360` | 整數秒數 `>= 0`；`0` 停用 | `dhpk:dhpk-codex-bridge` 專用 dispatcher deadline；既有三參數 wrapper 呼叫形狀仍受支援。同一 scope 內優先於 shared 值；專案值優先於全域值。 |
 | `agy_fast_worker_model` | string | `Gemini 3.6 Flash (High)` | `agy models` 列出的任何模型 | `dhpk:agy-fast-worker` 派發時傳給 agy CLI 後端的模型顯示字串。agy 將思考強度內建於模型名稱，故無獨立的 effort key。分層方式同上；預設值失效時覆寫（可用 `agy models` 查詢）。 |
 | `architect_model` | string | `fable` | 執行中的 Claude Code 支援的模型層級 | `dhpk:architect` Agent-call 派發的模型層級；逐次呼叫套用，不修改 frontmatter；HIGH-risk 架構決策仍可向上升級。 |
 | `architect_effort` | string | `low` | `low` \| `medium` \| `high` \| `xhigh` \| `max` | `dhpk:architect` Agent-call 派發的推理強度；逐次呼叫套用，不修改 frontmatter。 |
@@ -69,7 +69,7 @@ dhpk 在 `.claude-plugin/plugin.json` 中暴露 **59 個 `userConfig` 旋鈕**�
 | `fast_worker_fallback` | string | `none` | `none` \| `claude` | 只允許對明確選取但缺少 CLI 執行檔的情況使用 `claude` 備援。驗證、授權、模型、任務、執行與 verification 失敗都維持 blocked，不得靜默切換。 |
 | `subagent_quality_gate` | string | `off` | `on` \| `off` | 僅對 reviewer sentinel subagent 啟用 `scripts/hooks/subagent-stop-quality.sh`。當 reviewer 的最終回報過於單薄、只是空泛的核准、未附下一步建議的未解錯誤、或缺乏證據的 review 型回覆時，會攔截並要求續答一次；此 hook 排在 `subagent-stop-verify.sh` 之前，避免被攔截的 reviewer sentinel 被自動清除。界線固定為一次修正重試，之後改派其他 reviewer，或留下附理由的 pending gate。預設 `off`（無作用，不做啟發式評估）。命中/未命中的擷取結果會記錄到 `.claude/artifacts/sessions/.subagent-stop-quality-extraction.json`。 |
 
-Codex timeout 值會在 wrapper 選取 `timeout`/`gtimeout` 前驗證為無號十進位秒數。空值、小數、負數或其他格式錯誤會阻擋該次派發，不會靜默退回 `360`。若某次呼叫必須不使用 wrapper backstop，請明確設定 `0`。`CODEX_WRAP_TIMEOUT_SECS` 仍是最高優先序的相容性覆寫；診斷會標示有效 role、預算、來源、停用狀態，以及可信的外層等待是否未知或不長於內層預算。agy 的獨立 timeout 語義維持不變。
+dispatcher 在建立 `0600` immutable transport context 前，會將解析後的 deadline 驗證為無號十進位秒數。空值、小數、負數或其他格式錯誤會阻擋該次派發，不會靜默退回 `360`；只有不需要 portable runner deadline 時才明確設定 `0`。Python transport runner 而非 `timeout`/`gtimeout` 會強制執行已證明的 deadline，並寫入 contained terminal receipt。agy 的獨立設定也同樣是已證明的 dispatch input。
 
 ## Codex MCP 依賴（並非 `userConfig` 旋鈕）
 

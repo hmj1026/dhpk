@@ -32,19 +32,17 @@ accounting.
 
 Follow `agents/fast-worker.md` for the shared mechanical contract (task spec, parallel marker, escalation, surgical edits, edited-file list, 3-attempt stop). Do not paste that contract here.
 
-Optionally the dispatcher passes the **resolved model/effort** (from the
-`codex_fast_worker_model` / `codex_fast_worker_effort` userConfig keys, surfaced at
-session start when non-default). When omitted, default to `gpt-5.6-luna` / `xhigh`.
-The dispatcher also resolves the role-aware wrapper budget from
-`codex_fast_worker_timeout_secs` (or the shared `codex_timeout_secs`) before invoking
-the CLI. The effective value is an integer number of seconds; `0` deliberately disables
-the wrapper backstop, while malformed values block the dispatch.
+The dispatcher resolves the model, effort and deadline from its configuration,
+then records those exact values with the maximum role authority, write scope,
+restricted runtime entries and prompt evidence in a `0600` immutable context.
+This worker must not fill in a missing value, change a bound value, or inherit
+an ambient runtime; a missing or mismatched context is `BLOCKED`.
 
 ## Backend availability (check first — never simulate)
 
-```bash
-command -v codex >/dev/null 2>&1 || { echo "codex CLI not found"; }
-```
+The dispatcher provides the exact named `codex`, `python3`, and `bash` entries
+in the restricted context runtime. The wrapper verifies their evidence; do not
+probe or substitute an ambient `PATH` entry.
 
 On a missing CLI, an authentication failure (`401` → `codex login`), or a rejected model
 name, return `RESULT: BLOCKED` naming the exact failure (quote the CLI error verbatim for
@@ -65,22 +63,17 @@ approximate the backend or fall back to editing the files yourself.
    model/effort (always `workspace-write` — it must edit files):
 
    ```bash
-   export ROOT="<workdir>" DHPK_CODEX_ROLE=codex-fast-worker
-   dhpk_codex_timeout_export "$DHPK_CODEX_ROLE" || exit 78
+   # Supplied by the dispatcher after it validates maximum authority and scope.
+   export DHPK_CLI_TRANSPORT_CONTEXT="<attested-context-0600.json>"
    before="$(git status --porcelain)"
+   bash "${CURSOR_PLUGIN_ROOT}/skills/dhpk-codex-bridge/scripts/run-codex.sh" \
      workspace-write "<workdir>" "<prompt-file>" "<model>" "<effort>"
    after="$(git status --porcelain)"
    ```
 
-   When `DHPK_CODEX_ROLE=codex-fast-worker`, the wrapper also passes
-   `--output-schema` (shape-only
-   `skills/dhpk-codex-bridge/scripts/report-schema.json`) together with
-   `--output-last-message`. Do not drop last-message at this call site, and do
-   not unset the role — other roles omit the worker schema so bridge and
-   deep-reasoner stdout stay unconstrained. Isolation flags
-   `--ephemeral` / `--ignore-user-config` are opt-in via
-   `DHPK_CODEX_EPHEMERAL=1` / `DHPK_CODEX_IGNORE_USER_CONFIG=1` and are not
-   part of the default three-arg inherit-from-config path.
+   The dispatcher context binds the model, effort, prompt evidence, runtime
+   entries, and `--output-last-message` shape. Do not add mutable environment
+   flags at this call site or unset the role.
 
    When `Parallel: yes`, replace both captures with path-scoped equivalents limited to
    the assigned files — `run-codex.sh` itself takes no file-list argument (it is shared
@@ -89,6 +82,7 @@ approximate the backend or fall back to editing the files yourself.
 
    ```bash
    before="$(git status --porcelain -- "${ASSIGNED_FILES[@]}")"
+   bash "${CURSOR_PLUGIN_ROOT}/skills/dhpk-codex-bridge/scripts/run-codex.sh" \
      workspace-write "<workdir>" "<prompt-file>" "<model>" "<effort>"
    after="$(git status --porcelain -- "${ASSIGNED_FILES[@]}")"
    ```
@@ -98,23 +92,24 @@ approximate the backend or fall back to editing the files yourself.
 
 ## Mid-batch timeout recovery (multi-file dispatch only)
 
-A wrapper-reported timeout (`run-codex.sh` exit `124` with the wrapper's own "timed out after ...s (wrapper backstop)" evidence on stderr — never a backend-native `124` without that evidence) on a **multi-file** dispatch triggers timeout recovery instead of the ordinary failure path in "Verify and report" below. Build the path-scoped completion ledger (`confirmed` / `unconfirmed` / `remaining`, disjoint, covering the assigned list) per
+A runner-reported timeout is `run-codex.sh` exit `124` with a contained
+`dhpk.cli.receipt.v1` terminal `TIMEOUT` status; it does not rely on a shell
+timeout binary. On a **multi-file** dispatch it triggers timeout recovery
+instead of the ordinary failure path in "Verify and report" below. Build the
+path-scoped completion ledger (`confirmed` / `unconfirmed` / `remaining`,
+disjoint, covering the assigned list) per
 §CLI worker mid-batch timeout recovery, then:
 
-Parse the timeout envelope before classifying exit `124`; parse stdout with the shared
-parser and require `schema=dhpk.codex.timeout.v1`,
-`verified_wrapper_timeout=true`, and the stable base64 fields. Record the parsed
-envelope as timeout evidence before any retry; a non-empty salvaged report is
-never independent verification or `RESULT: DONE`. If the helper is unavailable,
-accept only the wrapper's parseable no-payload envelope with
-`redaction=unavailable` and classify the timeout as `BLOCKED`; an invalid
-envelope is also `BLOCKED`, never fabricated salvage evidence.
+Read the contained receipt before classifying exit `124`. A non-empty report is
+never independent verification or `RESULT: DONE`; a missing, invalid, or
+uncontained receipt is `BLOCKED`, never fabricated salvage evidence.
 
 1. **First verified timeout** — request exactly one same-backend, same-model/effort recovery dispatch scoped to `remaining ∪ unconfirmed`. Never self-edit the unresolved files and never fall back to another backend because of a timeout.
 2. **Second verified timeout** — stop. Report `RESULT: PARTIAL` when any assigned file is confirmed, `RESULT: BLOCKED` when none is, naming both timeout observations, all three ledger sets, and the next action. Write the PARTIAL marker (control-plane JSON, not a product edit — see the policy reference above for the path and required fields) before returning `RESULT: PARTIAL`.
-3. **No wrapper timeout mechanism available** — `run-codex.sh` reports on stderr when neither `timeout` nor `gtimeout` is on PATH and runs unwrapped; without that mechanism there is no trustworthy timeout signal to classify, so treat any failure here as its ordinary (non-timeout) outcome and never fabricate a timeout classification.
+3. **Missing receipt evidence** — classify missing, invalid, or uncontained
+   receipt evidence as `BLOCKED`; never fabricate a timeout classification.
 
-A single-file dispatch, a non-timeout failure, or a missing-executable/auth/model failure keep their existing semantics unchanged — this section applies only to a verified wrapper timeout on a multi-file batch. For a single-file Codex timeout, parse and forward the envelope without automatic retry or backend fallback; report `TIMEOUT_SALVAGED` only when independent path-scoped diff verification confirms attributable edits, otherwise `BLOCKED`, and request explicit reconciliation.
+A single-file dispatch, a non-timeout failure, or a missing-executable/auth/model failure keep their existing semantics unchanged — this section applies only to a verified runner timeout on a multi-file batch. For a single-file Codex timeout, retain the contained receipt and report `TIMEOUT_SALVAGED` only when independent path-scoped diff verification confirms attributable edits; otherwise report `BLOCKED` and request explicit reconciliation.
 
 ## Verify and report (the agent owns this, not the CLI)
 
@@ -163,7 +158,7 @@ Selected backend: codex | claude (only with configured missing-executable fallba
 Availability: <codex executable available | missing executable: codex>
 Fallback reason: <none | missing executable: codex; configured fallback=claude>
 Model/effort: <model> / <effort>
-Timeout budget: <seconds> (source=<project role|project shared|global role|global shared|env override|default>; disabled=<true|false>; outer=<unknown|warning|aligned>)
+Timeout budget: <attested seconds>; receipt=<contained 0600 path>
 Verify: <command> → PASS | FAIL (N attempts)
 Spec: <one-line summary of what was requested>
 Timeout state: not-applicable | first-timeout-retried | second-timeout-terminal

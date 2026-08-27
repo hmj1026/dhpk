@@ -38,8 +38,9 @@ function parseArgs(argv) {
     else if (arg === '--package-root') args.packageRoot = argv[++i];
     else if (arg === '--execute') args.execute = true;
     else if (arg === '--version') args.version = argv[++i];
+    else if (arg === '--inventory') args.inventory = argv[++i];
     else if (arg === '--help') {
-      console.log('usage: consumer-platform-probe.js --platform codex|agent-plugin|cursor --package-root <path> [--execute] [--version X.Y.Z]');
+      console.log('usage: consumer-platform-probe.js --platform codex|agent-plugin|cursor --package-root <path> [--inventory <path>] [--execute] [--version X.Y.Z]');
       process.exit(0);
     } else {
       console.error(`consumer-platform-probe: unknown argument '${redactSensitiveText(String(arg), { maxLength: 200 })}'`);
@@ -47,7 +48,7 @@ function parseArgs(argv) {
     }
   }
   if (!['codex', 'agent-plugin', 'cursor'].includes(args.platform) || !args.packageRoot) {
-    console.error('usage: consumer-platform-probe.js --platform codex|agent-plugin|cursor --package-root <path> [--execute] [--version X.Y.Z]');
+    console.error('usage: consumer-platform-probe.js --platform codex|agent-plugin|cursor --package-root <path> [--inventory <path>] [--execute] [--version X.Y.Z]');
     process.exit(2);
   }
   return args;
@@ -377,10 +378,14 @@ function runAgentPluginProbe(root, execute = false) {
   }
 }
 
-function validatePackage(platform, root) {
+function validatePackage(platform, root, inventoryPath = null) {
+  let inventory = null;
+  if (platform === 'cursor' && inventoryPath) {
+    inventory = JSON.parse(fs.readFileSync(path.resolve(inventoryPath), 'utf8'));
+  }
   const result = platform === 'codex' || platform === 'agent-plugin'
     ? validateAgentPluginPackage(root)
-    : validateCursorPackage({ packageRoot: root, expectedManifestName: 'dhpk-cursor' });
+    : validateCursorPackage({ packageRoot: root, expectedManifestName: 'dhpk-cursor', inventory });
   return result;
 }
 
@@ -436,7 +441,7 @@ function main() {
   if (manifest.error) emit({ platform: args.platform, status: 'FAIL', packageRoot: root, reason: manifest.error, commands: [] }, 1);
   let structural;
   try {
-    structural = validatePackage(args.platform, root);
+    structural = validatePackage(args.platform, root, args.inventory || null);
   } catch (error) {
     const blocked = {
       platform: args.platform,
