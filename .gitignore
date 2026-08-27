@@ -30,6 +30,7 @@ node_modules/
 # External agent skill installations (including the OpenSpec CLI package).
 # Keep the repo-scoped marketplace descriptor under .agents/plugins/ tracked.
 .agents/skills/
+.agent/
 
 # Hyperweave tooling cache
 .hyperweave/
@@ -43,6 +44,7 @@ node_modules/
 # Session retrospective log (local-only, not part of the dhpk plugin source)
 .claude/dhpk_advice.md
 CONTEXT.md
+docs/knowledge/
 
 
 # Plans
