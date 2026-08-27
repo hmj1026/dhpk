@@ -160,6 +160,46 @@ test('matrix-selected IDs are accepted while an unselected inventory skill remai
   }
 });
 
+test('minimal selection carries declared transport runtime support without widening its selection identity', () => {
+  const root = tmpDir('dhpk-agent-runtime-support-source-');
+  const out = tmpDir('dhpk-agent-runtime-support-out-');
+  try {
+    writeSkill(root, 'dhpk-core', 'name: dhpk-core\ndescription: Core');
+    writeSkill(root, 'dhpk-agy-fast-worker', 'name: dhpk-agy-fast-worker\ndescription: AGY wrapper');
+    writeSkill(root, 'dhpk-cli-transport', 'name: dhpk-cli-transport\ndescription: Transport runtime');
+    writeSkill(root, 'dhpk-codex-bridge', 'name: dhpk-codex-bridge\ndescription: Codex wrapper');
+    const inventory = {
+      skills: [
+        { id: 'core', name: 'dhpk-core', path: 'skills/dhpk-core', lifecycle: 'promoted', surfaces: ['agent-plugin'] },
+        { id: 'agy-fast-worker', name: 'dhpk-agy-fast-worker', path: 'skills/dhpk-agy-fast-worker', lifecycle: 'promoted', surfaces: ['agent-plugin'] },
+        { id: 'cli-transport', name: 'dhpk-cli-transport', path: 'skills/dhpk-cli-transport', lifecycle: 'optional', surfaces: ['agent-plugin'] },
+        { id: 'codex-bridge', name: 'dhpk-codex-bridge', path: 'skills/dhpk-codex-bridge', lifecycle: 'promoted', surfaces: ['agent-plugin'] },
+      ],
+      surface_membership: { 'agent-plugin': ['core', 'agy-fast-worker', 'cli-transport', 'codex-bridge'] },
+      projection_contract: {
+        surfaces: {
+          'agent-plugin': { selection_policy: { source: 'surface_membership', precedence: ['surface_membership'] } },
+        },
+      },
+      internal_runtime_skills: {
+        'agent-plugin': ['agy-fast-worker', 'cli-transport', 'codex-bridge'],
+      },
+    };
+    const result = materializeAgentPluginPackage({
+      inventory,
+      root,
+      outDir: out,
+      profileSelection: { profileId: 'minimal', selectedStableIds: ['core'], selectionFingerprint: 'fixture-selection' },
+    });
+    assert.deepStrictEqual(result.skillIds, ['agy-fast-worker', 'cli-transport', 'codex-bridge', 'core']);
+    assert.deepStrictEqual(result.provenance.selectedStableIds, ['core']);
+    assert.ok(fs.existsSync(path.join(out, 'skills', 'dhpk-cli-transport', 'SKILL.md')));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
+
 test('missing MCP remains valid and invalid sibling MCP entries are isolated', () => {
   const root = tmpDir('dhpk-agent-mcp-source-');
   const out = tmpDir('dhpk-agent-mcp-out-');
@@ -425,6 +465,14 @@ test('compiler-backed Agent Plugin generation is byte-equivalent to the accepted
       version: sourceManifest.version,
       sourceCommit: priorReceipt.sourceCommit,
       manifestMetadata: sourceManifest,
+      profileSelection: {
+        profileId: priorReceipt.profileId,
+        selectedStableIds: priorReceipt.selectedStableIds,
+        emittedStableIds: priorReceipt.emittedStableIds,
+        compatibilityMode: priorReceipt.compatibilityMode,
+        selectionPolicyVersion: priorReceipt.selectionPolicyVersion,
+        selectionFingerprint: priorReceipt.selectionFingerprint,
+      },
     });
     assertPackageFilesEquivalent(packageFiles(out), packageFiles(path.join(ROOT, 'plugins', 'dhpk-agent')));
   } finally { fs.rmSync(out, { recursive: true, force: true }); }

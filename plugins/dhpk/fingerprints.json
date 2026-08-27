@@ -5,6 +5,7 @@
   "dhpk-yii1-security-audit": "d923363f15312d2e700f6c9d7115d7a9978718a9d0f297652b3eb1a284403011",
   "dhpk-agy-commit": "388b884107fef241a19dec977173964e1a18d1c9f0602ec2472fb2ef1fee09e4",
   "dhpk-root-cause-investigation": "a695176032ddaab897799659320acb47057a5c33f806a495959fb2705de8084c",
+  "dhpk-cli-transport": "d604f778632e6a85dcecb8637afa504bb99be8616b1aae7a3856adf3cf18b3d6",
   "dhpk-git-history-investigation": "785b24cc97332c61538c931500b84366ff2b5a113e2bebe55e00cd8216aaca8d",
   "dhpk-git-smart-commit": "06027b35dcbb632992b7c93005d4aaab8a27cf9ed0a09741a38688eea96aec64",
   "dhpk-cross-agent-sync": "a207cead09a8fa293572da4eb4b13e5901fd63c554525e861fea73be18ce6c5c",

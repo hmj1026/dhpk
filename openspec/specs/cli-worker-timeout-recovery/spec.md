@@ -1,59 +1,27 @@
 # cli-worker-timeout-recovery Specification
 
 ## Purpose
-TBD - created by archiving change harden-cli-worker-mid-batch-timeout. Update Purpose after archive.
+Define controlled retry decisions from contained CLI transport timeout receipts.
 ## Requirements
-### Requirement: CLI wrappers expose a guarded timeout signal
+### Requirement: CLI runners expose a guarded timeout signal
 
-The Codex and agy worker wrappers SHALL use a 360-second default wrapper
-backstop with their existing environment overrides. Exit `124` SHALL be
-classified as a wrapper timeout only when `timeout` or `gtimeout` actually
-wrapped the CLI and the wrapper emitted timeout evidence. A Codex wrapper
-timeout SHALL additionally emit the `dhpk.codex.timeout.v1` report envelope
-before cleanup; that envelope preserves evidence but does not turn the result
-into success. A backend-native `124` SHALL remain an ordinary backend result,
-and unavailable timeout tooling SHALL produce BLOCKED timeout-recovery evidence
-rather than a fabricated signal. If the Node sanitizer is unavailable or fails,
-the wrapper SHALL emit the same envelope with `redaction=unavailable` and empty
-payloads; callers SHALL classify it as BLOCKED and SHALL not infer salvage.
+Codex and AGY adapters SHALL delegate deadline enforcement to the portable
+runner. Exit `124` enters recovery only with a contained `0600`
+`dhpk.cli.receipt.v1` terminal `TIMEOUT` receipt selected by immutable caller
+context; a native exit code or missing receipt is `BLOCKED`, not fabricated
+timeout evidence. The restricted runtime never requires `timeout`, `gtimeout`,
+or a Node envelope sanitizer.
 
-#### Scenario: Codex wrapper timeout is verified
+#### Scenario: Codex runner timeout is verified
 
-- **WHEN** the Codex CLI is terminated by the selected `timeout` or `gtimeout`
-  command
-- **THEN** the wrapper returns `124` with explicit timeout evidence and a
-  parseable timeout envelope
+- **WHEN** the Codex CLI is terminated by the attested portable runner deadline
+- **THEN** the runner returns `124` with a contained terminal receipt
 - **AND** the worker may enter the mid-batch timeout state machine
 
-#### Scenario: Sanitizer helper is unavailable
+#### Scenario: Native exit has no contained receipt
 
-- **WHEN** a verified wrapper timeout occurs but the Node sanitizer cannot run
-- **THEN** stdout contains a parseable no-payload timeout envelope with
-  `redaction=unavailable`
-- **AND** stderr and caller state record `BLOCKED` while exit `124` is retained
-
-#### Scenario: Backend returns native 124
-
-- **WHEN** the CLI returns `124` without the wrapper having selected a timeout
-  command
-- **THEN** the worker does not classify the result as a wrapper timeout
-
-#### Scenario: Backend returns native 124 while a timeout command is selected and used
-
-- **WHEN** a `timeout`/`gtimeout` command wraps the CLI invocation and the CLI
-  itself exits `124` for an unrelated reason well before the configured budget
-  elapses
-- **THEN** the wrapper does not classify the result as a wrapper timeout,
-  corroborating the exit code against elapsed wall-clock time rather than
-  trusting the exit code alone
-
-#### Scenario: Configured timeout budget is below one second
-
-- **WHEN** the wrapper's configured timeout budget is `0` or otherwise below
-  one second
-- **THEN** the wrapper treats the timeout mechanism as unavailable for that
-  invocation (same as no `timeout`/`gtimeout` binary present) rather than
-  invoking a timeout command whose kill can never fire
+- **WHEN** a provider returns `124` without a terminal receipt
+- **THEN** the worker does not classify it as a runner timeout
 
 ### Requirement: CLI worker records a path-scoped completion ledger
 
@@ -84,7 +52,7 @@ report evidence and path-scoped diff evidence attributable to the dispatch.
 
 ### Requirement: First timeout retries only unresolved assigned scope
 
-After the first verified wrapper timeout on a multi-file dispatch, the worker SHALL
+After the first verified runner timeout on a multi-file dispatch, the worker SHALL
 make exactly one fresh invocation using the same selected backend,
 model/effort, original intent, assigned scope, and path-scoped verification.
 The retry SHALL target only `remaining` and `unconfirmed` files. The worker and
@@ -107,7 +75,7 @@ default, expand scope, or silently select another backend.
 
 ### Requirement: Second timeout is terminal and auditable
 
-After a second verified wrapper timeout for the same batch, the worker SHALL
+After a second verified runner timeout for the same batch, the worker SHALL
 stop and report `RESULT: PARTIAL` if any assigned file is confirmed complete,
 otherwise `RESULT: BLOCKED`. The report SHALL include both timeout
 observations, selected backend, assigned, confirmed, remaining, unconfirmed,
@@ -132,7 +100,7 @@ the issue #121 `TIMEOUT_SALVAGED` or `BLOCKED` reporting classification.
 
 #### Scenario: Single-file timeout remains non-retrying
 
-- **WHEN** a single-file Codex dispatch receives a verified wrapper timeout
+- **WHEN** a single-file Codex dispatch receives a verified runner timeout
 - **THEN** it does not retry or select a fallback backend automatically
 - **AND** it may report `TIMEOUT_SALVAGED` only when independent evidence supports
   that classification

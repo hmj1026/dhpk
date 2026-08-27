@@ -64,31 +64,29 @@ another agent could execute it without seeing this conversation.
 
    - `mode` = `read-only` for investigation / review, `workspace-write` when Codex must edit files.
    - `workdir` = the working root (absolute); `prompt-file` = the temp file from step 1.
-   - Omit optional model/effort overrides unless the caller explicitly supplies them; the wrapper otherwise uses the configured defaults.
-   - The wrapper resolves `DHPK_CODEX_ROLE` through the normal project-over-global seam. Use
-     `dhpk-codex-bridge` for this skill and configure `codex_bridge_timeout_secs` (or shared
-     `codex_timeout_secs`) as an integer number of seconds; `0` intentionally disables the
-     wrapper backstop. Do not add a sixth positional timeout argument—the three-argument
-     bridge shape is part of the compatibility contract. Invalid values fail closed.
+   - The dispatcher MUST first set `DHPK_CLI_TRANSPORT_CONTEXT` to its private
+     `dhpk.cli.context.v1`. It alone supplies the validated maximum role, scope,
+     timeout, and receipt paths; the wrapper blocks rather than inventing them.
+   - Omit optional model/effort overrides unless the dispatcher attests them.
+     The portable runner enforces the attested timeout without `timeout` or
+     `gtimeout`, under a restricted runtime PATH.
+   - The wrapper uses only Linux/WSL `/usr/bin/python3` as its bootstrap. The
+     dispatcher context must attest that same restricted runtime entry; a host
+     without it is `BLOCKED`.
 3. The wrapper prints Codex's final message to stdout on success (exit 0), or fails loudly on error.
 
-### Verified timeout envelope
+### Contained timeout receipt
 
-On a verified wrapper timeout, parse the timeout envelope as `dhpk.codex.timeout.v1` with
-`skills/dhpk-codex-bridge/scripts/codex-timeout-envelope.js` before classifying exit `124`; its stable fields are
-`schema`, `status`, `verified_wrapper_timeout`, `exit_code`, `budget_secs`, `elapsed_secs`, `report_present`,
-`report_encoding`, `report_b64`, `stderr_tail_encoding`, `stderr_tail_b64`, `stdout_tail_encoding`,
-`stdout_tail_b64`, and `redaction` (`applied` or `unavailable`).
-For operational validation, pipe the unchanged object to `node skills/dhpk-codex-bridge/scripts/codex-timeout-envelope.js --parse`;
-exit `0` means valid and exit `1` means `BLOCKED`. Keep the original object for forwarding.
-Multiline reports and diagnostics use RFC 4648 base64; credentials are redacted before encoding. Raw reports over 256 KiB use
-`[TRUNCATED_REPORT_OMITTED]`; the redacted report remains capped at 256 KiB, with `[TRUNCATED]` only for post-redaction
-expansion. Oversized diagnostics use `[TRUNCATED_DIAGNOSTIC_OMITTED]`. A report is evidence, never success: single-file
-salvage is `TIMEOUT_SALVAGED` only with an independently verified path-scoped diff, otherwise `BLOCKED`; no retry,
-no inline edit, and no backend fallback are allowed, and reconciliation is required.
-If the Node helper is unavailable or invalid, the wrapper emits a no-payload `redaction=unavailable` envelope; classify
-`BLOCKED` and do not infer edits. For multi-file work, the parent owns the `confirmed` / `unconfirmed` / `remaining`
-ledger and applies `PARTIAL` or `BLOCKED`; the bridge only forwards the envelope and never retries.
+On exit `124`, read the dispatcher-selected contained `dhpk.cli.receipt.v1`.
+Only terminal `TIMEOUT` is timeout evidence, and its redacted report is never
+independent verification. Missing, invalid, or uncontained receipt evidence is
+`BLOCKED`; do not fabricate a timeout envelope, retry, edit inline, or choose a
+different backend.
+
+For a single-file dispatch, report `TIMEOUT_SALVAGED` only when an independent
+path-scoped diff verifies attributable edits; otherwise report `BLOCKED` and
+request reconciliation. There is no automatic retry and no backend fallback
+from a timeout result.
 
 > **Permissions:** this repo's `.claude/settings.json` allows `Bash(codex exec:*)` and the path-scoped `Bash(bash skills/dhpk-codex-bridge/scripts/run-codex.sh:*)`, which covers a **direct** relative-path call from the plugin root. The **subagent** invokes the wrapper via `${CLAUDE_PLUGIN_ROOT}` (an absolute path) that a path-scoped rule cannot match ([#9354](https://github.com/anthropics/claude-code/issues/9354), re-checked 2026-08-17); to keep a non-interactive subagent's Bash from being auto-denied, add the broader `Bash(bash:*)` rule (the same workaround `dhpk-onepassword-session` uses — a deliberate user decision, not applied automatically). Consumers add the equivalent rule in their own settings.
 
@@ -114,11 +112,10 @@ Verified timeout (non-success):
 
 ```text
 sandbox=<mode> exit=124
-<one dhpk.codex.timeout.v1 JSON object, unchanged>
+<contained dhpk.cli.receipt.v1 TIMEOUT evidence>
 ```
 
-When the sanitizer is unavailable, the unchanged JSON object has
-`redaction=unavailable` and empty base64 payloads; callers still report
+When receipt containment or redaction cannot be verified, callers report
 `BLOCKED`.
 
 The first line is bridge metadata. Keep the following Codex or wrapper payload verbatim. An
@@ -141,5 +138,5 @@ not alter the payload before returning it.
 - [ ] Prompt is self-contained (goal · absolute paths · spec · output format).
 - [ ] Correct sandbox mode (`read-only` for review, `workspace-write` only when edits are needed).
 - [ ] Wrapper completed with a non-empty final message, or failure was reported with mode, exit code, and stderr tail.
-- [ ] A verified exit `124` was parsed as `dhpk.codex.timeout.v1` before classification; any salvage has independent path-scoped diff evidence and a reconciliation action.
+- [ ] Exit `124` has a contained `dhpk.cli.receipt.v1` terminal `TIMEOUT` receipt; any salvage has independent path-scoped diff evidence and a reconciliation action.
 - [ ] Result was relayed verbatim, or failure was reported honestly — nothing invented.

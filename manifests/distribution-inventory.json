@@ -1333,6 +1333,28 @@
       ]
     },
     {
+      "id": "cli-transport",
+      "name": "dhpk-cli-transport",
+      "path": "skills/dhpk-cli-transport",
+      "capability_id": "dhpk.skill.cli-transport",
+      "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "core"
+      ],
+      "surfaces": [
+        "claude-core",
+        "claude-module",
+        "codex-sync",
+        "codex-native",
+        "agent-plugin",
+        "cursor-plugin",
+        "cursor-sync",
+        "agy-plugin"
+      ],
+      "invokable": false
+    },
+    {
       "id": "codex-architect",
       "name": "dhpk-codex-architect",
       "path": "skills/dhpk-codex-architect",
@@ -2561,6 +2583,7 @@
       "agy-fast-worker",
       "bug-investigation",
       "claude-health",
+      "cli-transport",
       "code-explore",
       "codex-architect",
       "codex-bridge",
@@ -2623,6 +2646,7 @@
       "agy-fast-worker",
       "bug-investigation",
       "claude-health",
+      "cli-transport",
       "code-explore",
       "codex-architect",
       "codex-bridge",
@@ -2685,6 +2709,7 @@
       "agy-fast-worker",
       "bug-investigation",
       "claude-health",
+      "cli-transport",
       "code-explore",
       "codex-architect",
       "codex-bridge",
@@ -2747,6 +2772,7 @@
       "agy-fast-worker",
       "bug-investigation",
       "claude-health",
+      "cli-transport",
       "code-explore",
       "codex-architect",
       "codex-bridge",
@@ -2801,6 +2827,23 @@
       "tech-spec",
       "test-review",
       "tool-routing"
+    ]
+  },
+  "internal_runtime_skills": {
+    "agent-plugin": [
+      "agy-fast-worker",
+      "cli-transport",
+      "codex-bridge"
+    ],
+    "cursor-plugin": [
+      "agy-fast-worker",
+      "cli-transport",
+      "codex-bridge"
+    ],
+    "agy-plugin": [
+      "agy-fast-worker",
+      "cli-transport",
+      "codex-bridge"
     ]
   },
   "agy_plugin": {

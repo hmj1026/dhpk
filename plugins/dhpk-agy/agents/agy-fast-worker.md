@@ -33,15 +33,17 @@ verification and edited-file accounting.
 
 Follow `agents/fast-worker.md` for the shared mechanical contract (task spec, parallel marker, escalation, surgical edits, edited-file list, 3-attempt stop). Do not paste that contract here.
 
-Optionally the dispatcher passes the **resolved model** (from the `agy_fast_worker_model`
-userConfig key, surfaced at session start when non-default). When omitted, default to
-`Gemini 3.6 Flash (High)`. There is no separate effort dial — agy bakes the thinking level
-into the model name (`agy models` lists the variants).
+The dispatcher resolves the model and deadline, then records those exact values
+with the maximum role authority, write scope, restricted runtime entries and
+prompt evidence in a `0600` immutable context. This worker must not fill in a
+missing value, change a bound value, or inherit an ambient runtime; a missing or
+mismatched context is `BLOCKED`. There is no separate effort dial — agy bakes
+the thinking level into the attested model name.
 
 ## Backend availability (check first — never simulate)
 
 ```bash
-command -v agy >/dev/null 2>&1 || { echo "agy CLI not found"; }
+test -n "${DHPK_CLI_TRANSPORT_CONTEXT:-}" || { echo "missing attested AGY context"; exit 65; }
 ```
 
 On a missing CLI, an authentication failure, or a rejected model name, return
@@ -66,6 +68,8 @@ approximate the backend or fall back to editing the files yourself.
    resolved model:
 
    ```bash
+   # Supplied by the dispatcher; AGY wrapper blocks without it.
+   export DHPK_CLI_TRANSPORT_CONTEXT="<attested-context-0600.json>"
    before="$(git status --porcelain)"
    bash "${CLAUDE_PLUGIN_ROOT}/skills/dhpk-agy-fast-worker/scripts/run-agy.sh" \
      "<workdir>" "<prompt-file>" "<model>"
@@ -74,26 +78,30 @@ approximate the backend or fall back to editing the files yourself.
 
    The wrapper handles the verified non-interactive combination (stdin `Y`,
    `--dangerously-skip-permissions`, `--mode accept-edits`, `--add-dir`, `--model`, `-p`,
-   `--print-timeout`, and — on agy ≥ 1.1.8 — `--output-format json` + `--json-schema` to
-   force the report contract) and fails loudly on a hang rather than blocking indefinitely.
-   The schema guarantees the **shape** of agy's self-report, never its **truth**: a
-   well-formed report is not evidence the work was done or verified — step 2 below still
-   runs unconditionally. When structured output is active, the schema-conformant object is
-   at the wrapper's JSON output's `.structured_output` field, not the top level.
+   `--print-timeout`) and uses the runner's attested deadline rather than a shell
+   timeout binary.
+   Its self-report is never evidence the work was done or verified — step 2 below still
+   runs unconditionally.
 
 ## Mid-batch timeout recovery (multi-file dispatch only)
 
-A wrapper-reported timeout (`run-agy.sh` exit `124` with the wrapper's own "timed out after ...s (wrapper backstop)" evidence on stderr — never a backend-native `124` without that evidence) on a **multi-file** dispatch triggers timeout recovery instead of the ordinary failure path in "Verify and report" below. Build the path-scoped completion ledger (`confirmed` / `unconfirmed` / `remaining`, disjoint, covering the assigned list) per
+A runner-reported timeout is `run-agy.sh` exit `124` with a contained
+`dhpk.cli.receipt.v1` terminal `TIMEOUT` status; it does not rely on a shell
+timeout binary. On a **multi-file** dispatch it triggers timeout recovery
+instead of the ordinary failure path in "Verify and report" below. Build the
+path-scoped completion ledger (`confirmed` / `unconfirmed` / `remaining`,
+disjoint, covering the assigned list) per
 `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/implementation-dispatch.md`
 §CLI worker mid-batch timeout recovery, then:
 
 1. **First verified timeout** — request exactly one same-backend, same-model recovery dispatch scoped to `remaining ∪ unconfirmed`. Never self-edit the unresolved files and never fall back to another backend because of a timeout.
 2. **Second verified timeout** — stop. Report `RESULT: PARTIAL` when any assigned file is confirmed, `RESULT: BLOCKED` when none is, naming both timeout observations, all three ledger sets, and the next action. Write the PARTIAL marker (control-plane JSON, not a product edit — see the policy reference above for the path and required fields) before returning `RESULT: PARTIAL`.
-3. **No wrapper timeout mechanism available** — `run-agy.sh` reports on stderr when neither `timeout` nor `gtimeout` is on PATH and runs unwrapped; without that mechanism there is no trustworthy timeout signal to classify, so treat any failure here as its ordinary (non-timeout) outcome and never fabricate a timeout classification.
+3. **Missing receipt evidence** — classify missing, invalid, or uncontained
+   receipt evidence as `BLOCKED`; never fabricate a timeout classification.
 
 This mid-batch timeout retry is separate from, and does not extend, the internal verification-retry carve-out below — that carve-out counts only agy's self-run verification iterations inside a single dispatch, never a timeout classification or an extra timeout retry.
 
-A single-file dispatch, a non-timeout failure, or a missing-executable/auth/model failure keep their existing semantics unchanged — this section applies only to a verified wrapper timeout on a multi-file batch.
+A single-file dispatch, a non-timeout failure, or a missing-executable/auth/model failure keep their existing semantics unchanged — this section applies only to a verified runner timeout on a multi-file batch.
 
 ## Verify and report (the agent owns this, not the CLI)
 

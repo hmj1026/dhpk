@@ -16,6 +16,7 @@ const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require
 const { compileDistribution, materializeDistribution, verifyDistribution } = require('./distribution-compiler');
 const { ProjectionArtifactStore } = require('./projection-artifact-store');
 const { bindSurfaceSelection } = require('./capability-bundle-selection');
+const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
 
 const AGENT_PLUGIN_VERSION = '1.0.0';
 const AGENT_PLUGIN_SCHEMA = `https://agent-plugins.org/schemas/${AGENT_PLUGIN_VERSION}/plugin.schema.json`;
@@ -791,11 +792,15 @@ function buildAgentPluginProjection(options = {}) {
     profileSelection,
   });
   if (selection && !selection.ok) throw new Error(selection.error.message);
-  const selected = selectPortableSkills(
+  const profileSelected = selectPortableSkills(
     inventory,
     'agent-plugin',
     selection && selection.value.selectionPolicy ? selection.value.selectedStableIds : null,
   );
+  const entriesById = new Map((inventory.skills || []).map((entry) => [entry && entry.id, entry]));
+  const selected = [...profileSelected, ...runtimeSupportSkillIds(inventory, 'agent-plugin').map((id) => entriesById.get(id))]
+    .filter((entry, index, all) => entry && all.findIndex((candidate) => candidate.id === entry.id) === index)
+    .sort((left, right) => String(left.name || left.id).localeCompare(String(right.name || right.id)));
   const files = [];
   const fingerprints = {};
   const selectedEntries = [];

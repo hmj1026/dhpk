@@ -23,6 +23,7 @@ const {
 } = require('./distribution-compiler');
 const { ProjectionArtifactStore } = require('./projection-artifact-store');
 const { bindSurfaceSelection } = require('./capability-bundle-selection');
+const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
 const { redactSensitiveText } = require('./redaction');
 const {
@@ -382,7 +383,9 @@ function adaptSkill(content, publicName) {
   if (!parsed.present || !name || !description) return { ok: false, reason: 'requires name and description frontmatter' };
   if (name !== publicName) return { ok: false, reason: `frontmatter name '${name}' does not match public name '${publicName}'` };
   if (!NAME_PATTERN.test(name)) return { ok: false, reason: `frontmatter name '${name}' is not Cursor-safe` };
-  return { ok: true, content: renderFrontmatter({ name, description }, parsed.body), transform: 'agent-skills-frontmatter' };
+  const body = rewriteCursorHarnessBody(parsed.body);
+  if (retainsClaudePluginRoot(body)) return { ok: false, reason: 'retains unsupported Claude plugin-root interpolation' };
+  return { ok: true, content: renderFrontmatter({ name, description }, body), transform: 'agent-skills-frontmatter' };
 }
 
 function sanitizeMarkdownLinks(content, sourceFile, canonicalRoot) {
@@ -530,15 +533,19 @@ function cursorSkillProjection(inventory, selectedStableIds = null) {
   if (sharedRows.length > 0 && sharedIds.size === 0) agentSkills.forEach((skill) => sharedIds.add(skill.id));
   const overlayIds = new Set(overlayRows.flatMap(matrixEntryIds));
   const hasExplicitRows = rows.length > 0;
-  const overlaySkills = hasExplicitRows && overlayIds.size > 0
+  const profileOverlaySkills = hasExplicitRows && overlayIds.size > 0
     ? (inventory.skills || []).filter((skill) => overlayIds.has(skill.id) || overlayIds.has(skill.name))
     : (hasExplicitRows && overlayRows.length === 0 ? [] : selectCursorSkills(inventory, selectedStableIds));
+  const runtimeSupport = runtimeSupportSkillIds(inventory, 'cursor-plugin').map((id) => byId.get(id));
+  const overlaySkills = [...profileOverlaySkills, ...runtimeSupport]
+    .filter((skill, index, all) => skill && all.findIndex((candidate) => candidate.id === skill.id) === index)
+    .sort((left, right) => String(left.name || left.id).localeCompare(String(right.name || right.id)));
   const sharedSurface = sharedRows.length > 0 ? sharedRows[0].shared_surface : null;
   return {
     mode: sharedRows.length > 0 && overlaySkills.length === 0 ? 'shared' : (overlaySkills.length > 0 ? 'overlay' : null),
     sharedSurface,
     sharedSkills: [...sharedIds].map((id) => byId.get(id)).filter(Boolean).sort((left, right) => String(left.name || left.id).localeCompare(String(right.name || right.id))),
-    overlaySkills: overlaySkills.filter((skill, index, all) => all.findIndex((candidate) => candidate.id === skill.id) === index).sort((left, right) => String(left.name || left.id).localeCompare(String(right.name || right.id))),
+    overlaySkills,
   };
 }
 
@@ -1264,11 +1271,16 @@ function validateSkills(packageRoot, skillRoots, errors, skippedSkills) {
         errors.push(`${relative} is invalid: missing SKILL.md`);
         continue;
       }
-      const parsed = parseFrontmatter(readFileBounded(skillPath).toString('utf8'));
+      const content = readFileBounded(skillPath).toString('utf8');
+      const parsed = parseFrontmatter(content);
       if (!parsed.present || !parsed.fields.name || !parsed.fields.description || parsed.fields.name !== entry.name || !NAME_PATTERN.test(parsed.fields.name)) {
         const relative = path.relative(packageRoot, skillPath).split(path.sep).join('/');
         skippedSkills.push({ path: relative, reason: 'invalid Cursor skill frontmatter' });
         errors.push(`${relative} is invalid: invalid Cursor skill frontmatter`);
+      }
+      if (retainsClaudePluginRoot(content)) {
+        const relative = path.relative(packageRoot, skillPath).split(path.sep).join('/');
+        errors.push(`${relative} retains Claude plugin-root interpolation`);
       }
     }
   }

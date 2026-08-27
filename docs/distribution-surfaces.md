@@ -115,7 +115,7 @@ node scripts/ci/gen-distribution-inventory.js
 ```
 
 The current commands report one registered Claude directory root, 97
-inventory-eligible Claude skill IDs, 97 canonical skills, and 15 Codex-sync
+inventory-eligible Claude skill IDs, 98 canonical skills, and 15 Codex-sync
 skills. These are independently derived scopes; a canonical total is not a
 default-install or runtime count. The five `0.47.0` retirement rows are
 diagnostic ledger entries and are not materialized as packages or aliases;

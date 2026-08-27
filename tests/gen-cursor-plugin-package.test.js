@@ -23,6 +23,7 @@ const {
   networkSandboxProbe,
   cursorStreamFrame,
   parseCursorStreamOutput,
+  cursorSkillProjection,
 } = require('../scripts/lib/cursor-plugin-package');
 
 function tmpDir(prefix) {
@@ -49,6 +50,14 @@ function makeFixture() {
   ].join('\n'));
   write(path.join(root, 'skills', 'dhpk-portable', 'agents', 'openai.yaml'), 'interface:\n  display_name: secret policy\n');
   write(path.join(root, 'skills', 'dhpk-invalid', 'SKILL.md'), '---\nname: wrong\n---\ninvalid sibling\n');
+  write(path.join(root, 'skills', 'dhpk-runtime', 'SKILL.md'), [
+    '---',
+    'name: dhpk-runtime',
+    "description: 'Runtime support fixture.'",
+    '---',
+    '# Runtime',
+    '',
+  ].join('\n'));
   write(path.join(root, 'rules', 'prefer-const.md'), '# Prefer const\nUse const when values do not change.\n');
   write(path.join(root, 'agents', 'reviewer.md'), [
     '---',
@@ -82,6 +91,7 @@ function fixtureInventory() {
     skills: [
       { id: 'portable', name: 'dhpk-portable', path: 'skills/dhpk-portable', lifecycle: 'promoted', surfaces: ['cursor-plugin'] },
       { id: 'invalid', name: 'dhpk-invalid', path: 'skills/dhpk-invalid', lifecycle: 'promoted', surfaces: ['cursor-plugin'] },
+      { id: 'runtime', name: 'dhpk-runtime', path: 'skills/dhpk-runtime', lifecycle: 'optional', surfaces: ['cursor-plugin'] },
       { id: 'codex-only', name: 'dhpk-codex-only', path: 'skills/dhpk-codex-only', lifecycle: 'promoted', surfaces: ['codex-native'] },
     ],
     surface_membership: { 'cursor-plugin': ['portable', 'invalid'] },
@@ -101,6 +111,15 @@ function fixtureInventory() {
     },
   };
 }
+
+test('Cursor projects declared runtime support as local overlay even when the selected profile is narrower', () => {
+  const inventory = fixtureInventory();
+  inventory.surface_membership['cursor-plugin'].push('runtime');
+  inventory.internal_runtime_skills = { 'cursor-plugin': ['runtime'] };
+  const projection = cursorSkillProjection(inventory, ['portable']);
+  assert.deepStrictEqual(projection.sharedSkills.map((skill) => skill.id), []);
+  assert.deepStrictEqual(projection.overlaySkills.map((skill) => skill.id), ['portable', 'runtime']);
+});
 
 test('Cursor compiler freezes shared/overlay intent before materialization', () => {
   const root = makeFixture();

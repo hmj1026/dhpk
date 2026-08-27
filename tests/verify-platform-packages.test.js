@@ -13,13 +13,14 @@ test('platform package verifier reports deterministic Agent Plugin and Cursor ou
   assert.strictEqual(report.verdict, 'PASS');
   assert.strictEqual(report.surfaces['agent-plugin'].structural, 'PASS');
   assert.strictEqual(report.surfaces['cursor-plugin'].structural, 'PASS');
-  assert.strictEqual(report.surfaces['cursor-plugin'].selectedSkills, 0);
+  assert.strictEqual(report.surfaces['agent-plugin'].selectedSkills, 12);
+  assert.strictEqual(report.surfaces['cursor-plugin'].selectedSkills, 3);
   assert.strictEqual(report.surfaces['cursor-plugin'].sharedSkillSurface, 'agent-plugin');
   assert.strictEqual(report.surfaces['cursor-plugin'].sharedSkillSource, 'plugins/dhpk-agent/skills/');
-  assert.deepStrictEqual(
-    report.surfaces['cursor-plugin'].sharedSkillIds,
-    report.surfaces['agent-plugin'].selectedSkillIds,
-  );
+  const cursorLocal = report.surfaces['cursor-plugin'].selectedSkillIds;
+  const cursorShared = report.surfaces['cursor-plugin'].sharedSkillIds;
+  assert.deepStrictEqual(cursorLocal, ['agy-fast-worker', 'cli-transport', 'codex-bridge']);
+  assert.deepStrictEqual(cursorLocal.filter((id) => cursorShared.includes(id)), []);
 });
 
 run('verify-platform-packages');

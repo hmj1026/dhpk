@@ -8,19 +8,18 @@ The `codex` and `agy` fast-worker wrappers can run a multi-file implementation b
 shared checkout. A process timeout can leave some assigned files complete, some changed but
 not proven complete, and some untouched. A global working-tree snapshot cannot safely answer
 which worker-owned files are complete when sibling workers and pre-existing changes are also
-present. The previous contract also differed by backend: agy had a wrapper backstop while
-Codex did not.
+present. Before the portable transport, shell-level timeout handling also differed by
+backend.
 
 The recovery path must preserve the worker boundary, avoid inventing completion evidence, and
 leave an explicit reconciliation obligation when the batch cannot finish safely.
 
 ## Decision
 
-- Both wrappers use a guarded 360-second backstop, with an environment override. Exit 124
-  counts as a wrapper timeout only when `timeout` or `gtimeout` actually wrapped the CLI and
-  emitted evidence; a backend-native 124 remains an ordinary backend result.
-- If timeout tooling is unavailable, the worker fails closed as `BLOCKED` and does not
-  fabricate a timeout or switch backends.
+- The portable runner owns the attested deadline and process-group termination.
+  A runner-observed deadline is terminal `TIMEOUT`; a backend-native exit 124
+  remains an ordinary failed backend result. It does not use `timeout` or
+  `gtimeout`.
 - The policy applies only to a started multi-file batch. Single-file work and ordinary
   backend, authentication, model, missing-CLI, and verification failures keep their existing
   handling.
@@ -31,9 +30,10 @@ leave an explicit reconciliation obligation when the batch cannot finish safely.
   the same model, effort, intent, verifier, and scope, targeting only `remaining` and
   `unconfirmed` files. Workers do not inline-edit, expand scope, clean siblings, or substitute
   a backend.
-- A second verified wrapper timeout is terminal: `PARTIAL` when any file is confirmed,
-  otherwise `BLOCKED`. The report must preserve both timeout observations and the complete
-  ledger.
+- A second verified wrapper timeout has terminal receipt status `TIMEOUT`. The
+  caller may report `RESULT: PARTIAL` when any file is confirmed, otherwise
+  `RESULT: BLOCKED`; the report preserves both timeout observations and the
+  complete ledger.
 - Before `PARTIAL`, the worker writes a durable marker at a predeclared safe control-plane
   path named `.partial-cli-batch-<backend>-<session-id>-<dispatch-id>.json`. It is separate
   from product edited-file accounting and `.pending-*` reviewer sentinels, is not auto-cleared,

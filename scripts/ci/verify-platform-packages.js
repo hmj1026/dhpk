@@ -21,6 +21,7 @@ const {
   fingerprintDir: fingerprintCursor,
 } = require('../lib/cursor-plugin-package');
 const { validateSurfaceReceipt } = require('../lib/platform-provenance');
+const { resolveCapabilitySelection, bindSurfaceSelection } = require('../lib/capability-bundle-selection');
 
 const ROOT = path.join(__dirname, '..', '..');
 
@@ -33,7 +34,46 @@ function sourceCommit(root, fallback) {
   return result.status === 0 ? result.stdout.trim() : fallback;
 }
 
-function verifyAgent({ inventory, version, tracked, temp }) {
+function profileSelectionFromReceipt({ receipt, surface, inventory, profiles, moduleCatalog }) {
+  if (!receipt || !receipt.profileId) return null;
+  const required = ['selectedStableIds', 'selectionFingerprint', 'selectionPolicyVersion'];
+  for (const field of required) {
+    if (receipt[field] === undefined || receipt[field] === null) {
+      throw new Error(`${surface} provenance is missing profile selection field '${field}'`);
+    }
+  }
+  // A receipt intentionally contains only the public selection identity.  The
+  // compiler plan includes its normalized profile definition and source
+  // fingerprints too, so reconstruct the same complete selection used by the
+  // distribution command instead of fabricating a partial authority object.
+  const resolved = resolveCapabilitySelection({
+    inventory,
+    profiles,
+    moduleCatalog,
+    profileId: receipt.profileId,
+    skillIds: [],
+    surface,
+    sourceInputs: { profileId: receipt.profileId, skillIds: [] },
+    policyVersion: inventory.profile_policy && inventory.profile_policy.version,
+  });
+  if (!resolved.ok) throw new Error(`${surface} profile selection cannot be resolved: ${resolved.error.message}`);
+  const bound = bindSurfaceSelection({ selection: resolved.value, surface });
+  if (!bound.ok) throw new Error(`${surface} profile selection cannot be bound: ${bound.error.message}`);
+
+  const expected = bound.value;
+  const receiptEmitted = receipt.emittedStableIds || receipt.selectedStableIds;
+  if (JSON.stringify(receipt.selectedStableIds) !== JSON.stringify(expected.selectedStableIds)
+    || JSON.stringify(receiptEmitted) !== JSON.stringify(expected.emittedStableIds)
+    || receipt.compatibilityMode !== expected.compatibilityMode
+    || receipt.selectionPolicyVersion !== expected.selectionPolicyVersion
+    || receipt.selectionFingerprint !== expected.selectionFingerprint
+    || (receipt.surfaceSelectionFingerprint && receipt.surfaceSelectionFingerprint !== expected.surfaceSelectionFingerprint)) {
+    throw new Error(`${surface} provenance profile selection does not match canonical inputs`);
+  }
+  return expected;
+}
+
+function verifyAgent({ inventory, profiles, moduleCatalog, version, tracked, temp }) {
   const trackedProvenance = readJson(path.join(tracked, 'provenance.json'));
   const generated = materializeAgentPluginPackage({
     inventory,
@@ -41,6 +81,7 @@ function verifyAgent({ inventory, version, tracked, temp }) {
     outDir: temp,
     version,
     sourceCommit: trackedProvenance.sourceCommit || sourceCommit(ROOT, 'unknown'),
+    profileSelection: profileSelectionFromReceipt({ receipt: trackedProvenance, surface: 'agent-plugin', inventory, profiles, moduleCatalog }),
   });
   const structural = validateAgentPluginPackage(temp);
   const receipt = validateSurfaceReceipt(readJson(path.join(tracked, 'provenance.json')), 'agent-plugin');
@@ -55,7 +96,7 @@ function verifyAgent({ inventory, version, tracked, temp }) {
   };
 }
 
-function verifyCursor({ inventory, version, tracked, temp }) {
+function verifyCursor({ inventory, profiles, moduleCatalog, version, tracked, temp }) {
   const trackedProvenance = readJson(path.join(tracked, 'provenance.json'));
   const generated = materializeCursorPackage({
     inventory,
@@ -63,6 +104,7 @@ function verifyCursor({ inventory, version, tracked, temp }) {
     outDir: temp,
     version,
     sourceCommit: trackedProvenance.sourceCommit || sourceCommit(ROOT, 'unknown'),
+    profileSelection: profileSelectionFromReceipt({ receipt: trackedProvenance, surface: 'cursor-plugin', inventory, profiles, moduleCatalog }),
   });
   const structural = validateCursorPackage({ packageRoot: temp });
   const receipt = validateSurfaceReceipt(readJson(path.join(tracked, 'provenance.json')), 'cursor-plugin');
@@ -82,14 +124,16 @@ function verifyCursor({ inventory, version, tracked, temp }) {
 
 function main() {
   const inventory = readJson(path.join(ROOT, 'manifests', 'distribution-inventory.json'));
+  const profiles = readJson(path.join(ROOT, 'manifests', 'install-profiles.json'));
+  const moduleCatalog = readJson(path.join(ROOT, 'manifests', 'module-catalog.json'));
   const version = readJson(path.join(ROOT, '.claude-plugin', 'plugin.json')).version;
   const tempAgent = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-agent-package-verify-'));
   const tempCursor = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-package-verify-'));
   let report;
   try {
     const surfaces = {
-      'agent-plugin': verifyAgent({ inventory, version, tracked: path.join(ROOT, 'plugins/dhpk-agent'), temp: tempAgent }),
-      'cursor-plugin': verifyCursor({ inventory, version, tracked: path.join(ROOT, 'plugins/dhpk-cursor'), temp: tempCursor }),
+      'agent-plugin': verifyAgent({ inventory, profiles, moduleCatalog, version, tracked: path.join(ROOT, 'plugins/dhpk-agent'), temp: tempAgent }),
+      'cursor-plugin': verifyCursor({ inventory, profiles, moduleCatalog, version, tracked: path.join(ROOT, 'plugins/dhpk-cursor'), temp: tempCursor }),
     };
     const errors = Object.values(surfaces).flatMap((surface) => surface.errors);
     const agentIds = surfaces['agent-plugin'].selectedSkillIds || [];
