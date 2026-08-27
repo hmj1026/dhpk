@@ -30,12 +30,15 @@ def resolve_configured_targets(repo_root):
             "plugins/dhpk-agy/plugin.json",
             ".gemini/config/plugins/dhpk/plugin.json",
         )),
-        "cursor": any(safe_exists(os.path.join(repo_root, marker)) for marker in (
-            "plugins/dhpk-agent/plugin.json",
-            ".cursor-plugin/plugin.json",
-            ".cursor/plugins/local/dhpk-agent/plugin.json",
-            ".cursor/plugins/local/dhpk-cursor/.cursor-plugin/plugin.json",
-        )),
+        "cursor": (
+            os.path.lexists(os.path.join(repo_root, ".cursor/.dhpk-installed.json"))
+            or any(safe_exists(os.path.join(repo_root, marker)) for marker in (
+                "plugins/dhpk-agent/plugin.json",
+                ".cursor-plugin/plugin.json",
+                ".cursor/plugins/local/dhpk-agent/plugin.json",
+                ".cursor/plugins/local/dhpk-cursor/.cursor-plugin/plugin.json",
+            ))
+        ),
     }
 
 
