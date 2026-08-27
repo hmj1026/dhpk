@@ -12,6 +12,9 @@ const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
 const HOOK = path.join(ROOT, 'scripts', 'hooks', 'install-codex-skills.sh');
+// Copy-mode fixture setup hashes a complete generated Codex package. Keep this
+// bounded, while allowing four-way CI contention to complete that real work.
+const INSTALLER_CHILD_TIMEOUT_MS = 60_000;
 
 test('bash -n syntax check passes', () => {
   const res = spawnSync('bash', ['-n', HOOK], { encoding: 'utf8' });
@@ -43,9 +46,13 @@ function runInstaller(project, args, pluginRoot = ROOT, envOverrides = {}) {
     cwd: project,
     env: { ...process.env, CLAUDE_PLUGIN_ROOT: pluginRoot, ...envOverrides },
     encoding: 'utf8',
-    timeout: 20000,
+    timeout: INSTALLER_CHILD_TIMEOUT_MS,
   });
 }
+
+test('installer child timeout stays bounded for parallel CI package setup', () => {
+  assert.strictEqual(INSTALLER_CHILD_TIMEOUT_MS, 60_000);
+});
 
 test('successful update emits no deprecation warning and preserves UTC receipt timestamps', () => {
   const scratch = projectRoot();
@@ -58,7 +65,7 @@ test('successful update emits no deprecation warning and preserves UTC receipt t
         PYTHONWARNINGS: 'error::DeprecationWarning',
       },
       encoding: 'utf8',
-      timeout: 20000,
+      timeout: INSTALLER_CHILD_TIMEOUT_MS,
     });
     assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
     assert.doesNotMatch(res.stderr, /DeprecationWarning/);
