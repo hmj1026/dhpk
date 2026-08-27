@@ -1311,6 +1311,164 @@ test('--plan --json reports a current projection without mutation', () => {
   }
 });
 
+function transactionMetadataSnapshot(codexRoot) {
+  return fs.readdirSync(codexRoot)
+    .filter((name) => name.startsWith('.dhpk-transaction-'))
+    .sort()
+    .map((name) => [name, fs.readFileSync(path.join(codexRoot, name), 'utf8')]);
+}
+
+function provenanceDriftPlanFixture(drift) {
+  const scratch = projectRoot();
+  const first = runInstaller(scratch, ['--force']);
+  assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+  const codexRoot = path.join(scratch, '.codex');
+  const receiptPath = path.join(codexRoot, '.dhpk-installed.json');
+  const currentReceipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
+  assert.strictEqual(currentReceipt.mode, 'symlink', 'fixture must reproduce the default projection mode');
+  assert.strictEqual(currentReceipt.reconciliation.state, 'current',
+    'fixture requires a historical current reconciliation state');
+  const currentProvenance = {
+    pluginVersion: currentReceipt.plugin_version,
+    sourceFingerprint: currentReceipt.source_fingerprint,
+  };
+  const receipt = {
+    ...currentReceipt,
+    plugin_version: drift === 'version' || drift === 'both'
+      ? '0.0.0-provenance-drift'
+      : currentReceipt.plugin_version,
+    source_fingerprint: drift === 'fingerprint' || drift === 'both'
+      ? '0'.repeat(64)
+      : currentReceipt.source_fingerprint,
+  };
+  const recordedProvenance = {
+    pluginVersion: receipt.plugin_version,
+    sourceFingerprint: receipt.source_fingerprint,
+  };
+  fs.writeFileSync(receiptPath, `${JSON.stringify(receipt, null, 2)}\n`);
+  const before = {
+    receipt: fs.readFileSync(receiptPath, 'utf8'),
+    projection: completeTreeFingerprint(codexRoot),
+    transactionMetadata: transactionMetadataSnapshot(codexRoot),
+  };
+  const planned = runInstaller(scratch, [
+    '--migrate', '--update', '--plan', '--json', '--force',
+  ]);
+  return {
+    scratch,
+    codexRoot,
+    receiptPath,
+    before,
+    currentProvenance,
+    recordedProvenance,
+    planned,
+  };
+}
+
+for (const drift of ['version', 'fingerprint', 'both']) {
+  test(`metadata-only ${drift} provenance drift is stale, actionable, and read-only`, () => {
+    const fixture = provenanceDriftPlanFixture(drift);
+    try {
+      assert.notStrictEqual(fixture.planned.status, 0,
+        `provenance drift must not pass preflight: ${fixture.planned.stdout}\n${fixture.planned.stderr}`);
+      const report = JSON.parse(fixture.planned.stdout);
+      assert.strictEqual(report.state, 'stale');
+      assert.strictEqual(report.receipt_state, 'current',
+        'historical receipt state remains evidence but must not mask provenance drift');
+      assert.deepStrictEqual(report.collisions, []);
+      assert.deepStrictEqual(report.missing, []);
+      assert.deepStrictEqual(report.updates, []);
+      assert.deepStrictEqual(report.retired, []);
+      assert.strictEqual(report.plugin_version, fixture.currentProvenance.pluginVersion);
+      assert.strictEqual(report.source_fingerprint, fixture.currentProvenance.sourceFingerprint);
+      assert.strictEqual(report.receipt_plugin_version, fixture.recordedProvenance.pluginVersion);
+      assert.strictEqual(
+        report.receipt_source_fingerprint,
+        fixture.recordedProvenance.sourceFingerprint,
+      );
+      assert.ok(Array.isArray(report.reasons), JSON.stringify(report));
+      if (drift === 'version' || drift === 'both') {
+        assert.match(report.reasons.join('\n'), /receipt plugin version differs from source/);
+      }
+      if (drift === 'fingerprint' || drift === 'both') {
+        assert.match(report.reasons.join('\n'), /receipt source fingerprint differs from the current Codex source/);
+      }
+      assert.match(report.next_action, /--migrate --update/);
+      assert.strictEqual(fs.readFileSync(fixture.receiptPath, 'utf8'), fixture.before.receipt);
+      assert.strictEqual(completeTreeFingerprint(fixture.codexRoot), fixture.before.projection);
+      assert.deepStrictEqual(
+        transactionMetadataSnapshot(fixture.codexRoot),
+        fixture.before.transactionMetadata,
+      );
+    } finally {
+      fs.rmSync(fixture.scratch, { recursive: true, force: true });
+    }
+  });
+}
+
+for (const nonFiniteLiteral of ['NaN', '1e10000']) {
+  test(`non-finite receipt provenance ${nonFiniteLiteral} stays fail-closed with strict JSON plan output`, () => {
+    const scratch = projectRoot();
+    try {
+      const first = runInstaller(scratch, ['--force']);
+      assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
+      const codexRoot = path.join(scratch, '.codex');
+      const receiptPath = path.join(codexRoot, '.dhpk-installed.json');
+      const validReceipt = fs.readFileSync(receiptPath, 'utf8');
+      const receiptBefore = validReceipt.replace(
+        /"plugin_version": "[^"]+"/,
+        `"plugin_version": ${nonFiniteLiteral}`,
+      );
+      assert.notStrictEqual(receiptBefore, validReceipt, 'fixture must replace plugin_version');
+      fs.writeFileSync(receiptPath, receiptBefore);
+      const projectionBefore = completeTreeFingerprint(codexRoot);
+      const planned = runInstaller(scratch, ['--update', '--plan', '--json', '--force']);
+      assert.notStrictEqual(planned.status, 0, planned.stdout);
+      const report = JSON.parse(planned.stdout);
+      assert.match(report.reasons.join('\n'), /invalid JSON/);
+      assert.strictEqual(report.receipt_plugin_version, null);
+      assert.strictEqual(fs.readFileSync(receiptPath, 'utf8'), receiptBefore);
+      assert.strictEqual(completeTreeFingerprint(codexRoot), projectionBefore);
+    } finally {
+      fs.rmSync(scratch, { recursive: true, force: true });
+    }
+  });
+}
+
+for (const drift of ['version', 'fingerprint', 'both']) {
+  test(`explicit migration/update repairs ${drift} provenance drift`, () => {
+    const fixture = provenanceDriftPlanFixture(drift);
+    try {
+      assert.notStrictEqual(fixture.planned.status, 0, fixture.planned.stdout);
+      const beforeReceipt = JSON.parse(fixture.before.receipt);
+      const beforeEntry = beforeReceipt.managed_entries.skills['dhpk-tdd-workflow'];
+      const updated = runInstaller(fixture.scratch, ['--migrate', '--update', '--force']);
+      assert.strictEqual(updated.status, 0, `${updated.stdout}\n${updated.stderr}`);
+      const repaired = JSON.parse(fs.readFileSync(fixture.receiptPath, 'utf8'));
+      const repairedEntry = repaired.managed_entries.skills['dhpk-tdd-workflow'];
+      assert.strictEqual(repaired.plugin_version, fixture.currentProvenance.pluginVersion);
+      assert.strictEqual(repaired.source_fingerprint, fixture.currentProvenance.sourceFingerprint);
+      assert.strictEqual(repaired.mode, beforeReceipt.mode);
+      assert.strictEqual(repairedEntry.mode, beforeEntry.mode);
+      assert.strictEqual(repairedEntry.ownership_marker, beforeEntry.ownership_marker);
+
+      const planned = runInstaller(fixture.scratch, [
+        '--update', '--plan', '--json', '--force',
+      ]);
+      assert.strictEqual(planned.status, 0, `${planned.stdout}\n${planned.stderr}`);
+      const report = JSON.parse(planned.stdout);
+      assert.strictEqual(report.state, 'current');
+      assert.deepStrictEqual(report.reasons, []);
+      assert.deepStrictEqual(report.collisions, []);
+      assert.deepStrictEqual(report.missing, []);
+      assert.deepStrictEqual(report.updates, []);
+      assert.deepStrictEqual(report.retired, []);
+    } finally {
+      fs.rmSync(fixture.scratch, { recursive: true, force: true });
+    }
+  });
+}
+
 test('--plan blocks on an interrupted transaction without recovering or mutating state', () => {
   const scratch = projectRoot();
   try {
