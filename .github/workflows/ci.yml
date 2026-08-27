@@ -81,19 +81,21 @@ jobs:
 
       # Release-note fragment schema (always) + PR coverage (base ref must exist locally).
       - name: Validate changelog fragments
-        run: node scripts/ci/validate-changelog-fragments.js
-      - name: Changelog fragment coverage (PR only)
-        if: github.event_name == 'pull_request'
         env:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
-          git fetch origin "$BASE_REF"
-          node scripts/ci/validate-changelog-fragments.js --diff-base "origin/$BASE_REF" --base-ref "$BASE_REF"
+          CHANGELOG_ARGS=()
+          if [ "$GITHUB_EVENT_NAME" = "pull_request" ]; then
+            git fetch origin "$BASE_REF"
+            CHANGELOG_ARGS=(--diff-base "origin/$BASE_REF" --base-ref "$BASE_REF")
+          fi
+          node scripts/ci/validate-changelog-fragments.js "${CHANGELOG_ARGS[@]}"
 
       # Regression tests (plugin paths, hook wiring, catalog<->modules).
       - name: Tests
         env:
           DHPK_BOUNDED_REQUIRE_CGROUP: '1'
+          DHPK_TEST_JOBS: '4'
         run: ./scripts/ci/run-bounded-node-test.sh node tests/run-all.js
 
   lint:
