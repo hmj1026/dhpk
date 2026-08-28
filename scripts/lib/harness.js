@@ -704,6 +704,9 @@ function runConsumerProbe(root, parsed) {
   const probeScript = path.join(root, 'scripts', 'release', 'consumer-platform-probe.js');
   const version = probePackageVersion(packageRoot, adapter.platform);
   const args = [probeScript, '--platform', adapter.platform, '--package-root', packageRoot];
+  if (adapter.platform === 'cursor') {
+    args.push('--inventory', path.join(root, 'manifests', 'distribution-inventory.json'));
+  }
   if (version) args.push('--version', version);
   if (['agent-plugin', 'cursor-plugin'].includes(surface) && allowsRealConsumerProbe()) args.push('--execute');
   const child = spawnSync(process.execPath, args, {
