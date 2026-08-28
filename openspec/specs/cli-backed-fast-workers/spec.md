@@ -9,8 +9,10 @@ CLI execution through one immutable, contained transport boundary.
 
 ### Requirement: CLI-backed fast-worker agents preserve the mechanical contract
 
-The plugin SHALL ship `agents/codex-fast-worker.md` and
-`agents/agy-fast-worker.md` as write-capable mechanical implementers. Each
+The plugin SHALL ship `agents/codex-worker.md` and
+`agents/agy-worker.md` as write-capable mechanical implementers (legacy alias
+files `agents/codex-fast-worker.md` and `agents/agy-fast-worker.md` remain for
+the compatibility window). Each
 SHALL require a precise task spec, make surgical edits only, independently run
 verification, derive its edited-file list from the working tree, and escalate
 after three failed verification attempts instead of guessing.

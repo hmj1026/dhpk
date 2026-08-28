@@ -41,10 +41,10 @@ Wrapper degrade path (landed with `adapt-cli-wrappers-to-new-behaviors`):
   `AGY_VERIFIED_BASELINE` 1.1.13. Do not bump the baseline from a drift notice.
 - **Codex** — `--output-last-message` on every role; `--output-schema` (OpenAI-strict
   `skills/dhpk-codex-bridge/scripts/report-schema.json`) only when
-  `DHPK_CODEX_ROLE=codex-fast-worker`. Do not adopt `ultra`. `--ephemeral` /
+  `DHPK_CODEX_ROLE=codex-worker` (requested-role alias: `codex-fast-worker`). Do not adopt `ultra`. `--ephemeral` /
   `--ignore-user-config` stay opt-in.
 
-## GPT-5.x section (codex-fast-worker, codex-deep-reasoner, codex-bridge skill)
+## GPT-5.x section (codex-worker, codex-reasoner, codex-reviewer; aliases: codex-fast-worker, codex-deep-reasoner, codex-bridge skill)
 
 - **Source**: GPT-5.6 latest-model guide. `codex-bridge` dispatches gpt-5.5 —
   a one-minor-version gap from this guidance; treat as directionally correct,
@@ -61,7 +61,7 @@ Wrapper degrade path (landed with `adapt-cli-wrappers-to-new-behaviors`):
 - **`text.verbosity` and `reasoning.mode` are out of scope** — `codex exec` gives
   no control surface for either, so no prompt text should claim to set them.
 
-## Gemini section (agy-fast-worker)
+## Gemini section (agy-worker; alias: agy-fast-worker)
 
 - **Source**: official Gemini 3 family guidance. The dispatched model is
   Gemini 3.6 Flash — a minor-version gap; the family-level guidance below still

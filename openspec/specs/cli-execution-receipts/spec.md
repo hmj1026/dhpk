@@ -145,8 +145,9 @@ performed or verified.
 ### Requirement: Maximum authority and runner containment are enforced
 
 The runner SHALL interpret authority as maximum capability:
-`codex-deep-reasoner` is read-only; `codex-fast-worker`, `agy-fast-worker`, and
-`codex-bridge` are workspace-write. Requests may narrow but cannot widen it.
+`codex-reasoner` is read-only; `codex-worker` and `agy-worker` are
+workspace-write (`codex-reviewer` is also read-only; `codex-bridge` is a
+mode-qualified alias). Requests may narrow but cannot widen it.
 The runner SHALL own timeout observation and use realpath/no-follow/atomic
 artifact-root containment with a pinned directory descriptor, `0600` temporary
 and receipt files, redaction before bounded capture, and fail-closed
@@ -155,7 +156,7 @@ hardlink, or artifact-root replacement SHALL block normal receipt publication.
 
 #### Scenario: Read-only authority cannot be widened
 
-- **WHEN** codex-deep-reasoner requests workspace-write
+- **WHEN** `codex-reasoner` requests workspace-write
 - **THEN** the runner returns `BLOCKED` before provider launch
 
 ### Requirement: AGY prompt and confirmation transport are explicit

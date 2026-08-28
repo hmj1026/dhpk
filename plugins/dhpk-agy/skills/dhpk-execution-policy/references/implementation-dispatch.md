@@ -76,7 +76,7 @@ If a validator reads or updates shared ratchet/configuration state, the worker u
 
 ## CLI worker mid-batch timeout recovery
 
-Applies only to a CLI-backed multi-file dispatch (`codex-fast-worker` / `dhpk-agy-fast-worker`) that reports a contained runner timeout (see each worker's Backend availability section) — never to a single-file dispatch, a non-timeout failure, or a missing-executable/auth/model failure, which keep their existing semantics unchanged.
+Applies only to a CLI-backed multi-file dispatch (`codex-worker` / `agy-worker`, canonical role IDs; legacy aliases `codex-fast-worker` / `agy-fast-worker`) that reports a contained runner timeout (see each worker's Backend availability section) — never to a single-file dispatch, a non-timeout failure, or a missing-executable/auth/model failure, which keep their existing semantics unchanged.
 
 The portable runner returns exit `124` only with the dispatcher-selected,
 contained `0600` `dhpk.cli.receipt.v1` terminal `TIMEOUT` receipt. The

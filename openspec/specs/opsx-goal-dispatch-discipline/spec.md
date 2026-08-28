@@ -41,7 +41,7 @@ The goal template's dispatch roster SHALL route batched mechanical work to the f
 
 #### Scenario: Session configured for codex backend
 - **WHEN** the effective backend resolution is `codex` (via flag or userConfig) and a ≥3-file mechanical batch is dispatched in an unattended goal session
-- **THEN** the batch is dispatched to `dhpk:codex-fast-worker` per the backend clause carried in the goal string
+- **THEN** the batch is dispatched to `dhpk:codex-worker` per the backend clause carried in the goal string
 
 #### Scenario: No CLI available under auto
 - **WHEN** the resolution is `auto` and neither the codex nor the agy CLI is available

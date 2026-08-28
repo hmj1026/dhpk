@@ -105,6 +105,24 @@ test('fast-worker variants append shared liveness entries', () => {
   }
 });
 
+test('canonical worker ids append shared liveness entries', () => {
+  const repo = mkTempRepo();
+  try {
+    const dispatched = ['codex-worker', 'dhpk:codex-worker', 'agy-worker'];
+    for (const agent of dispatched) {
+      const res = runHook(repo, { tool_input: { subagent_type: agent } });
+      assert.strictEqual(res.status, 0, `hook failed for ${agent}: ${res.stderr}`);
+    }
+    const lines = markerLines(repo, '.active-fast-worker');
+    assert.strictEqual(lines.length, dispatched.length, JSON.stringify(lines));
+    assert.match(lines[0], /^\d+ codex-worker /);
+    assert.match(lines[1], /^\d+ dhpk:codex-worker /);
+    assert.match(lines[2], /^\d+ agy-worker /);
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
 test('ordinary non-reviewer dispatch remains a no-op', () => {
   const repo = mkTempRepo();
   try {

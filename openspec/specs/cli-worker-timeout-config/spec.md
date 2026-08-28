@@ -6,7 +6,7 @@ Define dispatcher-resolved deadline configuration for the contained CLI runner.
 ## Requirements
 
 ### Requirement: Codex timeout budgets are first-class layered configuration
-The plugin SHALL expose `codex_timeout_secs` with default `360`, plus role-specific `codex_fast_worker_timeout_secs`, `codex_deep_reasoner_timeout_secs`, and `codex_bridge_timeout_secs`. Effective configuration SHALL resolve scope first: project pluginConfigs (role-specific over shared) over global pluginConfigs (role-specific over shared) over shipped defaults. An absent role-specific key SHALL inherit the shared value in its selected scope.
+The plugin SHALL expose `codex_timeout_secs` with default `360`, plus role-specific `codex_worker_timeout_secs`, `codex_reasoner_timeout_secs`, and `codex_reviewer_timeout_secs` (legacy aliases `codex_fast_worker_timeout_secs`, `codex_deep_reasoner_timeout_secs`, and `codex_bridge_timeout_secs`). Effective configuration SHALL resolve scope first: project pluginConfigs (role-specific over shared) over global pluginConfigs (role-specific over shared) over shipped defaults. An absent role-specific key SHALL inherit the shared value in its selected scope.
 
 #### Scenario: Shared timeout override
 - **WHEN** the project config sets `codex_timeout_secs=900` and no role-specific value exists
@@ -14,7 +14,7 @@ The plugin SHALL expose `codex_timeout_secs` with default `360`, plus role-speci
 
 #### Scenario: Role-specific timeout override
 - **WHEN** the shared value is `900` and `codex_fast_worker_timeout_secs=1800`
-- **THEN** codex-fast-worker receives `1800` and other roles retain `900`
+- **THEN** `codex-worker` receives `1800` and other roles retain `900`
 
 #### Scenario: Project value overrides global value
 - **WHEN** global config sets `codex_timeout_secs=900` and project config sets `codex_timeout_secs=1200`
@@ -22,11 +22,11 @@ The plugin SHALL expose `codex_timeout_secs` with default `360`, plus role-speci
 
 #### Scenario: Project shared value overrides global role value
 - **WHEN** global config sets `codex_fast_worker_timeout_secs=1800` and project config sets only `codex_timeout_secs=900`
-- **THEN** codex-fast-worker receives `900` because project scope is selected before role specificity
+- **THEN** `codex-worker` receives `900` because project scope is selected before role specificity
 
 #### Scenario: Project role value overrides global shared value
 - **WHEN** global config sets `codex_timeout_secs=900` and project config sets `codex_fast_worker_timeout_secs=1800`
-- **THEN** codex-fast-worker receives `1800`
+- **THEN** `codex-worker` receives `1800`
 
 #### Scenario: Absent role value inherits shared value
 - **WHEN** a selected scope has `codex_timeout_secs=900` and no role-specific key
@@ -60,13 +60,13 @@ values; adapters and runners SHALL never read it directly.
 - **THEN** dispatch context construction fails before invoking Codex
 
 ### Requirement: Role and effective budget bind into immutable transport context
-Codex fast-worker, deep-reasoner, and bridge dispatches SHALL bind a validated
+Codex `codex-worker`, `codex-reasoner`, and `codex-reviewer` dispatches SHALL bind a validated
 role marker and effective budget into `dhpk.cli.context.v1` before invoking the
 compatibility wrapper. The existing three-argument bridge invocation remains
 callable only when that attested context is supplied.
 
 #### Scenario: Fast-worker receives role budget
-- **WHEN** codex-fast-worker resolves a role-specific budget
+- **WHEN** `codex-worker` resolves a role-specific budget
 - **THEN** the context carries the fast-worker role and that budget
 
 #### Scenario: Bridge retains legacy shape

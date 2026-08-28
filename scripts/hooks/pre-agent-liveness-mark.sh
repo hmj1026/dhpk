@@ -26,7 +26,7 @@ SUBAGENT="$(extract_tool_input subagent_type "$PAYLOAD")"
 [ -z "$SUBAGENT" ] && SUBAGENT="$(extract_tool_input subagent "$PAYLOAD")"
 
 case "${SUBAGENT##*:}" in
-    fast-worker|codex-fast-worker|agy-fast-worker)
+    fast-worker|codex-fast-worker|agy-fast-worker|codex-worker|agy-worker)
         SESS="$(dhpk_sessions_dir "$ROOT")"
         STAMP="$(date +%s 2>/dev/null || date -u +%s)"
         mkdir -p "$SESS" 2>/dev/null || exit 0

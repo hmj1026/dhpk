@@ -445,7 +445,7 @@ The execution policy (or its implementation-dispatch reference) SHALL carry thes
 - **THEN** the post-edit advisory has already instructed running the reviewer first, so the push-gate block path is not exercised
 
 ### Requirement: Dispatch rows for CLI-backed fast-worker variants
-The execution-policy Implementation dispatch section SHALL define a deterministic selector for the three mechanical backends: `fast-worker` is the shipped default and maps to the Claude/default backend; `codex-fast-worker` and `agy-fast-worker` are selected only by an explicit backend preference or by the configured `auto` availability order. The selector SHALL check prerequisites before dispatch, record the requested and selected backend, and apply only the configured missing-executable fallback. Authentication, authorization, model, and task failures SHALL remain `RESULT: BLOCKED` and SHALL never silently switch backends.
+The execution-policy Implementation dispatch section SHALL define a deterministic selector for the three mechanical backends: `fast-worker` is the shipped default and maps to the Claude/default backend; `codex-worker` and `agy-worker` (legacy aliases `codex-fast-worker` and `agy-fast-worker`) are selected only by an explicit backend preference or by the configured `auto` availability order. The selector SHALL check prerequisites before dispatch, record the requested and selected backend, and apply only the configured missing-executable fallback. Authentication, authorization, model, and task failures SHALL remain `RESULT: BLOCKED` and SHALL never silently switch backends.
 
 #### Scenario: Default worker remains default
 - **WHEN** a mechanical batch is dispatched with no backend preference
@@ -453,11 +453,11 @@ The execution-policy Implementation dispatch section SHALL define a deterministi
 
 #### Scenario: Explicit Codex preference
 - **WHEN** `fast_worker_backend=codex` and the Codex CLI is available
-- **THEN** the batch routes to `codex-fast-worker` under the shared task-spec contract
+- **THEN** the batch routes to `codex-worker` under the shared task-spec contract
 
 #### Scenario: Auto preference follows configured order
 - **WHEN** `fast_worker_backend=auto`, agy is first in the configured order but unavailable, and Codex is available
-- **THEN** the selector records agy as unavailable and routes to `codex-fast-worker`
+- **THEN** the selector records agy as unavailable and routes to `codex-worker`
 
 #### Scenario: Backend execution failure is not silently substituted
 - **WHEN** the selected CLI rejects authentication or the requested model
@@ -493,7 +493,7 @@ The execution-policy Implementation dispatch table SHALL include a row for RED V
 - **THEN** the table permits inline handling, mirroring the PHPUnit row
 
 ### Requirement: Reasoner backend selection is a dispatch-table row
-The execution-policy Implementation dispatch section SHALL define the deep-reasoning backend selection: `deep-reasoner` (Claude, default) and `codex-deep-reasoner` (codex CLI, default `gpt-5.6-sol` @ `high`), selected per invocation by the `--reasoner` flag or its userConfig chain. Both backends SHALL receive the same reasoning task brief and return the conclusion contract. Missing-executable fallback (codex → claude) SHALL be the only silent substitution; authentication, model, and task failures SHALL remain `RESULT: BLOCKED`.
+The execution-policy Implementation dispatch section SHALL define the deep-reasoning backend selection: `deep-reasoner` (Claude, default) and `codex-reasoner` (codex CLI, default `gpt-5.6-sol` @ `high`; legacy alias: `codex-deep-reasoner`), selected per invocation by the `--reasoner` flag or its userConfig chain. Both backends SHALL receive the same reasoning task brief and return the conclusion contract. Missing-executable fallback (codex → claude) SHALL be the only silent substitution; authentication, model, and task failures SHALL remain `RESULT: BLOCKED`.
 
 #### Scenario: Default reasoning dispatch is unchanged
 - **WHEN** a reasoning-heavy task is dispatched with no `--reasoner` flag or codex userConfig preference
@@ -501,7 +501,7 @@ The execution-policy Implementation dispatch section SHALL define the deep-reaso
 
 #### Scenario: Codex reasoning backend selected
 - **WHEN** `--reasoner=codex` is active and the codex CLI is available
-- **THEN** the reasoning task routes to `codex-deep-reasoner` under the same conclusion contract
+- **THEN** the reasoning task routes to `codex-reasoner` under the same conclusion contract
 
 ### Requirement: Shared validator state has one orchestrator-owned writer
 

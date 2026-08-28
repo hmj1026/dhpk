@@ -668,7 +668,7 @@
   ],
   "fingerprints": {
     "skills": "2aa53a75cb0b040625ac2e31c0eea55f749dada54e3168a596908a1b84f71aa6",
-    "rules": "8ad6e28d1d9d7c740c985c0328c787d47b4d51abeef74017a4281e5b87598bc1",
+    "rules": "f5c49974e6f3346915bed72304e44026ac6f1a56d982ca93caf1690c6a912929",
     "agents": "1998a0ebd6fbfec115f12c509e1df33f0cd098bdf48c491046bc54698fef7d96",
     "commands": "83fdc5448b9d8d088f6a5a73db2bfc6bdf5ecbfa2dfa3d63f47122f03fbd6ff8",
     "hooks/hooks.json": "1abe14baec6393d900554ebd4a84028ebd9748e0390f370813e9e32f664d0a8a"
@@ -677,5 +677,5 @@
     "status": "NOT_RUN",
     "reason": "Cursor client consumer probe is separate from structural generation."
   },
-  "planFingerprint": "9432f1ce2d69cbcdbb7abc51e838f4ccff316d969e0436248a9d10eed5e45cce"
+  "planFingerprint": "1c265595f42051f3277d2f5955aa6ec5c9e308e2d4c1edcea5242dcf7e4c05f5"
 }
