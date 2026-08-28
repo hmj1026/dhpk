@@ -52,14 +52,17 @@ test('a post-publish consumer-verify job runs the full harness release probe and
   assert.ok(!raw.includes('gh release edit'), 'consumer-verify must never edit the immutable release');
 });
 
-test('back-merge fails loudly on conflict and never resets or force-pushes', () => {
+test('sync-develop delegates reconciliation to the tested sync-develop.sh writer', () => {
   const syncIdx = raw.indexOf('sync-develop:');
   assert.ok(syncIdx !== -1, 'missing sync-develop job');
   const syncBlock = raw.slice(syncIdx);
-  assert.ok(syncBlock.includes('git merge --no-ff'), 'back-merge must use --no-ff (no fast-forward silently skipping a merge commit)');
-  assert.ok(!syncBlock.includes('|| true') && !/git merge[^\n]*\|\|/.test(syncBlock), 'a merge conflict must fail the job, not be swallowed');
-  assert.ok(!syncBlock.includes('reset --hard'), 'back-merge must never reset');
-  assert.ok(!syncBlock.includes('push --force') && !syncBlock.includes('push -f'), 'back-merge must never force-push');
+  assert.ok(syncBlock.includes('scripts/release/sync-develop.sh'), 'sync-develop must call scripts/release/sync-develop.sh');
+  assert.ok(!syncBlock.includes('reset --hard'), 'sync-develop must never reset');
+  assert.ok(!/\bgit\s+push\s+-f\b/.test(syncBlock), 'workflow must not use git push -f');
+  assert.ok(
+    !/\bgit\s+push\s+--force(?!-with-lease)\b/.test(syncBlock),
+    'workflow must not use bare git push --force; idle align belongs in sync-develop.sh as --force-with-lease',
+  );
 });
 
 test('RELEASE.md documents the manual back-merge recovery procedure (recovery branch, resolve, test, PR to develop)', () => {
