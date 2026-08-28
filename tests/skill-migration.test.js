@@ -43,13 +43,13 @@ function projectionTarget(linkPath) {
   return fs.readlinkSync(linkPath);
 }
 
-test('real tree has 97 flat canonical packages with inventory identities and metadata tokens', () => {
+test('real tree has 99 flat canonical packages with inventory identities and metadata tokens', () => {
   assert.strictEqual(INVENTORY.schema, 'dhpk.distribution-inventory.v2');
-  assert.strictEqual(INVENTORY.skills.length, 97);
+  assert.strictEqual(INVENTORY.skills.length, 99);
   assert.deepStrictEqual(validateDistributionInventoryV2({ inventory: INVENTORY }).errors, []);
 
   const dirs = flatCanonicalDirs();
-  assert.strictEqual(dirs.length, 97);
+  assert.strictEqual(dirs.length, 99);
   assert.strictEqual(fs.readdirSync(path.join(ROOT, 'skills')).filter((name) => {
     const candidate = path.join(ROOT, 'skills', name);
     return fs.statSync(candidate).isDirectory() && !fs.existsSync(path.join(candidate, 'SKILL.md'));
@@ -65,7 +65,13 @@ test('real tree has 97 flat canonical packages with inventory identities and met
     const skillDir = path.join(ROOT, 'skills', entry.name);
     assert.strictEqual(path.basename(skillDir), entry.name);
     assert.strictEqual(frontmatterName(path.join(skillDir, 'SKILL.md')), entry.name);
-    assert.ok(defaultPrompt(skillDir).includes(`$${entry.name}`), `${entry.name} default_prompt must invoke $${entry.name}`);
+    const prompt = defaultPrompt(skillDir);
+    if (entry.invokable === false) {
+      assert.ok(!prompt.includes(`$${entry.name}`), `${entry.name} internal runtime prompt must not invite direct invocation`);
+      assert.match(prompt, /internal|do not invoke/i, `${entry.name} internal runtime prompt must explain its boundary`);
+    } else {
+      assert.ok(prompt.includes(`$${entry.name}`), `${entry.name} default_prompt must invoke $${entry.name}`);
+    }
   }
 });
 

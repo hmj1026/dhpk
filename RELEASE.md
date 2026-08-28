@@ -29,11 +29,12 @@ created only after that pull request is merged.
 
 ## Current skill-platform topology (release preparation)
 
-The current release-preparation topology is 97 active canonical skills (60
-promoted to the Agent Plugin surface), 31 Codex project modules, and 15
-Codex-native/sync skills. Five alias-free rows remain in the `retired_skills`
-ledger and are excluded from discovery. Module and Codex project projections
-use relative symlinks; the native package contains no symlinks.
+The current release-preparation topology is 98 canonical packages (60
+promoted to the Agent Plugin surface), 31 Codex project modules, and 16
+Codex-native/sync entries (15 invokable skills plus the internal transport
+runtime). Five alias-free rows remain in the `retired_skills` ledger and are
+excluded from discovery. Module and Codex project projections use relative
+symlinks; the native package contains no symlinks.
 
 This change set's structural and package checks are the source/package
 evidence only. The checked-in package and provenance still identify the
@@ -150,7 +151,7 @@ requirement stands.
    - `plugins/dhpk/.codex-plugin/plugin.json`
    - `.agents/plugins/marketplace.json`
    - `CHANGELOG.md` (`## X.Y.Z — YYYY-MM-DD — summary` heading)
-   - `plugins/dhpk/` (regenerated native manifest, 15 physical skills,
+   - `plugins/dhpk/` (regenerated native manifest, 16 physical entries,
      `fingerprints.json`, and `provenance.json`)
 
    All four manifests must contain the same SemVer version. The tag format is

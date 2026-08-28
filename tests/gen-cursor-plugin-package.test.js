@@ -23,6 +23,7 @@ const {
   networkSandboxProbe,
   cursorStreamFrame,
   parseCursorStreamOutput,
+  cursorSkillProjection,
 } = require('../scripts/lib/cursor-plugin-package');
 
 function tmpDir(prefix) {
@@ -49,6 +50,14 @@ function makeFixture() {
   ].join('\n'));
   write(path.join(root, 'skills', 'dhpk-portable', 'agents', 'openai.yaml'), 'interface:\n  display_name: secret policy\n');
   write(path.join(root, 'skills', 'dhpk-invalid', 'SKILL.md'), '---\nname: wrong\n---\ninvalid sibling\n');
+  write(path.join(root, 'skills', 'dhpk-runtime', 'SKILL.md'), [
+    '---',
+    'name: dhpk-runtime',
+    "description: 'Runtime support fixture.'",
+    '---',
+    '# Runtime',
+    '',
+  ].join('\n'));
   write(path.join(root, 'rules', 'prefer-const.md'), '# Prefer const\nUse const when values do not change.\n');
   write(path.join(root, 'agents', 'reviewer.md'), [
     '---',
@@ -82,6 +91,7 @@ function fixtureInventory() {
     skills: [
       { id: 'portable', name: 'dhpk-portable', path: 'skills/dhpk-portable', lifecycle: 'promoted', surfaces: ['cursor-plugin'] },
       { id: 'invalid', name: 'dhpk-invalid', path: 'skills/dhpk-invalid', lifecycle: 'promoted', surfaces: ['cursor-plugin'] },
+      { id: 'runtime', name: 'dhpk-runtime', path: 'skills/dhpk-runtime', lifecycle: 'optional', surfaces: ['cursor-plugin'] },
       { id: 'codex-only', name: 'dhpk-codex-only', path: 'skills/dhpk-codex-only', lifecycle: 'promoted', surfaces: ['codex-native'] },
     ],
     surface_membership: { 'cursor-plugin': ['portable', 'invalid'] },
@@ -101,6 +111,57 @@ function fixtureInventory() {
     },
   };
 }
+
+test('Cursor projects declared runtime support as local overlay even when the selected profile is narrower', () => {
+  const inventory = fixtureInventory();
+  inventory.surface_membership['cursor-plugin'].push('runtime');
+  inventory.internal_runtime_skills = { 'cursor-plugin': ['runtime'] };
+  const projection = cursorSkillProjection(inventory, ['portable']);
+  assert.deepStrictEqual(projection.sharedSkills.map((skill) => skill.id), []);
+  assert.deepStrictEqual(projection.overlaySkills.map((skill) => skill.id), ['portable', 'runtime']);
+});
+
+test('Cursor permits only inventory-attested runtime support to overlap its shared physical skill source', () => {
+  const root = makeFixture();
+  const out = tmpDir('dhpk-cursor-runtime-shared-overlap-');
+  const inventory = {
+    skills: [{
+      id: 'runtime',
+      name: 'dhpk-runtime',
+      path: 'skills/dhpk-runtime',
+      lifecycle: 'optional',
+      invokable: false,
+      surfaces: ['agent-plugin', 'cursor-plugin'],
+    }],
+    surface_membership: { 'agent-plugin': ['runtime'], 'cursor-plugin': ['runtime'] },
+    internal_runtime_skills: { 'cursor-plugin': ['runtime'] },
+    platform_matrix: {
+      schema: 'dhpk.platform-capability-matrix.v1',
+      entries: [{
+        id: 'dhpk.platform.cursor-plugin.shared-runtime',
+        public_name: 'cursor-plugin-shared-runtime',
+        surface: 'cursor-plugin',
+        source_paths: ['skills/'],
+        destination: 'plugins/dhpk-agent/skills/',
+        transform: 'shared-agent-plugin-skills',
+        fallback: 'agent-plugin',
+        projection_mode: 'shared',
+        shared_surface: 'agent-plugin',
+        stable_ids: ['runtime'],
+        evidence: 'NOT_RUN',
+      }],
+    },
+  };
+  try {
+    const result = materializeCursorPackage({ inventory, root, outDir: out });
+    assert.deepStrictEqual(result.provenance.runtimeSupportStableIds, ['runtime']);
+    assert.deepStrictEqual(validateCursorPackage({ packageRoot: out, inventory }).errors, []);
+    assert.ok(validateCursorPackage({ packageRoot: out }).errors.some((error) => /repeats shared skill IDs/i.test(error)));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(out, { recursive: true, force: true });
+  }
+});
 
 test('Cursor compiler freezes shared/overlay intent before materialization', () => {
   const root = makeFixture();

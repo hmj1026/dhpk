@@ -55,7 +55,7 @@ node scripts/release/prepare-release.js write \
 - `plugins/dhpk/provenance.json`
 
 Write mode 除版本 manifest 與 `CHANGELOG.md` 外，也會重新產生完整
-`plugins/dhpk/`（manifest、15 個 physical skills、fingerprints、provenance）。
+`plugins/dhpk/`（manifest、16 個 physical 項目、fingerprints、provenance）。
 Canonical skill 只能修改 `skills/dhpk-*/`。Module/Codex projection 是 symlink，
 native package 是 generated physical artifact，不可各自手改。
 
@@ -73,10 +73,10 @@ node scripts/ci/validate-changelog-fragments.js --diff-base develop
 node tests/run-all.js
 ```
 
-Skill platform 的預期 topology：97 active canonical skills（其中 60 promoted core）、
-31 modules、15 Codex sync/native skills；另有五筆不進入 discovery 的 `retired_skills`
-ledger row。Module/Codex project projection 使用相對 symlink，native package 零
-symlink。
+Skill platform 的預期 topology：98 個 canonical package、31 modules、16 個 Codex
+sync/native 項目（15 個可呼叫 skill 加上內部 transport runtime）；另有五筆不進入
+discovery 的 `retired_skills` ledger row。Module/Codex project projection 使用相對
+symlink，native package 零 symlink。
 
 Release gate 分三層：
 

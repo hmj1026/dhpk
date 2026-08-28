@@ -126,6 +126,7 @@ function claimSpecs(counts, scoped) {
 const COVERAGE_MAP = {
   'scripts/hooks/_lib/payload.sh': 'sentinel-slots.test.js',
   'scripts/ci/catalog.js': 'catalog-claims.test.js',
+  'scripts/ci/reconcile-skill-mirrors.js': 'gen-cursor-sync.test.js',
   'scripts/ci/_lib/report.js': 'ci-report.test.js',
   'scripts/codemaps/generate.ts': 'codemaps-generate.test.js',
   'scripts/hooks/pretool-git-gate.sh': 'pretool-branch-safety-dedup.test.js',

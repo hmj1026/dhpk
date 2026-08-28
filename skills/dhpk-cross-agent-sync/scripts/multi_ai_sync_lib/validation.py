@@ -35,6 +35,7 @@ from .constants import (
     ROW_SKIP_INCOMPATIBLE,
     ROW_UNAVAILABLE,
 )
+from .cursor_project_local import validate_cursor_project_local
 from .sources import resolve_target_membership
 from .utils import has_any_files, now_iso, parse_json_ok, parse_toml_like_ok, read_text, relpath, safe_exists
 
@@ -1036,6 +1037,14 @@ def validate_cursor(repo_root, membership=None):
 
     notes = []
     portable, native = _cursor_package_roots(repo_root)
+    project_local_receipt = os.path.join(repo_root, ".cursor", ".dhpk-installed.json")
+    project_local_present = os.path.lexists(project_local_receipt)
+    project_local_valid = True
+    project_local_reason = "Cursor project-local receipt is not configured"
+    if project_local_present:
+        project_local_valid, project_local_reason = validate_cursor_project_local(repo_root)
+        if not project_local_valid:
+            notes.append(project_local_reason)
     portable_valid = True
     native_valid = True
     portable_unavailable = False
@@ -1056,15 +1065,20 @@ def validate_cursor(repo_root, membership=None):
             notes.append(native_error)
         elif not native_valid:
             notes.append(native_error)
-    config_ok = (portable is not None or native is not None) and portable_valid and native_valid
+    configured_surface = portable is not None or native is not None or project_local_present
+    config_ok = configured_surface and portable_valid and native_valid and project_local_valid
     if not config_ok:
-        notes.append("Cursor package marker is present in configuration but no package root was found")
+        if not configured_surface:
+            notes.append("Cursor configuration marker is present but no supported surface was found")
+        elif not project_local_present and portable is None and native is None:
+            notes.append("Cursor package marker is present in configuration but no package root was found")
 
     portable_skills = bool(portable and glob.glob(os.path.join(portable, "skills", "*/SKILL.md")))
     portable_mcp = bool(portable and safe_exists(os.path.join(portable, "mcp.json")))
-    smoke_ok = portable_skills or bool(native and glob.glob(os.path.join(native, "skills", "*/SKILL.md")))
+    smoke_ok = project_local_valid if project_local_present else False
+    smoke_ok = smoke_ok or portable_skills or bool(native and glob.glob(os.path.join(native, "skills", "*/SKILL.md")))
     if not smoke_ok:
-        notes.append("Cursor package has no discovered skills")
+        notes.append("Cursor configured surfaces have no validated project-local projection or discovered package skills")
     if portable and not portable_mcp:
         notes.append("Cursor portable MCP is not configured; skills remain independently valid")
 
@@ -1105,7 +1119,10 @@ def validate_cursor(repo_root, membership=None):
     portable_status = ROW_UNAVAILABLE if portable_unavailable else (ROW_FAIL if portable and not portable_valid else (ROW_PASS if portable and portable_skills else (ROW_FAIL if portable else ROW_NOT_CONFIGURED)))
     mcp_status = ROW_UNAVAILABLE if portable_unavailable and portable_mcp else (ROW_FAIL if portable and portable_mcp and not portable_valid else (ROW_PASS if portable_mcp else (ROW_NOT_CONFIGURED if portable else ROW_SKIP_INCOMPATIBLE)))
     native_status = ROW_UNAVAILABLE if native_unavailable else (ROW_FAIL if native and not native_valid else (ROW_PASS if native else ROW_SKIP_INCOMPATIBLE))
+    project_local_status = ROW_FAIL if project_local_present and not project_local_valid else (ROW_PASS if project_local_present else ROW_NOT_CONFIGURED)
+    runtime_reason = "Cursor launch/runtime probe was not run; structural evidence is not runtime proof"
     row["capabilities"] = [
+        {"id": "cursor.project_local.structure", "status": project_local_status, "fallback": "package-routes", "reason": project_local_reason},
         {"id": "cursor.portable.skills", "status": portable_status, "fallback": "agent-plugin", "reason": "portable Agent Skills package"},
         {"id": "cursor.portable.mcp", "status": mcp_status, "fallback": "no-mcp-json", "reason": "optional MCP is independently configured"},
         {"id": "cursor.native.rules", "status": native_status if native and safe_exists(os.path.join(native, "rules")) else ROW_SKIP_INCOMPATIBLE, "fallback": "portable-skills", "reason": "Cursor rules"},
@@ -1113,6 +1130,7 @@ def validate_cursor(repo_root, membership=None):
         {"id": "cursor.native.commands", "status": native_status if native and safe_exists(os.path.join(native, "commands")) else ROW_SKIP_INCOMPATIBLE, "fallback": "portable-skills", "reason": "Cursor commands"},
         {"id": "cursor.native.hooks", "status": hook_state, "fallback": "SKIP_INCOMPATIBLE", "reason": hook_reason},
         {"id": "cursor.native.variables", "status": ROW_UNAVAILABLE if native_unavailable else (ROW_PASS if native and safe_exists(os.path.join(native, ".cursor-plugin", "plugin.json")) else ROW_SKIP_INCOMPATIBLE), "fallback": "no-client-variables", "reason": "Cursor variables schema"},
+        {"id": "cursor.runtime.launch", "status": ROW_NOT_RUN, "fallback": "launch-probe-required", "reason": runtime_reason},
     ]
     return row
 

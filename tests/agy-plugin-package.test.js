@@ -129,6 +129,53 @@ test('copies selected skill reference assets so relative links stay reachable', 
   }
 });
 
+test('minimal AGY profile carries declared transport runtime support without widening receipt selection', () => {
+  const root = tempRoot();
+  const outDir = path.join(root, 'package');
+  try {
+    const inventory = writeFixture(root);
+    fs.mkdirSync(path.join(root, 'skills', 'dhpk-runtime'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'skills', 'dhpk-runtime', 'SKILL.md'), [
+      '---',
+      'name: dhpk-runtime',
+      'description: Runtime support',
+      '---',
+      '',
+      '# Runtime',
+      '',
+    ].join('\n'));
+    fs.mkdirSync(path.join(root, 'skills', 'dhpk-runtime', 'scripts'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'skills', 'dhpk-runtime', 'scripts', 'run-runtime.sh'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+    fs.writeFileSync(path.join(root, 'skills', 'dhpk-runtime', 'scripts', 'report-schema.json'), '{"type":"object"}\n');
+    inventory.skills.push({ id: 'runtime', path: 'skills/dhpk-runtime', surfaces: ['agy-plugin'] });
+    inventory.surface_membership['agy-plugin'].push('runtime');
+    inventory.internal_runtime_skills = { 'agy-plugin': ['runtime'] };
+    const result = materializeAgyPluginPackage({
+      root,
+      inventory,
+      outDir,
+      version: '0.39.0',
+      sourceVersion: '0.39.0',
+      sourceCommit: COMMIT,
+      profileSelection: {
+        profileId: 'minimal',
+        selectedStableIds: ['sample'],
+        selectionFingerprint: 'a'.repeat(64),
+        compatibilityMode: 'profile',
+        selectionPolicyVersion: 'fixture-v1',
+      },
+    });
+    assert.deepStrictEqual(result.receipt.selectedStableIds, ['sample']);
+    assert.deepStrictEqual(result.receipt.selectedIds.skills, ['sample', 'runtime']);
+    assert.ok(fs.existsSync(path.join(outDir, 'skills', 'dhpk-runtime', 'SKILL.md')));
+    assert.ok(fs.existsSync(path.join(outDir, 'skills', 'dhpk-runtime', 'scripts', 'run-runtime.sh')));
+    assert.ok(fs.existsSync(path.join(outDir, 'skills', 'dhpk-runtime', 'scripts', 'report-schema.json')));
+    assert.strictEqual(fs.statSync(path.join(outDir, 'skills', 'dhpk-runtime', 'scripts', 'run-runtime.sh')).mode & 0o777, 0o755);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('rejects a rewritten reference when its target skill is not selected', () => {
   const root = tempRoot();
   const outDir = path.join(root, 'package');

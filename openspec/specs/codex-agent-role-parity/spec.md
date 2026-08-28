@@ -2,7 +2,9 @@
 
 ## Purpose
 TBD - created by archiving change codex-flow-parity-and-do-openspec-flag. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Codex agent role files load under auto-discovery
 
 Every agent role file under `codex/agents/*.toml` SHALL declare non-empty `name`,
@@ -37,27 +39,50 @@ remaining contract text is explicitly inlined in the role.
 
 ### Requirement: Codex agent role files are generated from canonical agents
 
-The repository SHALL provide a deterministic generator for the curated Codex
-direct-role allowlist. The allowlist SHALL include the existing 11 roles plus
-`planner`, `spec-miner`, `frontend-reviewer`, `migration-reviewer`, and
-`e2e-runner`, for 16 direct Codex roles. Generated roles SHALL set explicit
-`model`, `model_reasoning_effort`, and `sandbox_mode` metadata and SHALL adapt
-Claude-only paths, tools, and handoffs into Codex-readable instructions.
+The repository SHALL generate the curated Codex direct-role projection from
+canonical agent sources. Provider-specific roles SHALL use canonical IDs,
+including `codex-worker`, `codex-reasoner`, and `codex-reviewer` where their
+read/write contracts are supported. Legacy aliases SHALL be accepted only by
+the boundary resolver and SHALL not produce duplicate generated role files.
+Generic native Codex roles remain target-runtime roles and are not renamed by
+this provider vocabulary change.
+
+#### Scenario: Canonical Codex worker is generated once
+
+- **WHEN** the Codex generator runs against canonical sources
+- **THEN** the write-capable provider role is emitted as `codex-worker` and no
+  second `codex-fast-worker` projection is generated
+
+#### Scenario: Native Codex reviewer remains capability-gated
+
+- **WHEN** the first canonical-role generator runs without installed-CLI proof
+  of the `codex-reviewer` read-only contract
+- **THEN** coverage records its shared-runner outcome and no native direct-role
+  file is emitted for `codex-reviewer`
+- **AND** Codex-host discovery records an explicit capability-gated unavailable
+  outcome rather than a callable target
+
+#### Scenario: Alias remains an input only
+
+- **WHEN** a legacy alias appears in a handoff or config fixture
+- **THEN** validation resolves it through the compatibility seam and does not
+  require a duplicate native role file
 
 #### Scenario: Expanded allowlist is generated
+
 - **WHEN** the generator runs against the canonical agent sources
-- **THEN** it emits exactly the 12 generated roles documented by the runtime
-  metadata map, including `planner`, `spec-miner`, `frontend-reviewer`,
-  `migration-reviewer`, and `e2e-runner`
-- **AND** the four hand-maintained generic roles remain present
+- **THEN** it emits the documented curated direct-role set, including every
+  approved planning, review, and execution role
+- **AND** hand-maintained generic roles remain present
 
 #### Scenario: e2e-runner keeps its execution boundary
+
 - **WHEN** the generator emits `e2e-runner`
-- **THEN** the role is `workspace-write`
-- **AND** its instructions require a fail-loud `BLOCKED` result when the
-  required Playwright/browser capability is unavailable
+- **THEN** the role remains `workspace-write` and reports `BLOCKED` when its
+  required browser capability is unavailable
 
 #### Scenario: Generator remains idempotent
+
 - **WHEN** the generator runs twice without canonical source changes
 - **THEN** the emitted role files are byte-identical
 
@@ -91,23 +116,39 @@ The codex validation path (`multi_ai_sync_lib.validation.validate_codex`) SHALL 
 
 ### Requirement: Every canonical agent has an explicit Codex coverage outcome
 
-The repository SHALL maintain a coverage matrix for every canonical agent, including root and module-shipped roles, classifying it as `direct`, `merged`, `skill/manual-fallback`, `capability-gated`, or `intentionally-unavailable`. Every direct, merged, fallback, and capability-gated target SHALL resolve to a declared outcome. A Codex developer instruction SHALL NOT name a role absent from `codex/agents/*.toml` unless the reference is explicitly documented as a manual or capability-gated fallback.
+The coverage matrix SHALL classify canonical provider-specific roles using the
+canonical IDs and SHALL distinguish direct, merged, fallback,
+capability-gated, and intentionally-unavailable outcomes. References to legacy
+aliases are allowed only in documented migration/compatibility contexts.
+
+#### Scenario: Coverage names resolve
+
+- **WHEN** coverage validation runs after canonical migration
+- **THEN** every canonical Codex role reference resolves to a declared target
+  or explicit availability outcome
 
 #### Scenario: No canonical role is unclassified
-- **WHEN** the coverage validation runs
-- **THEN** every canonical root role and module-shipped role has exactly one coverage outcome
+
+- **WHEN** coverage validation runs
+- **THEN** every canonical root and module role has exactly one coverage outcome
 
 #### Scenario: Unsupported platform capability is explicit
-- **WHEN** a role requires Playwright, MCP, or a module that the Codex consumer does not provide
-- **THEN** the matrix records the capability gate and the role instructions provide an observable fallback result instead of promising execution
+
+- **WHEN** a role requires a capability that the Codex consumer does not
+  provide
+- **THEN** the matrix records a capability gate and the instructions provide
+  an observable fallback result
 
 #### Scenario: A merged role points at a ghost target
+
 - **WHEN** a coverage entry maps a canonical role to a non-existent target
 - **THEN** coverage validation fails with the source role and target name
 
 #### Scenario: All supporting targets resolve
-- **WHEN** every supporting asset and dispatch namespace references a declared direct role or documented fallback
-- **THEN** the coverage graph passes validation
+
+- **WHEN** supporting assets and dispatch namespaces reference roles
+- **THEN** every reference resolves to a declared direct role or documented
+  fallback
 
 ### Requirement: Codex direct role metadata is complete
 

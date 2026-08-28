@@ -7,9 +7,9 @@ const { test, run, assert } = require('./_lib/tinytest');
 const ROOT = path.join(__dirname, '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
-test('approved consolidation leaves 97 canonical packages and records all legacy names', () => {
+test('approved consolidation leaves 99 canonical packages and records all legacy names', () => {
   const inventory = JSON.parse(read('manifests/distribution-inventory.json'));
-  assert.strictEqual(inventory.skills.length, 97);
+  assert.strictEqual(inventory.skills.length, 99);
   for (const name of ['dhpk-code-investigate', 'dhpk-codex-explain', 'dhpk-codex-cli-review']) {
     assert.ok(!fs.existsSync(path.join(ROOT, 'skills', name)), `${name} must not remain canonical`);
   }

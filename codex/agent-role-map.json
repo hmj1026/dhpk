@@ -10,12 +10,16 @@
   "roles": {
     "agent-evaluator": { "status": "skill/manual-fallback", "target": "capability:harness-quality" },
     "agy-fast-worker": { "status": "skill/manual-fallback", "target": "worker" },
+    "agy-worker": { "status": "skill/manual-fallback", "target": "worker" },
     "architect": { "status": "direct", "target": "architect" },
     "bug-investigator": { "status": "direct", "target": "bug-investigator" },
     "code-reviewer": { "status": "direct", "target": "code-reviewer" },
     "codex-bridge": { "status": "intentionally-unavailable", "target": "No Codex role projection is required" },
     "codex-deep-reasoner": { "status": "merged", "target": "deep-reasoner" },
     "codex-fast-worker": { "status": "merged", "target": "worker" },
+    "codex-reasoner": { "status": "merged", "target": "deep-reasoner" },
+    "codex-reviewer": { "status": "capability-gated", "target": "capability:codex-native-read-only-reviewer" },
+    "codex-worker": { "status": "merged", "target": "worker" },
     "database-reviewer": { "status": "direct", "target": "database-reviewer" },
     "deep-reasoner": { "status": "direct", "target": "deep-reasoner" },
     "doc-reviewer": { "status": "direct", "target": "doc-reviewer" },
@@ -46,6 +50,10 @@
     "worker": { "status": "direct", "target": "worker" }
   },
   "capabilities": {
+    "codex-native-read-only-reviewer": {
+      "kind": "runtime",
+      "description": "Installed Codex CLI verification of a read-only native reviewer contract"
+    },
     "browser-ui-audit": {
       "kind": "runtime",
       "description": "Playwright/browser capability or documented manual page-vs-spec audit"

@@ -5,14 +5,30 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.48.3",
-  "sourceCommit": "5e019f4ba86afbf0aaea4968fc9bbb022a203efe",
-  "generatedFromCommit": "5e019f4ba86afbf0aaea4968fc9bbb022a203efe",
-  "generatedFromTree": "8104334f9422437601d088ed5993fa214bd35b94",
-  "inventoryDigest": "079f7209215ce66a32f26104c0c0920a7eff717059b98b7ee7bfbe65f8855e36",
+  "sourceCommit": "f95c1cee8b212d3c17ac97f6be94d3208c0565af",
+  "generatedFromCommit": "f95c1cee8b212d3c17ac97f6be94d3208c0565af",
+  "generatedFromTree": "3321bb794d0cba49335f824a9603f809bf13dc58",
+  "inventoryDigest": "2747dc19b8ff202ab771449bb65bab8340ff03021a545de1ac1b04696b29503a",
   "generatorVersion": "1.0.0",
-  "selectedSkillIds": [],
-  "selectedSkillNames": [],
-  "skillProjectionMode": "shared",
+  "selectedSkillIds": [
+    "agy-fast-worker",
+    "cli-dispatch-context",
+    "cli-transport",
+    "codex-bridge"
+  ],
+  "selectedSkillNames": [
+    "dhpk-agy-fast-worker",
+    "dhpk-cli-dispatch-context",
+    "dhpk-cli-transport",
+    "dhpk-codex-bridge"
+  ],
+  "runtimeSupportStableIds": [
+    "agy-fast-worker",
+    "cli-dispatch-context",
+    "cli-transport",
+    "codex-bridge"
+  ],
+  "skillProjectionMode": "overlay",
   "sharedSkillSurface": "agent-plugin",
   "sharedSkillSource": "plugins/dhpk-agent/skills/",
   "sharedSkillIds": [
@@ -22,6 +38,8 @@
     "agy-fast-worker",
     "bug-investigation",
     "claude-health",
+    "cli-dispatch-context",
+    "cli-transport",
     "code-explore",
     "codex-architect",
     "codex-bridge",
@@ -84,6 +102,8 @@
     "dhpk-agy-fast-worker",
     "dhpk-change-review",
     "dhpk-claude-health",
+    "dhpk-cli-dispatch-context",
+    "dhpk-cli-transport",
     "dhpk-codebase-exploration",
     "dhpk-codex-architect",
     "dhpk-codex-bridge",
@@ -152,6 +172,11 @@
       "transform": "cursor-agents-frontmatter"
     },
     {
+      "source": "agy-worker.md",
+      "destination": "agents/agy-worker.md",
+      "transform": "cursor-agents-frontmatter"
+    },
+    {
       "source": "anti-rationalization.md",
       "destination": "rules/anti-rationalization.mdc",
       "transform": "cursor-rules-frontmatter"
@@ -192,6 +217,11 @@
       "transform": "cursor-agents-frontmatter"
     },
     {
+      "source": "codex-reasoner.md",
+      "destination": "agents/codex-reasoner.md",
+      "transform": "cursor-agents-frontmatter"
+    },
+    {
       "source": "codex-review-branch.md",
       "destination": "commands/codex-review-branch.md",
       "transform": "cursor-commands-frontmatter"
@@ -212,6 +242,11 @@
       "transform": "cursor-commands-frontmatter"
     },
     {
+      "source": "codex-reviewer.md",
+      "destination": "agents/codex-reviewer.md",
+      "transform": "cursor-agents-frontmatter"
+    },
+    {
       "source": "codex-security.md",
       "destination": "commands/codex-security.md",
       "transform": "cursor-commands-frontmatter"
@@ -225,6 +260,11 @@
       "source": "codex-test-review.md",
       "destination": "commands/codex-test-review.md",
       "transform": "cursor-commands-frontmatter"
+    },
+    {
+      "source": "codex-worker.md",
+      "destination": "agents/codex-worker.md",
+      "transform": "cursor-agents-frontmatter"
     },
     {
       "source": "create-dev.md",
@@ -412,6 +452,8 @@
         "agy-fast-worker",
         "bug-investigation",
         "claude-health",
+        "cli-dispatch-context",
+        "cli-transport",
         "code-explore",
         "codex-architect",
         "codex-bridge",
@@ -534,6 +576,26 @@
       "transform": "cursor-commands-frontmatter"
     },
     {
+      "source": "skills/dhpk-agy-fast-worker",
+      "destination": "skills/dhpk-agy-fast-worker",
+      "transform": "agent-skills-frontmatter"
+    },
+    {
+      "source": "skills/dhpk-cli-dispatch-context",
+      "destination": "skills/dhpk-cli-dispatch-context",
+      "transform": "agent-skills-frontmatter"
+    },
+    {
+      "source": "skills/dhpk-cli-transport",
+      "destination": "skills/dhpk-cli-transport",
+      "transform": "agent-skills-frontmatter"
+    },
+    {
+      "source": "skills/dhpk-codex-bridge",
+      "destination": "skills/dhpk-codex-bridge",
+      "transform": "agent-skills-frontmatter"
+    },
+    {
       "source": "smart-commit.md",
       "destination": "commands/smart-commit.md",
       "transform": "cursor-commands-frontmatter"
@@ -605,8 +667,9 @@
     }
   ],
   "fingerprints": {
-    "rules": "1c1b3b03670d5d37ccd5d70cbecfd96beef63938154a500ebe867d8ea32b3d66",
-    "agents": "7ef318e69282a1b240dc21bf5e7b01b264bd65ab35cf1cea4953b99b29867a77",
+    "skills": "2aa53a75cb0b040625ac2e31c0eea55f749dada54e3168a596908a1b84f71aa6",
+    "rules": "8ad6e28d1d9d7c740c985c0328c787d47b4d51abeef74017a4281e5b87598bc1",
+    "agents": "1998a0ebd6fbfec115f12c509e1df33f0cd098bdf48c491046bc54698fef7d96",
     "commands": "83fdc5448b9d8d088f6a5a73db2bfc6bdf5ecbfa2dfa3d63f47122f03fbd6ff8",
     "hooks/hooks.json": "1abe14baec6393d900554ebd4a84028ebd9748e0390f370813e9e32f664d0a8a"
   },
@@ -614,5 +677,5 @@
     "status": "NOT_RUN",
     "reason": "Cursor client consumer probe is separate from structural generation."
   },
-  "planFingerprint": "0b59c99a0da7de67dc35ec437884bbb43f89d96b181a32b19bf26d556381140d"
+  "planFingerprint": "8b7743443a1667cea8a59452789c8d04fc2cc414c3a55df5e63ec6ff162f5c25"
 }

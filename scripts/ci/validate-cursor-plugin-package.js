@@ -14,10 +14,11 @@ const {
 const { validateSurfaceReceipt } = require('../lib/platform-provenance');
 
 function parseArgs(argv) {
-  const args = { packageRoot: null, consumer: false };
+  const args = { packageRoot: null, repoRoot: null, consumer: false };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--package-root' || arg === '--package') args.packageRoot = argv[++index];
+    else if (arg === '--repo-root') args.repoRoot = argv[++index];
     else if (arg === '--consumer' || arg === '--smoke') args.consumer = true;
     else if (!arg.startsWith('--') && !args.packageRoot) args.packageRoot = arg;
   }
@@ -26,11 +27,15 @@ function parseArgs(argv) {
 
 const args = parseArgs(process.argv.slice(2));
 if (!args.packageRoot) {
-  console.error('usage: node scripts/ci/validate-cursor-plugin-package.js <packageRoot> [--consumer]');
+  console.error('usage: node scripts/ci/validate-cursor-plugin-package.js <packageRoot> [--repo-root <root>] [--consumer]');
   process.exit(2);
 }
 const packageRoot = path.resolve(args.packageRoot);
-const verification = verifyCursorPackage({ packageRoot, stage: 'structural' });
+const repoRoot = args.repoRoot ? path.resolve(args.repoRoot) : path.resolve(packageRoot, '..', '..');
+const inventoryPath = path.join(repoRoot, 'manifests', 'distribution-inventory.json');
+let inventory = null;
+try { inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8')); } catch (_) { /* validation remains fail-closed for runtime overlap */ }
+const verification = verifyCursorPackage({ packageRoot, stage: 'structural', inventory });
 const structural = verification.structural || verification;
 let provenance = null;
 const provenancePath = path.join(packageRoot, 'provenance.json');

@@ -13,6 +13,7 @@
     "agent",
     "cursor"
   ],
+  "skills": "./skills/",
   "rules": "./rules/",
   "agents": "./agents/",
   "commands": "./commands/",

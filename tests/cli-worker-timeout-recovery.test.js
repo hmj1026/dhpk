@@ -32,6 +32,9 @@ const AGY_WORKER = fs.readFileSync(path.join(ROOT, 'agents', 'agy-fast-worker.md
 const CODEX_DEEP_REASONER = fs.readFileSync(path.join(ROOT, 'agents', 'codex-deep-reasoner.md'), 'utf8');
 const CODEX_BRIDGE_AGENT = fs.readFileSync(path.join(ROOT, 'agents', 'codex-bridge.md'), 'utf8');
 const CODEX_BRIDGE_SKILL = fs.readFileSync(path.join(ROOT, 'skills', 'dhpk-codex-bridge', 'SKILL.md'), 'utf8');
+const EXECUTION_POLICY = fs.readFileSync(path.join(ROOT, 'rules', 'execution-policy.md'), 'utf8');
+const MODEL_ECONOMICS = fs.readFileSync(path.join(ROOT, 'rules', 'model-economics.md'), 'utf8');
+const MODEL_CONFIG_SPEC = fs.readFileSync(path.join(ROOT, 'openspec', 'specs', 'orchestration-model-config', 'spec.md'), 'utf8');
 const REAP_SCRIPT = fs.readFileSync(path.join(ROOT, 'scripts', 'hooks', 'reap-stale-sentinels.sh'), 'utf8');
 const PAYLOAD_LIB = fs.readFileSync(path.join(ROOT, 'scripts', 'hooks', '_lib', 'payload.sh'), 'utf8');
 
@@ -53,33 +56,31 @@ test('both worker contracts define first-timeout scoped same-backend retry with 
   }
 });
 
-// 3.1 — a verified wrapper timeout is the only trigger; backend-native 124 and
-// ordinary failures are explicitly carved out (cross-check against the
-// executable classification proven in run-codex.test.js / run-agy.test.js).
-test('timeout recovery is gated on the wrapper\'s own verified evidence, never a bare 124', () => {
+// 3.1 — an immutable runner receipt is the only timeout evidence; ordinary
+// failures and a bare exit code are never classified speculatively.
+test('timeout recovery is gated on contained runner evidence, never a bare exit code', () => {
   for (const [name, doc] of [['codex-fast-worker.md', CODEX_WORKER], ['agy-fast-worker.md', AGY_WORKER]]) {
-    assert.ok(/never a backend-native `124` without that evidence/.test(doc),
-      `${name} must exclude backend-native 124 from timeout classification`);
-    assert.ok(/there is no trustworthy timeout signal to classify/.test(doc),
-      `${name} must fail closed (no fabricated timeout) when the wrapper timeout mechanism is unavailable`);
+    assert.ok(doc.includes('dhpk.cli.receipt.v1') && doc.includes('terminal `TIMEOUT`'),
+      `${name} must require a terminal runner receipt as timeout evidence`);
+    assert.ok(doc.includes('uncontained receipt is `BLOCKED`') || doc.includes('receipt evidence as `BLOCKED`'),
+      `${name} must fail closed when receipt evidence is unavailable`);
   }
 });
 
-test('all Codex callers parse and forward the timeout envelope before interpreting exit 124', () => {
-  assert.ok(DISPATCH_DOC.includes('dhpk.codex.timeout.v1'), 'dispatch policy must name the Codex timeout envelope');
-  assert.ok(DISPATCH_DOC.includes('base64-encoded report'), 'dispatch policy must treat report payload as encoded evidence');
+test('all Codex callers use a contained receipt, not the retired timeout envelope', () => {
+  assert.ok(DISPATCH_DOC.includes('dhpk.cli.receipt.v1'), 'dispatch policy must name the terminal receipt');
+  assert.ok(!DISPATCH_DOC.includes('dhpk.codex.timeout.v1'), 'dispatch policy must not require the retired timeout envelope');
   for (const [name, doc] of [
     ['codex-fast-worker.md', CODEX_WORKER],
     ['codex-deep-reasoner.md', CODEX_DEEP_REASONER],
     ['codex-bridge.md', CODEX_BRIDGE_AGENT],
     ['codex-bridge/SKILL.md', CODEX_BRIDGE_SKILL],
   ]) {
-    assert.ok(doc.includes('dhpk.codex.timeout.v1'), `${name} must name the stable timeout envelope`);
-    assert.ok(/parse(?:s|d| the)?[^\n]{0,80}timeout envelope|timeout envelope[^\n]{0,80}parse/i.test(doc),
-      `${name} must parse the timeout envelope before classifying it`);
+    assert.ok(doc.includes('dhpk.cli.receipt.v1'), `${name} must name the contained receipt`);
+    assert.ok(!doc.includes('dhpk.codex.timeout.v1'), `${name} must not require the retired timeout envelope`);
     assert.ok(/independent(?:ly)?[^\n]{0,100}(?:diff|verification)|path-scoped diff/i.test(doc),
       `${name} must require independent diff evidence`);
-    assert.ok(/not[^\n]{0,80}(?:DONE|success)|never[^\n]{0,80}(?:DONE|success)/i.test(doc),
+    assert.ok(/not[\s\S]{0,120}(?:DONE|success)|never[\s\S]{0,120}(?:DONE|success)/i.test(doc),
       `${name} must not treat a salvaged report as success`);
   }
 });
@@ -98,17 +99,23 @@ test('single-file Codex callers surface TIMEOUT_SALVAGED or BLOCKED without retr
   }
 });
 
-test('the Codex bridge documents every stable envelope field and base64 framing', () => {
-  for (const field of [
-    'schema', 'status', 'verified_wrapper_timeout', 'exit_code', 'budget_secs',
-    'elapsed_secs', 'report_present', 'report_encoding', 'report_b64',
-    'stderr_tail_encoding', 'stderr_tail_b64', 'stdout_tail_encoding',
-    'stdout_tail_b64', 'redaction',
-  ]) {
-    assert.ok(CODEX_BRIDGE_SKILL.includes(field), `codex-bridge skill must document envelope field ${field}`);
+test('the Codex bridge documents receipt containment, redaction, and no envelope fabrication', () => {
+  for (const phrase of ['dhpk.cli.receipt.v1', 'terminal `TIMEOUT`', 'Missing, invalid, or uncontained', 'redacted report']) {
+    assert.ok(CODEX_BRIDGE_SKILL.includes(phrase), `codex-bridge skill must document ${phrase}`);
   }
-  assert.ok(CODEX_BRIDGE_SKILL.includes('RFC 4648 base64'), 'codex-bridge skill must document RFC 4648 base64 framing');
-  assert.ok(/multiline/i.test(CODEX_BRIDGE_SKILL), 'codex-bridge skill must document multiline-safe framing');
+  assert.ok(!CODEX_BRIDGE_SKILL.includes('dhpk.codex.timeout.v1'), 'bridge must not advertise the retired envelope');
+  assert.ok(/do not fabricate a timeout envelope/i.test(CODEX_BRIDGE_SKILL), 'bridge must forbid envelope fabrication');
+});
+
+test('published timeout configuration describes only the attested portable runner, never a shell backstop', () => {
+  for (const [name, document] of [
+    ['execution-policy.md', EXECUTION_POLICY],
+    ['model-economics.md', MODEL_ECONOMICS],
+    ['orchestration-model-config spec', MODEL_CONFIG_SPEC],
+  ]) {
+    assert.ok(!/wrapper[ -]backstop/i.test(document), `${name} must not advertise a shell wrapper backstop`);
+    assert.ok(/portable runner|transport runner|runner deadline/i.test(document), `${name} must name the portable runner deadline`);
+  }
 });
 
 // 3.1 — blocked scope expansion: the pre-existing parallel-dispatch scope

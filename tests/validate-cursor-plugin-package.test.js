@@ -6,10 +6,12 @@ const { test, run, assert } = require('./_lib/tinytest');
 const { verifyCursorPackage } = require('../scripts/lib/cursor-plugin-package');
 
 const ROOT = path.join(__dirname, '..');
+const INVENTORY = JSON.parse(require('node:fs').readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
 
 test('Cursor consumer-runtime verification keeps NOT_CONFIGURED distinct from structural PASS', () => {
   const result = verifyCursorPackage({
     packageRoot: path.join(ROOT, 'plugins/dhpk-cursor'),
+    inventory: INVENTORY,
     stage: 'consumer-runtime',
     observedAt: '2026-08-13T00:00:00.000Z',
   });
@@ -26,6 +28,7 @@ test('Cursor consumer-runtime verification keeps NOT_CONFIGURED distinct from st
 test('Cursor consumer adapter can report UNAVAILABLE without upgrading to PASS', () => {
   const result = verifyCursorPackage({
     packageRoot: path.join(ROOT, 'plugins/dhpk-cursor'),
+    inventory: INVENTORY,
     stage: 'consumer-runtime',
     observedAt: '2026-08-13T00:00:00.000Z',
     consumerAdapter: {
