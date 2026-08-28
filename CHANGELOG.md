@@ -2,6 +2,15 @@
 
 ## [Unreleased]
 
+## 0.49.0 — 2026-08-28 — Unify external CLI transport and canonicalize CLI role vocabulary
+
+**feat(cli-role-dispatch)** — Canonicalize CLI role dispatch vocabulary across skill mirrors and platform projections, with a shared cli-role-resolver and reconciled agent skill mirrors.
+**feat(cli-transport)** — Unify the Codex/AGY external CLI transport path into a single hardened dispatch module shared by agent-facing skills.
+**fix(codex-install)** — Detect and fail closed on Codex skill receipt provenance drift during install-codex-skills sync instead of trusting a stale receipt.
+**fix(cursor-sync)** — Validate current project-local Cursor receipts and projections without requiring a consumer-local package root.
+**docs(docs)** — Add CODING_STANDARDS.md documenting reviewer checks for generated distribution/provenance, consumer evidence, and OpenSpec archive changes.
+**ci(ci)** — Run the repository test suite in a bounded weighted worker pool to shorten CI validation time.
+
 ## 0.48.3 — 2026-08-26 — Harden Cursor and AGY consumer probes with exact terminal evidence, isolated loader attestation, and redacted diagnostics
 
 **fix(consumer-runtime)** — Harden Cursor and AGY consumer probes with exact terminal evidence, isolated loader attestation, and redacted diagnostics.
