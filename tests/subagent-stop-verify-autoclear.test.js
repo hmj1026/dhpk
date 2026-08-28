@@ -155,6 +155,23 @@ test('last fast-worker stop deletes the empty shared liveness marker', () => {
   }
 });
 
+test('codex-worker SubagentStop removes the planted shared liveness entry', () => {
+  const repo = mkTempRepo();
+  try {
+    const planted = `${Math.floor(Date.now() / 1000)} codex-worker pid=42`;
+    writeActiveMarker(repo, '.active-fast-worker', [planted]);
+    const stopped = runHook(repo, { subagent_type: 'codex-worker', exit_status: 0 });
+    assert.strictEqual(stopped.status, 0, stopped.stderr);
+    const remaining = activeMarkerLines(repo, '.active-fast-worker');
+    assert.ok(
+      !remaining.includes(planted),
+      `planted codex-worker line was not removed: ${JSON.stringify(remaining)}`
+    );
+  } finally {
+    fs.rmSync(repo, { recursive: true, force: true });
+  }
+});
+
 test('reviewer stop with armed sentinel + fresh parseable artifact → silent auto-clear (sanctioned path)', () => {
   const repo = mkTempRepo();
   try {

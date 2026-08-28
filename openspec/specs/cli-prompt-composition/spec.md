@@ -15,29 +15,29 @@ The plugin SHALL ship `agent-traps/_common/cli-prompt-composition.md`, an on-dem
 - **THEN** `prompt-defense.md` continues to govern untrusted-content handling and the new baseline governs composition effectiveness, with neither restating the other
 
 ### Requirement: Every CLI-backed prompt-composition surface loads the baseline
-Each surface that composes a prompt for an external model SHALL carry a load directive naming the baseline's Shared section **and its applicable per-model section**. Shared SHALL always be loaded — only the per-model half is a choice — because Shared carries the discipline (state each instruction once; a flag beats prose) that the per-model sections depend on and do not restate. The surfaces SHALL be `agents/codex-fast-worker.md`, `agents/codex-deep-reasoner.md`, `agents/agy-fast-worker.md`, and `skills/codex-bridge/SKILL.md`. The directive SHALL be placed at the prompt-composition step, not the agent preamble, so the load happens when needed.
+Each surface that composes a prompt for an external model SHALL carry a load directive naming the baseline's Shared section **and its applicable per-model section**. Shared SHALL always be loaded — only the per-model half is a choice — because Shared carries the discipline (state each instruction once; a flag beats prose) that the per-model sections depend on and do not restate. The surfaces SHALL be `agents/codex-worker.md`, `agents/codex-reasoner.md`, `agents/agy-worker.md`, and `skills/dhpk-codex-bridge/SKILL.md` (legacy alias files `agents/codex-fast-worker.md`, `agents/codex-deep-reasoner.md`, and `agents/agy-fast-worker.md` remain for the compatibility window). The directive SHALL be placed at the prompt-composition step, not the agent preamble, so the load happens when needed.
 
 #### Scenario: Codex-family surfaces name the Shared and GPT-5.x sections
-- **WHEN** `codex-fast-worker`, `codex-deep-reasoner`, or the `codex-bridge` skill reaches its prompt-composition step
+- **WHEN** `codex-worker` (legacy alias: `codex-fast-worker`), `codex-reasoner` (legacy alias: `codex-deep-reasoner`), or the `codex-bridge` skill reaches its prompt-composition step
 - **THEN** the directive loads the baseline's Shared and GPT-5.x sections and not the Gemini section
 
 #### Scenario: Agy surface names the Shared and Gemini sections
-- **WHEN** `agy-fast-worker` reaches its prompt-composition step
+- **WHEN** `agy-worker` (legacy alias: `agy-fast-worker`) reaches its prompt-composition step
 - **THEN** the directive loads the baseline's Shared and Gemini sections and not the GPT-5.x section
 
 #### Scenario: codex-bridge is wired at the skill, not the agent
 - **WHEN** the load directive is added for the codex-bridge path
-- **THEN** it is placed in `skills/codex-bridge/SKILL.md` because `agents/codex-bridge.md` already delegates prompt discipline to that skill, and the agent file gains no competing directive
+- **THEN** it is placed in `skills/dhpk-codex-bridge/SKILL.md` because `agents/codex-bridge.md` already delegates prompt discipline to that skill, and the agent file gains no competing directive
 
 ### Requirement: Composed prompts carry an autonomy boundary and a report shape
 A composed prompt SHALL state the autonomy boundary matching the backend's sandbox mode — inspect-and-report for read-only invocations, in-scope-changes-only for write-enabled invocations — and SHALL state the expected report shape (conclusion first, then supporting evidence, then next action). Where the backend CLI provides a flag that enforces either property, the flag SHALL be used and the prompt text SHALL NOT restate it.
 
 #### Scenario: Read-only backend receives an inspect-and-report boundary
-- **WHEN** `codex-deep-reasoner` composes a prompt for a read-only sandbox run
+- **WHEN** `codex-reasoner` composes a prompt for a read-only sandbox run
 - **THEN** the prompt states that the request authorizes inspection and reporting, not modification
 
 #### Scenario: Write-enabled backend receives an in-scope-changes boundary
-- **WHEN** `codex-fast-worker` composes a prompt for a workspace-write run
+- **WHEN** `codex-worker` composes a prompt for a workspace-write run
 - **THEN** the prompt authorizes the in-scope local changes named by the task spec and no others
 
 #### Scenario: A flag supersedes prompt text

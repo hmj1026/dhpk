@@ -19,11 +19,11 @@ TBD - created by archiving change do-flags-and-harness-consolidation. Update Pur
 - **THEN** no command, skill, rule, README, or goal-template occurrence remains (CHANGELOG BREAKING entry excepted)
 
 ### Requirement: `--reasoner` flag selects the deep-reasoning backend
-`/dhpk:do` SHALL accept `--reasoner=<claude|codex>[:<model>[:<effort>]]`, parsed and stripped before route matching. Only `claude` and `codex` are valid backends; `agy` is explicitly unsupported. `claude` SHALL route reasoning-heavy dispatches to `dhpk:deep-reasoner`; `codex` SHALL route them to `dhpk:codex-deep-reasoner`. Model/effort resolution SHALL follow the `--plan` precedence pattern: explicit flag segments > backend-specific userConfig (`deep_reasoner_model`/`deep_reasoner_effort` for claude; `codex_deep_reasoner_model`/`codex_deep_reasoner_effort` for codex) > built-in defaults (claude: frontmatter; codex: `gpt-5.6-sol` @ `high`). An invalid backend value SHALL warn one line and fall back to the userConfig/default resolution without failing the route. The flag SHALL affect only implementation-class routes; any other resolved route SHALL print a literal one-line `--reasoner ignored: ...` message and proceed unaffected.
+`/dhpk:do` SHALL accept `--reasoner=<claude|codex>[:<model>[:<effort>]]`, parsed and stripped before route matching. Only `claude` and `codex` are valid backends; `agy` is explicitly unsupported. `claude` SHALL route reasoning-heavy dispatches to `dhpk:deep-reasoner`; `codex` SHALL route them to `dhpk:codex-reasoner` (legacy alias: `codex-deep-reasoner`). Model/effort resolution SHALL follow the `--plan` precedence pattern: explicit flag segments > backend-specific userConfig (`deep_reasoner_model`/`deep_reasoner_effort` for claude; `codex_reasoner_model`/`codex_reasoner_effort` for codex, with legacy aliases `codex_deep_reasoner_*`) > built-in defaults (claude: frontmatter; codex: `gpt-5.6-sol` @ `high`). An invalid backend value SHALL warn one line and fall back to the userConfig/default resolution without failing the route. The flag SHALL affect only implementation-class routes; any other resolved route SHALL print a literal one-line `--reasoner ignored: ...` message and proceed unaffected.
 
 #### Scenario: Bare codex backend uses defaults
 - **WHEN** the user invokes `/dhpk:do --reasoner=codex <task>` with no `codex_deep_reasoner_*` userConfig set
-- **THEN** reasoning-heavy dispatches for that invocation go to `dhpk:codex-deep-reasoner` at `gpt-5.6-sol` @ `high`
+- **THEN** reasoning-heavy dispatches for that invocation go to `dhpk:codex-reasoner` at `gpt-5.6-sol` @ `high`
 
 #### Scenario: Full segment override
 - **WHEN** the flag is `--reasoner=codex:gpt-5.6-sol:medium`
