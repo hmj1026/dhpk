@@ -4,10 +4,10 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.48.3",
-  "sourceCommit": "7cfab968e87804daf664e662ca41a85af99c851c",
-  "generatedFromCommit": "7cfab968e87804daf664e662ca41a85af99c851c",
-  "generatedFromTree": "e1e7833b743e96bebdf5d81e7af0af3a5ef32479",
-  "inventoryDigest": "13b73c95db279c5074a65a344ccd134547959c734bc1ef054d29d69794c41d3a",
+  "sourceCommit": "f376f4207fda0f2d19102557c005b596146e0938",
+  "generatedFromCommit": "f376f4207fda0f2d19102557c005b596146e0938",
+  "generatedFromTree": "6ebabe6219a4557a8bb3afc1e5b2ea7b05b6a603",
+  "inventoryDigest": "2747dc19b8ff202ab771449bb65bab8340ff03021a545de1ac1b04696b29503a",
   "generatorVersion": "2.3.0",
   "selectedSkillIds": [
     "agy-commit",
@@ -101,7 +101,7 @@
     "dhpk-skill-health-audit": "a561c3c213a5e8d660e0d4014542bf2c18e50f2081be60f127984028730a0162",
     "dhpk-skill-quality-judge": "2e1ed7ce2acac5d5f15c458598365554554d089ac0ac9399faa11489ce5083e7",
     "dhpk-tdd-workflow": "e673f1569c84e66f15a39bc0324fb1ec3c0b90cf06f687fa1773419fa61b48a7",
-    "dhpk-cli-dispatch-context": "ee5cb1604f2b0e0846265bd22b3b903926b8cfe174d6a866b7c918e5a408a98e",
+    "dhpk-cli-dispatch-context": "534a0b35130d26100e20888bbcd6c32e1c712a09c7e0d362532fd7c39b6788b4",
     "dhpk-cli-transport": "b8cdca4a0c4376baaf36dac7b45892e049cfe8a93def15d50011fb00e7d14b6d"
   },
   "routingProjection": {
