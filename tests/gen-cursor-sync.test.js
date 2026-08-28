@@ -206,6 +206,29 @@ test('gen-cursor-sync CLI writes a valid tree', () => {
   }
 });
 
+test('skill-mirror reconciler emits Codex and Cursor links from one canonical package', () => {
+  const root = makeFixture();
+  const inventory = fixtureInventory();
+  inventory.skills[0].surfaces = ['codex-sync', 'cursor-sync'];
+  write(path.join(root, 'manifests', 'distribution-inventory.json'), `${JSON.stringify(inventory, null, 2)}\n`);
+  try {
+    const res = spawnSync(process.execPath, [
+      path.join(ROOT, 'scripts', 'ci', 'reconcile-skill-mirrors.js'),
+      '--repo-root', root,
+      '--skill', 'dhpk-portable',
+    ], { encoding: 'utf8', timeout: 15000 });
+    assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+    for (const surface of ['codex', 'cursor']) {
+      const mirror = path.join(root, surface, 'skills', 'dhpk-portable');
+      assert.ok(fs.lstatSync(mirror).isSymbolicLink(), `${surface} mirror must be a symlink`);
+      assert.strictEqual(fs.readlinkSync(mirror), '../../skills/dhpk-portable');
+      assert.strictEqual(fs.realpathSync(mirror), fs.realpathSync(path.join(root, 'skills', 'dhpk-portable')));
+    }
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('declared empty cursor-sync membership does not fall back to agent-plugin skills', () => {
   const root = makeFixture();
   const out = tmpDir('dhpk-cursor-sync-empty-membership-');

@@ -138,7 +138,7 @@ for (const r of ROUND_TRIPS) {
 // The canonical-skill claims expect skillsBase, not skillsTotal. In the real repo
 // skillsModule is 0, so both values are 97 and every other case here passes under
 // either choice. Planting a real module-owned SKILL.md makes them differ (base 97,
-// total 98) and is the only thing that can tell the two apart.
+// total 99) and is the only thing that can tell the two apart.
 test('canonical skill claims track skillsBase, so a module-owned skill does not inflate them', () => {
   // Plant inside an EXISTING module: a new modules/<name>/ directory would also bump the
   // module count and trip the "opt-in stack modules" claim, masking what this asserts.
