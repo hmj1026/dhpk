@@ -8,7 +8,7 @@
   "sourceCommit": "b80efb5269eea14b0625e1c1cc2b1feea7767067",
   "generatedFromCommit": "b80efb5269eea14b0625e1c1cc2b1feea7767067",
   "generatedFromTree": "b54b4d6af3a30d0dfaddb619ee35d19da2e960df",
-  "inventoryDigest": "2747dc19b8ff202ab771449bb65bab8340ff03021a545de1ac1b04696b29503a",
+  "inventoryDigest": "b70f7381646f479692ca5e8c7ec262560115abb020dfc5fd1832cbf818a99812",
   "generatorVersion": "1.0.0",
   "selectedSkillIds": [
     "agy-fast-worker",
@@ -677,5 +677,5 @@
     "status": "NOT_RUN",
     "reason": "Cursor client consumer probe is separate from structural generation."
   },
-  "planFingerprint": "1c265595f42051f3277d2f5955aa6ec5c9e308e2d4c1edcea5242dcf7e4c05f5"
+  "planFingerprint": "a08ee6637c30d50a40c9382798f546d9247a6c9b29a5fb2b929e9b0d8258da37"
 }
