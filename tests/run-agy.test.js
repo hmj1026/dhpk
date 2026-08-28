@@ -28,8 +28,8 @@ function commandPath(name) {
   return fs.realpathSync(result.stdout.trim());
 }
 
-function roleContract(role, authority) {
-  const fields = { requested_role: role, effective_role: role, authority, source_id: 'test.dispatch' };
+function roleContract(role, authority, requestedRole = role) {
+  const fields = { requested_role: requestedRole, effective_role: role, authority, source_id: 'test.dispatch' };
   return {
     schema: 'dhpk.role-contract.v1', ...fields,
     evidence_sha256: crypto.createHash('sha256').update(JSON.stringify(fields, Object.keys(fields).sort())).digest('hex'),
@@ -65,10 +65,12 @@ function writeContext(ctx, overrides = {}) {
   fs.chmodSync(artifactRoot, 0o700);
   const sequence = (ctx.sequence = (ctx.sequence || 0) + 1);
   const model = overrides.model === undefined ? 'Gemini 3.6 Flash (High)' : overrides.model;
+  const requestedRole = overrides.role || 'agy-fast-worker';
+  const effectiveRole = requestedRole === 'agy-fast-worker' ? 'agy-worker' : requestedRole;
   const context = {
     schema: 'dhpk.cli.context.v1', provider: 'agy',
-    requested_role: 'agy-fast-worker', effective_role: 'agy-fast-worker',
-    role_contract: roleContract('agy-fast-worker', 'workspace-write'),
+    requested_role: requestedRole, effective_role: effectiveRole,
+    role_contract: roleContract(effectiveRole, 'workspace-write', requestedRole),
     mode: 'workspace-write', workdir: ctx.dir, prompt_file: ctx.promptFile, prompt_evidence: promptEvidence(ctx.promptFile),
     artifact_root: artifactRoot, receipt_path: path.join(artifactRoot, `receipt-${sequence}.json`),
     assigned_files: ['argv.txt', 'stdin.txt'], report_only: true, timeout_secs: overrides.timeoutSecs ?? 3,

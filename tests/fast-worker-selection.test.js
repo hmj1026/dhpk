@@ -68,7 +68,7 @@ test('explicit and auto selection honor availability and configured order', () =
     const bin = fakeCli(dir, 'codex');
     const explicit = select(['--backend', 'codex'], { PATH: `${bin}:/usr/bin:/bin`, CODEX: 'on' });
     assert.strictEqual(explicit.value.selected_backend, 'codex');
-    assert.strictEqual(explicit.value.selected_agent, 'dhpk:codex-fast-worker');
+    assert.strictEqual(explicit.value.selected_agent, 'dhpk:codex-worker');
     const auto = select(['--backend', 'auto', '--order', 'agy,codex,claude'], { PATH: `${bin}:/usr/bin:/bin`, CODEX: 'on' });
     assert.strictEqual(auto.value.selected_backend, 'codex');
     assert.ok(auto.value.rejected_candidates.some((item) => item.backend === 'agy'));
@@ -87,13 +87,13 @@ test('missing executable blocks unless the configured fallback is claude', () =>
   assert.ok(fallback.value.reason.includes('missing executable'));
 });
 
-test('agy backend dispatches the registered agy-fast-worker role', () => {
+test('agy backend dispatches the registered agy-worker role', () => {
   const dir = tempDir('dhpk-selector-agy-');
   try {
     const bin = fakeCli(dir, 'agy');
     const selected = select(['--backend', 'agy'], { PATH: `${bin}:/usr/bin:/bin` });
     assert.strictEqual(selected.value.status, 'selected');
-    assert.strictEqual(selected.value.selected_agent, 'dhpk:agy-fast-worker');
+    assert.strictEqual(selected.value.selected_agent, 'dhpk:agy-worker');
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

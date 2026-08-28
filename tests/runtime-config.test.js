@@ -78,23 +78,59 @@ test('runtime config is safe when no project settings or Python are available', 
 
 test('codex timeout selection is scope-first and role-specific within a scope', () => {
   const root = tmpRoot();
-  settings(root, { codex_timeout_secs: '900', codex_fast_worker_timeout_secs: '1200' });
+  settings(root, { codex_timeout_secs: '900', codex_worker_timeout_secs: '1200', codex_fast_worker_timeout_secs: '30' });
   const res = sh(root,
-    'dhpk_codex_timeout_export codex-fast-worker; printf "%s|%s|%s" "$DHPK_CODEX_TIMEOUT_SECS" "$DHPK_CODEX_TIMEOUT_SOURCE" "$DHPK_CODEX_ROLE"',
+    'dhpk_codex_timeout_export codex-worker; printf "%s|%s|%s" "$DHPK_CODEX_TIMEOUT_SECS" "$DHPK_CODEX_TIMEOUT_SOURCE" "$DHPK_CODEX_ROLE"',
     {
       CLAUDE_PLUGIN_OPTION_CODEX_TIMEOUT_SECS: '1800',
-      CLAUDE_PLUGIN_OPTION_CODEX_FAST_WORKER_TIMEOUT_SECS: '2400',
+      CLAUDE_PLUGIN_OPTION_CODEX_WORKER_TIMEOUT_SECS: '2400',
     });
   assert.strictEqual(res.status, 0, res.stderr);
-  assert.strictEqual(res.stdout, '1200|project:codex_fast_worker_timeout_secs|codex-fast-worker');
+  assert.strictEqual(res.stdout, '1200|project:codex_worker_timeout_secs|codex-worker');
+});
+
+test('legacy role labels translate before timeout lookup while canonical keys retain precedence', () => {
+  const root = tmpRoot();
+  settings(root, {
+    codex_worker_timeout_secs: '1200', codex_fast_worker_timeout_secs: '30',
+    codex_reviewer_timeout_secs: '600', codex_bridge_timeout_secs: '15',
+  });
+  const worker = sh(root,
+    'dhpk_codex_timeout_export codex-fast-worker; printf "%s|%s|%s" "$DHPK_CODEX_TIMEOUT_SECS" "$DHPK_CODEX_TIMEOUT_SOURCE" "$DHPK_CODEX_ROLE"');
+  assert.strictEqual(worker.status, 0, worker.stderr);
+  assert.strictEqual(worker.stdout, '1200|project:codex_worker_timeout_secs|codex-worker');
+
+  const reviewer = sh(root,
+    'dhpk_codex_timeout_export codex-bridge read-only; printf "%s|%s|%s" "$DHPK_CODEX_TIMEOUT_SECS" "$DHPK_CODEX_TIMEOUT_SOURCE" "$DHPK_CODEX_ROLE"');
+  assert.strictEqual(reviewer.status, 0, reviewer.stderr);
+  assert.strictEqual(reviewer.stdout, '600|project:codex_reviewer_timeout_secs|codex-reviewer');
+
+  const bridgeWorker = sh(root,
+    'dhpk_codex_timeout_export codex-bridge workspace-write; printf "%s|%s|%s" "$DHPK_CODEX_TIMEOUT_SECS" "$DHPK_CODEX_TIMEOUT_SOURCE" "$DHPK_CODEX_ROLE"');
+  assert.strictEqual(bridgeWorker.status, 0, bridgeWorker.stderr);
+  assert.strictEqual(bridgeWorker.stdout, '1200|project:codex_worker_timeout_secs|codex-worker');
+
+  const missingMode = sh(root, 'dhpk_codex_timeout_export codex-bridge');
+  assert.notStrictEqual(missingMode.status, 0);
+  assert.ok(missingMode.stderr.includes('explicit mode'), missingMode.stderr);
+});
+
+test('propagated timeout identity cannot retain a prior alias identity', () => {
+  const res = sh(tmpRoot(), [
+    'dhpk_codex_timeout_export codex-fast-worker',
+    'dhpk_codex_timeout_export_resolved codex-reviewer 600 upstream',
+    'printf "%s|%s|%s" "${DHPK_CODEX_REQUESTED_ROLE-unset}" "$DHPK_CODEX_EFFECTIVE_ROLE" "$DHPK_CODEX_ROLE"',
+  ].join('; '));
+  assert.strictEqual(res.status, 0, res.stderr);
+  assert.strictEqual(res.stdout, 'unset|codex-reviewer|codex-reviewer');
 });
 
 test('project shared timeout wins over a more specific global role timeout', () => {
   const root = tmpRoot();
   settings(root, { codex_timeout_secs: '900' });
   const res = sh(root,
-    'dhpk_codex_timeout_export codex-fast-worker; printf "%s|%s" "$DHPK_CODEX_TIMEOUT_SECS" "$DHPK_CODEX_TIMEOUT_SOURCE"',
-    { CLAUDE_PLUGIN_OPTION_CODEX_FAST_WORKER_TIMEOUT_SECS: '1800' });
+    'dhpk_codex_timeout_export codex-worker; printf "%s|%s" "$DHPK_CODEX_TIMEOUT_SECS" "$DHPK_CODEX_TIMEOUT_SOURCE"',
+    { CLAUDE_PLUGIN_OPTION_CODEX_WORKER_TIMEOUT_SECS: '1800' });
   assert.strictEqual(res.status, 0, res.stderr);
   assert.strictEqual(res.stdout, '900|project:codex_timeout_secs');
 });
@@ -102,31 +138,31 @@ test('project shared timeout wins over a more specific global role timeout', () 
 test('global role timeout wins over global shared timeout and default is 360', () => {
   const root = tmpRoot();
   const globalRole = sh(root,
-    'dhpk_codex_timeout_export codex-deep-reasoner; printf "%s|%s" "$DHPK_CODEX_TIMEOUT_SECS" "$DHPK_CODEX_TIMEOUT_SOURCE"',
+    'dhpk_codex_timeout_export codex-reasoner; printf "%s|%s" "$DHPK_CODEX_TIMEOUT_SECS" "$DHPK_CODEX_TIMEOUT_SOURCE"',
     {
       CLAUDE_PLUGIN_OPTION_CODEX_TIMEOUT_SECS: '900',
-      CLAUDE_PLUGIN_OPTION_CODEX_DEEP_REASONER_TIMEOUT_SECS: '1200',
+      CLAUDE_PLUGIN_OPTION_CODEX_REASONER_TIMEOUT_SECS: '1200',
     });
   assert.strictEqual(globalRole.status, 0, globalRole.stderr);
-  assert.strictEqual(globalRole.stdout, '1200|global:codex_deep_reasoner_timeout_secs');
+  assert.strictEqual(globalRole.stdout, '1200|global:codex_reasoner_timeout_secs');
 
   const shipped = sh(root,
-    'dhpk_codex_timeout_export codex-bridge; printf "%s|%s" "$DHPK_CODEX_TIMEOUT_SECS" "$DHPK_CODEX_TIMEOUT_SOURCE"');
+    'dhpk_codex_timeout_export codex-reviewer; printf "%s|%s" "$DHPK_CODEX_TIMEOUT_SECS" "$DHPK_CODEX_TIMEOUT_SOURCE"');
   assert.strictEqual(shipped.status, 0, shipped.stderr);
   assert.strictEqual(shipped.stdout, '360|default');
 });
 
 test('legacy CODEX_WRAP_TIMEOUT_SECS override is highest precedence and zero disables', () => {
   const root = tmpRoot();
-  settings(root, { codex_timeout_secs: '900', codex_fast_worker_timeout_secs: '1200' });
+  settings(root, { codex_timeout_secs: '900', codex_worker_timeout_secs: '1200' });
   const override = sh(root,
-    'dhpk_codex_timeout_export codex-fast-worker; printf "%s|%s|%s" "$DHPK_CODEX_TIMEOUT_SECS" "$DHPK_CODEX_TIMEOUT_SOURCE" "$DHPK_CODEX_TIMEOUT_DISABLED"',
+    'dhpk_codex_timeout_export codex-worker; printf "%s|%s|%s" "$DHPK_CODEX_TIMEOUT_SECS" "$DHPK_CODEX_TIMEOUT_SOURCE" "$DHPK_CODEX_TIMEOUT_DISABLED"',
     { CODEX_WRAP_TIMEOUT_SECS: '42' });
   assert.strictEqual(override.status, 0, override.stderr);
   assert.strictEqual(override.stdout, '42|env:CODEX_WRAP_TIMEOUT_SECS|false');
 
   const disabled = sh(root,
-    'dhpk_codex_timeout_export codex-fast-worker; printf "%s|%s" "$DHPK_CODEX_TIMEOUT_SECS" "$DHPK_CODEX_TIMEOUT_DISABLED"',
+    'dhpk_codex_timeout_export codex-worker; printf "%s|%s" "$DHPK_CODEX_TIMEOUT_SECS" "$DHPK_CODEX_TIMEOUT_DISABLED"',
     { CODEX_WRAP_TIMEOUT_SECS: '0' });
   assert.strictEqual(disabled.status, 0, disabled.stderr);
   assert.strictEqual(disabled.stdout, '0|true');
@@ -134,7 +170,7 @@ test('legacy CODEX_WRAP_TIMEOUT_SECS override is highest precedence and zero dis
 
 test('malformed and unknown Codex timeout inputs fail closed with a clear error', () => {
   for (const value of ['', '-1', '1.5', 'nope']) {
-    const res = sh(tmpRoot(), 'dhpk_codex_timeout_export codex-fast-worker', {
+    const res = sh(tmpRoot(), 'dhpk_codex_timeout_export codex-worker', {
       CODEX_WRAP_TIMEOUT_SECS: value,
     });
     assert.notStrictEqual(res.status, 0, `expected invalid value to fail: ${JSON.stringify(value)}`);
@@ -148,12 +184,12 @@ test('malformed and unknown Codex timeout inputs fail closed with a clear error'
 
 test('outer budget diagnostics are explicit when absent or too short', () => {
   const unknown = sh(tmpRoot(),
-    'dhpk_codex_timeout_export codex-bridge; printf "%s" "$DHPK_CODEX_OUTER_BUDGET_STATUS"');
+    'dhpk_codex_timeout_export codex-reviewer; printf "%s" "$DHPK_CODEX_OUTER_BUDGET_STATUS"');
   assert.strictEqual(unknown.status, 0, unknown.stderr);
   assert.strictEqual(unknown.stdout, 'outer_budget=unknown');
 
   const warning = sh(tmpRoot(),
-    'dhpk_codex_timeout_export codex-bridge; printf "%s" "$DHPK_CODEX_OUTER_BUDGET_STATUS"',
+    'dhpk_codex_timeout_export codex-reviewer; printf "%s" "$DHPK_CODEX_OUTER_BUDGET_STATUS"',
     { CODEX_WRAP_TIMEOUT_SECS: '10', DHPK_OUTER_BUDGET_SECS: '10' });
   assert.strictEqual(warning.status, 0, warning.stderr);
   assert.strictEqual(warning.stdout, 'outer_budget=10 warning=outer_budget_not_longer_than_inner');

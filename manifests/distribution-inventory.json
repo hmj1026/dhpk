@@ -1333,6 +1333,29 @@
       ]
     },
     {
+      "id": "cli-dispatch-context",
+      "name": "dhpk-cli-dispatch-context",
+      "path": "skills/dhpk-cli-dispatch-context",
+      "capability_id": "dhpk.skill.cli-dispatch-context",
+      "lifecycle": "optional",
+      "tier": "optional",
+      "profiles": [
+        "core"
+      ],
+      "surfaces": [
+        "claude-core",
+        "claude-module",
+        "codex-sync",
+        "codex-native",
+        "agent-plugin",
+        "cursor-plugin",
+        "cursor-sync",
+        "agy-plugin"
+      ],
+      "invokable": false,
+      "discoveryVisible": false
+    },
+    {
       "id": "cli-transport",
       "name": "dhpk-cli-transport",
       "path": "skills/dhpk-cli-transport",
@@ -2584,6 +2607,7 @@
       "agy-fast-worker",
       "bug-investigation",
       "claude-health",
+      "cli-dispatch-context",
       "cli-transport",
       "code-explore",
       "codex-architect",
@@ -2647,6 +2671,7 @@
       "agy-fast-worker",
       "bug-investigation",
       "claude-health",
+      "cli-dispatch-context",
       "cli-transport",
       "code-explore",
       "codex-architect",
@@ -2710,6 +2735,7 @@
       "agy-fast-worker",
       "bug-investigation",
       "claude-health",
+      "cli-dispatch-context",
       "cli-transport",
       "code-explore",
       "codex-architect",
@@ -2773,6 +2799,7 @@
       "agy-fast-worker",
       "bug-investigation",
       "claude-health",
+      "cli-dispatch-context",
       "cli-transport",
       "code-explore",
       "codex-architect",
@@ -2833,20 +2860,24 @@
   "internal_runtime_skills": {
     "agent-plugin": [
       "agy-fast-worker",
+      "cli-dispatch-context",
       "cli-transport",
       "codex-bridge"
     ],
     "cursor-plugin": [
       "agy-fast-worker",
+      "cli-dispatch-context",
       "cli-transport",
       "codex-bridge"
     ],
     "agy-plugin": [
       "agy-fast-worker",
+      "cli-dispatch-context",
       "cli-transport",
       "codex-bridge"
     ],
     "codex-native": [
+      "cli-dispatch-context",
       "cli-transport"
     ]
   },

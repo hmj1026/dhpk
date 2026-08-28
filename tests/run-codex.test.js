@@ -33,8 +33,8 @@ function promptEvidence(promptFile) {
   return { path: fs.realpathSync(promptFile), dev: info.dev, ino: info.ino, sha256: crypto.createHash('sha256').update(fs.readFileSync(promptFile)).digest('hex') };
 }
 
-function roleContract(role, authority) {
-  const fields = { requested_role: role, effective_role: role, authority, source_id: 'test.dispatch' };
+function roleContract(role, authority, requestedRole = role) {
+  const fields = { requested_role: requestedRole, effective_role: role, authority, source_id: 'test.dispatch' };
   return { schema: 'dhpk.role-contract.v1', ...fields, evidence_sha256: crypto.createHash('sha256').update(JSON.stringify(fields, Object.keys(fields).sort())).digest('hex') };
 }
 
@@ -60,12 +60,17 @@ function writeContext(ctx, overrides = {}) {
   fs.chmodSync(artifactRoot, 0o700);
   const sequence = (ctx.sequence = (ctx.sequence || 0) + 1);
   const role = overrides.role || 'codex-bridge';
-  const authority = role === 'codex-deep-reasoner' ? 'read-only' : 'workspace-write';
+  const mode = overrides.mode || 'workspace-write';
+  const effectiveRole = role === 'codex-fast-worker' ? 'codex-worker'
+    : role === 'codex-deep-reasoner' ? 'codex-reasoner'
+      : role === 'codex-bridge' ? (mode === 'read-only' ? 'codex-reviewer' : 'codex-worker')
+        : role;
+  const authority = effectiveRole === 'codex-reasoner' || effectiveRole === 'codex-reviewer' ? 'read-only' : 'workspace-write';
   const model = overrides.model === undefined ? null : overrides.model;
   const effort = overrides.effort === undefined ? null : overrides.effort;
   const context = {
-    schema: 'dhpk.cli.context.v1', provider: 'codex', requested_role: role, effective_role: role,
-    role_contract: roleContract(role, authority), mode: overrides.mode || 'workspace-write',
+    schema: 'dhpk.cli.context.v1', provider: 'codex', requested_role: role, effective_role: effectiveRole,
+    role_contract: roleContract(effectiveRole, authority, role), mode,
     workdir: ctx.dir, prompt_file: ctx.promptFile, prompt_evidence: promptEvidence(ctx.promptFile),
     artifact_root: artifactRoot, receipt_path: path.join(artifactRoot, `receipt-${sequence}.json`),
     assigned_files: ['argv.txt', 'stdin.txt'], report_only: true, timeout_secs: overrides.timeoutSecs ?? 3,
