@@ -5,7 +5,7 @@ description: 'Reference index for the agents shipped by the dhpk plugin.'
 
 # Agents Index (dhpk plugin)
 
-> 32 agents shipped by the dhpk plugin (31 root-level + `polyfill-reviewer` under `modules/library-author/agents/`). Discovered as `dhpk:<name>` after install. The full list also appears in `.claude-plugin/plugin.json`.
+> 36 agents shipped by the dhpk plugin (35 root-level + `polyfill-reviewer` under `modules/library-author/agents/`). Discovered as `dhpk:<name>` after install. The full list also appears in `.claude-plugin/plugin.json`.
 
 ## Agent contract
 
@@ -40,18 +40,26 @@ Not sentinel-driven — dispatched during the implement phase per the `rules/exe
 | Agent | Model (default) | Role |
 |-------|-------|----------------|
 | [deep-reasoner](deep-reasoner.md) | opus | Read-only reasoning worker — root-cause analysis, algorithm design, complex debugging, design synthesis. Returns a conclusion contract (conclusion + `file:line` evidence + next actions); defers DDD/cross-module design to `architect` |
+| [codex-reasoner](codex-reasoner.md) | sonnet + codex CLI | **codex CLI available** — canonical `deep-reasoner` backend selected by `--reasoner=codex` (default `gpt-5.6-sol` @ `high`), with a read-only sandbox, dispatcher-attested runtime/deadline, and the same conclusion contract; independent of the separate `CODEX` review-peer switch |
 | [codex-deep-reasoner](codex-deep-reasoner.md) | sonnet + codex CLI | **codex CLI available** — selector-resolved `deep-reasoner` backend via `--reasoner=codex` (default `gpt-5.6-sol` @ `high`, read-only sandbox via `skills/dhpk-codex-bridge/scripts/run-codex.sh`); dispatcher-attested model, runtime and deadline; same read-only conclusion contract, never modifies the working tree; independent of the separate `CODEX` review-peer switch |
 | [fast-worker](fast-worker.md) | sonnet | Write-capable mechanical implementer — executes a precise task spec (files + change intent + verification command), surgical edits only, reports pass/fail + edited-file list, escalates on ambiguous specs |
+| [codex-worker](codex-worker.md) | sonnet + codex CLI | **codex CLI available** — canonical `fast-worker` backend (default `gpt-5.6-luna` @ `xhigh`), with dispatcher-attested runtime/deadline and the same task-spec, verification, and edited-file accounting contract |
 | [codex-fast-worker](codex-fast-worker.md) | sonnet + codex CLI | **codex CLI available** — selector-resolved `fast-worker` backend (default `gpt-5.6-luna` @ `xhigh`, via `skills/dhpk-codex-bridge/scripts/run-codex.sh`); dispatcher-attested model, runtime and deadline; independent of the separate `CODEX` review-peer switch, with the same task-spec and verification/edited-file accounting contract |
+| [agy-worker](agy-worker.md) | sonnet + agy CLI | **agy CLI available** — canonical mechanical worker on the agy backend (default `Gemini 3.6 Flash (High)`), with dispatcher-attested runtime/deadline and the same task-spec, verification, and edited-file accounting contract |
 | [agy-fast-worker](agy-fast-worker.md) | sonnet + agy CLI | **agy CLI available** — a `fast-worker` whose edits run on the agy CLI backend (default `Gemini 3.6 Flash (High)`, via `skills/dhpk-agy-fast-worker/scripts/run-agy.sh`); dispatcher-attested model, runtime and deadline, with the same task-spec contract + independent verification/edited-file accounting |
+| [codex-reviewer](codex-reviewer.md) | sonnet + codex CLI | Internal shared-runner read-only reviewer; capability-gated and not a native Codex dispatch target; routes through the canonical launcher only when the capability is available |
 | [codex-bridge](codex-bridge.md) | sonnet | **CODEX=on only** — thin bridge that outsources a self-contained clear-spec task, or a blind second opinion, to gpt-5.5 via the Codex CLI (`codex exec`); uses an immutable dispatcher-attested transport context while retaining the three-argument wrapper shape, and relays Codex's output **verbatim** (output isolated in the subagent) |
 
 Role models are configurable per project via `userConfig.deep_reasoner_model` / `userConfig.fast_worker_model` (see "Configured role models" under `rules/execution-policy.md` §Agent dispatch) — frontmatter above shows the shipped default, not necessarily the effective value.
 
 Mechanical waves resolve through `fast_worker_backend` / `fast_worker_backend_order` /
 `fast_worker_fallback` (or a workflow's explicit backend override) to
-`fast-worker`, `codex-fast-worker`, or `agy-fast-worker`. `CODEX=on` controls the
-separate `codex-bridge` review/doubt path and is not a worker-selector prerequisite.
+`fast-worker`, `codex-worker`, or `agy-worker`; the one-release
+`codex-fast-worker` and `agy-fast-worker` aliases forward to their canonical
+roles. Deep-reasoner selection uses `deep-reasoner` or the canonical
+`codex-reasoner`; `codex-deep-reasoner` remains a one-release compatibility
+forwarder. `CODEX=on` controls the separate `codex-bridge` review/doubt path
+and is not a worker-selector prerequisite.
 
 **Component-addition-gate justification** (why neither existing agent covers this need, per the "Component-addition gate" rule in `rules/execution-policy.md`):
 - `general-purpose` cannot cover it: no dhpk policy context, inherits the main-session model (cost misallocation when the orchestrator is a top-tier model and the task is mechanical), no defined input/output contract for gate enforcement.
@@ -106,7 +114,7 @@ separate `codex-bridge` review/doubt path and is not a worker-selector prerequis
 ## Models
 
 - **opus**: spec-miner, deep-reasoner, planner (low-frequency, high-impact, deep reasoning)
-- **sonnet**: reviewers, tdd-guide, refactor, ui-ux, harness, fast-worker, codex-fast-worker, agy-fast-worker, codex-deep-reasoner, codex-bridge (daily-driver; the CLI-backed workers run their work on an external codex/agy backend — `codex-deep-reasoner` reasons read-only on codex)
+- **sonnet**: reviewers, tdd-guide, refactor, ui-ux, harness, fast-worker, codex-worker, agy-worker, codex-fast-worker, agy-fast-worker, codex-reasoner, codex-deep-reasoner, codex-reviewer, codex-bridge (daily-driver; the CLI-backed workers run their work on an external codex/agy backend — `codex-reasoner` reasons read-only on codex)
 - **haiku**: doc-updater, docs-lookup, doc-reviewer (high-frequency, templated, cost-first)
 - **fable**: architect (cheap architecture-consult tier; up-only escalation to a higher tier for HIGH-risk designs via the configured-role override)
 

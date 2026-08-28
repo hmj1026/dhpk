@@ -24,12 +24,14 @@ test('discovery budgets are declared by lifecycle and host surface', () => {
 test('optional invokable entries remain explicitly discovery-visible while internal runtime support stays host-invisible', () => {
   const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
   const report = inspectDiscoveryContext({ root: ROOT, inventory });
-  const optional = report.entries.filter((entry) => entry.lifecycle === 'optional' && entry.id !== 'cli-transport');
+  const runtimeSupportIds = new Set(['cli-dispatch-context', 'cli-transport']);
+  const optional = report.entries.filter((entry) => entry.lifecycle === 'optional' && !runtimeSupportIds.has(entry.id));
   assert.ok(optional.length > 0);
   assert.ok(optional.every((entry) => entry.discoveryVisible === true));
   assert.ok(optional.every((entry) => /runtime|activation|optional/i.test(entry.visibilityReason)));
-  const runtimeSupport = report.entries.filter((entry) => entry.id === 'cli-transport');
-  assert.strictEqual(runtimeSupport.length, 8);
+  const runtimeSupport = report.entries.filter((entry) => runtimeSupportIds.has(entry.id));
+  assert.strictEqual(runtimeSupport.length, 16);
+  assert.deepStrictEqual([...new Set(runtimeSupport.map((entry) => entry.id))].sort(), [...runtimeSupportIds].sort());
   assert.ok(runtimeSupport.every((entry) => entry.discoveryVisible === false));
   assert.ok(runtimeSupport.every((entry) => /host-invisible/i.test(entry.visibilityReason)));
 });
