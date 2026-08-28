@@ -38,7 +38,7 @@ For `auto`, the selector SHALL evaluate backends in the configured order and cho
 
 #### Scenario: Ordered availability selection
 - **WHEN** the order is `agy,codex,claude`, agy is unavailable, and Codex is available
-- **THEN** the selector chooses `codex-fast-worker` and records agy as unavailable
+- **THEN** the selector chooses `codex-worker` and records agy as unavailable
 
 ### Requirement: Backend failure does not silently change execution semantics
 An explicitly selected backend that fails authentication, authorization, model validation, or execution SHALL return `RESULT: BLOCKED` with the backend and exact failure. An optional fallback SHALL be allowed only when configured and only for a missing backend executable; the result SHALL identify the fallback. No fallback SHALL occur for authorization, authentication, model, or task failures.
@@ -51,7 +51,7 @@ An explicitly selected backend that fails authentication, authorization, model v
 - **WHEN** fallback is configured as `claude` and the explicitly preferred CLI executable is absent
 - **THEN** the batch runs on `dhpk:fast-worker` and the report identifies the requested and selected backends
 
-### Requirement: Worker reports expose backend identity
+### Requirement: Worker reports expose backend and canonical role identity
 
 Every selected fast-worker SHALL report requested backend, selected backend,
 requested role, effective canonical role, model/effort, availability,
@@ -117,7 +117,7 @@ or alias SHALL not substitute for process or verification evidence.
 
 #### Scenario: Goal generator embeds the override
 - **WHEN** `dhpk:opsx-apply-goal` runs with `--worker=codex`
-- **THEN** the emitted goal string carries the resolved backend clause so the unattended executing session dispatches `dhpk:codex-fast-worker` without reading userConfig
+- **THEN** the emitted goal string carries the resolved backend clause so the unattended executing session dispatches `dhpk:codex-worker` without reading userConfig
 
 #### Scenario: Invalid flag value
 - **WHEN** the flag value is not one of `claude|codex|agy|auto`
@@ -136,7 +136,7 @@ The fast-worker backend selector and its in-process and CLI-backed worker contra
 - **THEN** the worker receives the marker and exact assigned files and reports path-scoped verification
 
 #### Scenario: Codex backend receives parallel scope
-- **WHEN** the selector resolves a parallel batch to `dhpk:codex-fast-worker`
+- **WHEN** the selector resolves a parallel batch to `dhpk:codex-worker`
 - **THEN** the wrapper passes the marker and assigned files to the CLI prompt and derives worker-owned changes only from assigned paths
 
 #### Scenario: Backend selection remains unchanged

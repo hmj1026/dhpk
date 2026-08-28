@@ -136,7 +136,7 @@ DIAG_SESSION_ID="${DIAG_SESSION_ID//$'\t'/_}"
 DIAG_SESSION_ID="${DIAG_SESSION_ID//$'\n'/_}"
 
 case "${SUBAGENT##*:}" in
-    fast-worker|codex-fast-worker|agy-fast-worker)
+    fast-worker|codex-fast-worker|agy-fast-worker|codex-worker|agy-worker)
         remove_matching_active_entry "$SESS/$DHPK_SIDECAR_FAST_WORKER_ACTIVE" "$SUBAGENT"
         exit 0 ;;
 esac

@@ -73,7 +73,13 @@ bash "${CLAUDE_PLUGIN_ROOT}/skills/dhpk-release-creator/scripts/release-runner.s
 The publish phase independently verifies the merged `{BASE_BRANCH}` →
 `{RELEASE_BRANCH}` PR before tagging, creates an annotated immutable tag, polls for a
 workflow run associated with the new tag, fails if no matching run appears, and returns
-to `{BASE_BRANCH}` only after that run completes.
+to `{BASE_BRANCH}` only after that run completes. After watch, the runner
+fetches `origin/develop` and `origin/main` and compares those SHAs (it does
+not fast-forward local `develop` through rewritten history): equal SHAs mean
+idle-align landed; matching trees with unequal SHAs fail closed; unique-tree
+develop is an expected `--no-ff` remainder. This skill does not force-push
+`develop`. Recovery for a failed unique-tree merge or a rejected idle-align
+lease is in `RELEASE.md`.
 
 ## Verification
 
@@ -84,5 +90,5 @@ to `{BASE_BRANCH}` only after that run completes.
 - [ ] Validation passed.
 - [ ] Release PR followed the project merge policy.
 - [ ] Tag exists remotely and release CI passed.
-- [ ] Integration branch is synchronized after release/back-merge.
+- [ ] `origin/develop` SHA equals `origin/main` when trees match; unique-tree develop may differ.
 - [ ] Consumer update status is reported separately from publication status.

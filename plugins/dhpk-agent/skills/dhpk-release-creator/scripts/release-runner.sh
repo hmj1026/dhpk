@@ -114,8 +114,22 @@ case "$phase" in
         # runner instead of allowing a tag to be reported as published.
         gh run watch "$run_id" --exit-status
 
-        git checkout "$base_branch"
-        git pull --ff-only
+        git fetch origin "$release_branch" "$base_branch"
+        main_sha="$(git rev-parse "origin/${release_branch}")"
+        develop_sha="$(git rev-parse "origin/${base_branch}")"
+        echo "release-runner: origin/${release_branch}=${main_sha} origin/${base_branch}=${develop_sha}"
+        if [ "$main_sha" = "$develop_sha" ]; then
+            echo "release-runner: integration branch is aligned to ${release_branch}"
+        elif git diff --quiet "origin/${release_branch}" "origin/${base_branch}"; then
+            echo "release-runner: trees match but SHAs differ; idle-align did not land" >&2
+            exit 1
+        else
+            echo "release-runner: ${base_branch} has unique tree content after release; --no-ff back-merge kept"
+        fi
+        # Idle-align rewrites develop onto main after a squash, so local
+        # develop is not an ancestor of origin/develop. Update the worktree
+        # from the fetched ref without a fast-forward pull.
+        git checkout -B "$base_branch" "origin/${base_branch}"
         ;;
     *)
         echo "release-runner: phase must be prepare or publish" >&2

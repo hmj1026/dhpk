@@ -21,7 +21,9 @@ consumer gate；working tree 或本機 live reload 只能作為開發證據。
 1. 直接在最新、乾淨的 `develop` 準備 release；preparation script 會拒絕其他分支。
 2. 從準備完成的 `develop` 建立以 `main` 為 base 的 release PR。
 3. 不直接在 `main` 開發，也不在 tag 後修改已發布 artifact。
-4. PR 合併到 `main` 後建立 tag，再將 release 結果 back-merge 到 `develop`。
+4. PR 合併到 `main` 後建立 tag。若 `origin/main` 與 `origin/develop` 的 tree
+   相同，CI 以 `--force-with-lease` 把 `develop` 對齊到 `main`；若 tree 不同，
+   則對 unique develop work 做 conflict-loud `--no-ff` back-merge。
 
 ## Release-note fragments
 
@@ -92,11 +94,13 @@ Release gate 分三層：
 
 1. 對 release diff 執行 code、doc、security 與 release parity review。
 2. 確認 generated artifact 與 source 同一個 commit，worktree clean。
-3. Push release branch，建立以 `main` 為 base 的 release PR。
+3. Push `develop`，建立以 `main` 為 base 的 release PR。
 4. 合併 PR 後，在合併 commit 建立 signed/annotated semver tag。
 5. Push tag，等待 release workflow 與 GitHub Release 完成。
 6. 驗證 marketplace metadata、下載內容與 tag SHA 一致。
-7. 將 release commit/tag 變更 back-merge 到 `develop`。
+7. 確認 `origin/develop` 已與 released `main` 對齊（tree 相同時 SHA 應相同；
+   unique-tree 時保留 `--no-ff` merge）。Unique-tree 衝突不可用 force-push
+   `develop` 解決；recovery 見英文 [RELEASE.md](./RELEASE.md)。
 
 不得在 CI 尚未完成時把 release 宣告為成功，也不得把本機生成結果當作 published
 consumer proof。
