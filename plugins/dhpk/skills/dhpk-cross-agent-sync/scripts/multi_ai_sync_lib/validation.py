@@ -534,8 +534,10 @@ def _validate_agy_package_structure(package_root):
                 skill_files.append(relative)
             elif re.match(r"^skills/[^/]+/references/.+$", relative):
                 pass
+            elif re.match(r"^skills/[^/]+/scripts/.+$", relative):
+                pass
             else:
-                errors.append("AGY skill path must be <skill>/SKILL.md or <skill>/references/...: %s" % relative)
+                errors.append("AGY skill path must be <skill>/SKILL.md, <skill>/references/..., or <skill>/scripts/...: %s" % relative)
                 continue
 
     for relative in sorted(agent_files):
