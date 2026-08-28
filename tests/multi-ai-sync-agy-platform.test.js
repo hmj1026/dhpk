@@ -625,6 +625,54 @@ test('AGY package structure accepts skills with references/ supporting files', (
   }
 });
 
+test('AGY package structure accepts skills with scripts/ supporting files', () => {
+  const root = tempRoot('agy-skill-scripts');
+  try {
+    agyPackage(root);
+    write(path.join(root, 'plugins/dhpk-agy/skills/dhpk-sample/scripts/run.sh'), '#!/bin/sh\nexit 0\n');
+    const files = {};
+    const pkg = path.join(root, 'plugins/dhpk-agy');
+    for (const relative of ['plugin.json', 'agents/sample.md', 'agents/INDEX.md', 'agents/README.md', 'rules/sample.md', 'skills/dhpk-sample/SKILL.md', 'skills/dhpk-sample/scripts/run.sh']) {
+      files[relative] = crypto.createHash('sha256').update(fs.readFileSync(path.join(pkg, relative))).digest('hex');
+    }
+    write(path.join(pkg, 'fingerprints.json'), JSON.stringify({ schema: 'dhpk.agy-plugin.v1', files }));
+    const prov = JSON.parse(fs.readFileSync(path.join(pkg, 'provenance.json'), 'utf8'));
+    prov.fingerprints = files;
+    write(path.join(pkg, 'provenance.json'), JSON.stringify(prov));
+
+    const result = validate(root, []);
+    const row = JSON.parse(result.stdout).results.find((item) => item.platform === 'agy');
+    assert.strictEqual(row.capabilities.find((item) => item.id === 'agy.package.structure').status, 'PASS', JSON.stringify(row));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('AGY package structure rejects skill assets/ supporting files', () => {
+  const root = tempRoot('agy-skill-assets');
+  const rejected = 'skills/dhpk-sample/assets/note.md';
+  try {
+    agyPackage(root);
+    write(path.join(root, 'plugins/dhpk-agy', rejected), '# not an allowed skill nested path\n');
+    const files = {};
+    const pkg = path.join(root, 'plugins/dhpk-agy');
+    for (const relative of ['plugin.json', 'agents/sample.md', 'agents/INDEX.md', 'agents/README.md', 'rules/sample.md', 'skills/dhpk-sample/SKILL.md', rejected]) {
+      files[relative] = crypto.createHash('sha256').update(fs.readFileSync(path.join(pkg, relative))).digest('hex');
+    }
+    write(path.join(pkg, 'fingerprints.json'), JSON.stringify({ schema: 'dhpk.agy-plugin.v1', files }));
+    const prov = JSON.parse(fs.readFileSync(path.join(pkg, 'provenance.json'), 'utf8'));
+    prov.fingerprints = files;
+    write(path.join(pkg, 'provenance.json'), JSON.stringify(prov));
+
+    const result = validate(root, []);
+    const row = JSON.parse(result.stdout).results.find((item) => item.platform === 'agy');
+    assert.strictEqual(row.capabilities.find((item) => item.id === 'agy.package.structure').status, 'FAIL', JSON.stringify(row));
+    assert.ok(row.notes.some((note) => note.includes(rejected)), `missing rejected path ${rejected} in notes: ${row.notes.join('; ')}`);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('AGY sandbox binds the native package at the consumer plugin path', () => {
   const source = fs.readFileSync(path.join(ROOT, 'skills/dhpk-cross-agent-sync/scripts/multi_ai_sync_lib/validation.py'), 'utf8');
   assert.match(
