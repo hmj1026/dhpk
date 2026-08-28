@@ -111,7 +111,7 @@ or bounded-warning semantics for the affected role.
 #### Scenario: Disabled timeout is explicit
 
 - **WHEN** a Codex timeout key is `0`
-- **THEN** the affected wrapper backstop is intentionally disabled and the
+- **THEN** the affected transport-runner deadline is intentionally disabled and the
   effective diagnostic states that fact
 
 ### Requirement: CLI-backed worker model defaults are lockstep across all declaration sites
