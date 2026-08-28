@@ -2,7 +2,9 @@
 
 ## Purpose
 TBD - created by archiving change dhpk-orchestration-workers. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: userConfig keys for role models and the dispatch switch
 `.claude-plugin/plugin.json` `userConfig` SHALL define three new keys: `deep_reasoner_model` (string, default `opus`), `fast_worker_model` (string, default `sonnet`), and `orchestration_dispatch` (string `on`/`off`, default `on`). The generic pass-through loader (`scripts/hooks/_lib/load-project-config.sh`) SHALL be verified — by test, not by code edit — to export the three keys with the standard layering: project pluginConfigs > global pluginConfigs > shipped default. Its known-keys comment SHALL be updated to mention them.
 
@@ -47,35 +49,70 @@ When `orchestration_dispatch=off`, all touched flows (adaptive-dev-workflow and 
 - **THEN** adaptive-dev-workflow's Implement step is "write code directly (TDD)" and opsx-apply-goal `/goal` Part 0 matches pre-change output
 
 ### Requirement: userConfig keys for CLI-backed fast-worker models
-`.claude-plugin/plugin.json` `userConfig` SHALL define the existing CLI-worker model keys and the selector keys `fast_worker_backend` (`claude|codex|agy|auto`, default `claude`), `fast_worker_backend_order` (comma-separated backend names, default `claude,codex,agy`), and `fast_worker_fallback` (`none|claude`, default `none`). It SHALL additionally define the shared and role-specific Codex timeout keys `codex_timeout_secs` (default `360`), `codex_fast_worker_timeout_secs`, `codex_deep_reasoner_timeout_secs`, and `codex_bridge_timeout_secs`. The generic pass-through loader SHALL export them with project-over-global-shipped layering, and its known-keys comment SHALL mention them. Session-start SHALL surface non-default selector or timeout values in one concise line. Invalid selector values SHALL warn once and use shipped defaults; invalid timeout values SHALL fail closed before the affected Codex dispatch.
+
+The manifest and generic config loader SHALL expose canonical role-specific
+model, effort, and timeout keys for Codex worker/reasoner/reviewer and AGY
+worker, in addition to the stable shared `codex_timeout_secs` and
+`fast_worker_backend` keys. During one release, legacy keys
+`codex_fast_worker_*`, `codex_deep_reasoner_*`, `codex_bridge_*`, and
+`agy_fast_worker_model` MAY be read as aliases; canonical keys take precedence
+and diagnostics identify legacy use. Invalid values retain existing fail-closed
+or bounded-warning semantics for the affected role.
+
+#### Scenario: Canonical role key wins
+
+- **WHEN** `codex_worker_timeout_secs` and
+  `codex_fast_worker_timeout_secs` are both configured
+- **THEN** the canonical key supplies the effective Codex worker timeout and
+  the legacy source is reported as deprecated
+
+#### Scenario: Shared timeout remains stable
+
+- **WHEN** only `codex_timeout_secs` is configured
+- **THEN** every canonical Codex role inherits the shared value according to
+  the existing scope and role-specific precedence rules
 
 #### Scenario: Default selection is silent
+
 - **WHEN** no selector or timeout key is overridden
-- **THEN** the effective backend is `claude`, fallback is `none`, the Codex timeout is `360`, and session-start prints no selector/timeout line
+- **THEN** the effective backend is `claude`, fallback is `none`, the shared
+  Codex timeout is `360`, and no selector/timeout line is emitted
 
 #### Scenario: Project selector wins
-- **WHEN** the global config selects `claude` but the project config sets `fast_worker_backend=agy`
-- **THEN** the effective selector is `agy` and session-start reports the non-default choice
+
+- **WHEN** global config selects Claude but project config sets
+  `fast_worker_backend=agy`
+- **THEN** the effective selector is `agy` and the non-default choice is
+  surfaced
 
 #### Scenario: Invalid selector is safe
+
 - **WHEN** a selector contains an unknown backend or fallback mode
-- **THEN** the session warns once and uses the shipped default without dispatching an unknown worker
+- **THEN** the session warns once and uses the shipped default without
+  dispatching an unknown worker
 
 #### Scenario: Project timeout wins
-- **WHEN** the global config sets `codex_timeout_secs=900` and the project config sets `codex_timeout_secs=1200`
-- **THEN** the effective shared Codex timeout is `1200`
+
+- **WHEN** global config sets `codex_timeout_secs=900` and project config sets
+  `codex_timeout_secs=1200`
+- **THEN** the effective shared timeout is `1200`
 
 #### Scenario: Role timeout overrides shared timeout
-- **WHEN** `codex_timeout_secs=900` and `codex_deep_reasoner_timeout_secs=1800`
-- **THEN** deep-reasoner receives `1800` while other Codex roles retain `900`
+
+- **WHEN** `codex_timeout_secs=900` and a canonical role timeout is `1800`
+- **THEN** that role receives `1800` while other roles retain `900`
 
 #### Scenario: Invalid timeout fails closed
+
 - **WHEN** a Codex timeout key contains a malformed value
-- **THEN** configuration reports the key and accepted form and prevents that Codex dispatch
+- **THEN** configuration reports the key and accepted form and prevents that
+  Codex dispatch
 
 #### Scenario: Disabled timeout is explicit
+
 - **WHEN** a Codex timeout key is `0`
-- **THEN** the dispatcher intentionally attests no portable runner deadline and the effective diagnostic states that fact; it SHALL NOT substitute a shell timeout tool
+- **THEN** the affected wrapper backstop is intentionally disabled and the
+  effective diagnostic states that fact
 
 ### Requirement: CLI-backed worker model defaults are lockstep across all declaration sites
 A CLI-backed worker's default model string is declared in more than one file — the `userConfig` schema, the agent definition and its index entry, the wrapper script's usage text, the economics rule table, the configuration docs in every shipped language, the session-start default-detection expression, the test fixtures, **and any spec requirement that quotes the shipped default as normative text** (see the `model-economics` capability, whose tier-map requirement names the default inline). When that default changes, every declaration site SHALL be updated in the same change.

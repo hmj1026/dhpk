@@ -2,7 +2,9 @@
 
 ## Purpose
 TBD - created by archiving change orchestrator-token-economics. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Model-economics SSOT document
 
 `rules/model-economics.md` SHALL remain the single source of truth for model
@@ -61,21 +63,43 @@ These SHALL reuse the existing configured-role mechanism: the value is passed on
 - **THEN** the existing token-size audit (bloated descriptions, heavy files, MCP over-subscription) still runs and reports alongside it
 
 ### Requirement: Tier map covers CLI-backed fast-worker variants
-`rules/model-economics.md` SHALL extend the tier map with the two CLI-backed mechanical implementers — `codex-fast-worker` (backend: codex CLI, default `gpt-5.6-luna` @ `xhigh`) and `agy-fast-worker` (backend: agy CLI, default `Gemini 3.6 Flash (High)`) — each with a one-line "why" (offload mechanical batches to an external-budget backend; agy as the cheap high-throughput tier, codex xhigh as the strong mechanical tier). The entries SHALL note that these two roles are runtime-tunable via the `codex_fast_worker_*` / `agy_fast_worker_model` userConfig keys and SHALL reference the execution-policy dispatch table for routing without restating it.
 
-Because **this requirement** names a shipped default inline as normative text, it is itself a lockstep declaration site and SHALL move with that default. The general obligation covering all such sites lives in the `orchestration-model-config` capability; this clause is an instance of it, not an independent authority.
+The model-economics SSOT SHALL name external roles with the canonical
+vocabulary (`codex-worker`, `codex-reasoner`, `codex-reviewer`, and
+`agy-worker`) and SHALL keep provider, model, effort, workload rationale, and
+escalation condition as separate fields. Legacy names MAY appear only in a
+bounded migration note. Model selection and runtime success SHALL remain
+separate concerns.
+
+#### Scenario: Role rationale is unambiguous
+
+- **WHEN** an operator compares Codex worker and reviewer tiers
+- **THEN** the economics table identifies their distinct mode/authority and
+  does not infer runtime execution from the role label
+
+#### Scenario: Legacy name is not a second authority
+
+- **WHEN** a documentation or config search finds `codex-fast-worker`
+- **THEN** it is either a compatibility note or historical fixture, not a
+  competing model-economics definition
 
 #### Scenario: Tier rationale resolves to one document
-- **WHEN** a reader needs the cost rationale for choosing `agy-fast-worker` over `fast-worker`
-- **THEN** `rules/model-economics.md` carries the CLI-backed rows and the dispatch table is referenced, not duplicated
+
+- **WHEN** a reader needs the cost rationale for choosing `agy-worker` over
+  `fast-worker`
+- **THEN** `rules/model-economics.md` carries the provider-specific row and
+  routing is referenced rather than duplicated
 
 #### Scenario: Tunable roles enumerated accurately
-- **WHEN** the document lists which roles are runtime-tunable via userConfig
-- **THEN** the list includes the CLI-backed workers alongside `deep_reasoner_*`/`fast_worker_*`
+
+- **WHEN** the document lists runtime-tunable roles
+- **THEN** it includes canonical external workers alongside the existing
+  deep-reasoner and fast-worker configuration keys
 
 #### Scenario: Shipped rule file does not contradict its governing requirement
-- **WHEN** a shipped default model string changes and `rules/model-economics.md` is updated to match
-- **THEN** this requirement's own quoted default is updated in the same change, so the rule file never ships in violation of the requirement that governs its content
+
+- **WHEN** a canonical external role's default model changes
+- **THEN** the quoted requirement and the rule table are updated together
 
 ### Requirement: Codex role model and effort metadata follows the approved map
 
