@@ -291,11 +291,11 @@ test('package paths and marketplace entries are inventory-visible and exact', ()
   assert.strictEqual(cursor.skills, './skills/');
   assert.strictEqual(cursor.hooks, './hooks/hooks.json');
   assert.deepStrictEqual(fs.readdirSync(path.join(ROOT, 'plugins', 'dhpk-cursor', 'skills')).sort(), [
-    'dhpk-agy-fast-worker', 'dhpk-cli-transport', 'dhpk-codex-bridge',
+    'dhpk-agy-fast-worker', 'dhpk-cli-dispatch-context', 'dhpk-cli-transport', 'dhpk-codex-bridge',
   ]);
   const cursorProvenance = JSON.parse(fs.readFileSync(path.join(ROOT, 'plugins', 'dhpk-cursor', 'provenance.json'), 'utf8'));
   assert.strictEqual(cursorProvenance.skillProjectionMode, 'overlay');
-  assert.deepStrictEqual(cursorProvenance.selectedSkillIds, ['agy-fast-worker', 'cli-transport', 'codex-bridge']);
+  assert.deepStrictEqual(cursorProvenance.selectedSkillIds, ['agy-fast-worker', 'cli-dispatch-context', 'cli-transport', 'codex-bridge']);
   assert.strictEqual(cursorProvenance.sharedSkillSurface, 'agent-plugin');
   assert.strictEqual(cursorProvenance.sharedSkillSource, 'plugins/dhpk-agent/skills/');
   assert.ok(cursorProvenance.sharedSkillIds.length > 0);

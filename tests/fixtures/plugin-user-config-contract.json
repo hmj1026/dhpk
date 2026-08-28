@@ -1,6 +1,6 @@
 {
   "schema": "dhpk.plugin-user-config-contract.fixture.v1",
-  "source": ".claude-plugin/plugin.json",
+  "source": "manifests/claude-user-config-legacy.json",
   "count": 59,
   "entries": [
     {

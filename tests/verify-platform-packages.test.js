@@ -5,6 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
+const { reportFromSurfaces } = require('../scripts/ci/verify-platform-packages');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -18,7 +19,7 @@ test('an unprofiled generation preserves legacy package membership while adding 
       ], { encoding: 'utf8' });
       assert.strictEqual(result.status, 0, result.stdout + result.stderr);
       const report = JSON.parse(result.stdout);
-      assert.strictEqual(report.skillCount, 61, `${surface} must retain the 60 existing skills plus cli-transport`);
+      assert.strictEqual(report.skillCount, 62, `${surface} must retain the 60 existing skills plus cli-transport and cli-dispatch-context`);
       const provenance = JSON.parse(fs.readFileSync(path.join(output, 'provenance.json'), 'utf8'));
       assert.strictEqual(provenance.profileId, undefined, `${surface} must not narrow without an explicit --profile`);
     }
@@ -34,14 +35,45 @@ test('platform package verifier reports deterministic Agent Plugin and Cursor ou
   assert.strictEqual(report.verdict, 'PASS');
   assert.strictEqual(report.surfaces['agent-plugin'].structural, 'PASS');
   assert.strictEqual(report.surfaces['cursor-plugin'].structural, 'PASS');
-  assert.strictEqual(report.surfaces['agent-plugin'].selectedSkills, 61);
-  assert.strictEqual(report.surfaces['cursor-plugin'].selectedSkills, 3);
+  assert.strictEqual(report.surfaces['agent-plugin'].selectedSkills, 62);
+  assert.strictEqual(report.surfaces['cursor-plugin'].selectedSkills, 4);
   assert.strictEqual(report.surfaces['cursor-plugin'].sharedSkillSurface, 'agent-plugin');
   assert.strictEqual(report.surfaces['cursor-plugin'].sharedSkillSource, 'plugins/dhpk-agent/skills/');
   const cursorLocal = report.surfaces['cursor-plugin'].selectedSkillIds;
   const cursorShared = report.surfaces['cursor-plugin'].sharedSkillIds;
-  assert.deepStrictEqual(cursorLocal, ['agy-fast-worker', 'cli-transport', 'codex-bridge']);
-  assert.deepStrictEqual(cursorLocal.filter((id) => cursorShared.includes(id)), []);
+  const cursorProvenance = JSON.parse(fs.readFileSync(path.join(ROOT, 'plugins', 'dhpk-cursor', 'provenance.json'), 'utf8'));
+  assert.deepStrictEqual(cursorLocal, ['agy-fast-worker', 'cli-dispatch-context', 'cli-transport', 'codex-bridge']);
+  assert.ok(cursorLocal.every((id) => cursorShared.includes(id) && cursorProvenance.runtimeSupportStableIds.includes(id)));
+  assert.deepStrictEqual(report.errors, []);
+});
+
+test('platform package verifier permits declared Cursor runtime support but reports undeclared shared overlaps at the top level', () => {
+  const agent = { selectedSkillIds: ['declared-runtime-support', 'undeclared-shared'], errors: [] };
+  const declaredRuntimeSupport = {
+    selectedSkillIds: ['declared-runtime-support'],
+    sharedSkillIds: ['declared-runtime-support', 'undeclared-shared'],
+    runtimeSupportStableIds: ['declared-runtime-support'],
+    sharedSkillSurface: 'agent-plugin',
+    sharedSkillSource: 'plugins/dhpk-agent/skills/',
+    errors: [],
+  };
+  const allowed = reportFromSurfaces({ 'agent-plugin': agent, 'cursor-plugin': declaredRuntimeSupport });
+  const undeclared = reportFromSurfaces({
+    'agent-plugin': agent,
+    'cursor-plugin': {
+      selectedSkillIds: ['declared-runtime-support', 'undeclared-shared'],
+      sharedSkillIds: ['declared-runtime-support', 'undeclared-shared'],
+      runtimeSupportStableIds: ['declared-runtime-support'],
+      sharedSkillSurface: 'agent-plugin',
+      sharedSkillSource: 'plugins/dhpk-agent/skills/',
+      errors: [],
+    },
+  });
+
+  assert.deepStrictEqual(allowed.errors, []);
+  assert.strictEqual(allowed.verdict, 'PASS');
+  assert.deepStrictEqual(undeclared.errors, ['Cursor overlay repeats shared skill IDs without a declared runtime-support exception: undeclared-shared']);
+  assert.strictEqual(undeclared.verdict, 'FAIL');
 });
 
 run('verify-platform-packages');

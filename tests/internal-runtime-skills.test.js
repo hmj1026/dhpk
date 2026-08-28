@@ -13,12 +13,17 @@ function inventory() {
 
 test('resolves declared runtime support without making it an invokable selection', () => {
   const source = inventory();
-  const expected = ['agy-fast-worker', 'cli-transport', 'codex-bridge'];
+  const expected = ['agy-fast-worker', 'cli-dispatch-context', 'cli-transport', 'codex-bridge'];
+  const entry = source.skills.find((skill) => skill.id === 'cli-dispatch-context');
+  assert.ok(entry, 'dispatch context inventory entry is required');
+  assert.strictEqual(entry.invokable, false);
+  assert.strictEqual(entry.discoveryVisible, false);
+  assert.deepStrictEqual([...entry.surfaces].sort(), [...source.surfaces].sort());
   assert.deepStrictEqual(INTERNAL_RUNTIME_SURFACES, ['agent-plugin', 'cursor-plugin', 'agy-plugin', 'codex-native']);
   for (const surface of ['agent-plugin', 'cursor-plugin', 'agy-plugin']) {
     assert.deepStrictEqual(runtimeSupportSkillIds(source, surface), expected);
   }
-  assert.deepStrictEqual(runtimeSupportSkillIds(source, 'codex-native'), ['cli-transport']);
+  assert.deepStrictEqual(runtimeSupportSkillIds(source, 'codex-native'), ['cli-dispatch-context', 'cli-transport']);
 });
 
 test('rejects malformed and unsupported runtime-support declarations', () => {

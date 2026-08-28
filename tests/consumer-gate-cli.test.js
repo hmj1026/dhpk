@@ -105,8 +105,13 @@ test('reports Codex sync PASS and Claude/native-marketplace as UNAVAILABLE when 
   assert.ok(stage.failureReasons.some((r) => /claude/i.test(r)));
   assert.ok(stage.artifacts.some((a) => /claude.*official.*NOT RUN|official.*NOT RUN.*claude/i.test(a)), JSON.stringify(stage));
   assert.ok(stage.artifacts.some((a) => /native.*experimental|experimental.*native/i.test(a)));
+  assert.ok(stage.codexSurfaces.project.some((entry) => entry.id === 'dhpk-cli-dispatch-context'));
   assert.ok(stage.codexSurfaces.project.some((entry) => entry.id === 'dhpk-cli-transport'));
+  assert.ok(stage.codexSurfaces.native.some((entry) => entry.id === 'dhpk-cli-dispatch-context'));
   assert.ok(stage.codexSurfaces.native.some((entry) => entry.id === 'dhpk-cli-transport'));
+  assert.ok(!stage.codexSurfaces.effective.some((entry) => entry.name === 'dhpk-cli-dispatch-context'));
+  assert.ok(!stage.codexSurfaces.effective.some((entry) => entry.name === 'dhpk-cli-transport'));
+  assert.ok(!stage.codexSurfaces.duplicates.some((entry) => entry.id === 'dhpk-cli-dispatch-context'), JSON.stringify(stage.codexSurfaces));
   assert.ok(!stage.codexSurfaces.duplicates.some((entry) => entry.id === 'dhpk-cli-transport'), JSON.stringify(stage.codexSurfaces));
 });
 

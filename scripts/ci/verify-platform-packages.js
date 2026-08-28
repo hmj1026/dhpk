@@ -116,10 +116,34 @@ function verifyCursor({ inventory, profiles, moduleCatalog, version, tracked, te
     selectedSkills: generated.skillNames.length,
     selectedSkillIds: generated.skillIds,
     sharedSkillIds: generated.provenance.sharedSkillIds || [],
+    runtimeSupportStableIds: generated.provenance.runtimeSupportStableIds || [],
     sharedSkillSurface: generated.provenance.sharedSkillSurface || null,
     sharedSkillSource: generated.provenance.sharedSkillSource || null,
     errors: [...structural.errors, ...receipt.errors, ...(fingerprintMatches ? [] : ['tracked Cursor Plugin fingerprint drifted'])],
   };
+}
+
+function reportFromSurfaces(surfaces) {
+  const errors = Object.values(surfaces).flatMap((surface) => surface.errors);
+  const agentIds = surfaces['agent-plugin'].selectedSkillIds || [];
+  const cursor = surfaces['cursor-plugin'];
+  if (cursor.sharedSkillSurface === 'agent-plugin') {
+    const ownerIds = new Set(agentIds);
+    const sharedIds = cursor.sharedSkillIds || [];
+    const missingFromOwner = sharedIds.filter((id) => !ownerIds.has(id));
+    if (missingFromOwner.length > 0) {
+      errors.push(`Cursor shared skill IDs are not owned by Agent Plugin: ${missingFromOwner.sort().join(', ')}`);
+    }
+    if (cursor.sharedSkillSource !== 'plugins/dhpk-agent/skills/') {
+      errors.push('Cursor shared skills do not identify plugins/dhpk-agent/skills/ as their physical source');
+    }
+    const allowedRuntimeSupportIds = new Set(cursor.runtimeSupportStableIds || []);
+    const overlap = (cursor.selectedSkillIds || []).filter((id) => sharedIds.includes(id) && !allowedRuntimeSupportIds.has(id));
+    if (overlap.length > 0) {
+      errors.push(`Cursor overlay repeats shared skill IDs without a declared runtime-support exception: ${overlap.sort().join(', ')}`);
+    }
+  }
+  return { verdict: errors.length === 0 ? 'PASS' : 'FAIL', surfaces, errors };
 }
 
 function main() {
@@ -135,25 +159,7 @@ function main() {
       'agent-plugin': verifyAgent({ inventory, profiles, moduleCatalog, version, tracked: path.join(ROOT, 'plugins/dhpk-agent'), temp: tempAgent }),
       'cursor-plugin': verifyCursor({ inventory, profiles, moduleCatalog, version, tracked: path.join(ROOT, 'plugins/dhpk-cursor'), temp: tempCursor }),
     };
-    const errors = Object.values(surfaces).flatMap((surface) => surface.errors);
-    const agentIds = surfaces['agent-plugin'].selectedSkillIds || [];
-    const cursor = surfaces['cursor-plugin'];
-    if (cursor.sharedSkillSurface === 'agent-plugin') {
-      const ownerIds = new Set(agentIds);
-      const sharedIds = cursor.sharedSkillIds || [];
-      const missingFromOwner = sharedIds.filter((id) => !ownerIds.has(id));
-      if (missingFromOwner.length > 0) {
-        errors.push(`Cursor shared skill IDs are not owned by Agent Plugin: ${missingFromOwner.sort().join(', ')}`);
-      }
-      if (cursor.sharedSkillSource !== 'plugins/dhpk-agent/skills/') {
-        errors.push('Cursor shared skills do not identify plugins/dhpk-agent/skills/ as their physical source');
-      }
-      const overlap = (cursor.selectedSkillIds || []).filter((id) => sharedIds.includes(id));
-      if (overlap.length > 0) {
-        errors.push(`Cursor overlay repeats shared skill IDs without a distinct environment variant: ${overlap.sort().join(', ')}`);
-      }
-    }
-    report = { verdict: errors.length === 0 ? 'PASS' : 'FAIL', surfaces };
+    report = reportFromSurfaces(surfaces);
   } catch (error) {
     report = { verdict: 'FAIL', surfaces: {}, errors: [error.message] };
   } finally {
@@ -164,4 +170,6 @@ function main() {
   process.exit(report.verdict === 'PASS' ? 0 : 1);
 }
 
-main();
+if (require.main === module) main();
+
+module.exports = { reportFromSurfaces };

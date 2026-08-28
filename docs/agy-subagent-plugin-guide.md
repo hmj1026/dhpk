@@ -11,14 +11,14 @@
 在舊版 AGY adapter 尚未轉譯 Frontmatter 時，`agy agents` 曾只識別
 `dhpk-agents-index`，其餘 31 個角色 Agent 無法載入；這是歷史 baseline，
 不是目前產物的狀態。使用目前的 `plugins/dhpk-agy` 產物與 AGY 1.1.19
-驗證時，`agy agents` 可列出 31 個適配後的角色 Agent；但隔離的 harness
+驗證時，`agy agents` 可列出 35 個適配後的角色 Agent；但隔離的 harness
 runtime probe 仍可能因認證、連線或 CLI loader 能力不足而回報
 `UNAVAILABLE`/`SKIP_INCOMPATIBLE`，不能把 discovery 數量當成 runtime PASS。
 
 ```bash
 $ agy agents
 Available agents:
-agent-evaluator, agy-fast-worker, architect, ... (31 agents)
+agent-evaluator, agy-fast-worker, architect, ... (35 agents)
 ```
 
 ### 1.2 為什麼 `dhpk-agents-index` 能被載入？
@@ -167,7 +167,7 @@ agy plugins list
 ```
 
 `agy plugins list` 只能確認 import record；native discovery 必須由隔離 HOME 的
-`agy agents` 證據判定。預期輸出應包含目前產物註冊的 31 個 dhpk agents（例如
+`agy agents` 證據判定。預期輸出應包含目前產物註冊的 35 個 dhpk agents（例如
 `code-reviewer`, `fast-worker`, `architect`, `planner` 等）。若隔離 runtime 仍無法載入，
 應保留 `SKIP_INCOMPATIBLE` 或 `UNAVAILABLE` 證據，不得以靜態結構 PASS 取代。
 

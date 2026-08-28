@@ -29,11 +29,15 @@
   "agents": [
     "./agents/agent-evaluator.md",
     "./agents/agy-fast-worker.md",
+    "./agents/agy-worker.md",
     "./agents/architect.md",
     "./agents/code-reviewer.md",
     "./agents/codex-bridge.md",
     "./agents/codex-deep-reasoner.md",
     "./agents/codex-fast-worker.md",
+    "./agents/codex-reasoner.md",
+    "./agents/codex-reviewer.md",
+    "./agents/codex-worker.md",
     "./agents/database-reviewer.md",
     "./agents/deep-reasoner.md",
     "./agents/doc-reviewer.md",
@@ -152,10 +156,22 @@
       "description": "Model passed to the codex CLI backend when the codex-fast-worker agent is dispatched (see rules/execution-policy.md §Implementation dispatch + rules/model-economics.md). Resolved via the standard layering (project pluginConfigs > global > this default) and passed into run-codex.sh. Model names on the codex CLI rotate quickly — override here instead of editing source when a default is deprecated (check `codex models`). Default 'gpt-5.6-luna'.",
       "default": "gpt-5.6-luna"
     },
+    "codex_worker_model": {
+      "type": "string",
+      "title": "codex-worker model",
+      "description": "Canonical model key for codex-worker; it takes precedence over the one-release codex_fast_worker_model alias.",
+      "default": "gpt-5.6-luna"
+    },
     "codex_fast_worker_effort": {
       "type": "string",
       "title": "codex-fast-worker effort",
       "description": "model_reasoning_effort passed to the codex CLI backend for codex-fast-worker dispatches (see rules/model-economics.md). Valid values: whatever the codex CLI accepts (e.g. low | medium | high | xhigh). Default 'xhigh' (the strong mechanical tier).",
+      "default": "xhigh"
+    },
+    "codex_worker_effort": {
+      "type": "string",
+      "title": "codex-worker effort",
+      "description": "Canonical effort key for codex-worker; it takes precedence over the one-release codex_fast_worker_effort alias.",
       "default": "xhigh"
     },
     "codex_deep_reasoner_model": {
@@ -164,10 +180,22 @@
       "description": "Model passed to the codex CLI backend when the codex-deep-reasoner agent is dispatched via `--reasoner=codex` (see rules/execution-policy.md §Implementation dispatch + rules/model-economics.md). Resolved via the standard layering (project pluginConfigs > global > this default) and passed into run-codex.sh (read-only sandbox). Model names on the codex CLI rotate quickly — override here instead of editing source when a default is deprecated (check `codex models`). Default 'gpt-5.6-sol'.",
       "default": "gpt-5.6-sol"
     },
+    "codex_reasoner_model": {
+      "type": "string",
+      "title": "codex-reasoner model",
+      "description": "Canonical model key for codex-reasoner; it takes precedence over the one-release codex_deep_reasoner_model alias.",
+      "default": "gpt-5.6-sol"
+    },
     "codex_deep_reasoner_effort": {
       "type": "string",
       "title": "codex-deep-reasoner effort",
       "description": "model_reasoning_effort passed to the codex CLI backend for codex-deep-reasoner dispatches via `--reasoner=codex` (see rules/model-economics.md). Valid values: whatever the codex CLI accepts (e.g. low | medium | high | xhigh). Default 'high'.",
+      "default": "high"
+    },
+    "codex_reasoner_effort": {
+      "type": "string",
+      "title": "codex-reasoner effort",
+      "description": "Canonical effort key for codex-reasoner; it takes precedence over the one-release codex_deep_reasoner_effort alias.",
       "default": "high"
     },
     "codex_timeout_secs": {
@@ -182,16 +210,46 @@
       "description": "Role-specific wrapper backstop for codex-fast-worker. Must be an integer number of seconds >= 0; 0 intentionally disables it. Project configuration wins over global configuration, and this role-specific value wins over the shared value in the same scope; invalid values fail closed. Default inherits the shared 360-second budget.",
       "default": "360"
     },
+    "codex_worker_timeout_secs": {
+      "type": "string",
+      "title": "codex-worker timeout (seconds)",
+      "description": "Canonical timeout key for codex-worker; it takes precedence over the one-release codex_fast_worker_timeout_secs alias.",
+      "default": "360"
+    },
     "codex_deep_reasoner_timeout_secs": {
       "type": "string",
       "title": "codex-deep-reasoner timeout (seconds)",
       "description": "Role-specific wrapper backstop for codex-deep-reasoner. Must be an integer number of seconds >= 0; 0 intentionally disables it. Project configuration wins over global configuration, and this role-specific value wins over the shared value in the same scope; invalid values fail closed. Default inherits the shared 360-second budget.",
       "default": "360"
     },
+    "codex_reasoner_timeout_secs": {
+      "type": "string",
+      "title": "codex-reasoner timeout (seconds)",
+      "description": "Canonical timeout key for codex-reasoner; it takes precedence over the one-release codex_deep_reasoner_timeout_secs alias.",
+      "default": "360"
+    },
     "codex_bridge_timeout_secs": {
       "type": "string",
       "title": "codex-bridge timeout (seconds)",
       "description": "Role-specific wrapper backstop for codex-bridge. Must be an integer number of seconds >= 0; 0 intentionally disables it. Project configuration wins over global configuration, and this role-specific value wins over the shared value in the same scope; invalid values fail closed. The legacy three-argument wrapper invocation remains supported. Default inherits the shared 360-second budget.",
+      "default": "360"
+    },
+    "codex_reviewer_model": {
+      "type": "string",
+      "title": "codex-reviewer model",
+      "description": "Canonical model key for the internal shared-runner codex-reviewer role.",
+      "default": "gpt-5.6-sol"
+    },
+    "codex_reviewer_effort": {
+      "type": "string",
+      "title": "codex-reviewer effort",
+      "description": "Canonical effort key for the internal shared-runner codex-reviewer role.",
+      "default": "high"
+    },
+    "codex_reviewer_timeout_secs": {
+      "type": "string",
+      "title": "codex-reviewer timeout (seconds)",
+      "description": "Canonical timeout key for codex-reviewer; it takes precedence over the one-release codex_bridge_timeout_secs alias.",
       "default": "360"
     },
     "architect_model": {
@@ -210,6 +268,12 @@
       "type": "string",
       "title": "agy-fast-worker model",
       "description": "Model display string passed to the agy CLI backend when the agy-fast-worker agent is dispatched (see rules/execution-policy.md §Implementation dispatch + rules/model-economics.md). agy bakes the thinking level into the model name, so there is no separate effort key. Override here when a default is deprecated (check `agy models`). Default 'Gemini 3.6 Flash (High)' (live-probe-verified against agy 1.1.8).",
+      "default": "Gemini 3.6 Flash (High)"
+    },
+    "agy_worker_model": {
+      "type": "string",
+      "title": "agy-worker model",
+      "description": "Canonical model key for agy-worker; it takes precedence over the one-release agy_fast_worker_model alias.",
       "default": "Gemini 3.6 Flash (High)"
     },
     "planner_effort": {

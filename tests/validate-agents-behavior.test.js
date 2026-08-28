@@ -90,7 +90,7 @@ test('fable is an accepted model tier (agents/architect.md ships on it)', () => 
 test('the validator covers root and module agents', () => {
   const result = spawnSync(process.execPath, [VALIDATOR], { encoding: 'utf8' });
   assert.strictEqual(result.status, 0, `${result.stdout || ''}${result.stderr || ''}`);
-  assert.match(`${result.stdout || ''}${result.stderr || ''}`, /32 agent files/);
+  assert.match(`${result.stdout || ''}${result.stderr || ''}`, /36 agent files/);
 });
 
 test('official effort values pass in a validator fixture', () => {

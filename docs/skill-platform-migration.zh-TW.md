@@ -12,12 +12,12 @@ Pocock 或其他全域 skill 的使用者。
 
 | 關注點 | 目前實作 |
 |---|---|
-| Canonical source | `skills/dhpk-<name>/` 下 98 個扁平 package |
+| Canonical source | `skills/dhpk-<name>/` 下 99 個扁平 package |
 | Public identity | 每個可呼叫的 dhpk skill 名稱都以 `dhpk-` 開頭 |
 | Inventory SSOT | `manifests/distribution-inventory.json` schema v2 |
 | Module projection | `modules/*/skills/` 下 37 個相對 symlink |
-| Codex 專案 projection | `codex/skills/` 下 16 個相對 symlink（15 個可呼叫加內部 transport runtime） |
-| Codex native package | `plugins/dhpk/skills/` 下 16 個實體 package，零 symlink |
+| Codex 專案 projection | `codex/skills/` 下 17 個相對 symlink（15 個可呼叫加內部 transport 與 dispatch-context runtime） |
+| Codex native package | `plugins/dhpk/skills/` 下 17 個實體 package，零 symlink |
 | Codex 專案 receipt | `.codex/.dhpk-installed.json` schema v3 |
 | 預設 hooks | `PreToolUse`、`PostToolUse`、`SessionStart`、`SubagentStop` |
 
@@ -157,8 +157,8 @@ node tests/documentation-platform-parity.test.js
 node tests/run-all.js
 ```
 
-預期拓撲為 98 個 canonical package、31 個 module、16 個 Codex project/native 項目
-（15 個可呼叫 skill 加上內部 transport runtime）；另有五筆不進入 discovery 的
+預期拓撲為 99 個 canonical package、31 個 module、17 個 Codex project/native 項目
+（15 個可呼叫 skill 加上內部 transport 與 dispatch-context runtime）；另有五筆不進入 discovery 的
 `retired_skills` ledger row；相對 symlink 只能出現在 module/Codex projection，native
 package 必須零 symlink。
 

@@ -2,17 +2,36 @@
 
 ## Purpose
 TBD - created by archiving change refine-opsx-orchestration-governance. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Fast-worker backend selection is explicit and deterministic
-The orchestration layer SHALL resolve a mechanical fast-worker through `fast_worker_backend` (`claude`, `codex`, `agy`, or `auto`) and, for `auto`, a configured `fast_worker_backend_order`. The shipped default SHALL remain `claude`, which maps to `dhpk:fast-worker`.
+
+The orchestration layer SHALL resolve a mechanical fast-worker through
+`fast_worker_backend` (`claude`, `codex`, `agy`, or `auto`) and, for `auto`, a
+configured `fast_worker_backend_order`. The shipped default SHALL remain
+`claude`, which maps to the Claude `fast-worker` role. When an external backend
+is selected, its canonical role SHALL be `codex-worker` or `agy-worker`; the
+backend/provider and role SHALL be recorded separately. Existing selector
+precedence and missing-executable fallback semantics remain unchanged.
 
 #### Scenario: Default selection
+
 - **WHEN** no backend preference is configured
-- **THEN** a mechanical batch is dispatched to `dhpk:fast-worker`
+- **THEN** a mechanical batch is dispatched to the Claude `fast-worker` role
 
 #### Scenario: Explicit backend selection
+
 - **WHEN** `fast_worker_backend=codex` and the Codex CLI is available
-- **THEN** the batch is dispatched to `dhpk:codex-fast-worker` with the same task specification
+- **THEN** the batch is dispatched with backend `codex` and canonical role
+  `codex-worker`, not the legacy `codex-fast-worker` label, with the same task
+  specification
+
+#### Scenario: Auto selection records canonical result
+
+- **WHEN** `auto` selects AGY after availability checks
+- **THEN** the report records backend `agy`, role `agy-worker`, and rejected
+  candidates separately
 
 ### Requirement: Auto selection checks availability before dispatch
 For `auto`, the selector SHALL evaluate backends in the configured order and choose the first backend whose required CLI and runtime prerequisites are available. It SHALL record the selected backend and the rejected candidates with concise reasons.
@@ -34,21 +53,37 @@ An explicitly selected backend that fails authentication, authorization, model v
 
 ### Requirement: Worker reports expose backend identity
 
-Every selected fast-worker SHALL report the requested backend, selected backend, model or effort override when applicable, availability result, verification result, and a complete edited-file report. In parallel mode, the report SHALL distinguish files changed within the assigned list from out-of-scope observations; it SHALL NOT claim sibling edits as worker-owned edits.
+Every selected fast-worker SHALL report requested backend, selected backend,
+requested role, effective canonical role, model/effort, availability,
+verification, and a complete assigned-scope edited-file report. A role label
+or alias SHALL not substitute for process or verification evidence.
 
-The parallel report SHALL contain separate fields for assigned-scope edited files, out-of-scope observations, out-of-scope writes, verification scope/result, and any report-only or blocked reason.
+#### Scenario: Legacy request is auditable
+
+- **WHEN** a caller still requests `codex-fast-worker`
+- **THEN** the report preserves the requested alias, records effective role
+  `codex-worker`, and includes independent verification evidence
 
 #### Scenario: Backend identity is auditable
+
 - **WHEN** a CLI-backed worker completes a mechanical batch
-- **THEN** its report contains the backend identity and an independently verified assigned-scope edited-file list
+- **THEN** its report contains the backend identity and an independently
+  verified assigned-scope edited-file list
 
 #### Scenario: Parallel report separates sibling edits
-- **WHEN** a CLI-backed worker runs while sibling workers modify the same checkout
-- **THEN** its report lists assigned-scope edits separately from out-of-scope observations and does not include sibling files in the worker-owned list
+
+- **WHEN** a CLI-backed worker runs while sibling workers modify the same
+  checkout
+- **THEN** its report lists assigned-scope edits separately from out-of-scope
+  observations and does not include sibling files in the worker-owned list
 
 #### Scenario: Verification failure remains visible
-- **WHEN** a worker cannot run the dispatcher-provided scoped verification command
-- **THEN** the report returns `RESULT: BLOCKED` or the declared report-only outcome with the exact missing command and does not silently run a global shared-state validator
+
+- **WHEN** a worker cannot run the dispatcher-provided scoped verification
+  command
+- **THEN** the report returns `RESULT: BLOCKED` or the declared report-only
+  outcome with the exact missing command and does not silently run a global
+  shared-state validator
 
 ### Requirement: Goal generation embeds the fast-worker clause only when an eligible batch exists
 `opsx-apply-goal` SHALL classify every unchecked top-level checkbox before a heading whose normalized text is `Verification` as an implementation task. Each SHALL use one exact, immediately-following metadata line: `  - **Mechanical:** yes|no; **Files:** path/a, path/b|none`. Only `Mechanical: yes` tasks are fast-worker candidates. The scanner SHALL normalize and count distinct repository-relative file paths, with `none` counting as zero. `goal-context.js` SHALL own `MAX_INLINE_FILES = 2` as the generator-side SSOT and derive eligibility as `count > MAX_INLINE_FILES`, without a separate `3` literal. The generator SHALL omit the FAST_WORKER_CLAUSE and skip backend selection only when every implementation task has conclusive metadata and every mechanical task is within the inline limit. Missing or malformed metadata, invalid mechanical values, globs, directories, and placeholders are inconclusive: the generator SHALL fail open, embed the clause, and log the offending task id.

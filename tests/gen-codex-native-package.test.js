@@ -434,9 +434,9 @@ test('CLI generates the real repo codex-native set with zero symlinks and proven
     const provenance = JSON.parse(fs.readFileSync(path.join(out, 'provenance.json'), 'utf8'));
     assert.strictEqual(provenance.selectedSkillIds.length, 15);
     assert.strictEqual(provenance.selectedSkillNames.length, 15);
-    assert.deepStrictEqual(provenance.runtimeSupportStableIds, ['cli-transport']);
-    assert.strictEqual(provenance.materializedSkillIds.length, 16);
-    assert.strictEqual(provenance.materializedSkillNames.length, 16);
+    assert.deepStrictEqual(provenance.runtimeSupportStableIds, ['cli-dispatch-context', 'cli-transport']);
+    assert.strictEqual(provenance.materializedSkillIds.length, 17);
+    assert.strictEqual(provenance.materializedSkillNames.length, 17);
     assert.deepStrictEqual(
       fs.readdirSync(path.join(out, 'skills')).sort(),
       provenance.materializedSkillNames,

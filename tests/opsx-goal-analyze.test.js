@@ -39,7 +39,7 @@ test('flag overrides config and output carries availability, fallback, and order
   try {
     const result = withEnv({ PATH: `${cli.bin}:/usr/bin:/bin`, CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND: 'claude', CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND_ORDER: 'codex,agy,claude', CLAUDE_PLUGIN_OPTION_FAST_WORKER_FALLBACK: 'claude' }, () => context.buildContext({ tasks: '- [ ] backend\n', proposal: '', fastWorker: 'agy' }));
     assert.strictEqual(result.fields.FAST_WORKER_SELECTED, 'agy');
-    assert.strictEqual(result.fields.FAST_WORKER_AGENT, 'dhpk:agy-fast-worker');
+    assert.strictEqual(result.fields.FAST_WORKER_AGENT, 'dhpk:agy-worker');
     assert.strictEqual(result.fields.FAST_WORKER_ORDER, 'codex,agy,claude');
     assert.strictEqual(result.fields.FAST_WORKER_FALLBACK, 'claude');
     assert.ok(result.fields.FAST_WORKER_CLAUSE.includes('agy executable available'));

@@ -46,7 +46,7 @@ function withRequest(fn) {
     const runtimePath = [...new Set([binDir, path.dirname(python), path.dirname(bash)])].join(path.delimiter);
     const request = {
       schema: 'dhpk.cli.request.v1', provider: 'codex', transport: 'codex-exec',
-      requested_role: 'codex-bridge', effective_role: 'codex-bridge', role_contract: roleContract('codex-bridge', 'workspace-write'),
+      requested_role: 'codex-worker', effective_role: 'codex-worker', role_contract: roleContract('codex-worker', 'workspace-write'),
       mode: 'workspace-write', workdir: root, prompt_file: promptFile, prompt_evidence: promptEvidence(promptFile),
       artifact_root: artifactRoot, receipt_path: path.join(artifactRoot, 'receipt.json'), assigned_files: ['allowed.txt'],
       report_only: true, timeout_secs: 3, task_id: 'task-test', attempt_id: 'attempt-test', requested_model: null, requested_effort: null,
@@ -101,8 +101,49 @@ function invokeWithRunnerPatch(root, request, patch) {
 
 test('read-only role cannot be widened and blocks before provider launch', () => {
   withRequest(({ root, request }) => {
-    request.requested_role = request.effective_role = 'codex-deep-reasoner';
-    request.role_contract = roleContract('codex-deep-reasoner', 'read-only');
+    request.requested_role = request.effective_role = 'codex-reasoner';
+    request.role_contract = roleContract('codex-reasoner', 'read-only');
+    const result = invoke(root, request);
+    assert.strictEqual(result.status, 65, result.stderr);
+    assert.ok(!fs.existsSync(path.join(root, 'allowed.txt')));
+  });
+});
+
+test('a Codex request labelled agy-worker blocks before provider launch', () => {
+  withRequest(({ root, request }) => {
+    request.requested_role = request.effective_role = 'agy-worker';
+    request.role_contract = roleContract('agy-worker', 'workspace-write');
+    const result = invoke(root, request);
+    assert.strictEqual(result.status, 65, result.stderr);
+    assert.ok(!fs.existsSync(path.join(root, 'allowed.txt')));
+  });
+});
+
+test('legacy aliases retain the requested role while carrying a canonical effective role and digest', () => {
+  withRequest(({ root, request }) => {
+    for (const [requestedRole, effectiveRole, mode] of [
+      ['codex-fast-worker', 'codex-worker', 'workspace-write'],
+      ['codex-deep-reasoner', 'codex-reasoner', 'read-only'],
+      ['codex-bridge', 'codex-reviewer', 'read-only'],
+      ['codex-bridge', 'codex-worker', 'workspace-write'],
+    ]) {
+      request.requested_role = requestedRole;
+      request.effective_role = effectiveRole;
+      request.role_contract = roleContract(effectiveRole, mode, requestedRole);
+      request.mode = mode;
+      request.command = request.command.map((value) => value === 'workspace-write' || value === 'read-only' ? mode : value);
+      const result = invoke(root, request);
+      assert.strictEqual(result.status, 0, `${requestedRole}: ${result.stderr}`);
+      fs.rmSync(request.receipt_path, { force: true });
+    }
+  });
+});
+
+test('legacy aliases with a non-canonical or contradictory effective role remain BLOCKED', () => {
+  withRequest(({ root, request }) => {
+    request.requested_role = 'codex-fast-worker';
+    request.effective_role = 'codex-fast-worker';
+    request.role_contract = roleContract('codex-fast-worker', 'workspace-write');
     const result = invoke(root, request);
     assert.strictEqual(result.status, 65, result.stderr);
     assert.ok(!fs.existsSync(path.join(root, 'allowed.txt')));
@@ -111,9 +152,9 @@ test('read-only role cannot be widened and blocks before provider launch', () =>
 
 test('effective role labels cannot widen an already-attested request', () => {
   withRequest(({ root, request }) => {
-    request.requested_role = 'codex-deep-reasoner';
-    request.effective_role = 'codex-bridge';
-    request.role_contract = roleContract('codex-bridge', 'read-only', 'codex-deep-reasoner');
+    request.requested_role = 'codex-reasoner';
+    request.effective_role = 'codex-worker';
+    request.role_contract = roleContract('codex-worker', 'read-only', 'codex-reasoner');
     request.mode = 'read-only';
     request.command = request.command.map((value) => value === 'workspace-write' ? 'read-only' : value);
     const result = invoke(root, request);
@@ -130,6 +171,23 @@ test('a pre-existing immutable receipt blocks before provider launch', () => {
     assert.strictEqual(result.status, 65, result.stderr);
     assert.strictEqual(fs.readFileSync(request.receipt_path, 'utf8'), existing);
     assert.ok(!fs.existsSync(path.join(root, 'allowed.txt')));
+  });
+});
+
+test('a provider-created receipt collision is replaced by the terminal BLOCKED receipt', () => {
+  withRequest(({ root, request, writeProvider }) => {
+    writeProvider(SUCCESS.replace(
+      "printf 'approved' > allowed.txt",
+      "printf '{\"forged\":true}\\n' > .dhpk/cli-receipts/receipt.json; printf 'approved' > allowed.txt",
+    ));
+    const result = invoke(root, request);
+    assert.strictEqual(result.status, 65, result.stderr);
+    const receipt = JSON.parse(fs.readFileSync(request.receipt_path, 'utf8'));
+    assert.strictEqual(receipt.schema, 'dhpk.cli.receipt.v1');
+    assert.strictEqual(receipt.status, 'BLOCKED');
+    assert.strictEqual(receipt.exit_code, 65);
+    assert.ok(!Object.hasOwn(receipt, 'forged'));
+    assert.strictEqual(fs.statSync(request.receipt_path).mode & 0o777, 0o600);
   });
 });
 

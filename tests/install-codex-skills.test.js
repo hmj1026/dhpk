@@ -85,9 +85,12 @@ test('Codex sync installs its transport runtime without granting it profile capa
     const result = runInstaller(scratch, ['--copy', '--force']);
     assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
     const receipt = JSON.parse(fs.readFileSync(path.join(scratch, '.codex', '.dhpk-installed.json'), 'utf8'));
+    assert.ok(!receipt.selectedStableIds.includes('cli-dispatch-context'));
     assert.ok(!receipt.selectedStableIds.includes('cli-transport'));
+    assert.ok(!receipt.emittedStableIds.includes('cli-dispatch-context'));
     assert.ok(!receipt.emittedStableIds.includes('cli-transport'));
-    assert.deepStrictEqual(receipt.runtimeSupportStableIds, ['cli-transport']);
+    assert.deepStrictEqual(receipt.runtimeSupportStableIds, ['cli-dispatch-context', 'cli-transport']);
+    assert.ok(receipt.managed_entries.skills['dhpk-cli-dispatch-context']);
     assert.ok(receipt.managed_entries.skills['dhpk-cli-transport']);
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });

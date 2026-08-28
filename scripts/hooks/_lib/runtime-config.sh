@@ -177,29 +177,64 @@ _dhpk_codex_timeout_outer_status() {
     fi
 }
 
-# dhpk_codex_timeout_export <codex-fast-worker|codex-deep-reasoner|codex-bridge>
+# _dhpk_codex_timeout_role <requested-role> [mode]
+# Translate the one-release aliases at the timeout boundary. The bridge alias
+# has no fixed authority, so it requires an explicit mode rather than guessing.
+_dhpk_codex_timeout_role() {
+    local _requested="${1:-}" _mode="${2:-}" _effective="" _authority=""
+    case "$_requested" in
+        codex-fast-worker) _effective='codex-worker'; _authority='workspace-write' ;;
+        codex-deep-reasoner) _effective='codex-reasoner'; _authority='read-only' ;;
+        codex-worker) _effective='codex-worker'; _authority='workspace-write' ;;
+        codex-reasoner) _effective='codex-reasoner'; _authority='read-only' ;;
+        codex-reviewer) _effective='codex-reviewer'; _authority='read-only' ;;
+        codex-bridge)
+            case "$_mode" in
+                read-only) _effective='codex-reviewer'; _authority='read-only' ;;
+                workspace-write) _effective='codex-worker'; _authority='workspace-write' ;;
+                *)
+                    printf 'runtime-config: codex-bridge requires an explicit mode (read-only or workspace-write)\n' >&2
+                    return 78
+                    ;;
+            esac
+            ;;
+        *)
+            printf 'runtime-config: unknown Codex role %s; refusing to guess a timeout budget\n' "${_requested:-<empty>}" >&2
+            return 78
+            ;;
+    esac
+    if [ -n "$_mode" ] && [ "$_mode" != "$_authority" ]; then
+        printf 'runtime-config: Codex role %s contradicts mode %s\n' "$_requested" "$_mode" >&2
+        return 78
+    fi
+    printf '%s' "$_effective"
+}
+
+# dhpk_codex_timeout_export <role> [read-only|workspace-write]
 # Resolve and export the effective timeout for a Codex role. Scope precedence
 # is intentionally project-first (role > shared), then global (role > shared),
 # then the shipped 360-second default. CODEX_WRAP_TIMEOUT_SECS is a validated
 # highest-precedence compatibility/test override; a present-but-empty value is
 # malformed and therefore fails closed.
 dhpk_codex_timeout_export() {
-    local _role="${1:-${DHPK_CODEX_ROLE:-}}" _role_key="" _upper=""
-    local _project_role="" _project_shared="" _global_role="" _global_shared=""
+    local _requested_role="${1:-${DHPK_CODEX_ROLE:-}}" _mode="${2:-}" _role="" _role_key="" _legacy_role_key="" _upper="" _legacy_upper=""
+    local _project_role="" _project_legacy_role="" _project_shared="" _global_role="" _global_legacy_role="" _global_shared=""
     local _value="" _source="default" _normalized="" _outer_status=""
+    if ! _role="$(_dhpk_codex_timeout_role "$_requested_role" "$_mode")"; then
+        return 78
+    fi
     case "$_role" in
-        codex-fast-worker)   _role_key='codex_fast_worker_timeout_secs' ;;
-        codex-deep-reasoner) _role_key='codex_deep_reasoner_timeout_secs' ;;
-        codex-bridge)        _role_key='codex_bridge_timeout_secs' ;;
-        *)
-            printf 'runtime-config: unknown Codex role %s; refusing to guess a timeout budget\n' "${_role:-<empty>}" >&2
-            return 78
-            ;;
+        codex-worker)        _role_key='codex_worker_timeout_secs'; _legacy_role_key='codex_fast_worker_timeout_secs' ;;
+        codex-reasoner)      _role_key='codex_reasoner_timeout_secs'; _legacy_role_key='codex_deep_reasoner_timeout_secs' ;;
+        codex-reviewer)      _role_key='codex_reviewer_timeout_secs'; _legacy_role_key='codex_bridge_timeout_secs' ;;
     esac
     _upper="$(printf '%s' "$_role_key" | tr '[:lower:]' '[:upper:]')"
+    _legacy_upper="$(printf '%s' "$_legacy_role_key" | tr '[:lower:]' '[:upper:]')"
     _project_role="DHPK_PROJECT_OPTION_${_upper}"
+    _project_legacy_role="DHPK_PROJECT_OPTION_${_legacy_upper}"
     _project_shared='DHPK_PROJECT_OPTION_CODEX_TIMEOUT_SECS'
     _global_role="CLAUDE_PLUGIN_OPTION_${_upper}"
+    _global_legacy_role="CLAUDE_PLUGIN_OPTION_${_legacy_upper}"
     _global_shared='CLAUDE_PLUGIN_OPTION_CODEX_TIMEOUT_SECS'
 
     if _dhpk_var_present CODEX_WRAP_TIMEOUT_SECS; then
@@ -208,12 +243,18 @@ dhpk_codex_timeout_export() {
     elif _dhpk_var_present "$_project_role"; then
         _value="$(_dhpk_var_value "$_project_role")"
         _source="project:${_role_key}"
+    elif _dhpk_var_present "$_project_legacy_role"; then
+        _value="$(_dhpk_var_value "$_project_legacy_role")"
+        _source="project:${_legacy_role_key}"
     elif _dhpk_var_present "$_project_shared"; then
         _value="$(_dhpk_var_value "$_project_shared")"
         _source='project:codex_timeout_secs'
     elif _dhpk_var_present "$_global_role"; then
         _value="$(_dhpk_var_value "$_global_role")"
         _source="global:${_role_key}"
+    elif _dhpk_var_present "$_global_legacy_role"; then
+        _value="$(_dhpk_var_value "$_global_legacy_role")"
+        _source="global:${_legacy_role_key}"
     elif _dhpk_var_present "$_global_shared"; then
         _value="$(_dhpk_var_value "$_global_shared")"
         _source='global:codex_timeout_secs'
@@ -227,6 +268,8 @@ dhpk_codex_timeout_export() {
         return 78
     fi
     _outer_status="$(_dhpk_codex_timeout_outer_status "$_normalized")"
+    export DHPK_CODEX_REQUESTED_ROLE="$_requested_role"
+    export DHPK_CODEX_EFFECTIVE_ROLE="$_role"
     export DHPK_CODEX_ROLE="$_role"
     export DHPK_CODEX_TIMEOUT_SECS="$_normalized"
     export DHPK_CODEX_TIMEOUT_SOURCE="$_source"
@@ -246,9 +289,9 @@ dhpk_codex_timeout_export() {
 dhpk_codex_timeout_export_resolved() {
     local _role="${1:-}" _value="${2:-}" _source="${3:-caller}" _role_key="" _normalized="" _outer_status=""
     case "$_role" in
-        codex-fast-worker)   _role_key='codex_fast_worker_timeout_secs' ;;
-        codex-deep-reasoner) _role_key='codex_deep_reasoner_timeout_secs' ;;
-        codex-bridge)        _role_key='codex_bridge_timeout_secs' ;;
+        codex-worker)        _role_key='codex_worker_timeout_secs' ;;
+        codex-reasoner)      _role_key='codex_reasoner_timeout_secs' ;;
+        codex-reviewer)      _role_key='codex_reviewer_timeout_secs' ;;
         *)
             printf 'runtime-config: unknown Codex role %s; refusing a propagated timeout budget\n' "${_role:-<empty>}" >&2
             return 78
@@ -260,6 +303,8 @@ dhpk_codex_timeout_export_resolved() {
         return 78
     fi
     _outer_status="$(_dhpk_codex_timeout_outer_status "$_normalized")"
+    unset DHPK_CODEX_REQUESTED_ROLE
+    export DHPK_CODEX_EFFECTIVE_ROLE="$_role"
     export DHPK_CODEX_ROLE="$_role"
     export DHPK_CODEX_TIMEOUT_SECS="$_normalized"
     export DHPK_CODEX_TIMEOUT_SOURCE="$_source"
