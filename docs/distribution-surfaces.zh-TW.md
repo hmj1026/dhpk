@@ -147,7 +147,8 @@ identity、保留 modified 或 unowned destination。structural、package、budg
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"
 ```
 
-目前 `codex/skills/` 有 15 個指向 canonical `skills/` 的相對 symlink。專案同步可
+目前 `codex/skills/` 有 17 個指向 canonical `skills/` 的相對 symlink（15 個可呼叫 skill
+加上內部 `cli-transport` 與 `cli-dispatch-context` runtime）。專案同步可
 選預設 symlink 或 `--copy` 實體檔，並以 schema-v3 receipt 管理 `--update`、
 `--migrate` 與 `--uninstall`。`--force` 只略過 project-root heuristic，不會繞過
 ownership 或 filesystem safety。完整操作見
@@ -157,8 +158,9 @@ ownership 或 filesystem safety。完整操作見
 
 Native marketplace artifact 位於 `plugins/dhpk/`，由
 `gen-codex-native-package.js` 從 inventory 的明確 `codex-native` surface 產生。它
-包含同一組 15 個 public skill，但全部是追蹤中的實體檔，零 symlink；root 與 wrapper
-manifest 都解析到這一份 physical tree。
+包含同一組 15 個 public skill 與 `cli-transport`、`cli-dispatch-context` 兩個內部
+runtime，共 17 個 physical entries；全部是追蹤中的實體檔，零
+symlink；root 與 wrapper manifest 都解析到這一份 physical tree。
 
 三個獨立 release gate 分別驗證：
 

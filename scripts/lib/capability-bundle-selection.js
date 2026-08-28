@@ -221,7 +221,7 @@ function resolveCapabilitySelection(input = {}) {
   }
   let baseIds;
   if (profileId === 'compat-v1') {
-    baseIds = entries.filter((entry) => entry.lifecycle !== 'deprecated').map((entry) => entry.id).sort();
+    baseIds = entries.filter((entry) => entry.lifecycle !== 'deprecated' && entry.invokable !== false).map((entry) => entry.id).sort();
   } else if (selectedDefinition) {
     baseIds = selectedDefinition.slice();
   } else if (profileId === 'full') {
@@ -239,6 +239,7 @@ function resolveCapabilitySelection(input = {}) {
     if (retired.has(id)) return error('RETIRED_STABLE_ID', `stable ID '${id}' is retired`, [id], { retired: retired.get(id) });
     const entry = byId.get(id);
     if (!entry || entry.lifecycle === 'deprecated') return error('UNKNOWN_STABLE_ID', `unknown stable ID '${id}'`, [id]);
+    if (entry.invokable === false) return error('NON_INVOKABLE_STABLE_ID', `stable ID '${id}' is internal runtime support and cannot be selected`, [id]);
     if (isOverlay && surfaceAllowed && !surfaceAllowed.has(id)) return error('SURFACE_INCOMPATIBLE', `stable ID '${id}' is not available on surface '${input.surface}'`, [id], { surface: input.surface });
     if (isOverlay && excludes.some((excluded) => (entry.profiles || []).includes(excluded) || entry.module === excluded)) {
       return error('CONFLICT_EXCLUDED', `stable ID '${id}' is excluded by profile '${profileId}'`, [id], { excludes });
@@ -297,8 +298,8 @@ function validateProfileDefinitions({ inventory, profiles, moduleCatalog } = {})
     const result = resolveCapabilitySelection({ inventory, profiles, moduleCatalog, profileId: id });
     if (!result.ok) errors.push(`${id}: ${result.error.message}`);
     else if (id === 'minimal' && result.value.selectedStableIds.length !== 9) errors.push('minimal must resolve exactly nine stable IDs');
-    else if (id === 'full' && result.value.selectedStableIds.length >= (inventory.skills || []).filter((entry) => entry.lifecycle !== 'deprecated').length) errors.push('full must remain a conflict-aware subset of live inventory');
-    else if (id === 'compat-v1' && result.value.selectedStableIds.length !== (inventory.skills || []).filter((entry) => entry.lifecycle !== 'deprecated').length) errors.push('compat-v1 must contain every non-retired stable ID');
+    else if (id === 'full' && result.value.selectedStableIds.length >= (inventory.skills || []).filter((entry) => entry.lifecycle !== 'deprecated' && entry.invokable !== false).length) errors.push('full must remain a conflict-aware subset of live invokable inventory');
+    else if (id === 'compat-v1' && result.value.selectedStableIds.length !== (inventory.skills || []).filter((entry) => entry.lifecycle !== 'deprecated' && entry.invokable !== false).length) errors.push('compat-v1 must contain every non-retired invokable stable ID');
   }
   return { ok: errors.length === 0, errors };
 }

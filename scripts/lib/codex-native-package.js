@@ -23,12 +23,13 @@ const {
 const { ProjectionArtifactStore } = require('./projection-artifact-store');
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
 const { bindSurfaceSelection } = require('./capability-bundle-selection');
+const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
 
 // Bump when the generation algorithm (selection, layout, or manifest-merge
 // logic) changes in a way that could produce a different package from the
 // same inventory + canonical sources. Independent of the dhpk release
 // version recorded as provenance.sourceVersion.
-const GENERATOR_VERSION = '2.2.0';
+const GENERATOR_VERSION = '2.3.0';
 
 function lstatOrNull(candidate) {
   try {
@@ -193,8 +194,24 @@ function validateNativeSkillIdentity({ packageRoot, inventory, manifestSkillsFie
 function selectNativeSkills(inventory, selectedStableIds = null) {
   const selected = Array.isArray(selectedStableIds) ? new Set(selectedStableIds) : null;
   return (inventory.skills || []).filter(
-    (s) => (s.surfaces || []).includes('codex-native') && s.lifecycle !== 'deprecated' && (!selected || selected.has(s.id) || selected.has(s.name))
+    (s) => (s.surfaces || []).includes('codex-native')
+      && s.lifecycle !== 'deprecated'
+      && s.invokable !== false
+      && (!selected || selected.has(s.id) || selected.has(s.name))
   );
+}
+
+function materializeNativeSkills(inventory, selectedStableIds = null) {
+  const selected = selectNativeSkills(inventory, selectedStableIds);
+  const byId = new Map((inventory.skills || []).map((entry) => [entry && entry.id, entry]));
+  const runtimeSupportStableIds = runtimeSupportSkillIds(inventory, 'codex-native');
+  const entries = new Map(selected.map((entry) => [entry.id, entry]));
+  for (const id of runtimeSupportStableIds) entries.set(id, byId.get(id));
+  return {
+    selected,
+    runtimeSupportStableIds,
+    materialized: [...entries.values()],
+  };
 }
 
 // Checks a candidate's actual public-name directory set against the
@@ -207,13 +224,13 @@ function selectNativeSkills(inventory, selectedStableIds = null) {
 function validateNativeMembership({ candidateSkillNames, candidateSkillIds, inventory, selectedStableIds = null }) {
   const selection = compileDistribution({ inventory, surface: 'codex-native' });
   if (!selection.ok) throw new Error(selection.error.message);
-  const selected = selectNativeSkills(
+  const { materialized } = materializeNativeSkills(
     inventory,
     Array.isArray(selectedStableIds)
       ? selectedStableIds
       : (selection.value.selectionPolicy ? selection.value.selectedStableIds : null),
   );
-  const expected = new Map(selected.map((s) => [s.name || s.id, s.id]));
+  const expected = new Map(materialized.map((s) => [s.name || s.id, s.id]));
   const inventoryIdsByName = new Map((inventory.skills || []).map((s) => [s.name || s.id, s.id]));
   const candidateNames = candidateSkillNames || candidateSkillIds || [];
   const candidate = new Set(candidateNames);
@@ -366,14 +383,14 @@ function compileNativePackage({
 
   const selection = selectionMode === 'legacy' ? null : compileDistribution({ inventory, surface: 'codex-native', profileSelection });
   if (selection && !selection.ok) throw new Error(selection.error.message);
-  const selected = selectNativeSkills(
+  const nativeSelection = materializeNativeSkills(
     inventory,
     selection && selection.value.selectionPolicy ? selection.value.selectedStableIds : null,
   );
   const files = [];
   const fingerprints = {};
   const selectedEntries = [];
-  for (const skill of selected) {
+  for (const skill of nativeSelection.materialized) {
     const publicName = skill.name || skill.id;
     const sourcePath = skill.path;
     if (typeof sourcePath !== 'string' || !sourcePath || path.posix.normalize(sourcePath) !== sourcePath || path.posix.isAbsolute(sourcePath) || sourcePath.startsWith('../')) {
@@ -406,8 +423,10 @@ function compileNativePackage({
   traversalBudget.accountBytes(Buffer.byteLength(manifestContent), '.codex-plugin/plugin.json');
   files.push(nativeOutputRecord('manifest:plugin', 'generated/.codex-plugin/plugin.json', '.codex-plugin/plugin.json', manifestContent, undefined, 0o644));
 
-  const skillIds = selectedEntries.map((entry) => entry.id).sort();
-  const skillNames = selectedEntries.map((entry) => entry.name || entry.id).sort();
+  const selectedSkillIds = nativeSelection.selected.map((entry) => entry.id).sort();
+  const selectedSkillNames = nativeSelection.selected.map((entry) => entry.name || entry.id).sort();
+  const materializedSkillIds = selectedEntries.map((entry) => entry.id).sort();
+  const materializedSkillNames = selectedEntries.map((entry) => entry.name || entry.id).sort();
   const inventoryDigest = legacyInventoryDigest(inventory);
   const generatedFromTree = resolveGeneratedFromTree(resolvedRoot, sourceCommit);
   const provenance = {
@@ -421,15 +440,18 @@ function compileNativePackage({
     ...(generatedFromTree ? { generatedFromTree } : {}),
     inventoryDigest,
     generatorVersion,
-    selectedSkillIds: skillIds,
-    selectedSkillNames: skillNames,
+    selectedSkillIds,
+    selectedSkillNames,
+    materializedSkillIds,
+    materializedSkillNames,
+    runtimeSupportStableIds: nativeSelection.runtimeSupportStableIds,
     fingerprints,
     routingProjection,
     ...(profileSelection ? {
       profileId: profileSelection.profileId || profileSelection.id,
       selectedStableIds: profileSelection.selectedStableIds,
       canonicalSelectedStableIds: profileSelection.selectedStableIds,
-      emittedStableIds: skillIds,
+      emittedStableIds: selectedSkillIds,
       compatibilityMode: profileSelection.compatibilityMode || profileSelection.mode || null,
       selectionPolicyVersion: profileSelection.selectionPolicyVersion || null,
       selectionFingerprint: profileSelection.selectionFingerprint || null,
@@ -476,8 +498,8 @@ function compileNativePackage({
     selectionEntries: selection && selection.ok && selection.value.selectionPolicy
       ? (selection.value.selectionEntries || selection.value.entries)
       : undefined,
-    profileSelection: profileSelection ? { ...profileSelection, emittedStableIds: skillIds } : null,
-    emittedStableIds: profileSelection ? skillIds : undefined,
+    profileSelection: profileSelection ? { ...profileSelection, emittedStableIds: selectedSkillIds } : null,
+    emittedStableIds: profileSelection ? selectedSkillIds : undefined,
     selectionFingerprint: profileSelection && profileSelection.selectionFingerprint,
     surfaceSelectionFingerprint: profileSelection && profileSelection.surfaceSelectionFingerprint,
   });
@@ -488,7 +510,17 @@ function compileNativePackage({
       adapter: { id: 'codex-native', version: generatorVersion },
       outputs: files.slice().sort((a, b) => a.destination.localeCompare(b.destination)),
       links: [],
-      metadata: { manifest, manifestSkillsField: manifest.skills, skillIds, skillNames, fingerprints, provenance, routingProjection },
+      metadata: {
+        manifest,
+        manifestSkillsField: manifest.skills,
+        skillIds: selectedSkillIds,
+        skillNames: selectedSkillNames,
+        materializedSkillIds,
+        materializedSkillNames,
+        fingerprints,
+        provenance,
+        routingProjection,
+      },
     }),
     validate: (rendered, context) => {
       if (!context || !context.session || !context.session.stageRoot) return rendered;
@@ -522,7 +554,7 @@ function compileNativePackage({
           ? readDirectoryEntries(stagedSkillsRoot, { sort: true }).map((entry) => entry.name)
           : [],
         inventory,
-        selectedStableIds: profileSelection ? skillIds : null,
+        selectedStableIds: profileSelection ? selectedSkillIds : null,
       });
       const identity = validateNativeSkillIdentity({
         manifestSkillsField: rendered.metadata.manifestSkillsField,
@@ -534,7 +566,18 @@ function compileNativePackage({
       return rendered;
     },
   };
-  return { plan: compiled.value, adapter, selectedSkillIds: skillIds, selectedSkillNames: skillNames, fingerprints, provenance, routingProjection };
+  return {
+    plan: compiled.value,
+    adapter,
+    selectedSkillIds,
+    selectedSkillNames,
+    materializedSkillIds,
+    materializedSkillNames,
+    runtimeSupportStableIds: nativeSelection.runtimeSupportStableIds,
+    fingerprints,
+    provenance,
+    routingProjection,
+  };
 }
 
 // Materialize the physical, explicitly-allowlisted codex-native package from
@@ -593,8 +636,8 @@ function materializeNativePackage({
   const metadata = artifact.value.metadata || {};
   return {
     manifestSkillsField: metadata.manifestSkillsField || './skills/',
-    skillIds: metadata.skillIds || projection.selectedSkillIds,
-    skillNames: metadata.skillNames || projection.selectedSkillNames,
+    skillIds: metadata.materializedSkillIds || projection.materializedSkillIds || metadata.skillIds || projection.selectedSkillIds,
+    skillNames: metadata.materializedSkillNames || projection.materializedSkillNames || metadata.skillNames || projection.selectedSkillNames,
     fingerprints: metadata.fingerprints || projection.fingerprints,
     provenance: metadata.provenance || projection.provenance,
     routingProjection: metadata.routingProjection || projection.routingProjection,

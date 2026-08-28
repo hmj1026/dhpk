@@ -8,7 +8,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE) [![Version](https://img.shields.io/github/v/tag/hmj1026/dhpk?label=version&sort=semver)](https://github.com/hmj1026/dhpk/tags) [![CI](https://img.shields.io/github/actions/workflow/status/hmj1026/dhpk/ci.yml?branch=main&label=CI)](https://github.com/hmj1026/dhpk/actions/workflows/ci.yml) [![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A63D2)](https://docs.claude.com/en/docs/claude-code/plugins) [![Codex project sync](https://img.shields.io/badge/Codex%20project%20sync-supported-412991)](./docs/platform-installation.zh-TW.md#codex-project-local-syncsupported) [![Cursor project sync](https://img.shields.io/badge/Cursor%20project%20sync-supported-F2A900)](./docs/platform-installation.zh-TW.md#cursor-project-local-syncsupported) [![Native packages](https://img.shields.io/badge/native%20packages-experimental-orange)](./docs/platform-installation.zh-TW.md#surface-matrix)
 
-通用、安裝即用的 Claude Code harness。內含 **32 個角色導向 agent**（31 個 root-level agent 加 1 個模組範圍 reviewer）、已註冊的 dhpk 指令、核心 skill、**`/dhpk:do` Smart Router**（透過雙語 route-table 與 LLM fallback 進行自然語言任務路由）、跨 session 學習 DB（預設關閉）、**7-slot sentinel 驅動的 review hook**（code / db / sec / frontend / doc / polyfill / migration）、statusline、harness 腳本，以及 **31 個可選技術棧模組**，涵蓋 PHP、Yii、PHPUnit、Laravel、JavaScript、Vue、Laravel Mix、Next.js、React、Python 與 iOS/Swift。模組可透過 **wrapper-dispatch** 模型在 runtime 提供 hook（詳見 [`docs/hook-extension.zh-TW.md`](./docs/hook-extension.zh-TW.md)）。內附策展過的 Codex CLI projection，適用於雙助理（Claude + Codex）專案。
+通用、安裝即用的 Claude Code harness。內含 **36 個角色導向 agent**（35 個 root-level agent 加 1 個模組範圍 reviewer）、已註冊的 dhpk 指令、核心 skill、**`/dhpk:do` Smart Router**（透過雙語 route-table 與 LLM fallback 進行自然語言任務路由）、跨 session 學習 DB（預設關閉）、**7-slot sentinel 驅動的 review hook**（code / db / sec / frontend / doc / polyfill / migration）、statusline、harness 腳本，以及 **31 個可選技術棧模組**，涵蓋 PHP、Yii、PHPUnit、Laravel、JavaScript、Vue、Laravel Mix、Next.js、React、Python 與 iOS/Swift。模組可透過 **wrapper-dispatch** 模型在 runtime 提供 hook（詳見 [`docs/hook-extension.zh-TW.md`](./docs/hook-extension.zh-TW.md)）。內附策展過的 Codex CLI projection，適用於雙助理（Claude + Codex）專案。
 
 > **Harness engineering 重於 prompt engineering。** dhpk 把 agent 的運作環境——hooks、sentinel review gate、路由規則、技術棧感知模組——當作施力點。你安裝的不是逐次微調的 one-off prompt，而是一套可重用的 harness，讓正確的檢查自動觸發，並讓模型跨 session 維持在軌道上。
 
@@ -53,12 +53,12 @@ claude plugin install dhpk@dhpk --config modules=php-8.x,laravel-11 --config hoo
 |------|----:|------|
 | Agents | Role-based agents | Sentinel 驅動的 reviewer，以及架構、測試、安全、文件、平台與 runtime 等情境型角色。 |
 | Commands | 已註冊的 command surface | `/dhpk:do`、`/dhpk:codex-review`、`/dhpk:precommit`、`/dhpk:setup`、`/dhpk:review-pending`、`/dhpk:smart-commit`、`/dhpk:opsx-apply-resume`、`/dhpk:harness-audit`、`/dhpk:harness-govern`、`/dhpk:ui-ux-verify` 等 |
-| Canonical skills | 97 個扁平 `dhpk-*` package | 每個 capability 只有一個公開名稱，來源固定在 `skills/dhpk-*/`；module 與 Codex 專案面只做 projection，不是第二份來源。 |
+| Canonical skills | 99 個扁平 `dhpk-*` package | 每個 capability 只有一個具名 package，來源固定在 `skills/dhpk-*/`；內部 runtime package 不可呼叫，module 與 Codex 專案面只做 projection，不是第二份來源。 |
 | 技術棧模組 | 可選技術棧模組 | PHP、Yii、PHPUnit、Laravel、JavaScript、Vue、Laravel Mix、Next.js、React、Python、`library-author` 與 iOS/Swift 模組 |
 | Hooks | 4 個事件 | PreToolUse（Edit guard 與合併 Bash safety/Git gate）、PostToolUse（sentinel routing）、SessionStart（module activation）、SubagentStop（strict reviewer reconciliation） |
 | Hook dispatchers | 2 | `post-edit-dispatch.sh` 負責 sentinel routing；`pre-bash-dispatch.sh` 合併 deterministic shell 與 Git/review-debt gate |
 | Harness 腳本 | 5 | precommit-runner、verify-runner、harness-audit、codemap generator、dep-audit |
-| Codex 雙軌 | 15 個精選 skill | 專案同步使用 receipt 管理的 projection；實驗性 native package 則以實體檔發布同一組技能。 |
+| Codex 雙軌 | 17 筆項目（15 個可呼叫） | 專案同步使用 receipt 管理的 projection；實驗性 native package 則以實體檔發布同一組技能與內部 transport 與 dispatch-context runtime。 |
 
 呼叫語法會依 surface 不同：
 
@@ -275,9 +275,9 @@ dhpk/
 ├── .claude-plugin/
 │   ├── marketplace.json          # 單一條目的 marketplace（plugins[0].source: "./"）
 │   └── plugin.json               # 含 userConfig 的插件 manifest
-├── agents/                       # 32 個角色 agent（31 root + 1 模組 reviewer；INDEX.md 為導覽用）
+├── agents/                       # 36 個角色 agent（35 root + 1 模組 reviewer；INDEX.md 為導覽用）
 ├── commands/                     # slash 指令（do、review、setup、codex-*、smart-commit、opsx-apply-resume 等；create-dev 為相容性 alias）
-├── skills/                       # SSOT：97 個扁平 canonical skill，皆為 skills/dhpk-<name>/
+├── skills/                       # SSOT：99 個扁平 canonical skill，皆為 skills/dhpk-<name>/
 ├── templates/                    # hook 引導用範本（graduation-candidates.md — 首次 graduation 執行時複製到 .claude/artifacts/）
 ├── modules/                      # 31 個可選用模組；skills/ 項目為相對 symlink projection
 │   ├── php-5.6/, php-7.4/, php-8.x/        # {module.yaml, skills/, references/, hooks/（僅 php-7.4）}
@@ -311,10 +311,10 @@ dhpk/
 ├── codex/                        # Codex CLI 雙軌（Claude Code 不會自動載入）
 │   ├── AGENTS.md                 # Codex 專屬指引
 │   ├── README.md、README.zh-TW.md # 如何同步進專案
-│   ├── skills/                   # 15 個指向 canonical skills/ 的相對 symlink
+│   ├── skills/                   # 17 個相對 symlink（15 個可呼叫加內部 transport 與 dispatch-context runtime）
 │   ├── agents/、config.toml.example
 ├── .codex-plugin/plugin.json     # Codex plugin manifest（marketplace 可安裝，實驗性）
-├── plugins/dhpk/                 # 追蹤中的 Codex-native package：15 個實體 skill、零 symlink
+├── plugins/dhpk/                 # 追蹤中的 Codex-native package：17 個實體項目、零 symlink
 │   ├── .codex-plugin/plugin.json
 │   ├── README.md
 ├── .agents/plugins/marketplace.json  # repo-scoped Codex marketplace descriptor

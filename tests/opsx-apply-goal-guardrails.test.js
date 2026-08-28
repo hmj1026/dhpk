@@ -36,10 +36,35 @@ const dispatchPart0 = flat(goalTemplatesRaw.slice(
   goalTemplatesRaw.indexOf('**`DISPATCH_ON=true`**'),
   goalTemplatesRaw.indexOf('### CODEX_STATEMENT'),
 ));
+const noDispatchPart0 = flat(goalTemplatesRaw.slice(
+  goalTemplatesRaw.indexOf('**`DISPATCH_ON=false`**'),
+  goalTemplatesRaw.indexOf('**`DISPATCH_ON=true`**'),
+));
 
 test('goal dispatch mode enables the runtime batch gate and carries cwd-safe Bash guidance', () => {
   assert.ok(dispatchPart0.includes('DHPK_ORCHESTRATION_DISPATCH=on'));
   assert.ok(dispatchPart0.includes('absolute paths') && dispatchPart0.includes('git -C'));
+});
+
+test('dispatch-on Part 0 names the repo launcher and requires an explicit READY packet', () => {
+  const launcher = 'node "$p/skills/dhpk-cli-dispatch-context/scripts/launch-cli-dispatch.js"';
+  assert.ok(dispatchPart0.includes(launcher), 'dispatch-on roster must name the repo-owned launcher command');
+  for (const field of [
+    'dispatching_agent', 'execution_provider', 'requested_role', 'mode', 'task_id', 'attempt_id',
+    'workdir', 'prompt', 'scope', 'config',
+  ]) {
+    assert.ok(dispatchPart0.includes(field), `dispatch-on launcher packet missing ${field}`);
+  }
+  assert.ok(dispatchPart0.includes('distinct from'),
+    'dispatch-on packet must keep dispatching_agent distinct from execution_provider');
+  assert.ok(dispatchPart0.includes('READY'), 'launcher must require a READY context result');
+  assert.ok(dispatchPart0.includes('never infer authority'), 'launcher must not infer execution authority');
+  assert.ok(dispatchPart0.includes('runtime binding') && dispatchPart0.includes('execution-policy decision'),
+    'launcher instruction must preserve runtime binding and the execution-policy decision');
+  assert.ok(!noDispatchPart0.includes('launch-cli-dispatch.js'),
+    'dispatch-off Part 0 must not expose the CLI dispatch launcher');
+  assert.ok(!noDispatchPart0.includes('dispatching_agent') && !noDispatchPart0.includes('execution_provider'),
+    'dispatch-off Part 0 must not carry the CLI dispatch packet');
 });
 const policy = flat(fs.readFileSync(path.join(ROOT, 'rules', 'execution-policy.md'), 'utf8'));
 

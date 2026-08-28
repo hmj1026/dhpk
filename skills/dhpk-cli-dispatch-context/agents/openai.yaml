@@ -1,0 +1,6 @@
+interface:
+  display_name: "Internal CLI dispatch context"
+  short_description: "Internal dispatch context builder; not directly invokable"
+  default_prompt: "Internal-only package. Do not invoke directly."
+policy:
+  allow_implicit_invocation: false

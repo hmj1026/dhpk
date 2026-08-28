@@ -13,9 +13,28 @@ const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
 const MANIFEST_PATH = path.join(ROOT, '.claude-plugin', 'plugin.json');
+const LEGACY_MANIFEST_PATH = path.join(ROOT, 'manifests', 'claude-user-config-legacy.json');
+const METADATA_SOURCE_PATH = path.join(ROOT, 'manifests', 'claude-user-config-metadata.json');
 const FIXTURE_PATH = path.join(__dirname, 'fixtures', 'plugin-user-config-contract.json');
-const legacyManifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, 'utf8'));
+const activeManifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, 'utf8'));
+const legacyManifest = JSON.parse(fs.readFileSync(LEGACY_MANIFEST_PATH, 'utf8'));
+const canonicalMetadataDocument = JSON.parse(fs.readFileSync(METADATA_SOURCE_PATH, 'utf8'));
 const contractFixture = JSON.parse(fs.readFileSync(FIXTURE_PATH, 'utf8'));
+
+const EXPECTED_ACTIVE_USER_CONFIG_COUNT = 69;
+const EXPECTED_ACTIVE_USER_CONFIG_SHA256 = 'e49a3b8d1241f4b8f720287eac052d0e6ea8c09d29012a513e158df6aa25756c';
+const EXPECTED_CANONICAL_ROLE_CONFIG_KEYS = [
+  'codex_worker_model',
+  'codex_worker_effort',
+  'codex_reasoner_model',
+  'codex_reasoner_effort',
+  'codex_worker_timeout_secs',
+  'codex_reasoner_timeout_secs',
+  'codex_reviewer_model',
+  'codex_reviewer_effort',
+  'codex_reviewer_timeout_secs',
+  'agy_worker_model',
+];
 
 let metadataApi = null;
 let metadataLoadError = null;
@@ -40,6 +59,7 @@ function api() {
     'generateUserConfigMetadata',
     'measureUserConfigMetadata',
     'rollbackUserConfigMetadata',
+    'loadAuthoritativeMetadata',
   ]) assert.strictEqual(typeof metadataApi[name], 'function', `${name} export is required`);
   return metadataApi;
 }
@@ -95,7 +115,8 @@ function digest(value) {
   return crypto.createHash('sha256').update(bytes).digest('hex');
 }
 
-test('legacy userConfig fixture contains exactly 59 options and preserves the active contract', () => {
+test('legacy userConfig fixture contains exactly 59 options and preserves the legacy contract', () => {
+  assert.strictEqual(contractFixture.source, 'manifests/claude-user-config-legacy.json');
   assert.strictEqual(contractFixture.count, 59);
   assert.strictEqual(contractFixture.entries.length, 59);
   assert.strictEqual(Object.keys(legacyManifest.userConfig || {}).length, 59);
@@ -104,6 +125,35 @@ test('legacy userConfig fixture contains exactly 59 options and preserves the ac
     assert.strictEqual(typeof entry.description, 'string', `${key} description`);
     assert.ok(entry.description.length > 0, `${key} description must remain characterized`);
   }
+});
+
+test('active userConfig preserves the canonical 69-key contract and metadata coverage', () => {
+  const activeEntries = contractEntries(activeManifest);
+  const legacyKeys = Object.keys(legacyManifest.userConfig || {});
+  const activeKeys = Object.keys(activeManifest.userConfig || {});
+  const canonicalOnlyKeys = activeKeys.filter((key) => !legacyKeys.includes(key));
+
+  assert.strictEqual(activeEntries.length, EXPECTED_ACTIVE_USER_CONFIG_COUNT);
+  assert.strictEqual(digest(activeEntries), EXPECTED_ACTIVE_USER_CONFIG_SHA256);
+  assert.deepStrictEqual(canonicalOnlyKeys, EXPECTED_CANONICAL_ROLE_CONFIG_KEYS);
+  assert.ok(EXPECTED_CANONICAL_ROLE_CONFIG_KEYS.every((key) => !legacyKeys.includes(key)));
+  assert.strictEqual(canonicalMetadataDocument.entries.length, EXPECTED_ACTIVE_USER_CONFIG_COUNT);
+  assert.deepStrictEqual(canonicalMetadataDocument.entries.map((entry) => entry.key), activeKeys);
+
+  const canonicalMetadataSource = api().loadAuthoritativeMetadata({
+    root: ROOT,
+    legacyManifest: activeManifest,
+    sourcePath: METADATA_SOURCE_PATH,
+  });
+  const result = api().validateUserConfigMetadata({
+    root: ROOT,
+    legacyManifest: activeManifest,
+    source: canonicalMetadataSource,
+  });
+  assert.strictEqual(result.ok, true, resultText(result));
+  const value = valueOf(result);
+  assert.strictEqual(value.entries.length, EXPECTED_ACTIVE_USER_CONFIG_COUNT);
+  assert.deepStrictEqual(value.entries.map((entry) => entry.key), activeKeys);
 });
 
 test('compact metadata source validates purpose, trigger, boundary, pointer, and schema compatibility', () => {
@@ -255,7 +305,7 @@ test('unconfigured Claude consumer probe stays non-pass and supplies resume evid
   const result = probe().runClaudeUserConfigProbe({
     executable: 'dhpk-claude-user-config-command-not-installed',
     manifestPath: MANIFEST_PATH,
-    manifestFingerprint: digest(legacyManifest),
+    manifestFingerprint: digest(activeManifest),
   });
   assert.ok(['NOT_RUN', 'NOT_CONFIGURED', 'UNAVAILABLE', 'BLOCKED'].includes(result.status));
   assert.ok(result.resumeCommand || result.resume_command);

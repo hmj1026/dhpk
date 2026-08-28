@@ -6,15 +6,40 @@ TBD - created by archiving change scope-multi-ai-sync-validation-to-configured-p
 ## Requirements
 
 ### Requirement: Validation derives the configured target set before checking parity
-`multi-ai-sync validate` SHALL validate the canonical Claude source first and then derive the configured Codex, Gemini, Antigravity, AGY, and Cursor target set from documented platform markers, using one shared resolver. The resolver SHALL be implemented as a reusable function so `plan`/`apply`/discovery can adopt it in a later change; this requirement binds `validate` only.
+
+`multi-ai-sync validate` SHALL validate the canonical Claude source first and
+then derive the configured target set from documented platform markers using
+one shared resolver. For Cursor, the marker set SHALL include the supported
+project-local `.cursor/.dhpk-installed.json` receipt in addition to the
+documented package markers. Marker presence establishes applicability even when
+the marker is malformed; the subsequent target validator SHALL report the
+malformed configuration as `FAIL` rather than treating it as absent.
+
+#### Scenario: Consumer has a Cursor project-local receipt
+
+- **WHEN** a consumer root contains `.cursor/.dhpk-installed.json`
+- **THEN** Cursor is included as configured and validation proceeds to the
+  project-local receipt/projection checks without requiring a package root
 
 #### Scenario: Repository configures only Codex
-- **WHEN** the Claude source is valid, Codex markers are present, and Gemini and Antigravity markers are absent
-- **THEN** Codex participates in parity checks while Gemini and Antigravity are reported as `NOT_CONFIGURED`
+
+- **WHEN** the Claude source is valid, Codex markers are present, and Gemini
+  and Antigravity markers are absent
+- **THEN** Codex participates in parity checks while Gemini and Antigravity
+  are reported as `NOT_CONFIGURED`
 
 #### Scenario: Canonical Claude source is missing
+
 - **WHEN** the required Claude source is absent or invalid
-- **THEN** the run reports `FAIL` rather than treating the source as an optional unconfigured platform
+- **THEN** the run reports `FAIL` rather than treating the source as an
+  optional unconfigured platform
+
+#### Scenario: Project-local receipt is malformed
+
+- **WHEN** the Cursor receipt marker exists but is invalid JSON or violates the
+  schema-v3 contract
+- **THEN** Cursor remains applicable and the result is `FAIL` with a bounded
+  diagnostic rather than `BLOCKED` for an absent marker
 
 ### Requirement: Per-check results use explicit applicability statuses
 Every platform check SHALL return one of `PASS`, `FAIL`, `NOT_CONFIGURED`, or `SKIP_INCOMPATIBLE`. `SKIP_INCOMPATIBLE` SHALL identify the source capability and a reason from an explicit compatibility policy; an unknown exception or unsupported assertion SHALL remain `FAIL`.
@@ -67,10 +92,19 @@ The validation report SHALL include a `legacy_gate` field alongside `gate`, valu
 ### Requirement: Cursor is a first-class configured validation target
 
 The shared platform resolver SHALL recognize Cursor markers, including a
-`.cursor-plugin/plugin.json` projection or an explicit Cursor target flag, and
-shall distinguish the portable Agent Plugins check from Cursor-native component
-checks. An absent unrequested Cursor marker is `NOT_CONFIGURED`; an explicitly
-requested but absent Cursor target is `BLOCKED`.
+`.cursor-plugin/plugin.json` projection, the portable/package markers, and a
+project-local `.cursor/.dhpk-installed.json` receipt. Cursor validation SHALL
+distinguish the `cursor-sync` project-local structure from the portable and
+Cursor-native package routes and SHALL retain independent evidence for each
+route when more than one is present.
+
+#### Scenario: Current project-local Cursor projection is configured
+
+- **WHEN** a consumer root has a schema-v3 receipt with current provenance and
+  complete receipt-owned `.cursor/` managed entries
+- **THEN** project-local structural evidence can be `PASS` without a
+  consumer-local package root, while package and runtime evidence remain
+  separate rows
 
 #### Scenario: Repository configures the standard package for Cursor
 
@@ -85,6 +119,20 @@ requested but absent Cursor target is `BLOCKED`.
 - **WHEN** `.cursor-plugin/plugin.json` and its selected component roots exist
 - **THEN** Cursor participates in both portable and native checks, each with
   independent evidence and failure boundaries
+
+#### Scenario: Project-local projection is incomplete or stale
+
+- **WHEN** the receipt is stale, malformed, missing required managed entries, or
+  disagrees with the observed `.cursor/` projection
+- **THEN** the project-local capability is `FAIL` with a bounded reason and is
+  not downgraded to `NOT_CONFIGURED` or `SKIP_INCOMPATIBLE`
+
+#### Scenario: Package and project-local routes coexist
+
+- **WHEN** both a supported package root and a project-local receipt/projection
+  are present
+- **THEN** each route retains its own paths, fingerprints, and structural
+  verdict; one route cannot satisfy or overwrite the evidence of the other
 
 ### Requirement: Cursor capability gaps are explicit policy-backed skips
 
@@ -107,11 +155,18 @@ being silently treated as incompatible.
 
 ### Requirement: Final gate aggregates platform rows without conflation
 
-The configured-platform gate SHALL keep portable Agent Plugin, legacy Codex,
-Codex-native, and Cursor-native rows separate. `FAIL` takes precedence over
-`BLOCKED`; `NOT_CONFIGURED`, policy-backed `SKIP_INCOMPATIBLE`, and structural
-only results do not become runtime PASS. The exit code and report SHALL retain
-all rows and their evidence.
+The configured-platform gate SHALL keep project-local `cursor-sync`, portable
+Agent Plugin, Cursor-native package, and runtime rows separate. A structural or
+receipt `PASS` SHALL NOT be promoted to launch/runtime `PASS`; existing
+`FAIL`/`BLOCKED` precedence and policy-backed `SKIP_INCOMPATIBLE` semantics
+remain unchanged.
+
+#### Scenario: Project-local structure passes but runtime is not run
+
+- **WHEN** the receipt/projection validates structurally and no Cursor launch
+  probe was executed
+- **THEN** structural evidence is `PASS`, runtime remains `NOT_RUN` (or its
+  existing independent result), and the report does not claim runtime support
 
 #### Scenario: Portable package passes but Cursor-native is unconfigured
 
@@ -122,9 +177,10 @@ all rows and their evidence.
 
 #### Scenario: Explicit Cursor request is absent
 
-- **WHEN** `--targets cursor` is supplied without a configured Cursor marker
-- **THEN** the Cursor row is `BLOCKED`, the final gate is non-zero, and other
-  platform rows remain visible
+- **WHEN** `--targets cursor` is supplied and neither package nor project-local
+  Cursor markers exist
+- **THEN** the Cursor row remains `BLOCKED`, the final gate is non-zero, and
+  other platform rows remain visible
 
 ### Requirement: AGY discovery and runtime evidence remain separate
 

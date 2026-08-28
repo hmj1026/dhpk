@@ -155,6 +155,7 @@ import atexit
 import fcntl
 import hashlib
 import json
+import math
 import os
 import re
 import shutil
@@ -233,6 +234,7 @@ SELECTION_COMPATIBILITY = None
 SELECTION_POLICY_VERSION = None
 SELECTION_CANONICAL_IDS = None
 SELECTION_EMITTED_IDS = None
+SELECTION_RUNTIME_IDS = None
 SELECTION_FINGERPRINT = None
 SELECTION_SURFACE_FINGERPRINT = None
 SELECTION_MIGRATION = None
@@ -413,6 +415,17 @@ def release_install_lock():
 atexit.register(release_install_lock)
 
 
+def reject_non_finite_json_constant(value):
+    raise ValueError(f'non-finite JSON constant is not allowed: {value}')
+
+
+def parse_finite_json_float(value):
+    parsed = float(value)
+    if not math.isfinite(parsed):
+        raise ValueError(f'non-finite JSON number is not allowed: {value}')
+    return parsed
+
+
 def read_manifest_document():
     """Read the receipt through a pinned `.codex` directory and no-follow leaf."""
     root_fd = open_relative_directory('', create=False)
@@ -426,7 +439,11 @@ def read_manifest_document():
             os.close(fd)
             raise ValueError('project .codex receipt is not a regular file')
         with os.fdopen(fd, encoding='utf-8') as receipt_file:
-            return json.load(receipt_file)
+            return json.load(
+                receipt_file,
+                parse_constant=reject_non_finite_json_constant,
+                parse_float=parse_finite_json_float,
+            )
     finally:
         os.close(root_fd)
 
@@ -1836,7 +1853,7 @@ def source_fingerprint():
             metadata = inventory_skill_metadata() if root_name == 'skills' else {}
             if root_name == 'skills' and SELECTION_EMITTED_IDS is not None:
                 stable_id = metadata.get(name, {}).get('id') if isinstance(metadata.get(name), dict) else None
-                if stable_id not in SELECTION_EMITTED_IDS:
+                if stable_id not in set(SELECTION_EMITTED_IDS or []) | set(SELECTION_RUNTIME_IDS or []):
                     continue
             child = os.path.join(root, name)
             validate_source_tree(child, f'{root_name} source', allowed_roots=(PLUGIN_ROOT, INSTALLER_ROOT))
@@ -1891,6 +1908,7 @@ def inventory_skill_metadata():
             'legacy_names': [legacy for legacy in (skill.get('legacy_names') or []) if isinstance(legacy, str) and legacy],
             'lifecycle': skill.get('lifecycle'),
             'tier': skill.get('tier'),
+            'invokable': skill.get('invokable'),
             'profiles': [value for value in (skill.get('profiles') or []) if isinstance(value, str)],
             'surfaces': [value for value in (skill.get('surfaces') or []) if isinstance(value, str)],
         }
@@ -1940,7 +1958,7 @@ def resolve_installer_selection(receipt, metadata):
     accompanying --migrate gate below) may request a smaller replacement.
     """
     global SELECTION_PROFILE_ID, SELECTION_COMPATIBILITY, SELECTION_POLICY_VERSION
-    global SELECTION_CANONICAL_IDS, SELECTION_EMITTED_IDS, SELECTION_FINGERPRINT
+    global SELECTION_CANONICAL_IDS, SELECTION_EMITTED_IDS, SELECTION_RUNTIME_IDS, SELECTION_FINGERPRINT
     global SELECTION_SURFACE_FINGERPRINT, SELECTION_MIGRATION
     inventory = read_inventory_document()
     profiles_document, profiles = read_install_profiles()
@@ -1984,7 +2002,8 @@ def resolve_installer_selection(receipt, metadata):
         raise ValueError(f"unknown profile '{profile_id}'")
     declared = profile.get('skillIds')
     if profile_id == 'compat-v1':
-        selected = sorted(by_id.keys())
+        selected = sorted(key for key, value in by_id.items()
+                          if value.get('lifecycle') != 'deprecated' and value.get('invokable') is not False)
     elif isinstance(declared, list):
         selected = list(declared)
     else:
@@ -2003,6 +2022,21 @@ def resolve_installer_selection(receipt, metadata):
         key for key, value in by_id.items()
         if surface_name in (value.get('surfaces') or [])
     }
+    runtime_mapping = inventory.get('internal_runtime_skills')
+    if not isinstance(runtime_mapping, dict):
+        raise ValueError('internal_runtime_skills must be an object for runtime support selection')
+    runtime_ids = list(runtime_mapping.get(surface_name) or [])
+    if HARNESS_KIND == 'codex' and surface_name not in runtime_mapping:
+        raise ValueError(f"internal_runtime_skills must declare '{surface_name}' runtime support")
+    if len(set(runtime_ids)) != len(runtime_ids):
+        raise ValueError(f"internal_runtime_skills.{surface_name} declares duplicate stable IDs")
+    for stable_id in runtime_ids:
+        if not isinstance(stable_id, str) or not stable_id:
+            raise ValueError(f"internal_runtime_skills.{surface_name} contains an invalid stable ID")
+        if stable_id in retired or stable_id not in by_id or by_id[stable_id].get('lifecycle') == 'deprecated':
+            raise ValueError(f"internal runtime stable ID '{stable_id}' is unavailable")
+        if stable_id not in allowed:
+            raise ValueError(f"internal runtime stable ID '{stable_id}' is not available on surface '{surface_name}'")
     for stable_id in selected:
         if stable_id in retired:
             raise ValueError(f"stable ID '{stable_id}' is retired")
@@ -2010,6 +2044,8 @@ def resolve_installer_selection(receipt, metadata):
             raise ValueError(f"unknown stable ID '{stable_id}'")
         if by_id[stable_id].get('lifecycle') == 'deprecated':
             raise ValueError(f"stable ID '{stable_id}' is deprecated")
+        if by_id[stable_id].get('invokable') is False:
+            raise ValueError(f"stable ID '{stable_id}' is internal runtime support and cannot be selected")
     for stable_id in overlays:
         if stable_id in retired:
             raise ValueError(f"stable ID '{stable_id}' is retired")
@@ -2017,6 +2053,8 @@ def resolve_installer_selection(receipt, metadata):
             raise ValueError(f"unknown stable ID '{stable_id}'")
         if by_id[stable_id].get('lifecycle') == 'deprecated':
             raise ValueError(f"stable ID '{stable_id}' is deprecated")
+        if by_id[stable_id].get('invokable') is False:
+            raise ValueError(f"stable ID '{stable_id}' is internal runtime support and cannot be selected")
         if stable_id not in allowed:
             raise ValueError(f"stable ID '{stable_id}' is not available on surface '{surface_name}'")
         excludes = set((profile.get('excludes') or {}).keys())
@@ -2049,6 +2087,7 @@ def resolve_installer_selection(receipt, metadata):
         'selectionFingerprint': selection_fingerprint,
         'surface': surface_name,
         'emittedStableIds': emitted,
+        'runtimeSupportStableIds': runtime_ids,
         'transform': {'id': 'identity', 'version': '1'},
     })
     SELECTION_PROFILE_ID = profile_id
@@ -2056,6 +2095,7 @@ def resolve_installer_selection(receipt, metadata):
     SELECTION_POLICY_VERSION = policy_version
     SELECTION_CANONICAL_IDS = canonical
     SELECTION_EMITTED_IDS = emitted
+    SELECTION_RUNTIME_IDS = runtime_ids
     SELECTION_FINGERPRINT = selection_fingerprint
     SELECTION_SURFACE_FINGERPRINT = surface_fingerprint
     old_profile = receipt.get('profileId') if isinstance(receipt, dict) else None
@@ -2303,6 +2343,7 @@ def classify_receipt(receipt, malformed, sources, metadata, plugin_version, fing
         return {
             'state': 'new',
             'requires_migration': False,
+            'requires_structural_migration': False,
             'reasons': [],
             'legacy_names': [],
             'retired_names': [],
@@ -2339,20 +2380,26 @@ def classify_receipt(receipt, malformed, sources, metadata, plugin_version, fing
     if isinstance(receipt, dict) and receipt.get('legacy_pending'):
         requires_migration = True
         reasons.append('receipt has a pending legacy migration')
+    requires_structural_migration = requires_migration
     if isinstance(receipt, dict) and receipt.get('plugin_version') != plugin_version:
-        reasons.append(f"receipt plugin version {receipt.get('plugin_version', '<missing>')} differs from source {plugin_version}")
+        requires_migration = True
+        reasons.append('receipt plugin version differs from source')
     if isinstance(receipt, dict) and receipt.get('source_fingerprint') != fingerprint:
+        requires_migration = True
         reasons.append('receipt source fingerprint differs from the current Codex source')
     if isinstance(receipt, dict) and receipt.get('profileId') is not None:
         if receipt.get('profileId') != SELECTION_PROFILE_ID:
             requires_migration = True
+            requires_structural_migration = True
             reasons.append('receipt capability profile differs from the requested profile')
         if receipt.get('selectionFingerprint') != SELECTION_FINGERPRINT:
             if not (SELECTION_PROFILE_ID == 'compat-v1' and not PROFILE_EXPLICIT):
                 requires_migration = True
+                requires_structural_migration = True
                 reasons.append('receipt capability selection fingerprint differs from the current selection')
     elif isinstance(receipt, dict) and receipt and PROFILE_EXPLICIT and SELECTION_PROFILE_ID != 'compat-v1':
         requires_migration = True
+        requires_structural_migration = True
         reasons.append('explicit profile migration is required for an unannotated compatibility receipt')
     elif isinstance(receipt, dict) and SELECTION_PROFILE_ID == 'compat-v1':
         # An unannotated schema-v3 receipt is deliberately retained as
@@ -2361,6 +2408,7 @@ def classify_receipt(receipt, malformed, sources, metadata, plugin_version, fing
     return {
         'state': 'stale' if reasons else 'current',
         'requires_migration': requires_migration,
+        'requires_structural_migration': requires_structural_migration,
         'reasons': reasons,
         'legacy_names': sorted(set(legacy_names)),
         'retired_names': sorted(set(retired_names)),
@@ -2379,7 +2427,7 @@ def current_sources():
             metadata = inventory_skill_metadata() if kind == 'skills' else {}
             if kind == 'skills' and SELECTION_EMITTED_IDS is not None:
                 stable_id = metadata.get(name, {}).get('id') if isinstance(metadata.get(name), dict) else None
-                if stable_id not in SELECTION_EMITTED_IDS:
+                if stable_id not in set(SELECTION_EMITTED_IDS or []) | set(SELECTION_RUNTIME_IDS or []):
                     continue
             source = os.path.join(root, name)
             if not lexists(source):
@@ -2565,6 +2613,10 @@ def safe_destination_fingerprint(destination, include_ignored=True):
 def build_plan(receipt, classification, sources, metadata, plugin_version, fingerprint, retirements=None):
     """Build a relative-path-only reconciliation report without writing state."""
     entries = entry_map(receipt)
+    classification_reasons = [
+        reason for reason in classification.get('reasons', [])
+        if isinstance(reason, str)
+    ]
     collisions = []
     missing = []
     updates = []
@@ -2763,13 +2815,18 @@ def build_plan(receipt, classification, sources, metadata, plugin_version, finge
         reconciliation_state = classification.get('state')
     if collisions:
         state = 'requires_adoption'
-    elif classification.get('requires_migration') or reconciliation_state in ('partial', 'stale') or missing or updates or retired:
+    elif (classification.get('requires_migration')
+          or classification.get('state') == 'stale'
+          or reconciliation_state in ('partial', 'stale')
+          or missing or updates or retired):
         state = 'stale'
     else:
         state = 'current'
     next_action = None
     if collisions:
         next_action = 'review collision evidence, then re-run with --update --adopt=<reported-relative-path>@<destination-fingerprint>@<source-fingerprint>'
+    elif classification.get('requires_migration'):
+        next_action = 're-run with --migrate --update'
     elif state != 'current':
         next_action = 're-run with --update (and --migrate when the receipt is legacy)'
     return {
@@ -2778,6 +2835,7 @@ def build_plan(receipt, classification, sources, metadata, plugin_version, finge
         'profileId': SELECTION_PROFILE_ID,
         'selectedStableIds': list(SELECTION_CANONICAL_IDS or []),
         'emittedStableIds': list(SELECTION_EMITTED_IDS or []),
+        'runtimeSupportStableIds': list(SELECTION_RUNTIME_IDS or []),
         'compatibilityMode': SELECTION_COMPATIBILITY,
         'selectionPolicyVersion': SELECTION_POLICY_VERSION,
         'selectionFingerprint': SELECTION_FINGERPRINT,
@@ -2785,7 +2843,10 @@ def build_plan(receipt, classification, sources, metadata, plugin_version, finge
         'receipt_state': reconciliation_state,
         'reconciliation_state': reconciliation_state,
         'state': state,
+        'receipt_plugin_version': receipt.get('plugin_version') if isinstance(receipt, dict) else None,
+        'receipt_source_fingerprint': receipt.get('source_fingerprint') if isinstance(receipt, dict) else None,
         'source_fingerprint': fingerprint,
+        'reasons': classification_reasons,
         'collisions': sorted(collisions, key=lambda item: item.get('path', '')),
         'missing': sorted(missing, key=lambda item: item.get('path', '')),
         'updates': sorted(updates, key=lambda item: item.get('path', '')),
@@ -2936,6 +2997,7 @@ def build_evidence(plugin_version, fingerprint, entries, counts, state):
             'profileId': SELECTION_PROFILE_ID,
             'selectedStableIds': list(SELECTION_CANONICAL_IDS or []),
             'emittedStableIds': list(SELECTION_EMITTED_IDS or []),
+            'runtimeSupportStableIds': list(SELECTION_RUNTIME_IDS or []),
             'compatibilityMode': SELECTION_COMPATIBILITY,
             'selectionPolicyVersion': SELECTION_POLICY_VERSION,
             'selectionFingerprint': SELECTION_FINGERPRINT,
@@ -2979,6 +3041,7 @@ def save_receipt(plugin_version, fingerprint, entries, orphaned, counts, legacy_
             'profileId': SELECTION_PROFILE_ID,
             'selectedStableIds': list(SELECTION_CANONICAL_IDS or []),
             'emittedStableIds': list(SELECTION_EMITTED_IDS or []),
+            'runtimeSupportStableIds': list(SELECTION_RUNTIME_IDS or []),
             'compatibilityMode': SELECTION_COMPATIBILITY,
             'selectionPolicyVersion': SELECTION_POLICY_VERSION,
             'selectionFingerprint': SELECTION_FINGERPRINT,
@@ -3266,7 +3329,7 @@ if ADOPT_PATHS:
 classification = classify_receipt(receipt, legacy, sources, skill_metadata, plugin_version, fingerprint)
 legacy_pending = bool(
     legacy
-    or classification.get('requires_migration')
+    or classification.get('requires_structural_migration')
     or (isinstance(receipt, dict) and receipt.get('legacy_pending'))
 )
 entries = entry_map(receipt)
@@ -3293,7 +3356,7 @@ except ValueError as error:
     print(f'[install-codex-skills] ERROR: {error}', file=sys.stderr)
     sys.exit(2)
 
-if classification.get('requires_migration') and not MIGRATE and UNINSTALL is False:
+if classification.get('requires_structural_migration') and not MIGRATE and UNINSTALL is False:
     print('[install-codex-skills] state=stale_receipt: explicit migration is required before changing this projection', file=sys.stderr)
     for reason in classification.get('reasons') or []:
         print(f'[install-codex-skills] stale evidence: {reason}', file=sys.stderr)

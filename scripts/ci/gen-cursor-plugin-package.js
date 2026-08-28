@@ -90,7 +90,7 @@ try {
   fail(error.message);
 }
 
-const validation = verifyCursorPackage({ packageRoot: outDir, stage: 'structural' });
+const validation = verifyCursorPackage({ packageRoot: outDir, stage: 'structural', inventory });
 const structural = validation.structural || validation;
 if (!structural.ok) {
   for (const error of structural.errors) console.error(`ERROR [gen-cursor-plugin-package]: ${error}`);

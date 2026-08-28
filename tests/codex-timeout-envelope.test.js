@@ -22,13 +22,13 @@ const {
   parseTimeoutEnvelope,
 } = require('../skills/dhpk-codex-bridge/scripts/codex-timeout-envelope');
 
-test('wrapper resolves the helper from the packaged codex-bridge skill directory', () => {
+test('legacy envelope helper is not invoked by the contained transport wrapper', () => {
   const wrapper = fs.readFileSync(
     path.join(__dirname, '..', 'skills', 'dhpk-codex-bridge', 'scripts', 'run-codex.sh'),
     'utf8',
   );
   assert.ok(fs.existsSync(path.join(__dirname, '..', 'skills', 'dhpk-codex-bridge', 'scripts', 'codex-timeout-envelope.js')));
-  assert.ok(wrapper.includes('TIMEOUT_ENVELOPE_HELPER="$SCRIPT_DIR/codex-timeout-envelope.js"'));
+  assert.ok(!wrapper.includes('TIMEOUT_ENVELOPE_HELPER'), wrapper);
 });
 
 test('builds the versioned envelope with redacted report and bounded tails', () => {

@@ -11,8 +11,8 @@
 // Deliberately does not compare provenance.sourceCommit — every run of this
 // check happens at a later commit than the one the tracked package recorded,
 // so sourceCommit is expected to differ and is not a drift signal. It DOES
-// compare fingerprints (content), selectedSkillIds/selectedSkillNames
-// (stable/public membership), the manifest skills field, inventoryDigest, and
+// compare fingerprints (content), materialized skill membership, the manifest
+// skills field, inventoryDigest, and
 // generatorVersion.
 //
 // Usage: node scripts/ci/verify-codex-native-package.js [--repo-root <path>]
@@ -104,22 +104,24 @@ if (fresh.manifestSkillsField !== trackedManifest.skills) {
   errors.push(`manifest skills field drifted: tracked='${trackedManifest.skills}' fresh='${fresh.manifestSkillsField}'`);
 }
 
-const trackedIds = trackedProvenance.selectedSkillIds || [];
+const trackedIds = trackedProvenance.materializedSkillIds || trackedProvenance.selectedSkillIds || [];
 const freshIds = fresh.skillIds;
 if (JSON.stringify(trackedIds) !== JSON.stringify(freshIds)) {
   const missing = freshIds.filter((id) => !trackedIds.includes(id));
   const extra = trackedIds.filter((id) => !freshIds.includes(id));
-  errors.push(`selected skill membership drifted: missing=[${missing.join(', ')}] extra=[${extra.join(', ')}]`);
+  errors.push(`materialized skill membership drifted: missing=[${missing.join(', ')}] extra=[${extra.join(', ')}]`);
 }
 
-const trackedNames = Array.isArray(trackedProvenance.selectedSkillNames)
-  ? [...trackedProvenance.selectedSkillNames].sort()
+const trackedNames = Array.isArray(trackedProvenance.materializedSkillNames)
+  ? [...trackedProvenance.materializedSkillNames].sort()
+  : Array.isArray(trackedProvenance.selectedSkillNames)
+    ? [...trackedProvenance.selectedSkillNames].sort()
   : [];
 const freshNames = fresh.skillNames;
 if (JSON.stringify(trackedNames) !== JSON.stringify(freshNames)) {
   const missing = freshNames.filter((name) => !trackedNames.includes(name));
   const extra = trackedNames.filter((name) => !freshNames.includes(name));
-  errors.push(`selected public-name membership drifted: missing=[${missing.join(', ')}] extra=[${extra.join(', ')}]`);
+  errors.push(`materialized public-name membership drifted: missing=[${missing.join(', ')}] extra=[${extra.join(', ')}]`);
 }
 
 for (const name of freshNames) {

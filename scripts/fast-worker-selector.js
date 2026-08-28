@@ -7,8 +7,8 @@ const BACKENDS = ['claude', 'codex', 'agy'];
 const DEFAULT_ORDER = ['claude', 'codex', 'agy'];
 const AGENTS = {
   claude: 'dhpk:fast-worker',
-  codex: 'dhpk:codex-fast-worker',
-  agy: 'dhpk:agy-fast-worker',
+  codex: 'dhpk:codex-worker',
+  agy: 'dhpk:agy-worker',
 };
 
 const parseArgs = (argv) => {

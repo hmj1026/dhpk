@@ -18,6 +18,7 @@ const { collectInventory, relativePosix } = require('./asset-inventory');
 const { compileDistribution, verifyDistribution } = require('./distribution-compiler');
 const { fingerprint, createDistributionArtifact, projectionError } = require('./distribution-projection-contract');
 const { REQUIRED_SURFACES, REQUIRED_RUNTIME_SURFACES } = require('./harness-surfaces');
+const { validateInternalRuntimeSkills } = require('./internal-runtime-skills');
 
 const LIFECYCLES = ['promoted', 'optional', 'experimental', 'deprecated'];
 const SURFACES = [
@@ -555,6 +556,13 @@ function validateDistributionInventoryV2(input = {}) {
       }
     }
 
+    if (entry.invokable !== undefined && typeof entry.invokable !== 'boolean') {
+      errors.push(`${prefix}.invokable must be a boolean when present`);
+    }
+    if (entry.invokable === false && JSON.stringify([...(entry.surfaces || [])].sort()) !== JSON.stringify([...SURFACES].sort())) {
+      errors.push(`${prefix} non-invokable internal skills must be registered on every distribution surface`);
+    }
+
     if (entry.legacy_names !== undefined) {
       if (!Array.isArray(entry.legacy_names) || entry.legacy_names.length === 0 || entry.legacy_names.some((legacy) => typeof legacy !== 'string' || legacy.trim() === '')) {
         errors.push(`${prefix}.legacy_names must be a non-empty string array when present`);
@@ -581,6 +589,8 @@ function validateDistributionInventoryV2(input = {}) {
   errors.push(...selection.errors);
   const profilePolicy = validateCapabilityProfilePolicy({ inventory });
   errors.push(...profilePolicy.errors);
+  const internalRuntime = validateInternalRuntimeSkills({ inventory, skillIds: ids });
+  errors.push(...internalRuntime.errors);
   const routing = validateSkillRoutingFamilies({ families: inventory.skill_routing_families, skillIds: ids, skills: inventory.skills });
   errors.push(...routing.errors);
 
@@ -1329,17 +1339,19 @@ function reconcileDistribution({
 // documentation truth, not a claim that the host actually hides anything;
 // scripts/ci/gen-claude-manifest.js records that host limitation.
 function generateClaudeSkillRoots(inventory) {
-  const live = (inventory.skills || []).filter((s) => s.lifecycle !== 'deprecated');
+  const registered = (inventory.skills || []).filter((s) => s.lifecycle !== 'deprecated');
+  const invokable = registered.filter((s) => s.invokable !== false);
   if (inventory && inventory.schema === V2_SCHEMA) {
     return {
-      roots: live.length > 0 ? ['./skills/'] : [],
-      generatedSkillIds: live.map((s) => s.id).sort(),
+      roots: registered.length > 0 ? ['./skills/'] : [],
+      registeredSkillIds: registered.map((s) => s.id).sort(),
+      generatedSkillIds: invokable.map((s) => s.id).sort(),
     };
   }
 
-  const hasRootSkill = live.some((s) => !s.path.startsWith('modules/'));
+  const hasRootSkill = registered.some((s) => !s.path.startsWith('modules/'));
   const liveModuleIds = new Set(
-    live
+    registered
       .filter((s) => s.path.startsWith('modules/'))
       .map((s) => s.path.split('/')[1])
   );
@@ -1350,7 +1362,8 @@ function generateClaudeSkillRoots(inventory) {
 
   return {
     roots,
-    generatedSkillIds: live.map((s) => s.id).sort(),
+    registeredSkillIds: registered.map((s) => s.id).sort(),
+    generatedSkillIds: invokable.map((s) => s.id).sort(),
   };
 }
 
@@ -1367,6 +1380,7 @@ function normalizedInventoryView(inventory, generated) {
       name: entry.name || null,
       path: entry.path,
       lifecycle: entry.lifecycle,
+      invokable: entry.invokable !== false,
       surfaces: [...(entry.surfaces || [])].sort(),
     }))
     .sort((left, right) => String(left.id).localeCompare(String(right.id)));

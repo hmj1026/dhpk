@@ -37,6 +37,10 @@ function fixture() {
       id: 'unavailable-skill', name: 'dhpk-unavailable', path: 'skills/dhpk-unavailable', lifecycle: 'optional', tier: 'optional',
       profiles: ['module-a'], surfaces: ['claude-profile'],
     },
+    {
+      id: 'runtime-support', name: 'dhpk-runtime-support', path: 'skills/dhpk-runtime-support', lifecycle: 'optional', tier: 'optional',
+      profiles: ['core'], surfaces: ['claude-profile', 'agent-plugin'], invokable: false,
+    },
   );
   return {
     inventory: {
@@ -61,7 +65,7 @@ function fixture() {
       profiles: {
         minimal: { modules: [], skillIds: CORE_IDS.slice() },
         full: { modules: ['module-a'], skillIds: CORE_IDS.concat(['module-a-skill']), excludes: { 'module-b': 'conflict' } },
-        'compat-v1': { modules: [], skillIds: skills.map((entry) => entry.id) },
+        'compat-v1': { modules: [], skillIds: skills.filter((entry) => entry.invokable !== false).map((entry) => entry.id) },
       },
     },
     moduleCatalog: { modules: [{ id: 'module-a', requires: [] }, { id: 'module-b', requires: [] }] },
@@ -79,12 +83,12 @@ function resolve(input = {}) {
   });
 }
 
-test('fixture declares nine minimal IDs, conflict-aware full inputs, and compat-v1 live IDs', () => {
+test('fixture declares nine minimal IDs, conflict-aware full inputs, and compat-v1 invokable live IDs', () => {
   const source = fixture();
   assert.strictEqual(source.profiles.profiles.minimal.skillIds.length, 9);
   assert.deepStrictEqual(source.profiles.profiles.minimal.skillIds, CORE_IDS);
   assert.deepStrictEqual(source.profiles.profiles.full.excludes, { 'module-b': 'conflict' });
-  assert.strictEqual(source.profiles.profiles['compat-v1'].skillIds.length, source.inventory.skills.length);
+  assert.strictEqual(source.profiles.profiles['compat-v1'].skillIds.length, source.inventory.skills.filter((entry) => entry.invokable !== false).length);
 });
 
 test('minimal resolves exactly nine required core IDs', () => {
@@ -102,10 +106,12 @@ test('full preserves conflict-aware module semantics and is not the complete cat
   assert.ok(result.value.selectedStableIds.length < fixture().inventory.skills.length);
 });
 
-test('compat-v1 resolves every non-retired stable ID in deterministic order', () => {
+test('compat-v1 resolves every non-retired invokable stable ID in deterministic order', () => {
   const result = resolve({ profileId: 'compat-v1' });
   assert.strictEqual(result.ok, true, result.error && result.error.message);
-  assert.deepStrictEqual(result.value.selectedStableIds, fixture().inventory.skills.map((entry) => entry.id).sort());
+  assert.deepStrictEqual(result.value.selectedStableIds, fixture().inventory.skills
+    .filter((entry) => entry.invokable !== false).map((entry) => entry.id).sort());
+  assert.ok(!result.value.selectedStableIds.includes('runtime-support'));
   assert.strictEqual(result.value.compatibilityMode, 'compat-v1');
 });
 
@@ -135,6 +141,7 @@ test('resolver rejects unknown, retired, missing, incompatible, and conflict-exc
     ['retired-id', 'RETIRED_STABLE_ID'],
     ['', 'MISSING_STABLE_ID'],
     ['module-b-skill', 'SURFACE_INCOMPATIBLE'],
+    ['runtime-support', 'NON_INVOKABLE_STABLE_ID'],
   ]) {
     const result = resolve({ profileId: 'minimal', surface: 'agent-plugin', skillIds: [id] });
     assert.strictEqual(result.ok, false, `${id} must fail closed`);
@@ -191,7 +198,8 @@ test('receipt selection preserves compat-v1 until explicit migration', () => {
   });
   assert.strictEqual(existing.ok, true, existing.error && existing.error.message);
   assert.strictEqual(existing.value.profileId, 'compat-v1');
-  assert.deepStrictEqual(existing.value.selectedStableIds, source.inventory.skills.map((entry) => entry.id).sort());
+  assert.deepStrictEqual(existing.value.selectedStableIds, source.inventory.skills
+    .filter((entry) => entry.invokable !== false).map((entry) => entry.id).sort());
   const migration = selection.planProfileMigration({
     receipt: { profileId: 'compat-v1', selectedStableIds: source.inventory.skills.map((entry) => entry.id) },
     targetProfileId: 'minimal', inventory: source.inventory, profiles: source.profiles, moduleCatalog: source.moduleCatalog, surface: 'claude-profile',

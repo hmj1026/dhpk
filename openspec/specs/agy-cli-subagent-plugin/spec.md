@@ -222,3 +222,14 @@ manifest or discovery result SHALL NOT upgrade runtime support.
   bounded read-only Subagent smoke prompt with the expected agent identity
 - **THEN** the consumer-runtime row is `PASS` and includes the exact version,
   package receipt, and redacted probe evidence
+
+### Requirement: AGY prompt and confirmation channels stay compatible
+AGY SHALL retain the attested `-p` prompt argument because its supported stream
+prompt mode consumes stdin. It SHALL send only exact bounded `Y\n` confirmation
+on stdin, never inherit caller stdin, and never silently retry another transport.
+
+#### Scenario: AGY plan confirmation is bounded
+
+- **WHEN** AGY launches in accept-edits mode
+- **THEN** its stdin is exactly `Y\n` and its prompt remains the attested `-p`
+  argument

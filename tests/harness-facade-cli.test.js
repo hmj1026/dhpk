@@ -874,10 +874,12 @@ test('probe JSON preserves a consumer surface row when its runtime is unavailabl
     const payload = parseSingleJson(result.stdout);
     assert.strictEqual(payload.outcome, 'UNAVAILABLE');
     assert.strictEqual(payload.surfaceResults.length, 1);
-    assert.strictEqual(payload.surfaceResults[0].surface, 'cursor-plugin');
-    assert.strictEqual(payload.surfaceResults[0].status, 'UNAVAILABLE');
-    assert.strictEqual(payload.surfaceResults[0].stage, 'CONSUMER');
-    assert.match(JSON.stringify(payload.surfaceResults[0]), /Cursor|loader|unavailable/i);
+    const [cursorPlugin] = payload.surfaceResults;
+    assert.strictEqual(cursorPlugin.surface, 'cursor-plugin');
+    assert.strictEqual(cursorPlugin.status, 'UNAVAILABLE');
+    assert.ok(payload.surfaceResults.every((entry) => entry.stage === 'CONSUMER'));
+    assert.ok(payload.surfaceResults.every((entry) => entry.status !== 'PASS'));
+    assert.match(JSON.stringify(cursorPlugin), /Cursor|loader|unavailable/i);
     assert.ok(payload.receiptReference);
     const attempt = JSON.parse(fs.readFileSync(path.join(payload.receiptReference, 'attempt.json'), 'utf8'));
     assert.strictEqual(attempt.surface, 'cursor-plugin');

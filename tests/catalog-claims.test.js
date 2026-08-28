@@ -138,7 +138,7 @@ for (const r of ROUND_TRIPS) {
 // The canonical-skill claims expect skillsBase, not skillsTotal. In the real repo
 // skillsModule is 0, so both values are 97 and every other case here passes under
 // either choice. Planting a real module-owned SKILL.md makes them differ (base 97,
-// total 98) and is the only thing that can tell the two apart.
+// total 99) and is the only thing that can tell the two apart.
 test('canonical skill claims track skillsBase, so a module-owned skill does not inflate them', () => {
   // Plant inside an EXISTING module: a new modules/<name>/ directory would also bump the
   // module count and trip the "opt-in stack modules" claim, masking what this asserts.
@@ -187,15 +187,16 @@ test('canonical and Claude-published claims are evaluated against their own coun
     fs.writeFileSync(invPath, `${JSON.stringify(inv, null, 2)}\n`);
 
     // Canonical is unchanged by a lifecycle move; only the published count drops.
-    const before = JSON.parse(originals[0][1]).skills.length;
+    const { computeScopedCounts } = require(path.join(repo, 'scripts', 'lib', 'distribution-inventory'));
+    const published = computeScopedCounts(inv).claudePublished;
     fs.writeFileSync(surfaces, originals[1][1]
-      .replace(/(\d+)(\s+inventory-eligible Claude skill IDs)/, `${before - 1}$2`));
+      .replace(/(\d+)(\s+inventory-eligible Claude skill IDs)/, `${published}$2`));
     fs.writeFileSync(surfacesZh, originals[2][1]
-      .replace(/(\d+)(\s*個 inventory-eligible skill ID)/, `${before - 1}$2`));
+      .replace(/(\d+)(\s*個 inventory-eligible skill ID)/, `${published}$2`));
 
     const { status, out } = runCheck(repo);
     assert.strictEqual(status, 0,
-      `canonical claims (${before}) and published claims (${before - 1}) must each check against their own count; got:\n${out}`);
+      `canonical claims (${inv.skills.length}) and published claims (${published}) must each check against their own count; got:\n${out}`);
   } finally {
     for (const [f, text] of originals) fs.writeFileSync(f, text);
   }
