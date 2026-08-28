@@ -58,7 +58,7 @@ Reconfigure any time with `/dhpk:setup` (or `/dhpk:setup --show` to print the cu
 | Hooks | 4 events | PreToolUse (Edit guard and combined Bash safety/Git gate), PostToolUse (sentinel routing), SessionStart (module activation), SubagentStop (strict reviewer reconciliation) |
 | Hook dispatchers | 2 | `post-edit-dispatch.sh` routes sentinels; `pre-bash-dispatch.sh` combines deterministic shell and Git/review-debt gates |
 | Harness scripts | 5 | precommit-runner, verify-runner, harness-audit, codemap generator, dep-audit |
-| Codex dual-track | 16 entries (15 invokable) | Project sync uses receipt-owned projections; the experimental native package publishes the same invokable set plus the internal transport runtime as physical files. |
+| Codex dual-track | 17 entries (15 invokable) | Project sync uses receipt-owned projections; the experimental native package publishes the same invokable set plus internal transport and dispatch-context runtimes as physical files. |
 
 Invocation syntax is surface-specific:
 
@@ -317,10 +317,10 @@ dhpk/
 ├── codex/                        # Codex CLI dual-track (Claude Code does NOT auto-load)
 │   ├── AGENTS.md                 # Codex-specific guidance
 │   ├── README.md, README.zh-TW.md # how to sync into a project
-│   ├── skills/                   # 16 relative symlinks (15 invokable + internal transport runtime)
+│   ├── skills/                   # 17 relative symlinks (15 invokable + internal transport + dispatch-context runtimes)
 │   ├── agents/, config.toml.example
 ├── .codex-plugin/plugin.json     # Codex plugin manifest (marketplace-installable, experimental)
-├── plugins/dhpk/                 # tracked Codex-native package: 16 physical entries, zero symlinks
+├── plugins/dhpk/                 # tracked Codex-native package: 17 physical entries, zero symlinks
 │   ├── .codex-plugin/plugin.json
 │   ├── README.md
 ├── .agents/plugins/marketplace.json  # repo-scoped Codex marketplace descriptor

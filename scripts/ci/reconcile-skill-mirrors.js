@@ -37,10 +37,34 @@ function regularDirectory(directory, label) {
   if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error(`${label} must be a physical directory: ${directory}`);
 }
 
-function reconcileMirror({ root, canonicalDir, skill, surface }) {
+function physicalDirectoryInsideRoot(directory, label, rootRealPath) {
+  regularDirectory(directory, label);
+  const realPath = fs.realpathSync(directory);
+  if (!isInside(rootRealPath, realPath)) {
+    throw new Error(`${label} realpath escapes repository root: ${directory}`);
+  }
+  return realPath;
+}
+
+function reconcileMirror({ root, rootRealPath, canonicalDir, canonicalRealPath, skill, surface }) {
+  const surfaceRoot = path.join(root, surface.name);
+  const surfaceStat = fs.lstatSync(surfaceRoot, { throwIfNoEntry: false });
+  if (surfaceStat) {
+    if (!surfaceStat.isDirectory() || surfaceStat.isSymbolicLink()) {
+      throw new Error(`${surface.name} surface parent must be a physical directory (symlink rejected): ${surfaceRoot}`);
+    }
+    if (!isInside(rootRealPath, fs.realpathSync(surfaceRoot))) {
+      throw new Error(`${surface.name} surface parent realpath escapes repository root: ${surfaceRoot}`);
+    }
+  }
+
   const skillsDir = path.join(root, surface.name, 'skills');
+  const skillsStat = fs.lstatSync(skillsDir, { throwIfNoEntry: false });
+  if (skillsStat && (!skillsStat.isDirectory() || skillsStat.isSymbolicLink())) {
+    throw new Error(`${surface.name}/skills must be a physical directory (symlink rejected): ${skillsDir}`);
+  }
   fs.mkdirSync(skillsDir, { recursive: true });
-  regularDirectory(skillsDir, `${surface.name}/skills`);
+  physicalDirectoryInsideRoot(skillsDir, `${surface.name}/skills`, rootRealPath);
 
   const destination = path.join(skillsDir, skill);
   const target = `../../skills/${skill}`;
@@ -57,12 +81,17 @@ function reconcileMirror({ root, canonicalDir, skill, surface }) {
   }
 
   fs.symlinkSync(target, destination);
+  if (fs.realpathSync(destination) !== canonicalRealPath) {
+    throw new Error(`${surface.name}/skills/${skill} does not resolve to its canonical package after creation`);
+  }
   return 'created';
 }
 
 function main() {
   const args = parseArgs(process.argv.slice(2));
   const root = path.resolve(args.repoRoot);
+  regularDirectory(root, 'repository root');
+  const rootRealPath = fs.realpathSync(root);
   const inventoryPath = path.join(root, 'manifests', 'distribution-inventory.json');
   if (!fs.existsSync(inventoryPath)) throw new Error(`distribution inventory not found: ${inventoryPath}`);
   const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
@@ -76,14 +105,17 @@ function main() {
   if (!isInside(path.join(root, 'skills'), canonicalDir) || path.basename(canonicalDir) !== args.skill) {
     throw new Error(`${args.skill} has an unsafe canonical inventory path: ${skill.path}`);
   }
-  regularDirectory(canonicalDir, 'canonical skill');
+  const canonicalRealPath = physicalDirectoryInsideRoot(canonicalDir, 'canonical skill', rootRealPath);
+  if (!isInside(path.join(rootRealPath, 'skills'), canonicalRealPath)) {
+    throw new Error(`${args.skill} canonical skill realpath escapes the repository skills root: ${skill.path}`);
+  }
   const skillFile = path.join(canonicalDir, 'SKILL.md');
   const skillStat = fs.lstatSync(skillFile);
   if (!skillStat.isFile() || skillStat.isSymbolicLink()) throw new Error(`canonical skill is missing a physical SKILL.md: ${skill.path}`);
 
   const results = SURFACES.map((surface) => ({
     surface: surface.name,
-    status: reconcileMirror({ root, canonicalDir, skill: args.skill, surface }),
+    status: reconcileMirror({ root, rootRealPath, canonicalDir, canonicalRealPath, skill: args.skill, surface }),
   }));
   console.log(`PASS [skill-mirror-reconcile]: ${args.skill} ${results.map((result) => `${result.surface}:${result.status}`).join(', ')}`);
 }

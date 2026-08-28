@@ -58,7 +58,7 @@ claude plugin install dhpk@dhpk --config modules=php-8.x,laravel-11 --config hoo
 | Hooks | 4 個事件 | PreToolUse（Edit guard 與合併 Bash safety/Git gate）、PostToolUse（sentinel routing）、SessionStart（module activation）、SubagentStop（strict reviewer reconciliation） |
 | Hook dispatchers | 2 | `post-edit-dispatch.sh` 負責 sentinel routing；`pre-bash-dispatch.sh` 合併 deterministic shell 與 Git/review-debt gate |
 | Harness 腳本 | 5 | precommit-runner、verify-runner、harness-audit、codemap generator、dep-audit |
-| Codex 雙軌 | 16 筆項目（15 個可呼叫） | 專案同步使用 receipt 管理的 projection；實驗性 native package 則以實體檔發布同一組技能與內部 transport runtime。 |
+| Codex 雙軌 | 17 筆項目（15 個可呼叫） | 專案同步使用 receipt 管理的 projection；實驗性 native package 則以實體檔發布同一組技能與內部 transport 與 dispatch-context runtime。 |
 
 呼叫語法會依 surface 不同：
 
@@ -311,10 +311,10 @@ dhpk/
 ├── codex/                        # Codex CLI 雙軌（Claude Code 不會自動載入）
 │   ├── AGENTS.md                 # Codex 專屬指引
 │   ├── README.md、README.zh-TW.md # 如何同步進專案
-│   ├── skills/                   # 16 個相對 symlink（15 個可呼叫加內部 transport runtime）
+│   ├── skills/                   # 17 個相對 symlink（15 個可呼叫加內部 transport 與 dispatch-context runtime）
 │   ├── agents/、config.toml.example
 ├── .codex-plugin/plugin.json     # Codex plugin manifest（marketplace 可安裝，實驗性）
-├── plugins/dhpk/                 # 追蹤中的 Codex-native package：16 個實體項目、零 symlink
+├── plugins/dhpk/                 # 追蹤中的 Codex-native package：17 個實體項目、零 symlink
 │   ├── .codex-plugin/plugin.json
 │   ├── README.md
 ├── .agents/plugins/marketplace.json  # repo-scoped Codex marketplace descriptor
