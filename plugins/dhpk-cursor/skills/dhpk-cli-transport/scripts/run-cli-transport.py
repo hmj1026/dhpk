@@ -32,10 +32,19 @@ CONTEXT_FIELDS = (
     "transport", "requested_model", "requested_effort", "prompt_evidence",
 )
 MAX_AUTHORITY = {
-    "codex-deep-reasoner": "read-only",
-    "codex-fast-worker": "workspace-write",
-    "agy-fast-worker": "workspace-write",
-    "codex-bridge": "workspace-write",
+    "codex-worker": "workspace-write",
+    "codex-reasoner": "read-only",
+    "codex-reviewer": "read-only",
+    "agy-worker": "workspace-write",
+}
+ROLE_ALIASES = {
+    "codex-fast-worker": "codex-worker",
+    "codex-deep-reasoner": "codex-reasoner",
+    "agy-fast-worker": "agy-worker",
+}
+PROVIDER_ROLES = {
+    "codex": frozenset(("codex-worker", "codex-reasoner", "codex-reviewer")),
+    "agy": frozenset(("agy-worker",)),
 }
 AUTHORITY_RANK = {"read-only": 0, "workspace-write": 1}
 REDACTION = re.compile(r"(?i)(bearer\s+|basic\s+|api[_-]?key[=:]\s*|token[=:]\s*|access_token[=:]\s*|refresh_token[=:]\s*|oauth_token[=:]\s*|password[=:]\s*|secret[=:]\s*|client_secret[=:]\s*|credential[=:]\s*|authorization[=:]\s*|aws_secret_access_key[=:]\s*|cookie[=:]\s*)(?:([\"'])(?:\\.|(?!\2).)*\2|([^\s]+))")
@@ -81,7 +90,7 @@ def contained_file(root, value, label):
     return absolute
 
 
-def atomic_json_at(directory_fd, name, payload):
+def atomic_json_at(directory_fd, name, payload, discard_untrusted_collision=False):
     temporary = ".receipt-" + uuid.uuid4().hex
     try:
         fd = os.open(temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600, dir_fd=directory_fd)
@@ -94,14 +103,26 @@ def atomic_json_at(directory_fd, name, payload):
             handle.write("\n")
             handle.flush()
             os.fsync(handle.fileno())
-        try:
-            # link(2) gives create-if-absent semantics inside the pinned
-            # artifact-root descriptor. os.replace would allow replacement.
-            os.link(temporary, name, src_dir_fd=directory_fd, dst_dir_fd=directory_fd, follow_symlinks=False)
-        except OSError as error:
-            if getattr(error, "errno", None) == 17:
-                raise Blocked("immutable receipt target already exists")
-            raise Blocked("could not create immutable receipt target: %s" % error)
+        for attempt in range(4):
+            try:
+                # link(2) gives create-if-absent semantics inside the pinned
+                # artifact-root descriptor. os.replace would allow replacement.
+                os.link(temporary, name, src_dir_fd=directory_fd, dst_dir_fd=directory_fd, follow_symlinks=False)
+                break
+            except OSError as error:
+                if getattr(error, "errno", None) != 17:
+                    raise Blocked("could not create immutable receipt target: %s" % error)
+                if not discard_untrusted_collision or attempt == 3:
+                    raise Blocked("immutable receipt target already exists")
+                try:
+                    # The caller only enables this after proving the target was
+                    # absent before launch. Remove a provider-created name via
+                    # the pinned directory, then retry create-if-absent.
+                    os.unlink(name, dir_fd=directory_fd)
+                except FileNotFoundError:
+                    pass
+                except OSError as collision_error:
+                    raise Blocked("could not remove provider-created receipt collision: %s" % collision_error)
     finally:
         try:
             os.unlink(temporary, dir_fd=directory_fd)
@@ -500,8 +521,30 @@ def reject_reserved_transport_placeholders(request):
             raise Blocked("%s must not contain a reserved transport placeholder" % field)
 
 
+def canonical_role(requested_role, mode):
+    if mode not in ("read-only", "workspace-write"):
+        raise Blocked("mode is invalid")
+    if requested_role == "codex-bridge":
+        role = "codex-reviewer" if mode == "read-only" else "codex-worker"
+    else:
+        role = ROLE_ALIASES.get(requested_role, requested_role)
+    authority = MAX_AUTHORITY.get(role)
+    if authority is None:
+        raise Blocked("role contract role is unknown")
+    if authority != mode:
+        raise Blocked("role authority contradicts mode")
+    return role
+
+
 def role_validation(request):
+    requested_role = request.get("requested_role")
     role = request.get("effective_role")
+    expected_role = canonical_role(requested_role, request.get("mode"))
+    if role != expected_role:
+        raise Blocked("role labels must be canonicalized before the contained runner")
+    provider_roles = PROVIDER_ROLES.get(request.get("provider"))
+    if provider_roles is None or role not in provider_roles:
+        raise Blocked("effective role is not bound to provider")
     contract = request.get("role_contract")
     if not isinstance(contract, dict) or contract.get("schema") != "dhpk.role-contract.v1":
         raise Blocked("role_contract must use dhpk.role-contract.v1")
@@ -516,19 +559,11 @@ def role_validation(request):
         raise Blocked("role contract source_id is invalid")
     if contract.get("evidence_sha256") != canonical_digest(fields):
         raise Blocked("role contract digest does not match canonical fields")
-    requested_maximum = MAX_AUTHORITY.get(request.get("requested_role"))
     effective_maximum = MAX_AUTHORITY.get(role)
-    if requested_maximum is None or effective_maximum is None:
-        raise Blocked("role contract role is unknown")
-    if request.get("requested_role") != role:
-        raise Blocked("role labels must be canonicalized before the contained runner")
-    maximum = min(AUTHORITY_RANK[requested_maximum], AUTHORITY_RANK[effective_maximum])
-    if AUTHORITY_RANK[fields["authority"]] > maximum:
+    if fields["authority"] != effective_maximum:
         raise Blocked("role contract authority exceeds or contradicts role maximum")
-    if request.get("mode") not in ("read-only", "workspace-write"):
-        raise Blocked("mode is invalid")
-    if AUTHORITY_RANK[request["mode"]] > AUTHORITY_RANK[fields["authority"]]:
-        raise Blocked("read-only authority cannot be widened")
+    if request["mode"] != fields["authority"]:
+        raise Blocked("mode contradicts role authority")
     return contract
 
 
@@ -640,13 +675,13 @@ def receipt(request, status, **extra):
     return result
 
 
-def persist(request, artifact_fd, receipt_path, payload):
+def persist(request, artifact_fd, receipt_path, payload, discard_untrusted_collision=False):
     follow = {"schema": "dhpk.cli.follow-up.v1", "receipt_launch_id": payload["launch_id"], "terminal_status": payload["status"], "immutable": True}
     # Keep the follow-up record inside the one immutable receipt. Two sibling
     # files cannot be committed atomically without risking an orphan if the
     # second link fails.
     payload["follow_up"] = {"record": follow, "sha256": canonical_digest(follow)}
-    atomic_json_at(artifact_fd, os.path.basename(receipt_path), payload)
+    atomic_json_at(artifact_fd, os.path.basename(receipt_path), payload, discard_untrusted_collision)
 
 
 def read_bounded_file(path, label):
@@ -743,10 +778,12 @@ def main():
     workdir_fd = None
     artifact_fd = None
     contract = None
+    receipt_target_was_absent = False
     try:
         workdir, artifact_root, receipt_path, prompt, contract, runtime_path, workdir_fd, artifact_fd = validate(request)
         if os.path.lexists(receipt_path):
             raise Blocked("immutable receipt target already exists")
+        receipt_target_was_absent = True
         before = snapshot(workdir)
         preexisting_symlinks = symlink_paths(before)
         if preexisting_symlinks:
@@ -879,7 +916,7 @@ def main():
                     request, "BLOCKED", role_contract=contract, exit_code=65,
                     timeout_secs=request.get("timeout_secs"), enforced_timeout=False, verified_timeout=False,
                     reason=redact_text(str(error).encode("utf-8"), private_roots),
-                ))
+                ), discard_untrusted_collision=receipt_target_was_absent)
             except Exception:
                 pass
         print("dhpk-cli-transport: BLOCKED: %s" % redact_text(str(error).encode("utf-8"), (request.get("workdir", ""), request.get("artifact_root", ""))), file=sys.stderr)

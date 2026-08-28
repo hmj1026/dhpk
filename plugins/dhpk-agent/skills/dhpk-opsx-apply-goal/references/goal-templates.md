@@ -76,18 +76,22 @@ roster appended before the transition into the stop conditions:
 ```
 First run ONE Bash orientation command — `p=${CLAUDE_PLUGIN_ROOT:-$(ls -dt ~/.claude/plugins/cache/dhpk/dhpk/* 2>/dev/null|head -1)}; q(){ cat "$p/$1" 2>/dev/null||{ test -r ./.claude-plugin/plugin.json&&cat "./$1";};}; q rules/execution-policy-kernel.md||echo POLICY-UNRESOLVED; q skills/dhpk-execution-policy/references/implementation-dispatch.md` — never filesystem-scan; every reviewer dispatch (even
 confirm-only) still gets a fresh .claude/artifacts/reviews/ artifact, never
-reply-only, invoke openspec-apply-change <CHANGE_ID>; continue. Tasks:
-<TASK_DIGEST>. gitnexus repo="<project>".
-On "Unknown skill", retry once; implement under these gates.
-Set `DHPK_ORCHESTRATION_DISPATCH=on`. Bash resets cwd; use absolute paths, `npm --prefix`, or `git -C`.
-You are the orchestrator: mechanical → <FAST_WORKER_CLAUSE>; reasoning → dhpk:deep-reasoner;
-RED PHPUnit → dhpk:tdd-guide; <E2E_ROSTER_CLAUSE>never general-purpose.
-Inline ≤2-file whole-implement-step plus bookkeeping; ≥3 files → one batch.
-Reviews run as ONE consolidated parallel batch per wave;
-known-finding confirm-only re-review; codex-bridge only as explicit escalation, at most once per change.
-Explicit project hard rules cannot be deferred because a prior design chose a cheaper implementation.
-Never sleep-poll; wait on notifications/Monitor.
-<CODEX_STATEMENT>. Continue until all of the following hold,
+reply-only.
+Run openspec-apply-change <CHANGE_ID>. Tasks:<TASK_DIGEST>. gitnexus repo="<project>"; continue.
+On "Unknown skill": retry once; implement under gates.
+Set DHPK_ORCHESTRATION_DISPATCH=on; cwd resets—use absolute paths or git -C.
+You are the orchestrator: mechanical→<FAST_WORKER_CLAUSE>; reasoning→dhpk:deep-reasoner;
+RED PHPUnit→dhpk:tdd-guide; <E2E_ROSTER_CLAUSE>never general-purpose.
+Explicit CLI packet via only `node "$p/skills/dhpk-cli-dispatch-context/scripts/launch-cli-dispatch.js"`:
+dispatching_agent distinct from execution_provider; requested_role,mode,task_id,attempt_id, absolute
+workdir, existing prompt/scope, ordered config. Keep runtime binding + execution-policy decision;
+never infer authority. READY before adapter; never synthesize operational files.
+Inline ≤2-file whole-implement-step + bookkeeping; ≥3 files: one batch.
+ONE consolidated parallel batch per wave; known findings: confirm-only;
+codex-bridge only as explicit escalation, at most once per change.
+project hard rules cannot be deferred because a prior design chose a cheaper implementation.
+No sleep-poll; await notifications/Monitor.
+<CODEX_STATEMENT>. Continue until:
 ```
 
 ### CODEX_STATEMENT
@@ -105,20 +109,20 @@ names and binds via the orientation read:
 ## Part 1 (always)
 
 ```
-All checkboxes in openspec/changes/<CHANGE_ID>/tasks.md are [x] (Claude confirmed in conversation)
+All openspec/changes/<CHANGE_ID>/tasks.md checkboxes [x]; Claude confirmed in conversation
 ```
 
 ## Part 2 (always — universal sentinel check)
 
 ```
-Claude ran `ls .claude/artifacts/sessions/.pending-* 2>/dev/null || echo NONE`
-and confirmed the output is NONE in conversation (all pending reviewer sentinels cleared)
+Claude ran `ls .claude/artifacts/sessions/.pending-* 2>/dev/null||echo NONE`
+and confirmed NONE in conversation (reviewer sentinels cleared)
 ```
 
 ## Part 2b (always — unresolved reviewer verdict sidecar check)
 
 ```
-Claude ran `test ! -s .claude/artifacts/sessions/.unresolved-verdict && echo NONE || cat .claude/artifacts/sessions/.unresolved-verdict`
+Claude ran `[ ! -s .claude/artifacts/sessions/.unresolved-verdict ]&&echo NONE||cat .claude/artifacts/sessions/.unresolved-verdict`
 and confirmed the output is NONE in conversation (no unresolved reviewer verdict sidecar entries)
 ```
 
@@ -197,25 +201,21 @@ unattended session when the runtime is genuinely unreachable this session.
 Emit the turn line always. Emit the wall-clock line **only if `MAX_DURATION` is
 set** (when absent, omit that line — behavior unchanged):
 ```
-OR at turn <TURN_BUDGET>: stop after finishing the current tasks.md item, with
-no half-edited file; write openspec/changes/<CHANGE_ID>/.resume-note.md (state,
-next step, remaining tasks), end the session — hard checkpoint, not advice; a
-fresh session resumes cheaper than this one continuing
+OR at turn <TURN_BUDGET>: stop after finishing the current tasks.md item; no
+half-edited file. Write openspec/changes/<CHANGE_ID>/.resume-note.md (state,next
+step,remaining tasks); end session—hard checkpoint
 OR stop after <MAX_DURATION> wall-clock elapsed: write the same
 .resume-note.md (state, next step, remaining tasks), end the session
-OR stop when every remaining unchecked task is blocked on a human-only action
-(PR merge, credentials, deploy approval): annotate `[blocked: <reason>]` in
-tasks.md, write .resume-note.md, then stop
-OR stop immediately when an explicit project hard-rule conflict cannot be
-resolved by strict compliance without human input; write
-openspec/changes/<CHANGE_ID>/.hard-rule-escalation.md with the rule,
-conflicting decision with file:line evidence, and why compliance is blocked,
-then end the turn without continuing or waiting
-and list in conversation, then write the same three items into
-.resume-note.md:
-(1) unchecked task items
+OR when all unchecked tasks need human action (PR merge, credentials, deploy
+approval): put `[blocked: <reason>]` in tasks.md; write .resume-note.md; stop
+OR on a project hard-rule conflict unresolved by strict compliance without human
+input: write openspec/changes/<CHANGE_ID>/.hard-rule-escalation.md with the rule,
+conflicting decision with file:line evidence, and why compliance is blocked; end
+turn; do not continue/wait
+List, then copy to .resume-note.md:
+(1) unchecked tasks
 (2) output of ls .claude/artifacts/sessions/.pending-*
-(3) a one-line next-focus hint
+(3) one-line next-focus hint
 ```
 The `openspec/changes/<CHANGE_ID>/.resume-note.md` carry-forward lets a
 follow-up session resume cleanly via `dhpk-opsx-load-context` (which searches that
