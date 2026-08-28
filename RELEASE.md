@@ -8,7 +8,7 @@ dhpk uses a direct, PR-driven release flow:
 feature/*, fix/* ──► develop ──(release PR)──► main ──► annotated vX.Y.Z tag
                                       │                         │
                                       │                         └─ Release CI
-                                      └─────────────────────────── back-merge
+                                      └─────────────────────────── reconcile develop
 ```
 
 `develop` is the permanent integration branch. A release is a deliberate
@@ -21,7 +21,8 @@ created only after that pull request is merged.
 - **Release candidate** — the version and changelog changes proposed by the
   release PR.
 - **Published release** — the immutable `vX.Y.Z` tag, successful Release
-  workflow, GitHub Release, and successful `main` → `develop` back-merge.
+  workflow, GitHub Release, and successful `develop` reconciliation with
+  released `main` (idle-align when trees match, `--no-ff` when they differ).
 - **Consumer update** — a separate action that refreshes a Claude or Codex
   consumer. A published release does not imply that every consumer updated.
 - **Immutable tag** — a tag that is never moved, deleted, or reused. A
@@ -241,12 +242,15 @@ A release is complete only when all of these states hold:
 3. the Release workflow and GitHub Release succeed; and
 4. `consumer-verify` reports `COMPLETE`; `PUBLISHED_PENDING` is a successful
    non-blocking evidence collection job, but it is not release completion; and
-5. the `sync-develop` job successfully back-merges `main` into `develop`.
+5. the `sync-develop` job successfully reconciles `develop` with released
+   `main`: idle identical trees are aligned with `--force-with-lease`; unique
+   develop tree content keeps a `--no-ff` back-merge.
 
-The back-merge uses `--no-ff`. Conflicts or branch-protection failures remain
-blocking — the `sync-develop` job fails loudly, preserves both `main` and
-`develop` exactly as they were, and never resets or force-pushes. Manual
-recovery:
+Idle-align uses `--force-with-lease` pinned to the fetched `develop` SHA. It
+does not use bare `--force` or `-f`. Unique-tree conflicts or branch-protection
+failures remain blocking — the `sync-develop` job fails loudly, preserves both
+`main` and `develop` exactly as they were, and never `reset --hard`. Manual
+recovery for a unique-tree merge conflict:
 
 1. Create a recovery branch from `develop`: `git checkout -b recovery/back-merge-vX.Y.Z develop`.
 2. Merge `main` into that recovery branch: `git merge --no-ff main`.
@@ -254,8 +258,14 @@ recovery:
 4. Open a PR from the recovery branch to `develop` and merge it through the
    normal human approval boundary.
 
-Never resolve a failed back-merge by force-pushing `develop` or resetting
-either branch.
+Never resolve a failed unique-tree back-merge by force-pushing `develop` or
+resetting either branch. Idle-align is only for identical trees.
+
+If idle-align `--force-with-lease` is rejected because `develop` moved, leave
+both branches as they are. Re-fetch `origin/main` and `origin/develop`, do not
+retry with bare `--force` or `-f`, and either wait for a `sync-develop` rerun
+or open a recovery PR. Matching trees with unequal SHAs after publish means
+idle-align did not land; diagnose CI, do not rewrite `develop` locally.
 
 The consumer job keeps the published tag immutable. Missing or unavailable
 runtime clients produce `PUBLISHED_PENDING` and leave the job green while the
@@ -271,8 +281,8 @@ release; rollback for an already-updated consumer means reinstalling the
 previous known-good immutable version and starting a fresh session.
 
 The durable release evidence is the version, tag SHA, CI run, GitHub Release,
-and back-merge result. Session-local reports may supplement that evidence but
-are not themselves proof of publication.
+and develop-reconciliation result. Session-local reports may supplement that
+evidence but are not themselves proof of publication.
 
 ## Consumer update boundary
 

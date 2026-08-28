@@ -19,6 +19,13 @@ test('release skill documents prepare, human merge, then publish', () => {
   assert.ok(flat.slice(prepare, publish).includes('human merge'));
 });
 
+test('release skill verifies develop/main SHAs after publish and does not instruct a force-push', () => {
+  assert.match(SKILL, /origin\/develop/);
+  assert.match(SKILL, /origin\/main/);
+  assert.ok(!/git push --force(?!-with-lease)/.test(SKILL), 'skill must not be a force-push writer');
+  assert.ok(!/force-push `?develop`?/i.test(SKILL) || /verify|SHA|compare/i.test(SKILL));
+});
+
 test('prepare creates the release PR and stops before tagging', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-release-runner-'));
   try {
@@ -122,6 +129,47 @@ exit 0
     const query = 'gh run list --workflow release.yml --branch v1.2.3 --event push --limit 1 --json databaseId --jq .[0].databaseId // empty';
     assert.strictEqual(calls.split(query).length - 1, 2, calls);
     assert.ok(calls.includes('gh run watch run-123'), calls);
+    assert.ok(calls.includes('git fetch origin main develop') || calls.includes('git fetch origin develop main'), calls);
+    assert.ok(calls.includes('git rev-parse origin/main'), calls);
+    assert.ok(calls.includes('git rev-parse origin/develop'), calls);
+    assert.ok(calls.includes('git checkout -B develop origin/develop'), calls);
+    assert.strictEqual((calls.match(/git pull --ff-only/g) || []).length, 1, 'publish must not ff-pull rewritten develop after watch');
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('publish fails when post-release trees match but develop and main SHAs differ', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-release-runner-'));
+  try {
+    const bin = path.join(tmp, 'bin');
+    const log = path.join(tmp, 'calls.log');
+    fs.mkdirSync(bin);
+    fs.writeFileSync(path.join(bin, 'git'), `#!/bin/sh
+printf "git %s\\n" "$*" >> "$CALL_LOG"
+if [ "$1" = "rev-parse" ] && [ "$2" = "origin/main" ]; then printf "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\\n"; exit 0; fi
+if [ "$1" = "rev-parse" ] && [ "$2" = "origin/develop" ]; then printf "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\\n"; exit 0; fi
+if [ "$1" = "diff" ] && [ "$2" = "--quiet" ]; then exit 0; fi
+exit 0
+`, { mode: 0o755 });
+    fs.writeFileSync(path.join(bin, 'gh'), `#!/bin/sh
+printf "gh %s\\n" "$*" >> "$CALL_LOG"
+if [ "$1 $2" = "pr list" ]; then printf "2026-07-18T12:00:00Z\\n"; fi
+if [ "$1 $2" = "run list" ]; then printf "run-123\\n"; fi
+exit 0
+`, { mode: 0o755 });
+    const res = spawnSync('bash', [RUNNER, 'publish', '1.2.3', 'develop', 'main', 'v', 'release.yml'], {
+      cwd: tmp,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        PATH: `${bin}:${process.env.PATH}`,
+        CALL_LOG: log,
+        DHPK_RELEASE_POLL_INTERVAL: '0',
+        DHPK_RELEASE_POLL_ATTEMPTS: '1',
+      },
+    });
+    assert.notStrictEqual(res.status, 0, 'matching trees with unequal SHAs must fail the publish verifier');
+    assert.match(`${res.stdout}\n${res.stderr}`, /trees match but SHAs differ|idle-align/i);
+    assert.ok(!fs.readFileSync(log, 'utf8').includes('push --force'), fs.readFileSync(log, 'utf8'));
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 });
 

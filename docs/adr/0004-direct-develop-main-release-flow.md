@@ -9,5 +9,9 @@ This keeps the existing two-branch topology and the human merge gate while
 avoiding the drift and tag-prefix correction that the previous git-flow release
 branch procedure introduced. The tag workflow creates the GitHub Release from
 the non-empty changelog section, preserves an existing Release on rerun, and
-back-merges `main` into `develop`; publication is complete only after that
-back-merge succeeds.
+reconciles `develop` with released `main`. When the two trees are identical,
+CI aligns `develop` onto `main` with `--force-with-lease` pinned to the fetched
+develop SHA (squash-merged release PRs do not preserve ancestry, so tree
+identity is the idle predicate). When the trees differ, CI keeps a
+conflict-loud `--no-ff` merge. Publication is complete only after that
+reconciliation succeeds.
