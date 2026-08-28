@@ -4,9 +4,9 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk",
   "sourceVersion": "0.48.3",
-  "sourceCommit": "80dd669630f2524e1af676f3f5bc03823e7d5a11",
-  "generatedFromCommit": "80dd669630f2524e1af676f3f5bc03823e7d5a11",
-  "generatedFromTree": "052a95c51b6c8283f3f899ecd7ba594d6d011b2b",
+  "sourceCommit": "96cf6b116b3aaf6fbd9bb4831d91ccf22bce0eee",
+  "generatedFromCommit": "96cf6b116b3aaf6fbd9bb4831d91ccf22bce0eee",
+  "generatedFromTree": "147ab155fa6fed426f04c34815089512ab7e1e79",
   "inventoryDigest": "2747dc19b8ff202ab771449bb65bab8340ff03021a545de1ac1b04696b29503a",
   "generatorVersion": "2.3.0",
   "selectedSkillIds": [
