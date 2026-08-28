@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## 0.49.1 — 2026-08-29 — Allow AGY skill scripts, canonicalize CLI role labels, and idle-align develop after release
+
+**fix(agy-plugin)** — Allow skill scripts subdirectories during AGY package structure validation so nested runtime assets do not cause false-positive consumer gate failures.
+**fix(release)** — After a successful release, align idle develop onto main with force-with-lease when trees match; keep a conflict-loud --no-ff merge when develop has unique work.
+**docs(docs)** — Use canonical CLI role IDs as the primary labels in policy docs and hook liveness matching, keeping legacy aliases for the compatibility window.
+
 ## 0.49.0 — 2026-08-28 — Unify external CLI transport and canonicalize CLI role vocabulary
 
 **feat(cli-role-dispatch)** — Canonicalize CLI role dispatch vocabulary across skill mirrors and platform projections, with a shared cli-role-resolver and reconciled agent skill mirrors.
