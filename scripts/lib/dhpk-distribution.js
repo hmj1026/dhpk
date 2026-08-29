@@ -29,7 +29,7 @@ const {
   materializeAgyPluginPackage,
   validateAgyPluginPackage,
 } = require('./agy-plugin-package');
-const { validateSurfaceReceipt } = require('./platform-provenance');
+const { validateSurfaceReceipt, resolveGeneratedFromTree, assertCleanSourceCheckout } = require('./platform-provenance');
 const { resolveCapabilitySelection, bindSurfaceSelection } = require('./capability-bundle-selection');
 
 const OPERATIONS = Object.freeze(['generate', 'validate', 'verify']);
@@ -110,6 +110,7 @@ function parseRequest(argv) {
 }
 
 function runtime(root, request) {
+  assertCleanSourceCheckout(root);
   const inventory = readJson(path.join(root, 'manifests', 'distribution-inventory.json'));
   const manifest = readJson(path.join(root, '.claude-plugin', 'plugin.json'));
   const profiles = readJson(path.join(root, 'manifests', 'install-profiles.json'));
@@ -144,11 +145,15 @@ function runtime(root, request) {
     if (!bound.ok) throw new Error(bound.error.message);
     profileSelection = bound.value;
   }
+  const sourceCommit = resolveSourceCommit(root);
+  const targetTree = resolveGeneratedFromTree(root, sourceCommit);
+  if (!targetTree) throw new Error('unable to resolve the target source tree');
   return {
     root,
     inventory,
     version: request.options.version || manifest.version,
-    sourceCommit: resolveSourceCommit(root),
+    sourceCommit,
+    targetTree,
     output,
     manifest,
     profiles,
@@ -157,7 +162,7 @@ function runtime(root, request) {
   };
 }
 
-function receiptErrors(surface, output) {
+function receiptErrors(surface, output, context = null) {
   const receiptPath = path.join(output, 'provenance.json');
   if (!fs.existsSync(receiptPath)) return ['provenance.json is missing'];
   try {
@@ -167,14 +172,21 @@ function receiptErrors(surface, output) {
     const commonReceipt = surface === 'agy-plugin'
       ? { ...receipt, schema: receipt.provenanceSchema }
       : receipt;
-    return validateSurfaceReceipt(commonReceipt, surface).errors;
+    const validationContext = context
+      ? {
+        root: context.root,
+        targetCommit: context.sourceCommit,
+        targetTree: context.targetTree,
+      }
+      : undefined;
+    return validateSurfaceReceipt(commonReceipt, surface, validationContext).errors;
   } catch (error) {
     return [`provenance.json is not valid JSON: ${error.message}`];
   }
 }
 
-function mergeReceipt(surface, output, result) {
-  const receipt = receiptErrors(surface, output);
+function mergeReceipt(surface, output, result, context) {
+  const receipt = receiptErrors(surface, output, context);
   const errors = [...(result.details.errors || []), ...receipt];
   return { ok: result.ok && errors.length === 0, details: { ...result.details, errors } };
 }
@@ -209,10 +221,10 @@ function runAgent(operation, context) {
       profileSelection: context.profileSelection,
     });
     const validation = validateAgentPluginPackage(context.output, { allowlist: context.inventory.portable_frontmatter && context.inventory.portable_frontmatter.allowlist, inventory: context.inventory, profileSelection: context.profileSelection });
-    return mergeReceipt('agent-plugin', context.output, { ok: validation.ok, details: { skillCount: result.skillIds.length, warnings: validation.warnings, errors: validation.errors } });
+    return mergeReceipt('agent-plugin', context.output, { ok: validation.ok, details: { skillCount: result.skillIds.length, warnings: validation.warnings, errors: validation.errors } }, context);
   }
   const validation = validateAgentPluginPackage(context.output, { allowlist: context.inventory.portable_frontmatter && context.inventory.portable_frontmatter.allowlist, inventory: context.inventory, profileSelection: context.profileSelection });
-  return mergeReceipt('agent-plugin', context.output, { ok: validation.ok, details: { warnings: validation.warnings, errors: validation.errors } });
+  return mergeReceipt('agent-plugin', context.output, { ok: validation.ok, details: { warnings: validation.warnings, errors: validation.errors } }, context);
 }
 
 function runCursor(operation, context) {
@@ -220,10 +232,10 @@ function runCursor(operation, context) {
     const compiledProjection = compileCursorPackage({ inventory: context.inventory, root: context.root, outDir: context.output, version: context.version, sourceCommit: context.sourceCommit, profileSelection: context.profileSelection });
     const result = materializeCursorPackage({ inventory: context.inventory, root: context.root, outDir: context.output, version: context.version, sourceCommit: context.sourceCommit, compiledProjection, profileSelection: context.profileSelection });
     const validation = verifyCursorPackage({ packageRoot: context.output, stage: 'structural', inventory: context.inventory }).structural;
-    return mergeReceipt('cursor-plugin', context.output, { ok: validation.ok, details: { skillCount: result.skillNames.length, warnings: validation.warnings, errors: validation.errors } });
+    return mergeReceipt('cursor-plugin', context.output, { ok: validation.ok, details: { skillCount: result.skillNames.length, warnings: validation.warnings, errors: validation.errors } }, context);
   }
   const validation = verifyCursorPackage({ packageRoot: context.output, stage: 'structural', inventory: context.inventory }).structural;
-  return mergeReceipt('cursor-plugin', context.output, { ok: validation.ok, details: { warnings: validation.warnings, errors: validation.errors } });
+  return mergeReceipt('cursor-plugin', context.output, { ok: validation.ok, details: { warnings: validation.warnings, errors: validation.errors } }, context);
 }
 
 function runCodex(operation, context) {
@@ -231,7 +243,7 @@ function runCodex(operation, context) {
     const compiledProjection = compileNativePackage({ inventory: context.inventory, root: context.root, outDir: context.output, name: 'dhpk', version: context.version, sourceCommit: context.sourceCommit, profileSelection: context.profileSelection });
     const result = materializeNativePackage({ inventory: context.inventory, root: context.root, outDir: context.output, name: 'dhpk', version: context.version, sourceCommit: context.sourceCommit, compiledProjection, profileSelection: context.profileSelection });
     const validation = verifyNativePackage({ packageRoot: context.output, inventory: context.inventory, stage: 'structural', profileSelection: context.profileSelection });
-    return mergeReceipt('codex-native', context.output, { ok: validation.ok, details: { skillCount: result.skillIds.length, errors: validation.errors } });
+    return mergeReceipt('codex-native', context.output, { ok: validation.ok, details: { skillCount: result.skillIds.length, errors: validation.errors } }, context);
   }
   if (operation === 'verify') {
     const temporary = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-codex-native-verify-'));
@@ -247,13 +259,13 @@ function runCodex(operation, context) {
       return mergeReceipt('codex-native', context.output, {
         ok: validation.ok && deterministic,
         details: { deterministic: deterministic ? 'PASS' : 'FAIL', errors: [...validation.errors, ...(deterministic ? [] : ['tracked Codex native package drifted from a fresh generation'])] },
-      });
+      }, context);
     } finally {
       fs.rmSync(temporary, { recursive: true, force: true });
     }
   }
   const validation = verifyNativePackage({ packageRoot: context.output, inventory: context.inventory, stage: 'structural', profileSelection: context.profileSelection });
-  return mergeReceipt('codex-native', context.output, { ok: validation.ok, details: { errors: validation.errors } });
+  return mergeReceipt('codex-native', context.output, { ok: validation.ok, details: { errors: validation.errors } }, context);
 }
 
 function runAgy(operation, context) {
@@ -264,10 +276,10 @@ function runAgy(operation, context) {
       profileSelection: context.profileSelection,
     });
     const validation = validateAgyPluginPackage(context.output, { inventory: context.inventory, expectedVersion: context.version, profileSelection: context.profileSelection });
-    return mergeReceipt('agy-plugin', context.output, { ok: validation.ok, details: { agentCount: result.selected.agents.length, skillCount: result.selected.skills.length, warnings: validation.warnings, errors: validation.errors } });
+    return mergeReceipt('agy-plugin', context.output, { ok: validation.ok, details: { agentCount: result.selected.agents.length, skillCount: result.selected.skills.length, warnings: validation.warnings, errors: validation.errors } }, context);
   }
   const validation = validateAgyPluginPackage(context.output, { inventory: context.inventory, expectedVersion: context.version, profileSelection: context.profileSelection });
-  return mergeReceipt('agy-plugin', context.output, { ok: validation.ok, details: { warnings: validation.warnings, errors: validation.errors } });
+  return mergeReceipt('agy-plugin', context.output, { ok: validation.ok, details: { warnings: validation.warnings, errors: validation.errors } }, context);
 }
 
 function execute(argv, root) {
