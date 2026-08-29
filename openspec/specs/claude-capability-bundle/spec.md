@@ -9,32 +9,35 @@ preserving canonical sources and explicit routing compatibility.
 
 ### Requirement: Profile selection is closed and inventory-owned
 
-The profile-bundle compiler SHALL accept an explicit install-profile selector and an optional ordered stable skill-ID allowlist, resolve its module dependency closure from `manifests/install-profiles.json` and `manifests/module-catalog.json`, and select components only from `manifests/distribution-inventory.json`. The normalized selection MUST distinguish `minimal`, the existing conflict-aware `full` module closure, and the explicit `compat-v1` legacy bundle. Unknown profiles, unknown modules, unknown or duplicate stable IDs, retired IDs, cyclic or missing requirements, and conflicting exclusions SHALL fail closed before a plan is returned.
+The compiler SHALL resolve profiles/modules from their catalogs and select only
+inventory entries. Minimal SHALL equal the complete reviewed
+`required_core_ids` set including `do`; expected count SHALL be derived from
+that set rather than another numeric constant. Unknown/duplicate/retired IDs,
+cycles, missing requirements, and conflicts SHALL fail closed before a plan.
 
 #### Scenario: A known profile is selected
-
-- **WHEN** the compiler receives `minimal`, unchanged profile/module/inventory inputs, and no explicit skill override
-- **THEN** it returns exactly the nine declared core stable IDs with the normalized profile and selection identity recorded in the plan
+- **WHEN** minimal is compiled with unchanged inputs and no override
+- **THEN** it returns exactly required-core including `do` and records selection identity
+- **AND** validation compares sets rather than a hard-coded count
 
 #### Scenario: A compatibility profile is selected
-
 - **WHEN** an existing receipt selects `compat-v1`
-- **THEN** the compiler returns every non-retired predecessor stable ID in deterministic order and records compatibility mode without treating it as the new default
+- **THEN** all non-retired predecessor IDs are returned deterministically
 
 #### Scenario: An invalid profile or skill is selected
-
-- **WHEN** the selector names an unknown profile, unavailable module, retired/unknown ID, or a dependency closure with a cycle or missing requirement
-- **THEN** compilation returns a stable structured error and produces no materialization intent
+- **WHEN** a selected skill ID is unknown, retired, conflicting, or outside the
+  inventory-owned plan
+- **THEN** compilation returns a structured error naming the ID and no
+  materialization intent
 
 #### Scenario: An invalid profile is selected
-
-- **WHEN** the selector names an unknown profile, unavailable module, or a dependency closure with a cycle or missing requirement
-- **THEN** compilation returns a stable structured error and produces no materialization intent
+- **WHEN** profile/module/dependency closure is invalid
+- **THEN** compilation returns a stable profile/dependency error and no
+  materialization intent
 
 #### Scenario: A generator finds an unselected skill
-
-- **WHEN** a canonical or generated directory contains a skill not selected by the profile and inventory policy
-- **THEN** validation reports the stable ID as out of scope and excludes it from the accepted bundle
+- **WHEN** output contains a skill outside the selected inventory plan
+- **THEN** validation reports it out of scope and excludes it
 
 ### Requirement: The bundle boundary precedes Claude discovery
 

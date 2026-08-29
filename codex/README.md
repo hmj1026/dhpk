@@ -67,6 +67,11 @@ Claude-style slash-command namespace, so the `dhpk-` prefix is part of the
 public skill name itself. Do not write `$dhpk:<name>` or an unprefixed legacy
 name. Confirm that the specific `$dhpk-<name>` resolves.
 
+The main-flow Codex entry is `$dhpk-do <task>` when that skill is discovered.
+Codex has no `/dhpk:do` command. If `$dhpk-do` is not discovered, use
+instruction routing in `AGENTS.md` and explicit `/opsx:*`; do not invent a
+callable `/dhpk:do`.
+
 ## Agent roles
 
 `codex/agents/` ships 16 direct roles (synced into `.codex/agents/`): 4 hand-maintained generic roles (`explorer`, `worker`, `monitor`, `bug-investigator`) plus 12 roles generated from the canonical agents (`architect`, `code-reviewer`, `security-reviewer`, `database-reviewer`, `tdd-guide`, `deep-reasoner`, `doc-reviewer`, `planner`, `spec-miner`, `frontend-reviewer`, `migration-reviewer`, `e2e-runner`). See `AGENTS.md` and [`agent-role-map.json`](agent-role-map.json) for the complete role map and manual/capability-gated outcomes.

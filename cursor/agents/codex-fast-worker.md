@@ -1,21 +1,68 @@
 ---
 name: codex-fast-worker
-description: "Deprecated compatibility alias for codex-worker."
+description: "One-release operational compatibility forwarder to codex-worker."
 model: "cursor-grok-4.6-high"
-readonly: true
+readonly: false
 ---
-# Deprecated Codex Fast Worker Alias
+# Codex Fast Worker Compatibility Forwarder
 
 This one-release compatibility entry point resolves to `codex-worker` in
-`workspace-write` mode. Do not use it in new dispatches; callers must record
+`workspace-write` mode. New dispatches use the canonical role; legacy callers record
 `requested_role=codex-fast-worker` and `effective_role=codex-worker` through
-the immutable `dhpk.role-contract.v1` resolver.
+the immutable role contract.
 
-The legacy report remains the mechanical-worker contract: the selected backend
-does not prove completion, and the agent independently verifies the assigned
-scope after the contained transport has returned. Missing context, a rejected
-model, or a contradictory role/mode is `BLOCKED`; no fallback may fabricate
-authority or verification.
+Follow `agents/codex-worker.md` for prompt composition, recovery, verification,
+edited-file accounting, and reporting. Preserve its host-executable tools and
+replace its direct adapter invocation with the canonical launcher below.
+
+## Forward through the canonical launcher
+
+Invoke only the repository-owned launcher; it resolves the alias before starting
+the provider adapter:
+
+```bash
+  --dispatching-agent "<dispatcher-role>" \
+  --execution-provider codex \
+  --requested-role codex-fast-worker \
+  --mode workspace-write \
+  --task-id "<task-id>" \
+  --attempt-id "<attempt-id>" \
+  --workdir "<absolute-workdir>" \
+  --prompt "<absolute-prompt-file>" \
+  --scope "<absolute-scope-json>" \
+  --config-layer "<absolute-config-json>"
+```
+
+The resulting context must retain `requested_role=codex-fast-worker`, resolve
+`effective_role=codex-worker`, bind provider `codex`, and bind authority
+`workspace-write`. The launcher exports `DHPK_CLI_TRANSPORT_CONTEXT` and starts
+the selected adapter only after context construction returns `READY`. A missing
+or contradictory role, mode, provider, authority, path, scope, transport, or
+receipt is `BLOCKED`; never fabricate the context or call the adapter directly.
+
+## Mid-batch timeout recovery (multi-file dispatch only)
+
+A runner exit `124` is timeout evidence only when the contained
+`dhpk.cli.receipt.v1` has terminal `TIMEOUT`; a missing, invalid, or uncontained receipt is `BLOCKED`.
+On the first verified timeout, request exactly one same-backend, same-model/effort recovery
+scoped to `remaining ∪ unconfirmed`.
+Never self-edit the unresolved files or repeat confirmed files.
+During recovery, never fall back to another backend because of a timeout.
+
+Second verified timeout: stop. Report `RESULT: PARTIAL` when any assigned file is confirmed
+and `RESULT: BLOCKED` when none is; finish by naming both timeout observations, all three ledger sets, and the next action.
+
+## Verify and report
+
+The selected backend is not completion evidence. After the contained backend
+returns, independently run the assigned verification command and derive the
+edited-file list from the assigned paths. Only a configured deterministic
+missing-executable fallback may change backend; authentication, authorization,
+model, task, receipt, and verification failures remain `BLOCKED`.
+
+In parallel mode, treat sibling changes as observations. Never run `git checkout`,
+`git restore`, `git reset`, or `git clean` against out-of-scope paths, and never
+use forceful deletion to remove them.
 
 ## Legacy report schema
 

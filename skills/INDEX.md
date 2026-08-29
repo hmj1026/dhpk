@@ -4,7 +4,7 @@ description: 'Navigation index for dhpk plugin skills. Internal documentation; n
 
 # Skills Index (dhpk plugin)
 
-> Navigation for the 99 canonical skill packages shipped by the dhpk plugin. Every
+> Navigation for the 100 canonical skill packages shipped by the dhpk plugin. Every
 > package lives flat under `skills/dhpk-<name>/SKILL.md` and is invoked with its
 > public name (for example, `/dhpk:dhpk-tdd-workflow`) or auto-triggered by its
 > `description`. Stack modules expose

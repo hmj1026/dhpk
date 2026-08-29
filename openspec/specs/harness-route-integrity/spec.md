@@ -5,25 +5,21 @@ TBD - created by archiving change dhpk-harness-integrity-guards. Update Purpose 
 ## Requirements
 ### Requirement: Every route-table pattern compiles as a regex
 
-`scripts/validate/validate-harness.sh` SHALL verify that each rule `pattern` in
-`scripts/lib/route-table.json` compiles as a valid regular expression. A pattern that fails to
-compile SHALL fail the harness structure check.
+Harness validation SHALL verify every canonical v2 route has a non-empty
+pattern compiled under matcher semantics before projections are accepted.
 
 #### Scenario: A rule has a malformed pattern
-
-- **WHEN** a route-table rule contains a pattern with an unbalanced group
-- **THEN** `bash scripts/validate/validate-harness.sh` reports the offending rule and exits with an error
+- **WHEN** a route pattern has an unbalanced group
+- **THEN** validation names the rule and fails
 
 ### Requirement: No unintended duplicate route target
 
-`scripts/validate/validate-harness.sh` SHALL detect when two or more route-table rules resolve to
-the same skill/command target, and SHALL fail unless that target is on an explicit
-duplicate-allowed whitelist.
+The harness SHALL compare normalized target kind plus stable ID and fail an
+unwhitelisted duplicate independently of host-formatted invocation syntax.
 
 #### Scenario: Two rules target the same skill
-
-- **WHEN** two route-table rules both target `dhpk:verify` and `dhpk:verify` is not whitelisted
-- **THEN** the harness structure check reports the duplicate and exits with an error
+- **WHEN** two rules have the same skill kind/ID and are not whitelisted
+- **THEN** validation reports the typed duplicate and fails
 
 ### Requirement: English-only rules are surfaced
 
@@ -38,10 +34,19 @@ are visible.
 
 ### Requirement: Route targets keep resolving to real assets
 
-`scripts/validate/validate-harness.sh` SHALL continue to verify that every rule's `dhpk:<name>`
-target exists as `commands/<name>.md` or `skills/<name>/SKILL.md`.
+Every target SHALL declare a supported kind, safe stable ID, and inventory or
+roster asset appropriate to its kind. A `portable_skill_id` SHALL resolve to a
+distributed skill paired with the command. Kind SHALL NOT be inferred by
+probing similarly named files.
 
 #### Scenario: A rule points at a missing skill
+- **WHEN** kind is skill and its ID is absent from active inventory
+- **THEN** validation reports the missing typed target and fails
 
-- **WHEN** a rule targets `dhpk:<name>` and neither `commands/<name>.md` nor `skills/<name>/SKILL.md` exists
-- **THEN** the harness structure check reports the missing target and exits with an error
+#### Scenario: A command has an invalid portable mapping
+- **WHEN** a command's portable skill is absent or unpaired
+- **THEN** validation reports both IDs and fails
+
+#### Scenario: Target kind is unknown
+- **WHEN** kind is outside skill, command, and agent
+- **THEN** validation fails without guessing from the filesystem

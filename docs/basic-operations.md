@@ -8,8 +8,10 @@ This page walks through the operational lifecycle of dhpk: installing it, the da
 
 Use this order for a fresh request: **inspect** the repository and session
 state → **verify** the installed surface → **choose** Claude, supported Codex
-sync, or the experimental native Codex surface → **route** through `/dhpk:do`
-or an explicit skill → **implement** with TDD and pre-edit impact checks →
+sync, or the experimental native Codex surface → **route** through Claude
+`/dhpk:do`, the Cursor generated command, or Codex `$dhpk-do` (Codex has no
+`/dhpk:do` command) or an explicit skill → **implement** with TDD and pre-edit
+impact checks →
 **review/verify** the resulting evidence → **handoff** with exactly one next
 command. Plugin management (`claude plugin …`, `codex plugin …`) does not invoke
 a skill.
@@ -45,8 +47,9 @@ dhpk deliberately exposes several surfaces with different support tiers:
 
 Plugin management commands (`claude plugin …`, `codex plugin …`) are separate
 from skill invocation. Claude workflows enter through `/dhpk:do` or an
-explicit skill; Codex consumes the project-local `.codex/` projection; Cursor
-project-local files are installed into `.cursor/` by `install-cursor-harness.sh`.
+explicit skill; Cursor uses the generated command after
+`install-cursor-harness.sh`; Codex enters through `$dhpk-do` after project-local
+`.codex/` sync (Codex has no `/dhpk:do` command).
 
 ## Install
 
@@ -190,8 +193,9 @@ The user-facing workflow has one safe front door and several explicit exits:
 inspect → verify surface → route → plan/classify → implement → review → verify → handoff
 ```
 
-Use `/dhpk:do` when you know the outcome but not the right skill. Use a direct
-command or skill when you already know the exact workflow. Plugin management
+Use Claude `/dhpk:do`, the Cursor generated command, or Codex `$dhpk-do` when
+you know the outcome but not the right skill. Codex has no `/dhpk:do` command.
+Use a direct command or skill when you already know the exact workflow. Plugin management
 (`claude plugin …`, `codex plugin …`) installs or updates a surface; it does not
 invoke a workflow.
 

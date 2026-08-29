@@ -118,7 +118,7 @@ transaction 遷移。
 client-specific probe，否則明確回傳 `runtime: NOT_RUN`。
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.49.1 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.50.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -146,7 +146,7 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --uninstall
 ```
 
 Unified distribution/lifecycle installer 使用 inventory-owned `minimal` profile
-（九個 required core ID）。保留的 project-local Codex compatibility route 預設維持
+（inventory required_core_ids）。保留的 project-local Codex compatibility route 預設維持
 `compat-v1`；migration 時明確選 `minimal`，或加入 stable-ID overlay：
 
 ```bash
@@ -535,7 +535,7 @@ AGY projection 是獨立的 owner-scoped package。它只轉換 canonical agent
 frontmatter，不會改寫 `agents/`。請從 dhpk checkout 產生與驗證：
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.49.1 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.50.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 

@@ -31,7 +31,8 @@ their implementation policy here.
 - Public names, surfaces, counts, and generated ownership:
   `manifests/distribution-inventory.json`.
 - Route matching, flags, and invocation classes:
-  `scripts/lib/route-table.json`, `scripts/lib/route-result.js`, and
+  `skills/dhpk-do/references/route-table.json`,
+  `skills/dhpk-do/scripts/route-result.js`, and
   `commands/do.md`.
 - Configuration and installation behavior: `docs/configuration.md`,
   `docs/platform-installation.md`, and `docs/skill-platform-migration.md`.

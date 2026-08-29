@@ -122,7 +122,7 @@ evidence and deliberately returns `runtime: NOT_RUN` unless a separate
 client-specific probe is executed.
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.49.1 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.50.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -150,7 +150,7 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --uninstall
 ```
 
 The unified distribution/lifecycle installers use the inventory-owned
-`minimal` profile (nine required core IDs). The retained project-local Codex
+`minimal` profile (inventory `required_core_ids`). The retained project-local Codex
 compatibility route keeps `compat-v1` by default; select `minimal` explicitly
 when migrating that route or add stable-ID overlays:
 
@@ -575,7 +575,7 @@ agent frontmatter and never rewrites `agents/`. Generate and validate it from
 the dhpk checkout:
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.49.1 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.50.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 

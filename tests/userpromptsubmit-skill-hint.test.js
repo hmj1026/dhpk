@@ -2,8 +2,8 @@
 
 // Coverage for userpromptsubmit-skill-hint.sh (UserPromptSubmit hook,
 // advisory only). Uses a custom DHPK_ROUTE_TABLE (test override, honoured by
-// scripts/lib/pre-route.sh) rather than the real route-table.json, so this
-// suite is decoupled from real route-table content changes.
+// skills/dhpk-do/scripts/pre-route.sh) rather than the real route-table.json,
+// so this suite is decoupled from real route-table content changes.
 //
 //   - A prompt matching the test route pattern → additionalContext hint.
 //   - A prompt starting with "/" → no hint (already a command).
@@ -27,8 +27,13 @@ function mkRouteTable() {
   const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-uph-')));
   const file = path.join(dir, 'route-table.json');
   fs.writeFileSync(file, JSON.stringify({
+    schema: 'dhpk.route-table.v2',
     rules: [
-      { pattern: 'deploy.{0,20}(prod|production)', skill: 'dhpk:dhpk-deploy-list', label: 'production deploy' },
+      {
+        pattern: 'deploy.{0,20}(prod|production)',
+        label: 'production deploy',
+        target: { kind: 'skill', id: 'dhpk-deploy-list' },
+      },
     ],
   }));
   return { dir, file };
@@ -38,8 +43,13 @@ function mkUnknownRouteTable() {
   const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-uph-unknown-')));
   const file = path.join(dir, 'route-table.json');
   fs.writeFileSync(file, JSON.stringify({
+    schema: 'dhpk.route-table.v2',
     rules: [
-      { pattern: 'deploy.{0,20}(prod|production)', skill: 'dhpk:deploy-prod', label: 'production deploy' },
+      {
+        pattern: 'deploy.{0,20}(prod|production)',
+        label: 'production deploy',
+        target: { kind: 'skill', id: 'deploy-prod' },
+      },
     ],
   }));
   return { dir, file };
@@ -49,8 +59,13 @@ function mkUnknownAgentRouteTable() {
   const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-uph-unknown-agent-')));
   const file = path.join(dir, 'route-table.json');
   fs.writeFileSync(file, JSON.stringify({
+    schema: 'dhpk.route-table.v2',
     rules: [
-      { pattern: 'playwright', skill: 'agent:missing-role', label: 'missing Playwright agent' },
+      {
+        pattern: 'playwright',
+        label: 'missing Playwright agent',
+        target: { kind: 'agent', id: 'missing-role' },
+      },
     ],
   }));
   return { dir, file };

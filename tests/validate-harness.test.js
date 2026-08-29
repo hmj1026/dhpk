@@ -25,8 +25,12 @@ function createPluginSourceFixture({ rules, routeTable, agentFiles = {}, codexAg
   fs.mkdirSync(path.join(tmp, 'commands'), { recursive: true });
   fs.mkdirSync(path.join(tmp, 'rules'), { recursive: true });
   fs.mkdirSync(path.join(tmp, 'skills'), { recursive: true });
+  fs.mkdirSync(path.join(tmp, 'skills', 'dhpk-do', 'references'), { recursive: true });
+  fs.writeFileSync(
+    path.join(tmp, 'skills', 'dhpk-do', 'SKILL.md'),
+    '---\nname: dhpk-do\ndescription: fixture router skill\n---\n',
+  );
   fs.mkdirSync(path.join(tmp, 'scripts', 'hooks'), { recursive: true });
-  fs.mkdirSync(path.join(tmp, 'scripts', 'lib'), { recursive: true });
 
   for (const [name, contents] of Object.entries(agentFiles)) {
     fs.writeFileSync(path.join(tmp, 'agents', name), contents);
@@ -40,8 +44,8 @@ function createPluginSourceFixture({ rules, routeTable, agentFiles = {}, codexAg
 
   if (routeTable !== null) {
     fs.writeFileSync(
-      path.join(tmp, 'scripts', 'lib', 'route-table.json'),
-      JSON.stringify(routeTable || { schema: 'dhpk.route-table.v1', rules }, null, 2),
+      path.join(tmp, 'skills', 'dhpk-do', 'references', 'route-table.json'),
+      JSON.stringify(routeTable || { schema: 'dhpk.route-table.v2', rules }, null, 2),
     );
   }
   const statusline = path.join(tmp, 'statusline.sh');
@@ -109,9 +113,9 @@ test('fixture: agent routes resolve from Claude agents or Codex TOML while dhpk 
       'verify.md': 'description: fixture command\n',
     },
     rules: [
-      { pattern: 'test|測試', skill: 'agent:md-role', label: 'Claude agent route' },
-      { pattern: 'plan|規劃', skill: 'agent:toml-role', label: 'Codex agent route' },
-      { pattern: 'verify|驗證', skill: 'dhpk:verify', label: 'dhpk command route' },
+      { pattern: 'test|測試', label: 'Claude agent route', target: { kind: 'agent', id: 'md-role' } },
+      { pattern: 'plan|規劃', label: 'Codex agent route', target: { kind: 'agent', id: 'toml-role' } },
+      { pattern: 'verify|驗證', label: 'dhpk command route', target: { kind: 'command', id: 'verify' } },
     ],
   });
   try {
@@ -129,14 +133,14 @@ test('fixture: missing agent route target fails without weakening dhpk target ch
       'verify.md': 'description: fixture command\n',
     },
     rules: [
-      { pattern: 'test|測試', skill: 'agent:missing-role', label: 'missing agent route' },
-      { pattern: 'verify|驗證', skill: 'dhpk:verify', label: 'dhpk command route' },
+      { pattern: 'test|測試', label: 'missing agent route', target: { kind: 'agent', id: 'missing-role' } },
+      { pattern: 'verify|驗證', label: 'dhpk command route', target: { kind: 'command', id: 'verify' } },
     ],
   });
   try {
     const res = spawnSync('bash', [SCRIPT], { cwd: tmp, encoding: 'utf8', timeout: 20000 });
     assert.strictEqual(res.status, 1, `expected missing agent target to fail:\n${res.stdout}`);
-    assert.match(res.stdout, /agent:missing-role/);
+    assert.match(res.stdout, /missing-role/);
     assert.match(res.stdout, /agents\/missing-role\.md or codex\/agents\/missing-role\.toml/);
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
@@ -146,7 +150,7 @@ test('fixture: missing agent route target fails without weakening dhpk target ch
 test('fixture: agent route rejects traversal identifiers before filesystem lookup', () => {
   const tmp = createPluginSourceFixture({
     rules: [
-      { pattern: 'test|測試', skill: 'agent:../outside', label: 'traversal agent route' },
+      { pattern: 'test|測試', label: 'traversal agent route', target: { kind: 'agent', id: '../outside' } },
     ],
   });
   try {
@@ -165,7 +169,7 @@ test('fixture: agent route rejects symlink escapes even when the link target is 
   fs.writeFileSync(outsideAgent, 'name: escaped\ndescription: fixture agent\nmodel: haiku\ntools: Read\n');
   const tmp = createPluginSourceFixture({
     rules: [
-      { pattern: 'test|測試', skill: 'agent:escaped', label: 'symlink escape route' },
+      { pattern: 'test|測試', label: 'symlink escape route', target: { kind: 'agent', id: 'escaped' } },
     ],
   });
   try {
@@ -186,7 +190,7 @@ test('fixture: agent route accepts a symlink whose canonical target remains unde
       'real-role.md': 'name: real-role\ndescription: fixture agent\nmodel: haiku\ntools: Read\n',
     },
     rules: [
-      { pattern: 'test|測試', skill: 'agent:linked-role', label: 'in-root symlink route' },
+      { pattern: 'test|測試', label: 'in-root symlink route', target: { kind: 'agent', id: 'linked-role' } },
     ],
   });
   try {
@@ -205,15 +209,15 @@ test('fixture: route pattern and duplicate-target guardrails remain failures', (
       'verify.md': 'description: fixture command\n',
     },
     rules: [
-      { pattern: '[', skill: 'dhpk:verify', label: 'invalid pattern' },
-      { pattern: 'verify|驗證', skill: 'dhpk:verify', label: 'duplicate target' },
+      { pattern: '[', label: 'invalid pattern', target: { kind: 'command', id: 'verify' } },
+      { pattern: 'verify|驗證', label: 'duplicate target', target: { kind: 'command', id: 'verify' } },
     ],
   });
   try {
     const res = spawnSync('bash', [SCRIPT], { cwd: tmp, encoding: 'utf8', timeout: 20000 });
     assert.strictEqual(res.status, 1, `expected pattern/duplicate checks to fail:\n${res.stdout}`);
     assert.match(res.stdout, /pattern 無法編譯/);
-    assert.match(res.stdout, /重複 skill target.*dhpk:verify/);
+    assert.match(res.stdout, /重複 skill target.*verify/);
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
@@ -234,9 +238,9 @@ test('fixture: wrong or missing route-table schema/rules cannot report PASS', ()
   const cases = [
     { name: 'wrong schema', routeTable: { schema: 'wrong', rules: [] }, expected: /schema/ },
     { name: 'missing schema', routeTable: { rules: [] }, expected: /schema/ },
-    { name: 'missing rules', routeTable: { schema: 'dhpk.route-table.v1' }, expected: /rules/ },
-    { name: 'rules is not an array', routeTable: { schema: 'dhpk.route-table.v1', rules: {} }, expected: /rules/ },
-    { name: 'empty rules', routeTable: { schema: 'dhpk.route-table.v1', rules: [] }, expected: /rules/ },
+    { name: 'missing rules', routeTable: { schema: 'dhpk.route-table.v2' }, expected: /rules/ },
+    { name: 'rules is not an array', routeTable: { schema: 'dhpk.route-table.v2', rules: {} }, expected: /rules/ },
+    { name: 'empty rules', routeTable: { schema: 'dhpk.route-table.v2', rules: [] }, expected: /rules/ },
   ];
   for (const item of cases) {
     const tmp = createPluginSourceFixture({ routeTable: item.routeTable, rules: [] });
@@ -254,7 +258,7 @@ test('fixture: wrong or missing route-table schema/rules cannot report PASS', ()
 test('fixture: malformed JSON and invalid rule shapes fail closed before route checks', () => {
   const malformed = createPluginSourceFixture({ rules: [] });
   try {
-    fs.writeFileSync(path.join(malformed, 'scripts', 'lib', 'route-table.json'), '{"schema":');
+    fs.writeFileSync(path.join(malformed, 'skills', 'dhpk-do', 'references', 'route-table.json'), '{"schema":');
     const res = spawnSync('bash', [SCRIPT], { cwd: malformed, encoding: 'utf8', timeout: 20000 });
     assert.strictEqual(res.status, 1, `malformed JSON unexpectedly passed:\n${res.stdout}`);
     assert.match(res.stdout, /valid JSON|parse|schema|route-table/);
@@ -262,12 +266,12 @@ test('fixture: malformed JSON and invalid rule shapes fail closed before route c
     fs.rmSync(malformed, { recursive: true, force: true });
   }
 
-  for (const rules of [[{}], [{ pattern: 'test' }], [{ skill: 'dhpk:verify' }], [{ pattern: '', skill: 'dhpk:verify', label: 'bad' }]]) {
+  for (const rules of [[{}], [{ pattern: 'test' }], [{ target: { kind: 'command', id: 'verify' } }], [{ pattern: '', target: { kind: 'command', id: 'verify' }, label: 'bad' }]]) {
     const tmp = createPluginSourceFixture({ rules, commandFiles: { 'verify.md': 'description: fixture\n' } });
     try {
       const res = spawnSync('bash', [SCRIPT], { cwd: tmp, encoding: 'utf8', timeout: 20000 });
       assert.strictEqual(res.status, 1, `invalid rule unexpectedly passed (${JSON.stringify(rules)}):\n${res.stdout}`);
-      assert.match(res.stdout, /rule|pattern|skill|label|rules/);
+      assert.match(res.stdout, /rule|pattern|skill|label|rules|target/);
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }

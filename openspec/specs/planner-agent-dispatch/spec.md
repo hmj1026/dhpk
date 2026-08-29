@@ -5,23 +5,26 @@ TBD - created by archiving change add-planner-agent-do-plan-dispatch. Update Pur
 ## Requirements
 ### Requirement: `/dhpk:do --plan` parsing and scope gate
 
-`commands/do.md` Step 0 SHALL parse an optional `--plan[=<model>[:<effort>]]` flag from the incoming request the same way it parses `--codex` today: detected, stripped from the request text before route-table matching, and carried forward as `PLAN=on` (with any explicit `<model>`/`<effort>` override) into Step 3. Planner dispatch SHALL activate only when the resolved route target is one of the implementation-class routes — `dhpk:adaptive-dev-workflow` or `dhpk:opsx-apply-goal`. When `PLAN=on` resolves to any other route, `/dhpk:do` SHALL print a one-line ignore message and proceed with that route unaffected; `scripts/lib/route-table.json` and `scripts/lib/pre-route.sh` SHALL remain unchanged.
+`dhpk-do` SHALL parse `--plan[=<model>[:<effort>]]` from either host entry,
+strip it before route matching, and carry its context into orchestration.
+Planner activates only for implementation-class targets; elsewhere one ignore
+line is emitted and routing continues.
 
 #### Scenario: --plan flag is stripped before route matching
-- **WHEN** a user runs `/dhpk:do --plan "implement feature X"`
-- **THEN** the route-table matcher receives the cleaned query without the `--plan` token, and the route resolves exactly as it would without the flag present
+- **WHEN** either entry receives `--plan "implement feature X"`
+- **THEN** matching receives the query without the flag
 
 #### Scenario: --plan activates on an implementation-class route
-- **WHEN** `--plan` is set and the resolved route target is `dhpk:adaptive-dev-workflow` or `dhpk:opsx-apply-goal`
-- **THEN** `/dhpk:do` carries `PLAN=on` forward into Step 3 and assembles a plan brief for `dhpk:planner` before invoking the target skill
+- **WHEN** `--plan` resolves to an implementation-class target
+- **THEN** a planner brief is assembled before target dispatch
 
 #### Scenario: --plan is ignored on a non-implementation route
-- **WHEN** `--plan` is set but the resolved route target is not one of the four implementation-class skills
-- **THEN** `/dhpk:do` prints a one-line message stating the flag was ignored and proceeds with the resolved route unaffected, with no `dhpk:planner` dispatch
+- **WHEN** `--plan` resolves elsewhere
+- **THEN** one ignore line is emitted and no planner runs
 
 #### Scenario: Model/effort override syntax is parsed
-- **WHEN** a user runs `/dhpk:do --plan=fable:medium "fix bug Y"` and the route resolves to `dhpk:adaptive-dev-workflow`
-- **THEN** `/dhpk:do` parses `fable` as the model override and `medium` as the effort override and carries both forward for the `dhpk:planner` dispatch
+- **WHEN** `--plan=fable:medium` is supplied
+- **THEN** planner receives those invocation overrides
 
 ### Requirement: Planner reply contract — verdict-first-line, coded findings, token cap, END sentinel
 
@@ -101,24 +104,37 @@ The model and effort used for a `dhpk:planner` dispatch SHALL be resolved with t
 
 ### Requirement: Verdict fold-in and warm-review obligation
 
-When a pre-implementation `dhpk:planner` consult returns `ENDORSE`, the orchestrator SHALL pass the original plan through to the target implementation skill unchanged. When it returns `AMEND`, the orchestrator SHALL append the returned deltas to the task brief handed to the implementation skill. When it returns `REPLACE`, the orchestrator SHALL substitute the returned plan for the original outright. When a pre-implementation consult occurred, the orchestrator SHALL record and surface a warm-review obligation in `/dhpk:do`'s output. Because no Stop-hook or goal-session integration currently re-fires the planner, `commands/do.md` and `agents/planner.md` SHALL describe honoring that obligation as a **manual orchestrator re-invocation** of `dhpk:planner` at task end, and SHALL NOT state or imply that the warm review resumes automatically (no "the driver resumes you" phrasing). The automatic re-engagement mechanism remains explicitly out of scope.
+Pre-implementation `ENDORSE`, `AMEND`, and `REPLACE` SHALL retain existing plan
+fold-in semantics. The `dhpk-do` parent SHALL record the warm-review obligation
+before child dispatch and resume planner afterward. `SHIP` continues completion;
+`FIX-THEN-SHIP` permits one bounded fix batch and one fresh review;
+`RECONSULT` permits one evidence-expanded reconsult. A second non-SHIP outcome,
+second RECONSULT, or inability to resume SHALL be `BLOCKED`.
 
 #### Scenario: ENDORSE passes the plan through unchanged
-- **WHEN** `dhpk:planner` returns `VERDICT: ENDORSE`
-- **THEN** the orchestrator dispatches the target implementation skill with the original plan unchanged
+- **WHEN** planner returns `ENDORSE`
+- **THEN** the original plan is dispatched unchanged
 
 #### Scenario: AMEND appends deltas
-- **WHEN** `dhpk:planner` returns `VERDICT: AMEND` with delta findings
-- **THEN** the orchestrator appends the returned deltas to the task brief handed to the target implementation skill, rather than discarding or fully replacing the original plan
+- **WHEN** planner returns `AMEND`
+- **THEN** deltas are appended to the target brief
 
 #### Scenario: REPLACE substitutes the plan
-- **WHEN** `dhpk:planner` returns `VERDICT: REPLACE` with a substitute plan
-- **THEN** the orchestrator uses the returned plan in place of the original when dispatching the target implementation skill
+- **WHEN** planner returns `REPLACE`
+- **THEN** the substitute plan replaces the original
 
 #### Scenario: A pre-implementation consult records a warm-review obligation
-- **WHEN** a pre-implementation `dhpk:planner` consult has occurred for a task
-- **THEN** the `/dhpk:do` output records and surfaces the warm-review obligation (the dispatch itself is not enforced by this change)
+- **WHEN** planner ran before implementation
+- **THEN** the parent records and later satisfies the warm-review obligation
 
 #### Scenario: The warm review is described as manual, not automatic
-- **WHEN** a contributor reads the warm-review obligation wording in `commands/do.md` or `agents/planner.md`
-- **THEN** it describes the post-implementation warm review as a manual orchestrator re-invocation of `dhpk:planner`, with no phrasing implying automatic resumption
+- **WHEN** legacy wording describes a manual second invocation
+- **THEN** contract validation fails until parent-owned automatic re-engagement is described
+
+#### Scenario: Warm review requests one fix batch
+- **WHEN** warm review returns `FIX-THEN-SHIP`
+- **THEN** one authorized fix batch and one fresh review run; another non-SHIP result is `BLOCKED`
+
+#### Scenario: Parent continuation is unavailable
+- **WHEN** continuation cannot be proven before write dispatch
+- **THEN** the router returns `BLOCKED` before mutation

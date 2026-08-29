@@ -1,0 +1,183 @@
+{
+  "_comment": "Workflow routing SSOT for dhpk. Used by userpromptsubmit-skill-hint.sh (advisory hint) and by /dhpk:do Smart Router. Patterns are ERE (extended regex). First match wins. Add specific patterns before general ones. Each intent is ONE rule whose pattern ORs the English and Chinese forms together (`<en>|<zh>`) — retune both languages in a single place. precommit is ordered before smart-commit so 'precommit' / '提交前檢查' are not swallowed by the broad 'commit' / '提交' match.",
+  "_design_note": "This fast path is deliberately HIGH-PRECISION, not high-recall (issue #84). Long multi-part / compound analysis requests — especially Chinese asks that mix several intents (e.g. fetch+compare+verify+fix) — are EXPECTED to return NO_MATCH and fall through to /dhpk:do's LLM classification, which is the correct tool for genuinely ambiguous compound intent. Do NOT loosen the `.{0,N}` proximity windows or add broad standalone CJK verb keywords to chase recall: this table is shared with the advisory skill-hint surface, so a mis-route here is a regression on both surfaces. The scan cost is negligible (~20ms, python startup dominated — measured 2026-07-23), so a length-based fast-fail is not worth the regression it causes (it would flip currently-matching long queries — e.g. a long preamble ending in 'bug' — to NO_MATCH). Add a CJK pattern only for an UNAMBIGUOUS single-intent phrase, anchored tightly enough not to fire on compound queries.",
+  "schema": "dhpk.route-table.v2",
+  "rules": [
+    {
+      "pattern": "(unattended|auto[- ]?run|goal +session|overnight|hands?[- ]?off).{0,30}(implement|change|openspec|opsx|session|run)|(無人值守|自動跑完|過夜跑|掛著跑).{0,20}(實作|變更|openspec|opsx)?",
+      "label": "unattended OpenSpec goal session",
+      "target": {
+        "kind": "skill",
+        "id": "dhpk-opsx-apply-goal"
+      }
+    },
+    {
+      "pattern": "fix\\s+(mypy|ruff|pytest(-asyncio)?)|(修復|修正).{0,8}(mypy|ruff|pytest(-asyncio)?)",
+      "label": "adaptive dev workflow (python build)",
+      "target": {
+        "kind": "skill",
+        "id": "dhpk-adaptive-dev-workflow"
+      }
+    },
+    {
+      "pattern": "fix\\s+(cargo|rust)\\s+(build|compile|error)|(修復|修正).{0,8}(cargo|rust).{0,8}(建置|編譯|錯誤)",
+      "label": "adaptive dev workflow (rust build)",
+      "target": {
+        "kind": "skill",
+        "id": "dhpk-adaptive-dev-workflow"
+      }
+    },
+    {
+      "pattern": "(^|[^a-z])(bug|bugfix|crash|broken|stack[ -]?trace|exception|failure|fail(s|ed|ing)?|error[ -]?out|regress(ion|ed)?)([^a-z]|$)|修.{0,8}(bug|錯誤|問題|缺陷|異常)",
+      "label": "adaptive dev workflow (bug)",
+      "target": {
+        "kind": "skill",
+        "id": "dhpk-adaptive-dev-workflow"
+      }
+    },
+    {
+      "pattern": "(code +review|review +(this|the|my)? *(diff|change|patch|pr|code)|quality +check|lint +everything|(程式碼|代碼)\\s*(審查|review)|(審查|review)\\s*.{0,6}(diff|變更|差異|patch|pr|程式碼|代碼))",
+      "label": "manual code review",
+      "target": {
+        "kind": "command",
+        "id": "review-pending"
+      }
+    },
+    {
+      "pattern": "(security +(scan|audit|review)|owasp|injection|xss|csrf|auth +bypass)|(安全|資安).{0,8}(掃描|稽核|審查|檢查)",
+      "label": "security review",
+      "target": {
+        "kind": "skill",
+        "id": "dhpk-security-review"
+      }
+    },
+    {
+      "pattern": "(explore|trace|how +does|walk +through|map +the|understand +the).{0,40}(code|flow|module|architecture)|(探索|追蹤|理解|釐清).{0,12}(程式|代碼|流程|架構|呼叫|實作)",
+      "label": "code exploration",
+      "target": {
+        "kind": "skill",
+        "id": "dhpk-codebase-exploration"
+      }
+    },
+    {
+      "pattern": "(audit|inventory|health|stocktake).{0,40}(project|repo|codebase|harness|skill|agent)|(健診|健康檢查|體檢|盤點).{0,12}(專案|代碼|harness|skill|agent)",
+      "label": "project audit",
+      "target": {
+        "kind": "skill",
+        "id": "dhpk-project-audit"
+      }
+    },
+    {
+      "pattern": "(deploy(ment|ing)?|publish|release|ship).{0,40}(list|manifest|files|plan)|(部署|發版|釋出|上版).{0,12}(清單|manifest|計劃)",
+      "label": "deploy list",
+      "target": {
+        "kind": "skill",
+        "id": "dhpk-deploy-list"
+      }
+    },
+    {
+      "pattern": "(refactor(ing)?|simplify|clean[ -]?up|dedup(licate)?|tidy +up|(remove|delete|strip|eliminate) +dead[ -]?code)|(重構|簡化|清理|去重)",
+      "label": "refactor / simplify",
+      "target": {
+        "kind": "command",
+        "id": "simplify"
+      }
+    },
+    {
+      "pattern": "(mine|extract|reverse[- ]?engineer|harvest|bootstrap).{0,24}spec(s|ification)?|(萃取|挖掘|逆向|提取).{0,8}規格",
+      "label": "mine behavioral specs (→ spec-miner)",
+      "target": {
+        "kind": "command",
+        "id": "spec-mine"
+      }
+    },
+    {
+      "pattern": "(tech(nical)? +spec|requirements +doc|design +doc|architecture +doc)|(技術規格|需求文件|設計文件|架構文件|tech spec)",
+      "label": "tech spec authoring",
+      "target": {
+        "kind": "skill",
+        "id": "dhpk-tech-spec"
+      }
+    },
+    {
+      "pattern": "(precommit|pre[- ]commit|pre +push)|(pre.?commit|提交前|commit 前).{0,8}(檢查|驗證)",
+      "label": "pre-commit checks",
+      "target": {
+        "kind": "command",
+        "id": "precommit"
+      }
+    },
+    {
+      "pattern": "(create(?!-)|open|draft)\\b.{0,20}\\b(pr|pull +request|merge +request)\\b|(建立?|開|發|draft).{0,8}(pr|pull request|合併請求)",
+      "label": "create PR",
+      "target": {
+        "kind": "command",
+        "id": "create-pr"
+      }
+    },
+    {
+      "pattern": "(create|cut|start|run|perform|do).{0,20}release|(發布?|切|跑|執行).{0,12}(新版本|release|發版流程)",
+      "label": "create release",
+      "target": {
+        "kind": "skill",
+        "id": "dhpk-release-creator"
+      }
+    },
+    {
+      "pattern": "(smart +)?commit|stage +(and +)?commit|(提交|暫存).{0,8}(修改|變更|差異)?",
+      "label": "smart commit",
+      "target": {
+        "kind": "command",
+        "id": "smart-commit"
+      }
+    },
+    {
+      "pattern": "(feasibility|first +principles|estimate +effort|estimate +scope)|(可行性|工時評估|範圍估算)",
+      "label": "feasibility study",
+      "target": {
+        "kind": "skill",
+        "id": "dhpk-feasibility-study"
+      }
+    },
+    {
+      "pattern": "(risk +(assess|analysis|audit)|blast +radius|impact +analysis)|(風險|影響範圍|blast radius).{0,8}(評估|分析)",
+      "label": "risk assessment",
+      "target": {
+        "kind": "skill",
+        "id": "dhpk-risk-assess"
+      }
+    },
+    {
+      "pattern": "(playwright|write.{0,20}e2e[ -]?(test|spec|suite)|author.{0,20}e2e|e2e[ -]?(journey|flow|test|spec))|(playwright|寫.{0,8}e2e|補.{0,8}e2e|端對端.{0,8}(測試|test))",
+      "label": "Playwright E2E journey (→ e2e-runner; UNAVAILABLE if the Playwright agent capability is unavailable)",
+      "target": {
+        "kind": "agent",
+        "id": "e2e-runner"
+      }
+    },
+    {
+      "pattern": "((unit|integration)[ -]?(test|tests|testing|coverage|gap|gaps)|(unit[ /-]integration|integration[ /-]unit)(.{0,20}(test|tests|testing|coverage|gap|gaps))?)|((單元|整合).{0,8}(測試|test|覆蓋率|缺口)|(測試|test).{0,8}(單元|整合))",
+      "label": "Unit/integration testing (→ dhpk-tdd-workflow; UNAVAILABLE if TDD capability is unavailable)",
+      "target": {
+        "kind": "skill",
+        "id": "dhpk-tdd-workflow"
+      }
+    },
+    {
+      "pattern": "(new|add(ing)?|implement(ing)?|build(ing)?|create) +.{0,40}(feature|endpoint|page|action|module|api)|(新增|加上?|寫個?|新做|實作).{0,12}(功能|特性|feature|頁面|端點|api)",
+      "label": "adaptive dev workflow (feature)",
+      "target": {
+        "kind": "skill",
+        "id": "dhpk-adaptive-dev-workflow"
+      }
+    },
+    {
+      "pattern": "(verify|verification|run +all +tests?|full +test +run|run +tests?|validate\\s+(artifact|skill|agent|command))|(跑.{0,8}測試|執行.{0,8}測試|跑 phpunit)",
+      "label": "verification loop",
+      "target": {
+        "kind": "command",
+        "id": "verify"
+      }
+    }
+  ]
+}

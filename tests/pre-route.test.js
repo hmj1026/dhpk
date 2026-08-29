@@ -1,9 +1,9 @@
 'use strict';
 
-// Coverage for scripts/lib/pre-route.sh — deterministic query -> route-table
-// matcher. Asserts all three documented output paths (MATCH / NO_MATCH /
-// NO_QUERY) using a scratch DHPK_ROUTE_TABLE override so it never depends on
-// the real route-table.json contents drifting.
+// Coverage for skills/dhpk-do/scripts/pre-route.sh — deterministic query ->
+// route-table matcher. Asserts all three documented output paths (MATCH /
+// NO_MATCH / NO_QUERY) using a scratch DHPK_ROUTE_TABLE override so it never
+// depends on the real route-table.json contents drifting.
 
 const fs = require('node:fs');
 const os = require('node:os');
@@ -12,8 +12,8 @@ const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const SCRIPT = path.join(ROOT, 'scripts', 'lib', 'pre-route.sh');
-const REAL_TABLE = path.join(ROOT, 'scripts', 'lib', 'route-table.json');
+const SCRIPT = path.join(ROOT, 'skills', 'dhpk-do', 'scripts', 'pre-route.sh');
+const REAL_TABLE = path.join(ROOT, 'skills', 'dhpk-do', 'references', 'route-table.json');
 
 function mkTable() {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'pre-route-'));
@@ -21,7 +21,12 @@ function mkTable() {
   fs.writeFileSync(
     table,
     JSON.stringify({
-      rules: [{ pattern: 'fix\\s+the\\s+bug', skill: 'dhpk:dhpk-adaptive-dev-workflow', label: 'bugfix' }],
+      schema: 'dhpk.route-table.v2',
+      rules: [{
+        pattern: 'fix\\s+the\\s+bug',
+        label: 'bugfix',
+        target: { kind: 'skill', id: 'dhpk-adaptive-dev-workflow' },
+      }],
     })
   );
   return { tmp, table };
@@ -41,7 +46,7 @@ test('MATCH: query matching a rule prints MATCH<TAB>skill<TAB>label and exits 0'
     const res = runRoute(['please fix the bug now'], { DHPK_ROUTE_TABLE: table });
     assert.strictEqual(res.status, 0, res.stderr);
     const parts = res.stdout.trim().split('\t');
-    assert.deepStrictEqual(parts, ['MATCH', 'dhpk:dhpk-adaptive-dev-workflow', 'bugfix']);
+    assert.deepStrictEqual(parts, ['MATCH', 'dhpk-adaptive-dev-workflow', 'bugfix']);
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
@@ -86,7 +91,7 @@ test('real create-pr route matches imperative requests but not incidental comman
   for (const [query, expected] of cases) {
     const res = runRoute([query], { DHPK_ROUTE_TABLE: REAL_TABLE });
     assert.strictEqual(res.status, 0, res.stderr);
-    assert.strictEqual(res.stdout.includes('\tdhpk:create-pr\t'), expected, `${query}: ${res.stdout}`);
+    assert.strictEqual(res.stdout.includes('\tcreate-pr\t'), expected, `${query}: ${res.stdout}`);
   }
 });
 
@@ -99,15 +104,28 @@ test('create-pr command carries deterministic ahead-count abort before gh pr cre
   assert.ok(!command.includes('Follow the `create-pr` skill workflow'));
 });
 
+test('v2 skill-local matcher (skip while package absent; see dhpk-do-portable)', () => {
+  const skillMatcher = path.join(ROOT, 'skills', 'dhpk-do', 'scripts', 'pre-route.sh');
+  const skillTable = path.join(ROOT, 'skills', 'dhpk-do', 'references', 'route-table.json');
+  if (!fs.existsSync(skillMatcher) || !fs.existsSync(skillTable)) return;
+  const res = spawnSync('bash', [skillMatcher, 'please create a PR for this branch'], {
+    encoding: 'utf8',
+    timeout: 10000,
+  });
+  assert.strictEqual(res.status, 0, res.stderr);
+  assert.match(res.stdout, /create PR/);
+  assert.match(res.stdout, /create-pr/);
+});
+
 test('specific security, bug, and Playwright routes outrank broad unit/integration matches', () => {
   const cases = [
-    ['write unit tests for the changed behavior', 'dhpk:dhpk-tdd-workflow'],
-    ['add integration tests for the endpoint', 'dhpk:dhpk-tdd-workflow'],
-    ['close the integration coverage gap', 'dhpk:dhpk-tdd-workflow'],
-    ['author a Playwright journey for checkout', 'agent:e2e-runner'],
-    ['fix the checkout bug and add integration tests', 'dhpk:dhpk-adaptive-dev-workflow'],
-    ['run a security audit and add unit tests', 'dhpk:dhpk-security-review'],
-    ['author a Playwright integration test for checkout', 'agent:e2e-runner'],
+    ['write unit tests for the changed behavior', 'dhpk-tdd-workflow'],
+    ['add integration tests for the endpoint', 'dhpk-tdd-workflow'],
+    ['close the integration coverage gap', 'dhpk-tdd-workflow'],
+    ['author a Playwright journey for checkout', 'e2e-runner'],
+    ['fix the checkout bug and add integration tests', 'dhpk-adaptive-dev-workflow'],
+    ['run a security audit and add unit tests', 'dhpk-security-review'],
+    ['author a Playwright integration test for checkout', 'e2e-runner'],
   ];
   for (const [query, target] of cases) {
     const res = runRoute([query], {});
@@ -115,7 +133,7 @@ test('specific security, bug, and Playwright routes outrank broad unit/integrati
     const parts = res.stdout.trim().split('\t');
     assert.strictEqual(parts[0], 'MATCH', `${query}: ${res.stdout}`);
     assert.strictEqual(parts[1], target, `${query}: ${res.stdout}`);
-    if (target === 'dhpk:dhpk-tdd-workflow' || target === 'agent:e2e-runner') {
+    if (target === 'dhpk-tdd-workflow' || target === 'e2e-runner') {
       assert.match(parts[2], /UNAVAILABLE/);
     }
   }

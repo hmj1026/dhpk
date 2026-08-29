@@ -74,6 +74,10 @@ Codex 沒有 Claude 式 slash-command namespace，因此 `dhpk-` 是 public skil
 本身。不要使用 `$dhpk:<name>` 或未加 prefix 的 legacy name。`codex plugin list`
 只證明管理層安裝狀態；仍須確認特定 `$dhpk-<name>` 能解析。
 
+主要流程的 Codex 入口是 `$dhpk-do <task>`（該 skill 被發現時）。Codex 沒有
+`/dhpk:do` command。若 `$dhpk-do` 未被發現，使用 `AGENTS.md` 的 instruction
+routing 與明確 `/opsx:*`；不要虛構可呼叫的 `/dhpk:do`。
+
 ## Agent roles
 
 `codex/agents/` 提供 16 個可直接派送的角色：4 個手動維護的通用角色（`explorer`、

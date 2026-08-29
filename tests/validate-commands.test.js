@@ -134,12 +134,11 @@ test('canonical commands expose the consolidated modes and legacy aliases only f
 });
 
 test('route-only and setup installation have deterministic executable contracts', () => {
-  const doCommand = fs.readFileSync(path.join(ROOT, 'commands', 'do.md'), 'utf8');
+  const doSkill = fs.readFileSync(path.join(ROOT, 'skills', 'dhpk-do', 'SKILL.md'), 'utf8');
   const setup = fs.readFileSync(path.join(ROOT, 'commands', 'setup.md'), 'utf8');
-  assert.ok(doCommand.indexOf('## Step 0 — `--route-only` terminal mode') < doCommand.indexOf('## Step 1'),
-    '--route-only must terminate before normal route execution');
-  assert.match(doCommand, /strip.*--route-only|--route-only.*strip/is);
-  assert.match(doCommand, /Do not invoke.*Skill|never invoke.*target/is);
+  assert.match(doSkill, /--route-only/);
+  assert.match(doSkill, /strip/i);
+  assert.match(doSkill, /must not invoke the target Skill|not invoke the target/i);
   assert.match(setup, /scripts\/setup\/install-assets\.sh/);
   assert.match(setup, /--source.*--target.*--dry-run.*--force/is);
   assert.match(setup, /Bash\(bash:\*\).*Bash\(mkdir:\*\).*Bash\(cp:\*\).*Bash\(chmod:\*\)/);
@@ -156,6 +155,24 @@ test('invocation inventory reflects retired zh-tw and consolidated forwarding al
     const command = fs.readFileSync(path.join(ROOT, 'commands', `${name}.md`), 'utf8');
     assert.match(command, /dhpk-invocation-class:\s*explicit-only/);
   }
+});
+
+// v1 GREEN contract (tests above): frontmatter validation, forwarding aliases,
+// current fat /dhpk:do --route-only workflow, invocation inventory counts.
+// v2 RED contract (this test): thin pointer adapter. See also
+// tests/dhpk-do-portable.test.js [3.1]. Failing this case fails the whole file
+// until task 3.1.
+
+test('/dhpk:do is a ≤28-line canonical-pointer adapter (RED until 3.1)', () => {
+  const body = fs.readFileSync(path.join(ROOT, 'commands', 'do.md'), 'utf8');
+  const lineCount = body.split('\n').length;
+  assert.ok(lineCount <= 28, `/dhpk:do must be a ≤28-line adapter, got ${lineCount} lines`);
+  assert.match(body, /@skills\/dhpk-do\/SKILL\.md/);
+  assert.match(body, /\$ARGUMENTS/);
+  assert.match(body, /host\s*=\s*claude/);
+  assert.ok(!/## Step 0/.test(body), 'adapter must not keep an independent workflow');
+  assert.ok(!/Common targets:/.test(body), 'adapter must not duplicate the target catalog');
+  assert.ok(!/Implementation dispatch/.test(body), 'adapter must not copy the dispatch table');
 });
 
 test('review and prompt skills state the Task 4 evidence and scope boundaries', () => {

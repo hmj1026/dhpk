@@ -138,20 +138,16 @@ fi
 
 echo ""
 echo "== 7. Route table SSOT =="
-# Validate scripts/lib/route-table.json: every dhpk:<name> rule must resolve to
-# an existing commands/<name>.md OR skills/<name>/SKILL.md. Agent routes use the
-# Claude agent source (agents/<name>.md) or the Codex projection
-# (codex/agents/<name>.toml). Upstream merged custom commands into skills, so a
-# dhpk route target may be backed by either (and several — e.g.
-# adaptive-dev-workflow, security-review — are skill-only).
-# Plugin-repo only — in a consumer
-# project the route table is usually absent (scripts not installed), so we skip
-# gracefully rather than warn. Whitelist = commands planned but not yet built.
-ROUTE_TABLE="$ROOT/scripts/lib/route-table.json"
+# Validate skills/dhpk-do/references/route-table.json (v2): every rule.target
+# resolves by kind — skill → skills/<id>/SKILL.md, command → commands/<id>.md,
+# agent → agents/<id>.md or codex/agents/<id>.toml. Plugin-repo only — in a
+# consumer project the route table is usually absent, so we skip gracefully
+# rather than warn. Whitelist = commands planned but not yet built.
+ROUTE_TABLE="$ROOT/skills/dhpk-do/references/route-table.json"
 ROUTE_WHITELIST=""  # space-delimited; commands planned but not yet built (none — do.md shipped in 2.3)
 if [[ ! -f "$ROUTE_TABLE" ]]; then
     if [[ $CHECK_ARTIFACTS -eq 0 ]]; then
-        fail "route-table.json 缺失（plugin source 必須提供 dhpk.route-table.v1 與 rules）"
+        fail "route-table.json 缺失（plugin source 必須提供 dhpk.route-table.v2 與 rules）"
     else
         ok "route-table.json 不在此 repo（consumer 專案）— 跳過"
     fi
@@ -160,14 +156,14 @@ elif ! command -v jq >/dev/null 2>&1; then
 else
     RT_TOTAL=0
     ROUTE_TABLE_VALID=1
-    DUP_WHITELIST="dhpk:dhpk-adaptive-dev-workflow"  # workflow router: bug/feature/build variants route here by design
+    DUP_WHITELIST="dhpk-adaptive-dev-workflow"  # workflow router: bug/feature/build variants route here by design
 
     # Validate the closed route-table envelope before iterating. jq's default
     # `.rules[]` expression silently yields no rows for malformed JSON, a
     # missing field, or a non-array value; that would otherwise make an empty
     # table look like a successful zero-rule validation.
-    if ! jq -e 'type == "object" and .schema == "dhpk.route-table.v1"' "$ROUTE_TABLE" >/dev/null 2>&1; then
-        fail "route-table.json schema 無效或缺失（expected dhpk.route-table.v1）"
+    if ! jq -e 'type == "object" and .schema == "dhpk.route-table.v2"' "$ROUTE_TABLE" >/dev/null 2>&1; then
+        fail "route-table.json schema 無效或缺失（expected dhpk.route-table.v2）"
         ROUTE_TABLE_VALID=0
     fi
     if ! jq -e 'type == "object" and (.rules | type == "array") and (.rules | length > 0)' "$ROUTE_TABLE" >/dev/null 2>&1; then
@@ -178,11 +174,14 @@ else
         all(.rules[];
             type == "object"
             and ((.pattern | type) == "string") and ((.pattern | length) > 0)
-            and ((.skill | type) == "string") and ((.skill | length) > 0)
             and ((.label | type) == "string") and ((.label | length) > 0)
+            and ((.target | type) == "object")
+            and ((.target.kind | type) == "string")
+            and (.target.kind == "skill" or .target.kind == "command" or .target.kind == "agent")
+            and ((.target.id | type) == "string") and ((.target.id | length) > 0)
         )
     ' "$ROUTE_TABLE" >/dev/null 2>&1; then
-        fail "route-table.json rules 欄位無效（每條 rule 必須有非空 pattern、skill、label 字串）"
+        fail "route-table.json rules 欄位無效（每條 rule 必須有非空 pattern、label、target.kind、target.id）"
         ROUTE_TABLE_VALID=0
     fi
 
@@ -221,33 +220,36 @@ else
     }
 
     if [[ $ROUTE_TABLE_VALID -eq 1 ]]; then
-      while IFS=$'\t' read -r pattern skill label; do
-        [[ -z "$skill" ]] && continue
+      while IFS=$'\t' read -r pattern kind ident label; do
+        [[ -z "$ident" ]] && continue
         RT_TOTAL=$((RT_TOTAL+1))
-        # (a) target existence — dhpk routes resolve to commands/skills, while
-        # agent routes resolve to either the Claude source or Codex projection.
-        case "$skill" in
-            dhpk:*)
-                name="${skill#dhpk:}"
-                if ! [[ "$name" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
-                    fail "route-table dhpk target identifier 無效: $skill (expected lowercase kebab-case)"
-                # Skip only whitelisted planned-but-unbuilt dhpk commands.
-                elif [[ ! " $ROUTE_WHITELIST " == *" $name "* ]]; then
-                    (canonical_regular_file_under "$ROOT/commands/$name.md" "$ROOT/commands" \
-                        || canonical_regular_file_under "$ROOT/skills/$name/SKILL.md" "$ROOT/skills") \
-                        || fail "route-table 指向不存在或不安全的 command/skill: $skill (canonical regular file required under commands/ or skills/)"
+        # (a) target existence — resolve strictly by target.kind.
+        case "$kind" in
+            skill)
+                if ! [[ "$ident" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
+                    fail "route-table skill target identifier 無效: $ident (expected lowercase kebab-case)"
+                elif [[ ! " $ROUTE_WHITELIST " == *" $ident "* ]]; then
+                    canonical_regular_file_under "$ROOT/skills/$ident/SKILL.md" "$ROOT/skills" \
+                        || fail "route-table 指向不存在或不安全的 command/skill: $ident (canonical regular file required under skills/)"
                 fi
                 ;;
-            agent:*)
-                name="${skill#agent:}"
-                if [[ ! "$name" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
-                    fail "route-table agent target identifier 無效: $skill (expected lowercase kebab-case)"
-                elif ! agent_route_target_exists "$name"; then
-                    fail "route-table 指向不存在的 agent: $skill (agents/$name.md or codex/agents/$name.toml must resolve to a canonical regular file under its root)"
+            command)
+                if ! [[ "$ident" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
+                    fail "route-table command target identifier 無效: $ident (expected lowercase kebab-case)"
+                elif [[ ! " $ROUTE_WHITELIST " == *" $ident "* ]]; then
+                    canonical_regular_file_under "$ROOT/commands/$ident.md" "$ROOT/commands" \
+                        || fail "route-table 指向不存在或不安全的 command/skill: $ident (canonical regular file required under commands/)"
+                fi
+                ;;
+            agent)
+                if [[ ! "$ident" =~ ^[a-z0-9][a-z0-9-]*$ ]]; then
+                    fail "route-table agent target identifier 無效: $ident (expected lowercase kebab-case)"
+                elif ! agent_route_target_exists "$ident"; then
+                    fail "route-table 指向不存在的 agent: $ident (agents/$ident.md or codex/agents/$ident.toml must resolve to a canonical regular file under its root)"
                 fi
                 ;;
             *)
-                fail "route-table target namespace 無效: $skill (expected dhpk:<name> or agent:<name>)"
+                fail "route-table target namespace 無效: $kind:$ident (expected skill|command|agent + kebab id)"
                 ;;
         esac
         # (b) pattern must compile with Python re, matching pre-route.sh runtime semantics.
@@ -256,16 +258,16 @@ else
         fi
         # (c) bilingual coverage — warn (not fail) on an English-only rule (no CJK / non-ASCII alternation)
         if ! printf '%s' "$pattern" | LC_ALL=C grep -qE '[^ -~]'; then
-            warn "route-table 規則僅有英文（無中文 alternation）: [$label] $skill"
+            warn "route-table 規則僅有英文（無中文 alternation）: [$label] $ident"
         fi
-      done < <(jq -r '.rules[] | [.pattern, .skill, .label] | @tsv' "$ROUTE_TABLE")
-      # (d) unintended duplicate skill target → fail (whitelisted routers may legitimately repeat)
-      while IFS= read -r skill; do
-        [[ -z "$skill" ]] && continue
-        [[ " $DUP_WHITELIST " == *" $skill "* ]] && continue
-        cnt=$(jq -r --arg s "$skill" '[.rules[] | select(.skill==$s)] | length' "$ROUTE_TABLE")
-        fail "route-table 重複 skill target（非預期，考慮合併規則）: $skill ×$cnt"
-      done < <(jq -r '.rules[].skill' "$ROUTE_TABLE" | sort | uniq -d)
+      done < <(jq -r '.rules[] | [.pattern, .target.kind, .target.id, .label] | @tsv' "$ROUTE_TABLE")
+      # (d) unintended duplicate target.id → fail (whitelisted routers may legitimately repeat)
+      while IFS= read -r ident; do
+        [[ -z "$ident" ]] && continue
+        [[ " $DUP_WHITELIST " == *" $ident "* ]] && continue
+        cnt=$(jq -r --arg s "$ident" '[.rules[] | select(.target.id==$s)] | length' "$ROUTE_TABLE")
+        fail "route-table 重複 skill target（非預期，考慮合併規則）: $ident ×$cnt"
+      done < <(jq -r '.rules[].target.id' "$ROUTE_TABLE" | sort | uniq -d)
       [[ $ERR -eq 0 ]] && ok "route-table $RT_TOTAL 條：target 存在、pattern 可編譯、無非預期重複（dup-whitelist: $DUP_WHITELIST）"
     fi
 fi

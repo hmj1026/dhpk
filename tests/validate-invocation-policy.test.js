@@ -177,6 +177,19 @@ test('a paired command that inherits (declares nothing) passes', () => {
   }
 });
 
+// v1 GREEN contract (tests above): missing/unknown class, dotted substitute,
+// user-invocable:false, unpaired/paired command agreement.
+// v2 RED contract (this test): canonical dhpk-do package must exist as
+// explicit-only. See tests/dhpk-do-portable.test.js [2.1].
+
+test('canonical dhpk-do skill is present, explicit-only, and model-invocation disabled (RED until 2.1)', () => {
+  const skillPath = path.join(ROOT, 'skills', 'dhpk-do', 'SKILL.md');
+  assert.ok(fs.existsSync(skillPath), 'skills/dhpk-do/SKILL.md must exist');
+  const body = fs.readFileSync(skillPath, 'utf8');
+  assert.match(body, /disable-model-invocation:\s*true/);
+  assert.match(body, /dhpk-invocation-class:\s*explicit-only/);
+});
+
 test('a well-formed explicit-only and implicit-eligible skill both pass', () => {
   const tmp = makeTempRepo();
   try {
