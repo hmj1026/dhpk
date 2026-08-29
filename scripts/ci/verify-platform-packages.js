@@ -20,7 +20,7 @@ const {
   validateCursorPackage,
   fingerprintDir: fingerprintCursor,
 } = require('../lib/cursor-plugin-package');
-const { validateSurfaceReceipt } = require('../lib/platform-provenance');
+const { validateSurfaceReceipt, resolveGeneratedFromTree, assertCleanSourceCheckout } = require('../lib/platform-provenance');
 const { resolveCapabilitySelection, bindSurfaceSelection } = require('../lib/capability-bundle-selection');
 
 const ROOT = path.join(__dirname, '..', '..');
@@ -73,18 +73,18 @@ function profileSelectionFromReceipt({ receipt, surface, inventory, profiles, mo
   return expected;
 }
 
-function verifyAgent({ inventory, profiles, moduleCatalog, version, tracked, temp }) {
+function verifyAgent({ root, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked, temp }) {
   const trackedProvenance = readJson(path.join(tracked, 'provenance.json'));
   const generated = materializeAgentPluginPackage({
     inventory,
-    root: ROOT,
+    root,
     outDir: temp,
     version,
-    sourceCommit: trackedProvenance.sourceCommit || sourceCommit(ROOT, 'unknown'),
+    sourceCommit: trackedProvenance.sourceCommit || sourceCommit(root, 'unknown'),
     profileSelection: profileSelectionFromReceipt({ receipt: trackedProvenance, surface: 'agent-plugin', inventory, profiles, moduleCatalog }),
   });
   const structural = validateAgentPluginPackage(temp);
-  const receipt = validateSurfaceReceipt(readJson(path.join(tracked, 'provenance.json')), 'agent-plugin');
+  const receipt = validateSurfaceReceipt(readJson(path.join(tracked, 'provenance.json')), 'agent-plugin', { root, targetCommit, targetTree });
   const fingerprintMatches = fingerprintAgent(temp) === fingerprintAgent(tracked);
   return {
     structural: structural.ok ? 'PASS' : 'FAIL',
@@ -96,18 +96,18 @@ function verifyAgent({ inventory, profiles, moduleCatalog, version, tracked, tem
   };
 }
 
-function verifyCursor({ inventory, profiles, moduleCatalog, version, tracked, temp }) {
+function verifyCursor({ root, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked, temp }) {
   const trackedProvenance = readJson(path.join(tracked, 'provenance.json'));
   const generated = materializeCursorPackage({
     inventory,
-    root: ROOT,
+    root,
     outDir: temp,
     version,
-    sourceCommit: trackedProvenance.sourceCommit || sourceCommit(ROOT, 'unknown'),
+    sourceCommit: trackedProvenance.sourceCommit || sourceCommit(root, 'unknown'),
     profileSelection: profileSelectionFromReceipt({ receipt: trackedProvenance, surface: 'cursor-plugin', inventory, profiles, moduleCatalog }),
   });
   const structural = validateCursorPackage({ packageRoot: temp, inventory });
-  const receipt = validateSurfaceReceipt(readJson(path.join(tracked, 'provenance.json')), 'cursor-plugin');
+  const receipt = validateSurfaceReceipt(readJson(path.join(tracked, 'provenance.json')), 'cursor-plugin', { root, targetCommit, targetTree });
   const fingerprintMatches = fingerprintCursor(temp) === fingerprintCursor(tracked);
   return {
     structural: structural.ok ? 'PASS' : 'FAIL',
@@ -147,17 +147,20 @@ function reportFromSurfaces(surfaces) {
 }
 
 function main() {
+  assertCleanSourceCheckout(ROOT);
   const inventory = readJson(path.join(ROOT, 'manifests', 'distribution-inventory.json'));
   const profiles = readJson(path.join(ROOT, 'manifests', 'install-profiles.json'));
   const moduleCatalog = readJson(path.join(ROOT, 'manifests', 'module-catalog.json'));
   const version = readJson(path.join(ROOT, '.claude-plugin', 'plugin.json')).version;
+  const targetCommit = sourceCommit(ROOT, 'unknown');
+  const targetTree = resolveGeneratedFromTree(ROOT, targetCommit);
   const tempAgent = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-agent-package-verify-'));
   const tempCursor = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-package-verify-'));
   let report;
   try {
     const surfaces = {
-      'agent-plugin': verifyAgent({ inventory, profiles, moduleCatalog, version, tracked: path.join(ROOT, 'plugins/dhpk-agent'), temp: tempAgent }),
-      'cursor-plugin': verifyCursor({ inventory, profiles, moduleCatalog, version, tracked: path.join(ROOT, 'plugins/dhpk-cursor'), temp: tempCursor }),
+      'agent-plugin': verifyAgent({ root: ROOT, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked: path.join(ROOT, 'plugins/dhpk-agent'), temp: tempAgent }),
+      'cursor-plugin': verifyCursor({ root: ROOT, targetCommit, targetTree, inventory, profiles, moduleCatalog, version, tracked: path.join(ROOT, 'plugins/dhpk-cursor'), temp: tempCursor }),
     };
     report = reportFromSurfaces(surfaces);
   } catch (error) {

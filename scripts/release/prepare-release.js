@@ -27,7 +27,7 @@ const { validateAgentPluginPackage } = require('../lib/agent-plugin-package');
 const { materializeCursorPackage } = require('../lib/cursor-plugin-package');
 const { validateCursorPackage } = require('../lib/cursor-plugin-package');
 const { materializeAgyPluginPackage, validateAgyPluginPackage } = require('../lib/agy-plugin-package');
-const { validateSurfaceReceipt } = require('../lib/platform-provenance');
+const { validateSurfaceReceipt, resolveGeneratedFromTree } = require('../lib/platform-provenance');
 
 // The codex-native package (plugins/dhpk/.codex-plugin/plugin.json +
 // provenance.json) is generated, derived output — not a hand-patchable
@@ -539,6 +539,8 @@ function main() {
 
   const inventory = JSON.parse(fs.readFileSync(path.join(args.root, 'manifests', 'distribution-inventory.json'), 'utf8'));
   const sourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: args.root, encoding: 'utf8' }).trim();
+  const targetTree = resolveGeneratedFromTree(args.root, sourceCommit);
+  if (!targetTree) throw new Error('unable to resolve release target source tree');
   const stagingRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-release-packages-'));
   const stagedNative = path.join(stagingRoot, 'dhpk');
   const stagedAgent = path.join(stagingRoot, 'dhpk-agent');
@@ -564,7 +566,7 @@ function main() {
         expectedVersion: args.version,
       });
       const agyProvenance = JSON.parse(fs.readFileSync(path.join(stagedAgy, 'provenance.json'), 'utf8'));
-      agyReceipt = validateSurfaceReceipt({ ...agyProvenance, schema: 'dhpk.platform-provenance.v1' }, 'agy-plugin');
+      agyReceipt = validateSurfaceReceipt({ ...agyProvenance, schema: 'dhpk.platform-provenance.v1' }, 'agy-plugin', { root: args.root, targetCommit: sourceCommit, targetTree });
     } catch (error) {
       stagedAgyValidation = { errors: [error.message] };
     }
@@ -573,8 +575,8 @@ function main() {
       allowlist: inventory.portable_frontmatter && inventory.portable_frontmatter.allowlist,
     });
     const stagedCursorValidation = validateCursorPackage({ packageRoot: stagedCursor, expectedManifestName: 'dhpk-cursor', inventory });
-    const agentReceipt = validateSurfaceReceipt(JSON.parse(fs.readFileSync(path.join(stagedAgent, 'provenance.json'), 'utf8')), 'agent-plugin');
-    const cursorReceipt = validateSurfaceReceipt(JSON.parse(fs.readFileSync(path.join(stagedCursor, 'provenance.json'), 'utf8')), 'cursor-plugin');
+    const agentReceipt = validateSurfaceReceipt(JSON.parse(fs.readFileSync(path.join(stagedAgent, 'provenance.json'), 'utf8')), 'agent-plugin', { root: args.root, targetCommit: sourceCommit, targetTree });
+    const cursorReceipt = validateSurfaceReceipt(JSON.parse(fs.readFileSync(path.join(stagedCursor, 'provenance.json'), 'utf8')), 'cursor-plugin', { root: args.root, targetCommit: sourceCommit, targetTree });
     const validationErrors = [
       ...stagedAgentValidation.errors,
       ...stagedCursorValidation.errors,
