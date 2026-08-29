@@ -5,9 +5,9 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.50.1",
-  "sourceCommit": "a38967eb2da3b6c292894bc7bede3efd466bc2a9",
-  "generatedFromCommit": "a38967eb2da3b6c292894bc7bede3efd466bc2a9",
-  "generatedFromTree": "2e3c24def85bc31b6b6757fdbf1248fc871ad909",
+  "sourceCommit": "685339e1fa60a454a0a0521f09a99ce3c2fb813b",
+  "generatedFromCommit": "685339e1fa60a454a0a0521f09a99ce3c2fb813b",
+  "generatedFromTree": "567b3c5ddd0f618c1012f086ccfebe3f51b88601",
   "inventoryDigest": "cd9c5c63bf384b0c0974e040f10422cfdf8016d80577fba6120640b47bb545bb",
   "generatorVersion": "1.0.0",
   "selectedSkillIds": [
