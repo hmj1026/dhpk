@@ -9,6 +9,7 @@ const { test, run, assert } = require('./_lib/tinytest');
 const ROOT = path.join(__dirname, '..');
 const RUNNER = path.join(ROOT, 'skills', 'dhpk-release-creator', 'scripts', 'release-runner.sh');
 const SKILL = fs.readFileSync(path.join(ROOT, 'skills', 'dhpk-release-creator', 'SKILL.md'), 'utf8');
+const RELEASE = fs.readFileSync(path.join(ROOT, 'RELEASE.md'), 'utf8');
 
 test('release skill documents prepare, human merge, then publish', () => {
   const flat = SKILL.replace(/\s+/g, ' ');
@@ -24,6 +25,12 @@ test('release skill verifies develop/main SHAs after publish and does not instru
   assert.match(SKILL, /origin\/main/);
   assert.ok(!/git push --force(?!-with-lease)/.test(SKILL), 'skill must not be a force-push writer');
   assert.ok(!/force-push `?develop`?/i.test(SKILL) || /verify|SHA|compare/i.test(SKILL));
+});
+
+test('release flow requires a merge commit before creating the immutable tag', () => {
+  assert.match(SKILL, /Create a merge commit/);
+  assert.match(RELEASE, /Create a merge commit/);
+  assert.match(RELEASE, /reruns the PACKAGE provenance gate/i);
 });
 
 test('prepare creates the release PR and stops before tagging', () => {
@@ -90,6 +97,28 @@ test('publish refuses to tag while the release PR is unmerged', () => {
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 });
 
+test('publish runs the post-merge package gate before creating an immutable tag', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-release-runner-'));
+  try {
+    const bin = path.join(tmp, 'bin');
+    const log = path.join(tmp, 'calls.log');
+    fs.mkdirSync(bin);
+    fs.writeFileSync(path.join(bin, 'git'), '#!/bin/sh\nprintf "git %s\\n" "$*" >> "$CALL_LOG"\n', { mode: 0o755 });
+    fs.writeFileSync(path.join(bin, 'gh'), '#!/bin/sh\nprintf "gh %s\\n" "$*" >> "$CALL_LOG"\n[ "$1 $2" = "pr list" ] && printf "2026-07-18T12:00:00Z\\n"\nexit 0\n', { mode: 0o755 });
+    fs.writeFileSync(path.join(bin, 'node'), '#!/bin/sh\nprintf "node %s\\n" "$*" >> "$CALL_LOG"\nprintf "package provenance gate failed\\n" >&2\nexit 1\n', { mode: 0o755 });
+    const res = spawnSync('bash', [RUNNER, 'publish', '1.2.3', 'develop', 'main', 'v', 'release.yml'], {
+      cwd: tmp,
+      encoding: 'utf8',
+      env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, CALL_LOG: log },
+    });
+    assert.notStrictEqual(res.status, 0);
+    assert.match(`${res.stdout}\n${res.stderr}`, /package gate|provenance/i);
+    const calls = fs.readFileSync(log, 'utf8');
+    assert.ok(calls.includes('node scripts/release/package-gate.js --version 1.2.3'), calls);
+    assert.ok(!calls.includes('git tag '), calls);
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
 test('publish waits for and watches only the workflow run for the new tag', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-release-runner-'));
   try {
@@ -98,6 +127,7 @@ test('publish waits for and watches only the workflow run for the new tag', () =
     const count = path.join(tmp, 'run-list-count');
     fs.mkdirSync(bin);
     fs.writeFileSync(path.join(bin, 'git'), '#!/bin/sh\nprintf "git %s\\n" "$*" >> "$CALL_LOG"\n', { mode: 0o755 });
+    fs.writeFileSync(path.join(bin, 'node'), '#!/bin/sh\nprintf "node %s\\n" "$*" >> "$CALL_LOG"\nexit 0\n', { mode: 0o755 });
     fs.writeFileSync(path.join(bin, 'gh'), `#!/bin/sh
 printf "gh %s\\n" "$*" >> "$CALL_LOG"
 if [ "$1 $2" = "pr list" ]; then printf "2026-07-18T12:00:00Z\\n"; fi
@@ -150,6 +180,7 @@ if [ "$1" = "rev-parse" ] && [ "$2" = "origin/develop" ]; then printf "bbbbbbbbb
 if [ "$1" = "diff" ] && [ "$2" = "--quiet" ]; then exit 0; fi
 exit 0
 `, { mode: 0o755 });
+    fs.writeFileSync(path.join(bin, 'node'), '#!/bin/sh\nprintf "node %s\\n" "$*" >> "$CALL_LOG"\nexit 0\n', { mode: 0o755 });
     fs.writeFileSync(path.join(bin, 'gh'), `#!/bin/sh
 printf "gh %s\\n" "$*" >> "$CALL_LOG"
 if [ "$1 $2" = "pr list" ]; then printf "2026-07-18T12:00:00Z\\n"; fi
@@ -180,6 +211,7 @@ test('publish fails when the tag workflow never appears', () => {
     const log = path.join(tmp, 'calls.log');
     fs.mkdirSync(bin);
     fs.writeFileSync(path.join(bin, 'git'), '#!/bin/sh\nprintf "git %s\\n" "$*" >> "$CALL_LOG"\n', { mode: 0o755 });
+    fs.writeFileSync(path.join(bin, 'node'), '#!/bin/sh\nprintf "node %s\\n" "$*" >> "$CALL_LOG"\nexit 0\n', { mode: 0o755 });
     fs.writeFileSync(path.join(bin, 'gh'), '#!/bin/sh\nprintf "gh %s\\n" "$*" >> "$CALL_LOG"\n[ "$1 $2" = "pr list" ] && printf "2026-07-18T12:00:00Z\\n"\nexit 0\n', { mode: 0o755 });
     const res = spawnSync('bash', [RUNNER, 'publish', '1.2.3', 'develop', 'main', 'v', 'release.yml'], {
       cwd: tmp,

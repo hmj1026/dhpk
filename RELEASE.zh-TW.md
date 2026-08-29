@@ -25,6 +25,11 @@ consumer gate；working tree 或本機 live reload 只能作為開發證據。
    相同，CI 以 `--force-with-lease` 把 `develop` 對齊到 `main`；若 tree 不同，
    則對 unique develop work 做 conflict-loud `--no-ff` back-merge。
 
+Release PR 必須使用 GitHub 的 **Create a merge commit** 合併方式；不可使用
+squash merge 或 rebase。Generated package provenance 必須保留 release candidate
+commit 的 ancestry，publish runner 會在建立 immutable tag 前對合併後的 `main`
+重新執行 PACKAGE gate。
+
 ## Release-note fragments
 
 一般 feature/fix PR 在 `changelog.d/` 加入 fragment：
@@ -95,10 +100,12 @@ Release gate 分三層：
 1. 對 release diff 執行 code、doc、security 與 release parity review。
 2. 確認 generated artifact 與 source 同一個 commit，worktree clean。
 3. Push `develop`，建立以 `main` 為 base 的 release PR。
-4. 合併 PR 後，在合併 commit 建立 signed/annotated semver tag。
-5. Push tag，等待 release workflow 與 GitHub Release 完成。
-6. 驗證 marketplace metadata、下載內容與 tag SHA 一致。
-7. 確認 `origin/develop` 已與 released `main` 對齊（tree 相同時 SHA 應相同；
+4. 在人工 merge gate 選擇 **Create a merge commit**；不可 squash/rebase。
+5. 合併 PR 後，runner 會先在合併後的 `main` 重新驗證 PACKAGE provenance，
+   通過後才在合併 commit 建立 signed/annotated semver tag。
+6. Push tag，等待 release workflow 與 GitHub Release 完成。
+7. 驗證 marketplace metadata、下載內容與 tag SHA 一致。
+8. 確認 `origin/develop` 已與 released `main` 對齊（tree 相同時 SHA 應相同；
    unique-tree 時保留 `--no-ff` merge）。Unique-tree 衝突不可用 force-push
    `develop` 解決；recovery 見英文 [RELEASE.md](./RELEASE.md)。
 

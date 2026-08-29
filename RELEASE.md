@@ -16,6 +16,11 @@ feature/*, fix/* ──► develop ──(release PR)──► main ──► an
 branch. The pull request is the release candidate boundary, and the tag is
 created only after that pull request is merged.
 
+The release PR must be merged with GitHub's **Create a merge commit** method.
+Do not squash-merge or rebase the release PR: generated package provenance keeps
+the release-candidate commit as an ancestor, and the publish runner re-checks
+that ancestry on the merged `main` before creating an immutable tag.
+
 ## Contract language
 
 - **Release candidate** — the version and changelog changes proposed by the
@@ -201,6 +206,12 @@ requirement stands.
 Pull-request merge is always a human action. An agent may prepare the release
 commit and PR, but must stop at the merge gate.
 
+At the merge gate, select **Create a merge commit** for the release PR. A
+squash or rebase merge can leave the release tree looking correct while
+dropping the generated-input commit ancestry; the publish runner then stops
+before tagging and the release PR must be merged again with the required
+method.
+
 After the human confirms that the release PR is merged, run the publish gate.
 It blocks on SOURCE or PACKAGE FAIL and never merges a PR, creates a tag, or
 pushes anything itself — `release-runner.sh publish` still owns those
@@ -221,6 +232,7 @@ The publish phase:
 
 - verifies a merged `develop` → `main` PR;
 - fast-forwards the local `main` checkout;
+- reruns the PACKAGE provenance gate on merged `main` before creating a tag;
 - refuses an existing tag because tags are immutable;
 - creates an annotated `vX.Y.Z` tag on `main`;
 - pushes the tag and watches the Release workflow run for that exact tag; and
@@ -232,6 +244,10 @@ tag version (`scripts/ci/verify-release-parity.js`), rejects missing or
 whitespace-only changelog notes (`scripts/release/extract-notes.sh`), and
 creates a GitHub Release from those notes. If the GitHub Release already
 exists, a rerun preserves it rather than editing its metadata.
+
+If the post-merge PACKAGE gate fails, no tag is created. Diagnose the
+provenance or merge topology, preserve any existing immutable tag, and use a
+new patch release for any subsequent correction.
 
 ## Release completion and recovery
 
