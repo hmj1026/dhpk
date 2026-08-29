@@ -63,23 +63,27 @@ Downstream skills SHALL reference this section, not restate it.
 - **THEN** the brief follows conclusions-not-context, a bounded token budget, and a lookup fence, per the dispatch-table's plan-brief discipline sentence
 
 ### Requirement: Skill wiring in dhpk:do downstream flows
-`skills/dhpk-adaptive-dev-workflow/SKILL.md` (bug/feature classification and implement rows) SHALL route the implement phase through the Implementation dispatch table. `commands/do.md` SHALL remain unchanged (router only) EXCEPT the opt-in `--plan` flow added by this change: brief assembly, `dhpk:planner` dispatch, verdict fold-in, and warm-review obligation recording — no implementation logic beyond that carve-out.
+
+Adaptive-dev workflow SHALL continue to consume the Implementation dispatch
+table. `dhpk-do` SHALL own router orchestration while consuming that table as
+policy SSOT. `/dhpk:do` SHALL be a thin adapter and neither command nor skill
+SHALL restate worker/reasoner decision rows.
 
 #### Scenario: /dhpk:do feature request end-to-end
-- **WHEN** `/dhpk:do "implement <feature>"` routes to adaptive-dev-workflow in a session with `orchestration_dispatch=on`
-- **THEN** mechanical implement steps dispatch `dhpk:fast-worker` and reasoning-heavy steps dispatch `dhpk:deep-reasoner`
+- **WHEN** `/dhpk:do "implement <feature>"` reaches adaptive-dev-workflow with dispatch on
+- **THEN** mechanical and reasoning-heavy work use the targets selected by execution-policy
 
 #### Scenario: Bug with unknown root cause
-- **WHEN** adaptive-dev-workflow runs a bug branch with no confirmed root cause
-- **THEN** the investigation step dispatches `dhpk:deep-reasoner`, and the resulting fix spec is applied by `dhpk:fast-worker` or inline per the table
+- **WHEN** adaptive-dev-workflow has no confirmed root cause
+- **THEN** the selected reasoner produces the fix spec and application follows the existing table
 
 #### Scenario: /dhpk:do without --plan is unchanged router-only behavior
-- **WHEN** `/dhpk:do` runs without `--plan`
-- **THEN** behavior is unchanged and router-only, with no `dhpk:planner` dispatch or plan-brief assembly
+- **WHEN** `/dhpk:do` or `$dhpk-do` runs without `--plan`
+- **THEN** routing proceeds without planner brief or consult
 
 #### Scenario: --plan on an implementation-class route runs the planner consult before the target skill
-- **WHEN** `--plan` is present and the resolved route is one of the four implementation-class routes
-- **THEN** the `dhpk:planner` consult happens before the target skill invocation, per the carve-out
+- **WHEN** `--plan` resolves to an implementation-class target
+- **THEN** `dhpk-do` consults planner before the target and retains the warm-review obligation
 
 ### Requirement: opsx-apply-goal emits the dispatch directive for unattended sessions
 

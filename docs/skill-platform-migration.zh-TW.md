@@ -12,12 +12,12 @@ Pocock 或其他全域 skill 的使用者。
 
 | 關注點 | 目前實作 |
 |---|---|
-| Canonical source | `skills/dhpk-<name>/` 下 99 個扁平 package |
+| Canonical source | `skills/dhpk-<name>/` 下 100 個扁平 package |
 | Public identity | 每個可呼叫的 dhpk skill 名稱都以 `dhpk-` 開頭 |
 | Inventory SSOT | `manifests/distribution-inventory.json` schema v2 |
 | Module projection | `modules/*/skills/` 下 37 個相對 symlink |
-| Codex 專案 projection | `codex/skills/` 下 17 個相對 symlink（15 個可呼叫加內部 transport 與 dispatch-context runtime） |
-| Codex native package | `plugins/dhpk/skills/` 下 17 個實體 package，零 symlink |
+| Codex 專案 projection | `codex/skills/` 下 18 個相對 symlink（16 個可呼叫加內部 transport 與 dispatch-context runtime） |
+| Codex native package | `plugins/dhpk/skills/` 下 18 個實體 package，零 symlink |
 | Codex 專案 receipt | `.codex/.dhpk-installed.json` schema v3 |
 | 預設 hooks | `PreToolUse`、`PostToolUse`、`SessionStart`、`SubagentStop` |
 
@@ -33,6 +33,14 @@ lifecycle、module 與 publication surface；validator 會將每個 projection �
 | Claude command | `/dhpk:<command>` | `/dhpk:harness-audit` |
 | Claude plugin skill | `/dhpk:<public-skill-name>` | `/dhpk:dhpk-change-review` |
 | Codex skill | discovery 後使用 `$<public-skill-name>` | `$dhpk-change-review` |
+| Cursor generated command | 產生的 host adapter | Cursor `do` command（`host=cursor`） |
+| Codex main-flow entry | discovery 後使用 `$dhpk-do <task>` | `$dhpk-do fix the login redirect` |
+
+Codex 內建 command（`/hooks`、`/agent`）不是 dhpk 自訂 `/dhpk:*` command。
+當 `dhpk-do` 被發現時，Codex 的單一入口是 `$dhpk-do <task>`。可用性證據是
+receipt-owned 的 `.codex/skills/dhpk-do` 能解析為 `$dhpk-do`；`codex plugin list`
+只是管理層證據。若 `$dhpk-do` 未被發現，instruction routing 與明確 `/opsx:*`
+OpenSpec command 仍可用——不要宣稱 Codex 有可呼叫的 `/dhpk:do`。
 
 Claude skill invocation 中重複的 `dhpk` 是刻意的。第一個是 Claude plugin
 namespace；第二個是全球 collision-safe skill 名稱的一部分。Command 只使用 plugin
@@ -100,7 +108,8 @@ Formatting、lint、Docker probe、prompt hint、session snapshot
 與其他 advisory 工作都改為 consumer 明確啟用的 extension，而非預設 hook。見
 [Hook extension model](./hook-extension.zh-TW.md)。
 
-Command 一律保留 `/dhpk:<name>` namespace。重疊工作流收斂到四個主要入口：
+Command 一律保留 `/dhpk:<name>` namespace（Claude）。Cursor 使用產生的 command。
+Codex 任務路由使用 `$dhpk-do`，沒有 `/dhpk:do`。Claude 重疊工作流收斂到四個主要入口：
 
 - `/dhpk:do`：任務路由。
 - `/dhpk:codex-review --scope ...`：Codex review variants。
@@ -157,8 +166,8 @@ node tests/documentation-platform-parity.test.js
 node tests/run-all.js
 ```
 
-預期拓撲為 99 個 canonical package、31 個 module、17 個 Codex project/native 項目
-（15 個可呼叫 skill 加上內部 transport 與 dispatch-context runtime）；另有五筆不進入 discovery 的
+預期拓撲為 100 個 canonical package、31 個 module、18 個 Codex project/native 項目
+（16 個可呼叫 skill 加上內部 transport 與 dispatch-context runtime）；另有五筆不進入 discovery 的
 `retired_skills` ledger row；相對 symlink 只能出現在 module/Codex projection，native
 package 必須零 symlink。
 

@@ -270,9 +270,10 @@ test('adaptive workflow owns complete bug and feature delivery behavior', () => 
 });
 
 test('post-development testing routes unit/integration to TDD and Playwright journeys to e2e-runner', () => {
-  const routeTable = JSON.parse(read('scripts/lib/route-table.json'));
+  const routeTable = JSON.parse(read('skills/dhpk-do/references/route-table.json'));
   const e2eRoute = routeTable.rules.find((entry) => /playwright/i.test(entry.pattern));
-  assert.strictEqual(e2eRoute.skill, 'agent:e2e-runner');
+  assert.strictEqual(e2eRoute.target.kind, 'agent');
+  assert.strictEqual(e2eRoute.target.id, 'e2e-runner');
   assert.match(e2eRoute.label, /UNAVAILABLE/);
   const gate = read('skills/dhpk-execution-policy/references/delivery-loop-gate.md');
   assert.match(gate, /unit|integration/i);

@@ -4,15 +4,24 @@
 TBD - created by archiving change do-flags-and-harness-consolidation. Update Purpose after archive.
 ## Requirements
 ### Requirement: Architect consult on architecture-relevant `--plan`/`--opsx` invocations
-When `/dhpk:do` runs with `PLAN=on` or `OPENSPEC=on` and the cleaned query describes a new feature requiring architectural judgment or architecture research (cross-module design, new subsystem, layering decisions), the router SHALL dispatch a `dhpk:architect` subagent before the downstream flow and fold its opinion in: under PLAN, into the plan brief handed to `dhpk:planner`; under OPENSPEC, into the change description handed to `opsx:new`. The trigger SHALL be a semantic judgment documented in `commands/do.md` with at least one positive and one negative example. Mechanical or single-module tasks SHALL NOT trigger the consult.
+
+When `dhpk-do` entered through either host has PLAN or OPENSPEC on and the query
+requires architecture judgment, it SHALL dispatch the verified architect role
+before downstream work and fold conclusions into planner or authoring input.
+Mechanical/single-module work SHALL skip it. Missing role SHALL return truthful
+`UNAVAILABLE` or `BLOCKED` before downstream work.
 
 #### Scenario: OPENSPEC architecture task gets a consult
-- **WHEN** `/dhpk:do --opsx` is invoked with a task describing a new cross-module capability needing architecture research
-- **THEN** `dhpk:architect` is dispatched first and its conclusions are folded into the `opsx:new` change description
+- **WHEN** an architecture-relevant authoring task has a callable architect
+- **THEN** architect runs first and conclusions enter authoring input
 
 #### Scenario: Mechanical task skips the consult
-- **WHEN** `/dhpk:do --plan` is invoked with a single-file mechanical task
-- **THEN** no architect dispatch occurs and the planner consult proceeds as before
+- **WHEN** a single-file mechanical task uses `--plan`
+- **THEN** no architect runs
+
+#### Scenario: Architect is unavailable
+- **WHEN** consultation is required but the role is undiscovered
+- **THEN** downstream authoring/implementation does not start
 
 ### Requirement: Architect default tier is fable/low
 `agents/architect.md` frontmatter SHALL default to `model: fable` / `effort: low`, and `rules/model-economics.md`'s tier map SHALL reflect the new default with rationale. The configured-role override mechanism SHALL allow raising the tier per session, and reviewer-style up-only escalation guidance applies for high-risk architecture decisions.

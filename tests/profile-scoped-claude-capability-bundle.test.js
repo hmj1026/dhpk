@@ -219,7 +219,7 @@ test('characterizes the current unscoped Claude manifest and CLI outcome', () =>
     summary.stdout,
     'dhpk Claude publication surface (generated from distribution inventory):\n'
       + '  roots:              1\n'
-      + '  generated skill ids: 97 (excludes deprecated; host cannot hide within a shared root)\n',
+      + '  generated skill ids: 98 (excludes deprecated; host cannot hide within a shared root)\n',
   );
   const normalizedPluginBytes = normalizeReleaseVersion(pluginBytes);
   assert.strictEqual(
@@ -236,7 +236,7 @@ test('characterizes the current unscoped Claude manifest and CLI outcome', () =>
   const compiled = inventoryApi.compileClaudeProjection({ inventory });
   assert.strictEqual(compiled.ok, true, compiled.error && compiled.error.message);
   assert.deepStrictEqual(compiled.generated.roots, ['./skills/']);
-  assert.strictEqual(compiled.generated.generatedSkillIds.length, 97);
+  assert.strictEqual(compiled.generated.generatedSkillIds.length, 98);
   assert.strictEqual(compiled.plan.surface, 'claude-core');
 });
 
@@ -592,6 +592,18 @@ test('Claude profile probe stays non-pass when the configured executable is unav
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
+});
+
+// v1 GREEN contract (tests above): unscoped Claude manifest characterization,
+// profile compiler fixtures, artifact-store materialization, probe contract.
+// v2 RED contract (this test): minimal required_core includes `do`. Membership
+// count is not a replacement literal of nine — see dhpk-do-portable [5.1].
+
+test('minimal required_core includes do (RED until 5.1)', () => {
+  const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
+  const core = inventory.profile_policy.required_core_ids;
+  assert.ok(Array.isArray(core), 'profile_policy.required_core_ids must be an array');
+  assert.ok(core.includes('do'), "minimal required_core_ids must include stable id 'do'");
 });
 
 run('profile-scoped-claude-capability-bundle');

@@ -146,7 +146,7 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --uninstall
 ```
 
 Unified distribution/lifecycle installer 使用 inventory-owned `minimal` profile
-（九個 required core ID）。保留的 project-local Codex compatibility route 預設維持
+（inventory required_core_ids）。保留的 project-local Codex compatibility route 預設維持
 `compat-v1`；migration 時明確選 `minimal`，或加入 stable-ID overlay：
 
 ```bash

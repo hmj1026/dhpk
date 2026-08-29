@@ -11,7 +11,8 @@
 
 新請求依序執行：**檢查** repository 與 session 狀態 → **確認** 已安裝的
 surface → **選擇** Claude、支援的 Codex sync 或實驗性的原生 Codex surface →
-透過 `/dhpk:do` 或明確 skill **路由** → 以 TDD 與編輯前 impact check
+透過 Claude `/dhpk:do`、Cursor 產生的 command，或 Codex `$dhpk-do`（Codex 沒有
+`/dhpk:do`）或明確 skill **路由** → 以 TDD 與編輯前 impact check
 **實作** → **Review／驗證**證據 → **交接**並只給一個下一步指令。
 Plugin 管理（`claude plugin …`、`codex plugin …`）不會呼叫 skill。
 
@@ -44,8 +45,9 @@ dhpk 刻意提供多個不同支援等級的 surface：
 | Antigravity / AGY sync | Adapter/package | Antigravity 使用 `.agent` mapping；AGY 使用原生 plugin package 與 validator。 |
 
 Plugin 管理指令（`claude plugin …`、`codex plugin …`）與 skill invocation 分開。
-Claude workflow 從 `/dhpk:do` 或明確 skill 進入；Codex 使用 project-local `.codex/`
-projection；Cursor project-local 檔案由 `install-cursor-harness.sh` 安裝到 `.cursor/`。
+Claude workflow 從 `/dhpk:do` 或明確 skill 進入；Cursor 在
+`install-cursor-harness.sh` 之後使用產生的 command；Codex 在 project-local
+`.codex/` 同步後從 `$dhpk-do` 進入（Codex 沒有 `/dhpk:do`）。
 
 ## 安裝
 
@@ -186,7 +188,8 @@ containment 或 modified-file safety。`--uninstall` 只移除 receipt-owned 且
 inspect → verify surface → route → plan/classify → implement → review → verify → handoff
 ```
 
-當你知道成果但不知道要用哪個 skill，使用 `/dhpk:do`；已知道完整流程時，使用
+當你知道成果但不知道要用哪個 skill，使用 Claude `/dhpk:do`、Cursor 產生的
+command，或 Codex `$dhpk-do`。Codex 沒有 `/dhpk:do`。已知道完整流程時，使用
 明確 command 或 skill。Plugin 管理（`claude plugin …`、`codex plugin …`）只安裝／
 更新 surface，不會呼叫 workflow。
 

@@ -8,6 +8,7 @@
       "bug-investigation",
       "code-explore",
       "dhpk-execution-policy",
+      "do",
       "git-smart-commit",
       "pr-review",
       "security-review",
@@ -1543,6 +1544,23 @@
       ]
     },
     {
+      "id": "do",
+      "name": "dhpk-do",
+      "path": "skills/dhpk-do",
+      "capability_id": "dhpk.skill.do",
+      "lifecycle": "promoted",
+      "tier": "core",
+      "profiles": [
+        "core"
+      ],
+      "surfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ]
+    },
+    {
       "id": "doc-review",
       "name": "dhpk-doc-review",
       "path": "skills/dhpk-doc-review",
@@ -2815,6 +2833,7 @@
       "create-skill",
       "deploy-list",
       "dhpk-execution-policy",
+      "do",
       "doc-review",
       "execution-checklist",
       "feasibility-study",

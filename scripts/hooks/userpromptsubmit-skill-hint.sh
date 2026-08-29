@@ -6,10 +6,10 @@
 # relevant dhpk command (exit-0 stderr is inert — see _lib/json-out.sh). Helps
 # Claude surface workflows without the user memorising all 70 commands.
 #
-# Matching is delegated to scripts/lib/pre-route.sh (the same matcher behind
-# the /dhpk:do Smart Router), so route-table.json stays the single source of
-# truth for both surfaces. This hook only owns the UserPromptSubmit-specific
-# gating + the stderr formatting.
+# Matching is delegated to skills/dhpk-do/scripts/pre-route.sh (the same matcher
+# behind the /dhpk:do Smart Router), so the skill-local route-table.json stays
+# the single source of truth for both surfaces. This hook only owns the
+# UserPromptSubmit-specific gating + the stderr formatting.
 #
 # PERFORMANCE CONTRACT (see docs/hook-extension.md "Hook performance convention"):
 #   Cheap pure-bash gates (profile / opt-out, using the CLAUDE_PLUGIN_OPTION_*
@@ -43,7 +43,7 @@ set -o pipefail
 . "$(dirname "$0")/_lib/runtime-config.sh"
 
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
-PRE_ROUTE="$PLUGIN_ROOT/scripts/lib/pre-route.sh"
+PRE_ROUTE="$PLUGIN_ROOT/skills/dhpk-do/scripts/pre-route.sh"
 
 # ---- Pure-bash fast-exit gates (NO subprocess) ----
 # DHPK_HOOK_PROFILE is the documented one-shot profile override (mirrors the
@@ -125,7 +125,13 @@ case "$HINT" in
         label="$(printf '%s' "$HINT" | cut -f3)"
         [ -z "$label" ] && label="$skill"
         if [ -n "$skill" ]; then
+            # MATCH field 2 is target.id (kebab, no dhpk:/agent: prefix). Resolve
+            # skill/command ids as-is, then retry agent:<id> so e2e-runner still
+            # maps to the agent invocation class.
             invocation_class="$(CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" node "$PLUGIN_ROOT/scripts/lib/resolve-invocation-class.js" "$skill" 2>/dev/null || true)"
+            if [ -z "$invocation_class" ]; then
+                invocation_class="$(CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT" node "$PLUGIN_ROOT/scripts/lib/resolve-invocation-class.js" "agent:$skill" 2>/dev/null || true)"
+            fi
             bare_skill="${skill#dhpk:}"
             case "$invocation_class" in
                 explicit-only)
@@ -134,11 +140,11 @@ case "$HINT" in
                     ;;
                 agent)
                     emit_additional_context "UserPromptSubmit" \
-                        "[skill-hint] This prompt looks like a $label task — dispatch $skill when available; if that capability is unavailable, report UNAVAILABLE and do not remap it to another workflow."
+                        "[skill-hint] This prompt looks like a $label task — dispatch agent:$bare_skill when available; if that capability is unavailable, report UNAVAILABLE and do not remap it to another workflow."
                     ;;
                 implicit-eligible)
                     emit_additional_context "UserPromptSubmit" \
-                        "[skill-hint] This prompt looks like a $label task — the /$skill workflow may fit. Suggest it (or run it) if appropriate."
+                        "[skill-hint] This prompt looks like a $label task — the /dhpk:$bare_skill workflow may fit. Suggest it (or run it) if appropriate."
                     ;;
                 *)
                     # Missing or malformed canonical metadata fails closed. The

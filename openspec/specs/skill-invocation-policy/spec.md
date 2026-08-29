@@ -78,15 +78,25 @@ An implicit-eligible skill SHALL carry model-facing routing cues that identify p
 - **AND** it does not commit, publish, write externally, or expand scope
 
 ### Requirement: Explicit-only workflows call only implicit-eligible disciplines automatically
-An explicitly invoked workflow MAY invoke implicit-eligible skills or agents needed to fulfill its explicit contract. It SHALL NOT invoke another explicit-only workflow; that edge requires the exact supported invocation to be presented to the user.
+
+An explicitly invoked workflow MAY invoke implicit-eligible skills or agents
+needed for its contract. It SHALL NOT invoke another explicit-only workflow
+unless the human invocation carries a reviewed entry-specific delegation. For
+`dhpk-do`, `--execute-explicit` delegates only the single resolved target once;
+without it the router presents the exact invocation and waits. Authority SHALL
+NOT cascade or bypass downstream gates.
 
 #### Scenario: Apply workflow reaches code review
-- **WHEN** an explicitly invoked apply workflow requires an implicit-eligible review discipline
-- **THEN** it may dispatch that review without a second workflow invocation
+- **WHEN** an explicit apply workflow requires an implicit-eligible review
+- **THEN** it may dispatch review without a second human invocation
 
 #### Scenario: Workflow wants to start release
-- **WHEN** one explicit-only workflow reaches a separate explicit-only release workflow
-- **THEN** it presents the exact release invocation and waits instead of invoking it
+- **WHEN** an explicit workflow reaches an explicit release entry without reviewed delegation
+- **THEN** it presents the exact release invocation and waits
+
+#### Scenario: Router receives one-use delegation
+- **WHEN** a human invokes `dhpk-do --execute-explicit` and one callable explicit target resolves
+- **THEN** that target may run once and authority is unavailable to retry, fallback, or nested explicit targets
 
 ### Requirement: Distributed entries remain human-invocable
 Both invocation classes SHALL remain directly human-invocable. Claude `user-invocable: false` SHALL fail validation for a Distributed Skill or Distributed Command until both supported harnesses can represent and validate a model-only class.

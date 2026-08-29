@@ -2009,9 +2009,11 @@ def resolve_installer_selection(receipt, metadata):
     else:
         raise ValueError(f"profile '{profile_id}' must declare skillIds")
     if profile_id == 'minimal':
-        required = policy.get('required_core_ids') if isinstance(policy.get('required_core_ids'), list) else []
-        if len(selected) != 9 or len(required) != 9 or sorted(selected) != sorted(required):
-            raise ValueError('minimal profile must declare exactly the nine inventory required core stable IDs')
+        required = policy.get('required_core_ids')
+        if not isinstance(required, list) or not required:
+            raise ValueError('minimal profile must declare exactly the inventory required_core_ids')
+        if sorted(selected) != sorted(required) or len(set(required)) != len(required):
+            raise ValueError('minimal profile must declare exactly the inventory required_core_ids')
     if len(set(selected)) != len(selected):
         raise ValueError(f"profile '{profile_id}' declares duplicate stable IDs")
     overlays = list(REQUESTED_SKILL_IDS)

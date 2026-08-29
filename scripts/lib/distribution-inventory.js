@@ -1255,8 +1255,8 @@ function validateCapabilityProfilePolicy({ inventory } = {}) {
   if (typeof policy.version !== 'string' || policy.version.trim() === '') errors.push('profile_policy.version must be a non-empty string');
   const active = new Set((inventory.skills || []).filter((entry) => entry && entry.lifecycle !== 'deprecated').map((entry) => entry.id));
   const retired = new Set((inventory.retired_skills || []).map((entry) => entry && entry.id).filter(Boolean));
-  if (!Array.isArray(policy.required_core_ids) || policy.required_core_ids.length !== 9) {
-    errors.push('profile_policy.required_core_ids must contain exactly nine stable IDs');
+  if (!Array.isArray(policy.required_core_ids) || policy.required_core_ids.length === 0) {
+    errors.push('profile_policy.required_core_ids must be a non-empty array of stable IDs');
   } else {
     if (new Set(policy.required_core_ids).size !== policy.required_core_ids.length) errors.push('profile_policy.required_core_ids must not contain duplicates');
     for (const id of policy.required_core_ids) {
