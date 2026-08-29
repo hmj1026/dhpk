@@ -333,19 +333,19 @@ if [ -z "$(ls -A "$gout" 2>/dev/null)" ]; then ok "graduation disabled → no st
 
 echo ""
 echo "== 10. pre-route.sh (Phase 2.3 Smart Router) =="
-PR="$PLUGIN_ROOT/scripts/lib/pre-route.sh"
+PR="$PLUGIN_ROOT/skills/dhpk-do/scripts/pre-route.sh"
 
 out="$(bash "$PR" "please fix this login bug")"
-if [ "$(printf '%s' "$out" | cut -f1)" = "MATCH" ] && [ "$(printf '%s' "$out" | cut -f2)" = "dhpk:dhpk-adaptive-dev-workflow" ]; then ok "english bug → MATCH dhpk:dhpk-adaptive-dev-workflow"; else fail "english bug route wrong ($out)"; fi
+if [ "$(printf '%s' "$out" | cut -f1)" = "MATCH" ] && [ "$(printf '%s' "$out" | cut -f2)" = "dhpk-adaptive-dev-workflow" ]; then ok "english bug → MATCH dhpk-adaptive-dev-workflow"; else fail "english bug route wrong ($out)"; fi
 
 out="$(bash "$PR" "幫我修一個 bug")"
-if [ "$(printf '%s' "$out" | cut -f2)" = "dhpk:dhpk-adaptive-dev-workflow" ]; then ok "CJK bug → MATCH dhpk:dhpk-adaptive-dev-workflow"; else fail "CJK bug route wrong ($out)"; fi
+if [ "$(printf '%s' "$out" | cut -f2)" = "dhpk-adaptive-dev-workflow" ]; then ok "CJK bug → MATCH dhpk-adaptive-dev-workflow"; else fail "CJK bug route wrong ($out)"; fi
 
 out="$(bash "$PR" "review my diff please")"
-if [ "$(printf '%s' "$out" | cut -f2)" = "dhpk:review-pending" ]; then ok "review → MATCH dhpk:review-pending"; else fail "review route wrong ($out)"; fi
+if [ "$(printf '%s' "$out" | cut -f2)" = "review-pending" ]; then ok "review → MATCH review-pending"; else fail "review route wrong ($out)"; fi
 
 out="$(bash "$PR" "run a security audit for owasp issues")"
-if [ "$(printf '%s' "$out" | cut -f2)" = "dhpk:dhpk-security-review" ]; then ok "security → MATCH dhpk:dhpk-security-review (codex-free default)"; else fail "security route wrong ($out)"; fi
+if [ "$(printf '%s' "$out" | cut -f2)" = "dhpk-security-review" ]; then ok "security → MATCH dhpk-security-review (codex-free default)"; else fail "security route wrong ($out)"; fi
 
 out="$(bash "$PR" "make me a sandwich")"
 if [ "$out" = "NO_MATCH" ]; then ok "unmatched request → NO_MATCH"; else fail "expected NO_MATCH ($out)"; fi
@@ -354,7 +354,7 @@ out="$(bash "$PR" "")"
 if [ "$out" = "NO_QUERY" ]; then ok "empty request → NO_QUERY"; else fail "expected NO_QUERY ($out)"; fi
 
 out="$(printf 'add a new feature endpoint' | bash "$PR")"
-if [ "$(printf '%s' "$out" | cut -f2)" = "dhpk:dhpk-adaptive-dev-workflow" ]; then ok "stdin path → MATCH dhpk:dhpk-adaptive-dev-workflow"; else fail "stdin route wrong ($out)"; fi
+if [ "$(printf '%s' "$out" | cut -f2)" = "dhpk-adaptive-dev-workflow" ]; then ok "stdin path → MATCH dhpk-adaptive-dev-workflow"; else fail "stdin route wrong ($out)"; fi
 
 echo ""
 echo "== 11. stop-review-reminder.sh (stop_hook_active yield) =="

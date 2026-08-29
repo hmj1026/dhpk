@@ -14,12 +14,12 @@ Current Codex/Cursor installation routes and rollback boundaries live in the
 
 | Concern | Current implementation |
 |---|---|
-| Canonical source | 99 flat packages at `skills/dhpk-<name>/` |
+| Canonical source | 100 flat packages at `skills/dhpk-<name>/` |
 | Public identity | Every invokable dhpk skill name begins with `dhpk-` |
 | Inventory SSOT | `manifests/distribution-inventory.json` schema v2 |
 | Module projection | 37 relative symlinks under `modules/*/skills/` |
-| Codex project projection | 17 relative symlinks under `codex/skills/` (15 invokable plus internal transport and dispatch-context runtimes) |
-| Codex native package | 17 physical packages under `plugins/dhpk/skills/`; zero symlinks |
+| Codex project projection | 18 relative symlinks under `codex/skills/` (16 invokable plus internal transport and dispatch-context runtimes) |
+| Codex native package | 18 physical packages under `plugins/dhpk/skills/`; zero symlinks |
 | Codex project receipt | `.codex/.dhpk-installed.json` schema v3 |
 | Default hooks | `PreToolUse`, `PostToolUse`, `SessionStart`, `SubagentStop` |
 
@@ -36,6 +36,16 @@ Names are deliberately different across host surfaces:
 | Claude command | `/dhpk:<command>` | `/dhpk:harness-audit` |
 | Claude plugin skill | `/dhpk:<public-skill-name>` | `/dhpk:dhpk-change-review` |
 | Codex skill | `$<public-skill-name>` after discovery | `$dhpk-change-review` |
+| Cursor generated command | generated host adapter | Cursor `do` command (`host=cursor`) |
+| Codex main-flow entry | `$dhpk-do <task>` after discovery | `$dhpk-do fix the login redirect` |
+
+Codex built-in commands (`/hooks`, `/agent`) are not dhpk custom `/dhpk:*`
+commands. When `dhpk-do` is discovered, `$dhpk-do <task>` is the single Codex
+entry. Availability evidence is a receipt-owned `.codex/skills/dhpk-do` that
+resolves as `$dhpk-do`; `codex plugin list` is management evidence only. If
+`$dhpk-do` is not discovered, instruction routing and explicit `/opsx:*`
+OpenSpec commands remain available — do not claim `/dhpk:do` is callable in
+Codex.
 
 The repeated `dhpk` in a Claude skill invocation is intentional. The first is
 the Claude plugin namespace; the second is part of the globally collision-safe
@@ -106,8 +116,9 @@ Formatting, lint, Docker probes, prompt hints, session snapshots, and other
 advisory work are explicit consumer extensions rather than default hooks.
 See [Hook extension model](./hook-extension.md).
 
-Commands remain namespaced `/dhpk:<name>`. Overlapping workflows use four
-primary entry points:
+Commands remain namespaced `/dhpk:<name>` on Claude. Cursor uses the generated
+command. Codex uses `$dhpk-do` for task routing and has no `/dhpk:do` command.
+Overlapping Claude workflows use four primary entry points:
 
 - `/dhpk:do` for task routing.
 - `/dhpk:codex-review --scope ...` for Codex review variants.
@@ -169,8 +180,8 @@ node tests/documentation-platform-parity.test.js
 node tests/run-all.js
 ```
 
-Expected topology is 99 canonical packages, 31 modules, and 17 Codex
-project/native entries (15 invokable skills plus internal transport and
+Expected topology is 100 canonical packages, 31 modules, and 18 Codex
+project/native entries (16 invokable skills plus internal transport and
 dispatch-context runtimes), with relative symlinks only in module/Codex projections and no
 symlinks in the native package.
 

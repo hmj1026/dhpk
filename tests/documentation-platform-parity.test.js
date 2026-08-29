@@ -111,6 +111,39 @@ test('basic-operation locales keep heading, command, and link parity', () => {
   assert.deepStrictEqual(linkTargets(chinese), linkTargets(english), 'locale link targets drifted');
 });
 
+test('Codex host guidance names $dhpk-do and never claims /dhpk:do is a Codex command', () => {
+  const agents = read('codex/AGENTS.md');
+  assert.ok(agents.includes('$dhpk-do'), 'codex/AGENTS.md must contain $dhpk-do');
+  assert.match(agents, /has no `\/dhpk:do` command/,
+    'codex/AGENTS.md must still state Codex has no /dhpk:do command');
+  const keyDiffStart = agents.indexOf('## Key Differences from Claude Code');
+  assert.ok(keyDiffStart >= 0, 'Key Differences heading missing');
+  const nextHeading = agents.indexOf('\n### ', keyDiffStart);
+  const keyDiff = agents.slice(keyDiffStart, nextHeading === -1 ? undefined : nextHeading);
+  assert.ok(keyDiff.includes('$dhpk-do'), 'Key Differences table must mention $dhpk-do');
+  assert.ok(keyDiff.includes('/agent'), 'Key Differences table must mention /agent');
+
+  for (const relative of ['docs/basic-operations.md', 'docs/basic-operations.zh-TW.md']) {
+    const text = read(relative);
+    assert.ok(text.includes('$dhpk-do'), `${relative} must mention $dhpk-do`);
+    assert.doesNotMatch(
+      text,
+      /\*\*route\*\* through `\/dhpk:do`/,
+      `${relative} must not tell every host, including Codex, to route through /dhpk:do`,
+    );
+    assert.doesNotMatch(
+      text,
+      /(?:Codex workflows enter through|Codex 使用) `\/dhpk:do`/,
+      `${relative} must not tell Codex users to run /dhpk:do`,
+    );
+    assert.doesNotMatch(
+      text,
+      /透過 `\/dhpk:do` 或明確 skill \*\*路由\*\*/,
+      `${relative} must not keep the host-agnostic /dhpk:do route claim`,
+    );
+  }
+});
+
 test('basic-operation guides retain the safety and lifecycle decisions in both locales', () => {
   const required = [
     /wayfinder/i,

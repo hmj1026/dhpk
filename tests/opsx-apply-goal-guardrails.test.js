@@ -148,19 +148,22 @@ test('goal generator documents fast-worker override, task digest, and conditiona
 });
 
 test('/dhpk:do carries fast-worker override through every implementation-class route', () => {
+  const routeTable = fs.readFileSync(
+    path.join(ROOT, 'skills', 'dhpk-do', 'references', 'route-table.json'),
+    'utf8',
+  );
+  assert.ok(routeTable.includes('"id": "dhpk-adaptive-dev-workflow"'));
+  assert.ok(routeTable.includes('"id": "dhpk-opsx-apply-goal"'));
+  assert.ok(!routeTable.includes('dhpk-bug-fix'));
+  assert.ok(!routeTable.includes('dhpk-feature-dev'));
+
   const command = fs.readFileSync(path.join(ROOT, 'commands', 'do.md'), 'utf8');
-  for (const route of ['dhpk:dhpk-adaptive-dev-workflow', 'dhpk:dhpk-opsx-apply-goal']) {
-    assert.ok(command.includes(route), `do command missing implementation route ${route}`);
-  }
-  for (const retiredRoute of ['dhpk:dhpk-bug-fix', 'dhpk:dhpk-feature-dev']) {
-    assert.strictEqual(command.includes(retiredRoute), false, `do command must not route to retired ${retiredRoute}`);
-  }
-  assert.ok(command.includes('forward the invocation override to every implementation-class route'));
-  assert.ok(command.includes('downstream route MUST call the shared fast-worker backend selector'));
-  assert.ok(command.includes('WORKER_OVERRIDE=<actual value|unset>'),
-    'do command must preserve the actual override outside the cleaned query');
-  assert.ok(command.includes('For implementation-class routes, also pass'),
-    'do command must forward the value-bearing invocation context');
+  assert.ok(!command.includes('dhpk:dhpk-adaptive-dev-workflow'));
+  assert.ok(!command.includes('dhpk:dhpk-opsx-apply-goal'));
+
+  const doSkill = fs.readFileSync(path.join(ROOT, 'skills', 'dhpk-do', 'SKILL.md'), 'utf8');
+  assert.ok(doSkill.includes('--worker=<claude|codex|agy|auto>'));
+
   const adaptive = fs.readFileSync(path.join(ROOT, 'skills', 'dhpk-adaptive-dev-workflow', 'SKILL.md'), 'utf8');
   assert.ok(adaptive.includes('WORKER_OVERRIDE'));
   assert.ok(adaptive.includes('scripts/fast-worker-selector.js'));

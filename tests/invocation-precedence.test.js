@@ -3,7 +3,7 @@
 // Route precedence and invocation-class gate regression tests
 // (openspec/changes/clarify-dhpk-skill-invocation-policy specs/
 // skill-routing-guidance/spec.md). Static content assertions over the
-// dhpk-owned router surfaces — commands/do.md, skills/dhpk-next-step/SKILL.md,
+// dhpk-owned router surfaces — thin commands/do.md adapter, skills/dhpk-next-step/SKILL.md,
 // skills/dhpk-opsx-apply-goal/references/goal-templates.md, and
 // commands/opsx-apply-resume.md — proving the explicit-only gate and the
 // issue #87 opsx:* alias fix are present and did not regress.
@@ -15,17 +15,15 @@ const { test, run, assert } = require('./_lib/tinytest');
 const ROOT = path.join(__dirname, '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
-const flat = (s) => s.replace(/\s+/g, ' ');
 const doCmd = read('commands/do.md');
-const doCmdFlat = flat(doCmd);
 const nextStep = read('skills/dhpk-next-step/SKILL.md');
 const goalTemplates = read('skills/dhpk-opsx-apply-goal/references/goal-templates.md');
 const resumeCmd = read('commands/opsx-apply-resume.md');
 const precedenceSSOT = read('skills/dhpk-execution-policy/references/invocation-precedence.md');
 
-// Resolve a bare skill/command name (as referenced by route-table.json or
-// do.md's "Common targets" prose) to its declared metadata.dhpk-invocation-class.
-// Root-level only — matches the scope of both routing surfaces under test.
+// Resolve a bare skill/command name (as referenced by route-table.json) to its
+// declared metadata.dhpk-invocation-class. Root-level only — matches the scope
+// of both routing surfaces under test.
 function resolveInvocationClass(name) {
   const skillFile = path.join(ROOT, 'skills', name, 'SKILL.md');
   const cmdFile = path.join(ROOT, 'commands', `${name}.md`);
@@ -35,11 +33,11 @@ function resolveInvocationClass(name) {
   return m ? m[1] : null;
 }
 
-function resolveAgentRoute(name) {
-  const match = String(name || '').match(/^agent:([a-z0-9][a-z0-9-]*)$/);
-  if (!match) return null;
-  const file = path.join(ROOT, 'agents', `${match[1]}.md`);
-  return fs.existsSync(file) ? match[1] : null;
+function resolveAgentRoute(kind, id) {
+  if (kind !== 'agent') return null;
+  if (!/^[a-z0-9][a-z0-9-]*$/.test(String(id || ''))) return null;
+  const file = path.join(ROOT, 'agents', id + '.md');
+  return fs.existsSync(file) ? id : null;
 }
 
 test('the precedence SSOT reference file exists and states the fixed order', () => {
@@ -55,26 +53,29 @@ test('execution-policy.md points to the precedence SSOT rather than restating it
   assert.ok(policy.includes('invocation-classification.md'));
 });
 
-test('/dhpk:do gates MATCH and NO_MATCH on the resolved target invocation class', () => {
-  assert.ok(doCmd.includes('Invocation-class gate'), 'do.md missing the invocation-class gate section');
-  assert.ok(doCmd.includes('does NOT call the Skill tool'), 'do.md must state the explicit-only Skill-tool refusal');
-  assert.ok(/MATCH.*resolve.*invocation class/s.test(doCmd) || doCmd.includes('resolve `<skill>`\'s invocation class'),
-    'MATCH branch must resolve invocation class before invoking');
-  assert.ok(doCmd.includes('explicit-only; run:'), 'do.md must print the exact recommended invocation for explicit-only targets');
+test('/dhpk:do adapter defers MATCH/NO_MATCH invocation-class gating to the precedence SSOT', () => {
+  assert.ok(doCmd.includes('@skills/dhpk-do/SKILL.md'), 'do.md must remain a pointer at the portable skill');
+  assert.ok(precedenceSSOT.includes('Invocation-class gate'), 'precedence SSOT missing the invocation-class gate section');
+  assert.ok(/do NOT call the Skill tool/i.test(precedenceSSOT), 'precedence SSOT must state the explicit-only Skill-tool refusal');
+  assert.ok(precedenceSSOT.includes('exact supported invocation syntax'),
+    'explicit-only targets must be presented with exact invocation syntax');
 });
 
 test('/dhpk:do never unconditionally auto-invokes the explicit-only opsx-apply-goal route', () => {
   assert.ok(!/pass that argument string to the skill and end this session/.test(doCmd),
     'stale unconditional opsx-apply-goal auto-invoke phrasing must not remain');
-  assert.ok(doCmdFlat.includes('present the exact invocation `/dhpk:dhpk-opsx-apply-goal'),
-    'do.md must present the exact opsx-apply-goal invocation rather than calling it directly');
+  assert.ok(!/pass that argument string to the skill and end this session/.test(precedenceSSOT));
+  assert.ok(precedenceSSOT.includes('exact supported invocation syntax'),
+    'explicit-only targets must be presented rather than auto-invoked');
 });
 
-test('/dhpk:do --openspec discovers Skill-tool availability before invoking openspec-new-change/ff-change', () => {
-  assert.ok(doCmd.includes('**Discover** whether the external OpenSpec authoring entries'));
-  assert.ok(doCmd.includes('openspec-new-change') && doCmd.includes('openspec-ff-change'));
-  assert.ok(doCmd.includes('never pass `opsx:new` or `opsx:ff` to the'), 'must forbid passing the opsx:* alias to the Skill tool');
-  assert.ok(doCmd.includes('do not bypass the entry\'s invocation restriction'));
+test('/dhpk:do adapter does not pass opsx:* aliases to the Skill tool', () => {
+  assert.ok(!/## Step 0/.test(doCmd), 'thin adapter must not keep an independent OpenSpec discover workflow');
+  assert.ok(precedenceSSOT.includes('openspec-*'), 'precedence SSOT must name the canonical OpenSpec Skill-tool IDs');
+  assert.ok(precedenceSSOT.includes('never passes an `opsx:*` alias to the generic Skill tool'),
+    'must forbid passing the opsx:* alias to the Skill tool');
+  assert.ok(/invocation\s+restriction/.test(precedenceSSOT),
+    'must not bypass the target invocation restriction');
 });
 
 test('next-step --go respects the target invocation class', () => {
@@ -97,56 +98,64 @@ test('issue #87 regression: opsx-apply-resume.md dispatches the canonical Skill-
   assert.ok(resumeCmd.includes('never pass the `opsx:apply` human-command alias to the Skill tool'));
 });
 
-test('every scripts/lib/route-table.json target resolves to an invocation class or known agent route', () => {
-  const routeTable = JSON.parse(read('scripts/lib/route-table.json'));
+test('every skill-local route-table.json target resolves to an invocation class or known agent route', () => {
+  const routeTable = JSON.parse(read('skills/dhpk-do/references/route-table.json'));
   for (const rule of routeTable.rules) {
-    const agent = resolveAgentRoute(rule.skill);
+    const kind = rule.target && rule.target.kind;
+    const id = rule.target && rule.target.id;
+    const agent = resolveAgentRoute(kind, id);
     if (agent) {
-      assert.strictEqual(agent, 'e2e-runner', `route-table agent target '${rule.skill}' must be the Playwright e2e-runner role`);
+      assert.strictEqual(agent, 'e2e-runner', `route-table agent target '${id}' must be the Playwright e2e-runner role`);
       continue;
     }
-    const name = rule.skill.replace(/^dhpk:/, '');
-    const cls = resolveInvocationClass(name);
-    assert.ok(cls, `route-table rule [${rule.label}] target '${rule.skill}' did not resolve to a skill or command`);
+    const cls = resolveInvocationClass(id);
+    assert.ok(cls, `route-table rule [${rule.label}] target '${kind}:${id}' did not resolve to a skill or command`);
     assert.ok(cls === 'explicit-only' || cls === 'implicit-eligible',
-      `route-table rule [${rule.label}] target '${rule.skill}' has unknown invocation class '${cls}'`);
+      `route-table rule [${rule.label}] target '${kind}:${id}' has unknown invocation class '${cls}'`);
   }
 });
 
 test('real route-table explicit-only targets retain their canonical classes', () => {
-  const routeTable = JSON.parse(read('scripts/lib/route-table.json'));
-  const explicitTargets = new Set(['dhpk:dhpk-opsx-apply-goal', 'dhpk:create-pr', 'dhpk:dhpk-release-creator', 'dhpk:smart-commit']);
-  const implicitTargets = new Set(['dhpk:review-pending']);
+  const routeTable = JSON.parse(read('skills/dhpk-do/references/route-table.json'));
+  const explicitTargets = new Set(['dhpk-opsx-apply-goal', 'create-pr', 'dhpk-release-creator', 'smart-commit']);
+  const implicitTargets = new Set(['review-pending']);
   for (const target of explicitTargets) {
-    assert.ok(routeTable.rules.some((rule) => rule.skill === target), `route table must contain ${target}`);
-    assert.strictEqual(resolveInvocationClass(target.replace(/^dhpk:/, '')), 'explicit-only', `${target} must remain explicit-only`);
+    assert.ok(routeTable.rules.some((rule) => rule.target && rule.target.id === target), `route table must contain ${target}`);
+    assert.strictEqual(resolveInvocationClass(target), 'explicit-only', `${target} must remain explicit-only`);
   }
   for (const target of implicitTargets) {
-    assert.ok(routeTable.rules.some((rule) => rule.skill === target), `route table must contain ${target}`);
-    assert.strictEqual(resolveInvocationClass(target.replace(/^dhpk:/, '')), 'implicit-eligible', `${target} must remain implicit-eligible`);
+    assert.ok(routeTable.rules.some((rule) => rule.target && rule.target.id === target), `route table must contain ${target}`);
+    assert.strictEqual(resolveInvocationClass(target), 'implicit-eligible', `${target} must remain implicit-eligible`);
   }
 });
 
-test('do.md "Common targets" (explicit-only) annotations agree with the actual declared class', () => {
-  const m = doCmdFlat.match(/Common targets:([\s\S]*?)If nothing fits/);
-  assert.ok(m, 'do.md must have a "Common targets" list to check');
-  const list = m[1];
-  const nameRe = /`dhpk:([a-z0-9-]+)`(\s*\(explicit-only\))?/g;
-  let match;
+test('v2 skill-local route table typed targets (skip while package absent; see dhpk-do-portable)', () => {
+  const tablePath = path.join(ROOT, 'skills', 'dhpk-do', 'references', 'route-table.json');
+  if (!fs.existsSync(tablePath)) return;
+  const table = JSON.parse(fs.readFileSync(tablePath, 'utf8'));
+  assert.strictEqual(table.schema, 'dhpk.route-table.v2');
+  for (const rule of table.rules) {
+    assert.ok(rule.target && typeof rule.target === 'object', `${rule.label} must declare target`);
+    assert.ok(['skill', 'command', 'agent'].includes(rule.target.kind), `${rule.label} kind`);
+    assert.match(rule.target.id, /^[a-z0-9]+(?:-[a-z0-9]+)*$/);
+  }
+});
+
+test('thin /dhpk:do adapter does not duplicate Common targets; route-table classes remain canonical', () => {
+  assert.ok(!/Common targets:/.test(doCmd), 'adapter must not duplicate the target catalog');
+  const routeTable = JSON.parse(read('skills/dhpk-do/references/route-table.json'));
   let checked = 0;
-  while ((match = nameRe.exec(list))) {
-    const name = match[1];
-    const annotatedExplicitOnly = Boolean(match[2]);
-    const cls = resolveInvocationClass(name);
-    assert.ok(cls, `do.md Common targets references '${name}' which did not resolve to a skill or command`);
-    if (annotatedExplicitOnly) {
-      assert.strictEqual(cls, 'explicit-only', `do.md annotates '${name}' as (explicit-only) but its declared class is '${cls}'`);
-    } else {
-      assert.strictEqual(cls, 'implicit-eligible', `do.md lists '${name}' without an (explicit-only) annotation but its declared class is '${cls}'`);
-    }
+  for (const rule of routeTable.rules) {
+    const kind = rule.target && rule.target.kind;
+    const id = rule.target && rule.target.id;
+    if (kind === 'agent') continue;
+    const cls = resolveInvocationClass(id);
+    assert.ok(cls, `route-table target '${id}' did not resolve to a skill or command`);
+    assert.ok(cls === 'explicit-only' || cls === 'implicit-eligible',
+      `route-table target '${id}' has unknown invocation class '${cls}'`);
     checked += 1;
   }
-  assert.ok(checked >= 10, `expected to check at least 10 Common targets entries, checked ${checked}`);
+  assert.ok(checked >= 10, `expected to check at least 10 route-table entries, checked ${checked}`);
 });
 
 run('invocation-precedence');

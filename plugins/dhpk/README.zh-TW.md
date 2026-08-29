@@ -42,7 +42,7 @@ codex plugin add dhpk@dhpk
 ```
 
 真實 consumer gate 會在 sandboxed `CODEX_HOME` 安裝這份 tracked artifact、刪除
-source checkout，再確認 15 個可呼叫 native skill 與內部 transport runtime 都是可發現的實體檔。
+source checkout，再確認 16 個可呼叫 native skill 與內部 transport、dispatch-context runtime 都是可發現的實體檔。
 
 這仍是 **experimental** support tier。結構與 consumer proof 通過，是未來 graduation
 決策的必要證據，但不會自動升級支援等級。正式支援的 Codex 路徑仍是 project-local

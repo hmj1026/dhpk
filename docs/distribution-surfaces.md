@@ -114,9 +114,9 @@ node scripts/ci/gen-claude-manifest.js
 node scripts/ci/gen-distribution-inventory.js
 ```
 
-The current commands report one registered Claude directory root, 97
-inventory-eligible Claude skill IDs, 99 canonical skills (including one
-non-invokable internal runtime package), and 17 Codex-sync entries (15
+The current commands report one registered Claude directory root, 98
+inventory-eligible Claude skill IDs, 100 canonical skills (including two
+non-invokable internal runtime packages), and 18 Codex-sync entries (16
 invokable skills plus internal transport and dispatch-context runtimes). These are independently
 derived scopes; a canonical total is not a default-install or runtime count.
 The five `0.47.0` retirement rows are
@@ -212,7 +212,7 @@ claims a smaller live Claude context, and the bundle does not reduce
 
 | Profile | Meaning |
 |---|---|
-| `minimal` | The nine required core workflow IDs; the default for a clean install. |
+| `minimal` | The inventory required_core_ids; the default for a clean install. |
 | `full` | The existing conflict-aware module closure plus its explicit stable IDs; it is not the complete catalog. |
 | `compat-v1` | All 97 live, non-retired IDs; this is the compatibility fallback for an unannotated existing receipt. |
 
@@ -296,12 +296,10 @@ from the distribution inventory's explicit `codex-native` surface — not from
 (see [ADR-0006](adr/0006-codex-native-publication-artifact.md)),
 never generated fresh at install time.
 
-**Native package membership.** The native public allowlist is the same
-15-entry Codex subset that already had `codex-sync` (11 promoted root skills
-plus 4 approved optional-module exceptions: `php-pro`,
-`legacy-code-characterization`, `php56-yii-dev`, `yii1-security-audit`).
-Both surfaces also carry the non-invokable `cli-transport` runtime package for
-their adapters. `codex-sync` and `codex-native` are independent surfaces with
+**Native package membership.** Inventory currently materializes 18
+Codex-sync/native entries: 16 invokable skills plus the non-invokable
+`cli-transport` and `cli-dispatch-context` runtime packages.
+`codex-sync` and `codex-native` are independent surfaces with
 independent acquisition/update/verification contracts — adding an invokable
 skill to one does not add it to the other.
 

@@ -235,8 +235,8 @@ test('checked-in profiles and inventory satisfy the normalized selection contrac
   assert.strictEqual(checked.ok, true, checked.errors.join('; '));
   const minimal = selection.resolveCapabilitySelection({ inventory, profiles, moduleCatalog, profileId: 'minimal' });
   const compat = selection.resolveCapabilitySelection({ inventory, profiles, moduleCatalog, profileId: 'compat-v1' });
-  assert.strictEqual(minimal.value.selectedStableIds.length, 9);
-  assert.strictEqual(compat.value.selectedStableIds.length, 97);
+  assert.strictEqual(minimal.value.selectedStableIds.length, 10);
+  assert.strictEqual(compat.value.selectedStableIds.length, 98);
   assert.ok(compat.value.selectedStableIds.every((id) => !inventory.retired_skills.some((row) => row.id === id)));
 });
 

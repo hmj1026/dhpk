@@ -1,0 +1,6 @@
+interface:
+  display_name: "Do"
+  short_description: "Route a task through the portable dhpk-do entry"
+  default_prompt: "Use $dhpk-do to apply the portable routing workflow with its verification rules."
+policy:
+  allow_implicit_invocation: false

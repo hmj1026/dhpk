@@ -67,7 +67,7 @@ const DRIFTS = [
   { file: 'README.md', find: /(\d+)(\s+`\/dhpk:codex-\*` commands)/, label: 'codex commands (EN)' },
   { file: 'README.zh-TW.md', find: /(\d+)(\s*個 MCP-backed `codex-\*` skill)/, label: 'MCP-backed codex skills (ZH)' },
   { file: 'README.zh-TW.md', find: /(\d+)(\s*個 `\/dhpk:codex-\*` 指令)/, label: 'codex commands (ZH)' },
-  { file: 'commands/do.md', find: /(?<=dhpk's )(\d+)(\s+commands)/, label: 'commands (do.md)' },
+  { file: 'README.md', find: /(?<=dhpk's )(\d+)(\s+commands)/, label: 'commands (README)' },
   { file: 'README.md', find: /(\d+)(\s+events)/, label: 'hook events (EN)' },
   { file: 'README.zh-TW.md', find: /(\d+)(\s*個事件)/, label: 'hook events (ZH)' },
   // Canonical skill count. Every site is listed: retiring a skill touches all of them,
@@ -213,9 +213,9 @@ test('hookEvents equals the distinct top-level event-key count of hooks/hooks.js
 });
 
 test('command-count claim spec matches commands/do.md phrasing', () => {
-  const doMd = fs.readFileSync(path.join(ROOT, 'commands', 'do.md'), 'utf8');
-  const m = doMd.match(/dhpk's (\d+) commands/);
-  assert.ok(m, 'expected commands/do.md to contain the "dhpk\'s N commands" phrasing catalog.js anchors on');
+  const readme = fs.readFileSync(path.join(ROOT, 'README.md'), 'utf8');
+  const m = readme.match(/dhpk's (\d+) commands/);
+  assert.ok(m, 'expected README.md to contain the "dhpk\'s N commands" phrasing catalog.js anchors on');
 });
 
 test('coverage check reports zero uncovered scripts on the real repo', () => {

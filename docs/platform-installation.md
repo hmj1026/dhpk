@@ -150,7 +150,7 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --uninstall
 ```
 
 The unified distribution/lifecycle installers use the inventory-owned
-`minimal` profile (nine required core IDs). The retained project-local Codex
+`minimal` profile (inventory `required_core_ids`). The retained project-local Codex
 compatibility route keeps `compat-v1` by default; select `minimal` explicitly
 when migrating that route or add stable-ID overlays:
 

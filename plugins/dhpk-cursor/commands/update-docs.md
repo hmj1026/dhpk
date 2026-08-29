@@ -32,7 +32,7 @@ The implementation and distribution SSOT map is:
 | Fact | Prefer this owner |
 |---|---|
 | Public names, surfaces, counts | [`manifests/distribution-inventory.json`](https://github.com/hmj1026/dhpk/blob/main/manifests/distribution-inventory.json) |
-| Route matching and invocation class | `scripts/lib/route-table.json`, `scripts/lib/route-result.js`, and `commands/do.md` |
+| Route matching and invocation class | `skills/dhpk-do/references/route-table.json`, `skills/dhpk-do/scripts/route-result.js`, and `commands/do.md` |
 | Effective configuration | [`docs/configuration.md`](https://github.com/hmj1026/dhpk/blob/main/docs/configuration.md) and its Traditional Chinese pair |
 | Install, update, migration, rollback | [`docs/platform-installation.md`](https://github.com/hmj1026/dhpk/blob/main/docs/platform-installation.md), [`docs/skill-platform-migration.md`](https://github.com/hmj1026/dhpk/blob/main/docs/skill-platform-migration.md) |
 | Runtime workflow, receipts, and gate outcomes | [`docs/harness-workflow.md`](https://github.com/hmj1026/dhpk/blob/main/docs/harness-workflow.md) and the owning harness scripts |

@@ -3,7 +3,7 @@
 
 // Count SSOT for dhpk. Computes authoritative asset counts and enforces the
 // EXACT numeric claims that appear in README.md / README.zh-TW.md / plugin.json
-// / marketplace.json / rules/execution-policy.md / agents/INDEX.md / commands/do.md,
+// / marketplace.json / rules/execution-policy.md / agents/INDEX.md,
 // so those numbers never silently drift from reality.
 //
 //   node scripts/ci/catalog.js            print the count table
@@ -64,7 +64,6 @@ const CLAIM_FILES = [
   '.claude-plugin/marketplace.json',
   'rules/execution-policy.md',
   'agents/INDEX.md',
-  'commands/do.md',
   // Skill-count claim sites. `skills/INDEX.md` and these four bilingual docs pages are
   // the only `docs/**`-adjacent files carrying an enforced claim; each was scanned
   // against every existing spec above and matches none of them, so adding them cannot
@@ -95,7 +94,7 @@ function claimSpecs(counts, scoped) {
     { label: 'codex commands (EN)', re: /(\d+)(\s+`\/dhpk:codex-\*` commands)/g, expected: counts.codexCommands },
     { label: 'MCP-backed codex skills (ZH)', re: /(\d+)(\s*個 MCP-backed `codex-\*` skill)/g, expected: counts.mcpCodexSkills },
     { label: 'codex commands (ZH)', re: /(\d+)(\s*個 `\/dhpk:codex-\*` 指令)/g, expected: counts.codexCommands },
-    { label: 'commands (do.md)', re: /(?<=dhpk's )(\d+)(\s+commands)/g, expected: counts.commands },
+    { label: 'commands (README)', re: /(?<=dhpk's )(\d+)(\s+commands)/g, expected: counts.commands },
     { label: 'hook events (EN)', re: /(\d+)(\s+events)/g, expected: counts.hookEvents },
     { label: 'hook events (ZH)', re: /(\d+)(\s*個事件)/g, expected: counts.hookEvents },
     // Canonical skill count. Expected is skillsBase, NOT skillsTotal: every phrasing below
@@ -136,7 +135,7 @@ const COVERAGE_MAP = {
   'scripts/hooks/record-resumed-obligation.sh': 'resumed-review-reconcile.test.js',
   'scripts/hooks/reconcile-resumed-review.sh': 'resumed-review-reconcile.test.js',
   'scripts/lib/reference-registry.js': 'reference-route-policy.test.js',
-  'scripts/lib/route-result.js': 'reference-route-policy.test.js',
+  'skills/dhpk-do/scripts/route-result.js': 'reference-route-policy.test.js',
   'scripts/lib/harness-receipt.js': 'harness-operation-receipts.test.js',
   'scripts/lib/harness-result.js': 'harness-release-aggregation.test.js',
   'scripts/lib/harness-surfaces.js': 'harness-surfaces.test.js',

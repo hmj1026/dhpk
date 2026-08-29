@@ -142,6 +142,12 @@ function resolveModuleClosure(selected, catalog) {
   return { modules: result.sort() };
 }
 
+function sameIdSet(left, right) {
+  if (!Array.isArray(left) || !Array.isArray(right) || left.length !== right.length) return false;
+  if (new Set(left).size !== left.length || new Set(right).size !== right.length) return false;
+  return JSON.stringify(left.slice().sort()) === JSON.stringify(right.slice().sort());
+}
+
 function requiredCoreIds(inventory, profile) {
   const candidates = [
     inventory && inventory.required_core_ids,
@@ -211,11 +217,18 @@ function resolveCapabilitySelection(input = {}) {
   const selectedDefinition = profileSkillIds(profile);
   if (profileId === 'minimal') {
     const core = requiredCoreIds(input.inventory, profile);
-    if (core.length !== 9 || !selectedDefinition || selectedDefinition.length !== 9) {
-      return fail('INVALID_PROFILE', 'minimal profile must declare exactly nine required core stable IDs');
+    if (!selectedDefinition) {
+      return fail('INVALID_PROFILE', 'minimal profile must declare required core stable IDs');
     }
-    if (new Set(core).size !== 9 || new Set(selectedDefinition).size !== 9
-      || JSON.stringify(core.slice().sort()) !== JSON.stringify(selectedDefinition.slice().sort())) {
+    const policyIds = input.inventory && input.inventory.profile_policy
+      && Array.isArray(input.inventory.profile_policy.required_core_ids)
+      ? input.inventory.profile_policy.required_core_ids
+      : null;
+    if (policyIds) {
+      if (!sameIdSet(core, policyIds) || !sameIdSet(selectedDefinition, policyIds)) {
+        return fail('PROFILE_CORE_MISMATCH', 'minimal profile must list exactly the required_core_ids', selectedDefinition);
+      }
+    } else if (!sameIdSet(core, selectedDefinition)) {
       return fail('PROFILE_CORE_MISMATCH', 'minimal profile stable IDs must match inventory required core IDs', selectedDefinition);
     }
   }
@@ -297,7 +310,14 @@ function validateProfileDefinitions({ inventory, profiles, moduleCatalog } = {})
     }
     const result = resolveCapabilitySelection({ inventory, profiles, moduleCatalog, profileId: id });
     if (!result.ok) errors.push(`${id}: ${result.error.message}`);
-    else if (id === 'minimal' && result.value.selectedStableIds.length !== 9) errors.push('minimal must resolve exactly nine stable IDs');
+    else if (id === 'minimal') {
+      const required = inventory && inventory.profile_policy && Array.isArray(inventory.profile_policy.required_core_ids)
+        ? inventory.profile_policy.required_core_ids
+        : null;
+      if (required && !sameIdSet(result.value.selectedStableIds, required)) {
+        errors.push('minimal must list exactly the required_core_ids');
+      }
+    }
     else if (id === 'full' && result.value.selectedStableIds.length >= (inventory.skills || []).filter((entry) => entry.lifecycle !== 'deprecated' && entry.invokable !== false).length) errors.push('full must remain a conflict-aware subset of live invokable inventory');
     else if (id === 'compat-v1' && result.value.selectedStableIds.length !== (inventory.skills || []).filter((entry) => entry.lifecycle !== 'deprecated' && entry.invokable !== false).length) errors.push('compat-v1 must contain every non-retired invokable stable ID');
   }

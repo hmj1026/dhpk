@@ -4,39 +4,52 @@
 TBD - created by archiving change do-flags-and-harness-consolidation. Update Purpose after archive.
 ## Requirements
 ### Requirement: `--worker` flag replaces `--fast-worker` with hard removal
-`/dhpk:do` and `dhpk:opsx-apply-goal` SHALL accept `--worker=<claude|codex|agy|auto>` as the sole per-invocation fast-worker backend override, parsed and stripped before route matching (the same strip-before-match contract as `--codex`/`--plan`/`--openspec`). The legacy `--fast-worker` token SHALL be removed outright: it is not recognized, not aliased, and receives no special-case handling. Precedence SHALL remain flag > `fast_worker_backend` userConfig > shipped default (`claude`); userConfig key names and the `scripts/fast-worker-selector.js` engine interface SHALL NOT be renamed. The preserved invocation context SHALL be named `WORKER_OVERRIDE`.
+
+`dhpk-do` through either host entry and `dhpk:opsx-apply-goal` SHALL accept
+`--worker=<claude|codex|agy|auto>`, strip it before matching, and preserve
+precedence flag > userConfig > Claude default. Legacy `--fast-worker` SHALL
+remain ordinary query text with no alias. The context name remains
+`WORKER_OVERRIDE`.
 
 #### Scenario: New flag resolves the backend
-- **WHEN** the user invokes `/dhpk:do --worker=codex <task>`
-- **THEN** the invocation resolves the codex backend (subject to availability rules) and the cleaned query contains no `--worker` token
+- **WHEN** either entry receives `--worker=codex`
+- **THEN** selector resolves Codex subject to availability and query excludes the flag
 
 #### Scenario: Legacy flag is not recognized
-- **WHEN** the user invokes `/dhpk:do --fast-worker=codex <task>` after this change ships
-- **THEN** `--fast-worker=codex` is not parsed as a backend override (it flows through as ordinary task text) and no alias or deprecation shim intervenes
+- **WHEN** `--fast-worker=codex` occurs
+- **THEN** it remains ordinary query text
 
 #### Scenario: No dangling references remain
-- **WHEN** the repository is searched for `--fast-worker` after this change
-- **THEN** no command, skill, rule, README, or goal-template occurrence remains (CHANGELOG BREAKING entry excepted)
+- **WHEN** implementation completes
+- **THEN** no live command, skill, rule, README, or goal template describes `--fast-worker` as supported
 
 ### Requirement: `--reasoner` flag selects the deep-reasoning backend
-`/dhpk:do` SHALL accept `--reasoner=<claude|codex>[:<model>[:<effort>]]`, parsed and stripped before route matching. Only `claude` and `codex` are valid backends; `agy` is explicitly unsupported. `claude` SHALL route reasoning-heavy dispatches to `dhpk:deep-reasoner`; `codex` SHALL route them to `dhpk:codex-reasoner` (legacy alias: `codex-deep-reasoner`). Model/effort resolution SHALL follow the `--plan` precedence pattern: explicit flag segments > backend-specific userConfig (`deep_reasoner_model`/`deep_reasoner_effort` for claude; `codex_reasoner_model`/`codex_reasoner_effort` for codex, with legacy aliases `codex_deep_reasoner_*`) > built-in defaults (claude: frontmatter; codex: `gpt-5.6-sol` @ `high`). An invalid backend value SHALL warn one line and fall back to the userConfig/default resolution without failing the route. The flag SHALL affect only implementation-class routes; any other resolved route SHALL print a literal one-line `--reasoner ignored: ...` message and proceed unaffected.
+
+`dhpk-do` SHALL accept
+`--reasoner=<claude|codex>[:<model>[:<effort>]]`, strip it, and preserve explicit
+segments > backend config > defaults. Invalid backend warns and falls back to
+configured/default resolution. Non-implementation routes emit one ignore line.
+Missing Codex executable may use the existing Claude-reasoner fallback with
+requested/selected evidence; auth, model, task, and execution failures remain
+`BLOCKED`.
 
 #### Scenario: Bare codex backend uses defaults
-- **WHEN** the user invokes `/dhpk:do --reasoner=codex <task>` with no `codex_deep_reasoner_*` userConfig set
-- **THEN** reasoning-heavy dispatches for that invocation go to `dhpk:codex-reasoner` at `gpt-5.6-sol` @ `high`
+- **WHEN** `--reasoner=codex` has no configured override
+- **THEN** documented Codex defaults are used
 
 #### Scenario: Full segment override
-- **WHEN** the flag is `--reasoner=codex:gpt-5.6-sol:medium`
-- **THEN** the codex deep reasoner is dispatched with model `gpt-5.6-sol` and effort `medium`, overriding userConfig
+- **WHEN** `--reasoner=codex:gpt-5.6-sol:medium` occurs
+- **THEN** those values override configuration
 
 #### Scenario: Unsupported backend warns and falls back
-- **WHEN** the flag is `--reasoner=agy`
-- **THEN** a one-line warning is printed and reasoning dispatch resolution falls back to userConfig/default; the route proceeds
+- **WHEN** backend is `agy`
+- **THEN** one warning is emitted and configured/default resolution proceeds
 
 #### Scenario: Non-implementation route ignores the flag
-- **WHEN** `--reasoner=codex` is passed and the resolved route is not implementation-class
-- **THEN** the router prints the literal `--reasoner ignored: ...` line and the route runs unaffected
+- **WHEN** the target is not implementation-class
+- **THEN** one ignore line is emitted and routing proceeds
 
 #### Scenario: Missing codex CLI falls back to claude reasoner
-- **WHEN** `--reasoner=codex` is passed but no codex executable is available
-- **THEN** a one-line warning is printed and reasoning dispatches fall back to `dhpk:deep-reasoner` (missing-executable fallback only; execution/auth/model failures remain BLOCKED per selector semantics)
+- **WHEN** Codex executable is missing
+- **THEN** Claude reasoner is selected with requested/selected backend evidence
+- **AND** other Codex failures do not fall back

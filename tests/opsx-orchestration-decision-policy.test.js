@@ -88,8 +88,8 @@ test('implementation workflows make the planner gate explicit for multi-task Ope
     'policy missing the multi-task planner gate');
   assert.ok(/OpenSpec[\s\S]{0,240}planner|planner[\s\S]{0,240}OpenSpec/i.test(adaptive),
     'adaptive workflow missing the multi-task planner gate');
-  assert.ok(/OpenSpec[\s\S]{0,240}planner|planner[\s\S]{0,240}OpenSpec/i.test(command),
-    'do command missing the multi-task planner gate');
+  assert.ok(/OpenSpec[\s\S]{0,240}planner|planner[\s\S]{0,240}OpenSpec/i.test(read('skills/dhpk-do/SKILL.md')),
+    'dhpk-do skill missing the multi-task planner gate');
   assert.ok(/project-owned orchestration decision policy[\s\S]{0,180}planner[\s\S]{0,180}reasoner/i.test(goal),
     'goal template must name the project-owned policy that owns the planner and reasoner gates');
   assert.ok(/two or more unchecked tasks|at least two unchecked tasks/i.test(policy),
@@ -187,14 +187,13 @@ test('project-owned entrypoints and guidance preserve the external boundary', ()
   }
   assert.ok(/external.*opsx:apply|opsx:apply.*external/i.test(policy),
     'canonical policy missing external /opsx:apply boundary');
-  const changedPaths = execFileSync('git', ['diff', '--name-only', 'HEAD'], {
-    cwd: ROOT,
-    encoding: 'utf8',
-  }).split('\n').filter(Boolean).concat(
-    execFileSync('git', ['status', '--short', '--untracked-files=all', '--ignored'], {
-      cwd: ROOT,
-      encoding: 'utf8',
-    }).split('\n').filter(Boolean).filter((line) => !line.startsWith('!! ')).flatMap((line) => line.slice(3).split(' -> ')),
+  // git status --ignored exceeds Node's 1MiB default in this worktree; the
+  // assertion still ignores `!! ` lines and only inspects the change scope.
+  const gitList = { cwd: ROOT, encoding: 'utf8', maxBuffer: 16 * 1024 * 1024 };
+  const changedPaths = execFileSync('git', ['diff', '--name-only', 'HEAD'], gitList)
+    .split('\n').filter(Boolean).concat(
+    execFileSync('git', ['status', '--short', '--untracked-files=all', '--ignored'], gitList)
+      .split('\n').filter(Boolean).filter((line) => !line.startsWith('!! ')).flatMap((line) => line.slice(3).split(' -> ')),
   );
   const externalPackagePath = /^(?:plugins\/dhpk\/skills\/opsx-apply[^/]*(?:\/|$)|\.agents\/skills\/openspec-apply[^/]*(?:\/|$))/;
   assert.ok(!changedPaths.some((changedPath) => externalPackagePath.test(changedPath)),
@@ -253,6 +252,25 @@ test('bilingual lifecycle docs describe review, archive, PR, and completed CI ev
     for (const phrase of ['valid changelog fragment', 'low/warning', 'confirm-only']) {
       assert.ok(normalized.includes(phrase), `lifecycle doc missing ${phrase}`);
     }
+  }
+});
+
+// v1 GREEN contract (tests above): execution-policy / kernel / dispatch / goal
+// template / projection provenance. Those remain the decision SSOT.
+// v2 RED contract (this test): dhpk-do must consume that SSOT and must not
+// copy the implementation dispatch table. See tests/dhpk-do-portable.test.js.
+
+test('dhpk-do consumes execution-policy and must not duplicate the dispatch table (RED until 2.1/4.3)', () => {
+  const skillPath = path.join(ROOT, 'skills', 'dhpk-do', 'SKILL.md');
+  assert.ok(fs.existsSync(skillPath), 'skills/dhpk-do/SKILL.md must exist');
+  const skill = fs.readFileSync(skillPath, 'utf8');
+  assert.match(skill, /execution-policy/, 'dhpk-do must point at execution-policy as decision SSOT');
+  for (const phrase of [
+    'general-purpose` is prohibited for implementation',
+    'The "≤2 files" inline bound',
+    'Reasoner result: READY_FOR_DISPATCH | DECISION_FOR_USER | BLOCKED',
+  ]) {
+    assert.ok(!skill.includes(phrase), `dhpk-do must not copy dispatch-table phrase: ${phrase}`);
   }
 });
 

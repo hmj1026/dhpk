@@ -53,6 +53,19 @@ function runValidator(root) {
   };
 }
 
+// v1 GREEN contract (tests below except the dhpk-do package test): validator
+// fixtures, parity, physical-mirror, fingerprint bounds.
+// v2 RED contract: canonical dhpk-do openai.yaml must name $dhpk-do.
+// See tests/dhpk-do-portable.test.js [2.1].
+
+test('canonical dhpk-do openai.yaml names $dhpk-do and forbids implicit invocation (RED until 2.1)', () => {
+  const yamlPath = path.join(ROOT, 'skills', 'dhpk-do', 'agents', 'openai.yaml');
+  assert.ok(fs.existsSync(yamlPath), 'skills/dhpk-do/agents/openai.yaml must exist');
+  const yaml = fs.readFileSync(yamlPath, 'utf8');
+  assert.match(yaml, /allow_implicit_invocation:\s*false/);
+  assert.match(yaml, /\$dhpk-do/);
+});
+
 test('real repository passes the OpenAI metadata validator', () => {
   const result = runValidator(ROOT);
   assert.strictEqual(result.status, 0, result.output);
