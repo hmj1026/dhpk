@@ -87,6 +87,47 @@ See [distribution surface ownership](distribution-surfaces.md) for the
 inventory/compiler boundary and [platform installation](platform-installation.zh-TW.md)
 for consumer installation and verification details.
 
+## Issue #237 controlled runtime-proof runner
+
+The local runner is the exact-head promotion wrapper for a complete Issue #237
+consumer-runtime proof. The installation and support policy remains in the
+[platform installation SSOT](platform-installation.md). Run this wrapper from
+a clean checkout of the exact merged commit. It starts an empty disposable
+`HOME`, lets each consumer adapter clone only its allowlisted provider session
+files from the explicitly supplied `DHPK_CURSOR_HOST_HOME` and
+`DHPK_AGY_HOST_HOME` directories, executes the public `bin/dhpk harness
+release` facade, and writes a redacted `0600` runner receipt under the
+requested receipt root. The disposable HOME is removed after the attempt.
+
+```sh
+export DHPK_CURSOR_HOST_HOME=/absolute/path/to/disposable-cursor-session-source
+export DHPK_AGY_HOST_HOME=/absolute/path/to/disposable-agy-session-source
+
+node scripts/release/issue-237-runtime-proof.js \
+  --root /absolute/path/to/dhpk \
+  --receipt-root /tmp/runtime-receipts \
+  --task-id issue-237-runtime-proof \
+  --attempt-id attempt-unique \
+  --json
+```
+
+The two host-home variables are session sources, not destinations. Do not point
+them at a whole developer home, put credentials in command arguments, or copy
+unallowlisted files. A non-`PASS` preflight stops before any consumer process is
+started. A successful run is promoted only when the harness returns `COMPLETE`,
+all six required-runtime rows are `PASS`, `cursor-sync` is `PASS` or `NOT_RUN`,
+the preflight identity matches, the checkout remains clean, and the harness
+receipt validates against the same commit and tree. Missing tools, sandbox,
+or login stop before the consumer process. Missing runtime rows remain
+non-terminal: the underlying harness may report `PUBLISHED_PENDING`, while the
+wrapper returns `NO_SHIP` and exit 2. Preflight failures are returned as
+`UNAVAILABLE` or `BLOCKED` with exit 2.
+
+This runner is deliberately local and supervised. It does not install tools,
+publish packages, alter the checkout, or make a GitHub merge decision. Preserve
+the runner receipt for the release review; remove only the disposable runtime
+home after the attempt and retry from a fresh exact-head checkout.
+
 ## Compatibility boundary
 
 Existing commands remain valid during migration:

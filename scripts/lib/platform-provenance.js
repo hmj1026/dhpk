@@ -78,7 +78,23 @@ function createSurfaceReceipt({
   };
 }
 
-function validateSurfaceReceipt(receipt, expectedSurface = null) {
+function assertCleanSourceCheckout(root) {
+  if (typeof root !== 'string' || !root) throw new Error('source checkout root is required');
+  let status;
+  try {
+    status = execFileSync('git', ['status', '--porcelain=v1', '--untracked-files=all'], {
+      cwd: root,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+  } catch (error) {
+    throw new Error(`unable to inspect source checkout cleanliness: ${error.message}`);
+  }
+  if (status) throw new Error('source checkout must be clean before generating provenance-bound package');
+  return true;
+}
+
+function validateSurfaceReceipt(receipt, expectedSurface = null, context = {}) {
   const errors = [];
   if (!receipt || typeof receipt !== 'object' || Array.isArray(receipt)) {
     return { ok: false, errors: ['provenance receipt must be an object'] };
@@ -149,6 +165,53 @@ function validateSurfaceReceipt(receipt, expectedSurface = null) {
   if (receipt.migration !== undefined && (!receipt.migration || typeof receipt.migration !== 'object' || Array.isArray(receipt.migration))) {
     errors.push('provenance migration must be an object when present');
   }
+
+  const validationContext = context && typeof context === 'object' ? context : {};
+  const root = validationContext.root;
+  const targetCommit = validationContext.targetCommit;
+  const targetTree = validationContext.targetTree;
+  const generatedFromCommit = receipt.generatedFromCommit || receipt.sourceCommit;
+
+  if (root && typeof generatedFromCommit === 'string' && COMMIT.test(generatedFromCommit)) {
+    const resolvedGeneratedTree = resolveGeneratedFromTree(root, generatedFromCommit);
+    if (!resolvedGeneratedTree) {
+      errors.push('provenance generated-input commit cannot be resolved in target checkout');
+    } else if (
+      typeof receipt.generatedFromTree === 'string'
+      && receipt.generatedFromTree.toLowerCase() !== resolvedGeneratedTree
+    ) {
+      errors.push('provenance generated-input tree does not match generated-input commit');
+    }
+
+    if (typeof targetCommit === 'string' && COMMIT.test(targetCommit)) {
+      try {
+        execFileSync('git', ['merge-base', '--is-ancestor', generatedFromCommit, targetCommit], {
+          cwd: root,
+          stdio: 'ignore',
+        });
+      } catch (error) {
+        if (error && error.status === 1) {
+          errors.push('provenance generated-input commit is not an ancestor of target checkout');
+        } else {
+          errors.push('provenance generated-input ancestry cannot be verified in target checkout');
+        }
+      }
+    }
+  }
+
+  if (
+    root
+    && typeof targetCommit === 'string' && COMMIT.test(targetCommit)
+    && typeof targetTree === 'string' && COMMIT.test(targetTree)
+  ) {
+    const resolvedTargetTree = resolveGeneratedFromTree(root, targetCommit);
+    if (!resolvedTargetTree) {
+      errors.push('provenance target commit cannot be resolved in target checkout');
+    } else if (resolvedTargetTree !== targetTree.toLowerCase()) {
+      errors.push('provenance target tree does not match target commit');
+    }
+  }
+
   return { ok: errors.length === 0, errors };
 }
 
@@ -177,6 +240,7 @@ module.exports = {
   digest,
   resolveGeneratedFromTree,
   createSurfaceReceipt,
+  assertCleanSourceCheckout,
   validateSurfaceReceipt,
   assertRollbackOwnership,
 };

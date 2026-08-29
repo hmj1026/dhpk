@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.50.1 — 2026-08-29 — Issue #237 runtime-proof runner and exact-head provenance
+
+No user-visible changes in this release.
+
 ## 0.50.0 — 2026-08-29 — Publish portable dhpk-do as the explicit router across Claude, Cursor, and Codex
 
 **feat(dhpk-do)** — Publish portable `$dhpk-do` as the explicit router across Claude, Cursor, and Codex, with thin host adapters and typed route results.

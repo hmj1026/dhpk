@@ -3,7 +3,7 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
+const { execFileSync, spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
@@ -65,6 +65,41 @@ test('generates a disposable AGY package and validates that exact output', () =>
     assert.strictEqual(report(validated).verdict, 'PASS');
   } finally {
     fs.rmSync(temporaryRoot, { recursive: true, force: true });
+  }
+});
+
+test('rejects provenance-bound generation from a dirty source checkout before writing output', () => {
+  const worktreeParent = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-distribution-dirty-'));
+  const worktreeRoot = path.join(worktreeParent, 'checkout');
+  const outDir = path.join(worktreeParent, 'agent-package');
+  let worktreeAdded = false;
+  const marker = path.join(worktreeRoot, `.issue-237-dirty-source-${process.pid}`);
+  try {
+    execFileSync('git', ['worktree', 'add', '--detach', worktreeRoot, 'HEAD'], {
+      cwd: ROOT,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    worktreeAdded = true;
+    fs.writeFileSync(marker, 'uncommitted source input\n');
+    const result = spawnSync('bash', [path.join(worktreeRoot, 'bin', 'dhpk'), 'distribution', 'agent-plugin', 'generate', '--output', outDir, '--json'], {
+      cwd: worktreeRoot,
+      encoding: 'utf8',
+      timeout: 30000,
+    });
+    assert.strictEqual(result.status, 1, result.stdout + result.stderr);
+    assert.match(result.stderr, /source checkout must be clean/i);
+    assert.strictEqual(fs.existsSync(outDir), false, 'dirty generation must abort before materializing output');
+  } finally {
+    fs.rmSync(marker, { force: true });
+    if (worktreeAdded) {
+      execFileSync('git', ['worktree', 'remove', '--force', worktreeRoot], {
+        cwd: ROOT,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+    }
+    fs.rmSync(worktreeParent, { recursive: true, force: true });
   }
 });
 
