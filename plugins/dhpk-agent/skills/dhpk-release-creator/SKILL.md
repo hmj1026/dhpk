@@ -60,8 +60,12 @@ bash "${CLAUDE_PLUGIN_ROOT}/skills/dhpk-release-creator/scripts/release-runner.s
   {VERSION_FILES} {CHANGELOG}
 ```
 
-Stop here for the human merge; never self-merge against policy. After GitHub reports
-the PR merged, publish the tag and watch its exact workflow run:
+Stop here for the human merge; never self-merge against policy. The release PR
+must use GitHub's **Create a merge commit** method. Squash and rebase merges can
+drop the generated-input commit ancestry; the publish runner rechecks PACKAGE
+provenance on merged `main` and stops before creating a tag if that identity
+cannot be proven. After GitHub reports the PR merged, publish the tag and watch
+its exact workflow run:
 
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/skills/dhpk-release-creator/scripts/release-runner.sh" \

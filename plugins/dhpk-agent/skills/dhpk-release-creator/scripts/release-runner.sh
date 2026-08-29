@@ -86,6 +86,14 @@ case "$phase" in
 
         git checkout "$release_branch"
         git pull --ff-only
+        # Re-check generated package provenance on the merged release target
+        # before creating an immutable tag. A squash merge can preserve the
+        # release tree while dropping the generated-input commit ancestry;
+        # fail here so no tag is created for a release workflow that must fail.
+        if ! node scripts/release/package-gate.js --version "$version"; then
+            echo "release-runner: post-merge PACKAGE gate failed; refusing to create immutable tag" >&2
+            exit 1
+        fi
         if [ -n "$(git tag --list "$tag")" ]; then
             echo "release-runner: tag $tag already exists; tags are immutable" >&2
             exit 1
