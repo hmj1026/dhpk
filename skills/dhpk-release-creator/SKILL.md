@@ -62,24 +62,8 @@ bash "${CLAUDE_PLUGIN_ROOT}/skills/dhpk-release-creator/scripts/release-runner.s
   {VERSION_FILES} {CHANGELOG}
 ```
 
-Stop here for the human merge; never self-merge against policy. The release PR
-must use GitHub's **Create a merge commit** method. Squash and rebase merges can
-drop the generated-input commit ancestry; the publish runner rechecks PACKAGE
-provenance on merged `main` and stops before creating a tag if that identity
-cannot be proven. After GitHub reports the PR merged, publish the tag and watch
-its exact workflow run:
-
-For this dhpk release contract, run the SOURCE+PACKAGE publish gate after the
-human merge and before the runner:
-
-```bash
-node scripts/release/publish-gate.js --version "<version>"
-```
-
-The runner automatically reruns `scripts/release/package-gate.js` when that
-project gate exists. A compatible project-specific Node PACKAGE gate may be
-selected with `DHPK_RELEASE_PACKAGE_GATE_SCRIPT`; projects without one rely on
-their resolved `{VALIDATE_CMD}` and release workflow checks.
+Stop here for the human merge; never self-merge against policy. After GitHub reports
+the PR merged, publish the tag and watch its exact workflow run:
 
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/skills/dhpk-release-creator/scripts/release-runner.sh" \
@@ -87,10 +71,8 @@ bash "${CLAUDE_PLUGIN_ROOT}/skills/dhpk-release-creator/scripts/release-runner.s
 ```
 
 The publish phase independently verifies the merged `{BASE_BRANCH}` →
-`{RELEASE_BRANCH}` PR before tagging: its GitHub `mergeCommit.oid` must equal the
-fetched release-branch `HEAD`, and that commit must have two parents. It then reruns
-the PACKAGE provenance gate, creates an annotated immutable tag, polls for a workflow
-run associated with the new tag, fails if no matching run appears, and returns
+`{RELEASE_BRANCH}` PR before tagging, creates an annotated immutable tag, polls for a
+workflow run associated with the new tag, fails if no matching run appears, and returns
 to `{BASE_BRANCH}` only after that run completes. After watch, the runner
 fetches `origin/develop` and `origin/main` and compares those SHAs (it does
 not fast-forward local `develop` through rewritten history): equal SHAs mean

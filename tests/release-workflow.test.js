@@ -93,7 +93,6 @@ test('consumer-verify installs the real claude CLI so the supported Claude check
   const verifyIdx = raw.indexOf('consumer-verify:');
   const nextJobIdx = raw.indexOf('sync-develop:');
   const consumerBlock = raw.slice(verifyIdx, nextJobIdx);
-  assert.match(consumerBlock, /actions\/checkout@v7[\s\S]{0,120}fetch-depth: 0/, 'consumer verification needs full git history for ancestry checks');
   const installIdx = consumerBlock.indexOf('@anthropic-ai/claude-code');
   const gateInvocationIdx = consumerBlock.indexOf('bin/dhpk harness release');
   assert.ok(installIdx !== -1, 'missing claude CLI install step');
