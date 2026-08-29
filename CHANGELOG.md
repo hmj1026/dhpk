@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.50.0 — 2026-08-29 — Publish portable dhpk-do as the explicit router across Claude, Cursor, and Codex
+
+**feat(dhpk-do)** — Publish portable `$dhpk-do` as the explicit router across Claude, Cursor, and Codex, with thin host adapters and typed route results.
+
 ## 0.49.1 — 2026-08-29 — Allow AGY skill scripts, canonicalize CLI role labels, and idle-align develop after release
 
 **fix(agy-plugin)** — Allow skill scripts subdirectories during AGY package structure validation so nested runtime assets do not cause false-positive consumer gate failures.
