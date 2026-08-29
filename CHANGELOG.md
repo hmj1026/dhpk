@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.50.2 — 2026-08-29 — Harden release publication against squash provenance drift
+
+No user-visible changes in this release.
+
 ## 0.50.1 — 2026-08-29 — Issue #237 runtime-proof runner and exact-head provenance
 
 No user-visible changes in this release.

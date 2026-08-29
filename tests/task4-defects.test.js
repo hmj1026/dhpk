@@ -109,8 +109,11 @@ test('release runner propagates a failed workflow through gh run watch --exit-st
   const bin = path.join(repo, 'bin');
   const log = path.join(repo, 'calls.log');
   fs.mkdirSync(bin);
-  writeFile(path.join(bin, 'git'), '#!/bin/sh\nprintf "git %s\\n" "$*" >> "$CALL_LOG"\n', 0o755);
-  writeFile(path.join(bin, 'gh'), '#!/bin/sh\nprintf "gh %s\\n" "$*" >> "$CALL_LOG"\n\nif [ "$1 $2" = "pr list" ]; then printf "2026-08-05T00:00:00Z\\n"; fi\nif [ "$1 $2" = "run list" ]; then printf "run-123\\n"; fi\nif [ "$1 $2" = "run watch" ]; then exit 1; fi\n', 0o755);
+  fs.mkdirSync(path.join(repo, 'scripts', 'release'), { recursive: true });
+  writeFile(path.join(repo, 'scripts', 'release', 'package-gate.js'), '// package gate fixture\n');
+  writeFile(path.join(bin, 'git'), '#!/bin/sh\nprintf "git %s\\n" "$*" >> "$CALL_LOG"\nif [ "$1" = "rev-parse" ] && [ "$2" = "HEAD" ]; then printf "merge-commit-sha\\n"; fi\nif [ "$1" = "rev-list" ]; then printf "merge-commit-sha parent-a parent-b\\n"; fi\n', 0o755);
+  writeFile(path.join(bin, 'node'), '#!/bin/sh\nprintf "node %s\\n" "$*" >> "$CALL_LOG"\nexit 0\n', 0o755);
+  writeFile(path.join(bin, 'gh'), '#!/bin/sh\nprintf "gh %s\\n" "$*" >> "$CALL_LOG"\n\nif [ "$1 $2" = "pr list" ]; then printf "merge-commit-sha\\n"; fi\nif [ "$1 $2" = "run list" ]; then printf "run-123\\n"; fi\nif [ "$1 $2" = "run watch" ]; then exit 1; fi\n', 0o755);
   try {
     const script = path.join(ROOT, 'skills', 'dhpk-release-creator', 'scripts', 'release-runner.sh');
     const res = spawnSync('bash', [script, 'publish', '1.2.3', 'develop', 'main', 'v', 'release.yml'], {
