@@ -1,0 +1,1 @@
+Internal release recovery: restore the pre-squash release tree before rebuilding v0.50.2 with a merge commit.
