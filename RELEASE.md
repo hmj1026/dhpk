@@ -36,17 +36,16 @@ re-checks that ancestry before creating an immutable tag.
 
 ## Current skill-platform topology (release preparation)
 
-The current release-preparation topology is 98 canonical packages (60
-promoted to the Agent Plugin surface), 31 Codex project modules, and 16
-Codex-native/sync entries (15 invokable skills plus the internal transport
-runtime). Five alias-free rows remain in the `retired_skills` ledger and are
+The current release-preparation topology is 100 canonical packages (62
+promoted to the Agent Plugin surface), 31 Codex project modules, and 18
+Codex project/native entries (16 invokable skills plus internal transport and
+dispatch-context runtimes). Five alias-free rows remain in the `retired_skills` ledger and are
 excluded from discovery. Module and Codex project projections use relative
 symlinks; the native package contains no symlinks.
 
-This change set's structural and package checks are the source/package
-evidence only. The checked-in package and provenance still identify the
-0.46.1 release until the final clean 0.47.0 release-preparation commit is
-created. Claude, Codex, and other consumer runtime probes must therefore be
+Structural and package checks are source/package evidence only. The release
+target's version and provenance must be read from the exact clean checkout used
+for that release. Claude, Codex, and other consumer runtime probes must be
 reported separately as `PASS`, `NOT_RUN`, `UNAVAILABLE`, or `BLOCKED`; package
 generation alone is not consumer-runtime proof.
 
@@ -158,7 +157,7 @@ requirement stands.
    - `plugins/dhpk/.codex-plugin/plugin.json`
    - `.agents/plugins/marketplace.json`
    - `CHANGELOG.md` (`## X.Y.Z — YYYY-MM-DD — summary` heading)
-   - `plugins/dhpk/` (regenerated native manifest, 16 physical entries,
+   - `plugins/dhpk/` (regenerated native manifest, 18 physical entries,
      `fingerprints.json`, and `provenance.json`)
 
    All four manifests must contain the same SemVer version. The tag format is
@@ -214,9 +213,9 @@ merged PR SHA, current `main` HEAD, and parent count, then stops before tagging
 if any identity or topology check fails. The release PR must then be merged
 again with the required method.
 
-After the human confirms that the release PR is merged, run the publish gate.
-It blocks on SOURCE or PACKAGE FAIL and never merges a PR, creates a tag, or
-pushes anything itself — `release-runner.sh publish` still owns those
+After the human confirms that the release PR is merged, run the SOURCE+PACKAGE
+publish gate. It blocks on SOURCE or PACKAGE FAIL and never merges a PR, creates
+a tag, or pushes anything itself — `release-runner.sh publish` still owns those
 mechanics and remains an explicit, separate step:
 
 ```bash

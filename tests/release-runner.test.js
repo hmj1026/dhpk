@@ -10,6 +10,13 @@ const ROOT = path.join(__dirname, '..');
 const RUNNER = path.join(ROOT, 'skills', 'dhpk-release-creator', 'scripts', 'release-runner.sh');
 const SKILL = fs.readFileSync(path.join(ROOT, 'skills', 'dhpk-release-creator', 'SKILL.md'), 'utf8');
 const RELEASE = fs.readFileSync(path.join(ROOT, 'RELEASE.md'), 'utf8');
+const RELEASE_ZH = fs.readFileSync(path.join(ROOT, 'RELEASE.zh-TW.md'), 'utf8');
+
+function writePackageGateFixture(root) {
+  const gate = path.join(root, 'scripts', 'release', 'package-gate.js');
+  fs.mkdirSync(path.dirname(gate), { recursive: true });
+  fs.writeFileSync(gate, '// package gate fixture\n');
+}
 
 test('release skill documents prepare, human merge, then publish', () => {
   const flat = SKILL.replace(/\s+/g, ' ');
@@ -31,6 +38,12 @@ test('release flow requires a merge commit before creating the immutable tag', (
   assert.match(SKILL, /Create a merge commit/);
   assert.match(RELEASE, /Create a merge commit/);
   assert.match(RELEASE, /reruns the PACKAGE provenance gate/i);
+});
+
+test('release flow exposes the SOURCE+PACKAGE publish gate in every release guide', () => {
+  assert.match(SKILL, /scripts\/release\/publish-gate\.js/);
+  assert.match(RELEASE, /scripts\/release\/publish-gate\.js/);
+  assert.match(RELEASE_ZH, /scripts\/release\/publish-gate\.js/);
 });
 
 test('prepare creates the release PR and stops before tagging', () => {
@@ -103,6 +116,7 @@ test('publish runs the post-merge package gate before creating an immutable tag'
     const bin = path.join(tmp, 'bin');
     const log = path.join(tmp, 'calls.log');
     fs.mkdirSync(bin);
+    writePackageGateFixture(tmp);
     fs.writeFileSync(path.join(bin, 'git'), '#!/bin/sh\nprintf "git %s\\n" "$*" >> "$CALL_LOG"\nif [ "$1" = "rev-parse" ] && [ "$2" = "HEAD" ]; then printf "merge-commit-sha\\n"; fi\nif [ "$1" = "rev-list" ]; then printf "merge-commit-sha parent-a parent-b\\n"; fi\n', { mode: 0o755 });
     fs.writeFileSync(path.join(bin, 'gh'), '#!/bin/sh\nprintf "gh %s\\n" "$*" >> "$CALL_LOG"\n[ "$1 $2" = "pr list" ] && printf "merge-commit-sha\\n"\nexit 0\n', { mode: 0o755 });
     fs.writeFileSync(path.join(bin, 'node'), '#!/bin/sh\nprintf "node %s\\n" "$*" >> "$CALL_LOG"\nprintf "package provenance gate failed\\n" >&2\nexit 1\n', { mode: 0o755 });
@@ -119,12 +133,45 @@ test('publish runs the post-merge package gate before creating an immutable tag'
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 });
 
+test('publish permits a generic project without a dhpk package gate', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-release-runner-'));
+  try {
+    const bin = path.join(tmp, 'bin');
+    const log = path.join(tmp, 'calls.log');
+    fs.mkdirSync(bin);
+    fs.writeFileSync(path.join(bin, 'git'), `#!/bin/sh
+printf "git %s\\n" "$*" >> "$CALL_LOG"
+if [ "$1" = "rev-parse" ] && [ "$2" = "HEAD" ]; then printf "generic-head\\n"; fi
+if [ "$1" = "rev-list" ]; then printf "generic-head parent-a parent-b\\n"; fi
+if [ "$1" = "rev-parse" ] && [ "$2" = "origin/main" ]; then printf "same-tree\\n"; fi
+if [ "$1" = "rev-parse" ] && [ "$2" = "origin/develop" ]; then printf "same-tree\\n"; fi
+`, { mode: 0o755 });
+    fs.writeFileSync(path.join(bin, 'gh'), `#!/bin/sh
+printf "gh %s\\n" "$*" >> "$CALL_LOG"
+if [ "$1 $2" = "pr list" ]; then printf "generic-head\\n"; fi
+if [ "$1 $2" = "run list" ]; then printf "run-generic\\n"; fi
+exit 0
+`, { mode: 0o755 });
+    fs.writeFileSync(path.join(bin, 'node'), '#!/bin/sh\nprintf "node %s\\n" "$*" >> "$CALL_LOG"\nexit 0\n', { mode: 0o755 });
+    const res = spawnSync('bash', [RUNNER, 'publish', '1.2.3', 'develop', 'main', 'v', 'release.yml'], {
+      cwd: tmp,
+      encoding: 'utf8',
+      env: { ...process.env, PATH: `${bin}:${process.env.PATH}`, CALL_LOG: log, DHPK_RELEASE_POLL_ATTEMPTS: '1', DHPK_RELEASE_POLL_INTERVAL: '0' },
+    });
+    assert.strictEqual(res.status, 0, res.stderr);
+    const calls = fs.readFileSync(log, 'utf8');
+    assert.ok(calls.includes('git tag -a v1.2.3 -m Release v1.2.3'), calls);
+    assert.ok(!calls.includes('node scripts/release/package-gate.js'), calls);
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
 test('publish refuses when the merged release PR is not the current release-branch HEAD', () => {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-release-runner-'));
   try {
     const bin = path.join(tmp, 'bin');
     const log = path.join(tmp, 'calls.log');
     fs.mkdirSync(bin);
+    writePackageGateFixture(tmp);
     fs.writeFileSync(path.join(bin, 'git'), '#!/bin/sh\nprintf "git %s\\n" "$*" >> "$CALL_LOG"\nif [ "$1" = "rev-parse" ] && [ "$2" = "HEAD" ]; then printf "current-head-sha\\n"; fi\n', { mode: 0o755 });
     fs.writeFileSync(path.join(bin, 'gh'), '#!/bin/sh\nprintf "gh %s\\n" "$*" >> "$CALL_LOG"\n[ "$1 $2" = "pr list" ] && printf "merged-pr-sha\\n"\nexit 0\n', { mode: 0o755 });
     fs.writeFileSync(path.join(bin, 'node'), '#!/bin/sh\nprintf "node %s\\n" "$*" >> "$CALL_LOG"\nexit 0\n', { mode: 0o755 });
@@ -149,6 +196,7 @@ test('publish rejects a squash/rebase merge before creating an immutable tag', (
     const bin = path.join(tmp, 'bin');
     const log = path.join(tmp, 'calls.log');
     fs.mkdirSync(bin);
+    writePackageGateFixture(tmp);
     fs.writeFileSync(path.join(bin, 'git'), '#!/bin/sh\nprintf "git %s\\n" "$*" >> "$CALL_LOG"\nif [ "$1" = "rev-parse" ] && [ "$2" = "HEAD" ]; then printf "squash-commit-sha\\n"; fi\nif [ "$1" = "rev-list" ]; then printf "squash-commit-sha parent-a\\n"; fi\n', { mode: 0o755 });
     fs.writeFileSync(path.join(bin, 'gh'), '#!/bin/sh\nprintf "gh %s\\n" "$*" >> "$CALL_LOG"\n[ "$1 $2" = "pr list" ] && printf "squash-commit-sha\\n"\nexit 0\n', { mode: 0o755 });
     fs.writeFileSync(path.join(bin, 'node'), '#!/bin/sh\nprintf "node %s\\n" "$*" >> "$CALL_LOG"\nexit 0\n', { mode: 0o755 });
@@ -173,6 +221,7 @@ test('publish waits for and watches only the workflow run for the new tag', () =
     const log = path.join(tmp, 'calls.log');
     const count = path.join(tmp, 'run-list-count');
     fs.mkdirSync(bin);
+    writePackageGateFixture(tmp);
     fs.writeFileSync(path.join(bin, 'git'), '#!/bin/sh\nprintf "git %s\\n" "$*" >> "$CALL_LOG"\nif [ "$1" = "rev-parse" ] && [ "$2" = "HEAD" ]; then printf "merge-commit-sha\\n"; fi\nif [ "$1" = "rev-list" ]; then printf "merge-commit-sha parent-a parent-b\\n"; fi\n', { mode: 0o755 });
     fs.writeFileSync(path.join(bin, 'node'), '#!/bin/sh\nprintf "node %s\\n" "$*" >> "$CALL_LOG"\nexit 0\n', { mode: 0o755 });
     fs.writeFileSync(path.join(bin, 'gh'), `#!/bin/sh
@@ -225,6 +274,7 @@ test('publish fails when post-release trees match but develop and main SHAs diff
     const bin = path.join(tmp, 'bin');
     const log = path.join(tmp, 'calls.log');
     fs.mkdirSync(bin);
+    writePackageGateFixture(tmp);
     fs.writeFileSync(path.join(bin, 'git'), `#!/bin/sh
 printf "git %s\\n" "$*" >> "$CALL_LOG"
 if [ "$1" = "rev-parse" ] && [ "$2" = "HEAD" ]; then printf "merge-commit-sha\\n"; fi
@@ -264,6 +314,7 @@ test('publish fails when the tag workflow never appears', () => {
     const bin = path.join(tmp, 'bin');
     const log = path.join(tmp, 'calls.log');
     fs.mkdirSync(bin);
+    writePackageGateFixture(tmp);
     fs.writeFileSync(path.join(bin, 'git'), '#!/bin/sh\nprintf "git %s\\n" "$*" >> "$CALL_LOG"\nif [ "$1" = "rev-parse" ] && [ "$2" = "HEAD" ]; then printf "merge-commit-sha\\n"; fi\nif [ "$1" = "rev-list" ]; then printf "merge-commit-sha parent-a parent-b\\n"; fi\n', { mode: 0o755 });
     fs.writeFileSync(path.join(bin, 'node'), '#!/bin/sh\nprintf "node %s\\n" "$*" >> "$CALL_LOG"\nexit 0\n', { mode: 0o755 });
     fs.writeFileSync(path.join(bin, 'gh'), '#!/bin/sh\nprintf "gh %s\\n" "$*" >> "$CALL_LOG"\n[ "$1 $2" = "pr list" ] && printf "merge-commit-sha\\n"\nexit 0\n', { mode: 0o755 });

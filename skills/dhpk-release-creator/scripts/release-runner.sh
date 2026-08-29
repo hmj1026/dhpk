@@ -98,12 +98,22 @@ case "$phase" in
             exit 1
         fi
         # Re-check generated package provenance on the merged release target
-        # before creating an immutable tag. A squash merge can preserve the
-        # release tree while dropping the generated-input commit ancestry;
-        # fail here so no tag is created for a release workflow that must fail.
-        if ! node scripts/release/package-gate.js --version "$version"; then
-            echo "release-runner: post-merge PACKAGE gate failed; refusing to create immutable tag" >&2
-            exit 1
+        # before creating an immutable tag when this project supplies a package
+        # gate. dhpk uses the conventional path; other projects can provide a
+        # compatible Node gate through DHPK_RELEASE_PACKAGE_GATE_SCRIPT.
+        package_gate_script="${DHPK_RELEASE_PACKAGE_GATE_SCRIPT:-}"
+        if [ -z "$package_gate_script" ] && [ -f "scripts/release/package-gate.js" ]; then
+            package_gate_script="scripts/release/package-gate.js"
+        fi
+        if [ -n "$package_gate_script" ]; then
+            if [ ! -f "$package_gate_script" ]; then
+                echo "release-runner: configured PACKAGE gate is missing: $package_gate_script" >&2
+                exit 1
+            fi
+            if ! node "$package_gate_script" --version "$version"; then
+                echo "release-runner: post-merge PACKAGE gate failed; refusing to create immutable tag" >&2
+                exit 1
+            fi
         fi
         if [ -n "$(git tag --list "$tag")" ]; then
             echo "release-runner: tag $tag already exists; tags are immutable" >&2
