@@ -69,6 +69,18 @@ provenance on merged `main` and stops before creating a tag if that identity
 cannot be proven. After GitHub reports the PR merged, publish the tag and watch
 its exact workflow run:
 
+For this dhpk release contract, run the SOURCE+PACKAGE publish gate after the
+human merge and before the runner:
+
+```bash
+node scripts/release/publish-gate.js --version "<version>"
+```
+
+The runner automatically reruns `scripts/release/package-gate.js` when that
+project gate exists. A compatible project-specific Node PACKAGE gate may be
+selected with `DHPK_RELEASE_PACKAGE_GATE_SCRIPT`; projects without one rely on
+their resolved `{VALIDATE_CMD}` and release workflow checks.
+
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/skills/dhpk-release-creator/scripts/release-runner.sh" \
   "publish" "<version>" "{BASE_BRANCH}" "{RELEASE_BRANCH}" "{TAG_PREFIX}" "{RELEASE_WORKFLOW}"
