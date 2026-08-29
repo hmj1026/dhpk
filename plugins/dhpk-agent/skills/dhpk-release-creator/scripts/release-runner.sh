@@ -86,6 +86,12 @@ case "$phase" in
 
         git checkout "$release_branch"
         git pull --ff-only
+        merge_line="$(git rev-list --parents -n1 HEAD)"
+        parent_count="$(printf '%s\n' "$merge_line" | awk '{print NF - 1}')"
+        if [ "$parent_count" -ne 2 ]; then
+            echo "release-runner: release PR must use Create a merge commit; refusing to tag a squash/rebase commit (HEAD has ${parent_count} parent(s))" >&2
+            exit 1
+        fi
         # Re-check generated package provenance on the merged release target
         # before creating an immutable tag. A squash merge can preserve the
         # release tree while dropping the generated-input commit ancestry;
