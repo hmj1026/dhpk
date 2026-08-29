@@ -25,6 +25,11 @@ consumer gate；working tree 或本機 live reload 只能作為開發證據。
    相同，CI 以 `--force-with-lease` 把 `develop` 對齊到 `main`；若 tree 不同，
    則對 unique develop work 做 conflict-loud `--no-ff` back-merge。
 
+Release PR 必須使用 GitHub 的 **Create a merge commit** 合併方式；不可使用
+squash merge 或 rebase。Generated package provenance 必須保留 release candidate
+commit 的 ancestry；publish runner 會確認 GitHub `mergeCommit.oid` 等於抓下來的
+`main` HEAD、該 commit 有兩個 parent，並在建立 immutable tag 前重新執行 PACKAGE gate。
+
 ## Release-note fragments
 
 一般 feature/fix PR 在 `changelog.d/` 加入 fragment：
@@ -57,7 +62,7 @@ node scripts/release/prepare-release.js write \
 - `plugins/dhpk/provenance.json`
 
 Write mode 除版本 manifest 與 `CHANGELOG.md` 外，也會重新產生完整
-`plugins/dhpk/`（manifest、16 個 physical 項目、fingerprints、provenance）。
+`plugins/dhpk/`（manifest、18 個 physical 項目、fingerprints、provenance）。
 Canonical skill 只能修改 `skills/dhpk-*/`。Module/Codex projection 是 symlink，
 native package 是 generated physical artifact，不可各自手改。
 
@@ -75,10 +80,11 @@ node scripts/ci/validate-changelog-fragments.js --diff-base develop
 node tests/run-all.js
 ```
 
-Skill platform 的預期 topology：98 個 canonical package、31 modules、16 個 Codex
-sync/native 項目（15 個可呼叫 skill 加上內部 transport runtime）；另有五筆不進入
-discovery 的 `retired_skills` ledger row。Module/Codex project projection 使用相對
-symlink，native package 零 symlink。
+Skill platform 的預期 topology：100 個 canonical package、62 個 Agent Plugin
+skill、31 modules、18 個 Codex project/native 項目（16 個可呼叫 skill 加上內部
+transport 與 dispatch-context runtime）；另有五筆不進入 discovery 的
+`retired_skills` ledger row。Module/Codex project projection 使用相對 symlink，
+native package 零 symlink。
 
 Release gate 分三層：
 
@@ -95,10 +101,14 @@ Release gate 分三層：
 1. 對 release diff 執行 code、doc、security 與 release parity review。
 2. 確認 generated artifact 與 source 同一個 commit，worktree clean。
 3. Push `develop`，建立以 `main` 為 base 的 release PR。
-4. 合併 PR 後，在合併 commit 建立 signed/annotated semver tag。
-5. Push tag，等待 release workflow 與 GitHub Release 完成。
-6. 驗證 marketplace metadata、下載內容與 tag SHA 一致。
-7. 確認 `origin/develop` 已與 released `main` 對齊（tree 相同時 SHA 應相同；
+4. 在人工 merge gate 選擇 **Create a merge commit**；不可 squash/rebase。
+5. 合併 PR 後先執行 `node scripts/release/publish-gate.js --version X.Y.Z`，確認
+   SOURCE 與 PACKAGE 都 PASS。
+6. runner 會再確認 merged PR SHA、`main` HEAD 與雙親 merge topology，並在合併後
+   的 `main` 重新驗證 PACKAGE provenance；通過後才建立 signed/annotated semver tag。
+7. Push tag，等待 release workflow 與 GitHub Release 完成。
+8. 驗證 marketplace metadata、下載內容與 tag SHA 一致。
+9. 確認 `origin/develop` 已與 released `main` 對齊（tree 相同時 SHA 應相同；
    unique-tree 時保留 `--no-ff` merge）。Unique-tree 衝突不可用 force-push
    `develop` 解決；recovery 見英文 [RELEASE.md](./RELEASE.md)。
 

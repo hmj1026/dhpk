@@ -78,14 +78,43 @@ case "$phase" in
             exit 2
         fi
 
-        merged_at="$(gh pr list --head "$base_branch" --base "$release_branch" --state merged --limit 1 --json mergedAt --jq '.[0].mergedAt // empty')"
-        if [ -z "$merged_at" ]; then
+        merge_commit_sha="$(gh pr list --head "$base_branch" --base "$release_branch" --state merged --limit 1 --json mergeCommit --jq '.[0].mergeCommit.oid // empty')"
+        if [ -z "$merge_commit_sha" ]; then
             echo "release-runner: release PR for $base_branch is not merged" >&2
             exit 1
         fi
 
         git checkout "$release_branch"
         git pull --ff-only
+        current_sha="$(git rev-parse HEAD)"
+        if [ "$current_sha" != "$merge_commit_sha" ]; then
+            echo "release-runner: merged release PR commit $merge_commit_sha is not current $release_branch HEAD $current_sha; refusing to tag" >&2
+            exit 1
+        fi
+        merge_line="$(git rev-list --parents -n1 "$current_sha")"
+        parent_count="$(printf '%s\n' "$merge_line" | awk '{print NF - 1}')"
+        if [ "$parent_count" -ne 2 ]; then
+            echo "release-runner: release PR must use Create a merge commit; refusing to tag a squash/rebase commit (HEAD has ${parent_count} parent(s))" >&2
+            exit 1
+        fi
+        # Re-check generated package provenance on the merged release target
+        # before creating an immutable tag when this project supplies a package
+        # gate. dhpk uses the conventional path; other projects can provide a
+        # compatible Node gate through DHPK_RELEASE_PACKAGE_GATE_SCRIPT.
+        package_gate_script="${DHPK_RELEASE_PACKAGE_GATE_SCRIPT:-}"
+        if [ -z "$package_gate_script" ] && [ -f "scripts/release/package-gate.js" ]; then
+            package_gate_script="scripts/release/package-gate.js"
+        fi
+        if [ -n "$package_gate_script" ]; then
+            if [ ! -f "$package_gate_script" ]; then
+                echo "release-runner: configured PACKAGE gate is missing: $package_gate_script" >&2
+                exit 1
+            fi
+            if ! node "$package_gate_script" --version "$version"; then
+                echo "release-runner: post-merge PACKAGE gate failed; refusing to create immutable tag" >&2
+                exit 1
+            fi
+        fi
         if [ -n "$(git tag --list "$tag")" ]; then
             echo "release-runner: tag $tag already exists; tags are immutable" >&2
             exit 1
