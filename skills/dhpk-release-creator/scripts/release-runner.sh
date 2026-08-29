@@ -78,15 +78,20 @@ case "$phase" in
             exit 2
         fi
 
-        merged_at="$(gh pr list --head "$base_branch" --base "$release_branch" --state merged --limit 1 --json mergedAt --jq '.[0].mergedAt // empty')"
-        if [ -z "$merged_at" ]; then
+        merge_commit_sha="$(gh pr list --head "$base_branch" --base "$release_branch" --state merged --limit 1 --json mergeCommit --jq '.[0].mergeCommit.oid // empty')"
+        if [ -z "$merge_commit_sha" ]; then
             echo "release-runner: release PR for $base_branch is not merged" >&2
             exit 1
         fi
 
         git checkout "$release_branch"
         git pull --ff-only
-        merge_line="$(git rev-list --parents -n1 HEAD)"
+        current_sha="$(git rev-parse HEAD)"
+        if [ "$current_sha" != "$merge_commit_sha" ]; then
+            echo "release-runner: merged release PR commit $merge_commit_sha is not current $release_branch HEAD $current_sha; refusing to tag" >&2
+            exit 1
+        fi
+        merge_line="$(git rev-list --parents -n1 "$current_sha")"
         parent_count="$(printf '%s\n' "$merge_line" | awk '{print NF - 1}')"
         if [ "$parent_count" -ne 2 ]; then
             echo "release-runner: release PR must use Create a merge commit; refusing to tag a squash/rebase commit (HEAD has ${parent_count} parent(s))" >&2

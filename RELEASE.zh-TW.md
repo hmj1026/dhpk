@@ -27,8 +27,8 @@ consumer gate；working tree 或本機 live reload 只能作為開發證據。
 
 Release PR 必須使用 GitHub 的 **Create a merge commit** 合併方式；不可使用
 squash merge 或 rebase。Generated package provenance 必須保留 release candidate
-commit 的 ancestry，publish runner 會在建立 immutable tag 前對合併後的 `main`
-重新執行 PACKAGE gate。
+commit 的 ancestry；publish runner 會確認 GitHub `mergeCommit.oid` 等於抓下來的
+`main` HEAD、該 commit 有兩個 parent，並在建立 immutable tag 前重新執行 PACKAGE gate。
 
 ## Release-note fragments
 
@@ -101,8 +101,9 @@ Release gate 分三層：
 2. 確認 generated artifact 與 source 同一個 commit，worktree clean。
 3. Push `develop`，建立以 `main` 為 base 的 release PR。
 4. 在人工 merge gate 選擇 **Create a merge commit**；不可 squash/rebase。
-5. 合併 PR 後，runner 會先在合併後的 `main` 重新驗證 PACKAGE provenance，
-   通過後才在合併 commit 建立 signed/annotated semver tag。
+5. 合併 PR 後，runner 會先確認 merged PR SHA、`main` HEAD 與雙親 merge topology，
+   再在合併後的 `main` 重新驗證 PACKAGE provenance；通過後才建立
+   signed/annotated semver tag。
 6. Push tag，等待 release workflow 與 GitHub Release 完成。
 7. 驗證 marketplace metadata、下載內容與 tag SHA 一致。
 8. 確認 `origin/develop` 已與 released `main` 對齊（tree 相同時 SHA 應相同；

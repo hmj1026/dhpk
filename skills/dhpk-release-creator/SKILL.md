@@ -75,8 +75,10 @@ bash "${CLAUDE_PLUGIN_ROOT}/skills/dhpk-release-creator/scripts/release-runner.s
 ```
 
 The publish phase independently verifies the merged `{BASE_BRANCH}` →
-`{RELEASE_BRANCH}` PR before tagging, creates an annotated immutable tag, polls for a
-workflow run associated with the new tag, fails if no matching run appears, and returns
+`{RELEASE_BRANCH}` PR before tagging: its GitHub `mergeCommit.oid` must equal the
+fetched release-branch `HEAD`, and that commit must have two parents. It then reruns
+the PACKAGE provenance gate, creates an annotated immutable tag, polls for a workflow
+run associated with the new tag, fails if no matching run appears, and returns
 to `{BASE_BRANCH}` only after that run completes. After watch, the runner
 fetches `origin/develop` and `origin/main` and compares those SHAs (it does
 not fast-forward local `develop` through rewritten history): equal SHAs mean

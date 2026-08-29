@@ -18,8 +18,9 @@ created only after that pull request is merged.
 
 The release PR must be merged with GitHub's **Create a merge commit** method.
 Do not squash-merge or rebase the release PR: generated package provenance keeps
-the release-candidate commit as an ancestor, and the publish runner re-checks
-that ancestry on the merged `main` before creating an immutable tag.
+the release-candidate commit as an ancestor. The publish runner checks that the
+GitHub `mergeCommit.oid` is the fetched `main` HEAD, requires two parents, and
+re-checks that ancestry before creating an immutable tag.
 
 ## Contract language
 
@@ -208,9 +209,10 @@ commit and PR, but must stop at the merge gate.
 
 At the merge gate, select **Create a merge commit** for the release PR. A
 squash or rebase merge can leave the release tree looking correct while
-dropping the generated-input commit ancestry; the publish runner then stops
-before tagging and the release PR must be merged again with the required
-method.
+dropping the generated-input commit ancestry; the publish runner checks the
+merged PR SHA, current `main` HEAD, and parent count, then stops before tagging
+if any identity or topology check fails. The release PR must then be merged
+again with the required method.
 
 After the human confirms that the release PR is merged, run the publish gate.
 It blocks on SOURCE or PACKAGE FAIL and never merges a PR, creates a tag, or
@@ -230,7 +232,8 @@ bash "${CLAUDE_PLUGIN_ROOT}/skills/dhpk-release-creator/scripts/release-runner.s
 
 The publish phase:
 
-- verifies a merged `develop` → `main` PR;
+- verifies a merged `develop` → `main` PR and requires its merge SHA to equal
+  the fetched `main` HEAD with two parents;
 - fast-forwards the local `main` checkout;
 - reruns the PACKAGE provenance gate on merged `main` before creating a tag;
 - refuses an existing tag because tags are immutable;
