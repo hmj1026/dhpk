@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.50.3 — 2026-08-30 — Harden release publication and develop reconciliation
+
+No user-visible changes in this release.
+
 ## 0.50.2 — 2026-08-29 — Harden release publication against squash provenance drift
 
 No user-visible changes in this release.

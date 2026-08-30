@@ -27,8 +27,8 @@ re-checks that ancestry before creating an immutable tag.
 - **Release candidate** — the version and changelog changes proposed by the
   release PR.
 - **Published release** — the immutable `vX.Y.Z` tag, successful Release
-  workflow, GitHub Release, and successful `develop` reconciliation with
-  released `main` (idle-align when trees match, `--no-ff` when they differ).
+  workflow, GitHub Release, and successful guarded `develop` reconciliation
+  with released `main`.
 - **Consumer update** — a separate action that refreshes a Claude or Codex
   consumer. A published release does not imply that every consumer updated.
 - **Immutable tag** — a tag that is never moved, deleted, or reused. A
@@ -213,16 +213,16 @@ merged PR SHA, current `main` HEAD, and parent count, then stops before tagging
 if any identity or topology check fails. The release PR must then be merged
 again with the required method.
 
-After the human confirms that the release PR is merged, run the SOURCE+PACKAGE
-publish gate. It blocks on SOURCE or PACKAGE FAIL and never merges a PR, creates
-a tag, or pushes anything itself — `release-runner.sh publish` still owns those
-mechanics and remains an explicit, separate step:
+After the human confirms that the release PR is merged, the publish runner
+automatically runs the SOURCE+PACKAGE gate before creating the tag. The command
+may still be run first as a diagnostic preflight; it never merges a PR, creates
+a tag, or pushes anything itself:
 
 ```bash
 node scripts/release/publish-gate.js --version X.Y.Z
 ```
 
-Once the publish gate passes, publish the tag:
+Once the checks pass, publish the tag:
 
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/skills/dhpk-release-creator/scripts/release-runner.sh" \
@@ -234,7 +234,8 @@ The publish phase:
 - verifies a merged `develop` → `main` PR and requires its merge SHA to equal
   the fetched `main` HEAD with two parents;
 - fast-forwards the local `main` checkout;
-- reruns the PACKAGE provenance gate on merged `main` before creating a tag;
+- runs the SOURCE+PACKAGE gate (and therefore the PACKAGE provenance gate) on
+  merged `main` before creating a tag;
 - refuses an existing tag because tags are immutable;
 - creates an annotated `vX.Y.Z` tag on `main`;
 - pushes the tag and watches the Release workflow run for that exact tag; and
@@ -247,7 +248,7 @@ whitespace-only changelog notes (`scripts/release/extract-notes.sh`), and
 creates a GitHub Release from those notes. If the GitHub Release already
 exists, a rerun preserves it rather than editing its metadata.
 
-If the post-merge PACKAGE gate fails, no tag is created. Diagnose the
+If the pre-tag SOURCE+PACKAGE gate fails, no tag is created. Diagnose the
 provenance or merge topology, preserve any existing immutable tag, and use a
 new patch release for any subsequent correction.
 
@@ -260,15 +261,18 @@ A release is complete only when all of these states hold:
 3. the Release workflow and GitHub Release succeed; and
 4. `consumer-verify` reports `COMPLETE`; `PUBLISHED_PENDING` is a successful
    non-blocking evidence collection job, but it is not release completion; and
-5. the `sync-develop` job successfully reconciles `develop` with released
-   `main`: idle identical trees are aligned with `--force-with-lease`; unique
-   develop tree content keeps a `--no-ff` back-merge.
+5. the `sync-develop` job confirms that `develop` is still exactly the merged
+   release PR head, confirms identical trees, and aligns `develop` with
+   released `main` using `--force-with-lease`.
 
-Idle-align uses `--force-with-lease` pinned to the fetched `develop` SHA. It
-does not use bare `--force` or `-f`. Unique-tree conflicts or branch-protection
-failures remain blocking — the `sync-develop` job fails loudly, preserves both
+Idle-align requires `DHPK_RELEASE_EXPECTED_DEVELOP_SHA`, supplied by the release
+workflow from the merged release PR head. It first verifies that the fetched
+`develop` SHA is unchanged, then verifies tree equality, and pins
+`--force-with-lease` to that unchanged SHA. It does not use bare `--force` or
+`-f`. A moved develop, tree difference, lease rejection, or branch-protection
+failure remains blocking — the `sync-develop` job fails loudly, preserves both
 `main` and `develop` exactly as they were, and never `reset --hard`. Manual
-recovery for a unique-tree merge conflict:
+recovery for a tree difference:
 
 1. Create a recovery branch from `develop`: `git checkout -b recovery/back-merge-vX.Y.Z develop`.
 2. Merge `main` into that recovery branch: `git merge --no-ff main`.
@@ -276,14 +280,15 @@ recovery for a unique-tree merge conflict:
 4. Open a PR from the recovery branch to `develop` and merge it through the
    normal human approval boundary.
 
-Never resolve a failed unique-tree back-merge by force-pushing `develop` or
-resetting either branch. Idle-align is only for identical trees.
+Never resolve a failed alignment by force-pushing `develop` or resetting either
+branch. Idle-align is only for an unchanged release PR head with identical
+trees.
 
-If idle-align `--force-with-lease` is rejected because `develop` moved, leave
+If the expected SHA check or idle-align `--force-with-lease` is rejected, leave
 both branches as they are. Re-fetch `origin/main` and `origin/develop`, do not
-retry with bare `--force` or `-f`, and either wait for a `sync-develop` rerun
-or open a recovery PR. Matching trees with unequal SHAs after publish means
-idle-align did not land; diagnose CI, do not rewrite `develop` locally.
+retry with bare `--force` or `-f`, and open a recovery PR. Matching trees with
+unequal SHAs after publish mean the required idle-align did not land; diagnose
+CI, do not rewrite `develop` locally.
 
 The consumer job keeps the published tag immutable. Missing or unavailable
 runtime clients produce `PUBLISHED_PENDING` and leave the job green while the

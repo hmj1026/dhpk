@@ -65,6 +65,25 @@ test('sync-develop delegates reconciliation to the tested sync-develop.sh writer
   );
 });
 
+test('sync-develop receives the merged release PR head SHA before idle alignment', () => {
+  const releaseJob = raw.slice(raw.indexOf('  release:'), raw.indexOf('  consumer-verify:'));
+  const syncJob = raw.slice(raw.indexOf('  sync-develop:'));
+  assert.match(releaseJob, /outputs:/, 'release job must expose a sync baseline');
+  assert.match(releaseJob, /pull-requests:\s*read/, 'release job needs pull-request read permission for head lookup');
+  assert.match(releaseJob, /headRefOid/, 'release job must resolve the merged PR head SHA');
+  assert.match(releaseJob, /--base main --head develop/, 'release job must resolve the direct develop-to-main release PR');
+  assert.match(releaseJob, /release_pr_head_sha/, 'release job output must be named');
+  assert.match(syncJob, /DHPK_RELEASE_EXPECTED_DEVELOP_SHA:\s*\$\{\{\s*needs\.release\.outputs\.release_pr_head_sha\s*\}\}/, 'sync job must pass the release PR head SHA');
+});
+
+test('release PR head lookup dereferences the pushed tag before matching mergeCommit', () => {
+  const resolveIdx = raw.indexOf('Resolve merged release PR head');
+  const parityIdx = raw.indexOf('Verify release parity');
+  const resolveBlock = raw.slice(resolveIdx, parityIdx);
+  assert.match(resolveBlock, /git rev-list -n 1 "\$GITHUB_REF_NAME"/, 'annotated tags must be dereferenced to a commit');
+  assert.match(resolveBlock, /MERGE_SHA="\$merge_sha" node -e/, 'tag commit must bind the PR lookup input');
+});
+
 test('RELEASE.md documents the manual back-merge recovery procedure (recovery branch, resolve, test, PR to develop)', () => {
   const releaseMd = fs.readFileSync(path.join(ROOT, 'RELEASE.md'), 'utf8');
   assert.match(releaseMd, /recovery branch/i);

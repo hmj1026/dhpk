@@ -8,8 +8,11 @@ on:
 jobs:
   release:
     runs-on: ubuntu-latest
+    outputs:
+      release_pr_head_sha: ${{ steps.resolve-release-pr.outputs.head_sha }}
     permissions:
       contents: write
+      pull-requests: read
     steps:
       - uses: actions/checkout@v7
         with:
@@ -30,6 +33,25 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: '20'
+
+      - name: Resolve merged release PR head
+        id: resolve-release-pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          merge_sha="$(git rev-list -n 1 "$GITHUB_REF_NAME")"
+          head_sha="$(gh pr list --base main --head develop --state merged --limit 100 --json mergeCommit,headRefOid | MERGE_SHA="$merge_sha" node -e '
+            const fs = require("fs");
+            const prs = JSON.parse(fs.readFileSync(0, "utf8"));
+            const match = prs.find((pr) => pr.mergeCommit && pr.mergeCommit.oid === process.env.MERGE_SHA);
+            process.stdout.write(match ? (match.headRefOid || "") : "");
+          ')"
+          if [ -z "$head_sha" ]; then
+            echo "release workflow: could not resolve the merged release PR head for $merge_sha" >&2
+            exit 1
+          fi
+          echo "head_sha=$head_sha" >> "$GITHUB_OUTPUT"
+          echo "release workflow: merged release PR head=$head_sha"
 
       - name: Verify release parity
         run: |
@@ -163,8 +185,8 @@ jobs:
               ;;
           esac
 
-  # After a release lands on main + tag, align idle develop onto main when
-  # trees match, otherwise --no-ff back-merge unique develop work.
+  # After a successful release, align develop only when the release PR head is
+  # still current and both branches have identical trees.
   sync-develop:
     needs: release
     runs-on: ubuntu-latest
@@ -177,7 +199,9 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Align idle develop or back-merge unique work
+      - name: Align unchanged develop to released main
+        env:
+          DHPK_RELEASE_EXPECTED_DEVELOP_SHA: ${{ needs.release.outputs.release_pr_head_sha }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
