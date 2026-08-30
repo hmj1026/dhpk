@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.50.4 — 2026-08-31 — Fix Codex named-specialist cold dispatch packets
+
+**fix(codex)** — Ensure named specialist subagents use standalone cold dispatch packets without overriding role defaults.
+
 ## 0.50.3 — 2026-08-30 — Harden release publication and develop reconciliation
 
 No user-visible changes in this release.

@@ -106,6 +106,11 @@ packet for `cold`, `bounded`, and `full` selection. The worker-facing packet
 schema and completion boundary live in `codex/agents/worker.toml`; do not
 reconstruct either contract from inherited parent history.
 
+Before dispatching any named specialist through `spawn_agent`, load that
+context-tier rule and the standalone
+[`subagent-prompt-template.md`](../docs/subagent-prompt-template.md); together
+they own the fork parameters and complete message shape.
+
 ### Codex handoff boundary
 
 The Codex projection must never name an agent that is absent from
