@@ -151,7 +151,13 @@ function promote({ fragmentDir, changelogPath, version, date, summary }) {
 const HYGIENE_FILES = new Set(['.gitignore', 'LICENSE', 'package-lock.json']);
 
 function isInternalOnlyPath(filePath) {
-  return filePath.startsWith('tests/') || HYGIENE_FILES.has(filePath);
+  // A deleted .none marker is itself the record that the prior internal-only
+  // change was already accounted for; requiring a second marker would make
+  // marker cleanup impossible. Source/docs changes in the same diff remain
+  // uncovered because only the marker path receives this exemption.
+  return filePath.startsWith('tests/')
+    || filePath.startsWith('changelog.d/') && filePath.endsWith('.none')
+    || HYGIENE_FILES.has(filePath);
 }
 
 // `releaseSectionAdded` marks a release-PR-shaped diff (develop -> main): the

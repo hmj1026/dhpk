@@ -240,6 +240,11 @@ test('checkCoverage passes when a user-visible file changed and a .none marker e
   assert.strictEqual(result.ok, true);
 });
 
+test('checkCoverage passes when an internal .none marker is deleted', () => {
+  const result = checkCoverage({ changedFiles: ['changelog.d/internal-cleanup.none'], fragments: [], markers: [] });
+  assert.strictEqual(result.ok, true, JSON.stringify(result.uncovered));
+});
+
 // Release-PR shape: prepare-release already promoted every pending fragment
 // into a CHANGELOG.md release section and deleted it, so the develop -> main
 // diff is large while changelog.d/ is empty. Coverage was answered at
