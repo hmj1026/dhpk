@@ -78,8 +78,12 @@ function mkRepo({ branch = 'develop' } = {}) {
   return root;
 }
 
-function runCli(repo, args) {
-  return spawnSync('node', [CLI, '--repo-root', repo, ...args], { cwd: repo, encoding: 'utf8' });
+function runCli(repo, args, extraEnv = {}) {
+  return spawnSync('node', [CLI, '--repo-root', repo, ...args], {
+    cwd: repo,
+    encoding: 'utf8',
+    env: { ...process.env, ...extraEnv },
+  });
 }
 
 test('rejects a non-semver version before touching anything', () => {
@@ -92,9 +96,29 @@ test('rejects a non-semver version before touching anything', () => {
 test('refuses to prepare a release on main', () => {
   const repo = mkRepo({ branch: 'main' });
   fs.writeFileSync(path.join(repo, 'changelog.d', 'feat.widget.md'), 'scope: widget\nnote: Add the widget.\n');
-  const res = runCli(repo, ['write', '--version', '1.1.0', '--date', '2026-07-27', '--summary', 'Add widget']);
+  const res = runCli(repo, ['write', '--version', '1.1.0', '--date', '2026-07-27', '--summary', 'Add widget'], { DHPK_RELEASE_TARGET_BRANCH: 'main' });
   assert.notStrictEqual(res.status, 0);
   assert.match(res.stderr, /develop/i);
+});
+
+test('allows read-only parity checks on the merged publish target', () => {
+  const repo = mkRepo({ branch: 'main' });
+  for (const [relative, data] of [
+    ['plugins/dhpk/provenance.json', { sourceVersion: '1.0.0' }],
+    ['plugins/dhpk-agent/plugin.json', { version: '1.0.0' }],
+    ['plugins/dhpk-agent/provenance.json', { sourceVersion: '1.0.0' }],
+    ['plugins/dhpk-agy/plugin.json', { version: '1.0.0' }],
+    ['plugins/dhpk-agy/provenance.json', { sourceVersion: '1.0.0' }],
+    ['plugins/dhpk-cursor/.cursor-plugin/plugin.json', { version: '1.0.0' }],
+    ['plugins/dhpk-cursor/provenance.json', { sourceVersion: '1.0.0' }],
+  ]) {
+    const target = path.join(repo, relative);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, `${JSON.stringify(data)}\n`);
+  }
+  const res = runCli(repo, ['check', '--version', '1.0.0'], { DHPK_RELEASE_TARGET_BRANCH: 'main' });
+  assert.strictEqual(res.status, 0, res.stderr);
+  assert.match(res.stdout, /check PASS/);
 });
 
 test('check mode reports drift without modifying files', () => {
