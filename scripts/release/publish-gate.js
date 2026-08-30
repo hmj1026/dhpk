@@ -40,12 +40,20 @@ function parseArgs(argv) {
   return args;
 }
 
-function runGate(scriptRelPath, jsonOverride, root, version) {
+function currentBranch(root) {
+  try {
+    return execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
+  } catch (_) {
+    return '';
+  }
+}
+
+function runGate(scriptRelPath, jsonOverride, root, version, env = process.env) {
   if (jsonOverride) {
     return JSON.parse(fs.readFileSync(jsonOverride, 'utf8'));
   }
   try {
-    const out = execFileSync('node', [path.join(root, scriptRelPath), '--version', version, '--repo-root', root], { encoding: 'utf8' });
+    const out = execFileSync('node', [path.join(root, scriptRelPath), '--version', version, '--repo-root', root], { encoding: 'utf8', env });
     return JSON.parse(out);
   } catch (e) {
     // The gate CLI exits non-zero on FAIL but still prints a valid stage JSON to stdout.
@@ -56,7 +64,11 @@ function runGate(scriptRelPath, jsonOverride, root, version) {
 
 const args = parseArgs(process.argv.slice(2));
 
-const sourceStage = runGate('scripts/release/source-gate.js', args.sourceGateJson, args.root, args.version);
+const targetBranch = process.env.DHPK_RELEASE_TARGET_BRANCH || currentBranch(args.root);
+const publishEnv = { ...process.env };
+if (targetBranch && targetBranch !== 'HEAD') publishEnv.DHPK_RELEASE_TARGET_BRANCH = targetBranch;
+
+const sourceStage = runGate('scripts/release/source-gate.js', args.sourceGateJson, args.root, args.version, publishEnv);
 const packageStage = runGate('scripts/release/package-gate.js', args.packageGateJson, args.root, args.version);
 const consumerStage = { verdict: VERDICTS.PENDING, commands: [], environment: 'local', artifacts: [], failureReasons: [] };
 
