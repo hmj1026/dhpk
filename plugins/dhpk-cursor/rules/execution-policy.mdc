@@ -120,11 +120,29 @@ Select the smallest context tier that preserves the settled decision:
 - **`full`** — inherit the conversation only when the task is conversation-
   dependent; record the reason in the handoff.
 
+**Codex named specialist dispatch:** a named specialist is always a `cold`
+handoff. Call `spawn_agent` with its exact registered `agent_type`,
+`fork_turns="none"`, a stable `task_name`, and a standalone `message`. Omit
+`model` and `reasoning_effort`; the role definition supplies both role defaults.
+`fork_turns="all"` is reserved for the default/inherited path and must not carry
+a named specialist `agent_type`, because the full-history fork inherits the
+parent agent type.
+
+If a correctly formed named-specialist dispatch reports unavailable, diagnose
+in this order: (1) confirm the session started at the intended project root and
+can read `.codex/config.toml`; (2) use the exact registry id, such as
+`deep-reasoner`, never `deep_reasoner` or `dhpk:deep-reasoner`; (3) check the
+concurrent-agent limit; (4) when configuration changed after session startup,
+restart with a new session so the role registry reloads. This is a read-only
+diagnostic sequence, not authority to create or rewrite configuration.
+
 Every `cold` handoff carries the same five-part packet: goal and non-goals;
 exact owned files; settled interfaces, invariants, and constraints;
 verification and acceptance; task/attempt identity plus required evidence
 pointers. The packet is the context boundary: do not require a worker to
-reconstruct it from parent history.
+reconstruct it from parent history. Use
+`.cursor/dhpk/docs/subagent-prompt-template.md` for the standalone
+message shape.
 
 File count remains a collision and safety gate. It does not by itself justify a
 `full` fork. When a task changes tier, packet, or inheritance mode, record the
