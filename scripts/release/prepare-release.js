@@ -5,9 +5,11 @@
 // (or deterministically writes) parity across every version-bearing manifest,
 // the CHANGELOG.md release heading, and the bilingual AGY generator pin, and
 // promotes changelog.d/ fragments.
-// Preserves git-flow authority (RELEASE.md): preparation runs on `develop`
-// only and never merges, tags, or pushes — release-runner.sh still owns the
-// commit/PR/tag mechanics once these files are correct.
+// Preserves git-flow authority (RELEASE.md): preparation writes and rolls back
+// on `develop` only and never merges, tags, or pushes — release-runner.sh still
+// owns the commit/PR/tag mechanics once these files are correct. The read-only
+// `check` mode may also attest the merged release target when publish-gate.js
+// supplies DHPK_RELEASE_TARGET_BRANCH.
 //
 // Usage:
 //   node scripts/release/prepare-release.js check --version X.Y.Z
@@ -74,6 +76,11 @@ function parseArgs(argv) {
 
 function currentBranch(root) {
   return execFileSync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
+}
+
+function allowsPublishTargetCheck(args, branch) {
+  const targetBranch = process.env.DHPK_RELEASE_TARGET_BRANCH;
+  return args.mode === 'check' && Boolean(targetBranch) && branch === targetBranch;
 }
 
 function writeManifestVersion(root, relPath, version) {
@@ -494,7 +501,7 @@ function main() {
   }
 
   const branch = currentBranch(args.root);
-  if (branch !== REQUIRED_BRANCH) {
+  if (branch !== REQUIRED_BRANCH && !allowsPublishTargetCheck(args, branch)) {
     console.error(`prepare-release: must run on '${REQUIRED_BRANCH}' (current: '${branch}'); the develop -> main PR is the release candidate boundary`);
     process.exit(1);
   }
