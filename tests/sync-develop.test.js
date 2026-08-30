@@ -2,8 +2,8 @@
 
 // Coverage for scripts/release/sync-develop.sh — post-release develop
 // reconciliation. Idle trees (identical to main, including after a squash)
-// must force-with-lease develop onto main. Unique tree content keeps a
-// conflict-loud --no-ff merge. Conflicts fail closed without rewriting refs.
+// must force-with-lease develop onto main. Any movement or tree difference
+// fails closed without rewriting refs.
 
 const fs = require('node:fs');
 const os = require('node:os');
@@ -78,6 +78,19 @@ test('sync-develop.sh exists as the CI-owned writer', () => {
   assert.ok(fs.existsSync(SCRIPT), 'missing scripts/release/sync-develop.sh');
 });
 
+test('sync-develop requires a valid release PR head SHA before fetching or rewriting', () => {
+  const { tmp, remote, repo } = setupPair();
+  try {
+    const developBefore = remoteSha(remote, 'develop');
+    const res = runSync(repo, { DHPK_RELEASE_EXPECTED_DEVELOP_SHA: 'not-a-sha' });
+    assert.notStrictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+    assert.match(res.stderr, /expected release PR head SHA is invalid/i);
+    assert.strictEqual(remoteSha(remote, 'develop'), developBefore);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 test('identical trees after squash align develop onto main with force-with-lease', () => {
   const { tmp, remote, repo } = setupPair();
   try {
@@ -88,7 +101,7 @@ test('identical trees after squash align develop onto main with force-with-lease
     const treeDiff = spawnSync('git', ['-C', repo, 'diff', '--quiet', 'origin/main', 'origin/develop']);
     assert.strictEqual(treeDiff.status, 0, 'fixture trees must match');
 
-    const res = runSync(repo);
+    const res = runSync(repo, { DHPK_RELEASE_EXPECTED_DEVELOP_SHA: developBefore });
     assert.strictEqual(res.status, 0, res.stderr || res.stdout);
     assert.match(res.stdout, /idle-align PASS/);
     assert.strictEqual(remoteSha(remote, 'develop'), mainBefore);
@@ -99,7 +112,29 @@ test('identical trees after squash align develop onto main with force-with-lease
   }
 });
 
-test('unique develop tree content keeps a no-ff back-merge without force-with-lease', () => {
+test('idle alignment refuses when develop advances beyond the release PR head', () => {
+  const { tmp, remote, repo } = setupPair();
+  try {
+    squashDevelopOntoMain(repo);
+    const releasePrHead = remoteSha(remote, 'develop');
+    fs.writeFileSync(path.join(repo, 'unique.txt'), 'post-release work\n');
+    git(repo, ['add', 'unique.txt']);
+    git(repo, ['commit', '-m', 'post-release develop work']);
+    git(repo, ['push', 'origin', 'develop']);
+    const developBefore = remoteSha(remote, 'develop');
+    const mainBefore = remoteSha(remote, 'main');
+
+    const res = runSync(repo, { DHPK_RELEASE_EXPECTED_DEVELOP_SHA: releasePrHead });
+    assert.notStrictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+    assert.match(`${res.stdout}\n${res.stderr}`, /advanced|moved|expected.*develop/i);
+    assert.strictEqual(remoteSha(remote, 'develop'), developBefore);
+    assert.strictEqual(remoteSha(remote, 'main'), mainBefore);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('develop tree differences fail closed without force-with-lease', () => {
   const { tmp, remote, repo } = setupPair();
   try {
     squashDevelopOntoMain(repo);
@@ -110,25 +145,38 @@ test('unique develop tree content keeps a no-ff back-merge without force-with-le
     const developBefore = remoteSha(remote, 'develop');
     const mainBefore = remoteSha(remote, 'main');
 
-    const res = runSync(repo);
-    assert.strictEqual(res.status, 0, res.stderr || res.stdout);
-    assert.match(res.stdout, /back-merge PASS/);
-    assert.ok(!res.stdout.includes('idle-align PASS'));
-    const developAfter = remoteSha(remote, 'develop');
-    assert.notStrictEqual(developAfter, developBefore);
-    assert.notStrictEqual(developAfter, mainBefore);
-    const unique = execFileSync('git', ['-C', remote, 'show', `${developAfter}:unique.txt`], { encoding: 'utf8' });
-    const released = execFileSync('git', ['-C', remote, 'show', `${developAfter}:feature.txt`], { encoding: 'utf8' });
-    assert.strictEqual(unique, 'only on develop\n');
-    assert.strictEqual(released, 'released\n');
-    const parents = execFileSync('git', ['-C', remote, 'rev-list', '--parents', '-n', '1', developAfter], { encoding: 'utf8' }).trim().split(' ');
-    assert.ok(parents.length >= 3, `expected merge commit, got ${parents.join(' ')}`);
+    const res = runSync(repo, { DHPK_RELEASE_EXPECTED_DEVELOP_SHA: developBefore });
+    assert.notStrictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+    assert.match(`${res.stdout}\n${res.stderr}`, /preserving|tree differs/i);
+    assert.strictEqual(remoteSha(remote, 'develop'), developBefore);
+    assert.strictEqual(remoteSha(remote, 'main'), mainBefore);
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
 
-test('merge conflict fails closed and leaves both remote branches unchanged', () => {
+test('force-with-lease rejection fails closed with refs and recovery guidance', () => {
+  const { tmp, remote, repo } = setupPair();
+  try {
+    squashDevelopOntoMain(repo);
+    const developBefore = remoteSha(remote, 'develop');
+    const mainBefore = remoteSha(remote, 'main');
+    const hook = path.join(remote, 'hooks', 'pre-receive');
+    fs.writeFileSync(hook, '#!/bin/sh\nexit 1\n', { mode: 0o755 });
+
+    const res = runSync(repo, { DHPK_RELEASE_EXPECTED_DEVELOP_SHA: developBefore });
+    assert.notStrictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+    assert.match(`${res.stdout}\n${res.stderr}`, /force-with-lease|recovery/i);
+    assert.match(`${res.stdout}\n${res.stderr}`, new RegExp(`main=${mainBefore}`));
+    assert.match(`${res.stdout}\n${res.stderr}`, new RegExp(`develop=${developBefore}`));
+    assert.strictEqual(remoteSha(remote, 'develop'), developBefore);
+    assert.strictEqual(remoteSha(remote, 'main'), mainBefore);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('divergent trees fail closed and leave both remote branches unchanged', () => {
   const { tmp, remote, repo } = setupPair();
   try {
     fs.writeFileSync(path.join(repo, 'conflict.txt'), 'develop side\n');
@@ -144,7 +192,7 @@ test('merge conflict fails closed and leaves both remote branches unchanged', ()
     const developBefore = remoteSha(remote, 'develop');
     const mainBefore = remoteSha(remote, 'main');
 
-    const res = runSync(repo);
+    const res = runSync(repo, { DHPK_RELEASE_EXPECTED_DEVELOP_SHA: developBefore });
     assert.notStrictEqual(res.status, 0);
     assert.match(`${res.stdout}\n${res.stderr}`, /recovery/i);
     assert.strictEqual(remoteSha(remote, 'develop'), developBefore);

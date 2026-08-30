@@ -97,22 +97,38 @@ case "$phase" in
             echo "release-runner: release PR must use Create a merge commit; refusing to tag a squash/rebase commit (HEAD has ${parent_count} parent(s))" >&2
             exit 1
         fi
-        # Re-check generated package provenance on the merged release target
-        # before creating an immutable tag when this project supplies a package
-        # gate. dhpk uses the conventional path; other projects can provide a
-        # compatible Node gate through DHPK_RELEASE_PACKAGE_GATE_SCRIPT.
-        package_gate_script="${DHPK_RELEASE_PACKAGE_GATE_SCRIPT:-}"
-        if [ -z "$package_gate_script" ] && [ -f "scripts/release/package-gate.js" ]; then
-            package_gate_script="scripts/release/package-gate.js"
+        # Run the combined SOURCE+PACKAGE gate before creating an immutable
+        # tag when this project supplies one. dhpk uses the conventional path;
+        # other projects can provide a compatible Node gate through
+        # DHPK_RELEASE_PUBLISH_GATE_SCRIPT. Projects without a combined gate
+        # retain the PACKAGE-only fallback for compatibility.
+        publish_gate_script="${DHPK_RELEASE_PUBLISH_GATE_SCRIPT:-}"
+        if [ -z "$publish_gate_script" ] && [ -f "scripts/release/publish-gate.js" ]; then
+            publish_gate_script="scripts/release/publish-gate.js"
         fi
-        if [ -n "$package_gate_script" ]; then
-            if [ ! -f "$package_gate_script" ]; then
-                echo "release-runner: configured PACKAGE gate is missing: $package_gate_script" >&2
+        if [ -n "$publish_gate_script" ]; then
+            if [ ! -f "$publish_gate_script" ]; then
+                echo "release-runner: configured SOURCE+PACKAGE gate is missing: $publish_gate_script" >&2
                 exit 1
             fi
-            if ! node "$package_gate_script" --version "$version"; then
-                echo "release-runner: post-merge PACKAGE gate failed; refusing to create immutable tag" >&2
+            if ! node "$publish_gate_script" --version "$version"; then
+                echo "release-runner: pre-tag SOURCE+PACKAGE gate failed; refusing to create immutable tag" >&2
                 exit 1
+            fi
+        else
+            package_gate_script="${DHPK_RELEASE_PACKAGE_GATE_SCRIPT:-}"
+            if [ -z "$package_gate_script" ] && [ -f "scripts/release/package-gate.js" ]; then
+                package_gate_script="scripts/release/package-gate.js"
+            fi
+            if [ -n "$package_gate_script" ]; then
+                if [ ! -f "$package_gate_script" ]; then
+                    echo "release-runner: configured PACKAGE gate is missing: $package_gate_script" >&2
+                    exit 1
+                fi
+                if ! node "$package_gate_script" --version "$version"; then
+                    echo "release-runner: post-merge PACKAGE gate failed; refusing to create immutable tag" >&2
+                    exit 1
+                fi
             fi
         fi
         if [ -n "$(git tag --list "$tag")" ]; then
@@ -153,11 +169,12 @@ case "$phase" in
             echo "release-runner: trees match but SHAs differ; idle-align did not land" >&2
             exit 1
         else
-            echo "release-runner: ${base_branch} has unique tree content after release; --no-ff back-merge kept"
+            echo "release-runner: ${base_branch} has unique tree content after release; sync-develop is blocked" >&2
+            exit 1
         fi
-        # Idle-align rewrites develop onto main after a squash, so local
-        # develop is not an ancestor of origin/develop. Update the worktree
-        # from the fetched ref without a fast-forward pull.
+        # Idle-align may rewrite develop onto main after a squash. Restore the
+        # local worktree directly from the fetched remote ref without a
+        # fast-forward pull.
         git checkout -B "$base_branch" "origin/${base_branch}"
         ;;
     *)

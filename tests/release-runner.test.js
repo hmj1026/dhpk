@@ -18,6 +18,12 @@ function writePackageGateFixture(root) {
   fs.writeFileSync(gate, '// package gate fixture\n');
 }
 
+function writePublishGateFixture(root) {
+  const gate = path.join(root, 'scripts', 'release', 'publish-gate.js');
+  fs.mkdirSync(path.dirname(gate), { recursive: true });
+  fs.writeFileSync(gate, '// publish gate fixture\n');
+}
+
 test('release skill documents prepare, human merge, then publish', () => {
   const flat = SKILL.replace(/\s+/g, ' ');
   const prepare = flat.indexOf('"prepare" "<version>"');
@@ -37,7 +43,7 @@ test('release skill verifies develop/main SHAs after publish and does not instru
 test('release flow requires a merge commit before creating the immutable tag', () => {
   assert.match(SKILL, /Create a merge commit/);
   assert.match(RELEASE, /Create a merge commit/);
-  assert.match(RELEASE, /reruns the PACKAGE provenance gate/i);
+  assert.match(RELEASE, /SOURCE\+PACKAGE gate[\s\S]*PACKAGE provenance gate/i);
 });
 
 test('release flow exposes the SOURCE+PACKAGE publish gate in every release guide', () => {
@@ -129,6 +135,53 @@ test('publish runs the post-merge package gate before creating an immutable tag'
     assert.match(`${res.stdout}\n${res.stderr}`, /package gate|provenance/i);
     const calls = fs.readFileSync(log, 'utf8');
     assert.ok(calls.includes('node scripts/release/package-gate.js --version 1.2.3'), calls);
+    assert.ok(!calls.includes('git tag '), calls);
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+});
+
+test('publish runs the SOURCE+PACKAGE publish gate before creating an immutable tag', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-release-runner-'));
+  try {
+    const bin = path.join(tmp, 'bin');
+    const log = path.join(tmp, 'calls.log');
+    fs.mkdirSync(bin);
+    writePublishGateFixture(tmp);
+    fs.writeFileSync(path.join(bin, 'git'), `#!/bin/sh
+printf "git %s\\n" "$*" >> "$CALL_LOG"
+if [ "$1" = "rev-parse" ] && [ "$2" = "HEAD" ]; then printf "merge-commit-sha\\n"; fi
+if [ "$1" = "rev-list" ]; then printf "merge-commit-sha parent-a parent-b\\n"; fi
+if [ "$1" = "rev-parse" ] && [ "$2" = "origin/main" ]; then printf "same-tree\\n"; fi
+if [ "$1" = "rev-parse" ] && [ "$2" = "origin/develop" ]; then printf "same-tree\\n"; fi
+`, { mode: 0o755 });
+    fs.writeFileSync(path.join(bin, 'node'), `#!/bin/sh
+printf "node %s\\n" "$*" >> "$CALL_LOG"
+if [ "$1" = "scripts/release/publish-gate.js" ]; then
+  printf "SOURCE+PACKAGE publish gate failed\\n" >&2
+  exit 1
+fi
+exit 0
+`, { mode: 0o755 });
+    fs.writeFileSync(path.join(bin, 'gh'), `#!/bin/sh
+printf "gh %s\\n" "$*" >> "$CALL_LOG"
+if [ "$1 $2" = "pr list" ]; then printf "merge-commit-sha\\n"; fi
+if [ "$1 $2" = "run list" ]; then printf "run-123\\n"; fi
+exit 0
+`, { mode: 0o755 });
+    const res = spawnSync('bash', [RUNNER, 'publish', '1.2.3', 'develop', 'main', 'v', 'release.yml'], {
+      cwd: tmp,
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        PATH: `${bin}:${process.env.PATH}`,
+        CALL_LOG: log,
+        DHPK_RELEASE_POLL_ATTEMPTS: '1',
+        DHPK_RELEASE_POLL_INTERVAL: '0',
+      },
+    });
+    assert.notStrictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+    assert.match(`${res.stdout}\n${res.stderr}`, /publish gate|SOURCE\+PACKAGE/i);
+    const calls = fs.readFileSync(log, 'utf8');
+    assert.ok(calls.includes('node scripts/release/publish-gate.js --version 1.2.3'), calls);
     assert.ok(!calls.includes('git tag '), calls);
   } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 });

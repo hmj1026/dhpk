@@ -64,22 +64,24 @@ bash "${CLAUDE_PLUGIN_ROOT}/skills/dhpk-release-creator/scripts/release-runner.s
 
 Stop here for the human merge; never self-merge against policy. The release PR
 must use GitHub's **Create a merge commit** method. Squash and rebase merges can
-drop the generated-input commit ancestry; the publish runner rechecks PACKAGE
-provenance on merged `main` and stops before creating a tag if that identity
-cannot be proven. After GitHub reports the PR merged, publish the tag and watch
-its exact workflow run:
+drop the generated-input commit ancestry; the publish runner rechecks the
+SOURCE+PACKAGE gate on merged `main` and stops before creating a tag if that
+identity cannot be proven. After GitHub reports the PR merged, publish the tag
+and watch its exact workflow run:
 
-For this dhpk release contract, run the SOURCE+PACKAGE publish gate after the
-human merge and before the runner:
+For this dhpk release contract, the publish runner automatically runs the
+SOURCE+PACKAGE gate after the human merge and before creating the tag. You may
+run the same command first for a diagnostic preflight, but publication must
+still go through the runner:
 
 ```bash
 node scripts/release/publish-gate.js --version "<version>"
 ```
 
-The runner automatically reruns `scripts/release/package-gate.js` when that
-project gate exists. A compatible project-specific Node PACKAGE gate may be
-selected with `DHPK_RELEASE_PACKAGE_GATE_SCRIPT`; projects without one rely on
-their resolved `{VALIDATE_CMD}` and release workflow checks.
+The runner uses `scripts/release/publish-gate.js` when present and refuses the
+tag if SOURCE or PACKAGE fails. A compatible project-specific combined gate may
+be selected with `DHPK_RELEASE_PUBLISH_GATE_SCRIPT`; projects without one retain
+the `DHPK_RELEASE_PACKAGE_GATE_SCRIPT` PACKAGE fallback.
 
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/skills/dhpk-release-creator/scripts/release-runner.sh" \
@@ -88,16 +90,16 @@ bash "${CLAUDE_PLUGIN_ROOT}/skills/dhpk-release-creator/scripts/release-runner.s
 
 The publish phase independently verifies the merged `{BASE_BRANCH}` →
 `{RELEASE_BRANCH}` PR before tagging: its GitHub `mergeCommit.oid` must equal the
-fetched release-branch `HEAD`, and that commit must have two parents. It then reruns
-the PACKAGE provenance gate, creates an annotated immutable tag, polls for a workflow
-run associated with the new tag, fails if no matching run appears, and returns
-to `{BASE_BRANCH}` only after that run completes. After watch, the runner
-fetches `origin/develop` and `origin/main` and compares those SHAs (it does
-not fast-forward local `develop` through rewritten history): equal SHAs mean
-idle-align landed; matching trees with unequal SHAs fail closed; unique-tree
-develop is an expected `--no-ff` remainder. This skill does not force-push
-`develop`. Recovery for a failed unique-tree merge or a rejected idle-align
-lease is in `RELEASE.md`.
+fetched release-branch `HEAD`, and that commit must have two parents. It then
+runs the combined gate (including the PACKAGE provenance check), creates an
+annotated immutable tag, polls for a workflow run associated with the new tag,
+fails if no matching run appears, and returns to `{BASE_BRANCH}` only after
+that run completes. The tag workflow resolves the merged release PR head SHA
+and passes it to `sync-develop`. That job succeeds only when release completed,
+`origin/develop` is still exactly that SHA, and its tree matches `origin/main`;
+only then does it align the ref with `--force-with-lease`. A moved develop,
+tree difference, or rejected lease is blocking and requires recovery in
+`RELEASE.md`. This skill never force-pushes `develop`.
 
 ## Verification
 
@@ -108,5 +110,6 @@ lease is in `RELEASE.md`.
 - [ ] Validation passed.
 - [ ] Release PR followed the project merge policy.
 - [ ] Tag exists remotely and release CI passed.
-- [ ] `origin/develop` SHA equals `origin/main` when trees match; unique-tree develop may differ.
+- [ ] Release workflow confirmed that `origin/develop` did not advance after the release PR.
+- [ ] `sync-develop` aligned `origin/develop` to `origin/main` with `--force-with-lease`.
 - [ ] Consumer update status is reported separately from publication status.
