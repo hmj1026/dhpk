@@ -27,6 +27,7 @@ const command = read('commands/do.md');
 const rootAgents = read('AGENTS.md');
 const rootClaude = read('CLAUDE.md');
 const codexAgents = read('codex/AGENTS.md');
+const subagentPrompt = read('docs/subagent-prompt-template.md');
 const docs = [read('docs/basic-operations.md'), read('docs/basic-operations.zh-TW.md')];
 const cursorProjection = read('cursor/dhpk/policies/execution-policy.md');
 const codexProjection = read('codex/supporting/policies/execution-policy.md');
@@ -44,6 +45,34 @@ test('canonical policy defines the decision and reasoner handoff contract', () =
   ]) {
     assert.ok(policy.includes(phrase), `execution policy missing: ${phrase}`);
   }
+});
+
+test('Codex named specialists use cold standalone dispatch packets', () => {
+  for (const text of [policy, codexProjection]) {
+    const normalized = flat(text);
+    assert.match(normalized, /named specialist[\s\S]{0,360}fork_turns="none"/i,
+      'named specialist dispatch must use fork_turns="none"');
+    assert.match(normalized, /fork_turns="all"[\s\S]{0,260}default\/inherited/i,
+      'full-history dispatch must stay on the default/inherited path');
+    assert.match(normalized, /model[\s\S]{0,100}reasoning_effort[\s\S]{0,220}(omit|role defaults)/i,
+      'named specialist dispatch must preserve role model/effort defaults');
+    assert.match(normalized, /\.codex\/config\.toml[\s\S]{0,300}deep-reasoner[\s\S]{0,300}concurrent[\s\S]{0,300}(restart|new session)/i,
+      'unavailable-role troubleshooting must preserve the ordered four-step diagnostic');
+  }
+
+  for (const heading of [
+    'Working directory',
+    'Goal and non-goals',
+    'Scope',
+    'Constraints and settled decisions',
+    'Verification and acceptance',
+    'Task identity and evidence',
+    'Output contract',
+  ]) {
+    assert.ok(subagentPrompt.includes(heading), `standalone task packet missing: ${heading}`);
+  }
+  assert.match(codexAgents, /named specialist[\s\S]{0,260}subagent-prompt-template\.md/i,
+    'Codex guidance must point named-specialist dispatches at the packet template');
 });
 
 test('reasoner workers separate transport status from exactly one decision result', () => {
