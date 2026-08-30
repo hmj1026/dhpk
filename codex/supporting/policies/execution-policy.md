@@ -73,3 +73,22 @@ frontmatter. Legacy scope/diff-only evidence remains readable, but missing or
 foreign identity fails closed. A terminal lifecycle result plus all applicable
 host review gates is required; a message, aggregate verdict, or lifecycle event
 alone is not completion.
+
+## Context tiers and named specialist dispatch
+
+A named specialist is always a cold handoff. Call `spawn_agent` with its exact
+registered `agent_type`, `fork_turns="none"`, a stable `task_name`, and a
+standalone `message` following
+`.codex/dhpk/docs/subagent-prompt-template.md`. Omit `model` and
+`reasoning_effort`; the role definition supplies both role defaults.
+`fork_turns="all"` is reserved for the default/inherited path and must not carry
+a named specialist `agent_type`, because the full-history fork inherits the
+parent agent type.
+
+If a correctly formed named-specialist dispatch reports unavailable, diagnose
+in this order: (1) confirm the session started at the intended project root and
+can read `.codex/config.toml`; (2) use the exact registry id, such as
+`deep-reasoner`, never `deep_reasoner` or a namespace-prefixed variant; (3) check the
+concurrent-agent limit; (4) when configuration changed after session startup,
+restart with a new session so the role registry reloads. This is a read-only
+diagnostic sequence, not authority to create or rewrite configuration.
