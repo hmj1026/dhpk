@@ -1,7 +1,7 @@
 'use strict';
 
 // Consolidated coverage for the four git-flow-release-governance requirements
-// (openspec/changes/harden-dhpk-release-contracts/specs/git-flow-release-governance/spec.md).
+// (openspec/specs/git-flow-release-governance/spec.md).
 // Each property is implemented at a specific layer; this file asserts all
 // four together for traceability rather than re-testing each in isolation
 // (see the referenced test files for the detailed unit coverage).
@@ -16,6 +16,7 @@ const releaseYml = fs.readFileSync(path.join(ROOT, '.github', 'workflows', 'rele
 const releaseRunner = fs.readFileSync(path.join(ROOT, 'skills', 'dhpk-release-creator', 'scripts', 'release-runner.sh'), 'utf8');
 const prepareRelease = fs.readFileSync(path.join(ROOT, 'scripts', 'release', 'prepare-release.js'), 'utf8');
 const publishGate = fs.readFileSync(path.join(ROOT, 'scripts', 'release', 'publish-gate.js'), 'utf8');
+const releaseSpec = fs.readFileSync(path.join(ROOT, 'openspec', 'specs', 'git-flow-release-governance', 'spec.md'), 'utf8');
 
 test('release-branch origin: prepare-release.js refuses off develop (see prepare-release-cli.test.js for the behavioral test)', () => {
   assert.match(prepareRelease, /REQUIRED_BRANCH = 'develop'/);
@@ -40,6 +41,13 @@ test('prohibited automatic actions: release-runner.sh prepare never tags, publis
   assert.ok(!prepareBlock.includes('merge'), 'prepare phase must never merge a PR');
   assert.ok(!publishGate.includes('git tag'), 'publish-gate must never create a tag itself');
   assert.ok(!publishGate.includes('gh pr merge'), 'publish-gate must never merge a PR itself');
+});
+
+test('release specification requires guarded develop reconciliation', () => {
+  assert.match(releaseSpec, /merged release PR head\s*SHA/);
+  assert.match(releaseSpec, /force-with-lease/);
+  assert.match(releaseSpec, /moved develop or differing tree/);
+  assert.ok(!/records the back-merge PASS/.test(releaseSpec), 'unique-tree back-merge must not remain an automatic success path');
 });
 
 run('git-flow-governance');

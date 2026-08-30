@@ -21,9 +21,10 @@ consumer gate；working tree 或本機 live reload 只能作為開發證據。
 1. 直接在最新、乾淨的 `develop` 準備 release；preparation script 會拒絕其他分支。
 2. 從準備完成的 `develop` 建立以 `main` 為 base 的 release PR。
 3. 不直接在 `main` 開發，也不在 tag 後修改已發布 artifact。
-4. PR 合併到 `main` 後建立 tag。若 `origin/main` 與 `origin/develop` 的 tree
-   相同，CI 以 `--force-with-lease` 把 `develop` 對齊到 `main`；若 tree 不同，
-   則對 unique develop work 做 conflict-loud `--no-ff` back-merge。
+4. PR 合併到 `main` 後建立 tag。Release 成功後，CI 先確認 `develop` 沒有在
+   release PR 後前進，再確認 tree 與 `main` 相同，最後以
+   `--force-with-lease` 把 `develop` 對齊到 `main`；任一步失敗都保留兩個 ref，
+   交由 recovery PR 處理。
 
 Release PR 必須使用 GitHub 的 **Create a merge commit** 合併方式；不可使用
 squash merge 或 rebase。Generated package provenance 必須保留 release candidate
@@ -102,15 +103,16 @@ Release gate 分三層：
 2. 確認 generated artifact 與 source 同一個 commit，worktree clean。
 3. Push `develop`，建立以 `main` 為 base 的 release PR。
 4. 在人工 merge gate 選擇 **Create a merge commit**；不可 squash/rebase。
-5. 合併 PR 後先執行 `node scripts/release/publish-gate.js --version X.Y.Z`，確認
-   SOURCE 與 PACKAGE 都 PASS。
+5. 合併 PR 後由 runner 自動執行 `node scripts/release/publish-gate.js --version X.Y.Z`，
+   確認 SOURCE 與 PACKAGE 都 PASS；可先手動執行作為診斷，但不能取代 runner。
 6. runner 會再確認 merged PR SHA、`main` HEAD 與雙親 merge topology，並在合併後
-   的 `main` 重新驗證 PACKAGE provenance；通過後才建立 signed/annotated semver tag。
+   的 `main` 驗證 SOURCE + PACKAGE（包含 provenance）；通過後才建立 annotated semver tag。
 7. Push tag，等待 release workflow 與 GitHub Release 完成。
 8. 驗證 marketplace metadata、下載內容與 tag SHA 一致。
-9. 確認 `origin/develop` 已與 released `main` 對齊（tree 相同時 SHA 應相同；
-   unique-tree 時保留 `--no-ff` merge）。Unique-tree 衝突不可用 force-push
-   `develop` 解決；recovery 見英文 [RELEASE.md](./RELEASE.md)。
+9. Release 成功後，先確認 `origin/develop` 仍等於 merged release PR head，再確認
+   tree 與 `origin/main` 相同，最後由 `sync-develop` 使用
+   `--force-with-lease` 將 develop ref 對齊 main。任一步失敗都保留兩個 ref，
+   不可 force-push；recovery 見英文 [RELEASE.md](./RELEASE.md)。
 
 不得在 CI 尚未完成時把 release 宣告為成功，也不得把本機生成結果當作 published
 consumer proof。
@@ -125,7 +127,7 @@ consumer proof。
 - Claude supported gate 結果。
 - Codex project-sync gate 結果。
 - Codex native CONSUMER gate 的 PASS/UNAVAILABLE 狀態。
-- Back-merge 結果。
+- develop idle-align 結果與 expected release PR head SHA。
 
 若已發布版本有問題，不修改 tag 內容。建立新的 patch/hotfix release。Consumer
 rollback 代表重新安裝先前 known-good immutable version，並啟動新 session。
