@@ -106,7 +106,15 @@ test('controlled runtime-proof runner keeps unavailable external tools non-compl
     const runnerReceipt = path.join(receiptRoot, 'issue-237-runtime-proof', 'runtime-proof-attempt', 'runtime-proof.json');
     assert.strictEqual(fs.statSync(runnerReceipt).mode & 0o777, 0o600);
     const receiptText = fs.readFileSync(runnerReceipt, 'utf8');
-    assert.strictEqual(JSON.parse(receiptText).runtimePromoted, false);
+    const persisted = JSON.parse(receiptText);
+    assert.strictEqual(persisted.runtimePromoted, false);
+    const { runnerReceiptReference, ...beforePersistence } = payload;
+    assert.strictEqual(runnerReceiptReference, 'issue-237-runtime-proof/runtime-proof-attempt/runtime-proof.json');
+    assert.deepStrictEqual(persisted, receipts.redact({
+      ...beforePersistence,
+      receiptReference: persisted.receiptReference,
+      recordedAt: persisted.recordedAt,
+    }));
     assert.doesNotMatch(receiptText, new RegExp(marker));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
@@ -194,6 +202,37 @@ test('runner receipt creation is exclusive for a task and attempt', () => {
     assert.strictEqual(fs.readFileSync(receiptFile, 'utf8'), before);
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
+    fs.rmSync(receiptRoot, { recursive: true, force: true });
+  }
+});
+
+test('runner receipt persistence redacts a secret-bearing payload before writing its projection', () => {
+  const receiptRoot = temporaryReceiptRoot();
+  const marker = 'RUNTIME_PROOF_PERSIST_SECRET_123456789';
+  const payload = {
+    schema: runnerApi.RUNNER_SCHEMA,
+    phase: 'runtime-proof',
+    outcome: 'BLOCKED',
+    runtimePromoted: false,
+    identity: {
+      taskId: 'issue-237-runtime-proof',
+      attemptId: 'runtime-proof-secret-persistence',
+    },
+    diagnostics: [`token=${marker}`],
+  };
+  try {
+    const reference = runnerApi.persistRunnerReceipt(receiptRoot, payload);
+    const receiptFile = path.join(receiptRoot, reference);
+    const persistedText = fs.readFileSync(receiptFile, 'utf8');
+    const persisted = JSON.parse(persistedText);
+    assert.doesNotMatch(persistedText, new RegExp(marker));
+    assert.strictEqual(reference, 'issue-237-runtime-proof/runtime-proof-secret-persistence/runtime-proof.json');
+    assert.deepStrictEqual(persisted, receipts.redact({
+      ...payload,
+      receiptReference: reference,
+      recordedAt: persisted.recordedAt,
+    }));
+  } finally {
     fs.rmSync(receiptRoot, { recursive: true, force: true });
   }
 });
