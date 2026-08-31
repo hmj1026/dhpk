@@ -40,6 +40,12 @@ route SHALL document prerequisites, exact command syntax, copy/symlink and
 receipt behavior, update/uninstall/rollback, discovery verification, and the
 support tier.
 
+Project-local sync SHALL use hybrid materialization: skills and supporting
+assets follow the selected top-level symlink/copy mode, while agent TOMLs are
+always physical files. The guides SHALL instruct existing schema-v3 consumers
+to run ordinary `--update` and SHALL distinguish installation, discovery, and
+named-role runtime evidence.
+
 For project-local sync, the guide SHALL show both supported invocation forms:
 `bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh` from a standalone
 checkout and `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"`
@@ -66,6 +72,17 @@ the script resolves its own checkout root when `CLAUDE_PLUGIN_ROOT` is absent.
   Codex consumer probe has run
 - **THEN** the guide reports structural conformance separately and does not
   publish an unverified Codex install command as Supported
+
+#### Scenario: Existing symlink consumer updates safely
+
+- **WHEN** an operator upgrades a receipt-owned project-local Codex projection
+- **THEN** the guide directs them to ordinary `--update`, explains that managed
+  agent links become physical files, and retains collision/adoption guidance
+
+#### Scenario: Runtime has not been observed
+
+- **WHEN** installer and static validation pass but no named-role probe ran
+- **THEN** the guide labels runtime `NOT_RUN` rather than claiming PASS
 
 ### Requirement: Cursor standard and Cursor-native installation are separate
 

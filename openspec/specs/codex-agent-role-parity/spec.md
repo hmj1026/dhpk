@@ -18,6 +18,19 @@ project-local `.codex/` projection. Shared trap sheets and reviewer contracts SH
 materialized as `supporting_assets` in the distribution inventory and receipt, while any
 remaining contract text is explicitly inlined in the role.
 
+Auto-discovery is conditional on the consuming session, not on the role file:
+Codex populates the `spawn_agent` `agent_type` enumeration from
+`.codex/agents/*.toml` only when the project directory is trusted in the
+effective `$CODEX_HOME/config.toml` and configuration loading is not
+suppressed. Documentation and validation SHALL state that precondition rather
+than treating an unregistered role as a defective role file.
+
+Every installed role SHALL additionally be a physical regular file. The
+supported installer SHALL NOT use symlinks for agent TOMLs even when the
+selected top-level mode is `symlink`. Skills and supporting assets MAY retain
+the selected mode. Static source validation and receipt discovery SHALL NOT be
+reported as named-role runtime proof.
+
 #### Scenario: Existing role files are fixed
 - **WHEN** a user runs `install-codex-skills.sh` and starts Codex CLI in the synced project
 - **THEN** Codex loads `bug-investigator`, `explorer`, `monitor`, and `worker`
@@ -25,17 +38,47 @@ remaining contract text is explicitly inlined in the role.
   warning is printed for any dhpk role file
 
 #### Scenario: Auto-discovery works without an active config.toml
-- **WHEN** the synced `.codex/agents/*.toml` files are present but the project has no active
+- **WHEN** synced `.codex/agents/*.toml` files are present in a trusted project
+  under normal configuration loading, and the project has no active
   `config.toml` declaring `[agents.<name>]` (only `config.toml.example` was copied)
-- **THEN** Codex auto-discovers each role by the `name` in its role file
+- **THEN** Codex auto-discovers each role by the `name` in its role file and
+  offers it as an `agent_type` value
 - **AND** an optional later `[agents.<name>]` declaration for the same role is de-duplicated
   by Codex (the declared file is skipped from auto-discovery), not double-loaded
+
+#### Scenario: Untrusted project does not register roles
+- **WHEN** the same well-formed role files are present but the project
+  directory is not trusted in the effective `$CODEX_HOME/config.toml`, or the
+  session runs with `--ignore-user-config`
+- **THEN** no `agent_type` value is offered for those roles
+- **AND** the condition is attributed to the unloaded project role source, not
+  to the role files, role names, or the installed materialization mode
 
 #### Scenario: Clean projection resolves every referenced asset
 - **WHEN** a clean consumer fixture materializes the complete generated-role set and all
   receipt-managed `supporting_assets` through the supported Codex installer
 - **THEN** every trap-sheet, reviewer-contract, and output-contract reference is reachable
   from the documented Codex root and no role retains a dangling required reference
+
+#### Scenario: Default project-local install uses hybrid materialization
+- **WHEN** a user runs `install-codex-skills.sh` without `--copy`
+- **THEN** managed skills remain symlinks and managed agent TOMLs are physical
+  files
+- **AND** the schema-v3 receipt records the top-level mode as `symlink`, skill
+  entries as `symlink`, and agent entries as `copy`
+
+#### Scenario: Fresh Codex session dispatches projected roles
+- **WHEN** a fresh Codex session starts in the installed project and dispatches
+  a receipt-managed named role with a cold standalone packet
+- **THEN** the role starts without `Symbolic link loop` or
+  `agent type is currently not available`
+
+#### Scenario: Historical managed agent symlink is migrated
+- **WHEN** an unchanged schema-v3 receipt-owned agent symlink is present and the
+  operator runs ordinary `--update`
+- **THEN** only that stale agent entry is replaced by a physical file and its
+  receipt entry mode becomes `copy`
+- **AND** a retargeted, edited, or unowned role remains a fail-closed collision
 
 ### Requirement: Codex agent role files are generated from canonical agents
 

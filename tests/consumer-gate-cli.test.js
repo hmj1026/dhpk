@@ -95,48 +95,90 @@ test('Codex consumer validation rejects linked agent roles and mismatched receip
 test('Codex named-role probe relies on physical project-role auto-discovery and rejects ELOOP', () => {
   withConsumerGateBin((bin) => {
     const log = path.join(bin, 'codex-argv.log');
+    const homeLog = path.join(bin, 'codex-home.log');
+    const configLog = path.join(bin, 'codex-config.log');
+    const configModeLog = path.join(bin, 'codex-config-mode.log');
+    const authTargetLog = path.join(bin, 'codex-auth-target.log');
+    const sourceCodexHome = path.join(bin, 'source-codex-home');
+    const sourceAuth = path.join(sourceCodexHome, 'auth.json');
+    fs.mkdirSync(sourceCodexHome);
+    fs.writeFileSync(sourceAuth, '{"fixture":"unchanged"}\n', { mode: 0o600 });
     mkBinStub(bin, 'codex', `#!/bin/sh
 printf '%s\n' "$*" >> ${JSON.stringify(log)}
 if [ "$1" = "--version" ]; then echo 'codex-cli fixture'; exit 0; fi
-printf '%s\n' '{"type":"item.completed","item":{"type":"collab_tool_call","tool":"spawn_agent","receiver_thread_ids":["thread-explorer"],"prompt":"DHPK_ROLE_PROBE:explorer","agents_states":{"thread-explorer":{"status":"completed"}},"status":"completed"}}'
-printf '%s\n' '{"type":"item.completed","item":{"type":"collab_tool_call","tool":"wait","receiver_thread_ids":["thread-explorer"],"prompt":null,"agents_states":{"thread-explorer":{"status":"completed","message":"explorer"}},"status":"completed"}}'
-printf '%s\n' '{"type":"item.completed","item":{"type":"collab_tool_call","tool":"spawn_agent","receiver_thread_ids":["thread-deep"],"prompt":"DHPK_ROLE_PROBE:deep-reasoner","agents_states":{"thread-deep":{"status":"completed"}},"status":"completed"}}'
-printf '%s\n' '{"type":"item.completed","item":{"type":"collab_tool_call","tool":"wait","receiver_thread_ids":["thread-deep"],"prompt":null,"agents_states":{"thread-deep":{"status":"completed","message":"deep-reasoner"}},"status":"completed"}}'
-printf '%s\n' '{"type":"item.completed","item":{"type":"collab_tool_call","tool":"spawn_agent","receiver_thread_ids":["thread-code"],"prompt":"DHPK_ROLE_PROBE:code-reviewer","agents_states":{"thread-code":{"status":"completed"}},"status":"completed"}}'
-printf '%s\n' '{"type":"item.completed","item":{"type":"collab_tool_call","tool":"wait","receiver_thread_ids":["thread-code"],"prompt":null,"agents_states":{"thread-code":{"status":"completed","message":"code-reviewer"}},"status":"completed"}}'
-printf '%s\n' '{"type":"item.completed","item":{"type":"collab_tool_call","tool":"spawn_agent","receiver_thread_ids":["thread-doc"],"prompt":"DHPK_ROLE_PROBE:doc-reviewer","agents_states":{"thread-doc":{"status":"completed"}},"status":"completed"}}'
-printf '%s\n' '{"type":"item.completed","item":{"type":"collab_tool_call","tool":"wait","receiver_thread_ids":["thread-doc"],"prompt":null,"agents_states":{"thread-doc":{"status":"completed","message":"doc-reviewer"}},"status":"completed"}}'
+printf '%s\n' "$CODEX_HOME" > ${JSON.stringify(homeLog)}
+cat "$CODEX_HOME/config.toml" > ${JSON.stringify(configLog)}
+stat -c '%a' "$CODEX_HOME/config.toml" > ${JSON.stringify(configModeLog)}
+readlink "$CODEX_HOME/auth.json" > ${JSON.stringify(authTargetLog)}
+SESS="$CODEX_HOME/sessions/2026/01/01"
+mkdir -p "$SESS"
+printf '%s\n' '{"type":"session_meta","payload":{"id":"parent-1","thread_source":"root"}}' > "$SESS/rollout-parent.jsonl"
+printf '%s\n' '{"type":"session_meta","payload":{"id":"thread-explorer","thread_source":"subagent","parent_thread_id":"parent-1","agent_role":"explorer","agent_path":"/root/dhpk_probe_explorer"}}' > "$SESS/rollout-explorer.jsonl"
+printf '%s\n' '{"type":"event_msg","payload":{"type":"task_complete"}}' >> "$SESS/rollout-explorer.jsonl"
+printf '%s\n' '{"type":"session_meta","payload":{"id":"thread-deep","thread_source":"subagent","parent_thread_id":"parent-1","agent_role":"deep-reasoner","agent_path":"/root/dhpk_probe_deep_reasoner"}}' > "$SESS/rollout-deep-reasoner.jsonl"
+printf '%s\n' '{"type":"event_msg","payload":{"type":"task_complete"}}' >> "$SESS/rollout-deep-reasoner.jsonl"
+printf '%s\n' '{"type":"session_meta","payload":{"id":"thread-code","thread_source":"subagent","parent_thread_id":"parent-1","agent_role":"code-reviewer","agent_path":"/root/dhpk_probe_code_reviewer"}}' > "$SESS/rollout-code-reviewer.jsonl"
+printf '%s\n' '{"type":"event_msg","payload":{"type":"task_complete"}}' >> "$SESS/rollout-code-reviewer.jsonl"
+printf '%s\n' '{"type":"session_meta","payload":{"id":"thread-doc","thread_source":"subagent","parent_thread_id":"parent-1","agent_role":"doc-reviewer","agent_path":"/root/dhpk_probe_doc_reviewer"}}' > "$SESS/rollout-doc-reviewer.jsonl"
+printf '%s\n' '{"type":"event_msg","payload":{"type":"task_complete"}}' >> "$SESS/rollout-doc-reviewer.jsonl"
 printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"CODEX_DHPK_NAMED_ROLES=PASS"}}'
 exit 0
 `);
     const project = projectRootForCodexProbe();
     try {
       const result = runCodexNamedRoleProbe(project, {
-        env: { ...process.env, PATH: `${bin}:${NODE_BASH_ONLY_PATH}` },
+        env: { ...process.env, CODEX_HOME: sourceCodexHome, PATH: `${bin}:${NODE_BASH_ONLY_PATH}` },
       });
       assert.strictEqual(result.status, 'PASS', JSON.stringify(result));
+      assert.deepStrictEqual(result.runtimeEvidence, {
+        registryPreconditions: {
+          disposableCodexHome: true,
+          authReference: 'symlink',
+          projectTrust: 'trusted',
+          userConfigIgnored: false,
+        },
+        roles: [
+          { id: 'explorer', agentTypeAccepted: true, threadId: 'thread-explorer', childCompleted: true },
+          { id: 'deep-reasoner', agentTypeAccepted: true, threadId: 'thread-deep', childCompleted: true },
+          { id: 'code-reviewer', agentTypeAccepted: true, threadId: 'thread-code', childCompleted: true },
+          { id: 'doc-reviewer', agentTypeAccepted: true, threadId: 'thread-doc', childCompleted: true },
+        ],
+      });
       const argv = fs.readFileSync(log, 'utf8');
       for (const role of ['explorer', 'deep-reasoner', 'code-reviewer', 'doc-reviewer']) {
         assert.doesNotMatch(argv, new RegExp(`agents\\.\\"${role}\\"\\.config_file`), argv);
         assert.match(argv, new RegExp(`task_name=\\"dhpk_probe_${role.replace(/-/g, '_')}\\"`), argv);
       }
       assert.doesNotMatch(argv, /-c agents\./, argv);
+      assert.doesNotMatch(argv, /--ignore-user-config/, argv);
+      assert.doesNotMatch(argv, /--ephemeral/, argv);
+      const disposableCodexHome = fs.readFileSync(homeLog, 'utf8').trim();
+      assert.notStrictEqual(disposableCodexHome, sourceCodexHome);
+      assert.strictEqual(fs.existsSync(disposableCodexHome), false);
+      assert.strictEqual(fs.readFileSync(authTargetLog, 'utf8').trim(), sourceAuth);
+      assert.strictEqual(fs.readFileSync(configModeLog, 'utf8').trim(), '600');
+      assert.strictEqual(fs.readFileSync(configLog, 'utf8'), [
+        `[projects.${JSON.stringify(project)}]`,
+        'trust_level = "trusted"',
+        '',
+      ].join('\n'));
     } finally {
       fs.rmSync(project, { recursive: true, force: true });
     }
 
     mkBinStub(bin, 'codex', `#!/bin/sh
 if [ "$1" = "--version" ]; then echo 'codex-cli fixture'; exit 0; fi
-printf '%s\n' '{"type":"item.completed","item":{"type":"collab_tool_call","tool":"wait","receiver_thread_ids":[],"prompt":null,"agents_states":{},"status":"completed"}}'
+printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"spawn_agent does not support an agent_type parameter, so the requested role cannot be typed"}}'
 printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"CODEX_DHPK_NAMED_ROLES=PASS"}}'
 exit 0
 `);
     const falsePositiveProject = projectRootForCodexProbe();
     try {
       const falsePositive = runCodexNamedRoleProbe(falsePositiveProject, {
-        env: { ...process.env, PATH: `${bin}:${NODE_BASH_ONLY_PATH}` },
+        env: { ...process.env, CODEX_HOME: sourceCodexHome, PATH: `${bin}:${NODE_BASH_ONLY_PATH}` },
       });
       assert.strictEqual(falsePositive.status, 'FAIL', JSON.stringify(falsePositive));
+      assert.strictEqual(falsePositive.reasonCode, 'CUSTOM_AGENT_REGISTRY_UNAVAILABLE');
       assert.match(falsePositive.diagnostic, /spawn|dispatch evidence|receiver/i);
     } finally {
       fs.rmSync(falsePositiveProject, { recursive: true, force: true });
@@ -144,15 +186,24 @@ exit 0
 
     mkBinStub(bin, 'codex', `#!/bin/sh
 if [ "$1" = "--version" ]; then echo 'codex-cli fixture'; exit 0; fi
-printf '%s\n' '{"type":"item.completed","item":{"type":"collab_tool_call","tool":"spawn_agent","receiver_thread_ids":["thread-shared"],"prompt":"DHPK_ROLE_PROBE:explorer DHPK_ROLE_PROBE:deep-reasoner DHPK_ROLE_PROBE:code-reviewer DHPK_ROLE_PROBE:doc-reviewer","agents_states":{"thread-shared":{"status":"completed"}},"status":"completed"}}'
-printf '%s\n' '{"type":"item.completed","item":{"type":"collab_tool_call","tool":"wait","receiver_thread_ids":["thread-shared"],"prompt":null,"agents_states":{"thread-shared":{"status":"completed","message":"explorer"}},"status":"completed"}}'
+SESS="$CODEX_HOME/sessions/2026/01/01"
+mkdir -p "$SESS"
+printf '%s\n' '{"type":"session_meta","payload":{"id":"parent-1","thread_source":"root"}}' > "$SESS/rollout-parent.jsonl"
+printf '%s\n' '{"type":"session_meta","payload":{"id":"thread-shared","thread_source":"subagent","parent_thread_id":"parent-1","agent_role":"explorer","agent_path":"/root/dhpk_probe_explorer"}}' > "$SESS/rollout-explorer.jsonl"
+printf '%s\n' '{"type":"event_msg","payload":{"type":"task_complete"}}' >> "$SESS/rollout-explorer.jsonl"
+printf '%s\n' '{"type":"session_meta","payload":{"id":"thread-shared","thread_source":"subagent","parent_thread_id":"parent-1","agent_role":"deep-reasoner","agent_path":"/root/dhpk_probe_deep_reasoner"}}' > "$SESS/rollout-deep-reasoner.jsonl"
+printf '%s\n' '{"type":"event_msg","payload":{"type":"task_complete"}}' >> "$SESS/rollout-deep-reasoner.jsonl"
+printf '%s\n' '{"type":"session_meta","payload":{"id":"thread-shared","thread_source":"subagent","parent_thread_id":"parent-1","agent_role":"code-reviewer","agent_path":"/root/dhpk_probe_code_reviewer"}}' > "$SESS/rollout-code-reviewer.jsonl"
+printf '%s\n' '{"type":"event_msg","payload":{"type":"task_complete"}}' >> "$SESS/rollout-code-reviewer.jsonl"
+printf '%s\n' '{"type":"session_meta","payload":{"id":"thread-shared","thread_source":"subagent","parent_thread_id":"parent-1","agent_role":"doc-reviewer","agent_path":"/root/dhpk_probe_doc_reviewer"}}' > "$SESS/rollout-doc-reviewer.jsonl"
+printf '%s\n' '{"type":"event_msg","payload":{"type":"task_complete"}}' >> "$SESS/rollout-doc-reviewer.jsonl"
 printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"CODEX_DHPK_NAMED_ROLES=PASS"}}'
 exit 0
 `);
     const aliasedProject = projectRootForCodexProbe();
     try {
       const aliased = runCodexNamedRoleProbe(aliasedProject, {
-        env: { ...process.env, PATH: `${bin}:${NODE_BASH_ONLY_PATH}` },
+        env: { ...process.env, CODEX_HOME: sourceCodexHome, PATH: `${bin}:${NODE_BASH_ONLY_PATH}` },
       });
       assert.strictEqual(aliased.status, 'FAIL', JSON.stringify(aliased));
       assert.match(aliased.diagnostic, /distinct|spawn evidence|receiver/i);
@@ -162,15 +213,25 @@ exit 0
 
     mkBinStub(bin, 'codex', `#!/bin/sh
 if [ "$1" = "--version" ]; then echo 'codex-cli fixture'; exit 0; fi
-printf '%s\n' '{"type":"item.completed","item":{"type":"collab_tool_call","tool":"spawn_agent","receiver_thread_ids":["thread-shared"],"prompt":"DHPK_ROLE_PROBE:explorer DHPK_ROLE_PROBE:deep-reasoner DHPK_ROLE_PROBE:code-reviewer DHPK_ROLE_PROBE:doc-reviewer","agents_states":{"thread-shared":{"status":"completed"}},"status":"completed"}}' >&2
-printf '%s\n' '{"type":"item.completed","item":{"type":"collab_tool_call","tool":"wait","receiver_thread_ids":["thread-shared"],"prompt":null,"agents_states":{"thread-shared":{"status":"completed","message":"explorer"}},"status":"completed"}}' >&2
+SESS="$CODEX_HOME/sessions/2026/01/01"
+mkdir -p "$SESS"
+printf '%s\n' '{"type":"session_meta","payload":{"id":"parent-1","thread_source":"root"}}' > "$SESS/rollout-parent.jsonl"
+printf '%s\n' '{"type":"session_meta","payload":{"id":"thread-explorer","thread_source":"subagent","parent_thread_id":"parent-1","agent_role":"explorer","agent_path":"/root/dhpk_probe_explorer"}}' > "$SESS/rollout-explorer.jsonl"
+printf '%s\n' '{"type":"event_msg","payload":{"type":"task_complete"}}' >> "$SESS/rollout-explorer.jsonl"
+printf '%s\n' '{"type":"session_meta","payload":{"id":"thread-deep","thread_source":"subagent","parent_thread_id":"parent-1","agent_role":"deep-reasoner","agent_path":"/root/dhpk_probe_deep_reasoner"}}' > "$SESS/rollout-deep-reasoner.jsonl"
+printf '%s\n' '{"type":"event_msg","payload":{"type":"task_complete"}}' >> "$SESS/rollout-deep-reasoner.jsonl"
+printf '%s\n' '{"type":"session_meta","payload":{"id":"thread-code","thread_source":"subagent","parent_thread_id":"parent-1","agent_role":"code-reviewer","agent_path":"/root/dhpk_probe_code_reviewer"}}' > "$SESS/rollout-code-reviewer.jsonl"
+printf '%s\n' '{"type":"event_msg","payload":{"type":"task_complete"}}' >> "$SESS/rollout-code-reviewer.jsonl"
+printf '%s\n' '{"type":"session_meta","payload":{"id":"thread-doc","thread_source":"subagent","parent_thread_id":"parent-1","agent_role":"doc-reviewer","agent_path":"/root/dhpk_probe_doc_reviewer"}}' > "$SESS/rollout-doc-reviewer.jsonl"
+printf '%s\n' '{"type":"event_msg","payload":{"type":"task_complete"}}' >> "$SESS/rollout-doc-reviewer.jsonl"
 printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"CODEX_DHPK_NAMED_ROLES=PASS"}}' >&2
+echo 'CODEX_DHPK_NAMED_ROLES=PASS marker only present on stderr, not stdout' >&2
 exit 0
 `);
     const stderrProject = projectRootForCodexProbe();
     try {
       const stderrOnly = runCodexNamedRoleProbe(stderrProject, {
-        env: { ...process.env, PATH: `${bin}:${NODE_BASH_ONLY_PATH}` },
+        env: { ...process.env, CODEX_HOME: sourceCodexHome, PATH: `${bin}:${NODE_BASH_ONLY_PATH}` },
       });
       assert.strictEqual(stderrOnly.status, 'FAIL', JSON.stringify(stderrOnly));
       assert.match(stderrOnly.diagnostic, /stdout|spawn evidence|receiver/i);
@@ -187,12 +248,52 @@ exit 0
     const failedProject = projectRootForCodexProbe();
     try {
       const failed = runCodexNamedRoleProbe(failedProject, {
-        env: { ...process.env, PATH: `${bin}:${NODE_BASH_ONLY_PATH}` },
+        env: { ...process.env, CODEX_HOME: sourceCodexHome, PATH: `${bin}:${NODE_BASH_ONLY_PATH}` },
       });
       assert.strictEqual(failed.status, 'FAIL', JSON.stringify(failed));
+      assert.strictEqual(failed.reasonCode, undefined);
       assert.match(failed.diagnostic, /Symbolic link loop|os error 40/i);
     } finally {
       fs.rmSync(failedProject, { recursive: true, force: true });
+    }
+
+    mkBinStub(bin, 'codex', `#!/bin/sh
+if [ "$1" = "--version" ]; then echo 'codex-cli fixture'; exit 0; fi
+echo 'remote worker service unavailable' >&2
+exit 1
+`);
+    const genericFailureProject = projectRootForCodexProbe();
+    try {
+      const genericFailure = runCodexNamedRoleProbe(genericFailureProject, {
+        env: { ...process.env, CODEX_HOME: sourceCodexHome, PATH: `${bin}:${NODE_BASH_ONLY_PATH}` },
+      });
+      assert.strictEqual(genericFailure.status, 'FAIL', JSON.stringify(genericFailure));
+      assert.strictEqual(genericFailure.reasonCode, undefined);
+      assert.match(genericFailure.diagnostic, /remote worker service unavailable/i);
+    } finally {
+      fs.rmSync(genericFailureProject, { recursive: true, force: true });
+    }
+  });
+});
+
+test('Codex named-role probe blocks when the source auth file is unavailable', () => {
+  withConsumerGateBin((bin) => {
+    mkBinStub(bin, 'codex', `#!/bin/sh
+if [ "$1" = "--version" ]; then echo 'codex-cli fixture'; exit 0; fi
+exit 99
+`);
+    const project = projectRootForCodexProbe();
+    const emptyCodexHome = path.join(bin, 'empty-codex-home');
+    fs.mkdirSync(emptyCodexHome);
+    try {
+      const result = runCodexNamedRoleProbe(project, {
+        env: { ...process.env, CODEX_HOME: emptyCodexHome, PATH: `${bin}:${NODE_BASH_ONLY_PATH}` },
+      });
+      assert.strictEqual(result.status, 'BLOCKED', JSON.stringify(result));
+      assert.strictEqual(result.reasonCode, undefined);
+      assert.match(result.diagnostic, /auth\.json/i);
+    } finally {
+      fs.rmSync(project, { recursive: true, force: true });
     }
   });
 });
