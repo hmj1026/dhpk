@@ -124,4 +124,13 @@ test('root guidance stays minimal and every local markdown link resolves', () =>
   assert.deepStrictEqual(missing, [], missing.join('\n'));
 });
 
+test('GitHub issue guidance streams shell-sensitive bodies through stdin', () => {
+  const text = fs.readFileSync(path.join(ROOT, 'docs', 'agents', 'issue-tracker.md'), 'utf8');
+  assert.match(text, /gh issue create[^\n]*--body-file -/);
+  assert.match(text, /gh issue comment[^\n]*--body-file -/);
+  assert.match(text, /<<'ISSUE_BODY'/);
+  assert.doesNotMatch(text, /gh issue (?:create|comment)[^\n]*--body(?!-file)\b/);
+  assert.doesNotMatch(text, /gh issue close[^\n]*--comment/);
+});
+
 run('agent-facing-contract');

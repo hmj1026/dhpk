@@ -129,7 +129,7 @@ claude mcp list
 
 ### Codex agent 角色（雙軌同步）
 
-這裡講的是獨立的 Codex CLI 雙軌同步（`codex/agents/` → `.codex/agents/`），與上面的 MCP server 無關。每個 `codex/agents/*.toml` 檔案都必須宣告非空的 `name`、`description`、`model`、`model_reasoning_effort`、`developer_instructions`；Codex agent 定義只使用 TOML。Codex CLI 會自動探索 `.codex/agents/*.toml`，若缺少 `name` 就會報錯。12 個產生出來的角色（`architect`、`code-reviewer`、`security-reviewer`、`database-reviewer`、`tdd-guide`、`deep-reasoner`、`doc-reviewer`、`planner`、`spec-miner`、`frontend-reviewer`、`migration-reviewer`、`e2e-runner`）是由 `scripts/gen-codex-agents.js` 從 `agents/<name>.md` 產生，加上 4 個手動維護的通用角色（`explorer`、`worker`、`monitor`、`bug-investigator`），總共 16 個 direct role。
+這裡講的是獨立的 Codex CLI 雙軌同步（`codex/agents/` → `.codex/agents/`），與上面的 MCP server 無關。每個 `codex/agents/*.toml` 檔案都必須宣告非空的 `name`、`description`、`model`、`model_reasoning_effort`、`developer_instructions`；Codex agent 定義只使用 TOML。Codex CLI 會自動探索 `.codex/agents/*.toml`，若缺少 `name` 就會報錯。Project-local installer 即使讓 skill 使用 symlink，也一律把 agent TOML materialize 為實體檔。12 個產生出來的角色（`architect`、`code-reviewer`、`security-reviewer`、`database-reviewer`、`tdd-guide`、`deep-reasoner`、`doc-reviewer`、`planner`、`spec-miner`、`frontend-reviewer`、`migration-reviewer`、`e2e-runner`）是由 `scripts/gen-codex-agents.js` 從 `agents/<name>.md` 產生，加上 4 個手動維護的通用角色（`explorer`、`worker`、`monitor`、`bug-investigator`），總共 16 個 direct role。
 
 `config.toml.example` 裡的 `[agents.<name>]` 註冊區塊是**選用**的——Codex CLI 會直接從 `.codex/agents/*.toml` 探索角色，區塊只提供描述或暱稱。現行支援的頂層並發設定是 `max_concurrent_threads_per_session`；範例也記錄有效的預設 subagent model 與 reasoning effort。完整角色對照表見 `codex/AGENTS.md` 與 `codex/README.md`。
 
