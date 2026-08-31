@@ -461,6 +461,224 @@ function mkTempProject() {
   return dir;
 }
 
+function validateCodexAgentMaterialization(project, manifest) {
+  const errors = [];
+  const codexRoot = path.resolve(project, '.codex');
+  const agentsRoot = path.join(codexRoot, 'agents');
+  const managedAgents = manifest && manifest.managed_entries && manifest.managed_entries.agents;
+  if (!managedAgents || typeof managedAgents !== 'object' || Array.isArray(managedAgents)) {
+    return ['Codex receipt is missing managed agent entries'];
+  }
+
+  let discovered;
+  try {
+    discovered = readDirectoryEntries(agentsRoot, { sort: true });
+  } catch (error) {
+    return [`Codex agent directory is unreadable: ${error.message}`];
+  }
+  for (const entry of discovered) {
+    if (!entry.name.endsWith('.toml')) continue;
+    const target = path.join(agentsRoot, entry.name);
+    const stat = fs.lstatSync(target);
+    if (stat.isSymbolicLink()) errors.push(`Codex agent '${entry.name}' must be a physical file, not a symlink`);
+    else if (!stat.isFile()) errors.push(`Codex agent '${entry.name}' must be a physical regular file`);
+  }
+
+  for (const [name, entry] of Object.entries(managedAgents)) {
+    if (!entry || typeof entry !== 'object') {
+      errors.push(`Codex agent receipt entry '${name}' is invalid`);
+      continue;
+    }
+    const relative = entry.destination || `agents/${name}`;
+    const normalized = typeof relative === 'string' ? path.posix.normalize(relative) : '';
+    if (!normalized || normalized !== relative || !normalized.startsWith('agents/')) {
+      errors.push(`Codex agent receipt entry '${name}' has an unsafe destination`);
+      continue;
+    }
+    if (entry.mode !== 'copy') errors.push(`Codex agent '${name}' receipt mode must be copy`);
+    const destination = path.resolve(codexRoot, ...normalized.split('/'));
+    if (destination === agentsRoot || !destination.startsWith(`${agentsRoot}${path.sep}`)) {
+      errors.push(`Codex agent receipt entry '${name}' resolves outside the agent directory`);
+      continue;
+    }
+    let stat;
+    try { stat = fs.lstatSync(destination); } catch (_) {
+      errors.push(`Codex agent '${name}' is missing from the installed projection`);
+      continue;
+    }
+    if (stat.isSymbolicLink()) errors.push(`Codex agent '${name}' must be physical; installed destination is a symlink`);
+    else if (!stat.isFile()) errors.push(`Codex agent '${name}' installed destination is not a regular file`);
+  }
+  return errors;
+}
+
+function runCodexNamedRoleProbe(project, {
+  env = process.env,
+  roles = ['explorer', 'deep-reasoner', 'code-reviewer', 'doc-reviewer'],
+  timeoutMs = 120000,
+} = {}) {
+  if (!Array.isArray(roles) || roles.length === 0 || roles.some((role) => !/^[a-z][a-z0-9-]*$/.test(role))) {
+    return {
+      status: 'BLOCKED',
+      cliVersion: null,
+      diagnostic: 'Codex named-role runtime probe received an invalid role identifier',
+      roles: Array.isArray(roles) ? roles : [],
+    };
+  }
+  for (const role of roles) {
+    const rolePath = path.join(project, '.codex', 'agents', `${role}.toml`);
+    let stat;
+    try { stat = fs.lstatSync(rolePath); } catch (_) {
+      return { status: 'FAIL', cliVersion: null, diagnostic: `Codex named-role runtime probe is missing ${role}.toml`, roles };
+    }
+    if (stat.isSymbolicLink() || !stat.isFile()) {
+      return { status: 'FAIL', cliVersion: null, diagnostic: `Codex named-role runtime probe requires physical ${role}.toml`, roles };
+    }
+  }
+  const version = spawnSync('codex', ['--version'], {
+    cwd: project,
+    encoding: 'utf8',
+    env,
+    timeout: 10000,
+  });
+  if (version.error && version.error.code === 'ENOENT') {
+    return {
+      status: 'NOT_RUN',
+      cliVersion: null,
+      diagnostic: 'codex CLI not found on PATH; named-role runtime dispatch was not run',
+      roles,
+    };
+  }
+  if (version.error || version.status !== 0) {
+    const detail = version.error ? version.error.message : (version.stderr || version.stdout || '').trim();
+    return {
+      status: 'BLOCKED',
+      cliVersion: null,
+      diagnostic: redactSensitiveText(`codex --version failed: ${detail}`).slice(-4000),
+      roles,
+    };
+  }
+
+  const cliVersion = (version.stdout || version.stderr || '').trim();
+  const taskNameAssignments = roles
+    .map((role) => `${role}:task_name="dhpk_probe_${role.replace(/-/g, '_')}"`)
+    .join(', ');
+  const args = [
+    'exec',
+    '--ignore-user-config',
+    '--strict-config',
+    '--ephemeral',
+    '--json',
+    '--sandbox',
+    'read-only',
+    '--skip-git-repo-check',
+  ];
+  args.push([
+    'This is a read-only consumer runtime probe.',
+    `Sequentially call collaboration.spawn_agent once for each of these exact agent_type values: ${roles.join(', ')}.`,
+    `For every call use fork_turns="none", use these exact valid task_name assignments (${taskNameAssignments}), and give the child a standalone one-sentence task that begins with DHPK_ROLE_PROBE:<role> and asks it to reply with its exact role name.`,
+    'Wait for every child to finish. Do not edit files.',
+    'Only when every named role was accepted and completed, print exactly CODEX_DHPK_NAMED_ROLES=PASS.',
+    'If any role cannot be started or completed, print CODEX_DHPK_NAMED_ROLES=FAIL followed by the exact error.',
+  ].join(' '));
+
+  const probe = spawnSync('codex', args, {
+    cwd: project,
+    encoding: 'utf8',
+    env,
+    timeout: timeoutMs,
+    maxBuffer: 4 * 1024 * 1024,
+  });
+  const stdout = probe.stdout || '';
+  const stderr = probe.stderr || '';
+  const combined = `${stdout}\n${stderr}`.trim();
+  const diagnostic = redactSensitiveText(combined).slice(-4000);
+  if (probe.error && probe.error.code === 'ETIMEDOUT') {
+    return { status: 'BLOCKED', cliVersion, diagnostic: `Codex named-role runtime probe timed out after ${timeoutMs}ms`, roles };
+  }
+  if (probe.error) {
+    return {
+      status: 'BLOCKED',
+      cliVersion,
+      diagnostic: redactSensitiveText(`Codex named-role runtime probe could not execute: ${probe.error.message}`).slice(-4000),
+      roles,
+    };
+  }
+  if (probe.status === null) {
+    return { status: 'BLOCKED', cliVersion, diagnostic: `Codex named-role runtime probe ended by signal ${probe.signal || 'unknown'}`, roles };
+  }
+  const events = stdout.split(/\r?\n/).flatMap((line) => {
+    try {
+      return [JSON.parse(line)];
+    } catch (_) {
+      return [];
+    }
+  });
+  const agentMessages = events
+    .filter((event) => event && event.item && event.item.type === 'agent_message' && typeof event.item.text === 'string')
+    .map((event) => event.item.text);
+  const completedSpawns = events
+    .map((event) => event && event.item)
+    .filter((item) => item && item.type === 'collab_tool_call'
+      && item.tool === 'spawn_agent'
+      && item.status === 'completed'
+      && Array.isArray(item.receiver_thread_ids)
+      && item.receiver_thread_ids.length === 1
+      && typeof item.prompt === 'string');
+  const spawnCandidates = new Map(roles.map((role) => [role, []]));
+  for (const spawn of completedSpawns) {
+    const marker = spawn.prompt.match(/^DHPK_ROLE_PROBE:([a-z][a-z0-9-]*)(?:\s|$)/);
+    if (marker && spawnCandidates.has(marker[1])) spawnCandidates.get(marker[1]).push(spawn);
+  }
+  const roleTargets = new Map();
+  for (const role of roles) {
+    const candidates = spawnCandidates.get(role);
+    if (candidates.length === 1) roleTargets.set(role, candidates[0].receiver_thread_ids[0]);
+  }
+  const targetRoles = new Map();
+  for (const [role, target] of roleTargets) {
+    if (!targetRoles.has(target)) targetRoles.set(target, []);
+    targetRoles.get(target).push(role);
+  }
+  const duplicateTargetRoles = [...targetRoles.values()].filter((targetRoleList) => targetRoleList.length > 1).flat();
+  const missingSpawnRoles = roles.filter((role) => !roleTargets.has(role));
+  const ambiguousSpawnRoles = roles.filter((role) => spawnCandidates.get(role).length > 1);
+  const incompleteRoles = roles.filter((role) => {
+    const target = roleTargets.get(role);
+    if (!target || duplicateTargetRoles.includes(role)) return true;
+    return !events.some((event) => {
+      const item = event && event.item;
+      if (!item || item.type !== 'collab_tool_call' || item.tool !== 'wait'
+        || item.status !== 'completed' || !Array.isArray(item.receiver_thread_ids)
+        || item.receiver_thread_ids.length !== 1 || item.receiver_thread_ids[0] !== target) return false;
+      const state = item.agents_states && item.agents_states[target];
+      return state && ['complete', 'completed'].includes(state.status)
+        && typeof state.message === 'string' && state.message.trim() === role;
+    });
+  });
+  const dispatchFailure = /Symbolic link loop|os error 40|unknown agent_type|agent type is currently not available|CODEX_DHPK_NAMED_ROLES=FAIL/i.test(combined);
+  const passed = probe.status === 0
+    && agentMessages.some((message) => /CODEX_DHPK_NAMED_ROLES=PASS/.test(message))
+    && missingSpawnRoles.length === 0
+    && ambiguousSpawnRoles.length === 0
+    && duplicateTargetRoles.length === 0
+    && incompleteRoles.length === 0
+    && !dispatchFailure;
+  const evidenceFailure = [
+    missingSpawnRoles.length > 0 ? `missing completed spawn evidence for: ${missingSpawnRoles.join(', ')}` : null,
+    ambiguousSpawnRoles.length > 0 ? `ambiguous completed spawn evidence for: ${ambiguousSpawnRoles.join(', ')}` : null,
+    duplicateTargetRoles.length > 0 ? `spawn evidence reused receiver targets for: ${duplicateTargetRoles.join(', ')}` : null,
+    incompleteRoles.length > 0 ? `missing distinct completed wait/role reply evidence for: ${incompleteRoles.join(', ')}` : null,
+  ].filter(Boolean).join('; ');
+  return {
+    status: passed ? 'PASS' : 'FAIL',
+    cliVersion,
+    diagnostic: redactSensitiveText([diagnostic || `codex exec exited ${probe.status} without a named-role result marker`, evidenceFailure]
+      .filter(Boolean).join('\n')).slice(-4000),
+    roles,
+  };
+}
+
 function verifyCodexSync(root, version) {
   const commands = [];
   const project = mkTempProject();
@@ -497,6 +715,15 @@ function verifyCodexSync(root, version) {
     }
     if (manifest.schema_version < 3 || !manifest.managed_entries || !manifest.managed_entries.skills || !manifest.managed_entries.agents || !manifest.managed_entries.supporting_assets) {
       return { verdict: VERDICTS.FAIL, commands, reasons: ['installed manifest is missing schema-v3 managed_entries ownership data'] };
+    }
+    const agentMaterializationErrors = validateCodexAgentMaterialization(project, manifest);
+    commands.push({ cmd: 'validate physical Codex agent materialization', exitCode: agentMaterializationErrors.length === 0 ? 0 : 1 });
+    if (agentMaterializationErrors.length > 0) {
+      return {
+        verdict: VERDICTS.FAIL,
+        commands,
+        reasons: agentMaterializationErrors.map((error) => `codex-sync: ${redactEvidence(error, root)}`),
+      };
     }
     let expectedSyncNames = [];
     try {
@@ -601,25 +828,51 @@ function verifyCodexSync(root, version) {
     const reasons = surfaceVerdict === CODEX_SURFACE_VERDICTS.WARN
       ? ['Codex duplicate-surface validation is WARN: project-local receipt-owned fallback takes precedence over experimental native content']
       : [];
+    const runtimeProbe = runCodexNamedRoleProbe(project);
+    commands.push({
+      cmd: 'codex exec with project-local auto-discovery for explorer, deep-reasoner, code-reviewer, and doc-reviewer',
+      exitCode: runtimeProbe.status === 'PASS' ? 0 : (runtimeProbe.status === 'NOT_RUN' ? null : 1),
+      codexCliVersion: runtimeProbe.cliVersion,
+    });
+    const surfacesEvidence = {
+      project: surfaces.project,
+      native: surfaces.native,
+      effective: discoverySummary.effective,
+      conflicts: discoverySummary.conflicts,
+      receipt: {
+        schema_version: manifest.schema_version,
+        plugin_version: manifest.plugin_version,
+        source_fingerprint: manifest.source_fingerprint,
+        mode: manifest.mode,
+        reconciliation: manifest.reconciliation || null,
+      },
+    };
+    if (runtimeProbe.status !== 'PASS') {
+      const verdict = runtimeProbe.status === 'NOT_RUN'
+        ? VERDICTS.PENDING
+        : (runtimeProbe.status === 'BLOCKED' ? VERDICTS.BLOCKED : VERDICTS.FAIL);
+      return {
+        verdict,
+        status: runtimeProbe.status,
+        commands,
+        reasons: [`Codex named-role runtime probe ${runtimeProbe.status}: ${redactEvidence(runtimeProbe.diagnostic, root)}`],
+        diagnostics: [redactEvidence(runtimeProbe.diagnostic, root)],
+        checkedClaims: ['physical-agent-materialization', 'named-role-runtime-dispatch'],
+        surfaceVerdict,
+        duplicateEvidence,
+        surfaces: surfacesEvidence,
+      };
+    }
     return {
       verdict: VERDICTS.PASS,
+      status: 'PASS',
       commands,
       reasons,
+      diagnostics: [`Codex named-role runtime dispatch passed with ${runtimeProbe.cliVersion}`],
+      checkedClaims: ['physical-agent-materialization', 'named-role-runtime-dispatch'],
       surfaceVerdict,
       duplicateEvidence,
-      surfaces: {
-        project: surfaces.project,
-        native: surfaces.native,
-        effective: discoverySummary.effective,
-        conflicts: discoverySummary.conflicts,
-        receipt: {
-          schema_version: manifest.schema_version,
-          plugin_version: manifest.plugin_version,
-          source_fingerprint: manifest.source_fingerprint,
-          mode: manifest.mode,
-          reconciliation: manifest.reconciliation || null,
-        },
-      },
+      surfaces: surfacesEvidence,
     };
   } finally {
     fs.rmSync(project, { recursive: true, force: true });
@@ -1038,9 +1291,9 @@ function runGate(args) {
     const pendingStatuses = new Set(['NOT_RUN', 'NOT_CONFIGURED', 'SKIP_INCOMPATIBLE']);
     verdict = row && pendingStatuses.has(row.status) ? VERDICTS.PENDING : (row && row.status ? row.status : VERDICTS.FAIL);
   } else if (codex.verdict === VERDICTS.FAIL || claude.verdict === VERDICTS.FAIL || cursorSync.status === 'FAIL' || projectedCodex.status === 'FAIL' || projectedCursor.status === 'FAIL') verdict = VERDICTS.FAIL;
-  else if (cursorSync.status === 'BLOCKED' || projectedCodex.status === 'BLOCKED' || projectedCursor.status === 'BLOCKED') verdict = VERDICTS.BLOCKED;
+  else if (codex.verdict === VERDICTS.BLOCKED || cursorSync.status === 'BLOCKED' || projectedCodex.status === 'BLOCKED' || projectedCursor.status === 'BLOCKED') verdict = VERDICTS.BLOCKED;
   else if (claude.verdict === VERDICTS.UNAVAILABLE) verdict = VERDICTS.UNAVAILABLE;
-  else if (cursorSync.status === 'NOT_RUN') verdict = VERDICTS.PENDING;
+  else if (codex.verdict === VERDICTS.PENDING || cursorSync.status === 'NOT_RUN') verdict = VERDICTS.PENDING;
   else verdict = VERDICTS.PASS;
 
   const stage = {
@@ -1092,6 +1345,8 @@ module.exports = {
   fingerprintPath,
   fingerprintProjectSkill,
   redactEvidence,
+  runCodexNamedRoleProbe,
+  validateCodexAgentMaterialization,
   verifyCodexSync,
   verifyCursorSync,
   verifyProjectedConsumer,
