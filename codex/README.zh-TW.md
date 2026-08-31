@@ -27,16 +27,18 @@ marketplace cache path。
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"
 ```
 
-預設會把 `<project>/.codex/{skills,agents}/*` symlink 回 plugin root，並將 trap
-sheet、review contract、execution policy 等 supporting tree materialize 到
-`<project>/.codex/dhpk/`。Receipt 是 ownership boundary：只有記錄在
+預設採 **hybrid projection**：skill 與 receipt-managed supporting asset 會
+symlink 回 source，但 `<project>/.codex/agents/*.toml` 一律建立為實體檔，讓
+Codex 能載入 configuration layer。Plugin 更新後執行 `--update`；既有
+receipt-owned agent link 會轉成實體檔，不會重做 skill link。Receipt 是
+ownership boundary：只有記錄在
 `.dhpk-installed.json` 且 destination 仍吻合 marker 的項目能被取代或移除。
 
 ### Flags
 
 | Flag | 效果 |
 |---|---|
-| `--copy` | 改用實體檔；適合 Windows、share 或 plugin root 可能消失的情境。 |
+| `--copy` | 將整個 projection 改為實體檔；預設 hybrid mode 的 agent TOML 已是實體檔。 |
 | `--update` | 即使 receipt 版本相同仍重新對齊；plugin 更新後使用。 |
 | `--migrate` | 升級 legacy receipt；只接管完全吻合且未變更的 destination。 |
 | `--uninstall` | 移除未變更且 receipt-owned 的項目；保留 edited/orphan/unrelated asset。 |
@@ -86,6 +88,10 @@ routing 與明確 `/opsx:*`；不要虛構可呼叫的 `/dhpk:do`。
 `deep-reasoner`、`doc-reviewer`、`planner`、`spec-miner`、`frontend-reviewer`、
 `migration-reviewer`、`e2e-runner`）。完整 role map、fallback 與 capability gate 見
 [`AGENTS.md`](./AGENTS.md) 及 [`agent-role-map.json`](./agent-role-map.json)。
+
+靜態 validation 與 current receipt 不等於可派發。必須啟動 fresh Codex session
+並實際派發所需具名角色；成功前，named-role runtime 維持 `NOT_RUN`、
+`UNAVAILABLE` 或實際觀測到的失敗。
 
 ## 移除
 

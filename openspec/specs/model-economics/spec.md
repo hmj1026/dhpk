@@ -119,7 +119,7 @@ map:
 #### Scenario: Role metadata matches the approved map
 - **WHEN** runtime contract tests inspect every direct role
 - **THEN** each role's model and effort equal the map above
-- **AND** no active Codex role uses GPT-5.5
+- **AND** every active Codex role uses the GPT-5.6 family
 
 #### Scenario: Global defaults do not erase role exceptions
 - **WHEN** a role file explicitly sets model or effort

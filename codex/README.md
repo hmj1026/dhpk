@@ -27,13 +27,13 @@ ephemeral marketplace-cache path.
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"
 ```
 
-By default the script creates **symlinks** from `<project>/.codex/{skills,agents}/*` back to the plugin cache and materializes the receipt-managed Codex support tree under `<project>/.codex/dhpk/` (trap sheets, review contracts, and execution policy). Symlinks track plugin updates automatically — re-run with `--update` after a plugin version bump to refresh. The receipt is an ownership boundary: only entries recorded in `.dhpk-installed.json` whose destination still matches its marker can be replaced or removed.
+By default the script uses a **hybrid projection**: skills and receipt-managed supporting assets are symlinked back to the source, while every `<project>/.codex/agents/*.toml` is a physical file so Codex can load it as a configuration layer. Re-run with `--update` after a plugin version bump; existing receipt-owned agent links are migrated to physical files without rematerializing skill links. The receipt is an ownership boundary: only entries recorded in `.dhpk-installed.json` whose destination still matches its marker can be replaced or removed.
 
 ### Flags
 
 | Flag | Effect |
 |------|--------|
-| `--copy` | Copy regular files instead of symlinking. Use on Windows without dev-mode, or on shares where symlinks misbehave. |
+| `--copy` | Make the entire projection physical. Agent TOMLs are already physical in the default hybrid mode. |
 | `--update` | Re-sync even when the recorded plugin version matches. Use after a manual edit to the plugin or after pulling a new plugin version. |
 | `--migrate` | Upgrade a legacy receipt. Only exact source matches are adopted; user-owned or mismatched destinations are preserved and reported. |
 | `--uninstall` | Remove unchanged receipt-owned entries. Edited or orphaned entries and unrelated project assets are preserved. |
@@ -77,6 +77,10 @@ callable `/dhpk:do`.
 `codex/agents/` ships 16 direct roles (synced into `.codex/agents/`): 4 hand-maintained generic roles (`explorer`, `worker`, `monitor`, `bug-investigator`) plus 12 roles generated from the canonical agents (`architect`, `code-reviewer`, `security-reviewer`, `database-reviewer`, `tdd-guide`, `deep-reasoner`, `doc-reviewer`, `planner`, `spec-miner`, `frontend-reviewer`, `migration-reviewer`, `e2e-runner`). See `AGENTS.md` and [`agent-role-map.json`](agent-role-map.json) for the complete role map and manual/capability-gated outcomes.
 
 Every `codex/agents/*.toml` file must declare non-empty `name`, `description`, `model`, `model_reasoning_effort`, and `developer_instructions` — Codex CLI auto-discovers `.codex/agents/*.toml` and errors if `name` is missing. Agent definitions use TOML only; the plugin's `validate_codex` gate enforces the runtime metadata contract.
+
+Static validation and a current receipt do not prove callability. Start a fresh
+Codex session and dispatch the required named role; until that succeeds, record
+named-role runtime as `NOT_RUN`, `UNAVAILABLE`, or the observed failure.
 
 The 12 generated roles come from `scripts/gen-codex-agents.js`, run as:
 
