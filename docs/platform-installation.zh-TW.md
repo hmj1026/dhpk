@@ -200,9 +200,10 @@ test -f .codex/.dhpk-installed.json
 test -z "$(find .codex/agents -type l -print)"
 ```
 
-上述檢查與 receipt 只證明安裝形態。必須由 fresh Codex session 實際派發 projected
-role，named-role runtime 才能從 `NOT_RUN` 升為 `PASS`；unavailable 或 unknown
-custom role 都是 non-pass evidence，不能由靜態 installer PASS 取代。
+上述檢查與 receipt 只證明安裝形態。named-role runtime 在 fresh Codex session
+實際派發 projected role 之前維持 `NOT_RUN`；unavailable 或 unknown custom role
+都是 non-pass evidence，不能由靜態 installer PASS 取代。派發本身不是 runtime
+`PASS`。
 
 Registry canary 必須使用非內建 custom role，並比較其 hyphenated 與 underscored
 兩種形式；內建 `explorer` 成功只證明 multi-agent tooling 可用。若 valid Git
