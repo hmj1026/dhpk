@@ -205,6 +205,19 @@ Codex lifecycle hooks and `sandbox_mode` are independent controls: hooks can enf
 
 ### Role discovery
 
-Syncing `.codex/agents/` alone is sufficient for role discovery — each role `.toml` file carries its own `name` field, and Codex CLI reads roles directly from that directory. The `[agents.<name>]` blocks in `config.toml.example` are **optional**: they add a description or nickname. The supported top-level concurrency setting is `max_concurrent_threads_per_session`; the example also shows the effective default subagent model and reasoning effort.
+dhpk targets Codex's project-local `.codex/agents/*.toml` discovery path. Each
+role file carries its own `name`; matching the filename is a convention, while
+the TOML field is the identifier. The `[agents.<name>]` blocks in
+`config.toml.example` are optional metadata, not a runtime workaround. The
+supported top-level concurrency setting is `max_concurrent_threads_per_session`;
+the example also shows the effective default subagent model and reasoning
+effort.
 
-Every `codex/agents/*.toml` file MUST declare non-empty `name`, `description`, `model`, `model_reasoning_effort`, and `developer_instructions` — Codex CLI auto-discovers `.codex/agents/*.toml` and errors "must define a non-empty name" if `name` is missing, and the plugin's `validate_codex` guardrail enforces the runtime metadata contract. Codex agent definitions are TOML-only; legacy Markdown role bodies are not dispatchable. The 12 generated roles are produced by `scripts/gen-codex-agents.js` from the canonical `agents/<name>.md` sources; the generator is deterministic/idempotent (re-running with no source change produces byte-identical output) and does not touch the 4 hand-maintained roles. Model and effort rationale is maintained in `../rules/model-economics.md`.
+Every `codex/agents/*.toml` file MUST declare non-empty `name`, `description`, `model`, `model_reasoning_effort`, and `developer_instructions`; the plugin's `validate_codex` guardrail enforces this static metadata contract. Codex agent definitions are TOML-only; legacy Markdown role bodies are not dispatchable. The 12 generated roles are produced by `scripts/gen-codex-agents.js` from the canonical `agents/<name>.md` sources; the generator is deterministic/idempotent (re-running with no source change produces byte-identical output) and does not touch the 4 hand-maintained roles. Model and effort rationale is maintained in `../rules/model-economics.md`.
+
+A physical file, valid metadata, and successful built-in `explorer` dispatch do
+not prove that the project custom-role registry loaded. Runtime PASS requires a
+fresh `codex exec` session with an observed custom-role spawn and targeted wait.
+On `unknown agent_type`, follow the Codex registry branch in
+`../rules/execution-policy.md`; retain the exact role ID and GPT-5.6 family model
+instead of treating either as a speculative fix.

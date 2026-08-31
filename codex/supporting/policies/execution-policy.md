@@ -92,3 +92,22 @@ can read `.codex/config.toml`; (2) use the exact registry id, such as
 concurrent-agent limit; (4) when configuration changed after session startup,
 restart with a new session so the role registry reloads. This is a read-only
 diagnostic sequence, not authority to create or rewrite configuration.
+
+Exact spelling is only a syntax check for project-local Codex roles. Probe a
+physical custom-role TOML from a valid Git checkout and compare a non-built-in
+custom canary in hyphenated and underscored forms; built-in `explorer` success
+does not prove project custom-role discovery. If the custom probes still return
+`unknown agent_type`, record `CUSTOM_AGENT_REGISTRY_UNAVAILABLE`, the CLI
+version, and bounded redacted diagnostics. Keep the gate `FAIL`, dependent work
+`BLOCKED`, and the registered names, GPT-5.6 family models, and configuration
+unchanged. Model rejection is separate evidence because registry resolution
+precedes child model selection.
+
+Do not infer `CUSTOM_AGENT_REGISTRY_UNAVAILABLE` from missing typed
+collaboration events alone. Require affirmative unavailable-role or observed
+`untyped-fallback evidence`—a fallback spawn observed without `agent_type`—from
+the gate-owned trusted disposable-home probe—a fresh isolated temporary
+`CODEX_HOME` created by the gate to capture the dispatch. Without either—including only a text
+`CODEX_DHPK_NAMED_ROLES=PASS` marker alone—retain bounded evidence and report
+generic `FAIL`; investigate collaboration-tool exposure/protocol separately.
+This is neither runtime `PASS` nor an unavailable-registry diagnosis.

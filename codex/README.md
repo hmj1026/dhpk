@@ -76,11 +76,15 @@ callable `/dhpk:do`.
 
 `codex/agents/` ships 16 direct roles (synced into `.codex/agents/`): 4 hand-maintained generic roles (`explorer`, `worker`, `monitor`, `bug-investigator`) plus 12 roles generated from the canonical agents (`architect`, `code-reviewer`, `security-reviewer`, `database-reviewer`, `tdd-guide`, `deep-reasoner`, `doc-reviewer`, `planner`, `spec-miner`, `frontend-reviewer`, `migration-reviewer`, `e2e-runner`). See `AGENTS.md` and [`agent-role-map.json`](agent-role-map.json) for the complete role map and manual/capability-gated outcomes.
 
-Every `codex/agents/*.toml` file must declare non-empty `name`, `description`, `model`, `model_reasoning_effort`, and `developer_instructions` — Codex CLI auto-discovers `.codex/agents/*.toml` and errors if `name` is missing. Agent definitions use TOML only; the plugin's `validate_codex` gate enforces the runtime metadata contract.
+Every `codex/agents/*.toml` file must declare non-empty `name`, `description`, `model`, `model_reasoning_effort`, and `developer_instructions` for Codex's documented project-local discovery path. Agent definitions use TOML only; the plugin's `validate_codex` gate enforces the static metadata contract.
 
 Static validation and a current receipt do not prove callability. Start a fresh
-Codex session and dispatch the required named role; until that succeeds, record
-named-role runtime as `NOT_RUN`, `UNAVAILABLE`, or the observed failure.
+Codex session and dispatch a non-built-in custom role; built-in `explorer`
+cannot serve as the custom-registry canary. Until an actual spawn and targeted
+wait succeed, record named-role runtime as `NOT_RUN`, `UNAVAILABLE`, or the
+observed failure. An exact-ID `unknown agent_type` is a registry failure, not
+evidence to rename the role or replace its GPT-5.6 family model; see
+[`AGENTS.md`](AGENTS.md#role-discovery).
 
 The 12 generated roles come from `scripts/gen-codex-agents.js`, run as:
 
