@@ -19,6 +19,7 @@ const { compileDistribution, verifyDistribution } = require('./distribution-comp
 const { fingerprint, createDistributionArtifact, projectionError } = require('./distribution-projection-contract');
 const { REQUIRED_SURFACES, REQUIRED_RUNTIME_SURFACES } = require('./harness-surfaces');
 const { validateInternalRuntimeSkills } = require('./internal-runtime-skills');
+const { assertCanonicalSkillPath } = require('./distribution-inventory-regeneration');
 
 const LIFECYCLES = ['promoted', 'optional', 'experimental', 'deprecated'];
 const SURFACES = [
@@ -82,9 +83,10 @@ function classifyCanonicalInventory(root) {
 
   const skills = inv.paths.skills.map((absPath) => {
     const relPath = relativePosix(root, absPath);
+    const canonical = assertCanonicalSkillPath(relPath);
     const dirRel = path.dirname(relPath);
     const id = skillIdFromPath(relPath);
-    const isModuleSkill = /^modules\//.test(relPath);
+    const isModuleSkill = canonical.classification === 'module';
     const surfaces = isModuleSkill ? ['claude-module'] : ['claude-core'];
     if (codexMirrorSet.has(id)) surfaces.push('codex-sync');
     return {

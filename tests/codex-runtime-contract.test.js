@@ -77,6 +77,31 @@ function write(file, content) {
   fs.writeFileSync(file, content);
 }
 
+function appendDeveloperInstructions(file, text) {
+  const source = fs.readFileSync(file, 'utf8');
+  const closing = source.lastIndexOf('"""');
+  assert.ok(closing > 0, `${file}: developer_instructions closing delimiter missing`);
+  fs.writeFileSync(file, `${source.slice(0, closing)}\n${text.trim()}\n${source.slice(closing)}`);
+}
+
+function installConsumerProjection(root) {
+  fs.mkdirSync(path.join(root, '.git'));
+  const installed = spawnSync('bash', [path.join(ROOT, 'scripts', 'hooks', 'install-codex-skills.sh'), '--copy', '--force'], {
+    cwd: root,
+    env: { ...process.env, CLAUDE_PLUGIN_ROOT: ROOT },
+    encoding: 'utf8',
+  });
+  assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
+}
+
+function assertNeighborError(errors, { source, token, state }) {
+  const diagnostic = errors.find((error) => error.includes(token));
+  assert.ok(diagnostic, `missing ${token} diagnostic:\n${errors.join('\n')}`);
+  assert.match(diagnostic, new RegExp(source));
+  assert.match(diagnostic, new RegExp(`\\b${state}\\b`, 'i'));
+  assert.match(diagnostic, /direct Codex role|explicit manual fallback/i);
+}
+
 function cloneProjectionFixture(prefix) {
   const root = tmpRoot(prefix);
   for (const entry of ['agents', 'agent-traps', 'codex', 'manifests', 'modules']) {
@@ -254,6 +279,146 @@ test('clean consumer projection reports unreachable references inside supporting
     const errors = collectCodexProjectionReferenceErrors(root, ROOT);
     assert.ok(errors.some((error) => error.includes('unreachable Claude project reference')), errors.join('\n'));
     assert.ok(errors.some((error) => error.includes('unresolved source-tree reference')), errors.join('\n'));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('consumer projection fails closed when sourceRoot role contracts are missing or malformed', () => {
+  const cases = [
+    {
+      label: 'missing role map',
+      relative: path.join('codex', 'agent-role-map.json'),
+      mutate(file) { fs.rmSync(file); },
+      expected: /codex\/agent-role-map\.json.*canonical Codex coverage matrix is missing/i,
+    },
+    {
+      label: 'malformed role map JSON',
+      relative: path.join('codex', 'agent-role-map.json'),
+      mutate(file) { fs.writeFileSync(file, '{'); },
+      expected: /codex\/agent-role-map\.json.*coverage matrix is not valid JSON/i,
+    },
+    {
+      label: 'malformed role map shape',
+      relative: path.join('codex', 'agent-role-map.json'),
+      mutate(file) { fs.writeFileSync(file, '{"roles":[]}\n'); },
+      expected: /codex\/agent-role-map\.json.*must contain a roles object/i,
+    },
+    {
+      label: 'missing ownership manifest',
+      relative: path.join('codex', 'agent-projection-manifest.json'),
+      mutate(file) { fs.rmSync(file); },
+      expected: /codex\/agent-projection-manifest\.json.*role ownership manifest is missing/i,
+    },
+    {
+      label: 'malformed ownership manifest JSON',
+      relative: path.join('codex', 'agent-projection-manifest.json'),
+      mutate(file) { fs.writeFileSync(file, '{'); },
+      expected: /codex\/agent-projection-manifest\.json.*role ownership manifest is not valid JSON/i,
+    },
+  ];
+
+  for (const fixture of cases) {
+    const sourceRoot = cloneProjectionFixture(`codex-neighbor-source-root-${fixture.label.replace(/\s+/g, '-')}`);
+    const consumer = tmpRoot(`codex-neighbor-source-root-consumer-${fixture.label.replace(/\s+/g, '-')}`);
+    try {
+      fixture.mutate(path.join(sourceRoot, fixture.relative));
+      installConsumerProjection(consumer);
+      const errors = collectCodexProjectionReferenceErrors(consumer, sourceRoot);
+      assert.ok(errors.some((error) => fixture.expected.test(error)), `${fixture.label}: ${errors.join('\n')}`);
+    } finally {
+      fs.rmSync(sourceRoot, { recursive: true, force: true });
+      fs.rmSync(consumer, { recursive: true, force: true });
+    }
+  }
+});
+
+test('mutation: committed and clean consumer generated roles reject an unknown executable neighbor', () => {
+  const committed = cloneProjectionFixture('codex-neighbor-committed-unknown-red');
+  const consumer = tmpRoot('codex-neighbor-consumer-unknown-red');
+  try {
+    const committedFile = path.join(committed, 'codex', 'agents', 'code-reviewer.toml');
+    appendDeveloperInstructions(committedFile, 'dispatch `ghost-role` for the unresolved handoff.');
+    const committedErrors = collectCodexProjectionReferenceErrors(committed);
+
+    installConsumerProjection(consumer);
+    const consumerFile = path.join(consumer, '.codex', 'agents', 'code-reviewer.toml');
+    appendDeveloperInstructions(consumerFile, 'dispatch `ghost-role` for the unresolved handoff.');
+    const consumerErrors = collectCodexProjectionReferenceErrors(consumer, ROOT);
+
+    for (const errors of [committedErrors, consumerErrors]) {
+      assertNeighborError(errors, {
+        source: 'code-reviewer',
+        token: 'ghost-role',
+        state: 'unknown',
+      });
+    }
+  } finally {
+    fs.rmSync(committed, { recursive: true, force: true });
+    fs.rmSync(consumer, { recursive: true, force: true });
+  }
+});
+
+test('mutation: committed and clean consumer generated roles reject known non-direct neighbors without dispatch wording', () => {
+  const committed = cloneProjectionFixture('codex-neighbor-committed-known-red');
+  const consumer = tmpRoot('codex-neighbor-consumer-known-red');
+  try {
+    const committedFile = path.join(committed, 'codex', 'agents', 'code-reviewer.toml');
+    appendDeveloperInstructions(committedFile, 'Historical notes retain `silent-failure-hunter`.');
+    const committedErrors = collectCodexProjectionReferenceErrors(committed);
+
+    installConsumerProjection(consumer);
+    const consumerFile = path.join(consumer, '.codex', 'agents', 'code-reviewer.toml');
+    appendDeveloperInstructions(consumerFile, 'Historical notes retain `silent-failure-hunter`.');
+    const consumerErrors = collectCodexProjectionReferenceErrors(consumer, ROOT);
+
+    for (const errors of [committedErrors, consumerErrors]) {
+      assertNeighborError(errors, {
+        source: 'code-reviewer',
+        token: 'silent-failure-hunter',
+        state: 'merged',
+      });
+    }
+  } finally {
+    fs.rmSync(committed, { recursive: true, force: true });
+    fs.rmSync(consumer, { recursive: true, force: true });
+  }
+});
+
+test('generic Codex roles skip the neighbor fence while metadata, ownership, and reference checks stay active', () => {
+  const root = cloneProjectionFixture('codex-neighbor-generic-exclusion');
+  try {
+    appendDeveloperInstructions(
+      path.join(root, 'codex', 'agents', 'worker.toml'),
+      [
+        'dispatch `ghost-role` from this generic worker role.',
+        'Historical notes retain `silent-failure-hunter`.',
+        '${CLAUDE_PLUGIN_ROOT}/rules/tool-routing.md',
+      ].join('\n'),
+    );
+    const explorer = path.join(root, 'codex', 'agents', 'explorer.toml');
+    fs.writeFileSync(
+      explorer,
+      fs.readFileSync(explorer, 'utf8').replace('model = "gpt-5.6-terra"', 'model = "not-a-codex-model"'),
+    );
+    fs.rmSync(path.join(root, 'codex', 'agents', 'monitor.toml'));
+
+    const errors = [
+      ...collectCodexRuntimeErrors(root),
+      ...collectCodexCoverageErrors(root),
+    ];
+    assert.ok(!errors.some((error) => /ghost-role/.test(error)), errors.join('\n'));
+    assert.ok(
+      !errors.some((error) => error.includes('silent-failure-hunter') && /merged|direct Codex role|explicit manual fallback/i.test(error)),
+      errors.join('\n'),
+    );
+    assert.ok(
+      errors.some((error) => /references non-dispatchable Codex agent 'silent-failure-hunter'/i.test(error)),
+      errors.join('\n'),
+    );
+    assert.ok(errors.some((error) => /invalid model.*not-a-codex-model/i.test(error)), errors.join('\n'));
+    assert.ok(errors.some((error) => /package-owned role 'monitor'.*missing/i.test(error)), errors.join('\n'));
+    assert.ok(errors.some((error) => /CLAUDE_PLUGIN_ROOT|unsupported.*interpolation/i.test(error)), errors.join('\n'));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

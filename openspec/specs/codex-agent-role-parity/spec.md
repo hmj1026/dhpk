@@ -131,7 +131,7 @@ this provider vocabulary change.
 
 ### Requirement: Validation guardrail rejects malformed codex role files
 
-The codex validation path (`multi_ai_sync_lib.validation.validate_codex`) SHALL assert that every `codex/agents/*.toml` declares non-empty `name`, `description`, and `developer_instructions`, SHALL require filename/name equality, SHALL validate model, reasoning-effort, and sandbox values against the running Codex catalog, and SHALL fail when a generated role contains an unreachable required asset reference, ghost target, unavailable supporting handoff, or stale package-owned TOML outside the ownership manifest. Generated and hand-maintained roles SHALL be validated together, while explicitly declared workspace-local extensions SHALL be reported separately.
+The codex validation path (`multi_ai_sync_lib.validation.validate_codex`) SHALL assert that every `codex/agents/*.toml` declares non-empty `name`, `description`, and `developer_instructions`, SHALL require filename/name equality, SHALL validate model, reasoning-effort, and sandbox values against the running Codex catalog, and SHALL fail when a generated role contains an unreachable required asset reference, ghost target, unavailable supporting handoff, or stale package-owned TOML outside the ownership manifest. Generated and hand-maintained roles SHALL be validated together, while explicitly declared workspace-local extensions SHALL be reported separately. For roles named by the ownership manifest's `generated_roles`, generation SHALL validate the final adapted description and body before writing, and committed plus fresh-consumer projection validation SHALL reapply the same role-neighbor fence. The fence SHALL use `codex/agent-role-map.json` as its sole role-status authority: a known fenced role token MUST have `direct` status regardless of nearby prose and its matrix target MUST be declared by the ownership manifest's `package_roles`. Generation MUST resolve that target against the complete preflight output set plus existing hand-maintained package roles without depending on write order; committed and consumer validation MUST resolve it to a physical TOML in the complete role root being checked. An unknown fenced role-shaped token MUST fail only when it occurs in the same logical line, list item, or table cell as an exact lower-case dispatch, delegate, handoff, hand off, invoke, or spawn context; fenced code blocks are excluded, and the role candidate MUST be a single-backtick inline identifier matching `[a-z][a-z0-9]*(?:-[a-z0-9]+)*`. The fence MUST NOT infer or auto-map a replacement for a non-direct or unknown token, MUST exclude the ownership manifest's hand-maintained package roles from this new scan, and MUST report the source role, token, matrix status or `unknown`, and the required direct-role or explicit-manual-fallback remediation.
 
 #### Scenario: Missing name fails validation
 - **WHEN** a `codex/agents/*.toml` lacks a non-empty `name`
@@ -156,6 +156,75 @@ The codex validation path (`multi_ai_sync_lib.validation.validate_codex`) SHALL 
 #### Scenario: Stale package-owned TOML fails loudly
 - **WHEN** generation leaves a package-owned generated TOML outside the declared generated set
 - **THEN** generation or validation fails and identifies the stale file without deleting a separately declared local extension
+
+#### Scenario: Generated source with a known non-direct neighbor fails before write
+- **WHEN** an ownership-manifest `generated_roles` source is adapted and its
+  description or body still contains the fenced token `silent-failure-hunter`,
+  whose role-map status is `merged`
+- **THEN** generation fails before writing that generated role TOML
+- **AND** the diagnostic names the source role, `silent-failure-hunter`, its
+  `merged` status, and requires a direct Codex role or an explicit manual
+  fallback
+
+#### Scenario: Unknown executable ghost fails closed
+- **WHEN** an adapted `generated_roles` description or body contains an
+  unknown fenced token such as `ghost-role` in the same list item, table cell,
+  or line as explicit `dispatch`, `delegate`, `handoff`, `hand off`, `invoke`,
+  or `spawn` context
+- **THEN** generation fails before writing that generated role TOML
+- **AND** the diagnostic names the source role and `ghost-role`, identifies
+  its state as `unknown`, and requires a direct Codex role or an explicit
+  manual fallback
+
+#### Scenario: Committed generated TOML mutation fails validation
+- **WHEN** a committed generated TOML or a generated TOML in a fresh,
+  otherwise-clean consumer checkout named by `generated_roles` is mutated to
+  contain an executable handoff to an unknown fenced token such as `ghost-role`
+- **THEN** the committed/consumer projection validator rejects the mutation
+- **AND** the diagnostic names the source role and token, identifies the state
+  as `unknown`, and requires a direct Codex role or an explicit manual
+  fallback
+
+#### Scenario: Later projection rejects a known non-direct neighbor
+
+- **WHEN** a committed generated TOML or a generated TOML in a fresh,
+  otherwise-clean consumer checkout is mutated to contain the fenced token
+  `silent-failure-hunter`, whose role-map status is `merged`
+- **THEN** the committed/consumer projection validator rejects the mutation
+  regardless of nearby dispatch wording
+- **AND** the diagnostic names the source role, token, `merged` status, and
+  required direct-role or explicit-manual-fallback remediation
+
+#### Scenario: Direct role handoff passes
+- **WHEN** an adapted `generated_roles` description or body contains a fenced
+  executable handoff to a role whose `agent-role-map.json` status is `direct`
+  and whose direct Codex role is declared
+- **THEN** generation and the committed/consumer projection validation pass
+  that handoff without requiring a fallback
+
+#### Scenario: Direct status with an unresolved target fails
+
+- **WHEN** a fenced token has role-map status `direct` but its matrix target is
+  absent from the ownership manifest's `package_roles`, absent from the
+  generator's complete preflight role set, or lacks a physical TOML in the
+  committed or consumer role root being checked
+- **THEN** generation or validation fails closed and identifies the token and
+  unresolved direct target
+
+#### Scenario: Non-role tokens avoid false positives
+- **WHEN** adapted generated-role text contains fenced `data-testid`,
+  `playwright-cli`, file names or path fragments, version strings, and a
+  historical or descriptive mention of an unknown role-shaped token without
+  explicit dispatch context
+- **THEN** the role-neighbor fence reports no error for those non-role uses
+  while the existing metadata, ownership, and reference checks remain active
+
+#### Scenario: Hand-maintained package roles retain existing validation
+
+- **WHEN** validation inspects `bug-investigator`, `explorer`, `monitor`, or
+  `worker`
+- **THEN** the new role-neighbor fence does not scan that hand-maintained role
+  while all existing metadata, ownership, and reference checks remain active
 
 ### Requirement: Every canonical agent has an explicit Codex coverage outcome
 

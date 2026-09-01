@@ -18,9 +18,320 @@ const {
   preserveProjectionContract,
   writeInventoryAtomically,
 } = require('../scripts/lib/distribution-inventory');
+const generator = require('../scripts/ci/gen-distribution-inventory');
 
 const ROOT = path.join(__dirname, '..');
 const MANIFEST = path.join(ROOT, 'manifests', 'distribution-inventory.json');
+
+function writableCapture() {
+  let value = '';
+  return {
+    write(chunk) { value += String(chunk); },
+    text() { return value; },
+  };
+}
+
+function demoRoot(nested = false) {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-generator-red-'));
+  const skillPath = nested ? path.join(temp, 'skills', 'group', 'demo') : path.join(temp, 'skills', 'demo');
+  fs.mkdirSync(skillPath, { recursive: true });
+  fs.writeFileSync(path.join(skillPath, 'SKILL.md'), '# demo\n');
+  return temp;
+}
+
+function invokeWrite(root, out) {
+  const stdout = writableCapture();
+  const stderr = writableCapture();
+  const result = generator.run({ argv: ['--write'], root, out, stdout, stderr });
+  return { result, stdout: stdout.text(), stderr: stderr.text() };
+}
+
+function invoke(root, out, options = {}) {
+  const stdout = writableCapture();
+  const stderr = writableCapture();
+  const result = generator.run({ argv: ['--write'], root, out, stdout, stderr, ...options });
+  return { result, stdout: stdout.text(), stderr: stderr.text() };
+}
+
+function invokeRoute(argv, root, out) {
+  const stdout = writableCapture();
+  const stderr = writableCapture();
+  const result = generator.run({ argv, root, out, stdout, stderr });
+  return { result, stdout: stdout.text(), stderr: stderr.text() };
+}
+
+function statusOf(result) {
+  return typeof result === 'number' ? result : result.status;
+}
+
+test('refresh with missing output returns status 2 and does not write', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-generator-refresh-missing-'));
+  const output = path.join(temp, 'inventory.json');
+  try {
+    const observed = invokeRoute(['--refresh-supporting-digests'], temp, output);
+    assert.strictEqual(statusOf(observed.result), 2);
+    assert.match(observed.stderr, /no checked-in inventory to refresh/);
+    assert.strictEqual(fs.existsSync(output), false);
+  } finally { fs.rmSync(temp, { recursive: true, force: true }); }
+});
+
+test('summary reports checked-in manifest headline and counts', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-generator-summary-'));
+  const output = path.join(temp, 'inventory.json');
+  fs.copyFileSync(MANIFEST, output);
+  try {
+    const observed = invokeRoute([], temp, output);
+    const inventory = JSON.parse(fs.readFileSync(MANIFEST, 'utf8'));
+    assert.strictEqual(statusOf(observed.result), 0);
+    assert.match(observed.stdout, /dhpk distribution inventory:/);
+    assert.match(observed.stdout, new RegExp(`skills:\\s+${inventory.skills.length}`));
+    assert.match(observed.stdout, new RegExp(`modules:\\s+${inventory.modules.length}`));
+    assert.match(observed.stdout, /codex-sync surface:/);
+  } finally { fs.rmSync(temp, { recursive: true, force: true }); }
+});
+
+test('summary with parsed false scalar reports compile failure without write', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-generator-summary-false-'));
+  const output = path.join(temp, 'inventory.json');
+  fs.writeFileSync(output, 'false\n');
+  try {
+    const observed = invokeRoute([], temp, output);
+    assert.strictEqual(statusOf(observed.result), 1);
+    assert.match(observed.stderr, /Claude projection compilation failed/);
+    assert.strictEqual(fs.readFileSync(output, 'utf8'), 'false\n');
+  } finally { fs.rmSync(temp, { recursive: true, force: true }); }
+});
+
+test('summary classification with missing output and nested skill is unclassified', () => {
+  const temp = demoRoot(true);
+  const output = path.join(temp, 'inventory.json');
+  try {
+    const observed = invokeRoute([], temp, output);
+    assert.strictEqual(statusOf(observed.result), 1);
+    assert.match(observed.stderr, /unclassified canonical entry: skills\/group\/demo/);
+    assert.strictEqual(fs.existsSync(output), false);
+  } finally { fs.rmSync(temp, { recursive: true, force: true }); }
+});
+
+test('missing output classifies a recognized root skill and writes literal v1 projection', () => {
+  const temp = demoRoot();
+  const output = path.join(temp, 'inventory.json');
+  try {
+    const { result, stdout, stderr } = invokeWrite(temp, output);
+    assert.strictEqual(statusOf(result), 0, stderr);
+    assert.match(stdout, /wrote 1 skills \+ 0 modules/);
+    const inventory = JSON.parse(fs.readFileSync(output, 'utf8'));
+    assert.strictEqual(inventory.schema, 'dhpk.distribution-inventory.v1');
+    assert.deepStrictEqual(inventory.skills, [{
+      id: 'demo', path: 'skills/demo', lifecycle: 'promoted', surfaces: ['claude-core'],
+    }]);
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test('refresh-supporting-digests remains available separately from v2 write refusal', () => {
+  const temp = demoRoot();
+  const output = path.join(temp, 'inventory.json');
+  try {
+    const bootstrap = generator.run({ argv: ['--write'], root: temp, out: output });
+    assert.strictEqual(statusOf(bootstrap), 0);
+
+    const stdout = writableCapture();
+    const stderr = writableCapture();
+    const refreshed = generator.run({
+      argv: ['--refresh-supporting-digests'], root: temp, out: output, stdout, stderr,
+    });
+    assert.strictEqual(statusOf(refreshed), 0);
+    assert.match(stdout.text(), /refreshed transformed supporting-asset provenance/);
+    assert.strictEqual(stderr.text(), '');
+    const inventory = JSON.parse(fs.readFileSync(output, 'utf8'));
+    assert.strictEqual(inventory.schema, 'dhpk.distribution-inventory.v1');
+    assert.deepStrictEqual(inventory.skills, [{
+      id: 'demo', path: 'skills/demo', lifecycle: 'promoted', surfaces: ['claude-core'],
+    }]);
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test('checked-in v2 refresh succeeds and subsequent write refusal preserves refreshed bytes', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-generator-v2-refresh-'));
+  const output = path.join(temp, 'inventory.json');
+  fs.copyFileSync(MANIFEST, output);
+  try {
+    const stdout = writableCapture();
+    const stderr = writableCapture();
+    const refreshed = generator.run({
+      argv: ['--refresh-supporting-digests'], root: ROOT, out: output, stdout, stderr,
+    });
+    assert.strictEqual(statusOf(refreshed), 0, stderr.text());
+    assert.match(stdout.text(), /refreshed transformed supporting-asset provenance/);
+    assert.strictEqual(stderr.text(), '');
+    const refreshedBytes = fs.readFileSync(output, 'utf8');
+    assert.strictEqual(JSON.parse(refreshedBytes).schema, 'dhpk.distribution-inventory.v2');
+
+    const refused = invokeWrite(ROOT, output);
+    assert.notStrictEqual(statusOf(refused.result), 0);
+    assert.strictEqual(fs.readFileSync(output, 'utf8'), refreshedBytes);
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test('falsey parsed JSON inventories fail closed without changing exact bytes', () => {
+  for (const literal of ['null\n', 'false\n', '0\n', '""\n']) {
+    const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-generator-falsey-'));
+    const output = path.join(temp, 'inventory.json');
+    fs.writeFileSync(output, literal);
+    try {
+      const observed = invokeWrite(temp, output);
+      assert.notStrictEqual(statusOf(observed.result), 0, literal);
+      assert.match(observed.stderr, /unsupported|invalid schema/i, literal);
+      assert.strictEqual(fs.readFileSync(output, 'utf8'), literal);
+    } finally {
+      fs.rmSync(temp, { recursive: true, force: true });
+    }
+  }
+});
+
+test('writeInventory injection is used once for missing output and zero times on v2 refusal', () => {
+  const temp = demoRoot();
+  const output = path.join(temp, 'inventory.json');
+  let calls = 0;
+  const supplied = [];
+  const writeInventory = (filePath, content) => {
+    calls += 1;
+    supplied.push(content);
+    fs.writeFileSync(filePath, content);
+  };
+  try {
+    const first = invoke(temp, output, { writeInventory });
+    assert.strictEqual(statusOf(first.result), 0, first.stderr);
+    assert.strictEqual(calls, 1);
+    assert.strictEqual(fs.readFileSync(output, 'utf8'), supplied[0]);
+    const literal = '{"schema":"dhpk.distribution-inventory.v2"}\n';
+    fs.writeFileSync(output, literal);
+    calls = 0;
+    const refused = invoke(temp, output, { writeInventory });
+    assert.notStrictEqual(statusOf(refused.result), 0);
+    assert.strictEqual(calls, 0);
+    assert.strictEqual(fs.readFileSync(output, 'utf8'), literal);
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test('existing exact v1 preserves supported projection contract while adding recognized classification', () => {
+  const temp = demoRoot();
+  const output = path.join(temp, 'inventory.json');
+  const existing = '{"schema":"dhpk.distribution-inventory.v1","projection_contract":{"marker":"keep"}}\n';
+  fs.writeFileSync(output, existing);
+  try {
+    const { result, stderr } = invokeWrite(temp, output);
+    assert.strictEqual(statusOf(result), 0, stderr);
+    const inventory = JSON.parse(fs.readFileSync(output, 'utf8'));
+    assert.deepStrictEqual(inventory.projection_contract, { marker: 'keep' });
+    assert.deepStrictEqual(inventory.skills, [{
+      id: 'demo', path: 'skills/demo', lifecycle: 'promoted', surfaces: ['claude-core'],
+    }]);
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test('existing v2 with omitted skills refuses write and preserves exact bytes', () => {
+  const temp = demoRoot();
+  const output = path.join(temp, 'inventory.json');
+  const literal = '{"schema":"dhpk.distribution-inventory.v2","skills":[]}\n';
+  fs.writeFileSync(output, literal);
+  try {
+    const { result, stderr } = invokeWrite(temp, output);
+    assert.notStrictEqual(statusOf(result), 0);
+    assert.match(stderr, /--refresh-supporting-digests/);
+    assert.strictEqual(fs.readFileSync(output, 'utf8'), literal);
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test('malformed existing inventory returns nonzero and preserves exact bytes', () => {
+  const temp = demoRoot();
+  const output = path.join(temp, 'inventory.json');
+  const literal = '{malformed\n';
+  fs.writeFileSync(output, literal);
+  try {
+    let observed;
+    assert.doesNotThrow(() => { observed = invokeWrite(temp, output); });
+    assert.notStrictEqual(statusOf(observed.result), 0);
+    assert.strictEqual(fs.readFileSync(output, 'utf8'), literal);
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test('unknown existing schema fails closed with an unsupported-schema diagnostic', () => {
+  const temp = demoRoot();
+  const output = path.join(temp, 'inventory.json');
+  const literal = '{"schema":"dhpk.distribution-inventory.v999"}\n';
+  fs.writeFileSync(output, literal);
+  try {
+    const { result, stderr } = invokeWrite(temp, output);
+    assert.notStrictEqual(statusOf(result), 0);
+    assert.match(stderr, /unknown|unsupported schema/i);
+    assert.strictEqual(fs.readFileSync(output, 'utf8'), literal);
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test('unclassified nested canonical skill fails before creating a missing output', () => {
+  const temp = demoRoot(true);
+  const output = path.join(temp, 'inventory.json');
+  try {
+    const { result, stderr } = invokeWrite(temp, output);
+    assert.notStrictEqual(statusOf(result), 0);
+    assert.match(stderr, /skills\/group\/demo/);
+    assert.strictEqual(fs.existsSync(output), false);
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test('unclassified nested canonical skill fails and preserves an existing v1 inventory', () => {
+  const temp = demoRoot(true);
+  const output = path.join(temp, 'inventory.json');
+  const literal = '{"schema":"dhpk.distribution-inventory.v1","skills":[]}\n';
+  fs.writeFileSync(output, literal);
+  try {
+    const { result, stderr } = invokeWrite(temp, output);
+    assert.notStrictEqual(statusOf(result), 0);
+    assert.match(stderr, /identity|skills\/group\/demo/);
+    assert.strictEqual(fs.readFileSync(output, 'utf8'), literal);
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
+
+test('generator refuses a write over an existing v2 inventory and preserves its bytes', () => {
+  const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-generator-'));
+  const output = path.join(temp, 'dhpk.distribution-inventory.v2');
+  const literal = '{"schema":"dhpk.distribution-inventory.v2"}\n';
+  fs.writeFileSync(output, literal);
+  try {
+    assert.strictEqual(typeof generator.run, 'function', 'gen-distribution-inventory must export an injectable run function');
+    const stdout = writableCapture();
+    const stderr = writableCapture();
+    const result = generator.run({ argv: ['--write'], root: temp, out: output, stdout, stderr });
+    const status = typeof result === 'number' ? result : result.status;
+    assert.notStrictEqual(status, 0);
+    assert.strictEqual(stdout.text(), '');
+    assert.match(stderr.text(), /--refresh-supporting-digests/);
+    assert.strictEqual(fs.readFileSync(output, 'utf8'), literal);
+  } finally {
+    fs.rmSync(temp, { recursive: true, force: true });
+  }
+});
 
 test('checked-in manifest exists and declares the v2 schema', () => {
   assert.ok(fs.existsSync(MANIFEST), 'manifests/distribution-inventory.json is missing — run scripts/ci/gen-distribution-inventory.js --write');

@@ -178,7 +178,7 @@ stable-ID provenance linking it to the owner.
 
 ### Requirement: Distribution inventory is the projection selection SSOT
 
-`manifests/distribution-inventory.json` SHALL be the sole source of component selection, lifecycle, permitted surfaces, canonical source identity, physical ownership, transforms, symlink policy, and profile membership supplied to `compileDistribution`. Install profiles and module catalogs MAY provide normalized selection inputs, but generators, adapters, manifests, directory layouts, README lists, and installed artifacts MUST NOT independently add, remove, promote, or re-own a distribution entry. Retirement rows from Change A are never selectable entries.
+`manifests/distribution-inventory.json` SHALL be the sole source of component selection, lifecycle, permitted surfaces, canonical source identity, physical ownership, transforms, symlink policy, and profile membership supplied to `compileDistribution`. Install profiles and module catalogs MAY provide normalized selection inputs, but generators, adapters, manifests, directory layouts, README lists, and installed artifacts MUST NOT independently add, remove, promote, or re-own a distribution entry. Retirement rows from Change A are never selectable entries. `--write` MUST reject an existing inventory with schema `dhpk.distribution-inventory.v2` before invoking the atomic file-replacement helper (`writeInventoryAtomically`), return a nonzero status, leave the existing bytes unchanged, and direct digest-only updates to `--refresh-supporting-digests`. Missing inventories and existing v1 inventories SHALL retain the current generation behavior for entries whose canonical paths match `skills/<id>/SKILL.md` or `modules/<module>/skills/<id>/SKILL.md`. Any canonical entry outside those two recognized path shapes SHALL fail closed before a write. An existing inventory that is neither valid v1 nor exact v2 MUST retain the existing schema-validation failure and MUST NOT be reinterpreted as missing or v1 bootstrap input. Regeneration MUST NOT use an unconditional per-entry union that can resurrect a deliberately removed v2 membership; an explicitly reviewed v2 inventory edit or a dedicated reconciliation workflow is outside this requirement.
 
 #### Scenario: Surface adapter discovers an extra component
 
@@ -204,6 +204,27 @@ stable-ID provenance linking it to the owner.
 
 - **WHEN** the Codex-native adapter materializes a package from a selected profile
 - **THEN** it emits only the intersection of inventory/profile selection and its existing Codex-supported allowlist and reports any unlisted entry as a validation error
+
+#### Scenario: Existing v2 rejects `--write` without a write
+
+- **WHEN** `gen-distribution-inventory.js --write` reads an existing `manifests/distribution-inventory.json` whose schema is `dhpk.distribution-inventory.v2`
+- **THEN** the command exits nonzero before invoking the atomic writer, leaves the inventory bytes unchanged, and directs a digest-only update to `--refresh-supporting-digests`
+
+#### Scenario: Rejected v2 regeneration cannot resurrect membership
+
+- **WHEN** an existing v2 inventory deliberately omits a surface membership or curated entry attribute that default classification would infer
+- **THEN** `--write` does not merge defaults into individual entries or write a replacement, so the omitted membership remains absent and an intentional addition requires an explicitly reviewed v2 inventory edit or a dedicated reconciliation workflow
+
+#### Scenario: Unclassified canonical entry fails closed
+
+- **WHEN** the missing-inventory or existing-v1 generation path encounters a canonical skill or module that does not map to a recognized default classification
+- **THEN** generation reports the unclassified entry and exits nonzero before `writeInventoryAtomically` instead of guessing a surface, owner, lifecycle, or membership
+- **AND** a missing-inventory run creates no inventory file, while an existing-v1 run leaves its inventory bytes unchanged
+
+#### Scenario: Invalid existing schema is not bootstrap input
+
+- **WHEN** `--write` reads an existing inventory that is malformed or has a schema other than a valid v1 or exact `dhpk.distribution-inventory.v2`
+- **THEN** the existing schema-validation path fails nonzero without treating the file as missing or v1 bootstrap input and without writing replacement bytes
 
 ### Requirement: Every migrated generated surface uses the shared projection pipeline
 

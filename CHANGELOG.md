@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## 0.51.0 — 2026-09-01 — Reject unknown Codex role handoffs and guard distribution inventory regeneration
+
+**feat(codex)** — Reject unavailable or unknown role handoffs in generated Codex projections.
+**fix(distribution)** — Prevent inventory regeneration from overwriting curated v2 distribution policy.
+
 ## 0.50.5 — 2026-09-01 — Prove Codex named-role runtime with disposable trusted CODEX_HOME
 
 **fix(consumer-gate)** — Use a disposable trusted CODEX_HOME and rollout JSONL as named-role runtime evidence, and do not pass --ephemeral.

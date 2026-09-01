@@ -29,8 +29,14 @@ Publication surface 包含 `claude-core`、`claude-module`、`codex-sync`（支�
 `cursor-plugin` 分別代表 Agent Plugin 與 Cursor publication package；
 `cursor-sync` 是 consumer `.cursor/` 的 Codex 對應路徑。shared portable skill
 ownership 與 Cursor-native overlay 規則見下節。
-目錄位置與 README prose 不是權威來源。`validate-distribution.js` 會比對 canonical
-package、module catalog、Codex metadata 與 inventory。
+目錄位置與 README prose 不是權威來源。`gen-distribution-inventory.js --write` 只會在
+inventory 不存在時建立，或更新既有 v1 inventory 中可辨識的 canonical skill。既有 v2
+inventory 屬於人工維護的 policy；`--write` 會在 atomic file replacement 前以非零狀態
+拒絕並保持原始 bytes 不變。只有更新 digest 時使用
+`--refresh-supporting-digests`；有意調整 v2 membership 時，必須經過 review 的 inventory
+編輯或 reconciliation workflow。Canonical path 若不符合兩種已辨識格式，會 fail closed
+並回報該 path，不會猜測 ownership 或 surface policy。`validate-distribution.js` 會比對
+canonical package、module catalog、Codex metadata 與 inventory。
 
 同一份 inventory 的 `supporting_assets` 也管理 Codex projection 的 trap sheet、
 contract 與 execution policy。Installer 會把每個 materialized asset 記錄到 schema-v3
