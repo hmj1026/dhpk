@@ -28,6 +28,15 @@ const WEIGHT_HINTS = Object.freeze({
   'resumed-review-reconcile.test.js': 25,
 });
 
+// Per-file timeout floors. The default 180s budget is enough for most files,
+// but installer copy-mode hashing and harness `release` (seven sequential
+// consumer-gate children with a 120s inner cap) overrun that under four-way
+// CI contention inside a 2G cgroup.
+const TIMEOUT_HINTS = Object.freeze({
+  'install-codex-skills.test.js': 300000,
+  'harness-facade-cli.test.js': 240000,
+});
+
 function findTests(dir) {
   const out = [];
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -143,6 +152,15 @@ function fileWeight(file) {
   }
 }
 
+function fileTimeoutMs(file, defaultTimeoutMs) {
+  const timeoutMs = Number(defaultTimeoutMs);
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) {
+    throw new RangeError('defaultTimeoutMs must be a positive integer');
+  }
+  const hint = TIMEOUT_HINTS[path.basename(file)];
+  return hint ? Math.max(timeoutMs, hint) : timeoutMs;
+}
+
 function partitionFiles(files, bucketCount) {
   const count = parsePositiveInteger(bucketCount, 'bucketCount');
   const buckets = Array.from({ length: count }, () => []);
@@ -193,7 +211,7 @@ function runSequential(files, env, timeoutMs) {
   for (const file of files) {
     const relative = path.relative(TESTS_DIR, file);
     console.log(`\n# ${relative}`);
-    const result = runNodeTest(file, { env, timeoutMs });
+    const result = runNodeTest(file, { env, timeoutMs: fileTimeoutMs(file, timeoutMs) });
     if (result.status !== 0 || result.error) {
       failed += 1;
       if (result.error) console.error(`ERROR in ${relative}: ${result.error.message}`);
@@ -295,4 +313,5 @@ module.exports = {
   findTests,
   parseOptions,
   partitionFiles,
+  fileTimeoutMs,
 };

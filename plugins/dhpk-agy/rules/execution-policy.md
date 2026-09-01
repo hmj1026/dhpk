@@ -138,6 +138,27 @@ concurrent-agent limit; (4) when configuration changed after session startup,
 restart with a new session so the role registry reloads. This is a read-only
 diagnostic sequence, not authority to create or rewrite configuration.
 
+For project-local Codex roles, exact spelling is only a syntax check. Probe a
+physical custom-role TOML from a valid Git checkout and compare a non-built-in
+custom canary in both hyphenated and underscored forms; `explorer` is built in,
+so its success proves multi-agent availability, not project custom-role
+discovery. If the custom probes still return `unknown agent_type`, record
+`CUSTOM_AGENT_REGISTRY_UNAVAILABLE`, the Codex CLI version, and bounded redacted
+diagnostics; the consumer/release gate remains `FAIL` and dependent work remains
+`BLOCKED`. Keep the registered role names, GPT-5.6 family role models, and
+configuration unchanged. A model-rejection error is separate evidence because
+`unknown agent_type` occurs before the child role model is selected.
+
+Do not infer `CUSTOM_AGENT_REGISTRY_UNAVAILABLE` from missing typed
+collaboration events alone. That diagnosis requires either affirmative
+unavailable-role evidence or observed `untyped-fallback evidence`—a fallback
+spawn observed without `agent_type`—from the gate-owned trusted disposable-home
+probe—a fresh isolated temporary `CODEX_HOME` created by the gate to capture the
+dispatch. If neither is present—including when the only evidence is a text
+`CODEX_DHPK_NAMED_ROLES=PASS` marker—retain the bounded probe evidence and report
+generic `FAIL`. Investigate collaboration-tool exposure or protocol separately;
+this result is neither runtime `PASS` nor an unavailable-registry diagnosis.
+
 Every `cold` handoff carries the same five-part packet: goal and non-goals;
 exact owned files; settled interfaces, invariants, and constraints;
 verification and acceptance; task/attempt identity plus required evidence

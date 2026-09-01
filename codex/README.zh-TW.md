@@ -90,8 +90,11 @@ routing 與明確 `/opsx:*`；不要虛構可呼叫的 `/dhpk:do`。
 [`AGENTS.md`](./AGENTS.md) 及 [`agent-role-map.json`](./agent-role-map.json)。
 
 靜態 validation 與 current receipt 不等於可派發。必須啟動 fresh Codex session
-並實際派發所需具名角色；成功前，named-role runtime 維持 `NOT_RUN`、
-`UNAVAILABLE` 或實際觀測到的失敗。
+並實際派發一個非內建 custom role；內建 `explorer` 不能作為 custom registry
+canary。只有觀測到真實 spawn 與 targeted wait 才能記為 PASS；此前 named-role
+runtime 維持 `NOT_RUN`、`UNAVAILABLE` 或實際觀測到的失敗。精確 ID 仍出現
+`unknown agent_type` 時，應分類為 registry failure，不能據此改名或把
+GPT-5.6 family model 換掉；診斷邊界見 [`AGENTS.md`](AGENTS.md#role-discovery)。
 
 ## 移除
 

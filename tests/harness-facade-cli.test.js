@@ -14,18 +14,23 @@ const harness = require('../scripts/lib/harness');
 
 const ROOT = path.join(__dirname, '..');
 const NODE_BASH_ONLY_PATH = [path.dirname(process.execPath), '/usr/bin', '/bin'].join(path.delimiter);
+const DEFAULT_INVOKE_TIMEOUT_MS = 30_000;
+// scripts/lib/harness.js gives each consumer-gate child 120s. Release walks
+// every required surface sequentially, so the outer spawn must outlive that
+// cap instead of reporting status null on ETIMEDOUT.
+const RELEASE_INVOKE_TIMEOUT_MS = 150_000;
 
-function invokeAt(root, args, env = {}) {
+function invokeAt(root, args, env = {}, timeoutMs = DEFAULT_INVOKE_TIMEOUT_MS) {
   return spawnSync('bash', [path.join(root, 'bin', 'dhpk'), 'harness', ...args], {
     cwd: root,
     encoding: 'utf8',
-    timeout: 30000,
+    timeout: timeoutMs,
     env: { ...process.env, DHPK_BOUNDED_REQUIRE_CGROUP: '0', DHPK_BOUNDED_ALLOW_FALLBACK: '1', ...env },
   });
 }
 
-function invoke(args, env = {}) {
-  return invokeAt(ROOT, args, env);
+function invoke(args, env = {}, timeoutMs = DEFAULT_INVOKE_TIMEOUT_MS) {
+  return invokeAt(ROOT, args, env, timeoutMs);
 }
 
 function temporaryReceiptRoot() {
@@ -704,7 +709,7 @@ test('release JSON preserves every required surface result at the public boundar
     const result = invoke(['release', '--task-id', 'facade-release-surfaces', '--json'], {
       DHPK_HARNESS_RECEIPT_ROOT: receiptRoot,
       PATH: NODE_BASH_ONLY_PATH,
-    });
+    }, RELEASE_INVOKE_TIMEOUT_MS);
     assert.strictEqual(result.status, 2, result.stderr);
     const payload = parseSingleJson(result.stdout);
     assert.deepStrictEqual(payload.requiredSurfaces, [
