@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## 0.50.5 — 2026-09-01 — Prove Codex named-role runtime with disposable trusted CODEX_HOME
+
+**fix(consumer-gate)** — Use a disposable trusted CODEX_HOME and rollout JSONL as named-role runtime evidence, and do not pass --ephemeral.
+**fix(distribution)** — Keep the clean-checkout gate on distribution generate only, so validate and verify can run while parallel tests or local WIP dirty the tree.
+**docs(codex)** — Clarify named-role runtime evidence: use a non-built-in canary, record CUSTOM_AGENT_REGISTRY_UNAVAILABLE only from typed registry failure, and do not treat a text marker as PASS.
+
 ## 0.50.4 — 2026-08-31 — Fix Codex named-specialist cold dispatch packets
 
 **fix(codex)** — Ensure named specialist subagents use standalone cold dispatch packets without overriding role defaults.

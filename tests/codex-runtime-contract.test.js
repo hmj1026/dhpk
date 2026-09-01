@@ -42,6 +42,25 @@ const EXPECTED_DIRECT_RUNTIME = {
 };
 
 const UNAVAILABLE_HANDOFFS = /`(?:silent-failure-hunter|type-design-analyzer|ui-ux-verifier|fast-worker)`/;
+const CODEX_BRIDGE_SURFACES = [
+  'agents/codex-bridge.md',
+  'agents/INDEX.md',
+  'agent-traps/_common/cli-prompt-composition.md',
+  'rules/execution-policy.md',
+  'skills/dhpk-codex-bridge/SKILL.md',
+  'skills/dhpk-execution-policy/references/implementation-dispatch.md',
+  'cursor/agents/codex-bridge.md',
+  'cursor/rules/execution-policy.mdc',
+  'plugins/dhpk-agent/skills/dhpk-codex-bridge/SKILL.md',
+  'plugins/dhpk-agent/skills/dhpk-execution-policy/references/implementation-dispatch.md',
+  'plugins/dhpk-agy/agents/codex-bridge.md',
+  'plugins/dhpk-agy/rules/execution-policy.md',
+  'plugins/dhpk-agy/skills/dhpk-codex-bridge/SKILL.md',
+  'plugins/dhpk-agy/skills/dhpk-execution-policy/references/implementation-dispatch.md',
+  'plugins/dhpk-cursor/agents/codex-bridge.md',
+  'plugins/dhpk-cursor/rules/execution-policy.mdc',
+  'plugins/dhpk-cursor/skills/dhpk-codex-bridge/SKILL.md',
+];
 
 function tmpRoot(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), `dhpk-${prefix}-`));
@@ -81,11 +100,23 @@ test('all committed direct roles match the approved runtime map and global defau
     const file = path.join(ROOT, 'codex', 'agents', `${role}.toml`);
     assert.strictEqual(readTomlField(file, 'model'), model, role);
     assert.strictEqual(readTomlField(file, 'model_reasoning_effort'), effort, role);
-    assert.notStrictEqual(model, 'gpt-5.5', role);
+    assert.match(model, /^gpt-5\.6-(?:sol|terra|luna)$/, role);
   }
   const config = fs.readFileSync(path.join(ROOT, 'codex', 'config.toml.example'), 'utf8');
   assert.match(config, /default_subagent_model\s*=\s*"gpt-5\.6-luna"/);
   assert.match(config, /default_subagent_reasoning_effort\s*=\s*"medium"/);
+});
+
+test('every active Codex bridge surface selects only the GPT-5.6 family', () => {
+  for (const relative of CODEX_BRIDGE_SURFACES) {
+    const source = fs.readFileSync(path.join(ROOT, relative), 'utf8');
+    const identifiers = [...source.matchAll(/\bgpt-\d+\.\d+(?:\.\d+)*(?:-[a-z0-9-]+)?/gi)]
+      .map((match) => match[0]);
+    assert.ok(identifiers.length > 0, `${relative}: missing explicit Codex model`);
+    for (const identifier of identifiers) {
+      assert.match(identifier, /^gpt-5\.6(?:-(?:sol|terra|luna))?$/i, relative);
+    }
+  }
 });
 
 test('the generator emits the effective Codex model metadata and compatible handoffs', () => {

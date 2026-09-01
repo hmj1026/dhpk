@@ -257,14 +257,14 @@ The statusline renders `[branch] +staged ~modified | docker:status | profile=<p>
 
 ## Sync Codex CLI content
 
-For projects using both Claude Code and the standalone Codex CLI (distinct from the Codex MCP dependency above — this needs no MCP server), the supported path is `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"` — `--copy` is the portable supported fallback (real files, no dependency on the plugin root surviving), while the default symlink mode is faster to re-sync but depends on that plugin root/cache remaining available. It creates the curated Codex projection in the project's `.codex/`. The clean-install materialization proof for [issue #88](https://github.com/hmj1026/dhpk/issues/88) now passes for the shipped physical package; Codex Plugin Marketplace support nevertheless remains experimental until a separate graduation decision. Full policy and instructions: **[`docs/basic-operations.md`](./docs/basic-operations.md#sync-codex-cli-content)**.
+For projects using both Claude Code and the standalone Codex CLI (distinct from the Codex MCP dependency above — this needs no MCP server), the supported path is `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"`. Its default hybrid projection keeps skills/supporting assets linked to the plugin root but always materializes agent TOMLs as physical files; `--copy` is the fully physical portable fallback. It creates the curated Codex projection in the project's `.codex/`. The clean-install materialization proof for [issue #88](https://github.com/hmj1026/dhpk/issues/88) now passes for the shipped physical package; Codex Plugin Marketplace support nevertheless remains experimental until a separate graduation decision. Full policy and instructions: **[`docs/basic-operations.md`](./docs/basic-operations.md#sync-codex-cli-content)**.
 
 ## Sync Cursor project-local harness
 
 For projects that want Cursor to load dhpk skills, subagents, `.mdc` rules, and
 commands from the project itself (not only from `~/.cursor/plugins/local/`),
 the supported path is `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh"`.
-Default symlink mode matches Codex; `--copy` is the portable fallback. The
+Cursor retains its all-symlink default; `--copy` is the portable fallback. The
 installer writes a schema-v3 receipt at `.cursor/.dhpk-installed.json` and does
 not write `.cursor/hooks.json`. Keep `plugins/dhpk-cursor/` for the marketplace
 / user-plugin route. Full policy: **[`docs/platform-installation.md`](./docs/platform-installation.md)**.

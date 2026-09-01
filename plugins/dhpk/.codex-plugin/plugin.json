@@ -1,6 +1,6 @@
 {
   "description": "dhpk codex-native physical Codex release candidate (generated; not a second source of truth — see docs/distribution-surfaces.md).",
   "name": "dhpk",
-  "version": "0.50.4",
+  "version": "0.50.5",
   "skills": "./skills/"
 }

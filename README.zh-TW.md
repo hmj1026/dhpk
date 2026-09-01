@@ -252,14 +252,14 @@ Statusline 會渲染 `[branch] +staged ~modified | docker:status | profile=<p> |
 
 ## 同步 Codex CLI 內容
 
-適用於同時使用 Claude Code 與獨立 Codex CLI 的專案（與上方的 Codex MCP 依賴是兩回事——這條路徑不需要任何 MCP server），支援路徑是 `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"`——`--copy` 是可攜的支援 fallback（真實檔案，不依賴 plugin root 是否還存在），預設的 symlink 模式重新同步較快，但依賴原 plugin root/cache 持續存在。它會把明確策展的 Codex projection 放進專案 `.codex/`。[issue #88](https://github.com/hmj1026/dhpk/issues/88) 的乾淨安裝 materialization 驗證目前已對正式實體 package 通過；Codex Plugin Marketplace 仍維持實驗性，直到另有獨立的 graduation 決策。完整政策與說明見 **[`docs/basic-operations.zh-TW.md`](./docs/basic-operations.zh-TW.md#同步-codex-cli-內容)**。
+適用於同時使用 Claude Code 與獨立 Codex CLI 的專案（與上方的 Codex MCP 依賴是兩回事——這條路徑不需要任何 MCP server），支援路徑是 `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"`。預設 hybrid projection 讓 skill/supporting asset 連回 plugin root，但 agent TOML 一律 materialize 為實體檔；`--copy` 則是整體實體化的可攜 fallback。它會把明確策展的 Codex projection 放進專案 `.codex/`。[issue #88](https://github.com/hmj1026/dhpk/issues/88) 的乾淨安裝 materialization 驗證目前已對正式實體 package 通過；Codex Plugin Marketplace 仍維持實驗性，直到另有獨立的 graduation 決策。完整政策與說明見 **[`docs/basic-operations.zh-TW.md`](./docs/basic-operations.zh-TW.md#同步-codex-cli-內容)**。
 
 ## 同步 Cursor project-local harness
 
 若希望 Cursor 從專案本身載入 dhpk skills、subagents、`.mdc` rules 與 commands
 （而不只依賴 `~/.cursor/plugins/local/`），支援路徑是
 `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh"`。預設
-symlink 模式與 Codex 相同；`--copy` 是可攜 fallback。installer 會寫入
+仍採全 symlink 預設；`--copy` 是可攜 fallback。installer 會寫入
 schema-v3 receipt `.cursor/.dhpk-installed.json`，且不會寫入
 `.cursor/hooks.json`。`plugins/dhpk-cursor/` 仍留給 marketplace／user-plugin
 路徑。完整政策見 **[`docs/platform-installation.zh-TW.md`](./docs/platform-installation.zh-TW.md)**。

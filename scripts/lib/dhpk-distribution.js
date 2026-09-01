@@ -110,7 +110,10 @@ function parseRequest(argv) {
 }
 
 function runtime(root, request) {
-  assertCleanSourceCheckout(root);
+  // Provenance-bound generation must freeze a clean source tree. validate/verify
+  // only read an already-materialized package, so a dirty checkout (including
+  // parallel CI workers writing fixtures) must not fail them.
+  if (request.operation === 'generate') assertCleanSourceCheckout(root);
   const inventory = readJson(path.join(root, 'manifests', 'distribution-inventory.json'));
   const manifest = readJson(path.join(root, '.claude-plugin', 'plugin.json'));
   const profiles = readJson(path.join(root, 'manifests', 'install-profiles.json'));

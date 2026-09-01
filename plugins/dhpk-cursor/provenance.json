@@ -4,11 +4,11 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
-  "sourceVersion": "0.50.4",
-  "sourceCommit": "3fccd3d235229968728761aecc2ddb957ab6ce7c",
-  "generatedFromCommit": "3fccd3d235229968728761aecc2ddb957ab6ce7c",
-  "generatedFromTree": "16e0e8f75e087ab0103af2662c2167cc84b22821",
-  "inventoryDigest": "eab7019e0b46813c8ae0c09ee9d20c92a0076945fd85b7e7e50df7efc24ca95a",
+  "sourceVersion": "0.50.5",
+  "sourceCommit": "6b69cb08c6b1827b524bce412ab773c458f7470b",
+  "generatedFromCommit": "6b69cb08c6b1827b524bce412ab773c458f7470b",
+  "generatedFromTree": "225b28cbc6c79ab6ab39e123831f500a7b9f406d",
+  "inventoryDigest": "2a6da614613ef4a2efacb69e6616f2dd3265ab834232e0b60165012fe1797082",
   "generatorVersion": "1.0.0",
   "selectedSkillIds": [
     "agy-fast-worker",
@@ -667,9 +667,9 @@
     }
   ],
   "fingerprints": {
-    "skills": "2aa53a75cb0b040625ac2e31c0eea55f749dada54e3168a596908a1b84f71aa6",
-    "rules": "a1b162768ef9f337b21ebe62ccdd50393748563520cf2e38b4b99fc64e221ccf",
-    "agents": "a9df6dc52c53ca044be123aa9acee71e3dd1a5e2403049530b614062f71379b3",
+    "skills": "3140b39f59fb806c4d9c7e4393a3ef7d4f3e69acbbb6bc6ee5f9c085b6d959b9",
+    "rules": "2eb981f934d232421ab7ade89401f11751af11061d93012cd6fc2755a9c8d9ac",
+    "agents": "0ff9edef4c2d013d3a7cc932382e90c34c2476188063d7681c16fabe504fee86",
     "commands": "3b4b80021fae963781b1e4f482d22a81c5a7eb4b20f2e1a3f38b1db8fde2bd35",
     "hooks/hooks.json": "1abe14baec6393d900554ebd4a84028ebd9748e0390f370813e9e32f664d0a8a"
   },
@@ -677,5 +677,5 @@
     "status": "NOT_RUN",
     "reason": "Cursor client consumer probe is separate from structural generation."
   },
-  "planFingerprint": "973359bff12447c26074a37f56f997ab047ba2a3987088912ece81ba6805422f"
+  "planFingerprint": "47633417fc542db547ceef5a95bb9dc844f319bc1513f1f3b0ed0a24b2959c3f"
 }

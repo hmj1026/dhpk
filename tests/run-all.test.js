@@ -10,6 +10,7 @@ const {
   parseOptions,
   assignShard,
   partitionFiles,
+  fileTimeoutMs,
 } = require('./run-all');
 
 test('default options preserve the complete sequential runner contract', () => {
@@ -47,6 +48,13 @@ test('invalid shard and job values fail closed before scheduling', () => {
   ]) {
     assert.throws(() => parseOptions(argv), /invalid|must be|range/i, argv.join(' '));
   }
+});
+
+test('installer and harness-release files keep a longer timeout than the default 180s budget', () => {
+  assert.strictEqual(fileTimeoutMs('tests/install-codex-skills.test.js', 180000), 300000);
+  assert.strictEqual(fileTimeoutMs('tests/harness-facade-cli.test.js', 180000), 240000);
+  assert.strictEqual(fileTimeoutMs('tests/alpha.test.js', 180000), 180000);
+  assert.strictEqual(fileTimeoutMs('tests/install-codex-skills.test.js', 400000), 400000);
 });
 
 test('weighted partition assigns every selected file exactly once', () => {

@@ -122,7 +122,7 @@ evidence and deliberately returns `runtime: NOT_RUN` unless a separate
 client-specific probe is executed.
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.50.4 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.50.5 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -139,8 +139,10 @@ bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh
 ```
 
 Inside the Claude plugin runtime use `${CLAUDE_PLUGIN_ROOT}`. The installer
-uses the project-root heuristic, creates relative symlinks by default, and
-supports `--copy` for a physical portable projection:
+uses the project-root heuristic and a hybrid default: skills and supporting
+assets are relative symlinks, while `.codex/agents/*.toml` are always physical
+files because Codex must load them as configuration layers. `--copy` makes the
+entire projection physical:
 
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --copy
@@ -164,6 +166,11 @@ An existing receipt without profile metadata remains `compat-v1`; changing it
 to a smaller profile requires `--migrate --update`. The receipt records the
 canonical and surface-emitted IDs plus selection fingerprints, while unavailable
 consumer probes remain non-pass evidence.
+
+For an existing schema-v3 symlink projection, ordinary `--update` converts
+unchanged receipt-owned agent links to physical files and leaves skill links in
+place. Retargeted, edited, or unowned agent paths remain collisions and are not
+overwritten.
 
 `--force` bypasses only the project-root heuristic. It never bypasses receipt
 ownership or path safety. The schema-v3 receipt records stable ID, public name,
@@ -200,7 +207,32 @@ Verify the consumer projection from the consumer project root:
 
 ```bash
 test -f .codex/.dhpk-installed.json
+test -z "$(find .codex/agents -type l -print)"
 ```
+
+These checks and the receipt prove installation shape only. Named-role runtime
+is `NOT_RUN` until a fresh Codex session actually dispatches a projected role;
+an unavailable or unknown custom role is non-pass evidence, not a static
+installer PASS.
+
+Use a non-built-in custom role as the registry canary. Compare the canary in
+both hyphenated and underscored forms. Built-in `explorer` success proves only
+that multi-agent tooling is available. If an exact-ID custom role backed by a
+physical TOML in a valid Git checkout still reports
+`unknown agent_type`, record `CUSTOM_AGENT_REGISTRY_UNAVAILABLE`, the Codex CLI
+version, and bounded redacted diagnostics. Keep the consumer gate `FAIL`; role
+renames, model changes, and configuration rewrites are not installation
+remediation.
+
+Do not infer `CUSTOM_AGENT_REGISTRY_UNAVAILABLE` from missing typed
+collaboration events alone. The diagnosis requires affirmative unavailable-role
+or observed `untyped-fallback evidence`—a fallback spawn observed without
+`agent_type`—from the gate-owned trusted disposable-home probe, a fresh isolated
+temporary `CODEX_HOME` created by the gate to capture the dispatch. If neither is
+present—including only a text `CODEX_DHPK_NAMED_ROLES=PASS` marker alone—retain
+bounded evidence and report generic `FAIL`; investigate collaboration-tool
+exposure/protocol separately. This result is neither runtime `PASS` nor an
+unavailable-registry diagnosis.
 
 Run source-check validators from the dhpk checkout. Set `DHPK_ROOT` to the
 checkout that owns `scripts/` and `tests/`; these files are not copied into the
@@ -575,7 +607,7 @@ agent frontmatter and never rewrites `agents/`. Generate and validate it from
 the dhpk checkout:
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.50.4 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.50.5 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 

@@ -97,6 +97,27 @@ test('preflight reports unavailable sandbox prerequisites even when a selected s
   assert.strictEqual(result.runner.bwrap.status, 'UNAVAILABLE', JSON.stringify(result));
 });
 
+test('executable resolution skips a cross-directory symlink and accepts a contained candidate later in PATH', () => {
+  if (process.platform === 'win32') return;
+  const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-preflight-path-')));
+  const linkDir = path.join(root, 'links');
+  const realDir = path.join(root, 'real');
+  fs.mkdirSync(linkDir);
+  fs.mkdirSync(realDir);
+  const executable = path.join(realDir, 'cursor-agent');
+  fs.writeFileSync(executable, '#!/usr/bin/env sh\nexit 0\n', { mode: 0o755 });
+  fs.symlinkSync(executable, path.join(linkDir, 'cursor-agent'));
+  try {
+    assert.strictEqual(preflight.resolveExecutable('cursor-agent', linkDir), null);
+    assert.strictEqual(
+      preflight.resolveExecutable('cursor-agent', [linkDir, realDir].join(path.delimiter)),
+      executable,
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('controlled preflight CLI binds default target identity to the current checkout', () => {
   const root = path.join(__dirname, '..');
   const result = releasePreflight.main([

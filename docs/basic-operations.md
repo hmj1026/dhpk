@@ -385,25 +385,28 @@ Inside a Claude plugin-runtime shell, `${CLAUDE_PLUGIN_ROOT}` may be used as an
 equivalent root. A normal terminal must set `DHPK_ROOT` explicitly; never copy
 an ephemeral marketplace-cache path into a project command.
 
-The script is the supported Codex distribution path, with two modes:
+The script is the supported Codex distribution path, with a hybrid default
+and a fully physical fallback:
 
-- **`--copy` (portable supported fallback).** Materializes real files under
-  `.codex/`. Recommended whenever the project may move, be archived, or be
+- **`--copy` (portable supported fallback).** Materializes every managed entry
+  under `.codex/`. Recommended whenever the project may move, be archived, or be
   checked out somewhere the plugin source tree isn't guaranteed to sit
   alongside it — copied content has no dependency on the plugin checkout
   surviving.
-- **Symlink (default, source-checkout dependent).** Links `.codex/` entries
-  back to the plugin's own `codex/skills/` tree. Faster to re-sync and always
-  current with the source checkout, but the links break if that plugin
+- **Hybrid (default, source-checkout dependent).** Links skills and supporting
+  assets back to the plugin source, but always writes agent TOMLs as physical
+  files. Linked entries are faster to re-sync and stay current with the source
+  checkout, but those links break if that plugin
   root/cache is moved, pruned, or deleted. A marketplace cache is a
   valid source while it remains present; `--update` can adopt a new owned
   plugin root. Broken source lifetime was the failure mode behind
   [issue #88](https://github.com/hmj1026/dhpk/issues/88). Use `--copy`
   instead whenever the plugin source's continued presence isn't guaranteed.
 
-Both modes record version, source-fingerprint, and schema-v3 managed entry
-provenance in `.codex/.dhpk-installed.json`; skill entries include their stable
-inventory id and current public `dhpk-*` name. Re-run with `--update` after a
+Both modes record version, source-fingerprint, and per-entry mode in schema-v3
+managed provenance at `.codex/.dhpk-installed.json`; skill entries include
+their stable inventory id and current public `dhpk-*` name. Re-run with
+`--update` after a
 plugin update. Unowned collisions are preserved, and `--migrate` renames only
 receipt-owned unchanged legacy destinations; edited, third-party, retargeted,
 malformed, or ambiguous legacy paths remain reported conflicts. Use
