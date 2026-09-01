@@ -28,44 +28,96 @@ const {
   writeInventoryAtomically,
   compileClaudeProjection,
 } = require('../lib/distribution-inventory');
+const { classifyWritePolicy } = require('../lib/distribution-inventory-regeneration');
 
 const ROOT = path.join(__dirname, '..', '..');
 const OUT = path.join(ROOT, 'manifests', 'distribution-inventory.json');
 
-function loadExisting() {
-  return fs.existsSync(OUT) ? JSON.parse(fs.readFileSync(OUT, 'utf8')) : null;
+function loadExisting(out) {
+  const exists = fs.existsSync(out);
+  return { exists, parsed: exists ? JSON.parse(fs.readFileSync(out, 'utf8')) : undefined };
 }
 
-function assertClaudeProjectionCompiles(inventory) {
+function assertClaudeProjectionCompiles(inventory, stderr) {
   const compiled = compileClaudeProjection({ inventory });
   if (!compiled.ok) {
-    console.error(`gen-distribution-inventory: Claude projection compilation failed: ${compiled.error.message}`);
-    process.exit(1);
+    stderr(`gen-distribution-inventory: Claude projection compilation failed: ${compiled.error.message}`);
+    return null;
   }
   return compiled;
 }
 
-const args = process.argv.slice(2);
-if (args.includes('--refresh-supporting-digests')) {
-  const existing = loadExisting();
-  if (!existing) {
-    console.error('gen-distribution-inventory: no checked-in inventory to refresh');
-    process.exit(2);
+function run(options = {}) {
+  const argv = options.argv || process.argv.slice(2);
+  const root = options.root || ROOT;
+  const out = options.out || path.join(root, 'manifests', 'distribution-inventory.json');
+  const stdoutTarget = options.stdout || process.stdout;
+  const stderrTarget = options.stderr || process.stderr;
+  let stdout = '';
+  let stderr = '';
+  const print = (message) => {
+    stdout += `${message}\n`;
+    stdoutTarget.write(`${message}\n`);
+  };
+  const error = (message) => {
+    stderr += `${message}\n`;
+    stderrTarget.write(`${message}\n`);
+  };
+  let existing;
+  let outputExists;
+  try {
+    ({ exists: outputExists, parsed: existing } = loadExisting(out));
+  } catch (cause) {
+    error(`gen-distribution-inventory: invalid/malformed existing inventory JSON: ${cause.message}`);
+    return { status: 1, stdout, stderr };
   }
-  const refreshed = refreshSupportingDigests(existing, ROOT);
-  assertClaudeProjectionCompiles(refreshed);
-  writeInventoryAtomically(OUT, serializeInventory(refreshed));
-  console.log('gen-distribution-inventory: refreshed transformed supporting-asset provenance.');
-} else if (args.includes('--write')) {
-  const generated = preserveProjectionContract(classifyCanonicalInventory(ROOT), loadExisting());
-  assertClaudeProjectionCompiles(generated);
-  writeInventoryAtomically(OUT, serializeInventory(generated));
-  console.log(`gen-distribution-inventory --write: wrote ${generated.skills.length} skills + ${generated.modules.length} modules.`);
-} else {
-  const inv = loadExisting() || classifyCanonicalInventory(ROOT);
-  assertClaudeProjectionCompiles(inv);
-  console.log('dhpk distribution inventory:');
-  console.log(`  skills:  ${inv.skills.length}  (promoted ${inv.skills.filter((s) => s.lifecycle === 'promoted').length}, optional ${inv.skills.filter((s) => s.lifecycle === 'optional').length}, experimental ${inv.skills.filter((s) => s.lifecycle === 'experimental').length}, deprecated ${inv.skills.filter((s) => s.lifecycle === 'deprecated').length})`);
-  console.log(`  modules: ${inv.modules.length}  (optional ${inv.modules.filter((m) => m.lifecycle === 'optional').length})`);
-  console.log(`  codex-sync surface: ${inv.skills.filter((s) => s.surfaces.includes('codex-sync')).length} skills`);
+
+  if (argv.includes('--refresh-supporting-digests')) {
+    if (!outputExists || !existing || typeof existing !== 'object' || Array.isArray(existing)) {
+      error('gen-distribution-inventory: no checked-in inventory to refresh');
+      return { status: 2, stdout, stderr };
+    }
+    const refreshed = refreshSupportingDigests(existing, root);
+    if (!assertClaudeProjectionCompiles(refreshed, error)) return { status: 1, stdout, stderr };
+    (options.writeInventory || writeInventoryAtomically)(out, serializeInventory(refreshed));
+    print('gen-distribution-inventory: refreshed transformed supporting-asset provenance.');
+    return { status: 0, stdout, stderr };
+  }
+
+  if (argv.includes('--write')) {
+    const policy = classifyWritePolicy(outputExists, existing);
+    if (policy.action === 'reject') {
+      error(`gen-distribution-inventory: ${policy.diagnostic}`);
+      return { status: 1, stdout, stderr };
+    }
+    let generated;
+    try {
+      generated = preserveProjectionContract(classifyCanonicalInventory(root), existing);
+    } catch (cause) {
+      error(`gen-distribution-inventory: ${cause.message}`);
+      return { status: 1, stdout, stderr };
+    }
+    if (!assertClaudeProjectionCompiles(generated, error)) return { status: 1, stdout, stderr };
+    (options.writeInventory || writeInventoryAtomically)(out, serializeInventory(generated));
+    print(`gen-distribution-inventory --write: wrote ${generated.skills.length} skills + ${generated.modules.length} modules.`);
+    return { status: 0, stdout, stderr };
+  }
+
+  let inv;
+  try {
+    inv = outputExists ? existing : classifyCanonicalInventory(root);
+  } catch (cause) {
+    error(`gen-distribution-inventory: ${cause.message}`);
+    return { status: 1, stdout, stderr };
+  }
+  if (!assertClaudeProjectionCompiles(inv, error)) return { status: 1, stdout, stderr };
+  print('dhpk distribution inventory:');
+  print(`  skills:  ${inv.skills.length}  (promoted ${inv.skills.filter((s) => s.lifecycle === 'promoted').length}, optional ${inv.skills.filter((s) => s.lifecycle === 'optional').length}, experimental ${inv.skills.filter((s) => s.lifecycle === 'experimental').length}, deprecated ${inv.skills.filter((s) => s.lifecycle === 'deprecated').length})`);
+  print(`  modules: ${inv.modules.length}  (optional ${inv.modules.filter((m) => m.lifecycle === 'optional').length})`);
+  print(`  codex-sync surface: ${inv.skills.filter((s) => s.surfaces.includes('codex-sync')).length} skills`);
+  return { status: 0, stdout, stderr };
 }
+
+if (require.main === module) process.exit(run().status);
+
+module.exports = { run };
