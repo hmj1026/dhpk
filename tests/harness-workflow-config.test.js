@@ -21,6 +21,7 @@ test('CI invokes the harness facade and keeps compatibility adapters', () => {
 
 test('CI runs the aggregate suite with a bounded worker pool and one changelog gate', () => {
   const workflow = read('.github/workflows/ci.yml');
+  assert.match(workflow, /name: Validate harness assets[\s\S]*?timeout-minutes:\s*1[0-9]/);
   assert.match(workflow, /DHPK_TEST_JOBS:\s*['"]?[2-8]/);
   assert.match(workflow, /run-bounded-node-test\.sh\s+node\s+tests\/run-all\.js/);
   assert.match(workflow, /CHANGELOG_ARGS=\(\)/);
