@@ -111,6 +111,55 @@ node scripts/release/issue-237-runtime-proof.js \
   --json
 ```
 
+### Preflight and attempt identity
+
+Run `scripts/release/consumer-runtime-preflight.js` first with the task and
+attempt IDs intended for the wrapper. Invoke both commands with the same
+minimal environment. The preflight JSON reports readiness and selected tool
+versions; it does not capture a complete tool snapshot. The operator must
+separately record the resolved path, version, and SHA-256 of `node`, `git`,
+`bwrap`, `claude`, `codex`, `cursor-agent`, `agy`, and `python3` before and
+after the controlled run.
+
+Executable preflight is containment-aware. A `cursor-agent` symlink whose
+target is outside its `PATH` directory is skipped; `command -v` alone is not
+proof that preflight will select it. Keep the intended Node and Codex
+directories ahead of the physical Cursor bundle directory, then include that
+bundle directory later in `PATH`. This prevents Cursor's bundled Node or an
+older Codex from shadowing the recorded tools while still exposing a contained
+`cursor-agent`. Keep the complete Cursor bundle intact because its launcher
+uses sibling runtime assets.
+
+Treat an attempt ID used by a non-`PASS` standalone preflight as retired before
+the wrapper starts. Record that retirement in the operator log: standalone
+preflight does not reserve the ID or persist a runner receipt. A tool-path,
+version, or hash correction also uses a fresh exact-head checkout and a new
+attempt ID. Do not automatically retry a controlled wrapper call; each
+invocation is one immutable attempt.
+
+### Runner-receipt projection
+
+Publish and hash the persisted `runtime-proof.json`, not the raw stdout JSON.
+The persisted file is an immutable redacted projection created before stdout
+receives `runnerReceiptReference`: it adds `receiptReference` and `recordedAt`,
+and the redactor may replace deeply nested evidence with `<truncated>`. Direct
+byte equality or raw-object equality between the two representations is
+therefore invalid.
+
+To compare them, remove `runnerReceiptReference` from stdout, add the persisted
+file's `receiptReference` and `recordedAt`, apply the repository receipt
+redactor, and compare canonical JSON. Independently run `validateReceipt`
+against the exact checkout and require the canonical seven surface rows in
+order, all six required-runtime rows `PASS`, `cursor-sync` `PASS` or `NOT_RUN`,
+one terminal `COMPLETE` event, valid event/chain hashes, contained receipt
+paths, `0600` files, and `0700` receipt directories.
+
+Before publishing a GitHub evidence comment, confirm the complete comment is
+redacted and no larger than the project's 50,000-byte safety limit. Stream it
+with `gh issue comment <number> --body-file -`; keep Markdown and JSON out of a
+shell `--body` or `--comment` argument. Preserve the exact checkout and receipt
+through the explicit human close gate.
+
 The two host-home variables are session sources, not destinations. Do not point
 them at a whole developer home, put credentials in command arguments, or copy
 unallowlisted files. A non-`PASS` preflight stops before any consumer process is

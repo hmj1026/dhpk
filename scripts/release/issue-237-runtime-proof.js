@@ -484,5 +484,6 @@ module.exports = {
   validateReleaseEvidence,
   invokeHarness,
   validateHarnessReceipt,
+  persistRunnerReceipt,
   execute,
 };

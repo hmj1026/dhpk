@@ -21,6 +21,8 @@ const {
   fingerprintPath,
   fingerprintProjectSkill,
   redactEvidence,
+  runCodexNamedRoleProbe,
+  validateCodexAgentMaterialization,
 } = require(CLI);
 const { inspectCodexDiscovery } = require('../scripts/lib/codex-discovery-registry');
 
@@ -48,8 +50,269 @@ const NODE_BASH_ONLY_PATH = [path.dirname(process.execPath), '/usr/bin', '/bin']
 // depend on a fixture package tree.
 const REAL_VERSION = JSON.parse(fs.readFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), 'utf8')).version;
 
-function runCli(env) {
-  return spawnSync('node', [CLI, '--version', REAL_VERSION, '--repo-root', ROOT], {
+function projectRootForCodexProbe() {
+  const project = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-codex-role-probe-')));
+  const agents = path.join(project, '.codex', 'agents');
+  fs.mkdirSync(path.join(project, '.git'));
+  fs.mkdirSync(agents, { recursive: true });
+  for (const role of ['explorer', 'deep-reasoner', 'code-reviewer', 'doc-reviewer']) {
+    fs.writeFileSync(path.join(agents, `${role}.toml`), [
+      `name = "${role}"`,
+      `description = "Fixture ${role} role"`,
+      'developer_instructions = "Complete the standalone probe task and report the result."',
+      '',
+    ].join('\n'));
+  }
+  return project;
+}
+
+test('Codex consumer validation rejects linked agent roles and mismatched receipt modes', () => {
+  const project = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-codex-agent-shape-')));
+  try {
+    const agents = path.join(project, '.codex', 'agents');
+    fs.mkdirSync(agents, { recursive: true });
+    const source = path.join(project, 'source.toml');
+    fs.writeFileSync(source, 'name = "demo"\n');
+    fs.copyFileSync(source, path.join(agents, 'physical.toml'));
+    fs.symlinkSync(source, path.join(agents, 'linked.toml'));
+    const manifest = {
+      managed_entries: {
+        agents: {
+          'physical.toml': { destination: 'agents/physical.toml', mode: 'symlink' },
+          'linked.toml': { destination: 'agents/linked.toml', mode: 'symlink' },
+        },
+      },
+    };
+
+    const errors = validateCodexAgentMaterialization(project, manifest);
+    assert.ok(errors.some((error) => /physical\.toml.*mode.*copy/i.test(error)), errors.join('\n'));
+    assert.ok(errors.some((error) => /linked\.toml.*physical|linked\.toml.*symlink/i.test(error)), errors.join('\n'));
+  } finally {
+    fs.rmSync(project, { recursive: true, force: true });
+  }
+});
+
+test('Codex named-role probe relies on physical project-role auto-discovery and rejects ELOOP', () => {
+  withConsumerGateBin((bin) => {
+    const log = path.join(bin, 'codex-argv.log');
+    const homeLog = path.join(bin, 'codex-home.log');
+    const configLog = path.join(bin, 'codex-config.log');
+    const configModeLog = path.join(bin, 'codex-config-mode.log');
+    const authTargetLog = path.join(bin, 'codex-auth-target.log');
+    const sourceCodexHome = path.join(bin, 'source-codex-home');
+    const sourceAuth = path.join(sourceCodexHome, 'auth.json');
+    fs.mkdirSync(sourceCodexHome);
+    fs.writeFileSync(sourceAuth, '{"fixture":"unchanged"}\n', { mode: 0o600 });
+    mkBinStub(bin, 'codex', `#!/bin/sh
+printf '%s\n' "$*" >> ${JSON.stringify(log)}
+if [ "$1" = "--version" ]; then echo 'codex-cli fixture'; exit 0; fi
+printf '%s\n' "$CODEX_HOME" > ${JSON.stringify(homeLog)}
+cat "$CODEX_HOME/config.toml" > ${JSON.stringify(configLog)}
+stat -c '%a' "$CODEX_HOME/config.toml" > ${JSON.stringify(configModeLog)}
+readlink "$CODEX_HOME/auth.json" > ${JSON.stringify(authTargetLog)}
+SESS="$CODEX_HOME/sessions/2026/01/01"
+mkdir -p "$SESS"
+printf '%s\n' '{"type":"session_meta","payload":{"id":"parent-1","thread_source":"root"}}' > "$SESS/rollout-parent.jsonl"
+printf '%s\n' '{"type":"session_meta","payload":{"id":"thread-explorer","thread_source":"subagent","parent_thread_id":"parent-1","agent_role":"explorer","agent_path":"/root/dhpk_probe_explorer"}}' > "$SESS/rollout-explorer.jsonl"
+printf '%s\n' '{"type":"event_msg","payload":{"type":"task_complete"}}' >> "$SESS/rollout-explorer.jsonl"
+printf '%s\n' '{"type":"session_meta","payload":{"id":"thread-deep","thread_source":"subagent","parent_thread_id":"parent-1","agent_role":"deep-reasoner","agent_path":"/root/dhpk_probe_deep_reasoner"}}' > "$SESS/rollout-deep-reasoner.jsonl"
+printf '%s\n' '{"type":"event_msg","payload":{"type":"task_complete"}}' >> "$SESS/rollout-deep-reasoner.jsonl"
+printf '%s\n' '{"type":"session_meta","payload":{"id":"thread-code","thread_source":"subagent","parent_thread_id":"parent-1","agent_role":"code-reviewer","agent_path":"/root/dhpk_probe_code_reviewer"}}' > "$SESS/rollout-code-reviewer.jsonl"
+printf '%s\n' '{"type":"event_msg","payload":{"type":"task_complete"}}' >> "$SESS/rollout-code-reviewer.jsonl"
+printf '%s\n' '{"type":"session_meta","payload":{"id":"thread-doc","thread_source":"subagent","parent_thread_id":"parent-1","agent_role":"doc-reviewer","agent_path":"/root/dhpk_probe_doc_reviewer"}}' > "$SESS/rollout-doc-reviewer.jsonl"
+printf '%s\n' '{"type":"event_msg","payload":{"type":"task_complete"}}' >> "$SESS/rollout-doc-reviewer.jsonl"
+printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"CODEX_DHPK_NAMED_ROLES=PASS"}}'
+exit 0
+`);
+    const project = projectRootForCodexProbe();
+    try {
+      const result = runCodexNamedRoleProbe(project, {
+        env: { ...process.env, CODEX_HOME: sourceCodexHome, PATH: `${bin}:${NODE_BASH_ONLY_PATH}` },
+      });
+      assert.strictEqual(result.status, 'PASS', JSON.stringify(result));
+      assert.deepStrictEqual(result.runtimeEvidence, {
+        registryPreconditions: {
+          disposableCodexHome: true,
+          authReference: 'symlink',
+          projectTrust: 'trusted',
+          userConfigIgnored: false,
+        },
+        roles: [
+          { id: 'explorer', agentTypeAccepted: true, threadId: 'thread-explorer', childCompleted: true },
+          { id: 'deep-reasoner', agentTypeAccepted: true, threadId: 'thread-deep', childCompleted: true },
+          { id: 'code-reviewer', agentTypeAccepted: true, threadId: 'thread-code', childCompleted: true },
+          { id: 'doc-reviewer', agentTypeAccepted: true, threadId: 'thread-doc', childCompleted: true },
+        ],
+      });
+      const argv = fs.readFileSync(log, 'utf8');
+      for (const role of ['explorer', 'deep-reasoner', 'code-reviewer', 'doc-reviewer']) {
+        assert.doesNotMatch(argv, new RegExp(`agents\\.\\"${role}\\"\\.config_file`), argv);
+        assert.match(argv, new RegExp(`task_name=\\"dhpk_probe_${role.replace(/-/g, '_')}\\"`), argv);
+      }
+      assert.doesNotMatch(argv, /-c agents\./, argv);
+      assert.doesNotMatch(argv, /--ignore-user-config/, argv);
+      assert.doesNotMatch(argv, /--ephemeral/, argv);
+      const disposableCodexHome = fs.readFileSync(homeLog, 'utf8').trim();
+      assert.notStrictEqual(disposableCodexHome, sourceCodexHome);
+      assert.strictEqual(fs.existsSync(disposableCodexHome), false);
+      assert.strictEqual(fs.readFileSync(authTargetLog, 'utf8').trim(), sourceAuth);
+      assert.strictEqual(fs.readFileSync(configModeLog, 'utf8').trim(), '600');
+      assert.strictEqual(fs.readFileSync(configLog, 'utf8'), [
+        `[projects.${JSON.stringify(project)}]`,
+        'trust_level = "trusted"',
+        '',
+      ].join('\n'));
+    } finally {
+      fs.rmSync(project, { recursive: true, force: true });
+    }
+
+    mkBinStub(bin, 'codex', `#!/bin/sh
+if [ "$1" = "--version" ]; then echo 'codex-cli fixture'; exit 0; fi
+printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"spawn_agent does not support an agent_type parameter, so the requested role cannot be typed"}}'
+printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"CODEX_DHPK_NAMED_ROLES=PASS"}}'
+exit 0
+`);
+    const falsePositiveProject = projectRootForCodexProbe();
+    try {
+      const falsePositive = runCodexNamedRoleProbe(falsePositiveProject, {
+        env: { ...process.env, CODEX_HOME: sourceCodexHome, PATH: `${bin}:${NODE_BASH_ONLY_PATH}` },
+      });
+      assert.strictEqual(falsePositive.status, 'FAIL', JSON.stringify(falsePositive));
+      assert.strictEqual(falsePositive.reasonCode, 'CUSTOM_AGENT_REGISTRY_UNAVAILABLE');
+      assert.match(falsePositive.diagnostic, /spawn|dispatch evidence|receiver/i);
+    } finally {
+      fs.rmSync(falsePositiveProject, { recursive: true, force: true });
+    }
+
+    mkBinStub(bin, 'codex', `#!/bin/sh
+if [ "$1" = "--version" ]; then echo 'codex-cli fixture'; exit 0; fi
+SESS="$CODEX_HOME/sessions/2026/01/01"
+mkdir -p "$SESS"
+printf '%s\n' '{"type":"session_meta","payload":{"id":"parent-1","thread_source":"root"}}' > "$SESS/rollout-parent.jsonl"
+printf '%s\n' '{"type":"session_meta","payload":{"id":"thread-shared","thread_source":"subagent","parent_thread_id":"parent-1","agent_role":"explorer","agent_path":"/root/dhpk_probe_explorer"}}' > "$SESS/rollout-explorer.jsonl"
+printf '%s\n' '{"type":"event_msg","payload":{"type":"task_complete"}}' >> "$SESS/rollout-explorer.jsonl"
+printf '%s\n' '{"type":"session_meta","payload":{"id":"thread-shared","thread_source":"subagent","parent_thread_id":"parent-1","agent_role":"deep-reasoner","agent_path":"/root/dhpk_probe_deep_reasoner"}}' > "$SESS/rollout-deep-reasoner.jsonl"
+printf '%s\n' '{"type":"event_msg","payload":{"type":"task_complete"}}' >> "$SESS/rollout-deep-reasoner.jsonl"
+printf '%s\n' '{"type":"session_meta","payload":{"id":"thread-shared","thread_source":"subagent","parent_thread_id":"parent-1","agent_role":"code-reviewer","agent_path":"/root/dhpk_probe_code_reviewer"}}' > "$SESS/rollout-code-reviewer.jsonl"
+printf '%s\n' '{"type":"event_msg","payload":{"type":"task_complete"}}' >> "$SESS/rollout-code-reviewer.jsonl"
+printf '%s\n' '{"type":"session_meta","payload":{"id":"thread-shared","thread_source":"subagent","parent_thread_id":"parent-1","agent_role":"doc-reviewer","agent_path":"/root/dhpk_probe_doc_reviewer"}}' > "$SESS/rollout-doc-reviewer.jsonl"
+printf '%s\n' '{"type":"event_msg","payload":{"type":"task_complete"}}' >> "$SESS/rollout-doc-reviewer.jsonl"
+printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"CODEX_DHPK_NAMED_ROLES=PASS"}}'
+exit 0
+`);
+    const aliasedProject = projectRootForCodexProbe();
+    try {
+      const aliased = runCodexNamedRoleProbe(aliasedProject, {
+        env: { ...process.env, CODEX_HOME: sourceCodexHome, PATH: `${bin}:${NODE_BASH_ONLY_PATH}` },
+      });
+      assert.strictEqual(aliased.status, 'FAIL', JSON.stringify(aliased));
+      assert.match(aliased.diagnostic, /distinct|spawn evidence|receiver/i);
+    } finally {
+      fs.rmSync(aliasedProject, { recursive: true, force: true });
+    }
+
+    mkBinStub(bin, 'codex', `#!/bin/sh
+if [ "$1" = "--version" ]; then echo 'codex-cli fixture'; exit 0; fi
+SESS="$CODEX_HOME/sessions/2026/01/01"
+mkdir -p "$SESS"
+printf '%s\n' '{"type":"session_meta","payload":{"id":"parent-1","thread_source":"root"}}' > "$SESS/rollout-parent.jsonl"
+printf '%s\n' '{"type":"session_meta","payload":{"id":"thread-explorer","thread_source":"subagent","parent_thread_id":"parent-1","agent_role":"explorer","agent_path":"/root/dhpk_probe_explorer"}}' > "$SESS/rollout-explorer.jsonl"
+printf '%s\n' '{"type":"event_msg","payload":{"type":"task_complete"}}' >> "$SESS/rollout-explorer.jsonl"
+printf '%s\n' '{"type":"session_meta","payload":{"id":"thread-deep","thread_source":"subagent","parent_thread_id":"parent-1","agent_role":"deep-reasoner","agent_path":"/root/dhpk_probe_deep_reasoner"}}' > "$SESS/rollout-deep-reasoner.jsonl"
+printf '%s\n' '{"type":"event_msg","payload":{"type":"task_complete"}}' >> "$SESS/rollout-deep-reasoner.jsonl"
+printf '%s\n' '{"type":"session_meta","payload":{"id":"thread-code","thread_source":"subagent","parent_thread_id":"parent-1","agent_role":"code-reviewer","agent_path":"/root/dhpk_probe_code_reviewer"}}' > "$SESS/rollout-code-reviewer.jsonl"
+printf '%s\n' '{"type":"event_msg","payload":{"type":"task_complete"}}' >> "$SESS/rollout-code-reviewer.jsonl"
+printf '%s\n' '{"type":"session_meta","payload":{"id":"thread-doc","thread_source":"subagent","parent_thread_id":"parent-1","agent_role":"doc-reviewer","agent_path":"/root/dhpk_probe_doc_reviewer"}}' > "$SESS/rollout-doc-reviewer.jsonl"
+printf '%s\n' '{"type":"event_msg","payload":{"type":"task_complete"}}' >> "$SESS/rollout-doc-reviewer.jsonl"
+printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"CODEX_DHPK_NAMED_ROLES=PASS"}}' >&2
+echo 'CODEX_DHPK_NAMED_ROLES=PASS marker only present on stderr, not stdout' >&2
+exit 0
+`);
+    const stderrProject = projectRootForCodexProbe();
+    try {
+      const stderrOnly = runCodexNamedRoleProbe(stderrProject, {
+        env: { ...process.env, CODEX_HOME: sourceCodexHome, PATH: `${bin}:${NODE_BASH_ONLY_PATH}` },
+      });
+      assert.strictEqual(stderrOnly.status, 'FAIL', JSON.stringify(stderrOnly));
+      assert.match(stderrOnly.diagnostic, /stdout|spawn evidence|receiver/i);
+    } finally {
+      fs.rmSync(stderrProject, { recursive: true, force: true });
+    }
+
+    mkBinStub(bin, 'codex', `#!/bin/sh
+if [ "$1" = "--version" ]; then echo 'codex-cli fixture'; exit 0; fi
+echo 'failed to apply role to config: Symbolic link loop (os error 40)' >&2
+printf '%s\n' '{"type":"item.completed","item":{"type":"agent_message","text":"CODEX_DHPK_NAMED_ROLES=FAIL"}}'
+exit 0
+`);
+    const failedProject = projectRootForCodexProbe();
+    try {
+      const failed = runCodexNamedRoleProbe(failedProject, {
+        env: { ...process.env, CODEX_HOME: sourceCodexHome, PATH: `${bin}:${NODE_BASH_ONLY_PATH}` },
+      });
+      assert.strictEqual(failed.status, 'FAIL', JSON.stringify(failed));
+      assert.strictEqual(failed.reasonCode, undefined);
+      assert.match(failed.diagnostic, /Symbolic link loop|os error 40/i);
+    } finally {
+      fs.rmSync(failedProject, { recursive: true, force: true });
+    }
+
+    mkBinStub(bin, 'codex', `#!/bin/sh
+if [ "$1" = "--version" ]; then echo 'codex-cli fixture'; exit 0; fi
+echo 'remote worker service unavailable' >&2
+exit 1
+`);
+    const genericFailureProject = projectRootForCodexProbe();
+    try {
+      const genericFailure = runCodexNamedRoleProbe(genericFailureProject, {
+        env: { ...process.env, CODEX_HOME: sourceCodexHome, PATH: `${bin}:${NODE_BASH_ONLY_PATH}` },
+      });
+      assert.strictEqual(genericFailure.status, 'FAIL', JSON.stringify(genericFailure));
+      assert.strictEqual(genericFailure.reasonCode, undefined);
+      assert.match(genericFailure.diagnostic, /remote worker service unavailable/i);
+    } finally {
+      fs.rmSync(genericFailureProject, { recursive: true, force: true });
+    }
+  });
+});
+
+test('Codex named-role probe blocks when the source auth file is unavailable', () => {
+  withConsumerGateBin((bin) => {
+    mkBinStub(bin, 'codex', `#!/bin/sh
+if [ "$1" = "--version" ]; then echo 'codex-cli fixture'; exit 0; fi
+exit 99
+`);
+    const project = projectRootForCodexProbe();
+    const emptyCodexHome = path.join(bin, 'empty-codex-home');
+    fs.mkdirSync(emptyCodexHome);
+    try {
+      const result = runCodexNamedRoleProbe(project, {
+        env: { ...process.env, CODEX_HOME: emptyCodexHome, PATH: `${bin}:${NODE_BASH_ONLY_PATH}` },
+      });
+      assert.strictEqual(result.status, 'BLOCKED', JSON.stringify(result));
+      assert.strictEqual(result.reasonCode, undefined);
+      assert.match(result.diagnostic, /auth\.json/i);
+    } finally {
+      fs.rmSync(project, { recursive: true, force: true });
+    }
+  });
+});
+
+test('Codex named-role probe reports NOT_RUN when the CLI is absent', () => {
+  const project = projectRootForCodexProbe();
+  try {
+    const result = runCodexNamedRoleProbe(project, {
+      env: { ...process.env, PATH: NODE_BASH_ONLY_PATH },
+    });
+    assert.strictEqual(result.status, 'NOT_RUN', JSON.stringify(result));
+    assert.match(result.diagnostic, /codex CLI not found/i);
+  } finally {
+    fs.rmSync(project, { recursive: true, force: true });
+  }
+});
+
+function runCli(env, extraArgs = []) {
+  return spawnSync('node', [CLI, '--version', REAL_VERSION, '--repo-root', ROOT, ...extraArgs], {
     encoding: 'utf8',
     env: { ...process.env, ...env },
   });
@@ -95,24 +358,19 @@ function assertClaudeProjectTeardown(logText, stage) {
   assert.doesNotMatch(logText, /UNINSTALL_CWD_MISSING|MARKETPLACE_REMOVE_CWD_MISSING/);
 }
 
-test('reports Codex sync PASS and Claude/native-marketplace as UNAVAILABLE when claude CLI is absent', () => {
-  const res = runCli({ PATH: NODE_BASH_ONLY_PATH });
-  const stage = JSON.parse(res.stdout);
-  assert.strictEqual(stage.verdict, 'UNAVAILABLE', JSON.stringify(stage));
-  assert.ok(Array.isArray(stage.surfaceResults));
-  assert.ok(stage.surfaceResults.some((result) => result.surface === 'claude' && result.status === 'UNAVAILABLE'));
-  assert.ok(stage.surfaceResults.some((result) => result.surface === 'codex-native'));
-  assert.ok(stage.failureReasons.some((r) => /claude/i.test(r)));
-  assert.ok(stage.artifacts.some((a) => /claude.*official.*NOT RUN|official.*NOT RUN.*claude/i.test(a)), JSON.stringify(stage));
-  assert.ok(stage.artifacts.some((a) => /native.*experimental|experimental.*native/i.test(a)));
-  assert.ok(stage.codexSurfaces.project.some((entry) => entry.id === 'dhpk-cli-dispatch-context'));
-  assert.ok(stage.codexSurfaces.project.some((entry) => entry.id === 'dhpk-cli-transport'));
-  assert.ok(stage.codexSurfaces.native.some((entry) => entry.id === 'dhpk-cli-dispatch-context'));
-  assert.ok(stage.codexSurfaces.native.some((entry) => entry.id === 'dhpk-cli-transport'));
-  assert.ok(!stage.codexSurfaces.effective.some((entry) => entry.name === 'dhpk-cli-dispatch-context'));
-  assert.ok(!stage.codexSurfaces.effective.some((entry) => entry.name === 'dhpk-cli-transport'));
-  assert.ok(!stage.codexSurfaces.duplicates.some((entry) => entry.id === 'dhpk-cli-dispatch-context'), JSON.stringify(stage.codexSurfaces));
-  assert.ok(!stage.codexSurfaces.duplicates.some((entry) => entry.id === 'dhpk-cli-transport'), JSON.stringify(stage.codexSurfaces));
+test('keeps Claude and native Codex UNAVAILABLE when their CLIs are absent', () => {
+  const env = { PATH: NODE_BASH_ONLY_PATH };
+  const claudeStage = JSON.parse(runCli(env, ['--surface', 'claude-core']).stdout);
+  assert.strictEqual(claudeStage.verdict, 'UNAVAILABLE', JSON.stringify(claudeStage));
+  assert.strictEqual(claudeStage.surfaceResults[0].surface, 'claude');
+  assert.strictEqual(claudeStage.surfaceResults[0].status, 'UNAVAILABLE');
+  assert.ok(claudeStage.failureReasons.some((reason) => /claude/i.test(reason)));
+
+  const nativeStage = JSON.parse(runCli(env, ['--surface', 'codex-native']).stdout);
+  assert.strictEqual(nativeStage.verdict, 'UNAVAILABLE', JSON.stringify(nativeStage));
+  assert.strictEqual(nativeStage.surfaceResults[0].surface, 'codex-native');
+  assert.strictEqual(nativeStage.surfaceResults[0].status, 'UNAVAILABLE');
+  assert.ok(nativeStage.failureReasons.some((reason) => /native.*codex|codex.*native/i.test(reason)));
 });
 
 test('reports overall PENDING when supported checks pass but Cursor runtime is not invoked', () => {
@@ -196,7 +454,7 @@ if [ "$1 $2" = "plugin validate" ]; then exit 0; fi
 if [ "$1 $2" = "plugin list" ]; then echo '[{"id":"dhpk@dhpk","version":"0.0.1"}]'; exit 0; fi
 exit 0
 `);
-    const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` });
+    const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` }, ['--surface', 'claude-core']);
     assert.notStrictEqual(res.status, 0);
     const stage = JSON.parse(res.stdout);
     assert.strictEqual(stage.verdict, 'FAIL');
@@ -217,10 +475,10 @@ if [ "$1 $2" = "plugin list" ]; then
 fi
 exit 0
 `);
-    const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` });
+    const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` }, ['--surface', 'claude-core']);
     assert.strictEqual(res.status, 0, res.stdout + res.stderr);
     const stage = JSON.parse(res.stdout);
-    assert.strictEqual(stage.verdict, 'PENDING', JSON.stringify(stage));
+    assert.strictEqual(stage.verdict, 'PASS', JSON.stringify(stage));
     const claude = stage.surfaceResults.find((result) => result.surface === 'claude');
     assert.ok(claude, JSON.stringify(stage));
     assert.strictEqual(claude.status, 'PASS', JSON.stringify(claude));
@@ -240,7 +498,7 @@ if [ "$1 $2" = "plugin list" ]; then
 fi
 exit 0
 `);
-    const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` });
+    const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` }, ['--surface', 'claude-core']);
     assert.notStrictEqual(res.status, 0, res.stdout + res.stderr);
     const stage = JSON.parse(res.stdout);
     const claude = stage.surfaceResults.find((result) => result.surface === 'claude');
@@ -260,7 +518,7 @@ if [ "$1 $2" = "plugin validate" ]; then echo 'skills/dhpk-ios-platform/SKILL.md
 if [ "$1 $2" = "plugin list" ]; then echo '[{"id":"dhpk@dhpk","version":"${REAL_VERSION}"}]'; exit 0; fi
 exit 0
 `);
-    const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` });
+    const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` }, ['--surface', 'claude-core']);
     assert.notStrictEqual(res.status, 0);
     const stage = JSON.parse(res.stdout);
     assert.strictEqual(stage.verdict, 'FAIL', JSON.stringify(stage));
@@ -304,14 +562,14 @@ test('duplicate Codex surfaces use the deterministic PASS/WARN/BLOCKED matrix', 
 });
 
 test('consumer gate resolves a relative repository root before entering its sandbox', () => {
-  const res = spawnSync('node', [CLI, '--version', REAL_VERSION, '--repo-root', '.'], {
+  const res = spawnSync('node', [CLI, '--version', REAL_VERSION, '--repo-root', '.', '--surface', 'claude-core'], {
     cwd: ROOT,
     encoding: 'utf8',
     env: { ...process.env, PATH: NODE_BASH_ONLY_PATH },
   });
   assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
   const stage = JSON.parse(res.stdout);
-  assert.ok(['PASS', 'UNAVAILABLE'].includes(stage.verdict), JSON.stringify(stage));
+  assert.strictEqual(stage.verdict, 'UNAVAILABLE', JSON.stringify(stage));
 });
 
 test('consumer gate rejects a missing --surface value instead of running every probe', () => {
@@ -603,9 +861,9 @@ test('Claude consumer-gate uninstalls the project-scope plugin before deleting t
   withConsumerGateBin((bin) => {
     const log = path.join(bin, 'claude-argv.log');
     mkBinStub(bin, 'claude', recordingClaudeScript(log));
-    const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` });
+    const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` }, ['--surface', 'claude-core']);
     const stage = JSON.parse(res.stdout);
-    assert.strictEqual(stage.verdict, 'PENDING', JSON.stringify(stage));
+    assert.strictEqual(stage.verdict, 'PASS', JSON.stringify(stage));
     assertClaudeProjectTeardown(fs.readFileSync(log, 'utf8'), stage);
   });
 });
@@ -614,7 +872,7 @@ test('Claude consumer-gate still tears down after a project-scope install failur
   withConsumerGateBin((bin) => {
     const log = path.join(bin, 'claude-argv.log');
     mkBinStub(bin, 'claude', recordingClaudeScript(log, { installExit: 1 }));
-    const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` });
+    const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` }, ['--surface', 'claude-core']);
     assert.notStrictEqual(res.status, 0);
     const stage = JSON.parse(res.stdout);
     assert.strictEqual(stage.verdict, 'FAIL', JSON.stringify(stage));
@@ -623,19 +881,19 @@ test('Claude consumer-gate still tears down after a project-scope install failur
   });
 });
 
-test('Claude registry teardown failure keeps PENDING and records WARN evidence', () => {
+test('Claude registry teardown failure records WARN without failing the selected surface', () => {
   withConsumerGateBin((bin) => {
     const log = path.join(bin, 'claude-argv.log');
     mkBinStub(bin, 'claude', recordingClaudeScript(log, { uninstallExit: 1 }));
-    const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` });
+    const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` }, ['--surface', 'claude-core']);
     const stage = JSON.parse(res.stdout);
-    assert.strictEqual(stage.verdict, 'PENDING', JSON.stringify(stage));
+    assert.strictEqual(stage.verdict, 'PASS', JSON.stringify(stage));
     assert.strictEqual(res.status, 0);
     assertClaudeProjectTeardown(fs.readFileSync(log, 'utf8'), stage);
     assert.ok(stage.commands.some((c) => /plugin uninstall/.test(c.cmd) && c.exitCode !== 0), JSON.stringify(stage.commands));
     assert.ok(
-      (stage.artifacts || []).some((a) => /claude-registry-teardown: WARN/i.test(a)),
-      JSON.stringify(stage.artifacts),
+      (stage.surfaceResults[0].warnings || []).some((warning) => /uninstall|teardown/i.test(warning)),
+      JSON.stringify(stage.surfaceResults[0]),
     );
     assert.ok(
       !(stage.failureReasons || []).some((r) => /uninstall|marketplace remove|teardown/i.test(r)),

@@ -13,6 +13,7 @@ const receipts = require('../scripts/lib/harness-receipt');
 const harness = require('../scripts/lib/harness');
 
 const ROOT = path.join(__dirname, '..');
+const NODE_BASH_ONLY_PATH = [path.dirname(process.execPath), '/usr/bin', '/bin'].join(path.delimiter);
 
 function invokeAt(root, args, env = {}) {
   return spawnSync('bash', [path.join(root, 'bin', 'dhpk'), 'harness', ...args], {
@@ -702,6 +703,7 @@ test('release JSON preserves every required surface result at the public boundar
   try {
     const result = invoke(['release', '--task-id', 'facade-release-surfaces', '--json'], {
       DHPK_HARNESS_RECEIPT_ROOT: receiptRoot,
+      PATH: NODE_BASH_ONLY_PATH,
     });
     assert.strictEqual(result.status, 2, result.stderr);
     const payload = parseSingleJson(result.stdout);

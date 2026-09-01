@@ -135,8 +135,9 @@ bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh
 ```
 
 在 Claude plugin runtime 使用 `${CLAUDE_PLUGIN_ROOT}`。installer 會使用
-project-root heuristic，預設建立 relative symlink；需要實體檔時使用
-`--copy`：
+project-root heuristic，預設採 hybrid materialization：skill 與 supporting asset
+維持 relative symlink，但 `.codex/agents/*.toml` 一律為實體檔，供 Codex 作為
+configuration layer 載入。`--copy` 會把整個 projection 改為實體檔：
 
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --copy
@@ -158,6 +159,10 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --profile min
 沒有 profile metadata 的既有 receipt 維持 `compat-v1`；切換到較小 profile 必須
 使用 `--migrate --update`。Receipt 會記錄 canonical/surface-emitted IDs 與 selection
 fingerprint；無法使用的 consumer probe 維持 non-pass evidence。
+
+既有 schema-v3 symlink projection 執行普通 `--update` 時，未變更且
+receipt-owned 的 agent link 會轉為實體檔，skill link 保持不變。retargeted、edited
+或 unowned agent path 仍是 collision，不會被覆寫。
 
 `--force` 只繞過 project-root heuristic，不繞過 ownership 或 filesystem
 safety。schema-v3 receipt 記錄 stable ID、public name、destination、source、
@@ -192,7 +197,12 @@ adoption 只作用於指定 path，並會在 promotion 前建立可 rollback 的
 
 ```bash
 test -f .codex/.dhpk-installed.json
+test -z "$(find .codex/agents -type l -print)"
 ```
+
+上述檢查與 receipt 只證明安裝形態。必須由 fresh Codex session 實際派發 projected
+role，named-role runtime 才能從 `NOT_RUN` 升為 `PASS`；unavailable 或 unknown
+custom role 都是 non-pass evidence，不能由靜態 installer PASS 取代。
 
 再從 dhpk checkout 執行 source-check validator。將 `DHPK_ROOT` 設為包含
 `scripts/` 與 `tests/` 的 checkout；這些檔案不會複製到 consumer project：

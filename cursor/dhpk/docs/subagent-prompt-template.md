@@ -1,6 +1,36 @@
 # Subagent prompt template
 
-Sub-agents do not inherit the spawning agent's rules or skills. When you spawn a sub-agent that will do code exploration or database work, paste the relevant block(s) below into the sub-agent's prompt so it follows the same conventions.
+Cold sub-agents do not inherit the spawning agent's rules or skills. When you spawn a cold sub-agent that will do code exploration or database work, paste the relevant block(s) below into the sub-agent's prompt so it follows the same conventions.
+
+## Standalone task packet (always include for a cold or named-specialist handoff)
+
+The execution policy owns the dispatch parameters. Put the complete task in the
+`message` field using this shape; no instruction may depend on parent history.
+
+```text
+Working directory: <absolute project or worktree path>
+
+Goal and non-goals:
+- Goal: <one concrete outcome>
+- Non-goals: <explicit exclusions>
+
+Scope:
+- Read scope: <paths or systems the agent may inspect>
+- Write scope: <exact repo-relative files, or "read-only">
+
+Constraints and settled decisions:
+- <interfaces, invariants, compatibility limits, and user decisions>
+
+Verification and acceptance:
+- <commands or observable pass conditions>
+
+Task identity and evidence:
+- Task/attempt id: <stable task id and attempt-specific id>
+- Evidence pointers: <required files, artifacts, or prior conclusions>
+
+Output contract:
+- <required headings, evidence shape, edited-file report, and terminal status>
+```
 
 ## Source-reading boilerplate (always include)
 

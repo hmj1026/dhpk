@@ -356,18 +356,19 @@ bash "$DHPK_ROOT/scripts/hooks/install-codex-skills.sh"
 在 Claude plugin-runtime shell 內可用 `${CLAUDE_PLUGIN_ROOT}` 作為等價 root。普通 terminal
 必須明確設定 `DHPK_ROOT`；不要把 ephemeral marketplace-cache path 複製到 project command。
 
-此 script 是支援的 Codex distribution path，有兩種 mode：
+此 script 是支援的 Codex distribution path，預設採 hybrid，另有整體實體化 fallback：
 
-- **`--copy`（portable supported fallback）**：在 `.codex/` 產生實體檔案。project 可能搬移、
+- **`--copy`（portable supported fallback）**：將 `.codex/` managed entry 全部實體化。project 可能搬移、
   archive 或離開 plugin source tree 時建議使用；copy 不依賴 plugin checkout 持續存在。
-- **Symlink（預設，source-checkout dependent）**：將 `.codex/` entry 連回 plugin 的
-  `codex/skills/` tree。重新 sync 快且會跟隨 source checkout，但 plugin root/cache 被搬移、
+- **Hybrid（預設，source-checkout dependent）**：skill 與 supporting asset 連回 plugin
+  source，但 agent TOML 一律為實體檔。linked entry 重新 sync 快且會跟隨 source checkout，
+  但 plugin root/cache 被搬移、
   清理或刪除就會斷。Marketplace cache 只要仍存在就可用；`--update` 可採用新的 owned plugin
   root。若 source lifetime 不保證，請使用 `--copy`。[Issue #88](https://github.com/hmj1026/dhpk/issues/88)
   曾由 source lifetime 斷裂造成。
 
-兩種 mode 都會在 `.codex/.dhpk-installed.json` 記錄 version、source-fingerprint 與 schema-v3
-managed-entry provenance；skill entry 也包含 stable inventory id 與目前 public `dhpk-*` name。
+兩種 mode 都會在 `.codex/.dhpk-installed.json` 記錄 version、source-fingerprint、per-entry
+mode 與 schema-v3 managed-entry provenance；skill entry 也包含 stable inventory id 與目前 public `dhpk-*` name。
 Plugin 更新後以 `--update` 重新執行。Unowned collision 會保留；`--migrate` 只重新命名
 receipt-owned、未修改的 legacy destination；edited、third-party、retargeted、malformed 或
 ambiguous path 仍會報告 conflict。`--uninstall` 只移除未修改且 receipt-owned 的 entry。

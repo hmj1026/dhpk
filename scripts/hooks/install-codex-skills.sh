@@ -1601,13 +1601,21 @@ def prepare_adoption_backup(relative, destination, expected_fingerprint):
     }
 
 
+def effective_materialization_mode(relative):
+    """Return the runtime-safe materialization mode for one managed entry."""
+    top_level = relative.split('/', 1)[0]
+    return 'copy' if HARNESS_KIND == 'codex' and top_level == 'agents' else MODE
+
+
 def stage_materialization(source, destination, destination_fd):
     """Build a new projection in a descriptor-pinned staging directory."""
+    relative = os.path.relpath(destination, CODEX_ROOT).replace(os.sep, '/')
+    mode = effective_materialization_mode(relative)
     stage_name, stage_fd = create_staging_directory(destination_fd)
     staged_name = os.path.basename(destination)
     staged = fd_entry_path(stage_fd, staged_name)
     try:
-        if MODE == 'symlink':
+        if mode == 'symlink':
             os.symlink(source, staged_name, target_is_directory=os.path.isdir(source), dir_fd=stage_fd)
         elif os.path.isdir(source):
             shutil.copytree(source, staged, symlinks=False, ignore=ignore_distribution_entries)
@@ -2446,11 +2454,12 @@ def target_for(relative):
 def make_entry(source, relative, destination, metadata=None):
     source_fp = hash_path(source, include_ignored=False)
     destination_fp = hash_path(destination)
-    marker = f'{MODE}:{relative}'
+    mode = effective_materialization_mode(relative)
+    marker = f'{mode}:{relative}'
     entry = {
         'destination': relative,
         'source': relative,
-        'mode': MODE,
+        'mode': mode,
         'source_fingerprint': source_fp,
         'destination_fingerprint': destination_fp,
         # `fingerprint` is the ownership fingerprint in schema v3. Keep the
@@ -2464,7 +2473,7 @@ def make_entry(source, relative, destination, metadata=None):
             entry['id'] = metadata['id']
         if metadata.get('name'):
             entry['name'] = metadata['name']
-    if MODE == 'symlink':
+    if mode == 'symlink':
         entry['destination_target'] = os.readlink(destination)
     return entry
 
@@ -2491,6 +2500,16 @@ def contains_symlink(path):
     except OSError:
         return True
     return False
+
+
+def matches_effective_materialization(relative, destination):
+    """Require legacy adoption to match the mode the new receipt will claim."""
+    mode = effective_materialization_mode(relative)
+    if mode == 'symlink':
+        return os.path.islink(destination)
+    return (not os.path.islink(destination)
+            and (os.path.isfile(destination) or os.path.isdir(destination))
+            and not contains_symlink(destination))
 
 
 def is_owned(entry, destination):
@@ -2656,7 +2675,8 @@ def build_plan(receipt, classification, sources, metadata, plugin_version, finge
                     'action': f'--adopt={relative}@{destination_fp}@{source_fp}',
                 })
                 continue
-            if old.get('mode') != MODE or not exact_source_match(source, destination):
+            if (old.get('mode') != effective_materialization_mode(relative)
+                    or not exact_source_match(source, destination)):
                 updates.append({
                     'path': relative,
                     'kind': kind,
@@ -3621,7 +3641,7 @@ for kind in MANAGED_KINDS:
             # and unowned targets, unchanged for a later normal update.
             if (not lexists(destination)
                     or not is_owned(old, destination)
-                    or old.get('mode') != MODE
+                    or old.get('mode') != effective_materialization_mode(relative)
                     or not exact_source_match(source, destination)):
                 record_path('deferred', relative)
                 if relative not in collisions:
@@ -3634,7 +3654,9 @@ for kind in MANAGED_KINDS:
         if lexists(destination):
             owned = is_owned(old, destination)
             adopted = False
-            if legacy_pending and MIGRATE and exact_source_match(source, destination):
+            if (legacy_pending and MIGRATE
+                    and matches_effective_materialization(relative, destination)
+                    and exact_source_match(source, destination)):
                 entries[kind][name] = make_entry(source, relative, destination, skill_metadata.get(name) if kind == 'skills' else None)
                 adopted = True
                 counts['preserved'] += 1
@@ -3732,7 +3754,8 @@ for kind in MANAGED_KINDS:
                 record_path('collisions', relative)
                 record_ownership(relative, 'orphaned')
                 continue
-            if old.get('mode') == MODE and exact_source_match(source, destination):
+            if (old.get('mode') == effective_materialization_mode(relative)
+                    and exact_source_match(source, destination)):
                 entries[kind][name] = make_entry(source, relative, destination, skill_metadata.get(name) if kind == 'skills' else None)
                 clear_orphaned(relative)
                 record_ownership(relative, 'dhpk-managed')

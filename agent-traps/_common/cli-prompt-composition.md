@@ -46,9 +46,10 @@ Wrapper degrade path (landed with `adapt-cli-wrappers-to-new-behaviors`):
 
 ## GPT-5.x section (codex-worker, codex-reasoner, codex-reviewer; aliases: codex-fast-worker, codex-deep-reasoner, codex-bridge skill)
 
-- **Source**: GPT-5.6 latest-model guide. `codex-bridge` dispatches gpt-5.5 —
-  a one-minor-version gap from this guidance; treat as directionally correct,
-  not exact.
+- **Source**: GPT-5.6 latest-model guide. Every active Codex bridge route stays
+  in the GPT-5.6 family: `codex-reviewer` uses `gpt-5.6-sol` / `high`, while
+  `codex-worker` uses `gpt-5.6-luna` / `xhigh`. A pre-GPT-5.6 parent is not a
+  fallback and its trace is not runtime acceptance evidence.
 - **Verified CLI baseline**: codex-cli 0.147.0 (`codex --version` and `codex exec
   --help`, re-checked 2026-08-17). `model_reasoning_effort=ultra` is present but
   intentionally unused by the wrapper.
