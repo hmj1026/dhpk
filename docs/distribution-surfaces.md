@@ -37,11 +37,18 @@ rules are defined below. `cursor-sync` is the Codex analog for consumer
 
 Directory placement and README prose are not authoritative — the checked-in
 inventory is. `scripts/ci/gen-distribution-inventory.js --write` bootstraps a
-new canonical skill's default entry (root `skills/` → `promoted`/`claude-core`,
-`modules/*/skills/` → `optional`/`claude-module`, `codex-sync` added wherever
-`codex/skills/` already mirrors the entry); `scripts/ci/validate-distribution.js`
-reconciles the checked-in file against canonical packages, the module catalog,
-and per-skill Codex metadata (`agents/openai.yaml`).
+missing inventory or updates an existing v1 inventory for recognized canonical
+skills (root `skills/` → `promoted`/`claude-core`, `modules/*/skills/` →
+`optional`/`claude-module`, `codex-sync` added wherever `codex/skills/` already
+mirrors the entry). An existing v2 inventory is curated policy: `--write`
+returns nonzero before the atomic file-replacement step and leaves its bytes
+unchanged. Use `--refresh-supporting-digests` for digest-only updates; intentional
+v2 membership changes require a reviewed inventory edit or reconciliation
+workflow. A canonical path outside the two recognized shapes fails closed and
+reports the unclassified path instead of guessing ownership or surface policy.
+`scripts/ci/validate-distribution.js` reconciles the checked-in file against
+canonical packages, the module catalog, and per-skill Codex metadata
+(`agents/openai.yaml`).
 
 The same inventory also owns Codex projection support files through
 `supporting_assets`. Each mapping declares a repository source and a safe
