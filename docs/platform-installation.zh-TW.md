@@ -200,9 +200,27 @@ test -f .codex/.dhpk-installed.json
 test -z "$(find .codex/agents -type l -print)"
 ```
 
-上述檢查與 receipt 只證明安裝形態。必須由 fresh Codex session 實際派發 projected
-role，named-role runtime 才能從 `NOT_RUN` 升為 `PASS`；unavailable 或 unknown
-custom role 都是 non-pass evidence，不能由靜態 installer PASS 取代。
+上述檢查與 receipt 只證明安裝形態。named-role runtime 在 fresh Codex session
+實際派發 projected role 之前維持 `NOT_RUN`；unavailable 或 unknown custom role
+都是 non-pass evidence，不能由靜態 installer PASS 取代。派發本身不是 runtime
+`PASS`。
+
+Registry canary 必須使用非內建 custom role，並比較其 hyphenated 與 underscored
+兩種形式；內建 `explorer` 成功只證明 multi-agent tooling 可用。若 valid Git
+checkout 中由實體 TOML 支援的精確 ID 仍回報 `unknown agent_type`，應記錄
+`CUSTOM_AGENT_REGISTRY_UNAVAILABLE`、Codex CLI 版本與 bounded redacted
+diagnostics，consumer gate 保持 `FAIL`。改 role 名稱、替換 model 或重寫
+configuration 都不是 installation remediation。
+
+不能只因缺少 typed collaboration events 就推論
+`CUSTOM_AGENT_REGISTRY_UNAVAILABLE`。這個 diagnosis 必須有 fresh trusted
+disposable-home probe（由 gate 建立、全新隔離的暫時 `CODEX_HOME`，用來擷取
+dispatch）提供 affirmative unavailable-role evidence，或觀察到
+`untyped-fallback evidence`（fallback spawn 的觀察結果未帶 `agent_type`）。若
+兩者皆無（包括只有文字 `CODEX_DHPK_NAMED_ROLES=PASS` marker 單獨出現），保留
+bounded evidence 並回報 generic `FAIL`；collaboration-tool exposure/protocol
+另行調查。這個結果既不是 runtime `PASS`，也不是 unavailable-registry
+diagnosis。
 
 再從 dhpk checkout 執行 source-check validator。將 `DHPK_ROOT` 設為包含
 `scripts/` 與 `tests/` 的 checkout；這些檔案不會複製到 consumer project：
