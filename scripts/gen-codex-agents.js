@@ -3,12 +3,14 @@
 
 const fs = require('fs');
 const path = require('path');
+const { collectCodexRoleNeighborErrors } = require('./lib/codex-role-neighbors');
 
 // Plugin root: this script lives in scripts/, so root is one level up.
 const ROOT = path.join(__dirname, '..');
 const SOURCE_DIR = path.join(ROOT, 'agents');
 const DEFAULT_OUT_DIR = path.join(ROOT, 'codex', 'agents');
 const OWNERSHIP_MANIFEST = path.join(ROOT, 'codex', 'agent-projection-manifest.json');
+const ROLE_MAP = path.join(ROOT, 'codex', 'agent-role-map.json');
 
 // Codex runtime metadata is explicit per role. Claude frontmatter describes the
 // Claude runtime and must not silently overwrite the effective Codex model or
@@ -325,6 +327,12 @@ function adaptCodexBody(agentName, body) {
       .replaceAll('`silent-failure-hunter`', '`deep-reasoner` (Codex fallback; otherwise perform the audit directly)')
       .replaceAll('`type-design-analyzer`', '`architect` (Codex fallback; otherwise perform the design check directly)');
   }
+  if (agentName === 'planner') {
+    adapted = adapted.replace(
+      'spawn the built-in read-only `Explore` agent through\n  `Agent`. If `Explore` is unavailable, use a read-only `general-purpose` child.',
+      'dispatch the direct Codex `explorer` role. If `explorer` is unavailable, return `VERDICT: RECONSULT` with the missing capability.',
+    );
+  }
   if (agentName === 'e2e-runner') {
     adapted = adapted
       .replaceAll('`smoke-tester`', 'perform the live probe directly (no Codex role)')
@@ -443,13 +451,25 @@ function buildToml(agent, frontmatter, body) {
     '"""',
     '',
   ];
-  return { toml: lines.join('\n'), effort: runtime.effort, sandbox };
+  return {
+    toml: lines.join('\n'),
+    effort: runtime.effort,
+    sandbox,
+    description,
+    instructions,
+  };
 }
 
 function generate(outDir) {
   fs.mkdirSync(outDir, { recursive: true });
   const ownership = readOwnershipManifest(outDir);
   assertNoStaleToml(outDir, ownership);
+  const roleMap = readJson(ROLE_MAP, 'Codex role map');
+  const plannedRoles = new Set([
+    ...GENERATED_NAMES,
+    ...ownership.packageNames,
+  ]);
+  const planned = [];
   const summary = [];
   for (const agent of AGENTS) {
     const sourcePath = path.join(SOURCE_DIR, `${agent.name}.md`);
@@ -458,7 +478,31 @@ function generate(outDir) {
     }
     const text = fs.readFileSync(sourcePath, 'utf8').replace(/\r\n/g, '\n');
     const { frontmatter, body } = splitFrontmatter(text);
-    const { toml, effort, sandbox } = buildToml(agent, frontmatter, body);
+    const built = buildToml(agent, frontmatter, body);
+    planned.push({ agent, built });
+  }
+
+  // Validate the complete adapted batch before publishing any TOML.  Direct
+  // targets therefore resolve independently of the order in which files are
+  // eventually written.
+  const neighborErrors = [];
+  for (const { agent, built } of planned) {
+    neighborErrors.push(...collectCodexRoleNeighborErrors({
+      sourceRole: agent.name,
+      text: `${built.description}\n${built.instructions}`,
+      roleMap,
+      generatedRoles: ownership.generatedNames,
+      packageRoles: ownership.packageNames,
+      resolvableTargets: plannedRoles,
+      file: `agents/${agent.name}.md`,
+    }));
+  }
+  if (neighborErrors.length > 0) {
+    throw new Error(neighborErrors.join('\n'));
+  }
+
+  for (const { agent, built } of planned) {
+    const { toml, effort, sandbox } = built;
     const outFile = path.join(outDir, `${agent.name}.toml`);
     fs.writeFileSync(outFile, toml);
     summary.push(

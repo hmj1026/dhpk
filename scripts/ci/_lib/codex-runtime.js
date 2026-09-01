@@ -3,6 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('../../lib/bounded-filesystem');
+const { collectCodexRoleNeighborErrors } = require('../../lib/codex-role-neighbors');
 
 const TIER_LABEL = /\b(?:haiku|sonnet|opus)\b/i;
 const BACKTICKED_TOKEN = /`([a-z0-9]+(?:-[a-z0-9]+)*)`/g;
@@ -75,6 +76,15 @@ function readRoleOwnershipManifest(root) {
     return {
       manifest: null,
       errors: [`${ROLE_OWNERSHIP_MANIFEST} — role ownership manifest is not valid JSON: ${error.message}`],
+      generated: new Set(),
+      packageRoles: new Set(),
+      local: new Set(),
+    };
+  }
+  if (!manifest || typeof manifest !== 'object' || Array.isArray(manifest)) {
+    return {
+      manifest: null,
+      errors: [`${ROLE_OWNERSHIP_MANIFEST} — role ownership manifest must be an object`],
       generated: new Set(),
       packageRoles: new Set(),
       local: new Set(),
@@ -414,6 +424,33 @@ function readRoleMatrix(root) {
   }
 }
 
+function readRoleMatrixContract(root) {
+  const file = path.join(root, 'codex', 'agent-role-map.json');
+  if (!fs.existsSync(file)) {
+    return {
+      matrix: null,
+      errors: ['codex/agent-role-map.json — canonical Codex coverage matrix is missing'],
+    };
+  }
+  let matrix;
+  try {
+    matrix = JSON.parse(readFileBounded(file).toString('utf8'));
+  } catch (error) {
+    return {
+      matrix: null,
+      errors: [`codex/agent-role-map.json — coverage matrix is not valid JSON: ${error.message}`],
+    };
+  }
+  if (!matrix || typeof matrix !== 'object' || Array.isArray(matrix)
+    || !matrix.roles || typeof matrix.roles !== 'object' || Array.isArray(matrix.roles)) {
+    return {
+      matrix,
+      errors: ['codex/agent-role-map.json — coverage matrix must contain a roles object'],
+    };
+  }
+  return { matrix, errors: [] };
+}
+
 function collectSupportingDispatchErrors(root, sourceRoot, assets) {
   const errors = [];
   const matrix = readRoleMatrix(sourceRoot);
@@ -459,6 +496,11 @@ function collectSupportingDispatchErrors(root, sourceRoot, assets) {
 function collectCodexProjectionReferenceErrors(root, sourceRoot = root) {
   const errors = [];
   const { agents, assets } = projectionRoots(root);
+  const ownership = readRoleOwnershipManifest(sourceRoot);
+  const roleMapContract = readRoleMatrixContract(sourceRoot);
+  const roleMap = roleMapContract.matrix;
+  errors.push(...ownership.errors, ...roleMapContract.errors);
+  const resolvableTargets = new Set(namesFrom(agents, '.toml'));
   if (!fs.existsSync(agents)) return errors;
   errors.push(...collectSupportingClosureErrors(root, sourceRoot, assets));
   errors.push(...collectSupportingDispatchErrors(root, sourceRoot, assets));
@@ -466,6 +508,18 @@ function collectCodexProjectionReferenceErrors(root, sourceRoot = root) {
   for (const name of readDirectoryEntries(agents, { sort: true }).map((entry) => entry.name).filter((entry) => entry.endsWith('.toml'))) {
     const file = path.join(agents, name);
     const source = readProjectionFile(file, [root, sourceRoot]).toString('utf8');
+    const sourceRole = name.slice(0, -'.toml'.length);
+    if (ownership.generated.has(sourceRole)) {
+      errors.push(...collectCodexRoleNeighborErrors({
+        sourceRole,
+        text: source,
+        roleMap,
+        generatedRoles: ownership.generated,
+        packageRoles: ownership.packageRoles,
+        resolvableTargets,
+        file: relative(root, file),
+      }));
+    }
     if (source.includes('${CLAUDE_PLUGIN_ROOT}')) {
       errors.push(`${relative(root, file)} — generated Codex role retains unsupported $\{CLAUDE_PLUGIN_ROOT\} interpolation`);
     }
