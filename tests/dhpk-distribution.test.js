@@ -103,6 +103,47 @@ test('rejects provenance-bound generation from a dirty source checkout before wr
   }
 });
 
+test('validate and verify still run on a dirty checkout because they do not write provenance', () => {
+  const worktreeParent = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-distribution-dirty-read-'));
+  const worktreeRoot = path.join(worktreeParent, 'checkout');
+  let worktreeAdded = false;
+  const marker = path.join(worktreeRoot, `.issue-237-dirty-source-read-${process.pid}`);
+  try {
+    execFileSync('git', ['worktree', 'add', '--detach', worktreeRoot, 'HEAD'], {
+      cwd: ROOT,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    worktreeAdded = true;
+    fs.writeFileSync(marker, 'uncommitted source input\n');
+    for (const operation of ['validate', 'verify']) {
+      const result = spawnSync('bash', [
+        path.join(worktreeRoot, 'bin', 'dhpk'),
+        'distribution',
+        'agent-plugin',
+        operation,
+        '--json',
+      ], {
+        cwd: worktreeRoot,
+        encoding: 'utf8',
+        timeout: 30000,
+      });
+      assert.strictEqual(result.status, 0, `${operation}: ${result.stderr}`);
+      assert.strictEqual(JSON.parse(result.stdout).verdict, 'PASS', `${operation}: ${result.stdout}`);
+    }
+  } finally {
+    fs.rmSync(marker, { force: true });
+    if (worktreeAdded) {
+      execFileSync('git', ['worktree', 'remove', '--force', worktreeRoot], {
+        cwd: ROOT,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+    }
+    fs.rmSync(worktreeParent, { recursive: true, force: true });
+  }
+});
+
 test('refuses to replace a foreign output directory before package materialization', () => {
   const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-distribution-foreign-'));
   const outDir = path.join(temporaryRoot, 'foreign-package');
