@@ -5,10 +5,10 @@
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
   "sourceVersion": "0.51.0",
-  "sourceCommit": "1d230856e6b672a2336cb2e53eeeae2577d179c8",
-  "generatedFromCommit": "1d230856e6b672a2336cb2e53eeeae2577d179c8",
-  "generatedFromTree": "61016172987e0f17dfd7b0329d74fec7e738d7bd",
-  "inventoryDigest": "977d017d10591e6dba1c6cd08db1ab7b9e93990ec20e377a848bcf807ebf25b5",
+  "sourceCommit": "965869e75781fa89c5248dce1c047d0b9c669299",
+  "generatedFromCommit": "965869e75781fa89c5248dce1c047d0b9c669299",
+  "generatedFromTree": "f99631855f203a328a3765640c30874dcbbc6e59",
+  "inventoryDigest": "42891b450d287a4c478cad1ba2ec38ad819dac40fccd6e99636f1d88dbc019c3",
   "generatorVersion": "1.0.0",
   "selectedSkillIds": [
     "agy-fast-worker",
@@ -677,5 +677,5 @@
     "status": "NOT_RUN",
     "reason": "Cursor client consumer probe is separate from structural generation."
   },
-  "planFingerprint": "6f6482db66868bd78a0c7d57adb7107af00e06b6699eb3a49c23a1d734280ea5"
+  "planFingerprint": "6cfe11ef15220df6a77a1214dbd3f8f66a11a3f39bd1ffccc365733c0e07be90"
 }

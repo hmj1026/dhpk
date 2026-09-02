@@ -1,10 +1,11 @@
 ---
 name: dhpk-codex-architect
+disable-model-invocation: true
 argument-hint: '"<question>" [--context <files>] [--mode design|review|compare|adversarial]'
-description: 'Codex architecture consulting, including bounded adversarial option convergence. Use when: designing features, evaluating architecture, comparing options, or running independent proposal and critique rounds. Not for: implementation (use dhpk-codex-implement), code review (use dhpk-change-review). Output: architecture advice + design recommendations.'
+description: 'Codex architecture consulting, including bounded adversarial option convergence. Purpose: design features, evaluate architecture, compare options, or run independent proposal and critique rounds. Not for: implementation (use dhpk-codex-implement), code review (use dhpk-change-review). Output: architecture advice + design recommendations.'
 allowed-tools: 'Read, Grep, Glob, mcp__codex__codex, mcp__codex__codex-reply, Agent'
 metadata:
-  dhpk-invocation-class: implicit-eligible
+  dhpk-invocation-class: explicit-only
 ---
 
 # Codex Architect Skill (Third Brain)
