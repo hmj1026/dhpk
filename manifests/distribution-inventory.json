@@ -650,7 +650,14 @@
       "lifecycle": "promoted",
       "tier": "optional",
       "profiles": [
-        "laravel"
+        "laravel-5.4",
+        "laravel-6",
+        "laravel-7",
+        "laravel-8",
+        "laravel-9",
+        "laravel-10",
+        "laravel-11",
+        "laravel-mix"
       ],
       "surfaces": [
         "claude-core"
@@ -995,7 +1002,9 @@
       "lifecycle": "promoted",
       "tier": "optional",
       "profiles": [
-        "phpunit"
+        "phpunit-9",
+        "phpunit-10",
+        "phpunit-11"
       ],
       "surfaces": [
         "claude-core"
