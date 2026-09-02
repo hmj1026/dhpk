@@ -22,6 +22,7 @@ const { validateInternalRuntimeSkills } = require('./internal-runtime-skills');
 const { assertCanonicalSkillPath } = require('./distribution-inventory-regeneration');
 
 const LIFECYCLES = ['promoted', 'optional', 'experimental', 'deprecated'];
+const INVOCATION_CLASSES = ['implicit-eligible', 'explicit-only'];
 const SURFACES = [
   'claude-core',
   'claude-module',
@@ -560,6 +561,9 @@ function validateDistributionInventoryV2(input = {}) {
 
     if (entry.invokable !== undefined && typeof entry.invokable !== 'boolean') {
       errors.push(`${prefix}.invokable must be a boolean when present`);
+    }
+    if (entry.invocation_class !== undefined && !INVOCATION_CLASSES.includes(entry.invocation_class)) {
+      errors.push(`${prefix}.invocation_class must be one of ${INVOCATION_CLASSES.join('/')}: '${entry.invocation_class}'`);
     }
     if (entry.invokable === false && JSON.stringify([...(entry.surfaces || [])].sort()) !== JSON.stringify([...SURFACES].sort())) {
       errors.push(`${prefix} non-invokable internal skills must be registered on every distribution surface`);
@@ -1607,6 +1611,7 @@ function computeScopedCounts(inventory) {
 
 module.exports = {
   LIFECYCLES,
+  INVOCATION_CLASSES,
   SURFACES,
   V2_SCHEMA,
   PUBLIC_SKILL_NAME,

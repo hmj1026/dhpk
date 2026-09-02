@@ -129,6 +129,22 @@ test('real route-table explicit-only targets retain their canonical classes', ()
   }
 });
 
+test('default route table does not target frozen Codex-MCP candidates', () => {
+  const routeTable = JSON.parse(read('skills/dhpk-do/references/route-table.json'));
+  const frozen = new Set([
+    'dhpk-codex-architect', 'dhpk-codex-implement', 'dhpk-change-review',
+    'dhpk-doc-review', 'dhpk-test-review', 'dhpk-codebase-exploration',
+    'dhpk-feature-verify', 'dhpk-issue-analyze', 'dhpk-feasibility-study',
+    'codex-review', 'codex-review-branch', 'codex-review-doc',
+    'codex-review-fast', 'codex-security', 'codex-test-gen',
+    'codex-test-review', 'review-spec',
+  ]);
+  const violations = routeTable.rules
+    .map((rule) => rule.target && rule.target.id)
+    .filter((id) => frozen.has(id));
+  assert.deepStrictEqual(violations, [], `default route table targets frozen MCP entries: ${violations.join(', ')}`);
+});
+
 test('v2 skill-local route table typed targets (skip while package absent; see dhpk-do-portable)', () => {
   const tablePath = path.join(ROOT, 'skills', 'dhpk-do', 'references', 'route-table.json');
   if (!fs.existsSync(tablePath)) return;
