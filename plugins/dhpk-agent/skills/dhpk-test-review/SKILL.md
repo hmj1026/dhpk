@@ -1,8 +1,8 @@
 ---
 name: dhpk-test-review
-description: "Test coverage review via Codex MCP. Use when: reviewing test sufficiency, identifying coverage gaps, test quality audit. Not for: generating tests (use /dhpk:codex-test-gen), code review (use dhpk-change-review). Output: coverage analysis + gap report."
+description: "Test coverage review via Codex MCP. Purpose: review test sufficiency, identify coverage gaps, or audit test quality. Not for: generating tests (use /dhpk:codex-test-gen), code review (use dhpk-change-review). Output: coverage analysis + gap report."
 metadata:
-  dhpk-invocation-class: "implicit-eligible"
+  dhpk-invocation-class: "explicit-only"
 ---
 
 # Test Review Skill

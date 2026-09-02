@@ -1,8 +1,8 @@
 ---
 name: dhpk-issue-analyze
-description: "GitHub Issue and PR review thread deep analysis with Codex blind verdict. Use when: analyzing issue root cause, classifying problems, investigation planning, triaging PR review comments for actionability. Not for: fixing bugs (use dhpk-adaptive-dev-workflow in bug mode), code exploration (use dhpk-codebase-exploration). Output: classified analysis + verdict assessment + investigation strategy."
+description: "GitHub Issue and PR review thread deep analysis with Codex blind verdict. Purpose: analyze issue root causes, classify problems, plan investigations, or triage PR review comments for actionability. Not for: fixing bugs (use dhpk-adaptive-dev-workflow in bug mode), code exploration (use dhpk-codebase-exploration). Output: classified analysis + verdict assessment + investigation strategy."
 metadata:
-  dhpk-invocation-class: "implicit-eligible"
+  dhpk-invocation-class: "explicit-only"
 ---
 
 # Issue Analyze Skill

@@ -1,8 +1,8 @@
 ---
 name: dhpk-codex-architect
-description: "Codex architecture consulting, including bounded adversarial option convergence. Use when: designing features, evaluating architecture, comparing options, or running independent proposal and critique rounds. Not for: implementation (use dhpk-codex-implement), code review (use dhpk-change-review). Output: architecture advice + design recommendations."
+description: "Codex architecture consulting, including bounded adversarial option convergence. Purpose: design features, evaluate architecture, compare options, or run independent proposal and critique rounds. Not for: implementation (use dhpk-codex-implement), code review (use dhpk-change-review). Output: architecture advice + design recommendations."
 metadata:
-  dhpk-invocation-class: "implicit-eligible"
+  dhpk-invocation-class: "explicit-only"
 ---
 
 # Codex Architect Skill (Third Brain)

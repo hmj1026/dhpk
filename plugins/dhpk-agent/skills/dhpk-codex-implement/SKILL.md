@@ -1,8 +1,8 @@
 ---
 name: dhpk-codex-implement
-description: "Implement features via Codex MCP. Use when: writing new code from specs, implementing features, Codex-driven development. Not for: code review (use dhpk-change-review), architecture advice (use dhpk-codex-architect). Output: implemented code + review loop."
+description: "Implement features via Codex MCP. Purpose: write new code from specs, implement features, or perform Codex-driven development. Not for: code review (use dhpk-change-review), architecture advice (use dhpk-codex-architect). Output: implemented code + review loop."
 metadata:
-  dhpk-invocation-class: "implicit-eligible"
+  dhpk-invocation-class: "explicit-only"
 ---
 
 # Codex Implement Skill

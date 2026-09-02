@@ -1,8 +1,8 @@
 ---
 name: dhpk-doc-review
-description: "Document review via Codex MCP. Use when: reviewing .md docs, tech spec audit, document quality check. Not for: code review (use dhpk-change-review), test review (use dhpk-test-review). Output: 5-dimension rating table + gate."
+description: "Document review via Codex MCP. Purpose: review .md docs, audit a tech spec, or check document quality. Not for: code review (use dhpk-change-review), test review (use dhpk-test-review). Output: 5-dimension rating table + gate."
 metadata:
-  dhpk-invocation-class: "implicit-eligible"
+  dhpk-invocation-class: "explicit-only"
 ---
 
 # Document Review Skill
