@@ -56,7 +56,7 @@
       "label": "code exploration",
       "target": {
         "kind": "skill",
-        "id": "dhpk-codebase-exploration"
+        "id": "dhpk-tool-routing"
       }
     },
     {
@@ -136,7 +136,7 @@
       "label": "feasibility study",
       "target": {
         "kind": "skill",
-        "id": "dhpk-feasibility-study"
+        "id": "dhpk-tech-spec"
       }
     },
     {

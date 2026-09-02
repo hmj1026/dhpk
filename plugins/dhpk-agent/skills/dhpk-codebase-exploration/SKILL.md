@@ -1,8 +1,8 @@
 ---
 name: dhpk-codebase-exploration
-description: "Explore an unfamiliar codebase with a focused symbol/flow trace, optionally run an independent second perspective, or request a depth-controlled explanation. Use when: tracing execution, understanding architecture, or diagnosing a code path. Not for: change review, security audit, or implementation. Output: evidence-backed flow findings with explicit gaps."
+description: "Explore an unfamiliar codebase with a focused symbol/flow trace, optionally run an independent second perspective, or request a depth-controlled explanation. Purpose: trace execution, understand architecture, or diagnose a code path. Not for: change review, security audit, or implementation. Output: evidence-backed flow findings with explicit gaps."
 metadata:
-  dhpk-invocation-class: "implicit-eligible"
+  dhpk-invocation-class: "explicit-only"
 ---
 
 # Codebase exploration

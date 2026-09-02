@@ -14,8 +14,21 @@ Your job is to get Codex's independent view and relay its bounded, redacted resu
 
 - In-session MCP `codex-*` skills — output lands in the main conversation context; not this agent.
 - External `codex:` app-server plugin — persistent broker; not this agent.
-- This agent is the third path: one-shot `codex exec`, output isolated in this subagent and relayed with bounded redaction. Requires `CODEX=on`.
+- This agent is the third path: one-shot `codex exec`, output isolated in this subagent and relayed with bounded redaction. Legacy workflows may gate it behind `CODEX=on`, but that flag is not a transport selector.
 - Not a substitute for `fast-worker` / `deep-reasoner` role text — those remain the mechanical and reasoning contracts; this agent only bridges to Codex.
+
+## Legacy peer-flag boundary
+
+`CODEX=on` and `/dhpk:do --codex` are legacy, per-session MCP-peer interfaces.
+They remain during the compatibility window while capability migration prepares
+a backend-neutral successor, but they must never be silently reinterpreted as
+this agent's CLI `codex exec` transport, `--worker=codex`,
+`--reasoner=codex`, or the external `openai/codex-plugin-cc` app-server plugin.
+The bridge itself remains the retained third path: when it is explicitly
+selected, its dispatcher-attested transport is CLI `codex exec`, with the
+sandbox mode and receipt evidence reported as described below. New workflows
+should use the default Codex-free route or deliberately select the retained CLI
+worker/reasoner backend; capability migration must precede MCP-grant removal.
 
 ## What you do
 

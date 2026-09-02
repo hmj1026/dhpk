@@ -70,6 +70,9 @@ jobs:
       - name: Validate invocation policy
         run: node scripts/ci/validate-invocation-policy.js
 
+      - name: Validate default discovery aggregate budget
+        run: node scripts/ci/context-budget.js --aggregate
+
       # Agent-spawn context ledger: static estimates are separate from runtime
       # token telemetry, which is supplied by the host when available.
       - name: Validate subagent context ledger

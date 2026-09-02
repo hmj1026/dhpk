@@ -4,6 +4,13 @@
 
 dhpk 在 `.claude-plugin/plugin.json` 中暴露 **59 個 `userConfig` 旋鈕**。本頁完整記錄每個旋鈕：在哪裡設定、可接受哪些值、實際會改變什麼。平台安裝路徑與支援 status 請見[平台安裝 SSOT](./platform-installation.zh-TW.md)；日常操作流程（安裝、常見工作流、review 循環）請見 [`docs/basic-operations.zh-TW.md`](./basic-operations.zh-TW.md)。
 
+Claude 的預設 discovery artifact 是由
+`manifests/distribution-inventory.json` 產生的實體化 `minimal` profile，並非
+直接掃描未過濾的 `skills/` 原始目錄。此 profile 最多發布 15 個
+`implicit-eligible` entry；`full` 與 `compat-v1` 是明確 opt-in 的 profile
+artifact。Agent Plugin 與 Cursor 的發布 membership 維持不變。profile 選擇與
+receipt 規則請見 [`docs/platform-installation.zh-TW.md`](./platform-installation.zh-TW.md)。
+
 ## 在哪裡設定
 
 一個旋鈕的值可能來自三個地方，優先序由低到高：
@@ -75,7 +82,7 @@ dispatcher 在建立 `0600` immutable transport context 前，會將解析後的
 
 ## Codex MCP 依賴（並非 `userConfig` 旋鈕）
 
-`orchestration_dispatch` 的 `CODEX=on` peer 路徑、**3 個 MCP-backed Codex skill**（`dhpk-codex-architect`（含 `--mode adversarial`）、`dhpk-codex-implement`、`dhpk-change-review`），以及 **7 個 `/dhpk:codex-*` 指令**（`codex-review`、`-review-branch`、`-review-doc`、`-review-fast`、`-security`、`-test-gen`、`-test-review`），都需要 `mcp__codex__codex` / `mcp__codex__codex-reply` 工具。可選的 CLI backend 是 `dhpk-change-review/scripts/review.sh --backend cli`，不需 MCP server。dhpk 本身**不**內附或設定這些工具，也沒有任何 dhpk 的 `userConfig` key 控制它們：它們來自**直接註冊** Codex CLI 自身的 `codex mcp-server` 子指令為 MCP server——**並非**來自安裝 `openai/codex-plugin-cc`（那是另一個獨立、選用的 surface，見下方對照說明）。
+`orchestration_dispatch` 的 `CODEX=on` peer 路徑、**9 個 MCP-backed Codex skill**（`dhpk-codex-architect`（含 `--mode adversarial`）、`dhpk-codex-implement`、`dhpk-change-review`（inventory ID：`codex-code-review`）、`dhpk-doc-review`、`dhpk-test-review`、`dhpk-codebase-exploration`、`dhpk-feature-verify`、`dhpk-issue-analyze`、`dhpk-feasibility-study`），以及 **8 個指令的 frozen compatibility family**（`codex-review`、`codex-review-branch`、`codex-review-doc`、`codex-review-fast`、`codex-security`、`codex-test-gen`、`codex-test-review`、`review-spec`）是保留的 Codex 整合入口。只有 canonical `codex-review` 指令直接宣告 `mcp__codex__codex` / `mcp__codex__codex-reply` 工具；其餘七個 alias 轉送到各自目標（`codex-test-gen` 會導向 Codex-free 的 `dhpk-tdd-workflow`）。這 9 個 skill 與 8 個指令凍結為 `explicit-only`：仍可用 exact name 直接呼叫，但在 capability migration 前不再是預設 discovery 或自動路由目標。`/dhpk:check-coverage` 仍是 explicit-only legacy alias，但不屬於 frozen 八指令計數。可選的 CLI backend 是 `dhpk-change-review/scripts/review.sh --backend cli`，不需 MCP server。dhpk 本身**不**內附或設定這些工具，也沒有任何 dhpk 的 `userConfig` key 控制它們：MCP grant 來自**直接註冊** Codex CLI 自身的 `codex mcp-server` 子指令為 MCP server——**並非**來自安裝 `openai/codex-plugin-cc`（那是另一個獨立、選用的 surface，見下方對照說明）。
 
 ### Codex MCP server 的運作原理
 
@@ -106,7 +113,7 @@ claude mcp list
 2. 確認底層 `codex` CLI 可執行且已登入（`codex login`）；MCP server 沒有它便無法啟動。
 3. 若 `codex` 已顯示連線，但某個 `codex-*` skill 仍然失敗，問題通常出在登入驗證（`codex login`），而不是 MCP 連線本身。
 
-未註冊 `codex mcp-server` 時，呼叫任一 MCP-backed `codex-*` skill 或 `/dhpk:codex-*` 指令會出現工具權限錯誤（找不到 `mcp__codex__*`）——dhpk 對這些 surface 沒有降級路徑，因為它們的存在目的就是委派給 Codex。這與 `CODEX=on`（見 [`docs/basic-operations.zh-TW.md`](./basic-operations.zh-TW.md#implementation-dispatch)）是兩回事——後者是**單次 session 的 opt-in flag**（不是持久化的 `userConfig` 值，沒有安裝時 `--config` 的對應項），每個 session 都會重置，除非再次帶 `--codex` 或說「用 codex」——而當它的 MCP 依賴缺席時，`CODEX=on` 會靜默退回單助理 dispatch，而非報錯。
+未註冊 `codex mcp-server` 時，呼叫任一 MCP-backed `codex-*` skill 或 canonical `/dhpk:codex-review` 路徑（包含轉送到它的 alias）會出現工具權限錯誤（找不到 `mcp__codex__*`）——dhpk 對這些 MCP-backed 路徑沒有降級，因為它們的存在目的就是委派給 Codex。frozen 八指令 family 也包含 `codex-test-gen` 這類 explicit-only alias；它會轉送到 Codex-free TDD，不直接宣告 MCP grant。這與 `CODEX=on`（見 [`docs/basic-operations.zh-TW.md`](./docs/basic-operations.zh-TW.md#implementation-dispatch)）及 `/dhpk:do --codex` 不同——兩者都是**legacy、單次 session 的 opt-in MCP-peer interface**（不是持久化的 `userConfig` 值，沒有安裝時 `--config` 的對應項）。在 capability migration 準備期間仍保留 compatibility window，但不會靜默重新解讀為 CLI `codex exec`、`--worker=codex`、`--reasoner=codex` 或外部 `openai/codex-plugin-cc` app-server plugin。MCP 依賴缺席時，peer request 會退回正常的單助理／Codex-free dispatch，而不會改選另一條 Codex transport。
 
 這也與 **Codex CLI 雙軌同步**（`install-codex-skills.sh`，見 [`docs/basic-operations.zh-TW.md`](./basic-operations.zh-TW.md)）無關——那是把 dhpk 自己的 skill 鏡射進專案的 `.codex/` 目錄，給直接執行獨立 `codex` CLI 的人使用，那條路徑完全不需要 MCP server。
 

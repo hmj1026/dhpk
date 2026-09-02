@@ -20,12 +20,43 @@ function fixture() {
   fs.writeFileSync(path.join(root, 'agents', 'INDEX.md'), '# index');
   fs.writeFileSync(path.join(root, 'modules/demo/agents', 'module.md'), '# module');
   fs.writeFileSync(path.join(root, 'modules/demo/skills/extra', 'SKILL.md'), '# extra');
-  fs.writeFileSync(path.join(root, 'skills/base', 'SKILL.md'), '# base');
+  // This grant intentionally lives outside a codex-prefixed directory. A
+  // frontmatter-aware scanner must count it; a path-prefix scanner must not.
+  fs.writeFileSync(path.join(root, 'skills/base', 'SKILL.md'), [
+    '---',
+    "allowed-tools: 'mcp__codex__codex'",
+    '---',
+    '# base',
+  ].join('\n'));
   fs.writeFileSync(path.join(root, 'commands', 'do.md'), '# do');
   fs.writeFileSync(path.join(root, 'commands', 'INDEX.md'), '# index');
   fs.writeFileSync(path.join(root, 'skills/dhpk-codex-sample', 'SKILL.md'), 'mcp__codex__review');
-  fs.writeFileSync(path.join(root, 'skills/dhpk-change-review', 'SKILL.md'), 'mcp__codex__review');
-  fs.writeFileSync(path.join(root, 'commands/codex-review.md'), '# codex');
+  fs.writeFileSync(path.join(root, 'skills/dhpk-codex-sample', 'SKILL.md'), [
+    '---',
+    "allowed-tools: 'mcp__codex__codex-reply'",
+    '---',
+    '# codex',
+  ].join('\n'));
+  fs.writeFileSync(path.join(root, 'skills/dhpk-change-review', 'SKILL.md'), [
+    '---',
+    "description: 'prose-only fixture'",
+    '---',
+    'ordinary prose only',
+  ].join('\n'));
+  fs.writeFileSync(path.join(root, 'commands/codex-review.md'), [
+    '---',
+    "allowed-tools: 'mcp__codex__codex'",
+    '---',
+    '# codex',
+  ].join('\n'));
+  fs.writeFileSync(path.join(root, 'commands/review-spec.md'), [
+    '---',
+    'allowed-tools:',
+    '  - Read',
+    '  - mcp__codex__codex-reply',
+    '---',
+    '# review spec',
+  ].join('\n'));
   fs.mkdirSync(path.join(root, 'modules/second'), { recursive: true });
   fs.writeFileSync(path.join(root, 'hooks/hooks.json'), JSON.stringify({ hooks: { A: [], B: [] } }));
   fs.writeFileSync(path.join(root, 'manifests/module-catalog.json'), JSON.stringify({ version: 7, stacks: [] }));
@@ -45,11 +76,12 @@ test('inventory counts source trees and consumes the four SSOT manifests', () =>
     skillsTotal: 4,
     skillsBase: 3,
     skillsModule: 1,
-    commands: 2,
+    commands: 3,
+    mcpCodexCommands: 2,
     modules: 2,
     slotCount: 2,
     mcpCodexSkills: 2,
-    codexCommands: 1,
+    codexCommands: 2,
     hookEvents: 2,
   });
   assert.strictEqual(inventory.sources.claudePlugin.version, '1.2.3');

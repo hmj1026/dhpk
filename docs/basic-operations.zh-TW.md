@@ -64,6 +64,11 @@ dhpk 遵循標準的 [Claude Code plugin distribution model](https://docs.claude
 
 不需要 clone，適合一般使用者。
 
+直接使用 GitHub marketplace 目前取得的是 raw `dhpk@dhpk` compatibility
+surface。完成量測、在 discovery 前套用的 `minimal` artifact，請使用下方
+Path B 的 interactive installer（或 profile generator）；待 release 將生成
+package 發布為 marketplace source 後，才會由遠端路徑直接提供該 artifact。
+
 ```bash
 # Terminal
 claude plugin marketplace add hmj1026/dhpk
@@ -110,8 +115,11 @@ claude plugin marketplace add ~/projects/dhpk
 bash ~/projects/dhpk/scripts/install.sh        # interactive (gum / python3 fallback)
 ```
 
-腳本會引導 stack／版本、Docker 前置條件、review-agent override 與 hook profile，
-最後替你執行 `claude plugin install`。加上 `--dry-run` 可只印出解析後的安裝指令。
+未選任何 stack module 時，腳本會實體化 inventory-owned 的 `minimal` profile、
+註冊 local marketplace wrapper，並安裝 `dhpk@dhpk-profile-minimal`；選取 stack
+module 則維持明確指定的 raw compatibility 路徑。腳本會引導 stack／版本、Docker
+前置條件、review-agent override 與 hook profile，最後替你執行
+`claude plugin install`。加上 `--dry-run` 可只印出解析後的命令而不執行。
 
 隨時驗證 local checkout：
 

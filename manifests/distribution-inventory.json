@@ -6,13 +6,18 @@
     "required_core_ids": [
       "adaptive-dev-workflow",
       "bug-investigation",
-      "code-explore",
+      "create-request",
       "dhpk-execution-policy",
       "do",
+      "git-investigate",
       "git-smart-commit",
+      "next-step",
       "pr-review",
+      "project-audit",
+      "prompt-optimize",
       "security-review",
       "tdd",
+      "tech-spec",
       "tool-routing"
     ],
     "profiles": {
@@ -528,7 +533,7 @@
       "id": "codex-supporting-policies-execution-policy-md",
       "source": "codex/supporting/policies/execution-policy.md",
       "canonical_source": "rules/execution-policy.md",
-      "canonical_digest": "e80d09feae51ff406a49a812a9b1a605914e7562090e1bab2dd459ce65eb91a6",
+      "canonical_digest": "734d4cd929b576355272860e28b0edf5d69201da71345017f9a6bc44342a2812",
       "projection_digest": "5bf08e47d0e5ee8c1ad685e72b0bd90904c40ed4543548a3227388ef441f621d",
       "destination": "dhpk/policies/execution-policy.md"
     },
@@ -1322,6 +1327,7 @@
       "name": "dhpk-codebase-exploration",
       "path": "skills/dhpk-codebase-exploration",
       "capability_id": "dhpk.skill.code-explore",
+      "invocation_class": "explicit-only",
       "lifecycle": "promoted",
       "tier": "core",
       "profiles": [
@@ -1388,6 +1394,7 @@
       "name": "dhpk-codex-architect",
       "path": "skills/dhpk-codex-architect",
       "capability_id": "dhpk.skill.codex-architect",
+      "invocation_class": "explicit-only",
       "lifecycle": "promoted",
       "tier": "core",
       "profiles": [
@@ -1424,6 +1431,7 @@
       "name": "dhpk-change-review",
       "path": "skills/dhpk-change-review",
       "capability_id": "dhpk.skill.codex-code-review",
+      "invocation_class": "explicit-only",
       "lifecycle": "promoted",
       "tier": "core",
       "profiles": [
@@ -1443,6 +1451,7 @@
       "name": "dhpk-codex-implement",
       "path": "skills/dhpk-codex-implement",
       "capability_id": "dhpk.skill.codex-implement",
+      "invocation_class": "explicit-only",
       "lifecycle": "promoted",
       "tier": "core",
       "profiles": [
@@ -1565,6 +1574,7 @@
       "name": "dhpk-doc-review",
       "path": "skills/dhpk-doc-review",
       "capability_id": "dhpk.skill.doc-review",
+      "invocation_class": "explicit-only",
       "lifecycle": "promoted",
       "tier": "core",
       "profiles": [
@@ -1601,6 +1611,7 @@
       "name": "dhpk-feasibility-study",
       "path": "skills/dhpk-feasibility-study",
       "capability_id": "dhpk.skill.feasibility-study",
+      "invocation_class": "explicit-only",
       "lifecycle": "promoted",
       "tier": "core",
       "profiles": [
@@ -1619,6 +1630,7 @@
       "name": "dhpk-feature-verify",
       "path": "skills/dhpk-feature-verify",
       "capability_id": "dhpk.skill.feature-verify",
+      "invocation_class": "explicit-only",
       "lifecycle": "promoted",
       "tier": "core",
       "profiles": [
@@ -1839,6 +1851,7 @@
       "name": "dhpk-issue-analyze",
       "path": "skills/dhpk-issue-analyze",
       "capability_id": "dhpk.skill.issue-analyze",
+      "invocation_class": "explicit-only",
       "lifecycle": "promoted",
       "tier": "core",
       "profiles": [
@@ -2339,6 +2352,7 @@
       "name": "dhpk-test-review",
       "path": "skills/dhpk-test-review",
       "capability_id": "dhpk.skill.test-review",
+      "invocation_class": "explicit-only",
       "lifecycle": "promoted",
       "tier": "core",
       "profiles": [

@@ -64,6 +64,11 @@ Both surfaces read the same `.claude-plugin/marketplace.json` shipped in this re
 
 No clone needed. Fastest path for end users.
 
+The direct GitHub marketplace entry is the raw `dhpk@dhpk` compatibility
+surface. The measured, pre-discovery `minimal` artifact is produced by the
+interactive installer in Path B (or by the profile generator command below)
+until a release publishes that generated package as its marketplace source.
+
 ```bash
 # Terminal
 claude plugin marketplace add hmj1026/dhpk
@@ -106,7 +111,13 @@ claude plugin marketplace add ~/projects/dhpk
 bash ~/projects/dhpk/scripts/install.sh        # interactive (gum / python3 fallback)
 ```
 
-The script walks stack/version selection, docker prerequisites, review-agent overrides, and hook profile, then runs `claude plugin install` for you. Append `--dry-run` to print the resolved `claude plugin install …` command without executing it.
+With no stack modules selected, the script materializes the inventory-owned
+`minimal` profile, registers a local marketplace wrapper, and installs
+`dhpk@dhpk-profile-minimal`; selecting stack modules keeps the explicit raw
+compatibility route. The script walks stack/version selection, docker
+prerequisites, review-agent overrides, and hook profile, then runs
+`claude plugin install` for you. Append `--dry-run` to print the resolved
+commands without executing them.
 
 Validate the local checkout at any time:
 

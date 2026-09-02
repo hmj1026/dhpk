@@ -69,6 +69,15 @@ function profileSkillIds(profile) {
   return null;
 }
 
+function profileCommandIds(profile) {
+  if (!profile || typeof profile !== 'object') return null;
+  for (const key of ['commandIds', 'command_ids', 'selectedCommandIds', 'commands']) {
+    const values = asIds(profile[key]);
+    if (values !== null) return values;
+  }
+  return null;
+}
+
 function profileModules(profile) {
   if (!profile || typeof profile !== 'object') return [];
   for (const key of ['modules', 'moduleIds', 'module_ids']) {
@@ -215,6 +224,16 @@ function resolveCapabilitySelection(input = {}) {
   const unknownExclusion = excludes.find((id) => !modules.has(id));
   if (unknownExclusion) return fail('UNKNOWN_MODULE', `profile excludes unknown module '${unknownExclusion}'`);
   const selectedDefinition = profileSkillIds(profile);
+  const selectedCommandDefinition = profileCommandIds(profile);
+  if (selectedCommandDefinition && new Set(selectedCommandDefinition).size !== selectedCommandDefinition.length) {
+    return fail('DUPLICATE_COMMAND_ID', `profile '${profileId}' declares duplicate commands`);
+  }
+  if (selectedCommandDefinition && selectedCommandDefinition.some((id) => (
+    typeof id !== 'string'
+      || !/^[A-Za-z0-9][A-Za-z0-9._-]*(?:\.md)?$/.test(id)
+  ))) {
+    return fail('INVALID_COMMAND_ID', `profile '${profileId}' declares an unsafe command id`);
+  }
   if (profileId === 'minimal') {
     const core = requiredCoreIds(input.inventory, profile);
     if (!selectedDefinition) {
@@ -280,6 +299,7 @@ function resolveCapabilitySelection(input = {}) {
     schema: SELECTION_POLICY_VERSION,
     profileId,
     selectedStableIds,
+    selectedCommandIds: selectedCommandDefinition ? selectedCommandDefinition.slice().sort() : null,
     moduleClosure,
     compatibilityMode,
     selectionMode,
@@ -292,6 +312,7 @@ function resolveCapabilitySelection(input = {}) {
   const value = {
     ...identity,
     profileDefinition,
+    selectedCommandIds: selectedCommandDefinition ? selectedCommandDefinition.slice().sort() : null,
     overlayStableIds: overlay.slice(),
     selectionFingerprint,
     // Alias retained for callers that use the shorter surface terminology.
@@ -432,6 +453,7 @@ module.exports = {
   NON_PASS_VERDICTS,
   canonicalize,
   fingerprint,
+  profileCommandIds,
   resolveModuleClosure,
   resolveCapabilitySelection,
   validateProfileDefinitions,

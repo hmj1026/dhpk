@@ -23,7 +23,7 @@ OpenSpec 是**可選的外部整合**——若需要 OpenSpec 工作流指令，
 | `python3` | 啟用 `modules` 時為必要 | 為選用模組啟用與路由解析 `module.yaml` |
 | `jq` | 選用（有 python3 後援） | 較快的 JSON payload 擷取 |
 | `docker` | 選用 | 僅由以 `userConfig.docker_containers` 明確註冊的 Docker workflow 使用 |
-| Codex MCP server | 選用 | 僅在你使用 3 個 MCP-backed `codex-*` skill、7 個 `/dhpk:codex-*` 指令，或啟用 `CODEX=on` 時才需要——透過將 Claude Code 指向 Codex CLI 的 `codex mcp-server` 子指令來註冊，見 [`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕) |
+| Codex MCP server | 選用 | 僅在你使用 9 個 MCP-backed `codex-*` skill、frozen compatibility family 的 8 個 `/dhpk:codex-*` 指令（只有 canonical `codex-review` 直接宣告 MCP tools；其餘是 forwarding alias），或啟用 `CODEX=on` 時才需要——透過將 Claude Code 指向 Codex CLI 的 `codex mcp-server` 子指令來註冊，見 [`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕) |
 | Codex CLI 執行檔 | 選用 | 僅在執行 `install-codex-skills.sh` 且希望 Codex 真正載入同步內容時才需要 |
 | Cursor | 選用 | 僅在執行 `install-cursor-harness.sh` 且希望 Cursor 載入專案本地 `.cursor/` harness 時才需要 |
 | `cx` CLI | 選用 | 語意化程式碼導覽。`rules/tool-routing.md` 將 `cx overview` / `cx definition` / `cx references` 列為首選工具；6 個 reviewer agent 與 `harness-fill` skill 會引用。未安裝時 → 降級為 `Grep` / `Read`。 |
@@ -42,6 +42,10 @@ dhpk 遵循 [Claude Code plugin 標準發布模式](https://docs.claude.com/en/d
 claude plugin marketplace add hmj1026/dhpk
 claude plugin install dhpk@dhpk --config modules=php-8.x,laravel-11 --config hook_profile=standard
 ```
+
+直接使用 GitHub marketplace 是 raw compatibility 路徑。若要在 clean
+install 套用已量測、discovery 前的邊界，請使用基本操作指南 Path B 的
+`scripts/install.sh`；它會實體化並安裝 `dhpk@dhpk-profile-minimal`。
 
 **需求**：Claude Code 2.x。Codex MCP 為**選用**——它驅動 `codex-*` skill/指令與 `CODEX=on` 雙助理路徑；其餘一切皆 Codex-free。設定與驗證見 [`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕)。
 
@@ -110,16 +114,28 @@ claude plugin install dhpk@dhpk \
 
 精選的模組組合請見 `manifests/install-profiles.json`。
 
+Claude 的預設 discovery artifact 是由 distribution inventory 產生的實體化
+`minimal` profile，不是直接掃描未過濾的 `skills/` 原始目錄；其中最多包含
+15 個 `implicit-eligible` entry。`full` 與 `compat-v1` 仍是明確 opt-in 的
+profile artifact。Agent Plugin 與 Cursor 的發布 membership 維持不變；source
+tree 仍是 authoring tree。
+
 ## Codex 支援的 skill 與指令
 
 dhpk 的核心——hooks、sentinel reviewers、Smart Router，以及非 Codex workflow skill——皆為 Codex-free。`codex-*` 家族委派給 OpenAI 的 Codex 取得第二意見。它們的 `mcp__codex__codex` / `mcp__codex__codex-reply` 工具來自**直接註冊** Codex CLI 自身的 `codex mcp-server` 子指令為 MCP server（`claude mcp add --transport stdio codex -- codex mcp-server`）——**並非**來自安裝 `openai/codex-plugin-cc` plugin（那是另一個獨立的 Codex surface，不會註冊任何 MCP server）。完整註冊步驟與 plugin-vs-MCP-server 對照見 [`docs/configuration.zh-TW.md` 的運作原理說明](./docs/configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕)。
 
 | Surface | 名稱 | 需要 | 缺少時 |
 |---------|------|------|--------|
-| 3 個 skill | `dhpk-codex-architect`（含 `--mode adversarial`） · `dhpk-codex-implement` · `dhpk-change-review`（MCP backend） | Codex MCP（`mcp__codex__codex`、`mcp__codex__codex-reply`） | 工具權限錯誤——無自動 fallback；改用下方的 Codex-free 對應品 |
+| 9 個 skill | `dhpk-codex-architect`（含 `--mode adversarial`） · `dhpk-codex-implement` · `dhpk-change-review`（inventory ID：`codex-code-review`） · `dhpk-doc-review` · `dhpk-test-review` · `dhpk-codebase-exploration` · `dhpk-feature-verify` · `dhpk-issue-analyze` · `dhpk-feasibility-study` | Codex MCP（`mcp__codex__codex`、`mcp__codex__codex-reply`） | 工具權限錯誤——無自動 fallback；請明確呼叫 skill 或改用下方的 Codex-free 對應品。九者在 capability migration 前皆凍結為 `explicit-only`。 |
 | 1 個 backend | `dhpk-change-review --backend cli` | 僅需 Codex CLI 執行檔（透過 hardened wrapper shell out） | `codex: command not found`；改用 MCP backend 或 sentinel `code-reviewer` |
-| 7 個指令 | `/dhpk:codex-review`、`-review-branch`、`-review-doc`、`-review-fast`、`-security`、`-test-gen`、`-test-review` | Codex MCP | 工具權限錯誤——Codex-free 路徑：`/dhpk:dhpk-security-review`、`/dhpk:precommit`、sentinel review hooks |
-| `CODEX=on` | Implementation dispatch 的雙助理 peer 路徑 | Codex MCP | 不會壞——dispatch 維持預設的單助理模式 |
+| 8 個指令 | `/dhpk:codex-review`、`/dhpk:codex-review-branch`、`/dhpk:codex-review-doc`、`/dhpk:codex-review-fast`、`/dhpk:codex-security`、`/dhpk:codex-test-gen`、`/dhpk:codex-test-review`、`/dhpk:review-spec` | Frozen compatibility family；canonical `codex-review` 路徑使用 Codex MCP，其餘為 forwarding alias（`codex-test-gen` 會導向 Codex-free TDD） | 轉送目標需要 MCP 時會出現工具權限錯誤——這個 frozen family 是 `explicit-only`；視情況改用 `/dhpk:do`（Codex-free）、`/dhpk:precommit` 或 sentinel review hooks。 |
+| `CODEX=on` / `/dhpk:do --codex` | Implementation dispatch 的 legacy MCP-peer 路徑 | Codex MCP | peer step 仍是 opt-in；缺少依賴時可退回 Codex-free dispatch。它不會被重新解讀為 CLI `codex exec`、`--worker=codex`、`--reasoner=codex` 或外部 app-server plugin。 |
+
+`/dhpk:check-coverage` 仍是 explicit-only 的 legacy alias，但不屬於 frozen
+八指令 family，也不計入該數字。九個 skill 與八個指令仍可用其 exact name
+直接呼叫；重新分類只停止自動／預設路由。Migration plan 是在 migration
+window 期間保留這些 compatibility entrypoint，於後續 capability-migration
+change 將能力移至 backend-neutral route，待 successor 存在後才撤除 MCP grant。
 
 Codex-free 對應品：`dhpk-security-review` ↔ `/dhpk:codex-security`、`dhpk-codebase-exploration` ↔ `dhpk-change-review`、sentinel reviewer agents ↔ `dhpk-change-review`，以及 `/dhpk:do`（預設 Codex-free；`--codex` 才啟用）。`/dhpk:create-dev` 保留為相容性 alias。
 

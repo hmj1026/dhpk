@@ -202,4 +202,58 @@ test('a well-formed explicit-only and implicit-eligible skill both pass', () => 
   }
 });
 
+test('a new Codex MCP grant outside the frozen set fails closed', () => {
+  const tmp = makeTempRepo();
+  try {
+    writeSkill(tmp, 'new-mcp', "---\nname: dhpk-new-mcp\ndescription: new\nallowed-tools: 'Read, mcp__codex__codex'\nmetadata:\n  dhpk-invocation-class: explicit-only\n---\nbody\n");
+    const { status, out } = runValidator(tmp);
+    assert.strictEqual(status, 1);
+    assert.match(out, /outside the frozen 9-skill set/);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('a new Codex MCP command grant outside the frozen family fails closed', () => {
+  const tmp = makeTempRepo();
+  try {
+    writeCommand(tmp, 'new-mcp.md', "---\ndescription: new command\nallowed-tools: 'Read, mcp__codex__codex'\nmetadata:\n  dhpk-invocation-class: explicit-only\n---\nbody\n");
+    const { status, out } = runValidator(tmp);
+    assert.strictEqual(status, 1);
+    assert.match(out, /outside the frozen 8-command family/);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('a frozen forwarding command cannot be reclassified implicit-eligible', () => {
+  const tmp = makeTempRepo();
+  writeCommand(tmp, 'codex-security.md', "---\ndescription: frozen forwarding alias\nmetadata:\n  dhpk-invocation-class: explicit-only\n---\nbody\n");
+  const commandPath = path.join(tmp, 'commands', 'codex-security.md');
+  try {
+    const original = fs.readFileSync(commandPath, 'utf8');
+    fs.writeFileSync(commandPath, original.replace(
+      'dhpk-invocation-class: explicit-only',
+      'dhpk-invocation-class: implicit-eligible',
+    ));
+    const { status, out } = runValidator(tmp);
+    assert.strictEqual(status, 1);
+    assert.match(out, /frozen Codex review-family command must be explicit-only/);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('a frozen Codex MCP skill cannot remain implicit-eligible', () => {
+  const tmp = makeTempRepo();
+  try {
+    writeSkill(tmp, 'dhpk-codex-architect', "---\nname: dhpk-codex-architect\ndescription: architecture\nallowed-tools: 'mcp__codex__codex'\nmetadata:\n  dhpk-invocation-class: implicit-eligible\n---\nbody\n");
+    const { status, out } = runValidator(tmp);
+    assert.strictEqual(status, 1);
+    assert.match(out, /MCP-backed Codex skill must be explicit-only/);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
 run('validate-invocation-policy');

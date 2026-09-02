@@ -54,7 +54,7 @@ const EXPECTED_TYPED_ROUTES = Object.freeze([
   { label: 'adaptive dev workflow (bug)', kind: 'skill', id: 'dhpk-adaptive-dev-workflow' },
   { label: 'manual code review', kind: 'command', id: 'review-pending' },
   { label: 'security review', kind: 'skill', id: 'dhpk-security-review' },
-  { label: 'code exploration', kind: 'skill', id: 'dhpk-codebase-exploration' },
+  { label: 'code exploration', kind: 'skill', id: 'dhpk-tool-routing' },
   { label: 'project audit', kind: 'skill', id: 'dhpk-project-audit' },
   { label: 'deploy list', kind: 'skill', id: 'dhpk-deploy-list' },
   { label: 'refactor / simplify', kind: 'command', id: 'simplify' },
@@ -64,7 +64,7 @@ const EXPECTED_TYPED_ROUTES = Object.freeze([
   { label: 'create PR', kind: 'command', id: 'create-pr' },
   { label: 'create release', kind: 'skill', id: 'dhpk-release-creator' },
   { label: 'smart commit', kind: 'command', id: 'smart-commit' },
-  { label: 'feasibility study', kind: 'skill', id: 'dhpk-feasibility-study' },
+  { label: 'feasibility study', kind: 'skill', id: 'dhpk-tech-spec' },
   { label: 'risk assessment', kind: 'skill', id: 'dhpk-risk-assess' },
   {
     label: 'Playwright E2E journey (→ e2e-runner; UNAVAILABLE if the Playwright agent capability is unavailable)',

@@ -53,6 +53,48 @@ test('faithful temp copy passes --check as-is', () => {
   assert.strictEqual(status, 0, `baseline temp copy should pass --check, got:\n${out}`);
 });
 
+test('frozen Codex MCP ceiling rejects a tenth frontmatter grant', () => {
+  const dir = path.join(repo, 'skills', 'new-codex-mcp');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'SKILL.md'), [
+    '---',
+    "name: dhpk-new-codex-mcp",
+    "description: 'unreviewed Codex MCP skill'",
+    "allowed-tools: 'mcp__codex__codex'",
+    'metadata:',
+    '  dhpk-invocation-class: explicit-only',
+    '---',
+    'body',
+  ].join('\n'));
+  try {
+    const result = runCheck(repo);
+    assert.strictEqual(result.status, 1);
+    assert.match(result.out, /MCP-backed Codex skill ceiling exceeded: frozen 9, computed 10/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('frozen Codex command family rejects an unreviewed MCP grant', () => {
+  const commandPath = path.join(repo, 'commands', 'new-mcp.md');
+  fs.writeFileSync(commandPath, [
+    '---',
+    'description: unreviewed Codex MCP command',
+    "allowed-tools: 'mcp__codex__codex'",
+    'metadata:',
+    '  dhpk-invocation-class: explicit-only',
+    '---',
+    'body',
+  ].join('\n'));
+  try {
+    const result = runCheck(repo);
+    assert.strictEqual(result.status, 1);
+    assert.match(result.out, /command grant outside frozen 8-command family/);
+  } finally {
+    fs.rmSync(commandPath, { force: true });
+  }
+});
+
 // Each entry: an enforced claim phrasing + the claim file it lives in. Planting a
 // wrong digit (found + 7, always a mismatch) must flip --check to exit 1.
 const DRIFTS = [

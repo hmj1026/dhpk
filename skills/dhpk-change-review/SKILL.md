@@ -1,9 +1,10 @@
 ---
 name: dhpk-change-review
-description: 'Code review using Codex MCP. Use when: PR review, code audit, or a second opinion on changes. Not for: document review (use dhpk-doc-review), security-specific audit (use dhpk-security-review), or test coverage review (use dhpk-test-review). Output: severity-ranked findings with file:line evidence, a reviewer-degradation state, and a fail-closed merge gate.'
+disable-model-invocation: true
+description: 'Code review using Codex MCP. Purpose: review a PR, audit code, or obtain a second opinion on changes. Not for: document review (use dhpk-doc-review), security-specific audit (use dhpk-security-review), or test coverage review (use dhpk-test-review). Output: severity-ranked findings with file:line evidence, a reviewer-degradation state, and a fail-closed merge gate.'
 allowed-tools: 'mcp__codex__codex, mcp__codex__codex-reply, Bash(git:*), Bash(yarn:*), Bash(npm:*), Bash(bash:*), Read, Grep, Glob, Task'
 metadata:
-  dhpk-invocation-class: implicit-eligible
+  dhpk-invocation-class: explicit-only
 ---
 
 # Change review

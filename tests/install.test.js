@@ -126,7 +126,7 @@ test('--dry-run walks the full custom flow (scripted stdin) and stops before exe
   assert.strictEqual(res.status, 0, res.stderr + '\n---stdout---\n' + res.stdout);
   assert.ok(res.stdout.includes('Resolved configuration'), res.stdout);
   assert.ok(res.stdout.includes('Command to run:'), res.stdout);
-  assert.ok(res.stdout.includes('claude plugin install dhpk@dhpk'), res.stdout);
+  assert.ok(res.stdout.includes('claude plugin install dhpk@dhpk-profile-minimal'), res.stdout);
   assert.ok(res.stdout.includes('(--dry-run set — not executing.)'), res.stdout);
 });
 
@@ -135,6 +135,39 @@ test('--print is accepted as an alias for --dry-run', () => {
   const res = runScript(['--print'], stdin);
   assert.strictEqual(res.status, 0, res.stderr);
   assert.ok(res.stdout.includes('(--dry-run set — not executing.)'), res.stdout);
+});
+
+test('default custom flow materializes the minimal Claude profile before install', () => {
+  const outputRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-install-profile-'));
+  TEMP_FIXTURES.push(outputRoot);
+  const stdin = ['', '', '', '', '1', 'y'].join('\n');
+  const res = runScript([], stdin, {
+    env: { DHPK_CLAUDE_PROFILE_OUT: outputRoot },
+  });
+  assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+  assert.ok(res.stdout.includes('claude plugin marketplace add'), res.stdout);
+  assert.ok(res.stdout.includes('claude plugin install dhpk@dhpk-profile-minimal'), res.stdout);
+  assert.ok(fs.existsSync(path.join(outputRoot, 'package', 'bundle-receipt.json')));
+  assert.ok(fs.existsSync(path.join(outputRoot, '.claude-plugin', 'marketplace.json')));
+});
+
+test('default custom flow fails closed when Node.js cannot materialize minimal', () => {
+  const claudeLog = path.join(os.tmpdir(), `dhpk-install-node-required-${process.pid}.log`);
+  const res = runScript(['--dry-run'], ['', '', '', '', '1', ''].join('\n'), {
+    noJq: true,
+    claudeLog,
+  });
+  assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+  assert.ok(res.stdout.includes('claude plugin install dhpk@dhpk-profile-minimal'), res.stdout);
+  assert.ok(!fs.existsSync(claudeLog), 'claude was invoked during dry-run');
+
+  const installRes = runScript([], ['', '', '', '', '1', 'y'].join('\n'), {
+    noJq: true,
+    claudeLog,
+  });
+  assert.strictEqual(installRes.status, 1, `${installRes.stdout}\n${installRes.stderr}`);
+  assert.match(installRes.stderr, /Node\.js.*required.*default minimal profile/);
+  assert.ok(!fs.existsSync(claudeLog), 'claude was invoked after materialization was blocked');
 });
 
 test('truncated custom flow fails closed at hook-profile selection', () => {

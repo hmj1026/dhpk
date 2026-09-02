@@ -9,6 +9,18 @@
     "tokens": "ceil-unicode-codepoints-divided-by-4",
     "aggregation": "measure-each-entry-then-sum"
   },
+  "aggregate": {
+    "profile": "minimal",
+    "surface": "claude-core",
+    "maxEntries": 15,
+    "minReductionPercent": 70,
+    "baseline": {
+      "scope": "raw-compatibility/claude-core",
+      "entries": 63,
+      "tokens": 5704,
+      "recordedIn": "openspec/changes/curate-default-discovery-and-freeze-codex-mcp/references/baseline.md"
+    }
+  },
   "visibility": {
     "promoted": { "claude-core": true, "claude-module": true, "codex-sync": true, "codex-native": true },
     "optional": { "claude-core": true, "claude-module": true, "codex-sync": true, "codex-native": true },

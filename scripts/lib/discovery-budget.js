@@ -184,12 +184,62 @@ function evaluateDiscoveryBudget({
   };
 }
 
+function evaluateAggregateDiscoveryBudget({
+  items = [],
+  baseline = { entries: 0, tokens: 0 },
+  maxEntries = 15,
+  minReductionPercent = 70,
+} = {}) {
+  const configurationErrors = [];
+  if (!Array.isArray(items)) {
+    configurationErrors.push(configurationError('INVALID_AGGREGATE_ITEMS', 'aggregate budget items must be an array'));
+  }
+  const selected = (Array.isArray(items) ? items : []).filter((item) => item && item.discoveryVisible === true);
+  const baselineEntries = Number(baseline && baseline.entries);
+  const baselineTokens = Number(baseline && baseline.tokens);
+  const entryLimit = Number(maxEntries);
+  const reductionLimit = Number(minReductionPercent);
+  if (!Number.isSafeInteger(baselineEntries) || baselineEntries < 0) configurationErrors.push(configurationError('INVALID_AGGREGATE_BASELINE_ENTRIES', 'aggregate baseline entries must be a non-negative integer'));
+  if (!Number.isFinite(baselineTokens) || baselineTokens <= 0) configurationErrors.push(configurationError('INVALID_AGGREGATE_BASELINE_TOKENS', 'aggregate baseline tokens must be a positive number'));
+  if (!Number.isSafeInteger(entryLimit) || entryLimit < 0) configurationErrors.push(configurationError('INVALID_AGGREGATE_ENTRY_LIMIT', 'aggregate entry ceiling must be a non-negative integer'));
+  if (!Number.isFinite(reductionLimit) || reductionLimit < 0 || reductionLimit > 100) configurationErrors.push(configurationError('INVALID_AGGREGATE_REDUCTION_LIMIT', 'aggregate reduction target must be between 0 and 100'));
+  for (const [index, item] of selected.entries()) {
+    const id = item && (item.stableId || item.id) || `<entry-${index}>`;
+    if (!Number.isFinite(Number(item.tokens)) || Number(item.tokens) < 0) {
+      configurationErrors.push(configurationError('MISSING_AGGREGATE_MEASUREMENT', `aggregate entry '${id}' has no usable token measurement`, { stableId: id }));
+    }
+  }
+  const tokens = selected.reduce((total, item) => total + (Number.isFinite(Number(item.tokens)) && Number(item.tokens) >= 0 ? Number(item.tokens) : 0), 0);
+  const reductionPercent = baselineTokens > 0 ? ((baselineTokens - tokens) / baselineTokens) * 100 : 0;
+  const excessEntries = selected.length > entryLimit ? selected.slice(entryLimit).map((item) => item.stableId || item.id) : [];
+  const violations = [];
+  if (Number.isFinite(entryLimit) && selected.length > entryLimit) {
+    violations.push({ reason: 'aggregate entry ceiling exceeded', entries: selected.length, maxEntries: entryLimit, excessEntries });
+  }
+  if (Number.isFinite(reductionLimit) && reductionPercent < reductionLimit) {
+    violations.push({ reason: 'aggregate token reduction target not met', baselineTokens, tokens, reductionPercent, minReductionPercent: reductionLimit });
+  }
+  return {
+    entries: selected.length,
+    tokens,
+    baseline: { entries: baselineEntries, tokens: baselineTokens },
+    reductionPercent,
+    maxEntries: entryLimit,
+    minReductionPercent: reductionLimit,
+    excessEntries,
+    violations,
+    configurationErrors,
+    ok: configurationErrors.length === 0 && violations.length === 0,
+  };
+}
+
 module.exports = {
   BUDGET_RESULT_SCHEMA,
   CATEGORIES,
   ESTIMATOR,
   configurationError,
   evaluateDiscoveryBudget,
+  evaluateAggregateDiscoveryBudget,
   normalizeEstimator,
   normalizeLimits,
 };

@@ -16,7 +16,7 @@
 //
 // Only claims phrased as an exact number are enforced ("24 role-based agents",
 // "27 opt-in stack modules", "23 root-level agents", "24 個角色導向 agent",
-// "7-slot", "4 MCP-backed `codex-*` skills", "7 `/dhpk:codex-*` commands",
+// "7-slot", "9 MCP-backed `codex-*` skills", "8 `/dhpk:codex-*` commands",
 // "45 commands", "4 events" / "4 個事件"). Command count and hook-event count
 // are now exact and enforced (previously "~73 commands" was an unenforced
 // approximate claim). Other approximate claims ("~57 core skills") are printed
@@ -24,11 +24,12 @@
 
 const fs = require('fs');
 const path = require('path');
-const { collectInventory, walkFiles } = require('../lib/asset-inventory');
+const { CODEX_MCP_COMMAND_NAMES, collectInventory, walkFiles } = require('../lib/asset-inventory');
 const { computeScopedCounts } = require('../lib/distribution-inventory');
 
 const ROOT = path.join(__dirname, '..', '..');
 const p = (...s) => path.join(ROOT, ...s);
+const FROZEN_CODEX_MCP_CEILINGS = Object.freeze({ skills: 9, commands: 8 });
 
 function computeCounts() {
   return collectInventory(ROOT).counts;
@@ -119,6 +120,28 @@ function claimSpecs(counts, scoped) {
   ];
 }
 
+function frozenCodexMcpErrors(counts, inventory) {
+  const errors = [];
+  if (counts.mcpCodexSkills > FROZEN_CODEX_MCP_CEILINGS.skills) {
+    errors.push(`MCP-backed Codex skill ceiling exceeded: frozen ${FROZEN_CODEX_MCP_CEILINGS.skills}, computed ${counts.mcpCodexSkills}`);
+  }
+  if (counts.codexCommands > FROZEN_CODEX_MCP_CEILINGS.commands) {
+    errors.push(`MCP-backed Codex command ceiling exceeded: frozen ${FROZEN_CODEX_MCP_CEILINGS.commands}, computed ${counts.codexCommands}`);
+  }
+  if (counts.mcpCodexCommands > FROZEN_CODEX_MCP_CEILINGS.commands) {
+    errors.push(`MCP-backed Codex command-grant ceiling exceeded: frozen ${FROZEN_CODEX_MCP_CEILINGS.commands}, computed ${counts.mcpCodexCommands}`);
+  }
+  const unexpected = (inventory && inventory.paths && Array.isArray(inventory.paths.mcpCodexCommands)
+    ? inventory.paths.mcpCodexCommands
+    : [])
+    .map((filePath) => path.basename(filePath))
+    .filter((name) => !CODEX_MCP_COMMAND_NAMES.includes(name));
+  if (unexpected.length > 0) {
+    errors.push(`MCP-backed Codex command grant outside frozen 8-command family: ${unexpected.join(', ')}`);
+  }
+  return errors;
+}
+
 // Explicit stem -> test-file overrides for scripts whose dedicated test uses a
 // feature name rather than a name/name-aspect derived from the script's own
 // basename (so the naming-convention check below can't find them automatically).
@@ -170,7 +193,11 @@ function findScriptCoverageGaps() {
 }
 
 function checkOrWrite({ write }) {
-  const counts = computeCounts();
+  const inventory = collectInventory(ROOT);
+  const counts = inventory.counts;
+  const ceilingErrors = frozenCodexMcpErrors(counts, inventory);
+  for (const error of ceilingErrors) console.error(`CEILING ${error}`);
+  if (ceilingErrors.length > 0) return 1;
   const specs = claimSpecs(counts, computeScoped({ announce: true }));
   let mismatches = 0;
   let rewrites = 0;
