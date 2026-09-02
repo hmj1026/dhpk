@@ -85,13 +85,17 @@ variables。Cursor provenance 會記錄 shared stable IDs 與
 fingerprint 時，才允許 Cursor-specific copy。如此 shared portable skills 只有一個
 更新／rollback owner，而 Cursor-native files 由另一個 owner 獨立管理。
 
-## 目前 Claude publication
+## Claude publication：raw compatibility surface 與實體化預設
 
 `scripts/ci/gen-claude-manifest.js` 從 inventory 產生 `.claude-plugin/plugin.json` 的
-skill root。現在是一個 registered directory root，下面有 98 個 inventory-eligible skill ID。
+skill root。raw source checkout 仍保留作為明確指定的 compatibility surface；目前是一個
+registered directory root，下面有 98 個 inventory-eligible skill ID。
 所有 package 都扁平位於 `skills/dhpk-<name>/`；module `skills/` 只是相對 symlink
 projection。`0.47.0` 的五筆 retirement row 只存在於診斷 ledger，不會 materialize 成
 package 或 alias；請參閱 [alias-free retirement 指引](./skill-platform-migration.zh-TW.md#alias-free-retirement-ledger-0470)。
+
+Clean install 的預設 discovery artifact 是下方說明的實體化 `minimal` profile，不是這個
+未過濾的 raw root。
 
 Claude manifest 註冊的是 skill **directory root**，不是逐 skill allowlist。因此：
 
@@ -144,6 +148,13 @@ selection fingerprints。沒有 profile metadata 的既有 receipt 維持 `compa
 靜默縮小；切換到 `minimal` 或其他 profile 必須明確使用 `--migrate`，並記錄新舊
 identity、保留 modified 或 unowned destination。structural、package、budget、rollback
 與 consumer-runtime evidence 分開；static `PASS` 永遠不是 runtime proof。
+
+Claude 的 default materialized package 由
+`node scripts/ci/gen-claude-profile-bundles.js --profile minimal` 產生，並由
+`scripts/install.sh` 建立 local marketplace wrapper 後安裝為
+`dhpk@dhpk-profile-minimal`。`full` 與 `compat-v1` 仍須明確 opt-in；生成或 package
+validation 只代表 structural/package evidence，不代表 consumer runtime PASS；agent、hook、
+rule 與 `userConfig` 行為仍需獨立的 package／consumer validation。
 
 ## Codex project sync
 

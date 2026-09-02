@@ -4,6 +4,14 @@
 
 dhpk exposes **59 `userConfig` knobs** in `.claude-plugin/plugin.json`. This page documents every knob: where you set it, what values it accepts, and what it actually changes. For platform installation routes and support status, see the [platform installation SSOT](./platform-installation.md). For the day-to-day command flow (install, common workflows, review cycle), see [`docs/basic-operations.md`](./basic-operations.md).
 
+The default Claude discovery artifact is the materialized `minimal` profile,
+derived from `manifests/distribution-inventory.json`; it is not an unfiltered
+scan of the source `skills/` directory. The profile publishes at most 15
+`implicit-eligible` entries. `full` and `compat-v1` are explicit opt-in profile
+artifacts. Agent Plugin and Cursor publication memberships are unchanged. See
+[`docs/platform-installation.md`](./platform-installation.md) for the profile
+selection and receipt rules.
+
 ## Where to set a value
 
 There are three places a knob's value can come from, in increasing precedence:
@@ -81,7 +89,7 @@ separate agy setting is likewise an attested dispatch input.
 
 ## Codex MCP dependency (not a `userConfig` knob)
 
-`orchestration_dispatch`'s `CODEX=on` peer path, the **3 MCP-backed Codex skills** (`dhpk-codex-architect` including `--mode adversarial`, `dhpk-codex-implement`, and `dhpk-change-review`), and the **7 `/dhpk:codex-*` commands** (`codex-review`, `-review-branch`, `-review-doc`, `-review-fast`, `-security`, `-test-gen`, `-test-review`) all require the `mcp__codex__codex` / `mcp__codex__codex-reply` tools. The optional CLI backend is `dhpk-change-review/scripts/review.sh --backend cli`; it uses no MCP server. dhpk does not bundle or configure these tools, and no `dhpk` `userConfig` key controls them: they come from **directly registering the Codex CLI's own `codex mcp-server` subcommand as an MCP server** — *not* from installing `openai/codex-plugin-cc`, which is a separate, optional surface (see the comparison aside below).
+`orchestration_dispatch`'s `CODEX=on` peer path, the **9 MCP-backed Codex skills** (`dhpk-codex-architect` including `--mode adversarial`, `dhpk-codex-implement`, `dhpk-change-review` (`codex-code-review` inventory ID), `dhpk-doc-review`, `dhpk-test-review`, `dhpk-codebase-exploration`, `dhpk-feature-verify`, `dhpk-issue-analyze`, and `dhpk-feasibility-study`), and the **8-command frozen compatibility family** (`codex-review`, `codex-review-branch`, `codex-review-doc`, `codex-review-fast`, `codex-security`, `codex-test-gen`, `codex-test-review`, and `review-spec`) are the retained Codex integration entrypoints. Only the canonical `codex-review` command directly declares the `mcp__codex__codex` / `mcp__codex__codex-reply` tools; the seven aliases forward to their targets (with `codex-test-gen` targeting Codex-free `dhpk-tdd-workflow`). The 9 skills and 8 commands are frozen as `explicit-only`: direct exact-name invocation remains supported, but they are no longer default-discoverable or auto-routed pending capability migration. `/dhpk:check-coverage` remains an explicit-only legacy alias outside the frozen eight-command count. The optional CLI backend is `dhpk-change-review/scripts/review.sh --backend cli`; it uses no MCP server. dhpk does not bundle or configure these tools, and no `dhpk` `userConfig` key controls them: the MCP grants come from **directly registering the Codex CLI's own `codex mcp-server` subcommand as an MCP server** — *not* from installing `openai/codex-plugin-cc`, which is a separate, optional surface (see the comparison aside below).
 
 ### How the Codex MCP server works
 
@@ -112,7 +120,7 @@ Look for a `codex` entry with a connected status and the `codex` / `codex-reply`
 2. Confirm the underlying `codex` CLI runs and is authenticated (`codex login`); the MCP server can't start without it.
 3. If `codex` appears connected but a `codex-*` skill still fails, the issue is usually auth (`codex login`) rather than the MCP connection itself.
 
-Without the `codex mcp-server` registration, invoking any MCP-backed `codex-*` skill or `/dhpk:codex-*` command surfaces a tool-permission error (`mcp__codex__*` not found) — dhpk has no fallback for these surfaces specifically, since they exist only to delegate to Codex. This is distinct from `CODEX=on` (see [`docs/basic-operations.md`](./basic-operations.md#implementation-dispatch)), a **per-session opt-in flag** (not a persisted `userConfig` value, no install-time `--config` equivalent) that resets every session unless you pass `--codex` or say "use codex" again — and when its MCP dependency is absent, `CODEX=on` degrades silently to single-assistant dispatch rather than erroring.
+Without the `codex mcp-server` registration, invoking any MCP-backed `codex-*` skill or the canonical `/dhpk:codex-review` path (including aliases that forward to it) surfaces a tool-permission error (`mcp__codex__*` not found) — dhpk has no fallback for those MCP-backed paths specifically, since they exist only to delegate to Codex. The frozen eight-command family also contains explicit-only aliases such as `codex-test-gen`, which forwards to Codex-free TDD and does not declare the MCP grant. This is distinct from `CODEX=on` (see [`docs/basic-operations.md`](./basic-operations.md#implementation-dispatch)) and `/dhpk:do --codex`: those are **legacy, per-session opt-in MCP-peer interfaces** (not persisted `userConfig` values and with no install-time `--config` equivalent). They remain available during the compatibility window while capability migration is prepared, but are not silently reinterpreted as CLI `codex exec`, `--worker=codex`, `--reasoner=codex`, or the external `openai/codex-plugin-cc` app-server plugin. When the MCP dependency is absent, the peer request degrades to the normal single-assistant/Codex-free dispatch rather than selecting another Codex transport.
 
 It is also unrelated to **Codex CLI dual-track sync** (`install-codex-skills.sh`, see [`docs/basic-operations.md`](./basic-operations.md)), which mirrors dhpk's own skills into a project's `.codex/` directory for people running the standalone `codex` CLI directly — that path needs no MCP server at all.
 
