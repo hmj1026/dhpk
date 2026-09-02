@@ -1,9 +1,10 @@
 ---
 name: dhpk-feasibility-study
-description: 'Feasibility analysis from first principles. Use when: evaluating solutions before dhpk-tech-spec, comparing approaches, risk assessment. Not for: implementation (use dhpk-adaptive-dev-workflow in feature mode), architecture advice (use dhpk-codex-architect). Output: quantitative comparison + recommendation.'
+disable-model-invocation: true
+description: 'Feasibility analysis from first principles. Purpose: evaluate solutions before dhpk-tech-spec, compare approaches, or assess risk. Not for: implementation (use dhpk-adaptive-dev-workflow in feature mode), architecture advice (use dhpk-codex-architect). Output: quantitative comparison + recommendation.'
 allowed-tools: 'Read, Grep, Glob, Bash(git:*), Bash(codex:*), Bash(bash:*), Write, mcp__codex__codex, mcp__codex__codex-reply, Agent'
 metadata:
-  dhpk-invocation-class: implicit-eligible
+  dhpk-invocation-class: explicit-only
 ---
 
 # Feasibility Study Skill

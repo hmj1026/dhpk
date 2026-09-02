@@ -18,6 +18,15 @@ dispatch tables into this file. Skill-local routing SSOT is
 Use `scripts/pre-route.sh` and `scripts/route-result.js`; do not invent a
 second matcher, parser, or dispatch table.
 
+The default Claude discovery artifact is the inventory-derived materialized
+`minimal` profile; `full` and `compat-v1` are explicit opt-in artifacts. The
+frozen Codex boundary is 9 MCP-backed skills plus an 8-command compatibility
+family, all `explicit-only`; only the canonical `codex-review` command directly
+declares MCP tools and aliases forward to their targets. Route
+through the execution-policy SSOT and never auto-call that set. The
+`check-coverage` explicit-only legacy alias is outside the frozen eight-command
+count.
+
 ## When NOT to Use
 
 - The target is already known — invoke that skill, command, or agent directly.
@@ -43,7 +52,11 @@ second matcher, parser, or dispatch table.
 `--route-only` classifies and reports without invoking. `--execute-explicit` is
 one-use authority for an explicit-only target. `--codex`, `--plan`, `--worker`,
 `--reasoner`, and `--openspec`/`--opsx` are opt-in and must not remain in the
-cleaned query.
+cleaned query. `--codex` is a legacy, per-session MCP-peer interface retained
+during the capability-migration window; it is not silently reinterpreted as CLI
+`codex exec`, `--worker=codex`, `--reasoner=codex`, or the external
+`codex app-server` plugin. New work should use the default Codex-free route or
+explicitly select the retained CLI backend.
 
 ## Output
 

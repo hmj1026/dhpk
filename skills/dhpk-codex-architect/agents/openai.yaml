@@ -2,3 +2,5 @@ interface:
   display_name: "Codex Architect"
   short_description: "Codex architecture consulting."
   default_prompt: "Use $dhpk-codex-architect to apply the Codex Architect workflow with its verification rules."
+policy:
+  allow_implicit_invocation: false

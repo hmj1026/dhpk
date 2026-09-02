@@ -3,7 +3,7 @@ description: 'Consolidated Codex second opinion for diffs, branches, documents, 
 argument-hint: '[--scope diff|branch|doc|security|tests] [--depth fast|full] [--coverage] [--spec] [--base <gitref>] [--continue <threadId>]'
 allowed-tools: 'mcp__codex__codex, mcp__codex__codex-reply, Bash(git:*), Bash(node:*), Bash(npm:*), Bash(yarn:*), Read, Grep, Glob'
 metadata:
-  dhpk-invocation-class: implicit-eligible
+  dhpk-invocation-class: explicit-only
 ---
 
 # /codex-review
