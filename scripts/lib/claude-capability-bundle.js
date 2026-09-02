@@ -7,7 +7,7 @@
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
-const { readFileBounded } = require('./bounded-filesystem');
+const { createTraversalBudget, readDirectoryEntries, readFileBounded } = require('./bounded-filesystem');
 const {
   compileDistribution,
   materializeDistribution,
@@ -293,6 +293,96 @@ function safeSourcePath(root, relativePath) {
   return { path: candidate };
 }
 
+function safeSourceFile(root, relativePath) {
+  if (typeof relativePath !== 'string' || relativePath.length === 0
+    || relativePath.includes('\0') || relativePath.includes('\\')
+    || path.posix.isAbsolute(relativePath) || /^[A-Za-z]:[\\/]/.test(relativePath)
+    || path.posix.normalize(relativePath) !== relativePath
+    || relativePath === '.' || relativePath === '..' || relativePath.startsWith('../')) {
+    return { error: 'source file path is not a safe relative path' };
+  }
+  let rootReal;
+  try { rootReal = fs.realpathSync(root); } catch (_) { return { error: 'source root is unavailable' }; }
+  const candidate = path.resolve(rootReal, relativePath);
+  const relativeToRoot = path.relative(rootReal, candidate);
+  if (relativeToRoot === '..' || relativeToRoot.startsWith(`..${path.sep}`) || path.isAbsolute(relativeToRoot)) {
+    return { error: 'source file path escapes the source root' };
+  }
+  let cursor = rootReal;
+  for (const part of relativePath.split('/')) {
+    cursor = path.join(cursor, part);
+    try {
+      if (fs.lstatSync(cursor).isSymbolicLink()) return { error: 'source file path contains a symlink' };
+    } catch (_) { return { error: 'source file path is missing' }; }
+  }
+  try {
+    const stat = fs.lstatSync(candidate);
+    if (stat.isSymbolicLink() || !stat.isFile()) return { error: 'source file must be a regular file' };
+    const realCandidate = fs.realpathSync(candidate);
+    const realRelative = path.relative(rootReal, realCandidate);
+    if (realRelative === '..' || realRelative.startsWith(`..${path.sep}`) || path.isAbsolute(realRelative)) {
+      return { error: 'source file escapes the source root' };
+    }
+  } catch (_) { return { error: 'source file is missing' }; }
+  return { path: candidate };
+}
+
+function commandFileName(value) {
+  if (typeof value !== 'string' || value.trim() === '') return null;
+  const name = value.endsWith('.md') ? value : `${value}.md`;
+  return /^[A-Za-z0-9][A-Za-z0-9._-]*\.md$/.test(name) ? name : null;
+}
+
+function enumerateCommandSources(root) {
+  const budget = createTraversalBudget({ maxDepth: 8, maxFiles: 512, maxEntries: 2048 });
+  const paths = [];
+  const walk = (absolute, relative, depth) => {
+    const realDirectory = budget.enterDirectory(absolute, depth);
+    try {
+      for (const entry of readDirectoryEntries(absolute, { budget, sort: true, localeSort: true })) {
+        const child = path.join(absolute, entry.name);
+        const childRelative = path.posix.join(relative, entry.name);
+        if (entry.isSymbolicLink()) throw new Error(`command source contains a symlink: ${childRelative}`);
+        if (entry.isDirectory()) walk(child, childRelative, depth + 1);
+        else if (entry.isFile() && entry.name.endsWith('.md') && entry.name !== 'INDEX.md') paths.push(childRelative);
+      }
+    } finally {
+      budget.leaveDirectory(realDirectory);
+    }
+  };
+  const roots = [path.join(root, 'commands')];
+  let modules;
+  try { modules = readDirectoryEntries(path.join(root, 'modules'), { budget, sort: true, localeSort: true }); } catch (_) { modules = []; }
+  for (const entry of modules) {
+    if (!entry.isDirectory() || entry.isSymbolicLink()) continue;
+    const moduleCommands = path.join(root, 'modules', entry.name, 'commands');
+    try { if (fs.statSync(moduleCommands).isDirectory()) roots.push(moduleCommands); } catch (_) { /* module has no commands */ }
+  }
+  for (const directory of roots) {
+    try {
+      const relative = path.relative(root, directory).split(path.sep).join('/');
+      walk(directory, relative, 0);
+    } catch (error) {
+      if (error && error.code === 'ENOENT') continue;
+      throw error;
+    }
+  }
+  return paths.sort();
+}
+
+function commandSources(selection, root) {
+  const profile = selection && selection.profileDefinition;
+  const declared = profile && Array.isArray(profile.commandIds)
+    ? profile.commandIds.map(commandFileName)
+    : null;
+  if (declared) {
+    if (declared.some((value) => !value)) throw new Error('profile declares an unsafe command id');
+    return [...new Set(declared)].sort().map((name) => `commands/${name}`);
+  }
+  if (selection && (selection.id === 'full' || selection.id === 'compat-v1')) return enumerateCommandSources(root);
+  return [];
+}
+
 function createBundleEntries(selection, root) {
   const outputs = [{
     stableId: 'claude-profile:manifest',
@@ -334,10 +424,44 @@ function createBundleEntries(selection, root) {
     });
     contentByStableId.set(stableId, content);
   }
-  return { outputs, contentByStableId };
+  const commandRoots = new Set();
+  let commandPaths;
+  try { commandPaths = commandSources(selection, root); } catch (error) {
+    return { error: projectionError('UNSAFE_PATH', 'compile', `command source enumeration failed: ${error.message}`) };
+  }
+  for (const relativePath of commandPaths) {
+    const commandName = path.posix.basename(relativePath);
+    const sourceResult = safeSourceFile(root, relativePath);
+    if (sourceResult.error) {
+      return { error: projectionError('UNSAFE_PATH', 'compile', `${sourceResult.error}: '${relativePath}'`) };
+    }
+    let content;
+    try { content = readFileBounded(sourceResult.path); } catch (error) {
+      return { error: projectionError('UNSAFE_PATH', 'compile', `selected command source cannot be read safely: '${relativePath}'`, { details: { cause: error.message } }) };
+    }
+    const destination = relativePath;
+    if (seenDestinations.has(destination)) {
+      return { error: projectionError('DUPLICATE_OUTPUT_PATH', 'compile', `profile commands collide at '${destination}'`) };
+    }
+    seenDestinations.add(destination);
+    const stableId = `claude-profile:command:${relativePath.slice('commands/'.length).replace(/\.md$/, '')}`;
+    const digest = crypto.createHash('sha256').update(content).digest('hex');
+    outputs.push({
+      stableId,
+      source: relativePath,
+      sourceFingerprint: digest,
+      destination,
+      owner: 'claude-profile',
+      transform: { id: 'claude-profile-command', version: BUNDLE_VERSION },
+      expectedFingerprint: digest,
+    });
+    contentByStableId.set(stableId, content);
+    commandRoots.add(`./${path.posix.dirname(relativePath)}/`.replace('./commands//', './commands/'));
+  }
+  return { outputs, contentByStableId, commandRoots: [...commandRoots].sort() };
 }
 
-function readPlugin(root) {
+function readPlugin(root, commandRoots = []) {
   let rootReal;
   try { rootReal = fs.realpathSync(root); } catch (_) { return null; }
   let cursor = rootReal;
@@ -352,7 +476,7 @@ function readPlugin(root) {
     throw new Error('Claude plugin manifest path escapes the source root');
   }
   const plugin = JSON.parse(readFileBounded(cursor).toString('utf8'));
-  return { ...plugin, skills: ['./skills/'] };
+  return { ...plugin, skills: ['./skills/'], commands: commandRoots };
 }
 
 function compileClaudeCapabilityBundle({ root, inventory, profiles, moduleCatalog, profileId, skillIds, compilerVersion = BUNDLE_VERSION } = {}) {
@@ -385,7 +509,7 @@ function compileClaudeCapabilityBundle({ root, inventory, profiles, moduleCatalo
   });
   if (!compiled.ok) return compiled;
   let plugin;
-  try { plugin = readPlugin(rootPath); } catch (error) {
+  try { plugin = readPlugin(rootPath, entryResult.commandRoots); } catch (error) {
     return fail('UNSAFE_PATH', `Claude plugin manifest is unsafe: ${error.message}`);
   }
   return {

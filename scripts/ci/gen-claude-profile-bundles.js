@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 'use strict';
 
-// Generate an opt-in, finite-alias Claude profile package. The compatibility
-// plugin remains the default; this command only materializes a declared alias.
+// Generate a finite-alias Claude profile package. The materialized `minimal`
+// profile is the default discovery artifact; `full` and `compat-v1` remain
+// explicit opt-in compatibility profiles.
 
 const fs = require('node:fs');
 const path = require('node:path');
