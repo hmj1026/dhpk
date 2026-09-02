@@ -1,13 +1,13 @@
-# Codex Prompt: Test Coverage Review
+# Review Prompt: Test Coverage Review
 
 <!-- Research block source of truth: skills/dhpk-change-review/references/codex-research-instructions.md (Variant: Test Review) -->
 
 ## First Review Prompt
 
-Used with `mcp__codex__codex`:
+Primary reviewer input:
 
 ```typescript
-mcp__codex__codex({
+review({
   prompt: `You are a senior test engineer. Review whether test coverage is sufficient.
 
 ## Test Type: ${TEST_TYPE}
@@ -96,11 +96,11 @@ List optional boundary case tests.
 
 ## Re-review Prompt
 
-Used with `mcp__codex__codex-reply`:
+Used by the primary reviewer for a later review round:
 
 ```typescript
-mcp__codex__codex-reply({
-  threadId: '<from --continue parameter>',
+review({
+  review_artifact: '<from --continue parameter>',
   prompt: `I have added test cases. Please re-review:
 
 ## Updated Test File

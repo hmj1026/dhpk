@@ -2,10 +2,10 @@
 
 Used by Steps 3 and 4 of the `dhpk-opsx-apply-goal` skill. These are the exact
 literal strings that compose `GOAL_CONDITION`. SKILL.md owns the *rules* (which
-Part 0 branch by `DISPATCH_ON`, the `<CODEX_STATEMENT>` substitution, which Part 3
+Part 0 branch by `DISPATCH_ON`, which Part 3
 gate lines to emit per detected flags, and the 4,000 UTF-8-byte length guard with its
 should-never-fire hard stop). This file owns the *text*. Copy it out verbatim —
-do not paraphrase; placeholders (`<CHANGE_ID>`, `<CODEX_STATEMENT>`,
+do not paraphrase; placeholders (`<CHANGE_ID>`,
 `<FAST_WORKER_CLAUSE>`, `<TASK_DIGEST>`, `<E2E_ROSTER_CLAUSE>`,
 `<TURN_BUDGET>`, `<MAX_DURATION>`) are substituted as noted.
 
@@ -25,7 +25,7 @@ self-located execution-policy kernel, best-effort), the opsx:apply kickoff sente
 the hard-rule carve-out and Unknown-skill fallback, and — when dispatch is on —
 the one-line dispatch roster and the inline hard-rule guardrail. The behavioral
 elaborations (dispatch-verify procedure, premise-verification routing, in-flight
-doubt cycle, CODEX=on high-stakes peer path and its session-end self-check) live
+doubt cycle, explicit second-opinion path and its session-end evidence) live
 in the kernel and selected route reference and bind the session through the
 orientation read;
 they are NOT restated here. When the kernel or selected reference is unresolvable, the session
@@ -67,7 +67,9 @@ instruction covers ordinary implementation judgment calls only; it is never
 an explicit project hard-rule conflict bypass. On "Unknown skill" (the
 external OpenSpec plugin is not installed), retry once next turn; if it still
 fails, read openspec/changes/<CHANGE_ID>/ (proposal.md, design.md, tasks.md)
-and implement directly under the same gates. <CODEX_STATEMENT>. Continue
+and implement. Retired `CODEX=on`/`--codex` => `DEPRECATED_CODEX_FLAG`; never
+selects peer/backend. Use `--worker=codex` for CLI work or named owner
+`--second-opinion=codex-exec` for additive opinion. Continue
 until all of the following hold,
 ```
 
@@ -88,21 +90,14 @@ workdir, existing prompt/scope, ordered config. Keep runtime binding + execution
 never infer authority. READY before adapter; never synthesize operational files.
 Inline ≤2-file whole-implement-step + bookkeeping; ≥3 files: one batch.
 ONE consolidated parallel batch per wave; known findings: confirm-only;
-codex-bridge only as explicit escalation, at most once per change.
+codex-bridge only as explicit escalation, at most once per change, and only
+when the caller selected `--second-opinion=codex-exec`.
 project hard rules cannot be deferred because a prior design chose a cheaper implementation.
 No sleep-poll; await notifications/Monitor.
-<CODEX_STATEMENT>. Continue until:
+Retired `CODEX=on`/`--codex` => `DEPRECATED_CODEX_FLAG`; never selects
+peer/backend. Use `--worker=codex` for CLI work or named owner
+`--second-opinion=codex-exec` for additive opinion. Continue until:
 ```
-
-### CODEX_STATEMENT
-
-Substitute `<CODEX_STATEMENT>` with the session's CODEX setting from Step 1 (state
-it explicitly, never leave the orchestrator to infer it). One declarative line per
-mode — the behavioral elaboration lives in the execution-policy sections the line
-names and binds via the orientation read:
-
-- `CODEX=on` → `CODEX is ON for this session: apply execution-policy §In-flight doubt cycle and §CODEX=on high-stakes parallel peer path (including its session-end zero-dispatch self-check)`
-- `CODEX=off` → `CODEX is OFF for this session: at a contradiction-arbitration point where two agents' conclusions directly conflict, announce "cross-model doubt skipped (CODEX=off)" per execution-policy §In-flight doubt cycle rather than performing a cross-model pass`
 
 ---
 

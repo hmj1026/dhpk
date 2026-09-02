@@ -1,6 +1,6 @@
 ---
 name: dhpk-codex-bridge
-description: 'Use when CODEX=on and a self-contained bulk task or blind second opinion should go to the GPT-5.6 family through one-shot codex exec: gpt-5.6-sol/high for read-only or gpt-5.6-luna/xhigh for workspace-write. Not for context-dependent or iterative work, or structured MCP codex-* review loops. Output: the bounded, redacted codex exec result.'
+description: 'Use when an explicit CLI handoff or blind second opinion should go to the GPT-5.6 family through one-shot codex exec: gpt-5.6-sol/high for read-only or gpt-5.6-luna/xhigh for workspace-write. Not for context-dependent or iterative work, or retired MCP codex-* review loops. Output: the bounded, redacted codex exec result.'
 allowed-tools: 'Bash(bash:*), Bash(codex exec:*), Read, Write'
 metadata:
   dhpk-invocation-class: implicit-eligible
@@ -8,7 +8,7 @@ metadata:
 
 # Codex Bridge
 
-Use this skill only after routing has selected `CODEX=on`. The dedicated `dhpk-codex-bridge`
+Use this skill only after routing has selected an explicit CLI handoff or second opinion. The dedicated `dhpk-codex-bridge`
 subagent hands a **self-contained** task to the GPT-5.6 family through the Codex CLI
 (`codex exec`) and relays its bounded, redacted output. The bundled `scripts/run-codex.sh` owns sandbox selection,
 approval policy, and output capture; this skill defines when to outsource, how to compose
@@ -16,7 +16,7 @@ the prompt, and how to report the result.
 
 ## When to use
 
-- **Explicit opt-in** — `CODEX=on` is selected by the caller. This bridge is not a default
+- **Explicit opt-in** — the caller selects this bridge or a named second-opinion option. This bridge is not a default
   runtime path.
 - **Clear-spec bulk work** — a mechanical or well-specified implementation / data-analysis / transformation task that a cheaper capable model can do while Claude stays on higher-value work.
 - **Independent second opinion** — a review of a plan, root-cause diagnosis, or diff where you want a view that does **not** inherit Claude's reasoning (blind second perspective).
@@ -25,15 +25,15 @@ the prompt, and how to report the result.
 
 - The task needs our **conversation context** — Codex gets a fresh session and sees only the prompt. If you can't make the prompt self-contained, don't use this.
 - **Interactive / iterative** pairing — this is one-shot; there is no back-and-forth.
-- **In-session structured review** with a review-loop — use `dhpk-change-review` (MCP backend or `scripts/review.sh --backend cli`) instead (see the three paths below).
-- `CODEX=off` or no explicit Codex opt-in — keep the work on the normal codex-free path.
+- **In-session structured review** with a review-loop — use `dhpk-change-review` (current-model or `scripts/review.sh --backend cli`) instead (see the retained paths below).
+- No explicit Codex opt-in — keep the work on the normal codex-free path.
 - Codex is unavailable or not logged in — report the failure and let the caller choose a codex-free fallback.
 
 ## The three Codex paths (pick the right one)
 
 | Path | Transport / session | Use it for |
 |------|--------------------|-----------|
-| dhpk `codex-*` MCP skills | in-session Codex MCP tools, output in the main context | structured review / implement / architecture with a review-loop |
+| Retired dhpk `codex-*` MCP skills | historical in-session Codex MCP tools; no current route | historical context only; use the backend-neutral owners |
 | external `codex:` plugin | Codex app-server (persistent JSON-RPC broker) | rescue / long-running handoff via a persistent runtime |
 | **codex-bridge (this skill)** | one-shot `codex exec` bash wrapper, fresh session, output **quarantined in a subagent**, relayed with bounded redaction | outsource a self-contained bulk task, or a **blind** second opinion |
 

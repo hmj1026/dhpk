@@ -135,9 +135,14 @@ function collectInventory(root) {
   const mcpCodexCommandFiles = commandFiles.filter((command) => {
     return fs.existsSync(command) && hasCodexMcpAllowedTool(readFileBounded(command).toString('utf8'));
   });
-  const codexCommandFiles = fs.existsSync(path.join(repoRoot, 'commands'))
-    ? readDirectoryEntries(path.join(repoRoot, 'commands')).map((entry) => entry.name).filter((name) => CODEX_MCP_COMMAND_NAMES.includes(name)).sort()
-    : [];
+  // Keep the frozen family allowlist as a positive scanner fixture, but count
+  // only members that still carry an MCP grant. The family names may remain
+  // as non-MCP deprecation/forwarding commands after retirement; counting
+  // filenames would therefore report a live MCP surface when none exists.
+  const codexCommandFiles = mcpCodexCommandFiles
+    .map((command) => path.basename(command))
+    .filter((name) => CODEX_MCP_COMMAND_NAMES.includes(name))
+    .sort();
 
   const sentinelRegistry = readJson(repoRoot, 'scripts/lib/sentinel-slots.json');
   const hooksManifest = readJson(repoRoot, 'hooks/hooks.json');

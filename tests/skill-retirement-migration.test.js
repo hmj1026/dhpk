@@ -20,6 +20,8 @@ const RETIRED_NAMES = [
   'dhpk-post-dev-test',
   'dhpk-codex-brainstorm',
   'dhpk-de-ai-flavor',
+  'dhpk-codex-architect',
+  'dhpk-codex-implement',
 ];
 
 const RETIREMENTS = [
@@ -41,12 +43,22 @@ const RETIREMENTS = [
   {
     id: 'codex-brainstorm', name: 'dhpk-codex-brainstorm', canonicalPath: 'skills/dhpk-codex-brainstorm', retiredIn: '0.47.0',
     reasonCode: 'merged-into-architect-mode', priorSurfaces: ['claude-core', 'cursor-sync'],
-    replacements: [{ kind: 'skill', id: 'codex-architect', mode: 'adversarial' }], rollback: { release: '0.46.1' },
+    replacements: [{ kind: 'skill', id: 'software-architecture', mode: 'adversarial' }], rollback: { release: '0.46.1' },
   },
   {
     id: 'de-ai-flavor', name: 'dhpk-de-ai-flavor', canonicalPath: 'skills/dhpk-de-ai-flavor', retiredIn: '0.47.0',
     reasonCode: 'model-default-capability-removal', priorSurfaces: ['claude-core', 'cursor-sync'],
     replacements: [{ kind: 'model-default' }], rollback: { release: '0.46.1' },
+  },
+  {
+    id: 'codex-architect', name: 'dhpk-codex-architect', canonicalPath: 'skills/dhpk-codex-architect', retiredIn: '0.52.0',
+    reasonCode: 'migrated-to-module-design', priorSurfaces: ['claude-core', 'cursor-sync'],
+    replacements: [{ kind: 'skill', id: 'software-architecture', mode: 'design' }], rollback: { release: '0.51.0' },
+  },
+  {
+    id: 'codex-implement', name: 'dhpk-codex-implement', canonicalPath: 'skills/dhpk-codex-implement', retiredIn: '0.52.0',
+    reasonCode: 'migrated-to-backend-neutral-implement', priorSurfaces: ['claude-core', 'cursor-sync'],
+    replacements: [{ kind: 'skill', id: 'implement', mode: 'default' }], rollback: { release: '0.51.0' },
   },
 ];
 
@@ -76,14 +88,17 @@ function walkTextFiles(relative) {
   });
 }
 
-test('checked-in inventory owns five alias-free 0.47.0 retirement records', () => {
+test('checked-in inventory owns seven alias-free retirement records', () => {
   assert.ok(Array.isArray(INVENTORY.retired_skills), 'checked-in inventory must declare retired_skills');
   assert.deepStrictEqual(validateSkillRetirements({ inventory: INVENTORY }).errors, []);
   assert.deepStrictEqual(
     INVENTORY.retired_skills.map((entry) => entry.name).sort(),
     [...RETIRED_NAMES].sort(),
   );
-  assert.ok(INVENTORY.retired_skills.every((entry) => entry.retiredIn === '0.47.0'));
+  assert.deepStrictEqual(
+    INVENTORY.retired_skills.map((entry) => entry.retiredIn),
+    ['0.47.0', '0.47.0', '0.47.0', '0.47.0', '0.47.0', '0.52.0', '0.52.0'],
+  );
   assert.ok(RETIRED_NAMES.every((name) => !INVENTORY.skills.some((entry) => entry.name === name)));
   assert.ok(RETIRED_NAMES.every((name) => !fs.existsSync(path.join(ROOT, 'skills', name))));
 });
@@ -160,7 +175,7 @@ test('inventory regeneration and normalized projection evidence preserve retirem
   assert.ok(compiled.generated.generatedSkillIds.every((id) => !inventory.retired_skills.some((entry) => entry.id === id)));
 });
 
-test('migration documentation mirrors all five retirement rows and host limits', () => {
+test('migration documentation mirrors all seven retirement rows and host limits', () => {
   const documents = [read('docs/skill-platform-migration.md'), read('docs/skill-platform-migration.zh-TW.md')];
   const escaped = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
@@ -282,25 +297,15 @@ test('post-development testing routes unit/integration to TDD and Playwright jou
   assert.match(gate, /UNAVAILABLE/);
 });
 
-test('architect adversarial mode preserves independent proposals and bounded convergence', () => {
-  assert.ok(fs.existsSync(path.join(ROOT, 'skills/dhpk-codex-architect/references/adversarial-option-convergence.md')), 'adversarial successor reference must exist');
-  const architect = read('skills/dhpk-codex-architect/SKILL.md');
-  const adversarial = read('skills/dhpk-codex-architect/references/adversarial-option-convergence.md');
+test('architect adversarial mode now belongs to module design without a retired source', () => {
+  const architect = read('skills/dhpk-module-design/SKILL.md');
   assert.match(architect, /--mode design\|review\|compare\|adversarial/);
-  assert.match(architect, /\$\{MODE\} \(design\/review\/compare\/adversarial\)/);
-  assert.match(architect, /When `\$\{MODE\}` is `adversarial`, produce an independent Proposal B/i);
-  assert.match(architect, /three critique rounds by default and never\s+more\s+than five/i);
-  assert.match(architect, /references\/adversarial-option-convergence\.md/);
-  assert.doesNotMatch(architect, /dhpk-codex-brainstorm/);
-  assert.match(adversarial, /# Adversarial Architecture Report/i);
-  assert.match(adversarial, /Use three rounds by default and never\s+more\s+than five/i);
-  assert.match(adversarial, /## Convergence status/i);
-  assert.match(adversarial, /independent proposal/i);
-  assert.match(adversarial, /critique round/i);
-  assert.match(adversarial, /decision criteria/i);
-  assert.match(adversarial, /unresolved disagreement/i);
-  assert.match(adversarial, /final recommendation/i);
-  assert.doesNotMatch(adversarial, /guarantee.*Nash|Nash.*guarantee/i);
+  assert.match(architect, /adversarial/i);
+  assert.match(architect, /independent proposal/i);
+  assert.match(architect, /critique round/i);
+  assert.match(architect, /decision criteria/i);
+  assert.doesNotMatch(architect, /dhpk-codex-(architect|brainstorm)/);
+  assert.strictEqual(fs.existsSync(path.join(ROOT, 'skills/dhpk-codex-architect')), false);
 });
 
 test('canonical source has no live delegation to retiring identities', () => {
@@ -313,6 +318,10 @@ test('canonical source has no live delegation to retiring identities', () => {
     ['docs/skill-platform-migration.md', 'retirement migration guidance'],
     ['docs/skill-platform-migration.zh-TW.md', 'retirement migration guidance'],
     ['tests/skill-retirement-migration.test.js', 'retirement contract test'],
+    ['tests/codex-mcp-retirement.test.js', 'retirement contract test'],
+    ['tests/invocation-precedence.test.js', 'negative route guard'],
+    ['tests/task4-consolidation.test.js', 'retirement inventory contract test'],
+    ['tests/validate-invocation-policy.test.js', 'negative MCP grant guard'],
     ['tests/opsx-apply-goal-guardrails.test.js', 'negative route guard'],
     ['tests/userpromptsubmit-skill-hint.test.js', 'negative route guard'],
     ['tests/fixtures/invocation-inventory-baseline.json', 'historical fixture'],

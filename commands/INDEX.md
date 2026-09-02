@@ -61,16 +61,17 @@ description: 'Navigation index for dhpk plugin commands. Internal documentation;
 
 ## 呼叫約定
 
-The Codex integration exposes an exact frozen compatibility family of eight — `codex-review`,
-`codex-review-branch`, `codex-review-doc`, `codex-review-fast`, `codex-security`,
-`codex-test-gen`, `codex-test-review`, and `review-spec`. They remain directly
-invocable by exact name, but are not default-discoverable or implicitly routed
-pending capability migration. Only `codex-review` directly declares the Codex
-MCP tools; aliases forward to their targets, with `codex-test-gen` using
-Codex-free `dhpk-tdd-workflow`. The default Claude discovery artifact is the
-materialized `minimal` profile; `full` and `compat-v1` are explicit opt-in
-artifacts. `check-coverage` remains an explicit-only compatibility alias outside
-that count.
+The retained Codex-review command family has an exact frozen compatibility set of
+eight — `codex-review`, `codex-review-branch`, `codex-review-doc`,
+`codex-review-fast`, `codex-security`, `codex-test-gen`, `codex-test-review`, and
+`review-spec`. They remain directly invocable by exact name, but are not
+default-discoverable or implicitly routed. The family is MCP-free: no command
+declares the retired Codex MCP tools. `codex-review` selects the retained CLI
+backend; the aliases forward to their documented CLI or backend-neutral targets,
+with `codex-test-gen` using Codex-free `dhpk-tdd-workflow`. The default Claude
+discovery artifact is the materialized `minimal` profile; `full` and `compat-v1`
+are explicit opt-in artifacts. `check-coverage` remains an explicit-only
+compatibility alias outside that count.
 
 - `/dhpk:<name>` — 本 plugin 實際註冊的 command namespace。
 - `dhpk-<skill-name>` — public skill identity，不是 `commands/` alias。Claude plugin

@@ -128,7 +128,7 @@ skill's output:
   (the normal target is <=3,600 bytes) — treat it as a template
   regression to fix, or adjust and re-run:
   • turn off the orchestration_dispatch project setting (removes the dispatch directive, the largest single block)
-  • drop --codex (removes the CODEX statement)
+  • use an explicit `--worker=codex` or named-owner `--second-opinion=codex-exec` replacement before re-running; the retired `--codex` flag is blocked
   • drop --smoke / pass --no-smoke (removes the smoke-gate line)
   • fewer verification gates detected → consider splitting into smaller changes
 No /goal command was emitted this run.

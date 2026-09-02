@@ -87,12 +87,12 @@ SHALL restate worker/reasoner decision rows.
 
 ### Requirement: opsx-apply-goal emits the dispatch directive for unattended sessions
 
-When `orchestration_dispatch=on`, the Step 6 Part 0 kickoff of the `/goal` condition emitted by `skills/opsx-apply-goal/SKILL.md` SHALL include a **compact** posture-first dispatch directive that (a) names the session as the orchestrator, (b) carries a one-line dispatch roster — mechanical/multi-file clear-spec work to `dhpk:fast-worker`, reasoning-heavy work to `dhpk:deep-reasoner`, RED PHPUnit unit/integration tests to `dhpk:tdd-guide`, Playwright RED/E2E specs to `dhpk:e2e-runner` — (c) restricts inline editing to a ≤2-file whole-implement-step footprint plus the orchestrator's own bookkeeping (tasks.md checkboxes, sentinel handling), (d) prohibits `general-purpose` for implementation, (e) states the session's CODEX on/off setting explicitly on one line (the CODEX=off line keeps its short "cross-model doubt skipped (CODEX=off)" skip-announced wording inline), and (f) carries the self-locating pointer to `rules/execution-policy.md` — resolved via `$CLAUDE_PLUGIN_ROOT` first, then the newest installed cache path, never a filesystem scan — which the orientation step reads. The behavioral elaborations that previously rode Part 0 — the dispatch-verify procedure, the doc-consistency example, "when unsure, dispatch", premise-verification routing (deep-reasoner vs e2e-runner/scratch-probe), and the CODEX=on proactive high-stakes-peer path — reside in `rules/execution-policy.md` (§Implementation dispatch, §In-flight doubt cycle, §CODEX=on high-stakes parallel peer path) and SHALL NOT be restated in the emitted condition; they bind the session through the orientation-step policy read, with the condition's inline roster and gates as the fallback when the policy file is unresolvable. The Part 1–4 stop/verification conditions retain their semantics; worker-produced sentinels still converge through the universal `ls .pending-*` gate (Part 2). The skill's Verification checklist SHALL assert the compact directive's presence — orchestrator naming, the four-role roster, the inline bound, the `general-purpose` prohibition, the CODEX on/off line, and the policy pointer — when `DISPATCH_ON=true`, and SHALL assert the relocated elaborations are present in `rules/execution-policy.md` rather than in the template.
+When `orchestration_dispatch=on`, the Step 6 Part 0 kickoff of the `/goal` condition emitted by `skills/opsx-apply-goal/SKILL.md` SHALL include a **compact** posture-first dispatch directive that (a) names the session as the orchestrator, (b) carries a one-line dispatch roster — mechanical/multi-file clear-spec work to `dhpk:fast-worker`, reasoning-heavy work to `dhpk:deep-reasoner`, RED PHPUnit unit/integration tests to `dhpk:tdd-guide`, Playwright RED/E2E specs to `dhpk:e2e-runner` — (c) restricts inline editing to a ≤2-file whole-implement-step footprint plus the orchestrator's own bookkeeping (tasks.md checkboxes, sentinel handling), (d) prohibits `general-purpose` for implementation, (e) states the retired CODEX interface and its blocking deprecation diagnostic explicitly on one line, without treating it as a peer, worker, or reasoner selector, and (f) carries the self-locating pointer to `rules/execution-policy.md` — resolved via `$CLAUDE_PLUGIN_ROOT` first, then the newest installed cache path, never a filesystem scan — which the orientation step reads. The behavioral elaborations that previously rode Part 0 — the dispatch-verify procedure, the doc-consistency example, "when unsure, dispatch", premise-verification routing (deep-reasoner vs e2e-runner/scratch-probe), and the explicit second-opinion path — reside in `rules/execution-policy.md` (§Implementation dispatch, §In-flight doubt cycle, §High-stakes second opinion after flag retirement) and SHALL NOT be restated in the emitted condition; they bind the session through the orientation-step policy read, with the condition's inline roster and gates as the fallback when the policy file is unresolvable. The Part 1–4 stop/verification conditions retain their semantics; worker-produced sentinels still converge through the universal `ls .pending-*` gate (Part 2). The skill's Verification checklist SHALL assert the compact directive's presence — orchestrator naming, the four-role roster, the inline bound, the `general-purpose` prohibition, the retired CODEX/deprecation line, and the policy pointer — when `DISPATCH_ON=true`, and SHALL assert the relocated elaborations are present in `rules/execution-policy.md` rather than in the template.
 
 #### Scenario: Dry-run output includes the compact directive
 
 - **WHEN** `/dhpk:opsx-apply-goal <change-id> --dry-run` runs with dispatch enabled
-- **THEN** the emitted `/goal` Part 0 names the session as orchestrator, carries the one-line four-role roster, bounds inline to a ≤2-file whole-step footprint plus bookkeeping, prohibits `general-purpose`, states the session's CODEX on/off setting, and points to the self-locating execution-policy path — without restating the premise-verification, doubt-cycle, or high-stakes-peer elaborations
+- **THEN** the emitted `/goal` Part 0 names the session as orchestrator, carries the one-line four-role roster, bounds inline to a ≤2-file whole-step footprint plus bookkeeping, prohibits `general-purpose`, states the retired CODEX/deprecation status, and points to the self-locating execution-policy path — without restating the premise-verification, doubt-cycle, or explicit second-opinion elaborations
 
 #### Scenario: Dispatch disabled
 
@@ -107,7 +107,7 @@ When `orchestration_dispatch=on`, the Step 6 Part 0 kickoff of the `/goal` condi
 #### Scenario: Relocated elaborations bind via the orientation read
 
 - **WHEN** a goal session's orientation step resolves and reads `rules/execution-policy.md`
-- **THEN** the premise-verification routing, doubt-cycle announcements, and CODEX=on high-stakes-peer obligations apply to the session from that read, exactly as they previously applied from the inline Part 0 text
+- **THEN** the premise-verification routing, doubt-cycle announcements, and explicit second-opinion obligations apply to the session from that read, while the retired CODEX interface remains a blocking deprecation outcome rather than a dispatch trigger
 
 ### Requirement: Review gates are preserved under worker dispatch
 Worker edits SHALL remain subject to the full post-implementation agent gate and sentinel machinery. After a `fast-worker` dispatch returns, the orchestrator SHALL check for pending sentinels; if the project's post-edit hooks did not fire for subagent tool calls, the orchestrator SHALL derive the applicable reviewer gates from the worker's edited-file list and run them (back-stop). Dispatch never weakens a gate.
@@ -116,16 +116,23 @@ Worker edits SHALL remain subject to the full post-implementation agent gate and
 - **WHEN** `fast-worker` edits a `*.php` file
 - **THEN** `code-reviewer` runs before the task is considered complete — via the sentinel if written, otherwise via the edited-file-list back-stop
 
-### Requirement: CODEX=on high-stakes parallel peer path
-Under `CODEX=on`, for high-stakes decisions the orchestrator SHALL dispatch `deep-reasoner` and the Codex peer in parallel on the same problem, blind to each other, per execution-policy §Multi-AI / dual-perspective independence, then synthesize. Default sessions remain codex-free.
+### Requirement: High-stakes second opinions require explicit opt-in after CODEX retirement
+
+For a high-stakes design or diagnosis decision, the orchestrator MAY dispatch
+`deep-reasoner` and an independent `codex-bridge` opinion in parallel, blind to
+each other's findings, only when the caller explicitly requests
+`--second-opinion=codex-exec`. The default path remains Codex-free, and the
+retired `CODEX=on`/`--codex` interface never selects or implies a peer.
 
 #### Scenario: Codex-free default
-- **WHEN** a session runs without the codex opt-in
-- **THEN** no `mcp__codex__*` call occurs anywhere in the dispatch flow
 
-#### Scenario: Blind parallel consult
-- **WHEN** `CODEX=on` and the orchestrator faces a high-stakes design/diagnosis decision
-- **THEN** the Codex prompt contains the question + paths + stack only — no deep-reasoner findings — and divergences are flagged in the synthesis
+- **WHEN** a session runs without an explicit second-opinion request
+- **THEN** no `codex-bridge` or retired `mcp__codex__*` call occurs anywhere in the dispatch flow
+
+#### Scenario: Explicit blind second opinion
+
+- **WHEN** the caller explicitly requests `--second-opinion=codex-exec` for a high-stakes design or diagnosis decision
+- **THEN** the orchestrator may dispatch the independent Codex CLI opinion blind to the primary reasoning pass, and the synthesis records any divergence
 
 ### Requirement: Orchestrator verifies worker output before accepting (implement phase)
 
@@ -193,11 +200,11 @@ Before dispatching `fast-worker` to write for a task that rests on an unverified
 
 ### Requirement: A premise-overturning worker discovery is independently cross-verified before reframing
 
-When a dispatched worker returns a finding that **overturns an existing design premise** — for example "the bug is not reproducible as `design.md` assumed" or "the documented approach cannot work" — the orchestrator SHALL treat it as an approach-changing decision and obtain an **independent** second opinion per §Multi-AI / dual-perspective independence before reframing the plan on that finding. In a default (codex-free) session the independent opinion SHALL be a second `deep-reasoner` pass prompted independently from the source (never fed the first conclusion); when `CODEX=on` it MAY be the `codex-bridge` peer. Orchestrator-inline self-confirmation SHALL NOT substitute for the independent pass. After the reframe is agreed, and BEFORE the reframed artifacts are sent to the doc-review gate, the orchestrator SHALL grep the whole change directory (proposal/design/tasks/specs) for the old, now-disproven wording — a keyword sweep — and update or remove every remaining occurrence, so that stale wording surviving the reframe does not cause a doc-reviewer BLOCK -> fix -> re-review round.
+When a dispatched worker returns a finding that **overturns an existing design premise** — for example "the bug is not reproducible as `design.md` assumed" or "the documented approach cannot work" — the orchestrator SHALL treat it as an approach-changing decision and obtain an **independent** second opinion per §Multi-AI / dual-perspective independence before reframing the plan on that finding. In a default (codex-free) session the independent opinion SHALL be a second `deep-reasoner` pass prompted independently from the source (never fed the first conclusion); when the caller explicitly selects `--second-opinion=codex-exec` it MAY be the `codex-bridge` peer. Orchestrator-inline self-confirmation SHALL NOT substitute for the independent pass. After the reframe is agreed, and BEFORE the reframed artifacts are sent to the doc-review gate, the orchestrator SHALL grep the whole change directory (proposal/design/tasks/specs) for the old, now-disproven wording — a keyword sweep — and update or remove every remaining occurrence, so that stale wording surviving the reframe does not cause a doc-reviewer BLOCK -> fix -> re-review round.
 
 #### Scenario: Overturned design premise triggers an independent cross-check
 - **WHEN** a `fast-worker` escalation reports that the bug is not reproducible as the design assumed, overturning the plan's premise
-- **THEN** the orchestrator obtains an independent second opinion (a fresh, independently-prompted `deep-reasoner` pass, or `codex-bridge` under `CODEX=on`) before reframing the approach, rather than self-confirming inline alone
+- **THEN** the orchestrator obtains an independent second opinion (a fresh, independently-prompted `deep-reasoner` pass, or `codex-bridge` when `--second-opinion=codex-exec` is explicitly selected) before reframing the approach, rather than self-confirming inline alone
 
 #### Scenario: Codex-free session uses a second deep-reasoner, not codex-bridge
 - **WHEN** the session is codex-free (default) and a worker overturns a design premise
@@ -298,19 +305,19 @@ The `opsx-apply-goal` completion/verify gate SHALL treat a harness-validator res
 - **WHEN** a `validate-harness.sh` warning disappears when the change is stashed (so the change introduced it)
 - **THEN** the gate does not treat the result as green until that warning is resolved
 
-### Requirement: CODEX proactive peer triggers cover first-seen query patterns, framework internals, and explicit-rule deferrals
-When `CODEX=on`, the implementation dispatch policy and generated `opsx-apply-goal` Part 0 SHALL require a proactive `codex-bridge` independent review before finalizing a high-stakes solo decision that introduces a repository/query pattern not previously used in the repo, uses a framework-internal hack or private-state reset, or defers an explicit project hard rule. This SHALL extend, not replace, the existing high-stakes solo trigger list.
+### Requirement: Explicit second-opinion triggers cover first-seen query patterns, framework internals, and explicit-rule deferrals
+When a caller explicitly selects `--second-opinion=codex-exec`, the implementation dispatch policy SHALL require a proactive `codex-bridge` independent review before finalizing a high-stakes solo decision that introduces a repository/query pattern not previously used in the repo, uses a framework-internal hack or private-state reset, or defers an explicit project hard rule. Without that explicit opt-in, the default path remains Codex-free and uses the normal independent-review or degraded-state contract.
 
-#### Scenario: First-seen query pattern gets a Codex peer
-- **WHEN** a `CODEX=on` implementation introduces a query-builder JOIN or repository/query style that is new to the repo
+#### Scenario: First-seen query pattern gets an explicit Codex peer
+- **WHEN** an implementation with `--second-opinion=codex-exec` introduces a query-builder JOIN or repository/query style that is new to the repo
 - **THEN** the orchestrator runs a proactive `codex-bridge` independent review before treating that approach as final
 
-#### Scenario: Framework-internal hack gets a Codex peer
-- **WHEN** a `CODEX=on` implementation relies on framework private state, reflection against framework internals, or another framework-internal workaround
+#### Scenario: Framework-internal hack gets an explicit Codex peer
+- **WHEN** an implementation with `--second-opinion=codex-exec` relies on framework private state, reflection against framework internals, or another framework-internal workaround
 - **THEN** the orchestrator runs a proactive `codex-bridge` independent review before accepting the workaround
 
-#### Scenario: Explicit-rule deferral gets a Codex peer
-- **WHEN** a `CODEX=on` implementation proposes deferring an explicit project hard rule such as Repository / query-layering placement
+#### Scenario: Explicit-rule deferral gets an explicit Codex peer
+- **WHEN** an implementation with `--second-opinion=codex-exec` proposes deferring an explicit project hard rule such as Repository / query-layering placement
 - **THEN** the orchestrator runs a proactive `codex-bridge` independent review before the deferral can stand
 
 ### Requirement: Repository Discovery Gate precedes new persistence code
@@ -335,14 +342,14 @@ The implementation dispatch policy SHALL state that explicit project hard rules,
 - **WHEN** the orchestrator is about to skip a hard rule using cost language such as "disproportionate" or "acceptable to defer"
 - **THEN** it loads the anti-rationalization guidance and re-evaluates before proceeding
 
-### Requirement: opsx-apply-goal emits the expanded CODEX and hard-rule guardrails
+### Requirement: opsx-apply-goal emits retired CODEX and hard-rule guardrails
 
-When `orchestration_dispatch=on`, the `/goal` condition emitted by `skills/opsx-apply-goal/SKILL.md` SHALL bind the expanded `CODEX=on` proactive peer triggers (first-seen query/repository patterns, framework-internal hacks, explicit-rule deferrals) through the one-line CODEX declaration plus the orientation-read execution-policy sections that define them — not by restating the trigger list in the condition. The Repository / explicit-hard-rule guardrail SHALL remain inline in the condition (the hard-rule carve-out sentence and the Part 4 hard-rule-escalation stop clause), since it is a stop-condition safety clause, not a behavioral elaboration. The dry-run verification checklist SHALL assert the CODEX declaration line and the inline hard-rule clauses are present, and that the expanded trigger list is present in `rules/execution-policy.md`.
+When `orchestration_dispatch=on`, the `/goal` condition emitted by `skills/dhpk-opsx-apply-goal/SKILL.md` SHALL state the retired `CODEX=on`/`--codex` interface and its blocking deprecation outcome, without treating it as a peer selector. Any high-stakes independent-review triggers SHALL bind only through an explicit `--second-opinion=codex-exec` request and the orientation-read execution-policy sections that define them, not by restating a trigger list in the condition. The Repository / explicit-hard-rule guardrail SHALL remain inline in the condition (the hard-rule carve-out sentence and the Part 4 hard-rule-escalation stop clause), since it is a stop-condition safety clause. The dry-run verification checklist SHALL assert the retired CODEX/deprecation line and the inline hard-rule clauses are present, and that explicit second-opinion triggers are present in `rules/execution-policy.md`.
 
-#### Scenario: Dry-run carries the CODEX declaration, policy carries the triggers
+#### Scenario: Dry-run carries the retired CODEX declaration
 
 - **WHEN** `/dhpk:opsx-apply-goal <change-id> --codex --dry-run` runs with dispatch enabled
-- **THEN** the emitted `/goal` states CODEX=on on one line pointing at the execution-policy CODEX sections, the expanded trigger categories are found in `rules/execution-policy.md`, and the emitted condition does not enumerate them
+- **THEN** the analyzer reports `STATUS=error` with `DEPRECATED_CODEX_FLAG`, names `--worker=codex` and `--second-opinion=codex-exec` as exact replacements, and emits no `/goal`; the explicit second-opinion route remains documented in `rules/execution-policy.md`
 
 #### Scenario: Dry-run includes hard-rule guardrail inline
 
@@ -383,23 +390,23 @@ When `orchestration_dispatch=on`, the dispatch roster embedded in the `/goal` co
 - **WHEN** `/dhpk:opsx-apply-goal <change-id> --dry-run` runs with dispatch enabled
 - **THEN** the emitted `/goal` roster names `dhpk:tdd-guide` for RED PHPUnit unit/integration specs, distinct from `dhpk:e2e-runner` for Playwright RED/E2E
 
-### Requirement: CODEX=on session-end self-check reconciles a zero-dispatch codex-bridge session
+### Requirement: Explicit second-opinion session-end evidence remains honest
 
-When `CODEX=on`, the session-end self-check — before declaring the goal complete, if `codex-bridge` was dispatched 0 times, enumerate the session's high-risk decision points and either run one retrospective `codex-bridge` independent peer review or record an explicit per-point "why-not" justification — SHALL be defined in `rules/execution-policy.md` (§CODEX=on high-stakes parallel peer path or an adjacent subsection) and bind goal sessions through the orientation-read policy plus the condition's one-line CODEX=on declaration; the emitted `/goal` condition SHALL NOT restate the self-check procedure. This complements — and does not replace — the proactive, before-finalizing high-stakes-peer path. Default (codex-free) sessions take none of this path.
+When a goal explicitly requests `--second-opinion=codex-exec`, the session-end self-check — before declaring the goal complete, if `codex-bridge` was dispatched 0 times, record that no independent CLI opinion ran and either obtain the explicitly requested review or record an explicit per-point "why-not" justification — SHALL be defined in `rules/execution-policy.md` and bind goal sessions through the orientation-read policy. The emitted `/goal` condition SHALL NOT restate the self-check procedure, and the retiring release SHALL not infer an independent opinion from `CODEX=on`/`--codex`. Default (Codex-free) sessions take none of this path.
 
-#### Scenario: Zero-dispatch CODEX=on session still owes the wrap-up self-check
+#### Scenario: Explicit request with zero dispatch remains degraded
 
-- **WHEN** a `CODEX=on` goal session that read the execution policy at orientation reaches its completion check having dispatched `codex-bridge` 0 times
-- **THEN** the policy-defined self-check obliges the orchestrator to enumerate the session's high-risk decision points and either run one retrospective `codex-bridge` review or record a per-point "why-not" before declaring done
+- **WHEN** a goal session explicitly requests `--second-opinion=codex-exec` but reaches completion having dispatched `codex-bridge` 0 times
+- **THEN** the policy-defined self-check records that no independent CLI opinion ran and either obtains the requested review or records a per-point "why-not" before declaring done
 
 #### Scenario: The condition stays lean
 
 - **WHEN** `/dhpk:opsx-apply-goal <change-id> --codex --dry-run` emits its condition
-- **THEN** the self-check procedure text appears in `rules/execution-policy.md`, not in the emitted `/goal` string
+- **THEN** no condition is emitted; the retired flag's deprecation outcome is not converted into a peer dispatch, and any explicit second-opinion self-check remains in `rules/execution-policy.md`
 
 #### Scenario: Codex-free session skips the self-check
 
-- **WHEN** a default (codex-free) goal session reaches completion
+- **WHEN** a default (Codex-free) goal session reaches completion
 - **THEN** no `codex-bridge` wrap-up self-check is required
 
 ### Requirement: Live CI/deploy verification loops are dispatchable work

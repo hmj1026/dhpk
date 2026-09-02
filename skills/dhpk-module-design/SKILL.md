@@ -1,6 +1,7 @@
 ---
 name: dhpk-module-design
-description: 'Use when users need architecture decisions, module boundaries, or implementation guidance for software development tasks. Not for pure documentation editing or non-technical writing tasks. Output: actionable, stack-neutral architecture guidance with explicit seams, trade-offs, and implementation-ready recommendations.'
+argument-hint: '"<question>" [--context <files>] [--mode design|review|compare|adversarial] [--second-opinion=codex-exec]'
+description: 'Use when users need architecture decisions, module boundaries, or implementation guidance for software development tasks. Supports design, review, compare, and bounded adversarial modes. Not for pure documentation editing or non-technical writing tasks. Output: actionable, stack-neutral architecture guidance with explicit seams, trade-offs, and implementation-ready recommendations.'
 metadata:
   dhpk-invocation-class: implicit-eligible
 ---
@@ -18,6 +19,31 @@ is named, use recent commit history to find the hot spots that keep changing and
 weight the exploration there. Do not propose deepening across the whole
 codebase before a real seam, caller, and near-term change are identified; this
 is the YAGNI filter for architecture work.
+
+## Modes
+
+Select exactly one mode from `design`, `review`, `compare`, or
+`adversarial`; `design` is the default. In every mode, frame the question,
+constraints, scope, risks, and decision criteria before recommending a seam.
+
+- **Design** proposes a boundary for a new capability or change.
+- **Review** evaluates an existing boundary against callers, data flow, and
+  failure modes.
+- **Compare** scores concrete alternatives against the named criteria rather
+  than treating personal preference as evidence.
+- **Adversarial** forms an independent Proposal A and, only when explicitly
+  requested, a blind Proposal B; run three bounded critique rounds by default
+  and never more than five. Preserve material disagreement and stop with
+  `unresolved disagreement` when the evidence does not support convergence.
+
+## Optional second opinion
+
+The primary path uses only the current in-process model and does not invoke a
+second opinion. An explicit `--second-opinion=codex-exec` opt-in may run
+`codex exec` as a blind, clearly labelled additional proposal or critique; it
+must never replace the primary recommendation or become a silent fallback.
+Record the question, constraints, research summary, assumptions, decision
+criteria, failure modes, and any changed recommendation for that opinion.
 
 ## Boundary tests — SSOT: architecture/tests own runtime behavior; this skill owns boundary decisions
 
@@ -49,6 +75,12 @@ is the YAGNI filter for architecture work.
 Recommend a boundary, interface, data flow, and trade-offs. Record an ADR only
 when the decision is surprising, hard-to-reverse, or likely to be revisited;
 routine local choices belong in the implementation plan or tests.
+
+For adversarial work, report the question and criteria, each independent
+proposal, every bounded critique round, evidence versus inference, convergence
+status, final recommendation, residual risks, and the smallest follow-up
+experiment or decision. Never claim independent verification unless the named
+second opinion actually ran.
 
 ## When NOT to Use
 

@@ -1,11 +1,11 @@
-# Codex Prompt: Document Review
+# Review Prompt: Document Review
 
 <!-- Research block source of truth: skills/dhpk-change-review/references/codex-research-instructions.md (Variant: Document Review) -->
 
-Used with `mcp__codex__codex`:
+Primary reviewer input:
 
 ```typescript
-mcp__codex__codex({
+review({
   prompt: `You are a senior technical document reviewer. Please review the following document.
 
 ## Document Info

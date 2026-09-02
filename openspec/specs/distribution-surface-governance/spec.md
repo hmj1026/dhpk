@@ -286,3 +286,31 @@ Migration to the shared projection pipeline SHALL proceed surface by surface beh
 
 - **WHEN** surfaces are migrated through the approved characterization and rollback sequence
 - **THEN** each accepted surface can ship independently while unfinished surfaces retain their prior implementation
+
+### Requirement: No promoted surface carries a Codex MCP dependency
+
+No skill or command promoted onto a discovery-visible surface SHALL declare `mcp__codex__codex` or `mcp__codex__codex-reply` in its allowed-tools. This applies to every surface, including all entries formerly covered by the transitional frozen set; no MCP-grant exception remains after retirement. Retained legacy command names SHALL remain explicit-only deprecation aliases or the explicit CLI-backed `codex-review` entry, with documented replacements and no hidden MCP path.
+
+#### Scenario: Any distributed entry declares an MCP-backed Codex tool
+
+- **WHEN** any skill or command declares `mcp__codex__codex` or `mcp__codex__codex-reply` in its allowed-tools
+- **THEN** distribution validation fails and names the offending entry
+
+#### Scenario: A retired entry retains an MCP grant
+
+- **WHEN** a formerly frozen Codex-MCP skill or command retains an `mcp__codex__*` grant, regardless of its invocation class
+- **THEN** distribution validation fails and reports the retired dependency; changing its invocation class cannot make the grant valid
+
+### Requirement: Curated publication reflects the distribution inventory, not raw directory scanning
+
+The default Claude install artifact's discoverable skill set SHALL be the materialized `minimal` profile derived from the distribution inventory's `lifecycle`/`invocation_class`/`surfaces`/`profiles` fields via the existing profile package generator, not from an unfiltered scan of the `skills/` source directory. `full` and `compat-v1` remain explicit opt-in artifacts. Agent Plugin and Cursor publication remain unchanged in membership. Where a generator or plugin manifest format cannot express per-skill discovery granularity (for example, a single registered root directory), the generator SHALL perform the filtering itself when materializing the package output, and documentation SHALL state this generator-level mechanism rather than implying the manifest format alone hides entries.
+
+#### Scenario: Generator relies on the whole-directory manifest root
+
+- **WHEN** the Claude plugin manifest format registers `./skills/` as a single root with no per-skill discovery flag
+- **THEN** the package generator still produces a materialized output directory containing only the curated default set, and the no-drift validation confirms the generated output matches the curated set exactly
+
+#### Scenario: Curated publication diverges from the inventory
+
+- **WHEN** the generated default package contains an entry the inventory does not select for the default profile, or omits an entry the inventory does select
+- **THEN** distribution validation fails and names the discrepancy

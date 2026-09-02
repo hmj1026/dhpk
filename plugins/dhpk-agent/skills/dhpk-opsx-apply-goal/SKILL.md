@@ -62,11 +62,11 @@ It prints a `# schema=v1` KEY=VALUE block. Act on `STATUS`:
 
 - `STATUS=missing` → print the `MESSAGE` and the `AVAILABLE_CHANGES` list, then stop.
 - `STATUS=archived` → print the `MESSAGE` (already archived — may be complete) and stop.
-- `STATUS=error` → print the `MESSAGE` (missing `tasks.md`/`proposal.md`) and stop.
+- `STATUS=error` → print the `MESSAGE` (missing `tasks.md`/`proposal.md`, or a retired `--codex` deprecation diagnostic) and stop.
 - Exit code 2 → missing `CHANGE_ID`; print the usage line the script emitted and stop.
 - `STATUS=active` → read the remaining keys and continue: `CHANGE_DIR`, `HAS_DESIGN`,
   `TOTAL_TASKS`, `OPEN_TASKS`, `DONE_TASKS`, `TURN_BUDGET`, `TURN_BUDGET_SOURCE`,
-  `SMOKE_FLAG`, `CODEX`, `DRY_RUN`, `MAX_DURATION`, `MIN_COVERAGE`,
+  `SMOKE_FLAG`, `DRY_RUN`, `MAX_DURATION`, `MIN_COVERAGE`,
   `FAST_WORKER_REQUESTED`, `FAST_WORKER_SELECTED`, `FAST_WORKER_AGENT`,
   `FAST_WORKER_ORDER`, `FAST_WORKER_FALLBACK`, `FAST_WORKER_REJECTED`,
   `FAST_WORKER_CLAUSE`, `HAS_E2E`, and `TASK_DIGEST`.
@@ -138,10 +138,11 @@ Compose `GOAL_CONDITION` from the verbatim templates in
 `references/goal-templates.md`, joining the parts with `,\n`:
 
 - **Part 0** (kickoff, always first — this is what makes single-paste work):
-  pick the `DISPATCH_ON=true` or `false` branch, then substitute
-  `<CODEX_STATEMENT>` with the `CODEX=on`/`off` text (state the session's CODEX
-  setting explicitly — never leave the orchestrator to infer it). Substitute
-  the analyzer's `<FAST_WORKER_CLAUSE>` (already resolved by the shared selector,
+  pick the `DISPATCH_ON=true` or `false` branch. The template states that the
+  retired `CODEX=on`/`--codex` interface is blocked with `DEPRECATED_CODEX_FLAG`
+  and never selects a peer, worker, reasoner, `codex exec`, or app-server;
+  callers must choose an exact replacement. Substitute the analyzer's
+  `<FAST_WORKER_CLAUSE>` (already resolved by the shared selector,
   with flag > userConfig > default) and its `TASK_DIGEST`, capped at 200 UTF-8 bytes without splitting a code point. The clause and the entire
   `mechanical → <FAST_WORKER_CLAUSE>;` segment, including its trailing separator,
   are always substituted in the `DISPATCH_ON=true` branch, regardless of what
@@ -204,8 +205,8 @@ Block C/C2 material from `output-blocks.md`, with `--dry-run` ending after C2.
 - [ ] Block A shows correct task counts (from the schema block), detected runners, and manual-task count
 - [ ] Block B `/goal` string is entirely in English and opens with the Part 0 `openspec-apply-change` kickoff sentence before the stop conditions — single paste, no separate STEP 3
 - [ ] Part 0 carries the selector-resolved `<FAST_WORKER_CLAUSE>` (including CLI tier and fallback order), ONE consolidated reviewer batch wording, ≤200-byte `<TASK_DIGEST>`, and `<E2E_ROSTER_CLAUSE>` iff `HAS_E2E=true`; the orientation command does not preview tasks.md
-- [ ] Part 0 does NOT restate the relocated elaborations (dispatch-verify procedure, premise-verification routing, in-flight doubt cycle, CODEX high-stakes-peer triggers, session-end self-check) — the kernel binds safety and the selected route reference binds these sections during orientation
-- [ ] CODEX statement stated explicitly on one line (`CODEX is ON`/`OFF` per `--codex`); when ON, it points at the execution-policy CODEX sections (including the session-end zero-dispatch self-check) without enumerating the trigger list
+- [ ] Part 0 does NOT restate the relocated elaborations (dispatch-verify procedure, premise-verification routing, in-flight doubt cycle, explicit second-opinion triggers, session-end self-check) — the kernel binds safety and the selected route reference binds these sections during orientation
+- [ ] Retired `CODEX=on`/`--codex` is documented as a blocking `DEPRECATED_CODEX_FLAG` outcome with exact replacements (`--worker=codex` or a named owner's `--second-opinion=codex-exec`), never as a peer or backend selector
 - [ ] Part 0 says "without stopping for confirmation" covers ordinary implementation judgment calls only and never an explicit project hard-rule conflict
 - [ ] Part 2 uses `ls .claude/artifacts/sessions/.pending-*` (not reviewer names); Part 2b checks `.unresolved-verdict` and requires `NONE`
 - [ ] Non-automatable tasks appear in the Block A warning, NOT in Part 3

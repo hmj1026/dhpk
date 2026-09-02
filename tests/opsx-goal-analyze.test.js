@@ -34,6 +34,32 @@ test('analyzer strips the invocation override and delegates deterministic contex
   assert.ok(analyzer.includes('goal-context.js'));
 });
 
+test('analyzer rejects retired --codex before active analysis and names exact replacements', () => {
+  const { spawnSync } = require('node:child_process');
+  const repo = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'opsx-analyze-codex-retired-')));
+  try {
+    const change = path.join(repo, 'openspec', 'changes', 'demo-change');
+    fs.mkdirSync(change, { recursive: true });
+    fs.writeFileSync(path.join(change, 'tasks.md'), '- [ ] 1.1 do the thing\n');
+    fs.writeFileSync(path.join(change, 'proposal.md'), '# Demo\n');
+
+    const env = { ...process.env, CLAUDE_PROJECT_DIR: repo };
+    delete env.CLAUDE_PLUGIN_ROOT;
+    const res = spawnSync('bash', [
+      path.join(ROOT, 'skills', 'dhpk-opsx-apply-goal', 'scripts', 'analyze-change.sh'),
+      'demo-change', '--codex',
+    ], { cwd: repo, env, encoding: 'utf8' });
+
+    assert.strictEqual(res.status, 0, `analyzer exited ${res.status}:\n${res.stderr}`);
+    assert.ok(res.stdout.includes('STATUS=error'), `missing error status:\n${res.stdout}`);
+    assert.ok(res.stdout.includes('DEPRECATED_CODEX_FLAG=true'), `missing deprecation marker:\n${res.stdout}`);
+    assert.ok(res.stdout.includes('--worker=codex'), `missing worker replacement:\n${res.stdout}`);
+    assert.ok(res.stdout.includes('--second-opinion=codex-exec'), `missing second-opinion replacement:\n${res.stdout}`);
+    assert.ok(!res.stdout.includes('STATUS=active'), `retired flag must stop before active analysis:\n${res.stdout}`);
+    assert.ok(!res.stdout.includes('FAST_WORKER_SELECTED'), `retired flag must not invoke context analysis:\n${res.stdout}`);
+  } finally { fs.rmSync(repo, { recursive: true, force: true }); }
+});
+
 test('flag overrides config and output carries availability, fallback, and order', () => {
   const cli = fakeCli('agy');
   try {
@@ -46,7 +72,7 @@ test('flag overrides config and output carries availability, fallback, and order
   } finally { fs.rmSync(cli.root, { recursive: true, force: true }); }
 });
 
-test('invalid flag warns and falls back to configured resolution even when CODEX review mode is off', () => {
+test('invalid worker flag warns and falls back to the configured resolution', () => {
   const cli = fakeCli('codex');
   try {
     const result = withEnv({ PATH: `${cli.bin}:/usr/bin:/bin`, CODEX: 'off', CLAUDE_PLUGIN_OPTION_FAST_WORKER_BACKEND: 'codex' }, () => context.buildContext({ tasks: '- [ ] backend\n', proposal: '', fastWorker: 'wat' }));

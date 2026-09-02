@@ -119,13 +119,17 @@ function parseFlags(argv) {
   };
   let extraPlan = false;
   let extraReasoner = false;
+  let deprecatedCodex = false;
   const query = [];
 
   for (const token of tokens) {
     if (token === '--route-only') {
       options.routeOnly = true;
     } else if (token === '--codex') {
-      options.codexPeer = true;
+      // Retain the option field for the v2 shape, but never activate the
+      // retired MCP peer path. The caller turns this marker into a blocking
+      // diagnostic and must choose an explicit replacement instead.
+      deprecatedCodex = true;
     } else if (token === '--architect') {
       options.architect = true;
     } else if (token === '--no-architect') {
@@ -157,6 +161,7 @@ function parseFlags(argv) {
     cleanedQuery: query.join(' ').trim(),
     extraPlan,
     extraReasoner,
+    deprecatedCodex,
   };
 }
 
@@ -250,9 +255,14 @@ function resolveDisposition(input) {
   const {
     options, target, observed, cliReceipt, obligationsComplete,
     writeCapable, parentContinuation, warmReview, availability,
+    deprecatedCodex,
   } = input;
 
   if (writeCapable && parentContinuation === false) return 'blocked';
+
+  if (options.routeOnly) return 'route-only';
+
+  if (deprecatedCodex) return 'blocked';
 
   if (cliReceipt && cliReceipt.schema === RECEIPT_SCHEMA) {
     if (BLOCKING_RECEIPTS.includes(cliReceipt.status)) return 'blocked';
@@ -268,8 +278,6 @@ function resolveDisposition(input) {
       return 'blocked';
     }
   }
-
-  if (options.routeOnly) return 'route-only';
 
   if (explicitOnlySequence(observed).length > 0) return 'explicit-required';
 
@@ -292,10 +300,20 @@ function createRouteResult(input = {}) {
   const host = input.host == null || input.host === '' ? 'claude' : String(input.host);
   const parsed = parseFlags(input.argv);
   const table = loadRouteTable();
-  const target = matchTarget(parsed.cleanedQuery, table);
+  const target = parsed.deprecatedCodex ? null : matchTarget(parsed.cleanedQuery, table);
   const availability = computeAvailability(target, input.observed, host);
-  const backendSelection = computeBackendSelection(parsed.options, input.observed);
+  const backendSelection = parsed.deprecatedCodex
+    ? null
+    : computeBackendSelection(parsed.options, input.observed);
   const diagnostics = [];
+
+  if (parsed.deprecatedCodex) {
+    diagnostics.push({
+      code: 'DEPRECATED_CODEX_FLAG',
+      severity: 'error',
+      message: '--codex is retired; use the default Codex-free route, --worker=codex, --reasoner=codex, or an explicit codex exec second opinion',
+    });
+  }
 
   if (parsed.extraPlan || parsed.extraReasoner) {
     diagnostics.push({
@@ -308,14 +326,6 @@ function createRouteResult(input = {}) {
           : 'Extra segments after --reasoner effort were ignored',
     });
   }
-  if (host === 'codex' && parsed.options.codexPeer) {
-    diagnostics.push({
-      code: 'ALREADY_CODEX',
-      severity: 'info',
-      message: 'Host is already Codex; --codex still sets codexPeer',
-    });
-  }
-
   const explicitSeq = explicitOnlySequence(input.observed);
   if (explicitSeq.length > 0) {
     const ids = explicitSeq.map((entry) => entry.id).filter(Boolean).join(', ');
@@ -336,6 +346,7 @@ function createRouteResult(input = {}) {
     parentContinuation: input.parentContinuation,
     warmReview: input.warmReview,
     availability,
+    deprecatedCodex: parsed.deprecatedCodex,
   });
 
   const result = {

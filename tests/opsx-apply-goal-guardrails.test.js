@@ -32,9 +32,10 @@ const goalTemplatesRaw = fs.readFileSync(path.join(refsDir, 'goal-templates.md')
 // assertions cannot be broken by a line-wrap position change.
 const flat = (s) => s.replace(/\s+/g, ' ');
 const goalTemplates = flat(goalTemplatesRaw);
+const part0End = goalTemplatesRaw.indexOf('## Part 1 (always)');
 const dispatchPart0 = flat(goalTemplatesRaw.slice(
   goalTemplatesRaw.indexOf('**`DISPATCH_ON=true`**'),
-  goalTemplatesRaw.indexOf('### CODEX_STATEMENT'),
+  part0End,
 ));
 const noDispatchPart0 = flat(goalTemplatesRaw.slice(
   goalTemplatesRaw.indexOf('**`DISPATCH_ON=false`**'),
@@ -68,18 +69,16 @@ test('dispatch-on Part 0 names the repo launcher and requires an explicit READY 
 });
 const policy = flat(fs.readFileSync(path.join(ROOT, 'rules', 'execution-policy.md'), 'utf8'));
 
-test('CODEX declaration is one line in the template; elaborations live in execution-policy', () => {
-  // one-line declarations, pointing at the policy sections
-  assert.ok(
-    goalTemplates.includes(
-      'CODEX is ON for this session: apply execution-policy §In-flight doubt cycle and §CODEX=on high-stakes parallel peer path',
-    ),
-    'missing one-line CODEX=on declaration pointing at policy sections',
-  );
-  assert.ok(goalTemplates.includes('session-end zero-dispatch self-check'),
-    'CODEX=on line must name the session-end self-check the policy defines');
-  assert.ok(goalTemplates.includes('cross-model doubt skipped (CODEX=off)'),
-    'missing skip-announced CODEX=off one-liner');
+test('retired --codex has no goal-template ON/OFF branch and keeps explicit replacements', () => {
+  for (const phrase of ['<CODEX_STATEMENT>', '### CODEX_STATEMENT', 'CODEX is ON', 'CODEX is OFF']) {
+    assert.ok(!goalTemplates.includes(phrase), `obsolete goal-template branch remains: ${phrase}`);
+  }
+  assert.ok(skill.includes('DEPRECATED_CODEX_FLAG'),
+    'analyzer deprecation outcome must be documented');
+  assert.ok(skill.includes('--worker=codex'),
+    'retired --codex replacement must retain the explicit Codex worker selector');
+  assert.ok(skill.includes('--second-opinion=codex-exec'),
+    'retired --codex replacement must name the explicit CLI second opinion');
   // the expanded trigger list and self-check procedure reside in the policy
   for (const phrase of [
     'first-seen query/repository pattern',
@@ -89,9 +88,8 @@ test('CODEX declaration is one line in the template; elaborations live in execut
   ]) {
     assert.ok(policy.includes(phrase), `execution-policy missing relocated CODEX phrase: ${phrase}`);
   }
-  // the template no longer restates the proactive peer elaboration
-  assert.ok(!goalTemplates.includes('dhpk:dhpk-codex-bridge independent review'),
-    'template must not restate the CODEX=on proactive peer elaboration');
+  assert.ok(dispatchPart0.includes('codex-bridge only as explicit escalation'),
+    'template must retain explicit codex-bridge escalation wording');
 });
 
 test('relocated dispatch elaborations exist in execution-policy, not the emitted Part 0', () => {
@@ -254,12 +252,13 @@ test('4000-char paste guard: single variant, measured length, hard-stop wiring',
     'missing suppression of Block B/C/C2 when blocked');
   for (const bullet of [
     'turn off the orchestration_dispatch project setting',
-    'drop --codex (removes the CODEX statement)',
     'drop --smoke / pass --no-smoke (removes the smoke-gate line)',
     'fewer verification gates detected',
   ]) {
     assert.ok(skill.includes(bullet), `missing hard-stop guidance bullet: ${bullet}`);
   }
+  assert.ok(!skill.includes('drop --codex (removes the CODEX statement)'),
+    'hard-stop guidance must not offer the retired CODEX statement branch');
 });
 
 run('opsx-apply-goal-guardrails');

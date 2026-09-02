@@ -105,3 +105,117 @@ Static inventory, budget, projection, profile-package, and rollback success SHAL
 
 - **WHEN** an optional consumer verification fails or is unavailable for an otherwise structurally valid candidate
 - **THEN** the report records that surface's non-pass state without discarding the active bundle or converting structural success into runtime PASS
+
+### Requirement: Default-discoverable surface stays within an aggregate ceiling
+
+In addition to the existing per-lifecycle/per-surface description budgets, the catalog SHALL compute and enforce a whole-catalog ceiling over the default-discoverable set (the `implicit-eligible` entries published on the `claude-core` surface for the `minimal`/default Claude install artifact): no more than 15 entries, and an aggregate description-token total reduced by at least 70% from the recorded raw-compatibility pre-curation baseline. The baseline SHALL be measured and recorded before any curation edit lands, using the same estimator and scope already defined for per-entry budgets. The measurement SHALL be reproducible: running it twice against unchanged canonical sources and inventory SHALL produce an identical entry count and token total.
+
+#### Scenario: Baseline is recorded before curation
+
+- **WHEN** the aggregate-budget script runs against the pre-curation distribution inventory
+- **THEN** it records the current default-discoverable entry count and aggregate token total as the frozen baseline before any lifecycle or invocation-class edit is made
+
+#### Scenario: Curated default surface exceeds the entry ceiling
+
+- **WHEN** the `implicit-eligible` + `claude-core` + default-profile entry count exceeds 15
+- **THEN** validation reports the entry count, the excess entries, and exits non-zero
+
+#### Scenario: Curated default surface fails the token-reduction target
+
+- **WHEN** the aggregate description-token total for the curated default set is not at least 70% below the recorded baseline
+- **THEN** validation reports the baseline, current total, and computed reduction percentage, and exits non-zero
+
+#### Scenario: Measurement is reproducible
+
+- **WHEN** the aggregate-budget script runs twice against unchanged canonical sources and inventory
+- **THEN** both runs report the identical entry count and token total
+
+### Requirement: Family skill version resolution is explicit-first with self-contained detection
+
+A family skill (Laravel, PHPUnit) SHALL resolve the applicable version reference in this order: (1) an explicit version supplied by the caller, (2) auto-detection from standard project files (`composer.json`, `composer.lock`) read directly by the family skill's own logic, (3) if neither resolves a version, the skill SHALL ask the caller rather than guessing or silently defaulting. Version resolution SHALL NOT depend on `manifests/distribution-inventory.json`, `manifests/install-profiles.json`, or any other dhpk installation/publication manifest — those manifests govern which packages get installed and published, not which version reference a resolved family skill loads at runtime.
+
+#### Scenario: Explicit version is supplied
+
+- **WHEN** a caller supplies an explicit Laravel or PHPUnit version
+- **THEN** the family skill loads exactly that version's reference file without reading any project file or manifest
+
+#### Scenario: Version is auto-detected from the project
+
+- **WHEN** no explicit version is supplied but the current project's `composer.json` or `composer.lock` declares a resolvable Laravel or PHPUnit constraint
+- **THEN** the family skill reads that file directly and loads the matching version reference
+
+#### Scenario: Version cannot be determined
+
+- **WHEN** no explicit version is supplied and no project file yields a resolvable version
+- **THEN** the family skill asks the caller for the version rather than guessing or defaulting to the newest or oldest reference
+
+#### Scenario: Detection does not depend on dhpk manifests
+
+- **WHEN** version detection runs in an environment with no `manifests/distribution-inventory.json` or `manifests/install-profiles.json` present
+- **THEN** explicit-version and project-file auto-detection both still resolve correctly
+
+### Requirement: Family skills remain functional as a standalone copy
+
+A family skill's folder (`skills/dhpk-laravel/` or `skills/dhpk-phpunit/`), copied out of the repository in isolation or installed independently through `skills.sh`, SHALL function correctly for its core capability with no dhpk Workflow State, manifest, Hook, Agent, or MCP server present.
+
+#### Scenario: Isolated copy resolves an explicit version
+
+- **WHEN** the family skill folder is copied to an empty directory with no other dhpk files present and invoked with an explicit version
+- **THEN** it loads the correct version reference and produces its normal guidance
+
+#### Scenario: Isolated copy has no unresolved dependency
+
+- **WHEN** the isolated copy is inspected for path references
+- **THEN** it contains no reference to a dhpk manifest, hook, agent, or MCP tool required for its core capability to function
+
+### Requirement: Family selectors and aliases have an explicit distribution contract
+
+The distribution inventory SHALL declare the live `laravel` and `phpunit` family selectors as safe paths under `skills/dhpk-laravel/references/` and `skills/dhpk-phpunit/references/` respectively: Laravel selectors `5.4`, `6`, `7`, `8`, `9`, `10`, `11`, and `mix` SHALL target `references/{5-4,6,7,8,9,10,11,mix}.md`, and PHPUnit selectors `9`, `10`, and `11` SHALL target `references/{9,10,11}.md`. The 11 legacy IDs SHALL remain `lifecycle: deprecated` compatibility aliases, SHALL be excluded from generated discovery and profile projections, and SHALL preserve their pre-change `invocation_class` and declared surfaces (`implicit-eligible` and `claude-module` for the current entries) while remaining directly explicitly invocable during the compatibility window. Inventory validation and normalized projections SHALL fail closed on missing, ambiguous, escaping, or alias-published targets.
+
+#### Scenario: Family selector targets a portable reference
+
+- **WHEN** a live Laravel or PHPUnit family selector is compiled
+- **THEN** its target is exactly one reference file below the corresponding family `references/` directory and never a legacy `SKILL.md` path or an installation/publication manifest
+
+#### Scenario: Deprecated aliases are not projected as discovery entries
+
+- **WHEN** discovery or profile projections are generated from the inventory
+- **THEN** the two family IDs are selected and the 11 deprecated aliases are omitted while each alias's explicit resolver retains its original ID, family, selector, invocation class, and surfaces
+
+#### Scenario: Alias or selector metadata is invalid
+
+- **WHEN** validation sees duplicate aliases, ambiguous selectors, unsupported surfaces, a missing reference, or a target outside the owning family `references/` directory
+- **THEN** `node scripts/ci/validate-distribution.js --strict` fails with a stable diagnostic before projection or profile publication
+
+### Requirement: Family consumers preserve profile and module topology
+
+Validator, normalized projection, profile-selection, and module-topology implementations SHALL treat `laravel` and `phpunit` as the canonical family IDs, retain the existing versioned module IDs and dependency constraints from `manifests/module-catalog.json`, and exclude deprecated aliases from discovery/profile selection. The module catalog SHALL remain authoritative for available versions, dependency closure, and PHPUnit annotation semantics.
+
+#### Scenario: Profile and module selection use family IDs
+
+- **WHEN** an install profile or affected module mapping is generated for a Laravel or PHPUnit version
+- **THEN** it selects or provides the canonical family ID while retaining the corresponding versioned module ID and catalog-owned runtime dependency constraint
+
+#### Scenario: Profile or module topology publishes a deprecated alias
+
+- **WHEN** a generated profile or module topology includes one of the 11 deprecated legacy IDs as a discovery-selected skill
+- **THEN** validation fails and requires the canonical family entry, while direct explicit alias invocation remains available
+
+### Requirement: PHPUnit references follow authoritative annotation lifecycle
+
+The consolidated PHPUnit family SHALL follow the authoritative annotation lifecycle: PHPUnit 10 supports attributes and retains doc-comment annotations; PHPUnit 11 deprecates doc-comment annotations and uses attributes for new guidance; PHPUnit 12 removes doc-comment annotations except `@codeCoverageIgnore`. Legacy wording that says PHPUnit 11 already removed annotations SHALL be retained only as migration clarification and SHALL NOT be normative family guidance.
+
+#### Scenario: PHPUnit 10 retains both annotation forms
+
+- **WHEN** the PHPUnit 10 reference is selected
+- **THEN** it documents attribute support while retaining compatible doc-comment annotation guidance
+
+#### Scenario: PHPUnit 11 marks doc-comments deprecated
+
+- **WHEN** the PHPUnit 11 reference is selected
+- **THEN** new guidance prefers attributes and identifies doc-comment annotations as deprecated rather than already removed
+
+#### Scenario: PHPUnit 12 removal preserves the exception
+
+- **WHEN** migration guidance describes the PHPUnit 12 annotation removal
+- **THEN** it states that doc-comment annotations are removed except `@codeCoverageIgnore`

@@ -1,39 +1,57 @@
-# Codex Mode
+# Codex Options
 
-只在使用者傳入 `--codex`，或需要選擇 Codex 下游命令時讀取本檔。Claude
-預設 discovery 使用實體化的 `minimal` profile；`full` 與 `compat-v1` 必須
-明確 opt-in，本檔不會擴大預設 discovery surface。
+只有 caller 明確要求選用 Codex backend 或獨立視角時，才讀取本檔。Adaptive
+workflow 的預設 discovery 使用實體化的 `minimal` profile；`full` 與
+`compat-v1` 必須明確 opt-in，本檔不會擴大預設 discovery surface。
 
 ## Contract
 
-- 預設只走 Claude + dhpk agents，不需要 Codex CLI/MCP。
-- `CODEX=on` 與 `--codex` 是 legacy、單次 session 的 MCP-peer interface；仍保留於 compatibility window，但不是 CLI `codex exec`、`--worker=codex`、`--reasoner=codex` 或外部 `codex app-server` plugin 的別名。
-- `--codex` 啟用 legacy planning、實作與 review 的獨立第二意見；若 MCP peer 不可用，只警告一次並 fall back 到 codex-free。新流程請使用預設 Codex-free route，或明確選取保留的 CLI worker/reasoner backend。
-- codex-free 路徑不得呼叫 `mcp__codex__*`；Codex 只能透過具備相應權限的 `codex-*` command 委派。
-- 下游 `Next Command` 必須附上 `--codex`。
+- 預設只走目前的 in-process model 與 dhpk agents；不啟用外部 backend，也不
+  自動產生第二意見。
+- `--worker=codex` 是明確選取的 Codex CLI mechanical worker，只能用於支援
+  該選項的 implementation-class route。
+- `--reasoner=codex[:<model>[:<effort>]]` 是明確選取的 Codex CLI read-only
+  reasoning pass；它不會改變 primary implementation owner。
+- 支援獨立視角的 owner 可用 `--dual` 或其等價的 isolated reviewer dispatch，
+  以 fresh、read-only subagent 產生不受 primary 結論影響的第二份證據。
+- `--second-opinion=codex-exec` 是明確選取的一次性 blind CLI second opinion。
+  它只增加標記清楚的意見，不取代 primary，也不是任何失敗情況下的 silent
+  fallback。
+- Optional backend 或獨立 reviewer 無法執行時，保留失敗原因並依 owner 的
+  degraded/blocked contract 回報；不得改用另一個未被 caller 選取的 transport。
 
 ## Phase Mapping
 
-| Phase | Codex-free（預設） | `--codex` |
-|------|--------------------|-----------|
-| Planning（跨模組 / DDD） | `dhpk:architect` agent | `/dhpk:dhpk-codex-architect` |
-| Planning（根因未知） | `dhpk-root-cause-investigation` skill | `/dhpk:dhpk-codex-architect "<question>" --mode adversarial` 或 `/dhpk:dhpk-codebase-exploration --dual` |
-| 實作 hand-off | Adaptive Feature / Bug branch | 同上 `… --codex` |
-| Test gate | `dhpk:tdd-guide` agent + `/check-coverage` | `/dhpk:codex-test-review`（frozen `explicit-only`） |
-| Review gate | `dhpk:code-reviewer`（`/review-pending`） | `/dhpk:codex-review-fast`（frozen `explicit-only`） |
-| Security gate | `dhpk:dhpk-security-review`（inline OWASP） | `/dhpk:codex-security`（frozen `explicit-only`） |
+| Phase | Default route | Explicit optional backend or second opinion |
+|------|---------------|----------------------------------------------|
+| Planning（跨模組 / DDD） | `dhpk-module-design --mode design` | `--mode review\|compare\|adversarial`；需要額外 CLI 視角時使用 `--second-opinion=codex-exec` |
+| Planning（根因未知） | `dhpk-root-cause-investigation` | `dhpk-codebase-exploration --dual` 的 isolated perspective，或明確使用 `--second-opinion=codex-exec`；多重原因才使用 `dhpk-module-design --mode adversarial` |
+| Implementation hand-off | `dhpk-implement`（current model） | `dhpk-implement --backend cli` 或 `--backend agy`；需要額外 blind 意見時使用 `--second-opinion=codex-exec` |
+| Test gate | `dhpk-tdd-workflow` + `dhpk-test-review` | 依 owner 支援度選 isolated reviewer；或明確使用 `--second-opinion=codex-exec` |
+| Review gate | `dhpk-change-review`（current model） | `dhpk-change-review --backend cli`；額外意見使用 owner 支援的 `--second-opinion=codex-exec` |
+| Security gate | `dhpk-security-review`（isolated read-only current-model audit） | 僅在明確要求且 owner 支援時使用 isolated reviewer 或 `--second-opinion=codex-exec` |
 
-Planning、post-implementation 與 next-command 的 codex-free 表格是預設路徑；
-legacy `CODEX=on`／`--codex` 只有在使用者明確 opt-in 時才依本表替換對應步驟。
+Phase mapping 只指定 route，不會替 caller 選擇 optional backend。`dhpk-module-design`、
+`dhpk-implement` 與 `dhpk-change-review` 是本 workflow 的明確 owner；需要
+second opinion 時，沿用 owner 的 option 並在輸出中標記 primary 與獨立意見的
+差異。
 
-凍結的 MCP surface 正好是 9 個 skill：`dhpk-codex-architect`、
-`dhpk-codex-implement`、`dhpk-change-review`（inventory ID
-`codex-code-review`）、`dhpk-doc-review`、`dhpk-test-review`、
-`dhpk-codebase-exploration`、`dhpk-feature-verify`、`dhpk-issue-analyze`、
-`dhpk-feasibility-study`；以及 8 個 command：`codex-review`、
-`codex-review-branch`、`codex-review-doc`、`codex-review-fast`、
-`codex-security`、`codex-test-gen`、`codex-test-review`、`review-spec`。
-這些 entry 皆為 `explicit-only`，仍可用 exact name 直接呼叫，但不再自動
-路由；`check-coverage` 是 explicit-only legacy alias，位於 frozen family
-之外。Capability migration 完成並有 backend-neutral successor 後，才可撤除
-MCP grant。
+## Selection and degradation
+
+1. 先執行 default route，並記錄 scope、assumptions 與 primary evidence。
+2. 只有 caller 指定 `--worker=codex`、`--reasoner=codex`、isolated reviewer
+   或 `--second-opinion=codex-exec` 時，才 dispatch 對應的附加路徑。
+3. Second opinion 必須收到自足 context，不能讀取 primary 結論後再假裝 blind。
+4. 沒有第二視角時，凡 owner 要求獨立驗證的結果都標記
+   `degraded: primary model only`，並明說沒有 independent review；不可把
+   primary 結果描述成 independently verified。
+5. Optional path 失敗時只回報該 path 的 unavailable/blocked 狀態；不得隱式
+   降級到另一個 backend 或重新解讀 caller 的其他選項。
+
+## Downstream hand-off
+
+Next Command 應保留 caller 已明確選取的 backend 或 second-opinion option；若
+沒有選取，就不要附加任何 Codex option，讓下游 owner 使用 current-model
+default。實作、架構與 review hand-off 分別指向
+`dhpk-implement`、`dhpk-module-design` 與 `dhpk-change-review`，不透過舊的
+alias 或隱藏 route。

@@ -262,12 +262,14 @@ Use these invocation-only modifiers when they change the decision for this run:
 | `--openspec` / `--opsx` | Sends feature/bug authoring routes to external OpenSpec artifact creation, then stops at human review. It is ignored on non-authoring routes. |
 | `--worker=<claude\|codex\|agy\|auto>` | Selects the mechanical worker for this invocation; precedence is flag → `fast_worker_backend` → shipped `claude`. It does not persist configuration. |
 | `--reasoner=<claude\|codex>[:<model>[:<effort>]]` | Selects the reasoning backend for implementation-class routes; ignored elsewhere with an explicit message. |
-| `--codex` | Enables the session's Codex peer path where the selected workflow supports it. It is distinct from the worker selector. |
+| `--codex` | Retired compatibility flag. The parser emits a deprecation diagnostic and does not select a peer or backend; use an explicit worker, reasoner, or owner second-opinion option instead. |
 
-`--worker=codex` chooses a Codex CLI mechanical worker. `CODEX=on` adds an
-independent Codex MCP peer for high-stakes reasoning/review. Only a missing
-selected executable may use the configured Claude fallback; authentication,
-task, execution, and verification failures remain blocked.
+`--worker=codex` chooses a Codex CLI mechanical worker. `--reasoner=codex`
+chooses a Codex CLI reasoning pass. `CODEX=on` and `/dhpk:do --codex` are
+retired compatibility flags: they emit a deprecation diagnostic and never
+select a peer, worker, reasoner, or hidden backend. Only a missing selected
+executable may use the configured Claude fallback; authentication, task,
+execution, and verification failures remain blocked.
 
 ### OpenSpec lifecycle boundary
 
@@ -330,7 +332,7 @@ Use this only when an existing change should generate a bounded paste-ready
 ```
 
 `<change-id>` is the directory name under `openspec/changes/`, not free text.
-`--turns N`, `--max-duration`, `--min-coverage`, `--codex`, `--smoke`,
+`--turns N`, `--max-duration`, `--min-coverage`, `--smoke`,
 `--no-smoke`, and `--dry-run` constrain the generated session. Turn/time limits
 write `.resume-note.md`; human-only work is `[blocked: <reason>]`; hard-rule
 conflicts write `.hard-rule-escalation.md` with file:line evidence. The generated
@@ -364,19 +366,20 @@ one assigned worker scope. TDD owns RED and scoped verification; the full
 applicable suite runs at phase exit. The complete dispatch and reviewer batching
 rules live in [`rules/execution-policy.md`](../rules/execution-policy.md).
 
-### Codex dual-assistant collaboration
+### Codex CLI second opinions
 
-dhpk is **codex-free by default**. `CODEX=on` adds a blind independent Codex peer
-to high-stakes implementation decisions and supported review skills. Direct
-Codex-delegation skills (`dhpk-codex-architect` (including
-`--mode adversarial`), `dhpk-codex-implement`, `dhpk-change-review`) can be
-invoked without `/dhpk:do`.
-The MCP backend needs `mcp__codex__codex` / `mcp__codex__codex-reply`; the optional
-CLI backend needs only the `codex` executable. Setup and failure boundaries are
-in [`docs/configuration.md`](./configuration.md#codex-mcp-dependency-not-a-userconfig-knob).
+dhpk is **Codex-free by default**. The retired `CODEX=on` and
+`/dhpk:do --codex` flags emit `DEPRECATED_CODEX_FLAG` and do not add a hidden
+peer or backend. Use `--worker=codex` for an explicitly selected CLI worker,
+`--reasoner=codex` for an explicitly selected CLI reasoning pass, or a
+migrated owner's `--second-opinion=codex-exec` option for an additive,
+one-shot `codex exec` opinion. `dhpk-change-review --backend cli` is the
+explicit CLI review path; the current-model path remains the default. Missing
+CLI executables are reported as unavailable optional backends, while
+authentication, task, execution, and verification failures remain blocked.
 
 This is separate from syncing Codex CLI content below, which mirrors the curated
-projection into `.codex/` and does not require an MCP server.
+projection into `.codex/` and does not require a server registration.
 
 ## Sync Codex CLI content
 

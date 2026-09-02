@@ -1,10 +1,12 @@
 ---
 name: codex-review
-description: "Consolidated Codex second opinion for diffs, branches, documents, security, and tests."
+description: "CLI-backed second opinion for diffs, branches, documents, security, and tests."
 ---
 # /codex-review
 
-Use one Codex-backed review entrypoint. `--scope` selects the review contract:
+Use one retained CLI-backed review entrypoint. The default backend is the
+MCP-free `cli` transport; an explicit `--backend cli` is accepted for clarity.
+`--scope` selects the review contract:
 
 | Scope | Review target | Preferred depth |
 |---|---|---|
@@ -16,15 +18,26 @@ Use one Codex-backed review entrypoint. `--scope` selects the review contract:
 
 `--depth fast|full` defaults to `full`. `--coverage` is valid only with
 `--scope tests`; `--spec` is valid only with `--scope doc`. `--base` chooses a
-branch comparison where relevant, and `--continue` resumes the Codex thread.
+branch comparison where relevant.
 
-Read the matching prompt/reference from `dhpk-change-review`, `dhpk-doc-review`,
-`dhpk-security-review`, or `dhpk-test-review` before calling Codex. Collect only
-the selected scope, ask Codex for file:line findings and a verdict, and report
+Run the matching contract from `dhpk-change-review`, `dhpk-doc-review`,
+`dhpk-security-review`, or `dhpk-test-review` through the CLI wrapper. Collect
+only the selected scope, ask for file:line findings and a verdict, and report
 the executed local checks plus PASS/FAIL/SKIP evidence. A standalone security,
 documentation, or test audit should prefer its dedicated reviewer/skill; these
 scope modes are the consolidated CLI second-opinion path.
 
+```text
+bash skills/dhpk-change-review/scripts/review.sh \
+  --backend cli --scope diff|branch|doc|security|tests \
+  --depth fast|full [--base <branch>] [--title <text>] [--prompt <text>]
+```
+
+The CLI review is an explicit second opinion and never invokes an MCP server.
+It does not silently fall back to another transport when the CLI is unavailable.
+
 Do not auto-loop beyond the policy ceiling. A `BLOCK` verdict names the focused
 fix and rerun command; an acceptable verdict records scope, evidence, and
-remaining uncertainty.
+remaining uncertainty. For the backend-neutral primary review, invoke
+`/dhpk:dhpk-change-review`; use this command only when the CLI second opinion is
+explicitly requested.

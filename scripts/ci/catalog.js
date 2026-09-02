@@ -16,7 +16,7 @@
 //
 // Only claims phrased as an exact number are enforced ("24 role-based agents",
 // "27 opt-in stack modules", "23 root-level agents", "24 個角色導向 agent",
-// "7-slot", "9 MCP-backed `codex-*` skills", "8 `/dhpk:codex-*` commands",
+// "7-slot", "0 MCP-backed `codex-*` skills", "0 `/dhpk:codex-*` commands",
 // "45 commands", "4 events" / "4 個事件"). Command count and hook-event count
 // are now exact and enforced (previously "~73 commands" was an unenforced
 // approximate claim). Other approximate claims ("~57 core skills") are printed
@@ -29,7 +29,9 @@ const { computeScopedCounts } = require('../lib/distribution-inventory');
 
 const ROOT = path.join(__dirname, '..', '..');
 const p = (...s) => path.join(ROOT, ...s);
-const FROZEN_CODEX_MCP_CEILINGS = Object.freeze({ skills: 9, commands: 8 });
+// Codex MCP is retired. Keep this as an exact zero policy rather than a
+// ceiling: a newly introduced grant must fail CI even if it is the first one.
+const RETIRED_CODEX_MCP_SURFACE = Object.freeze({ skills: 0, commands: 0, commandGrants: 0 });
 
 function computeCounts() {
   return collectInventory(ROOT).counts;
@@ -120,16 +122,16 @@ function claimSpecs(counts, scoped) {
   ];
 }
 
-function frozenCodexMcpErrors(counts, inventory) {
+function retiredCodexMcpErrors(counts, inventory) {
   const errors = [];
-  if (counts.mcpCodexSkills > FROZEN_CODEX_MCP_CEILINGS.skills) {
-    errors.push(`MCP-backed Codex skill ceiling exceeded: frozen ${FROZEN_CODEX_MCP_CEILINGS.skills}, computed ${counts.mcpCodexSkills}`);
+  if (counts.mcpCodexSkills !== RETIRED_CODEX_MCP_SURFACE.skills) {
+    errors.push(`MCP-backed Codex skill surface is retired: expected ${RETIRED_CODEX_MCP_SURFACE.skills}, computed ${counts.mcpCodexSkills}`);
   }
-  if (counts.codexCommands > FROZEN_CODEX_MCP_CEILINGS.commands) {
-    errors.push(`MCP-backed Codex command ceiling exceeded: frozen ${FROZEN_CODEX_MCP_CEILINGS.commands}, computed ${counts.codexCommands}`);
+  if (counts.codexCommands !== RETIRED_CODEX_MCP_SURFACE.commands) {
+    errors.push(`MCP-backed Codex command surface is retired: expected ${RETIRED_CODEX_MCP_SURFACE.commands}, computed ${counts.codexCommands}`);
   }
-  if (counts.mcpCodexCommands > FROZEN_CODEX_MCP_CEILINGS.commands) {
-    errors.push(`MCP-backed Codex command-grant ceiling exceeded: frozen ${FROZEN_CODEX_MCP_CEILINGS.commands}, computed ${counts.mcpCodexCommands}`);
+  if (counts.mcpCodexCommands !== RETIRED_CODEX_MCP_SURFACE.commandGrants) {
+    errors.push(`MCP-backed Codex command grants are retired: expected ${RETIRED_CODEX_MCP_SURFACE.commandGrants}, computed ${counts.mcpCodexCommands}`);
   }
   const unexpected = (inventory && inventory.paths && Array.isArray(inventory.paths.mcpCodexCommands)
     ? inventory.paths.mcpCodexCommands
@@ -137,7 +139,7 @@ function frozenCodexMcpErrors(counts, inventory) {
     .map((filePath) => path.basename(filePath))
     .filter((name) => !CODEX_MCP_COMMAND_NAMES.includes(name));
   if (unexpected.length > 0) {
-    errors.push(`MCP-backed Codex command grant outside frozen 8-command family: ${unexpected.join(', ')}`);
+    errors.push(`MCP-backed Codex command grant found outside the retired zero-grant surface: ${unexpected.join(', ')}`);
   }
   return errors;
 }
@@ -195,9 +197,9 @@ function findScriptCoverageGaps() {
 function checkOrWrite({ write }) {
   const inventory = collectInventory(ROOT);
   const counts = inventory.counts;
-  const ceilingErrors = frozenCodexMcpErrors(counts, inventory);
-  for (const error of ceilingErrors) console.error(`CEILING ${error}`);
-  if (ceilingErrors.length > 0) return 1;
+  const retirementErrors = retiredCodexMcpErrors(counts, inventory);
+  for (const error of retirementErrors) console.error(`RETIREMENT ${error}`);
+  if (retirementErrors.length > 0) return 1;
   const specs = claimSpecs(counts, computeScoped({ announce: true }));
   let mismatches = 0;
   let rewrites = 0;

@@ -74,35 +74,37 @@
 
 (Same structure, quantity is flexible)
 
-## 5. Codex In-Depth Discussion Record
+## 5. Independent Comparison Record
 
 ### 5.1 Discussion Process Summary
 
-| Round | Discussion Topic             | Codex Key Viewpoint |
-| ----- | ---------------------------- | ------------------- |
+| Round | Discussion Topic             | Independent Reviewer Viewpoint |
+| ----- | ---------------------------- | ------------------------------- |
 | 1     | Initial solution enumeration | ...                 |
 | 2     | Follow-up on details         | ...                 |
 | 3     | Verify after modification    | ...                 |
 
-### 5.2 Solution Directions Suggested by Codex
+### 5.2 Solution Directions Suggested by the Reviewer
 
 - ...
 
-### 5.3 Risks/Issues Identified by Codex
+### 5.3 Risks/Issues Identified by the Reviewer
 
 - ...
 
-### 5.4 Differences from Claude's Analysis
+### 5.4 Differences from the Primary Analysis
 
-| Viewpoint               | Claude | Codex | Adopted |
-| ----------------------- | ------ | ----- | ------- |
+| Viewpoint               | Primary model | Independent reviewer | Adopted |
+| ----------------------- | ------------- | -------------------- | ------- |
 | Core problem understanding | ... | ...   | ...     |
 | Recommended direction   | ...    | ...   | ...     |
 | Risk assessment         | ...    | ...   | ...     |
 
 ### 5.5 Integrated Conclusion
 
-> Combined recommendation from both perspectives, with trade-off rationale
+> Combined recommendation from available perspectives, with trade-off rationale.
+> If no reviewer ran, state: **Degraded — only the primary model's comparison
+> is present; no independent review ran.**
 
 ## 6. Solution Comparison
 
@@ -121,7 +123,7 @@
 
 - Meets constraints: [list]
 - Balance point: [trade-off explanation]
-- Codex viewpoint: [agreement/additions]
+- Independent reviewer viewpoint: [agreement/additions, if requested]
 
 **Backup**: Option Y
 **Applicable scenario**: If [condition], choose Y
