@@ -236,7 +236,14 @@ test('checked-in profiles and inventory satisfy the normalized selection contrac
   const minimal = selection.resolveCapabilitySelection({ inventory, profiles, moduleCatalog, profileId: 'minimal' });
   const compat = selection.resolveCapabilitySelection({ inventory, profiles, moduleCatalog, profileId: 'compat-v1' });
   assert.strictEqual(minimal.value.selectedStableIds.length, 15);
-  assert.strictEqual(compat.value.selectedStableIds.length, 98);
+  const liveInvokableIds = inventory.skills
+    .filter((entry) => entry.lifecycle !== 'deprecated' && entry.invokable !== false)
+    .map((entry) => entry.id)
+    .sort();
+  assert.deepStrictEqual(compat.value.selectedStableIds, liveInvokableIds);
+  for (const familyId of (inventory.skill_routing_families || []).map((family) => family.id)) {
+    assert.ok(compat.value.selectedStableIds.includes(familyId), `${familyId} family must remain in compat-v1`);
+  }
   assert.ok(compat.value.selectedStableIds.every((id) => !inventory.retired_skills.some((row) => row.id === id)));
 });
 

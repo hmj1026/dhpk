@@ -1,11 +1,12 @@
 ---
 name: dhpk-test-review
-description: 'Test coverage review via Codex MCP. Use when: reviewing test sufficiency, identifying coverage gaps, test quality audit. Not for: generating tests (use /dhpk:codex-test-gen), code review (use dhpk-change-review). Output: coverage analysis + gap report.'
+disable-model-invocation: true
+description: 'Test coverage review via Codex MCP. Purpose: review test sufficiency, identify coverage gaps, or audit test quality. Not for: generating tests (use /dhpk:codex-test-gen), code review (use dhpk-change-review). Output: coverage analysis + gap report.'
 allowed-tools: 'mcp__codex__codex, mcp__codex__codex-reply, Bash(git:*), Read, Grep, Glob, Write'
 context: fork
 agent: Explore
 metadata:
-  dhpk-invocation-class: implicit-eligible
+  dhpk-invocation-class: explicit-only
 ---
 
 # Test Review Skill

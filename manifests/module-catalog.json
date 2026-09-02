@@ -96,7 +96,7 @@
       "id": "phpunit",
       "name": "PHPUnit",
       "selection": "additive",
-      "description": "PHPUnit testing framework. Pick 5.7 for legacy PHP 5.6 / pre-PHPUnit-8 stacks. Pick 9 for PHP 7.3+ projects (latest version compatible with that PHP floor). Pick 10 for PHP 8.1+ projects (attribute-style annotations preferred). Pick 11 for PHP 8.2+ projects (doc-comment annotations fully removed; attributes-only). Selection is additive — a project mid-migration can enable two adjacent versions to consult both sets of guidance. The phpunit-10 / phpunit-11 modules document attribute migration paths; project's composer.json PHP constraint must independently satisfy each module's runtime requirement.",
+      "description": "PHPUnit testing framework. Pick 5.7 for legacy PHP 5.6 / pre-PHPUnit-8 stacks. Pick 9 for PHP 7.3+ projects (latest version compatible with that PHP floor). Pick 10 for PHP 8.1+ projects (attributes are supported while doc-comment annotations remain retained for compatibility). Pick 11 for PHP 8.2+ projects (doc-comment annotations are deprecated; use attributes for new guidance). PHPUnit 12 removes doc-comment annotations except @codeCoverageIgnore (and its start/end variants). Selection is additive — a project mid-migration can enable two adjacent versions to consult both sets of guidance. The phpunit-10 / phpunit-11 modules document attribute migration paths; project's composer.json PHP constraint must independently satisfy each module's runtime requirement.",
       "requires": ["php"],
       "versions": [
         {

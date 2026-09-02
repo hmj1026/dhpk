@@ -42,7 +42,7 @@ test('routing families preserve every Laravel and PHPUnit legacy identifier as o
   const families = [{
     id: 'laravel', router_id: 'php-runtime-router', invocation_class: 'implicit-eligible',
     surfaces: ['claude-module'],
-    selectors: { '5.4': 'skills/dhpk-laravel-5-4-notes/SKILL.md', mix: 'skills/dhpk-laravel-mix-notes/SKILL.md' },
+    selectors: { '5.4': 'skills/dhpk-laravel/references/5-4.md', mix: 'skills/dhpk-laravel/references/mix.md' },
     aliases: [
       { id: 'laravel-5.4-notes', selector: '5.4', invocation_class: 'implicit-eligible', surfaces: ['claude-module'] },
       { id: 'laravel-mix-notes', selector: 'mix', invocation_class: 'implicit-eligible', surfaces: ['claude-module'] },
@@ -50,7 +50,7 @@ test('routing families preserve every Laravel and PHPUnit legacy identifier as o
   }];
   assert.deepStrictEqual(validateSkillRoutingFamilies({ families, skillIds: new Set(['php-runtime-router']) }).errors, []);
   assert.deepStrictEqual(resolveSkillRoutingAlias({ families, id: 'laravel-mix-notes' }), {
-    familyId: 'laravel', routerId: 'php-runtime-router', selector: 'mix', reference: 'skills/dhpk-laravel-mix-notes/SKILL.md',
+    familyId: 'laravel', routerId: 'php-runtime-router', selector: 'mix', reference: 'skills/dhpk-laravel/references/mix.md',
   });
 });
 
@@ -65,14 +65,12 @@ test('routing families reject duplicate aliases, missing router targets, ambiguo
   }];
   const errors = validateSkillRoutingFamilies({
     families, skillIds: new Set(['php-runtime-router', 'legacy']),
-    skills: [{ id: 'legacy', legacy_names: ['legacy'], path: 'skills/canonical', surfaces: ['claude-module'] }],
   }).errors.join('\n');
   assert.match(errors, /missing router/);
   assert.match(errors, /unsupported surface/);
   assert.match(errors, /safe relative path/);
   assert.match(errors, /conflicting invocation/);
   assert.match(errors, /duplicate alias/);
-  assert.match(errors, /canonical skill path/);
 });
 
 test('checked-in family aliases resolve deterministically and retain Laravel/PHPUnit IDs on their declared surface', () => {
@@ -88,7 +86,7 @@ test('checked-in family aliases resolve deterministically and retain Laravel/PHP
   for (const [id, selector] of Object.entries(expected)) {
     const resolved = resolveSkillRoutingAlias({ families: inventory.skill_routing_families, id });
     assert.strictEqual(resolved.selector, selector, id);
-    assert.match(resolved.reference, /^skills\/dhpk-/);
+    assert.match(resolved.reference, /^skills\/dhpk-(?:laravel|phpunit)\/references\/[^/]+\.md$/);
   }
 });
 
@@ -98,7 +96,7 @@ test('routing resolution fails closed for unsafe conditional references and repo
     router_id: 'php-pro',
     invocation_class: 'implicit-eligible',
     surfaces: ['claude-module'],
-    selectors: { '11': '../outside/SKILL.md', '10': '/absolute/SKILL.md' },
+    selectors: { '11': '../outside/SKILL.md', '10': 'skills/dhpk-laravel-10-notes/SKILL.md' },
     aliases: [
       { id: 'laravel-11-notes', selector: '11', invocation_class: 'implicit-eligible', surfaces: ['claude-module'] },
     ],
@@ -107,17 +105,30 @@ test('routing resolution fails closed for unsafe conditional references and repo
     families,
     skillIds: new Set(['php-pro', 'laravel-11-notes']),
     skills: [{
+      id: 'laravel',
+      path: 'skills/dhpk-laravel',
+      lifecycle: 'promoted',
+      invocation_class: 'implicit-eligible',
+      surfaces: ['claude-core'],
+    }, {
       id: 'laravel-11-notes',
       legacy_names: ['laravel-11-notes'],
       path: 'skills/dhpk-laravel-11-notes',
+      lifecycle: 'deprecated',
+      discoveryVisible: false,
+      invocation_class: 'implicit-eligible',
       surfaces: ['claude-module'],
+      deprecation: {
+        since: '2026-09-02',
+        compatibilityWindowEnds: '2026-12-02',
+        migrationNote: 'Use the Laravel family selector.',
+      },
     }],
   }).errors;
 
   assert.deepStrictEqual(diagnostics, [
-    'skill_routing_families[0].selectors.10 must be a safe relative path',
+    "skill_routing_families[0].selectors.10 must target a reference below the canonical skill path 'skills/dhpk-laravel/references/' (not an alias canonical skill path)",
     'skill_routing_families[0].selectors.11 must be a safe relative path',
-    'skill_routing_families[0].aliases.laravel-11-notes selector reference must match canonical skill path',
   ]);
   const inventory = {
     skill_routing_families: families,

@@ -81,12 +81,13 @@ test('module lifecycle counts are computed with the same rigor as skill lifecycl
   assert.strictEqual(counts.deprecatedModules, 1);
 });
 
-test('against the real checked-in inventory, canonical count is 100 and every scoped count is independently derived', () => {
+test('against the real checked-in inventory, canonical and scoped counts remain independently derived', () => {
   const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
   const counts = computeScopedCounts(inventory);
-  assert.strictEqual(counts.canonical, 100);
-  assert.strictEqual(counts.promotedCore + counts.optional + counts.experimental + counts.deprecated, 100);
-  assert.strictEqual(counts.claudePublished, 98);
+  assert.strictEqual(counts.canonical, 102);
+  assert.strictEqual(counts.deprecated, 11);
+  assert.strictEqual(counts.promotedCore + counts.optional + counts.experimental + counts.deprecated, counts.canonical);
+  assert.strictEqual(counts.claudePublished, 89);
   assert.strictEqual(counts.codexPublished, 18);
 });
 

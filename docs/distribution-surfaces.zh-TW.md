@@ -89,7 +89,7 @@ fingerprint 時，才允許 Cursor-specific copy。如此 shared portable skills
 
 `scripts/ci/gen-claude-manifest.js` 從 inventory 產生 `.claude-plugin/plugin.json` 的
 skill root。raw source checkout 仍保留作為明確指定的 compatibility surface；目前是一個
-registered directory root，下面有 98 個 inventory-eligible skill ID。
+registered directory root，下面有 89 個 inventory-eligible skill ID。
 所有 package 都扁平位於 `skills/dhpk-<name>/`；module `skills/` 只是相對 symlink
 projection。`0.47.0` 的五筆 retirement row 只存在於診斷 ledger，不會 materialize 成
 package 或 alias；請參閱 [alias-free retirement 指引](./skill-platform-migration.zh-TW.md#alias-free-retirement-ledger-0470)。
