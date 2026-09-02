@@ -73,70 +73,68 @@ receipt 規則請見 [`docs/platform-installation.zh-TW.md`](./platform-installa
 | `architect_model` | string | `fable` | 執行中的 Claude Code 支援的模型層級 | `dhpk:architect` Agent-call 派發的模型層級；逐次呼叫套用，不修改 frontmatter；HIGH-risk 架構決策仍可向上升級。 |
 | `architect_effort` | string | `low` | `low` \| `medium` \| `high` \| `xhigh` \| `max` | `dhpk:architect` Agent-call 派發的推理強度；逐次呼叫套用，不修改 frontmatter。 |
 | `orchestration_dispatch` | string | `on` | `on` \| `off` | Implementation dispatch 分派表中實作 worker/reasoner 路由（`adaptive-dev-workflow` 的 feature/bug mode 與 `opsx-apply-goal`）的關閉開關。`on` 時實作階段工作依決策表路由，並禁止用 `general-purpose` 執行實作。`off` 還原內聯實作並移除 dispatch 指示，但多任務 OpenSpec 的 mandatory planner 與 verification gates 仍然有效。 |
-| `fast_worker_backend` | string | `claude` | `claude` \| `codex` \| `agy` \| `auto` | 機械 worker 的確定性選擇器。`claude` 對應 `dhpk:fast-worker`；`auto` 依 `fast_worker_backend_order` 檢查可用性。`/dhpk:do --worker=...` 僅覆寫單次呼叫（旗標 > userConfig > shipped 預設）；無效旗標警告一次後退回此設定／預設，無效設定值則使用 `claude`。Codex CLI 的可用性檢查與 `CODEX=on` 無關；後者控制 MCP peer-review 路徑，不控制機械 worker 選擇。 |
+| `fast_worker_backend` | string | `claude` | `claude` \| `codex` \| `agy` \| `auto` | 機械 worker 的確定性選擇器。`claude` 對應 `dhpk:fast-worker`；`auto` 依 `fast_worker_backend_order` 檢查可用性。`/dhpk:do --worker=...` 僅覆寫單次呼叫（旗標 > userConfig > shipped 預設）；無效旗標警告一次後退回此設定／預設，無效設定值則使用 `claude`。Codex CLI 的可用性檢查與已退休的 `CODEX=on` flag 無關；需要 Codex worker 時請明確選 `--worker=codex`。 |
 | `fast_worker_backend_order` | string | `claude,codex,agy` | 逗號分隔的 backend 名稱 | 僅供 `auto` 使用的可用性順序；會記錄被拒絕的候選及原因。值無效時每個 session 警告一次並使用 shipped 順序。 |
 | `fast_worker_fallback` | string | `none` | `none` \| `claude` | 只允許對明確選取但缺少 CLI 執行檔的情況使用 `claude` 備援。驗證、授權、模型、任務、執行與 verification 失敗都維持 blocked，不得靜默切換。 |
 | `subagent_quality_gate` | string | `off` | `on` \| `off` | 僅對 reviewer sentinel subagent 啟用 `scripts/hooks/subagent-stop-quality.sh`。當 reviewer 的最終回報過於單薄、只是空泛的核准、未附下一步建議的未解錯誤、或缺乏證據的 review 型回覆時，會攔截並要求續答一次；此 hook 排在 `subagent-stop-verify.sh` 之前，避免被攔截的 reviewer sentinel 被自動清除。界線固定為一次修正重試，之後改派其他 reviewer，或留下附理由的 pending gate。預設 `off`（無作用，不做啟發式評估）。命中/未命中的擷取結果會記錄到 `.claude/artifacts/sessions/.subagent-stop-quality-extraction.json`。 |
 
 dispatcher 在建立 `0600` immutable transport context 前，會將解析後的 deadline 驗證為無號十進位秒數。空值、小數、負數或其他格式錯誤會阻擋該次派發，不會靜默退回 `360`；只有不需要 portable runner deadline 時才明確設定 `0`。Python transport runner 而非 `timeout`/`gtimeout` 會強制執行已證明的 deadline，並寫入 contained terminal receipt。agy 的獨立設定也同樣是已證明的 dispatch input。
 
-## Codex MCP 依賴（並非 `userConfig` 旋鈕）
+<a id="codex-mcp-dependency-not-a-userconfig-knob"></a>
 
-`orchestration_dispatch` 的 `CODEX=on` peer 路徑、**9 個 MCP-backed Codex skill**（`dhpk-codex-architect`（含 `--mode adversarial`）、`dhpk-codex-implement`、`dhpk-change-review`（inventory ID：`codex-code-review`）、`dhpk-doc-review`、`dhpk-test-review`、`dhpk-codebase-exploration`、`dhpk-feature-verify`、`dhpk-issue-analyze`、`dhpk-feasibility-study`），以及 **8 個指令的 frozen compatibility family**（`codex-review`、`codex-review-branch`、`codex-review-doc`、`codex-review-fast`、`codex-security`、`codex-test-gen`、`codex-test-review`、`review-spec`）是保留的 Codex 整合入口。只有 canonical `codex-review` 指令直接宣告 `mcp__codex__codex` / `mcp__codex__codex-reply` 工具；其餘七個 alias 轉送到各自目標（`codex-test-gen` 會導向 Codex-free 的 `dhpk-tdd-workflow`）。這 9 個 skill 與 8 個指令凍結為 `explicit-only`：仍可用 exact name 直接呼叫，但在 capability migration 前不再是預設 discovery 或自動路由目標。`/dhpk:check-coverage` 仍是 explicit-only legacy alias，但不屬於 frozen 八指令計數。可選的 CLI backend 是 `dhpk-change-review/scripts/review.sh --backend cli`，不需 MCP server。dhpk 本身**不**內附或設定這些工具，也沒有任何 dhpk 的 `userConfig` key 控制它們：MCP grant 來自**直接註冊** Codex CLI 自身的 `codex mcp-server` 子指令為 MCP server——**並非**來自安裝 `openai/codex-plugin-cc`（那是另一個獨立、選用的 surface，見下方對照說明）。
+## Codex 整合與已退休的 MCP 歷史（並非 `userConfig` 旋鈕）
 
-### Codex MCP server 的運作原理
+目前 dhpk capability 使用 in-process model 或明確指定的 CLI backend。沒有任何
+active skill 或 command 需要 Codex MCP server。現行 CLI-only review path 是
+`dhpk-change-review/scripts/review.sh --backend cli`；同族 CLI role 為
+`codex-worker`、`codex-reasoner`、`codex-reviewer` 與 `dhpk-codex-bridge`。需要
+Codex CLI transport 時，請明確使用 `--worker=codex`、`--reasoner=codex` 或
+`codex exec` 第二意見。
 
-Codex CLI 內建 MCP-server 模式。`codex mcp-server` 會啟動一個 stdio 的 Model Context Protocol server，剛好暴露兩個工具——`codex` 與 `codex-reply`——Claude Code 會把它們以 `mcp__codex__codex` / `mcp__codex__codex-reply` 的形式提供給 skill。每次呼叫可透過 `approval-policy`、`sandbox`、`model`、`profile`、`cwd` 設定（OpenAI 在其 [Agents SDK / Codex MCP 指南](https://developers.openai.com/codex/guides/agents-sdk) 中記錄了此指令與這些參數）。註冊這個 server 是取得 dhpk `codex-*` skill 與指令所依賴的 `mcp__codex__*` 工具的**唯一**方式。
+### 歷史：Codex MCP server（已退休）
 
-安裝一次即可（與 dhpk 完全獨立）：
+Codex CLI 過去透過 `codex mcp-server` 提供 stdio Model Context Protocol server。
+Claude Code 會把兩個工具顯示為 `mcp__codex__codex` 與
+`mcp__codex__codex-reply`。過去的註冊方式是
+`claude mcp add --transport stdio codex -- codex mcp-server`，再以 `/mcp` 與
+`claude mcp list` 檢查連線。本段與該指令只為 migration diagnosis 保留；server
+已退休，目前任何 dhpk skill 或 command 都不需要、也不建議使用它，不能把它加回
+成 hidden fallback。
 
-```bash
-# 將 Codex CLI 的 mcp-server 註冊為名為 "codex" 的 MCP server
-claude mcp add --transport stdio codex -- codex mcp-server
-# 確認 Claude Code 有看到它
-claude mcp list
-```
+舊 MCP path 可在多次呼叫間保留 reply thread。遷移後的 owner 改用 current model、
+isolated reviewer 或明確選取的 `codex exec`；capability-parity matrix
+（[capability-parity matrix](./codex-mcp-capability-parity.md)）
+記錄各 capability 的 continuity 差異、驗證證據與 rollback。若需 rollback，請 pin
+仍帶有 MCP grant 的最後相容 release；不要在目前 release 重新引入該 transport。
 
-你也可以不用 `claude mcp add`，改為手動在 `.mcp.json` / `.claude.json` 寫入同一個 server 項目，結果完全相同。Claude Code 的 [MCP quickstart](https://code.claude.com/docs/en/mcp-quickstart#connect-to-mcp-servers) 記錄了這套通用的連線與驗證流程（`claude mcp add`、`claude mcp list`，以及在 session 內執行 `/mcp`）。
+### 目前的外部 app-server plugin
 
-這需要先安裝並登入 `codex` CLI 本身：Node.js 18.18 以上，以及 ChatGPT 訂閱（含 Free 方案）或 OpenAI API key 擇一。以 `npm install -g @openai/codex` 安裝，並以 `codex login` 登入（在 Claude Code session 內可加 `!` 前綴當作 shell 指令執行）。
+`openai/codex-plugin-cc`（透過 `/plugin install codex@openai-codex` 安裝）是獨立、
+選用的整合。它透過自己的 broker script 驅動 Codex CLI 的 `app-server` 子指令，
+提供 `/codex:*` 指令、`codex-rescue`、背景輪詢、resume/transfer 與選用 Stop-hook
+gate；不會註冊已退休的 MCP server，也不是任何 dhpk capability 的必要條件。
 
-**驗證連線**——在 Claude Code session 內執行：
+目前支援的 surface 彼此獨立：
 
-```bash
-/mcp
-```
+| Surface | 如何取得 | 提供內容 | dhpk 依賴 |
+|---|---|---|---|
+| Codex CLI | 安裝並登入 `codex` 執行檔 | `codex exec`、CLI-backed role，以及 `dhpk-change-review/scripts/review.sh --backend cli` | 選用；不需要 MCP server |
+| `openai/codex-plugin-cc` | `/plugin install codex@openai-codex` | `/codex:*` 指令與 app-server collaboration | 選用的外部 plugin |
+| 已退休 Codex MCP | 歷史上的 `codex mcp-server` 註冊 | `mcp__codex__codex` / `mcp__codex__codex-reply` | 無；只保留歷史說明 |
 
-檢查是否有 `codex` 項目顯示為已連線狀態，且底下列出 `codex` / `codex-reply` 工具（Claude Code 會把它們以 `mcp__codex__codex` / `mcp__codex__codex-reply` 的形式提供給 skill 使用）。若 `codex` 項目缺席或顯示連線失敗／中斷：
+獨立 Codex CLI 雙軌同步（`install-codex-skills.sh`，見
+docs/basic-operations.zh-TW.md）也與已退休的 MCP 機制
+無關，不需要 server 註冊。
 
-1. 重新檢查 `claude mcp list`——確認已註冊 `codex` server，且其指令為 `codex mcp-server`。
-2. 確認底層 `codex` CLI 可執行且已登入（`codex login`）；MCP server 沒有它便無法啟動。
-3. 若 `codex` 已顯示連線，但某個 `codex-*` skill 仍然失敗，問題通常出在登入驗證（`codex login`），而不是 MCP 連線本身。
-
-未註冊 `codex mcp-server` 時，呼叫任一 MCP-backed `codex-*` skill 或 canonical `/dhpk:codex-review` 路徑（包含轉送到它的 alias）會出現工具權限錯誤（找不到 `mcp__codex__*`）——dhpk 對這些 MCP-backed 路徑沒有降級，因為它們的存在目的就是委派給 Codex。frozen 八指令 family 也包含 `codex-test-gen` 這類 explicit-only alias；它會轉送到 Codex-free TDD，不直接宣告 MCP grant。這與 `CODEX=on`（見 [`docs/basic-operations.zh-TW.md`](./docs/basic-operations.zh-TW.md#implementation-dispatch)）及 `/dhpk:do --codex` 不同——兩者都是**legacy、單次 session 的 opt-in MCP-peer interface**（不是持久化的 `userConfig` 值，沒有安裝時 `--config` 的對應項）。在 capability migration 準備期間仍保留 compatibility window，但不會靜默重新解讀為 CLI `codex exec`、`--worker=codex`、`--reasoner=codex` 或外部 `openai/codex-plugin-cc` app-server plugin。MCP 依賴缺席時，peer request 會退回正常的單助理／Codex-free dispatch，而不會改選另一條 Codex transport。
-
-這也與 **Codex CLI 雙軌同步**（`install-codex-skills.sh`，見 [`docs/basic-operations.zh-TW.md`](./basic-operations.zh-TW.md)）無關——那是把 dhpk 自己的 skill 鏡射進專案的 `.codex/` 目錄，給直接執行獨立 `codex` CLI 的人使用，那條路徑完全不需要 MCP server。
-
-### `openai/codex-plugin-cc` 與 Codex MCP server 的差異
-
-`openai/codex-plugin-cc`（透過 `/plugin install codex@openai-codex` 安裝）是一個**獨立、選用**的整合，它**不會**註冊 MCP server，也**不會**滿足 `codex-*` skill 的 MCP 依賴。它透過自己的 Node broker 腳本（`scripts/app-server-broker.mjs`、`scripts/codex-companion.mjs`）驅動 Codex CLI 另一個獨立的 `app-server` 子指令——而非 `mcp-server`——以提供自己的 slash 指令（`/codex:review`、`/codex:adversarial-review`、`/codex:rescue`、`/codex:transfer`、`/codex:status`、`/codex:result`、`/codex:cancel`、`/codex:setup`）、一個 `codex-rescue` subagent、背景工作輪詢、一個 `codex resume <session-id>` 轉移機制，以及一個選用的 Stop-hook review gate。這些都不碰 `mcp-server` 或 `mcp__codex__*`。
-
-兩者互相獨立——你可能**只裝其一、兩者皆裝，或都不裝**：
-
-| | Codex MCP server | `openai/codex-plugin-cc` |
-|---|---|---|
-| 如何取得 | `claude mcp add --transport stdio codex -- codex mcp-server` | `/plugin install codex@openai-codex` |
-| Codex CLI 子指令 | `codex mcp-server` | `codex app-server`（透過 broker 腳本） |
-| 提供什麼 | `mcp__codex__codex` / `mcp__codex__codex-reply` 工具 | `/codex:*` slash 指令、`codex-rescue` subagent、Stop-hook gate |
-| dhpk 的 `codex-*` skill 用嗎？ | **是**——這正是它們的依賴 | 否 |
-
-若你只裝了 plugin 卻從未註冊 `codex mcp-server`，`mcp__codex__codex` 工具仍然不可用，呼叫 `codex-*` skill 會出現工具權限錯誤。`/codex:setup`（由 plugin 提供）方便用來檢查底層 `codex` CLI 的安裝／登入狀態——MCP server 也需要這些——但安裝 plugin 對 MCP 依賴而言既非必要也不充分。
-
-最後，請不要把上述任一整合與 dhpk **自己的** `.codex-plugin/` 目錄搞混（見 [`docs/basic-operations.zh-TW.md`](./basic-operations.zh-TW.md) 的「Codex Plugin Marketplace」章節）——那份 manifest 是反方向的：讓 **Codex CLI** 把 dhpk 的 skill 當作 Codex 原生 plugin 安裝。它只是恰好也用了「plugin」這個字，跟 `openai/codex-plugin-cc` 或上面說的 MCP 工具完全無關。
+`CODEX=on` 與 `/dhpk:do --codex` 曾是單次 session 的 legacy MCP-peer interface。
+兩者現在都已移除，不是持久化的 `userConfig` 值，也不會靜默重新解讀成
+`codex exec`、`--worker=codex`、`--reasoner=codex` 或外部 plugin。請用
+`/dhpk:do`／`dhpk-implement` 進行 current-model implementation，需要時明確選 CLI
+role，並以具名 `codex exec` opt-in 請求第二意見。
 
 ### Codex agent 角色（雙軌同步）
 
-這裡講的是獨立的 Codex CLI 雙軌同步（`codex/agents/` → `.codex/agents/`），與上面的 MCP server 無關。每個 `codex/agents/*.toml` 檔案都必須宣告非空的 `name`、`description`、`model`、`model_reasoning_effort`、`developer_instructions`；Codex agent 定義只使用 TOML。dhpk 依 Codex 文件中的 project-local discovery path 發布這些檔案，Project-local installer 即使讓 skill 使用 symlink，也一律把 agent TOML materialize 為實體檔。12 個產生出來的角色（`architect`、`code-reviewer`、`security-reviewer`、`database-reviewer`、`tdd-guide`、`deep-reasoner`、`doc-reviewer`、`planner`、`spec-miner`、`frontend-reviewer`、`migration-reviewer`、`e2e-runner`）是由 `scripts/gen-codex-agents.js` 從 `agents/<name>.md` 產生，加上 4 個手動維護的通用角色（`explorer`、`worker`、`monitor`、`bug-investigator`），總共 16 個 direct role。
+這裡講的是獨立的 Codex CLI 雙軌同步（`codex/agents/` → `.codex/agents/`），與已退休的 MCP 機制無關。每個 `codex/agents/*.toml` 檔案都必須宣告非空的 `name`、`description`、`model`、`model_reasoning_effort`、`developer_instructions`；Codex agent 定義只使用 TOML。dhpk 依 Codex 文件中的 project-local discovery path 發布這些檔案，Project-local installer 即使讓 skill 使用 symlink，也一律把 agent TOML materialize 為實體檔。12 個產生出來的角色（`architect`、`code-reviewer`、`security-reviewer`、`database-reviewer`、`tdd-guide`、`deep-reasoner`、`doc-reviewer`、`planner`、`spec-miner`、`frontend-reviewer`、`migration-reviewer`、`e2e-runner`）是由 `scripts/gen-codex-agents.js` 從 `agents/<name>.md` 產生，加上 4 個手動維護的通用角色（`explorer`、`worker`、`monitor`、`bug-investigator`），總共 16 個 direct role。
 
 `config.toml.example` 裡的 `[agents.<name>]` 區塊是選用 metadata，不是 runtime registry failure 的 workaround。現行支援的頂層並發設定是 `max_concurrent_threads_per_session`；範例也記錄有效的預設 subagent model 與 reasoning effort。靜態 metadata、實體 TOML 或內建 `explorer` 成功都不能證明 custom role 可派發；必須觀測到非內建 role 的真實 spawn 與 targeted wait。診斷見 [`codex/AGENTS.md`](../codex/AGENTS.md)，證據邊界見 [`platform-installation.zh-TW.md`](platform-installation.zh-TW.md)。
 

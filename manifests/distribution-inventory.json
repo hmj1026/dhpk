@@ -533,7 +533,7 @@
       "id": "codex-supporting-policies-execution-policy-md",
       "source": "codex/supporting/policies/execution-policy.md",
       "canonical_source": "rules/execution-policy.md",
-      "canonical_digest": "734d4cd929b576355272860e28b0edf5d69201da71345017f9a6bc44342a2812",
+      "canonical_digest": "0026e5836193a2561eebd076b736af9aed2bdfa78ab5ff11412e7e5c1a55894e",
       "projection_digest": "5bf08e47d0e5ee8c1ad685e72b0bd90904c40ed4543548a3227388ef441f621d",
       "destination": "dhpk/policies/execution-policy.md"
     },
@@ -1506,25 +1506,6 @@
       "discoveryVisible": false
     },
     {
-      "id": "codex-architect",
-      "name": "dhpk-codex-architect",
-      "path": "skills/dhpk-codex-architect",
-      "capability_id": "dhpk.skill.codex-architect",
-      "invocation_class": "explicit-only",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "codex-architect"
-      ]
-    },
-    {
       "id": "codex-bridge",
       "name": "dhpk-codex-bridge",
       "path": "skills/dhpk-codex-bridge",
@@ -1563,10 +1544,10 @@
       ]
     },
     {
-      "id": "codex-implement",
-      "name": "dhpk-codex-implement",
-      "path": "skills/dhpk-codex-implement",
-      "capability_id": "dhpk.skill.codex-implement",
+      "id": "implement",
+      "name": "dhpk-implement",
+      "path": "skills/dhpk-implement",
+      "capability_id": "dhpk.skill.implement",
       "invocation_class": "explicit-only",
       "lifecycle": "promoted",
       "tier": "core",
@@ -1578,7 +1559,7 @@
         "cursor-sync"
       ],
       "legacy_names": [
-        "codex-implement"
+        "implement"
       ]
     },
     {
@@ -2762,10 +2743,9 @@
       "cli-dispatch-context",
       "cli-transport",
       "code-explore",
-      "codex-architect",
       "codex-bridge",
       "codex-code-review",
-      "codex-implement",
+      "implement",
       "composer-package-hygiene",
       "create-request",
       "create-skill",
@@ -2826,10 +2806,9 @@
       "cli-dispatch-context",
       "cli-transport",
       "code-explore",
-      "codex-architect",
       "codex-bridge",
       "codex-code-review",
-      "codex-implement",
+      "implement",
       "composer-package-hygiene",
       "create-request",
       "create-skill",
@@ -2890,10 +2869,9 @@
       "cli-dispatch-context",
       "cli-transport",
       "code-explore",
-      "codex-architect",
       "codex-bridge",
       "codex-code-review",
-      "codex-implement",
+      "implement",
       "composer-package-hygiene",
       "create-request",
       "create-skill",
@@ -2954,10 +2932,9 @@
       "cli-dispatch-context",
       "cli-transport",
       "code-explore",
-      "codex-architect",
       "codex-bridge",
       "codex-code-review",
-      "codex-implement",
+      "implement",
       "composer-package-hygiene",
       "create-request",
       "create-skill",
@@ -3311,7 +3288,7 @@
       "replacements": [
         {
           "kind": "skill",
-          "id": "codex-architect",
+          "id": "software-architecture",
           "mode": "adversarial"
         }
       ],
@@ -3336,6 +3313,48 @@
       ],
       "rollback": {
         "release": "0.46.1"
+      }
+    },
+    {
+      "id": "codex-architect",
+      "name": "dhpk-codex-architect",
+      "canonicalPath": "skills/dhpk-codex-architect",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.52.0",
+      "reasonCode": "migrated-to-module-design",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "software-architecture",
+          "mode": "design"
+        }
+      ],
+      "rollback": {
+        "release": "0.51.0"
+      }
+    },
+    {
+      "id": "codex-implement",
+      "name": "dhpk-codex-implement",
+      "canonicalPath": "skills/dhpk-codex-implement",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.52.0",
+      "reasonCode": "migrated-to-backend-neutral-implement",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "implement",
+          "mode": "default"
+        }
+      ],
+      "rollback": {
+        "release": "0.51.0"
       }
     }
   ]

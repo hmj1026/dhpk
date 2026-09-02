@@ -59,7 +59,7 @@ test('route parser emits one immutable normalized invocation context', () => {
   ]);
   assert.strictEqual(context.schema, 'dhpk.route-result.v2');
   assert.strictEqual(context.options.routeOnly, true);
-  assert.strictEqual(context.options.codexPeer, true);
+  assert.strictEqual(context.options.codexPeer, false);
   assert.strictEqual(context.options.architect, true);
   assert.strictEqual(context.options.openSpec, true);
   assert.strictEqual(context.options.executeExplicit, false);
@@ -69,6 +69,9 @@ test('route parser emits one immutable normalized invocation context', () => {
     enabled: true, backend: 'codex', model: 'terra', effort: 'high', valid: true,
   });
   assert.strictEqual(context.cleanedQuery, 'implement the feature');
+  assert.strictEqual(context.target, null);
+  assert.strictEqual(context.disposition, 'route-only');
+  assert.ok(context.diagnostics.some((d) => d.code === 'DEPRECATED_CODEX_FLAG'));
   assert.ok(Object.isFrozen(context));
   assert.ok(Object.isFrozen(context.options));
   assert.ok(Object.isFrozen(context.options.plan));
@@ -96,8 +99,11 @@ test('v2 skill-local parser nested options (skip while package absent; see dhpk-
   const parsed = skillMod.parseInvocationContext(['--execute-explicit', '--codex', 'task']);
   assert.ok(parsed.options, 'v2 parser must nest flags under options');
   assert.strictEqual(parsed.options.executeExplicit, true);
-  assert.strictEqual(parsed.options.codexPeer, true);
+  assert.strictEqual(parsed.options.codexPeer, false);
   assert.strictEqual(parsed.cleanedQuery, 'task');
+  assert.strictEqual(parsed.target, null);
+  assert.strictEqual(parsed.disposition, 'blocked');
+  assert.ok(parsed.diagnostics.some((d) => d.code === 'DEPRECATED_CODEX_FLAG'));
 });
 
 test('opsx resume contract keeps uncommitted files and optional gates explicit', () => {

@@ -196,7 +196,7 @@ test('review and consumer boundaries keep unresolved states non-terminal', () =>
 test('goal template binds the canonical policy through its orientation pointer', () => {
   const part0 = flat(goal.slice(
     goal.indexOf('**`DISPATCH_ON=true`**'),
-    goal.indexOf('### CODEX_STATEMENT'),
+    goal.indexOf('## Part 1 (always)'),
   ));
   for (const phrase of [
     'rules/execution-policy-kernel.md',

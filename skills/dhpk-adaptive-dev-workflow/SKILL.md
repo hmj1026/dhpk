@@ -1,7 +1,7 @@
 ---
 name: dhpk-adaptive-dev-workflow
 description: 'Adaptive delivery workflow for substantial changes. Use when: a feature, bugfix, refactor, security, perf, or OpenSpec change needs one classification into Feature Delivery, Bug Investigation & Fix, or Lightweight Maintenance, with branch behavior and gates before heavy context loads. Not for tiny edits, investigation already underway, code review, or apply-ready OpenSpec tasks. Output: workflow classification + branch artifacts + delivery-loop gate checklist.'
-argument-hint: '[--codex] <change description or current state>'
+argument-hint: '[--worker=codex|--reasoner=codex[:<model>[:<effort>]]|--second-opinion=codex-exec] <change description or current state>'
 allowed-tools: 'Read, Grep, Glob, Bash, Skill, Agent'
 metadata:
   dhpk-invocation-class: implicit-eligible
@@ -36,22 +36,24 @@ metadata:
 
 ## Wayfinder checkpoint
 
-When the destination is unclear and work spans sessions or agents, load
-[workflow-analysis](references/workflow-analysis.md) and record its bounded
-decision-map fields before implementation; clear one-session work skips it.
+When the destination is unclear and work spans sessions or agents, load [workflow-analysis](references/workflow-analysis.md) and record its bounded decision-map fields before implementation; clear one-session work skips it.
 
 ## Fast-worker invocation context
 
 When `/dhpk:do` supplies `WORKER_OVERRIDE`, preserve that exact invocation-only
-value through the selected Feature or Bug branch. Before the first mechanical
-dispatch, consume it with the shared selector at `scripts/fast-worker-selector.js`
-using `--backend "$WORKER_OVERRIDE"`.
+value through the selected Feature or Bug branch. Before the first mechanical dispatch, consume it with the shared selector at `scripts/fast-worker-selector.js` using `--backend "$WORKER_OVERRIDE"`.
 `unset` means omit the explicit backend argument and let the selector apply userConfig/default precedence; never infer it from cleaned task text.
 
-## Codex mode (opt-in)
+## Optional backends and independent perspectives
 
-預設是 codex-free：不呼叫 `mcp__codex__*`，也不需要 Codex CLI/MCP。只有傳入 `--codex` 才載入
-[references/codex-mode.md](references/codex-mode.md) 取得 phase mapping、fallback 與下游 `--codex` 規則。
+預設是 Codex-free：由目前的 in-process model 與 dhpk agents 完成 workflow，不需要額外 backend，也不會自動呼叫外部 Codex。只有在 caller 明確選取時，才使用下列附加路徑：
+
+- `--worker=codex`：選取 Codex CLI mechanical worker，僅適用於支援該選項的 implementation route。
+- `--reasoner=codex[:<model>[:<effort>]]`：選取 Codex CLI read-only reasoning pass，僅適用於 implementation-class route。
+- `--dual` 或 owner 定義的 isolated reviewer：以 fresh、read-only subagent 提供獨立視角，並把 primary 結論與第二視角分開記錄。
+- `--second-opinion=codex-exec`：以 `codex exec` 執行一次 blind、additive 的 CLI second opinion；它不取代 primary，也不是失敗時的 silent fallback。
+
+只把 owner 明確支援的選項傳給下游；不同選項之間不得互相隱式轉譯。完整 phase mapping 與選項邊界見 [codex-mode.md](references/codex-mode.md)。
 
 ## Workflow Decision
 
@@ -102,10 +104,7 @@ regression test → minimal fix**，再走 shared delivery loop
 6. **Report**：輸出 workflow、理由、artifacts、gates、next step 與 post-implementation checklist。
 7. **Handoff**：apply-ready 指向下一流程；blocker 停在實作前並給唯一 next skill/command。
 
-Feature and confirmed Bug implementation remain within this skill. Unknown
-causes hand off to `dhpk-root-cause-investigation`, architecture decisions to
-`architect`, test strategy to `dhpk-tdd-workflow`, and code review to
-`dhpk-change-review`.
+Feature and confirmed Bug classification remain within this skill; after the RED gate, implementation hands off to `dhpk-implement`. Unknown causes hand off to `dhpk-root-cause-investigation`, architecture decisions to `dhpk-module-design`, test strategy to `dhpk-tdd-workflow`, and code review to `dhpk-change-review`.
 
 ## Planning-Phase Agent
 
@@ -114,10 +113,10 @@ causes hand off to `dhpk-root-cause-investigation`, architecture decisions to
 | 條件 | Codex-free planning |
 |---|---|
 | Bug Investigation & Fix，根因未知 | `dhpk-root-cause-investigation` skill |
-| Feature Delivery，跨模組或 DDD 重設計 | `subagent_type=dhpk:architect` |
+| Feature Delivery，跨模組或 DDD 重設計 | `dhpk-module-design`（需要時使用 `--mode design` 或明確選取其他 mode） |
 | 其他 Feature / Lightweight | 無，直接進 work-item 或 inspect → patch |
 
-`--codex` 的替代路徑與 dispatch 結果格式見 [codex-mode](references/codex-mode.md) 和 [dispatch-and-gates](references/dispatch-and-gates.md)。
+可選 backend、isolated perspective 與 second-opinion 的 dispatch 結果格式見 [codex-mode](references/codex-mode.md) 和 [dispatch-and-gates](references/dispatch-and-gates.md)。
 
 ## Implementation and Post-Implementation Gates
 

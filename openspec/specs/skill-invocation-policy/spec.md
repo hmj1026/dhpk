@@ -2,7 +2,9 @@
 
 ## Purpose
 TBD - created by archiving change clarify-dhpk-skill-invocation-policy. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Every distributed entry has one invocation class
 Every Distributed Skill, including optional-module and experimental skills, SHALL declare exactly one `metadata.dhpk-invocation-class` value in its canonical `SKILL.md`: `explicit-only` or `implicit-eligible`. A paired Distributed Command SHALL inherit that class; an unpaired Distributed Command SHALL declare the same field in its own frontmatter. After report-only migration is complete, validation SHALL fail when an entry is missing a class, declares conflicting classes, or uses an unknown value.
 
@@ -111,3 +113,22 @@ Changing a skill's invocation class SHALL NOT rename its skill or command. Any r
 #### Scenario: Skill becomes explicit-only
 - **WHEN** a previously implicit-eligible skill is reclassified as explicit-only
 - **THEN** its prior explicit name remains callable and migration documentation explains that automatic selection is disabled
+
+### Requirement: Retired Codex-MCP entries have no active invocation path
+
+Former Codex-MCP-backed skill identities (`codex-architect`, `codex-implement`, `codex-code-review`, `doc-review`, `test-review`, `codebase-exploration`, `feature-verify`, `issue-analyze`, and `feasibility-study`) SHALL NOT remain active MCP-backed targets. Canonical skills and commands SHALL NOT declare `mcp__codex__codex` or `mcp__codex__codex-reply`; the retained `codex-review` command SHALL remain an explicit-only CLI-backed entry, and other retained legacy command names SHALL remain explicit-only deprecation aliases with documented backend-neutral or CLI replacements. The retired `CODEX=on`/`/dhpk:do --codex` interface SHALL be rejected with its deprecation diagnostic and SHALL NOT route to a peer, worker, reasoner, `codex exec`, or app-server plugin. `check-coverage` remains an explicit-only legacy alias outside the historical command family.
+
+#### Scenario: Model attempts implicit routing to a retired MCP identity
+
+- **WHEN** a user request would otherwise route implicitly to a formerly Codex-MCP-backed skill or command
+- **THEN** the model does not invoke the retired identity and instead presents the exact backend-neutral/CLI replacement or the alias's deprecation outcome
+
+#### Scenario: User directly invokes a retained Codex review entry
+
+- **WHEN** a user supplies the exact supported explicit invocation for `codex-review` or one of its retained aliases
+- **THEN** the canonical command uses the documented CLI backend or the alias forwards to its documented replacement, subject to that target's existing gates, with no MCP invocation
+
+#### Scenario: A Codex MCP grant remains after retirement
+
+- **WHEN** any canonical skill or command declares `mcp__codex__codex` or `mcp__codex__codex-reply` in its allowed-tools
+- **THEN** invocation-policy validation reports the entry as an invalid retired dependency and fails; no frozen-set exception applies

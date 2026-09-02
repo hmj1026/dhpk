@@ -1,10 +1,14 @@
-# Codex Independent Research Instructions
+# Independent Research Instructions
 
-Shared boilerplate for all Codex MCP prompt templates. Each template should reference this file instead of inlining the research block.
+Shared boilerplate for all review prompt templates. Each template should
+reference this file instead of inlining the research block.
 
 ## Core Principle
 
-**Give direction, not content.** Codex has full read-only sandbox access. Instead of dumping diffs or file contents into the prompt, provide metadata (changed file list, diff stats, file path) and let Codex read the actual content itself. This ensures Codex sees full context, not a truncated slice.
+**Give direction, not content.** The selected reviewer has read-only sandbox
+access. Instead of dumping diffs or file contents into the prompt, provide
+metadata (changed file list, diff stats, file path) and let the reviewer read
+the actual content itself. This ensures full context, not a truncated slice.
 
 ## Standard Research Block (Code Review)
 

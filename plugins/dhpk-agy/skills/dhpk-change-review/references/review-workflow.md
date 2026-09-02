@@ -1,4 +1,4 @@
-# Codex code review workflow
+# Portable code review workflow
 
 This reference contains the shared workflow for
 `skills/dhpk-change-review/SKILL.md`. The entrypoint selects a variant and then
@@ -24,7 +24,8 @@ process stops before the final gate, the stop guard remains fail-closed.
 
 ## Step 1: collect change metadata
 
-Collect metadata only; Codex reads the actual diff and file contents itself.
+Collect metadata only; the selected primary reviewer reads the actual diff and
+file contents itself.
 
 | Variant | Collection |
 |---|---|
@@ -32,8 +33,8 @@ Collect metadata only; Codex reads the actual diff and file contents itself.
 | Full | Same as Fast, then run the resolved lint/build pre-checks |
 | Branch | Same as Fast plus current branch, base branch, and commit count |
 
-Codex independently reads each diff with `git diff HEAD -- <file>` and the
-research instructions in its prompt.
+The primary reviewer independently reads each diff with `git diff HEAD --
+<file>` and the research instructions in its prompt.
 
 ## Step 1.5: feature context and acceptance criteria
 
@@ -72,27 +73,32 @@ as `LOCAL_CHECKS`.
 
 On the first review, dispatch two reviewers in parallel:
 
-1. Codex MCP with the variant prompt and `sandbox: 'read-only'`,
-   `approval-policy: 'never'`; save its `threadId`.
+1. The primary reviewer with the variant prompt and a read-only sandbox; save
+   its review artifact.
 2. A secondary reviewer through the selection cascade:
-   `pr-review-toolkit:code-reviewer`, then `strict-reviewer`, then Codex-only
+   `pr-review-toolkit:code-reviewer`, then `strict-reviewer`, then primary-only
    degraded mode if both are unavailable.
+
+If the caller explicitly selects `--backend cli`, run the retained CLI
+transport as an additional, clearly labeled review input. The current-model
+primary path remains complete without it, and the CLI is never a hidden
+fallback.
 
 The secondary prompt receives changed files and diff stats, reads the actual
 diff, and must verify every finding with evidence, context, false-positive,
 severity, and gap checks. Findings use
 `[P0/P1/P2/Nit] file:line issue → fix` and end with `Ready` or `Blocked`.
 
-For `--continue`, use `mcp__codex__codex-reply` with the re-review template and
-redispatch the secondary reviewer in fresh context. Any code edit resets the
-review cycle.
+For `--continue`, reread the pinned diff and prior review artifact with the
+re-review template, then redispatch the secondary reviewer in fresh context.
+Any code edit resets the review cycle and requires a fresh fixed point.
 
 ## Step 3.5: await and reconcile
 
-Codex is the blocking reviewer for the initial gate. The secondary result is
-included if it completes before aggregation, reconciled before precommit if it
-arrives in time, and handled through the degradation matrix on failure or
-timeout. A late P0/P1 reopens the fix → review loop.
+The primary reviewer is the blocking reviewer for the initial gate. The
+secondary result is included if it completes before aggregation, reconciled
+before precommit if it arrives in time, and handled through the degradation
+matrix on failure or timeout. A late P0/P1 reopens the fix → review loop.
 
 ## Step 4: aggregate
 

@@ -11,7 +11,6 @@
 const fs = require('fs');
 const path = require('path');
 const {
-  CODEX_MCP_COMMAND_NAMES,
   collectInventory,
   hasCodexMcpAllowedTool,
   relativePosix,
@@ -21,18 +20,6 @@ const { createReporter } = require('./_lib/report');
 
 const ROOT = path.join(__dirname, '..', '..');
 const r = createReporter('invocation-policy');
-
-const FROZEN_CODEX_SKILL_NAMES = new Set([
-  'dhpk-codex-architect',
-  'dhpk-codex-implement',
-  'dhpk-change-review',
-  'dhpk-doc-review',
-  'dhpk-test-review',
-  'dhpk-codebase-exploration',
-  'dhpk-feature-verify',
-  'dhpk-issue-analyze',
-  'dhpk-feasibility-study',
-]);
 
 function skillName(skillFile) {
   const fm = extract(fs.readFileSync(skillFile, 'utf8'));
@@ -62,11 +49,8 @@ function main(root) {
     const ic = checkEntry(rel, content, reporter);
     const name = skillName(skillFile);
     const codexMcp = hasCodexMcpAllowedTool(content);
-    if (codexMcp && !FROZEN_CODEX_SKILL_NAMES.has(name)) {
-      reporter.err(`${rel} — mcp__codex__* grant is outside the frozen 9-skill set`);
-    }
-    if (codexMcp && ic.value !== 'explicit-only') {
-      reporter.err(`${rel} — MCP-backed Codex skill must be explicit-only while the grant remains`);
+    if (codexMcp) {
+      reporter.err(`${rel} — mcp__codex__* grants are retired and forbidden; remove the grant`);
     }
     if (!ic.present && !ic.dottedSubstitute) {
       reporter.err(`${rel} — missing metadata.dhpk-invocation-class`);
@@ -83,12 +67,8 @@ function main(root) {
     const ic = checkEntry(rel, content, reporter);
     const base = path.basename(rel, '.md');
     const codexMcp = hasCodexMcpAllowedTool(content);
-    const frozenCodexCommand = CODEX_MCP_COMMAND_NAMES.includes(path.basename(rel));
-    if (codexMcp && !frozenCodexCommand) {
-      reporter.err(`${rel} — mcp__codex__* grant is outside the frozen 8-command family`);
-    }
-    if (frozenCodexCommand && ic.value !== 'explicit-only') {
-      reporter.err(`${rel} — frozen Codex review-family command must be explicit-only`);
+    if (codexMcp) {
+      reporter.err(`${rel} — mcp__codex__* grants are retired and forbidden; remove the grant`);
     }
     const paired = skillClassByName.get(base);
 

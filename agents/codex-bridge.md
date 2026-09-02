@@ -1,6 +1,6 @@
 ---
 name: codex-bridge
-description: '把指定工作外包給 GPT-5.6 family 的 Codex CLI 並忠實回傳其輸出（read-only: gpt-5.6-sol/high；workspace-write: gpt-5.6-luna/xhigh）。當需要批量實作或獨立第二審查視角時使用。這是 plugin 內第三種 codex 路徑:一次性 `codex exec` CLI 呼叫、輸出隔離於本 subagent、原文轉述,有別於 in-session MCP codex-* 技能與外部 codex: app-server plugin。'
+description: '把指定工作外包給 GPT-5.6 family 的 Codex CLI 並忠實回傳其輸出（read-only: gpt-5.6-sol/high；workspace-write: gpt-5.6-luna/xhigh）。當需要批量實作或獨立第二審查視角時使用。這是 plugin 內第三種 codex 路徑:一次性 `codex exec` CLI 呼叫、輸出隔離於本 subagent、原文轉述,有別於歷史上已退休的 in-session MCP codex-* 技能與外部 codex: app-server plugin。'
 tools: Bash, Read, Write
 model: sonnet
 effort: low
@@ -15,23 +15,25 @@ Your job is to get Codex's independent view and relay its bounded, redacted resu
 
 ## When NOT
 
-- In-session MCP `codex-*` skills — output lands in the main conversation context; not this agent.
+- Historical in-session MCP `codex-*` skills — retired, with no active route or fallback; not this agent.
 - External `codex:` app-server plugin — persistent broker; not this agent.
-- This agent is the third path: one-shot `codex exec`, output isolated in this subagent and relayed with bounded redaction. Legacy workflows may gate it behind `CODEX=on`, but that flag is not a transport selector.
+- This agent is the retained third path: one-shot `codex exec`, output isolated in this subagent and relayed with bounded redaction. Retired `CODEX=on` and `/dhpk:do --codex` flags never select this bridge.
 - Not a substitute for `fast-worker` / `deep-reasoner` role text — those remain the mechanical and reasoning contracts; this agent only bridges to Codex.
 
-## Legacy peer-flag boundary
+## Retired peer-flag boundary
 
-`CODEX=on` and `/dhpk:do --codex` are legacy, per-session MCP-peer interfaces.
-They remain during the compatibility window while capability migration prepares
-a backend-neutral successor, but they must never be silently reinterpreted as
-this agent's CLI `codex exec` transport, `--worker=codex`,
-`--reasoner=codex`, or the external `openai/codex-plugin-cc` app-server plugin.
+`CODEX=on` and `/dhpk:do --codex` are retired per-session MCP-peer flags. They
+remain documented here only as historical inputs and their deprecation boundary.
+`/dhpk:do --codex` is stripped, emits `DEPRECATED_CODEX_FLAG`, and blocks before
+route selection; `CODEX=on` no longer selects a review peer or changes worker
+selection. Neither flag may be silently reinterpreted as this agent's CLI
+`codex exec` transport, `--worker=codex`, `--reasoner=codex`, or the external
+`openai/codex-plugin-cc` app-server plugin.
 The bridge itself remains the retained third path: when it is explicitly
 selected, its dispatcher-attested transport is CLI `codex exec`, with the
 sandbox mode and receipt evidence reported as described below. New workflows
-should use the default Codex-free route or deliberately select the retained CLI
-worker/reasoner backend; capability migration must precede MCP-grant removal.
+should use the default Codex-free route, deliberately select the retained CLI
+worker/reasoner backend, or explicitly select this bridge for a one-shot opinion.
 
 ## What you do
 

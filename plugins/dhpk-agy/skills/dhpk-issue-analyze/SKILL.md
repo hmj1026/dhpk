@@ -1,8 +1,8 @@
 ---
 name: dhpk-issue-analyze
 disable-model-invocation: true
-description: 'GitHub Issue and PR review thread deep analysis with Codex blind verdict. Purpose: analyze issue root causes, classify problems, plan investigations, or triage PR review comments for actionability. Not for: fixing bugs (use dhpk-adaptive-dev-workflow in bug mode), code exploration (use dhpk-codebase-exploration). Output: classified analysis + verdict assessment + investigation strategy.'
-allowed-tools: 'Read, Grep, Glob, Bash(git:*), Bash(gh:*), mcp__codex__codex'
+description: 'GitHub Issue and PR review thread deep analysis with an optional blind verdict. Purpose: analyze issue root causes, classify problems, plan investigations, or triage PR review comments for actionability. Not for: fixing bugs (use dhpk-adaptive-dev-workflow in bug mode), code exploration (use dhpk-codebase-exploration). Output: classified analysis + verdict assessment + investigation strategy.'
+allowed-tools: 'Read, Grep, Glob, Bash(git:*), Bash(gh:*), Bash(codex:*), Task'
 metadata:
   dhpk-invocation-class: explicit-only
 ---
@@ -32,13 +32,13 @@ When input is a **Review Thread**:
 
 - Known root cause, fix directly (use `/dhpk:dhpk-adaptive-dev-workflow` and select the Bug branch)
 - Pure feature development (use `/dhpk:dhpk-adaptive-dev-workflow` and select the Feature branch)
-- Only need code review (use `/codex-review`)
+- Only need code review (use `/dhpk:dhpk-change-review`)
 
 ## Workflow
 
 1. **Read** the issue with `gh issue view --json ...`, or use the supplied review-thread fields. Extract symptoms, reproduction, errors, and file clues.
-2. **Classify** with [classification.md](references/classification.md): unfamiliar → `/dhpk:dhpk-codebase-exploration`; regression → `/dhpk:dhpk-git-history-investigation`; complex root → `/dhpk:dhpk-codebase-exploration --dual`; multiple causes → `/dhpk:dhpk-codex-architect --mode adversarial`.
-3. **Blind verdict** in a fresh read-only Codex thread without Claude's classification. Triage mode stops after this phase.
+2. **Classify** with [classification.md](references/classification.md): unfamiliar → `/dhpk:dhpk-codebase-exploration`; regression → `/dhpk:dhpk-git-history-investigation`; complex root → `/dhpk:dhpk-codebase-exploration --dual`; multiple causes → `/dhpk:dhpk-module-design --mode adversarial`.
+3. **Blind verdict** in a fresh read-only isolated reviewer context without the primary classification. Triage mode stops after this phase.
 4. **Investigate** unless policy maps the verdict to `DISMISS_VERIFIED`.
 5. **Report** the combined evidence, verdict, root-cause hypothesis, and recommendation.
 
@@ -49,31 +49,38 @@ When input is a **Review Thread**:
 | `/dhpk:dhpk-codebase-exploration`     | Quick code exploration | Fast    | Single     |
 | `/dhpk:dhpk-git-history-investigation`  | Track change history   | Medium  | Single     |
 | `/dhpk:dhpk-codebase-exploration --dual` | Dual confirmation      | Slow    | Dual-view  |
-| `/dhpk:dhpk-codex-architect --mode adversarial` | Exhaust possibilities  | Slowest | Adversarial|
+| `/dhpk:dhpk-module-design --mode adversarial` | Exhaust possibilities  | Slowest | Adversarial|
 
 ## Phase 2.5: Verdict Assessment
 
-After classification, run Codex blind verification to independently assess actionability.
+After classification, the primary model may request an independent actionability
+assessment. The normal second perspective is a fresh, isolated, read-only
+general-purpose subagent; it receives the issue or review-thread context but not
+the primary classification or conclusion. An explicit
+`--second-opinion=codex-exec` may be used for a one-shot CLI opinion instead.
 
-**Codex call requirements**:
+**Independent reviewer requirements**:
 
 | Requirement | Detail |
 |-------------|--------|
-| Thread | **Fresh** `mcp__codex__codex` (never reuse existing thread) |
+| Thread | **Fresh** isolated subagent (never reuse the primary context) |
 | Sandbox | `read-only` |
 | Approval policy | `never` |
-| Anti-anchoring | Never send Claude's Phase 2 classification to Codex |
+| Anti-anchoring | Never send the primary Phase 2 classification to the reviewer |
 
-**Prompt construction** (blind verdict — never reveal Claude's Phase 2 classification to Codex):
+**Prompt construction** (blind verdict — never reveal the primary Phase 2 classification to the reviewer):
 
 - **GitHub Issue input**: provide issue title, body, labels as finding context
 - **Review Thread input**: provide file path, line, reviewer comment as finding context
 - Always include Standard Research Block (git status, git diff, grep, cat)
+- If no independent reviewer is requested or available, mark the result
+  **degraded: primary model only** and state plainly: "Only the primary
+  model's verdict is present; no independent review ran."
 
-**Codex output** (all fields required):
+**Independent reviewer output** (all fields required):
 
 ```
-- codex_verdict: ACTIONABLE | NON_ACTIONABLE | UNCERTAIN
+- reviewer_verdict: ACTIONABLE | NON_ACTIONABLE | UNCERTAIN
 - confidence: [0.0 - 1.0]
 - evidence_refs: [files/lines/commands used]
 - reasoning: [why this verdict]
@@ -89,7 +96,9 @@ After classification, run Codex blind verification to independently assess actio
 
 **`--triage` mode**: stop after Phase 2.5, output classification + verdict only.
 
-**Graceful degradation**: if Codex call fails, log warning and proceed to Phase 3 without verdict.
+**Graceful degradation**: if the isolated reviewer or explicitly requested CLI
+opinion fails, log a warning, preserve the degraded primary-only state, and
+proceed to Phase 3 without claiming an independent verdict.
 
 ## Output
 
@@ -119,9 +128,10 @@ After classification, run Codex blind verification to independently assess actio
 
 - [ ] Issue / review thread content fully extracted
 - [ ] Problem type correctly classified
-- [ ] Verdict assessment executed (Codex blind verification)
-- [ ] Codex prompt contains no Claude conclusions (anti-anchoring)
-- [ ] Fresh Codex thread used (not reusing existing thread)
+- [ ] Verdict assessment executed by an isolated reviewer when requested, or the
+  degraded primary-only state is recorded
+- [ ] Reviewer prompt contains no primary conclusions (anti-anchoring)
+- [ ] Fresh isolated reviewer context used (not the primary context)
 - [ ] Investigation strategy reasonably selected (or skipped if NON_ACTIONABLE)
 - [ ] Report includes root cause analysis + verdict
 - [ ] Contains specific fix recommendations
@@ -132,46 +142,3 @@ After classification, run Codex blind verification to independently assess actio
 - `references/classification.md` — Detailed problem classification guide (includes Review Thread dimensions)
 - `references/report-template.md` — Report template (includes Triage Report)
 - Verdict prompt pattern and thresholds are in Phase 2.5 above.
-
-## Examples
-
-### Regression Issue
-
-```
-Input: /dhpk:dhpk-issue-analyze 123
-Phase 1: gh issue view 123 -> "API returns 500 after update"
-Phase 2: Classification = Regression
-Phase 3: /dhpk:dhpk-git-history-investigation -> find introducing commit
-Phase 4: Report + fix recommendation
-```
-
-### Intermittent Error
-
-```
-Input: /dhpk:dhpk-issue-analyze 456
-Phase 1: gh issue view 456 -> "Random timeout occurrences"
-Phase 2: Classification = Complex root cause (intermittent)
-Phase 3: /dhpk:dhpk-codebase-exploration --dual -> Claude + Codex dual-view
-Phase 4: Consolidated report -> ranked possible causes
-```
-
-### Unknown Feature
-
-```
-Input: /dhpk:dhpk-issue-analyze 789
-Phase 1: gh issue view 789 -> "Why does it behave this way?"
-Phase 2: Classification = Unfamiliar feature
-Phase 2.5: Verdict = ACTIONABLE (confidence 0.75) -> proceed
-Phase 3: /dhpk:dhpk-codebase-exploration -> trace execution path
-Phase 4: Report + flow diagram + verdict
-```
-
-### Review Thread Triage
-
-```
-Input: /dhpk:dhpk-issue-analyze --triage "src/service.ts:42 — Use early return instead of nested if"
-Phase 2: Classification = nit
-Phase 2.5: Verdict = NON_ACTIONABLE (confidence 0.85)
-  Codex found: current nested pattern follows project convention in 12 other files
-Output: Triage report — skip suggested
-```

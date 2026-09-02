@@ -17,8 +17,8 @@ Used when script shows P0 gate issues or when determining which workflow step co
 
 | Last Completed | Next Step |
 |----------------|-----------|
-| (nothing yet) | `/dhpk:dhpk-codex-architect` or `/dhpk:dhpk-feasibility-study` (large feature) |
-| Architecture designed | `/dhpk:dhpk-codex-implement` or manual coding |
+| (nothing yet) | `/dhpk:dhpk-module-design` or `/dhpk:dhpk-feasibility-study` (large feature) |
+| Architecture designed | `/dhpk:dhpk-implement` or manual coding |
 | Code written, no tests | Write tests, then `/verify` |
 | `/verify` pass | `/codex-review-fast` + `/codex-test-review` |
 | `/verify` fail | Fix failing tests, re-run `/verify` |
@@ -61,5 +61,5 @@ Used when script shows P0 gate issues or when determining which workflow step co
 | Want to understand code | `/dhpk:dhpk-codebase-exploration` |
 | Track a specific change | `/dhpk:dhpk-git-history-investigation` |
 | Analyze a GitHub issue | `/dhpk:dhpk-issue-analyze` |
-| Need architecture advice | `/dhpk:dhpk-codex-architect` or `/dhpk:dhpk-codex-architect --mode adversarial` |
+| Need architecture advice | `/dhpk:dhpk-module-design` or `/dhpk:dhpk-module-design --mode adversarial` |
 | Evaluate feasibility | `/dhpk:dhpk-feasibility-study` |

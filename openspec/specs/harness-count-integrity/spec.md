@@ -2,7 +2,9 @@
 
 ## Purpose
 TBD - created by archiving change dhpk-harness-integrity-guards. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Every declared count is enforced against computed reality
 
 The count SSOT (`scripts/ci/catalog.js`) SHALL enforce every **exact-number** claim phrasing that
@@ -63,16 +65,21 @@ value across the claim files, and report the number of claim groups updated.
 
 ### Requirement: Codex surface counts are enforced against computed reality
 
-The count SSOT (`scripts/ci/catalog.js`) SHALL compute the number of MCP-backed `codex-*` skills (skills under `skills/codex-*/` whose SKILL.md references `mcp__codex__`) and the number of `commands/codex-*.md` files, and SHALL enforce the exact-count claims for these two values in `README.md` and `README.zh-TW.md`. `node scripts/ci/catalog.js --check` SHALL exit non-zero when either enforced claim disagrees with the computed value.
+The count SSOT (`scripts/ci/catalog.js`) SHALL compute the number of MCP-backed Codex skills by scanning every canonical `skills/*/SKILL.md`'s `allowed-tools` frontmatter for `mcp__codex__codex` or `mcp__codex__codex-reply` (not by directory name prefix), and the number of MCP-backed `commands/codex-*.md` files, and SHALL enforce that both computed values equal zero following this change's retirement. `node scripts/ci/catalog.js --check` SHALL exit non-zero if either computed value is greater than zero, and SHALL exit non-zero if README/README.zh-TW claim any nonzero MCP-backed count.
 
 #### Scenario: A new MCP-backed codex skill is added without a README update
 
-- **WHEN** a sixth MCP-backed codex skill (seventh `skills/codex-*/` directory) referencing `mcp__codex__` lands but README still claims 5 MCP-backed skills
+- **WHEN** any `skills/*/SKILL.md` still declares (or a regression reintroduces) `mcp__codex__codex` or `mcp__codex__codex-reply` in `allowed-tools` after this change lands, while README claims zero MCP-backed skills
 - **THEN** `node scripts/ci/catalog.js --check` reports a DRIFT line and exits non-zero
+
+#### Scenario: A frontmatter-granted skill without a `codex-` prefix is not miscounted
+
+- **WHEN** `catalog.js` computes the MCP-backed skill count
+- **THEN** it includes every `skills/*/SKILL.md` whose `allowed-tools` frontmatter declares `mcp__codex__codex` or `mcp__codex__codex-reply`, regardless of the skill's directory name
 
 #### Scenario: Counts match reality
 
-- **WHEN** the README claims equal the computed codex skill and command counts
+- **WHEN** no skill or command declares an `mcp__codex__*` grant and README/README.zh-TW make no nonzero MCP-backed-count claim
 - **THEN** `node scripts/ci/catalog.js --check` prints PASS and exits zero
 
 ### Requirement: Inventory and publication counts are separate

@@ -239,10 +239,13 @@ test('[2.2] --route-only wins over every other mode and is stripped', () => {
   assert.ok(!parsed.cleanedQuery.includes('--route-only'));
 });
 
-test('[2.2] --codex is idempotent and stripped; cleaned query keeps the task', () => {
+test('[2.2] retired --codex is stripped without enabling a peer', () => {
   const parsed = parseV2(['--codex', '--codex', 'review', 'this', 'diff']);
-  assert.strictEqual(parsed.options.codexPeer, true);
+  assert.strictEqual(parsed.options.codexPeer, false);
   assert.strictEqual(parsed.cleanedQuery, 'review this diff');
+  assert.strictEqual(parsed.target, null);
+  assert.strictEqual(parsed.disposition, 'blocked');
+  assert.ok(parsed.diagnostics.some((d) => d.code === 'DEPRECATED_CODEX_FLAG'));
 });
 
 test('[2.2] last --architect / --no-architect occurrence wins', () => {
@@ -304,9 +307,11 @@ test('[2.2] unknown tokens including --fast-worker stay in cleanedQuery in origi
 
 test('[2.2] recognized flags may occur anywhere and remaining tokens join with one space', () => {
   const parsed = parseV2(['implement', '--codex', 'the', '--openspec', 'login', 'feature']);
-  assert.strictEqual(parsed.options.codexPeer, true);
+  assert.strictEqual(parsed.options.codexPeer, false);
   assert.strictEqual(parsed.options.openSpec, true);
   assert.strictEqual(parsed.cleanedQuery, 'implement the login feature');
+  assert.strictEqual(parsed.target, null);
+  assert.strictEqual(parsed.disposition, 'blocked');
 });
 
 test('[2.2] v2 result is recursively frozen and uses host claude|cursor|codex', () => {
@@ -319,10 +324,12 @@ test('[2.2] v2 result is recursively frozen and uses host claude|cursor|codex', 
   assert.throws(() => { result.options.routeOnly = false; }, TypeError);
 });
 
-test('[2.2] --codex on host=codex emits ALREADY_CODEX and still sets codexPeer', () => {
+test('[2.2] --codex on host=codex remains blocked and does not set codexPeer', () => {
   const result = routeV2({ host: 'codex', argv: ['--codex', 'review', 'this', 'diff'] });
-  assert.strictEqual(result.options.codexPeer, true);
-  assert.ok(result.diagnostics.some((d) => d.code === 'ALREADY_CODEX'));
+  assert.strictEqual(result.options.codexPeer, false);
+  assert.strictEqual(result.target, null);
+  assert.strictEqual(result.disposition, 'blocked');
+  assert.ok(result.diagnostics.some((d) => d.code === 'DEPRECATED_CODEX_FLAG'));
 });
 
 test('[2.2] NO_QUERY leaves target null', () => {

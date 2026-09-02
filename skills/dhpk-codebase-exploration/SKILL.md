@@ -2,8 +2,8 @@
 name: dhpk-codebase-exploration
 disable-model-invocation: true
 argument-hint: '<investigation target or question> [--dual] [--explain --depth brief|normal|deep]'
-description: 'Explore an unfamiliar codebase with a focused symbol/flow trace, optionally run an independent second perspective, or request a depth-controlled explanation. Purpose: trace execution, understand architecture, or diagnose a code path. Not for: change review, security audit, or implementation. Output: evidence-backed flow findings with explicit gaps.'
-allowed-tools: 'Read, Grep, Glob, Bash(ls:*), Bash(find:*), Bash(git:*), mcp__codex__codex, mcp__codex__codex-reply'
+description: 'Explore an unfamiliar codebase with a focused symbol/flow trace, optionally run an isolated independent perspective, or request a depth-controlled explanation. Purpose: trace execution, understand architecture, or diagnose a code path. Not for: change review, security audit, or implementation. Output: evidence-backed flow findings with explicit gaps.'
+allowed-tools: 'Read, Grep, Glob, Bash(ls:*), Bash(find:*), Bash(git:*), Bash(codex:*), Task'
 context: fork
 metadata:
   dhpk-invocation-class: explicit-only
@@ -12,16 +12,23 @@ metadata:
 # Codebase exploration
 
 Use the smallest mode that answers the question. The default is a single
-perspective symbol/flow trace: locate the entry point, follow callers and
-callees, and report evidence with file and line references. Do not turn a
-simple lookup into a review or a speculative architecture redesign.
+current-model perspective: locate the entry point, follow callers and callees,
+and report evidence with file and line references. Do not turn a simple lookup
+into a review or a speculative architecture redesign.
+
+An independent perspective is opt-in. `--dual` dispatches a fresh, isolated,
+read-only general-purpose subagent as the standard dual perspective; pass only the original question,
+repository path, and requested depth so the perspectives remain blind to one
+another. A caller may additionally name `--second-opinion=codex-exec` to obtain
+one additive, read-only CLI perspective. Neither option changes the primary
+model's report or permits a hidden fallback.
 
 ## Modes
 
 | Invocation | Behavior | Additional reading |
 |---|---|---|
 | default | Symbol/flow trace with one coherent report | `references/search-patterns.md` when search strategy is unclear |
-| `--dual` | Run Claude and Codex independently, then reconcile agreements and gaps. Keep the Codex prompt clean: pass the question and project path, never Claude's conclusion. | `references/dual-perspective.md` |
+| `--dual` | Run the primary model and an isolated subagent independently, then reconcile agreements and gaps. Pass the second perspective only the question and project path, never the primary conclusion. | `references/dual-perspective.md` |
 | `--explain --depth brief\|normal\|deep` | Ask for an explanation of a target file or symbol. `brief` is one sentence; `normal` adds flow and concepts; `deep` adds dependencies, complexity, and risks. | `references/explain.md` |
 
 If `--dual` and `--explain` are combined, use the explanation depth for both
@@ -37,6 +44,10 @@ use `normal`.
    accounted for.
 4. Record assumptions, edge cases, and unresolved links. A clean prompt and
    independent evidence matter more than a large file dump.
+5. When `--dual` is selected, dispatch the isolated subagent and reconcile its
+   evidence only after the primary trace is complete. If no independent mode is
+   selected, report the primary trace alone and do not label it independently
+   confirmed.
 
 ## When NOT to Use
 
@@ -56,9 +67,11 @@ use `normal`.
 - Findings and gaps: <actionable conclusions, or what remains unknown>
 ```
 
-For `--dual`, include separate Claude and Codex findings followed by an
-agreement/difference table and an integrated conclusion. For `--explain`, keep
-the requested depth; do not emit deep complexity claims in `brief` mode.
+For `--dual`, include separate primary-model and isolated-subagent findings
+followed by an agreement/difference table and an integrated conclusion. For
+`--explain`, keep the requested depth; do not emit deep complexity claims in
+`brief` mode. An explicit `--second-opinion=codex-exec` may add a one-shot CLI
+perspective; this path is always caller-selected.
 
 ## Verification
 

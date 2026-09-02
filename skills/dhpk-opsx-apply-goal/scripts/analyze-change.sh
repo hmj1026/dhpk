@@ -9,7 +9,7 @@
 #
 # Usage:
 #   analyze-change.sh <change-id> [--turns N] [--max-duration <Nm|Nh>] \
-#                     [--min-coverage N] [--codex] [--worker=<backend>] \
+#                     [--min-coverage N] [--worker=<backend>] \
 #                     [--smoke|--no-smoke] [--dry-run]
 #
 # Output: a `# schema=v1` block on stdout (KEY=VALUE, one per line). On a fatal
@@ -24,7 +24,7 @@ CHANGE_ID=""
 CUSTOM_TURNS=""
 MAX_DURATION=""
 MIN_COVERAGE=""
-CODEX="off"
+DEPRECATED_CODEX_FLAG="false"
 DRY_RUN="false"
 FAST_WORKER_OVERRIDE=""
 SAW_SMOKE="false"
@@ -35,7 +35,7 @@ while [ "$#" -gt 0 ]; do
     --turns)        CUSTOM_TURNS="${2:-}"; shift 2 ;;
     --max-duration) MAX_DURATION="${2:-}"; shift 2 ;;
     --min-coverage) MIN_COVERAGE="${2:-}"; shift 2 ;;
-    --codex)        CODEX="on";  shift ;;
+    --codex)        DEPRECATED_CODEX_FLAG="true"; shift ;;
     --worker=*) FAST_WORKER_OVERRIDE="${1#--worker=}"; shift ;;
     --smoke)        SAW_SMOKE="true";    shift ;;
     --no-smoke)     SAW_NO_SMOKE="true"; shift ;;
@@ -44,6 +44,14 @@ while [ "$#" -gt 0 ]; do
     *)              [ -z "$CHANGE_ID" ] && CHANGE_ID="$1"; shift ;;
   esac
 done
+
+if [ "$DEPRECATED_CODEX_FLAG" = "true" ]; then
+  echo "# schema=v1"
+  echo "STATUS=error"
+  echo "DEPRECATED_CODEX_FLAG=true"
+  echo "MESSAGE=--codex is retired and blocked; use --worker=codex for an explicit Codex CLI worker or a named owner's --second-opinion=codex-exec for an additive second opinion"
+  exit 0
+fi
 
 # Flag precedence: --no-smoke > --smoke > auto
 if [ "$SAW_NO_SMOKE" = "true" ]; then
@@ -55,7 +63,7 @@ else
 fi
 
 if [ -z "$CHANGE_ID" ]; then
-  echo "Usage: /dhpk:dhpk-opsx-apply-goal <change-id> [--turns N] [--max-duration <Nm|Nh>] [--min-coverage N] [--codex] [--smoke|--no-smoke] [--dry-run]" >&2
+  echo "Usage: /dhpk:dhpk-opsx-apply-goal <change-id> [--turns N] [--max-duration <Nm|Nh>] [--min-coverage N] [--worker=<claude|codex|agy|auto>] [--smoke|--no-smoke] [--dry-run]" >&2
   echo "Example: /dhpk:dhpk-opsx-apply-goal fix-spec-select-empty-gplist-overflow" >&2
   exit 2
 fi
@@ -131,7 +139,6 @@ echo "DONE_TASKS=$DONE_TASKS"
 echo "TURN_BUDGET=$TURN_BUDGET"
 echo "TURN_BUDGET_SOURCE=$( [ -n "$CUSTOM_TURNS" ] && echo flag || echo formula )"
 echo "SMOKE_FLAG=$SMOKE_FLAG"
-echo "CODEX=$CODEX"
 echo "DRY_RUN=$DRY_RUN"
 echo "MAX_DURATION=${MAX_DURATION:-}"
 echo "MIN_COVERAGE=${MIN_COVERAGE:-}"

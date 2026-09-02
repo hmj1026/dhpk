@@ -32,7 +32,10 @@ If endpoint configuration is absent, use L1. If the allowlist is absent, skip P3
 | Blocked | Regression fails, a regression is detected, or metric labels are wrong |
 | Inconclusive | Evidence is unavailable or insufficient |
 
-High requires L3/L4 evidence and Claude/Codex agreement. Medium applies to API-only, observation-only, or partial agreement. Low applies to L1 or divergent conclusions.
+High requires L3/L4 evidence and agreement between the primary model and an
+independent reviewer. Medium applies to API-only, observation-only, partial
+agreement, or a primary-only degraded result. Low applies to L1 or divergent
+conclusions.
 
 ## Production Guardrails
 
@@ -50,7 +53,8 @@ High requires L3/L4 evidence and Claude/Codex agreement. Medium applies to API-o
 - [ ] P3 calls allowlisted, read-only, sequential, and evidenced; or correctly skipped
 - [ ] P4 correlation/window scan/passive checks completed where available
 - [ ] P4 observation window and blind spots documented
-- [ ] P5 Claude and Codex conclusions formed independently
+- [ ] P5 primary and independent-reviewer conclusions formed independently, or
+  the primary-only degraded state is recorded
 - [ ] Integrated verdict and confidence supported by evidence
 - [ ] Report follows `output-template.md`
 

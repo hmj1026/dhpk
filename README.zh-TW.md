@@ -23,8 +23,7 @@ OpenSpec 是**可選的外部整合**——若需要 OpenSpec 工作流指令，
 | `python3` | 啟用 `modules` 時為必要 | 為選用模組啟用與路由解析 `module.yaml` |
 | `jq` | 選用（有 python3 後援） | 較快的 JSON payload 擷取 |
 | `docker` | 選用 | 僅由以 `userConfig.docker_containers` 明確註冊的 Docker workflow 使用 |
-| Codex MCP server | 選用 | 僅在你使用 9 個 MCP-backed `codex-*` skill、frozen compatibility family 的 8 個 `/dhpk:codex-*` 指令（只有 canonical `codex-review` 直接宣告 MCP tools；其餘是 forwarding alias），或啟用 `CODEX=on` 時才需要——透過將 Claude Code 指向 Codex CLI 的 `codex mcp-server` 子指令來註冊，見 [`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕) |
-| Codex CLI 執行檔 | 選用 | 僅在執行 `install-codex-skills.sh` 且希望 Codex 真正載入同步內容時才需要 |
+| Codex CLI 執行檔 | 選用 | 只有使用 CLI-backed role/review、`codex exec` 第二意見，或執行 `install-codex-skills.sh` 且希望 Codex 載入同步內容時才需要 |
 | Cursor | 選用 | 僅在執行 `install-cursor-harness.sh` 且希望 Cursor 載入專案本地 `.cursor/` harness 時才需要 |
 | `cx` CLI | 選用 | 語意化程式碼導覽。`rules/tool-routing.md` 將 `cx overview` / `cx definition` / `cx references` 列為首選工具；6 個 reviewer agent 與 `harness-fill` skill 會引用。未安裝時 → 降級為 `Grep` / `Read`。 |
 | `gitnexus` MCP server | 選用 | 知識圖譜查詢（`gitnexus_impact`、`gitnexus_rename`、`gitnexus_detect_changes`）。6 個 `gitnexus-*` skill 以及 `rules/execution-policy.md` 的 self-check 會用到。未安裝時 → 降級為 `cx` 或 `Grep`。 |
@@ -47,7 +46,9 @@ claude plugin install dhpk@dhpk --config modules=php-8.x,laravel-11 --config hoo
 install 套用已量測、discovery 前的邊界，請使用基本操作指南 Path B 的
 `scripts/install.sh`；它會實體化並安裝 `dhpk@dhpk-profile-minimal`。
 
-**需求**：Claude Code 2.x。Codex MCP 為**選用**——它驅動 `codex-*` skill/指令與 `CODEX=on` 雙助理路徑；其餘一切皆 Codex-free。設定與驗證見 [`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕)。
+**需求**：Claude Code 2.x。目前 dhpk workflow 預設不需要 Codex。選用的
+Codex CLI 與外部 app-server 整合見[Codex integration surfaces](#codex-整合面)
+及 [`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md)。
 
 安裝後隨時可用 `/dhpk:setup` 重新設定（或 `/dhpk:setup --show` 印出目前生效設定）。完整安裝路徑（GitHub vs. 本地 clone）、更新／移除、疑難排解請見 **[`docs/basic-operations.zh-TW.md`](./docs/basic-operations.zh-TW.md)**。完整 `--config` 旋鈕參考見 **[`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md)**。
 
@@ -57,7 +58,7 @@ install 套用已量測、discovery 前的邊界，請使用基本操作指南 P
 |------|----:|------|
 | Agents | Role-based agents | Sentinel 驅動的 reviewer，以及架構、測試、安全、文件、平台與 runtime 等情境型角色。 |
 | Commands | 已註冊的 command surface | `/dhpk:do`、`/dhpk:codex-review`、`/dhpk:precommit`、`/dhpk:setup`、`/dhpk:review-pending`、`/dhpk:smart-commit`、`/dhpk:opsx-apply-resume`、`/dhpk:harness-audit`、`/dhpk:harness-govern`、`/dhpk:ui-ux-verify` 等 |
-| Canonical skills | 102 個扁平 `dhpk-*` package | 每個 capability 只有一個具名 package，來源固定在 `skills/dhpk-*/`；內部 runtime package 不可呼叫，module 與 Codex 專案面只做 projection，不是第二份來源。 |
+| Canonical skills | 101 個扁平 `dhpk-*` package | 每個 capability 只有一個具名 package，來源固定在 `skills/dhpk-*/`；內部 runtime package 不可呼叫，module 與 Codex 專案面只做 projection，不是第二份來源。 |
 | 技術棧模組 | 可選技術棧模組 | PHP、Yii、PHPUnit、Laravel、JavaScript、Vue、Laravel Mix、Next.js、React、Python、`library-author` 與 iOS/Swift 模組 |
 | Hooks | 4 個事件 | PreToolUse（Edit guard 與合併 Bash safety/Git gate）、PostToolUse（sentinel routing）、SessionStart（module activation）、SubagentStop（strict reviewer reconciliation） |
 | Hook dispatchers | 2 | `post-edit-dispatch.sh` 負責 sentinel routing；`pre-bash-dispatch.sh` 合併 deterministic shell 與 Git/review-debt gate |
@@ -120,26 +121,34 @@ Claude 的預設 discovery artifact 是由 distribution inventory 產生的實�
 profile artifact。Agent Plugin 與 Cursor 的發布 membership 維持不變；source
 tree 仍是 authoring tree。
 
-## Codex 支援的 skill 與指令
+## Codex 整合面
 
-dhpk 的核心——hooks、sentinel reviewers、Smart Router，以及非 Codex workflow skill——皆為 Codex-free。`codex-*` 家族委派給 OpenAI 的 Codex 取得第二意見。它們的 `mcp__codex__codex` / `mcp__codex__codex-reply` 工具來自**直接註冊** Codex CLI 自身的 `codex mcp-server` 子指令為 MCP server（`claude mcp add --transport stdio codex -- codex mcp-server`）——**並非**來自安裝 `openai/codex-plugin-cc` plugin（那是另一個獨立的 Codex surface，不會註冊任何 MCP server）。完整註冊步驟與 plugin-vs-MCP-server 對照見 [`docs/configuration.zh-TW.md` 的運作原理說明](./docs/configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕)。
+dhpk 的核心——hooks、sentinel reviewers、Smart Router 與 workflow
+skill——不需要 Codex MCP server。選用的 Codex 整合是彼此分離、責任清楚的
+surface：
 
-| Surface | 名稱 | 需要 | 缺少時 |
-|---------|------|------|--------|
-| 9 個 skill | `dhpk-codex-architect`（含 `--mode adversarial`） · `dhpk-codex-implement` · `dhpk-change-review`（inventory ID：`codex-code-review`） · `dhpk-doc-review` · `dhpk-test-review` · `dhpk-codebase-exploration` · `dhpk-feature-verify` · `dhpk-issue-analyze` · `dhpk-feasibility-study` | Codex MCP（`mcp__codex__codex`、`mcp__codex__codex-reply`） | 工具權限錯誤——無自動 fallback；請明確呼叫 skill 或改用下方的 Codex-free 對應品。九者在 capability migration 前皆凍結為 `explicit-only`。 |
-| 1 個 backend | `dhpk-change-review --backend cli` | 僅需 Codex CLI 執行檔（透過 hardened wrapper shell out） | `codex: command not found`；改用 MCP backend 或 sentinel `code-reviewer` |
-| 8 個指令 | `/dhpk:codex-review`、`/dhpk:codex-review-branch`、`/dhpk:codex-review-doc`、`/dhpk:codex-review-fast`、`/dhpk:codex-security`、`/dhpk:codex-test-gen`、`/dhpk:codex-test-review`、`/dhpk:review-spec` | Frozen compatibility family；canonical `codex-review` 路徑使用 Codex MCP，其餘為 forwarding alias（`codex-test-gen` 會導向 Codex-free TDD） | 轉送目標需要 MCP 時會出現工具權限錯誤——這個 frozen family 是 `explicit-only`；視情況改用 `/dhpk:do`（Codex-free）、`/dhpk:precommit` 或 sentinel review hooks。 |
-| `CODEX=on` / `/dhpk:do --codex` | Implementation dispatch 的 legacy MCP-peer 路徑 | Codex MCP | peer step 仍是 opt-in；缺少依賴時可退回 Codex-free dispatch。它不會被重新解讀為 CLI `codex exec`、`--worker=codex`、`--reasoner=codex` 或外部 app-server plugin。 |
+| Surface | 名稱／入口 | 需要 | 失敗或邊界 |
+|---------|----------|------|----------|
+| CLI-only Codex path | `codex-code-review --backend cli`；同族 role：`codex-worker`、`codex-reasoner`、`codex-reviewer`、`dhpk-codex-bridge` | Codex CLI 執行檔與 hardened wrapper 的 Bash shell-out；不需要 MCP server | 缺少 `codex` 時回報 optional backend 不可用；預設仍使用 current-model path |
+| 外部 app-server plugin | `openai/codex-plugin-cc` 與其 `/codex:*` 指令 | 明確安裝外部 plugin；它驅動 `codex app-server` | 與 dhpk skill、CLI review 及已退休的 MCP 機制彼此獨立 |
+| 歷史上的已退休 MCP | `mcp__codex__codex`、`mcp__codex__codex-reply` 與 `codex mcp-server` | 本次 migration 已退休；目前沒有 dhpk capability 需要或建議它 | 僅供歷史說明。見[retirement ledger](./docs/skill-platform-migration.zh-TW.md#alias-free-codex-mcp-retirement-ledger)與[capability-parity matrix](./docs/codex-mcp-capability-parity.md)了解各 capability 的 successor |
 
-`/dhpk:check-coverage` 仍是 explicit-only 的 legacy alias，但不屬於 frozen
-八指令 family，也不計入該數字。九個 skill 與八個指令仍可用其 exact name
-直接呼叫；重新分類只停止自動／預設路由。Migration plan 是在 migration
-window 期間保留這些 compatibility entrypoint，於後續 capability-migration
-change 將能力移至 backend-neutral route，待 successor 存在後才撤除 MCP grant。
+上表的 MCP 列是歷史資料，不是設定路徑。它記錄過去退休的 Codex-backed
+route 使用過的 transport，以及 capability 現在移到哪個 backend-neutral owner。
+目前沒有任何 dhpk skill 或 command 依賴該 server；parity matrix 記錄每項能力保留的
+CLI、current-model 或 isolated-review 行為。
 
-Codex-free 對應品：`dhpk-security-review` ↔ `/dhpk:codex-security`、`dhpk-codebase-exploration` ↔ `dhpk-change-review`、sentinel reviewer agents ↔ `dhpk-change-review`，以及 `/dhpk:do`（預設 Codex-free；`--codex` 才啟用）。`/dhpk:create-dev` 保留為相容性 alias。
+`CODEX=on` 與 `/dhpk:do --codex` 是已移除的 legacy MCP-peer interface，不是
+`codex exec`、`--worker=codex`、`--reasoner=codex` 或外部 app-server plugin 的 alias。
+目前請使用一般 `/dhpk:do` 或 `dhpk-implement` 走 current-model implementation；需要
+外部 CLI role 時明確選 `--worker=codex` 或 `--reasoner=codex`；支援的 migrated skill
+若需要第二意見，則明確指定 `codex exec`。legacy flag 只會產生 deprecation diagnostic，
+不會選到 hidden backend。
 
-一次性設定：以 `claude mcp add --transport stdio codex -- codex mcp-server` 註冊 Codex MCP server，再用 `claude mcp list` 與 `/mcp` 驗證（找到已連線的 `codex` 項目）。完整驗證步驟、MCP-vs-Skill surface 區別，以及獨立的 `openai/codex-plugin-cc` 協作 surface：**[`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕)** / **[`docs/basic-operations.zh-TW.md`](./docs/basic-operations.zh-TW.md#codex-雙助理協作)**。
+過去 `/dhpk:codex-security` 的語義現在由 backend-neutral security-review owner 與
+一般 router 負責；過去的 review family 若需要 CLI review，請使用
+`dhpk-change-review --backend cli`。兩者都不會抵達已退休的 MCP server。完整九項 identity
+的 retirement 與 rollback ledger 見 migration guide。
 
 ## 外部 code-navigation 工具
 
@@ -268,7 +277,15 @@ Statusline 會渲染 `[branch] +staged ~modified | docker:status | profile=<p> |
 
 ## 同步 Codex CLI 內容
 
-適用於同時使用 Claude Code 與獨立 Codex CLI 的專案（與上方的 Codex MCP 依賴是兩回事——這條路徑不需要任何 MCP server），支援路徑是 `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"`。預設 hybrid projection 讓 skill/supporting asset 連回 plugin root，但 agent TOML 一律 materialize 為實體檔；`--copy` 則是整體實體化的可攜 fallback。它會把明確策展的 Codex projection 放進專案 `.codex/`。[issue #88](https://github.com/hmj1026/dhpk/issues/88) 的乾淨安裝 materialization 驗證目前已對正式實體 package 通過；Codex Plugin Marketplace 仍維持實驗性，直到另有獨立的 graduation 決策。完整政策與說明見 **[`docs/basic-operations.zh-TW.md`](./docs/basic-operations.zh-TW.md#同步-codex-cli-內容)**。
+適用於同時使用 Claude Code 與獨立 Codex CLI 的專案（與上方已退休的 MCP 機制不同，
+這條路徑不需要 MCP server），支援路徑是 `bash
+"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"`。預設 hybrid
+projection 讓 skill/supporting asset 連回 plugin root，但 agent TOML 一律 materialize
+為實體檔；`--copy` 則是整體實體化的可攜 fallback。它會把明確策展的 Codex projection
+放進專案 `.codex/`。[issue #88](https://github.com/hmj1026/dhpk/issues/88) 的乾淨安裝
+materialization 驗證目前已對正式實體 package 通過；Codex Plugin Marketplace 仍維持
+實驗性，直到另有獨立的 graduation 決策。完整政策與說明見
+**[`docs/basic-operations.zh-TW.md`](./docs/basic-operations.zh-TW.md#同步-codex-cli-內容)**。
 
 ## 同步 Cursor project-local harness
 
@@ -293,7 +310,7 @@ dhpk/
 │   └── plugin.json               # 含 userConfig 的插件 manifest
 ├── agents/                       # 36 個角色 agent（35 root + 1 模組 reviewer；INDEX.md 為導覽用）
 ├── commands/                     # slash 指令（do、review、setup、codex-*、smart-commit、opsx-apply-resume 等；create-dev 為相容性 alias）
-├── skills/                       # SSOT：102 個扁平 canonical skill，皆為 skills/dhpk-<name>/
+├── skills/                       # SSOT：101 個扁平 canonical skill，皆為 skills/dhpk-<name>/
 ├── templates/                    # hook 引導用範本（graduation-candidates.md — 首次 graduation 執行時複製到 .claude/artifacts/）
 ├── modules/                      # 31 個可選用模組；skills/ 項目為相對 symlink projection
 │   ├── php-5.6/, php-7.4/, php-8.x/        # {module.yaml, skills/, references/, hooks/（僅 php-7.4）}

@@ -1,11 +1,11 @@
-# Codex Prompt: Branch Review
+# Review Prompt: Branch Review
 
 <!-- Research block source of truth: @codex-research-instructions.md (Standard Research Block) -->
 
-Used with `mcp__codex__codex`:
+Primary reviewer input:
 
 ```typescript
-mcp__codex__codex({
+review({
   prompt: `You are a senior Code Reviewer. Comprehensively review all changes in this feature branch.
 
 ## Branch Info

@@ -1,30 +1,35 @@
-# Codex Prompt: OWASP Security Review
+# OWASP Security Review Prompt Contract
 
 <!-- Research block source of truth: skills/dhpk-change-review/references/codex-research-instructions.md (Variant: Security Review) -->
 
-## First Review Prompt
+This reference defines the prompt contract shared by the current-model primary
+review and an explicitly requested CLI second opinion. The primary review does not
+depend on an external transport. A CLI invocation is one-shot, read-only, and must
+receive a self-contained prompt; it has no reply-thread continuation.
 
-Used with `mcp__codex__codex`:
+## Primary Review Prompt
 
-```typescript
-mcp__codex__codex({
-  prompt: `You are a senior security expert. Perform an OWASP Top 10 security review on the following code.
+Use this prompt in the primary review context after substituting `SCOPE` and
+`CODE_CHANGES`:
+
+````text
+You are a senior security expert. Perform an OWASP Top 10 security review on the following code.
 
 ## Review Scope
 ${SCOPE}
 
 ## Code Changes
-\`\`\`diff
+```diff
 ${CODE_CHANGES}
-\`\`\`
+```
 
-## ⚠️ Important: You must independently research the project ⚠️
+## Independent project research
 
 Security review requires full context understanding. Proactively research:
-- Search auth-related code: \`grep -r "auth\\|token\\|session" src/ -l | head -10\`
-- Check input validation: \`grep -r "@Body\\|@Query\\|@Param" src/ -A 5 | head -50\`
-- Check sensitive operations: \`grep -r "password\\|secret\\|key" src/ -l\`
-- Read related files: \`cat <file-path> | head -100\`
+- Search auth-related code: `rg -n "auth|token|session" src/ -l | head -10`
+- Check input validation: `rg -n "@Body|@Query|@Param" src/ -A 5 | head -50`
+- Check sensitive operations: `rg -n "password|secret|key" src/ -l`
+- Read related files with bounded output, for example: `sed -n '1,100p' <file-path>`
 
 ## OWASP Top 10 Checklist
 
@@ -85,31 +90,27 @@ Security review requires full context understanding. Proactively research:
 - **Test**: How to verify the fix
 
 ### Gate
-- ✅ Mergeable: No P0
-- ⛔ Must fix: Has P0`,
-  sandbox: 'read-only',
-  'approval-policy': 'never',
-});
-```
+- Mergeable: No P0
+- Must fix: Has P0
+- Unknown or unavailable evidence: state the limitation and keep the gate explicit
+````
 
-## Re-review Prompt
+## Optional CLI Second-Opinion Prompt
 
-Used with `mcp__codex__codex-reply`:
+Only when the caller explicitly selects `--second-opinion=codex-exec`, pass a
+self-contained version of the primary prompt to the approved one-shot `codex exec`
+CLI transport in read-only mode. The CLI result is an additional labeled source,
+not a replacement for the primary review. Do not pass the primary conclusion, and
+do not create a continuation/reply request.
 
-```typescript
-mcp__codex__codex-reply({
-  threadId: '<from --continue parameter>',
-  prompt: `I have fixed the previously identified security issues. Please re-review:
+The caller must record:
 
-## New Code Changes
-\`\`\`diff
-${CODE_CHANGES}
-\`\`\`
+- the explicit option that enabled the invocation;
+- the scope and change snapshot supplied to the CLI;
+- the CLI exit status and bounded, redacted result;
+- disagreements between the primary and CLI findings; and
+- the final gate and any degradation reason.
 
-Please verify:
-1. Have previous P0/P1 security issues been correctly fixed?
-2. Did the fixes introduce new security issues?
-3. Do the fixes follow security best practices?
-4. Update Gate status`,
-});
-```
+If the option is absent or the CLI is unavailable, report exactly:
+`degraded: primary model only — Only the primary model's verdict is present; no
+independent review ran.`

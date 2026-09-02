@@ -1,6 +1,6 @@
 interface:
-  display_name: "Codex Code Review"
-  short_description: "Code review using Codex MCP."
-  default_prompt: "Use $dhpk-change-review to apply the Codex Code Review workflow with its verification rules."
+  display_name: "Change Review"
+  short_description: "Portable code review with fixed-point and dual-axis gates."
+  default_prompt: "Use $dhpk-change-review to apply the Change Review workflow with its verification rules."
 policy:
   allow_implicit_invocation: false

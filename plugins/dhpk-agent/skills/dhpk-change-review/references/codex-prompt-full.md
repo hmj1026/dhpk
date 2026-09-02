@@ -1,11 +1,11 @@
-# Codex Prompt: Full Review (with Local Checks)
+# Review Prompt: Full Review (with Local Checks)
 
 <!-- Research block source of truth: @codex-research-instructions.md (Standard Research Block) -->
 
-Used with `mcp__codex__codex`:
+Primary reviewer input:
 
 ```typescript
-mcp__codex__codex({
+review({
   prompt: `You are a senior Code Reviewer. Perform a comprehensive review of the code changes in this project.
 
 ## Local Check Results

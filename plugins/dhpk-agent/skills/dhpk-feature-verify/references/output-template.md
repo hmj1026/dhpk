@@ -96,7 +96,7 @@
 
 | Blind Spot | Description | Recommended Coverage |
 | ---------- | ----------- | -------------------- |
-| [type] | [description] | `/codex-test-review` |
+| [type] | [description] | `/dhpk:dhpk-test-review` |
 
 ## P5: Verdict
 
@@ -109,22 +109,25 @@
 | Time-Window | ✅ | 0 related errors |
 | L2-OBS Window | ✅/N/A | [window source + findings] |
 
-### Claude's Analysis
+### Primary Model's Analysis
 
 - Findings: [list with evidence]
 - Assessment: [hypothesis]
 
-### Codex's Review
+### Independent Review (if explicitly requested)
 
-- Agreement: [what Codex confirms]
-- Challenges: [what Codex questions]
+- Agreement: [what the independent reviewer confirms]
+- Challenges: [what the independent reviewer questions]
 - Blind spots identified: [list]
+
+If no second opinion ran, state: **Degraded — only the primary model's verdict
+is present; no independent review ran.**
 
 ### Integrated Verdict
 
 - **Final Verdict**: ✅ Pass / ⚠️ Warn / ⛔ Blocked / ❓ Inconclusive
 - **Confidence**: High / Medium / Low
-- **High confidence findings**: [agreed by both]
+- **High confidence findings**: [agreed by both, when an independent review ran]
 - **Needs further investigation**: [areas of disagreement]
 
 ## Recommendations
@@ -146,5 +149,5 @@
 > **⚠️ Redaction required**: Before including raw commands/responses, strip all auth tokens, API keys, session cookies, and PII (user IDs, emails, names). Replace with `[REDACTED]`.
 
 - Raw curl commands (auth headers redacted) and responses (if needed)
-- Codex brainstorm transcript summary
+- Independent-review summary, if explicitly requested
 ```

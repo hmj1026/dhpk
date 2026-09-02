@@ -221,7 +221,7 @@ or partial CI is not completion. Required consumer evidence marked `NOT RUN` or
 | The same reasoning-heavy work, offloaded to the codex CLI backend (read-only sandbox) — **codex CLI available**. Selected per invocation by `--reasoner=codex` or the `codex_reasoner_model`/`codex_reasoner_effort` userConfig chain (default `gpt-5.6-sol` @ `high`); same reasoning brief, same conclusion contract. Missing-executable fallback to `deep-reasoner` is the only silent substitution — auth/model/task failures stay `RESULT: BLOCKED`. | `codex-reasoner` (canonical role ID; legacy alias: `codex-deep-reasoner`) |
 | Mechanical with a clear spec (boilerplate, test scaffolds, rename sweeps, multi-file doc-consistency fixes of ≥3 files, applying an already-approved plan) | `fast-worker` |
 | Judgment-dense but standardizable work touching more than two files (bounded documentation migration, bilingual restructuring, or a known review-fix batch) | In-process `fast-worker` by default |
-| The same mechanical clear-spec work, offloaded to the codex CLI backend — **codex CLI available**. Selected by an invocation override, explicit configuration, or as an available candidate in configured `auto` order; independent of the separate `CODEX` review-peer switch. | `codex-worker` (canonical role ID; legacy alias: `codex-fast-worker`) |
+| The same mechanical clear-spec work, offloaded to the codex CLI backend — **codex CLI available**. Selected by an invocation override, explicit configuration, or as an available candidate in configured `auto` order; the retired `CODEX=on`/`--codex` review-peer flags cannot select it. | `codex-worker` (canonical role ID; legacy alias: `codex-fast-worker`) |
 | The same mechanical clear-spec work, offloaded to the agy CLI backend — **agy CLI available** only. Selected by explicit configuration or as an available candidate in configured `auto` order. | `agy-worker` (canonical role ID; legacy alias: `agy-fast-worker`) |
 | Small diff (roughly ≤2 files, unambiguous intent) | Inline in the main loop — no dispatch |
 | Complex implementation (needs both reasoning and mechanical application) | `deep-reasoner` produces the fix spec (conclusion contract) → `fast-worker` applies it |
@@ -232,7 +232,7 @@ or partial CI is not completion. Required consumer evidence marked `NOT RUN` or
 | RED Vitest/Jest unit/integration test authored test-first — same semantics as the RED PHPUnit row: `e2e-runner` is Playwright-journey-scoped, read-only `deep-reasoner` can't run it, and `fast-worker`'s "make verification pass" contract conflicts with a deliberately-failing RED test; inline permitted when the step's whole footprint is ≤2 files | `tdd-guide` |
 | A read-only, scenario-driven live-runtime probe (drive the real running system with one concrete scenario, observe rather than infer) — distinct from `e2e-runner` (authors/runs Playwright specs, write-capable, web-scoped) and the `feature-verify` skill (main-context, heavyweight P0–P5 scope, not a dispatchable isolated agent) | `dhpk:smoke-tester` |
 | Plan critique / blind-sketch / dual-plan before implementation, or a warm diff review at task end | `dhpk:planner` — optional via `/dhpk:do --plan` on implementation-class routes; mandatory before an OpenSpec apply with two or more unchecked tasks |
-| Independent second opinion, or an offloaded self-contained clear-spec task — explicit CLI route, separate from the legacy MCP peer | `codex-bridge` (subagent; one-shot bash `codex exec`, output isolated + relayed verbatim; mode-qualified alias for `codex-reviewer` or `codex-worker`) |
+| Independent second opinion, or an offloaded self-contained clear-spec task — explicit CLI route, separate from the retired `--codex` flag | `codex-bridge` (subagent; one-shot bash `codex exec`, output isolated + relayed verbatim; mode-qualified alias for `codex-reviewer` or `codex-worker`) |
 | Live CI/deploy verification (`gh run watch`, run-log triage, retry babysitting) — main context keeps only merge/fix decisions | `dhpk:smoke-tester` (read-only probe) or background `fast-worker` |
 
 For a parallel mechanical batch, every worker task spec MUST declare `Parallel: yes`, exact assigned repo-relative files, per-file intent, and either a path-scoped verification command or an explicit report-only outcome. The assigned list is the worker's authoritative write, diff, and verification boundary. New files must be listed before dispatch; workers must stop with `BLOCKED` rather than expand scope.
@@ -261,12 +261,12 @@ authorization, model, task, execution, and verification failures remain
 Every fast-worker report includes requested backend, selected backend, any
 fallback reason, model/effort, effective Codex timeout budget/source when the
 Codex backend is selected, verification result, and the complete edited-file
-list. Worker-backend selection is independent of the `CODEX` review-peer switch:
-`CODEX=off` disables the legacy MCP-peer doubt/review path, but does not remove
-an available `codex-worker` or `codex-reasoner` CLI backend. The explicit
-`codex-bridge` route remains a separate `codex exec` transport. An explicit
-backend request is blocked only by selector availability/fallback rules, never
-silently downgraded.
+list. Worker-backend selection is independent of the retired `CODEX` flag:
+`CODEX=on` and `CODEX=off` no longer select a review peer or alter worker
+selection. Use `--worker=codex` to select the retained Codex CLI worker, or use
+`--reasoner=codex` for a read-only reasoning pass. The explicit `codex-bridge`
+route remains a separate `codex exec` transport. An explicit backend request is
+blocked only by selector availability/fallback rules, never silently downgraded.
 
 ### Reasoner backend selector
 
@@ -285,27 +285,37 @@ failures remain `RESULT: BLOCKED` on the selected backend — never silently swi
 
 **Repository Discovery Gate**: before finalizing new DB, SQL, query-builder, criteria, model-persistence, or repository-like code, inspect and follow the established persistence boundary. Explicit project hard rules cannot be deferred; compliance is required unless the human records a human-approved exception. Full mechanics: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/implementation-dispatch.md`.
 
-**Operational detail** (posture rationale, the ≤2-files measurement, `general-purpose` prohibition, gate-preservation back-stop, verify-worker-output cross-check, phase scoping, the premise-verification trio, kill switch, CODEX peer path): load `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/implementation-dispatch.md` when dispatching implement-phase work.
+**Operational detail** (posture rationale, the ≤2-files measurement, `general-purpose` prohibition, gate-preservation back-stop, verify-worker-output cross-check, phase scoping, the premise-verification trio, kill switch, and explicit second-opinion path): load `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/implementation-dispatch.md` when dispatching implement-phase work.
 
-### Legacy `CODEX=on` / `/dhpk:do --codex` MCP-peer interface
+### Retired `CODEX=on` / `/dhpk:do --codex` interface
 
-`CODEX=on` and `/dhpk:do --codex` are legacy, per-session opt-in controls for
-the in-session MCP peer. They remain available during the compatibility window
-while the capability-migration successor is prepared, but they are not aliases
-for CLI `codex exec`, `--worker=codex`, `--reasoner=codex`, or the external
-`openai/codex-plugin-cc` app-server integration. New work should use the default
-Codex-free `/dhpk:do` route; choose `--worker=codex` or `--reasoner=codex` when
-the retained Codex CLI transport is the deliberate backend, and invoke
-`codex-bridge` only for its explicit `codex exec` contract. Capability
-migration must land before the frozen MCP grants are retired.
+`CODEX=on` and `/dhpk:do --codex` are retired per-session flags. The parser
+removes the flag from the query, emits `DEPRECATED_CODEX_FLAG`, and stops with
+`blocked`; it never selects a peer, worker, reasoner, `codex exec` route, or
+app-server plugin. There is no hidden fallback. Exact replacements are:
 
-### CODEX=on high-stakes parallel peer path
+- Use the default Codex-free `/dhpk:do <task>` route for normal work.
+- Use `/dhpk:do --worker=codex <task>` for an explicitly selected Codex CLI
+  mechanical worker.
+- Use `/dhpk:do --reasoner=codex[:<model>[:<effort>]] <task>` for an explicitly
+  selected Codex CLI reasoning pass.
+- Use a named owner's `--second-opinion=codex-exec` option, or the explicit
+  `codex-bridge` route, for an additive one-shot `codex exec` second opinion.
+- Invoke the external `openai/codex-plugin-cc` app-server commands directly;
+  `/dhpk:do` does not translate this retired flag into that plugin.
 
-Under the legacy `CODEX=on` MCP-peer path, high-stakes decisions use an
-independent blind Codex peer. Triggers include a first-seen query/repository
-pattern, framework-internal hack, or explicit-rule deferral. At wrap-up, a
-session that dispatched `codex-bridge` 0 times reconciles that outcome. Full triggers
-and mechanics: `${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/implementation-dispatch.md` §CODEX=on high-stakes parallel peer path.
+The flag's only supported outcome is the blocking deprecation diagnostic; users
+must choose one of the replacements above and rerun the task.
+
+### High-stakes second opinion after flag retirement
+
+High-stakes decisions may still request an independent blind perspective, but it
+must be named explicitly with `--second-opinion=codex-exec` or an isolated
+reviewer dispatch. Triggers include a first-seen query/repository pattern,
+framework-internal hack, or explicit-rule deferral. At wrap-up, a session that
+dispatched `codex-bridge` 0 times records that no independent CLI opinion ran;
+it does not infer one from the retired flags. Full triggers and mechanics:
+`${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/implementation-dispatch.md`.
 
 ## Multi-AI independence and in-flight doubt
 
@@ -442,7 +452,7 @@ Before skipping any sentinel / TDD / reviewer mandated step, load `${CLAUDE_PLUG
 
 ## Git pipeline
 
-`feat|fix|docs|refactor/*` → `develop` → `master` (or your equivalent branching model). Standard flow: feature branch → `/codex-review-fast` → `/precommit` → `/pr-review` → PR. dhpk does **not** auto `git add/commit/push/stash` — invoke `/smart-commit` or `/precommit`.
+`feat|fix|docs|refactor/*` → `develop` → `master` (or your equivalent branching model). Standard flow: feature branch → `/dhpk:dhpk-change-review --backend cli` → `/precommit` → `/pr-review` → PR. dhpk does **not** auto `git add/commit/push/stash` — invoke `/smart-commit` or `/precommit`.
 
 **Shell trap**: this policy's shell is zsh, where `status` is a read-only variable — use `st=` / `rc=` for captured exit codes, never `status=`. Words beginning with `=` trigger zsh `=cmd` path expansion (an unquoted `==` yields `== not found`) — quote `=`-leading words. **PR self-merge is classifier-blocked** — never attempt `gh pr merge --admin` or remote branch deletion; hand off to a human.
 

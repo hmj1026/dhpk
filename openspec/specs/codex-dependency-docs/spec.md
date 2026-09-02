@@ -2,43 +2,50 @@
 
 ## Purpose
 TBD - created by archiving change readme-doc-optimization. Update Purpose after archive.
+
 ## Requirements
+
 ### Requirement: Codex surfaces are documented per-surface with accurate dependencies
 
-`README.md` SHALL document the Codex integration as four distinct surfaces in a single table — MCP-backed skills (3: `dhpk-codex-architect`, including adversarial mode, `dhpk-codex-implement`, and `dhpk-change-review`), the CLI-only `dhpk-change-review --backend cli` path (which shells out to the `codex` binary and needs no MCP server), the 7 MCP-backed `/dhpk:codex-*` commands, and the `CODEX=on` dispatch path — each row stating what the surface needs and what happens without it. No dhpk doc SHALL claim that 6 skills require the Codex MCP server. The table's mechanics statement MUST attribute the `mcp__codex__*` tools to direct `codex mcp-server` registration (see Requirement: Codex MCP server setup is documented accurately as direct registration), not to `openai/codex-plugin-cc`.
+`README.md` SHALL document the Codex integration as three distinct surfaces in a single table — the CLI-only `codex-code-review --backend cli` path (and its sibling CLI-backed roles: `codex-worker`, `codex-reasoner`, `codex-reviewer`, `dhpk-codex-bridge`), the external `openai/codex-plugin-cc` app-server plugin (`/codex:*` commands), and a historical note that Codex MCP (`mcp__codex__codex`/`mcp__codex__codex-reply`, `codex mcp-server`) was retired as of this change, with a pointer to the retirement ledger and the capability-parity matrix showing where each capability moved. No dhpk doc SHALL claim any active skill or command requires the Codex MCP server; the `CODEX=on` and `/dhpk:do --codex` legacy MCP-peer flags are documented as removed/replaced per their finalized deprecation plan, not silently reinterpreted.
 
 #### Scenario: Reader checks what the CLI review backend needs
 
-- **WHEN** a reader consults the README Codex section for `dhpk-change-review --backend cli`
-- **THEN** the table states it requires only the Codex CLI binary (Bash shell-out, no MCP server) and names the Codex-free sentinel `code-reviewer` as a fallback
+- **WHEN** a reader consults the README Codex section for `codex-code-review --backend cli`
+- **THEN** the table states it requires only the Codex CLI binary (Bash shell-out, no MCP server) and names the Codex-free fallback
 
 #### Scenario: Stale 6-skills claim is gone
 
-- **WHEN** `grep -rn "6 .codex" README.md README.zh-TW.md docs/configuration.md docs/configuration.zh-TW.md` runs (and the zh-TW equivalent phrasing `6 個`)
-- **THEN** no match asserts that 6 skills require the MCP server
+- **WHEN** `grep -rn "6 .codex\|3 .codex\|9 .codex" README.md README.zh-TW.md docs/configuration.md docs/configuration.zh-TW.md` runs for any stale MCP-backed-skill-count phrasing
+- **THEN** no match asserts any dhpk skill currently requires the Codex MCP server
 
 #### Scenario: Commands dependency is visible
 
 - **WHEN** a reader looks for whether `/dhpk:codex-security` needs the MCP server
-- **THEN** the README table's commands row lists all 7 `/dhpk:codex-*` commands as MCP-backed with their Codex-free alternatives
+- **THEN** the README table states this command's semantics were redirected to a backend-neutral skill with `--backend cli`, or documents its exact deprecation replacement, with no remaining MCP path
+
+#### Scenario: Reader checks whether `CODEX=on` is still the recommended path
+
+- **WHEN** a reader consults the README Codex section for `CODEX=on` or `/dhpk:do --codex`
+- **THEN** the table states this is a legacy MCP-peer interface with a published deprecation-and-replacement plan, not silently reinterpreted as CLI `codex exec`, worker/reasoner dispatch, or the external plugin
 
 ### Requirement: Degradation behavior is stated honestly
 
-The Codex section SHALL state that MCP-backed skills and commands fail with a tool-permission error when the upstream plugin is absent (no automatic fallback), SHALL map each Codex surface to its Codex-free counterpart (`security-review`, `code-explore`, sentinel reviewer agents, `create-dev` default path), and SHALL state that a missing `CODEX=on` dependency degrades silently to single-assistant dispatch.
+The Codex section SHALL state that no current dhpk skill or command depends on or invokes Codex MCP; the retired MCP surface is historical-only and has no automatic fallback path. It SHALL map each current Codex surface to its supported CLI/app-server or Codex-free counterpart (`codex exec`, `openai/codex-plugin-cc`, `security-review`, `code-explore`, sentinel reviewer agents, `create-dev` default path), and SHALL state when a missing optional dependency leaves a capability unavailable or degraded.
 
 #### Scenario: User without the Codex plugin reads the section
 
 - **WHEN** a user who has not installed `openai/codex-plugin-cc` reads the Codex section
-- **THEN** they learn invocation will surface a tool-permission error and which Codex-free counterpart to use instead
+- **THEN** they learn that no current invocation relies on the retired MCP surface, which supported CLI/app-server or Codex-free counterpart to use, and that no automatic MCP fallback is available
 
 ### Requirement: Requirements line appears at the point of install
 
-`README.md` SHALL carry a one-line **Requirements** statement immediately after the Install code block, declaring Codex MCP optional, everything else Codex-free, and linking to the setup/verification anchor `docs/configuration.md#codex-mcp-dependency-not-a-userconfig-knob`.
+`README.md` SHALL carry a one-line **Requirements** statement immediately after the Install code block, declaring current dhpk capabilities Codex-MCP-free and linking to the historical/retirement note at `docs/configuration.md#codex-mcp-dependency-not-a-userconfig-knob`.
 
 #### Scenario: New user evaluates install cost
 
 - **WHEN** a user reads the Install section top-to-bottom
-- **THEN** before reaching any workflow content they see the Requirements line stating Codex MCP is optional, with a working link to the configuration doc anchor
+- **THEN** before reaching any workflow content they see the Requirements line stating current capabilities do not require Codex MCP, with a working link to the historical configuration note
 
 ### Requirement: Badge block renders live values
 
@@ -61,30 +68,30 @@ Every change this capability introduces to `README.md` and `docs/configuration.m
 #### Scenario: zh-TW reader gets the same table
 
 - **WHEN** a reader opens `README.zh-TW.md` after the change lands
-- **THEN** the same four-surface Codex table, Requirements line, badge block, and CHANGELOG link are present, with links resolving to the zh-TW configuration doc anchor
+- **THEN** the same three-surface Codex table, retired-MCP historical note, Requirements line, badge block, and CHANGELOG link are present, with links resolving to the zh-TW configuration doc anchor
 
 ### Requirement: Codex MCP server setup is documented accurately as direct registration
 
-The README Codex table SHALL include a one-line statement naming the actual mechanism behind the `mcp__codex__codex` / `mcp__codex__codex-reply` tools: directly registering the Codex CLI's own `codex mcp-server` subcommand as an MCP server (e.g. `claude mcp add --transport stdio codex -- codex mcp-server`, or an equivalent manual `.mcp.json`/`.claude.json` entry). `docs/configuration.md` (and its zh-TW mirror) SHALL carry the full explanation — the `codex mcp-server` command, its two tools, and their configurable parameters — and SHALL document this registration as the setup step, not as an optional bypass of some other install method. No dhpk doc SHALL claim that installing `openai/codex-plugin-cc` registers an MCP server or otherwise provides the `mcp__codex__*` tools.
+`docs/configuration.md` (and its zh-TW mirror) SHALL retain, as historical reference only, the explanation of what `mcp__codex__codex`/`mcp__codex__codex-reply` were and how `codex mcp-server` registration worked, clearly labeled as retired and no longer required or recommended for any current dhpk capability. It SHALL NOT be presented as a current setup step.
 
 #### Scenario: Reader wants to understand what powers the codex-* skills' MCP tools
 
-- **WHEN** a reader follows the README's one-line mechanics aside to `docs/configuration.md`
-- **THEN** they find that `mcp__codex__codex` / `mcp__codex__codex-reply` come from registering `codex mcp-server` directly (not from `openai/codex-plugin-cc`), the two tools' names, and their configurable parameters (`approval-policy`, `sandbox`, `model`, `profile`, `cwd`)
+- **WHEN** a reader follows the README's historical-note link to `docs/configuration.md`
+- **THEN** they find that `mcp__codex__codex`/`mcp__codex__codex-reply` were provided by directly registering `codex mcp-server` (not by `openai/codex-plugin-cc`), with the two tools' names and configurable parameters (`approval-policy`, `sandbox`, `model`, `profile`, `cwd`), that this mechanism is retired, and a pointer to the parity matrix showing what replaced each capability
 
 #### Scenario: Reader sets up the Codex MCP dependency
 
-- **WHEN** a reader wants the `codex-*` skills' MCP tools available
-- **THEN** `docs/configuration.md` documents `claude mcp add --transport stdio codex -- codex mcp-server` (or equivalent manual config) as the setup step, `claude mcp list` to check status, and `/mcp` to verify inside a session — and does not present installing `openai/codex-plugin-cc` as sufficient for this
+- **WHEN** a reader searches `docs/configuration.md` for how to set up the Codex MCP server for a current dhpk capability
+- **THEN** they find no current setup instructions — only the historical note explaining the retired mechanism and pointers to the supported CLI (`codex exec`) and external-plugin (`openai/codex-plugin-cc`) alternatives
 
 ### Requirement: `openai/codex-plugin-cc` is documented as a separate, optional collaboration surface
 
-`docs/configuration.md` (and its zh-TW mirror) SHALL document `openai/codex-plugin-cc` (installed via `/plugin install codex@openai-codex`) as a genuinely separate, optional integration from the Codex MCP server: it drives the Codex CLI's distinct `app-server` subcommand through its own broker scripts (`scripts/app-server-broker.mjs`, `scripts/codex-companion.mjs`), not `mcp-server`, providing slash commands (`/codex:review`, `/codex:adversarial-review`, `/codex:rescue`, `/codex:transfer`, `/codex:status`, `/codex:result`, `/codex:cancel`, `/codex:setup`), a `codex-rescue` subagent, background job polling, a `codex resume <session-id>` transfer mechanism, and an optional Stop-hook review gate. The doc SHALL state plainly that installing this plugin does not register an MCP server and does not satisfy the MCP dependency dhpk's `codex-*` skills require.
+`docs/configuration.md` (and its zh-TW mirror) SHALL document `openai/codex-plugin-cc` (installed via `/plugin install codex@openai-codex`) as a genuinely separate, optional integration from the retired Codex MCP mechanism: it drives the Codex CLI's distinct `app-server` subcommand through its own broker scripts (`scripts/app-server-broker.mjs`, `scripts/codex-companion.mjs`), not `mcp-server`, providing slash commands (`/codex:review`, `/codex:adversarial-review`, `/codex:rescue`, `/codex:transfer`, `/codex:status`, `/codex:result`, `/codex:cancel`, `/codex:setup`), a `codex-rescue` subagent, background job polling, a `codex resume <session-id>` transfer mechanism, and an optional Stop-hook review gate. The doc SHALL state plainly that installing this plugin does not register or revive the retired MCP server mechanism and remains an optional collaboration surface for current workflows.
 
-#### Scenario: Reader installs the plugin expecting it to satisfy the codex-* skills' MCP dependency
+#### Scenario: Reader installs the plugin expecting it to replace the retired MCP mechanism
 
 - **WHEN** a reader has installed `openai/codex-plugin-cc` via `/plugin install codex@openai-codex` but has not separately registered `codex mcp-server`
-- **THEN** `docs/configuration.md` tells them the `mcp__codex__codex` tool is still unavailable, invoking a `codex-*` skill will surface a tool-permission error, and that the plugin and the MCP server registration are independent — a reader may have either, both, or neither installed
+- **THEN** `docs/configuration.md` tells them the `mcp__codex__codex` tool remains retired and unavailable as a current backend, that the app-server plugin is independent of the historical registration, and that no current dhpk skill requires either MCP setup or this optional plugin
 
 ### Requirement: Release history is linked from the README body
 
