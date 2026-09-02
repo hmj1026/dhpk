@@ -23,8 +23,7 @@ OpenSpec is an **optional external integration** — install the [OpenSpec plugi
 | `python3` | Required IF you enable `modules` | Parses `module.yaml` for opt-in module activation and routing |
 | `jq` | Optional (python3 fallback exists) | Faster JSON payload extraction |
 | `docker` | Optional | Used only by an explicitly registered Docker workflow with `userConfig.docker_containers` |
-| Codex MCP server | Optional | Required ONLY if you invoke the 3 MCP-backed `codex-*` skills, the 7 `/dhpk:codex-*` commands, or use `CODEX=on` — registered by pointing Claude Code at the Codex CLI's `codex mcp-server` subcommand, see [`docs/configuration.md`](./docs/configuration.md#codex-mcp-dependency-not-a-userconfig-knob) |
-| Codex CLI binary | Optional | Required ONLY if you run `install-codex-skills.sh` and want Codex to actually load the synced content |
+| Codex CLI binary | Optional | Required only for CLI-backed roles/reviews, `codex exec` second opinions, or `install-codex-skills.sh` when Codex should load the synced content |
 | Cursor | Optional | Required ONLY if you run `install-cursor-harness.sh` and want Cursor to load the project-local `.cursor/` harness |
 | `cx` CLI | Optional | Semantic code navigation. Primary tool in `rules/tool-routing.md` for `cx overview` / `cx definition` / `cx references`. Referenced by 6 reviewer agents and the `harness-fill` skill. Missing → falls back to `Grep` / `Read`. |
 | `gitnexus` MCP server | Optional | Knowledge-graph queries (`gitnexus_impact`, `gitnexus_rename`, `gitnexus_detect_changes`). Required by 6 `gitnexus-*` skills and the `rules/execution-policy.md` self-check. Missing → falls back to `cx` or `Grep`. |
@@ -43,7 +42,12 @@ claude plugin marketplace add hmj1026/dhpk
 claude plugin install dhpk@dhpk --config modules=php-8.x,laravel-11 --config hook_profile=standard
 ```
 
-**Requirements**: Claude Code 2.x. Codex MCP is **optional** — it powers the `codex-*` skills/commands and the `CODEX=on` dual-assistant path; everything else is Codex-free. Setup and verification: [`docs/configuration.md`](./docs/configuration.md#codex-mcp-dependency-not-a-userconfig-knob).
+The direct GitHub marketplace entry is the raw compatibility route. A clean
+default install that applies the measured pre-discovery boundary should use
+`scripts/install.sh` (Path B in the basic-operations guide), which materializes
+and installs `dhpk@dhpk-profile-minimal`.
+
+**Requirements**: Claude Code 2.x. Current dhpk workflows are Codex-free by default. Optional Codex CLI and external app-server integrations are documented in the [Codex integration surfaces](#codex-integration-surfaces) section and [`docs/configuration.md`](./docs/configuration.md#codex-mcp-dependency-not-a-userconfig-knob).
 
 Reconfigure any time with `/dhpk:setup` (or `/dhpk:setup --show` to print the current config). Full install paths (GitHub vs. local clone), update/uninstall, and troubleshooting live in **[`docs/basic-operations.md`](./docs/basic-operations.md)**. Full `--config` knob reference: **[`docs/configuration.md`](./docs/configuration.md)**.
 
@@ -53,7 +57,7 @@ Reconfigure any time with `/dhpk:setup` (or `/dhpk:setup --show` to print the cu
 |-----------|------:|-------|
 | Agents | Role-based agents | Sentinel-driven reviewers plus situational architecture, testing, security, documentation, platform, and runtime roles. |
 | Commands | dhpk's 39 commands | `/dhpk:do`, `/dhpk:codex-review`, `/dhpk:precommit`, `/dhpk:setup`, `/dhpk:review-pending`, `/dhpk:smart-commit`, `/dhpk:opsx-apply-resume`, `/dhpk:harness-audit`, `/dhpk:harness-govern`, `/dhpk:ui-ux-verify`, etc. |
-| Canonical skills | 100 flat `dhpk-*` packages | One named package per capability, rooted at `skills/dhpk-*/`; internal runtime packages are non-invokable, while module and Codex project surfaces are projections, not additional sources. |
+| Canonical skills | 101 flat `dhpk-*` packages | One named package per capability, rooted at `skills/dhpk-*/`; internal runtime packages are non-invokable, while module and Codex project surfaces are projections, not additional sources. |
 | Stack modules | Opt-in stack modules | PHP, Yii, PHPUnit, Laravel, JavaScript, Vue, Laravel Mix, Next.js, React, Python, `library-author`, and iOS/Swift modules. |
 | Hooks | 4 events | PreToolUse (Edit guard and combined Bash safety/Git gate), PostToolUse (sentinel routing), SessionStart (module activation), SubagentStop (strict reviewer reconciliation) |
 | Hook dispatchers | 2 | `post-edit-dispatch.sh` routes sentinels; `pre-bash-dispatch.sh` combines deterministic shell and Git/review-debt gates |
@@ -112,20 +116,45 @@ claude plugin install dhpk@dhpk \
 
 See `manifests/install-profiles.json` for curated module bundles.
 
-## Codex-backed skills and commands
+The default Claude discovery artifact is the materialized `minimal` profile,
+generated from the distribution inventory rather than from an unfiltered scan of
+the source `skills/` directory. It contains at most 15 implicit-eligible
+entries. `full` and `compat-v1` remain explicit opt-in profile artifacts. The
+Agent Plugin and Cursor publication memberships are unchanged; the source tree
+remains the authoring tree.
 
-dhpk's core — hooks, sentinel reviewers, the Smart Router, and the non-Codex workflow skills — is Codex-free. The `codex-*` family delegates to OpenAI's Codex for a second opinion. Their `mcp__codex__codex` / `mcp__codex__codex-reply` tools come from directly registering the Codex CLI's own `codex mcp-server` subcommand as an MCP server (`claude mcp add --transport stdio codex -- codex mcp-server`) — **not** from installing the `openai/codex-plugin-cc` plugin, which drives a separate Codex surface and registers no MCP server. See the [how-it-works aside in `docs/configuration.md`](./docs/configuration.md#codex-mcp-dependency-not-a-userconfig-knob) for the full registration steps and the plugin-vs-MCP-server contrast.
+## Codex integration surfaces
 
-| Surface | Names | Needs | Without it |
-|---------|-------|-------|------------|
-| 3 skills | `dhpk-codex-architect` (including `--mode adversarial`) · `dhpk-codex-implement` · `dhpk-change-review` (MCP backend) | Codex MCP (`mcp__codex__codex`, `mcp__codex__codex-reply`) | Tool-permission error — no automatic fallback; use a Codex-free counterpart below |
-| 1 backend | `dhpk-change-review --backend cli` | Codex CLI binary only (shells out via the hardened wrapper) | `codex: command not found`; use the MCP backend or the sentinel `code-reviewer` |
-| 7 commands | `/dhpk:codex-review`, `-review-branch`, `-review-doc`, `-review-fast`, `-security`, `-test-gen`, `-test-review` | Codex MCP | Tool-permission error — Codex-free routes: `/dhpk:dhpk-security-review`, `/dhpk:precommit`, sentinel review hooks |
-| `CODEX=on` | Dual-assistant peer path in Implementation dispatch | Codex MCP | Nothing breaks — dispatch stays in its default single-assistant mode |
+dhpk's core — hooks, sentinel reviewers, the Smart Router, and the workflow
+skills — runs without a Codex MCP server. Optional Codex integrations are
+separate surfaces with explicit ownership:
 
-Codex-free counterparts: `dhpk-security-review` ↔ `/dhpk:codex-security`, `dhpk-codebase-exploration` ↔ `dhpk-change-review`, sentinel reviewer agents ↔ `dhpk-change-review`, and `/dhpk:do` (Codex-free by default; `--codex` opts in). `/dhpk:create-dev` remains a compatibility alias.
+| Surface | Names / entrypoint | Requirement | Failure or boundary |
+|---------|--------------------|-------------|--------------------|
+| CLI-only Codex path | `codex-code-review --backend cli`; sibling roles `codex-worker`, `codex-reasoner`, `codex-reviewer`, and `dhpk-codex-bridge` | Codex CLI binary and Bash shell-out through the hardened wrapper; no MCP server | Missing `codex` is reported as an unavailable optional backend; the current-model path remains the default |
+| External app-server plugin | `openai/codex-plugin-cc` and its `/codex:*` commands | Explicitly installed external plugin; it drives `codex app-server` | It is independent of dhpk skills, CLI review, and the retired MCP mechanism |
+| Historical retired MCP | `mcp__codex__codex`, `mcp__codex__codex-reply`, and `codex mcp-server` | Retired in this migration; no current dhpk capability requires or recommends it | Historical context only. See the [retirement ledger](./docs/skill-platform-migration.md#alias-free-codex-mcp-retirement-ledger) and [capability-parity matrix](./docs/codex-mcp-capability-parity.md) for each capability's successor |
 
-One-time setup: register the Codex MCP server with `claude mcp add --transport stdio codex -- codex mcp-server`, then verify with `claude mcp list` and `/mcp` (look for a connected `codex` entry). Full verification steps, the MCP-vs-Skill surface distinction, and the separate `openai/codex-plugin-cc` collaboration surface: **[`docs/configuration.md`](./docs/configuration.md#codex-mcp-dependency-not-a-userconfig-knob)** / **[`docs/basic-operations.md`](./docs/basic-operations.md#codex-dual-assistant-collaboration)**.
+The historical MCP row is not a setup path. It records the transport that
+previously powered the retired Codex-backed routes and why their capabilities
+now live in backend-neutral owners. No active dhpk skill or command depends on
+that server. The parity matrix records the retained CLI, current-model, or
+isolated-review behavior for every migrated capability.
+
+`CODEX=on` and `/dhpk:do --codex` are removed legacy MCP-peer interfaces. They
+are not aliases for `codex exec`, `--worker=codex`, `--reasoner=codex`, or the
+external app-server plugin. Use the normal `/dhpk:do` or `dhpk-implement` path
+for current-model implementation, `--worker=codex` or `--reasoner=codex` when
+an external CLI role is explicitly selected, and an explicitly named
+`codex exec` second opinion where a migrated skill supports it. A deprecated
+legacy flag produces a deprecation diagnostic rather than selecting a hidden
+backend.
+
+The former `/dhpk:codex-security` command semantics are now covered by the
+backend-neutral security-review owner and the normal router; the former review
+family uses `dhpk-change-review --backend cli` where a CLI review is requested.
+Neither path reaches the retired MCP server. The complete nine-identity
+retirement and rollback ledger is in the migration guide.
 
 ## External code-navigation tools
 
@@ -257,7 +286,16 @@ The statusline renders `[branch] +staged ~modified | docker:status | profile=<p>
 
 ## Sync Codex CLI content
 
-For projects using both Claude Code and the standalone Codex CLI (distinct from the Codex MCP dependency above — this needs no MCP server), the supported path is `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"`. Its default hybrid projection keeps skills/supporting assets linked to the plugin root but always materializes agent TOMLs as physical files; `--copy` is the fully physical portable fallback. It creates the curated Codex projection in the project's `.codex/`. The clean-install materialization proof for [issue #88](https://github.com/hmj1026/dhpk/issues/88) now passes for the shipped physical package; Codex Plugin Marketplace support nevertheless remains experimental until a separate graduation decision. Full policy and instructions: **[`docs/basic-operations.md`](./docs/basic-operations.md#sync-codex-cli-content)**.
+For projects using both Claude Code and the standalone Codex CLI (separate
+from the retired MCP mechanism above), the supported path is `bash
+"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"`. Its default
+hybrid projection keeps skills/supporting assets linked to the plugin root but
+always materializes agent TOMLs as physical files; `--copy` is the fully
+physical portable fallback. It creates the curated Codex projection in the
+project's `.codex/`. The clean-install materialization proof for [issue #88](https://github.com/hmj1026/dhpk/issues/88)
+now passes for the shipped physical package; Codex Plugin Marketplace support
+nevertheless remains experimental until a separate graduation decision. Full
+policy and instructions: **[`docs/basic-operations.md`](./docs/basic-operations.md#sync-codex-cli-content)**.
 
 ## Sync Cursor project-local harness
 
@@ -282,7 +320,7 @@ dhpk/
 │   └── plugin.json               # plugin manifest with userConfig
 ├── agents/                       # 36 role-based agents (INDEX.md is navigation)
 ├── commands/                     # slash commands (do, review, setup, codex-*, smart-commit, opsx-apply-resume, ...; create-dev is a compatibility alias)
-├── skills/                       # SSOT: 100 flat canonical skills, each skills/dhpk-<name>/
+├── skills/                       # SSOT: 101 flat canonical skills, each skills/dhpk-<name>/
 ├── templates/                    # hook-bootstrap templates (graduation-candidates.md — copied to .claude/artifacts/ on first graduation run)
 ├── rules/                        # plain-markdown governance rules (execution-policy, tool-routing, anti-rationalization) — not in plugin.json; opt-in via ${CLAUDE_PLUGIN_ROOT}/rules/*.md from a consuming project's CLAUDE.md
 ├── modules/                      # 31 opt-in modules; skills/ entries are relative symlink projections

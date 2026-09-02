@@ -1,4 +1,6 @@
 interface:
   display_name: "Issue Analyze"
-  short_description: "GitHub Issue and PR review thread deep analysis with Codex"
+  short_description: "GitHub issue, PR, and review-thread analysis with blind review"
   default_prompt: "Use $dhpk-issue-analyze to apply the Issue Analyze workflow with its verification rules."
+policy:
+  allow_implicit_invocation: false

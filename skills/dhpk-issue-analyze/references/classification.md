@@ -19,7 +19,7 @@
 | Regression     | Intermittent | -          | `/dhpk:dhpk-codebase-exploration --dual`                      |
 | Always existed | Reproducible | Low        | `/dhpk:dhpk-codebase-exploration`                          |
 | Always existed | Reproducible | High       | `/dhpk:dhpk-codebase-exploration --dual`                      |
-| Always existed | Intermittent | -          | `/dhpk:dhpk-codex-architect --mode adversarial`    |
+| Always existed | Intermittent | -          | `/dhpk:dhpk-module-design --mode adversarial`    |
 | Uncertain      | -            | -          | `/dhpk:dhpk-codebase-exploration` first                    |
 
 ## Keyword Triggers
@@ -39,7 +39,7 @@
 - "Need confirmation" "somewhat complex" "unsure of the cause"
 - "Intermittent" "sometimes happens" "random"
 
-### -> `/dhpk:dhpk-codex-architect --mode adversarial`
+### -> `/dhpk:dhpk-module-design --mode adversarial`
 
 - "Many possible causes" "how to determine" "exhaust possibilities"
 - "What are the possibilities" "not sure what the problem is"
@@ -52,7 +52,7 @@ When the problem is complex, combine strategies:
 1. /dhpk:dhpk-codebase-exploration -> Establish baseline understanding first
 2. /dhpk:dhpk-git-history-investigation -> If regression is suspected
 3. /dhpk:dhpk-codebase-exploration --dual -> When dual confirmation is needed
-4. /dhpk:dhpk-codex-architect --mode adversarial -> Exhaust all possible causes
+4. /dhpk:dhpk-module-design --mode adversarial -> Exhaust all possible causes
 ```
 
 ## Review Thread Classification
@@ -63,7 +63,7 @@ When input is a PR review thread (not a GitHub Issue), use these dimensions inst
 |-----------|--------|-------------|
 | Category | `code_change` / `doc_update` / `question` / `disagree` / `nit` | Semantic type of the reviewer's comment |
 | Complexity | Low / High | Scope of suggested change |
-| Actionability | ACTIONABLE / NON_ACTIONABLE / UNCERTAIN | From Phase 2.5 Codex verdict |
+| Actionability | ACTIONABLE / NON_ACTIONABLE / UNCERTAIN | From Phase 2.5 independent verdict |
 
 ### Review Thread Category Mapping
 
@@ -90,11 +90,11 @@ When input is a PR review thread (not a GitHub Issue), use these dimensions inst
 Initial investigation insufficient -> Escalate strategy
 
 /dhpk:dhpk-codebase-exploration cannot find cause
-    -> Escalate to /dhpk:dhpk-codebase-exploration --dual (add Codex perspective)
+    -> Escalate to /dhpk:dhpk-codebase-exploration --dual (add isolated perspective)
 
 /dhpk:dhpk-git-history-investigation found commit but cause unclear
     -> Combine with /dhpk:dhpk-codebase-exploration (understand change logic)
 
 /dhpk:dhpk-codebase-exploration --dual views diverge
-    -> Escalate to /dhpk:dhpk-codex-architect --mode adversarial (bounded debate)
+    -> Escalate to /dhpk:dhpk-module-design --mode adversarial (bounded debate)
 ```

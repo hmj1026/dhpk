@@ -4,19 +4,30 @@
   "description": "Curated module bundles for common project shapes. Pass the matching modules list to `claude plugin install dhpk@dhpk --config modules=<csv>`. The interactive installer (`scripts/install.sh`) exposes these as quick presets. Module identifiers MUST exist in `manifests/module-catalog.json` (the SSOT); profiles here are convenience aliases, not new modules.",
   "profiles": {
     "minimal": {
-      "description": "Generic core only — no language/framework modules. Suitable for any project; gets the review hooks, codex/git workflow skills, and harness scripts. (OpenSpec wrappers were unbundled in v0.2.1 — install the OpenSpec plugin separately if you need that workflow.)",
+      "description": "Curated default Claude bundle — no language/framework modules. Materializes the cross-stack core skills plus the verification and explicit workflow adapters before discovery. Full and compat-v1 remain opt-in compatibility profiles. (OpenSpec wrappers were unbundled in v0.2.1 — install the OpenSpec plugin separately if you need that workflow.)",
       "modules": [],
       "skillIds": [
         "adaptive-dev-workflow",
         "bug-investigation",
-        "code-explore",
+        "create-request",
         "dhpk-execution-policy",
         "do",
+        "git-investigate",
         "git-smart-commit",
+        "next-step",
         "pr-review",
+        "project-audit",
+        "prompt-optimize",
         "security-review",
         "tdd",
+        "tech-spec",
         "tool-routing"
+      ],
+      "commandIds": [
+        "check-skill",
+        "do",
+        "smart-commit",
+        "verify"
       ],
       "compatibilityMode": "profile"
     },
@@ -52,7 +63,7 @@
       "description": "The legacy-PHP/Yii reference stack plus every cross-stack (JS / Vue 2 / Python / iOS / library-author) module. For each mutually-exclusive version family one representative is enabled (php-5.6 for PHP, phpunit-5.7 for PHPUnit); the conflicting variants and the modern-Laravel world are listed in `excludes` with reasons. Invariant: full.modules ∪ full.excludes = every shipped module id, and the two sets are disjoint.",
       "modules": ["php-5.6", "yii-1.1", "phpunit-5.7", "js", "vue-2", "python", "fastapi", "pytest", "swift", "swiftui", "ios-platform", "swift-testing", "xcode-tooling", "library-author"],
       "skillIds": [
-        "adaptive-dev-workflow", "agent-architecture-audit", "agy-commit", "agy-fast-worker", "bug-investigation", "claude-health", "code-explore", "codex-architect", "codex-bridge", "codex-code-review", "codex-implement", "composer-package-hygiene", "create-request", "create-skill", "deploy-list", "dhpk-execution-policy", "do", "doc-review", "execution-checklist", "fastapi-pro", "feasibility-study", "feature-verify", "git-investigate", "git-smart-commit", "gitnexus-cli", "gitnexus-debugging", "gitnexus-exploring", "gitnexus-guide", "gitnexus-impact-analysis", "gitnexus-refactoring", "harness-budget", "harness-fill", "harness-revise", "ios-icon-gen", "ios-platform", "issue-analyze", "js-lint-config", "js-static-check-strategy", "laravel-package-author", "laravel-testbench-matrix", "legacy-code-characterization", "library-dual-testsuite-map", "matrix-cell-onboard", "multi-ai-sync", "next-step", "op-session", "openspec-artifact-guard", "opsx-apply-goal", "opsx-load-context", "opsx-post-obs", "php-pro", "php56-yii-dev", "polyfill-version-matrix-audit", "pr-review", "project-audit", "project-setup", "prompt-optimize", "pytest-async", "python-pro", "python-static-checks", "release-creator", "repo-intake", "risk-assess", "rules-distill", "security-review", "session-usage-audit", "skill-health-check", "skill-judge", "skill-scout", "skill-stocktake", "software-architecture", "swift-language", "swift-test-strategy", "swiftui-architecture", "tdd", "tech-spec", "test-review", "tool-routing", "vue-2-notes", "xcode-build-tooling", "yii1-security-audit"
+        "adaptive-dev-workflow", "agent-architecture-audit", "agy-commit", "agy-fast-worker", "bug-investigation", "claude-health", "code-explore", "codex-bridge", "codex-code-review", "composer-package-hygiene", "create-request", "create-skill", "deploy-list", "dhpk-execution-policy", "do", "doc-review", "execution-checklist", "fastapi-pro", "feasibility-study", "feature-verify", "git-investigate", "git-smart-commit", "gitnexus-cli", "gitnexus-debugging", "gitnexus-exploring", "gitnexus-guide", "gitnexus-impact-analysis", "gitnexus-refactoring", "harness-budget", "harness-fill", "harness-revise", "implement", "ios-icon-gen", "ios-platform", "issue-analyze", "js-lint-config", "js-static-check-strategy", "laravel-package-author", "laravel-testbench-matrix", "legacy-code-characterization", "library-dual-testsuite-map", "matrix-cell-onboard", "multi-ai-sync", "next-step", "op-session", "openspec-artifact-guard", "opsx-apply-goal", "opsx-load-context", "opsx-post-obs", "php-pro", "php56-yii-dev", "polyfill-version-matrix-audit", "pr-review", "project-audit", "project-setup", "prompt-optimize", "pytest-async", "python-pro", "python-static-checks", "release-creator", "repo-intake", "risk-assess", "rules-distill", "security-review", "session-usage-audit", "skill-health-check", "skill-judge", "skill-scout", "skill-stocktake", "software-architecture", "swift-language", "swift-test-strategy", "swiftui-architecture", "tdd", "tech-spec", "test-review", "tool-routing", "vue-2-notes", "xcode-build-tooling", "yii1-security-audit"
       ],
       "compatibilityMode": "profile",
       "excludes": {
@@ -79,7 +90,7 @@
       "description": "Explicit legacy compatibility bundle containing every non-retired stable skill ID accepted by Change A.",
       "modules": [],
       "skillIds": [
-        "adaptive-dev-workflow", "agent-architecture-audit", "agy-commit", "agy-fast-worker", "bug-investigation", "claude-health", "code-explore", "codex-architect", "codex-bridge", "codex-code-review", "codex-implement", "composer-package-hygiene", "create-request", "create-skill", "deploy-list", "dhpk-execution-policy", "do", "doc-review", "execution-checklist", "fastapi-pro", "feasibility-study", "feature-verify", "git-investigate", "git-smart-commit", "gitnexus-cli", "gitnexus-debugging", "gitnexus-exploring", "gitnexus-guide", "gitnexus-impact-analysis", "gitnexus-refactoring", "harness-budget", "harness-fill", "harness-revise", "ios-icon-gen", "ios-platform", "issue-analyze", "js-lint-config", "js-static-check-strategy", "laravel-10-notes", "laravel-11-notes", "laravel-5.4-notes", "laravel-6-notes", "laravel-7-notes", "laravel-8-notes", "laravel-9-notes", "laravel-mix-notes", "laravel-package-author", "laravel-testbench-matrix", "legacy-code-characterization", "library-dual-testsuite-map", "matrix-cell-onboard", "multi-ai-sync", "next-step", "nextjs-15-5-notes", "nextjs-16-notes", "op-session", "openspec-artifact-guard", "opsx-apply-goal", "opsx-load-context", "opsx-post-obs", "php-8x-features", "php-modern-pro", "php-pro", "php56-yii-dev", "phpunit-10-notes", "phpunit-11-notes", "phpunit-9-modern", "polyfill-version-matrix-audit", "pr-review", "project-audit", "project-setup", "prompt-optimize", "pytest-async", "python-pro", "python-static-checks", "react-18-notes", "react-19-notes", "release-creator", "repo-intake", "risk-assess", "rules-distill", "security-review", "session-usage-audit", "skill-health-check", "skill-judge", "skill-scout", "skill-stocktake", "software-architecture", "swift-language", "swift-test-strategy", "swiftui-architecture", "tdd", "tech-spec", "test-review", "tool-routing", "vue-2-notes", "xcode-build-tooling", "yii1-security-audit"
+        "adaptive-dev-workflow", "agent-architecture-audit", "agy-commit", "agy-fast-worker", "bug-investigation", "claude-health", "code-explore", "codex-bridge", "codex-code-review", "composer-package-hygiene", "create-request", "create-skill", "deploy-list", "dhpk-execution-policy", "do", "doc-review", "execution-checklist", "fastapi-pro", "feasibility-study", "feature-verify", "git-investigate", "git-smart-commit", "gitnexus-cli", "gitnexus-debugging", "gitnexus-exploring", "gitnexus-guide", "gitnexus-impact-analysis", "gitnexus-refactoring", "harness-budget", "harness-fill", "harness-revise", "implement", "ios-icon-gen", "ios-platform", "issue-analyze", "js-lint-config", "js-static-check-strategy", "laravel", "laravel-package-author", "laravel-testbench-matrix", "legacy-code-characterization", "library-dual-testsuite-map", "matrix-cell-onboard", "multi-ai-sync", "next-step", "nextjs-15-5-notes", "nextjs-16-notes", "op-session", "openspec-artifact-guard", "opsx-apply-goal", "opsx-load-context", "php-8x-features", "php-modern-pro", "php-pro", "php56-yii-dev", "phpunit", "polyfill-version-matrix-audit", "pr-review", "project-audit", "project-setup", "prompt-optimize", "pytest-async", "python-pro", "python-static-checks", "react-18-notes", "react-19-notes", "release-creator", "repo-intake", "risk-assess", "rules-distill", "security-review", "session-usage-audit", "skill-health-check", "skill-judge", "skill-scout", "skill-stocktake", "software-architecture", "swift-language", "swift-test-strategy", "swiftui-architecture", "tdd", "tech-spec", "test-review", "tool-routing", "vue-2-notes", "xcode-build-tooling", "yii1-security-audit"
       ],
       "compatibilityMode": "compat-v1"
     }

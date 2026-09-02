@@ -51,8 +51,8 @@ All reviewers applicable to an implementation wave (code, database, doc, and any
 - **THEN** code-reviewer, database-reviewer, and doc-reviewer are dispatched together in one parallel batch, not as sequential separate rounds
 
 #### Scenario: Codex-bridge review is escalation-only
-- **WHEN** CODEX=on in a goal session
-- **THEN** `codex-bridge` parallel review is dispatched at most once per change and only as an explicit escalation (high-stakes path), never as a default extra round on top of the consolidated batch
+- **WHEN** a goal session explicitly requests `--second-opinion=codex-exec`
+- **THEN** `codex-bridge` review is dispatched at most once per change and only as an explicit escalation (high-stakes path), never as a default extra round on top of the consolidated batch; retired `CODEX=on`/`--codex` flags do not dispatch it
 
 ### Requirement: Review telemetry distinguishes attempts, verdicts, and artifacts
 The orchestrator SHALL report reviewer dispatch attempts, started/completed verdicts, fresh artifacts, retries, and unresolved obligations as separate counters keyed by role and review-wave identity. Spawn count alone SHALL not be presented as completed review coverage.

@@ -1,4 +1,4 @@
-# Skill platform consolidation and migration
+# Skill platform consolidation, migration, and Codex MCP retirement
 
 > **Languages**: **English** · [繁體中文](./skill-platform-migration.zh-TW.md)
 
@@ -14,7 +14,7 @@ Current Codex/Cursor installation routes and rollback boundaries live in the
 
 | Concern | Current implementation |
 |---|---|
-| Canonical source | 100 flat packages at `skills/dhpk-<name>/` |
+| Canonical source | 101 flat packages at `skills/dhpk-<name>/` |
 | Public identity | Every invokable dhpk skill name begins with `dhpk-` |
 | Inventory SSOT | `manifests/distribution-inventory.json` schema v2 |
 | Module projection | 37 relative symlinks under `modules/*/skills/` |
@@ -65,7 +65,7 @@ aliases, or entries in any generated projection.
 | `bug-fix` | `dhpk-bug-fix` | `merged-into-adaptive-workflow` | stable ID `adaptive-dev-workflow`; Claude `/dhpk:dhpk-adaptive-dev-workflow`; Codex `$dhpk-adaptive-dev-workflow` (`bug` mode) | `0.46.1` |
 | `feature-dev` | `dhpk-feature-dev` | `merged-into-adaptive-workflow` | stable ID `adaptive-dev-workflow`; Claude `/dhpk:dhpk-adaptive-dev-workflow`; Codex `$dhpk-adaptive-dev-workflow` (`feature` mode) | `0.46.1` |
 | `post-dev-test` | `dhpk-post-dev-test` | `split-by-test-level` | stable ID `tdd`; Claude `/dhpk:dhpk-tdd-workflow`; Codex `$dhpk-tdd-workflow` (`unit-integration` mode); agent `e2e-runner` (`playwright-journey` mode) | `0.46.1` |
-| `codex-brainstorm` | `dhpk-codex-brainstorm` | `merged-into-architect-mode` | stable ID `codex-architect`; Claude `/dhpk:dhpk-codex-architect`; Codex `$dhpk-codex-architect` (`adversarial` mode) | `0.46.1` |
+| `codex-brainstorm` | `dhpk-codex-brainstorm` | `merged-into-architect-mode` | stable ID `software-architecture`; Claude `/dhpk:dhpk-module-design`; Codex `$dhpk-module-design` (`adversarial` mode) | `0.46.1` |
 | `de-ai-flavor` | `dhpk-de-ai-flavor` | `model-default-capability-removal` | `model-default` guidance; no successor package | `0.46.1` |
 
 ### Direct-host invocation boundary
@@ -84,8 +84,38 @@ dhpk does not claim that unsupported direct invocation is interceptable or that
 the former name remains resolvable.
 
 Rollback is version pinning, not hidden aliasing: pin and reinstall the last
-compatible `0.46.1` release through its receipt-bound installation path rather
-than reconstructing a retired package or discovery alias in `0.47.0`.
+compatible release through its receipt-bound installation path rather than
+reconstructing a retired package or discovery alias. The Codex MCP capability
+retirement below pins `0.51.0`, the last compatible release with that grant.
+
+<a id="alias-free-codex-mcp-retirement-ledger"></a>
+
+## Alias-free Codex MCP capability retirement ledger (0.52.0)
+
+This is the historical-only ledger for the nine MCP-backed capability
+identities retired by the current migration. It is not an active route registry:
+none of these former MCP identities is an alias, generated package, discovery
+target, or hidden fallback. The parity matrix records the complete capability
+evidence; this table records the identity disposition and rollback pin.
+
+| Former stable ID | Former MCP-facing identity | Replacement owner and behavior | `reasonCode` | `rollback.release` |
+|---|---|---|---|---|
+| `codex-architect` | `dhpk-codex-architect` | `dhpk-module-design`; current-model design/review/compare/adversarial modes, with explicit optional `codex exec` only | `migrated-to-module-design` | `0.51.0` |
+| `codex-implement` | `dhpk-codex-implement` | `dhpk-implement`; current-model decomposition, implementation, verification, review, and bounded retry loop | `migrated-to-backend-neutral-implement` | `0.51.0` |
+| `codex-code-review` | `dhpk-change-review` with the MCP default | `dhpk-change-review --backend cli`; current-model default and explicit CLI review, with no MCP fallback | `migrated-to-cli-review-owner` | `0.51.0` |
+| `doc-review` | `dhpk-doc-review` with MCP review/reply | `dhpk-doc-review`; portable five-dimension review and gate, with explicit optional `codex exec` only | `migrated-to-portable-review` | `0.51.0` |
+| `test-review` | `dhpk-test-review` with MCP review/reply | `dhpk-test-review`; portable sufficiency, edge-case, quality, and AC-trace review; generation remains `dhpk-tdd-workflow` | `migrated-to-portable-review` | `0.51.0` |
+| `codebase-exploration` | `dhpk-codebase-exploration` with MCP dual perspective | `dhpk-codebase-exploration`; current-model trace plus isolated or explicitly selected CLI second opinion | `migrated-to-isolated-perspective` | `0.51.0` |
+| `feature-verify` | `dhpk-feature-verify` with MCP P5 verdict | `dhpk-feature-verify`; independent reviewer is explicit-only and primary-only results are marked degraded | `migrated-to-explicit-reviewer` | `0.51.0` |
+| `issue-analyze` | `dhpk-issue-analyze` with a fresh MCP verdict | `dhpk-issue-analyze`; current-model classification with isolated or explicitly selected CLI blind opinion | `migrated-to-explicit-reviewer` | `0.51.0` |
+| `feasibility-study` | `dhpk-feasibility-study` with MCP discussion/reply | `dhpk-feasibility-study`; current-model options/comparison with isolated or explicitly selected CLI opinion | `migrated-to-explicit-reviewer` | `0.51.0` |
+
+The rollback path for every row is the same: pin the last compatible `0.51.0`
+release and reinstall it through the receipt-bound installation flow. Never
+restore one of these names as a discovery alias or add a silent MCP retry to
+the current release. See the [capability-parity matrix](./codex-mcp-capability-parity.md)
+for the eight rows (the issue and feasibility owners intentionally share one
+row) and their migration evidence.
 
 ## Consolidated capabilities
 
@@ -95,7 +125,7 @@ skills:
 | Previous skills | Current public skill | What was retained |
 |---|---|---|
 | `code-explore`, `code-investigate`, `codex-explain` | `dhpk-codebase-exploration` | symbol/flow exploration, depth-controlled explanation, optional second perspective |
-| `codex-cli-review` | `dhpk-change-review` | MCP and hardened CLI backends, merge-base diff pinning, standards/spec/security/test axes |
+| `codex-cli-review` | `dhpk-change-review` | hardened CLI backend, merge-base diff pinning, standards/spec/security/test axes; no MCP default |
 | `software-architecture` | `dhpk-module-design` | deep-module vocabulary, deletion test, interface/test seam, architecture handoff |
 
 All other retained skills also received a `dhpk-` public name. The stable
@@ -126,9 +156,10 @@ Overlapping Claude workflows use four primary entry points:
 - `/dhpk:setup --install hooks|rules|scripts|all` for configuration and assets.
 
 No discovery or compatibility alias is published for the five `0.47.0`
-retirements above. Any unrelated command alias that remains for a separately
-documented compatibility window is not a retired skill record and must not be
-used as a replacement for one of these names.
+retirements or the nine `0.52.0` Codex MCP capability retirements above. Any
+unrelated command alias that remains for a separately documented compatibility
+window is not a retired skill record and must not be used as a replacement for
+one of these names.
 
 ## Upgrade a Claude marketplace installation
 
@@ -180,10 +211,12 @@ node tests/documentation-platform-parity.test.js
 node tests/run-all.js
 ```
 
-Expected topology is 100 canonical packages, 31 modules, and 18 Codex
-project/native entries (16 invokable skills plus internal transport and
-dispatch-context runtimes), with relative symlinks only in module/Codex projections and no
-symlinks in the native package.
+Expected topology is the inventory-owned canonical package count, 31 modules,
+and the inventory-owned Codex project/native entries (invokable skills plus
+internal transport and dispatch-context runtimes), with relative symlinks only
+in module/Codex projections and no symlinks in the native package. The nine
+MCP capability identities above are ledger rows only and are excluded from all
+active counts.
 
 ## Rollback
 
@@ -191,6 +224,10 @@ Before migration, commit or snapshot `.codex/` and its receipt. If migration
 reports a collision, do not force deletion: restore the snapshot or resolve the
 specific user-owned destination, then rerun `--migrate --update`. To leave dhpk
 project sync, run `--uninstall`; it preserves modified and unrelated entries.
+
+If a post-migration Codex capability regresses, pin the last compatible `0.51.0`
+release with its MCP grant intact. Do not reintroduce a hidden MCP fallback or
+recreate a retired identity in the current release.
 
 The canonical source and generated native package must never be edited in
 parallel. Edit `skills/dhpk-*/`, regenerate the native package, validate, and

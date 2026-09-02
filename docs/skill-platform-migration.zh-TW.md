@@ -1,4 +1,4 @@
-# Skill platform 整併與遷移
+# Skill platform 整併、遷移與 Codex MCP 退休
 
 > **語言**：[English](./skill-platform-migration.md) · **繁體中文**
 
@@ -12,7 +12,7 @@ Pocock 或其他全域 skill 的使用者。
 
 | 關注點 | 目前實作 |
 |---|---|
-| Canonical source | `skills/dhpk-<name>/` 下 100 個扁平 package |
+| Canonical source | `skills/dhpk-<name>/` 下 101 個扁平 package |
 | Public identity | 每個可呼叫的 dhpk skill 名稱都以 `dhpk-` 開頭 |
 | Inventory SSOT | `manifests/distribution-inventory.json` schema v2 |
 | Module projection | `modules/*/skills/` 下 37 個相對 symlink |
@@ -61,7 +61,7 @@ projection。
 | `bug-fix` | `dhpk-bug-fix` | `merged-into-adaptive-workflow` | stable ID `adaptive-dev-workflow`；Claude `/dhpk:dhpk-adaptive-dev-workflow`；Codex `$dhpk-adaptive-dev-workflow`（`bug` mode） | `0.46.1` |
 | `feature-dev` | `dhpk-feature-dev` | `merged-into-adaptive-workflow` | stable ID `adaptive-dev-workflow`；Claude `/dhpk:dhpk-adaptive-dev-workflow`；Codex `$dhpk-adaptive-dev-workflow`（`feature` mode） | `0.46.1` |
 | `post-dev-test` | `dhpk-post-dev-test` | `split-by-test-level` | stable ID `tdd`；Claude `/dhpk:dhpk-tdd-workflow`；Codex `$dhpk-tdd-workflow`（`unit-integration` mode）；agent `e2e-runner`（`playwright-journey` mode） | `0.46.1` |
-| `codex-brainstorm` | `dhpk-codex-brainstorm` | `merged-into-architect-mode` | stable ID `codex-architect`；Claude `/dhpk:dhpk-codex-architect`；Codex `$dhpk-codex-architect`（`adversarial` mode） | `0.46.1` |
+| `codex-brainstorm` | `dhpk-codex-brainstorm` | `merged-into-architect-mode` | stable ID `software-architecture`；Claude `/dhpk:dhpk-module-design`；Codex `$dhpk-module-design`（`adversarial` mode） | `0.46.1` |
 | `de-ai-flavor` | `dhpk-de-ai-flavor` | `model-default-capability-removal` | `model-default` 指引；沒有 successor package | `0.46.1` |
 
 ### Direct-host 呼叫邊界
@@ -78,8 +78,34 @@ host 直接呼叫 Skill 時會繞過這些 dhpk-owned seam；回應仍由 host �
 仍可解析。
 
 Rollback 是 version pinning，不是 hidden aliasing：請透過 receipt-bound installation
-path pin 並重新安裝最後相容的 `0.46.1` release，不要在 `0.47.0` 重建退休 package 或
-discovery alias。
+path pin 並重新安裝最後相容的 release，不要重建退休 package 或 discovery alias。下方
+Codex MCP capability retirement 以仍帶有該 grant 的最後相容 release `0.51.0` 為 pin。
+
+<a id="alias-free-codex-mcp-retirement-ledger"></a>
+
+## Alias-free Codex MCP capability retirement ledger（0.52.0）
+
+這是本次 migration 退休的九個 MCP-backed capability identity 的歷史專用 ledger，不是
+active route registry：任何 former MCP identity 都不是 alias、generated package、discovery
+target 或 hidden fallback。Parity matrix 記錄完整 capability evidence；本表記錄 identity
+處置與 rollback pin。
+
+| Former stable ID | Former MCP-facing identity | Replacement owner and behavior | `reasonCode` | `rollback.release` |
+|---|---|---|---|---|
+| `codex-architect` | `dhpk-codex-architect` | `dhpk-module-design`；current-model design/review/compare/adversarial mode，只能明確選用 `codex exec` | `migrated-to-module-design` | `0.51.0` |
+| `codex-implement` | `dhpk-codex-implement` | `dhpk-implement`；current-model decomposition、implementation、verification、review 與 bounded retry loop | `migrated-to-backend-neutral-implement` | `0.51.0` |
+| `codex-code-review` | `dhpk-change-review` 的 MCP default | `dhpk-change-review --backend cli`；current-model default 與明確 CLI review，不提供 MCP fallback | `migrated-to-cli-review-owner` | `0.51.0` |
+| `doc-review` | `dhpk-doc-review` 的 MCP review/reply | `dhpk-doc-review`；portable 五維 review 與 gate，只能明確選用 `codex exec` | `migrated-to-portable-review` | `0.51.0` |
+| `test-review` | `dhpk-test-review` 的 MCP review/reply | `dhpk-test-review`；portable sufficiency、edge-case、quality 與 AC-trace review；generation 仍由 `dhpk-tdd-workflow` 負責 | `migrated-to-portable-review` | `0.51.0` |
+| `codebase-exploration` | `dhpk-codebase-exploration` 的 MCP dual perspective | `dhpk-codebase-exploration`；current-model trace 加 isolated 或明確選取的 CLI second opinion | `migrated-to-isolated-perspective` | `0.51.0` |
+| `feature-verify` | `dhpk-feature-verify` 的 MCP P5 verdict | `dhpk-feature-verify`；independent reviewer 只可明確選用，primary-only 結果標記 degraded | `migrated-to-explicit-reviewer` | `0.51.0` |
+| `issue-analyze` | `dhpk-issue-analyze` 的 fresh MCP verdict | `dhpk-issue-analyze`；current-model classification 加 isolated 或明確選取的 CLI blind opinion | `migrated-to-explicit-reviewer` | `0.51.0` |
+| `feasibility-study` | `dhpk-feasibility-study` 的 MCP discussion/reply | `dhpk-feasibility-study`；current-model options/comparison 加 isolated 或明確選取的 CLI opinion | `migrated-to-explicit-reviewer` | `0.51.0` |
+
+每一列的 rollback path 都相同：pin 並透過 receipt-bound installation flow 重新安裝仍帶有
+MCP grant 的最後相容 `0.51.0` release。不要在目前 release 把這些名稱恢復成 discovery
+alias，也不要加入靜默 MCP retry。八列（issue 與 feasibility owner 刻意共用一列）及其
+migration evidence 請見[capability-parity matrix](./codex-mcp-capability-parity.md)。
 
 ## 已整併的能力
 
@@ -88,7 +114,7 @@ discovery alias。
 | 舊 skills | 目前 public skill | 保留內容 |
 |---|---|---|
 | `code-explore`、`code-investigate`、`codex-explain` | `dhpk-codebase-exploration` | symbol/flow 探索、深度可調的說明、可選第二觀點 |
-| `codex-cli-review` | `dhpk-change-review` | MCP 與 hardened CLI backend、merge-base diff 固定、standards/spec/security/test 軸線 |
+| `codex-cli-review` | `dhpk-change-review` | hardened CLI backend、merge-base diff 固定、standards/spec/security/test 軸線；預設不使用 MCP |
 | `software-architecture` | `dhpk-module-design` | deep-module 詞彙、deletion test、interface/test seam、architecture handoff |
 
 其他保留 skill 也全部取得 `dhpk-` public name。Stable inventory `id` 與 `name`
@@ -116,8 +142,9 @@ Codex 任務路由使用 `$dhpk-do`，沒有 `/dhpk:do`。Claude 重疊工作流
 - `/dhpk:precommit`，需要時搭配 `--fast`。
 - `/dhpk:setup --install hooks|rules|scripts|all`：設定與 asset 安裝。
 
-上述五個 `0.47.0` retirement 不發布 discovery 或 compatibility alias。若另有文件化的
-相容期限而保留無關 command alias，它不是 retired skill record，也不能取代上述任何名稱。
+上述五個 `0.47.0` retirement 與九個 `0.52.0` Codex MCP capability retirement 都不發布
+discovery 或 compatibility alias。若另有文件化的相容期限而保留無關 command alias，它
+不是 retired skill record，也不能取代上述任何名稱。
 
 ## 升級 Claude marketplace 安裝
 
@@ -166,10 +193,10 @@ node tests/documentation-platform-parity.test.js
 node tests/run-all.js
 ```
 
-預期拓撲為 100 個 canonical package、31 個 module、18 個 Codex project/native 項目
-（16 個可呼叫 skill 加上內部 transport 與 dispatch-context runtime）；另有五筆不進入 discovery 的
-`retired_skills` ledger row；相對 symlink 只能出現在 module/Codex projection，native
-package 必須零 symlink。
+預期拓撲由 inventory 管理 canonical package 數量、31 個 module 與 Codex project/native
+項目（可呼叫 skill 加上內部 transport 與 dispatch-context runtime）；上述九個 MCP
+capability identity 只存在 ledger，不計入任何 active count。相對 symlink 只能出現在
+module/Codex projection，native package 必須零 symlink。
 
 ## Rollback
 
@@ -177,6 +204,9 @@ package 必須零 symlink。
 強制刪除；還原 snapshot 或處理特定的 user-owned destination，再重跑
 `--migrate --update`。若要停止 dhpk 專案同步，執行 `--uninstall`；它會保留已修改與
 無關的 entry。
+
+若遷移後 Codex capability regression，請 pin 仍帶有 MCP grant 的最後相容 `0.51.0`
+release。不要在目前 release 重新引入 hidden MCP fallback，也不要重建已退休 identity。
 
 Canonical source 與產生出的 native package 不可平行手動修改。只編輯
 `skills/dhpk-*/`，重新產生 native package、驗證，再將 source 與 generated artifact

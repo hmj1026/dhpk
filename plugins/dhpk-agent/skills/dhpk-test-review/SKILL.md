@@ -1,8 +1,8 @@
 ---
 name: dhpk-test-review
-description: "Test coverage review via Codex MCP. Use when: reviewing test sufficiency, identifying coverage gaps, test quality audit. Not for: generating tests (use /dhpk:codex-test-gen), code review (use dhpk-change-review). Output: coverage analysis + gap report."
+description: "Portable test coverage review using the current model. Purpose: review test sufficiency, identify coverage gaps, or audit test quality. Not for: generating tests (use dhpk-tdd-workflow), code review (use dhpk-change-review). Output: coverage analysis + gap report."
 metadata:
-  dhpk-invocation-class: "implicit-eligible"
+  dhpk-invocation-class: "explicit-only"
 ---
 
 # Test Review Skill
@@ -18,13 +18,13 @@ metadata:
 | Command              | Description             | Use Case            |
 | -------------------- | ----------------------- | ------------------- |
 | `/codex-test-review` | Review test sufficiency | **Required**        |
-| `/codex-test-gen`    | Generate unit tests     | Add missing tests   |
+| `/codex-test-gen`    | Legacy generation alias; delegate to `dhpk-tdd-workflow` | Add missing tests   |
 | `/check-coverage`    | Test coverage analysis  | After feature dev   |
 
 ## Workflow: `/codex-test-review`
 
 ```
-Smart detect target → Read test + source → Codex review (5 dimensions) → Coverage assessment + Gate → Loop if Needs additions
+Smart detect target → Read test + source → Primary review (coverage dimensions) → Coverage assessment + Gate → Loop if Needs additions
 ```
 
 ### Step 1: Smart Detection
@@ -42,22 +42,28 @@ Smart detect target → Read test + source → Codex review (5 dimensions) → C
 - Read test file (`TEST_FILE`)
 - Read corresponding source (`SOURCE_FILE`, inferred from test path)
 
-### Step 3: Codex Review
+### Step 3: Primary Review
 
-**First review**: `mcp__codex__codex` with test review prompt. See `references/codex-prompt-test-review.md`.
+Run the test review with the current model using
+`references/codex-prompt-test-review.md`. The primary review is complete without
+an external opinion. A caller may explicitly opt into `codex exec` as an
+additive, clearly labeled second opinion; it must never be an implicit
+requirement or silent fallback.
 
-**Loop review**: `mcp__codex__codex-reply` with re-review template. See `references/codex-prompt-test-review.md`.
+For a loop review, reread the explicit test/source snapshot and prior gap
+artifact; do not assume stateful thread continuity.
 
-Config: `sandbox: 'read-only'`, `approval-policy: 'never'`
+When no optional second opinion runs, report the result as primary-model only
+and degraded rather than claiming independent verification.
 
-**Save the returned `threadId`.**
+**Save the review artifact identifier and input snapshot.**
 
 ## Workflow: `/codex-test-review --ac-trace`
 
 AC traceability mode — maps Acceptance Criteria from request docs to test evidence.
 
 ```
---ac-trace input → Read request doc → Parse ACs → Filter quality-gate → Search evidence → Codex verify → Matrix + Gate
+--ac-trace input → Read request doc → Parse ACs → Filter quality-gate → Search evidence → Independent verification → Matrix + Gate
 ```
 
 ### Step 1: Input Resolution
@@ -84,26 +90,27 @@ For each non-quality-gate AC:
 | Runtime verification | 2 | Search `/dhpk:dhpk-feature-verify` results at L3+ confidence |
 | Manual exception | 3 (verified only) | Check AC annotation `<!-- exception: REASON, expires: DATE -->` |
 
-### Step 4: Codex Verify (independent)
+### Step 4: Independent Verification (Optional)
 
-Fresh thread (`mcp__codex__codex`). See `references/codex-prompt-ac-trace.md`.
+Use a fresh primary review context for each AC trace; do not reuse a code-review
+session. An explicitly requested `codex exec` opinion is additive and must be
+labeled separately. See `references/codex-prompt-ac-trace.md`.
 
 | Rule | Detail |
 |------|--------|
 | Cache | `request-path + git diff hash` key; same session reuse |
-| Timeout | 30s → fallback to Claude-only + `⚠️ Inconclusive` |
+| Timeout | 30s → primary-only + `⚠️ Inconclusive` |
 | Unavailable | All items `⚠️ Inconclusive`; advisory → `⚠️ Adequate with exceptions`; strict → `⚠️ Need Human` |
 
-Config: `sandbox: 'read-only'`, `approval-policy: 'never'`
-
-**Save the returned `threadId`.**
+When the optional opinion is unavailable, all items remain `⚠️ Inconclusive`
+and the output records the degraded primary-only state.
 
 ### Step 5: Exception Validation (3-gate)
 
 | Gate | Check |
 |------|-------|
 | Reason class | Closed enum: `ENV_UNAVAILABLE` / `UNSAFE_TO_AUTOMATE` / `ONE_TIME_MIGRATION` |
-| Codex verification | Must emit `VALID_EXCEPTION` |
+| Independent verification | Must emit `VALID_EXCEPTION` when requested |
 | Expiry | ISO 8601; expired = ⛔ (strict) or ⚠️ (advisory) |
 
 **Exception caps**: 1-8 AC = max 1; 9-12 = max 2; 13+ = hard cap 2.
@@ -117,22 +124,13 @@ Gate sentinels:
 |----------|---------|
 | `✅ Adequate` | All ACs covered by evidence |
 | `⚠️ Adequate with exceptions` | Validated exceptions within cap |
-| `⚠️ Need Human` | Codex unavailable or inconclusive |
+| `⚠️ Need Human` | Optional independent reviewer unavailable or inconclusive |
 | `⛔ Inadequate` | Unverified exception, cap breach, or prohibited domain |
 
-## Workflow: `/codex-test-gen`
+## Test generation boundary
 
-```
-Read source → Derive test path → Codex generate → Save test file → Suggest review
-```
-
-### Steps
-
-1. Read source file
-2. Derive test path: `src/service/xxx.ts` → `test/unit/service/xxx.test.ts`
-3. Codex generates tests. See `references/codex-prompt-test-gen.md`.
-4. Save to target path
-5. Suggest: run tests then `/codex-test-review`
+Test generation is owned by `dhpk-tdd-workflow`'s `test-generation` capability.
+This review skill only assesses existing tests and traces acceptance criteria; it does not generate or save tests. After adding tests through the TDD workflow, run `/codex-test-review` to assess their sufficiency.
 
 ## Review Dimensions
 
@@ -164,7 +162,8 @@ Read source → Derive test path → Codex generate → Save test file → Sugge
 
 Auto-loop semantics: `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §Anti-loop & output.
 
-⛔ Needs additions → add tests → `/codex-test-review --continue <threadId>` → repeat until ✅ Sufficient.
+⛔ Needs additions → add tests through `dhpk-tdd-workflow` →
+`/codex-test-review --continue <review-artifact>` → repeat until ✅ Sufficient.
 
 Max 3 rounds. Still failing → report blocker.
 
@@ -184,26 +183,27 @@ Max 3 rounds. Still failing → report blocker.
 - [ ] Coverage assessment includes all dimensions
 - [ ] Gate is clear (✅ Tests sufficient / ⛔ Needs additions)
 - [ ] Missing tests have specific code suggestions
-- [ ] Codex independently researched source code branches
+- [ ] The primary reviewer independently researched source-code branches; any
+      optional second opinion is labeled separately
 
 ## References
 
 - Test review prompt: `references/codex-prompt-test-review.md`
-- Test gen prompt: `references/codex-prompt-test-gen.md`
+- Test generation: `dhpk-tdd-workflow` (`test-generation` capability)
 - AC trace prompt: `references/codex-prompt-ac-trace.md`
 
 ## Examples
 
 ```
 Input: /codex-test-review test/unit/service/xxx.test.ts
-Action: Read test + source → Codex review → Coverage assessment + Gate
+Action: Read test + source → primary review → Coverage assessment + Gate
 
-Input: /codex-test-gen src/service/xxx.ts
-Action: Read source → Codex generate → Save test → Suggest review
+Input: Add tests for src/service/xxx.ts
+Action: Use `dhpk-tdd-workflow` to generate tests, then run `/codex-test-review`
 
 Input: Are this service's tests sufficient?
 Action: /codex-test-review → Assess coverage → Output gaps + Gate
 
 Input: /codex-test-review --ac-trace docs/features/auth/requests/2026-03-01-login.md
-Action: Parse AC → Filter quality-gate → Search evidence → Codex verify → Matrix + Gate
+Action: Parse AC → Filter quality-gate → Search evidence → Verify → Matrix + Gate
 ```

@@ -11,8 +11,10 @@ const path = require('node:path');
 const {
   CATEGORIES,
   ESTIMATOR,
+  evaluateAggregateDiscoveryBudget,
   evaluateDiscoveryBudget,
 } = require('../lib/discovery-budget');
+const { extractInvocationClass } = require('./_lib/frontmatter');
 
 const DEFAULT_MANIFEST = path.join(__dirname, '..', '..', 'manifests', 'discovery-budgets.json');
 
@@ -57,6 +59,20 @@ function defaultReadDescription(root, entry) {
   const command = safePath(entry.path);
   if (command && fs.existsSync(command)) return frontmatterDescription(fs.readFileSync(command, 'utf8'));
   return '';
+}
+
+function defaultInvocationClass(root, entry) {
+  if (entry && typeof entry.invocation_class === 'string') return entry.invocation_class;
+  if (entry && typeof entry.invocationClass === 'string') return entry.invocationClass;
+  const relative = path.join(entry && entry.path || '', 'SKILL.md');
+  const candidate = path.resolve(root, relative);
+  try {
+    const rootPath = path.resolve(root);
+    if (candidate !== rootPath && !candidate.startsWith(`${rootPath}${path.sep}`)) return null;
+    return extractInvocationClass(fs.readFileSync(candidate, 'utf8')).value;
+  } catch (_) {
+    return null;
+  }
 }
 
 function counts(text) {
@@ -223,6 +239,71 @@ function inspectDiscoveryContext({ root, inventory, readDescription = null, budg
   return report;
 }
 
+function inspectAggregateDiscoveryContext({
+  root,
+  inventory,
+  readDescription = null,
+  selectedStableIds = null,
+  profileId = 'minimal',
+  surface = 'claude-core',
+  budgets = null,
+  baseline = null,
+  maxEntries = null,
+  minReductionPercent = null,
+  estimator = null,
+} = {}) {
+  const manifest = budgets ? { aggregate: budgets.aggregate, estimator: budgets.estimator } : loadDiscoveryBudgetManifest(root);
+  const aggregate = manifest.aggregate || {};
+  const selected = new Set(Array.isArray(selectedStableIds)
+    ? selectedStableIds
+    : inventory && inventory.profile_policy && Array.isArray(inventory.profile_policy.required_core_ids)
+      ? inventory.profile_policy.required_core_ids
+      : []);
+  const reader = readDescription || ((entry) => defaultReadDescription(root, entry));
+  const skills = ((inventory && inventory.skills) || []).filter((skill) => {
+    if (!selected.has(skill.id)) return false;
+    if (!Array.isArray(skill.surfaces) || !skill.surfaces.includes(surface)) return false;
+    return defaultInvocationClass(root, skill) === 'implicit-eligible';
+  });
+  const items = skills.map((skill) => {
+    const description = reader(skill) || '';
+    return {
+      id: skill.id,
+      stableId: skill.id,
+      name: skill.name || skill.id,
+      lifecycle: skill.lifecycle,
+      surface,
+      publicationSurface: surface,
+      discoveryVisible: true,
+      ...counts(description),
+    };
+  });
+  const evaluated = evaluateAggregateDiscoveryBudget({
+    items,
+    baseline: baseline || aggregate.baseline,
+    maxEntries: maxEntries === null ? aggregate.maxEntries : maxEntries,
+    minReductionPercent: minReductionPercent === null ? aggregate.minReductionPercent : minReductionPercent,
+  });
+  return {
+    schema: 'dhpk.aggregate-discovery-report.v1',
+    profileId,
+    surface,
+    selectedStableIds: [...selected],
+    selectedEntries: ((inventory && inventory.skills) || []).filter((skill) => selected.has(skill.id) && Array.isArray(skill.surfaces) && skill.surfaces.includes(surface)).length,
+    entries: evaluated.entries,
+    tokens: evaluated.tokens,
+    baseline: evaluated.baseline,
+    reductionPercent: evaluated.reductionPercent,
+    maxEntries: evaluated.maxEntries,
+    minReductionPercent: evaluated.minReductionPercent,
+    excessEntries: evaluated.excessEntries,
+    violations: evaluated.violations,
+    configurationErrors: evaluated.configurationErrors,
+    estimator: estimator || manifest.estimator || ESTIMATOR,
+    ok: evaluated.ok,
+  };
+}
+
 function renderBudgetReport(report) {
   const lines = [
     `discovery-visible entries: ${report.totals.discoveryVisible}`,
@@ -242,9 +323,28 @@ function renderBudgetReport(report) {
   return `${lines.join('\n')}\n`;
 }
 
+function renderAggregateBudgetReport(report) {
+  const lines = [
+    `aggregate discovery entries: ${report.entries}/${report.maxEntries}`,
+    `aggregate description tokens: ${report.tokens}`,
+    `baseline description tokens: ${report.baseline.tokens}`,
+    `description-token reduction: ${report.reductionPercent.toFixed(2)}% (target ${report.minReductionPercent}%)`,
+  ];
+  for (const violation of report.violations || []) lines.push(`FAIL ${violation.reason}`);
+  for (const error of report.configurationErrors || []) lines.push(`FAIL configuration: ${error.code}: ${error.message}`);
+  return `${lines.join('\n')}\n`;
+}
+
 function main() {
   const root = path.join(__dirname, '..', '..');
   const inventory = JSON.parse(fs.readFileSync(path.join(root, 'manifests', 'distribution-inventory.json'), 'utf8'));
+  if (process.argv.includes('--aggregate')) {
+    const report = inspectAggregateDiscoveryContext({ root, inventory });
+    process.stdout.write(process.argv.includes('--json')
+      ? `${JSON.stringify(report)}\n`
+      : renderAggregateBudgetReport(report));
+    return report.ok ? 0 : 1;
+  }
   const report = inspectDiscoveryContext({ root, inventory, legacyCli: true });
   process.stdout.write(renderBudgetReport(report));
   if (process.argv.includes('--json')) process.stdout.write(`${JSON.stringify(report)}\n`);
@@ -258,6 +358,8 @@ module.exports = {
   loadDiscoveryBudgets,
   loadDiscoveryBudgetManifest,
   inspectDiscoveryContext,
+  inspectAggregateDiscoveryContext,
   renderBudgetReport,
+  renderAggregateBudgetReport,
   counts,
 };

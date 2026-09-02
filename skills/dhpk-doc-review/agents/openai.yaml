@@ -1,4 +1,6 @@
 interface:
   display_name: "Doc Review"
-  short_description: "Document review via Codex MCP."
+  short_description: "Portable document review with a five-dimension gate."
   default_prompt: "Use $dhpk-doc-review to apply the Doc Review workflow with its verification rules."
+policy:
+  allow_implicit_invocation: false

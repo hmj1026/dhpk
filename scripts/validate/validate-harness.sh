@@ -156,7 +156,7 @@ elif ! command -v jq >/dev/null 2>&1; then
 else
     RT_TOTAL=0
     ROUTE_TABLE_VALID=1
-    DUP_WHITELIST="dhpk-adaptive-dev-workflow"  # workflow router: bug/feature/build variants route here by design
+    DUP_WHITELIST="dhpk-adaptive-dev-workflow dhpk-tech-spec"  # workflow/spec routers: intent-specific variants may share one safe target
 
     # Validate the closed route-table envelope before iterating. jq's default
     # `.rules[]` expression silently yields no rows for malformed JSON, a

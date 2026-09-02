@@ -1,11 +1,11 @@
-# Codex Prompt: Quick Review (Diff Only)
+# Review Prompt: Quick Review (Diff Only)
 
 <!-- Research block source of truth: @codex-research-instructions.md (Standard Research Block) -->
 
-Used with `mcp__codex__codex`:
+Primary reviewer input:
 
 ```typescript
-mcp__codex__codex({
+review({
   prompt: `You are a senior Code Reviewer. Review the code changes in this project, focus on finding issues rather than praise.
 
 ## Changed Files

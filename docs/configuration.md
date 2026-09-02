@@ -4,6 +4,14 @@
 
 dhpk exposes **59 `userConfig` knobs** in `.claude-plugin/plugin.json`. This page documents every knob: where you set it, what values it accepts, and what it actually changes. For platform installation routes and support status, see the [platform installation SSOT](./platform-installation.md). For the day-to-day command flow (install, common workflows, review cycle), see [`docs/basic-operations.md`](./basic-operations.md).
 
+The default Claude discovery artifact is the materialized `minimal` profile,
+derived from `manifests/distribution-inventory.json`; it is not an unfiltered
+scan of the source `skills/` directory. The profile publishes at most 15
+`implicit-eligible` entries. `full` and `compat-v1` are explicit opt-in profile
+artifacts. Agent Plugin and Cursor publication memberships are unchanged. See
+[`docs/platform-installation.md`](./platform-installation.md) for the profile
+selection and receipt rules.
+
 ## Where to set a value
 
 There are three places a knob's value can come from, in increasing precedence:
@@ -66,7 +74,7 @@ A handful of boolean/mode knobs additionally support a **one-shot environment-va
 | `architect_model` | string | `fable` | any model tier supported by the running Claude Code | Model tier for `dhpk:architect` Agent-call dispatches; applied per invocation without editing frontmatter, with up-only escalation for HIGH-risk architecture decisions. |
 | `architect_effort` | string | `low` | `low` \| `medium` \| `high` \| `xhigh` \| `max` | Reasoning effort for `dhpk:architect` Agent-call dispatches; applied per invocation without editing frontmatter. |
 | `orchestration_dispatch` | string | `on` | `on` \| `off` | Kill switch for implementation worker/reasoner routing in the Implementation dispatch table (`adaptive-dev-workflow` feature/bug modes and `opsx-apply-goal`). `on` routes implement-phase work through the decision table and prohibits `general-purpose` for implementation. `off` restores inline implementation and removes the dispatch directive, while the mandatory multi-task OpenSpec planner and verification gates remain active. |
-| `fast_worker_backend` | string | `claude` | `claude` \| `codex` \| `agy` \| `auto` | Deterministic mechanical-worker selector. `claude` maps to `dhpk:fast-worker`; `auto` checks `fast_worker_backend_order`. `/dhpk:do --worker=...` overrides this key for one invocation only (flag > userConfig > shipped default); an invalid flag warns once and falls through to this key/default, while an invalid configured value uses `claude`. Codex CLI availability is checked independently of `CODEX=on`; that switch controls the MCP peer-review path, not mechanical-worker selection. |
+| `fast_worker_backend` | string | `claude` | `claude` \| `codex` \| `agy` \| `auto` | Deterministic mechanical-worker selector. `claude` maps to `dhpk:fast-worker`; `auto` checks `fast_worker_backend_order`. `/dhpk:do --worker=...` overrides this key for one invocation only (flag > userConfig > shipped default); an invalid flag warns once and falls through to this key/default, while an invalid configured value uses `claude`. Codex CLI availability is checked independently of the retired `CODEX=on` flag; select a Codex worker explicitly with `--worker=codex`. |
 | `fast_worker_backend_order` | string | `claude,codex,agy` | comma-separated backend names | Availability order used only by `auto`; rejected candidates and reasons are recorded. Invalid values warn once per session and use the shipped order. |
 | `fast_worker_fallback` | string | `none` | `none` \| `claude` | Explicit fallback for a missing selected CLI executable only. Auth, authorization, model, task, execution, and verification failures remain blocked. |
 | `subagent_quality_gate` | string | `off` | `on` \| `off` | Retained for an explicitly registered advisory quality hook. It has no default-lifecycle effect; strict artifact evidence is enforced by `subagent-stop-verify.sh`. |
@@ -79,63 +87,66 @@ deadline is required. The Python transport runner, not `timeout` or `gtimeout`,
 enforces the attested deadline and writes a contained terminal receipt. The
 separate agy setting is likewise an attested dispatch input.
 
-## Codex MCP dependency (not a `userConfig` knob)
+<a id="codex-mcp-dependency-not-a-userconfig-knob"></a>
 
-`orchestration_dispatch`'s `CODEX=on` peer path, the **3 MCP-backed Codex skills** (`dhpk-codex-architect` including `--mode adversarial`, `dhpk-codex-implement`, and `dhpk-change-review`), and the **7 `/dhpk:codex-*` commands** (`codex-review`, `-review-branch`, `-review-doc`, `-review-fast`, `-security`, `-test-gen`, `-test-review`) all require the `mcp__codex__codex` / `mcp__codex__codex-reply` tools. The optional CLI backend is `dhpk-change-review/scripts/review.sh --backend cli`; it uses no MCP server. dhpk does not bundle or configure these tools, and no `dhpk` `userConfig` key controls them: they come from **directly registering the Codex CLI's own `codex mcp-server` subcommand as an MCP server** — *not* from installing `openai/codex-plugin-cc`, which is a separate, optional surface (see the comparison aside below).
+## Codex integrations and retired MCP history (not a `userConfig` knob)
 
-### How the Codex MCP server works
+Current dhpk capabilities run with the in-process model or an explicit CLI
+backend. No active skill or command requires a Codex MCP server. The current
+CLI-only review path is `dhpk-change-review/scripts/review.sh --backend cli`;
+its sibling CLI roles are `codex-worker`, `codex-reasoner`, `codex-reviewer`,
+and `dhpk-codex-bridge`. Use `--worker=codex`, `--reasoner=codex`, or an
+explicit `codex exec` second opinion when a Codex CLI transport is wanted.
 
-The Codex CLI ships an MCP-server mode. `codex mcp-server` starts a stdio Model Context Protocol server that exposes exactly two tools — `codex` and `codex-reply` — which Claude Code surfaces to skills as `mcp__codex__codex` / `mcp__codex__codex-reply`. Each call is configurable via `approval-policy`, `sandbox`, `model`, `profile`, and `cwd` (OpenAI documents the command and these parameters in its [Agents SDK / Codex MCP guide](https://developers.openai.com/codex/guides/agents-sdk)). Registering this server is the **only** way to obtain the `mcp__codex__*` tools dhpk's `codex-*` skills and commands depend on.
+### Historical: Codex MCP server (retired)
 
-Register it once, independent of dhpk:
+The Codex CLI once exposed a stdio Model Context Protocol server through
+`codex mcp-server`. Claude Code surfaced its two tools as
+`mcp__codex__codex` and `mcp__codex__codex-reply`. A historical registration
+used `claude mcp add --transport stdio codex -- codex mcp-server`; `/mcp` and
+`claude mcp list` were then used to inspect the connection. This paragraph and
+the command are retained for migration diagnosis only. The server is retired,
+is not required or recommended for any current dhpk skill or command, and must
+not be added as a hidden fallback.
 
-```bash
-# Register the Codex CLI's mcp-server as an MCP server named "codex"
-claude mcp add --transport stdio codex -- codex mcp-server
-# Confirm Claude Code sees it
-claude mcp list
-```
+The former MCP path could preserve a reply thread between calls. The migrated
+owners instead use the current model, isolated reviewers, or explicitly chosen
+`codex exec`; the [capability-parity matrix](./codex-mcp-capability-parity.md)
+records the continuity difference, verification evidence, and rollback for each
+capability. For rollback, pin the last compatible release carrying the MCP
+grant; do not reintroduce that transport in the current release.
 
-You can equivalently hand-write the same server into a `.mcp.json` / `.claude.json` entry instead of using `claude mcp add`. Claude Code's [MCP quickstart](https://code.claude.com/docs/en/mcp-quickstart#connect-to-mcp-servers) documents this generic connect-and-verify flow (`claude mcp add`, `claude mcp list`, and `/mcp` inside a session).
+### Current external app-server plugin
 
-This requires the `codex` CLI itself to be installed and authenticated first: Node.js 18.18+ and either a ChatGPT subscription (including Free) or an OpenAI API key. Install with `npm install -g @openai/codex` and authenticate with `codex login` (prefix with `!` to run it as a shell command from inside a Claude Code session).
+`openai/codex-plugin-cc` (installed via `/plugin install codex@openai-codex`)
+is a separate, optional integration. It drives the Codex CLI's `app-server`
+subcommand through its own broker scripts and provides `/codex:*` commands,
+`codex-rescue`, background polling, resume/transfer, and an optional Stop-hook
+gate. It does not register the retired MCP server and is not required for any
+dhpk capability.
 
-**Verifying the connection** — inside a Claude Code session, run:
+The supported current surfaces are independent:
 
-```bash
-/mcp
-```
+| Surface | How it is obtained | What it provides | dhpk dependency |
+|---|---|---|---|
+| Codex CLI | Install and authenticate the `codex` binary | `codex exec`, CLI-backed roles, and `dhpk-change-review/scripts/review.sh --backend cli` | Optional; no MCP server |
+| `openai/codex-plugin-cc` | `/plugin install codex@openai-codex` | `/codex:*` commands and app-server collaboration | Optional external plugin |
+| Retired Codex MCP | Historical `codex mcp-server` registration | `mcp__codex__codex` / `mcp__codex__codex-reply` | None; retained only as historical context |
 
-Look for a `codex` entry with a connected status and the `codex` / `codex-reply` tools listed under it (Claude Code exposes them to skills as `mcp__codex__codex` / `mcp__codex__codex-reply`). If `codex` is missing or shows a failed/disconnected state:
+The standalone Codex CLI dual-track sync (`install-codex-skills.sh`, see
+[`docs/basic-operations.md`](./basic-operations.md)) is also independent of
+the retired MCP mechanism and needs no server registration.
 
-1. Re-check `claude mcp list` — confirm a `codex` server is registered and its command is `codex mcp-server`.
-2. Confirm the underlying `codex` CLI runs and is authenticated (`codex login`); the MCP server can't start without it.
-3. If `codex` appears connected but a `codex-*` skill still fails, the issue is usually auth (`codex login`) rather than the MCP connection itself.
-
-Without the `codex mcp-server` registration, invoking any MCP-backed `codex-*` skill or `/dhpk:codex-*` command surfaces a tool-permission error (`mcp__codex__*` not found) — dhpk has no fallback for these surfaces specifically, since they exist only to delegate to Codex. This is distinct from `CODEX=on` (see [`docs/basic-operations.md`](./basic-operations.md#implementation-dispatch)), a **per-session opt-in flag** (not a persisted `userConfig` value, no install-time `--config` equivalent) that resets every session unless you pass `--codex` or say "use codex" again — and when its MCP dependency is absent, `CODEX=on` degrades silently to single-assistant dispatch rather than erroring.
-
-It is also unrelated to **Codex CLI dual-track sync** (`install-codex-skills.sh`, see [`docs/basic-operations.md`](./basic-operations.md)), which mirrors dhpk's own skills into a project's `.codex/` directory for people running the standalone `codex` CLI directly — that path needs no MCP server at all.
-
-### `openai/codex-plugin-cc` vs the Codex MCP server
-
-`openai/codex-plugin-cc` (installed via `/plugin install codex@openai-codex`) is a **separate, optional** integration that does **not** register an MCP server and does **not** satisfy the `codex-*` skills' MCP dependency. It drives the Codex CLI's distinct `app-server` subcommand through its own Node broker scripts (`scripts/app-server-broker.mjs`, `scripts/codex-companion.mjs`) — not `mcp-server` — to provide its own slash commands (`/codex:review`, `/codex:adversarial-review`, `/codex:rescue`, `/codex:transfer`, `/codex:status`, `/codex:result`, `/codex:cancel`, `/codex:setup`), a `codex-rescue` subagent, background job polling, a `codex resume <session-id>` transfer mechanism, and an optional Stop-hook review gate. None of these touch `mcp-server` or `mcp__codex__*`.
-
-The two are independent — you may have **either, both, or neither** installed:
-
-| | Codex MCP server | `openai/codex-plugin-cc` |
-|---|---|---|
-| How to get it | `claude mcp add --transport stdio codex -- codex mcp-server` | `/plugin install codex@openai-codex` |
-| Codex CLI subcommand | `codex mcp-server` | `codex app-server` (via broker scripts) |
-| What it provides | `mcp__codex__codex` / `mcp__codex__codex-reply` tools | `/codex:*` slash commands, `codex-rescue` subagent, Stop-hook gate |
-| Used by dhpk's `codex-*` skills? | **Yes** — this is their dependency | No |
-
-If you install only the plugin and never register `codex mcp-server`, the `mcp__codex__codex` tool is still unavailable and invoking a `codex-*` skill will surface a tool-permission error. `/codex:setup` (shipped by the plugin) is a convenience for checking the underlying `codex` CLI install/auth state — which the MCP server also needs — but installing the plugin is neither necessary nor sufficient for the MCP dependency.
-
-Finally, don't confuse either integration with dhpk's **own** `.codex-plugin/` directory (see the "Codex Plugin Marketplace" section of [`docs/basic-operations.md`](./basic-operations.md)) — that manifest runs in the opposite direction: it lets the **Codex CLI** install dhpk's skills as a Codex-native plugin. It shares the word "plugin" but has nothing to do with `openai/codex-plugin-cc` or the MCP tools documented above.
+The `CODEX=on` and `/dhpk:do --codex` flags were legacy per-session MCP-peer
+interfaces. They are removed, are not persisted `userConfig` values, and are
+not silently reinterpreted as `codex exec`, `--worker=codex`,
+`--reasoner=codex`, or the external plugin. Use `/dhpk:do`/`dhpk-implement` for
+current-model implementation, select a CLI role explicitly when needed, and
+request a second opinion by its named `codex exec` opt-in.
 
 ### Codex agent roles (dual-track sync)
 
-This is about the standalone Codex CLI dual-track sync (`codex/agents/` → `.codex/agents/`), not the MCP server documented above. Every `codex/agents/*.toml` file must declare non-empty `name`, `description`, `model`, `model_reasoning_effort`, and `developer_instructions`; Codex agent definitions use TOML only. dhpk publishes these files for Codex's documented project-local discovery path, and the installer always materializes them as physical files even when skills use symlinks. The 12 generated roles (`architect`, `code-reviewer`, `security-reviewer`, `database-reviewer`, `tdd-guide`, `deep-reasoner`, `doc-reviewer`, `planner`, `spec-miner`, `frontend-reviewer`, `migration-reviewer`, `e2e-runner`) are produced from `agents/<name>.md` by `scripts/gen-codex-agents.js`, joining 4 hand-maintained generic roles (`explorer`, `worker`, `monitor`, `bug-investigator`) for a total of 16 direct roles.
+This is about the standalone Codex CLI dual-track sync (`codex/agents/` → `.codex/agents/`), not the retired MCP mechanism. Every `codex/agents/*.toml` file must declare non-empty `name`, `description`, `model`, `model_reasoning_effort`, and `developer_instructions`; Codex agent definitions use TOML only. dhpk publishes these files for Codex's documented project-local discovery path, and the installer always materializes them as physical files even when skills use symlinks. The 12 generated roles (`architect`, `code-reviewer`, `security-reviewer`, `database-reviewer`, `tdd-guide`, `deep-reasoner`, `doc-reviewer`, `planner`, `spec-miner`, `frontend-reviewer`, `migration-reviewer`, `e2e-runner`) are produced from `agents/<name>.md` by `scripts/gen-codex-agents.js`, joining 4 hand-maintained generic roles (`explorer`, `worker`, `monitor`, `bug-investigator`) for a total of 16 direct roles.
 
 `[agents.<name>]` blocks in `config.toml.example` are optional metadata, not a workaround for a runtime registry failure. The supported top-level concurrency setting is `max_concurrent_threads_per_session`; the example also records the effective default subagent model and reasoning effort. Static metadata, a physical TOML, or built-in `explorer` success does not prove custom-role callability; require an observed non-built-in spawn and targeted wait. See [`codex/AGENTS.md`](../codex/AGENTS.md) for diagnostics and [`platform-installation.md`](platform-installation.md) for the evidence boundary.
 

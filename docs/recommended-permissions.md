@@ -126,11 +126,11 @@ mcp__claude_ai_Gmail__*
 mcp__claude_ai_Google_Calendar__*
 mcp__plugin_context7_context7__*
 mcp__plugin_claude-mem_mcp-search__*
-mcp__codex__codex
 ```
 
 Audit each entry against the MCP server's documented capabilities before
-adding.
+adding. The retired Codex peer grant is not a valid dhpk permission; use an
+explicit Codex CLI route or the current-model path instead.
 
 ## How to verify your allowlist
 

@@ -14,5 +14,5 @@ triggers:
     extensions: []
     paths: []
 provides:
-  skills: [dhpk-laravel-9-notes]
+  skills: [dhpk-laravel]
   references: []

@@ -46,7 +46,7 @@ entry (one whose flag enables broad mutation) implicit-eligible.
 
 All other active root skills: `dhpk-adaptive-dev-workflow`, `dhpk-agent-architecture-audit`,
 `dhpk-agy-fast-worker`, `dhpk-root-cause-investigation`, `dhpk-codebase-exploration`,
-`dhpk-codex-architect`, `dhpk-codex-bridge`, `dhpk-change-review`, `dhpk-codex-implement`,
+`dhpk-module-design`, `dhpk-implement`, `dhpk-codex-bridge`, `dhpk-change-review`,
 `dhpk-composer-package-hygiene`, `dhpk-create-request`, `dhpk-deploy-list`,
 `dhpk-execution-policy`, `dhpk-doc-review`, `dhpk-execution-checklist`,
 `dhpk-feasibility-study`, `dhpk-feature-verify`, `dhpk-git-history-investigation`,
@@ -62,7 +62,7 @@ All other active root skills: `dhpk-adaptive-dev-workflow`, `dhpk-agent-architec
 Retiring workflow identities are intentionally absent from live classification.
 Their replacement modes are `dhpk-adaptive-dev-workflow` (bug/feature),
 `dhpk-tdd-workflow` plus the `e2e-runner` agent,
-`dhpk-codex-architect --mode adversarial`, and the model-default path; consult
+`dhpk-module-design --mode adversarial`, and the model-default path; consult
 the inventory-owned retirement ledger for the exact former identities and
 release guidance.
 

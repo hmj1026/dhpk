@@ -4,7 +4,7 @@ description: 'Navigation index for dhpk plugin skills. Internal documentation; n
 
 # Skills Index (dhpk plugin)
 
-> Navigation for the 100 canonical skill packages shipped by the dhpk plugin. Every
+> Navigation for the 101 canonical skill packages shipped by the dhpk plugin. Every
 > package lives flat under `skills/dhpk-<name>/SKILL.md` and is invoked with its
 > public name (for example, `/dhpk:dhpk-tdd-workflow`) or auto-triggered by its
 > `description`. Stack modules expose
@@ -35,6 +35,7 @@ description: 'Navigation index for dhpk plugin skills. Internal documentation; n
 | [dhpk-root-cause-investigation](dhpk-root-cause-investigation/SKILL.md) | Systematic 5-phase root-cause investigation |
 | [dhpk-feature-verify](dhpk-feature-verify/SKILL.md) | Read-only post-deploy behavior verification (P0–P5) |
 | [dhpk-tdd-workflow](dhpk-tdd-workflow/SKILL.md) | Behavior-first RED-GREEN-REFACTOR guidance for test-bearing work |
+| [dhpk-implement](dhpk-implement/SKILL.md) | Backend-neutral implementation, verification, review, and bounded retries |
 
 ## Code exploration & architecture
 
@@ -46,15 +47,13 @@ description: 'Navigation index for dhpk plugin skills. Internal documentation; n
 | [dhpk-module-design](dhpk-module-design/SKILL.md) | Architecture decisions, module boundaries, implementation guidance |
 | [dhpk-agent-architecture-audit](dhpk-agent-architecture-audit/SKILL.md) | 12-layer diagnostic for agent / LLM applications |
 
-## Codex-assisted (opt-in second opinion)
+## Optional second opinion
 
 | Skill | Purpose |
 |-------|---------|
-| [dhpk-codex-architect](dhpk-codex-architect/SKILL.md) | Codex architecture consulting / design second opinion |
-| [dhpk-codex-implement](dhpk-codex-implement/SKILL.md) | Implement features via Codex MCP |
-| [dhpk-change-review](dhpk-change-review/SKILL.md) | Code review via MCP or the hardened Codex CLI backend |
-| [dhpk-doc-review](dhpk-doc-review/SKILL.md) | Document review via Codex MCP (5-dimension rating) |
-| [dhpk-test-review](dhpk-test-review/SKILL.md) | Test-coverage sufficiency review via Codex MCP |
+| [dhpk-change-review](dhpk-change-review/SKILL.md) | Fixed-point code review with an optional explicit Codex CLI backend |
+| [dhpk-doc-review](dhpk-doc-review/SKILL.md) | Portable five-dimension document review with an optional explicit second opinion |
+| [dhpk-test-review](dhpk-test-review/SKILL.md) | Portable test-coverage sufficiency review with an optional explicit second opinion |
 
 ## Review, risk & audit
 

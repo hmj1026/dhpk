@@ -14,9 +14,32 @@ const INVENTORY = {
   schema: 'dhpk.distribution-inventory.v2',
   skills: [
     { id: 'php-runtime-router', path: 'skills/dhpk-php-runtime-router', surfaces: ['claude-module'] },
-    { id: 'laravel-9-notes', path: 'skills/dhpk-laravel-9-notes', legacy_names: ['laravel-9-notes'], surfaces: ['claude-module'] },
-    { id: 'laravel-10-notes', path: 'skills/dhpk-laravel-10-notes', legacy_names: ['laravel-10-notes'], surfaces: ['claude-module'] },
-    { id: 'phpunit-9-modern', path: 'skills/dhpk-phpunit-9-modern', legacy_names: ['phpunit-9-modern'], surfaces: ['claude-module'] },
+    {
+      id: 'laravel', path: 'skills/dhpk-laravel', lifecycle: 'promoted',
+      invocation_class: 'implicit-eligible', surfaces: ['claude-core'],
+    },
+    {
+      id: 'laravel-9-notes', path: 'skills/dhpk-laravel-9-notes', lifecycle: 'deprecated',
+      invocation_class: 'implicit-eligible', legacy_names: ['laravel-9-notes'], discoveryVisible: false,
+      surfaces: ['claude-module'],
+      deprecation: { since: '2026-09-02', compatibilityWindowEnds: '2026-12-02', migrationNote: 'Use the Laravel family selector.' },
+    },
+    {
+      id: 'laravel-10-notes', path: 'skills/dhpk-laravel-10-notes', lifecycle: 'deprecated',
+      invocation_class: 'implicit-eligible', legacy_names: ['laravel-10-notes'], discoveryVisible: false,
+      surfaces: ['claude-module'],
+      deprecation: { since: '2026-09-02', compatibilityWindowEnds: '2026-12-02', migrationNote: 'Use the Laravel family selector.' },
+    },
+    {
+      id: 'phpunit', path: 'skills/dhpk-phpunit', lifecycle: 'promoted',
+      invocation_class: 'implicit-eligible', surfaces: ['claude-core'],
+    },
+    {
+      id: 'phpunit-9-modern', path: 'skills/dhpk-phpunit-9-modern', lifecycle: 'deprecated',
+      invocation_class: 'implicit-eligible', legacy_names: ['phpunit-9-modern'], discoveryVisible: false,
+      surfaces: ['claude-module'],
+      deprecation: { since: '2026-09-02', compatibilityWindowEnds: '2026-12-02', migrationNote: 'Use the PHPUnit family selector.' },
+    },
   ],
   skill_routing_families: [
     {
@@ -25,8 +48,8 @@ const INVENTORY = {
       invocation_class: 'implicit-eligible',
       surfaces: ['claude-module'],
       selectors: {
-        '10': 'skills/dhpk-laravel-10-notes/SKILL.md',
-        '9': 'skills/dhpk-laravel-9-notes/SKILL.md',
+        '10': 'skills/dhpk-laravel/references/10.md',
+        '9': 'skills/dhpk-laravel/references/9.md',
       },
       aliases: [
         { id: 'laravel-10-notes', selector: '10', invocation_class: 'implicit-eligible', surfaces: ['claude-module'] },
@@ -38,7 +61,7 @@ const INVENTORY = {
       router_id: 'php-runtime-router',
       invocation_class: 'implicit-eligible',
       surfaces: ['claude-module'],
-      selectors: { '9': 'skills/dhpk-phpunit-9-modern/SKILL.md' },
+      selectors: { '9': 'skills/dhpk-phpunit/references/9.md' },
       aliases: [
         { id: 'phpunit-9-modern', selector: '9', invocation_class: 'implicit-eligible', surfaces: ['claude-module'] },
       ],
@@ -64,8 +87,8 @@ test('normalizes family records into a deterministic immutable public view', () 
       invocationClass: 'implicit-eligible',
       surfaces: ['claude-module'],
       selectors: {
-        '10': 'skills/dhpk-laravel-10-notes/SKILL.md',
-        '9': 'skills/dhpk-laravel-9-notes/SKILL.md',
+        '10': 'skills/dhpk-laravel/references/10.md',
+        '9': 'skills/dhpk-laravel/references/9.md',
       },
       aliases: [
         { id: 'laravel-10-notes', selector: '10', invocationClass: 'implicit-eligible', surfaces: ['claude-module'] },
@@ -77,7 +100,7 @@ test('normalizes family records into a deterministic immutable public view', () 
       routerId: 'php-runtime-router',
       invocationClass: 'implicit-eligible',
       surfaces: ['claude-module'],
-      selectors: { '9': 'skills/dhpk-phpunit-9-modern/SKILL.md' },
+      selectors: { '9': 'skills/dhpk-phpunit/references/9.md' },
       aliases: [
         { id: 'phpunit-9-modern', selector: '9', invocationClass: 'implicit-eligible', surfaces: ['claude-module'] },
       ],
@@ -93,15 +116,15 @@ test('resolves exactly one selector or stable alias and rejects ambiguous reques
 
   assert.strictEqual(
     resolveSkillRoutingReference({ inventory: INVENTORY, families, familyId: 'laravel', selector: '10' }),
-    'skills/dhpk-laravel-10-notes/SKILL.md',
+    'skills/dhpk-laravel/references/10.md',
   );
   assert.strictEqual(
     resolveSkillRoutingReference({ inventory: INVENTORY, families, id: 'laravel-9-notes' }),
-    'skills/dhpk-laravel-9-notes/SKILL.md',
+    'skills/dhpk-laravel/references/9.md',
   );
   assert.strictEqual(
     resolveSkillRoutingReference({ inventory: INVENTORY, families, familyId: 'phpunit', selector: '9' }),
-    'skills/dhpk-phpunit-9-modern/SKILL.md',
+    'skills/dhpk-phpunit/references/9.md',
   );
   assert.strictEqual(
     resolveSkillRoutingReference({ inventory: INVENTORY, families, id: 'laravel-9-notes', selector: '10' }),

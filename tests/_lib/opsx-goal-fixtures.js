@@ -48,13 +48,9 @@ const GATE_TOKENS = {
 const readFixture = (name) => JSON.parse(fs.readFileSync(path.join(FIXTURE_DIR, `${name}.json`), 'utf8'));
 
 const composeGoal = (fixture) => {
-  const codexStatement = fixture.codex
-    ? 'CODEX is ON for this session: apply execution-policy §In-flight doubt cycle and §CODEX=on high-stakes parallel peer path (including its session-end zero-dispatch self-check)'
-    : 'CODEX is OFF for this session: at a contradiction-arbitration point where two agents\' conclusions directly conflict, announce "cross-model doubt skipped (CODEX=off)" per execution-policy §In-flight doubt cycle rather than performing a cross-model pass';
   const core = fixture.dispatch_on === false ? FIXED_CORE_NO_DISPATCH : FIXED_CORE;
   const parts = core.map((part) => part
     .replaceAll('<CHANGE_ID>', fixture.change_id || 'fixture-change')
-    .replace('<CODEX_STATEMENT>', codexStatement)
     .replaceAll('<TASK_DIGEST>', 'T'.repeat(200))
     .replaceAll('<FAST_WORKER_CLAUSE>', 'dhpk:codex-fast-worker selected; fallback dhpk:agy-fast-worker → dhpk:fast-worker')
     .replaceAll('<E2E_ROSTER_CLAUSE>', fixture.has_e2e === false ? '' : 'RED/E2E Playwright → dhpk:e2e-runner; '));

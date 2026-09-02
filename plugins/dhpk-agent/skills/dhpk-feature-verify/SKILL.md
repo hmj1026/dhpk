@@ -1,15 +1,15 @@
 ---
 name: dhpk-feature-verify
-description: "Feature verification (READ-ONLY, P0-P5). Use when: verifying feature behavior after deployment, validating API responses, diagnosing production issues, post-deploy smoke test. Not for: modifying data (use dhpk-adaptive-dev-workflow in feature mode), code review (use dhpk-change-review), writing tests (use dhpk-tdd-workflow), security audit (use dhpk-security-review). Output: a P0-P5 verification report with pass/fail evidence per check."
+description: "Feature verification (READ-ONLY, P0-P5). Purpose: verify feature behavior after deployment, validate API responses, diagnose production issues, or run a post-deploy smoke test. Not for: modifying data (use dhpk-adaptive-dev-workflow in feature mode), code review (use dhpk-change-review), writing tests (use dhpk-tdd-workflow), security audit (use dhpk-security-review). Output: a P0-P5 verification report with pass/fail evidence per check."
 metadata:
-  dhpk-invocation-class: "implicit-eligible"
+  dhpk-invocation-class: "explicit-only"
 ---
 
 # Feature Verify — Runtime-First API Verification
 
 Verify deployed behavior with read-only runtime evidence:
 
-`Claude analysis → Codex independent confirmation → integrated verdict`
+`Primary-model analysis → optional independent reviewer → integrated verdict`
 
 Use this for post-deploy checks, smoke tests, and production diagnosis. For
 local tests use the repository verification route; for changes use
@@ -79,10 +79,20 @@ For L2-OBS use deploy time → now, a user-provided window, or the last 30 minut
 
 ## P5 — Independent Verdict
 
-1. Claude forms a conclusion from P3/P4 evidence.
-2. Codex independently reviews scope, commands, allowlist compliance, evidence, blind spots, and confidence using [blackbox-testing.md § P5](references/blackbox-testing.md#p5-codex-independent-review-prompt).
-3. Integrate both conclusions using the verdict/confidence rules in the playbook.
-4. Render [output-template.md](references/output-template.md).
+1. The primary model forms a conclusion from P3/P4 evidence.
+2. Only when the caller explicitly requests a second opinion, dispatch a fresh,
+   isolated read-only reviewer with P1/P3/P4 evidence. The reviewer must assess
+   scope, commands, allowlist compliance, evidence, blind spots, and confidence
+   without receiving the primary conclusion. An explicit
+   `--second-opinion=codex-exec` may supply an additional one-shot CLI review;
+   it is additive and opt-in, with no hidden fallback.
+3. If no second opinion is requested or available, label the result
+   **degraded: primary model only** and state plainly: "Only the primary
+   model's verdict is present; no independent review ran." Do not describe the
+   primary result as independently verified.
+4. Integrate available conclusions using the verdict/confidence rules in the
+   playbook, keeping a skipped or unavailable reviewer visible.
+5. Render [output-template.md](references/output-template.md).
 
 The report may recommend another skill, but must not auto-invoke it.
 
@@ -105,7 +115,8 @@ valid only when the level or safety gate requires it; it is not a passing execut
   latency, or was marked skipped with a reason.
 - [ ] P4 correlated logs or metrics when available and recorded the observation window
   and blind spots.
-- [ ] P5 contains Claude's analysis, the independent Codex review, and the integrated
-  verdict from the playbook.
+- [ ] P5 contains the primary analysis, any requested independent review (or the
+  explicit degraded primary-only state), and the integrated verdict from the
+  playbook.
 - [ ] The final report matches `output-template.md` and does not claim evidence for a
   phase that was skipped or unavailable.

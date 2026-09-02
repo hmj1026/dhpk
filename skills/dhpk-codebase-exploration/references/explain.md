@@ -10,5 +10,7 @@ target file with the whole system.
 | `normal` | Purpose, ordered execution flow, key concepts, and direct dependencies |
 | `deep` | Normal output plus callers, complexity, edge cases, and risks or improvement options |
 
-For a second perspective, send the same target and depth to Codex with a clean
-read-only prompt. Preserve separate evidence until the final reconciliation.
+For a second perspective, send the same target and depth to a fresh isolated
+read-only subagent with a clean prompt. Preserve separate evidence until the
+final reconciliation. An explicit `--second-opinion=codex-exec` may add a
+one-shot CLI perspective; it is not implicit.

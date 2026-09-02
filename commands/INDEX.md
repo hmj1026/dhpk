@@ -22,11 +22,11 @@ description: 'Navigation index for dhpk plugin commands. Internal documentation;
 
 | Command | 用途 |
 |---------|------|
-| `/dhpk:codex-review` | 整合式 Codex second opinion（`--scope diff\|branch\|doc\|security\|tests`）。 |
-| `/dhpk:codex-review-branch` / `/dhpk:codex-review-fast` | Branch 或快速 diff review。 |
-| `/dhpk:codex-review-doc` / `/dhpk:codex-security` | 文件或安全性專門 review。 |
-| `/dhpk:codex-test-gen` / `/dhpk:codex-test-review` / `/dhpk:check-coverage` | 產生、審查與檢查測試覆蓋。 |
-| `/dhpk:review-spec` | 審查既有技術規格。 |
+| `/dhpk:codex-review` | Frozen Codex second opinion（`--scope diff\|branch\|doc\|security\|tests`）；`explicit-only`，不會被自動路由。 |
+| `/dhpk:codex-review-branch` / `/dhpk:codex-review-fast` | Frozen `explicit-only` aliases for branch 或快速 diff review。 |
+| `/dhpk:codex-review-doc` / `/dhpk:codex-security` | Frozen `explicit-only` aliases for 文件或安全性專門 review。 |
+| `/dhpk:codex-test-gen` / `/dhpk:codex-test-review` / `/dhpk:review-spec` | Frozen `explicit-only` aliases for 產生、審查測試覆蓋與技術規格 review。 |
+| `/dhpk:check-coverage` | Explicit-only legacy alias for test coverage；不屬於 frozen eight-command family，也不計入其數字。 |
 | `/dhpk:precommit` / `/dhpk:precommit-fast` / `/dhpk:verify` | 提交前或完整驗證。 |
 | `/dhpk:dep-audit` | 依賴安全風險稽核。 |
 | `/dhpk:review-pending` | 完成 pending-review sentinel 對應的 review。 |
@@ -60,6 +60,18 @@ description: 'Navigation index for dhpk plugin commands. Internal documentation;
 | `/dhpk:simplify` | 收尾式重構簡化。 |
 
 ## 呼叫約定
+
+The retained Codex-review command family has an exact frozen compatibility set of
+eight — `codex-review`, `codex-review-branch`, `codex-review-doc`,
+`codex-review-fast`, `codex-security`, `codex-test-gen`, `codex-test-review`, and
+`review-spec`. They remain directly invocable by exact name, but are not
+default-discoverable or implicitly routed. The family is MCP-free: no command
+declares the retired Codex MCP tools. `codex-review` selects the retained CLI
+backend; the aliases forward to their documented CLI or backend-neutral targets,
+with `codex-test-gen` using Codex-free `dhpk-tdd-workflow`. The default Claude
+discovery artifact is the materialized `minimal` profile; `full` and `compat-v1`
+are explicit opt-in artifacts. `check-coverage` remains an explicit-only
+compatibility alias outside that count.
 
 - `/dhpk:<name>` — 本 plugin 實際註冊的 command namespace。
 - `dhpk-<skill-name>` — public skill identity，不是 `commands/` alias。Claude plugin

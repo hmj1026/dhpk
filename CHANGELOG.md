@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## 0.52.0 — 2026-09-03 — Retire Codex MCP capability identities, consolidate Laravel and PHPUnit version families, and materialize Claude profile bundles
+
+**BREAKING(codex-mcp)** — Retire legacy Codex MCP capability identities and route implementation and review workflows through portable execution paths.
+**feat(distribution)** — Materialize Claude capability profile bundles and validate aggregate discovery context budget in CI.
+
 ## 0.51.0 — 2026-09-01 — Reject unknown Codex role handoffs and guard distribution inventory regeneration
 
 **feat(codex)** — Reject unavailable or unknown role handoffs in generated Codex projections.

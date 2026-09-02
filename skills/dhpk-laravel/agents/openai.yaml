@@ -1,0 +1,4 @@
+interface:
+  display_name: "Laravel Family"
+  short_description: "Laravel 5.4-11 and optional Mix version routing"
+  default_prompt: "Use $dhpk-laravel to resolve the Laravel version and apply its matching reference workflow."

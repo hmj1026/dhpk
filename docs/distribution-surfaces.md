@@ -106,13 +106,14 @@ records its transform, fallback, and independent fingerprint. Update and
 rollback therefore have one owner for shared portable skills and a separate
 owner for Cursor-native files.
 
-## Claude publication: current generated surface
+## Claude publication: raw compatibility surface and materialized default
 
 `scripts/ci/gen-claude-manifest.js` derives the expected `.claude-plugin/plugin.json`
 `skills[]` root set from the inventory (`generateClaudeSkillRoots()` in
 `scripts/lib/distribution-inventory.js`) and checks it with `--check`.
 
-As of the current inventory, no skill is `deprecated`, so the generated root
+The raw source checkout remains available as an explicit compatibility surface:
+as of the current inventory, no skill is `deprecated`, so its generated root
 set is identical to the currently-registered set. Regenerate and inspect
 scope-specific counts instead of copying a historical snapshot:
 
@@ -121,11 +122,13 @@ node scripts/ci/gen-claude-manifest.js
 node scripts/ci/gen-distribution-inventory.js
 ```
 
-The current commands report one registered Claude directory root, 98
-inventory-eligible Claude skill IDs, 100 canonical skills (including two
+The raw compatibility commands report one registered Claude directory root, 88
+inventory-eligible Claude skill IDs, 101 canonical skills (including two
 non-invokable internal runtime packages), and 18 Codex-sync entries (16
-invokable skills plus internal transport and dispatch-context runtimes). These are independently
-derived scopes; a canonical total is not a default-install or runtime count.
+invokable skills plus internal transport and dispatch-context runtimes). These
+are independently derived scopes; a canonical total is not a default-install
+or runtime count. Clean default installs use the materialized `minimal` profile
+described below rather than this unfiltered root.
 The five `0.47.0` retirement rows are
 diagnostic ledger entries and are not materialized as packages or aliases;
 see the [alias-free retirement guidance](./skill-platform-migration.md#alias-free-retirement-ledger-0470).
@@ -188,10 +191,12 @@ count-scoping construct, not a claim about what the Claude host actually
 lists. `scripts/ci/gen-claude-manifest.js --check` verifies the directory-root
 set only; it cannot and does not assert per-skill hiding.
 
-## Opt-in Claude profile bundles
+## Claude publication: materialized default and compatibility profiles
 
-The compatibility package (`dhpk@dhpk`) remains the default and rollback path.
-Finite aliases declared in `manifests/install-profiles.json` can instead be
+The materialized `minimal` profile is the default Claude discovery artifact.
+The source checkout remains the authoring tree, while the unfiltered
+compatibility package (`dhpk@dhpk`) is retained as an explicit rollback and
+legacy path. Finite aliases declared in `manifests/install-profiles.json` are
 compiled before discovery with:
 
 ```bash
@@ -199,19 +204,23 @@ node scripts/ci/gen-claude-profile-bundles.js --profile minimal --check
 node scripts/ci/gen-claude-profile-bundles.js --profile minimal --out /tmp/dhpk-profile
 ```
 
-The generated package has its own physical `./skills/` root and a
-`bundle-receipt.json` containing the profile, selected stable IDs, plan
-fingerprint, and compatibility mode. Selection is inventory-owned and module
-closure is resolved from the profile and module catalogs; SessionStart remains
-runtime activation only. Arbitrary module combinations are not published as
-profile artifacts. The first rollout is opt-in and marketplace-oriented; a
-local `--plugin-dir` check is generation evidence, not consumer-runtime proof.
+The generated package has its own physical `./skills/` and `./commands/` roots
+and a `bundle-receipt.json` containing the profile, selected stable IDs, plan
+fingerprint, and compatibility mode. The installer registers a local
+marketplace wrapper for this package and installs `dhpk@dhpk-profile-minimal`.
+Selection is inventory-owned and module closure is resolved from the profile
+and module catalogs; SessionStart remains runtime activation only. Arbitrary
+module combinations are not published as profile artifacts. `full` and
+`compat-v1` remain explicit opt-in compatibility profiles. A local
+`--plugin-dir` or package validation is generation evidence, not
+consumer-runtime proof.
 
 When the configured Claude executable or installation mode is unavailable, the
 consumer result remains `NOT_CONFIGURED`, `NOT_RUN`, or `UNAVAILABLE` with a
 resume command. A generated package or context-budget report alone never
-claims a smaller live Claude context, and the bundle does not reduce
-`agents/`, `commands/`, `rules/`, or `userConfig` context.
+claims a smaller live Claude context. The materialized package intentionally
+scopes the discovery-facing skill and command roots; agent, hook, rule, and
+`userConfig` behavior remain a separate package/consumer validation concern.
 
 ## Capability profiles and compatibility migration
 

@@ -2,11 +2,11 @@
 
 ## Re-review Prompt Template
 
-Used with `mcp__codex__codex-reply` when document is revised:
+Used by the primary reviewer when the document is revised:
 
 ```typescript
-mcp__codex__codex-reply({
-  threadId: '<from --continue parameter>',
+review({
+  review_artifact: '<from --continue parameter>',
   prompt: `I have revised the document. Please re-review:
 
 ## Document Path
@@ -24,9 +24,9 @@ Please read the updated document yourself using \`cat ${FILE_PATH}\` and verify:
 
 When review result is ⛔ Needs revision:
 
-1. Remember the `threadId`
+1. Remember the `review_artifact`
 2. Revise the document
-3. Re-review using `--continue <threadId>`
+3. Re-review using `--continue <review_artifact>`
 4. Repeat until ✅ Mergeable
 
 ## Gate Sentinels (for Hook parsing)

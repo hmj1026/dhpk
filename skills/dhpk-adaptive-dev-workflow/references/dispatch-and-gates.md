@@ -4,6 +4,12 @@ workflow type 確定後，若需要 planning/implementation dispatch、post-impl
 
 Planning follows the root `Planning-Phase Agent` table. Read this file for implementation dispatch, reviewer batching, failure handling, next commands, and diagrams. The planning completion criterion is: required dispatch output is recorded, or the branch is explicitly marked `none`.
 
+Claude 的預設 discovery artifact 是由 inventory 產生的實體化 `minimal`
+profile；`full` 與 `compat-v1` 必須明確 opt-in。Codex MCP surface 已完成
+retirement，現行 capability 預設走 current-model；`codex exec`、Codex CLI
+worker/reasoner/bridge 與外部 `codex app-server` plugin 仍是明確選用的獨立
+transport。
+
 ## Implementation-Phase Agent
 
 SSOT 是 `@rules/execution-policy.md` 的 *Implementation dispatch*；本表只列典型調用：
@@ -12,7 +18,7 @@ SSOT 是 `@rules/execution-policy.md` 的 *Implementation dispatch*；本表只�
 |---|---|---|
 | Bug Investigation & Fix | 根因未知 | `subagent_type=dhpk:deep-reasoner`，產出 fix spec 交給下一列 |
 | Feature / Bug Fix | 機械式、規格明確 | shared selector 解出的 `dhpk:fast-worker` / `dhpk:codex-fast-worker` / `dhpk:agy-fast-worker` |
-| Feature / Bug Fix | 獨立第二視角或 CODEX=on 的自足規格任務 | `subagent_type=dhpk:dhpk-codex-bridge`，一次性 `codex exec`、輸出隔離、原文轉述 |
+| Feature / Bug Fix | caller 明確要求獨立第二視角或自足規格任務 | `subagent_type=dhpk:dhpk-codex-bridge`，一次性 CLI `codex exec`、輸出隔離、原文轉述；不得透過已退休的 `--codex` flag 隱式啟用 |
 | Feature / Bug Fix | 約 ≤2 檔且無歧義 | 無，inline |
 | Lightweight Maintenance | — | 無，inline patch |
 
@@ -35,7 +41,10 @@ Gate 失敗時：findings 合併成一份 fix-spec；超過 inline bound 才交�
 | Feature Delivery（一般） | — | `/opsx:new` 或 brief plan | profile + work-item + legacy-ref + RED |
 | Lightweight Maintenance | — | Read → Edit | targeted verification only |
 
-若使用 `--codex`，依 [codex-mode](codex-mode.md) 替換 planning/review 命令並在下游命令保留 `--codex`。
+若輸入含有已退休的 `--codex`，依 [codex-mode](codex-mode.md) 回報
+`DEPRECATED_CODEX_FLAG` 並停止，不得把它轉譯成 `codex exec`、worker、
+reasoner 或 app-server。新流程預設使用 Codex-free route；CLI 後端與第二
+意見都必須由 caller 以明確選項指定。
 
 ## Workflow Diagrams
 

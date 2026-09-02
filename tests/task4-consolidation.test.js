@@ -7,12 +7,20 @@ const { test, run, assert } = require('./_lib/tinytest');
 const ROOT = path.join(__dirname, '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
-test('approved consolidation leaves 100 canonical packages and records all legacy names', () => {
+test('approved consolidation leaves 101 canonical packages and retires migrated Codex identities', () => {
   const inventory = JSON.parse(read('manifests/distribution-inventory.json'));
-  assert.strictEqual(inventory.skills.length, 100);
-  for (const name of ['dhpk-code-investigate', 'dhpk-codex-explain', 'dhpk-codex-cli-review']) {
+  assert.strictEqual(inventory.skills.length, 101);
+  for (const name of [
+    'dhpk-code-investigate', 'dhpk-codex-explain', 'dhpk-codex-cli-review',
+    'dhpk-codex-architect', 'dhpk-codex-implement',
+  ]) {
     assert.ok(!fs.existsSync(path.join(ROOT, 'skills', name)), `${name} must not remain canonical`);
   }
+  assert.strictEqual(inventory.skills.find((entry) => entry.name === 'dhpk-implement').id, 'implement');
+  assert.deepStrictEqual(
+    inventory.retired_skills.filter((entry) => entry.retiredIn === '0.52.0').map((entry) => entry.id),
+    ['codex-architect', 'codex-implement'],
+  );
   const exploration = inventory.skills.find((entry) => entry.name === 'dhpk-codebase-exploration');
   assert.ok(exploration.legacy_names.includes('code-investigate'));
   assert.ok(exploration.legacy_names.includes('codex-explain'));

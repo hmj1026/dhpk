@@ -9,6 +9,46 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
 
+const CODEX_MCP_TOOL_NAMES = Object.freeze([
+  'mcp__codex__codex',
+  'mcp__codex__codex-reply',
+]);
+const CODEX_MCP_COMMAND_NAMES = Object.freeze([
+  'codex-review.md',
+  'codex-review-branch.md',
+  'codex-review-doc.md',
+  'codex-review-fast.md',
+  'codex-security.md',
+  'codex-test-gen.md',
+  'codex-test-review.md',
+  'review-spec.md',
+]);
+
+function frontmatterBlock(content) {
+  const match = String(content || '').replace(/^﻿/, '').match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
+  return match ? match[1] : '';
+}
+
+function hasCodexMcpAllowedTool(content) {
+  const block = frontmatterBlock(content);
+  const lines = block.split(/\r?\n/);
+  let inAllowedTools = false;
+  for (const line of lines) {
+    if (!inAllowedTools || !/^\s/.test(line)) {
+      const match = line.match(/^allowed-tools:\s*(.*)$/);
+      if (!match) {
+        inAllowedTools = false;
+        continue;
+      }
+      inAllowedTools = true;
+      if (CODEX_MCP_TOOL_NAMES.some((tool) => match[1].includes(tool))) return true;
+      continue;
+    }
+    if (CODEX_MCP_TOOL_NAMES.some((tool) => line.includes(tool))) return true;
+  }
+  return false;
+}
+
 function relativePosix(root, filePath) {
   return path.relative(root, filePath).split(path.sep).join('/');
 }
@@ -89,15 +129,20 @@ function collectInventory(root) {
   const commandFiles = walkFiles(path.join(repoRoot, 'commands'),
     (filePath) => filePath.endsWith('.md') && !filePath.endsWith('INDEX.md'));
   const moduleDirs = listDirectories(path.join(repoRoot, 'modules'));
-  const codexSkillDirs = listDirectories(path.join(repoRoot, 'skills'))
-    .filter((dir) => /^(?:dhpk-codex-|dhpk-change-review$)/.test(path.basename(dir)));
-  const mcpCodexSkills = codexSkillDirs.filter((dir) => {
-    const skill = path.join(dir, 'SKILL.md');
-    return fs.existsSync(skill) && readFileBounded(skill).toString('utf8').includes('mcp__codex__');
+  const mcpCodexSkills = baseSkillFiles.filter((skill) => {
+    return fs.existsSync(skill) && hasCodexMcpAllowedTool(readFileBounded(skill).toString('utf8'));
   });
-  const codexCommandFiles = fs.existsSync(path.join(repoRoot, 'commands'))
-    ? readDirectoryEntries(path.join(repoRoot, 'commands')).map((entry) => entry.name).filter((name) => /^codex-.*\.md$/.test(name)).sort()
-    : [];
+  const mcpCodexCommandFiles = commandFiles.filter((command) => {
+    return fs.existsSync(command) && hasCodexMcpAllowedTool(readFileBounded(command).toString('utf8'));
+  });
+  // Keep the frozen family allowlist as a positive scanner fixture, but count
+  // only members that still carry an MCP grant. The family names may remain
+  // as non-MCP deprecation/forwarding commands after retirement; counting
+  // filenames would therefore report a live MCP surface when none exists.
+  const codexCommandFiles = mcpCodexCommandFiles
+    .map((command) => path.basename(command))
+    .filter((name) => CODEX_MCP_COMMAND_NAMES.includes(name))
+    .sort();
 
   const sentinelRegistry = readJson(repoRoot, 'scripts/lib/sentinel-slots.json');
   const hooksManifest = readJson(repoRoot, 'hooks/hooks.json');
@@ -113,6 +158,7 @@ function collectInventory(root) {
       moduleSkills: moduleSkillFiles,
       skills: [...baseSkillFiles, ...moduleSkillFiles].sort(),
       commands: commandFiles,
+      mcpCodexCommands: mcpCodexCommandFiles.sort(),
     },
     sources: {
       claudePlugin: readJson(repoRoot, '.claude-plugin/plugin.json'),
@@ -133,6 +179,7 @@ function collectInventory(root) {
       skillsBase: baseSkillFiles.length,
       skillsModule: moduleSkillFiles.length,
       commands: commandFiles.length,
+      mcpCodexCommands: mcpCodexCommandFiles.length,
       modules: moduleDirs.length,
       slotCount: sentinelRegistry && sentinelRegistry.schema === 'dhpk.sentinel-slots.v1' && Array.isArray(sentinelRegistry.slots)
         ? sentinelRegistry.slots.length
@@ -147,7 +194,10 @@ function collectInventory(root) {
 }
 
 module.exports = {
+  CODEX_MCP_COMMAND_NAMES,
+  CODEX_MCP_TOOL_NAMES,
   collectInventory,
+  hasCodexMcpAllowedTool,
   listAgentFiles,
   listDirectories,
   readJson,

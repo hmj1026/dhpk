@@ -57,11 +57,16 @@ Users must define their project's allowlist in `environments.md` or below. Only 
 | No PII | Never include real user credentials, private keys, or sensitive data in payloads |
 | Rate awareness | Respect API rate limits; pause between requests if needed |
 
-## Codex Verification Requirement
+## Independent Reviewer Requirement
 
-At P5 (Verdict), Codex independently verifies that **no write operations were performed** during the session. Codex must:
+When P5 includes an explicitly requested independent reviewer, that reviewer
+verifies that **no write operations were performed** during the session. The
+reviewer must:
 
 1. Review all curl commands executed in P3
 2. Confirm each endpoint is on the allowlist
 3. Confirm all HTTP methods are read-only (GET or allowlisted POST)
 4. Flag any deviation
+
+If no reviewer runs, report the degraded primary-only state and do not claim
+independent verification.

@@ -1,4 +1,6 @@
 interface:
   display_name: "Test Review"
-  short_description: "Test coverage review via Codex MCP."
+  short_description: "Portable test coverage review with an adequacy gate."
   default_prompt: "Use $dhpk-test-review to apply the Test Review workflow with its verification rules."
+policy:
+  allow_implicit_invocation: false

@@ -21,9 +21,10 @@
 - **Ready**: No P0/P1; P2/Nit sweep policy applies before precommit
 - **Blocked**: Has P0/P1, needs fix
 
-## Codex Independent Research (Required)
+## Independent Research (Required)
 
-Codex **must** perform its own research, not rely only on provided diff/context:
+The selected reviewer **must** perform its own research, not rely only on
+provided diff/context:
 
 ### Git Exploration (Priority)
 
@@ -44,9 +45,9 @@ Codex **must** perform its own research, not rely only on provided diff/context:
 
 When review result is Blocked:
 
-1. Remember the `threadId`
+1. Remember the `review_artifact`
 2. Fix P0/P1 issues
-3. Re-review using `--continue <threadId>`
+3. Re-review using `--continue <review_artifact>`
 4. Repeat until Ready
 
 ## P2/Nit Post-Ready Sweep
@@ -54,25 +55,25 @@ When review result is Blocked:
 When review returns Ready with P2/Nit findings, auto-loop triggers a quality sweep:
 
 1. **Batch-fix** all P2/Nit items (1 attempt)
-2. **Re-review** using `--continue <threadId>` with P2/Nit verification
+2. **Re-review** using `--continue <review_artifact>` with P2/Nit verification
 3. **Evaluate**: unresolved P2 → ⚠️ Need Human; unresolved Nit → exempt with `[NIT_DEFERRED]` log; all resolved → `/precommit`
 
 ### P2/Nit Judgment
 
 | Step | Description |
 |------|-------------|
-| Parse | Extract P2/Nit findings from Codex output (tag-based `[P2]`/`[Nit]` or section-based `#### P2`/`#### Nit`) |
+| Parse | Extract P2/Nit findings from primary-review output (tag-based `[P2]`/`[Nit]` or section-based `#### P2`/`#### Nit`) |
 | Identity | Key = `file + canonicalized issue text` (line number approximate, may shift after fix) |
 | Dedupe | Same key across reviews counts as 1 item |
 | False-positive | Same key persists after fix → mark `possible-false-positive` |
 
 ### Re-review Prompt Template
 
-Used with `mcp__codex__codex-reply`:
+Used by the selected primary reviewer for a re-review:
 
 ```typescript
-mcp__codex__codex-reply({
-  threadId: '<from --continue parameter>',
+review({
+  review_artifact: '<from --continue parameter>',
   prompt: `I have fixed the previously identified issues. Please re-review:
 
 ## ${LOCAL_CHECKS ? 'Local Check Results\n' + LOCAL_CHECKS + '\n\n##' : ''} New Git Diff
@@ -95,13 +96,13 @@ When a finding is verified via an independent blind verdict, output:
 **Dismiss intent**:
 
 ```
-[DISMISS_VERDICT] key=<file|canonical_issue> | severity=<P0-Nit> | verdict=<DISMISS_VERIFIED|DISMISS_CANDIDATE|FIX_REQUIRED|NEED_HUMAN> | confidence=<0..1> | codex_thread=<id> | evidence=<brief> | timestamp=<ISO8601> | intent=dismiss | authorization=<automated|human-required|human-confirmed>
+[DISMISS_VERDICT] key=<file|canonical_issue> | severity=<P0-Nit> | verdict=<DISMISS_VERIFIED|DISMISS_CANDIDATE|FIX_REQUIRED|NEED_HUMAN> | confidence=<0..1> | review_artifact=<id> | evidence=<brief> | timestamp=<ISO8601> | intent=dismiss | authorization=<automated|human-required|human-confirmed>
 ```
 
 **Confirm/Clarify intent**:
 
 ```
-[SEEK_VERDICT] key=<file|canonical_issue> | severity=<P0-Nit> | intent=<confirm|clarify> | verdict=<CONFIRMED|DISPUTED|HIGH_IMPACT|LOW_IMPACT|UNCERTAIN> | confidence=<0..1> | codex_thread=<id> | evidence=<brief> | timestamp=<ISO8601>
+[SEEK_VERDICT] key=<file|canonical_issue> | severity=<P0-Nit> | intent=<confirm|clarify> | verdict=<CONFIRMED|DISPUTED|HIGH_IMPACT|LOW_IMPACT|UNCERTAIN> | confidence=<0..1> | review_artifact=<id> | evidence=<brief> | timestamp=<ISO8601>
 ```
 
 | Field | Redaction |
@@ -113,7 +114,7 @@ When a finding is verified via an independent blind verdict, output:
 ## Output Findings Format
 
 ```
-- [P0/P1/P2/Nit] <file:line> <issue description> -> <fix recommendation> [source: codex|toolkit|both]
+- [P0/P1/P2/Nit] <file:line> <issue description> -> <fix recommendation> [source: primary|toolkit|both]
 ```
 
 > Note: `[source: ...]` tag is required in dual review mode. In single-reviewer mode it may be omitted.
@@ -172,9 +173,9 @@ When `review_mode=dual`, two reviewers run in parallel. This section defines how
 
 | Scenario | Behavior | Gate Source | Output |
 |----------|----------|------------|--------|
-| Codex ✅ + Secondary ✅ | Union aggregation | `codex+toolkit` | Full dual findings |
-| Codex ✅ + Secondary ❌ | Codex-only + degradation warning | `codex-only` | `⚠️ Secondary reviewer unavailable` |
-| Codex ❌ + Secondary ✅ | Secondary-only + degradation warning | `toolkit-only` | `⚠️ Codex MCP unavailable` |
+| Primary ✅ + Secondary ✅ | Union aggregation | `primary+toolkit` | Full dual findings |
+| Primary ✅ + Secondary ❌ | Primary-only + degradation warning | `primary-only` | `⚠️ Secondary reviewer unavailable` |
+| Primary ❌ + Secondary ✅ | Secondary-only + degradation warning | `toolkit-only` | `⚠️ Primary reviewer unavailable` |
 | Both ❌ | `⛔ Blocked` + `⚠️ Need Human` | `none` | Both reviewers failed |
 
 ### Source Attribution
@@ -183,7 +184,7 @@ Every finding includes a source tag:
 
 | Source | Meaning |
 |--------|---------|
-| `codex` | Found by Codex MCP only |
+| `primary` | Found by the primary reviewer only |
 | `toolkit` | Found by secondary reviewer only |
 | `both` | Found by both reviewers (deduplicated) |
 
@@ -193,7 +194,9 @@ Output format: `- [P0] file:line issue → fix [source: both]`
 
 | Reviewer | Loop Behavior |
 |----------|---------------|
-| Codex MCP | Stateful → `mcp__codex__codex-reply(threadId)` continues context |
+| Primary | Re-read the pinned diff and explicit review artifact on each iteration; no stateful thread is assumed. |
 | Secondary | Re-dispatched every iteration (fresh context). Always dispatched in v1 (no skip exception). |
 
-Codex gate is authoritative for timing. Secondary runs non-blocking in background. Aggregation reconciled at pre-precommit checkpoint. Any code edit resets the review cycle — both reviewers must re-run.
+The primary gate is authoritative for timing. Secondary runs non-blocking in
+background. Aggregation is reconciled at the pre-precommit checkpoint. Any code
+edit resets the review cycle — both reviewers must re-run.

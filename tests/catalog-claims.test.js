@@ -53,6 +53,48 @@ test('faithful temp copy passes --check as-is', () => {
   assert.strictEqual(status, 0, `baseline temp copy should pass --check, got:\n${out}`);
 });
 
+test('retired Codex MCP policy rejects any frontmatter grant', () => {
+  const dir = path.join(repo, 'skills', 'new-codex-mcp');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'SKILL.md'), [
+    '---',
+    "name: dhpk-new-codex-mcp",
+    "description: 'unreviewed Codex MCP skill'",
+    "allowed-tools: 'mcp__codex__codex'",
+    'metadata:',
+    '  dhpk-invocation-class: explicit-only',
+    '---',
+    'body',
+  ].join('\n'));
+  try {
+    const result = runCheck(repo);
+    assert.strictEqual(result.status, 1);
+    assert.match(result.out, /MCP-backed Codex skill surface is retired: expected 0, computed 1/);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('retired Codex MCP policy rejects an unreviewed command grant', () => {
+  const commandPath = path.join(repo, 'commands', 'new-mcp.md');
+  fs.writeFileSync(commandPath, [
+    '---',
+    'description: unreviewed Codex MCP command',
+    "allowed-tools: 'mcp__codex__codex'",
+    'metadata:',
+    '  dhpk-invocation-class: explicit-only',
+    '---',
+    'body',
+  ].join('\n'));
+  try {
+    const result = runCheck(repo);
+    assert.strictEqual(result.status, 1);
+    assert.match(result.out, /MCP-backed Codex command grants are retired: expected 0, computed 1/);
+  } finally {
+    fs.rmSync(commandPath, { force: true });
+  }
+});
+
 // Each entry: an enforced claim phrasing + the claim file it lives in. Planting a
 // wrong digit (found + 7, always a mismatch) must flip --check to exit 1.
 const DRIFTS = [
@@ -63,10 +105,6 @@ const DRIFTS = [
   { file: 'README.zh-TW.md', find: /(\d+)(\s*個角色導向 agent)/, label: 'ZH total agents' },
   { file: 'rules/execution-policy.md', find: /(\d+)(-slot default sentinel)/, label: 'sentinel slots (execution-policy)' },
   { file: 'agents/INDEX.md', find: /(\d+)(-slot)/, label: 'sentinel slots (INDEX)' },
-  { file: 'README.md', find: /(\d+)(\s+MCP-backed `codex-\*` skills)/, label: 'MCP-backed codex skills (EN)' },
-  { file: 'README.md', find: /(\d+)(\s+`\/dhpk:codex-\*` commands)/, label: 'codex commands (EN)' },
-  { file: 'README.zh-TW.md', find: /(\d+)(\s*個 MCP-backed `codex-\*` skill)/, label: 'MCP-backed codex skills (ZH)' },
-  { file: 'README.zh-TW.md', find: /(\d+)(\s*個 `\/dhpk:codex-\*` 指令)/, label: 'codex commands (ZH)' },
   { file: 'README.md', find: /(?<=dhpk's )(\d+)(\s+commands)/, label: 'commands (README)' },
   { file: 'README.md', find: /(\d+)(\s+events)/, label: 'hook events (EN)' },
   { file: 'README.zh-TW.md', find: /(\d+)(\s*個事件)/, label: 'hook events (ZH)' },
@@ -136,9 +174,9 @@ for (const r of ROUND_TRIPS) {
 }
 
 // The canonical-skill claims expect skillsBase, not skillsTotal. In the real repo
-// skillsModule is 0, so both values are 97 and every other case here passes under
-// either choice. Planting a real module-owned SKILL.md makes them differ (base 97,
-// total 99) and is the only thing that can tell the two apart.
+// skillsModule is 0, so both values are 101 and every other case here passes under
+// either choice. Planting a real module-owned SKILL.md makes them differ (base 101,
+// total 102) and is the only thing that can tell the two apart.
 test('canonical skill claims track skillsBase, so a module-owned skill does not inflate them', () => {
   // Plant inside an EXISTING module: a new modules/<name>/ directory would also bump the
   // module count and trip the "opt-in stack modules" claim, masking what this asserts.
@@ -167,7 +205,7 @@ test('canonical skill claims track skillsBase, so a module-owned skill does not 
 });
 
 // The canonical and Claude-published counts are separate labelled claims. They are equal
-// at 97 in the real repo, so only a deprecated entry can prove they are evaluated
+// at 101 in the real repo, so only a deprecated entry can prove they are evaluated
 // independently rather than reconciled against one value.
 test('canonical and Claude-published claims are evaluated against their own counts when they diverge', () => {
   const invPath = path.join(repo, 'manifests', 'distribution-inventory.json');

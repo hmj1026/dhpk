@@ -247,8 +247,8 @@ test('legacy context-budget CLI keeps its summary headings and exit behavior', (
   const lines = result.stdout.trim().split('\n');
   assert.deepStrictEqual(lines.slice(0, 3), [
     'discovery-visible entries: 191',
-    'optional discovery-visible entries: 45',
-    'budget violations: 61',
+    'optional discovery-visible entries: 34',
+    'budget violations: 60',
   ]);
   assert.ok(lines.some((line) => line.startsWith('FAIL ')));
 });

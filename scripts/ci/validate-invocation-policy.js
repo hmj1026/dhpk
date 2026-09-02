@@ -10,7 +10,11 @@
 
 const fs = require('fs');
 const path = require('path');
-const { collectInventory, relativePosix } = require('../lib/asset-inventory');
+const {
+  collectInventory,
+  hasCodexMcpAllowedTool,
+  relativePosix,
+} = require('../lib/asset-inventory');
 const { extract, extractInvocationClass, isEmpty } = require('./_lib/frontmatter');
 const { createReporter } = require('./_lib/report');
 
@@ -44,6 +48,10 @@ function main(root) {
     const content = fs.readFileSync(skillFile, 'utf8');
     const ic = checkEntry(rel, content, reporter);
     const name = skillName(skillFile);
+    const codexMcp = hasCodexMcpAllowedTool(content);
+    if (codexMcp) {
+      reporter.err(`${rel} — mcp__codex__* grants are retired and forbidden; remove the grant`);
+    }
     if (!ic.present && !ic.dottedSubstitute) {
       reporter.err(`${rel} — missing metadata.dhpk-invocation-class`);
     } else if (ic.unknownValue) {
@@ -58,6 +66,10 @@ function main(root) {
     const content = fs.readFileSync(cmdFile, 'utf8');
     const ic = checkEntry(rel, content, reporter);
     const base = path.basename(rel, '.md');
+    const codexMcp = hasCodexMcpAllowedTool(content);
+    if (codexMcp) {
+      reporter.err(`${rel} — mcp__codex__* grants are retired and forbidden; remove the grant`);
+    }
     const paired = skillClassByName.get(base);
 
     if (paired) {

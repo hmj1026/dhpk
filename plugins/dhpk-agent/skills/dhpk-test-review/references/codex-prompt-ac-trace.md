@@ -1,14 +1,17 @@
-# Codex Prompt: AC Traceability Verification
+# Review Prompt: AC Traceability Verification
 
 <!-- Research block source of truth: skills/dhpk-change-review/references/codex-research-instructions.md (Variant: Test Review) -->
 
 ## Verification Prompt
 
-**Initial verification**: Use `mcp__codex__codex` (fresh thread — never reuse a code review session thread).
-**Re-verification after gap closure**: Use `mcp__codex__codex-reply` with the AC trace threadId (see Continue Review Prompt below).
+**Initial verification**: Use a fresh primary review context; never reuse a
+code-review session context.
+**Re-verification after gap closure**: Use the AC trace review artifact and
+fresh input (see Continue Review Prompt below). An explicit `codex exec`
+second opinion is additive only.
 
 ```typescript
-mcp__codex__codex({
+review({
   prompt: `You are a senior test engineer performing AC-to-evidence traceability verification.
 
 ## Request Document
@@ -67,14 +70,15 @@ Final summary:
 
 ## Anti-Anchoring Enforcement
 
-Per `@rules/execution-policy.md` (§Multi-AI / dual-perspective independence — Codex must research independently, never confirm Claude's mapping):
+Per `@rules/execution-policy.md` (§Multi-AI / dual-perspective independence —
+the reviewer must research independently, never confirm a precomputed mapping):
 
 | Check | Required |
 |-------|----------|
 | Prompt does NOT contain Claude's evidence mapping conclusions | ✅ |
 | Prompt does NOT ask "is this mapping correct?" | ✅ |
 | Prompt includes "independently research" section | ✅ |
-| Initial verification uses fresh `mcp__codex__codex`; re-verification uses `codex-reply` | ✅ |
+| Initial verification uses a fresh primary context; re-verification uses the review artifact and a fresh context | ✅ |
 | `sandbox: 'read-only'` set | ✅ |
 | `approval-policy: 'never'` set | ✅ |
 
@@ -90,11 +94,11 @@ Provide only the raw AC text with checkbox state. Do NOT include Claude's eviden
 
 ## Continue Review Prompt
 
-Used with `mcp__codex__codex-reply` when re-verifying after gap closure:
+Used by the primary reviewer when re-verifying after gap closure:
 
 ```typescript
-mcp__codex__codex-reply({
-  threadId: THREAD_ID,
+review({
+  review_artifact: REVIEW_ARTIFACT,
   prompt: `ACs were updated. Please re-verify evidence traceability.
 
 ## Updated AC List

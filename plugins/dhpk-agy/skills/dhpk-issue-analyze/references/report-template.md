@@ -38,7 +38,7 @@
 | Complexity  | Low / Medium / High                       |
 | Type        | Logic error / Performance / Data / Other  |
 
-**Selected Strategy**: `/dhpk:dhpk-codebase-exploration` | `/dhpk:dhpk-git-history-investigation` | `/dhpk:dhpk-codebase-exploration --dual` | `/dhpk:dhpk-codex-architect --mode adversarial`
+**Selected Strategy**: `/dhpk:dhpk-codebase-exploration` | `/dhpk:dhpk-git-history-investigation` | `/dhpk:dhpk-codebase-exploration --dual` | `/dhpk:dhpk-module-design --mode adversarial`
 
 ## Investigation Process
 
@@ -111,19 +111,19 @@
 **Related Files**: `src/xxx.ts:123`
 ```
 
-## Divergence Report (For /dhpk:dhpk-codex-architect --mode adversarial results)
+## Divergence Report (For independent adversarial-review results)
 
 ```markdown
 # Issue #<number> Analysis Report (Multi-perspective)
 
-## Claude Perspective
+## Primary Model Perspective
 
-- Root cause hypothesis: <Claude's conclusion>
+- Root cause hypothesis: <primary model's conclusion>
 - Evidence: <arguments>
 
-## Codex Perspective
+## Independent Reviewer Perspective
 
-- Root cause hypothesis: <Codex's conclusion>
+- Root cause hypothesis: <independent reviewer's conclusion>
 - Evidence: <arguments>
 
 ## Points of Agreement
@@ -132,8 +132,8 @@
 
 ## Points of Divergence
 
-| Topic      | Claude     | Codex      |
-| ---------- | ---------- | ---------- |
+| Topic      | Primary model | Independent reviewer |
+| ---------- | ------------- | -------------------- |
 | <topic 1>  | <position> | <position> |
 
 ## Final Conclusion

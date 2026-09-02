@@ -1,6 +1,6 @@
 ---
 description: 'Thin Claude adapter for the portable dhpk-do router. Not for: independent workflow, a second dispatch table, or bypassing invocation class. Output: $ARGUMENTS forwarded to @skills/dhpk-do/SKILL.md with host=claude.'
-argument-hint: '[--route-only] [--codex] [--plan[=<model>[:<effort>]]] [--worker=<claude|codex|agy|auto>] [--reasoner=<claude|codex>[:<model>[:<effort>]]] [--execute-explicit] [--openspec|--opsx] <task>'
+argument-hint: '[--route-only] [--codex (deprecated)] [--plan[=<model>[:<effort>]]] [--worker=<claude|codex|agy|auto>] [--reasoner=<claude|codex>[:<model>[:<effort>]]] [--execute-explicit] [--openspec|--opsx] <task>'
 disable-model-invocation: true
 metadata:
   dhpk-invocation-class: explicit-only

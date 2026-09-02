@@ -39,7 +39,10 @@ The `deep-reasoner` agent frontmatter SHALL declare `model: opus` as the shipped
 - **THEN** dispatches run on the frontmatter default (opus)
 
 ### Requirement: Codex isolation invariant
-The `deep-reasoner` agent SHALL NOT list any `mcp__codex__*` tool. Codex participation happens only as a separate parallel peer dispatch under `CODEX=on`, per execution-policy §Multi-AI / dual-perspective independence.
+The `deep-reasoner` agent SHALL NOT list any `mcp__codex__*` tool. Codex
+participation uses the separately selected `codex-reasoner` backend via
+`--reasoner=codex`, or an explicit `--second-opinion=codex-exec`/`codex-bridge`
+route; the retired `CODEX=on`/`--codex` flags do not dispatch a review peer.
 
 #### Scenario: Codex-free session
 - **WHEN** `deep-reasoner` runs in a default (codex-free) session

@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "dhpk",
-  "version": "0.51.0",
+  "version": "0.52.0",
   "description": "Reusable Claude Code harness with role-based agents, routed commands, sentinel-driven review hooks, opt-in PHP, Yii, PHPUnit, Laravel, JavaScript, Python, React, Next.js, and iOS/Swift modules, plus a parallel Codex CLI projection.",
   "author": {
     "name": "hmj1026",

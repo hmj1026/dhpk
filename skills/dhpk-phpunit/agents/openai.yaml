@@ -1,0 +1,4 @@
+interface:
+  display_name: "Phpunit Family"
+  short_description: "Route PHPUnit 9, 10, and 11 guidance by project version"
+  default_prompt: "Use $dhpk-phpunit to route PHPUnit 9, 10, or 11 guidance with its version-specific verification rules."

@@ -6,13 +6,18 @@
     "required_core_ids": [
       "adaptive-dev-workflow",
       "bug-investigation",
-      "code-explore",
+      "create-request",
       "dhpk-execution-policy",
       "do",
+      "git-investigate",
       "git-smart-commit",
+      "next-step",
       "pr-review",
+      "project-audit",
+      "prompt-optimize",
       "security-review",
       "tdd",
+      "tech-spec",
       "tool-routing"
     ],
     "profiles": {
@@ -92,14 +97,14 @@
         "claude-module"
       ],
       "selectors": {
-        "6": "skills/dhpk-laravel-6-notes/SKILL.md",
-        "7": "skills/dhpk-laravel-7-notes/SKILL.md",
-        "8": "skills/dhpk-laravel-8-notes/SKILL.md",
-        "9": "skills/dhpk-laravel-9-notes/SKILL.md",
-        "10": "skills/dhpk-laravel-10-notes/SKILL.md",
-        "11": "skills/dhpk-laravel-11-notes/SKILL.md",
-        "5.4": "skills/dhpk-laravel-5-4-notes/SKILL.md",
-        "mix": "skills/dhpk-laravel-mix-notes/SKILL.md"
+        "6": "skills/dhpk-laravel/references/6.md",
+        "7": "skills/dhpk-laravel/references/7.md",
+        "8": "skills/dhpk-laravel/references/8.md",
+        "9": "skills/dhpk-laravel/references/9.md",
+        "10": "skills/dhpk-laravel/references/10.md",
+        "11": "skills/dhpk-laravel/references/11.md",
+        "5.4": "skills/dhpk-laravel/references/5-4.md",
+        "mix": "skills/dhpk-laravel/references/mix.md"
       },
       "aliases": [
         {
@@ -176,9 +181,9 @@
         "claude-module"
       ],
       "selectors": {
-        "9": "skills/dhpk-phpunit-9-modern/SKILL.md",
-        "10": "skills/dhpk-phpunit-10-notes/SKILL.md",
-        "11": "skills/dhpk-phpunit-11-notes/SKILL.md"
+        "9": "skills/dhpk-phpunit/references/9.md",
+        "10": "skills/dhpk-phpunit/references/10.md",
+        "11": "skills/dhpk-phpunit/references/11.md"
       },
       "aliases": [
         {
@@ -528,7 +533,7 @@
       "id": "codex-supporting-policies-execution-policy-md",
       "source": "codex/supporting/policies/execution-policy.md",
       "canonical_source": "rules/execution-policy.md",
-      "canonical_digest": "e80d09feae51ff406a49a812a9b1a605914e7562090e1bab2dd459ce65eb91a6",
+      "canonical_digest": "0026e5836193a2561eebd076b736af9aed2bdfa78ab5ff11412e7e5c1a55894e",
       "projection_digest": "5bf08e47d0e5ee8c1ad685e72b0bd90904c40ed4543548a3227388ef441f621d",
       "destination": "dhpk/policies/execution-policy.md"
     },
@@ -637,11 +642,34 @@
       ]
     },
     {
+      "id": "laravel",
+      "name": "dhpk-laravel",
+      "path": "skills/dhpk-laravel",
+      "capability_id": "dhpk.skill.laravel",
+      "invocation_class": "implicit-eligible",
+      "lifecycle": "promoted",
+      "tier": "optional",
+      "profiles": [
+        "laravel-5.4",
+        "laravel-6",
+        "laravel-7",
+        "laravel-8",
+        "laravel-9",
+        "laravel-10",
+        "laravel-11",
+        "laravel-mix"
+      ],
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
       "id": "laravel-10-notes",
       "name": "dhpk-laravel-10-notes",
       "path": "skills/dhpk-laravel-10-notes",
       "capability_id": "dhpk.skill.laravel-10-notes",
-      "lifecycle": "optional",
+      "invocation_class": "implicit-eligible",
+      "lifecycle": "deprecated",
       "tier": "optional",
       "profiles": [
         "laravel-10"
@@ -651,14 +679,21 @@
       ],
       "legacy_names": [
         "laravel-10-notes"
-      ]
+      ],
+      "discoveryVisible": false,
+      "deprecation": {
+        "since": "2026-09-02",
+        "compatibilityWindowEnds": "2026-12-02",
+        "migrationNote": "Use the canonical dhpk-laravel family with selector 10; this legacy ID remains explicitly invocable during the compatibility window."
+      }
     },
     {
       "id": "laravel-11-notes",
       "name": "dhpk-laravel-11-notes",
       "path": "skills/dhpk-laravel-11-notes",
       "capability_id": "dhpk.skill.laravel-11-notes",
-      "lifecycle": "optional",
+      "invocation_class": "implicit-eligible",
+      "lifecycle": "deprecated",
       "tier": "optional",
       "profiles": [
         "laravel-11"
@@ -668,14 +703,21 @@
       ],
       "legacy_names": [
         "laravel-11-notes"
-      ]
+      ],
+      "discoveryVisible": false,
+      "deprecation": {
+        "since": "2026-09-02",
+        "compatibilityWindowEnds": "2026-12-02",
+        "migrationNote": "Use the canonical dhpk-laravel family with selector 11; this legacy ID remains explicitly invocable during the compatibility window."
+      }
     },
     {
       "id": "laravel-5.4-notes",
       "name": "dhpk-laravel-5-4-notes",
       "path": "skills/dhpk-laravel-5-4-notes",
       "capability_id": "dhpk.skill.laravel-5.4-notes",
-      "lifecycle": "optional",
+      "invocation_class": "implicit-eligible",
+      "lifecycle": "deprecated",
       "tier": "optional",
       "profiles": [
         "laravel-5.4"
@@ -685,14 +727,21 @@
       ],
       "legacy_names": [
         "laravel-5.4-notes"
-      ]
+      ],
+      "discoveryVisible": false,
+      "deprecation": {
+        "since": "2026-09-02",
+        "compatibilityWindowEnds": "2026-12-02",
+        "migrationNote": "Use the canonical dhpk-laravel family with selector 5.4; this legacy ID remains explicitly invocable during the compatibility window."
+      }
     },
     {
       "id": "laravel-6-notes",
       "name": "dhpk-laravel-6-notes",
       "path": "skills/dhpk-laravel-6-notes",
       "capability_id": "dhpk.skill.laravel-6-notes",
-      "lifecycle": "optional",
+      "invocation_class": "implicit-eligible",
+      "lifecycle": "deprecated",
       "tier": "optional",
       "profiles": [
         "laravel-6"
@@ -702,14 +751,21 @@
       ],
       "legacy_names": [
         "laravel-6-notes"
-      ]
+      ],
+      "discoveryVisible": false,
+      "deprecation": {
+        "since": "2026-09-02",
+        "compatibilityWindowEnds": "2026-12-02",
+        "migrationNote": "Use the canonical dhpk-laravel family with selector 6; this legacy ID remains explicitly invocable during the compatibility window."
+      }
     },
     {
       "id": "laravel-7-notes",
       "name": "dhpk-laravel-7-notes",
       "path": "skills/dhpk-laravel-7-notes",
       "capability_id": "dhpk.skill.laravel-7-notes",
-      "lifecycle": "optional",
+      "invocation_class": "implicit-eligible",
+      "lifecycle": "deprecated",
       "tier": "optional",
       "profiles": [
         "laravel-7"
@@ -719,14 +775,21 @@
       ],
       "legacy_names": [
         "laravel-7-notes"
-      ]
+      ],
+      "discoveryVisible": false,
+      "deprecation": {
+        "since": "2026-09-02",
+        "compatibilityWindowEnds": "2026-12-02",
+        "migrationNote": "Use the canonical dhpk-laravel family with selector 7; this legacy ID remains explicitly invocable during the compatibility window."
+      }
     },
     {
       "id": "laravel-8-notes",
       "name": "dhpk-laravel-8-notes",
       "path": "skills/dhpk-laravel-8-notes",
       "capability_id": "dhpk.skill.laravel-8-notes",
-      "lifecycle": "optional",
+      "invocation_class": "implicit-eligible",
+      "lifecycle": "deprecated",
       "tier": "optional",
       "profiles": [
         "laravel-8"
@@ -736,14 +799,21 @@
       ],
       "legacy_names": [
         "laravel-8-notes"
-      ]
+      ],
+      "discoveryVisible": false,
+      "deprecation": {
+        "since": "2026-09-02",
+        "compatibilityWindowEnds": "2026-12-02",
+        "migrationNote": "Use the canonical dhpk-laravel family with selector 8; this legacy ID remains explicitly invocable during the compatibility window."
+      }
     },
     {
       "id": "laravel-9-notes",
       "name": "dhpk-laravel-9-notes",
       "path": "skills/dhpk-laravel-9-notes",
       "capability_id": "dhpk.skill.laravel-9-notes",
-      "lifecycle": "optional",
+      "invocation_class": "implicit-eligible",
+      "lifecycle": "deprecated",
       "tier": "optional",
       "profiles": [
         "laravel-9"
@@ -753,14 +823,21 @@
       ],
       "legacy_names": [
         "laravel-9-notes"
-      ]
+      ],
+      "discoveryVisible": false,
+      "deprecation": {
+        "since": "2026-09-02",
+        "compatibilityWindowEnds": "2026-12-02",
+        "migrationNote": "Use the canonical dhpk-laravel family with selector 9; this legacy ID remains explicitly invocable during the compatibility window."
+      }
     },
     {
       "id": "laravel-mix-notes",
       "name": "dhpk-laravel-mix-notes",
       "path": "skills/dhpk-laravel-mix-notes",
       "capability_id": "dhpk.skill.laravel-mix-notes",
-      "lifecycle": "optional",
+      "invocation_class": "implicit-eligible",
+      "lifecycle": "deprecated",
       "tier": "optional",
       "profiles": [
         "laravel-mix"
@@ -770,7 +847,13 @@
       ],
       "legacy_names": [
         "laravel-mix-notes"
-      ]
+      ],
+      "discoveryVisible": false,
+      "deprecation": {
+        "since": "2026-09-02",
+        "compatibilityWindowEnds": "2026-12-02",
+        "migrationNote": "Use the canonical dhpk-laravel family with selector mix; this legacy ID remains explicitly invocable during the compatibility window."
+      }
     },
     {
       "id": "library-dual-testsuite-map",
@@ -911,11 +994,29 @@
       ]
     },
     {
+      "id": "phpunit",
+      "name": "dhpk-phpunit",
+      "path": "skills/dhpk-phpunit",
+      "capability_id": "dhpk.skill.phpunit",
+      "invocation_class": "implicit-eligible",
+      "lifecycle": "promoted",
+      "tier": "optional",
+      "profiles": [
+        "phpunit-9",
+        "phpunit-10",
+        "phpunit-11"
+      ],
+      "surfaces": [
+        "claude-core"
+      ]
+    },
+    {
       "id": "phpunit-10-notes",
       "name": "dhpk-phpunit-10-notes",
       "path": "skills/dhpk-phpunit-10-notes",
       "capability_id": "dhpk.skill.phpunit-10-notes",
-      "lifecycle": "optional",
+      "invocation_class": "implicit-eligible",
+      "lifecycle": "deprecated",
       "tier": "optional",
       "profiles": [
         "phpunit-10"
@@ -925,14 +1026,21 @@
       ],
       "legacy_names": [
         "phpunit-10-notes"
-      ]
+      ],
+      "discoveryVisible": false,
+      "deprecation": {
+        "since": "2026-09-02",
+        "compatibilityWindowEnds": "2026-12-02",
+        "migrationNote": "Use the canonical dhpk-phpunit family with selector 10; this legacy ID remains explicitly invocable during the compatibility window."
+      }
     },
     {
       "id": "phpunit-11-notes",
       "name": "dhpk-phpunit-11-notes",
       "path": "skills/dhpk-phpunit-11-notes",
       "capability_id": "dhpk.skill.phpunit-11-notes",
-      "lifecycle": "optional",
+      "invocation_class": "implicit-eligible",
+      "lifecycle": "deprecated",
       "tier": "optional",
       "profiles": [
         "phpunit-11"
@@ -942,7 +1050,13 @@
       ],
       "legacy_names": [
         "phpunit-11-notes"
-      ]
+      ],
+      "discoveryVisible": false,
+      "deprecation": {
+        "since": "2026-09-02",
+        "compatibilityWindowEnds": "2026-12-02",
+        "migrationNote": "Use the canonical dhpk-phpunit family with selector 11; this legacy ID remains explicitly invocable during the compatibility window."
+      }
     },
     {
       "id": "legacy-code-characterization",
@@ -968,7 +1082,8 @@
       "name": "dhpk-phpunit-9-modern",
       "path": "skills/dhpk-phpunit-9-modern",
       "capability_id": "dhpk.skill.phpunit-9-modern",
-      "lifecycle": "optional",
+      "invocation_class": "implicit-eligible",
+      "lifecycle": "deprecated",
       "tier": "optional",
       "profiles": [
         "phpunit-9"
@@ -978,7 +1093,13 @@
       ],
       "legacy_names": [
         "phpunit-9-modern"
-      ]
+      ],
+      "discoveryVisible": false,
+      "deprecation": {
+        "since": "2026-09-02",
+        "compatibilityWindowEnds": "2026-12-02",
+        "migrationNote": "Use the canonical dhpk-phpunit family with selector 9; this legacy ID remains explicitly invocable during the compatibility window."
+      }
     },
     {
       "id": "pytest-async",
@@ -1322,6 +1443,7 @@
       "name": "dhpk-codebase-exploration",
       "path": "skills/dhpk-codebase-exploration",
       "capability_id": "dhpk.skill.code-explore",
+      "invocation_class": "explicit-only",
       "lifecycle": "promoted",
       "tier": "core",
       "profiles": [
@@ -1384,24 +1506,6 @@
       "discoveryVisible": false
     },
     {
-      "id": "codex-architect",
-      "name": "dhpk-codex-architect",
-      "path": "skills/dhpk-codex-architect",
-      "capability_id": "dhpk.skill.codex-architect",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "codex-architect"
-      ]
-    },
-    {
       "id": "codex-bridge",
       "name": "dhpk-codex-bridge",
       "path": "skills/dhpk-codex-bridge",
@@ -1424,6 +1528,7 @@
       "name": "dhpk-change-review",
       "path": "skills/dhpk-change-review",
       "capability_id": "dhpk.skill.codex-code-review",
+      "invocation_class": "explicit-only",
       "lifecycle": "promoted",
       "tier": "core",
       "profiles": [
@@ -1439,10 +1544,11 @@
       ]
     },
     {
-      "id": "codex-implement",
-      "name": "dhpk-codex-implement",
-      "path": "skills/dhpk-codex-implement",
-      "capability_id": "dhpk.skill.codex-implement",
+      "id": "implement",
+      "name": "dhpk-implement",
+      "path": "skills/dhpk-implement",
+      "capability_id": "dhpk.skill.implement",
+      "invocation_class": "explicit-only",
       "lifecycle": "promoted",
       "tier": "core",
       "profiles": [
@@ -1453,7 +1559,7 @@
         "cursor-sync"
       ],
       "legacy_names": [
-        "codex-implement"
+        "implement"
       ]
     },
     {
@@ -1565,6 +1671,7 @@
       "name": "dhpk-doc-review",
       "path": "skills/dhpk-doc-review",
       "capability_id": "dhpk.skill.doc-review",
+      "invocation_class": "explicit-only",
       "lifecycle": "promoted",
       "tier": "core",
       "profiles": [
@@ -1601,6 +1708,7 @@
       "name": "dhpk-feasibility-study",
       "path": "skills/dhpk-feasibility-study",
       "capability_id": "dhpk.skill.feasibility-study",
+      "invocation_class": "explicit-only",
       "lifecycle": "promoted",
       "tier": "core",
       "profiles": [
@@ -1619,6 +1727,7 @@
       "name": "dhpk-feature-verify",
       "path": "skills/dhpk-feature-verify",
       "capability_id": "dhpk.skill.feature-verify",
+      "invocation_class": "explicit-only",
       "lifecycle": "promoted",
       "tier": "core",
       "profiles": [
@@ -1839,6 +1948,7 @@
       "name": "dhpk-issue-analyze",
       "path": "skills/dhpk-issue-analyze",
       "capability_id": "dhpk.skill.issue-analyze",
+      "invocation_class": "explicit-only",
       "lifecycle": "promoted",
       "tier": "core",
       "profiles": [
@@ -2339,6 +2449,7 @@
       "name": "dhpk-test-review",
       "path": "skills/dhpk-test-review",
       "capability_id": "dhpk.skill.test-review",
+      "invocation_class": "explicit-only",
       "lifecycle": "promoted",
       "tier": "core",
       "profiles": [
@@ -2632,10 +2743,9 @@
       "cli-dispatch-context",
       "cli-transport",
       "code-explore",
-      "codex-architect",
       "codex-bridge",
       "codex-code-review",
-      "codex-implement",
+      "implement",
       "composer-package-hygiene",
       "create-request",
       "create-skill",
@@ -2696,10 +2806,9 @@
       "cli-dispatch-context",
       "cli-transport",
       "code-explore",
-      "codex-architect",
       "codex-bridge",
       "codex-code-review",
-      "codex-implement",
+      "implement",
       "composer-package-hygiene",
       "create-request",
       "create-skill",
@@ -2760,10 +2869,9 @@
       "cli-dispatch-context",
       "cli-transport",
       "code-explore",
-      "codex-architect",
       "codex-bridge",
       "codex-code-review",
-      "codex-implement",
+      "implement",
       "composer-package-hygiene",
       "create-request",
       "create-skill",
@@ -2824,10 +2932,9 @@
       "cli-dispatch-context",
       "cli-transport",
       "code-explore",
-      "codex-architect",
       "codex-bridge",
       "codex-code-review",
-      "codex-implement",
+      "implement",
       "composer-package-hygiene",
       "create-request",
       "create-skill",
@@ -3181,7 +3288,7 @@
       "replacements": [
         {
           "kind": "skill",
-          "id": "codex-architect",
+          "id": "software-architecture",
           "mode": "adversarial"
         }
       ],
@@ -3206,6 +3313,48 @@
       ],
       "rollback": {
         "release": "0.46.1"
+      }
+    },
+    {
+      "id": "codex-architect",
+      "name": "dhpk-codex-architect",
+      "canonicalPath": "skills/dhpk-codex-architect",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.52.0",
+      "reasonCode": "migrated-to-module-design",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "software-architecture",
+          "mode": "design"
+        }
+      ],
+      "rollback": {
+        "release": "0.51.0"
+      }
+    },
+    {
+      "id": "codex-implement",
+      "name": "dhpk-codex-implement",
+      "canonicalPath": "skills/dhpk-codex-implement",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.52.0",
+      "reasonCode": "migrated-to-backend-neutral-implement",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "implement",
+          "mode": "default"
+        }
+      ],
+      "rollback": {
+        "release": "0.51.0"
       }
     }
   ]

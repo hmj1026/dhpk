@@ -17,22 +17,22 @@ A compact routing signature encodes three cues in one description:
 ### Before (generic summary)
 
 ```yaml
-description: Code review using Codex MCP. Supports fast, full, and branch variants.
+description: Portable code review. Supports fast, full, and branch variants.
 ```
 
 ### After (routing signature)
 
 ```yaml
-description: "Code review using Codex MCP. Use when: PR review, code audit, second opinion on changes. Not for: doc review (use doc-review), security audit (use security-review), test coverage (use test-review). Output: severity-grouped findings + merge gate."
+description: "Portable code review. Use when: PR review, code audit, second opinion on changes. Not for: doc review (use doc-review), security audit (use security-review), test coverage (use test-review). Output: severity-grouped findings + merge gate."
 ```
 
 ### More Examples
 
 | Skill | Before | After |
 |-------|--------|-------|
-| adaptive-dev-workflow (feature mode) | Feature development workflow. Covers implementation, verification, pre-commit checks. | Feature development workflow. Use when: implementing features, writing code, running dev loop. Not for: understanding code (use code-explore), reviewing code (use codex-code-review). Output: implemented feature with tests + review gate. |
+| adaptive-dev-workflow (feature mode) | Feature development workflow. Covers implementation, verification, pre-commit checks. | Feature development workflow. Use when: implementing features, writing code, running dev loop. Not for: understanding code (use code-explore), reviewing code (use dhpk-change-review). Output: implemented feature with tests + review gate. |
 | adaptive-dev-workflow (bug mode) | Bug/Issue fix workflow. Investigate, locate, fix, test, review. | Bug fix workflow. Use when: fixing bugs, resolving issues, regression fixes. Not for: new features (use adaptive-dev-workflow in feature mode), understanding code (use code-explore). Output: fix + regression test + review gate. |
-| tech-spec | Tech spec knowledge base. Full workflow from requirement analysis to spec output. | Tech spec generation and review. Use when: designing features, writing specs, reviewing specs. Not for: implementation (use adaptive-dev-workflow in feature mode), architecture advice only (use codex-architect). Output: numbered tech spec document. |
+| tech-spec | Tech spec knowledge base. Full workflow from requirement analysis to spec output. | Tech spec generation and review. Use when: designing features, writing specs, reviewing specs. Not for: implementation (use adaptive-dev-workflow in feature mode), architecture advice only (use module-design). Output: numbered tech spec document. |
 
 ## Checklist
 

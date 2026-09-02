@@ -22,6 +22,7 @@ const { validateInternalRuntimeSkills } = require('./internal-runtime-skills');
 const { assertCanonicalSkillPath } = require('./distribution-inventory-regeneration');
 
 const LIFECYCLES = ['promoted', 'optional', 'experimental', 'deprecated'];
+const INVOCATION_CLASSES = ['implicit-eligible', 'explicit-only'];
 const SURFACES = [
   'claude-core',
   'claude-module',
@@ -535,6 +536,18 @@ function validateDistributionInventoryV2(input = {}) {
     if (typeof entry.lifecycle !== 'string' || !lifecycleSet.has(entry.lifecycle)) {
       errors.push(`${prefix}.lifecycle must be one of ${LIFECYCLES.join('/')}: '${entry.lifecycle}'`);
     }
+    if (entry.lifecycle === 'deprecated') {
+      const dep = entry.deprecation;
+      if (!dep || typeof dep !== 'object' || Array.isArray(dep)) {
+        errors.push(`missing deprecation metadata: skill ${entry.id} is 'deprecated' but declares no 'deprecation' object (expected since/compatibilityWindowEnds/migrationNote)`);
+      } else {
+        for (const field of ['since', 'compatibilityWindowEnds', 'migrationNote']) {
+          if (typeof dep[field] !== 'string' || dep[field].trim() === '') {
+            errors.push(`incomplete deprecation metadata: skill ${entry.id} is missing deprecation.${field}`);
+          }
+        }
+      }
+    }
     if (entry.tier !== 'core' && entry.tier !== 'optional') {
       errors.push(`${prefix}.tier must be 'core' or 'optional': '${entry.tier}'`);
     }
@@ -560,6 +573,9 @@ function validateDistributionInventoryV2(input = {}) {
 
     if (entry.invokable !== undefined && typeof entry.invokable !== 'boolean') {
       errors.push(`${prefix}.invokable must be a boolean when present`);
+    }
+    if (entry.invocation_class !== undefined && !INVOCATION_CLASSES.includes(entry.invocation_class)) {
+      errors.push(`${prefix}.invocation_class must be one of ${INVOCATION_CLASSES.join('/')}: '${entry.invocation_class}'`);
     }
     if (entry.invokable === false && JSON.stringify([...(entry.surfaces || [])].sort()) !== JSON.stringify([...SURFACES].sort())) {
       errors.push(`${prefix} non-invokable internal skills must be registered on every distribution surface`);
@@ -601,36 +617,104 @@ function validateDistributionInventoryV2(input = {}) {
 
 // Family routing is inventory metadata, not another projection interface. It
 // preserves old invocation IDs while one router selects conditional detail.
-function validateSkillRoutingFamilies({ families, skillIds = new Set(), skills = [] } = {}) {
+function validateSkillRoutingFamilies({ families, skillIds = new Set(), skills } = {}) {
   const errors = [];
   if (families === undefined) return { errors };
   if (!Array.isArray(families)) return { errors: ['skill_routing_families must be an array when present'] };
   const familyIds = new Set();
   const aliasIds = new Map();
+  const skillById = new Map();
+  // An explicitly supplied skills array is authoritative, including an empty
+  // array.  That keeps family validation fail-closed when the inventory has
+  // no canonical entries while retaining the small syntax-only helper mode
+  // used by callers that omit inventory skills entirely.
+  const hasSkillInventory = skills !== undefined;
+  for (const skill of hasSkillInventory && Array.isArray(skills) ? skills : []) {
+    if (skill && typeof skill.id === 'string' && !skillById.has(skill.id)) skillById.set(skill.id, skill);
+  }
+  const declaredFamilyIds = new Set(
+    families
+      .filter((family) => family && typeof family === 'object' && !Array.isArray(family))
+      .map((family) => family.id)
+      .filter((id) => typeof id === 'string' && id.trim() !== ''),
+  );
+  const sameSurfaces = (left, right) => (
+    Array.isArray(left)
+      && Array.isArray(right)
+      && JSON.stringify([...new Set(left)].sort()) === JSON.stringify([...new Set(right)].sort())
+      && left.length === right.length
+  );
   for (const [index, family] of families.entries()) {
     const prefix = `skill_routing_families[${index}]`;
     if (!family || typeof family !== 'object' || Array.isArray(family)) { errors.push(`${prefix} must be an object`); continue; }
     if (typeof family.id !== 'string' || family.id.trim() === '' || familyIds.has(family.id)) errors.push(`${prefix}.id must be a unique non-empty string`);
     else familyIds.add(family.id);
+    const canonical = skillById.get(family.id);
+    if (hasSkillInventory && !canonical) {
+      errors.push(`${prefix} must resolve to a canonical skill entry '${family.id}'`);
+    } else if (canonical) {
+      if (canonical.lifecycle === 'deprecated') errors.push(`${prefix} canonical skill '${family.id}' must be live`);
+      if (canonical.invocation_class !== undefined && canonical.invocation_class !== family.invocation_class) {
+        errors.push(`${prefix} canonical skill '${family.id}' has conflicting invocation class`);
+      }
+    }
     if (typeof family.router_id !== 'string' || !skillIds.has(family.router_id)) errors.push(`${prefix} references missing router '${family.router_id}'`);
     if (!['implicit-eligible', 'explicit-only'].includes(family.invocation_class)) errors.push(`${prefix}.invocation_class is unsupported`);
     const surfaces = Array.isArray(family.surfaces) ? family.surfaces : [];
+    if (surfaces.length === 0) errors.push(`${prefix}.surfaces must be a non-empty surface array`);
+    if (new Set(surfaces).size !== surfaces.length) errors.push(`${prefix}.surfaces must not contain duplicate values`);
     for (const surface of surfaces) if (!SURFACES.includes(surface)) errors.push(`${prefix} declares unsupported surface '${surface}'`);
     if (!family.selectors || typeof family.selectors !== 'object' || Array.isArray(family.selectors) || Object.keys(family.selectors).length === 0) errors.push(`${prefix}.selectors must be a non-empty object`);
     else for (const [selector, reference] of Object.entries(family.selectors)) {
-      if (selector.trim() === '' || !isSafeInventoryPath(reference)) errors.push(`${prefix}.selectors.${selector} must be a safe relative path`);
+      const familyPath = canonical && typeof canonical.path === 'string' ? canonical.path : null;
+      const referencePrefix = familyPath ? `${familyPath}/references/` : null;
+      if (selector.trim() === '' || !isSafeInventoryPath(reference)) {
+        errors.push(`${prefix}.selectors.${selector} must be a safe relative path`);
+      } else if (canonical && (!referencePrefix || !reference.startsWith(referencePrefix) || reference === referencePrefix || !reference.endsWith('.md'))) {
+        errors.push(`${prefix}.selectors.${selector} must target a reference below the canonical skill path '${familyPath || '<missing>'}/references/' (not an alias canonical skill path)`);
+      }
     }
     if (!Array.isArray(family.aliases) || family.aliases.length === 0) { errors.push(`${prefix}.aliases must be a non-empty array`); continue; }
-    for (const alias of family.aliases) {
+    for (const [aliasIndex, alias] of family.aliases.entries()) {
       if (!alias || typeof alias.id !== 'string' || alias.id.trim() === '') { errors.push(`${prefix}.aliases contains an invalid alias`); continue; }
-      if (!family.selectors || !Object.prototype.hasOwnProperty.call(family.selectors, alias.selector)) errors.push(`${prefix}.aliases.${alias.id} has ambiguous/missing selector '${alias.selector}'`);
+      const aliasPrefix = `${prefix}.aliases[${aliasIndex}]`;
+      if (typeof alias.selector !== 'string' || alias.selector.trim() === ''
+        || !family.selectors || !Object.prototype.hasOwnProperty.call(family.selectors, alias.selector)) {
+        errors.push(`${prefix}.aliases.${alias.id} has ambiguous/missing selector '${alias.selector}'`);
+      }
       if (alias.invocation_class !== family.invocation_class) errors.push(`${prefix}.aliases.${alias.id} has conflicting invocation class`);
-      if (JSON.stringify(alias.surfaces || []) !== JSON.stringify(surfaces)) errors.push(`${prefix}.aliases.${alias.id} has unsupported surface membership`);
-      const skill = skills.find((entry) => entry.id === alias.id);
-      if (skills.length && (!skill || !(skill.legacy_names || []).includes(alias.id))) errors.push(`${prefix}.aliases.${alias.id} does not preserve a stable legacy identifier`);
-      else if (skill && JSON.stringify(skill.surfaces) !== JSON.stringify(alias.surfaces)) errors.push(`${prefix}.aliases.${alias.id} drifts from canonical surface membership`);
-      if (skill && family.selectors && family.selectors[alias.selector] !== `${skill.path}/SKILL.md`) {
-        errors.push(`${prefix}.aliases.${alias.id} selector reference must match canonical skill path`);
+      if (!sameSurfaces(alias.surfaces, surfaces)) errors.push(`${prefix}.aliases.${alias.id} has unsupported surface membership`);
+      if (!Array.isArray(alias.surfaces)) errors.push(`${prefix}.aliases.${alias.id}.surfaces must be a string array`);
+      else {
+        if (new Set(alias.surfaces).size !== alias.surfaces.length) errors.push(`${prefix}.aliases.${alias.id}.surfaces must not contain duplicate values`);
+        for (const surface of alias.surfaces) {
+          if (typeof surface !== 'string' || !SURFACES.includes(surface)) {
+            errors.push(`${prefix}.aliases.${alias.id} declares unsupported surface '${surface}'`);
+          }
+        }
+      }
+      if (declaredFamilyIds.has(alias.id)) errors.push(`${prefix}.aliases.${alias.id} collides with a family id`);
+      const skill = skillById.get(alias.id);
+      if (hasSkillInventory && !skill) {
+        errors.push(`${prefix}.aliases.${alias.id} must resolve to a legacy skill entry`);
+      } else if (skill) {
+        if (skill.lifecycle !== 'deprecated') errors.push(`${prefix}.aliases.${alias.id} legacy skill entry must be lifecycle deprecated`);
+        if (skill.discoveryVisible !== false) errors.push(`${prefix}.aliases.${alias.id} legacy skill entry must set discoveryVisible false`);
+        if (skill.invocation_class !== family.invocation_class) errors.push(`${prefix}.aliases.${alias.id} legacy skill entry has conflicting invocation class`);
+        if (!sameSurfaces(skill.surfaces, alias.surfaces)) errors.push(`${prefix}.aliases.${alias.id} drifts from canonical surface membership`);
+        if (!Array.isArray(skill.legacy_names) || !skill.legacy_names.includes(alias.id)) errors.push(`${prefix}.aliases.${alias.id} does not preserve a stable legacy identifier`);
+        if (skill.lifecycle === 'deprecated') {
+          const dep = skill.deprecation;
+          if (!dep || typeof dep !== 'object' || Array.isArray(dep)) {
+            errors.push(`${prefix}.aliases.${alias.id} legacy skill entry is missing deprecation metadata`);
+          } else {
+            for (const field of ['since', 'compatibilityWindowEnds', 'migrationNote']) {
+              if (typeof dep[field] !== 'string' || dep[field].trim() === '') {
+                errors.push(`${aliasPrefix}.${alias.id} legacy skill entry is missing deprecation.${field}`);
+              }
+            }
+          }
+        }
       }
       if (aliasIds.has(alias.id)) errors.push(`duplicate alias '${alias.id}' in ${aliasIds.get(alias.id)} and ${family.id}`);
       else aliasIds.set(alias.id, family.id);
@@ -675,7 +759,7 @@ function normalizeSkillRoutingFamilies({ inventory } = {}) {
   return freezeProjectionValue(normalized);
 }
 
-function routingLookupFamily(family) {
+function routingLookupFamily(family, inventory) {
   if (!family || typeof family !== 'object' || Array.isArray(family)) return null;
   const hasSnakeRouter = Object.prototype.hasOwnProperty.call(family, 'router_id');
   const hasCamelRouter = Object.prototype.hasOwnProperty.call(family, 'routerId');
@@ -688,13 +772,38 @@ function routingLookupFamily(family) {
   const invocationClass = hasCamelInvocation ? family.invocationClass : family.invocation_class;
   if (typeof family.id !== 'string' || family.id.trim() === '' || typeof routerId !== 'string' || routerId.trim() === '') return null;
   if (!['implicit-eligible', 'explicit-only'].includes(invocationClass)) return null;
-  if (!Array.isArray(family.surfaces) || family.surfaces.some((surface) => !SURFACES.includes(surface))) return null;
+  if (!Array.isArray(family.surfaces) || family.surfaces.length === 0
+    || new Set(family.surfaces).size !== family.surfaces.length
+    || family.surfaces.some((surface) => !SURFACES.includes(surface))) return null;
   if (!family.selectors || typeof family.selectors !== 'object' || Array.isArray(family.selectors) || Object.keys(family.selectors).length === 0) return null;
 
   const selectors = {};
   for (const [selector, reference] of Object.entries(family.selectors)) {
     if (typeof selector !== 'string' || selector.trim() === '' || !isSafeInventoryPath(reference)) return null;
     selectors[selector] = reference;
+  }
+
+  // When the caller supplies an inventory, conditional references must be
+  // rooted in the live family skill.  Raw family records are otherwise
+  // accepted only for the syntax-only compatibility API below.
+  const inventorySkills = inventory === undefined
+    ? null
+    : inventory && Array.isArray(inventory.skills) ? inventory.skills : [];
+  const skillById = inventorySkills === null
+    ? null
+    : new Map(inventorySkills
+      .filter((skill) => skill && typeof skill.id === 'string')
+      .map((skill) => [skill.id, skill]));
+  const canonical = skillById && skillById.get(family.id);
+  if (skillById) {
+    if (!canonical || canonical.lifecycle === 'deprecated') return null;
+    if (canonical.invocation_class !== undefined && canonical.invocation_class !== invocationClass) return null;
+    const referencePrefix = typeof canonical.path === 'string' ? `${canonical.path}/references/` : null;
+    if (!referencePrefix || Object.values(selectors).some((reference) => (
+      !reference.startsWith(referencePrefix)
+      || reference === referencePrefix
+      || !reference.endsWith('.md')
+    ))) return null;
   }
 
   if (!Array.isArray(family.aliases) || family.aliases.length === 0) return null;
@@ -707,14 +816,33 @@ function routingLookupFamily(family) {
     const aliasInvocation = aliasCamelInvocation ? alias.invocationClass : alias.invocation_class;
     if (typeof alias.id !== 'string' || alias.id.trim() === '' || typeof alias.selector !== 'string' || !Object.prototype.hasOwnProperty.call(selectors, alias.selector)) return null;
     if (aliasInvocation !== invocationClass) return null;
-    if (!Array.isArray(alias.surfaces) || alias.surfaces.some((surface) => !SURFACES.includes(surface))) return null;
+    if (!Array.isArray(alias.surfaces) || alias.surfaces.length === 0
+      || new Set(alias.surfaces).size !== alias.surfaces.length
+      || alias.surfaces.some((surface) => !SURFACES.includes(surface))) return null;
     if (JSON.stringify([...alias.surfaces].sort()) !== JSON.stringify([...family.surfaces].sort())) return null;
+    if (skillById) {
+      const legacy = skillById.get(alias.id);
+      if (!legacy
+        || legacy.lifecycle !== 'deprecated'
+        || legacy.discoveryVisible !== false
+        || legacy.invocation_class !== invocationClass
+        || !Array.isArray(legacy.legacy_names)
+        || !legacy.legacy_names.includes(alias.id)
+        || !legacy.deprecation
+        || typeof legacy.deprecation !== 'object'
+        || Array.isArray(legacy.deprecation)
+        || ['since', 'compatibilityWindowEnds', 'migrationNote']
+          .some((field) => typeof legacy.deprecation[field] !== 'string' || legacy.deprecation[field].trim() === '')
+        || JSON.stringify([...legacy.surfaces || []].sort()) !== JSON.stringify([...alias.surfaces].sort())) return null;
+    }
     aliases.push({ id: alias.id, selector: alias.selector, invocationClass: aliasInvocation, surfaces: [...alias.surfaces].sort() });
   }
   aliases.sort((left, right) => left.id.localeCompare(right.id));
   for (let index = 1; index < aliases.length; index += 1) {
     if (aliases[index - 1].id === aliases[index].id) return null;
   }
+  const familyIdSet = new Set([family.id]);
+  if (aliases.some((alias) => familyIdSet.has(alias.id))) return null;
   return { id: family.id, routerId, invocationClass, surfaces: [...family.surfaces].sort(), selectors, aliases };
 }
 
@@ -727,13 +855,17 @@ function resolveSkillRoutingReference({ inventory, families, familyId, selector,
     ? normalizeSkillRoutingFamilies({ inventory })
     : families;
   if (!Array.isArray(source) || source.length === 0) return null;
-  const records = source.map(routingLookupFamily);
+  const records = source.map((family) => routingLookupFamily(family, inventory));
   if (records.some((record) => record === null)) return null;
 
-  const familyIds = new Set();
+  const familyIds = new Set(records.map((record) => record.id));
+  if (familyIds.size !== records.length) return null;
+  const aliasIds = new Set();
   for (const record of records) {
-    if (familyIds.has(record.id)) return null;
-    familyIds.add(record.id);
+    for (const alias of record.aliases) {
+      if (familyIds.has(alias.id) || aliasIds.has(alias.id)) return null;
+      aliasIds.add(alias.id);
+    }
   }
 
   if (familyId !== undefined && (typeof familyId !== 'string' || familyId.trim() === '')) return null;
@@ -764,14 +896,29 @@ function resolveSkillRoutingReference({ inventory, families, familyId, selector,
   return isSafeInventoryPath(reference) ? reference : null;
 }
 
-function resolveSkillRoutingAlias({ families = [], id } = {}) {
-  for (const family of families) for (const alias of family.aliases || []) {
-    if (alias.id === id) {
-      const routerId = family.router_id === undefined ? family.routerId : family.router_id;
-      return { familyId: family.id, routerId, selector: alias.selector, reference: family.selectors && family.selectors[alias.selector] };
+function resolveSkillRoutingAlias({ families = [], id, inventory } = {}) {
+  if (!Array.isArray(families) || typeof id !== 'string' || id.trim() === '') return null;
+  const records = families.map((family) => routingLookupFamily(family, inventory));
+  if (records.some((record) => record === null)) return null;
+  const familyIds = new Set(records.map((record) => record.id));
+  if (familyIds.size !== records.length) return null;
+  const aliasIds = new Set();
+  const matches = [];
+  for (const family of records) {
+    for (const alias of family.aliases) {
+      if (familyIds.has(alias.id) || aliasIds.has(alias.id)) return null;
+      aliasIds.add(alias.id);
+      if (alias.id === id) matches.push({ family, alias });
     }
   }
-  return null;
+  if (matches.length !== 1) return null;
+  const { family, alias } = matches[0];
+  return {
+    familyId: family.id,
+    routerId: family.routerId,
+    selector: alias.selector,
+    reference: family.selectors[alias.selector],
+  };
 }
 
 // Resolve an identifier without introducing compatibility aliases. Active
@@ -1607,6 +1754,7 @@ function computeScopedCounts(inventory) {
 
 module.exports = {
   LIFECYCLES,
+  INVOCATION_CLASSES,
   SURFACES,
   V2_SCHEMA,
   PUBLIC_SKILL_NAME,

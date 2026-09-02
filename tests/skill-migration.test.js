@@ -43,13 +43,66 @@ function projectionTarget(linkPath) {
   return fs.readlinkSync(linkPath);
 }
 
-test('real tree has 100 flat canonical packages with inventory identities and metadata tokens', () => {
+// Keep this mapping literal: it is the real-tree canary for the 11 version
+// modules that now consume the two public family skills. Do not derive the
+// expected family from module.yaml or the inventory under test.
+const EXPECTED_VERSION_FAMILY_PROJECTIONS = [
+  { moduleId: 'laravel-5.4', familySkill: 'dhpk-laravel', symlinkTarget: '../../../skills/dhpk-laravel' },
+  { moduleId: 'laravel-6', familySkill: 'dhpk-laravel', symlinkTarget: '../../../skills/dhpk-laravel' },
+  { moduleId: 'laravel-7', familySkill: 'dhpk-laravel', symlinkTarget: '../../../skills/dhpk-laravel' },
+  { moduleId: 'laravel-8', familySkill: 'dhpk-laravel', symlinkTarget: '../../../skills/dhpk-laravel' },
+  { moduleId: 'laravel-9', familySkill: 'dhpk-laravel', symlinkTarget: '../../../skills/dhpk-laravel' },
+  { moduleId: 'laravel-10', familySkill: 'dhpk-laravel', symlinkTarget: '../../../skills/dhpk-laravel' },
+  { moduleId: 'laravel-11', familySkill: 'dhpk-laravel', symlinkTarget: '../../../skills/dhpk-laravel' },
+  { moduleId: 'laravel-mix', familySkill: 'dhpk-laravel', symlinkTarget: '../../../skills/dhpk-laravel' },
+  { moduleId: 'phpunit-9', familySkill: 'dhpk-phpunit', symlinkTarget: '../../../skills/dhpk-phpunit' },
+  { moduleId: 'phpunit-10', familySkill: 'dhpk-phpunit', symlinkTarget: '../../../skills/dhpk-phpunit' },
+  { moduleId: 'phpunit-11', familySkill: 'dhpk-phpunit', symlinkTarget: '../../../skills/dhpk-phpunit' },
+];
+
+function moduleProvidedSkills(moduleId) {
+  const yamlPath = path.join(ROOT, 'modules', moduleId, 'module.yaml');
+  const source = fs.readFileSync(yamlPath, 'utf8');
+  const match = source.match(/^provides:\s*\n\s+skills:\s*\[([^\]]*)\]/m);
+  assert.ok(match, `${yamlPath} has no provides.skills mapping`);
+  return match[1].split(',').map((skill) => skill.trim()).filter(Boolean);
+}
+
+test('real tree version modules select only their canonical public family projection', () => {
+  const actual = EXPECTED_VERSION_FAMILY_PROJECTIONS.map((expected) => {
+    const projectionRoot = path.join(ROOT, 'modules', expected.moduleId, 'skills');
+    assert.ok(fs.existsSync(projectionRoot), `${expected.moduleId} is missing its skills projection root`);
+    const projectionEntries = fs.readdirSync(projectionRoot).sort();
+    assert.deepStrictEqual(projectionEntries, [expected.familySkill], expected.moduleId);
+
+    const familyEntry = INVENTORY.skills.find((entry) => entry.name === expected.familySkill);
+    assert.ok(familyEntry, `missing canonical family inventory entry: ${expected.familySkill}`);
+
+    return {
+      moduleId: expected.moduleId,
+      providesSkills: moduleProvidedSkills(expected.moduleId),
+      projectionEntries,
+      symlinkTarget: projectionTarget(path.join(projectionRoot, expected.familySkill)),
+      profileIncludesModule: familyEntry.profiles.includes(expected.moduleId),
+    };
+  });
+
+  assert.deepStrictEqual(actual, EXPECTED_VERSION_FAMILY_PROJECTIONS.map((expected) => ({
+    moduleId: expected.moduleId,
+    providesSkills: [expected.familySkill],
+    projectionEntries: [expected.familySkill],
+    symlinkTarget: expected.symlinkTarget,
+    profileIncludesModule: true,
+  })));
+});
+
+test('real tree has 101 flat canonical packages with inventory identities and metadata tokens', () => {
   assert.strictEqual(INVENTORY.schema, 'dhpk.distribution-inventory.v2');
-  assert.strictEqual(INVENTORY.skills.length, 100);
+  assert.strictEqual(INVENTORY.skills.length, 101);
   assert.deepStrictEqual(validateDistributionInventoryV2({ inventory: INVENTORY }).errors, []);
 
   const dirs = flatCanonicalDirs();
-  assert.strictEqual(dirs.length, 100);
+  assert.strictEqual(dirs.length, 101);
   assert.strictEqual(fs.readdirSync(path.join(ROOT, 'skills')).filter((name) => {
     const candidate = path.join(ROOT, 'skills', name);
     return fs.statSync(candidate).isDirectory() && !fs.existsSync(path.join(candidate, 'SKILL.md'));

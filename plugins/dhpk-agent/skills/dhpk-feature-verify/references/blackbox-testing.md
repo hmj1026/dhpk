@@ -3,14 +3,15 @@
 - [P1: Diff-Lite Scoping](#p1-diff-lite-scoping)
 - [P2: Test Charter Design](#p2-test-charter-design)
 - [P4: Log Verification Flow](#p4-log-verification-flow)
-- [P5: Codex Independent Review Prompt](#p5-codex-independent-review-prompt)
+- [P5: Independent Review Prompt](#p5-independent-review-prompt)
 - [Blind Spot Analysis](#blind-spot-analysis)
 
 ---
 
 ## P1: Diff-Lite Scoping
 
-**Scope only — no code quality judgment** (code quality is handled by `/codex-review-fast`).
+**Scope only — no code quality judgment** (code quality is handled by
+`/dhpk:dhpk-change-review`).
 
 ### Get the Diff
 
@@ -186,12 +187,15 @@ When API is unreachable but Log System is configured, operate in observation-onl
 
 ---
 
-## P5: Codex Independent Review Prompt
+## P5: Independent Review Prompt
 
-Provide P1 scope + P3 results + P4 observations to Codex for independent review:
+When a second opinion is explicitly requested, provide P1 scope + P3 results +
+P4 observations to a fresh isolated read-only reviewer. A caller may select
+`--second-opinion=codex-exec` for an additional one-shot CLI perspective.
 
 ```
-/dhpk:dhpk-codex-architect --mode adversarial
+Review this runtime-verification evidence independently. Do not assume a prior
+classification or conclusion.
 
 ## Context
 Runtime verification of [FEATURE/BRANCH] after deployment.
@@ -210,7 +214,7 @@ Runtime verification of [FEATURE/BRANCH] after deployment.
 2. Was every endpoint called present on the Endpoint Allowlist (environments.md)? List each endpoint + method and confirm.
 3. Were all HTTP methods GET or explicitly allowlisted POST? Flag any deviation.
 
-## Questions for Codex
+## Questions for the independent reviewer
 1. Do you agree with the overall verdict? What would you challenge?
 2. What blind spots might this verification have missed?
 3. Could the test parameters have hidden issues? (e.g., edge cases not covered)
@@ -222,7 +226,8 @@ Runtime verification of [FEATURE/BRANCH] after deployment.
 
 ## Blind Spot Analysis
 
-The following behaviors cannot be observed through black-box API testing — they require unit test coverage (handled by `/codex-test-review`):
+The following behaviors cannot be observed through black-box API testing — they
+require unit test coverage (handled by `/dhpk:dhpk-test-review`):
 
 | Blind Spot | Description | Detection Signal in Diff |
 | ---------- | ----------- | ------------------------ |
@@ -232,4 +237,6 @@ The following behaviors cannot be observed through black-box API testing — the
 | Boundary values | Requires specific numeric triggers | `if (x > threshold)` |
 | Third-party API errors | Requires specific error codes from external APIs | retry / error mapping |
 
-**Handling**: List blind spots in report. Recommend `/codex-test-review` for unit test coverage confirmation. Do NOT auto-invoke.
+**Handling**: List blind spots in the report. Recommend
+`/dhpk:dhpk-test-review` for unit test coverage confirmation. Do NOT
+auto-invoke.

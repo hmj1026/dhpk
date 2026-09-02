@@ -16,7 +16,7 @@
 //
 // Only claims phrased as an exact number are enforced ("24 role-based agents",
 // "27 opt-in stack modules", "23 root-level agents", "24 個角色導向 agent",
-// "7-slot", "4 MCP-backed `codex-*` skills", "7 `/dhpk:codex-*` commands",
+// "7-slot", "0 MCP-backed `codex-*` skills", "0 `/dhpk:codex-*` commands",
 // "45 commands", "4 events" / "4 個事件"). Command count and hook-event count
 // are now exact and enforced (previously "~73 commands" was an unenforced
 // approximate claim). Other approximate claims ("~57 core skills") are printed
@@ -24,11 +24,14 @@
 
 const fs = require('fs');
 const path = require('path');
-const { collectInventory, walkFiles } = require('../lib/asset-inventory');
+const { CODEX_MCP_COMMAND_NAMES, collectInventory, walkFiles } = require('../lib/asset-inventory');
 const { computeScopedCounts } = require('../lib/distribution-inventory');
 
 const ROOT = path.join(__dirname, '..', '..');
 const p = (...s) => path.join(ROOT, ...s);
+// Codex MCP is retired. Keep this as an exact zero policy rather than a
+// ceiling: a newly introduced grant must fail CI even if it is the first one.
+const RETIRED_CODEX_MCP_SURFACE = Object.freeze({ skills: 0, commands: 0, commandGrants: 0 });
 
 function computeCounts() {
   return collectInventory(ROOT).counts;
@@ -119,6 +122,28 @@ function claimSpecs(counts, scoped) {
   ];
 }
 
+function retiredCodexMcpErrors(counts, inventory) {
+  const errors = [];
+  if (counts.mcpCodexSkills !== RETIRED_CODEX_MCP_SURFACE.skills) {
+    errors.push(`MCP-backed Codex skill surface is retired: expected ${RETIRED_CODEX_MCP_SURFACE.skills}, computed ${counts.mcpCodexSkills}`);
+  }
+  if (counts.codexCommands !== RETIRED_CODEX_MCP_SURFACE.commands) {
+    errors.push(`MCP-backed Codex command surface is retired: expected ${RETIRED_CODEX_MCP_SURFACE.commands}, computed ${counts.codexCommands}`);
+  }
+  if (counts.mcpCodexCommands !== RETIRED_CODEX_MCP_SURFACE.commandGrants) {
+    errors.push(`MCP-backed Codex command grants are retired: expected ${RETIRED_CODEX_MCP_SURFACE.commandGrants}, computed ${counts.mcpCodexCommands}`);
+  }
+  const unexpected = (inventory && inventory.paths && Array.isArray(inventory.paths.mcpCodexCommands)
+    ? inventory.paths.mcpCodexCommands
+    : [])
+    .map((filePath) => path.basename(filePath))
+    .filter((name) => !CODEX_MCP_COMMAND_NAMES.includes(name));
+  if (unexpected.length > 0) {
+    errors.push(`MCP-backed Codex command grant found outside the retired zero-grant surface: ${unexpected.join(', ')}`);
+  }
+  return errors;
+}
+
 // Explicit stem -> test-file overrides for scripts whose dedicated test uses a
 // feature name rather than a name/name-aspect derived from the script's own
 // basename (so the naming-convention check below can't find them automatically).
@@ -170,7 +195,11 @@ function findScriptCoverageGaps() {
 }
 
 function checkOrWrite({ write }) {
-  const counts = computeCounts();
+  const inventory = collectInventory(ROOT);
+  const counts = inventory.counts;
+  const retirementErrors = retiredCodexMcpErrors(counts, inventory);
+  for (const error of retirementErrors) console.error(`RETIREMENT ${error}`);
+  if (retirementErrors.length > 0) return 1;
   const specs = claimSpecs(counts, computeScoped({ announce: true }));
   let mismatches = 0;
   let rewrites = 0;

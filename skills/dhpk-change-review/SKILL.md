@@ -1,9 +1,10 @@
 ---
 name: dhpk-change-review
-description: 'Code review using Codex MCP. Use when: PR review, code audit, or a second opinion on changes. Not for: document review (use dhpk-doc-review), security-specific audit (use dhpk-security-review), or test coverage review (use dhpk-test-review). Output: severity-ranked findings with file:line evidence, a reviewer-degradation state, and a fail-closed merge gate.'
-allowed-tools: 'mcp__codex__codex, mcp__codex__codex-reply, Bash(git:*), Bash(yarn:*), Bash(npm:*), Bash(bash:*), Read, Grep, Glob, Task'
+disable-model-invocation: true
+description: 'Portable code review using the current model and an optional CLI second opinion. Purpose: review a PR, audit code, or obtain a second opinion on changes. Not for: document review (use dhpk-doc-review), security-specific audit (use dhpk-security-review), or test coverage review (use dhpk-test-review). Output: severity-ranked findings with file:line evidence, a reviewer-degradation state, and a fail-closed merge gate.'
+allowed-tools: 'Bash(git:*), Bash(yarn:*), Bash(npm:*), Bash(bash:*), Read, Grep, Glob, Task'
 metadata:
-  dhpk-invocation-class: implicit-eligible
+  dhpk-invocation-class: explicit-only
 ---
 
 # Change review
@@ -13,13 +14,15 @@ request. Select one scope, load `references/review-workflow.md`, and preserve
 the gate state from initialization through final output.
 
 Dispatch and findings are host-neutral: name the selected review capability and
-backend, not a host-only tool, agent, or slash-command alias. Keep the
-secondary reviewer independent and report a degradation reason when it cannot
-run.
+backend, not a host-only tool, agent, or slash-command alias. The current model
+is the default primary reviewer. Keep the secondary reviewer independent and
+report a degradation reason when it cannot run; never describe a primary-only
+result as an independent check.
 
-The MCP backend is the default. For environments with the Codex CLI, the same
-contract is available through `scripts/review.sh --backend cli`; the wrapper
-uses argument arrays, never `eval`, and accepts literal user values.
+For environments with the Codex CLI, the same contract is available through an
+explicit `scripts/review.sh --backend cli` selection; the wrapper uses argument
+arrays, never `eval`, and accepts literal user values. CLI output is an
+additional labeled review input and is never a hidden fallback.
 
 ```text
 scripts/review.sh --backend cli \
@@ -43,7 +46,7 @@ prevents a moving branch reference from hiding changes.
 The consolidated CLI supports `--scope diff|branch|doc|security|tests` for a
 single second-opinion entrypoint. For a standalone document, security, or test
 audit, the dedicated reviewer/skill is preferred; use these modes when that
-scope is part of the consolidated Codex review flow.
+scope is part of the consolidated review flow.
 
 ## When NOT to Use
 
@@ -63,18 +66,22 @@ scope is part of the consolidated Codex review flow.
 ## Workflow
 
 1. Choose the variant and identify the exact diff scope.
-2. Read `references/review-workflow.md` and execute its PENDING → dual-review
+2. Pin a non-empty fixed point (`git merge-base`, or `HEAD` for an uncommitted
+   diff) before reading findings and emit `PENDING`.
+3. Read `references/review-workflow.md` and execute its PENDING → dual-review
    → aggregation → gate sequence.
-3. Keep Codex and the secondary reviewer independent; pass metadata, not one
-   reviewer's conclusions, to the other.
-4. Review two separate axes: **Standards** (repository rules, security, tests,
+4. Keep the primary and secondary reviewers independent; pass metadata, not
+   one reviewer's conclusions, to the other. If the secondary cannot run,
+   record the reason and mark the result degraded.
+5. Review two separate axes: **Standards** (repository rules, security, tests,
    compatibility, and maintainability) and **Spec** (the request, acceptance
    criteria, behavior, and edge cases). A pass on one axis never substitutes
    for the other.
-5. Reconcile severity, duplicate findings, late results, and degraded reviewer
+6. Reconcile severity, duplicate findings, late results, and degraded reviewer
    availability through `references/review-common.md`.
-6. Re-review after every code edit and emit `READY` or `BLOCKED` state before
-   returning the report.
+7. Rank every finding by severity and attach file:line evidence plus a concrete
+   fix path. Any code edit invalidates the prior review: re-pin freshness,
+   re-run both axes, and emit `READY` or `BLOCKED` before returning the report.
 
 ## Output
 
@@ -89,7 +96,7 @@ finding may be hidden by a degraded secondary review.
 - [ ] A non-empty merge-base (or `HEAD` for an uncommitted diff) is pinned.
 - [ ] Standards and Spec axes are reported separately.
 - [ ] PENDING was emitted before review and a final gate was emitted afterward.
-- [ ] Codex independently read the diff and project context.
+- [ ] The primary reviewer independently read the diff and project context.
 - [ ] The secondary reviewer was dispatched or its degradation reason is explicit.
 - [ ] Each finding has severity, file:line evidence, and a concrete fix path.
 - [ ] P0/P1 findings block the gate; every code edit resets the review loop.
@@ -115,5 +122,5 @@ finding may be hidden by a degraded secondary review.
 ```text
 /codex-review-fast
 /codex-review-branch origin/develop
-/codex-review-fast  # when Codex is unavailable, report degraded mode
+/codex-review-fast  # when the optional CLI reviewer is unavailable, report degraded mode
 ```

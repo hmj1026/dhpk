@@ -64,6 +64,11 @@ dhpk 遵循標準的 [Claude Code plugin distribution model](https://docs.claude
 
 不需要 clone，適合一般使用者。
 
+直接使用 GitHub marketplace 目前取得的是 raw `dhpk@dhpk` compatibility
+surface。完成量測、在 discovery 前套用的 `minimal` artifact，請使用下方
+Path B 的 interactive installer（或 profile generator）；待 release 將生成
+package 發布為 marketplace source 後，才會由遠端路徑直接提供該 artifact。
+
 ```bash
 # Terminal
 claude plugin marketplace add hmj1026/dhpk
@@ -110,8 +115,11 @@ claude plugin marketplace add ~/projects/dhpk
 bash ~/projects/dhpk/scripts/install.sh        # interactive (gum / python3 fallback)
 ```
 
-腳本會引導 stack／版本、Docker 前置條件、review-agent override 與 hook profile，
-最後替你執行 `claude plugin install`。加上 `--dry-run` 可只印出解析後的安裝指令。
+未選任何 stack module 時，腳本會實體化 inventory-owned 的 `minimal` profile、
+註冊 local marketplace wrapper，並安裝 `dhpk@dhpk-profile-minimal`；選取 stack
+module 則維持明確指定的 raw compatibility 路徑。腳本會引導 stack／版本、Docker
+前置條件、review-agent override 與 hook profile，最後替你執行
+`claude plugin install`。加上 `--dry-run` 可只印出解析後的命令而不執行。
 
 隨時驗證 local checkout：
 
@@ -241,11 +249,13 @@ impact analysis；`cx` 的 overview／definition／references 是主要 navigati
 | `--openspec` / `--opsx` | 將 feature／bug authoring route 送到外部 OpenSpec artifact creation，然後停在人類 Review；其他 route 會忽略。 |
 | `--worker=<claude\|codex\|agy\|auto>` | 只選本次 invocation 的 mechanical worker；優先序為 flag → `fast_worker_backend` → shipped `claude`，不會持久化設定。 |
 | `--reasoner=<claude\|codex>[:<model>[:<effort>]]` | 為 implementation-class route 選 reasoning backend；其他 route 會明確訊息後忽略。 |
-| `--codex` | 在支援的 workflow 啟用 session 的 Codex peer path；它與 worker selector 不同。 |
+| `--codex` | 已退休的相容性旗標。Parser 會產生 deprecation diagnostic，不會選擇 peer 或 backend；請改用明確的 worker、reasoner 或 owner 第二意見選項。 |
 
-`--worker=codex` 是選 Codex CLI mechanical worker；`CODEX=on` 則加入獨立 Codex MCP
-peer，供高風險 reasoning／Review 使用。只有選定 executable 缺少時才允許 configured
-Claude fallback；authentication、task、execution 與 verification failure 都維持 blocked。
+`--worker=codex` 是選 Codex CLI mechanical worker；`--reasoner=codex` 是選 Codex CLI
+reasoning pass。`CODEX=on` 與 `/dhpk:do --codex` 是已退休的相容性旗標：會產生
+deprecation diagnostic，絕不選擇 peer、worker、reasoner 或 hidden backend。只有選定
+executable 缺少時才允許 configured Claude fallback；authentication、task、execution 與
+verification failure 都維持 blocked。
 
 ### OpenSpec 生命週期邊界
 
@@ -298,7 +308,7 @@ sentinel 對 commit 是 warn 或 block。
 ```
 
 `<change-id>` 是 `openspec/changes/` 下的 directory name，不是自由文字。
-`--turns N`、`--max-duration`、`--min-coverage`、`--codex`、`--smoke`、`--no-smoke` 與
+`--turns N`、`--max-duration`、`--min-coverage`、`--smoke`、`--no-smoke` 與
 `--dry-run` 都可約束產生的 session。turn／time limit 會寫 `.resume-note.md`；human-only
 work 標為 `[blocked: <reason>]`；hard-rule conflict 會以 file:line evidence 寫入
 `.hard-rule-escalation.md`。Generated goal 保留 selector-resolved worker、適用的 specialist
@@ -328,17 +338,18 @@ work 透過 shared selector 交給 `fast-worker`、`codex-fast-worker` 或 `agy-
 適用 suite。完整 dispatch 與 reviewer batching 規則在
 [`rules/execution-policy.md`](../rules/execution-policy.md)。
 
-### Codex 雙助理協作
+### Codex CLI 第二意見
 
-dhpk **預設不使用 Codex**。`CODEX=on` 會在高風險 implementation decision 與支援的 Review
-skill 加入 blind independent Codex peer。Direct Codex-delegation skill
-（`dhpk-codex-architect`（含 `--mode adversarial`）、`dhpk-codex-implement`、`dhpk-change-review`）
-不需 `/dhpk:do` 也可直接呼叫。MCP backend 需要 `mcp__codex__codex`／
-`mcp__codex__codex-reply`；可選 CLI backend 只需要 `codex` executable。設定與 failure boundary
-在 [`docs/configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕`](./configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕)。
+dhpk **預設不使用 Codex**。已退休的 `CODEX=on` 與 `/dhpk:do --codex` 旗標會產生
+`DEPRECATED_CODEX_FLAG`，不會加入 hidden peer 或 backend。需要明確選擇時，使用
+`--worker=codex` 走 CLI worker、`--reasoner=codex` 走 CLI reasoning pass，或在 migrated
+owner 上使用 `--second-opinion=codex-exec` 取得 additive、one-shot 的 `codex exec` 意見。
+`dhpk-change-review --backend cli` 是明確的 CLI review path；current-model path 仍是預設。
+缺少 CLI executable 時會回報 optional backend 不可用；authentication、task、execution 與
+verification failure 都維持 blocked。
 
 這與下方的 Codex CLI content sync 不同；後者只是將 curated projection mirror 到 `.codex/`，
-不需要 MCP server。
+不需要 server registration。
 
 ## 同步 Codex CLI 內容
 

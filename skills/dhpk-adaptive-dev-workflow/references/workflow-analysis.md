@@ -28,7 +28,7 @@
 - `handoff-and-verification.md`
   - completion expectations 與 next-step
 - `codex-mode.md`
-  - `--codex` phase mapping 與 fallback
+  - retired `--codex` diagnostics and explicit worker/reasoner/second-opinion options
 - `dispatch-and-gates.md`
   - planning、implementation、review gate 與 workflow diagram
 

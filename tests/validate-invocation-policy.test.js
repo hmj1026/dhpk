@@ -177,12 +177,11 @@ test('a paired command that inherits (declares nothing) passes', () => {
   }
 });
 
-// v1 GREEN contract (tests above): missing/unknown class, dotted substitute,
-// user-invocable:false, unpaired/paired command agreement.
-// v2 RED contract (this test): canonical dhpk-do package must exist as
-// explicit-only. See tests/dhpk-do-portable.test.js [2.1].
+// Core contract: missing/unknown class, dotted substitute,
+// user-invocable:false, unpaired/paired command agreement, and the canonical
+// dhpk-do package's explicit-only model-invocation boundary.
 
-test('canonical dhpk-do skill is present, explicit-only, and model-invocation disabled (RED until 2.1)', () => {
+test('canonical dhpk-do skill is present, explicit-only, and model-invocation disabled', () => {
   const skillPath = path.join(ROOT, 'skills', 'dhpk-do', 'SKILL.md');
   assert.ok(fs.existsSync(skillPath), 'skills/dhpk-do/SKILL.md must exist');
   const body = fs.readFileSync(skillPath, 'utf8');
@@ -197,6 +196,59 @@ test('a well-formed explicit-only and implicit-eligible skill both pass', () => 
     writeSkill(tmp, 'b', classified('b', 'implicit-eligible'));
     const { status } = runValidator(tmp);
     assert.strictEqual(status, 0);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('a Codex MCP skill grant is rejected after MCP retirement', () => {
+  const tmp = makeTempRepo();
+  try {
+    writeSkill(tmp, 'new-mcp', "---\nname: dhpk-new-mcp\ndescription: new\nallowed-tools: 'Read, mcp__codex__codex'\nmetadata:\n  dhpk-invocation-class: explicit-only\n---\nbody\n");
+    const { status, out } = runValidator(tmp);
+    assert.strictEqual(status, 1);
+    assert.match(out, /mcp__codex__\* grants are retired and forbidden/);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('a Codex MCP command grant is rejected after MCP retirement', () => {
+  const tmp = makeTempRepo();
+  try {
+    writeCommand(tmp, 'new-mcp.md', "---\ndescription: new command\nallowed-tools: 'Read, mcp__codex__codex'\nmetadata:\n  dhpk-invocation-class: explicit-only\n---\nbody\n");
+    const { status, out } = runValidator(tmp);
+    assert.strictEqual(status, 1);
+    assert.match(out, /mcp__codex__\* grants are retired and forbidden/);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('a non-MCP Codex command is governed by its declared invocation class', () => {
+  const tmp = makeTempRepo();
+  writeCommand(tmp, 'codex-security.md', "---\ndescription: frozen forwarding alias\nmetadata:\n  dhpk-invocation-class: explicit-only\n---\nbody\n");
+  const commandPath = path.join(tmp, 'commands', 'codex-security.md');
+  try {
+    const original = fs.readFileSync(commandPath, 'utf8');
+    fs.writeFileSync(commandPath, original.replace(
+      'dhpk-invocation-class: explicit-only',
+      'dhpk-invocation-class: implicit-eligible',
+    ));
+    const { status, out } = runValidator(tmp);
+    assert.strictEqual(status, 0, out);
+  } finally {
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('a formerly frozen Codex MCP skill is rejected regardless of invocation class', () => {
+  const tmp = makeTempRepo();
+  try {
+    writeSkill(tmp, 'dhpk-codex-architect', "---\nname: dhpk-codex-architect\ndescription: architecture\nallowed-tools: 'mcp__codex__codex'\nmetadata:\n  dhpk-invocation-class: implicit-eligible\n---\nbody\n");
+    const { status, out } = runValidator(tmp);
+    assert.strictEqual(status, 1);
+    assert.match(out, /mcp__codex__\* grants are retired and forbidden/);
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }

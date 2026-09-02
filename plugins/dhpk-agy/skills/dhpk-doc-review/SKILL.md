@@ -1,11 +1,12 @@
 ---
 name: dhpk-doc-review
-description: 'Document review via Codex MCP. Use when: reviewing .md docs, tech spec audit, document quality check. Not for: code review (use dhpk-change-review), test review (use dhpk-test-review). Output: 5-dimension rating table + gate.'
-allowed-tools: 'mcp__codex__codex, mcp__codex__codex-reply, Bash(git:*), Read, Grep, Glob'
+disable-model-invocation: true
+description: 'Portable document review using the current model. Purpose: review .md docs, audit a tech spec, or check document quality. Not for: code review (use dhpk-change-review), test review (use dhpk-test-review). Output: 5-dimension rating table + gate.'
+allowed-tools: 'Bash(git:*), Read, Grep, Glob, Task'
 context: fork
 agent: Explore
 metadata:
-  dhpk-invocation-class: implicit-eligible
+  dhpk-invocation-class: explicit-only
 ---
 
 # Document Review Skill
@@ -20,7 +21,7 @@ metadata:
 
 | Command             | Description            | Use Case          |
 | ------------------- | ---------------------- | ----------------- |
-| `/codex-review-doc` | Codex reviews .md docs | Document changes  |
+| `/codex-review-doc` | Review .md docs | Document changes  |
 | `/review-spec`      | Review tech spec       | Spec confirmation |
 | `/doc-refactor`     | Streamline documents   | Doc too long      |
 | `/update-docs`      | Research & update docs | After code change |
@@ -28,7 +29,7 @@ metadata:
 ## Workflow: `/codex-review-doc`
 
 ```
-Determine target → Read content → Codex review (5 dimensions) → Rating table + Gate → Loop if Needs revision
+Determine target → Read content → Primary review (5 dimensions) → Rating table + Gate → Loop if Needs revision
 ```
 
 ### Step 1: Determine Target File
@@ -43,19 +44,29 @@ Determine target → Read content → Codex review (5 dimensions) → Rating tab
 
 Read target file, save as `FILE_CONTENT`.
 
-### Step 3: Codex Review
+### Step 3: Primary Review
 
-**First review**: `mcp__codex__codex` with doc review prompt. See `references/codex-prompt-doc.md`.
+Run the document review with the current model using the prompt in
+`references/codex-prompt-doc.md`. The primary path is complete without an
+external opinion. A caller may explicitly opt into `codex exec` as an additive,
+clearly labeled second opinion; it must never be an implicit requirement or
+silent fallback.
 
-Config: `sandbox: 'read-only'`, `approval-policy: 'never'`
+Keep the document snapshot and selected target explicit so a later round can be
+reproduced with the same input.
 
-**Save the returned `threadId`.**
+**Save the review artifact identifier and pinned input state.** No stateful
+external thread is assumed.
 
-**Loop review**: `mcp__codex__codex-reply` with re-review template. See `references/review-loop-doc.md`.
+**Loop review**: reread the explicit document snapshot and prior review
+artifact with `references/review-loop-doc.md`; do not assume stateful thread
+continuity.
 
 ### Step 4: Consolidate Output
 
-Organize results into rating table + severity-grouped findings + gate.
+Organize results into rating table + severity-grouped findings + gate. When no
+optional second opinion runs, state that the result is primary-model only and
+degraded; do not claim independent verification.
 
 ## Review Dimensions
 
@@ -71,14 +82,14 @@ Organize results into rating table + severity-grouped findings + gate.
 
 Return the five-dimension rating table, severity-ranked findings with
 file:line evidence, actionable corrections, and an explicit Mergeable or
-Needs revision gate. Preserve the Codex thread ID when another review round is
-required.
+Needs revision gate. Preserve the review artifact and input snapshot when
+another review round is required.
 
 ## Review Loop
 
 Auto-loop semantics: `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md` §Anti-loop & output.
 
-⛔ Needs revision → fix 🔴 items → `/codex-review-doc --continue <threadId>` → repeat until ✅ Mergeable.
+⛔ Needs revision → fix 🔴 items → `/codex-review-doc --continue <review-artifact>` → repeat until ✅ Mergeable.
 
 Max 3 rounds. Still failing → report blocker.
 
@@ -86,7 +97,8 @@ Max 3 rounds. Still failing → report blocker.
 
 - [ ] Each issue tagged with severity (🔴/🟡/⚪)
 - [ ] Gate is clear (✅ Mergeable / ⛔ Needs revision)
-- [ ] Codex verified code-documentation consistency independently
+- [ ] The primary reviewer verified code-documentation consistency; label any
+      optional independent second opinion separately
 
 ## Required Actions
 
@@ -105,10 +117,10 @@ Max 3 rounds. Still failing → report blocker.
 
 ```
 Input: /codex-review-doc docs/features/xxx/tech-spec.md
-Action: Read file → Codex doc prompt → Rating table + Findings + Gate
+Action: Read file → primary document review → Rating table + Findings + Gate
 
 Input: /codex-review-doc
-Action: Auto-detect changed .md → Codex doc prompt → Rating table + Gate
+Action: Auto-detect changed .md → primary document review → Rating table + Gate
 
 Input: Review this tech spec for me
 Action: /review-spec → Check completeness/feasibility/risks → Output Gate
