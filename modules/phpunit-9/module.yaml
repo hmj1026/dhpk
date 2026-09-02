@@ -14,5 +14,5 @@ triggers:
     extensions: []
     paths: []
 provides:
-  skills: [dhpk-phpunit-9-modern]
+  skills: [phpunit]
   references: []

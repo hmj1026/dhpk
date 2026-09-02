@@ -12,7 +12,7 @@ Pocock 或其他全域 skill 的使用者。
 
 | 關注點 | 目前實作 |
 |---|---|
-| Canonical source | `skills/dhpk-<name>/` 下 100 個扁平 package |
+| Canonical source | `skills/dhpk-<name>/` 下 102 個扁平 package |
 | Public identity | 每個可呼叫的 dhpk skill 名稱都以 `dhpk-` 開頭 |
 | Inventory SSOT | `manifests/distribution-inventory.json` schema v2 |
 | Module projection | `modules/*/skills/` 下 37 個相對 symlink |
@@ -166,7 +166,7 @@ node tests/documentation-platform-parity.test.js
 node tests/run-all.js
 ```
 
-預期拓撲為 100 個 canonical package、31 個 module、18 個 Codex project/native 項目
+預期拓撲為 102 個 canonical package、31 個 module、18 個 Codex project/native 項目
 （16 個可呼叫 skill 加上內部 transport 與 dispatch-context runtime）；另有五筆不進入 discovery 的
 `retired_skills` ledger row；相對 symlink 只能出現在 module/Codex projection，native
 package 必須零 symlink。

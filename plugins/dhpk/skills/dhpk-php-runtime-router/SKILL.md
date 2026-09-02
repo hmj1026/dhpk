@@ -28,14 +28,35 @@ Classify the codebase before recommending patterns:
 - **Generic modern PHP / Symfony / library project**: `composer.json`, `src/`, PSR-4 autoloading, `phpstan.neon`, `phpunit.xml*`
 
 If multiple signals exist, trust the active runtime in `composer.json`, the bootstrapping entrypoint, and the test suite layout.
-After Laravel is positively detected, resolve the Laravel major version before version-sensitive work.
+After Laravel is positively detected, call the `dhpk-laravel` family resolver before version-sensitive work.
+After PHPUnit is detected, call the `dhpk-phpunit` family resolver for version-sensitive test work.
 If Yii 1.1 is detected, treat PHP 5.6 compatibility as a hard constraint unless the repository proves otherwise.
+
+## Consolidated Family Routing
+
+Route version-sensitive Laravel and PHPUnit work through the matching family resolver. An explicit selector wins; otherwise the resolver reads `composer.json` / `composer.lock` directly. It MUST load exactly one version reference. If the version is missing or unsupported, ask the caller rather than guessing or defaulting. Distribution inventory and install profiles govern installation/publication only, not runtime detection; each family folder remains portable when copied alone.
+
+### Laravel (`dhpk-laravel`)
+
+Call the family resolver, then load exactly the selected reference:
+
+Selectors map as follows: `5.4` → `@skills/dhpk-laravel/references/5-4.md`; `6` → `@skills/dhpk-laravel/references/6.md`; `7` → `@skills/dhpk-laravel/references/7.md`; `8` → `@skills/dhpk-laravel/references/8.md`;
+`9` → `@skills/dhpk-laravel/references/9.md`; `10` → `@skills/dhpk-laravel/references/10.md`; `11` → `@skills/dhpk-laravel/references/11.md`; `mix` → `@skills/dhpk-laravel/references/mix.md`.
+
+For selector `11`, preserve Laravel 11's legacy-layout exception: existing Laravel 10-style `app/Http/Kernel.php`, `app/Console/Kernel.php`, and `app/Exceptions/Handler.php` remain supported. Inspect the repository and do not force a streamlined-layout migration.
+
+### PHPUnit (`dhpk-phpunit`)
+
+Call the family resolver for PHPUnit version-sensitive work; selectors map explicitly: `9` → `@skills/dhpk-phpunit/references/9.md`; `10` → `@skills/dhpk-phpunit/references/10.md`; `11` → `@skills/dhpk-phpunit/references/11.md`.
+Keep the PHP 5.6 / PHPUnit 5.7 legacy route below for unupgradeable suites.
+
+React/Next routing remains separate and unchanged; this PHP router does not select frontend references. Version references own framework/test facts and provenance, not application policy; project `CLAUDE.md`, `CONTEXT.md`, local rules, and tests remain the application-policy authority.
 
 ## Core Workflow
 
 1. **Detect runtime and framework** - Confirm PHP version, framework, DI/container model, and deployment boundaries.
 2. **Load the smallest matching references** - Use only the files needed for the detected stack and task.
-3. **Route Laravel by major version when needed** - For bootstrap, providers, middleware, exceptions, auth, testing infrastructure, or package-wiring work, read `references/laravel-version-checks.md` and then only the selected Laravel major-version reference.
+3. **Route framework-coupled work through its family resolver** - For Laravel or PHPUnit version-sensitive work, resolve first and load exactly one selected reference.
 4. **Design framework-native changes** - Keep controllers thin, isolate business logic, and preserve established conventions.
 5. **Secure side effects** - Validate all external input, enforce authorization, and use safe persistence patterns.
 6. **Test at the right layer** - Match the framework and runtime: PHPUnit 5.7 for PHP 5.6 legacy, framework-native feature tests for modern apps.
@@ -47,9 +68,8 @@ Load detailed guidance based on project type:
 | Project Type / Concern | Reference | Load When |
 |-------|-----------|-----------|
 | Laravel application overview | `references/laravel-projects.md` | Laravel is detected and you need application structure, controller/service/testing defaults |
-| Laravel version routing | `references/laravel-version-checks.md` | Laravel is detected and the task touches bootstrap, providers, middleware, exceptions, auth, testing stack, or Laravel-coupled packages |
-| Laravel 10.x | `references/laravel-v10.md` | `laravel-version-checks.md` routes the task to Laravel 10.x |
-| Laravel 11-12 default skeleton | `references/laravel-v11-v12.md` | `laravel-version-checks.md` routes the task to Laravel 11 or 12 |
+| Laravel family routing | `@skills/dhpk-laravel/SKILL.md` plus one selected version reference | Version-sensitive Laravel work |
+| PHPUnit family routing | `@skills/dhpk-phpunit/SKILL.md` plus one selected version reference | Version-sensitive PHPUnit work |
 | PHP 5.6 language/runtime | `references/php56-legacy.md` | PHP 5.6 compatibility, migration-safe changes, or modern syntax filtering |
 | Yii 1.1 framework | `references/yii1-1.md` | Yii 1.1 controllers, models, routing, validation, AR/DAO patterns, or upgrade-ready legacy work |
 | Legacy testing (PHPUnit 5.7) | `references/phpunit57-php56-legacy.md` | PHP 5.6 + PHPUnit 5.7 unit/integration test work |
@@ -117,7 +137,9 @@ When implementing PHP features, provide:
 
 - [ ] Project type is identified before applying framework-specific rules
 - [ ] Only the matching reference set is loaded for the detected stack
-- [ ] Laravel version-sensitive tasks route through `references/laravel-version-checks.md`
+- [ ] Laravel/PHPUnit version-sensitive tasks call the family resolver and load exactly one version reference
+- [ ] Unknown or unsupported versions produce an ask rather than a guess
+- [ ] Laravel 11 legacy-layout support is preserved when selector `11` is active
 - [ ] Yii 1.1 tasks load both `references/php56-legacy.md` and `references/yii1-1.md`
 - [ ] Recommended approach matches target PHP version/framework constraints
 - [ ] Security and input-validation requirements are explicitly covered

@@ -14,7 +14,7 @@ Current Codex/Cursor installation routes and rollback boundaries live in the
 
 | Concern | Current implementation |
 |---|---|
-| Canonical source | 100 flat packages at `skills/dhpk-<name>/` |
+| Canonical source | 102 flat packages at `skills/dhpk-<name>/` |
 | Public identity | Every invokable dhpk skill name begins with `dhpk-` |
 | Inventory SSOT | `manifests/distribution-inventory.json` schema v2 |
 | Module projection | 37 relative symlinks under `modules/*/skills/` |
@@ -180,7 +180,7 @@ node tests/documentation-platform-parity.test.js
 node tests/run-all.js
 ```
 
-Expected topology is 100 canonical packages, 31 modules, and 18 Codex
+Expected topology is 102 canonical packages, 31 modules, and 18 Codex
 project/native entries (16 invokable skills plus internal transport and
 dispatch-context runtimes), with relative symlinks only in module/Codex projections and no
 symlinks in the native package.

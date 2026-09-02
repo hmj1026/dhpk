@@ -1,7 +1,7 @@
 name: phpunit-11
 display_name: "PHPUnit 11.x"
 version: 0.1.0
-description: "PHPUnit 11.x (February 2024). PHP 8.2+ floor required. Signature delta from PHPUnit 10: doc-comment annotations fully removed (PHP 8 attributes are the only path), assertObjectHasAttribute renamed to assertObjectHasProperty, return type declarations on every public method, test method names must start with `test` OR use #[Test] (test:foo() style requires the attribute). Requires php-7.4 baseline module + (recommended) php-8.x for PHP 8.2+ language features. Project's composer.json PHP constraint must declare ^8.2 or higher."
+description: "PHPUnit 11.x (February 2024). PHP 8.2+ floor required. Signature delta from PHPUnit 10: doc-comment annotations are deprecated (PHP 8 attributes are the preferred path for new guidance), assertObjectHasAttribute renamed to assertObjectHasProperty, return type declarations on every public method, test method names must start with `test` OR use #[Test] (test:foo() style requires the attribute). PHPUnit 12 removes doc-comment annotations except @codeCoverageIgnore (and its start/end variants). Requires php-7.4 baseline module + (recommended) php-8.x for PHP 8.2+ language features. Project's composer.json PHP constraint must declare ^8.2 or higher."
 requires: []
 triggers:
   code:
@@ -14,5 +14,5 @@ triggers:
     extensions: []
     paths: []
 provides:
-  skills: [dhpk-phpunit-11-notes]
+  skills: [phpunit]
   references: []
