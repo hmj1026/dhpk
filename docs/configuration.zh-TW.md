@@ -81,6 +81,7 @@ receipt 規則請見 [`docs/platform-installation.zh-TW.md`](./platform-installa
 dispatcher 在建立 `0600` immutable transport context 前，會將解析後的 deadline 驗證為無號十進位秒數。空值、小數、負數或其他格式錯誤會阻擋該次派發，不會靜默退回 `360`；只有不需要 portable runner deadline 時才明確設定 `0`。Python transport runner 而非 `timeout`/`gtimeout` 會強制執行已證明的 deadline，並寫入 contained terminal receipt。agy 的獨立設定也同樣是已證明的 dispatch input。
 
 <a id="codex-mcp-dependency-not-a-userconfig-knob"></a>
+<a id="codex-mcp-依賴並非-userconfig-旋鈕"></a>
 
 ## Codex 整合與已退休的 MCP 歷史（並非 `userConfig` 旋鈕）
 

@@ -12,7 +12,7 @@ TBD - created by archiving change readme-doc-optimization. Update Purpose after 
 #### Scenario: Reader checks what the CLI review backend needs
 
 - **WHEN** a reader consults the README Codex section for `codex-code-review --backend cli`
-- **THEN** the table states it requires only the Codex CLI binary (Bash shell-out, no MCP server) and names the Codex-free fallback
+- **THEN** the table states it requires only the Codex CLI binary (Bash shell-out, no MCP server)
 
 #### Scenario: Stale 6-skills claim is gone
 
@@ -28,6 +28,11 @@ TBD - created by archiving change readme-doc-optimization. Update Purpose after 
 
 - **WHEN** a reader consults the README Codex section for `CODEX=on` or `/dhpk:do --codex`
 - **THEN** the table states this is a legacy MCP-peer interface with a published deprecation-and-replacement plan, not silently reinterpreted as CLI `codex exec`, worker/reasoner dispatch, or the external plugin
+
+#### Scenario: Reader checks the historical MCP note
+
+- **WHEN** a reader wants to know why no Codex MCP setup instructions remain
+- **THEN** the README links to the retirement ledger and parity matrix explaining what replaced each formerly MCP-backed capability
 
 ### Requirement: Degradation behavior is stated honestly
 
@@ -77,12 +82,12 @@ Every change this capability introduces to `README.md` and `docs/configuration.m
 #### Scenario: Reader wants to understand what powers the codex-* skills' MCP tools
 
 - **WHEN** a reader follows the README's historical-note link to `docs/configuration.md`
-- **THEN** they find that `mcp__codex__codex`/`mcp__codex__codex-reply` were provided by directly registering `codex mcp-server` (not by `openai/codex-plugin-cc`), with the two tools' names and configurable parameters (`approval-policy`, `sandbox`, `model`, `profile`, `cwd`), that this mechanism is retired, and a pointer to the parity matrix showing what replaced each capability
+- **THEN** they find that `mcp__codex__codex`/`mcp__codex__codex-reply` are explained for historical/migration context only, explicitly labeled retired and no longer required by any current dhpk skill or command, with a pointer to the parity matrix showing what replaced each capability
 
 #### Scenario: Reader sets up the Codex MCP dependency
 
 - **WHEN** a reader searches `docs/configuration.md` for how to set up the Codex MCP server for a current dhpk capability
-- **THEN** they find no current setup instructions — only the historical note explaining the retired mechanism and pointers to the supported CLI (`codex exec`) and external-plugin (`openai/codex-plugin-cc`) alternatives
+- **THEN** they find no current setup instructions — only the historical note explaining the retired mechanism and a pointer to the CLI (`codex exec`) and external-plugin (`openai/codex-plugin-cc`) alternatives that remain supported
 
 ### Requirement: `openai/codex-plugin-cc` is documented as a separate, optional collaboration surface
 

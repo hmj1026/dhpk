@@ -48,7 +48,7 @@ install 套用已量測、discovery 前的邊界，請使用基本操作指南 P
 
 **需求**：Claude Code 2.x。目前 dhpk workflow 預設不需要 Codex。選用的
 Codex CLI 與外部 app-server 整合見[Codex integration surfaces](#codex-整合面)
-及 [`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md)。
+及 [`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md#codex-mcp-依賴並非-userconfig-旋鈕)。
 
 安裝後隨時可用 `/dhpk:setup` 重新設定（或 `/dhpk:setup --show` 印出目前生效設定）。完整安裝路徑（GitHub vs. 本地 clone）、更新／移除、疑難排解請見 **[`docs/basic-operations.zh-TW.md`](./docs/basic-operations.zh-TW.md)**。完整 `--config` 旋鈕參考見 **[`docs/configuration.zh-TW.md`](./docs/configuration.zh-TW.md)**。
 

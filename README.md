@@ -47,7 +47,7 @@ default install that applies the measured pre-discovery boundary should use
 `scripts/install.sh` (Path B in the basic-operations guide), which materializes
 and installs `dhpk@dhpk-profile-minimal`.
 
-**Requirements**: Claude Code 2.x. Current dhpk workflows are Codex-free by default. Optional Codex CLI and external app-server integrations are documented in the [Codex integration surfaces](#codex-integration-surfaces) section and [`docs/configuration.md`](./docs/configuration.md).
+**Requirements**: Claude Code 2.x. Current dhpk workflows are Codex-free by default. Optional Codex CLI and external app-server integrations are documented in the [Codex integration surfaces](#codex-integration-surfaces) section and [`docs/configuration.md`](./docs/configuration.md#codex-mcp-dependency-not-a-userconfig-knob).
 
 Reconfigure any time with `/dhpk:setup` (or `/dhpk:setup --show` to print the current config). Full install paths (GitHub vs. local clone), update/uninstall, and troubleshooting live in **[`docs/basic-operations.md`](./docs/basic-operations.md)**. Full `--config` knob reference: **[`docs/configuration.md`](./docs/configuration.md)**.
 

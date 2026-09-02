@@ -70,7 +70,7 @@ The count SSOT (`scripts/ci/catalog.js`) SHALL compute the number of MCP-backed 
 #### Scenario: A new MCP-backed codex skill is added without a README update
 
 - **WHEN** any `skills/*/SKILL.md` still declares (or a regression reintroduces) `mcp__codex__codex` or `mcp__codex__codex-reply` in `allowed-tools` after this change lands, while README claims zero MCP-backed skills
-- **THEN** `node scripts/ci/catalog.js --check` reports a DRIFT line and exits non-zero
+- **THEN** `node scripts/ci/catalog.js --check` reports the offending skill as a DRIFT line and exits non-zero
 
 #### Scenario: A frontmatter-granted skill without a `codex-` prefix is not miscounted
 
