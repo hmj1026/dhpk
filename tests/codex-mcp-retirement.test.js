@@ -89,16 +89,20 @@ function runNode(relative, args = []) {
 }
 
 function runMcpFreeSettingsCheck(filePath) {
-  const result = spawnSync('rg', ['--pcre2', '--quiet', CODEX_MCP.source, filePath], {
-    cwd: ROOT,
-    encoding: 'utf8',
-  });
-  if (result.error) throw result.error;
-  // `rg` returns 0 when a retired grant is found and 1 when it is absent;
-  // expose the policy-check convention where a detected grant fails.
+  let content;
+  try {
+    content = fs.readFileSync(filePath, 'utf8');
+  } catch (error) {
+    return {
+      status: 2,
+      output: error && error.message ? error.message : String(error),
+    };
+  }
+
+  // A detected grant fails the policy check; an absent grant passes it.
   return {
-    status: result.status === 0 ? 1 : result.status === 1 ? 0 : result.status,
-    output: `${result.stdout || ''}${result.stderr || ''}`,
+    status: content.match(CODEX_MCP) ? 1 : 0,
+    output: '',
   };
 }
 
