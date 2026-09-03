@@ -14,8 +14,8 @@ Current Codex/Cursor installation routes and rollback boundaries live in the
 
 | Concern | Current implementation |
 |---|---|
-| Canonical source | 101 flat packages at `skills/dhpk-<name>/` |
-| Public identity | Every invokable dhpk skill name begins with `dhpk-` |
+| Canonical source | 85 flat packages at `skills/<public-name>/` |
+| Public identity | The six capability families use unprefixed names; all other first-party names remain `dhpk-*` |
 | Inventory SSOT | `manifests/distribution-inventory.json` schema v2 |
 | Module projection | 37 relative symlinks under `modules/*/skills/` |
 | Codex project projection | 18 relative symlinks under `codex/skills/` (16 invokable plus internal transport and dispatch-context runtimes) |
@@ -34,36 +34,37 @@ Names are deliberately different across host surfaces:
 | Surface | Syntax | Example |
 |---|---|---|
 | Claude command | `/dhpk:<command>` | `/dhpk:harness-audit` |
-| Claude plugin skill | `/dhpk:<public-skill-name>` | `/dhpk:dhpk-change-review` |
-| Codex skill | `$<public-skill-name>` after discovery | `$dhpk-change-review` |
+| Claude plugin skill | `/dhpk:<public-skill-name>` | `/dhpk:change-verdict` |
+| Codex skill | `$<public-skill-name>` after discovery | `$change-verdict --mode code` |
 | Cursor generated command | generated host adapter | Cursor `do` command (`host=cursor`) |
-| Codex main-flow entry | `$dhpk-do <task>` after discovery | `$dhpk-do fix the login redirect` |
+| Codex main-flow entry | `$flow-drive --mode route|implement <task>` after discovery | `$flow-drive --mode implement fix the login redirect` |
 
 Codex built-in commands (`/hooks`, `/agent`) are not dhpk custom `/dhpk:*`
-commands. When `dhpk-do` is discovered, `$dhpk-do <task>` is the single Codex
-entry. Availability evidence is a receipt-owned `.codex/skills/dhpk-do` that
-resolves as `$dhpk-do`; `codex plugin list` is management evidence only. If
-`$dhpk-do` is not discovered, instruction routing and explicit `/opsx:*`
-OpenSpec commands remain available — do not claim `/dhpk:do` is callable in
-Codex.
+commands. The explicit `flow-drive` family is the Codex implementation entry;
+`flow-guide` remains the implicit classification and gate owner. Availability
+evidence is a receipt-owned `.codex/skills/flow-drive` that resolves as
+`$flow-drive`; `codex plugin list` is management evidence only. If the family
+is not discovered, instruction routing and explicit `/opsx:*` OpenSpec
+commands remain available — do not claim `/dhpk:do` is callable in Codex.
 
-The repeated `dhpk` in a Claude skill invocation is intentional. The first is
-the Claude plugin namespace; the second is part of the globally collision-safe
-skill name. A command uses only the plugin namespace and command filename.
+The `dhpk` prefix remains part of the Claude plugin namespace. The six reborn
+family names are intentionally unprefixed so users select a task-shaped
+capability without learning predecessor implementation names.
 
 ## Alias-free retirement ledger (0.47.0)
 
 `manifests/distribution-inventory.json` is the source of truth for retirement
-identity. It contains exactly five rows under `retired_skills`; the table below
-is the documentation projection of each row's former identity, `reasonCode`,
+identity. Its `retired_skills` contains five historical 0.47.0 rows plus the later retirement
+waves; the table below is the documentation projection of those historical
+rows' former identity, `reasonCode`,
 replacement guidance, and rollback pin. Retirement rows are diagnostic
 metadata only: they are not active skills, materialized packages, discovery
 aliases, or entries in any generated projection.
 
 | Former stable ID | Former public name | `reasonCode` | Replacement guidance | `rollback.release` |
 |---|---|---|---|---|
-| `bug-fix` | `dhpk-bug-fix` | `merged-into-adaptive-workflow` | stable ID `adaptive-dev-workflow`; Claude `/dhpk:dhpk-adaptive-dev-workflow`; Codex `$dhpk-adaptive-dev-workflow` (`bug` mode) | `0.46.1` |
-| `feature-dev` | `dhpk-feature-dev` | `merged-into-adaptive-workflow` | stable ID `adaptive-dev-workflow`; Claude `/dhpk:dhpk-adaptive-dev-workflow`; Codex `$dhpk-adaptive-dev-workflow` (`feature` mode) | `0.46.1` |
+| `bug-fix` | `dhpk-bug-fix` | `merged-into-adaptive-workflow` | current successor `flow-guide` (`classify` mode); the historical 0.47.0 route was `adaptive-dev-workflow` (`bug` mode) | `0.46.1` |
+| `feature-dev` | `dhpk-feature-dev` | `merged-into-adaptive-workflow` | current successor `flow-guide` (`classify` mode); the historical 0.47.0 route was `adaptive-dev-workflow` (`feature` mode) | `0.46.1` |
 | `post-dev-test` | `dhpk-post-dev-test` | `split-by-test-level` | stable ID `tdd`; Claude `/dhpk:dhpk-tdd-workflow`; Codex `$dhpk-tdd-workflow` (`unit-integration` mode); agent `e2e-runner` (`playwright-journey` mode) | `0.46.1` |
 | `codex-brainstorm` | `dhpk-codex-brainstorm` | `merged-into-architect-mode` | stable ID `software-architecture`; Claude `/dhpk:dhpk-module-design`; Codex `$dhpk-module-design` (`adversarial` mode) | `0.46.1` |
 | `de-ai-flavor` | `dhpk-de-ai-flavor` | `model-default-capability-removal` | `model-default` guidance; no successor package | `0.46.1` |
@@ -101,7 +102,7 @@ evidence; this table records the identity disposition and rollback pin.
 | Former stable ID | Former MCP-facing identity | Replacement owner and behavior | `reasonCode` | `rollback.release` |
 |---|---|---|---|---|
 | `codex-architect` | `dhpk-codex-architect` | `dhpk-module-design`; current-model design/review/compare/adversarial modes, with explicit optional `codex exec` only | `migrated-to-module-design` | `0.51.0` |
-| `codex-implement` | `dhpk-codex-implement` | `dhpk-implement`; current-model decomposition, implementation, verification, review, and bounded retry loop | `migrated-to-backend-neutral-implement` | `0.51.0` |
+| `codex-implement` | `dhpk-codex-implement` | `flow-drive`; current-model decomposition, implementation, verification, review, and bounded retry loop (`implement` mode) | `migrated-to-backend-neutral-implement` | `0.51.0` |
 | `codex-code-review` | `dhpk-change-review` with the MCP default | `dhpk-change-review --backend cli`; current-model default and explicit CLI review, with no MCP fallback | `migrated-to-cli-review-owner` | `0.51.0` |
 | `doc-review` | `dhpk-doc-review` with MCP review/reply | `dhpk-doc-review`; portable five-dimension review and gate, with explicit optional `codex exec` only | `migrated-to-portable-review` | `0.51.0` |
 | `test-review` | `dhpk-test-review` with MCP review/reply | `dhpk-test-review`; portable sufficiency, edge-case, quality, and AC-trace review; generation remains `dhpk-tdd-workflow` | `migrated-to-portable-review` | `0.51.0` |
@@ -117,20 +118,55 @@ the current release. See the [capability-parity matrix](./codex-mcp-capability-p
 for the eight rows (the issue and feasibility owners intentionally share one
 row) and their migration evidence.
 
-## Consolidated capabilities
+## Consolidated capability families
 
-Three overlapping groups were merged instead of retaining aliases as separate
-skills:
+The 22 first-party discovery identities retired in 0.53.0 are addressed by six
+mode-shaped families. The family name is the public identity; the predecessor
+stable ID remains only in the retirement ledger below.
 
-| Previous skills | Current public skill | What was retained |
+| Current family | Modes | Retained predecessor contracts |
 |---|---|---|
-| `code-explore`, `code-investigate`, `codex-explain` | `dhpk-codebase-exploration` | symbol/flow exploration, depth-controlled explanation, optional second perspective |
-| `codex-cli-review` | `dhpk-change-review` | hardened CLI backend, merge-base diff pinning, standards/spec/security/test axes; no MCP default |
-| `software-architecture` | `dhpk-module-design` | deep-module vocabulary, deletion test, interface/test seam, architecture handoff |
+| `skill-scope` | `health`, `judge`, `stocktake`, `scout` | skill health, quality, inventory, and discovery checks |
+| `skill-forge` | `create`, `distill-rules` | skill authoring and rule distillation |
+| `flow-guide` | `classify`, `policy`, `next`, `checklist` | workflow classification, execution policy, progression, and closeout |
+| `flow-drive` | `route`, `implement` | deterministic routing and ordered implementation |
+| `change-verdict` | `code`, `pr`, `security`, `tests`, `docs`, `risk` | read-only code, PR, security, test, documentation, and risk verdicts |
+| `code-trace` | `explore`, `diagnose`, `history`, `select-tool` | code exploration, root-cause, history, and tool-selection traces |
 
-All other retained skills also received a `dhpk-` public name. The stable
-inventory `id` is intentionally separate from `name`, so future renames do not
-break receipt ownership.
+Mode-specific mechanics remain behind each family's conditional references;
+there are no compatibility aliases or duplicate predecessor packages.
+
+## Capability-family retirement ledger (0.53.0)
+
+The inventory owns exactly 22 alias-free rows. Every row uses
+`reasonCode: capability-family-consolidation`, rolls back to `0.52.0`, and
+points to one family mode. This table is a documentation projection of that
+closed mapping; it is not a discovery or compatibility registry.
+
+| Former stable ID | Former public name | Replacement family/mode | `reasonCode` | `rollback.release` |
+|---|---|---|---|---|
+| `skill-health-check` | `dhpk-skill-health-audit` | `skill-scope` / `health` | `capability-family-consolidation` | `0.52.0` |
+| `skill-judge` | `dhpk-skill-quality-judge` | `skill-scope` / `judge` | `capability-family-consolidation` | `0.52.0` |
+| `skill-stocktake` | `dhpk-skill-stocktake` | `skill-scope` / `stocktake` | `capability-family-consolidation` | `0.52.0` |
+| `skill-scout` | `dhpk-skill-scout` | `skill-scope` / `scout` | `capability-family-consolidation` | `0.52.0` |
+| `create-skill` | `dhpk-create-skill` | `skill-forge` / `create` | `capability-family-consolidation` | `0.52.0` |
+| `rules-distill` | `dhpk-rules-distill` | `skill-forge` / `distill-rules` | `capability-family-consolidation` | `0.52.0` |
+| `adaptive-dev-workflow` | `dhpk-adaptive-dev-workflow` | `flow-guide` / `classify` | `capability-family-consolidation` | `0.52.0` |
+| `dhpk-execution-policy` | `dhpk-execution-policy` | `flow-guide` / `policy` | `capability-family-consolidation` | `0.52.0` |
+| `next-step` | `dhpk-next-step` | `flow-guide` / `next` | `capability-family-consolidation` | `0.52.0` |
+| `execution-checklist` | `dhpk-execution-checklist` | `flow-guide` / `checklist` | `capability-family-consolidation` | `0.52.0` |
+| `do` | `dhpk-do` | `flow-drive` / `route` | `capability-family-consolidation` | `0.52.0` |
+| `implement` | `dhpk-implement` | `flow-drive` / `implement` | `capability-family-consolidation` | `0.52.0` |
+| `codex-code-review` | `dhpk-change-review` | `change-verdict` / `code` | `capability-family-consolidation` | `0.52.0` |
+| `pr-review` | `dhpk-pr-review` | `change-verdict` / `pr` | `capability-family-consolidation` | `0.52.0` |
+| `security-review` | `dhpk-security-review` | `change-verdict` / `security` | `capability-family-consolidation` | `0.52.0` |
+| `test-review` | `dhpk-test-review` | `change-verdict` / `tests` | `capability-family-consolidation` | `0.52.0` |
+| `doc-review` | `dhpk-doc-review` | `change-verdict` / `docs` | `capability-family-consolidation` | `0.52.0` |
+| `risk-assess` | `dhpk-risk-assess` | `change-verdict` / `risk` | `capability-family-consolidation` | `0.52.0` |
+| `code-explore` | `dhpk-codebase-exploration` | `code-trace` / `explore` | `capability-family-consolidation` | `0.52.0` |
+| `bug-investigation` | `dhpk-root-cause-investigation` | `code-trace` / `diagnose` | `capability-family-consolidation` | `0.52.0` |
+| `git-investigate` | `dhpk-git-history-investigation` | `code-trace` / `history` | `capability-family-consolidation` | `0.52.0` |
+| `tool-routing` | `dhpk-tool-routing` | `code-trace` / `select-tool` | `capability-family-consolidation` | `0.52.0` |
 
 ## Hooks and commands after consolidation
 
@@ -147,11 +183,12 @@ advisory work are explicit consumer extensions rather than default hooks.
 See [Hook extension model](./hook-extension.md).
 
 Commands remain namespaced `/dhpk:<name>` on Claude. Cursor uses the generated
-command. Codex uses `$dhpk-do` for task routing and has no `/dhpk:do` command.
-Overlapping Claude workflows use four primary entry points:
+command. Codex uses the explicit `$flow-drive` family for task routing and has
+no `/dhpk:do` command. Overlapping workflows use these primary entry points:
 
-- `/dhpk:do` for task routing.
-- `/dhpk:codex-review --scope ...` for Codex review variants.
+- `$flow-drive --mode route|implement <task>` for Codex task routing or implementation.
+- `/dhpk:flow-drive --mode route|implement <task>` on Claude when explicitly invoked.
+- `/dhpk:change-verdict --mode <code|pr|security|tests|docs|risk>` for read-only review variants.
 - `/dhpk:precommit` with `--fast` where applicable.
 - `/dhpk:setup --install hooks|rules|scripts|all` for configuration and assets.
 
@@ -168,7 +205,7 @@ claude plugin update dhpk@dhpk
 ```
 
 Start a fresh Claude session or run `/reload-plugins`. Confirm that
-`/dhpk:setup`, `/dhpk:do`, and `/dhpk:harness-audit` resolve. Project-local
+`/dhpk:setup`, `/dhpk:flow-guide`, and `/dhpk:harness-audit` resolve. Project-local
 copies of old dhpk skills are not updated by the marketplace; remove them only
 after confirming they are redundant and version controlled or otherwise
 recoverable.
@@ -192,7 +229,7 @@ Available operations:
 |---|---|
 | `--copy` | Materialize regular files; portable when the plugin root may disappear. |
 | `--update` | Reconcile receipt-owned entries with the current plugin root. |
-| `--migrate` | Adopt exact unchanged legacy destinations and rename them to public `dhpk-*` names. |
+| `--migrate` | Adopt exact unchanged legacy destinations and rename them to the current public names. |
 | `--uninstall` | Remove only unchanged receipt-owned entries; preserve edited/orphaned/unrelated files. |
 | `--force` | Bypass only the project-root heuristic; never bypass ownership or filesystem safety. |
 
@@ -230,5 +267,5 @@ release with its MCP grant intact. Do not reintroduce a hidden MCP fallback or
 recreate a retired identity in the current release.
 
 The canonical source and generated native package must never be edited in
-parallel. Edit `skills/dhpk-*/`, regenerate the native package, validate, and
+parallel. Edit `skills/<public-name>/`, regenerate the native package, validate, and
 commit both the source and generated artifact together.

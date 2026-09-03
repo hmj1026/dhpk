@@ -8,7 +8,7 @@ Single orchestrator and **front door for the harness-* family** — runs the gov
 
 > The harness-* family (use a specialist directly when you only need that one concern):
 > - `/dhpk:harness-audit` = deterministic 7-category **score** (read-only). `dhpk-harness-budget` = **token** accounting. `dhpk-harness-revise` = **trim/dedupe/validate** (G1–G13, mutating). `/dhpk:dhpk-harness-fill` = one-shot **backfill** of missing `.claude/` infrastructure (onboarding). `dhpk-claude-health` = `.claude/` hygiene.
-> - `agent-evaluator` (agent) = score a **completed agent run's OUTPUT** quality (5-axis: accuracy / completeness / clarity / actionability / conciseness, grep-verified) — the run-output analog of `dhpk-skill-quality-judge` (which scores skill *definitions*). Dispatch it directly when you need an objective quality verdict on a finished run; not part of this command's measurement loop.
+> - `agent-evaluator` (agent) = score a **completed agent run's OUTPUT** quality (5-axis: accuracy / completeness / clarity / actionability / conciseness, grep-verified) — the run-output analog of `skill-scope` (which scores skill *definitions*). Dispatch it directly when you need an objective quality verdict on a finished run; not part of this command's measurement loop.
 > - This command is the **detect -> fix loop** that sequences them and applies the official best-practices lens (the broader reliability/cost/throughput scoring that the former `harness-optimizer` agent did is now this command's conform step).
 
 ## Mode (loop-safe)

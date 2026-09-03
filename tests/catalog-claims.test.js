@@ -110,8 +110,8 @@ const DRIFTS = [
   { file: 'README.zh-TW.md', find: /(\d+)(\s*個事件)/, label: 'hook events (ZH)' },
   // Canonical skill count. Every site is listed: retiring a skill touches all of them,
   // and one stale site is precisely the drift that shipped before these specs existed.
-  { file: 'README.md', find: /(\d+)(\s+flat `dhpk-\*` packages)/, label: 'canonical skills (README EN)' },
-  { file: 'README.zh-TW.md', find: /(\d+)(\s*個扁平 `dhpk-\*` package)/, label: 'canonical skills (README ZH)' },
+  { file: 'README.md', find: /(\d+)(\s+flat canonical packages)/, label: 'canonical skills (README EN)' },
+  { file: 'README.zh-TW.md', find: /(\d+)(\s*個扁平 canonical package)/, label: 'canonical skills (README ZH)' },
   { file: 'skills/INDEX.md', find: /(\d+)(\s+canonical skill packages)/, label: 'canonical skills (skills/INDEX.md)' },
   { file: 'docs/skill-platform-migration.md', find: /(\d+)(\s+flat packages at)/, label: 'canonical skills (migration EN)' },
   { file: 'docs/skill-platform-migration.zh-TW.md', find: /(\d+)(\s*個扁平 package)/, label: 'canonical skills (migration ZH)' },

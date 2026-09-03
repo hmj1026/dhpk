@@ -1,6 +1,0 @@
-interface:
-  display_name: "Implementation"
-  short_description: "Backend-neutral spec implementation workflow"
-  default_prompt: "Use $dhpk-implement to decompose, implement, verify, and review a confirmed specification."
-policy:
-  allow_implicit_invocation: false

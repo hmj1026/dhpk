@@ -8,7 +8,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE) [![Version](https://img.shields.io/github/v/tag/hmj1026/dhpk?label=version&sort=semver)](https://github.com/hmj1026/dhpk/tags) [![CI](https://img.shields.io/github/actions/workflow/status/hmj1026/dhpk/ci.yml?branch=main&label=CI)](https://github.com/hmj1026/dhpk/actions/workflows/ci.yml) [![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A63D2)](https://docs.claude.com/en/docs/claude-code/plugins) [![Codex project sync](https://img.shields.io/badge/Codex%20project%20sync-supported-412991)](./docs/platform-installation.zh-TW.md#codex-project-local-syncsupported) [![Cursor project sync](https://img.shields.io/badge/Cursor%20project%20sync-supported-F2A900)](./docs/platform-installation.zh-TW.md#cursor-project-local-syncsupported) [![Native packages](https://img.shields.io/badge/native%20packages-experimental-orange)](./docs/platform-installation.zh-TW.md#surface-matrix)
 
-通用、安裝即用的 Claude Code harness。內含 **36 個角色導向 agent**（35 個 root-level agent 加 1 個模組範圍 reviewer）、已註冊的 dhpk 指令、核心 skill、**`/dhpk:do` Smart Router**（透過雙語 route-table 與 LLM fallback 進行自然語言任務路由）、跨 session 學習 DB（預設關閉）、**7-slot sentinel 驅動的 review hook**（code / db / sec / frontend / doc / polyfill / migration）、statusline、harness 腳本，以及 **31 個可選技術棧模組**，涵蓋 PHP、Yii、PHPUnit、Laravel、JavaScript、Vue、Laravel Mix、Next.js、React、Python 與 iOS/Swift。模組可透過 **wrapper-dispatch** 模型在 runtime 提供 hook（詳見 [`docs/hook-extension.zh-TW.md`](./docs/hook-extension.zh-TW.md)）。內附策展過的 Codex CLI projection，適用於雙助理（Claude + Codex）專案。
+通用、安裝即用的 Claude Code harness。內含 **36 個角色導向 agent**（35 個 root-level agent 加 1 個模組範圍 reviewer）、已註冊的 dhpk 指令、六個 task-shaped capability family、跨 session 學習 DB（預設關閉）、**7-slot sentinel 驅動的 review hook**（code / db / sec / frontend / doc / polyfill / migration）、statusline、harness 腳本，以及 **31 個可選技術棧模組**，涵蓋 PHP、Yii、PHPUnit、Laravel、JavaScript、Vue、Laravel Mix、Next.js、React、Python 與 iOS/Swift。模組可透過 **wrapper-dispatch** 模型在 runtime 提供 hook（詳見 [`docs/hook-extension.zh-TW.md`](./docs/hook-extension.zh-TW.md)）。內附策展過的 Codex CLI projection，適用於雙助理（Claude + Codex）專案。
 
 > **Harness engineering 重於 prompt engineering。** dhpk 把 agent 的運作環境——hooks、sentinel review gate、路由規則、技術棧感知模組——當作施力點。你安裝的不是逐次微調的 one-off prompt，而是一套可重用的 harness，讓正確的檢查自動觸發，並讓模型跨 session 維持在軌道上。
 
@@ -25,7 +25,7 @@ OpenSpec 是**可選的外部整合**——若需要 OpenSpec 工作流指令，
 | `docker` | 選用 | 僅由以 `userConfig.docker_containers` 明確註冊的 Docker workflow 使用 |
 | Codex CLI 執行檔 | 選用 | 只有使用 CLI-backed role/review、`codex exec` 第二意見，或執行 `install-codex-skills.sh` 且希望 Codex 載入同步內容時才需要 |
 | Cursor | 選用 | 僅在執行 `install-cursor-harness.sh` 且希望 Cursor 載入專案本地 `.cursor/` harness 時才需要 |
-| `cx` CLI | 選用 | 語意化程式碼導覽。`rules/tool-routing.md` 將 `cx overview` / `cx definition` / `cx references` 列為首選工具；6 個 reviewer agent 與 `harness-fill` skill 會引用。未安裝時 → 降級為 `Grep` / `Read`。 |
+| `cx` CLI | 選用 | 語意化程式碼導覽。`rules/tool-routing.md` 將 `cx overview` / `cx definition` / `cx references` 列為首選工具；6 個 reviewer agent 與 `code-trace` family 會引用。未安裝時 → 降級為 `Grep` / `Read`。 |
 | `gitnexus` MCP server | 選用 | 知識圖譜查詢（`gitnexus_impact`、`gitnexus_rename`、`gitnexus_detect_changes`）。6 個 `gitnexus-*` skill 以及 `rules/execution-policy.md` 的 self-check 會用到。未安裝時 → 降級為 `cx` 或 `Grep`。 |
 | `claude-mem` | 選用 | 跨 session 記憶搜尋（`mem-search`）。`rules/tool-routing.md` 用於查找過往決策。未安裝時 → 直接略過。 |
 
@@ -57,8 +57,8 @@ Codex CLI 與外部 app-server 整合見[Codex integration surfaces](#codex-整�
 | 元件 | 數量 | 說明 |
 |------|----:|------|
 | Agents | Role-based agents | Sentinel 驅動的 reviewer，以及架構、測試、安全、文件、平台與 runtime 等情境型角色。 |
-| Commands | 已註冊的 command surface | `/dhpk:do`、`/dhpk:codex-review`、`/dhpk:precommit`、`/dhpk:setup`、`/dhpk:review-pending`、`/dhpk:smart-commit`、`/dhpk:opsx-apply-resume`、`/dhpk:harness-audit`、`/dhpk:harness-govern`、`/dhpk:ui-ux-verify` 等 |
-| Canonical skills | 101 個扁平 `dhpk-*` package | 每個 capability 只有一個具名 package，來源固定在 `skills/dhpk-*/`；內部 runtime package 不可呼叫，module 與 Codex 專案面只做 projection，不是第二份來源。 |
+| Commands | 已註冊的 command surface | `/dhpk:precommit`、`/dhpk:setup`、`/dhpk:review-pending`、`/dhpk:smart-commit`、`/dhpk:opsx-apply-resume`、`/dhpk:harness-audit`、`/dhpk:harness-govern`、`/dhpk:ui-ux-verify` 等 |
+| Canonical skills | 85 個扁平 package | 每個 capability 只有一個具名 package，來源固定在 `skills/<public-name>/`；非 family package 維持 `skills/dhpk-*/` contract，六個 portable family（`skill-scope`、`skill-forge`、`flow-guide`、`flow-drive`、`change-verdict`、`code-trace`）負責整併 mode。 |
 | 技術棧模組 | 可選技術棧模組 | PHP、Yii、PHPUnit、Laravel、JavaScript、Vue、Laravel Mix、Next.js、React、Python、`library-author` 與 iOS/Swift 模組 |
 | Hooks | 4 個事件 | PreToolUse（Edit guard 與合併 Bash safety/Git gate）、PostToolUse（sentinel routing）、SessionStart（module activation）、SubagentStop（strict reviewer reconciliation） |
 | Hook dispatchers | 2 | `post-edit-dispatch.sh` 負責 sentinel routing；`pre-bash-dispatch.sh` 合併 deterministic shell 與 Git/review-debt gate |
@@ -70,24 +70,26 @@ Codex CLI 與外部 app-server 整合見[Codex integration surfaces](#codex-整�
 | Surface | 語法 | 範例 |
 |---|---|---|
 | Claude command | `/dhpk:<command>` | `/dhpk:harness-audit` |
-| Claude plugin skill | `/dhpk:<public-skill-name>` | `/dhpk:dhpk-tdd-workflow` |
-| Codex skill | discovery 後使用 `$<public-skill-name>` | `$dhpk-tdd-workflow` |
+| Claude plugin skill | `/dhpk:<public-skill-name>` | `/dhpk:flow-guide` |
+| Codex skill | discovery 後使用 `$<public-skill-name>` | `$flow-guide` |
 
-Claude skill 範例中的兩個 `dhpk` 是刻意的：第一個是 Claude plugin namespace，
-第二個屬於避免全域撞名的 public skill name；command 不會重複。完整遷移對照見
+六個 capability family 使用未加前綴的 public name；其他 first-party skill 維持避免
+全域撞名的 `dhpk-` 前綴。完整遷移對照見
 [`docs/skill-platform-migration.zh-TW.md`](./docs/skill-platform-migration.zh-TW.md)。
 Lifecycle、public name 與 publication surface 以
 `manifests/distribution-inventory.json` 為準，不以本段 prose 為 SSOT。
 
 ## 常見工作流
 
-所有功能都能透過 `/dhpk:do` 進入——一個接收自然語言任務描述、並路由到正確 skill 的單一入口：新功能開發、修 bug、自動 post-edit review 循環、提交與 PR、無人值守 OpenSpec session、萃取規格、E2E 測試撰寫、harness 健康檢測，以及 Implementation dispatch（推理密集工作 → `deep-reasoner`，機械式工作 → selector 選出的 Claude／Codex／agy fast worker）。每項的完整說明與範例見 **[`docs/basic-operations.zh-TW.md`](./docs/basic-operations.zh-TW.md)**。
+使用 `flow-guide` 進行分類與 gate 建議，明確使用 `flow-drive` 路由或實作已確認的
+工作，使用 `code-trace` 調查、`change-verdict` 唯讀 review、`skill-scope` skill
+治理，以及 `skill-forge` authoring。每項的完整說明與範例見 **[`docs/basic-operations.zh-TW.md`](./docs/basic-operations.zh-TW.md)**。
 
 ```text
-/dhpk:do --route-only implement a password-reset email flow # 只檢查路由
-/dhpk:do implement a password-reset email flow   # 新功能（TDD + review gate）
-/dhpk:do --worker=codex implement the plan   # 僅本次呼叫的 worker 覆寫
-/dhpk:do fix the login redirect loop              # 修 bug（根因證據 + 回歸測試）
+$flow-drive --route-only implement a password-reset email flow # 只檢查路由
+$flow-drive implement a password-reset email flow   # 新功能（TDD + review gate）
+$flow-drive --worker=codex implement the plan   # 明確指定本次 worker
+$code-trace diagnose the login redirect loop              # 根因證據
 /dhpk:review-pending                              # 立即觸發待處理的 reviewer
 /dhpk:smart-commit && /dhpk:create-pr             # 提交 + 建 PR
 /dhpk:harness-audit                              # harness 健康評分
@@ -129,7 +131,7 @@ surface：
 
 | Surface | 名稱／入口 | 需要 | 失敗或邊界 |
 |---------|----------|------|----------|
-| CLI-only Codex path | `codex-code-review --backend cli`；同族 role：`codex-worker`、`codex-reasoner`、`codex-reviewer`、`dhpk-codex-bridge` | Codex CLI 執行檔與 hardened wrapper 的 Bash shell-out；不需要 MCP server | 缺少 `codex` 時回報 optional backend 不可用；預設仍使用 current-model path |
+| CLI-only Codex path | `change-verdict --mode code --backend cli`；同族 role：`codex-worker`、`codex-reasoner`、`codex-reviewer`、`dhpk-codex-bridge` | Codex CLI 執行檔與 hardened wrapper 的 Bash shell-out；不需要 MCP server | 缺少 `codex` 時回報 optional backend 不可用；預設仍使用 current-model path |
 | 外部 app-server plugin | `openai/codex-plugin-cc` 與其 `/codex:*` 指令 | 明確安裝外部 plugin；它驅動 `codex app-server` | 與 dhpk skill、CLI review 及已退休的 MCP 機制彼此獨立 |
 | 歷史上的已退休 MCP | `mcp__codex__codex`、`mcp__codex__codex-reply` 與 `codex mcp-server` | 本次 migration 已退休；目前沒有 dhpk capability 需要或建議它 | 僅供歷史說明。見[retirement ledger](./docs/skill-platform-migration.zh-TW.md#alias-free-codex-mcp-retirement-ledger)與[capability-parity matrix](./docs/codex-mcp-capability-parity.md)了解各 capability 的 successor |
 
@@ -140,14 +142,14 @@ CLI、current-model 或 isolated-review 行為。
 
 `CODEX=on` 與 `/dhpk:do --codex` 是已移除的 legacy MCP-peer interface，不是
 `codex exec`、`--worker=codex`、`--reasoner=codex` 或外部 app-server plugin 的 alias。
-目前請使用一般 `/dhpk:do` 或 `dhpk-implement` 走 current-model implementation；需要
+目前請使用明確的 `/dhpk:flow-drive` 走 current-model implementation；需要
 外部 CLI role 時明確選 `--worker=codex` 或 `--reasoner=codex`；支援的 migrated skill
 若需要第二意見，則明確指定 `codex exec`。legacy flag 只會產生 deprecation diagnostic，
 不會選到 hidden backend。
 
-過去 `/dhpk:codex-security` 的語義現在由 backend-neutral security-review owner 與
-一般 router 負責；過去的 review family 若需要 CLI review，請使用
-`dhpk-change-review --backend cli`。兩者都不會抵達已退休的 MCP server。完整九項 identity
+過去 `/dhpk:codex-security` 的語義現在由 backend-neutral `change-verdict` security
+mode 與一般 routing 負責；過去的 review family 若需要 CLI review，請使用
+`change-verdict --mode code --backend cli`。兩者都不會抵達已退休的 MCP server。完整九項 identity
 的 retirement 與 rollback ledger 見 migration guide。
 
 ## 外部 code-navigation 工具
@@ -156,11 +158,11 @@ CLI、current-model 或 isolated-review 行為。
 
 | 工具 | 主要使用者（節錄） | 缺失時影響 |
 |------|------------------|-----------|
-| `cx` CLI | Agents：`code-reviewer`、`doc-reviewer`、`doc-updater`、`frontend-reviewer`、`migration-reviewer`、`refactor-cleaner`。Skills：`harness-fill`、`tool-routing`、`polyfill-version-matrix-audit`。Rule：`tool-routing.md`（`cx overview` / `cx definition` / `cx references` 為首選）。 | 失去 sub-200 token 的檔案概覽與 AST 等級的符號讀取——降級為 `Grep` + `Read`（耗 token 較多，精度較低）。 |
+| `cx` CLI | Agents：`code-reviewer`、`doc-reviewer`、`doc-updater`、`frontend-reviewer`、`migration-reviewer`、`refactor-cleaner`。Skills：`harness-fill`、`code-trace`、`polyfill-version-matrix-audit`。Rule：`tool-routing.md`（`cx overview` / `cx definition` / `cx references` 為首選）。 | 失去 sub-200 token 的檔案概覽與 AST 等級的符號讀取——降級為 `Grep` + `Read`（耗 token 較多，精度較低）。 |
 | `gitnexus` MCP | 專屬 skills：`gitnexus-cli`、`gitnexus-debugging`、`gitnexus-exploring`、`gitnexus-guide`、`gitnexus-impact-analysis`、`gitnexus-refactoring`。Agents：`architect`、`code-reviewer`、`database-reviewer`、`migration-reviewer`、`performance-analyzer`、`refactor-cleaner`、`security-reviewer`、`ui-ux-verifier`。Rules：`execution-policy.md` self-check（`gitnexus_impact`）、`tool-routing.md`。 | 失去跨檔案 blast-radius 分析（`gitnexus_impact`）、安全 global rename（`gitnexus_rename`）、pre-commit 範圍檢查（`gitnexus_detect_changes`）——降級為 `cx references` / `git diff --stat` / **find-and-replace 禁用**。 |
 | `claude-mem` | Rule：`tool-routing.md` 的「Past decisions (cross-session)」入口。 | 失去跨 session 記憶搜尋；當前 session 仍可從 scrollback 取得脈絡。 |
 
-詳細的路由判斷規則見 [`rules/tool-routing.md`](./rules/tool-routing.md)；prose 與 sub-agent 樣板版本見 `dhpk:dhpk-tool-routing` skill。
+詳細的路由判斷規則見 [`rules/tool-routing.md`](./rules/tool-routing.md)；prose 與 sub-agent 樣板版本由 `code-trace` family 的 `select-tool` mode 提供。
 
 ## Rules（資源層）
 
@@ -309,8 +311,8 @@ dhpk/
 │   ├── marketplace.json          # 單一條目的 marketplace（plugins[0].source: "./"）
 │   └── plugin.json               # 含 userConfig 的插件 manifest
 ├── agents/                       # 36 個角色 agent（35 root + 1 模組 reviewer；INDEX.md 為導覽用）
-├── commands/                     # slash 指令（do、review、setup、codex-*、smart-commit、opsx-apply-resume 等；create-dev 為相容性 alias）
-├── skills/                       # SSOT：101 個扁平 canonical skill，皆為 skills/dhpk-<name>/
+├── commands/                     # slash 指令（review、setup、smart-commit、opsx-apply-resume 等）
+├── skills/                       # SSOT：85 個扁平 canonical package，根目錄為 skills/<public-name>/（六個 portable family 名稱不加前綴）
 ├── templates/                    # hook 引導用範本（graduation-candidates.md — 首次 graduation 執行時複製到 .claude/artifacts/）
 ├── modules/                      # 31 個可選用模組；skills/ 項目為相對 symlink projection
 │   ├── php-5.6/, php-7.4/, php-8.x/        # {module.yaml, skills/, references/, hooks/（僅 php-7.4）}

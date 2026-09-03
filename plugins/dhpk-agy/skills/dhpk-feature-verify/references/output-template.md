@@ -96,7 +96,7 @@
 
 | Blind Spot | Description | Recommended Coverage |
 | ---------- | ----------- | -------------------- |
-| [type] | [description] | `/dhpk:dhpk-test-review` |
+| [type] | [description] | `/dhpk:change-verdict` |
 
 ## P5: Verdict
 

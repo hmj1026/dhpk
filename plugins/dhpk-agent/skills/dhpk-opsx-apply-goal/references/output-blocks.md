@@ -110,7 +110,7 @@ If `HAS_COVERAGE=false` AND `MIN_COVERAGE` is unset AND `HAS_TEST=true`, append 
 
 ```
 • Coverage gate OFF (no coverage threshold configured) — new-code coverage is
-  NOT gated; author tests via adaptive-dev-workflow (feature mode) / tdd-guide, add a native coverage
+  NOT gated; author tests via flow-guide (classify) / tdd-guide, add a native coverage
   threshold (jest coverageThreshold / phpunit <coverage> min / pytest
   --cov-fail-under), or pass --min-coverage N to opsx-apply-goal to force it this run
 ```

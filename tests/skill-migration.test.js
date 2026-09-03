@@ -96,13 +96,13 @@ test('real tree version modules select only their canonical public family projec
   })));
 });
 
-test('real tree has 101 flat canonical packages with inventory identities and metadata tokens', () => {
+test('real tree has 85 flat canonical packages with inventory identities and metadata tokens', () => {
   assert.strictEqual(INVENTORY.schema, 'dhpk.distribution-inventory.v2');
-  assert.strictEqual(INVENTORY.skills.length, 101);
+  assert.strictEqual(INVENTORY.skills.length, 85);
   assert.deepStrictEqual(validateDistributionInventoryV2({ inventory: INVENTORY }).errors, []);
 
   const dirs = flatCanonicalDirs();
-  assert.strictEqual(dirs.length, 101);
+  assert.strictEqual(dirs.length, 85);
   assert.strictEqual(fs.readdirSync(path.join(ROOT, 'skills')).filter((name) => {
     const candidate = path.join(ROOT, 'skills', name);
     return fs.statSync(candidate).isDirectory() && !fs.existsSync(path.join(candidate, 'SKILL.md'));
@@ -156,7 +156,8 @@ test('real tree has relative Codex projections for every codex-sync skill and no
   for (const name of actual) {
     assert.strictEqual(projectionTarget(path.join(ROOT, 'codex', 'skills', name)), `../../skills/${name}`);
   }
-  assert.ok(actual.every((name) => name.startsWith('dhpk-')));
+  const portableFamilies = new Set(['skill-scope', 'skill-forge', 'flow-guide', 'flow-drive', 'change-verdict', 'code-trace']);
+  assert.ok(actual.every((name) => name.startsWith('dhpk-') || portableFamilies.has(name)));
 });
 
 run('skill-migration');

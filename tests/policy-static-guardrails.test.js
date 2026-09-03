@@ -24,7 +24,7 @@ test('execution policy documents Repository Discovery Gate and hard-rule deferra
 });
 
 test('implementation-dispatch reference includes anti-rationalization and CODEX trigger details', () => {
-  const text = read('skills/dhpk-execution-policy/references/implementation-dispatch.md');
+  const text = read('skills/flow-guide/references/implementation-dispatch.md');
   for (const phrase of [
     'Repository Discovery Gate',
     'anti-rationalization',
@@ -68,10 +68,10 @@ test('CLAUDE_PLUGIN_ROOT guardrail caveat has one SSOT home with pointers elsewh
   // execution-checklist/SKILL.md carry a one-line pointer to it instead, and the
   // old keep-in-sync mirror markers are removed. Markers are literal fragments of
   // the paragraph's first and last sentences.
-  const SSOT = 'skills/dhpk-execution-policy/references/review-gate-mechanics.md';
+  const SSOT = 'skills/flow-guide/references/review-gate-mechanics.md';
   const pointers = [
     'rules/execution-policy.md',
-    'skills/dhpk-execution-checklist/SKILL.md',
+    'skills/flow-guide/SKILL.md',
   ];
   const marker = '`${CLAUDE_PLUGIN_ROOT}` is a markdown-interpolation token';
   const endMarker = '`find / -iname`.';

@@ -66,3 +66,27 @@ Retirement reporting SHALL distinguish static canonical and discovery-descriptio
 #### Scenario: Static retirement validation passes without a live consumer probe
 - **WHEN** canonical counts, description totals, and generated projections pass but no exact-artifact consumer probe ran
 - **THEN** the report records structural/package results and leaves runtime evidence as `NOT_RUN`, `UNAVAILABLE`, `NOT_CONFIGURED`, or `BLOCKED`
+
+### Requirement: Capability-family consolidation retires predecessors without aliases
+
+The retirement ledger SHALL record every consolidated first-party predecessor with one successor family ID, one successor mode, the retirement release, and the last compatible rollback release. No predecessor skill directory, generated alias package, command alias, routing alias, or discovery entry SHALL remain after the atomic cutover. The command retirement set is exactly `check-skill`, `create-dev`, `do`, `codex-review`, `codex-review-fast`, `codex-review-branch`, `codex-review-doc`, `codex-security`, `codex-test-review`, and `review-spec`.
+
+#### Scenario: Predecessor maps to a family mode
+- **WHEN** any of the 22 approved predecessor stable IDs is retired
+- **THEN** its retirement record points to exactly one of the six family IDs and one declared mode, and rollback pins release `0.52.0`
+
+#### Scenario: Compatibility alias is generated
+- **WHEN** a projection, installer, command index, or router attempts to emit an alias for one of the 22 retired identities
+- **THEN** validation fails before publication and reports the predecessor and generated path
+
+#### Scenario: Command retirement differs from the approved set
+- **WHEN** the change retains one approved command alias or deletes an additional command not in the approved set
+- **THEN** command validation fails and reports the unexpected retained or removed command
+
+### Requirement: External-package identities require a separate lifecycle change
+
+An identity listed in the inventory's external-package registry SHALL NOT be retired, renamed, consolidated, or used as a successor-family predecessor unless a separate reviewed change first removes or revises its external ownership record.
+
+#### Scenario: External identity enters the retirement ledger
+- **WHEN** an external-package stable ID also appears as a retirement ID or family predecessor
+- **THEN** inventory validation fails and names both the package owner and conflicting lifecycle record

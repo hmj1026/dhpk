@@ -136,7 +136,7 @@ From the grep output:
 
 ### Step 5 — Risk snapshot (non-blocking)
 
-Invoke the `risk-assess` skill. Record `risk_level` (low/medium/high/critical). Do not block.
+Invoke `change-verdict` in `risk` mode. Record `risk_level` (low/medium/high/critical). Do not block.
 
 ### Step 6 — Model recommendation (non-blocking)
 
@@ -329,9 +329,9 @@ mv .claude/artifacts/apply-resume/latest.md \
 
 Archive only happens after successful completion. If `opsx:apply` did not complete, `latest.md` remains with `state: consuming` for manual retry.
 
-### Step 6b — Invoke next-step
+### Step 6b — Invoke flow-guide
 
-Invoke the `next-step` skill:
+Invoke `flow-guide` in `next` mode:
 
 - Remaining tasks still found → suggest `/opsx:apply <change-id>` again (and `/opsx-apply-resume` if context is getting full)
 - All done, no P0 issues → suggest `/opsx:verify` then `/opsx:archive`

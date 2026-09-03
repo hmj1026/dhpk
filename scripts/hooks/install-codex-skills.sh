@@ -2010,8 +2010,13 @@ def resolve_installer_selection(receipt, metadata):
         raise ValueError(f"unknown profile '{profile_id}'")
     declared = profile.get('skillIds')
     if profile_id == 'compat-v1':
-        selected = sorted(key for key, value in by_id.items()
-                          if value.get('lifecycle') != 'deprecated' and value.get('invokable') is not False)
+        # An explicitly selected compatibility profile is the predecessor's
+        # closed allowlist.  An unannotated existing Codex receipt remains
+        # broad so an ordinary update cannot silently shrink a projection
+        # that predates profile metadata.
+        selected = (list(declared) if PROFILE_EXPLICIT and isinstance(declared, list)
+                    else sorted(key for key, value in by_id.items()
+                                if value.get('lifecycle') != 'deprecated' and value.get('invokable') is not False))
     elif isinstance(declared, list):
         selected = list(declared)
     else:

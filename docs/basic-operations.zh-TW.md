@@ -11,8 +11,9 @@
 
 新請求依序執行：**檢查** repository 與 session 狀態 → **確認** 已安裝的
 surface → **選擇** Claude、支援的 Codex sync 或實驗性的原生 Codex surface →
-透過 Claude `/dhpk:do`、Cursor 產生的 command，或 Codex `$dhpk-do`（Codex 沒有
-`/dhpk:do`）或明確 skill **路由** → 以 TDD 與編輯前 impact check
+透過 Claude `/dhpk:flow-guide`（分類）、`/dhpk:flow-drive`（執行）、Cursor
+產生的 command，或 Codex `$flow-guide`／`$flow-drive`（Codex 沒有
+`/dhpk:*` command）或明確 family skill **路由** → 以 TDD 與編輯前 impact check
 **實作** → **Review／驗證**證據 → **交接**並只給一個下一步指令。
 Plugin 管理（`claude plugin …`、`codex plugin …`）不會呼叫 skill。
 
@@ -45,9 +46,10 @@ dhpk 刻意提供多個不同支援等級的 surface：
 | Antigravity / AGY sync | Adapter/package | Antigravity 使用 `.agent` mapping；AGY 使用原生 plugin package 與 validator。 |
 
 Plugin 管理指令（`claude plugin …`、`codex plugin …`）與 skill invocation 分開。
-Claude workflow 從 `/dhpk:do` 或明確 skill 進入；Cursor 在
-`install-cursor-harness.sh` 之後使用產生的 command；Codex 在 project-local
-`.codex/` 同步後從 `$dhpk-do` 進入（Codex 沒有 `/dhpk:do`）。
+Claude workflow 從 `/dhpk:flow-guide`、`/dhpk:flow-drive` 或明確 family skill
+進入；Cursor 在 `install-cursor-harness.sh` 之後使用產生的 command；Codex 在
+project-local `.codex/` 同步後從 `$flow-guide`／`$flow-drive` 進入（Codex 沒有
+`/dhpk:*` command）。
 
 ## 安裝
 
@@ -196,8 +198,9 @@ containment 或 modified-file safety。`--uninstall` 只移除 receipt-owned 且
 inspect → verify surface → route → plan/classify → implement → review → verify → handoff
 ```
 
-當你知道成果但不知道要用哪個 skill，使用 Claude `/dhpk:do`、Cursor 產生的
-command，或 Codex `$dhpk-do`。Codex 沒有 `/dhpk:do`。已知道完整流程時，使用
+當你知道成果但不知道要用哪個 family，使用 Claude `/dhpk:flow-guide` 或
+`/dhpk:flow-drive`、Cursor 產生的 command，或 Codex `$flow-guide`／`$flow-drive`。
+Codex 沒有 `/dhpk:*`。已知道完整流程時，使用
 明確 command 或 skill。Plugin 管理（`claude plugin …`、`codex plugin …`）只安裝／
 更新 surface，不會呼叫 workflow。
 
@@ -205,13 +208,13 @@ command，或 Codex `$dhpk-do`。Codex 沒有 `/dhpk:do`。已知道完整流程
 
 | 需求 | 入口 | 完成訊號 |
 |---|---|---|
-| 只看會執行什麼 | `/dhpk:do --route-only <task>` | `Route only: /...`（或 bounded classification／task prompt）；不執行 downstream。 |
-| 功能、Bug、重構或大型變更 | `/dhpk:do <task>` | 一個 workflow classification 與一個命名的下一個 route。 |
-| 檢查程式或 execution flow | `/dhpk:do trace the <area> flow` 或 `dhpk-codebase-exploration` | 有檔案／symbol 引用的證據說明。 |
-| Review 既有修改 | `/dhpk:review-pending` 或 `/dhpk:dhpk-change-review` | Reviewer verdict 加上新鮮 artifact，或明確 blocker。 |
+| 只看會執行什麼 | `/dhpk:flow-drive --route-only <task>` 或 `/dhpk:flow-guide --mode classify` | `Route only: /...`（或 bounded classification／task prompt）；不執行 downstream。 |
+| 功能、Bug、重構或大型變更 | `/dhpk:flow-guide --mode classify` 後 `/dhpk:flow-drive <task>` | 一個 workflow classification 與一個命名的下一個 route。 |
+| 檢查程式或 execution flow | `/dhpk:code-trace --mode explore <area>` | 有檔案／symbol 引用的證據說明。 |
+| Review 既有修改 | `/dhpk:review-pending` 或 `/dhpk:change-verdict --mode code` | Reviewer verdict 加上新鮮 artifact，或明確 blocker。 |
 | Commit、PR 或 release | `/dhpk:smart-commit`、`/dhpk:create-pr` 或 `/dhpk:dhpk-release-creator` | 明確的 command 結果；不會自動 commit、push 或 merge。 |
 
-`/dhpk:do` 可以呼叫 `implicit-eligible` target。若路由選到 `explicit-only` target，
+`/dhpk:flow-guide` 可以識別 `implicit-eligible` target。若路由選到 `explicit-only` target，
 會印出確切的直接 invocation 後停止；route confidence 不能越過 target 的 invocation
 class。Route table 是 deterministic fast path；ambiguous compound request 會使用有界
 classification，不會猜測。
@@ -219,8 +222,8 @@ classification，不會猜測。
 ### 執行前先檢查路由
 
 ```text
-/dhpk:do --route-only implement a password-reset email flow
-/dhpk:do --route-only fix the login redirect loop
+/dhpk:flow-drive --route-only implement a password-reset email flow
+/dhpk:flow-drive --route-only fix the login redirect loop
 ```
 
 `--route-only` 會在 matching 前移除自己與支援的 mode flags。使用者看到的 deterministic
@@ -232,11 +235,11 @@ helper 另外提供 validator 使用的 machine-readable `MATCH<TAB>skill<TAB>la
 ### 主要交付流程——功能與 Bug
 
 ```text
-/dhpk:do implement a password-reset email flow
-/dhpk:do fix the login redirect loop
+/dhpk:flow-drive implement a password-reset email flow
+/dhpk:flow-drive fix the login redirect loop
 ```
 
-Adaptive workflow 會先 classification，再載入分支所需 context。Feature work 進入
+`flow-guide` 的 classify mode 會先 classification，再載入分支所需 context。Feature work 進入
 TDD RED → GREEN → REFACTOR；Bug work 記錄 root-cause evidence，並在修正前建立
 regression-test RED gate。Repository 提供 GitNexus 時，既有 symbol 會先做 pre-edit
 impact analysis；`cx` 的 overview／definition／references 是主要 navigation fallback。
@@ -252,7 +255,7 @@ impact analysis；`cx` 的 overview／definition／references 是主要 navigati
 | `--codex` | 已退休的相容性旗標。Parser 會產生 deprecation diagnostic，不會選擇 peer 或 backend；請改用明確的 worker、reasoner 或 owner 第二意見選項。 |
 
 `--worker=codex` 是選 Codex CLI mechanical worker；`--reasoner=codex` 是選 Codex CLI
-reasoning pass。`CODEX=on` 與 `/dhpk:do --codex` 是已退休的相容性旗標：會產生
+reasoning pass。`CODEX=on` 與 `--codex` 是已退休的相容性旗標：會產生
 deprecation diagnostic，絕不選擇 peer、worker、reasoner 或 hidden backend。只有選定
 executable 缺少時才允許 configured Claude fallback；authentication、task、execution 與
 verification failure 都維持 blocked。
@@ -318,7 +321,7 @@ reviewer 與 completion gate，不會為了約 4,000 UTF-8-byte 的 paste ceilin
 
 ```text
 /dhpk:spec-mine user-authentication
-/dhpk:do write E2E tests for the checkout flow
+/dhpk:flow-drive write E2E tests for the checkout flow
 /dhpk:harness-audit
 /dhpk:harness-govern
 /dhpk:harness-govern --fix
@@ -340,11 +343,11 @@ work 透過 shared selector 交給 `fast-worker`、`codex-fast-worker` 或 `agy-
 
 ### Codex CLI 第二意見
 
-dhpk **預設不使用 Codex**。已退休的 `CODEX=on` 與 `/dhpk:do --codex` 旗標會產生
+dhpk **預設不使用 Codex**。已退休的 `CODEX=on` 與 legacy `--codex` 旗標會產生
 `DEPRECATED_CODEX_FLAG`，不會加入 hidden peer 或 backend。需要明確選擇時，使用
 `--worker=codex` 走 CLI worker、`--reasoner=codex` 走 CLI reasoning pass，或在 migrated
 owner 上使用 `--second-opinion=codex-exec` 取得 additive、one-shot 的 `codex exec` 意見。
-`dhpk-change-review --backend cli` 是明確的 CLI review path；current-model path 仍是預設。
+`change-verdict --mode code --backend cli` 是明確的 CLI review path；current-model path 仍是預設。
 缺少 CLI executable 時會回報 optional backend 不可用；authentication、task、execution 與
 verification failure 都維持 blocked。
 

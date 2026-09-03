@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.53.0 — 2026-09-03 — Consolidate skill capability families across harness surfaces
+
+**feat(skill-capability-families)** — Consolidate skill discovery, workflow, review, and tracing capabilities into portable family surfaces across supported harnesses.
+
 ## 0.52.0 — 2026-09-03 — Retire Codex MCP capability identities, consolidate Laravel and PHPUnit version families, and materialize Claude profile bundles
 
 **BREAKING(codex-mcp)** — Retire legacy Codex MCP capability identities and route implementation and review workflows through portable execution paths.

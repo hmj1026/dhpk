@@ -14,8 +14,6 @@ const ALIASES = Object.freeze({
   'opsx-post-obs': 'dhpk-opsx-post-observation',
   'opsx-post-observation': 'dhpk-opsx-post-observation',
   'opsx-apply-resume': 'opsx-apply-resume',
-  'next-step': 'dhpk-next-step',
-  'risk-assess': 'dhpk-risk-assess',
   'compact-save': null,
 });
 
@@ -90,7 +88,7 @@ function extractNaturalLanguageReferences(text) {
   // This validator owns the opsx/registered-skill handoff vocabulary. Agent
   // role prose and programming identifiers are intentionally not inferred as
   // Skill/command references merely because they are backticked.
-  const capabilityMarker = /(?:dhpk[-:]|opsx[-:]|openspec[-:])|(?:compact-save|missing-[a-z0-9-]+)/i;
+  const capabilityMarker = /(?:dhpk[-:]|opsx[-:]|openspec[-:])|(?:skill-scope|skill-forge|flow-guide|flow-drive|change-verdict|code-trace|compact-save|missing-[a-z0-9-]+)/i;
   const generic = new Set(['skill', 'tool', 'command', 'workflow', 'capability', 'the', 'same', 'right']);
   lines.forEach((line, index) => {
     if (!action.test(line)) return;
@@ -113,7 +111,7 @@ function extractNaturalLanguageReferences(text) {
     for (const match of line.matchAll(/\bSkill\(\s*([a-z][a-z0-9-]{2,})\s*\)/gi)) add(match[1], optional);
     for (const match of line.matchAll(/\b(?:invoke|run|use|load)\s+(?:the\s+)?`?([a-z][a-z0-9-]{2,})`?(?=\s+(?:skill|command|workflow|capability|provider)\b)/gi)) {
       const target = match[1];
-      if (capabilityMarker.test(target) || target === 'risk-assess' || target === 'next-step' || target === 'compact-save') {
+      if (capabilityMarker.test(target) || target === 'compact-save') {
         add(target, optional);
       }
     }

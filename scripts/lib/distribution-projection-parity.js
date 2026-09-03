@@ -97,6 +97,35 @@ function artifactFingerprintOf(artifact) {
   return artifact && typeof artifact.artifactFingerprint === 'string' ? artifact.artifactFingerprint : null;
 }
 
+function externalSkillPackagesFingerprintOf(valueToRead) {
+  if (!valueToRead || typeof valueToRead !== 'object') return undefined;
+  if (Object.prototype.hasOwnProperty.call(valueToRead, 'externalSkillPackagesFingerprint')) {
+    return valueToRead.externalSkillPackagesFingerprint;
+  }
+  if (Object.prototype.hasOwnProperty.call(valueToRead, 'external_skill_packages_fingerprint')) {
+    return valueToRead.external_skill_packages_fingerprint;
+  }
+  return undefined;
+}
+
+function compareSubjectOwnership({ state, label, surface, mismatches, diagnostics }) {
+  const planFingerprint = externalSkillPackagesFingerprintOf(state.plan);
+  const artifactFingerprint = externalSkillPackagesFingerprintOf(state.artifact);
+  if (planFingerprint !== undefined && artifactFingerprint !== undefined && planFingerprint !== artifactFingerprint) {
+    mismatches.push({
+      stableId: '<projection>',
+      surface,
+      type: 'field',
+      field: 'externalSkillPackagesFingerprint',
+      side: label,
+      expected: planFingerprint,
+      actual: artifactFingerprint,
+    });
+    diagnostics.push(`${label} artifact ownership fingerprint is stale: plan '${planFingerprint}' does not match artifact '${artifactFingerprint}'`);
+  }
+  return planFingerprint ?? artifactFingerprint ?? externalSkillPackagesFingerprintOf(state.projection);
+}
+
 function compareField(mismatches, diagnostics, stableId, field, expectedValue, actualValue, surface) {
   if (safeCanonicalize(normalized(expectedValue)) === safeCanonicalize(normalized(actualValue))) return;
   mismatches.push({ stableId, surface, type: 'field', field, expected: expectedValue, actual: actualValue });
@@ -195,6 +224,8 @@ function compareDistributionProjections({ expected, actual, stage = 'structural'
   const surface = expectedState.surface || actualState.surface || '<missing>';
   const expectedProfile = profileIdOf(expected);
   const actualProfile = profileIdOf(actual);
+  const expectedProjection = subjectProjection(expected);
+  const actualProjection = subjectProjection(actual);
   if (expectedState.surface && actualState.surface && expectedState.surface !== actualState.surface) {
     mismatches.push({ stableId: '<projection>', surface, type: 'field', field: 'surface', expected: expectedState.surface, actual: actualState.surface });
     diagnostics.push(`projection surface drift: expected '${expectedState.surface}', actual '${actualState.surface}'`);
@@ -209,6 +240,31 @@ function compareDistributionProjections({ expected, actual, stage = 'structural'
   }
   if (expectedState.artifactFingerprint && actualState.artifactFingerprint && expectedState.artifactFingerprint !== actualState.artifactFingerprint) {
     diagnostics.push(`stale artifact identity: expected '${expectedState.artifactFingerprint}', actual '${actualState.artifactFingerprint}'`);
+  }
+  const expectedOwnershipFingerprint = compareSubjectOwnership({
+    state: { ...expectedState, projection: expectedProjection },
+    label: 'expected',
+    surface,
+    mismatches,
+    diagnostics,
+  });
+  const actualOwnershipFingerprint = compareSubjectOwnership({
+    state: { ...actualState, projection: actualProjection },
+    label: 'actual',
+    surface,
+    mismatches,
+    diagnostics,
+  });
+  if (expectedOwnershipFingerprint !== actualOwnershipFingerprint) {
+    mismatches.push({
+      stableId: '<projection>',
+      surface,
+      type: 'field',
+      field: 'externalSkillPackagesFingerprint',
+      expected: expectedOwnershipFingerprint,
+      actual: actualOwnershipFingerprint,
+    });
+    diagnostics.push(`external ownership fingerprint drift: expected '${expectedOwnershipFingerprint || '<none>'}', actual '${actualOwnershipFingerprint || '<none>'}'`);
   }
   if (expectedState.plan && actualState.plan) {
     compareField(mismatches, diagnostics, '<plan>', 'selectedStableIds', expectedState.plan.selectedStableIds, actualState.plan.selectedStableIds, surface);
@@ -232,8 +288,6 @@ function compareDistributionProjections({ expected, actual, stage = 'structural'
       fields: ['stableId', 'destination', 'source', 'sourceFingerprint', 'owner', 'transform', 'outputFingerprint'],
     });
   }
-  const expectedProjection = subjectProjection(expected);
-  const actualProjection = subjectProjection(actual);
   if (expectedProjection || actualProjection) {
     if (!expectedProjection || !actualProjection) diagnostics.push('declared projection is missing on one side');
     else {
@@ -266,12 +320,18 @@ function compareDistributionProjections({ expected, actual, stage = 'structural'
     verdict: VERDICTS.includes(verdict) ? verdict : 'FAIL',
     diagnostics,
     observedAt,
+    ...(expectedOwnershipFingerprint !== undefined
+      ? { externalSkillPackagesFingerprint: expectedOwnershipFingerprint }
+      : {}),
   });
   const evidence = evidenceResult.ok ? evidenceResult.value : {
     stage: evidenceStage,
     adapter: checkerIdentity,
     planFingerprint: expectedState.planFingerprint,
     artifactFingerprint: expectedState.artifactFingerprint,
+    ...(expectedOwnershipFingerprint !== undefined
+      ? { externalSkillPackagesFingerprint: expectedOwnershipFingerprint }
+      : {}),
     verdict: 'NOT_CONFIGURED',
     diagnostics: [...diagnostics, 'unable to construct canonical projection parity evidence'],
   };
@@ -282,6 +342,9 @@ function compareDistributionProjections({ expected, actual, stage = 'structural'
     profile: expectedProfile || actualProfile || null,
     planFingerprint: expectedState.planFingerprint,
     artifactFingerprint: expectedState.artifactFingerprint,
+    ...(expectedOwnershipFingerprint !== undefined
+      ? { externalSkillPackagesFingerprint: expectedOwnershipFingerprint }
+      : {}),
     checker: checkerIdentity,
     checkedFields: [...CHECKED_FIELDS],
     mismatches,
@@ -293,6 +356,9 @@ function compareDistributionProjections({ expected, actual, stage = 'structural'
       profile: expectedProfile || actualProfile || null,
       planFingerprint: expectedState.planFingerprint,
       artifactFingerprint: expectedState.artifactFingerprint,
+      ...(expectedOwnershipFingerprint !== undefined
+        ? { externalSkillPackagesFingerprint: expectedOwnershipFingerprint }
+        : {}),
       checker: checkerIdentity,
       stage: evidenceStage,
       checkedFields: [...CHECKED_FIELDS],

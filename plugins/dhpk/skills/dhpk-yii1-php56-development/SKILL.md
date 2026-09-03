@@ -14,8 +14,8 @@ Use this skill to work on generic Yii 1.x backend tasks in legacy PHP 5.6 enviro
 ## When NOT to Use
 
 - Frontend-only work, documentation-only edits, or non-PHP stacks.
-- The workflow still needs classification or gate decisions — route to `$dhpk-adaptive-dev-workflow` first, then return here for implementation.
-- The bug's root cause is unknown — route to `$dhpk-root-cause-investigation` first, then return here for the PHP 5.6-safe fix.
+- The workflow still needs classification or gate decisions — route to `$flow-guide` first, then return here for implementation.
+- The bug's root cause is unknown — route to `$code-trace` first, then return here for the PHP 5.6-safe fix.
 - Modern PHP 7+/PHPUnit 6+ greenfield code with no PHP 5.6 runtime constraint.
 
 ## Core Rules
@@ -42,20 +42,20 @@ Use this skill as the implementation and verification layer, not as the universa
 
 Route to a different skill first when needed:
 
-- use `$dhpk-adaptive-dev-workflow` first if the task is substantial and still needs workflow classification, gate decisions, or next-step routing
-- use `$dhpk-root-cause-investigation` first if the issue is a bug with unknown root cause, missing evidence, or unclear regression path
+- use `$flow-guide` first if the task is substantial and still needs workflow classification, gate decisions, or next-step routing
+- use `$code-trace` first if the issue is a bug with unknown root cause, missing evidence, or unclear regression path
 - use `$dhpk-yii1-php56-development` directly if the Yii 1.x backend implementation path is already clear and the task is ready for design, TDD, implementation, or review
 
 Do not invoke all three blindly in the same step. Prefer this sequence:
 
-1. route with `$dhpk-adaptive-dev-workflow` when the workflow is unclear
-2. investigate with `$dhpk-root-cause-investigation` when the root cause is unclear
+1. route with `$flow-guide` when the workflow is unclear
+2. investigate with `$code-trace` when the root cause is unclear
 3. implement with `$dhpk-yii1-php56-development` once the change is ready for PHP/Yii execution
 
 Use these example prompts as templates:
 
-- `Use $dhpk-adaptive-dev-workflow to classify this Yii 1.x backend change, then hand off to $dhpk-yii1-php56-development if implementation is the next step.`
-- `Use $dhpk-root-cause-investigation to trace this Yii 1.x backend bug. After the root cause is confirmed, switch to $dhpk-yii1-php56-development for the PHP 5.6-safe fix and tests.`
+- `Use $flow-guide to classify this Yii 1.x backend change, then hand off to $dhpk-yii1-php56-development if implementation is the next step.`
+- `Use $code-trace to trace this Yii 1.x backend bug. After the root cause is confirmed, switch to $dhpk-yii1-php56-development for the PHP 5.6-safe fix and tests.`
 - `Use $dhpk-yii1-php56-development to implement this known Yii 1.x bugfix with PHP 5.6 runtime compatibility, PHP 7-safe style, and TDD.`
 - `Use $dhpk-yii1-php56-development to design and implement this Yii 1.x backend feature with pragmatic DDD boundaries and a failing test first.`
 
@@ -79,7 +79,7 @@ Before proposing changes:
 - search for existing patterns before introducing new structure
 - identify the current PHP version constraints and the active Yii style in the repo
 
-If the task still needs workflow routing rather than implementation details, stop here and recommend `$dhpk-adaptive-dev-workflow`.
+If the task still needs workflow routing rather than implementation details, stop here and recommend `$flow-guide`.
 
 ### 3. Refresh knowledge through Context7
 
@@ -129,7 +129,7 @@ Use this default order:
 
 If the code is too legacy to isolate immediately, first write characterization tests around the current behavior.
 
-If the task is a bug and the failing behavior still cannot be isolated to a root cause, stop and recommend `$dhpk-root-cause-investigation` before writing implementation guidance.
+If the task is a bug and the failing behavior still cannot be isolated to a root cause, stop and recommend `$code-trace` before writing implementation guidance.
 
 ### 6. Implement with compatibility discipline
 

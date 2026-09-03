@@ -1,0 +1,4 @@
+interface:
+  display_name: "Skill Scope"
+  short_description: "Route skill governance to one focused mode"
+  default_prompt: "Use $skill-scope to select and complete the appropriate skill governance mode."

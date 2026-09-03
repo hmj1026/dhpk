@@ -1,7 +1,9 @@
 # distribution-projection-parity Specification
 
 ## Purpose
-TBD - created by archiving change decouple-discovery-budget-from-projection-parity. Update Purpose after archive.
+Define the projection-parity capability that compares compiler-selected,
+provenance-bound consumer surfaces independently from discovery-budget
+accounting and reports stale identity or output drift with structured evidence.
 
 ## Requirements
 
@@ -63,24 +65,17 @@ scope, and fingerprints.
 
 ### Requirement: Parity evidence binds compiler and lifecycle identity
 
-Every parity result SHALL bind target surface, profile/artifact identity when
-scoped, plan fingerprint, artifact fingerprint when materialized, parity
-checker identity/version, verification stage, checked fields, verdict, and
-diagnostics using the existing EvidenceResult and canonical lifecycle identity
-vocabulary. The capability MUST NOT introduce a competing verdict enum.
+Every parity result SHALL bind target surface, profile or artifact identity when scoped, plan fingerprint, artifact fingerprint when materialized, external-package-ledger fingerprint, parity checker identity and version, verification stage, checked fields, verdict, and diagnostics using the existing EvidenceResult and canonical lifecycle identity vocabulary. The capability MUST NOT introduce a competing verdict enum.
 
 #### Scenario: A scoped artifact is checked
 
 - **WHEN** parity evaluates a profile-scoped artifact
-- **THEN** the result records the exact profile, plan, artifact, checker, and
-  stage identities
+- **THEN** the result records the exact profile, plan, artifact, external ownership ledger, checker, and stage identities
 
 #### Scenario: Evidence uses stale identity
 
-- **WHEN** the observed output fingerprint does not match the plan/artifact
-  identity supplied to parity
-- **THEN** parity returns a stale-identity failure and does not reuse an older
-  passing result
+- **WHEN** the observed output fingerprint or external ownership ledger does not match the plan and artifact identity supplied to parity
+- **THEN** parity returns a stale-identity failure and does not reuse an older passing result
 
 ### Requirement: Parity migration preserves characterized behavior
 
@@ -102,3 +97,15 @@ cutover.
   the same parity check after cutover
 - **THEN** validation fails with an ownership diagnostic and migration is not
   complete
+
+### Requirement: Capability-family projection parity includes ownership identity
+
+Every generated surface SHALL derive successor-family and external-package membership from the same inventory revision. Parity evidence SHALL compare stable ID, emitted public name, invocation class, source ownership, content fingerprint, and retirement state before reporting equivalence.
+
+#### Scenario: Shared surfaces project the consolidated inventory
+- **WHEN** Agent Plugin, Cursor Plugin, and AGY Plugin compile the approved inventory
+- **THEN** each contains 46 selected stable IDs, Cursor sync contains 46, and all retain the six GitNexus stable IDs without content or identity changes
+
+#### Scenario: One surface adapts an external skill
+- **WHEN** a projection renames, rewrites, retires, or substitutes a protected external-package skill
+- **THEN** parity validation fails even if the total entry count remains equal

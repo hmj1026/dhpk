@@ -84,11 +84,11 @@ test('module lifecycle counts are computed with the same rigor as skill lifecycl
 test('against the real checked-in inventory, canonical and scoped counts remain independently derived', () => {
   const inventory = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifests', 'distribution-inventory.json'), 'utf8'));
   const counts = computeScopedCounts(inventory);
-  assert.strictEqual(counts.canonical, 101);
+  assert.strictEqual(counts.canonical, 85);
   assert.strictEqual(counts.deprecated, 11);
   assert.strictEqual(counts.promotedCore + counts.optional + counts.experimental + counts.deprecated, counts.canonical);
-  assert.strictEqual(counts.claudePublished, 88);
-  assert.strictEqual(counts.codexPublished, 18);
+  assert.strictEqual(counts.claudePublished, 72);
+  assert.strictEqual(counts.codexPublished, 16);
 });
 
 test('neither bilingual README claims the canonical skill total as a default-install count (task 4.2 regression guard)', () => {

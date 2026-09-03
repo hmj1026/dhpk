@@ -8,7 +8,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE) [![Version](https://img.shields.io/github/v/tag/hmj1026/dhpk?label=version&sort=semver)](https://github.com/hmj1026/dhpk/tags) [![CI](https://img.shields.io/github/actions/workflow/status/hmj1026/dhpk/ci.yml?branch=main&label=CI)](https://github.com/hmj1026/dhpk/actions/workflows/ci.yml) [![Claude Code Plugin](https://img.shields.io/badge/Claude%20Code-plugin-8A63D2)](https://docs.claude.com/en/docs/claude-code/plugins) [![Codex project sync](https://img.shields.io/badge/Codex%20project%20sync-supported-412991)](./docs/platform-installation.md#codex-project-local-sync-supported) [![Cursor project sync](https://img.shields.io/badge/Cursor%20project%20sync-supported-F2A900)](./docs/platform-installation.md#cursor-project-local-sync-supported) [![Native packages](https://img.shields.io/badge/native%20packages-experimental-orange)](./docs/platform-installation.md#surface-matrix)
 
-A generic, install-and-go Claude Code harness. It ships **36 role-based agents** (35 root-level agents plus one module-scoped reviewer), registered dhpk commands, core skills, the **`/dhpk:do` Smart Router** (natural-language task routing via a bilingual route table + LLM fallback), a cross-session learning DB (opt-in), **7-slot sentinel-driven review hooks** (code / db / sec / frontend / doc / polyfill / migration), statusline, harness scripts, and **31 opt-in stack modules** across PHP, Yii, PHPUnit, Laravel, JavaScript, Vue, Laravel Mix, Next.js, React, Python, and iOS/Swift. Modules contribute hooks at runtime via the **wrapper-dispatch** model (see [`docs/hook-extension.md`](./docs/hook-extension.md)). A curated Codex CLI projection is included for dual-assistant projects.
+A generic, install-and-go Claude Code harness. It ships **36 role-based agents** (35 root-level agents plus one module-scoped reviewer), registered dhpk commands, six task-shaped capability families, a cross-session learning DB (opt-in), **7-slot sentinel-driven review hooks** (code / db / sec / frontend / doc / polyfill / migration), statusline, harness scripts, and **31 opt-in stack modules** across PHP, Yii, PHPUnit, Laravel, JavaScript, Vue, Laravel Mix, Next.js, React, Python, and iOS/Swift. Modules contribute hooks at runtime via the **wrapper-dispatch** model (see [`docs/hook-extension.md`](./docs/hook-extension.md)). A curated Codex CLI projection is included for dual-assistant projects.
 
 > **Harness engineering over prompt engineering.** dhpk treats the agent's operating environment — hooks, sentinel review gates, routing rules, and stack-aware modules — as the unit of leverage. Rather than hand-tuning one-off prompts, you install a reusable harness that makes the right checks fire automatically and keeps the model on the rails across sessions.
 
@@ -25,7 +25,7 @@ OpenSpec is an **optional external integration** — install the [OpenSpec plugi
 | `docker` | Optional | Used only by an explicitly registered Docker workflow with `userConfig.docker_containers` |
 | Codex CLI binary | Optional | Required only for CLI-backed roles/reviews, `codex exec` second opinions, or `install-codex-skills.sh` when Codex should load the synced content |
 | Cursor | Optional | Required ONLY if you run `install-cursor-harness.sh` and want Cursor to load the project-local `.cursor/` harness |
-| `cx` CLI | Optional | Semantic code navigation. Primary tool in `rules/tool-routing.md` for `cx overview` / `cx definition` / `cx references`. Referenced by 6 reviewer agents and the `harness-fill` skill. Missing → falls back to `Grep` / `Read`. |
+| `cx` CLI | Optional | Semantic code navigation. Primary tool in `rules/tool-routing.md` for `cx overview` / `cx definition` / `cx references`. Referenced by 6 reviewer agents and the `code-trace` family. Missing → falls back to `Grep` / `Read`. |
 | `gitnexus` MCP server | Optional | Knowledge-graph queries (`gitnexus_impact`, `gitnexus_rename`, `gitnexus_detect_changes`). Required by 6 `gitnexus-*` skills and the `rules/execution-policy.md` self-check. Missing → falls back to `cx` or `Grep`. |
 | `claude-mem` | Optional | Cross-session memory search (`mem-search`). Referenced by `rules/tool-routing.md` for past-decision lookups. Missing → skip. |
 
@@ -56,8 +56,8 @@ Reconfigure any time with `/dhpk:setup` (or `/dhpk:setup --show` to print the cu
 | Component | Count | Notes |
 |-----------|------:|-------|
 | Agents | Role-based agents | Sentinel-driven reviewers plus situational architecture, testing, security, documentation, platform, and runtime roles. |
-| Commands | dhpk's 39 commands | `/dhpk:do`, `/dhpk:codex-review`, `/dhpk:precommit`, `/dhpk:setup`, `/dhpk:review-pending`, `/dhpk:smart-commit`, `/dhpk:opsx-apply-resume`, `/dhpk:harness-audit`, `/dhpk:harness-govern`, `/dhpk:ui-ux-verify`, etc. |
-| Canonical skills | 101 flat `dhpk-*` packages | One named package per capability, rooted at `skills/dhpk-*/`; internal runtime packages are non-invokable, while module and Codex project surfaces are projections, not additional sources. |
+| Commands | dhpk's 29 commands | `/dhpk:precommit`, `/dhpk:setup`, `/dhpk:review-pending`, `/dhpk:smart-commit`, `/dhpk:opsx-apply-resume`, `/dhpk:harness-audit`, `/dhpk:harness-govern`, `/dhpk:ui-ux-verify`, etc. |
+| Canonical skills | 85 flat packages | One named package per capability, rooted at `skills/<public-name>/`; non-family packages retain the `skills/dhpk-*/` contract, while six portable families (`skill-scope`, `skill-forge`, `flow-guide`, `flow-drive`, `change-verdict`, `code-trace`) own the consolidated modes. |
 | Stack modules | Opt-in stack modules | PHP, Yii, PHPUnit, Laravel, JavaScript, Vue, Laravel Mix, Next.js, React, Python, `library-author`, and iOS/Swift modules. |
 | Hooks | 4 events | PreToolUse (Edit guard and combined Bash safety/Git gate), PostToolUse (sentinel routing), SessionStart (module activation), SubagentStop (strict reviewer reconciliation) |
 | Hook dispatchers | 2 | `post-edit-dispatch.sh` routes sentinels; `pre-bash-dispatch.sh` combines deterministic shell and Git/review-debt gates |
@@ -69,25 +69,27 @@ Invocation syntax is surface-specific:
 | Surface | Syntax | Example |
 |---|---|---|
 | Claude command | `/dhpk:<command>` | `/dhpk:harness-audit` |
-| Claude plugin skill | `/dhpk:<public-skill-name>` | `/dhpk:dhpk-tdd-workflow` |
-| Codex skill | `$<public-skill-name>` after discovery | `$dhpk-tdd-workflow` |
+| Claude plugin skill | `/dhpk:<public-skill-name>` | `/dhpk:flow-guide` |
+| Codex skill | `$<public-skill-name>` after discovery | `$flow-guide --mode classify` |
 
-The doubled `dhpk` in the Claude skill example is intentional: the first is
-Claude's plugin namespace; the second belongs to the collision-safe public skill
-name. Commands do not repeat it. See the complete migration map in
+The six capability families use unprefixed public names; other first-party
+skills retain the collision-safe `dhpk-` prefix. See the complete migration map in
 [`docs/skill-platform-migration.md`](./docs/skill-platform-migration.md).
 Lifecycle, public names, and publication surfaces are owned by
 `manifests/distribution-inventory.json` rather than this prose.
 
 ## Common workflows
 
-Everything is reachable through `/dhpk:do` — one entry point that routes natural-language task descriptions to the right skill: feature development, bug fixes, the automatic post-edit review cycle, commit/PR, unattended OpenSpec sessions, spec mining, E2E test authoring, harness health checks, and Implementation dispatch (reasoning-heavy work → `deep-reasoner`, mechanical work → a selector-resolved Claude/Codex/agy fast worker). Full walkthrough with worked examples for each: **[`docs/basic-operations.md`](./docs/basic-operations.md)**.
+Use `flow-guide` to classify or advise, `flow-drive` to explicitly route or
+implement a confirmed task, `code-trace` to investigate, `change-verdict` for
+read-only review, `skill-scope` for skill governance, and `skill-forge` for
+authoring. Full walkthrough with worked examples for each: **[`docs/basic-operations.md`](./docs/basic-operations.md)**.
 
 ```text
-/dhpk:do --route-only implement a password-reset email flow # inspect the route only
-/dhpk:do implement a password-reset email flow   # feature (TDD + review gates)
-/dhpk:do --worker=codex implement the plan   # invocation-only worker override
-/dhpk:do fix the login redirect loop              # bug fix (root cause + regression test)
+$flow-drive --mode route --route-only implement a password-reset email flow # inspect the route only
+$flow-drive --mode implement implement a password-reset email flow   # feature (TDD + review gates)
+$flow-drive --mode implement --worker=codex implement the plan   # explicit worker override
+$code-trace --mode diagnose investigate the login redirect loop       # root-cause evidence
 /dhpk:review-pending                              # trigger pending reviewers immediately
 /dhpk:smart-commit && /dhpk:create-pr             # commit + PR
 /dhpk:harness-audit                              # harness health scorecard
@@ -131,7 +133,7 @@ separate surfaces with explicit ownership:
 
 | Surface | Names / entrypoint | Requirement | Failure or boundary |
 |---------|--------------------|-------------|--------------------|
-| CLI-only Codex path | `codex-code-review --backend cli`; sibling roles `codex-worker`, `codex-reasoner`, `codex-reviewer`, and `dhpk-codex-bridge` | Codex CLI binary and Bash shell-out through the hardened wrapper; no MCP server | Missing `codex` is reported as an unavailable optional backend; the current-model path remains the default |
+| CLI-only Codex path | `change-verdict --mode code --backend cli`; sibling roles `codex-worker`, `codex-reasoner`, `codex-reviewer`, and `dhpk-codex-bridge` | Codex CLI binary and Bash shell-out through the hardened wrapper; no MCP server | Missing `codex` is reported as an unavailable optional backend; the current-model path remains the default |
 | External app-server plugin | `openai/codex-plugin-cc` and its `/codex:*` commands | Explicitly installed external plugin; it drives `codex app-server` | It is independent of dhpk skills, CLI review, and the retired MCP mechanism |
 | Historical retired MCP | `mcp__codex__codex`, `mcp__codex__codex-reply`, and `codex mcp-server` | Retired in this migration; no current dhpk capability requires or recommends it | Historical context only. See the [retirement ledger](./docs/skill-platform-migration.md#alias-free-codex-mcp-retirement-ledger) and [capability-parity matrix](./docs/codex-mcp-capability-parity.md) for each capability's successor |
 
@@ -143,7 +145,7 @@ isolated-review behavior for every migrated capability.
 
 `CODEX=on` and `/dhpk:do --codex` are removed legacy MCP-peer interfaces. They
 are not aliases for `codex exec`, `--worker=codex`, `--reasoner=codex`, or the
-external app-server plugin. Use the normal `/dhpk:do` or `dhpk-implement` path
+external app-server plugin. Use the explicit `/dhpk:flow-drive` path
 for current-model implementation, `--worker=codex` or `--reasoner=codex` when
 an external CLI role is explicitly selected, and an explicitly named
 `codex exec` second opinion where a migrated skill supports it. A deprecated
@@ -151,8 +153,8 @@ legacy flag produces a deprecation diagnostic rather than selecting a hidden
 backend.
 
 The former `/dhpk:codex-security` command semantics are now covered by the
-backend-neutral security-review owner and the normal router; the former review
-family uses `dhpk-change-review --backend cli` where a CLI review is requested.
+backend-neutral `change-verdict` security mode; the former review family uses
+`change-verdict --mode code --backend cli` where a CLI review is requested.
 Neither path reaches the retired MCP server. The complete nine-identity
 retirement and rollback ledger is in the migration guide.
 
@@ -162,11 +164,11 @@ retirement and rollback ledger is in the migration guide.
 
 | Tool | Used by (selected) | What you lose if missing |
 |------|-------------------|--------------------------|
-| `cx` CLI | Agents: `code-reviewer`, `doc-reviewer`, `doc-updater`, `frontend-reviewer`, `migration-reviewer`, `refactor-cleaner`. Skills: `harness-fill`, `tool-routing`, `polyfill-version-matrix-audit`. Rule: `tool-routing.md` (primary for `cx overview` / `cx definition` / `cx references`). | Sub-200-token file overviews and AST-precise symbol reads — falls back to `Grep` + `Read` (more tokens, less precision). |
+| `cx` CLI | Agents: `code-reviewer`, `doc-reviewer`, `doc-updater`, `frontend-reviewer`, `migration-reviewer`, `refactor-cleaner`. Skills: `harness-fill`, `code-trace`, `polyfill-version-matrix-audit`. Rule: `tool-routing.md` (primary for `cx overview` / `cx definition` / `cx references`). | Sub-200-token file overviews and AST-precise symbol reads — falls back to `Grep` + `Read` (more tokens, less precision). |
 | `gitnexus` MCP | Dedicated skills: `gitnexus-cli`, `gitnexus-debugging`, `gitnexus-exploring`, `gitnexus-guide`, `gitnexus-impact-analysis`, `gitnexus-refactoring`. Agents: `architect`, `code-reviewer`, `database-reviewer`, `migration-reviewer`, `performance-analyzer`, `refactor-cleaner`, `security-reviewer`, `ui-ux-verifier`. Rules: `execution-policy.md` self-check (`gitnexus_impact`), `tool-routing.md`. | Cross-file blast-radius analysis (`gitnexus_impact`), safe global rename (`gitnexus_rename`), pre-commit scope check (`gitnexus_detect_changes`) — falls back to `cx references` / `git diff --stat` / **find-and-replace forbidden**. |
 | `claude-mem` | Rule: `tool-routing.md` entry "Past decisions (cross-session)". | Cross-session memory recall — current-session context still works via scrollback. |
 
-Detailed routing tie-breakers live in [`rules/tool-routing.md`](./rules/tool-routing.md); the prose / sub-agent boilerplate version lives in the `dhpk:dhpk-tool-routing` skill.
+Detailed routing tie-breakers live in [`rules/tool-routing.md`](./rules/tool-routing.md); the prose / sub-agent boilerplate version lives in the `code-trace` family (`select-tool` mode).
 
 ## Rules (resource layer)
 
@@ -319,8 +321,8 @@ dhpk/
 │   ├── marketplace.json          # one-entry marketplace (plugins[0].source: "./")
 │   └── plugin.json               # plugin manifest with userConfig
 ├── agents/                       # 36 role-based agents (INDEX.md is navigation)
-├── commands/                     # slash commands (do, review, setup, codex-*, smart-commit, opsx-apply-resume, ...; create-dev is a compatibility alias)
-├── skills/                       # SSOT: 101 flat canonical skills, each skills/dhpk-<name>/
+├── commands/                     # slash commands (review, setup, codex-*, smart-commit, opsx-apply-resume, ...)
+├── skills/                       # SSOT: 85 flat canonical packages rooted at skills/<public-name>/ (six portable family names are unprefixed)
 ├── templates/                    # hook-bootstrap templates (graduation-candidates.md — copied to .claude/artifacts/ on first graduation run)
 ├── rules/                        # plain-markdown governance rules (execution-policy, tool-routing, anti-rationalization) — not in plugin.json; opt-in via ${CLAUDE_PLUGIN_ROOT}/rules/*.md from a consuming project's CLAUDE.md
 ├── modules/                      # 31 opt-in modules; skills/ entries are relative symlink projections

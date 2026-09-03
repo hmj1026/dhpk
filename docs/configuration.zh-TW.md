@@ -55,7 +55,7 @@ receipt 規則請見 [`docs/platform-installation.zh-TW.md`](./platform-installa
 | `review_agents` | string[] | `["code-reviewer","database-reviewer","security-reviewer","frontend-reviewer","doc-reviewer","polyfill-reviewer","migration-reviewer"]` | 任意 7 個 agent 名稱 | 依 slot 順序（code、db、sec、frontend、doc、polyfill、migration）被 sentinel 提醒呼叫的 agent。可覆寫指向專案特定的 agent 名稱；較短的覆寫會以預設值補齊其餘 slot。Slot 5–6（polyfill、migration）僅在 opt-in 時觸發——polyfill 經由 `library-author` 模組，migration 經由模組 triggers 或 `mig:` 額外路徑。 |
 | `deep_reasoner_model` | string | `opus` | `haiku` \| `sonnet` \| `opus`（依當前 Claude Code 版本支援的模型而定） | `dhpk:deep-reasoner` Agent-call 派發（推理密集的實作工作）使用的模型層級。當與 agent frontmatter 預設值不同時，透過 Agent call 的 `model` 參數套用。設定值無效時每個 session 只警告一次並退回 frontmatter 預設值——絕不會讓派發失敗。 |
 | `fast_worker_model` | string | `sonnet` | 同上 | `dhpk:fast-worker` Agent-call 派發（機械式實作工作）使用的模型層級。驗證/退回行為與 `deep_reasoner_model` 相同。 |
-| `planner_model` | string | `opus` | 同上 | `dhpk:planner` Agent-call 派發使用的模型層級（`/dhpk:do --plan` opt-in 的實作前批判 / 實作後 warm review）。驗證/退回行為與 `deep_reasoner_model` 相同。 |
+| `planner_model` | string | `opus` | 同上 | `dhpk:planner` Agent-call 派發使用的模型層級（`/dhpk:flow-drive --plan` opt-in 的實作前批判 / 實作後 warm review）。驗證/退回行為與 `deep_reasoner_model` 相同。 |
 | `deep_reasoner_effort` | string | `high` | `low` \| `medium` \| `high` \| `xhigh` \| `max`（依當前 Claude Code 版本支援而定） | `dhpk:deep-reasoner` Agent-call 派發使用的推理強度。當與 agent frontmatter 預設值不同時，透過 Agent call 的 `effort` 參數套用。設定值無效時每個 session 只警告一次並退回 frontmatter 預設值——絕不會讓派發失敗。 |
 | `fast_worker_effort` | string | `medium` | 同上 | `dhpk:fast-worker` Agent-call 派發使用的推理強度。驗證/退回行為與 `deep_reasoner_effort` 相同；決策層（`deep-reasoner`）用較高強度、執行層（`fast-worker`）降階。 |
 | `planner_effort` | string | `high` | 同上 | `dhpk:planner` Agent-call 派發使用的推理強度。驗證/退回行為與 `deep_reasoner_effort` 相同；實作後的 warm review 呼叫會降階為 `medium`。 |
@@ -72,8 +72,8 @@ receipt 規則請見 [`docs/platform-installation.zh-TW.md`](./platform-installa
 | `agy_worker_model` | string | `Gemini 3.6 Flash (High)` | `agy models` 列出的任何模型 | 規範角色 `agy-worker` 派發時傳給 agy CLI 後端的模型顯示字串。Agy 將思考強度內建於模型名稱，故無獨立的 effort key。分層方式同上；預設值失效時覆寫（可用 `agy models` 查詢）。舊別名：`agy_fast_worker_model`。 |
 | `architect_model` | string | `fable` | 執行中的 Claude Code 支援的模型層級 | `dhpk:architect` Agent-call 派發的模型層級；逐次呼叫套用，不修改 frontmatter；HIGH-risk 架構決策仍可向上升級。 |
 | `architect_effort` | string | `low` | `low` \| `medium` \| `high` \| `xhigh` \| `max` | `dhpk:architect` Agent-call 派發的推理強度；逐次呼叫套用，不修改 frontmatter。 |
-| `orchestration_dispatch` | string | `on` | `on` \| `off` | Implementation dispatch 分派表中實作 worker/reasoner 路由（`adaptive-dev-workflow` 的 feature/bug mode 與 `opsx-apply-goal`）的關閉開關。`on` 時實作階段工作依決策表路由，並禁止用 `general-purpose` 執行實作。`off` 還原內聯實作並移除 dispatch 指示，但多任務 OpenSpec 的 mandatory planner 與 verification gates 仍然有效。 |
-| `fast_worker_backend` | string | `claude` | `claude` \| `codex` \| `agy` \| `auto` | 機械 worker 的確定性選擇器。`claude` 對應 `dhpk:fast-worker`；`auto` 依 `fast_worker_backend_order` 檢查可用性。`/dhpk:do --worker=...` 僅覆寫單次呼叫（旗標 > userConfig > shipped 預設）；無效旗標警告一次後退回此設定／預設，無效設定值則使用 `claude`。Codex CLI 的可用性檢查與已退休的 `CODEX=on` flag 無關；需要 Codex worker 時請明確選 `--worker=codex`。 |
+| `orchestration_dispatch` | string | `on` | `on` \| `off` | Implementation dispatch 分派表中實作 worker/reasoner 路由（`flow-guide` classify 與 `flow-drive` implement mode，以及 `opsx-apply-goal`）的關閉開關。`on` 時實作階段工作依決策表路由，並禁止用 `general-purpose` 執行實作。`off` 還原內聯實作並移除 dispatch 指示，但多任務 OpenSpec 的 mandatory planner 與 verification gates 仍然有效。 |
+| `fast_worker_backend` | string | `claude` | `claude` \| `codex` \| `agy` \| `auto` | 機械 worker 的確定性選擇器。`claude` 對應 `dhpk:fast-worker`；`auto` 依 `fast_worker_backend_order` 檢查可用性。`/dhpk:flow-drive --worker=...` 僅覆寫單次呼叫（旗標 > userConfig > shipped 預設）；無效旗標警告一次後退回此設定／預設，無效設定值則使用 `claude`。Codex CLI 的可用性檢查與已退休的 `CODEX=on` flag 無關；需要 Codex worker 時請明確選 `--worker=codex`。 |
 | `fast_worker_backend_order` | string | `claude,codex,agy` | 逗號分隔的 backend 名稱 | 僅供 `auto` 使用的可用性順序；會記錄被拒絕的候選及原因。值無效時每個 session 警告一次並使用 shipped 順序。 |
 | `fast_worker_fallback` | string | `none` | `none` \| `claude` | 只允許對明確選取但缺少 CLI 執行檔的情況使用 `claude` 備援。驗證、授權、模型、任務、執行與 verification 失敗都維持 blocked，不得靜默切換。 |
 | `subagent_quality_gate` | string | `off` | `on` \| `off` | 僅對 reviewer sentinel subagent 啟用 `scripts/hooks/subagent-stop-quality.sh`。當 reviewer 的最終回報過於單薄、只是空泛的核准、未附下一步建議的未解錯誤、或缺乏證據的 review 型回覆時，會攔截並要求續答一次；此 hook 排在 `subagent-stop-verify.sh` 之前，避免被攔截的 reviewer sentinel 被自動清除。界線固定為一次修正重試，之後改派其他 reviewer，或留下附理由的 pending gate。預設 `off`（無作用，不做啟發式評估）。命中/未命中的擷取結果會記錄到 `.claude/artifacts/sessions/.subagent-stop-quality-extraction.json`。 |
@@ -87,7 +87,7 @@ dispatcher 在建立 `0600` immutable transport context 前，會將解析後的
 
 目前 dhpk capability 使用 in-process model 或明確指定的 CLI backend。沒有任何
 active skill 或 command 需要 Codex MCP server。現行 CLI-only review path 是
-`dhpk-change-review/scripts/review.sh --backend cli`；同族 CLI role 為
+`change-verdict --mode code --backend cli`；同族 CLI role 為
 `codex-worker`、`codex-reasoner`、`codex-reviewer` 與 `dhpk-codex-bridge`。需要
 Codex CLI transport 時，請明確使用 `--worker=codex`、`--reasoner=codex` 或
 `codex exec` 第二意見。
@@ -119,7 +119,7 @@ gate；不會註冊已退休的 MCP server，也不是任何 dhpk capability 的
 
 | Surface | 如何取得 | 提供內容 | dhpk 依賴 |
 |---|---|---|---|
-| Codex CLI | 安裝並登入 `codex` 執行檔 | `codex exec`、CLI-backed role，以及 `dhpk-change-review/scripts/review.sh --backend cli` | 選用；不需要 MCP server |
+| Codex CLI | 安裝並登入 `codex` 執行檔 | `codex exec`、CLI-backed role，以及 `change-verdict --mode code --backend cli` | 選用；不需要 MCP server |
 | `openai/codex-plugin-cc` | `/plugin install codex@openai-codex` | `/codex:*` 指令與 app-server collaboration | 選用的外部 plugin |
 | 已退休 Codex MCP | 歷史上的 `codex mcp-server` 註冊 | `mcp__codex__codex` / `mcp__codex__codex-reply` | 無；只保留歷史說明 |
 
@@ -130,7 +130,7 @@ docs/basic-operations.zh-TW.md）也與已退休的 MCP 機制
 `CODEX=on` 與 `/dhpk:do --codex` 曾是單次 session 的 legacy MCP-peer interface。
 兩者現在都已移除，不是持久化的 `userConfig` 值，也不會靜默重新解讀成
 `codex exec`、`--worker=codex`、`--reasoner=codex` 或外部 plugin。請用
-`/dhpk:do`／`dhpk-implement` 進行 current-model implementation，需要時明確選 CLI
+`/dhpk:flow-drive` 進行 current-model implementation，需要時明確選 CLI
 role，並以具名 `codex exec` opt-in 請求第二意見。
 
 ### Codex agent 角色（雙軌同步）

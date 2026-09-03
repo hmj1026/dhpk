@@ -18,12 +18,12 @@ function flat(value) {
 
 const policy = read('rules/execution-policy.md');
 const kernel = read('rules/execution-policy-kernel.md');
-const dispatch = read('skills/dhpk-execution-policy/references/implementation-dispatch.md');
+const dispatch = read('skills/flow-guide/references/implementation-dispatch.md');
 const deepReasoner = read('agents/deep-reasoner.md');
 const codexDeepReasoner = read('agents/codex-deep-reasoner.md');
 const goal = read('skills/dhpk-opsx-apply-goal/references/goal-templates.md');
-const adaptive = read('skills/dhpk-adaptive-dev-workflow/SKILL.md');
-const command = read('commands/do.md');
+const adaptive = read('skills/flow-guide/SKILL.md');
+const command = read('skills/flow-drive/SKILL.md');
 const rootAgents = read('AGENTS.md');
 const rootClaude = read('CLAUDE.md');
 const codexAgents = read('codex/AGENTS.md');
@@ -115,10 +115,10 @@ test('dispatch reference distinguishes static facts from reasoner-gated decision
 test('implementation workflows make the planner gate explicit for multi-task OpenSpec apply', () => {
   assert.ok(/OpenSpec apply with two or more unchecked tasks/i.test(policy),
     'policy missing the multi-task planner gate');
-  assert.ok(/OpenSpec[\s\S]{0,240}planner|planner[\s\S]{0,240}OpenSpec/i.test(adaptive),
-    'adaptive workflow missing the multi-task planner gate');
-  assert.ok(/OpenSpec[\s\S]{0,240}planner|planner[\s\S]{0,240}OpenSpec/i.test(read('skills/dhpk-do/SKILL.md')),
-    'dhpk-do skill missing the multi-task planner gate');
+  assert.ok(/OpenSpec[\s\S]{0,240}planner|planner[\s\S]{0,240}OpenSpec/i.test(dispatch),
+    'flow-guide dispatch reference missing the multi-task planner gate');
+  assert.ok(/OpenSpec[\s\S]{0,240}planner|planner[\s\S]{0,240}OpenSpec/i.test(read('skills/flow-drive/SKILL.md')),
+    'flow-drive skill missing the multi-task planner gate');
   assert.ok(/project-owned orchestration decision policy[\s\S]{0,180}planner[\s\S]{0,180}reasoner/i.test(goal),
     'goal template must name the project-owned policy that owns the planner and reasoner gates');
   assert.ok(/two or more unchecked tasks|at least two unchecked tasks/i.test(policy),
@@ -200,7 +200,7 @@ test('goal template binds the canonical policy through its orientation pointer',
   ));
   for (const phrase of [
     'rules/execution-policy-kernel.md',
-    'skills/dhpk-execution-policy/references/implementation-dispatch.md',
+    'skills/flow-guide/references/implementation-dispatch.md',
     'ONE consolidated',
     'codex-bridge only as explicit escalation',
   ]) {
@@ -286,20 +286,20 @@ test('bilingual lifecycle docs describe review, archive, PR, and completed CI ev
 
 // v1 GREEN contract (tests above): execution-policy / kernel / dispatch / goal
 // template / projection provenance. Those remain the decision SSOT.
-// v2 RED contract (this test): dhpk-do must consume that SSOT and must not
-// copy the implementation dispatch table. See tests/dhpk-do-portable.test.js.
+// The family route consumes that SSOT and must not copy the implementation
+// dispatch table. See tests/dhpk-do-portable.test.js for the route contract.
 
-test('dhpk-do consumes execution-policy and must not duplicate the dispatch table (RED until 2.1/4.3)', () => {
-  const skillPath = path.join(ROOT, 'skills', 'dhpk-do', 'SKILL.md');
-  assert.ok(fs.existsSync(skillPath), 'skills/dhpk-do/SKILL.md must exist');
+test('flow-drive consumes execution-policy and must not duplicate the dispatch table', () => {
+  const skillPath = path.join(ROOT, 'skills', 'flow-drive', 'SKILL.md');
+  assert.ok(fs.existsSync(skillPath), 'skills/flow-drive/SKILL.md must exist');
   const skill = fs.readFileSync(skillPath, 'utf8');
-  assert.match(skill, /execution-policy/, 'dhpk-do must point at execution-policy as decision SSOT');
+  assert.match(skill, /execution-policy/, 'flow-drive must point at execution-policy as decision SSOT');
   for (const phrase of [
     'general-purpose` is prohibited for implementation',
     'The "≤2 files" inline bound',
     'Reasoner result: READY_FOR_DISPATCH | DECISION_FOR_USER | BLOCKED',
   ]) {
-    assert.ok(!skill.includes(phrase), `dhpk-do must not copy dispatch-table phrase: ${phrase}`);
+    assert.ok(!skill.includes(phrase), `flow-drive must not copy dispatch-table phrase: ${phrase}`);
   }
 });
 

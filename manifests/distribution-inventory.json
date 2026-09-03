@@ -4,21 +4,16 @@
   "profile_policy": {
     "version": "dhpk.capability-bundle-selection.v1",
     "required_core_ids": [
-      "adaptive-dev-workflow",
-      "bug-investigation",
+      "change-verdict",
+      "code-trace",
       "create-request",
-      "dhpk-execution-policy",
-      "do",
-      "git-investigate",
+      "flow-drive",
+      "flow-guide",
       "git-smart-commit",
-      "next-step",
-      "pr-review",
       "project-audit",
       "prompt-optimize",
-      "security-review",
       "tdd",
-      "tech-spec",
-      "tool-routing"
+      "tech-spec"
     ],
     "profiles": {
       "minimal": {
@@ -30,7 +25,7 @@
         "compatibilityMode": "profile"
       },
       "compat-v1": {
-        "selection": "all-live-stable-ids",
+        "selection": "predecessor-compatible-stable-ids",
         "compatibilityMode": "compat-v1"
       }
     }
@@ -533,7 +528,7 @@
       "id": "codex-supporting-policies-execution-policy-md",
       "source": "codex/supporting/policies/execution-policy.md",
       "canonical_source": "rules/execution-policy.md",
-      "canonical_digest": "0026e5836193a2561eebd076b736af9aed2bdfa78ab5ff11412e7e5c1a55894e",
+      "canonical_digest": "e1c808a8d448555f61b7fe4b826ec63d4421e9c2b666a02c80ddeaa4f0a0ddd5",
       "projection_digest": "5bf08e47d0e5ee8c1ad685e72b0bd90904c40ed4543548a3227388ef441f621d",
       "destination": "dhpk/policies/execution-policy.md"
     },
@@ -1327,10 +1322,12 @@
       ]
     },
     {
-      "id": "adaptive-dev-workflow",
-      "name": "dhpk-adaptive-dev-workflow",
-      "path": "skills/dhpk-adaptive-dev-workflow",
-      "capability_id": "dhpk.skill.adaptive-dev-workflow",
+      "id": "flow-guide",
+      "name": "flow-guide",
+      "name_style": "portable-family",
+      "path": "skills/flow-guide",
+      "capability_id": "dhpk.skill.flow-guide",
+      "invocation_class": "implicit-eligible",
       "lifecycle": "promoted",
       "tier": "core",
       "profiles": [
@@ -1339,9 +1336,6 @@
       "surfaces": [
         "claude-core",
         "cursor-sync"
-      ],
-      "legacy_names": [
-        "adaptive-dev-workflow"
       ]
     },
     {
@@ -1401,10 +1395,12 @@
       ]
     },
     {
-      "id": "bug-investigation",
-      "name": "dhpk-root-cause-investigation",
-      "path": "skills/dhpk-root-cause-investigation",
-      "capability_id": "dhpk.skill.bug-investigation",
+      "id": "code-trace",
+      "name": "code-trace",
+      "name_style": "portable-family",
+      "path": "skills/code-trace",
+      "capability_id": "dhpk.skill.code-trace",
+      "invocation_class": "implicit-eligible",
       "lifecycle": "promoted",
       "tier": "core",
       "profiles": [
@@ -1412,12 +1408,9 @@
       ],
       "surfaces": [
         "claude-core",
+        "cursor-sync",
         "codex-sync",
-        "codex-native",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "bug-investigation"
+        "codex-native"
       ]
     },
     {
@@ -1436,27 +1429,6 @@
       ],
       "legacy_names": [
         "claude-health"
-      ]
-    },
-    {
-      "id": "code-explore",
-      "name": "dhpk-codebase-exploration",
-      "path": "skills/dhpk-codebase-exploration",
-      "capability_id": "dhpk.skill.code-explore",
-      "invocation_class": "explicit-only",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "code-explore",
-        "code-investigate",
-        "codex-explain"
       ]
     },
     {
@@ -1524,11 +1496,12 @@
       ]
     },
     {
-      "id": "codex-code-review",
-      "name": "dhpk-change-review",
-      "path": "skills/dhpk-change-review",
-      "capability_id": "dhpk.skill.codex-code-review",
-      "invocation_class": "explicit-only",
+      "id": "change-verdict",
+      "name": "change-verdict",
+      "name_style": "portable-family",
+      "path": "skills/change-verdict",
+      "capability_id": "dhpk.skill.change-verdict",
+      "invocation_class": "implicit-eligible",
       "lifecycle": "promoted",
       "tier": "core",
       "profiles": [
@@ -1537,17 +1510,14 @@
       "surfaces": [
         "claude-core",
         "cursor-sync"
-      ],
-      "legacy_names": [
-        "codex-code-review",
-        "codex-cli-review"
       ]
     },
     {
-      "id": "implement",
-      "name": "dhpk-implement",
-      "path": "skills/dhpk-implement",
-      "capability_id": "dhpk.skill.implement",
+      "id": "flow-drive",
+      "name": "flow-drive",
+      "name_style": "portable-family",
+      "path": "skills/flow-drive",
+      "capability_id": "dhpk.skill.flow-drive",
       "invocation_class": "explicit-only",
       "lifecycle": "promoted",
       "tier": "core",
@@ -1556,10 +1526,9 @@
       ],
       "surfaces": [
         "claude-core",
+        "codex-sync",
+        "codex-native",
         "cursor-sync"
-      ],
-      "legacy_names": [
-        "implement"
       ]
     },
     {
@@ -1599,10 +1568,12 @@
       ]
     },
     {
-      "id": "create-skill",
-      "name": "dhpk-create-skill",
-      "path": "skills/dhpk-create-skill",
-      "capability_id": "dhpk.skill.create-skill",
+      "id": "skill-forge",
+      "name": "skill-forge",
+      "name_style": "portable-family",
+      "path": "skills/skill-forge",
+      "capability_id": "dhpk.skill.skill-forge",
+      "invocation_class": "explicit-only",
       "lifecycle": "promoted",
       "tier": "core",
       "profiles": [
@@ -1611,9 +1582,6 @@
       "surfaces": [
         "claude-core",
         "cursor-sync"
-      ],
-      "legacy_names": [
-        "create-skill"
       ]
     },
     {
@@ -1632,75 +1600,6 @@
       ],
       "legacy_names": [
         "deploy-list"
-      ]
-    },
-    {
-      "id": "dhpk-execution-policy",
-      "name": "dhpk-execution-policy",
-      "path": "skills/dhpk-execution-policy",
-      "capability_id": "dhpk.skill.dhpk-execution-policy",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ]
-    },
-    {
-      "id": "do",
-      "name": "dhpk-do",
-      "path": "skills/dhpk-do",
-      "capability_id": "dhpk.skill.do",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "codex-sync",
-        "codex-native",
-        "cursor-sync"
-      ]
-    },
-    {
-      "id": "doc-review",
-      "name": "dhpk-doc-review",
-      "path": "skills/dhpk-doc-review",
-      "capability_id": "dhpk.skill.doc-review",
-      "invocation_class": "explicit-only",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "doc-review"
-      ]
-    },
-    {
-      "id": "execution-checklist",
-      "name": "dhpk-execution-checklist",
-      "path": "skills/dhpk-execution-checklist",
-      "capability_id": "dhpk.skill.execution-checklist",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "execution-checklist"
       ]
     },
     {
@@ -1739,26 +1638,6 @@
       ],
       "legacy_names": [
         "feature-verify"
-      ]
-    },
-    {
-      "id": "git-investigate",
-      "name": "dhpk-git-history-investigation",
-      "path": "skills/dhpk-git-history-investigation",
-      "capability_id": "dhpk.skill.git-investigate",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "codex-sync",
-        "codex-native",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "git-investigate"
       ]
     },
     {
@@ -2019,24 +1898,6 @@
       ]
     },
     {
-      "id": "next-step",
-      "name": "dhpk-next-step",
-      "path": "skills/dhpk-next-step",
-      "capability_id": "dhpk.skill.next-step",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "next-step"
-      ]
-    },
-    {
       "id": "op-session",
       "name": "dhpk-onepassword-session",
       "path": "skills/dhpk-onepassword-session",
@@ -2133,24 +1994,6 @@
       ]
     },
     {
-      "id": "pr-review",
-      "name": "dhpk-pr-review",
-      "path": "skills/dhpk-pr-review",
-      "capability_id": "dhpk.skill.pr-review",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "pr-review"
-      ]
-    },
-    {
       "id": "project-audit",
       "name": "dhpk-project-audit",
       "path": "skills/dhpk-project-audit",
@@ -2241,60 +2084,6 @@
       ]
     },
     {
-      "id": "risk-assess",
-      "name": "dhpk-risk-assess",
-      "path": "skills/dhpk-risk-assess",
-      "capability_id": "dhpk.skill.risk-assess",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "risk-assess"
-      ]
-    },
-    {
-      "id": "rules-distill",
-      "name": "dhpk-rules-distill",
-      "path": "skills/dhpk-rules-distill",
-      "capability_id": "dhpk.skill.rules-distill",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "rules-distill"
-      ]
-    },
-    {
-      "id": "security-review",
-      "name": "dhpk-security-review",
-      "path": "skills/dhpk-security-review",
-      "capability_id": "dhpk.skill.security-review",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "security-review"
-      ]
-    },
-    {
       "id": "session-usage-audit",
       "name": "dhpk-session-usage-audit",
       "path": "skills/dhpk-session-usage-audit",
@@ -2313,10 +2102,12 @@
       ]
     },
     {
-      "id": "skill-health-check",
-      "name": "dhpk-skill-health-audit",
-      "path": "skills/dhpk-skill-health-audit",
-      "capability_id": "dhpk.skill.skill-health-check",
+      "id": "skill-scope",
+      "name": "skill-scope",
+      "name_style": "portable-family",
+      "path": "skills/skill-scope",
+      "capability_id": "dhpk.skill.skill-scope",
+      "invocation_class": "implicit-eligible",
       "lifecycle": "promoted",
       "tier": "core",
       "profiles": [
@@ -2327,65 +2118,6 @@
         "codex-sync",
         "codex-native",
         "cursor-sync"
-      ],
-      "legacy_names": [
-        "skill-health-check"
-      ]
-    },
-    {
-      "id": "skill-judge",
-      "name": "dhpk-skill-quality-judge",
-      "path": "skills/dhpk-skill-quality-judge",
-      "capability_id": "dhpk.skill.skill-judge",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "codex-sync",
-        "codex-native",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "skill-judge"
-      ]
-    },
-    {
-      "id": "skill-scout",
-      "name": "dhpk-skill-scout",
-      "path": "skills/dhpk-skill-scout",
-      "capability_id": "dhpk.skill.skill-scout",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "skill-scout"
-      ]
-    },
-    {
-      "id": "skill-stocktake",
-      "name": "dhpk-skill-stocktake",
-      "path": "skills/dhpk-skill-stocktake",
-      "capability_id": "dhpk.skill.skill-stocktake",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "skill-stocktake"
       ]
     },
     {
@@ -2442,43 +2174,6 @@
       ],
       "legacy_names": [
         "tech-spec"
-      ]
-    },
-    {
-      "id": "test-review",
-      "name": "dhpk-test-review",
-      "path": "skills/dhpk-test-review",
-      "capability_id": "dhpk.skill.test-review",
-      "invocation_class": "explicit-only",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "test-review"
-      ]
-    },
-    {
-      "id": "tool-routing",
-      "name": "dhpk-tool-routing",
-      "path": "skills/dhpk-tool-routing",
-      "capability_id": "dhpk.skill.tool-routing",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "tool-routing"
       ]
     }
   ],
@@ -2734,28 +2429,23 @@
   ],
   "surface_membership": {
     "agent-plugin": [
-      "adaptive-dev-workflow",
+      "flow-guide",
       "agent-architecture-audit",
       "agy-commit",
       "agy-fast-worker",
-      "bug-investigation",
+      "code-trace",
       "claude-health",
       "cli-dispatch-context",
       "cli-transport",
-      "code-explore",
       "codex-bridge",
-      "codex-code-review",
-      "implement",
+      "change-verdict",
+      "flow-drive",
       "composer-package-hygiene",
       "create-request",
-      "create-skill",
+      "skill-forge",
       "deploy-list",
-      "dhpk-execution-policy",
-      "doc-review",
-      "execution-checklist",
       "feasibility-study",
       "feature-verify",
-      "git-investigate",
       "git-smart-commit",
       "gitnexus-cli",
       "gitnexus-debugging",
@@ -2770,55 +2460,40 @@
       "laravel-package-author",
       "laravel-testbench-matrix",
       "multi-ai-sync",
-      "next-step",
       "op-session",
       "opsx-apply-goal",
       "opsx-load-context",
       "opsx-post-obs",
       "polyfill-version-matrix-audit",
-      "pr-review",
       "project-audit",
       "project-setup",
       "prompt-optimize",
       "release-creator",
       "repo-intake",
-      "risk-assess",
-      "rules-distill",
-      "security-review",
       "session-usage-audit",
-      "skill-health-check",
-      "skill-judge",
-      "skill-scout",
-      "skill-stocktake",
+      "skill-scope",
       "software-architecture",
       "tdd",
-      "tech-spec",
-      "test-review",
-      "tool-routing"
+      "tech-spec"
     ],
     "cursor-plugin": [
-      "adaptive-dev-workflow",
+      "flow-guide",
       "agent-architecture-audit",
       "agy-commit",
       "agy-fast-worker",
-      "bug-investigation",
+      "code-trace",
       "claude-health",
       "cli-dispatch-context",
       "cli-transport",
-      "code-explore",
       "codex-bridge",
-      "codex-code-review",
-      "implement",
+      "change-verdict",
+      "flow-drive",
       "composer-package-hygiene",
       "create-request",
-      "create-skill",
+      "skill-forge",
       "deploy-list",
-      "dhpk-execution-policy",
-      "doc-review",
-      "execution-checklist",
       "feasibility-study",
       "feature-verify",
-      "git-investigate",
       "git-smart-commit",
       "gitnexus-cli",
       "gitnexus-debugging",
@@ -2833,55 +2508,40 @@
       "laravel-package-author",
       "laravel-testbench-matrix",
       "multi-ai-sync",
-      "next-step",
       "op-session",
       "opsx-apply-goal",
       "opsx-load-context",
       "opsx-post-obs",
       "polyfill-version-matrix-audit",
-      "pr-review",
       "project-audit",
       "project-setup",
       "prompt-optimize",
       "release-creator",
       "repo-intake",
-      "risk-assess",
-      "rules-distill",
-      "security-review",
       "session-usage-audit",
-      "skill-health-check",
-      "skill-judge",
-      "skill-scout",
-      "skill-stocktake",
+      "skill-scope",
       "software-architecture",
       "tdd",
-      "tech-spec",
-      "test-review",
-      "tool-routing"
+      "tech-spec"
     ],
     "agy-plugin": [
-      "adaptive-dev-workflow",
+      "flow-guide",
       "agent-architecture-audit",
       "agy-commit",
       "agy-fast-worker",
-      "bug-investigation",
+      "code-trace",
       "claude-health",
       "cli-dispatch-context",
       "cli-transport",
-      "code-explore",
       "codex-bridge",
-      "codex-code-review",
-      "implement",
+      "change-verdict",
+      "flow-drive",
       "composer-package-hygiene",
       "create-request",
-      "create-skill",
+      "skill-forge",
       "deploy-list",
-      "dhpk-execution-policy",
-      "doc-review",
-      "execution-checklist",
       "feasibility-study",
       "feature-verify",
-      "git-investigate",
       "git-smart-commit",
       "gitnexus-cli",
       "gitnexus-debugging",
@@ -2896,56 +2556,40 @@
       "laravel-package-author",
       "laravel-testbench-matrix",
       "multi-ai-sync",
-      "next-step",
       "op-session",
       "opsx-apply-goal",
       "opsx-load-context",
       "opsx-post-obs",
       "polyfill-version-matrix-audit",
-      "pr-review",
       "project-audit",
       "project-setup",
       "prompt-optimize",
       "release-creator",
       "repo-intake",
-      "risk-assess",
-      "rules-distill",
-      "security-review",
       "session-usage-audit",
-      "skill-health-check",
-      "skill-judge",
-      "skill-scout",
-      "skill-stocktake",
+      "skill-scope",
       "software-architecture",
       "tdd",
-      "tech-spec",
-      "test-review",
-      "tool-routing"
+      "tech-spec"
     ],
     "cursor-sync": [
-      "adaptive-dev-workflow",
+      "flow-guide",
       "agent-architecture-audit",
       "agy-commit",
       "agy-fast-worker",
-      "bug-investigation",
+      "code-trace",
       "claude-health",
       "cli-dispatch-context",
       "cli-transport",
-      "code-explore",
       "codex-bridge",
-      "codex-code-review",
-      "implement",
+      "change-verdict",
+      "flow-drive",
       "composer-package-hygiene",
       "create-request",
-      "create-skill",
+      "skill-forge",
       "deploy-list",
-      "dhpk-execution-policy",
-      "do",
-      "doc-review",
-      "execution-checklist",
       "feasibility-study",
       "feature-verify",
-      "git-investigate",
       "git-smart-commit",
       "gitnexus-cli",
       "gitnexus-debugging",
@@ -2960,31 +2604,21 @@
       "laravel-package-author",
       "laravel-testbench-matrix",
       "multi-ai-sync",
-      "next-step",
       "op-session",
       "opsx-apply-goal",
       "opsx-load-context",
       "opsx-post-obs",
       "polyfill-version-matrix-audit",
-      "pr-review",
       "project-audit",
       "project-setup",
       "prompt-optimize",
       "release-creator",
       "repo-intake",
-      "risk-assess",
-      "rules-distill",
-      "security-review",
       "session-usage-audit",
-      "skill-health-check",
-      "skill-judge",
-      "skill-scout",
-      "skill-stocktake",
+      "skill-scope",
       "software-architecture",
       "tdd",
-      "tech-spec",
-      "test-review",
-      "tool-routing"
+      "tech-spec"
     ]
   },
   "internal_runtime_skills": {
@@ -3220,8 +2854,8 @@
       "replacements": [
         {
           "kind": "skill",
-          "id": "adaptive-dev-workflow",
-          "mode": "bug"
+          "id": "flow-guide",
+          "mode": "classify"
         }
       ],
       "rollback": {
@@ -3241,8 +2875,8 @@
       "replacements": [
         {
           "kind": "skill",
-          "id": "adaptive-dev-workflow",
-          "mode": "feature"
+          "id": "flow-guide",
+          "mode": "classify"
         }
       ],
       "rollback": {
@@ -3349,13 +2983,502 @@
       "replacements": [
         {
           "kind": "skill",
-          "id": "implement",
-          "mode": "default"
+          "id": "flow-drive",
+          "mode": "implement"
         }
       ],
       "rollback": {
         "release": "0.51.0"
       }
+    },
+    {
+      "id": "skill-health-check",
+      "name": "dhpk-skill-health-audit",
+      "canonicalPath": "skills/dhpk-skill-health-audit",
+      "priorSurfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.53.0",
+      "reasonCode": "capability-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "skill-scope",
+          "mode": "health"
+        }
+      ],
+      "rollback": {
+        "release": "0.52.0"
+      }
+    },
+    {
+      "id": "skill-judge",
+      "name": "dhpk-skill-quality-judge",
+      "canonicalPath": "skills/dhpk-skill-quality-judge",
+      "priorSurfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.53.0",
+      "reasonCode": "capability-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "skill-scope",
+          "mode": "judge"
+        }
+      ],
+      "rollback": {
+        "release": "0.52.0"
+      }
+    },
+    {
+      "id": "skill-stocktake",
+      "name": "dhpk-skill-stocktake",
+      "canonicalPath": "skills/dhpk-skill-stocktake",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.53.0",
+      "reasonCode": "capability-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "skill-scope",
+          "mode": "stocktake"
+        }
+      ],
+      "rollback": {
+        "release": "0.52.0"
+      }
+    },
+    {
+      "id": "skill-scout",
+      "name": "dhpk-skill-scout",
+      "canonicalPath": "skills/dhpk-skill-scout",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.53.0",
+      "reasonCode": "capability-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "skill-scope",
+          "mode": "scout"
+        }
+      ],
+      "rollback": {
+        "release": "0.52.0"
+      }
+    },
+    {
+      "id": "create-skill",
+      "name": "dhpk-create-skill",
+      "canonicalPath": "skills/dhpk-create-skill",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.53.0",
+      "reasonCode": "capability-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "skill-forge",
+          "mode": "create"
+        }
+      ],
+      "rollback": {
+        "release": "0.52.0"
+      }
+    },
+    {
+      "id": "rules-distill",
+      "name": "dhpk-rules-distill",
+      "canonicalPath": "skills/dhpk-rules-distill",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.53.0",
+      "reasonCode": "capability-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "skill-forge",
+          "mode": "distill-rules"
+        }
+      ],
+      "rollback": {
+        "release": "0.52.0"
+      }
+    },
+    {
+      "id": "adaptive-dev-workflow",
+      "name": "dhpk-adaptive-dev-workflow",
+      "canonicalPath": "skills/dhpk-adaptive-dev-workflow",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.53.0",
+      "reasonCode": "capability-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "flow-guide",
+          "mode": "classify"
+        }
+      ],
+      "rollback": {
+        "release": "0.52.0"
+      }
+    },
+    {
+      "id": "dhpk-execution-policy",
+      "name": "dhpk-execution-policy",
+      "canonicalPath": "skills/dhpk-execution-policy",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.53.0",
+      "reasonCode": "capability-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "flow-guide",
+          "mode": "policy"
+        }
+      ],
+      "rollback": {
+        "release": "0.52.0"
+      }
+    },
+    {
+      "id": "next-step",
+      "name": "dhpk-next-step",
+      "canonicalPath": "skills/dhpk-next-step",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.53.0",
+      "reasonCode": "capability-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "flow-guide",
+          "mode": "next"
+        }
+      ],
+      "rollback": {
+        "release": "0.52.0"
+      }
+    },
+    {
+      "id": "execution-checklist",
+      "name": "dhpk-execution-checklist",
+      "canonicalPath": "skills/dhpk-execution-checklist",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.53.0",
+      "reasonCode": "capability-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "flow-guide",
+          "mode": "checklist"
+        }
+      ],
+      "rollback": {
+        "release": "0.52.0"
+      }
+    },
+    {
+      "id": "do",
+      "name": "dhpk-do",
+      "canonicalPath": "skills/dhpk-do",
+      "priorSurfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.53.0",
+      "reasonCode": "capability-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "flow-drive",
+          "mode": "route"
+        }
+      ],
+      "rollback": {
+        "release": "0.52.0"
+      }
+    },
+    {
+      "id": "implement",
+      "name": "dhpk-implement",
+      "canonicalPath": "skills/dhpk-implement",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.53.0",
+      "reasonCode": "capability-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "flow-drive",
+          "mode": "implement"
+        }
+      ],
+      "rollback": {
+        "release": "0.52.0"
+      }
+    },
+    {
+      "id": "codex-code-review",
+      "name": "dhpk-change-review",
+      "canonicalPath": "skills/dhpk-change-review",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.53.0",
+      "reasonCode": "capability-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "change-verdict",
+          "mode": "code"
+        }
+      ],
+      "rollback": {
+        "release": "0.52.0"
+      }
+    },
+    {
+      "id": "pr-review",
+      "name": "dhpk-pr-review",
+      "canonicalPath": "skills/dhpk-pr-review",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.53.0",
+      "reasonCode": "capability-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "change-verdict",
+          "mode": "pr"
+        }
+      ],
+      "rollback": {
+        "release": "0.52.0"
+      }
+    },
+    {
+      "id": "security-review",
+      "name": "dhpk-security-review",
+      "canonicalPath": "skills/dhpk-security-review",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.53.0",
+      "reasonCode": "capability-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "change-verdict",
+          "mode": "security"
+        }
+      ],
+      "rollback": {
+        "release": "0.52.0"
+      }
+    },
+    {
+      "id": "test-review",
+      "name": "dhpk-test-review",
+      "canonicalPath": "skills/dhpk-test-review",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.53.0",
+      "reasonCode": "capability-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "change-verdict",
+          "mode": "tests"
+        }
+      ],
+      "rollback": {
+        "release": "0.52.0"
+      }
+    },
+    {
+      "id": "doc-review",
+      "name": "dhpk-doc-review",
+      "canonicalPath": "skills/dhpk-doc-review",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.53.0",
+      "reasonCode": "capability-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "change-verdict",
+          "mode": "docs"
+        }
+      ],
+      "rollback": {
+        "release": "0.52.0"
+      }
+    },
+    {
+      "id": "risk-assess",
+      "name": "dhpk-risk-assess",
+      "canonicalPath": "skills/dhpk-risk-assess",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.53.0",
+      "reasonCode": "capability-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "change-verdict",
+          "mode": "risk"
+        }
+      ],
+      "rollback": {
+        "release": "0.52.0"
+      }
+    },
+    {
+      "id": "code-explore",
+      "name": "dhpk-codebase-exploration",
+      "canonicalPath": "skills/dhpk-codebase-exploration",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.53.0",
+      "reasonCode": "capability-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "code-trace",
+          "mode": "explore"
+        }
+      ],
+      "rollback": {
+        "release": "0.52.0"
+      }
+    },
+    {
+      "id": "bug-investigation",
+      "name": "dhpk-root-cause-investigation",
+      "canonicalPath": "skills/dhpk-root-cause-investigation",
+      "priorSurfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.53.0",
+      "reasonCode": "capability-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "code-trace",
+          "mode": "diagnose"
+        }
+      ],
+      "rollback": {
+        "release": "0.52.0"
+      }
+    },
+    {
+      "id": "git-investigate",
+      "name": "dhpk-git-history-investigation",
+      "canonicalPath": "skills/dhpk-git-history-investigation",
+      "priorSurfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.53.0",
+      "reasonCode": "capability-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "code-trace",
+          "mode": "history"
+        }
+      ],
+      "rollback": {
+        "release": "0.52.0"
+      }
+    },
+    {
+      "id": "tool-routing",
+      "name": "dhpk-tool-routing",
+      "canonicalPath": "skills/dhpk-tool-routing",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.53.0",
+      "reasonCode": "capability-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "code-trace",
+          "mode": "select-tool"
+        }
+      ],
+      "rollback": {
+        "release": "0.52.0"
+      }
+    }
+  ],
+  "external_skill_packages": [
+    {
+      "id": "gitnexus",
+      "owner": "upstream",
+      "repository": "https://github.com/abhigyanpatwari/GitNexus",
+      "policy": "protect-existing",
+      "license_review": "open",
+      "stable_ids": [
+        "gitnexus-cli",
+        "gitnexus-debugging",
+        "gitnexus-exploring",
+        "gitnexus-guide",
+        "gitnexus-impact-analysis",
+        "gitnexus-refactoring"
+      ]
     }
   ]
 }

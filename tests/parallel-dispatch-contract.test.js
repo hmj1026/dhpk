@@ -48,7 +48,7 @@ test('the shared codex wrapper script contains no forbidden cleanup invocation a
 // mechanical CLI work, small inline work, and open-ended reasoning work.
 test('the dispatch table names four distinguishable implement-phase routing tiers', () => {
   const dispatchDoc = fs.readFileSync(
-    path.join(ROOT, 'skills', 'dhpk-execution-policy', 'references', 'implementation-dispatch.md'),
+    path.join(ROOT, 'skills', 'flow-guide', 'references', 'implementation-dispatch.md'),
     'utf8'
   );
   const policyDoc = fs.readFileSync(path.join(ROOT, 'rules', 'execution-policy.md'), 'utf8');
@@ -109,7 +109,7 @@ test('validate-skills.js never writes the shared skill-size-allowlist.json (read
 
 test('the shared-state contract requires reporting a missing scoped validator rather than inventing a global mutation', () => {
   const dispatchDoc = fs.readFileSync(
-    path.join(ROOT, 'skills', 'dhpk-execution-policy', 'references', 'implementation-dispatch.md'),
+    path.join(ROOT, 'skills', 'flow-guide', 'references', 'implementation-dispatch.md'),
     'utf8'
   );
   assert.ok(/dispatcher-provided scoped or no-write equivalent/i.test(dispatchDoc),

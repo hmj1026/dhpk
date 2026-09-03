@@ -16,7 +16,7 @@ Reasoning-heavy implementation worker. No Edit/Write — this agent thinks, trac
 ## When NOT
 
 - DDD-layer placement / cross-module architecture → `architect` (see Defers below).
-- Opt-in `/dhpk:do --plan` critique or plan sketch → `planner`
+- Opt-in `$flow-drive --plan` critique or plan sketch → `planner`
 - Brownfield spec extraction into openspec → `spec-miner`
 - `--reasoner=codex` backend variant → `codex-deep-reasoner` (same reasoning role, different backend — not a duplicate role)
 

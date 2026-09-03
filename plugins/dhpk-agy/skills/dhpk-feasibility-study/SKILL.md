@@ -1,7 +1,7 @@
 ---
 name: dhpk-feasibility-study
 disable-model-invocation: true
-description: 'Feasibility analysis from first principles. Purpose: evaluate solutions before dhpk-tech-spec, compare approaches, or assess risk. Not for: implementation (use dhpk-adaptive-dev-workflow in feature mode), architecture advice (use dhpk-module-design). Output: quantitative comparison + recommendation.'
+description: 'Feasibility analysis from first principles. Purpose: evaluate solutions before dhpk-tech-spec, compare approaches, or assess risk. Not for: implementation (use flow-guide in feature mode), architecture advice (use dhpk-module-design). Output: quantitative comparison + recommendation.'
 allowed-tools: 'Read, Grep, Glob, Bash(git:*), Bash(codex:*), Bash(bash:*), Write, Agent'
 metadata:
   dhpk-invocation-class: explicit-only
@@ -25,8 +25,8 @@ Evaluate technical feasibility, effort, risk, extensibility, and maintenance cos
 ## When NOT to Use
 
 - Already have a tech spec (use `/deep-analyze`)
-- Need implementation, not analysis (use `/dhpk:dhpk-implement`)
-- Quick question (use `/dhpk:dhpk-codebase-exploration --explain` or `/dhpk:dhpk-module-design`)
+- Need implementation, not analysis (use `flow-drive`)
+- Quick question (use `code-trace --explain` or `/dhpk:dhpk-module-design`)
 
 ## Workflow
 
@@ -129,7 +129,7 @@ Side-by-side comparison → recommendation + backup + open questions.
 ## Relationship with Other Commands
 
 ```
-/dhpk:dhpk-feasibility-study → /dhpk:dhpk-tech-spec → /deep-analyze → /dhpk:dhpk-implement
+/dhpk:dhpk-feasibility-study → /dhpk:dhpk-tech-spec → /deep-analyze → /dhpk:flow-drive
 ```
 
 ## Examples

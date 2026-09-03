@@ -1,6 +1,6 @@
 'use strict';
 
-// Coverage for skills/dhpk-do/scripts/pre-route.sh — deterministic query ->
+// Coverage for skills/flow-drive/scripts/pre-route.sh — deterministic query ->
 // route-table matcher. Asserts all three documented output paths (MATCH /
 // NO_MATCH / NO_QUERY) using a scratch DHPK_ROUTE_TABLE override so it never
 // depends on the real route-table.json contents drifting.
@@ -12,8 +12,8 @@ const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const SCRIPT = path.join(ROOT, 'skills', 'dhpk-do', 'scripts', 'pre-route.sh');
-const REAL_TABLE = path.join(ROOT, 'skills', 'dhpk-do', 'references', 'route-table.json');
+const SCRIPT = path.join(ROOT, 'skills', 'flow-drive', 'scripts', 'pre-route.sh');
+const REAL_TABLE = path.join(ROOT, 'skills', 'flow-drive', 'references', 'route-table.json');
 
 function mkTable() {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'pre-route-'));
@@ -25,7 +25,7 @@ function mkTable() {
       rules: [{
         pattern: 'fix\\s+the\\s+bug',
         label: 'bugfix',
-        target: { kind: 'skill', id: 'dhpk-adaptive-dev-workflow' },
+        target: { kind: 'skill', id: 'flow-guide' },
       }],
     })
   );
@@ -46,7 +46,7 @@ test('MATCH: query matching a rule prints MATCH<TAB>skill<TAB>label and exits 0'
     const res = runRoute(['please fix the bug now'], { DHPK_ROUTE_TABLE: table });
     assert.strictEqual(res.status, 0, res.stderr);
     const parts = res.stdout.trim().split('\t');
-    assert.deepStrictEqual(parts, ['MATCH', 'dhpk-adaptive-dev-workflow', 'bugfix']);
+    assert.deepStrictEqual(parts, ['MATCH', 'flow-guide', 'bugfix']);
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
@@ -104,10 +104,9 @@ test('create-pr command carries deterministic ahead-count abort before gh pr cre
   assert.ok(!command.includes('Follow the `create-pr` skill workflow'));
 });
 
-test('v2 skill-local matcher (skip while package absent; see dhpk-do-portable)', () => {
-  const skillMatcher = path.join(ROOT, 'skills', 'dhpk-do', 'scripts', 'pre-route.sh');
-  const skillTable = path.join(ROOT, 'skills', 'dhpk-do', 'references', 'route-table.json');
-  if (!fs.existsSync(skillMatcher) || !fs.existsSync(skillTable)) return;
+test('v2 flow-drive matcher uses its typed route table', () => {
+  const skillMatcher = path.join(ROOT, 'skills', 'flow-drive', 'scripts', 'pre-route.sh');
+  const skillTable = path.join(ROOT, 'skills', 'flow-drive', 'references', 'route-table.json');
   const res = spawnSync('bash', [skillMatcher, 'please create a PR for this branch'], {
     encoding: 'utf8',
     timeout: 10000,
@@ -123,8 +122,8 @@ test('specific security, bug, and Playwright routes outrank broad unit/integrati
     ['add integration tests for the endpoint', 'dhpk-tdd-workflow'],
     ['close the integration coverage gap', 'dhpk-tdd-workflow'],
     ['author a Playwright journey for checkout', 'e2e-runner'],
-    ['fix the checkout bug and add integration tests', 'dhpk-adaptive-dev-workflow'],
-    ['run a security audit and add unit tests', 'dhpk-security-review'],
+    ['fix the checkout bug and add integration tests', 'flow-guide'],
+    ['run a security audit and add unit tests', 'change-verdict'],
     ['author a Playwright integration test for checkout', 'e2e-runner'],
   ];
   for (const [query, target] of cases) {

@@ -67,11 +67,11 @@ test('orientation reads the kernel and selected route reference without loading 
     const plugin = path.join(tmp, 'plugin');
     const project = path.join(tmp, 'project');
     fs.mkdirSync(path.join(plugin, 'rules'), { recursive: true });
-    fs.mkdirSync(path.join(plugin, 'skills', 'dhpk-execution-policy', 'references'), { recursive: true });
+    fs.mkdirSync(path.join(plugin, 'skills', 'flow-guide', 'references'), { recursive: true });
     fs.mkdirSync(path.join(project, '.claude-plugin'), { recursive: true });
     fs.writeFileSync(path.join(project, '.claude-plugin', 'plugin.json'), '{}');
     fs.writeFileSync(path.join(plugin, 'rules', 'execution-policy-kernel.md'), 'KERNEL\n');
-    fs.writeFileSync(path.join(plugin, 'skills', 'dhpk-execution-policy', 'references', 'implementation-dispatch.md'), 'DISPATCH\n');
+    fs.writeFileSync(path.join(plugin, 'skills', 'flow-guide', 'references', 'implementation-dispatch.md'), 'DISPATCH\n');
     fs.writeFileSync(path.join(plugin, 'rules', 'execution-policy.md'), 'FULL_POLICY\n');
     const env = { ...process.env, CLAUDE_PLUGIN_ROOT: plugin };
     const off = spawnSync('bash', ['-c', orientationCommand(FENCES['DISPATCH_ON=false'])], {

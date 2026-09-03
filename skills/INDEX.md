@@ -4,9 +4,9 @@ description: 'Navigation index for dhpk plugin skills. Internal documentation; n
 
 # Skills Index (dhpk plugin)
 
-> Navigation for the 101 canonical skill packages shipped by the dhpk plugin. Every
-> package lives flat under `skills/dhpk-<name>/SKILL.md` and is invoked with its
-> public name (for example, `/dhpk:dhpk-tdd-workflow`) or auto-triggered by its
+> Navigation for the 85 canonical skill packages shipped by the dhpk plugin. Every
+> package lives flat under `skills/<public-name>/SKILL.md` and is invoked with its
+> public name (for example, `/dhpk:flow-guide` or `/dhpk:dhpk-tdd-workflow`) or auto-triggered by its
 > `description`. Stack modules expose
 > projection symlinks under `modules/<mod>/skills/`; the canonical source remains in
 > the flat root (see
@@ -17,10 +17,10 @@ description: 'Navigation index for dhpk plugin skills. Internal documentation; n
 
 | Skill | Purpose |
 |-------|---------|
-| [dhpk-adaptive-dev-workflow](dhpk-adaptive-dev-workflow/SKILL.md) | Classify a substantial change (Feature / Bug / Lightweight) before heavy context loads |
-| [dhpk-execution-policy](dhpk-execution-policy/SKILL.md) | Default task-mode workflow, review obligations, anti-loop guidance |
-| [dhpk-next-step](dhpk-next-step/SKILL.md) | Change-aware "what to do next" advisor from the current worktree state |
-| [dhpk-execution-checklist](dhpk-execution-checklist/SKILL.md) | End-of-task self-check before wrapping up or committing |
+| [flow-guide](flow-guide/SKILL.md) | Classify a substantial change (Feature / Bug / Lightweight) before heavy context loads |
+| [flow-guide](flow-guide/SKILL.md) | Default task-mode workflow, review obligations, anti-loop guidance |
+| [flow-guide](flow-guide/SKILL.md) | Change-aware "what to do next" advisor from the current worktree state |
+| [flow-guide](flow-guide/SKILL.md) | End-of-task self-check before wrapping up or committing |
 
 ## Prompt engineering
 
@@ -32,18 +32,18 @@ description: 'Navigation index for dhpk plugin skills. Internal documentation; n
 
 | Skill | Purpose |
 |-------|---------|
-| [dhpk-root-cause-investigation](dhpk-root-cause-investigation/SKILL.md) | Systematic 5-phase root-cause investigation |
+| [code-trace](code-trace/SKILL.md) | Systematic 5-phase root-cause investigation |
 | [dhpk-feature-verify](dhpk-feature-verify/SKILL.md) | Read-only post-deploy behavior verification (P0–P5) |
 | [dhpk-tdd-workflow](dhpk-tdd-workflow/SKILL.md) | Behavior-first RED-GREEN-REFACTOR guidance for test-bearing work |
-| [dhpk-implement](dhpk-implement/SKILL.md) | Backend-neutral implementation, verification, review, and bounded retries |
+| [flow-drive](flow-drive/SKILL.md) | Backend-neutral implementation, verification, review, and bounded retries |
 
 ## Code exploration & architecture
 
 | Skill | Purpose |
 |-------|---------|
-| [dhpk-codebase-exploration](dhpk-codebase-exploration/SKILL.md) | Symbol/flow exploration with optional dual perspective and depth-controlled explanation |
-| [dhpk-git-history-investigation](dhpk-git-history-investigation/SKILL.md) | Git-history investigation — where a bug was introduced |
-| [dhpk-tool-routing](dhpk-tool-routing/SKILL.md) | Pick the right exploration tool (gitnexus / cx / claude-mem / Read / Grep) |
+| [code-trace](code-trace/SKILL.md) | Symbol/flow exploration with optional dual perspective and depth-controlled explanation |
+| [code-trace](code-trace/SKILL.md) | Git-history investigation — where a bug was introduced |
+| [code-trace](code-trace/SKILL.md) | Pick the right exploration tool (gitnexus / cx / claude-mem / Read / Grep) |
 | [dhpk-module-design](dhpk-module-design/SKILL.md) | Architecture decisions, module boundaries, implementation guidance |
 | [dhpk-agent-architecture-audit](dhpk-agent-architecture-audit/SKILL.md) | 12-layer diagnostic for agent / LLM applications |
 
@@ -51,17 +51,17 @@ description: 'Navigation index for dhpk plugin skills. Internal documentation; n
 
 | Skill | Purpose |
 |-------|---------|
-| [dhpk-change-review](dhpk-change-review/SKILL.md) | Fixed-point code review with an optional explicit Codex CLI backend |
-| [dhpk-doc-review](dhpk-doc-review/SKILL.md) | Portable five-dimension document review with an optional explicit second opinion |
-| [dhpk-test-review](dhpk-test-review/SKILL.md) | Portable test-coverage sufficiency review with an optional explicit second opinion |
+| [change-verdict](change-verdict/SKILL.md) | Fixed-point code review with an optional explicit Codex CLI backend |
+| [change-verdict](change-verdict/SKILL.md) | Portable five-dimension document review with an optional explicit second opinion |
+| [change-verdict](change-verdict/SKILL.md) | Portable test-coverage sufficiency review with an optional explicit second opinion |
 
 ## Review, risk & audit
 
 | Skill | Purpose |
 |-------|---------|
-| [dhpk-pr-review](dhpk-pr-review/SKILL.md) | PR self-review (correctness / security / perf) + squash-merge hygiene |
-| [dhpk-security-review](dhpk-security-review/SKILL.md) | OWASP Top 10 security review (codex-free) |
-| [dhpk-risk-assess](dhpk-risk-assess/SKILL.md) | Uncommitted-code risk scoring + breaking-change / blast-radius analysis |
+| [change-verdict](change-verdict/SKILL.md) | PR self-review (correctness / security / perf) + squash-merge hygiene |
+| [change-verdict](change-verdict/SKILL.md) | OWASP Top 10 security review (codex-free) |
+| [change-verdict](change-verdict/SKILL.md) | Uncommitted-code risk scoring + breaking-change / blast-radius analysis |
 | [dhpk-project-audit](dhpk-project-audit/SKILL.md) | Project-health audit with deterministic scoring |
 | [dhpk-issue-analyze](dhpk-issue-analyze/SKILL.md) | GitHub Issue / PR review-thread triage with Codex blind verdict |
 | [dhpk-session-usage-audit](dhpk-session-usage-audit/SKILL.md) | Local dhpk session usage, evidence, verification, and issue handoff |
@@ -100,17 +100,17 @@ description: 'Navigation index for dhpk plugin skills. Internal documentation; n
 | [dhpk-harness-revise](dhpk-harness-revise/SKILL.md) | Trim, dedupe, and validate the project harness |
 | [dhpk-claude-health](dhpk-claude-health/SKILL.md) | `.claude/` config health check + plugin-version sync |
 | [dhpk-cross-agent-sync](dhpk-cross-agent-sync/SKILL.md) | Sync Claude-first config to Codex / Antigravity / AGY / Cursor |
-| [dhpk-rules-distill](dhpk-rules-distill/SKILL.md) | Extract cross-cutting principles from skills into rules |
+| [skill-forge](skill-forge/SKILL.md) | Extract cross-cutting principles from skills into rules |
 
 ## Skill authoring & audit
 
 | Skill | Purpose |
 |-------|---------|
-| [dhpk-create-skill](dhpk-create-skill/SKILL.md) | Create or refactor a skill to dhpk conventions |
-| [dhpk-skill-scout](dhpk-skill-scout/SKILL.md) | Search local / marketplace / GitHub / web before creating a skill |
-| [dhpk-skill-health-audit](dhpk-skill-health-audit/SKILL.md) | Structural lint of one skill (routing / loading / verification) |
-| [dhpk-skill-quality-judge](dhpk-skill-quality-judge/SKILL.md) | Deep rubric-based grade of one skill's design quality |
-| [dhpk-skill-stocktake](dhpk-skill-stocktake/SKILL.md) | Batch-audit many skills for quality / overlap / staleness |
+| [skill-forge](skill-forge/SKILL.md) | Create or refactor a skill to dhpk conventions |
+| [skill-scope](skill-scope/SKILL.md) | Search local / marketplace / GitHub / web before creating a skill |
+| [skill-scope](skill-scope/SKILL.md) | Structural lint of one skill (routing / loading / verification) |
+| [skill-scope](skill-scope/SKILL.md) | Deep rubric-based grade of one skill's design quality |
+| [skill-scope](skill-scope/SKILL.md) | Batch-audit many skills for quality / overlap / staleness |
 
 ## Project onboarding & setup
 

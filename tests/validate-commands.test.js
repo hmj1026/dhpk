@@ -109,22 +109,20 @@ test('a well-formed command file passes', () => {
   }
 });
 
-test('canonical commands expose the consolidated modes and legacy aliases only forward', () => {
+test('canonical commands retire the approved aliases and retain supported adapters', () => {
   const read = (name) => fs.readFileSync(path.join(ROOT, 'commands', name), 'utf8');
-  const codexReview = read('codex-review.md');
-  assert.match(codexReview, /--scope diff\|branch\|doc\|security\|tests/);
-  assert.match(codexReview, /--depth fast\|full/);
   assert.match(read('precommit.md'), /--fast/);
-  assert.match(read('do.md'), /--route-only/);
   assert.match(read('setup.md'), /--install hooks\|rules\|scripts\|all/);
-  assert.match(codexReview, /--coverage/);
-  assert.match(codexReview, /--spec/);
 
   for (const name of [
+    'check-skill.md', 'create-dev.md', 'do.md', 'codex-review.md',
     'codex-review-fast.md', 'codex-review-branch.md', 'codex-review-doc.md',
-    'codex-security.md', 'codex-test-review.md', 'precommit-fast.md',
-    'create-dev.md', 'install-hooks.md', 'install-rules.md', 'install-scripts.md',
-    'check-coverage.md', 'review-spec.md', 'codex-test-gen.md',
+    'codex-security.md', 'codex-test-review.md', 'review-spec.md',
+  ]) assert.ok(!fs.existsSync(path.join(ROOT, 'commands', name)), `${name} must be retired without an alias`);
+
+  for (const name of [
+    'precommit-fast.md', 'install-hooks.md', 'install-rules.md',
+    'install-scripts.md', 'check-coverage.md', 'codex-test-gen.md',
   ]) {
     const body = read(name);
     assert.match(body, /Deprecated.*forward/i, `${name} must state its forwarding deprecation`);
@@ -133,25 +131,24 @@ test('canonical commands expose the consolidated modes and legacy aliases only f
   assert.ok(!fs.existsSync(path.join(ROOT, 'commands', 'zh-tw.md')), 'zh-tw must be retired');
 });
 
-test('route-only and setup installation have deterministic executable contracts', () => {
-  const doSkill = fs.readFileSync(path.join(ROOT, 'skills', 'dhpk-do', 'SKILL.md'), 'utf8');
+test('flow-drive routing and setup installation have deterministic executable contracts', () => {
+  const doSkill = fs.readFileSync(path.join(ROOT, 'skills', 'flow-drive', 'SKILL.md'), 'utf8');
   const setup = fs.readFileSync(path.join(ROOT, 'commands', 'setup.md'), 'utf8');
   assert.match(doSkill, /--route-only/);
-  assert.match(doSkill, /strip/i);
-  assert.match(doSkill, /must not invoke the target Skill|not invoke the target/i);
+  assert.match(doSkill, /without invoking the target|not an implementation/i);
   assert.match(setup, /scripts\/setup\/install-assets\.sh/);
   assert.match(setup, /--source.*--target.*--dry-run.*--force/is);
   assert.match(setup, /Bash\(bash:\*\).*Bash\(mkdir:\*\).*Bash\(cp:\*\).*Bash\(chmod:\*\)/);
 });
 
-test('invocation inventory reflects retired zh-tw and consolidated forwarding aliases', () => {
+test('invocation inventory baseline distinguishes retired aliases from retained forwarding aliases', () => {
   const inventory = JSON.parse(fs.readFileSync(
     path.join(ROOT, 'tests', 'fixtures', 'invocation-inventory-baseline.json'), 'utf8'
   ));
   const commandNames = inventory.commands.map((entry) => entry.name);
   assert.strictEqual(inventory.counts.commands, 44);
   assert.ok(!commandNames.includes('zh-tw'));
-  for (const name of ['create-dev', 'install-hooks', 'install-rules', 'install-scripts', 'precommit-fast']) {
+  for (const name of ['install-hooks', 'install-rules', 'install-scripts', 'precommit-fast']) {
     const command = fs.readFileSync(path.join(ROOT, 'commands', `${name}.md`), 'utf8');
     assert.match(command, /dhpk-invocation-class:\s*explicit-only/);
   }
@@ -163,16 +160,11 @@ test('invocation inventory reflects retired zh-tw and consolidated forwarding al
 // tests/dhpk-do-portable.test.js [3.1]. Failing this case fails the whole file
 // until task 3.1.
 
-test('/dhpk:do is a ≤28-line canonical-pointer adapter (RED until 3.1)', () => {
-  const body = fs.readFileSync(path.join(ROOT, 'commands', 'do.md'), 'utf8');
-  const lineCount = body.split('\n').length;
-  assert.ok(lineCount <= 28, `/dhpk:do must be a ≤28-line adapter, got ${lineCount} lines`);
-  assert.match(body, /@skills\/dhpk-do\/SKILL\.md/);
-  assert.match(body, /\$ARGUMENTS/);
-  assert.match(body, /host\s*=\s*claude/);
-  assert.ok(!/## Step 0/.test(body), 'adapter must not keep an independent workflow');
-  assert.ok(!/Common targets:/.test(body), 'adapter must not duplicate the target catalog');
-  assert.ok(!/Implementation dispatch/.test(body), 'adapter must not copy the dispatch table');
+test('retired /dhpk:do command has no forwarding adapter', () => {
+  assert.ok(!fs.existsSync(path.join(ROOT, 'commands', 'do.md')));
+  const body = fs.readFileSync(path.join(ROOT, 'skills', 'flow-drive', 'SKILL.md'), 'utf8');
+  assert.match(body, /route/);
+  assert.match(body, /implement/);
 });
 
 test('review and prompt skills state the Task 4 evidence and scope boundaries', () => {
@@ -181,9 +173,11 @@ test('review and prompt skills state the Task 4 evidence and scope boundaries', 
   assert.match(prompt, /lookup date/i);
   assert.ok(!prompt.includes('per-model calibration table'));
 
-  const review = fs.readFileSync(path.join(ROOT, 'skills', 'dhpk-change-review', 'SKILL.md'), 'utf8');
-  assert.match(review, /doc\|security\|tests/);
-  assert.match(review, /dedicated reviewer.*preferred/i);
+  const review = fs.readFileSync(path.join(ROOT, 'skills', 'change-verdict', 'SKILL.md'), 'utf8');
+  assert.match(review, /docs/);
+  assert.match(review, /security/);
+  assert.match(review, /tests/);
+  assert.match(review, /read-only|read only/i);
 });
 
 run('validate-commands');

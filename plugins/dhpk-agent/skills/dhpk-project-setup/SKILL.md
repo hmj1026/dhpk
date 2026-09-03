@@ -1,6 +1,6 @@
 ---
 name: dhpk-project-setup
-description: "Project configuration initialization: first-time setup, auto-detecting the framework, and replacing CLAUDE.md placeholders. Not for: ongoing config checks (use dhpk-claude-health), skill creation (use dhpk-create-skill). Output: configured CLAUDE.md + project settings + rules + hooks."
+description: "Project configuration initialization: first-time setup, auto-detecting the framework, and replacing CLAUDE.md placeholders. Not for: ongoing config checks (use dhpk-claude-health), skill creation (use skill-forge). Output: configured CLAUDE.md + project settings + rules + hooks."
 metadata:
   dhpk-invocation-class: "explicit-only"
 ---

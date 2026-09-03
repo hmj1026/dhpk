@@ -10,22 +10,22 @@ surface while preserving compatibility and safe rollback.
 
 ### Requirement: Profiles expose a closed stable-ID selection
 
-Every selectable profile SHALL declare a normalized profile ID, a stable skill-ID allowlist, and the module/dependency closure that supplements that allowlist. With no explicit `--skill` overlay, `minimal` SHALL resolve to exactly its nine required core IDs. A repeated `--skill` option SHALL be an explicit additive overlay to the chosen profile (it MUST NOT mutate the profile definition or remove required core IDs), and the normalized selection SHALL record that overlay mode. The resolver MUST reject unknown, duplicate, retired, missing, or surface-incompatible IDs before returning a selection plan.
+Every selectable profile SHALL declare a normalized profile ID, a stable skill-ID allowlist, and the module/dependency closure that supplements that allowlist. With no explicit `--skill` overlay, `minimal` SHALL resolve to exactly its ten required core IDs after predecessor-to-family replacement. A repeated `--skill` option SHALL be an explicit additive overlay to the chosen profile, MUST NOT mutate the profile definition or remove required core IDs, and the normalized selection SHALL record that overlay mode. The resolver MUST reject unknown, duplicate, retired, missing, external-package-lifecycle-conflicting, or surface-incompatible IDs before returning a selection plan.
 
 #### Scenario: Minimal profile resolves
 
-- **WHEN** a new installation selects `minimal` against an inventory containing the nine declared core IDs
-- **THEN** the resolver returns exactly those IDs plus no module entry that was not explicitly selected by the profile closure
+- **WHEN** a new installation selects `minimal` against the consolidated inventory
+- **THEN** the resolver returns exactly ten IDs, including `flow-guide`, `flow-drive`, `change-verdict`, and `code-trace`, plus no module entry not explicitly selected by the profile closure
 
 #### Scenario: Explicit skill is outside the profile
 
-- **WHEN** an operator adds a stable ID that is unknown, retired, absent from the target surface, or excluded by a profile conflict
+- **WHEN** an operator adds a stable ID that is unknown, retired, absent from the target surface, conflicts with external-package ownership, or is excluded by a profile conflict
 - **THEN** resolution fails closed with the ID, failure class, and an available profile or successor guidance, and produces no materialization intent
 
 #### Scenario: Explicit skill overlay is valid
 
 - **WHEN** an operator selects `minimal` with repeatable `--skill` values that are live, inventory-owned, and permitted on the target surface
-- **THEN** resolution retains the nine required core IDs, adds the validated overlay IDs, marks the selection as explicit-overlay mode, and leaves the `minimal` profile definition unchanged
+- **THEN** resolution retains the ten required core IDs, adds the validated overlay IDs, marks the selection as explicit-overlay mode, and leaves the `minimal` profile definition unchanged
 
 ### Requirement: Compatibility profiles have distinct meanings
 
@@ -101,3 +101,11 @@ Selection reports SHALL distinguish profile resolution, structural/package gener
 
 - **WHEN** no exact configured consumer can load the candidate artifact
 - **THEN** the report retains the structural result, records the closed non-pass runtime state, and includes a bounded resume instruction
+
+### Requirement: Consolidated profiles replace predecessors atomically
+
+Profile definitions SHALL replace every selected predecessor with its successor family once, preserve protected external-package IDs, and produce `full=64` and `compat-v1=71` stable IDs for this inventory revision.
+
+#### Scenario: One profile retains both identities
+- **WHEN** a profile contains a retired predecessor and its successor family or drops a protected GitNexus identity
+- **THEN** selection validation fails and reports the duplicate migration or protected omission

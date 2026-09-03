@@ -29,7 +29,7 @@ disable-model-invocation: true                       # optional; set when explic
 
 ### Exception: meta-skill custom structure
 
-Meta-workflow skills (e.g. `dhpk-harness-fill` itself, `dhpk-harness-revise`, `dhpk-root-cause-investigation`) may use a phase-based structure instead of the 7 sections. Criteria:
+Meta-workflow skills (e.g. `dhpk-harness-fill` itself, `dhpk-harness-revise`, `code-trace`) may use a phase-based structure instead of the 7 sections. Criteria:
 
 - The skill itself is a "teach AI to run an N-phase workflow" methodology (not a "describe domain hard rules" reference)
 - Phases have strong sequential dependency

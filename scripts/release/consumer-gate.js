@@ -159,8 +159,8 @@ function redactEvidence(value, root = DEFAULT_ROOT) {
   if (!value) return value;
   let redacted = String(value);
   const replacements = [
-    [path.resolve(os.tmpdir()), '<sandbox>'],
     [path.resolve(root), '<repo>'],
+    [path.resolve(os.tmpdir()), '<sandbox>'],
   ].map(([prefix, label]) => [prefix.split(path.sep).join('/'), label]);
   redacted = redacted.split(path.sep).join('/');
   for (const [prefix, label] of replacements) {

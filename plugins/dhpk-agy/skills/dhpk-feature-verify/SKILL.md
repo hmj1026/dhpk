@@ -1,7 +1,7 @@
 ---
 name: dhpk-feature-verify
 disable-model-invocation: true
-description: 'Feature verification (READ-ONLY, P0-P5). Purpose: verify feature behavior after deployment, validate API responses, diagnose production issues, or run a post-deploy smoke test. Not for: modifying data (use dhpk-adaptive-dev-workflow in feature mode), code review (use dhpk-change-review), writing tests (use dhpk-tdd-workflow), security audit (use dhpk-security-review). Output: a P0-P5 verification report with pass/fail evidence per check.'
+description: 'Feature verification (READ-ONLY, P0-P5). Purpose: verify feature behavior after deployment, validate API responses, diagnose production issues, or run a post-deploy smoke test. Not for: modifying data (use flow-guide in feature mode), code review (use change-verdict), writing tests (use dhpk-tdd-workflow), security audit (use change-verdict). Output: a P0-P5 verification report with pass/fail evidence per check.'
 allowed-tools: 'Read, Grep, Glob, Bash, Bash(codex:*), WebFetch, Task, Skill'
 context: fork
 metadata:
@@ -16,14 +16,14 @@ Verify deployed behavior with read-only runtime evidence:
 
 Use this for post-deploy checks, smoke tests, and production diagnosis. For
 local tests use the repository verification route; for changes use
-`dhpk-adaptive-dev-workflow` in feature mode; for code review use
-`dhpk-change-review`.
+`flow-guide` in feature mode; for code review use
+`change-verdict`.
 
 ## When NOT to Use
 
 - The requested action changes application data, configuration, or deployment state.
 - The task is to implement or modify a feature; use
-  `dhpk-adaptive-dev-workflow` in feature mode.
+  `flow-guide` in feature mode.
 - The task is a code, security, or test review rather than runtime behavior
   verification.
 - There is no read-only endpoint, observation path, or approved test environment that

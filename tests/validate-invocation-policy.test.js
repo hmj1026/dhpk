@@ -179,11 +179,11 @@ test('a paired command that inherits (declares nothing) passes', () => {
 
 // Core contract: missing/unknown class, dotted substitute,
 // user-invocable:false, unpaired/paired command agreement, and the canonical
-// dhpk-do package's explicit-only model-invocation boundary.
+// flow-drive package's explicit-only model-invocation boundary.
 
-test('canonical dhpk-do skill is present, explicit-only, and model-invocation disabled', () => {
-  const skillPath = path.join(ROOT, 'skills', 'dhpk-do', 'SKILL.md');
-  assert.ok(fs.existsSync(skillPath), 'skills/dhpk-do/SKILL.md must exist');
+test('canonical flow-drive skill is present, explicit-only, and model-invocation disabled', () => {
+  const skillPath = path.join(ROOT, 'skills', 'flow-drive', 'SKILL.md');
+  assert.ok(fs.existsSync(skillPath), 'skills/flow-drive/SKILL.md must exist');
   const body = fs.readFileSync(skillPath, 'utf8');
   assert.match(body, /disable-model-invocation:\s*true/);
   assert.match(body, /dhpk-invocation-class:\s*explicit-only/);

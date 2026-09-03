@@ -7,7 +7,7 @@ const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const SCRIPT = path.join(ROOT, 'skills', 'dhpk-skill-health-audit', 'scripts', 'skill-lint.js');
+const SCRIPT = path.join(ROOT, 'skills', 'skill-scope', 'scripts', 'skill-lint.js');
 const lint = require(SCRIPT);
 
 function write(file, content) {

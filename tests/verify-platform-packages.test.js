@@ -19,7 +19,7 @@ test('an unprofiled generation preserves legacy package membership while adding 
       ], { encoding: 'utf8' });
       assert.strictEqual(result.status, 0, result.stdout + result.stderr);
       const report = JSON.parse(result.stdout);
-      assert.strictEqual(report.skillCount, 61, `${surface} must retain the current 61 inventory-selected skills`);
+      assert.strictEqual(report.skillCount, 46, `${surface} must retain the current 46 inventory-selected skills`);
       const provenance = JSON.parse(fs.readFileSync(path.join(output, 'provenance.json'), 'utf8'));
       assert.strictEqual(provenance.profileId, undefined, `${surface} must not narrow without an explicit --profile`);
     }
@@ -35,7 +35,7 @@ test('platform package verifier reports deterministic Agent Plugin and Cursor ou
   assert.strictEqual(report.verdict, 'PASS');
   assert.strictEqual(report.surfaces['agent-plugin'].structural, 'PASS');
   assert.strictEqual(report.surfaces['cursor-plugin'].structural, 'PASS');
-  assert.strictEqual(report.surfaces['agent-plugin'].selectedSkills, 61);
+  assert.strictEqual(report.surfaces['agent-plugin'].selectedSkills, 46);
   assert.strictEqual(report.surfaces['cursor-plugin'].selectedSkills, 4);
   assert.strictEqual(report.surfaces['cursor-plugin'].sharedSkillSurface, 'agent-plugin');
   assert.strictEqual(report.surfaces['cursor-plugin'].sharedSkillSource, 'plugins/dhpk-agent/skills/');

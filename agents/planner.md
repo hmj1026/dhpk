@@ -1,6 +1,6 @@
 ---
 name: planner
-description: "Opt-in `/dhpk:do --plan` consultant: critique or sketch an implementation plan, then perform a manually requested warm or cold diff review. Return a verdict-first, `END`-terminated result under the mode's token cap; bounded read-only discovery uses at most 2 Explore children and 12 planner reads."
+description: "Opt-in `$flow-drive --plan` consultant: critique or sketch an implementation plan, then perform a manually requested warm or cold diff review. Return a verdict-first, `END`-terminated result under the mode's token cap; bounded read-only discovery uses at most 2 Explore children and 12 planner reads."
 tools: Read, Agent
 model: opus
 effort: high
@@ -182,5 +182,5 @@ review after that, and never RECONSULT to see a fix.
 
 **No artifact** — planner is a read-only reasoning worker; its deliverable is
 the inline VERDICT-first reply contract above, consumed directly by
-`/dhpk:do` (or, for a mid-task/warm-review resume, by the orchestrator that
+`$flow-drive` (or, for a mid-task/warm-review resume, by the orchestrator that
 resumed it). Not in the sentinel review chain.

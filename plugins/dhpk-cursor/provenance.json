@@ -4,11 +4,11 @@
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-cursor",
   "packageRoot": "plugins/dhpk-cursor",
-  "sourceVersion": "0.52.0",
-  "sourceCommit": "0a2f52adba53e931bb99d7e8414520b42914d2d8",
-  "generatedFromCommit": "0a2f52adba53e931bb99d7e8414520b42914d2d8",
-  "generatedFromTree": "1c0aeb22a0d0d1ffa4c2caf286898432196b1b1d",
-  "inventoryDigest": "b9a967eff545f1517bba686c77cb020514e6a7930461e4ba2bac478d7143ccf1",
+  "sourceVersion": "0.53.0",
+  "sourceCommit": "e5138c084cb789af335e6c5c4ac29f6ff646f00f",
+  "generatedFromCommit": "e5138c084cb789af335e6c5c4ac29f6ff646f00f",
+  "generatedFromTree": "fbd33ee4e7a15a8aed500d0c667591689aa71384",
+  "inventoryDigest": "b8a442441008baa7266e7f09749b78ecc894167c7989e7aa37f0c8c35251efd8",
   "generatorVersion": "1.0.0",
   "selectedSkillIds": [
     "agy-fast-worker",
@@ -32,27 +32,22 @@
   "sharedSkillSurface": "agent-plugin",
   "sharedSkillSource": "plugins/dhpk-agent/skills/",
   "sharedSkillIds": [
-    "adaptive-dev-workflow",
     "agent-architecture-audit",
     "agy-commit",
     "agy-fast-worker",
-    "bug-investigation",
+    "change-verdict",
     "claude-health",
     "cli-dispatch-context",
     "cli-transport",
-    "code-explore",
+    "code-trace",
     "codex-bridge",
-    "codex-code-review",
     "composer-package-hygiene",
     "create-request",
-    "create-skill",
     "deploy-list",
-    "dhpk-execution-policy",
-    "doc-review",
-    "execution-checklist",
     "feasibility-study",
     "feature-verify",
-    "git-investigate",
+    "flow-drive",
+    "flow-guide",
     "git-smart-commit",
     "gitnexus-cli",
     "gitnexus-debugging",
@@ -63,59 +58,43 @@
     "harness-budget",
     "harness-fill",
     "harness-revise",
-    "implement",
     "issue-analyze",
     "laravel-package-author",
     "laravel-testbench-matrix",
     "multi-ai-sync",
-    "next-step",
     "op-session",
     "opsx-apply-goal",
     "opsx-load-context",
     "opsx-post-obs",
     "polyfill-version-matrix-audit",
-    "pr-review",
     "project-audit",
     "project-setup",
     "prompt-optimize",
     "release-creator",
     "repo-intake",
-    "risk-assess",
-    "rules-distill",
-    "security-review",
     "session-usage-audit",
-    "skill-health-check",
-    "skill-judge",
-    "skill-scout",
-    "skill-stocktake",
+    "skill-forge",
+    "skill-scope",
     "software-architecture",
     "tdd",
-    "tech-spec",
-    "test-review",
-    "tool-routing"
+    "tech-spec"
   ],
   "sharedSkillNames": [
-    "dhpk-adaptive-dev-workflow",
+    "change-verdict",
+    "code-trace",
     "dhpk-agent-architecture-audit",
     "dhpk-agy-commit",
     "dhpk-agy-fast-worker",
-    "dhpk-change-review",
     "dhpk-claude-health",
     "dhpk-cli-dispatch-context",
     "dhpk-cli-transport",
-    "dhpk-codebase-exploration",
     "dhpk-codex-bridge",
     "dhpk-composer-package-hygiene",
     "dhpk-create-request",
-    "dhpk-create-skill",
     "dhpk-cross-agent-sync",
     "dhpk-deploy-list",
-    "dhpk-doc-review",
-    "dhpk-execution-checklist",
-    "dhpk-execution-policy",
     "dhpk-feasibility-study",
     "dhpk-feature-verify",
-    "dhpk-git-history-investigation",
     "dhpk-git-smart-commit",
     "dhpk-gitnexus-cli",
     "dhpk-gitnexus-debugging",
@@ -126,36 +105,27 @@
     "dhpk-harness-budget",
     "dhpk-harness-fill",
     "dhpk-harness-revise",
-    "dhpk-implement",
     "dhpk-issue-analyze",
     "dhpk-laravel-package-author",
     "dhpk-laravel-testbench-matrix",
     "dhpk-module-design",
-    "dhpk-next-step",
     "dhpk-onepassword-session",
     "dhpk-opsx-apply-goal",
     "dhpk-opsx-load-context",
     "dhpk-opsx-post-observation",
     "dhpk-polyfill-version-matrix-audit",
-    "dhpk-pr-review",
     "dhpk-project-audit",
     "dhpk-project-setup",
     "dhpk-prompt-optimize",
     "dhpk-release-creator",
     "dhpk-repo-intake",
-    "dhpk-risk-assess",
-    "dhpk-root-cause-investigation",
-    "dhpk-rules-distill",
-    "dhpk-security-review",
     "dhpk-session-usage-audit",
-    "dhpk-skill-health-audit",
-    "dhpk-skill-quality-judge",
-    "dhpk-skill-scout",
-    "dhpk-skill-stocktake",
     "dhpk-tdd-workflow",
     "dhpk-tech-spec",
-    "dhpk-test-review",
-    "dhpk-tool-routing"
+    "flow-drive",
+    "flow-guide",
+    "skill-forge",
+    "skill-scope"
   ],
   "skippedSkills": [],
   "transformations": [
@@ -190,11 +160,6 @@
       "transform": "cursor-commands-frontmatter"
     },
     {
-      "source": "check-skill.md",
-      "destination": "commands/check-skill.md",
-      "transform": "cursor-commands-frontmatter"
-    },
-    {
       "source": "code-reviewer.md",
       "destination": "agents/code-reviewer.md",
       "transform": "cursor-agents-frontmatter"
@@ -220,34 +185,9 @@
       "transform": "cursor-agents-frontmatter"
     },
     {
-      "source": "codex-review-branch.md",
-      "destination": "commands/codex-review-branch.md",
-      "transform": "cursor-commands-frontmatter"
-    },
-    {
-      "source": "codex-review-doc.md",
-      "destination": "commands/codex-review-doc.md",
-      "transform": "cursor-commands-frontmatter"
-    },
-    {
-      "source": "codex-review-fast.md",
-      "destination": "commands/codex-review-fast.md",
-      "transform": "cursor-commands-frontmatter"
-    },
-    {
-      "source": "codex-review.md",
-      "destination": "commands/codex-review.md",
-      "transform": "cursor-commands-frontmatter"
-    },
-    {
       "source": "codex-reviewer.md",
       "destination": "agents/codex-reviewer.md",
       "transform": "cursor-agents-frontmatter"
-    },
-    {
-      "source": "codex-security.md",
-      "destination": "commands/codex-security.md",
-      "transform": "cursor-commands-frontmatter"
     },
     {
       "source": "codex-test-gen.md",
@@ -255,19 +195,9 @@
       "transform": "cursor-commands-frontmatter"
     },
     {
-      "source": "codex-test-review.md",
-      "destination": "commands/codex-test-review.md",
-      "transform": "cursor-commands-frontmatter"
-    },
-    {
       "source": "codex-worker.md",
       "destination": "agents/codex-worker.md",
       "transform": "cursor-agents-frontmatter"
-    },
-    {
-      "source": "create-dev.md",
-      "destination": "commands/create-dev.md",
-      "transform": "cursor-commands-frontmatter"
     },
     {
       "source": "create-pr.md",
@@ -297,11 +227,6 @@
     {
       "source": "dep-audit.md",
       "destination": "commands/dep-audit.md",
-      "transform": "cursor-commands-frontmatter"
-    },
-    {
-      "source": "do.md",
-      "destination": "commands/do.md",
       "transform": "cursor-commands-frontmatter"
     },
     {
@@ -444,27 +369,22 @@
       "destination": null,
       "transform": "shared-surface:agent-plugin",
       "stableIds": [
-        "adaptive-dev-workflow",
         "agent-architecture-audit",
         "agy-commit",
         "agy-fast-worker",
-        "bug-investigation",
+        "change-verdict",
         "claude-health",
         "cli-dispatch-context",
         "cli-transport",
-        "code-explore",
+        "code-trace",
         "codex-bridge",
-        "codex-code-review",
         "composer-package-hygiene",
         "create-request",
-        "create-skill",
         "deploy-list",
-        "dhpk-execution-policy",
-        "doc-review",
-        "execution-checklist",
         "feasibility-study",
         "feature-verify",
-        "git-investigate",
+        "flow-drive",
+        "flow-guide",
         "git-smart-commit",
         "gitnexus-cli",
         "gitnexus-debugging",
@@ -475,36 +395,26 @@
         "harness-budget",
         "harness-fill",
         "harness-revise",
-        "implement",
         "issue-analyze",
         "laravel-package-author",
         "laravel-testbench-matrix",
         "multi-ai-sync",
-        "next-step",
         "op-session",
         "opsx-apply-goal",
         "opsx-load-context",
         "opsx-post-obs",
         "polyfill-version-matrix-audit",
-        "pr-review",
         "project-audit",
         "project-setup",
         "prompt-optimize",
         "release-creator",
         "repo-intake",
-        "risk-assess",
-        "rules-distill",
-        "security-review",
         "session-usage-audit",
-        "skill-health-check",
-        "skill-judge",
-        "skill-scout",
-        "skill-stocktake",
+        "skill-forge",
+        "skill-scope",
         "software-architecture",
         "tdd",
-        "tech-spec",
-        "test-review",
-        "tool-routing"
+        "tech-spec"
       ]
     },
     {
@@ -540,11 +450,6 @@
     {
       "source": "review-pending.md",
       "destination": "commands/review-pending.md",
-      "transform": "cursor-commands-frontmatter"
-    },
-    {
-      "source": "review-spec.md",
-      "destination": "commands/review-spec.md",
       "transform": "cursor-commands-frontmatter"
     },
     {
@@ -664,15 +569,15 @@
     }
   ],
   "fingerprints": {
-    "skills": "03955ebbc6c551d1b3be33de8d943efcd6280f3a39aec2003cbcd8316db23ee2",
-    "rules": "646e26411efd6d5ef21858426ee518d0ce441572f3212c8190bcb1010670630d",
-    "agents": "d14ac9bfb9e9cce52e790d7fba77ea273fcd3552cee0f35896e9a1b2790d71ff",
-    "commands": "5e776d5fa2ad019a3a713cd2939f89595cdb395e2841627bbd217d00011ce8c5",
+    "skills": "73878fdc9d34f15569bbe8e6c0cc249e80047d28e3defd52181e9c640f464420",
+    "rules": "f79126b22340b9789c12003039dd5b8b94b42d25b6aaa0adc307aa79ec2f95cb",
+    "agents": "b7402759fde98fd4e6764b634825ab1f7a5f7ee2896cef50b7009d76997681ca",
+    "commands": "b5f341fbe9ae514ae53223c49c0ae0aed7e06fdc9d526f24d056bcd8abbd282c",
     "hooks/hooks.json": "1abe14baec6393d900554ebd4a84028ebd9748e0390f370813e9e32f664d0a8a"
   },
   "consumer": {
     "status": "NOT_RUN",
     "reason": "Cursor client consumer probe is separate from structural generation."
   },
-  "planFingerprint": "cd364fc9c8e2401c6d70d9c0e8f4e832f7178f30c2a723eca5c6bd33a927e8cf"
+  "planFingerprint": "5430b59f07dec905cfc86a87f2eb3f63a38cb8b87d5a2acdd81da5d16f3b26a2"
 }
