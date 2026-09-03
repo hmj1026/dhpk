@@ -56,7 +56,7 @@ A handful of boolean/mode knobs additionally support a **one-shot environment-va
 | `review_agents` | string[] | `["code-reviewer","database-reviewer","security-reviewer","frontend-reviewer","doc-reviewer","polyfill-reviewer","migration-reviewer"]` | any 7 agent names | Reviewer names used by sentinel routing, in slot order. Override to point at project-specific agents; shorter overrides are padded with defaults. |
 | `deep_reasoner_model` | string | `opus` | `haiku` \| `sonnet` \| `opus` (whatever the running Claude Code version supports) | Model tier for `dhpk:deep-reasoner` Agent-call dispatches (reasoning-heavy implementation work). Applied per dispatch via the Agent call's `model` param when it differs from the agent's frontmatter default. Invalid value warns once per session and falls back to the frontmatter default — never fails the dispatch. |
 | `fast_worker_model` | string | `sonnet` | same as above | Model tier for `dhpk:fast-worker` Agent-call dispatches (mechanical implementation work). Same validation/fallback behavior as `deep_reasoner_model`. |
-| `planner_model` | string | `opus` | same as above | Model tier for `dhpk:planner` Agent-call dispatches (the opt-in `/dhpk:do --plan` pre-implementation critique / post-implementation warm review). Same validation/fallback behavior as `deep_reasoner_model`. |
+| `planner_model` | string | `opus` | same as above | Model tier for `dhpk:planner` Agent-call dispatches (the opt-in `/dhpk:flow-drive --plan` pre-implementation critique / post-implementation warm review). Same validation/fallback behavior as `deep_reasoner_model`. |
 | `deep_reasoner_effort` | string | `high` | `low` \| `medium` \| `high` \| `xhigh` \| `max` (whatever the running Claude Code version supports) | Reasoning effort for `dhpk:deep-reasoner` Agent-call dispatches. Applied per dispatch via the Agent call's `effort` param when it differs from the agent's frontmatter default. Invalid value warns once per session and falls back to the frontmatter default — never fails the dispatch. |
 | `fast_worker_effort` | string | `medium` | same as above | Reasoning effort for `dhpk:fast-worker` Agent-call dispatches. Same validation/fallback behavior as `deep_reasoner_effort`; the decision layer (`deep-reasoner`) runs higher effort and execution (`fast-worker`) de-escalates. |
 | `planner_effort` | string | `high` | same as above | Reasoning effort for `dhpk:planner` Agent-call dispatches. Same validation/fallback behavior as `deep_reasoner_effort`; the warm-review (post-implementation) invocation de-escalates to `medium`. |
@@ -73,8 +73,8 @@ A handful of boolean/mode knobs additionally support a **one-shot environment-va
 | `agy_worker_model` | string | `Gemini 3.6 Flash (High)` | any model listed by `agy models` | Model display string passed to the agy CLI backend for canonical role `agy-worker` dispatches. Agy bakes the thinking level into the model name, so there is no separate effort key. Same layering as above; override when a default is deprecated (check `agy models`). Legacy alias: `agy_fast_worker_model`. |
 | `architect_model` | string | `fable` | any model tier supported by the running Claude Code | Model tier for `dhpk:architect` Agent-call dispatches; applied per invocation without editing frontmatter, with up-only escalation for HIGH-risk architecture decisions. |
 | `architect_effort` | string | `low` | `low` \| `medium` \| `high` \| `xhigh` \| `max` | Reasoning effort for `dhpk:architect` Agent-call dispatches; applied per invocation without editing frontmatter. |
-| `orchestration_dispatch` | string | `on` | `on` \| `off` | Kill switch for implementation worker/reasoner routing in the Implementation dispatch table (`adaptive-dev-workflow` feature/bug modes and `opsx-apply-goal`). `on` routes implement-phase work through the decision table and prohibits `general-purpose` for implementation. `off` restores inline implementation and removes the dispatch directive, while the mandatory multi-task OpenSpec planner and verification gates remain active. |
-| `fast_worker_backend` | string | `claude` | `claude` \| `codex` \| `agy` \| `auto` | Deterministic mechanical-worker selector. `claude` maps to `dhpk:fast-worker`; `auto` checks `fast_worker_backend_order`. `/dhpk:do --worker=...` overrides this key for one invocation only (flag > userConfig > shipped default); an invalid flag warns once and falls through to this key/default, while an invalid configured value uses `claude`. Codex CLI availability is checked independently of the retired `CODEX=on` flag; select a Codex worker explicitly with `--worker=codex`. |
+| `orchestration_dispatch` | string | `on` | `on` \| `off` | Kill switch for implementation worker/reasoner routing in the Implementation dispatch table (`flow-guide` classification and `flow-drive` implementation modes, plus `opsx-apply-goal`). `on` routes implement-phase work through the decision table and prohibits `general-purpose` for implementation. `off` restores inline implementation and removes the dispatch directive, while the mandatory multi-task OpenSpec planner and verification gates remain active. |
+| `fast_worker_backend` | string | `claude` | `claude` \| `codex` \| `agy` \| `auto` | Deterministic mechanical-worker selector. `claude` maps to `dhpk:fast-worker`; `auto` checks `fast_worker_backend_order`. `/dhpk:flow-drive --worker=...` overrides this key for one invocation only (flag > userConfig > shipped default); an invalid flag warns once and falls through to this key/default, while an invalid configured value uses `claude`. Codex CLI availability is checked independently of the retired `CODEX=on` flag; select a Codex worker explicitly with `--worker=codex`. |
 | `fast_worker_backend_order` | string | `claude,codex,agy` | comma-separated backend names | Availability order used only by `auto`; rejected candidates and reasons are recorded. Invalid values warn once per session and use the shipped order. |
 | `fast_worker_fallback` | string | `none` | `none` \| `claude` | Explicit fallback for a missing selected CLI executable only. Auth, authorization, model, task, execution, and verification failures remain blocked. |
 | `subagent_quality_gate` | string | `off` | `on` \| `off` | Retained for an explicitly registered advisory quality hook. It has no default-lifecycle effect; strict artifact evidence is enforced by `subagent-stop-verify.sh`. |
@@ -93,7 +93,7 @@ separate agy setting is likewise an attested dispatch input.
 
 Current dhpk capabilities run with the in-process model or an explicit CLI
 backend. No active skill or command requires a Codex MCP server. The current
-CLI-only review path is `dhpk-change-review/scripts/review.sh --backend cli`;
+CLI-only review path is `change-verdict --mode code --backend cli`;
 its sibling CLI roles are `codex-worker`, `codex-reasoner`, `codex-reviewer`,
 and `dhpk-codex-bridge`. Use `--worker=codex`, `--reasoner=codex`, or an
 explicit `codex exec` second opinion when a Codex CLI transport is wanted.
@@ -129,7 +129,7 @@ The supported current surfaces are independent:
 
 | Surface | How it is obtained | What it provides | dhpk dependency |
 |---|---|---|---|
-| Codex CLI | Install and authenticate the `codex` binary | `codex exec`, CLI-backed roles, and `dhpk-change-review/scripts/review.sh --backend cli` | Optional; no MCP server |
+| Codex CLI | Install and authenticate the `codex` binary | `codex exec`, CLI-backed roles, and `change-verdict --mode code --backend cli` | Optional; no MCP server |
 | `openai/codex-plugin-cc` | `/plugin install codex@openai-codex` | `/codex:*` commands and app-server collaboration | Optional external plugin |
 | Retired Codex MCP | Historical `codex mcp-server` registration | `mcp__codex__codex` / `mcp__codex__codex-reply` | None; retained only as historical context |
 
@@ -140,7 +140,7 @@ the retired MCP mechanism and needs no server registration.
 The `CODEX=on` and `/dhpk:do --codex` flags were legacy per-session MCP-peer
 interfaces. They are removed, are not persisted `userConfig` values, and are
 not silently reinterpreted as `codex exec`, `--worker=codex`,
-`--reasoner=codex`, or the external plugin. Use `/dhpk:do`/`dhpk-implement` for
+`--reasoner=codex`, or the external plugin. Use `/dhpk:flow-drive` for
 current-model implementation, select a CLI role explicitly when needed, and
 request a second opinion by its named `codex exec` opt-in.
 

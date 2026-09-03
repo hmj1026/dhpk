@@ -101,7 +101,7 @@ timeout binary. On a **multi-file** dispatch it triggers timeout recovery
 instead of the ordinary failure path in "Verify and report" below. Build the
 path-scoped completion ledger (`confirmed` / `unconfirmed` / `remaining`,
 disjoint, covering the assigned list) per
-`${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/implementation-dispatch.md`
+`${CLAUDE_PLUGIN_ROOT}/skills/flow-guide/references/implementation-dispatch.md`
 §CLI worker mid-batch timeout recovery, then:
 
 Read the contained receipt before classifying exit `124`. A non-empty report is

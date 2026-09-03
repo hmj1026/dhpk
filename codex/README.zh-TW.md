@@ -9,7 +9,7 @@ agent 轉成 Codex CLI 格式，讓同時使用 Claude Code 與 Codex CLI 的專
 完整的 Supported project-local、legacy/native 與 standard Agent Plugin 路徑請見
 [平台安裝 SSOT](../docs/platform-installation.zh-TW.md)。
 
-`codex/skills/` 每個項目都是指向 `../../skills/<dhpk-name>/` flat canonical
+`codex/skills/` 每個項目都是指向 `../../skills/<public-name>/` flat canonical
 package 的 repo-relative symlink；這個 projection 沒有實體 skill copy。獨立的
 `plugins/dhpk/` 才是追蹤中的 native physical package。
 
@@ -71,14 +71,16 @@ updated、migrated、preserved、collision、pruned 與 orphaned 數量，不暴
 ## 呼叫 skill
 
 Skill invocation 是 chat syntax，不是 plugin-management command。每個同步 skill
-都有唯一的 `$dhpk-<name>` trigger，寫在 `agents/openai.yaml` 的 `default_prompt`。
-Codex 沒有 Claude 式 slash-command namespace，因此 `dhpk-` 是 public skill name
-本身。不要使用 `$dhpk:<name>` 或未加 prefix 的 legacy name。`codex plugin list`
-只證明管理層安裝狀態；仍須確認特定 `$dhpk-<name>` 能解析。
+都在 `agents/openai.yaml` 宣告 public trigger。六個 capability family 使用未加
+前綴名稱（`skill-scope`、`skill-forge`、`flow-guide`、`flow-drive`、
+`change-verdict`、`code-trace`）；其他 first-party skill 維持 `dhpk-` 前綴。不要
+使用 `$dhpk:<name>` 或 predecessor name；`codex plugin list` 只證明管理層安裝狀態，
+仍須確認選定的 family 或 `$dhpk-<name>` 能解析。
 
-主要流程的 Codex 入口是 `$dhpk-do <task>`（該 skill 被發現時）。Codex 沒有
-`/dhpk:do` command。若 `$dhpk-do` 未被發現，使用 `AGENTS.md` 的 instruction
-routing 與明確 `/opsx:*`；不要虛構可呼叫的 `/dhpk:do`。
+主要流程的 Codex 入口是 `$flow-drive <task>`（該 family 被發現時），只分類可用
+`$flow-drive --route-only <task>`。Codex 沒有 `/dhpk:do` command。若 `$flow-drive`
+未被發現，使用 `AGENTS.md` 的 instruction routing 與明確 `/opsx:*`；不要虛構可呼叫
+的 `/dhpk:do`。
 
 ## Agent roles
 

@@ -23,6 +23,68 @@ const SYMLINK_POLICIES = Object.freeze([
   'declared-source-relative',
 ]);
 
+const EXTERNAL_SKILL_PACKAGE_FIELDS = Object.freeze([
+  'id',
+  'owner',
+  'repository',
+  'policy',
+  'license_review',
+  'stable_ids',
+]);
+
+// The ownership ledger is an additive contract.  Keep extraction permissive so
+// old callers that do not know about it continue to compile exactly as before;
+// the inventory validator remains responsible for rejecting malformed rows.
+function externalSkillPackagesInput(input) {
+  if (Array.isArray(input)) return { present: true, value: input };
+  if (!input || typeof input !== 'object') return { present: false, value: undefined };
+
+  const candidates = [
+    input,
+    input.inventory,
+  ];
+  for (const candidate of candidates) {
+    if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) continue;
+    if (Object.prototype.hasOwnProperty.call(candidate, 'external_skill_packages')) {
+      return { present: true, value: candidate.external_skill_packages };
+    }
+    if (Object.prototype.hasOwnProperty.call(candidate, 'externalSkillPackages')) {
+      return { present: true, value: candidate.externalSkillPackages };
+    }
+  }
+  return { present: false, value: undefined };
+}
+
+function normalizeExternalSkillPackages(input) {
+  const source = externalSkillPackagesInput(input);
+  if (!source.present || !Array.isArray(source.value)) return [];
+
+  return source.value
+    .map((entry) => {
+      const row = entry && typeof entry === 'object' && !Array.isArray(entry) ? entry : {};
+      const stableIds = Array.isArray(row.stable_ids)
+        ? [...row.stable_ids].sort()
+        : Array.isArray(row.stableIds)
+          ? [...row.stableIds].sort()
+          : [];
+      return {
+        id: row.id,
+        owner: row.owner,
+        repository: row.repository,
+        policy: row.policy,
+        license_review: Object.prototype.hasOwnProperty.call(row, 'license_review')
+          ? row.license_review
+          : row.licenseReview,
+        stable_ids: stableIds,
+      };
+    })
+    .sort((left, right) => String(left.id).localeCompare(String(right.id)));
+}
+
+function externalSkillPackagesFingerprint(input) {
+  return fingerprint(normalizeExternalSkillPackages(input));
+}
+
 function clone(value) {
   if (Buffer.isBuffer(value)) return Buffer.from(value);
   if (Array.isArray(value)) return value.map(clone);
@@ -221,6 +283,19 @@ function createDistributionPlan(input = {}) {
       ? [...new Set(input.emittedStableIds)]
       : (Array.isArray(profileSelection.emittedStableIds) ? [...new Set(profileSelection.emittedStableIds)] : null);
   }
+
+  // Ownership provenance was added after the v1 projection contract.  It is
+  // deliberately omitted when no ledger (or explicit ledger fingerprint) is
+  // supplied so legacy plan fingerprints remain byte-for-byte compatible.
+  const ownershipInput = externalSkillPackagesInput(input);
+  const explicitOwnershipFingerprint = Object.prototype.hasOwnProperty.call(input, 'externalSkillPackagesFingerprint')
+    ? input.externalSkillPackagesFingerprint
+    : input.external_skill_packages_fingerprint;
+  if (ownershipInput.present || explicitOwnershipFingerprint !== undefined) {
+    body.externalSkillPackagesFingerprint = explicitOwnershipFingerprint !== undefined
+      ? explicitOwnershipFingerprint
+      : externalSkillPackagesFingerprint(ownershipInput.value);
+  }
   return result({ ...body, planFingerprint: fingerprint(body) });
 }
 
@@ -237,6 +312,12 @@ function createDistributionArtifact(input = {}) {
     links: Array.isArray(input.links) ? input.links : [],
     metadata: input.metadata === undefined ? undefined : input.metadata,
   };
+  const externalSkillPackagesFingerprintValue = Object.prototype.hasOwnProperty.call(input, 'externalSkillPackagesFingerprint')
+    ? input.externalSkillPackagesFingerprint
+    : input.external_skill_packages_fingerprint;
+  if (externalSkillPackagesFingerprintValue !== undefined) {
+    body.externalSkillPackagesFingerprint = externalSkillPackagesFingerprintValue;
+  }
   return result(body);
 }
 
@@ -247,7 +328,7 @@ function createEvidenceResult(input = {}) {
   if (!VERDICTS.includes(input.verdict)) {
     return result(undefined, projectionError('INVALID_VERDICT', 'verify', `unsupported evidence verdict '${input.verdict}'`, { stage: input.stage }));
   }
-  return result({
+  const body = {
     schema: CONTRACT_SCHEMA,
     stage: input.stage,
     adapter: input.adapter || { id: 'unknown', version: 'unknown' },
@@ -258,7 +339,14 @@ function createEvidenceResult(input = {}) {
     verdict: input.verdict,
     diagnostics: Array.isArray(input.diagnostics) ? input.diagnostics : [],
     observedAt: input.observedAt,
-  });
+  };
+  const externalSkillPackagesFingerprintValue = Object.prototype.hasOwnProperty.call(input, 'externalSkillPackagesFingerprint')
+    ? input.externalSkillPackagesFingerprint
+    : input.external_skill_packages_fingerprint;
+  if (externalSkillPackagesFingerprintValue !== undefined) {
+    body.externalSkillPackagesFingerprint = externalSkillPackagesFingerprintValue;
+  }
+  return result(body);
 }
 
 module.exports = {
@@ -266,8 +354,11 @@ module.exports = {
   VERIFICATION_STAGES,
   VERDICTS,
   SYMLINK_POLICIES,
+  EXTERNAL_SKILL_PACKAGE_FIELDS,
   canonicalize,
   fingerprint,
+  normalizeExternalSkillPackages,
+  externalSkillPackagesFingerprint,
   projectionError,
   createDistributionPlan,
   createDistributionArtifact,

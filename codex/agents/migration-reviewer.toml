@@ -148,7 +148,7 @@ Category: `reviews/`. Frontmatter/retention/degradation: reviewer-family shape (
 ## References
 
 - `database-reviewer` agent (parent SQL specialist for query correctness)
-- `cx`/GitNexus symbol-level pre-edit guidance
+- `code-trace` skill (`cx`/GitNexus symbol-level pre-edit guidance)
 - Per-stack module references (loaded only when the matching module is enabled):
   - the project Yii migration API documentation — Yii 1.1 CDbMigration API + `yiic migrate` flow
   - the project Laravel migration documentation — Laravel migration patterns per major version

@@ -1,6 +1,6 @@
 ---
 name: dhpk-project-audit
-description: "Project health audit with deterministic scoring. Use when: evaluating project quality, onboarding to new codebase, periodic health checks. Not for: runtime performance analysis, security-specific audits (use /codex-security). Output: 5-dimension score + actionable findings."
+description: "Project health audit with deterministic scoring. Use when: evaluating project quality, onboarding to new codebase, periodic health checks. Not for: runtime performance analysis, security-specific audits (use /dhpk:change-verdict --mode security). Output: 5-dimension score + actionable findings."
 metadata:
   dhpk-invocation-class: "implicit-eligible"
 ---
@@ -9,9 +9,9 @@ metadata:
 
 ## When NOT to Use
 
-- Security-specific review (use `/codex-security`)
+- Security-specific review (use `/dhpk:change-verdict --mode security`)
 - Runtime performance profiling
-- Mid-development review (use `/codex-review-fast`)
+- Mid-development review (use `/dhpk:change-verdict --mode code`)
 
 ## Procedure
 

@@ -1,6 +1,6 @@
 ---
 name: dhpk-tech-spec
-description: "Tech spec generation and review. Use when: designing features, writing specs, spec review. Not for: requirements analysis (use /dhpk:deep-analyze), implementation (use dhpk-adaptive-dev-workflow in feature mode), architecture advice (use dhpk-module-design). Output: numbered tech spec document."
+description: "Tech spec generation and review. Use when: designing features, writing specs, spec review. Not for: requirements analysis (use /dhpk:deep-analyze), implementation (use flow-guide in feature mode), architecture advice (use dhpk-module-design). Output: numbered tech spec document."
 metadata:
   dhpk-invocation-class: "implicit-eligible"
 ---
@@ -14,7 +14,7 @@ the numbered spec; it does not restate architecture mechanics.
 ## When NOT to Use
 
 - Creating request documents (use /dhpk:dhpk-create-request)
-- Code implementation (use `dhpk-adaptive-dev-workflow` in feature mode)
+- Code implementation (use `flow-guide` in feature mode)
 - Architecture consulting (use /dhpk:dhpk-module-design)
 
 ## Commands
@@ -23,7 +23,7 @@ the numbered spec; it does not restate architecture mechanics.
 | --------------- | -------------------- | ----------------------- |
 | `/dhpk:dhpk-tech-spec`    | Create or update tech spec | Auto-detects create/update from filesystem state |
 | `/deep-analyze` | Deepen spec + roadmap | After initial concept   |
-| `/review-spec`  | Review tech spec     | Spec confirmation       |
+| `/dhpk:change-verdict --mode docs` | Review tech spec | Spec confirmation |
 
 ## Context-Aware Mode (Upsert)
 
@@ -97,6 +97,6 @@ Action: Requirement clarification -> Code research -> Solution design -> Output 
 ```
 
 ```
-Input: /review-spec docs/features/xxx/2-tech-spec.md
+Input: /dhpk:change-verdict --mode docs docs/features/xxx/2-tech-spec.md
 Action: Read -> Research -> Review -> Output report + Gate
 ```

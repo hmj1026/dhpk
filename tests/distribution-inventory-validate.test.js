@@ -7,6 +7,10 @@
 const { test, run, assert } = require('./_lib/tinytest');
 const {
   validateDistributionInventory,
+  validateDistributionInventoryV2,
+  validateExternalSkillPackages,
+  normalizeExternalSkillPackages,
+  externalSkillPackagesFingerprint,
   validateSupportingAssets,
   validatePlatformCapabilityMatrix,
   validatePortableFrontmatterContract,
@@ -382,6 +386,88 @@ test('accepts explicit portable and Cursor surface membership with capability ev
   assert.deepStrictEqual(validateDistributionInventory({ inventory: inv }).errors, []);
 });
 
+test('accepts only reviewed portable-family public names and keeps prefixed names for unmarked entries', () => {
+  const portable = {
+    schema: 'dhpk.distribution-inventory.v2',
+    skills: [{
+      id: 'skill-scope', name: 'skill-scope', name_style: 'portable-family',
+      path: 'skills/skill-scope', capability_id: 'dhpk.skill.skill-scope',
+      invocation_class: 'implicit-eligible', lifecycle: 'promoted', tier: 'core',
+      profiles: ['core'], surfaces: ['claude-core'],
+    }],
+  };
+  assert.deepStrictEqual(validateDistributionInventoryV2({ inventory: portable }).errors, []);
+
+  const unmarked = JSON.parse(JSON.stringify(portable));
+  delete unmarked.skills[0].name_style;
+  assert.ok(validateDistributionInventoryV2({ inventory: unmarked }).errors.some((error) => /name.*dhpk-|portable-family/i.test(error)));
+
+  const prefixed = JSON.parse(JSON.stringify(portable));
+  prefixed.skills[0].name = 'dhpk-skill-scope';
+  prefixed.skills[0].path = 'skills/dhpk-skill-scope';
+  assert.ok(validateDistributionInventoryV2({ inventory: prefixed }).errors.some((error) => /portable-family|unprefixed|reviewed/i.test(error)));
+
+  const unreviewed = JSON.parse(JSON.stringify(portable));
+  unreviewed.skills[0].id = 'unreviewed-family';
+  unreviewed.skills[0].name = 'unreviewed-family';
+  unreviewed.skills[0].path = 'skills/unreviewed-family';
+  unreviewed.skills[0].capability_id = 'dhpk.skill.unreviewed-family';
+  assert.ok(validateDistributionInventoryV2({ inventory: unreviewed }).errors.some((error) => /portable-family|reviewed|family/i.test(error)));
+});
+
+test('validates and normalizes the external skill package ledger', () => {
+  const row = {
+    id: 'gitnexus', owner: 'upstream',
+    repository: 'https://github.com/abhigyanpatwari/GitNexus',
+    policy: 'protect-existing', license_review: 'open',
+    stable_ids: ['gitnexus-cli', 'gitnexus-refactoring'],
+  };
+  const inventory = {
+    schema: 'dhpk.distribution-inventory.v2',
+    skills: row.stable_ids.map((id) => ({
+      id, name: `dhpk-${id}`, path: `skills/dhpk-${id}`,
+      capability_id: `dhpk.skill.${id}`, lifecycle: 'promoted', tier: 'core',
+      profiles: ['core'], surfaces: ['agent-plugin'],
+    })),
+    external_skill_packages: [row],
+  };
+  assert.deepStrictEqual(validateExternalSkillPackages({ inventory }).errors, []);
+  assert.deepStrictEqual(normalizeExternalSkillPackages({ inventory }), [{
+    id: 'gitnexus', owner: 'upstream',
+    repository: 'https://github.com/abhigyanpatwari/GitNexus',
+    policy: 'protect-existing', license_review: 'open',
+    stable_ids: ['gitnexus-cli', 'gitnexus-refactoring'],
+  }]);
+  const reversed = JSON.parse(JSON.stringify(inventory));
+  reversed.external_skill_packages[0].stable_ids.reverse();
+  assert.strictEqual(
+    externalSkillPackagesFingerprint({ inventory }),
+    externalSkillPackagesFingerprint({ inventory: reversed }),
+  );
+});
+
+test('rejects malformed external package rows and lifecycle overlap', () => {
+  const inventory = {
+    schema: 'dhpk.distribution-inventory.v2',
+    skills: [{ id: 'gitnexus-cli', name: 'dhpk-gitnexus-cli', path: 'skills/dhpk-gitnexus-cli' }],
+    retired_skills: [{ id: 'gitnexus-cli' }],
+    external_skill_packages: [{
+      id: 'GitNexus', owner: 'vendor', repository: 'http://example.com',
+      policy: 'replace', license_review: 'unknown', stable_ids: ['gitnexus-cli', 'missing', 'missing'], extra: true,
+    }],
+  };
+  const errors = validateExternalSkillPackages({ inventory }).errors.join('\n');
+  assert.match(errors, /id.*kebab|lowercase/i);
+  assert.match(errors, /owner.*upstream/i);
+  assert.match(errors, /HTTPS|https/i);
+  assert.match(errors, /policy.*protect-existing/i);
+  assert.match(errors, /license_review/i);
+  assert.match(errors, /stable_ids/i);
+  assert.match(errors, /not allowed|unknown field|extra/i);
+  assert.match(errors, /missing.*live|canonical|unknown stable id/i);
+  assert.match(errors, /retired|overlap/i);
+});
+
 test('rejects unknown surface members, unsafe matrix paths, and non-portable frontmatter', () => {
   const inv = {
     schema: 'dhpk.distribution-inventory.v2',
@@ -426,6 +512,20 @@ test('inventory bootstrap preserves projection contracts on regeneration', () =>
   assert.deepStrictEqual(merged.platform_matrix, existing.platform_matrix);
   assert.deepStrictEqual(merged.portable_frontmatter, existing.portable_frontmatter);
   assert.deepStrictEqual(merged.projection_contract, existing.projection_contract);
+});
+
+test('inventory regeneration preserves the external package ledger', () => {
+  const generated = { schema: 'dhpk.distribution-inventory.v2', skills: [], modules: [] };
+  const existing = {
+    external_skill_packages: [{
+      id: 'gitnexus', owner: 'upstream',
+      repository: 'https://github.com/abhigyanpatwari/GitNexus',
+      policy: 'protect-existing', license_review: 'open',
+      stable_ids: ['gitnexus-cli'],
+    }],
+  };
+  const merged = preserveProjectionContract(generated, existing);
+  assert.deepStrictEqual(merged.external_skill_packages, existing.external_skill_packages);
 });
 
 run('distribution-inventory-validate');

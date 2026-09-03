@@ -6,8 +6,8 @@
 # relevant dhpk command (exit-0 stderr is inert — see _lib/json-out.sh). Helps
 # Claude surface workflows without the user memorising all 70 commands.
 #
-# Matching is delegated to skills/dhpk-do/scripts/pre-route.sh (the same matcher
-# behind the /dhpk:do Smart Router), so the skill-local route-table.json stays
+# Matching is delegated to skills/flow-drive/scripts/pre-route.sh (the same matcher
+# behind the flow-drive Smart Router), so the skill-local route-table.json stays
 # the single source of truth for both surfaces. This hook only owns the
 # UserPromptSubmit-specific gating + the stderr formatting.
 #
@@ -43,7 +43,7 @@ set -o pipefail
 . "$(dirname "$0")/_lib/runtime-config.sh"
 
 PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
-PRE_ROUTE="$PLUGIN_ROOT/skills/dhpk-do/scripts/pre-route.sh"
+PRE_ROUTE="$PLUGIN_ROOT/skills/flow-drive/scripts/pre-route.sh"
 
 # ---- Pure-bash fast-exit gates (NO subprocess) ----
 # DHPK_HOOK_PROFILE is the documented one-shot profile override (mirrors the

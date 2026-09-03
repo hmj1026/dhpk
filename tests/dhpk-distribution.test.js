@@ -174,17 +174,17 @@ test('keeps structural validation separate from evidence-bound verification', ()
 
 // v1 GREEN contract (tests above): distribution CLI validate/generate/verify
 // for retained surfaces, foreign-output refusal, evidence-bound verify.
-// v2 RED contract (this test): required_core includes `do` and validators must
+// v2 GREEN contract: required_core includes `flow-drive` and validators must
 // not keep an exact-nine count literal. See tests/dhpk-do-portable.test.js [5.1].
 
-test('minimal required_core includes do without an exact-nine count literal (RED until 5.1)', () => {
+test('minimal required_core includes flow-drive without an exact-nine count literal', () => {
   const inventory = JSON.parse(fs.readFileSync(
     path.join(ROOT, 'manifests', 'distribution-inventory.json'),
     'utf8',
   ));
   const core = inventory.profile_policy.required_core_ids;
   assert.ok(Array.isArray(core), 'profile_policy.required_core_ids must be an array');
-  assert.ok(core.includes('do'), "minimal required_core_ids must include stable id 'do'");
+  assert.ok(core.includes('flow-drive'), "minimal required_core_ids must include stable id 'flow-drive'");
   const validator = fs.readFileSync(path.join(ROOT, 'scripts', 'lib', 'distribution-inventory.js'), 'utf8');
   assert.doesNotMatch(validator, /length !== 9/);
   assert.doesNotMatch(validator, /exactly nine/);

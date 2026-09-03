@@ -857,6 +857,14 @@ test('consumer failure evidence redacts sandbox and repository paths', () => {
   assert.doesNotMatch(redacted, /AUTH_MARKER_SHOULD_NOT_LEAK|DB_MARKER/);
 });
 
+test('consumer failure evidence keeps repository identity when the checkout is under the sandbox', () => {
+  const sandboxRoot = path.join(os.tmpdir(), `dhpk-redaction-repo-${process.pid}`);
+  const privateText = `installer failed at ${path.join(os.tmpdir(), 'private-project')} from ${sandboxRoot}/plugins/dhpk`;
+  const redacted = redactEvidence(privateText, sandboxRoot);
+  assert.match(redacted, /<sandbox>/);
+  assert.match(redacted, /<repo>\/plugins\/dhpk/);
+});
+
 test('Claude consumer-gate uninstalls the project-scope plugin before deleting the temp project', () => {
   withConsumerGateBin((bin) => {
     const log = path.join(bin, 'claude-argv.log');

@@ -38,7 +38,7 @@
 | Complexity  | Low / Medium / High                       |
 | Type        | Logic error / Performance / Data / Other  |
 
-**Selected Strategy**: `/dhpk:dhpk-codebase-exploration` | `/dhpk:dhpk-git-history-investigation` | `/dhpk:dhpk-codebase-exploration --dual` | `/dhpk:dhpk-module-design --mode adversarial`
+**Selected Strategy**: `/dhpk:code-trace` | `/dhpk:code-trace` | `/dhpk:code-trace --dual` | `/dhpk:dhpk-module-design --mode adversarial`
 
 ## Investigation Process
 

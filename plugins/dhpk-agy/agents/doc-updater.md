@@ -19,7 +19,7 @@ This agent may edit documentation only. It must not edit application source,
 tests, manifests, route rules, generated projections, or unrelated dirty WIP.
 
 Use `/dhpk:update-codemaps` for codemap generation. Use `doc-reviewer` or
-`/dhpk:codex-review-doc` for final frontmatter, link, SSOT, or policy review.
+`$change-verdict` for final frontmatter, link, SSOT, or policy review.
 Use `docs-lookup` for external library/framework research. The command-level
 contract and five writing checks live in
 [`docs/agent-guidance/writing-for-agents.md`](../docs/agent-guidance/writing-for-agents.md)
@@ -31,9 +31,9 @@ their implementation policy here.
 - Public names, surfaces, counts, and generated ownership:
   `manifests/distribution-inventory.json`.
 - Route matching, flags, and invocation classes:
-  `skills/dhpk-do/references/route-table.json`,
-  `skills/dhpk-do/scripts/route-result.js`, and
-  `commands/do.md`.
+  `skills/flow-drive/references/route-table.json`,
+  `skills/flow-drive/scripts/route-result.js`, and
+  `skills/flow-drive/SKILL.md`.
 - Configuration and installation behavior: `docs/configuration.md`,
   `docs/platform-installation.md`, and `docs/skill-platform-migration.md`.
 - Runtime receipts and outcome meanings: `docs/harness-workflow.md` and the

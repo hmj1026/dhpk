@@ -1,0 +1,1058 @@
+#!/usr/bin/env node
+'use strict';
+
+/**
+ * skill-lint.js — Automated skill health checker
+ *
+ * Validates all skills against routing, progressive loading, and structural criteria.
+ *
+ * Usage:
+ *   node skill-lint.js [--skills-dir <path>] [--agents-dir <path>] [--commands-dir <path>] [--json] [--fix-hint]
+ *
+ * Exit codes:
+ *   0 = all pass
+ *   1 = warnings only (P2)
+ *   2 = errors found (P0/P1)
+ */
+
+const { readdirSync, readFileSync, existsSync, statSync, lstatSync } = require('node:fs');
+const { join, basename, resolve, relative, isAbsolute, sep } = require('node:path');
+
+const PORTABLE_FAMILY_NAMES = new Set([
+  'skill-scope', 'skill-forge', 'flow-guide', 'flow-drive', 'change-verdict', 'code-trace',
+]);
+
+// ---------------------------------------------------------------------------
+// CLI args
+// ---------------------------------------------------------------------------
+
+const args = process.argv.slice(2);
+function argVal(flag, fallback) {
+  const idx = args.indexOf(flag);
+  return idx !== -1 && args[idx + 1] ? args[idx + 1] : fallback;
+}
+const jsonOutput = args.includes('--json');
+const fixHint = args.includes('--fix-hint');
+
+const cwd = process.cwd();
+const skillsDir = resolve(argVal('--skills-dir', join(cwd, 'skills')));
+const agentsDir = resolve(argVal('--agents-dir', join(cwd, 'agents')));
+const commandsDir = resolve(argVal('--commands-dir', join(cwd, 'commands')));
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function normalizeContent(raw) {
+  return raw.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n');
+}
+
+function safeReadFile(filePath) {
+  try {
+    return { ok: true, content: readFileSync(filePath, 'utf8') };
+  } catch (error) {
+    return { ok: false, error };
+  }
+}
+
+function safeReadDir(dirPath) {
+  try {
+    return { ok: true, entries: readdirSync(dirPath) };
+  } catch (error) {
+    return { ok: false, error };
+  }
+}
+
+function safeLstat(filePath) {
+  try {
+    return { ok: true, stat: lstatSync(filePath) };
+  } catch (error) {
+    return { ok: false, error };
+  }
+}
+
+function malformedEntryFinding(kind, fileName, reason, fix) {
+  return {
+    check: `${kind}-entry`,
+    path: fileName,
+    pass: false,
+    severity: 'P1',
+    message: `${kind[0].toUpperCase()}${kind.slice(1)} entry "${fileName}" ${reason}`,
+    fix,
+  };
+}
+
+function invalidFrontmatterFinding(kind, fileName, missing) {
+  return {
+    check: `${kind}-frontmatter`,
+    path: fileName,
+    pass: false,
+    severity: 'P1',
+    message: `${kind[0].toUpperCase()}${kind.slice(1)} "${fileName}" has invalid frontmatter (missing ${missing.join(', ')})`,
+    fix: `Add the required frontmatter fields to ${fileName}`,
+  };
+}
+
+function readDiscoverableEntry(dirPath, fileName, kind, displayName = fileName) {
+  const filePath = join(dirPath, fileName);
+  const lstatResult = safeLstat(filePath);
+  if (!lstatResult.ok) {
+    return {
+      finding: malformedEntryFinding(
+        kind,
+        displayName,
+        `could not be inspected (${lstatResult.error.code || 'filesystem error'})`,
+        `Restore or remove ${displayName}, then run the health check again`,
+      ),
+    };
+  }
+  if (lstatResult.stat.isSymbolicLink() && !existsSync(filePath)) {
+    return {
+      finding: malformedEntryFinding(
+        kind,
+        displayName,
+        'is a dangling symlink',
+        `Restore the symlink target or remove ${displayName}`,
+      ),
+    };
+  }
+  if (!lstatResult.stat.isFile() && !lstatResult.stat.isSymbolicLink()) {
+    return {
+      finding: malformedEntryFinding(
+        kind,
+        displayName,
+        'is not a regular file',
+        `Replace ${displayName} with a regular markdown file or remove it`,
+      ),
+    };
+  }
+  const readResult = safeReadFile(filePath);
+  if (!readResult.ok) {
+    return {
+      finding: malformedEntryFinding(
+        kind,
+        displayName,
+        `could not be read (${readResult.error.code || 'filesystem error'})`,
+        `Restore read access to ${displayName} or remove it`,
+      ),
+    };
+  }
+  return { content: normalizeContent(readResult.content) };
+}
+
+function requiredFrontmatterFields(content, required) {
+  const fm = parseFrontmatter(content);
+  if (!fm) return required;
+  return required.filter((field) => !fm[field]);
+}
+
+function dedupeFindings(findings) {
+  const seen = new Set();
+  return findings.filter((finding) => {
+    if (!finding || finding.pass) return true;
+    const key = [finding.check, finding.path || finding.skill || '', finding.target || finding.message || ''].join('|');
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function parseFrontmatter(content) {
+  const match = content.match(/^---\n([\s\S]*?)\n---/);
+  if (!match) return null;
+  const fm = {};
+  for (const line of match[1].split('\n')) {
+    const idx = line.indexOf(':');
+    if (idx === -1) continue;
+    const key = line.slice(0, idx).trim();
+    const val = line.slice(idx + 1).trim();
+    fm[key] = val;
+  }
+  return fm;
+}
+
+function bodyAfterFrontmatter(content) {
+  const match = content.match(/^---\n[\s\S]*?\n---\n([\s\S]*)$/);
+  return match ? match[1] : content;
+}
+
+function countLines(content) {
+  return content.split('\n').length;
+}
+
+function hasHeading(body, pattern) {
+  return new RegExp(`^##+ .*${pattern}`, 'im').test(body);
+}
+
+function similarity(a, b) {
+  const wordsA = new Set(a.toLowerCase().split(/\W+/).filter(Boolean));
+  const wordsB = new Set(b.toLowerCase().split(/\W+/).filter(Boolean));
+  const intersection = [...wordsA].filter((w) => wordsB.has(w));
+  const union = new Set([...wordsA, ...wordsB]);
+  return union.size === 0 ? 0 : intersection.length / union.size;
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function capabilitySkip(check, reason) {
+  return { check, reason };
+}
+
+// ---------------------------------------------------------------------------
+// Check functions — each returns { pass, severity, message, fix? }
+// ---------------------------------------------------------------------------
+
+function checkFrontmatterExists(fm, skillName) {
+  const skillPath = `${skillName}/SKILL.md`;
+  if (!fm) return { pass: false, severity: 'P1', path: skillPath, message: 'Missing YAML frontmatter', fix: 'Add YAML frontmatter with name and description' };
+  if (!fm.name)
+    return { pass: false, severity: 'P1', path: skillPath, message: 'Frontmatter missing `name` field', fix: 'Add the required name field to YAML frontmatter' };
+  if (!fm.description)
+    return { pass: false, severity: 'P1', path: skillPath, message: 'Frontmatter missing `description` field', fix: 'Add the required description field to YAML frontmatter' };
+  return { pass: true };
+}
+
+function checkRoutingSignature(fm) {
+  if (!fm || !fm.description) return { pass: false, severity: 'P1', message: 'No description to check' };
+  const desc = fm.description.toLowerCase();
+
+  const hasUseCue =
+    /\buse when\b/.test(desc) ||
+    /\btrigger/.test(desc) ||
+    /\buse for\b/.test(desc) ||
+    /\buse this\b/.test(desc);
+  const hasAvoidCue =
+    /\bavoid\b/.test(desc) ||
+    /\bnot for\b/.test(desc) ||
+    /\bdon'?t use\b/.test(desc) ||
+    /\binstead use\b/.test(desc);
+  const hasOutputCue =
+    /\boutput/.test(desc) ||
+    /\bproduc/.test(desc) ||
+    /\breport/.test(desc) ||
+    /\bgenerat/.test(desc);
+
+  const cueCount = [hasUseCue, hasAvoidCue, hasOutputCue].filter(Boolean).length;
+
+  if (cueCount === 0) {
+    return {
+      pass: false,
+      severity: 'P1',
+      message: 'Description lacks routing cues (Use/Avoid/Output)',
+      fix: 'Add routing cues: "Use when: X. Not for: Y. Output: Z."',
+    };
+  }
+  if (cueCount < 2) {
+    return {
+      pass: false,
+      severity: 'P2',
+      message: `Description has ${cueCount}/3 routing cues (missing: ${!hasUseCue ? 'Use' : ''}${!hasAvoidCue ? ' Avoid' : ''}${!hasOutputCue ? ' Output' : ''})`.trim(),
+      fix: 'Add missing routing cues to description',
+    };
+  }
+  return { pass: true };
+}
+
+function extractWhenNotSection(body) {
+  const heading = body.match(/^(#{2,})\s+.*(?:When NOT|NOT to Use|Don't Use).*$/im);
+  if (!heading || heading.index === undefined) return null;
+  const sectionStart = heading.index + heading[0].length;
+  const remainder = body.slice(sectionStart);
+  const level = heading[1].length;
+  const headingPattern = /^(#{2,})\s+/gm;
+  let nextHeading = -1;
+  let candidate;
+  while ((candidate = headingPattern.exec(remainder)) !== null) {
+    if (candidate[1].length <= level) {
+      nextHeading = candidate.index;
+      break;
+    }
+  }
+  return (nextHeading === -1 ? remainder : remainder.slice(0, nextHeading)).trim();
+}
+
+function normalizeRouteToken(token) {
+  if (token.startsWith('@skills/')) return token.slice('@skills/'.length);
+  if (token.startsWith('/dhpk:')) {
+    const route = token.slice('/dhpk:'.length);
+    return PORTABLE_FAMILY_NAMES.has(route) || route.startsWith('dhpk-') ? route : `dhpk-${route}`;
+  }
+  if (token.startsWith('dhpk:')) {
+    const route = token.slice('dhpk:'.length);
+    return PORTABLE_FAMILY_NAMES.has(route) || route.startsWith('dhpk-') ? route : `dhpk-${route}`;
+  }
+  return token;
+}
+
+function checkWhenNotSection(body, knownSkillNames = null) {
+  const section = extractWhenNotSection(body);
+  if (section === null) {
+    return {
+      pass: false,
+      severity: 'P1',
+      message: 'Missing "When NOT to Use" section in body',
+      fix: 'Add a non-empty ## When NOT to Use section with a neighboring route or explicit exclusion',
+    };
+  }
+
+  const meaningful = section
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/^\s*[-*]\s*$/gm, '')
+    .trim();
+  if (!meaningful) {
+    return {
+      pass: false,
+      severity: 'P1',
+      message: 'Empty "When NOT to Use" section in body',
+      fix: 'Name a neighboring route or state an explicit exclusion under ## When NOT to Use',
+    };
+  }
+
+  if (knownSkillNames) {
+    const known = new Set(knownSkillNames);
+    const routePattern = /@skills\/[A-Za-z0-9][A-Za-z0-9-]*|\/dhpk:[A-Za-z0-9][A-Za-z0-9-]*|\bdhpk:[A-Za-z0-9][A-Za-z0-9-]*|\bdhpk-[A-Za-z0-9][A-Za-z0-9-]*/g;
+    const unresolved = [...new Set(
+      [...meaningful.matchAll(routePattern)].map((match) => normalizeRouteToken(match[0])),
+    )].filter((token) => !known.has(token));
+    if (unresolved.length > 0) {
+      return {
+        pass: false,
+        severity: 'P1',
+        message: `When NOT to Use names unresolvable route(s): ${unresolved.join(', ')}`,
+        fix: 'Use a shipped canonical route identifier or describe the exclusion without a stale route token',
+      };
+    }
+  }
+
+  return { pass: true };
+}
+
+function checkOutputSection(body) {
+  if (hasHeading(body, 'Output') || hasHeading(body, 'Deliverable') || hasHeading(body, 'Report')) {
+    return { pass: true };
+  }
+  return {
+    pass: false,
+    severity: 'P2',
+    message: 'Missing "Output" section defining expected deliverable format',
+    fix: 'Add ## Output section with expected format',
+  };
+}
+
+function checkVerificationSection(body) {
+  if (hasHeading(body, 'Verification') || hasHeading(body, 'Checklist') || hasHeading(body, 'Gate')) {
+    return { pass: true };
+  }
+  return {
+    pass: false,
+    severity: 'P2',
+    message: 'Missing "Verification" section',
+    fix: 'Add ## Verification section',
+  };
+}
+
+function checkReferencesRouting(skillDir, body) {
+  const refsDir = join(skillDir, 'references');
+  if (!isDir(refsDir)) return { pass: true };
+
+  const readResult = safeReadDir(refsDir);
+  if (!readResult.ok) return { pass: true };
+  const refFiles = readResult.entries.filter((f) => f.endsWith('.md'));
+  if (refFiles.length === 0) return { pass: true };
+
+  const missing = refFiles.filter((f) => !body.includes(f));
+  if (missing.length === 0) return { pass: true };
+
+  return {
+    pass: false,
+    severity: 'P2',
+    message: `References not mentioned in SKILL.md: ${missing.join(', ')}`,
+    fix: 'Add ## References section mapping when to read each file',
+  };
+}
+
+function checkScriptsContract(skillDir, body) {
+  const scriptsDir = join(skillDir, 'scripts');
+  if (!isDir(scriptsDir)) return { pass: true };
+
+  const readResult = safeReadDir(scriptsDir);
+  if (!readResult.ok) return { pass: true };
+  const scripts = readResult.entries.filter(
+    (f) => f.endsWith('.js') || f.endsWith('.sh') || f.endsWith('.py')
+  );
+  if (scripts.length === 0) return { pass: true };
+
+  const missing = scripts.filter((f) => !body.includes(f));
+  if (missing.length === 0) return { pass: true };
+
+  return {
+    pass: false,
+    severity: 'P2',
+    message: `Scripts not documented in SKILL.md: ${missing.join(', ')}`,
+    fix: 'Document each script with usage, inputs, outputs, and exit codes',
+  };
+}
+
+function checkLineCount(content) {
+  const lines = countLines(content);
+  if (lines > 250) {
+    return {
+      pass: false,
+      severity: 'P2',
+      message: `SKILL.md is ${lines} lines (threshold: 250). Consider extracting to references/`,
+    };
+  }
+  if (lines > 150) {
+    return {
+      pass: true,
+      warning: `SKILL.md is ${lines} lines — review for extractable content`,
+    };
+  }
+  return { pass: true };
+}
+
+// checkAllowedToolsSync removed (Phase B — skills-only architecture)
+
+function checkAgentEntitlement(body, fm) {
+  if (!fm) return { pass: true };
+  // Only match explicit Agent( calls — subagent_type alone may be Task dispatch
+  const mentions = /\bAgent\s*\(/.test(body);
+  if (!mentions) return { pass: true };
+  const tools = (fm['allowed-tools'] || '').replace(/^["']|["']$/g, '');
+  if (/\bAgent\b/.test(tools)) return { pass: true };
+  return {
+    pass: false,
+    severity: 'P2',
+    message: 'Body describes Agent() dispatch but allowed-tools lacks Agent',
+    fix: 'Add Agent to allowed-tools in SKILL.md',
+  };
+}
+
+function checkTaskEntitlement(body, fm) {
+  if (!fm) return { pass: true };
+  const mentions = /\bTask\s*\(/.test(body) || /\bTaskCreate\b/.test(body);
+  if (!mentions) return { pass: true };
+  const tools = (fm['allowed-tools'] || '').replace(/^["']|["']$/g, '');
+  if (/\bTask\b/.test(tools)) return { pass: true };
+  return {
+    pass: false,
+    severity: 'P2',
+    message: 'Body describes Task() dispatch but allowed-tools lacks Task',
+    fix: 'Add Task to allowed-tools in SKILL.md',
+  };
+}
+
+function checkCrossSkillRefPaths(skillName, skillDir, body) {
+  const qualifiedPattern = /(?:@skills\/([^/`\s)]+)\/references\/([^`\s)]+\.md)|\$\{CLAUDE_PLUGIN_ROOT\}\/skills\/([^/`\s)]+)\/references\/([^`\s)]+\.md))/g;
+  const qualifiedSpans = [];
+  let qualified;
+  while ((qualified = qualifiedPattern.exec(body)) !== null) {
+    const parentSkill = qualified[1] || qualified[3];
+    const refFile = qualified[2] || qualified[4];
+    const target = resolve(skillsDir, parentSkill, 'references', refFile);
+    const parentRoot = resolve(skillsDir, parentSkill);
+    const targetRelative = relative(parentRoot, target);
+    const escapesParent = targetRelative === '..'
+      || targetRelative.startsWith(`..${sep}`)
+      || isAbsolute(targetRelative);
+    if (escapesParent || !existsSync(target)) {
+      qualifiedSpans.push({ refFile, parentSkill, missing: true });
+    }
+  }
+
+  const unqualifiedBody = body.replace(qualifiedPattern, '');
+  // Same regex as skills-schema.test.js, now applied only after qualified
+  // spans are removed so their trailing references/<file> cannot be misread.
+  const refPattern = /`?@?(?:\.\/)?references\/([^`\s)]+\.md)`?/g;
+  const mismatches = [];
+  let match;
+
+  while ((match = refPattern.exec(unqualifiedBody)) !== null) {
+    const refFile = match[1];
+    const localPath = join(skillDir, 'references', refFile);
+    if (existsSync(localPath)) continue; // Exists locally — OK
+
+    // Not local — check if it lives in another skill's references/
+    const parentSkill = findRefInOtherSkills(refFile, skillName);
+    if (parentSkill) {
+      mismatches.push({ refFile, parentSkill });
+    }
+  }
+
+  for (const missing of qualifiedSpans) {
+    mismatches.push({ refFile: missing.refFile, parentSkill: missing.parentSkill, qualified: true });
+  }
+
+  if (mismatches.length === 0) return { pass: true };
+
+  const details = [...new Map(mismatches.map((m) => [`${m.parentSkill}:${m.refFile}`, m])).values()]
+    .map((m) => m.qualified
+      ? `qualified reference ${m.parentSkill}/references/${m.refFile} is missing`
+      : `references/${m.refFile} → @skills/${m.parentSkill}/references/${m.refFile}`)
+    .join('; ');
+  return {
+    pass: false,
+    severity: 'P1',
+    message: `Non-local reference(s) need cross-skill path: ${details}`,
+    fix: 'Use an existing @skills/<parent>/references/<file>.md or plugin-root-qualified reference',
+  };
+}
+
+function findRefInOtherSkills(refFile, excludeSkill) {
+  if (!isDir(skillsDir)) return null;
+  const matches = [];
+  for (const p of findSkillDirs(skillsDir)) {
+    if (basename(p) === excludeSkill) continue;
+    if (existsSync(join(p, 'references', refFile))) matches.push(basename(p));
+  }
+  // Ambiguous if 2+ skills share the same filename — not clearly cross-skill
+  return matches.length === 1 ? matches[0] : null;
+}
+
+// Recursively find leaf skill directories (a dir containing SKILL.md). Supports
+// nested layouts like skills/gitnexus/<sub-skill>/SKILL.md so every skill is
+// linted, matching Claude Code's recursive skill discovery.
+function findSkillDirs(root) {
+  if (!isDir(root)) return [];
+  const hasSkillEntry = (dir) => {
+    const entry = safeLstat(join(dir, 'SKILL.md'));
+    return entry.ok || entry.error.code !== 'ENOENT';
+  };
+  if (hasSkillEntry(root)) return [root];
+  const SKIP = new Set(['references', 'scripts', 'templates', 'node_modules']);
+  // lstat (not stat) so symlinked dirs are NOT descended into — avoids cyclic-
+  // symlink stack overflow and double-counting linked skills.
+  const isRealDir = (p) => {
+    try {
+      return lstatSync(p).isDirectory();
+    } catch {
+      return false;
+    }
+  };
+  const out = [];
+  function walk(dir) {
+    if (hasSkillEntry(dir)) {
+      out.push(dir); // leaf skill — do not descend further
+      return;
+    }
+    const readResult = safeReadDir(dir);
+    if (!readResult.ok) return;
+    for (const e of readResult.entries) {
+      if (SKIP.has(e)) continue;
+      const p = join(dir, e);
+      if (isRealDir(p)) walk(p);
+    }
+  }
+  const rootEntries = safeReadDir(root);
+  if (!rootEntries.ok) return out;
+  for (const e of rootEntries.entries) {
+    if (SKIP.has(e)) continue;
+    const p = join(root, e);
+    if (isRealDir(p)) walk(p);
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// Skill-level checks
+// ---------------------------------------------------------------------------
+
+function lintSkill(skillName, skillDir, knownSkillNames = null) {
+  const skillPath = join(skillDir, 'SKILL.md');
+  const entry = readDiscoverableEntry(skillDir, 'SKILL.md', 'skill', `${skillName}/SKILL.md`);
+  if (entry.finding) {
+    return {
+      name: skillName,
+      path: skillPath,
+      findings: [entry.finding],
+    };
+  }
+  const content = entry.content;
+  const fm = parseFrontmatter(content);
+  const body = bodyAfterFrontmatter(content);
+  const findings = [];
+
+  findings.push({ check: 'frontmatter', ...checkFrontmatterExists(fm, skillName) });
+  findings.push({ check: 'routing-signature', ...checkRoutingSignature(fm) });
+  findings.push({ check: 'when-not', ...checkWhenNotSection(body, knownSkillNames) });
+  findings.push({ check: 'output', ...checkOutputSection(body) });
+  findings.push({ check: 'verification', ...checkVerificationSection(body) });
+  findings.push({ check: 'references-routing', ...checkReferencesRouting(skillDir, body) });
+  findings.push({ check: 'scripts-contract', ...checkScriptsContract(skillDir, body) });
+  findings.push({ check: 'line-count', ...checkLineCount(content) });
+  findings.push({ check: 'agent-entitlement', ...checkAgentEntitlement(body, fm) });
+  findings.push({ check: 'task-entitlement', ...checkTaskEntitlement(body, fm) });
+  findings.push({ check: 'cross-skill-ref-path', ...checkCrossSkillRefPaths(skillName, skillDir, body) });
+
+  return { name: skillName, path: skillPath, fm, body, findings };
+}
+
+// ---------------------------------------------------------------------------
+// Cross-skill checks
+// ---------------------------------------------------------------------------
+
+function detectOrphans(skillNames, commandFiles, _commandsDir = commandsDir) {
+  const findings = [];
+  if (commandFiles.length === 0) return findings;
+
+  const commandSkillMap = {};
+  for (const cmdFile of commandFiles) {
+    const readResult = safeReadFile(join(_commandsDir, cmdFile));
+    if (!readResult.ok) continue; // detectCommandFrontmatter reports the stable P1 finding
+    const content = readResult.content;
+    const cmdName = basename(cmdFile, '.md');
+    const match = content.match(/@skills\/([^/]+)\//);
+    commandSkillMap[cmdName] = match ? match[1] : skillNameFromCommandContent(content, skillNames);
+  }
+
+  const utilityCommands = new Set([
+    'precommit',
+    'precommit-fast',
+    'verify',
+    'simplify',
+    'doc-refactor',
+    'zh-tw',
+    'install-hooks',
+    'install-rules',
+    'install-scripts',
+    'update-docs',
+    'project-brief',
+  ]);
+
+  for (const [cmd, skill] of Object.entries(commandSkillMap)) {
+    if (!skill && !utilityCommands.has(cmd)) {
+      findings.push({
+        check: 'orphan-command',
+        pass: false,
+        severity: 'P2',
+        message: `Command "${cmd}" has no skill reference`,
+      });
+    }
+  }
+
+  const referencedSkills = new Set(Object.values(commandSkillMap).filter(Boolean));
+  const domainKB = new Set(['portfolio', 'request-tracking']);
+
+  for (const skill of skillNames) {
+    if (!referencedSkills.has(skill) && !domainKB.has(skill)) {
+      findings.push({
+        check: 'orphan-skill',
+        pass: false,
+        severity: 'P2',
+        message: `Skill "${skill}" has no command referencing it`,
+      });
+    }
+  }
+
+  return findings;
+}
+
+function detectCommandFrontmatter(commandFiles, _commandsDir) {
+  const findings = [];
+  for (const cmdFile of commandFiles) {
+    const entry = readDiscoverableEntry(_commandsDir, cmdFile, 'command');
+    if (entry.finding) {
+      findings.push(entry.finding);
+      continue;
+    }
+    const missing = requiredFrontmatterFields(entry.content, ['description']);
+    if (missing.length > 0) findings.push(invalidFrontmatterFinding('command', cmdFile, missing));
+  }
+  return findings;
+}
+
+function skillNameFromCommandContent(content, skillNames) {
+  const candidates = [...skillNames].sort((a, b) => b.length - a.length);
+  for (const skillName of candidates) {
+    const escaped = escapeRegExp(skillName);
+    const patterns = [
+      new RegExp('`dhpk:' + escaped + '`', 'i'),
+      new RegExp('`' + escaped + '`\\s+skill\\b', 'i'),
+      new RegExp('\\bskill\\s+`' + escaped + '`', 'i'),
+    ];
+    if (patterns.some((pattern) => pattern.test(content))) return skillName;
+  }
+  return null;
+}
+
+function detectDescriptionOverlap(skillResults) {
+  const findings = [];
+  const descs = skillResults
+    .filter((r) => r.fm && r.fm.description)
+    .map((r) => ({ name: r.name, desc: r.fm.description }));
+
+  for (let i = 0; i < descs.length; i++) {
+    for (let j = i + 1; j < descs.length; j++) {
+      const sim = similarity(descs[i].desc, descs[j].desc);
+      if (sim > 0.6) {
+        findings.push({
+          check: 'description-overlap',
+          pass: false,
+          severity: 'P2',
+          message: `High description overlap (${(sim * 100).toFixed(0)}%) between "${descs[i].name}" and "${descs[j].name}"`,
+          fix: 'Differentiate descriptions with distinct routing cues',
+        });
+      }
+    }
+  }
+  return findings;
+}
+
+function detectMissingArgumentHints(skillNames) {
+  // argument-hint check removed (Phase B — skills-only architecture)
+  const argHintStatus = {};
+  for (const skillName of skillNames) {
+    argHintStatus[skillName] = null;
+  }
+  return { findings: [], argHintStatus };
+}
+
+function detectInvalidAgentRefs(skillResults, _agentsDir) {
+  if (!isDir(_agentsDir)) {
+    return {
+      findings: [],
+      skipped: [
+        capabilitySkip(
+          'agent-ref-validity',
+          'Agents directory not found or not a directory'
+        ),
+      ],
+    };
+  }
+  const readResult = safeReadDir(_agentsDir);
+  if (!readResult.ok) {
+    return {
+      findings: [],
+      skipped: [capabilitySkip('agent-ref-validity', `Agents directory could not be read (${readResult.error.code || 'filesystem error'})`)],
+    };
+  }
+  const knownAgents = new Set(
+    readResult.entries.filter((f) => f.endsWith('.md')).map((f) => basename(f, '.md'))
+  );
+  const BUILTINS = new Set(['Explore', 'general-purpose', 'Plan']);
+  const findings = [];
+  // Intentionally requires quotes — bare/backtick forms in markdown tables are not code dispatch
+  const refPattern = /subagent_type[:\s]*["']([^"']+)["']/g;
+  const seen = new Set();
+
+  for (const result of skillResults) {
+    if (!result.body) continue;
+    for (const m of result.body.matchAll(refPattern)) {
+      const name = m[1];
+      if (BUILTINS.has(name) || name.includes(':') || knownAgents.has(name)) continue;
+      const key = `${result.name}:${name}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      findings.push({
+        check: 'agent-ref-validity',
+        pass: false,
+        severity: 'P1',
+        message: `subagent_type "${name}" not found in agents/ (skill: ${result.name})`,
+        fix: `Create agents/${name}.md or fix the reference`,
+      });
+    }
+  }
+
+  return { findings, skipped: [] };
+}
+
+function detectAgentToolsSyntax(_agentsDir) {
+  if (!isDir(_agentsDir)) {
+    return {
+      findings: [],
+      skipped: [
+        capabilitySkip(
+          'agent-tools-syntax',
+          'Agents directory not found or not a directory'
+        ),
+      ],
+    };
+  }
+  const CANONICAL_BARE = new Set([
+    'Read', 'Grep', 'Glob', 'Bash', 'Edit', 'Write', 'AskUserQuestion',
+    'Agent', 'Task', 'Skill', 'WebSearch', 'WebFetch', 'NotebookEdit',
+  ]);
+  const SCOPED_RE = /^Bash\([a-z-]+:\*\)$/;
+  // MCP tools are namespaced: mcp__<server>__<tool> (e.g. mcp__gitnexus__impact,
+  // mcp__context7__resolve-library-id, mcp__claude_ai_Context7__query-docs).
+  // Each segment may contain single underscores/hyphens but not the "__"
+  // delimiter, so exactly two segments are accepted (no trailing __extra).
+  const MCP_RE = /^mcp__[a-z0-9-]+(?:_[a-z0-9-]+)*__[a-z0-9-]+(?:_[a-z0-9-]+)*$/i;
+  const findings = [];
+  const nonInvocableDocs = new Set(['INDEX.md', 'README.md']);
+  const readResult = safeReadDir(_agentsDir);
+  if (!readResult.ok) {
+    return {
+      findings: [],
+      skipped: [capabilitySkip('agent-tools-syntax', 'Agents directory could not be read')],
+    };
+  }
+  for (const f of readResult.entries.filter((x) => x.endsWith('.md') && !nonInvocableDocs.has(x)).sort()) {
+    const entry = readDiscoverableEntry(_agentsDir, f, 'agent');
+    if (entry.finding) {
+      findings.push(entry.finding);
+      continue;
+    }
+    const content = entry.content;
+    const missing = requiredFrontmatterFields(content, ['name', 'description']);
+    if (missing.length > 0) {
+      findings.push(invalidFrontmatterFinding('agent', f, missing));
+      continue;
+    }
+    const fm = parseFrontmatter(content);
+    if (!fm.tools) continue;
+    const agentName = basename(f, '.md');
+    const tools = String(fm.tools).split(/,\s*/);
+    for (const t of tools) {
+      const trimmed = t.trim();
+      if (!trimmed) continue;
+      if (CANONICAL_BARE.has(trimmed) || SCOPED_RE.test(trimmed) || MCP_RE.test(trimmed)) continue;
+      findings.push({
+        check: 'agent-tools-syntax',
+        pass: false,
+        severity: 'P2',
+        message: `Agent "${agentName}" has non-canonical tool: "${trimmed}"`,
+        fix: 'Use canonical format: ToolName or Bash(<prefix>:*)',
+      });
+    }
+  }
+  return { findings, skipped: [] };
+}
+
+function commandFilesForDir(_commandsDir) {
+  if (!isDir(_commandsDir)) return { commandFiles: [], skipped: true };
+  const nonInvocableDocs = new Set(['INDEX.md', 'README.md']);
+  const readResult = safeReadDir(_commandsDir);
+  if (!readResult.ok) return { commandFiles: [], skipped: true };
+  return {
+    commandFiles: readResult.entries
+      .filter((f) => f.endsWith('.md') && !nonInvocableDocs.has(f))
+      .sort(),
+    skipped: false,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
+
+function isDir(p) {
+  try {
+    return existsSync(p) && statSync(p).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+function main() {
+  if (!isDir(skillsDir)) {
+    console.error(`Skills directory not found or not a directory: ${skillsDir}`);
+    process.exit(2);
+  }
+
+  // Recursive discovery — finds nested skills (e.g. skills/gitnexus/<sub>/SKILL.md)
+  const skillDirPaths = findSkillDirs(skillsDir);
+  const skillNames = skillDirPaths.map((p) => basename(p));
+  const skillResults = skillDirPaths.map((p) => lintSkill(basename(p), p, skillNames));
+  const skillDirs = skillResults.map((r) => r.name);
+  const { commandFiles, skipped: skippedCommands } = commandFilesForDir(commandsDir);
+  const commandFrontmatterFindings = detectCommandFrontmatter(commandFiles, commandsDir);
+
+  // Cross-skill checks
+  const orphanFindings = detectOrphans(skillDirs, commandFiles);
+  const overlapFindings = detectDescriptionOverlap(skillResults);
+  const { findings: argHintFindings, argHintStatus } = detectMissingArgumentHints(skillDirs);
+  const { findings: agentRefFindings, skipped: agentRefSkips } = detectInvalidAgentRefs(skillResults, agentsDir);
+  const { findings: agentToolsSyntaxFindings, skipped: agentToolsSyntaxSkips } = detectAgentToolsSyntax(agentsDir);
+  const capabilitySkips = [
+    ...(skippedCommands
+      ? [
+          capabilitySkip(
+            'orphan-command-skill-pairing',
+            'Commands directory not found or not a directory'
+          ),
+        ]
+      : []),
+    ...agentRefSkips,
+    ...agentToolsSyntaxSkips,
+  ];
+
+  // Aggregate
+  const collectedFindings = [];
+  let p0Count = 0;
+  let p1Count = 0;
+  let p2Count = 0;
+  let passCount = 0;
+  let warnCount = 0;
+
+  for (const result of skillResults) {
+    for (const f of result.findings) {
+      if (f.pass) {
+        passCount++;
+        if (f.warning) warnCount++;
+      } else {
+        const skillPath = f.path || relative(skillsDir, result.path).split(sep).join('/');
+        collectedFindings.push({ skill: result.name, path: skillPath, ...f });
+      }
+    }
+  }
+
+  const crossFindings = dedupeFindings([
+    ...orphanFindings,
+    ...overlapFindings,
+    ...argHintFindings,
+    ...agentRefFindings,
+    ...agentToolsSyntaxFindings,
+    ...commandFrontmatterFindings,
+  ]);
+  for (const f of crossFindings) {
+    collectedFindings.push({ skill: '(cross-skill)', ...f });
+  }
+
+  const allFindings = dedupeFindings(collectedFindings);
+  for (const f of allFindings) {
+    if (f.severity === 'P0') p0Count++;
+    else if (f.severity === 'P1') p1Count++;
+    else p2Count++;
+  }
+
+  const overallPass = p0Count === 0 && p1Count === 0;
+  const exitCode = p0Count > 0 || p1Count > 0 ? 2 : p2Count > 0 ? 1 : 0;
+
+  // JSON output
+  if (jsonOutput) {
+    const report = {
+      overallPass,
+      stats: {
+        skills: skillDirs.length,
+        commands: commandFiles.length,
+        skipped: capabilitySkips.length,
+        checks: passCount + allFindings.length,
+        pass: passCount,
+        warnings: warnCount,
+        p0: p0Count,
+        p1: p1Count,
+        p2: p2Count,
+      },
+      findings: allFindings,
+      skipped: capabilitySkips,
+    };
+    process.stdout.write(JSON.stringify(report, null, 2) + '\n');
+    process.exit(exitCode);
+  }
+
+  // Markdown output
+  console.log('# Skill Health Check Report\n');
+  console.log('## Summary\n');
+  console.log(`| Metric | Value |`);
+  console.log(`|--------|-------|`);
+  console.log(`| Skills scanned | ${skillDirs.length} |`);
+  console.log(`| Commands scanned | ${commandFiles.length} |`);
+  console.log(`| Capability checks skipped | ${capabilitySkips.length} |`);
+  console.log(`| Checks passed | ${passCount} |`);
+  console.log(`| P0 (Must Fix) | ${p0Count} |`);
+  console.log(`| P1 (Should Fix) | ${p1Count} |`);
+  console.log(`| P2 (Suggestion) | ${p2Count} |`);
+  console.log();
+
+  // Per-skill summary
+  console.log('## Per-Skill Results\n');
+  console.log('| Skill | Routing | When-NOT | Output | Verification | Refs | AgEnt | TskEnt | Lines | Status |');
+  console.log('|-------|---------|----------|--------|--------------|------|-------|--------|-------|--------|');
+  for (const result of skillResults) {
+    const get = (check) => {
+      const f = result.findings.find((x) => x.check === check);
+      if (!f) return '—';
+      return f.pass ? '✅' : f.severity === 'P0' ? '🔴' : f.severity === 'P1' ? '🟡' : '⚪';
+    };
+    const lineRead = result.path ? safeReadFile(result.path) : { ok: false };
+    const lines = lineRead.ok ? countLines(lineRead.content) : 0;
+    const issues = result.findings.filter((f) => !f.pass);
+    const status = issues.length === 0 ? '✅' : issues.some((f) => f.severity === 'P0') ? '🔴' : issues.some((f) => f.severity === 'P1') ? '🟡' : '⚪';
+    console.log(
+      `| ${result.name} | ${get('routing-signature')} | ${get('when-not')} | ${get('output')} | ${get('verification')} | ${get('references-routing')} | ${get('agent-entitlement')} | ${get('task-entitlement')} | ${lines} | ${status} |`
+    );
+  }
+  console.log();
+
+  // Findings
+  if (allFindings.length > 0) {
+    const p0s = allFindings.filter((f) => f.severity === 'P0');
+    const p1s = allFindings.filter((f) => f.severity === 'P1');
+    const p2s = allFindings.filter((f) => f.severity === 'P2');
+
+    if (p0s.length > 0) {
+      console.log('## P0 (Must Fix)\n');
+      for (const f of p0s) {
+        console.log(`- **${f.skill}**: ${f.message}${fixHint && f.fix ? ` → ${f.fix}` : ''}`);
+      }
+      console.log();
+    }
+    if (p1s.length > 0) {
+      console.log('## P1 (Should Fix)\n');
+      for (const f of p1s) {
+        console.log(`- **${f.skill}**: ${f.message}${fixHint && f.fix ? ` → ${f.fix}` : ''}`);
+      }
+      console.log();
+    }
+    if (p2s.length > 0) {
+      console.log('## P2 (Suggestion)\n');
+      for (const f of p2s) {
+        console.log(`- **${f.skill}**: ${f.message}${fixHint && f.fix ? ` → ${f.fix}` : ''}`);
+      }
+      console.log();
+    }
+  }
+
+  if (capabilitySkips.length > 0) {
+    console.log('## Capability-Dependent Skips\n');
+    for (const skip of capabilitySkips) {
+      console.log(`- **${skip.check}**: ${skip.reason}`);
+    }
+    console.log();
+  }
+
+  // Gate
+  console.log(`## Gate: ${overallPass ? '✅ All Pass' : `⛔ ${p0Count + p1Count} issues need fixing`}`);
+
+  process.exit(exitCode);
+}
+
+if (require.main === module) {
+  main();
+} else {
+  module.exports = {
+    argVal,
+    bodyAfterFrontmatter,
+    checkAgentEntitlement,
+    checkCrossSkillRefPaths,
+    checkFrontmatterExists,
+    checkLineCount,
+    checkOutputSection,
+    checkReferencesRouting,
+    checkRoutingSignature,
+    checkScriptsContract,
+    checkTaskEntitlement,
+    checkVerificationSection,
+    checkWhenNotSection,
+    commandFilesForDir,
+    countLines,
+    capabilitySkip,
+    detectAgentToolsSyntax,
+    detectDescriptionOverlap,
+    detectInvalidAgentRefs,
+    detectMissingArgumentHints,
+    detectOrphans,
+    escapeRegExp,
+    findRefInOtherSkills,
+    findSkillDirs,
+    lintSkill,
+    main,
+    normalizeContent,
+    parseFrontmatter,
+    similarity,
+    skillNameFromCommandContent,
+  };
+}

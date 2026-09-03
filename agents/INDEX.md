@@ -73,7 +73,7 @@ explicit `--second-opinion=codex-exec` or `codex-bridge` route.
 | Agent | Model | When to invoke |
 |-------|-------|----------------|
 | [architect](architect.md) | fable | Cross-module design, DDD layering, tech-debt analysis (cheap consult tier; up-only escalation for HIGH-risk designs) |
-| [planner](planner.md) | opus | Plan consultant, opt-in via `/dhpk:do --plan`. Pre-implementation critique / blind-sketch / dual-plan (VERDICT: ENDORSE\|AMEND\|REPLACE) + post-implementation warm diff review (VERDICT: SHIP\|FIX-THEN-SHIP\|RECONSULT); coded findings by exception, VERDICT-first + `END`-trailing reply contract, bounded discovery (spawns `Explore` ≤2, ≤12 own reads). New capability: neither `architect` (DDD/cross-module design) nor `deep-reasoner` (implement-phase conclusion contract) carries a verdict/critique contract or a dual-role warm review. |
+| [planner](planner.md) | opus | Plan consultant, opt-in via `$flow-drive --plan`. Pre-implementation critique / blind-sketch / dual-plan (VERDICT: ENDORSE\|AMEND\|REPLACE) + post-implementation warm diff review (VERDICT: SHIP\|FIX-THEN-SHIP\|RECONSULT); coded findings by exception, VERDICT-first + `END`-trailing reply contract, bounded discovery (spawns `Explore` ≤2, ≤12 own reads). New capability: neither `architect` (DDD/cross-module design) nor `deep-reasoner` (implement-phase conclusion contract) carries a verdict/critique contract or a dual-role warm review. |
 | [refactor-cleaner](refactor-cleaner.md) | sonnet | Dead-code removal, dedup, splitting large files |
 | [ui-ux-verifier](ui-ux-verifier.md) | sonnet | UI vs spec audit, screenshot diffs |
 | [performance-analyzer](performance-analyzer.md) | sonnet | N+1 queries, EXPLAIN, index/perf audits |
@@ -93,18 +93,18 @@ explicit `--second-opinion=codex-exec` or `codex-bridge` route.
 | [smoke-tester](smoke-tester.md) | sonnet | Read-only live-runtime probe: drives the real running system with one orchestrator-supplied concrete scenario and asserts on observed values (`Verdict:`-first-line contract). Distinct from e2e-runner (authors/runs Playwright specs, write-capable, web-scoped) and the feature-verify skill (main-context P0-P5, not a dispatchable isolated agent) |
 
 > **How situational agents are reached** (none are sentinel-driven — the trigger SSOT is the AI-judgment back-stop list in `${CLAUDE_PLUGIN_ROOT}/rules/execution-policy.md`):
-> - `architect` ← `adaptive-dev-workflow`
+> - `architect` ← `flow-guide` classification / architecture handoff
 > - `refactor-cleaner` ← `/simplify` (back-stop for >800-line splits / cross-file dedup / multi-module dead-code sweep)
-> - `silent-failure-hunter`, `type-design-analyzer` ← `code-reviewer` Delegate table (+ execution-policy back-stop) — so they ride the `.pending-review` flow in both `dhpk:do` and `opsx-apply-goal`
+> - `silent-failure-hunter`, `type-design-analyzer` ← `code-reviewer` Delegate table (+ execution-policy back-stop) — so they ride the `.pending-review` flow in both `change-verdict` and `opsx-apply-goal`
 > - `doc-updater` ← execution-policy back-stop on structural change (it runs `/update-codemaps` + `/update-docs`)
 > - `docs-lookup` ← execution-policy back-stop (current library/API docs, Context7)
 > - `spec-miner` ← `/spec-mine` + route-table entry (and the `opsx-apply-goal` pre-flight note when `openspec/specs/` is empty)
 > - `tdd-guide` / `dhpk-tdd-workflow` ← unit/integration post-development routes; the TDD capability is `UNAVAILABLE` when its configured test stack or dispatch backend is absent, and must not be silently remapped.
 > - `e2e-runner` ← Playwright route-table entry (`agent:e2e-runner`); report `UNAVAILABLE` when the Playwright agent capability is absent rather than falling back to the retired post-development skill.
 > - `smoke-tester` ← `opsx-apply-goal` Part 3 conditional gate (HAS_SMOKE) + `rules/execution-policy.md` §Implementation dispatch table
-> - `agent-evaluator` ← harness-quality family (`skill-judge` sibling pointer / `harness-govern` listing) — deliberately **out** of `dhpk:do` / `opsx-apply-goal` dev routing
+> - `agent-evaluator` ← harness-quality family (`skill-scope` judge mode / `harness-govern` listing) — deliberately **out** of `flow-drive` / `opsx-apply-goal` dev routing
 > - `swift-build-resolver`, `version-matrix-impact-reviewer` ← execution-policy back-stop (module-gated)
-> - `python-build-resolver`, `rust-build-resolver` ← execution-policy back-stop only (build error in Bash output), same as `swift-build-resolver`. NB: the route-table `fix mypy` / `fix cargo build` patterns route to `adaptive-dev-workflow`, which does **not** itself name these agents — so there is no deterministic (route-table/sentinel) dispatch; they fire purely on the AI-judgment back-stop
+> - `python-build-resolver`, `rust-build-resolver` ← execution-policy back-stop only (build error in Bash output), same as `swift-build-resolver`. NB: the route-table `fix mypy` / `fix cargo build` patterns route to `flow-guide`, which does **not** itself name these agents — so there is no deterministic (route-table/sentinel) dispatch; they fire purely on the AI-judgment back-stop
 
 ## Module-shipped agents
 

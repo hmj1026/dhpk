@@ -390,10 +390,10 @@ function getRepoChecks(rootDir) {
       category: 'Security Guardrails',
       points: 3,
       scopes: ['repo', 'skills'],
-      path: 'skills/dhpk-security-review/SKILL.md',
+      path: 'skills/change-verdict/SKILL.md',
       description: 'Security review skill exists',
-      pass: fileExists(rootDir, 'skills/dhpk-security-review/SKILL.md'),
-      fix: 'Add skills/dhpk-security-review/SKILL.md for security checklist coverage.',
+      pass: fileExists(rootDir, 'skills/change-verdict/SKILL.md'),
+      fix: 'Add skills/change-verdict/SKILL.md for security checklist coverage.',
     },
     {
       id: 'security-agent',

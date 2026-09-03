@@ -372,7 +372,7 @@ function adaptCodexBody(agentName, body) {
     adapted = adapted
       .replaceAll('`dhpk:database-reviewer`', '`database-reviewer`')
       .replaceAll(
-        '`dhpk:dhpk-tool-routing` skill (cx / gitnexus / claude-mem routing for the symbol-level pre-edit lookups)',
+        '`code-trace` skill (cx / GitNexus / claude-mem routing for the symbol-level pre-edit lookups)',
         '`cx`/GitNexus symbol-level pre-edit guidance',
       )
       .replaceAll('`modules/yii-1.1/references/framework.md`', 'the project Yii migration API documentation')

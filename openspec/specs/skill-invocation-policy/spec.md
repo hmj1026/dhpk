@@ -1,7 +1,9 @@
 # skill-invocation-policy Specification
 
 ## Purpose
-TBD - created by archiving change clarify-dhpk-skill-invocation-policy. Update Purpose after archive.
+Define one canonical invocation class for every distributed skill and command,
+then propagate that classification consistently through paired commands,
+consumer metadata, generated projections, and validation evidence.
 
 ## Requirements
 
@@ -116,19 +118,31 @@ Changing a skill's invocation class SHALL NOT rename its skill or command. Any r
 
 ### Requirement: Retired Codex-MCP entries have no active invocation path
 
-Former Codex-MCP-backed skill identities (`codex-architect`, `codex-implement`, `codex-code-review`, `doc-review`, `test-review`, `codebase-exploration`, `feature-verify`, `issue-analyze`, and `feasibility-study`) SHALL NOT remain active MCP-backed targets. Canonical skills and commands SHALL NOT declare `mcp__codex__codex` or `mcp__codex__codex-reply`; the retained `codex-review` command SHALL remain an explicit-only CLI-backed entry, and other retained legacy command names SHALL remain explicit-only deprecation aliases with documented backend-neutral or CLI replacements. The retired `CODEX=on`/`/dhpk:do --codex` interface SHALL be rejected with its deprecation diagnostic and SHALL NOT route to a peer, worker, reasoner, `codex exec`, or app-server plugin. `check-coverage` remains an explicit-only legacy alias outside the historical command family.
+Former Codex-MCP-backed skill identities (`codex-architect`, `codex-implement`, `codex-code-review`, `doc-review`, `test-review`, `codebase-exploration`, `feature-verify`, `issue-analyze`, and `feasibility-study`) SHALL NOT remain active MCP-backed targets. Canonical skills and commands SHALL NOT declare `mcp__codex__codex` or `mcp__codex__codex-reply`. The capability-family retirement SHALL remove `codex-review`, `codex-review-fast`, `codex-review-branch`, `codex-review-doc`, `codex-security`, `codex-test-review`, and `review-spec` rather than retaining aliases; supported review requests SHALL route to `change-verdict` and an explicit CLI second opinion MAY run only through its selected backend. The retired `CODEX=on` and `/dhpk:do --codex` interfaces SHALL be rejected and SHALL NOT route to a peer, worker, reasoner, `codex exec`, or app-server plugin. `check-coverage` remains an explicit-only legacy alias outside the retired command family.
 
 #### Scenario: Model attempts implicit routing to a retired MCP identity
 
-- **WHEN** a user request would otherwise route implicitly to a formerly Codex-MCP-backed skill or command
-- **THEN** the model does not invoke the retired identity and instead presents the exact backend-neutral/CLI replacement or the alias's deprecation outcome
+- **WHEN** a user request would otherwise route implicitly to a formerly Codex-MCP-backed skill or removed command
+- **THEN** the model selects the backend-neutral `change-verdict` mode or reports the retirement guidance without invoking a removed identity
 
 #### Scenario: User directly invokes a retained Codex review entry
 
-- **WHEN** a user supplies the exact supported explicit invocation for `codex-review` or one of its retained aliases
-- **THEN** the canonical command uses the documented CLI backend or the alias forwards to its documented replacement, subject to that target's existing gates, with no MCP invocation
+- **WHEN** a user supplies an exact retired command name from the capability-family retirement
+- **THEN** the DHPK dispatcher fails closed with the `change-verdict` successor and mode and does not resolve an alias package or command
 
 #### Scenario: A Codex MCP grant remains after retirement
 
 - **WHEN** any canonical skill or command declares `mcp__codex__codex` or `mcp__codex__codex-reply` in its allowed-tools
 - **THEN** invocation-policy validation reports the entry as an invalid retired dependency and fails; no frozen-set exception applies
+
+### Requirement: Reviewed capability-family names may use portable identities
+
+A reviewed capability-family consolidation MAY publish an unprefixed kebab-case name when the inventory marks the entry as `portable-family`, the name is unique across canonical and retired identities, and the entry retains a DHPK capability ID and invocation class. Unmarked canonical skills SHALL continue to require the `dhpk-` public-name prefix.
+
+#### Scenario: Declared portable family is validated
+- **WHEN** a successor named `skill-scope`, `skill-forge`, `flow-guide`, `flow-drive`, `change-verdict`, or `code-trace` declares `name_style: portable-family`
+- **THEN** inventory validation accepts the unprefixed name and validates its canonical path, capability ID, and invocation class normally
+
+#### Scenario: Arbitrary skill drops its prefix
+- **WHEN** any other canonical entry uses an unprefixed name without the reviewed portable-family declaration
+- **THEN** inventory validation fails and names the invalid public identity

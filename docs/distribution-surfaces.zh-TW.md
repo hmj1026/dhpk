@@ -89,7 +89,7 @@ fingerprint 時，才允許 Cursor-specific copy。如此 shared portable skills
 
 `scripts/ci/gen-claude-manifest.js` 從 inventory 產生 `.claude-plugin/plugin.json` 的
 skill root。raw source checkout 仍保留作為明確指定的 compatibility surface；目前是一個
-registered directory root，下面有 88 個 inventory-eligible skill ID。
+registered directory root，下面有 72 個 inventory-eligible skill ID。
 所有 package 都扁平位於 `skills/dhpk-<name>/`；module `skills/` 只是相對 symlink
 projection。`0.47.0` 的五筆 retirement row 只存在於診斷 ledger，不會 materialize 成
 package 或 alias；請參閱 [alias-free retirement 指引](./skill-platform-migration.zh-TW.md#alias-free-retirement-ledger-0470)。
@@ -134,7 +134,7 @@ Claude manifest 註冊的是 skill **directory root**，不是逐 skill allowlis
 |---|---|
 | `minimal` | inventory required_core_ids；clean install 的預設。 |
 | `full` | 既有 conflict-aware module closure 加上明確 stable IDs；不代表完整 catalog。 |
-| `compat-v1` | Change A 後全部 97 個 live、non-retired ID；未標註舊 receipt 的相容 fallback。 |
+| `compat-v1` | 前一版相容 allowlist 的 71 個 stable ID；未標註舊 receipt 的相容 fallback。 |
 
 Distribution 與 project-local installer 支援 `--profile <id>` 及可重複的
 `--skill <stable-id>` additive overlay。unknown、retired、deprecated、surface
@@ -164,7 +164,7 @@ rule 與 `userConfig` 行為仍需獨立的 package／consumer validation。
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"
 ```
 
-目前 `codex/skills/` 有 18 個指向 canonical `skills/` 的相對 symlink（16 個可呼叫 skill
+目前 `codex/skills/` 有 16 個指向 canonical `skills/` 的相對 symlink（14 個可呼叫 skill
 加上內部 `cli-transport` 與 `cli-dispatch-context` runtime）。專案同步可
 選預設 symlink 或 `--copy` 實體檔，並以 schema-v3 receipt 管理 `--update`、
 `--migrate` 與 `--uninstall`。`--force` 只略過 project-root heuristic，不會繞過
@@ -175,8 +175,8 @@ ownership 或 filesystem safety。完整操作見
 
 Native marketplace artifact 位於 `plugins/dhpk/`，由
 `gen-codex-native-package.js` 從 inventory 的明確 `codex-native` surface 產生。它
-包含同一組 16 個 public skill 與 `cli-transport`、`cli-dispatch-context` 兩個內部
-runtime，共 18 個 physical entries；全部是追蹤中的實體檔，零
+包含同一組 14 個 public skill 與 `cli-transport`、`cli-dispatch-context` 兩個內部
+runtime，共 16 個 physical entries；全部是追蹤中的實體檔，零
 symlink；root 與 wrapper manifest 都解析到這一份 physical tree。
 
 三個獨立 release gate 分別驗證：

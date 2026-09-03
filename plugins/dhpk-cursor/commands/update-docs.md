@@ -13,7 +13,7 @@ and other documentation only; it does not edit application source, tests, the
 route table, or generated runtime projections.
 
 Do not use it for codemap generation (`/dhpk:update-codemaps`), a policy or
-link/frontmatter review (`/dhpk:codex-review-doc` or `dhpk-doc-review`), or
+link/frontmatter review (`change-verdict` in `docs` mode), or
 external-library research (`docs-lookup`). The `doc-updater` agent owns the
 same contract when structural changes require a proactive handoff; this command
 is its user-facing entry point.
@@ -32,7 +32,7 @@ The implementation and distribution SSOT map is:
 | Fact | Prefer this owner |
 |---|---|
 | Public names, surfaces, counts | [`manifests/distribution-inventory.json`](https://github.com/hmj1026/dhpk/blob/main/manifests/distribution-inventory.json) |
-| Route matching and invocation class | `skills/dhpk-do/references/route-table.json`, `skills/dhpk-do/scripts/route-result.js`, and `commands/do.md` |
+| Route matching and invocation class | `skills/flow-drive/references/route-table.json` and `skills/flow-drive/scripts/route-result.js` |
 | Effective configuration | [`docs/configuration.md`](https://github.com/hmj1026/dhpk/blob/main/docs/configuration.md) and its Traditional Chinese pair |
 | Install, update, migration, rollback | [`docs/platform-installation.md`](https://github.com/hmj1026/dhpk/blob/main/docs/platform-installation.md), [`docs/skill-platform-migration.md`](https://github.com/hmj1026/dhpk/blob/main/docs/skill-platform-migration.md) |
 | Runtime workflow, receipts, and gate outcomes | [`docs/harness-workflow.md`](https://github.com/hmj1026/dhpk/blob/main/docs/harness-workflow.md) and the owning harness scripts |

@@ -5,6 +5,7 @@ const {
   classifyWritePolicy,
   assertCanonicalSkillPath,
 } = require('../scripts/lib/distribution-inventory-regeneration');
+const { preserveProjectionContract } = require('../scripts/lib/distribution-inventory');
 
 test('missing policy bootstraps', () => {
   assert.deepStrictEqual(classifyWritePolicy(false, undefined), { action: 'bootstrap' });
@@ -53,6 +54,20 @@ test('nested path throws with identity', () => {
 test('non-string path throws with identity', () => {
   assert.throws(() => assertCanonicalSkillPath(null), /unclassified canonical entry: null/);
   assert.throws(() => assertCanonicalSkillPath(42), /unclassified canonical entry: 42/);
+});
+
+test('v2 regeneration preserves external package ownership metadata', () => {
+  const ledger = [{
+    id: 'gitnexus', owner: 'upstream',
+    repository: 'https://github.com/abhigyanpatwari/GitNexus',
+    policy: 'protect-existing', license_review: 'open',
+    stable_ids: ['gitnexus-cli'],
+  }];
+  const regenerated = preserveProjectionContract(
+    { schema: 'dhpk.distribution-inventory.v2', skills: [], modules: [] },
+    { external_skill_packages: ledger },
+  );
+  assert.deepStrictEqual(regenerated.external_skill_packages, ledger);
 });
 
 run('distribution-inventory-regeneration');

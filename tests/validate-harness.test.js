@@ -25,10 +25,10 @@ function createPluginSourceFixture({ rules, routeTable, agentFiles = {}, codexAg
   fs.mkdirSync(path.join(tmp, 'commands'), { recursive: true });
   fs.mkdirSync(path.join(tmp, 'rules'), { recursive: true });
   fs.mkdirSync(path.join(tmp, 'skills'), { recursive: true });
-  fs.mkdirSync(path.join(tmp, 'skills', 'dhpk-do', 'references'), { recursive: true });
+  fs.mkdirSync(path.join(tmp, 'skills', 'flow-drive', 'references'), { recursive: true });
   fs.writeFileSync(
-    path.join(tmp, 'skills', 'dhpk-do', 'SKILL.md'),
-    '---\nname: dhpk-do\ndescription: fixture router skill\n---\n',
+    path.join(tmp, 'skills', 'flow-drive', 'SKILL.md'),
+    '---\nname: flow-drive\ndescription: fixture router skill\n---\n',
   );
   fs.mkdirSync(path.join(tmp, 'scripts', 'hooks'), { recursive: true });
 
@@ -44,7 +44,7 @@ function createPluginSourceFixture({ rules, routeTable, agentFiles = {}, codexAg
 
   if (routeTable !== null) {
     fs.writeFileSync(
-      path.join(tmp, 'skills', 'dhpk-do', 'references', 'route-table.json'),
+      path.join(tmp, 'skills', 'flow-drive', 'references', 'route-table.json'),
       JSON.stringify(routeTable || { schema: 'dhpk.route-table.v2', rules }, null, 2),
     );
   }
@@ -258,7 +258,7 @@ test('fixture: wrong or missing route-table schema/rules cannot report PASS', ()
 test('fixture: malformed JSON and invalid rule shapes fail closed before route checks', () => {
   const malformed = createPluginSourceFixture({ rules: [] });
   try {
-    fs.writeFileSync(path.join(malformed, 'skills', 'dhpk-do', 'references', 'route-table.json'), '{"schema":');
+    fs.writeFileSync(path.join(malformed, 'skills', 'flow-drive', 'references', 'route-table.json'), '{"schema":');
     const res = spawnSync('bash', [SCRIPT], { cwd: malformed, encoding: 'utf8', timeout: 20000 });
     assert.strictEqual(res.status, 1, `malformed JSON unexpectedly passed:\n${res.stdout}`);
     assert.match(res.stdout, /valid JSON|parse|schema|route-table/);

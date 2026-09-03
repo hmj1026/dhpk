@@ -21,7 +21,7 @@ the prompt, and how to report the result.
 
 - The task needs our **conversation context** — Codex gets a fresh session and sees only the prompt. If you can't make the prompt self-contained, don't use this.
 - **Interactive / iterative** pairing — this is one-shot; there is no back-and-forth.
-- **In-session structured review** with a review-loop — use `dhpk-change-review` (current-model or `scripts/review.sh --backend cli`) instead (see the retained paths below).
+- **In-session structured review** with a review-loop — use `change-verdict` (current-model or `scripts/review.sh --backend cli`) instead (see the retained paths below).
 - No explicit Codex opt-in — keep the work on the normal codex-free path.
 - Codex is unavailable or not logged in — report the failure and let the caller choose a codex-free fallback.
 

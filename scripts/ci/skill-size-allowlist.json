@@ -6,12 +6,10 @@
     "skills/dhpk-opsx-apply-goal/SKILL.md": 242,
     "skills/dhpk-vue-2-notes/SKILL.md": 241,
     "skills/dhpk-harness-budget/SKILL.md": 225,
-    "skills/dhpk-skill-stocktake/SKILL.md": 217,
     "skills/dhpk-js-lint-config/SKILL.md": 216,
     "skills/dhpk-php-modern-pro/SKILL.md": 236,
     "skills/dhpk-legacy-characterization-tests/SKILL.md": 236,
     "skills/dhpk-matrix-cell-onboard/SKILL.md": 232,
-    "skills/dhpk-test-review/SKILL.md": 214,
     "skills/dhpk-openspec-artifact-guard/SKILL.md": 208,
     "skills/dhpk-yii1-security-audit/SKILL.md": 203,
     "skills/dhpk-laravel-11-notes/SKILL.md": 201,
@@ -32,12 +30,9 @@
     "skills/dhpk-polyfill-version-matrix-audit/SKILL.md": 167,
     "skills/dhpk-react-18-notes/SKILL.md": 167,
     "skills/dhpk-opsx-load-context/SKILL.md": 164,
-    "skills/dhpk-skill-scout/SKILL.md": 164,
     "skills/dhpk-laravel-10-notes/SKILL.md": 162,
     "skills/dhpk-laravel-7-notes/SKILL.md": 159,
-    "skills/dhpk-next-step/SKILL.md": 175,
-    "skills/dhpk-onepassword-session/SKILL.md": 157,
-    "skills/dhpk-rules-distill/SKILL.md": 153
+    "skills/dhpk-onepassword-session/SKILL.md": 157
   },
   "allowed": [
     "skills/dhpk-agent-architecture-audit/SKILL.md",
@@ -49,8 +44,6 @@
     "skills/dhpk-legacy-characterization-tests/SKILL.md",
     "skills/dhpk-matrix-cell-onboard/SKILL.md",
     "skills/dhpk-harness-budget/SKILL.md",
-    "skills/dhpk-skill-stocktake/SKILL.md",
-    "skills/dhpk-test-review/SKILL.md",
     "skills/dhpk-js-lint-config/SKILL.md",
     "skills/dhpk-openspec-artifact-guard/SKILL.md",
     "skills/dhpk-yii1-security-audit/SKILL.md",
@@ -72,11 +65,8 @@
     "skills/dhpk-polyfill-version-matrix-audit/SKILL.md",
     "skills/dhpk-react-18-notes/SKILL.md",
     "skills/dhpk-opsx-load-context/SKILL.md",
-    "skills/dhpk-skill-scout/SKILL.md",
     "skills/dhpk-laravel-10-notes/SKILL.md",
     "skills/dhpk-laravel-7-notes/SKILL.md",
-    "skills/dhpk-next-step/SKILL.md",
-    "skills/dhpk-onepassword-session/SKILL.md",
-    "skills/dhpk-rules-distill/SKILL.md"
+    "skills/dhpk-onepassword-session/SKILL.md"
   ]
 }

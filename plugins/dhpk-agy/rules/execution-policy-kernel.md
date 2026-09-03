@@ -21,7 +21,7 @@ file does not duplicate its tables.
 ## Invocation and route boundary
 
 Command entry points parse flags once through the immutable
-`skills/dhpk-do/scripts/route-result.js` boundary. Downstream policy consumes that route
+`skills/flow-drive/scripts/route-result.js` boundary. Downstream policy consumes that route
 result and must not reconstruct precedence from the cleaned query. The target
 invocation class still applies: an `explicit-only` target is presented with
 its exact command form rather than called through a delegated Skill handoff.
@@ -53,11 +53,11 @@ verification.
 Load only the references needed by the selected route:
 
 - `execution-policy.md` — routing, dispatch, review, git, and escalation SSOT.
-- `skills/dhpk-execution-policy/references/invocation-precedence.md` — target
+- `skills/flow-guide/references/invocation-precedence.md` — target
   classes and invocation ordering.
-- `skills/dhpk-execution-policy/references/implementation-dispatch.md` —
+- `skills/flow-guide/references/implementation-dispatch.md` —
   worker selection, premise gates, retries, and evidence contracts.
-- `skills/dhpk-execution-policy/references/review-gate-mechanics.md` —
+- `skills/flow-guide/references/review-gate-mechanics.md` —
   sentinel lifecycle and fresh reviewer artifacts.
 - Stack/version trap sheets and OpenSpec references — only when the selected
   route requires them.

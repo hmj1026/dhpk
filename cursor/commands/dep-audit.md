@@ -4,7 +4,11 @@ description: "Audit dependency security risks"
 ---
 ⚠️ **Must read and follow the skill below before executing this command:**
 
-@skills/dhpk-security-review/SKILL.md
+@skills/change-verdict/SKILL.md
+
+Use its `security` mode for the final evidence-only verdict. The command may run
+the explicitly requested audit or fix operation, but the verdict skill remains
+strictly read-only.
 
 ## Arguments
 

@@ -14,7 +14,7 @@ Run after any input handling, authn/authz, file upload, or money path.
 
 ## When NOT
 
-- User-invoked OWASP audit → skill `dhpk-security-review` (`skills/dhpk-security-review/SKILL.md`). This agent is the review gate armed by `.pending-security-review`, not that workflow.
+- User-invoked OWASP audit → skill `change-verdict` (`skills/change-verdict/SKILL.md`). This agent is the review gate armed by `.pending-security-review`, not that workflow.
 - General code quality / maintainability → `code-reviewer`
 - Empty catch / swallowed exceptions / hidden fallbacks → `silent-failure-hunter`
 

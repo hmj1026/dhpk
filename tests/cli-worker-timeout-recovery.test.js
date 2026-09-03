@@ -24,7 +24,7 @@ const { test, run, assert } = require('./_lib/tinytest');
 const ROOT = path.join(__dirname, '..');
 
 const DISPATCH_DOC = fs.readFileSync(
-  path.join(ROOT, 'skills', 'dhpk-execution-policy', 'references', 'implementation-dispatch.md'),
+  path.join(ROOT, 'skills', 'flow-guide', 'references', 'implementation-dispatch.md'),
   'utf8',
 );
 const CODEX_WORKER = fs.readFileSync(path.join(ROOT, 'agents', 'codex-fast-worker.md'), 'utf8');

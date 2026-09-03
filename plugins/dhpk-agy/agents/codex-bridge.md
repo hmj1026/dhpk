@@ -15,14 +15,14 @@ Your job is to get Codex's independent view and relay its bounded, redacted resu
 
 - Historical in-session MCP `codex-*` skills — retired, with no active route or fallback; not this agent.
 - External `codex:` app-server plugin — persistent broker; not this agent.
-- This agent is the retained third path: one-shot `codex exec`, output isolated in this subagent and relayed with bounded redaction. Retired `CODEX=on` and `/dhpk:do --codex` flags never select this bridge.
+- This agent is the retained third path: one-shot `codex exec`, output isolated in this subagent and relayed with bounded redaction. Retired `CODEX=on` and `$flow-drive --codex` flags never select this bridge.
 - Not a substitute for `fast-worker` / `deep-reasoner` role text — those remain the mechanical and reasoning contracts; this agent only bridges to Codex.
 
 ## Retired peer-flag boundary
 
-`CODEX=on` and `/dhpk:do --codex` are retired per-session MCP-peer flags. They
+`CODEX=on` and `$flow-drive --codex` are retired per-session MCP-peer flags. They
 remain documented here only as historical inputs and their deprecation boundary.
-`/dhpk:do --codex` is stripped, emits `DEPRECATED_CODEX_FLAG`, and blocks before
+`$flow-drive --codex` is stripped, emits `DEPRECATED_CODEX_FLAG`, and blocks before
 route selection; `CODEX=on` no longer selects a review peer or changes worker
 selection. Neither flag may be silently reinterpreted as this agent's CLI
 `codex exec` transport, `--worker=codex`, `--reasoner=codex`, or the external

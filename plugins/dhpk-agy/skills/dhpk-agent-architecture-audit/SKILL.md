@@ -1,6 +1,6 @@
 ---
 name: dhpk-agent-architecture-audit
-description: 'Full-stack diagnostic for agent and LLM applications — audits the 12-layer agent stack for wrapper regression, memory pollution, tool-discipline failures, hidden repair loops, and rendering corruption. Use when: shipping an agent/LLM feature, an agent degrades after adding wrapper/memory/tool layers, the same model works in the playground but breaks in your wrapper, or debugging agent behavior >15 min with no root cause. Not for: general code debugging, code review, or security scanning (use dhpk-security-review). Output: severity-ranked findings with code-first fixes.'
+description: 'Full-stack diagnostic for agent and LLM applications — audits the 12-layer agent stack for wrapper regression, memory pollution, tool-discipline failures, hidden repair loops, and rendering corruption. Use when: shipping an agent/LLM feature, an agent degrades after adding wrapper/memory/tool layers, the same model works in the playground but breaks in your wrapper, or debugging agent behavior >15 min with no root cause. Not for: general code debugging, code review, or security scanning (use change-verdict). Output: severity-ranked findings with code-first fixes.'
 allowed-tools: 'Read, Write, Edit, Bash, Grep, Glob'
 metadata:
   dhpk-invocation-class: implicit-eligible
@@ -32,7 +32,7 @@ A diagnostic workflow for agent systems that hide failures behind wrapper layers
 
 - General code debugging — use `agent-introspection-debugging`
 - Code review — use language-specific reviewer agents
-- Security scanning — use `dhpk-security-review` or `security-review/scan`
+- Security scanning — use `change-verdict` security mode
 - Agent performance benchmarking — use `agent-eval`
 - Writing new features — use the appropriate workflow skill
 
@@ -203,6 +203,6 @@ Audits should produce structured reports following this shape:
 
 - `agent-introspection-debugging` — Debug agent runtime failures (loops, timeouts, state errors) `(not in <your-project>)`
 - `agent-eval` — Benchmark agent performance head-to-head `(not in <your-project>)`
-- `dhpk-security-review` — Security audit for code and configuration
+- `change-verdict` — Security audit for code and configuration
 - `autonomous-agent-harness` — Set up autonomous agent operations `(not in <your-project>)`
 - `agent-harness-construction` — Build agent harnesses from scratch `(not in <your-project>)`

@@ -10,6 +10,10 @@ const {
   VERDICTS,
   SYMLINK_POLICIES,
   createEvidenceResult,
+  createDistributionPlan,
+  fingerprint,
+  normalizeExternalSkillPackages,
+  externalSkillPackagesFingerprint,
 } = require('../scripts/lib/distribution-projection-contract');
 const { ProjectionArtifactStore } = require('../scripts/lib/projection-artifact-store');
 const fs = require('node:fs');
@@ -294,6 +298,59 @@ test('compiler and verifier fail with stable boundary errors', () => {
   });
   assert.strictEqual(failed.ok, true);
   assert.strictEqual(failed.value.verdict, 'FAIL');
+});
+
+test('distribution plans bind a normalized external ownership fingerprint when supplied', () => {
+  const ledger = [{
+    id: 'gitnexus', owner: 'upstream',
+    repository: 'https://github.com/abhigyanpatwari/GitNexus',
+    policy: 'protect-existing', license_review: 'open',
+    stable_ids: ['gitnexus-refactoring', 'gitnexus-cli'],
+  }];
+  const first = createDistributionPlan({
+    surface: 'agent-plugin', entries: [{ id: 'a', path: 'skills/a' }],
+    external_skill_packages: ledger,
+  });
+  const second = createDistributionPlan({
+    surface: 'agent-plugin', entries: [{ id: 'a', path: 'skills/a' }],
+    external_skill_packages: [{ ...ledger[0], stable_ids: [...ledger[0].stable_ids].reverse() }],
+  });
+  assert.strictEqual(first.ok, true, first.error && first.error.message);
+  assert.strictEqual(second.ok, true, second.error && second.error.message);
+  assert.strictEqual(first.value.externalSkillPackagesFingerprint, externalSkillPackagesFingerprint(ledger));
+  assert.strictEqual(first.value.externalSkillPackagesFingerprint, second.value.externalSkillPackagesFingerprint);
+  assert.strictEqual(first.value.planFingerprint, second.value.planFingerprint);
+  assert.deepStrictEqual(normalizeExternalSkillPackages(ledger), [{
+    id: 'gitnexus', owner: 'upstream',
+    repository: 'https://github.com/abhigyanpatwari/GitNexus',
+    policy: 'protect-existing', license_review: 'open',
+    stable_ids: ['gitnexus-cli', 'gitnexus-refactoring'],
+  }]);
+  assert.strictEqual(first.value.externalSkillPackagesFingerprint, fingerprint(normalizeExternalSkillPackages(ledger)));
+});
+
+test('legacy plans omit the optional ownership binding and retain their old fingerprint shape', () => {
+  const input = { surface: 'agent-plugin', entries: [{ id: 'a', path: 'skills/a' }] };
+  const first = createDistributionPlan(input);
+  const second = createDistributionPlan({ ...input });
+  assert.strictEqual(first.ok, true, first.error && first.error.message);
+  assert.strictEqual(second.ok, true, second.error && second.error.message);
+  assert.strictEqual(first.value.externalSkillPackagesFingerprint, undefined);
+  assert.strictEqual(second.value.externalSkillPackagesFingerprint, undefined);
+  assert.strictEqual(first.value.planFingerprint, second.value.planFingerprint);
+});
+
+test('plans can derive the ownership binding from an inventory without changing legacy callers', () => {
+  const result = createDistributionPlan({
+    surface: 'agent-plugin', entries: [{ id: 'a', path: 'skills/a' }],
+    inventory: { external_skill_packages: [{
+      id: 'gitnexus', owner: 'upstream',
+      repository: 'https://github.com/abhigyanpatwari/GitNexus',
+      policy: 'protect-existing', license_review: 'open', stable_ids: ['gitnexus-cli'],
+    }] },
+  });
+  assert.strictEqual(result.ok, true, result.error && result.error.message);
+  assert.match(result.value.externalSkillPackagesFingerprint, /^[a-f0-9]{64}$/);
 });
 
 run('distribution-projection-contract');

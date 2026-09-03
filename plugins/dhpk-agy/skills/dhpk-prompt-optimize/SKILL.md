@@ -16,7 +16,7 @@ Rewrite a raw, informally-written task prompt into a model-aware, effort-calibra
 - Generic few-shot / chain-of-thought / prompt-template technique coaching with no model or effort selection involved — use `prompt-engineering-patterns`.
 - Auditing token/context-window budget or cache hit rate — use `dhpk-harness-budget`.
 - Actually executing the prompt — this skill only rewrites it; run the result yourself afterward.
-- Linting an existing `SKILL.md`'s own frontmatter/structure — use `dhpk-skill-health-audit` / `dhpk-skill-quality-judge`.
+- Linting an existing `SKILL.md`'s own frontmatter/structure — use `skill-scope` / `skill-scope`.
 
 ## Workflow
 
@@ -43,7 +43,7 @@ Exactly three parts, in this order:
 - [ ] Effort recommendation cites verified live sources and their lookup date,
   then states both the API value and the dhpk/Claude-Code equivalent
 - [ ] Output has exactly the 3 parts above, no extra essay
-- [ ] For a repo change to this skill itself: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/run-skill.sh" dhpk-skill-health-audit skill-lint.js --fix-hint` (or `/dhpk:check-skill dhpk-prompt-optimize`) passes clean
+- [ ] For a repo change to this skill itself: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/run-skill.sh" skill-scope skill-lint.js --fix-hint` (or `$skill-scope dhpk-prompt-optimize`) passes clean
 
 ## References
 
