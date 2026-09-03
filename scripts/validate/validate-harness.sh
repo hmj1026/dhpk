@@ -138,12 +138,12 @@ fi
 
 echo ""
 echo "== 7. Route table SSOT =="
-# Validate skills/dhpk-do/references/route-table.json (v2): every rule.target
+# Validate skills/flow-drive/references/route-table.json (v2): every rule.target
 # resolves by kind — skill → skills/<id>/SKILL.md, command → commands/<id>.md,
 # agent → agents/<id>.md or codex/agents/<id>.toml. Plugin-repo only — in a
 # consumer project the route table is usually absent, so we skip gracefully
 # rather than warn. Whitelist = commands planned but not yet built.
-ROUTE_TABLE="$ROOT/skills/dhpk-do/references/route-table.json"
+ROUTE_TABLE="$ROOT/skills/flow-drive/references/route-table.json"
 ROUTE_WHITELIST=""  # space-delimited; commands planned but not yet built (none — do.md shipped in 2.3)
 if [[ ! -f "$ROUTE_TABLE" ]]; then
     if [[ $CHECK_ARTIFACTS -eq 0 ]]; then
@@ -156,7 +156,7 @@ elif ! command -v jq >/dev/null 2>&1; then
 else
     RT_TOTAL=0
     ROUTE_TABLE_VALID=1
-    DUP_WHITELIST="dhpk-adaptive-dev-workflow dhpk-tech-spec"  # workflow/spec routers: intent-specific variants may share one safe target
+    DUP_WHITELIST="flow-guide change-verdict dhpk-tech-spec"  # workflow/spec/review routers: intent-specific variants may share one safe target
 
     # Validate the closed route-table envelope before iterating. jq's default
     # `.rules[]` expression silently yields no rows for malformed JSON, a

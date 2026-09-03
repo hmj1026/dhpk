@@ -14,27 +14,27 @@
 
 | Temporality    | Certainty    | Complexity | Strategy                                 |
 | -------------- | ------------ | ---------- | ---------------------------------------- |
-| Regression     | Reproducible | Low        | `/dhpk:dhpk-git-history-investigation`                       |
-| Regression     | Reproducible | High       | `/dhpk:dhpk-git-history-investigation` + `/dhpk:dhpk-codebase-exploration --dual` |
-| Regression     | Intermittent | -          | `/dhpk:dhpk-codebase-exploration --dual`                      |
-| Always existed | Reproducible | Low        | `/dhpk:dhpk-codebase-exploration`                          |
-| Always existed | Reproducible | High       | `/dhpk:dhpk-codebase-exploration --dual`                      |
+| Regression     | Reproducible | Low        | `/dhpk:code-trace`                       |
+| Regression     | Reproducible | High       | `/dhpk:code-trace` + `/dhpk:code-trace --dual` |
+| Regression     | Intermittent | -          | `/dhpk:code-trace --dual`                      |
+| Always existed | Reproducible | Low        | `/dhpk:code-trace`                          |
+| Always existed | Reproducible | High       | `/dhpk:code-trace --dual`                      |
 | Always existed | Intermittent | -          | `/dhpk:dhpk-module-design --mode adversarial`    |
-| Uncertain      | -            | -          | `/dhpk:dhpk-codebase-exploration` first                    |
+| Uncertain      | -            | -          | `/dhpk:code-trace` first                    |
 
 ## Keyword Triggers
 
-### -> `/dhpk:dhpk-git-history-investigation`
+### -> `/dhpk:code-trace`
 
 - "It used to work" "after update" "it was fine last time" "regression"
 - "When did it break" "who changed it" "which commit"
 
-### -> `/dhpk:dhpk-codebase-exploration`
+### -> `/dhpk:code-trace`
 
 - "How does this feature work" "what does this code do" "what's the flow"
 - "Don't know where it is" "how to trace"
 
-### -> `/dhpk:dhpk-codebase-exploration --dual`
+### -> `/dhpk:code-trace --dual`
 
 - "Need confirmation" "somewhat complex" "unsure of the cause"
 - "Intermittent" "sometimes happens" "random"
@@ -49,9 +49,9 @@
 When the problem is complex, combine strategies:
 
 ```
-1. /dhpk:dhpk-codebase-exploration -> Establish baseline understanding first
-2. /dhpk:dhpk-git-history-investigation -> If regression is suspected
-3. /dhpk:dhpk-codebase-exploration --dual -> When dual confirmation is needed
+1. /dhpk:code-trace -> Establish baseline understanding first
+2. /dhpk:code-trace -> If regression is suspected
+3. /dhpk:code-trace --dual -> When dual confirmation is needed
 4. /dhpk:dhpk-module-design --mode adversarial -> Exhaust all possible causes
 ```
 
@@ -82,19 +82,19 @@ When input is a PR review thread (not a GitHub Issue), use these dimensions inst
 | Has issue number/URL | Yes | No |
 | Has file:line + reviewer comment | No | Yes |
 | Has labels/milestones | Yes | No |
-| Comes from `/load-pr-review` | No | Yes |
+| Comes from `/dhpk:change-verdict --mode pr` | No | Yes |
 
 ## Escalation Path
 
 ```
 Initial investigation insufficient -> Escalate strategy
 
-/dhpk:dhpk-codebase-exploration cannot find cause
-    -> Escalate to /dhpk:dhpk-codebase-exploration --dual (add isolated perspective)
+/dhpk:code-trace cannot find cause
+    -> Escalate to /dhpk:code-trace --dual (add isolated perspective)
 
-/dhpk:dhpk-git-history-investigation found commit but cause unclear
-    -> Combine with /dhpk:dhpk-codebase-exploration (understand change logic)
+/dhpk:code-trace found commit but cause unclear
+    -> Combine with /dhpk:code-trace (understand change logic)
 
-/dhpk:dhpk-codebase-exploration --dual views diverge
+/dhpk:code-trace --dual views diverge
     -> Escalate to /dhpk:dhpk-module-design --mode adversarial (bounded debate)
 ```

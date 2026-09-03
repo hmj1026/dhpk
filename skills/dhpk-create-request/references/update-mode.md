@@ -30,7 +30,7 @@ git log --oneline --grep="codex-review" -- <related_files>
 
 Dispatched when `--verify-ac` flag is present on single-request `--update`. Supports auto-detected path via feature context 5-level cascade. Skipped otherwise (default path unchanged, <10 sec).
 
-**Input**: AC_LIST from `## Acceptance Criteria` (filter quality-gate ACs per dhpk-change-review Step 1.5 pattern). RELATED_FILES from `## Related Files` table.
+**Input**: AC_LIST from `## Acceptance Criteria` (filter quality-gate ACs per change-verdict Step 1.5 pattern). RELATED_FILES from `## Related Files` table.
 
 ```
 Agent({
@@ -66,7 +66,7 @@ Agent({
 | ------------------------------------ | -------------------- |
 | Related Files have commits           | Development -> In Progress |
 | Test files added/modified            | Testing -> In Progress |
-| `/codex-review-fast` passed          | Development -> Done  |
+| `/dhpk:change-verdict --mode code` passed | Development -> Done  |
 | `/precommit` passed                  | Testing -> Done      |
 | All Acceptance Criteria checked      | Acceptance -> Done   |
 

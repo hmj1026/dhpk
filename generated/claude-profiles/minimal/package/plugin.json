@@ -1,0 +1,511 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "dhpk",
+  "displayName": "DHPK Dev Harness",
+  "version": "0.52.0",
+  "description": "Reusable Claude Code harness with role-based agents, routed commands, sentinel-driven review hooks, opt-in PHP, Yii, PHPUnit, Laravel, JavaScript, Python, React, Next.js, and iOS/Swift modules, plus a parallel Codex CLI projection.",
+  "author": {
+    "name": "hmj1026",
+    "url": "https://github.com/hmj1026"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/hmj1026/dhpk",
+  "keywords": [
+    "harness",
+    "codex",
+    "code-review",
+    "php",
+    "yii",
+    "phpunit",
+    "laravel",
+    "vue",
+    "swift",
+    "ios",
+    "swiftui"
+  ],
+  "skills": [
+    "./skills/"
+  ],
+  "agents": [
+    "./agents/agent-evaluator.md",
+    "./agents/agy-fast-worker.md",
+    "./agents/agy-worker.md",
+    "./agents/architect.md",
+    "./agents/code-reviewer.md",
+    "./agents/codex-bridge.md",
+    "./agents/codex-deep-reasoner.md",
+    "./agents/codex-fast-worker.md",
+    "./agents/codex-reasoner.md",
+    "./agents/codex-reviewer.md",
+    "./agents/codex-worker.md",
+    "./agents/database-reviewer.md",
+    "./agents/deep-reasoner.md",
+    "./agents/doc-reviewer.md",
+    "./agents/doc-updater.md",
+    "./agents/docs-lookup.md",
+    "./agents/e2e-runner.md",
+    "./agents/fast-worker.md",
+    "./agents/frontend-reviewer.md",
+    "./agents/harness-reviser.md",
+    "./agents/migration-reviewer.md",
+    "./agents/performance-analyzer.md",
+    "./agents/planner.md",
+    "./agents/python-build-resolver.md",
+    "./agents/refactor-cleaner.md",
+    "./agents/rust-build-resolver.md",
+    "./agents/security-reviewer.md",
+    "./agents/silent-failure-hunter.md",
+    "./agents/smoke-tester.md",
+    "./agents/spec-miner.md",
+    "./agents/swift-build-resolver.md",
+    "./agents/tdd-guide.md",
+    "./agents/type-design-analyzer.md",
+    "./agents/ui-ux-verifier.md",
+    "./agents/version-matrix-impact-reviewer.md",
+    "./modules/library-author/agents/polyfill-reviewer.md"
+  ],
+  "commands": [
+    "./commands/"
+  ],
+  "userConfig": {
+    "hook_profile": {
+      "type": "string",
+      "title": "Hook profile",
+      "description": "Verbosity of hook output: minimal | standard | strict",
+      "default": "standard"
+    },
+    "review_agents": {
+      "type": "string",
+      "multiple": true,
+      "title": "Review agent names",
+      "description": "Seven agents invoked by sentinel reminders (slots: code, database, security, frontend, doc, polyfill, migration). Override to point at project-specific agents. Shorter overrides are padded with the defaults for the remaining slots.",
+      "default": [
+        "code-reviewer",
+        "database-reviewer",
+        "security-reviewer",
+        "frontend-reviewer",
+        "doc-reviewer",
+        "polyfill-reviewer",
+        "migration-reviewer"
+      ]
+    },
+    "deep_reasoner_model": {
+      "type": "string",
+      "title": "deep-reasoner model",
+      "description": "Model tier for dhpk:deep-reasoner Agent-call dispatches (see \"Configured role models\" under rules/execution-policy.md §Agent dispatch) — applied per dispatch via the Agent call `model` param when it differs from the agent's frontmatter default. Valid values: at minimum haiku | sonnet | opus (whatever the running Claude Code version supports). An invalid value warns once per session and falls back to the frontmatter default; it never fails the dispatch. Default 'opus' (the shipped frontmatter default).",
+      "default": "opus"
+    },
+    "fast_worker_model": {
+      "type": "string",
+      "title": "fast-worker model",
+      "description": "Model tier for dhpk:fast-worker Agent-call dispatches (see \"Configured role models\" under rules/execution-policy.md §Agent dispatch). Same validation/fallback behavior as deep_reasoner_model. Default 'sonnet' (the shipped frontmatter default).",
+      "default": "sonnet"
+    },
+    "planner_model": {
+      "type": "string",
+      "title": "planner model",
+      "description": "Model tier for dhpk:planner Agent-call dispatches (see \"Configured role models\" under rules/execution-policy.md §Agent dispatch) — applied per dispatch via the Agent call `model` param when it differs from the agent's frontmatter default. Valid values: at minimum haiku | sonnet | opus (whatever the running Claude Code version supports). An invalid value warns once per session and falls back to the frontmatter default; it never fails the dispatch. Default 'opus' (the shipped frontmatter default).",
+      "default": "opus"
+    },
+    "orchestration_dispatch": {
+      "type": "string",
+      "title": "Implementation dispatch switch",
+      "description": "'on' (default) routes implement-phase work through the Implementation dispatch decision table in rules/execution-policy.md — deep-reasoner for reasoning-heavy work, fast-worker for mechanical work with a clear spec, inline for small (~2-file) diffs; dispatching general-purpose for implementation is prohibited while this is on. 'off' is a full kill switch for implementation worker/reasoner routing, restoring inline implementation and removing the opsx-apply-goal directive line; the mandatory multi-task OpenSpec planner and verification gates remain active.",
+      "default": "on"
+    },
+    "fast_worker_backend": {
+      "type": "string",
+      "title": "Fast-worker backend",
+      "description": "Mechanical worker backend: claude (default), codex, agy, or auto. Explicit selection is deterministic; auto uses fast_worker_backend_order.",
+      "default": "claude"
+    },
+    "fast_worker_backend_order": {
+      "type": "string",
+      "title": "Fast-worker auto order",
+      "description": "Comma-separated availability order for auto selection. Default: claude,codex,agy.",
+      "default": "claude,codex,agy"
+    },
+    "fast_worker_fallback": {
+      "type": "string",
+      "title": "Fast-worker missing-executable fallback",
+      "description": "Fallback for an explicitly selected missing CLI executable: none (default) or claude. Authentication, authorization, model, task, and verification failures never fall back.",
+      "default": "none"
+    },
+    "subagent_quality_gate": {
+      "type": "string",
+      "title": "SubagentStop thin-report quality gate",
+      "description": "Retained for an explicitly registered advisory scripts/hooks/subagent-stop-quality.sh hook. The shipped default hooks do not register it, so this setting has no default-lifecycle effect. When a consumer registers that hook, 'on'/'true'/'1' enables its one-retry thin-report check; 'off' keeps it inactive. Extraction hit/miss is recorded to .claude/artifacts/sessions/.subagent-stop-quality-extraction.json.",
+      "default": "off"
+    },
+    "deep_reasoner_effort": {
+      "type": "string",
+      "title": "deep-reasoner effort",
+      "description": "Reasoning effort for dhpk:deep-reasoner Agent-call dispatches (see rules/model-economics.md master cost rules) — applied per dispatch via the Agent call `effort` param when it differs from the agent's frontmatter default. Valid values: low | medium | high | xhigh | max (whatever the running Claude Code supports). An invalid value warns once per session and falls back to the frontmatter default; it never fails the dispatch. Default 'high' (the shipped frontmatter default).",
+      "default": "high"
+    },
+    "fast_worker_effort": {
+      "type": "string",
+      "title": "fast-worker effort",
+      "description": "Reasoning effort for dhpk:fast-worker Agent-call dispatches (see rules/model-economics.md master cost rules). Same validation/fallback behavior as deep_reasoner_effort. Default 'medium' (the shipped frontmatter default); the decision layer runs higher and execution de-escalates.",
+      "default": "medium"
+    },
+    "codex_fast_worker_model": {
+      "type": "string",
+      "title": "codex-fast-worker model",
+      "description": "Model passed to the codex CLI backend when the codex-fast-worker agent is dispatched (see rules/execution-policy.md §Implementation dispatch + rules/model-economics.md). Resolved via the standard layering (project pluginConfigs > global > this default) and passed into run-codex.sh. Model names on the codex CLI rotate quickly — override here instead of editing source when a default is deprecated (check `codex models`). Default 'gpt-5.6-luna'.",
+      "default": "gpt-5.6-luna"
+    },
+    "codex_worker_model": {
+      "type": "string",
+      "title": "codex-worker model",
+      "description": "Canonical model key for codex-worker; it takes precedence over the one-release codex_fast_worker_model alias.",
+      "default": "gpt-5.6-luna"
+    },
+    "codex_fast_worker_effort": {
+      "type": "string",
+      "title": "codex-fast-worker effort",
+      "description": "model_reasoning_effort passed to the codex CLI backend for codex-fast-worker dispatches (see rules/model-economics.md). Valid values: whatever the codex CLI accepts (e.g. low | medium | high | xhigh). Default 'xhigh' (the strong mechanical tier).",
+      "default": "xhigh"
+    },
+    "codex_worker_effort": {
+      "type": "string",
+      "title": "codex-worker effort",
+      "description": "Canonical effort key for codex-worker; it takes precedence over the one-release codex_fast_worker_effort alias.",
+      "default": "xhigh"
+    },
+    "codex_deep_reasoner_model": {
+      "type": "string",
+      "title": "codex-deep-reasoner model",
+      "description": "Model passed to the codex CLI backend when the codex-deep-reasoner agent is dispatched via `--reasoner=codex` (see rules/execution-policy.md §Implementation dispatch + rules/model-economics.md). Resolved via the standard layering (project pluginConfigs > global > this default) and passed into run-codex.sh (read-only sandbox). Model names on the codex CLI rotate quickly — override here instead of editing source when a default is deprecated (check `codex models`). Default 'gpt-5.6-sol'.",
+      "default": "gpt-5.6-sol"
+    },
+    "codex_reasoner_model": {
+      "type": "string",
+      "title": "codex-reasoner model",
+      "description": "Canonical model key for codex-reasoner; it takes precedence over the one-release codex_deep_reasoner_model alias.",
+      "default": "gpt-5.6-sol"
+    },
+    "codex_deep_reasoner_effort": {
+      "type": "string",
+      "title": "codex-deep-reasoner effort",
+      "description": "model_reasoning_effort passed to the codex CLI backend for codex-deep-reasoner dispatches via `--reasoner=codex` (see rules/model-economics.md). Valid values: whatever the codex CLI accepts (e.g. low | medium | high | xhigh). Default 'high'.",
+      "default": "high"
+    },
+    "codex_reasoner_effort": {
+      "type": "string",
+      "title": "codex-reasoner effort",
+      "description": "Canonical effort key for codex-reasoner; it takes precedence over the one-release codex_deep_reasoner_effort alias.",
+      "default": "high"
+    },
+    "codex_timeout_secs": {
+      "type": "string",
+      "title": "Codex shared timeout (seconds)",
+      "description": "Shared wrapper backstop for codex-fast-worker, codex-deep-reasoner, and codex-bridge. Must be an integer number of seconds >= 0; 0 intentionally disables the wrapper backstop. Precedence is project role-specific > project shared > global role-specific > global shared > this shipped default. Invalid values fail closed before dispatch. This does not control Claude's external tool wait. Default '360'.",
+      "default": "360"
+    },
+    "codex_fast_worker_timeout_secs": {
+      "type": "string",
+      "title": "codex-fast-worker timeout (seconds)",
+      "description": "Role-specific wrapper backstop for codex-fast-worker. Must be an integer number of seconds >= 0; 0 intentionally disables it. Project configuration wins over global configuration, and this role-specific value wins over the shared value in the same scope; invalid values fail closed. Default inherits the shared 360-second budget.",
+      "default": "360"
+    },
+    "codex_worker_timeout_secs": {
+      "type": "string",
+      "title": "codex-worker timeout (seconds)",
+      "description": "Canonical timeout key for codex-worker; it takes precedence over the one-release codex_fast_worker_timeout_secs alias.",
+      "default": "360"
+    },
+    "codex_deep_reasoner_timeout_secs": {
+      "type": "string",
+      "title": "codex-deep-reasoner timeout (seconds)",
+      "description": "Role-specific wrapper backstop for codex-deep-reasoner. Must be an integer number of seconds >= 0; 0 intentionally disables it. Project configuration wins over global configuration, and this role-specific value wins over the shared value in the same scope; invalid values fail closed. Default inherits the shared 360-second budget.",
+      "default": "360"
+    },
+    "codex_reasoner_timeout_secs": {
+      "type": "string",
+      "title": "codex-reasoner timeout (seconds)",
+      "description": "Canonical timeout key for codex-reasoner; it takes precedence over the one-release codex_deep_reasoner_timeout_secs alias.",
+      "default": "360"
+    },
+    "codex_bridge_timeout_secs": {
+      "type": "string",
+      "title": "codex-bridge timeout (seconds)",
+      "description": "Role-specific wrapper backstop for codex-bridge. Must be an integer number of seconds >= 0; 0 intentionally disables it. Project configuration wins over global configuration, and this role-specific value wins over the shared value in the same scope; invalid values fail closed. The legacy three-argument wrapper invocation remains supported. Default inherits the shared 360-second budget.",
+      "default": "360"
+    },
+    "codex_reviewer_model": {
+      "type": "string",
+      "title": "codex-reviewer model",
+      "description": "Canonical model key for the internal shared-runner codex-reviewer role.",
+      "default": "gpt-5.6-sol"
+    },
+    "codex_reviewer_effort": {
+      "type": "string",
+      "title": "codex-reviewer effort",
+      "description": "Canonical effort key for the internal shared-runner codex-reviewer role.",
+      "default": "high"
+    },
+    "codex_reviewer_timeout_secs": {
+      "type": "string",
+      "title": "codex-reviewer timeout (seconds)",
+      "description": "Canonical timeout key for codex-reviewer; it takes precedence over the one-release codex_bridge_timeout_secs alias.",
+      "default": "360"
+    },
+    "architect_model": {
+      "type": "string",
+      "title": "architect model",
+      "description": "Model tier for dhpk:architect Agent-call dispatches (see \"Configured role models\" under rules/execution-policy.md §Agent dispatch + rules/model-economics.md). Applied per dispatch via the Agent call `model` param when it differs from the agent's frontmatter default. Same validation/fallback behavior as deep_reasoner_model: an invalid value warns once per session and falls back to the frontmatter default; up-only escalation applies for HIGH-risk architecture decisions. Default 'fable' (the shipped frontmatter default — the cheap architecture-consult tier).",
+      "default": "fable"
+    },
+    "architect_effort": {
+      "type": "string",
+      "title": "architect effort",
+      "description": "Reasoning effort for dhpk:architect Agent-call dispatches (see rules/model-economics.md master cost rules). Same validation/fallback behavior as deep_reasoner_effort. Default 'low' (the shipped frontmatter default; raise for HIGH-risk architecture judgment).",
+      "default": "low"
+    },
+    "agy_fast_worker_model": {
+      "type": "string",
+      "title": "agy-fast-worker model",
+      "description": "Model display string passed to the agy CLI backend when the agy-fast-worker agent is dispatched (see rules/execution-policy.md §Implementation dispatch + rules/model-economics.md). agy bakes the thinking level into the model name, so there is no separate effort key. Override here when a default is deprecated (check `agy models`). Default 'Gemini 3.6 Flash (High)' (live-probe-verified against agy 1.1.8).",
+      "default": "Gemini 3.6 Flash (High)"
+    },
+    "agy_worker_model": {
+      "type": "string",
+      "title": "agy-worker model",
+      "description": "Canonical model key for agy-worker; it takes precedence over the one-release agy_fast_worker_model alias.",
+      "default": "Gemini 3.6 Flash (High)"
+    },
+    "planner_effort": {
+      "type": "string",
+      "title": "planner effort",
+      "description": "Reasoning effort for dhpk:planner Agent-call dispatches (see rules/model-economics.md master cost rules) — applied per dispatch via the Agent call `effort` param when it differs from the agent's frontmatter default. Valid values: low | medium | high | xhigh | max (whatever the running Claude Code supports). An invalid value warns once per session and falls back to the frontmatter default; it never fails the dispatch. Default 'high' (the shipped frontmatter default); the warm-review invocation de-escalates to medium.",
+      "default": "high"
+    },
+    "docker_containers": {
+      "type": "string",
+      "multiple": true,
+      "title": "Docker containers",
+      "description": "Container names checked at SessionStart. Empty list disables the check.",
+      "default": []
+    },
+    "modules": {
+      "type": "string",
+      "multiple": true,
+      "title": "Stack modules to enable",
+      "description": "Enable stack modules from modules/. Ships: php-5.6, php-7.4, php-8.x, yii-1.1, phpunit-5.7, phpunit-9, phpunit-10, phpunit-11, laravel-5.4, laravel-6, laravel-7, laravel-8, laravel-9, laravel-10, laravel-11, js, vue-2, laravel-mix, nextjs-15.5, nextjs-16, react-18, react-19, library-author, python, fastapi, pytest, swift, swiftui, ios-platform, swift-testing, xcode-tooling. Module 'requires' validated at SessionStart (warning only). Stack selection is additive for php / laravel / phpunit — library packages spanning versions should enable each version in their composer constraint to get cumulative guidance. Enabling 'js' wires the ESLint post-edit hook + pre-commit lint/typecheck gate; enabling 'php-7.4' wires the php-cs-fixer post-edit hook + pre-commit lint+phpstan+psalm gate; enabling 'python' wires a post-edit ruff hook (batched at Stop) + a pre-commit ruff-check/ruff-format/type-check (pyright|mypy) gate — project root auto-detected by walking up to pyproject.toml (set python_project_roots=backend for a subdir backend); 'fastapi' / 'pytest' are skills+references only (fastapi adds db/sec path triggers) and each `requires: python`; enabling 'library-author' wires the sixth-color `polyfill-reviewer` sentinel for multi-major PHP libraries spanning Laravel 6-11 / Monolog 2-3 / PHPUnit 8-11 / Flysystem 1-3 (see modules/library-author/module.yaml for guard_patterns / skip_paths config). iOS suite: enabling 'xcode-tooling' wires the SwiftLint post-edit hook + pre-commit xcodebuild/SPM build+test gate (both self-skip when swiftlint/xcodebuild are absent); swift / swiftui / ios-platform / swift-testing are skills+references only (no hooks). The iOS suite is dependency-chained — swiftui / ios-platform / swift-testing / xcode-tooling each `requires: swift`. Precedence: a project's .claude/settings.local.json (or settings.json) `pluginConfigs.dhpk@dhpk.options.modules` OVERRIDES the global value — supports a single dev machine working on projects with different stacks.",
+      "default": []
+    },
+    "review_trigger_extra_paths": {
+      "type": "string",
+      "multiple": true,
+      "title": "Extra review trigger paths",
+      "description": "Extra path prefixes per reviewer slot, formatted '<slot>:<prefix>' where slot ∈ code|db|sec|fe|doc|mig. Example: 'code:protected/', 'fe:resources/views/', 'mig:db/migrate/'",
+      "default": []
+    },
+    "hot_tables": {
+      "type": "string",
+      "multiple": true,
+      "title": "High-volume table names",
+      "description": "Project-specific high-volume / hot table names that performance-analyzer and migration-reviewer treat as elevated risk (large-ALTER downtime, N+1, missing composite index). The agents ship POS-system examples only; declare your project's real hot tables here (or in CLAUDE.md / .claude/rules/). Example: 'orders', 'order_lines', 'inventory'. Default empty = rely on the agents' generic heuristics + CLAUDE.md.",
+      "default": []
+    },
+    "js_lint_script": {
+      "type": "string",
+      "title": "JS lint npm script name",
+      "description": "npm script invoked by modules/js/hooks/pre-commit-js-validation.sh. Default 'lint'. Override when the project uses a non-standard script name (e.g. 'lint:strict').",
+      "default": "lint"
+    },
+    "js_typecheck_script": {
+      "type": "string",
+      "title": "JS typecheck npm script name",
+      "description": "npm script invoked by modules/js/hooks/pre-commit-js-validation.sh. Default 'typecheck'.",
+      "default": "typecheck"
+    },
+    "js_check_path": {
+      "type": "string",
+      "title": "JS @ts-check scan path",
+      "description": "Path scanned by the /ts-check-status command. Default 'js/'. Override for projects laying out JS under e.g. 'src/' or 'app/javascript/'.",
+      "default": "js/"
+    },
+    "python_project_roots": {
+      "type": "string",
+      "multiple": true,
+      "title": "Python project roots",
+      "description": "Subdirs holding a pyproject.toml that the python module's hooks should lint (e.g. 'backend'). Default empty — the hooks walk up from the edited file to the nearest pyproject.toml, which already handles monorepo backends. Set this only to RESTRICT linting to specific subtrees (ignore stray top-level scripts). Read by modules/python/hooks/_lib/python-env.sh.",
+      "default": []
+    },
+    "python_runner": {
+      "type": "string",
+      "title": "Python tool runner prefix",
+      "description": "Command prefix used to invoke ruff / pyright / mypy inside the project env (modules/python/hooks/*). Default 'uv run'. Set 'poetry run' for Poetry, or '' to run tools straight off PATH (already-activated venv). When the runner's binary is absent the hooks fall back to bare PATH tools, then self-skip if those are missing too.",
+      "default": "uv run"
+    },
+    "ruff_bin": {
+      "type": "string",
+      "title": "ruff binary name",
+      "description": "ruff executable invoked by modules/python/hooks/{post-edit-python-lint.sh,stop-py-batch-check.sh,pre-commit-python-validation.sh}. Default 'ruff' (via the runner, or bare on PATH).",
+      "default": "ruff"
+    },
+    "python_typechecker": {
+      "type": "string",
+      "title": "Python type checker",
+      "description": "Type checker the python module's pre-commit gate runs on staged .py: 'pyright' (default), 'mypy', or 'none' to skip type-checking. ccas runs pyright strict.",
+      "default": "pyright"
+    },
+    "pyright_bin": {
+      "type": "string",
+      "title": "pyright binary name",
+      "description": "pyright executable used when python_typechecker=pyright. Default 'pyright' (via the runner, or bare on PATH).",
+      "default": "pyright"
+    },
+    "mypy_bin": {
+      "type": "string",
+      "title": "mypy binary name",
+      "description": "mypy executable used when python_typechecker=mypy. Default 'mypy' (via the runner, or bare on PATH).",
+      "default": "mypy"
+    },
+    "swiftlint_bin": {
+      "type": "string",
+      "title": "SwiftLint binary path",
+      "description": "Binary invoked by modules/xcode-tooling/hooks/post-edit-swiftlint.sh. Default 'swiftlint' (resolved on PATH). Override for a non-standard location or a wrapper. The hook self-skips when the binary is absent.",
+      "default": "swiftlint"
+    },
+    "xcode_scheme": {
+      "type": "string",
+      "title": "Xcode scheme",
+      "description": "Scheme used by modules/xcode-tooling/hooks/pre-commit-swift-build.sh for `xcodebuild build`/`test`. Default empty — when empty and an Xcode project is present, the build gate is skipped (no scheme guessing). Set to the app scheme (e.g. 'babylon') to enable the gate.",
+      "default": ""
+    },
+    "xcode_destination": {
+      "type": "string",
+      "title": "Xcode test destination",
+      "description": "`-destination` for the *test* step of the pre-commit gate (modules/xcode-tooling/hooks/pre-commit-swift-build.sh). The *build* step always uses a device-name-free `generic/platform=iOS Simulator`, so it never goes stale. Default empty — the test step then auto-picks the first available iOS simulator, so a stale named default never breaks the gate. Set e.g. 'platform=iOS Simulator,name=iPhone 17' to pin a specific simulator (must be installed — see `xcrun simctl list devices available`).",
+      "default": ""
+    },
+    "swift_build_skip_tests": {
+      "type": "boolean",
+      "title": "Skip tests in the Swift pre-commit gate",
+      "description": "When true, modules/xcode-tooling/hooks/pre-commit-swift-build.sh runs build only (no `xcodebuild test` / `swift test`). Default false (build + test).",
+      "default": false
+    },
+    "php_cs_fixer_bin": {
+      "type": "string",
+      "title": "php-cs-fixer binary path",
+      "description": "Binary invoked by modules/php-7.4/hooks/pre-commit-php-validation.sh. Default 'vendor/bin/php-cs-fixer'. Override for non-standard locations (global install, docker exec wrapper, monorepo shared bin).",
+      "default": "vendor/bin/php-cs-fixer"
+    },
+    "phpstan_bin": {
+      "type": "string",
+      "title": "phpstan binary path",
+      "description": "Binary invoked by modules/php-7.4/hooks/pre-commit-php-validation.sh when phpstan.neon[.dist] is present. Default 'vendor/bin/phpstan'.",
+      "default": "vendor/bin/phpstan"
+    },
+    "psalm_bin": {
+      "type": "string",
+      "title": "psalm binary path",
+      "description": "Binary invoked by modules/php-7.4/hooks/pre-commit-php-validation.sh when psalm.xml[.dist] is present. Default 'vendor/bin/psalm'.",
+      "default": "vendor/bin/psalm"
+    },
+    "reap_stale_mcp_processes": {
+      "type": "boolean",
+      "title": "Reap stale gitnexus MCP processes",
+      "description": "When enabled, SessionStart kills ORPHANED gitnexus mcp processes (parent session dead / reparented to init). Processes owned by a live parallel session in the same repo are never killed. Off by default — only useful for projects that use the gitnexus MCP server.",
+      "default": false
+    },
+    "sentinel_commit_gate": {
+      "type": "string",
+      "title": "Sentinel commit gate mode",
+      "description": "Behaviour when `git commit/merge/rebase/cherry-pick` runs while reviewer sentinels are pending: warn (stderr reminder, exit 0) | block (reject the tool call, exit 2) | off (silent). Default 'warn'. Env DHPK_SENTINEL_COMMIT_GATE overrides this for one-shot toggles. Companion to pre-bash-guard's git-push hard block.",
+      "default": "warn"
+    },
+    "branch_safety": {
+      "type": "string",
+      "title": "Protected branch safety mode",
+      "description": "Behaviour when a history-mutating git verb (commit/merge/rebase/cherry-pick/reset/push) runs on a protected branch: warn | block | off. Default 'warn'. Env DHPK_BRANCH_SAFETY overrides for one-shot toggles.",
+      "default": "warn"
+    },
+    "protected_branches": {
+      "type": "string",
+      "multiple": true,
+      "title": "Protected branch names / globs",
+      "description": "Branches treated as protected by the branch_safety gate. Glob syntax supported via bash case-match (e.g. 'release/*'). Default: main, master, develop, release/*, hotfix/*. Set to empty list to disable per-branch gating without setting branch_safety=off.",
+      "default": [
+        "main",
+        "master",
+        "develop",
+        "release/*",
+        "hotfix/*"
+      ]
+    },
+    "skill_hint_enabled": {
+      "type": "boolean",
+      "title": "Enable UserPromptSubmit skill hint",
+      "description": "When true (default), the userpromptsubmit-skill-hint hook prints a one-line suggestion mapping the user prompt to the most likely dhpk command (e.g. 'bug' → /dhpk:dhpk-bug-fix). Set false to silence. Env DHPK_DISABLE_SKILL_HINT=1 overrides for one-shot disable.",
+      "default": true
+    },
+    "learning_db_enabled": {
+      "type": "boolean",
+      "title": "Enable cross-session learning DB",
+      "description": "When true, hooks append signals (reviewer pass via clear-sentinel, subagent failure, abnormal stop) to an append-only .claude/artifacts/learning.jsonl, and SessionStart surfaces the top recurring signatures as a [learned-context] block (capped at 5 lines). Confidence is derived per signature with recency decay; the log self-rotates past 50MB. Default false (opt-in) — zero behaviour change until a project turns it on. Env DHPK_LEARNING_DB=1/0 overrides for one-shot toggles.",
+      "default": false
+    },
+    "graduation_scan_enabled": {
+      "type": "boolean",
+      "title": "Enable knowledge graduation scan",
+      "description": "When true, a Stop hook scans the session transcript for cited auto-memory entries (~/.claude/projects/<slug>/memory/<entry>.md), maintains cross-session counts + confidence in .claude/artifacts/memory-usage-counts.json, and regenerates .claude/artifacts/graduation-candidates.md (bootstrapped from the plugin template on first run). Entries cited ≥3 times across ≥24h/≥3 dates without trap re-occurrence are proposed for promotion to a rule/skill; in OpsX projects, high-confidence entries also auto-draft a change skeleton. Requires python3. Default false (opt-in). Env DHPK_GRADUATION_SCAN=1/0 overrides for one-shot toggles.",
+      "default": false
+    },
+    "lockfile_sync_commands": {
+      "type": "string",
+      "multiple": true,
+      "title": "Lock-file sync commands",
+      "description": "Per-manifest lock-sync commands for the post-edit manifest-guard reminder, entries shaped '<manifest>:<command>' (e.g. 'composer.json:docker exec -i my_php composer update --lock'). Manifests without an entry fall back to a generic default (composer update --lock / npm install / bundle install / cargo build / poetry lock). Commands must not contain commas.",
+      "default": []
+    },
+    "php_bin": {
+      "type": "string",
+      "title": "PHP binary",
+      "description": "PHP binary or wrapper command used by the php-5.6 module's post-edit syntax check (php -l), e.g. 'docker exec -i my_php php'. The hook silently skips when the command's first word is not on PATH.",
+      "default": "php"
+    },
+    "completion_evidence_enabled": {
+      "type": "boolean",
+      "title": "Enable completion-evidence Stop advisory",
+      "description": "When true, a Stop hook warns when the assistant claims completion while the working tree has source-code changes with no matching test changes (doc-only / harness-only changes are exempt; active review sentinels defer to the sentinel reminder). Advisory only — never blocks Stop. Default false (opt-in). Env DHPK_COMPLETION_EVIDENCE=1/0 overrides for one-shot toggles.",
+      "default": false
+    },
+    "agent_warmstart_enabled": {
+      "type": "boolean",
+      "title": "Enable subagent warmstart context",
+      "description": "When true, a PreToolUse (Task|Agent) hook injects role-filtered parent context: reviewers receive sentinel scope, workers/TDD receive the supplied handoff plus bounded task context, explorers receive routing, and monitors receive process identity. Each role has its own cap; the hook remains default false (opt-in) because every injection costs tokens. Env DHPK_AGENT_WARMSTART=1/0 overrides for one-shot toggles.",
+      "default": false
+    },
+    "harness_restore_hint": {
+      "type": "string",
+      "title": "Harness restore hint",
+      "description": "Command line printed by the SessionStart broken-symlink advisory when symlinks directly under .claude/ are dangling (for projects deploying the harness via symlinks from a separate repo). Empty disables the hint line (the WARN itself still prints).",
+      "default": ""
+    },
+    "js_frontend_roots": {
+      "type": "string",
+      "multiple": true,
+      "title": "JS frontend root directories",
+      "description": "Project override for the js module's tier detection: root directories scanned for first-party JS/TS. Empty falls back to modules/js/module.yaml (default [js, src]).",
+      "default": []
+    },
+    "js_core_files": {
+      "type": "string",
+      "multiple": true,
+      "title": "JS core files",
+      "description": "Project override for the js module's tier detection: basenames at the top of a frontend root that are first-party entry bundles (linted/reviewed) rather than vendor. Example: [\"app.js\", \"main.js\"]. Empty falls back to module.yaml.",
+      "default": []
+    },
+    "js_vendor_globs": {
+      "type": "string",
+      "multiple": true,
+      "title": "JS vendor globs",
+      "description": "Project override for the js module's tier detection: glob path prefixes treated as vendored (lint-skipped at any depth), e.g. [\"js/ckeditor/\", \"js/jquery-*\"]. Globs must not contain commas. Empty falls back to module.yaml.",
+      "default": []
+    }
+  }
+}

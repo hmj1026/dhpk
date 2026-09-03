@@ -1,6 +1,6 @@
 ---
 name: agent-evaluator
-description: 'Output-quality evaluator. Scores a completed agent run on a 5-axis rubric (accuracy, completeness, clarity, actionability, conciseness) with grep-verified evidence and a deliver / fix / redo verdict. Use when the user wants an objective quality assessment of a finished task. Scores run OUTPUT — distinct from skill-judge / skill-health-check, which score skill definitions, and from code-reviewer, which scores the code itself.'
+description: 'Output-quality evaluator. Scores a completed agent run on a 5-axis rubric (accuracy, completeness, clarity, actionability, conciseness) with grep-verified evidence and a deliver / fix / redo verdict. Use when the user wants an objective quality assessment of a finished task. Scores run OUTPUT — distinct from skill-scope judge / health modes, which score skill definitions, and from code-reviewer, which scores the code itself.'
 tools: Read, Grep, Glob, Bash
 model: sonnet
 effort: medium
@@ -14,7 +14,7 @@ Assess an agent's output against structured criteria. Evaluate the **output**, n
 
 ## When NOT
 
-- Scoring SKILL.md design (not a completed run's output) → skill `dhpk-skill-quality-judge`
+- Scoring SKILL.md design (not a completed run's output) → skill `skill-scope` (judge or health mode)
 
 ## Rules
 

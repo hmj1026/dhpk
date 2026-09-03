@@ -1,4 +1,0 @@
-interface:
-  display_name: "Skill Judge"
-  short_description: "Evaluate Agent Skill design quality against official specs and"
-  default_prompt: "Use $dhpk-skill-quality-judge to apply the Skill Judge workflow with its verification rules."

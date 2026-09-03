@@ -61,17 +61,18 @@ test('update-docs command and doc-updater agent follow the writing contract', ()
   assert.match(agent, /GitNexus/i);
 });
 
-test('README and command index point users to the route-first entry', () => {
+test('README and command index point users to the capability-family route entry', () => {
   for (const relative of ['README.md', 'README.zh-TW.md']) {
     const text = read(relative);
-    assert.match(text, /\/dhpk:do --route-only/);
+    assert.match(text, /flow-drive[^\n]*route-only|flow-drive[\s\S]*--route-only/);
     assert.match(text, /explicit-only/);
     assert.match(text, /basic-operations(?:\.zh-TW)?\.md/);
-    assert.match(text, /compatibility alias|相容性 alias/i);
+    assert.doesNotMatch(text, /\/dhpk:do --route-only/);
   }
   const index = read('commands/INDEX.md');
-  assert.match(index, /\/dhpk:do.*--route-only/);
-  assert.match(index, /create-dev.*alias/i);
+  assert.match(index, /flow-drive.*route\/implement mode/i);
+  assert.match(index, /former review aliases are retired/i);
+  assert.doesNotMatch(index, /create-dev.*alias/i);
 });
 
 run('workflow-docs');

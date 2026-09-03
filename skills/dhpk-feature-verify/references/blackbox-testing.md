@@ -11,7 +11,7 @@
 ## P1: Diff-Lite Scoping
 
 **Scope only — no code quality judgment** (code quality is handled by
-`/dhpk:dhpk-change-review`).
+`/dhpk:change-verdict`).
 
 ### Get the Diff
 
@@ -227,7 +227,7 @@ Runtime verification of [FEATURE/BRANCH] after deployment.
 ## Blind Spot Analysis
 
 The following behaviors cannot be observed through black-box API testing — they
-require unit test coverage (handled by `/dhpk:dhpk-test-review`):
+require unit test coverage (handled by `/dhpk:change-verdict`):
 
 | Blind Spot | Description | Detection Signal in Diff |
 | ---------- | ----------- | ------------------------ |
@@ -238,5 +238,5 @@ require unit test coverage (handled by `/dhpk:dhpk-test-review`):
 | Third-party API errors | Requires specific error codes from external APIs | retry / error mapping |
 
 **Handling**: List blind spots in the report. Recommend
-`/dhpk:dhpk-test-review` for unit test coverage confirmation. Do NOT
+`/dhpk:change-verdict` for unit test coverage confirmation. Do NOT
 auto-invoke.

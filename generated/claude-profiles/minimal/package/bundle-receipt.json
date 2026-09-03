@@ -1,0 +1,153 @@
+{
+  "schema": "dhpk.claude-capability-bundle.v1",
+  "surface": "claude-profile",
+  "profile": {
+    "excludes": [],
+    "id": "minimal",
+    "inventoryFingerprint": "35a174778533dea1fb63612b82d6aa3d1984bbea1052011f0fe56a6229899ba0",
+    "mode": "profile",
+    "modules": [],
+    "profileFingerprint": "173c9f64c7d8b3e920d2848126f4916b9492350321dc22102e8d7b948674aabf",
+    "profileId": "minimal",
+    "selectionFingerprint": "b38fa72e4723bfb4f93f5ba218a7b5d1ec8035a5128068a18c72270b08260eed",
+    "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
+    "sourceFingerprint": "5ee6eeee482063e75821e1355dfaafa7e3858212f319fab623dd058463114d1c",
+    "surfaceSelectionFingerprint": "eac7d9943532bc81dcc690fd53c1013cad283ee9b97e50bacd7788d313f48048",
+    "version": "claude-profile-v1"
+  },
+  "compatibilityMode": "profile",
+  "selectedStableIds": [
+    "change-verdict",
+    "code-trace",
+    "create-request",
+    "flow-drive",
+    "flow-guide",
+    "git-smart-commit",
+    "project-audit",
+    "prompt-optimize",
+    "tdd",
+    "tech-spec"
+  ],
+  "consumerPluginId": "dhpk@dhpk-profile-minimal",
+  "outputs": [
+    {
+      "stableId": "claude-profile:manifest",
+      "destination": "plugin.json"
+    },
+    {
+      "stableId": "claude-profile:receipt",
+      "destination": "bundle-receipt.json"
+    },
+    {
+      "stableId": "claude-profile:skill:change-verdict",
+      "destination": "skills/change-verdict/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:code-trace",
+      "destination": "skills/code-trace/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:create-request",
+      "destination": "skills/dhpk-create-request/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:flow-drive",
+      "destination": "skills/flow-drive/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:flow-guide",
+      "destination": "skills/flow-guide/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:git-smart-commit",
+      "destination": "skills/dhpk-git-smart-commit/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:project-audit",
+      "destination": "skills/dhpk-project-audit/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:prompt-optimize",
+      "destination": "skills/dhpk-prompt-optimize/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:tdd",
+      "destination": "skills/dhpk-tdd-workflow/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:tech-spec",
+      "destination": "skills/dhpk-tech-spec/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:command:smart-commit",
+      "destination": "commands/smart-commit.md"
+    },
+    {
+      "stableId": "claude-profile:command:verify",
+      "destination": "commands/verify.md"
+    }
+  ],
+  "unavailableOptionalIds": [
+    "cli-dispatch-context",
+    "cli-transport",
+    "fastapi",
+    "fastapi-pro",
+    "ios-icon-gen",
+    "ios-platform",
+    "js",
+    "js-lint-config",
+    "js-static-check-strategy",
+    "laravel",
+    "laravel-10",
+    "laravel-11",
+    "laravel-5.4",
+    "laravel-6",
+    "laravel-7",
+    "laravel-8",
+    "laravel-9",
+    "laravel-mix",
+    "legacy-code-characterization",
+    "library-author",
+    "library-dual-testsuite-map",
+    "matrix-cell-onboard",
+    "nextjs-15-5-notes",
+    "nextjs-15.5",
+    "nextjs-16",
+    "nextjs-16-notes",
+    "openspec-artifact-guard",
+    "php-5.6",
+    "php-7.4",
+    "php-8.x",
+    "php-8x-features",
+    "php-modern-pro",
+    "php-pro",
+    "php56-yii-dev",
+    "phpunit",
+    "phpunit-10",
+    "phpunit-11",
+    "phpunit-5.7",
+    "phpunit-9",
+    "pytest",
+    "pytest-async",
+    "python",
+    "python-pro",
+    "python-static-checks",
+    "react-18",
+    "react-18-notes",
+    "react-19",
+    "react-19-notes",
+    "swift",
+    "swift-language",
+    "swift-test-strategy",
+    "swift-testing",
+    "swiftui",
+    "swiftui-architecture",
+    "vue-2",
+    "vue-2-notes",
+    "xcode-build-tooling",
+    "xcode-tooling",
+    "yii-1.1",
+    "yii1-security-audit"
+  ],
+  "planFingerprint": "76f006f435ce8af3ae44332bf77b83b5d05132ea977d9a66231398853a211c0d"
+}

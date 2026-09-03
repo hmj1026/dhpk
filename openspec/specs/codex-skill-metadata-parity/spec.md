@@ -1,8 +1,13 @@
 # codex-skill-metadata-parity Specification
 
 ## Purpose
-TBD - created by archiving change clarify-dhpk-skill-invocation-policy. Update Purpose after archive.
+Define the cross-harness metadata contract that keeps canonical skill
+classification, portable Agent Plugins projections, Claude restrictions, and
+Codex metadata aligned while reporting structural evidence separately from
+runtime callability.
+
 ## Requirements
+
 ### Requirement: Claude and Codex invocation restrictions agree
 For every Distributed Skill available to both harnesses, an explicit-only classification SHALL produce Claude `disable-model-invocation: true` and Codex `policy.allow_implicit_invocation: false`. An implicit-eligible classification SHALL not retain either restrictive flag.
 
@@ -61,11 +66,12 @@ callability. Claims SHALL identify the surface and evidence state.
   with a fallback and excludes it from parity counts
 
 ### Requirement: Cross-harness classification changes are atomic
-A change to a shared skill's invocation class SHALL update its canonical `metadata.dhpk-invocation-class`, Claude metadata, Codex metadata, route documentation, and parity tests in the same implementation change.
+
+A change to a shared skill's invocation class or public family identity SHALL update its canonical frontmatter, inventory name style, Claude metadata, Codex metadata, route documentation, selected profiles, generated projections, receipts, and parity tests in the same implementation change. A retired predecessor SHALL disappear from every generated harness in the same wave that its successor appears.
 
 #### Scenario: Only Claude metadata is updated
-- **WHEN** a classification change modifies Claude frontmatter but leaves Codex metadata or route documentation stale
-- **THEN** the standard validation suite fails before release
+- **WHEN** a classification or capability-family replacement modifies one harness but leaves another harness, profile, receipt, or route document stale
+- **THEN** the standard validation suite fails before release and identifies every divergent identity
 
 ### Requirement: Claude-only commands do not invent Codex parity
 An unpaired Distributed Command SHALL be validated against its own canonical class and Claude restriction. Validation SHALL NOT require fabricated Codex metadata unless a corresponding Codex skill is actually distributed.
@@ -94,3 +100,15 @@ requirement.
 - **WHEN** Codex and Cursor load the same portable skill
 - **THEN** both clients can use the standard name/description/body while
   ignoring unimplemented policy metadata without changing skill identity
+
+### Requirement: Portable-family public names are exact across clients
+
+For every `portable-family` skill, the canonical public name SHALL be the unprefixed inventory name. Codex `agents/openai.yaml` default prompts, portable Agent Skills frontmatter, generated package paths, receipts, and documentation MUST use that exact name without injecting or stripping a client-specific prefix; the host plugin namespace remains separate from the skill identity.
+
+#### Scenario: Codex metadata names a reborn family
+- **WHEN** Codex metadata is generated for one of the six capability families
+- **THEN** its default prompt names `$skill-scope`, `$skill-forge`, `$flow-guide`, `$flow-drive`, `$change-verdict`, or `$code-trace` exactly as selected by the corresponding stable ID
+
+#### Scenario: Client adds a legacy prefix
+- **WHEN** a generated client package changes a portable-family public name to `dhpk-<name>`
+- **THEN** metadata-parity validation fails with the stable ID, canonical name, and emitted name

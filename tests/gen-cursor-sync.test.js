@@ -229,6 +229,46 @@ test('skill-mirror reconciler emits Codex and Cursor links from one canonical pa
   }
 });
 
+test('skill-mirror reconciler accepts reviewed portable-family names', () => {
+  const root = makeFixture();
+  const inventory = fixtureInventory();
+  inventory.skills[0] = {
+    id: 'skill-scope',
+    name: 'skill-scope',
+    path: 'skills/skill-scope',
+    lifecycle: 'promoted',
+    name_style: 'portable-family',
+    invocation_class: 'task',
+    surfaces: ['codex-sync', 'cursor-sync'],
+  };
+  fs.rmSync(path.join(root, 'skills', 'dhpk-portable'), { recursive: true, force: true });
+  write(path.join(root, 'skills', 'skill-scope', 'SKILL.md'), [
+    '---',
+    'name: skill-scope',
+    "description: 'Reviewed portable family fixture.'",
+    '---',
+    '# Skill scope',
+    '',
+  ].join('\n'));
+  write(path.join(root, 'manifests', 'distribution-inventory.json'), `${JSON.stringify(inventory, null, 2)}\n`);
+  try {
+    const res = spawnSync(process.execPath, [
+      path.join(ROOT, 'scripts', 'ci', 'reconcile-skill-mirrors.js'),
+      '--repo-root', root,
+      '--skill', 'skill-scope',
+    ], { encoding: 'utf8', timeout: 15000 });
+    assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
+    for (const surface of ['codex', 'cursor']) {
+      const mirror = path.join(root, surface, 'skills', 'skill-scope');
+      assert.ok(fs.lstatSync(mirror).isSymbolicLink(), `${surface} mirror must be a symlink`);
+      assert.strictEqual(fs.readlinkSync(mirror), '../../skills/skill-scope');
+      assert.strictEqual(fs.realpathSync(mirror), fs.realpathSync(path.join(root, 'skills', 'skill-scope')));
+    }
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('skill-mirror reconciler refuses a symlinked Codex or Cursor surface parent', () => {
   for (const surface of ['codex', 'cursor']) {
     const root = makeFixture();

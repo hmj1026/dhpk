@@ -84,7 +84,7 @@ worker contract: `tdd-guide` still owns RED, seam selection, and test strategy.
 
 - Use `e2e-runner` for Playwright user journeys, browser fixtures, and live
   journey stabilization.
-- Use `dhpk-test-review` for a post-hoc coverage or acceptance-criteria audit.
+- Use `change-verdict` for a post-hoc coverage or acceptance-criteria audit.
 - Skip the TDD loop for pure documentation, rename, formatting, or harness
   configuration tasks that do not change testable runtime behavior.
 - Do not replace the dhpk dispatch boundary: business feature/bug RED work

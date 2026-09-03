@@ -8,9 +8,8 @@
 # Resolves to <repo>/skills/<skill-name>/scripts/<script-file> relative to this
 # wrapper's own location (works regardless of CWD), then executes it with the
 # matching interpreter. Documented invocation for skills that ship a helper
-# script (`dhpk-skill-health-audit`, `dhpk-risk-assess`,
-# `dhpk-project-audit`, `dhpk-next-step`, `dhpk-repo-intake`, and
-# `dhpk-create-skill`, which borrows `dhpk-skill-health-audit`'s linter).
+# script (`skill-scope`, `change-verdict`, `dhpk-project-audit`, `flow-guide`,
+# `dhpk-repo-intake`, and `skill-forge`, which owns the authoring linter).
 #
 # Exit codes: passes through the target script; 2 = bad usage / script not found.
 set -euo pipefail

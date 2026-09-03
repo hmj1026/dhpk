@@ -1,4 +1,0 @@
-interface:
-  display_name: "Bug Investigation"
-  short_description: "Root-cause investigation workflow for unexpected behavior, test"
-  default_prompt: "Use $dhpk-root-cause-investigation to apply the Bug Investigation workflow with its verification rules."

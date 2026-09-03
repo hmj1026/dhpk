@@ -1,6 +1,6 @@
 ---
 name: dhpk-repo-intake
-description: 'Project initialization inventory (one-time), for first onboarding a project or rebuilding cache after structural changes. Not for: day-to-day development (read cache directly), finding specific files (use dhpk-codebase-exploration). Output: project map with entrypoints + test map + next steps.'
+description: 'Project initialization inventory (one-time), for first onboarding a project or rebuilding cache after structural changes. Not for: day-to-day development (read cache directly), finding specific files (use code-trace). Output: project map with entrypoints + test map + next steps.'
 allowed-tools: 'Bash(bash:*), Bash(git:*), Bash(node:*), Read, Write, Grep, Glob'
 context: fork
 agent: Explore

@@ -3,7 +3,7 @@
 const { test, run, assert } = require('./_lib/tinytest');
 const { compareDistributionProjections } = require('../scripts/lib/distribution-projection-parity');
 
-function subject() {
+function subject(ownershipFingerprint = undefined) {
   const plan = {
     schema: 'dhpk.distribution-projection-contract.v1',
     surface: 'claude-profile',
@@ -20,11 +20,13 @@ function subject() {
       expectedFingerprint: 'output-fixture',
     }],
   };
+  if (ownershipFingerprint !== undefined) plan.externalSkillPackagesFingerprint = ownershipFingerprint;
   const artifact = {
     planFingerprint: plan.planFingerprint,
     artifactFingerprint: 'artifact-parity-fixture',
     outputs: [{ stableId: 'fixture', destination: 'skills/fixture/SKILL.md', expectedFingerprint: 'output-fixture' }],
   };
+  if (ownershipFingerprint !== undefined) artifact.externalSkillPackagesFingerprint = ownershipFingerprint;
   return { surface: plan.surface, profile: { id: 'minimal' }, plan, artifact };
 }
 
@@ -73,6 +75,27 @@ test('projection parity binds outer surface and profile labels to their compiler
   const profileResult = compareDistributionProjections({ expected: subject(), actual: profileDrift, stage: 'structural' });
   assert.strictEqual(profileResult.ok, false);
   assert.match(profileResult.diagnostics.join('\n'), /profile identity/i);
+});
+
+test('projection parity rejects external ownership ledger drift and records provenance', () => {
+  const expected = subject('ownership-a');
+  const actual = subject('ownership-b');
+  const result = compareDistributionProjections({ expected, actual, stage: 'structural' });
+  assert.strictEqual(result.ok, false);
+  assert.ok(result.mismatches.some((mismatch) => mismatch.field === 'externalSkillPackagesFingerprint'));
+  assert.match(result.diagnostics.join('\n'), /external ownership|externalSkillPackagesFingerprint|ownership/i);
+  assert.strictEqual(result.externalSkillPackagesFingerprint, 'ownership-a');
+  assert.strictEqual(result.evidence.externalSkillPackagesFingerprint, 'ownership-a');
+  assert.strictEqual(result.receipt.externalSkillPackagesFingerprint, 'ownership-a');
+});
+
+test('projection parity rejects a stale ownership fingerprint between a plan and its artifact', () => {
+  const expected = subject('ownership-current');
+  expected.artifact = { ...expected.artifact, externalSkillPackagesFingerprint: 'ownership-stale' };
+  const actual = subject('ownership-current');
+  const result = compareDistributionProjections({ expected, actual, stage: 'structural' });
+  assert.strictEqual(result.ok, false);
+  assert.match(result.diagnostics.join('\n'), /ownership|fingerprint|stale/i);
 });
 
 run('distribution-projection-parity');

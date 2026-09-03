@@ -15,7 +15,7 @@ const {
 const {
   parseInvocationContext,
   createRouteResult,
-} = require('../skills/dhpk-do/scripts/route-result');
+} = require('../skills/flow-drive/scripts/route-result');
 
 const ROOT = path.join(__dirname, '..');
 
@@ -92,8 +92,8 @@ test('route result carries context and has a stable terminal shape', () => {
   assert.ok(Object.isFrozen(result));
 });
 
-test('v2 skill-local parser nested options (skip while package absent; see dhpk-do-portable)', () => {
-  const skillParser = path.join(ROOT, 'skills', 'dhpk-do', 'scripts', 'route-result.js');
+test('v2 skill-local parser nested options (skip while package absent; see flow-drive)', () => {
+  const skillParser = path.join(ROOT, 'skills', 'flow-drive', 'scripts', 'route-result.js');
   if (!fs.existsSync(skillParser)) return;
   const skillMod = require(skillParser);
   const parsed = skillMod.parseInvocationContext(['--execute-explicit', '--codex', 'task']);

@@ -16,7 +16,14 @@ const crypto = require('node:crypto');
 const path = require('node:path');
 const { collectInventory, relativePosix } = require('./asset-inventory');
 const { compileDistribution, verifyDistribution } = require('./distribution-compiler');
-const { fingerprint, createDistributionArtifact, projectionError } = require('./distribution-projection-contract');
+const {
+  fingerprint,
+  createDistributionArtifact,
+  projectionError,
+  EXTERNAL_SKILL_PACKAGE_FIELDS,
+  normalizeExternalSkillPackages,
+  externalSkillPackagesFingerprint,
+} = require('./distribution-projection-contract');
 const { REQUIRED_SURFACES, REQUIRED_RUNTIME_SURFACES } = require('./harness-surfaces');
 const { validateInternalRuntimeSkills } = require('./internal-runtime-skills');
 const { assertCanonicalSkillPath } = require('./distribution-inventory-regeneration');
@@ -35,6 +42,39 @@ const SURFACES = [
 ];
 const V2_SCHEMA = 'dhpk.distribution-inventory.v2';
 const PUBLIC_SKILL_NAME = /^dhpk-[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const PORTABLE_FAMILY_NAME = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const PORTABLE_FAMILY_NAMES = Object.freeze([
+  'skill-scope',
+  'skill-forge',
+  'flow-guide',
+  'flow-drive',
+  'change-verdict',
+  'code-trace',
+]);
+const CAPABILITY_FAMILY_RETIREMENTS = Object.freeze({
+  'skill-health-check': Object.freeze({ family: 'skill-scope', mode: 'health' }),
+  'skill-judge': Object.freeze({ family: 'skill-scope', mode: 'judge' }),
+  'skill-stocktake': Object.freeze({ family: 'skill-scope', mode: 'stocktake' }),
+  'skill-scout': Object.freeze({ family: 'skill-scope', mode: 'scout' }),
+  'create-skill': Object.freeze({ family: 'skill-forge', mode: 'create' }),
+  'rules-distill': Object.freeze({ family: 'skill-forge', mode: 'distill-rules' }),
+  'adaptive-dev-workflow': Object.freeze({ family: 'flow-guide', mode: 'classify' }),
+  'dhpk-execution-policy': Object.freeze({ family: 'flow-guide', mode: 'policy' }),
+  'next-step': Object.freeze({ family: 'flow-guide', mode: 'next' }),
+  'execution-checklist': Object.freeze({ family: 'flow-guide', mode: 'checklist' }),
+  do: Object.freeze({ family: 'flow-drive', mode: 'route' }),
+  implement: Object.freeze({ family: 'flow-drive', mode: 'implement' }),
+  'codex-code-review': Object.freeze({ family: 'change-verdict', mode: 'code' }),
+  'pr-review': Object.freeze({ family: 'change-verdict', mode: 'pr' }),
+  'security-review': Object.freeze({ family: 'change-verdict', mode: 'security' }),
+  'test-review': Object.freeze({ family: 'change-verdict', mode: 'tests' }),
+  'doc-review': Object.freeze({ family: 'change-verdict', mode: 'docs' }),
+  'risk-assess': Object.freeze({ family: 'change-verdict', mode: 'risk' }),
+  'code-explore': Object.freeze({ family: 'code-trace', mode: 'explore' }),
+  'bug-investigation': Object.freeze({ family: 'code-trace', mode: 'diagnose' }),
+  'git-investigate': Object.freeze({ family: 'code-trace', mode: 'history' }),
+  'tool-routing': Object.freeze({ family: 'code-trace', mode: 'select-tool' }),
+});
 const CAPABILITY_ID = /^dhpk\.[a-z0-9]+(?:[.-][a-z0-9]+)*$/;
 const PLATFORM_MATRIX_SCHEMA = 'dhpk.platform-capability-matrix.v1';
 const PLATFORM_STATUSES = [
@@ -128,7 +168,7 @@ function classifyCanonicalInventory(root) {
 function preserveProjectionContract(generated, existing) {
   if (!existing || typeof existing !== 'object') return generated;
   const contract = {};
-  for (const key of ['surfaces', 'surface_membership', 'platform_matrix', 'portable_frontmatter', 'projection_contract', 'retired_skills', 'agent_roster']) {
+  for (const key of ['surfaces', 'surface_membership', 'platform_matrix', 'portable_frontmatter', 'projection_contract', 'retired_skills', 'external_skill_packages', 'agent_roster']) {
     if (Object.prototype.hasOwnProperty.call(existing, key)) contract[key] = existing[key];
   }
   return { ...generated, ...contract };
@@ -320,6 +360,160 @@ function validateDistributionInventory({
   return { errors };
 }
 
+const EXTERNAL_SKILL_ID = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+const EXTERNAL_PACKAGE_ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const EXTERNAL_PACKAGE_POLICIES = ['protect-existing'];
+const EXTERNAL_PACKAGE_LICENSE_REVIEWS = ['open', 'verified', 'not-required'];
+
+function externalSkillPackagesFromInventory(input = {}) {
+  if (Array.isArray(input)) return { present: true, value: input };
+  if (!input || typeof input !== 'object' || Array.isArray(input)) return { present: false, value: undefined };
+  const inventory = input.inventory && typeof input.inventory === 'object' && !Array.isArray(input.inventory)
+    ? input.inventory
+    : input;
+  if (Object.prototype.hasOwnProperty.call(inventory, 'external_skill_packages')) {
+    return { present: true, value: inventory.external_skill_packages };
+  }
+  if (Object.prototype.hasOwnProperty.call(inventory, 'externalSkillPackages')) {
+    return { present: true, value: inventory.externalSkillPackages };
+  }
+  return { present: false, value: undefined };
+}
+
+// Validate the ownership ledger independently from the v2 inventory validator
+// so regeneration and projection callers can exercise the boundary directly.
+// The inventory argument is optional for backwards compatibility; when it is
+// present, every protected ID is additionally checked against live and retired
+// canonical identities and all first-party legacy/predecessor references.
+function validateExternalSkillPackages(input = {}) {
+  const errors = [];
+  const source = externalSkillPackagesFromInventory(input);
+  if (!source.present) return { errors };
+  if (!Array.isArray(source.value)) {
+    return { errors: ['distribution inventory external_skill_packages must be an array'] };
+  }
+
+  const inventory = input && input.inventory && typeof input.inventory === 'object' && !Array.isArray(input.inventory)
+    ? input.inventory
+    : input && typeof input === 'object' && !Array.isArray(input) && !Array.isArray(input.external_skill_packages)
+      ? input
+      : null;
+  const hasActiveSkillInventory = Boolean(inventory && Array.isArray(inventory.skills));
+  const activeIds = new Set(
+    hasActiveSkillInventory
+      ? inventory.skills.map((entry) => entry && entry.id).filter((id) => typeof id === 'string')
+      : [],
+  );
+  const retiredIds = new Set(
+    inventory && Array.isArray(inventory.retired_skills)
+      ? inventory.retired_skills.map((entry) => entry && entry.id).filter((id) => typeof id === 'string')
+      : [],
+  );
+  const firstPartyPredecessors = new Set(retiredIds);
+  if (inventory && Array.isArray(inventory.skill_routing_families)) {
+    for (const family of inventory.skill_routing_families) {
+      if (!family || typeof family !== 'object' || !Array.isArray(family.aliases)) continue;
+      for (const alias of family.aliases) {
+        if (alias && typeof alias.id === 'string') firstPartyPredecessors.add(alias.id);
+      }
+    }
+  }
+  if (inventory && Array.isArray(inventory.skills)) {
+    for (const skill of inventory.skills) {
+      if (!skill || !Array.isArray(skill.legacy_names)) continue;
+      for (const legacyName of skill.legacy_names) {
+        // An external package keeps its own stable ID in legacy_names as a
+        // self-identity marker.  That is not a first-party predecessor; only
+        // a different legacy identity represents a consolidation reference.
+        if (typeof legacyName === 'string' && legacyName !== skill.id) firstPartyPredecessors.add(legacyName);
+      }
+    }
+  }
+
+  const packageIds = new Set();
+  const stableIdOwners = new Map();
+  source.value.forEach((entry, index) => {
+    const prefix = `external_skill_packages[${index}]`;
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      errors.push(`${prefix} must be an object`);
+      return;
+    }
+    for (const field of EXTERNAL_SKILL_PACKAGE_FIELDS) {
+      if (!Object.prototype.hasOwnProperty.call(entry, field)) {
+        errors.push(`${prefix} is missing required field '${field}'`);
+      }
+    }
+    for (const field of Object.keys(entry)) {
+      if (!EXTERNAL_SKILL_PACKAGE_FIELDS.includes(field)) {
+        errors.push(`${prefix}.${field} is not allowed for external package rows`);
+      }
+    }
+
+    if (typeof entry.id !== 'string' || !EXTERNAL_PACKAGE_ID.test(entry.id)) {
+      errors.push(`${prefix}.id must be a lowercase kebab-case package id`);
+    } else if (packageIds.has(entry.id)) {
+      errors.push(`duplicate external package id: ${entry.id}`);
+    } else {
+      packageIds.add(entry.id);
+    }
+    if (entry.owner !== 'upstream') {
+      errors.push(`${prefix}.owner must be 'upstream'`);
+    }
+    if (typeof entry.repository !== 'string' || entry.repository.trim() === '') {
+      errors.push(`${prefix}.repository must be an HTTPS repository URL`);
+    } else {
+      try {
+        const repository = new URL(entry.repository);
+        if (repository.protocol !== 'https:' || repository.hostname === '') {
+          errors.push(`${prefix}.repository must be an HTTPS repository URL`);
+        }
+      } catch (_) {
+        errors.push(`${prefix}.repository must be an HTTPS repository URL`);
+      }
+    }
+    if (!EXTERNAL_PACKAGE_POLICIES.includes(entry.policy)) {
+      errors.push(`${prefix}.policy must be one of ${EXTERNAL_PACKAGE_POLICIES.join('/')}`);
+    }
+    if (!EXTERNAL_PACKAGE_LICENSE_REVIEWS.includes(entry.license_review)) {
+      errors.push(`${prefix}.license_review must be one of ${EXTERNAL_PACKAGE_LICENSE_REVIEWS.join('/')}`);
+    }
+
+    if (!Array.isArray(entry.stable_ids) || entry.stable_ids.length === 0) {
+      errors.push(`${prefix}.stable_ids must be a non-empty lexicographically sorted string array`);
+      return;
+    }
+    const sortedStableIds = [...entry.stable_ids].sort();
+    if (JSON.stringify(sortedStableIds) !== JSON.stringify(entry.stable_ids)) {
+      errors.push(`${prefix}.stable_ids must be lexicographically sorted`);
+    }
+    const rowIds = new Set();
+    for (const stableId of entry.stable_ids) {
+      if (typeof stableId !== 'string' || !EXTERNAL_SKILL_ID.test(stableId)) {
+        errors.push(`${prefix}.stable_ids must contain safe stable IDs`);
+        continue;
+      }
+      if (rowIds.has(stableId)) errors.push(`${prefix}.stable_ids contains duplicate stable id '${stableId}'`);
+      rowIds.add(stableId);
+      if (stableIdOwners.has(stableId)) {
+        errors.push(`external stable id '${stableId}' is listed by both '${stableIdOwners.get(stableId)}' and '${entry.id || '<unknown>'}'`);
+      } else {
+        stableIdOwners.set(stableId, entry.id || '<unknown>');
+      }
+      if (hasActiveSkillInventory && !activeIds.has(stableId)) {
+        errors.push(`${prefix}.stable_ids references missing live canonical skill '${stableId}'`);
+      }
+      if (retiredIds.has(stableId)) {
+        errors.push(`${prefix}.stable_ids '${stableId}' overlaps retired skill identity`);
+      }
+      if (firstPartyPredecessors.has(stableId) && !retiredIds.has(stableId)) {
+        errors.push(`${prefix}.stable_ids '${stableId}' is used as a first-party consolidation predecessor`);
+      }
+    }
+  });
+
+  return { errors };
+}
+
 // Retirement rows are deliberately separate from active skill entries. They
 // are identity and migration evidence only: no projection compiler is allowed
 // to treat them as materializable skills or discovery aliases.
@@ -334,6 +528,12 @@ function validateSkillRetirements({ inventory } = {}) {
   const activeSkills = Array.isArray(inventory.skills) ? inventory.skills : [];
   const activeIds = new Set(activeSkills.map((entry) => entry && entry.id).filter((value) => typeof value === 'string'));
   const activeNames = new Set(activeSkills.map((entry) => entry && entry.name).filter((value) => typeof value === 'string'));
+  const externallyOwnedIds = new Set(
+    Array.isArray(inventory.external_skill_packages)
+      ? inventory.external_skill_packages.flatMap((pkg) => Array.isArray(pkg && pkg.stable_ids) ? pkg.stable_ids : [])
+        .filter((value) => typeof value === 'string')
+      : [],
+  );
   const retiredIds = new Set();
   const retiredNames = new Set();
   const allowedSurfaces = new Set(SURFACES);
@@ -369,6 +569,9 @@ function validateSkillRetirements({ inventory } = {}) {
       errors.push(`retired stable id overlaps active skill: ${entry.id}`);
     } else {
       retiredIds.add(entry.id);
+    }
+    if (typeof entry.id === 'string' && externallyOwnedIds.has(entry.id)) {
+      errors.push(`${prefix}.id '${entry.id}' overlaps an external-package protected skill and cannot be retired`);
     }
 
     if (typeof entry.name !== 'string' || !PUBLIC_SKILL_NAME.test(entry.name) || entry.name.length > 63) {
@@ -461,6 +664,45 @@ function validateSkillRetirements({ inventory } = {}) {
     }
   });
 
+  // The 0.53 capability-family wave is a closed migration contract.  Only
+  // inventories that actually contain all six successor families opt into
+  // this check; older v1/v2 fixtures can continue validating their historical
+  // retirement rows without importing this future mapping.
+  const hasCapabilityFamilyWave = PORTABLE_FAMILY_NAMES.every((familyId) => activeIds.has(familyId));
+  if (hasCapabilityFamilyWave) {
+    const retirementById = new Map(
+      rows
+        .filter((entry) => entry && typeof entry === 'object' && !Array.isArray(entry) && typeof entry.id === 'string')
+        .map((entry) => [entry.id, entry]),
+    );
+    for (const [predecessor, expected] of Object.entries(CAPABILITY_FAMILY_RETIREMENTS)) {
+      const entry = retirementById.get(predecessor);
+      if (!entry) {
+        errors.push(`missing capability-family retirement mapping: ${predecessor} must map to ${expected.family}:${expected.mode}`);
+        continue;
+      }
+      if (entry.retiredIn !== '0.53.0') {
+        errors.push(`capability-family retirement ${predecessor} must retire in 0.53.0`);
+      }
+      if (!entry.rollback || entry.rollback.release !== '0.52.0') {
+        errors.push(`capability-family retirement ${predecessor} must roll back to 0.52.0`);
+      }
+      const replacement = Array.isArray(entry.replacements) && entry.replacements.length === 1
+        ? entry.replacements[0]
+        : null;
+      if (!replacement || replacement.kind !== 'skill'
+        || replacement.id !== expected.family || replacement.mode !== expected.mode) {
+        errors.push(`capability-family retirement ${predecessor} must map exactly to ${expected.family}:${expected.mode}`);
+      }
+    }
+    for (const entry of rows) {
+      if (!entry || typeof entry !== 'object' || Array.isArray(entry) || entry.retiredIn !== '0.53.0') continue;
+      if (!Object.prototype.hasOwnProperty.call(CAPABILITY_FAMILY_RETIREMENTS, entry.id)) {
+        errors.push(`unexpected 0.53.0 capability-family retirement mapping: ${entry.id}`);
+      }
+    }
+  }
+
   return { errors };
 }
 
@@ -512,12 +754,30 @@ function validateDistributionInventoryV2(input = {}) {
       ids.add(entry.id);
     }
 
-    if (typeof entry.name !== 'string' || !PUBLIC_SKILL_NAME.test(entry.name) || entry.name.length > 63) {
+    const portableFamily = entry.name_style === 'portable-family';
+    if (entry.name_style !== undefined && entry.name_style !== 'portable-family') {
+      errors.push(`${prefix}.name_style must be 'portable-family' when present: '${entry.name_style}'`);
+    }
+    if (portableFamily) {
+      if (!PORTABLE_FAMILY_NAME.test(entry.name) || !PORTABLE_FAMILY_NAMES.includes(entry.name) || entry.name.length > 63) {
+        errors.push(`${prefix}.name must be one of the reviewed unprefixed portable-family names (${PORTABLE_FAMILY_NAMES.join(', ')}): '${entry.name}'`);
+      }
+      if (entry.id !== entry.name) {
+        errors.push(`${prefix}.id must equal the portable-family public name '${entry.name}'`);
+      }
+      if (!INVOCATION_CLASSES.includes(entry.invocation_class)) {
+        errors.push(`${prefix}.invocation_class must be one of ${INVOCATION_CLASSES.join('/')} for portable-family skills`);
+      }
+    } else if (typeof entry.name !== 'string' || !PUBLIC_SKILL_NAME.test(entry.name) || entry.name.length > 63) {
       errors.push(`${prefix}.name must match ^dhpk-[a-z0-9]+(?:-[a-z0-9]+)*$ and be at most 63 characters: '${entry.name}'`);
     } else if (names.has(entry.name)) {
       errors.push(`duplicate public skill name: ${entry.name}`);
     } else {
       names.add(entry.name);
+    }
+    if (portableFamily && typeof entry.name === 'string') {
+      if (names.has(entry.name)) errors.push(`duplicate public skill name: ${entry.name}`);
+      else names.add(entry.name);
     }
 
     const expectedPath = typeof entry.name === 'string' ? `skills/${entry.name}` : null;
@@ -590,6 +850,8 @@ function validateDistributionInventoryV2(input = {}) {
     }
   });
 
+  const externalPackages = validateExternalSkillPackages({ inventory });
+  errors.push(...externalPackages.errors);
   const retirements = validateSkillRetirements({ inventory });
   errors.push(...retirements.errors);
   const membership = validateSurfaceMembership({ inventory, ids });
@@ -1524,14 +1786,20 @@ function freezeProjectionValue(value) {
 
 function normalizedInventoryView(inventory, generated) {
   const normalize = (entries) => (entries || [])
-    .map((entry) => ({
-      id: entry.id,
-      name: entry.name || null,
-      path: entry.path,
-      lifecycle: entry.lifecycle,
-      invokable: entry.invokable !== false,
-      surfaces: [...(entry.surfaces || [])].sort(),
-    }))
+    .map((entry) => {
+      const normalized = {
+        id: entry.id,
+        name: entry.name || null,
+        path: entry.path,
+        lifecycle: entry.lifecycle,
+        invokable: entry.invokable !== false,
+        surfaces: [...(entry.surfaces || [])].sort(),
+      };
+      if (Object.prototype.hasOwnProperty.call(entry, 'name_style')) {
+        normalized.nameStyle = entry.name_style;
+      }
+      return normalized;
+    })
     .sort((left, right) => String(left.id).localeCompare(String(right.id)));
   const normalizeRetirements = (entries) => (entries || [])
     .map((entry) => ({
@@ -1553,14 +1821,19 @@ function normalizedInventoryView(inventory, generated) {
         : null,
     }))
     .sort((left, right) => String(left.id).localeCompare(String(right.id)));
-  return freezeProjectionValue({
+  const view = {
     schema: inventory && inventory.schema ? inventory.schema : null,
     roots: [...generated.roots],
     generatedSkillIds: [...generated.generatedSkillIds],
     skills: normalize(inventory && inventory.skills),
     modules: normalize(inventory && inventory.modules),
     retiredSkills: normalizeRetirements(inventory && inventory.retired_skills),
-  });
+  };
+  if (inventory && Object.prototype.hasOwnProperty.call(inventory, 'external_skill_packages')) {
+    view.externalSkillPackages = normalizeExternalSkillPackages({ inventory });
+    view.externalSkillPackagesFingerprint = externalSkillPackagesFingerprint({ inventory });
+  }
+  return freezeProjectionValue(view);
 }
 
 function projectionOutput(stableId, source, destination, content, transform) {
@@ -1619,6 +1892,9 @@ function compileClaudeProjection({ inventory, compilerVersion = 'claude-1' } = {
     compilerVersion,
     surface: 'claude-core',
     inventoryFingerprint: fingerprint(inventoryView),
+    ...(Object.prototype.hasOwnProperty.call(inventory, 'external_skill_packages')
+      ? { externalSkillPackages: inventory.external_skill_packages }
+      : {}),
     ownershipRoot: '.claude-plugin',
     entries,
   });
@@ -1758,6 +2034,9 @@ module.exports = {
   SURFACES,
   V2_SCHEMA,
   PUBLIC_SKILL_NAME,
+  PORTABLE_FAMILY_NAME,
+  PORTABLE_FAMILY_NAMES,
+  CAPABILITY_FAMILY_RETIREMENTS,
   CAPABILITY_ID,
   PLATFORM_MATRIX_SCHEMA,
   REQUIRED_SURFACES,
@@ -1775,6 +2054,9 @@ module.exports = {
   validateSupportingAssets,
   refreshSupportingDigests,
   validateDistributionInventory,
+  validateExternalSkillPackages,
+  normalizeExternalSkillPackages,
+  externalSkillPackagesFingerprint,
   validateSkillRetirements,
   validateDistributionInventoryV2,
   validateSkillRoutingFamilies,

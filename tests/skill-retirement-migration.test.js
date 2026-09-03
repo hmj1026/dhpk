@@ -23,17 +23,20 @@ const RETIRED_NAMES = [
   'dhpk-codex-architect',
   'dhpk-codex-implement',
 ];
+const CAPABILITY_FAMILY_NAMES = [
+  'skill-scope', 'skill-forge', 'flow-guide', 'flow-drive', 'change-verdict', 'code-trace',
+];
 
 const RETIREMENTS = [
   {
     id: 'bug-fix', name: 'dhpk-bug-fix', canonicalPath: 'skills/dhpk-bug-fix', retiredIn: '0.47.0',
     reasonCode: 'merged-into-adaptive-workflow', priorSurfaces: ['claude-core', 'cursor-sync'],
-    replacements: [{ kind: 'skill', id: 'adaptive-dev-workflow', mode: 'bug' }], rollback: { release: '0.46.1' },
+    replacements: [{ kind: 'skill', id: 'flow-guide', mode: 'classify' }], rollback: { release: '0.46.1' },
   },
   {
     id: 'feature-dev', name: 'dhpk-feature-dev', canonicalPath: 'skills/dhpk-feature-dev', retiredIn: '0.47.0',
     reasonCode: 'merged-into-adaptive-workflow', priorSurfaces: ['claude-core', 'cursor-sync'],
-    replacements: [{ kind: 'skill', id: 'adaptive-dev-workflow', mode: 'feature' }], rollback: { release: '0.46.1' },
+    replacements: [{ kind: 'skill', id: 'flow-guide', mode: 'classify' }], rollback: { release: '0.46.1' },
   },
   {
     id: 'post-dev-test', name: 'dhpk-post-dev-test', canonicalPath: 'skills/dhpk-post-dev-test', retiredIn: '0.47.0',
@@ -58,14 +61,15 @@ const RETIREMENTS = [
   {
     id: 'codex-implement', name: 'dhpk-codex-implement', canonicalPath: 'skills/dhpk-codex-implement', retiredIn: '0.52.0',
     reasonCode: 'migrated-to-backend-neutral-implement', priorSurfaces: ['claude-core', 'cursor-sync'],
-    replacements: [{ kind: 'skill', id: 'implement', mode: 'default' }], rollback: { release: '0.51.0' },
+    replacements: [{ kind: 'skill', id: 'flow-drive', mode: 'implement' }], rollback: { release: '0.51.0' },
   },
 ];
 
 function fixtureInventory() {
   return {
     ...INVENTORY,
-    skills: INVENTORY.skills.filter((entry) => !RETIRED_NAMES.includes(entry.name)),
+    skills: INVENTORY.skills.filter((entry) => !RETIRED_NAMES.includes(entry.name)
+      && entry.name !== CAPABILITY_FAMILY_NAMES[0]),
     retired_skills: RETIREMENTS,
     surface_membership: Object.fromEntries(Object.entries(INVENTORY.surface_membership || {}).map(([surface, ids]) => [
       surface,
@@ -88,17 +92,15 @@ function walkTextFiles(relative) {
   });
 }
 
-test('checked-in inventory owns seven alias-free retirement records', () => {
+test('checked-in inventory owns historical and capability-family alias-free retirement records', () => {
   assert.ok(Array.isArray(INVENTORY.retired_skills), 'checked-in inventory must declare retired_skills');
   assert.deepStrictEqual(validateSkillRetirements({ inventory: INVENTORY }).errors, []);
   assert.deepStrictEqual(
-    INVENTORY.retired_skills.map((entry) => entry.name).sort(),
-    [...RETIRED_NAMES].sort(),
+    INVENTORY.retired_skills.filter((entry) => entry.retiredIn === '0.47.0').map((entry) => entry.name).sort(),
+    [...RETIRED_NAMES.slice(0, 5)].sort(),
   );
-  assert.deepStrictEqual(
-    INVENTORY.retired_skills.map((entry) => entry.retiredIn),
-    ['0.47.0', '0.47.0', '0.47.0', '0.47.0', '0.47.0', '0.52.0', '0.52.0'],
-  );
+  assert.strictEqual(INVENTORY.retired_skills.filter((entry) => entry.retiredIn === '0.52.0').length, 2);
+  assert.strictEqual(INVENTORY.retired_skills.filter((entry) => entry.retiredIn === '0.53.0').length, 22);
   assert.ok(RETIRED_NAMES.every((name) => !INVENTORY.skills.some((entry) => entry.name === name)));
   assert.ok(RETIRED_NAMES.every((name) => !fs.existsSync(path.join(ROOT, 'skills', name))));
 });
@@ -208,7 +210,7 @@ test('identity resolution distinguishes active, retired skill, retired model-def
   assert.deepStrictEqual(resolveSkillIdentity({ inventory, identifier: 'dhpk-bug-fix' }), {
     state: 'retired', stableId: 'bug-fix', publicName: 'dhpk-bug-fix', retiredIn: '0.47.0',
     reasonCode: 'merged-into-adaptive-workflow',
-    replacements: [{ kind: 'skill', id: 'adaptive-dev-workflow', mode: 'bug' }],
+    replacements: [{ kind: 'skill', id: 'flow-guide', mode: 'classify' }],
   });
   assert.deepStrictEqual(resolveSkillIdentity({ inventory, identifier: 'de-ai-flavor' }), {
     state: 'retired', stableId: 'de-ai-flavor', publicName: 'dhpk-de-ai-flavor', retiredIn: '0.47.0',
@@ -251,7 +253,7 @@ test('run-skill reports retired guidance separately from unknown scripts', () =>
   assert.strictEqual(retired.status, 2);
   assert.match(retired.stderr, /retired in 0\.47\.0/i);
   assert.match(retired.stderr, /reason:\s*merged-into-adaptive-workflow/i);
-  assert.match(retired.stderr, /dhpk-adaptive-dev-workflow.*bug/i);
+  assert.match(retired.stderr, /flow-guide.*classify/i);
 
   const modelDefault = spawnSync('bash', [script, 'dhpk-de-ai-flavor', 'anything.js'], { cwd: ROOT, encoding: 'utf8' });
   assert.strictEqual(modelDefault.status, 2);
@@ -271,26 +273,29 @@ test('run-skill reports retired guidance separately from unknown scripts', () =>
   assert.doesNotMatch(unknown.stderr, /retired/i);
 });
 
-test('adaptive workflow owns complete bug and feature delivery behavior', () => {
-  assert.ok(fs.existsSync(path.join(ROOT, 'skills/dhpk-execution-policy/references/delivery-loop-gate.md')), 'delivery-loop-gate successor reference must exist');
-  const adaptive = read('skills/dhpk-adaptive-dev-workflow/SKILL.md');
-  const gate = read('skills/dhpk-execution-policy/references/delivery-loop-gate.md');
-  assert.match(adaptive, /Bug branch[\s\S]*root cause[\s\S]*regression test/i);
-  assert.match(adaptive, /Feature branch[\s\S]*requirements[\s\S]*design[\s\S]*implement/i);
-  assert.match(adaptive, /dhpk-tdd-workflow/);
-  assert.match(adaptive, /dhpk-change-review/);
+test('flow guide owns complete bug and feature delivery behavior', () => {
+  assert.ok(fs.existsSync(path.join(ROOT, 'skills/flow-guide/references/delivery-loop-gate.md')), 'delivery-loop-gate successor reference must exist');
+  const guide = read('skills/flow-guide/SKILL.md');
+  const bug = read('skills/flow-guide/references/workflow-bugfix.md');
+  const feature = read('skills/flow-guide/references/workflow-feature-delivery.md');
+  const gate = read('skills/flow-guide/references/delivery-loop-gate.md');
+  assert.match(guide, /classify/);
+  assert.match(bug, /root cause[\s\S]*regression test/i);
+  assert.match(feature, /requirements[\s\S]*design[\s\S]*implement/i);
+  assert.match(bug, /dhpk-tdd-workflow/);
+  assert.match(gate, /change-verdict/);
   assert.match(gate, /test adequacy/i);
   assert.match(gate, /freshness/i);
-  assert.doesNotMatch(adaptive, /dhpk-(bug-fix|feature-dev)/);
+  assert.doesNotMatch(guide, /dhpk-(bug-fix|feature-dev)/);
 });
 
 test('post-development testing routes unit/integration to TDD and Playwright journeys to e2e-runner', () => {
-  const routeTable = JSON.parse(read('skills/dhpk-do/references/route-table.json'));
+  const routeTable = JSON.parse(read('skills/flow-drive/references/route-table.json'));
   const e2eRoute = routeTable.rules.find((entry) => /playwright/i.test(entry.pattern));
   assert.strictEqual(e2eRoute.target.kind, 'agent');
   assert.strictEqual(e2eRoute.target.id, 'e2e-runner');
   assert.match(e2eRoute.label, /UNAVAILABLE/);
-  const gate = read('skills/dhpk-execution-policy/references/delivery-loop-gate.md');
+  const gate = read('skills/flow-guide/references/delivery-loop-gate.md');
   assert.match(gate, /unit|integration/i);
   assert.match(gate, /dhpk-tdd-workflow/);
   assert.match(gate, /e2e-runner/);

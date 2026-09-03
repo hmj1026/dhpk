@@ -32,7 +32,7 @@ function initRepo() {
 test('next-step analyzer uses the exported resolveFeature API and emits JSON', () => {
   const repo = initRepo();
   try {
-    const script = path.join(ROOT, 'skills', 'dhpk-next-step', 'scripts', 'analyze.js');
+    const script = path.join(ROOT, 'skills', 'flow-guide', 'scripts', 'analyze.js');
     const res = spawnSync('node', [script, '--json'], {
       cwd: repo,
       encoding: 'utf8',
@@ -56,7 +56,7 @@ test('stocktake scan records only files named SKILL.md', () => {
     writeFile(path.join(globalDir, 'alpha', 'references', 'notes.md'), '# reference\n');
     writeFile(path.join(projectDir, 'beta', 'SKILL.md'), '---\nname: beta\ndescription: beta\n---\n');
     writeFile(path.join(projectDir, 'beta', 'guide.md'), '# guide\n');
-    const script = path.join(ROOT, 'skills', 'dhpk-skill-stocktake', 'scripts', 'scan.sh');
+    const script = path.join(ROOT, 'skills', 'skill-scope', 'scripts', 'scan.sh');
     const res = spawnSync('bash', [script], {
       cwd: ROOT,
       encoding: 'utf8',
@@ -86,7 +86,7 @@ test('stocktake quick diff records only files named SKILL.md', () => {
     writeFile(path.join(skillsDir, 'alpha', 'references', 'notes.md'), '# reference\n');
     fs.mkdirSync(path.join(skillsDir, 'project'), { recursive: true });
     writeFile(results, JSON.stringify({ evaluated_at: '2000-01-01T00:00:00Z', skills: [] }));
-    const script = path.join(ROOT, 'skills', 'dhpk-skill-stocktake', 'scripts', 'quick-diff.sh');
+    const script = path.join(ROOT, 'skills', 'skill-scope', 'scripts', 'quick-diff.sh');
     const res = spawnSync('bash', [script, results], {
       cwd: ROOT,
       encoding: 'utf8',
@@ -136,7 +136,7 @@ test('risk assessment reports inconclusive for an unsupported source language', 
     spawnSync('git', ['add', 'README.md'], { cwd: repo });
     assert.strictEqual(spawnSync('git', ['commit', '-qm', 'baseline'], { cwd: repo }).status, 0);
     writeFile(path.join(repo, 'src', 'lib.rs'), 'pub fn answer() -> i32 { 42 }\n');
-    const script = path.join(ROOT, 'skills', 'dhpk-risk-assess', 'scripts', 'risk-analyze.js');
+    const script = path.join(ROOT, 'skills', 'change-verdict', 'scripts', 'risk-analyze.js');
     const res = spawnSync('node', [script, '--json'], {
       cwd: repo,
       encoding: 'utf8',
@@ -153,7 +153,7 @@ test('risk assessment reports inconclusive for an unsupported source language', 
 });
 
 test('risk assessment classifies omitted source extensions by path, not by Low fallback', () => {
-  const script = path.join(ROOT, 'skills', 'dhpk-risk-assess', 'scripts', 'risk-analyze.js');
+  const script = path.join(ROOT, 'skills', 'change-verdict', 'scripts', 'risk-analyze.js');
   const runFixture = (file, content) => {
     const repo = initRepo();
     try {
@@ -208,7 +208,7 @@ test('codex CLI review passes hostile values as literal arguments without eval',
     writeFile(path.join(bin, 'codex'), '#!/bin/sh\nprintf "<%s>\\n" "$@" > "$CODEX_ARGS"\ncat >/dev/null\n', 0o755);
     const title = `$(touch ${sideEffect})`;
     const prompt = `$(touch ${sideEffect})`;
-    const script = path.join(ROOT, 'skills', 'dhpk-change-review', 'scripts', 'review.sh');
+    const script = path.join(ROOT, 'skills', 'change-verdict', 'scripts', 'review-cli.sh');
     const res = spawnSync('bash', [script, '--backend', 'cli', '--title', title, '--prompt', prompt], {
       cwd: repo,
       encoding: 'utf8',
@@ -238,7 +238,7 @@ test('pr hygiene does not infer squash from the current HEAD message', () => {
     writeFile(path.join(repo, 'README.md'), '# branch\n');
     spawnSync('git', ['add', 'README.md'], { cwd: repo });
     assert.strictEqual(spawnSync('git', ['commit', '-qm', 'Squash merge of #42'], { cwd: repo }).status, 0);
-    const script = path.join(ROOT, 'skills', 'dhpk-pr-review', 'scripts', 'check-unrelated-changes.sh');
+    const script = path.join(ROOT, 'skills', 'change-verdict', 'scripts', 'check-unrelated-changes.sh');
     const res = spawnSync('bash', [script, '42'], {
       cwd: repo,
       encoding: 'utf8',

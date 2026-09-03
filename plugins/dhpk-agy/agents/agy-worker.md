@@ -91,7 +91,7 @@ timeout binary. On a **multi-file** dispatch it triggers timeout recovery
 instead of the ordinary failure path in "Verify and report" below. Build the
 path-scoped completion ledger (`confirmed` / `unconfirmed` / `remaining`,
 disjoint, covering the assigned list) per
-`${CLAUDE_PLUGIN_ROOT}/skills/dhpk-execution-policy/references/implementation-dispatch.md`
+`${CLAUDE_PLUGIN_ROOT}/skills/flow-guide/references/implementation-dispatch.md`
 §CLI worker mid-batch timeout recovery, then:
 
 1. **First verified timeout** — request exactly one same-backend, same-model recovery dispatch scoped to `remaining ∪ unconfirmed`. Never self-edit the unresolved files and never fall back to another backend because of a timeout.

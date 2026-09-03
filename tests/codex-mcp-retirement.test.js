@@ -16,7 +16,7 @@ const { test, run, assert } = require('./_lib/tinytest');
 const {
   createRouteResult,
   validateRouteResult,
-} = require('../skills/dhpk-do/scripts/route-result');
+} = require('../skills/flow-drive/scripts/route-result');
 
 const ROOT = path.join(__dirname, '..');
 const MATRIX = path.join(ROOT, 'docs', 'codex-mcp-capability-parity.md');
@@ -274,7 +274,7 @@ test('catalog and invocation validators execute successfully with a zero MCP sur
 });
 
 test('default route table never targets retired MCP entries', () => {
-  const routeTable = JSON.parse(read('skills/dhpk-do/references/route-table.json'));
+  const routeTable = JSON.parse(read('skills/flow-drive/references/route-table.json'));
   const retiredTargets = routeTable.rules
     .map((rule) => rule.target && rule.target.id)
     .filter((id) => RETIRED_ROUTE_IDS.has(id));
@@ -308,11 +308,9 @@ test('--codex no longer resolves to a peer, worker, reasoner, or replacement rou
 test('migrated owners are MCP-free and any codex exec mention is explicit-only', () => {
   const owners = [
     'dhpk-module-design',
-    'dhpk-implement',
-    'dhpk-change-review',
-    'dhpk-doc-review',
-    'dhpk-test-review',
-    'dhpk-codebase-exploration',
+    'flow-drive',
+    'change-verdict',
+    'code-trace',
     'dhpk-feature-verify',
     'dhpk-issue-analyze',
     'dhpk-feasibility-study',
@@ -341,11 +339,12 @@ test('blind-verdict owners report primary-only degraded state without a second o
   }
 });
 
-test('codex-review command defaults to the retained non-MCP CLI contract', () => {
-  const content = read('commands/codex-review.md');
-  assert.match(content, /--backend\s+cli/i);
-  assert.match(content, /no MCP|MCP-free|Codex-free/i);
-  assert.doesNotMatch(frontmatter(content), CODEX_MCP);
+test('retired Codex review command aliases are absent after family cutover', () => {
+  for (const name of ['codex-review.md', 'codex-review-branch.md', 'codex-review-doc.md', 'codex-review-fast.md', 'codex-security.md', 'codex-test-review.md', 'review-spec.md']) {
+    assert.strictEqual(fs.existsSync(path.join(ROOT, 'commands', name)), false, `${name} must remain retired`);
+  }
+  const retained = read('commands/review-pending.md');
+  assert.doesNotMatch(frontmatter(retained), CODEX_MCP);
 });
 
 run('codex-mcp-retirement');

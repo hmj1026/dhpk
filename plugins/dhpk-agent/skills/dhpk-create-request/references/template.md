@@ -40,7 +40,7 @@
 - [ ] {Criterion 1}
 - [ ] {Criterion 2}
 - [ ] Unit test coverage > 80%
-- [ ] Pass /codex-review-fast
+- [ ] Pass /dhpk:change-verdict --mode code
 
 ## Progress
 
@@ -112,7 +112,7 @@ See [SKILL.md §Phase 4 Auto-Update Items](https://github.com/hmj1026/dhpk/blob/
 | Related Files layers | 1 concern layer | Split behavior-layer (.md rules/skills) from code-layer (.sh/.js hooks/scripts) |
 | Estimated effort | ≤ 3 days | Split by deliverable |
 
-Quality-gate ACs matching `Pass /<review-or-precommit-command>` don't count toward the ≤8 target. Canonical list: `/codex-review-fast`, `/codex-review-doc`, `/codex-review`, `/precommit`, `/precommit-fast`, `/dhpk:dhpk-pr-review`.
+Quality-gate ACs matching `Pass /<review-or-precommit-command>` don't count toward the ≤8 target. Canonical list: `/dhpk:change-verdict`, `/precommit`, `/precommit-fast`.
 
 ## Dependencies (conditional)
 

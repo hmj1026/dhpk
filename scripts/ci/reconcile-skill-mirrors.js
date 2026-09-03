@@ -7,6 +7,7 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const { PORTABLE_FAMILY_NAMES } = require('../lib/distribution-inventory');
 
 const SURFACES = Object.freeze([
   Object.freeze({ name: 'codex', inventorySurface: 'codex-sync' }),
@@ -21,8 +22,8 @@ function parseArgs(argv) {
     else if (arg === '--skill') args.skill = argv[++index];
     else throw new Error(`unknown argument: ${arg}`);
   }
-  if (!args.skill || !/^dhpk-[a-z0-9-]+$/.test(args.skill)) {
-    throw new Error('--skill must be one canonical dhpk-* package name');
+  if (!args.skill || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(args.skill)) {
+    throw new Error('--skill must be a canonical kebab-case package name');
   }
   return args;
 }
@@ -97,6 +98,13 @@ function main() {
   const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
   const skill = (inventory.skills || []).find((entry) => entry && entry.name === args.skill);
   if (!skill) throw new Error(`canonical skill is not registered in the distribution inventory: ${args.skill}`);
+  if (skill.name_style === 'portable-family') {
+    if (!PORTABLE_FAMILY_NAMES.includes(skill.name) || skill.id !== skill.name) {
+      throw new Error(`${args.skill} is not a reviewed portable-family package identity`);
+    }
+  } else if (!/^dhpk-[a-z0-9]+(?:-[a-z0-9]+)*$/.test(args.skill)) {
+    throw new Error(`${args.skill} must declare name_style: portable-family before mirror reconciliation`);
+  }
   if (!skill.surfaces || !SURFACES.every((surface) => skill.surfaces.includes(surface.inventorySurface))) {
     throw new Error(`${args.skill} must declare both codex-sync and cursor-sync before mirror reconciliation`);
   }

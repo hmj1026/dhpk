@@ -61,8 +61,8 @@ test('every explicit-only skill description is non-empty and states an effect', 
 test('sanity: classified skill counts match the known inventory shape', () => {
   const implicitCount = skills.filter((s) => s.ic.value === 'implicit-eligible').length;
   const explicitCount = skills.filter((s) => s.ic.value === 'explicit-only').length;
-  assert.strictEqual(implicitCount, 76, `expected 76 implicit-eligible skills after the Laravel/PHPUnit family consolidation, found ${implicitCount}`);
-  assert.strictEqual(explicitCount, 25, `expected 25 explicit-only skills after Codex MCP capability retirement, found ${explicitCount}`);
+  assert.strictEqual(implicitCount, 66, `expected 66 implicit-eligible skills after capability-family consolidation, found ${implicitCount}`);
+  assert.strictEqual(explicitCount, 19, `expected 19 explicit-only skills after capability-family consolidation, found ${explicitCount}`);
 });
 
 run('description-invocation-cues');

@@ -23,9 +23,24 @@ test('minimal generator reports the curated default selection', () => {
   ], { cwd: ROOT, encoding: 'utf8' });
   assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
   const payload = JSON.parse(result.stdout);
-  assert.strictEqual(payload.selectedStableIds.length, 15);
+  assert.strictEqual(payload.selectedStableIds.length, 10);
+  assert.ok(payload.selectedStableIds.includes('code-trace'));
+  assert.ok(payload.selectedStableIds.includes('flow-drive'));
+  assert.ok(payload.selectedStableIds.includes('flow-guide'));
+  assert.ok(payload.selectedStableIds.includes('change-verdict'));
   assert.ok(!payload.selectedStableIds.includes('code-explore'));
   assert.ok(payload.selectedStableIds.includes('project-audit'));
+});
+
+test('compat-v1 generator preserves the predecessor-compatible allowlist', () => {
+  const result = spawnSync(process.execPath, [
+    path.join(ROOT, 'scripts/ci/gen-claude-profile-bundles.js'), '--profile', 'compat-v1', '--check',
+  ], { cwd: ROOT, encoding: 'utf8' });
+  assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+  const payload = JSON.parse(result.stdout);
+  assert.strictEqual(payload.selectedStableIds.length, 71);
+  assert.ok(!payload.selectedStableIds.includes('opsx-post-obs'));
+  assert.strictEqual(payload.compatibilityMode, 'compat-v1');
 });
 
 test('minimal generator materializes only curated skills and command roots', () => {
@@ -41,8 +56,11 @@ test('minimal generator materializes only curated skills and command roots', () 
     assert.deepStrictEqual(manifest.skills, ['./skills/']);
     assert.deepStrictEqual(manifest.commands, ['./commands/']);
     const commands = fs.readdirSync(path.join(packageRoot, 'commands')).sort();
-    assert.deepStrictEqual(commands, ['check-skill.md', 'do.md', 'smart-commit.md', 'verify.md']);
-    assert.ok(fs.existsSync(path.join(packageRoot, 'skills', 'dhpk-adaptive-dev-workflow', 'SKILL.md')));
+    assert.deepStrictEqual(commands, ['smart-commit.md', 'verify.md']);
+    assert.ok(fs.existsSync(path.join(packageRoot, 'skills', 'flow-guide', 'SKILL.md')));
+    assert.ok(fs.existsSync(path.join(packageRoot, 'skills', 'flow-drive', 'SKILL.md')));
+    assert.ok(fs.existsSync(path.join(packageRoot, 'skills', 'change-verdict', 'SKILL.md')));
+    assert.ok(fs.existsSync(path.join(packageRoot, 'skills', 'code-trace', 'SKILL.md')));
     assert.ok(!fs.existsSync(path.join(packageRoot, 'skills', 'dhpk-codebase-exploration', 'SKILL.md')));
     assert.ok(!fs.existsSync(path.join(packageRoot, 'commands', 'codex-review.md')));
   } finally {

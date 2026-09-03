@@ -101,14 +101,14 @@ function claimSpecs(counts, scoped) {
     { label: 'hook events (EN)', re: /(\d+)(\s+events)/g, expected: counts.hookEvents },
     { label: 'hook events (ZH)', re: /(\d+)(\s*個事件)/g, expected: counts.hookEvents },
     // Canonical skill count. Expected is skillsBase, NOT skillsTotal: every phrasing below
-    // describes packages rooted at `skills/dhpk-<name>/` and enumerates modules separately
+    // describes flat packages rooted at `skills/<public-name>/` and enumerates modules separately
     // ("N canonical skills, 31 modules"). The two are equal only while skillsModule is 0,
     // so skillsTotal would pass today and mis-enforce the first time a module ships a skill.
     // Anchored to the full noun phrase for the same reason as the Codex specs above: a bare
     // number spec would match unrelated table cells.
-    { label: 'canonical skills (EN flat)', re: /(\d+)(\s+flat (?:`dhpk-\*` packages|canonical skills|packages at))/g, expected: counts.skillsBase },
+    { label: 'canonical skills (EN flat)', re: /(\d+)(\s+flat (?:`dhpk-\*` packages|canonical skills|canonical packages|packages at))/g, expected: counts.skillsBase },
     { label: 'canonical skills (EN phrase)', re: /(\d+)(\s+canonical skill(?: packages|s))/g, expected: counts.skillsBase },
-    { label: 'canonical skills (ZH)', re: /(\d+)(\s*個扁平(?: `dhpk-\*` package| canonical skill| package))/g, expected: counts.skillsBase },
+    { label: 'canonical skills (ZH)', re: /(\d+)(\s*個扁平(?: `dhpk-\*` package| canonical skill| canonical package| package))/g, expected: counts.skillsBase },
     // Claude-published skill count, kept as its own labelled claim. It equals the canonical
     // count only while nothing is deprecated; `harness-count-integrity` requires inventory
     // and publication counts stay separate, so these must never share a spec. Omitted
@@ -160,7 +160,7 @@ const COVERAGE_MAP = {
   'scripts/hooks/record-resumed-obligation.sh': 'resumed-review-reconcile.test.js',
   'scripts/hooks/reconcile-resumed-review.sh': 'resumed-review-reconcile.test.js',
   'scripts/lib/reference-registry.js': 'reference-route-policy.test.js',
-  'skills/dhpk-do/scripts/route-result.js': 'reference-route-policy.test.js',
+  'skills/flow-drive/scripts/route-result.js': 'reference-route-policy.test.js',
   'scripts/lib/harness-receipt.js': 'harness-operation-receipts.test.js',
   'scripts/lib/harness-result.js': 'harness-release-aggregation.test.js',
   'scripts/lib/harness-surfaces.js': 'harness-surfaces.test.js',

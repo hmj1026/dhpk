@@ -415,8 +415,9 @@ test('external source symlink is rejected before an owned retirement prune', () 
     assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
     const sourceNames = fs.readdirSync(path.join(fakePlugin, 'codex', 'skills')).sort();
     assert.ok(sourceNames.length >= 2, 'fixture needs a retired and active skill');
-    const retired = sourceNames[0];
-    const malicious = sourceNames[1];
+    const retired = sourceNames.find((name) => name.startsWith('dhpk-'));
+    const malicious = sourceNames.find((name) => name.startsWith('dhpk-') && name !== retired);
+    assert.ok(retired && malicious, 'fixture needs prefixed retired and active skills');
     const inventoryPath = path.join(fakePlugin, 'manifests', 'distribution-inventory.json');
     const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
     const retiredEntry = inventory.skills.find((entry) => entry.name === retired);
@@ -1288,7 +1289,7 @@ test('reconciliation evidence records updates, retired entries, backups, and uno
       .filter(Boolean)
       .map((entry) => entry.name));
     const sourceSkills = fs.readdirSync(path.join(fakePlugin, 'codex', 'skills'))
-      .filter((name) => !codexRuntimeNames.has(name))
+      .filter((name) => name.startsWith('dhpk-') && !codexRuntimeNames.has(name))
       .sort();
     assert.ok(sourceSkills.length >= 4, 'fixture needs owned/modified retired, updated, and colliding skills');
     const retired = sourceSkills[0];

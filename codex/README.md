@@ -8,7 +8,7 @@ For the complete Supported project-local, legacy/native, and standard Agent
 Plugin routes, see the [platform installation SSOT](../docs/platform-installation.md).
 
 > **Layout note**: every entry under `codex/skills/` is an in-repo relative
-> symlink to its flat canonical package at `../../skills/<dhpk-name>/`. There
+> symlink to its flat canonical package at `../../skills/<public-name>/`. There
 > are no physical skill copies in this projection; the separate
 > `plugins/dhpk/` tree is the tracked native-package surface. See `AGENTS.md`
 > for the canonical mapping and maintenance rule.
@@ -61,14 +61,16 @@ The script detects the version delta from `.dhpk-installed.json` and re-syncs ev
 
 Skill invocation is chat syntax, not a plugin-management command — `codex
 plugin list` / `codex plugin add` only install or report status; they never
-execute a skill. Every synced skill carries its unique `$dhpk-<name>` trigger
-(baked into its `agents/openai.yaml` `default_prompt`). Codex has no
-Claude-style slash-command namespace, so the `dhpk-` prefix is part of the
-public skill name itself. Do not write `$dhpk:<name>` or an unprefixed legacy
-name. Confirm that the specific `$dhpk-<name>` resolves.
+execute a skill. Every synced skill carries its public trigger in
+`agents/openai.yaml`. The six capability families use unprefixed names
+(`skill-scope`, `skill-forge`, `flow-guide`, `flow-drive`, `change-verdict`,
+`code-trace`); other first-party skills retain the `dhpk-` prefix. Do not
+write `$dhpk:<name>` or a retired predecessor name. Confirm that the selected
+family or `dhpk-*` trigger resolves.
 
-The main-flow Codex entry is `$dhpk-do <task>` when that skill is discovered.
-Codex has no `/dhpk:do` command. If `$dhpk-do` is not discovered, use
+The explicit main-flow Codex entry is `$flow-drive <task>` when that family is
+discovered; use `$flow-drive --route-only <task>` for classification only.
+Codex has no `/dhpk:do` command. If `$flow-drive` is not discovered, use
 instruction routing in `AGENTS.md` and explicit `/opsx:*`; do not invent a
 callable `/dhpk:do`.
 

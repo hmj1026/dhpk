@@ -253,7 +253,14 @@ function resolveCapabilitySelection(input = {}) {
   }
   let baseIds;
   if (profileId === 'compat-v1') {
-    baseIds = entries.filter((entry) => entry.lifecycle !== 'deprecated' && entry.invokable !== false).map((entry) => entry.id).sort();
+    // Keep the predecessor-compatible allowlist closed when the profile
+    // declares one.  This matters when the current inventory has gained a
+    // newer live skill that was not part of the predecessor bundle (for
+    // example opsx-post-obs); compat-v1 must preserve its recorded 0.52.x
+    // selection rather than silently broadening to every current entry.
+    baseIds = selectedDefinition
+      ? selectedDefinition.slice().sort()
+      : entries.filter((entry) => entry.lifecycle !== 'deprecated' && entry.invokable !== false).map((entry) => entry.id).sort();
   } else if (selectedDefinition) {
     baseIds = selectedDefinition.slice();
   } else if (profileId === 'full') {
@@ -340,7 +347,12 @@ function validateProfileDefinitions({ inventory, profiles, moduleCatalog } = {})
       }
     }
     else if (id === 'full' && result.value.selectedStableIds.length >= (inventory.skills || []).filter((entry) => entry.lifecycle !== 'deprecated' && entry.invokable !== false).length) errors.push('full must remain a conflict-aware subset of live invokable inventory');
-    else if (id === 'compat-v1' && result.value.selectedStableIds.length !== (inventory.skills || []).filter((entry) => entry.lifecycle !== 'deprecated' && entry.invokable !== false).length) errors.push('compat-v1 must contain every non-retired invokable stable ID');
+    else if (id === 'compat-v1') {
+      const declared = profileSkillIds(table[id]);
+      if (declared && !sameIdSet(result.value.selectedStableIds, declared)) {
+        errors.push('compat-v1 selection must exactly match its declared predecessor-compatible stable IDs');
+      }
+    }
   }
   return { ok: errors.length === 0, errors };
 }

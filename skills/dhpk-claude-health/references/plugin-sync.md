@@ -71,7 +71,7 @@ plugin_hash    = git hash-object --no-filters <plugin-path>  # source of truth
 | 4 | Wrong-layer edit | P2 | Base `auto-loop.md` has `LOCAL_MODIFIED`, `CONFLICT`, or `LEGACY` state while project override exists | "Move customization to auto-loop-project.md" |
 | 5 | Duplicate heading | P2 | Override file has multiple active `## <heading>` with same text | "Keep one, remove duplicates. Last occurrence takes effect." |
 
-**Policy contradiction detection**: Parse the project override's Auto-Trigger table for required check commands. Cross-reference against hook-enforced sentinels: if override omits `/codex-review-fast` for code changes or `/codex-review-doc` for `.md` changes, flag as P1.
+**Policy contradiction detection**: Parse the project override's Auto-Trigger table for required check commands. Cross-reference against hook-enforced sentinels: if override omits `/dhpk:change-verdict --mode code` for code changes or `/dhpk:change-verdict --mode docs` for `.md` changes, flag as P1.
 
 **Override drift detection**: Read the `<!-- Based on: auto-loop.md @ <hash> -->` comment from the project file. Compare against `git hash-object --no-filters .claude/rules/auto-loop.md | cut -c1-7`. If different, the base has been updated since the override was authored. Uses blob hash for content-level comparison; accepts legacy commit-style hashes (any 7+ hex chars) during backward-compat transition.
 

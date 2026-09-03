@@ -38,7 +38,7 @@ When writing skills meant to work in both harnesses:
 ## Layout: symlink projections under `codex/skills/`
 
 Every entry under `codex/skills/` is an **in-repo relative symlink** to a
-canonical flat package under `skills/<dhpk-name>/`. Editing a projection edits
+canonical flat package under `skills/<public-name>/`. Editing a projection edits
 the canonical source, and the change applies to both worlds. The projection
 names are the inventory's public `name` values (for example,
 `codex/skills/dhpk-tdd-workflow` -> `../../skills/dhpk-tdd-workflow`). There are
@@ -72,7 +72,7 @@ The script detects the version delta from `.codex/.dhpk-installed.json` and re-s
 
 Legacy projects can opt into deterministic adoption with `--migrate`; a
 receipt-owned unchanged legacy skill destination is renamed to its current
-public `dhpk-*` name and installed atomically. Edited, unowned, third-party,
+public name and installed atomically. Edited, unowned, third-party,
 retargeted, malformed, or ambiguous legacy entries are reported as conflicts
 and retained. Only exact current-source matches without a legacy rename are
 adopted into a new receipt entry. Use `--uninstall` for ownership-aware
@@ -83,11 +83,26 @@ unrelated project assets.
 
 dhpk ships 16 direct Codex agent roles under `codex/agents/` (synced into `.codex/agents/`): 4 hand-maintained generic roles — `explorer` (read-only investigation), `worker` (generic scoped implementer), `monitor` (long-running task watcher), `bug-investigator` (root-cause investigation) — plus 12 roles generated from the canonical agents — `architect`, `code-reviewer`, `security-reviewer`, `database-reviewer`, `tdd-guide`, `deep-reasoner`, `doc-reviewer`, `planner`, `spec-miner`, `frontend-reviewer`, `migration-reviewer`, `e2e-runner`.
 
-When `dhpk-do` is discovered, the single Codex entry is `$dhpk-do <task>`. Codex CLI has no `/dhpk:do` command or dhpk slash-command router. Codex built-in commands such as `/hooks` and `/agent` are not custom dhpk `/dhpk:*` commands; Claude plugin slash commands and sentinel hooks are Claude-only.
+The explicit Codex implementation entry is `$flow-drive <task>`. Use
+`$flow-guide` when a task needs classification, policy, next-action, or
+checklist guidance before implementation. Codex CLI has no `/dhpk:do` command
+or dhpk slash-command router. The six capability families
+(`skill-scope`, `skill-forge`, `flow-guide`, `flow-drive`, `change-verdict`, and
+`code-trace`) use their unprefixed public names; other first-party skills retain
+the `dhpk-` prefix. Codex built-in commands such as `/hooks` and `/agent` are
+not custom dhpk `/dhpk:*` commands; Claude plugin slash commands and sentinel
+hooks are Claude-only.
 
-Availability evidence is a receipt-owned `.codex/skills/dhpk-do` package that resolves as `$dhpk-do`. `codex plugin list` is management evidence only. If `$dhpk-do` is not discovered, instruction routing remains available: follow the canonical [execution policy](../rules/execution-policy.md), invoke roles with `/agent <role-name>`, and use explicit `/opsx:*` OpenSpec commands. Do not claim `/dhpk:do` is callable.
+Availability evidence is a receipt-owned `.codex/skills/flow-drive` package that
+resolves as `$flow-drive`. `codex plugin list` is management evidence only. If
+`$flow-drive` is not discovered, instruction routing remains available: follow
+the canonical [execution policy](../rules/execution-policy.md), invoke roles
+with `/agent <role-name>`, and use explicit `/opsx:*` OpenSpec commands. Do not
+claim `/dhpk:do` is callable.
 
-When `$dhpk-do` is available, run `$dhpk-do <task>` as the front door. The roles below remain `/agent` dispatch targets for instruction fallback and for downstream work `$dhpk-do` selects:
+When `$flow-drive` is available, run it as the front door. The roles below
+remain `/agent` dispatch targets for instruction fallback and downstream work
+selected by the implementation route:
 
 - **Bug with unknown root cause**: use `bug-investigator` only for bounded intake triage; escalate confirmed reasoning-heavy cases to `deep-reasoner`, then invoke `worker` and `code-reviewer`.
 - **New feature / cross-module design**: invoke `architect` to decide layer placement, then `tdd-guide` to write tests first. If the settled GREEN footprint is ≤2 production files, `tdd-guide` may finish it and proceed to review; dispatch `worker` only for a larger-footprint handback, then invoke `code-reviewer`.
@@ -197,7 +212,7 @@ an implicit unavailable-agent handoff.
 |---------|------------|-----------|
 | Hooks | 8+ event types (PreToolUse, PostToolUse, SessionStart, Stop, etc.) plus dhpk sentinel enforcement | Lifecycle hooks via user/project `hooks.json` or inline `[hooks]` TOML; separate from Claude sentinel enforcement |
 | Context file | CLAUDE.md + AGENTS.md | AGENTS.md only |
-| Commands | Custom `/slash` commands including `/dhpk:do` | Built-in `/hooks`; `$dhpk-do` when discovered; instruction fallback otherwise. No `/dhpk:do` |
+| Commands | Custom `/slash` commands | Built-in `/hooks`; `$flow-drive` when discovered; instruction fallback otherwise. No `/dhpk:do` |
 | Agents | `Task`/subagent tool | Multi-agent via `/agent` and `[agents.<name>]` roles |
 | Security / review | Hook + `.pending-*` sentinel enforcement | `sandbox_mode` + optional Codex lifecycle hooks + instruction-based review |
 

@@ -226,15 +226,15 @@ test('regenerating into an existing outDir removes a skill directory dropped fro
   const firstInventory = {
     skills: [
       { id: 'tdd', name: 'dhpk-tdd-workflow', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
-      { id: 'skill-judge', name: 'dhpk-skill-quality-judge', path: 'skills/dhpk-skill-quality-judge', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
+      { id: 'yii1-security-audit', name: 'dhpk-yii1-security-audit', path: 'skills/dhpk-yii1-security-audit', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] },
     ],
   };
   const out = tmpDir('dhpk-native-regenerate-drop-');
   try {
     materializeNativePackage({ inventory: firstInventory, root: ROOT, outDir: out });
-    assert.ok(fs.existsSync(path.join(out, 'skills', 'dhpk-skill-quality-judge')));
+    assert.ok(fs.existsSync(path.join(out, 'skills', 'dhpk-yii1-security-audit')));
 
-    // skill-judge is de-listed from codex-native between releases.
+    // yii1-security-audit is de-listed from codex-native between releases.
     const secondInventory = {
       skills: [{ id: 'tdd', name: 'dhpk-tdd-workflow', path: 'skills/dhpk-tdd-workflow', lifecycle: 'promoted', surfaces: ['claude-core', 'codex-native'] }],
     };
@@ -242,7 +242,7 @@ test('regenerating into an existing outDir removes a skill directory dropped fro
 
     assert.deepStrictEqual(result.skillIds, ['tdd']);
     assert.ok(fs.existsSync(path.join(out, 'skills', 'dhpk-tdd-workflow')), 'tdd must remain');
-    assert.ok(!fs.existsSync(path.join(out, 'skills', 'dhpk-skill-quality-judge')), 'stale skill-judge directory must be removed on regeneration');
+    assert.ok(!fs.existsSync(path.join(out, 'skills', 'dhpk-yii1-security-audit')), 'stale yii1-security-audit directory must be removed on regeneration');
     assert.deepStrictEqual(Object.keys(result.fingerprints), ['dhpk-tdd-workflow']);
   } finally {
     fs.rmSync(out, { recursive: true, force: true });
@@ -432,11 +432,11 @@ test('CLI generates the real repo codex-native set with zero symlinks and proven
     assert.strictEqual(manifest.skills, './skills/');
 
     const provenance = JSON.parse(fs.readFileSync(path.join(out, 'provenance.json'), 'utf8'));
-    assert.strictEqual(provenance.selectedSkillIds.length, 16);
-    assert.strictEqual(provenance.selectedSkillNames.length, 16);
+    assert.strictEqual(provenance.selectedSkillIds.length, 14);
+    assert.strictEqual(provenance.selectedSkillNames.length, 14);
     assert.deepStrictEqual(provenance.runtimeSupportStableIds, ['cli-dispatch-context', 'cli-transport']);
-    assert.strictEqual(provenance.materializedSkillIds.length, 18);
-    assert.strictEqual(provenance.materializedSkillNames.length, 18);
+    assert.strictEqual(provenance.materializedSkillIds.length, 16);
+    assert.strictEqual(provenance.materializedSkillNames.length, 16);
     assert.deepStrictEqual(
       fs.readdirSync(path.join(out, 'skills')).sort(),
       provenance.materializedSkillNames,

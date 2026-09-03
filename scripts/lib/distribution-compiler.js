@@ -272,6 +272,9 @@ function materializeDistribution(plan, adapter, artifactStore, { activate = true
       links: published && published.links ? published.links : links,
       artifactFingerprint: published && published.artifactFingerprint,
       metadata: rendered.metadata,
+      ...(plan.externalSkillPackagesFingerprint !== undefined
+        ? { externalSkillPackagesFingerprint: plan.externalSkillPackagesFingerprint }
+        : {}),
     });
     if (!artifact.ok) return artifact;
     return artifact;
@@ -308,6 +311,9 @@ function verifyDistribution(stage, artifact, consumerAdapter) {
       planFingerprint: artifact.planFingerprint,
       artifactFingerprint: artifact.artifactFingerprint,
       adapter: observed && observed.adapter ? observed.adapter : consumerAdapter.identity,
+      ...(artifact.externalSkillPackagesFingerprint !== undefined
+        ? { externalSkillPackagesFingerprint: artifact.externalSkillPackagesFingerprint }
+        : {}),
     });
   } catch (error) {
     return createEvidenceResult({
@@ -317,6 +323,9 @@ function verifyDistribution(stage, artifact, consumerAdapter) {
       adapter: consumerAdapter.identity,
       verdict: 'FAIL',
       diagnostics: [error.message],
+      ...(artifact.externalSkillPackagesFingerprint !== undefined
+        ? { externalSkillPackagesFingerprint: artifact.externalSkillPackagesFingerprint }
+        : {}),
     });
   }
 }

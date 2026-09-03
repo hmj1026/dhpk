@@ -1,6 +1,6 @@
 ---
 name: dhpk-issue-analyze
-description: "GitHub Issue and PR review thread deep analysis with an optional blind verdict. Purpose: analyze issue root causes, classify problems, plan investigations, or triage PR review comments for actionability. Not for: fixing bugs (use dhpk-adaptive-dev-workflow in bug mode), code exploration (use dhpk-codebase-exploration). Output: classified analysis + verdict assessment + investigation strategy."
+description: "GitHub Issue and PR review thread deep analysis with an optional blind verdict. Purpose: analyze issue root causes, classify problems, plan investigations, or triage PR review comments for actionability. Not for: fixing bugs (use flow-guide in bug mode), code exploration (use code-trace). Output: classified analysis + verdict assessment + investigation strategy."
 metadata:
   dhpk-invocation-class: "explicit-only"
 ---
@@ -28,14 +28,14 @@ When input is a **Review Thread**:
 
 ## When NOT to Use
 
-- Known root cause, fix directly (use `/dhpk:dhpk-adaptive-dev-workflow` and select the Bug branch)
-- Pure feature development (use `/dhpk:dhpk-adaptive-dev-workflow` and select the Feature branch)
-- Only need code review (use `/dhpk:dhpk-change-review`)
+- Known root cause, fix directly (use `flow-guide` and select the Bug branch)
+- Pure feature development (use `flow-guide` and select the Feature branch)
+- Only need code review (use `change-verdict`)
 
 ## Workflow
 
 1. **Read** the issue with `gh issue view --json ...`, or use the supplied review-thread fields. Extract symptoms, reproduction, errors, and file clues.
-2. **Classify** with [classification.md](references/classification.md): unfamiliar → `/dhpk:dhpk-codebase-exploration`; regression → `/dhpk:dhpk-git-history-investigation`; complex root → `/dhpk:dhpk-codebase-exploration --dual`; multiple causes → `/dhpk:dhpk-module-design --mode adversarial`.
+2. **Classify** with [classification.md](references/classification.md): unfamiliar → `/dhpk:code-trace`; regression → `/dhpk:code-trace`; complex root → `/dhpk:code-trace --dual`; multiple causes → `/dhpk:dhpk-module-design --mode adversarial`.
 3. **Blind verdict** in a fresh read-only isolated reviewer context without the primary classification. Triage mode stops after this phase.
 4. **Investigate** unless policy maps the verdict to `DISMISS_VERIFIED`.
 5. **Report** the combined evidence, verdict, root-cause hypothesis, and recommendation.
@@ -44,9 +44,9 @@ When input is a **Review Thread**:
 
 | Tool                | Purpose                | Speed   | Depth      |
 | ------------------- | ---------------------- | ------- | ---------- |
-| `/dhpk:dhpk-codebase-exploration`     | Quick code exploration | Fast    | Single     |
-| `/dhpk:dhpk-git-history-investigation`  | Track change history   | Medium  | Single     |
-| `/dhpk:dhpk-codebase-exploration --dual` | Dual confirmation      | Slow    | Dual-view  |
+| `/dhpk:code-trace`     | Quick code exploration | Fast    | Single     |
+| `/dhpk:code-trace`  | Track change history   | Medium  | Single     |
+| `/dhpk:code-trace --dual` | Dual confirmation      | Slow    | Dual-view  |
 | `/dhpk:dhpk-module-design --mode adversarial` | Exhaust possibilities  | Slowest | Adversarial|
 
 ## Phase 2.5: Verdict Assessment

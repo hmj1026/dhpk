@@ -76,7 +76,7 @@ until all of the following hold,
 **`DISPATCH_ON=true`** (default) — the same kickoff with the bounded dispatch
 roster appended before the transition into the stop conditions:
 ```
-First run ONE Bash orientation command — `p=${CLAUDE_PLUGIN_ROOT:-$(ls -dt ~/.claude/plugins/cache/dhpk/dhpk/* 2>/dev/null|head -1)}; q(){ cat "$p/$1" 2>/dev/null||{ test -r ./.claude-plugin/plugin.json&&cat "./$1";};}; q rules/execution-policy-kernel.md||echo POLICY-UNRESOLVED; q skills/dhpk-execution-policy/references/implementation-dispatch.md` — never filesystem-scan; every reviewer dispatch (even
+First run ONE Bash orientation command — `p=${CLAUDE_PLUGIN_ROOT:-$(ls -dt ~/.claude/plugins/cache/dhpk/dhpk/* 2>/dev/null|head -1)}; q(){ cat "$p/$1" 2>/dev/null||{ test -r ./.claude-plugin/plugin.json&&cat "./$1";};}; q rules/execution-policy-kernel.md||echo POLICY-UNRESOLVED; q skills/flow-guide/references/implementation-dispatch.md` — never filesystem-scan; every reviewer dispatch (even
 confirm-only) still gets a fresh .claude/artifacts/reviews/ artifact, never
 reply-only.
 Run openspec-apply-change <CHANGE_ID>. Tasks:<TASK_DIGEST>. gitnexus repo="<project>"; continue.

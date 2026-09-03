@@ -168,3 +168,15 @@ The distribution compiler SHALL resolve surface membership from the inventory-ow
 
 - **WHEN** a migrated surface lacks a declared selection policy or names an unsupported policy source or precedence
 - **THEN** compilation returns a structured policy validation failure before materialization
+
+### Requirement: Projection intent binds external ownership provenance
+
+Every compiler-owned distribution plan SHALL include the normalized `external_skill_packages` fingerprint alongside its inventory fingerprint before profile or surface selection is materialized. A plan SHALL preserve selected protected skills as existing canonical inputs and SHALL NOT interpret the ledger as a request to discover, download, adapt, or publish new upstream content.
+
+#### Scenario: Projection compiles protected existing skills
+- **WHEN** a selected surface includes one or more stable IDs protected by the external ledger
+- **THEN** its plan binds the ledger fingerprint and emits the inventory-selected canonical packages without content transformation beyond the surface's already declared transform
+
+#### Scenario: Projection omits ownership provenance
+- **WHEN** a compiler or adapter emits a plan or evidence record without the current external ledger fingerprint
+- **THEN** validation fails before materialization and leaves the prior publication artifact unchanged

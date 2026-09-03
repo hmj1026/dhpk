@@ -8,7 +8,7 @@ alwaysApply: false
 dhpk's default execution policy for projects that adopt the harness. Read the
 always-visible kernel first (`.cursor/rules/execution-policy-kernel.mdc`),
 then load the conditional sections below as the selected route requires.
-Resource-layer markdown — referenced from the `dhpk-execution-policy` skill and
+Resource-layer markdown — referenced from the `flow-guide` skill and
 consumable directly by a project's own `CLAUDE.md` via the
 `.cursor/dhpk/policies/execution-policy.md` path. Not auto-loaded; opt-in.
 
@@ -32,28 +32,28 @@ consumable directly by a project's own `CLAUDE.md` via the
 
 ## Classification-first context loading
 
-Determine the workflow type (Small change / Bug / Feature / Architecture) from the user request BEFORE loading heavy references (profiles, scope docs, legacy analysis, investigation scaffolding). Load only the references the chosen workflow needs; expand incrementally if the classification changes. Upfront loading burns context budget on paths not taken. (adaptive-dev-workflow, harness-fill)
+Determine the workflow type (Small change / Bug / Feature / Architecture) from the user request BEFORE loading heavy references (profiles, scope docs, legacy analysis, investigation scaffolding). Load only the references the chosen workflow needs; expand incrementally if the classification changes. Upfront loading burns context budget on paths not taken. (flow-guide, harness-fill)
 
 ### Change classification & OpenSpec routing (SSOT)
 
-Single source of truth for the six change types, their flow, and whether to ask about OpenSpec. `commands/create-dev.md` and `skills/dhpk-adaptive-dev-workflow/SKILL.md` route through this table — reference it, do not restate it.
+Single source of truth for the six change types, their flow, and whether to ask about OpenSpec. `skills/flow-guide/SKILL.md` and `skills/flow-drive/SKILL.md` route through this table — reference it, do not restate it.
 
 | Change type | OpenSpec ask? | Flow |
 |---|---|---|
-| Bug Fix (unknown root cause) | ✅ ask | `bug-investigation` → y: `/opsx:new` · n: brief plan → tdd-guide → patch |
+| Bug Fix (unknown root cause) | ✅ ask | `code-trace` (`diagnose`) → y: `/opsx:new` · n: brief plan → tdd-guide → patch |
 | Feature Delivery (cross-module / DDD) | ✅ ask | `dhpk:architect` → y: `/opsx:new` · n: brief plan → tdd-guide → patch |
 | Feature Delivery (normal) | ✅ ask | y: `/opsx:new` · n: brief plan → tdd-guide → patch |
 | Bug Fix (known root cause) | ❌ no | inspect → tdd-guide RED → patch → tdd-guide verify |
 | Medium change | ❌ no | inspect → brief plan → tdd-guide → patch |
 | Lightweight Maintenance | ❌ no | inspect → patch |
 
-> **`/dhpk:do --openspec` override (force-`y`):** the `--openspec` flag (alias `--opsx`) force-selects the "create a change" (`y`) path — running `opsx:new` → `opsx:ff` to emit artifacts, then pausing for human review — overriding the per-type ask behavior in the "OpenSpec ask?" column above. The override is keyed on the **resolved route**, not the change-type row: it activates whenever `/dhpk:do` resolves to the change-authoring route (`dhpk:adaptive-dev-workflow`) — where every substantial bug/feature request lands *before* this per-type classification runs — so that route goes straight to artifact authoring instead of asking or classifying (bypassing the row's normal investigation/architecture steps). It is **not applicable** to `opsx-apply-goal` (which applies an *existing* change) or any other non-authoring route — there it prints `--openspec ignored: ...` and proceeds. `--openspec` supersedes `--plan` only when this authoring diversion activates. SSOT for the flag mechanics: `commands/do.md` §Step 0a–0e and §Openspec-mode rule.
+> **`$flow-drive --openspec` override (force-`y`):** the `--openspec` flag (alias `--opsx`) force-selects the "create a change" (`y`) path — running `opsx:new` → `opsx:ff` to emit artifacts, then pausing for human review — overriding the per-type ask behavior in the "OpenSpec ask?" column above. The override is keyed on the **resolved route**, not the change-type row: it activates whenever `$flow-drive` resolves to the `flow-guide` change-authoring route — where every substantial bug/feature request lands *before* this per-type classification runs — so that route goes straight to artifact authoring instead of asking or classifying (bypassing the row's normal investigation/architecture steps). It is **not applicable** to `opsx-apply-goal` (which applies an *existing* change) or any other non-authoring route — there it prints `--openspec ignored: ...` and proceeds. `--openspec` supersedes `--plan` only when this authoring diversion activates. SSOT for the flag mechanics: `skills/flow-drive/SKILL.md` route mode and the OpenSpec command contract.
 
 ## Invocation precedence & entry selection
 
 Every distributed skill/command carries `metadata.dhpk-invocation-class`
 (`explicit-only` or `implicit-eligible`). Entry selection across exact
-invocation, `/dhpk:do`, `next-step`, and model selection follows one fixed
+invocation, `$flow-drive`, `flow-guide` next mode, and model selection follows one fixed
 precedence; an explicitly-invoked router may start an `implicit-eligible`
 target but must present-and-wait for an `explicit-only` target rather than
 calling it through the Skill tool. Full precedence order, Explicit Invocation
@@ -105,7 +105,7 @@ The CLI-backed Codex/AGY roles use the same normalized project-over-global confi
 
 ## Implementation dispatch
 
-SSOT for implement-phase routing while `userConfig.orchestration_dispatch=on` (default). Downstream routes (`adaptive-dev-workflow`, `opsx-apply-goal`) reference this table — they do not restate it. Unattended goal sessions bind the safety kernel and the selected route reference during orientation; the emitted `/goal` condition carries only the compact roster line and self-locating pointers, never these elaborations.
+SSOT for implement-phase routing while `userConfig.orchestration_dispatch=on` (default). Downstream routes (`flow-guide`, `opsx-apply-goal`) reference this table — they do not restate it. Unattended goal sessions bind the safety kernel and the selected route reference during orientation; the emitted `/goal` condition carries only the compact roster line and self-locating pointers, never these elaborations.
 
 Goal-driven apply flows set `DHPK_ORCHESTRATION_DISPATCH=on`, enabling the runtime edit-batch gate: warn on the third distinct inline source file and block from the fourth unless `DHPK_INLINE_BATCH_OK=1` or a live fast-worker marker proves work is already dispatched.
 
@@ -197,7 +197,7 @@ not dispatch a write worker. A vague, evidence-free, or incomplete reasoner
 response is not ready for dispatch.
 
 For an OpenSpec apply with two or more unchecked tasks, a planner runs before
-the first write wave, regardless of whether `/dhpk:do --plan` was passed. Its
+the first write wave, regardless of whether `$flow-drive --plan` was passed. Its
 result MUST state dependency order, each task's exact owner and write scope, and
 the next checkpoint. For one clear unchecked task, record `planner=skipped`.
 This planner gate is a lifecycle invariant and remains active when
@@ -229,7 +229,7 @@ or partial CI is not completion. Required consumer evidence marked `NOT RUN` or
 | RED PHPUnit unit/integration test authored test-first and run against a live DB (Testbench / docker MySQL) — Playwright-scoped `e2e-runner` doesn't fit, read-only `deep-reasoner` can't run it, and `fast-worker`'s "make verification pass" contract conflicts with a deliberately-failing RED test | `tdd-guide` |
 | RED Vitest/Jest unit/integration test authored test-first — same semantics as the RED PHPUnit row: `e2e-runner` is Playwright-journey-scoped, read-only `deep-reasoner` can't run it, and `fast-worker`'s "make verification pass" contract conflicts with a deliberately-failing RED test; inline permitted when the step's whole footprint is ≤2 files | `tdd-guide` |
 | A read-only, scenario-driven live-runtime probe (drive the real running system with one concrete scenario, observe rather than infer) — distinct from `e2e-runner` (authors/runs Playwright specs, write-capable, web-scoped) and the `feature-verify` skill (main-context, heavyweight P0–P5 scope, not a dispatchable isolated agent) | `dhpk:smoke-tester` |
-| Plan critique / blind-sketch / dual-plan before implementation, or a warm diff review at task end | `dhpk:planner` — optional via `/dhpk:do --plan` on implementation-class routes; mandatory before an OpenSpec apply with two or more unchecked tasks |
+| Plan critique / blind-sketch / dual-plan before implementation, or a warm diff review at task end | `dhpk:planner` — optional via `$flow-drive --plan` on implementation-class routes; mandatory before an OpenSpec apply with two or more unchecked tasks |
 | Independent second opinion, or an offloaded self-contained clear-spec task — explicit CLI route, separate from the retired `--codex` flag | `codex-bridge` (subagent; one-shot bash `codex exec`, output isolated + relayed verbatim; mode-qualified alias for `codex-reviewer` or `codex-worker`) |
 | Live CI/deploy verification (`gh run watch`, run-log triage, retry babysitting) — main context keeps only merge/fix decisions | `dhpk:smoke-tester` (read-only probe) or background `fast-worker` |
 
@@ -268,7 +268,7 @@ blocked only by selector availability/fallback rules, never silently downgraded.
 ### Reasoner backend selector
 
 Reasoning-heavy dispatches default to the in-process `deep-reasoner` (Claude). The
-`/dhpk:do --reasoner=<claude|codex>[:<model>[:<effort>]]` flag (or its userConfig chain)
+`$flow-drive --reasoner=<claude|codex>[:<model>[:<effort>]]` flag (or its userConfig chain)
 picks the backend for that invocation: `claude` → `dhpk:deep-reasoner`; `codex` →
 `dhpk:codex-reasoner` (codex CLI, read-only sandbox, default `gpt-5.6-sol` @ `high`; canonical role ID, legacy alias `codex-deep-reasoner`).
 Both backends receive the **same** reasoning brief and return the canonical
@@ -278,22 +278,22 @@ reasoning tier and is unsupported. Model/effort resolve flag > backend-specific 
 missing codex executable falls back to `deep-reasoner`; authentication, model, and task
 failures remain `RESULT: BLOCKED` on the selected backend — never silently switched.
 
-### Retired `CODEX=on` / `/dhpk:do --codex` interface
+### Retired `CODEX=on` / `$flow-drive --codex` interface
 
-`CODEX=on` and `/dhpk:do --codex` are retired per-session flags. The parser
+`CODEX=on` and `$flow-drive --codex` are retired per-session flags. The parser
 removes the flag from the query, emits `DEPRECATED_CODEX_FLAG`, and stops with
 `blocked`; it never selects a peer, worker, reasoner, `codex exec` route, or
 app-server plugin. There is no hidden fallback. Exact replacements are:
 
-- Use the default Codex-free `/dhpk:do <task>` route for normal work.
-- Use `/dhpk:do --worker=codex <task>` for an explicitly selected Codex CLI
+- Use the default Codex-free `$flow-drive <task>` route for normal work.
+- Use `$flow-drive --worker=codex <task>` for an explicitly selected Codex CLI
   mechanical worker.
-- Use `/dhpk:do --reasoner=codex[:<model>[:<effort>]] <task>` for an explicitly
+- Use `$flow-drive --reasoner=codex[:<model>[:<effort>]] <task>` for an explicitly
   selected Codex CLI reasoning pass.
 - Use a named owner's `--second-opinion=codex-exec` option, or the explicit
   `codex-bridge` route, for an additive one-shot `codex exec` second opinion.
 - Invoke the external `openai/codex-plugin-cc` app-server commands directly;
-  `/dhpk:do` does not translate this retired flag into that plugin.
+  `$flow-drive` does not translate this retired flag into that plugin.
 
 The flag's only supported outcome is the blocking deprecation diagnostic; users
 must choose one of the replacements above and rerun the task.
@@ -369,7 +369,7 @@ and heuristic quality work remain available only through explicit opt-in setup.
 
 ### Review output gate
 
-Every quality-gate reply (code / doc / test / security review, audit, risk-assess) leads with an explicit gate as the FIRST line of the reply — superseding any prior convention that placed this line at the end: a symbol (✅ pass / ⚠️ conditional / ⛔ block), a status word (Mergeable / Needs revision / Adequate / Insufficient / Inconclusive), and a one-line justification. The gate is the decision — reader sees the symbol first. Example: `✅ Mergeable — all dimensions ≥4/5, no P0 findings.` (pr-review, doc-review, test-review, security-review, project-audit, risk-assess)
+Every quality-gate reply (code / doc / test / security review, audit, or risk mode) leads with an explicit gate as the FIRST line of the reply — superseding any prior convention that placed this line at the end: a symbol (✅ pass / ⚠️ conditional / ⛔ block), a status word (Mergeable / Needs revision / Adequate / Insufficient / Inconclusive), and a one-line justification. The gate is the decision — reader sees the symbol first. Example: `✅ Mergeable — all dimensions ≥4/5, no P0 findings.` (`change-verdict` modes, `project-audit`)
 
 ### AI-judgment back-stop (self-trigger)
 
@@ -412,7 +412,7 @@ the task explicitly requires changing deployment topology.
 
 ## Self-check (before reply)
 
-Wrap-up before reply / after a large Edit / before smart-commit → load `dhpk:execution-checklist` skill for the full self-audit (Per-reply / Conditional / Task-end three-stage + trigger-condition matrix). Daily single-line edits / pure research / typos do not need this.
+Wrap-up before reply / after a large Edit / before smart-commit → load `flow-guide` in `checklist` mode for the full self-audit (Per-reply / Conditional / Task-end three-stage + trigger-condition matrix). Daily single-line edits / pure research / typos do not need this.
 
 Any applicable NO → fix first, then reply.
 
@@ -422,7 +422,7 @@ Before skipping any sentinel / TDD / reviewer mandated step, load `.cursor/rules
 
 ## Git pipeline
 
-`feat|fix|docs|refactor/*` → `develop` → `master` (or your equivalent branching model). Standard flow: feature branch → `/dhpk:dhpk-change-review --backend cli` → `/precommit` → `/pr-review` → PR. dhpk does **not** auto `git add/commit/push/stash` — invoke `/smart-commit` or `/precommit`.
+`feat|fix|docs|refactor/*` → `develop` → `master` (or your equivalent branching model). Standard flow: feature branch → `/dhpk:change-verdict --mode code --backend cli` → `/precommit` → `/dhpk:change-verdict --mode pr` → PR. dhpk does **not** auto `git add/commit/push/stash` — invoke `/smart-commit` or `/precommit`.
 
 **Shell trap**: this policy's shell is zsh, where `status` is a read-only variable — use `st=` / `rc=` for captured exit codes, never `status=`. Words beginning with `=` trigger zsh `=cmd` path expansion (an unquoted `==` yields `== not found`) — quote `=`-leading words. **PR self-merge is classifier-blocked** — never attempt `gh pr merge --admin` or remote branch deletion; hand off to a human.
 
@@ -432,7 +432,8 @@ Before skipping any sentinel / TDD / reviewer mandated step, load `.cursor/rules
 
 For squash-merge PRs (collapsing multiple feature-branch commits into a single commit on the integration branch), the PR description should include an `## Unrelated Changes` section listing variations not directly tied to the PR's stated feature (file paths, line count, why mixed in, assigned reviewer). Reformats / CI yml tweaks / README typos **don't count** as unrelated; new controller actions / new services / schema changes / cron jobs / private→protected refactors / service factory extractions **do count**.
 
-The `pr-review` skill includes an optional `check-unrelated-changes.sh` script (advisory, not blocking).
+The `change-verdict` skill's `pr` mode includes an optional
+`check-unrelated-changes.sh` script (advisory, not blocking).
 
 ## Anti-loop & output
 
@@ -442,7 +443,7 @@ The `pr-review` skill includes an optional `check-unrelated-changes.sh` script (
 
 **Before any autonomous / repeated loop**, confirm the safety floor exists: a quality gate is active (lint/test), a known-good baseline to diff against, a rollback path (clean git state / revert), and branch or worktree isolation. Missing any → set it up first or do the work non-autonomously.
 
-**Review-loop ceiling (Codex auto-loop skills only)**: distinct from the general "same failure 3×" stop above — this is a hard per-sentinel counter for skills that auto-loop fix→re-review via Codex (doc-review, test-review, security-review), capped at **3 rounds per sentinel**. On round 4, stop and report the blocker for human review — do not retry the same finding.
+**Review-loop ceiling (Codex auto-loop skills only)**: distinct from the general "same failure 3×" stop above — this is a hard per-sentinel counter for skills that auto-loop fix→re-review via Codex (`change-verdict` modes `docs`, `tests`, and `security`), capped at **3 rounds per sentinel**. On round 4, stop and report the blocker for human review — do not retry the same finding.
 
 Output: `Conclusion → Changed files → Verification → Risks/Open questions`. Blocked: `Blocker → Tried → Next viable option`.
 
@@ -457,12 +458,12 @@ Run the project's standard test suite + browser verify (playwright-cli, manual, 
 - **Does not restate** stack-specific coding conventions — those live in each project's `.claude/rules/<stack>.md` or the matching dhpk module reference.
 - **Does not restate** the anti-rationalization phrasing table — see `.cursor/rules/anti-rationalization.mdc`.
 - **Does not restate** the tool-selection decision tree — see `.cursor/rules/tool-routing.mdc`.
-- **Does not restate** the full end-of-task self-check — see `skills/dhpk-execution-checklist/SKILL.md`.
+- **Does not restate** the full end-of-task self-check — see `skills/flow-guide/SKILL.md`.
 
 ## Cross-references
 
 - `.cursor/rules/anti-rationalization.mdc` — self-rebuttal table for skipping a mandated step
 - `.cursor/rules/tool-routing.mdc` — code-exploration tool decision tree
-- `skills/dhpk-execution-checklist/SKILL.md` — full end-of-task self-check
-- `skills/dhpk-execution-policy/SKILL.md` — skill-form entry point into this policy
+- `skills/flow-guide/SKILL.md` — full end-of-task self-check
+- `skills/flow-guide/SKILL.md` — skill-form entry point into this policy
 - `agents/INDEX.md` — agent roster, models, maxTurns rationale

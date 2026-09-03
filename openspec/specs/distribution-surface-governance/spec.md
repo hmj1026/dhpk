@@ -1,7 +1,10 @@
 # distribution-surface-governance Specification
 
 ## Purpose
-TBD - created by archiving change curate-dhpk-distribution-surfaces. Update Purpose after archive.
+Define the governed publication lifecycle for every consumer-reachable skill
+and module, including inventory ownership, generated surface projections,
+profile artifacts, and evidence that distinguishes structural availability
+from runtime activation.
 
 ## Requirements
 
@@ -289,7 +292,7 @@ Migration to the shared projection pipeline SHALL proceed surface by surface beh
 
 ### Requirement: No promoted surface carries a Codex MCP dependency
 
-No skill or command promoted onto a discovery-visible surface SHALL declare `mcp__codex__codex` or `mcp__codex__codex-reply` in its allowed-tools. This applies to every surface, including all entries formerly covered by the transitional frozen set; no MCP-grant exception remains after retirement. Retained legacy command names SHALL remain explicit-only deprecation aliases or the explicit CLI-backed `codex-review` entry, with documented replacements and no hidden MCP path.
+No skill or command promoted onto a discovery-visible surface SHALL declare `mcp__codex__codex` or `mcp__codex__codex-reply` in its allowed-tools. This applies to every surface and every entry formerly covered by the transitional frozen set. Capability-family retirement SHALL remove the legacy Codex review command family rather than preserve deprecation aliases; an explicitly requested CLI second opinion MAY run only as a `change-verdict` backend and SHALL have no MCP path.
 
 #### Scenario: Any distributed entry declares an MCP-backed Codex tool
 
@@ -298,19 +301,45 @@ No skill or command promoted onto a discovery-visible surface SHALL declare `mcp
 
 #### Scenario: A retired entry retains an MCP grant
 
-- **WHEN** a formerly frozen Codex-MCP skill or command retains an `mcp__codex__*` grant, regardless of its invocation class
+- **WHEN** a formerly frozen Codex-MCP skill or removed command retains an `mcp__codex__*` grant, regardless of its invocation class
 - **THEN** distribution validation fails and reports the retired dependency; changing its invocation class cannot make the grant valid
 
 ### Requirement: Curated publication reflects the distribution inventory, not raw directory scanning
 
-The default Claude install artifact's discoverable skill set SHALL be the materialized `minimal` profile derived from the distribution inventory's `lifecycle`/`invocation_class`/`surfaces`/`profiles` fields via the existing profile package generator, not from an unfiltered scan of the `skills/` source directory. `full` and `compat-v1` remain explicit opt-in artifacts. Agent Plugin and Cursor publication remain unchanged in membership. Where a generator or plugin manifest format cannot express per-skill discovery granularity (for example, a single registered root directory), the generator SHALL perform the filtering itself when materializing the package output, and documentation SHALL state this generator-level mechanism rather than implying the manifest format alone hides entries.
+The default Claude install artifact's discoverable skill set SHALL be the materialized `minimal` profile derived from the distribution inventory via the existing profile package generator, not from an unfiltered source-directory scan. `full` and `compat-v1` SHALL remain explicit opt-in artifacts. Agent Plugin, Cursor, AGY, and Cursor-sync membership SHALL atomically replace the 22 first-party predecessors with the six family identities while retaining the six GitNexus IDs unchanged. Where a manifest format cannot express per-skill discovery granularity, the generator SHALL perform filtering while materializing the package output.
 
 #### Scenario: Generator relies on the whole-directory manifest root
 
-- **WHEN** the Claude plugin manifest format registers `./skills/` as a single root with no per-skill discovery flag
-- **THEN** the package generator still produces a materialized output directory containing only the curated default set, and the no-drift validation confirms the generated output matches the curated set exactly
+- **WHEN** a plugin manifest registers a skill root with no per-skill discovery flag
+- **THEN** its package generator produces only the inventory-selected materialized entries and no retired predecessor
 
 #### Scenario: Curated publication diverges from the inventory
 
-- **WHEN** the generated default package contains an entry the inventory does not select for the default profile, or omits an entry the inventory does select
-- **THEN** distribution validation fails and names the discrepancy
+- **WHEN** a generated package contains a retired predecessor, omits a selected family, or changes a protected external-package identity
+- **THEN** distribution validation fails and names the surface and stable ID
+
+### Requirement: Distribution inventory records external-package ownership
+
+Distribution inventory schema `dhpk.distribution-inventory.v2` SHALL accept an additive top-level `external_skill_packages` array without changing the schema version. Each row SHALL have exactly `id`, `owner`, `repository`, `policy`, `license_review`, and `stable_ids`: `id` is kebab-case; `owner` is the enum `upstream`; `repository` is an HTTPS repository URL; `policy` is the enum `protect-existing`; `license_review` is one of `open`, `verified`, or `not-required`; and `stable_ids` is a non-empty lexicographically sorted array. Rows SHALL normalize by `id`, and stable IDs SHALL be unique within and across rows. Every listed ID MUST resolve to a live canonical skill and MUST remain outside the retirement ledger until a separate ownership change is reviewed.
+
+The initial row SHALL be `id: gitnexus`, `owner: upstream`, `repository: https://github.com/abhigyanpatwari/GitNexus`, `policy: protect-existing`, `license_review: open`, and the six GitNexus stable IDs. The ledger protects their existing canonical and projected identities; it SHALL NOT create a new publication surface or cause raw upstream files to be copied.
+
+#### Scenario: GitNexus boundary is valid
+- **WHEN** the registry declares the `gitnexus` package and its six existing DHPK stable IDs
+- **THEN** validation confirms all six live entries and preserves their current names, paths, lifecycle, and surface membership
+
+#### Scenario: External package row is incomplete
+- **WHEN** a registry row lacks its repository, policy, stable IDs, or references a missing or retired identity
+- **THEN** distribution validation fails before any projection is compiled
+
+#### Scenario: V2 inventory is regenerated
+- **WHEN** regeneration or supporting-digest refresh reads an existing v2 inventory with the external-package ledger
+- **THEN** it preserves the normalized ledger byte-for-byte in semantic content and includes its normalized fingerprint in the inventory identity
+
+### Requirement: Portable-family naming is inventory-scoped
+
+The inventory SHALL mark each reviewed unprefixed successor with `name_style: portable-family`; projection generators SHALL use that exact public name and SHALL continue enforcing prefixed names for unmarked skills.
+
+#### Scenario: Projection rewrites a portable name
+- **WHEN** a surface generator adds `dhpk-` to a portable-family skill or removes the plugin namespace used by its host
+- **THEN** projection validation fails with the stable ID and emitted name

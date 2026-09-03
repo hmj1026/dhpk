@@ -1,11 +1,11 @@
 'use strict';
 
-// RED public-contract suite for OpenSpec change `make-dhpk-do-portable-skill`
+// Public-contract suite for the flow-drive portable routing skill.
 // (tasks 1.3–1.4). Expected values come from design.md Decision 2 and
 // specs/dhpk-do-portable-entry/spec.md — not from scripts/lib/route-result.js.
 //
 // Do not treat the v1 live parser as v2. This file loads only
-// skills/dhpk-do/scripts/route-result.js (absent until 2.2).
+// skills/flow-drive/scripts/route-result.js.
 //
 // Wave map (which assertions turn GREEN when):
 //   2.1  package files, explicit-only SKILL.md, openai.yaml, v2 JSON schemas
@@ -23,7 +23,7 @@ const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const SKILL = path.join(ROOT, 'skills', 'dhpk-do');
+const SKILL = path.join(ROOT, 'skills', 'flow-drive');
 const PARSER = path.join(SKILL, 'scripts', 'route-result.js');
 const MATCHER = path.join(SKILL, 'scripts', 'pre-route.sh');
 const TABLE = path.join(SKILL, 'references', 'route-table.json');
@@ -49,23 +49,23 @@ const MODEL_TOKEN = /^[A-Za-z0-9._-]+$/;
 // a filesystem guess at test time.
 const EXPECTED_TYPED_ROUTES = Object.freeze([
   { label: 'unattended OpenSpec goal session', kind: 'skill', id: 'dhpk-opsx-apply-goal' },
-  { label: 'adaptive dev workflow (python build)', kind: 'skill', id: 'dhpk-adaptive-dev-workflow' },
-  { label: 'adaptive dev workflow (rust build)', kind: 'skill', id: 'dhpk-adaptive-dev-workflow' },
-  { label: 'adaptive dev workflow (bug)', kind: 'skill', id: 'dhpk-adaptive-dev-workflow' },
+  { label: 'adaptive dev workflow (python build)', kind: 'skill', id: 'flow-guide' },
+  { label: 'adaptive dev workflow (rust build)', kind: 'skill', id: 'flow-guide' },
+  { label: 'adaptive dev workflow (bug)', kind: 'skill', id: 'flow-guide' },
   { label: 'manual code review', kind: 'command', id: 'review-pending' },
-  { label: 'security review', kind: 'skill', id: 'dhpk-security-review' },
-  { label: 'code exploration', kind: 'skill', id: 'dhpk-tool-routing' },
+  { label: 'security review', kind: 'skill', id: 'change-verdict' },
+  { label: 'code exploration', kind: 'skill', id: 'code-trace' },
   { label: 'project audit', kind: 'skill', id: 'dhpk-project-audit' },
   { label: 'deploy list', kind: 'skill', id: 'dhpk-deploy-list' },
   { label: 'refactor / simplify', kind: 'command', id: 'simplify' },
   { label: 'mine behavioral specs (→ spec-miner)', kind: 'command', id: 'spec-mine' },
-  { label: 'tech spec authoring', kind: 'skill', id: 'dhpk-tech-spec' },
+  { label: 'tech spec authoring', kind: 'skill', id: 'flow-guide' },
   { label: 'pre-commit checks', kind: 'command', id: 'precommit' },
   { label: 'create PR', kind: 'command', id: 'create-pr' },
   { label: 'create release', kind: 'skill', id: 'dhpk-release-creator' },
   { label: 'smart commit', kind: 'command', id: 'smart-commit' },
-  { label: 'feasibility study', kind: 'skill', id: 'dhpk-tech-spec' },
-  { label: 'risk assessment', kind: 'skill', id: 'dhpk-risk-assess' },
+  { label: 'feasibility study', kind: 'skill', id: 'flow-guide' },
+  { label: 'risk assessment', kind: 'skill', id: 'change-verdict' },
   {
     label: 'Playwright E2E journey (→ e2e-runner; UNAVAILABLE if the Playwright agent capability is unavailable)',
     kind: 'agent',
@@ -76,7 +76,7 @@ const EXPECTED_TYPED_ROUTES = Object.freeze([
     kind: 'skill',
     id: 'dhpk-tdd-workflow',
   },
-  { label: 'adaptive dev workflow (feature)', kind: 'skill', id: 'dhpk-adaptive-dev-workflow' },
+  { label: 'adaptive dev workflow (feature)', kind: 'skill', id: 'flow-guide' },
   { label: 'verification loop', kind: 'command', id: 'verify' },
 ]);
 
@@ -97,7 +97,7 @@ function loadParser() {
 function parseV2(argv, host = 'claude') {
   const mod = loadParser();
   assert.strictEqual(typeof mod.parseInvocationContext, 'function',
-    'skills/dhpk-do/scripts/route-result.js must export parseInvocationContext');
+    'skills/flow-drive/scripts/route-result.js must export parseInvocationContext');
   const parsed = mod.parseInvocationContext(argv, { host });
   assert.ok(parsed && parsed.options, 'v2 parser must return nested options (not v1 flat keys)');
   return parsed;
@@ -106,7 +106,7 @@ function parseV2(argv, host = 'claude') {
 function routeV2(input) {
   const mod = loadParser();
   assert.strictEqual(typeof mod.createRouteResult, 'function',
-    'skills/dhpk-do/scripts/route-result.js must export createRouteResult');
+    'skills/flow-drive/scripts/route-result.js must export createRouteResult');
   return mod.createRouteResult(input);
 }
 
@@ -149,13 +149,13 @@ test('[2.1] canonical package is explicit-only with disable-model-invocation', (
   const body = read(SKILL_MD);
   assert.match(body, /^---[\s\S]*disable-model-invocation:\s*true/m);
   assert.match(body, /^---[\s\S]*metadata:\s*\n\s+dhpk-invocation-class:\s*explicit-only/m);
-  assert.match(body, /^---[\s\S]*\nname:\s*['"]?dhpk-do['"]?/m);
+  assert.match(body, /^---[\s\S]*\nname:\s*['"]?flow-drive['"]?/m);
 });
 
-test('[2.1] openai.yaml forbids implicit invocation and names $dhpk-do', () => {
+test('[2.1] openai.yaml forbids implicit invocation and names $flow-drive', () => {
   const yaml = read(OPENAI_YAML);
   assert.match(yaml, /allow_implicit_invocation:\s*false/);
-  assert.match(yaml, /\$dhpk-do/);
+  assert.match(yaml, /\$flow-drive/);
   assert.match(yaml, /default_prompt:/);
 });
 
@@ -339,14 +339,14 @@ test('[2.2] NO_QUERY leaves target null', () => {
 
 test('[2.2] skill-local matcher uses a v2 override table and preserves the label', () => {
   mustExist(MATCHER, '2.2');
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-do-v2-route-'));
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'flow-drive-v2-route-'));
   const table = path.join(tmp, 'route-table.json');
   fs.writeFileSync(table, JSON.stringify({
     schema: 'dhpk.route-table.v2',
     rules: [{
       pattern: 'fix\\s+the\\s+bug',
       label: 'bugfix',
-      target: { kind: 'skill', id: 'dhpk-adaptive-dev-workflow' },
+      target: { kind: 'skill', id: 'flow-guide' },
     }],
   }));
   try {
@@ -357,7 +357,7 @@ test('[2.2] skill-local matcher uses a v2 override table and preserves the label
     });
     assert.strictEqual(res.status, 0, res.stderr);
     assert.match(res.stdout, /bugfix/);
-    assert.match(res.stdout, /dhpk-adaptive-dev-workflow/);
+    assert.match(res.stdout, /flow-guide/);
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
@@ -387,16 +387,13 @@ test('[2.2] invalid result fields fail closed before dispatch', () => {
 // 3.1 thin adapter (duplicate of validate-commands so this suite stands alone)
 // ---------------------------------------------------------------------------
 
-test('[3.1] /dhpk:do is a ≤28-line pointer adapter with $ARGUMENTS and host=claude', () => {
-  const body = fs.readFileSync(DO_CMD, 'utf8');
-  const lines = body.split('\n');
-  assert.ok(lines.length <= 28, `/dhpk:do adapter must be ≤28 lines, got ${lines.length}`);
-  assert.match(body, /@skills\/dhpk-do\/SKILL\.md/);
-  assert.match(body, /\$ARGUMENTS/);
-  assert.match(body, /host\s*=\s*claude/);
-  assert.ok(!/## Step 0/.test(body), 'adapter must not keep independent workflow steps');
-  assert.ok(!/Common targets:/.test(body), 'adapter must not duplicate the target catalog');
-  assert.ok(!/Implementation dispatch/.test(body), 'adapter must not copy the dispatch table');
+test('[3.1] retired /dhpk:do alias is absent and flow-drive owns route/implement modes', () => {
+  assert.strictEqual(fs.existsSync(DO_CMD), false, '/dhpk:do must remain retired without a compatibility alias');
+  const body = fs.readFileSync(SKILL_MD, 'utf8');
+  assert.match(body, /name:\s*flow-drive/);
+  assert.match(body, /`route`[\s\S]*`implement`/);
+  assert.ok(!/Common targets:/.test(body), 'flow-drive must not duplicate the target catalog');
+  assert.ok(!/Implementation dispatch/.test(body), 'flow-drive must not copy the dispatch table');
 });
 
 // ---------------------------------------------------------------------------
@@ -460,14 +457,14 @@ test('[3.3] unavailable Codex target stays on that target with a typed reason', 
     host: 'codex',
     argv: ['run', 'a', 'security', 'audit'],
     observed: {
-      published: ['dhpk-security-review'],
+      published: ['change-verdict'],
       discovered: [],
     },
   });
   assert.strictEqual(result.disposition, 'unavailable');
   assert.strictEqual(result.availability.state, 'unavailable');
   assert.ok(REASON_CODES.includes(result.availability.reasonCode));
-  assert.ok(result.target && result.target.id === 'dhpk-security-review');
+  assert.ok(result.target && result.target.id === 'change-verdict');
   assert.ok(Array.isArray(result.availability.evidence) && result.availability.evidence.length > 0);
 });
 
@@ -614,14 +611,14 @@ test('[4.1] one FIX-THEN-SHIP batch and one RECONSULT remain allowed', () => {
 // 5.1 distribution membership
 // ---------------------------------------------------------------------------
 
-test('[5.1] minimal required_core includes do and production validators do not hard-code nine', () => {
+test('[5.1] minimal required_core includes flow-drive and production validators do not hard-code nine', () => {
   const inventory = JSON.parse(fs.readFileSync(
     path.join(ROOT, 'manifests', 'distribution-inventory.json'),
     'utf8',
   ));
   const core = inventory.profile_policy.required_core_ids;
   assert.ok(Array.isArray(core), 'profile_policy.required_core_ids must be an array');
-  assert.ok(core.includes('do'), "minimal required_core_ids must include stable id 'do'");
+  assert.ok(core.includes('flow-drive'), "minimal required_core_ids must include stable id 'flow-drive'");
 
   const inventorySrc = fs.readFileSync(path.join(ROOT, 'scripts', 'lib', 'distribution-inventory.js'), 'utf8');
   const selectionSrc = fs.readFileSync(path.join(ROOT, 'scripts', 'lib', 'capability-bundle-selection.js'), 'utf8');

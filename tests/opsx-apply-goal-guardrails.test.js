@@ -145,30 +145,23 @@ test('goal generator documents fast-worker override, task digest, and conditiona
   }
 });
 
-test('/dhpk:do carries fast-worker override through every implementation-class route', () => {
+test('flow-drive carries the implementation route while flow-guide owns workflow branches', () => {
   const routeTable = fs.readFileSync(
-    path.join(ROOT, 'skills', 'dhpk-do', 'references', 'route-table.json'),
+    path.join(ROOT, 'skills', 'flow-drive', 'references', 'route-table.json'),
     'utf8',
   );
-  assert.ok(routeTable.includes('"id": "dhpk-adaptive-dev-workflow"'));
+  assert.ok(routeTable.includes('"id": "flow-guide"'));
   assert.ok(routeTable.includes('"id": "dhpk-opsx-apply-goal"'));
   assert.ok(!routeTable.includes('dhpk-bug-fix'));
   assert.ok(!routeTable.includes('dhpk-feature-dev'));
 
-  const command = fs.readFileSync(path.join(ROOT, 'commands', 'do.md'), 'utf8');
-  assert.ok(!command.includes('dhpk:dhpk-adaptive-dev-workflow'));
-  assert.ok(!command.includes('dhpk:dhpk-opsx-apply-goal'));
-
-  const doSkill = fs.readFileSync(path.join(ROOT, 'skills', 'dhpk-do', 'SKILL.md'), 'utf8');
-  assert.ok(doSkill.includes('--worker=<claude|codex|agy|auto>'));
-
-  const adaptive = fs.readFileSync(path.join(ROOT, 'skills', 'dhpk-adaptive-dev-workflow', 'SKILL.md'), 'utf8');
-  assert.ok(adaptive.includes('WORKER_OVERRIDE'));
-  assert.ok(adaptive.includes('scripts/fast-worker-selector.js'));
-  assert.ok(adaptive.includes('--backend "$WORKER_OVERRIDE"'));
-  assert.match(adaptive, /Feature branch[\s\S]*Bug branch/);
-  assert.match(adaptive, /delivery-loop-gate/);
-  assert.doesNotMatch(adaptive, /dhpk-(bug-fix|feature-dev)/);
+  assert.strictEqual(fs.existsSync(path.join(ROOT, 'commands', 'do.md')), false);
+  const drive = fs.readFileSync(path.join(ROOT, 'skills', 'flow-drive', 'SKILL.md'), 'utf8');
+  assert.match(drive, /route[\s\S]*implement/);
+  const guide = fs.readFileSync(path.join(ROOT, 'skills', 'flow-guide', 'SKILL.md'), 'utf8');
+  assert.match(guide, /feature[\s\S]*bugfix/i);
+  assert.match(guide, /delivery-loop-gate/);
+  assert.doesNotMatch(guide, /dhpk-(bug-fix|feature-dev)/);
 });
 
 test('Part 0 and verification checklist carve hard-rule conflicts out of unattended confirmation', () => {

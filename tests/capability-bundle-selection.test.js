@@ -235,33 +235,29 @@ test('checked-in profiles and inventory satisfy the normalized selection contrac
   assert.strictEqual(checked.ok, true, checked.errors.join('; '));
   const minimal = selection.resolveCapabilitySelection({ inventory, profiles, moduleCatalog, profileId: 'minimal' });
   const compat = selection.resolveCapabilitySelection({ inventory, profiles, moduleCatalog, profileId: 'compat-v1' });
-  assert.strictEqual(minimal.value.selectedStableIds.length, 15);
-  const liveInvokableIds = inventory.skills
-    .filter((entry) => entry.lifecycle !== 'deprecated' && entry.invokable !== false)
-    .map((entry) => entry.id)
-    .sort();
-  assert.deepStrictEqual(compat.value.selectedStableIds, liveInvokableIds);
+  assert.strictEqual(minimal.value.selectedStableIds.length, 10);
+  const declaredCompatIds = profiles.profiles['compat-v1'].skillIds.slice().sort();
+  assert.deepStrictEqual(compat.value.selectedStableIds, declaredCompatIds);
   for (const familyId of (inventory.skill_routing_families || []).map((family) => family.id)) {
     assert.ok(compat.value.selectedStableIds.includes(familyId), `${familyId} family must remain in compat-v1`);
   }
   assert.ok(compat.value.selectedStableIds.every((id) => !inventory.retired_skills.some((row) => row.id === id)));
 });
 
-test('checked-in minimal profile is the curated fifteen-entry Claude default', () => {
+test('checked-in minimal profile is the curated ten-entry Claude default', () => {
   const root = path.join(__dirname, '..');
   const inventory = JSON.parse(fs.readFileSync(path.join(root, 'manifests/distribution-inventory.json'), 'utf8'));
   const profiles = JSON.parse(fs.readFileSync(path.join(root, 'manifests/install-profiles.json'), 'utf8'));
   const moduleCatalog = JSON.parse(fs.readFileSync(path.join(root, 'manifests/module-catalog.json'), 'utf8'));
   const expected = [
-    'adaptive-dev-workflow', 'bug-investigation', 'create-request',
-    'dhpk-execution-policy', 'do', 'git-investigate', 'git-smart-commit',
-    'next-step', 'pr-review', 'project-audit', 'prompt-optimize',
-    'security-review', 'tdd', 'tech-spec', 'tool-routing',
+    'change-verdict', 'code-trace', 'create-request', 'flow-drive',
+    'flow-guide', 'git-smart-commit', 'project-audit', 'prompt-optimize',
+    'tdd', 'tech-spec',
   ];
   const result = selection.resolveCapabilitySelection({ inventory, profiles, moduleCatalog, profileId: 'minimal' });
   assert.strictEqual(result.ok, true, result.error && result.error.message);
   assert.deepStrictEqual(result.value.selectedStableIds, expected);
-  assert.strictEqual(result.value.selectedStableIds.length, 15);
+  assert.strictEqual(result.value.selectedStableIds.length, 10);
 });
 
 run();

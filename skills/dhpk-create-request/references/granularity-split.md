@@ -6,7 +6,7 @@ Assess whether the request should be split into multiple focused tickets. This r
 
 | Signal | Detection | Weight |
 |--------|-----------|--------|
-| **AC count > 8** | Count `- [ ]` items. Exclude quality-gate ACs matching: `/codex-review-fast`, `/codex-review-doc`, `/codex-review`, `/precommit`, `/precommit-fast`, `/dhpk:dhpk-pr-review` | Primary |
+| **AC count > 8** | Count `- [ ]` items. Exclude quality-gate ACs matching: `/dhpk:change-verdict`, `/precommit`, `/precommit-fast` | Primary |
 | **Layer mixing** | **1.5a**: keyword scan for `rules/`, `hooks/`, `scripts/` in requirements text. **1.5b**: classify Related Files into behavior-layer (`.md` rules/skills) vs code-layer (`.sh`/`.js` hooks/scripts) | Primary |
 | **Scope breadth** | Requirements has 3+ functionally independent areas | Primary |
 | **WBS groups ≥ 2** | Tech spec has `Work Breakdown` heading with 2+ independent task groups (secondary, high-confidence only) | Secondary (×0.5) |

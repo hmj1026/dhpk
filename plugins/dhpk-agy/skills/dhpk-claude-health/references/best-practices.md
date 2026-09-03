@@ -38,7 +38,7 @@ cache/
 | Item | Convention | Example |
 |------|------------|---------|
 | Skill directory | kebab-case | `code-explore/` |
-| Skill file | SKILL.md + references/ | `skills/codex-review-fast/SKILL.md` |
+| Skill file | SKILL.md + references/ | `skills/change-verdict/SKILL.md` |
 | Rule file | kebab-case.md | `auto-loop.md` |
 | Reference dir | `references/` (plural) | `skills/x/references/` |
 | Script file | kebab-case.js/sh | `verify-runner.js` |
@@ -47,8 +47,8 @@ cache/
 
 | Skill Type | Structure | Notes |
 |------------|-----------|-------|
-| Workflow skill | `skills/<name>/SKILL.md` | `dhpk-adaptive-dev-workflow`, etc. |
-| Review skill | `skills/<name>/SKILL.md` | `dhpk-change-review`, etc. |
+| Workflow skill | `skills/<name>/SKILL.md` | `flow-guide`, etc. |
+| Review skill | `skills/<name>/SKILL.md` | `change-verdict`, etc. |
 | Domain KB | `skills/<name>/SKILL.md` | `portfolio`, `aum` — referenced by other skills |
 | External | N/A | `agent-browser` — not maintained here |
 | Tool skill | `skills/<name>/SKILL.md` | `git-worktree`, `skill-creator` (external), etc. |

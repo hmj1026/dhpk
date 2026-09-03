@@ -1,0 +1,548 @@
+{
+  "schema": "dhpk.claude-capability-bundle.v1",
+  "surface": "claude-profile",
+  "profile": {
+    "excludes": [
+      "laravel-10",
+      "laravel-11",
+      "laravel-5.4",
+      "laravel-6",
+      "laravel-7",
+      "laravel-8",
+      "laravel-9",
+      "laravel-mix",
+      "nextjs-15.5",
+      "nextjs-16",
+      "php-7.4",
+      "php-8.x",
+      "phpunit-10",
+      "phpunit-11",
+      "phpunit-9",
+      "react-18",
+      "react-19"
+    ],
+    "id": "full",
+    "inventoryFingerprint": "35a174778533dea1fb63612b82d6aa3d1984bbea1052011f0fe56a6229899ba0",
+    "mode": "profile",
+    "modules": [
+      "fastapi",
+      "ios-platform",
+      "js",
+      "library-author",
+      "php-5.6",
+      "phpunit-5.7",
+      "pytest",
+      "python",
+      "swift",
+      "swift-testing",
+      "swiftui",
+      "vue-2",
+      "xcode-tooling",
+      "yii-1.1"
+    ],
+    "profileFingerprint": "2566b04cf19863c9b4f4dc0f2a2c7bb984e8afe85a24c1da404dcd34d88f48b7",
+    "profileId": "full",
+    "selectionFingerprint": "9a330bbbff4d08602a610acfa0db3c2e7c46a7e9869faf98d34dca346e130869",
+    "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
+    "sourceFingerprint": "ed101008dc2ee8ea14d669ce8ac962beb13702a16e81b908aae0051b9d2408b4",
+    "surfaceSelectionFingerprint": "c2680251faca2b0d0c2faf9b1f9a5548fb53f496e1c8fde078d007283b506260",
+    "version": "claude-profile-v1"
+  },
+  "compatibilityMode": "profile",
+  "selectedStableIds": [
+    "agent-architecture-audit",
+    "agy-commit",
+    "agy-fast-worker",
+    "change-verdict",
+    "claude-health",
+    "code-trace",
+    "codex-bridge",
+    "composer-package-hygiene",
+    "create-request",
+    "deploy-list",
+    "fastapi-pro",
+    "feasibility-study",
+    "feature-verify",
+    "flow-drive",
+    "flow-guide",
+    "git-smart-commit",
+    "gitnexus-cli",
+    "gitnexus-debugging",
+    "gitnexus-exploring",
+    "gitnexus-guide",
+    "gitnexus-impact-analysis",
+    "gitnexus-refactoring",
+    "harness-budget",
+    "harness-fill",
+    "harness-revise",
+    "ios-icon-gen",
+    "ios-platform",
+    "issue-analyze",
+    "js-lint-config",
+    "js-static-check-strategy",
+    "laravel-package-author",
+    "laravel-testbench-matrix",
+    "legacy-code-characterization",
+    "library-dual-testsuite-map",
+    "matrix-cell-onboard",
+    "multi-ai-sync",
+    "op-session",
+    "openspec-artifact-guard",
+    "opsx-apply-goal",
+    "opsx-load-context",
+    "opsx-post-obs",
+    "php-pro",
+    "php56-yii-dev",
+    "polyfill-version-matrix-audit",
+    "project-audit",
+    "project-setup",
+    "prompt-optimize",
+    "pytest-async",
+    "python-pro",
+    "python-static-checks",
+    "release-creator",
+    "repo-intake",
+    "session-usage-audit",
+    "skill-forge",
+    "skill-scope",
+    "software-architecture",
+    "swift-language",
+    "swift-test-strategy",
+    "swiftui-architecture",
+    "tdd",
+    "tech-spec",
+    "vue-2-notes",
+    "xcode-build-tooling",
+    "yii1-security-audit"
+  ],
+  "consumerPluginId": "dhpk@dhpk-profile-full",
+  "outputs": [
+    {
+      "stableId": "claude-profile:manifest",
+      "destination": "plugin.json"
+    },
+    {
+      "stableId": "claude-profile:receipt",
+      "destination": "bundle-receipt.json"
+    },
+    {
+      "stableId": "claude-profile:skill:agent-architecture-audit",
+      "destination": "skills/dhpk-agent-architecture-audit/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:agy-commit",
+      "destination": "skills/dhpk-agy-commit/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:agy-fast-worker",
+      "destination": "skills/dhpk-agy-fast-worker/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:change-verdict",
+      "destination": "skills/change-verdict/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:claude-health",
+      "destination": "skills/dhpk-claude-health/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:code-trace",
+      "destination": "skills/code-trace/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:codex-bridge",
+      "destination": "skills/dhpk-codex-bridge/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:composer-package-hygiene",
+      "destination": "skills/dhpk-composer-package-hygiene/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:create-request",
+      "destination": "skills/dhpk-create-request/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:deploy-list",
+      "destination": "skills/dhpk-deploy-list/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:fastapi-pro",
+      "destination": "skills/dhpk-fastapi-pro/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:feasibility-study",
+      "destination": "skills/dhpk-feasibility-study/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:feature-verify",
+      "destination": "skills/dhpk-feature-verify/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:flow-drive",
+      "destination": "skills/flow-drive/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:flow-guide",
+      "destination": "skills/flow-guide/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:git-smart-commit",
+      "destination": "skills/dhpk-git-smart-commit/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:gitnexus-cli",
+      "destination": "skills/dhpk-gitnexus-cli/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:gitnexus-debugging",
+      "destination": "skills/dhpk-gitnexus-debugging/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:gitnexus-exploring",
+      "destination": "skills/dhpk-gitnexus-exploring/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:gitnexus-guide",
+      "destination": "skills/dhpk-gitnexus-guide/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:gitnexus-impact-analysis",
+      "destination": "skills/dhpk-gitnexus-impact-analysis/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:gitnexus-refactoring",
+      "destination": "skills/dhpk-gitnexus-refactoring/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:harness-budget",
+      "destination": "skills/dhpk-harness-budget/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:harness-fill",
+      "destination": "skills/dhpk-harness-fill/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:harness-revise",
+      "destination": "skills/dhpk-harness-revise/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:ios-icon-gen",
+      "destination": "skills/dhpk-ios-icon-gen/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:ios-platform",
+      "destination": "skills/dhpk-ios-platform/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:issue-analyze",
+      "destination": "skills/dhpk-issue-analyze/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:js-lint-config",
+      "destination": "skills/dhpk-js-lint-config/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:js-static-check-strategy",
+      "destination": "skills/dhpk-js-static-check-strategy/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:laravel-package-author",
+      "destination": "skills/dhpk-laravel-package-author/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:laravel-testbench-matrix",
+      "destination": "skills/dhpk-laravel-testbench-matrix/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:legacy-code-characterization",
+      "destination": "skills/dhpk-legacy-characterization-tests/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:library-dual-testsuite-map",
+      "destination": "skills/dhpk-library-dual-testsuite-map/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:matrix-cell-onboard",
+      "destination": "skills/dhpk-matrix-cell-onboard/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:multi-ai-sync",
+      "destination": "skills/dhpk-cross-agent-sync/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:op-session",
+      "destination": "skills/dhpk-onepassword-session/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:openspec-artifact-guard",
+      "destination": "skills/dhpk-openspec-artifact-guard/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:opsx-apply-goal",
+      "destination": "skills/dhpk-opsx-apply-goal/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:opsx-load-context",
+      "destination": "skills/dhpk-opsx-load-context/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:opsx-post-obs",
+      "destination": "skills/dhpk-opsx-post-observation/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:php-pro",
+      "destination": "skills/dhpk-php-runtime-router/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:php56-yii-dev",
+      "destination": "skills/dhpk-yii1-php56-development/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:polyfill-version-matrix-audit",
+      "destination": "skills/dhpk-polyfill-version-matrix-audit/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:project-audit",
+      "destination": "skills/dhpk-project-audit/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:project-setup",
+      "destination": "skills/dhpk-project-setup/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:prompt-optimize",
+      "destination": "skills/dhpk-prompt-optimize/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:pytest-async",
+      "destination": "skills/dhpk-pytest-async/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:python-pro",
+      "destination": "skills/dhpk-python-pro/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:python-static-checks",
+      "destination": "skills/dhpk-python-static-checks/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:release-creator",
+      "destination": "skills/dhpk-release-creator/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:repo-intake",
+      "destination": "skills/dhpk-repo-intake/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:session-usage-audit",
+      "destination": "skills/dhpk-session-usage-audit/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:skill-forge",
+      "destination": "skills/skill-forge/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:skill-scope",
+      "destination": "skills/skill-scope/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:software-architecture",
+      "destination": "skills/dhpk-module-design/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:swift-language",
+      "destination": "skills/dhpk-swift-language/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:swift-test-strategy",
+      "destination": "skills/dhpk-swift-test-strategy/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:swiftui-architecture",
+      "destination": "skills/dhpk-swiftui-architecture/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:tdd",
+      "destination": "skills/dhpk-tdd-workflow/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:tech-spec",
+      "destination": "skills/dhpk-tech-spec/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:vue-2-notes",
+      "destination": "skills/dhpk-vue-2-notes/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:xcode-build-tooling",
+      "destination": "skills/dhpk-xcode-build-tooling/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:skill:yii1-security-audit",
+      "destination": "skills/dhpk-yii1-security-audit/SKILL.md"
+    },
+    {
+      "stableId": "claude-profile:command:check-coverage",
+      "destination": "commands/check-coverage.md"
+    },
+    {
+      "stableId": "claude-profile:command:codex-test-gen",
+      "destination": "commands/codex-test-gen.md"
+    },
+    {
+      "stableId": "claude-profile:command:create-pr",
+      "destination": "commands/create-pr.md"
+    },
+    {
+      "stableId": "claude-profile:command:create-release",
+      "destination": "commands/create-release.md"
+    },
+    {
+      "stableId": "claude-profile:command:deep-analyze",
+      "destination": "commands/deep-analyze.md"
+    },
+    {
+      "stableId": "claude-profile:command:dep-audit",
+      "destination": "commands/dep-audit.md"
+    },
+    {
+      "stableId": "claude-profile:command:doc-refactor",
+      "destination": "commands/doc-refactor.md"
+    },
+    {
+      "stableId": "claude-profile:command:git-worktree",
+      "destination": "commands/git-worktree.md"
+    },
+    {
+      "stableId": "claude-profile:command:harness-audit",
+      "destination": "commands/harness-audit.md"
+    },
+    {
+      "stableId": "claude-profile:command:harness-govern",
+      "destination": "commands/harness-govern.md"
+    },
+    {
+      "stableId": "claude-profile:command:install-hooks",
+      "destination": "commands/install-hooks.md"
+    },
+    {
+      "stableId": "claude-profile:command:install-rules",
+      "destination": "commands/install-rules.md"
+    },
+    {
+      "stableId": "claude-profile:command:install-scripts",
+      "destination": "commands/install-scripts.md"
+    },
+    {
+      "stableId": "claude-profile:command:matrix-cell-onboard",
+      "destination": "commands/matrix-cell-onboard.md"
+    },
+    {
+      "stableId": "claude-profile:command:merge-prep",
+      "destination": "commands/merge-prep.md"
+    },
+    {
+      "stableId": "claude-profile:command:opsx-apply-resume",
+      "destination": "commands/opsx-apply-resume.md"
+    },
+    {
+      "stableId": "claude-profile:command:pr-summary",
+      "destination": "commands/pr-summary.md"
+    },
+    {
+      "stableId": "claude-profile:command:precommit-fast",
+      "destination": "commands/precommit-fast.md"
+    },
+    {
+      "stableId": "claude-profile:command:precommit",
+      "destination": "commands/precommit.md"
+    },
+    {
+      "stableId": "claude-profile:command:project-brief",
+      "destination": "commands/project-brief.md"
+    },
+    {
+      "stableId": "claude-profile:command:review-pending",
+      "destination": "commands/review-pending.md"
+    },
+    {
+      "stableId": "claude-profile:command:setup",
+      "destination": "commands/setup.md"
+    },
+    {
+      "stableId": "claude-profile:command:simplify",
+      "destination": "commands/simplify.md"
+    },
+    {
+      "stableId": "claude-profile:command:smart-commit",
+      "destination": "commands/smart-commit.md"
+    },
+    {
+      "stableId": "claude-profile:command:spec-mine",
+      "destination": "commands/spec-mine.md"
+    },
+    {
+      "stableId": "claude-profile:command:ui-ux-verify",
+      "destination": "commands/ui-ux-verify.md"
+    },
+    {
+      "stableId": "claude-profile:command:update-codemaps",
+      "destination": "commands/update-codemaps.md"
+    },
+    {
+      "stableId": "claude-profile:command:update-docs",
+      "destination": "commands/update-docs.md"
+    },
+    {
+      "stableId": "claude-profile:command:verify",
+      "destination": "commands/verify.md"
+    },
+    {
+      "stableId": "claude-profile:command:s/commands/ts-check-status",
+      "destination": "modules/js/commands/ts-check-status.md"
+    }
+  ],
+  "unavailableOptionalIds": [
+    "cli-dispatch-context",
+    "cli-transport",
+    "fastapi",
+    "js",
+    "laravel",
+    "laravel-10",
+    "laravel-11",
+    "laravel-5.4",
+    "laravel-6",
+    "laravel-7",
+    "laravel-8",
+    "laravel-9",
+    "laravel-mix",
+    "library-author",
+    "nextjs-15-5-notes",
+    "nextjs-15.5",
+    "nextjs-16",
+    "nextjs-16-notes",
+    "php-5.6",
+    "php-7.4",
+    "php-8.x",
+    "php-8x-features",
+    "php-modern-pro",
+    "phpunit",
+    "phpunit-10",
+    "phpunit-11",
+    "phpunit-5.7",
+    "phpunit-9",
+    "pytest",
+    "python",
+    "react-18",
+    "react-18-notes",
+    "react-19",
+    "react-19-notes",
+    "swift",
+    "swift-testing",
+    "swiftui",
+    "vue-2",
+    "xcode-tooling",
+    "yii-1.1"
+  ],
+  "planFingerprint": "7af2964bea3822892e73e083975929f1e04f3e146a84ebb7111841f517df885a"
+}

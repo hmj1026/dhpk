@@ -4,7 +4,7 @@ description: "Deprecated forwarding alias for Codex test coverage review."
 ---
 **Deprecated forwarding alias.** For this minor release, run:
 
-`/dhpk:codex-review --scope tests --coverage $ARGUMENTS`
+`$change-verdict --scope tests --coverage $ARGUMENTS`
 
 ## Compatibility boundary
 

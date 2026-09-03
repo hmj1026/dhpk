@@ -22,7 +22,7 @@ test('always-visible execution kernel preserves safety and completion boundaries
 });
 
 test('policy skill and rule bind the same kernel before conditional references', () => {
-  const skill = read('skills/dhpk-execution-policy/SKILL.md');
+  const skill = read('skills/flow-guide/SKILL.md');
   const policy = read('rules/execution-policy.md');
   assert.ok(skill.indexOf('execution-policy-kernel.md') < skill.indexOf('execution-policy.md'));
   assert.ok(policy.includes('execution-policy-kernel.md'));

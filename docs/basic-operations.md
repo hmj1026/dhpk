@@ -9,8 +9,9 @@ This page walks through the operational lifecycle of dhpk: installing it, the da
 Use this order for a fresh request: **inspect** the repository and session
 state → **verify** the installed surface → **choose** Claude, supported Codex
 sync, or the experimental native Codex surface → **route** through Claude
-`/dhpk:do`, the Cursor generated command, or Codex `$dhpk-do` (Codex has no
-`/dhpk:do` command) or an explicit skill → **implement** with TDD and pre-edit
+`/dhpk:flow-guide` for classification, `/dhpk:flow-drive` for execution, the
+Cursor generated command, or Codex `$flow-guide` / `$flow-drive` (Codex has no
+`/dhpk:*` command) or an explicit family skill → **implement** with TDD and pre-edit
 impact checks →
 **review/verify** the resulting evidence → **handoff** with exactly one next
 command. Plugin management (`claude plugin …`, `codex plugin …`) does not invoke
@@ -46,10 +47,10 @@ dhpk deliberately exposes several surfaces with different support tiers:
 | Antigravity / AGY sync | Adapter/package | Antigravity uses `.agent` mappings; AGY uses its native plugin package and validator. |
 
 Plugin management commands (`claude plugin …`, `codex plugin …`) are separate
-from skill invocation. Claude workflows enter through `/dhpk:do` or an
-explicit skill; Cursor uses the generated command after
-`install-cursor-harness.sh`; Codex enters through `$dhpk-do` after project-local
-`.codex/` sync (Codex has no `/dhpk:do` command).
+from skill invocation. Claude workflows enter through `/dhpk:flow-guide`,
+`/dhpk:flow-drive`, or an explicit family skill; Cursor uses the generated
+command after `install-cursor-harness.sh`; Codex enters through `$flow-guide` /
+`$flow-drive` after project-local `.codex/` sync (Codex has no `/dhpk:*` command).
 
 ## Install
 
@@ -204,8 +205,9 @@ The user-facing workflow has one safe front door and several explicit exits:
 inspect → verify surface → route → plan/classify → implement → review → verify → handoff
 ```
 
-Use Claude `/dhpk:do`, the Cursor generated command, or Codex `$dhpk-do` when
-you know the outcome but not the right skill. Codex has no `/dhpk:do` command.
+Use Claude `/dhpk:flow-guide` (classification), `/dhpk:flow-drive` (execution),
+the Cursor generated command, or Codex `$flow-guide` / `$flow-drive` when you
+know the outcome but not the right family. Codex has no `/dhpk:*` command.
 Use a direct command or skill when you already know the exact workflow. Plugin management
 (`claude plugin …`, `codex plugin …`) installs or updates a surface; it does not
 invoke a workflow.
@@ -214,13 +216,13 @@ invoke a workflow.
 
 | Need | Entry | Completion signal |
 |---|---|---|
-| See what would run | `/dhpk:do --route-only <task>` | `Route only: /...` (or a bounded classification / task prompt); no downstream work runs. |
-| Feature, bug, refactor, or other substantial change | `/dhpk:do <task>` | One workflow classification and one named next route. |
-| Inspect code or execution flow | `/dhpk:do trace the <area> flow` or `dhpk-codebase-exploration` | Evidence-backed explanation with file/symbol references. |
-| Review existing edits | `/dhpk:review-pending` or `/dhpk:dhpk-change-review` | Reviewer verdict plus fresh artifact or an explicit blocker. |
+| See what would run | `/dhpk:flow-drive --route-only <task>` or `/dhpk:flow-guide --mode classify` | `Route only: /...` (or a bounded classification / task prompt); no downstream work runs. |
+| Feature, bug, refactor, or other substantial change | `/dhpk:flow-guide --mode classify` then `/dhpk:flow-drive <task>` | One workflow classification and one named next route. |
+| Inspect code or execution flow | `/dhpk:code-trace --mode explore <area>` | Evidence-backed explanation with file/symbol references. |
+| Review existing edits | `/dhpk:review-pending` or `/dhpk:change-verdict --mode code` | Reviewer verdict plus fresh artifact or an explicit blocker. |
 | Commit, PR, or release | `/dhpk:smart-commit`, `/dhpk:create-pr`, or `/dhpk:dhpk-release-creator` | Explicit command result; no automatic commit, push, or merge. |
 
-`/dhpk:do` may invoke an `implicit-eligible` target. If routing selects an
+`/dhpk:flow-guide` may identify an `implicit-eligible` target. If routing selects an
 `explicit-only` target, it prints the exact direct invocation and stops; routing
 confidence never bypasses the target's invocation class. The route table is the
 deterministic fast path, while ambiguous compound requests use bounded
@@ -229,8 +231,8 @@ classification rather than a guessed match.
 ### Inspect routing before execution
 
 ```text
-/dhpk:do --route-only implement a password-reset email flow
-/dhpk:do --route-only fix the login redirect loop
+/dhpk:flow-drive --route-only implement a password-reset email flow
+/dhpk:flow-drive --route-only fix the login redirect loop
 ```
 
 `--route-only` strips itself and any supported mode flags before matching. The
@@ -244,11 +246,11 @@ architect, worker, or the selected skill.
 ### Main delivery flow — feature and bug work
 
 ```text
-/dhpk:do implement a password-reset email flow
-/dhpk:do fix the login redirect loop
+/dhpk:flow-drive implement a password-reset email flow
+/dhpk:flow-drive fix the login redirect loop
 ```
 
-The adaptive workflow classifies the request before loading branch-specific
+The `flow-guide` classification mode runs before loading branch-specific
 context. Feature work enters TDD RED → GREEN → REFACTOR; bug work records root
 cause evidence and a regression-test RED gate before the fix. Existing symbols
 receive pre-edit impact analysis when the repository provides GitNexus; `cx`
@@ -265,7 +267,7 @@ Use these invocation-only modifiers when they change the decision for this run:
 | `--codex` | Retired compatibility flag. The parser emits a deprecation diagnostic and does not select a peer or backend; use an explicit worker, reasoner, or owner second-opinion option instead. |
 
 `--worker=codex` chooses a Codex CLI mechanical worker. `--reasoner=codex`
-chooses a Codex CLI reasoning pass. `CODEX=on` and `/dhpk:do --codex` are
+chooses a Codex CLI reasoning pass. `CODEX=on` and `--codex` are
 retired compatibility flags: they emit a deprecation diagnostic and never
 select a peer, worker, reasoner, or hidden backend. Only a missing selected
 executable may use the configured Claude fallback; authentication, task,
@@ -344,7 +346,7 @@ UTF-8-byte paste ceiling.
 
 ```text
 /dhpk:spec-mine user-authentication
-/dhpk:do write E2E tests for the checkout flow
+/dhpk:flow-drive write E2E tests for the checkout flow
 /dhpk:harness-audit
 /dhpk:harness-govern
 /dhpk:harness-govern --fix
@@ -368,12 +370,12 @@ rules live in [`rules/execution-policy.md`](../rules/execution-policy.md).
 
 ### Codex CLI second opinions
 
-dhpk is **Codex-free by default**. The retired `CODEX=on` and
-`/dhpk:do --codex` flags emit `DEPRECATED_CODEX_FLAG` and do not add a hidden
+dhpk is **Codex-free by default**. The retired `CODEX=on` and legacy
+`--codex` flags emit `DEPRECATED_CODEX_FLAG` and do not add a hidden
 peer or backend. Use `--worker=codex` for an explicitly selected CLI worker,
 `--reasoner=codex` for an explicitly selected CLI reasoning pass, or a
 migrated owner's `--second-opinion=codex-exec` option for an additive,
-one-shot `codex exec` opinion. `dhpk-change-review --backend cli` is the
+one-shot `codex exec` opinion. `change-verdict --mode code --backend cli` is the
 explicit CLI review path; the current-model path remains the default. Missing
 CLI executables are reported as unavailable optional backends, while
 authentication, task, execution, and verification failures remain blocked.
