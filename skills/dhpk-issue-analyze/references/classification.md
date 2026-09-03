@@ -24,12 +24,12 @@
 
 ## Keyword Triggers
 
-### -> `/dhpk:code-trace`
+### Regression analysis -> `/dhpk:code-trace`
 
 - "It used to work" "after update" "it was fine last time" "regression"
 - "When did it break" "who changed it" "which commit"
 
-### -> `/dhpk:code-trace`
+### Code-flow exploration -> `/dhpk:code-trace`
 
 - "How does this feature work" "what does this code do" "what's the flow"
 - "Don't know where it is" "how to trace"
