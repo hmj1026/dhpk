@@ -28,6 +28,9 @@ supported [`install-cursor-harness.sh`](../scripts/hooks/install-cursor-harness.
 change proposals, specifications, and task evidence live under
 `openspec/changes/`; a passing validator is not version-control delivery.
 
+If you want a one-page reference that tells you which skill/command to use first,
+also use: [技能與 Slash Command 快速速查（非專業版）](./skill-command-cheat-sheet.zh-TW.md).
+
 When a destination is unclear and the work will span sessions, first record a
 wayfinder checkpoint with destination candidates, current frontier, and one
 next decision. A clear single-session request goes directly to its route.
@@ -211,6 +214,9 @@ inspect → verify surface → route → plan/classify → implement → review 
 Use Claude `/dhpk:flow-guide` (classification), `/dhpk:flow-drive` (execution),
 the Cursor generated command, or Codex `$flow-guide` / `$flow-drive` when you
 know the outcome but not the right family. Codex has no `/dhpk:*` command.
+
+Need a quick entry map before this table? See the cheat sheet:
+[技能與 Slash Command 快速速查（繁體中文）](./skill-command-cheat-sheet.zh-TW.md)
 Use a direct command or skill when you already know the exact workflow. Plugin management
 (`claude plugin …`, `codex plugin …`) installs or updates a surface; it does not
 invoke a workflow.

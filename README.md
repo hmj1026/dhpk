@@ -14,6 +14,8 @@ A generic, install-and-go Claude Code harness. It ships **36 role-based agents**
 
 OpenSpec is an **optional external integration** — install the [OpenSpec plugin](https://github.com/Fission-AI/OpenSpec) separately if you want OpenSpec workflow commands. dhpk retains only its own value-add helper `opsx-apply-resume` (long-running OpenSpec session context handoff); the 10 generic OpenSpec wrapper skills/commands were unbundled in v0.2.1 since OpenSpec ships them upstream.
 
+If you are not sure which skill or command to start with, use the **[Skill & Slash Command cheat sheet](./docs/skill-command-cheat-sheet.zh-TW.md)** first.
+
 ## Prerequisites
 
 | Tool | Status | Why |

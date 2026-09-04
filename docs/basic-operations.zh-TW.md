@@ -31,6 +31,9 @@ Plugin 管理（`claude plugin …`、`codex plugin …`）不會呼叫 skill。
 當目的地不清楚且工作會跨 session，先記錄 wayfinder checkpoint：候選目的地、
 目前 frontier，以及一個下一步決策。單一 session 且目的明確的請求直接進入路由。
 
+不知道先用哪一個入口時，先看：
+[技能與 Slash Command 快速速查（非專業版）](./skill-command-cheat-sheet.zh-TW.md)。
+
 ## 分發面政策
 
 dhpk 刻意提供多個不同支援等級的 surface：
@@ -206,6 +209,9 @@ inspect → verify surface → route → plan/classify → implement → review 
 Codex 沒有 `/dhpk:*`。已知道完整流程時，使用
 明確 command 或 skill。Plugin 管理（`claude plugin …`、`codex plugin …`）只安裝／
 更新 surface，不會呼叫 workflow。
+
+不確定要先做哪一步時，也可以直接用：
+[技能與 Slash Command 快速速查（非專業版）](./skill-command-cheat-sheet.zh-TW.md)
 
 ### 技能群組與高效率進退場
 
