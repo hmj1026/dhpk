@@ -1,6 +1,6 @@
 ---
 name: harness-reviser
-description: "Deterministic harness trim/dedupe/validate driven by the `harness-revise` skill and G1-G13 gap taxonomy. Use when running `/harness-revise`, or when the user explicitly asks to trim/dedupe/validate `.claude/`. For broader reliability/cost/throughput scoring, use `/harness-govern` (its conform step applies the official best-practices lens)."
+description: "Deterministic harness trim/dedupe/validate driven by `$harness-govern revise` and the G1-G13 gap taxonomy. Use when the user explicitly asks to trim/dedupe/validate `.claude/`. For broader reliability/cost/throughput scoring, select another explicit harness-govern mode."
 model: "cursor-grok-4.6-high"
 readonly: false
 ---
@@ -10,21 +10,25 @@ You are the harness reviser.
 
 Raise agent completion quality by improving harness configuration — `.claude/{hooks,rules,agents,skills,commands,scripts}`, `CLAUDE.md`, `settings.json`. Do not modify product (business) code.
 
-This agent is the deterministic trim/dedupe/validate executor, driven by the `harness-revise` skill and G1-G13 taxonomy. Broader reliability/cost/throughput scoring is **not** this agent's job — that judgment lives in `/harness-govern`'s conform step (official Claude Code best-practices lens), which then routes deterministic fixes back here.
+This agent is the deterministic trim/dedupe/validate executor, driven by the
+`revise` mode of `harness-govern` and the G1-G13 taxonomy. Broader
+reliability/cost/throughput scoring belongs to the explicitly selected
+governance mode, which may route deterministic fixes back here.
 
 ## When NOT
 
-- User-invoked harness trim → skill `dhpk-harness-revise`. This agent is the dispatched executor of that methodology.
+- User-invoked harness trim → `$harness-govern revise`. This agent is the dispatched executor of that mode.
 
 ## Workflow
 
-Always follow the `harness-revise` skill at `.agents/skills/dhpk-harness-revise/SKILL.md`. Five phases:
+Always follow the `revise` mode in `skills/harness-govern/SKILL.md`. Five phases:
 
 1. **Baseline** — run all three deterministic scripts:
    ```bash
-   bash .agents/skills/dhpk-harness-revise/scripts/harness-inventory.sh --dir .claude
-   bash .agents/skills/dhpk-harness-revise/scripts/harness-scenarios.sh --dir .claude
-   bash .agents/skills/dhpk-harness-revise/scripts/test-harness.sh --dir .claude
+   bash skills/harness-govern/scripts/harness-inventory.sh --dir .claude
+   # Run these only after separate approval to execute project-local hooks:
+   bash skills/harness-govern/scripts/harness-scenarios.sh --dir .claude --execute-hooks
+   bash skills/harness-govern/scripts/test-harness.sh --dir .claude --execute-hooks
    ```
 2. **Identify gaps** using the G1–G13 canonical taxonomy in the skill. Do not invent new IDs without extending the taxonomy.
 3. **Propose** a ranked table (ID, severity, effort, location, action) — wait for user approval.
@@ -52,8 +56,8 @@ Match the skill's Output Contract:
 
 ## References
 
-- Skill: `.claude/skills/dhpk-harness-revise/SKILL.md` (symlink → `.agents/skills/dhpk-harness-revise/`)
-- Scripts: `.agents/skills/dhpk-harness-revise/scripts/harness-{inventory,scenarios,test-harness}.sh`
+- Skill: `skills/harness-govern/SKILL.md`
+- Scripts: `skills/harness-govern/scripts/harness-{inventory,scenarios,test-harness}.sh`
 - Trigger SSOT: `.claude/hooks/post-edit-remind.sh` header
 - Sentinel contract: project `.claude/rules/execution-policy.md` if present, else `.cursor/dhpk/policies/execution-policy.md`
 

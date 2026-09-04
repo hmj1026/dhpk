@@ -1,6 +1,6 @@
 # Workflow Checklists
 
-本檔改為薄索引；長版 checklist 已拆到 workflow-specific references，避免 `lightweight` 情境也把 feature/bugfix 的細節一起載入。
+本檔改為薄索引；長版 closeout guidance 已拆到 workflow-specific references，避免輕量情境也把 feature/bugfix 的細節一起載入。
 
 ## Read This Only When
 

@@ -4,31 +4,27 @@
   "profile": {
     "excludes": [],
     "id": "compat-v1",
-    "inventoryFingerprint": "35a174778533dea1fb63612b82d6aa3d1984bbea1052011f0fe56a6229899ba0",
+    "inventoryFingerprint": "991fda431c44e3f8ab4470498480124da2f02ef51c295d44f3b83615f598ef22",
     "mode": "compat-v1",
     "modules": [],
-    "profileFingerprint": "4c097f613f20f5af0ee904fd4c3cad9e56982965c87be29658e295ad4190d6d9",
+    "profileFingerprint": "4dd58ea5c7deba9273adb78a0b85ece5a93a2246d301365f67f437cfcb56228e",
     "profileId": "compat-v1",
-    "selectionFingerprint": "65d025e0f06abc83dfcf6320cb750a5cfec8e4dfbff5f1ca7aedea0745ff50f4",
+    "selectionFingerprint": "c3579c4b3942a4e29e201a59542ec263a439ec9894e991951b234b79faada7e8",
     "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
-    "sourceFingerprint": "93f99e91ef9c632c9dc890598d189480ff48e9085acfcd9081d70d7ff5cf1b34",
-    "surfaceSelectionFingerprint": "e5ede52de2d50f28f5659c8fef066e2c14d2a57a4eca66d88209efe6b67bae23",
+    "sourceFingerprint": "6c4be106e15240f533fd1eed0fa559f77a3295eb9b6aa00782566a9fb0b0262e",
+    "surfaceSelectionFingerprint": "ddd80facfb854f106534e3dcb15bc8f8c34a6f697d69c60362c84a6a0b74e1d2",
     "version": "claude-profile-v1"
   },
   "compatibilityMode": "compat-v1",
   "selectedStableIds": [
     "agent-architecture-audit",
-    "agy-commit",
     "agy-fast-worker",
     "change-verdict",
-    "claude-health",
     "code-trace",
     "codex-bridge",
     "composer-package-hygiene",
-    "create-request",
     "deploy-list",
     "fastapi-pro",
-    "feasibility-study",
     "feature-verify",
     "flow-drive",
     "flow-guide",
@@ -39,9 +35,7 @@
     "gitnexus-guide",
     "gitnexus-impact-analysis",
     "gitnexus-refactoring",
-    "harness-budget",
-    "harness-fill",
-    "harness-revise",
+    "harness-govern",
     "ios-icon-gen",
     "ios-platform",
     "issue-analyze",
@@ -53,10 +47,8 @@
     "legacy-code-characterization",
     "library-dual-testsuite-map",
     "matrix-cell-onboard",
-    "multi-ai-sync",
     "nextjs-15-5-notes",
     "nextjs-16-notes",
-    "op-session",
     "openspec-artifact-guard",
     "opsx-apply-goal",
     "opsx-load-context",
@@ -84,7 +76,6 @@
     "swift-test-strategy",
     "swiftui-architecture",
     "tdd",
-    "tech-spec",
     "vue-2-notes",
     "xcode-build-tooling",
     "yii1-security-audit"
@@ -104,20 +95,12 @@
       "destination": "skills/dhpk-agent-architecture-audit/SKILL.md"
     },
     {
-      "stableId": "claude-profile:skill:agy-commit",
-      "destination": "skills/dhpk-agy-commit/SKILL.md"
-    },
-    {
       "stableId": "claude-profile:skill:agy-fast-worker",
       "destination": "skills/dhpk-agy-fast-worker/SKILL.md"
     },
     {
       "stableId": "claude-profile:skill:change-verdict",
       "destination": "skills/change-verdict/SKILL.md"
-    },
-    {
-      "stableId": "claude-profile:skill:claude-health",
-      "destination": "skills/dhpk-claude-health/SKILL.md"
     },
     {
       "stableId": "claude-profile:skill:code-trace",
@@ -132,20 +115,12 @@
       "destination": "skills/dhpk-composer-package-hygiene/SKILL.md"
     },
     {
-      "stableId": "claude-profile:skill:create-request",
-      "destination": "skills/dhpk-create-request/SKILL.md"
-    },
-    {
       "stableId": "claude-profile:skill:deploy-list",
       "destination": "skills/dhpk-deploy-list/SKILL.md"
     },
     {
       "stableId": "claude-profile:skill:fastapi-pro",
       "destination": "skills/dhpk-fastapi-pro/SKILL.md"
-    },
-    {
-      "stableId": "claude-profile:skill:feasibility-study",
-      "destination": "skills/dhpk-feasibility-study/SKILL.md"
     },
     {
       "stableId": "claude-profile:skill:feature-verify",
@@ -188,16 +163,8 @@
       "destination": "skills/dhpk-gitnexus-refactoring/SKILL.md"
     },
     {
-      "stableId": "claude-profile:skill:harness-budget",
-      "destination": "skills/dhpk-harness-budget/SKILL.md"
-    },
-    {
-      "stableId": "claude-profile:skill:harness-fill",
-      "destination": "skills/dhpk-harness-fill/SKILL.md"
-    },
-    {
-      "stableId": "claude-profile:skill:harness-revise",
-      "destination": "skills/dhpk-harness-revise/SKILL.md"
+      "stableId": "claude-profile:skill:harness-govern",
+      "destination": "skills/harness-govern/SKILL.md"
     },
     {
       "stableId": "claude-profile:skill:ios-icon-gen",
@@ -221,7 +188,7 @@
     },
     {
       "stableId": "claude-profile:skill:laravel",
-      "destination": "skills/dhpk-laravel/SKILL.md"
+      "destination": "skills/laravel/SKILL.md"
     },
     {
       "stableId": "claude-profile:skill:laravel-package-author",
@@ -244,20 +211,12 @@
       "destination": "skills/dhpk-matrix-cell-onboard/SKILL.md"
     },
     {
-      "stableId": "claude-profile:skill:multi-ai-sync",
-      "destination": "skills/dhpk-cross-agent-sync/SKILL.md"
-    },
-    {
       "stableId": "claude-profile:skill:nextjs-15-5-notes",
       "destination": "skills/dhpk-nextjs-15-5-notes/SKILL.md"
     },
     {
       "stableId": "claude-profile:skill:nextjs-16-notes",
       "destination": "skills/dhpk-nextjs-16-notes/SKILL.md"
-    },
-    {
-      "stableId": "claude-profile:skill:op-session",
-      "destination": "skills/dhpk-onepassword-session/SKILL.md"
     },
     {
       "stableId": "claude-profile:skill:openspec-artifact-guard",
@@ -289,7 +248,7 @@
     },
     {
       "stableId": "claude-profile:skill:phpunit",
-      "destination": "skills/dhpk-phpunit/SKILL.md"
+      "destination": "skills/phpunit/SKILL.md"
     },
     {
       "stableId": "claude-profile:skill:polyfill-version-matrix-audit",
@@ -366,10 +325,6 @@
     {
       "stableId": "claude-profile:skill:tdd",
       "destination": "skills/dhpk-tdd-workflow/SKILL.md"
-    },
-    {
-      "stableId": "claude-profile:skill:tech-spec",
-      "destination": "skills/dhpk-tech-spec/SKILL.md"
     },
     {
       "stableId": "claude-profile:skill:vue-2-notes",
@@ -538,5 +493,5 @@
     "xcode-tooling",
     "yii-1.1"
   ],
-  "planFingerprint": "914c8c05a58d08b11cedc86e4a112e7dd998610675d26377a5d95187b7fc0409"
+  "planFingerprint": "d3e318a0d9214e6fa935393b610d515fd4baa9c24052bc0001e0c95cc3691500"
 }

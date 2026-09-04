@@ -1,6 +1,6 @@
 ---
 name: dhpk-prompt-optimize
-description: 'Rewrite a raw task prompt into a model-aware, effort-calibrated version before you run it. Use when: the user asks to "optimize this prompt", "improve this prompt for Claude", "what effort should I use", "make this a good API prompt/template", or pastes a rough instruction before a big Claude Code or API task. Detects the target model (current session or a named one), classifies task complexity, recommends an effort level (low/medium/high/xhigh/max, plus the dhpk agent-frontmatter/Claude Code equivalent), asks up to 4 AskUserQuestion questions only for missing required info, then applies model-specific behavioral rewrites. Not for: generic few-shot/CoT/template technique coaching with no model or effort selection (use prompt-engineering-patterns), or auditing token/cache budget (use dhpk-harness-budget). Output: optimized prompt block + effort recommendation with rationale + bullet list of rewrites applied.'
+description: 'Rewrite a raw task prompt into a model-aware, effort-calibrated version before you run it. Use when: the user asks to "optimize this prompt", "improve this prompt for Claude", "what effort should I use", "make this a good API prompt/template", or pastes a rough instruction before a big Claude Code or API task. Detects the target model (current session or a named one), classifies task complexity, recommends an effort level (low/medium/high/xhigh/max, plus the dhpk agent-frontmatter/Claude Code equivalent), asks up to 4 AskUserQuestion questions only for missing required info, then applies model-specific behavioral rewrites. Not for: generic few-shot/CoT/template technique coaching with no model or effort selection (use prompt-engineering-patterns), or auditing token/cache budget (use `$harness-govern budget`). Output: optimized prompt block + effort recommendation with rationale + bullet list of rewrites applied.'
 argument-hint: '"<raw prompt text>" [--model <name>]'
 allowed-tools: 'Read, Bash(bash:*), AskUserQuestion, mcp__context7__resolve-library-id, mcp__context7__query-docs, WebSearch, WebFetch'
 metadata:
@@ -14,7 +14,7 @@ Rewrite a raw, informally-written task prompt into a model-aware, effort-calibra
 ## When NOT to Use
 
 - Generic few-shot / chain-of-thought / prompt-template technique coaching with no model or effort selection involved — use `prompt-engineering-patterns`.
-- Auditing token/context-window budget or cache hit rate — use `dhpk-harness-budget`.
+- Auditing token/context-window budget or cache hit rate — use `$harness-govern budget`.
 - Actually executing the prompt — this skill only rewrites it; run the result yourself afterward.
 - Linting an existing `SKILL.md`'s own frontmatter/structure — use `skill-scope` / `skill-scope`.
 
@@ -58,5 +58,5 @@ Exactly three parts, in this order:
 | Skill | Purpose |
 |-------|---------|
 | `prompt-engineering-patterns` | Generic few-shot/CoT/template techniques (no model or effort selection) |
-| `dhpk-harness-budget` | Token/cache/context-window budget accounting |
+| `$harness-govern budget` | Token/cache/context-window budget accounting |
 | `claude-api` | Live API parameter/model-ID mechanics |
