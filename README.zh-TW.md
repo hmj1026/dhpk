@@ -14,6 +14,8 @@
 
 OpenSpec 是**可選的外部整合**——若需要 OpenSpec 工作流指令，請另行安裝 [OpenSpec 插件](https://github.com/Fission-AI/OpenSpec)。dhpk 僅保留自家加值的 `opsx-apply-resume`（長時間 OpenSpec 工作階段的 context handoff）；v0.2.1 起，10 個通用 OpenSpec wrapper skill/command 已從套件中移除，由 OpenSpec 上游提供。
 
+如果你不知道該先叫哪個技能或指令，請先看：**[技能與 Slash Command 快速速查（非專業版）](./docs/skill-command-cheat-sheet.zh-TW.md)**。
+
 ## 前置需求
 
 | 工具 | 狀態 | 用途 |
