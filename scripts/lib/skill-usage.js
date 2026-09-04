@@ -226,7 +226,7 @@ function validateAction(errors, action, index, name, parentAuthority, actionIds,
       + action.effect_authority
       + "' exceeds parent maximum '"
       + parentAuthority
-      + "'", 
+      + "'",
     );
   }
 }
