@@ -63,12 +63,24 @@ discovery artifact is the materialized `minimal` profile; `full` and `compat-v1`
 are explicit opt-in artifacts. `check-coverage` remains an explicit-only
 compatibility alias outside that count.
 
+For Codex usage discovery, run `$flow-guide help` or `$flow-guide help <skill>`;
+use `$flow-guide <help|route|rules|next|close>` for guidance and
+`$flow-drive <confirmed-spec-or-change-id>` for explicit, mode-free
+implementation. Proposal authoring belongs to external `$openspec-propose`;
+OnePassword authentication is the operator action `op signin`.
+
+`git-smart-commit` keeps its existing public name and stable ID. `agy-commit` is
+retired without an alias. The five harness governance predecessors are modes of
+`harness-govern`: `health`, `budget`, `fill`, `revise`, and `sync`.
+
 - `/dhpk:<name>` — 本 plugin 實際註冊的 command namespace。
-- `dhpk-<skill-name>` — 一般 public skill identity，不是 `commands/` alias。六個
+- `dhpk-<skill-name>` — 一般 public skill identity，不是 `commands/` alias。九個
   portable capability-family 例外使用無前綴名稱：`skill-scope`、`skill-forge`、
-  `flow-guide`、`flow-drive`、`change-verdict`、`code-trace`。
+  `flow-guide`、`flow-drive`、`change-verdict`、`code-trace`、`laravel`、
+  `phpunit`、`harness-govern`。
 
 ## 修改本檔時
 
 - 新增或移除 command → 與 `commands/` 目錄及 `commands/INDEX.md` 同步，避免在索引宣稱未註冊的 command。
-- 命令行為變更 → 檢查是否影響 `flow-drive` route/implement mode 或相關 skill handoff。
+- 命令行為變更 → 檢查是否影響 `flow-guide` action、`flow-drive` confirmed
+  implementation handoff，或相關 skill handoff。

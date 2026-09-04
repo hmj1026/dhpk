@@ -7,14 +7,14 @@ const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const SCRIPT_ROOT = path.join(ROOT, 'skills/dhpk-cross-agent-sync/scripts');
+const SCRIPT_ROOT = path.join(ROOT, 'skills/harness-govern/scripts');
 
 function write(file, content) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, content);
 }
 
-test('Cursor agent discovery excludes navigation, receipts, and resource Markdown', () => {
+test('harness-govern sync Cursor discovery excludes navigation, receipts, and resource Markdown', () => {
   const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-discovery-'));
   try {
     const agents = path.join(repo, 'plugins/dhpk-cursor/agents');
@@ -36,4 +36,4 @@ test('Cursor agent discovery excludes navigation, receipts, and resource Markdow
   }
 });
 
-run('multi-ai-sync-cursor-discovery');
+run('harness-govern-sync-cursor-discovery');

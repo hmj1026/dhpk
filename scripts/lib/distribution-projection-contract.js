@@ -5,8 +5,15 @@
 // it deliberately has no filesystem, process, or consumer dependencies.
 
 const crypto = require('node:crypto');
+const {
+  USAGE_SCHEMA,
+  normalizeSkillUsage,
+  resolveInventoryRevision,
+  usageFingerprint: fingerprintSkillUsage,
+} = require('./skill-usage');
 
 const CONTRACT_SCHEMA = 'dhpk.distribution-projection-contract.v1';
+const PROVENANCE_SCHEMA = 'dhpk.skill-provenance.v1';
 const VERIFICATION_STAGES = Object.freeze(['structural', 'package', 'consumer-runtime']);
 const VERDICTS = Object.freeze([
   'PASS',
@@ -129,7 +136,116 @@ function result(value, error) {
     : freeze({ ok: true, value: freeze(value) });
 }
 
-function normalizeEntry(entry, index) {
+function usageSkillForEntry(entry, stableId, usage) {
+  const skillId = entry.skillId || entry.skill_id || entry.sourceId || entry.source_id || stableId;
+  return {
+    id: skillId,
+    name: entry.publicName || entry.public_name || entry.name || skillId,
+    invocation_class: entry.invocationClass || entry.invocation_class || usage.invocation_class,
+    lifecycle: entry.lifecycle,
+    surfaces: entry.surfaces,
+  };
+}
+
+function normalizeUsageIdentity(entry, stableId) {
+  if (entry.usage === undefined && entry.usageContract === undefined && entry.usage_contract === undefined) {
+    return null;
+  }
+  const usage = entry.usage !== undefined
+    ? entry.usage
+    : entry.usageContract !== undefined ? entry.usageContract : entry.usage_contract;
+  const skill = usageSkillForEntry(entry, stableId, usage || {});
+  const normalized = normalizeSkillUsage({ skill, usage });
+  const computedFingerprint = fingerprintSkillUsage({ skill, usage });
+  const declaredFingerprint = entry.usageFingerprint || entry.usage_fingerprint;
+  if (declaredFingerprint !== undefined && declaredFingerprint !== computedFingerprint) {
+    return {
+      error: projectionError(
+        'USAGE_FINGERPRINT_MISMATCH',
+        'compile',
+        `usage fingerprint for '${stableId}' does not match its normalized usage contract`,
+        { stableIds: [entry.skillId || entry.skill_id || stableId] },
+      ),
+    };
+  }
+  return {
+    usage: normalized,
+    usageFingerprint: computedFingerprint,
+    skillId: skill.id,
+    publicName: skill.name,
+    invocationClass: normalized.invocation_class,
+  };
+}
+
+function normalizeProvenance(entry, identity, context = {}) {
+  const source = entry.canonicalSource || entry.canonical_source || entry.source || null;
+  const sourceFingerprint = entry.sourceFingerprint || entry.source_fingerprint || null;
+  const transform = entry.transform || { id: 'identity', version: '1' };
+  const lifecycle = entry.lifecycle === undefined ? null : entry.lifecycle;
+  const retirementState = entry.retirementState || entry.retirement_state
+    || (lifecycle === 'deprecated' ? 'retired' : lifecycle === 'retired' ? 'retired' : 'active');
+  const externalLedger = context.externalSkillPackagesFingerprint;
+  const explicit = entry.provenance && typeof entry.provenance === 'object' && !Array.isArray(entry.provenance)
+    ? entry.provenance
+    : {};
+  return {
+    schema: PROVENANCE_SCHEMA,
+    inventoryRevision: explicit.inventoryRevision || explicit.inventory_revision || context.inventoryRevision || null,
+    canonicalSource: explicit.canonicalSource || explicit.canonical_source || source,
+    sourceFingerprint: explicit.sourceFingerprint || explicit.source_fingerprint || sourceFingerprint,
+    owner: explicit.owner || entry.sourceOwner || entry.source_owner || entry.owner || null,
+    transform: explicit.transform || transform,
+    lifecycle: explicit.lifecycle === undefined ? lifecycle : explicit.lifecycle,
+    retirementState: explicit.retirementState || explicit.retirement_state || retirementState,
+    publicName: explicit.publicName || explicit.public_name || identity.publicName || null,
+    invocationClass: explicit.invocationClass || explicit.invocation_class || identity.invocationClass || null,
+    ...(externalLedger !== undefined
+      ? { externalSkillPackagesFingerprint: externalLedger }
+      : (explicit.externalSkillPackagesFingerprint !== undefined
+        ? { externalSkillPackagesFingerprint: explicit.externalSkillPackagesFingerprint }
+        : (explicit.external_skill_packages_fingerprint !== undefined
+          ? { externalSkillPackagesFingerprint: explicit.external_skill_packages_fingerprint }
+          : {}))),
+  };
+}
+
+// Build the metadata carried by a surface output for one inventory skill. This
+// is intentionally a presentation-only adapter: the normalized usage object
+// and its fingerprint are copied from inventory, while the caller supplies the
+// output transform used by that surface.
+function skillProjectionMetadata(skill, { transform = null, inventoryRevision = null, owner = null, externalSkillPackagesFingerprint: externalLedger } = {}) {
+  if (!skill || typeof skill !== 'object' || skill.usage === undefined || skill.usage === null) return {};
+  const usageInput = { skill, usage: skill.usage };
+  const normalized = normalizeSkillUsage(usageInput);
+  const identity = {
+    skillId: skill.id,
+    publicName: skill.name || skill.publicName || skill.id,
+    invocationClass: normalized.invocation_class,
+  };
+  const entry = {
+    ...skill,
+    skillId: skill.id,
+    publicName: identity.publicName,
+    invocationClass: identity.invocationClass,
+    canonicalSource: skill.path,
+    sourceFingerprint: skill.source_fingerprint || skill.sourceFingerprint || null,
+    owner: owner || skill.owner || null,
+    transform: transform || { id: 'identity', version: '1' },
+  };
+  return {
+    ...identity,
+    lifecycle: skill.lifecycle === undefined ? null : skill.lifecycle,
+    usageSchema: USAGE_SCHEMA,
+    usage: normalized,
+    usageFingerprint: fingerprintSkillUsage(usageInput),
+    provenance: normalizeProvenance(entry, identity, {
+      inventoryRevision,
+      ...(externalLedger !== undefined ? { externalSkillPackagesFingerprint: externalLedger } : {}),
+    }),
+  };
+}
+
+function normalizeEntry(entry, index, context = {}) {
   if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
     return { error: projectionError('INVALID_ENTRY', 'compile', `projection entry ${index} must be an object`) };
   }
@@ -153,8 +269,9 @@ function normalizeEntry(entry, index) {
   if (mode !== null && (!Number.isInteger(mode) || mode < 0 || mode > 0o7777)) {
     return { error: projectionError('INVALID_MODE', 'compile', `projection entry ${stableId} requires a valid file mode`, { stableIds: [stableId] }) };
   }
-  return {
-    value: {
+  const usageIdentity = normalizeUsageIdentity(entry, stableId);
+  if (usageIdentity && usageIdentity.error) return usageIdentity;
+  const value = {
       stableId,
       source,
       sourceFingerprint: entry.sourceFingerprint || null,
@@ -167,7 +284,26 @@ function normalizeEntry(entry, index) {
         policy: symlinkPolicy,
         target: entry.symlinkTarget || null,
       },
-    },
+  };
+  if (usageIdentity) {
+    value.skillId = usageIdentity.skillId;
+    value.publicName = usageIdentity.publicName;
+    value.invocationClass = usageIdentity.invocationClass;
+    value.lifecycle = entry.lifecycle === undefined ? null : entry.lifecycle;
+    value.usage = usageIdentity.usage;
+    value.usageSchema = USAGE_SCHEMA;
+    value.usageFingerprint = usageIdentity.usageFingerprint;
+    value.provenance = normalizeProvenance(entry, usageIdentity, context);
+  } else if (entry.skillId || entry.skill_id || entry.publicName || entry.public_name || entry.name
+      || entry.provenance || entry.usageFingerprint || entry.usage_fingerprint) {
+    value.skillId = entry.skillId || entry.skill_id || entry.sourceId || entry.source_id || stableId;
+    value.publicName = entry.publicName || entry.public_name || entry.name || value.skillId;
+    if (entry.invocationClass || entry.invocation_class) value.invocationClass = entry.invocationClass || entry.invocation_class;
+    if (entry.lifecycle !== undefined) value.lifecycle = entry.lifecycle;
+    if (entry.provenance) value.provenance = clone(entry.provenance);
+  }
+  return {
+    value,
   };
 }
 
@@ -206,10 +342,25 @@ function createDistributionPlan(input = {}) {
       return result(undefined, projectionError('INCOMPLETE_PLAN', 'compile', 'claude-profile plans require a versioned selection policy'));
     }
   }
+  const ownershipInput = externalSkillPackagesInput(input);
+  const explicitOwnershipFingerprint = Object.prototype.hasOwnProperty.call(input, 'externalSkillPackagesFingerprint')
+    ? input.externalSkillPackagesFingerprint
+    : input.external_skill_packages_fingerprint;
+  const ownershipFingerprint = ownershipInput.present || explicitOwnershipFingerprint !== undefined
+    ? (explicitOwnershipFingerprint !== undefined
+      ? explicitOwnershipFingerprint
+      : externalSkillPackagesFingerprint(ownershipInput.value))
+    : undefined;
+  const inventoryRevision = input.inventoryRevision || input.inventory_revision
+    || (input.inventory ? resolveInventoryRevision(input.inventory, input.inventoryRevision) : null);
+  const normalizationContext = {
+    inventoryRevision,
+    ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
+  };
   const entries = [];
   const ids = new Set();
   for (const [index, raw] of input.entries.entries()) {
-    const normalized = normalizeEntry(raw, index);
+    const normalized = normalizeEntry(raw, index, normalizationContext);
     if (normalized.error) return result(undefined, normalized.error);
     if (ids.has(normalized.value.stableId)) {
       return result(undefined, projectionError('DUPLICATE_STABLE_ID', 'compile', `duplicate stable id '${normalized.value.stableId}'`, { stableIds: [normalized.value.stableId] }));
@@ -228,7 +379,7 @@ function createDistributionPlan(input = {}) {
     const normalizedSelectionEntries = [];
     const selectionIds = new Set();
     for (const [index, raw] of input.selectionEntries.entries()) {
-      const normalized = normalizeEntry(raw, index);
+      const normalized = normalizeEntry(raw, index, normalizationContext);
       if (normalized.error) return result(undefined, normalized.error);
       if (selectionIds.has(normalized.value.stableId)) {
         return result(undefined, projectionError('DUPLICATE_STABLE_ID', 'compile', `duplicate selection stable id '${normalized.value.stableId}'`, { stableIds: [normalized.value.stableId] }));
@@ -284,18 +435,51 @@ function createDistributionPlan(input = {}) {
       : (Array.isArray(profileSelection.emittedStableIds) ? [...new Set(profileSelection.emittedStableIds)] : null);
   }
 
+  const usageEntries = [...entries, ...(selectionEntries || [])]
+    .filter((entry) => entry && entry.usage && entry.usageFingerprint && entry.skillId);
+  if (usageEntries.length > 0) {
+    const usageById = new Map();
+    const provenanceById = new Map();
+    for (const entry of usageEntries) {
+      if (!usageById.has(entry.skillId)) {
+        usageById.set(entry.skillId, entry.usage);
+        provenanceById.set(entry.skillId, entry.provenance);
+      }
+    }
+    body.usageSchema = USAGE_SCHEMA;
+    body.inventoryRevision = inventoryRevision;
+    body.usage = Object.fromEntries([...usageById.entries()].sort(([left], [right]) => left.localeCompare(right)));
+    body.usageFingerprints = Object.fromEntries(
+      [...usageById.keys()].sort().map((id) => {
+        const sourceEntry = [...entries, ...(selectionEntries || [])]
+          .find((entry) => entry.skillId === id);
+        return [id, sourceEntry.usageFingerprint];
+      }),
+    );
+    body.provenance = Object.fromEntries([...provenanceById.entries()].sort(([left], [right]) => left.localeCompare(right)));
+    body.selectionFingerprint = input.selectionFingerprint || fingerprint({
+      surface,
+      inventoryRevision,
+      selectedStableIds: selectedIds,
+      usageFingerprints: body.usageFingerprints,
+      provenance: body.provenance,
+    });
+    body.surfaceSelectionFingerprint = input.surfaceSelectionFingerprint || fingerprint({
+      selectionFingerprint: body.selectionFingerprint,
+      surface,
+      emittedStableIds: body.emittedStableIds || selectedIds,
+      usageFingerprints: body.usageFingerprints,
+      transforms: entries.map((entry) => entry.transform),
+    });
+  } else {
+    if (input.selectionFingerprint) body.selectionFingerprint = input.selectionFingerprint;
+    if (input.surfaceSelectionFingerprint) body.surfaceSelectionFingerprint = input.surfaceSelectionFingerprint;
+  }
+
   // Ownership provenance was added after the v1 projection contract.  It is
   // deliberately omitted when no ledger (or explicit ledger fingerprint) is
   // supplied so legacy plan fingerprints remain byte-for-byte compatible.
-  const ownershipInput = externalSkillPackagesInput(input);
-  const explicitOwnershipFingerprint = Object.prototype.hasOwnProperty.call(input, 'externalSkillPackagesFingerprint')
-    ? input.externalSkillPackagesFingerprint
-    : input.external_skill_packages_fingerprint;
-  if (ownershipInput.present || explicitOwnershipFingerprint !== undefined) {
-    body.externalSkillPackagesFingerprint = explicitOwnershipFingerprint !== undefined
-      ? explicitOwnershipFingerprint
-      : externalSkillPackagesFingerprint(ownershipInput.value);
-  }
+  if (ownershipFingerprint !== undefined) body.externalSkillPackagesFingerprint = ownershipFingerprint;
   return result({ ...body, planFingerprint: fingerprint(body) });
 }
 
@@ -312,6 +496,12 @@ function createDistributionArtifact(input = {}) {
     links: Array.isArray(input.links) ? input.links : [],
     metadata: input.metadata === undefined ? undefined : input.metadata,
   };
+  if (input.usageSchema !== undefined) body.usageSchema = input.usageSchema;
+  if (input.inventoryRevision !== undefined) body.inventoryRevision = input.inventoryRevision;
+  if (input.usageFingerprints !== undefined) body.usageFingerprints = clone(input.usageFingerprints);
+  if (input.provenance !== undefined) body.provenance = clone(input.provenance);
+  if (input.selectionFingerprint !== undefined) body.selectionFingerprint = input.selectionFingerprint;
+  if (input.surfaceSelectionFingerprint !== undefined) body.surfaceSelectionFingerprint = input.surfaceSelectionFingerprint;
   const externalSkillPackagesFingerprintValue = Object.prototype.hasOwnProperty.call(input, 'externalSkillPackagesFingerprint')
     ? input.externalSkillPackagesFingerprint
     : input.external_skill_packages_fingerprint;
@@ -340,6 +530,10 @@ function createEvidenceResult(input = {}) {
     diagnostics: Array.isArray(input.diagnostics) ? input.diagnostics : [],
     observedAt: input.observedAt,
   };
+  if (input.inventoryRevision !== undefined) body.inventoryRevision = input.inventoryRevision;
+  if (input.usageSchema !== undefined) body.usageSchema = input.usageSchema;
+  if (input.usageFingerprints !== undefined) body.usageFingerprints = clone(input.usageFingerprints);
+  if (input.provenance !== undefined) body.provenance = clone(input.provenance);
   const externalSkillPackagesFingerprintValue = Object.prototype.hasOwnProperty.call(input, 'externalSkillPackagesFingerprint')
     ? input.externalSkillPackagesFingerprint
     : input.external_skill_packages_fingerprint;
@@ -359,8 +553,12 @@ module.exports = {
   fingerprint,
   normalizeExternalSkillPackages,
   externalSkillPackagesFingerprint,
+  PROVENANCE_SCHEMA,
+  USAGE_SCHEMA,
   projectionError,
+  resolveInventoryRevision,
   createDistributionPlan,
   createDistributionArtifact,
   createEvidenceResult,
+  skillProjectionMetadata,
 };

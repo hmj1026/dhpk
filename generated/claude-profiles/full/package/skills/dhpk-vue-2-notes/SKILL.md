@@ -13,7 +13,7 @@ it arrives in 2.7 as a backport and is the default in Vue 3.
 
 > SFCs (`.vue`) are compiled by `vue-loader` driven by Laravel Mix
 > (webpack 4). Source lives under `resources/assets/js`. See the
-> `laravel-mix` module for the build wiring.
+> `laravel` family skill's `mix` selector for the build wiring.
 
 ---
 
@@ -212,7 +212,7 @@ relaxing the single-root rule, and converting global API calls
 
 Not for Vue 3 or the 2.7 Composition API — this baseline predates `setup()` /
 `<script setup>`, so `ref` / `reactive` / composables do not exist. Not for the
-build pipeline (see the `laravel-mix` module) or non-`.vue` JS (see
+build pipeline (see the `laravel` family skill's `mix` selector) or non-`.vue` JS (see
 `dhpk-js-static-check-strategy`). Load when touching `.vue` SFCs in a `vue ^2.5.x`
 codebase, or planning a 2 → 3 migration.
 
@@ -235,7 +235,7 @@ Options-API `.vue` components with `data()` as a function, props-down /
 
 ## Cross-references
 
-- `skills/dhpk-laravel-mix-notes/SKILL.md` — the webpack
-  build that compiles these `.vue` SFCs and maps them to `public/`
+- `skills/laravel/SKILL.md` (`mix` selector) — the webpack build that compiles
+  these `.vue` SFCs and maps them to `public/`
 - `skills/dhpk-js-static-check-strategy/SKILL.md` — ESLint /
   TypeScript tier strategy that governs the `.vue` and `.js` sources

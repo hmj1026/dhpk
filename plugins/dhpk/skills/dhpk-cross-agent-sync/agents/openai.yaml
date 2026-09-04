@@ -1,6 +1,0 @@
-interface:
-  display_name: "Multi AI Sync"
-  short_description: "Sync Claude configs across Codex, AGY, and Cursor"
-  default_prompt: "Use $dhpk-cross-agent-sync to compare `.claude` against Codex, Antigravity, AGY native plugins, and Cursor, then produce a reviewable sync plan."
-policy:
-  allow_implicit_invocation: false

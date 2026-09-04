@@ -27,7 +27,7 @@ const INVENTORY_FILE = path.join(ROOT, 'manifests', 'distribution-inventory.json
 
 const FAMILY_CONTRACTS = Object.freeze({
   laravel: Object.freeze({
-    directory: 'dhpk-laravel',
+    directory: 'laravel',
     selectors: Object.freeze(['5.4', '6', '7', '8', '9', '10', '11', 'mix']),
     references: Object.freeze({
       '5.4': 'references/5-4.md',
@@ -52,7 +52,7 @@ const FAMILY_CONTRACTS = Object.freeze({
     composerJson: { require: { 'laravel/framework': '^9.0' } },
   }),
   phpunit: Object.freeze({
-    directory: 'dhpk-phpunit',
+    directory: 'phpunit',
     selectors: Object.freeze(['9', '10', '11']),
     references: Object.freeze({
       '9': 'references/9.md',
@@ -270,7 +270,7 @@ test('PHPUnit resolver CLI returns the auto-detected selector contract as JSON',
 test('a copied Laravel family directory resolves explicitly with no repository dependencies', () => {
   const stage = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-version-family-copy-'));
   try {
-    const copiedFamily = path.join(stage, 'dhpk-laravel');
+    const copiedFamily = path.join(stage, 'laravel');
     const emptyProject = path.join(stage, 'empty-project');
     fs.cpSync(familyRoot('laravel'), copiedFamily, { recursive: true });
     fs.mkdirSync(emptyProject);
@@ -295,7 +295,7 @@ test('a copied Laravel family directory resolves explicitly with no repository d
 test('a copied PHPUnit family directory resolves explicitly with no repository dependencies', () => {
   const stage = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-version-family-copy-'));
   try {
-    const copiedFamily = path.join(stage, 'dhpk-phpunit');
+    const copiedFamily = path.join(stage, 'phpunit');
     const emptyProject = path.join(stage, 'empty-project');
     fs.cpSync(familyRoot('phpunit'), copiedFamily, { recursive: true });
     fs.mkdirSync(emptyProject);
@@ -317,7 +317,7 @@ test('a copied PHPUnit family directory resolves explicitly with no repository d
   }
 });
 
-test('checked-in legacy IDs resolve to family references while preserving invocation class and surfaces', () => {
+test('checked-in family IDs resolve selectors while retired version IDs remain alias-free', () => {
   const inventory = readInventory();
   const families = inventory.skill_routing_families || [];
   const familyById = new Map(families.map((family) => [family.id, family]));
@@ -334,42 +334,39 @@ test('checked-in legacy IDs resolve to family references while preserving invoca
     assert.strictEqual(familyEntry.invocation_class, family.invocation_class);
     assert.ok(familyEntry.surfaces.includes('claude-core'));
 
+    assert.deepStrictEqual(family.aliases || [], [], `${familyId} must not publish compatibility aliases`);
     for (const selector of contract.selectors) {
       const legacyId = contract.legacyIds[selector];
-      const alias = family.aliases.find((candidate) => candidate.id === legacyId);
-      const legacyEntry = inventory.skills.find((skill) => skill.id === legacyId);
       const reference = `skills/${contract.directory}/${contract.references[selector]}`;
 
-      assert.ok(alias, `${legacyId} must be retained as one family alias`);
-      assert.ok(legacyEntry, `${legacyId} must retain an inventory identity`);
       assert.strictEqual(family.selectors[selector], reference);
-      assert.strictEqual(alias.selector, selector);
-      assert.strictEqual(alias.invocation_class, family.invocation_class);
-      assert.deepStrictEqual([...alias.surfaces].sort(), [...family.surfaces].sort());
-      assert.strictEqual(legacyEntry.invocation_class, family.invocation_class);
-      assert.deepStrictEqual([...legacyEntry.surfaces].sort(), [...alias.surfaces].sort());
-
-      assert.deepStrictEqual(resolveSkillRoutingAlias({ families, id: legacyId }), {
-        familyId,
-        routerId: family.router_id,
-        selector,
+      assert.strictEqual(
+        resolveSkillRoutingReference({ inventory, families, familyId, selector }),
         reference,
-      });
-      assert.strictEqual(resolveSkillRoutingReference({ inventory, families, id: legacyId }), reference);
+      );
+      assert.strictEqual(resolveSkillRoutingAlias({ families, id: legacyId }), null);
+      assert.strictEqual(resolveSkillRoutingReference({ inventory, families, id: legacyId }), null);
+      const retired = inventory.retired_skills.find((entry) => entry.id === legacyId);
+      assert.ok(retired, `${legacyId} must remain in the retirement ledger`);
+      assert.deepStrictEqual(retired.replacements, [{
+        kind: 'skill',
+        id: familyId,
+        mode: selector,
+      }]);
     }
   }
 });
 
-test('legacy family aliases are lifecycle-hidden and absent from discovery-generated IDs', () => {
+test('retired family IDs are absent from discovery-generated IDs and active inventory', () => {
   const inventory = readInventory();
   const generated = generateClaudeSkillRoots(inventory).generatedSkillIds;
 
   for (const contract of Object.values(FAMILY_CONTRACTS)) {
     for (const legacyId of Object.values(contract.legacyIds)) {
-      const entry = inventory.skills.find((skill) => skill.id === legacyId);
-      assert.ok(entry, `${legacyId} must remain addressable in the inventory`);
-      assert.strictEqual(entry.lifecycle, 'deprecated');
-      assert.strictEqual(entry.discoveryVisible, false);
+      const entry = inventory.retired_skills.find((skill) => skill.id === legacyId);
+      assert.ok(entry, `${legacyId} must remain in the retirement ledger`);
+      assert.strictEqual(entry.retiredIn, '0.54.0');
+      assert.ok(!inventory.skills.some((skill) => skill.id === legacyId));
       assert.ok(!generated.includes(legacyId), `${legacyId} must not be discovery-generated`);
     }
   }
@@ -381,7 +378,7 @@ function routingFixture() {
     router_id: 'php-pro',
     invocation_class: 'implicit-eligible',
     surfaces: ['claude-module'],
-    selectors: { '8': 'skills/dhpk-laravel/references/8.md' },
+    selectors: { '8': 'skills/laravel/references/8.md' },
     aliases: [{
       id: 'laravel-8-notes',
       selector: '8',

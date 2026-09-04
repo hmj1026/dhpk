@@ -7,15 +7,15 @@ const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const CANONICAL = path.join(ROOT, 'skills', 'dhpk-cross-agent-sync', 'scripts', 'multi_ai_sync.py');
-const CODEX = path.join(ROOT, 'codex', 'skills', 'dhpk-cross-agent-sync', 'scripts', 'multi_ai_sync.py');
+const CANONICAL = path.join(ROOT, 'skills', 'harness-govern', 'scripts', 'multi_ai_sync.py');
+const CODEX = path.join(ROOT, 'codex', 'skills', 'harness-govern', 'scripts', 'multi_ai_sync.py');
 const DRIFT = path.join(ROOT, 'scripts', 'check-cross-cli-drift.sh');
 
 function runPython(script, args = []) {
   return spawnSync('python3', ['-B', script, ...args], { encoding: 'utf8', timeout: 20000 });
 }
 
-test('canonical and Codex multi-ai-sync self-tests both pass in a clean scratch repo', () => {
+test('canonical and Codex harness-govern sync self-tests both pass in a clean scratch repo', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-multi-ai-sync-'));
   try {
     const canonical = runPython(CANONICAL, ['self-test', '--format', 'json']);
@@ -53,4 +53,4 @@ test('cross-cli drift reports content mismatch even below the mtime threshold', 
   }
 });
 
-run('multi-ai-sync-parity');
+run('harness-govern-sync-parity');

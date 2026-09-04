@@ -16,6 +16,9 @@ const {
 const {
   fingerprint,
   projectionError,
+  externalSkillPackagesFingerprint,
+  resolveInventoryRevision,
+  skillProjectionMetadata,
 } = require('./distribution-projection-contract');
 const {
   resolveCapabilitySelection,
@@ -383,7 +386,7 @@ function commandSources(selection, root) {
   return [];
 }
 
-function createBundleEntries(selection, root) {
+function createBundleEntries(selection, root, metadataContext = {}) {
   const outputs = [{
     stableId: 'claude-profile:manifest',
     source: '.claude-plugin/plugin.json',
@@ -413,14 +416,21 @@ function createBundleEntries(selection, root) {
       return { error: projectionError('UNSAFE_PATH', 'compile', `selected skill source cannot be read safely: '${entry.id}'`, { stableIds: [entry.id], details: { cause: error.message } }) };
     }
     const stableId = `claude-profile:skill:${entry.id}`;
+    const transform = { id: 'claude-profile-skill', version: BUNDLE_VERSION };
+    const sourceFingerprint = crypto.createHash('sha256').update(content).digest('hex');
     outputs.push({
       stableId,
       source: entry.path,
-      sourceFingerprint: crypto.createHash('sha256').update(content).digest('hex'),
+      sourceFingerprint,
       destination,
       owner: 'claude-profile',
-      transform: { id: 'claude-profile-skill', version: BUNDLE_VERSION },
-      expectedFingerprint: crypto.createHash('sha256').update(content).digest('hex'),
+      transform,
+      expectedFingerprint: sourceFingerprint,
+      ...skillProjectionMetadata({ ...entry, sourceFingerprint }, {
+        transform,
+        owner: 'claude-profile',
+        ...metadataContext,
+      }),
     });
     contentByStableId.set(stableId, content);
   }
@@ -484,7 +494,15 @@ function compileClaudeCapabilityBundle({ root, inventory, profiles, moduleCatalo
   const selection = resolveClaudeProfile({ profileId, skillIds, profiles, moduleCatalog, inventory });
   if (!selection.ok) return selection;
   const rootPath = root || process.cwd();
-  const entryResult = createBundleEntries(selection.value, rootPath);
+  const inventoryRevision = resolveInventoryRevision(inventory);
+  const ownershipFingerprint = Object.prototype.hasOwnProperty.call(inventory, 'external_skill_packages')
+    ? externalSkillPackagesFingerprint(inventory.external_skill_packages)
+    : undefined;
+  const metadataContext = {
+    inventoryRevision,
+    ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
+  };
+  const entryResult = createBundleEntries(selection.value, rootPath, metadataContext);
   if (entryResult.error) return { ok: false, error: entryResult.error };
   const selectionEntries = selection.value.selectedEntries.map((entry) => ({
     id: entry.id,
@@ -493,6 +511,11 @@ function compileClaudeCapabilityBundle({ root, inventory, profiles, moduleCatalo
     sourceFingerprint: entry.source_fingerprint || entry.sourceFingerprint || null,
     owner: entry.owner || 'claude-profile',
     transform: entry.transform || { id: 'identity', version: '1' },
+    ...skillProjectionMetadata(entry, {
+      transform: entry.transform || { id: 'identity', version: '1' },
+      owner: entry.owner || 'claude-profile',
+      ...metadataContext,
+    }),
   }));
   const compiled = compileDistribution({
     compilerVersion,
@@ -504,6 +527,8 @@ function compileClaudeCapabilityBundle({ root, inventory, profiles, moduleCatalo
     profileSelection: selection.value.identity,
     compatibilityMode: selection.value.mode,
     inventoryFingerprint: fingerprint(stableInput(inventory)),
+    inventoryRevision,
+    ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
     inputFingerprint: selection.value.inputFingerprint,
     ownershipRoot: '.claude-profile',
   });
@@ -547,9 +572,8 @@ function createClaudeCapabilityBundleAdapter({ root, compiled } = {}) {
     identity: { id: 'claude-capability-bundle', version: BUNDLE_VERSION },
     render: () => ({
       adapter: { id: 'claude-capability-bundle', version: BUNDLE_VERSION },
-      outputs: compiled.outputs.map((entry) => ({
-        stableId: entry.stableId,
-        destination: entry.destination,
+    outputs: compiled.outputs.map((entry) => ({
+        ...entry,
         content: contents.get(entry.stableId),
       })),
       metadata: receipt,

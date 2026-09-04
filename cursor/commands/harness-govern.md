@@ -1,111 +1,63 @@
 ---
 name: harness-govern
-description: "End-to-end harness governance loop and single front door for the harness-* family — measure (harness-budget + harness-audit) -> conform to official Claude Code best-practices -> fix (harness-revise) -> verify. Read-only by default; --fix opts into mutations. Safe to /loop."
+description: "Explicit harness governance front door with health, budget, fill, revise, and sync modes; each mode preserves its own evidence and mutation boundary."
 ---
-# /dhpk:harness-govern
+# `/dhpk:harness-govern`
 
-Single orchestrator and **front door for the harness-* family** — runs the governance loop end-to-end by **delegating** to the existing specialists; it adds zero new measurement logic.
-
-> The harness-* family (use a specialist directly when you only need that one concern):
-> - `/dhpk:harness-audit` = deterministic 7-category **score** (read-only). `dhpk-harness-budget` = **token** accounting. `dhpk-harness-revise` = **trim/dedupe/validate** (G1–G13, mutating). `/dhpk:dhpk-harness-fill` = one-shot **backfill** of missing `.claude/` infrastructure (onboarding). `dhpk-claude-health` = `.claude/` hygiene.
-> - `agent-evaluator` (agent) = score a **completed agent run's OUTPUT** quality (5-axis: accuracy / completeness / clarity / actionability / conciseness, grep-verified) — the run-output analog of `skill-scope` (which scores skill *definitions*). Dispatch it directly when you need an objective quality verdict on a finished run; not part of this command's measurement loop.
-> - This command is the **detect -> fix loop** that sequences them and applies the official best-practices lens (the broader reliability/cost/throughput scoring that the former `harness-optimizer` agent did is now this command's conform step).
-
-## Mode (loop-safe)
-
-- **Default = read-only**: Measure + Conform + report. Nothing is mutated, so `/loop /dhpk:harness-govern` is safe.
-- **`--fix`** opts into the mutating Fix step through `Skill(dhpk-harness-revise)` with `--apply`. Never auto-applied without this flag.
+Use this command as the single explicit entry point for harness governance.
+Select exactly one mode and pass its options through to the canonical
+`skills/harness-govern/SKILL.md` procedure. A missing or ambiguous mode is
+`BLOCKED`; do not infer a mode or run every mode.
 
 ## Usage
 
+```text
+/dhpk:harness-govern <health|budget|fill|revise|sync> [options]
 ```
-/dhpk:harness-govern [--fix] [--scope repo|skills|rules|mcp]
-```
 
-## Workflow
+| Mode | Use for | Boundary |
+| --- | --- | --- |
+| `health` | Diagnose harness configuration and hygiene | Read-only unless the mode explicitly receives its approved fix option |
+| `budget` | Measure context cost and model-tier economics | Measurement only |
+| `fill` | Propose or backfill missing harness layers | Preview first; apply only after approval |
+| `revise` | Trim, deduplicate, and validate an existing harness | Dry-run first; apply only after approval |
+| `sync` | Plan, apply, or validate cross-platform harness synchronization | Plan and dry-run are read-only; external targets require approval |
 
-### Step 1 — Measure (delegate; do NOT re-implement)
+## Contract
 
-- **Precondition** — if `.claude/` is sparse or unbuilt (no agents/skills/rules to govern), this loop has nothing to act on: suggest `/dhpk:dhpk-harness-fill` first (one-shot backfill) and stop. `dhpk-harness-fill` is onboarding, deliberately *not* part of this maintenance loop.
-- Run `Skill(dhpk-harness-budget)` for token consumption across agents/skills/rules/MCP/CLAUDE.md.
-- Run `/dhpk:harness-audit` (script SSOT: `scripts/harness-audit.js`) for the 7-category scorecard.
-- Collect a few raw counts for the conform pass:
-  ```bash
-  PROJ="${CLAUDE_PROJECT_DIR:-$PWD}"; G="$HOME/.claude"
-  echo -n "CLAUDE.md lines: "; wc -l < "$PROJ/CLAUDE.md" 2>/dev/null
-  for f in $(find -L "$PROJ/.claude/rules" -name '*.md' 2>/dev/null); do head -8 "$f" | grep -q '^paths:' && s=SCOPED || s=ALWAYS; echo "$s ${f#$PROJ/}"; done
-  echo -n "global rules always-on lines: "; find -L "$G/rules" -name '*.md' 2>/dev/null | xargs wc -l 2>/dev/null | tail -1
-  ```
+1. Resolve the target harness directory. An explicit `--dir` wins; ambiguous
+   discovery is `BLOCKED`.
+2. Record the selected mode, target, action, dry-run state, changed paths,
+   commands, timestamps, and exit codes. Preserve unrelated dirty work.
+3. Load only the selected mode procedure and its named references. Keep the
+   other mode procedures undisclosed until a new mode is explicitly selected.
+4. Keep planned, applied, manual, failed, skipped, unavailable, and
+   not-configured states distinct. Do not claim a write, parity, release, or
+   external result without its own evidence.
+5. End with one terminal status (`PASS`, `FAIL`, `BLOCKED`, `NOT_CONFIGURED`,
+   or `NOT_RUN`) and exactly one next action. `NOT_RUN` is not `PASS`.
 
-### Step 2 — Conform (the only net-new knowledge here)
+## Mode-specific handoff
 
-Judge the measurements against the **official Claude Code best-practices checklist**, mark ✅/⚠️ each:
+- `health`: report the selected hygiene/configuration checks and any safe fix
+  commands that still require operator approval.
+- `budget`: report the detected model/window, observed component counts,
+  estimates versus observations, and ranked savings.
+- `fill`: report the inventory, gaps, selected layers, proposed or written
+  files, and post-write verification.
+- `revise`: report the baseline, G1–G13 findings, per-fix checks, post-fix
+  checks, and deferred items.
+- `sync`: report preflight, mapping plan, dry-run/apply state, per-platform
+  validation, and any external target that was not configured.
 
-| Check | Threshold |
-|---|---|
-| CLAUDE.md lean | < 200 lines; every line passes "removing it would cause a mistake?" |
-| rules path-scoping | language/context-specific rules carry `paths:`; only ALWAYS-on the truly cross-cutting |
-| skill-surface budget | many skills -> descriptions truncate and lose trigger keywords (`/doctor` to confirm) |
-| side-effect skills | `disable-model-invocation: true` for manual/mutating skills |
-| MCP | disable unused servers; `/mcp` for per-server cost |
-| guardrails | "must happen every time" lives in a hook, not a prompt |
-| verification gate | a check Claude can run (test/build) + an explicit end gate such as `/goal` |
+## Related owners
 
-Then scan the **five leverage areas** (absorbed from the former `harness-optimizer` agent) and name the top 3 with the highest reliability/cost/throughput payoff — propose minimal, reversible changes for each, but **delegate the edits to the Fix step** through `Skill(dhpk-harness-revise)`; do not mutate here:
+- `skills/harness-govern/SKILL.md` — mode contracts and progressive-disclosure
+  references.
+- `rules/execution-policy.md` — dispatch, reviewer, and dirty-worktree rules.
+- `$flow-guide help harness-govern` — Codex usage, options, and invocation
+  class.
 
-| Leverage area | What to look for |
-|---|---|
-| hooks | must-happen guardrails missing / fragile / firing on the wrong files |
-| evals | no runnable check Claude can self-verify against (test/build/goal) |
-| routing | triggers/keywords that don't reach the right skill or agent |
-| context | token bloat, truncated skill surface, redundant always-on rules |
-| safety | dangerous-command coverage, sentinel gates, protected-branch handling |
-
-**Known caveats (cite when relevant):**
-- `skillOverrides` does **not** apply to plugin skills — cannot hide them via settings. The `modules` option gates hooks/triggers, **not** the skill listing (issue #12); reduce the *listed* plugin-skill count via whole-plugin `/plugin` disable or by shipping fewer modules.
-- claude.ai connectors (Canva/Gmail/Drive/...) are **account-level**; disable via `/mcp`, not a file edit. Only `~/.claude.json` `mcpServers` are file-level.
-- `skillListingBudgetFraction` is the **only file-level lever** that stops description truncation across *all* skills (plugin included).
-
-Docs: `code.claude.com/docs/en/{best-practices,features-overview,skills,hooks-guide,mcp,permission-modes,sandboxing}`.
-
-### Step 3 — Fix (only with `--fix`)
-
-- Invoke `Skill(dhpk-harness-revise)` with `--scan`, then invoke the same skill with `--apply` only when this command received `--fix` (G1–G13, with its own acceptance gate + `code-reviewer`).
-- List items that **cannot** be auto-applied and need an interactive command: `/doctor` (skill truncation), `/mcp` (disable connectors/servers), `/plugin` (disable plugin components).
-
-### Step 4 — Verify
-
-- Re-run Step 1 measurement; confirm deltas moved the right way.
-- `/doctor` shows truncated/dropped skills decreased; `/mcp` shows removed servers gone.
-- Spot-check that triggers which should fire still fire (no behavior drift).
-
-## Delegation Routing
-
-| Step | Delegates to |
-|------|--------------|
-| Measure | `Skill(dhpk-harness-budget)` + `/dhpk:harness-audit` (or suggest `/dhpk:dhpk-harness-fill` first if `.claude/` is unbuilt) |
-| Conform | this command (official best-practices lens + five-leverage-area scan) |
-| Fix (`--fix`) | `Skill(dhpk-harness-revise)` with `--scan`, then `--apply` (-> `harness-reviser` agent, `code-reviewer`) |
-| Verify | re-measure + `/doctor` + `/mcp` |
-
-## Output Contract
-
-Reply in order: (1) Measure summary (token + 7-category score + counts), (2) Conform checklist with ✅/⚠️ and the relevant caveats, (3) prioritized findings, (4) Fix results if `--fix` else "read-only — pass `--fix` to apply", (5) interactive follow-ups (`/doctor` `/mcp` `/plugin`).
-
-## Anti-patterns
-
-- Re-implementing token/score measurement instead of delegating to `dhpk-harness-budget` / `/dhpk:harness-audit`.
-- Mutating anything without `--fix`.
-- Merging or duplicating the specialist skills — this command only orchestrates; the specialists stay the SSOT.
-
-## Loop
-
-Periodic governance: `/loop 7d /dhpk:harness-govern` (read-only) or let the model self-pace. Use `--fix` only in attended runs.
-
-**Note on stop conditions**: the above is a pure time-based loop, not a goal-based one.
-
-- It re-runs on a fixed interval but carries no success criterion of its own, so it cannot tell "still clean" apart from "drifted, needs `--fix`." Its "safe to /loop" property (see "Mode (loop-safe)" above) is about read-only idempotency, not an adaptive stop signal.
-- For a goal-based loop — one that keeps going until a measurable condition holds, per Claude Code's `/goal` primitive — pair the schedule with a condition drawn from this command's own Step 1/2 output, e.g. "harness-audit's 7-category score has not regressed since the last run AND the Conform checklist has zero new ⚠️ items." A vague condition ("harness looks fine") will not self-verify; one anchored to this command's own deterministic output will.
-- `--fix` stays opt-in even under a goal-based loop — the goal gates *reporting drift*, not auto-mutation.
-
-$ARGUMENTS: `--fix` (apply trim step) | `--scope repo|skills|rules|mcp` (optional focus)
+Do not recreate mode-specific checks in this command. Use the canonical skill
+and its selected references so each mode retains the capability and evidence
+of its predecessor without exposing retired entry points.

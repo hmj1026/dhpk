@@ -89,7 +89,7 @@ fingerprint 時，才允許 Cursor-specific copy。如此 shared portable skills
 
 `scripts/ci/gen-claude-manifest.js` 從 inventory 產生 `.claude-plugin/plugin.json` 的
 skill root。raw source checkout 仍保留作為明確指定的 compatibility surface；目前是一個
-registered directory root，下面有 72 個 inventory-eligible skill ID。
+registered directory root，下面有 63 個 inventory-eligible skill ID。
 所有 package 都扁平位於 `skills/dhpk-<name>/`；module `skills/` 只是相對 symlink
 projection。`0.47.0` 的五筆 retirement row 只存在於診斷 ledger，不會 materialize 成
 package 或 alias；請參閱 [alias-free retirement 指引](./skill-platform-migration.zh-TW.md#alias-free-retirement-ledger-0470)。
@@ -132,9 +132,9 @@ Claude manifest 註冊的是 skill **directory root**，不是逐 skill allowlis
 
 | Profile | 意義 |
 |---|---|
-| `minimal` | inventory required_core_ids；clean install 的預設。 |
-| `full` | 既有 conflict-aware module closure 加上明確 stable IDs；不代表完整 catalog。 |
-| `compat-v1` | 前一版相容 allowlist 的 71 個 stable ID；未標註舊 receipt 的相容 fallback。 |
+| `minimal` | inventory required_core_ids（8 個 skill）；clean install 的預設。 |
+| `full` | 既有 conflict-aware module closure（55 個 skill）加上明確 stable IDs；不代表完整 catalog。 |
+| `compat-v1` | predecessor-compatible allowlist（62 個 stable ID）；未標註舊 receipt 的相容 fallback。 |
 
 Distribution 與 project-local installer 支援 `--profile <id>` 及可重複的
 `--skill <stable-id>` additive overlay。unknown、retired、deprecated、surface

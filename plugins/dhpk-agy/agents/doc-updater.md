@@ -31,8 +31,8 @@ their implementation policy here.
 - Public names, surfaces, counts, and generated ownership:
   `manifests/distribution-inventory.json`.
 - Route matching, flags, and invocation classes:
-  `skills/flow-drive/references/route-table.json`,
-  `skills/flow-drive/scripts/route-result.js`, and
+  `skills/flow-guide/references/route-table.json`,
+  `skills/flow-guide/scripts/route-result.js`, and
   `skills/flow-drive/SKILL.md`.
 - Configuration and installation behavior: `docs/configuration.md`,
   `docs/platform-installation.md`, and `docs/skill-platform-migration.md`.

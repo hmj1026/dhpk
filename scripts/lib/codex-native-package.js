@@ -16,6 +16,11 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { RECEIPT_SCHEMA, SURFACE_OWNERS, resolveGeneratedFromTree } = require('./platform-provenance');
 const {
+  externalSkillPackagesFingerprint,
+  resolveInventoryRevision,
+  skillProjectionMetadata,
+} = require('./distribution-projection-contract');
+const {
   compileDistribution,
   materializeDistribution,
   verifyDistribution,
@@ -337,7 +342,7 @@ function legacyInventoryDigest(inventory) {
   return crypto.createHash('sha256').update(JSON.stringify(source)).digest('hex');
 }
 
-function nativeOutputRecord(stableId, source, destination, content, transform, mode = 0o644) {
+function nativeOutputRecord(stableId, source, destination, content, transform, mode = 0o644, metadata = {}) {
   return {
     stableId,
     source,
@@ -345,6 +350,7 @@ function nativeOutputRecord(stableId, source, destination, content, transform, m
     content,
     mode,
     transform: transform || { id: 'codex-native-generated', version: GENERATOR_VERSION },
+    ...metadata,
   };
 }
 
@@ -390,6 +396,10 @@ function compileNativePackage({
   const files = [];
   const fingerprints = {};
   const selectedEntries = [];
+  const inventoryRevision = resolveInventoryRevision(inventory);
+  const ownershipFingerprint = Object.prototype.hasOwnProperty.call(inventory, 'external_skill_packages')
+    ? externalSkillPackagesFingerprint(inventory.external_skill_packages)
+    : undefined;
   for (const skill of nativeSelection.materialized) {
     const publicName = skill.name || skill.id;
     const sourcePath = skill.path;
@@ -405,14 +415,22 @@ function compileNativePackage({
     }
     const skillFiles = nativeSourceFiles(sourceDir, '', { budget: traversalBudget });
     fingerprints[publicName] = nativeSkillFingerprint(skillFiles);
+    const skillTransform = { id: 'codex-native-skill', version: generatorVersion };
+    const skillMetadata = skillProjectionMetadata(skill, {
+      transform: skillTransform,
+      owner: SURFACE_OWNERS['codex-native'],
+      inventoryRevision,
+      ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
+    });
     for (const file of skillFiles) {
       files.push(nativeOutputRecord(
         `skill:${skill.id}:${file.destination}`,
         path.posix.join(sourcePath, file.destination),
         path.posix.join('skills', publicName, file.destination),
         file.content,
-        { id: 'codex-native-skill', version: generatorVersion },
+        skillTransform,
         file.mode,
+        skillMetadata,
       ));
     }
     selectedEntries.push(skill);
@@ -439,6 +457,7 @@ function compileNativePackage({
     generatedFromCommit: sourceCommit,
     ...(generatedFromTree ? { generatedFromTree } : {}),
     inventoryDigest,
+    inventoryRevision,
     generatorVersion,
     selectedSkillIds,
     selectedSkillNames,
@@ -447,6 +466,15 @@ function compileNativePackage({
     runtimeSupportStableIds: nativeSelection.runtimeSupportStableIds,
     fingerprints,
     routingProjection,
+    ...(selectedEntries.some((entry) => entry.usage) ? {
+      usageSchema: 'dhpk.skill-usage.v1',
+      usage: Object.fromEntries(selectedEntries.filter((entry) => entry.usage).map((entry) => [entry.id, entry.usage])),
+      usageFingerprints: Object.fromEntries(selectedEntries.filter((entry) => entry.usage).map((entry) => [
+        entry.id,
+        skillProjectionMetadata(entry, { inventoryRevision }).usageFingerprint,
+      ])),
+    } : {}),
+    ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
     ...(profileSelection ? {
       profileId: profileSelection.profileId || profileSelection.id,
       selectedStableIds: profileSelection.selectedStableIds,
@@ -482,11 +510,23 @@ function compileNativePackage({
     expectedFingerprint: crypto.createHash('sha256').update(file.content).digest('hex'),
     mode: file.mode,
     symlinkPolicy: 'forbid',
+    ...(file.skillId ? {
+      skillId: file.skillId,
+      publicName: file.publicName,
+      invocationClass: file.invocationClass,
+      lifecycle: file.lifecycle,
+      usageSchema: file.usageSchema,
+      usage: file.usage,
+      usageFingerprint: file.usageFingerprint,
+      provenance: file.provenance,
+    } : {}),
   }));
   const compiled = compileDistribution({
     surface: 'codex-native',
     compilerVersion: `codex-native-${generatorVersion}`,
     inventoryFingerprint: inventoryDigest,
+    inventoryRevision,
+    ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
     ownershipRoot: resolvedOut,
     entries,
     selectedStableIds: selection && selection.ok && selection.value.selectionPolicy
@@ -496,7 +536,18 @@ function compileNativePackage({
       ? selection.value.selectionPolicy
       : undefined,
     selectionEntries: selection && selection.ok && selection.value.selectionPolicy
-      ? (selection.value.selectionEntries || selection.value.entries)
+      ? (selection.value.selectionEntries || selection.value.entries).map((entry) => {
+        const skill = (inventory.skills || []).find((candidate) => candidate.id === entry.stableId || candidate.id === entry.skillId);
+        return skill ? {
+          ...entry,
+          ...skillProjectionMetadata(skill, {
+            transform: entry.transform,
+            owner: SURFACE_OWNERS['codex-native'],
+            inventoryRevision,
+            ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
+          }),
+        } : entry;
+      })
       : undefined,
     profileSelection: profileSelection ? { ...profileSelection, emittedStableIds: selectedSkillIds } : null,
     emittedStableIds: profileSelection ? selectedSkillIds : undefined,

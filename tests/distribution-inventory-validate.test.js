@@ -77,7 +77,7 @@ test('routing families reject duplicate aliases, missing router targets, ambiguo
   assert.match(errors, /duplicate alias/);
 });
 
-test('checked-in family aliases resolve deterministically and retain Laravel/PHPUnit IDs on their declared surface', () => {
+test('checked-in families resolve selectors directly while retired version IDs remain alias-free', () => {
   const inventory = require('../manifests/distribution-inventory.json');
   const expected = {
     'laravel-5.4-notes': '5.4', 'laravel-6-notes': '6', 'laravel-7-notes': '7', 'laravel-8-notes': '8',
@@ -88,9 +88,10 @@ test('checked-in family aliases resolve deterministically and retain Laravel/PHP
     families: inventory.skill_routing_families, skillIds: new Set(inventory.skills.map((skill) => skill.id)), skills: inventory.skills,
   }).errors, []);
   for (const [id, selector] of Object.entries(expected)) {
-    const resolved = resolveSkillRoutingAlias({ families: inventory.skill_routing_families, id });
-    assert.strictEqual(resolved.selector, selector, id);
-    assert.match(resolved.reference, /^skills\/dhpk-(?:laravel|phpunit)\/references\/[^/]+\.md$/);
+    assert.strictEqual(resolveSkillRoutingAlias({ families: inventory.skill_routing_families, id }), null, id);
+    const familyId = id.startsWith('laravel-') ? 'laravel' : 'phpunit';
+    const resolved = resolveSkillRoutingReference({ inventory, familyId, selector });
+    assert.match(resolved, /^skills\/(?:laravel|phpunit)\/references\/[^/]+\.md$/);
   }
 });
 
@@ -413,6 +414,40 @@ test('accepts only reviewed portable-family public names and keeps prefixed name
   unreviewed.skills[0].path = 'skills/unreviewed-family';
   unreviewed.skills[0].capability_id = 'dhpk.skill.unreviewed-family';
   assert.ok(validateDistributionInventoryV2({ inventory: unreviewed }).errors.some((error) => /portable-family|reviewed|family/i.test(error)));
+});
+
+test('v2 validation requires a closed usage contract for Codex-selected skills', () => {
+  const usage = {
+    display_name: 'Demo Skill',
+    summary: 'Inspect a demo task with bounded read-only evidence',
+    syntax: '$dhpk-demo <task>',
+    input_kind: 'free-text',
+    invocation_class: 'implicit-eligible',
+    effect_authority: 'read-only',
+    actions: [],
+    options: [],
+    examples: [{ prompt: '$dhpk-demo inspect this task', summary: 'Inspect a demo task' }],
+  };
+  const inventory = {
+    schema: 'dhpk.distribution-inventory.v2',
+    skills: [{
+      id: 'demo',
+      name: 'dhpk-demo',
+      path: 'skills/dhpk-demo',
+      capability_id: 'dhpk.skill.demo',
+      invocation_class: 'implicit-eligible',
+      lifecycle: 'promoted',
+      tier: 'core',
+      profiles: ['core'],
+      surfaces: ['codex-native'],
+      usage,
+    }],
+  };
+  assert.deepStrictEqual(validateDistributionInventoryV2({ inventory }).errors, []);
+
+  delete inventory.skills[0].usage;
+  const missing = validateDistributionInventoryV2({ inventory });
+  assert.ok(missing.errors.some((error) => /usage-contract\[demo\].*missing usage contract/i.test(error)), missing.errors.join('\n'));
 });
 
 test('validates and normalizes the external skill package ledger', () => {

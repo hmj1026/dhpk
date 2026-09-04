@@ -70,4 +70,49 @@ test('v2 regeneration preserves external package ownership metadata', () => {
   assert.deepStrictEqual(regenerated.external_skill_packages, ledger);
 });
 
+test('v2 regeneration preserves each skill usage contract by stable id', () => {
+  const usage = {
+    display_name: 'Demo Skill',
+    summary: 'Inspect a demo task with bounded read-only evidence',
+    syntax: '$dhpk-demo <task>',
+    input_kind: 'free-text',
+    invocation_class: 'implicit-eligible',
+    effect_authority: 'read-only',
+    actions: [],
+    options: [],
+    examples: [{ prompt: '$dhpk-demo inspect this task', summary: 'Inspect a demo task' }],
+  };
+  const regenerated = preserveProjectionContract(
+    {
+      schema: 'dhpk.distribution-inventory.v2',
+      skills: [{ id: 'demo', path: 'skills/demo', lifecycle: 'promoted' }],
+      modules: [],
+    },
+    { skills: [{ id: 'demo', usage }], modules: [] },
+  );
+  assert.deepStrictEqual(regenerated.skills[0].usage, usage);
+  assert.notStrictEqual(regenerated.skills[0].usage, usage);
+  usage.examples[0].summary = 'caller mutation';
+  assert.strictEqual(regenerated.skills[0].usage.examples[0].summary, 'Inspect a demo task');
+});
+
+test('v2 regeneration preserves the diagnostic-only public-name rename ledger', () => {
+  const renamedSkillNames = [{
+    id: 'laravel',
+    oldName: 'dhpk-laravel',
+    oldPath: 'skills/dhpk-laravel',
+    newName: 'laravel',
+    newPath: 'skills/laravel',
+    rollback: { release: '0.53.0' },
+  }];
+  const regenerated = preserveProjectionContract(
+    { schema: 'dhpk.distribution-inventory.v2', skills: [], modules: [] },
+    { renamed_skill_names: renamedSkillNames },
+  );
+  assert.deepStrictEqual(regenerated.renamed_skill_names, renamedSkillNames);
+  assert.notStrictEqual(regenerated.renamed_skill_names, renamedSkillNames);
+  renamedSkillNames[0].rollback.release = 'caller-mutation';
+  assert.strictEqual(regenerated.renamed_skill_names[0].rollback.release, '0.53.0');
+});
+
 run('distribution-inventory-regeneration');

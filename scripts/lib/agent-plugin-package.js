@@ -12,6 +12,11 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { RECEIPT_SCHEMA, SURFACE_OWNERS, resolveGeneratedFromTree } = require('./platform-provenance');
+const {
+  externalSkillPackagesFingerprint,
+  resolveInventoryRevision,
+  skillProjectionMetadata,
+} = require('./distribution-projection-contract');
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
 const { compileDistribution, materializeDistribution, verifyDistribution } = require('./distribution-compiler');
 const { ProjectionArtifactStore } = require('./projection-artifact-store');
@@ -740,13 +745,14 @@ function collectProjectedFiles(
   return files;
 }
 
-function outputRecord(stableId, destination, content, source, transform) {
+function outputRecord(stableId, destination, content, source, transform, metadata = {}) {
   return {
     stableId,
     source: source || `generated/${destination}`,
     destination,
     content,
     transform: transform || { id: 'agent-plugin-generated', version: GENERATOR_VERSION },
+    ...metadata,
   };
 }
 
@@ -805,6 +811,10 @@ function buildAgentPluginProjection(options = {}) {
   const fingerprints = {};
   const selectedEntries = [];
   const skipped = [];
+  const inventoryRevision = resolveInventoryRevision(inventory);
+  const ownershipFingerprint = Object.prototype.hasOwnProperty.call(inventory, 'external_skill_packages')
+    ? externalSkillPackagesFingerprint(inventory.external_skill_packages)
+    : undefined;
   const projectionBudget = {
     files: 0,
     bytes: 0,
@@ -847,13 +857,21 @@ function buildAgentPluginProjection(options = {}) {
     assertSourceTreeContained(sourceDir, resolvedRoot);
     const skillFiles = collectProjectedFiles(sourceDir, resolvedRoot, '', { 'SKILL.md': normalized.output }, { budget: projectionBudget });
     fingerprints[publicName] = fingerprintProjectedFiles(skillFiles);
+    const skillTransform = { id: 'agent-plugin-skill', version: generatorVersion };
+    const skillMetadata = skillProjectionMetadata(entry, {
+      transform: skillTransform,
+      owner: SURFACE_OWNERS['agent-plugin'],
+      inventoryRevision,
+      ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
+    });
     for (const file of skillFiles) {
       files.push(outputRecord(
         `skill:${entry.id}:${file.relative}`,
         path.posix.join('skills', publicName, file.relative),
         file.content,
         path.posix.join(sourcePath, file.relative),
-        { id: 'agent-plugin-skill', version: generatorVersion },
+        skillTransform,
+        skillMetadata,
       ));
     }
     selectedEntries.push(entry);
@@ -901,6 +919,7 @@ function buildAgentPluginProjection(options = {}) {
     generatedFromCommit: sourceCommit,
     ...(generatedFromTree ? { generatedFromTree } : {}),
     inventoryDigest: legacyInventoryDigest(inventory),
+    inventoryRevision,
     generatorVersion,
     schemaVersion: AGENT_PLUGIN_VERSION,
     selectedSkillIds,
@@ -909,6 +928,15 @@ function buildAgentPluginProjection(options = {}) {
     skippedSkills: skipped,
     mcpServerNames: mcp.valid.map((entry) => entry.name).sort(),
     fingerprints,
+    ...(selectedEntries.some((entry) => entry.usage) ? {
+      usageSchema: 'dhpk.skill-usage.v1',
+      usage: Object.fromEntries(selectedEntries.filter((entry) => entry.usage).map((entry) => [entry.id, entry.usage])),
+      usageFingerprints: Object.fromEntries(selectedEntries.filter((entry) => entry.usage).map((entry) => [
+        entry.id,
+        skillProjectionMetadata(entry, { inventoryRevision }).usageFingerprint,
+      ])),
+    } : {}),
+    ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
     ...(profileSelection ? {
       profileId: profileSelection.profileId || profileSelection.id,
       selectedStableIds: profileSelection.selectedStableIds,
@@ -931,11 +959,23 @@ function buildAgentPluginProjection(options = {}) {
     transform: file.transform,
     expectedFingerprint: digest(file.content),
     symlinkPolicy: 'forbid',
+    ...(file.skillId ? {
+      skillId: file.skillId,
+      publicName: file.publicName,
+      invocationClass: file.invocationClass,
+      lifecycle: file.lifecycle,
+      usageSchema: file.usageSchema,
+      usage: file.usage,
+      usageFingerprint: file.usageFingerprint,
+      provenance: file.provenance,
+    } : {}),
   }));
   const compiled = compileDistribution({
     surface: 'agent-plugin',
     compilerVersion: `agent-plugin-${generatorVersion}`,
     inventoryFingerprint: legacyInventoryDigest(inventory),
+    inventoryRevision,
+    ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
     ownershipRoot: resolvedOut,
     entries,
     selectedStableIds: selection && selection.ok && selection.value.selectionPolicy

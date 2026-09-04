@@ -79,7 +79,7 @@ test('fails when a codex-sync skill has no agents/openai.yaml', () => {
 
 test('a skill with no codex surface never triggers codex reconciliation errors', () => {
   const inv = {
-    skills: [{ id: 'harness-fill', path: 'skills/dhpk-harness-fill', lifecycle: 'promoted', surfaces: ['claude-core'] }],
+    skills: [{ id: 'harness-govern', path: 'skills/harness-govern', lifecycle: 'promoted', surfaces: ['claude-core'] }],
     modules: [],
   };
   const result = reconcileDistribution({

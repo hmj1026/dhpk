@@ -1,6 +1,6 @@
 # Canonical skill disposition
 
-Apply evidence for `rewrite-canonical-skills-for-agents`. Source pin: local `/home/paul/projects/matt-pocock_skills/package.json` version `1.2.3` (checked 2026-08-17). Historical baseline: 102 `skills/*/SKILL.md` packages; current inventory: 101 active canonical packages. Generated projections are not disposition rows.
+Apply evidence for `rewrite-canonical-skills-for-agents`. Source pin: local `/home/paul/projects/matt-pocock_skills/package.json` version `1.2.3` (checked 2026-08-17). Historical baseline: 102 `skills/*/SKILL.md` packages and 101 active canonical packages at that snapshot; the current 0.54.0 inventory contains 65 active canonical packages. Generated projections are not disposition rows.
 
 This is a historical disposition snapshot, not a live route registry. The five
 workflow identities marked `Retired in 0.47.0`, plus the two Codex MCP identities
@@ -8,7 +8,16 @@ retired in `0.52.0`, remain here only as historical predecessor labels; active
 routing uses the successor modes and the inventory-owned retirement ledger. The
 authoritative reason codes, replacement rows, rollback pin, and direct-host
 boundary are documented in [`docs/skill-platform-migration.md`](../skill-platform-migration.md#alias-free-retirement-ledger-0470);
-this table must not be read as a discovery alias list.
+this table must not be read as a discovery alias list. The 0.54.0 retirement
+ledger supersedes baseline `Keep` or `Merge-pointer` labels for `agy-commit`,
+the Laravel/PHPUnit version-note predecessors, the four former harness entries,
+cross-agent sync, feasibility study, tech spec, create request, and the
+OnePassword session skill. Their retained capabilities now live behind
+`git-smart-commit`, `laravel`, `phpunit`, `harness-govern`,
+`dhpk-module-design --mode compare`, external `$openspec-propose`, or the
+documented operator action; no retired identity is an alias.
+
+## Historical baseline table
 
 The pass originally covered 103 packages. `dhpk-continuous-learning-v2` was retired by `retire-continuous-learning-v2` before this evidence shipped, so its row is removed rather than carried as a stale `Keep`.
 

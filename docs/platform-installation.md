@@ -122,7 +122,7 @@ evidence and deliberately returns `runtime: NOT_RUN` unless a separate
 client-specific probe is executed.
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.53.0 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.54.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -202,7 +202,7 @@ entries are not rematerialized:
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" \
   --update \
-  --adopt='skills/dhpk-cross-agent-sync@<destination-fingerprint>@<source-fingerprint>'
+  --adopt='skills/harness-govern@<destination-fingerprint>@<source-fingerprint>'
 ```
 
 Adoption is path-scoped and creates a rollback-addressable backup before
@@ -593,7 +593,7 @@ entries are not rematerialized:
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" \
   --update \
-  --adopt='skills/dhpk-cross-agent-sync@<destination-fingerprint>@<source-fingerprint>'
+  --adopt='skills/harness-govern@<destination-fingerprint>@<source-fingerprint>'
 ```
 
 Adoption is path-scoped and creates a rollback-addressable backup before
@@ -628,7 +628,7 @@ agent frontmatter and never rewrites `agents/`. Generate and validate it from
 the dhpk checkout:
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.53.0 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.54.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -663,7 +663,7 @@ migrates, adopts, overwrites, or removes a foreign target.
 Run configured-platform validation separately from package validation:
 
 ```bash
-python3 skills/dhpk-cross-agent-sync/scripts/multi_ai_sync.py \
+python3 skills/harness-govern/scripts/multi_ai_sync.py \
   --root . validate --targets agy --format json
 agy --version
 agy plugins list
@@ -696,7 +696,7 @@ without `--agy-runtime-probe`, runtime remains `NOT_RUN`. When the CLI is
 available, the opt-in probe is bounded and read-only:
 
 ```bash
-python3 skills/dhpk-cross-agent-sync/scripts/multi_ai_sync.py \
+python3 skills/harness-govern/scripts/multi_ai_sync.py \
   --root . validate --targets agy --agy-runtime-probe --format json
 ```
 

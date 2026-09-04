@@ -24,7 +24,13 @@ const CHECKED_FIELDS = Object.freeze([
   'owner',
   'destination',
   'outputFingerprint',
+  'usageSchema',
+  'usage',
+  'usageFingerprint',
+  'provenance',
 ]);
+const USAGE_FIELDS = Object.freeze(['usageSchema', 'usage', 'usageFingerprint']);
+const PROVENANCE_FIELDS = Object.freeze(['provenance']);
 
 function value(value) {
   if (Buffer.isBuffer(value)) return { type: 'buffer', sha256: fingerprint(value.toString('base64')) };
@@ -128,7 +134,21 @@ function compareSubjectOwnership({ state, label, surface, mismatches, diagnostic
 
 function compareField(mismatches, diagnostics, stableId, field, expectedValue, actualValue, surface) {
   if (safeCanonicalize(normalized(expectedValue)) === safeCanonicalize(normalized(actualValue))) return;
-  mismatches.push({ stableId, surface, type: 'field', field, expected: expectedValue, actual: actualValue });
+  const mismatch = { stableId, surface, type: 'field', field, expected: expectedValue, actual: actualValue };
+  if (USAGE_FIELDS.includes(field)) {
+    mismatch.type = 'usage';
+    mismatch.expectedFingerprint = field === 'usageFingerprint'
+      ? expectedValue
+      : expectedValue && expectedValue.usageFingerprint;
+    mismatch.actualFingerprint = field === 'usageFingerprint'
+      ? actualValue
+      : actualValue && actualValue.usageFingerprint;
+  } else if (PROVENANCE_FIELDS.includes(field)) {
+    mismatch.type = 'provenance';
+    mismatch.expectedFingerprint = expectedValue && expectedValue.sourceFingerprint;
+    mismatch.actualFingerprint = actualValue && actualValue.sourceFingerprint;
+  }
+  mismatches.push(mismatch);
   diagnostics.push(`stable id '${stableId}' on surface '${surface}' field drift '${field}'`);
 }
 
@@ -226,6 +246,12 @@ function compareDistributionProjections({ expected, actual, stage = 'structural'
   const actualProfile = profileIdOf(actual);
   const expectedProjection = subjectProjection(expected);
   const actualProjection = subjectProjection(actual);
+  const usageSchema = expectedState.plan && expectedState.plan.usageSchema
+    || expectedState.artifact && expectedState.artifact.usageSchema;
+  const usageFingerprints = expectedState.plan && expectedState.plan.usageFingerprints
+    || expectedState.artifact && expectedState.artifact.usageFingerprints;
+  const inventoryRevision = expectedState.plan && expectedState.plan.inventoryRevision
+    || expectedState.artifact && expectedState.artifact.inventoryRevision;
   if (expectedState.surface && actualState.surface && expectedState.surface !== actualState.surface) {
     mismatches.push({ stableId: '<projection>', surface, type: 'field', field: 'surface', expected: expectedState.surface, actual: actualState.surface });
     diagnostics.push(`projection surface drift: expected '${expectedState.surface}', actual '${actualState.surface}'`);
@@ -275,7 +301,7 @@ function compareDistributionProjections({ expected, actual, stage = 'structural'
       surface,
       mismatches,
       diagnostics,
-      fields: ['stableId', 'name', 'target', 'selector', 'invocationClass', 'source', 'sourceFingerprint', 'transform', 'owner', 'destination', 'outputFingerprint'],
+      fields: ['stableId', 'name', 'target', 'selector', 'invocationClass', 'source', 'sourceFingerprint', 'transform', 'owner', 'destination', 'outputFingerprint', ...USAGE_FIELDS, ...PROVENANCE_FIELDS],
     });
   }
   if (expectedState.artifact && actualState.artifact) {
@@ -285,7 +311,7 @@ function compareDistributionProjections({ expected, actual, stage = 'structural'
       surface,
       mismatches,
       diagnostics,
-      fields: ['stableId', 'destination', 'source', 'sourceFingerprint', 'owner', 'transform', 'outputFingerprint'],
+      fields: ['stableId', 'destination', 'source', 'sourceFingerprint', 'owner', 'transform', 'outputFingerprint', ...USAGE_FIELDS, ...PROVENANCE_FIELDS],
     });
   }
   if (expectedProjection || actualProjection) {
@@ -300,6 +326,16 @@ function compareDistributionProjections({ expected, actual, stage = 'structural'
         diagnostics,
         fields: CHECKED_FIELDS.filter((field) => field !== 'outputFingerprint'),
       });
+    }
+  }
+  if (expectedState.plan && actualState.plan) {
+    for (const field of ['usageSchema', 'usageFingerprints', 'provenance']) {
+      compareField(mismatches, diagnostics, '<plan>', field, expectedState.plan[field], actualState.plan[field], surface);
+    }
+  }
+  if (expectedState.artifact && actualState.artifact) {
+    for (const field of ['usageSchema', 'usageFingerprints', 'provenance']) {
+      compareField(mismatches, diagnostics, '<artifact>', field, expectedState.artifact[field], actualState.artifact[field], surface);
     }
   }
   const configured = configurationFailure || diagnostics.some((diagnostic) => /requires|has no|missing on one side/.test(diagnostic));
@@ -320,6 +356,9 @@ function compareDistributionProjections({ expected, actual, stage = 'structural'
     verdict: VERDICTS.includes(verdict) ? verdict : 'FAIL',
     diagnostics,
     observedAt,
+    ...(inventoryRevision !== undefined ? { inventoryRevision } : {}),
+    ...(usageSchema !== undefined ? { usageSchema } : {}),
+    ...(usageFingerprints !== undefined ? { usageFingerprints } : {}),
     ...(expectedOwnershipFingerprint !== undefined
       ? { externalSkillPackagesFingerprint: expectedOwnershipFingerprint }
       : {}),
@@ -346,7 +385,11 @@ function compareDistributionProjections({ expected, actual, stage = 'structural'
       ? { externalSkillPackagesFingerprint: expectedOwnershipFingerprint }
       : {}),
     checker: checkerIdentity,
+    ...(inventoryRevision !== undefined ? { inventoryRevision } : {}),
+    ...(usageSchema !== undefined ? { usageSchema } : {}),
+    ...(usageFingerprints !== undefined ? { usageFingerprints } : {}),
     checkedFields: [...CHECKED_FIELDS],
+    checkedFieldGroups: { usage: [...USAGE_FIELDS], provenance: [...PROVENANCE_FIELDS] },
     mismatches,
     diagnostics,
     evidence,
@@ -360,8 +403,12 @@ function compareDistributionProjections({ expected, actual, stage = 'structural'
         ? { externalSkillPackagesFingerprint: expectedOwnershipFingerprint }
         : {}),
       checker: checkerIdentity,
+      ...(inventoryRevision !== undefined ? { inventoryRevision } : {}),
+      ...(usageSchema !== undefined ? { usageSchema } : {}),
+      ...(usageFingerprints !== undefined ? { usageFingerprints } : {}),
       stage: evidenceStage,
       checkedFields: [...CHECKED_FIELDS],
+      checkedFieldGroups: { usage: [...USAGE_FIELDS], provenance: [...PROVENANCE_FIELDS] },
       verdict,
       diagnostics,
     },

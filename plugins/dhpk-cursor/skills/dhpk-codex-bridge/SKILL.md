@@ -88,7 +88,7 @@ path-scoped diff verifies attributable edits; otherwise report `BLOCKED` and
 request reconciliation. There is no automatic retry and no backend fallback
 from a timeout result.
 
-> **Permissions:** this repo's `.claude/settings.json` allows `Bash(codex exec:*)` and the path-scoped `Bash(bash skills/dhpk-codex-bridge/scripts/run-codex.sh:*)`, which covers a **direct** relative-path call from the plugin root. The **subagent** invokes the wrapper via `.cursor/dhpk` (an absolute path) that a path-scoped rule cannot match ([#9354](https://github.com/anthropics/claude-code/issues/9354), re-checked 2026-08-17); to keep a non-interactive subagent's Bash from being auto-denied, add the broader `Bash(bash:*)` rule (the same workaround `dhpk-onepassword-session` uses — a deliberate user decision, not applied automatically). Consumers add the equivalent rule in their own settings.
+> **Permissions:** this repo's `.claude/settings.json` allows `Bash(codex exec:*)` and the path-scoped `Bash(bash skills/dhpk-codex-bridge/scripts/run-codex.sh:*)`, which covers a **direct** relative-path call from the plugin root. The **subagent** invokes the wrapper via `.cursor/dhpk` (an absolute path) that a path-scoped rule cannot match ([#9354](https://github.com/anthropics/claude-code/issues/9354), re-checked 2026-08-17); to keep a non-interactive subagent's Bash from being auto-denied, add the broader `Bash(bash:*)` rule as a deliberate user decision. Consumers add the equivalent rule in their own settings.
 
 ## Output
 

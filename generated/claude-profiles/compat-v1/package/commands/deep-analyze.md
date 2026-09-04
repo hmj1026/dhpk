@@ -6,9 +6,11 @@ metadata:
   dhpk-invocation-class: implicit-eligible
 ---
 
-⚠️ **Must read and follow the skill below before executing this command:**
-
-@skills/dhpk-tech-spec/SKILL.md
+Before creating OpenSpec artifacts, use the external `$openspec-propose`
+workflow. For this command's repository-specific authoring boundary, consult
+[`docs/agent-guidance/openspec-authoring.md`](../docs/agent-guidance/openspec-authoring.md).
+This command only researches a proposal and produces an analysis; it does not
+create or apply an OpenSpec change.
 
 ## Contract
 
@@ -139,8 +141,8 @@ await this.cache.set(key, data, TTL);
 /deep-analyze "Initial idea: use Redis to cache token prices with TTL 5 minutes"
 
 # Analyze from file
-/deep-analyze docs/features/xxx/tech-spec.md
+/deep-analyze docs/features/xxx/proposal.md
 
 # Analyze from request doc
-/deep-analyze docs/features/xxx/requests/2026-01-20-xxx.md
+/deep-analyze openspec/changes/xxx/proposal.md
 ````

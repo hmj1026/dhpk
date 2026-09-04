@@ -557,8 +557,8 @@ test('external source symlink is rejected before an owned retirement prune', () 
     assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
     const sourceNames = fs.readdirSync(path.join(fakePlugin, 'codex', 'skills')).sort();
     assert.ok(sourceNames.length >= 2, 'fixture needs a retired and active skill');
-    const retired = sourceNames.find((name) => name.startsWith('dhpk-'));
-    const malicious = sourceNames.find((name) => name.startsWith('dhpk-') && name !== retired);
+    const retired = sourceNames.find((name) => name === 'dhpk-tdd-workflow');
+    const malicious = sourceNames.find((name) => name === 'dhpk-yii1-security-audit');
     assert.ok(retired && malicious, 'fixture needs prefixed retired and active skills');
     const inventoryPath = path.join(fakePlugin, 'manifests', 'distribution-inventory.json');
     const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
@@ -572,7 +572,7 @@ test('external source symlink is rejected before an owned retirement prune', () 
       retiredIn: '0.47.0',
       reasonCode: 'test-retirement',
       priorSurfaces: retiredEntry.surfaces,
-      replacements: [{ kind: 'skill', id: 'tdd', mode: 'test-successor' }],
+      replacements: [{ kind: 'skill', id: 'code-trace', mode: 'test-successor' }],
       rollback: { release: '0.46.1' },
     }];
     fs.writeFileSync(inventoryPath, `${JSON.stringify(inventory, null, 2)}\n`);
@@ -800,7 +800,7 @@ test('copy mode excludes ignored Python bytecode from projection and fingerprint
     fakePlugin,
     'codex',
     'skills',
-    'dhpk-cross-agent-sync',
+    'harness-govern',
     'scripts',
     'multi_ai_sync_lib',
     '__pycache__',
@@ -810,7 +810,7 @@ test('copy mode excludes ignored Python bytecode from projection and fingerprint
     fakePlugin,
     'codex',
     'skills',
-    'dhpk-cross-agent-sync',
+    'harness-govern',
     'scripts',
     'multi_ai_sync_lib',
     'standalone-fixture.pyc',
@@ -832,7 +832,7 @@ test('copy mode excludes ignored Python bytecode from projection and fingerprint
       scratch,
       '.codex',
       'skills',
-      'dhpk-cross-agent-sync',
+      'harness-govern',
       'scripts',
       'multi_ai_sync_lib',
       '__pycache__',
@@ -842,7 +842,7 @@ test('copy mode excludes ignored Python bytecode from projection and fingerprint
       scratch,
       '.codex',
       'skills',
-      'dhpk-cross-agent-sync',
+      'harness-govern',
       'scripts',
       'multi_ai_sync_lib',
       'standalone-fixture.pyc',
@@ -872,13 +872,13 @@ test('copy update cleans legacy bytecode while preserving receipt ownership', ()
     assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
     const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
     const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
-    const skillTarget = path.join(scratch, '.codex', 'skills', 'dhpk-cross-agent-sync');
+    const skillTarget = path.join(scratch, '.codex', 'skills', 'harness-govern');
     const legacyBytecode = path.join(skillTarget, 'scripts', 'multi_ai_sync_lib', '__pycache__', 'legacy.pyc');
     fs.mkdirSync(path.dirname(legacyBytecode), { recursive: true });
     fs.writeFileSync(legacyBytecode, 'legacy-bytecode\n');
 
-    const entry = receipt.managed_entries.skills['dhpk-cross-agent-sync'];
-    assert.ok(entry, 'expected the legacy receipt entry to exist');
+    const entry = receipt.managed_entries.skills['harness-govern'];
+    assert.ok(entry, 'expected the harness-govern receipt entry to exist');
     const legacyDestinationFingerprint = completeTreeFingerprint(skillTarget);
     entry.destination_fingerprint = legacyDestinationFingerprint;
     entry.fingerprint = legacyDestinationFingerprint;
@@ -1537,13 +1537,13 @@ function collisionFixture() {
   const scratch = projectRoot();
   const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-plan-plugin-')));
   fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
-  materializeFixtureSkill(fakePlugin, 'dhpk-cross-agent-sync');
+  materializeFixtureSkill(fakePlugin, 'harness-govern');
   fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
   fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
   copyDistributionInventory(fakePlugin);
   const first = runInstaller(scratch, ['--copy', '--force'], fakePlugin);
   assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
-  const collision = 'dhpk-cross-agent-sync';
+  const collision = 'harness-govern';
   const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
   const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
   assert.ok(receipt.managed_entries.skills[collision], `expected fixture receipt entry for ${collision}`);

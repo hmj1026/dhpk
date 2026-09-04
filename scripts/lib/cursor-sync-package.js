@@ -15,6 +15,11 @@ const {
   rewriteCursorSupportingAssetBody,
 } = require('./cursor-harness-adapt');
 const { readDirectoryEntries } = require('./bounded-filesystem');
+const {
+  externalSkillPackagesFingerprint,
+  resolveInventoryRevision,
+  skillProjectionMetadata,
+} = require('./distribution-projection-contract');
 
 const GENERATOR_VERSION = '1.0.0';
 const INDEX_NAMES = /^(?:INDEX|README)\./i;
@@ -165,6 +170,25 @@ function materializeCursorSyncTree({ inventory, root, outDir }) {
   const rules = generateCursorDocuments({ root: resolvedRoot, outDir: resolvedOut, kind: 'rules' });
   const commands = generateCursorDocuments({ root: resolvedRoot, outDir: resolvedOut, kind: 'commands' });
   const supporting = generateCursorSupportingAssets({ inventory, root: resolvedRoot, outDir: resolvedOut });
+  const selectedSkills = selectCursorSyncSkills(inventory);
+  const inventoryRevision = resolveInventoryRevision(inventory);
+  const ownershipFingerprint = Object.prototype.hasOwnProperty.call(inventory, 'external_skill_packages')
+    ? externalSkillPackagesFingerprint(inventory.external_skill_packages)
+    : undefined;
+  const usageEntries = selectedSkills.filter((skill) => skill && skill.usage).map((skill) => {
+    const metadata = skillProjectionMetadata(skill, {
+      owner: 'plugins/dhpk-agent',
+      inventoryRevision,
+      ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
+    });
+    return {
+      id: skill.id,
+      name: skill.name || skill.id,
+      usage: metadata.usage,
+      usageFingerprint: metadata.usageFingerprint,
+      provenance: metadata.provenance,
+    };
+  });
   return {
     generatorVersion: GENERATOR_VERSION,
     skills,
@@ -172,6 +196,12 @@ function materializeCursorSyncTree({ inventory, root, outDir }) {
     rules: rules.files,
     commands: commands.files,
     supporting,
+    inventoryRevision,
+    ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
+    usageSchema: 'dhpk.skill-usage.v1',
+    usage: Object.fromEntries(usageEntries.map((entry) => [entry.id, entry.usage])),
+    usageFingerprints: Object.fromEntries(usageEntries.map((entry) => [entry.id, entry.usageFingerprint])),
+    provenance: Object.fromEntries(usageEntries.map((entry) => [entry.id, entry.provenance])),
     transformations: [...agents.transformations, ...rules.transformations, ...commands.transformations],
   };
 }

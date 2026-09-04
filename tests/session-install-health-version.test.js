@@ -262,10 +262,10 @@ test('the stale message carries the exact update command and the fresh-session c
   });
 });
 
-test('the stale message points at claude-health rather than duplicating its audit', () => {
+test('the stale message points at harness-govern health rather than duplicating its audit', () => {
   withPlugins({ installed: '0.28.17', available: '0.29.0' }, (dir) => {
     const msg = message(dir);
-    assert.ok(/claude-health/.test(msg), `claude-health pointer missing: ${msg}`);
+    assert.ok(/harness-govern\s+health/.test(msg), `harness-govern health pointer missing: ${msg}`);
   });
 });
 

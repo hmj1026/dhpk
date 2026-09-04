@@ -122,9 +122,9 @@ node scripts/ci/gen-claude-manifest.js
 node scripts/ci/gen-distribution-inventory.js
 ```
 
-The raw compatibility commands report one registered Claude directory root, 72
-inventory-eligible Claude skill IDs, 85 canonical skills (including two
-non-invokable internal runtime packages), and 16 Codex-sync entries (14
+The raw compatibility commands report one registered Claude directory root, 63
+inventory-eligible Claude skill IDs, 65 canonical skills (including two
+non-invokable internal runtime packages), and 15 Codex-sync entries (13
 invokable skills plus internal transport and dispatch-context runtimes). These
 are independently derived scopes; a canonical total is not a default-install
 or runtime count. Clean default installs use the materialized `minimal` profile
@@ -228,9 +228,9 @@ scopes the discovery-facing skill and command roots; agent, hook, rule, and
 
 | Profile | Meaning |
 |---|---|
-| `minimal` | The inventory required_core_ids; the default for a clean install. |
-| `full` | The existing conflict-aware module closure plus its explicit stable IDs; it is not the complete catalog. |
-| `compat-v1` | The 71 stable IDs carried by the predecessor-compatible allowlist; this is the compatibility fallback for an unannotated existing receipt. |
+| `minimal` | The inventory required_core_ids (8 skills); the default for a clean install. |
+| `full` | The existing conflict-aware module closure (55 skills) plus its explicit stable IDs; it is not the complete catalog. |
+| `compat-v1` | The 62 stable IDs carried by the predecessor-compatible allowlist; this is the compatibility fallback for an unannotated existing receipt. |
 
 Distribution and project-local installers accept `--profile <id>` and repeatable
 additive `--skill <stable-id>` overlays. Unknown, retired, deprecated,

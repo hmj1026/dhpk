@@ -47,17 +47,17 @@ function projectionTarget(linkPath) {
 // modules that now consume the two public family skills. Do not derive the
 // expected family from module.yaml or the inventory under test.
 const EXPECTED_VERSION_FAMILY_PROJECTIONS = [
-  { moduleId: 'laravel-5.4', familySkill: 'dhpk-laravel', symlinkTarget: '../../../skills/dhpk-laravel' },
-  { moduleId: 'laravel-6', familySkill: 'dhpk-laravel', symlinkTarget: '../../../skills/dhpk-laravel' },
-  { moduleId: 'laravel-7', familySkill: 'dhpk-laravel', symlinkTarget: '../../../skills/dhpk-laravel' },
-  { moduleId: 'laravel-8', familySkill: 'dhpk-laravel', symlinkTarget: '../../../skills/dhpk-laravel' },
-  { moduleId: 'laravel-9', familySkill: 'dhpk-laravel', symlinkTarget: '../../../skills/dhpk-laravel' },
-  { moduleId: 'laravel-10', familySkill: 'dhpk-laravel', symlinkTarget: '../../../skills/dhpk-laravel' },
-  { moduleId: 'laravel-11', familySkill: 'dhpk-laravel', symlinkTarget: '../../../skills/dhpk-laravel' },
-  { moduleId: 'laravel-mix', familySkill: 'dhpk-laravel', symlinkTarget: '../../../skills/dhpk-laravel' },
-  { moduleId: 'phpunit-9', familySkill: 'dhpk-phpunit', symlinkTarget: '../../../skills/dhpk-phpunit' },
-  { moduleId: 'phpunit-10', familySkill: 'dhpk-phpunit', symlinkTarget: '../../../skills/dhpk-phpunit' },
-  { moduleId: 'phpunit-11', familySkill: 'dhpk-phpunit', symlinkTarget: '../../../skills/dhpk-phpunit' },
+  { moduleId: 'laravel-5.4', familySkill: 'laravel', symlinkTarget: '../../../skills/laravel' },
+  { moduleId: 'laravel-6', familySkill: 'laravel', symlinkTarget: '../../../skills/laravel' },
+  { moduleId: 'laravel-7', familySkill: 'laravel', symlinkTarget: '../../../skills/laravel' },
+  { moduleId: 'laravel-8', familySkill: 'laravel', symlinkTarget: '../../../skills/laravel' },
+  { moduleId: 'laravel-9', familySkill: 'laravel', symlinkTarget: '../../../skills/laravel' },
+  { moduleId: 'laravel-10', familySkill: 'laravel', symlinkTarget: '../../../skills/laravel' },
+  { moduleId: 'laravel-11', familySkill: 'laravel', symlinkTarget: '../../../skills/laravel' },
+  { moduleId: 'laravel-mix', familySkill: 'laravel', symlinkTarget: '../../../skills/laravel' },
+  { moduleId: 'phpunit-9', familySkill: 'phpunit', symlinkTarget: '../../../skills/phpunit' },
+  { moduleId: 'phpunit-10', familySkill: 'phpunit', symlinkTarget: '../../../skills/phpunit' },
+  { moduleId: 'phpunit-11', familySkill: 'phpunit', symlinkTarget: '../../../skills/phpunit' },
 ];
 
 function moduleProvidedSkills(moduleId) {
@@ -96,13 +96,13 @@ test('real tree version modules select only their canonical public family projec
   })));
 });
 
-test('real tree has 85 flat canonical packages with inventory identities and metadata tokens', () => {
+test('real tree has 65 flat canonical packages with inventory identities and metadata tokens', () => {
   assert.strictEqual(INVENTORY.schema, 'dhpk.distribution-inventory.v2');
-  assert.strictEqual(INVENTORY.skills.length, 85);
+  assert.strictEqual(INVENTORY.skills.length, 65);
   assert.deepStrictEqual(validateDistributionInventoryV2({ inventory: INVENTORY }).errors, []);
 
   const dirs = flatCanonicalDirs();
-  assert.strictEqual(dirs.length, 85);
+  assert.strictEqual(dirs.length, 65);
   assert.strictEqual(fs.readdirSync(path.join(ROOT, 'skills')).filter((name) => {
     const candidate = path.join(ROOT, 'skills', name);
     return fs.statSync(candidate).isDirectory() && !fs.existsSync(path.join(candidate, 'SKILL.md'));
@@ -156,7 +156,10 @@ test('real tree has relative Codex projections for every codex-sync skill and no
   for (const name of actual) {
     assert.strictEqual(projectionTarget(path.join(ROOT, 'codex', 'skills', name)), `../../skills/${name}`);
   }
-  const portableFamilies = new Set(['skill-scope', 'skill-forge', 'flow-guide', 'flow-drive', 'change-verdict', 'code-trace']);
+  const portableFamilies = new Set([
+    'skill-scope', 'skill-forge', 'flow-guide', 'flow-drive', 'change-verdict',
+    'code-trace', 'harness-govern', 'laravel', 'phpunit',
+  ]);
   assert.ok(actual.every((name) => name.startsWith('dhpk-') || portableFamilies.has(name)));
 });
 
