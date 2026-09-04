@@ -1,8 +1,8 @@
 'use strict';
 
-// RED tests for openspec/changes/scope-multi-ai-sync-validation-to-configured-platforms.
+// Regression coverage for harness-govern sync validation scoped to configured platforms.
 // Each test proves a currently-real defect (issue #89) against the shipped
-// multi_ai_sync.py CLI/lib, using fixture repos built on the fly — no static
+// harness-govern's multi_ai_sync.py CLI/lib, using fixture repos built on the fly — no static
 // fixture directories are checked in, matching the existing parity test idiom.
 
 const fs = require('node:fs');
@@ -12,8 +12,8 @@ const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const SCRIPT = path.join(ROOT, 'skills', 'dhpk-cross-agent-sync', 'scripts', 'multi_ai_sync.py');
-const SCRIPTS_DIR = path.join(ROOT, 'skills', 'dhpk-cross-agent-sync', 'scripts');
+const SCRIPT = path.join(ROOT, 'skills', 'harness-govern', 'scripts', 'multi_ai_sync.py');
+const SCRIPTS_DIR = path.join(ROOT, 'skills', 'harness-govern', 'scripts');
 
 function mkTmp(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), `dhpk-${prefix}-`));
@@ -345,4 +345,4 @@ test('regression: a Claude-only repo with parity role sources but zero .codex di
   }
 });
 
-run('multi-ai-sync-configured-platform-validation');
+run('harness-govern-sync-configured-platform-validation');

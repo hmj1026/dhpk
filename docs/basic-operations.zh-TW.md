@@ -31,6 +31,9 @@ Plugin 管理（`claude plugin …`、`codex plugin …`）不會呼叫 skill。
 當目的地不清楚且工作會跨 session，先記錄 wayfinder checkpoint：候選目的地、
 目前 frontier，以及一個下一步決策。單一 session 且目的明確的請求直接進入路由。
 
+不知道先用哪一個入口時，先看：
+[技能與 Slash Command 快速速查（非專業版）](./skill-command-cheat-sheet.zh-TW.md)。
+
 ## 分發面政策
 
 dhpk 刻意提供多個不同支援等級的 surface：
@@ -40,12 +43,15 @@ dhpk 刻意提供多個不同支援等級的 surface：
 | Claude marketplace | Supported | 主要 consumer 安裝與更新路徑。 |
 | `claude --plugin-dir` | Development-only | Working-tree 迭代，不是 release channel。 |
 | `scripts/install.sh` | Convenience wrapper | 執行 Claude 安裝契約，不是另一個分發管道。 |
-| `install-codex-skills.sh` | Supported | 穩定的 Codex project sync 路徑。 |
+| `install-codex-skills.sh` | Supported | 穩定且 canonical 的 Codex project sync 路徑；runtime activation 與 native `dhpk@dhpk` plugin 互斥。 |
 | `install-cursor-harness.sh` | Supported | 穩定的 Cursor project-local sync 路徑（`.cursor/`）。 |
-| Codex plugin marketplace | Experimental | 有真實 CLI 安裝證據的實體 publication package；在另一次升級決策前維持 Experimental。 |
+| Codex plugin marketplace | Experimental | 僅供 disposable isolated `CODEX_HOME` 實驗的實體 publication package；runtime activation 與 project-local sync 互斥，在另一次升級決策前維持 Experimental。 |
 | Antigravity / AGY sync | Adapter/package | Antigravity 使用 `.agent` mapping；AGY 使用原生 plugin package 與 validator。 |
 
 Plugin 管理指令（`claude plugin …`、`codex plugin …`）與 skill invocation 分開。
+每個 host 只選一條 Codex runtime route：日常工作使用支援的 project-local
+`codex-sync`，或只在 disposable isolated `CODEX_HOME` 使用 experimental native
+package。
 Claude workflow 從 `/dhpk:flow-guide`、`/dhpk:flow-drive` 或明確 family skill
 進入；Cursor 在 `install-cursor-harness.sh` 之後使用產生的 command；Codex 在
 project-local `.codex/` 同步後從 `$flow-guide`／`$flow-drive` 進入（Codex 沒有
@@ -204,12 +210,44 @@ Codex 沒有 `/dhpk:*`。已知道完整流程時，使用
 明確 command 或 skill。Plugin 管理（`claude plugin …`、`codex plugin …`）只安裝／
 更新 surface，不會呼叫 workflow。
 
+不確定要先做哪一步時，也可以直接用：
+[技能與 Slash Command 快速速查（非專業版）](./skill-command-cheat-sheet.zh-TW.md)
+
+### 技能群組與高效率進退場
+
+建議先依場景走群組再縮小到 skill，能減少誤路由與重複參數輸入：
+
+| 群組 | 代表技能 | 使用時機 | 最快路徑 |
+|---|---|---|---|
+| 路由/決策 | `flow-guide`、`flow-drive` | Discovery、提供建議，並只實作已確認工作 | `flow-guide route [--go]` → `flow-drive <confirmed-spec-or-change-id>` |
+| 根因分析 | `code-trace` | 熟悉程式、追查回歸、看歷史變更 | `code-trace --mode explore|diagnose|history` |
+| 只讀審閱 | `change-verdict`（`code|pr|security|tests|docs|risk`） | 審查既有 diff、PR、文件、安全與風險 | 單一 `--mode` |
+| 交付前置 | `dhpk-tdd-workflow`、`dhpk-module-design`、外部 `$openspec-propose` | 建立行為邊界、測試策略、架構選項，再進入實作 | 先 author/confirm change，再由 `dhpk-tdd-workflow` 做 RED |
+| OpenSpec 續作 | `dhpk-opsx-load-context`、`dhpk-opsx-post-observation`、`dhpk-opsx-apply-goal` | 續接 / 交付長時間 `/opsx:apply` 工作流 | 長跑用 `dhpk-opsx-apply-goal <change-id>`，續場景用 `dhpk-opsx-load-context` |
+| Harness / 平台 | `harness-govern`（`health|budget|fill|revise|sync`） | 同步跨 host 的 harness、plugin、版本與規格 | 先 `$harness-govern health --dry-run` |
+| 技能治理 | `skill-forge`、`skill-scope` | 編寫、稽核、比較 skill 品質 | 快速盤點用 `skill-scope`，結構調整用 `skill-forge` |
+| Git / 發版準備 | `dhpk-git-smart-commit`、`dhpk-release-creator`、`dhpk-deploy-list`、`dhpk-project-setup` | 大量變更分群提交、發版、部署檔清單、專案初始化 | `dhpk-project-setup` 後接 `dhpk-git-smart-commit` / `dhpk-release-creator` |
+
+### 參數速查
+
+| Skill | 常用參數 |
+|---|---|
+| `flow-guide` | `<help\|route\|rules\|next\|close>` `[--go]` `[query]` |
+| `flow-drive` | `<confirmed-spec-or-change-id>` `--plan[=<model>[:<effort>]]` `--worker=<claude\|codex\|agy\|auto>` `--reasoner=<backend>:<model>:<effort>` `--architect\|--no-architect` |
+| `code-trace` | `--mode explore|diagnose|history|select-tool` `--dual` `--explain` `--depth brief|normal|deep` |
+| `change-verdict` | `--mode code|pr|security|tests|docs|risk` `--ac-trace` `--second-opinion=codex-exec` |
+| `dhpk-tdd-workflow` | `test-generation` `fast-worker` `standard` |
+| `dhpk-opsx-apply-goal` | `<change-id>` `--turns N` `--max-duration <Nm|Nh>` `--min-coverage N` `--smoke|--no-smoke` |
+| `dhpk-repo-intake` | `save` `--mode auto|delta|full` `--top N` |
+
+建議原則：先選對群組再補齊最少參數，路由與回呼會更穩定。
+
 ### 選擇入口
 
 | 需求 | 入口 | 完成訊號 |
 |---|---|---|
-| 只看會執行什麼 | `/dhpk:flow-drive --route-only <task>` 或 `/dhpk:flow-guide --mode classify` | `Route only: /...`（或 bounded classification／task prompt）；不執行 downstream。 |
-| 功能、Bug、重構或大型變更 | `/dhpk:flow-guide --mode classify` 後 `/dhpk:flow-drive <task>` | 一個 workflow classification 與一個命名的下一個 route。 |
+| 只看會執行什麼 | `/dhpk:flow-guide route <task>` | Route report；不執行 downstream。加 `--go` 才能要求一個可用 target 的 handoff。 |
+| 功能、Bug、重構或大型變更 | `/dhpk:flow-guide route <task>` 後 `/dhpk:flow-drive <confirmed-spec-or-change-id>` | 一個命名 owner，接著是已確認 implementation 證據。 |
 | 檢查程式或 execution flow | `/dhpk:code-trace --mode explore <area>` | 有檔案／symbol 引用的證據說明。 |
 | Review 既有修改 | `/dhpk:review-pending` 或 `/dhpk:change-verdict --mode code` | Reviewer verdict 加上新鮮 artifact，或明確 blocker。 |
 | Commit、PR 或 release | `/dhpk:smart-commit`、`/dhpk:create-pr` 或 `/dhpk:dhpk-release-creator` | 明確的 command 結果；不會自動 commit、push 或 merge。 |
@@ -218,40 +256,44 @@ Codex 沒有 `/dhpk:*`。已知道完整流程時，使用
 會印出確切的直接 invocation 後停止；route confidence 不能越過 target 的 invocation
 class。Route table 是 deterministic fast path；ambiguous compound request 會使用有界
 classification，不會猜測。
+Deterministic probe 會回報 `MATCH`、`NO_MATCH` 或 `NO_QUERY`；這些是
+machine-readable routing state，不是 implementation 結果。
 
-### 執行前先檢查路由
+### 執行前先檢查 guidance
 
 ```text
-/dhpk:flow-drive --route-only implement a password-reset email flow
-/dhpk:flow-drive --route-only fix the login redirect loop
+/dhpk:flow-guide route implement a password-reset email flow
+/dhpk:flow-guide route fix the login redirect loop
 ```
 
-`--route-only` 會在 matching 前移除自己與支援的 mode flags。使用者看到的 deterministic
-match 是 `Route only: /<skill> (<label>).`；bounded classification 則是
-`Route only: /<chosen> because <reason>.`，空輸入會要求 task description。底層 route
-helper 另外提供 validator 使用的 machine-readable `MATCH<TAB>skill<TAB>label`、
-`NO_MATCH` 與 `NO_QUERY`。兩種形式都不會呼叫 OpenSpec、planner、architect、worker 或選定的 skill。
+`flow-guide route` 預設只提供建議；只有在 target 可用且為 implicit-eligible 時，
+才可使用 `flow-guide route --go <task>` 要求一次有界 handoff。它不會把路由選擇
+轉成 proposal authoring 或已確認工作的實作。若 target 是 explicit-only，guide 只會回報直接
+invocation，不會替它 dispatch。空白或模糊輸入仍是分類問題。Route report 不是
+implementation、review、commit、merge、archive、release 或 deploy 證據。
 
 ### 主要交付流程——功能與 Bug
 
 ```text
-/dhpk:flow-drive implement a password-reset email flow
-/dhpk:flow-drive fix the login redirect loop
+/dhpk:flow-guide route implement a password-reset email flow
+/dhpk:flow-guide route fix the login redirect loop
 ```
 
-`flow-guide` 的 classify mode 會先 classification，再載入分支所需 context。Feature work 進入
+`flow-guide` 先提供唯讀 route 與 policy guidance，再載入分支所需 context。Feature work 進入
 TDD RED → GREEN → REFACTOR；Bug work 記錄 root-cause evidence，並在修正前建立
-regression-test RED gate。Repository 提供 GitNexus 時，既有 symbol 會先做 pre-edit
-impact analysis；`cx` 的 overview／definition／references 是主要 navigation fallback。
+regression-test RED gate。Specification 與 acceptance boundary 確認後，再呼叫
+`/dhpk:flow-drive <confirmed-spec-or-change-id>`。Repository 提供 GitNexus 時，既有
+symbol 會先做 pre-edit impact analysis；`cx` 的 overview／definition／references 是主要
+navigation fallback。
 
 只有在本次 invocation 改變決策時才加入 modifier：
 
 | Modifier | 效果與邊界 |
 |---|---|
-| `--plan[=<model>[:<effort>]]` | 只在 implementation-class route 加入 planner critique；authoring route 由 `--openspec` 優先。 |
-| `--openspec` / `--opsx` | 將 feature／bug authoring route 送到外部 OpenSpec artifact creation，然後停在人類 Review；其他 route 會忽略。 |
-| `--worker=<claude\|codex\|agy\|auto>` | 只選本次 invocation 的 mechanical worker；優先序為 flag → `fast_worker_backend` → shipped `claude`，不會持久化設定。 |
-| `--reasoner=<claude\|codex>[:<model>[:<effort>]]` | 為 implementation-class route 選 reasoning backend；其他 route 會明確訊息後忽略。 |
+| `--plan[=<model>[:<effort>]]` | 為已確認的 implementation work 加入 planner critique。 |
+| `--worker=<claude\|codex\|agy\|auto>` | 只選本次 invocation 的 mechanical worker，不會持久化設定。 |
+| `--reasoner=<backend>:<model>:<effort>` | 為已確認 implementation work 要求 bounded reasoning pass。 |
+| `--architect` / `--no-architect` | 控制本次 invocation 的 architecture pass。 |
 | `--codex` | 已退休的相容性旗標。Parser 會產生 deprecation diagnostic，不會選擇 peer 或 backend；請改用明確的 worker、reasoner 或 owner 第二意見選項。 |
 
 `--worker=codex` 是選 Codex CLI mechanical worker；`--reasoner=codex` 是選 Codex CLI
@@ -263,8 +305,8 @@ verification failure 都維持 blocked。
 ### OpenSpec 生命週期邊界
 
 不明確或跨 session 的工作先記錄 wayfinder checkpoint，再用 `/opsx:new` 或 `/opsx:ff`
-建立 `openspec/changes/<change-id>/` artifacts。通過 Planning Review Gate 後，以
-`$dhpk:openspec-apply-change <change>` 或 repository 的外部 OpenSpec apply entry 實作。
+建立 `openspec/changes/<change-id>/` artifacts。通過 Planning Review Gate 後，以外部
+`/opsx:apply <change>` 或已確認的 `$flow-drive <change-id>` entry 實作。
 Plan、validator 通過或全綠測試都不是 archive evidence。完成仍需 task checkbox、適用的
 verification gate、Review obligation 與 human-only action 都已解決；archive、issue closure
 與 release publication 仍是分開的步驟。
@@ -321,7 +363,7 @@ reviewer 與 completion gate，不會為了約 4,000 UTF-8-byte 的 paste ceilin
 
 ```text
 /dhpk:spec-mine user-authentication
-/dhpk:flow-drive write E2E tests for the checkout flow
+/dhpk:flow-guide route write E2E tests for the checkout flow
 /dhpk:harness-audit
 /dhpk:harness-govern
 /dhpk:harness-govern --fix
@@ -399,13 +441,18 @@ Runtime projection validator 會拒絕 unreachable reference 或 Claude plugin-r
 
 Repository 提供 Codex plugin manifest 與 marketplace wrapper，底層是 tracked、physical 的
 `plugins/dhpk/` publication package，由 `manifests/distribution-inventory.json` 的明確
-`codex-native` surface 產生，零 symlink：
+`codex-native` surface 產生，零 symlink。這條 route 只能使用全新的 disposable
+isolated `CODEX_HOME`，且不得建立 project-local `.codex/` projection；兩個 surface
+雖然分開發布／取得，runtime activation 仍互斥：
 
 ```bash
 codex plugin marketplace add hmj1026/dhpk   # or a local path during development
 codex plugin add dhpk@dhpk
 codex plugin list
 ```
+
+上述是取決於 CLI 支援的 repository command；官方 Codex 文件不是這條
+dhpk-specific install route 的證明。
 
 實驗性生命週期指令（marketplace upgrade 適用於已設定的 Git marketplace；local-path development
 marketplace 請先 refresh 或重新加入 local source，再重新安裝）：
@@ -428,9 +475,17 @@ codex plugin marketplace remove dhpk
 以及 [Issue #88](https://github.com/hmj1026/dhpk/issues/88) 的原始追蹤。
 
 安裝 proof 是必要但不充分的證據：原生 Codex marketplace support 在另外通過升級決策前仍是
-**experimental**（見 [ADR-0006](./adr/0006-codex-native-publication-artifact.md)）。Production
-工作請使用 `install-codex-skills.sh`；marketplace package 是 additive，不取代支援的
-project-local sync path。
+**experimental**（見 [ADR-0006](./adr/0006-codex-native-publication-artifact.md)）。兩個
+package 分開發布／取得，但 runtime activation 互斥。Production 工作請使用
+`install-codex-skills.sh` 作為 canonical project-local sync route，不要在同一個 host
+啟用 native package。
+
+若 native plugin 已啟用而要採用 project-local sync，請手動執行
+`codex plugin remove dhpk@dhpk`，再啟動新的 Codex session。Installer 會在
+install、update、migrate 與 plan 前查詢 `codex plugin list --json`：若明確回報
+native plugin 已 enabled，會在寫入前阻擋，`--force` 不能繞過；`--uninstall` 仍可用。
+若 query 缺少或不受支援，結果回報 `providerCheck: UNAVAILABLE`，sync 可繼續；installer
+不會自動移除 global plugin。不要刪除整個 `.codex/` 目錄。
 
 細節請看 `.codex-plugin/README.md` 與 `plugins/dhpk/README.md`。
 

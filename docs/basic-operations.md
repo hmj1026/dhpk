@@ -28,6 +28,9 @@ supported [`install-cursor-harness.sh`](../scripts/hooks/install-cursor-harness.
 change proposals, specifications, and task evidence live under
 `openspec/changes/`; a passing validator is not version-control delivery.
 
+If you want a one-page reference that tells you which skill/command to use first,
+also use: [技能與 Slash Command 快速速查（非專業版）](./skill-command-cheat-sheet.zh-TW.md).
+
 When a destination is unclear and the work will span sessions, first record a
 wayfinder checkpoint with destination candidates, current frontier, and one
 next decision. A clear single-session request goes directly to its route.
@@ -41,13 +44,16 @@ dhpk deliberately exposes several surfaces with different support tiers:
 | Claude marketplace | Supported | Primary consumer install and update path. |
 | `claude --plugin-dir` | Development-only | Working-tree iteration; not a release channel. |
 | `scripts/install.sh` | Convenience wrapper | Runs the Claude install contract; it is not a separate distribution. |
-| `install-codex-skills.sh` | Supported | Stable Codex project sync path. |
+| `install-codex-skills.sh` | Supported | Stable, canonical Codex project sync path; runtime activation is mutually exclusive with the native `dhpk@dhpk` plugin. |
 | `install-cursor-harness.sh` | Supported | Stable Cursor project-local sync path (`.cursor/`). |
-| Codex plugin marketplace | Experimental | Physical publication package with a verified real-CLI install proof; tier stays Experimental until a separate graduation decision. |
+| Codex plugin marketplace | Experimental | Physical publication package for isolated disposable `CODEX_HOME` experiments; runtime activation is mutually exclusive with project-local sync and the tier stays Experimental until a separate graduation decision. |
 | Antigravity / AGY sync | Adapter/package | Antigravity uses `.agent` mappings; AGY uses its native plugin package and validator. |
 
 Plugin management commands (`claude plugin …`, `codex plugin …`) are separate
-from skill invocation. Claude workflows enter through `/dhpk:flow-guide`,
+from skill invocation. Choose one Codex runtime route per host: use the
+supported project-local `codex-sync` path for daily work, or use the
+experimental native package only in a disposable isolated `CODEX_HOME`.
+Claude workflows enter through `/dhpk:flow-guide`,
 `/dhpk:flow-drive`, or an explicit family skill; Cursor uses the generated
 command after `install-cursor-harness.sh`; Codex enters through `$flow-guide` /
 `$flow-drive` after project-local `.codex/` sync (Codex has no `/dhpk:*` command).
@@ -208,16 +214,48 @@ inspect → verify surface → route → plan/classify → implement → review 
 Use Claude `/dhpk:flow-guide` (classification), `/dhpk:flow-drive` (execution),
 the Cursor generated command, or Codex `$flow-guide` / `$flow-drive` when you
 know the outcome but not the right family. Codex has no `/dhpk:*` command.
+
+Need a quick entry map before this table? See the cheat sheet:
+[技能與 Slash Command 快速速查（繁體中文）](./skill-command-cheat-sheet.zh-TW.md)
 Use a direct command or skill when you already know the exact workflow. Plugin management
 (`claude plugin …`, `codex plugin …`) installs or updates a surface; it does not
 invoke a workflow.
+
+### Skill groups and efficient workflows
+
+Use the skill groups below as a reusable decision ladder:
+
+| Lane | Representative skills | What to use it for | Fast path |
+|---|---|---|---|
+| Routing/decision | `flow-guide`, `flow-drive` | Discover, advise, and execute only confirmed work. | `flow-guide route [--go]` → `flow-drive <confirmed-spec-or-change-id>` |
+| Root-cause analysis | `code-trace` | Understand unfamiliar code, trace regressions, inspect history. | `code-trace --mode explore|diagnose|history` |
+| Read-only verdict | `change-verdict` (`code|pr|security|tests|docs|risk`) | Audit a completed change, PR, doc set, or attack surface. | one `--mode` only |
+| Delivery / implementation prep | `dhpk-tdd-workflow`, `dhpk-module-design`, external `$openspec-propose` | Plan behavior-first, test-first, and architecture boundaries before edits. | Author/confirm the change, then `dhpk-tdd-workflow` + scoped verification |
+| OpenSpec session control | `dhpk-opsx-load-context`, `dhpk-opsx-post-observation`, `dhpk-opsx-apply-goal` | Resume / handoff an OpenSpec edit sequence. | `dhpk-opsx-apply-goal <change-id>` for long-run, `dhpk-opsx-load-context` for resume |
+| Harness and platform hygiene | `harness-govern` (`health|budget|fill|revise|sync`) | Keep plugin/sync state clean and repeatable across environments. | `$harness-govern health --dry-run` (read-first) |
+| Skill governance | `skill-scope`, `skill-forge` | Author, audit, and compare skill quality or usage | `skill-scope` for quick checks, `skill-forge` when changing structure |
+| Git / release prep | `dhpk-git-smart-commit`, `dhpk-release-creator`, `dhpk-deploy-list`, `dhpk-project-setup` | Group commits, prepare release and deploy artifacts, set up repo policy. | `dhpk-project-setup` → `dhpk-git-smart-commit` / `dhpk-release-creator` |
+
+### Parameter quick reference
+
+| Skill | Common invocation pattern |
+|---|---|
+| `flow-guide` | `<help\|route\|rules\|next\|close>` `[--go]` `[query]` |
+| `flow-drive` | `<confirmed-spec-or-change-id>` `--plan[=<model>[:<effort>]]` `--worker=<claude\|codex\|agy\|auto>` `--reasoner=<backend>:<model>:<effort>` `--architect\|--no-architect` |
+| `code-trace` | `--mode explore|diagnose|history|select-tool` `--dual` `--explain` `--depth brief|normal|deep` |
+| `change-verdict` | `--mode code|pr|security|tests|docs|risk` `--ac-trace` `--second-opinion=codex-exec` |
+| `dhpk-tdd-workflow` | `test-generation` `fast-worker` `standard` |
+| `dhpk-opsx-apply-goal` | `<change-id>` `--turns N` `--max-duration <Nm|Nh>` `--min-coverage N` `--smoke|--no-smoke` |
+| `dhpk-repo-intake` | `save` `--mode auto|delta|full` `--top N` |
+
+Use the lane first, then reduce flags: fewer inputs -> fewer routing misses and cleaner outputs.
 
 ### Choose an entry
 
 | Need | Entry | Completion signal |
 |---|---|---|
-| See what would run | `/dhpk:flow-drive --route-only <task>` or `/dhpk:flow-guide --mode classify` | `Route only: /...` (or a bounded classification / task prompt); no downstream work runs. |
-| Feature, bug, refactor, or other substantial change | `/dhpk:flow-guide --mode classify` then `/dhpk:flow-drive <task>` | One workflow classification and one named next route. |
+| See what would run | `/dhpk:flow-guide route <task>` | A route report; no downstream work runs. Add `--go` for one eligible handoff. |
+| Feature, bug, refactor, or other substantial change | `/dhpk:flow-guide route <task>` then `/dhpk:flow-drive <confirmed-spec-or-change-id>` | One named owner followed by confirmed implementation evidence. |
 | Inspect code or execution flow | `/dhpk:code-trace --mode explore <area>` | Evidence-backed explanation with file/symbol references. |
 | Review existing edits | `/dhpk:review-pending` or `/dhpk:change-verdict --mode code` | Reviewer verdict plus fresh artifact or an explicit blocker. |
 | Commit, PR, or release | `/dhpk:smart-commit`, `/dhpk:create-pr`, or `/dhpk:dhpk-release-creator` | Explicit command result; no automatic commit, push, or merge. |
@@ -227,43 +265,48 @@ invoke a workflow.
 confidence never bypasses the target's invocation class. The route table is the
 deterministic fast path, while ambiguous compound requests use bounded
 classification rather than a guessed match.
+The deterministic probe reports `MATCH`, `NO_MATCH`, or `NO_QUERY`; these are
+machine-readable routing states, not implementation results.
 
-### Inspect routing before execution
+### Inspect guidance before execution
 
 ```text
-/dhpk:flow-drive --route-only implement a password-reset email flow
-/dhpk:flow-drive --route-only fix the login redirect loop
+/dhpk:flow-guide route implement a password-reset email flow
+/dhpk:flow-guide route fix the login redirect loop
 ```
 
-`--route-only` strips itself and any supported mode flags before matching. The
-user-facing command prints `Route only: /<skill> (<label>).` for a deterministic
-match, or `Route only: /<chosen> because <reason>.` after bounded classification;
-empty input asks for a task description. The underlying route helper exposes
-the machine-readable `MATCH<TAB>skill<TAB>label`, `NO_MATCH`, and `NO_QUERY`
-tokens used by validators. In either form it never invokes OpenSpec, planner,
-architect, worker, or the selected skill.
+`flow-guide route` is advice by default. `flow-guide route --go <task>` may
+request one bounded handoff only when the selected target is available and
+implicit-eligible. It never turns route selection into proposal authoring or
+confirmed implementation. An
+explicit-only target is reported with its direct invocation and is never
+dispatched by the guide. Empty or ambiguous input remains a classification
+question. The route report is not implementation, review, commit, merge,
+archive, release, or deploy evidence.
 
 ### Main delivery flow — feature and bug work
 
 ```text
-/dhpk:flow-drive implement a password-reset email flow
-/dhpk:flow-drive fix the login redirect loop
+/dhpk:flow-guide route implement a password-reset email flow
+/dhpk:flow-guide route fix the login redirect loop
 ```
 
-The `flow-guide` classification mode runs before loading branch-specific
-context. Feature work enters TDD RED → GREEN → REFACTOR; bug work records root
-cause evidence and a regression-test RED gate before the fix. Existing symbols
-receive pre-edit impact analysis when the repository provides GitNexus; `cx`
+`flow-guide` provides the read-only route and policy guidance before loading
+branch-specific context. Feature work enters TDD RED → GREEN → REFACTOR; bug
+work records root-cause evidence and a regression-test RED gate before the fix.
+Once the specification and acceptance boundary are confirmed, invoke
+`/dhpk:flow-drive <confirmed-spec-or-change-id>`. Existing symbols receive
+pre-edit impact analysis when the repository provides GitNexus; `cx`
 overview/definition/references remain the primary navigation fallback.
 
 Use these invocation-only modifiers when they change the decision for this run:
 
 | Modifier | Effect and boundary |
 |---|---|
-| `--plan[=<model>[:<effort>]]` | Adds a planner critique only to implementation-class routes. `--openspec` supersedes it on authoring routes. |
-| `--openspec` / `--opsx` | Sends feature/bug authoring routes to external OpenSpec artifact creation, then stops at human review. It is ignored on non-authoring routes. |
-| `--worker=<claude\|codex\|agy\|auto>` | Selects the mechanical worker for this invocation; precedence is flag → `fast_worker_backend` → shipped `claude`. It does not persist configuration. |
-| `--reasoner=<claude\|codex>[:<model>[:<effort>]]` | Selects the reasoning backend for implementation-class routes; ignored elsewhere with an explicit message. |
+| `--plan[=<model>[:<effort>]]` | Adds a planner critique to confirmed implementation work. |
+| `--worker=<claude\|codex\|agy\|auto>` | Selects the mechanical worker for this invocation; it does not persist configuration. |
+| `--reasoner=<backend>:<model>:<effort>` | Requests a bounded reasoning pass for confirmed implementation work. |
+| `--architect` / `--no-architect` | Enables or disables the architecture pass for this invocation. |
 | `--codex` | Retired compatibility flag. The parser emits a deprecation diagnostic and does not select a peer or backend; use an explicit worker, reasoner, or owner second-opinion option instead. |
 
 `--worker=codex` chooses a Codex CLI mechanical worker. `--reasoner=codex`
@@ -277,8 +320,8 @@ execution, and verification failures remain blocked.
 
 For unclear or multi-session work, record a wayfinder checkpoint, then use
 `/opsx:new` or `/opsx:ff` to author `openspec/changes/<change-id>/` artifacts.
-After the Planning Review Gate, apply with `$dhpk:openspec-apply-change <change>`
-or the repository's external OpenSpec apply entry. A plan, passing validator, or
+After the Planning Review Gate, apply with the external `/opsx:apply <change>`
+entry or the confirmed `$flow-drive <change-id>` entry. A plan, passing validator, or
 all-green test run is not archival evidence. Completion requires task checkboxes,
 applicable verification gates, review obligations, and human-only actions to be
 resolved; archive, issue closure, and release publication remain separate steps.
@@ -346,7 +389,7 @@ UTF-8-byte paste ceiling.
 
 ```text
 /dhpk:spec-mine user-authentication
-/dhpk:flow-drive write E2E tests for the checkout flow
+/dhpk:flow-guide route write E2E tests for the checkout flow
 /dhpk:harness-audit
 /dhpk:harness-govern
 /dhpk:harness-govern --fix
@@ -445,13 +488,19 @@ projection validator rejects unreachable references or Claude plugin-root paths.
 The repository ships a Codex plugin manifest and marketplace wrapper backed
 by a tracked, physical publication package at `plugins/dhpk/` — generated
 from `manifests/distribution-inventory.json`'s explicit `codex-native`
-surface, containing zero symlinks:
+surface, containing zero symlinks. Use this route only with a fresh disposable
+isolated `CODEX_HOME`, with no project-local `.codex/` projection. These
+surfaces are separately published/acquired, but must not be activated together.
 
 ```bash
 codex plugin marketplace add hmj1026/dhpk   # or a local path during development
 codex plugin add dhpk@dhpk
 codex plugin list
 ```
+
+The commands above are conditional repository instructions for a CLI that
+supports the route; official Codex documentation is not dhpk-specific install
+proof.
 
 Experimental lifecycle commands (the marketplace upgrade form applies to a
 configured Git marketplace; for a local-path development marketplace, refresh
@@ -484,9 +533,19 @@ for the full gate model.
 A passing install proof is necessary evidence, not sufficient by itself:
 native Codex marketplace support remains **experimental** until a later,
 separately approved graduation decision (see
-[ADR-0006](./adr/0006-codex-native-publication-artifact.md)). For production
-work, use `install-codex-skills.sh` — the marketplace package is additive,
-not a replacement for the supported project-local sync path.
+[ADR-0006](./adr/0006-codex-native-publication-artifact.md)). The two packages
+are separately published and acquired, but runtime activation is mutually
+exclusive. For production work, use `install-codex-skills.sh` as the canonical
+project-local sync route; do not activate the native package on the same host.
+
+If the native plugin is enabled and you choose project-local sync, remove it
+manually with `codex plugin remove dhpk@dhpk`, then start a new Codex session.
+The sync installer checks `codex plugin list --json` before install, update,
+migrate, and plan: a positively enabled native plugin blocks those operations
+before writes, and `--force` cannot bypass the gate. `--uninstall` remains
+available. If the query is missing or unsupported, the result reports
+`providerCheck: UNAVAILABLE` and sync may proceed; the installer never removes
+the global plugin automatically. Do not delete the whole `.codex/` directory.
 
 See `.codex-plugin/README.md` and `plugins/dhpk/README.md` for details.
 

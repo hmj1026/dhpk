@@ -11,6 +11,66 @@ const {
   projectionError,
   VERIFICATION_STAGES,
 } = require('./distribution-projection-contract');
+const {
+  hasCodexSurface,
+  normalizeSkillUsage,
+  usageFingerprint,
+  resolveInventoryRevision,
+} = require('./skill-usage');
+
+const EMISSION_METADATA_FIELDS = Object.freeze([
+  'skillId',
+  'publicName',
+  'invocationClass',
+  'lifecycle',
+  'usageSchema',
+  'usage',
+  'usageFingerprint',
+  'provenance',
+]);
+
+function canonicalMetadata(value) {
+  if (Array.isArray(value)) return `[${value.map(canonicalMetadata).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonicalMetadata(value[key])}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function validateEmissionMetadata(emission, planned) {
+  for (const field of EMISSION_METADATA_FIELDS) {
+    const expected = planned[field];
+    const observed = emission && emission[field];
+    if (expected === undefined) {
+      if (observed !== undefined) {
+        return projectionError(
+          'UNDECLARED_PROJECTION_METADATA',
+          'materialize',
+          `adapter emitted undeclared projection metadata '${field}' for '${planned.stableId}'`,
+          { stableIds: [planned.stableId], details: { field } },
+        );
+      }
+      continue;
+    }
+    if (observed === undefined) {
+      return projectionError(
+        'INCOMPLETE_PROJECTION_METADATA',
+        'materialize',
+        `adapter omitted planned projection metadata '${field}' for '${planned.stableId}'`,
+        { stableIds: [planned.stableId], details: { field } },
+      );
+    }
+    if (canonicalMetadata(expected) !== canonicalMetadata(observed)) {
+      return projectionError(
+        'PROJECTION_METADATA_DRIFT',
+        'materialize',
+        `adapter projection metadata '${field}' drifted for '${planned.stableId}'`,
+        { stableIds: [planned.stableId], details: { field, expected, actual: observed } },
+      );
+    }
+  }
+  return null;
+}
 
 const MIGRATED_SELECTION_SURFACES = Object.freeze(['agent-plugin', 'cursor-plugin', 'codex-native']);
 const SELECTION_POLICY_SOURCES = Object.freeze(['surface_membership', 'projection', 'platform_matrix', 'entry_surfaces']);
@@ -22,6 +82,61 @@ function selectionPolicyError(message, details = {}) {
 function allInventoryEntries(inventory) {
   return [...(inventory && inventory.skills || []), ...(inventory && inventory.modules || [])]
     .filter((entry) => entry && typeof entry === 'object');
+}
+
+function inventoryEntryProjection(entry, inventory) {
+  const projected = {
+    id: entry.id,
+    source: entry.path,
+    sourceFingerprint: entry.source_fingerprint || entry.sourceFingerprint || null,
+    destination: entry.destination || entry.path,
+    owner: entry.owner || entry.id,
+    transform: entry.transform || { id: 'identity', version: '1' },
+    expectedFingerprint: entry.expected_fingerprint || entry.expectedFingerprint || null,
+    symlinkPolicy: entry.symlink_policy || entry.symlinkPolicy || 'forbid',
+  };
+  if (entry.usage !== undefined && entry.usage !== null) {
+    projected.skillId = entry.id;
+    projected.publicName = entry.name || entry.publicName || entry.id;
+    projected.canonicalSource = entry.path;
+    projected.sourceOwner = entry.owner || entry.id;
+    projected.lifecycle = entry.lifecycle === undefined ? null : entry.lifecycle;
+    projected.invocationClass = entry.invocation_class || entry.invocationClass || null;
+    projected.retirementState = entry.retirement_state || entry.retirementState
+      || (entry.lifecycle === 'deprecated' ? 'retired' : 'active');
+    projected.inventoryRevision = resolveInventoryRevision(inventory);
+    const usageInput = { skill: entry, usage: entry.usage };
+    projected.usage = normalizeSkillUsage(usageInput);
+    projected.usageFingerprint = usageFingerprint(usageInput);
+  } else if (inventory
+      && inventory.schema === 'dhpk.distribution-inventory.v2'
+      && hasCodexSurface(entry)
+      && (entry.name || entry.publicName || entry.invokable === true)) {
+    return {
+      error: projectionError(
+        'INCOMPLETE_PLAN',
+        'compile',
+        `Codex-invokable skill '${entry.id}' is missing an inventory-owned usage contract`,
+        { stableIds: [entry.id], details: { field: 'usage' } },
+      ),
+    };
+  }
+  if (projected.usage) {
+    projected.provenance = {
+      schema: 'dhpk.skill-provenance.v1',
+      inventoryRevision: projected.inventoryRevision,
+      canonicalSource: projected.canonicalSource,
+      sourceFingerprint: projected.sourceFingerprint,
+      owner: projected.sourceOwner,
+      transform: projected.transform,
+      lifecycle: projected.lifecycle,
+      retirementState: projected.retirementState,
+      publicName: projected.publicName,
+      invocationClass: projected.usage.invocation_class,
+    };
+  }
+  delete projected.stableId;
+  return { value: projected };
 }
 
 function idsFromProjectionValue(value) {
@@ -109,19 +224,18 @@ function inventoryEntries(inventory, surface) {
   // selection policy is optional only for compatibility fixtures, not a
   // reason to broaden a requested surface to every inventory entry.
   const legacySurfaceEntries = inventoryEntries.filter((entry) => Array.isArray(entry.surfaces) && entry.surfaces.includes(surface));
-  const entries = (selectedIds === null ? legacySurfaceEntries : selectedIds.map((id) => byId.get(id)).filter(Boolean))
+  const selectedEntries = (selectedIds === null ? legacySurfaceEntries : selectedIds.map((id) => byId.get(id)).filter(Boolean));
+  const entries = selectedEntries
     .filter((entry) => entry.lifecycle !== 'deprecated')
-    .map((entry) => ({
-      stableId: entry.id,
-      source: entry.path,
-      sourceFingerprint: entry.source_fingerprint || entry.sourceFingerprint || null,
-      destination: entry.destination || entry.path,
-      owner: entry.owner || entry.id,
-      transform: entry.transform || { id: 'identity', version: '1' },
-      expectedFingerprint: entry.expected_fingerprint || entry.expectedFingerprint || null,
-      symlinkPolicy: entry.symlink_policy || entry.symlinkPolicy || 'forbid',
-    }));
-  return { entries, selectedStableIds: selectedIds, selectionPolicy: resolved.policy };
+    .map((entry) => inventoryEntryProjection(entry, inventory));
+  const invalid = entries.find((entry) => entry && entry.error);
+  if (invalid) return invalid;
+  return {
+    entries: entries.map((entry) => entry.value),
+    selectedStableIds: selectedIds,
+    selectionPolicy: resolved.policy,
+    inventoryRevision: resolveInventoryRevision(inventory),
+  };
 }
 
 function compileDistribution(inputs = {}) {
@@ -136,7 +250,11 @@ function compileDistribution(inputs = {}) {
     const resolved = inventoryEntries(inputs.inventory, inputs.surface);
     if (resolved && resolved.error) return { ok: false, error: resolved.error };
     entries = resolved.entries;
-    selection = { selectedStableIds: resolved.selectedStableIds, selectionPolicy: resolved.selectionPolicy };
+    selection = {
+      selectedStableIds: resolved.selectedStableIds,
+      selectionPolicy: resolved.selectionPolicy,
+      inventoryRevision: resolved.inventoryRevision,
+    };
     if (profileSelection && Array.isArray(profileSelection.selectedStableIds)) {
       const selected = new Set(profileSelection.emittedStableIds || profileSelection.selectedStableIds);
       entries = entries.filter((entry) => selected.has(entry.stableId));
@@ -160,6 +278,7 @@ function compileDistribution(inputs = {}) {
   const selectionPolicy = inputs.selectionPolicy || selection.selectionPolicy;
   if (selectedStableIds !== null && selectedStableIds !== undefined) planInput.selectedStableIds = selectedStableIds;
   if (selectionPolicy !== null && selectionPolicy !== undefined) planInput.selectionPolicy = selectionPolicy;
+  if (selection.inventoryRevision && planInput.inventoryRevision === undefined) planInput.inventoryRevision = selection.inventoryRevision;
   if (profileSelection) {
     planInput.profileSelection = profileSelection;
     if (!inputs.entries && Array.isArray(profileSelection.selectedStableIds)) {
@@ -229,6 +348,13 @@ function materializeDistribution(plan, adapter, artifactStore, { activate = true
         error.projectionDetails = { stableIds: [stableId] };
         throw error;
       }
+      const metadataError = validateEmissionMetadata(emission, plan.entries.find((entry) => entry.stableId === stableId));
+      if (metadataError) {
+        const error = new Error(metadataError.message);
+        error.projectionCode = metadataError.code;
+        error.projectionDetails = { stableIds: metadataError.stableIds, details: metadataError.details };
+        throw error;
+      }
       emittedIds.add(stableId);
     };
     for (const output of rendered.outputs) {
@@ -272,6 +398,12 @@ function materializeDistribution(plan, adapter, artifactStore, { activate = true
       links: published && published.links ? published.links : links,
       artifactFingerprint: published && published.artifactFingerprint,
       metadata: rendered.metadata,
+      ...(plan.usageSchema !== undefined ? { usageSchema: plan.usageSchema } : {}),
+      ...(plan.inventoryRevision !== undefined ? { inventoryRevision: plan.inventoryRevision } : {}),
+      ...(plan.usageFingerprints !== undefined ? { usageFingerprints: plan.usageFingerprints } : {}),
+      ...(plan.provenance !== undefined ? { provenance: plan.provenance } : {}),
+      ...(plan.selectionFingerprint !== undefined ? { selectionFingerprint: plan.selectionFingerprint } : {}),
+      ...(plan.surfaceSelectionFingerprint !== undefined ? { surfaceSelectionFingerprint: plan.surfaceSelectionFingerprint } : {}),
       ...(plan.externalSkillPackagesFingerprint !== undefined
         ? { externalSkillPackagesFingerprint: plan.externalSkillPackagesFingerprint }
         : {}),

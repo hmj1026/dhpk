@@ -23,10 +23,6 @@ const RETIRED_NAMES = [
   'dhpk-codex-architect',
   'dhpk-codex-implement',
 ];
-const CAPABILITY_FAMILY_NAMES = [
-  'skill-scope', 'skill-forge', 'flow-guide', 'flow-drive', 'change-verdict', 'code-trace',
-];
-
 const RETIREMENTS = [
   {
     id: 'bug-fix', name: 'dhpk-bug-fix', canonicalPath: 'skills/dhpk-bug-fix', retiredIn: '0.47.0',
@@ -68,9 +64,8 @@ const RETIREMENTS = [
 function fixtureInventory() {
   return {
     ...INVENTORY,
-    skills: INVENTORY.skills.filter((entry) => !RETIRED_NAMES.includes(entry.name)
-      && entry.name !== CAPABILITY_FAMILY_NAMES[0]),
-    retired_skills: RETIREMENTS,
+    skills: INVENTORY.skills.filter((entry) => !RETIRED_NAMES.includes(entry.name)),
+    retired_skills: INVENTORY.retired_skills,
     surface_membership: Object.fromEntries(Object.entries(INVENTORY.surface_membership || {}).map(([surface, ids]) => [
       surface,
       ids.filter((id) => !RETIREMENTS.some((entry) => entry.id === id)),
@@ -279,7 +274,7 @@ test('flow guide owns complete bug and feature delivery behavior', () => {
   const bug = read('skills/flow-guide/references/workflow-bugfix.md');
   const feature = read('skills/flow-guide/references/workflow-feature-delivery.md');
   const gate = read('skills/flow-guide/references/delivery-loop-gate.md');
-  assert.match(guide, /classify/);
+  assert.match(guide, /route/);
   assert.match(bug, /root cause[\s\S]*regression test/i);
   assert.match(feature, /requirements[\s\S]*design[\s\S]*implement/i);
   assert.match(bug, /dhpk-tdd-workflow/);
@@ -290,7 +285,7 @@ test('flow guide owns complete bug and feature delivery behavior', () => {
 });
 
 test('post-development testing routes unit/integration to TDD and Playwright journeys to e2e-runner', () => {
-  const routeTable = JSON.parse(read('skills/flow-drive/references/route-table.json'));
+  const routeTable = JSON.parse(read('skills/flow-guide/references/route-table.json'));
   const e2eRoute = routeTable.rules.find((entry) => /playwright/i.test(entry.pattern));
   assert.strictEqual(e2eRoute.target.kind, 'agent');
   assert.strictEqual(e2eRoute.target.id, 'e2e-runner');

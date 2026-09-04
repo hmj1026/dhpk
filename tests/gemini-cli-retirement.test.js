@@ -8,13 +8,13 @@ const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const SYNC = path.join(ROOT, 'skills', 'dhpk-cross-agent-sync', 'scripts', 'multi_ai_sync.py');
-const CONSTANTS = path.join(ROOT, 'skills', 'dhpk-cross-agent-sync', 'scripts', 'multi_ai_sync_lib', 'constants.py');
-const SOURCES = path.join(ROOT, 'skills', 'dhpk-cross-agent-sync', 'scripts', 'multi_ai_sync_lib', 'sources.py');
+const SYNC = path.join(ROOT, 'skills', 'harness-govern', 'scripts', 'multi_ai_sync.py');
+const CONSTANTS = path.join(ROOT, 'skills', 'harness-govern', 'scripts', 'multi_ai_sync_lib', 'constants.py');
+const SOURCES = path.join(ROOT, 'skills', 'harness-govern', 'scripts', 'multi_ai_sync_lib', 'sources.py');
 const AGY_ADAPTER = path.join(ROOT, 'scripts', 'agy-adapt-agents.js');
 const RETIRED_ADAPTER = path.join(ROOT, 'scripts', 'gemini-adapt-agents.js');
-const HARNESS_ROOT = path.join(ROOT, 'skills', 'dhpk-harness-revise');
-const CURRENT_REFERENCE_ROOT = path.join(ROOT, 'skills', 'dhpk-cross-agent-sync', 'references');
+const HARNESS_ROOT = path.join(ROOT, 'skills', 'harness-govern');
+const CURRENT_REFERENCE_ROOT = path.join(ROOT, 'skills', 'harness-govern', 'references');
 const CURRENT_DOCS = [
   path.join(ROOT, 'docs', 'basic-operations.md'),
   path.join(ROOT, 'docs', 'basic-operations.zh-TW.md'),

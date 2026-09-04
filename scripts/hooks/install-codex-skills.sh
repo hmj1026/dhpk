@@ -158,9 +158,13 @@ import json
 import math
 import os
 import re
+import selectors
 import shutil
+import signal
 import stat
+import subprocess
 import sys
+import time
 import uuid
 
 PLUGIN_ROOT = os.environ['DHPK_PLUGIN_ROOT']
@@ -200,6 +204,132 @@ ABORT_ADOPTION_PHASE_FOR_TEST = os.environ.get('DHPK_TEST_ABORT_ADOPTION_PHASE')
 SCHEMA_VERSION = 3
 BACKUP_DIR = '.dhpk-backups'
 BACKUP_RUN = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ') + f'-{os.getpid()}'
+CODEX_NATIVE_PLUGIN_ID = 'dhpk@dhpk'
+PROVIDER_QUERY_TIMEOUT_SECONDS = 3
+PROVIDER_QUERY_OUTPUT_LIMIT = 1024 * 1024
+
+
+def terminate_provider_query(process):
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except (OSError, ProcessLookupError):
+        try:
+            process.kill()
+        except OSError:
+            pass
+    try:
+        process.wait(timeout=1)
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+
+
+def run_bounded_provider_query(codex):
+    process = subprocess.Popen(
+        [codex, 'plugin', 'list', '--json'],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        start_new_session=True,
+    )
+    selector = selectors.DefaultSelector()
+    buffers = {process.stdout: bytearray(), process.stderr: bytearray()}
+    deadline = time.monotonic() + PROVIDER_QUERY_TIMEOUT_SECONDS
+    try:
+        for stream in buffers:
+            selector.register(stream, selectors.EVENT_READ)
+        while selector.get_map():
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                terminate_provider_query(process)
+                return None
+            events = selector.select(remaining)
+            if not events:
+                terminate_provider_query(process)
+                return None
+            for key, _ in events:
+                chunk = os.read(key.fileobj.fileno(), 65536)
+                if not chunk:
+                    selector.unregister(key.fileobj)
+                    continue
+                buffers[key.fileobj].extend(chunk)
+                if sum(len(content) for content in buffers.values()) > PROVIDER_QUERY_OUTPUT_LIMIT:
+                    terminate_provider_query(process)
+                    return None
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            terminate_provider_query(process)
+            return None
+        process.wait(timeout=remaining)
+        if process.returncode != 0:
+            return None
+        return (
+            bytes(buffers[process.stdout]).decode('utf-8'),
+            bytes(buffers[process.stderr]).decode('utf-8'),
+        )
+    finally:
+        selector.close()
+        terminate_provider_query(process)
+        process.stdout.close()
+        process.stderr.close()
+
+
+def probe_codex_native_plugin():
+    """Return bounded evidence about the native dhpk Codex plugin.
+
+    The probe is deliberately best-effort: project-local sync remains usable
+    when Codex is unavailable or its plugin-list contract is unsupported. A
+    positively identified enabled native plugin is handled by the caller as a
+    hard preflight blocker before any project-local state is opened or created.
+    """
+    if UNINSTALL:
+        return {'status': 'NOT_APPLICABLE'}
+    if HARNESS_KIND != 'codex':
+        return {'status': 'NOT_APPLICABLE'}
+    codex = shutil.which('codex')
+    if not codex:
+        return {'status': 'UNAVAILABLE'}
+    try:
+        output = run_bounded_provider_query(codex)
+    except (OSError, UnicodeError, ValueError, subprocess.TimeoutExpired):
+        return {'status': 'UNAVAILABLE'}
+    if output is None:
+        return {'status': 'UNAVAILABLE'}
+    stdout, _ = output
+    try:
+        payload = json.loads(stdout)
+    except (TypeError, ValueError):
+        return {'status': 'UNAVAILABLE'}
+    if not isinstance(payload, dict) or not isinstance(payload.get('installed'), list):
+        return {'status': 'UNAVAILABLE'}
+    disabled_match = None
+    malformed_match = False
+    for entry in payload['installed']:
+        if not isinstance(entry, dict) or entry.get('pluginId') != CODEX_NATIVE_PLUGIN_ID:
+            continue
+        if not isinstance(entry.get('enabled'), bool):
+            malformed_match = True
+            continue
+        if entry['enabled']:
+            result = {
+                'status': 'ENABLED',
+                'pluginId': CODEX_NATIVE_PLUGIN_ID,
+                'enabled': True,
+            }
+            if isinstance(entry.get('version'), str) and entry['version']:
+                result['version'] = entry['version']
+            return result
+        disabled_match = entry
+    if malformed_match:
+        return {'status': 'UNAVAILABLE'}
+    if disabled_match is None:
+        return {'status': 'AVAILABLE'}
+    result = {
+        'status': 'DISABLED',
+        'pluginId': CODEX_NATIVE_PLUGIN_ID,
+        'enabled': False,
+    }
+    if isinstance(disabled_match.get('version'), str) and disabled_match['version']:
+        result['version'] = disabled_match['version']
+    return result
 
 # These collections are populated by the reconciliation pass and persisted in
 # the receipt as durable evidence. Paths are always relative to the project or
@@ -2227,7 +2357,7 @@ def inventory_retirement_metadata(active_metadata=None):
             if not isinstance(replacement, dict):
                 raise ValueError(f'{replacement_prefix} must be an object')
             kind = replacement.get('kind')
-            if kind not in ('skill', 'agent', 'model-default'):
+            if kind not in ('skill', 'agent', 'model-default', 'external-skill', 'operator-action'):
                 raise ValueError(f'{replacement_prefix}.kind is unsupported')
             allowed_replacement_fields = {'kind'} if kind == 'model-default' else {'kind', 'id', 'mode'}
             unknown_replacement = sorted(set(replacement) - allowed_replacement_fields)
@@ -2867,6 +2997,7 @@ def build_plan(receipt, classification, sources, metadata, plugin_version, finge
         'selectionPolicyVersion': SELECTION_POLICY_VERSION,
         'selectionFingerprint': SELECTION_FINGERPRINT,
         'surfaceSelectionFingerprint': SELECTION_SURFACE_FINGERPRINT,
+        'providerCheck': dict(PROVIDER_CHECK),
         'receipt_state': reconciliation_state,
         'reconciliation_state': reconciliation_state,
         'state': state,
@@ -3294,6 +3425,29 @@ def migrate_legacy_skill_names(entries, orphaned, counts, collisions, sources, m
         except ValueError as error:
             conflict(key, old, relative, str(error))
 
+
+PROVIDER_CHECK = probe_codex_native_plugin()
+if PROVIDER_CHECK.get('status') == 'ENABLED':
+    blocked_report = {
+        'schema_version': SCHEMA_VERSION,
+        'state': 'blocked',
+        'reasonCode': 'CODEX_NATIVE_PLUGIN_ENABLED',
+        'providerCheck': PROVIDER_CHECK,
+        'receipt_state': 'blocked',
+        'next_action': 'disable Codex plugin dhpk@dhpk, then re-run project-local sync',
+    }
+    if JSON_OUTPUT:
+        print(json.dumps(blocked_report, indent=2, sort_keys=True))
+    else:
+        print('[install-codex-skills] BLOCKED: native Codex plugin dhpk@dhpk is enabled')
+        print('[install-codex-skills] ACTION REQUIRED: ' + blocked_report['next_action'])
+    sys.exit(2)
+if PROVIDER_CHECK.get('status') == 'UNAVAILABLE':
+    print(
+        "[install-codex-skills] note: Codex provider check UNAVAILABLE; "
+        "project-local sync will continue without native-plugin activation evidence.",
+        file=sys.stderr,
+    )
 
 try:
     ensure_codex_root_safe()

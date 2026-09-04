@@ -4,29 +4,27 @@
   "profile": {
     "excludes": [],
     "id": "minimal",
-    "inventoryFingerprint": "35a174778533dea1fb63612b82d6aa3d1984bbea1052011f0fe56a6229899ba0",
+    "inventoryFingerprint": "991fda431c44e3f8ab4470498480124da2f02ef51c295d44f3b83615f598ef22",
     "mode": "profile",
     "modules": [],
-    "profileFingerprint": "173c9f64c7d8b3e920d2848126f4916b9492350321dc22102e8d7b948674aabf",
+    "profileFingerprint": "f53fe6bf916d2edaba5ced145211c8ba5a3d56a87a4ce71f8915597e68a6345d",
     "profileId": "minimal",
-    "selectionFingerprint": "b38fa72e4723bfb4f93f5ba218a7b5d1ec8035a5128068a18c72270b08260eed",
+    "selectionFingerprint": "c336d9d8b1885e91ee8ec59e441d74b8b3b024df2a8bc2c1dda083d905236008",
     "selectionPolicyVersion": "dhpk.capability-bundle-selection.v1",
-    "sourceFingerprint": "5ee6eeee482063e75821e1355dfaafa7e3858212f319fab623dd058463114d1c",
-    "surfaceSelectionFingerprint": "eac7d9943532bc81dcc690fd53c1013cad283ee9b97e50bacd7788d313f48048",
+    "sourceFingerprint": "ea7efcd56ab1b4bf7e3df10ea0b4642cbb9e2d3ec3e40443302aa0a2914d661c",
+    "surfaceSelectionFingerprint": "33119ff3af64392361181b26ab274bda5f2fb52f882f572c49ea3ea8e6d82458",
     "version": "claude-profile-v1"
   },
   "compatibilityMode": "profile",
   "selectedStableIds": [
     "change-verdict",
     "code-trace",
-    "create-request",
     "flow-drive",
     "flow-guide",
     "git-smart-commit",
     "project-audit",
     "prompt-optimize",
-    "tdd",
-    "tech-spec"
+    "tdd"
   ],
   "consumerPluginId": "dhpk@dhpk-profile-minimal",
   "outputs": [
@@ -45,10 +43,6 @@
     {
       "stableId": "claude-profile:skill:code-trace",
       "destination": "skills/code-trace/SKILL.md"
-    },
-    {
-      "stableId": "claude-profile:skill:create-request",
-      "destination": "skills/dhpk-create-request/SKILL.md"
     },
     {
       "stableId": "claude-profile:skill:flow-drive",
@@ -73,10 +67,6 @@
     {
       "stableId": "claude-profile:skill:tdd",
       "destination": "skills/dhpk-tdd-workflow/SKILL.md"
-    },
-    {
-      "stableId": "claude-profile:skill:tech-spec",
-      "destination": "skills/dhpk-tech-spec/SKILL.md"
     },
     {
       "stableId": "claude-profile:command:smart-commit",
@@ -149,5 +139,5 @@
     "yii-1.1",
     "yii1-security-audit"
   ],
-  "planFingerprint": "76f006f435ce8af3ae44332bf77b83b5d05132ea977d9a66231398853a211c0d"
+  "planFingerprint": "a0803b68bbfa2743af48b2d6041f225481800b4bb348e2062ae1663918c13bd2"
 }

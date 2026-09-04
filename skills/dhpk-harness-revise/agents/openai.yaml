@@ -1,6 +1,0 @@
-interface:
-  display_name: "Harness Revise"
-  short_description: "Trim and validate the project harness (.claude/ or .codex/)"
-  default_prompt: "Use $dhpk-harness-revise to apply the Harness Revise workflow with its verification rules."
-policy:
-  allow_implicit_invocation: false

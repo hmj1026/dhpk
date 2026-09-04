@@ -11,6 +11,14 @@ const read = (relative) => fs.readFileSync(path.join(ROOT, relative), 'utf8');
 const INVENTORY = JSON.parse(read('manifests/distribution-inventory.json'));
 const PROFILES = JSON.parse(read('manifests/install-profiles.json'));
 
+const PORTABLE_FAMILIES = Object.freeze([
+  'change-verdict', 'code-trace', 'flow-drive', 'flow-guide', 'harness-govern',
+  'laravel', 'phpunit', 'skill-forge', 'skill-scope',
+]);
+
+// The first family wave remains a closed 0.53.0 ledger.  The 0.54.0
+// remaining-wave rows are covered by consolidate-remaining-dhpk-skill-families
+// and must not be silently folded into this historical wave assertion.
 const FAMILY_MODES = Object.freeze({
   'skill-scope': Object.freeze({
     'skill-health-check': 'health',
@@ -23,14 +31,14 @@ const FAMILY_MODES = Object.freeze({
     'rules-distill': 'distill-rules',
   }),
   'flow-guide': Object.freeze({
-    'adaptive-dev-workflow': 'classify',
-    'dhpk-execution-policy': 'policy',
+    'adaptive-dev-workflow': 'route',
+    'dhpk-execution-policy': 'rules',
     'next-step': 'next',
-    'execution-checklist': 'checklist',
+    'execution-checklist': 'close',
+    do: 'route',
   }),
   'flow-drive': Object.freeze({
-    do: 'route',
-    implement: 'implement',
+    implement: undefined,
   }),
   'change-verdict': Object.freeze({
     'codex-code-review': 'code',
@@ -72,8 +80,12 @@ function sha256(relative) {
   return crypto.createHash('sha256').update(fs.readFileSync(path.join(ROOT, relative))).digest('hex');
 }
 
-test('inventory exposes six portable capability families and the exact 22 retirement mappings', () => {
-  assert.strictEqual(INVENTORY.skills.length, 85);
+test('inventory exposes nine portable capability families and the exact 22 retirement mappings', () => {
+  assert.strictEqual(INVENTORY.skills.length, 65);
+  assert.deepStrictEqual(
+    INVENTORY.skills.filter((entry) => entry.name_style === 'portable-family').map((entry) => entry.id).sort(),
+    [...PORTABLE_FAMILIES].sort(),
+  );
   const retirements = new Map(INVENTORY.retired_skills.map((entry) => [entry.id, entry]));
   for (const [family, predecessors] of Object.entries(FAMILY_MODES)) {
     const skill = INVENTORY.skills.find((entry) => entry.id === family);
@@ -86,7 +98,9 @@ test('inventory exposes six portable capability families and the exact 22 retire
       assert.ok(retired, `missing retirement ${predecessor}`);
       assert.strictEqual(retired.retiredIn, '0.53.0');
       assert.deepStrictEqual(retired.rollback, { release: '0.52.0' });
-      assert.deepStrictEqual(retired.replacements, [{ kind: 'skill', id: family, mode }]);
+      const replacement = { kind: 'skill', id: family };
+      if (mode !== undefined) replacement.mode = mode;
+      assert.deepStrictEqual(retired.replacements, [replacement]);
       assert.ok(!INVENTORY.skills.some((entry) => entry.id === predecessor));
     }
   }
@@ -168,13 +182,13 @@ test('GitNexus packages remain byte-identical and active', () => {
 });
 
 test('profiles, shared surfaces, and command retirement match the approved cutover', () => {
-  assert.strictEqual(PROFILES.profiles.minimal.skillIds.length, 10);
-  assert.strictEqual(PROFILES.profiles.full.skillIds.length, 64);
-  assert.strictEqual(PROFILES.profiles['compat-v1'].skillIds.length, 71);
-  assert.strictEqual(INVENTORY.surface_membership['agent-plugin'].length, 46);
-  assert.strictEqual(INVENTORY.surface_membership['cursor-plugin'].length, 46);
-  assert.strictEqual(INVENTORY.surface_membership['agy-plugin'].length, 46);
-  assert.strictEqual(INVENTORY.surface_membership['cursor-sync'].length, 46);
+  assert.strictEqual(PROFILES.profiles.minimal.skillIds.length, 8);
+  assert.strictEqual(PROFILES.profiles.full.skillIds.length, 55);
+  assert.strictEqual(PROFILES.profiles['compat-v1'].skillIds.length, 62);
+  assert.strictEqual(INVENTORY.surface_membership['agent-plugin'].length, 37);
+  assert.strictEqual(INVENTORY.surface_membership['cursor-plugin'].length, 37);
+  assert.strictEqual(INVENTORY.surface_membership['agy-plugin'].length, 37);
+  assert.strictEqual(INVENTORY.surface_membership['cursor-sync'].length, 37);
   for (const command of RETIRED_COMMANDS) {
     assert.ok(!fs.existsSync(path.join(ROOT, 'commands', `${command}.md`)), `${command} must be retired`);
   }
@@ -184,13 +198,25 @@ test('reborn skills expose exact modes and invocation metadata', () => {
   for (const [family, predecessors] of Object.entries(FAMILY_MODES)) {
     const body = read(`skills/${family}/SKILL.md`);
     const metadata = read(`skills/${family}/agents/openai.yaml`);
-    for (const mode of Object.values(predecessors)) assert.match(body, new RegExp(`\\b${mode}\\b`), `${family}:${mode}`);
+    for (const mode of Object.values(predecessors)) {
+      if (mode !== undefined) assert.match(body, new RegExp(`\\b${mode}\\b`), `${family}:${mode}`);
+    }
     assert.match(metadata, new RegExp(`\\$${family}\\b`));
     const explicit = family === 'skill-forge' || family === 'flow-drive';
     if (explicit) assert.match(metadata, /allow_implicit_invocation:\s*false/);
     else assert.doesNotMatch(metadata, /allow_implicit_invocation:\s*false/);
   }
   assert.match(read('skills/change-verdict/SKILL.md'), /read-only|read only/i);
+});
+
+test('harness-govern retains the five consolidated governance modes', () => {
+  const body = read('skills/harness-govern/SKILL.md');
+  const metadata = read('skills/harness-govern/agents/openai.yaml');
+  for (const mode of ['health', 'budget', 'fill', 'revise', 'sync']) {
+    assert.match(body, new RegExp(`\\b${mode}\\b`), `harness-govern:${mode}`);
+  }
+  assert.ok(metadata.includes('$harness-govern'));
+  assert.match(metadata, /allow_implicit_invocation:\s*false/);
 });
 
 run('skill-capability-families');

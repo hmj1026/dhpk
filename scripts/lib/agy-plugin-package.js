@@ -17,6 +17,11 @@ const {
 const { createTraversalBudget, readFileBounded, readDirectoryEntries } = require('./bounded-filesystem');
 const { bindSurfaceSelection } = require('./capability-bundle-selection');
 const { runtimeSupportSkillIds } = require('./internal-runtime-skills');
+const {
+  externalSkillPackagesFingerprint,
+  resolveInventoryRevision,
+  skillProjectionMetadata,
+} = require('./distribution-projection-contract');
 
 const SURFACE = 'agy-plugin';
 const GENERATOR_VERSION = '1.0.0';
@@ -36,9 +41,9 @@ const SECRET_PATTERNS = [
 ];
 const AGY_SKILL_REFERENCE_REWRITES = Object.freeze([
   Object.freeze({
-    source: '@skills/dhpk-harness-revise/references/harness-directory-contract.md',
-    target: 'dhpk-harness-revise',
-    targetSkillId: 'harness-revise',
+    source: '@skills/harness-govern/references/harness-directory-contract.md',
+    target: 'harness-govern',
+    targetSkillId: 'harness-govern',
   }),
 ]);
 
@@ -215,7 +220,7 @@ function selectedConfiguration(inventory, profileSelection = null) {
     if (typeof entry.path !== 'string' || !entry.path.startsWith('skills/')) {
       throw new Error(`AGY skill '${id}' must use a canonical skills/ path`);
     }
-    return { id, path: entry.path };
+    return { ...entry, id, path: entry.path };
   });
   const agents = [...new Set(configuration.agents)].sort();
   const rules = [...new Set(configuration.rules)].sort();
@@ -340,6 +345,10 @@ function materializeAgyPluginPackage({
   }
   const sourceRoot = assertPhysicalDirectory(root, 'canonical root');
   const selected = selectedConfiguration(inventory, profileSelection);
+  const inventoryRevision = resolveInventoryRevision(inventory);
+  const ownershipFingerprint = Object.prototype.hasOwnProperty.call(inventory, 'external_skill_packages')
+    ? externalSkillPackagesFingerprint(inventory.external_skill_packages)
+    : undefined;
   const destination = path.resolve(outDir);
   const parent = ensureDirectory(path.dirname(destination), 'AGY output parent');
   if (!isInside(parent, destination)) throw new Error(`AGY output escapes its parent: ${destination}`);
@@ -425,6 +434,8 @@ function materializeAgyPluginPackage({
     generatedFromTree: resolveGeneratedFromTree(root, sourceCommit),
     inventoryDigest: legacyInventoryDigest(inventory),
     fingerprints,
+    inventoryRevision,
+    ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
     route: { sourceRoot: 'agents/, rules/, skills/', packageRoot: 'plugins/dhpk-agy/' },
     generatorVersion,
     profileId: profileSelection && (profileSelection.profileId || profileSelection.id),
@@ -437,11 +448,34 @@ function materializeAgyPluginPackage({
   });
   receipt.schema = PACKAGE_SCHEMA;
   receipt.provenanceSchema = 'dhpk.platform-provenance.v1';
+  receipt.inventoryRevision = inventoryRevision;
+  if (ownershipFingerprint !== undefined) receipt.externalSkillPackagesFingerprint = ownershipFingerprint;
   receipt.selectedIds = {
     agents: selected.agents,
     rules: selected.rules,
     skills: selected.skills.map((skill) => skill.id),
   };
+  const usageSkills = selected.skills.filter((skill) => skill && skill.usage);
+  if (usageSkills.length > 0) {
+    receipt.usageSchema = 'dhpk.skill-usage.v1';
+    receipt.usage = Object.fromEntries(usageSkills.map((skill) => [skill.id, skill.usage]));
+    receipt.usageFingerprints = Object.fromEntries(usageSkills.map((skill) => [
+      skill.id,
+      skillProjectionMetadata(skill, {
+        owner: 'plugins/dhpk-agy',
+        inventoryRevision,
+        ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
+      }).usageFingerprint,
+    ]));
+    receipt.skillProvenance = Object.fromEntries(usageSkills.map((skill) => [
+      skill.id,
+      skillProjectionMetadata(skill, {
+        owner: 'plugins/dhpk-agy',
+        inventoryRevision,
+        ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
+      }).provenance,
+    ]));
+  }
   receipt.transform = { id: 'agy-agent-frontmatter-v1', version: '1' };
   receipt.packageRoot = 'plugins/dhpk-agy';
   writeJson(path.join(outputRoot, 'fingerprints.json'), { schema: PACKAGE_SCHEMA, files: fingerprints });

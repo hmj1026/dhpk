@@ -1,6 +1,6 @@
 'use strict';
 
-// Coverage for skills/flow-drive/scripts/pre-route.sh — deterministic query ->
+// Coverage for skills/flow-guide/scripts/pre-route.sh — deterministic query ->
 // route-table matcher. Asserts all three documented output paths (MATCH /
 // NO_MATCH / NO_QUERY) using a scratch DHPK_ROUTE_TABLE override so it never
 // depends on the real route-table.json contents drifting.
@@ -12,8 +12,8 @@ const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const SCRIPT = path.join(ROOT, 'skills', 'flow-drive', 'scripts', 'pre-route.sh');
-const REAL_TABLE = path.join(ROOT, 'skills', 'flow-drive', 'references', 'route-table.json');
+const SCRIPT = path.join(ROOT, 'skills', 'flow-guide', 'scripts', 'pre-route.sh');
+const REAL_TABLE = path.join(ROOT, 'skills', 'flow-guide', 'references', 'route-table.json');
 
 function mkTable() {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'pre-route-'));
@@ -104,9 +104,8 @@ test('create-pr command carries deterministic ahead-count abort before gh pr cre
   assert.ok(!command.includes('Follow the `create-pr` skill workflow'));
 });
 
-test('v2 flow-drive matcher uses its typed route table', () => {
-  const skillMatcher = path.join(ROOT, 'skills', 'flow-drive', 'scripts', 'pre-route.sh');
-  const skillTable = path.join(ROOT, 'skills', 'flow-drive', 'references', 'route-table.json');
+test('flow-guide matcher uses its typed v2 route table', () => {
+  const skillMatcher = path.join(ROOT, 'skills', 'flow-guide', 'scripts', 'pre-route.sh');
   const res = spawnSync('bash', [skillMatcher, 'please create a PR for this branch'], {
     encoding: 'utf8',
     timeout: 10000,

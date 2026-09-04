@@ -36,7 +36,7 @@ The implementation and distribution SSOT map is:
 | Fact | Prefer this owner |
 |---|---|
 | Public names, surfaces, counts | [`manifests/distribution-inventory.json`](../manifests/distribution-inventory.json) |
-| Route matching and invocation class | `skills/flow-drive/references/route-table.json` and `skills/flow-drive/scripts/route-result.js` |
+| Route matching and invocation class | `skills/flow-guide/references/route-table.json` and `skills/flow-guide/scripts/route-result.js` |
 | Effective configuration | [`docs/configuration.md`](../docs/configuration.md) and its Traditional Chinese pair |
 | Install, update, migration, rollback | [`docs/platform-installation.md`](../docs/platform-installation.md), [`docs/skill-platform-migration.md`](../docs/skill-platform-migration.md) |
 | Runtime workflow, receipts, and gate outcomes | [`docs/harness-workflow.md`](../docs/harness-workflow.md) and the owning harness scripts |

@@ -336,8 +336,31 @@ function validateProfileDefinitions({ inventory, profiles, moduleCatalog } = {})
       errors.push(`missing capability profile '${id}'`);
       continue;
     }
+    const declaredIds = profileSkillIds(table[id]);
+    if (declaredIds) {
+      const duplicate = declaredIds.find((stableId, index) => declaredIds.indexOf(stableId) !== index);
+      if (duplicate) {
+        errors.push(`${id}: duplicate stable ID '${duplicate}'`);
+        continue;
+      }
+    }
     const result = resolveCapabilitySelection({ inventory, profiles, moduleCatalog, profileId: id });
     if (!result.ok) errors.push(`${id}: ${result.error.message}`);
+    else if (id === 'full') {
+      const protectedIds = (Array.isArray(inventory && inventory.external_skill_packages)
+        ? inventory.external_skill_packages
+        : [])
+        .filter((entry) => entry && entry.policy === 'protect-existing')
+        .flatMap((entry) => Array.isArray(entry.stable_ids) ? entry.stable_ids : []);
+      for (const stableId of protectedIds) {
+        if (!result.value.selectedStableIds.includes(stableId)) {
+          errors.push(`full: protected external skill '${stableId}' must remain selected`);
+        }
+      }
+      if (result.value.selectedStableIds.length >= (inventory.skills || []).filter((entry) => entry.lifecycle !== 'deprecated' && entry.invokable !== false).length) {
+        errors.push('full must remain a conflict-aware subset of live invokable inventory');
+      }
+    }
     else if (id === 'minimal') {
       const required = inventory && inventory.profile_policy && Array.isArray(inventory.profile_policy.required_core_ids)
         ? inventory.profile_policy.required_core_ids
@@ -346,7 +369,6 @@ function validateProfileDefinitions({ inventory, profiles, moduleCatalog } = {})
         errors.push('minimal must list exactly the required_core_ids');
       }
     }
-    else if (id === 'full' && result.value.selectedStableIds.length >= (inventory.skills || []).filter((entry) => entry.lifecycle !== 'deprecated' && entry.invokable !== false).length) errors.push('full must remain a conflict-aware subset of live invokable inventory');
     else if (id === 'compat-v1') {
       const declared = profileSkillIds(table[id]);
       if (declared && !sameIdSet(result.value.selectedStableIds, declared)) {

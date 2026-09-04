@@ -61,8 +61,8 @@ test('every explicit-only skill description is non-empty and states an effect', 
 test('sanity: classified skill counts match the known inventory shape', () => {
   const implicitCount = skills.filter((s) => s.ic.value === 'implicit-eligible').length;
   const explicitCount = skills.filter((s) => s.ic.value === 'explicit-only').length;
-  assert.strictEqual(implicitCount, 66, `expected 66 implicit-eligible skills after capability-family consolidation, found ${implicitCount}`);
-  assert.strictEqual(explicitCount, 19, `expected 19 explicit-only skills after capability-family consolidation, found ${explicitCount}`);
+  assert.strictEqual(implicitCount, 52, `expected 52 implicit-eligible skills after capability-family consolidation, found ${implicitCount}`);
+  assert.strictEqual(explicitCount, 13, `expected 13 explicit-only skills after capability-family consolidation, found ${explicitCount}`);
 });
 
 run('description-invocation-cues');

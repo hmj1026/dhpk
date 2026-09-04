@@ -13,7 +13,11 @@ When a user runs the bundled installer:
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"
 ```
 
-The default projection is hybrid: `codex/skills/` and inventory-declared supporting assets are symlinked into the project, while every `.codex/agents/*.toml` is materialized as a physical file. `--copy` makes the entire projection physical. `codex/config.toml.example` is placed alongside any existing `.codex/config.toml`. The installer records these destinations in the schema-v3 `.dhpk-installed.json` receipt, including each entry's effective mode and each skill's stable id/current public name, and never replaces an unowned same-name asset. Codex CLI then discovers the skills/agents the same way it discovers any project-local Codex content, and generated roles resolve their trap sheets/contracts through `.codex/dhpk/`.
+The default projection is hybrid: `codex/skills/` and inventory-declared supporting assets are symlinked into the project, while every `.codex/agents/*.toml` is materialized as a physical file. `--copy` makes the entire projection physical. `codex/config.toml.example` is placed alongside any existing `.codex/config.toml`. The installer records these destinations in the schema-v3 `.dhpk-installed.json` receipt, including each entry's effective mode and each skill's stable ID/current public name, and never replaces an unowned same-name asset. Codex CLI then discovers the skills/agents the same way it discovers any project-local Codex content, and generated roles resolve their trap sheets/contracts through `.codex/dhpk/`.
+
+The current Codex projection contains 15 skill entries: 13 invokable skills and
+two internal transport/dispatch-context runtimes. The inventory and generated
+receipt, not this file, own that selection.
 
 ## Plugin loading differences (Claude Code vs Codex CLI)
 
@@ -83,26 +87,37 @@ unrelated project assets.
 
 dhpk ships 16 direct Codex agent roles under `codex/agents/` (synced into `.codex/agents/`): 4 hand-maintained generic roles — `explorer` (read-only investigation), `worker` (generic scoped implementer), `monitor` (long-running task watcher), `bug-investigator` (root-cause investigation) — plus 12 roles generated from the canonical agents — `architect`, `code-reviewer`, `security-reviewer`, `database-reviewer`, `tdd-guide`, `deep-reasoner`, `doc-reviewer`, `planner`, `spec-miner`, `frontend-reviewer`, `migration-reviewer`, `e2e-runner`.
 
-The explicit Codex implementation entry is `$flow-drive <task>`. Use
-`$flow-guide` when a task needs classification, policy, next-action, or
-checklist guidance before implementation. Codex CLI has no `/dhpk:do` command
-or dhpk slash-command router. The six capability families
-(`skill-scope`, `skill-forge`, `flow-guide`, `flow-drive`, `change-verdict`, and
-`code-trace`) use their unprefixed public names; other first-party skills retain
-the `dhpk-` prefix. Codex built-in commands such as `/hooks` and `/agent` are
-not custom dhpk `/dhpk:*` commands; Claude plugin slash commands and sentinel
-hooks are Claude-only.
+Use `$flow-guide` when ownership, policy, the next action, closeout, or Codex
+arguments are unclear. Its five read-only actions are `help`, `route`, `rules`,
+`next`, and `close`. Use `$flow-drive <confirmed-spec-or-change-id>` only when
+the implementation target and acceptance contract are settled; it is
+explicit-only and has no mode. Codex CLI has no `/dhpk:do` command or dhpk
+slash-command router. The nine portable families
+(`skill-scope`, `skill-forge`, `flow-guide`, `flow-drive`, `change-verdict`,
+`code-trace`, `laravel`, `phpunit`, and `harness-govern`) use their unprefixed
+public names; other first-party skills retain the `dhpk-` prefix. The standalone
+`git-smart-commit` skill keeps its existing public name (`$dhpk-git-smart-commit`).
+Codex built-in commands such as `/hooks` and `/agent` are not custom dhpk
+`/dhpk:*` commands; Claude plugin slash commands and sentinel hooks are
+Claude-only.
 
-Availability evidence is a receipt-owned `.codex/skills/flow-drive` package that
-resolves as `$flow-drive`. `codex plugin list` is management evidence only. If
-`$flow-drive` is not discovered, instruction routing remains available: follow
-the canonical [execution policy](../rules/execution-policy.md), invoke roles
-with `/agent <role-name>`, and use explicit `/opsx:*` OpenSpec commands. Do not
-claim `/dhpk:do` is callable.
+For parameter discovery, run `$flow-guide help` for the catalogue or
+`$flow-guide help <skill>` for one metadata-only usage card. The human guide is
+[`docs/codex-skill-usage.md`](../docs/codex-skill-usage.md), and the generated
+catalogue is
+[`skills/flow-guide/references/codex-usage-catalog.json`](../skills/flow-guide/references/codex-usage-catalog.json).
+Help does not load target procedures, execute a target, or grant its authority.
 
-When `$flow-drive` is available, run it as the front door. The roles below
-remain `/agent` dispatch targets for instruction fallback and downstream work
-selected by the implementation route:
+Availability evidence is a receipt-owned `.codex/skills/flow-guide` or
+`.codex/skills/flow-drive` package that resolves as the corresponding `$name`.
+`codex plugin list` is management evidence only. If the family is not
+discovered, follow the canonical [execution policy](../rules/execution-policy.md),
+invoke roles with `/agent <role-name>`, and use the external OpenSpec plugin's
+`/opsx:*` commands or `$openspec-propose` where appropriate. Do not claim a
+missing `$name` is callable.
+
+When `$flow-guide` or `$flow-drive` is available, the roles below remain `/agent`
+dispatch targets for the downstream handoff:
 
 - **Bug with unknown root cause**: use `bug-investigator` only for bounded intake triage; escalate confirmed reasoning-heavy cases to `deep-reasoner`, then invoke `worker` and `code-reviewer`.
 - **New feature / cross-module design**: invoke `architect` to decide layer placement, then `tdd-guide` to write tests first. If the settled GREEN footprint is ≤2 production files, `tdd-guide` may finish it and proceed to review; dispatch `worker` only for a larger-footprint handback, then invoke `code-reviewer`.
@@ -112,7 +127,8 @@ selected by the implementation route:
 The CLI does not mechanically enforce this sequence, but agents must: record the
 canonical decision state, obtain the read-only reasoner result before a writer
 when required, and preserve the planner/review/CI/archive/PR checkpoints. The
-external `/opsx:apply` flow remains unchanged.
+external `/opsx:apply` flow remains unchanged. Proposal authoring belongs to
+the external `$openspec-propose` skill; it is not a `flow-drive` mode.
 
 ### Context tiers and handoff packet
 
@@ -212,7 +228,7 @@ an implicit unavailable-agent handoff.
 |---------|------------|-----------|
 | Hooks | 8+ event types (PreToolUse, PostToolUse, SessionStart, Stop, etc.) plus dhpk sentinel enforcement | Lifecycle hooks via user/project `hooks.json` or inline `[hooks]` TOML; separate from Claude sentinel enforcement |
 | Context file | CLAUDE.md + AGENTS.md | AGENTS.md only |
-| Commands | Custom `/slash` commands | Built-in `/hooks`; `$flow-drive` when discovered; instruction fallback otherwise. No `/dhpk:do` |
+| Commands | Custom `/slash` commands | Built-in `/hooks`; `$flow-guide` for discovery and `$flow-drive` for confirmed implementation; instruction fallback otherwise. No `/dhpk:do` |
 | Agents | `Task`/subagent tool | Multi-agent via `/agent` and `[agents.<name>]` roles |
 | Security / review | Hook + `.pending-*` sentinel enforcement | `sandbox_mode` + optional Codex lifecycle hooks + instruction-based review |
 

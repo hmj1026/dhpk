@@ -99,7 +99,7 @@ test('issue #87 regression: opsx-apply-resume.md dispatches the canonical Skill-
 });
 
 test('every skill-local route-table.json target resolves to an invocation class or known agent route', () => {
-  const routeTable = JSON.parse(read('skills/flow-drive/references/route-table.json'));
+  const routeTable = JSON.parse(read('skills/flow-guide/references/route-table.json'));
   for (const rule of routeTable.rules) {
     const kind = rule.target && rule.target.kind;
     const id = rule.target && rule.target.id;
@@ -116,7 +116,7 @@ test('every skill-local route-table.json target resolves to an invocation class 
 });
 
 test('real route-table explicit-only targets retain their canonical classes', () => {
-  const routeTable = JSON.parse(read('skills/flow-drive/references/route-table.json'));
+  const routeTable = JSON.parse(read('skills/flow-guide/references/route-table.json'));
   const explicitTargets = new Set(['dhpk-opsx-apply-goal', 'create-pr', 'dhpk-release-creator', 'smart-commit']);
   const implicitTargets = new Set(['review-pending']);
   for (const target of explicitTargets) {
@@ -130,7 +130,7 @@ test('real route-table explicit-only targets retain their canonical classes', ()
 });
 
 test('default route table does not target frozen Codex-MCP candidates', () => {
-  const routeTable = JSON.parse(read('skills/flow-drive/references/route-table.json'));
+  const routeTable = JSON.parse(read('skills/flow-guide/references/route-table.json'));
   const frozen = new Set([
     'dhpk-codex-architect', 'dhpk-codex-implement', 'dhpk-change-review',
     'dhpk-doc-review', 'dhpk-test-review', 'dhpk-codebase-exploration',
@@ -145,8 +145,8 @@ test('default route table does not target frozen Codex-MCP candidates', () => {
   assert.deepStrictEqual(violations, [], `default route table targets frozen MCP entries: ${violations.join(', ')}`);
 });
 
-test('v2 flow-drive route table typed targets', () => {
-  const tablePath = path.join(ROOT, 'skills', 'flow-drive', 'references', 'route-table.json');
+test('flow-guide route table keeps typed targets', () => {
+  const tablePath = path.join(ROOT, 'skills', 'flow-guide', 'references', 'route-table.json');
   if (!fs.existsSync(tablePath)) return;
   const table = JSON.parse(fs.readFileSync(tablePath, 'utf8'));
   assert.strictEqual(table.schema, 'dhpk.route-table.v2');
@@ -157,9 +157,9 @@ test('v2 flow-drive route table typed targets', () => {
   }
 });
 
-test('flow-drive entrypoint does not duplicate Common targets; route-table classes remain canonical', () => {
+test('flow-drive entrypoint does not duplicate Common targets; flow-guide route classes remain canonical', () => {
   assert.ok(!/Common targets:/.test(doCmd), 'adapter must not duplicate the target catalog');
-  const routeTable = JSON.parse(read('skills/flow-drive/references/route-table.json'));
+  const routeTable = JSON.parse(read('skills/flow-guide/references/route-table.json'));
   let checked = 0;
   for (const rule of routeTable.rules) {
     const kind = rule.target && rule.target.kind;

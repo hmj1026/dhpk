@@ -13,8 +13,8 @@ function read(relative) {
 test('workflow guides expose the route-first user contract in both locales', () => {
   const required = [
     'inspect → verify surface → route → plan/classify → implement → review → verify → handoff',
-    '--route-only',
-    'Route only:',
+    'flow-guide route',
+    'route --go',
     'MATCH',
     'NO_MATCH',
     'NO_QUERY',
@@ -64,13 +64,13 @@ test('update-docs command and doc-updater agent follow the writing contract', ()
 test('README and command index point users to the capability-family route entry', () => {
   for (const relative of ['README.md', 'README.zh-TW.md']) {
     const text = read(relative);
-    assert.match(text, /flow-drive[^\n]*route-only|flow-drive[\s\S]*--route-only/);
+    assert.match(text, /flow-guide[^\n]*route|flow-guide[\s\S]*route --go/);
     assert.match(text, /explicit-only/);
     assert.match(text, /basic-operations(?:\.zh-TW)?\.md/);
     assert.doesNotMatch(text, /\/dhpk:do --route-only/);
   }
   const index = read('commands/INDEX.md');
-  assert.match(index, /flow-drive.*route\/implement mode/i);
+  assert.match(index, /flow-guide.*help\|route\|rules\|next\|close/i);
   assert.match(index, /former review aliases are retired/i);
   assert.doesNotMatch(index, /create-dev.*alias/i);
 });

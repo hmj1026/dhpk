@@ -8,7 +8,7 @@
   ],
   "brand_backcompat": [
     {
-      "file": "skills/dhpk-claude-health/references/plugin-sync.md",
+      "file": "skills/harness-govern/references/plugin-sync.md",
       "contains": "legacy `.sd0x/install-state.json`"
     },
     {

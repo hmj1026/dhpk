@@ -1,7 +1,10 @@
 'use strict';
 
 const { test, run, assert } = require('./_lib/tinytest');
-const { inspectCodexDiscovery } = require('../scripts/lib/codex-discovery-registry');
+const {
+  inspectCodexActivation,
+  inspectCodexDiscovery,
+} = require('../scripts/lib/codex-discovery-registry');
 
 function provider(overrides = {}) {
   return {
@@ -29,6 +32,33 @@ test('same public name and fingerprint merge into one effective entry with provi
   assert.strictEqual(result.effective[0].providers.length, 2);
   assert.strictEqual(result.duplicates.length, 1);
   assert.deepStrictEqual(result.conflicts, []);
+});
+
+test('runtime activation blocks duplicate invokable names even when integrity fingerprints match', () => {
+  const result = inspectCodexActivation({
+    project: [provider()],
+    native: [provider({ surface: 'native-experimental', sourcePath: 'native/plugins/dhpk/skills/dhpk-demo' })],
+    precedence: ['project-local'],
+  });
+  assert.strictEqual(result.ok, false, JSON.stringify(result));
+  assert.strictEqual(result.verdict, 'BLOCKED');
+  assert.strictEqual(result.integrityVerdict, 'PASS');
+  assert.strictEqual(result.reasonCode, 'DUPLICATE_CODEX_PROVIDER');
+  assert.deepStrictEqual(result.duplicateInvokableNames, ['dhpk-demo']);
+});
+
+test('runtime activation ignores overlapping non-invokable support skills', () => {
+  const result = inspectCodexActivation({
+    project: [provider()],
+    native: [provider({ surface: 'native-experimental', sourcePath: 'native/plugins/dhpk/skills/dhpk-demo' })],
+    precedence: ['project-local'],
+    nonInvokableSkillNames: ['dhpk-demo'],
+  });
+  assert.strictEqual(result.ok, true, JSON.stringify(result));
+  assert.strictEqual(result.verdict, 'PASS');
+  assert.strictEqual(result.integrityVerdict, 'PASS');
+  assert.strictEqual(result.reasonCode, null);
+  assert.deepStrictEqual(result.duplicateInvokableNames, []);
 });
 
 test('different fingerprints block without explicit precedence', () => {

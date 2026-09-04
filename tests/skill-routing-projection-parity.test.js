@@ -3,7 +3,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
-const { inspectDiscoveryContext } = require('../scripts/ci/context-budget');
 const {
   buildSkillRoutingProjection,
   compareSkillRoutingProjections,
@@ -15,6 +14,10 @@ const INVENTORY = JSON.parse(fs.readFileSync(
   'utf8',
 ));
 
+// The live 0.54 inventory is intentionally alias-free.  Keep the historical
+// projection comparator canary on a disposable router fixture so it continues
+// to test ordering, source/budget drift, and duplicate detection without
+// requiring retired version packages to remain active.
 const ROUTING_IDS = [
   'laravel-5.4-notes',
   'laravel-6-notes',
@@ -29,9 +32,70 @@ const ROUTING_IDS = [
   'phpunit-11-notes',
 ];
 
+const ROUTING_ROWS = [
+  ['laravel', 'laravel-5.4-notes', '5.4', 'skills/laravel/references/5-4.md'],
+  ['laravel', 'laravel-6-notes', '6', 'skills/laravel/references/6.md'],
+  ['laravel', 'laravel-7-notes', '7', 'skills/laravel/references/7.md'],
+  ['laravel', 'laravel-8-notes', '8', 'skills/laravel/references/8.md'],
+  ['laravel', 'laravel-9-notes', '9', 'skills/laravel/references/9.md'],
+  ['laravel', 'laravel-10-notes', '10', 'skills/laravel/references/10.md'],
+  ['laravel', 'laravel-11-notes', '11', 'skills/laravel/references/11.md'],
+  ['laravel', 'laravel-mix-notes', 'mix', 'skills/laravel/references/mix.md'],
+  ['phpunit', 'phpunit-9-modern', '9', 'skills/phpunit/references/9.md'],
+  ['phpunit', 'phpunit-10-notes', '10', 'skills/phpunit/references/10.md'],
+  ['phpunit', 'phpunit-11-notes', '11', 'skills/phpunit/references/11.md'],
+];
+
+function projectionInventory() {
+  const inventory = JSON.parse(JSON.stringify(INVENTORY));
+  const aliasesByFamily = new Map();
+  for (const [familyId, id, selector] of ROUTING_ROWS) {
+    const aliases = aliasesByFamily.get(familyId) || [];
+    aliases.push({
+      id,
+      selector,
+      invocation_class: 'implicit-eligible',
+      surfaces: ['claude-module'],
+    });
+    aliasesByFamily.set(familyId, aliases);
+    inventory.skills.push({
+      id,
+      name: `dhpk-${id}`,
+      path: `skills/dhpk-${id}`,
+      capability_id: `dhpk.${id}`,
+      invocation_class: 'implicit-eligible',
+      lifecycle: 'deprecated',
+      discoveryVisible: false,
+      legacy_names: [id],
+      deprecation: {
+        since: '2026-09-02',
+        compatibilityWindowEnds: '2026-12-02',
+        migrationNote: 'Historical projection comparator fixture only.',
+      },
+      tier: 'optional',
+      profiles: ['compat-v1'],
+      surfaces: ['claude-module'],
+    });
+  }
+  inventory.skill_routing_families = inventory.skill_routing_families.map((family) => ({
+    ...family,
+    ...(aliasesByFamily.has(family.id) ? { aliases: aliasesByFamily.get(family.id) } : {}),
+  }));
+  return inventory;
+}
+
+const PROJECTION_INVENTORY = projectionInventory();
+
 function discoveryEntries() {
-  const report = inspectDiscoveryContext({ root: ROOT, inventory: INVENTORY });
-  return report.entries.filter((entry) => entry.surface === 'claude-module' && ROUTING_IDS.includes(entry.id));
+  return ROUTING_IDS.map((id, index) => ({
+    id,
+    stableId: id,
+    surface: 'claude-module',
+    words: 20 + index,
+    tokens: 30 + index,
+    wordBudget: 100,
+    tokenBudget: 200,
+  }));
 }
 
 function sourceFingerprints(prefix = 'source') {
@@ -40,7 +104,7 @@ function sourceFingerprints(prefix = 'source') {
 
 function projection(overrides = {}) {
   return buildSkillRoutingProjection({
-    inventory: INVENTORY,
+    inventory: PROJECTION_INVENTORY,
     surface: 'claude-module',
     discoveryEntries: discoveryEntries(),
     sourceFingerprints: sourceFingerprints(),
@@ -69,20 +133,10 @@ test('builds every Laravel and PHPUnit alias from the normalized router on claud
     invocationClass: entry.invocationClass,
     surfaces: entry.surfaces,
   })), [
-    ['laravel', 'laravel-5.4-notes', '5.4', 'skills/dhpk-laravel/references/5-4.md'],
-    ['laravel', 'laravel-6-notes', '6', 'skills/dhpk-laravel/references/6.md'],
-    ['laravel', 'laravel-7-notes', '7', 'skills/dhpk-laravel/references/7.md'],
-    ['laravel', 'laravel-8-notes', '8', 'skills/dhpk-laravel/references/8.md'],
-    ['laravel', 'laravel-9-notes', '9', 'skills/dhpk-laravel/references/9.md'],
-    ['laravel', 'laravel-10-notes', '10', 'skills/dhpk-laravel/references/10.md'],
-    ['laravel', 'laravel-11-notes', '11', 'skills/dhpk-laravel/references/11.md'],
-    ['laravel', 'laravel-mix-notes', 'mix', 'skills/dhpk-laravel/references/mix.md'],
-    ['phpunit', 'phpunit-9-modern', '9', 'skills/dhpk-phpunit/references/9.md'],
-    ['phpunit', 'phpunit-10-notes', '10', 'skills/dhpk-phpunit/references/10.md'],
-    ['phpunit', 'phpunit-11-notes', '11', 'skills/dhpk-phpunit/references/11.md'],
+    ...ROUTING_ROWS,
   ].map(([familyId, stableId, selector, target]) => ({
     stableId,
-    name: INVENTORY.skills.find((skill) => skill.id === stableId).name,
+    name: PROJECTION_INVENTORY.skills.find((skill) => skill.id === stableId).name,
     familyId,
     routerId: 'php-pro',
     selector,
@@ -102,7 +156,7 @@ test('builds every Laravel and PHPUnit alias from the normalized router on claud
 });
 
 test('projection generation is sorted, repeatable, and byte-identical without mutating input', () => {
-  const reversedInventory = JSON.parse(JSON.stringify(INVENTORY));
+  const reversedInventory = JSON.parse(JSON.stringify(PROJECTION_INVENTORY));
   reversedInventory.skill_routing_families.reverse();
   for (const family of reversedInventory.skill_routing_families) family.aliases.reverse();
   const reversedEntries = discoveryEntries().reverse();
@@ -202,6 +256,23 @@ test('React and Next version entries remain separate and are not folded into fam
     result.entries.filter((entry) => /^(react|nextjs)-/.test(entry.stableId)),
     [],
   );
+});
+
+test('live 0.54 family routing is alias-free and uses renamed canonical paths', () => {
+  for (const family of INVENTORY.skill_routing_families || []) {
+    assert.ok(!Array.isArray(family.aliases) || family.aliases.length === 0,
+      `${family.id} must not publish retired routing aliases`);
+    for (const reference of Object.values(family.selectors || {})) {
+      assert.match(reference, new RegExp(`^skills/${family.id}/references/`));
+      assert.ok(fs.existsSync(path.join(ROOT, reference)), `missing live family reference: ${reference}`);
+    }
+  }
+  const live = buildSkillRoutingProjection({
+    inventory: INVENTORY,
+    surface: 'claude-module',
+  });
+  assert.ok(live.entries.every((entry) => !ROUTING_IDS.includes(entry.stableId)));
+  assert.ok(live.entries.every((entry) => !/skills\/dhpk-(?:laravel|phpunit)\//.test(entry.target || '')));
 });
 
 run('skill-routing-projection-parity');

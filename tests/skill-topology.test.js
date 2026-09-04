@@ -22,10 +22,22 @@ function skill(overrides = {}) {
     name: 'dhpk-tdd',
     path: 'skills/dhpk-tdd',
     capability_id: 'dhpk.tdd',
+    invocation_class: 'implicit-eligible',
     lifecycle: 'promoted',
     tier: 'core',
     profiles: ['default'],
     surfaces: ['claude-core', 'codex-sync'],
+    usage: {
+      display_name: 'Demo TDD',
+      summary: 'Guide one behavior-first task with bounded tests',
+      syntax: '$dhpk-tdd <task>',
+      input_kind: 'free-text',
+      invocation_class: 'implicit-eligible',
+      effect_authority: 'read-only',
+      actions: [],
+      options: [],
+      examples: [{ prompt: '$dhpk-tdd inspect this task', summary: 'Guide a test-first task' }],
+    },
     ...overrides,
   };
 }

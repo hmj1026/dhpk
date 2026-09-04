@@ -438,8 +438,8 @@ function normalizedGateRow(surface, raw, root, childStatus, adapterId) {
 }
 
 function runAgyConsumerProbe(root) {
-  const script = path.join(root, 'skills', 'dhpk-cross-agent-sync', 'scripts', 'multi_ai_sync.py');
-  const command = `python3 -B skills/dhpk-cross-agent-sync/scripts/multi_ai_sync.py --root . validate --targets agy --agy-runtime-probe --format json`;
+  const script = path.join(root, 'skills', 'harness-govern', 'scripts', 'multi_ai_sync.py');
+  const command = `python3 -B skills/harness-govern/scripts/multi_ai_sync.py --root . validate --targets agy --agy-runtime-probe --format json`;
   if (!allowsRealConsumerProbe()) {
     const row = failedProbeRow(
       'agy-plugin',

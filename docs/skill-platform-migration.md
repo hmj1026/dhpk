@@ -14,14 +14,16 @@ Current Codex/Cursor installation routes and rollback boundaries live in the
 
 | Concern | Current implementation |
 |---|---|
-| Canonical source | 85 flat packages at `skills/<public-name>/` |
-| Public identity | The six capability families use unprefixed names; all other first-party names remain `dhpk-*` |
+| Canonical source | 65 flat packages at `skills/<public-name>/` (all active in 0.54) |
+| Public identity | Nine capability families use unprefixed names; the other 56 first-party names retain `dhpk-*` |
 | Inventory SSOT | `manifests/distribution-inventory.json` schema v2 |
 | Module projection | 37 relative symlinks under `modules/*/skills/` |
-| Codex project projection | 18 relative symlinks under `codex/skills/` (16 invokable plus internal transport and dispatch-context runtimes) |
-| Codex native package | 18 physical packages under `plugins/dhpk/skills/`; zero symlinks |
+| Codex project projection | 15 relative symlinks under `codex/skills/` (13 invokable plus two internal transport and dispatch-context runtimes) |
+| Codex native package | 15 physical packages under `plugins/dhpk/skills/`; zero symlinks |
 | Codex project receipt | `.codex/.dhpk-installed.json` schema v3 |
 | Default hooks | `PreToolUse`, `PostToolUse`, `SessionStart`, `SubagentStop` |
+| Profile sizes | `minimal=8`, `full=55`, `compat-v1=62` before overlays |
+| Shared Agent/Cursor/AGY surface | 37 selected stable IDs per surface |
 
 Directory placement and README lists are not authoritative. The inventory
 owns stable ids, public names, lifecycle, modules, and publication surfaces;
@@ -37,19 +39,36 @@ Names are deliberately different across host surfaces:
 | Claude plugin skill | `/dhpk:<public-skill-name>` | `/dhpk:change-verdict` |
 | Codex skill | `$<public-skill-name>` after discovery | `$change-verdict --mode code` |
 | Cursor generated command | generated host adapter | Cursor `do` command (`host=cursor`) |
-| Codex main-flow entry | `$flow-drive --mode route|implement <task>` after discovery | `$flow-drive --mode implement fix the login redirect` |
+| Codex guidance entry | `$flow-guide <help|route|rules|next|close> [--go] [query]` after discovery | `$flow-guide help flow-drive` |
+| Codex implementation entry | `$flow-drive <confirmed-spec-or-change-id>` after discovery | `$flow-drive my-change-id --plan` |
 
 Codex built-in commands (`/hooks`, `/agent`) are not dhpk custom `/dhpk:*`
-commands. The explicit `flow-drive` family is the Codex implementation entry;
-`flow-guide` remains the implicit classification and gate owner. Availability
-evidence is a receipt-owned `.codex/skills/flow-drive` that resolves as
-`$flow-drive`; `codex plugin list` is management evidence only. If the family
-is not discovered, instruction routing and explicit `/opsx:*` OpenSpec
-commands remain available — do not claim `/dhpk:do` is callable in Codex.
+commands. `flow-guide` owns read-only usage help, routing, policy, progression,
+and closeout; `flow-drive` is the explicit-only, mode-free implementation entry
+for a confirmed specification or OpenSpec change. Availability evidence is a
+receipt-owned `.codex/skills/flow-guide` or `.codex/skills/flow-drive` that
+resolves as the corresponding `$name`; `codex plugin list` is management
+evidence only. If a family is not discovered, instruction routing and explicit
+`/opsx:*` OpenSpec commands remain available — do not claim the missing `$name`
+is callable in Codex.
 
-The `dhpk` prefix remains part of the Claude plugin namespace. The six reborn
-family names are intentionally unprefixed so users select a task-shaped
-capability without learning predecessor implementation names.
+Codex parameter discovery is progressive: `$flow-guide help` lists the current
+catalogue and `$flow-guide help <skill>` returns one metadata-only usage card.
+The generated catalogue is [`codex-usage-catalog.json`](../skills/flow-guide/references/codex-usage-catalog.json),
+with the human guide in [`codex-skill-usage.md`](codex-skill-usage.md). Help
+does not load target procedures or grant their authority.
+
+Proposal authoring and feasibility comparison have their own handoffs:
+[OpenSpec authoring](./agent-guidance/openspec-authoring.md) routes confirmed
+proposals to the external `$openspec-propose` owner, while
+[feasibility comparison](./agent-guidance/feasibility-comparison.md) keeps
+options analysis separate from implementation.
+
+The `dhpk` prefix remains part of the Claude plugin namespace. The nine family
+names are intentionally unprefixed so users select a task-shaped capability
+without learning predecessor implementation names. `git-smart-commit` remains
+the standalone public commit owner; it is not renamed to or replaced by a
+`commit-craft` family.
 
 ## Alias-free retirement ledger (0.47.0)
 
@@ -118,11 +137,12 @@ the current release. See the [capability-parity matrix](./codex-mcp-capability-p
 for the eight rows (the issue and feasibility owners intentionally share one
 row) and their migration evidence.
 
-## Consolidated capability families
+## Historical 0.53 capability families
 
-The 22 first-party discovery identities retired in 0.53.0 are addressed by six
-mode-shaped families. The family name is the public identity; the predecessor
-stable ID remains only in the retirement ledger below.
+The 22 first-party discovery identities retired in 0.53.0 were addressed by six
+mode-shaped families. This section is preserved as the 0.53 historical record;
+the live 0.54 family contract follows the second-wave ledger below. The
+predecessor stable IDs remain only in historical retirement metadata.
 
 | Current family | Modes | Retained predecessor contracts |
 |---|---|---|
@@ -168,6 +188,75 @@ closed mapping; it is not a discovery or compatibility registry.
 | `git-investigate` | `dhpk-git-history-investigation` | `code-trace` / `history` | `capability-family-consolidation` | `0.52.0` |
 | `tool-routing` | `dhpk-tool-routing` | `code-trace` / `select-tool` | `capability-family-consolidation` | `0.52.0` |
 
+## Live 0.54 capability families and retirement
+
+The 0.54 live catalogue has nine portable families and 65 active canonical
+skills. The family names are `skill-scope`, `skill-forge`, `flow-guide`,
+`flow-drive`, `change-verdict`, `code-trace`, `laravel`, `phpunit`, and
+`harness-govern`; 56 other active public names retain the `dhpk-` prefix.
+
+| Current family | Interface | Boundary |
+|---|---|---|
+| `skill-scope` | `health`, `judge`, `stocktake`, `scout` | explicit governance handoff |
+| `skill-forge` | `create`, `distill-rules` | explicit authoring handoff |
+| `flow-guide` | `help`, `route`, `rules`, `next`, `close` | read-only guidance; `route --go` is one bounded handoff |
+| `flow-drive` | confirmed specification or change; no mode | explicit-only implementation |
+| `change-verdict` | `code`, `pr`, `security`, `tests`, `docs`, `risk` | read-only review |
+| `code-trace` | `explore`, `diagnose`, `history`, `select-tool` | evidence-backed investigation |
+| `laravel` | selectors `5.4`, `6`, `7`, `8`, `9`, `10`, `11`, `mix` | version selection; one reference loaded |
+| `phpunit` | selectors `9`, `10`, `11` | version selection; one reference loaded |
+| `harness-govern` | `health`, `budget`, `fill`, `revise`, `sync` | explicit harness governance |
+
+The inventory `usage` contract owns Codex syntax, actions, options, authority,
+and examples. Users discover it with `$flow-guide help` or
+`$flow-guide help <skill>`; the generated catalogue and human guide are linked
+from [`docs/codex-skill-usage.md`](codex-skill-usage.md). `git-smart-commit`
+remains a standalone public skill with its existing name; no `commit-craft`
+family is introduced. OpenSpec proposal authoring belongs to the external
+`$openspec-propose` skill. OnePassword setup is the operator action `op signin`.
+
+### Capability-family retirement ledger (0.54.0)
+
+The inventory owns exactly 21 new alias-free rows. Each row rolls back to
+`0.53.0`; retirement records are diagnostic metadata only and never become
+discovery aliases or generated packages.
+
+| Former stable ID | Former public name | Replacement | `reasonCode` | `rollback.release` |
+|---|---|---|---|---|
+| `laravel-5.4-notes` | `dhpk-laravel-5-4-notes` | `laravel` / selector `5.4` | `version-family-alias-removal` | `0.53.0` |
+| `laravel-6-notes` | `dhpk-laravel-6-notes` | `laravel` / selector `6` | `version-family-alias-removal` | `0.53.0` |
+| `laravel-7-notes` | `dhpk-laravel-7-notes` | `laravel` / selector `7` | `version-family-alias-removal` | `0.53.0` |
+| `laravel-8-notes` | `dhpk-laravel-8-notes` | `laravel` / selector `8` | `version-family-alias-removal` | `0.53.0` |
+| `laravel-9-notes` | `dhpk-laravel-9-notes` | `laravel` / selector `9` | `version-family-alias-removal` | `0.53.0` |
+| `laravel-10-notes` | `dhpk-laravel-10-notes` | `laravel` / selector `10` | `version-family-alias-removal` | `0.53.0` |
+| `laravel-11-notes` | `dhpk-laravel-11-notes` | `laravel` / selector `11` | `version-family-alias-removal` | `0.53.0` |
+| `laravel-mix-notes` | `dhpk-laravel-mix-notes` | `laravel` / selector `mix` | `version-family-alias-removal` | `0.53.0` |
+| `phpunit-9-modern` | `dhpk-phpunit-9-modern` | `phpunit` / selector `9` | `version-family-alias-removal` | `0.53.0` |
+| `phpunit-10-notes` | `dhpk-phpunit-10-notes` | `phpunit` / selector `10` | `version-family-alias-removal` | `0.53.0` |
+| `phpunit-11-notes` | `dhpk-phpunit-11-notes` | `phpunit` / selector `11` | `version-family-alias-removal` | `0.53.0` |
+| `claude-health` | `dhpk-claude-health` | `harness-govern` / `health` | `remaining-capability-family-consolidation` | `0.53.0` |
+| `harness-budget` | `dhpk-harness-budget` | `harness-govern` / `budget` | `remaining-capability-family-consolidation` | `0.53.0` |
+| `harness-fill` | `dhpk-harness-fill` | `harness-govern` / `fill` | `remaining-capability-family-consolidation` | `0.53.0` |
+| `harness-revise` | `dhpk-harness-revise` | `harness-govern` / `revise` | `remaining-capability-family-consolidation` | `0.53.0` |
+| `multi-ai-sync` | `dhpk-cross-agent-sync` | `harness-govern` / `sync` | `remaining-capability-family-consolidation` | `0.53.0` |
+| `agy-commit` | `dhpk-agy-commit` | `git-smart-commit` | `remaining-capability-family-consolidation` | `0.53.0` |
+| `feasibility-study` | `dhpk-feasibility-study` | `software-architecture` / `compare` | `remaining-capability-family-consolidation` | `0.53.0` |
+| `tech-spec` | `dhpk-tech-spec` | external `openspec-propose` / `propose` | `openspec-authoring-consolidation` | `0.53.0` |
+| `create-request` | `dhpk-create-request` | external `openspec-propose` / `propose` | `openspec-authoring-consolidation` | `0.53.0` |
+| `op-session` | `dhpk-onepassword-session` | operator action `onepassword-cli` / `signin` | `operator-action-capability-removal` | `0.53.0` |
+
+No compatibility alias is emitted for these rows. Edited or user-owned project
+files remain protected during projection migration; rollback means pinning and
+reinstalling 0.53.0, not recreating a retired name in 0.54.
+
+The retired OnePassword wrapper is not a credential-migration mechanism. An
+operator upgrading from 0.53.0 must run `op signout`, confirm that no process
+still depends on the old session, inspect the ownership and contents policy of
+`~/.op-claude-session`, and remove that legacy cache through the operator's
+normal secure-file procedure. Automation must not read, print, copy, revoke, or
+delete that file on the operator's behalf. Future access uses an interactive
+`op signin` operator action with the narrowest required account and vault scope.
+
 ## Hooks and commands after consolidation
 
 The default hook surface now has five focused responsibilities:
@@ -183,11 +272,14 @@ advisory work are explicit consumer extensions rather than default hooks.
 See [Hook extension model](./hook-extension.md).
 
 Commands remain namespaced `/dhpk:<name>` on Claude. Cursor uses the generated
-command. Codex uses the explicit `$flow-drive` family for task routing and has
-no `/dhpk:do` command. Overlapping workflows use these primary entry points:
+command. Codex uses `$flow-guide` for discovery and advice, `$flow-drive` for
+confirmed implementation, and has no `/dhpk:do` command. Overlapping workflows
+use these primary entry points:
 
-- `$flow-drive --mode route|implement <task>` for Codex task routing or implementation.
-- `/dhpk:flow-drive --mode route|implement <task>` on Claude when explicitly invoked.
+- `$flow-guide <help|route|rules|next|close> [--go] [query]` for Codex guidance.
+- `$flow-drive <confirmed-spec-or-change-id> [implementation-options]` for Codex implementation.
+- `/dhpk:flow-guide <help|route|rules|next|close> [query]` on Claude when explicitly invoked.
+- `/dhpk:flow-drive <confirmed-spec-or-change-id> [implementation-options]` on Claude when explicitly invoked.
 - `/dhpk:change-verdict --mode <code|pr|security|tests|docs|risk>` for read-only review variants.
 - `/dhpk:precommit` with `--fast` where applicable.
 - `/dhpk:setup --install hooks|rules|scripts|all` for configuration and assets.
@@ -205,7 +297,7 @@ claude plugin update dhpk@dhpk
 ```
 
 Start a fresh Claude session or run `/reload-plugins`. Confirm that
-`/dhpk:setup`, `/dhpk:flow-guide`, and `/dhpk:harness-audit` resolve. Project-local
+`/dhpk:setup`, `/dhpk:flow-guide`, `/dhpk:flow-drive`, and `/dhpk:harness-govern` resolve. Project-local
 copies of old dhpk skills are not updated by the marketplace; remove them only
 after confirming they are redundant and version controlled or otherwise
 recoverable.

@@ -131,11 +131,14 @@ test('canonical commands retire the approved aliases and retain supported adapte
   assert.ok(!fs.existsSync(path.join(ROOT, 'commands', 'zh-tw.md')), 'zh-tw must be retired');
 });
 
-test('flow-drive routing and setup installation have deterministic executable contracts', () => {
-  const doSkill = fs.readFileSync(path.join(ROOT, 'skills', 'flow-drive', 'SKILL.md'), 'utf8');
+test('flow-guide routing, flow-drive implementation, and setup installation have deterministic executable contracts', () => {
+  const guide = fs.readFileSync(path.join(ROOT, 'skills', 'flow-guide', 'SKILL.md'), 'utf8');
+  const drive = fs.readFileSync(path.join(ROOT, 'skills', 'flow-drive', 'SKILL.md'), 'utf8');
   const setup = fs.readFileSync(path.join(ROOT, 'commands', 'setup.md'), 'utf8');
-  assert.match(doSkill, /--route-only/);
-  assert.match(doSkill, /without invoking the target|not an implementation/i);
+  assert.match(guide, /route --go/);
+  assert.match(guide, /advisory|does not execute|without `--go`/i);
+  assert.match(drive, /confirmed specification|confirmed work/i);
+  assert.doesNotMatch(drive, /--route-only|flow-drive:author/);
   assert.match(setup, /scripts\/setup\/install-assets\.sh/);
   assert.match(setup, /--source.*--target.*--dry-run.*--force/is);
   assert.match(setup, /Bash\(bash:\*\).*Bash\(mkdir:\*\).*Bash\(cp:\*\).*Bash\(chmod:\*\)/);
@@ -155,7 +158,7 @@ test('invocation inventory baseline distinguishes retired aliases from retained 
 });
 
 // v1 GREEN contract (tests above): frontmatter validation, forwarding aliases,
-// current fat /dhpk:do --route-only workflow, invocation inventory counts.
+// current flow-guide route workflow, invocation inventory counts.
 // v2 RED contract (this test): thin pointer adapter. See also
 // tests/dhpk-do-portable.test.js [3.1]. Failing this case fails the whole file
 // until task 3.1.

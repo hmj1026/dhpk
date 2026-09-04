@@ -89,7 +89,7 @@ fingerprint 時，才允許 Cursor-specific copy。如此 shared portable skills
 
 `scripts/ci/gen-claude-manifest.js` 從 inventory 產生 `.claude-plugin/plugin.json` 的
 skill root。raw source checkout 仍保留作為明確指定的 compatibility surface；目前是一個
-registered directory root，下面有 72 個 inventory-eligible skill ID。
+registered directory root，下面有 63 個 inventory-eligible skill ID。
 所有 package 都扁平位於 `skills/dhpk-<name>/`；module `skills/` 只是相對 symlink
 projection。`0.47.0` 的五筆 retirement row 只存在於診斷 ledger，不會 materialize 成
 package 或 alias；請參閱 [alias-free retirement 指引](./skill-platform-migration.zh-TW.md#alias-free-retirement-ledger-0470)。
@@ -132,9 +132,9 @@ Claude manifest 註冊的是 skill **directory root**，不是逐 skill allowlis
 
 | Profile | 意義 |
 |---|---|
-| `minimal` | inventory required_core_ids；clean install 的預設。 |
-| `full` | 既有 conflict-aware module closure 加上明確 stable IDs；不代表完整 catalog。 |
-| `compat-v1` | 前一版相容 allowlist 的 71 個 stable ID；未標註舊 receipt 的相容 fallback。 |
+| `minimal` | inventory required_core_ids（8 個 skill）；clean install 的預設。 |
+| `full` | 既有 conflict-aware module closure（55 個 skill）加上明確 stable IDs；不代表完整 catalog。 |
+| `compat-v1` | predecessor-compatible allowlist（62 個 stable ID）；未標註舊 receipt 的相容 fallback。 |
 
 Distribution 與 project-local installer 支援 `--profile <id>` 及可重複的
 `--skill <stable-id>` additive overlay。unknown、retired、deprecated、surface
@@ -188,8 +188,17 @@ symlink；root 與 wrapper manifest 都解析到這一份 physical tree。
 [Issue #88](https://github.com/hmj1026/dhpk/issues/88) 的 symlink-mirror 與 parent-relative
 escape 失效模式目前已在正式 manifest/package 上通過結構與 consumer 驗證。不過這
 只是畢業的必要證據，不會自動改變支援等級；Codex marketplace 仍為
-**experimental**，直到另有獨立核准的 graduation decision。正式工作仍優先使用
-project-local sync。
+**experimental**，直到另有獨立核准的 graduation decision。`codex-sync` 是正式工作
+支援且 canonical 的日常路徑；`codex-native` 只能在沒有 project-local projection 的
+disposable isolated `CODEX_HOME` 測試。兩者雖分開發布與取得，runtime activation
+仍互斥。
+
+Artifact integrity 與 runtime activation 是兩個獨立判定。相同 fingerprint 加上有效
+provenance 可讓 release integrity matrix 回傳 `PASS`；但 project 與 native surface
+若有任何相同的 invokable public name，`check-codex-discovery` 仍會以
+`reasonCode: DUPLICATE_CODEX_PROVIDER` 回傳 runtime `BLOCKED`，即使 fingerprint
+相同也一樣。受影響名稱列在 `duplicateInvokableNames`，non-invokable support
+package 不列入；precedence 不能將這類 runtime 重疊降為 `WARN` 或 `PASS`。
 
 可執行的 duplicate-discovery 檢查與唯讀處理步驟，請以平台安裝 SSOT 的
 [檢查 Codex 重複 discovery](./platform-installation.zh-TW.md#檢查-codex-重複-discovery)

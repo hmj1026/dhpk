@@ -27,6 +27,7 @@ const {
 const { REQUIRED_SURFACES, REQUIRED_RUNTIME_SURFACES } = require('./harness-surfaces');
 const { validateInternalRuntimeSkills } = require('./internal-runtime-skills');
 const { assertCanonicalSkillPath } = require('./distribution-inventory-regeneration');
+const { validateSkillUsage, normalizeSkillUsage } = require('./skill-usage');
 
 const LIFECYCLES = ['promoted', 'optional', 'experimental', 'deprecated'];
 const INVOCATION_CLASSES = ['implicit-eligible', 'explicit-only'];
@@ -50,6 +51,9 @@ const PORTABLE_FAMILY_NAMES = Object.freeze([
   'flow-drive',
   'change-verdict',
   'code-trace',
+  'harness-govern',
+  'laravel',
+  'phpunit',
 ]);
 const CAPABILITY_FAMILY_RETIREMENTS = Object.freeze({
   'skill-health-check': Object.freeze({ family: 'skill-scope', mode: 'health' }),
@@ -58,12 +62,12 @@ const CAPABILITY_FAMILY_RETIREMENTS = Object.freeze({
   'skill-scout': Object.freeze({ family: 'skill-scope', mode: 'scout' }),
   'create-skill': Object.freeze({ family: 'skill-forge', mode: 'create' }),
   'rules-distill': Object.freeze({ family: 'skill-forge', mode: 'distill-rules' }),
-  'adaptive-dev-workflow': Object.freeze({ family: 'flow-guide', mode: 'classify' }),
-  'dhpk-execution-policy': Object.freeze({ family: 'flow-guide', mode: 'policy' }),
+  'adaptive-dev-workflow': Object.freeze({ family: 'flow-guide', mode: 'route' }),
+  'dhpk-execution-policy': Object.freeze({ family: 'flow-guide', mode: 'rules' }),
   'next-step': Object.freeze({ family: 'flow-guide', mode: 'next' }),
-  'execution-checklist': Object.freeze({ family: 'flow-guide', mode: 'checklist' }),
-  do: Object.freeze({ family: 'flow-drive', mode: 'route' }),
-  implement: Object.freeze({ family: 'flow-drive', mode: 'implement' }),
+  'execution-checklist': Object.freeze({ family: 'flow-guide', mode: 'close' }),
+  do: Object.freeze({ family: 'flow-guide', mode: 'route' }),
+  implement: Object.freeze({ family: 'flow-drive' }),
   'codex-code-review': Object.freeze({ family: 'change-verdict', mode: 'code' }),
   'pr-review': Object.freeze({ family: 'change-verdict', mode: 'pr' }),
   'security-review': Object.freeze({ family: 'change-verdict', mode: 'security' }),
@@ -74,6 +78,45 @@ const CAPABILITY_FAMILY_RETIREMENTS = Object.freeze({
   'bug-investigation': Object.freeze({ family: 'code-trace', mode: 'diagnose' }),
   'git-investigate': Object.freeze({ family: 'code-trace', mode: 'history' }),
   'tool-routing': Object.freeze({ family: 'code-trace', mode: 'select-tool' }),
+});
+const REMAINING_SKILL_RETIREMENTS = Object.freeze({
+  'laravel-5.4-notes': Object.freeze({ kind: 'skill', id: 'laravel', mode: '5.4' }),
+  'laravel-6-notes': Object.freeze({ kind: 'skill', id: 'laravel', mode: '6' }),
+  'laravel-7-notes': Object.freeze({ kind: 'skill', id: 'laravel', mode: '7' }),
+  'laravel-8-notes': Object.freeze({ kind: 'skill', id: 'laravel', mode: '8' }),
+  'laravel-9-notes': Object.freeze({ kind: 'skill', id: 'laravel', mode: '9' }),
+  'laravel-10-notes': Object.freeze({ kind: 'skill', id: 'laravel', mode: '10' }),
+  'laravel-11-notes': Object.freeze({ kind: 'skill', id: 'laravel', mode: '11' }),
+  'laravel-mix-notes': Object.freeze({ kind: 'skill', id: 'laravel', mode: 'mix' }),
+  'phpunit-9-modern': Object.freeze({ kind: 'skill', id: 'phpunit', mode: '9' }),
+  'phpunit-10-notes': Object.freeze({ kind: 'skill', id: 'phpunit', mode: '10' }),
+  'phpunit-11-notes': Object.freeze({ kind: 'skill', id: 'phpunit', mode: '11' }),
+  'claude-health': Object.freeze({ kind: 'skill', id: 'harness-govern', mode: 'health' }),
+  'harness-budget': Object.freeze({ kind: 'skill', id: 'harness-govern', mode: 'budget' }),
+  'harness-fill': Object.freeze({ kind: 'skill', id: 'harness-govern', mode: 'fill' }),
+  'harness-revise': Object.freeze({ kind: 'skill', id: 'harness-govern', mode: 'revise' }),
+  'multi-ai-sync': Object.freeze({ kind: 'skill', id: 'harness-govern', mode: 'sync' }),
+  'agy-commit': Object.freeze({ kind: 'skill', id: 'git-smart-commit' }),
+  'feasibility-study': Object.freeze({ kind: 'skill', id: 'software-architecture', mode: 'compare' }),
+  'tech-spec': Object.freeze({ kind: 'external-skill', id: 'openspec-propose', mode: 'propose' }),
+  'create-request': Object.freeze({ kind: 'external-skill', id: 'openspec-propose', mode: 'propose' }),
+  'op-session': Object.freeze({ kind: 'operator-action', id: 'onepassword-cli', mode: 'signin' }),
+});
+const RENAMED_SKILL_NAMES_054 = Object.freeze({
+  laravel: Object.freeze({
+    oldName: 'dhpk-laravel',
+    oldPath: 'skills/dhpk-laravel',
+    newName: 'laravel',
+    newPath: 'skills/laravel',
+    rollbackRelease: '0.53.0',
+  }),
+  phpunit: Object.freeze({
+    oldName: 'dhpk-phpunit',
+    oldPath: 'skills/dhpk-phpunit',
+    newName: 'phpunit',
+    newPath: 'skills/phpunit',
+    rollbackRelease: '0.53.0',
+  }),
 });
 const CAPABILITY_ID = /^dhpk\.[a-z0-9]+(?:[.-][a-z0-9]+)*$/;
 const PLATFORM_MATRIX_SCHEMA = 'dhpk.platform-capability-matrix.v1';
@@ -167,11 +210,30 @@ function classifyCanonicalInventory(root) {
 
 function preserveProjectionContract(generated, existing) {
   if (!existing || typeof existing !== 'object') return generated;
+  const existingSkills = Array.isArray(existing.skills) ? existing.skills : [];
+  const skills = Array.isArray(generated && generated.skills)
+    ? generated.skills.map((entry) => {
+      const prior = existingSkills.find((candidate) => candidate && candidate.id === entry.id);
+      if (!prior || !Object.prototype.hasOwnProperty.call(prior, 'usage')) return entry;
+      return { ...entry, usage: cloneInventoryValue(prior.usage) };
+    })
+    : generated.skills;
   const contract = {};
-  for (const key of ['surfaces', 'surface_membership', 'platform_matrix', 'portable_frontmatter', 'projection_contract', 'retired_skills', 'external_skill_packages', 'agent_roster']) {
-    if (Object.prototype.hasOwnProperty.call(existing, key)) contract[key] = existing[key];
+  for (const key of ['surfaces', 'surface_membership', 'platform_matrix', 'portable_frontmatter', 'projection_contract', 'retired_skills', 'renamed_skill_names', 'external_skill_packages', 'agent_roster']) {
+    if (Object.prototype.hasOwnProperty.call(existing, key)) contract[key] = cloneInventoryValue(existing[key]);
   }
-  return { ...generated, ...contract };
+  return { ...generated, ...(Array.isArray(generated && generated.skills) ? { skills } : {}), ...contract };
+}
+
+// Regeneration must carry inventory-owned usage metadata by stable ID. Keep
+// this clone local to the inventory boundary so callers cannot mutate the
+// previous accepted manifest through a generated object.
+function cloneInventoryValue(value) {
+  if (Array.isArray(value)) return value.map(cloneInventoryValue);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, cloneInventoryValue(child)]));
+  }
+  return value;
 }
 
 function serializeInventory(inventory) {
@@ -625,8 +687,8 @@ function validateSkillRetirements({ inventory } = {}) {
         for (const field of Object.keys(replacement)) {
           if (!replacementFields.has(field)) errors.push(`${replacementPrefix}.${field} is not allowed for ${replacement.kind || 'unknown'} replacements`);
         }
-        if (!['skill', 'agent', 'model-default'].includes(replacement.kind)) {
-          errors.push(`${replacementPrefix}.kind must be skill, agent, or model-default`);
+        if (!['skill', 'agent', 'model-default', 'external-skill', 'operator-action'].includes(replacement.kind)) {
+          errors.push(`${replacementPrefix}.kind must be skill, agent, model-default, external-skill, or operator-action`);
         }
         if (replacement.kind === 'model-default') {
           if (replacement.id !== undefined || replacement.mode !== undefined) {
@@ -678,7 +740,7 @@ function validateSkillRetirements({ inventory } = {}) {
     for (const [predecessor, expected] of Object.entries(CAPABILITY_FAMILY_RETIREMENTS)) {
       const entry = retirementById.get(predecessor);
       if (!entry) {
-        errors.push(`missing capability-family retirement mapping: ${predecessor} must map to ${expected.family}:${expected.mode}`);
+        errors.push(`missing capability-family retirement mapping: ${predecessor} must map to ${expected.family}${expected.mode ? `:${expected.mode}` : ''}`);
         continue;
       }
       if (entry.retiredIn !== '0.53.0') {
@@ -690,9 +752,12 @@ function validateSkillRetirements({ inventory } = {}) {
       const replacement = Array.isArray(entry.replacements) && entry.replacements.length === 1
         ? entry.replacements[0]
         : null;
+      const modeMatches = expected.mode === undefined
+        ? replacement && replacement.mode === undefined
+        : replacement && replacement.mode === expected.mode;
       if (!replacement || replacement.kind !== 'skill'
-        || replacement.id !== expected.family || replacement.mode !== expected.mode) {
-        errors.push(`capability-family retirement ${predecessor} must map exactly to ${expected.family}:${expected.mode}`);
+        || replacement.id !== expected.family || !modeMatches) {
+        errors.push(`capability-family retirement ${predecessor} must map exactly to ${expected.family}${expected.mode ? `:${expected.mode}` : ''}`);
       }
     }
     for (const entry of rows) {
@@ -703,6 +768,107 @@ function validateSkillRetirements({ inventory } = {}) {
     }
   }
 
+  const hasRemainingWave = ['harness-govern', 'laravel', 'phpunit'].every((id) => activeIds.has(id));
+  if (hasRemainingWave) {
+    const currentRows = rows.filter((entry) => entry && typeof entry === 'object'
+      && !Array.isArray(entry) && entry.retiredIn === '0.54.0');
+    const currentById = new Map(currentRows.map((entry) => [entry.id, entry]));
+    for (const [predecessor, expected] of Object.entries(REMAINING_SKILL_RETIREMENTS)) {
+      const entry = currentById.get(predecessor);
+      if (!entry) {
+        errors.push(`missing 0.54.0 retirement mapping for ${predecessor}`);
+        continue;
+      }
+      if (!entry.rollback || entry.rollback.release !== '0.53.0') {
+        errors.push(`${predecessor} retirement must roll back to 0.53.0`);
+      }
+      const replacement = Array.isArray(entry.replacements) && entry.replacements.length === 1
+        ? entry.replacements[0]
+        : null;
+      const modeMatches = expected.mode === undefined
+        ? replacement && replacement.mode === undefined
+        : replacement && replacement.mode === expected.mode;
+      if (!replacement || replacement.kind !== expected.kind
+        || replacement.id !== expected.id || !modeMatches) {
+        errors.push(`${predecessor} must map exactly to ${expected.kind} ${expected.id}${expected.mode ? `:${expected.mode}` : ''}`);
+      }
+    }
+    for (const entry of currentRows) {
+      if (!Object.prototype.hasOwnProperty.call(REMAINING_SKILL_RETIREMENTS, entry.id)) {
+        errors.push(`unexpected 0.54.0 retirement mapping: ${entry.id}`);
+      }
+    }
+  }
+
+  return { errors };
+}
+
+// Public-name renames retain the stable skill identity but never create a
+// compatibility alias. This ledger is migration evidence only and is closed
+// to the two 0.54.0 family-path renames.
+function validateRenamedSkillNames({ inventory } = {}) {
+  const errors = [];
+  if (!inventory || typeof inventory !== 'object' || Array.isArray(inventory)) return { errors };
+  const activeSkills = Array.isArray(inventory.skills) ? inventory.skills : [];
+  const activeById = new Map(activeSkills.map((entry) => [entry && entry.id, entry]));
+  const expectedIds = Object.keys(RENAMED_SKILL_NAMES_054);
+  if (!expectedIds.some((id) => activeById.has(id))) return { errors };
+
+  const rows = inventory.renamed_skill_names;
+  if (!Array.isArray(rows)) {
+    return { errors: ['renamed_skill_names is required when the laravel/phpunit public names are active'] };
+  }
+  const seen = new Set();
+  const allowedFields = new Set(['id', 'oldName', 'oldPath', 'newName', 'newPath', 'rollback']);
+  rows.forEach((row, index) => {
+    const prefix = `renamed_skill_names[${index}]`;
+    if (!row || typeof row !== 'object' || Array.isArray(row)) {
+      errors.push(`${prefix} must be an object`);
+      return;
+    }
+    for (const field of Object.keys(row)) {
+      if (!allowedFields.has(field)) errors.push(`${prefix} ${row.id || '<unknown>'} has unknown field '${field}'`);
+    }
+    if (typeof row.id !== 'string' || !Object.prototype.hasOwnProperty.call(RENAMED_SKILL_NAMES_054, row.id)) {
+      errors.push(`${prefix} has unexpected stable id '${row.id || '<missing>'}'`);
+      return;
+    }
+    if (seen.has(row.id)) errors.push(`duplicate renamed skill id: ${row.id}`);
+    seen.add(row.id);
+    const expected = RENAMED_SKILL_NAMES_054[row.id];
+    for (const field of ['oldName', 'oldPath', 'newName', 'newPath']) {
+      if (row[field] !== expected[field]) {
+        errors.push(`${prefix} ${row.id}.${field} must be '${expected[field]}', got '${row[field]}'`);
+      }
+    }
+    if (!row.rollback || typeof row.rollback !== 'object' || Array.isArray(row.rollback)
+      || Object.keys(row.rollback).length !== 1 || row.rollback.release !== expected.rollbackRelease) {
+      errors.push(`${prefix} ${row.id} rollback must be exactly { release: '${expected.rollbackRelease}' }`);
+    }
+  });
+
+  for (const id of expectedIds) {
+    if (!seen.has(id)) errors.push(`renamed_skill_names is missing required stable id '${id}'`);
+    const active = activeById.get(id);
+    const expected = RENAMED_SKILL_NAMES_054[id];
+    if (!active) {
+      errors.push(`renamed_skill_names '${id}' requires an active skill with the same stable id`);
+      continue;
+    }
+    if (active.name !== expected.newName) errors.push(`${id} active name must match newName '${expected.newName}'`);
+    if (active.path !== expected.newPath) errors.push(`${id} active path must match newPath '${expected.newPath}' and must not use old path '${expected.oldPath}'`);
+    for (const skill of activeSkills) {
+      if (!skill || typeof skill !== 'object') continue;
+      if (skill.name === expected.oldName) errors.push(`${expected.oldName} must not remain an active public name`);
+      if (Array.isArray(skill.legacy_names) && skill.legacy_names.includes(expected.oldName)) {
+        errors.push(`${expected.oldName} must not remain an active alias`);
+      }
+      if (skill.path === expected.oldPath) errors.push(`${expected.oldPath} must not remain an active old path`);
+    }
+  }
+  if (rows.length !== expectedIds.length) {
+    errors.push(`renamed_skill_names must contain exactly ${expectedIds.length} rows`);
+  }
   return { errors };
 }
 
@@ -848,12 +1014,31 @@ function validateDistributionInventoryV2(input = {}) {
         errors.push(`${prefix}.legacy_names must not contain duplicate values`);
       }
     }
+
+    // Codex publication is selected from these same inventory rows. Validate
+    // the closed usage grammar before any projection can consume the entry,
+    // and normalize it here so malformed records cannot be accepted merely
+    // because their JSON shape happens to look complete.
+    const usageValidation = validateSkillUsage({ skill: entry, usage: entry.usage });
+    if (!usageValidation.ok) {
+      for (const diagnostic of usageValidation.errors) {
+        errors.push(`usage-contract[${entry.id || index}]: ${diagnostic}`);
+      }
+    } else if (entry.usage !== undefined) {
+      try {
+        normalizeSkillUsage({ skill: entry, usage: entry.usage });
+      } catch (error) {
+        errors.push(`usage-contract[${entry.id || index}]: normalization failed: ${error.message}`);
+      }
+    }
   });
 
   const externalPackages = validateExternalSkillPackages({ inventory });
   errors.push(...externalPackages.errors);
   const retirements = validateSkillRetirements({ inventory });
   errors.push(...retirements.errors);
+  const renamedSkillNames = validateRenamedSkillNames({ inventory });
+  errors.push(...renamedSkillNames.errors);
   const membership = validateSurfaceMembership({ inventory, ids });
   errors.push(...membership.errors);
   const matrix = validatePlatformCapabilityMatrix(inventory.platform_matrix, {
@@ -936,8 +1121,11 @@ function validateSkillRoutingFamilies({ families, skillIds = new Set(), skills }
         errors.push(`${prefix}.selectors.${selector} must target a reference below the canonical skill path '${familyPath || '<missing>'}/references/' (not an alias canonical skill path)`);
       }
     }
-    if (!Array.isArray(family.aliases) || family.aliases.length === 0) { errors.push(`${prefix}.aliases must be a non-empty array`); continue; }
-    for (const [aliasIndex, alias] of family.aliases.entries()) {
+    if (family.aliases !== undefined && !Array.isArray(family.aliases)) {
+      errors.push(`${prefix}.aliases must be an array when present`);
+      continue;
+    }
+    for (const [aliasIndex, alias] of (family.aliases || []).entries()) {
       if (!alias || typeof alias.id !== 'string' || alias.id.trim() === '') { errors.push(`${prefix}.aliases contains an invalid alias`); continue; }
       const aliasPrefix = `${prefix}.aliases[${aliasIndex}]`;
       if (typeof alias.selector !== 'string' || alias.selector.trim() === ''
@@ -1008,7 +1196,7 @@ function normalizeSkillRoutingFamilies({ inventory } = {}) {
         .sort(([left], [right]) => left.localeCompare(right))
         .map(([selector, reference]) => [selector, reference]),
     ),
-    aliases: family.aliases
+    aliases: (family.aliases || [])
       .map((alias) => ({
         id: alias.id,
         selector: alias.selector,
@@ -1068,9 +1256,9 @@ function routingLookupFamily(family, inventory) {
     ))) return null;
   }
 
-  if (!Array.isArray(family.aliases) || family.aliases.length === 0) return null;
+  if (family.aliases !== undefined && !Array.isArray(family.aliases)) return null;
   const aliases = [];
-  for (const alias of family.aliases) {
+  for (const alias of family.aliases || []) {
     if (!alias || typeof alias !== 'object' || Array.isArray(alias)) return null;
     const aliasSnakeInvocation = Object.prototype.hasOwnProperty.call(alias, 'invocation_class');
     const aliasCamelInvocation = Object.prototype.hasOwnProperty.call(alias, 'invocationClass');
@@ -1798,6 +1986,9 @@ function normalizedInventoryView(inventory, generated) {
       if (Object.prototype.hasOwnProperty.call(entry, 'name_style')) {
         normalized.nameStyle = entry.name_style;
       }
+      if (Object.prototype.hasOwnProperty.call(entry, 'usage')) {
+        normalized.usage = normalizeSkillUsage({ skill: entry, usage: entry.usage });
+      }
       return normalized;
     })
     .sort((left, right) => String(left.id).localeCompare(String(right.id)));
@@ -2058,6 +2249,7 @@ module.exports = {
   normalizeExternalSkillPackages,
   externalSkillPackagesFingerprint,
   validateSkillRetirements,
+  validateRenamedSkillNames,
   validateDistributionInventoryV2,
   validateSkillRoutingFamilies,
   normalizeSkillRoutingFamilies,

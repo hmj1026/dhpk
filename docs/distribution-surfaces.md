@@ -122,9 +122,9 @@ node scripts/ci/gen-claude-manifest.js
 node scripts/ci/gen-distribution-inventory.js
 ```
 
-The raw compatibility commands report one registered Claude directory root, 72
-inventory-eligible Claude skill IDs, 85 canonical skills (including two
-non-invokable internal runtime packages), and 16 Codex-sync entries (14
+The raw compatibility commands report one registered Claude directory root, 63
+inventory-eligible Claude skill IDs, 65 canonical skills (including two
+non-invokable internal runtime packages), and 15 Codex-sync entries (13
 invokable skills plus internal transport and dispatch-context runtimes). These
 are independently derived scopes; a canonical total is not a default-install
 or runtime count. Clean default installs use the materialized `minimal` profile
@@ -228,9 +228,9 @@ scopes the discovery-facing skill and command roots; agent, hook, rule, and
 
 | Profile | Meaning |
 |---|---|
-| `minimal` | The inventory required_core_ids; the default for a clean install. |
-| `full` | The existing conflict-aware module closure plus its explicit stable IDs; it is not the complete catalog. |
-| `compat-v1` | The 71 stable IDs carried by the predecessor-compatible allowlist; this is the compatibility fallback for an unannotated existing receipt. |
+| `minimal` | The inventory required_core_ids (8 skills); the default for a clean install. |
+| `full` | The existing conflict-aware module closure (55 skills) plus its explicit stable IDs; it is not the complete catalog. |
+| `compat-v1` | The 62 stable IDs carried by the predecessor-compatible allowlist; this is the compatibility fallback for an unannotated existing receipt. |
 
 Distribution and project-local installers accept `--profile <id>` and repeatable
 additive `--skill <stable-id>` overlays. Unknown, retired, deprecated,
@@ -315,16 +315,24 @@ never generated fresh at install time.
 **Native package membership.** Inventory currently materializes 16
 Codex-sync/native entries: 14 invokable skills plus the non-invokable
 `cli-transport` and `cli-dispatch-context` runtime packages.
-`codex-sync` and `codex-native` are independent surfaces with
-independent acquisition/update/verification contracts — adding an invokable
-skill to one does not add it to the other.
+`codex-sync` and `codex-native` are separately published and acquired surfaces
+with independent acquisition/update/verification contracts — adding an
+invokable skill to one does not add it to the other. `codex-sync` is the
+supported, canonical daily-use route. `codex-native` remains experimental and
+must be tested only in a disposable isolated `CODEX_HOME` with no project-local
+projection; runtime activation of the two surfaces is mutually exclusive.
 
-When both surfaces expose the same public name, the consumer gate records both source
-paths, versions, fingerprints, and receipt ownership. The deterministic matrix
-returns `BLOCKED` for stale or unowned content or missing precedence, `PASS` for
-identical fingerprints with valid provenance, and `WARN` only for a current
-receipt-owned project-local fallback explicitly taking precedence over an
-experimental native surface.
+When both surfaces expose the same public name, the consumer gate records both
+source paths, versions, fingerprints, and receipt ownership. Artifact integrity
+and runtime activation are separate judgments: the release integrity matrix
+returns `PASS` for identical fingerprints with valid provenance, while stale,
+unowned, conflicting, or precedence-invalid content follows its existing
+integrity rules. Independently, `check-codex-discovery` returns runtime
+`BLOCKED` with `reasonCode: DUPLICATE_CODEX_PROVIDER` for any overlapping
+invokable public name across project and native surfaces, even when the
+fingerprints match. It reports those names as `duplicateInvokableNames` and
+excludes non-invokable support packages. Precedence cannot make an overlapping
+invokable runtime `WARN` or `PASS`.
 
 For the executable duplicate-discovery check and its read-only remediation
 steps, use [Check for duplicate Codex discovery](./platform-installation.md#check-for-duplicate-codex-discovery)

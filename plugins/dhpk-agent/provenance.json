@@ -3,27 +3,24 @@
   "surface": "agent-plugin",
   "selectionMode": "compiler",
   "owner": "plugins/dhpk-agent",
-  "sourceVersion": "0.53.0",
-  "sourceCommit": "e5138c084cb789af335e6c5c4ac29f6ff646f00f",
-  "generatedFromCommit": "e5138c084cb789af335e6c5c4ac29f6ff646f00f",
-  "generatedFromTree": "fbd33ee4e7a15a8aed500d0c667591689aa71384",
-  "inventoryDigest": "a9149ce448b0ebf18ecd55e0c011b0ed589090aa0efeb23f840b11e9679fe74a",
+  "sourceVersion": "0.54.0",
+  "sourceCommit": "7cc1eea92fb4bbbb29e5108ac8f41e1946fcc47e",
+  "generatedFromCommit": "7cc1eea92fb4bbbb29e5108ac8f41e1946fcc47e",
+  "generatedFromTree": "6e89a52b99a854941b256ca72771a6f17eed73b2",
+  "inventoryDigest": "0768946ca686158980a062bbfad505b13495f753018827b437c66e1956a97ab4",
+  "inventoryRevision": "sha256:2065ce510ff93078d2aa95d72cdbad5cadf8780e10c705b3c57bdaeb8d3337e4",
   "generatorVersion": "1.0.0",
   "schemaVersion": "1.0.0",
   "selectedSkillIds": [
     "agent-architecture-audit",
-    "agy-commit",
     "agy-fast-worker",
     "change-verdict",
-    "claude-health",
     "cli-dispatch-context",
     "cli-transport",
     "code-trace",
     "codex-bridge",
     "composer-package-hygiene",
-    "create-request",
     "deploy-list",
-    "feasibility-study",
     "feature-verify",
     "flow-drive",
     "flow-guide",
@@ -34,14 +31,10 @@
     "gitnexus-guide",
     "gitnexus-impact-analysis",
     "gitnexus-refactoring",
-    "harness-budget",
-    "harness-fill",
-    "harness-revise",
+    "harness-govern",
     "issue-analyze",
     "laravel-package-author",
     "laravel-testbench-matrix",
-    "multi-ai-sync",
-    "op-session",
     "opsx-apply-goal",
     "opsx-load-context",
     "opsx-post-obs",
@@ -55,24 +48,18 @@
     "skill-forge",
     "skill-scope",
     "software-architecture",
-    "tdd",
-    "tech-spec"
+    "tdd"
   ],
   "selectedSkillNames": [
     "change-verdict",
     "code-trace",
     "dhpk-agent-architecture-audit",
-    "dhpk-agy-commit",
     "dhpk-agy-fast-worker",
-    "dhpk-claude-health",
     "dhpk-cli-dispatch-context",
     "dhpk-cli-transport",
     "dhpk-codex-bridge",
     "dhpk-composer-package-hygiene",
-    "dhpk-create-request",
-    "dhpk-cross-agent-sync",
     "dhpk-deploy-list",
-    "dhpk-feasibility-study",
     "dhpk-feature-verify",
     "dhpk-git-smart-commit",
     "dhpk-gitnexus-cli",
@@ -81,14 +68,10 @@
     "dhpk-gitnexus-guide",
     "dhpk-gitnexus-impact-analysis",
     "dhpk-gitnexus-refactoring",
-    "dhpk-harness-budget",
-    "dhpk-harness-fill",
-    "dhpk-harness-revise",
     "dhpk-issue-analyze",
     "dhpk-laravel-package-author",
     "dhpk-laravel-testbench-matrix",
     "dhpk-module-design",
-    "dhpk-onepassword-session",
     "dhpk-opsx-apply-goal",
     "dhpk-opsx-load-context",
     "dhpk-opsx-post-observation",
@@ -100,9 +83,9 @@
     "dhpk-repo-intake",
     "dhpk-session-usage-audit",
     "dhpk-tdd-workflow",
-    "dhpk-tech-spec",
     "flow-drive",
     "flow-guide",
+    "harness-govern",
     "skill-forge",
     "skill-scope"
   ],
@@ -116,17 +99,12 @@
     "change-verdict": "0a417791d21876a67568b4d6a63c990f1844f1cbca245101fb0aafe44cd9be83",
     "code-trace": "3072c0ac73038a034df83f1524a2ac53d3c3f41a8c75fe3feaa7f062ab3e9cfa",
     "dhpk-agent-architecture-audit": "91815e5bb8f84d89c97caa4495d07dc25c0d81ab701758ff60c7ee55111d9b2a",
-    "dhpk-agy-commit": "37c6146d1d7abaff05a84c45376ff2dbc816c6867fe236cbc5b221c5b25ca0c5",
     "dhpk-agy-fast-worker": "81eec62a1ca620fc3b03375e5a3dabf45f98d69afde9e59b3d663e35e24e51b2",
-    "dhpk-claude-health": "cb59c1de1b13a7a194e4b0a92b7032519b172bd02d78281c63a87b43c9ff7bb5",
     "dhpk-cli-dispatch-context": "b7266dc8ecfee4e44f71b06d962f18760b8931138fee7418281ac013b047a9e9",
     "dhpk-cli-transport": "ab0bba2100cf66b7c4c69e90905057a488738d03f3c1bbabafaeb4b5f284ff3c",
-    "dhpk-codex-bridge": "92480e6fbe4676bc111f8073cbc370c5a2f014daef15b5796d8fc4b966e6e18d",
+    "dhpk-codex-bridge": "e06f70a0bb94dbdec610c388bd7dcdd96e091c6ca6cce71ac28d65376c132370",
     "dhpk-composer-package-hygiene": "548133d78c6f1d6256627d9c8dc960d5791500522112f55c6d51f2531196c375",
-    "dhpk-create-request": "6fa2de8530cd3448e329cbc0432fcb13e48537bc85441f4a11ae2166e05b2491",
-    "dhpk-cross-agent-sync": "bd07e04d4c6feae02d1715b39ccde3a88c705cfbe4b9b99123f49c7a3128ec70",
     "dhpk-deploy-list": "bfefe6e62e336570c407fb8a4841b1e0d50e9dfebc81ed13a5d9930a2f7be499",
-    "dhpk-feasibility-study": "234497f877d6c891d4adca07016f71df0ee2969374964aa3746de29389e3816b",
     "dhpk-feature-verify": "1c9e2e0a9160a5366ceeb12ac5505bb182663af5eeacbcbfd614fcc1e11c3b33",
     "dhpk-git-smart-commit": "28f65b5c243c7fbff245082d0e3e6869ce32cf635e1104a72a9ae919ea7aba5c",
     "dhpk-gitnexus-cli": "12bd0ee3fab0d7a8383ee6b880304b36518ccb87e83599a106dcb76a18d5e6ad",
@@ -135,29 +113,536 @@
     "dhpk-gitnexus-guide": "edbb7d71dfe2fcee1e2d7afd1e809d75ea7b031eb2d68539f5790bb4b2810dc9",
     "dhpk-gitnexus-impact-analysis": "a66258c68cbfbeba1829c4927214e2cb8b1dd266c2979a3fcc014cf7c3025e7c",
     "dhpk-gitnexus-refactoring": "da688ce71ecc8d7eb3fdc13b44567fb882e5a27c53d4461d0bc36c1852f5b917",
-    "dhpk-harness-budget": "1c1d0c601f560cab4b11a63debeff88b2d721fad33a50a8b52921949bf2a216d",
-    "dhpk-harness-fill": "c073161357103b83aca6bed0a28a07c94806689fa4ce9ee60e60c480542134fb",
-    "dhpk-harness-revise": "5bf234abe6803158b476a2f6c1ab640ad7fc708942e48640fcdf8ce01cf6fc0f",
     "dhpk-issue-analyze": "b63b1bc98290381ca5c970554eadc7becdd1ab08b25456b6e33dfbed545169fc",
     "dhpk-laravel-package-author": "7c3a42df9c11e1dfbe45d7c9e0c35f4183c85369c714728d9b624713630d8ef4",
     "dhpk-laravel-testbench-matrix": "bcaad0c43660c6626602e8c789d609c087fe9ab3619ace735394b9fe3e10aa79",
     "dhpk-module-design": "c9190c6495bf901212652e1bb9eb22a1cf53a6bef751f00016722e584b40fc27",
-    "dhpk-onepassword-session": "05e94bf2570c23bd968f9ac03077b8fbd4287e74e1c5530f13891c3aae3b1dee",
     "dhpk-opsx-apply-goal": "c1a688a8f2343405d2b0e062dfaa3502d72579b6334570d8f3c25b3433102a2a",
     "dhpk-opsx-load-context": "e50edb378899491abdf7a24c006a1c04a3f9bd8fa7c58e8635b822e992c99b86",
     "dhpk-opsx-post-observation": "991b510f9fa18f457132221f0c5d507a06158b835cde7c57772b100f1a6dc882",
     "dhpk-polyfill-version-matrix-audit": "c18597d1bbc40c5691321f3490ff28a07ffa0f6ec665deb15f2698147d158d2b",
     "dhpk-project-audit": "f110e304eddc1635bac3b45e9b36b97d2d0e9357fd156a840b3f426dcffe737a",
-    "dhpk-project-setup": "c33821f3df09831e8705a50eb23151dc5a5743d9a6fb5568c84096b1bcb4af86",
-    "dhpk-prompt-optimize": "33505f5f8c0131c5db2ae0bb2b9737d0d2b05ec91a0ad3ffd38ff601260507fa",
+    "dhpk-project-setup": "2ae128de2a37085a0beed3fb9e1c2178ac56fb2007bdc4faa20ceed86ad9006f",
+    "dhpk-prompt-optimize": "7a84b49e66401c119c5558616f152d0a22f240bdcc815294654e00a571f10eef",
     "dhpk-release-creator": "267c736e0fda4ed81aabb92a4c9b78a0b0d898904d0974c0a4a93b69c90e416f",
     "dhpk-repo-intake": "d90f67ea707acae30e1c4c8d67a94b974bec5a4618a52c6bae8c6749e942d2e6",
     "dhpk-session-usage-audit": "9c87600b97c9a9e49128b5e11d92c22a72d33b709d797b096899c79ef52b9833",
     "dhpk-tdd-workflow": "46bfefddb000cdbd45899023b62480ba1b9936335bc74be078a27f73a12c7d2b",
-    "dhpk-tech-spec": "289f8fc028ca9fe47e0f6d18289214a2f873c90f27ecf26ab7b255db0a9b0bb6",
-    "flow-drive": "1c4c06432ed2faadcca8edea135320c48b29fd47b88338790b9772e6c3bd8c24",
-    "flow-guide": "e1af2d80ecadde814894a324ae31b0030810c0aaab1294a87ff0b1d8edf01a09",
+    "flow-drive": "b6f78a7a69c69d403ab9f312cdaa0aff2daf7ae2889b9c2bbf5d6dbf0cb2b385",
+    "flow-guide": "643e90da921977752f6d7a8c32f4268ab22f0e768f8e45316d81008fae14eff7",
+    "harness-govern": "f76bcea9cf61c83299eb14303d700c123bf6ccf4b81045f60f4247ec5d4c0725",
     "skill-forge": "03af7d3b8f955f186f84d142a04b5f86962a9db63f85aead7c38e648fdce19fc",
     "skill-scope": "ec46bf749a61d9d33c20431d32d5b883455d7d5ec096cfcb7023547ad46cf421"
-  }
+  },
+  "usageSchema": "dhpk.skill-usage.v1",
+  "usage": {
+    "code-trace": {
+      "display_name": "Code Trace",
+      "summary": "Trace code paths, causes, history, or navigation tools",
+      "syntax": "$code-trace [--mode=<mode>] <query>",
+      "input_kind": "mixed",
+      "invocation_class": "implicit-eligible",
+      "effect_authority": "read-only",
+      "actions": [
+        {
+          "id": "explore",
+          "summary": "Trace an unfamiliar symbol, file, module, or flow",
+          "syntax": "$code-trace --mode=explore <query>",
+          "input_kind": "free-text",
+          "effect_authority": "read-only"
+        },
+        {
+          "id": "diagnose",
+          "summary": "Confirm the cause of a failure or regression",
+          "syntax": "$code-trace --mode=diagnose <query>",
+          "input_kind": "free-text",
+          "effect_authority": "read-only"
+        },
+        {
+          "id": "history",
+          "summary": "Investigate when and why behavior changed",
+          "syntax": "$code-trace --mode=history <query>",
+          "input_kind": "free-text",
+          "effect_authority": "read-only"
+        },
+        {
+          "id": "select-tool",
+          "summary": "Select one code-navigation tool and fallback",
+          "syntax": "$code-trace --mode=select-tool <query>",
+          "input_kind": "free-text",
+          "effect_authority": "read-only"
+        }
+      ],
+      "options": [
+        {
+          "id": "mode",
+          "syntax": "--mode=<mode>",
+          "value_kind": "enum",
+          "required": false,
+          "enum_values": [
+            "explore",
+            "diagnose",
+            "history",
+            "select-tool"
+          ],
+          "summary": "Choose the code-trace mode"
+        },
+        {
+          "id": "dual",
+          "syntax": "--dual",
+          "value_kind": "boolean",
+          "required": false,
+          "default": false,
+          "summary": "Request an independent read-only perspective",
+          "applies_to": [
+            "explore"
+          ]
+        },
+        {
+          "id": "explain",
+          "syntax": "--explain",
+          "value_kind": "boolean",
+          "required": false,
+          "default": false,
+          "summary": "Request a bounded explanation of the trace",
+          "applies_to": [
+            "explore"
+          ]
+        },
+        {
+          "id": "depth",
+          "syntax": "--depth=<brief|normal|deep>",
+          "value_kind": "enum",
+          "required": false,
+          "enum_values": [
+            "brief",
+            "normal",
+            "deep"
+          ],
+          "summary": "Set the requested explanation depth",
+          "applies_to": [
+            "explore"
+          ]
+        }
+      ],
+      "examples": [
+        {
+          "prompt": "$code-trace --mode=explore OrderService",
+          "summary": "Trace callers and callees for an unfamiliar symbol"
+        }
+      ]
+    },
+    "git-smart-commit": {
+      "display_name": "Git Smart Commit",
+      "summary": "Group related changes into reviewable commits safely",
+      "syntax": "$dhpk-git-smart-commit",
+      "input_kind": "none",
+      "invocation_class": "explicit-only",
+      "effect_authority": "git-write",
+      "actions": [
+        {
+          "id": "group",
+          "summary": "Analyze changes and produce grouped commit steps",
+          "syntax": "$dhpk-git-smart-commit",
+          "input_kind": "none",
+          "effect_authority": "git-write"
+        }
+      ],
+      "options": [],
+      "examples": [
+        {
+          "prompt": "$dhpk-git-smart-commit split these changes into logical commits",
+          "summary": "Prepare a safe grouped commit plan"
+        }
+      ]
+    },
+    "opsx-load-context": {
+      "display_name": "Opsx Load Context",
+      "summary": "Load resume context through the deterministic fallback chain",
+      "syntax": "$dhpk-opsx-load-context",
+      "input_kind": "none",
+      "invocation_class": "implicit-eligible",
+      "effect_authority": "read-only",
+      "actions": [
+        {
+          "id": "load",
+          "summary": "Resolve the best available resume context",
+          "syntax": "$dhpk-opsx-load-context",
+          "input_kind": "none",
+          "effect_authority": "read-only"
+        }
+      ],
+      "options": [],
+      "examples": [
+        {
+          "prompt": "$dhpk-opsx-load-context",
+          "summary": "Load context for an opsx-apply-resume session"
+        }
+      ]
+    },
+    "opsx-post-obs": {
+      "display_name": "Opsx Post Obs",
+      "summary": "Post one resume observation through the observer boundary",
+      "syntax": "$dhpk-opsx-post-observation <observation-context>",
+      "input_kind": "free-text",
+      "invocation_class": "implicit-eligible",
+      "effect_authority": "delegate",
+      "actions": [
+        {
+          "id": "post",
+          "summary": "Submit the compact session observation",
+          "syntax": "$dhpk-opsx-post-observation <observation-context>",
+          "input_kind": "free-text",
+          "effect_authority": "delegate"
+        }
+      ],
+      "options": [],
+      "examples": [
+        {
+          "prompt": "$dhpk-opsx-post-observation save-phase summary",
+          "summary": "Post the observation during opsx save phase"
+        }
+      ]
+    },
+    "tdd": {
+      "display_name": "TDD",
+      "summary": "Drive behavior-first tests through a minimal red-green loop",
+      "syntax": "$dhpk-tdd-workflow [test-generation] <task>",
+      "input_kind": "mixed",
+      "invocation_class": "implicit-eligible",
+      "effect_authority": "workspace-write",
+      "actions": [
+        {
+          "id": "tdd",
+          "summary": "Guide a behavior-first test and implementation loop",
+          "syntax": "$dhpk-tdd-workflow <task>",
+          "input_kind": "free-text",
+          "effect_authority": "workspace-write"
+        },
+        {
+          "id": "test-generation",
+          "summary": "Generate a focused failing-test scaffold",
+          "syntax": "$dhpk-tdd-workflow test-generation <target>",
+          "input_kind": "path",
+          "effect_authority": "workspace-write"
+        }
+      ],
+      "options": [],
+      "examples": [
+        {
+          "prompt": "$dhpk-tdd-workflow test-generation tests/OrderTest.php",
+          "summary": "Start with a behavior-focused test scaffold"
+        }
+      ]
+    },
+    "flow-drive": {
+      "display_name": "Flow Drive",
+      "summary": "Implement a confirmed specification with bounded evidence",
+      "syntax": "$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--worker=<worker>] [--reasoner=<backend>:<model>:<effort>] [--architect|--no-architect]",
+      "input_kind": "mixed",
+      "invocation_class": "explicit-only",
+      "effect_authority": "workspace-write",
+      "actions": [
+        {
+          "id": "apply",
+          "summary": "Implement the confirmed specification or OpenSpec change",
+          "syntax": "$flow-drive <confirmed-spec-or-change-id>",
+          "input_kind": "identifier",
+          "effect_authority": "workspace-write"
+        }
+      ],
+      "options": [
+        {
+          "id": "plan",
+          "syntax": "--plan[=<model>:<effort>]",
+          "value_kind": "string",
+          "required": false,
+          "summary": "Request a planning pass before implementation",
+          "applies_to": [
+            "apply"
+          ]
+        },
+        {
+          "id": "worker",
+          "syntax": "--worker=<worker>",
+          "value_kind": "enum",
+          "required": false,
+          "enum_values": [
+            "claude",
+            "codex",
+            "agy",
+            "auto"
+          ],
+          "summary": "Select an explicitly requested implementation worker",
+          "applies_to": [
+            "apply"
+          ]
+        },
+        {
+          "id": "reasoner",
+          "syntax": "--reasoner=<backend>:<model>:<effort>",
+          "value_kind": "string",
+          "required": false,
+          "summary": "Request a bounded second opinion",
+          "applies_to": [
+            "apply"
+          ]
+        },
+        {
+          "id": "architect",
+          "syntax": "--architect",
+          "value_kind": "boolean",
+          "required": false,
+          "summary": "Enable the architecture pass",
+          "applies_to": [
+            "apply"
+          ]
+        },
+        {
+          "id": "no-architect",
+          "syntax": "--no-architect",
+          "value_kind": "boolean",
+          "required": false,
+          "summary": "Disable the architecture pass",
+          "applies_to": [
+            "apply"
+          ]
+        },
+        {
+          "id": "codex",
+          "syntax": "--codex",
+          "value_kind": "boolean",
+          "required": false,
+          "summary": "Request the retired Codex diagnostic",
+          "applies_to": [
+            "apply"
+          ]
+        }
+      ],
+      "examples": [
+        {
+          "prompt": "$flow-drive consolidate-remaining-dhpk-skill-families",
+          "summary": "Implement a confirmed OpenSpec change"
+        }
+      ]
+    },
+    "flow-guide": {
+      "display_name": "Flow Guide",
+      "summary": "Guide routes, rules, next steps, closeout, and usage help",
+      "syntax": "$flow-guide <help|route|rules|next|close> [--go] [<query>]",
+      "input_kind": "action-first",
+      "invocation_class": "implicit-eligible",
+      "effect_authority": "delegate",
+      "actions": [
+        {
+          "id": "help",
+          "summary": "Show available Codex usage or one usage card",
+          "syntax": "$flow-guide help [<skill>]",
+          "input_kind": "identifier",
+          "effect_authority": "read-only"
+        },
+        {
+          "id": "route",
+          "summary": "Select the smallest workflow owner for a task",
+          "syntax": "$flow-guide route [--go] [<query>]",
+          "input_kind": "free-text",
+          "effect_authority": "delegate"
+        },
+        {
+          "id": "rules",
+          "summary": "Look up the governing workflow rules",
+          "syntax": "$flow-guide rules [<query>]",
+          "input_kind": "free-text",
+          "effect_authority": "read-only"
+        },
+        {
+          "id": "next",
+          "summary": "Identify the next bounded workflow action",
+          "syntax": "$flow-guide next [<query>]",
+          "input_kind": "free-text",
+          "effect_authority": "read-only"
+        },
+        {
+          "id": "close",
+          "summary": "Check closeout evidence and remaining gates",
+          "syntax": "$flow-guide close [<query>]",
+          "input_kind": "free-text",
+          "effect_authority": "read-only"
+        }
+      ],
+      "options": [
+        {
+          "id": "go",
+          "syntax": "--go",
+          "value_kind": "boolean",
+          "required": false,
+          "default": false,
+          "summary": "Request one bounded handoff when the route is eligible",
+          "applies_to": [
+            "route"
+          ]
+        }
+      ],
+      "examples": [
+        {
+          "prompt": "$flow-guide help",
+          "summary": "List the available Codex skill usage contracts"
+        }
+      ]
+    },
+    "harness-govern": {
+      "display_name": "Harness Govern",
+      "summary": "Govern harness health, budget, filling, revision, and sync",
+      "syntax": "$harness-govern <health|budget|fill|revise|sync> [options]",
+      "input_kind": "action-first",
+      "invocation_class": "explicit-only",
+      "effect_authority": "external-write",
+      "actions": [
+        {
+          "id": "health",
+          "summary": "Check harness structure and optionally fix safe issues",
+          "syntax": "$harness-govern health [options]",
+          "input_kind": "none",
+          "effect_authority": "workspace-write"
+        },
+        {
+          "id": "budget",
+          "summary": "Measure harness context cost and ranked savings",
+          "syntax": "$harness-govern budget [options]",
+          "input_kind": "none",
+          "effect_authority": "read-only"
+        },
+        {
+          "id": "fill",
+          "summary": "Preview or apply missing harness layers",
+          "syntax": "$harness-govern fill [options]",
+          "input_kind": "none",
+          "effect_authority": "workspace-write"
+        },
+        {
+          "id": "revise",
+          "summary": "Review and revise an active harness",
+          "syntax": "$harness-govern revise [options]",
+          "input_kind": "none",
+          "effect_authority": "workspace-write"
+        },
+        {
+          "id": "sync",
+          "summary": "Plan or apply cross-platform harness synchronization",
+          "syntax": "$harness-govern sync [options]",
+          "input_kind": "none",
+          "effect_authority": "external-write"
+        }
+      ],
+      "options": [
+        {
+          "id": "dir",
+          "syntax": "--dir=<path>",
+          "value_kind": "string",
+          "required": false,
+          "summary": "Select the harness directory"
+        },
+        {
+          "id": "dry-run",
+          "syntax": "--dry-run",
+          "value_kind": "boolean",
+          "required": false,
+          "default": false,
+          "summary": "Preview changes without writing",
+          "applies_to": [
+            "health",
+            "budget",
+            "fill",
+            "revise",
+            "sync"
+          ]
+        },
+        {
+          "id": "fix-safe",
+          "syntax": "--fix-safe",
+          "value_kind": "boolean",
+          "required": false,
+          "default": false,
+          "summary": "Apply only approved safe health fixes",
+          "applies_to": [
+            "health"
+          ]
+        },
+        {
+          "id": "fix",
+          "syntax": "--fix",
+          "value_kind": "boolean",
+          "required": false,
+          "default": false,
+          "summary": "Apply the selected health fixes",
+          "applies_to": [
+            "health"
+          ]
+        }
+      ],
+      "examples": [
+        {
+          "prompt": "$harness-govern health --dry-run",
+          "summary": "Inspect harness health without changing files"
+        }
+      ]
+    },
+    "skill-scope": {
+      "display_name": "Skill Scope",
+      "summary": "Route skill governance to one focused mode with evidence",
+      "syntax": "$skill-scope <health|judge|stocktake|scout>",
+      "input_kind": "action-first",
+      "invocation_class": "implicit-eligible",
+      "effect_authority": "delegate",
+      "actions": [
+        {
+          "id": "health",
+          "summary": "Check one skill or package structure",
+          "syntax": "$skill-scope health <skill>",
+          "input_kind": "identifier",
+          "effect_authority": "delegate"
+        },
+        {
+          "id": "judge",
+          "summary": "Score one skill or package quality",
+          "syntax": "$skill-scope judge <skill>",
+          "input_kind": "identifier",
+          "effect_authority": "delegate"
+        },
+        {
+          "id": "stocktake",
+          "summary": "Audit installed consumer skills and commands",
+          "syntax": "$skill-scope stocktake",
+          "input_kind": "none",
+          "effect_authority": "delegate"
+        },
+        {
+          "id": "scout",
+          "summary": "Search for an existing skill or capability",
+          "syntax": "$skill-scope scout <capability>",
+          "input_kind": "free-text",
+          "effect_authority": "delegate"
+        }
+      ],
+      "options": [],
+      "examples": [
+        {
+          "prompt": "$skill-scope health flow-guide",
+          "summary": "Run a focused health check for one skill"
+        }
+      ]
+    }
+  },
+  "usageFingerprints": {
+    "code-trace": "3cee9330f98fb1ae8336818480540dc67fb8a72806f18050da222bca7b5457b4",
+    "git-smart-commit": "ef08486484ddf2cc97c619cf15f902d816fc20d8523fafb007e15518bba2e9f7",
+    "opsx-load-context": "3eab6d7996a5381f1795fb14f383cab5478bb4694f14b24ef3bbd213dde04df6",
+    "opsx-post-obs": "bd654e16d8a0916d4607d339b02e16dd7a0d234c712fa7cf510baffd7b7e118e",
+    "tdd": "1e17b743b2781626967944e01eed90504c0b26cc26cbe3801d7bd1d29783677a",
+    "flow-drive": "4c6bc399314e7a97110e103b8e3c085f1f15230a3356367f522bc5c554405dcd",
+    "flow-guide": "ca43b1f5c7e2534d6f2f46455b9645dae154ba32caf154f58ae5813d322f3be5",
+    "harness-govern": "c47d5c8f28a0fe0b40ebb879b2ac51ff9ac779a79d17c2b29dfd5d64dc6709ea",
+    "skill-scope": "985e2fe599b212d44e0d3940485108288b157309944d9785108349efcdee5c6a"
+  },
+  "externalSkillPackagesFingerprint": "3415fbb3be9c7095e796bab2ac6c87d96e26bfa8c90a89cf9fc1d63cbbbc664c"
 }

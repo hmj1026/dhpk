@@ -8,7 +8,7 @@ const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const VALIDATOR = path.join(ROOT, 'skills/dhpk-cross-agent-sync/scripts/multi_ai_sync.py');
+const VALIDATOR = path.join(ROOT, 'skills/harness-govern/scripts/multi_ai_sync.py');
 
 function installCursorProjection(repo, options = {}) {
   const modeArgs = options.copy === false ? [] : ['--copy'];
@@ -239,7 +239,7 @@ test('Cursor reports a project-local receipt/projection mismatch as FAIL', () =>
 
 test('Cursor validation keeps portable and native capability rows independent', () => {
   const result = spawnSync('python3', [
-    path.join(ROOT, 'skills/dhpk-cross-agent-sync/scripts/multi_ai_sync.py'),
+    path.join(ROOT, 'skills/harness-govern/scripts/multi_ai_sync.py'),
     '--root', ROOT,
     'validate', '--targets', 'cursor', '--format', 'json',
   ], { encoding: 'utf8' });
@@ -269,7 +269,7 @@ test('Cursor validation reports malformed configured packages as FAIL rather tha
     fs.writeFileSync(path.join(repo, 'plugins/dhpk-agent/plugin.json'), '{not-json');
     fs.writeFileSync(path.join(repo, 'plugins/dhpk-agent/skills/broken/SKILL.md'), 'not frontmatter');
     const result = spawnSync('python3', [
-      path.join(ROOT, 'skills/dhpk-cross-agent-sync/scripts/multi_ai_sync.py'),
+      path.join(ROOT, 'skills/harness-govern/scripts/multi_ai_sync.py'),
       '--root', repo, 'validate', '--targets', 'cursor', '--format', 'json',
     ], { encoding: 'utf8' });
     assert.notStrictEqual(result.status, 0);
@@ -283,8 +283,8 @@ test('Cursor validation reports malformed configured packages as FAIL rather tha
 test('Projected Cursor validator fails closed when authoritative scripts are not installed', () => {
   const repo = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-cursor-projected-validator-'));
   try {
-    const projectedScripts = path.join(repo, 'plugins/dhpk/skills/dhpk-cross-agent-sync/scripts');
-    fs.cpSync(path.join(ROOT, 'plugins/dhpk/skills/dhpk-cross-agent-sync/scripts'), projectedScripts, { recursive: true });
+    const projectedScripts = path.join(repo, 'plugins/dhpk/skills/harness-govern/scripts');
+    fs.cpSync(path.join(ROOT, 'plugins/dhpk/skills/harness-govern/scripts'), projectedScripts, { recursive: true });
     fs.mkdirSync(path.join(repo, '.claude/skills/demo'), { recursive: true });
     fs.mkdirSync(path.join(repo, '.claude/commands'), { recursive: true });
     fs.mkdirSync(path.join(repo, '.claude/agents'), { recursive: true });

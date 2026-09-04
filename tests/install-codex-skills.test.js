@@ -12,6 +12,29 @@ const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
 const HOOK = path.join(ROOT, 'scripts', 'hooks', 'install-codex-skills.sh');
+const CODEX_STUB_BIN = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-codex-stub-')));
+const CODEX_STUB = path.join(CODEX_STUB_BIN, 'codex');
+fs.writeFileSync(CODEX_STUB, `#!/bin/sh
+if [ "$1" = "plugin" ] && [ "$2" = "list" ] && [ "$3" = "--json" ]; then
+  if [ "\${DHPK_TEST_CODEX_PLUGIN_LIST_OVERSIZED:-0}" = "1" ]; then
+    head -c 2097152 /dev/zero | tr '\\0' x
+    sleep 3
+    exit 0
+  fi
+  if [ -n "\${DHPK_TEST_CODEX_BACKGROUND_MARKER:-}" ]; then
+    (sleep 4; printf survived > "\${DHPK_TEST_CODEX_BACKGROUND_MARKER}") &
+    exit 0
+  fi
+  if [ -n "\${DHPK_TEST_CODEX_PLUGIN_LIST_JSON:-}" ]; then
+    printf '%s\\n' "\${DHPK_TEST_CODEX_PLUGIN_LIST_JSON}"
+  else
+    printf '%s\\n' '{"installed":[],"available":[]}'
+  fi
+  exit "\${DHPK_TEST_CODEX_PLUGIN_LIST_EXIT:-0}"
+fi
+exit 2
+`, { mode: 0o755 });
+process.on('exit', () => fs.rmSync(CODEX_STUB_BIN, { recursive: true, force: true }));
 // Copy-mode fixture setup hashes a complete generated Codex package. Keep this
 // bounded, while allowing four-way CI contention to complete that real work.
 const INSTALLER_CHILD_TIMEOUT_MS = 60_000;
@@ -44,7 +67,12 @@ test('--help invocation is a safe no-op (no .codex/ created, exit 0)', () => {
 function runInstaller(project, args, pluginRoot = ROOT, envOverrides = {}) {
   return spawnSync('bash', [HOOK, ...args], {
     cwd: project,
-    env: { ...process.env, CLAUDE_PLUGIN_ROOT: pluginRoot, ...envOverrides },
+    env: {
+      ...process.env,
+      PATH: `${CODEX_STUB_BIN}:${process.env.PATH || ''}`,
+      CLAUDE_PLUGIN_ROOT: pluginRoot,
+      ...envOverrides,
+    },
     encoding: 'utf8',
     timeout: INSTALLER_CHILD_TIMEOUT_MS,
   });
@@ -54,18 +82,132 @@ test('installer child timeout stays bounded for parallel CI package setup', () =
   assert.strictEqual(INSTALLER_CHILD_TIMEOUT_MS, 60_000);
 });
 
+test('enabled dhpk native plugin blocks project sync before writes even with --force', () => {
+  const scratch = projectRoot();
+  try {
+    const result = runInstaller(scratch, ['--copy', '--force', '--json'], ROOT, {
+      DHPK_TEST_CODEX_PLUGIN_LIST_JSON: JSON.stringify({
+        installed: [{ pluginId: 'dhpk@dhpk', enabled: true, version: '0.53.0' }],
+        available: [],
+      }),
+    });
+    assert.strictEqual(result.status, 2, `${result.stdout}\n${result.stderr}`);
+    const report = JSON.parse(result.stdout);
+    assert.strictEqual(report.state, 'blocked');
+    assert.strictEqual(report.reasonCode, 'CODEX_NATIVE_PLUGIN_ENABLED');
+    assert.deepStrictEqual(report.providerCheck, {
+      status: 'ENABLED',
+      pluginId: 'dhpk@dhpk',
+      enabled: true,
+      version: '0.53.0',
+    });
+    assert.ok(!fs.existsSync(path.join(scratch, '.codex')),
+      'provider conflict must block before creating the project-local Codex root');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('enabled provider evidence wins over malformed or earlier disabled plugin-list entries', () => {
+  const payloads = [
+    { installed: [{ broken: true }, { pluginId: 'dhpk@dhpk', enabled: true }], available: [] },
+    {
+      installed: [
+        { pluginId: 'dhpk@dhpk', enabled: false },
+        { pluginId: 'dhpk@dhpk', enabled: true },
+      ],
+      available: [],
+    },
+  ];
+  for (const payload of payloads) {
+    const scratch = projectRoot();
+    try {
+      const result = runInstaller(scratch, ['--copy', '--force', '--json'], ROOT, {
+        DHPK_TEST_CODEX_PLUGIN_LIST_JSON: JSON.stringify(payload),
+      });
+      assert.strictEqual(result.status, 2, `${result.stdout}\n${result.stderr}`);
+      assert.strictEqual(JSON.parse(result.stdout).providerCheck.status, 'ENABLED');
+      assert.ok(!fs.existsSync(path.join(scratch, '.codex')),
+        'all plugin-list entries must be inspected before project-local writes');
+    } finally {
+      fs.rmSync(scratch, { recursive: true, force: true });
+    }
+  }
+});
+
+test('unavailable Codex provider query is reported but does not block planning', () => {
+  const scratch = projectRoot();
+  try {
+    const result = runInstaller(scratch, ['--copy', '--force', '--plan', '--json'], ROOT, {
+      DHPK_TEST_CODEX_PLUGIN_LIST_EXIT: '1',
+    });
+    assert.strictEqual(result.status, 1, `${result.stdout}\n${result.stderr}`);
+    const report = JSON.parse(result.stdout);
+    assert.strictEqual(report.providerCheck.status, 'UNAVAILABLE');
+    assert.notStrictEqual(report.state, 'blocked');
+    assert.ok(!fs.existsSync(path.join(scratch, '.codex')),
+      '--plan must remain read-only when the provider query is unavailable');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('oversized provider output is capped before the child command finishes', () => {
+  const scratch = projectRoot();
+  try {
+    const startedAt = Date.now();
+    const result = runInstaller(scratch, ['--copy', '--force', '--plan', '--json'], ROOT, {
+      DHPK_TEST_CODEX_PLUGIN_LIST_OVERSIZED: '1',
+    });
+    const elapsedMs = Date.now() - startedAt;
+    assert.strictEqual(result.status, 1, `${result.stdout}\n${result.stderr}`);
+    assert.strictEqual(JSON.parse(result.stdout).providerCheck.status, 'UNAVAILABLE');
+    assert.ok(elapsedMs < 2000, `expected capped output to terminate promptly, took ${elapsedMs}ms`);
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('provider timeout terminates descendants after the direct Codex process exits', () => {
+  const scratch = projectRoot();
+  const marker = path.join(scratch, 'background-survived');
+  try {
+    const result = runInstaller(scratch, ['--copy', '--force', '--plan', '--json'], ROOT, {
+      DHPK_TEST_CODEX_BACKGROUND_MARKER: marker,
+    });
+    assert.strictEqual(result.status, 1, `${result.stdout}\n${result.stderr}`);
+    assert.strictEqual(JSON.parse(result.stdout).providerCheck.status, 'UNAVAILABLE');
+    spawnSync('sleep', ['1.5']);
+    assert.ok(!fs.existsSync(marker), 'timed-out provider query must terminate its whole process group');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
+test('--uninstall remains available when the dhpk native plugin is enabled', () => {
+  const scratch = projectRoot();
+  try {
+    const installed = runInstaller(scratch, ['--copy', '--force']);
+    assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
+    const removed = runInstaller(scratch, ['--uninstall'], ROOT, {
+      DHPK_TEST_CODEX_PLUGIN_LIST_JSON: JSON.stringify({
+        installed: [{ pluginId: 'dhpk@dhpk', enabled: true, version: '0.53.0' }],
+        available: [],
+      }),
+    });
+    assert.strictEqual(removed.status, 0, `${removed.stdout}\n${removed.stderr}`);
+    assert.ok(!fs.existsSync(path.join(scratch, '.codex', '.dhpk-installed.json')),
+      'uninstall should remove the project receipt without requiring native-plugin removal');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+});
+
 test('successful update emits no deprecation warning and preserves UTC receipt timestamps', () => {
   const scratch = projectRoot();
   try {
-    const res = spawnSync('bash', [HOOK, '--copy', '--update'], {
-      cwd: scratch,
-      env: {
-        ...process.env,
-        CLAUDE_PLUGIN_ROOT: ROOT,
-        PYTHONWARNINGS: 'error::DeprecationWarning',
-      },
-      encoding: 'utf8',
-      timeout: INSTALLER_CHILD_TIMEOUT_MS,
+    const res = runInstaller(scratch, ['--copy', '--update'], ROOT, {
+      PYTHONWARNINGS: 'error::DeprecationWarning',
     });
     assert.strictEqual(res.status, 0, `${res.stdout}\n${res.stderr}`);
     assert.doesNotMatch(res.stderr, /DeprecationWarning/);
@@ -415,8 +557,8 @@ test('external source symlink is rejected before an owned retirement prune', () 
     assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
     const sourceNames = fs.readdirSync(path.join(fakePlugin, 'codex', 'skills')).sort();
     assert.ok(sourceNames.length >= 2, 'fixture needs a retired and active skill');
-    const retired = sourceNames.find((name) => name.startsWith('dhpk-'));
-    const malicious = sourceNames.find((name) => name.startsWith('dhpk-') && name !== retired);
+    const retired = sourceNames.find((name) => name === 'dhpk-tdd-workflow');
+    const malicious = sourceNames.find((name) => name === 'dhpk-yii1-security-audit');
     assert.ok(retired && malicious, 'fixture needs prefixed retired and active skills');
     const inventoryPath = path.join(fakePlugin, 'manifests', 'distribution-inventory.json');
     const inventory = JSON.parse(fs.readFileSync(inventoryPath, 'utf8'));
@@ -430,7 +572,7 @@ test('external source symlink is rejected before an owned retirement prune', () 
       retiredIn: '0.47.0',
       reasonCode: 'test-retirement',
       priorSurfaces: retiredEntry.surfaces,
-      replacements: [{ kind: 'skill', id: 'tdd', mode: 'test-successor' }],
+      replacements: [{ kind: 'skill', id: 'code-trace', mode: 'test-successor' }],
       rollback: { release: '0.46.1' },
     }];
     fs.writeFileSync(inventoryPath, `${JSON.stringify(inventory, null, 2)}\n`);
@@ -658,7 +800,7 @@ test('copy mode excludes ignored Python bytecode from projection and fingerprint
     fakePlugin,
     'codex',
     'skills',
-    'dhpk-cross-agent-sync',
+    'harness-govern',
     'scripts',
     'multi_ai_sync_lib',
     '__pycache__',
@@ -668,7 +810,7 @@ test('copy mode excludes ignored Python bytecode from projection and fingerprint
     fakePlugin,
     'codex',
     'skills',
-    'dhpk-cross-agent-sync',
+    'harness-govern',
     'scripts',
     'multi_ai_sync_lib',
     'standalone-fixture.pyc',
@@ -690,7 +832,7 @@ test('copy mode excludes ignored Python bytecode from projection and fingerprint
       scratch,
       '.codex',
       'skills',
-      'dhpk-cross-agent-sync',
+      'harness-govern',
       'scripts',
       'multi_ai_sync_lib',
       '__pycache__',
@@ -700,7 +842,7 @@ test('copy mode excludes ignored Python bytecode from projection and fingerprint
       scratch,
       '.codex',
       'skills',
-      'dhpk-cross-agent-sync',
+      'harness-govern',
       'scripts',
       'multi_ai_sync_lib',
       'standalone-fixture.pyc',
@@ -730,13 +872,13 @@ test('copy update cleans legacy bytecode while preserving receipt ownership', ()
     assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
     const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
     const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
-    const skillTarget = path.join(scratch, '.codex', 'skills', 'dhpk-cross-agent-sync');
+    const skillTarget = path.join(scratch, '.codex', 'skills', 'harness-govern');
     const legacyBytecode = path.join(skillTarget, 'scripts', 'multi_ai_sync_lib', '__pycache__', 'legacy.pyc');
     fs.mkdirSync(path.dirname(legacyBytecode), { recursive: true });
     fs.writeFileSync(legacyBytecode, 'legacy-bytecode\n');
 
-    const entry = receipt.managed_entries.skills['dhpk-cross-agent-sync'];
-    assert.ok(entry, 'expected the legacy receipt entry to exist');
+    const entry = receipt.managed_entries.skills['harness-govern'];
+    assert.ok(entry, 'expected the harness-govern receipt entry to exist');
     const legacyDestinationFingerprint = completeTreeFingerprint(skillTarget);
     entry.destination_fingerprint = legacyDestinationFingerprint;
     entry.fingerprint = legacyDestinationFingerprint;
@@ -1395,13 +1537,13 @@ function collisionFixture() {
   const scratch = projectRoot();
   const fakePlugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ics-plan-plugin-')));
   fs.cpSync(path.join(ROOT, 'codex'), path.join(fakePlugin, 'codex'), { recursive: true, dereference: true });
-  materializeFixtureSkill(fakePlugin, 'dhpk-cross-agent-sync');
+  materializeFixtureSkill(fakePlugin, 'harness-govern');
   fs.mkdirSync(path.join(fakePlugin, '.claude-plugin'), { recursive: true });
   fs.copyFileSync(path.join(ROOT, '.claude-plugin', 'plugin.json'), path.join(fakePlugin, '.claude-plugin', 'plugin.json'));
   copyDistributionInventory(fakePlugin);
   const first = runInstaller(scratch, ['--copy', '--force'], fakePlugin);
   assert.strictEqual(first.status, 0, `${first.stdout}\n${first.stderr}`);
-  const collision = 'dhpk-cross-agent-sync';
+  const collision = 'harness-govern';
   const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
   const receipt = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
   assert.ok(receipt.managed_entries.skills[collision], `expected fixture receipt entry for ${collision}`);

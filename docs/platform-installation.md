@@ -10,8 +10,8 @@ callable only after the named consumer probe discovers the projected content.
 
 | Surface | Install | Update / remove | Verify | Support boundary |
 |---|---|---|---|---|
-| Codex project-local sync | From a checkout: `bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh`; inside a Claude plugin: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"` | `--update`, `--migrate`, `--uninstall`; `--force` only bypasses the project-root heuristic | `.codex/.dhpk-installed.json` schema-v3, managed entries, `$dhpk-<name>` discovery | Supported Codex path; install does not prove runtime callability |
-| Codex legacy/native | `codex plugin marketplace add <repo-or-path>` then `codex plugin add dhpk@dhpk` where the real CLI supports it | Client marketplace commands; regenerate from source and check provenance | `plugins/dhpk/.codex-plugin/plugin.json`, physical `skills/`, provenance/fingerprints, real CLI probe | Experimental; missing CLI/route is `UNAVAILABLE` or `BLOCKED` |
+| Codex project-local sync | From a checkout: `bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh`; inside a Claude plugin: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"` | `--update`, `--migrate`, `--uninstall`; `--force` only bypasses the project-root heuristic | `.codex/.dhpk-installed.json` schema-v3, managed entries, `$dhpk-<name>` discovery | Supported Codex path and canonical daily-use route; install does not prove runtime callability |
+| Codex legacy/native | `codex plugin marketplace add <repo-or-path>` then `codex plugin add dhpk@dhpk` where the real CLI supports it | Client marketplace commands; regenerate from source and check provenance | `plugins/dhpk/.codex-plugin/plugin.json`, physical `skills/`, provenance/fingerprints, real CLI probe | Experimental; test only in a disposable isolated `CODEX_HOME`; missing CLI/route is `UNAVAILABLE` or `BLOCKED` |
 | Standard Agent Plugin | Publish or install `plugins/dhpk-agent/` through a verified client route | Client-owned update/remove; replace only the generated package | Root `plugin.json`, Agent Plugins schema, fixed `skills/`, optional `mcp.json`, provenance | Structural conformance is not Codex runtime proof |
 | Cursor standard Agent Plugin | Cursor Customize/Plugins, or local `~/.cursor/plugins/local/dhpk-agent` | Cursor reload/update/remove or replace that local package | Root `plugin.json`, discovered portable skills/MCP, client version | Portable skills/MCP only; no Cursor-native parity claim |
 | Cursor Plugin | Local `~/.cursor/plugins/local/dhpk-cursor`, or reviewed `.cursor-plugin/marketplace.json` source; install `plugins/dhpk-agent/` alongside it for shared portable skills | Cursor refresh/update/remove; rollback Cursor-owned files only; update the shared Agent package separately | `.cursor-plugin/plugin.json`, rules, agents, commands, hooks, variables, shared-skill IDs | Native components require Cursor evidence; shared portable skills are owned by `dhpk-agent`; gaps are `SKIP_INCOMPATIBLE` |
@@ -29,7 +29,7 @@ result; do not infer a runtime `PASS` from a package check.
 | Route | Client/version assumption | OS and shell assumption | Required tooling | Evidence gate |
 |---|---|---|---|---|
 | Codex project-local sync | Codex project-local loader; schema-v3 receipt; minimum Codex version not established | Linux, macOS, or WSL with a POSIX shell, run from the project root | `bash`, `git`; Node.js is needed only for validators | Run the installer, inspect `.codex/.dhpk-installed.json`, and run the listed metadata/test commands |
-| Codex legacy/native | Codex CLI with marketplace/plugin commands; run `codex --version`; minimum CLI version not established | Linux, macOS, or WSL shell for the documented route | `codex`, marketplace access, `git` | Execute the marketplace route and record CLI output; absent CLI/route is `UNAVAILABLE` or `BLOCKED` |
+| Codex legacy/native | Codex CLI with marketplace/plugin commands; run `codex --version`; minimum CLI version not established | Linux, macOS, or WSL shell for the documented route; use a disposable isolated `CODEX_HOME` | `codex`, marketplace access, `git` | Execute the marketplace route and record CLI output; absent CLI/route is `UNAVAILABLE` or `BLOCKED` |
 | Standard Agent Plugin | Agent Plugins 1.0.0 schema consumer; minimum client version not established | Client-supported OS; package validation is performed from a POSIX shell | A verified Agent Plugin loader; Node.js for structural validation | Run both package commands, then record client discovery evidence |
 | Cursor standard Agent Plugin | Cursor desktop/plugin loader that accepts the portable package; record Cursor version; minimum version not established | A Cursor-supported desktop OS; local path is `~/.cursor/plugins/local/` | Cursor Customize → Plugins or its local loader; Node.js for validation only | Observe discovered skills/MCP after reload; no loader is `UNAVAILABLE` or `BLOCKED` |
 | Cursor Plugin (native) | Cursor plugin loader supporting `.cursor-plugin/plugin.json`; record Cursor version; install the standard `dhpk-agent` package for shared portable skills; minimum version not established | A Cursor-supported desktop OS; local path is `~/.cursor/plugins/local/` | Cursor reload/UI, local filesystem, and secret-free variable configuration; compare shared IDs with Agent provenance | Observe each selected native component and hook behavior after reload; an explicit matrix overlay is the only reason for a Cursor `skills/` directory |
@@ -122,7 +122,7 @@ evidence and deliberately returns `runtime: NOT_RUN` unless a separate
 client-specific probe is executed.
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.53.0 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.54.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -150,6 +150,14 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --update
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --migrate --update
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --uninstall
 ```
+
+`codex-sync` is the supported and canonical daily-use route. Before an
+`install`, `update`, `migrate`, or `plan` operation, the installer queries
+`codex plugin list --json`. A positively enabled `dhpk@dhpk` blocks the
+operation before any write; `--force` cannot bypass this gate, while
+`--uninstall` remains available. If the query is missing or unsupported, the
+JSON result reports `providerCheck: UNAVAILABLE` and project sync may proceed.
+The installer never removes a global native plugin automatically.
 
 The unified distribution/lifecycle installers use the inventory-owned
 `minimal` profile (inventory `required_core_ids`). The retained project-local Codex
@@ -194,7 +202,7 @@ entries are not rematerialized:
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" \
   --update \
-  --adopt='skills/dhpk-cross-agent-sync@<destination-fingerprint>@<source-fingerprint>'
+  --adopt='skills/harness-govern@<destination-fingerprint>@<source-fingerprint>'
 ```
 
 Adoption is path-scoped and creates a rollback-addressable backup before
@@ -249,10 +257,11 @@ delete the whole `.codex/` directory.
 
 ### Check for duplicate Codex discovery
 
-Project-local sync and the experimental native package are separate acquisition
-surfaces. A host that discovers both can show one public skill name twice even
-when both entries are intentional. Run this read-only check from the consumer
-project root after setting `DHPK_ROOT` to the source checkout:
+Project-local sync and the experimental native package are separately published
+and acquired surfaces, but runtime activation is mutually exclusive. A host
+using `codex-sync` must not also activate `dhpk@dhpk`; otherwise one public
+skill name can appear twice. Run this read-only check from the consumer project
+root after setting `DHPK_ROOT` to the source checkout:
 
 ```bash
 node "$DHPK_ROOT/scripts/ci/check-codex-discovery.js" \
@@ -261,19 +270,29 @@ node "$DHPK_ROOT/scripts/ci/check-codex-discovery.js" \
   --native-root "$DHPK_ROOT/plugins/dhpk"
 ```
 
-The registry groups entries by `kind:publicName`. Identical fingerprints are
-reported as one `effective` entry with both providers retained. Different
-fingerprints require a current, receipt-owned precedence; otherwise the check
-returns `BLOCKED`. A current project-local entry explicitly taking precedence
-over an experimental native entry returns `WARN`. The command only reports
-evidence; it does not delete a projection, cache, or host registration. Resolve
-a `BLOCKED` result by inspecting the receipt and choosing one supported route
-before running an update or uninstall action.
+The report keeps artifact integrity separate from runtime activation. Identical
+fingerprints with valid provenance may produce `integrityVerdict: PASS`; stale,
+unowned, or conflicting artifacts follow the existing integrity rules. The
+runtime verdict is independently `BLOCKED` with
+`reasonCode: DUPLICATE_CODEX_PROVIDER` whenever project and native surfaces
+expose the same invokable public name, even when their fingerprints match.
+`duplicateInvokableNames` lists the affected names; non-invokable support
+packages are excluded. Precedence does not turn an overlapping invokable name
+into a runtime `WARN` or `PASS`.
+
+The command only reports evidence; it does not delete a projection, cache, or
+host registration. Remediation is a human choice. For the supported project
+sync route, remove the enabled native plugin with
+`codex plugin remove dhpk@dhpk`, then start a new Codex session; do not delete
+the whole `.codex/` directory. For a native experiment, use a fresh disposable
+isolated `CODEX_HOME` with no project-local projection.
 
 ## Codex legacy/native package (Experimental)
 
 Prerequisites: a real `codex` CLI with the marketplace route, a POSIX shell,
 and a recorded `codex --version`; no minimum CLI version has been verified.
+This experimental route is for a disposable isolated `CODEX_HOME` only and
+must not be activated alongside the supported project-local sync route.
 
 The retained native artifact is generated at `plugins/dhpk/` and uses the
 legacy `.codex-plugin/plugin.json` contract. Where supported by the real CLI:
@@ -285,8 +304,10 @@ codex plugin add dhpk@dhpk
 
 The local marketplace must be configured by the consumer. Check the physical
 package, `fingerprints.json`, `provenance.json`, and the exact client version
-before describing an install as evidence. If `codex` or the marketplace route
-is missing, record `UNAVAILABLE`/`BLOCKED`; retain the project-local sync path.
+before describing an install as evidence. These repository commands are
+conditional on the installed CLI; official Codex documentation is not
+dhpk-specific proof of this route. If `codex` or the marketplace route is
+missing, record `UNAVAILABLE`/`BLOCKED`; retain the project-local sync path.
 The legacy manifest is never counted as proof of Agent Plugins conformance.
 
 ## Standard Agent Plugin
@@ -572,7 +593,7 @@ entries are not rematerialized:
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" \
   --update \
-  --adopt='skills/dhpk-cross-agent-sync@<destination-fingerprint>@<source-fingerprint>'
+  --adopt='skills/harness-govern@<destination-fingerprint>@<source-fingerprint>'
 ```
 
 Adoption is path-scoped and creates a rollback-addressable backup before
@@ -607,7 +628,7 @@ agent frontmatter and never rewrites `agents/`. Generate and validate it from
 the dhpk checkout:
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.53.0 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.54.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -642,7 +663,7 @@ migrates, adopts, overwrites, or removes a foreign target.
 Run configured-platform validation separately from package validation:
 
 ```bash
-python3 skills/dhpk-cross-agent-sync/scripts/multi_ai_sync.py \
+python3 skills/harness-govern/scripts/multi_ai_sync.py \
   --root . validate --targets agy --format json
 agy --version
 agy plugins list
@@ -675,7 +696,7 @@ without `--agy-runtime-probe`, runtime remains `NOT_RUN`. When the CLI is
 available, the opt-in probe is bounded and read-only:
 
 ```bash
-python3 skills/dhpk-cross-agent-sync/scripts/multi_ai_sync.py \
+python3 skills/harness-govern/scripts/multi_ai_sync.py \
   --root . validate --targets agy --agy-runtime-probe --format json
 ```
 

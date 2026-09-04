@@ -1,126 +1,135 @@
 ---
 name: flow-guide
-description: "Guide repository work through classification, execution policy, next-action advice, or final checklist. Use when: a change needs a workflow route, gates, progression advice, or wrap-up accounting. Not for: implementing the selected change, pure code tracing, or a review-only request. Output: one route or gate report with required artifacts, evidence, and a clear handoff."
+description: "Read-only workflow guidance and bounded routing. Use when work needs a route, policy lookup, next action, closeout gate, or Codex usage help. Not for implementation, review, code tracing, or skill authoring. Output: one typed report with evidence and a clear handoff."
 metadata:
   dhpk-invocation-class: "implicit-eligible"
 ---
 
 # Flow Guide
 
-Select exactly one mode. This skill decides and verifies the route; it does
-not implement the change. Project rules and `rules/execution-policy.md` remain
-the single source of truth for routing and execution policy.
+Use `$flow-guide <help|route|rules|next|close> [query]` to answer one workflow
+question. The guide is advisory: it records evidence and hands work to the
+owner; it does not acquire the owner's authority.
 
 ## When NOT to Use
 
-- Execute a routed implementation or OpenSpec task → use `flow-drive` or the
-  explicit OpenSpec apply route.
-- Review a code, pull request, security surface, test suite, or document → use
-  `change-verdict`.
-- Understand or trace application code → use `code-trace`.
-- Create or refactor a skill → use `skill-forge`.
+- Implementing a confirmed change: invoke `$flow-drive <confirmed-spec-or-change-id>` directly.
+- Reviewing a completed diff: use `change-verdict`.
+- Tracing code or diagnosing a failure: use `code-trace`.
+- Authoring or restructuring a skill: use `skill-forge`.
 
-## Mode selection
+## Actions
 
-| Mode | Select when | Primary evidence |
+| Action | Use when | Completion criterion |
 | --- | --- | --- |
-| `classify` | A substantial change needs one workflow bucket and readiness gates | Repository policy, change intent, required artifacts |
-| `policy` | Kickoff, OpenSpec routing, post-edit closure, retry, or blocked output is unclear | Policy SSOT and the matching gate reference |
-| `next` | The user asks what to do next or progression is unclear | `analyze.js` findings and progression table |
-| `checklist` | The final edit wave is complete and a wrap-up gate is due | Changed files, reviewer state, tests, and handoff evidence |
+| `help` | Codex usage grammar or available skills is unclear | A catalog or one usage card is returned without loading target procedure text. |
+| `route` | One workflow owner must be selected | A validated `dhpk.route-result.v3` report names the target, availability, evidence, and next action. |
+| `rules` | A phase or policy question needs the repository source of truth | The applicable policy pointer and gates are reported; no downstream workflow starts. |
+| `next` | Progression from the current worktree or change is unclear | One next route is recommended from current evidence. |
+| `close` | The edit boundary is complete and handoff readiness must be checked | Changed files, required gates, open risks, and the handoff state are accounted for. |
 
-## Shared workflow
+Choose exactly one action. Load only the references named by that action, and
+keep required, skipped, unavailable, and failed evidence distinct.
 
-1. Resolve project-local instructions and the policy SSOT before choosing a
-   route. Done means precedence and current worktree state are known.
-2. Select one mode and load only its branch references. Record required,
-   skipped, and unavailable gates rather than treating a skip as a pass.
-3. Collect deterministic evidence first. Make judgment only after the evidence
-   is captured, and stop on a blocker that changes the route.
-4. Report one next route or a closeout gate. Done means the handoff command,
-   evidence requirement, and unresolved risk are explicit.
+## `help`
 
-## `classify`
+Run `node skills/flow-guide/scripts/usage-card.js` for the generated Codex
+catalog, or add one public skill name for a single usage card. Help is metadata
+only: it never invokes the named skill, loads its procedural references, or
+grants workspace, Git, or external-write authority. An unknown name and a known
+non-Codex skill receive different diagnostics.
 
-Choose exactly one bucket: `feature` for new behavior or contracts, `bugfix`
-for an error, regression, security, performance, or data anomaly, or
-`lightweight` for behavior-preserving maintenance. Load the matching
-`workflow-feature-delivery.md`, `workflow-bugfix.md`, or
-`workflow-lightweight.md`. Feature and bugfix branches account for requirements
-or evidence, design or root cause, work item, legacy behavior, RED/regression,
-tests, freshness, review, and handoff; lightweight keeps targeted verification.
+## `route`
 
-Use `dispatch-and-gates.md` for planning or implementation gate dispatch,
-`handoff-and-verification.md` for closeout, and `work-item-and-gates.md` for
-artifact readiness. Load project packs only through `projects-index.md` and
-the selected `projects-generic.md` or override. Use `workflow-analysis.md` for
-multi-session decision maps and `workflow-checklists.md` for a compact audit.
+1. Parse the action query with `scripts/route-result.js`.
+2. Match `references/route-table.json` through `scripts/pre-route.sh`; the
+   first precise match wins. A miss remains a deliberate-classification case.
+3. Apply `rules/execution-policy.md` and the target's invocation class.
+4. Without `--go`, return advice only. With `--go`, produce at most one
+   bounded handoff for an available implicit-eligible target. An explicit-only
+   target is reported as `explicit-required`; it is never dispatched here.
+5. Validate and emit the closed `dhpk.route-result.v3` object. A route report
+   is not implementation, review, commit, merge, archive, release, or deploy
+   evidence.
 
-## `policy`
+The result has exactly `schema`, `action`, `host`, `cleanedQuery`, `options`,
+`target`, `availability`, `diagnostics`, `disposition`, `requiredEvidence`, and
+`nextAction`. `options` is exactly `{go: boolean}`. The target is either null or
+`{id, publicName, invocationClass, command}`.
 
-Name the phase (`kickoff`, `implementation`, `post-edit`, or `blocked/retry`),
-honor an explicit route, and choose one next action. Load
-`invocation-classification.md` or `invocation-precedence.md` for competing
-owners, `task-modes.md` for examples, and `delivery-core.md` plus
-`delivery-loop-gate.md` for feature/bug handoff. Load
-`implementation-dispatch.md` for worker selection, `review-gate-mechanics.md`
-for reviewer closure, `anti-loop.md` for a retry ceiling, and `output-shape.md`
-for blocked or completion wording. `deterministic-first.md`,
-`premise-verification.md`, `testing-policy.md`, `component-addition-policy.md`,
-and `squash-merge-hygiene.md` are conditional references, not a default bundle.
+## `rules`
+
+Read `rules/execution-policy.md` first. Use
+`references/invocation-precedence.md` when more than one owner appears to
+match, and load the phase-specific delivery reference only after the phase is
+known. Return the source pointer, applicable gate, and one next handoff.
 
 ## `next`
 
-Run `node skills/flow-guide/scripts/analyze.js` and parse its JSON. Without
-`--go`, advise only. With `--go`, dispatch a high-confidence implicit target
-only when there is no P0 and the target is executable; report explicit-only
-targets without invoking them. If the script is unavailable, collect branch,
-status, changed paths, review state, and policy evidence manually. Load
-`progression-tables.md` only for fallback or an unclear phase.
+Run `node skills/flow-guide/scripts/analyze.js` and parse its JSON. Report the
+current branch/worktree evidence, each required or unavailable gate, and one
+next route. If the script cannot run, record the fallback evidence and the
+reason instead of treating the missing check as a pass.
 
-## `checklist`
+## `close`
 
-Run at the final edit boundary. Account for the TDD pre-run when business
-behavior changed, every applicable reviewer gate, edit-before-read, triggered
-security/database/frontend/runtime checks, and task-end bookkeeping. Use the
-policy SSOT for sentinel definitions; use `review-gate-mechanics.md` only when
-triaging, resuming, or backfilling a reviewer. Never claim a clean handoff while
-an applicable gate is open.
+Account for changed files, TDD evidence when behavior changed, applicable
+reviewers, triggered security/database/frontend/runtime checks, unresolved
+risks, and the next handoff. Use `references/handoff-and-verification.md` and
+`references/review-gate-mechanics.md` only when their conditional detail is
+needed. Never claim commit, merge, release, deployment, or archive completion
+from a local closeout report.
 
 ## Output
 
 ```text
-Mode → Route or gate → Required evidence → PASS/FAIL/NOT NEEDED/BLOCKED → Next action
+Action → Route or gate → Required evidence → PASS/FAIL/NOT NEEDED/BLOCKED → Next action
 ```
 
-`classify` includes bucket and artifacts; `policy` includes phase and one route;
-`next` includes findings and confidence; `checklist` includes changed files,
-verification, and risks/open questions.
-
-## Verification
-
-- [ ] Exactly one mode and one next route were selected.
-- [ ] Only branch-relevant references and scripts were loaded.
-- [ ] Required, skipped, unavailable, and failed gates are distinct.
-- [ ] `analyze.js` ran for `next`, or its fallback evidence is recorded.
-- [ ] The report contains an observable handoff and does not claim implementation or review completion.
+The report must name one action, one next route, and the evidence boundary.
+`route --go` still ends at a handoff; the selected target owns its own
+execution and completion evidence.
 
 ## References
 
-- `codex-mode.md`, `dispatch-and-gates.md`, `handoff-and-verification.md` — optional dispatch and handoff mechanics.
-- `profile-and-project-overrides.md`, `projects-generic.md`, `projects-index.md` — project-profile resolution.
-- `script-operations.md`, `workflow-analysis.md`, `workflow-bugfix.md`, `workflow-checklists.md` — workflow evidence and scripts.
-- `workflow-feature-delivery.md`, `workflow-lightweight.md`, `work-item-and-gates.md` — classify branch detail.
-- `anti-loop.md`, `component-addition-policy.md`, `deterministic-first.md`, `premise-verification.md` — conditional policy guards.
-- `delivery-core.md`, `delivery-loop-gate.md`, `implementation-dispatch.md` — delivery and worker gates.
-- `invocation-classification.md`, `invocation-precedence.md`, `output-shape.md`, `task-modes.md` — route precedence and output.
-- `review-gate-mechanics.md`, `squash-merge-hygiene.md`, `testing-policy.md` — review, merge, and test gates.
-- `progression-tables.md` — `next` fallback progression.
+- `references/route-table.json`, `references/route-result.schema.json`,
+  `scripts/pre-route.sh`, and `scripts/route-result.js` — deterministic route
+  contract and matcher.
+- `scripts/usage-card.js` and `references/codex-usage-catalog.json` —
+  progressively disclosed Codex grammar.
+- `references/invocation-precedence.md` — competing-owner resolution.
+- `references/projects-index.md` — project-specific policy references.
+- `references/progression-tables.md` — fallback progression for `next`.
+- `references/handoff-and-verification.md` — conditional handoff evidence.
+- `references/review-gate-mechanics.md` — conditional reviewer mechanics.
+- `rules`: load `references/deterministic-first.md`,
+  `references/dispatch-and-gates.md`, `references/implementation-dispatch.md`,
+  `references/testing-policy.md`, or `references/component-addition-policy.md`
+  only for the matching policy question; use
+  `references/invocation-classification.md` or `references/codex-mode.md` only
+  when invocation or Codex delegation is the disputed boundary.
+- `next`: after classification, choose at most one of
+  `references/workflow-analysis.md`, `references/workflow-bugfix.md`,
+  `references/workflow-feature-delivery.md`, or
+  `references/workflow-lightweight.md`. Load
+  `references/task-modes.md`, `references/premise-verification.md`,
+  `references/work-item-and-gates.md`, `references/delivery-core.md`, or
+  `references/delivery-loop-gate.md` only when that selected branch points to
+  it. Project overrides use `references/profile-and-project-overrides.md` and
+  `references/projects-generic.md`.
+- `close`: use `references/output-shape.md`, `references/anti-loop.md`, and
+  `references/squash-merge-hygiene.md` only for their named closeout checks.
+  `references/workflow-checklists.md` and `references/script-operations.md`
+  remain conditional detail, not initial context.
+- Legacy deterministic helpers `scripts/openspec_gate_check.py`,
+  `scripts/prepare_dev_scope.py`, `scripts/prepare_workflow_profile.py`, and
+  `scripts/workflow_gate_check.py` are run only when a selected rule or next
+  branch explicitly requires their existing input/output contract.
 
-## Scripts
+## Verification
 
-- `analyze.js` — deterministic next-step findings JSON.
-- `openspec_gate_check.py` — OpenSpec apply-readiness gate.
-- `prepare_dev_scope.py` — change-scoped helper preview or preparation.
-- `prepare_workflow_profile.py` — generic workflow profile generation.
-- `workflow_gate_check.py` — profile, work-item, legacy, and RED gate check.
+- [ ] Exactly one action was selected and its completion criterion is met.
+- [ ] Only action-relevant references and scripts were loaded.
+- [ ] Required, skipped, unavailable, and failed gates are distinct.
+- [ ] A route report was validated as `dhpk.route-result.v3`.
+- [ ] No target was executed and no target authority was inherited.

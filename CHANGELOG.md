@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+## 0.54.0 — 2026-09-04 — Consolidate remaining skill families and make Codex usage discoverable
+
+This entry records the 0.54 migration contract and documentation metadata; it is
+not runtime, deployment, marketplace, or release evidence.
+
+**BREAKING(skill-discovery)** — Retire 21 duplicate or superseded identities with
+alias-free rollback to 0.53.0. Keep `git-smart-commit` unchanged and retire
+`agy-commit`; version-specific Laravel and PHPUnit notes now use selectors under
+`laravel` and `phpunit`.
+**feat(codex-sync)** — Enforce mutual exclusivity between Codex project-local sync and enabled native plugin dhpk@dhpk with preflight guards and duplicate provider detection.
+**feat(flow-ownership)** — Give `flow-guide` the `help`, `route`, `rules`, `next`,
+and `close` guidance actions. Make `flow-drive` an explicit-only, mode-free
+implementation entry for confirmed specifications or changes; proposal authoring
+belongs to external `$openspec-propose`.
+**feat(harness-govern)** — Consolidate health, budget, fill, revise, and sync
+governance under `harness-govern`.
+**docs(codex)** — Document progressive parameter discovery through
+`$flow-guide help` and `$flow-guide help <skill>`, with generated metadata links.
+OnePassword authentication remains the operator action `op signin`.
+**docs(docs)** — Add quick-reference cheat sheet and navigation links for skills and slash commands.
+
 ## 0.53.0 — 2026-09-03 — Consolidate skill capability families across harness surfaces
 
 **feat(skill-capability-families)** — Consolidate skill discovery, workflow, review, and tracing capabilities into portable family surfaces across supported harnesses.

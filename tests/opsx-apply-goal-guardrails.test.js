@@ -147,7 +147,7 @@ test('goal generator documents fast-worker override, task digest, and conditiona
 
 test('flow-drive carries the implementation route while flow-guide owns workflow branches', () => {
   const routeTable = fs.readFileSync(
-    path.join(ROOT, 'skills', 'flow-drive', 'references', 'route-table.json'),
+    path.join(ROOT, 'skills', 'flow-guide', 'references', 'route-table.json'),
     'utf8',
   );
   assert.ok(routeTable.includes('"id": "flow-guide"'));
@@ -159,8 +159,8 @@ test('flow-drive carries the implementation route while flow-guide owns workflow
   const drive = fs.readFileSync(path.join(ROOT, 'skills', 'flow-drive', 'SKILL.md'), 'utf8');
   assert.match(drive, /route[\s\S]*implement/);
   const guide = fs.readFileSync(path.join(ROOT, 'skills', 'flow-guide', 'SKILL.md'), 'utf8');
-  assert.match(guide, /feature[\s\S]*bugfix/i);
-  assert.match(guide, /delivery-loop-gate/);
+  assert.match(guide, /`help`[\s\S]*`route`[\s\S]*`rules`[\s\S]*`next`[\s\S]*`close`/);
+  assert.match(guide, /route-result\.v3/);
   assert.doesNotMatch(guide, /dhpk-(bug-fix|feature-dev)/);
 });
 
