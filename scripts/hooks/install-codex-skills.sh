@@ -481,7 +481,7 @@ class AdoptionCommittedError(OSError):
 
 def open_relative_directory(relative, create=False):
     """Open a `.codex` descendant one component at a time without symlink follow."""
-    components = [component for component in relative.split('/') if component]
+    components = [validate_fd_name(component) for component in relative.split('/') if component]
     try:
         fd = os.open(CODEX_ROOT, _DIRECTORY_FLAGS)
     except FileNotFoundError:
@@ -578,15 +578,17 @@ def read_manifest_document():
         os.close(root_fd)
 
 
-def fd_entry_path(fd, name):
-    for descriptor_root in ('/proc/self/fd', '/dev/fd'):
-        proc_fd = os.path.join(descriptor_root, str(fd))
-        if os.path.isdir(proc_fd):
-            return os.path.join(proc_fd, name)
-    raise ValueError('adoption requires a filesystem with descriptor-anchored paths')
+def validate_fd_name(name):
+    """Require every dir_fd leaf to be exactly one path component."""
+    if (not isinstance(name, str) or not name or name in ('.', '..')
+            or '\x00' in name or os.path.sep in name
+            or (os.path.altsep and os.path.altsep in name)):
+        raise ValueError(f'file descriptor entry name is not a single component: {name!r}')
+    return name
 
 
 def fd_entry_exists(fd, name):
+    validate_fd_name(name)
     try:
         os.stat(name, dir_fd=fd, follow_symlinks=False)
         return True
@@ -594,20 +596,21 @@ def fd_entry_exists(fd, name):
         return False
 
 
-def fsync_tree(path):
-    """Flush a newly-created backup tree without following user links."""
+def fsync_fd_entry(parent_fd, name):
+    """Flush a tree beneath an open parent without following user links."""
+    validate_fd_name(name)
     try:
-        mode = os.lstat(path).st_mode
+        mode = os.stat(name, dir_fd=parent_fd, follow_symlinks=False).st_mode
     except FileNotFoundError:
         return
     if stat.S_ISLNK(mode):
         return
     flags = os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0)
-    fd = os.open(path, flags)
+    fd = os.open(name, flags, dir_fd=parent_fd)
     try:
         if stat.S_ISDIR(mode):
-            for name in os.listdir(fd):
-                fsync_tree(os.path.join(path, name))
+            for child_name in sorted(os.listdir(fd)):
+                fsync_fd_entry(fd, child_name)
         os.fsync(fd)
     finally:
         os.close(fd)
@@ -625,19 +628,30 @@ def create_staging_directory(parent_fd):
 
 
 def remove_fd_entry(fd, name):
+    validate_fd_name(name)
     if not fd_entry_exists(fd, name):
         return
     entry_stat = os.stat(name, dir_fd=fd, follow_symlinks=False)
     if stat.S_ISDIR(entry_stat.st_mode):
         tombstone = f'.dhpk-remove-{uuid.uuid4().hex}'
         os.rename(name, tombstone, src_dir_fd=fd, dst_dir_fd=fd)
-        shutil.rmtree(fd_entry_path(fd, tombstone))
+        tombstone_fd = None
+        try:
+            tombstone_fd = os.open(tombstone, _DIRECTORY_FLAGS, dir_fd=fd)
+            for child_name in sorted(os.listdir(tombstone_fd)):
+                remove_fd_entry(tombstone_fd, child_name)
+        finally:
+            if tombstone_fd is not None:
+                os.close(tombstone_fd)
+        os.rmdir(tombstone, dir_fd=fd)
     else:
         os.unlink(name, dir_fd=fd)
 
 
 def copy_fd_entry(source_fd, source_name, destination_fd, destination_name):
     """Copy a pinned tree without reopening a path through a raceable leaf."""
+    validate_fd_name(source_name)
+    validate_fd_name(destination_name)
     source_stat = os.stat(source_name, dir_fd=source_fd, follow_symlinks=False)
     if stat.S_ISLNK(source_stat.st_mode):
         target = os.readlink(source_name, dir_fd=source_fd)
@@ -770,10 +784,8 @@ def backup_destination(relative, destination, reason):
     try:
         if fd_entry_exists(backup_parent_fd, backup_name):
             raise ValueError(f'rollback backup already exists: {relative}')
-        source_entry = fd_entry_path(source_parent_fd, destination_name)
-        backup_entry = fd_entry_path(backup_parent_fd, backup_name)
         copy_fd_entry(source_parent_fd, destination_name, backup_parent_fd, backup_name)
-        fsync_tree(backup_entry)
+        fsync_fd_entry(backup_parent_fd, backup_name)
         os.fsync(backup_parent_fd)
         original_fingerprint = hash_fd_entry(source_parent_fd, destination_name)
     finally:
@@ -1690,14 +1702,12 @@ def prepare_adoption_backup(relative, destination, expected_fingerprint):
             raise ValueError(f'adoption target disappeared: {relative}; run a fresh plan')
         if fd_entry_exists(backup_fd, backup_name):
             raise ValueError(f'adoption backup already exists: {relative}; retry with a fresh plan')
-        original = fd_entry_path(destination_fd, destination_name)
-        backup = fd_entry_path(backup_fd, backup_name)
         copy_fd_entry(destination_fd, destination_name, backup_fd, backup_name)
         actual = hash_fd_entry(backup_fd, backup_name)
         if actual != expected_fingerprint:
             remove_fd_entry(backup_fd, backup_name)
             raise ValueError(f'adoption preflight changed: {relative}; run a fresh plan')
-        fsync_tree(backup)
+        fsync_fd_entry(backup_fd, backup_name)
         os.fsync(backup_fd)
     except Exception:
         try:
@@ -1725,7 +1735,6 @@ def prepare_adoption_backup(relative, destination, expected_fingerprint):
         'backup_name': backup_name,
         'destination_fd': destination_fd,
         'destination_name': destination_name,
-        'backup_path': fd_entry_path(backup_fd, backup_name),
         'quarantine_name': None,
         'receipt_persisted': False,
     }
@@ -1737,23 +1746,56 @@ def effective_materialization_mode(relative):
     return 'copy' if HARNESS_KIND == 'codex' and top_level == 'agents' else MODE
 
 
+def copy_source_into_stage(source, staged_name, stage_fd):
+    """Use a scoped cwd to give shutil a descriptor-pinned destination."""
+    validate_fd_name(staged_name)
+    saved_cwd_fd = os.open('.', _DIRECTORY_FLAGS)
+    try:
+        os.fchdir(stage_fd)
+        if os.path.isdir(source):
+            shutil.copytree(source, staged_name, symlinks=False, ignore=ignore_distribution_entries)
+        else:
+            shutil.copy2(source, staged_name)
+    finally:
+        try:
+            os.fchdir(saved_cwd_fd)
+        finally:
+            os.close(saved_cwd_fd)
+
+
+def verify_staged_materialization(source, relative, stage_fd, staged_name, expected_source):
+    """Verify the staged entry through its pinned descriptor and source path."""
+    validate_fd_name(staged_name)
+    if effective_materialization_mode(relative) == 'symlink':
+        try:
+            staged_stat = os.stat(staged_name, dir_fd=stage_fd, follow_symlinks=False)
+            if not stat.S_ISLNK(staged_stat.st_mode):
+                return False
+            if os.readlink(staged_name, dir_fd=stage_fd) != source:
+                return False
+        except FileNotFoundError:
+            return False
+        return hash_path(source, include_ignored=False) == expected_source
+    try:
+        return hash_fd_entry(stage_fd, staged_name, include_ignored=False) == expected_source
+    except FileNotFoundError:
+        return False
+
+
 def stage_materialization(source, destination, destination_fd):
     """Build a new projection in a descriptor-pinned staging directory."""
     relative = os.path.relpath(destination, CODEX_ROOT).replace(os.sep, '/')
     mode = effective_materialization_mode(relative)
     stage_name, stage_fd = create_staging_directory(destination_fd)
-    staged_name = os.path.basename(destination)
-    staged = fd_entry_path(stage_fd, staged_name)
+    staged_name = validate_fd_name(os.path.basename(destination))
     try:
         if mode == 'symlink':
             os.symlink(source, staged_name, target_is_directory=os.path.isdir(source), dir_fd=stage_fd)
-        elif os.path.isdir(source):
-            shutil.copytree(source, staged, symlinks=False, ignore=ignore_distribution_entries)
         else:
-            shutil.copy2(source, staged)
-        fsync_tree(staged)
+            copy_source_into_stage(source, staged_name, stage_fd)
+        fsync_fd_entry(stage_fd, staged_name)
         os.fsync(stage_fd)
-        return stage_name, stage_fd, staged_name, staged
+        return stage_name, stage_fd, staged_name
     except Exception:
         if fd_entry_exists(stage_fd, staged_name):
             remove_fd_entry(stage_fd, staged_name)
@@ -1803,14 +1845,13 @@ def adopt_materialized(source, destination, relative, expected_source, expected_
         if ABORT_ADOPTION_PHASE_FOR_TEST == 'quarantine':
             os._exit(73)
         os.fsync(backup_fd)
-        quarantined = fd_entry_path(backup_fd, quarantine_name)
         if hash_fd_entry(backup_fd, quarantine_name) != expected_destination:
             restore_fd_copy(backup_fd, backup_name, destination_fd, destination_name)
             raise ValueError(f'adoption preflight changed: {relative}; run a fresh plan')
         if hash_path(source, include_ignored=False) != expected_source:
             raise ValueError(f'adoption source changed: {relative}; run a fresh plan')
-        stage_name, stage_fd, staged_name, staged = stage_materialization(source, destination, destination_fd)
-        if hash_path(staged, include_ignored=False) != expected_source:
+        stage_name, stage_fd, staged_name = stage_materialization(source, destination, destination_fd)
+        if not verify_staged_materialization(source, relative, stage_fd, staged_name, expected_source):
             raise ValueError(f'adoption materialization changed: {relative}; run a fresh plan')
         if hash_path(source, include_ignored=False) != expected_source:
             raise ValueError(f'adoption source changed: {relative}; run a fresh plan')
@@ -3072,10 +3113,10 @@ def install_descriptor_safe(source, destination, replace_existing=True):
     stage_name = None
     staged_name = None
     try:
-        stage_name, stage_fd, staged_name, staged = stage_materialization(source, destination, destination_fd)
+        stage_name, stage_fd, staged_name = stage_materialization(source, destination, destination_fd)
         if hash_path(source, include_ignored=False) != source_fingerprint:
             raise ValueError(f'install source changed during materialization: {relative}; run a fresh update')
-        if hash_path(staged, include_ignored=False) != source_fingerprint:
+        if not verify_staged_materialization(source, relative, stage_fd, staged_name, source_fingerprint):
             raise ValueError(f'install materialization changed: {relative}; run a fresh update')
         if fd_entry_exists(destination_fd, destination_name):
             if not replace_existing:

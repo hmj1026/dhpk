@@ -101,6 +101,22 @@ jobs:
           DHPK_TEST_JOBS: '4'
         run: ./scripts/ci/run-bounded-node-test.sh node tests/run-all.js
 
+  macos-installer:
+    name: macOS installer harness
+    runs-on: macos-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+
+      - name: Codex installer tests
+        run: node tests/install-codex-skills.test.js
+      - name: Cursor installer tests
+        run: node tests/install-cursor-harness.test.js
+
   lint:
     name: Markdown lint
     runs-on: ubuntu-latest
