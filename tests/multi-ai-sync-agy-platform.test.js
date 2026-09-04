@@ -8,7 +8,7 @@ const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
-const SCRIPT = path.join(ROOT, 'skills/dhpk-cross-agent-sync/scripts/multi_ai_sync.py');
+const SCRIPT = path.join(ROOT, 'skills/harness-govern/scripts/multi_ai_sync.py');
 
 function tempRoot(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), `dhpk-${prefix}-`));
@@ -674,7 +674,7 @@ test('AGY package structure rejects skill assets/ supporting files', () => {
 });
 
 test('AGY sandbox binds the native package at the consumer plugin path', () => {
-  const source = fs.readFileSync(path.join(ROOT, 'skills/dhpk-cross-agent-sync/scripts/multi_ai_sync_lib/validation.py'), 'utf8');
+  const source = fs.readFileSync(path.join(ROOT, 'skills/harness-govern/scripts/multi_ai_sync_lib/validation.py'), 'utf8');
   assert.match(
     source,
     /"--ro-bind", os\.path\.realpath\(package_root\), "\/home\/agy\/\.gemini\/config\/plugins\/dhpk"/,

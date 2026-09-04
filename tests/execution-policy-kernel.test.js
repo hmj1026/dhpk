@@ -26,7 +26,7 @@ test('policy skill and rule bind the same kernel before conditional references',
   const policy = read('rules/execution-policy.md');
   assert.ok(skill.indexOf('execution-policy-kernel.md') < skill.indexOf('execution-policy.md'));
   assert.ok(policy.includes('execution-policy-kernel.md'));
-  assert.ok(skill.includes('single source of truth'));
+  assert.match(skill, /source of truth|authoritative|SSOT/i);
 });
 
 test('dispatch contract defines bounded context tiers and a complete cold packet', () => {

@@ -254,8 +254,8 @@ test('pr hygiene does not infer squash from the current HEAD message', () => {
 test('live guidance does not reference removed hook scripts', () => {
   const files = [
     path.join(ROOT, 'commands', 'install-hooks.md'),
-    path.join(ROOT, 'skills', 'dhpk-claude-health', 'SKILL.md'),
-    path.join(ROOT, 'skills', 'dhpk-claude-health', 'references', 'plugin-sync.md'),
+    path.join(ROOT, 'skills', 'harness-govern', 'SKILL.md'),
+    path.join(ROOT, 'skills', 'harness-govern', 'references', 'plugin-sync.md'),
     path.join(ROOT, 'skills', 'dhpk-project-setup', 'references', 'install-hooks-scripts.md'),
     path.join(ROOT, 'skills', 'dhpk-project-setup', 'references', 'env-config-phase.md'),
   ];

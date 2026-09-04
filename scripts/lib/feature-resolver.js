@@ -3,8 +3,7 @@
 /**
  * feature-resolver.js — canonical "current feature" resolver.
  *
- * Spec: skills/dhpk-create-request/references/feature-context-resolution.md
- *       skills/dhpk-tech-spec/references/feature-context-resolution.md
+ * Spec: docs/agent-guidance/openspec-authoring.md
  *
  * Runs a 4-level resolution cascade (explicit key -> git branch -> changed
  * paths -> single feature dir) and, once a feature key is resolved, scans

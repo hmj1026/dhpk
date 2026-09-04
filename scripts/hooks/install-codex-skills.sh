@@ -2357,7 +2357,7 @@ def inventory_retirement_metadata(active_metadata=None):
             if not isinstance(replacement, dict):
                 raise ValueError(f'{replacement_prefix} must be an object')
             kind = replacement.get('kind')
-            if kind not in ('skill', 'agent', 'model-default'):
+            if kind not in ('skill', 'agent', 'model-default', 'external-skill', 'operator-action'):
                 raise ValueError(f'{replacement_prefix}.kind is unsupported')
             allowed_replacement_fields = {'kind'} if kind == 'model-default' else {'kind', 'id', 'mode'}
             unknown_replacement = sorted(set(replacement) - allowed_replacement_fields)

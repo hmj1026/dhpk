@@ -142,7 +142,7 @@ function compileLifecyclePlan(request, inventory, { profiles = null, moduleCatal
     return { ok: false, error: { code: error.code || 'INVALID_INVENTORY', message: error.message } };
   }
   let profileSelection = null;
-  if (profiles && moduleCatalog && inventory && inventory.profile_policy) {
+  if (surface !== 'codex-sync' && profiles && moduleCatalog && inventory && inventory.profile_policy) {
     const selectedProfileId = request.profileId || 'minimal';
     const skillIds = Array.isArray(request.skillIds) ? request.skillIds : [];
     const resolved = resolveCapabilitySelection({

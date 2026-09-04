@@ -69,7 +69,7 @@ write `$dhpk:<name>` or a retired predecessor name. Confirm that the selected
 family or `dhpk-*` trigger resolves.
 
 The explicit main-flow Codex entry is `$flow-drive <task>` when that family is
-discovered; use `$flow-drive --route-only <task>` for classification only.
+discovered; use `$flow-guide route <task>` for classification only.
 Codex has no `/dhpk:do` command. If `$flow-drive` is not discovered, use
 instruction routing in `AGENTS.md` and explicit `/opsx:*`; do not invent a
 callable `/dhpk:do`.

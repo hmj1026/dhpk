@@ -12,7 +12,7 @@ The Codex installer SHALL provide a read-only planning mode that emits a machine
 
 #### Scenario: Planning finds the reported stale collision
 
-- **WHEN** planning inspects a schema-v3 receipt whose `skills/dhpk-cross-agent-sync` destination differs from the current source and is not receipt-owned
+- **WHEN** planning inspects a schema-v3 receipt whose `skills/harness-govern` destination differs from the current source and is not receipt-owned
 - **THEN** the report identifies the destination as an unowned collision, includes both fingerprints, and exits with a non-success diagnostic status without changing either path
 
 #### Scenario: Planning finds no collision
@@ -31,7 +31,7 @@ when other collisions stay deferred.
 #### Scenario: Update leaves the reported collision untouched
 
 - **WHEN** the owner runs `--update` against a schema-v3 receipt that still has
-  an unowned `skills/dhpk-cross-agent-sync` collision and does not pass `--adopt`
+  an unowned `skills/harness-govern` collision and does not pass `--adopt`
 - **THEN** the installer preserves that path, records `state=partial`, prints
   the adoption next action, and exits non-zero
 

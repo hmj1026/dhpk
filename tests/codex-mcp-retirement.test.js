@@ -16,7 +16,7 @@ const { test, run, assert } = require('./_lib/tinytest');
 const {
   createRouteResult,
   validateRouteResult,
-} = require('../skills/flow-drive/scripts/route-result');
+} = require('../skills/flow-guide/scripts/route-result');
 
 const ROOT = path.join(__dirname, '..');
 const MATRIX = path.join(ROOT, 'docs', 'codex-mcp-capability-parity.md');
@@ -69,7 +69,7 @@ const REQUIRED_MATRIX_COLUMNS = [
 const DEGRADATION_SKILLS = [
   'dhpk-feature-verify',
   'dhpk-issue-analyze',
-  'dhpk-feasibility-study',
+  'change-verdict',
 ];
 
 function read(relative) {
@@ -274,7 +274,7 @@ test('catalog and invocation validators execute successfully with a zero MCP sur
 });
 
 test('default route table never targets retired MCP entries', () => {
-  const routeTable = JSON.parse(read('skills/flow-drive/references/route-table.json'));
+  const routeTable = JSON.parse(read('skills/flow-guide/references/route-table.json'));
   const retiredTargets = routeTable.rules
     .map((rule) => rule.target && rule.target.id)
     .filter((id) => RETIRED_ROUTE_IDS.has(id));
@@ -302,7 +302,8 @@ test('--codex no longer resolves to a peer, worker, reasoner, or replacement rou
   assert.strictEqual(result.target, null, 'a retired flag alone must not resolve a workflow target');
   assert.ok(!result.options || result.options.codexPeer !== true,
     'a retired flag must not set the legacy MCP-peer option');
-  assert.strictEqual(result.backendSelection, null, 'a retired flag must not select a worker/reasoner backend');
+  assert.strictEqual(Object.prototype.hasOwnProperty.call(result, 'backendSelection'), false,
+    'v3 result must not expose the retired worker/reasoner backend field');
 });
 
 test('migrated owners are MCP-free and any codex exec mention is explicit-only', () => {
@@ -313,7 +314,7 @@ test('migrated owners are MCP-free and any codex exec mention is explicit-only',
     'code-trace',
     'dhpk-feature-verify',
     'dhpk-issue-analyze',
-    'dhpk-feasibility-study',
+    'dhpk-module-design',
   ];
   for (const owner of owners) {
     const relative = `skills/${owner}/SKILL.md`;

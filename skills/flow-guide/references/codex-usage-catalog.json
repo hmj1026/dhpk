@@ -1,0 +1,674 @@
+{
+  "schema": "dhpk.skill-usage-catalog.v1",
+  "sourceInventoryRevision": "sha256:d79a4d9dab77c8ae5c2e666b8a557d4c1801a6e920c2ec5aba9a85616b873cf5",
+  "entries": [
+    {
+      "id": "code-trace",
+      "name": "code-trace",
+      "usage": {
+        "display_name": "Code Trace",
+        "summary": "Trace code paths, causes, history, or navigation tools",
+        "syntax": "$code-trace [--mode=<mode>] <query>",
+        "input_kind": "mixed",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "read-only",
+        "actions": [
+          {
+            "id": "explore",
+            "summary": "Trace an unfamiliar symbol, file, module, or flow",
+            "syntax": "$code-trace --mode=explore <query>",
+            "input_kind": "free-text",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "diagnose",
+            "summary": "Confirm the cause of a failure or regression",
+            "syntax": "$code-trace --mode=diagnose <query>",
+            "input_kind": "free-text",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "history",
+            "summary": "Investigate when and why behavior changed",
+            "syntax": "$code-trace --mode=history <query>",
+            "input_kind": "free-text",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "select-tool",
+            "summary": "Select one code-navigation tool and fallback",
+            "syntax": "$code-trace --mode=select-tool <query>",
+            "input_kind": "free-text",
+            "effect_authority": "read-only"
+          }
+        ],
+        "options": [
+          {
+            "id": "mode",
+            "syntax": "--mode=<mode>",
+            "value_kind": "enum",
+            "required": false,
+            "summary": "Choose the code-trace mode",
+            "enum_values": [
+              "explore",
+              "diagnose",
+              "history",
+              "select-tool"
+            ]
+          },
+          {
+            "id": "dual",
+            "syntax": "--dual",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Request an independent read-only perspective",
+            "default": false,
+            "applies_to": [
+              "explore"
+            ]
+          },
+          {
+            "id": "explain",
+            "syntax": "--explain",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Request a bounded explanation of the trace",
+            "default": false,
+            "applies_to": [
+              "explore"
+            ]
+          },
+          {
+            "id": "depth",
+            "syntax": "--depth=<brief|normal|deep>",
+            "value_kind": "enum",
+            "required": false,
+            "summary": "Set the requested explanation depth",
+            "enum_values": [
+              "brief",
+              "normal",
+              "deep"
+            ],
+            "applies_to": [
+              "explore"
+            ]
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$code-trace --mode=explore OrderService",
+            "summary": "Trace callers and callees for an unfamiliar symbol"
+          }
+        ]
+      },
+      "usageFingerprint": "3cee9330f98fb1ae8336818480540dc67fb8a72806f18050da222bca7b5457b4"
+    },
+    {
+      "id": "git-smart-commit",
+      "name": "dhpk-git-smart-commit",
+      "usage": {
+        "display_name": "Git Smart Commit",
+        "summary": "Group related changes into reviewable commits safely",
+        "syntax": "$dhpk-git-smart-commit",
+        "input_kind": "none",
+        "invocation_class": "explicit-only",
+        "effect_authority": "git-write",
+        "actions": [
+          {
+            "id": "group",
+            "summary": "Analyze changes and produce grouped commit steps",
+            "syntax": "$dhpk-git-smart-commit",
+            "input_kind": "none",
+            "effect_authority": "git-write"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$dhpk-git-smart-commit split these changes into logical commits",
+            "summary": "Prepare a safe grouped commit plan"
+          }
+        ]
+      },
+      "usageFingerprint": "ef08486484ddf2cc97c619cf15f902d816fc20d8523fafb007e15518bba2e9f7"
+    },
+    {
+      "id": "legacy-code-characterization",
+      "name": "dhpk-legacy-characterization-tests",
+      "usage": {
+        "display_name": "Legacy Code Characterization",
+        "summary": "Lock observed legacy behavior before refactoring safely",
+        "syntax": "$dhpk-legacy-characterization-tests <legacy-target>",
+        "input_kind": "path",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "actions": [
+          {
+            "id": "characterize",
+            "summary": "Write tests that capture the current legacy behavior",
+            "syntax": "$dhpk-legacy-characterization-tests <legacy-target>",
+            "input_kind": "path",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$dhpk-legacy-characterization-tests protected/models/Order.php",
+            "summary": "Lock an untested legacy model before refactoring"
+          }
+        ]
+      },
+      "usageFingerprint": "68859247ce8302e06c1a7a55c168df3b6a6b30a709f4a2babcd00bd03ec24134"
+    },
+    {
+      "id": "opsx-load-context",
+      "name": "dhpk-opsx-load-context",
+      "usage": {
+        "display_name": "Opsx Load Context",
+        "summary": "Load resume context through the deterministic fallback chain",
+        "syntax": "$dhpk-opsx-load-context",
+        "input_kind": "none",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "read-only",
+        "actions": [
+          {
+            "id": "load",
+            "summary": "Resolve the best available resume context",
+            "syntax": "$dhpk-opsx-load-context",
+            "input_kind": "none",
+            "effect_authority": "read-only"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$dhpk-opsx-load-context",
+            "summary": "Load context for an opsx-apply-resume session"
+          }
+        ]
+      },
+      "usageFingerprint": "3eab6d7996a5381f1795fb14f383cab5478bb4694f14b24ef3bbd213dde04df6"
+    },
+    {
+      "id": "opsx-post-obs",
+      "name": "dhpk-opsx-post-observation",
+      "usage": {
+        "display_name": "Opsx Post Obs",
+        "summary": "Post one resume observation through the observer boundary",
+        "syntax": "$dhpk-opsx-post-observation <observation-context>",
+        "input_kind": "free-text",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "delegate",
+        "actions": [
+          {
+            "id": "post",
+            "summary": "Submit the compact session observation",
+            "syntax": "$dhpk-opsx-post-observation <observation-context>",
+            "input_kind": "free-text",
+            "effect_authority": "delegate"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$dhpk-opsx-post-observation save-phase summary",
+            "summary": "Post the observation during opsx save phase"
+          }
+        ]
+      },
+      "usageFingerprint": "bd654e16d8a0916d4607d339b02e16dd7a0d234c712fa7cf510baffd7b7e118e"
+    },
+    {
+      "id": "php-pro",
+      "name": "dhpk-php-runtime-router",
+      "usage": {
+        "display_name": "Php Pro",
+        "summary": "Detect PHP runtime and select safe framework guidance",
+        "syntax": "$dhpk-php-runtime-router <php-task>",
+        "input_kind": "free-text",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "read-only",
+        "actions": [
+          {
+            "id": "route",
+            "summary": "Detect the runtime and select matching references",
+            "syntax": "$dhpk-php-runtime-router <php-task>",
+            "input_kind": "free-text",
+            "effect_authority": "read-only"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$dhpk-php-runtime-router review this Yii 1.1 controller",
+            "summary": "Select PHP-compatible guidance for a backend task"
+          }
+        ]
+      },
+      "usageFingerprint": "dfd23c7a06eb4590b72627109dbd4b0c5cf6848b7035c898633735ae798e02a0"
+    },
+    {
+      "id": "tdd",
+      "name": "dhpk-tdd-workflow",
+      "usage": {
+        "display_name": "TDD",
+        "summary": "Drive behavior-first tests through a minimal red-green loop",
+        "syntax": "$dhpk-tdd-workflow [test-generation] <task>",
+        "input_kind": "mixed",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "actions": [
+          {
+            "id": "tdd",
+            "summary": "Guide a behavior-first test and implementation loop",
+            "syntax": "$dhpk-tdd-workflow <task>",
+            "input_kind": "free-text",
+            "effect_authority": "workspace-write"
+          },
+          {
+            "id": "test-generation",
+            "summary": "Generate a focused failing-test scaffold",
+            "syntax": "$dhpk-tdd-workflow test-generation <target>",
+            "input_kind": "path",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$dhpk-tdd-workflow test-generation tests/OrderTest.php",
+            "summary": "Start with a behavior-focused test scaffold"
+          }
+        ]
+      },
+      "usageFingerprint": "1e17b743b2781626967944e01eed90504c0b26cc26cbe3801d7bd1d29783677a"
+    },
+    {
+      "id": "php56-yii-dev",
+      "name": "dhpk-yii1-php56-development",
+      "usage": {
+        "display_name": "php56-yii-dev",
+        "summary": "Implement Yii 1.x backend changes with PHP 5.6-safe tests",
+        "syntax": "$dhpk-yii1-php56-development <backend-task>",
+        "input_kind": "free-text",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "actions": [
+          {
+            "id": "implement",
+            "summary": "Design, test, and implement a Yii 1.x backend change",
+            "syntax": "$dhpk-yii1-php56-development <backend-task>",
+            "input_kind": "free-text",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$dhpk-yii1-php56-development fix this Yii 1.1 controller",
+            "summary": "Apply PHP 5.6-safe backend implementation guidance"
+          }
+        ]
+      },
+      "usageFingerprint": "69176d5033f13ee2fcc4f818ef29356a8f78225b2b034bbbbf26ab4e61e51559"
+    },
+    {
+      "id": "yii1-security-audit",
+      "name": "dhpk-yii1-security-audit",
+      "usage": {
+        "display_name": "Yii1 Security Audit",
+        "summary": "Audit Yii 1.1 security boundaries with evidence and fixes",
+        "syntax": "$dhpk-yii1-security-audit <source-path> [--output-path=<path>]",
+        "input_kind": "path",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "read-only",
+        "actions": [
+          {
+            "id": "audit",
+            "summary": "Inspect Yii 1.1 framework security boundaries",
+            "syntax": "$dhpk-yii1-security-audit <source-path> [--output-path=<path>]",
+            "input_kind": "path",
+            "effect_authority": "read-only"
+          }
+        ],
+        "options": [
+          {
+            "id": "output-path",
+            "syntax": "--output-path=<path>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Choose the audit report output directory",
+            "applies_to": [
+              "audit"
+            ]
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$dhpk-yii1-security-audit protected",
+            "summary": "Audit a Yii 1.1 project for framework security issues"
+          }
+        ]
+      },
+      "usageFingerprint": "60e4cd99136135a8c09b04a2f8b21e980da96068876e0263c0732f359f90074a"
+    },
+    {
+      "id": "flow-drive",
+      "name": "flow-drive",
+      "usage": {
+        "display_name": "Flow Drive",
+        "summary": "Implement a confirmed specification with bounded evidence",
+        "syntax": "$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--worker=<worker>] [--reasoner=<backend>:<model>:<effort>] [--architect|--no-architect]",
+        "input_kind": "mixed",
+        "invocation_class": "explicit-only",
+        "effect_authority": "workspace-write",
+        "actions": [
+          {
+            "id": "apply",
+            "summary": "Implement the confirmed specification or OpenSpec change",
+            "syntax": "$flow-drive <confirmed-spec-or-change-id>",
+            "input_kind": "identifier",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [
+          {
+            "id": "plan",
+            "syntax": "--plan[=<model>:<effort>]",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Request a planning pass before implementation",
+            "applies_to": [
+              "apply"
+            ]
+          },
+          {
+            "id": "worker",
+            "syntax": "--worker=<worker>",
+            "value_kind": "enum",
+            "required": false,
+            "summary": "Select an explicitly requested implementation worker",
+            "enum_values": [
+              "claude",
+              "codex",
+              "agy",
+              "auto"
+            ],
+            "applies_to": [
+              "apply"
+            ]
+          },
+          {
+            "id": "reasoner",
+            "syntax": "--reasoner=<backend>:<model>:<effort>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Request a bounded second opinion",
+            "applies_to": [
+              "apply"
+            ]
+          },
+          {
+            "id": "architect",
+            "syntax": "--architect",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Enable the architecture pass",
+            "applies_to": [
+              "apply"
+            ]
+          },
+          {
+            "id": "no-architect",
+            "syntax": "--no-architect",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Disable the architecture pass",
+            "applies_to": [
+              "apply"
+            ]
+          },
+          {
+            "id": "codex",
+            "syntax": "--codex",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Request the retired Codex diagnostic",
+            "applies_to": [
+              "apply"
+            ]
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$flow-drive consolidate-remaining-dhpk-skill-families",
+            "summary": "Implement a confirmed OpenSpec change"
+          }
+        ]
+      },
+      "usageFingerprint": "4c6bc399314e7a97110e103b8e3c085f1f15230a3356367f522bc5c554405dcd"
+    },
+    {
+      "id": "flow-guide",
+      "name": "flow-guide",
+      "usage": {
+        "display_name": "Flow Guide",
+        "summary": "Guide routes, rules, next steps, closeout, and usage help",
+        "syntax": "$flow-guide <help|route|rules|next|close> [--go] [<query>]",
+        "input_kind": "action-first",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "delegate",
+        "actions": [
+          {
+            "id": "help",
+            "summary": "Show available Codex usage or one usage card",
+            "syntax": "$flow-guide help [<skill>]",
+            "input_kind": "identifier",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "route",
+            "summary": "Select the smallest workflow owner for a task",
+            "syntax": "$flow-guide route [--go] [<query>]",
+            "input_kind": "free-text",
+            "effect_authority": "delegate"
+          },
+          {
+            "id": "rules",
+            "summary": "Look up the governing workflow rules",
+            "syntax": "$flow-guide rules [<query>]",
+            "input_kind": "free-text",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "next",
+            "summary": "Identify the next bounded workflow action",
+            "syntax": "$flow-guide next [<query>]",
+            "input_kind": "free-text",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "close",
+            "summary": "Check closeout evidence and remaining gates",
+            "syntax": "$flow-guide close [<query>]",
+            "input_kind": "free-text",
+            "effect_authority": "read-only"
+          }
+        ],
+        "options": [
+          {
+            "id": "go",
+            "syntax": "--go",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Request one bounded handoff when the route is eligible",
+            "default": false,
+            "applies_to": [
+              "route"
+            ]
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$flow-guide help",
+            "summary": "List the available Codex skill usage contracts"
+          }
+        ]
+      },
+      "usageFingerprint": "ca43b1f5c7e2534d6f2f46455b9645dae154ba32caf154f58ae5813d322f3be5"
+    },
+    {
+      "id": "harness-govern",
+      "name": "harness-govern",
+      "usage": {
+        "display_name": "Harness Govern",
+        "summary": "Govern harness health, budget, filling, revision, and sync",
+        "syntax": "$harness-govern <health|budget|fill|revise|sync> [options]",
+        "input_kind": "action-first",
+        "invocation_class": "explicit-only",
+        "effect_authority": "external-write",
+        "actions": [
+          {
+            "id": "health",
+            "summary": "Check harness structure and optionally fix safe issues",
+            "syntax": "$harness-govern health [options]",
+            "input_kind": "none",
+            "effect_authority": "workspace-write"
+          },
+          {
+            "id": "budget",
+            "summary": "Measure harness context cost and ranked savings",
+            "syntax": "$harness-govern budget [options]",
+            "input_kind": "none",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "fill",
+            "summary": "Preview or apply missing harness layers",
+            "syntax": "$harness-govern fill [options]",
+            "input_kind": "none",
+            "effect_authority": "workspace-write"
+          },
+          {
+            "id": "revise",
+            "summary": "Review and revise an active harness",
+            "syntax": "$harness-govern revise [options]",
+            "input_kind": "none",
+            "effect_authority": "workspace-write"
+          },
+          {
+            "id": "sync",
+            "summary": "Plan or apply cross-platform harness synchronization",
+            "syntax": "$harness-govern sync [options]",
+            "input_kind": "none",
+            "effect_authority": "external-write"
+          }
+        ],
+        "options": [
+          {
+            "id": "dir",
+            "syntax": "--dir=<path>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Select the harness directory"
+          },
+          {
+            "id": "dry-run",
+            "syntax": "--dry-run",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Preview changes without writing",
+            "default": false,
+            "applies_to": [
+              "budget",
+              "fill",
+              "health",
+              "revise",
+              "sync"
+            ]
+          },
+          {
+            "id": "fix-safe",
+            "syntax": "--fix-safe",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Apply only approved safe health fixes",
+            "default": false,
+            "applies_to": [
+              "health"
+            ]
+          },
+          {
+            "id": "fix",
+            "syntax": "--fix",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Apply the selected health fixes",
+            "default": false,
+            "applies_to": [
+              "health"
+            ]
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$harness-govern health --dry-run",
+            "summary": "Inspect harness health without changing files"
+          }
+        ]
+      },
+      "usageFingerprint": "c47d5c8f28a0fe0b40ebb879b2ac51ff9ac779a79d17c2b29dfd5d64dc6709ea"
+    },
+    {
+      "id": "skill-scope",
+      "name": "skill-scope",
+      "usage": {
+        "display_name": "Skill Scope",
+        "summary": "Route skill governance to one focused mode with evidence",
+        "syntax": "$skill-scope <health|judge|stocktake|scout>",
+        "input_kind": "action-first",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "delegate",
+        "actions": [
+          {
+            "id": "health",
+            "summary": "Check one skill or package structure",
+            "syntax": "$skill-scope health <skill>",
+            "input_kind": "identifier",
+            "effect_authority": "delegate"
+          },
+          {
+            "id": "judge",
+            "summary": "Score one skill or package quality",
+            "syntax": "$skill-scope judge <skill>",
+            "input_kind": "identifier",
+            "effect_authority": "delegate"
+          },
+          {
+            "id": "stocktake",
+            "summary": "Audit installed consumer skills and commands",
+            "syntax": "$skill-scope stocktake",
+            "input_kind": "none",
+            "effect_authority": "delegate"
+          },
+          {
+            "id": "scout",
+            "summary": "Search for an existing skill or capability",
+            "syntax": "$skill-scope scout <capability>",
+            "input_kind": "free-text",
+            "effect_authority": "delegate"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$skill-scope health flow-guide",
+            "summary": "Run a focused health check for one skill"
+          }
+        ]
+      },
+      "usageFingerprint": "985e2fe599b212d44e0d3940485108288b157309944d9785108349efcdee5c6a"
+    }
+  ]
+}

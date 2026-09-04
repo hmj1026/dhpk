@@ -316,7 +316,7 @@ test('the advisory-only fallback names findings and raises no question', () => {
     assert.ok(out.trim().length > 0, 'fallback emitted nothing');
     assert.strictEqual(countOccurrences(out, 'AskUserQuestion'), 0, `fallback still asked:\n${out}`);
     assert.ok(out.includes('php-5.6'), `fallback must still name the findings:\n${out}`);
-    assert.ok(/claude-health/.test(out), `fallback must point at claude-health:\n${out}`);
+    assert.ok(/harness-govern\s+health/.test(out), `fallback must point at harness-govern health:\n${out}`);
   } finally {
     rm(repo, plugins);
   }
@@ -330,7 +330,7 @@ test('the failed interactive probe makes advisory-only the default', () => {
     assert.ok(out.trim().length > 0, 'default fallback emitted nothing');
     assert.strictEqual(countOccurrences(out, 'AskUserQuestion'), 0, `default fallback still asked:\n${out}`);
     assert.ok(out.includes('php-5.6'), `default fallback must name the findings:\n${out}`);
-    assert.ok(/claude-health/.test(out), `default fallback must point at claude-health:\n${out}`);
+    assert.ok(/harness-govern\s+health/.test(out), `default fallback must point at harness-govern health:\n${out}`);
   } finally {
     rm(repo, plugins);
   }

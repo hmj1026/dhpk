@@ -7,9 +7,9 @@ const { test, run, assert } = require('./_lib/tinytest');
 const ROOT = path.join(__dirname, '..');
 const read = (rel) => fs.readFileSync(path.join(ROOT, rel), 'utf8');
 
-test('approved consolidation leaves 85 canonical packages and retires predecessor identities', () => {
+test('approved consolidation leaves 65 canonical packages and retires predecessor identities', () => {
   const inventory = JSON.parse(read('manifests/distribution-inventory.json'));
-  assert.strictEqual(inventory.skills.length, 85);
+  assert.strictEqual(inventory.skills.length, 65);
   for (const name of [
     'dhpk-code-investigate', 'dhpk-codex-explain', 'dhpk-codex-cli-review',
     'dhpk-codex-architect', 'dhpk-codex-implement',

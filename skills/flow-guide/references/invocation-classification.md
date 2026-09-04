@@ -38,7 +38,7 @@ families introduced by this change are classified by their maximum authority:
 | Skill | Rationale |
 |---|---|
 | `skill-scope` | Health, judge, stocktake, and scout modes collect or evaluate evidence. |
-| `flow-guide` | Classify, policy, next, and checklist modes route or verify without implementing. |
+| `flow-guide` | Help, route, rules, next, and close actions guide or verify without implementing. |
 | `change-verdict` | Review modes are read-only verdicts. |
 | `code-trace` | Trace modes explain or investigate an already-scoped request. |
 

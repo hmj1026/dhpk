@@ -1,6 +1,6 @@
 interface:
   display_name: "Flow Drive"
-  short_description: "Route or implement confirmed work"
-  default_prompt: "Use $flow-drive to route this task or implement its confirmed specification with bounded verification."
+  short_description: "Implement a confirmed specification with evidence"
+  default_prompt: "Use $flow-drive <confirmed-spec-or-change-id> to implement confirmed work with bounded verification."
 policy:
   allow_implicit_invocation: false

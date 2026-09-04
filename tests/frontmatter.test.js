@@ -13,30 +13,25 @@ const { spawnSync } = require('node:child_process');
 const ROOT = path.join(__dirname, '..');
 const OFFICIAL_STRICT_FAILURE_SET = [
   'dhpk-ios-platform',
-  'dhpk-laravel-mix-notes',
-  'dhpk-phpunit-11-notes',
+  'laravel',
+  'phpunit',
+  'harness-govern',
+  'flow-guide',
+  'flow-drive',
   'dhpk-laravel-package-author',
   'dhpk-openspec-artifact-guard',
-  'dhpk-phpunit-9-modern',
-  'dhpk-laravel-10-notes',
-  'dhpk-laravel-9-notes',
   'dhpk-swiftui-architecture',
   'dhpk-php-modern-pro',
-  'dhpk-laravel-11-notes',
-  'dhpk-laravel-6-notes',
   'dhpk-python-static-checks',
   'dhpk-composer-package-hygiene',
   'dhpk-matrix-cell-onboard',
   'dhpk-js-lint-config',
   'dhpk-js-static-check-strategy',
   'dhpk-swift-language',
-  'dhpk-laravel-7-notes',
   'dhpk-ios-icon-gen',
-  'dhpk-laravel-8-notes',
   'dhpk-php-8x-features',
   'dhpk-vue-2-notes',
   'dhpk-laravel-testbench-matrix',
-  'dhpk-laravel-5-4-notes',
   'dhpk-library-dual-testsuite-map',
 ];
 
@@ -69,8 +64,8 @@ test('extract preserves colon-containing quoted descriptions as one scalar', () 
   assert.strictEqual(r.descriptionIndicator, null);
 });
 
-test('all 26 official strict-failure skills expose equivalent quoted metadata', () => {
-  assert.strictEqual(OFFICIAL_STRICT_FAILURE_SET.length, 26);
+test('all 21 official strict-failure skills expose equivalent quoted metadata', () => {
+  assert.strictEqual(OFFICIAL_STRICT_FAILURE_SET.length, 21);
   for (const skill of OFFICIAL_STRICT_FAILURE_SET) {
     const file = path.join(ROOT, 'skills', skill, 'SKILL.md');
     const content = fs.readFileSync(file, 'utf8');

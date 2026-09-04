@@ -12,14 +12,16 @@ Pocock 或其他全域 skill 的使用者。
 
 | 關注點 | 目前實作 |
 |---|---|
-| Canonical source | `skills/<public-name>/` 下 85 個扁平 package |
-| Public identity | 六個 capability family 使用未加前綴名稱；其他 first-party name 維持 `dhpk-*` |
+| Canonical source | `skills/<public-name>/` 下 65 個扁平 package |
+| Public identity | 九個 capability family 使用未加前綴名稱；其他 56 個 first-party name 維持 `dhpk-*` |
 | Inventory SSOT | `manifests/distribution-inventory.json` schema v2 |
 | Module projection | `modules/*/skills/` 下 37 個相對 symlink |
-| Codex 專案 projection | `codex/skills/` 下 18 個相對 symlink（16 個可呼叫加內部 transport 與 dispatch-context runtime） |
-| Codex native package | `plugins/dhpk/skills/` 下 18 個實體 package，零 symlink |
+| Codex 專案 projection | `codex/skills/` 下 15 個相對 symlink（13 個可呼叫加內部 transport 與 dispatch-context runtime） |
+| Codex native package | `plugins/dhpk/skills/` 下 15 個實體 package，零 symlink |
 | Codex 專案 receipt | `.codex/.dhpk-installed.json` schema v3 |
 | 預設 hooks | `PreToolUse`、`PostToolUse`、`SessionStart`、`SubagentStop` |
+| Profile 大小 | `minimal=8`、`full=55`、`compat-v1=62`（不含 overlays） |
+| Agent/Cursor/AGY 共用 surface | 每個 surface 37 個 selected stable ID |
 
 目錄位置與 README 清單都不是權威來源。Inventory 管理 stable id、public name、
 lifecycle、module 與 publication surface；validator 會將每個 projection 與它對齊。
@@ -34,18 +36,28 @@ lifecycle、module 與 publication surface；validator 會將每個 projection �
 | Claude plugin skill | `/dhpk:<public-skill-name>` | `/dhpk:change-verdict` |
 | Codex skill | discovery 後使用 `$<public-skill-name>` | `$change-verdict --mode code` |
 | Cursor generated command | 產生的 host adapter | Cursor `do` command（`host=cursor`） |
-| Codex main-flow entry | discovery 後使用 `$flow-drive --mode route|implement <task>` | `$flow-drive --mode implement fix the login redirect` |
+| Codex guidance entry | discovery 後使用 `$flow-guide <help|route|rules|next|close> [--go] [query]` | `$flow-guide help flow-drive` |
+| Codex implementation entry | discovery 後使用 `$flow-drive <confirmed-spec-or-change-id>` | `$flow-drive my-change-id --plan` |
 
 Codex 內建 command（`/hooks`、`/agent`）不是 dhpk 自訂 `/dhpk:*` command。
-明確的 `flow-drive` family 是 Codex implementation entry；`flow-guide` 負責
-implicit classification 與 gate。可用性證據是 receipt-owned 的
+`flow-guide` 擁有唯讀 usage help、routing、policy、progression 與 closeout；`flow-drive`
+是針對已確認 specification 或 OpenSpec change 的 explicit-only、無 mode implementation
+entry。可用性證據是 receipt-owned 的
 `.codex/skills/flow-drive` 能解析為 `$flow-drive`；`codex plugin list` 只是管理層
 證據。若 family 未被發現，instruction routing 與明確 `/opsx:*` OpenSpec command
 仍可用——不要宣稱 Codex 有可呼叫的 `/dhpk:do`。
 
-`dhpk` prefix 仍是 Claude plugin namespace 的一部分。六個 reborn family 刻意使用未
-加前綴的名稱，讓使用者選擇 task-shaped capability 而不必記住 predecessor 的
-implementation name。
+Codex 參數採 progressive discovery：`$flow-guide help` 列出目前 catalogue，
+`$flow-guide help <skill>` 回傳一張 metadata-only usage card。產生的 catalogue 是
+[`codex-usage-catalog.json`](../skills/flow-guide/references/codex-usage-catalog.json)，
+人類導覽見 [`codex-skill-usage.zh-TW.md`](codex-skill-usage.zh-TW.md)。Help 不會載入
+目標 procedure，也不會授予其 authority。
+
+`dhpk` prefix 仍是 Claude plugin namespace 的一部分。九個 family name 刻意使用未加
+前綴的名稱，讓使用者選擇 task-shaped capability 而不必記住 predecessor 的
+implementation name。`git-smart-commit` 維持原 public name 且獨立存在；不新增
+`commit-craft`。OpenSpec proposal authoring 由外部 `$openspec-propose` 負責；
+OnePassword 登入是 operator action `op signin`。
 
 <a id="alias-free-retirement-ledger-0470"></a>
 
@@ -110,6 +122,12 @@ alias，也不要加入靜默 MCP retry。八列（issue 與 feasibility owner �
 八列（issue 與 feasibility owner 刻意共用一列）及其 migration evidence 請見
 [capability-parity matrix](./codex-mcp-capability-parity.md)。
 
+## 歷史 0.53 capability families
+
+前一波在 `0.53.0` 退休的 22 個 first-party discovery identity，當時由六個
+mode-shaped family 承接。本段保留為 0.53 歷史紀錄；目前 0.54 family 契約與第二波
+retirement ledger 見下方。前身 stable ID 只存在歷史 retirement metadata。
+
 ## Capability-family retirement ledger（0.53.0）
 
 Inventory 準確擁有 22 筆 alias-free row。每筆都使用
@@ -142,6 +160,76 @@ registry。
 | `git-investigate` | `dhpk-git-history-investigation` | `code-trace` / `history` | `capability-family-consolidation` | `0.52.0` |
 | `tool-routing` | `dhpk-tool-routing` | `code-trace` / `select-tool` | `capability-family-consolidation` | `0.52.0` |
 
+## 目前 0.54 capability families 與 retirement
+
+0.54 的 live catalogue 有九個 portable family 與 65 個 active canonical skill。
+Family 名稱為 `skill-scope`、`skill-forge`、`flow-guide`、`flow-drive`、
+`change-verdict`、`code-trace`、`laravel`、`phpunit`、`harness-govern`；其他 56 個
+active public name 維持 `dhpk-*` 前綴。
+
+| 目前 family | Interface | 邊界 |
+|---|---|---|
+| `skill-scope` | `health`、`judge`、`stocktake`、`scout` | explicit governance handoff |
+| `skill-forge` | `create`、`distill-rules` | explicit authoring handoff |
+| `flow-guide` | `help`、`route`、`rules`、`next`、`close` | read-only guidance；`route --go` 是單一 bounded handoff |
+| `flow-drive` | confirmed specification 或 change；無 mode | explicit-only implementation |
+| `change-verdict` | `code`、`pr`、`security`、`tests`、`docs`、`risk` | read-only review |
+| `code-trace` | `explore`、`diagnose`、`history`、`select-tool` | evidence-backed investigation |
+| `laravel` | selectors `5.4`、`6`、`7`、`8`、`9`、`10`、`11`、`mix` | version selection；只載入一份 reference |
+| `phpunit` | selectors `9`、`10`、`11` | version selection；只載入一份 reference |
+| `harness-govern` | `health`、`budget`、`fill`、`revise`、`sync` | explicit harness governance |
+
+Inventory 的 `usage` contract 擁有 Codex syntax、actions、options、authority 與
+examples。使用者可用 `$flow-guide help` 或 `$flow-guide help <skill>` 查詢；產生的
+metadata-only catalogue 與人類指南見
+[`docs/codex-skill-usage.zh-TW.md`](codex-skill-usage.zh-TW.md)。`git-smart-commit`
+維持既有名稱並獨立存在，不新增 `commit-craft` family。OpenSpec proposal authoring
+由外部 `$openspec-propose` skill 負責；OnePassword 設定是 operator action
+`op signin`。
+
+Proposal 尚未確認時，請參考 [OpenSpec authoring handoff](./agent-guidance/openspec-authoring.md)；
+需要比較方案時，使用 [feasibility comparison guidance](./agent-guidance/feasibility-comparison.md)，
+不要把這兩種工作混入 `flow-drive` implementation。
+
+### Capability-family retirement ledger（0.54.0）
+
+Inventory 準確擁有新增的 21 筆 alias-free row。每筆 rollback 至 `0.53.0`；retirement
+只供診斷 metadata 使用，不會成為 discovery alias 或 generated package。
+
+| Former stable ID | Former public name | Replacement | `reasonCode` | `rollback.release` |
+|---|---|---|---|---|
+| `laravel-5.4-notes` | `dhpk-laravel-5-4-notes` | `laravel` / selector `5.4` | `version-family-alias-removal` | `0.53.0` |
+| `laravel-6-notes` | `dhpk-laravel-6-notes` | `laravel` / selector `6` | `version-family-alias-removal` | `0.53.0` |
+| `laravel-7-notes` | `dhpk-laravel-7-notes` | `laravel` / selector `7` | `version-family-alias-removal` | `0.53.0` |
+| `laravel-8-notes` | `dhpk-laravel-8-notes` | `laravel` / selector `8` | `version-family-alias-removal` | `0.53.0` |
+| `laravel-9-notes` | `dhpk-laravel-9-notes` | `laravel` / selector `9` | `version-family-alias-removal` | `0.53.0` |
+| `laravel-10-notes` | `dhpk-laravel-10-notes` | `laravel` / selector `10` | `version-family-alias-removal` | `0.53.0` |
+| `laravel-11-notes` | `dhpk-laravel-11-notes` | `laravel` / selector `11` | `version-family-alias-removal` | `0.53.0` |
+| `laravel-mix-notes` | `dhpk-laravel-mix-notes` | `laravel` / selector `mix` | `version-family-alias-removal` | `0.53.0` |
+| `phpunit-9-modern` | `dhpk-phpunit-9-modern` | `phpunit` / selector `9` | `version-family-alias-removal` | `0.53.0` |
+| `phpunit-10-notes` | `dhpk-phpunit-10-notes` | `phpunit` / selector `10` | `version-family-alias-removal` | `0.53.0` |
+| `phpunit-11-notes` | `dhpk-phpunit-11-notes` | `phpunit` / selector `11` | `version-family-alias-removal` | `0.53.0` |
+| `claude-health` | `dhpk-claude-health` | `harness-govern` / `health` | `remaining-capability-family-consolidation` | `0.53.0` |
+| `harness-budget` | `dhpk-harness-budget` | `harness-govern` / `budget` | `remaining-capability-family-consolidation` | `0.53.0` |
+| `harness-fill` | `dhpk-harness-fill` | `harness-govern` / `fill` | `remaining-capability-family-consolidation` | `0.53.0` |
+| `harness-revise` | `dhpk-harness-revise` | `harness-govern` / `revise` | `remaining-capability-family-consolidation` | `0.53.0` |
+| `multi-ai-sync` | `dhpk-cross-agent-sync` | `harness-govern` / `sync` | `remaining-capability-family-consolidation` | `0.53.0` |
+| `agy-commit` | `dhpk-agy-commit` | `git-smart-commit` | `remaining-capability-family-consolidation` | `0.53.0` |
+| `feasibility-study` | `dhpk-feasibility-study` | `software-architecture` / `compare` | `remaining-capability-family-consolidation` | `0.53.0` |
+| `tech-spec` | `dhpk-tech-spec` | external `openspec-propose` / `propose` | `openspec-authoring-consolidation` | `0.53.0` |
+| `create-request` | `dhpk-create-request` | external `openspec-propose` / `propose` | `openspec-authoring-consolidation` | `0.53.0` |
+| `op-session` | `dhpk-onepassword-session` | operator action `onepassword-cli` / `signin` | `operator-action-capability-removal` | `0.53.0` |
+
+這些 row 不發布 compatibility alias。Projection migration 仍會保護已編輯或 user-owned
+project file；rollback 是 pin 並重新安裝 0.53.0，不是在 0.54 重建退休名稱。
+
+退役的 OnePassword wrapper 不是 credential migration 工具。從 0.53.0 升級的
+operator 必須執行 `op signout`、確認沒有 process 仍依賴舊 session、檢查
+`~/.op-claude-session` 的 ownership 與內容政策，再依 operator 的安全檔案流程
+移除 legacy cache。Automation 不得代為讀取、輸出、複製、撤銷或刪除該檔案。
+後續存取改用互動式 `op signin` operator action，並限制在所需的最小 account 與
+vault scope。
+
 ## 已整併的能力
 
 三組重疊能力改為合併，而不是把 alias 保留成獨立 skill：
@@ -170,10 +258,13 @@ Formatting、lint、Docker probe、prompt hint、session snapshot
 [Hook extension model](./hook-extension.zh-TW.md)。
 
 Command 一律保留 `/dhpk:<name>` namespace（Claude）。Cursor 使用產生的 command。
-Codex 任務路由使用明確的 `$flow-drive` family，沒有 `/dhpk:do`。主要入口為：
+Codex 使用 `$flow-guide` 做 discovery 與 guidance、使用 `$flow-drive` 做已確認變更的
+implementation，沒有 `/dhpk:do`。主要入口為：
 
-- `$flow-drive --mode route|implement <task>`：Codex routing 或 implementation。
-- `/dhpk:flow-drive --mode route|implement <task>`：Claude 明確呼叫。
+- `$flow-guide <help|route|rules|next|close> [--go] [query]`：Codex guidance。
+- `$flow-drive <confirmed-spec-or-change-id> [implementation-options]`：Codex implementation。
+- `/dhpk:flow-guide <help|route|rules|next|close> [query]`：Claude 明確呼叫 guidance。
+- `/dhpk:flow-drive <confirmed-spec-or-change-id> [implementation-options]`：Claude 明確呼叫 implementation。
 - `/dhpk:change-verdict --mode <code|pr|security|tests|docs|risk>`：唯讀 review variants。
 - `/dhpk:precommit`，需要時搭配 `--fast`。
 - `/dhpk:setup --install hooks|rules|scripts|all`：設定與 asset 安裝。
@@ -189,7 +280,7 @@ claude plugin update dhpk@dhpk
 ```
 
 啟動新的 Claude session 或執行 `/reload-plugins`。確認 `/dhpk:setup`、
-`/dhpk:flow-guide` 與 `/dhpk:harness-audit` 都能解析。Marketplace 不會更新專案本地複製的
+`/dhpk:flow-guide`、`/dhpk:flow-drive` 與 `/dhpk:harness-govern` 都能解析。Marketplace 不會更新專案本地複製的
 舊 dhpk skill；只有在確認它們已重複且有版控或其他可恢復方式後才移除。
 
 ## 升級專案本地 Codex projection
@@ -229,9 +320,11 @@ node tests/documentation-platform-parity.test.js
 node tests/run-all.js
 ```
 
-預期拓撲由 inventory 管理 canonical package 數量、31 個 module 與 Codex project/native
-項目（可呼叫 skill 加上內部 transport 與 dispatch-context runtime）；上述九個 MCP
-capability identity 只存在 ledger，不計入任何 active count。相對 symlink 只能出現在
+預期拓撲由 inventory 管理 65 個 canonical package、31 個 module 與 Codex project/native
+項目（13 個可呼叫 skill 加上內部 transport 與 dispatch-context runtime）；上述九個 MCP
+capability identity 只存在 ledger，不計入任何 active count。Profiles 應為
+`minimal=8`、`full=55`、`compat-v1=62`，每個 Agent/Cursor/AGY surface 為 37 個
+selected stable ID。相對 symlink 只能出現在
 module/Codex projection，native package 必須零 symlink。
 
 ## Rollback

@@ -333,7 +333,7 @@ if [ -z "$(ls -A "$gout" 2>/dev/null)" ]; then ok "graduation disabled → no st
 
 echo ""
 echo "== 10. pre-route.sh (Phase 2.3 Smart Router) =="
-PR="$PLUGIN_ROOT/skills/flow-drive/scripts/pre-route.sh"
+PR="$PLUGIN_ROOT/skills/flow-guide/scripts/pre-route.sh"
 
 out="$(bash "$PR" "please fix this login bug")"
 if [ "$(printf '%s' "$out" | cut -f1)" = "MATCH" ] && [ "$(printf '%s' "$out" | cut -f2)" = "flow-guide" ]; then ok "english bug → MATCH flow-guide"; else fail "english bug route wrong ($out)"; fi

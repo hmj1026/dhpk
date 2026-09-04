@@ -46,6 +46,11 @@ function createSurfaceReceipt({
   surfaceSelectionFingerprint = null,
   migration = null,
   activation = null,
+  inventoryRevision = null,
+  usageSchema = null,
+  usageFingerprints = null,
+  usage = null,
+  skillProvenance = null,
 } = {}) {
   if (!Object.prototype.hasOwnProperty.call(SURFACE_OWNERS, surface)) {
     throw new Error(`unknown provenance surface: ${surface}`);
@@ -74,6 +79,11 @@ function createSurfaceReceipt({
     ...(surfaceSelectionFingerprint ? { surfaceSelectionFingerprint } : {}),
     ...(migration ? { migration } : {}),
     ...(activation ? { activation } : {}),
+    ...(inventoryRevision ? { inventoryRevision } : {}),
+    ...(usageSchema ? { usageSchema } : {}),
+    ...(usageFingerprints ? { usageFingerprints } : {}),
+    ...(usage ? { usage } : {}),
+    ...(skillProvenance ? { skillProvenance } : {}),
     evidence,
   };
 }
@@ -164,6 +174,28 @@ function validateSurfaceReceipt(receipt, expectedSurface = null, context = {}) {
   }
   if (receipt.migration !== undefined && (!receipt.migration || typeof receipt.migration !== 'object' || Array.isArray(receipt.migration))) {
     errors.push('provenance migration must be an object when present');
+  }
+  if (receipt.inventoryRevision !== undefined
+    && (typeof receipt.inventoryRevision !== 'string' || receipt.inventoryRevision.trim() === '')) {
+    errors.push('provenance inventoryRevision must be a non-empty string');
+  }
+  if (receipt.usageSchema !== undefined && receipt.usageSchema !== 'dhpk.skill-usage.v1') {
+    errors.push('provenance usageSchema must be dhpk.skill-usage.v1');
+  }
+  if (receipt.usageFingerprints !== undefined) {
+    if (!receipt.usageFingerprints || typeof receipt.usageFingerprints !== 'object' || Array.isArray(receipt.usageFingerprints)) {
+      errors.push('provenance usageFingerprints must be an object');
+    } else {
+      for (const [stableId, usageFingerprint] of Object.entries(receipt.usageFingerprints)) {
+        if (!stableId || typeof usageFingerprint !== 'string' || !SHA256.test(usageFingerprint)) {
+          errors.push(`provenance usage fingerprint '${stableId}' is not a SHA-256 digest`);
+        }
+      }
+    }
+  }
+  if (receipt.skillProvenance !== undefined
+    && (!receipt.skillProvenance || typeof receipt.skillProvenance !== 'object' || Array.isArray(receipt.skillProvenance))) {
+    errors.push('provenance skillProvenance must be an object when present');
   }
 
   const validationContext = context && typeof context === 'object' ? context : {};

@@ -1,4 +1,4 @@
 interface:
   display_name: "Flow Guide"
-  short_description: "Route work and verify workflow gates"
-  default_prompt: "Use $flow-guide to classify the work, select a policy route, advise the next step, or run the final checklist."
+  short_description: "Guide routes, rules, next steps, closeout, and usage help"
+  default_prompt: "Use $flow-guide <help|route|rules|next|close> to get one read-only workflow report or bounded route handoff."

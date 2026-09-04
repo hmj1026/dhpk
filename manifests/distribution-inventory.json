@@ -6,14 +6,12 @@
     "required_core_ids": [
       "change-verdict",
       "code-trace",
-      "create-request",
       "flow-drive",
       "flow-guide",
       "git-smart-commit",
       "project-audit",
       "prompt-optimize",
-      "tdd",
-      "tech-spec"
+      "tdd"
     ],
     "profiles": {
       "minimal": {
@@ -92,81 +90,15 @@
         "claude-module"
       ],
       "selectors": {
-        "6": "skills/dhpk-laravel/references/6.md",
-        "7": "skills/dhpk-laravel/references/7.md",
-        "8": "skills/dhpk-laravel/references/8.md",
-        "9": "skills/dhpk-laravel/references/9.md",
-        "10": "skills/dhpk-laravel/references/10.md",
-        "11": "skills/dhpk-laravel/references/11.md",
-        "5.4": "skills/dhpk-laravel/references/5-4.md",
-        "mix": "skills/dhpk-laravel/references/mix.md"
-      },
-      "aliases": [
-        {
-          "id": "laravel-5.4-notes",
-          "selector": "5.4",
-          "invocation_class": "implicit-eligible",
-          "surfaces": [
-            "claude-module"
-          ]
-        },
-        {
-          "id": "laravel-6-notes",
-          "selector": "6",
-          "invocation_class": "implicit-eligible",
-          "surfaces": [
-            "claude-module"
-          ]
-        },
-        {
-          "id": "laravel-7-notes",
-          "selector": "7",
-          "invocation_class": "implicit-eligible",
-          "surfaces": [
-            "claude-module"
-          ]
-        },
-        {
-          "id": "laravel-8-notes",
-          "selector": "8",
-          "invocation_class": "implicit-eligible",
-          "surfaces": [
-            "claude-module"
-          ]
-        },
-        {
-          "id": "laravel-9-notes",
-          "selector": "9",
-          "invocation_class": "implicit-eligible",
-          "surfaces": [
-            "claude-module"
-          ]
-        },
-        {
-          "id": "laravel-10-notes",
-          "selector": "10",
-          "invocation_class": "implicit-eligible",
-          "surfaces": [
-            "claude-module"
-          ]
-        },
-        {
-          "id": "laravel-11-notes",
-          "selector": "11",
-          "invocation_class": "implicit-eligible",
-          "surfaces": [
-            "claude-module"
-          ]
-        },
-        {
-          "id": "laravel-mix-notes",
-          "selector": "mix",
-          "invocation_class": "implicit-eligible",
-          "surfaces": [
-            "claude-module"
-          ]
-        }
-      ]
+        "6": "skills/laravel/references/6.md",
+        "7": "skills/laravel/references/7.md",
+        "8": "skills/laravel/references/8.md",
+        "9": "skills/laravel/references/9.md",
+        "10": "skills/laravel/references/10.md",
+        "11": "skills/laravel/references/11.md",
+        "5.4": "skills/laravel/references/5-4.md",
+        "mix": "skills/laravel/references/mix.md"
+      }
     },
     {
       "id": "phpunit",
@@ -176,36 +108,10 @@
         "claude-module"
       ],
       "selectors": {
-        "9": "skills/dhpk-phpunit/references/9.md",
-        "10": "skills/dhpk-phpunit/references/10.md",
-        "11": "skills/dhpk-phpunit/references/11.md"
-      },
-      "aliases": [
-        {
-          "id": "phpunit-9-modern",
-          "selector": "9",
-          "invocation_class": "implicit-eligible",
-          "surfaces": [
-            "claude-module"
-          ]
-        },
-        {
-          "id": "phpunit-10-notes",
-          "selector": "10",
-          "invocation_class": "implicit-eligible",
-          "surfaces": [
-            "claude-module"
-          ]
-        },
-        {
-          "id": "phpunit-11-notes",
-          "selector": "11",
-          "invocation_class": "implicit-eligible",
-          "surfaces": [
-            "claude-module"
-          ]
-        }
-      ]
+        "9": "skills/phpunit/references/9.md",
+        "10": "skills/phpunit/references/10.md",
+        "11": "skills/phpunit/references/11.md"
+      }
     }
   ],
   "projection_contract": {
@@ -528,7 +434,7 @@
       "id": "codex-supporting-policies-execution-policy-md",
       "source": "codex/supporting/policies/execution-policy.md",
       "canonical_source": "rules/execution-policy.md",
-      "canonical_digest": "e1c808a8d448555f61b7fe4b826ec63d4421e9c2b666a02c80ddeaa4f0a0ddd5",
+      "canonical_digest": "660df23c9730a33d9ff40ed2181f8535763b056daf7302f5e1a1b012097ecd4a",
       "projection_digest": "5bf08e47d0e5ee8c1ad685e72b0bd90904c40ed4543548a3227388ef441f621d",
       "destination": "dhpk/policies/execution-policy.md"
     },
@@ -638,8 +544,8 @@
     },
     {
       "id": "laravel",
-      "name": "dhpk-laravel",
-      "path": "skills/dhpk-laravel",
+      "name": "laravel",
+      "path": "skills/laravel",
       "capability_id": "dhpk.skill.laravel",
       "invocation_class": "implicit-eligible",
       "lifecycle": "promoted",
@@ -656,199 +562,8 @@
       ],
       "surfaces": [
         "claude-core"
-      ]
-    },
-    {
-      "id": "laravel-10-notes",
-      "name": "dhpk-laravel-10-notes",
-      "path": "skills/dhpk-laravel-10-notes",
-      "capability_id": "dhpk.skill.laravel-10-notes",
-      "invocation_class": "implicit-eligible",
-      "lifecycle": "deprecated",
-      "tier": "optional",
-      "profiles": [
-        "laravel-10"
       ],
-      "surfaces": [
-        "claude-module"
-      ],
-      "legacy_names": [
-        "laravel-10-notes"
-      ],
-      "discoveryVisible": false,
-      "deprecation": {
-        "since": "2026-09-02",
-        "compatibilityWindowEnds": "2026-12-02",
-        "migrationNote": "Use the canonical dhpk-laravel family with selector 10; this legacy ID remains explicitly invocable during the compatibility window."
-      }
-    },
-    {
-      "id": "laravel-11-notes",
-      "name": "dhpk-laravel-11-notes",
-      "path": "skills/dhpk-laravel-11-notes",
-      "capability_id": "dhpk.skill.laravel-11-notes",
-      "invocation_class": "implicit-eligible",
-      "lifecycle": "deprecated",
-      "tier": "optional",
-      "profiles": [
-        "laravel-11"
-      ],
-      "surfaces": [
-        "claude-module"
-      ],
-      "legacy_names": [
-        "laravel-11-notes"
-      ],
-      "discoveryVisible": false,
-      "deprecation": {
-        "since": "2026-09-02",
-        "compatibilityWindowEnds": "2026-12-02",
-        "migrationNote": "Use the canonical dhpk-laravel family with selector 11; this legacy ID remains explicitly invocable during the compatibility window."
-      }
-    },
-    {
-      "id": "laravel-5.4-notes",
-      "name": "dhpk-laravel-5-4-notes",
-      "path": "skills/dhpk-laravel-5-4-notes",
-      "capability_id": "dhpk.skill.laravel-5.4-notes",
-      "invocation_class": "implicit-eligible",
-      "lifecycle": "deprecated",
-      "tier": "optional",
-      "profiles": [
-        "laravel-5.4"
-      ],
-      "surfaces": [
-        "claude-module"
-      ],
-      "legacy_names": [
-        "laravel-5.4-notes"
-      ],
-      "discoveryVisible": false,
-      "deprecation": {
-        "since": "2026-09-02",
-        "compatibilityWindowEnds": "2026-12-02",
-        "migrationNote": "Use the canonical dhpk-laravel family with selector 5.4; this legacy ID remains explicitly invocable during the compatibility window."
-      }
-    },
-    {
-      "id": "laravel-6-notes",
-      "name": "dhpk-laravel-6-notes",
-      "path": "skills/dhpk-laravel-6-notes",
-      "capability_id": "dhpk.skill.laravel-6-notes",
-      "invocation_class": "implicit-eligible",
-      "lifecycle": "deprecated",
-      "tier": "optional",
-      "profiles": [
-        "laravel-6"
-      ],
-      "surfaces": [
-        "claude-module"
-      ],
-      "legacy_names": [
-        "laravel-6-notes"
-      ],
-      "discoveryVisible": false,
-      "deprecation": {
-        "since": "2026-09-02",
-        "compatibilityWindowEnds": "2026-12-02",
-        "migrationNote": "Use the canonical dhpk-laravel family with selector 6; this legacy ID remains explicitly invocable during the compatibility window."
-      }
-    },
-    {
-      "id": "laravel-7-notes",
-      "name": "dhpk-laravel-7-notes",
-      "path": "skills/dhpk-laravel-7-notes",
-      "capability_id": "dhpk.skill.laravel-7-notes",
-      "invocation_class": "implicit-eligible",
-      "lifecycle": "deprecated",
-      "tier": "optional",
-      "profiles": [
-        "laravel-7"
-      ],
-      "surfaces": [
-        "claude-module"
-      ],
-      "legacy_names": [
-        "laravel-7-notes"
-      ],
-      "discoveryVisible": false,
-      "deprecation": {
-        "since": "2026-09-02",
-        "compatibilityWindowEnds": "2026-12-02",
-        "migrationNote": "Use the canonical dhpk-laravel family with selector 7; this legacy ID remains explicitly invocable during the compatibility window."
-      }
-    },
-    {
-      "id": "laravel-8-notes",
-      "name": "dhpk-laravel-8-notes",
-      "path": "skills/dhpk-laravel-8-notes",
-      "capability_id": "dhpk.skill.laravel-8-notes",
-      "invocation_class": "implicit-eligible",
-      "lifecycle": "deprecated",
-      "tier": "optional",
-      "profiles": [
-        "laravel-8"
-      ],
-      "surfaces": [
-        "claude-module"
-      ],
-      "legacy_names": [
-        "laravel-8-notes"
-      ],
-      "discoveryVisible": false,
-      "deprecation": {
-        "since": "2026-09-02",
-        "compatibilityWindowEnds": "2026-12-02",
-        "migrationNote": "Use the canonical dhpk-laravel family with selector 8; this legacy ID remains explicitly invocable during the compatibility window."
-      }
-    },
-    {
-      "id": "laravel-9-notes",
-      "name": "dhpk-laravel-9-notes",
-      "path": "skills/dhpk-laravel-9-notes",
-      "capability_id": "dhpk.skill.laravel-9-notes",
-      "invocation_class": "implicit-eligible",
-      "lifecycle": "deprecated",
-      "tier": "optional",
-      "profiles": [
-        "laravel-9"
-      ],
-      "surfaces": [
-        "claude-module"
-      ],
-      "legacy_names": [
-        "laravel-9-notes"
-      ],
-      "discoveryVisible": false,
-      "deprecation": {
-        "since": "2026-09-02",
-        "compatibilityWindowEnds": "2026-12-02",
-        "migrationNote": "Use the canonical dhpk-laravel family with selector 9; this legacy ID remains explicitly invocable during the compatibility window."
-      }
-    },
-    {
-      "id": "laravel-mix-notes",
-      "name": "dhpk-laravel-mix-notes",
-      "path": "skills/dhpk-laravel-mix-notes",
-      "capability_id": "dhpk.skill.laravel-mix-notes",
-      "invocation_class": "implicit-eligible",
-      "lifecycle": "deprecated",
-      "tier": "optional",
-      "profiles": [
-        "laravel-mix"
-      ],
-      "surfaces": [
-        "claude-module"
-      ],
-      "legacy_names": [
-        "laravel-mix-notes"
-      ],
-      "discoveryVisible": false,
-      "deprecation": {
-        "since": "2026-09-02",
-        "compatibilityWindowEnds": "2026-12-02",
-        "migrationNote": "Use the canonical dhpk-laravel family with selector mix; this legacy ID remains explicitly invocable during the compatibility window."
-      }
+      "name_style": "portable-family"
     },
     {
       "id": "library-dual-testsuite-map",
@@ -945,6 +660,7 @@
       "profiles": [
         "php-5.6"
       ],
+      "invocation_class": "implicit-eligible",
       "surfaces": [
         "claude-module",
         "codex-sync",
@@ -952,7 +668,31 @@
       ],
       "legacy_names": [
         "php-pro"
-      ]
+      ],
+      "usage": {
+        "display_name": "Php Pro",
+        "summary": "Detect PHP runtime and select safe framework guidance",
+        "syntax": "$dhpk-php-runtime-router <php-task>",
+        "input_kind": "free-text",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "read-only",
+        "actions": [
+          {
+            "id": "route",
+            "summary": "Detect the runtime and select matching references",
+            "syntax": "$dhpk-php-runtime-router <php-task>",
+            "input_kind": "free-text",
+            "effect_authority": "read-only"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$dhpk-php-runtime-router review this Yii 1.1 controller",
+            "summary": "Select PHP-compatible guidance for a backend task"
+          }
+        ]
+      }
     },
     {
       "id": "php-modern-pro",
@@ -990,8 +730,8 @@
     },
     {
       "id": "phpunit",
-      "name": "dhpk-phpunit",
-      "path": "skills/dhpk-phpunit",
+      "name": "phpunit",
+      "path": "skills/phpunit",
       "capability_id": "dhpk.skill.phpunit",
       "invocation_class": "implicit-eligible",
       "lifecycle": "promoted",
@@ -1003,55 +743,8 @@
       ],
       "surfaces": [
         "claude-core"
-      ]
-    },
-    {
-      "id": "phpunit-10-notes",
-      "name": "dhpk-phpunit-10-notes",
-      "path": "skills/dhpk-phpunit-10-notes",
-      "capability_id": "dhpk.skill.phpunit-10-notes",
-      "invocation_class": "implicit-eligible",
-      "lifecycle": "deprecated",
-      "tier": "optional",
-      "profiles": [
-        "phpunit-10"
       ],
-      "surfaces": [
-        "claude-module"
-      ],
-      "legacy_names": [
-        "phpunit-10-notes"
-      ],
-      "discoveryVisible": false,
-      "deprecation": {
-        "since": "2026-09-02",
-        "compatibilityWindowEnds": "2026-12-02",
-        "migrationNote": "Use the canonical dhpk-phpunit family with selector 10; this legacy ID remains explicitly invocable during the compatibility window."
-      }
-    },
-    {
-      "id": "phpunit-11-notes",
-      "name": "dhpk-phpunit-11-notes",
-      "path": "skills/dhpk-phpunit-11-notes",
-      "capability_id": "dhpk.skill.phpunit-11-notes",
-      "invocation_class": "implicit-eligible",
-      "lifecycle": "deprecated",
-      "tier": "optional",
-      "profiles": [
-        "phpunit-11"
-      ],
-      "surfaces": [
-        "claude-module"
-      ],
-      "legacy_names": [
-        "phpunit-11-notes"
-      ],
-      "discoveryVisible": false,
-      "deprecation": {
-        "since": "2026-09-02",
-        "compatibilityWindowEnds": "2026-12-02",
-        "migrationNote": "Use the canonical dhpk-phpunit family with selector 11; this legacy ID remains explicitly invocable during the compatibility window."
-      }
+      "name_style": "portable-family"
     },
     {
       "id": "legacy-code-characterization",
@@ -1063,6 +756,7 @@
       "profiles": [
         "phpunit-5.7"
       ],
+      "invocation_class": "implicit-eligible",
       "surfaces": [
         "claude-module",
         "codex-sync",
@@ -1070,30 +764,30 @@
       ],
       "legacy_names": [
         "legacy-code-characterization"
-      ]
-    },
-    {
-      "id": "phpunit-9-modern",
-      "name": "dhpk-phpunit-9-modern",
-      "path": "skills/dhpk-phpunit-9-modern",
-      "capability_id": "dhpk.skill.phpunit-9-modern",
-      "invocation_class": "implicit-eligible",
-      "lifecycle": "deprecated",
-      "tier": "optional",
-      "profiles": [
-        "phpunit-9"
       ],
-      "surfaces": [
-        "claude-module"
-      ],
-      "legacy_names": [
-        "phpunit-9-modern"
-      ],
-      "discoveryVisible": false,
-      "deprecation": {
-        "since": "2026-09-02",
-        "compatibilityWindowEnds": "2026-12-02",
-        "migrationNote": "Use the canonical dhpk-phpunit family with selector 9; this legacy ID remains explicitly invocable during the compatibility window."
+      "usage": {
+        "display_name": "Legacy Code Characterization",
+        "summary": "Lock observed legacy behavior before refactoring safely",
+        "syntax": "$dhpk-legacy-characterization-tests <legacy-target>",
+        "input_kind": "path",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "actions": [
+          {
+            "id": "characterize",
+            "summary": "Write tests that capture the current legacy behavior",
+            "syntax": "$dhpk-legacy-characterization-tests <legacy-target>",
+            "input_kind": "path",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$dhpk-legacy-characterization-tests protected/models/Order.php",
+            "summary": "Lock an untested legacy model before refactoring"
+          }
+        ]
       }
     },
     {
@@ -1293,6 +987,7 @@
       "profiles": [
         "yii-1.1"
       ],
+      "invocation_class": "implicit-eligible",
       "surfaces": [
         "claude-module",
         "codex-sync",
@@ -1300,7 +995,31 @@
       ],
       "legacy_names": [
         "php56-yii-dev"
-      ]
+      ],
+      "usage": {
+        "display_name": "php56-yii-dev",
+        "summary": "Implement Yii 1.x backend changes with PHP 5.6-safe tests",
+        "syntax": "$dhpk-yii1-php56-development <backend-task>",
+        "input_kind": "free-text",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "actions": [
+          {
+            "id": "implement",
+            "summary": "Design, test, and implement a Yii 1.x backend change",
+            "syntax": "$dhpk-yii1-php56-development <backend-task>",
+            "input_kind": "free-text",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$dhpk-yii1-php56-development fix this Yii 1.1 controller",
+            "summary": "Apply PHP 5.6-safe backend implementation guidance"
+          }
+        ]
+      }
     },
     {
       "id": "yii1-security-audit",
@@ -1312,6 +1031,7 @@
       "profiles": [
         "yii-1.1"
       ],
+      "invocation_class": "implicit-eligible",
       "surfaces": [
         "claude-module",
         "codex-sync",
@@ -1319,7 +1039,42 @@
       ],
       "legacy_names": [
         "yii1-security-audit"
-      ]
+      ],
+      "usage": {
+        "display_name": "Yii1 Security Audit",
+        "summary": "Audit Yii 1.1 security boundaries with evidence and fixes",
+        "syntax": "$dhpk-yii1-security-audit <source-path> [--output-path=<path>]",
+        "input_kind": "path",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "read-only",
+        "actions": [
+          {
+            "id": "audit",
+            "summary": "Inspect Yii 1.1 framework security boundaries",
+            "syntax": "$dhpk-yii1-security-audit <source-path> [--output-path=<path>]",
+            "input_kind": "path",
+            "effect_authority": "read-only"
+          }
+        ],
+        "options": [
+          {
+            "id": "output-path",
+            "syntax": "--output-path=<path>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Choose the audit report output directory",
+            "applies_to": [
+              "audit"
+            ]
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$dhpk-yii1-security-audit protected",
+            "summary": "Audit a Yii 1.1 project for framework security issues"
+          }
+        ]
+      }
     },
     {
       "id": "flow-guide",
@@ -1335,8 +1090,74 @@
       ],
       "surfaces": [
         "claude-core",
-        "cursor-sync"
-      ]
+        "cursor-sync",
+        "codex-sync",
+        "codex-native"
+      ],
+      "usage": {
+        "display_name": "Flow Guide",
+        "summary": "Guide routes, rules, next steps, closeout, and usage help",
+        "syntax": "$flow-guide <help|route|rules|next|close> [--go] [<query>]",
+        "input_kind": "action-first",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "delegate",
+        "actions": [
+          {
+            "id": "help",
+            "summary": "Show available Codex usage or one usage card",
+            "syntax": "$flow-guide help [<skill>]",
+            "input_kind": "identifier",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "route",
+            "summary": "Select the smallest workflow owner for a task",
+            "syntax": "$flow-guide route [--go] [<query>]",
+            "input_kind": "free-text",
+            "effect_authority": "delegate"
+          },
+          {
+            "id": "rules",
+            "summary": "Look up the governing workflow rules",
+            "syntax": "$flow-guide rules [<query>]",
+            "input_kind": "free-text",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "next",
+            "summary": "Identify the next bounded workflow action",
+            "syntax": "$flow-guide next [<query>]",
+            "input_kind": "free-text",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "close",
+            "summary": "Check closeout evidence and remaining gates",
+            "syntax": "$flow-guide close [<query>]",
+            "input_kind": "free-text",
+            "effect_authority": "read-only"
+          }
+        ],
+        "options": [
+          {
+            "id": "go",
+            "syntax": "--go",
+            "value_kind": "boolean",
+            "required": false,
+            "default": false,
+            "summary": "Request one bounded handoff when the route is eligible",
+            "applies_to": [
+              "route"
+            ]
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$flow-guide help",
+            "summary": "List the available Codex skill usage contracts"
+          }
+        ]
+      }
     },
     {
       "id": "agent-architecture-audit",
@@ -1354,26 +1175,6 @@
       ],
       "legacy_names": [
         "agent-architecture-audit"
-      ]
-    },
-    {
-      "id": "agy-commit",
-      "name": "dhpk-agy-commit",
-      "path": "skills/dhpk-agy-commit",
-      "capability_id": "dhpk.skill.agy-commit",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "codex-sync",
-        "codex-native",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "agy-commit"
       ]
     },
     {
@@ -1411,25 +1212,103 @@
         "cursor-sync",
         "codex-sync",
         "codex-native"
-      ]
-    },
-    {
-      "id": "claude-health",
-      "name": "dhpk-claude-health",
-      "path": "skills/dhpk-claude-health",
-      "capability_id": "dhpk.skill.claude-health",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
       ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "claude-health"
-      ]
+      "usage": {
+        "display_name": "Code Trace",
+        "summary": "Trace code paths, causes, history, or navigation tools",
+        "syntax": "$code-trace [--mode=<mode>] <query>",
+        "input_kind": "mixed",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "read-only",
+        "actions": [
+          {
+            "id": "explore",
+            "summary": "Trace an unfamiliar symbol, file, module, or flow",
+            "syntax": "$code-trace --mode=explore <query>",
+            "input_kind": "free-text",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "diagnose",
+            "summary": "Confirm the cause of a failure or regression",
+            "syntax": "$code-trace --mode=diagnose <query>",
+            "input_kind": "free-text",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "history",
+            "summary": "Investigate when and why behavior changed",
+            "syntax": "$code-trace --mode=history <query>",
+            "input_kind": "free-text",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "select-tool",
+            "summary": "Select one code-navigation tool and fallback",
+            "syntax": "$code-trace --mode=select-tool <query>",
+            "input_kind": "free-text",
+            "effect_authority": "read-only"
+          }
+        ],
+        "options": [
+          {
+            "id": "mode",
+            "syntax": "--mode=<mode>",
+            "value_kind": "enum",
+            "required": false,
+            "enum_values": [
+              "explore",
+              "diagnose",
+              "history",
+              "select-tool"
+            ],
+            "summary": "Choose the code-trace mode"
+          },
+          {
+            "id": "dual",
+            "syntax": "--dual",
+            "value_kind": "boolean",
+            "required": false,
+            "default": false,
+            "summary": "Request an independent read-only perspective",
+            "applies_to": [
+              "explore"
+            ]
+          },
+          {
+            "id": "explain",
+            "syntax": "--explain",
+            "value_kind": "boolean",
+            "required": false,
+            "default": false,
+            "summary": "Request a bounded explanation of the trace",
+            "applies_to": [
+              "explore"
+            ]
+          },
+          {
+            "id": "depth",
+            "syntax": "--depth=<brief|normal|deep>",
+            "value_kind": "enum",
+            "required": false,
+            "enum_values": [
+              "brief",
+              "normal",
+              "deep"
+            ],
+            "summary": "Set the requested explanation depth",
+            "applies_to": [
+              "explore"
+            ]
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$code-trace --mode=explore OrderService",
+            "summary": "Trace callers and callees for an unfamiliar symbol"
+          }
+        ]
+      }
     },
     {
       "id": "cli-dispatch-context",
@@ -1529,7 +1408,98 @@
         "codex-sync",
         "codex-native",
         "cursor-sync"
-      ]
+      ],
+      "usage": {
+        "display_name": "Flow Drive",
+        "summary": "Implement a confirmed specification with bounded evidence",
+        "syntax": "$flow-drive <confirmed-spec-or-change-id> [--plan[=<model>:<effort>]] [--worker=<worker>] [--reasoner=<backend>:<model>:<effort>] [--architect|--no-architect]",
+        "input_kind": "mixed",
+        "invocation_class": "explicit-only",
+        "effect_authority": "workspace-write",
+        "actions": [
+          {
+            "id": "apply",
+            "summary": "Implement the confirmed specification or OpenSpec change",
+            "syntax": "$flow-drive <confirmed-spec-or-change-id>",
+            "input_kind": "identifier",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [
+          {
+            "id": "plan",
+            "syntax": "--plan[=<model>:<effort>]",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Request a planning pass before implementation",
+            "applies_to": [
+              "apply"
+            ]
+          },
+          {
+            "id": "worker",
+            "syntax": "--worker=<worker>",
+            "value_kind": "enum",
+            "required": false,
+            "enum_values": [
+              "claude",
+              "codex",
+              "agy",
+              "auto"
+            ],
+            "summary": "Select an explicitly requested implementation worker",
+            "applies_to": [
+              "apply"
+            ]
+          },
+          {
+            "id": "reasoner",
+            "syntax": "--reasoner=<backend>:<model>:<effort>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Request a bounded second opinion",
+            "applies_to": [
+              "apply"
+            ]
+          },
+          {
+            "id": "architect",
+            "syntax": "--architect",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Enable the architecture pass",
+            "applies_to": [
+              "apply"
+            ]
+          },
+          {
+            "id": "no-architect",
+            "syntax": "--no-architect",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Disable the architecture pass",
+            "applies_to": [
+              "apply"
+            ]
+          },
+          {
+            "id": "codex",
+            "syntax": "--codex",
+            "value_kind": "boolean",
+            "required": false,
+            "summary": "Request the retired Codex diagnostic",
+            "applies_to": [
+              "apply"
+            ]
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$flow-drive consolidate-remaining-dhpk-skill-families",
+            "summary": "Implement a confirmed OpenSpec change"
+          }
+        ]
+      }
     },
     {
       "id": "composer-package-hygiene",
@@ -1547,24 +1517,6 @@
       ],
       "legacy_names": [
         "composer-package-hygiene"
-      ]
-    },
-    {
-      "id": "create-request",
-      "name": "dhpk-create-request",
-      "path": "skills/dhpk-create-request",
-      "capability_id": "dhpk.skill.create-request",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "create-request"
       ]
     },
     {
@@ -1603,25 +1555,6 @@
       ]
     },
     {
-      "id": "feasibility-study",
-      "name": "dhpk-feasibility-study",
-      "path": "skills/dhpk-feasibility-study",
-      "capability_id": "dhpk.skill.feasibility-study",
-      "invocation_class": "explicit-only",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "feasibility-study"
-      ]
-    },
-    {
       "id": "feature-verify",
       "name": "dhpk-feature-verify",
       "path": "skills/dhpk-feature-verify",
@@ -1650,6 +1583,7 @@
       "profiles": [
         "core"
       ],
+      "invocation_class": "explicit-only",
       "surfaces": [
         "claude-core",
         "codex-sync",
@@ -1658,7 +1592,31 @@
       ],
       "legacy_names": [
         "git-smart-commit"
-      ]
+      ],
+      "usage": {
+        "display_name": "Git Smart Commit",
+        "summary": "Group related changes into reviewable commits safely",
+        "syntax": "$dhpk-git-smart-commit",
+        "input_kind": "none",
+        "invocation_class": "explicit-only",
+        "effect_authority": "git-write",
+        "actions": [
+          {
+            "id": "group",
+            "summary": "Analyze changes and produce grouped commit steps",
+            "syntax": "$dhpk-git-smart-commit",
+            "input_kind": "none",
+            "effect_authority": "git-write"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$dhpk-git-smart-commit split these changes into logical commits",
+            "summary": "Prepare a safe grouped commit plan"
+          }
+        ]
+      }
     },
     {
       "id": "gitnexus-cli",
@@ -1769,60 +1727,6 @@
       ]
     },
     {
-      "id": "harness-budget",
-      "name": "dhpk-harness-budget",
-      "path": "skills/dhpk-harness-budget",
-      "capability_id": "dhpk.skill.harness-budget",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "harness-budget"
-      ]
-    },
-    {
-      "id": "harness-fill",
-      "name": "dhpk-harness-fill",
-      "path": "skills/dhpk-harness-fill",
-      "capability_id": "dhpk.skill.harness-fill",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "harness-fill"
-      ]
-    },
-    {
-      "id": "harness-revise",
-      "name": "dhpk-harness-revise",
-      "path": "skills/dhpk-harness-revise",
-      "capability_id": "dhpk.skill.harness-revise",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "harness-revise"
-      ]
-    },
-    {
       "id": "issue-analyze",
       "name": "dhpk-issue-analyze",
       "path": "skills/dhpk-issue-analyze",
@@ -1878,46 +1782,6 @@
       ]
     },
     {
-      "id": "multi-ai-sync",
-      "name": "dhpk-cross-agent-sync",
-      "path": "skills/dhpk-cross-agent-sync",
-      "capability_id": "dhpk.skill.multi-ai-sync",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "codex-sync",
-        "codex-native",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "multi-ai-sync"
-      ]
-    },
-    {
-      "id": "op-session",
-      "name": "dhpk-onepassword-session",
-      "path": "skills/dhpk-onepassword-session",
-      "capability_id": "dhpk.skill.op-session",
-      "lifecycle": "promoted",
-      "tier": "core",
-      "profiles": [
-        "core"
-      ],
-      "surfaces": [
-        "claude-core",
-        "codex-sync",
-        "codex-native",
-        "cursor-sync"
-      ],
-      "legacy_names": [
-        "op-session"
-      ]
-    },
-    {
       "id": "opsx-apply-goal",
       "name": "dhpk-opsx-apply-goal",
       "path": "skills/dhpk-opsx-apply-goal",
@@ -1945,6 +1809,7 @@
       "profiles": [
         "core"
       ],
+      "invocation_class": "implicit-eligible",
       "surfaces": [
         "claude-core",
         "codex-sync",
@@ -1953,7 +1818,31 @@
       ],
       "legacy_names": [
         "opsx-load-context"
-      ]
+      ],
+      "usage": {
+        "display_name": "Opsx Load Context",
+        "summary": "Load resume context through the deterministic fallback chain",
+        "syntax": "$dhpk-opsx-load-context",
+        "input_kind": "none",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "read-only",
+        "actions": [
+          {
+            "id": "load",
+            "summary": "Resolve the best available resume context",
+            "syntax": "$dhpk-opsx-load-context",
+            "input_kind": "none",
+            "effect_authority": "read-only"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$dhpk-opsx-load-context",
+            "summary": "Load context for an opsx-apply-resume session"
+          }
+        ]
+      }
     },
     {
       "id": "opsx-post-obs",
@@ -1965,6 +1854,7 @@
       "profiles": [
         "core"
       ],
+      "invocation_class": "implicit-eligible",
       "surfaces": [
         "claude-core",
         "codex-sync",
@@ -1973,7 +1863,31 @@
       ],
       "legacy_names": [
         "opsx-post-obs"
-      ]
+      ],
+      "usage": {
+        "display_name": "Opsx Post Obs",
+        "summary": "Post one resume observation through the observer boundary",
+        "syntax": "$dhpk-opsx-post-observation <observation-context>",
+        "input_kind": "free-text",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "delegate",
+        "actions": [
+          {
+            "id": "post",
+            "summary": "Submit the compact session observation",
+            "syntax": "$dhpk-opsx-post-observation <observation-context>",
+            "input_kind": "free-text",
+            "effect_authority": "delegate"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$dhpk-opsx-post-observation save-phase summary",
+            "summary": "Post the observation during opsx save phase"
+          }
+        ]
+      }
     },
     {
       "id": "polyfill-version-matrix-audit",
@@ -2118,7 +2032,52 @@
         "codex-sync",
         "codex-native",
         "cursor-sync"
-      ]
+      ],
+      "usage": {
+        "display_name": "Skill Scope",
+        "summary": "Route skill governance to one focused mode with evidence",
+        "syntax": "$skill-scope <health|judge|stocktake|scout>",
+        "input_kind": "action-first",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "delegate",
+        "actions": [
+          {
+            "id": "health",
+            "summary": "Check one skill or package structure",
+            "syntax": "$skill-scope health <skill>",
+            "input_kind": "identifier",
+            "effect_authority": "delegate"
+          },
+          {
+            "id": "judge",
+            "summary": "Score one skill or package quality",
+            "syntax": "$skill-scope judge <skill>",
+            "input_kind": "identifier",
+            "effect_authority": "delegate"
+          },
+          {
+            "id": "stocktake",
+            "summary": "Audit installed consumer skills and commands",
+            "syntax": "$skill-scope stocktake",
+            "input_kind": "none",
+            "effect_authority": "delegate"
+          },
+          {
+            "id": "scout",
+            "summary": "Search for an existing skill or capability",
+            "syntax": "$skill-scope scout <capability>",
+            "input_kind": "free-text",
+            "effect_authority": "delegate"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$skill-scope health flow-guide",
+            "summary": "Run a focused health check for one skill"
+          }
+        ]
+      }
     },
     {
       "id": "software-architecture",
@@ -2148,6 +2107,7 @@
       "profiles": [
         "core"
       ],
+      "invocation_class": "implicit-eligible",
       "surfaces": [
         "claude-core",
         "codex-sync",
@@ -2156,13 +2116,46 @@
       ],
       "legacy_names": [
         "tdd"
-      ]
+      ],
+      "usage": {
+        "display_name": "TDD",
+        "summary": "Drive behavior-first tests through a minimal red-green loop",
+        "syntax": "$dhpk-tdd-workflow [test-generation] <task>",
+        "input_kind": "mixed",
+        "invocation_class": "implicit-eligible",
+        "effect_authority": "workspace-write",
+        "actions": [
+          {
+            "id": "tdd",
+            "summary": "Guide a behavior-first test and implementation loop",
+            "syntax": "$dhpk-tdd-workflow <task>",
+            "input_kind": "free-text",
+            "effect_authority": "workspace-write"
+          },
+          {
+            "id": "test-generation",
+            "summary": "Generate a focused failing-test scaffold",
+            "syntax": "$dhpk-tdd-workflow test-generation <target>",
+            "input_kind": "path",
+            "effect_authority": "workspace-write"
+          }
+        ],
+        "options": [],
+        "examples": [
+          {
+            "prompt": "$dhpk-tdd-workflow test-generation tests/OrderTest.php",
+            "summary": "Start with a behavior-focused test scaffold"
+          }
+        ]
+      }
     },
     {
-      "id": "tech-spec",
-      "name": "dhpk-tech-spec",
-      "path": "skills/dhpk-tech-spec",
-      "capability_id": "dhpk.skill.tech-spec",
+      "id": "harness-govern",
+      "name": "harness-govern",
+      "name_style": "portable-family",
+      "path": "skills/harness-govern",
+      "capability_id": "dhpk.skill.harness-govern",
+      "invocation_class": "explicit-only",
       "lifecycle": "promoted",
       "tier": "core",
       "profiles": [
@@ -2170,11 +2163,107 @@
       ],
       "surfaces": [
         "claude-core",
+        "codex-sync",
+        "codex-native",
         "cursor-sync"
       ],
-      "legacy_names": [
-        "tech-spec"
-      ]
+      "usage": {
+        "display_name": "Harness Govern",
+        "summary": "Govern harness health, budget, filling, revision, and sync",
+        "syntax": "$harness-govern <health|budget|fill|revise|sync> [options]",
+        "input_kind": "action-first",
+        "invocation_class": "explicit-only",
+        "effect_authority": "external-write",
+        "actions": [
+          {
+            "id": "health",
+            "summary": "Check harness structure and optionally fix safe issues",
+            "syntax": "$harness-govern health [options]",
+            "input_kind": "none",
+            "effect_authority": "workspace-write"
+          },
+          {
+            "id": "budget",
+            "summary": "Measure harness context cost and ranked savings",
+            "syntax": "$harness-govern budget [options]",
+            "input_kind": "none",
+            "effect_authority": "read-only"
+          },
+          {
+            "id": "fill",
+            "summary": "Preview or apply missing harness layers",
+            "syntax": "$harness-govern fill [options]",
+            "input_kind": "none",
+            "effect_authority": "workspace-write"
+          },
+          {
+            "id": "revise",
+            "summary": "Review and revise an active harness",
+            "syntax": "$harness-govern revise [options]",
+            "input_kind": "none",
+            "effect_authority": "workspace-write"
+          },
+          {
+            "id": "sync",
+            "summary": "Plan or apply cross-platform harness synchronization",
+            "syntax": "$harness-govern sync [options]",
+            "input_kind": "none",
+            "effect_authority": "external-write"
+          }
+        ],
+        "options": [
+          {
+            "id": "dir",
+            "syntax": "--dir=<path>",
+            "value_kind": "string",
+            "required": false,
+            "summary": "Select the harness directory"
+          },
+          {
+            "id": "dry-run",
+            "syntax": "--dry-run",
+            "value_kind": "boolean",
+            "required": false,
+            "default": false,
+            "summary": "Preview changes without writing",
+            "applies_to": [
+              "health",
+              "budget",
+              "fill",
+              "revise",
+              "sync"
+            ]
+          },
+          {
+            "id": "fix-safe",
+            "syntax": "--fix-safe",
+            "value_kind": "boolean",
+            "required": false,
+            "default": false,
+            "summary": "Apply only approved safe health fixes",
+            "applies_to": [
+              "health"
+            ]
+          },
+          {
+            "id": "fix",
+            "syntax": "--fix",
+            "value_kind": "boolean",
+            "required": false,
+            "default": false,
+            "summary": "Apply the selected health fixes",
+            "applies_to": [
+              "health"
+            ]
+          }
+        ],
+        "examples": [
+          {
+            "prompt": "$harness-govern health --dry-run",
+            "summary": "Inspect harness health without changing files"
+          }
+        ]
+      }
     }
   ],
   "modules": [
@@ -2429,23 +2518,18 @@
   ],
   "surface_membership": {
     "agent-plugin": [
-      "flow-guide",
       "agent-architecture-audit",
-      "agy-commit",
       "agy-fast-worker",
-      "code-trace",
-      "claude-health",
+      "change-verdict",
       "cli-dispatch-context",
       "cli-transport",
+      "code-trace",
       "codex-bridge",
-      "change-verdict",
-      "flow-drive",
       "composer-package-hygiene",
-      "create-request",
-      "skill-forge",
       "deploy-list",
-      "feasibility-study",
       "feature-verify",
+      "flow-drive",
+      "flow-guide",
       "git-smart-commit",
       "gitnexus-cli",
       "gitnexus-debugging",
@@ -2453,14 +2537,10 @@
       "gitnexus-guide",
       "gitnexus-impact-analysis",
       "gitnexus-refactoring",
-      "harness-budget",
-      "harness-fill",
-      "harness-revise",
+      "harness-govern",
       "issue-analyze",
       "laravel-package-author",
       "laravel-testbench-matrix",
-      "multi-ai-sync",
-      "op-session",
       "opsx-apply-goal",
       "opsx-load-context",
       "opsx-post-obs",
@@ -2471,29 +2551,24 @@
       "release-creator",
       "repo-intake",
       "session-usage-audit",
+      "skill-forge",
       "skill-scope",
       "software-architecture",
-      "tdd",
-      "tech-spec"
+      "tdd"
     ],
     "cursor-plugin": [
-      "flow-guide",
       "agent-architecture-audit",
-      "agy-commit",
       "agy-fast-worker",
-      "code-trace",
-      "claude-health",
+      "change-verdict",
       "cli-dispatch-context",
       "cli-transport",
+      "code-trace",
       "codex-bridge",
-      "change-verdict",
-      "flow-drive",
       "composer-package-hygiene",
-      "create-request",
-      "skill-forge",
       "deploy-list",
-      "feasibility-study",
       "feature-verify",
+      "flow-drive",
+      "flow-guide",
       "git-smart-commit",
       "gitnexus-cli",
       "gitnexus-debugging",
@@ -2501,14 +2576,10 @@
       "gitnexus-guide",
       "gitnexus-impact-analysis",
       "gitnexus-refactoring",
-      "harness-budget",
-      "harness-fill",
-      "harness-revise",
+      "harness-govern",
       "issue-analyze",
       "laravel-package-author",
       "laravel-testbench-matrix",
-      "multi-ai-sync",
-      "op-session",
       "opsx-apply-goal",
       "opsx-load-context",
       "opsx-post-obs",
@@ -2519,29 +2590,24 @@
       "release-creator",
       "repo-intake",
       "session-usage-audit",
+      "skill-forge",
       "skill-scope",
       "software-architecture",
-      "tdd",
-      "tech-spec"
+      "tdd"
     ],
     "agy-plugin": [
-      "flow-guide",
       "agent-architecture-audit",
-      "agy-commit",
       "agy-fast-worker",
-      "code-trace",
-      "claude-health",
+      "change-verdict",
       "cli-dispatch-context",
       "cli-transport",
+      "code-trace",
       "codex-bridge",
-      "change-verdict",
-      "flow-drive",
       "composer-package-hygiene",
-      "create-request",
-      "skill-forge",
       "deploy-list",
-      "feasibility-study",
       "feature-verify",
+      "flow-drive",
+      "flow-guide",
       "git-smart-commit",
       "gitnexus-cli",
       "gitnexus-debugging",
@@ -2549,14 +2615,10 @@
       "gitnexus-guide",
       "gitnexus-impact-analysis",
       "gitnexus-refactoring",
-      "harness-budget",
-      "harness-fill",
-      "harness-revise",
+      "harness-govern",
       "issue-analyze",
       "laravel-package-author",
       "laravel-testbench-matrix",
-      "multi-ai-sync",
-      "op-session",
       "opsx-apply-goal",
       "opsx-load-context",
       "opsx-post-obs",
@@ -2567,29 +2629,24 @@
       "release-creator",
       "repo-intake",
       "session-usage-audit",
+      "skill-forge",
       "skill-scope",
       "software-architecture",
-      "tdd",
-      "tech-spec"
+      "tdd"
     ],
     "cursor-sync": [
-      "flow-guide",
       "agent-architecture-audit",
-      "agy-commit",
       "agy-fast-worker",
-      "code-trace",
-      "claude-health",
+      "change-verdict",
       "cli-dispatch-context",
       "cli-transport",
+      "code-trace",
       "codex-bridge",
-      "change-verdict",
-      "flow-drive",
       "composer-package-hygiene",
-      "create-request",
-      "skill-forge",
       "deploy-list",
-      "feasibility-study",
       "feature-verify",
+      "flow-drive",
+      "flow-guide",
       "git-smart-commit",
       "gitnexus-cli",
       "gitnexus-debugging",
@@ -2597,14 +2654,10 @@
       "gitnexus-guide",
       "gitnexus-impact-analysis",
       "gitnexus-refactoring",
-      "harness-budget",
-      "harness-fill",
-      "harness-revise",
+      "harness-govern",
       "issue-analyze",
       "laravel-package-author",
       "laravel-testbench-matrix",
-      "multi-ai-sync",
-      "op-session",
       "opsx-apply-goal",
       "opsx-load-context",
       "opsx-post-obs",
@@ -2615,10 +2668,10 @@
       "release-creator",
       "repo-intake",
       "session-usage-audit",
+      "skill-forge",
       "skill-scope",
       "software-architecture",
-      "tdd",
-      "tech-spec"
+      "tdd"
     ]
   },
   "internal_runtime_skills": {
@@ -3135,7 +3188,7 @@
         {
           "kind": "skill",
           "id": "flow-guide",
-          "mode": "classify"
+          "mode": "route"
         }
       ],
       "rollback": {
@@ -3156,7 +3209,7 @@
         {
           "kind": "skill",
           "id": "flow-guide",
-          "mode": "policy"
+          "mode": "rules"
         }
       ],
       "rollback": {
@@ -3198,7 +3251,7 @@
         {
           "kind": "skill",
           "id": "flow-guide",
-          "mode": "checklist"
+          "mode": "close"
         }
       ],
       "rollback": {
@@ -3220,7 +3273,7 @@
       "replacements": [
         {
           "kind": "skill",
-          "id": "flow-drive",
+          "id": "flow-guide",
           "mode": "route"
         }
       ],
@@ -3241,8 +3294,7 @@
       "replacements": [
         {
           "kind": "skill",
-          "id": "flow-drive",
-          "mode": "implement"
+          "id": "flow-drive"
         }
       ],
       "rollback": {
@@ -3462,6 +3514,441 @@
       "rollback": {
         "release": "0.52.0"
       }
+    },
+    {
+      "id": "laravel-5.4-notes",
+      "name": "dhpk-laravel-5-4-notes",
+      "canonicalPath": "skills/dhpk-laravel-5-4-notes",
+      "priorSurfaces": [
+        "claude-module"
+      ],
+      "retiredIn": "0.54.0",
+      "reasonCode": "version-family-alias-removal",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "laravel",
+          "mode": "5.4"
+        }
+      ],
+      "rollback": {
+        "release": "0.53.0"
+      }
+    },
+    {
+      "id": "laravel-6-notes",
+      "name": "dhpk-laravel-6-notes",
+      "canonicalPath": "skills/dhpk-laravel-6-notes",
+      "priorSurfaces": [
+        "claude-module"
+      ],
+      "retiredIn": "0.54.0",
+      "reasonCode": "version-family-alias-removal",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "laravel",
+          "mode": "6"
+        }
+      ],
+      "rollback": {
+        "release": "0.53.0"
+      }
+    },
+    {
+      "id": "laravel-7-notes",
+      "name": "dhpk-laravel-7-notes",
+      "canonicalPath": "skills/dhpk-laravel-7-notes",
+      "priorSurfaces": [
+        "claude-module"
+      ],
+      "retiredIn": "0.54.0",
+      "reasonCode": "version-family-alias-removal",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "laravel",
+          "mode": "7"
+        }
+      ],
+      "rollback": {
+        "release": "0.53.0"
+      }
+    },
+    {
+      "id": "laravel-8-notes",
+      "name": "dhpk-laravel-8-notes",
+      "canonicalPath": "skills/dhpk-laravel-8-notes",
+      "priorSurfaces": [
+        "claude-module"
+      ],
+      "retiredIn": "0.54.0",
+      "reasonCode": "version-family-alias-removal",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "laravel",
+          "mode": "8"
+        }
+      ],
+      "rollback": {
+        "release": "0.53.0"
+      }
+    },
+    {
+      "id": "laravel-9-notes",
+      "name": "dhpk-laravel-9-notes",
+      "canonicalPath": "skills/dhpk-laravel-9-notes",
+      "priorSurfaces": [
+        "claude-module"
+      ],
+      "retiredIn": "0.54.0",
+      "reasonCode": "version-family-alias-removal",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "laravel",
+          "mode": "9"
+        }
+      ],
+      "rollback": {
+        "release": "0.53.0"
+      }
+    },
+    {
+      "id": "laravel-10-notes",
+      "name": "dhpk-laravel-10-notes",
+      "canonicalPath": "skills/dhpk-laravel-10-notes",
+      "priorSurfaces": [
+        "claude-module"
+      ],
+      "retiredIn": "0.54.0",
+      "reasonCode": "version-family-alias-removal",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "laravel",
+          "mode": "10"
+        }
+      ],
+      "rollback": {
+        "release": "0.53.0"
+      }
+    },
+    {
+      "id": "laravel-11-notes",
+      "name": "dhpk-laravel-11-notes",
+      "canonicalPath": "skills/dhpk-laravel-11-notes",
+      "priorSurfaces": [
+        "claude-module"
+      ],
+      "retiredIn": "0.54.0",
+      "reasonCode": "version-family-alias-removal",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "laravel",
+          "mode": "11"
+        }
+      ],
+      "rollback": {
+        "release": "0.53.0"
+      }
+    },
+    {
+      "id": "laravel-mix-notes",
+      "name": "dhpk-laravel-mix-notes",
+      "canonicalPath": "skills/dhpk-laravel-mix-notes",
+      "priorSurfaces": [
+        "claude-module"
+      ],
+      "retiredIn": "0.54.0",
+      "reasonCode": "version-family-alias-removal",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "laravel",
+          "mode": "mix"
+        }
+      ],
+      "rollback": {
+        "release": "0.53.0"
+      }
+    },
+    {
+      "id": "phpunit-9-modern",
+      "name": "dhpk-phpunit-9-modern",
+      "canonicalPath": "skills/dhpk-phpunit-9-modern",
+      "priorSurfaces": [
+        "claude-module"
+      ],
+      "retiredIn": "0.54.0",
+      "reasonCode": "version-family-alias-removal",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "phpunit",
+          "mode": "9"
+        }
+      ],
+      "rollback": {
+        "release": "0.53.0"
+      }
+    },
+    {
+      "id": "phpunit-10-notes",
+      "name": "dhpk-phpunit-10-notes",
+      "canonicalPath": "skills/dhpk-phpunit-10-notes",
+      "priorSurfaces": [
+        "claude-module"
+      ],
+      "retiredIn": "0.54.0",
+      "reasonCode": "version-family-alias-removal",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "phpunit",
+          "mode": "10"
+        }
+      ],
+      "rollback": {
+        "release": "0.53.0"
+      }
+    },
+    {
+      "id": "phpunit-11-notes",
+      "name": "dhpk-phpunit-11-notes",
+      "canonicalPath": "skills/dhpk-phpunit-11-notes",
+      "priorSurfaces": [
+        "claude-module"
+      ],
+      "retiredIn": "0.54.0",
+      "reasonCode": "version-family-alias-removal",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "phpunit",
+          "mode": "11"
+        }
+      ],
+      "rollback": {
+        "release": "0.53.0"
+      }
+    },
+    {
+      "id": "claude-health",
+      "name": "dhpk-claude-health",
+      "canonicalPath": "skills/dhpk-claude-health",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.54.0",
+      "reasonCode": "remaining-capability-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "harness-govern",
+          "mode": "health"
+        }
+      ],
+      "rollback": {
+        "release": "0.53.0"
+      }
+    },
+    {
+      "id": "harness-budget",
+      "name": "dhpk-harness-budget",
+      "canonicalPath": "skills/dhpk-harness-budget",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.54.0",
+      "reasonCode": "remaining-capability-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "harness-govern",
+          "mode": "budget"
+        }
+      ],
+      "rollback": {
+        "release": "0.53.0"
+      }
+    },
+    {
+      "id": "harness-fill",
+      "name": "dhpk-harness-fill",
+      "canonicalPath": "skills/dhpk-harness-fill",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.54.0",
+      "reasonCode": "remaining-capability-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "harness-govern",
+          "mode": "fill"
+        }
+      ],
+      "rollback": {
+        "release": "0.53.0"
+      }
+    },
+    {
+      "id": "harness-revise",
+      "name": "dhpk-harness-revise",
+      "canonicalPath": "skills/dhpk-harness-revise",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.54.0",
+      "reasonCode": "remaining-capability-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "harness-govern",
+          "mode": "revise"
+        }
+      ],
+      "rollback": {
+        "release": "0.53.0"
+      }
+    },
+    {
+      "id": "multi-ai-sync",
+      "name": "dhpk-cross-agent-sync",
+      "canonicalPath": "skills/dhpk-cross-agent-sync",
+      "priorSurfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.54.0",
+      "reasonCode": "remaining-capability-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "harness-govern",
+          "mode": "sync"
+        }
+      ],
+      "rollback": {
+        "release": "0.53.0"
+      }
+    },
+    {
+      "id": "agy-commit",
+      "name": "dhpk-agy-commit",
+      "canonicalPath": "skills/dhpk-agy-commit",
+      "priorSurfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.54.0",
+      "reasonCode": "remaining-capability-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "git-smart-commit"
+        }
+      ],
+      "rollback": {
+        "release": "0.53.0"
+      }
+    },
+    {
+      "id": "feasibility-study",
+      "name": "dhpk-feasibility-study",
+      "canonicalPath": "skills/dhpk-feasibility-study",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.54.0",
+      "reasonCode": "remaining-capability-family-consolidation",
+      "replacements": [
+        {
+          "kind": "skill",
+          "id": "software-architecture",
+          "mode": "compare"
+        }
+      ],
+      "rollback": {
+        "release": "0.53.0"
+      }
+    },
+    {
+      "id": "tech-spec",
+      "name": "dhpk-tech-spec",
+      "canonicalPath": "skills/dhpk-tech-spec",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.54.0",
+      "reasonCode": "openspec-authoring-consolidation",
+      "replacements": [
+        {
+          "kind": "external-skill",
+          "id": "openspec-propose",
+          "mode": "propose"
+        }
+      ],
+      "rollback": {
+        "release": "0.53.0"
+      }
+    },
+    {
+      "id": "create-request",
+      "name": "dhpk-create-request",
+      "canonicalPath": "skills/dhpk-create-request",
+      "priorSurfaces": [
+        "claude-core",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.54.0",
+      "reasonCode": "openspec-authoring-consolidation",
+      "replacements": [
+        {
+          "kind": "external-skill",
+          "id": "openspec-propose",
+          "mode": "propose"
+        }
+      ],
+      "rollback": {
+        "release": "0.53.0"
+      }
+    },
+    {
+      "id": "op-session",
+      "name": "dhpk-onepassword-session",
+      "canonicalPath": "skills/dhpk-onepassword-session",
+      "priorSurfaces": [
+        "claude-core",
+        "codex-sync",
+        "codex-native",
+        "cursor-sync"
+      ],
+      "retiredIn": "0.54.0",
+      "reasonCode": "operator-action-capability-removal",
+      "replacements": [
+        {
+          "kind": "operator-action",
+          "id": "onepassword-cli",
+          "mode": "signin"
+        }
+      ],
+      "rollback": {
+        "release": "0.53.0"
+      }
     }
   ],
   "external_skill_packages": [
@@ -3479,6 +3966,28 @@
         "gitnexus-impact-analysis",
         "gitnexus-refactoring"
       ]
+    }
+  ],
+  "renamed_skill_names": [
+    {
+      "id": "laravel",
+      "oldName": "dhpk-laravel",
+      "oldPath": "skills/dhpk-laravel",
+      "newName": "laravel",
+      "newPath": "skills/laravel",
+      "rollback": {
+        "release": "0.53.0"
+      }
+    },
+    {
+      "id": "phpunit",
+      "oldName": "dhpk-phpunit",
+      "oldPath": "skills/dhpk-phpunit",
+      "newName": "phpunit",
+      "newPath": "skills/phpunit",
+      "rollback": {
+        "release": "0.53.0"
+      }
     }
   ]
 }

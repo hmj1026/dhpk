@@ -1,4 +1,0 @@
-interface:
-  display_name: "Tech Spec"
-  short_description: "Tech spec generation and review."
-  default_prompt: "Use $dhpk-tech-spec to apply the Tech Spec workflow with its verification rules."

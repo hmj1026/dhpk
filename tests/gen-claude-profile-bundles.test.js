@@ -23,7 +23,7 @@ test('minimal generator reports the curated default selection', () => {
   ], { cwd: ROOT, encoding: 'utf8' });
   assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
   const payload = JSON.parse(result.stdout);
-  assert.strictEqual(payload.selectedStableIds.length, 10);
+  assert.strictEqual(payload.selectedStableIds.length, 8);
   assert.ok(payload.selectedStableIds.includes('code-trace'));
   assert.ok(payload.selectedStableIds.includes('flow-drive'));
   assert.ok(payload.selectedStableIds.includes('flow-guide'));
@@ -38,7 +38,7 @@ test('compat-v1 generator preserves the predecessor-compatible allowlist', () =>
   ], { cwd: ROOT, encoding: 'utf8' });
   assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
   const payload = JSON.parse(result.stdout);
-  assert.strictEqual(payload.selectedStableIds.length, 71);
+  assert.strictEqual(payload.selectedStableIds.length, 62);
   assert.ok(!payload.selectedStableIds.includes('opsx-post-obs'));
   assert.strictEqual(payload.compatibilityMode, 'compat-v1');
 });

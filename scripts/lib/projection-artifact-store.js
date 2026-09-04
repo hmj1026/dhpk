@@ -227,7 +227,22 @@ class ProjectionArtifactStore {
         }
         if (mode === null || mode === undefined) fs.writeFileSync(target, output.content);
         else fs.writeFileSync(target, output.content, { mode });
-        written.push({ stableId: entry.stableId, destination: entry.destination, fingerprint: digest(target), mode: fs.statSync(target).mode & 0o7777 });
+        written.push({
+          stableId: entry.stableId,
+          destination: entry.destination,
+          fingerprint: digest(target),
+          mode: fs.statSync(target).mode & 0o7777,
+          ...(entry.skillId ? {
+            skillId: entry.skillId,
+            publicName: entry.publicName,
+            invocationClass: entry.invocationClass,
+            lifecycle: entry.lifecycle,
+            usageSchema: entry.usageSchema,
+            usage: entry.usage,
+            usageFingerprint: entry.usageFingerprint,
+            provenance: entry.provenance,
+          } : {}),
+        });
       },
       link: (output) => {
         const entry = entryFor(output);

@@ -156,7 +156,7 @@ A family skill (Laravel, PHPUnit) SHALL resolve the applicable version reference
 
 ### Requirement: Family skills remain functional as a standalone copy
 
-A family skill's folder (`skills/dhpk-laravel/` or `skills/dhpk-phpunit/`), copied out of the repository in isolation or installed independently through `skills.sh`, SHALL function correctly for its core capability with no dhpk Workflow State, manifest, Hook, Agent, or MCP server present.
+A family skill's folder (`skills/laravel/` or `skills/phpunit/`), copied out of the repository in isolation or installed independently through `skills.sh`, SHALL function correctly for its core capability with no dhpk Workflow State, manifest, Hook, Agent, or MCP server present.
 
 #### Scenario: Isolated copy resolves an explicit version
 
@@ -170,7 +170,7 @@ A family skill's folder (`skills/dhpk-laravel/` or `skills/dhpk-phpunit/`), copi
 
 ### Requirement: Family selectors and aliases have an explicit distribution contract
 
-The distribution inventory SHALL declare the live `laravel` and `phpunit` family selectors as safe paths under `skills/dhpk-laravel/references/` and `skills/dhpk-phpunit/references/` respectively: Laravel selectors `5.4`, `6`, `7`, `8`, `9`, `10`, `11`, and `mix` SHALL target `references/{5-4,6,7,8,9,10,11,mix}.md`, and PHPUnit selectors `9`, `10`, and `11` SHALL target `references/{9,10,11}.md`. The 11 legacy IDs SHALL remain `lifecycle: deprecated` compatibility aliases, SHALL be excluded from generated discovery and profile projections, and SHALL preserve their pre-change `invocation_class` and declared surfaces (`implicit-eligible` and `claude-module` for the current entries) while remaining directly explicitly invocable during the compatibility window. Inventory validation and normalized projections SHALL fail closed on missing, ambiguous, escaping, or alias-published targets.
+The distribution inventory SHALL declare the live `laravel` and `phpunit` family selectors as safe paths under `skills/laravel/references/` and `skills/phpunit/references/` respectively: Laravel selectors `5.4`, `6`, `7`, `8`, `9`, `10`, `11`, and `mix` SHALL target `references/{5-4,6,7,8,9,10,11,mix}.md`, and PHPUnit selectors `9`, `10`, and `11` SHALL target `references/{9,10,11}.md`. The 11 predecessor IDs SHALL be alias-free retirement records, SHALL be excluded from discovery and profile projections, and SHALL resolve only to successor diagnostics that name the family selector and the rollback release. Inventory validation and normalized projections SHALL fail closed on missing, ambiguous, escaping, active-alias, or retired-name publication.
 
 #### Scenario: Family selector targets a portable reference
 
@@ -222,7 +222,7 @@ The consolidated PHPUnit family SHALL follow the authoritative annotation lifecy
 
 ### Requirement: Capability-family discovery exposes interfaces rather than modes
 
-Discovery-visible metadata SHALL expose one concise description for each capability family and SHALL keep mode procedures out of the initial context. After consolidation the canonical inventory SHALL contain 85 skills, and the selected profile counts SHALL be `minimal=10`, `full=64`, and `compat-v1=71` before any explicit overlay.
+Discovery-visible metadata SHALL expose one concise description for each capability family and SHALL keep mode procedures out of the initial context. After the 0.54.0 consolidation the canonical inventory SHALL contain 65 skills, with 9 portable public family names and 56 `dhpk-`-prefixed names; selected profile counts SHALL be `minimal=8`, `full=55`, and `compat-v1=62` before any explicit overlay.
 
 #### Scenario: Family surface meets the structural baseline
 - **WHEN** inventory and profile validation run after the consolidation

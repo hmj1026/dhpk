@@ -78,7 +78,7 @@ Skill invocation 是 chat syntax，不是 plugin-management command。每個同�
 仍須確認選定的 family 或 `$dhpk-<name>` 能解析。
 
 主要流程的 Codex 入口是 `$flow-drive <task>`（該 family 被發現時），只分類可用
-`$flow-drive --route-only <task>`。Codex 沒有 `/dhpk:do` command。若 `$flow-drive`
+`$flow-guide route <task>`。Codex 沒有 `/dhpk:do` command。若 `$flow-drive`
 未被發現，使用 `AGENTS.md` 的 instruction routing 與明確 `/opsx:*`；不要虛構可呼叫
 的 `/dhpk:do`。
 

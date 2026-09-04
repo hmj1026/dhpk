@@ -104,7 +104,7 @@ Selection reports SHALL distinguish profile resolution, structural/package gener
 
 ### Requirement: Consolidated profiles replace predecessors atomically
 
-Profile definitions SHALL replace every selected predecessor with its successor family once, preserve protected external-package IDs, and produce `full=64` and `compat-v1=71` stable IDs for this inventory revision.
+Profile definitions SHALL replace every selected predecessor with its successor family once, preserve protected external-package IDs, and produce `minimal=8`, `full=55`, and `compat-v1=62` stable IDs for the 0.54.0 inventory revision.
 
 #### Scenario: One profile retains both identities
 - **WHEN** a profile contains a retired predecessor and its successor family or drops a protected GitNexus identity

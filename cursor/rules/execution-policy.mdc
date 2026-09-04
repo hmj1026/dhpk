@@ -32,11 +32,11 @@ consumable directly by a project's own `CLAUDE.md` via the
 
 ## Classification-first context loading
 
-Determine the workflow type (Small change / Bug / Feature / Architecture) from the user request BEFORE loading heavy references (profiles, scope docs, legacy analysis, investigation scaffolding). Load only the references the chosen workflow needs; expand incrementally if the classification changes. Upfront loading burns context budget on paths not taken. (flow-guide, harness-fill)
+Determine the workflow type (Small change / Bug / Feature / Architecture) from the user request BEFORE loading heavy references (profiles, scope docs, legacy analysis, investigation scaffolding). Load only the references the chosen workflow needs; expand incrementally if the classification changes. Upfront loading burns context budget on paths not taken. (`flow-guide`, `harness-govern`)
 
 ### Change classification & OpenSpec routing (SSOT)
 
-Single source of truth for the six change types, their flow, and whether to ask about OpenSpec. `skills/flow-guide/SKILL.md` and `skills/flow-drive/SKILL.md` route through this table — reference it, do not restate it.
+Single source of truth for the six change types, their flow, and whether to ask about OpenSpec. `flow-guide` owns classification and routing; `flow-drive` accepts only a confirmed specification or change. Reference the table from `skills/flow-guide/SKILL.md` and `skills/flow-drive/SKILL.md` rather than adding another router.
 
 | Change type | OpenSpec ask? | Flow |
 |---|---|---|
@@ -47,13 +47,13 @@ Single source of truth for the six change types, their flow, and whether to ask 
 | Medium change | ❌ no | inspect → brief plan → tdd-guide → patch |
 | Lightweight Maintenance | ❌ no | inspect → patch |
 
-> **`$flow-drive --openspec` override (force-`y`):** the `--openspec` flag (alias `--opsx`) force-selects the "create a change" (`y`) path — running `opsx:new` → `opsx:ff` to emit artifacts, then pausing for human review — overriding the per-type ask behavior in the "OpenSpec ask?" column above. The override is keyed on the **resolved route**, not the change-type row: it activates whenever `$flow-drive` resolves to the `flow-guide` change-authoring route — where every substantial bug/feature request lands *before* this per-type classification runs — so that route goes straight to artifact authoring instead of asking or classifying (bypassing the row's normal investigation/architecture steps). It is **not applicable** to `opsx-apply-goal` (which applies an *existing* change) or any other non-authoring route — there it prints `--openspec ignored: ...` and proceeds. `--openspec` supersedes `--plan` only when this authoring diversion activates. SSOT for the flag mechanics: `skills/flow-drive/SKILL.md` route mode and the OpenSpec command contract.
+> **OpenSpec authoring boundary:** proposal and artifact creation belong to the external `$openspec-propose` owner (or its `/opsx:new` and `/opsx:ff` commands). `flow-guide` may identify that handoff, but it does not author; `flow-drive` accepts only the resulting confirmed specification or change and has no authoring or route mode. Apply a confirmed change through external `/opsx:apply` or `$flow-drive <confirmed-spec-or-change-id>` according to the chosen owner.
 
 ## Invocation precedence & entry selection
 
 Every distributed skill/command carries `metadata.dhpk-invocation-class`
 (`explicit-only` or `implicit-eligible`). Entry selection across exact
-invocation, `$flow-drive`, `flow-guide` next mode, and model selection follows one fixed
+invocation, `$flow-guide` actions, `$flow-drive` confirmed implementation, and model selection follows one fixed
 precedence; an explicitly-invoked router may start an `implicit-eligible`
 target but must present-and-wait for an `explicit-only` target rather than
 calling it through the Skill tool. Full precedence order, Explicit Invocation
@@ -285,11 +285,13 @@ removes the flag from the query, emits `DEPRECATED_CODEX_FLAG`, and stops with
 `blocked`; it never selects a peer, worker, reasoner, `codex exec` route, or
 app-server plugin. There is no hidden fallback. Exact replacements are:
 
-- Use the default Codex-free `$flow-drive <task>` route for normal work.
-- Use `$flow-drive --worker=codex <task>` for an explicitly selected Codex CLI
-  mechanical worker.
-- Use `$flow-drive --reasoner=codex[:<model>[:<effort>]] <task>` for an explicitly
-  selected Codex CLI reasoning pass.
+- Use `$flow-guide help` or `$flow-guide route <task>` for usage discovery and
+  guidance; this entry is read-only.
+- Use `$flow-drive <confirmed-spec-or-change-id>` for explicit implementation,
+  with `--worker=codex` when a Codex CLI mechanical worker is deliberately
+  selected.
+- Use `$flow-drive --reasoner=codex:<model>:<effort> <confirmed-spec-or-change-id>`
+  for an explicitly selected Codex CLI reasoning pass.
 - Use a named owner's `--second-opinion=codex-exec` option, or the explicit
   `codex-bridge` route, for an additive one-shot `codex exec` second opinion.
 - Invoke the external `openai/codex-plugin-cc` app-server commands directly;
@@ -412,7 +414,7 @@ the task explicitly requires changing deployment topology.
 
 ## Self-check (before reply)
 
-Wrap-up before reply / after a large Edit / before smart-commit → load `flow-guide` in `checklist` mode for the full self-audit (Per-reply / Conditional / Task-end three-stage + trigger-condition matrix). Daily single-line edits / pure research / typos do not need this.
+Wrap-up before reply / after a large Edit / before smart-commit → run `$flow-guide close` for the full self-audit (Per-reply / Conditional / Task-end three-stage + trigger-condition matrix). Daily single-line edits / pure research / typos do not need this.
 
 Any applicable NO → fix first, then reply.
 

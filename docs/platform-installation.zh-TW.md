@@ -118,7 +118,7 @@ transaction 遷移。
 client-specific probe，否則明確回傳 `runtime: NOT_RUN`。
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.53.0 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.54.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -191,7 +191,7 @@ source fingerprint 帶入 adoption。省略 `--copy`，installer 會沿用 recei
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" \
   --update \
-  --adopt='skills/dhpk-cross-agent-sync@<destination-fingerprint>@<source-fingerprint>'
+  --adopt='skills/harness-govern@<destination-fingerprint>@<source-fingerprint>'
 ```
 
 adoption 只作用於指定 path，並會在 promotion 前建立可 rollback 的 backup；不會
@@ -548,7 +548,7 @@ projection mode：
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-cursor-harness.sh" \
   --update \
-  --adopt='skills/dhpk-cross-agent-sync@<destination-fingerprint>@<source-fingerprint>'
+  --adopt='skills/harness-govern@<destination-fingerprint>@<source-fingerprint>'
 ```
 
 Adoption 以 path 為範圍，並在 promotion 前建立可 rollback 的 backup。fingerprint
@@ -580,7 +580,7 @@ AGY projection 是獨立的 owner-scoped package。它只轉換 canonical agent
 frontmatter，不會改寫 `agents/`。請從 dhpk checkout 產生與驗證：
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.53.0 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.54.0 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -614,7 +614,7 @@ checkout，之後才能 clean install。診斷不會自動 migration、adoption�
 configured-platform validation 與 package validation 分開執行：
 
 ```bash
-python3 skills/dhpk-cross-agent-sync/scripts/multi_ai_sync.py \
+python3 skills/harness-govern/scripts/multi_ai_sync.py \
   --root . validate --targets agy --format json
 agy --version
 agy plugins list
@@ -646,7 +646,7 @@ payload 或 host overlay marker。
 有界且唯讀：
 
 ```bash
-python3 skills/dhpk-cross-agent-sync/scripts/multi_ai_sync.py \
+python3 skills/harness-govern/scripts/multi_ai_sync.py \
   --root . validate --targets agy --agy-runtime-probe --format json
 ```
 

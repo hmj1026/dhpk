@@ -15,6 +15,11 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { RECEIPT_SCHEMA, SURFACE_OWNERS, resolveGeneratedFromTree } = require('./platform-provenance');
+const {
+  externalSkillPackagesFingerprint,
+  resolveInventoryRevision,
+  skillProjectionMetadata,
+} = require('./distribution-projection-contract');
 const { selectPortableSkills } = require('./agent-plugin-package');
 const {
   compileDistribution,
@@ -820,6 +825,10 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
     profileSelection = bound.value;
   }
   const resolvedRoot = path.resolve(root);
+  const inventoryRevision = resolveInventoryRevision(inventory);
+  const ownershipFingerprint = Object.prototype.hasOwnProperty.call(inventory, 'external_skill_packages')
+    ? externalSkillPackagesFingerprint(inventory.external_skill_packages)
+    : undefined;
   const transformations = [];
   const skippedSkills = [];
   const files = [];
@@ -859,7 +868,13 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
     traversalBudget.accountBytes(skillFile.content.byteLength, skillFile.destination);
     selectedIds.push(skill.id);
     selectedNames.push(publicName);
-    files.push(...skillFiles);
+    const skillMetadata = skillProjectionMetadata(skill, {
+      transform: { id: 'cursor-native-skill', version: generatorVersion },
+      owner: SURFACE_OWNERS['cursor-plugin'],
+      inventoryRevision,
+      ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
+    });
+    files.push(...skillFiles.map((file) => ({ ...file, ...skillMetadata })));
     transformations.push({ source: skill.path, destination: `skills/${publicName}`, transform: adapted.transform });
   }
 
@@ -902,6 +917,7 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
     generatedFromCommit: sourceCommit,
     ...(generatedFromTree ? { generatedFromTree } : {}),
     inventoryDigest: stableInventoryDigest(inventory),
+    inventoryRevision,
     generatorVersion,
     selectedSkillIds: [...selectedIds].sort(),
     selectedSkillNames: [...selectedNames].sort(),
@@ -914,6 +930,14 @@ function buildCursorProjection({ inventory, root, name, version, sourceCommit, g
     skippedSkills: skippedSkills.slice().sort((a, b) => String(a.id).localeCompare(String(b.id))),
     transformations: transformations.slice().sort((a, b) => `${a.source || ''}:${a.destination || ''}`.localeCompare(`${b.source || ''}:${b.destination || ''}`)),
     fingerprints,
+    ...(skillProjection.sharedSkills.concat(skillProjection.overlaySkills).some((skill) => skill.usage) ? {
+      usageSchema: 'dhpk.skill-usage.v1',
+      usage: Object.fromEntries(skillProjection.sharedSkills.concat(skillProjection.overlaySkills)
+        .filter((skill) => skill.usage).map((skill) => [skill.id, skill.usage])),
+      usageFingerprints: Object.fromEntries(skillProjection.sharedSkills.concat(skillProjection.overlaySkills)
+        .filter((skill) => skill.usage).map((skill) => [skill.id, skillProjectionMetadata(skill, { inventoryRevision }).usageFingerprint])),
+    } : {}),
+    ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
     consumer: { status: 'NOT_RUN', reason: 'Cursor client consumer probe is separate from structural generation.' },
     ...(profileSelection ? {
       profileId: profileSelection.profileId || profileSelection.id,
@@ -970,6 +994,10 @@ function compileCursorPackage({
   const resolvedOut = path.resolve(outDir);
   ensurePhysicalDirectory(resolvedRoot, 'canonical root');
   assertProjectionDestination(resolvedRoot, resolvedOut, 'Cursor Plugin');
+  const inventoryRevision = resolveInventoryRevision(inventory);
+  const ownershipFingerprint = Object.prototype.hasOwnProperty.call(inventory, 'external_skill_packages')
+    ? externalSkillPackagesFingerprint(inventory.external_skill_packages)
+    : undefined;
   const projection = buildCursorProjection({ inventory, root: resolvedRoot, name, version, sourceCommit, generatorVersion, variables, traversalOptions, selectionMode, profileSelection });
   const entries = projection.files.map((file) => ({
       stableId: `cursor:${file.destination}`,
@@ -986,11 +1014,23 @@ function compileCursorPackage({
         : crypto.createHash('sha256').update(file.content).digest('hex'),
       mode: file.mode,
       symlinkPolicy: 'forbid',
+      ...(file.skillId ? {
+        skillId: file.skillId,
+        publicName: file.publicName,
+        invocationClass: file.invocationClass,
+        lifecycle: file.lifecycle,
+        usageSchema: file.usageSchema,
+        usage: file.usage,
+        usageFingerprint: file.usageFingerprint,
+        provenance: file.provenance,
+      } : {}),
   }));
   const compiled = compileDistribution({
       surface: 'cursor-plugin',
       compilerVersion: `cursor-${generatorVersion}`,
       inventoryFingerprint: stableInventoryDigest(inventory),
+      inventoryRevision,
+      ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
       // Plan identity is a contract identity, not a host-specific temp path.
       ownershipRoot: 'plugins/dhpk-cursor',
       entries,
@@ -1001,7 +1041,18 @@ function compileCursorPackage({
         ? projection.selection.selectionPolicy
         : undefined,
       selectionEntries: projection.selection && projection.selection.selectionPolicy
-        ? (projection.selection.selectionEntries || projection.selection.entries)
+        ? (projection.selection.selectionEntries || projection.selection.entries).map((entry) => {
+          const skill = (inventory.skills || []).find((candidate) => candidate.id === entry.stableId || candidate.id === entry.skillId);
+          return skill ? {
+            ...entry,
+            ...skillProjectionMetadata(skill, {
+              transform: entry.transform,
+              owner: SURFACE_OWNERS['cursor-plugin'],
+              inventoryRevision,
+              ...(ownershipFingerprint !== undefined ? { externalSkillPackagesFingerprint: ownershipFingerprint } : {}),
+            }),
+          } : entry;
+        })
         : undefined,
       profileSelection,
       selectionFingerprint: profileSelection && profileSelection.selectionFingerprint,
