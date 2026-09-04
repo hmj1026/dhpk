@@ -227,4 +227,40 @@ function inspectCodexDiscovery({ project = [], native = [], precedence = [], rec
   });
 }
 
-module.exports = { VERDICTS, inspectCodexDiscovery };
+function inspectCodexActivation({
+  project = [],
+  native = [],
+  precedence = [],
+  receipt = null,
+  nonInvokableSkillNames = [],
+} = {}) {
+  const integrity = inspectCodexDiscovery({ project, native, precedence, receipt });
+  const nonInvokable = new Set(asList(nonInvokableSkillNames).filter(
+    (name) => typeof name === 'string' && name.trim(),
+  ));
+  const projectSkillNames = new Set(
+    integrity.providers.project
+      .filter((provider) => provider.kind === 'skills')
+      .map((provider) => provider.name),
+  );
+  const duplicateInvokableNames = [...new Set(
+    integrity.providers.native
+      .filter((provider) => (
+        provider.kind === 'skills'
+        && projectSkillNames.has(provider.name)
+        && !nonInvokable.has(provider.name)
+      ))
+      .map((provider) => provider.name),
+  )].sort((left, right) => left.localeCompare(right));
+  const blockedByDuplicate = duplicateInvokableNames.length > 0;
+  return Object.freeze({
+    ...integrity,
+    ok: !blockedByDuplicate && integrity.ok,
+    verdict: blockedByDuplicate ? VERDICTS.BLOCKED : integrity.verdict,
+    reasonCode: blockedByDuplicate ? 'DUPLICATE_CODEX_PROVIDER' : null,
+    duplicateInvokableNames,
+    integrityVerdict: integrity.verdict,
+  });
+}
+
+module.exports = { VERDICTS, inspectCodexActivation, inspectCodexDiscovery };

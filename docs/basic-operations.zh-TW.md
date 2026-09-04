@@ -40,12 +40,15 @@ dhpk 刻意提供多個不同支援等級的 surface：
 | Claude marketplace | Supported | 主要 consumer 安裝與更新路徑。 |
 | `claude --plugin-dir` | Development-only | Working-tree 迭代，不是 release channel。 |
 | `scripts/install.sh` | Convenience wrapper | 執行 Claude 安裝契約，不是另一個分發管道。 |
-| `install-codex-skills.sh` | Supported | 穩定的 Codex project sync 路徑。 |
+| `install-codex-skills.sh` | Supported | 穩定且 canonical 的 Codex project sync 路徑；runtime activation 與 native `dhpk@dhpk` plugin 互斥。 |
 | `install-cursor-harness.sh` | Supported | 穩定的 Cursor project-local sync 路徑（`.cursor/`）。 |
-| Codex plugin marketplace | Experimental | 有真實 CLI 安裝證據的實體 publication package；在另一次升級決策前維持 Experimental。 |
+| Codex plugin marketplace | Experimental | 僅供 disposable isolated `CODEX_HOME` 實驗的實體 publication package；runtime activation 與 project-local sync 互斥，在另一次升級決策前維持 Experimental。 |
 | Antigravity / AGY sync | Adapter/package | Antigravity 使用 `.agent` mapping；AGY 使用原生 plugin package 與 validator。 |
 
 Plugin 管理指令（`claude plugin …`、`codex plugin …`）與 skill invocation 分開。
+每個 host 只選一條 Codex runtime route：日常工作使用支援的 project-local
+`codex-sync`，或只在 disposable isolated `CODEX_HOME` 使用 experimental native
+package。
 Claude workflow 從 `/dhpk:flow-guide`、`/dhpk:flow-drive` 或明確 family skill
 進入；Cursor 在 `install-cursor-harness.sh` 之後使用產生的 command；Codex 在
 project-local `.codex/` 同步後從 `$flow-guide`／`$flow-drive` 進入（Codex 沒有
@@ -203,6 +206,35 @@ inspect → verify surface → route → plan/classify → implement → review 
 Codex 沒有 `/dhpk:*`。已知道完整流程時，使用
 明確 command 或 skill。Plugin 管理（`claude plugin …`、`codex plugin …`）只安裝／
 更新 surface，不會呼叫 workflow。
+
+### 技能群組與高效率進退場
+
+建議先依場景走群組再縮小到 skill，能減少誤路由與重複參數輸入：
+
+| 群組 | 代表技能 | 使用時機 | 最快路徑 |
+|---|---|---|---|
+| 路由/決策 | `flow-guide`、`flow-drive` | 區分需求性質、決定下一步路由與實作流程 | `flow-guide --mode classify` → `flow-drive` |
+| 根因分析 | `code-trace` | 熟悉程式、追查回歸、看歷史變更 | `code-trace --mode explore|diagnose|history` |
+| 只讀審閱 | `change-verdict`（`code|pr|security|tests|docs|risk`） | 審查既有 diff、PR、文件、安全與風險 | 單一 `--mode` |
+| 交付前置 | `dhpk-tdd-workflow`、`dhpk-feasibility-study`、`dhpk-module-design`、`dhpk-tech-spec` | 建立行為邊界、測試策略、架構選項，再進入實作 | `dhpk-tdd-workflow` 先做好 RED，再接 `flow-drive` |
+| OpenSpec 續作 | `dhpk-opsx-load-context`、`dhpk-opsx-post-observation`、`dhpk-opsx-apply-goal` | 續接 / 交付長時間 `/opsx:apply` 工作流 | 長跑用 `dhpk-opsx-apply-goal <change-id>`，續場景用 `dhpk-opsx-load-context` |
+| Harness / 平台 | `dhpk-harness-fill`、`harness-govern`、`dhpk-harness-revise`、`dhpk-harness-budget`、`dhpk-claude-health`、`dhpk-cross-agent-sync` | 同步跨 host 的 harness、plugin、版本與規格 | 先 `dhpk-claude-health --fix`，再 `dhpk-harness-revise` |
+| 技能治理 | `skill-forge`、`skill-scope` | 編寫、稽核、比較 skill 品質 | 快速盤點用 `skill-scope`，結構調整用 `skill-forge` |
+| Git / 發版準備 | `dhpk-git-smart-commit`、`dhpk-release-creator`、`dhpk-deploy-list`、`dhpk-project-setup` | 大量變更分群提交、發版、部署檔清單、專案初始化 | `dhpk-project-setup` 後接 `dhpk-git-smart-commit` / `dhpk-release-creator` |
+
+### 參數速查
+
+| Skill | 常用參數 |
+|---|---|
+| `flow-guide` | `--mode classify|policy|next|checklist` `--go` `--feature <key>` |
+| `flow-drive` | `--route-only` `--execute-explicit` `--openspec|--opsx` `--plan[=<model>[:<effort>]]` `--worker=<claude\|codex\|agy\|auto>` `--reasoner=<claude\|codex>[:<model>[:<effort>]]` `--architect\|--no-architect` |
+| `code-trace` | `--mode explore|diagnose|history|select-tool` `--dual` `--explain` `--depth brief|normal|deep` |
+| `change-verdict` | `--mode code|pr|security|tests|docs|risk` `--ac-trace` `--second-opinion=codex-exec` |
+| `dhpk-tdd-workflow` | `test-generation` `fast-worker` `standard` |
+| `dhpk-opsx-apply-goal` | `<change-id>` `--turns N` `--max-duration <Nm|Nh>` `--min-coverage N` `--smoke|--no-smoke` |
+| `dhpk-repo-intake` | `save` `--mode auto|delta|full` `--top N` |
+
+建議原則：先選對群組再補齊最少參數，路由與回呼會更穩定。
 
 ### 選擇入口
 
@@ -399,13 +431,18 @@ Runtime projection validator 會拒絕 unreachable reference 或 Claude plugin-r
 
 Repository 提供 Codex plugin manifest 與 marketplace wrapper，底層是 tracked、physical 的
 `plugins/dhpk/` publication package，由 `manifests/distribution-inventory.json` 的明確
-`codex-native` surface 產生，零 symlink：
+`codex-native` surface 產生，零 symlink。這條 route 只能使用全新的 disposable
+isolated `CODEX_HOME`，且不得建立 project-local `.codex/` projection；兩個 surface
+雖然分開發布／取得，runtime activation 仍互斥：
 
 ```bash
 codex plugin marketplace add hmj1026/dhpk   # or a local path during development
 codex plugin add dhpk@dhpk
 codex plugin list
 ```
+
+上述是取決於 CLI 支援的 repository command；官方 Codex 文件不是這條
+dhpk-specific install route 的證明。
 
 實驗性生命週期指令（marketplace upgrade 適用於已設定的 Git marketplace；local-path development
 marketplace 請先 refresh 或重新加入 local source，再重新安裝）：
@@ -428,9 +465,17 @@ codex plugin marketplace remove dhpk
 以及 [Issue #88](https://github.com/hmj1026/dhpk/issues/88) 的原始追蹤。
 
 安裝 proof 是必要但不充分的證據：原生 Codex marketplace support 在另外通過升級決策前仍是
-**experimental**（見 [ADR-0006](./adr/0006-codex-native-publication-artifact.md)）。Production
-工作請使用 `install-codex-skills.sh`；marketplace package 是 additive，不取代支援的
-project-local sync path。
+**experimental**（見 [ADR-0006](./adr/0006-codex-native-publication-artifact.md)）。兩個
+package 分開發布／取得，但 runtime activation 互斥。Production 工作請使用
+`install-codex-skills.sh` 作為 canonical project-local sync route，不要在同一個 host
+啟用 native package。
+
+若 native plugin 已啟用而要採用 project-local sync，請手動執行
+`codex plugin remove dhpk@dhpk`，再啟動新的 Codex session。Installer 會在
+install、update、migrate 與 plan 前查詢 `codex plugin list --json`：若明確回報
+native plugin 已 enabled，會在寫入前阻擋，`--force` 不能繞過；`--uninstall` 仍可用。
+若 query 缺少或不受支援，結果回報 `providerCheck: UNAVAILABLE`，sync 可繼續；installer
+不會自動移除 global plugin。不要刪除整個 `.codex/` 目錄。
 
 細節請看 `.codex-plugin/README.md` 與 `plugins/dhpk/README.md`。
 

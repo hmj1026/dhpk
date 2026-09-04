@@ -41,13 +41,16 @@ dhpk deliberately exposes several surfaces with different support tiers:
 | Claude marketplace | Supported | Primary consumer install and update path. |
 | `claude --plugin-dir` | Development-only | Working-tree iteration; not a release channel. |
 | `scripts/install.sh` | Convenience wrapper | Runs the Claude install contract; it is not a separate distribution. |
-| `install-codex-skills.sh` | Supported | Stable Codex project sync path. |
+| `install-codex-skills.sh` | Supported | Stable, canonical Codex project sync path; runtime activation is mutually exclusive with the native `dhpk@dhpk` plugin. |
 | `install-cursor-harness.sh` | Supported | Stable Cursor project-local sync path (`.cursor/`). |
-| Codex plugin marketplace | Experimental | Physical publication package with a verified real-CLI install proof; tier stays Experimental until a separate graduation decision. |
+| Codex plugin marketplace | Experimental | Physical publication package for isolated disposable `CODEX_HOME` experiments; runtime activation is mutually exclusive with project-local sync and the tier stays Experimental until a separate graduation decision. |
 | Antigravity / AGY sync | Adapter/package | Antigravity uses `.agent` mappings; AGY uses its native plugin package and validator. |
 
 Plugin management commands (`claude plugin …`, `codex plugin …`) are separate
-from skill invocation. Claude workflows enter through `/dhpk:flow-guide`,
+from skill invocation. Choose one Codex runtime route per host: use the
+supported project-local `codex-sync` path for daily work, or use the
+experimental native package only in a disposable isolated `CODEX_HOME`.
+Claude workflows enter through `/dhpk:flow-guide`,
 `/dhpk:flow-drive`, or an explicit family skill; Cursor uses the generated
 command after `install-cursor-harness.sh`; Codex enters through `$flow-guide` /
 `$flow-drive` after project-local `.codex/` sync (Codex has no `/dhpk:*` command).
@@ -211,6 +214,35 @@ know the outcome but not the right family. Codex has no `/dhpk:*` command.
 Use a direct command or skill when you already know the exact workflow. Plugin management
 (`claude plugin …`, `codex plugin …`) installs or updates a surface; it does not
 invoke a workflow.
+
+### Skill groups and efficient workflows
+
+Use the skill groups below as a reusable decision ladder:
+
+| Lane | Representative skills | What to use it for | Fast path |
+|---|---|---|---|
+| Routing/decision | `flow-guide`, `flow-drive` | Classify, route, and execute substantial work. | `flow-guide --mode classify` → `flow-drive` |
+| Root-cause analysis | `code-trace` | Understand unfamiliar code, trace regressions, inspect history. | `code-trace --mode explore|diagnose|history` |
+| Read-only verdict | `change-verdict` (`code|pr|security|tests|docs|risk`) | Audit a completed change, PR, doc set, or attack surface. | one `--mode` only |
+| Delivery / implementation prep | `dhpk-tdd-workflow`, `dhpk-feasibility-study`, `dhpk-module-design`, `dhpk-tech-spec` | Plan behavior-first, test-first, and architecture boundaries before edits. | `dhpk-tdd-workflow` + scoped verification, then `flow-drive` |
+| OpenSpec session control | `dhpk-opsx-load-context`, `dhpk-opsx-post-observation`, `dhpk-opsx-apply-goal` | Resume / handoff an OpenSpec edit sequence. | `dhpk-opsx-apply-goal <change-id>` for long-run, `dhpk-opsx-load-context` for resume |
+| Harness and platform hygiene | `dhpk-harness-fill`, `harness-govern`, `dhpk-harness-revise`, `dhpk-harness-budget`, `dhpk-claude-health`, `dhpk-cross-agent-sync` | Keep plugin/sync state clean and repeatable across environments. | `dhpk-claude-health --fix` (read-first first) |
+| Skill governance | `skill-scope`, `skill-forge` | Author, audit, and compare skill quality or usage | `skill-scope` for quick checks, `skill-forge` when changing structure |
+| Git / release prep | `dhpk-git-smart-commit`, `dhpk-release-creator`, `dhpk-deploy-list`, `dhpk-project-setup` | Group commits, prepare release and deploy artifacts, set up repo policy. | `dhpk-project-setup` → `dhpk-git-smart-commit` / `dhpk-release-creator` |
+
+### Parameter quick reference
+
+| Skill | Common invocation pattern |
+|---|---|
+| `flow-guide` | `--mode classify|policy|next|checklist` `--go` `--feature <key>` |
+| `flow-drive` | `--route-only` `--execute-explicit` `--openspec|--opsx` `--plan[=<model>[:<effort>]]` `--worker=<claude\|codex\|agy\|auto>` `--reasoner=<claude\|codex>[:<model>[:<effort>]]` `--architect\|--no-architect` |
+| `code-trace` | `--mode explore|diagnose|history|select-tool` `--dual` `--explain` `--depth brief|normal|deep` |
+| `change-verdict` | `--mode code|pr|security|tests|docs|risk` `--ac-trace` `--second-opinion=codex-exec` |
+| `dhpk-tdd-workflow` | `test-generation` `fast-worker` `standard` |
+| `dhpk-opsx-apply-goal` | `<change-id>` `--turns N` `--max-duration <Nm|Nh>` `--min-coverage N` `--smoke|--no-smoke` |
+| `dhpk-repo-intake` | `save` `--mode auto|delta|full` `--top N` |
+
+Use the lane first, then reduce flags: fewer inputs -> fewer routing misses and cleaner outputs.
 
 ### Choose an entry
 
@@ -445,13 +477,19 @@ projection validator rejects unreachable references or Claude plugin-root paths.
 The repository ships a Codex plugin manifest and marketplace wrapper backed
 by a tracked, physical publication package at `plugins/dhpk/` — generated
 from `manifests/distribution-inventory.json`'s explicit `codex-native`
-surface, containing zero symlinks:
+surface, containing zero symlinks. Use this route only with a fresh disposable
+isolated `CODEX_HOME`, with no project-local `.codex/` projection. These
+surfaces are separately published/acquired, but must not be activated together.
 
 ```bash
 codex plugin marketplace add hmj1026/dhpk   # or a local path during development
 codex plugin add dhpk@dhpk
 codex plugin list
 ```
+
+The commands above are conditional repository instructions for a CLI that
+supports the route; official Codex documentation is not dhpk-specific install
+proof.
 
 Experimental lifecycle commands (the marketplace upgrade form applies to a
 configured Git marketplace; for a local-path development marketplace, refresh
@@ -484,9 +522,19 @@ for the full gate model.
 A passing install proof is necessary evidence, not sufficient by itself:
 native Codex marketplace support remains **experimental** until a later,
 separately approved graduation decision (see
-[ADR-0006](./adr/0006-codex-native-publication-artifact.md)). For production
-work, use `install-codex-skills.sh` — the marketplace package is additive,
-not a replacement for the supported project-local sync path.
+[ADR-0006](./adr/0006-codex-native-publication-artifact.md)). The two packages
+are separately published and acquired, but runtime activation is mutually
+exclusive. For production work, use `install-codex-skills.sh` as the canonical
+project-local sync route; do not activate the native package on the same host.
+
+If the native plugin is enabled and you choose project-local sync, remove it
+manually with `codex plugin remove dhpk@dhpk`, then start a new Codex session.
+The sync installer checks `codex plugin list --json` before install, update,
+migrate, and plan: a positively enabled native plugin blocks those operations
+before writes, and `--force` cannot bypass the gate. `--uninstall` remains
+available. If the query is missing or unsupported, the result reports
+`providerCheck: UNAVAILABLE` and sync may proceed; the installer never removes
+the global plugin automatically. Do not delete the whole `.codex/` directory.
 
 See `.codex-plugin/README.md` and `plugins/dhpk/README.md` for details.
 
