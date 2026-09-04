@@ -7,6 +7,15 @@ const { spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
+const CODEX_STUB_BIN = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-codex-runtime-stub-')));
+fs.writeFileSync(path.join(CODEX_STUB_BIN, 'codex'), `#!/bin/sh
+if [ "$1" = "plugin" ] && [ "$2" = "list" ] && [ "$3" = "--json" ]; then
+  printf '%s\n' '{"installed":[],"available":[]}'
+  exit 0
+fi
+exit 2
+`, { mode: 0o755 });
+process.on('exit', () => fs.rmSync(CODEX_STUB_BIN, { recursive: true, force: true }));
 const GENERATOR = path.join(ROOT, 'scripts', 'gen-codex-agents.js');
 const { collectCodexRuntimeErrors } = require(
   path.join(ROOT, 'scripts', 'ci', '_lib', 'codex-runtime')
@@ -88,10 +97,18 @@ function installConsumerProjection(root) {
   fs.mkdirSync(path.join(root, '.git'));
   const installed = spawnSync('bash', [path.join(ROOT, 'scripts', 'hooks', 'install-codex-skills.sh'), '--copy', '--force'], {
     cwd: root,
-    env: { ...process.env, CLAUDE_PLUGIN_ROOT: ROOT },
+    env: consumerInstallEnv(),
     encoding: 'utf8',
   });
   assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
+}
+
+function consumerInstallEnv() {
+  return {
+    ...process.env,
+    PATH: `${CODEX_STUB_BIN}:${process.env.PATH || ''}`,
+    CLAUDE_PLUGIN_ROOT: ROOT,
+  };
 }
 
 function assertNeighborError(errors, { source, token, state }) {
@@ -217,7 +234,7 @@ test('clean consumer projection resolves every generated role reference', () => 
     fs.mkdirSync(path.join(root, '.git'));
     const installed = spawnSync('bash', [path.join(ROOT, 'scripts', 'hooks', 'install-codex-skills.sh'), '--copy', '--force'], {
       cwd: root,
-      env: { ...process.env, CLAUDE_PLUGIN_ROOT: ROOT },
+      env: consumerInstallEnv(),
       encoding: 'utf8',
     });
     assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
@@ -234,7 +251,7 @@ test('clean consumer projection reports a missing supporting asset', () => {
     fs.mkdirSync(path.join(root, '.git'));
     const installed = spawnSync('bash', [path.join(ROOT, 'scripts', 'hooks', 'install-codex-skills.sh'), '--copy', '--force'], {
       cwd: root,
-      env: { ...process.env, CLAUDE_PLUGIN_ROOT: ROOT },
+      env: consumerInstallEnv(),
       encoding: 'utf8',
     });
     assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
@@ -252,7 +269,7 @@ test('clean consumer projection reports a missing dynamic stack trap sheet', () 
     fs.mkdirSync(path.join(root, '.git'));
     const installed = spawnSync('bash', [path.join(ROOT, 'scripts', 'hooks', 'install-codex-skills.sh'), '--copy', '--force'], {
       cwd: root,
-      env: { ...process.env, CLAUDE_PLUGIN_ROOT: ROOT },
+      env: consumerInstallEnv(),
       encoding: 'utf8',
     });
     assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
@@ -270,7 +287,7 @@ test('clean consumer projection reports unreachable references inside supporting
     fs.mkdirSync(path.join(root, '.git'));
     const installed = spawnSync('bash', [path.join(ROOT, 'scripts', 'hooks', 'install-codex-skills.sh'), '--copy', '--force'], {
       cwd: root,
-      env: { ...process.env, CLAUDE_PLUGIN_ROOT: ROOT },
+      env: consumerInstallEnv(),
       encoding: 'utf8',
     });
     assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
