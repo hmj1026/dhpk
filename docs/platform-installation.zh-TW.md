@@ -10,8 +10,8 @@ projection 內容後，才能宣稱 client 可呼叫。
 
 | Surface | 安裝 | 更新／移除 | 驗證 | 支援邊界 |
 |---|---|---|---|---|
-| Codex project-local sync | checkout：`bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh`；Claude plugin runtime：`bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"` | `--update`、`--migrate`、`--uninstall`；`--force` 只繞過 project-root heuristic | `.codex/.dhpk-installed.json` schema-v3、managed entries、`$dhpk-<name>` discovery | Supported Codex path；安裝不等於 runtime callable |
-| Codex legacy/native | 真實 CLI 支援時執行 `codex plugin marketplace add <repo-or-path>`、`codex plugin add dhpk@dhpk` | client marketplace 命令；從 source regenerate 並檢查 provenance | `plugins/dhpk/.codex-plugin/plugin.json`、physical `skills/`、provenance/fingerprints、real CLI probe | Experimental；CLI/route 缺少時為 `UNAVAILABLE` 或 `BLOCKED` |
+| Codex project-local sync | checkout：`bash /path/to/dhpk/scripts/hooks/install-codex-skills.sh`；Claude plugin runtime：`bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh"` | `--update`、`--migrate`、`--uninstall`；`--force` 只繞過 project-root heuristic | `.codex/.dhpk-installed.json` schema-v3、managed entries、`$dhpk-<name>` discovery | Supported Codex path 與 canonical daily-use route；安裝不等於 runtime callable |
+| Codex legacy/native | 真實 CLI 支援時執行 `codex plugin marketplace add <repo-or-path>`、`codex plugin add dhpk@dhpk` | client marketplace 命令；從 source regenerate 並檢查 provenance | `plugins/dhpk/.codex-plugin/plugin.json`、physical `skills/`、provenance/fingerprints、real CLI probe | Experimental；只可在 disposable isolated `CODEX_HOME` 測試；CLI/route 缺少時為 `UNAVAILABLE` 或 `BLOCKED` |
 | Standard Agent Plugin | 透過已驗證 client route 發布／安裝 `plugins/dhpk-agent/` | client-owned update/remove；只替換 generated package | root `plugin.json`、schema、固定 `skills/`、optional `mcp.json`、provenance | 結構合規不等於 Codex runtime proof |
 | Cursor standard Agent Plugin | Cursor Customize/Plugins，或 local `~/.cursor/plugins/local/dhpk-agent` | Cursor reload/update/remove，或替換該 local package | root `plugin.json`、portable skills/MCP discovery、client version | 僅 portable skills/MCP；不宣稱 Cursor-native parity |
 | Cursor Plugin | local `~/.cursor/plugins/local/dhpk-cursor`，或 reviewed `.cursor-plugin/marketplace.json`；另安裝 `plugins/dhpk-agent/` 供 shared portable skills 使用 | Cursor refresh/update/remove；只 rollback Cursor-owned files；shared Agent package 另行更新 | `.cursor-plugin/plugin.json`、rules、agents、commands、hooks、variables、shared-skill IDs | native components 需 Cursor evidence；shared portable skills 由 `dhpk-agent` 單獨擁有；缺口為 `SKIP_INCOMPATIBLE` |
@@ -29,7 +29,7 @@ projection 內容後，才能宣稱 client 可呼叫。
 | Route | Client／版本假設 | OS 與 shell 假設 | 必要 tooling | Evidence gate |
 |---|---|---|---|---|
 | Codex project-local sync | Codex project-local loader；schema-v3 receipt；最低 Codex version 尚未建立 | Linux、macOS 或 WSL POSIX shell，從 project root 執行 | `bash`、`git`；Node.js 僅供 validator 使用 | 執行 installer、檢查 `.codex/.dhpk-installed.json`，並執行列出的 metadata/test 命令 |
-| Codex legacy/native | 支援 marketplace/plugin 命令的 Codex CLI；執行 `codex --version`；最低 CLI version 尚未建立 | Linux、macOS 或 WSL shell | `codex`、marketplace access、`git` | 執行 marketplace route 並記錄 CLI 輸出；CLI/route 缺少時為 `UNAVAILABLE` 或 `BLOCKED` |
+| Codex legacy/native | 支援 marketplace/plugin 命令的 Codex CLI；執行 `codex --version`；最低 CLI version 尚未建立 | Linux、macOS 或 WSL shell；使用 disposable isolated `CODEX_HOME` | `codex`、marketplace access、`git` | 執行 marketplace route 並記錄 CLI 輸出；CLI/route 缺少時為 `UNAVAILABLE` 或 `BLOCKED` |
 | Standard Agent Plugin | 實作 Agent Plugins 1.0.0 schema 的 consumer；最低 client version 尚未建立 | client 支援的 OS；package validation 從 POSIX shell 執行 | 已驗證的 Agent Plugin loader；Node.js 僅供結構驗證 | 執行兩個 package 命令，再記錄 client discovery evidence |
 | Cursor standard Agent Plugin | 接受 portable package 的 Cursor desktop/plugin loader；記錄 Cursor version；最低版本尚未建立 | Cursor 支援的 desktop OS；local path 為 `~/.cursor/plugins/local/` | Cursor Customize → Plugins 或 local loader；Node.js 僅供 validation | reload 後觀察 discovered skills/MCP；無 loader 為 `UNAVAILABLE` 或 `BLOCKED` |
 | Cursor Plugin（native） | 支援 `.cursor-plugin/plugin.json` 的 Cursor plugin loader；記錄 Cursor version；shared portable skills 另安裝 standard `dhpk-agent` package；最低版本尚未建立 | Cursor 支援的 desktop OS；local path 為 `~/.cursor/plugins/local/` | Cursor reload/UI、local filesystem、無 secret 的 variable 設定；以 Agent provenance 比對 shared IDs | reload 後觀察每個 selected native component 與 hook 行為；只有明確 matrix overlay 才能有 Cursor `skills/` |
@@ -146,6 +146,13 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --migrate --u
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/hooks/install-codex-skills.sh" --uninstall
 ```
 
+`codex-sync` 是支援且 canonical 的日常使用路徑。在 `install`、`update`、
+`migrate` 或 `plan` 操作前，installer 會查詢 `codex plugin list --json`。
+若明確回報 `dhpk@dhpk` 已 enabled，操作會在任何寫入前 `BLOCKED`；`--force`
+不能繞過這個 gate，但仍可使用 `--uninstall`。若 query 缺少或不受支援，JSON
+結果回報 `providerCheck: UNAVAILABLE`，project sync 仍可繼續。Installer 不會
+自動移除 global native plugin。
+
 Unified distribution/lifecycle installer 使用 inventory-owned `minimal` profile
 （inventory required_core_ids）。保留的 project-local Codex compatibility route 預設維持
 `compat-v1`；migration 時明確選 `minimal`，或加入 stable-ID overlay：
@@ -236,10 +243,10 @@ Rollback 使用 `--uninstall` 或還原已保存的 `.codex/` receipt；不要�
 
 ### 檢查 Codex 重複 discovery
 
-Project-local sync 與 experimental native package 是兩條獨立 acquisition
-surface。host 若同時 discovery 兩者，即使內容是刻意配置，也可能讓同一個
-public skill name 顯示兩次。先設定 `DHPK_ROOT` 為 source checkout，再從
-consumer project root 執行下列唯讀檢查：
+Project-local sync 與 experimental native package 是分開發布、分開取得的
+surface，但 runtime activation 互斥。使用 `codex-sync` 的 host 不可同時啟用
+`dhpk@dhpk`，否則同一個 public skill name 可能顯示兩次。先設定 `DHPK_ROOT`
+為 source checkout，再從 consumer project root 執行下列唯讀檢查：
 
 ```bash
 node "$DHPK_ROOT/scripts/ci/check-codex-discovery.js" \
@@ -248,18 +255,27 @@ node "$DHPK_ROOT/scripts/ci/check-codex-discovery.js" \
   --native-root "$DHPK_ROOT/plugins/dhpk"
 ```
 
-Registry 以 `kind:publicName` 聚合 entry。fingerprint 相同時會合併成一筆
-`effective` entry，但保留兩個 provider 證據；fingerprint 不同時，必須有
-current 且 receipt-owned 的 precedence，否則回傳 `BLOCKED`。current 的
-project-local entry 明確優先於 experimental native entry 時回傳 `WARN`。這個
-command 只回報證據，不會刪除 projection、cache 或 host registration。遇到
-`BLOCKED` 時，先檢查 receipt 並選定一條支援的 route，再執行 update 或
-uninstall。
+Report 會把 artifact integrity 與 runtime activation 分開判定。fingerprint
+相同且 provenance 有效時，`integrityVerdict: PASS` 仍可能成立；stale、unowned
+或 conflicting artifact 則依既有 integrity 規則處理。另一方面，只要 project
+與 native surface 暴露相同的 invokable public name，runtime verdict 就會是
+`BLOCKED`，並帶有 `reasonCode: DUPLICATE_CODEX_PROVIDER`，即使 fingerprint
+相同也一樣。`duplicateInvokableNames` 會列出受影響名稱；non-invokable
+support package 不列入。Precedence 不能把重疊的 invokable name 變成 runtime
+`WARN` 或 `PASS`。
+
+這個 command 只回報證據，不會刪除 projection、cache 或 host registration。
+Remediation 由人決定。若選擇支援的 project sync 路徑，請手動執行
+`codex plugin remove dhpk@dhpk`，再啟動新的 Codex session；不要刪除整個
+`.codex/` 目錄。若要做 native experiment，請使用全新的 disposable isolated
+`CODEX_HOME`，且不要建立 project-local projection。
 
 ## Codex legacy/native package（Experimental）
 
 Prerequisites：具 marketplace route 的實際 `codex` CLI、POSIX shell，以及已
-記錄的 `codex --version`；本 repository 尚未驗證最低 CLI version。
+記錄的 `codex --version`；本 repository 尚未驗證最低 CLI version。這條實驗性
+路徑只能使用 disposable isolated `CODEX_HOME`，不可與支援的 project-local
+sync 同時啟用。
 
 保留的 native artifact 在 `plugins/dhpk/`，使用 legacy
 `.codex-plugin/plugin.json`。真實 CLI 支援時：
@@ -270,9 +286,10 @@ codex plugin add dhpk@dhpk
 ```
 
 consumer 必須先具備 local marketplace。檢查 physical package、
-`fingerprints.json`、`provenance.json` 與 client version。若 `codex` 或 route
-不存在，記錄 `UNAVAILABLE`／`BLOCKED`，並保留 project-local sync。legacy
-manifest 不得視為 Agent Plugins conformance proof。
+`fingerprints.json`、`provenance.json` 與 client version。上述 repository
+command 取決於已安裝的 CLI；官方 Codex 文件不是這條 dhpk-specific route 的
+證明。若 `codex` 或 route 不存在，記錄 `UNAVAILABLE`／`BLOCKED`，並保留
+project-local sync。legacy manifest 不得視為 Agent Plugins conformance proof。
 
 ## Standard Agent Plugin
 

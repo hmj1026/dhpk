@@ -8,7 +8,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { discoverCodexSurfaces } = require('../release/consumer-gate');
-const { inspectCodexDiscovery } = require('../lib/codex-discovery-registry');
+const { inspectCodexActivation } = require('../lib/codex-discovery-registry');
 
 function usage() {
   return 'usage: check-codex-discovery.js [--repo-root <path>] [--project-root <path>] [--native-root <path>] [--version X.Y.Z]';
@@ -73,15 +73,19 @@ function run(argv) {
     nativeRoot: args.nativeRoot,
     version,
   });
-  const report = inspectCodexDiscovery({
+  const report = inspectCodexActivation({
     project: surfaces.project,
     native: surfaces.native.map((entry) => ({ ...entry, experimental: true })),
     precedence: ['project-local'],
     receipt: compactReceipt(surfaces.manifest),
+    nonInvokableSkillNames: surfaces.nonInvokableSkillNames,
   });
   const output = {
     verdict: report.verdict,
     ok: report.ok,
+    reasonCode: report.reasonCode,
+    duplicateInvokableNames: report.duplicateInvokableNames,
+    integrityVerdict: report.integrityVerdict,
     effective: report.effective,
     duplicates: report.duplicates,
     conflicts: report.conflicts,

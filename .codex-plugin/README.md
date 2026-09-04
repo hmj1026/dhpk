@@ -19,6 +19,12 @@ validate on every relevant release — see
 `skills` resolves to `./plugins/dhpk/skills/` — an in-root-relative path to
 the tracked native package, not the `codex/skills/` symlink mirror.
 
+This native surface is experimental and must be exercised only with a
+disposable isolated `CODEX_HOME`. Do not enable it in an environment that also
+discovers the supported project-local `codex-sync` projection: the surfaces
+are published separately, but runtime activation is mutually exclusive because
+their invokable public skill names overlap.
+
 ## What This Provides
 
 - The tracked `codex-native` package at `plugins/dhpk/` (16 entries: 14
@@ -59,6 +65,13 @@ so the entry must target a concrete plugin subdirectory (see
 codex plugin add dhpk@dhpk
 codex plugin list
 ```
+
+Native smoke tests must use a disposable `CODEX_HOME`; they must not reuse the
+operator's normal plugin registry or a project containing `.codex/skills`. For
+normal project work, keep `codex-sync` and remove an enabled native copy with
+`codex plugin remove dhpk@dhpk`, then start a new Codex session. This remains a
+human remediation step: the project-local installer never removes a global
+plugin automatically.
 
 `tests/codex-native-install-smoke.test.js` runs this same sequence against
 the real `codex` CLI in a sandboxed `CODEX_HOME`, deletes the source
