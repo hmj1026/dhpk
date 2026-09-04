@@ -7,7 +7,7 @@ that Codex can invoke, then expose that contract through progressive help and
 deterministic host/documentation projections without duplicating procedure
 content from the canonical skill.
 
-## ADDED Requirements
+## Requirements
 
 ### Requirement: Codex-invokable skills declare an inventory-owned usage contract
 
@@ -21,11 +21,11 @@ contain a unique `id`, `syntax`, `value_kind`, `required`, and `summary`, with
 optional `default`, `enum_values`, and `applies_to` fields. Every example SHALL
 contain exactly `prompt` and `summary`. `syntax` and every example prompt SHALL
 begin with `$` plus the inventory public skill name, and
-`usage.invocation_class` SHALL equal the canonical invocation class. The
-usage object and child records are closed schemas: unsupported fields,
-duplicate IDs, unknown `applies_to` action IDs, invalid enum defaults, empty
-examples, or child effect authority above the parent maximum SHALL fail.
-Skills not selected by either Codex surface MAY omit `usage`.
+`usage.invocation_class` SHALL equal the canonical invocation class. The usage
+object and child records are closed schemas: unsupported fields, duplicate
+IDs, unknown `applies_to` action IDs, invalid enum defaults, empty examples, or
+child effect authority above the parent maximum SHALL fail. Skills not selected
+by either Codex surface MAY omit `usage`.
 
 #### Scenario: A Codex skill has no usage contract
 
@@ -35,14 +35,13 @@ Skills not selected by either Codex surface MAY omit `usage`.
 
 #### Scenario: Usage invocation class disagrees with canonical policy
 
-- **WHEN** a Codex-invokable skill declares `usage.invocation_class: implicit-eligible`
-  but its canonical invocation class is `explicit-only`
+- **WHEN** a Codex-invokable skill declares `usage.invocation_class:
+  implicit-eligible` but its canonical invocation class is `explicit-only`
 - **THEN** usage validation fails before any projection is generated
 
 #### Scenario: Usage grammar contains duplicate names
 
-- **WHEN** two actions or two options in one usage contract have the same
-  `id`
+- **WHEN** two actions or two options in one usage contract have the same `id`
 - **THEN** validation fails and identifies the owning skill and duplicate
 
 #### Scenario: A non-Codex skill omits usage
@@ -56,11 +55,10 @@ Skills not selected by either Codex surface MAY omit `usage`.
 The `flow-guide help` action SHALL list the available Codex-invokable skills
 when no skill is supplied and SHALL return one usage card when a public skill
 name is supplied. A card SHALL expose the inventory `syntax`, input kind,
-actions, options, examples, invocation class, maximum effect authority, and
-the evidence state of the generated
-catalog. Help SHALL not load the target skill's procedural references, invoke
-the target, or grant authority. An unknown name and a known non-Codex skill
-SHALL produce distinct diagnostics.
+actions, options, examples, invocation class, maximum effect authority, and the
+evidence state of the generated catalog. Help SHALL not load the target skill's
+procedural references, invoke the target, or grant authority. An unknown name
+and a known non-Codex skill SHALL produce distinct diagnostics.
 
 #### Scenario: User requests the available usage catalog
 
@@ -95,8 +93,8 @@ order into the Codex help catalog, supported OpenAI default prompts, applicable
 Claude argument hints, and the dedicated English and Traditional Chinese usage
 documentation. Generated artifacts SHALL identify the source inventory
 revision and SHALL fail parity validation when manually edited content or
-ordering diverges. Broad hand-maintained cheat sheets MAY link to the
-generated guide but SHALL not become a second usage source of truth.
+ordering diverges. Broad hand-maintained cheat sheets MAY link to the generated
+guide but SHALL not become a second usage source of truth.
 
 #### Scenario: Inventory usage changes
 
