@@ -33,6 +33,8 @@ preserved even when a caller presents a ready-looking route.
    verification commands before editing.
 2. Convert the work into dependency-ordered observable items. Preserve
    OpenSpec task order and leave incomplete tasks unchecked.
+   An OpenSpec apply with two or more unchecked tasks requires the planner
+   gate before workspace writes; record the policy-approved skip for one task.
 3. At each behavior boundary, run the smallest non-tautological test first,
    make the smallest compatible edit, inspect the diff, and run the focused
    verification. Preserve unrelated dirty work.
