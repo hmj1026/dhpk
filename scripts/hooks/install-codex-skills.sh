@@ -207,6 +207,14 @@ BACKUP_RUN = datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%
 CODEX_NATIVE_PLUGIN_ID = 'dhpk@dhpk'
 PROVIDER_QUERY_TIMEOUT_SECONDS = 3
 PROVIDER_QUERY_OUTPUT_LIMIT = 1024 * 1024
+PROVIDER_RECEIPT_BYTES_LIMIT = 1024 * 1024
+PROVIDER_RECEIPT_ENTRY_LIMIT = 512
+PROVIDER_RECEIPT_PATH_LIMIT = 64
+PROVIDER_RECEIPT_VERSION_LIMIT = 128
+
+
+class ProviderReceiptTooLarge(ValueError):
+    """The provider diagnostic receipt exceeded its bounded read budget."""
 
 
 def terminate_provider_query(process):
@@ -330,6 +338,124 @@ def probe_codex_native_plugin():
     if isinstance(disabled_match.get('version'), str) and disabled_match['version']:
         result['version'] = disabled_match['version']
     return result
+
+
+def inspect_receipt_for_provider_block():
+    """Return bounded, read-only receipt evidence for a provider conflict."""
+    evidence = {
+        'status': 'MISSING',
+        'pluginVersion': None,
+        'brokenSymlinkPaths': [],
+    }
+    if lexists(CODEX_ROOT) and os.path.islink(CODEX_ROOT):
+        evidence['status'] = 'UNAVAILABLE'
+        return evidence
+    if not lexists(MANIFEST):
+        return evidence
+    try:
+        receipt_stat = os.lstat(MANIFEST)
+    except OSError:
+        evidence['status'] = 'UNAVAILABLE'
+        return evidence
+    if not stat.S_ISREG(receipt_stat.st_mode):
+        evidence['status'] = 'UNAVAILABLE'
+        return evidence
+    try:
+        receipt = read_bounded_provider_receipt()
+    except ProviderReceiptTooLarge:
+        evidence['status'] = 'UNAVAILABLE'
+        return evidence
+    except (OSError, UnicodeError, ValueError, json.JSONDecodeError, RecursionError):
+        evidence['status'] = 'MALFORMED'
+        return evidence
+    if not isinstance(receipt, dict):
+        evidence['status'] = 'MALFORMED'
+        return evidence
+
+    evidence['status'] = 'FOUND'
+    plugin_version = receipt.get('plugin_version')
+    if isinstance(plugin_version, str) and plugin_version:
+        evidence['pluginVersion'] = plugin_version[:PROVIDER_RECEIPT_VERSION_LIMIT]
+    managed = receipt.get('managed_entries')
+    if not isinstance(managed, dict):
+        return evidence
+
+    scanned_entries = 0
+    truncated = False
+    for kind in MANAGED_KINDS:
+        entries = managed.get(kind)
+        if not isinstance(entries, dict):
+            continue
+        for name in sorted(entries):
+            scanned_entries += 1
+            if scanned_entries > PROVIDER_RECEIPT_ENTRY_LIMIT:
+                truncated = True
+                break
+            entry = entries.get(name)
+            if not isinstance(entry, dict) or entry.get('mode') != 'symlink':
+                continue
+            relative = entry.get('destination') or entry.get('source')
+            if not isinstance(relative, str) or len(relative) > 4096:
+                continue
+            recorded_source = entry.get('source') or entry.get('destination')
+            if not isinstance(recorded_source, str):
+                continue
+            try:
+                destination = safe_destination(relative)
+            except (OSError, ValueError):
+                continue
+            if not os.path.islink(destination) or os.path.exists(destination):
+                continue
+            try:
+                owned = is_owned(entry, destination)
+            except (OSError, TypeError, ValueError):
+                owned = False
+            if not owned:
+                continue
+            if len(evidence['brokenSymlinkPaths']) >= PROVIDER_RECEIPT_PATH_LIMIT:
+                truncated = True
+                continue
+            evidence['brokenSymlinkPaths'].append(relative)
+        if truncated and scanned_entries > PROVIDER_RECEIPT_ENTRY_LIMIT:
+            break
+    evidence['brokenSymlinkPaths'].sort()
+    if truncated:
+        evidence['brokenSymlinkPathsTruncated'] = True
+    return evidence
+
+
+def read_bounded_provider_receipt():
+    """Read the provider diagnostic receipt through a capped descriptor."""
+    root_fd = open_relative_directory('', create=False)
+    try:
+        fd = os.open(
+            os.path.basename(MANIFEST),
+            os.O_RDONLY | os.O_NONBLOCK | getattr(os, 'O_NOFOLLOW', 0),
+            dir_fd=root_fd,
+        )
+        try:
+            if not stat.S_ISREG(os.fstat(fd).st_mode):
+                raise ValueError('provider diagnostic receipt is not a regular file')
+            contents = bytearray()
+            while len(contents) <= PROVIDER_RECEIPT_BYTES_LIMIT:
+                chunk = os.read(
+                    fd,
+                    min(65536, PROVIDER_RECEIPT_BYTES_LIMIT + 1 - len(contents)),
+                )
+                if not chunk:
+                    break
+                contents.extend(chunk)
+            if len(contents) > PROVIDER_RECEIPT_BYTES_LIMIT:
+                raise ProviderReceiptTooLarge('provider diagnostic receipt exceeds the read limit')
+            return json.loads(
+                bytes(contents).decode('utf-8'),
+                parse_constant=reject_non_finite_json_constant,
+                parse_float=parse_finite_json_float,
+            )
+        finally:
+            os.close(fd)
+    finally:
+        os.close(root_fd)
 
 # These collections are populated by the reconciliation pass and persisted in
 # the receipt as durable evidence. Paths are always relative to the project or
@@ -3469,11 +3595,13 @@ def migrate_legacy_skill_names(entries, orphaned, counts, collisions, sources, m
 
 PROVIDER_CHECK = probe_codex_native_plugin()
 if PROVIDER_CHECK.get('status') == 'ENABLED':
+    RECEIPT_CHECK = inspect_receipt_for_provider_block()
     blocked_report = {
         'schema_version': SCHEMA_VERSION,
         'state': 'blocked',
         'reasonCode': 'CODEX_NATIVE_PLUGIN_ENABLED',
         'providerCheck': PROVIDER_CHECK,
+        'receiptCheck': RECEIPT_CHECK,
         'receipt_state': 'blocked',
         'next_action': 'disable Codex plugin dhpk@dhpk, then re-run project-local sync',
     }

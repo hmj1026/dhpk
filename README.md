@@ -267,7 +267,20 @@ Add at least one `modules/<stack>-<version>/skills/<name>/SKILL.md`. Then regist
 "skills": [..., "./modules/<stack>-<version>/skills/"]
 ```
 
-Bump plugin `version` in the manifest. Run `claude plugin validate ~/projects/dhpk --strict`. Document the module in this README.
+Bump plugin `version` in the manifest. Run the source checks:
+
+```bash
+node scripts/ci/validate-plugin.js
+node scripts/ci/validate-skills.js --strict
+```
+
+These checks cover repository source. For official Claude CLI evidence, run
+`claude plugin validate <manifest> --strict` against a consumer-shaped staged
+package. The development checkout's root `CLAUDE.md` can trigger a warning when
+the checkout is validated directly. It may also be physically present in a
+checkout or installed cache, but it is not loaded as plugin context and is
+excluded from official consumer-validation staging. Document the module in this
+README.
 
 Modules may ship hook scripts under `modules/<stack>-<version>/hooks/`. Their activation depends on the hook class:
 
