@@ -1,0 +1,183 @@
+{
+  "contractVersion": "dhpk.reviewer-contract.v2",
+  "request": {
+    "decisionId": "decision-364",
+    "waveId": "wave-reviewer-contract-v2",
+    "obligationId": "obligation-code-review",
+    "lane": "code-reviewer",
+    "scope": {
+      "paths": [
+        "scripts/lib/reviewer-contract.js",
+        "docs/contracts/reviewer-contract.md"
+      ],
+      "digest": "sha256:scope-364"
+    },
+    "baseIdentity": {
+      "commit": "1111111111111111111111111111111111111111",
+      "tree": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+    "headIdentity": {
+      "commit": "2222222222222222222222222222222222222222",
+      "tree": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    },
+    "diff": {
+      "digest": "sha256:diff-364",
+      "reference": "git-diff:decision-364/wave-reviewer-contract-v2"
+    },
+    "materialRisks": [
+      "PUBLIC_CONTRACT",
+      "COMPATIBILITY"
+    ],
+    "governingInputs": [
+      {
+        "path": "docs/adr/0014-standardize-the-reviewer-contract.md",
+        "digest": "sha256:adr-0014"
+      }
+    ],
+    "exclusions": [
+      {
+        "scope": "scripts/hooks/**",
+        "reason": "Sentinel remains authoritative during BASELINE"
+      }
+    ],
+    "priorFindings": []
+  },
+  "findings": {
+    "mustFix": {
+      "id": "finding-high-1",
+      "severity": "HIGH",
+      "disposition": "MUST_FIX",
+      "summary": "A required request binding is missing",
+      "evidence": [
+        "scripts/lib/reviewer-contract.js:1"
+      ]
+    },
+    "followUp": {
+      "id": "finding-medium-1",
+      "severity": "MEDIUM",
+      "disposition": "FOLLOW_UP",
+      "summary": "Telemetry wording can be calibrated after observation",
+      "evidence": [
+        "docs/contracts/reviewer-contract.md:1"
+      ],
+      "decisionReceipt": "decision-receipt:medium-follow-up-1"
+    },
+    "note": {
+      "id": "finding-info-1",
+      "severity": "INFO",
+      "disposition": "NOTE",
+      "summary": "A projection uses a platform-specific artifact path",
+      "evidence": [
+        "codex/supporting/contracts/reviewer-contract.md:1"
+      ]
+    }
+  },
+  "results": {
+    "pass": {
+      "contractVersion": "dhpk.reviewer-contract.v2",
+      "obligationId": "obligation-code-review",
+      "lane": "code-reviewer",
+      "executionStatus": "COMPLETE",
+      "applicability": "REQUIRED",
+      "semanticVerdict": "PASS",
+      "findings": [],
+      "inspectedScope": [
+        "scripts/lib/reviewer-contract.js",
+        "docs/contracts/reviewer-contract.md"
+      ],
+      "evidenceReferences": [
+        "test:reviewer-contract-v2"
+      ]
+    },
+    "changesRequired": {
+      "contractVersion": "dhpk.reviewer-contract.v2",
+      "obligationId": "obligation-code-review",
+      "lane": "code-reviewer",
+      "executionStatus": "COMPLETE",
+      "applicability": "REQUIRED",
+      "semanticVerdict": "CHANGES_REQUIRED",
+      "findings": [
+        "mustFix"
+      ],
+      "inspectedScope": [
+        "scripts/lib/reviewer-contract.js"
+      ],
+      "evidenceReferences": [
+        "finding:finding-high-1"
+      ]
+    },
+    "blocked": {
+      "contractVersion": "dhpk.reviewer-contract.v2",
+      "obligationId": "obligation-code-review",
+      "lane": "code-reviewer",
+      "executionStatus": "COMPLETE",
+      "applicability": "REQUIRED",
+      "semanticVerdict": "BLOCKED",
+      "findings": [],
+      "inspectedScope": [],
+      "evidenceReferences": [
+        "missing-scope:generated-projection"
+      ]
+    },
+    "notApplicable": {
+      "contractVersion": "dhpk.reviewer-contract.v2",
+      "obligationId": "obligation-code-review",
+      "lane": "code-reviewer",
+      "executionStatus": "COMPLETE",
+      "applicability": "NOT_APPLICABLE",
+      "semanticVerdict": null,
+      "findings": [],
+      "inspectedScope": [],
+      "evidenceReferences": [
+        "diff:empty"
+      ]
+    },
+    "unavailable": {
+      "contractVersion": "dhpk.reviewer-contract.v2",
+      "obligationId": "obligation-code-review",
+      "lane": "code-reviewer",
+      "executionStatus": "UNAVAILABLE",
+      "applicability": "REQUIRED",
+      "findings": [],
+      "inspectedScope": [],
+      "evidenceReferences": [
+        "capability:reviewer-unavailable"
+      ]
+    },
+    "interrupted": {
+      "contractVersion": "dhpk.reviewer-contract.v2",
+      "obligationId": "obligation-code-review",
+      "lane": "code-reviewer",
+      "executionStatus": "INTERRUPTED",
+      "applicability": "REQUIRED",
+      "semanticVerdict": null,
+      "findings": [],
+      "inspectedScope": [],
+      "evidenceReferences": [
+        "lifecycle:reviewer-interrupted"
+      ]
+    }
+  },
+  "legacyMappings": [
+    {
+      "legacyVerdict": "APPROVE",
+      "semanticVerdict": "PASS"
+    },
+    {
+      "legacyVerdict": "PASS",
+      "semanticVerdict": "PASS"
+    },
+    {
+      "legacyVerdict": "WARNING",
+      "semanticVerdict": "CHANGES_REQUIRED"
+    },
+    {
+      "legacyVerdict": "BLOCK",
+      "semanticVerdict": "CHANGES_REQUIRED"
+    },
+    {
+      "legacyVerdict": "FAIL",
+      "semanticVerdict": "CHANGES_REQUIRED"
+    }
+  ]
+}
