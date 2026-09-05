@@ -119,6 +119,10 @@ test('enabled provider reports stale receipt and owned broken links before migra
       path.join(ROOT, '.claude-plugin', 'plugin.json'),
       path.join(fakePlugin, '.claude-plugin', 'plugin.json'),
     );
+    const sourceVersion = JSON.parse(fs.readFileSync(
+      path.join(fakePlugin, '.claude-plugin', 'plugin.json'),
+      'utf8',
+    )).version;
     copyDistributionInventory(fakePlugin);
 
     const installed = runInstaller(scratch, ['--force'], fakePlugin);
@@ -161,7 +165,7 @@ test('enabled provider reports stale receipt and owned broken links before migra
 
     const enabled = runInstaller(scratch, ['--migrate', '--update', '--force', '--json'], fakePlugin, {
       DHPK_TEST_CODEX_PLUGIN_LIST_JSON: JSON.stringify({
-        installed: [{ pluginId: 'dhpk@dhpk', enabled: true, version: '0.54.1' }],
+        installed: [{ pluginId: 'dhpk@dhpk', enabled: true, version: sourceVersion }],
         available: [],
       }),
     });
@@ -181,7 +185,7 @@ test('enabled provider reports stale receipt and owned broken links before migra
 
     const disabled = runInstaller(scratch, ['--migrate', '--update', '--force'], fakePlugin, {
       DHPK_TEST_CODEX_PLUGIN_LIST_JSON: JSON.stringify({
-        installed: [{ pluginId: 'dhpk@dhpk', enabled: false, version: '0.54.1' }],
+        installed: [{ pluginId: 'dhpk@dhpk', enabled: false, version: sourceVersion }],
         available: [],
       }),
     });
@@ -192,7 +196,7 @@ test('enabled provider reports stale receipt and owned broken links before migra
       'disabled migration must preserve an unrelated symlink');
     assert.strictEqual(fs.readlinkSync(unrelatedTarget), unrelatedLinkBeforeBlocked);
     const migrated = JSON.parse(fs.readFileSync(receiptPath, 'utf8'));
-    assert.strictEqual(migrated.plugin_version, '0.54.1');
+    assert.strictEqual(migrated.plugin_version, sourceVersion);
     assert.ok(!migrated.managed_entries.skills[retired],
       'disabled migration must remove the retired entry from managed ownership');
     assert.ok(migrated.reconciliation.retired >= 1, JSON.stringify(migrated.reconciliation));
