@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## 0.54.2 — 2026-09-05 — Correct consumer validation and installation diagnostics
+
+**fix(consumers)** — Correct Claude checkout validation guidance and expose stale receipt diagnostics when a native Codex plugin blocks project-local updates.
+
 ## 0.54.1 — 2026-09-05 — Consolidate skill families and harden cross-platform consumers
 
 This candidate includes the unpublished 0.54.0 changes and subsequent fixes.
