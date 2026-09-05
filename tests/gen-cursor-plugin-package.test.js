@@ -1189,15 +1189,15 @@ test('hung Cursor consumer probes return BLOCKED timeout evidence when they alre
     const probe = runCursorConsumerProbe({
       packageRoot: out,
       executable: process.execPath,
-      args: ['-e', "require('node:fs').writeSync(1, 'partial-output\\n'); setTimeout(() => {}, 1000)"],
+      args: ['-e', "require('node:fs').writeSync(1, 'partial-output\\n'); setTimeout(() => {}, 3000)"],
       pathValue: '',
       allowUnauthenticatedFixture: true,
-      timeoutMs: 80,
+      timeoutMs: 1000,
     });
     assert.strictEqual(probe.status, 'BLOCKED');
     assert.strictEqual(probe.timed_out, true);
     assert.strictEqual(probe.no_stdout, false);
-    assert.match(probe.reason, /timed out after 80 ms/);
+    assert.match(probe.reason, /timed out after 1000 ms/);
     assert.notStrictEqual(probe.status, 'PASS');
     assert.notStrictEqual(probe.status, 'SKIP_INCOMPATIBLE');
   } finally {
