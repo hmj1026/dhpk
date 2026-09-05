@@ -2,6 +2,10 @@
 
 Status: accepted
 
+The lifecycle-clearance separation remains accepted. ADR-0014 supersedes this
+ADR's target reviewer-verdict vocabulary; existing Sentinel adapters retain the
+current compatibility mapping until migration.
+
 ## Context
 
 `subagent-stop-verify.sh` auto-clears a reviewer's sentinel on a native
