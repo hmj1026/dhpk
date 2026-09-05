@@ -54,6 +54,42 @@ function packageFixture(root, body) {
   return { source, output };
 }
 
+function packageVariantFixture(root, name, options = {}) {
+  const source = path.join(root, `${name}-source`);
+  const output = path.join(root, `${name}-package`);
+  const inventory = fixture(source, options.body || '# Agent\n');
+  if (options.includeRule === false) inventory.agy_plugin.rules = [];
+  if (options.extraRule) {
+    const relative = options.extraRule.path || 'rules/added.md';
+    fs.writeFileSync(path.join(source, relative), options.extraRule.body || '# Added\n');
+    inventory.agy_plugin.rules = [...inventory.agy_plugin.rules, relative];
+  }
+  materializeAgyPluginPackage({
+    root: source,
+    inventory,
+    outDir: output,
+    version: options.version || '0.39.0',
+    sourceVersion: options.version || '0.39.0',
+    sourceCommit: COMMIT,
+  });
+  return { source, output };
+}
+
+function inspectVariantDrift(root, oldOptions, newOptions) {
+  const oldPackage = packageVariantFixture(root, 'old', oldOptions);
+  const target = path.join(root, 'owned-target');
+  installAgyPlugin({ sourceRoot: oldPackage.output, targetRoot: target, mode: 'install' });
+  const newPackage = packageVariantFixture(root, 'new', newOptions);
+  return inspectAgyPlugin({ sourceRoot: newPackage.output, targetRoot: target });
+}
+
+function installedVariant(root, options = {}) {
+  const installed = packageVariantFixture(root, 'installed', options);
+  const target = path.join(root, 'owned-target');
+  installAgyPlugin({ sourceRoot: installed.output, targetRoot: target, mode: 'install' });
+  return { ...installed, target };
+}
+
 test('resolves the documented user AGY install location', () => {
   assert.strictEqual(resolveAgyInstallRoot('/tmp/demo-home'), '/tmp/demo-home/.gemini/config/plugins/dhpk');
 });
@@ -196,6 +232,219 @@ test('read-only inspection reports an owned current target without mutation', ()
     assert.strictEqual(report.diff.counts.same, report.source.file_count);
     assert.strictEqual(report.mutation.performed, false);
     assert.strictEqual(fs.readFileSync(path.join(target, 'provenance.json'), 'utf8'), beforeReceipt);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('read-only inspection treats intact same-version source drift as stale', () => {
+  const root = tmp();
+  try {
+    const first = packageFixture(root, '# First\n');
+    const target = path.join(root, 'owned-target');
+    installAgyPlugin({ sourceRoot: first.output, targetRoot: target, mode: 'install' });
+    const beforeTargetReceipt = fs.readFileSync(path.join(target, 'provenance.json'), 'utf8');
+
+    const second = packageFixture(root, '# Second\n');
+    const beforeSource = fs.readFileSync(path.join(second.output, 'agents/sample.md'), 'utf8');
+    const report = inspectAgyPlugin({ sourceRoot: second.output, targetRoot: target });
+
+    assert.strictEqual(report.status, 'PASS');
+    assert.strictEqual(report.state, 'STALE');
+    assert.strictEqual(report.classification, 'AGY_OWNED');
+    assert.ok(report.diff.counts.changed >= 1, JSON.stringify(report));
+    assert.match(report.next_action, /update/i);
+    assert.strictEqual(fs.readFileSync(path.join(second.output, 'agents/sample.md'), 'utf8'), beforeSource);
+    assert.strictEqual(fs.readFileSync(path.join(target, 'provenance.json'), 'utf8'), beforeTargetReceipt);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('read-only inspection reports changed source as stale across versions', () => {
+  const root = tmp();
+  try {
+    const report = inspectVariantDrift(root,
+      { version: '0.39.0', body: '# First\n' },
+      { version: '0.40.0', body: '# Second\n' });
+    assert.strictEqual(report.status, 'PASS');
+    assert.strictEqual(report.state, 'STALE');
+    assert.strictEqual(report.classification, 'AGY_OWNED');
+    assert.ok(report.diff.counts.changed >= 1, JSON.stringify(report));
+    assert.match(report.next_action, /update/i);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('read-only inspection reports added source as stale across versions', () => {
+  const root = tmp();
+  try {
+    const report = inspectVariantDrift(root,
+      { version: '0.39.0', includeRule: false },
+      { version: '0.40.0', extraRule: { path: 'rules/added.md', body: '# Added\n' } });
+    assert.strictEqual(report.status, 'PASS');
+    assert.strictEqual(report.state, 'STALE');
+    assert.strictEqual(report.classification, 'AGY_OWNED');
+    assert.ok(report.diff.missing_preview.includes('rules/added.md'), JSON.stringify(report));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('read-only inspection reports removed source as stale across versions', () => {
+  const root = tmp();
+  try {
+    const report = inspectVariantDrift(root,
+      { version: '0.39.0' },
+      { version: '0.40.0', includeRule: false });
+    assert.strictEqual(report.status, 'PASS');
+    assert.strictEqual(report.state, 'STALE');
+    assert.strictEqual(report.classification, 'AGY_OWNED');
+    assert.strictEqual(report.source.version, '0.40.0');
+    assert.strictEqual(report.source.file_count, 5);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('read-only inspection reports added source as stale at the same version', () => {
+  const root = tmp();
+  try {
+    const report = inspectVariantDrift(root,
+      { version: '0.39.0', includeRule: false },
+      { version: '0.39.0', extraRule: { path: 'rules/added.md', body: '# Added\n' } });
+    assert.strictEqual(report.status, 'PASS');
+    assert.strictEqual(report.state, 'STALE');
+    assert.strictEqual(report.classification, 'AGY_OWNED');
+    assert.ok(report.diff.missing_preview.includes('rules/added.md'), JSON.stringify(report));
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('read-only inspection reports removed source as stale at the same version', () => {
+  const root = tmp();
+  try {
+    const report = inspectVariantDrift(root,
+      { version: '0.39.0' },
+      { version: '0.39.0', includeRule: false });
+    assert.strictEqual(report.status, 'PASS');
+    assert.strictEqual(report.state, 'STALE');
+    assert.strictEqual(report.classification, 'AGY_OWNED');
+    assert.strictEqual(report.source.version, '0.39.0');
+    assert.strictEqual(report.source.file_count, 5);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('read-only inspection blocks a changed receipt-owned file', () => {
+  const root = tmp();
+  try {
+    const installed = installedVariant(root);
+    fs.appendFileSync(path.join(installed.target, 'agents/sample.md'), '\nuser edit\n');
+    const report = inspectAgyPlugin({ sourceRoot: installed.output, targetRoot: installed.target });
+    assert.strictEqual(report.status, 'BLOCKED');
+    assert.strictEqual(report.state, 'BLOCKED');
+    assert.strictEqual(report.classification, 'OWNED_CHANGED');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('read-only inspection blocks a missing receipt-owned file after source removal', () => {
+  const root = tmp();
+  try {
+    const installed = installedVariant(root);
+    fs.unlinkSync(path.join(installed.target, 'rules/sample.md'));
+    const next = packageVariantFixture(root, 'next', { version: '0.40.0', includeRule: false });
+    const report = inspectAgyPlugin({ sourceRoot: next.output, targetRoot: installed.target });
+    assert.strictEqual(report.status, 'BLOCKED');
+    assert.strictEqual(report.state, 'BLOCKED');
+    assert.strictEqual(report.classification, 'OWNED_CHANGED');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('read-only inspection blocks missing receipt fingerprint metadata', () => {
+  const root = tmp();
+  try {
+    const installed = installedVariant(root);
+    fs.unlinkSync(path.join(installed.target, 'fingerprints.json'));
+    const report = inspectAgyPlugin({ sourceRoot: installed.output, targetRoot: installed.target });
+    assert.strictEqual(report.status, 'BLOCKED');
+    assert.strictEqual(report.state, 'BLOCKED');
+    assert.strictEqual(report.classification, 'OWNED_CHANGED');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('read-only inspection blocks tampered receipt metadata', () => {
+  const root = tmp();
+  try {
+    const installed = installedVariant(root);
+    fs.appendFileSync(path.join(installed.target, 'provenance.json'), ' ');
+    const report = inspectAgyPlugin({ sourceRoot: installed.output, targetRoot: installed.target });
+    assert.strictEqual(report.status, 'BLOCKED');
+    assert.strictEqual(report.state, 'BLOCKED');
+    assert.strictEqual(report.classification, 'OWNED_CHANGED');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('read-only inspection blocks tampered fingerprint metadata', () => {
+  const root = tmp();
+  try {
+    const installed = installedVariant(root);
+    fs.appendFileSync(path.join(installed.target, 'fingerprints.json'), ' ');
+    const report = inspectAgyPlugin({ sourceRoot: installed.output, targetRoot: installed.target });
+    assert.strictEqual(report.status, 'BLOCKED');
+    assert.strictEqual(report.state, 'BLOCKED');
+    assert.strictEqual(report.classification, 'OWNED_CHANGED');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('read-only inspection blocks an unsafe removed receipt-owned path', () => {
+  const root = tmp();
+  try {
+    const installed = installedVariant(root);
+    const outside = path.join(root, 'outside-rule.md');
+    fs.writeFileSync(outside, '# outside\n');
+    fs.unlinkSync(path.join(installed.target, 'rules/sample.md'));
+    fs.symlinkSync(outside, path.join(installed.target, 'rules/sample.md'));
+    const next = packageVariantFixture(root, 'next', { version: '0.40.0', includeRule: false });
+    const report = inspectAgyPlugin({ sourceRoot: next.output, targetRoot: installed.target });
+    assert.strictEqual(report.status, 'BLOCKED');
+    assert.strictEqual(report.state, 'BLOCKED');
+    assert.strictEqual(report.classification, 'UNSAFE_TARGET');
+    assert.strictEqual(fs.readFileSync(outside, 'utf8'), '# outside\n');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('read-only inspection blocks an unowned file colliding with a new source path', () => {
+  const root = tmp();
+  try {
+    const installed = installedVariant(root, { includeRule: false });
+    fs.mkdirSync(path.join(installed.target, 'rules'), { recursive: true });
+    fs.writeFileSync(path.join(installed.target, 'rules/new-rule.md'), '# New\n');
+    const next = packageVariantFixture(root, 'next', {
+      version: '0.40.0',
+      includeRule: false,
+      extraRule: { path: 'rules/new-rule.md', body: '# New\n' },
+    });
+    const report = inspectAgyPlugin({ sourceRoot: next.output, targetRoot: installed.target });
+    assert.strictEqual(report.status, 'BLOCKED');
+    assert.strictEqual(report.state, 'BLOCKED');
+    assert.strictEqual(report.classification, 'OWNED_CHANGED');
+    assert.ok(report.diff.counts.same >= 1, JSON.stringify(report));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }

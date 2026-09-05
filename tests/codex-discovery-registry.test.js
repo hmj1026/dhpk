@@ -20,6 +20,104 @@ function provider(overrides = {}) {
   };
 }
 
+test('fingerprint failures block activation while retaining the invalid provider and identity evidence', () => {
+  const result = inspectCodexActivation({
+    project: [provider({
+      fingerprint: '',
+      fingerprintError: 'ENOENT: no such file or directory, realpath project/.codex/skills/dhpk-demo',
+      current: false,
+      owned: false,
+    })],
+  });
+  assert.strictEqual(result.ok, false, JSON.stringify(result));
+  assert.strictEqual(result.verdict, 'BLOCKED');
+  assert.strictEqual(result.integrityVerdict, 'BLOCKED');
+  assert.strictEqual(result.reasonCode, 'CODEX_PROVIDER_FINGERPRINT_ERROR');
+  assert.strictEqual(result.effective.length, 0);
+  assert.strictEqual(result.invalidProviders.length, 1);
+  assert.strictEqual(result.invalidProviders[0].id, 'dhpk-demo');
+  assert.strictEqual(result.invalidProviders[0].name, 'dhpk-demo');
+  assert.strictEqual(result.invalidProviders[0].fingerprint, '');
+  assert.strictEqual(result.invalidProviders[0].fingerprintError, 'ENOENT: no such file or directory, realpath project/.codex/skills/dhpk-demo');
+});
+
+test('empty fingerprint without fingerprint error remains malformed', () => {
+  assert.throws(
+    () => inspectCodexActivation({ project: [provider({ fingerprint: '' })] }),
+    /missing fingerprint/i,
+  );
+});
+
+test('fingerprint failure outranks duplicate activation for an invalid project provider', () => {
+  const result = inspectCodexActivation({
+    project: [provider({
+      fingerprint: '',
+      fingerprintError: 'ENOENT: no such file or directory, realpath project/.codex/skills/dhpk-demo',
+      current: false,
+      owned: false,
+    })],
+    native: [provider({
+      surface: 'native-experimental',
+      sourcePath: 'native/plugins/dhpk/skills/dhpk-demo',
+      fingerprint: 'native-good',
+    })],
+    precedence: ['project-local'],
+  });
+  assert.strictEqual(result.ok, false, JSON.stringify(result));
+  assert.strictEqual(result.verdict, 'BLOCKED');
+  assert.strictEqual(result.integrityVerdict, 'BLOCKED');
+  assert.strictEqual(result.reasonCode, 'CODEX_PROVIDER_FINGERPRINT_ERROR');
+  assert.deepStrictEqual(result.duplicateInvokableNames, []);
+  assert.strictEqual(result.invalidProviders.length, 1);
+  assert.strictEqual(result.providers.project.length, 1);
+  assert.strictEqual(result.providers.native.length, 1);
+  assert.strictEqual(result.providers.project[0].fingerprint, '');
+  assert.strictEqual(result.providers.native[0].fingerprint, 'native-good');
+  assert.strictEqual(result.conflicts.length, 1);
+  assert.deepStrictEqual(
+    result.conflicts[0].providers.map((item) => `${item.surface}:${item.fingerprint}`).sort(),
+    ['native-experimental:native-good', 'project-local:'],
+  );
+  assert.strictEqual(result.effective.length, 0);
+});
+
+test('fingerprint failure reason remains primary while valid duplicate names stay observable', () => {
+  const result = inspectCodexActivation({
+    project: [
+      provider({
+        id: 'dhpk-shared',
+        name: 'dhpk-shared',
+        sourcePath: 'project/.codex/skills/dhpk-shared',
+        fingerprint: 'shared-good',
+      }),
+      provider({
+        id: 'dhpk-broken',
+        name: 'dhpk-broken',
+        sourcePath: 'project/.codex/skills/dhpk-broken',
+        fingerprint: '',
+        fingerprintError: 'ENOENT: no such file or directory, realpath project/.codex/skills/dhpk-broken',
+        current: false,
+        owned: false,
+      }),
+    ],
+    native: [provider({
+      id: 'dhpk-shared',
+      name: 'dhpk-shared',
+      surface: 'native-experimental',
+      sourcePath: 'native/plugins/dhpk/skills/dhpk-shared',
+      fingerprint: 'shared-good',
+    })],
+    precedence: ['project-local'],
+  });
+  assert.strictEqual(result.ok, false, JSON.stringify(result));
+  assert.strictEqual(result.verdict, 'BLOCKED');
+  assert.strictEqual(result.integrityVerdict, 'BLOCKED');
+  assert.strictEqual(result.reasonCode, 'CODEX_PROVIDER_FINGERPRINT_ERROR');
+  assert.deepStrictEqual(result.duplicateInvokableNames, ['dhpk-shared']);
+  assert.strictEqual(result.invalidProviders.length, 1);
+  assert.strictEqual(result.invalidProviders[0].name, 'dhpk-broken');
+});
+
 test('same public name and fingerprint merge into one effective entry with providers', () => {
   const result = inspectCodexDiscovery({
     project: [provider()],

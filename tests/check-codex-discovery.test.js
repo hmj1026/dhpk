@@ -72,6 +72,112 @@ test('check-codex-discovery blocks duplicate runtime providers while preserving 
   }
 });
 
+test('check-codex-discovery blocks a dangling project-local skill with structured redacted evidence', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-discovery-dangling-'));
+  const project = path.join(root, 'project');
+  const native = path.join(root, 'native');
+  const source = path.join(root, 'source', 'dangling-demo');
+  const destination = path.join(project, '.codex', 'skills', 'dangling-demo');
+  try {
+    fs.mkdirSync(source, { recursive: true });
+    fs.writeFileSync(path.join(source, 'SKILL.md'), '# dangling demo\n');
+    fs.mkdirSync(path.dirname(destination), { recursive: true });
+    fs.mkdirSync(native, { recursive: true });
+    fs.symlinkSync(source, destination, 'dir');
+    fs.rmSync(source, { recursive: true, force: true });
+    assert.strictEqual(fs.lstatSync(destination).isSymbolicLink(), true);
+
+    const result = spawnSync(process.execPath, [
+      CLI,
+      '--repo-root', root,
+      '--project-root', project,
+      '--native-root', native,
+    ], { cwd: ROOT, encoding: 'utf8' });
+    assert.strictEqual(result.status, 1, `${result.stdout}\n${result.stderr}`);
+    assert.strictEqual(result.stderr, '');
+    assert.doesNotMatch(result.stderr, /usage:/i);
+    const report = JSON.parse(result.stdout);
+    assert.strictEqual(report.ok, false);
+    assert.strictEqual(report.verdict, 'BLOCKED');
+    assert.strictEqual(report.integrityVerdict, 'BLOCKED');
+    assert.strictEqual(report.reasonCode, 'CODEX_PROVIDER_FINGERPRINT_ERROR');
+    assert.strictEqual(report.effective.length, 0);
+    assert.strictEqual(report.invalidProviders.length, 1);
+    const invalid = report.invalidProviders[0];
+    assert.strictEqual(invalid.name, 'dangling-demo');
+    assert.strictEqual(invalid.surface, 'project-local');
+    assert.strictEqual(invalid.fingerprint, '');
+    assert.strictEqual(invalid.owned, false);
+    assert.match(invalid.sourcePath, /project\/\.codex\/skills\/dangling-demo/);
+    assert.match(invalid.fingerprintError, /ENOENT|no such file|dangling|missing/i);
+    assert.doesNotMatch(result.stdout, new RegExp(root.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    assert.match(report.nextAction, /--update/i);
+    assert.match(report.nextAction, /(?:receipt[- ]owned|\b(?:if|when|only)\b)/i);
+    assert.match(report.nextAction, /\bowned\b/i);
+    assert.match(report.nextAction, /unowned/i);
+    assert.match(report.nextAction, /manual/i);
+    assert.match(report.nextAction, /inspect/i);
+    assert.match(report.nextAction, /repair/i);
+    assert.match(report.nextAction, /remov/i);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('check-codex-discovery blocks a dangling project-local agent with structured redacted evidence', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-discovery-dangling-agent-'));
+  const project = path.join(root, 'project');
+  const native = path.join(root, 'native');
+  const source = path.join(root, 'source', 'dangling-agent');
+  const destination = path.join(project, '.codex', 'agents', 'dangling-agent');
+  try {
+    fs.mkdirSync(source, { recursive: true });
+    fs.writeFileSync(path.join(source, 'AGENT.md'), '# dangling agent\n');
+    fs.mkdirSync(path.dirname(destination), { recursive: true });
+    fs.mkdirSync(native, { recursive: true });
+    fs.symlinkSync(source, destination, 'dir');
+    fs.rmSync(source, { recursive: true, force: true });
+    assert.strictEqual(fs.lstatSync(destination).isSymbolicLink(), true);
+
+    const result = spawnSync(process.execPath, [
+      CLI,
+      '--repo-root', root,
+      '--project-root', project,
+      '--native-root', native,
+    ], { cwd: ROOT, encoding: 'utf8' });
+    assert.strictEqual(result.status, 1, `${result.stdout}\n${result.stderr}`);
+    assert.strictEqual(result.stderr, '');
+    assert.doesNotMatch(result.stderr, /usage:/i);
+    const report = JSON.parse(result.stdout);
+    assert.strictEqual(report.ok, false);
+    assert.strictEqual(report.verdict, 'BLOCKED');
+    assert.strictEqual(report.integrityVerdict, 'BLOCKED');
+    assert.strictEqual(report.reasonCode, 'CODEX_PROVIDER_FINGERPRINT_ERROR');
+    assert.strictEqual(report.effective.length, 0);
+    assert.strictEqual(report.invalidProviders.length, 1);
+    const invalid = report.invalidProviders[0];
+    assert.strictEqual(invalid.id, 'dangling-agent');
+    assert.strictEqual(invalid.name, 'dangling-agent');
+    assert.strictEqual(invalid.kind, 'agents');
+    assert.strictEqual(invalid.surface, 'project-local');
+    assert.strictEqual(invalid.fingerprint, '');
+    assert.strictEqual(invalid.owned, false);
+    assert.match(invalid.sourcePath, /project\/\.codex\/agents\/dangling-agent/);
+    assert.match(invalid.fingerprintError, /ENOENT|no such file|dangling|missing/i);
+    assert.doesNotMatch(result.stdout, new RegExp(root.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    assert.match(report.nextAction, /--update/i);
+    assert.match(report.nextAction, /(?:receipt[- ]owned|\b(?:if|when|only)\b)/i);
+    assert.match(report.nextAction, /\bowned\b/i);
+    assert.match(report.nextAction, /unowned/i);
+    assert.match(report.nextAction, /manual/i);
+    assert.match(report.nextAction, /inspect/i);
+    assert.match(report.nextAction, /repair/i);
+    assert.match(report.nextAction, /remov/i);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('check-codex-discovery exposes help and rejects unknown arguments', () => {
   const help = spawnSync(process.execPath, [CLI, '--help'], { cwd: ROOT, encoding: 'utf8' });
   assert.strictEqual(help.status, 0);

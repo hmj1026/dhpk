@@ -49,6 +49,9 @@ except Exception:  # pragma: no cover - py3.10 fallback
         tomllib = None
 
 
+CLAUDE_SOURCE_MANIFEST_MAX_BYTES = 1024 * 1024
+
+
 def parse_toml_file(path):
     if tomllib is None:
         raise RuntimeError("沒有可用 TOML parser（tomllib/tomli）")
@@ -120,7 +123,64 @@ def not_participating_row(platform, status, reason):
     }
 
 
+def _claude_source_marker(repo_root):
+    """Return None when absent, otherwise whether the root marker identifies dhpk."""
+    marker = os.path.join(repo_root, ".claude-plugin", "plugin.json")
+    if not os.path.lexists(marker):
+        return None
+    fd = None
+    try:
+        flags = os.O_RDONLY
+        flags |= getattr(os, "O_NONBLOCK", 0)
+        flags |= getattr(os, "O_CLOEXEC", 0)
+        flags |= getattr(os, "O_BINARY", 0)
+        fd = os.open(marker, flags)
+        if not stat.S_ISREG(os.fstat(fd).st_mode):
+            return False
+        content = os.read(fd, CLAUDE_SOURCE_MANIFEST_MAX_BYTES + 1)
+        if len(content) > CLAUDE_SOURCE_MANIFEST_MAX_BYTES:
+            return False
+        payload = json.loads(content.decode("utf-8"))
+        return isinstance(payload, dict) and payload.get("name") == "dhpk"
+    except (OSError, UnicodeError, ValueError):
+        return False
+    finally:
+        if fd is not None:
+            try:
+                os.close(fd)
+            except OSError:
+                pass
+
+
+def _validate_claude_source(repo_root, marker_ok):
+    notes = []
+    config_ok = marker_ok
+    if not config_ok:
+        notes.append(".claude-plugin/plugin.json 無效或缺少 name=dhpk")
+
+    smoke_ok = bool(glob.glob(os.path.join(repo_root, "skills/*/SKILL.md"))) and bool(
+        glob.glob(os.path.join(repo_root, "commands/**/*.md"), recursive=True)
+    )
+    if not smoke_ok:
+        notes.append("root 缺少核心 skills/commands")
+
+    hook_dir = os.path.join(repo_root, "hooks")
+    hook_state = ROW_PASS if os.path.isdir(hook_dir) and has_any_files(hook_dir) else ROW_FAIL
+    if hook_state == ROW_FAIL:
+        notes.append("root hooks/ 不存在或找不到 hook 檔案")
+
+    multi_state = ROW_PASS if bool(glob.glob(os.path.join(repo_root, "agents/*.md"))) else ROW_FAIL
+    if multi_state == ROW_FAIL:
+        notes.append("找不到 root agents/*.md")
+
+    return result_row("claude", config_ok, smoke_ok, hook_state, multi_state, notes)
+
+
 def validate_claude(repo_root):
+    source_marker = _claude_source_marker(repo_root)
+    if source_marker is not None:
+        return _validate_claude_source(repo_root, source_marker)
+
     notes = []
     cfg = os.path.join(repo_root, ".claude/settings.local.json")
     config_ok = parse_json_ok(cfg) if safe_exists(cfg) else False

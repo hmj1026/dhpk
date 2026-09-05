@@ -52,9 +52,13 @@ presence/validity, and the Git marker result.
 
 ### Requirement: Diff evidence is bounded and deterministic
 
-Inspection SHALL compare only source inventory paths using physical regular
-files. It MUST report sorted same/changed/missing counts and bounded previews;
+The reported diff SHALL compare only source inventory paths using physical
+regular files. It MUST report sorted same/changed/missing counts and bounded previews;
 it MUST NOT follow target symlinks or recursively inspect target-only trees.
+
+Ownership verification SHALL separately inspect the paths explicitly recorded
+in the installed receipt and its metadata, including owned paths absent from
+the new source. It MUST NOT recursively enumerate target-only trees.
 
 #### Scenario: Source and foreign target differ
 
@@ -67,6 +71,48 @@ it MUST NOT follow target symlinks or recursively inspect target-only trees.
 - **WHEN** a source-relative target path or one of its ancestors is a symlink
 - **THEN** that path is reported as unsafe/changed and inspection does not read
   bytes through the link
+
+### Requirement: Source drift is distinct from installed target modification
+
+Inspection SHALL verify installed files against the installed receipt's own
+fingerprints and verify receipt metadata before deciding whether source drift
+is a normal update. A complete, matching installation SHALL retain
+`classification: AGY_OWNED` and `status: PASS`. It SHALL report `state: CURRENT`
+when it matches the source, or `state: STALE` with a non-empty update
+`next_action` when source content or inventory differs, including same-version
+changes. Both `plan` and `status` SHALL exit zero for these passing states.
+
+#### Scenario: An intact installation has a different source package
+
+- **WHEN** the target matches its own receipt and the source adds, changes, or
+  removes package files
+- **THEN** inspection reports `PASS` / `STALE` / `AGY_OWNED`, provides update
+  guidance, and leaves the source, target, and receipts byte-identical
+
+#### Scenario: An old owned file was modified or removed
+
+- **WHEN** a receipt-owned target file is modified or missing, including a path
+  no longer present in the new source
+- **THEN** inspection reports `BLOCKED` / `OWNED_CHANGED` rather than a normal
+  update
+
+#### Scenario: Receipt metadata was modified
+
+- **WHEN** a valid installed receipt has inconsistent fingerprint metadata or
+  metadata bytes that fail the installer's receipt ownership checks
+- **THEN** inspection remains blocked and does not recommend an automatic update
+
+#### Scenario: An old owned path is unsafe
+
+- **WHEN** a receipt-owned target path or its ancestor is a symlink or an
+  incompatible filesystem entry, even if the new source removed that path
+- **THEN** inspection reports `BLOCKED` / `UNSAFE_TARGET` without following it
+
+#### Scenario: A new source path collides with an unowned target file
+
+- **WHEN** a new source path already exists in the target outside the installed
+  receipt's ownership
+- **THEN** inspection remains blocked rather than reporting a safe update
 
 ### Requirement: Blocked reports provide an explicit owner action
 

@@ -118,7 +118,7 @@ transaction 遷移。
 client-specific probe，否則明確回傳 `runtime: NOT_RUN`。
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.54.0 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.54.1 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -263,6 +263,14 @@ Report 會把 artifact integrity 與 runtime activation 分開判定。fingerpri
 相同也一樣。`duplicateInvokableNames` 會列出受影響名稱；non-invokable
 support package 不列入。Precedence 不能把重疊的 invokable name 變成 runtime
 `WARN` 或 `PASS`。
+
+如果 CLI 無法計算某個 provider 的 fingerprint，會回傳結構化 JSON，且包含
+`verdict: BLOCKED`、`integrityVerdict: BLOCKED` 與
+`reasonCode: CODEX_PROVIDER_FINGERPRINT_ERROR`。受影響的 provider 及其
+fingerprint error 會列在 `invalidProviders` 中；report 不會臆造 fingerprint。
+這是 policy failure，`exit 1`（status 1），不是 `exit 2` 的 usage/error 路徑。
+`nextAction` 欄位會說明 `--update` 只適用於 receipt-owned entries；unowned
+entries 必須人工檢查、修復或移除。這不表示 `--update` 會清理 unowned links。
 
 這個 command 只回報證據，不會刪除 projection、cache 或 host registration。
 Remediation 由人決定。若選擇支援的 project sync 路徑，請手動執行
@@ -580,7 +588,7 @@ AGY projection 是獨立的 owner-scoped package。它只轉換 canonical agent
 frontmatter，不會改寫 `agents/`。請從 dhpk checkout 產生與驗證：
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.54.0 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.54.1 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 

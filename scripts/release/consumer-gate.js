@@ -211,14 +211,30 @@ function discoverCodexSurface({
       let fingerprintError = null;
       try {
         fingerprint = contentFingerprintFn(target, fingerprintOptions(contentFingerprintFn, allowedRoots));
-        expectedFingerprint = expectedFingerprints
-          ? expectedFingerprintFn(target, fingerprintOptions(expectedFingerprintFn, allowedRoots))
-          : null;
-        ownershipFingerprint = ownershipFn === contentFingerprintFn
-          ? fingerprint
-          : ownershipFn(target, fingerprintOptions(ownershipFn, allowedRoots));
+        if (!fingerprint) {
+          const redactedError = redactEvidence(
+            redactEvidence('fingerprint validation failed: empty or missing target', root),
+            surfaceRoot,
+          );
+          fingerprintError = redactedError && redactedError.trim()
+            ? redactedError
+            : 'fingerprint validation failed';
+        } else {
+          expectedFingerprint = expectedFingerprints
+            ? expectedFingerprintFn(target, fingerprintOptions(expectedFingerprintFn, allowedRoots))
+            : null;
+          ownershipFingerprint = ownershipFn === contentFingerprintFn
+            ? fingerprint
+            : ownershipFn(target, fingerprintOptions(ownershipFn, allowedRoots));
+        }
       } catch (error) {
-        fingerprintError = error;
+        const errorText = error && typeof error.message === 'string' && error.message
+          ? error.message
+          : (typeof error === 'string' && error ? error : 'fingerprint validation failed');
+        const redactedError = redactEvidence(redactEvidence(errorText, root), surfaceRoot);
+        fingerprintError = redactedError && redactedError.trim()
+          ? redactedError
+          : 'fingerprint validation failed';
       }
       const receiptEntry = managed && managed[id];
       const owned = manifest
@@ -235,7 +251,7 @@ function discoverCodexSurface({
         fingerprint,
         owned,
         current,
-        ...(fingerprintError ? { fingerprintError: fingerprintError.message } : {}),
+        ...(fingerprintError ? { fingerprintError } : {}),
         ...(provenance ? { provenance: { ...provenance } } : {}),
         sourcePath: relativeEvidencePath(root, target, label),
       }];
@@ -246,12 +262,6 @@ function discoverCodexSurface({
 function evaluateCodexSurfaceMatrix({ project, native, precedence, nativeExperimental = false }) {
   if (!project || !native || project.id !== native.id || (project.kind && native.kind && project.kind !== native.kind)) {
     return { verdict: CODEX_SURFACE_VERDICTS.PASS, reason: 'no duplicate surface' };
-  }
-  if (!precedence || project.current !== true || project.owned !== true || native.current !== true || native.owned !== true) {
-    return {
-      verdict: CODEX_SURFACE_VERDICTS.BLOCKED,
-      reason: 'selected project-local surface is stale/unowned or precedence is missing',
-    };
   }
   const report = inspectCodexDiscovery({
     project: [{
@@ -267,6 +277,18 @@ function evaluateCodexSurfaceMatrix({ project, native, precedence, nativeExperim
     }],
     precedence: precedence ? [precedence] : [],
   });
+  if (report.reasonCode === 'CODEX_PROVIDER_FINGERPRINT_ERROR') {
+    return {
+      verdict: CODEX_SURFACE_VERDICTS.BLOCKED,
+      reason: 'Codex surface fingerprint validation is BLOCKED',
+    };
+  }
+  if (!precedence || project.current !== true || project.owned !== true || native.current !== true || native.owned !== true) {
+    return {
+      verdict: CODEX_SURFACE_VERDICTS.BLOCKED,
+      reason: 'selected project-local surface is stale/unowned or precedence is missing',
+    };
+  }
   if (report.duplicates.length > 0) {
     return { verdict: CODEX_SURFACE_VERDICTS.PASS, reason: 'identical fingerprints with valid provenance' };
   }
@@ -307,6 +329,7 @@ function summarizeCodexDiscovery(discovery) {
       resolvedBy: entry.resolvedBy || null,
       providerSurfaces: entry.providers.map((provider) => provider.surface),
     })),
+    invalidProviders: discovery.invalidProviders.map((entry) => ({ ...entry })),
   };
 }
 
@@ -890,7 +913,9 @@ function verifyCodexSync(root, version) {
       return {
         verdict: VERDICTS.FAIL,
         commands,
-        reasons: ['Codex duplicate-surface validation is BLOCKED'],
+        reasons: [discovery.reasonCode === 'CODEX_PROVIDER_FINGERPRINT_ERROR'
+          ? 'Codex surface fingerprint validation is BLOCKED'
+          : 'Codex duplicate-surface validation is BLOCKED'],
         surfaceVerdict,
         duplicateEvidence,
         surfaces: {
@@ -898,6 +923,7 @@ function verifyCodexSync(root, version) {
           native: surfaces.native,
           effective: discoverySummary.effective,
           conflicts: discoverySummary.conflicts,
+          invalidProviders: discoverySummary.invalidProviders,
           receipt: {
             schema_version: manifest.schema_version,
             plugin_version: manifest.plugin_version,
@@ -922,6 +948,7 @@ function verifyCodexSync(root, version) {
       native: surfaces.native,
       effective: discoverySummary.effective,
       conflicts: discoverySummary.conflicts,
+      invalidProviders: discoverySummary.invalidProviders,
       receipt: {
         schema_version: manifest.schema_version,
         plugin_version: manifest.plugin_version,
