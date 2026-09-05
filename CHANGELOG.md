@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## 0.54.1 — 2026-09-05 — Consolidate skill families and harden cross-platform consumers
+
+This candidate includes the unpublished 0.54.0 changes and subsequent fixes.
+
+**BREAKING(skill-discovery)** — Retire 21 duplicate or superseded identities with alias-free rollback to 0.53.0. Keep `git-smart-commit` unchanged and retire `agy-commit`; version-specific Laravel and PHPUnit notes now use selectors under `laravel` and `phpunit`.
+**feat(codex-sync)** — Enforce mutual exclusivity between Codex project-local sync and enabled native plugin dhpk@dhpk with preflight guards and duplicate provider detection.
+**feat(flow-ownership)** — Give `flow-guide` the `help`, `route`, `rules`, `next`, and `close` guidance actions. Make `flow-drive` an explicit-only, mode-free implementation entry for confirmed specifications or changes; proposal authoring belongs to external `$openspec-propose`.
+**feat(harness-govern)** — Consolidate health, budget, fill, revise, and sync governance under harness-govern.
+**fix(installer)** — Fixed AGY plan and status incorrectly blocking intact installations during upgrades while preserving receipt ownership and collision checks.
+**fix(codex-discovery)** — Return structured BLOCKED evidence and safe remediation when Codex discovery cannot compute a provider fingerprint.
+**fix(installer)** — Fixed Codex and Cursor project-local install and update failures on macOS.
+**fix(harness-govern)** — Validate mandatory Claude sources from the dhpk checkout root, reject invalid source markers without consumer fallback, and bound manifest reads to regular files of at most 1 MiB while preserving valid symlink support.
+**docs(docs)** — Add quick-reference cheat sheet and navigation links for skills and slash commands.
+**docs(codex)** — Document progressive parameter discovery through `$flow-guide help` and `$flow-guide help <skill>`, with generated metadata links. OnePassword authentication remains the operator action `op signin`.
+
 ## 0.54.0 — 2026-09-04 — Consolidate remaining skill families and make Codex usage discoverable
 
 This entry records the 0.54 migration contract and documentation metadata; it is

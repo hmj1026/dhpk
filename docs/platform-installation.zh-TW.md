@@ -118,7 +118,7 @@ transaction 遷移。
 client-specific probe，否則明確回傳 `runtime: NOT_RUN`。
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.54.0 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.54.1 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
@@ -588,7 +588,7 @@ AGY projection 是獨立的 owner-scoped package。它只轉換 canonical agent
 frontmatter，不會改寫 `agents/`。請從 dhpk checkout 產生與驗證：
 
 ```bash
-bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.54.0 --json
+bin/dhpk distribution agy-plugin generate --output plugins/dhpk-agy --version=0.54.1 --json
 bin/dhpk distribution agy-plugin validate --json
 ```
 
