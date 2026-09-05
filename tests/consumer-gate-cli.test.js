@@ -445,6 +445,50 @@ test('selected Cursor sync evidence keeps the gate pending without a Cursor clie
   assert.ok(stage.commands.some((command) => /install-cursor-harness/.test(command.cmd)), JSON.stringify(stage.commands));
 });
 
+test('Claude strict validation uses a consumer-shaped staged package without the development root instructions', () => {
+  withConsumerGateBin((bin) => {
+    const log = path.join(bin, 'claude-validation.log');
+    mkBinStub(bin, 'claude', `#!/bin/sh
+LOG=${JSON.stringify(log)}
+if [ "$1" = "--version" ]; then echo '2.1.223'; exit 0; fi
+if [ "$1 $2" = "plugin validate" ]; then
+  printf 'VALIDATE_CWD=%s\\n' "$PWD" >> "$LOG"
+  printf 'VALIDATE_MANIFEST=%s\\n' "$3" >> "$LOG"
+  printf 'VALIDATE_FLAG=%s\\n' "$4" >> "$LOG"
+  for path in .claude-plugin/plugin.json skills agents commands modules; do
+    if [ ! -e "$PWD/$path" ]; then printf 'MISSING=%s\\n' "$path" >> "$LOG"; exit 2; fi
+  done
+  if [ -e "$PWD/CLAUDE.md" ]; then printf 'ROOT_CLAUDE_PRESENT=1\\n' >> "$LOG"; exit 3; fi
+  exit 0
+fi
+if [ "$1 $2 $3" = "plugin marketplace add" ]; then exit 0; fi
+if [ "$1 $2" = "plugin install" ]; then exit 0; fi
+if [ "$1 $2" = "plugin list" ]; then echo '[{"id":"dhpk@dhpk","version":"${REAL_VERSION}"}]'; exit 0; fi
+if [ "$1 $2" = "plugin uninstall" ] || [ "$1 $2" = "plugin remove" ]; then exit 0; fi
+if [ "$1 $2 $3" = "plugin marketplace remove" ] || [ "$1 $2 $3" = "plugin marketplace rm" ]; then exit 0; fi
+exit 0
+`);
+    const res = runCli({ PATH: `${bin}:${NODE_BASH_ONLY_PATH}` }, ['--surface', 'claude-core']);
+    assert.strictEqual(res.status, 0, res.stdout + res.stderr);
+    const stage = JSON.parse(res.stdout);
+    assert.strictEqual(stage.verdict, 'PASS', JSON.stringify(stage));
+
+    const logText = fs.readFileSync(log, 'utf8');
+    const validationCwd = /^VALIDATE_CWD=(.+)$/m.exec(logText);
+    const validationManifest = /^VALIDATE_MANIFEST=(.+)$/m.exec(logText);
+    const validationFlag = /^VALIDATE_FLAG=(.+)$/m.exec(logText);
+    assert.ok(validationCwd, logText);
+    assert.ok(validationManifest, logText);
+    assert.ok(validationFlag, logText);
+    assert.strictEqual(validationFlag[1], '--strict');
+    assert.strictEqual(path.dirname(path.dirname(validationManifest[1])), validationCwd[1]);
+    assert.match(validationManifest[1], /[\\/]\.claude-plugin[\\/]plugin\.json$/);
+    assert.notStrictEqual(validationCwd[1], ROOT);
+    assert.ok(validationCwd[1].startsWith(`${os.tmpdir()}${path.sep}`), validationCwd[1]);
+    assert.doesNotMatch(logText, /MISSING=|ROOT_CLAUDE_PRESENT/);
+  });
+});
+
 test('fails when the stubbed claude CLI reports a version mismatch after install', () => {
   withConsumerGateBin((bin) => {
     mkBinStub(bin, 'claude', `#!/bin/sh

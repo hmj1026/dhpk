@@ -129,18 +129,20 @@ module 則維持明確指定的 raw compatibility 路徑。腳本會引導 stack
 前置條件、review-agent override 與 hook profile，最後替你執行
 `claude plugin install`。加上 `--dry-run` 可只印出解析後的命令而不執行。
 
-隨時驗證 local checkout：
+請使用以下 source gate 驗證 local checkout：
 
 ```bash
-claude plugin validate ~/projects/dhpk --strict
+node scripts/ci/validate-plugin.js
+node scripts/ci/validate-skills.js --strict
 ```
 
-`node scripts/ci/validate-plugin.js` 與 `node scripts/ci/validate-skills.js --strict`
-是快速 source gate，不代表官方 consumer。Claude CLI 可用時，保留
-`claude plugin validate <manifest> --strict` 及其 exit code 作為官方證據；CLI 不可用時
-記錄 `NOT RUN`，不要宣稱 official PASS。Release consumer gate 會將非零官方結果視為
-blocking，並驗證 consumer-shaped staged package（開發用 root `CLAUDE.md` 不屬於 shipped
-plugin surface）。
+這些指令只驗證 repository source，不代表 official consumer。`claude plugin validate
+<manifest> --strict` 是 Claude CLI 對 consumer-shaped staged package 的官方檢查。直接對
+development checkout 執行時，可能會回報 root `CLAUDE.md`。該檔案也可能實體存在於
+checkout 或 installed cache，但不會作為 plugin context 載入，且 official consumer validation
+staging 會排除它。Claude CLI 可用時，保留 staged package 指令及其 exit code 作為官方證據；
+CLI 不可用時記錄 `NOT RUN`，不要宣稱 official PASS。Release consumer gate 會將非零 official
+結果視為 blocking，並驗證 staged package。
 
 若要在 plugin 開發時直接使用 working tree、避免反覆 reinstall，請看
 [§ 開發](#開發)。

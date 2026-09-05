@@ -579,7 +579,7 @@ rc=$?
 echo
 if [[ $rc -eq 0 ]]; then
   echo "✓ Installed. Next steps:"
-  echo "    • Validate manifest : claude plugin validate $PLUGIN_ROOT --strict"
+  echo "    • Inspect install   : claude plugin list --json"
   echo "    • Reconfigure later : /dhpk:setup  (inside Claude Code)"
   if [[ -n "$DOCKER_CONTAINERS" ]]; then
     echo "    • Docker reference  : $DOCKER_DOC"

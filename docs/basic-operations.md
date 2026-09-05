@@ -126,20 +126,23 @@ prerequisites, review-agent overrides, and hook profile, then runs
 `claude plugin install` for you. Append `--dry-run` to print the resolved
 commands without executing them.
 
-Validate the local checkout at any time:
+Validate the local checkout with the source gates:
 
 ```bash
-claude plugin validate ~/projects/dhpk --strict
+node scripts/ci/validate-plugin.js
+node scripts/ci/validate-skills.js --strict
 ```
 
-Repository checks such as `node scripts/ci/validate-plugin.js` and
-`node scripts/ci/validate-skills.js --strict` are fast source gates, not proof of the official
-consumer. When the Claude CLI is available, retain
-`claude plugin validate <manifest> --strict` and its exit code as official
-evidence; when it is unavailable, record `NOT RUN` and do not claim an official
-PASS. The release consumer gate treats a non-zero official result as blocking
-and validates the consumer-shaped staged package (development-only root
-`CLAUDE.md` is not part of the shipped plugin surface).
+These commands validate repository source and are not proof of the official
+consumer. `claude plugin validate <manifest> --strict` is the official Claude
+CLI check for a consumer-shaped staged package. Running it against this
+development checkout may report the root `CLAUDE.md`. That file may also be
+physically present in a checkout or installed cache, but it is not loaded as
+plugin context and is excluded from official consumer-validation staging. When
+the Claude CLI is available, retain the staged-package command and its exit
+code as official evidence; when it is unavailable, record `NOT RUN` and do not
+claim an official PASS. The release consumer gate treats a non-zero official
+result as blocking and validates the staged package.
 
 For live source edits during plugin development (no reinstall loop), see [§ Development](#development).
 
