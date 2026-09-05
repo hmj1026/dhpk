@@ -2,6 +2,10 @@
 
 Status: accepted
 
+Review-debt ownership in this ADR is superseded by
+[ADR-0011](0011-adopt-one-risk-adaptive-workflow.md). Its distribution and
+orchestration boundaries remain accepted.
+
 ## Context
 
 dhpk has several consumer publication surfaces. Their historical generators
@@ -41,10 +45,12 @@ closed to `PASS`, `FAIL`, `NOT_RUN`, `NOT_CONFIGURED`, `SKIP_INCOMPATIBLE`,
 consumer-runtime claim or experimental-tier graduation.
 
 Orchestration owns worker selection, dispatch, handoff, retry linkage, and
-lifecycle result collection. Sentinel remains the exclusive owner of review
-debt, slot/evidence eligibility, and clearance. A terminal orchestration state
-with an armed Sentinel is incomplete. Projection evidence consumed by
-orchestration is bound to task/session/obligation identity, stage, adapter,
+lifecycle result collection. Under ADR-0011, Review Gate owns review debt,
+slot/evidence eligibility, and lifecycle clearance; hook-backed Sentinel state
+is a compatibility projection during migration. A terminal orchestration state
+with an unresolved Review Obligation, or with an armed compatibility Sentinel
+while that projection is active, is incomplete. Projection evidence consumed
+by orchestration is bound to task/session/obligation identity, stage, adapter,
 plan/artifact fingerprints, scope, timestamp, and verdict.
 
 ## Consequences

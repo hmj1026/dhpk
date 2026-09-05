@@ -11,6 +11,7 @@ _DHPK_REVIEW_LIFECYCLE_DIR="$(CDPATH= cd -- "$(dirname "${BASH_SOURCE[0]}")" && 
 : "${DHPK_SIDECAR_LIFECYCLE_EVENTS:=.lifecycle-events.jsonl}"
 : "${DHPK_SIDECAR_ARTIFACT_READY:=.producer-ready.jsonl}"
 : "${DHPK_SIDECAR_REVIEW_TELEMETRY:=.review-telemetry.jsonl}"
+: "${DHPK_SIDECAR_ACCEPTED_OUTCOME_COST:=.accepted-outcome-cost.jsonl}"
 : "${DHPK_SIDECAR_RETRY_STATE:=.review-retry.jsonl}"
 : "${DHPK_SIDECAR_QUOTA_STATE:=.quota-resume.jsonl}"
 : "${DHPK_SIDECAR_AUDIT_READY:=.audit-ready.jsonl}"
@@ -136,6 +137,50 @@ with open(path, 'a', encoding='utf-8') as fh:
 PY
 }
 
+# Observe-only cost collection. This runs after the authoritative lifecycle
+# event is durable, and every collector/append failure is deliberately ignored
+# by dhpk_lifecycle_emit so telemetry can never change Sentinel clearance.
+_dhpk_lifecycle_failed_outcome_cost() {
+    local file="$1" task="$2" verdict="$3" accepted=false observation_id
+    case "$verdict" in PASS|APPROVE|pass|approve) accepted=true ;; esac
+    observation_id="legacy-$(_dhpk_lifecycle_hash "$task")"
+    printf '{"schema":"dhpk.accepted-outcome-cost.v1","observationId":"%s","acceptedOutcome":%s,"metrics":{"modelTokens":null,"dispatchCount":null,"semanticReviewCount":null,"remediationRounds":null,"humanTurns":null,"elapsedMs":null,"falseBlockCount":null,"receiptReuseCount":null},"telemetryFailures":[{"code":"COLLECTOR_UNAVAILABLE","detail":"<redacted>"}],"telemetryFailureCount":1,"telemetryStatus":"FAILED","retirementEligible":false}\n' \
+        "$observation_id" "$accepted" >> "$file" 2>/dev/null || true
+}
+
+_dhpk_lifecycle_accepted_outcome_cost() {
+    local state="$1" task="$2" verdict="$3" sessions events file collector record
+    [ "$state" = "verdicted" ] || return 0
+    sessions="$(_dhpk_lifecycle_sessions)"
+    events="$sessions/$DHPK_SIDECAR_LIFECYCLE_EVENTS"
+    file="$sessions/$DHPK_SIDECAR_ACCEPTED_OUTCOME_COST"
+    collector="$_DHPK_REVIEW_LIFECYCLE_DIR/../../lib/review-gate-baseline.js"
+    mkdir -p "$(dirname "$file")" 2>/dev/null || return 0
+    if [ ! -f "$events" ] || ! command -v node >/dev/null 2>&1; then
+        _dhpk_lifecycle_failed_outcome_cost "$file" "$task" "$verdict"
+        return 0
+    fi
+    if ! record="$(node "$collector" --collect-legacy "$task" "$verdict" < "$events" 2>/dev/null)" || [ -z "$record" ]; then
+        _dhpk_lifecycle_failed_outcome_cost "$file" "$task" "$verdict"
+        return 0
+    fi
+    if ! command -v python3 >/dev/null 2>&1; then
+        _dhpk_lifecycle_failed_outcome_cost "$file" "$task" "$verdict"
+        return 0
+    fi
+    if ! FILE_IN="$file" RECORD_IN="$record" python3 - <<'PY' 2>/dev/null
+import json, os
+record = json.loads(os.environ['RECORD_IN'])
+with open(os.environ['FILE_IN'], 'a', encoding='utf-8') as fh:
+    fh.write(json.dumps(record, sort_keys=True, separators=(',', ':')) + '\n')
+    fh.flush()
+    os.fsync(fh.fileno())
+PY
+    then
+        _dhpk_lifecycle_failed_outcome_cost "$file" "$task" "$verdict"
+    fi
+}
+
 # dhpk_lifecycle_emit <state> <task> <agent> <session> <attempt> <scope_id>
 #   <diff_id> <verdict> <artifact> [producer] [wave] [scope] [adapter]
 #   [stage] [plan_fingerprint] [artifact_fingerprint] [adapter_version]
@@ -179,6 +224,7 @@ PY
     local rc=$?
     [ "$rc" -eq 0 ] || return "$rc"
     _dhpk_lifecycle_telemetry "$state" "$task" "$scope" "$diff" "$verdict" || true
+    _dhpk_lifecycle_accepted_outcome_cost "$state" "$task" "$verdict" || true
     return 0
 }
 

@@ -40,6 +40,7 @@
 #   DHPK_SIDECAR_LIFECYCLE_EVENTS       — append-only lifecycle transition events
 #   DHPK_SIDECAR_ARTIFACT_READY         — producer completion markers
 #   DHPK_SIDECAR_REVIEW_TELEMETRY       — append-only lifecycle counters
+#   DHPK_SIDECAR_ACCEPTED_OUTCOME_COST   — observe-only accepted-outcome cost observations
 #   DHPK_SIDECAR_RETRY_STATE            — one-corrected-retry keyed state
 #   DHPK_SIDECAR_QUOTA_STATE            — resumable quota-blocked task identity
 #   DHPK_SIDECAR_AUDIT_READY            — audit-report producer completion markers
@@ -53,6 +54,7 @@ DHPK_SIDECAR_REVIEW_DISPATCH=".review-dispatch-attempts"
 DHPK_SIDECAR_LIFECYCLE_EVENTS=".lifecycle-events.jsonl"
 DHPK_SIDECAR_ARTIFACT_READY=".producer-ready.jsonl"
 DHPK_SIDECAR_REVIEW_TELEMETRY=".review-telemetry.jsonl"
+DHPK_SIDECAR_ACCEPTED_OUTCOME_COST=".accepted-outcome-cost.jsonl"
 DHPK_SIDECAR_RETRY_STATE=".review-retry.jsonl"
 DHPK_SIDECAR_QUOTA_STATE=".quota-resume.jsonl"
 DHPK_SIDECAR_AUDIT_READY=".audit-ready.jsonl"
