@@ -255,7 +255,18 @@ EOF
 "skills": [..., "./modules/<stack>-<version>/skills/"]
 ```
 
-在 manifest 中 bump 插件 `version`。執行 `claude plugin validate ~/projects/dhpk --strict`。並在本 README 中說明新模組。
+在 manifest 中 bump 插件 `version`。執行以下 source checks：
+
+```bash
+node scripts/ci/validate-plugin.js
+node scripts/ci/validate-skills.js --strict
+```
+
+這些檢查涵蓋 repository source。若要取得 Claude CLI official evidence，請對
+consumer-shaped staged package 的 manifest 執行 `claude plugin validate <manifest> --strict`。
+直接驗證 development checkout 時可能回報 root `CLAUDE.md`。該檔案也可能實體存在於
+checkout 或 installed cache，但不會作為 plugin context 載入，且 official consumer validation
+staging 會排除它。並在本 README 中說明新模組。
 
 模組可在 `modules/<stack>-<version>/hooks/` 內提供 hook 腳本；啟用方式依 hook 類型而異：
 
