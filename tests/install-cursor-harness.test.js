@@ -46,6 +46,29 @@ function fakePlugin() {
   return plugin;
 }
 
+function descriptorPseudoPathBlocker() {
+  const shim = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-ich-fd-path-shim-')));
+  fs.writeFileSync(path.join(shim, 'sitecustomize.py'), [
+    'import os',
+    'import re',
+    '',
+    '_dhpk_original_isdir = os.path.isdir',
+    '',
+    'def _dhpk_isdir(candidate):',
+    '    try:',
+    '        rendered = os.fspath(candidate)',
+    '    except TypeError:',
+    '        return _dhpk_original_isdir(candidate)',
+    "    if isinstance(rendered, str) and re.fullmatch(r'/(?:proc/self/fd|dev/fd)/[0-9]+', rendered):",
+    '        return False',
+    '    return _dhpk_original_isdir(candidate)',
+    '',
+    'os.path.isdir = _dhpk_isdir',
+    '',
+  ].join('\n'));
+  return shim;
+}
+
 function runInstaller(project, args, pluginRoot, extraEnv) {
   return spawnSync('bash', [HOOK, ...args], {
     cwd: project,
@@ -104,6 +127,29 @@ test('copy mode materializes skills, .mdc rules, commands, dhpk support files, a
   } finally {
     fs.rmSync(scratch, { recursive: true, force: true });
     fs.rmSync(plugin, { recursive: true, force: true });
+  }
+});
+
+test('copy and symlink installs do not require descriptor pseudo-path child traversal', () => {
+  for (const args of [['--copy', '--force'], ['--force']]) {
+    const scratch = projectRoot();
+    const plugin = fakePlugin();
+    const shim = descriptorPseudoPathBlocker();
+    try {
+      const pythonPath = [shim, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter);
+      const result = runInstaller(scratch, args, plugin, { PYTHONPATH: pythonPath });
+      assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+      const cursor = path.join(scratch, '.cursor');
+      const receipt = JSON.parse(fs.readFileSync(path.join(cursor, '.dhpk-installed.json'), 'utf8'));
+      const skill = path.join(cursor, 'skills', 'dhpk-portable');
+      assert.strictEqual(receipt.mode, args.includes('--copy') ? 'copy' : 'symlink');
+      assert.strictEqual(fs.lstatSync(skill).isSymbolicLink(), !args.includes('--copy'));
+      assert.match(fs.readFileSync(path.join(skill, 'SKILL.md'), 'utf8'), /# Portable/);
+    } finally {
+      fs.rmSync(scratch, { recursive: true, force: true });
+      fs.rmSync(plugin, { recursive: true, force: true });
+      fs.rmSync(shim, { recursive: true, force: true });
+    }
   }
 });
 
