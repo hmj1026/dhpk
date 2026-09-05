@@ -280,6 +280,15 @@ expose the same invokable public name, even when their fingerprints match.
 packages are excluded. Precedence does not turn an overlapping invokable name
 into a runtime `WARN` or `PASS`.
 
+If the CLI cannot compute a provider fingerprint, it returns structured JSON
+with `verdict: BLOCKED`, `integrityVerdict: BLOCKED`, and
+`reasonCode: CODEX_PROVIDER_FINGERPRINT_ERROR`. The affected provider and its
+fingerprint error are listed in `invalidProviders`; the report does not invent
+a fingerprint. This policy failure exits 1 (status 1); it is not the exit-2
+usage/error path. The `nextAction` field says `--update` is only for
+receipt-owned entries; unowned entries require manual inspection, repair, or
+removal. It does not claim that `--update` prunes unowned links.
+
 The command only reports evidence; it does not delete a projection, cache, or
 host registration. Remediation is a human choice. For the supported project
 sync route, remove the enabled native plugin with
