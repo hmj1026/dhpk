@@ -7,7 +7,7 @@ const fs = require('node:fs');
 const crypto = require('node:crypto');
 const os = require('node:os');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
+const { spawn, spawnSync } = require('node:child_process');
 const { test, run, assert } = require('./_lib/tinytest');
 
 const ROOT = path.join(__dirname, '..');
@@ -280,6 +280,234 @@ function completeTreeFingerprint(target) {
   };
   return hashNode(target);
 }
+
+function descriptorPseudoPathBlocker() {
+  const shim = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-fd-path-shim-')));
+  fs.writeFileSync(path.join(shim, 'sitecustomize.py'), [
+    'import atexit',
+    'import os',
+    'import re',
+    '',
+    '_dhpk_original_isdir = os.path.isdir',
+    '',
+    'def _dhpk_isdir(candidate):',
+    '    try:',
+    '        rendered = os.fspath(candidate)',
+    '    except TypeError:',
+    '        return _dhpk_original_isdir(candidate)',
+    "    if isinstance(rendered, str) and re.fullmatch(r'/(?:proc/self/fd|dev/fd)/[0-9]+', rendered):",
+    '        return False',
+    '    return _dhpk_original_isdir(candidate)',
+    '',
+    'os.path.isdir = _dhpk_isdir',
+    '',
+    "_dhpk_cwd_audit = os.environ.get('DHPK_TEST_CWD_AUDIT_FILE')",
+    'if _dhpk_cwd_audit:',
+    "    atexit.register(lambda: open(_dhpk_cwd_audit, 'w', encoding='utf-8').write(os.getcwd()))",
+    '',
+  ].join('\n'));
+  return shim;
+}
+
+test('copy and symlink installs do not require descriptor pseudo-path child traversal', () => {
+  for (const args of [['--copy', '--force'], ['--force']]) {
+    const scratch = projectRoot();
+    const shim = descriptorPseudoPathBlocker();
+    const cwdAudit = path.join(shim, 'cwd-audit.txt');
+    try {
+      const pythonPath = [shim, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter);
+      const result = runInstaller(scratch, args, ROOT, {
+        PYTHONPATH: pythonPath,
+        DHPK_TEST_CWD_AUDIT_FILE: cwdAudit,
+      });
+      assert.strictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+      assert.strictEqual(fs.readFileSync(cwdAudit, 'utf8'), scratch,
+        'materialization must restore the installer working directory');
+      const receipt = JSON.parse(
+        fs.readFileSync(path.join(scratch, '.codex', '.dhpk-installed.json'), 'utf8'),
+      );
+      assert.strictEqual(receipt.mode, args.includes('--copy') ? 'copy' : 'symlink');
+    } finally {
+      fs.rmSync(scratch, { recursive: true, force: true });
+      fs.rmSync(shim, { recursive: true, force: true });
+    }
+  }
+});
+
+function materializationFailureShim() {
+  const shim = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-copy-failure-shim-')));
+  fs.writeFileSync(path.join(shim, 'sitecustomize.py'), [
+    'import atexit',
+    'import os',
+    'import shutil',
+    '',
+    "_dhpk_cwd_audit = os.environ['DHPK_TEST_CWD_AUDIT_FILE']",
+    "atexit.register(lambda: open(_dhpk_cwd_audit, 'w', encoding='utf-8').write(os.getcwd()))",
+    '',
+    'def _dhpk_fail_materialization(*args, **kwargs):',
+    "    raise OSError('controlled materialization failure')",
+    '',
+    'shutil.copy2 = _dhpk_fail_materialization',
+    'shutil.copytree = _dhpk_fail_materialization',
+    '',
+  ].join('\n'));
+  return shim;
+}
+
+test('copy failure restores the installer working directory before reporting failure', () => {
+  const scratch = projectRoot();
+  const shim = materializationFailureShim();
+  const cwdAudit = path.join(shim, 'cwd-audit.txt');
+  try {
+    const pythonPath = [shim, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter);
+    const result = runInstaller(scratch, ['--copy', '--force'], ROOT, {
+      PYTHONPATH: pythonPath,
+      DHPK_TEST_CWD_AUDIT_FILE: cwdAudit,
+    });
+    assert.notStrictEqual(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    assert.match(`${result.stdout}\n${result.stderr}`, /controlled materialization failure/);
+    assert.strictEqual(fs.readFileSync(cwdAudit, 'utf8'), scratch,
+      'failed materialization must restore the installer working directory');
+    assert.ok(!fs.existsSync(path.join(scratch, '.codex', '.dhpk-installed.json')),
+      'failed materialization must not publish a receipt');
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(shim, { recursive: true, force: true });
+  }
+});
+
+function parentReplacementGate() {
+  const shim = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-parent-gate-shim-')));
+  fs.writeFileSync(path.join(shim, 'sitecustomize.py'), [
+    'import os',
+    'import time',
+    '',
+    '_dhpk_original_open = os.open',
+    '_dhpk_gate_used = False',
+    '',
+    'def _dhpk_open(candidate, flags, *args, **kwargs):',
+    '    global _dhpk_gate_used',
+    '    descriptor = _dhpk_original_open(candidate, flags, *args, **kwargs)',
+    "    ready = os.environ.get('DHPK_TEST_PARENT_OPEN_READY_FILE')",
+    "    release = os.environ.get('DHPK_TEST_PARENT_OPEN_RELEASE_FILE')",
+    "    if (not _dhpk_gate_used and ready and release and isinstance(candidate, str)",
+    "            and candidate.startswith('.dhpk-adopt-') and kwargs.get('dir_fd') is not None):",
+    '        _dhpk_gate_used = True',
+    "        with open(ready, 'w', encoding='utf-8') as marker:",
+    "            marker.write('ready')",
+    '        deadline = time.monotonic() + 10',
+    '        while not os.path.exists(release):',
+    '            if time.monotonic() >= deadline:',
+    "                raise TimeoutError('parent replacement gate timed out')",
+    '            time.sleep(0.01)',
+    '    return descriptor',
+    '',
+    'os.open = _dhpk_open',
+    '',
+  ].join('\n'));
+  return shim;
+}
+
+function waitForFile(file, timeoutMs = 2000) {
+  const deadline = Date.now() + timeoutMs;
+  const signal = new Int32Array(new SharedArrayBuffer(4));
+  while (Date.now() < deadline) {
+    if (fs.existsSync(file)) return true;
+    Atomics.wait(signal, 0, 0, 20);
+  }
+  return fs.existsSync(file);
+}
+
+test('parent-path replacement cannot redirect a pinned update into an external tree', () => {
+  const scratch = projectRoot();
+  const plugin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-parent-gate-plugin-')));
+  const external = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-parent-gate-external-')));
+  const shim = parentReplacementGate();
+  let watcher;
+  try {
+    fs.cpSync(path.join(ROOT, 'codex'), path.join(plugin, 'codex'), { recursive: true, dereference: true });
+    fs.mkdirSync(path.join(plugin, '.claude-plugin'), { recursive: true });
+    fs.copyFileSync(
+      path.join(ROOT, '.claude-plugin', 'plugin.json'),
+      path.join(plugin, '.claude-plugin', 'plugin.json'),
+    );
+    copyDistributionInventory(plugin);
+
+    const installed = runInstaller(scratch, ['--copy', '--force'], plugin);
+    assert.strictEqual(installed.status, 0, `${installed.stdout}\n${installed.stderr}`);
+    const changed = fs.readdirSync(path.join(plugin, 'codex', 'skills')).sort()[0];
+    const changedSource = path.join(plugin, 'codex', 'skills', changed);
+    if (fs.lstatSync(changedSource).isSymbolicLink()) {
+      const canonicalSource = fs.realpathSync(changedSource);
+      fs.rmSync(changedSource, { recursive: true, force: true });
+      fs.cpSync(canonicalSource, changedSource, { recursive: true, dereference: true });
+    }
+    fs.appendFileSync(path.join(changedSource, 'SKILL.md'), '\nparent replacement fixture\n');
+
+    fs.writeFileSync(path.join(external, 'keep.txt'), 'external sentinel\n');
+    const externalBefore = completeTreeFingerprint(external);
+    const receiptPath = path.join(scratch, '.codex', '.dhpk-installed.json');
+    const receiptBefore = fs.readFileSync(receiptPath, 'utf8');
+    const ready = path.join(shim, 'ready');
+    const release = path.join(shim, 'release');
+    const done = path.join(shim, 'done');
+    const watcherError = path.join(shim, 'watcher-error');
+    const skills = path.join(scratch, '.codex', 'skills');
+    const pinnedSkills = path.join(scratch, '.codex', 'skills-pinned');
+    const watcherScript = path.join(shim, 'replace-parent.js');
+    fs.writeFileSync(watcherScript, [
+      "'use strict';",
+      "const fs = require('node:fs');",
+      "const [ready, parent, pinned, external, release, done, errorFile] = process.argv.slice(2);",
+      'const signal = new Int32Array(new SharedArrayBuffer(4));',
+      'const deadline = Date.now() + 10000;',
+      'try {',
+      '  while (!fs.existsSync(ready) && Date.now() < deadline) Atomics.wait(signal, 0, 0, 10);',
+      "  if (!fs.existsSync(ready)) throw new Error('ready marker timed out');",
+      '  fs.renameSync(parent, pinned);',
+      "  fs.symlinkSync(external, parent, 'dir');",
+      "  fs.writeFileSync(release, 'release');",
+      "  fs.writeFileSync(done, 'done');",
+      '} catch (error) {',
+      '  fs.writeFileSync(errorFile, error.stack || String(error));',
+      "  fs.writeFileSync(release, 'release');",
+      '  process.exitCode = 1;',
+      '}',
+      '',
+    ].join('\n'));
+    watcher = spawn(process.execPath, [
+      watcherScript,
+      ready,
+      skills,
+      pinnedSkills,
+      external,
+      release,
+      done,
+      watcherError,
+    ], { stdio: 'ignore' });
+
+    const pythonPath = [shim, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter);
+    const result = runInstaller(scratch, ['--copy', '--update', '--force'], plugin, {
+      PYTHONPATH: pythonPath,
+      DHPK_TEST_PARENT_OPEN_READY_FILE: ready,
+      DHPK_TEST_PARENT_OPEN_RELEASE_FILE: release,
+    });
+    assert.ok(waitForFile(done),
+      fs.existsSync(watcherError) ? fs.readFileSync(watcherError, 'utf8') : 'parent watcher did not complete');
+    assert.notStrictEqual(result.status, 0,
+      'a replaced public parent must fail closed instead of publishing a success receipt');
+    assert.strictEqual(completeTreeFingerprint(external), externalBefore,
+      'descriptor-pinned work must not mutate the replacement target');
+    assert.strictEqual(fs.readFileSync(receiptPath, 'utf8'), receiptBefore,
+      'a replaced parent must not publish a receipt for the wrong directory identity');
+  } finally {
+    if (watcher && watcher.exitCode === null) watcher.kill('SIGKILL');
+    fs.rmSync(scratch, { recursive: true, force: true });
+    fs.rmSync(plugin, { recursive: true, force: true });
+    fs.rmSync(external, { recursive: true, force: true });
+    fs.rmSync(shim, { recursive: true, force: true });
+  }
+});
 
 function rewriteAgentAsHistoricalManagedSymlink(scratch, agentName, targetOverride = null) {
   const codex = path.join(scratch, '.codex');
