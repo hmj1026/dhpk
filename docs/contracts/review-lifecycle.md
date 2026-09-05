@@ -9,6 +9,7 @@ evidence, not tracked deliverables:
 | `.lifecycle-events.jsonl` | One versioned transition record per task identity |
 | `.producer-ready.jsonl` | Producer marker written after a report is durable |
 | `.review-telemetry.jsonl` | Monotonic attempts, starts, verdicts, artifacts, retries, and unresolved-obligation counters |
+| `.accepted-outcome-cost.jsonl` | Observe-only, redacted cost observations emitted after a semantic verdict |
 | `.review-retry.jsonl` | Keyed one-corrected-retry budget (`max_retries: 1`) |
 | `.quota-resume.jsonl` | Quota-blocked task identity and its explicit resume transition |
 
@@ -48,6 +49,15 @@ Lifecycle clearance and approval remain separate: a `WARNING`, `BLOCK`,
 `FAIL`, malformed verdict, or actionable severity can finish the lifecycle
 event sequence but leaves the sentinel and/or `.unresolved-verdict` obligation
 visible. Only the existing parseable `APPROVE`/`PASS` gate clears the sentinel.
+
+The Accepted-Outcome Cost collector observes the already-appended lifecycle
+event stream after a `verdicted` transition. It records derived dispatch,
+semantic-review, remediation, and elapsed counters plus optional model-token,
+human-turn, false-block, and receipt-reuse measurements. Unavailable counters
+remain `null`; malformed or unavailable telemetry is explicit, and partial or
+failed observations are excluded from retirement decisions. Collection is
+best-effort and cannot clear a Sentinel, change a verdict, or block the existing
+lifecycle path.
 
 ## Orchestration and Sentinel ownership
 

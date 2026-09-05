@@ -1,0 +1,80 @@
+{
+  "schema": "dhpk.sentinel-differential-corpus.v1",
+  "authority": "SENTINEL",
+  "cases": [
+    {
+      "input": { "caseId": "no-op-not-applicable", "evidenceCondition": "NO_OP", "lifecycleClearance": "NOT_APPLICABLE", "semanticApproval": "NOT_APPLICABLE", "completion": "PASS", "unresolvedVerdict": false, "reasonCodes": ["NO_REVIEW_OBLIGATION"] },
+      "proof": { "file": "tests/post-edit-remind-scope.test.js", "test": "checkbox-only tasks.md flip does NOT arm .pending-doc-review" }
+    },
+    {
+      "input": { "caseId": "fresh-pass", "evidenceCondition": "FRESH_PASS", "lifecycleClearance": "CLEARED", "semanticApproval": "APPROVED", "completion": "PASS", "unresolvedVerdict": false, "reasonCodes": ["FRESH_PASSING_ARTIFACT"] },
+      "proof": { "file": "tests/subagent-stop-verify-autoclear.test.js", "test": "reviewer stop with armed sentinel + fresh parseable artifact → silent auto-clear (sanctioned path)" }
+    },
+    {
+      "input": { "caseId": "missing-artifact", "evidenceCondition": "MISSING", "lifecycleClearance": "PENDING", "semanticApproval": "NOT_ESTABLISHED", "completion": "BLOCKED", "unresolvedVerdict": false, "reasonCodes": ["MISSING_ARTIFACT"] },
+      "proof": { "file": "tests/subagent-stop-verify-autoclear.test.js", "test": "A5: reviewer stop with armed sentinel but NO review artifact → LEFT ARMED, logged as failure" }
+    },
+    {
+      "input": { "caseId": "stale-artifact", "evidenceCondition": "STALE", "lifecycleClearance": "PENDING", "semanticApproval": "NOT_ESTABLISHED", "completion": "BLOCKED", "unresolvedVerdict": false, "reasonCodes": ["STALE_ARTIFACT"] },
+      "proof": { "file": "tests/subagent-stop-verify-autoclear.test.js", "test": "A5: reviewer stop with armed sentinel + only a STALE prior-cycle doc → LEFT ARMED, logged as failure" }
+    },
+    {
+      "input": { "caseId": "malformed-native-artifact", "evidenceCondition": "MALFORMED_NATIVE", "lifecycleClearance": "PENDING", "semanticApproval": "NOT_ESTABLISHED", "completion": "BLOCKED", "unresolvedVerdict": false, "reasonCodes": ["MALFORMED_VERDICT"] },
+      "proof": { "file": "tests/subagent-stop-verify-autoclear.test.js", "test": "A5: fresh artifact with an UNPARSEABLE verdict stays armed for re-dispatch" }
+    },
+    {
+      "input": { "caseId": "misplaced-artifact", "evidenceCondition": "MISPLACED", "lifecycleClearance": "PENDING", "semanticApproval": "NOT_ESTABLISHED", "completion": "BLOCKED", "unresolvedVerdict": false, "reasonCodes": ["MISPLACED_ARTIFACT"] },
+      "proof": { "file": "tests/subagent-stop-verify-autoclear.test.js", "test": "a review artifact misfiled under sessions/reviews leaves the sentinel armed and is diagnosed" }
+    },
+    {
+      "input": { "caseId": "foreign-identity", "evidenceCondition": "FOREIGN_IDENTITY", "lifecycleClearance": "PENDING", "semanticApproval": "NOT_ESTABLISHED", "completion": "BLOCKED", "unresolvedVerdict": false, "reasonCodes": ["FOREIGN_IDENTITY"] },
+      "proof": { "file": "tests/review-lifecycle-identity.test.js", "test": "resumed reconciliation rejects a fresh artifact from a foreign session identity" }
+    },
+    {
+      "input": { "caseId": "concurrent-session", "evidenceCondition": "CONCURRENT_SESSION", "lifecycleClearance": "PENDING", "semanticApproval": "NOT_ESTABLISHED", "completion": "BLOCKED", "unresolvedVerdict": false, "reasonCodes": ["FOREIGN_SESSION"] },
+      "proof": { "file": "tests/resumed-review-reconcile.test.js", "test": "1.5a: a foreign session cannot clear a sentinel it never recorded an obligation for" }
+    },
+    {
+      "input": { "caseId": "resumed-pass", "evidenceCondition": "RESUMED_PASS", "lifecycleClearance": "CLEARED", "semanticApproval": "APPROVED", "completion": "PASS", "unresolvedVerdict": false, "reasonCodes": ["RESUMED_FRESH_PASS"] },
+      "proof": { "file": "tests/resumed-review-reconcile.test.js", "test": "1.1: resumed APPROVE with a fresh post-baseline artifact clears the sentinel without SubagentStop" }
+    },
+    {
+      "input": { "caseId": "resumed-intermediate", "evidenceCondition": "RESUMED_INTERMEDIATE", "lifecycleClearance": "PENDING", "semanticApproval": "NOT_ESTABLISHED", "completion": "BLOCKED", "unresolvedVerdict": false, "reasonCodes": ["RESUMED_INCOMPLETE"] },
+      "proof": { "file": "tests/resumed-review-reconcile.test.js", "test": "1.2: an intermediate resumed response (no new artifact yet) leaves sentinel and obligation armed" }
+    },
+    {
+      "input": { "caseId": "resumed-malformed", "evidenceCondition": "RESUMED_MALFORMED", "lifecycleClearance": "CLEARED", "semanticApproval": "NOT_ESTABLISHED", "completion": "BLOCKED", "unresolvedVerdict": true, "reasonCodes": ["MALFORMED_VERDICT"] },
+      "proof": { "file": "tests/resumed-review-reconcile.test.js", "test": "1.3d: a fresh artifact with a malformed (unparseable) verdict still reconciles the lifecycle but stays unresolved" }
+    },
+    {
+      "input": { "caseId": "interrupted-reviewer", "evidenceCondition": "INTERRUPTED", "lifecycleClearance": "PENDING", "semanticApproval": "NOT_ESTABLISHED", "completion": "BLOCKED", "unresolvedVerdict": false, "reasonCodes": ["REVIEWER_INTERRUPTED"] },
+      "proof": { "file": "tests/subagent-stop-verify-autoclear.test.js", "test": "Case A unchanged: a FAILED reviewer (exit!=0) keeps its sentinel armed" }
+    },
+    {
+      "input": { "caseId": "retry-allowed", "evidenceCondition": "RETRY_ALLOWED", "lifecycleClearance": "PENDING", "semanticApproval": "NOT_ESTABLISHED", "completion": "BLOCKED", "unresolvedVerdict": false, "reasonCodes": ["CORRECTED_RETRY_PENDING"] },
+      "proof": { "file": "tests/review-lifecycle.test.js", "test": "retry is corrected once and quota-blocked task identity is resumable" }
+    },
+    {
+      "input": { "caseId": "retry-exhausted", "evidenceCondition": "RETRY_EXHAUSTED", "lifecycleClearance": "PENDING", "semanticApproval": "NOT_ESTABLISHED", "completion": "BLOCKED", "unresolvedVerdict": false, "reasonCodes": ["RETRY_EXHAUSTED"] },
+      "proof": { "file": "tests/review-lifecycle.test.js", "test": "retry is corrected once and quota-blocked task identity is resumable" }
+    },
+    {
+      "input": { "caseId": "unresolved-fail", "evidenceCondition": "FAIL_VERDICT", "lifecycleClearance": "PENDING", "semanticApproval": "CHANGES_REQUIRED", "completion": "BLOCKED", "unresolvedVerdict": true, "reasonCodes": ["REVIEWER_FAIL"] },
+      "proof": { "file": "tests/subagent-stop-verify-autoclear.test.js", "test": "review artifact BLOCK/FAIL verdict stays armed and writes unresolved-verdict sidecar line" }
+    },
+    {
+      "input": { "caseId": "unresolved-resumed-block", "evidenceCondition": "RESUMED_BLOCK", "lifecycleClearance": "CLEARED", "semanticApproval": "CHANGES_REQUIRED", "completion": "BLOCKED", "unresolvedVerdict": true, "reasonCodes": ["RESUMED_BLOCK"] },
+      "proof": { "file": "tests/resumed-review-reconcile.test.js", "test": "1.4a: resumed BLOCK verdict clears the sentinel but .unresolved-verdict is NOT cleared" }
+    },
+    {
+      "input": { "caseId": "unresolved-clean-follow-up", "evidenceCondition": "CLEAN_FOLLOW_UP", "lifecycleClearance": "CLEARED", "semanticApproval": "APPROVED", "completion": "PASS", "unresolvedVerdict": false, "reasonCodes": ["RESOLVED_FOLLOW_UP"] },
+      "proof": { "file": "tests/subagent-stop-verify-autoclear.test.js", "test": "clean review artifact clears the matching unresolved-verdict sidecar line" }
+    }
+  ],
+  "deterministicProtections": [
+    { "kind": "secret", "file": "tests/pre-edit-guard.test.js", "test": "Write/Edit to .env is blocked" },
+    { "kind": "path", "file": "tests/pre-edit-guard.test.js", "test": ".git/ internals are blocked" },
+    { "kind": "shell", "file": "tests/pre-bash-guard.test.js", "test": "rm -rf /home is blocked (whole-home deletion)" },
+    { "kind": "session-health", "file": "tests/session-start.test.js", "test": "configured modules are validated and reported without lifecycle diagnostics" }
+  ]
+}

@@ -216,6 +216,97 @@ test('telemetry separates attempts, starts, verdicts, fresh artifacts, retries, 
     assert.strictEqual(latest.fresh_artifacts, 1);
     assert.strictEqual(latest.unresolved_obligations, 1);
     assert.ok(Object.prototype.hasOwnProperty.call(latest, 'retries'));
+    const baseline = readJsonl(repo, '.accepted-outcome-cost.jsonl');
+    assert.strictEqual(baseline.length, 1);
+    assert.strictEqual(baseline[0].schema, 'dhpk.accepted-outcome-cost.v1');
+    assert.strictEqual(baseline[0].acceptedOutcome, true);
+    assert.strictEqual(baseline[0].metrics.dispatchCount, 1);
+    assert.strictEqual(baseline[0].metrics.semanticReviewCount, 1);
+    assert.strictEqual(baseline[0].telemetryStatus, 'PARTIAL');
+    assert.strictEqual(baseline[0].retirementEligible, false);
+  } finally {
+    rmRepo(repo);
+  }
+});
+
+test('accepted-outcome baseline derives lifecycle costs and records optional measurements', () => {
+  const repo = mkRepo({ prefix: 'dhpk-lifecycle-accepted-outcome-' });
+  try {
+    const res = source(repo, [
+      'dhpk_lifecycle_emit dispatched task-cost code-reviewer session-1 1 scope-a diff-a "" ""',
+      'dhpk_lifecycle_emit started task-cost code-reviewer session-1 1 scope-a diff-a "" ""',
+      'dhpk_lifecycle_emit retrying task-cost code-reviewer session-1 1 scope-a diff-a "" ""',
+      'dhpk_lifecycle_emit dispatched task-cost code-reviewer session-1 2 scope-a diff-a "" ""',
+      'dhpk_lifecycle_emit started task-cost code-reviewer session-1 2 scope-a diff-a "" ""',
+      'dhpk_lifecycle_emit verdicted task-cost code-reviewer session-1 2 scope-a diff-a APPROVE ""',
+    ].join('\n'), {
+      DHPK_ACCEPTED_OUTCOME_MODEL_TOKENS: '1200',
+      DHPK_ACCEPTED_OUTCOME_HUMAN_TURNS: '1',
+      DHPK_ACCEPTED_OUTCOME_FALSE_BLOCK_COUNT: '0',
+      DHPK_ACCEPTED_OUTCOME_RECEIPT_REUSE_COUNT: '0',
+    });
+    assert.strictEqual(res.status, 0, res.stderr);
+    const observations = readJsonl(repo, '.accepted-outcome-cost.jsonl');
+    assert.strictEqual(observations.length, 1);
+    const observation = observations[0];
+    assert.strictEqual(observation.acceptedOutcome, true);
+    assert.strictEqual(observation.metrics.modelTokens, 1200);
+    assert.strictEqual(observation.metrics.dispatchCount, 2);
+    assert.strictEqual(observation.metrics.semanticReviewCount, 1);
+    assert.strictEqual(observation.metrics.remediationRounds, 1);
+    assert.strictEqual(observation.metrics.humanTurns, 1);
+    assert.ok(Number.isSafeInteger(observation.metrics.elapsedMs));
+    assert.strictEqual(observation.metrics.falseBlockCount, 0);
+    assert.strictEqual(observation.metrics.receiptReuseCount, 0);
+    assert.strictEqual(observation.telemetryStatus, 'COMPLETE');
+    assert.strictEqual(observation.retirementEligible, true);
+  } finally {
+    rmRepo(repo);
+  }
+});
+
+test('accepted-outcome telemetry failures are explicit and never block lifecycle authority', () => {
+  const repo = mkRepo({ prefix: 'dhpk-lifecycle-accepted-outcome-failed-' });
+  try {
+    const res = source(repo, [
+      'dhpk_lifecycle_emit dispatched task-cost-failed code-reviewer session-1 1 scope-a diff-a "" ""',
+      'dhpk_lifecycle_emit started task-cost-failed code-reviewer session-1 1 scope-a diff-a "" ""',
+      'dhpk_lifecycle_emit verdicted task-cost-failed code-reviewer session-1 1 scope-a diff-a PASS ""',
+    ].join('\n'), {
+      DHPK_ACCEPTED_OUTCOME_MODEL_TOKENS: 'not-a-number',
+    });
+    assert.strictEqual(res.status, 0, res.stderr);
+    const observations = readJsonl(repo, '.accepted-outcome-cost.jsonl');
+    assert.strictEqual(observations.length, 1);
+    assert.strictEqual(observations[0].telemetryStatus, 'FAILED');
+    assert.strictEqual(observations[0].retirementEligible, false);
+    assert.deepStrictEqual(observations[0].telemetryFailures.map(({ code }) => code), [
+      'INVALID_MODEL_TOKENS',
+    ]);
+  } finally {
+    rmRepo(repo);
+  }
+});
+
+test('collector execution failure appends a redacted failed observation without blocking lifecycle', () => {
+  const repo = mkRepo({ prefix: 'dhpk-lifecycle-collector-unavailable-' });
+  try {
+    const res = source(repo, [
+      '_DHPK_REVIEW_LIFECYCLE_DIR="$PWD/missing-review-lifecycle-lib"',
+      'dhpk_lifecycle_emit dispatched task-collector-failed code-reviewer session-1 1 scope-a diff-a "" ""',
+      'dhpk_lifecycle_emit started task-collector-failed code-reviewer session-1 1 scope-a diff-a "" ""',
+      'dhpk_lifecycle_emit verdicted task-collector-failed code-reviewer session-1 1 scope-a diff-a PASS ""',
+    ].join('\n'));
+    assert.strictEqual(res.status, 0, res.stderr);
+    const observations = readJsonl(repo, '.accepted-outcome-cost.jsonl');
+    assert.strictEqual(observations.length, 1);
+    assert.strictEqual(observations[0].acceptedOutcome, true);
+    assert.strictEqual(observations[0].telemetryStatus, 'FAILED');
+    assert.strictEqual(observations[0].retirementEligible, false);
+    assert.deepStrictEqual(observations[0].telemetryFailures, [{
+      code: 'COLLECTOR_UNAVAILABLE',
+      detail: '<redacted>',
+    }]);
   } finally {
     rmRepo(repo);
   }
