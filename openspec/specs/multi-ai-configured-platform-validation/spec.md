@@ -1,7 +1,9 @@
 # multi-ai-configured-platform-validation Specification
 
 ## Purpose
-TBD - created by archiving change scope-multi-ai-sync-validation-to-configured-platforms. Update Purpose after archive.
+Define Claude source validation and target applicability for cross-platform
+harness checks, with explicit failure, configuration, compatibility, and runtime
+evidence statuses for source checkouts and consumer repositories.
 
 ## Requirements
 
@@ -40,6 +42,62 @@ malformed configuration as `FAIL` rather than treating it as absent.
   schema-v3 contract
 - **THEN** Cursor remains applicable and the result is `FAIL` with a bounded
   diagnostic rather than `BLOCKED` for an absent marker
+
+### Requirement: Claude source validation distinguishes source and consumer layouts
+
+Claude source validation SHALL remain mandatory for automatic discovery,
+`--targets`, and `--all-targets`. An entry at `.claude-plugin/plugin.json`,
+including a broken symlink, SHALL select the dhpk source layout. That manifest
+SHALL resolve to a regular file of at most 1 MiB (1,048,576 bytes), decode as
+UTF-8, and parse as a JSON object with `name` equal to `dhpk`. Validation SHALL
+inspect the opened descriptor and bound its read, rejecting device and FIFO
+markers without waiting for stream content. Source validation SHALL
+require root `skills/*/SKILL.md`, `commands/**/*.md`, a nonempty `hooks/`
+directory, and `agents/*.md`. An invalid manifest or a missing required source
+component SHALL report `FAIL` without falling back to the consumer layout.
+
+Without the source marker entry, validation SHALL retain the existing consumer
+`.claude/` checks, including `SKIP_INCOMPATIBLE` for absent consumer hooks.
+A root `plugin.json` or root component directories alone SHALL NOT select the
+source layout. Valid marker and component symlinks SHALL retain the existing
+follow-link behavior; this validation does not establish package containment.
+
+#### Scenario: Source checkout has no consumer configuration
+
+- **WHEN** the dhpk source manifest and all required root components are valid
+  and `.claude/` is absent
+- **THEN** the Claude row reports `PASS`, including with `--targets codex`
+
+#### Scenario: Invalid source is accompanied by a valid consumer tree
+
+- **WHEN** the source marker is malformed, is a broken symlink, has an invalid
+  identity, or a required root component is missing
+- **AND** a valid consumer `.claude/` tree is present
+- **THEN** the Claude row and final gate report `FAIL` without consumer fallback
+
+#### Scenario: Consumer root resembles a published package
+
+- **WHEN** a root has `plugin.json` and root components but no source marker
+- **THEN** Claude validation uses the consumer `.claude/` checks
+
+#### Scenario: Source marker is a special file or exceeds the byte limit
+
+- **WHEN** the source marker resolves to a device, FIFO, or other non-regular
+  file, or contains more than 1,048,576 bytes
+- **AND** the root source components and consumer `.claude/` tree are valid
+- **THEN** the Claude row and final gate report `FAIL` without consumer fallback
+
+#### Scenario: Source marker is exactly at the byte limit
+
+- **WHEN** the source marker is a regular file containing valid dhpk JSON padded
+  with whitespace to exactly 1,048,576 bytes and the root components are valid
+- **THEN** the Claude row reports `PASS`
+
+#### Scenario: Source components use valid symlinks
+
+- **WHEN** the source marker and required root components resolve through valid
+  symlinks to valid content
+- **THEN** Claude validation follows those links and reports `PASS`
 
 ### Requirement: Per-check results use explicit applicability statuses
 Every platform check SHALL return one of `PASS`, `FAIL`, `NOT_CONFIGURED`, or `SKIP_INCOMPATIBLE`. `SKIP_INCOMPATIBLE` SHALL identify the source capability and a reason from an explicit compatibility policy; an unknown exception or unsupported assertion SHALL remain `FAIL`.
