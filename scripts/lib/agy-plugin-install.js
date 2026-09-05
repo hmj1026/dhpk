@@ -321,15 +321,19 @@ function inspectAgyPlugin({ sourceRoot, targetRoot } = {}) {
   } catch (error) {
     baseTarget.manifest = { present: true, valid: false, error: error.message };
   }
+  let originalReceipt = null;
+  const receiptPathStat = lstatOrNull(path.join(target, 'provenance.json'));
+  let receiptUnsafe = Boolean(receiptPathStat && (receiptPathStat.isSymbolicLink() || !receiptPathStat.isFile()));
   try {
-    const receipt = readReceipt(target);
+    originalReceipt = readReceipt(target);
     baseTarget.receipt = {
       present: Boolean(lstatOrNull(path.join(target, 'provenance.json'))),
-      valid: Boolean(receipt),
-      schema: receipt && receipt.schema,
-      source_version: receipt && receipt.sourceVersion,
+      valid: Boolean(originalReceipt),
+      schema: originalReceipt && originalReceipt.schema,
+      source_version: originalReceipt && originalReceipt.sourceVersion,
     };
   } catch (error) {
+    receiptUnsafe = receiptUnsafe || Boolean(receiptPathStat && (receiptPathStat.isSymbolicLink() || !receiptPathStat.isFile()));
     baseTarget.receipt = {
       present: Boolean(lstatOrNull(path.join(target, 'provenance.json'))),
       valid: false,
@@ -337,6 +341,16 @@ function inspectAgyPlugin({ sourceRoot, targetRoot } = {}) {
     };
   }
   const diff = compareSourceInventory(source, target, sourceFiles, sourceDigests);
+  const ownership = originalReceipt
+    ? inspectReceiptOwnership(target, originalReceipt)
+    : { changed: [], unsafe: [] };
+  const unownedSourcePaths = originalReceipt
+    ? findUnownedSourcePaths(target, sourceFiles, originalReceipt)
+    : { unowned: [], unsafe: [] };
+  const sourcePathSet = new Set(sourceFiles);
+  const removedOwnedPaths = originalReceipt
+    ? Object.keys(originalReceipt.fingerprints || {}).filter((relative) => !sourcePathSet.has(relative))
+    : [];
   let classification = 'AGY_OWNED';
   let state = 'CURRENT';
   let status = 'PASS';
@@ -356,11 +370,21 @@ function inspectAgyPlugin({ sourceRoot, targetRoot } = {}) {
     state = 'BLOCKED';
     status = 'BLOCKED';
     nextAction = 'owner must independently back up, move, or retire the unowned target, then run a clean AGY install';
-  } else if (diff.counts.changed || diff.counts.missing || diff.unsafe_preview.length) {
-    classification = diff.unsafe_preview.length ? 'UNSAFE_TARGET' : 'OWNED_CHANGED';
+  } else if (receiptUnsafe || ownership.unsafe.length || unownedSourcePaths.unsafe.length) {
+    classification = 'UNSAFE_TARGET';
     state = 'BLOCKED';
     status = 'BLOCKED';
     nextAction = 'owner must review changed target files and receipt ownership before running AGY update';
+  } else if (ownership.changed.length || unownedSourcePaths.unowned.length) {
+    classification = 'OWNED_CHANGED';
+    state = 'BLOCKED';
+    status = 'BLOCKED';
+    nextAction = 'owner must review changed target files and receipt ownership before running AGY update';
+  } else if (diff.counts.changed || diff.counts.missing || removedOwnedPaths.length) {
+    classification = 'AGY_OWNED';
+    state = 'STALE';
+    status = 'PASS';
+    nextAction = 'run install-agy-plugin.js update after reviewing the source package';
   }
   return {
     schema: DIAGNOSTIC_SCHEMA,
@@ -375,25 +399,86 @@ function inspectAgyPlugin({ sourceRoot, targetRoot } = {}) {
   };
 }
 
-function ownedFileMatches(root, relative, receipt) {
+function ownedFileMatches(root, relative, receipt, budget = null) {
   const target = assertPhysicalPath(root, path.join(root, relative), 'AGY target path');
   const stat = lstatOrNull(target);
   if (!stat) return false;
   if (stat.isSymbolicLink() || !stat.isFile()) throw new Error(`AGY owned path is not a regular file: ${relative}`);
-  return Boolean(receipt.fingerprints && receipt.fingerprints[relative])
-    && digest(readFileBounded(target)) === receipt.fingerprints[relative];
+  if (!receipt.fingerprints || !receipt.fingerprints[relative]) return false;
+  const content = budget
+    ? budget.readFile(target, stat, `AGY target path: ${relative}`)
+    : readFileBounded(target);
+  return digest(content) === receipt.fingerprints[relative];
 }
 
-function metadataMatches(root, relative, receipt) {
+function metadataMatches(root, relative, receipt, budget = null) {
   if (!PACKAGE_METADATA.has(relative)) return false;
   const target = assertPhysicalPath(root, path.join(root, relative), 'AGY metadata path');
   const stat = lstatOrNull(target);
   if (!stat || stat.isSymbolicLink() || !stat.isFile()) return false;
+  const content = budget
+    ? budget.readFile(target, stat, `AGY metadata path: ${relative}`)
+    : readFileBounded(target);
   if (relative === 'provenance.json') {
-    return readFileBounded(target).toString('utf8') === `${JSON.stringify(receipt)}\n`;
+    return content.toString('utf8') === `${JSON.stringify(receipt)}\n`;
   }
   if (relative !== 'fingerprints.json') return false;
-  return readFileBounded(target).toString('utf8') === `${JSON.stringify({ files: receipt.fingerprints || {}, schema: PACKAGE_SCHEMA })}\n`;
+  return content.toString('utf8') === `${JSON.stringify({ files: receipt.fingerprints || {}, schema: PACKAGE_SCHEMA })}\n`;
+}
+
+function inspectReceiptOwnership(root, receipt) {
+  const changed = [];
+  const unsafe = [];
+  const budget = createTraversalBudget();
+  const inspectPath = (relative, matches) => {
+    let target;
+    try {
+      target = assertPhysicalPath(root, path.join(root, relative), 'AGY target path');
+    } catch (error) {
+      unsafe.push(relative);
+      return;
+    }
+    const stat = lstatOrNull(target);
+    if (!stat) {
+      changed.push(relative);
+      return;
+    }
+    if (stat.isSymbolicLink() || !stat.isFile()) {
+      unsafe.push(relative);
+      return;
+    }
+    if (!matches()) changed.push(relative);
+  };
+
+  for (const relative of Object.keys(receipt.fingerprints || {}).sort()) {
+    inspectPath(relative, () => ownedFileMatches(root, relative, receipt, budget));
+  }
+  for (const relative of ['fingerprints.json', 'provenance.json']) {
+    inspectPath(relative, () => metadataMatches(root, relative, receipt, budget));
+  }
+  return { changed, unsafe };
+}
+
+function findUnownedSourcePaths(root, sourceFiles, receipt) {
+  const unowned = [];
+  const unsafe = [];
+  const fingerprints = receipt.fingerprints || {};
+  for (const relative of sourceFiles) {
+    if (relative === 'provenance.json' || relative === 'fingerprints.json'
+      || Object.prototype.hasOwnProperty.call(fingerprints, relative)) continue;
+    let target;
+    try {
+      target = assertPhysicalPath(root, path.join(root, relative), 'AGY target path');
+    } catch (error) {
+      unsafe.push(relative);
+      continue;
+    }
+    const stat = lstatOrNull(target);
+    if (!stat) continue;
+    if (stat.isSymbolicLink() || !stat.isFile()) unsafe.push(relative);
+    else unowned.push(relative);
+  }
+  return { unowned, unsafe };
 }
 
 function removeEmptyDirectories(root) {
