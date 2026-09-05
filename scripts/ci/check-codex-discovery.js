@@ -80,6 +80,9 @@ function run(argv) {
     receipt: compactReceipt(surfaces.manifest),
     nonInvokableSkillNames: surfaces.nonInvokableSkillNames,
   });
+  const nextAction = report.invalidProviders.length > 0
+    ? 'Use --update only for receipt-owned entries; unowned entries require manual inspect, repair, or removal.'
+    : null;
   const output = {
     verdict: report.verdict,
     ok: report.ok,
@@ -89,8 +92,10 @@ function run(argv) {
     effective: report.effective,
     duplicates: report.duplicates,
     conflicts: report.conflicts,
+    invalidProviders: report.invalidProviders,
     providers: report.providers,
     receipt: report.receipt,
+    nextAction,
   };
   const serialized = `${JSON.stringify(output, null, 2)}\n`;
   process.stdout.write(serialized, () => {});
