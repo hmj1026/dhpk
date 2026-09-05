@@ -31,7 +31,11 @@ function normalizeProvider(provider) {
   if (typeof provider.surface !== 'string' || !provider.surface.trim()) {
     throw new TypeError(`discovery provider '${name}' is missing surface`);
   }
-  if (typeof provider.fingerprint !== 'string' || !provider.fingerprint) {
+  const fingerprintError = typeof provider.fingerprintError === 'string'
+    ? provider.fingerprintError.trim()
+    : '';
+  if (typeof provider.fingerprint !== 'string'
+    || (!provider.fingerprint && !fingerprintError)) {
     throw new TypeError(`discovery provider '${kind}:${name}' is missing fingerprint`);
   }
   const sourcePath = canonicalProviderPath(provider);
@@ -41,6 +45,7 @@ function normalizeProvider(provider) {
     name,
     kind,
     surface: provider.surface.trim(),
+    fingerprintError,
     sourcePath: sourcePath || undefined,
     current: provider.current === true,
     owned: provider.owned === true,
@@ -125,10 +130,24 @@ function inspectCodexDiscovery({ project = [], native = [], precedence = [], rec
   const effective = [];
   const duplicates = [];
   const conflicts = [];
+  const invalidProviders = [];
   let verdict = VERDICTS.PASS;
 
   for (const [identity, rawProviders] of [...groups.entries()].sort(([left], [right]) => left.localeCompare(right))) {
     const providers = sortProviders(rawProviders, precedence);
+    const erroredProviders = providers.filter((provider) => provider.fingerprintError);
+    if (erroredProviders.length > 0) {
+      verdict = VERDICTS.BLOCKED;
+      invalidProviders.push(...erroredProviders.map(compactProvider));
+      conflicts.push({
+        identity,
+        name: providers[0].name,
+        kind: providers[0].kind,
+        providers: compactProviders(providers),
+        reason: 'provider fingerprint errors quarantine the entire provider group',
+      });
+      continue;
+    }
     const fingerprints = [...new Set(providers.map((provider) => provider.fingerprint))];
     if (providers.length > 1 && fingerprints.length === 1) {
       if (providers.some((provider) => provider.current !== true || provider.owned !== true)) {
@@ -219,6 +238,8 @@ function inspectCodexDiscovery({ project = [], native = [], precedence = [], rec
     effective,
     duplicates,
     conflicts,
+    invalidProviders,
+    reasonCode: invalidProviders.length > 0 ? 'CODEX_PROVIDER_FINGERPRINT_ERROR' : null,
     receipt,
     providers: {
       project: projectProviders.map(compactProvider),
@@ -240,13 +261,14 @@ function inspectCodexActivation({
   ));
   const projectSkillNames = new Set(
     integrity.providers.project
-      .filter((provider) => provider.kind === 'skills')
+      .filter((provider) => provider.kind === 'skills' && !provider.fingerprintError)
       .map((provider) => provider.name),
   );
   const duplicateInvokableNames = [...new Set(
     integrity.providers.native
       .filter((provider) => (
         provider.kind === 'skills'
+        && !provider.fingerprintError
         && projectSkillNames.has(provider.name)
         && !nonInvokable.has(provider.name)
       ))
@@ -257,7 +279,7 @@ function inspectCodexActivation({
     ...integrity,
     ok: !blockedByDuplicate && integrity.ok,
     verdict: blockedByDuplicate ? VERDICTS.BLOCKED : integrity.verdict,
-    reasonCode: blockedByDuplicate ? 'DUPLICATE_CODEX_PROVIDER' : null,
+    reasonCode: integrity.reasonCode || (blockedByDuplicate ? 'DUPLICATE_CODEX_PROVIDER' : null),
     duplicateInvokableNames,
     integrityVerdict: integrity.verdict,
   });
