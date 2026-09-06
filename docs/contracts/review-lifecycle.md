@@ -59,6 +59,37 @@ failed observations are excluded from retirement decisions. Collection is
 best-effort and cannot clear a Sentinel, change a verdict, or block the existing
 lifecycle path.
 
+## Claude Review Gate observation
+
+During `BASELINE` and `OBSERVE`, Claude review evidence is translated only
+after the existing hook-owned lifecycle has completed. The caller explicitly
+invokes the Claude Review Gate adapter with its canonical Review Plan, Review
+Request, structured Review Result, durable lifecycle/readiness events, and the
+legacy Sentinel outcome. The adapter is not wired into the deterministic hooks
+and cannot create a plan, select a lane, clear or arm a Sentinel, or promote a
+migration phase.
+
+The adapter requires the same `task_id`, `attempt_id`, attempt number,
+`session_id`, dispatch ID, `scope_id`, and `diff_id` across the supplied
+identity and durable evidence. Missing or foreign readiness fails closed.
+Process IDs, active markers, and heartbeat state are compatibility-only
+liveness signals and never satisfy target evidence continuity.
+
+`BASELINE` records a bounded, redacted Sentinel observation without invoking
+Review Gate. `OBSERVE` also evaluates the caller-supplied structured result
+through Review Gate and records the comparison as a `migration-observation`
+receipt. In both phases the Migration Coordinator fixes authority to
+`SENTINEL`, fixes target progress and all clearance/blocking effects to false,
+and provides no automatic phase-promotion operation. An agreement or
+disagreement is diagnostic only.
+
+Persisted observation provenance is limited to stable identities, enum values,
+digests, bounded symbolic references, timestamps, and counters. Absolute
+artifact paths, artifact bodies, prompts, raw commands, shell output, logs,
+credentials, and session transcripts are excluded. The resulting receipt is
+never converted to an authoritative `review` receipt and cannot satisfy a
+required review or change-control gate.
+
 ## Orchestration and Sentinel ownership
 
 Orchestration owns worker selection, dispatch, handoff, retry linkage, and

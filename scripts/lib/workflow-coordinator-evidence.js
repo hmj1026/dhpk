@@ -8,7 +8,7 @@ const {
   canonicalJson,
 } = require('./receipt-primitives');
 const { createFinding } = require('./reviewer-contract');
-
+const { validateMigrationObservationPayload } = require('./migration-coordinator');
 const RECEIPT_SCHEMA = 'dhpk.review-gate.evidence-receipt.v1';
 const DECISION_SCHEMA = 'dhpk.workflow.decision.v1';
 const VERIFICATION_SCHEMA = 'dhpk.workflow.verification.v1';
@@ -501,7 +501,8 @@ function validateAuthority(receipt) {
 }
 
 function validateMigrationObservation(receipt) {
-  return { receipt, payload: receipt.payload, type: 'migration-observation' };
+  const payload = validateMigrationObservationPayload(receipt.payload, receipt);
+  return { receipt, payload, type: 'migration-observation' };
 }
 
 function validateTypedReceipt(receipt, policy) {
