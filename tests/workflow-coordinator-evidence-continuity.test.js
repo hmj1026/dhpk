@@ -13,6 +13,176 @@ const {
 } = require('./_lib/workflow-coordinator-fixture');
 
 const MERGE_READY = 'merge-ready';
+const MIGRATION_OBSERVATION_SCHEMA = 'dhpk.review-gate.migration-observation.v1';
+const MIGRATION_PRODUCER = 'fixture-workflow';
+const MIGRATION_ADAPTER = 'fixture-adapter';
+const MIGRATION_ADAPTER_VERSION = 'claude-review-gate.v1';
+const MIGRATION_EVENT_ID = 'migration-event-368';
+const MIGRATION_SOURCE_COMMIT = '3'.repeat(40);
+const MIGRATION_SOURCE_TREE = '4'.repeat(40);
+const MIGRATION_POLICY_VERSION = 'dhpk.risk-policy.initial.v1';
+const MIGRATION_CONTRACT_VERSION = 'dhpk.reviewer-contract.v2';
+const MIGRATION_RECORDED_AT = '2026-09-06T04:12:00.000Z';
+const DIAGNOSTIC_REVIEW_EVENT_ID = 'diagnostic-review-event-368';
+const COST_OBSERVATION_ID = 'legacy-01f3eb374d9d2eb448470c432bfd1a66';
+
+function migrationObservationPayload(overrides = {}) {
+  return {
+    schema: MIGRATION_OBSERVATION_SCHEMA,
+    producer: MIGRATION_PRODUCER,
+    adapter: MIGRATION_ADAPTER,
+    adapterVersion: MIGRATION_ADAPTER_VERSION,
+    eventId: MIGRATION_EVENT_ID,
+    receiptId: 'receipt-migration-observation',
+    sourceCommit: MIGRATION_SOURCE_COMMIT,
+    sourceTree: MIGRATION_SOURCE_TREE,
+    policyVersion: MIGRATION_POLICY_VERSION,
+    contractVersion: MIGRATION_CONTRACT_VERSION,
+    recordedAt: MIGRATION_RECORDED_AT,
+    phase: 'OBSERVE',
+    authority: 'SENTINEL',
+    effect: 'OBSERVE_ONLY',
+    comparison: 'AGREE',
+    workId: 'work-368',
+    decisionId: 'decision-368',
+    planId: 'plan-368',
+    waveId: 'wave-368',
+    obligationId: 'obligation-code-review',
+    lane: 'code-reviewer',
+    taskId: 'task-368',
+    attemptId: 'attempt-368',
+    attempt: 1,
+    sessionId: 'session-368',
+    dispatchId: 'dispatch-368',
+    scopeId: 'scope-368',
+    diffId: 'diff-368',
+    identity: {
+      taskId: 'task-368',
+      attemptId: 'attempt-368',
+      attempt: 1,
+      sessionId: 'session-368',
+      dispatchId: 'dispatch-368',
+      scopeId: 'scope-368',
+      diffId: 'diff-368',
+    },
+    scope: {
+      paths: ['scripts/lib/workflow-coordinator.js'],
+      digest: 'sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    },
+    diff: {
+      digest: 'sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+      reference: 'git-diff:issue-368',
+    },
+    sentinelStatus: 'PASS',
+    reviewGateStatus: 'PASS',
+    sentinelOutcome: {
+      status: 'PASS',
+      verdict: 'PASS',
+      outcome: 'PASS',
+      lifecycleEventId: 'verdicted-event-368',
+    },
+    reviewGate: {
+      status: 'PASS',
+      eventId: DIAGNOSTIC_REVIEW_EVENT_ID,
+    },
+    acceptedOutcomeCost: {
+      schema: 'dhpk.accepted-outcome-cost.v1',
+      observationId: COST_OBSERVATION_ID,
+      acceptedOutcome: true,
+      metrics: {
+        modelTokens: null,
+        dispatchCount: 1,
+        semanticReviewCount: 1,
+        remediationRounds: 0,
+        humanTurns: null,
+        elapsedMs: 42,
+        falseBlockCount: null,
+        receiptReuseCount: null,
+      },
+      telemetryFailures: [],
+      telemetryFailureCount: 0,
+      telemetryStatus: 'PARTIAL',
+      retirementEligible: false,
+    },
+    authorizesApproval: false,
+    clearsSentinel: false,
+    blocksSentinel: false,
+    allowsTargetProgress: false,
+    automaticPromotion: false,
+    retirementEligible: false,
+    liveness: 'COMPATIBILITY_ONLY',
+    provenance: {
+      digest: 'sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc',
+      reference: 'artifact:claude-migration-observation-368',
+      producer: MIGRATION_PRODUCER,
+      adapter: MIGRATION_ADAPTER,
+      adapterVersion: MIGRATION_ADAPTER_VERSION,
+      eventId: MIGRATION_EVENT_ID,
+      receiptId: 'receipt-migration-observation',
+      lifecycleEventId: 'verdicted-event-368',
+      costObservationId: COST_OBSERVATION_ID,
+      sourceCommit: MIGRATION_SOURCE_COMMIT,
+      sourceTree: MIGRATION_SOURCE_TREE,
+      policyVersion: MIGRATION_POLICY_VERSION,
+      contractVersion: MIGRATION_CONTRACT_VERSION,
+      recordedAt: MIGRATION_RECORDED_AT,
+      artifactDigest: 'sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd',
+      lifecycleEventIds: ['verdicted-event-368'],
+      readinessEventIds: ['ready-event-368'],
+    },
+    ...overrides,
+  };
+}
+
+function migrationObservationReceipt(receiptId = 'receipt-migration-observation') {
+  const observation = receipt('receipt-local-gate-pass');
+  const payload = migrationObservationPayload({ receiptId });
+  payload.provenance.receiptId = receiptId;
+  Object.assign(observation, {
+    receiptId,
+    kind: 'migration-observation',
+    workId: payload.workId,
+    waveId: payload.waveId,
+    planId: payload.planId,
+    decisionId: payload.decisionId,
+    obligationId: payload.obligationId,
+    lane: payload.lane,
+    taskId: payload.taskId,
+    attemptId: payload.attemptId,
+    attempt: payload.attempt,
+    sessionId: payload.sessionId,
+    dispatchId: payload.dispatchId,
+    scopeId: payload.scopeId,
+    diffId: payload.diffId,
+    producer: payload.producer,
+    adapter: payload.adapter,
+    adapterVersion: payload.adapterVersion,
+    sourceCommit: payload.sourceCommit,
+    sourceTree: payload.sourceTree,
+    policyVersion: payload.policyVersion,
+    contractVersion: payload.contractVersion,
+    recordedAt: payload.recordedAt,
+    payload,
+  });
+  return observation;
+}
+
+function diagnosticReviewReceipt(semanticVerdict) {
+  const review = receipt('receipt-review-pass');
+  review.receiptId = `receipt-diagnostic-${semanticVerdict.toLowerCase()}`;
+  review.recordedAt = '2026-09-06T04:11:00.000Z';
+  review.payload.eventId = DIAGNOSTIC_REVIEW_EVENT_ID;
+  review.payload.effect = 'OBSERVE_ONLY';
+  review.payload.semanticVerdict = semanticVerdict;
+  review.payload.findings = semanticVerdict === 'CHANGES_REQUIRED' ? [{
+    id: 'finding-diagnostic-only',
+    severity: 'HIGH',
+    disposition: 'MUST_FIX',
+    summary: 'diagnostic disagreement must not enforce',
+    evidence: ['artifact:diagnostic-disagreement'],
+  }] : [];
+  return review;
+}
 
 function assertState(result, state, refreshLanes, condition = null) {
   assert.strictEqual(result.state, state);
@@ -386,19 +556,117 @@ test('wave-wide authority cannot satisfy an exact required review obligation', (
 });
 
 test('migration observation never satisfies a required gate or changes control', () => {
-  const observation = receipt('receipt-local-gate-pass');
-  observation.receiptId = 'receipt-migration-observation';
-  observation.kind = 'migration-observation';
-  observation.recordedAt = '2026-09-06T04:12:00.000Z';
-  observation.payload = {
-    schema: 'dhpk.migration-observation.v1',
-    observedState: 'MERGE_READY',
-    allowsTargetProgress: true,
-  };
+  const observation = migrationObservationReceipt();
 
   const result = reduce([...receiptsForHistory('evidence-pending'), observation]);
 
   assertState(result, 'EVIDENCE_PENDING', ['code-reviewer', 'unit']);
+  assert.strictEqual(result.control.authority, 'SENTINEL');
+  assert.strictEqual(result.control.allowsTargetProgress, false);
+  assert.deepStrictEqual(result.completion, {
+    implementation: 'PENDING',
+    delivery: 'PENDING',
+    workflow: 'PENDING',
+  });
+});
+
+test('OBSERVE diagnostic CHANGES_REQUIRED cannot block a legacy PASS outcome', () => {
+  const observation = migrationObservationReceipt('receipt-observe-legacy-pass');
+  observation.payload.comparison = 'DISAGREE';
+  observation.payload.reviewGateStatus = 'CHANGES_REQUIRED';
+  observation.payload.reviewGate.status = 'CHANGES_REQUIRED';
+  observation.payload.reviewGate.semanticVerdict = 'CHANGES_REQUIRED';
+  const diagnostic = diagnosticReviewReceipt('CHANGES_REQUIRED');
+
+  const result = reduce([...receiptsForHistory(MERGE_READY), diagnostic, observation]);
+
+  assertState(result, 'MERGE_READY', []);
+  assert.strictEqual(result.control.authority, 'SENTINEL');
+  assert.strictEqual(result.control.allowsTargetProgress, false);
+});
+
+test('OBSERVE diagnostic PASS cannot advance a legacy non-PASS outcome', () => {
+  const observation = migrationObservationReceipt('receipt-observe-legacy-blocked');
+  observation.payload.comparison = 'DISAGREE';
+  observation.payload.sentinelStatus = 'BLOCKED';
+  Object.assign(observation.payload.sentinelOutcome, {
+    status: 'BLOCKED', verdict: 'BLOCKED', outcome: 'BLOCKED',
+  });
+  observation.payload.acceptedOutcomeCost.acceptedOutcome = false;
+  const diagnostic = diagnosticReviewReceipt('PASS');
+
+  const result = reduce([...missingReviewWithLocalPass(), diagnostic, observation]);
+
+  assertState(result, 'EVIDENCE_PENDING', ['code-reviewer']);
+  assert.strictEqual(result.control.authority, 'SENTINEL');
+  assert.strictEqual(result.control.allowsTargetProgress, false);
+});
+
+test('an orphan OBSERVE_ONLY review cannot enforce when migration recording is interrupted', () => {
+  const diagnostic = diagnosticReviewReceipt('CHANGES_REQUIRED');
+
+  const result = reduce([...receiptsForHistory(MERGE_READY), diagnostic]);
+
+  assertState(result, 'MERGE_READY', []);
+});
+
+test('a migration observation cannot suppress an ordinary same-identity review', () => {
+  const receipts = receiptsForHistory(MERGE_READY);
+  const ordinaryReview = receiptById(receipts, 'receipt-review-pass');
+  const observation = migrationObservationReceipt('receipt-observe-forged-link');
+  observation.payload.reviewGate.eventId = ordinaryReview.payload.eventId;
+  observation.payload.comparison = 'DISAGREE';
+  observation.payload.sentinelStatus = 'BLOCKED';
+  Object.assign(observation.payload.sentinelOutcome, {
+    status: 'BLOCKED', verdict: 'BLOCKED', outcome: 'BLOCKED',
+  });
+  observation.payload.acceptedOutcomeCost.acceptedOutcome = false;
+
+  const result = reduce([...receipts, observation]);
+
+  assertState(result, 'MERGE_READY', []);
+});
+
+test('non-cost modelTokens content fails closed without echoing its value', () => {
+  const receipts = receiptsForHistory(MERGE_READY);
+  const review = receiptById(receipts, 'receipt-review-pass');
+  review.payload.modelTokens = 'WORKFLOW_MODEL_TOKEN_SECRET';
+
+  const result = reduce(receipts);
+
+  assertRejected(result, 'SENSITIVE_EVIDENCE');
+  assert.doesNotMatch(JSON.stringify(result), /WORKFLOW_MODEL_TOKEN_SECRET/);
+});
+
+test('migration observation binds every lifecycle identity dimension to its receipt envelope', () => {
+  for (const field of ['taskId', 'attemptId', 'attempt', 'dispatchId', 'scopeId', 'diffId']) {
+    const observation = migrationObservationReceipt();
+    observation[field] = field === 'attempt' ? 2 : `foreign-${field}`;
+    const result = reduce([...receiptsForHistory('evidence-pending'), observation]);
+    assertRejected(result, 'MIXED_IDENTITY');
+    assert.strictEqual(result.control.authority, 'SENTINEL');
+    assert.strictEqual(result.control.allowsTargetProgress, false);
+  }
+});
+
+test('malformed migration observation is rejected without changing Sentinel control', () => {
+  const observation = migrationObservationReceipt('receipt-malformed-migration-observation');
+  delete observation.payload.scope;
+
+  const result = reduce([...receiptsForHistory('evidence-pending'), observation]);
+
+  assertRejected(result, 'MALFORMED_RECEIPT');
+  assert.strictEqual(result.control.authority, 'SENTINEL');
+  assert.strictEqual(result.control.allowsTargetProgress, false);
+});
+
+test('foreign migration observation is rejected without satisfying a review or changing Sentinel control', () => {
+  const observation = migrationObservationReceipt('receipt-foreign-migration-observation');
+  observation.payload.workId = 'work-foreign';
+
+  const result = reduce([...receiptsForHistory('evidence-pending'), observation]);
+
+  assertRejected(result, 'MIXED_IDENTITY');
   assert.strictEqual(result.control.authority, 'SENTINEL');
   assert.strictEqual(result.control.allowsTargetProgress, false);
   assert.deepStrictEqual(result.completion, {

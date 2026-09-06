@@ -1,14 +1,15 @@
 'use strict';
-
 const {
   COMMIT,
   TREE,
   SAFE_ID,
   FINGERPRINT,
   canonicalJson,
+  cloneBoundedJson,
+  deepFreeze,
 } = require('./receipt-primitives');
 const { createFinding } = require('./reviewer-contract');
-
+const { validateMigrationObservationPayload } = require('./migration-coordinator');
 const RECEIPT_SCHEMA = 'dhpk.review-gate.evidence-receipt.v1';
 const DECISION_SCHEMA = 'dhpk.workflow.decision.v1';
 const VERIFICATION_SCHEMA = 'dhpk.workflow.verification.v1';
@@ -16,6 +17,7 @@ const RECEIPT_KINDS = Object.freeze(['decision', 'review', 'verification', 'auth
 const DECISION_FACTS = Object.freeze(['WORK_RECORDED', 'DECISION_REQUIRED', 'DECISION_RESOLVED', 'DECISION_INVALIDATED']);
 const VERIFICATION_TYPES = Object.freeze(['IMPLEMENTATION', 'LOCAL_GATE', 'FRESHNESS']);
 const VERIFICATION_OUTCOMES = Object.freeze(['STARTED', 'COMPLETE', 'PASS', 'FAIL', 'CHANGES_REQUIRED', 'BLOCKED', 'EXPIRED', 'NOT_RUN', 'UNAVAILABLE']);
+const ACCEPTED_OUTCOME_COST_SCHEMA = 'dhpk.accepted-outcome-cost.v1';
 const COMMAND_OUTCOMES = Object.freeze(['PASS', 'FAIL', 'NOT_RUN', 'NOT_CONFIGURED', 'SKIP_INCOMPATIBLE', 'BLOCKED', 'UNAVAILABLE']);
 const REVIEW_EXECUTION_STATUSES = Object.freeze(['COMPLETE', 'NOT_RUN', 'INTERRUPTED', 'UNAVAILABLE']);
 const REVIEW_APPLICABILITIES = Object.freeze(['REQUIRED', 'NOT_APPLICABLE']);
@@ -24,7 +26,6 @@ const AUTHORITY_URGENCIES = Object.freeze(['BATCHABLE', 'IMMEDIATE_STOP']);
 const ROUTING_ROLES = Object.freeze(['planner', 'reasoner', 'tdd-guide']);
 const FORBIDDEN_KEY = /(?:prompt|message|chainofthought|thought|reasoning|transcript|fullsource|sourcecode|fulllog|rawlog|stdout|stderr|authorization|proxy.?authorization|token|password|secret|api.?key|private.?key|signing.?key|cookie|credential)/i;
 const SAFE_PATH = /^(?!\/)(?!.*\\)(?!.*(?:^|\/)\.\.(?:\/|$))[A-Za-z0-9._/@+-]+$/;
-
 class WorkflowCoordinatorEvidenceError extends Error {
   constructor(code) {
     super(code);
@@ -33,124 +34,92 @@ class WorkflowCoordinatorEvidenceError extends Error {
     this.context = null;
   }
 }
-
 const fail = (code) => {
   throw new WorkflowCoordinatorEvidenceError(code);
 };
-
 const isRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const hasOwn = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
 const isSafeId = (value) => typeof value === 'string' && SAFE_ID.test(value);
 const isFingerprint = (value) => typeof value === 'string' && FINGERPRINT.test(value);
-
-function rejectKey(key) {
+function rejectKey(key, path = [], value, costSchema = null) {
   const normalized = String(key);
   if (normalized === '__proto__' || normalized === 'prototype' || normalized === 'constructor') return true;
-  return FORBIDDEN_KEY.test(normalized.replace(/[^A-Za-z0-9]/g, '').toLowerCase());
+  const compact = normalized.replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+  const canonicalMetric = path.slice(-3).join('.') === 'acceptedOutcomeCost.metrics.modelTokens'
+    && costSchema === ACCEPTED_OUTCOME_COST_SCHEMA
+    && (value === null || (Number.isSafeInteger(value) && value >= 0));
+  return compact === 'modeltokens' ? !canonicalMetric : FORBIDDEN_KEY.test(compact);
 }
 
-/*
- * Receipt input is treated as hostile, even when it came from a local store.
- * This clone deliberately inspects descriptors before reading values so that
- * accessors, sparse arrays, cycles and prototype surprises fail closed.
- */
-function cloneJson(value, state = { count: 0, seen: new WeakSet() }, key = '', depth = 0) {
-  state.count += 1;
-  if (state.count > 4000 || depth > 12) fail('MALFORMED_RECEIPT');
-  if (rejectKey(key)) fail('SENSITIVE_EVIDENCE');
-  if (value === null || typeof value === 'boolean') return value;
-  if (typeof value === 'string') {
-    if (Buffer.byteLength(value, 'utf8') > 4096) fail('MALFORMED_RECEIPT');
-    return value;
-  }
-  if (typeof value === 'number') {
-    if (!Number.isFinite(value)) fail('MALFORMED_RECEIPT');
-    return value;
-  }
-  if (!value || typeof value !== 'object') fail('MALFORMED_RECEIPT');
-  if (state.seen.has(value)) fail('MALFORMED_RECEIPT');
-  state.seen.add(value);
+const WORKFLOW_JSON_LIMITS = Object.freeze({
+  maxNodes: 4000,
+  maxDepth: 12,
+  maxStringBytes: 4096,
+  maxTotalBytes: 1024 * 1024,
+  maxKeys: 200,
+  maxArrayKeys: 201,
+  maxKeyBytes: 4096,
+  maxArrayLength: 200,
+});
 
-  let result;
-  if (Array.isArray(value)) {
-    if (Object.getOwnPropertySymbols(value).length > 0) fail('MALFORMED_RECEIPT');
-    const names = Object.getOwnPropertyNames(value);
-    const expected = ['length', ...Array.from({ length: value.length }, (_, index) => String(index))];
-    if (names.length !== expected.length || !expected.every((name) => names.includes(name))) {
-      fail('MALFORMED_RECEIPT');
-    }
-    if (value.length > 200) fail('MALFORMED_RECEIPT');
-    for (let index = 0; index < value.length; index += 1) {
-      const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
-      if (!descriptor || !descriptor.enumerable || !hasOwn(descriptor, 'value')) fail('MALFORMED_RECEIPT');
-    }
-    result = value.map((entry, index) => cloneJson(entry, state, key, depth + 1));
-  } else {
-    const prototype = Object.getPrototypeOf(value);
-    if (prototype !== Object.prototype && prototype !== null) fail('MALFORMED_RECEIPT');
-    if (Object.getOwnPropertySymbols(value).length > 0) fail('MALFORMED_RECEIPT');
-    const descriptors = Object.getOwnPropertyDescriptors(value);
-    const keys = Object.keys(descriptors);
-    if (keys.length > 200) fail('MALFORMED_RECEIPT');
-    result = {};
-    for (const entryKey of keys) {
-      const descriptor = descriptors[entryKey];
-      if (!descriptor.enumerable || !hasOwn(descriptor, 'value')) fail('MALFORMED_RECEIPT');
-      if (rejectKey(entryKey)) fail('SENSITIVE_EVIDENCE');
-      Object.defineProperty(result, entryKey, {
-        value: cloneJson(descriptor.value, state, entryKey, depth + 1),
-        enumerable: true,
-        writable: true,
-        configurable: true,
-      });
-    }
-  }
-  state.seen.delete(value);
-  return result;
+function workflowContextPolicy({ path, descriptors, policyContext }) {
+  if (path[path.length - 1] !== 'acceptedOutcomeCost') return policyContext;
+  const schema = descriptors.schema;
+  return {
+    ...(policyContext || {}),
+    costSchema: schema && hasOwn(schema, 'value') ? schema.value : null,
+  };
 }
 
-function freeze(value, seen = new WeakSet()) {
-  if (!value || typeof value !== 'object' || seen.has(value)) return value;
-  seen.add(value);
-  for (const child of Object.values(value)) freeze(child, seen);
-  return Object.freeze(value);
+function workflowPropertyPolicy({ key, path, descriptor, policyContext }) {
+  const value = descriptor && hasOwn(descriptor, 'value') ? descriptor.value : undefined;
+  if (rejectKey(key, path, value, policyContext && policyContext.costSchema)) {
+    fail('SENSITIVE_EVIDENCE');
+  }
+  return true;
+}
+
+function workflowReject() {
+  fail('MALFORMED_RECEIPT');
+}
+
+function cloneJson(value) {
+  return cloneBoundedJson(value, {
+    limits: WORKFLOW_JSON_LIMITS,
+    context: { costSchema: null },
+    contextPolicy: workflowContextPolicy,
+    propertyPolicy: workflowPropertyPolicy,
+    onReject: workflowReject,
+  });
 }
 
 function immutable(value) {
-  return freeze(cloneJson(value));
+  return deepFreeze(cloneJson(value));
 }
-
 function requireRecord(value, code = 'MALFORMED_RECEIPT') {
   if (!isRecord(value)) fail(code);
 }
-
 function requireSafe(value, code = 'MALFORMED_RECEIPT') {
   if (!isSafeId(value)) fail(code);
 }
-
 function requireText(value, code = 'MALFORMED_RECEIPT') {
   if (typeof value !== 'string' || value.trim() === '' || /[\u0000-\u001f\u007f]/.test(value)) fail(code);
 }
-
 function requireTimestamp(value, code = 'MALFORMED_RECEIPT') {
   requireText(value, code);
   if (!Number.isFinite(Date.parse(value))) fail(code);
 }
-
 function requireDigest(value, code = 'MALFORMED_RECEIPT') {
   if (!isFingerprint(value)) fail(code);
 }
-
 function requireGitIdentity(value, code = 'MALFORMED_RECEIPT') {
   requireRecord(value, code);
   if (!COMMIT.test(value.commit || '') || !TREE.test(value.tree || '')) fail(code);
 }
-
 function requireStringArray(value, code = 'MALFORMED_RECEIPT') {
   if (!Array.isArray(value) || value.length > 200) fail(code);
   value.forEach((entry) => requireText(entry, code));
 }
-
 function validateReviewEvidence(payload) {
   if (!Array.isArray(payload.evidenceReferences) || payload.evidenceReferences.length === 0) fail('MISSING_REVIEW_EVIDENCE');
   if (payload.evidenceReferences.length > 32) fail('MALFORMED_RECEIPT');
@@ -171,20 +140,16 @@ function validateReviewEvidence(payload) {
     if (summary.reference !== undefined) requireText(summary.reference);
   }
 }
-
 function same(left, right) {
   return canonicalJson(left) === canonicalJson(right);
 }
-
 function assertSame(left, right, code) {
   if (!same(left, right)) fail(code);
 }
-
 function validatePath(value) {
   requireText(value);
   if (!SAFE_PATH.test(value)) fail('MALFORMED_RECEIPT');
 }
-
 function validateTrustPolicy(policy) {
   requireRecord(policy);
   if (!Array.isArray(policy.producers) || policy.producers.length > 200) fail('MALFORMED_RECEIPT');
@@ -198,7 +163,6 @@ function validateTrustPolicy(policy) {
     });
   }
 }
-
 function isTrusted(policy, receipt) {
   return policy.producers.some((producer) => (
     producer.producer === receipt.producer
@@ -207,7 +171,6 @@ function isTrusted(policy, receipt) {
       && producer.receiptKinds.includes(receipt.kind)
   ));
 }
-
 function validateEnvelope(receipt, policy) {
   requireRecord(receipt);
   if (receipt.schema === undefined) fail('MALFORMED_RECEIPT');
@@ -225,13 +188,11 @@ function validateEnvelope(receipt, policy) {
   requireRecord(receipt.payload);
   if (!isTrusted(policy, receipt)) fail('UNTRUSTED_PRODUCER');
 }
-
 function validateSharedPayloadIdentity(receipt, payload) {
   for (const field of ['workId', 'waveId', 'planId', 'decisionId']) {
     if (hasOwn(payload, field)) assertSame(payload[field], receipt[field], 'MIXED_IDENTITY');
   }
 }
-
 function validateRouting(routing, materialRisks) {
   requireRecord(routing);
   if (!Array.isArray(routing.assistants) || !Array.isArray(routing.writers)) fail('MALFORMED_RECEIPT');
@@ -270,7 +231,6 @@ function validateRouting(routing, materialRisks) {
     fail('RECONCILIATION_OWNER_REQUIRED');
   }
 }
-
 function validateReviewRequirements(value) {
   if (!Array.isArray(value) || value.length > 200) fail('MALFORMED_RECEIPT');
   const seen = new Set();
@@ -282,7 +242,6 @@ function validateReviewRequirements(value) {
     requireSafe(requirement.lane);
   });
 }
-
 function validateVerificationRequirements(value) {
   if (!Array.isArray(value) || value.length > 200) fail('MALFORMED_RECEIPT');
   const seen = new Set();
@@ -295,7 +254,6 @@ function validateVerificationRequirements(value) {
     if (!['IMPLEMENTATION', 'LOCAL_GATE'].includes(requirement.evidenceType)) fail('MALFORMED_RECEIPT');
   });
 }
-
 function validateAuthorityRequests(value) {
   if (!Array.isArray(value) || value.length > 200) fail('MALFORMED_RECEIPT');
   value.forEach((request) => {
@@ -316,7 +274,6 @@ function validateAuthorityRequests(value) {
     });
   });
 }
-
 function validateDecision(receipt) {
   const payload = receipt.payload;
   if (payload.schema === undefined || payload.schema === null) fail('MALFORMED_RECEIPT');
@@ -361,7 +318,6 @@ function validateDecision(receipt) {
     type: 'decision',
   };
 }
-
 function validateVerification(receipt) {
   const payload = receipt.payload;
   if (payload.schema === undefined || payload.schema === null) fail('MALFORMED_RECEIPT');
@@ -397,11 +353,11 @@ function validateVerification(receipt) {
     type: 'verification',
   };
 }
-
 function validateReview(receipt) {
   requireSafe(receipt.obligationId);
   requireSafe(receipt.lane);
   const payload = receipt.payload;
+  if (hasOwn(payload, 'effect') && payload.effect !== 'OBSERVE_ONLY') fail('MALFORMED_RECEIPT');
   const required = [
     'eventId', 'decisionId', 'planId', 'obligationId', 'lane', 'scopeDigest',
     'baseIdentity', 'headIdentity', 'diff', 'materialRisks', 'materialRisksHash',
@@ -466,7 +422,6 @@ function validateReview(receipt) {
     type: 'review',
   };
 }
-
 function validateAuthority(receipt) {
   const payload = receipt.payload;
   const fields = ['eventId', 'target', 'reason', 'risk', 'approver', 'skippedGate', 'remediation', 'issuedAt', 'expiresAt'];
@@ -499,11 +454,10 @@ function validateAuthority(receipt) {
   }
   return { receipt, payload, type: 'authority' };
 }
-
 function validateMigrationObservation(receipt) {
-  return { receipt, payload: receipt.payload, type: 'migration-observation' };
+  const payload = validateMigrationObservationPayload(receipt.payload, receipt);
+  return { receipt, payload, type: 'migration-observation' };
 }
-
 function validateTypedReceipt(receipt, policy) {
   validateEnvelope(receipt, policy);
   switch (receipt.kind) {
@@ -515,7 +469,6 @@ function validateTypedReceipt(receipt, policy) {
     default: fail('MALFORMED_RECEIPT');
   }
 }
-
 function safeContext(receipt) {
   if (!isRecord(receipt)) return {};
   const result = {};
@@ -531,7 +484,6 @@ function safeContext(receipt) {
   }
   return result;
 }
-
 function identityFor(receipt) {
   const result = {};
   for (const field of ['workId', 'waveId', 'planId', 'decisionId']) {
@@ -540,18 +492,15 @@ function identityFor(receipt) {
   }
   return result;
 }
-
 function attachContext(error, context) {
   if (error && error.context === null) error.context = context;
   return error;
 }
-
 function canonicalReceiptOrder(left, right) {
   const byTime = Date.parse(left.receipt.recordedAt) - Date.parse(right.receipt.recordedAt);
   if (byTime !== 0) return byTime;
   return left.receipt.receiptId.localeCompare(right.receipt.receiptId);
 }
-
 function validateIdentity(records) {
   if (records.length === 0) return { workId: null, waveId: null, planId: null, decisionId: null };
   const identity = identityFor(records[0].receipt);
@@ -563,7 +512,6 @@ function validateIdentity(records) {
   }
   return identity;
 }
-
 function validateDecisionChain(decisions) {
   if (decisions.length === 0) return { latest: null };
   const bySequence = new Map();
@@ -595,7 +543,6 @@ function validateDecisionChain(decisions) {
   }
   return { latest: ordered[ordered.length - 1], ordered };
 }
-
 function validateOwnershipChain(decisionChain) {
   if (!decisionChain.ordered || decisionChain.ordered.length === 0) return;
   const first = decisionChain.ordered[0].payload.ownership;
@@ -603,7 +550,6 @@ function validateOwnershipChain(decisionChain) {
     if (!same(item.payload.ownership, first)) fail('OWNERSHIP_CHAIN_CONFLICT');
   }
 }
-
 function validateDecisionBinding(review, decision) {
   if (!decision) fail('DECISION_BINDING_MISMATCH');
   const snapshot = decision.payload;
@@ -631,7 +577,6 @@ function validateDecisionBinding(review, decision) {
     fail('DECISION_BINDING_MISMATCH');
   }
 }
-
 function validateVerificationBinding(item, decision) {
   const payload = item.payload;
   if (payload.evidenceType === 'FRESHNESS') return;
@@ -652,7 +597,6 @@ function validateVerificationBinding(item, decision) {
     }
   }
 }
-
 function validateFreshnessBinding(item, records, decision) {
   const payload = item.payload;
   if (!decision) fail('FRESHNESS_BINDING_MISMATCH');
@@ -671,7 +615,6 @@ function validateFreshnessBinding(item, records, decision) {
     fail('FRESHNESS_BINDING_MISMATCH');
   }
 }
-
 function validateSnapshotBindings(records, decisionChain) {
   const decision = decisionChain.latest;
   if (!decision) return;
@@ -687,7 +630,6 @@ function validateSnapshotBindings(records, decisionChain) {
     }
   }
 }
-
 function evaluateReceipts(input, policy) {
   let receipts;
   try {
@@ -763,7 +705,6 @@ function evaluateReceipts(input, policy) {
     throw attachContext(error, context);
   }
 }
-
 class WorkflowCoordinatorEvidence {
   constructor(options = {}) {
     const safeOptions = immutable(options);
@@ -781,7 +722,11 @@ class WorkflowCoordinatorEvidence {
   }
 
   evaluate(receipts) {
-    return evaluateReceipts(receipts, this.trustPolicy);
+    const evidence = evaluateReceipts(receipts, this.trustPolicy);
+    return {
+      ...evidence,
+      reviews: evidence.reviews.filter((item) => item.payload.effect !== 'OBSERVE_ONLY'),
+    };
   }
 }
 

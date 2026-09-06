@@ -5,6 +5,13 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { execFileSync } = require('node:child_process');
 const { redactSensitiveText } = require('./redaction');
+const {
+  DEFAULT_LIMITS,
+  ReceiptJsonPrimitiveError,
+  cloneBoundedJson,
+  deepFreeze,
+  immutableJson,
+} = require('./receipt-json-primitives');
 
 const SHA256 = /^[a-f0-9]{64}$/i;
 const COMMIT = /^[a-f0-9]{40}$/i;
@@ -163,19 +170,106 @@ function redact(value, depth = 0, key = '') {
   ]));
 }
 
-function redactEvidence(value, depth = 0, key = '') {
-  if (depth > 12) return '<truncated>';
-  if (/authorization|proxy.?authorization|token|password|secret|api.?key|private.?key|signing.?key|cookie|credential/i.test(key)) return '<redacted>';
-  if (typeof value === 'string') {
-    if (PRIVATE_KEY_MATERIAL.test(value)) return '<redacted>';
-    return redactSensitiveText(value, { maxLength: 4096 });
+const ACCEPTED_OUTCOME_COST_SCHEMA = 'dhpk.accepted-outcome-cost.v1';
+
+function canonicalModelTokenPath(path, value, costSchema) {
+  return path.slice(-3).join('.') === 'acceptedOutcomeCost.metrics.modelTokens'
+    && costSchema === ACCEPTED_OUTCOME_COST_SCHEMA
+    && (value === null || (Number.isSafeInteger(value) && value >= 0));
+}
+
+function redactionPath(context, key) {
+  const base = context && Array.isArray(context.path) ? context.path : [];
+  return base.concat(key ? [key] : []);
+}
+
+function redactEvidenceScalar(value, key, path, costSchema) {
+  const safeMetric = canonicalModelTokenPath(path, value, costSchema);
+  if (!safeMetric
+    && /authorization|proxy.?authorization|token|password|secret|api.?key|private.?key|signing.?key|cookie|credential/i.test(key)) {
+    return { handled: true, value: '<redacted>' };
   }
-  if (Array.isArray(value)) return value.map((entry) => redactEvidence(entry, depth + 1, key));
-  if (!value || typeof value !== 'object') return value;
-  return Object.fromEntries(Object.entries(value).map(([entryKey, entry]) => [
-    entryKey,
-    redactEvidence(entry, depth + 1, entryKey),
-  ]));
+  if (typeof value === 'string') {
+    return {
+      handled: true,
+      value: PRIVATE_KEY_MATERIAL.test(value) ? '<redacted>' : redactSensitiveText(value, { maxLength: 4096 }),
+    };
+  }
+  if (value === null || typeof value !== 'object') return { handled: true, value };
+  return { handled: false, value };
+}
+
+function redactEvidenceDescriptors(value) {
+  try {
+    const descriptors = Object.getOwnPropertyDescriptors(value);
+    if (Reflect.ownKeys(descriptors).some((entryKey) => typeof entryKey === 'symbol')) return null;
+    return descriptors;
+  } catch (_) {
+    return null;
+  }
+}
+
+function redactEvidenceArray(value, depth, path, descriptors, costSchema) {
+  const lengthDescriptor = descriptors.length;
+  const length = lengthDescriptor && Object.prototype.hasOwnProperty.call(lengthDescriptor, 'value')
+    ? lengthDescriptor.value : -1;
+  if (length > 200) return '<redacted>';
+  const names = Object.keys(descriptors);
+  const dense = Number.isSafeInteger(length) && length >= 0
+    ? ['length', ...Array.from({ length }, (_, index) => String(index))] : [];
+  if (names.length !== dense.length || !dense.every((name) => names.includes(name))) {
+    return '<redacted>';
+  }
+  const entries = [];
+  for (let index = 0; index < length; index += 1) {
+    const descriptor = descriptors[String(index)];
+    if (!descriptor || !descriptor.enumerable || !Object.prototype.hasOwnProperty.call(descriptor, 'value')) {
+      entries.push('<redacted>');
+    } else {
+      entries.push(redactEvidenceAt(descriptor.value, depth + 1, '', { path, costSchema }));
+    }
+  }
+  return entries;
+}
+
+function redactEvidenceRecord(depth, path, descriptors, costSchema) {
+  const schemaDescriptor = descriptors.schema;
+  const nextCostSchema = path.slice(-1)[0] === 'acceptedOutcomeCost'
+    && schemaDescriptor && Object.prototype.hasOwnProperty.call(schemaDescriptor, 'value')
+    ? schemaDescriptor.value : costSchema;
+  const result = {};
+  for (const entryKey of Object.keys(descriptors)) {
+    const descriptor = descriptors[entryKey];
+    const childPath = path.concat(entryKey);
+    if (!descriptor || !descriptor.enumerable || !Object.prototype.hasOwnProperty.call(descriptor, 'value')) {
+      result[entryKey] = '<redacted>';
+      continue;
+    }
+    result[entryKey] = redactEvidenceAt(descriptor.value, depth + 1, entryKey, {
+      path,
+      costSchema: nextCostSchema,
+    });
+    if (entryKey === 'modelTokens' && !canonicalModelTokenPath(childPath, descriptor.value, nextCostSchema)) {
+      result[entryKey] = '<redacted>';
+    }
+  }
+  return result;
+}
+
+function redactEvidenceAt(value, depth, key, context) {
+  if (depth > 12) return '<truncated>';
+  const path = redactionPath(context, key);
+  const costSchema = context && context.costSchema ? context.costSchema : null;
+  const scalar = redactEvidenceScalar(value, key, path, costSchema);
+  if (scalar.handled) return scalar.value;
+  const descriptors = redactEvidenceDescriptors(value);
+  if (!descriptors) return '<redacted>';
+  if (Array.isArray(value)) return redactEvidenceArray(value, depth, path, descriptors, costSchema);
+  return redactEvidenceRecord(depth, path, descriptors, costSchema);
+}
+
+function redactEvidence(value) {
+  return redactEvidenceAt(value, 0, '', { path: [], costSchema: null });
 }
 
 function ensurePhysicalDirectory(directory) {
@@ -609,6 +703,11 @@ function assertRollbackOwnership(target, candidate) {
 }
 
 module.exports = {
+  DEFAULT_LIMITS,
+  ReceiptJsonPrimitiveError,
+  cloneBoundedJson,
+  deepFreeze,
+  immutableJson,
   SHA256,
   COMMIT,
   TREE,
