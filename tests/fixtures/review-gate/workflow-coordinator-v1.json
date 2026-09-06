@@ -1,0 +1,595 @@
+{
+  "schema": "dhpk.workflow-coordinator-fixture.v1",
+  "evaluatedAt": "2026-09-06T04:00:00.000Z",
+  "featureControl": {
+    "baseline": {
+      "enabled": false,
+      "phase": "BASELINE"
+    },
+    "observe": {
+      "enabled": true,
+      "phase": "OBSERVE"
+    }
+  },
+  "trustPolicy": {
+    "producers": [
+      {
+        "producer": "fixture-workflow",
+        "adapter": "fixture-adapter",
+        "receiptKinds": [
+          "decision",
+          "review",
+          "verification",
+          "authority",
+          "migration-observation"
+        ]
+      }
+    ]
+  },
+  "receipts": [
+    {
+      "schema": "dhpk.review-gate.evidence-receipt.v1",
+      "receiptId": "receipt-work-recorded",
+      "kind": "decision",
+      "workId": "work-368",
+      "waveId": "wave-368",
+      "planId": "plan-368",
+      "decisionId": "decision-368",
+      "producer": "fixture-workflow",
+      "adapter": "fixture-adapter",
+      "sessionId": "session-368",
+      "sourceCommit": "3333333333333333333333333333333333333333",
+      "sourceTree": "4444444444444444444444444444444444444444",
+      "policyVersion": "dhpk.risk-policy.initial.v1",
+      "contractVersion": "dhpk.reviewer-contract.v2",
+      "recordedAt": "2026-09-06T04:00:00.000Z",
+      "payload": {
+        "schema": "dhpk.workflow.decision.v1",
+        "fact": "WORK_RECORDED",
+        "sequence": 1,
+        "supersedesReceiptId": null,
+        "workId": "work-368",
+        "decisionId": "decision-368",
+        "waveId": "wave-368",
+        "planId": "plan-368",
+        "ownership":{"judgmentOwner":"architect","implementationOwner":"worker:368"},
+        "routing":{"assistants":[{"role":"tdd-guide","owner":"specialist:tdd","reasonSignals":["PUBLIC_CONTRACT"]}],"writers":[{"owner":"worker:368","paths":["scripts/lib/workflow-coordinator.js"]}],"reconciliationOwner":"worker:368"},
+        "materialRisks":["BEHAVIOR_CHANGE","PUBLIC_CONTRACT"],
+        "materialRisksHash":"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "governingInputs":[{"reference":"docs/adr/0015-derive-workflow-state-from-typed-receipts.md","digest":"sha256:6666666666666666666666666666666666666666666666666666666666666666"}],
+        "governingInputsHash":"sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "premiseHash":"sha256:9999999999999999999999999999999999999999999999999999999999999999",
+        "scope":{"paths":["scripts/lib/workflow-coordinator.js"],"kinds":["SOURCE"],"digest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+        "baseIdentity":{"commit":"1111111111111111111111111111111111111111","tree":"2222222222222222222222222222222222222222"},
+        "headIdentity":{"commit":"3333333333333333333333333333333333333333","tree":"4444444444444444444444444444444444444444"},
+        "diff":{"digest":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","reference":"git-diff:issue-368"},
+        "requiredReviews": [{"obligationId":"obligation-code-review","lane":"code-reviewer"}],
+        "requiredVerifications":[{"verificationId":"verification-implementation","evidenceType":"IMPLEMENTATION","lane":"implementation"},{"verificationId":"verification-local-gate","evidenceType":"LOCAL_GATE","lane":"unit"}],
+        "authorityRequests": [],
+        "deliveryAuthorized": false
+      }
+    },
+    {
+      "schema": "dhpk.review-gate.evidence-receipt.v1",
+      "receiptId": "receipt-decision-required",
+      "kind": "decision",
+      "workId": "work-368",
+      "waveId": "wave-368",
+      "planId": "plan-368",
+      "decisionId": "decision-368",
+      "producer": "fixture-workflow",
+      "adapter": "fixture-adapter",
+      "sessionId": "session-368",
+      "sourceCommit": "3333333333333333333333333333333333333333",
+      "sourceTree": "4444444444444444444444444444444444444444",
+      "policyVersion": "dhpk.risk-policy.initial.v1",
+      "contractVersion": "dhpk.reviewer-contract.v2",
+      "recordedAt": "2026-09-06T04:01:00.000Z",
+      "payload": {
+        "schema": "dhpk.workflow.decision.v1",
+        "fact": "DECISION_REQUIRED",
+        "sequence": 2,
+        "supersedesReceiptId": "receipt-work-recorded",
+        "workId": "work-368",
+        "decisionId": "decision-368",
+        "waveId": "wave-368",
+        "planId": "plan-368",
+        "ownership":{"judgmentOwner":"architect","implementationOwner":"worker:368"},
+        "routing":{"assistants":[{"role":"tdd-guide","owner":"specialist:tdd","reasonSignals":["PUBLIC_CONTRACT"]}],"writers":[{"owner":"worker:368","paths":["scripts/lib/workflow-coordinator.js"]}],"reconciliationOwner":"worker:368"},
+        "materialRisks":["BEHAVIOR_CHANGE","PUBLIC_CONTRACT"],
+        "materialRisksHash":"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "governingInputs":[{"reference":"docs/adr/0015-derive-workflow-state-from-typed-receipts.md","digest":"sha256:6666666666666666666666666666666666666666666666666666666666666666"}],
+        "governingInputsHash":"sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "premiseHash":"sha256:9999999999999999999999999999999999999999999999999999999999999999",
+        "scope":{"paths":["scripts/lib/workflow-coordinator.js"],"kinds":["SOURCE"],"digest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+        "baseIdentity":{"commit":"1111111111111111111111111111111111111111","tree":"2222222222222222222222222222222222222222"},
+        "headIdentity":{"commit":"3333333333333333333333333333333333333333","tree":"4444444444444444444444444444444444444444"},
+        "diff":{"digest":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","reference":"git-diff:issue-368"},
+        "requiredReviews": [{"obligationId":"obligation-code-review","lane":"code-reviewer"}],
+        "requiredVerifications":[{"verificationId":"verification-implementation","evidenceType":"IMPLEMENTATION","lane":"implementation"},{"verificationId":"verification-local-gate","evidenceType":"LOCAL_GATE","lane":"unit"}],
+        "authorityRequests":[{"requestId":"authority-request-368-b","question":"Approve the named implementation wave","recommendation":"approve worker:368","urgency":"BATCHABLE","alternatives":[{"option":"defer","impact":"the wave remains pending"}],"impact":"the named implementation wave remains pending","deferralConsequence":"workflow remains DECISION_PENDING","blocking":true},{"requestId":"authority-request-368-a","question":"Confirm the named judgment owner","recommendation":"retain architect","urgency":"BATCHABLE","alternatives":[{"option":"defer","impact":"the judgment remains pending"}],"impact":"the named owner remains unresolved","deferralConsequence":"workflow remains DECISION_PENDING","blocking":true}],
+        "deliveryAuthorized": false
+      }
+    },
+    {
+      "schema": "dhpk.review-gate.evidence-receipt.v1",
+      "receiptId": "receipt-decision-resolved",
+      "kind": "decision",
+      "workId": "work-368",
+      "waveId": "wave-368",
+      "planId": "plan-368",
+      "decisionId": "decision-368",
+      "producer": "fixture-workflow",
+      "adapter": "fixture-adapter",
+      "sessionId": "session-368",
+      "sourceCommit": "3333333333333333333333333333333333333333",
+      "sourceTree": "4444444444444444444444444444444444444444",
+      "policyVersion": "dhpk.risk-policy.initial.v1",
+      "contractVersion": "dhpk.reviewer-contract.v2",
+      "recordedAt": "2026-09-06T04:02:00.000Z",
+      "payload": {
+        "schema": "dhpk.workflow.decision.v1",
+        "fact": "DECISION_RESOLVED",
+        "sequence": 3,
+        "supersedesReceiptId": "receipt-decision-required",
+        "workId": "work-368",
+        "decisionId": "decision-368",
+        "waveId": "wave-368",
+        "planId": "plan-368",
+        "ownership":{"judgmentOwner":"architect","implementationOwner":"worker:368"},
+        "routing":{"assistants":[{"role":"tdd-guide","owner":"specialist:tdd","reasonSignals":["PUBLIC_CONTRACT"]}],"writers":[{"owner":"worker:368","paths":["scripts/lib/workflow-coordinator.js"]}],"reconciliationOwner":"worker:368"},
+        "materialRisks":["BEHAVIOR_CHANGE","PUBLIC_CONTRACT"],
+        "materialRisksHash":"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "governingInputs":[{"reference":"docs/adr/0015-derive-workflow-state-from-typed-receipts.md","digest":"sha256:6666666666666666666666666666666666666666666666666666666666666666"}],
+        "governingInputsHash":"sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "premiseHash":"sha256:9999999999999999999999999999999999999999999999999999999999999999",
+        "scope":{"paths":["scripts/lib/workflow-coordinator.js"],"kinds":["SOURCE"],"digest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+        "baseIdentity":{"commit":"1111111111111111111111111111111111111111","tree":"2222222222222222222222222222222222222222"},
+        "headIdentity":{"commit":"3333333333333333333333333333333333333333","tree":"4444444444444444444444444444444444444444"},
+        "diff":{"digest":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","reference":"git-diff:issue-368"},
+        "requiredReviews": [{"obligationId":"obligation-code-review","lane":"code-reviewer"}],
+        "requiredVerifications":[{"verificationId":"verification-implementation","evidenceType":"IMPLEMENTATION","lane":"implementation"},{"verificationId":"verification-local-gate","evidenceType":"LOCAL_GATE","lane":"unit"}],
+        "authorityRequests": [],
+        "deliveryAuthorized": false
+      }
+    },
+    {
+      "schema": "dhpk.review-gate.evidence-receipt.v1",
+      "receiptId": "receipt-decision-invalidated",
+      "kind": "decision",
+      "workId": "work-368",
+      "waveId": "wave-368",
+      "planId": "plan-368",
+      "decisionId": "decision-368",
+      "producer": "fixture-workflow",
+      "adapter": "fixture-adapter",
+      "sessionId": "session-368",
+      "sourceCommit": "3333333333333333333333333333333333333333",
+      "sourceTree": "4444444444444444444444444444444444444444",
+      "policyVersion": "dhpk.risk-policy.initial.v1",
+      "contractVersion": "dhpk.reviewer-contract.v2",
+      "recordedAt": "2026-09-06T04:08:00.000Z",
+      "payload": {
+        "schema": "dhpk.workflow.decision.v1",
+        "fact": "DECISION_INVALIDATED",
+        "sequence": 4,
+        "supersedesReceiptId": "receipt-decision-resolved",
+        "workId": "work-368",
+        "decisionId": "decision-368",
+        "waveId": "wave-368",
+        "planId": "plan-368",
+        "ownership":{"judgmentOwner":"architect","implementationOwner":"worker:368"},
+        "routing":{"assistants":[{"role":"tdd-guide","owner":"specialist:tdd","reasonSignals":["PUBLIC_CONTRACT"]}],"writers":[{"owner":"worker:368","paths":["scripts/lib/workflow-coordinator.js"]}],"reconciliationOwner":"worker:368"},
+        "materialRisks":["BEHAVIOR_CHANGE","PUBLIC_CONTRACT"],
+        "materialRisksHash":"sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "governingInputs":[{"reference":"docs/adr/0015-derive-workflow-state-from-typed-receipts.md","digest":"sha256:6666666666666666666666666666666666666666666666666666666666666666"}],
+        "governingInputsHash":"sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "premiseHash":"sha256:9999999999999999999999999999999999999999999999999999999999999999",
+        "scope":{"paths":["scripts/lib/workflow-coordinator.js"],"kinds":["SOURCE"],"digest":"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+        "baseIdentity":{"commit":"1111111111111111111111111111111111111111","tree":"2222222222222222222222222222222222222222"},
+        "headIdentity":{"commit":"3333333333333333333333333333333333333333","tree":"4444444444444444444444444444444444444444"},
+        "diff":{"digest":"sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb","reference":"git-diff:issue-368"},
+        "requiredReviews": [{"obligationId":"obligation-code-review","lane":"code-reviewer"}],
+        "requiredVerifications":[{"verificationId":"verification-implementation","evidenceType":"IMPLEMENTATION","lane":"implementation"},{"verificationId":"verification-local-gate","evidenceType":"LOCAL_GATE","lane":"unit"}],
+        "authorityRequests":[{"requestId":"authority-request-368-b","question":"Refresh the invalidated decision","recommendation":"re-evaluate the named wave","urgency":"BATCHABLE","alternatives":[{"option":"defer","impact":"the prior decision remains invalid"}],"impact":"the prior decision cannot authorize progress","deferralConsequence":"workflow remains DECISION_PENDING","blocking":true},{"requestId":"authority-request-368-a","question":"Confirm the named judgment owner","recommendation":"retain architect","urgency":"BATCHABLE","alternatives":[{"option":"defer","impact":"the judgment remains pending"}],"impact":"the named owner remains unresolved","deferralConsequence":"workflow remains DECISION_PENDING","blocking":true}],
+        "deliveryAuthorized": false
+      }
+    },
+    {
+      "schema": "dhpk.review-gate.evidence-receipt.v1",
+      "receiptId": "receipt-implementation-started",
+      "kind": "verification",
+      "workId": "work-368",
+      "waveId": "wave-368",
+      "planId": "plan-368",
+      "decisionId": "decision-368",
+      "producer": "fixture-workflow",
+      "adapter": "fixture-adapter",
+      "sessionId": "session-368",
+      "sourceCommit": "3333333333333333333333333333333333333333",
+      "sourceTree": "4444444444444444444444444444444444444444",
+      "policyVersion": "dhpk.risk-policy.initial.v1",
+      "contractVersion": "dhpk.reviewer-contract.v2",
+      "recordedAt": "2026-09-06T04:03:00.000Z",
+      "payload": {
+        "schema": "dhpk.workflow.verification.v1",
+        "verificationId": "verification-implementation",
+        "evidenceType": "IMPLEMENTATION",
+        "lane": "implementation",
+        "outcome": "STARTED",
+        "owner": "worker:368"
+      }
+    },
+    {
+      "schema": "dhpk.review-gate.evidence-receipt.v1",
+      "receiptId": "receipt-implementation-complete",
+      "kind": "verification",
+      "workId": "work-368",
+      "waveId": "wave-368",
+      "planId": "plan-368",
+      "decisionId": "decision-368",
+      "producer": "fixture-workflow",
+      "adapter": "fixture-adapter",
+      "sessionId": "session-368",
+      "sourceCommit": "3333333333333333333333333333333333333333",
+      "sourceTree": "4444444444444444444444444444444444444444",
+      "policyVersion": "dhpk.risk-policy.initial.v1",
+      "contractVersion": "dhpk.reviewer-contract.v2",
+      "recordedAt": "2026-09-06T04:04:00.000Z",
+      "payload": {
+        "schema": "dhpk.workflow.verification.v1",
+        "verificationId": "verification-implementation",
+        "evidenceType": "IMPLEMENTATION",
+        "lane": "implementation",
+        "outcome": "COMPLETE",
+        "owner": "worker:368"
+      }
+    },
+    {
+      "schema": "dhpk.review-gate.evidence-receipt.v1",
+      "receiptId": "receipt-local-gate-pass",
+      "kind": "verification",
+      "workId": "work-368",
+      "waveId": "wave-368",
+      "planId": "plan-368",
+      "decisionId": "decision-368",
+      "producer": "fixture-workflow",
+      "adapter": "fixture-adapter",
+      "sessionId": "session-368",
+      "sourceCommit": "3333333333333333333333333333333333333333",
+      "sourceTree": "4444444444444444444444444444444444444444",
+      "policyVersion": "dhpk.risk-policy.initial.v1",
+      "contractVersion": "dhpk.reviewer-contract.v2",
+      "recordedAt": "2026-09-06T04:06:00.000Z",
+      "payload": {
+        "schema": "dhpk.workflow.verification.v1",
+        "verificationId": "verification-local-gate",
+        "evidenceType": "LOCAL_GATE",
+        "lane": "unit",
+        "outcome": "PASS"
+      }
+    },
+    {
+      "schema": "dhpk.review-gate.evidence-receipt.v1",
+      "receiptId": "receipt-local-gate-blocked",
+      "kind": "verification",
+      "workId": "work-368",
+      "waveId": "wave-368",
+      "planId": "plan-368",
+      "decisionId": "decision-368",
+      "producer": "fixture-workflow",
+      "adapter": "fixture-adapter",
+      "sessionId": "session-368",
+      "sourceCommit": "3333333333333333333333333333333333333333",
+      "sourceTree": "4444444444444444444444444444444444444444",
+      "policyVersion": "dhpk.risk-policy.initial.v1",
+      "contractVersion": "dhpk.reviewer-contract.v2",
+      "recordedAt": "2026-09-06T04:07:00.000Z",
+      "payload": {
+        "schema": "dhpk.workflow.verification.v1",
+        "verificationId": "verification-local-gate",
+        "evidenceType": "LOCAL_GATE",
+        "lane": "unit",
+        "outcome": "BLOCKED",
+        "reasonCodes": ["LOCAL_GATE_UNAVAILABLE"]
+      }
+    },
+    {
+      "schema": "dhpk.review-gate.evidence-receipt.v1",
+      "receiptId": "receipt-review-pass",
+      "kind": "review",
+      "workId": "work-368",
+      "waveId": "wave-368",
+      "planId": "plan-368",
+      "decisionId": "decision-368",
+      "obligationId": "obligation-code-review",
+      "lane": "code-reviewer",
+      "producer": "fixture-workflow",
+      "adapter": "fixture-adapter",
+      "sessionId": "session-368",
+      "sourceCommit": "3333333333333333333333333333333333333333",
+      "sourceTree": "4444444444444444444444444444444444444444",
+      "policyVersion": "dhpk.risk-policy.initial.v1",
+      "contractVersion": "dhpk.reviewer-contract.v2",
+      "recordedAt": "2026-09-06T04:05:00.000Z",
+      "payload": {
+        "eventId": "review-event-368-pass",
+        "decisionId": "decision-368",
+        "planId": "plan-368",
+        "obligationId": "obligation-code-review",
+        "lane": "code-reviewer",
+        "scopeDigest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "baseIdentity": {
+          "commit": "1111111111111111111111111111111111111111",
+          "tree": "2222222222222222222222222222222222222222"
+        },
+        "headIdentity": {
+          "commit": "3333333333333333333333333333333333333333",
+          "tree": "4444444444444444444444444444444444444444"
+        },
+        "diff": {
+          "digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          "reference": "git-diff:issue-368"
+        },
+        "materialRisks": ["BEHAVIOR_CHANGE", "PUBLIC_CONTRACT"],
+        "materialRisksHash": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "reasonSignals": ["PUBLIC_CONTRACT"],
+        "reasonSignalsHash": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "governingInputs": [
+          {
+            "reference": "docs/adr/0015-derive-workflow-state-from-typed-receipts.md",
+            "digest": "sha256:6666666666666666666666666666666666666666666666666666666666666666"
+          }
+        ],
+        "governingInputsHash": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+        "policyVersion": "dhpk.risk-policy.initial.v1",
+        "policyDigest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "contractVersion": "dhpk.reviewer-contract.v2",
+        "requestDigest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+        "resultDigest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+        "executionStatus": "COMPLETE",
+        "applicability": "REQUIRED",
+        "findings": [],
+        "inspectedScope": ["scripts/lib/workflow-coordinator.js"],
+        "evidenceReferences": ["test:workflow-coordinator"],
+        "executedCommands": [
+          {
+            "command": "digest:sha256:9999999999999999999999999999999999999999999999999999999999999999",
+            "outcome": "PASS"
+          }
+        ],
+        "semanticVerdict": "PASS"
+      }
+    }
+  ],
+  "histories": [
+    {
+      "name": "recorded",
+      "receiptIds": ["receipt-work-recorded"],
+      "expected": {
+        "state": "RECORDED",
+        "condition": null,
+        "workId": "work-368",
+        "decisionId": "decision-368",
+        "waveId": "wave-368",
+        "owners": {
+          "judgmentOwner": "architect",
+          "implementationOwner": "worker:368"
+        },
+        "routing": {
+          "assistants": [{"role":"tdd-guide","owner":"specialist:tdd","reasonSignals":["PUBLIC_CONTRACT"]}],
+          "writers": [{"owner":"worker:368","paths":["scripts/lib/workflow-coordinator.js"]}],
+          "reconciliationOwner": "worker:368"
+        },
+        "reviewLanes": ["code-reviewer"],
+        "verificationLanes": ["implementation", "unit"],
+        "decisionPacket": null,
+        "completion": {
+          "implementation": "PENDING",
+          "delivery": "PENDING",
+          "workflow": "PENDING"
+        }
+      }
+    },
+    {
+      "name": "decision-pending",
+      "receiptIds": ["receipt-work-recorded", "receipt-decision-required"],
+      "expected": {
+        "state": "DECISION_PENDING",
+        "condition": null,
+        "workId": "work-368",
+        "decisionId": "decision-368",
+        "waveId": "wave-368",
+        "owners": {
+          "judgmentOwner": "architect",
+          "implementationOwner": "worker:368"
+        },
+        "routing": {
+          "assistants": [{"role":"tdd-guide","owner":"specialist:tdd","reasonSignals":["PUBLIC_CONTRACT"]}],
+          "writers": [{"owner":"worker:368","paths":["scripts/lib/workflow-coordinator.js"]}],
+          "reconciliationOwner": "worker:368"
+        },
+        "reviewLanes": ["code-reviewer"],
+        "verificationLanes": ["implementation", "unit"],
+        "decisionPacket":{"items":[{"requestId":"authority-request-368-a","question":"Confirm the named judgment owner","recommendation":"retain architect","urgency":"BATCHABLE","alternatives":[{"option":"defer","impact":"the judgment remains pending"}],"impact":"the named owner remains unresolved","deferralConsequence":"workflow remains DECISION_PENDING","blocking":true},{"requestId":"authority-request-368-b","question":"Approve the named implementation wave","recommendation":"approve worker:368","urgency":"BATCHABLE","alternatives":[{"option":"defer","impact":"the wave remains pending"}],"impact":"the named implementation wave remains pending","deferralConsequence":"workflow remains DECISION_PENDING","blocking":true}]},
+        "completion": {
+          "implementation": "PENDING",
+          "delivery": "PENDING",
+          "workflow": "PENDING"
+        }
+      }
+    },
+    {
+      "name": "ready",
+      "receiptIds": ["receipt-work-recorded", "receipt-decision-required", "receipt-decision-resolved"],
+      "expected": {
+        "state": "READY",
+        "condition": null,
+        "workId": "work-368",
+        "decisionId": "decision-368",
+        "waveId": "wave-368",
+        "owners": {
+          "judgmentOwner": "architect",
+          "implementationOwner": "worker:368"
+        },
+        "routing": {
+          "assistants": [{"role":"tdd-guide","owner":"specialist:tdd","reasonSignals":["PUBLIC_CONTRACT"]}],
+          "writers": [{"owner":"worker:368","paths":["scripts/lib/workflow-coordinator.js"]}],
+          "reconciliationOwner": "worker:368"
+        },
+        "reviewLanes": ["code-reviewer"],
+        "verificationLanes": ["implementation", "unit"],
+        "decisionPacket": null,
+        "completion": {
+          "implementation": "PENDING",
+          "delivery": "PENDING",
+          "workflow": "PENDING"
+        }
+      }
+    },
+    {
+      "name": "executing",
+      "receiptIds": ["receipt-work-recorded", "receipt-decision-required", "receipt-decision-resolved", "receipt-implementation-started"],
+      "expected": {
+        "state": "EXECUTING",
+        "condition": null,
+        "workId": "work-368",
+        "decisionId": "decision-368",
+        "waveId": "wave-368",
+        "owners": {
+          "judgmentOwner": "architect",
+          "implementationOwner": "worker:368"
+        },
+        "routing": {
+          "assistants": [{"role":"tdd-guide","owner":"specialist:tdd","reasonSignals":["PUBLIC_CONTRACT"]}],
+          "writers": [{"owner":"worker:368","paths":["scripts/lib/workflow-coordinator.js"]}],
+          "reconciliationOwner": "worker:368"
+        },
+        "reviewLanes": ["code-reviewer"],
+        "verificationLanes": ["implementation", "unit"],
+        "decisionPacket": null,
+        "completion": {
+          "implementation": "PENDING",
+          "delivery": "PENDING",
+          "workflow": "PENDING"
+        }
+      }
+    },
+    {
+      "name": "evidence-pending",
+      "receiptIds": ["receipt-work-recorded", "receipt-decision-required", "receipt-decision-resolved", "receipt-implementation-complete"],
+      "expected": {
+        "state": "EVIDENCE_PENDING",
+        "condition": null,
+        "workId": "work-368",
+        "decisionId": "decision-368",
+        "waveId": "wave-368",
+        "owners": {
+          "judgmentOwner": "architect",
+          "implementationOwner": "worker:368"
+        },
+        "routing": {
+          "assistants": [{"role":"tdd-guide","owner":"specialist:tdd","reasonSignals":["PUBLIC_CONTRACT"]}],
+          "writers": [{"owner":"worker:368","paths":["scripts/lib/workflow-coordinator.js"]}],
+          "reconciliationOwner": "worker:368"
+        },
+        "reviewLanes": ["code-reviewer"],
+        "verificationLanes": ["implementation", "unit"],
+        "decisionPacket": null,
+        "completion": {
+          "implementation": "PENDING",
+          "delivery": "PENDING",
+          "workflow": "PENDING"
+        }
+      }
+    },
+    {
+      "name": "merge-ready",
+      "receiptIds": ["receipt-work-recorded", "receipt-decision-required", "receipt-decision-resolved", "receipt-implementation-complete", "receipt-review-pass", "receipt-local-gate-pass"],
+      "expected": {
+        "state": "MERGE_READY",
+        "condition": null,
+        "workId": "work-368",
+        "decisionId": "decision-368",
+        "waveId": "wave-368",
+        "owners": {
+          "judgmentOwner": "architect",
+          "implementationOwner": "worker:368"
+        },
+        "routing": {
+          "assistants": [{"role":"tdd-guide","owner":"specialist:tdd","reasonSignals":["PUBLIC_CONTRACT"]}],
+          "writers": [{"owner":"worker:368","paths":["scripts/lib/workflow-coordinator.js"]}],
+          "reconciliationOwner": "worker:368"
+        },
+        "reviewLanes": ["code-reviewer"],
+        "verificationLanes": ["implementation", "unit"],
+        "decisionPacket": null,
+        "completion": {
+          "implementation": "COMPLETE",
+          "delivery": "PENDING",
+          "workflow": "PENDING"
+        }
+      }
+    },
+    {
+      "name": "blocked",
+      "receiptIds": ["receipt-work-recorded", "receipt-decision-required", "receipt-decision-resolved", "receipt-implementation-complete", "receipt-local-gate-blocked"],
+      "expected": {
+        "state": "EVIDENCE_PENDING",
+        "condition": {
+          "type": "BLOCKED",
+          "resumeState": "EVIDENCE_PENDING",
+          "reasonCodes": ["LOCAL_GATE_UNAVAILABLE"]
+        },
+        "workId": "work-368",
+        "decisionId": "decision-368",
+        "waveId": "wave-368",
+        "owners": {
+          "judgmentOwner": "architect",
+          "implementationOwner": "worker:368"
+        },
+        "routing": {
+          "assistants": [{"role":"tdd-guide","owner":"specialist:tdd","reasonSignals":["PUBLIC_CONTRACT"]}],
+          "writers": [{"owner":"worker:368","paths":["scripts/lib/workflow-coordinator.js"]}],
+          "reconciliationOwner": "worker:368"
+        },
+        "reviewLanes": ["code-reviewer"],
+        "verificationLanes": ["implementation", "unit"],
+        "decisionPacket": null,
+        "completion": {
+          "implementation": "PENDING",
+          "delivery": "PENDING",
+          "workflow": "PENDING"
+        }
+      }
+    },
+    {
+      "name": "decision-invalidated",
+      "receiptIds": ["receipt-work-recorded", "receipt-decision-required", "receipt-decision-resolved", "receipt-decision-invalidated"],
+      "expected": {
+        "state": "DECISION_PENDING",
+        "condition": null,
+        "workId": "work-368",
+        "decisionId": "decision-368",
+        "waveId": "wave-368",
+        "owners": {
+          "judgmentOwner": "architect",
+          "implementationOwner": "worker:368"
+        },
+        "routing": {
+          "assistants": [{"role":"tdd-guide","owner":"specialist:tdd","reasonSignals":["PUBLIC_CONTRACT"]}],
+          "writers": [{"owner":"worker:368","paths":["scripts/lib/workflow-coordinator.js"]}],
+          "reconciliationOwner": "worker:368"
+        },
+        "reviewLanes": ["code-reviewer"],
+        "verificationLanes": ["implementation", "unit"],
+        "decisionPacket":{"items":[{"requestId":"authority-request-368-a","question":"Confirm the named judgment owner","recommendation":"retain architect","urgency":"BATCHABLE","alternatives":[{"option":"defer","impact":"the judgment remains pending"}],"impact":"the named owner remains unresolved","deferralConsequence":"workflow remains DECISION_PENDING","blocking":true},{"requestId":"authority-request-368-b","question":"Refresh the invalidated decision","recommendation":"re-evaluate the named wave","urgency":"BATCHABLE","alternatives":[{"option":"defer","impact":"the prior decision remains invalid"}],"impact":"the prior decision cannot authorize progress","deferralConsequence":"workflow remains DECISION_PENDING","blocking":true}]},
+        "completion": {
+          "implementation": "PENDING",
+          "delivery": "PENDING",
+          "workflow": "PENDING"
+        }
+      }
+    }
+  ]
+}
