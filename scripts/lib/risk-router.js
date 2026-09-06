@@ -255,6 +255,105 @@ const createWorkRecord = (workRequest) => {
 
 const policyDigest = digest(INITIAL_RISK_POLICY);
 
+const REVIEW_PLAN_FIELDS = Object.freeze([
+  'schemaVersion',
+  'planId',
+  'workId',
+  'decisionId',
+  'waveId',
+  'policyVersion',
+  'policyDigest',
+  'contractVersion',
+  'applicability',
+  'materialRisks',
+  'governingInputs',
+  'scope',
+  'baseIdentity',
+  'headIdentity',
+  'diff',
+  'obligations',
+  'reasonCodes',
+  'extensions',
+]);
+const REVIEW_PLAN_SCOPE_FIELDS = Object.freeze([
+  'paths',
+  'kinds',
+  'digest',
+]);
+
+const requireExactFields = (value, fields, field) => {
+  const actual = Object.keys(value).sort();
+  const expected = [...fields].sort();
+  if (canonicalJson(actual) !== canonicalJson(expected)) {
+    fail(field, `must contain exactly ${expected.join(', ')}`);
+  }
+};
+
+const requireStableId = (value, prefix, field) => {
+  requireString(value, field);
+  if (!new RegExp(`^${prefix}-[a-f0-9]{64}$`).test(value)) {
+    fail(field, `must be a stable ${prefix} identity`);
+  }
+};
+
+const requireRegisteredPolicy = (policy) => {
+  if (canonicalJson(policy) !== canonicalJson(INITIAL_RISK_POLICY)) {
+    fail('policy', `must equal the registered ${RISK_POLICY_VERSION} policy`);
+  }
+};
+
+const createReviewPlan = (record, policy) => {
+  requireRegisteredPolicy(policy);
+
+  const planIdentity = {
+    workId: record.workId,
+    decisionId: record.decisionId,
+    waveId: record.waveId,
+    scope: record.scope,
+    materialRisks: record.materialRisks,
+    governingInputs: record.governingInputs,
+    policyVersion: policy.version,
+    policyDigest,
+    contractVersion: policy.contractVersion,
+  };
+  const planId = stableId('review-plan', planIdentity);
+  const applicability = record.scope.paths.length === 0 ? 'NOT_APPLICABLE' : 'REQUIRED';
+  const obligations = (applicability === 'REQUIRED' ? lanesFor(record) : []).map((lane) => ({
+    obligationId: stableId('obligation', { planId, kind: 'SEMANTIC_REVIEW', lane }),
+    kind: 'SEMANTIC_REVIEW',
+    lane,
+    applicability,
+    reasonSignals: reasonSignalsFor(record, lane),
+    scopeDigest: record.scope.digest,
+    contractVersion: policy.contractVersion,
+  }));
+
+  return freeze({
+    schemaVersion: REVIEW_PLAN_VERSION,
+    planId,
+    workId: record.workId,
+    decisionId: record.decisionId,
+    waveId: record.waveId,
+    policyVersion: policy.version,
+    policyDigest,
+    contractVersion: policy.contractVersion,
+    applicability,
+    materialRisks: clone(record.materialRisks),
+    governingInputs: clone(record.governingInputs),
+    scope: {
+      paths: clone(record.scope.paths),
+      kinds: clone(record.scope.kinds),
+      digest: record.scope.digest,
+    },
+    baseIdentity: clone(record.scope.baseIdentity),
+    headIdentity: clone(record.scope.headIdentity),
+    diff: clone(record.scope.diff),
+    obligations,
+    reasonCodes: applicability === 'NOT_APPLICABLE' ? ['EMPTY_DIFF'] : [],
+    extensions: clone(record.extensions),
+  });
+};
+
 const lanesFor = (workRecord) => {
   const lanes = new Set();
   for (const kind of workRecord.scope.kinds) {
@@ -308,59 +407,115 @@ const validateWorkRecord = (workRecord) => {
   return normalized;
 };
 
+const validateReviewPlan = (reviewPlan) => {
+  requireRecord(reviewPlan, 'reviewPlan');
+  requireExactFields(reviewPlan, REVIEW_PLAN_FIELDS, 'reviewPlan');
+  if (reviewPlan.schemaVersion !== REVIEW_PLAN_VERSION) {
+    fail('reviewPlan.schemaVersion', `must equal ${REVIEW_PLAN_VERSION}`);
+  }
+  requireStableId(reviewPlan.planId, 'review-plan', 'reviewPlan.planId');
+  requireStableId(reviewPlan.workId, 'work', 'reviewPlan.workId');
+  requireStableId(reviewPlan.decisionId, 'decision', 'reviewPlan.decisionId');
+  requireStableId(reviewPlan.waveId, 'wave', 'reviewPlan.waveId');
+  if (reviewPlan.policyVersion !== RISK_POLICY_VERSION) {
+    fail('reviewPlan.policyVersion', `must equal ${RISK_POLICY_VERSION}`);
+  }
+  requireDigest(reviewPlan.policyDigest, 'reviewPlan.policyDigest');
+  if (reviewPlan.policyDigest !== policyDigest) {
+    fail('reviewPlan.policyDigest', 'must equal the registered policy digest');
+  }
+  if (reviewPlan.contractVersion !== REVIEWER_CONTRACT_VERSION) {
+    fail('reviewPlan.contractVersion', `must equal ${REVIEWER_CONTRACT_VERSION}`);
+  }
+  requireRecord(reviewPlan.scope, 'reviewPlan.scope');
+  requireExactFields(reviewPlan.scope, REVIEW_PLAN_SCOPE_FIELDS, 'reviewPlan.scope');
+
+  const paths = normalizePaths(reviewPlan.scope.paths);
+  const kinds = orderedSet(reviewPlan.scope.kinds, SCOPE_KINDS, 'reviewPlan.scope.kinds');
+  if (paths.length > 0 && kinds.length === 0) {
+    fail('reviewPlan.scope.kinds', 'must classify a non-empty scope');
+  }
+  requireDigest(reviewPlan.scope.digest, 'reviewPlan.scope.digest');
+  const scopeDigest = digest({ paths, kinds });
+  if (reviewPlan.scope.digest !== scopeDigest) {
+    fail('reviewPlan.scope.digest', 'must match canonical scope paths and kinds');
+  }
+
+  requireGitIdentity(reviewPlan.baseIdentity, 'reviewPlan.baseIdentity');
+  requireGitIdentity(reviewPlan.headIdentity, 'reviewPlan.headIdentity');
+  requireRecord(reviewPlan.diff, 'reviewPlan.diff');
+  requireDigest(reviewPlan.diff.digest, 'reviewPlan.diff.digest');
+  requireString(reviewPlan.diff.reference, 'reviewPlan.diff.reference');
+  const emptySignals = [
+    paths.length === 0,
+    reviewPlan.baseIdentity.tree === reviewPlan.headIdentity.tree,
+    reviewPlan.diff.digest === EMPTY_DIFF_DIGEST,
+  ];
+  if (emptySignals.some(Boolean) && !emptySignals.every(Boolean)) {
+    fail('reviewPlan', 'empty diff paths, tree identity, and digest must agree');
+  }
+
+  const materialRisks = orderedSet(reviewPlan.materialRisks, MATERIAL_RISK_SIGNALS, 'reviewPlan.materialRisks');
+  const governingInputs = normalizeReferences(
+    reviewPlan.governingInputs,
+    'reviewPlan.governingInputs',
+    ['reference', 'digest'],
+  );
+  requireRecord(reviewPlan.extensions, 'reviewPlan.extensions');
+  const extensions = normalizeExtensions(reviewPlan.extensions);
+  if (!Array.isArray(reviewPlan.obligations)) fail('reviewPlan.obligations', 'must be an array');
+  if (!Array.isArray(reviewPlan.reasonCodes)) fail('reviewPlan.reasonCodes', 'must be an array');
+  for (const [index, obligation] of reviewPlan.obligations.entries()) {
+    requireRecord(obligation, `reviewPlan.obligations[${index}]`);
+    requireExactFields(obligation, [
+      'obligationId',
+      'kind',
+      'lane',
+      'applicability',
+      'reasonSignals',
+      'scopeDigest',
+      'contractVersion',
+    ], `reviewPlan.obligations[${index}]`);
+  }
+
+  const expectedWaveId = stableId('wave', {
+    decisionId: reviewPlan.decisionId,
+    scopeDigest,
+    baseIdentity: reviewPlan.baseIdentity,
+    headIdentity: reviewPlan.headIdentity,
+    diffDigest: reviewPlan.diff.digest,
+  });
+  if (reviewPlan.waveId !== expectedWaveId) {
+    fail('reviewPlan.waveId', 'must match canonical scope and Git/diff identities');
+  }
+
+  const record = {
+    workId: reviewPlan.workId,
+    decisionId: reviewPlan.decisionId,
+    waveId: reviewPlan.waveId,
+    scope: {
+      paths,
+      kinds,
+      digest: scopeDigest,
+      baseIdentity: clone(reviewPlan.baseIdentity),
+      headIdentity: clone(reviewPlan.headIdentity),
+      diff: clone(reviewPlan.diff),
+    },
+    materialRisks,
+    governingInputs,
+    extensions,
+  };
+  const expected = createReviewPlan(record, INITIAL_RISK_POLICY);
+  if (canonicalJson(expected) !== canonicalJson(reviewPlan)) {
+    fail('reviewPlan', 'must be a canonical Review Plan with valid stable identities and obligations');
+  }
+  return freeze(clone(expected));
+};
+
 class RiskRouter {
   plan(workRecord, policy = INITIAL_RISK_POLICY) {
     const record = validateWorkRecord(workRecord);
-    if (canonicalJson(policy) !== canonicalJson(INITIAL_RISK_POLICY)) {
-      fail('policy', `must equal the registered ${RISK_POLICY_VERSION} policy`);
-    }
-
-    const planIdentity = {
-      workId: record.workId,
-      decisionId: record.decisionId,
-      waveId: record.waveId,
-      scope: record.scope,
-      materialRisks: record.materialRisks,
-      governingInputs: record.governingInputs,
-      policyVersion: policy.version,
-      policyDigest,
-      contractVersion: policy.contractVersion,
-    };
-    const planId = stableId('review-plan', planIdentity);
-    const applicability = record.scope.paths.length === 0 ? 'NOT_APPLICABLE' : 'REQUIRED';
-    const obligations = (applicability === 'REQUIRED' ? lanesFor(record) : []).map((lane) => ({
-      obligationId: stableId('obligation', { planId, kind: 'SEMANTIC_REVIEW', lane }),
-      kind: 'SEMANTIC_REVIEW',
-      lane,
-      applicability,
-      reasonSignals: reasonSignalsFor(record, lane),
-      scopeDigest: record.scope.digest,
-      contractVersion: policy.contractVersion,
-    }));
-
-    return freeze({
-      schemaVersion: REVIEW_PLAN_VERSION,
-      planId,
-      workId: record.workId,
-      decisionId: record.decisionId,
-      waveId: record.waveId,
-      policyVersion: policy.version,
-      policyDigest,
-      contractVersion: policy.contractVersion,
-      applicability,
-      materialRisks: clone(record.materialRisks),
-      governingInputs: clone(record.governingInputs),
-      scope: {
-        paths: clone(record.scope.paths),
-        digest: record.scope.digest,
-      },
-      baseIdentity: clone(record.scope.baseIdentity),
-      headIdentity: clone(record.scope.headIdentity),
-      diff: clone(record.scope.diff),
-      obligations,
-      reasonCodes: applicability === 'NOT_APPLICABLE' ? ['EMPTY_DIFF'] : [],
-      extensions: clone(record.extensions),
-    });
+    return createReviewPlan(record, policy);
   }
 }
 
@@ -373,5 +528,6 @@ module.exports = {
   SCOPE_KINDS,
   INITIAL_RISK_POLICY,
   createWorkRecord,
+  validateReviewPlan,
   RiskRouter,
 };
