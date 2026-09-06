@@ -2,6 +2,7 @@
 .claude/artifacts/
 .claude/worktrees/
 .claude/cache/
+.dhpk/review-gate/
 
 # Python bytecode (hook helper scripts under scripts/hooks/_lib/*.py)
 __pycache__/
