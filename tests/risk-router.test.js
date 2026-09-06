@@ -8,6 +8,7 @@ const {
   RiskRouter,
   SCOPE_KINDS,
   createWorkRecord,
+  validateReviewPlan,
 } = require('../scripts/lib/risk-router');
 
 const SHA256 = /^sha256:[a-f0-9]{64}$/;
@@ -19,6 +20,8 @@ const deepFrozen = (value) => {
     !child || typeof child !== 'object' || deepFrozen(child)
   ));
 };
+
+const cloneJson = (value) => JSON.parse(JSON.stringify(value));
 
 const routineRequest = () => ({
   schemaVersion: 'dhpk.work-request.v1',
@@ -302,6 +305,58 @@ test('durable Work Records revalidate stable identities and canonical scope befo
   tamperedEmpty.scope.paths = [];
   tamperedEmpty.scope.kinds = [];
   assert.throws(() => router.plan(tamperedEmpty, INITIAL_RISK_POLICY), /empty diff|canonical Work Record/);
+});
+
+test('validateReviewPlan returns an immutable canonical clone for a genuine plan', () => {
+  const plan = new RiskRouter().plan(createWorkRecord(routineRequest()), INITIAL_RISK_POLICY);
+  const durablePlan = cloneJson(plan);
+
+  const validated = validateReviewPlan(durablePlan);
+
+  assert.deepStrictEqual(validated, plan);
+  assert.notStrictEqual(validated, durablePlan);
+  assert.ok(deepFrozen(validated), 'the validated Review Plan must be deeply frozen');
+});
+
+test('validateReviewPlan fails closed for altered scope, identity, reasons, obligations, and empty diffs', () => {
+  const plan = new RiskRouter().plan(createWorkRecord(routineRequest()), INITIAL_RISK_POLICY);
+  const multiPlanRequest = routineRequest();
+  multiPlanRequest.materialRisks = ['SECURITY'];
+  const multiPlan = new RiskRouter().plan(
+    createWorkRecord(multiPlanRequest),
+    INITIAL_RISK_POLICY,
+  );
+  const emptyRequest = routineRequest();
+  emptyRequest.scope.paths = [];
+  emptyRequest.scope.kinds = [];
+  emptyRequest.scope.headIdentity.tree = emptyRequest.scope.baseIdentity.tree;
+  emptyRequest.scope.diff.digest = 'sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+  const emptyPlan = new RiskRouter().plan(createWorkRecord(emptyRequest), INITIAL_RISK_POLICY);
+
+  const invalidPlans = [
+    ['changed scope kinds', plan, (candidate) => { candidate.scope.kinds = ['FRONTEND']; }],
+    ['wrong planId', plan, (candidate) => { candidate.planId = `review-plan-${'0'.repeat(64)}`; }],
+    ['wrong scope digest', plan, (candidate) => { candidate.scope.digest = `sha256:${'0'.repeat(64)}`; }],
+    ['wrong reasons', plan, (candidate) => { candidate.obligations[0].reasonSignals = ['SECURITY']; }],
+    ['wrong identity', plan, (candidate) => { candidate.headIdentity.tree = '0'.repeat(40); }],
+    ['injected obligation', plan, (candidate) => {
+      candidate.obligations.push({ ...candidate.obligations[0], obligationId: `obligation-${'f'.repeat(64)}` });
+    }],
+    ['removed obligation', plan, (candidate) => { candidate.obligations.pop(); }],
+    ['reordered obligations', multiPlan, (candidate) => { candidate.obligations.reverse(); }],
+    ['altered obligation', plan, (candidate) => { candidate.obligations[0].lane = 'security-reviewer'; }],
+    ['malformed empty diff', emptyPlan, (candidate) => { candidate.reasonCodes = []; }],
+  ];
+
+  for (const [label, source, mutate] of invalidPlans) {
+    const candidate = cloneJson(source);
+    mutate(candidate);
+    assert.throws(
+      () => validateReviewPlan(candidate),
+      /Review Plan|canonical|obligation|scope|identity|empty diff/i,
+      `${label} must fail closed`,
+    );
+  }
 });
 
 test('untrusted paths, observations, references, and extensions stay bounded', () => {
