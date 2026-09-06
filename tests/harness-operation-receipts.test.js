@@ -81,6 +81,35 @@ test('rejects a receipt event whose bytes or chain predecessor was rewritten', (
   }
 });
 
+test('preserves append-lock conflict behavior while allowing a later append', () => {
+  const root = temporaryReceiptRoot();
+  const sourceCommit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).trim();
+  try {
+    const attempt = receipts.createAttempt({
+      root,
+      command: 'harness verify',
+      taskId: 'task-lock',
+      attemptId: 'attempt-1',
+      sourceCommit,
+      sourceTree: receipts.resolveGitTree(ROOT, sourceCommit),
+    });
+    const lockPath = path.join(attempt.path, '.append.lock');
+    fs.writeFileSync(lockPath, `${process.pid}\n`, { mode: 0o600 });
+    assert.throws(
+      () => receipts.appendEvent(attempt, { lifecyclePhase: 'PLANNED', outcome: 'PASS' }),
+      /concurrent append is already in progress/
+    );
+    assert.strictEqual(fs.readFileSync(lockPath, 'utf8'), `${process.pid}\n`);
+    fs.unlinkSync(lockPath);
+    assert.strictEqual(
+      receipts.appendEvent(attempt, { lifecyclePhase: 'PLANNED', outcome: 'PASS' }).sequence,
+      1
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('redacts secrets before receipt values are persisted', () => {
   const marker = 'HARNESS_RECEIPT_SECRET_MARKER_123456789';
   const redacted = receipts.redact({ token: marker, diagnostics: `Authorization: Bearer ${marker}` });
