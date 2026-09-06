@@ -4,6 +4,10 @@ const {
   WorkflowCoordinatorEvidence,
   immutableEvidence,
 } = require('./workflow-coordinator-evidence');
+const {
+  cloneBoundedJson,
+  immutableJson,
+} = require('./receipt-primitives');
 
 const PROJECTION_SCHEMA = 'dhpk.workflow-projection.v1';
 const BASELINE_CONTROL = Object.freeze({
@@ -24,25 +28,11 @@ const FEATURE_KEYS = Object.freeze(['enabled', 'phase']);
 const REVIEW_PASS = 'PASS';
 const IMPLEMENTATION = 'IMPLEMENTATION';
 const LOCAL_GATE = 'LOCAL_GATE';
+const PROJECTION_JSON_OPTIONS = Object.freeze({ undefinedPolicy: 'allow' });
 
 const isRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
-
-function clone(value) {
-  if (Array.isArray(value)) return value.map(clone);
-  if (!isRecord(value)) return value;
-  return Object.fromEntries(Object.entries(value).map(([key, child]) => [key, clone(child)]));
-}
-
-function deepFreeze(value, seen = new WeakSet()) {
-  if (!value || typeof value !== 'object' || seen.has(value)) return value;
-  seen.add(value);
-  for (const child of Object.values(value)) deepFreeze(child, seen);
-  return Object.freeze(value);
-}
-
-function immutable(value) {
-  return deepFreeze(clone(value));
-}
+const cloneProjection = (value) => cloneBoundedJson(value, PROJECTION_JSON_OPTIONS);
+const immutableProjection = (value) => immutableJson(value, PROJECTION_JSON_OPTIONS);
 
 function assertFeatureControl(featureControl) {
   if (!isRecord(featureControl)) throw new TypeError('Workflow Coordinator feature control must be an object');
@@ -108,7 +98,7 @@ function decisionPacket(decision) {
   if (!decision || !Array.isArray(decision.payload.authorityRequests)) return null;
   const requests = decision.payload.authorityRequests
     .filter((request) => request.urgency === 'BATCHABLE')
-    .map(clone)
+    .map(cloneProjection)
     .sort((left, right) => left.requestId.localeCompare(right.requestId));
   return requests.length === 0 ? null : { items: requests };
 }
@@ -201,8 +191,8 @@ function baseProjection(context, control, evidenceAccepted, evidenceReceiptIds =
     state: 'EVIDENCE_PENDING',
     condition: null,
     ...identity,
-    owners: context.owners === undefined ? null : clone(context.owners),
-    routing: context.routing === undefined ? null : clone(context.routing),
+    owners: context.owners === undefined ? null : cloneProjection(context.owners),
+    routing: context.routing === undefined ? null : cloneProjection(context.routing),
     reviewLanes: context.reviewLanes === undefined ? [] : [...context.reviewLanes],
     verificationLanes: context.verificationLanes === undefined ? [] : [...context.verificationLanes],
     refreshLanes: [],
@@ -213,7 +203,7 @@ function baseProjection(context, control, evidenceAccepted, evidenceReceiptIds =
       delivery: 'PENDING',
       workflow: 'PENDING',
     },
-    control: clone(control),
+    control: cloneProjection(control),
   };
 }
 
@@ -393,7 +383,7 @@ class WorkflowCoordinator {
       trustPolicy: safeOptions.trustPolicy,
       evaluatedAt: safeOptions.evaluatedAt,
     });
-    this.control = immutable(controlFor(safeFeatureControl));
+    this.control = immutableProjection(controlFor(safeFeatureControl));
     this.evaluatedAt = parseTime(safeOptions.evaluatedAt);
     Object.freeze(this);
   }
@@ -401,9 +391,9 @@ class WorkflowCoordinator {
   reduce(receipts) {
     try {
       const evidence = this.evidence.evaluate(receipts);
-      return immutable(reduceAccepted(evidence, this.control, this.evaluatedAt));
+      return immutableProjection(reduceAccepted(evidence, this.control, this.evaluatedAt));
     } catch (error) {
-      return immutable(blockedProjection(error, this.control));
+      return immutableProjection(blockedProjection(error, this.control));
     }
   }
 }

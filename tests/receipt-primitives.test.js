@@ -42,6 +42,98 @@ test('redaction removes credential values before persistence', () => {
   assert.match(JSON.stringify(value), /redacted/i);
 });
 
+test('evidence redaction preserves only numeric canonical model-token metrics', () => {
+  const value = primitives.redactEvidence({
+    acceptedOutcomeCost: {
+      schema: 'dhpk.accepted-outcome-cost.v1',
+      metrics: { modelTokens: 1200 },
+    },
+    metrics: { modelTokens: 2400, unavailableModelTokens: null },
+    modelTokens: 'secret-token-value',
+    apiToken: 'secret-api-token',
+  });
+  assert.strictEqual(value.acceptedOutcomeCost.metrics.modelTokens, 1200);
+  assert.strictEqual(value.metrics.modelTokens, '<redacted>');
+  assert.strictEqual(value.metrics.unavailableModelTokens, '<redacted>');
+  assert.strictEqual(value.modelTokens, '<redacted>');
+  assert.strictEqual(value.apiToken, '<redacted>');
+});
+
+test('evidence redaction is descriptor-safe and bounded without losing private-material protection', () => {
+  const marker = 'RECEIPT_REDACTION_SECRET_1234567890';
+  let invoked = false;
+  const accessor = {};
+  Object.defineProperty(accessor, 'value', {
+    enumerable: true,
+    get: () => {
+      invoked = true;
+      return marker;
+    },
+  });
+  const symbolValue = { visible: marker };
+  symbolValue[Symbol('secret')] = marker;
+  const sparse = [];
+  sparse.length = 1;
+  const oversized = Array.from({ length: 201 }, () => 'entry');
+  const deep = {};
+  let cursor = deep;
+  for (let index = 0; index < 14; index += 1) {
+    cursor.next = {};
+    cursor = cursor.next;
+  }
+  const value = primitives.redactEvidence({
+    accessor,
+    symbolValue,
+    sparse,
+    oversized,
+    deep,
+    privateKey: `-----BEGIN PRIVATE KEY-----\n${marker}`,
+    acceptedOutcomeCost: {
+      schema: 'dhpk.accepted-outcome-cost.v1',
+      metrics: { modelTokens: 1200 },
+    },
+  });
+  assert.strictEqual(invoked, false);
+  assert.strictEqual(value.accessor.value, '<redacted>');
+  assert.strictEqual(value.symbolValue, '<redacted>');
+  assert.strictEqual(value.sparse, '<redacted>');
+  assert.strictEqual(value.oversized, '<redacted>');
+  let truncated = value.deep;
+  for (let index = 0; index < 12; index += 1) truncated = truncated.next;
+  assert.strictEqual(truncated, '<truncated>');
+  assert.strictEqual(value.privateKey, '<redacted>');
+  assert.strictEqual(value.acceptedOutcomeCost.metrics.modelTokens, 1200);
+  assert.doesNotMatch(JSON.stringify(value), new RegExp(marker));
+});
+
+test('evidence redaction bounds huge sparse arrays before allocation or getter access', () => {
+  const sparse = [];
+  let getterInvoked = false;
+  Object.defineProperty(sparse, '0', {
+    configurable: true,
+    enumerable: true,
+    get() {
+      getterInvoked = true;
+      return 'must-not-be-read';
+    },
+  });
+  sparse.length = 100_000_000;
+  const originalFrom = Array.from;
+  let attemptedLength = null;
+  Array.from = function guardedFrom(arrayLike, ...args) {
+    attemptedLength = arrayLike && arrayLike.length;
+    if (attemptedLength > 200) throw new Error('unbounded array materialization');
+    return Reflect.apply(originalFrom, this, [arrayLike, ...args]);
+  };
+  try {
+    assert.strictEqual(primitives.redactEvidence(sparse), '<redacted>');
+  } finally {
+    Array.from = originalFrom;
+  }
+  assert.strictEqual(attemptedLength, null);
+  assert.strictEqual(getterInvoked, false);
+});
+
 test('immutable writes never replace an existing claim', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'dhpk-receipt-primitives-'));
   const file = path.join(root, 'claims', 'claim.json');

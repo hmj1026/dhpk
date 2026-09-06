@@ -100,6 +100,35 @@ function makeObservationPayload({
     },
     sentinelStatus,
     reviewGateStatus,
+    sentinelOutcome: {
+      status: sentinelStatus,
+      verdict: sentinelStatus,
+      outcome: sentinelStatus,
+      lifecycleEventId: 'verdicted-event-369',
+    },
+    reviewGate: {
+      status: reviewGateStatus,
+      ...(phase === 'OBSERVE' ? { eventId: 'diagnostic-review-event-369' } : {}),
+    },
+    acceptedOutcomeCost: {
+      schema: 'dhpk.accepted-outcome-cost.v1',
+      observationId: 'legacy-d84f9181ee7209e142684505b0dbb981',
+      acceptedOutcome: sentinelStatus === 'PASS',
+      metrics: {
+        modelTokens: null,
+        dispatchCount: 1,
+        semanticReviewCount: 1,
+        remediationRounds: 0,
+        humanTurns: null,
+        elapsedMs: 42,
+        falseBlockCount: null,
+        receiptReuseCount: null,
+      },
+      telemetryFailures: [],
+      telemetryFailureCount: 0,
+      telemetryStatus: 'PARTIAL',
+      retirementEligible: false,
+    },
     authorizesApproval: false,
     clearsSentinel: false,
     blocksSentinel: false,
@@ -115,6 +144,8 @@ function makeObservationPayload({
       adapterVersion: OBSERVATION_ADAPTER_VERSION,
       eventId: OBSERVATION_EVENT_ID,
       receiptId: OBSERVATION_RECEIPT_ID,
+      lifecycleEventId: 'verdicted-event-369',
+      costObservationId: 'legacy-d84f9181ee7209e142684505b0dbb981',
       sourceCommit: SOURCE_COMMIT,
       sourceTree: SOURCE_TREE,
       policyVersion: OBSERVATION_POLICY_VERSION,
@@ -266,6 +297,156 @@ test('migration observations reject unknown top-level and nested raw evidence fi
   }
 });
 
+test('Accepted-Outcome Cost uses a closed canonical schema with redacted failures', () => {
+  const cases = [
+    (payload) => { payload.acceptedOutcomeCost.extra = 'unsupported'; },
+    (payload) => { delete payload.acceptedOutcomeCost.metrics.modelTokens; },
+    (payload) => { payload.acceptedOutcomeCost.metrics.extraMetric = 1; },
+    (payload) => { payload.acceptedOutcomeCost.metrics.modelTokens = 'secret-token-value'; },
+    (payload) => {
+      payload.acceptedOutcomeCost.telemetryFailures = [{
+        code: 'COLLECTOR_UNAVAILABLE',
+        detail: 'secret failure detail',
+      }];
+      payload.acceptedOutcomeCost.telemetryFailureCount = 1;
+      payload.acceptedOutcomeCost.telemetryStatus = 'FAILED';
+    },
+    (payload) => { payload.provenance.costObservationId = 'foreign-cost-observation'; },
+    (payload) => { payload.provenance.lifecycleEventId = 'foreign-lifecycle-event'; },
+  ];
+  for (const mutate of cases) {
+    const payload = makeObservationPayload();
+    mutate(payload);
+    let error;
+    try {
+      validateMigrationObservationPayload(payload);
+    } catch (caught) {
+      error = caught;
+    }
+    assert.ok(error, 'malformed Accepted-Outcome Cost evidence must fail closed');
+    assert.match(String(error), /MALFORMED_RECEIPT|SENSITIVE_EVIDENCE|MIXED_IDENTITY|UNSUPPORTED_FIELD|sensitive observation data/);
+    assert.doesNotMatch(String(error), /secret-token-value|secret failure detail/);
+  }
+});
+
+test('Accepted-Outcome Cost remains bound to task, Sentinel acceptance, and terminal lifecycle evidence', () => {
+  const cases = [
+    (payload) => {
+      payload.acceptedOutcomeCost.observationId = 'legacy-01f3eb374d9d2eb448470c432bfd1a66';
+      payload.provenance.costObservationId = payload.acceptedOutcomeCost.observationId;
+    },
+    (payload) => { payload.acceptedOutcomeCost.acceptedOutcome = false; },
+    (payload) => {
+      payload.sentinelOutcome.lifecycleEventId = 'foreign-verdicted-event';
+      payload.provenance.lifecycleEventId = 'foreign-verdicted-event';
+    },
+  ];
+  for (const mutate of cases) {
+    const payload = makeObservationPayload();
+    mutate(payload);
+    assert.throws(
+      () => validateMigrationObservationPayload(payload),
+      /MALFORMED_RECEIPT|MIXED_IDENTITY/,
+    );
+  }
+});
+
+test('BASELINE accepts the legacy no-lifecycle cost projection without enabling progress', () => {
+  const payload = makeObservationPayload({ phase: 'BASELINE', sentinelStatus: 'PASS' });
+  delete payload.sentinelOutcome.lifecycleEventId;
+  delete payload.provenance.lifecycleEventId;
+  payload.provenance.lifecycleEventIds = [];
+  payload.sentinelOutcome.verdict = 'APPROVE';
+  payload.sentinelOutcome.outcome = 'APPROVE';
+  payload.sentinelOutcome.status = 'CLEARED';
+  payload.sentinelOutcome.cost = {
+    dispatchCount: 2,
+    semanticReviewCount: 1,
+    remediationRounds: 1,
+    humanTurns: 0,
+    elapsedMs: 42,
+    receiptReuse: 3,
+    falseBlocks: 0,
+    unsafeClearance: 0,
+    missedRequiredReview: 0,
+    postMergeEscapes: 0,
+  };
+  payload.cost = payload.sentinelOutcome.cost;
+  payload.acceptedOutcomeCost = {
+    ...payload.acceptedOutcomeCost,
+    metrics: {
+      ...payload.acceptedOutcomeCost.metrics,
+      modelTokens: null,
+      falseBlockCount: 0,
+      receiptReuseCount: 3,
+    },
+    acceptedOutcome: true,
+    telemetryStatus: 'PARTIAL',
+    retirementEligible: false,
+  };
+
+  withFixture(({ coordinator }) => {
+    const result = coordinator.record({
+      expectedRevision: 0,
+      expectedChainDigest: null,
+      observation: payload,
+    });
+
+    assert.strictEqual(result.phase, 'BASELINE');
+    assert.strictEqual(result.allowsTargetProgress, false);
+    assert.strictEqual(result.automaticPromotion, false);
+    assert.strictEqual(result.lifecycleEventId, undefined);
+    assert.strictEqual(result.acceptedOutcomeCost.acceptedOutcome, true);
+  });
+});
+
+test('normalizes legacy Sentinel verdicts before persistence while Review Gate stays strict', () => {
+  for (const [legacy, canonical] of [
+    ['APPROVE', 'PASS'],
+    ['WARNING', 'CHANGES_REQUIRED'],
+    ['BLOCK', 'CHANGES_REQUIRED'],
+  ]) {
+    const payload = makeObservationPayload({
+      phase: 'BASELINE',
+      sentinelStatus: 'CLEARED',
+    });
+    payload.sentinelOutcome = {
+      ...payload.sentinelOutcome,
+      status: 'CLEARED',
+      verdict: legacy,
+      outcome: legacy,
+    };
+    payload.acceptedOutcomeCost.acceptedOutcome = legacy === 'APPROVE';
+
+    withFixture(({ coordinator, store }) => {
+      const result = coordinator.record({
+        expectedRevision: 0,
+        expectedChainDigest: null,
+        observation: payload,
+      });
+      assert.strictEqual(result.sentinelStatus, 'CLEARED');
+      assert.strictEqual(result.acceptedOutcomeCost.acceptedOutcome, legacy === 'APPROVE');
+      const history = coordinator.inspect({
+        workId: payload.workId,
+        expectedRevision: result.revision,
+        expectedChainDigest: result.chainDigest,
+      });
+      assert.strictEqual(history.sentinelStatus, 'CLEARED');
+      const stored = store.inspect({
+        workId: payload.workId,
+        expectedRevision: result.revision,
+        expectedChainDigest: result.chainDigest,
+      });
+      assert.strictEqual(stored.receipts[0].payload.sentinelOutcome.verdict, canonical);
+      assert.strictEqual(stored.receipts[0].payload.sentinelOutcome.outcome, canonical);
+    });
+  }
+
+  const reviewGatePayload = makeObservationPayload({ phase: 'OBSERVE' });
+  reviewGatePayload.reviewGate.semanticVerdict = 'APPROVE';
+  assert.throws(() => validateMigrationObservationPayload(reviewGatePayload), /MALFORMED_RECEIPT/);
+});
+
 test('event, receipt, payload, and provenance bindings reject foreign identity and metadata pairs', () => {
   const identityFields = ['taskId', 'attemptId', 'attempt', 'dispatchId', 'scopeId', 'diffId'];
   for (const field of identityFields) {
@@ -318,10 +499,11 @@ test('oversized property keys fail closed without invoking getters or echoing se
       return 'secret-value-must-not-be-read';
     },
   });
-  assert.throws(
-    () => validateMigrationObservationPayload(getterPayload),
-    /MALFORMED_RECEIPT|SENSITIVE_EVIDENCE|accessors/,
-  );
+  assert.throws(() => validateMigrationObservationPayload(getterPayload), (error) => {
+    assert.strictEqual(error.code, 'MALFORMED_RECEIPT');
+    assert.doesNotMatch(String(error), /secret-value-must-not-be-read/);
+    return true;
+  });
   assert.strictEqual(getterInvoked, false);
 
   const dataPayload = makeObservationPayload();

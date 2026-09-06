@@ -5,28 +5,52 @@
 // capabilities, and observe seams.  Legacy hook state is input evidence, not
 // an authority that the adapter may clear or reinterpret.
 
-const fs = require('node:fs');
-const path = require('node:path');
 const { test, run, assert } = require('./_lib/tinytest');
 const {
+  createFinding,
   makePlan,
   makeReviewResult,
-  registerPlan,
-  TRUST_POLICY,
   NOW,
   NOW_MS,
   REVIEWER_CONTRACT_VERSION,
   STORE_EVENT_SCHEMA,
-  createReviewGateFixture,
 } = require('./_lib/review-gate-fixture');
 const { createReviewRequest } = require('../scripts/lib/reviewer-contract');
-const { MigrationCoordinator } = require('../scripts/lib/migration-coordinator');
-const { runHook: runHookRaw, mkRepo, sessionsDir } = require('./_lib/hookharness');
+const {
+  ACCEPTED_OUTCOME_COST_SCHEMA,
+  normalizeAcceptedOutcomeCost,
+} = require('../scripts/lib/review-gate-baseline');
+const { sha256 } = require('../scripts/lib/receipt-primitives');
 const { ClaudeReviewGateAdapter } = require('../scripts/lib/claude-review-gate-adapter');
 
 const ADAPTER_VERSION = 'claude-review-gate.v1';
 const INTEGRITY_KEY = 'claude-review-gate-adapter-369-integrity-key';
 const DIGEST = `sha256:${'a'.repeat(64)}`;
+const ACCEPTED_OUTCOME_COST_METRICS = Object.freeze({
+  modelTokens: 1200,
+  dispatchCount: 2,
+  semanticReviewCount: 1,
+  remediationRounds: 1,
+  humanTurns: null,
+  elapsedMs: 42,
+  falseBlockCount: 0,
+  receiptReuseCount: null,
+});
+
+function canonicalAcceptedOutcomeCost({
+  taskId = 'task-369',
+  observationId = `legacy-${sha256(taskId).slice(0, 32)}`,
+  acceptedOutcome = true,
+  metrics = ACCEPTED_OUTCOME_COST_METRICS,
+} = {}) {
+  return normalizeAcceptedOutcomeCost({
+    schema: ACCEPTED_OUTCOME_COST_SCHEMA,
+    observationId,
+    acceptedOutcome,
+    metrics,
+    telemetryFailures: [],
+  });
+}
 
 function deepFrozen(value) {
   if (!value || typeof value !== 'object') return true;
@@ -114,16 +138,17 @@ function planAndReview() {
 function observeInput(overrides = {}) {
   const { plan, reviewRequest, reviewResult } = planAndReview();
   const ids = identity();
+  const lifecycleEvents = [
+    lifecycleEvent('planned'),
+    lifecycleEvent('dispatched'),
+    lifecycleEvent('started'),
+    lifecycleEvent('verdicted', { verdict: 'PASS' }),
+  ];
   return {
     phase: 'OBSERVE',
     plan,
     identity: ids,
-    lifecycleEvents: [
-      lifecycleEvent('planned'),
-      lifecycleEvent('dispatched'),
-      lifecycleEvent('started'),
-      lifecycleEvent('verdicted', { verdict: 'PASS' }),
-    ],
+    lifecycleEvents,
     readinessEvents: [readinessEvent()],
     reviewRequest,
     reviewResult,
@@ -136,18 +161,31 @@ function observeInput(overrides = {}) {
       status: 'CLEARED',
       verdict: 'PASS',
       outcome: 'PASS',
-      cost: {
-        dispatchCount: 1,
-        semanticReviewCount: 1,
-        remediationRounds: 0,
-        humanTurns: 0,
-        elapsedMs: 42,
-      },
+      lifecycleEventId: lifecycleEvents[3].event_id,
     },
+    acceptedOutcomeCost: canonicalAcceptedOutcomeCost({ taskId: ids.taskId }),
     expectedRevision: 0,
     expectedChainDigest: null,
     ...overrides,
   };
+}
+
+function legacyBaselineInput(overrides = {}) {
+  return observeInput({
+    phase: 'BASELINE',
+    lifecycleEvents: [],
+    readinessEvents: [],
+    reviewRequest: undefined,
+    reviewResult: undefined,
+    acceptedOutcomeCost: undefined,
+    sentinelOutcome: {
+      status: 'CLEARED',
+      verdict: 'APPROVE',
+      outcome: 'APPROVE',
+      cost: { dispatchCount: 1 },
+    },
+    ...overrides,
+  });
 }
 
 function makeAdapter({ reviewGate, migrationCoordinator, now = () => NOW_MS } = {}) {
@@ -199,8 +237,6 @@ test('BASELINE records normalized Sentinel/cost evidence without invoking Review
     phase: 'BASELINE',
     reviewRequest: undefined,
     reviewResult: undefined,
-    lifecycleEvents: [],
-    readinessEvents: [],
   });
 
   const result = adapter.observe(input);
@@ -212,8 +248,461 @@ test('BASELINE records normalized Sentinel/cost evidence without invoking Review
   assert.strictEqual(observation.sessionId, input.identity.sessionId);
   assert.strictEqual(observation.sentinelOutcome.verdict, 'PASS');
   assert.strictEqual(observation.sentinelOutcome.status, 'CLEARED');
-  assert.strictEqual(observation.cost.dispatchCount, 1);
+  assert.strictEqual(observation.acceptedOutcomeCost.metrics.dispatchCount, 2);
   assert.ok(result, 'BASELINE returns a caller-visible recording result');
+});
+
+test('BASELINE preserves the prior empty-lifecycle Sentinel snapshot without inventing lifecycle evidence', () => {
+  let gateCalls = 0;
+  let observation;
+  const input = observeInput({
+    phase: 'BASELINE',
+    lifecycleEvents: [],
+    readinessEvents: [],
+    reviewRequest: undefined,
+    reviewResult: undefined,
+    acceptedOutcomeCost: undefined,
+    sentinelOutcome: {
+      status: 'CLEARED',
+      verdict: 'APPROVE',
+      outcome: 'APPROVE',
+      cost: {
+        dispatchCount: 2,
+        semanticReviewCount: 1,
+        remediationRounds: 1,
+        humanTurns: 0,
+        elapsedMs: 42,
+        receiptReuse: 3,
+        falseBlocks: 0,
+        unsafeClearance: 0,
+        missedRequiredReview: 0,
+        postMergeEscapes: 0,
+      },
+    },
+  });
+  const adapter = makeAdapter({
+    reviewGate: { handle: () => { gateCalls += 1; throw new Error('BASELINE must not call Review Gate'); } },
+    migrationCoordinator: {
+      record: (record) => {
+        observation = capturedObservation(record);
+        return { status: 'RECORDED' };
+      },
+    },
+  });
+
+  adapter.observe(input);
+
+  assert.strictEqual(gateCalls, 0);
+  assert.strictEqual(observation.phase, 'BASELINE');
+  assert.strictEqual(observation.sentinelOutcome.verdict, 'APPROVE');
+  assert.strictEqual(observation.sentinelOutcome.lifecycleEventId, undefined);
+  assert.deepStrictEqual(observation.cost, input.sentinelOutcome.cost);
+  assert.strictEqual(observation.acceptedOutcomeCost.acceptedOutcome, true);
+  assert.strictEqual(observation.acceptedOutcomeCost.metrics.dispatchCount, 2);
+  assert.strictEqual(observation.acceptedOutcomeCost.metrics.falseBlockCount, 0);
+  assert.strictEqual(observation.acceptedOutcomeCost.metrics.receiptReuseCount, 3);
+  assert.strictEqual(observation.acceptedOutcomeCost.metrics.modelTokens, null);
+  assert.strictEqual(observation.acceptedOutcomeCost.telemetryStatus, 'PARTIAL');
+  assert.strictEqual(observation.acceptedOutcomeCost.retirementEligible, false);
+  assert.deepStrictEqual(observation.provenance.lifecycleEventIds, []);
+  assert.strictEqual(observation.provenance.lifecycleEventId, undefined);
+});
+
+test('BASELINE rejects foreign review bindings before Gate or migration persistence', () => {
+  for (const [field, foreign] of [
+    ['obligationId', 'foreign-obligation-369'],
+    ['lane', 'foreign-lane-369'],
+  ]) {
+    const input = observeInput({ phase: 'BASELINE' });
+    input.reviewResult = { ...input.reviewResult, [field]: foreign };
+    let gateCalls = 0;
+    let recordCalls = 0;
+    assert.throws(() => makeAdapter({
+      reviewGate: { handle: () => { gateCalls += 1; return {}; } },
+      migrationCoordinator: { record: () => { recordCalls += 1; return {}; } },
+    }).observe(input), (error) => error && error.code === 'MALFORMED_REVIEW');
+    assert.strictEqual(gateCalls, 0);
+    assert.strictEqual(recordCalls, 0);
+  }
+});
+
+test('BASELINE without a review result requires a unique plan obligation', () => {
+  const plan = makePlan({ materialRisks: ['BEHAVIOR_CHANGE', 'SECURITY'] });
+  const input = legacyBaselineInput({ plan });
+  let gateCalls = 0;
+  let recordCalls = 0;
+  assert.ok(plan.obligations.length > 1);
+  assert.throws(() => makeAdapter({
+    reviewGate: { handle: () => { gateCalls += 1; return {}; } },
+    migrationCoordinator: { record: () => { recordCalls += 1; return {}; } },
+  }).observe(input), (error) => error && error.code === 'MALFORMED_REVIEW');
+  assert.strictEqual(gateCalls, 0);
+  assert.strictEqual(recordCalls, 0);
+});
+
+test('BASELINE rejects explicitly non-array evidence collections', () => {
+  for (const [field, value, code] of [
+    ['lifecycleEvents', null, 'MALFORMED_LIFECYCLE'],
+    ['lifecycleEvents', {}, 'MALFORMED_LIFECYCLE'],
+    ['readinessEvents', null, 'MALFORMED_READINESS'],
+    ['readinessEvents', {}, 'MALFORMED_READINESS'],
+  ]) {
+    const input = legacyBaselineInput({ [field]: value });
+    let gateCalls = 0;
+    let recordCalls = 0;
+    assert.throws(() => makeAdapter({
+      reviewGate: { handle: () => { gateCalls += 1; return {}; } },
+      migrationCoordinator: { record: () => { recordCalls += 1; return {}; } },
+    }).observe(input), (error) => error && error.code === code);
+    assert.strictEqual(gateCalls, 0);
+    assert.strictEqual(recordCalls, 0);
+  }
+});
+
+test('BASELINE rejects unknown or invalid legacy cost fields', () => {
+  for (const cost of [
+    { dispatchCount: 1, unexpected: 1 },
+    { dispatchCount: 1.5 },
+    { dispatchCount: -1 },
+    { dispatchCount: Number.MAX_SAFE_INTEGER + 1 },
+  ]) {
+    const input = legacyBaselineInput({
+      sentinelOutcome: {
+        status: 'CLEARED',
+        verdict: 'APPROVE',
+        outcome: 'APPROVE',
+        cost,
+      },
+    });
+    let gateCalls = 0;
+    let recordCalls = 0;
+    assert.throws(() => makeAdapter({
+      reviewGate: { handle: () => { gateCalls += 1; return {}; } },
+      migrationCoordinator: { record: () => { recordCalls += 1; return {}; } },
+    }).observe(input), (error) => error && error.code === 'MALFORMED_LEGACY_COST');
+    assert.strictEqual(gateCalls, 0);
+    assert.strictEqual(recordCalls, 0);
+  }
+});
+
+test('OBSERVE still rejects the legacy empty-lifecycle Sentinel snapshot', () => {
+  const input = observeInput({
+    lifecycleEvents: [],
+    readinessEvents: [],
+    acceptedOutcomeCost: undefined,
+    sentinelOutcome: {
+      status: 'CLEARED',
+      verdict: 'APPROVE',
+      outcome: 'APPROVE',
+      cost: { dispatchCount: 1 },
+    },
+  });
+  input.phase = 'OBSERVE';
+
+  expectRejected(() => makeAdapter({
+    reviewGate: { handle: () => { throw new Error('legacy OBSERVE evidence reached Review Gate'); } },
+    migrationCoordinator: { record: () => ({ status: 'RECORDED' }) },
+  }).observe(input), 'OBSERVE must retain strict lifecycle evidence requirements');
+});
+
+test('OBSERVE binds Sentinel outcome to the unique same-identity terminal lifecycle event', () => {
+  let observation;
+  const input = observeInput();
+  const terminal = input.lifecycleEvents.find((event) => event.state === 'verdicted');
+  input.sentinelOutcome = {
+    ...input.sentinelOutcome,
+    lifecycleEventId: terminal.event_id,
+  };
+  const adapter = makeAdapter({
+    reviewGate: { handle: () => ({ accepted: true, revision: 1, chainDigest: DIGEST }) },
+    migrationCoordinator: {
+      record: (record) => {
+        observation = capturedObservation(record);
+        return { status: 'RECORDED' };
+      },
+    },
+  });
+
+  adapter.observe(input);
+
+  assert.strictEqual(observation.sentinelOutcome.lifecycleEventId, terminal.event_id);
+  assert.strictEqual(
+    input.lifecycleEvents.filter((event) => event.state === 'verdicted').length,
+    1,
+    'the fixture must contain one terminal lifecycle event',
+  );
+});
+
+test('OBSERVE review events are self-describing and unique per obligation and lane', () => {
+  const plan = makePlan({ materialRisks: ['BEHAVIOR_CHANGE', 'SECURITY'] });
+  const events = [];
+  const adapter = makeAdapter({
+    reviewGate: {
+      handle: ({ event }) => {
+        events.push(event);
+        return { accepted: true, revision: events.length, chainDigest: DIGEST };
+      },
+    },
+    migrationCoordinator: { record: () => ({ status: 'RECORDED' }) },
+  });
+  for (const obligation of plan.obligations) {
+    const reviewRequest = createReviewRequest({
+      decisionId: plan.decisionId,
+      waveId: plan.waveId,
+      obligationId: obligation.obligationId,
+      lane: obligation.lane,
+      scope: plan.scope,
+      baseIdentity: plan.baseIdentity,
+      headIdentity: plan.headIdentity,
+      diff: plan.diff,
+      materialRisks: plan.materialRisks,
+      governingInputs: plan.governingInputs,
+      exclusions: [],
+      priorFindings: [],
+      contractVersion: REVIEWER_CONTRACT_VERSION,
+    });
+    adapter.observe(observeInput({
+      plan,
+      reviewRequest,
+      reviewResult: makeReviewResult(plan, obligation, {
+        semanticVerdict: 'PASS',
+        evidenceReferences: [`artifact-sha256:${DIGEST.replace(/^sha256:/, '')}`],
+      }),
+    }));
+  }
+
+  assert.strictEqual(events.length, 2);
+  assert.ok(events.every((event) => event.effect === 'OBSERVE_ONLY'));
+  assert.notStrictEqual(events[0].eventId, events[1].eventId);
+});
+
+test('OBSERVE rejects Sentinel lifecycle IDs that are foreign, non-terminal, or duplicated', () => {
+  const cases = [
+    {
+      label: 'foreign event ID',
+      input: observeInput({
+        sentinelOutcome: {
+          ...observeInput().sentinelOutcome,
+          lifecycleEventId: 'foreign-terminal-event-369',
+        },
+      }),
+    },
+    {
+      label: 'non-terminal event ID',
+      input: observeInput({
+        sentinelOutcome: {
+          ...observeInput().sentinelOutcome,
+          lifecycleEventId: 'started-event-369',
+        },
+      }),
+    },
+    {
+      label: 'duplicate terminal event',
+      input: (() => {
+        const input = observeInput();
+        const terminal = input.lifecycleEvents.find((event) => event.state === 'verdicted');
+        input.lifecycleEvents = [
+          ...input.lifecycleEvents,
+          lifecycleEvent('verdicted', { event_id: 'second-verdicted-event-369', verdict: terminal.verdict }),
+        ];
+        input.sentinelOutcome = {
+          ...input.sentinelOutcome,
+          lifecycleEventId: terminal.event_id,
+        };
+        return input;
+      })(),
+    },
+  ];
+
+  for (const { label, input } of cases) {
+    expectRejected(() => makeAdapter({
+      reviewGate: { handle: () => ({ accepted: true, revision: 1, chainDigest: DIGEST }) },
+      migrationCoordinator: { record: () => ({ status: 'RECORDED' }) },
+    }).observe(input), `${label} must fail closed`);
+  }
+});
+
+test('OBSERVE rejects a Sentinel verdict inconsistent with its terminal lifecycle verdict', () => {
+  const input = observeInput();
+  const terminal = input.lifecycleEvents.find((event) => event.state === 'verdicted');
+  input.sentinelOutcome = {
+    ...input.sentinelOutcome,
+    lifecycleEventId: terminal.event_id,
+    status: 'CHANGES_REQUIRED',
+    verdict: 'CHANGES_REQUIRED',
+    outcome: 'CHANGES_REQUIRED',
+  };
+
+  expectRejected(() => makeAdapter({
+    reviewGate: { handle: () => ({ accepted: true, revision: 1, chainDigest: DIGEST }) },
+    migrationCoordinator: { record: () => ({ status: 'RECORDED' }) },
+  }).observe(input), 'Sentinel verdict must agree with the terminal lifecycle verdict');
+});
+
+test('OBSERVE preserves canonical Accepted-Outcome Cost metrics, including nullable fields', () => {
+  let observation;
+  const input = observeInput();
+  const terminal = input.lifecycleEvents.find((event) => event.state === 'verdicted');
+  const acceptedOutcomeCost = canonicalAcceptedOutcomeCost();
+  input.acceptedOutcomeCost = acceptedOutcomeCost;
+  input.sentinelOutcome = {
+    ...input.sentinelOutcome,
+    lifecycleEventId: terminal.event_id,
+  };
+  const adapter = makeAdapter({
+    reviewGate: { handle: () => ({ accepted: true, revision: 1, chainDigest: DIGEST }) },
+    migrationCoordinator: {
+      record: (record) => {
+        observation = capturedObservation(record);
+        return { status: 'RECORDED' };
+      },
+    },
+  });
+
+  adapter.observe(input);
+
+  assert.deepStrictEqual(observation.acceptedOutcomeCost, acceptedOutcomeCost);
+  assert.strictEqual(observation.acceptedOutcomeCost.schema, ACCEPTED_OUTCOME_COST_SCHEMA);
+  assert.deepStrictEqual(observation.acceptedOutcomeCost.metrics, ACCEPTED_OUTCOME_COST_METRICS);
+  assert.strictEqual(observation.acceptedOutcomeCost.metrics.modelTokens, 1200);
+  assert.strictEqual(observation.acceptedOutcomeCost.metrics.falseBlockCount, 0);
+  assert.strictEqual(observation.acceptedOutcomeCost.metrics.receiptReuseCount, null);
+});
+
+test('OBSERVE rejects cost observations with a foreign task-derived ID or inconsistent accepted outcome', () => {
+  const cases = [
+    {
+      label: 'foreign task-derived observation ID',
+      acceptedOutcomeCost: canonicalAcceptedOutcomeCost({ taskId: 'foreign-task-369' }),
+    },
+    {
+      label: 'accepted outcome inconsistent with terminal PASS',
+      acceptedOutcomeCost: canonicalAcceptedOutcomeCost({ acceptedOutcome: false }),
+    },
+  ];
+
+  for (const { label, acceptedOutcomeCost } of cases) {
+    const input = observeInput();
+    const terminal = input.lifecycleEvents.find((event) => event.state === 'verdicted');
+    input.acceptedOutcomeCost = acceptedOutcomeCost;
+    input.sentinelOutcome = {
+      ...input.sentinelOutcome,
+      lifecycleEventId: terminal.event_id,
+    };
+    expectRejected(() => makeAdapter({
+      reviewGate: { handle: () => ({ accepted: true, revision: 1, chainDigest: DIGEST }) },
+      migrationCoordinator: { record: () => ({ status: 'RECORDED' }) },
+    }).observe(input), `${label} must fail closed`);
+  }
+});
+
+test('BASELINE consumes completed durable lifecycle evidence without invoking Review Gate', () => {
+  let gateCalls = 0;
+  let observation;
+  const input = observeInput({
+    phase: 'BASELINE',
+    acceptedOutcomeCost: canonicalAcceptedOutcomeCost(),
+  });
+  const terminal = input.lifecycleEvents.find((event) => event.state === 'verdicted');
+  input.sentinelOutcome = {
+    ...input.sentinelOutcome,
+    lifecycleEventId: terminal.event_id,
+  };
+  const adapter = makeAdapter({
+    reviewGate: { handle: () => { gateCalls += 1; throw new Error('BASELINE must not call Review Gate'); } },
+    migrationCoordinator: {
+      record: (record) => {
+        observation = capturedObservation(record);
+        return { status: 'RECORDED' };
+      },
+    },
+  });
+
+  adapter.observe(input);
+
+  assert.strictEqual(gateCalls, 0);
+  assert.deepStrictEqual(
+    observation.provenance.lifecycleEventIds,
+    input.lifecycleEvents.map((event) => event.event_id),
+  );
+  assert.deepStrictEqual(
+    observation.provenance.readinessEventIds,
+    input.readinessEvents.map((event) => event.event_id),
+  );
+  assert.deepStrictEqual(observation.acceptedOutcomeCost, input.acceptedOutcomeCost);
+});
+
+test('BASELINE rejects foreign durable lifecycle evidence without invoking Review Gate', () => {
+  let gateCalls = 0;
+  const input = observeInput({
+    phase: 'BASELINE',
+    acceptedOutcomeCost: canonicalAcceptedOutcomeCost(),
+  });
+  input.lifecycleEvents = input.lifecycleEvents.map((event) => (
+    event.state === 'verdicted' ? { ...event, session_id: 'foreign-session-369' } : event
+  ));
+
+  expectRejected(() => makeAdapter({
+    reviewGate: { handle: () => { gateCalls += 1; throw new Error('BASELINE must not call Review Gate'); } },
+    migrationCoordinator: { record: () => ({ status: 'RECORDED' }) },
+  }).observe(input), 'BASELINE must reject foreign lifecycle evidence');
+  assert.strictEqual(gateCalls, 0);
+});
+
+test('OBSERVE records PASS legacy versus CHANGES_REQUIRED Review Gate as a non-enforcing disagreement', () => {
+  let observation;
+  const input = observeInput();
+  const { plan, obligation } = planAndReview();
+  input.reviewResult = makeReviewResult(plan, obligation, {
+    semanticVerdict: 'CHANGES_REQUIRED',
+    evidenceReferences: [
+      `artifact-sha256:${input.readinessEvents[0].artifact_sha256.replace(/^sha256:/, '')}`,
+    ],
+    findings: [createFinding({
+      id: 'issue-369-diagnostic-finding',
+      severity: 'MEDIUM',
+      disposition: 'MUST_FIX',
+      summary: 'diagnostic disagreement only',
+      evidence: ['artifact:issue-369'],
+    })],
+  });
+  const adapter = makeAdapter({
+    reviewGate: {
+      handle: () => ({
+        accepted: true,
+        revision: 1,
+        chainDigest: DIGEST,
+        decision: {
+          lifecycleStatus: 'PENDING',
+          semanticVerdict: 'CHANGES_REQUIRED',
+          allowsProgress: false,
+        },
+      }),
+    },
+    migrationCoordinator: {
+      record: (record) => {
+        observation = capturedObservation(record);
+        return { status: 'RECORDED' };
+      },
+    },
+  });
+
+  adapter.observe({ ...input, plan });
+
+  assert.strictEqual(observation.sentinelOutcome.verdict, 'PASS');
+  assert.strictEqual(observation.reviewGate.semanticVerdict, 'CHANGES_REQUIRED');
+  assert.strictEqual(observation.comparison, 'DISAGREE');
+  assert.strictEqual(observation.authority, 'SENTINEL');
+  for (const field of [
+    'authorizesApproval',
+    'clearsSentinel',
+    'blocksSentinel',
+    'allowsTargetProgress',
+    'automaticPromotion',
+    'retirementEligible',
+  ]) {
+    assert.strictEqual(observation[field], false, `${field} must remain false`);
+  }
 });
 
 test('OBSERVE delegates the caller plan, request, result, and exact identity', () => {
@@ -373,6 +862,7 @@ test('translated migration evidence excludes raw artifact paths, commands, promp
     sentinelOutcome: {
       status: 'CLEARED',
       verdict: 'PASS',
+      lifecycleEventId: 'verdicted-event-369',
       prompt: 'do-not-persist-this-prompt',
       apiKey: 'do-not-persist-this-secret',
     },
@@ -418,152 +908,6 @@ test('OBSERVE ignores process-liveness markers when durable identity and readine
 
   assert.strictEqual(records.length, 2);
   assert.deepStrictEqual(records[0], records[1]);
-});
-
-test('real Claude hooks clear only the legacy Sentinel while adapter observes the same identity', () => {
-  const repo = mkRepo({ prefix: 'dhpk-adapter-369-', gitConfig: true });
-  const observeTrustPolicy = {
-    producers: TRUST_POLICY.producers.map((entry) => (
-      entry.producer === 'fixture-reviewer' && entry.adapter === 'fixture-adapter'
-        ? {
-          ...entry,
-          eventTypes: [...entry.eventTypes, 'MIGRATION_OBSERVATION_RECORDED'],
-          receiptKinds: [...entry.receiptKinds, 'migration-observation'],
-        }
-        : entry
-    )),
-  };
-  const gateFixture = createReviewGateFixture({ trustPolicy: observeTrustPolicy, now: NOW_MS });
-  try {
-    const dispatch = runHookRaw('pre-agent-liveness-mark.sh', {
-      payload: {
-        session_id: 'session-hook-369',
-        tool_use_id: 'dispatch-hook-369',
-        tool_input: { subagent_type: 'code-reviewer' },
-      },
-      cwd: repo,
-      projectDir: repo,
-      deleteEnv: ['DHPK_ACTIVE_MODULES', 'CLAUDE_PLUGIN_OPTION_REVIEW_AGENTS'],
-    });
-    assert.strictEqual(dispatch.status, 0, dispatch.stderr);
-
-    const lifecycleFile = path.join(sessionsDir(repo), '.lifecycle-events.jsonl');
-    const lifecycleBeforeStop = fs.readFileSync(lifecycleFile, 'utf8')
-      .trim().split('\n').filter(Boolean).map((line) => JSON.parse(line));
-    const started = lifecycleBeforeStop.find((event) => event.state === 'started');
-    const sentinel = path.join(sessionsDir(repo), '.pending-review');
-    const artifactDir = path.join(repo, '.claude', 'artifacts', 'reviews');
-    fs.mkdirSync(artifactDir, { recursive: true });
-    const artifact = path.join(artifactDir, 'code-reviewer-20260906-040000-hook.md');
-    fs.writeFileSync(artifact, [
-      '---',
-      'agent: code-reviewer',
-      'generated_at: 2026-09-06T04:00:02.000Z',
-      'commit: test',
-      'scope: [scripts/lib/review-gate.js]',
-      `scope_id: ${started.scope_id}`,
-      `diff_id: ${started.diff_id}`,
-      `task_id: ${started.task_id}`,
-      `attempt_id: ${started.attempt_id}`,
-      `session_id: ${started.session_id}`,
-      'dispatch_attempt: 1',
-      'dispatch_id: dispatch-hook-369',
-      'producer: code-reviewer',
-      'wave: dispatch-hook-369',
-      'adapter: code-reviewer',
-      'stage: review',
-      'severity_summary: { critical: 0, high: 0, medium: 0, low: 0 }',
-      'verdict: PASS',
-      '---',
-      'clean',
-    ].join('\n'));
-    const fresh = new Date(Date.now() + 2000);
-    fs.utimesSync(artifact, fresh, fresh);
-
-    const stopped = runHookRaw('subagent-stop-verify.sh', {
-      payload: {
-        session_id: 'session-hook-369',
-        agent_type: 'code-reviewer',
-        exit_status: 0,
-      },
-      cwd: repo,
-      projectDir: repo,
-      deleteEnv: ['DHPK_ACTIVE_MODULES', 'CLAUDE_PLUGIN_OPTION_REVIEW_AGENTS'],
-    });
-    assert.strictEqual(stopped.status, 0, stopped.stderr);
-    assert.strictEqual(fs.existsSync(sentinel), false, 'legacy Sentinel must retain its existing clear behavior');
-
-    const lifecycleEvents = fs.readFileSync(lifecycleFile, 'utf8')
-      .trim().split('\n').filter(Boolean).map((line) => JSON.parse(line));
-    const legacyVerdict = lifecycleEvents.find((event) => (
-      event.state === 'verdicted'
-      && event.task_id === started.task_id
-      && event.attempt_id === started.attempt_id
-      && event.session_id === started.session_id
-      && event.wave === started.wave
-      && event.scope_id === started.scope_id
-      && event.diff_id === started.diff_id
-    ));
-    assert.ok(legacyVerdict, 'the hook must durably emit the same-identity legacy outcome');
-    assert.strictEqual(legacyVerdict.verdict, 'PASS');
-    const readinessFile = path.join(sessionsDir(repo), '.producer-ready.jsonl');
-    const readinessEvents = fs.readFileSync(readinessFile, 'utf8')
-      .trim().split('\n').filter(Boolean).map((line) => JSON.parse(line));
-    const { plan, obligation, reviewRequest } = planAndReview();
-    const reviewResult = makeReviewResult(plan, obligation, {
-      semanticVerdict: 'PASS',
-      evidenceReferences: [`artifact-sha256:${readinessEvents.find((event) => event.state === 'artifact-ready').artifact_sha256.replace(/^sha256:/, '')}`],
-    });
-    const registration = registerPlan(gateFixture.gate, plan, 'plan-registered-hook-369');
-    const migrationCoordinator = new MigrationCoordinator({
-      receiptStore: gateFixture.store,
-      phase: 'OBSERVE',
-      now: () => NOW_MS,
-    });
-    const adapter = makeAdapter({
-      reviewGate: gateFixture.gate,
-      migrationCoordinator,
-    });
-    const recorded = adapter.observe({
-      phase: 'OBSERVE',
-      plan,
-      identity: {
-        taskId: started.task_id,
-        attemptId: started.attempt_id,
-        attempt: started.attempt,
-        sessionId: started.session_id,
-        dispatchId: started.wave,
-        scopeId: started.scope_id,
-        diffId: started.diff_id,
-      },
-      lifecycleEvents,
-      readinessEvents,
-      reviewRequest,
-      reviewResult,
-      executedCommands: [{ command: 'digest:sha256:' + 'b'.repeat(64), outcome: 'PASS' }],
-      sentinelOutcome: { status: 'CLEARED', verdict: 'PASS', outcome: 'PASS' },
-      expectedRevision: registration.revision,
-      expectedChainDigest: registration.chainDigest,
-    });
-    const history = gateFixture.store.inspect({
-      workId: plan.workId,
-      expectedRevision: recorded.revision,
-      expectedChainDigest: recorded.chainDigest,
-    });
-    const observations = history.receipts.filter((receipt) => receipt.kind === 'migration-observation');
-    assert.strictEqual(observations.length, 1);
-    assert.strictEqual(observations[0].payload.taskId, started.task_id);
-    assert.strictEqual(observations[0].payload.dispatchId, started.wave);
-    assert.strictEqual(observations[0].payload.scopeId, started.scope_id);
-    assert.strictEqual(observations[0].payload.diffId, started.diff_id);
-    assert.strictEqual(observations[0].payload.processLivenessRole, 'COMPATIBILITY_ONLY');
-    assert.strictEqual(recorded.authority, 'SENTINEL');
-    assert.strictEqual(recorded.effect, 'OBSERVE_ONLY');
-    assert.strictEqual(recorded.allowsTargetProgress, false);
-  } finally {
-    gateFixture.cleanup();
-    fs.rmSync(repo, { recursive: true, force: true });
-  }
 });
 
 run('claude-review-gate-adapter');

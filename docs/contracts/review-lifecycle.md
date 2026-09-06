@@ -61,33 +61,54 @@ lifecycle path.
 
 ## Claude Review Gate observation
 
-During `BASELINE` and `OBSERVE`, Claude review evidence is translated only
-after the existing hook-owned lifecycle has completed. The caller explicitly
-invokes the Claude Review Gate adapter with its canonical Review Plan, Review
-Request, structured Review Result, durable lifecycle/readiness events, and the
-legacy Sentinel outcome. The adapter is not wired into the deterministic hooks
-and cannot create a plan, select a lane, clear or arm a Sentinel, or promote a
-migration phase.
+During the canonical `BASELINE` and `OBSERVE` paths, Claude review evidence is
+translated only after the existing hook-owned lifecycle has completed. The
+caller explicitly invokes the Claude Review Gate adapter with its canonical
+Review Plan, Review Request, structured Review Result, durable
+lifecycle/readiness events, and the legacy Sentinel outcome. The adapter is not
+wired into the deterministic hooks and cannot create a plan, select a lane,
+clear or arm a Sentinel, or promote a migration phase.
+
+For compatibility with the prior adapter contract, `BASELINE` alone may also
+record an old bounded Sentinel snapshot that has no lifecycle/readiness events
+and carries the legacy numeric `cost` view. The adapter records no lifecycle ID
+for that snapshot and derives a canonical Accepted-Outcome Cost record with
+unavailable metrics left `null`, `PARTIAL` telemetry, and retirement eligibility
+disabled. This compatibility path is diagnostic only; `OBSERVE` continues to
+require complete durable evidence and never accepts the empty-evidence shape.
 
 The adapter requires the same `task_id`, `attempt_id`, attempt number,
 `session_id`, dispatch ID, `scope_id`, and `diff_id` across the supplied
 identity and durable evidence. Missing or foreign readiness fails closed.
+The Sentinel summary must name the unique same-identity terminal lifecycle
+event, and its verdict must match that event. Accepted-Outcome Cost uses the
+canonical `dhpk.accepted-outcome-cost.v1` record, whose observation ID is
+derived from the same task and whose accepted outcome matches the terminal
+verdict. All eight canonical metrics, including unavailable `null` values, are
+preserved.
 Process IDs, active markers, and heartbeat state are compatibility-only
 liveness signals and never satisfy target evidence continuity.
 
 `BASELINE` records a bounded, redacted Sentinel observation without invoking
 Review Gate. `OBSERVE` also evaluates the caller-supplied structured result
-through Review Gate and records the comparison as a `migration-observation`
-receipt. In both phases the Migration Coordinator fixes authority to
-`SENTINEL`, fixes target progress and all clearance/blocking effects to false,
-and provides no automatic phase-promotion operation. An agreement or
-disagreement is diagnostic only.
+through Review Gate, which may persist a typed `review` receipt for diagnostic
+target computation, then records the comparison as a `migration-observation`
+receipt. Its stable Review Gate event ID is bound into that observation; during
+`OBSERVE`, the persisted review receipt itself is marked `OBSERVE_ONLY`, so an
+interrupted comparison write cannot leave an enforceable orphan. Workflow
+Coordinator ignores only receipts carrying that Review Gate-validated effect;
+a migration observation cannot suppress a normal review. The phase control and
+exact identity binding keep Sentinel authoritative. In
+both phases the Migration Coordinator fixes authority to `SENTINEL`, fixes
+target progress and all clearance/blocking effects to false, and provides no
+automatic phase-promotion operation. An agreement or disagreement is
+diagnostic only.
 
 Persisted observation provenance is limited to stable identities, enum values,
 digests, bounded symbolic references, timestamps, and counters. Absolute
 artifact paths, artifact bodies, prompts, raw commands, shell output, logs,
-credentials, and session transcripts are excluded. The resulting receipt is
-never converted to an authoritative `review` receipt and cannot satisfy a
+credentials, and session transcripts are excluded. A migration observation is
+never converted into synthetic Sentinel clearance and cannot itself satisfy a
 required review or change-control gate.
 
 ## Orchestration and Sentinel ownership

@@ -2,6 +2,8 @@
 
 const {
   canonicalJson,
+  cloneBoundedJson,
+  immutableJson,
   FINGERPRINT,
   SAFE_ID,
   sha256,
@@ -15,6 +17,10 @@ const {
 const {
   REVIEW_RESULT_RECORDED,
 } = require('./review-gate');
+const {
+  normalizeBaselineLegacyObservation,
+  normalizeLegacyObservation,
+} = require('./claude-review-gate-legacy-observation');
 
 const ADAPTER_NAME = 'claude-review-gate';
 const OBSERVATION_SCHEMA = 'dhpk.review-gate.migration-observation.v1';
@@ -22,15 +28,20 @@ const MIGRATION_POLICY_VERSION = 'dhpk.migration-policy.v1';
 const MIGRATION_CONTRACT_VERSION = 'dhpk.review-gate.migration.v1';
 const MIGRATION_EVENT_TYPE = 'MIGRATION_OBSERVATION_RECORDED';
 const MIGRATION_RECEIPT_KIND = 'migration-observation';
-const MAX_INPUT_BYTES = 1024 * 1024;
 const MAX_EVENTS = 10000;
 const MAX_STRING_BYTES = 4096;
 const MAX_ID_LENGTH = 128;
-const MAX_NODES = 4096;
-const MAX_DEPTH = 32;
-const MAX_OBJECT_KEYS = 200;
-const MAX_KEY_BYTES = 4096;
 const MAX_COMMANDS = 32;
+const ADAPTER_JSON_LIMITS = Object.freeze({
+  maxNodes: 4096,
+  maxDepth: 32,
+  maxStringBytes: MAX_STRING_BYTES,
+  maxTotalBytes: 1024 * 1024,
+  maxKeys: 200,
+  maxArrayKeys: MAX_EVENTS + 1,
+  maxKeyBytes: 4096,
+  maxArrayLength: MAX_EVENTS,
+});
 const SAFE_CODE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 const COMMAND_DIGEST = /^digest:sha256:[a-f0-9]{64}$/;
 const COMMAND_OUTCOMES = new Set([
@@ -50,18 +61,6 @@ const IDENTITY_FIELDS = Object.freeze([
   'dispatchId',
   'scopeId',
   'diffId',
-]);
-const COST_FIELDS = Object.freeze([
-  'dispatchCount',
-  'semanticReviewCount',
-  'remediationRounds',
-  'humanTurns',
-  'elapsedMs',
-  'receiptReuse',
-  'falseBlocks',
-  'unsafeClearance',
-  'missedRequiredReview',
-  'postMergeEscapes',
 ]);
 const REVIEW_VERDICTS = new Set(['PASS', 'CHANGES_REQUIRED', 'BLOCKED']);
 const PHASES = new Set(['BASELINE', 'OBSERVE']);
@@ -102,123 +101,19 @@ const fail = (code) => {
   throw new ClaudeReviewGateAdapterError(code);
 };
 
-const clone = (value) => {
-  const state = {
-    nodes: 0,
-    bytes: 0,
-    seen: new WeakSet(),
-    snapshots: new WeakMap(),
-  };
+const clone = (value) => cloneBoundedJson(value, {
+  limits: ADAPTER_JSON_LIMITS,
+  undefinedPolicy: 'allow',
+  onReject: () => fail('BOUNDED_INPUT'),
+});
 
-  const inspect = (candidate, depth = 0) => {
-    state.nodes += 1;
-    if (state.nodes > MAX_NODES || depth > MAX_DEPTH) fail('BOUNDED_INPUT');
-    if (candidate === null || typeof candidate === 'boolean') return;
-    if (candidate === undefined) return;
-    if (typeof candidate === 'string') {
-      state.bytes += Buffer.byteLength(candidate, 'utf8');
-      if (Buffer.byteLength(candidate, 'utf8') > MAX_STRING_BYTES
-        || state.bytes > MAX_INPUT_BYTES) fail('BOUNDED_INPUT');
-      return;
-    }
-    if (typeof candidate === 'number') {
-      if (!Number.isFinite(candidate)) fail('BOUNDED_INPUT');
-      return;
-    }
-    if (typeof candidate !== 'object' || typeof candidate === 'function') fail('BOUNDED_INPUT');
-    if (state.seen.has(candidate)) fail('BOUNDED_INPUT');
-    state.seen.add(candidate);
+const immutable = (value) => immutableJson(value, {
+  limits: ADAPTER_JSON_LIMITS,
+  undefinedPolicy: 'allow',
+  onReject: () => fail('BOUNDED_INPUT'),
+});
 
-    const array = Array.isArray(candidate);
-    const prototype = Object.getPrototypeOf(candidate);
-    if ((!array && prototype !== Object.prototype && prototype !== null)
-      || (array && prototype !== Array.prototype)) fail('BOUNDED_INPUT');
-    if (Object.getOwnPropertySymbols(candidate).length > 0) fail('BOUNDED_INPUT');
-    const descriptors = Object.getOwnPropertyDescriptors(candidate);
-    const keys = Object.keys(descriptors);
-    if ((!array && keys.length > MAX_OBJECT_KEYS) || (array && keys.length > MAX_EVENTS + 1)) {
-      fail('BOUNDED_INPUT');
-    }
-    for (const key of keys) {
-      const keyBytes = Buffer.byteLength(key, 'utf8');
-      if (keyBytes > MAX_KEY_BYTES || state.bytes + keyBytes > MAX_INPUT_BYTES) {
-        fail('BOUNDED_INPUT');
-      }
-      state.bytes += keyBytes;
-    }
-
-    if (array) {
-      if (candidate.length > MAX_EVENTS) fail('BOUNDED_INPUT');
-      const expected = ['length', ...Array.from({ length: candidate.length }, (_, index) => String(index))];
-      if (keys.length !== expected.length || !expected.every((name) => keys.includes(name))) {
-        fail('BOUNDED_INPUT');
-      }
-      const lengthDescriptor = descriptors.length;
-      if (!lengthDescriptor || hasOwn(lengthDescriptor, 'get') || !hasOwn(lengthDescriptor, 'value')) {
-        fail('BOUNDED_INPUT');
-      }
-      for (let index = 0; index < candidate.length; index += 1) {
-        const descriptor = descriptors[String(index)];
-        if (!descriptor || !descriptor.enumerable || !hasOwn(descriptor, 'value')) fail('BOUNDED_INPUT');
-      }
-    } else {
-      for (const key of keys) {
-        const descriptor = descriptors[key];
-        if (!descriptor.enumerable || !hasOwn(descriptor, 'value')) fail('BOUNDED_INPUT');
-      }
-    }
-    state.snapshots.set(candidate, { descriptors, keys, array });
-    for (const key of keys) {
-      if (key === 'length' && array) continue;
-      inspect(descriptors[key].value, depth + 1);
-    }
-    state.seen.delete(candidate);
-  };
-
-  const copy = (candidate) => {
-    if (candidate === null || typeof candidate !== 'object') return candidate;
-    const snapshot = state.snapshots.get(candidate);
-    if (!snapshot) fail('BOUNDED_INPUT');
-    const result = snapshot.array ? [] : {};
-    for (const key of snapshot.keys) {
-      if (key === 'length' && snapshot.array) continue;
-      Object.defineProperty(result, key, {
-        value: copy(snapshot.descriptors[key].value),
-        enumerable: true,
-        writable: true,
-        configurable: true,
-      });
-    }
-    return result;
-  };
-
-  inspect(value);
-  let result;
-  try {
-    result = copy(value);
-    const serialized = JSON.stringify(result);
-    if (typeof serialized !== 'string' || Buffer.byteLength(serialized, 'utf8') > MAX_INPUT_BYTES) {
-      fail('BOUNDED_INPUT');
-    }
-  } catch (_) {
-    fail('BOUNDED_INPUT');
-  }
-  return result;
-};
-
-const freeze = (value, seen = new WeakSet()) => {
-  if (!value || typeof value !== 'object' || seen.has(value)) return value;
-  seen.add(value);
-  Object.freeze(value);
-  for (const child of Object.values(value)) freeze(child, seen);
-  return value;
-};
-
-const immutable = (value) => freeze(clone(value));
-
-const assertBoundedInput = (value) => {
-  return clone(value);
-};
+const assertBoundedInput = (value) => clone(value);
 
 const assertRecord = (value, code = 'MALFORMED_INPUT') => {
   if (!isRecord(value)) fail(code);
@@ -364,32 +259,28 @@ const normalizeDiff = (plan) => {
   return { digest, reference };
 };
 
-const normalizeCost = (sentinelOutcome) => {
-  const source = isRecord(sentinelOutcome.cost) ? sentinelOutcome.cost : {};
-  const cost = {};
-  for (const field of COST_FIELDS) {
-    if (!hasOwn(source, field)) continue;
-    if (!Number.isSafeInteger(source[field]) || source[field] < 0) continue;
-    cost[field] = source[field];
+function selectObligation(plan, reviewResult) {
+  if (reviewResult === undefined) {
+    if (plan.obligations.length !== 1) fail('MALFORMED_REVIEW');
+    return plan.obligations[0];
   }
-  return cost;
-};
+  assertRecord(reviewResult, 'MALFORMED_REVIEW');
+  const obligation = plan.obligations.find((candidate) => isRecord(candidate)
+    && candidate.obligationId === reviewResult.obligationId
+    && candidate.lane === reviewResult.lane);
+  if (!obligation) fail('MALFORMED_REVIEW');
+  return obligation;
+}
+
+function evidenceCollection(input, field, code) {
+  if (!hasOwn(input, field)) return [];
+  if (!Array.isArray(input[field])) fail(code);
+  return input[field];
+}
 
 const normalizeStatus = (value) => {
   if (typeof value !== 'string' || value.length > 128 || !SAFE_CODE.test(value)) return null;
   return value;
-};
-
-const normalizeSentinel = (value) => {
-  assertRecord(value, 'MALFORMED_SENTINEL');
-  const result = {};
-  for (const field of ['status', 'verdict', 'outcome']) {
-    const normalized = normalizeStatus(value[field]);
-    if (normalized) result[field] = normalized;
-  }
-  if (Object.keys(result).length === 0) result.status = 'UNKNOWN';
-  result.cost = normalizeCost(value);
-  return result;
 };
 
 const canonicalVerdict = (value) => {
@@ -403,7 +294,7 @@ const normalizeReasons = (value) => {
   return value.slice(0, 32).map(normalizeStatus).filter(Boolean);
 };
 
-const normalizeGate = (gateResult) => {
+const normalizeGate = (gateResult, eventId = null) => {
   const decision = gateResult && isRecord(gateResult.decision) ? gateResult.decision : {};
   const semanticVerdict = canonicalVerdict(decision.semanticVerdict || gateResult && gateResult.semanticVerdict);
   const result = {
@@ -415,6 +306,7 @@ const normalizeGate = (gateResult) => {
     applicability: normalizeStatus(decision.applicability) || 'UNKNOWN',
     blockingReasons: normalizeReasons(decision.blockingReasons),
   };
+  if (eventId !== null) result.eventId = eventId;
   if (semanticVerdict) result.semanticVerdict = semanticVerdict;
   return result;
 };
@@ -449,7 +341,17 @@ const comparisonFor = (sentinel, gate) => {
   return sentinelVerdict === gateVerdict ? 'AGREE' : 'DISAGREE';
 };
 
-const identityDigest = (identity, phase, adapter, version, lifecycleEvents, readinessEvents, gate, sentinel) => {
+const identityDigest = (
+  identity,
+  phase,
+  adapter,
+  version,
+  lifecycleEvents,
+  readinessEvents,
+  gate,
+  sentinel,
+  acceptedOutcomeCost,
+) => {
   const compact = {
     identity,
     phase,
@@ -466,6 +368,14 @@ const identityDigest = (identity, phase, adapter, version, lifecycleEvents, read
       status: sentinel.status || null,
       verdict: sentinel.verdict || null,
       outcome: sentinel.outcome || null,
+      lifecycleEventId: sentinel.lifecycleEventId || null,
+    },
+    acceptedOutcomeCost: {
+      observationId: acceptedOutcomeCost.observationId,
+      acceptedOutcome: acceptedOutcomeCost.acceptedOutcome,
+      metrics: acceptedOutcomeCost.metrics,
+      telemetryStatus: acceptedOutcomeCost.telemetryStatus,
+      telemetryFailureCount: acceptedOutcomeCost.telemetryFailureCount,
     },
   };
   return `sha256:${sha256(canonicalJson(compact))}`;
@@ -510,11 +420,272 @@ const makeEventId = (observation, producer, adapter) => (
     attemptId: observation.attemptId,
     sessionId: observation.sessionId,
     dispatchId: observation.dispatchId,
+    obligationId: observation.obligationId,
+    lane: observation.lane,
     comparison: observation.comparison,
     producer,
     adapter,
   }))}`
 );
+
+function normalizeObservationContext(rawInput) {
+  assertRecord(rawInput, 'MALFORMED_INPUT');
+  const input = assertBoundedInput(rawInput);
+  if (!PHASES.has(input.phase)) fail('UNSUPPORTED_PHASE');
+  const identity = assertIdentity(input.identity);
+  const plan = input.plan;
+  assertRecord(plan, 'MALFORMED_PLAN');
+  for (const field of ['workId', 'decisionId', 'planId', 'waveId']) safeId(plan[field], 'MALFORMED_PLAN');
+  const scope = normalizeScope(plan);
+  const diff = normalizeDiff(plan);
+  if (!Array.isArray(plan.obligations) || plan.obligations.length === 0) fail('MALFORMED_PLAN');
+  const obligation = selectObligation(plan, input.reviewResult);
+  assertRecord(obligation, 'MALFORMED_PLAN');
+  safeId(obligation.obligationId, 'MALFORMED_PLAN');
+  safeId(obligation.lane, 'MALFORMED_PLAN');
+  const lifecycleEvents = evidenceCollection(input, 'lifecycleEvents', 'MALFORMED_LIFECYCLE');
+  const readinessEvents = evidenceCollection(input, 'readinessEvents', 'MALFORMED_READINESS');
+  const legacyBaseline = input.phase === 'BASELINE'
+    && lifecycleEvents.length === 0 && readinessEvents.length === 0;
+  if (legacyBaseline && input.acceptedOutcomeCost !== undefined) fail('MALFORMED_INPUT');
+  if (!legacyBaseline) {
+    if (lifecycleEvents.length === 0) fail('MISSING_LIFECYCLE');
+    validateEvidenceEvents(lifecycleEvents, identity);
+    validateEvidenceEvents(readinessEvents, identity, { readiness: true });
+  }
+  const artifactDigest = legacyBaseline ? null : readinessArtifactDigest(readinessEvents);
+  const legacyObservation = legacyBaseline
+    ? normalizeBaselineLegacyObservation({
+      identity,
+      lifecycleEvents,
+      sentinelOutcome: input.sentinelOutcome,
+    })
+    : normalizeLegacyObservation({
+      identity,
+      lifecycleEvents,
+      sentinelOutcome: input.sentinelOutcome,
+      acceptedOutcomeCost: input.acceptedOutcomeCost,
+    });
+  return {
+    input,
+    identity,
+    plan,
+    scope,
+    diff,
+    obligation,
+    lifecycleEvents,
+    readinessEvents,
+    artifactDigest,
+    sentinel: legacyObservation.sentinelOutcome,
+    acceptedOutcomeCost: legacyObservation.acceptedOutcomeCost,
+    lifecycleEventId: legacyObservation.lifecycleEventId,
+    costObservationId: legacyObservation.costObservationId,
+    legacyCost: legacyObservation.legacyCost,
+  };
+}
+
+function buildReviewGateEvent(adapter, context, executedCommands) {
+  const { input, plan, identity, obligation } = context;
+  return {
+    schema: STORE_EVENT_SCHEMA,
+    eventId: makeEventId({
+      phase: input.phase,
+      workId: plan.workId,
+      planId: plan.planId,
+      waveId: plan.waveId,
+      taskId: identity.taskId,
+      attemptId: identity.attemptId,
+      sessionId: identity.sessionId,
+      dispatchId: identity.dispatchId,
+      obligationId: obligation.obligationId,
+      lane: obligation.lane,
+      comparison: 'pending',
+    }, adapter.producer, adapter.adapter),
+    eventType: REVIEW_RESULT_RECORDED,
+    effect: 'OBSERVE_ONLY',
+    workId: plan.workId,
+    waveId: plan.waveId,
+    planId: plan.planId,
+    decisionId: plan.decisionId,
+    obligationId: input.reviewResult.obligationId,
+    lane: input.reviewResult.lane,
+    producer: adapter.producer,
+    adapter: adapter.adapter,
+    sessionId: identity.sessionId,
+    sourceCommit: plan.headIdentity && plan.headIdentity.commit,
+    sourceTree: plan.headIdentity && plan.headIdentity.tree,
+    policyVersion: plan.policyVersion,
+    contractVersion: plan.contractVersion || REVIEWER_CONTRACT_VERSION,
+    recordedAt: normalizeTimestamp(adapter.now),
+    payload: { request: input.reviewRequest, result: input.reviewResult, executedCommands },
+  };
+}
+
+function invokeReviewGate(adapter, context, event) {
+  const { input } = context;
+  let gateResult;
+  try {
+    gateResult = adapter.reviewGate.handle({
+      expectedRevision: input.expectedRevision === undefined ? 0 : assertExpectedRevision(input.expectedRevision),
+      expectedChainDigest: input.expectedChainDigest === undefined ? null : input.expectedChainDigest,
+      event,
+    });
+  } catch (_) {
+    fail('REVIEW_GATE_FAILED');
+  }
+  return gateResult;
+}
+
+function recordReviewGateObservation(adapter, context) {
+  if (context.input.phase !== 'OBSERVE') return { gateResult: null, gate: normalizeGate(null) };
+  const { input, artifactDigest } = context;
+  assertRecord(input.reviewRequest, 'MALFORMED_REVIEW');
+  assertRecord(input.reviewResult, 'MALFORMED_REVIEW');
+  requireArtifactEvidence(input.reviewResult, artifactDigest);
+  const event = buildReviewGateEvent(adapter, context, normalizeCommands(input.executedCommands));
+  const gateResult = invokeReviewGate(adapter, context, event);
+  return { gateResult, gate: normalizeGate(gateResult, event.eventId) };
+}
+
+function buildObservationProvenance(adapter, context, gate, eventId, recordedAt) {
+  const provenance = {
+    digest: identityDigest(
+      context.identity,
+      context.input.phase,
+      adapter.adapter,
+      adapter.adapterVersion,
+      context.lifecycleEvents,
+      context.readinessEvents,
+      gate,
+      context.sentinel,
+      context.acceptedOutcomeCost,
+    ),
+    reference: `adapter:${ADAPTER_NAME}`,
+    producer: adapter.producer,
+    adapter: adapter.adapter,
+    adapterVersion: adapter.adapterVersion,
+    eventId,
+    receiptId: `${eventId}:receipt`,
+    policyVersion: MIGRATION_POLICY_VERSION,
+    contractVersion: MIGRATION_CONTRACT_VERSION,
+    sourceCommit: context.plan.headIdentity && context.plan.headIdentity.commit,
+    sourceTree: context.plan.headIdentity && context.plan.headIdentity.tree,
+    recordedAt,
+    lifecycleEventIds: boundedEventIds(context.lifecycleEvents),
+    readinessEventIds: boundedEventIds(context.readinessEvents),
+    costObservationId: context.costObservationId,
+  };
+  if (context.lifecycleEventId) provenance.lifecycleEventId = context.lifecycleEventId;
+  if (context.artifactDigest) provenance.artifactDigest = context.artifactDigest;
+  return provenance;
+}
+
+function observationHeader(context, comparison) {
+  const { input } = context;
+  return {
+    schema: OBSERVATION_SCHEMA,
+    phase: input.phase,
+    comparison,
+    authority: 'SENTINEL',
+    effect: input.phase === 'BASELINE' ? 'DISABLED' : 'OBSERVE_ONLY',
+    automaticPromotion: false,
+    retirementEligible: false,
+  };
+}
+
+function observationMetadata(adapter, context, eventId, recordedAt) {
+  const { input, plan } = context;
+  return {
+    producer: adapter.producer,
+    adapter: adapter.adapter,
+    adapterVersion: adapter.adapterVersion,
+    policyVersion: MIGRATION_POLICY_VERSION,
+    contractVersion: MIGRATION_CONTRACT_VERSION,
+    sourceCommit: plan.headIdentity && plan.headIdentity.commit,
+    sourceTree: plan.headIdentity && plan.headIdentity.tree,
+    recordedAt,
+    eventId,
+    receiptId: `${eventId}:receipt`,
+  };
+}
+
+function observationIdentity(context) {
+  const { plan, identity, obligation } = context;
+  return {
+    workId: plan.workId,
+    decisionId: plan.decisionId,
+    planId: plan.planId,
+    waveId: plan.waveId,
+    obligationId: obligation.obligationId,
+    lane: obligation.lane,
+    taskId: identity.taskId,
+    attemptId: identity.attemptId,
+    attempt: identity.attempt,
+    sessionId: identity.sessionId,
+    dispatchId: identity.dispatchId,
+    scopeId: identity.scopeId,
+    diffId: identity.diffId,
+    identity,
+  };
+}
+
+function observationEvidence(context, gate) {
+  const { scope, diff, sentinel, acceptedOutcomeCost } = context;
+  const evidence = {
+    scope,
+    diff,
+    sentinelStatus: normalizeStatus(sentinel.status || sentinel.outcome || sentinel.verdict)
+      || canonicalVerdict(sentinel.verdict || sentinel.outcome || sentinel.status)
+      || 'UNKNOWN',
+    reviewGateStatus: gate.status || 'NOT_RUN',
+    sentinelOutcome: sentinel,
+    reviewGate: gate,
+    acceptedOutcomeCost,
+  };
+  if (context.legacyCost) evidence.cost = context.legacyCost;
+  return evidence;
+}
+
+function buildMigrationObservation(adapter, context, gate, comparison, provenance, eventId, recordedAt) {
+  return immutable({
+    ...observationHeader(context, comparison),
+    ...observationMetadata(adapter, context, eventId, recordedAt),
+    ...observationIdentity(context),
+    ...observationEvidence(context, gate),
+    authorizesApproval: false,
+    clearsSentinel: false,
+    blocksSentinel: false,
+    allowsTargetProgress: false,
+    liveness: 'COMPATIBILITY_ONLY',
+    processLivenessRole: 'COMPATIBILITY_ONLY',
+    provenance,
+  });
+}
+
+function persistMigrationObservation(adapter, context, observation, gateResult) {
+  const { input } = context;
+  const expectedRevision = input.expectedRevision === undefined ? 0 : assertExpectedRevision(input.expectedRevision);
+  const expectedChainDigest = input.expectedChainDigest === undefined ? null : input.expectedChainDigest;
+  const coordinatorRevision = input.phase === 'OBSERVE'
+    && gateResult && Number.isSafeInteger(gateResult.revision) && gateResult.revision >= 0
+    ? gateResult.revision : expectedRevision;
+  const coordinatorChainDigest = input.phase === 'OBSERVE'
+    && gateResult && typeof gateResult.chainDigest === 'string'
+    ? gateResult.chainDigest : expectedChainDigest;
+  let recording;
+  try {
+    recording = adapter.migrationCoordinator.record({
+      expectedRevision: coordinatorRevision,
+      expectedChainDigest: coordinatorChainDigest,
+      observation,
+    });
+  } catch (_) {
+    fail('RECORDING_FAILED');
+  }
+  return isRecord(recording)
+    ? { ...recording, observation, reviewGate: gateResult }
+    : { status: 'RECORDED', observation, reviewGate: gateResult };
+}
 
 class ClaudeReviewGateAdapter {
   constructor({
@@ -556,213 +727,26 @@ class ClaudeReviewGateAdapter {
   }
 
   observe(input = {}) {
-    assertRecord(input, 'MALFORMED_INPUT');
-    input = assertBoundedInput(input);
-    if (!PHASES.has(input.phase)) fail('UNSUPPORTED_PHASE');
-
-    const identity = assertIdentity(input.identity);
-    const plan = input.plan;
-    assertRecord(plan, 'MALFORMED_PLAN');
-    for (const field of ['workId', 'decisionId', 'planId', 'waveId']) safeId(plan[field], 'MALFORMED_PLAN');
-    const scope = normalizeScope(plan);
-    const diff = normalizeDiff(plan);
-    if (!Array.isArray(plan.obligations) || plan.obligations.length === 0) fail('MALFORMED_PLAN');
-    const obligation = plan.obligations.find((candidate) => isRecord(candidate)
-      && isRecord(input.reviewResult)
-      && candidate.obligationId === input.reviewResult.obligationId)
-      || plan.obligations[0];
-    assertRecord(obligation, 'MALFORMED_PLAN');
-    safeId(obligation.obligationId, 'MALFORMED_PLAN');
-    safeId(obligation.lane, 'MALFORMED_PLAN');
-
-    const lifecycleEvents = Array.isArray(input.lifecycleEvents) ? input.lifecycleEvents : [];
-    const readinessEvents = Array.isArray(input.readinessEvents) ? input.readinessEvents : [];
-    let artifactDigest = null;
-    if (input.phase === 'OBSERVE') {
-      if (lifecycleEvents.length === 0) fail('MISSING_LIFECYCLE');
-      validateEvidenceEvents(lifecycleEvents, identity);
-      validateEvidenceEvents(readinessEvents, identity, { readiness: true });
-      artifactDigest = readinessArtifactDigest(readinessEvents);
-    } else {
-      if (lifecycleEvents.length > MAX_EVENTS || readinessEvents.length > MAX_EVENTS) fail('BOUNDED_INPUT');
-    }
-
-    const sentinel = normalizeSentinel(input.sentinelOutcome);
-    let gateResult = null;
-    let gate = normalizeGate(null);
-    if (input.phase === 'OBSERVE') {
-      assertRecord(input.reviewRequest, 'MALFORMED_REVIEW');
-      assertRecord(input.reviewResult, 'MALFORMED_REVIEW');
-      requireArtifactEvidence(input.reviewResult, artifactDigest);
-      const executedCommands = normalizeCommands(input.executedCommands);
-      const event = {
-        schema: STORE_EVENT_SCHEMA,
-        eventId: makeEventId({
-          phase: input.phase,
-          workId: plan.workId,
-          planId: plan.planId,
-          waveId: plan.waveId,
-          taskId: identity.taskId,
-          attemptId: identity.attemptId,
-          sessionId: identity.sessionId,
-          dispatchId: identity.dispatchId,
-          comparison: 'pending',
-        }, this.producer, this.adapter),
-        eventType: REVIEW_RESULT_RECORDED,
-        workId: plan.workId,
-        waveId: plan.waveId,
-        planId: plan.planId,
-        decisionId: plan.decisionId,
-        obligationId: input.reviewResult.obligationId,
-        lane: input.reviewResult.lane,
-        producer: this.producer,
-        adapter: this.adapter,
-        sessionId: identity.sessionId,
-        sourceCommit: plan.headIdentity && plan.headIdentity.commit,
-        sourceTree: plan.headIdentity && plan.headIdentity.tree,
-        policyVersion: plan.policyVersion,
-        contractVersion: plan.contractVersion || REVIEWER_CONTRACT_VERSION,
-        recordedAt: normalizeTimestamp(this.now),
-        payload: {
-          request: input.reviewRequest,
-          result: input.reviewResult,
-          executedCommands,
-        },
-      };
-      try {
-        gateResult = this.reviewGate.handle({
-          expectedRevision: input.expectedRevision === undefined ? 0 : assertExpectedRevision(input.expectedRevision),
-          expectedChainDigest: input.expectedChainDigest === undefined ? null : input.expectedChainDigest,
-          event,
-        });
-      } catch (_) {
-        fail('REVIEW_GATE_FAILED');
-      }
-      gate = normalizeGate(gateResult);
-    }
-
-    const sentinelStatus = normalizeStatus(sentinel.status || sentinel.outcome || sentinel.verdict)
-      || canonicalVerdict(sentinel.verdict || sentinel.outcome || sentinel.status)
-      || 'UNKNOWN';
-    const reviewGateStatus = gate.status || 'NOT_RUN';
-    const comparison = input.phase === 'BASELINE' ? 'INDETERMINATE' : comparisonFor(sentinel, gate);
-    const recordedAt = normalizeTimestamp(this.now);
+    const context = normalizeObservationContext(input);
+    const { gateResult, gate } = recordReviewGateObservation(this, context);
+    const comparison = context.input.phase === 'BASELINE' ? 'INDETERMINATE' : comparisonFor(context.sentinel, gate);
     const eventId = makeEventId({
-      phase: input.phase,
-      workId: plan.workId,
-      planId: plan.planId,
-      waveId: plan.waveId,
-      taskId: identity.taskId,
-      attemptId: identity.attemptId,
-      sessionId: identity.sessionId,
-      dispatchId: identity.dispatchId,
+      phase: context.input.phase,
+      workId: context.plan.workId,
+      planId: context.plan.planId,
+      waveId: context.plan.waveId,
+      taskId: context.identity.taskId,
+      attemptId: context.identity.attemptId,
+      sessionId: context.identity.sessionId,
+      dispatchId: context.identity.dispatchId,
+      obligationId: context.obligation.obligationId,
+      lane: context.obligation.lane,
       comparison,
     }, this.producer, this.adapter);
-    const provenance = {
-      digest: identityDigest(
-        identity,
-        input.phase,
-        this.adapter,
-        this.adapterVersion,
-        lifecycleEvents,
-        readinessEvents,
-        gate,
-        sentinel,
-      ),
-      reference: `adapter:${ADAPTER_NAME}`,
-      producer: this.producer,
-      adapter: this.adapter,
-      adapterVersion: this.adapterVersion,
-      eventId,
-      receiptId: `${eventId}:receipt`,
-      policyVersion: MIGRATION_POLICY_VERSION,
-      contractVersion: MIGRATION_CONTRACT_VERSION,
-      sourceCommit: plan.headIdentity && plan.headIdentity.commit,
-      sourceTree: plan.headIdentity && plan.headIdentity.tree,
-      recordedAt,
-      lifecycleEventIds: boundedEventIds(lifecycleEvents),
-      readinessEventIds: boundedEventIds(readinessEvents),
-    };
-    if (artifactDigest) provenance.artifactDigest = artifactDigest;
-    const observation = immutable({
-      schema: OBSERVATION_SCHEMA,
-      phase: input.phase,
-      comparison,
-      authority: 'SENTINEL',
-      effect: input.phase === 'BASELINE' ? 'DISABLED' : 'OBSERVE_ONLY',
-      automaticPromotion: false,
-      retirementEligible: false,
-      producer: this.producer,
-      adapter: this.adapter,
-      adapterVersion: this.adapterVersion,
-      policyVersion: MIGRATION_POLICY_VERSION,
-      contractVersion: MIGRATION_CONTRACT_VERSION,
-      sourceCommit: plan.headIdentity && plan.headIdentity.commit,
-      sourceTree: plan.headIdentity && plan.headIdentity.tree,
-      recordedAt,
-      eventId,
-      receiptId: `${eventId}:receipt`,
-      workId: plan.workId,
-      decisionId: plan.decisionId,
-      planId: plan.planId,
-      waveId: plan.waveId,
-      obligationId: obligation.obligationId,
-      lane: obligation.lane,
-      taskId: identity.taskId,
-      attemptId: identity.attemptId,
-      attempt: identity.attempt,
-      sessionId: identity.sessionId,
-      dispatchId: identity.dispatchId,
-      scopeId: identity.scopeId,
-      diffId: identity.diffId,
-      identity,
-      scope,
-      diff,
-      sentinelStatus,
-      reviewGateStatus,
-      sentinelOutcome: sentinel,
-      reviewGate: gate,
-      cost: sentinel.cost,
-      authorizesApproval: false,
-      clearsSentinel: false,
-      blocksSentinel: false,
-      allowsTargetProgress: false,
-      liveness: 'COMPATIBILITY_ONLY',
-      processLivenessRole: 'COMPATIBILITY_ONLY',
-      provenance,
-    });
-
-    const expectedRevision = input.expectedRevision === undefined
-      ? 0
-      : assertExpectedRevision(input.expectedRevision);
-    const expectedChainDigest = input.expectedChainDigest === undefined
-      ? null
-      : input.expectedChainDigest;
-    const coordinatorRevision = input.phase === 'OBSERVE'
-      && gateResult
-      && Number.isSafeInteger(gateResult.revision)
-      && gateResult.revision >= 0
-      ? gateResult.revision
-      : expectedRevision;
-    const coordinatorChainDigest = input.phase === 'OBSERVE'
-      && gateResult
-      && typeof gateResult.chainDigest === 'string'
-      ? gateResult.chainDigest
-      : expectedChainDigest;
-    let recording;
-    try {
-      recording = this.migrationCoordinator.record({
-        expectedRevision: coordinatorRevision,
-        expectedChainDigest: coordinatorChainDigest,
-        observation,
-      });
-    } catch (_) {
-      fail('RECORDING_FAILED');
-    }
-    if (isRecord(recording)) {
-      return { ...recording, observation, reviewGate: gateResult };
-    }
-    return { status: 'RECORDED', observation, reviewGate: gateResult };
+    const recordedAt = normalizeTimestamp(this.now);
+    const provenance = buildObservationProvenance(this, context, gate, eventId, recordedAt);
+    const observation = buildMigrationObservation(this, context, gate, comparison, provenance, eventId, recordedAt);
+    return persistMigrationObservation(this, context, observation, gateResult);
   }
 }
 

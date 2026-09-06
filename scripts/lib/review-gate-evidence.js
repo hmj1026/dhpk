@@ -87,8 +87,10 @@ const AUTHORITY_PAYLOAD_FIELDS = Object.freeze([
   'expiresAt',
 ]);
 const COMMAND_DIGEST = /^digest:sha256:[a-f0-9]{64}$/;
+const OBSERVE_ONLY = 'OBSERVE_ONLY';
 
 const isRecord = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
+const hasOwn = (value, key) => Object.prototype.hasOwnProperty.call(value, key);
 
 const gateError = (code, message) => {
   const error = new Error(message);
@@ -316,6 +318,7 @@ const buildReceiptPayload = (event, plan, validated) => {
     evidenceReferences: result.evidenceReferences,
     executedCommands,
   };
+  if (event.effect === OBSERVE_ONLY) payload.effect = OBSERVE_ONLY;
   if (result.semanticVerdict !== undefined) payload.semanticVerdict = result.semanticVerdict;
   return payload;
 };
@@ -413,7 +416,12 @@ class ReviewGateEvidence {
     validateCommonEvent(event);
     this.validateEventType(event.eventType);
     if (event.eventType !== REVIEW_RESULT_RECORDED) fail('MALFORMED_EVIDENCE', 'event is not a review result');
-    exactKeys(event, [...EVENT_FIELDS, 'obligationId', 'lane'], 'REVIEW_RESULT_RECORDED event');
+    const eventFields = [...EVENT_FIELDS, 'obligationId', 'lane'];
+    if (hasOwn(event, 'effect')) eventFields.push('effect');
+    exactKeys(event, eventFields, 'REVIEW_RESULT_RECORDED event');
+    if (hasOwn(event, 'effect') && event.effect !== OBSERVE_ONLY) {
+      fail('MALFORMED_EVIDENCE', 'review event effect is unsupported');
+    }
     exactKeys(event.payload, ['request', 'result', 'executedCommands'], 'REVIEW_RESULT_RECORDED payload');
     eventIdentity(event, plan);
     const result = createReviewResult(event.payload.result);
