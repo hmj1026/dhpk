@@ -401,20 +401,38 @@ function blockedDeliveryProjection(error, control) {
   return result;
 }
 
+// `evidence.verifications` is in canonical (ascending recordedAt, then
+// receiptId) order, so the last match for an evidenceType is the latest
+// observation. Distinct verificationIds for the same evidenceType mean two
+// different post-merge checks are in play with no decision-declared list to
+// enumerate them against (this receipt set carries no `decision`), so that
+// case fails closed as ambiguous rather than picking one arbitrarily.
+function latestByEvidenceType(verifications, evidenceType) {
+  const matches = verifications.filter((item) => item.payload.evidenceType === evidenceType);
+  if (matches.length === 0) return { item: null, ambiguous: false };
+  const distinctIds = new Set(matches.map((item) => item.payload.verificationId));
+  if (distinctIds.size > 1) return { item: null, ambiguous: true };
+  return { item: matches[matches.length - 1], ambiguous: false };
+}
+
 function reduceDeliveryAccepted(evidence, control) {
   const result = baseDeliveryProjection(evidence.identity, control);
-  const merge = evidence.verifications.find((item) => item.payload.evidenceType === PROVIDER_MERGE);
-  const postMergeCi = evidence.verifications.find((item) => item.payload.evidenceType === 'LOCAL_GATE');
-  const mergeObserved = Boolean(merge) && DELIVERY_VERIFICATION_OUTCOMES.includes(merge.payload.outcome);
-  const ciObserved = Boolean(postMergeCi) && DELIVERY_VERIFICATION_OUTCOMES.includes(postMergeCi.payload.outcome);
+  const merge = latestByEvidenceType(evidence.verifications, PROVIDER_MERGE);
+  const postMergeCi = latestByEvidenceType(evidence.verifications, 'LOCAL_GATE');
+  const mergeObserved = !merge.ambiguous && Boolean(merge.item)
+    && DELIVERY_VERIFICATION_OUTCOMES.includes(merge.item.payload.outcome);
+  const ciObserved = !postMergeCi.ambiguous && Boolean(postMergeCi.item)
+    && DELIVERY_VERIFICATION_OUTCOMES.includes(postMergeCi.item.payload.outcome);
   if (mergeObserved && ciObserved) {
     result.state = 'ARCHIVE_READY';
     result.completion.delivery = 'COMPLETE';
     return result;
   }
   const reasonCodes = [];
-  if (!mergeObserved) reasonCodes.push('MERGE_UNOBSERVED');
-  if (!ciObserved) reasonCodes.push('POST_MERGE_CI_UNOBSERVED');
+  if (merge.ambiguous) reasonCodes.push('AMBIGUOUS_MERGE_OBSERVATION');
+  else if (!mergeObserved) reasonCodes.push('MERGE_UNOBSERVED');
+  if (postMergeCi.ambiguous) reasonCodes.push('AMBIGUOUS_POST_MERGE_CI');
+  else if (!ciObserved) reasonCodes.push('POST_MERGE_CI_UNOBSERVED');
   result.condition = { type: 'BLOCKED', resumeState: 'POST_MERGE_PENDING', reasonCodes };
   return result;
 }

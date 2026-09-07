@@ -156,6 +156,44 @@ test('post-merge CI alone without an observed merge is not Delivery Complete', (
   assert.ok(projection.condition.reasonCodes.includes('MERGE_UNOBSERVED'));
 });
 
+test('a later corrective post-merge CI observation supersedes an earlier failure', () => {
+  const failed = postMergeCiReceipt(makeStore(), { outcome: 'FAIL' });
+  const corrected = {
+    ...failed,
+    receiptId: `${failed.receiptId}-rerun`,
+    recordedAt: '2026-09-07T00:05:00.000Z',
+    payload: { ...failed.payload, outcome: 'PASS' },
+  };
+  const receipts = [mergeObservedReceipt(makeStore()), failed, corrected];
+  const projection = deliveryCoordinator().reduceDelivery(receipts);
+  assert.strictEqual(projection.state, 'ARCHIVE_READY');
+  assert.strictEqual(projection.completion.delivery, 'COMPLETE');
+});
+
+test('a later regression after an earlier pass is not overstated as Delivery Complete', () => {
+  const passed = postMergeCiReceipt(makeStore());
+  const regressed = {
+    ...passed,
+    receiptId: `${passed.receiptId}-rerun`,
+    recordedAt: '2026-09-07T00:05:00.000Z',
+    payload: { ...passed.payload, outcome: 'FAIL' },
+  };
+  const receipts = [mergeObservedReceipt(makeStore()), passed, regressed];
+  const projection = deliveryCoordinator().reduceDelivery(receipts);
+  assert.strictEqual(projection.state, 'POST_MERGE_PENDING');
+  assert.ok(projection.condition.reasonCodes.includes('POST_MERGE_CI_UNOBSERVED'));
+});
+
+test('two distinct required post-merge checks disagreeing fails closed as ambiguous, not an arbitrary pick', () => {
+  const lint = postMergeCiReceipt(makeStore(), { verificationId: 'verification-post-merge-lint', outcome: 'PASS' });
+  const unitTests = postMergeCiReceipt(makeStore(), { verificationId: 'verification-post-merge-unit', outcome: 'FAIL' });
+  const receipts = [mergeObservedReceipt(makeStore()), lint, unitTests];
+  const projection = deliveryCoordinator().reduceDelivery(receipts);
+  assert.strictEqual(projection.state, 'POST_MERGE_PENDING');
+  assert.strictEqual(projection.completion.delivery, 'PENDING');
+  assert.ok(projection.condition.reasonCodes.includes('AMBIGUOUS_POST_MERGE_CI'));
+});
+
 test('missing transport reports BLOCKED/PENDING and never overstates delivery', () => {
   const projection = deliveryCoordinator().reduceDelivery([]);
   assert.strictEqual(projection.completion.delivery, 'PENDING');

@@ -87,18 +87,31 @@ function importBundle({ bundle, trustPolicy, expectedIdentity } = {}) {
   if (digestReceipts(bundle.receipts) !== bundle.digest) fail('DIGEST_MISMATCH');
   if (!COMMIT.test(bundle.sourceCommit || '') || !TREE.test(bundle.sourceTree || '')) fail('MALFORMED_BUNDLE');
 
-  if (expectedIdentity !== undefined) {
-    if (!isRecord(expectedIdentity) || !isNonEmptyString(expectedIdentity.commit)) fail('MALFORMED_BUNDLE');
-    if (bundle.sourceCommit.toLowerCase() !== expectedIdentity.commit.toLowerCase()) fail('FOREIGN_IDENTITY');
-    if (expectedIdentity.tree !== undefined
-      && bundle.sourceTree.toLowerCase() !== String(expectedIdentity.tree).toLowerCase()) fail('FOREIGN_IDENTITY');
-  }
-
+  // The envelope's sourceCommit/sourceTree are declared metadata, not
+  // protected by `digest` (which hashes only `receipts`). Identity checks
+  // must instead run against `evidence.bindings`, which evaluateReceipts
+  // derives from the per-receipt sourceCommit/sourceTree fields that ARE
+  // inside the hashed receipts — an envelope claiming a commit its own
+  // receipts disagree with is a malformed bundle, not the caller's evidence.
+  let evidence;
   try {
-    return evaluateReceipts(bundle.receipts, trustPolicy);
+    evidence = evaluateReceipts(bundle.receipts, trustPolicy);
   } catch (error) {
     throw asBundleError(error);
   }
+  if (bundle.sourceCommit.toLowerCase() !== evidence.bindings.sourceCommit.toLowerCase()
+    || bundle.sourceTree.toLowerCase() !== evidence.bindings.sourceTree.toLowerCase()) {
+    fail('MALFORMED_BUNDLE');
+  }
+
+  if (expectedIdentity !== undefined) {
+    if (!isRecord(expectedIdentity) || !isNonEmptyString(expectedIdentity.commit)) fail('MALFORMED_BUNDLE');
+    if (evidence.bindings.sourceCommit.toLowerCase() !== expectedIdentity.commit.toLowerCase()) fail('FOREIGN_IDENTITY');
+    if (expectedIdentity.tree !== undefined
+      && evidence.bindings.sourceTree.toLowerCase() !== String(expectedIdentity.tree).toLowerCase()) fail('FOREIGN_IDENTITY');
+  }
+
+  return evidence;
 }
 
 module.exports = {

@@ -110,6 +110,26 @@ test('import rejects a tampered receipt whose digest no longer matches', () => {
   );
 });
 
+test('import rejects an envelope whose declared identity disagrees with its own digest-protected receipts', () => {
+  const bundle = clone(exportMergeReady());
+  const forgedCommit = 'ffffffffffffffffffffffffffffffffffffffff';
+  bundle.sourceCommit = forgedCommit;
+  // The digest only covers `receipts`, so this envelope edit alone leaves
+  // DIGEST_MISMATCH unable to catch it. An expectedIdentity check that
+  // compared against this forged, unprotected field (instead of the
+  // identity evaluateReceipts derives from the receipts themselves) would
+  // wrongly accept evidence for a different real commit than it verified.
+  expectRejected(
+    () => importBundle({
+      bundle,
+      trustPolicy: FIXTURE.trustPolicy,
+      expectedIdentity: { commit: forgedCommit, tree: bundle.sourceTree },
+    }),
+    'MALFORMED_BUNDLE',
+    'a forged envelope identity must not bypass the receipt-derived identity check',
+  );
+});
+
 test('import rejects a foreign commit identity', () => {
   const bundle = exportMergeReady();
   expectRejected(
