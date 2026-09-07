@@ -111,6 +111,51 @@ credentials, and session transcripts are excluded. A migration observation is
 never converted into synthetic Sentinel clearance and cannot itself satisfy a
 required review or change-control gate.
 
+## Codex Review Gate submission
+
+Codex has no legacy Sentinel, hook-based dispatch, or pending-file/SubagentStop
+mechanism to observe or compare against, so the Codex Review Gate adapter
+(`scripts/lib/codex-review-gate-adapter.js`) is not a migration-observation
+bridge. It shares the same `ReviewGate.handle()`/`ReceiptStore` write path and
+`review` receipt kind that the Claude adapter's OBSERVE-phase diagnostic
+evaluation also uses, but it produces no `migration-observation` receipt, no
+`sentinelOutcome`, no `comparison` (`AGREE`/`DISAGREE`/`INDETERMINATE`), and
+has no `MigrationCoordinator` involvement: Codex has nothing legacy to
+reconcile against, so none of that comparison vocabulary applies. Given an
+already-registered plan (the `PLAN_REGISTERED` event `scripts/lib/review-gate.js`
+projects before any `REVIEW_RESULT_RECORDED` event for the same wave is
+accepted), a reviewer-contract v2
+Review Request and Review Result, and durable lifecycle/readiness events for the
+exact same identity, it submits the same `REVIEW_RESULT_RECORDED` event shape
+the Claude adapter uses directly to that shared
+`ReviewGate.handle()`/`ReceiptStore`. For a `COMPLETE` + `REQUIRED` result, the
+adapter additionally requires an `artifact-sha256:` reference bound to the
+readiness digest; incomplete or `NOT_APPLICABLE` results keep their contract
+axes without manufacturing that artifact binding.
+
+The adapter is inert until explicitly activated. Its `activation` constructor
+option defaults to `INACTIVE`, in which state `record()` refuses to run and
+`capabilities()` reports `effect: 'DISABLED'`. Constructing it with
+`activation: 'ACTIVE'` reports `effect: 'OBSERVE_ONLY'` and allows submission;
+the persisted `REVIEW_RESULT_RECORDED` event itself carries that same
+`effect: 'OBSERVE_ONLY'`, so Workflow Coordinator ignores it exactly as it
+ignores the Claude adapter's `OBSERVE_ONLY` events. The returned receipt
+likewise always fixes `authority: 'SENTINEL'`,
+`authorizesApproval: false`, `clearsSentinel: false`, `blocksSentinel: false`,
+and `allowsTargetProgress: false` regardless of the Review Gate outcome —
+Sentinel remains authoritative until a separately approved, measured cutover
+changes it. The adapter never registers a plan, selects a lane, or chooses an
+obligation; it binds to the `obligationId`/`lane` the caller's Review Result
+already names, exactly as the Claude adapter does. Normal `PASS`,
+`CHANGES_REQUIRED`, `UNAVAILABLE`, and receipt-reuse submissions therefore
+reach the caller with the same `{executionStatus, applicability,
+semanticVerdict}` triple the shared Review Gate produced. Canonical
+`NOT_APPLICABLE` is the empty-plan registration path: `ReviewGate` accepts that
+plan with `EMPTY_DIFF`, no obligation, no review request, and no receipt, so it
+does not enter `record()` as a synthetic obligation/result. Both adapters
+delegate applicable submissions to the identical injected `ReviewGate` rather
+than re-deriving its judgment.
+
 ## Orchestration and Sentinel ownership
 
 Orchestration owns worker selection, dispatch, handoff, retry linkage, and
@@ -134,8 +179,13 @@ separate lifecycle vocabulary; lifecycle summary codes must never be passed to
 Sentinel clearance.
 
 See the [reviewer contract](reviewer-contract.md),
-[ADR-0005](../adr/0005-resumed-review-lifecycle-clearance.md), and
-[ADR-0009](../adr/0009-distribution-projection-and-orchestration-ownership.md).
+[ADR-0005](../adr/0005-resumed-review-lifecycle-clearance.md),
+[ADR-0009](../adr/0009-distribution-projection-and-orchestration-ownership.md),
+[ADR-0016](../adr/0016-phase-and-roll-back-review-gate-migration.md) for the
+`BASELINE`/`OBSERVE`/`MigrationCoordinator` phase vocabulary the Claude
+section above uses, and
+[ADR-0017](../adr/0017-implement-review-gate-as-a-local-event-module.md) for
+the `ReviewGate`/`ReceiptStore` event module both adapter sections describe.
 
 ## Retry and quota behavior
 
