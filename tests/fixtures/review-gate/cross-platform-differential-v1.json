@@ -1,0 +1,287 @@
+{
+  "schema": "dhpk.cross-platform-differential-corpus.v1",
+  "scenarioKinds": ["REQUEST", "RESULT", "RECEIPT", "REPLAY", "WORKFLOW", "PROVIDER", "FAILURE"],
+  "adapterKeys": ["CLAUDE", "CODEX", "CI", "GIT_PROVIDER", "CORE"],
+  "sentinelCorpus": "tests/fixtures/review-gate/sentinel-differential-v1.json",
+  "sentinelCoverage": [
+    {
+      "sentinelCaseId": "no-op-not-applicable",
+      "mode": "NORMALIZED",
+      "corpusCaseId": null,
+      "normalizedExpected": { "schema": "dhpk.sentinel-outcome.v1", "caseId": "no-op-not-applicable", "evidenceCondition": "NO_OP", "lifecycleClearance": "NOT_APPLICABLE", "semanticApproval": "NOT_APPLICABLE", "completion": "PASS", "sentinelAuthority": true, "unresolvedVerdict": false, "reasonCodes": ["NO_REVIEW_OBLIGATION"] }
+    },
+    {
+      "sentinelCaseId": "fresh-pass",
+      "mode": "LIVE",
+      "corpusCaseId": "claude-baseline-sentinel-fresh-pass",
+      "normalizedExpected": { "schema": "dhpk.sentinel-outcome.v1", "caseId": "fresh-pass", "evidenceCondition": "FRESH_PASS", "lifecycleClearance": "CLEARED", "semanticApproval": "APPROVED", "completion": "PASS", "sentinelAuthority": true, "unresolvedVerdict": false, "reasonCodes": ["FRESH_PASSING_ARTIFACT"] }
+    },
+    {
+      "sentinelCaseId": "missing-artifact",
+      "mode": "LIVE",
+      "corpusCaseId": "claude-baseline-sentinel-missing-artifact",
+      "normalizedExpected": { "schema": "dhpk.sentinel-outcome.v1", "caseId": "missing-artifact", "evidenceCondition": "MISSING", "lifecycleClearance": "PENDING", "semanticApproval": "NOT_ESTABLISHED", "completion": "BLOCKED", "sentinelAuthority": true, "unresolvedVerdict": false, "reasonCodes": ["MISSING_ARTIFACT"] }
+    },
+    {
+      "sentinelCaseId": "stale-artifact",
+      "mode": "NORMALIZED",
+      "corpusCaseId": null,
+      "normalizedExpected": { "schema": "dhpk.sentinel-outcome.v1", "caseId": "stale-artifact", "evidenceCondition": "STALE", "lifecycleClearance": "PENDING", "semanticApproval": "NOT_ESTABLISHED", "completion": "BLOCKED", "sentinelAuthority": true, "unresolvedVerdict": false, "reasonCodes": ["STALE_ARTIFACT"] }
+    },
+    {
+      "sentinelCaseId": "malformed-native-artifact",
+      "mode": "NORMALIZED",
+      "corpusCaseId": null,
+      "normalizedExpected": { "schema": "dhpk.sentinel-outcome.v1", "caseId": "malformed-native-artifact", "evidenceCondition": "MALFORMED_NATIVE", "lifecycleClearance": "PENDING", "semanticApproval": "NOT_ESTABLISHED", "completion": "BLOCKED", "sentinelAuthority": true, "unresolvedVerdict": false, "reasonCodes": ["MALFORMED_VERDICT"] }
+    },
+    {
+      "sentinelCaseId": "misplaced-artifact",
+      "mode": "NORMALIZED",
+      "corpusCaseId": null,
+      "normalizedExpected": { "schema": "dhpk.sentinel-outcome.v1", "caseId": "misplaced-artifact", "evidenceCondition": "MISPLACED", "lifecycleClearance": "PENDING", "semanticApproval": "NOT_ESTABLISHED", "completion": "BLOCKED", "sentinelAuthority": true, "unresolvedVerdict": false, "reasonCodes": ["MISPLACED_ARTIFACT"] }
+    },
+    {
+      "sentinelCaseId": "foreign-identity",
+      "mode": "NORMALIZED",
+      "corpusCaseId": null,
+      "normalizedExpected": { "schema": "dhpk.sentinel-outcome.v1", "caseId": "foreign-identity", "evidenceCondition": "FOREIGN_IDENTITY", "lifecycleClearance": "PENDING", "semanticApproval": "NOT_ESTABLISHED", "completion": "BLOCKED", "sentinelAuthority": true, "unresolvedVerdict": false, "reasonCodes": ["FOREIGN_IDENTITY"] }
+    },
+    {
+      "sentinelCaseId": "concurrent-session",
+      "mode": "NORMALIZED",
+      "corpusCaseId": null,
+      "normalizedExpected": { "schema": "dhpk.sentinel-outcome.v1", "caseId": "concurrent-session", "evidenceCondition": "CONCURRENT_SESSION", "lifecycleClearance": "PENDING", "semanticApproval": "NOT_ESTABLISHED", "completion": "BLOCKED", "sentinelAuthority": true, "unresolvedVerdict": false, "reasonCodes": ["FOREIGN_SESSION"] }
+    },
+    {
+      "sentinelCaseId": "resumed-pass",
+      "mode": "NORMALIZED",
+      "corpusCaseId": null,
+      "normalizedExpected": { "schema": "dhpk.sentinel-outcome.v1", "caseId": "resumed-pass", "evidenceCondition": "RESUMED_PASS", "lifecycleClearance": "CLEARED", "semanticApproval": "APPROVED", "completion": "PASS", "sentinelAuthority": true, "unresolvedVerdict": false, "reasonCodes": ["RESUMED_FRESH_PASS"] }
+    },
+    {
+      "sentinelCaseId": "resumed-intermediate",
+      "mode": "NORMALIZED",
+      "corpusCaseId": null,
+      "normalizedExpected": { "schema": "dhpk.sentinel-outcome.v1", "caseId": "resumed-intermediate", "evidenceCondition": "RESUMED_INTERMEDIATE", "lifecycleClearance": "PENDING", "semanticApproval": "NOT_ESTABLISHED", "completion": "BLOCKED", "sentinelAuthority": true, "unresolvedVerdict": false, "reasonCodes": ["RESUMED_INCOMPLETE"] }
+    },
+    {
+      "sentinelCaseId": "resumed-malformed",
+      "mode": "NORMALIZED",
+      "corpusCaseId": null,
+      "normalizedExpected": { "schema": "dhpk.sentinel-outcome.v1", "caseId": "resumed-malformed", "evidenceCondition": "RESUMED_MALFORMED", "lifecycleClearance": "CLEARED", "semanticApproval": "NOT_ESTABLISHED", "completion": "BLOCKED", "sentinelAuthority": true, "unresolvedVerdict": true, "reasonCodes": ["MALFORMED_VERDICT"] }
+    },
+    {
+      "sentinelCaseId": "interrupted-reviewer",
+      "mode": "NORMALIZED",
+      "corpusCaseId": null,
+      "normalizedExpected": { "schema": "dhpk.sentinel-outcome.v1", "caseId": "interrupted-reviewer", "evidenceCondition": "INTERRUPTED", "lifecycleClearance": "PENDING", "semanticApproval": "NOT_ESTABLISHED", "completion": "BLOCKED", "sentinelAuthority": true, "unresolvedVerdict": false, "reasonCodes": ["REVIEWER_INTERRUPTED"] }
+    },
+    {
+      "sentinelCaseId": "retry-allowed",
+      "mode": "NORMALIZED",
+      "corpusCaseId": null,
+      "normalizedExpected": { "schema": "dhpk.sentinel-outcome.v1", "caseId": "retry-allowed", "evidenceCondition": "RETRY_ALLOWED", "lifecycleClearance": "PENDING", "semanticApproval": "NOT_ESTABLISHED", "completion": "BLOCKED", "sentinelAuthority": true, "unresolvedVerdict": false, "reasonCodes": ["CORRECTED_RETRY_PENDING"] }
+    },
+    {
+      "sentinelCaseId": "retry-exhausted",
+      "mode": "NORMALIZED",
+      "corpusCaseId": null,
+      "normalizedExpected": { "schema": "dhpk.sentinel-outcome.v1", "caseId": "retry-exhausted", "evidenceCondition": "RETRY_EXHAUSTED", "lifecycleClearance": "PENDING", "semanticApproval": "NOT_ESTABLISHED", "completion": "BLOCKED", "sentinelAuthority": true, "unresolvedVerdict": false, "reasonCodes": ["RETRY_EXHAUSTED"] }
+    },
+    {
+      "sentinelCaseId": "unresolved-fail",
+      "mode": "NORMALIZED",
+      "corpusCaseId": null,
+      "normalizedExpected": { "schema": "dhpk.sentinel-outcome.v1", "caseId": "unresolved-fail", "evidenceCondition": "FAIL_VERDICT", "lifecycleClearance": "PENDING", "semanticApproval": "CHANGES_REQUIRED", "completion": "BLOCKED", "sentinelAuthority": true, "unresolvedVerdict": true, "reasonCodes": ["REVIEWER_FAIL"] }
+    },
+    {
+      "sentinelCaseId": "unresolved-resumed-block",
+      "mode": "NORMALIZED",
+      "corpusCaseId": null,
+      "normalizedExpected": { "schema": "dhpk.sentinel-outcome.v1", "caseId": "unresolved-resumed-block", "evidenceCondition": "RESUMED_BLOCK", "lifecycleClearance": "CLEARED", "semanticApproval": "CHANGES_REQUIRED", "completion": "BLOCKED", "sentinelAuthority": true, "unresolvedVerdict": true, "reasonCodes": ["RESUMED_BLOCK"] }
+    },
+    {
+      "sentinelCaseId": "unresolved-clean-follow-up",
+      "mode": "NORMALIZED",
+      "corpusCaseId": null,
+      "normalizedExpected": { "schema": "dhpk.sentinel-outcome.v1", "caseId": "unresolved-clean-follow-up", "evidenceCondition": "CLEAN_FOLLOW_UP", "lifecycleClearance": "CLEARED", "semanticApproval": "APPROVED", "completion": "PASS", "sentinelAuthority": true, "unresolvedVerdict": false, "reasonCodes": ["RESOLVED_FOLLOW_UP"] }
+    }
+  ],
+  "costCohorts": {
+    "note": "Cohorts group Accepted-Outcome Cost observations by Material Risk so unlike-for-unlike comparisons never inform a promotion decision.",
+    "exitGate": {
+      "minAcceptedOutcomes": 20,
+      "maxUnsafeClearance": 0,
+      "maxCrossIdentityReceiptReuse": 0,
+      "maxMissedRequiredReview": 0,
+      "note": "Mirrors docs/adr/0016 Section on the exit gate. This corpus never asserts the gate is met -- only that the counters are computable and distinguishable by cohort."
+    }
+  },
+  "cases": [
+    {
+      "caseId": "claude-codex-pass-agree",
+      "scenarioKind": "RESULT",
+      "adapters": ["CLAUDE", "CODEX"],
+      "sentinelCaseId": null,
+      "expected": {
+        "semanticVerdict": "PASS",
+        "executionStatus": "COMPLETE",
+        "applicability": "REQUIRED",
+        "effect": "OBSERVE_ONLY",
+        "authority": "SENTINEL",
+        "authorizesApproval": false,
+        "clearsSentinel": false,
+        "blocksSentinel": false,
+        "allowsTargetProgress": false,
+        "comparison": "AGREE"
+      }
+    },
+    {
+      "caseId": "claude-codex-changes-required-parity",
+      "scenarioKind": "RESULT",
+      "adapters": ["CLAUDE", "CODEX"],
+      "sentinelCaseId": null,
+      "expected": {
+        "semanticVerdict": "CHANGES_REQUIRED",
+        "executionStatus": "COMPLETE",
+        "applicability": "REQUIRED",
+        "effect": "OBSERVE_ONLY",
+        "authorizesApproval": false,
+        "allowsTargetProgress": false
+      }
+    },
+    {
+      "caseId": "claude-codex-unavailable-review-result",
+      "scenarioKind": "RESULT",
+      "adapters": ["CLAUDE", "CODEX"],
+      "sentinelCaseId": null,
+      "expected": {
+        "executionStatus": "UNAVAILABLE",
+        "applicability": "REQUIRED",
+        "reviewGateStatus": "NOT_RUN",
+        "allowsTargetProgress": false
+      }
+    },
+    {
+      "caseId": "claude-codex-shared-receipt-decision",
+      "scenarioKind": "RECEIPT",
+      "adapters": ["CLAUDE", "CODEX"],
+      "sentinelCaseId": null,
+      "expected": {
+        "semanticVerdict": "PASS",
+        "executionStatus": "COMPLETE",
+        "applicability": "REQUIRED",
+        "accepted": true
+      }
+    },
+    {
+      "caseId": "claude-observe-disagreement-context",
+      "scenarioKind": "RESULT",
+      "adapters": ["CLAUDE"],
+      "sentinelCaseId": null,
+      "expected": {
+        "comparison": "DISAGREE",
+        "effect": "OBSERVE_ONLY",
+        "authority": "SENTINEL",
+        "requiresExactContext": ["identity", "policyVersion", "contractVersion", "adapter", "sentinelOutcome"]
+      }
+    },
+    {
+      "caseId": "claude-baseline-sentinel-fresh-pass",
+      "scenarioKind": "REQUEST",
+      "adapters": ["CLAUDE"],
+      "sentinelCaseId": "fresh-pass",
+      "expected": {
+        "effect": "DISABLED",
+        "comparison": "INDETERMINATE"
+      }
+    },
+    {
+      "caseId": "claude-baseline-sentinel-missing-artifact",
+      "scenarioKind": "REQUEST",
+      "adapters": ["CLAUDE"],
+      "sentinelCaseId": "missing-artifact",
+      "expected": {
+        "effect": "DISABLED",
+        "comparison": "INDETERMINATE"
+      }
+    },
+    {
+      "caseId": "codex-adapter-inactive-unavailable",
+      "scenarioKind": "FAILURE",
+      "adapters": ["CODEX"],
+      "sentinelCaseId": null,
+      "expected": { "activation": "INACTIVE", "errorCode": "ADAPTER_INACTIVE" }
+    },
+    {
+      "caseId": "ci-adapter-inactive-unavailable",
+      "scenarioKind": "FAILURE",
+      "adapters": ["CI"],
+      "sentinelCaseId": null,
+      "expected": { "activation": "INACTIVE", "errorCode": "ADAPTER_INACTIVE" }
+    },
+    {
+      "caseId": "git-provider-adapter-inactive-unavailable",
+      "scenarioKind": "FAILURE",
+      "adapters": ["GIT_PROVIDER"],
+      "sentinelCaseId": null,
+      "expected": { "activation": "INACTIVE", "errorCode": "ADAPTER_INACTIVE" }
+    },
+    {
+      "caseId": "ci-provider-delivery-archive-ready",
+      "scenarioKind": "PROVIDER",
+      "adapters": ["CI", "GIT_PROVIDER"],
+      "sentinelCaseId": null,
+      "expected": { "deliveryState": "ARCHIVE_READY", "completionDelivery": "COMPLETE", "tier": "ARCHIVE" }
+    },
+    {
+      "caseId": "git-provider-merge-alone-post-merge-pending",
+      "scenarioKind": "PROVIDER",
+      "adapters": ["GIT_PROVIDER"],
+      "sentinelCaseId": null,
+      "expected": { "deliveryState": "POST_MERGE_PENDING", "reasonCode": "POST_MERGE_CI_UNOBSERVED", "tier": "DELIVERY" }
+    },
+    {
+      "caseId": "ci-alone-merge-unobserved-pending",
+      "scenarioKind": "PROVIDER",
+      "adapters": ["CI"],
+      "sentinelCaseId": null,
+      "expected": { "deliveryState": "POST_MERGE_PENDING", "reasonCode": "MERGE_UNOBSERVED", "tier": "REMOTE" }
+    },
+    {
+      "caseId": "ci-provider-ambiguous-post-merge",
+      "scenarioKind": "PROVIDER",
+      "adapters": ["CI"],
+      "sentinelCaseId": null,
+      "expected": { "deliveryState": "POST_MERGE_PENDING", "reasonCode": "AMBIGUOUS_POST_MERGE_CI", "tier": "DELIVERY" }
+    },
+    {
+      "caseId": "provider-missing-transport-blocked",
+      "scenarioKind": "FAILURE",
+      "adapters": ["CORE"],
+      "sentinelCaseId": null,
+      "expected": { "completionDelivery": "PENDING", "conditionType": "BLOCKED", "tier": "LOCAL" }
+    },
+    {
+      "caseId": "workflow-merge-ready-authorizes-pull-request",
+      "scenarioKind": "WORKFLOW",
+      "adapters": ["CORE"],
+      "sentinelCaseId": null,
+      "expected": { "state": "MERGE_READY", "authorizesPullRequest": true, "authority": "SENTINEL", "allowsTargetProgress": false }
+    },
+    {
+      "caseId": "post-merge-ci-corrected-rerun-supersedes-failure",
+      "scenarioKind": "REPLAY",
+      "adapters": ["CI"],
+      "sentinelCaseId": null,
+      "expected": { "deliveryState": "ARCHIVE_READY", "completionDelivery": "COMPLETE" }
+    },
+    {
+      "caseId": "post-merge-ci-regression-not-masked",
+      "scenarioKind": "REPLAY",
+      "adapters": ["CI"],
+      "sentinelCaseId": null,
+      "expected": { "deliveryState": "POST_MERGE_PENDING", "reasonCode": "POST_MERGE_CI_UNOBSERVED" }
+    }
+  ]
+}

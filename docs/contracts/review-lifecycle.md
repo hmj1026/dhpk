@@ -220,6 +220,54 @@ existing `deliveryAuthorized` flag. This changes no enforcement effect —
 adapters do; it is a derived read of already-validated decision evidence, not
 a new authority.
 
+## Cross-platform differential conformance
+
+`tests/fixtures/review-gate/cross-platform-differential-v1.json` is one
+black-box corpus of request, result, receipt, replay, workflow, provider, and
+failure scenarios, each naming the Review Gate adapters it applies to
+(`CLAUDE`, `CODEX`, `CI`, `GIT_PROVIDER`, or the `CORE` `WorkflowCoordinator`/
+`MigrationCoordinator` reducers themselves). It carries every case in the
+`sentinel-differential-v1.json` baseline corpus forward through a
+`sentinelCoverage` map, so every focused legacy Sentinel scenario keeps a
+normalized expected outcome (the exact
+`baseline.normalizeSentinelOutcome` shape) even where it is not separately
+re-driven live. `tests/review-gate-cross-platform-differential.test.js`
+drives the corpus through the real adapters: Claude and Codex are asserted to
+reach the identical `ReviewGate.handle()` decision and the same fixed
+`authority: 'SENTINEL'`, `authorizesApproval`/`clearsSentinel`/
+`blocksSentinel`/`allowsTargetProgress: false` shape for PASS,
+CHANGES_REQUIRED, and UNAVAILABLE Review Results; an OBSERVE disagreement is
+asserted to carry its exact identity, `policyVersion`, `contractVersion`,
+adapter, and legacy Sentinel outcome context. CI and Git-provider cases keep
+their local (`LOCAL_GATE`), remote (`PROVIDER_MERGE`), delivery
+(`reduceDelivery()` `POST_MERGE_PENDING`), and archive (`ARCHIVE_READY`)
+evidence tiers distinct rather than collapsing them into one pass/fail bit.
+
+`scripts/lib/review-gate-conformance.js` is a pure, dependency-free report
+builder: `buildConformanceReport({ corpus, observations, generatedAt })`
+takes only case observations the caller already produced by running the real
+adapters, and returns one deep-frozen report whose every case/adapter cell is
+exactly one of `PASS`, `BLOCKED`, `UNAVAILABLE`, or `NOT_RUN` -- `NOT_RUN` for
+every adapter a case does not name as applicable, so a report can never
+silently default a missing observation into a pass. When an observation
+provides an actual outcome, the report compares it with the case's expected
+contract (expected values are treated as a subset so adapter-specific
+diagnostics may remain) and records every mismatch with the adapter and the
+provided identity/policy/contract/legacy context. The integration test builds
+one such report from every real corpus runner and requires zero un-attributed
+mismatches. The module never imports
+`ReceiptStore`, `ReviewGate`, or `MigrationCoordinator`, fixes
+`migrationPhase: 'OBSERVE'` and `promotionEligible: false` on every report it
+produces, and performs no filesystem or process I/O -- it therefore cannot
+itself advance an ADR-0016 migration phase; only a maintainer Human Authority
+receipt bound to a Migration Coordinator phase transition can do that.
+`groupCostByCohort()` aggregates Accepted-Outcome Cost observations
+(`review-gate-baseline.normalizeAcceptedOutcomeCost`) by Material Risk cohort
+so unlike-for-unlike comparisons never inform a promotion decision; the
+corpus documents the ADR-0016 exit-gate counters (at least 20 accepted
+outcomes, zero unsafe clearance, zero cross-identity receipt reuse, zero
+missed required review) without ever asserting they have been met.
+
 ## Orchestration and Sentinel ownership
 
 Orchestration owns worker selection, dispatch, handoff, retry linkage, and
